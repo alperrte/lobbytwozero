@@ -14,6 +14,14 @@ public class Game {
     @Version private long version;
     @Column(length=16000) private String description;
     private java.time.LocalDate releaseDate;
+    private Boolean earlyAccess;
+    private Integer editorRank;
+    private Instant popularityUpdatedAt;
+    private UUID editorActorId;
+    @Column(length=1000) private String editorEvidence;
+    @ElementCollection @CollectionTable(name="game_languages", joinColumns=@JoinColumn(name="game_id"))
+    @Column(name="language_code", length=35, nullable=false)
+    private Set<String> languages = new HashSet<>();
     private Instant detailsFetchedAt;
     private Instant detailsExpiresAt;
     private Instant detailsNextAttemptAt;

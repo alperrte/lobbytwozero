@@ -9,6 +9,7 @@ public class GameSecurityConfiguration {
     SecurityFilterChain gameSecurity(HttpSecurity http) throws Exception {
         return http.authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/game/games", "/api/v1/game/games/search", "/api/v1/game/games/popular").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/game/*/metadata", "/api/v1/game/*/card", "/api/v1/game/games/*", "/api/v1/game/catalog", "/api/v1/game/catalog/status").permitAll()
                 .anyRequest().denyAll())
                 .exceptionHandling(errors -> errors

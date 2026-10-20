@@ -167,4 +167,12 @@ class PhaseTwoCatalogTest extends PostgresTestSupport {
         assertEquals(1,provider.detailCalls);
         assertEquals(0, games.findById(id).orElseThrow().getDetailsFailureCount());
     }
+    @Test void editorSelectedGamesArePrioritizedWithoutInventingDetails() {
+        UUID id=indexed();
+        jdbc.update("update games set editor_rank=1 where id=?",id);
+        assertEquals(List.of(id),refresh.dueCandidates());
+        provider.supported=false;
+        assertTrue(refresh.dueCandidates().isEmpty());
+        assertEquals(0,provider.detailCalls);
+    }
 }

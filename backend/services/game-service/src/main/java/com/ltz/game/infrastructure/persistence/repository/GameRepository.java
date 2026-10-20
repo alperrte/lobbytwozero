@@ -3,14 +3,23 @@ import com.ltz.game.domain.entity.Game;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.UUID;
 public interface GameRepository extends JpaRepository<Game, UUID> {
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically=true,flushAutomatically=true)
+    @org.springframework.data.jpa.repository.Query("""
+        update Game g set g.editorRank=null,g.popularityUpdatedAt=null,g.editorActorId=null,g.editorEvidence=null,g.version=g.version+1
+        where g.editorRank is not null
+        """)
+    void clearEditorialSelection();
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select g from Game g where g.id in :ids order by g.id")
+    java.util.List<Game> lockEditorialGames(@org.springframework.data.repository.query.Param("ids") java.util.List<UUID> ids);
     @org.springframework.data.jpa.repository.Query("""
         select g.id from Game g where g.status = com.ltz.game.domain.enums.GameStatus.ACTIVE
         and g.origin = com.ltz.game.domain.enums.GameOrigin.EXTERNAL
-        and (g.detailsFetchedAt is not null or g.detailsFailureCount > 0)
+        and (g.detailsFetchedAt is not null or g.detailsFailureCount > 0 or g.editorRank is not null)
         and (g.detailsExpiresAt is null or g.detailsExpiresAt <= :now)
         and (g.detailsNextAttemptAt is null or g.detailsNextAttemptAt <= :now)
         and (g.detailsLastErrorCode is null or g.detailsNextAttemptAt is not null)
-        order by g.detailsFetchedAt asc nulls first, g.id asc
+        order by g.editorRank asc nulls last, g.detailsFetchedAt asc nulls first, g.id asc
         """)
     java.util.List<UUID> detailRefreshCandidates(@org.springframework.data.repository.query.Param("now") java.time.Instant now,
             org.springframework.data.domain.Pageable pageable);

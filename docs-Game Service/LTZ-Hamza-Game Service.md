@@ -69,6 +69,8 @@
 
 ### LTZ-HAM-GAME-03 — Oyun Keşfi, Arama, Filtreleme ve Popüler Oyunlar
 
+**2026-10-21 durumu:** Kullanıcı onayıyla uygulandı. GAME-01/02/03/06/20/25 doğrulandı; GAME-04 ve GAME-05'in LTZ puanına bağlı kısmı Review Service sözleşmesi beklediğinden açık. Faz bütünü 8/8 tamamlandı sayılmaz. [Faz 3 raporu](LTZ-HAM-GAME-03-Rapor.md). GAME-17 gerçek sağlayıcı entegrasyonu ve Faz 4 için onay yok.
+
 **Sorumlu:** Hamza  
 **Servis:** `game-service`  
 **Faz:** MVP/P0  
@@ -78,21 +80,21 @@
 
 **Alt tasklar:**
 
-- [ ] **GAME-01 — Oyun listeleme:** Dahili oyunlar ve yerel indeksteki uygun harici oyunlar ortak katalog sözleşmesiyle, sunucu tarafında sayfalı listelenir. `page` / `size`, maksimum `size`, toplam sonuç ve deterministik ikincil sıralama tanımlanır. **Kabul:** Aynı sorgu/filtre için sayfalar arasında tekrarlanan veya atlanan kayıt üretilmez; genel liste Steam yanıtına bağımlı değildir.
+- [x] **GAME-01 — Oyun listeleme:** Dahili oyunlar ve yerel indeksteki uygun harici oyunlar ortak katalog sözleşmesiyle, sunucu tarafında sayfalı listelenir. `page` / `size`, maksimum `size`, toplam sonuç ve deterministik ikincil sıralama tanımlanır. **Kabul:** Aynı sorgu/filtre için sayfalar arasında tekrarlanan veya atlanan kayıt üretilmez; genel liste Steam yanıtına bağımlı değildir.
 
-- [ ] **GAME-02 — Oyun detayları:** Açıklama, tür, platform, çıkış tarihi, geliştirici, yayıncı, dil desteği, sistem gereksinimleri ve mevcut medya bilgileri tek detay modeliyle sunulur. Harici veride bulunmayan alanlar isteğe bağlıdır. **Kabul:** Yalnızca hafif indeks kaydı olan oyun için kısmi yanıt verilebilir; eksik alanlar uydurulmaz ve GAME-17 üzerinden zenginleştirilebilir.
+- [x] **GAME-02 — Oyun detayları:** Açıklama, tür, platform, çıkış tarihi, geliştirici, yayıncı, dil desteği, sistem gereksinimleri ve mevcut medya bilgileri tek detay modeliyle sunulur. Harici veride bulunmayan alanlar isteğe bağlıdır. **Kabul:** Yalnızca hafif indeks kaydı olan oyun için kısmi yanıt verilebilir; eksik alanlar uydurulmaz ve GAME-17 üzerinden zenginleştirilebilir.
 
-- [ ] **GAME-03 — Oyun arama:** Oyun adına göre yerel katalogda arama yapılır; isim normalizasyonu, ilgili indeksler, boş arama davranışı, sayfalama ve mükerrer sonuç kontrolü tanımlanır. Ayrı `search-service` kurulmaz. **Kabul:** Önce yerel sonuç gösterilir; opsiyonel harici canlı arama temel deneyimi bloke etmez.
+- [x] **GAME-03 — Oyun arama:** Oyun adına göre yerel katalogda arama yapılır; isim normalizasyonu, ilgili indeksler, boş arama davranışı, sayfalama ve mükerrer sonuç kontrolü tanımlanır. Ayrı `search-service` kurulmaz. **Kabul:** Önce yerel sonuç gösterilir; opsiyonel harici canlı arama temel deneyimi bloke etmez.
 
 - [ ] **GAME-04 — Oyun filtreleme:** Tür, platform, LTZ puanı, popülerlik, çıkış tarihi, erken erişim ve dil desteği başta olmak üzere birden fazla filtre birlikte uygulanır. **Kabul:** Eksik metadata'nın filtre sonucu üzerindeki davranışı açıkça belirlenir; LTZ puanı Review Service'ten toplu API/okuma projeksiyonuyla alınır, doğrudan `review_db` okunmaz. İndirim filtresi GAME-24 koşullarına bağlıdır.
 
 - [ ] **GAME-05 — Oyun sıralama:** Ada, çıkış tarihine, popülerliğe, uygun olduğu yerde LTZ puanına göre artan/azalan sıralama sunulur. **Kabul:** `gameId` gibi stabil bağlayıcı sıralama ile sayfalama tutarlıdır; eksik değerlerin konumu belgelenmiştir.
 
-- [ ] **GAME-06 — Popüler oyunlar:** Popüler oyunları ayrı endpoint/bölüm üzerinden sunma ve GAME-20'nin önceden hazırlanmış katalog verisini kullanma. **Kabul:** Popüler liste servis açılışında Steam'den tek tek detay beklemez; popülerlik sıralamasının hangi veriye dayandığı bilinir.
+- [x] **GAME-06 — Popüler oyunlar:** Popüler oyunları ayrı endpoint/bölüm üzerinden sunma ve GAME-20'nin önceden hazırlanmış katalog verisini kullanma. **Kabul:** Popüler liste servis açılışında Steam'den tek tek detay beklemez; popülerlik sıralamasının hangi veriye dayandığı bilinir.
 
-- [ ] **GAME-20 — Popüler oyunları önceden hazırlama (P0):** İlk aşamada yönetilebilir editör listesi; daha sonra uygun veri mevcutsa LTZ etkileşimlerinden popülerlik puanı üretme ve bu oyunların detaylarını öncelikli zenginleştirme. **Kabul:** Popüler oyun kartları harici API beklemeden açılır; popülerlik ölçütü ve son hesaplama zamanı belirgindir.
+- [x] **GAME-20 — Popüler oyunları önceden hazırlama (P0):** İlk aşamada yönetilebilir editör listesi; daha sonra uygun veri mevcutsa LTZ etkileşimlerinden popülerlik puanı üretme ve bu oyunların detaylarını öncelikli zenginleştirme. **Kabul:** Popüler oyun kartları harici API beklemeden açılır; popülerlik ölçütü ve son hesaplama zamanı belirgindir.
 
-- [ ] **GAME-25 — Katalog performans ve entegrasyon testleri (P0):** Büyük indeks, eş zamanlı arama, sayfalama, eksik veri, tür temizliği, kısmi senkronizasyon ve sağlayıcı kesintisi için otomatik testler. **Kabul:** Hedeflenen veri hacmi ve test ortamı kaydedilir; yerel listeleme/arama için başlangıç ölçüm hedefi p95 ≤ 300 ms olarak değerlendirilir; hedefin karşılanması ölçümle doğrulanır, garanti varsayılmaz.
+- [x] **GAME-25 — Katalog performans ve entegrasyon testleri (P0):** Büyük indeks, eş zamanlı arama, sayfalama, eksik veri, tür temizliği, kısmi senkronizasyon ve sağlayıcı kesintisi için otomatik testler. **Kabul:** Hedeflenen veri hacmi ve test ortamı kaydedilir; yerel listeleme/arama için başlangıç ölçüm hedefi p95 ≤ 300 ms olarak değerlendirilir; hedefin karşılanması ölçümle doğrulanır, garanti varsayılmaz.
 
 
 **Bitmiş sayılma:** Yukarıdaki akış API/veri sahipliği kurallarına uygun çalışır, ilgili testler geçer ve ana taskın tek özellik teslimi yapılır.

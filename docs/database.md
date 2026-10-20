@@ -153,7 +153,7 @@ Gösterim: **PK** birincil anahtar, **FK** servis içi yabancı anahtar, **REF**
 
 ### 3.4 game_db — game-service (Hamza)
 
-**Mevcut şema:** GAME-08 V31, GAME-10 V32, GAME-16 V33, GAME-18 V34, GAME-21 V35 ve Faz 2 güncellik/retry altyapısı V36. Gerçek detay sağlayıcısı henüz entegre edilmedi.
+**Mevcut şema:** GAME-08 V31, GAME-10 V32, GAME-16 V33, GAME-18 V34, GAME-21 V35, Faz 2 güncellik/retry altyapısı V36 ve Faz 3 keşif metadata/indeksleri V37. Gerçek detay sağlayıcısı henüz entegre edilmedi.
 
 - `games`: UUID `id`, `title`, `normalized_title`, UTC `created_at`/`updated_at`, optimistic `version`.
 - `catalog_terms`: UUID `id`, `kind` (GENRE/CATEGORY/TAG/PLATFORM), `code`, nullable TR/EN adlar, `version`; UNIQUE `(kind, code)`.
@@ -166,7 +166,9 @@ Gösterim: **PK** birincil anahtar, **FK** servis içi yabancı anahtar, **REF**
 - V34: Steam AppID başında sıfır olmayan pozitif uint32 metni olmak zorundadır; alias tekilliği DB seviyesinde korunur. `game_identity_audits` operatör REF, kaynak/hedef oyun FK, referans FK, kanıt ve UTC zaman içerir; trigger UPDATE/DELETE işlemlerini reddeder.
 - V35: `games.game_type` varchar + CHECK, varsayılan UNKNOWN; aktif katalog için tür/başlık indeksi. MAIN_GAME varsayılan arama kapsamıdır; kesin türü olmayan kayıtlar oyun diye varsayılmaz.
 - V36: `game_provider_sync_state.failure_count` ve `next_attempt_at` kalıcı retry/backoff durumudur. `games.description` (16000), `release_date`, `details_fetched_at`, `details_expires_at`, `details_next_attempt_at`, `details_failure_count`, `details_last_error_code` detay ve güncellik altyapısıdır. Zamanlar timestamptz/UTC, sayaçlar negatif olamaz. Güncellik, son başarılı kısmi detay yanıtına aittir; alan bazlı değildir. Mevcut migrationlar değiştirilmedi.
-- Yalnız servis içi FK kullanılır; popülerlik, fiyat ve geliştirici gönderileri sonraki fazlardır.
+- V37: nullable `early_access`; `game_languages` (oyun FK + dil kodu bileşik PK) ve dil arama indeksi. `editor_rank` (1–100, deferred UNIQUE), `popularity_updated_at`, `editor_actor_id` REF ve `editor_evidence` en son editör seçimini tutar; değişiklik geçmişi/audit akışı değildir. Başlık/tarih için ACTIVE MAIN_GAME kısmi indeksleri ve kapak seçimi indeksi eklendi.
+- Keşif sayfası/count/ilişkileri aynı REPEATABLE_READ görünümünde toplu SQL ile okunur; puan projeksiyonu veya review_db erişimi yoktur.
+- Yalnız servis içi FK kullanılır; fiyat ve geliştirici gönderileri sonraki fazlardır.
 
 ### 3.5 library_db — library-service (Hamza)
 

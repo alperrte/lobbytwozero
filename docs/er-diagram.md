@@ -243,7 +243,7 @@ erDiagram
 
 ## 5. game_db
 
-Faz 1 mevcut şema (V31–V35); henüz uygulanmayan fiyat/popülerlik/geliştirici gönderileri dahil edilmemiştir.
+Mevcut Game Service şeması (V31–V37); henüz uygulanmayan fiyat ve geliştirici gönderileri dahil edilmemiştir. Popülerlik bu aşamada editör seçimidir.
 
 ```mermaid
 erDiagram
@@ -256,6 +256,7 @@ erDiagram
   games ||--o{ game_publishers : published_by
   games ||--o{ game_media : shows
   games ||--o{ game_system_requirements : requires
+  games ||--o{ game_languages : supports
   games {
     uuid id PK
     varchar title
@@ -266,6 +267,11 @@ erDiagram
     varchar normalized_title
     varchar description
     date release_date
+    boolean early_access
+    int editor_rank UK
+    timestamptz popularity_updated_at
+    uuid editor_actor_id "REF"
+    varchar editor_evidence
     timestamptz details_fetched_at
     timestamptz details_expires_at
     timestamptz details_next_attempt_at
@@ -274,6 +280,10 @@ erDiagram
     timestamptz created_at
     timestamptz updated_at
     bigint version
+  }
+  game_languages {
+    uuid game_id PK,FK
+    varchar language_code PK
   }
   game_external_refs {
     uuid id PK
