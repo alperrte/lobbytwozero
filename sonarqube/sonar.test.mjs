@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { loadSonarEnv, validateSonarHost, runScan, runSonar, overallTargets } from './sonar.mjs';
+import { loadSonarEnv, validateSonarHost, runScan, runSonar, overallTargets, sonarRequest } from './sonar.mjs';
+import http from 'node:http';
 
 const conditions = [
   { metric: 'new_coverage', op: 'LT', error: '80' },
@@ -45,17 +46,32 @@ test('Sonar host validation rejects remote servers, credentials, paths and redir
   for (const host of ['http://localhost:5199', 'http://127.0.0.1:5199', 'http://[::1]:5199']) assert.ok(validateSonarHost(host));
 });
 
-for (const option of ['success', 'gateFail', 'lowCoverage', 'scannerFail', 'missingReports', 'serverDown', 'remoteHost', 'policyForbidden']) {
+for (const option of ['success', 'gateFail', 'lowCoverage', 'scannerFail', 'missingReports', 'serverDown', 'remoteHost', 'invalidToken', 'policyForbidden']) {
   test(`backend scan ${option} checks current reports, analysis gate and overall targets`, async () => {
     await scratch(async (root, write) => {
       const lines = [], calls = [];
       const runCommand = async (command, args, settings) => {
         calls.push({ command, args });
+        if (command === 'docker') {
+          assert.equal(settings.capture, true);
+          assert.ok(args.includes('config'));
+          assert.ok(args.includes('.env.dev'));
+          return { code: 0, output: JSON.stringify({ services: {
+            postgres: { ports: [{ target: 5432, published: '5542', host_ip: '127.0.0.1' }],
+              environment: { POSTGRES_USER: 'fixture-user', POSTGRES_PASSWORD: 'fixture-db-pass' } },
+            'auth-service': { environment: { DB_AUTH_NAME: 'auth_db' } }
+          } }) };
+        }
         assert.match(command, /^mvn(\.cmd)?$/);
         assert.equal(settings.env.SONAR_HOST_URL, 'http://localhost:5199');
         assert.ok(!args.some(arg => arg.includes('local-token')));
         if (args.includes('-version')) return { code: 0, output: 'Java version: 25.0.4' };
         if (args.includes('verify')) {
+          assert.equal(settings.env.POSTGRES_HOST, '127.0.0.1');
+          assert.equal(settings.env.POSTGRES_PORT, '5542');
+          assert.equal(settings.env.POSTGRES_PASSWORD, 'fixture-db-pass');
+          assert.equal(settings.env.DB_AUTH_NAME, 'auth_db');
+          settings.log('database password: fixture-db-pass');
           if (option !== 'missingReports') {
             const base = 'backend/services/auth-service/target';
             write(`${base}/surefire-reports/TEST-app.xml`, '<testsuite tests="1" failures="0" errors="0" skipped="0"/>');
@@ -71,7 +87,7 @@ for (const option of ['success', 'gateFail', 'lowCoverage', 'scannerFail', 'miss
       };
       const request = async (_, endpoint) => {
         if (endpoint.includes('/system/status')) return { status: option === 'serverDown' ? 'DOWN' : 'UP' };
-        if (endpoint.includes('/authentication/validate')) return { valid: true };
+        if (endpoint.includes('/authentication/validate')) return { valid: option !== 'invalidToken' };
         if (endpoint.includes('/qualitygates/show')) return { conditions };
         if (endpoint.includes('/metrics/search')) return { metrics: Object.keys(goodMetrics).map(key => ({ key })) };
         if (endpoint.includes('/ce/task')) { assert.ok(endpoint.includes('current-task')); return { task: { status: 'SUCCESS', analysisId: 'current-analysis' } }; }
@@ -86,7 +102,8 @@ for (const option of ['success', 'gateFail', 'lowCoverage', 'scannerFail', 'miss
       const result = await runScan({ root, ambient: option === 'remoteHost' ? { SONAR_HOST_URL: 'http://example.com' } : {}, runCommand, request, log: line => lines.push(line) });
       assert.equal(result.exitCode, ['success', 'policyForbidden'].includes(option) ? 0 : 1);
       assert.ok(!lines.join('\n').includes('local-token'));
-      if (['serverDown', 'remoteHost'].includes(option)) assert.equal(calls.length, 0);
+      assert.ok(!lines.join('\n').includes('fixture-db-pass'));
+      if (['serverDown', 'remoteHost', 'invalidToken'].includes(option)) assert.equal(calls.length, 0);
       if (option === 'missingReports') assert.ok(!calls.some(call => call.args.includes('sonar:sonar')));
       if (option === 'policyForbidden') assert.equal(result.details.gatePolicy.status, 'NOT VERIFIED');
     });
@@ -96,6 +113,19 @@ for (const option of ['success', 'gateFail', 'lowCoverage', 'scannerFail', 'miss
 test('missing metrics never satisfy overall targets', () => {
   assert.equal(overallTargets([]), false);
   assert.equal(overallTargets(Object.entries(goodMetrics).map(([metric, value]) => ({ metric, value }))), true);
+});
+
+test('unreachable local SonarQube gives an actionable error without exposing the token', async () => {
+  const server = http.createServer();
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const port = server.address().port;
+  await new Promise(resolve => server.close(resolve));
+  await assert.rejects(sonarRequest(`http://127.0.0.1:${port}`, '/api/system/status', 'synthetic-token'), error => {
+    assert.match(error.message, /SonarQube bağlantısı kurulamadı/);
+    assert.match(error.message, /sonar.cmd up/);
+    assert.ok(!error.message.includes('synthetic-token'));
+    return true;
+  });
 });
 
 test('Sonar down only stops the isolated project and preserves volumes; status does not need a token', async () => {

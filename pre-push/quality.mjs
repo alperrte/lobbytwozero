@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { repositoryRoot, execute, backendTests, backendResults, readModules, clearBackendReports, withReportLock, withRunLog } from '../lib/quality-tools.mjs';
 import { requireNode } from '../lib/profile-env.mjs';
 import { requireMaven25 } from './backend-check.mjs';
-import { checkGitSecrets, checkBackendHealth } from './runtime-checks.mjs';
+import { checkGitSecrets, checkBackendHealth, backendTestEnvironment } from './runtime-checks.mjs';
 
 export const requiredRows = ['Git / Secret Check', 'Backend Tests', 'Backend Build', 'Backend Coverage', 'Docker Configuration'];
 
@@ -35,8 +35,16 @@ export async function runQualityChecks({ root = repositoryRoot, profile = 'dev',
     await step('Git / Secret Check', () => checkGitSecrets(run, log));
     await step('Backend Tests', async () => {
       rows['Backend Build'] = 'FAIL';
-      await requireMaven25(run, mvn, root);
-      const result = await run(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify']);
+      const config = await run('docker', ['compose', '--env-file', `.env.${profile}`, '-f', 'docker-compose.yml', 'config', '--format', 'json'], root, true);
+      if (config.code !== 0) throw new Error('Cannot resolve the selected Compose profile for backend tests.');
+      let model;
+      try { model = JSON.parse(config.output); }
+      catch { throw new Error('Cannot parse the selected Compose profile for backend tests.'); }
+      const testEnv = backendTestEnvironment(model, env);
+      const testRun = (command, args, cwd = root, capture = false) => runCommand(command, args,
+        { cwd, env: testEnv, capture, secrets: [testEnv.POSTGRES_PASSWORD], log });
+      await requireMaven25(testRun, mvn, root);
+      const result = await testRun(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify']);
       rows['Backend Build'] = result.code === 0 ? 'PASS' : 'FAIL';
       return result.code === 0 && backendTests(root, modules, started) > 0;
     });

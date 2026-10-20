@@ -2,7 +2,7 @@
 
 > Tarih: 2026-10-20
 >
-> Durum: **`[ÖNERİ]`** — [database.md](database.md) içindeki tablo önerilerinin görselidir. Henüz migration yoktur. Bir servisin şeması değiştiğinde ilgili diyagram aynı değişiklikte güncellenir.
+> Durum: Game Service Faz 1 diyagramı V31–V35 ile uygulanmış şemayı gösterir; diğer diyagramlar **`[ÖNERİ]`** olarak [database.md](database.md) içindeki tablo önerilerini gösterir. Bir servisin şeması değiştiğinde ilgili diyagram aynı değişiklikte güncellenir.
 >
 > Gösterim:
 > - Düz çizgi / `FK`: aynı veritabanı içindeki gerçek yabancı anahtar.
@@ -243,93 +243,94 @@ erDiagram
 
 ## 5. game_db
 
+Faz 1 mevcut şema (V31–V35); henüz uygulanmayan fiyat/popülerlik/geliştirici gönderileri dahil edilmemiştir.
+
 ```mermaid
 erDiagram
-  games ||--o{ game_external_refs : "mapped by"
-  games ||--o{ game_genres : has
-  genres ||--o{ game_genres : classifies
-  games ||--o{ game_tags : has
-  tags ||--o{ game_tags : labels
-  games ||--o{ game_platforms : "runs on"
-  platforms ||--o{ game_platforms : hosts
+  games ||--o{ game_external_refs : references
+  game_external_refs ||--o{ game_identity_audits : audited_by
+  games ||--o{ game_identity_audits : identity_history
+  games ||--o{ game_terms : has
+  catalog_terms ||--o{ game_terms : classifies
+  games ||--o{ game_developers : developed_by
+  games ||--o{ game_publishers : published_by
   games ||--o{ game_media : shows
   games ||--o{ game_system_requirements : requires
-  games ||--o| game_popularity : ranks
-  games ||--o{ game_prices : priced
-  games ||--o{ game_developer_posts : announces
-
   games {
-    uuid id PK "kanonik gameId"
-    varchar slug UK
+    uuid id PK
     varchar title
-    varchar origin "INTERNAL|EXTERNAL"
-    varchar metadata_completeness "INDEX_ONLY|PARTIAL|FULL"
+    varchar game_type
+    varchar origin
+    varchar metadata_completeness
     varchar status
-    uuid merged_into_id FK
+    varchar normalized_title
+    timestamptz created_at
+    timestamptz updated_at
     bigint version
   }
   game_external_refs {
     uuid id PK
     uuid game_id FK
-    varchar provider "UK(provider, external_id)"
+    varchar provider "UK(provider,external_id)"
     varchar external_id
+    timestamptz last_synced_at
+    bigint version
   }
-  genres {
+  game_identity_audits {
     uuid id PK
-    varchar code UK
+    uuid reference_id FK
+    uuid from_game_id FK
+    uuid to_game_id FK
+    uuid actor_id "REF"
+    varchar action
+    varchar evidence
+    timestamptz created_at
   }
-  tags {
+  game_provider_sync_state {
     uuid id PK
-    varchar code UK
+    varchar provider UK
+    bigint cursor
+    varchar run_mode
+    varchar sync_status
+    timestamptz query_since
+    timestamptz last_successful_at
+    bigint processed_count
+    bigint version
   }
-  platforms {
+  catalog_terms {
     uuid id PK
-    varchar code UK
+    varchar kind "GENRE|CATEGORY|TAG|PLATFORM"
+    varchar code "UK(kind,code)"
+    varchar name_tr
+    varchar name_en
+    bigint version
   }
-  game_genres {
+  game_terms {
     uuid game_id PK,FK
-    uuid genre_id PK,FK
+    uuid term_id PK,FK
   }
-  game_tags {
+  game_developers {
     uuid game_id PK,FK
-    uuid tag_id PK,FK
+    varchar name PK
   }
-  game_platforms {
+  game_publishers {
     uuid game_id PK,FK
-    uuid platform_id PK,FK
+    varchar name PK
   }
   game_media {
     uuid id PK
     uuid game_id FK
     varchar type
     varchar url
+    bigint version
   }
   game_system_requirements {
     uuid id PK
     uuid game_id FK
-    varchar level "MINIMUM|RECOMMENDED"
+    varchar platform
+    varchar level
     int ram_mb
-  }
-  game_popularity {
-    uuid game_id PK,FK
-    numeric score
-    numeric avg_rating
-  }
-  game_prices {
-    uuid id PK
-    uuid game_id FK
-    numeric price
-    char currency
-  }
-  game_developer_posts {
-    uuid id PK
-    uuid game_id FK
-    uuid author_id "REF"
-  }
-  game_provider_sync_state {
-    uuid id PK
-    varchar provider
-    varchar sync_status
+    bigint version
   }
 ```
 

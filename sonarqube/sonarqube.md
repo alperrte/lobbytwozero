@@ -2,7 +2,7 @@
 
 SonarQube, uygulama PostgreSQL'inden ayrı `ltz-sonar` Compose projesinde çalışır.
 Adres: `http://localhost:5199`. Veritabanı: `ltz_sonar`. Backend proje anahtarı:
-`ltz-backend`. Frontend henüz bulunmadığı için frontend analizi uygulanmaz;
+`ltz-backend`. Bu runner yalnız backend analizi yapar;
 `.env.example` içindeki frontend anahtarı ileride kullanılmak üzere ayrılmıştır.
 
 Kaynak projedeki sabit SonarQube image sürümü/digest'i ve PostgreSQL 17 kullanılır.
@@ -40,10 +40,22 @@ sh ./sonarqube/sonar.sh up dev
 sh ./sonarqube/sonar.sh scan dev
 ```
 
-İlk başlatmadan sonra tarayıcıdan SonarQube'a girin. İlk kurulumda `admin` /
-`admin` ile giriş yapıp parolayı değiştirin. `ltz-backend` projesini oluşturun
-ve analiz yetkisi bulunan bir token üretin. Token'ı ignore edilen `.env.dev`
-dosyasında veya terminalde `SONAR_TOKEN` değişkeninde saklayın.
+İlk başlatmadan sonra `http://localhost:5199` adresine girin. İlk kurulumda
+`admin` / `admin` ile giriş yapıp parolayı değiştirin. Projects ekranından
+yerel bir proje oluşturun; proje anahtarını `ltz-backend` olarak belirleyin.
+Sağ üstteki kullanıcı menüsünden **My Account → Security** ekranını açın.
+Token adı olarak `ltz-backend-local`, tür olarak **Project Analysis Token**,
+proje olarak `ltz-backend` seçip bir son kullanma tarihi belirleyin ve **Generate**
+düğmesine basın. Üretilen değeri yalnız ignore edilen `.env.dev` dosyasındaki
+`SONAR_TOKEN=` alanına yapıştırıp kaydedin; sohbet veya loglarda paylaşmayın.
+Token yalnız oluşturulduğunda gösterilir. Resmî açıklama:
+https://docs.sonarsource.com/sonarqube-server/user-guide/managing-tokens
+
+Token bu SonarQube sunucusunda üretilmiş olmalıdır; başka bir kurulumun tokenı
+yeni LTZ sunucusunda geçerli olmaz. Sunucunun `UP` olması tokenın geçerli olduğu
+anlamına gelmez. Terminalde eski bir `SONAR_TOKEN` varsa profil değerinden önce
+gelir; mevcut PowerShell oturumunda `Remove-Item Env:SONAR_TOKEN -ErrorAction
+SilentlyContinue` ile kaldırıp taramayı yeniden çalıştırın.
 
 Komutlar yalnızca seçilen `.env.dev` / `.env.prod` dosyasını okur; aktif `.env`
 gerekmez ve değiştirilmez. Terminal değişkenleri önceliklidir. Profil dosyaları
@@ -73,7 +85,10 @@ scanner hatasında başarılı analiz sonucu gösterilmez. Token komut argüman�
 yazılmaz; scanner'a environment ile aktarılır ve script loglarında maskelenir.
 Loglar `logs/sonarqube-*.log` altında, raporlar ilgili `target/` dizinlerindedir.
 
-Backend testleri için veritabanı/test profili henüz tanımlı değilse önce mevcut
-uygulama test yapılandırması tamamlanmalıdır; runner bu hatayı atlamaz.
+Backend testleri için uygulama PostgreSQL'i de çalışıyor olmalıdır. Gerekirse
+`docker compose --env-file .env.dev up -d postgres` komutuyla başlatın.
+Runner seçilen uygulama Compose profilinden veritabanı adlarını, kullanıcıyı,
+parolayı ve loopback üzerinde yayımlanan PostgreSQL portunu çözerek host Maven
+testlerine aktarır. Bu değerleri loglamaz; Docker ortamını değiştirmez.
 SonarQube'u başlatmak ve gerçek analiz göndermek için yukarıdaki komutları
 yerelde çalıştırın. Script kurulumu kendi başına container veya token oluşturmaz.

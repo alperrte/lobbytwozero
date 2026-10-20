@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { repositoryRoot, execute, redact, cleanGenerated, freshFile, backendResults, readModules, clearBackendReports, withReportLock, withRunLog } from '../lib/quality-tools.mjs';
 import { loadProfileEnv, requireNode } from '../lib/profile-env.mjs';
 import { requireMaven25 } from '../pre-push/backend-check.mjs';
+import { backendTestEnvironment } from '../pre-push/runtime-checks.mjs';
 
 export const loadSonarEnv = loadProfileEnv;
 
@@ -24,11 +25,16 @@ export function validateSonarHost(host) {
 
 export async function sonarRequest(host, endpoint, token) {
   const url = validateSonarHost(host);
-  const response = await fetch(new URL(endpoint, url), {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    redirect: 'error',
-    signal: AbortSignal.timeout(10000),
-  });
+  let response;
+  try {
+    response = await fetch(new URL(endpoint, url), {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      redirect: 'error',
+      signal: AbortSignal.timeout(10000),
+    });
+  } catch {
+    throw new Error(`SonarQube bağlantısı kurulamadı: ${url.origin}. Seçilen profil için sonar.cmd up komutunu çalıştırın ve SONAR_HOST_URL/port ayarını kontrol edin.`);
+  }
   if (!response.ok) {
     const error = new Error(`SonarQube API returned HTTP ${response.status}`);
     error.status = response.status;
@@ -94,7 +100,9 @@ export async function runScan({ root = repositoryRoot, profile = 'dev', ambient 
       const server = await request(host, '/api/system/status');
       if (server.status !== 'UP') throw new Error('SonarQube is not ready: ' + server.status);
       if (!env.SONAR_TOKEN?.trim()) throw new Error('SONAR_TOKEN missing; set it in ignored .env.' + profile + ' or your shell');
-      if (!(await request(host, '/api/authentication/validate', env.SONAR_TOKEN)).valid) throw new Error('SONAR_TOKEN is invalid');
+      if (!(await request(host, '/api/authentication/validate', env.SONAR_TOKEN)).valid) {
+        throw new Error(`SONAR_TOKEN geçersiz. ${validateSonarHost(host).origin} üzerindeki bu SonarQube sunucusunda analiz yetkili bir token üretip seçilen profilin SONAR_TOKEN alanını güncelleyin.`);
+      }
       const gate = await request(host, '/api/qualitygates/show?name=Sonar%20way', env.SONAR_TOKEN);
       if (!sonarWayPolicy(gate.conditions)) throw new Error('Sonar way does not match the required new-code targets');
       const catalog = await request(host, '/api/metrics/search?ps=500', env.SONAR_TOKEN);
@@ -107,8 +115,17 @@ export async function runScan({ root = repositoryRoot, profile = 'dev', ambient 
     const modules = readModules(root);
     clearBackendReports(root, modules);
     await step('Backend Reports', async () => {
-      await requireMaven25(run, mvn, root);
-      const result = await run(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify']);
+      const config = await run('docker', ['compose', '--env-file', `.env.${profile}`, '-f', 'docker-compose.yml', 'config', '--format', 'json'], root, true);
+      if (config.code !== 0) throw new Error('Cannot resolve the selected application Compose profile for backend tests.');
+      let model;
+      try { model = JSON.parse(config.output); }
+      catch { throw new Error('Cannot parse the selected application Compose profile for backend tests.'); }
+      const testEnv = backendTestEnvironment(model, env);
+      secrets = [...secrets, testEnv.POSTGRES_PASSWORD];
+      const testRun = (command, args, cwd = root, capture = false) => runCommand(command, args,
+        { cwd, env: testEnv, capture, secrets, log: say });
+      await requireMaven25(testRun, mvn, root);
+      const result = await testRun(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify']);
       if (result.code !== 0) throw new Error('Backend build/tests failed');
       details.backend = backendResults(root, modules, started);
       say(`Fresh reports: ${details.backend.tests} tests; local line coverage ${details.backend.lineCoverage.toFixed(2)}%`);

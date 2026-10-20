@@ -2,7 +2,7 @@
 
 > Tarih: 2026-10-20
 >
-> Durum: Veritabanları `[MEVCUT]` (boş, init SQL ile oluşturulur). **Tablo tasarımları `[ÖNERİ]`dır**; henüz hiçbir serviste Flyway migration yoktur. Kesin şema servis sahibinin ilk migration'ı ile belirlenir ve bu belge aynı değişiklikte güncellenir.
+> Durum: Veritabanları `[MEVCUT]` (init SQL ile oluşturulur). Game Service Faz 1 şeması V31–V35 migrationlarıyla uygulanmıştır; diğer tablo tasarımları `[ÖNERİ]`dır. Kesin şema servis sahibinin migration'ı ile belirlenir ve bu belge aynı değişiklikte güncellenir.
 >
 > İlgili belgeler: [er-diagram.md](er-diagram.md) (diyagramlar), [architecture.md](architecture.md) (event'ler, Saga), [SECURITY.md](SECURITY.md) §9.
 
@@ -153,21 +153,19 @@ Gösterim: **PK** birincil anahtar, **FK** servis içi yabancı anahtar, **REF**
 
 ### 3.4 game_db — game-service (Hamza)
 
-| Tablo | Önemli sütunlar | Kısıtlar / not |
-| --- | --- | --- |
-| `games` | id (kanonik gameId), slug, title, normalized_title, description, release_date, developer_name, publisher_name, origin (INTERNAL, EXTERNAL), metadata_completeness (INDEX_ONLY, PARTIAL, FULL), status (ACTIVE, ARCHIVED, MERGED), merged_into_id FK, owner_developer_id REF, version | UQ slug |
-| `game_external_refs` | id, game_id FK, provider, external_id, last_synced_at | **UQ (provider, external_id)** |
-| `genres`, `tags`, `platforms` | id, code, name_tr, name_en | UQ code |
-| `game_genres`, `game_tags`, `game_platforms` | game_id FK, <ref>_id FK | PK bileşik |
-| `game_media` | id, game_id FK, type (COVER, SCREENSHOT, TRAILER), url, provider, sort_order | |
-| `game_system_requirements` | id, game_id FK, level (MINIMUM, RECOMMENDED), os, cpu, gpu, ram_mb, storage_mb, raw_text | REC-07/08 girdisi |
-| `game_provider_sync_state` | id, provider, cursor, sync_status, last_run_at, last_error_code | GAME-19 |
-| `game_popularity` | game_id PK/FK, score, review_count, avg_rating, library_count, calculated_at | Event ile güncellenir |
-| `game_prices` | id, game_id FK, provider, region, currency, price, discount_percent, fetched_at | GAME-24 (koşullu) |
-| `game_developer_posts` | id, game_id FK, author_id REF, title, body, status, created_at | GAME-13 |
-| `outbox_events`, `inbox_events` | §2.4 | |
+**Mevcut şema:** GAME-08 V31, GAME-10 V32 ve GAME-16 V33, GAME-18 V34 ve GAME-21 V35. Sonraki Game Service görevleri ayrıca uygulanacaktır.
 
-İndeks: `ix_games_normalized_title` (`pg_trgm` GIN, arama), `ix_games_status_release_date`, `ix_game_popularity_score`.
+- `games`: UUID `id`, `title`, `normalized_title`, UTC `created_at`/`updated_at`, optimistic `version`.
+- `catalog_terms`: UUID `id`, `kind` (GENRE/CATEGORY/TAG/PLATFORM), `code`, nullable TR/EN adlar, `version`; UNIQUE `(kind, code)`.
+- `game_terms`: oyun ve terim FK'leri, bileşik PK. Tek sözlük tablosunda kavramlar `kind` ile ayrılır; API dört ayrı dizi döner.
+- `game_developers`, `game_publishers`: oyun FK + şirket adı bileşik PK; birden fazla geliştirici/yayıncı desteklenir.
+- `game_media`: UUID, oyun FK, tip, HTTPS URL, kaynak, sıralama ve version.
+- `game_system_requirements`: UUID, oyun FK, platform, minimum/önerilen seviye, opsiyonel teknik alanlar/ham metin, version; UNIQUE `(game_id, platform, level)`.
+- V32: `games.origin`, `metadata_completeness`, `status`; `game_external_refs` UUID, oyun FK, provider/external_id, last_synced_at, version ve UNIQUE `(provider, external_id)`. Köken yerelde saklamayla değişmez.
+- V33: `normalized_title` 1024 karakter, önek araması için B-tree pattern indeksi; `game_provider_sync_state` sağlayıcı başına tek cursor, tur modu, durum, watermark, sayım ve version. Sayfa ve checkpoint tek transaction; provider state satırı pessimistic lock ile korunur.
+- V34: Steam AppID başında sıfır olmayan pozitif uint32 metni olmak zorundadır; alias tekilliği DB seviyesinde korunur. `game_identity_audits` operatör REF, kaynak/hedef oyun FK, referans FK, kanıt ve UTC zaman içerir; trigger UPDATE/DELETE işlemlerini reddeder.
+- V35: `games.game_type` varchar + CHECK, varsayılan UNKNOWN; aktif katalog için tür/başlık indeksi. MAIN_GAME varsayılan arama kapsamıdır; kesin türü olmayan kayıtlar oyun diye varsayılmaz.
+- Yalnız servis içi FK kullanılır; popülerlik, fiyat ve geliştirici gönderileri sonraki fazlardır.
 
 ### 3.5 library_db — library-service (Hamza)
 

@@ -41,10 +41,24 @@ sonucu yalnızca backend test kapsamına aittir.
 - Compose içinde tanımlı backend servisleri varsa seçilen Compose projesinde
   çalıştıkları ve `/actuator/health` yanıtlarının HTTP 200 / `UP` olduğu kontrolü.
 
-Mevcut Compose yalnızca PostgreSQL içerir; bu nedenle backend HTTP satırı
-`SKIPPED` olur ve nedeni yazdırılır. Frontend henüz yoktur: ESLint, TypeScript,
-frontend test/build, Playwright ve npm audit uygulanmaz. Uygulama servisleri
-Compose'a eklendikçe HTTP kontrolü bu servisler için zorunlu hale gelir.
+Mevcut Compose PostgreSQL ve 18 backend modülünü içerir. `full dev` öncesinde
+geliştirme servislerini başlatın:
+
+```powershell
+docker compose --env-file .env.dev up -d --build
+.\pre-push\pre-push.cmd full dev
+```
+
+PostgreSQL çalışmıyorsa iskelet servislerin context testleri DB bağlantısında;
+backend servisleri çalışmıyorsa HTTP health kontrolü başarısız olur.
+`full` testleri başlatmadan önce seçilen Compose profilinden yalnız DB kimlik
+bilgilerini ve DB adlarını alır. Host üzerindeki Maven için bağlantı adresini
+`127.0.0.1` ve PostgreSQL'in yayımlanan host portuna çevirir. Bu değerler yalnız
+Maven alt sürecine verilir; Docker'ın container içi adres/port ayarları ve ENV
+dosyaları değiştirilmez. DB parolası test çıktısında maskelenir. PostgreSQL
+portunun yalnız `127.0.0.1` üzerinde yayımlanması zorunludur.
+
+Bu kalite kapısında frontend kontrolleri ve SonarQube ayrı kapsamda tutulur.
 
 `SAFE TO COMMIT` yalnızca tabloda gösterilen uygulanabilir kontrollerin geçtiğini
 belirtir. Uygulamanın çalıştığını veya production hazırlığını garanti etmez.
