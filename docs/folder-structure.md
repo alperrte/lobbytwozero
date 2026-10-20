@@ -13,6 +13,7 @@ Bu belge "yeni dosya nereye konur?" sorusunun tek cevabıdır. Burada tanımlı 
 
 ```text
 lobbytwozero/
+├─ README.md                  # Projeyi tanıtan vitrin sayfası (görseller: docs/assets/readme/)
 ├─ AGENTS.md                  # Yapay zekâ ajanları için çalışma kuralları
 ├─ CLAUDE.md                  # Claude Code girişi (AGENTS.md'yi içe aktarır)
 ├─ backend/                   # Maven multi-module Spring Boot servisleri
@@ -25,7 +26,7 @@ lobbytwozero/
 ├─ lib/                       # profile-env.mjs, quality-tools.mjs (ortak Node yardımcıları)
 ├─ logs/                      # Yerel çalışma logları (commit edilmez)
 ├─ test-results/              # Yerel test çıktıları (commit edilmez)
-├─ docker-compose.yml         # Postgres + gateway + 17 servis + frontend
+├─ docker-compose.yml         # Postgres + gateway + 17 servis (frontend compose'da değil)
 ├─ docker-compose.sonar.yml   # SonarQube
 ├─ .env.example               # Değişken şablonu (gerçek değer içermez)
 ├─ .env, .env.dev             # GERÇEK değerler — okunmaz, kopyalanmaz (SECURITY.md §1)
@@ -51,6 +52,9 @@ docs/
 ├─ er-diagram.md              # DB başına Mermaid ER diyagramları
 ├─ folder-structure.md        # Bu belge
 ├─ web-rules.md               # Frontend / UX / erişilebilirlik kuralları
+├─ assets/
+│  ├─ cv/                     # Ekip üyelerinin README'den bağlanan CV'leri (<isim>-<soyisim>-cv.pdf)
+│  └─ readme/                 # README görselleri (animasyonlu SVG; dış kaynak içermez)
 ├─ decisions/
 │  ├─ migrations.md           # Flyway sürüm aralıkları (bağlayıcı)
 │  └─ NNNN-baslik.md          # [ÖNERİ] Yeni mimari kararlar (ADR)
