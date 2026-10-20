@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { repositoryRoot, execute, redact, cleanGenerated, freshFile, backendResults, readModules, clearBackendReports, withReportLock, withRunLog } from '../lib/quality-tools.mjs';
-import { loadProfileEnv, requireNode } from '../lib/profile-env.mjs';
+import { loadProfileEnv, loadBackendTestEnv, requireNode } from '../lib/profile-env.mjs';
 import { requireMaven25 } from '../pre-push/backend-check.mjs';
 
 export const loadSonarEnv = loadProfileEnv;
@@ -71,7 +71,7 @@ export async function runScan({ root = repositoryRoot, profile = 'dev', ambient 
   let secrets = [ambient.SONAR_TOKEN];
   let env = ambient;
   const say = value => log(redact(value, secrets));
-  const run = (command, args, cwd = root, capture = false) => runCommand(command, args, { cwd, env, capture, secrets, log: say });
+  const run = (command, args, cwd = root, capture = false, childEnv = env) => runCommand(command, args, { cwd, env: childEnv, capture, secrets, log: say });
   const mvn = process.platform === 'win32' ? 'mvn.cmd' : 'mvn';
   const started = Date.now();
   async function step(name, action) {
@@ -104,11 +104,14 @@ export async function runScan({ root = repositoryRoot, profile = 'dev', ambient 
       return true;
     });
     if (rows['SonarQube Access'] !== 'PASS') throw new Error('Scan stopped before building: SonarQube access failed');
+    const backendEnv = loadBackendTestEnv(root, profile, env);
+    secrets = [env.SONAR_TOKEN, env.SONAR_DB_PASSWORD, backendEnv.POSTGRES_PASSWORD];
+    const runBackend = (command, args, cwd = root, capture = false) => run(command, args, cwd, capture, backendEnv);
     const modules = readModules(root);
     clearBackendReports(root, modules);
     await step('Backend Reports', async () => {
-      await requireMaven25(run, mvn, root);
-      const result = await run(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify']);
+      await requireMaven25(runBackend, mvn, root);
+      const result = await runBackend(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify']);
       if (result.code !== 0) throw new Error('Backend build/tests failed');
       details.backend = backendResults(root, modules, started);
       say(`Fresh reports: ${details.backend.tests} tests; local line coverage ${details.backend.lineCoverage.toFixed(2)}%`);

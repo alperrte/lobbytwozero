@@ -19,6 +19,7 @@ lobbytwozero/
 ├─ backend/                   # Maven multi-module Spring Boot servisleri
 ├─ frontend/                  # Next.js 16 web uygulaması
 ├─ docs/                      # Mimari, güvenlik, veri, kural ve gereksinim belgeleri
+├─ docs-hardware/             # Hardware görev ilerlemesi, kararlar ve kalite kanıtları
 ├─ postgres/init/             # 01-create-databases.sql (17 DB oluşturma)
 ├─ ops/                       # env.cmd / env.ps1 / env.sh, env.test.mjs, ops.md
 ├─ pre-push/                  # Push öncesi kalite kapısı (pre-push.cmd / .sh)
@@ -282,6 +283,12 @@ src/shared/
 ---
 
 ## 7. Yeni şey eklerken hızlı tablo
+
+Hardware'e özel rapor kökü `docs-hardware/` dizinidir (LTZ_HARDWARE_SERVICE.md ile onaylı).
+`README.md` indeksi; `progress/` çalışma günlüğünü, `decisions/` açık/onaylı kararları,
+`testing/` gerçek kalite kanıtlarını, `reports/` yalnız doğrulanmış teslimleri içerir.
+Durum otoritesi kökteki `LTZ_HARDWARE_SERVICE.md` checklist/checkpoint alanıdır;
+merkezi API sözleşmesi `docs/api.md` içinde kalır.
 
 | Eklenecek | Konum |
 | --- | --- |

@@ -2,7 +2,7 @@
 
 > Tarih: 2026-10-20
 >
-> Durum: Veritabanları `[MEVCUT]` (boş, init SQL ile oluşturulur). **Tablo tasarımları `[ÖNERİ]`dır**; henüz hiçbir serviste Flyway migration yoktur. Kesin şema servis sahibinin ilk migration'ı ile belirlenir ve bu belge aynı değişiklikte güncellenir.
+> Durum: Veritabanları `[MEVCUT]` (init SQL ile oluşturulur). Hardware V1/V2 şeması §3.13'te uygulanmıştır ve izole PostgreSQL 17/Flyway/JPA testlerinden geçmiştir; canlı DB'ye uygulanma durumu doğrulanmadı. Diğer tablo tasarımları `[ÖNERİ]`dır. Kesin şema servis sahibinin migration'ı ile belirlenir.
 >
 > İlgili belgeler: [er-diagram.md](er-diagram.md) (diyagramlar), [architecture.md](architecture.md) (event'ler, Saga), [SECURITY.md](SECURITY.md) §9.
 
@@ -259,6 +259,30 @@ Gösterim: **PK** birincil anahtar, **FK** servis içi yabancı anahtar, **REF**
 | `outbox_events`, `inbox_events`, `idempotency_records` | §2.4 | |
 
 ### 3.13 hardware_db — hardware-service (Alper)
+
+**LTZ-ALP-HW-01 uygulama durumu (2026-10-21):**
+`V1__create_hardware_profiles.sql` eklendi; SQL ve constraint'ler izole PostgreSQL 17
+üzerinde doğrulandı. V1/V2 Flyway ve JPA validate testleri de PASS; canlı DB'ye uygulanmadı.
+Gerçek ilk tablo `hardware_profiles`: `id uuid`, `user_id uuid` (dış REF),
+`name varchar(100)`, `device_type varchar(32)` (DESKTOP/LAPTOP/OTHER),
+`source varchar(32)` (yalnız MANUAL), `version bigint`, `created_at/updated_at timestamptz`.
+Ad/tür/kaynak/sürüm CHECK'leri ve `(user_id, created_at, id)` indeksi vardır.
+`V2__create_hardware_components_and_selection_catalog.sql` HW-02 için eklendi (test PASS):
+`hardware_products` genel modelleri `(category, normalized_model)` ile markadan bağımsız
+tekilleştirir. `hardware_brands` ve `hardware_product_brands` opsiyonel üretici ilişkisidir;
+ürün tablosunda nullable marka üzerinden tekillik kurulmaz. Tam katalog yönetimi sonraki ana görevdir.
+`hardware_profile_components`: profile_id (CASCADE FK), opsiyonel product_id/brand_id,
+category, model_name/brand_name snapshot, quantity 1..128, source=MANUAL, version, UTC zamanları.
+Ürün/kategori ve ürün/marka bileşik FK'leri vardır. Parent profil kilidi ve profileVersion
+aynı profilin paralel mutasyonlarını korur. Sekiz sınırlı teknik alan (capacity_gb,
+clock_mhz, core_count, power_watts, memory_type, socket, interface_type, form_factor)
+embeddable olarak eşlenir; veri yoksa null. JSON serbest özellik alanı kullanılmaz.
+Profil silme use-case'i yalnız owner + güncel profileVersion ile hard delete uygular;
+bağlı bileşenler CASCADE ile silinir, katalog/marka ve diğer profiller korunur.
+İstatistikler owner filtresiyle DB'de toplanır; kayıt ve adet ayrıdır. Yalnız kaydedilen
+RAM/depolama kapasitesi adetle çarpılır, kapasitesi bilinmeyen adetler ayrıca bildirilir.
+Aşağıdaki genişletilmiş tasarım **öneridir**; visibility, sync, yorum ve kampanya
+tabloları bu migration ile uygulanmaz. JPA validate ve open-in-view=false korunur.
 
 | Tablo | Önemli sütunlar | Kısıtlar / not |
 | --- | --- | --- |

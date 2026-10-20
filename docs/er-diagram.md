@@ -2,7 +2,7 @@
 
 > Tarih: 2026-10-20
 >
-> Durum: **`[ÖNERİ]`** — [database.md](database.md) içindeki tablo önerilerinin görselidir. Henüz migration yoktur. Bir servisin şeması değiştiğinde ilgili diyagram aynı değişiklikte güncellenir.
+> Durum: [database.md](database.md) tasarımlarının görselidir. Hardware §14 V1/V2 uygulamasını ayrıca gösterir (PostgreSQL 17/Flyway/JPA testleri PASS; canlı DB doğrulanmadı). Diğer tasarımlar **`[ÖNERİ]`**dir. Şema değiştiğinde ilgili diyagram güncellenir.
 >
 > Gösterim:
 > - Düz çizgi / `FK`: aynı veritabanı içindeki gerçek yabancı anahtar.
@@ -653,6 +653,39 @@ erDiagram
 ```
 
 ## 14. hardware_db
+
+LTZ-ALP-HW-01 / 2026-10-21: V1 SQL/constraint kontrolü izole PostgreSQL 17'de PASS;
+V1/V2 Flyway/JPA testleri PASS; canlı DB'ye uygulanmadı.
+Uygulanan şema tanımı aşağıdadır; devamındaki geniş diyagram gelecek görevlerin önerisidir.
+
+```mermaid
+erDiagram
+  hardware_profiles {
+    uuid id PK
+    uuid user_id "Dış REF; FK yok"
+    varchar name "1..100"
+    varchar device_type "DESKTOP|LAPTOP|OTHER"
+    varchar source "MANUAL"
+    bigint version
+    timestamptz created_at
+    timestamptz updated_at
+  }
+```
+
+HW-02 V2 eklendi (PostgreSQL 17/Flyway/JPA testleri PASS):
+
+```mermaid
+erDiagram
+  hardware_profiles ||--o{ hardware_profile_components : "CASCADE"
+  hardware_products ||--o{ hardware_profile_components : "optional product/category FK"
+  hardware_products ||--o{ hardware_product_brands : supports
+  hardware_brands ||--o{ hardware_product_brands : supports
+  hardware_product_brands |o--o{ hardware_profile_components : "optional product/brand FK"
+```
+
+**Gelecek görevler için öneri (uygulanmış değildir):**
+Aşağıdaki eski geniş diyagramdaki yorum/sync/kampanya tabloları hâlâ öneridir;
+ürün/marka ilişkisi yukarıdaki gerçek V2 diyagramında ayrılmıştır.
 
 ```mermaid
 erDiagram

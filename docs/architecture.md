@@ -101,6 +101,17 @@ flowchart LR
 | notification-service | notification_db | Ortak (sahipsiz) | `/api/v1/notification/**` | Uygulama içi bildirim, okunmamış, tercihler, duyuru dağıtımı | FR-NOT-01..07 |
 | LTZ Performance Web | — | Alper | — | `frontend/src/features/{performance,hardware,recommendation}` | PWEB-01..10 |
 
+**Hardware uygulaması (2026-10-21, LTZ-ALP-HW-01):** Profil/bileşen yönetimi ve owner
+istatistikleri api → application → domain/repository katmanlarında uygulanmıştır.
+V1/V2 yalnız hardware_db şemasını tanımlar. Mutasyonlar parent profil satırını kilitler
+ve istemcinin profileVersion değerini doğrular; detail/stats REPEATABLE_READ snapshot kullanır.
+İş API'leri protected/owner'dır. Üretimde henüz Auth adapter'ı yoktur: kimlik taşıyan
+header/cookie/token işlenmez, istekler reddedilir. Typed actor yalnız testlerde enjekte
+edilerek yerel sahiplik kuralları sınanır; bu gerçek JWT/E2E doğrulaması değildir.
+CSRF korunur, JSON mutasyonları 16 KiB ile sınırlıdır. Health probe dışında public iş API'si yoktur.
+Sonraki ana görevlerin katalog yönetimi, görünürlük, yorum/moderasyon, sync ve servis
+entegrasyonları uygulanmadı. Pre-push/Sonar teslim kanıtı ayrıca gereklidir.
+
 Kurallar:
 
 - **Ayrı arama, medya veya moderasyon servisi yoktur.** Arama her servisin kendi verisinde yapılır; moderasyon kaynak servis + admin-service iş birliğidir; medya depolama kararı bekleniyor.

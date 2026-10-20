@@ -50,6 +50,21 @@ gerekmez ve değiştirilmez. Terminal değişkenleri önceliklidir. Profil dosya
 komut olarak çalıştırılmaz. Portu değiştirirseniz `SONAR_HOST_URL` değerini de
 güncelleyin. Scanner yalnızca yerel HTTP(S) Sonar adreslerini kabul eder.
 
+`scan` içindeki **Maven test alt süreci**, seçilen profilden mevcut
+`POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST_PORT` ve servislerin `DB_*_NAME`
+alanlarını ayrıca alır. Host test bağlantısı varsayılan olarak `127.0.0.1` ve
+`POSTGRES_HOST_PORT` (yoksa 5542) kullanır; profilin Docker içi `postgres:5432`
+adresi host Maven'e aktarılmaz. Terminalde açıkça tanımlı POSTGRES_HOST/PORT,
+kimlik ve DB adları bu test ayarlarına önceliklidir. Gerekli kimlik eksikse veya
+port geçersizse test raporları temizlenmeden işlem durur. Uygulama PostgreSQL'i
+ayrıca hazır olmalıdır; runner DB parolası değiştirmez, reset veya container başlatma yapmaz.
+
+Bu uygulama DB alanları yalnız `mvn -version` ve test `clean verify` alt sürecine
+aktarılır. Sonar scanner ve up/status/down ortamına profilden eklenmez;
+Compose/uygulama ayarları değiştirilmez. Profil dosyasından PATH/NODE_OPTIONS
+gibi çalıştırma ayarları yüklenmez. Test DB parolası, token ve Sonar DB parolası
+loglarda maskelenir; secret değerleri komut argümanına yazılmaz.
+
 `up` Sonar veritabanını ve sunucuyu başlatıp hazır olmasını bekler. `status`
 container ve API durumunu gösterir. `down`, isim uyumluluğu için korunmuştur;
 gerçekte `docker compose stop` çalıştırır, container ve volume'leri saklar.
