@@ -45,6 +45,7 @@ Kurallar:
 ```text
 docs/
 ├─ SECURITY.md                # Güvenlik kuralları (bağlayıcı)
+├─ api.md                     # Tüm API'lerin servis başlıkları altında kaydı (bağlayıcı)
 ├─ architecture.md            # Servis topolojisi, iletişim, saga, akışlar
 ├─ database.md                # DB sahipliği, tablo önerileri, Flyway stratejisi
 ├─ er-diagram.md              # DB başına Mermaid ER diyagramları
@@ -280,7 +281,7 @@ src/shared/
 
 | Eklenecek | Konum |
 | --- | --- |
-| Yeni REST endpoint | `<ad>-service/.../api/controller` + `api/dto/*` + `application/service` |
+| Yeni REST endpoint | `<ad>-service/.../api/controller` + `api/dto/*` + `application/service` + kayıt: `docs/api.md` |
 | Başka servise senkron çağrı | `application/port` arayüzü + `infrastructure/client` adaptörü |
 | Asenkron olay | `domain/event` + `infrastructure/messaging/outbox` (yayın), `.../inbox` (alım) |
 | Yeni tablo / kolon | `src/main/resources/db/migration/V{n}__*.sql` (servisin aralığında) |

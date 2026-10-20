@@ -37,6 +37,7 @@ Her yeni görevde, kod yazmadan önce sırasıyla oku:
    5. [docs/folder-structure.md](docs/folder-structure.md)
    6. [docs/web-rules.md](docs/web-rules.md). Frontend işi varsa bu belge zorunludur. Backend işinde de API sözleşmesi için göz at.
 4. **Migration yazılacaksa:** [docs/decisions/migrations.md](docs/decisions/migrations.md). Ayrıntı için bkz. §4.
+5. **API kataloğu:** [docs/api.md](docs/api.md). Başka servisin API'sini tüketmeden önce sözleşmeyi buradan oku. Kendi API'ni yazınca buraya kaydet (bkz. §4.1).
 
 **Kaynak önceliği:** repo kodu > `servis-gereksinimleri` > `gereksinimler` (docx). Çelişkiyi sessizce çözme; kullanıcıya bildir.
 
@@ -66,6 +67,19 @@ Her yeni görevde, kod yazmadan önce sırasıyla oku:
   - Durum kolonları `varchar` + `CHECK` olarak tanımlanır.
   - Başka servise ait kimlikler FK değil, REF kolonudur.
 - `ddl-auto=validate` kullanılır. Bu nedenle her entity değişikliğinin bir migration karşılığı olmalıdır.
+
+## 4.1 API kaydı — ZORUNLU (`docs/api.md`)
+
+- Oluşturulan, değiştirilen veya kaldırılan **her endpoint**, aynı görevde [docs/api.md](docs/api.md) içine kendi servisinin `## <SERVİS>` başlığı altında yazılır. Kayıt eksikse görev bitmiş sayılmaz.
+- Kayıt api.md §2'deki şablonla yazılır ve şu alanları içerir:
+  - `Durum`, `Sorumlu`, `Tüketici servisler`
+  - `Endpoint`, `Yetkilendirme`
+  - `Path/Query Parameters` ve `Request Body` (varsa)
+  - `Response`, `Hata Durumları`, `Bağlantı`, `Test Durumu`
+- Yalnız kendi servisinin bölümünü düzenle. Başka servisin kaydına dokunma; gerekiyorsa sahibine bildirilmesini öner.
+- `Durum` ve `Test Durumu` gerçeği yansıtmalıdır. Test yoksa `NOT IMPLEMENTED` yaz, kod yazılmadıysa `PLANNED` bırak.
+- Sözleşmeyi bozan değişiklikte eski kaydı `DEPRECATED` yap ve kullanıcıya tüketici servisleri bildir.
+- Örnek JSON'lara gerçek kişisel veri, token veya gizli değer yazılmaz.
 
 ## 5. Güvenlik kuralları (özet; asıl kaynak `docs/SECURITY.md`)
 
@@ -107,7 +121,7 @@ feature: <yapılan işin kısa özeti>
 ```
 
 - İlk satır her zaman `feature: ` ile başlar ve kısa, tek satırlık bir özettir.
-- Altındaki her madde `- ` ile başlar ve somut bir değişikliği anlatır: dosya, endpoint, migration veya test.
+- Altındaki her madde `- ` ile başlar ve somut bir değişikliği anlatır: dosya, endpoint, migration, test veya `docs/api.md` kaydı.
 - Görev kimliği varsa özete ekle. Örnek: `feature: HW-03 donanım profili oluşturma endpoint'i`.
 - Mesajın altına başka hiçbir satır (atıf, imza, boş açıklama paragrafı) ekleme.
 
