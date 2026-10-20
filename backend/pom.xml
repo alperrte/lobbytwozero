@@ -97,7 +97,24 @@
     </build>
 
     <modules>
-        <!-- Spring Initializr ile servisler burada eklenecek -->
+        <module>services/auth-service</module>
+        <module>services/user-service</module>
+        <module>services/mail-service</module>
+        <module>services/game-service</module>
+        <module>services/library-service</module>
+        <module>services/review-service</module>
+        <module>services/social-service</module>
+        <module>services/messaging-service</module>
+        <module>services/lfp-service</module>
+        <module>services/community-service</module>
+        <module>services/content-service</module>
+        <module>services/event-service</module>
+        <module>services/hardware-service</module>
+        <module>services/recommendation-service</module>
+        <module>services/performance-service</module>
+        <module>services/admin-service</module>
+        <module>services/notification-service</module>
+        <module>services/api-gateway</module>
     </modules>
 
 </project>
