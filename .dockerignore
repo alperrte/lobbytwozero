@@ -1,0 +1,13 @@
+.git
+.env
+.env.*
+**/.env
+**/.env.*
+**/target
+**/.idea
+**/*.log
+logs
+test-results
+.vscode
+frontend/node_modules
+frontend/.next

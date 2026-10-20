@@ -1,0 +1,414 @@
+name: ${COMPOSE_PROJECT_NAME:-ltz-dev}
+
+x-ltz-runtime-env: &ltz-runtime-env
+  SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+  BACKEND_INTERNAL_PORT: ${BACKEND_INTERNAL_PORT:-8080}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5001}
+  REST_CLIENT_CONNECT_TIMEOUT_MS: ${REST_CLIENT_CONNECT_TIMEOUT_MS:-3000}
+  REST_CLIENT_READ_TIMEOUT_MS: ${REST_CLIENT_READ_TIMEOUT_MS:-5000}
+  JWT_ISSUER: ${JWT_ISSUER:-ltz-auth}
+  JWT_ACCESS_TTL_SECONDS: ${JWT_ACCESS_TTL_SECONDS:-900}
+  JWT_REFRESH_TTL_SECONDS: ${JWT_REFRESH_TTL_SECONDS:-604800}
+  TZ: ${TZ:-UTC}
+  AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:?}
+  USER_SERVICE_URL: ${USER_SERVICE_URL:?}
+  MAIL_SERVICE_URL: ${MAIL_SERVICE_URL:?}
+  GAME_SERVICE_URL: ${GAME_SERVICE_URL:?}
+  LIBRARY_SERVICE_URL: ${LIBRARY_SERVICE_URL:?}
+  REVIEW_SERVICE_URL: ${REVIEW_SERVICE_URL:?}
+  SOCIAL_SERVICE_URL: ${SOCIAL_SERVICE_URL:?}
+  MESSAGING_SERVICE_URL: ${MESSAGING_SERVICE_URL:?}
+  LFP_SERVICE_URL: ${LFP_SERVICE_URL:?}
+  COMMUNITY_SERVICE_URL: ${COMMUNITY_SERVICE_URL:?}
+  CONTENT_SERVICE_URL: ${CONTENT_SERVICE_URL:?}
+  EVENT_SERVICE_URL: ${EVENT_SERVICE_URL:?}
+  HARDWARE_SERVICE_URL: ${HARDWARE_SERVICE_URL:?}
+  RECOMMENDATION_SERVICE_URL: ${RECOMMENDATION_SERVICE_URL:?}
+  PERFORMANCE_SERVICE_URL: ${PERFORMANCE_SERVICE_URL:?}
+  ADMIN_SERVICE_URL: ${ADMIN_SERVICE_URL:?}
+  NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:?}
+
+x-ltz-db-env: &ltz-db-env
+  <<: *ltz-runtime-env
+  POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+  POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+  POSTGRES_USER: ${POSTGRES_USER:?}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+  DB_POOL_MAX_SIZE: ${DB_POOL_MAX_SIZE:-3}
+  DB_POOL_MIN_IDLE: ${DB_POOL_MIN_IDLE:-1}
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+
+    ports:
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5542}:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init/01-create-databases.sql:/docker-entrypoint-initdb.d/01-create-databases.sql:ro
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -h 127.0.0.1 -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+    networks:
+      - ltz_network
+
+  auth-service:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: backend/services/auth-service/Dockerfile
+      args:
+        SERVICE_NAME: auth-service
+    image: ltz/auth-service:${APP_ENV:-dev}
+    environment:
+      <<: *ltz-db-env
+      DB_AUTH_NAME: ${DB_AUTH_NAME:?}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${AUTH_SERVICE_HOST_PORT:?}:${BACKEND_INTERNAL_PORT:-8080}"
+    networks:
+      - ltz_network
+
+  user-service:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: backend/services/user-service/Dockerfile
+      args:
+        SERVICE_NAME: user-service
+    image: ltz/user-service:${APP_ENV:-dev}
+    environment:
+      <<: *ltz-db-env
+      DB_USER_NAME: ${DB_USER_NAME:?}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${USER_SERVICE_HOST_PORT:?}:${BACKEND_INTERNAL_PORT:-8080}"
+    networks:
+      - ltz_network
+
+  mail-service:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: backend/services/mail-service/Dockerfile
+      args:
+        SERVICE_NAME: mail-service
+    image: ltz/mail-service:${APP_ENV:-dev}
+    environment:
+      <<: *ltz-db-env
+      DB_MAIL_NAME: ${DB_MAIL_NAME:?}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${MAIL_SERVICE_HOST_PORT:?}:${BACKEND_INTERNAL_PORT:-8080}"
+    networks:
+      - ltz_network
+
+  game-service:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: backend/services/game-service/Dockerfile
+      args:
+        SERVICE_NAME: game-service
+    image: ltz/game-service:${APP_ENV:-dev}
+    environment:
+      <<: *ltz-db-env
+      DB_GAME_NAME: ${DB_GAME_NAME:?}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${GAME_SERVICE_HOST_PORT:?}:${BACKEND_INTERNAL_PORT:-8080}"
+    networks:
+      - ltz_network
+
+  library-service:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: backend/services/library-service/Dockerfile
+      args:
+        SERVICE_NAME: library-service
+    image: ltz/library-service:${APP_ENV:-dev}
+    environment:
+      <<: *ltz-db-env
+      DB_LIBRARY_NAME: ${DB_LIBRARY_NAME:?}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${LIBRARY_SERVICE_HOST_PORT:?}:${BACKEND_INTERNAL_PORT:-8080}"
+    networks:
+      - ltz_network
+
+  review-service:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: backend/services/review-service/Dockerfile
+      args:
+        SERVICE_NAME: review-service
+    image: ltz/review-service:${APP_ENV:-dev}
+    environment:
+      <<: *ltz-db-env
+      DB_REVIEW_NAME: ${DB_REVIEW_NAME:?}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${REVIEW_SERVICE_HOST_PORT:?}:${BACKEND_INTERNAL_PORT:-8080}"
+    networks:
+      - ltz_network
+
+  social-service:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: backend/services/social-service/Dockerfile
+      args:
+        SERVICE_NAME: social-service
+    image: ltz/social-service:${APP_ENV:-dev}
+    environment:
+      <<: *ltz-db-env
+      DB_SOCIAL_NAME: ${DB_SOCIAL_NAME:?}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${SOCIAL_SERVICE_HOST_PORT:?}:${BACKEND_INTERNAL_PORT:-8080}"
+    networks:
+      - ltz_network
+
+  messaging-service:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: backend/services/messaging-service/Dockerfile
+      args:
+        SERVICE_NAME: messaging-service
+    image: ltz/messaging-service:${APP_ENV:-dev}
+    environment:
+      <<: *ltz-db-env
+      DB_MESSAGING_NAME: ${DB_MESSAGING_NAME:?}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${MESSAGING_SERVICE_HOST_PORT:?}:${BACKEND_INTERNAL_PORT:-8080}"
+    networks:
+      - ltz_network
+
+  lfp-service:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: backend/services/lfp-service/Dockerfile
+      args:
+        SERVICE_NAME: lfp-service
+    image: ltz/lfp-service:${APP_ENV:-dev}
+    environment:
+      <<: *ltz-db-env
+      DB_LFP_NAME: ${DB_LFP_NAME:?}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${LFP_SERVICE_HOST_PORT:?}:${BACKEND_INTERNAL_PORT:-8080}"
+    networks:
+      - ltz_network
+
+  community-service:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: backend/services/community-service/Dockerfile
+      args:
+        SERVICE_NAME: community-service
+    image: ltz/community-service:${APP_ENV:-dev}
+    environment:
+      <<: *ltz-db-env
+      DB_COMMUNITY_NAME: ${DB_COMMUNITY_NAME:?}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${COMMUNITY_SERVICE_HOST_PORT:?}:${BACKEND_INTERNAL_PORT:-8080}"
+    networks:
+      - ltz_network
+
+  content-service:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: backend/services/content-service/Dockerfile
+      args:
+        SERVICE_NAME: content-service
+    image: ltz/content-service:${APP_ENV:-dev}
+    environment:
+      <<: *ltz-db-env
+      DB_CONTENT_NAME: ${DB_CONTENT_NAME:?}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${CONTENT_SERVICE_HOST_PORT:?}:${BACKEND_INTERNAL_PORT:-8080}"
+    networks:
+      - ltz_network
+
+  event-service:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: backend/services/event-service/Dockerfile
+      args:
+        SERVICE_NAME: event-service
+    image: ltz/event-service:${APP_ENV:-dev}
+    environment:
+      <<: *ltz-db-env
+      DB_EVENT_NAME: ${DB_EVENT_NAME:?}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${EVENT_SERVICE_HOST_PORT:?}:${BACKEND_INTERNAL_PORT:-8080}"
+    networks:
+      - ltz_network
+
+  hardware-service:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: backend/services/hardware-service/Dockerfile
+      args:
+        SERVICE_NAME: hardware-service
+    image: ltz/hardware-service:${APP_ENV:-dev}
+    environment:
+      <<: *ltz-db-env
+      DB_HARDWARE_NAME: ${DB_HARDWARE_NAME:?}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${HARDWARE_SERVICE_HOST_PORT:?}:${BACKEND_INTERNAL_PORT:-8080}"
+    networks:
+      - ltz_network
+
+  recommendation-service:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: backend/services/recommendation-service/Dockerfile
+      args:
+        SERVICE_NAME: recommendation-service
+    image: ltz/recommendation-service:${APP_ENV:-dev}
+    environment:
+      <<: *ltz-db-env
+      DB_RECOMMENDATION_NAME: ${DB_RECOMMENDATION_NAME:?}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${RECOMMENDATION_SERVICE_HOST_PORT:?}:${BACKEND_INTERNAL_PORT:-8080}"
+    networks:
+      - ltz_network
+
+  performance-service:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: backend/services/performance-service/Dockerfile
+      args:
+        SERVICE_NAME: performance-service
+    image: ltz/performance-service:${APP_ENV:-dev}
+    environment:
+      <<: *ltz-db-env
+      DB_PERFORMANCE_NAME: ${DB_PERFORMANCE_NAME:?}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${PERFORMANCE_SERVICE_HOST_PORT:?}:${BACKEND_INTERNAL_PORT:-8080}"
+    networks:
+      - ltz_network
+
+  admin-service:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: backend/services/admin-service/Dockerfile
+      args:
+        SERVICE_NAME: admin-service
+    image: ltz/admin-service:${APP_ENV:-dev}
+    environment:
+      <<: *ltz-db-env
+      DB_ADMIN_NAME: ${DB_ADMIN_NAME:?}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${ADMIN_SERVICE_HOST_PORT:?}:${BACKEND_INTERNAL_PORT:-8080}"
+    networks:
+      - ltz_network
+
+  notification-service:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: backend/services/notification-service/Dockerfile
+      args:
+        SERVICE_NAME: notification-service
+    image: ltz/notification-service:${APP_ENV:-dev}
+    environment:
+      <<: *ltz-db-env
+      DB_NOTIFICATION_NAME: ${DB_NOTIFICATION_NAME:?}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${NOTIFICATION_SERVICE_HOST_PORT:?}:${BACKEND_INTERNAL_PORT:-8080}"
+    networks:
+      - ltz_network
+
+  api-gateway:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: backend/services/api-gateway/Dockerfile
+      args:
+        SERVICE_NAME: api-gateway
+    image: ltz/api-gateway:${APP_ENV:-dev}
+    environment:
+      <<: *ltz-runtime-env
+    ports:
+      - "127.0.0.1:${API_GATEWAY_HOST_PORT:?}:${BACKEND_INTERNAL_PORT:-8080}"
+    networks:
+      - ltz_network
+
+volumes:
+  postgres_data:
+
+networks:
+  ltz_network:
+    driver: bridge
