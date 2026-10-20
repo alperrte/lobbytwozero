@@ -34,6 +34,7 @@ class HardwareComponentControllerTest extends PostgresIntegrationSupport {
 
     @BeforeEach
     void prepare() throws Exception {
+        jdbc.update("DELETE FROM hardware_campaigns");
         jdbc.update("DELETE FROM hardware_profiles");
         jdbc.update("DELETE FROM hardware_product_brands");
         jdbc.update("DELETE FROM hardware_products");
@@ -124,9 +125,10 @@ class HardwareComponentControllerTest extends PostgresIntegrationSupport {
 
     @Test
     void generalModelUniquenessDoesNotDependOnNullableBrand() {
+        UUID duplicateId = UUID.randomUUID();
         assertThatThrownBy(() -> jdbc.update(
                 "INSERT INTO hardware_products(id,category,model,normalized_model) VALUES (?,?,?,?)",
-                UUID.randomUUID(), "GPU", "Generic GPU", "generic gpu"))
+                duplicateId, "GPU", "Generic GPU", "generic gpu"))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 

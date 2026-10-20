@@ -1,8 +1,8 @@
 # LTZ-ALP-HW-01 — Bilgisayar Profili Oluştur, Düzenle ve Sil
 
 Tarih: **2026-10-21** (Europe/Istanbul). Sorumlu: **Alper**.
-Durum: **READY_FOR_PDA — DEFERRED_AUTH**. Alt görevler **7/7**, toplam **7/17**.
-Ana taskın PDA kutusu kullanıcı kapanışı doğrulanana kadar açık kalır.
+Durum: **DONE — DEFERRED_AUTH**. Alt görevler **7/7**, toplam **7/17**.
+Kullanıcı PDA kapanışını 2026-10-21 tarihinde bildirdi; kök master ana task kutusu [x].
 
 ## 1. Teslim kapsamı
 
@@ -155,7 +155,9 @@ FPS/sıcaklık/ölçüm üretilmedi veya hardware DB'sine taşınmadı.
 
 ## 7. Kullanıcı teslim adımı
 
-PDA üzerinden yalnız **LTZ-ALP-HW-01** kapatılabilir. Kullanıcı kapanışı bildirmeden
-ana task checkbox'ı işaretlenmez. Git add/commit/push, branch değişikliği veya PDA
-durum değişikliği ajan tarafından yapılmadı. Commit metni öneridir; commit SHA üretilmedi.
+Kullanıcı PDA üzerinden **LTZ-ALP-HW-01** kapanışını bildirdi; ana task checkbox'ı
+işaretlendi. Kullanıcının `fc23563` commit'i feature/hardware-service üzerinde
+salt okunur doğrulandı; kapsam test edilen sürümle aynı. Git add/commit/push,
+branch değişikliği veya PDA durum değişikliği ajan tarafından yapılmadı.
+[Kapanış kaydı](../progress/LTZ-ALP-HW-01.md#pda-kapanışı--2026-10-21).
 Sonraki ana taska başlanmadı; yeni kullanıcı talimatına kadar **STOP**.

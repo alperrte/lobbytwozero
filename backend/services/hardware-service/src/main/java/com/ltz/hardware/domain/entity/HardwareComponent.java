@@ -28,20 +28,22 @@ public class HardwareComponent {
 
     protected HardwareComponent() { }
 
-    public HardwareComponent(UUID profileId, ComponentCategory category, UUID productId, UUID brandId,
-                             String modelName, String brandName, int quantity, HardwareSpecifications specifications) {
+    public record Selection(ComponentCategory category, UUID productId, UUID brandId,
+                            String modelName, String brandName, HardwareSpecifications specifications) { }
+
+    public HardwareComponent(UUID profileId, Selection selection, int quantity) {
         this.id = UUID.randomUUID();
         this.profileId = Objects.requireNonNull(profileId);
-        this.category = Objects.requireNonNull(category);
-        this.productId = productId;
-        this.brandId = brandId;
-        this.modelName = name(modelName, 160, true);
-        this.brandName = name(brandName, 100, false);
+        this.category = Objects.requireNonNull(selection.category());
+        this.productId = selection.productId();
+        this.brandId = selection.brandId();
+        this.modelName = name(selection.modelName(), 160, true);
+        this.brandName = name(selection.brandName(), 100, false);
         if (quantity < 1 || quantity > 128 || (brandId != null && productId == null)) {
             throw new IllegalArgumentException("Geçersiz bileşen");
         }
         this.quantity = quantity;
-        this.specifications = specifications;
+        this.specifications = selection.specifications();
         this.source = "MANUAL";
         this.createdAt = Instant.now();
         this.updatedAt = createdAt;

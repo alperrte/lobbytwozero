@@ -76,14 +76,15 @@ public class HardwareComponentService {
             if (request.brandId() != null) throw new IllegalArgumentException("Manuel marka kimliği kullanılamaz");
         } else {
             if (modelName != null || brandName != null) throw new IllegalArgumentException("Katalog ve manuel alanlar karışamaz");
-            var product = products.findById(request.productId()).orElseThrow(HardwareNotFoundException::new);
+            var product = products.findActiveForSelection(request.productId()).orElseThrow(HardwareNotFoundException::new);
             if (product.getCategory() != request.category()) throw new IllegalArgumentException("Kategori uyuşmuyor");
             modelName = product.getModel();
             if (specs == null) specs = product.getSpecifications();
             brandName = resolveBrandName(product.getId(), request.brandId());
         }
-        return new HardwareComponent(profileId, request.category(), request.productId(), request.brandId(),
-                modelName, brandName, request.quantity(), specs);
+        var selection = new HardwareComponent.Selection(request.category(), request.productId(), request.brandId(),
+                modelName, brandName, specs);
+        return new HardwareComponent(profileId, selection, request.quantity());
     }
 
     private String resolveBrandName(UUID productId, UUID brandId) {
@@ -91,6 +92,7 @@ public class HardwareComponentService {
         if (!products.supportsBrand(productId, brandId)) {
             throw new IllegalArgumentException("Marka bu model için tanımlı değil");
         }
-        return brands.findById(brandId).orElseThrow(HardwareNotFoundException::new).getName();
+        return brands.findActiveForSelection(java.util.Set.of(brandId)).stream().findFirst()
+                .orElseThrow(HardwareNotFoundException::new).getName();
     }
 }

@@ -18,7 +18,7 @@ import tools.jackson.databind.ObjectMapper;
 @Configuration
 public class HardwareSecurityConfiguration {
     @Bean
-    SecurityFilterChain hardwareSecurity(HttpSecurity http, ObjectMapper mapper) throws Exception {
+    SecurityFilterChain hardwareSecurity(HttpSecurity http, ObjectMapper mapper) {
         // No production authenticator until the real Auth contract is agreed.
         // Client headers, cookies and bearer tokens cannot create an actor here.
         http.httpBasic(AbstractHttpConfigurer::disable)
@@ -35,6 +35,17 @@ public class HardwareSecurityConfiguration {
                             var auth = authentication.get();
                             return new AuthorizationDecision(auth != null && auth.isAuthenticated()
                                     && auth.getPrincipal() instanceof AuthenticatedActor);
+                        })
+                        .requestMatchers("/api/v1/hardware/catalog/**", "/api/v1/hardware/campaigns",
+                                "/api/v1/hardware/campaigns/**")
+                        .access((authentication, context) -> {
+                            var auth = authentication.get();
+                            boolean trusted = auth != null && auth.isAuthenticated()
+                                    && auth.getPrincipal() instanceof AuthenticatedActor;
+                            boolean read = context.getRequest().getMethod().equals("GET");
+                            return new AuthorizationDecision(trusted && (read || auth.getAuthorities().stream()
+                                    .anyMatch(a -> com.ltz.hardware.application.port.CatalogWriteAccess.PERMISSION
+                                            .equals(a.getAuthority()))));
                         })
                         .anyRequest().denyAll())
                 .exceptionHandling(errors -> errors

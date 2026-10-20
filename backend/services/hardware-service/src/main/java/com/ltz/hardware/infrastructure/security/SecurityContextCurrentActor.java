@@ -13,9 +13,9 @@ public class SecurityContextCurrentActor implements CurrentActor {
     public UUID requireUserId() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()
-                || !(authentication.getPrincipal() instanceof AuthenticatedActor actor)) {
+                || !(authentication.getPrincipal() instanceof AuthenticatedActor(UUID userId))) {
             throw new InsufficientAuthenticationException("Doğrulanmış kullanıcı gerekli");
         }
-        return actor.userId();
+        return userId;
     }
 }

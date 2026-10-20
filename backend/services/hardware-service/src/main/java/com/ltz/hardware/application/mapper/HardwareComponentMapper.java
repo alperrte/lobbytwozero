@@ -11,8 +11,9 @@ import org.springframework.stereotype.Component;
 public class HardwareComponentMapper {
     public HardwareSpecifications toSpecifications(SpecificationsRequest request) {
         if (request == null) return null;
-        return new HardwareSpecifications(request.capacityGb(), request.clockMhz(), request.coreCount(),
-                request.powerWatts(), request.memoryType(), request.socket(), request.interfaceType(), request.formFactor());
+        return new HardwareSpecifications(new HardwareSpecifications.Values(request.capacityGb(), request.clockMhz(),
+                request.coreCount(), request.powerWatts(), request.memoryType(), request.socket(),
+                request.interfaceType(), request.formFactor()));
     }
 
     public HardwareComponentResponse toResponse(HardwareComponent component) {

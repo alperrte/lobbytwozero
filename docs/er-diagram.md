@@ -2,7 +2,7 @@
 
 > Tarih: 2026-10-20
 >
-> Durum: [database.md](database.md) tasarımlarının görselidir. Hardware §14 V1/V2 uygulamasını ayrıca gösterir (PostgreSQL 17/Flyway/JPA testleri PASS; canlı DB doğrulanmadı). Diğer tasarımlar **`[ÖNERİ]`**dir. Şema değiştiğinde ilgili diyagram güncellenir.
+> Durum: [database.md](database.md) tasarımlarının görselidir. Hardware §14 V1–V5 uygulamasını ayrıca gösterir (PostgreSQL 17/Flyway/JPA testleri PASS; canlı DB doğrulanmadı). Diğer tasarımlar **`[ÖNERİ]`**dir. Şema değiştiğinde ilgili diyagram güncellenir.
 >
 > Gösterim:
 > - Düz çizgi / `FK`: aynı veritabanı içindeki gerçek yabancı anahtar.
@@ -683,8 +683,41 @@ erDiagram
   hardware_product_brands |o--o{ hardware_profile_components : "optional product/brand FK"
 ```
 
+HW-10 / V3 (PostgreSQL/Flyway/JPA PASS): ürün ve marka status alanları
+ACTIVE/ARCHIVED; fiziksel silme yapılmaz. Aynı ürün/marka FK'leri korunur.
+`hardware_catalog_audit` actor_id (dış REF), target_id, action, reason ve UTC zaman
+tutar; iş mutasyonuyla atomik ve append-only'dir. Teknik audit tablosu yukarıdaki
+genel gösterim kuralı gereği diyagrama eklenmez. V1/V2 değiştirilmedi.
+
+HW-11/V4 teknik filtre indeksleri PostgreSQL/Flyway/JPA testlerinden geçti.
+HW-14/V5 kampanya şeması (PostgreSQL/Flyway/JPA PASS; modül 134 test):
+
+```mermaid
+erDiagram
+  hardware_products ||--o{ hardware_campaigns : promotes
+  hardware_campaigns {
+    uuid id PK
+    uuid product_id FK
+    varchar title
+    varchar source_name
+    varchar source_url
+    numeric original_price
+    numeric sale_price
+    char currency
+    timestamptz starts_at
+    timestamptz ends_at
+    timestamptz observed_at
+    varchar status "ACTIVE|ARCHIVED"
+    bigint version
+  }
+```
+
+Kampanyanın fiyat ve kaynağı kayıtlı beyan; otomatik fiyat doğrulaması yok.
+Arşivleme referansları korur; normal okumada ürün/kampanya ACTIVE ve geçerli pencere aranır.
+
 **Gelecek görevler için öneri (uygulanmış değildir):**
-Aşağıdaki eski geniş diyagramdaki yorum/sync/kampanya tabloları hâlâ öneridir;
+Aşağıdaki eski geniş diyagramdaki yorum/sync/provider tabloları hâlâ öneridir;
+kampanya için yukarıdaki V5, ürün/marka için V2/V3 uygulama tanımı geçerlidir;
 ürün/marka ilişkisi yukarıdaki gerçek V2 diyagramında ayrılmıştır.
 
 ```mermaid

@@ -27,16 +27,18 @@ public class HardwareSpecifications {
     @Column(name = "form_factor", length = 32)
     private String formFactor;
 
-    public HardwareSpecifications(Integer capacityGb, Integer clockMhz, Integer coreCount, Integer powerWatts,
-                                  String memoryType, String socket, String interfaceType, String formFactor) {
-        this.capacityGb = range(capacityGb, 1048576);
-        this.clockMhz = range(clockMhz, 20000);
-        this.coreCount = range(coreCount, 1024);
-        this.powerWatts = range(powerWatts, 10000);
-        this.memoryType = text(memoryType);
-        this.socket = text(socket);
-        this.interfaceType = text(interfaceType);
-        this.formFactor = text(formFactor);
+    public record Values(Integer capacityGb, Integer clockMhz, Integer coreCount, Integer powerWatts,
+                         String memoryType, String socket, String interfaceType, String formFactor) { }
+
+    public HardwareSpecifications(Values values) {
+        this.capacityGb = range(values.capacityGb(), 1048576);
+        this.clockMhz = range(values.clockMhz(), 20000);
+        this.coreCount = range(values.coreCount(), 1024);
+        this.powerWatts = range(values.powerWatts(), 10000);
+        this.memoryType = text(values.memoryType());
+        this.socket = text(values.socket());
+        this.interfaceType = text(values.interfaceType());
+        this.formFactor = text(values.formFactor());
     }
 
     private static Integer range(Integer value, int max) {

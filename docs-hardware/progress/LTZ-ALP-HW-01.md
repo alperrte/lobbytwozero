@@ -217,3 +217,19 @@ kalite ve master checkpoint eşleştirildi. 7/7 alt görev ve final kalite check
 Ana task kutusu kullanıcı PDA kapanışını doğrulamadığı için [ ] kalır. Gerçek Auth
 DEFERRED_AUTH; production-ready değildir. Git add/commit/push veya PDA durum değişikliği
 yapılmadı. Sonraki ana taska başlanmadı; tek feature commit metni teslim edilip STOP.
+
+## PDA kapanışı — 2026-10-21
+
+Kullanıcı “PDA üzerinden LTZ-ALP-HW-01 taskını kapatıyorum” bildirimiyle kapanışı
+onayladı. [Kök master](../../LTZ_HARDWARE_SERVICE.md) ana task kutusu [x], durum
+**DONE — DEFERRED_AUTH** olarak güncellendi. Toplam 1/5 ana görev, 7/17 alt görev.
+
+Kullanıcının feature/hardware-service branch'indeki `fc23563` commit'i salt okunur
+kontrol edildi: 64 dosya dahil, test edilen sürüme göre kapsam içi fark yok;
+çalışma ağacı temiz ve origin takip referansı aynı commit'teydi. Gerçek ENV dosyaları
+commit'e dahil değildi. Bu kapanış kaydı yalnız dokümantasyon değişikliğidir;
+kod veya önceki pre-push/Sonar sonuçları değiştirilmedi, testler tekrar çalıştırılmadı.
+
+Gerçek Auth entegrasyonu **DEFERRED_AUTH**; production-ready değildir.
+PDA ve Git yazma işlemlerini kullanıcı yaptı; ajan PDA'ya erişmedi ve Git yazma
+komutu çalıştırmadı. Sonraki ana task için izin verilmedi: **WAITING_USER / STOP**.

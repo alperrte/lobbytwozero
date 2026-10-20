@@ -17,7 +17,7 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.web.filter.OncePerRequestFilter;
 import tools.jackson.databind.ObjectMapper;
 
-/** The profile API accepts one small record per mutation, never bulk uploads. */
+/** Hardware APIs accept one small record per mutation, never bulk uploads. */
 final class HardwareRequestBodyLimitFilter extends OncePerRequestFilter {
     private static final int MAX_BYTES = 16 * 1024;
     private final ObjectMapper mapper;
@@ -27,9 +27,9 @@ final class HardwareRequestBodyLimitFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath().isEmpty() ? request.getRequestURI() : request.getServletPath();
-        boolean profilePath = path.equals("/api/v1/hardware/profiles")
-                || path.startsWith("/api/v1/hardware/profiles/");
-        return !profilePath || !(request.getMethod().equals("POST") || request.getMethod().equals("PUT"));
+        boolean hardwarePath = path.startsWith("/api/v1/hardware/");
+        return !hardwarePath || !(request.getMethod().equals("POST") || request.getMethod().equals("PUT")
+                || request.getMethod().equals("DELETE"));
     }
 
     @Override

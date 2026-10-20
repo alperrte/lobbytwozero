@@ -109,8 +109,17 @@ ve istemcinin profileVersion değerini doğrular; detail/stats REPEATABLE_READ s
 header/cookie/token işlenmez, istekler reddedilir. Typed actor yalnız testlerde enjekte
 edilerek yerel sahiplik kuralları sınanır; bu gerçek JWT/E2E doğrulaması değildir.
 CSRF korunur, JSON mutasyonları 16 KiB ile sınırlıdır. Health probe dışında public iş API'si yoktur.
-Sonraki ana görevlerin katalog yönetimi, görünürlük, yorum/moderasyon, sync ve servis
-entegrasyonları uygulanmadı. Pre-push/Sonar teslim kanıtı ayrıca gereklidir.
+HW-10 kapsamında katalog yönetimi uygulandı: typed actor okumaları ve ayrıca
+hardware:catalog:write uygulama izni isteyen mutasyonlar. Gerçek Auth rol/claim
+eşlemesi ertelenmiş durumda. Arşivleme referansları korur; gerekçeli append-only
+audit hardware_db transaction'ına katılır, aktör başına yönetim yazma sınırı uygulanır.
+HW-11 parametrik model/kategori/üretici/teknik alan aramasını; HW-14 yetkili kişi
+tarafından kaynak/gözlem/fiyat/geçerlilik bilgisiyle girilen kampanyaları sunar.
+Harici fiyat API'si veya scraping yoktur; kaynak URL'ye sunucudan istek atılmaz.
+V3/V4/V5 yalnız hardware_db'yi genişletir. Yerel uygulama 134 testle PASS;
+HW-02 final pre-push PASS (%98,02); Sonar A/A/A + Quality Gate PASS.
+Gerçek Auth/E2E DEFERRED_AUTH. Görünürlük, yorum/moderasyon, sync ve
+servis entegrasyonları uygulanmadı.
 
 Kurallar:
 

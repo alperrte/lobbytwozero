@@ -1,6 +1,6 @@
 # Auth entegrasyon sınırı — DEFERRED_AUTH
 
-2026-10-21 kullanıcı onayıyla yalnız HW-01 yerel güvenlik sınırı uygulanmıştır.
+2026-10-21 kullanıcı onayıyla HW-01 ve HW-02 yerel güvenlik sınırları uygulanmıştır.
 
 `CurrentActor` uygulama portu UUID döndürür. `SecurityContextCurrentActor`, yalnız
 authenticated ve typed `AuthenticatedActor` principal'ını kabul eder. Üretimde bu
@@ -8,7 +8,11 @@ principal'ı oluşturan filtre/provider yoktur; istek header'ı, Basic, cookie v
 girdisi kimlik oluşturmaz. Testlerde SecurityMockMvcRequestPostProcessors ile yalnız
 test-scope Authentication kullanılır. Test actor'ı üretim bean'i değildir.
 
-İş uçları owner/protected, diğer tüm yollar deny-by-default; mevcut health/liveness/readiness
+Profil iş uçları owner/protected; katalog ve kampanya okumaları typed actor'a,
+yazmaları ayrıca `hardware:catalog:write` uygulama iznine bağlıdır. Bu izin Auth rolü
+veya JWT claim'i değildir; gerçek eşleme Kerem ile mutabakat bekler. Katalog yazmaları
+uygulama portunda da bağımsız kontrol edilir; gerekçeli audit/rate limit uygulanır.
+Diğer tüm yollar deny-by-default; mevcut health/liveness/readiness
 probe erişimi korunur. CSRF kapatılmadı; oturumdan kimlik okunmaz, form/Basic login yoktur.
 Özel yanıtlar private/no-store; hata gövdeleri güvenli ProblemDetail formatındadır.
 İstek gövdeleri, Content-Length bulunmasa da 16 KiB ile sınırlanır.

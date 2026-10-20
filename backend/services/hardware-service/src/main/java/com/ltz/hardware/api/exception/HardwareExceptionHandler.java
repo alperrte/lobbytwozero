@@ -2,6 +2,9 @@ package com.ltz.hardware.api.exception;
 
 import com.ltz.hardware.domain.exception.HardwareConflictException;
 import com.ltz.hardware.domain.exception.HardwareNotFoundException;
+import com.ltz.hardware.domain.exception.HardwareRateLimitException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
@@ -41,6 +44,23 @@ public class HardwareExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(Exception.class)
     ResponseEntity<Object> unexpected(Exception exception) {
         return problem(500, "INTERNAL_ERROR", "İşlem tamamlanamadı.");
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    ResponseEntity<Object> denied(AccessDeniedException exception) {
+        return problem(403, "ACCESS_DENIED", "Bu işlem için erişim reddedildi.");
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    ResponseEntity<Object> unauthenticated(AuthenticationException exception) {
+        return problem(401, "AUTHENTICATION_REQUIRED", "Doğrulanmış kimlik gerekli.");
+    }
+
+    @ExceptionHandler(HardwareRateLimitException.class)
+    ResponseEntity<Object> limited(HardwareRateLimitException exception) {
+        var result = problem(429, "RATE_LIMITED", "İşlem sınırı aşıldı; daha sonra tekrar deneyin.");
+        return ResponseEntity.status(429).headers(result.getHeaders()).header("Retry-After", "60")
+                .body(result.getBody());
     }
 
     private static ResponseEntity<Object> problem(int status, String code, String detail) {

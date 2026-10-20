@@ -141,7 +141,7 @@ lobbytwozero/
 
 > **Checklist kullanımı:** Aşağıdaki `[ ]` kutuları agent tarafından **doğrudan bu dosyada** güncellenir. Alt task yalnız **kod + gerekli migration/validation/ownership/security + ilgili testlerin başarı kanıtı + `docs/api.md` güncellemesi + kısa ilerleme notu** tamamlanınca `[x]` yapılır. Yerel işlev hazır ama gerçek Auth/E2E bekliyorsa test edilen ve ertelenen katmanlar ayrı not edilir. `PARTIAL/BLOCKED/NOT_VERIFIED` için `[ ]` kalır. **Ana task kutusu**, kullanıcı PDA/commit teslimini onaylayıp kapattığını söylediğinde `[x]` olur; yalnız agent'ın “hazır” demesiyle otomatik kapanmaz.
 
-### [ ] ANA TASK 01 — LTZ-ALP-HW-01 — Bilgisayar Profili Oluştur, Düzenle ve Sil
+### [x] ANA TASK 01 — LTZ-ALP-HW-01 — Bilgisayar Profili Oluştur, Düzenle ve Sil
 
 **Hedef:** Her kullanıcı kendisine ait birden fazla masaüstü/laptop/diğer bilgisayar profili yönetir; marka bağımsız veya manuel donanım bileşenlerini ekler, değiştirir, detaylarını görür, istatistiklerini okur ve profilini siler.
 
@@ -159,9 +159,9 @@ lobbytwozero/
 
 **Hedef:** Marka bağımsız katalog modelleri, isteğe bağlı üretici ilişkileri, arama/filtreler ve donanım kampanyaları yönetimi.
 
-- [ ] **HW-10 — Donanım ürün kataloğu:** Genel CPU/GPU/RAM/diğer model kayıtları ve varsa opsiyonel üretici/marka seçenekleri; marka seçmeden model çalışır. Model ve üretici tekilliği DB'de doğru korunur.
-- [ ] **HW-11 — Donanım arama ve filtreleme:** Model, varsa marka/üretici, tür ve teknik nitelik araması; güvenli filtre, sayfalama, stabil sıralama ve indeks doğrulaması.
-- [ ] **HW-14 — Donanım kampanyaları:** Ürünle ilişkilendirilen kampanya/indirim; fiyat/güncellik/kaynak alanları uydurulmaz. Bu bilgi `content-service` haberine taşınmaz.
+- [x] **HW-10 — Donanım ürün kataloğu:** Genel CPU/GPU/RAM/diğer model kayıtları ve varsa opsiyonel üretici/marka seçenekleri; marka seçmeden model çalışır. Model ve üretici tekilliği DB'de doğru korunur.
+- [x] **HW-11 — Donanım arama ve filtreleme:** Model, varsa marka/üretici, tür ve teknik nitelik araması; güvenli filtre, sayfalama, stabil sıralama ve indeks doğrulaması.
+- [x] **HW-14 — Donanım kampanyaları:** Ürünle ilişkilendirilen kampanya/indirim; fiyat/güncellik/kaynak alanları uydurulmaz. Bu bilgi `content-service` haberine taşınmaz.
 
 **Ana task kabulü:** 3/3 kanıt + iki kalite kapısı PASS. **STOP + tek `feature:` mesajı.**
 
@@ -337,28 +337,28 @@ Yalnız aktif taskın alt görevleri bitmediğinde ya da kapılar geçmediğinde
 
 | Alan | Başlangıç durumu |
 |---|---|
-| Aktif ana task | `LTZ-ALP-HW-01` |
-| Aktif alt task | `HW-16` |
-| Ana task aşaması | `READY_FOR_PDA — DEFERRED_AUTH` — 7/7 ve iki final kalite kapısı PASS; [teslim](docs-hardware/reports/LTZ-ALP-HW-01-delivery.md) |
-| 01 | `READY_FOR_PDA — DEFERRED_AUTH` — 7/7; ana task kullanıcı PDA kapanışına kadar `[ ]` |
-| 02 | `NOT_STARTED` — 0/3 |
+| Aktif ana task | `LTZ-ALP-HW-02` — kullanıcı geçişi onayladı |
+| Aktif alt task | Yok — HW-10/HW-11/HW-14 yerel uygulama ve testleri tamamlandı |
+| Ana task aşaması | `READY_FOR_PDA — DEFERRED_AUTH` — 3/3 ve iki final kalite kapısı PASS; [teslim](docs-hardware/reports/LTZ-ALP-HW-02-delivery.md) |
+| 01 | `DONE — DEFERRED_AUTH` — 7/7; kullanıcı kapanış bildirimiyle ana task `[x]` |
+| 02 | `READY_FOR_PDA — DEFERRED_AUTH` — 3/3; kullanıcı PDA kapanışını bildirene kadar ana task `[ ]` |
 | 03 | `NOT_STARTED` — 0/3 |
 | 04 | `NOT_STARTED` — 0/2 |
 | 05 | `NOT_STARTED` — 0/2 |
-| Toplam doğrulanan alt görev | `7/17` |
-| Son doğrulanan alt görev | `HW-16` — owner/sürüm/CSRF/CASCADE/izolasyon PASS; gövde boyutu da sınırlandı |
-| Son değiştirilen dosyalar | hardware-service: 38 yeni production Java, POM, dört yeni test + context testi güncellemesi, V1/V2 ve SQL smoke fixture; docs/api.md, database.md, er-diagram.md, architecture.md, folder-structure.md; onaylı lib/profile-env.mjs ve sonarqube runner/test/rehber; docs-hardware. [Envanter/teslim](docs-hardware/reports/LTZ-ALP-HW-01-delivery.md) |
-| Son Flyway | `V2__create_hardware_components_and_selection_catalog.sql` — V1/V2 PostgreSQL 17 Flyway/JPA PASS; canlı DB'ye uygulanmadı |
-| Son endpoint / docs/api.md değişikliği | 9 protected endpoint; oluşturma/liste/detay/istatistik/güncelleme/silme ve bileşen POST/PUT/DELETE; [API kataloğu](docs/api.md#hardware) |
-| Son Maven/test komutu ve sonuç | Final `pre-push.cmd hardware-service` içinden clean verify — PASS, exit 0; 58 test, 0 failure/error/skipped; 2026-10-21 01:13:28 +03:00 |
-| JaCoCo | `%96,69` — son pre-push raporu; coverage exclusion eklenmedi |
-| Pre-push | `PASS` — hardware-service, 58 test, %96,69; exit 0, 2026-10-21 01:13:28 +03:00; BACKEND TEST CHECK PASSED |
-| Sonar / Quality Gate | `PASS` — son analiz 9be6f62f-5bf5-44f8-9d1d-53ca6d9350fc, 2026-10-21 01:16:26 +03:00; Security/Reliability/Maintainability A, gate/overall PASS, coverage %84,3, duplication %0, exit 0; açık kritik/vulnerability/hotspot 0 |
+| Toplam doğrulanan alt görev | `10/17` |
+| Son doğrulanan alt görev | `HW-14` — 15 kampanya senaryosu; modül toplamı 134 PASS |
+| Son değiştirilen dosyalar | Hardware: 27 yeni üst seviye production Java, 12 mevcut production Java, V3/V4/V5, dört yeni test + bileşen testi fixture/lambda güncellemesi; docs/api.md HARDWARE, DB/ER/mimari ve docs-hardware. [Envanter/teslim](docs-hardware/reports/LTZ-ALP-HW-02-delivery.md) |
+| Son Flyway | `V5__create_hardware_campaigns.sql` — V1/V2 değiştirilmedi; V1–V5 PostgreSQL 17/Flyway/JPA PASS; canlı DB'ye uygulanmadı |
+| Son endpoint / docs/api.md değişikliği | 15 yeni katalog/kampanya endpoint'i, GET ürün listesinde HW-11 filtreleri; mevcut profil seçimi arşivli ürün/markayı reddeder; toplam 24 iş endpoint'i; [API kataloğu](docs/api.md#hardware) |
+| Son Maven/test komutu ve sonuç | Final pre-push clean verify — PASS, exit 0; 134 test, 0 failure/error/skipped; 2026-10-21 02:01:49 +03:00; ardından Sonar bütün backend 152 PASS, 18 modül |
+| JaCoCo | `%98,02` — 694/708 hardware satırı; coverage exclusion yok |
+| Pre-push | `PASS` — Sonar düzeltmeleri sonrası 134 test/%98,02; exit 0, 2026-10-21 02:01:49 +03:00; BACKEND TEST CHECK PASSED |
+| Sonar / Quality Gate | `PASS` — analiz 1d274361-0d59-4aee-9e54-3303c0ef52e5, 2026-10-21 02:04:53 +03:00; A/A/A, gate/overall PASS, coverage %89,2, duplication %0, new coverage %92,3, new issue 0; scan exit 0, 02:05:11 +03:00; açık issue/vulnerability/hotspot 0 |
 | Auth bağlantısı | `DEFERRED_AUTH — gerçek auth-service/JWT sözleşmesi henüz yok` |
 | Diğer servis entegrasyonları | `NOT_VERIFIED; ilgili task geldikçe ele alınacak` |
-| Açık kullanıcı onayları | Gerekli geliştirme/kalite/runner onayları alındı. PDA kapatma ve commit/push yalnız kullanıcıda; sonraki ana task için henüz izin yok |
-| Güncel engel | Teslimi engelleyen kalite açığı yok. Gerçek Auth sözleşmesi/E2E DEFERRED_AUTH; production-ready değildir |
-| Bir sonraki kesin adım | Kullanıcı LTZ-ALP-HW-01 PDA kapanışını ve kendi Git işlemlerini tamamlayabilir. Ajan STOP; sonraki taska yalnız yeni açık kullanıcı talimatıyla geçilir |
+| Açık kullanıcı onayları | HW-02 başlangıcı ve iki sözleşme onaylı. Oturumdaki “İki kalite komutunu çalıştır” onayı aynı hardware-service pre-push ve scan dev kapsamı için geçerli; yeniden onay istenmeden çalıştırılıyor |
+| Güncel engel | Yerel teslimi engelleyen kalite açığı yok. Gerçek Auth/JWT, rol/claim eşlemesi ve E2E DEFERRED_AUTH; production-ready değildir |
+| Bir sonraki kesin adım | Kullanıcı LTZ-ALP-HW-02 PDA kapanışını ve kendi Git işlemlerini tamamlayabilir. Ajan STOP; sonraki ana taska yalnız yeni açık talimatla geçilir |
 | Son güncelleme (gerçek) | `2026-10-21` |
 
 ### CANLI KARAR / BLOKAJ DEFTERİ
@@ -366,6 +366,10 @@ Yalnız aktif taskın alt görevleri bitmediğinde ya da kapılar geçmediğinde
 - `OPEN`: Auth Service ile access-token JWT claim, issuer, audience, anahtar dağıtımı/JWKS, rol biçimi, account status/revocation ve HttpOnly cookie/CSRF protokolü mutabakatı. **Gerçek entegrasyon ileride**; korumalı API'ler fail-closed.
 - `APPROVED 2026-10-21`: Owner/protected profil uçları, fail-closed üretim, test-only actor ve CSRF'nin korunması kullanıcı tarafından onaylandı; WebMvc test/Testcontainers bağımlılıkları onaylandı. Yeni public iş endpoint'i, ENV veya Compose sözleşmesi eklenmedi. [Karar kaydı](docs-hardware/decisions/open-decisions.md).
 - `VERIFIED 2026-10-21`: Final pre-push PASS (58 test, %96,69), Sonar A/A/A + Quality Gate PASS (76 backend testi, %84,3 overall, %0 duplication). [Son kalite kanıtı](docs-hardware/testing/LTZ-ALP-HW-01-quality.md). Sonraki ana taskta yeniden doğrulanır.
+- `CLOSED 2026-10-21`: Kullanıcı PDA üzerinden LTZ-ALP-HW-01 kapanışını bildirdi; ana task `[x]`. Kullanıcının `fc23563` commit'inin kapsamı test edilen sürümle aynı doğrulandı. Gerçek Auth `DEFERRED_AUTH`; sonraki ana task için izin yok. [Kapanış kaydı](docs-hardware/progress/LTZ-ALP-HW-01.md#pda-kapanışı--2026-10-21).
+- `STARTED 2026-10-21`: Kullanıcı LTZ-ALP-HW-02'ye geçişi onayladı. HW-10 ile başlanır; HW-11 ve HW-14 sırayla uygulanır. Yeni izin/kampanya sözleşmesi onay bekliyor; final kalite kapıları henüz çalıştırılmadı.
+- `APPROVED 2026-10-21 / HW-02`: Typed actor + hardware:catalog:write yönetim sınırı ve yerel kaynak/gözlem/fiyat kampanya sözleşmesi kullanıcı tarafından onaylandı. Yeni Auth rol/claim veya dış sağlayıcı tanımlanmadı.
+- `VERIFIED 2026-10-21 / HW-02`: 3/3 alt görev, pre-push 134 test/%98,02 PASS; Sonar A/A/A + Quality Gate PASS, yeni issue 0, açık issue/hotspot 0. [Teslim](docs-hardware/reports/LTZ-ALP-HW-02-delivery.md). Ana task `[ ]`; sonraki task izni yok.
 
 ### CHECKPOINT GÜNCELLEME ÖRNEĞİ (GERÇEK SONUCA GÖRE DOLDUR)
 

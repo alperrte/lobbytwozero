@@ -211,6 +211,12 @@ Son kod Sonar analizi: A/A/A, Quality Gate PASS (bütün backend scope; overall 
 Teslim kanıtı: [LTZ-ALP-HW-01](../docs-hardware/reports/LTZ-ALP-HW-01-delivery.md).
 Gerçek Auth/JWT/E2E DEFERRED_AUTH; bütün üretim iş istekleri doğrulayıcı gelene kadar reddedilir.
 
+LTZ-ALP-HW-02: 15 yeni katalog/kampanya endpoint'i, ürün listesinde geriye uyumlu
+HW-11 filtreleri ve profil seçiminde ACTIVE katalog kontrolü. Son kod pre-push
+134 PASS / %98,02; Sonar A/A/A + Quality Gate PASS, overall %89,2 / duplication %0.
+Yeni kod coverage %92,3, issue 0. [HW-02 teslimi](../docs-hardware/reports/LTZ-ALP-HW-02-delivery.md).
+Gerçek Auth rol/claim → hardware:catalog:write eşlemesi DEFERRED_AUTH.
+
 ### HARDWARE — HW-01 Profil oluşturma
 
 Durum: IMPLEMENTED
@@ -278,6 +284,8 @@ Başkasına ait profil ile olmayan profil aynı 404 yanıtını verir.
 `SaveHardwareComponentRequest`: profileVersion (>=0, zorunlu), category, quantity (1..128).
 Manuel giriş: modelName (1..160), opsiyonel brandName (1..100); productId/brandId yok.
 Katalog seçimi: productId; opsiyonel, modele bağlı brandId; manuel adlar gönderilemez.
+HW-10 sonrası arşivli ürün/marka yeni seçim ve bileşen değiştirmede 404 ile reddedilir;
+önceki profil snapshot'ları korunur.
 Markasız genel model desteklenir. Kategori ürünle aynı olmalıdır.
 Kategoriler: CPU, GPU, RAM, MOTHERBOARD, STORAGE, COOLING, PSU, MONITOR, KEYBOARD, MOUSE, HEADSET, OTHER.
 Opsiyonel specifications: capacityGb (1..1048576), clockMhz (1..20000), coreCount (1..1024),
@@ -303,7 +311,8 @@ source=MANUAL, version, specifications?). Location yeni bileşen yolu, cache pri
 
 #### Bağlantı
 Frontend: Gateway üzerinden yukarıdaki tam path. Diğer mikroservisler: çağrı yok.
-Flyway: V2__create_hardware_components_and_selection_catalog.sql. Tam katalog yönetimi/arama yok.
+Flyway: V2__create_hardware_components_and_selection_catalog.sql; aktif katalog seçimi
+V3 status sınırına uyar. Tam katalog yönetimi/arama HW-10/HW-11 kayıtlarındadır.
 
 #### Test Durumu
 UNIT + INTEGRATION — HardwareComponentControllerTest; modül 42 test PASS, exit 0 (2026-10-21).
@@ -490,6 +499,590 @@ entegrasyonu bu ana taskta uygulanmaz. V1/V2; veri silen migration eklenmedi.
 #### Test Durumu
 UNIT + INTEGRATION — HardwareComponentControllerTest owner/CSRF/sürüm/CASCADE/izolasyon PASS;
 son modül clean verify 58 PASS, exit 0 (2026-10-21). Gerçek Auth/E2E DEFERRED_AUTH.
+
+
+### HARDWARE — HW-10 Marka oluşturma
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/hardware/catalog/brands
+
+#### Yetkilendirme
+Admin — doğrulanmış typed actor + hardware:catalog:write uygulama izni; normal kullanıcı yazamaz. CSRF zorunlu; gerekçeli audit aynı transaction'da.
+Gerçek Auth rol/claim eşlemesi DEFERRED_AUTH; üretim istekleri fail-closed reddedilir.
+Public iş endpoint'i yok. Tüm yanıtlar private/no-store.
+
+#### Request Body
+CreateHardwareBrandRequest: name (1..100), reason (1..500), zorunlu düz metin.
+Bilinmeyen alanlar, HTML ayraçları/kontrol karakterleri reddedilir; gövde en fazla 16 KiB.
+
+#### Response — 201
+HardwareBrandResponse: id, name, status=ACTIVE, version=0; Location marka yolu.
+
+#### Hata Durumları
+400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED;
+404 HARDWARE_NOT_FOUND; 409 DATA_CONFLICT (tekillik, eski sürüm veya korunmuş ilişki);
+413 REQUEST_TOO_LARGE; 429 RATE_LIMITED + Retry-After: 60 (aktör başına dakikada 60 başarılı yönetim mutasyonu);
+500 INTERNAL_ERROR. İç hata/SQL veya audit içeriği dönmez.
+
+#### Bağlantı
+Frontend: API Gateway üzerinden tam path. Diğer mikroservisler: çağrı yok.
+Flyway V3__manage_hardware_catalog_and_audit.sql; V1/V2 değişmedi.
+İsim tekilliği NFKC, boşluk normalizasyonu ve Locale.ROOT küçük harfle korunur;
+model tekilliği category/normalized_model olup marka bağımsızdır.
+
+#### Test Durumu
+INTEGRATION — HardwareCatalogControllerTest: 32 yeni senaryo PASS; modül 90 PASS, exit 0, 2026-10-21 01:44:06 +03:00. PostgreSQL 17/Flyway V1–V3/JPA validate; gerçek Auth DEFERRED_AUTH.
+
+### HARDWARE — HW-10 Marka güncelleme
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend
+
+#### Endpoint
+PUT /api/v1/hardware/catalog/brands/{id}
+
+#### Yetkilendirme
+Admin — doğrulanmış typed actor + hardware:catalog:write uygulama izni; normal kullanıcı yazamaz. CSRF zorunlu; gerekçeli audit aynı transaction'da.
+Gerçek Auth rol/claim eşlemesi DEFERRED_AUTH; üretim istekleri fail-closed reddedilir.
+Public iş endpoint'i yok. Tüm yanıtlar private/no-store.
+
+#### Path Parameters
+- id: UUID, zorunlu.
+
+#### Request Body
+UpdateHardwareBrandRequest: version >=0, name (1..100), reason (1..500), zorunlu.
+Bilinmeyen alanlar, HTML ayraçları/kontrol karakterleri reddedilir; gövde en fazla 16 KiB.
+
+#### Response — 200
+HardwareBrandResponse; güncel version. Arşivli kayıt değiştirilemez.
+
+#### Hata Durumları
+400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED;
+404 HARDWARE_NOT_FOUND; 409 DATA_CONFLICT (tekillik, eski sürüm veya korunmuş ilişki);
+413 REQUEST_TOO_LARGE; 429 RATE_LIMITED + Retry-After: 60 (aktör başına dakikada 60 başarılı yönetim mutasyonu);
+500 INTERNAL_ERROR. İç hata/SQL veya audit içeriği dönmez.
+
+#### Bağlantı
+Frontend: API Gateway üzerinden tam path. Diğer mikroservisler: çağrı yok.
+Flyway V3__manage_hardware_catalog_and_audit.sql; V1/V2 değişmedi.
+İsim tekilliği NFKC, boşluk normalizasyonu ve Locale.ROOT küçük harfle korunur;
+model tekilliği category/normalized_model olup marka bağımsızdır.
+
+#### Test Durumu
+INTEGRATION — HardwareCatalogControllerTest: 32 yeni senaryo PASS; modül 90 PASS, exit 0, 2026-10-21 01:44:06 +03:00. PostgreSQL 17/Flyway V1–V3/JPA validate; gerçek Auth DEFERRED_AUTH.
+
+### HARDWARE — HW-10 Marka arşivleme
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend
+
+#### Endpoint
+DELETE /api/v1/hardware/catalog/brands/{id}
+
+#### Yetkilendirme
+Admin — doğrulanmış typed actor + hardware:catalog:write uygulama izni; normal kullanıcı yazamaz. CSRF zorunlu; gerekçeli audit aynı transaction'da.
+Gerçek Auth rol/claim eşlemesi DEFERRED_AUTH; üretim istekleri fail-closed reddedilir.
+Public iş endpoint'i yok. Tüm yanıtlar private/no-store.
+
+#### Path Parameters
+- id: UUID, zorunlu.
+
+#### Request Body
+ArchiveCatalogEntryRequest: JSON body version >=0, reason (1..500), zorunlu.
+Bilinmeyen alanlar, HTML ayraçları/kontrol karakterleri reddedilir; gövde en fazla 16 KiB.
+
+#### Response — 204
+gövdesiz; fiziksel silme yok, eski ürün/profil referansları korunur.
+
+#### Hata Durumları
+400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED;
+404 HARDWARE_NOT_FOUND; 409 DATA_CONFLICT (tekillik, eski sürüm veya korunmuş ilişki);
+413 REQUEST_TOO_LARGE; 429 RATE_LIMITED + Retry-After: 60 (aktör başına dakikada 60 başarılı yönetim mutasyonu);
+500 INTERNAL_ERROR. İç hata/SQL veya audit içeriği dönmez.
+
+#### Bağlantı
+Frontend: API Gateway üzerinden tam path. Diğer mikroservisler: çağrı yok.
+Flyway V3__manage_hardware_catalog_and_audit.sql; V1/V2 değişmedi.
+İsim tekilliği NFKC, boşluk normalizasyonu ve Locale.ROOT küçük harfle korunur;
+model tekilliği category/normalized_model olup marka bağımsızdır.
+
+#### Test Durumu
+INTEGRATION — HardwareCatalogControllerTest: 32 yeni senaryo PASS; modül 90 PASS, exit 0, 2026-10-21 01:44:06 +03:00. PostgreSQL 17/Flyway V1–V3/JPA validate; gerçek Auth DEFERRED_AUTH.
+
+### HARDWARE — HW-10 Marka detayı
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/hardware/catalog/brands/{id}
+
+#### Yetkilendirme
+Authenticated — doğrulanmış typed AuthenticatedActor.
+Gerçek Auth rol/claim eşlemesi DEFERRED_AUTH; üretim istekleri fail-closed reddedilir.
+Public iş endpoint'i yok. Tüm yanıtlar private/no-store.
+
+#### Path Parameters
+- id: UUID, zorunlu.
+
+#### Response — 200
+HardwareBrandResponse; yalnız ACTIVE marka, kişisel veri/audit dönmez.
+
+#### Hata Durumları
+400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED;
+404 HARDWARE_NOT_FOUND; 409 DATA_CONFLICT (tekillik, eski sürüm veya korunmuş ilişki);
+500 INTERNAL_ERROR. İç hata/SQL veya audit içeriği dönmez.
+
+#### Bağlantı
+Frontend: API Gateway üzerinden tam path. Diğer mikroservisler: çağrı yok.
+Flyway V3__manage_hardware_catalog_and_audit.sql; V1/V2 değişmedi.
+İsim tekilliği NFKC, boşluk normalizasyonu ve Locale.ROOT küçük harfle korunur;
+model tekilliği category/normalized_model olup marka bağımsızdır.
+
+#### Test Durumu
+INTEGRATION — HardwareCatalogControllerTest: 32 yeni senaryo PASS; modül 90 PASS, exit 0, 2026-10-21 01:44:06 +03:00. PostgreSQL 17/Flyway V1–V3/JPA validate; gerçek Auth DEFERRED_AUTH.
+
+### HARDWARE — HW-10 Marka listesi
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/hardware/catalog/brands
+
+#### Yetkilendirme
+Authenticated — doğrulanmış typed AuthenticatedActor.
+Gerçek Auth rol/claim eşlemesi DEFERRED_AUTH; üretim istekleri fail-closed reddedilir.
+Public iş endpoint'i yok. Tüm yanıtlar private/no-store.
+
+#### Query Parameters
+- page: 0..10000, varsayılan 0.
+- size: 1..100, varsayılan 20.
+Sıralama sabit normalizedName/id veya normalizedModel/id ASC.
+
+#### Response — 200
+HardwareCatalogPageResponse<HardwareBrandResponse>: items, page, size, totalElements, totalPages; yalnız ACTIVE.
+
+#### Hata Durumları
+400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED;
+404 HARDWARE_NOT_FOUND; 409 DATA_CONFLICT (tekillik, eski sürüm veya korunmuş ilişki);
+500 INTERNAL_ERROR. İç hata/SQL veya audit içeriği dönmez.
+
+#### Bağlantı
+Frontend: API Gateway üzerinden tam path. Diğer mikroservisler: çağrı yok.
+Flyway V3__manage_hardware_catalog_and_audit.sql; V1/V2 değişmedi.
+İsim tekilliği NFKC, boşluk normalizasyonu ve Locale.ROOT küçük harfle korunur;
+model tekilliği category/normalized_model olup marka bağımsızdır.
+
+#### Test Durumu
+INTEGRATION — HardwareCatalogControllerTest: 32 yeni senaryo PASS; modül 90 PASS, exit 0, 2026-10-21 01:44:06 +03:00. PostgreSQL 17/Flyway V1–V3/JPA validate; gerçek Auth DEFERRED_AUTH.
+
+### HARDWARE — HW-10 Genel model oluşturma
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/hardware/catalog/products
+
+#### Yetkilendirme
+Admin — doğrulanmış typed actor + hardware:catalog:write uygulama izni; normal kullanıcı yazamaz. CSRF zorunlu; gerekçeli audit aynı transaction'da.
+Gerçek Auth rol/claim eşlemesi DEFERRED_AUTH; üretim istekleri fail-closed reddedilir.
+Public iş endpoint'i yok. Tüm yanıtlar private/no-store.
+
+#### Request Body
+CreateHardwareProductRequest: category (12 mevcut kategori), model (1..160), opsiyonel brandIds (en fazla 100 aktif UUID), opsiyonel SpecificationsRequest, reason (1..500).
+Bilinmeyen alanlar, HTML ayraçları/kontrol karakterleri reddedilir; gövde en fazla 16 KiB.
+
+#### Response — 201
+HardwareProductResponse: id, category, model, brands[], specifications?, status=ACTIVE, version=0; Location model yolu.
+
+#### Hata Durumları
+400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED;
+404 HARDWARE_NOT_FOUND; 409 DATA_CONFLICT (tekillik, eski sürüm veya korunmuş ilişki);
+413 REQUEST_TOO_LARGE; 429 RATE_LIMITED + Retry-After: 60 (aktör başına dakikada 60 başarılı yönetim mutasyonu);
+500 INTERNAL_ERROR. İç hata/SQL veya audit içeriği dönmez.
+
+#### Bağlantı
+Frontend: API Gateway üzerinden tam path. Diğer mikroservisler: çağrı yok.
+Flyway V3__manage_hardware_catalog_and_audit.sql; V1/V2 değişmedi.
+İsim tekilliği NFKC, boşluk normalizasyonu ve Locale.ROOT küçük harfle korunur;
+model tekilliği category/normalized_model olup marka bağımsızdır.
+
+#### Test Durumu
+INTEGRATION — HardwareCatalogControllerTest: 32 yeni senaryo PASS; modül 90 PASS, exit 0, 2026-10-21 01:44:06 +03:00. PostgreSQL 17/Flyway V1–V3/JPA validate; gerçek Auth DEFERRED_AUTH.
+
+### HARDWARE — HW-10 Genel model güncelleme
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend
+
+#### Endpoint
+PUT /api/v1/hardware/catalog/products/{id}
+
+#### Yetkilendirme
+Admin — doğrulanmış typed actor + hardware:catalog:write uygulama izni; normal kullanıcı yazamaz. CSRF zorunlu; gerekçeli audit aynı transaction'da.
+Gerçek Auth rol/claim eşlemesi DEFERRED_AUTH; üretim istekleri fail-closed reddedilir.
+Public iş endpoint'i yok. Tüm yanıtlar private/no-store.
+
+#### Path Parameters
+- id: UUID, zorunlu.
+
+#### Request Body
+UpdateHardwareProductRequest: version >=0, model, opsiyonel brandIds/specifications, reason. Tam değiştirme; gönderilmeyen opsiyonel alanlar temizlenir. category değiştirilemez.
+Bilinmeyen alanlar, HTML ayraçları/kontrol karakterleri reddedilir; gövde en fazla 16 KiB.
+
+#### Response — 200
+HardwareProductResponse; version artar. Kullanılan ürün/marka bağını kaldırmak FK nedeniyle 409; mevcut profil snapshot'ları değişmez.
+
+#### Hata Durumları
+400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED;
+404 HARDWARE_NOT_FOUND; 409 DATA_CONFLICT (tekillik, eski sürüm veya korunmuş ilişki);
+413 REQUEST_TOO_LARGE; 429 RATE_LIMITED + Retry-After: 60 (aktör başına dakikada 60 başarılı yönetim mutasyonu);
+500 INTERNAL_ERROR. İç hata/SQL veya audit içeriği dönmez.
+
+#### Bağlantı
+Frontend: API Gateway üzerinden tam path. Diğer mikroservisler: çağrı yok.
+Flyway V3__manage_hardware_catalog_and_audit.sql; V1/V2 değişmedi.
+İsim tekilliği NFKC, boşluk normalizasyonu ve Locale.ROOT küçük harfle korunur;
+model tekilliği category/normalized_model olup marka bağımsızdır.
+
+#### Test Durumu
+INTEGRATION — HardwareCatalogControllerTest: 32 yeni senaryo PASS; modül 90 PASS, exit 0, 2026-10-21 01:44:06 +03:00. PostgreSQL 17/Flyway V1–V3/JPA validate; gerçek Auth DEFERRED_AUTH.
+
+### HARDWARE — HW-10 Genel model arşivleme
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend
+
+#### Endpoint
+DELETE /api/v1/hardware/catalog/products/{id}
+
+#### Yetkilendirme
+Admin — doğrulanmış typed actor + hardware:catalog:write uygulama izni; normal kullanıcı yazamaz. CSRF zorunlu; gerekçeli audit aynı transaction'da.
+Gerçek Auth rol/claim eşlemesi DEFERRED_AUTH; üretim istekleri fail-closed reddedilir.
+Public iş endpoint'i yok. Tüm yanıtlar private/no-store.
+
+#### Path Parameters
+- id: UUID, zorunlu.
+
+#### Request Body
+ArchiveCatalogEntryRequest: JSON body version >=0, reason (1..500), zorunlu.
+Bilinmeyen alanlar, HTML ayraçları/kontrol karakterleri reddedilir; gövde en fazla 16 KiB.
+
+#### Response — 204
+model ARCHIVED; profil referansları/teknik snapshot'ları ve marka bağları korunur.
+
+#### Hata Durumları
+400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED;
+404 HARDWARE_NOT_FOUND; 409 DATA_CONFLICT (tekillik, eski sürüm veya korunmuş ilişki);
+413 REQUEST_TOO_LARGE; 429 RATE_LIMITED + Retry-After: 60 (aktör başına dakikada 60 başarılı yönetim mutasyonu);
+500 INTERNAL_ERROR. İç hata/SQL veya audit içeriği dönmez.
+
+#### Bağlantı
+Frontend: API Gateway üzerinden tam path. Diğer mikroservisler: çağrı yok.
+Flyway V3__manage_hardware_catalog_and_audit.sql; V1/V2 değişmedi.
+İsim tekilliği NFKC, boşluk normalizasyonu ve Locale.ROOT küçük harfle korunur;
+model tekilliği category/normalized_model olup marka bağımsızdır.
+
+#### Test Durumu
+INTEGRATION — HardwareCatalogControllerTest: 32 yeni senaryo PASS; modül 90 PASS, exit 0, 2026-10-21 01:44:06 +03:00. PostgreSQL 17/Flyway V1–V3/JPA validate; gerçek Auth DEFERRED_AUTH.
+
+### HARDWARE — HW-10 Genel model detayı
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/hardware/catalog/products/{id}
+
+#### Yetkilendirme
+Authenticated — doğrulanmış typed AuthenticatedActor.
+Gerçek Auth rol/claim eşlemesi DEFERRED_AUTH; üretim istekleri fail-closed reddedilir.
+Public iş endpoint'i yok. Tüm yanıtlar private/no-store.
+
+#### Path Parameters
+- id: UUID, zorunlu.
+
+#### Response — 200
+HardwareProductResponse; yalnız ACTIVE model ve ACTIVE opsiyonel markalar.
+
+#### Hata Durumları
+400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED;
+404 HARDWARE_NOT_FOUND; 409 DATA_CONFLICT (tekillik, eski sürüm veya korunmuş ilişki);
+500 INTERNAL_ERROR. İç hata/SQL veya audit içeriği dönmez.
+
+#### Bağlantı
+Frontend: API Gateway üzerinden tam path. Diğer mikroservisler: çağrı yok.
+Flyway V3__manage_hardware_catalog_and_audit.sql; V1/V2 değişmedi.
+İsim tekilliği NFKC, boşluk normalizasyonu ve Locale.ROOT küçük harfle korunur;
+model tekilliği category/normalized_model olup marka bağımsızdır.
+
+#### Test Durumu
+INTEGRATION — HardwareCatalogControllerTest: 32 yeni senaryo PASS; modül 90 PASS, exit 0, 2026-10-21 01:44:06 +03:00. PostgreSQL 17/Flyway V1–V3/JPA validate; gerçek Auth DEFERRED_AUTH.
+
+### HARDWARE — HW-10/HW-11 Genel model listesi, arama ve filtreleme
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/hardware/catalog/products
+
+#### Yetkilendirme
+Authenticated — doğrulanmış typed AuthenticatedActor.
+Gerçek Auth rol/claim eşlemesi DEFERRED_AUTH; üretim istekleri fail-closed reddedilir.
+Public iş endpoint'i yok. Tüm yanıtlar private/no-store.
+
+#### Query Parameters
+- page: 0..10000, varsayılan 0.
+- size: 1..100, varsayılan 20.
+- q: opsiyonel 0..160; model içinde NFKC/Locale.ROOT normalizasyonuyla literal alt metin araması.
+- category: mevcut 12 ComponentCategory değerinden biri.
+- brandId: opsiyonel UUID; aktif modele bağlı aktif üretici.
+- brand: opsiyonel 0..100; aynı aktif üreticinin adı içinde literal arama.
+- minCapacityGb/maxCapacityGb: 1..1048576.
+- minClockMhz/maxClockMhz: 1..20000.
+- minCoreCount/maxCoreCount: 1..1024.
+- minPowerWatts/maxPowerWatts: 1..10000.
+- memoryType/socket/interfaceType/formFactor: opsiyonel 1..32, büyük/küçük harf duyarsız tam eşleşme.
+Tüm verilen filtreler AND ile birleşir; aynı üretici brandId + brand koşullarını sağlamalıdır.
+Alt sınır üst sınırı geçerse 400. Teknik alan null ise filtreyi sağlamaz.
+Boş q/brand filtresizdir; marka filtresi yokken markasız genel modeller listelenir.
+LIKE %, _ ve ! literal escape edilir; SQL parametreli Criteria ile üretilir.
+Sıralama sabit normalizedModel/id ASC; istemci sıralama veya SQL alanı seçemez.
+
+#### Response — 200
+HardwareCatalogPageResponse<HardwareProductResponse>; marka bilgileri sayfa başına toplu yüklenir, collection fetch ile sayfalama yapılmaz.
+Sayfa ve toplam sayaç aynı filtre/REPEATABLE_READ snapshot'ını kullanır.
+HW-11 filtreleri HardwareCatalogSearchTest içindeki 27 yeni senaryoda PASS;
+modül 117 PASS, exit 0, 2026-10-21 01:47:00 +03:00, PostgreSQL 17/Flyway V1–V4/JPA validate.
+
+#### Hata Durumları
+400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED;
+404 HARDWARE_NOT_FOUND; 409 DATA_CONFLICT (tekillik, eski sürüm veya korunmuş ilişki);
+500 INTERNAL_ERROR. İç hata/SQL veya audit içeriği dönmez.
+
+#### Bağlantı
+Frontend: API Gateway üzerinden tam path. Diğer mikroservisler: çağrı yok.
+Flyway V3__manage_hardware_catalog_and_audit.sql; V1/V2 değişmedi.
+İsim tekilliği NFKC, boşluk normalizasyonu ve Locale.ROOT küçük harfle korunur;
+model tekilliği category/normalized_model olup marka bağımsızdır.
+
+#### Test Durumu
+INTEGRATION — HardwareCatalogControllerTest: 32 yeni senaryo PASS; modül 90 PASS, exit 0, 2026-10-21 01:44:06 +03:00. PostgreSQL 17/Flyway V1–V3/JPA validate; gerçek Auth DEFERRED_AUTH.
+
+
+### HARDWARE — HW-14 Ortak kampanya veri sözleşmesi
+
+Kullanıcı onaylı yerel kayıtlar; dış API/scraping/fiyat çekme/URL doğrulama çağrısı yoktur.
+SaveHardwareCampaignRequest ortak zorunlu alanları: title (1..160), sourceName (1..100),
+sourceUrl (en fazla 2048 ASCII karakter; HTTPS, host gerekli; userinfo/fragment yok),
+originalPrice ve salePrice (pozitif numeric(12,2), salePrice < originalPrice), currency
+(geçerli ISO 4217 kodu; XXX gibi parasal olmayan kodlar reddedilir), startsAt/endsAt
+(UTC Instant, bitiş başlangıçtan sonra), observedAt (UTC, gelecekte olamaz), reason (1..500).
+Ürün aktif olmalı; bilinmeyen JSON alanları reddedilir. Mutasyon gövdesi en fazla 16 KiB.
+
+HardwareCampaignResponse: id, productId, title, sourceName, sourceUrl, originalPrice,
+salePrice, currency, discountPercent (fiyatlardan hesaplanır, iki basamak HALF_UP),
+startsAt, endsAt, observedAt, status, version. Aktör UUID ve audit gerekçesi dönmez.
+Kur dönüşümü ve anlık fiyat garantisi yoktur; gözlem zamanı kaynağın kayıtlı zamanıdır.
+Kampanya henüz başlamadıysa/bittiyse/arşivliyse veya ürün arşivliyse normal okumada gizlenir.
+
+### HARDWARE — HW-14 Kampanya oluşturma
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/hardware/campaigns
+
+#### Yetkilendirme
+Admin — typed actor + hardware:catalog:write uygulama izni; CSRF ve gerekçeli atomik audit zorunlu.
+Gerçek Auth/JWT rol/claim eşlemesi DEFERRED_AUTH; üretimde fail-closed. Public uç yok.
+
+#### Request Body
+SaveHardwareCampaignRequest: productId zorunlu UUID; version gönderilmez. Aşağıdaki ortak kampanya alanları zorunlu.
+
+#### Response — 201
+HardwareCampaignResponse; version=0; Location kampanya yolu.
+Cache-Control: no-store, private.
+
+#### Hata Durumları
+400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED;
+404 HARDWARE_NOT_FOUND (olmayan veya normal okumada geçersiz kampanya/ürün);
+409 DATA_CONFLICT (eski sürüm/arşivli kayıt/veri kuralı);
+413 REQUEST_TOO_LARGE; 429 RATE_LIMITED + Retry-After: 60 (tüm yönetim yazmalarıyla ortak aktör limiti);
+500 INTERNAL_ERROR. Güvenli ProblemDetail; iç SQL/URL hata detayı dönmez.
+
+#### Bağlantı
+Frontend: tam Gateway path. Diğer mikroservisler/harici sağlayıcı: çağrı yok.
+Flyway V5__create_hardware_campaigns.sql; hardware_products gerçek FK, para numeric(12,2),
+currency char(3), UTC zamanlar, @Version, CHECK ve active-window indeksleri.
+
+#### Test Durumu
+INTEGRATION — HardwareCampaignControllerTest 15 senaryo PASS; modül 134 PASS, exit 0, 2026-10-21 01:53:29 +03:00. PostgreSQL 17/Flyway V1–V5/JPA validate; gerçek Auth DEFERRED_AUTH.
+
+### HARDWARE — HW-14 Kampanya güncelleme
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend
+
+#### Endpoint
+PUT /api/v1/hardware/campaigns/{id}
+
+#### Yetkilendirme
+Admin — typed actor + hardware:catalog:write uygulama izni; CSRF ve gerekçeli atomik audit zorunlu.
+Gerçek Auth/JWT rol/claim eşlemesi DEFERRED_AUTH; üretimde fail-closed. Public uç yok.
+
+#### Path Parameters
+- id: UUID, zorunlu.
+
+#### Request Body
+SaveHardwareCampaignRequest: version >=0 zorunlu, productId gönderilmez (ürün referansı değişmez); diğer alanlar ortak sözleşmeyle tam değiştirilir.
+
+#### Response — 200
+HardwareCampaignResponse; version artar; eski sürüm 409.
+Cache-Control: no-store, private.
+
+#### Hata Durumları
+400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED;
+404 HARDWARE_NOT_FOUND (olmayan veya normal okumada geçersiz kampanya/ürün);
+409 DATA_CONFLICT (eski sürüm/arşivli kayıt/veri kuralı);
+413 REQUEST_TOO_LARGE; 429 RATE_LIMITED + Retry-After: 60 (tüm yönetim yazmalarıyla ortak aktör limiti);
+500 INTERNAL_ERROR. Güvenli ProblemDetail; iç SQL/URL hata detayı dönmez.
+
+#### Bağlantı
+Frontend: tam Gateway path. Diğer mikroservisler/harici sağlayıcı: çağrı yok.
+Flyway V5__create_hardware_campaigns.sql; hardware_products gerçek FK, para numeric(12,2),
+currency char(3), UTC zamanlar, @Version, CHECK ve active-window indeksleri.
+
+#### Test Durumu
+INTEGRATION — HardwareCampaignControllerTest 15 senaryo PASS; modül 134 PASS, exit 0, 2026-10-21 01:53:29 +03:00. PostgreSQL 17/Flyway V1–V5/JPA validate; gerçek Auth DEFERRED_AUTH.
+
+### HARDWARE — HW-14 Kampanya arşivleme
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend
+
+#### Endpoint
+DELETE /api/v1/hardware/campaigns/{id}
+
+#### Yetkilendirme
+Admin — typed actor + hardware:catalog:write uygulama izni; CSRF ve gerekçeli atomik audit zorunlu.
+Gerçek Auth/JWT rol/claim eşlemesi DEFERRED_AUTH; üretimde fail-closed. Public uç yok.
+
+#### Path Parameters
+- id: UUID, zorunlu.
+
+#### Request Body
+ArchiveCatalogEntryRequest: JSON body version >=0 ve reason (1..500) zorunlu.
+
+#### Response — 204
+fiziksel silme yok; kampanya/audit kanıtları korunur.
+Cache-Control: no-store, private.
+
+#### Hata Durumları
+400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED;
+404 HARDWARE_NOT_FOUND (olmayan veya normal okumada geçersiz kampanya/ürün);
+409 DATA_CONFLICT (eski sürüm/arşivli kayıt/veri kuralı);
+413 REQUEST_TOO_LARGE; 429 RATE_LIMITED + Retry-After: 60 (tüm yönetim yazmalarıyla ortak aktör limiti);
+500 INTERNAL_ERROR. Güvenli ProblemDetail; iç SQL/URL hata detayı dönmez.
+
+#### Bağlantı
+Frontend: tam Gateway path. Diğer mikroservisler/harici sağlayıcı: çağrı yok.
+Flyway V5__create_hardware_campaigns.sql; hardware_products gerçek FK, para numeric(12,2),
+currency char(3), UTC zamanlar, @Version, CHECK ve active-window indeksleri.
+
+#### Test Durumu
+INTEGRATION — HardwareCampaignControllerTest 15 senaryo PASS; modül 134 PASS, exit 0, 2026-10-21 01:53:29 +03:00. PostgreSQL 17/Flyway V1–V5/JPA validate; gerçek Auth DEFERRED_AUTH.
+
+### HARDWARE — HW-14 Kampanya detayı
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/hardware/campaigns/{id}
+
+#### Yetkilendirme
+Authenticated — doğrulanmış typed actor.
+Gerçek Auth/JWT rol/claim eşlemesi DEFERRED_AUTH; üretimde fail-closed. Public uç yok.
+
+#### Path Parameters
+- id: UUID, zorunlu.
+
+#### Response — 200
+HardwareCampaignResponse; yalnız aktif ürüne bağlı ACTIVE kampanya ve startsAt <= şimdi < endsAt.
+Cache-Control: no-store, private.
+
+#### Hata Durumları
+400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED;
+404 HARDWARE_NOT_FOUND (olmayan veya normal okumada geçersiz kampanya/ürün);
+409 DATA_CONFLICT (eski sürüm/arşivli kayıt/veri kuralı);
+500 INTERNAL_ERROR. Güvenli ProblemDetail; iç SQL/URL hata detayı dönmez.
+
+#### Bağlantı
+Frontend: tam Gateway path. Diğer mikroservisler/harici sağlayıcı: çağrı yok.
+Flyway V5__create_hardware_campaigns.sql; hardware_products gerçek FK, para numeric(12,2),
+currency char(3), UTC zamanlar, @Version, CHECK ve active-window indeksleri.
+
+#### Test Durumu
+INTEGRATION — HardwareCampaignControllerTest 15 senaryo PASS; modül 134 PASS, exit 0, 2026-10-21 01:53:29 +03:00. PostgreSQL 17/Flyway V1–V5/JPA validate; gerçek Auth DEFERRED_AUTH.
+
+### HARDWARE — HW-14 Geçerli kampanya listesi
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/hardware/campaigns
+
+#### Yetkilendirme
+Authenticated — doğrulanmış typed actor.
+Gerçek Auth/JWT rol/claim eşlemesi DEFERRED_AUTH; üretimde fail-closed. Public uç yok.
+
+#### Query Parameters
+- productId: opsiyonel UUID, belirli ürünün geçerli kampanyalarını filtreler.
+- page: 0..10000, varsayılan 0.
+- size: 1..100, varsayılan 20.
+Sıralama startsAt/id ASC; filtre/sayaç REPEATABLE_READ snapshot'ında.
+
+#### Response — 200
+HardwareCatalogPageResponse<HardwareCampaignResponse>: items, page, size, totalElements, totalPages; detail ile aynı geçerlilik filtresi.
+Cache-Control: no-store, private.
+
+#### Hata Durumları
+400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED;
+404 HARDWARE_NOT_FOUND (olmayan veya normal okumada geçersiz kampanya/ürün);
+409 DATA_CONFLICT (eski sürüm/arşivli kayıt/veri kuralı);
+500 INTERNAL_ERROR. Güvenli ProblemDetail; iç SQL/URL hata detayı dönmez.
+
+#### Bağlantı
+Frontend: tam Gateway path. Diğer mikroservisler/harici sağlayıcı: çağrı yok.
+Flyway V5__create_hardware_campaigns.sql; hardware_products gerçek FK, para numeric(12,2),
+currency char(3), UTC zamanlar, @Version, CHECK ve active-window indeksleri.
+
+#### Test Durumu
+INTEGRATION — HardwareCampaignControllerTest 15 senaryo PASS; modül 134 PASS, exit 0, 2026-10-21 01:53:29 +03:00. PostgreSQL 17/Flyway V1–V5/JPA validate; gerçek Auth DEFERRED_AUTH.
 
 ## RECOMMENDATION
 

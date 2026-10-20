@@ -2,7 +2,7 @@
 
 > Tarih: 2026-10-20
 >
-> Durum: Veritabanları `[MEVCUT]` (init SQL ile oluşturulur). Hardware V1/V2 şeması §3.13'te uygulanmıştır ve izole PostgreSQL 17/Flyway/JPA testlerinden geçmiştir; canlı DB'ye uygulanma durumu doğrulanmadı. Diğer tablo tasarımları `[ÖNERİ]`dır. Kesin şema servis sahibinin migration'ı ile belirlenir.
+> Durum: Veritabanları `[MEVCUT]` (init SQL ile oluşturulur). Hardware V1–V5 şeması §3.13'te uygulanmıştır ve izole PostgreSQL 17/Flyway/JPA testlerinden geçmiştir; canlı DB'ye uygulanma durumu doğrulanmadı. Diğer tablo tasarımları `[ÖNERİ]`dır. Kesin şema servis sahibinin migration'ı ile belirlenir.
 >
 > İlgili belgeler: [er-diagram.md](er-diagram.md) (diyagramlar), [architecture.md](architecture.md) (event'ler, Saga), [SECURITY.md](SECURITY.md) §9.
 
@@ -270,7 +270,8 @@ Ad/tür/kaynak/sürüm CHECK'leri ve `(user_id, created_at, id)` indeksi vardır
 `V2__create_hardware_components_and_selection_catalog.sql` HW-02 için eklendi (test PASS):
 `hardware_products` genel modelleri `(category, normalized_model)` ile markadan bağımsız
 tekilleştirir. `hardware_brands` ve `hardware_product_brands` opsiyonel üretici ilişkisidir;
-ürün tablosunda nullable marka üzerinden tekillik kurulmaz. Tam katalog yönetimi sonraki ana görevdir.
+ürün tablosunda nullable marka üzerinden tekillik kurulmaz. Katalog yönetimi/arşiv ve
+arama HW-10/HW-11 ile aşağıda uygulandı.
 `hardware_profile_components`: profile_id (CASCADE FK), opsiyonel product_id/brand_id,
 category, model_name/brand_name snapshot, quantity 1..128, source=MANUAL, version, UTC zamanları.
 Ürün/kategori ve ürün/marka bileşik FK'leri vardır. Parent profil kilidi ve profileVersion
@@ -281,8 +282,8 @@ Profil silme use-case'i yalnız owner + güncel profileVersion ile hard delete u
 bağlı bileşenler CASCADE ile silinir, katalog/marka ve diğer profiller korunur.
 İstatistikler owner filtresiyle DB'de toplanır; kayıt ve adet ayrıdır. Yalnız kaydedilen
 RAM/depolama kapasitesi adetle çarpılır, kapasitesi bilinmeyen adetler ayrıca bildirilir.
-Aşağıdaki genişletilmiş tasarım **öneridir**; visibility, sync, yorum ve kampanya
-tabloları bu migration ile uygulanmaz. JPA validate ve open-in-view=false korunur.
+Aşağıdaki genişletilmiş tasarım **öneridir**; visibility, sync ve yorum tabloları
+uygulanmadı. Kampanya için sonraki V5 tanımı geçerlidir. JPA validate ve open-in-view=false korunur.
 
 | Tablo | Önemli sütunlar | Kısıtlar / not |
 | --- | --- | --- |
@@ -296,6 +297,36 @@ tabloları bu migration ile uygulanmaz. JPA validate ve open-in-view=false korun
 | `hardware_campaigns` | id, product_id FK, title, url, discount_percent, starts_at, ends_at, source | HW-14 |
 | `hardware_provider_refs` | id, product_id FK, provider, external_id, last_synced_at | HW-17; UQ (provider, external_id) |
 | `outbox_events`, `inbox_events`, `idempotency_records` | §2.4 | |
+
+**LTZ-ALP-HW-02 / HW-10 geliştirmesi:** V3 katalog tablolarına ACTIVE/ARCHIVED
+durumu ve sürüm CHECK'leri, aktif ad/model/kategori sayfalama indeksleri ekler.
+Mevcut satırlar ACTIVE kalır; V1/V2 değiştirilmez. Silme yerine arşivleme yapılır.
+Ürün/marka bağı kullanılan profil bileşeninden kaldırılamaz (mevcut FK → 409).
+Yeni seçimde arşivli ürün/marka reddedilir; mevcut profil snapshot'ları korunur.
+
+`hardware_catalog_audit`: id UUID PK, actor_id dış UUID REF, action CHECK,
+target_id UUID (hardware kaydına mantıksal referans), reason varchar(500),
+created_at timestamptz. UPDATE/DELETE/TRUNCATE trigger ile engellenir;
+audit ve iş mutasyonu aynı transaction'dadır. Aktör/zaman indeksi ve transaction
+advisory kilidiyle aktör başına 60 başarılı yönetim mutasyonu/dakika sınırı uygulanır.
+Limit aşımı tüm mutasyonu geri alır. V3 PostgreSQL 17.11/Flyway/JPA validate
+90 testte PASS; canlı DB'ye uygulanmadı.
+HW-11 V4 arama migration'ı ACTIVE ürünlerde kategori ile kapasite/frekans/çekirdek/güç
+aralıkları için dört partial indeks ekler. Teknik alanlar typed; bilinmeyen değer
+filtreyi sağlamaz. LIKE alt metin araması literal escape edilir; extension/harici
+arama motoru eklenmedi. V4 ve filtreler PostgreSQL 17/Flyway/JPA ile 117 testte PASS;
+indeks varlığı doğrulandı; üretim verisi üzerinde sorgu süre hedefi ölçülmedi.
+
+HW-14 V5 geliştirmesi: `hardware_campaigns` (id UUID PK, product_id gerçek
+hardware_products FK, title/source_name/source_url, original_price/sale_price
+numeric(12,2), currency char(3), starts_at/ends_at/observed_at/created_at/updated_at
+timestamptz, ACTIVE/ARCHIVED status, version bigint). CHECK indirimli fiyatın
+pozitif ve orijinalden küçük olmasını, pencere sırasını, gözlem <= güncelleme ve
+durum/sürüm aralıklarını korur. Aktif zaman ve ürün/zaman partial indeksleri vardır.
+Yalnız yetkili kişinin kaynak/gözlem bilgili yerel kayıtları; harici çağrı yoktur.
+Ürün/kampanya arşivlenince okuma filtresi gizler, FK/kayıtlar silinmez.
+V1–V5 PostgreSQL 17.11/Flyway/JPA validate ve son modül 134 test PASS;
+canlı DB'ye uygulanmadı.
 
 ### 3.14 recommendation_db — recommendation-service (Alper)
 
