@@ -1,0 +1,17 @@
+CREATE DATABASE auth_db;
+CREATE DATABASE user_db;
+CREATE DATABASE mail_db;
+CREATE DATABASE game_db;
+CREATE DATABASE library_db;
+CREATE DATABASE review_db;
+CREATE DATABASE social_db;
+CREATE DATABASE messaging_db;
+CREATE DATABASE lfp_db;
+CREATE DATABASE community_db;
+CREATE DATABASE content_db;
+CREATE DATABASE event_db;
+CREATE DATABASE hardware_db;
+CREATE DATABASE recommendation_db;
+CREATE DATABASE performance_db;
+CREATE DATABASE admin_db;
+CREATE DATABASE notification_db;

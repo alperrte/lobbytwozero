@@ -1,4 +1,4 @@
-﻿.env
+.env
 .env.*
 !.env.example
 **/target/
@@ -8,3 +8,15 @@
 frontend/node_modules/
 frontend/.next/
 *.log
+logs/
+test-results/
+**/.scannerwork/
+**/coverage/
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+**/secrets/
+.aws/
