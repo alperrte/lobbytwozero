@@ -2,7 +2,7 @@
 
 Tarih: 2026-10-21 · Sorumlu: Hamza · Servis: game-service · Branch: feature/game-service
 
-**Durum: Faz 1 tamamlandı — 6/6 (%100). Faz 2 için kullanıcı onayı yok; sonraki faz başlatılmadı.**
+**Durum: Faz 1 tamamlandı — 6/6 (%100). Güncel not: Faz 2 kullanıcı onayıyla başlatıldı; durumu [Faz 2 raporunda](LTZ-HAM-GAME-02-Rapor.md) izlenir.**
 
 ## Görev durumu
 
@@ -105,7 +105,7 @@ Testler geçici Testcontainers PostgreSQL 17 üzerinde V31–V35 migrationların
 
 LTZ-HAM-GAME-02 — Oyun Detayı Zenginleştirme ve Otomatik Senkronizasyon: GAME-17 → GAME-19 → GAME-22 (3 alt task).
 
-**Kullanıcı onayı bekleniyor. Faz 2 kodu veya migration'ı başlatılmadı.**
+**2026-10-21 güncellemesi:** Kullanıcı Faz 2'yi onayladı. GAME-17 gerçek sağlayıcı entegrasyonu için ayrıca karar/onay bekleniyor; ayrıntılar [Faz 2 raporunda](LTZ-HAM-GAME-02-Rapor.md). Faz 3 için onay yok.
 
 ## 2026-10-21 — Tam pre-push kontrolü düzeltmesi
 

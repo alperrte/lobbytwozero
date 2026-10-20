@@ -47,6 +47,8 @@
 
 ### LTZ-HAM-GAME-02 — Oyun Detayı Zenginleştirme ve Otomatik Senkronizasyon
 
+**2026-10-21 durumu:** GAME-19 ve GAME-22 uygulama/test kapsamında tamamlandı. GAME-17 altyapısı hazır; gerçek detay sağlayıcısı için veri kaynağı kararı ve entegrasyon onayı bekleniyor. Faz 2 bütünü tamamlandı sayılmaz. [Faz 2 raporu](LTZ-HAM-GAME-02-Rapor.md) · [Sağlayıcı araştırması](LTZ-HAM-GAME-02-Saglayici-Arastirmasi.md). Faz 3 için onay yok.
+
 **Sorumlu:** Hamza  
 **Servis:** `game-service`  
 **Faz:** MVP/P0  
@@ -58,9 +60,9 @@
 
 - [ ] **GAME-17 — İsteğe bağlı detay zenginleştirme (P0):** İndeks kaydının eksik detaylarını, kullanılan sağlayıcının izinli ve desteklenen API'lerinden talep edip yerel kayda işleme. **Kabul:** Aynı oyun için eş zamanlı gereksiz tekrar istekleri sınırlandırılır; başarısız istekte mevcut detay korunur; yalnızca gerçekten erişilebilen alanlar saklanır.
 
-- [ ] **GAME-19 — Otomatik katalog senkronizasyonu (P0):** Sağlayıcı bazında zamanlanmış ilk indeksleme, artımlı güncelleme, yeniden deneme ve kaldığı yerden sürdürme akışları kurulması. **Kabul:** Kısmi hata tüm kataloğu silmez; senkronizasyon ilerlemesi ve son başarılı zaman izlenir; kota/rate limit dikkate alınır.
+- [x] **GAME-19 — Otomatik katalog senkronizasyonu (P0):** Sağlayıcı bazında zamanlanmış ilk indeksleme, artımlı güncelleme, yeniden deneme ve kaldığı yerden sürdürme akışları kurulması. **Kabul:** Kısmi hata tüm kataloğu silmez; senkronizasyon ilerlemesi ve son başarılı zaman izlenir; kota/rate limit dikkate alınır.
 
-- [ ] **GAME-22 — Önbellek, veri güncelliği ve hata toleransı (P0):** Detay TTL/yenileme politikası, stale-while-revalidate benzeri davranış, timeout, sınırlı retry, backoff, rate limit ve geçici erişim hatası yönetimi. **Kabul:** Sağlayıcı kesintisi yerel katalog listelemesini durdurmaz; değişken fiyat gibi hassas zamanlı alanlar güncellik doğrulanmadan güncel gösterilmez.
+- [x] **GAME-22 — Önbellek, veri güncelliği ve hata toleransı (P0):** Detay TTL/yenileme politikası, stale-while-revalidate benzeri davranış, timeout, sınırlı retry, backoff, rate limit ve geçici erişim hatası yönetimi. **Kabul:** Sağlayıcı kesintisi yerel katalog listelemesini durdurmaz; değişken fiyat gibi hassas zamanlı alanlar güncellik doğrulanmadan güncel gösterilmez.
 
 
 **Bitmiş sayılma:** Yukarıdaki akış API/veri sahipliği kurallarına uygun çalışır, ilgili testler geçer ve ana taskın tek özellik teslimi yapılır.

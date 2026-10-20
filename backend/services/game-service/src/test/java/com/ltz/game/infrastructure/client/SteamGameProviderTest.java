@@ -63,6 +63,16 @@ class SteamGameProviderTest {
         assertEquals("PROVIDER_NOT_CONFIGURED", assertThrows(ProviderException.class,
                 () -> disabled.catalog(new CatalogQuery(0,null,10))).code()); server.verify();
     }
+    @ParameterizedTest @ValueSource(strings={"120","Wed, 21 Oct 2099 00:00:00 GMT","invalid"})
+    void retryAfterIsParsedWithoutLeakingProviderResponse(String retryAfter) {
+        server.expect(anything()).andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS).header("Retry-After", retryAfter));
+        var query = new CatalogQuery(0,null,10);
+        var error = assertThrows(ProviderException.class, () -> provider.catalog(query));
+        assertEquals("RATE_LIMITED",error.code());
+        if (retryAfter.equals("120")) assertEquals(Duration.ofSeconds(120),error.retryAfter());
+        else if (retryAfter.equals("invalid")) assertNull(error.retryAfter());
+        else assertNotNull(error.retryAfter());
+    }
     @ParameterizedTest @ValueSource(ints={400,401,403,429,503})
     void httpErrorsHaveSafeCodes(int status) {
         server.expect(anything()).andRespond(withStatus(HttpStatusCode.valueOf(status)));

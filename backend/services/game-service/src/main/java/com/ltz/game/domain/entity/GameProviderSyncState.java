@@ -21,5 +21,7 @@ public class GameProviderSyncState {
     private Instant lastSuccessfulAt;
     private long processedCount;
     @Column(length=64) private String lastErrorCode;
+    private int failureCount;
+    private Instant nextAttemptAt;
     @Version private long version;
 }

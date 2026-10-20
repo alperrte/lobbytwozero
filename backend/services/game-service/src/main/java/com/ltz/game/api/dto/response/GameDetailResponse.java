@@ -1,4 +1,5 @@
 package com.ltz.game.api.dto.response;
 
-/** Faz 1 ortak detay kabuğu; zenginleştirme bu aşamada yapılmaz. */
-public record GameDetailResponse(GameCardResponse game, GameMetadataResponse metadata) { }
+/** Yerel detay ve açık güncellik bilgisi; okuma sırasında dış istek yapılmaz. */
+public record GameDetailResponse(GameCardResponse game, GameMetadataResponse metadata,
+        String description, java.time.LocalDate releaseDate, DetailFreshnessResponse freshness) { }

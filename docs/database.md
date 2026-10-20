@@ -153,7 +153,7 @@ Gösterim: **PK** birincil anahtar, **FK** servis içi yabancı anahtar, **REF**
 
 ### 3.4 game_db — game-service (Hamza)
 
-**Mevcut şema:** GAME-08 V31, GAME-10 V32 ve GAME-16 V33, GAME-18 V34 ve GAME-21 V35. Sonraki Game Service görevleri ayrıca uygulanacaktır.
+**Mevcut şema:** GAME-08 V31, GAME-10 V32, GAME-16 V33, GAME-18 V34, GAME-21 V35 ve Faz 2 güncellik/retry altyapısı V36. Gerçek detay sağlayıcısı henüz entegre edilmedi.
 
 - `games`: UUID `id`, `title`, `normalized_title`, UTC `created_at`/`updated_at`, optimistic `version`.
 - `catalog_terms`: UUID `id`, `kind` (GENRE/CATEGORY/TAG/PLATFORM), `code`, nullable TR/EN adlar, `version`; UNIQUE `(kind, code)`.
@@ -165,6 +165,7 @@ Gösterim: **PK** birincil anahtar, **FK** servis içi yabancı anahtar, **REF**
 - V33: `normalized_title` 1024 karakter, önek araması için B-tree pattern indeksi; `game_provider_sync_state` sağlayıcı başına tek cursor, tur modu, durum, watermark, sayım ve version. Sayfa ve checkpoint tek transaction; provider state satırı pessimistic lock ile korunur.
 - V34: Steam AppID başında sıfır olmayan pozitif uint32 metni olmak zorundadır; alias tekilliği DB seviyesinde korunur. `game_identity_audits` operatör REF, kaynak/hedef oyun FK, referans FK, kanıt ve UTC zaman içerir; trigger UPDATE/DELETE işlemlerini reddeder.
 - V35: `games.game_type` varchar + CHECK, varsayılan UNKNOWN; aktif katalog için tür/başlık indeksi. MAIN_GAME varsayılan arama kapsamıdır; kesin türü olmayan kayıtlar oyun diye varsayılmaz.
+- V36: `game_provider_sync_state.failure_count` ve `next_attempt_at` kalıcı retry/backoff durumudur. `games.description` (16000), `release_date`, `details_fetched_at`, `details_expires_at`, `details_next_attempt_at`, `details_failure_count`, `details_last_error_code` detay ve güncellik altyapısıdır. Zamanlar timestamptz/UTC, sayaçlar negatif olamaz. Güncellik, son başarılı kısmi detay yanıtına aittir; alan bazlı değildir. Mevcut migrationlar değiştirilmedi.
 - Yalnız servis içi FK kullanılır; popülerlik, fiyat ve geliştirici gönderileri sonraki fazlardır.
 
 ### 3.5 library_db — library-service (Hamza)

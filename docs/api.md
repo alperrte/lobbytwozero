@@ -220,7 +220,7 @@ Diğer mikroservisler: RestClient ile Game Service; yerel okuma dış sağlayıc
 #### Test Durumu
 INTEGRATION — iki köken için ortak HTTP sözleşmesi, eksik veri, kapak seçimi ve görünürlük.
 
-### GAME — Ortak oyun detay kabuğu (GAME-10)
+### GAME — Ortak oyun detayı ve güncellik (GAME-10, GAME-17, GAME-22)
 
 Durum: IMPLEMENTED
 Sorumlu: Hamza
@@ -238,7 +238,11 @@ Public. Yalnız ACTIVE oyunlar görünür.
 #### Response — 200
 - `game`: yukarıdaki ortak kart sözleşmesi.
 - `metadata`: GAME-08 alt veri sözleşmesi; aynı kanonik gameId.
-- Faz 1 kabuğudur; otomatik zenginleştirme, fiyat/puan veya genişletilmiş keşif özelliği içermez.
+- `description`: nullable, en fazla 16000 karakter; düz metin olarak işlenir. `releaseDate`: nullable ISO tarih.
+- `freshness`: `status` (LOCAL/UNSUPPORTED/MISSING/FRESH/STALE), nullable `fetchedAt`, `expiresAt`, `nextAttemptAt`, `lastErrorCode`.
+- Güncellik son başarılı detay yanıtına aittir; alan bazlı güncellik garantisi değildir. Fiyat verisi sunulmaz.
+- GET yalnız yerel okuma yapar; sağlayıcıya istek, yenileme tetikleme veya DB yazımı yapmaz. STALE veri korunur.
+- Steam adaptörünün DETAILS yeteneği yoktur: EXTERNAL kayıtlar UNSUPPORTED döner. Gerçek detay entegrasyonu veri kaynağı kararı ve kullanıcı onayı bekliyor; altyapı varlığı gerçek sağlayıcı desteği anlamına gelmez.
 
 #### Hata Durumları
 - 400: Geçersiz UUID.
@@ -250,7 +254,7 @@ Frontend: API Gateway üzerinden aynı path.
 Diğer mikroservisler: RestClient ile Game Service.
 
 #### Test Durumu
-INTEGRATION — PostgreSQL/Flyway üzerinde ortak model, 200/400/404 ve kökenin korunması.
+INTEGRATION — PostgreSQL/Flyway üzerinde ortak model, 200/400/404, kökenin korunması, salt okunur GET ve STALE yanıtı. Gerçek detay sağlayıcısı: NOT IMPLEMENTED.
 
 ### GAME — Yerel Steam indeks araması (GAME-16)
 
@@ -288,7 +292,7 @@ Diğer mikroservisler: Kendi RestClient adaptörüyle Game Service.
 #### Test Durumu
 UNIT + INTEGRATION — PostgreSQL üzerinde sayfalama, stabil sıra, wildcard kaçışı, sağlayıcı kesintisinde yerel okuma, HTTP validation ve GAME-21 tür temizliği.
 
-### GAME — İndeks kapsamı ve ilerleme (GAME-16)
+### GAME — İndeks kapsamı ve ilerleme (GAME-16, GAME-19, GAME-22)
 
 Durum: IMPLEMENTED
 Sorumlu: Hamza
@@ -306,7 +310,9 @@ Public. Yalnız katalog kapsamı ve güvenli operasyon kodları; anahtar/ham sa�
 - `cursor`: son uygulanan AppID; `processedCount`: aktif/son turda işlenen kayıt sayısı.
 - `indexedEntries`: saklanan STEAM referans sayısı; `mainGameEntries` ve `unclassifiedEntries`: türlerine göre referans sayıları (aktif/arşivli tüm saklanan referanslar). `providerTotal`: null.
 - `runStartedAt`, `lastSuccessfulAt`: nullable UTC zamanlar; `lastErrorCode`: nullable güvenli kod.
-- Aktarım uygulama servisinden elle başlatılır ve her çağrıda tek sayfa işler. HTTP mutasyon, scheduler veya otomatik retry yoktur.
+- `failureCount`: art arda başarısız sayfa sayısı; `nextAttemptAt`: nullable otomatik tekrar zamanı. FAILED ve null nextAttemptAt, otomatik denemenin durduğunu belirtir.
+- Aktarım her çağrıda tek sayfa işler. `game.catalog.sync.enabled=true` ile isteğe bağlı zamanlayıcı etkinleşir; varsayılan kapalıdır. İlk aktarım, altı saat aralıklı artımlı turlar ve kalıcı checkpoint üzerinden devam desteklenir.
+- Geçici hata en fazla beş otomatik tekrar alır; kalıcı hata veya bütçe aşımında uygulama servisinden açık resume gerekir. HTTP mutasyon endpoint'i yoktur.
 
 #### Hata Durumları
 - 500: Beklenmeyen sunucu hatası.
@@ -316,9 +322,9 @@ Frontend: Gateway üzerinden aynı path.
 Diğer mikroservisler: RestClient ile Game Service.
 
 #### Test Durumu
-INTEGRATION — kalıcı checkpoint, idempotent tekrar, ayrı incremental watermark, eşzamanlı sayfalar ve kısmi hata.
+INTEGRATION — kalıcı checkpoint, idempotent tekrar, ayrı incremental watermark, eşzamanlı sayfalar, kısmi hata, retry bütçesi, backoff ve açık resume. Scheduler opt-in koşulu test edildi; canlı tam katalog aktarımı yapılmadı.
 
-GAME-21 notu: Canlı GetAppList yanıtı kayıt başına kesin tür alanı sunmadığından Steam indeks girdileri UNKNOWN kalır. `include_games` filtresi tek başına demo/soundtrack ayrımı kanıtı kabul edilmez. Bu kayıtlar önek aramasında `includeUnclassified=true` ile bulunabilir; doğrulanmış MAIN_GAME sinyali olmadan varsayılan ana oyun sonuçlarına girmez. Otomatik detay zenginleştirme Faz 2 kapsamındadır.
+GAME-21 notu: Canlı GetAppList yanıtı kayıt başına kesin tür alanı sunmadığından Steam indeks girdileri UNKNOWN kalır. `include_games` filtresi tek başına demo/soundtrack ayrımı kanıtı kabul edilmez. Bu kayıtlar önek aramasında `includeUnclassified=true` ile bulunabilir; doğrulanmış MAIN_GAME sinyali olmadan varsayılan ana oyun sonuçlarına girmez. Gerçek detay zenginleştirme, Faz 2 sağlayıcı onayı beklemektedir.
 
 ## LIBRARY
 

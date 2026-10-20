@@ -12,6 +12,8 @@ import java.util.Comparator;
 @Component @RequiredArgsConstructor
 public class GameViewMapper {
     private final GameMetadataMapper metadata;
+    private final com.ltz.game.application.port.GameProvider provider;
+    private final java.time.Clock clock;
 
     public GameCardResponse card(Game game) {
         var references = game.getExternalReferences().stream()
@@ -24,6 +26,13 @@ public class GameViewMapper {
     }
 
     public GameDetailResponse detail(Game game) {
-        return new GameDetailResponse(card(game), metadata.toResponse(game));
+        String status;
+        if (game.getOrigin() == com.ltz.game.domain.enums.GameOrigin.INTERNAL) status = "LOCAL";
+        else if (!provider.capabilities().contains(com.ltz.game.application.port.GameProvider.Capability.DETAILS)) status = "UNSUPPORTED";
+        else if (game.getDetailsFetchedAt() == null) status = "MISSING";
+        else status = game.getDetailsExpiresAt() != null && clock.instant().isBefore(game.getDetailsExpiresAt()) ? "FRESH" : "STALE";
+        return new GameDetailResponse(card(game), metadata.toResponse(game), game.getDescription(), game.getReleaseDate(),
+                new DetailFreshnessResponse(status, game.getDetailsFetchedAt(), game.getDetailsExpiresAt(),
+                        game.getDetailsNextAttemptAt(), game.getDetailsLastErrorCode()));
     }
 }

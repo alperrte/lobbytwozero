@@ -5,4 +5,4 @@ import java.time.Instant;
 
 public record CatalogStatusResponse(String provider, CatalogRunMode runMode, CatalogSyncStatus syncStatus,
         long cursor, long processedCount, long indexedEntries, long mainGameEntries, long unclassifiedEntries, Long providerTotal,
-        Instant runStartedAt, Instant lastSuccessfulAt, String lastErrorCode) { }
+        Instant runStartedAt, Instant lastSuccessfulAt, String lastErrorCode, int failureCount, Instant nextAttemptAt) { }

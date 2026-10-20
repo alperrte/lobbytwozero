@@ -39,8 +39,8 @@ public class SteamGameProvider implements GameProvider {
                     .exchange((request, response) -> {
                         int status = response.getStatusCode().value();
                         if (status == 401 || status == 403) throw new ProviderException("PROVIDER_ACCESS_DENIED");
-                        if (status == 429) throw new ProviderException("RATE_LIMITED");
-                        if (status >= 500) throw new ProviderException("PROVIDER_UNAVAILABLE");
+                        if (status == 429) throw new ProviderException("RATE_LIMITED", retryAfter(response.getHeaders().getFirst("Retry-After")));
+                        if (status >= 500) throw new ProviderException("PROVIDER_UNAVAILABLE", retryAfter(response.getHeaders().getFirst("Retry-After")));
                         if (status != 200) throw new ProviderException("PROVIDER_REQUEST_REJECTED");
                         byte[] body = response.getBody().readNBytes(1048577);
                         if (body.length > 1048576) throw new ProviderException("INVALID_PROVIDER_RESPONSE");
@@ -56,6 +56,21 @@ public class SteamGameProvider implements GameProvider {
             // Ağ istisnasının ayrıntıları ve cause dışarı taşınmaz.
             throw new ProviderException("PROVIDER_TRANSPORT_ERROR");
         }
+    }
+    private java.time.Duration retryAfter(String value) {
+        if (value == null) return null;
+        try {
+            if (value.matches("\\d+")) return retryAfterSeconds(value);
+            var time = java.time.ZonedDateTime.parse(value, java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME).toInstant();
+            var delay = java.time.Duration.between(Instant.now(), time);
+            return delay.isNegative() ? null : delay;
+        } catch (java.time.DateTimeException _) {
+            return null;
+        }
+    }
+    private java.time.Duration retryAfterSeconds(String value) {
+        try { return java.time.Duration.ofSeconds(Long.parseLong(value)); }
+        catch (NumberFormatException _) { return java.time.Duration.ofDays(2); }
     }
     private CatalogPage normalize(CatalogQuery query, SteamCatalogEnvelope envelope) {
         if (envelope == null || envelope.response() == null || envelope.response().apps() == null

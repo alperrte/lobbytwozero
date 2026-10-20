@@ -264,6 +264,13 @@ erDiagram
     varchar metadata_completeness
     varchar status
     varchar normalized_title
+    varchar description
+    date release_date
+    timestamptz details_fetched_at
+    timestamptz details_expires_at
+    timestamptz details_next_attempt_at
+    int details_failure_count
+    varchar details_last_error_code
     timestamptz created_at
     timestamptz updated_at
     bigint version
@@ -295,6 +302,8 @@ erDiagram
     timestamptz query_since
     timestamptz last_successful_at
     bigint processed_count
+    int failure_count
+    timestamptz next_attempt_at
     bigint version
   }
   catalog_terms {

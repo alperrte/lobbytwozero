@@ -12,6 +12,13 @@ public class Game {
     @Column(nullable=false) private Instant createdAt = Instant.now();
     @Column(nullable=false) private Instant updatedAt = Instant.now();
     @Version private long version;
+    @Column(length=16000) private String description;
+    private java.time.LocalDate releaseDate;
+    private Instant detailsFetchedAt;
+    private Instant detailsExpiresAt;
+    private Instant detailsNextAttemptAt;
+    private int detailsFailureCount;
+    @Column(length=64) private String detailsLastErrorCode;
     @Enumerated(EnumType.STRING) @Column(nullable=false, length=32)
     private GameOrigin origin = GameOrigin.INTERNAL;
     @Enumerated(EnumType.STRING) @Column(nullable=false, length=32)
