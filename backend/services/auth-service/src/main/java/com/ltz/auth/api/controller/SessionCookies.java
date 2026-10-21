@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.util.WebUtils;
 
 import com.ltz.auth.application.service.IssuedSession;
+import com.ltz.auth.infrastructure.config.SecurityProfiles;
 import com.ltz.auth.infrastructure.config.SessionProperties;
 
 import jakarta.servlet.http.Cookie;
@@ -37,7 +38,6 @@ public class SessionCookies {
     private static final String ROOT_PATH = "/";
     private static final String SAME_SITE_LAX = "Lax";
     private static final String SAME_SITE_STRICT = "Strict";
-    private static final String PROD_PROFILE = "prod";
 
     private final boolean secure;
     private final String accessCookieName;
@@ -46,8 +46,8 @@ public class SessionCookies {
     private final String oauthCookieName;
 
     public SessionCookies(SessionProperties properties, Environment environment) {
-        if (!properties.secureCookies() && environment.matchesProfiles(PROD_PROFILE)) {
-            throw new IllegalStateException("ltz.auth.session.secure-cookies must be true in the 'prod' profile");
+        if (!properties.secureCookies() && !SecurityProfiles.relaxedSecurityAllowed(environment)) {
+            throw new IllegalStateException("ltz.auth.session.secure-cookies must be true unless the 'dev' or 'test' profile is active");
         }
         this.secure = properties.secureCookies();
         this.accessCookieName = secure ? HOST_PREFIX + ACCESS_COOKIE : ACCESS_COOKIE;

@@ -86,11 +86,23 @@ class AuthPropertiesValidationTest {
     }
 
     @Test
-    void adminIcinIkiFaktorZorunluluguKapatilamaz() {
-        runner.withPropertyValues("ltz.auth.two-factor.required-roles=MODERATOR")
+    void ikiFaktorZorunluluguYalnizDevVeTestProfilindeKaldirilabilir() {
+        ApplicationContextRunner policy = runner.withUserConfiguration(TwoFactorPolicyConfig.class);
+
+        policy.withPropertyValues("ltz.auth.two-factor.required-roles=", "spring.profiles.active=dev")
+                .run(context -> assertThat(context).hasNotFailed());
+        policy.withPropertyValues("ltz.auth.two-factor.required-roles=MODERATOR", "spring.profiles.active=test")
+                .run(context -> assertThat(context).hasNotFailed());
+        policy.withPropertyValues("ltz.auth.two-factor.required-roles=", "spring.profiles.active=prod")
                 .run(context -> assertThat(context).hasFailed());
-        runner.withPropertyValues("ltz.auth.two-factor.required-roles=")
+        policy.withPropertyValues("ltz.auth.two-factor.required-roles=", "spring.profiles.active=dev,prod")
                 .run(context -> assertThat(context).hasFailed());
+        policy.withPropertyValues("ltz.auth.two-factor.required-roles=MODERATOR", "spring.profiles.active=production")
+                .run(context -> assertThat(context).hasFailed());
+        policy.withPropertyValues("ltz.auth.two-factor.required-roles=MODERATOR")
+                .run(context -> assertThat(context).hasFailed());
+        policy.withPropertyValues("ltz.auth.two-factor.required-roles=ADMIN", "spring.profiles.active=production")
+                .run(context -> assertThat(context).hasNotFailed());
     }
 
     private static String fullMessage(Throwable failure) {
