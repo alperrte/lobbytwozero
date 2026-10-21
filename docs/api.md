@@ -932,6 +932,171 @@ Frontend: API Gateway üzerinden aynı path. Admin Service iş akışı bu faza 
 #### Test Durumu
 INTEGRATION — roller, hedef doğrulaması, çapraz oyun kimliği, idempotency, denetim rolü, sahibin düzenleme engeli, geri alma.
 
+### GAME — Genişletilebilir modül okuma (GAME-11)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend (oyun detayları)
+
+#### Endpoint
+GET /api/v1/game/games/{gameId}/modules/{type}
+
+#### Yetkilendirme
+Public. Yalnız aktif kanonik oyun ve görünür tanımlar.
+
+#### Path/Query Parameters
+gameId UUID; type ACHIEVEMENTS/GUIDES/EASTER_EGGS/EXPERIENCES.
+page=0 (0–10000), size=20 (1–50); sıralama code ASC, id ASC.
+
+#### Response — 200
+`{gameId,type,state,items,page,size,totalElements}`. ACHIEVEMENTS için state
+AVAILABLE/EMPTY; items `{id,code,title,description,visible,version,source,updatedAt}`.
+source yalnız ADMIN; bu veri kişisel başarım ilerlemesi değildir. Diğer üç tip
+INTEGRATION_PENDING, items=[], totalElements=null döner. Başarılı dış veri alımı değildir;
+bu içeriklerin sahibi ve gerçek entegrasyon sözleşmesi beklenmektedir.
+
+#### Hata Durumları
+400 geçersiz tip/UUID/sayfalama; 404 olmayan veya aktif olmayan oyun.
+
+#### Bağlantı
+Gateway üzerinden aynı path. Dış servis çağrısı veya verisi yoktur.
+
+#### Test Durumu
+INTEGRATION — GameModuleTest; boş/bekleyen ayrımı, görünürlük, sıralama, sayfalama, eski metadata.
+
+### GAME — ADMIN başarım tanımı yönetimi (GAME-11)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend (yönetim paneli)
+
+#### Endpoint
+GET /api/v1/game/admin/games/{gameId}/achievements
+PUT /api/v1/game/admin/games/{gameId}/achievements/{code}
+
+#### Yetkilendirme
+Admin — mevcut Bearer JWT/ADMIN; gerçek Auth entegrasyonu NOT VERIFIED.
+
+#### Path/Query Parameters
+gameId UUID; code küçük harf/rakam/tire, 1–64 karakter.
+GET page=0 (0–10000), size=20 (1–50); code ASC, id ASC; gizli tanımlar dahil.
+
+#### Request Body
+PUT: `{title,description,visible,version,reason}`. title zorunlu 1–120, description
+opsiyonel en çok 2000, visible zorunlu boolean, reason 8–1000 karakter. Düz metindir.
+Yeni tanımda version gönderilmez; var olan tanımda mevcut version zorunlu.
+Bir oyunda en çok 1000 tanım; gizlemek için visible=false kullanılır. Fiziksel silme yoktur.
+
+#### Response — 200
+GET modül sayfası; PUT yukarıdaki Achievement nesnesi. PUT aktif oyunda çalışır.
+İşlem mevcut append-only admin audit'e UPDATE_GAME ve achievement ID'siyle yazılır;
+başarım başlığı/açıklaması audit'e kopyalanmaz. Kaynak ADMIN'dir.
+
+#### Hata Durumları
+400 girdi; 401 anonim; 403 ADMIN dışı; 404 oyun yok/PUT için aktif değil;
+409 VERSION_CONFLICT, ACHIEVEMENT_LIMIT_REACHED veya CONCURRENT_MODIFICATION.
+
+#### Bağlantı
+Gateway üzerinden aynı path. Oyun satır kilidi, unique(game_id,code), version ve transaction kullanılır.
+
+#### Test Durumu
+INTEGRATION — GameModuleTest; ADMIN/USER/developer/moderator/anonim, sürüm, kota ve audit.
+
+### GAME — Oyuncunun özel geliştirici geri bildirimleri (GAME-14)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend (oyuncu geri bildirim alanı)
+
+#### Endpoint
+POST /api/v1/game/feedback
+GET /api/v1/game/feedback
+GET /api/v1/game/feedback/{id}
+
+#### Yetkilendirme
+Authenticated/Owner — mevcut doğrulanmış Bearer JWT; kimlik güvenlik bağlamından
+alınır. GET yalnız yazarın kendi kayıtlarıdır; başka yazara ait id 404 verir.
+ADMIN/MODERATOR rolü başka yazarların kayıtlarını açmaz. Gerçek Auth entegrasyonu NOT VERIFIED.
+
+#### Path/Query Parameters
+id UUID. Liste: opsiyonel gameId UUID, type GENERAL/BUG_REPORT/EARLY_ACCESS,
+status OPEN/IN_PROGRESS/RESOLVED; page=0 (0–10000), size=20 (1–50).
+Sıralama createdAt DESC, id ASC. Arşivlenen oyunda yazar eski kaydını okumaya devam edebilir.
+
+#### Request Body
+POST: `{gameId,type,title,body}`. gameId/type zorunlu; title 1–120, body 1–4000
+karakter, boş/kontrol karakteri içeren metin reddedilir. Düz metin; HTML olarak render edilmez.
+userId, authorId, status, version gibi istemci alanları kabul edilmez.
+Oyun aktif olmalıdır. EARLY_ACCESS yalnız earlyAccess=true için kabul edilir;
+false/null erken erişim sayılmaz. Genel kayıt Review incelemesi/puanı değildir.
+
+#### Response — 201 / 200
+POST 201, tek GET 200: `{id,gameId,type,status,title,body,version,createdAt,updatedAt}`.
+İlk status OPEN. Yazar kimliği/profili yanıt içinde yoktur.
+Liste 200: `{items,page,size,totalElements}`. Cache-Control: private, no-store.
+Yazarın içerik düzenleme, durum değiştirme, yorumlaşma veya yeniden açma ucu yoktur.
+
+#### Hata Durumları
+400 geçersiz girdi/filtre/sayfa veya GAME_NOT_EARLY_ACCESS;
+401 anonim/geçersiz JWT; 403 yetkisiz işlem; 404 kayıt/aktif oyun bulunamadı;
+429 FEEDBACK_RATE_LIMITED + Retry-After (oluşturma).
+
+#### Bağlantı
+Gateway üzerinden aynı path. Başka servis DB/API çağrısı yoktur.
+Kullanıcı başına kova: ani 5, sürekli 1/dk; IP başına ani 30, sürekli 30/dk.
+Mevcut sınırlı bellekli token bucket ve güvenilir proxy/IP çözümleme yeniden kullanılır.
+Sınır süreç içidir; dağıtık değildir. Gateway gerçek IP bağımlılığı nedeniyle Gateway
+trafiği ortak IP kotası paylaşabilir; kullanıcı kotası JWT sub ile ayrıca korunur.
+Gerçek Auth, bildirim ve servisler arası koordinasyon bu fazda tamamlanmış sayılmaz.
+
+#### Test Durumu
+INTEGRATION — GameFeedbackTest, GameFeedbackTransactionTest; JWT öznesi, IDOR,
+gizlilik, tür, arşiv, filtre/sıralama, validation, rollback.
+UNIT — FeedbackRateLimitTest; kullanıcı/IP kotaları, sahte forwarded header ve cache.
+
+### GAME — Yetkili geliştiricinin özel geri bildirim yönetimi (GAME-14)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend (geliştirici alanı)
+
+#### Endpoint
+GET /api/v1/game/developer/games/{gameId}/feedback
+GET /api/v1/game/developer/games/{gameId}/feedback/{id}
+PATCH /api/v1/game/developer/games/{gameId}/feedback/{id}/status
+
+#### Yetkilendirme
+Bearer JWT GAME_DEVELOPER rolü VE ilgili oyunda aktif game_developer_grants yetkisi.
+ADMIN/MODERATOR rolü tek başına yeterli değildir. Kimlik istemciden alınmaz.
+
+#### Path/Query Parameters
+gameId/id UUID; başka oyunun feedback kimliği 404.
+Liste type/status/page/size ve sıralaması oyuncu listesiyle aynıdır; gameId path'ten gelir.
+
+#### Request Body
+PATCH: `{status,version}`; ikisi zorunlu, version >= 0. Yalnız OPEN -> IN_PROGRESS
+ve IN_PROGRESS -> RESOLVED geçişleri vardır. Atlama, tekrarlı durum ve yeniden açma reddedilir.
+
+#### Response — 200
+Tek kayıt/listede yukarıdaki özel FeedbackResponse/FeedbackPageResponse;
+Cache-Control private, no-store. Yazar UUID/profili ve audit gerekçesi dönmez.
+Durum değişikliği mevcut admin audit'e GAME_DEVELOPER, UPDATE_GAME, feedback ID,
+önceki/sonraki durum ve sunucu zamanı ile yazılır. Başlık/gövde audit'e kopyalanmaz.
+
+#### Hata Durumları
+400 validation/filtre; 401 JWT yok/geçersiz; 403 rol veya aktif oyun grant'i yok;
+404 aktif oyun veya bu oyuna ait kayıt yok; 409 VERSION_CONFLICT,
+INVALID_FEEDBACK_TRANSITION veya CONCURRENT_MODIFICATION. ProblemDetail kullanılır.
+
+#### Bağlantı
+Gateway üzerinden aynı path. Mevcut GameAccessPolicy kullanılır. Durum yazması oyun
+kilidi altında grant'i tekrar denetler; geri bildirim version ve transaction ile korunur.
+Audit başarısızsa durum değişikliği de geri alınır. Yeni mesajlaşma/dosya/bildirim sistemi yoktur.
+
+#### Test Durumu
+INTEGRATION — GameFeedbackTest, GameFeedbackTransactionTest; roller/grant,
+çapraz oyun IDOR, durum/sürüm, iptal yarışı, eşzamanlı yazma ve audit rollback.
+
 ## LIBRARY
 
 Sorumlu: Hamza · Gateway: `/api/v1/library/**` · Görevler: LIB-

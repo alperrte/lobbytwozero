@@ -1,6 +1,6 @@
 # Game Service — bekleyen tasklar ve diğer servislerden beklenenler
 
-**Tarih:** 21 Ekim 2026 · **Sahibi:** Hamza · **Servis:** `game-service` (Faz 1–4 ve Faz 5'in uygulanabilir yerel kapsamı uygulandı; V171 DEV'e geçirildi)
+**Tarih:** 21 Ekim 2026 · **Sahibi:** Hamza · **Servis:** `game-service` (Faz 1–6 yerel geliştirmeleri; V171–V173 DEV'de uygulandı; dış entegrasyonlar bekliyor)
 
 Bu belge, Game Service'te **yapılamayan veya yarım kalan** işleri ve bunların **hangi servise/kişiye/karara** bağlı olduğunu söyler. Kendi servisini ilgilendiren bölümü (§3) oku; yapman gereken bir şey varsa orada yazar. Ayrıntılı API sözleşmesi: `docs/api.md` → `## GAME`.
 
@@ -18,7 +18,8 @@ Bu belge, Game Service'te **yapılamayan veya yarım kalan** işleri ve bunları
 | **GAME-04 indirim filtresi, GAME-24** (fiyat/indirim) | Bölgesel fiyat portu ve testleri hazır; gerçek veri bekliyor | İzinli sağlayıcı/erişim ve kullanım-saklama koşulları kesinleşmedi | Sağlayıcı ve ENV onayı (§4) |
 | **GAME-23** | Yerel/admin kapsamı tamamlandı; V171 | Gerçek dış dil/detail verisi GAME-17 sağlayıcısını bekliyor | Gerçek detay sağlayıcısı |
 | **GAME-26** | Arşivleme/kilit/audit korunuyor; ADMIN girişleri hazır | Gerçek eşleme/ayırma dış referans güvenliği doğrulanana kadar 409 ile engellenir | Library/Review referans koordinasyon sözleşmesi |
-| **GAME-11, GAME-14** | Başlanmadı (Faz 6, MVP sonrası) | Onay yok. GAME-11, içeriğin sahibi başka servisse (başarım, rehber vb.) o servisin API'sine bağlanacak | Onay; ileride content/community gibi servislerden API |
+| **GAME-11** | KISMEN TAMAMLANDI: başarım tanımları ve sayfalı modül okuma hazır | GUIDES/EASTER_EGGS/EXPERIENCES sahibinin gerçek API'si yok; INTEGRATION_PENDING döner | UGC servis sahipliği kararı ve gerçek sözleşme |
+| **GAME-14** | Game Service yerel iş akışı hazır; gerçek Auth ile doğrulanmadı | Özel geri bildirim/rol/oyun grant'i test JWT'leriyle doğrulandı; gerçek JWT yok | Gerçek Auth entegrasyonu |
 
 ### 1.1 Faz 5: hazır olanlar ve entegrasyon bekleyen parçalar
 
@@ -138,4 +139,25 @@ Auth, Review ve Gateway entegrasyonlarının bekleme durumu değişmedi.
 - Toplu karttan LTZ puanı bekleme; puan alanı yok ve uydurulmayacak.
 - Oyun başına döngüyle `GET /card` çağırma.
 
-Faz 5 güncel kapsam ve kanıtlar: [Faz 5 raporu](LTZ-HAM-GAME-05-Rapor.md). Faz 6 için ayrı açık onay gerekir.
+Faz 5 güncel kapsam ve kanıtlar: [Faz 5 raporu](LTZ-HAM-GAME-05-Rapor.md).
+
+## 6. Faz 6 entegrasyonları ve DEV durumu
+
+Faz 6 geliştirme onayı alındı. GAME-11'de Game Service yalnız başarım tanımlarını
+yönetir; kişisel ilerleme yoktur. GUIDES/EASTER_EGGS/EXPERIENCES için veri sahipliği
+kararı ve veri sahibinin görünürlük/moderasyon/sayfalama/erişim sözleşmesi gerekir.
+Eski docx rehberleri Content'e bağlasa da güncel Nisa görevleri Content'i haber/duyuruyla
+sınırlar; Content veya Community'ye yeni sahiplik atanmadı. Bu modüller için tablo,
+gerçek adaptör veya sahte veri oluşturulmadı. INTEGRATION_PENDING boş/başarılı veri değildir.
+
+GAME-14'te GENERAL/BUG_REPORT/EARLY_ACCESS özel iş akışı Game Service'tedir;
+Review incelemesi veya kullanıcılar arası mesajlaşma değildir. Yazar yalnız kendi
+kaydını, aktif oyun grant'i ve GAME_DEVELOPER rolü olan geliştirici yalnız ilgili
+oyunun kayıtlarını okur. ADMIN/MODERATOR tek başına özel içeriği açamaz.
+OPEN -> IN_PROGRESS -> RESOLVED akışı hazırdır; yeniden açma/yorum/dosya/bildirim yoktur.
+Bildirim bu fazın kapsamı değildir; bildirim işlevi tamamlandı sayılmamalıdır.
+
+Gerçek Auth token'ıyla uçtan uca erişim doğrulaması bekler. Rate limit kullanıcıya
+ve IP'ye uygulanır; süreç içidir, Gateway'de gerçek IP/dağıtık koordinasyon eksikleri
+önceki fazlardan devam eder. V172/V173 DEV'e uygulandı; yalnız Game Service imajı güncellendi;
+dağıtım için ayrı kullanıcı onayı alındı. Gerçek Auth entegrasyonu bekler. Ayrıntılar: [Faz 6 raporu](LTZ-HAM-GAME-06-Rapor.md).

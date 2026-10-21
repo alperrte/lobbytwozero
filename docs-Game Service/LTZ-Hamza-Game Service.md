@@ -132,7 +132,7 @@
 
 **Ana task açıklaması:** Kaynak/yerelleştirme izlenebilirliğini, izinli fiyat/indirim verisini ve manuel metadata düzeltmelerini geliştir.
 
-**2026-10-21 durumu:** GAME-23 yerel/admin kapsamı uygulandı; gerçek detay sağlayıcısı bekler. GAME-24 bölgesel fiyat portu hazır; izinli sağlayıcı ve erişim olmadan fiyat sunulmaz. GAME-26 mevcut arşivleme/kilit/audit akışlarını yeniden kullanır; yeni ADMIN eşleme/ayırma girişleri dış referans koordinasyonu olmadan mutasyonu engeller. GAME-24 ve GAME-26 bu nedenle bütünüyle tamamlandı olarak işaretlenmedi. [Faz 5 raporu](LTZ-HAM-GAME-05-Rapor.md). Faz 6 başlamadı.
+**2026-10-21 durumu:** GAME-23 yerel/admin kapsamı uygulandı; gerçek detay sağlayıcısı bekler. GAME-24 bölgesel fiyat portu hazır; izinli sağlayıcı ve erişim olmadan fiyat sunulmaz. GAME-26 mevcut arşivleme/kilit/audit akışlarını yeniden kullanır; yeni ADMIN eşleme/ayırma girişleri dış referans koordinasyonu olmadan mutasyonu engeller. GAME-24 ve GAME-26 bu nedenle bütünüyle tamamlandı olarak işaretlenmedi. [Faz 5 raporu](LTZ-HAM-GAME-05-Rapor.md). Faz 6 daha sonra ayrı kullanıcı onayıyla başlatıldı; güncel durum ilgili Faz 6 bölümündedir.
 
 **Alt tasklar:**
 
@@ -154,11 +154,13 @@
 
 **Ana task açıklaması:** Başarım/rehber gibi modüler detaylar ve ayrı geri bildirim iş akışlarını hayata geçir.
 
+**2026-10-21 durumu:** GAME-11 KISMEN TAMAMLANDI: başarım tanımları ve modül okuma hazır; dış UGC modülleri sahiplik/API bekliyor. GAME-14 yerel özel geri bildirim iş akışı uygulandı; gerçek Auth entegrasyonu NOT VERIFIED. V172/V173 ayrı kullanıcı onayıyla DEV'e uygulandı; yalnız Game Service dağıtıldı. [Faz 6 raporu](LTZ-HAM-GAME-06-Rapor.md).
+
 **Alt tasklar:**
 
 - [ ] **GAME-11 — Genişletilebilir oyun detayları (MVP sonrası):** Başarımlar, rehberler, easter egg'ler ve kullanıcı deneyimleri için modüler detay alanları. İçeriğin sahibi başka servis ise API üzerinden entegre edilir; veri sahipliği taşınmaz.
 
-- [ ] **GAME-14 — Geliştirici geri bildirimleri (MVP sonrası olarak yeniden planlandı):** Oyuncuların geliştiriciye oyun bağlamında geri bildirim, hata raporu ve erken erişim geri bildirimi göndermesi; ayrı durum takibi ve yetki kurallarının tasarlanması. **Gerekçe:** Rapor yönetimi ve iş akışı kapsamı çekirdek oyun kataloğundan bağımsız ve geniştir.
+- [x] **GAME-14 — Geliştirici geri bildirimleri (MVP sonrası olarak yeniden planlandı):** Oyuncuların geliştiriciye oyun bağlamında geri bildirim, hata raporu ve erken erişim geri bildirimi göndermesi; ayrı durum takibi ve yetki kurallarının tasarlanması. **Gerekçe:** Rapor yönetimi ve iş akışı kapsamı çekirdek oyun kataloğundan bağımsız ve geniştir.
 
 
 **Bitmiş sayılma:** Yukarıdaki akış API/veri sahipliği kurallarına uygun çalışır, ilgili testler geçer ve ana taskın tek özellik teslimi yapılır.

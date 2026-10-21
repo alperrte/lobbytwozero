@@ -243,6 +243,37 @@ erDiagram
 
 ## 5. game_db
 
+Faz 6 / V172–V173 eklentisi (2026-10-21 tarihinde kullanıcı onayıyla DEV'e uygulandı):
+
+```mermaid
+erDiagram
+  games ||--o{ game_achievement_definitions : definitions
+  games ||--o{ game_developer_feedback : private_feedback
+  game_achievement_definitions {
+    uuid id PK
+    uuid game_id FK
+    varchar code "unique with game_id"
+    varchar title
+    varchar description "nullable"
+    boolean visible
+    bigint version
+    timestamptz created_at
+    timestamptz updated_at
+  }
+  game_developer_feedback {
+    uuid id PK
+    uuid game_id FK "ON DELETE RESTRICT"
+    uuid author_id "REF auth user"
+    varchar type "GENERAL|BUG_REPORT|EARLY_ACCESS"
+    varchar status "OPEN|IN_PROGRESS|RESOLVED"
+    varchar title
+    varchar body "private plain text"
+    bigint version
+    timestamptz created_at
+    timestamptz updated_at
+  }
+```
+
 GAME-23/V171 eklentisi (eski `game_languages` ilişkisi aynen korunur):
 
 ```mermaid

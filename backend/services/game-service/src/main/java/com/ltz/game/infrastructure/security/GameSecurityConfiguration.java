@@ -29,16 +29,21 @@ public class GameSecurityConfiguration {
     static final String ADMIN = "/api/v1/game/admin/**";
     static final String MODERATION = "/api/v1/game/moderation/**";
     static final String DEVELOPER = "/api/v1/game/developer/**";
+    static final String FEEDBACK = "/api/v1/game/feedback/**";
     private static final String UNAUTHORIZED = "Unauthorized";
 
     @Bean
     SecurityFilterChain gameSecurity(HttpSecurity http, JwtDecoder decoder, LtzJwtAuthenticationConverter converter, RateLimitProperties rateLimit) {
         PathPatternRequestMatcher.Builder paths = PathPatternRequestMatcher.withDefaults();
         RequestMatcher batch = paths.matcher(HttpMethod.POST, "/api/v1/game/games/batch");
-        RequestMatcher tokenProtected = new OrRequestMatcher(paths.matcher(ADMIN), paths.matcher(MODERATION), paths.matcher(DEVELOPER));
+        RequestMatcher tokenProtected = new OrRequestMatcher(paths.matcher(ADMIN), paths.matcher(MODERATION), paths.matcher(DEVELOPER), paths.matcher(FEEDBACK));
         var limiter = new TokenBucketRateLimiter(rateLimit.batch().capacity(), rateLimit.batch().refillPerSecond(), rateLimit.maxKeys(), System::nanoTime);
         var rateLimitFilter = new BatchRateLimitFilter(batch, limiter, new ClientAddressResolver(rateLimit.trustedProxies()));
+        var privateFeedback=new OrRequestMatcher(paths.matcher(FEEDBACK),paths.matcher("/api/v1/game/developer/games/*/feedback/**"));
+        var feedbackFilter=new FeedbackPrivacyAndRateLimitFilter(privateFeedback,paths.matcher(HttpMethod.POST,"/api/v1/game/feedback"),
+                rateLimit.maxKeys(),new ClientAddressResolver(rateLimit.trustedProxies()));
         return http
+                .addFilterAfter(feedbackFilter,org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter.class)
                 // Anonim toplu okuma istemci başına sınırlanır (429); sınır CSRF/yetki işleminden önce uygulanır.
                 .addFilterBefore(rateLimitFilter, CsrfFilter.class)
                 // Varsayılan CSRF koruması açıktır; yalnız anonim toplu okuma filtreyle açıkça atlanır (bkz. sınıf açıklaması).
@@ -49,10 +54,12 @@ public class GameSecurityConfiguration {
                         .requestMatchers(HttpMethod.GET, "/api/v1/game/games", "/api/v1/game/games/search", "/api/v1/game/games/popular").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/game/*/metadata", "/api/v1/game/*/card", "/api/v1/game/games/*", "/api/v1/game/catalog", "/api/v1/game/catalog/status").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/game/games/*/developer-content").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/game/games/*/modules/*").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/game/games/batch").permitAll()
                         .requestMatchers(ADMIN).hasRole("ADMIN")
                         .requestMatchers(MODERATION).hasAnyRole("ADMIN", "MODERATOR")
                         .requestMatchers(DEVELOPER).hasRole("GAME_DEVELOPER")
+                        .requestMatchers(FEEDBACK).authenticated()
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(resource -> resource
                         .jwt(jwt -> jwt.decoder(decoder).jwtAuthenticationConverter(converter))

@@ -153,6 +153,19 @@ Gösterim: **PK** birincil anahtar, **FK** servis içi yabancı anahtar, **REF**
 
 ### 3.4 game_db — game-service (Hamza)
 
+Faz 6 (yalnız Game Service, V172/V173 kullanıcı onayıyla 2026-10-21 tarihinde DEV'e uygulandı):
+
+- V172 `game_achievement_definitions`: UUID PK, game_id FK CASCADE, code/title/
+  nullable description, visible, version, UTC created_at/updated_at; UNIQUE(game_id,code)
+  ve (game_id,visible,code,id) public sayfalama indeksi. Başarım tanımıdır, oyuncu ilerlemesi değildir.
+- V173 `game_developer_feedback`: UUID PK, game_id FK RESTRICT, author_id kullanıcı REF,
+  type GENERAL/BUG_REPORT/EARLY_ACCESS ve status OPEN/IN_PROGRESS/RESOLVED CHECK,
+  title/body, version ve UTC zamanlar. Yazar/tarih/id ve oyun/tür/durum/tarih/id indeksleri.
+  Özel kayıt; kullanıcı/rol tablosu veya Review verisi kopyalanmaz. Durum olayları
+  mevcut append-only game_admin_audits içinde içerik metni olmadan tutulur.
+- V31–V40 ve V171 değiştirilmez. V172/V173 yalnız eklemelidir; eski kayıtlara içerik
+  eklenmez. Sonraki kullanılmamış numara V174'tür. Dolu V171 -> V173 geçişi izole testte doğrulanır.
+
 Game Service GAME-23 ek şeması: V171, `games.metadata_language` (nullable) ve
 `language_data_state` (UNKNOWN/EMPTY/INVALID/AVAILABLE), `game_language_supports`
 (game_id+language_code PK, üç bağımsız UNKNOWN/SUPPORTED/UNSUPPORTED alanı),
@@ -164,7 +177,7 @@ yapılmaz. LOCALIZATION mevcut manuel kilit allowlist'ine eklenir. Fiyat tablosu
 oluşturulmadı; GAME-24 sağlayıcı izni/erişimi bekler.
 
 
-**Mevcut şema:** GAME-08 V31, GAME-10 V32, GAME-16 V33, GAME-18 V34, GAME-21 V35, Faz 2 güncellik/retry altyapısı V36, Faz 3 keşif metadata/indeksleri V37, Faz 4 yönetim/geliştirici tabloları V38–V40 ve GAME-23 V171. Eski V31–V40 aralığı doludur; ek V171–V190 Game Service için onaylanmıştır. V171 kullanılmıştır; sıradaki kullanılmamış numara V172'dir. Gerçek detay sağlayıcısı henüz entegre edilmedi.
+**Mevcut şema:** GAME-08 V31, GAME-10 V32, GAME-16 V33, GAME-18 V34, GAME-21 V35, Faz 2 güncellik/retry altyapısı V36, Faz 3 keşif metadata/indeksleri V37, Faz 4 yönetim/geliştirici tabloları V38–V40, GAME-23 V171 ve Faz 6 V172–V173. Eski V31–V40 aralığı doludur; ek V171–V190 Game Service için onaylanmıştır. V171, V172 ve V173 DEV'de uygulanmıştır; eski migration geçmişi korunmuştur. Sıradaki kullanılmamış numara V174'tür. Gerçek detay sağlayıcısı henüz entegre edilmedi.
 
 - `games`: UUID `id`, `title`, `normalized_title`, UTC `created_at`/`updated_at`, optimistic `version`.
 - `catalog_terms`: UUID `id`, `kind` (GENRE/CATEGORY/TAG/PLATFORM), `code`, nullable TR/EN adlar, `version`; UNIQUE `(kind, code)`.
