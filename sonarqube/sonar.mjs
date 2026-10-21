@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { repositoryRoot, execute, redact, cleanGenerated, freshFile, backendResults, readModules, clearBackendReports, withReportLock, withRunLog } from '../lib/quality-tools.mjs';
-import { loadProfileEnv, requireNode } from '../lib/profile-env.mjs';
+import { loadProfileEnv, requireNode, backendTestEnv } from '../lib/profile-env.mjs';
 import { requireMaven25 } from '../pre-push/backend-check.mjs';
 
 export const loadSonarEnv = loadProfileEnv;
@@ -108,7 +108,7 @@ export async function runScan({ root = repositoryRoot, profile = 'dev', ambient 
     clearBackendReports(root, modules);
     await step('Backend Reports', async () => {
       await requireMaven25(run, mvn, root);
-      const result = await run(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify']);
+      const result = await runCommand(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify'], { cwd: root, env: backendTestEnv(root, profile, env), capture: false, secrets, log: say });
       if (result.code !== 0) throw new Error('Backend build/tests failed');
       details.backend = backendResults(root, modules, started);
       say(`Fresh reports: ${details.backend.tests} tests; local line coverage ${details.backend.lineCoverage.toFixed(2)}%`);

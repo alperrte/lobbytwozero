@@ -64,7 +64,7 @@ sonra bu kilit dosyasını elle kaldırabilirsiniz.
 Script regresyon testleri:
 
 ```powershell
-node --test pre-push/menu.test.mjs pre-push/quality.test.mjs pre-push/runtime-checks.test.mjs sonarqube/sonar.test.mjs ops/env.test.mjs ops/generate-auth-dev-keys.test.mjs pre-push/hygiene-checks.test.mjs
+node --test pre-push/menu.test.mjs pre-push/quality.test.mjs pre-push/runtime-checks.test.mjs sonarqube/sonar.test.mjs ops/env.test.mjs ops/generate-auth-dev-keys.test.mjs pre-push/hygiene-checks.test.mjs pre-push/backend-env.test.mjs
 ```
 
 Bu testler komut yönlendirmesini, hata durumlarını ve rapor kabul kurallarını
