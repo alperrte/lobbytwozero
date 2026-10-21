@@ -105,6 +105,18 @@ class AuthPropertiesValidationTest {
                 .run(context -> assertThat(context).hasNotFailed());
     }
 
+    @Test
+    void taninmayanProfilAdiylaBaslamaz() {
+        ApplicationContextRunner guard = new ApplicationContextRunner().withUserConfiguration(ProfileGuardConfig.class);
+
+        guard.withPropertyValues("spring.profiles.active=production").run(context -> assertThat(context).hasFailed());
+        guard.withPropertyValues("spring.profiles.active=staging").run(context -> assertThat(context).hasFailed());
+        guard.withPropertyValues("spring.profiles.active=dev").run(context -> assertThat(context).hasNotFailed());
+        guard.withPropertyValues("spring.profiles.active=prod").run(context -> assertThat(context).hasNotFailed());
+        guard.withPropertyValues("spring.profiles.active=dev,local").run(context -> assertThat(context).hasNotFailed());
+        guard.run(context -> assertThat(context).hasNotFailed());
+    }
+
     private static String fullMessage(Throwable failure) {
         StringBuilder message = new StringBuilder();
         for (Throwable current = failure; current != null; current = current.getCause()) {
