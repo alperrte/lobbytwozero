@@ -260,6 +260,29 @@ Gösterim: **PK** birincil anahtar, **FK** servis içi yabancı anahtar, **REF**
 
 ### 3.13 hardware_db — hardware-service (Alper)
 
+**Güncel geliştirme şeması — 2026-10-21:** Kullanıcının “7 ilişkili grup” onayıyla
+eski V1–V10 zinciri yeniden düzenlendi. Boş DB'ye uygulanan aktif dosyalar:
+
+| Migration | Oluşturduğu tablolar |
+|---|---|
+| V1__create_hardware_profiles_and_privacy.sql | hardware_profiles, hardware_profile_field_visibility, hardware_profile_category_visibility |
+| V2__create_hardware_catalog.sql | hardware_brands, hardware_products, hardware_product_brands, hardware_catalog_audit |
+| V3__create_hardware_profile_components.sql | hardware_profile_components |
+| V4__create_hardware_campaigns.sql | hardware_campaigns |
+| V5__create_hardware_reviews.sql | hardware_reviews, hardware_review_audit, hardware_write_limits |
+| V6__create_hardware_review_reports_and_outbox.sql | outbox_events, hardware_review_reports |
+| V7__create_hardware_desktop_sync.sql | hardware_sync_consents, hardware_sync_receipts |
+
+16 tablo son sütun/default/constraint'leriyle doğrudan CREATE TABLE içinde kurulur;
+ALTER TABLE/INDEX veya rename/drop adımı yoktur. 93 named constraint, 51 toplam indeks,
+2 immutable audit trigger/fonksiyonu eski zincirle izole PostgreSQL 17.11'de eşdeğerdir.
+V8–V10 boş; sonraki değişiklikler normal ileri migration kuralına tabidir.
+Eski Flyway history ile yükseltme desteklenmez; DB sıfırlamasını kullanıcı yapar.
+[Karar ve kanıt](../docs-hardware/progress/hardware-migration-cleanup.md).
+
+**Aşağıdaki eski V1–V10 numaraları, dosya adları ve test sayıları görevlerin teslim
+tarihçesidir; güncel migration envanteri yukarıdaki V1–V7 tablosudur.**
+
 **LTZ-ALP-HW-01 uygulama durumu (2026-10-21):**
 `V1__create_hardware_profiles.sql` eklendi; SQL ve constraint'ler izole PostgreSQL 17
 üzerinde doğrulandı. V1/V2 Flyway ve JPA validate testleri de PASS; canlı DB'ye uygulanmadı.
@@ -404,7 +427,8 @@ transaction'dır, yalnız DESKTOP_SYNC kümesi değiştirilir; MANUAL/gizlilik k
 Mevcut hardware_write_limits kısa TTL altyapısı yeni user/device/peer bucket'larını
 da taşır. V1–V10 gerçek PostgreSQL/Flyway/JPA ve 269 mevcut regresyonda PASS;
 yeni davranışların final test kanıtı HW-05 kalite kaydında güncellenir. V10 artık
-değiştirilmez; hardware V1–V10 aralığı doldu, yeni SQL sürümü ekip kararı ister.
+değiştirilmez kabul edilmişti; sonraki açık geliştirme temizliği onayı bu geçmiş
+zinciri yukarıdaki V1–V7 envanteriyle değiştirdi.
 Canlı DB'ye V10 uygulanmadı. Gerçek Auth/PERF cihaz kontratı ve desktop E2E
 onaylı DEFERRED_AUTH / DEFERRED_CONTRACT / NOT_VERIFIED; production policy deny.
 

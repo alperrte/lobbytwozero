@@ -654,6 +654,16 @@ erDiagram
 
 ## 14. hardware_db
 
+**Güncel geliştirme envanteri (2026-10-21):** Kullanıcı onayıyla aynı 16 tablo,
+7 ilişkili başlangıç migration'ında oluşturulur: V1 profil/gizlilik, V2 katalog,
+V3 bileşenler, V4 kampanyalar, V5 yorum/audit/limitler, V6 rapor/outbox, V7 sync.
+Son alanlar ve named constraint'ler doğrudan CREATE TABLE içindedir; ALTER yoktur.
+Tablo ilişkileri, CASCADE/SET NULL, partial unique ve audit korumaları değişmedi;
+eski/yeni pg_catalog karşılaştırması PASS. Eski history ile yerinde yükseltme yoktur.
+[Güncel dosya envanteri](../docs-hardware/progress/hardware-migration-cleanup.md).
+Aşağıdaki V1–V10 adımları ve test sayıları **önceki teslim tarihçesidir**;
+ilişkiler geçerlidir, aktif dosya numaraları yukarıdaki yeni gruplamadır.
+
 LTZ-ALP-HW-01 / 2026-10-21: V1 SQL/constraint kontrolü izole PostgreSQL 17'de PASS;
 V1/V2 Flyway/JPA testleri PASS; canlı DB'ye uygulanmadı.
 Uygulanan şema tanımı aşağıdadır; devamındaki geniş diyagram gelecek görevlerin önerisidir.
@@ -814,8 +824,9 @@ gösterilmez: profile CASCADE FK, key ve generation/sequence tekillikleri,
 hesap tablosu veya cross-DB FK eklenmedi. Gerçek cihaz policy üretimde deny.
 
 **Eski geniş tasarım önerisi (uygulanmış şemayı temsil etmez):**
-Aşağıdaki eski diyagram yerine gerçek kapsam için yukarıdaki V1–V10 tanımları
-esas alınır; provider tabloları uygulanmadı. Ürün/marka ilişkisi V2'de ayrılmıştır.
+Aşağıdaki eski diyagram yerine gerçek kapsam için yukarıdaki uygulanmış ilişkiler
+ve güncel V1–V7 envanteri esas alınır; provider tabloları uygulanmadı.
+Ürün/marka ilişkisi güncel V2 içinde ayrıdır.
 
 ```mermaid
 erDiagram

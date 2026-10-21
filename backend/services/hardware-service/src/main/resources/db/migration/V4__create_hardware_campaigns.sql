@@ -1,3 +1,6 @@
+-- Development schema baseline: initialize an empty hardware_db.
+-- External user, actor and device UUIDs are logical references, never cross-service foreign keys.
+
 CREATE TABLE hardware_campaigns (
     id uuid CONSTRAINT pk_hardware_campaigns PRIMARY KEY,
     product_id uuid NOT NULL CONSTRAINT fk_hardware_campaigns_product REFERENCES hardware_products(id),
@@ -22,7 +25,9 @@ CREATE TABLE hardware_campaigns (
     CONSTRAINT ck_hardware_campaigns_status CHECK (status IN ('ACTIVE','ARCHIVED')),
     CONSTRAINT ck_hardware_campaigns_version CHECK (version >= 0)
 );
+
 CREATE INDEX ix_hardware_campaigns_active_window ON hardware_campaigns(starts_at, ends_at, id)
     WHERE status = 'ACTIVE';
+
 CREATE INDEX ix_hardware_campaigns_product_window ON hardware_campaigns(product_id, starts_at, ends_at, id)
     WHERE status = 'ACTIVE';

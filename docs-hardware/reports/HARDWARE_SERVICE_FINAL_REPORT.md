@@ -5,6 +5,12 @@ Durum: **yerel 17/17 alt görev TESTED, beşinci ana görev READY_FOR_PDA —
 DEFERRED_AUTH / DEFERRED_CONTRACT**. Kullanıcı PDA kapanışı 4/5; HW-05 ana kutusu
 henüz `[ ]`. Bu rapor üretim hazırlığı veya gerçek dış servis/desktop E2E onayı değildir.
 
+HW-05 sonrası kullanıcı onaylı migration temizliği: güncel şema §4'teki 7 ilişkili
+CREATE dosyasıdır. Önceki görev teslimleri ve §7 kalite sonuçları tarihsel snapshot'tır;
+bu bakımın yeniden doğrulaması [ayrı kalite kaydında](../testing/hardware-migration-cleanup-quality.md).
+Bakım COMPLETE: hardware 295 PASS/%98,75; full dev 313 PASS/%96,51/18 HTTP PASS,
+SAFE TO COMMIT; Sonar A/A/A + gate PASS, açık issue/hotspot 0/0.
+
 ## 1. Servis özeti ve mimari sınır
 
 Kod backend/services/hardware-service, paket com.ltz.hardware, veri sahibi
@@ -48,22 +54,22 @@ DEFERRED_AUTH / NOT_VERIFIED; ek dış bağımlılıklar aşağıda ve §6'da ay
 | Alt görev | Yerel sonuç ve davranış | Dış katman / kanıt |
 |---|---|---|
 | HW-01 | DONE: owner profil oluşturma | Profil testleri, teslim 01 |
-| HW-02 | DONE: manuel/katalog bileşen, opsiyonel marka | Component testleri, V2 |
+| HW-02 | DONE: manuel/katalog bileşen, opsiyonel marka | Component testleri, güncel V2/V3 |
 | HW-03 | DONE: owner profil/bileşen düzenleme ve sürüm | Paralel writer/rollback testleri |
 | HW-04 | DONE: bağımsız birden fazla bilgisayar | Owner izolasyonu ve sayfalama |
 | HW-05 | DONE: detay ve nullable teknik DTO | Component detay/IDOR testleri |
 | HW-15 | DONE: kayıt/adet ve bilinen kapasite istatistiği | Owner SQL özet testleri |
 | HW-16 | DONE: owner/version profil silme, CASCADE | Profil ve sync CASCADE testleri |
-| HW-10 | DONE: genel model/marka yönetimi ve arşiv | V3; catalog testleri |
-| HW-11 | DONE: parametrik teknik/model/marka filtreleri | V4; search testleri |
-| HW-14 | DONE: yerel kaynak/gözlem/fiyat kampanyası | V5; campaign testleri; scraping/harici fiyat yok |
-| HW-08 | DONE: PRIVATE varsayılan, profil/alan/kategori izinleri | V6/V7; User/Social gerçek kararı DEFERRED_CONTRACT |
+| HW-10 | DONE: genel model/marka yönetimi ve arşiv | Güncel V2; catalog testleri |
+| HW-11 | DONE: parametrik teknik/model/marka filtreleri | Güncel V2; search testleri |
+| HW-14 | DONE: yerel kaynak/gözlem/fiyat kampanyası | Güncel V4; campaign testleri; scraping/harici fiyat yok |
+| HW-08 | DONE: PRIVATE varsayılan, profil/alan/kategori izinleri | Güncel V1; User/Social gerçek kararı DEFERRED_CONTRACT |
 | HW-09 | DONE: owner profil/bileşen, aktif genel model karşılaştırması | Comparison testleri; tahmin üretilmez |
 | HW-17 | DONE: owner batch teknik sözleşmesi | Batch testleri; Performance/Recommendation tüketici E2E NOT_VERIFIED |
-| HW-12 | DONE: ürün yorumu, puan/tekillik/owner/soft-delete | V8; UGC User/Social policy DEFERRED_CONTRACT |
-| HW-13 | DONE: rapor, kaynak HIDE/RESTORE, immutable audit/outbox | V9; gerçek Admin/Notification teslimi DEFERRED_CONTRACT |
+| HW-12 | DONE: ürün yorumu, puan/tekillik/owner/soft-delete | Güncel V5; UGC User/Social policy DEFERRED_CONTRACT |
+| HW-13 | DONE: rapor, kaynak HIDE/RESTORE, immutable audit/outbox | Güncel V5/V6; gerçek Admin/Notification teslimi DEFERRED_CONTRACT |
 | HW-06 | DONE: açık onaylı stateless scan preview | 30 yeni test; gerçek scanner yazılmadı |
-| HW-07 | DONE: cihaz/izin/generation/sequence/idempotency | V10, 24 yeni test; gerçek cihaz ve desktop E2E DEFERRED_CONTRACT |
+| HW-07 | DONE: cihaz/izin/generation/sequence/idempotency | Güncel V3/V7, önceki HW-07 24 yeni test; gerçek cihaz ve desktop E2E DEFERRED_CONTRACT |
 
 Auth dışındaki HW-03/HW-04/HW-05 ertelemeleri kullanıcı tarafından açıkça onaylandı.
 Kanonik durum [kök master](../../LTZ_HARDWARE_SERVICE.md); servis gereksinim dosyası
@@ -149,22 +155,20 @@ SWAGGER_ENABLED flag'i tek başına güvenlik filtresini açmaz.
 ## 4. Veri modeli ve migration envanteri
 
 Kaynak migration'larda 16 tablo tanımı vardır (Flyway history hariç); bu, canlı DB
-envanteri iddiası değildir. İzole PostgreSQL 17.11 üzerinde V1–V10 ve JPA validate
-PASS. UTC timestamptz, UUID, snake_case, named CHECK/unique/index, gereken aggregate/
+envanteri iddiası değildir. Kullanıcı onaylı geliştirme temizliğiyle eski V1–V10
+yerine V1–V7 uygulanır. İzole PostgreSQL 17.11 eski/yeni şema eşdeğerliği PASS.
+UTC timestamptz, UUID, snake_case, named CHECK/unique/index, gereken aggregate/
 entity version ve servis içi FK kullanılır. User/device/actor dış UUID'leri REF'tir.
 
 | Migration | Amaç / tablolar |
 |---|---|
-| V1__create_hardware_profiles.sql | hardware_profiles; owner/tür/MANUAL köken, version, owner sayfa indeksi |
-| V2__create_hardware_components_and_selection_catalog.sql | hardware_brands/products/product_brands/profile_components; marka bağımsız model, opsiyonel üretici ve teknik alanlar |
-| V3__manage_hardware_catalog_and_audit.sql | Katalog ACTIVE/ARCHIVED/version, hardware_catalog_audit append-only ve indeksler |
-| V4__index_hardware_catalog_specification_filters.sql | Aktif katalogda dört teknik filtre partial indeksi |
-| V5__create_hardware_campaigns.sql | hardware_campaigns, ürün FK, fiyat/kaynak/UTC/geçerlilik CHECK ve indeksleri |
-| V6__add_hardware_profile_privacy.sql | Profil visibility, hardware_profile_field_visibility ve hardware_profile_category_visibility |
-| V7__name_hardware_privacy_constraints.sql | Test edilmiş V6'yı değiştirmeden constraint/index adlarını standarda uyarlar |
-| V8__create_hardware_reviews_and_write_limits.sql | hardware_reviews/review_audit/write_limits; yorum partial tekillikleri, audit trigger ve kısa TTL bucket |
-| V9__create_hardware_review_reports_and_outbox.sql | hardware_review_reports/outbox_events, rapor/event tekilliği ve audit action genişletmesi |
-| V10__add_hardware_desktop_sync.sql | hardware_sync_consents/sync_receipts; component kaynak/key CHECK/unique ve expiry indeksleri |
+| V1__create_hardware_profiles_and_privacy.sql | Profil ve iki gizlilik tablosu; PRIVATE default, named enum/FK/PK |
+| V2__create_hardware_catalog.sql | Marka, genel ürün, opsiyonel ürün/marka bağı, katalog audit; status/version, arama indeksleri, immutable trigger |
+| V3__create_hardware_profile_components.sql | Bileşenler; teknik alanlar, composite FK, MANUAL/DESKTOP_SYNC/key CHECK ve partial unique |
+| V4__create_hardware_campaigns.sql | Kampanya; ürün FK, fiyat/kaynak/UTC/geçerlilik CHECK ve indeksleri |
+| V5__create_hardware_reviews.sql | Yorum, review audit, write limits; nihai action CHECK, partial unique, immutable trigger ve TTL indeksi |
+| V6__create_hardware_review_reports_and_outbox.sql | Outbox ve raporlar; payload/check, event/reporter tekilliği ve SET NULL |
+| V7__create_hardware_desktop_sync.sql | Consent/receipt; CASCADE, sequence/status/expiry/hash/JSON CHECK ve indeksler |
 
 Profil→bileşen/gizlilik/consent/receipt CASCADE; ürün→yorum/kampanya ve ürün/marka
 seçimleri gerçek servis içi FK'dir. Arşivleme katalog referanslarını korur.
@@ -174,10 +178,14 @@ ayrıdır. Profil hard-delete, yorum soft-delete ile metin/puan/hash temizlenmes
 birbirinden farklı ve testlidir. DTO kaynak ayrımı MANUAL/DESKTOP_SYNC; profilin
 MANUAL oluşturulma kökeni değişmez. Gizlilik eksik kuralı PRIVATE'tır.
 
-V1–V9 bu görevde değişmedi, test edilmiş V10 da artık yeniden yazılmaz.
-**Hardware V1–V10 aralığı doldu; ilave SQL migration ekipçe numara kararı ister.**
-V10 canlı DB'ye uygulanmadı; canlı şemanın tamamı bu görevde doğrulanmadı.
-DB/volume reset, Flyway clean/repair/baseline, deploy veya image rebuild yapılmadı.
+Her tablo son alan/constraint'leriyle doğrudan CREATE TABLE içinde tanımlıdır;
+ALTER TABLE/INDEX, DROP veya rename adımı yoktur. 16 tablo / 145 sütun / 93 constraint /
+51 indeks / 2 trigger / 2 fonksiyon eski zincirle eşdeğerdir. V8–V10 kullanılmıyor;
+sonraki değişiklikler normal ileri migration kuralına tabidir.
+Bu yeniden düzenleme yalnız boş geliştirme DB'si içindir; eski history ile yerinde
+yükseltme sağlamaz. DB/volume resetini kullanıcı yapar. Ajan uygulama DB'sinde
+reset, Flyway clean/repair/baseline, deploy veya image rebuild yapmadı.
+[Kullanıcı kararı ve yöntem](../progress/hardware-migration-cleanup.md).
 Ayrıntılar [database](../../docs/database.md#313-hardware_db--hardware-service-alper)
 ve [ER](../../docs/er-diagram.md#14-hardware_db) hardware bölümlerindedir.
 
@@ -272,7 +280,7 @@ Yeni bağımlılık eklenmedi; ayrı CVE/penetrasyon denetimi bu kalite kapısı
 Repository kökünden gerçek komutlar:
 
 ```powershell
-mvn -f backend/pom.xml -pl services/hardware-service -am verify -B -ntp
+mvn -f backend/pom.xml -pl services/hardware-service -am clean verify -B -ntp
 .\pre-push\pre-push.cmd full dev
 .\sonarqube\sonar.cmd scan dev
 ```
@@ -295,8 +303,9 @@ kendiliğinden yüklediği varsayılmaz. Host DB adresi/portu mevcut profille uy
 hazırlanmalıdır. Kullanıcı ortam dosyalarını yönetir; ajan gizli dosyaları açmaz
 ve ENV değiştirmez. Host Maven portu BACKEND_INTERNAL_PORT (varsayılan 8080),
 mevcut Compose hardware host portu 5093 ve Gateway 5080'dir. Uygulama başlangıcında
-Flyway yalnız hardware_db'ye V1–V10 uygular ve JPA validate yapar; canlı migration
-ve backup/restore doğrulaması bu teslimde yapılmadı. Clean/repair/reset kullanılmaz.
+Flyway yalnız boş hardware_db'ye güncel V1–V7 dosyalarını uygular ve JPA validate
+yapar. Eski history önce kullanıcının geliştirme DB sıfırlamasıyla kaldırılmalıdır;
+ajan clean/repair/reset çalıştırmadı. Canlı kurulum/backup-restore NOT_VERIFIED.
 
 Gerçek Auth gelmeden business API'lerini production'da kullanıma açmak mümkün
 değildir. Kullanım örnekleri/test actor'ları yalnız test-scope içindir. Canonical
@@ -314,7 +323,7 @@ istek/yanıtlar [API kataloğunda](../../docs/api.md#hardware), yapı
 | P1 | Admin/Notification / ortak sahip atanmalı | PENDING, NOT_DELIVERED | Gerçek kabul/notice/relay/receipt/idempotency, outbox retention ve delivery E2E |
 | P1 | Performance/Recommendation / Alper | Yerel provider TESTED, consumer NOT_VERIFIED | Gerçek actor bağlamı, batch sayfaları, MANUAL/DESKTOP_SYNC ve nullable değer tüketimi |
 | P1 | Hesap silme / Auth + veri sahipleri | Cross-service event akışı NOT_IMPLEMENTED | AccountDeleted, audit mahremiyet/anonimleştirme ve saklama/imha mutabakatı |
-| P2 | DB/operasyon / Alper-ekip | Canlı V10/backup-restore NOT_VERIFIED | Mevcut şema, yedek ve migration/release doğrulaması; ilave SQL için yeni aralık kararı |
+| P2 | DB/operasyon / Alper-ekip | Kullanıcının boş DB kurulumu ve backup-restore NOT_VERIFIED | Güncel V1–V7 ile temiz kurulum; eski migration history ile yükseltme desteklenmez |
 | P2 | Gateway/proxy / ekip | Gerçek client-IP zinciri NOT_VERIFIED | Güvenilir proxy forwarding/kimlik sınırı; socket peer limiti son kullanıcı IP doğrulaması değildir |
 | P2 | Üretim/frontend/desktop / ekip | Kapsam dışında veya henüz yok | Gerçek deployment, UI source etiketleri, TLS/CORS/CSRF ve istemci testleri |
 

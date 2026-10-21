@@ -1,10 +1,5 @@
-ALTER TABLE hardware_profile_components ADD COLUMN sync_component_key uuid;
-ALTER TABLE hardware_profile_components DROP CONSTRAINT ck_hardware_profile_components_source;
-ALTER TABLE hardware_profile_components ADD CONSTRAINT ck_hardware_profile_components_source CHECK (
-    (source = 'MANUAL' AND sync_component_key IS NULL) OR
-    (source = 'DESKTOP_SYNC' AND sync_component_key IS NOT NULL AND product_id IS NULL AND brand_id IS NULL));
-CREATE UNIQUE INDEX uq_hardware_profile_components_profile_sync_key
-    ON hardware_profile_components(profile_id,sync_component_key) WHERE sync_component_key IS NOT NULL;
+-- Development schema baseline: initialize an empty hardware_db.
+-- External user, actor and device UUIDs are logical references, never cross-service foreign keys.
 
 CREATE TABLE hardware_sync_consents (
     id uuid CONSTRAINT pk_hardware_sync_consents PRIMARY KEY,
@@ -30,6 +25,7 @@ CREATE TABLE hardware_sync_consents (
     CONSTRAINT ck_hardware_sync_consents_times CHECK (created_at <= updated_at AND
         granted_at <= updated_at AND (revoked_at IS NULL OR granted_at <= revoked_at))
 );
+
 CREATE INDEX ix_hardware_sync_consents_device ON hardware_sync_consents(device_id);
 
 CREATE TABLE hardware_sync_receipts (
@@ -51,4 +47,5 @@ CREATE TABLE hardware_sync_receipts (
     CONSTRAINT ck_hardware_sync_receipts_version CHECK (version >= 0),
     CONSTRAINT ck_hardware_sync_receipts_expiry CHECK (expires_at > created_at)
 );
+
 CREATE INDEX ix_hardware_sync_receipts_expires ON hardware_sync_receipts(expires_at);

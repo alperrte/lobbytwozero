@@ -156,6 +156,14 @@ HW-05 nihai kalite: 293 hardware test/%98,75; full dev 311 backend test/%96,51,
 Toplu 46 API/17 alt görev envanteri docs-hardware/reports/HARDWARE_SERVICE_FINAL_REPORT.md
 içindedir; gerçek Auth/consumer/cihaz E2E eksikleri production hazırlığı olarak gösterilmez.
 
+HW-05 sonrası kullanıcı onaylı geliştirme temizliği: yukarıdaki V1–V10 referansları
+özelliklerin önceki teslim tarihçesidir. Güncel hardware şeması 7 ilişkili CREATE
+migration'ıyla boş DB'de kurulur (V1 profil/gizlilik, V2 katalog, V3 bileşen,
+V4 kampanya, V5 yorum, V6 rapor/outbox, V7 sync). ALTER TABLE/INDEX yoktur;
+ilişkiler, constraint/index/trigger davranışı ve API/iş kuralları korunur.
+Eski history ile yükseltme yoktur; uygulama DB/volume resetini kullanıcı yapar.
+[Güncel karar ve test kanıtı](../docs-hardware/progress/hardware-migration-cleanup.md).
+
 Kurallar:
 
 - **Ayrı arama, medya veya moderasyon servisi yoktur.** Arama her servisin kendi verisinde yapılır; moderasyon kaynak servis + admin-service iş birliğidir; medya depolama kararı bekleniyor.

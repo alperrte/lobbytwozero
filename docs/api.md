@@ -245,6 +245,13 @@ duplication %0, açık issue/hotspot 0/0. [HW-05 kalite](../docs-hardware/testin
 Gerçek kullanıcı/cihaz Auth DEFERRED_AUTH; PERF aktif cihaz/pairing/iptal kontratı
 ve desktop E2E onaylı DEFERRED_CONTRACT / NOT_VERIFIED. Production cihaz policy deny.
 
+**Güncel geliştirme şeması (2026-10-21):** Kullanıcı onaylı temizlikle eski V1–V10
+zinciri, boş DB için 7 ilişkili CREATE migration'ına dönüştürüldü. Bağlantı alanları
+güncel dosyalara işaret eder; aşağıdaki eski tarihli test/sürüm sayıları teslim
+tarihçesidir. Endpoint, DTO ve erişim sözleşmesi değişmedi.
+[Güncel SQL envanteri](../docs-hardware/progress/hardware-migration-cleanup.md),
+[yeniden doğrulama](../docs-hardware/testing/hardware-migration-cleanup-quality.md).
+
 ### HARDWARE — HW-01 Profil oluşturma
 
 Durum: IMPLEMENTED
@@ -285,7 +292,7 @@ Owner UUID dönmez. `Location: /api/v1/hardware/profiles/{id}`; `Cache-Control: 
 #### Bağlantı
 Frontend: API Gateway üzerinden tam path; gateway değiştirilmedi.
 Diğer mikroservisler: çağrı yok. Gerçek Auth sözleşmesi/E2E DEFERRED_AUTH.
-Flyway: V1__create_hardware_profiles.sql.
+Flyway: V1__create_hardware_profiles_and_privacy.sql.
 
 #### Test Durumu
 UNIT + INTEGRATION — HardwareProfileControllerTest + HardwareProfileTest;
@@ -339,8 +346,8 @@ source=MANUAL, version, specifications?). Location yeni bileşen yolu, cache pri
 
 #### Bağlantı
 Frontend: Gateway üzerinden yukarıdaki tam path. Diğer mikroservisler: çağrı yok.
-Flyway: V2__create_hardware_components_and_selection_catalog.sql; aktif katalog seçimi
-V3 status sınırına uyar. Tam katalog yönetimi/arama HW-10/HW-11 kayıtlarındadır.
+Flyway: V2__create_hardware_catalog.sql + V3__create_hardware_profile_components.sql; aktif katalog seçimi
+V2 status sınırına uyar. Tam katalog yönetimi/arama HW-10/HW-11 kayıtlarındadır.
 
 #### Test Durumu
 UNIT + INTEGRATION — HardwareComponentControllerTest; modül 42 test PASS, exit 0 (2026-10-21).
@@ -397,7 +404,7 @@ ayrı bir otomatik kayıt oluşturabilir. İstemciden source/key alınmaz.
 400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED;
 404 HARDWARE_NOT_FOUND; 409 DATA_CONFLICT; 500 INTERNAL_ERROR.
 #### Bağlantı
-Frontend: Gateway tam path. Diğer mikroservisler: yok. Mevcut V1/V2; yeni migration yok.
+Frontend: Gateway tam path. Diğer mikroservisler: yok. Mevcut V1–V3; yeni migration yok.
 #### Test Durumu
 UNIT + INTEGRATION — HardwareComponentControllerTest güncelleme/IDOR/rollback ve paralel
 writer testleri PASS; modül toplamı 47 PASS, exit 0 (2026-10-21).
@@ -426,7 +433,7 @@ oluşabilir; sürekli otomatik güncellemeyi durdurmak için sync-consent iptal 
 400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED;
 404 HARDWARE_NOT_FOUND; 409 DATA_CONFLICT; 500 INTERNAL_ERROR.
 #### Bağlantı
-Frontend: Gateway tam path. Diğer mikroservisler: yok. Mevcut V1/V2; yeni migration yok.
+Frontend: Gateway tam path. Diğer mikroservisler: yok. Mevcut V1–V3; yeni migration yok.
 #### Test Durumu
 UNIT + INTEGRATION — HardwareComponentControllerTest silme/owner/stale version PASS;
 modül toplamı 47 PASS, exit 0 (2026-10-21).
@@ -480,7 +487,7 @@ source=MANUAL değeri oluşturulma kökeni olarak korunur. Sync key/cihaz kimli�
 400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED;
 404 HARDWARE_NOT_FOUND; 500 INTERNAL_ERROR. Cache private/no-store.
 #### Bağlantı
-Frontend: Gateway tam path. Diğer mikroservisler: yok. V1/V2; yeni migration yok.
+Frontend: Gateway tam path. Diğer mikroservisler: yok. V1–V3; yeni migration yok.
 #### Test Durumu
 UNIT + INTEGRATION — HardwareComponentControllerTest detay/null/sayfalama/IDOR PASS;
 modül toplamı 54 PASS, exit 0 (2026-10-21).
@@ -506,7 +513,7 @@ sıfır sayaç döndürür; benchmark/FPS tahmini yoktur. Cache private/no-store
 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED; 500 INTERNAL_ERROR.
 #### Bağlantı
 Frontend: Gateway tam path. Diğer mikroservisler: yok. SQL aggregation owner filtresi
-ve REPEATABLE_READ snapshot kullanır; V1/V2, yeni migration yok.
+ve REPEATABLE_READ snapshot kullanır; V1–V3, yeni migration yok.
 #### Test Durumu
 UNIT + INTEGRATION — HardwareComponentControllerTest owner/kayıtlı kapasite/eksik veri PASS;
 modül toplamı 55 PASS, exit 0 (2026-10-21).
@@ -533,7 +540,7 @@ Diğer profiller ve katalog/marka kayıtları korunur. Cache private/no-store.
 409 DATA_CONFLICT (eski sürüm); 500 INTERNAL_ERROR.
 #### Bağlantı
 Frontend: Gateway tam path. Diğer mikroservisler: çağrı/event yok; Performance/Recommendation
-entegrasyonu bu ana taskta uygulanmaz. V1/V2; veri silen migration eklenmedi.
+entegrasyonu bu ana taskta uygulanmaz. V1–V3; veri silen migration eklenmedi.
 #### Test Durumu
 UNIT + INTEGRATION — HardwareComponentControllerTest owner/CSRF/sürüm/CASCADE/izolasyon PASS;
 son modül clean verify 58 PASS, exit 0 (2026-10-21). Gerçek Auth/E2E DEFERRED_AUTH.
@@ -568,7 +575,7 @@ HardwareBrandResponse: id, name, status=ACTIVE, version=0; Location marka yolu.
 
 #### Bağlantı
 Frontend: API Gateway üzerinden tam path. Diğer mikroservisler: çağrı yok.
-Flyway V3__manage_hardware_catalog_and_audit.sql; V1/V2 değişmedi.
+Flyway V2__create_hardware_catalog.sql.
 İsim tekilliği NFKC, boşluk normalizasyonu ve Locale.ROOT küçük harfle korunur;
 model tekilliği category/normalized_model olup marka bağımsızdır.
 
@@ -607,7 +614,7 @@ HardwareBrandResponse; güncel version. Arşivli kayıt değiştirilemez.
 
 #### Bağlantı
 Frontend: API Gateway üzerinden tam path. Diğer mikroservisler: çağrı yok.
-Flyway V3__manage_hardware_catalog_and_audit.sql; V1/V2 değişmedi.
+Flyway V2__create_hardware_catalog.sql.
 İsim tekilliği NFKC, boşluk normalizasyonu ve Locale.ROOT küçük harfle korunur;
 model tekilliği category/normalized_model olup marka bağımsızdır.
 
@@ -646,7 +653,7 @@ gövdesiz; fiziksel silme yok, eski ürün/profil referansları korunur.
 
 #### Bağlantı
 Frontend: API Gateway üzerinden tam path. Diğer mikroservisler: çağrı yok.
-Flyway V3__manage_hardware_catalog_and_audit.sql; V1/V2 değişmedi.
+Flyway V2__create_hardware_catalog.sql.
 İsim tekilliği NFKC, boşluk normalizasyonu ve Locale.ROOT küçük harfle korunur;
 model tekilliği category/normalized_model olup marka bağımsızdır.
 
@@ -680,7 +687,7 @@ HardwareBrandResponse; yalnız ACTIVE marka, kişisel veri/audit dönmez.
 
 #### Bağlantı
 Frontend: API Gateway üzerinden tam path. Diğer mikroservisler: çağrı yok.
-Flyway V3__manage_hardware_catalog_and_audit.sql; V1/V2 değişmedi.
+Flyway V2__create_hardware_catalog.sql.
 İsim tekilliği NFKC, boşluk normalizasyonu ve Locale.ROOT küçük harfle korunur;
 model tekilliği category/normalized_model olup marka bağımsızdır.
 
@@ -716,7 +723,7 @@ HardwareCatalogPageResponse<HardwareBrandResponse>: items, page, size, totalElem
 
 #### Bağlantı
 Frontend: API Gateway üzerinden tam path. Diğer mikroservisler: çağrı yok.
-Flyway V3__manage_hardware_catalog_and_audit.sql; V1/V2 değişmedi.
+Flyway V2__create_hardware_catalog.sql.
 İsim tekilliği NFKC, boşluk normalizasyonu ve Locale.ROOT küçük harfle korunur;
 model tekilliği category/normalized_model olup marka bağımsızdır.
 
@@ -752,7 +759,7 @@ HardwareProductResponse: id, category, model, brands[], specifications?, status=
 
 #### Bağlantı
 Frontend: API Gateway üzerinden tam path. Diğer mikroservisler: çağrı yok.
-Flyway V3__manage_hardware_catalog_and_audit.sql; V1/V2 değişmedi.
+Flyway V2__create_hardware_catalog.sql.
 İsim tekilliği NFKC, boşluk normalizasyonu ve Locale.ROOT küçük harfle korunur;
 model tekilliği category/normalized_model olup marka bağımsızdır.
 
@@ -791,7 +798,7 @@ HardwareProductResponse; version artar. Kullanılan ürün/marka bağını kald�
 
 #### Bağlantı
 Frontend: API Gateway üzerinden tam path. Diğer mikroservisler: çağrı yok.
-Flyway V3__manage_hardware_catalog_and_audit.sql; V1/V2 değişmedi.
+Flyway V2__create_hardware_catalog.sql.
 İsim tekilliği NFKC, boşluk normalizasyonu ve Locale.ROOT küçük harfle korunur;
 model tekilliği category/normalized_model olup marka bağımsızdır.
 
@@ -830,7 +837,7 @@ model ARCHIVED; profil referansları/teknik snapshot'ları ve marka bağları ko
 
 #### Bağlantı
 Frontend: API Gateway üzerinden tam path. Diğer mikroservisler: çağrı yok.
-Flyway V3__manage_hardware_catalog_and_audit.sql; V1/V2 değişmedi.
+Flyway V2__create_hardware_catalog.sql.
 İsim tekilliği NFKC, boşluk normalizasyonu ve Locale.ROOT küçük harfle korunur;
 model tekilliği category/normalized_model olup marka bağımsızdır.
 
@@ -864,7 +871,7 @@ HardwareProductResponse; yalnız ACTIVE model ve ACTIVE opsiyonel markalar.
 
 #### Bağlantı
 Frontend: API Gateway üzerinden tam path. Diğer mikroservisler: çağrı yok.
-Flyway V3__manage_hardware_catalog_and_audit.sql; V1/V2 değişmedi.
+Flyway V2__create_hardware_catalog.sql.
 İsim tekilliği NFKC, boşluk normalizasyonu ve Locale.ROOT küçük harfle korunur;
 model tekilliği category/normalized_model olup marka bağımsızdır.
 
@@ -916,7 +923,7 @@ modül 117 PASS, exit 0, 2026-10-21 01:47:00 +03:00, PostgreSQL 17/Flyway V1–V
 
 #### Bağlantı
 Frontend: API Gateway üzerinden tam path. Diğer mikroservisler: çağrı yok.
-Flyway V3__manage_hardware_catalog_and_audit.sql; V1/V2 değişmedi.
+Flyway V2__create_hardware_catalog.sql.
 İsim tekilliği NFKC, boşluk normalizasyonu ve Locale.ROOT küçük harfle korunur;
 model tekilliği category/normalized_model olup marka bağımsızdır.
 
@@ -969,7 +976,7 @@ Cache-Control: no-store, private.
 
 #### Bağlantı
 Frontend: tam Gateway path. Diğer mikroservisler/harici sağlayıcı: çağrı yok.
-Flyway V5__create_hardware_campaigns.sql; hardware_products gerçek FK, para numeric(12,2),
+Flyway V4__create_hardware_campaigns.sql; hardware_products gerçek FK, para numeric(12,2),
 currency char(3), UTC zamanlar, @Version, CHECK ve active-window indeksleri.
 
 #### Test Durumu
@@ -1007,7 +1014,7 @@ Cache-Control: no-store, private.
 
 #### Bağlantı
 Frontend: tam Gateway path. Diğer mikroservisler/harici sağlayıcı: çağrı yok.
-Flyway V5__create_hardware_campaigns.sql; hardware_products gerçek FK, para numeric(12,2),
+Flyway V4__create_hardware_campaigns.sql; hardware_products gerçek FK, para numeric(12,2),
 currency char(3), UTC zamanlar, @Version, CHECK ve active-window indeksleri.
 
 #### Test Durumu
@@ -1045,7 +1052,7 @@ Cache-Control: no-store, private.
 
 #### Bağlantı
 Frontend: tam Gateway path. Diğer mikroservisler/harici sağlayıcı: çağrı yok.
-Flyway V5__create_hardware_campaigns.sql; hardware_products gerçek FK, para numeric(12,2),
+Flyway V4__create_hardware_campaigns.sql; hardware_products gerçek FK, para numeric(12,2),
 currency char(3), UTC zamanlar, @Version, CHECK ve active-window indeksleri.
 
 #### Test Durumu
@@ -1079,7 +1086,7 @@ Cache-Control: no-store, private.
 
 #### Bağlantı
 Frontend: tam Gateway path. Diğer mikroservisler/harici sağlayıcı: çağrı yok.
-Flyway V5__create_hardware_campaigns.sql; hardware_products gerçek FK, para numeric(12,2),
+Flyway V4__create_hardware_campaigns.sql; hardware_products gerçek FK, para numeric(12,2),
 currency char(3), UTC zamanlar, @Version, CHECK ve active-window indeksleri.
 
 #### Test Durumu
@@ -1116,7 +1123,7 @@ Cache-Control: no-store, private.
 
 #### Bağlantı
 Frontend: tam Gateway path. Diğer mikroservisler/harici sağlayıcı: çağrı yok.
-Flyway V5__create_hardware_campaigns.sql; hardware_products gerçek FK, para numeric(12,2),
+Flyway V4__create_hardware_campaigns.sql; hardware_products gerçek FK, para numeric(12,2),
 currency char(3), UTC zamanlar, @Version, CHECK ve active-window indeksleri.
 
 #### Test Durumu
@@ -1153,7 +1160,7 @@ ComponentCategory değerinden oluşur. no-store, private.
 404 HARDWARE_NOT_FOUND (olmayan ve başkasına ait kaynak aynı), 500 INTERNAL_ERROR.
 
 #### Bağlantı
-V6__add_hardware_profile_privacy.sql; User/Social global karar sözleşmesi
+V1__create_hardware_profiles_and_privacy.sql; User/Social global karar sözleşmesi
 DEFERRED_CONTRACT / NOT_VERIFIED; owner okuması dış karar gerektirmez.
 
 #### Test Durumu
@@ -1196,7 +1203,7 @@ ile aynı sürüm sınırı. no-store, private.
 500 INTERNAL_ERROR. ProblemDetail güvenli kodlarla döner.
 
 #### Bağlantı
-HardwarePrivacyService; V6 kural tabloları profil silindiğinde CASCADE temizlenir.
+HardwarePrivacyService; V1 kural tabloları profil silindiğinde CASCADE temizlenir.
 Yeni Auth rolü/claim, ENV veya dış servis URL'si tanımlanmaz.
 
 #### Test Durumu
@@ -1242,7 +1249,7 @@ no-store, private.
 404 HARDWARE_NOT_FOUND (gizli/olmayan profil aynı), 500 INTERNAL_ERROR.
 
 #### Bağlantı
-V6; HardwareVisibilityPolicy portu. User/Social gerçek adapter ve E2E
+V1; HardwareVisibilityPolicy portu. User/Social gerçek adapter ve E2E
 DEFERRED_CONTRACT / NOT_VERIFIED, kullanıcı tarafından açıkça ertelendi.
 
 #### Test Durumu
@@ -1286,7 +1293,7 @@ no-store, private. SQL aggregate yalnız iki doğrulanmış owner profiliyle sı
 500 INTERNAL_ERROR.
 
 #### Bağlantı
-HardwareComparisonService; mevcut V1/V2 teknik verileri, yeni migration yok.
+HardwareComparisonService; mevcut V1–V3 teknik verileri, yeni migration yok.
 Auth gerçek E2E NOT_VERIFIED; başka servise çağrı yapılmaz.
 
 #### Test Durumu
@@ -1362,7 +1369,7 @@ otomatik benchmark/FPS/uyumluluk/performans önerisi yok. no-store, private.
 413 REQUEST_TOO_LARGE, 500 INTERNAL_ERROR.
 
 #### Bağlantı
-HardwareComparisonService; V2/V3 genel katalog. Dış sağlayıcı/servis çağrısı yok.
+HardwareComparisonService; V2 genel katalog. Dış sağlayıcı/servis çağrısı yok.
 
 #### Test Durumu
 INTEGRATION — HardwareComparisonControllerTest: aktif/markasız model, arşiv,
@@ -1419,7 +1426,7 @@ N+1 sorgu, dış servis/DB erişimi veya sınırsız bileşen yüklemesi yapılm
 500 INTERNAL_ERROR.
 
 #### Bağlantı
-HardwareBatchService + HardwareBatchQuery; mevcut V1/V2 component indeksi.
+HardwareBatchService + HardwareBatchQuery; mevcut V1–V3 component indeksi.
 Performance/Recommendation gerçek consumer adapter ve E2E DEFERRED_CONTRACT /
 NOT_VERIFIED; açık kullanıcı onayıyla ertelendi. Servisler değiştirilmedi.
 
@@ -1464,7 +1471,7 @@ CreateHardwareReviewRequest: body zorunlu düz metin 1..5000; rating opsiyonel t
 400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED/CSRF; 404 HARDWARE_NOT_FOUND (ürün yok/arşivli); 409 DATA_CONFLICT (aynı ürün/yazar veya aynı yazarın normalize kopyası); 413 REQUEST_TOO_LARGE; 429 RATE_LIMITED (Retry-After 60); 500 INTERNAL_ERROR. ProblemDetail iç detay içermez.
 
 #### Bağlantı
-HardwareReviewService; V8__create_hardware_reviews_and_write_limits.sql.
+HardwareReviewService; V5__create_hardware_reviews.sql.
 Başka servise/DB'ye çağrı yok; gerçek Auth ve User/Social E2E NOT_VERIFIED.
 
 #### Test Durumu
@@ -1497,7 +1504,7 @@ Yok.
 400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED; 404 HARDWARE_NOT_FOUND (ürün yok/arşivli); 500 INTERNAL_ERROR. ProblemDetail iç detay içermez.
 
 #### Bağlantı
-HardwareReviewService; V8__create_hardware_reviews_and_write_limits.sql.
+HardwareReviewService; V5__create_hardware_reviews.sql.
 Başka servise/DB'ye çağrı yok; gerçek Auth ve User/Social E2E NOT_VERIFIED.
 
 #### Test Durumu
@@ -1530,7 +1537,7 @@ Yok.
 400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED; 500 INTERNAL_ERROR. ProblemDetail iç detay içermez.
 
 #### Bağlantı
-HardwareReviewService; V8__create_hardware_reviews_and_write_limits.sql.
+HardwareReviewService; V5__create_hardware_reviews.sql.
 Başka servise/DB'ye çağrı yok; gerçek Auth ve User/Social E2E NOT_VERIFIED.
 
 #### Test Durumu
@@ -1563,7 +1570,7 @@ Yok.
 400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED; 404 HARDWARE_NOT_FOUND; 500 INTERNAL_ERROR. ProblemDetail iç detay içermez.
 
 #### Bağlantı
-HardwareReviewService; V8__create_hardware_reviews_and_write_limits.sql.
+HardwareReviewService; V5__create_hardware_reviews.sql.
 Başka servise/DB'ye çağrı yok; gerçek Auth ve User/Social E2E NOT_VERIFIED.
 
 #### Test Durumu
@@ -1596,7 +1603,7 @@ UpdateHardwareReviewRequest: reviewVersion zorunlu >=0, body zorunlu 1..5000 dü
 400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED/CSRF; 404 HARDWARE_NOT_FOUND (yabancı/olmayan/silinmiş hedef veya arşivli ürün); 409 DATA_CONFLICT (eski sürüm/HIDDEN/kopya); 413 REQUEST_TOO_LARGE; 429 RATE_LIMITED; 500 INTERNAL_ERROR. ProblemDetail iç detay içermez.
 
 #### Bağlantı
-HardwareReviewService; V8__create_hardware_reviews_and_write_limits.sql.
+HardwareReviewService; V5__create_hardware_reviews.sql.
 Başka servise/DB'ye çağrı yok; gerçek Auth ve User/Social E2E NOT_VERIFIED.
 
 #### Test Durumu
@@ -1629,7 +1636,7 @@ Yok.
 400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED/CSRF; 404 HARDWARE_NOT_FOUND; 409 DATA_CONFLICT (eski sürüm); 429 RATE_LIMITED; 500 INTERNAL_ERROR. ProblemDetail iç detay içermez.
 
 #### Bağlantı
-HardwareReviewService; V8__create_hardware_reviews_and_write_limits.sql.
+HardwareReviewService; V5__create_hardware_reviews.sql.
 Başka servise/DB'ye çağrı yok; gerçek Auth ve User/Social E2E NOT_VERIFIED.
 
 #### Test Durumu
@@ -1643,7 +1650,7 @@ Tüm yanıtlar no-store, private; mutasyonlarda 16 KiB + CSRF korunur.
 Normal raporlar actor 20/dakika; moderasyon actor 60/dakika; socket peer ortak
 120/dakika sınırındadır. X-Forwarded-For güven kaynağı değildir. Body/reason/detail
 HTML olarak işlenmez; log/audit/event'e hedef UGC metni veya ham IP kopyalanmaz.
-V9 rapor, outbox ve audit action şemasını ekler; V8 değiştirilmedi.
+V6 rapor/outbox şemasını, V5 review audit'in nihai action CHECK'ini oluşturur.
 Yerel ContentReported/HardwareReviewModerated v1 zarfı actual consumer kontratı değildir.
 Producer/UUID/version/UTC metadata ve gerekli kimlik/enum payload'ı; 4 KiB/event,
 PENDING+FAILED toplamı en fazla 10000. Transaction advisory kilidi kapasite yarışını
@@ -1677,7 +1684,7 @@ CreateHardwareReviewReportRequest: reason zorunlu SPAM/HARASSMENT/HATE_SPEECH/SE
 
 #### Bağlantı
 HardwareReviewReportService / HardwareReviewModerationService;
-V9__create_hardware_review_reports_and_outbox.sql. Gerçek servis/DB çağrısı yok;
+V6__create_hardware_review_reports_and_outbox.sql. Gerçek servis/DB çağrısı yok;
 Admin ve Notification teslimi doğrulanmadı. Yerel PENDING kayıt teslim kanıtı değildir.
 
 #### Test Durumu
@@ -1713,7 +1720,7 @@ Yok.
 
 #### Bağlantı
 HardwareReviewReportService / HardwareReviewModerationService;
-V9__create_hardware_review_reports_and_outbox.sql. Gerçek servis/DB çağrısı yok;
+V6__create_hardware_review_reports_and_outbox.sql. Gerçek servis/DB çağrısı yok;
 Admin ve Notification teslimi doğrulanmadı. Yerel PENDING kayıt teslim kanıtı değildir.
 
 #### Test Durumu
@@ -1749,7 +1756,7 @@ Yok.
 
 #### Bağlantı
 HardwareReviewReportService / HardwareReviewModerationService;
-V9__create_hardware_review_reports_and_outbox.sql. Gerçek servis/DB çağrısı yok;
+V6__create_hardware_review_reports_and_outbox.sql. Gerçek servis/DB çağrısı yok;
 Admin ve Notification teslimi doğrulanmadı. Yerel PENDING kayıt teslim kanıtı değildir.
 
 #### Test Durumu
@@ -1785,7 +1792,7 @@ ModerateHardwareReviewRequest: reviewVersion >=0, action HIDE/RESTORE, reason 1.
 
 #### Bağlantı
 HardwareReviewReportService / HardwareReviewModerationService;
-V9__create_hardware_review_reports_and_outbox.sql. Gerçek servis/DB çağrısı yok;
+V6__create_hardware_review_reports_and_outbox.sql. Gerçek servis/DB çağrısı yok;
 Admin ve Notification teslimi doğrulanmadı. Yerel PENDING kayıt teslim kanıtı değildir.
 
 #### Test Durumu
@@ -1838,7 +1845,7 @@ ham IP saklanmaz. Sayaçlar başarılı transaction'a katılır; rollback kota t
 
 #### Bağlantı
 HardwareScanController/Service/Mapper, HardwareScan domain ve HardwareSyncLimits.
-Yeni migration yok; mevcut V8 rate bucket altyapısı. Başka servise/DB'ye çağrı yok.
+Yeni migration yok; mevcut V5 rate bucket altyapısı. Başka servise/DB'ye çağrı yok.
 HW-07 kalıcı izin ve ayrı doğrulanmış cihaz apply sözleşmesi ayrıca uygulanacak.
 
 #### Test Durumu
@@ -1890,7 +1897,7 @@ Yok.
 
 #### Bağlantı
 HardwareSyncController, HardwareSyncConsentService/HardwareSyncService;
-V10__add_hardware_desktop_sync.sql. Başka servis/DB çağrısı yok; gerçek Auth/PERF
+V7__create_hardware_desktop_sync.sql. Başka servis/DB çağrısı yok; gerçek Auth/PERF
 cihaz/desktop bağlantısı NOT_VERIFIED. Yerel sözleşme gerçek cihaz kanıtı değildir.
 
 #### Test Durumu
@@ -1926,7 +1933,7 @@ GrantHardwareSyncRequest: profileVersion >=0, deviceId UUID, accepted=true; heps
 
 #### Bağlantı
 HardwareSyncController, HardwareSyncConsentService/HardwareSyncService;
-V10__add_hardware_desktop_sync.sql. Başka servis/DB çağrısı yok; gerçek Auth/PERF
+V7__create_hardware_desktop_sync.sql. Başka servis/DB çağrısı yok; gerçek Auth/PERF
 cihaz/desktop bağlantısı NOT_VERIFIED. Yerel sözleşme gerçek cihaz kanıtı değildir.
 
 #### Test Durumu
@@ -1962,7 +1969,7 @@ Yok.
 
 #### Bağlantı
 HardwareSyncController, HardwareSyncConsentService/HardwareSyncService;
-V10__add_hardware_desktop_sync.sql. Başka servis/DB çağrısı yok; gerçek Auth/PERF
+V7__create_hardware_desktop_sync.sql. Başka servis/DB çağrısı yok; gerçek Auth/PERF
 cihaz/desktop bağlantısı NOT_VERIFIED. Yerel sözleşme gerçek cihaz kanıtı değildir.
 
 #### Test Durumu
@@ -1998,7 +2005,7 @@ ApplyHardwareSyncRequest: profileVersion >=0, consentGeneration UUID, sequence >
 
 #### Bağlantı
 HardwareSyncController, HardwareSyncConsentService/HardwareSyncService;
-V10__add_hardware_desktop_sync.sql. Başka servis/DB çağrısı yok; gerçek Auth/PERF
+V7__create_hardware_desktop_sync.sql. Başka servis/DB çağrısı yok; gerçek Auth/PERF
 cihaz/desktop bağlantısı NOT_VERIFIED. Yerel sözleşme gerçek cihaz kanıtı değildir.
 
 #### Test Durumu

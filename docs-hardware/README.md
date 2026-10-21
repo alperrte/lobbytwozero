@@ -1,5 +1,15 @@
 # Hardware Service çalışma kayıtları
 
+Güncel kullanıcı isteği: **hardware migration geliştirme temizliği** — 16 tablo,
+7 ilişkili CREATE dosyası (V1–V7), ALTER TABLE yok. İzole şema eşdeğerliği ve
+295 hardware testi/%98,75 PASS; tam pre-push 313 test/%96,51/18 HTTP PASS ve
+SAFE TO COMMIT. Yeni Sonar A/A/A + gate PASS; açık issue/hotspot 0/0. Bakım COMPLETE.
+[İlerleme ve onay](progress/hardware-migration-cleanup.md),
+[güncel kalite](testing/hardware-migration-cleanup-quality.md).
+Eski history ile yükseltme yok; DB sıfırlamasını kullanıcı yapar.
+
+## Önceki HW-05 teslim snapshot'ı
+
 Sorumlu: Alper. Aktif kapsam: **LTZ-ALP-HW-05 — Masaüstü Donanım Tanıma ve İzinli Senkronizasyon Sözleşmesi**;
 **READY_FOR_PDA — DEFERRED_AUTH / DEFERRED_CONTRACT**, 2/2; toplam 17/17.
 Son PDA kapanışı HW-04 (4/5), commit f558a69; HW-05 ana kutusu kullanıcıyı bekler.
@@ -34,7 +44,8 @@ Tek durum otoritesi [kök master](../LTZ_HARDWARE_SERVICE.md), API sözleşmesi
 
 Beşinci ve son ana görev teknik teslimi hazırdır; PDA kapatma ve commit/push
 kullanıcıya aittir. Gerçek Auth/cihaz/desktop bağlantıları onaylı ertelenmiştir;
-servis production-ready değildir. Yeni çalışma başlatılmaz; STOP.
+servis production-ready değildir. Sonraki kullanıcı isteğiyle yalnız yukarıdaki
+migration temizliği açıldı; yeni bir PDA ana görevi başlatılmadı.
 
 ## Geçmiş teslim ve başlangıç snapshot'ları
 

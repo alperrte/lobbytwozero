@@ -338,8 +338,8 @@ Yalnız aktif taskın alt görevleri bitmediğinde ya da kapılar geçmediğinde
 | Alan | Başlangıç durumu |
 |---|---|
 | Aktif ana task | `LTZ-ALP-HW-05 — Masaüstü Donanım Tanıma ve İzinli Senkronizasyon Sözleşmesi` |
-| Aktif alt task | `HW-06/HW-07` — 2/2 yerel kabul ve iki nihai kalite kapısı doğrulandı |
-| Ana task aşaması | `READY_FOR_PDA — DEFERRED_AUTH / DEFERRED_CONTRACT` — 2/2; [teslim](docs-hardware/reports/LTZ-ALP-HW-05-delivery.md), [final servis raporu](docs-hardware/reports/HARDWARE_SERVICE_FINAL_REPORT.md); PDA kapanışı kullanıcıyı bekler, STOP |
+| Aktif alt task | HW-05 sonrası kullanıcı isteği: hardware migration geliştirme temizliği; 7 ilişkili grup, ALTER TABLE yok |
+| Ana task aşaması | Migration bakımı `COMPLETE / SAFE TO COMMIT`; HW-05 2/2 `READY_FOR_PDA — DEFERRED_AUTH / DEFERRED_CONTRACT`, PDA kapanışı kullanıcıyı bekler |
 | 01 | `DONE — DEFERRED_AUTH` — 7/7; kullanıcı kapanış bildirimiyle ana task `[x]` |
 | 02 | `DONE — DEFERRED_AUTH` — 3/3; PDA kapanışı kullanıcı tarafından bildirildi, commit 6756210 doğrulandı |
 | 03 | `DONE — DEFERRED_AUTH / DEFERRED_CONTRACT` — 3/3; kullanıcı PDA kapanışını bildirdi, commit 104524a doğrulandı; ana kutu `[x]` |
@@ -347,21 +347,25 @@ Yalnız aktif taskın alt görevleri bitmediğinde ya da kapılar geçmediğinde
 | 05 | `READY_FOR_PDA — DEFERRED_AUTH / DEFERRED_CONTRACT` — 2/2 ve iki kapı PASS; ana kutu `[ ]`, PDA kapanışını kullanıcı yapar |
 | Toplam doğrulanan alt görev | `17/17` |
 | Son doğrulanan alt görev | `HW-07` — 24 yeni senaryo; 293 PASS/%98,75; 2026-10-21 20:36:36 +03; logs/hw05-sync-final-local-verify.log |
-| Son değiştirilen dosyalar | Hardware 27 yeni/4 mevcut production Java, V10, 5 yeni test; API/DB/ER/mimari, HW-04 kapanışı ve HW-05 docs-hardware; başka servis/runner/ENV/dependency değişmedi |
-| Son Flyway | V1–V10 PostgreSQL/Flyway/JPA PASS; V10 consent/receipt/source artık değiştirilmez; canlı DB'ye V10 uygulanmadı; aralık doldu |
+| Son değiştirilen dosyalar | Hardware eski 10 SQL yerine 7 ilişkili başlangıç SQL'i, HardwareSchemaMigrationTest ve ilgili hardware belgeleri; üretim Java/ENV/Compose/başka servis değişmedi |
+| Son Flyway | Kullanıcı onaylı geliştirme temizliği: V1–V7, 16 tablo. Eski/yeni pg_catalog eşdeğerliği PASS. Eski history ile uyumsuz; boş DB sıfırlaması kullanıcıya ait |
 | Son endpoint / docs/api.md değişikliği | Preview + GET/PUT/DELETE sync-consent + POST sync/snapshots IMPLEMENTED / UNIT + INTEGRATION; toplam 46 iş endpoint'i |
-| Son Maven/test komutu ve sonuç | Nihai full dev/scan dev clean verify: hardware 293 PASS (54 yeni), tüm backend 311 PASS; failure/error/skipped 0; [kalite](docs-hardware/testing/LTZ-ALP-HW-05-quality.md) |
+| Son Maven/test komutu ve sonuç | Migration temizliği hardware clean verify 295 PASS (2 yeni); tam full dev 313 PASS, failure/error/skipped 0; [güncel kalite](docs-hardware/testing/hardware-migration-cleanup-quality.md) |
 | JaCoCo | Nihai clean hardware 1420/1438=%98,75; backend %96,51; exclusion yok |
-| Pre-push | Nihai full dev PASS / exit 0; 311 test/%96,51/18 HTTP PASS, SAFE TO COMMIT; 20:49:04 +03 |
-| Sonar / Quality Gate | PASS / exit 0, 20:53:34 +03; A/A/A + gate OK; overall %93,4/new %95,0/duplication %0; açık issue/hotspot 0/0; analysis 5494a478-d3da-4e12-9703-c6fdc06e5817 |
+| Pre-push | Migration temizliği full dev PASS / exit 0; 313 test/%96,51/18 HTTP PASS ve SAFE TO COMMIT; 22:32:12 +03 |
+| Sonar / Quality Gate | Migration temizliği PASS / exit 0; A/A/A + gate OK, açık issue/hotspot 0/0; 22:36:04 +03; analysis 7443910a-4dc9-4a35-b432-ebbc5a107df7 |
 | Auth bağlantısı | `DEFERRED_AUTH — gerçek auth-service/JWT sözleşmesi henüz yok` |
 | Diğer servis entegrasyonları | HW-05 PERF cihaz sahipliği/iptal kontratı ve gerçek desktop E2E DEFERRED_CONTRACT / NOT_VERIFIED; önceki onaylı ertelemeler korunur |
-| Açık kullanıcı onayları | HW-04 PDA kapanışı, HW-05 geçişi/modeli/güvenli erteleme onaylı; tüm servisler full dev + scan dev izni mevcut |
-| Güncel engel | Yerel kabul/kalite engeli yok; gerçek Auth/cihaz/consumer bağlantıları onaylı ertelenmiş, production-ready değildir |
-| Bir sonraki kesin adım | Beşinci ve son ayrıntılı feature mesajını ve PDA kapanış önerisini kullanıcıya ver; STOP. Ana HW-05 kutusunu yalnız kullanıcı kapanışı bildirirse işaretle |
+| Açık kullanıcı onayları | HW-05 modeli/güvenli erteleme, tüm servislerde full dev + scan dev ve geliştirme SQL'inin 7 ilişkili gruba yeniden düzenlenmesi onaylı |
+| Güncel engel | Kod/test/kalite engeli yok; boş uygulama DB kurulumu ve güncel image rebuild kullanıcıya ait, gerçek Auth/cihaz/consumer bağlantıları onaylı ertelenmiş |
+| Bir sonraki kesin adım | Bakım sonucunu ve tek feature mesajını sun; STOP. DB sıfırlama/rebuild/commit kullanıcıya ait; HW-05 ana kutusu kapanış bildirimi bekler |
 | Son güncelleme (gerçek) | `2026-10-21` |
 
 ### CANLI KARAR / BLOKAJ DEFTERİ
+
+- `VERIFIED / COMPLETE 2026-10-21 / MIGRATION CLEANUP`: Eski 10 SQL, kullanıcı onayıyla 7 ilişkili CREATE dosyasına düzenlendi; ALTER TABLE/INDEX yok. PostgreSQL şema eşdeğerliği 16 tablo/145 sütun/93 constraint/51 indeks/2 trigger/2 fonksiyon PASS. Hardware 295 test/%98,75; full dev 313 test/%96,51/18 HTTP PASS, SAFE TO COMMIT (22:32:12 +03); Sonar A/A/A + gate OK ve açık issue/hotspot 0/0 (22:36:04 +03). [Güncel kalite](docs-hardware/testing/hardware-migration-cleanup-quality.md). Uygulama DB/volume reseti veya image rebuild yapılmadı; eski history ile yükseltme yok. HW-05 PDA kapanışı bildirilmedi, ana kutu `[ ]`; STOP.
+
+- `APPROVED / IN_PROGRESS 2026-10-21`: Kullanıcı geliştirme DB'sini kendisi sıfırlayacağını belirterek ALTER TABLE içermeyen başlangıç SQL'i istedi; 7 ilişkili dosyayı açıkça seçti. Yalnız bu hardware temizliğinde eski uygulanmış SQL'i yeniden düzenleme istisnası var. V1–V7 kullanılır, diğer servis aralıklarına taşılmaz. 28ad1a6 HW-05 commit'i doğrulandı; PDA kapanışı bildirilmedi. Yeni şema eşdeğerlik testi PASS; kalite kapıları henüz NOT_RUN.
 
 - `VERIFIED / READY 2026-10-21 / HW-05`: HW-06/HW-07 2/2, toplam 17/17; hardware 293 PASS/%98,75 (54 yeni). Nihai full dev 311 test/%96,51/18 HTTP PASS, SAFE TO COMMIT (20:49:04 +03); nihai Sonar A/A/A + gate OK, açık issue/hotspot 0/0 (20:53:34 +03), analysis 5494a478-d3da-4e12-9703-c6fdc06e5817. İlk dokuz bakım/test bulgusu düzeltildi ve iki kapı yeniden doğrulandı. [Teslim](docs-hardware/reports/LTZ-ALP-HW-05-delivery.md), [zorunlu final raporu](docs-hardware/reports/HARDWARE_SERVICE_FINAL_REPORT.md). Ana HW-05 `[ ]`, kullanıcı PDA kapanışı beklenir; yeni iş yok, STOP. Gerçek Auth/cihaz/desktop/consumer bağlantıları onaylı ertelenmiş, production-ready değildir.
 

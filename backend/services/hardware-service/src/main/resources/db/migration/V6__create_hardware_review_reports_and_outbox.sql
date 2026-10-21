@@ -1,6 +1,5 @@
-ALTER TABLE hardware_review_audit DROP CONSTRAINT ck_hardware_review_audit_action;
-ALTER TABLE hardware_review_audit ADD CONSTRAINT ck_hardware_review_audit_action CHECK (action IN
-    ('CREATE_REVIEW','UPDATE_REVIEW','DELETE_REVIEW','REPORT_REVIEW','HIDE_REVIEW','RESTORE_REVIEW'));
+-- Development schema baseline: initialize an empty hardware_db.
+-- External user, actor and device UUIDs are logical references, never cross-service foreign keys.
 
 CREATE TABLE outbox_events (
     id uuid CONSTRAINT pk_outbox_events PRIMARY KEY,
@@ -21,6 +20,7 @@ CREATE TABLE outbox_events (
     CONSTRAINT ck_outbox_events_attempts CHECK (attempts >= 0),
     CONSTRAINT ck_outbox_events_payload CHECK (jsonb_typeof(payload) = 'object' AND octet_length(payload::text) <= 4096)
 );
+
 CREATE INDEX ix_outbox_events_status_next ON outbox_events(status,next_attempt_at);
 
 CREATE TABLE hardware_review_reports (
@@ -39,4 +39,5 @@ CREATE TABLE hardware_review_reports (
     CONSTRAINT ck_hardware_review_reports_details CHECK (details IS NULL OR length(btrim(details)) BETWEEN 1 AND 500),
     CONSTRAINT ck_hardware_review_reports_version CHECK (version >= 0)
 );
+
 CREATE INDEX ix_hardware_review_reports_review_created ON hardware_review_reports(review_id,created_at,id);
