@@ -48,6 +48,10 @@ Game Service tokenı kendisi doğrular. Aşağıdakileri yayınla veya teyit et;
 
 Game Service'e eklenecek ENV anahtarları için **önerim** (henüz hiçbir `.env*` değiştirilmedi, onay bekliyor): `JWT_AUDIENCE`, `JWT_JWK_SET_URI` (+ mevcut `JWT_ISSUER`). Ayrıntı: `docs-Game Service/LTZ-HAM-GAME-04-Auth-Entegrasyonu.md`.
 
+**Bağlama günü Game Service'te ne değişir:** Yalnız yapılandırma değerleri (`ltz.security.jwt.*`) ve gerekirse tek bir claim dönüştürücü sınıf (`LtzJwtAuthenticationConverter`). Controller, servis, DTO ve veritabanı şeması aynı kalır; yeniden geliştirme gerekmez.
+
+**Bağlama günü yapılacak test:** Mevcut testler yerel üretilmiş token'larla koşuyor ve yalnız Game Service'in kendi davranışını doğruluyor. Auth hazır olunca **gerçek Auth token'ıyla bir entegrasyon testi** yazılmalı (kimlik, rol ve `iss`/`aud` doğrulaması, askıya alınmış hesap davranışı); bu yapılmadan yönetim uçları "Auth ile doğrulandı" sayılmaz.
+
 ### 3.2 review-service — Hamza
 `POST`/toplu bir uç sağla: çoklu `gameId` için ortalama LTZ puanı ve puan sayısı (REV-12), puanı olmayan oyunlar için açık boş değer. Gelince Game Service'e bir RestClient adaptörü eklenecek; o zamana kadar puan filtresi/sıralaması kapalıdır. Review'ın oyun doğrulaması için Game Service'in `card`/`batch` ucunu kullan.
 
