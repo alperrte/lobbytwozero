@@ -172,7 +172,11 @@ Public. Bu uç yalnız okur; yönetim yazmaları ayrı, korumalı uçlardadır (
 - `media`: `type` (COVER/SCREENSHOT/TRAILER), `url` (HTTPS), nullable `provider`, `sortOrder`.
 - `systemRequirements`: `level`, `platform`, nullable `os`, `cpu`, `gpu`, `ramMb`, `storageMb`, `rawText`.
 - Sağlayıcının sunmadığı koleksiyonlar boş dizi, bilinmeyen skaler alanlar null döner. Ham metin HTML olarak işlenmez.
-- `languages`: genel dil desteği için saklanan normalize kodlar; boş liste destek olmadığı anlamına gelmez. `earlyAccess`: true/false/null; null bilinmiyor. Arayüz/ses/altyazı ayrımı GAME-23 kapsamındadır.
+- `languages`: genel dil desteği için saklanan normalize kodlar; boş liste destek olmadığı anlamına gelmez. `earlyAccess`: true/false/null; null bilinmiyor. GAME-23 ayrıntıları ek alanlardadır; bu eski listenin anlamı ve filtre davranışı korunur.
+- GAME-23 ek alanları: `metadataLanguage` (nullable normalize dil kodu), `languageDataState` (`UNKNOWN/EMPTY/INVALID/AVAILABLE`), `languageSupport` ve `provenance`.
+- `languageSupport`: `{languageCode, interfaceSupport, audioSupport, subtitleSupport}`; her destek bağımsız `UNKNOWN/SUPPORTED/UNSUPPORTED`. Eski genel dil listesi bu üç durumu kanıtlamaz. Eski kayıtlar UNKNOWN ve boş ayrıntı listesiyle döner; false/UNSUPPORTED üretilmez.
+- `provenance`: alan adı, kaynak (`ADMIN` veya gerçekten veri alınan sağlayıcı kodu), `dataState`, `recordedAt`, nullable `verifiedAt`. Kayıt/alım zamanı doğrulama değildir. ADMIN doğrulaması harici sağlayıcı doğrulaması olarak gösterilmez. Eski kaynağı bilinmeyen alanlarda kayıt yoktur; atıf/tarih uydurulmaz. Operatör kimliği ve gerekçe public yanıtta yoktur.
+- `LOCALIZATION.verifiedAt` yalnız admin'in metadata dili ve dil desteği beyanını doğruladığı zamanı gösterir; description veya diğer metadata alanlarının dili, kaynağı veya doğruluğuna güvence vermez. Sağlayıcıdan dil bilgisi alınmaz ve otomatik dil tespiti yapılmaz. `GAME_TYPE` UNKNOWN ise kaynak veri durumu da UNKNOWN'dır.
 
 #### Hata Durumları
 - 400: Geçersiz UUID (ProblemDetail).
@@ -544,6 +548,12 @@ Frontend: API Gateway üzerinden aynı path. Eylem `game_admin_audits` kaydına 
 #### Test Durumu
 INTEGRATION — oluşturma, public katalogda görünme, istemci kontrollü alanların reddi, doğrulama, denetim kaydı.
 
+GAME-23 — Yukarıdaki admin oluşturma isteğine isteğe bağlı `localization` eklenmiştir; eski istekler değişmez:
+```json
+{"metadataLanguage":"tr-TR","dataState":"AVAILABLE","languageSupport":[{"languageCode":"tr","interfaceSupport":"SUPPORTED","audioSupport":"UNKNOWN","subtitleSupport":"UNKNOWN"}],"verified":false,"evidence":"Dil bilgisi kaynak üzerinden kontrol edildi"}
+```
+`evidence` nesne varsa 8–1000 karakterdir. En çok 100 benzersiz normalize dil kodu; boş/dil etiketi olmayan metin reddedilir. Türkçe/Turkish/Turkce etiketleri `tr` olarak normalize edilir; HTML/asterisk metni destek yok diye yorumlanmaz, 400 döner. Eksik destek türü UNKNOWN olur. AVAILABLE için dolu ayrıntı listesi, diğer durumlar için boş liste gerekir. Eksik liste güncellemede mevcut listeyi korur; `[]` açıkça temizler. Dil kodu null ise mevcut değer kalır; boş metin metadata dilini temizler. `verified` opsiyoneldir; sadece `true` ile admin açık doğrulama beyanı yaparsa sunucu saatiyle `verifiedAt` kaydedilir. UNKNOWN/INVALID doğrulanmış sayılamaz. Sonraki sıradan düzenleme önceki doğrulama zamanını kaldırır. İstemci `source`/`verifiedAt`/operatör atayamaz. Bu alanlar role/sürüm/audit sınırlarını değiştirmez.
+Test: INTEGRATION — `LocalizationMetadataTest`; eski istek, durum ayrımı, rol, sürüm, kilit/senkronizasyon, kaynak ve doğrulama testleri. Migration: `LocalizationMigrationTest` V40→V171 veri koruması.
 ### GAME — Yönetici: oyun görünümü (GAME-07)
 
 Durum: IMPLEMENTED
@@ -581,6 +591,8 @@ PATCH /api/v1/game/admin/games/{gameId}
 Admin (Bearer JWT, rol `ADMIN`).
 
 #### Request Body
+GAME-23: isteğe bağlı localization nesnesi oluşturma isteğiyle aynı kurallara tabidir. Gönderilmezse yeni ve eski dil verileri değişmez; LOCALIZATION manuel kilidi EXTERNAL oyunda yeniden kullanılır.
+
 `version` zorunlu. Diğer alanlar oluşturmadakiyle aynıdır ve yalnız gönderilenler değişir: gönderilmeyen (null) alan değişmez; boş metin/boş dizi alanı açıkça temizler. Bu nedenle kısmi istek sağlayıcı alanlarını silmez. `releaseDate` ve `earlyAccess` bu fazda yalnız ayarlanır, null'a döndürülemez.
 
 #### Response — 200
@@ -626,6 +638,60 @@ Frontend: API Gateway üzerinden aynı path. `ARCHIVE_GAME` / `RESTORE_GAME` den
 
 #### Test Durumu
 INTEGRATION — gizlenme, veri korunması, idempotency, geri alma, MERGED reddi, gerekçe doğrulaması.
+
+### GAME — Yönetici: dış kimliği yeniden eşleme ve ayırma (GAME-26)
+
+Durum: IMPLEMENTED — korumalı giriş ve güvenlik engeli; gerçek mutasyon entegrasyon bekler.
+Sorumlu: Hamza
+Tüketici servisler: Frontend (yönetim paneli)
+
+#### Endpoint
+POST /api/v1/game/admin/identity/reassign
+POST /api/v1/game/admin/identity/split
+
+#### Yetkilendirme
+Bearer JWT; yalnız `ADMIN`. Auth Service entegrasyonu NOT VERIFIED; mevcut JWT doğrulaması korunur.
+
+#### Path/Query Parameters
+Yok.
+
+#### Request Body
+```json
+{
+  "provider": "STEAM",
+  "externalId": "12345",
+  "expectedGameId": "11111111-1111-1111-1111-111111111111",
+  "targetGameId": "22222222-2222-2222-2222-222222222222",
+  "evidence": "Yönetici tarafından incelenen eşleme gerekçesi"
+}
+```
+`targetGameId` yalnız reassign için zorunludur; split isteğinde gönderilmez.
+Provider mevcut katalog kilidiyle uyumlu olarak STEAM; externalId pozitif uint32 kanonik ondalık kimliktir.
+expectedGameId zorunlu mevcut eşlemedir. Gerekçe 8–1000 karakterdir. `force` gibi ek alanlar reddedilir.
+
+#### Response — 200 / 409
+Reassign yalnız mevcut=beklenen=hedef olduğunda 200 `{ "gameId": "..." }` döndürür;
+no-op hiçbir veri veya başarı audit'i oluşturmaz. Gerçek reassign ve tüm geçerli split
+istekleri dış referans güvenliği doğrulanamadığından 409 `FOREIGN_REFERENCE_SAFETY_UNVERIFIED`
+döndürür. Operatör beyanı bu engeli aşmaz. Kanonik oyunlar, eski eşlemeler ve diğer
+servislerin verileri değiştirilmez; mevcut transaction/kilit altyapısı kullanılır.
+
+#### Hata Durumları
+- 400: Eksik/geçersiz gövde, kimlik veya gerekçe.
+- 401/403: Kimlik doğrulama/ADMIN rolü.
+- 404: Dış referans veya aktif hedef oyun bulunamadı.
+- 409: `REFERENCE_MAPPING_CONFLICT` (beklenen eşleme eski), `FOREIGN_REFERENCE_SAFETY_UNVERIFIED`.
+Yanıtlar ProblemDetail biçimindedir.
+
+#### Bağlantı
+Frontend: API Gateway üzerinden aynı path. Library/Review DB erişimi yoktur.
+Gerçek taşıma/ayırma, yeni referans yazma yarışlarını da kapsayan servisler arası
+koordinasyon sözleşmesi bekler. Başarılı gerçek mutasyon audit'i mevcut iç serviste
+operatör/gerekçe/zaman/önceki-sonraki kimliklerle tutulur; HTTP üzerinden henüz açılamaz.
+
+#### Test Durumu
+INTEGRATION — ADMIN/USER/developer/moderator/anonim, doğrulama, eski eşleme,
+no-op, mutasyon engeli, veri ve audit korunması, gerçek PostgreSQL transaction rollback ve eşzamanlı kilit.
 
 ### GAME — Yönetici: manuel düzeltme kilidini kaldırma (GAME-07)
 

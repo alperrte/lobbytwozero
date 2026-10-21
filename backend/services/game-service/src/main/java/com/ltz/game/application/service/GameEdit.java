@@ -10,4 +10,10 @@ import java.util.Set;
  */
 public record GameEdit(String title, String description, LocalDate releaseDate, Boolean earlyAccess, GameType gameType,
         Set<String> languages, Set<String> developers, Set<String> publishers, Set<String> genres,
-        Set<String> categories, Set<String> tags, Set<String> platforms, String coverUrl) { }
+        Set<String> categories, Set<String> tags, Set<String> platforms, String coverUrl, LocalizationEdit localization) {
+    public GameEdit(String title, String description, LocalDate releaseDate, Boolean earlyAccess, GameType gameType,
+            Set<String> languages, Set<String> developers, Set<String> publishers, Set<String> genres,
+            Set<String> categories, Set<String> tags, Set<String> platforms, String coverUrl) {
+        this(title,description,releaseDate,earlyAccess,gameType,languages,developers,publishers,genres,categories,tags,platforms,coverUrl,null);
+    }
+}

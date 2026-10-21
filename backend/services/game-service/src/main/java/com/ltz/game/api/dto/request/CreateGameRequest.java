@@ -23,9 +23,9 @@ public record CreateGameRequest(
         @Size(max=100) Set<@NotNull @Pattern(regexp="[a-z0-9][a-z0-9-]{0,63}") String> categories,
         @Size(max=100) Set<@NotNull @Pattern(regexp="[a-z0-9][a-z0-9-]{0,63}") String> tags,
         @Size(max=100) Set<@NotNull @Pattern(regexp="[a-z0-9][a-z0-9-]{0,63}") String> platforms,
-        @Size(max=1024) String coverUrl) {
+        @Size(max=1024) String coverUrl, @jakarta.validation.Valid LocalizationRequest localization) {
     public GameEdit toEdit() {
         return new GameEdit(title, description, releaseDate, earlyAccess, gameType, languages, developers, publishers,
-                genres, categories, tags, platforms, coverUrl);
+                genres, categories, tags, platforms, coverUrl, localization==null ? null : localization.toEdit());
     }
 }

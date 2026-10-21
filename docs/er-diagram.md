@@ -243,7 +243,35 @@ erDiagram
 
 ## 5. game_db
 
-Mevcut Game Service şeması (V31–V40); henüz uygulanmayan fiyat bilgileri dahil edilmemiştir. Popülerlik bu aşamada editör seçimidir. V38–V40 ile Game Service migration aralığı (V31–V40) dolmuştur.
+GAME-23/V171 eklentisi (eski `game_languages` ilişkisi aynen korunur):
+
+```mermaid
+erDiagram
+  games ||--o{ game_language_supports : language_details
+  games ||--o{ game_metadata_provenance : field_sources
+  games {
+    uuid id PK
+    varchar metadata_language "nullable"
+    varchar language_data_state "UNKNOWN|EMPTY|INVALID|AVAILABLE"
+  }
+  game_language_supports {
+    uuid game_id PK,FK
+    varchar language_code PK
+    varchar interface_support "UNKNOWN|SUPPORTED|UNSUPPORTED"
+    varchar audio_support "UNKNOWN|SUPPORTED|UNSUPPORTED"
+    varchar subtitle_support "UNKNOWN|SUPPORTED|UNSUPPORTED"
+  }
+  game_metadata_provenance {
+    uuid game_id PK,FK
+    varchar field PK
+    varchar source
+    varchar data_state
+    timestamptz recorded_at
+    timestamptz verified_at "nullable"
+  }
+```
+
+Ana Game Service şeması (V31–V40, GAME-23 için V171 eklentisi yukarıdadır); henüz uygulanmayan fiyat bilgileri dahil edilmemiştir. Popülerlik bu aşamada editör seçimidir. V38–V40 ile Game Service migration aralığı (V31–V40) dolmuştur.
 
 ```mermaid
 erDiagram

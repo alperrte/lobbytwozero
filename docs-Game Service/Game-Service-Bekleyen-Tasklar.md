@@ -1,6 +1,6 @@
 # Game Service — bekleyen tasklar ve diğer servislerden beklenenler
 
-**Tarih:** 21 Ekim 2026 · **Sahibi:** Hamza · **Servis:** `game-service` (Faz 1–4 uygulandı)
+**Tarih:** 21 Ekim 2026 · **Sahibi:** Hamza · **Servis:** `game-service` (Faz 1–4 ve Faz 5'in uygulanabilir yerel kapsamı uygulandı; V171 DEV'e geçirildi)
 
 Bu belge, Game Service'te **yapılamayan veya yarım kalan** işleri ve bunların **hangi servise/kişiye/karara** bağlı olduğunu söyler. Kendi servisini ilgilendiren bölümü (§3) oku; yapman gereken bir şey varsa orada yazar. Ayrıntılı API sözleşmesi: `docs/api.md` → `## GAME`.
 
@@ -15,9 +15,53 @@ Bu belge, Game Service'te **yapılamayan veya yarım kalan** işleri ve bunları
 | **GAME-15** (servis sınırları) | Yarım: herkese açık toplu kart ucu hazır | Review'dan puan özeti alınamıyor (sözleşme yok); diğer servisler henüz batch ucunu kullanmıyor | **review-service** (REV-12) · **tüketici servisler** (§3.3) |
 | **GAME-17** (oyun detayı zenginleştirme) | Altyapı hazır, **gerçek sağlayıcı bağlı değil** | Steam resmî API'leri kapsamlı detay vermiyor; kaynak (öneri: IGDB) ve lisans/atıf koşulları kararlaştırılmadı | **Ekip kararı** (§4) |
 | **Toplu uç istek sınırı (istemci başına)** | Game Service tarafı hazır (429), ama Gateway trafiği tek kovayı paylaşıyor | Gateway istemci IP'sini Game Service'e iletmiyor | **api-gateway (ortak yapılandırma, onay)**: §3.5 |
-| **GAME-04 indirim filtresi, GAME-24** (fiyat/indirim) | Başlanmadı | İzinli ve sürdürülebilir bir fiyat kaynağı yok; kaynak yoksa görev ertelenir | Ekip kararı (§4) |
-| **GAME-23, GAME-26** | Başlanmadı (Faz 5) | Faz 5 geliştirme onayı yok; V31–V40 dolu, ek V171–V190 onaylandı | Faz 5 geliştirme onayı (§4) |
+| **GAME-04 indirim filtresi, GAME-24** (fiyat/indirim) | Bölgesel fiyat portu ve testleri hazır; gerçek veri bekliyor | İzinli sağlayıcı/erişim ve kullanım-saklama koşulları kesinleşmedi | Sağlayıcı ve ENV onayı (§4) |
+| **GAME-23** | Yerel/admin kapsamı tamamlandı; V171 | Gerçek dış dil/detail verisi GAME-17 sağlayıcısını bekliyor | Gerçek detay sağlayıcısı |
+| **GAME-26** | Arşivleme/kilit/audit korunuyor; ADMIN girişleri hazır | Gerçek eşleme/ayırma dış referans güvenliği doğrulanana kadar 409 ile engellenir | Library/Review referans koordinasyon sözleşmesi |
 | **GAME-11, GAME-14** | Başlanmadı (Faz 6, MVP sonrası) | Onay yok. GAME-11, içeriğin sahibi başka servisse (başarım, rehber vb.) o servisin API'sine bağlanacak | Onay; ileride content/community gibi servislerden API |
+
+### 1.1 Faz 5: hazır olanlar ve entegrasyon bekleyen parçalar
+
+**GAME-23 — Yerel/admin işlevi tamamlandı; dış veri entegrasyonu bekliyor.**
+Mevcut admin oluşturma/güncelleme uçları metadata dili, bağımsız arayüz/ses/altyazı
+desteği ve kaynak/doğrulama izini kaydeder. UNKNOWN bilgisi desteklenmiyor sayılmaz;
+manuel kilit ve audit kullanılır. Yapılmayan: gerçek dış sağlayıcıdan dil bilgisi
+alma/ayrıştırma ve dış kaynak doğrulaması. GAME-17 için izinli gerçek detay sağlayıcısı
+seçilip erişim/lisans koşulları onaylanmadan bu veri üretilemez. Mevcut sağlayıcı
+portu ve kayıt modeli hazırdır; gerçek sağlayıcıya uygun adaptör/eşleme ve testler
+entegrasyon sırasında tamamlanacaktır. Admin'in doğrulama beyanı dış doğrulama değildir.
+
+**GAME-24 — Yalnız fiyat sözleşmesi ve testleri hazır; gerçek fiyat özelliği bekliyor.**
+GamePriceProvider; oyun/mağaza, ülke, para birimi, normal/güncel fiyat, kaynak ve
+geçerlilik zamanlarını tanımlar. Yapılmayan: gerçek sağlayıcı adaptörü, veri çekme,
+fiyat saklama/sunma ve GAME-04 indirim filtresi. İzinli sağlayıcı, LTZ kullanımına
+uygun lisans/saklama koşulları, erişim ve gerekiyorsa ENV onayı beklenir. Fiyat
+tablosu veya HTTP fiyat endpoint'i eklenmedi; uçtan uca çalışan fiyat sistemi değildir.
+Bağlama sırasında sağlayıcıya uygun adaptör, güncellik/kota yönetimi ve gereken
+saklama/API kararları ayrıca uygulanıp test edilmelidir. Sahte fiyat yoktur.
+
+**GAME-26 — Manuel düzeltme/arşivleme hazır; gerçek HTTP kimlik mutasyonu bekliyor.**
+Faz 4'teki archive/restore, manuel kilit ve audit yeniden kullanılır. ADMIN korumalı
+POST /api/v1/game/admin/identity/reassign ve /split girişleri eklendi. Yapılmayan:
+HTTP üzerinden gerçek dış kimlik taşıma/ayırma. Library/Review ve diğer gameId
+tüketicilerindeki referansların anlamı ve yeni yazma yarışları güvenle korunmadan
+bu işlem açılamaz. Koordinasyon sözleşmesi beklenir; yalnız referans sayısının sıfır
+olması veya operatör gerekçesi yeterli değildir. Gerçek mutasyon 409
+FOREIGN_REFERENCE_SAFETY_UNVERIFIED ile engellenir; reassign yalnız kesin no-op
+durumunda 200 döner. Mevcut iç GameIdentityService ve başarı audit'i korunur;
+güvenlik engeli entegrasyon tamamlanmadan kaldırılmamalıdır.
+
+**Ortak Auth bağımlılığı:** GAME-23 admin yazmaları ve GAME-26 yönetim uçları,
+GAME-07/12/13 ile aynı JWT doğrulama altyapısını kullanır. Gerçek Auth token'ıyla
+entegrasyon henüz doğrulanmadı; Auth sözleşmesi/erişim yapılandırması ve onayları
+beklenir. İzole testlerde 401/403 ve ADMIN 409 doğrulandı; bunlar canlı Auth
+entegrasyonu yerine geçmez. Ayrıntı: [Auth entegrasyon notu](LTZ-HAM-GAME-04-Auth-Entegrasyonu.md).
+
+V171 DEV'de başarıyla uygulandı; migration veya dağıtım onayı artık bekleyen iş
+değildir. DEV kataloğu boş olduğundan dolu GAME-23 yanıtı ve geçerli DEV JWT'leri
+olmadığından canlı rol senaryoları doğrulanamadı; bu senaryolar izole ortamda geçti.
+Faz 5'in tamamı entegrasyonlarıyla bitmiş sayılmaz. Ayrıntılı kabul kriterleri ve
+test/DEV kanıtları: [Faz 5 raporu](LTZ-HAM-GAME-05-Rapor.md).
 
 ## 2. Game Service şu an ne sunuyor (tüketiciler için)
 
@@ -84,7 +128,7 @@ Auth, Review ve Gateway entegrasyonlarının bekleme durumu değişmedi.
 
 1. **GAME-17 kaynağı:** Öneri — Steam indeksini koru, **IGDB**'yi yalnız detay zenginleştirme için değerlendir. Önce projenin ticari kullanım durumu, lisans/atıf koşulları ve Steam AppID eşleme yöntemi netleşmeli; sonra küçük bir pilot. (Kaynak API anahtarı yeni ENV gerektirir → onay.) Ayrıntı: `docs-Game Service/LTZ-HAM-GAME-02-Saglayici-Arastirmasi.md`.
 2. **Fiyat/indirim (GAME-24):** İzinli veri kaynağı var mı? Yoksa görev ertelenir; fiyat bilgisi uydurulmaz.
-3. **Game Service migration aralığı:** V31–V40 doldu. Ek V171–V190 aralığı 2026-10-21 tarihinde onaylandı ve `docs/decisions/migrations.md` içine işlendi. Tahsis ortak branch'e aktarılmalıdır. Faz 5 geliştirme onayı ayrıca bekleniyor.
+3. **Game Service migration aralığı:** V31–V40 doldu. Ek V171–V190 aralığı 2026-10-21 tarihinde onaylandı ve `docs/decisions/migrations.md` içine işlendi. Tahsis ortak branch'e aktarılmalıdır. Faz 5 onayı alındı; V171 kullanıldı. V172–V190 kullanılmadı.
 4. **Servisler arası kimlik modeli** (servis JWT'si mi, başka mı?) — korumalı toplu/servisler arası uçlar bunu bekliyor.
 
 ## 5. Yapma listesi
@@ -93,3 +137,5 @@ Auth, Review ve Gateway entegrasyonlarının bekleme durumu değişmedi.
 - Game Service yönetim uçlarını (`/admin`, `/developer`, `/moderation`) token olmadan veya sahte başlıkla çağırmaya çalışma; şu an hepsi 401.
 - Toplu karttan LTZ puanı bekleme; puan alanı yok ve uydurulmayacak.
 - Oyun başına döngüyle `GET /card` çağırma.
+
+Faz 5 güncel kapsam ve kanıtlar: [Faz 5 raporu](LTZ-HAM-GAME-05-Rapor.md). Faz 6 için ayrı açık onay gerekir.

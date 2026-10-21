@@ -31,8 +31,7 @@ public class GameIdentityService {
     public UUID reassign(String provider, String externalId, UUID expectedGameId, UUID targetGameId, Verification verification) {
         validate(provider,externalId,expectedGameId,verification);
         if (targetGameId==null) throw new IllegalArgumentException("Hedef oyun zorunlu.");
-        lockCatalog();
-        var ref=references.lockReference(provider,externalId).orElseThrow(GameNotFoundException::new);
+        var ref=lockedReference(provider,externalId);
         UUID current=ref.getGame().getId();
         if (current.equals(targetGameId)) return current;
         if (!current.equals(expectedGameId)) throw new ReferenceMappingConflictException();
@@ -45,8 +44,7 @@ public class GameIdentityService {
     @Transactional
     public UUID split(String provider, String externalId, UUID expectedGameId, Verification verification) {
         validate(provider,externalId,expectedGameId,verification);
-        lockCatalog();
-        var ref=references.lockReference(provider,externalId).orElseThrow(GameNotFoundException::new);
+        var ref=lockedReference(provider,externalId);
         var source=ref.getGame();
         if (!source.getId().equals(expectedGameId)) throw new ReferenceMappingConflictException();
         Game separated=new Game();
@@ -58,6 +56,46 @@ public class GameIdentityService {
         ref.setGame(separated);
         audit(ref,expectedGameId,separated.getId(),"SPLIT",verification);
         return separated.getId();
+    }
+
+    /** HTTP girişi: dış servis referansları doğrulanamadığı için yalnız kesin no-op kabul edilir.
+     * Operatör kanıtı dış referans güvenliği sözleşmesinin yerine geçmez.
+     */
+    @Transactional
+    public UUID safeReassign(String provider, String externalId, UUID expectedGameId, UUID targetGameId, Verification verification) {
+        validateSafe(provider,externalId,expectedGameId,verification);
+        if (targetGameId==null) throw new IllegalArgumentException("Hedef oyun zorunlu.");
+        var ref=lockedReference(provider,externalId);
+        requireExpected(ref,expectedGameId);
+        games.lockGame(targetGameId).filter(Game::isActive).orElseThrow(GameNotFoundException::new);
+        if (expectedGameId.equals(targetGameId)) return targetGameId;
+        throw new GameConflictException("FOREIGN_REFERENCE_SAFETY_UNVERIFIED");
+    }
+
+    /** Kaynak UUID'nin korunması, kullanıcı verisinin oyun anlamının korunduğunu kanıtlamaz. */
+    @Transactional
+    public UUID safeSplit(String provider, String externalId, UUID expectedGameId, Verification verification) {
+        validateSafe(provider,externalId,expectedGameId,verification);
+        var ref=lockedReference(provider,externalId);
+        requireExpected(ref,expectedGameId);
+        throw new GameConflictException("FOREIGN_REFERENCE_SAFETY_UNVERIFIED");
+    }
+
+    private void requireExpected(GameExternalReference ref, UUID expected) {
+        if (!ref.getGame().getId().equals(expected)) throw new GameConflictException("REFERENCE_MAPPING_CONFLICT");
+    }
+
+    private void validateSafe(String provider, String externalId, UUID expected, Verification verification) {
+        validate(provider,externalId,expected,verification);
+        // Mevcut katalog kilidi yalnız Steam akışlarıyla ortak güvence sağlar.
+        if (!"STEAM".equals(provider) || !externalId.matches("[1-9]\\d{0,9}")
+                || Long.parseLong(externalId)>4294967295L)
+            throw new IllegalArgumentException("Geçersiz Steam referansı.");
+    }
+
+    private GameExternalReference lockedReference(String provider, String externalId) {
+        lockCatalog();
+        return references.lockReference(provider,externalId).orElseThrow(GameNotFoundException::new);
     }
 
     private void lockCatalog() {

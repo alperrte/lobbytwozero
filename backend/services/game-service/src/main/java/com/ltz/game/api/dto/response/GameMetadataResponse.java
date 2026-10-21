@@ -3,7 +3,11 @@ import com.ltz.game.domain.enums.*;
 import java.util.*;
 public record GameMetadataResponse(UUID gameId, List<Term> genres, List<Term> categories,
         List<Term> tags, List<Term> platforms, List<String> developers, List<String> publishers,
-        List<Media> media, List<Requirement> systemRequirements, List<String> languages, Boolean earlyAccess) {
+        List<Media> media, List<Requirement> systemRequirements, List<String> languages, Boolean earlyAccess,
+        String metadataLanguage, MetadataDataState languageDataState, List<LanguageSupport> languageSupport,
+        List<Provenance> provenance) {
+    public record LanguageSupport(String languageCode, LanguageSupportStatus interfaceSupport, LanguageSupportStatus audioSupport, LanguageSupportStatus subtitleSupport) { }
+    public record Provenance(String field, String source, MetadataDataState dataState, java.time.Instant recordedAt, java.time.Instant verifiedAt) { }
     public record Term(UUID id, String code, String nameTr, String nameEn) { }
     public record Media(MediaType type, String url, String provider, int sortOrder) { }
     public record Requirement(RequirementLevel level, String platform, String os, String cpu,

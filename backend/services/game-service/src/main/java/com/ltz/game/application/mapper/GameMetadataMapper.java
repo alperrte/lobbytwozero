@@ -18,7 +18,11 @@ public class GameMetadataMapper {
                         .thenComparing(com.ltz.game.domain.entity.GameSystemRequirement::getLevel))
                 .map(r -> new GameMetadataResponse.Requirement(r.getLevel(), r.getPlatform(), r.getOs(), r.getCpu(),
                         r.getGpu(), r.getRamMb(), r.getStorageMb(), r.getRawText())).toList(),
-                game.getLanguages().stream().sorted().toList(), game.getEarlyAccess());
+                game.getLanguages().stream().sorted().toList(), game.getEarlyAccess(), game.getMetadataLanguage(), game.getLanguageDataState(),
+                game.getLanguageSupport().stream().sorted(Comparator.comparing(com.ltz.game.domain.entity.GameLanguageSupport::getLanguageCode))
+                        .map(s -> new GameMetadataResponse.LanguageSupport(s.getLanguageCode(),s.getInterfaceSupport(),s.getAudioSupport(),s.getSubtitleSupport())).toList(),
+                game.getMetadataProvenance().entrySet().stream().sorted(Map.Entry.comparingByKey())
+                        .map(e -> new GameMetadataResponse.Provenance(e.getKey(),e.getValue().getSource(),e.getValue().getDataState(),e.getValue().getRecordedAt(),e.getValue().getVerifiedAt())).toList());
     }
     private List<GameMetadataResponse.Term> terms(Game game, TermKind kind) {
         return game.getTerms().stream().filter(t -> t.getKind() == kind)

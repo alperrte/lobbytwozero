@@ -153,7 +153,18 @@ Gösterim: **PK** birincil anahtar, **FK** servis içi yabancı anahtar, **REF**
 
 ### 3.4 game_db — game-service (Hamza)
 
-**Mevcut şema:** GAME-08 V31, GAME-10 V32, GAME-16 V33, GAME-18 V34, GAME-21 V35, Faz 2 güncellik/retry altyapısı V36, Faz 3 keşif metadata/indeksleri V37 ve Faz 4 yönetim/geliştirici tabloları V38–V40. **Game Service migration aralığı (V31–V40) dolmuştur;** sonraki her şema değişikliği (ör. Faz 5) için ekipçe yeni aralık kararı gerekir. Gerçek detay sağlayıcısı henüz entegre edilmedi.
+Game Service GAME-23 ek şeması: V171, `games.metadata_language` (nullable) ve
+`language_data_state` (UNKNOWN/EMPTY/INVALID/AVAILABLE), `game_language_supports`
+(game_id+language_code PK, üç bağımsız UNKNOWN/SUPPORTED/UNSUPPORTED alanı),
+`game_metadata_provenance` (game_id+field PK, kaynak, veri durumu, kayıt zamanı,
+nullable doğrulama zamanı). İki tablo oyun FK'siyle CASCADE bağlıdır; satırların
+eşzamanlı yönetimi mevcut games.version + oyun kilidiyle korunur. Eski
+game_languages tablosu değiştirilmez. Eski verilere kaynak/doğrulama backfill'i
+yapılmaz. LOCALIZATION mevcut manuel kilit allowlist'ine eklenir. Fiyat tablosu
+oluşturulmadı; GAME-24 sağlayıcı izni/erişimi bekler.
+
+
+**Mevcut şema:** GAME-08 V31, GAME-10 V32, GAME-16 V33, GAME-18 V34, GAME-21 V35, Faz 2 güncellik/retry altyapısı V36, Faz 3 keşif metadata/indeksleri V37, Faz 4 yönetim/geliştirici tabloları V38–V40 ve GAME-23 V171. Eski V31–V40 aralığı doludur; ek V171–V190 Game Service için onaylanmıştır. V171 kullanılmıştır; sıradaki kullanılmamış numara V172'dir. Gerçek detay sağlayıcısı henüz entegre edilmedi.
 
 - `games`: UUID `id`, `title`, `normalized_title`, UTC `created_at`/`updated_at`, optimistic `version`.
 - `catalog_terms`: UUID `id`, `kind` (GENRE/CATEGORY/TAG/PLATFORM), `code`, nullable TR/EN adlar, `version`; UNIQUE `(kind, code)`.

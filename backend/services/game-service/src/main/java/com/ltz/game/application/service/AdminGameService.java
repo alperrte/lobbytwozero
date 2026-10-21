@@ -34,6 +34,8 @@ public class AdminGameService {
     private final GameViewMapper views;
     private final MediaUrlPolicy urls;
     private final Clock clock;
+    private final LocalizationService localization;
+    private final MetadataProvenanceService provenance;
 
     @Transactional(readOnly = true)
     public AdminGameResponse get(Actor actor, UUID id) {
@@ -50,10 +52,11 @@ public class AdminGameService {
         game.setOrigin(GameOrigin.INTERNAL);
         List<String> changed = new ArrayList<>();
         apply(game, edit, changed, null);
+        provenance.adminChanges(game,changed);
         refreshCompleteness(game);
         game.setUpdatedAt(clock.instant());
         game = games.saveAndFlush(game);
-        audit.append(actor, role, AdminAuditAction.CREATE_GAME, game.getId(), null, "fields=" + String.join(",", changed));
+        audit.append(actor, role, AdminAuditAction.CREATE_GAME, game.getId(), evidence(edit), "fields=" + String.join(",", changed));
         return response(game);
     }
 
@@ -66,11 +69,12 @@ public class AdminGameService {
         Set<OverridableField> manual = EnumSet.noneOf(OverridableField.class);
         apply(game, edit, changed, game.getOrigin() == GameOrigin.EXTERNAL ? manual : null);
         if (changed.isEmpty()) return response(game);
+        provenance.adminChanges(game,changed);
         refreshCompleteness(game);
         game.setUpdatedAt(clock.instant());
         games.saveAndFlush(game);
         markManual(game.getId(), manual, actor);
-        audit.append(actor, role, AdminAuditAction.UPDATE_GAME, id, null, "fields=" + String.join(",", changed));
+        audit.append(actor, role, AdminAuditAction.UPDATE_GAME, id, evidence(edit), "fields=" + String.join(",", changed));
         return response(game);
     }
 
@@ -126,7 +130,10 @@ public class AdminGameService {
         applyScalars(game, edit, changed, manual);
         applyCollections(game, edit, changed, manual);
         if (edit.coverUrl() != null) applyCover(game, edit.coverUrl(), changed);
+        if (localization.apply(game,edit.localization())) mark(changed,"localization",manual,OverridableField.LOCALIZATION);
     }
+
+    private String evidence(GameEdit edit) { return edit.localization()==null ? null : RequestRules.reason(edit.localization().evidence()); }
 
     private void applyTexts(Game game, GameEdit edit, List<String> changed, Set<OverridableField> manual) {
         if (edit.title() != null) {

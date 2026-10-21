@@ -101,7 +101,7 @@
 
 ### LTZ-HAM-GAME-04 — Yetkili Oyun Yönetimi ve Geliştirici Alanı
 
-**2026-10-21 durumu:** Kullanıcı onayıyla uygulandı. GAME-07/12/13 Game Service sınırında uygulandı ve test edildi; GAME-15'in herkese açık toplu kart ucu hazır, Review Service puan tarafı sözleşme beklediğinden açık. **Yetkili uçlar geçici, Auth'tan bağımsız ve fail-closed JWT doğrulamasına dayanır; Auth Service entegrasyonu TAMAMLANMADI (NOT VERIFIED).** Faz bütünü üretime hazır sayılmaz. İkinci geçişte gerçek eşzamanlılık testleri, toplu uç rate limit'i, medya host doğrulaması ve CSRF incelemesi tamamlandı (182 test, %98,47, SonarQube PASSED); Gateway'den istemci IP iletimi onay bekliyor. [Faz 4 raporu](LTZ-HAM-GAME-04-Rapor.md) · [Auth entegrasyonu](LTZ-HAM-GAME-04-Auth-Entegrasyonu.md). Faz 5 için onay yok; V31–V40 doldu; ek V171–V190 aralığı 2026-10-21 tarihinde onaylanarak merkezi tahsise işlendi. Faz 5 henüz başlatılmadı.
+**2026-10-21 durumu:** Kullanıcı onayıyla uygulandı. GAME-07/12/13 Game Service sınırında uygulandı ve test edildi; GAME-15'in herkese açık toplu kart ucu hazır, Review Service puan tarafı sözleşme beklediğinden açık. **Yetkili uçlar geçici, Auth'tan bağımsız ve fail-closed JWT doğrulamasına dayanır; Auth Service entegrasyonu TAMAMLANMADI (NOT VERIFIED).** Faz bütünü üretime hazır sayılmaz. İkinci geçişte gerçek eşzamanlılık testleri, toplu uç rate limit'i, medya host doğrulaması ve CSRF incelemesi tamamlandı (182 test, %98,47, SonarQube PASSED); Gateway'den istemci IP iletimi onay bekliyor. [Faz 4 raporu](LTZ-HAM-GAME-04-Rapor.md) · [Auth entegrasyonu](LTZ-HAM-GAME-04-Auth-Entegrasyonu.md). Faz 5 kullanıcı onayıyla uygulandı; yerel kapsam ve bekleyen entegrasyonlar [Faz 5 raporunda](LTZ-HAM-GAME-05-Rapor.md) ayrılmıştır. Ek V171–V190 tahsisinden V171 kullanıldı.
 
 **Sorumlu:** Hamza  
 **Servis:** `game-service`  
@@ -132,9 +132,11 @@
 
 **Ana task açıklaması:** Kaynak/yerelleştirme izlenebilirliğini, izinli fiyat/indirim verisini ve manuel metadata düzeltmelerini geliştir.
 
+**2026-10-21 durumu:** GAME-23 yerel/admin kapsamı uygulandı; gerçek detay sağlayıcısı bekler. GAME-24 bölgesel fiyat portu hazır; izinli sağlayıcı ve erişim olmadan fiyat sunulmaz. GAME-26 mevcut arşivleme/kilit/audit akışlarını yeniden kullanır; yeni ADMIN eşleme/ayırma girişleri dış referans koordinasyonu olmadan mutasyonu engeller. GAME-24 ve GAME-26 bu nedenle bütünüyle tamamlandı olarak işaretlenmedi. [Faz 5 raporu](LTZ-HAM-GAME-05-Rapor.md). Faz 6 başlamadı.
+
 **Alt tasklar:**
 
-- [ ] **GAME-23 — Yerelleştirme ve veri kaynağı izlenebilirliği (P1):** Oyun metadata dilini, dil destek türlerini (arayüz/ses/altyazı), kaynağı, son doğrulama zamanını ve boş/yanlış veri durumlarını ayırt etme. **Kabul:** Türkçe desteği yanlış `false` kabul etmeye yol açan metin/parsing senaryoları test edilir; API bilinmeyen değeri `false` gibi göstermez.
+- [x] **GAME-23 — Yerelleştirme ve veri kaynağı izlenebilirliği (P1):** Oyun metadata dilini, dil destek türlerini (arayüz/ses/altyazı), kaynağı, son doğrulama zamanını ve boş/yanlış veri durumlarını ayırt etme. **Kabul:** Türkçe desteği yanlış `false` kabul etmeye yol açan metin/parsing senaryoları test edilir; API bilinmeyen değeri `false` gibi göstermez.
 
 - [ ] **GAME-24 — İndirim ve fiyat bilgileri (P1, koşullu):** İzinli ve sürdürülebilir veri kaynağı bulunursa mağaza, ülke/bölge, para birimi, indirim ve fiyat güncelliğinin yönetilmesi. **Kabul:** Lisans/erişim uygun değilse görev ertelenir; fiyatlar bölge ve güncellik bilgisi olmadan evrensel doğruymuş gibi gösterilmez.
 

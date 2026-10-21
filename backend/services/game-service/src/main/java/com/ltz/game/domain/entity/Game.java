@@ -22,6 +22,14 @@ public class Game {
     @ElementCollection @CollectionTable(name="game_languages", joinColumns=@JoinColumn(name="game_id"))
     @Column(name="language_code", length=35, nullable=false)
     private Set<String> languages = new HashSet<>();
+    @Column(length=35) private String metadataLanguage;
+    @Enumerated(EnumType.STRING) @Column(nullable=false, length=16)
+    private MetadataDataState languageDataState = MetadataDataState.UNKNOWN;
+    @ElementCollection @CollectionTable(name="game_language_supports", joinColumns=@JoinColumn(name="game_id"))
+    private Set<GameLanguageSupport> languageSupport = new HashSet<>();
+    @ElementCollection @CollectionTable(name="game_metadata_provenance", joinColumns=@JoinColumn(name="game_id"))
+    @MapKeyColumn(name="field", length=32)
+    private Map<String,GameMetadataProvenance> metadataProvenance = new HashMap<>();
     private Instant detailsFetchedAt;
     private Instant detailsExpiresAt;
     private Instant detailsNextAttemptAt;

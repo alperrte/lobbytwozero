@@ -32,6 +32,7 @@ public class CatalogImportService {
     private final Clock clock;
     private final ProviderRetryPolicy retries;
     private final GameFieldOverrideRepository overrides;
+    private final MetadataProvenanceService provenance;
 
     @Transactional
     public CatalogStatusResponse startInitial() { return start(CatalogRunMode.INITIAL); }
@@ -139,6 +140,7 @@ public class CatalogImportService {
                 game.setOrigin(GameOrigin.EXTERNAL);
                 game.setTitle(item.title());
                 game.setNormalizedTitle(normalize(item.title()));
+                provenance.recordObservation(game,"TITLE",PROVIDER_CODE,MetadataDataState.AVAILABLE,false);
                 game = games.save(game);
                 reference = new GameExternalReference();
                 reference.setGame(game);
@@ -151,12 +153,16 @@ public class CatalogImportService {
                     game.setTitle(item.title());
                     game.setNormalizedTitle(normalize(item.title()));
                     game.setUpdatedAt(Instant.now());
+                    provenance.recordObservation(game,"TITLE",PROVIDER_CODE,MetadataDataState.AVAILABLE,false);
                 }
             }
             if (game.getOrigin() == GameOrigin.EXTERNAL && !locked.contains(OverridableField.GAME_TYPE)
                     && provider.capabilities().contains(GameProvider.Capability.ITEM_TYPE)) {
                 GameType observed=types.classify(item.providerType(), true);
-                if (observed != GameType.UNKNOWN) game.setGameType(observed);
+                if (observed != GameType.UNKNOWN) {
+                    game.setGameType(observed);
+                    provenance.recordObservation(game,"GAME_TYPE",PROVIDER_CODE,MetadataDataState.AVAILABLE,false);
+                }
             }
             reference.setLastSyncedAt(Instant.now());
             references.save(reference);

@@ -22,6 +22,7 @@ public class GameDetailRefreshService {
     private final ProviderRetryPolicy retries;
     private final GameFieldOverrideRepository overrides;
     private final Clock clock;
+    private final MetadataProvenanceService provenance;
 
     @Transactional(readOnly = true)
     public java.util.List<UUID> dueCandidates() {
@@ -73,15 +74,27 @@ public class GameDetailRefreshService {
     }
 
     private void applyDetails(Game game, GameProvider.Details details, java.util.Set<OverridableField> locked) {
-        if (details.description() != null && !locked.contains(OverridableField.DESCRIPTION)) game.setDescription(details.description());
-        if (details.releaseDate() != null && !locked.contains(OverridableField.RELEASE_DATE)) game.setReleaseDate(details.releaseDate());
-        if (!details.developers().isEmpty() && !locked.contains(OverridableField.DEVELOPERS)) { game.getDevelopers().clear(); game.getDevelopers().addAll(details.developers()); }
-        if (!details.publishers().isEmpty() && !locked.contains(OverridableField.PUBLISHERS)) { game.getPublishers().clear(); game.getPublishers().addAll(details.publishers()); }
+        if (details.description() != null && !locked.contains(OverridableField.DESCRIPTION)) {
+            game.setDescription(details.description()); observed(game,"DESCRIPTION");
+        }
+        if (details.releaseDate() != null && !locked.contains(OverridableField.RELEASE_DATE)) {
+            game.setReleaseDate(details.releaseDate()); observed(game,"RELEASE_DATE");
+        }
+        applyCompanies(game,details,locked);
         if (!locked.contains(OverridableField.GAME_TYPE) && provider.capabilities().contains(GameProvider.Capability.ITEM_TYPE)) {
             GameType type = types.classify(details.providerType(), true);
-            if (type != GameType.UNKNOWN) game.setGameType(type);
+            if (type != GameType.UNKNOWN) { game.setGameType(type); observed(game,"GAME_TYPE"); }
         }
     }
+    private void applyCompanies(Game game, GameProvider.Details details, java.util.Set<OverridableField> locked) {
+        if (!details.developers().isEmpty() && !locked.contains(OverridableField.DEVELOPERS)) {
+            game.getDevelopers().clear(); game.getDevelopers().addAll(details.developers()); observed(game,"DEVELOPERS");
+        }
+        if (!details.publishers().isEmpty() && !locked.contains(OverridableField.PUBLISHERS)) {
+            game.getPublishers().clear(); game.getPublishers().addAll(details.publishers()); observed(game,"PUBLISHERS");
+        }
+    }
+    private void observed(Game game, String field) { provenance.recordObservation(game,field,provider.provider(),MetadataDataState.AVAILABLE,false); }
 
     /** Kalıcı hatada yalnız açık uygulama komutuyla yeniden denemeye izin verilir. */
     @Transactional
