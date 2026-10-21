@@ -267,3 +267,25 @@ Her servis için (SECURITY.md hedefi: 20/20 yetkisiz erişim testi 401/403):
 
 D3 (durum yayılımı), D4 (servis kimliği), Gateway cookie→Bearer, anahtar rotasyonu veya rol modeli değiştiğinde. Sözleşme değişimi önce
 `servis-sozlesmeleri.md` ve gerekirse `docs/api.md` kayıtlarında yapılır; bu belge onlara uyum sağlar.
+
+## 13. Production'a geçiş kontrol listesi (Auth + Gateway)
+
+Aşağıdakiler gerçek `SPRING_PROFILES_ACTIVE=prod` denemesiyle doğrulandı: doğru ayarlarda **tek engel Mail Service adaptörüdür**; http URL
+verilirse OAuth/bağlantı koruması servisi durdurur; `production`, `staging` gibi tanınmayan profil adı açılışta reddedilir.
+
+| # | Ne | Durum |
+| --- | --- | --- |
+| 1 | `SPRING_PROFILES_ACTIVE=prod` (yalnız `dev`, `test`, `prod` kabul edilir) | Zorunlu |
+| 2 | **Mail Service adaptörü.** Auth'ta `ltz.auth.mail.adapter` production-ready bir adaptöre geçmeden `prod` açılmaz | **BEKLEYEN** (Mail Service yok) |
+| 3 | `AUTH_PUBLIC_BASE_URL`, `FRONTEND_PUBLIC_URL`, `CORS_ALLOWED_ORIGINS` yalnız `https` | Zorunlu (açılışta denetlenir) |
+| 4 | Prod'a **yeni** `AUTH_JWT_PRIVATE_KEY`, `AUTH_TOTP_ENCRYPTION_KEY`, `AUTH_OTP_HMAC_KEY`; dev anahtarları kullanılmaz, sır yöneticisinde tutulur. JWT anahtarı: `openssl genrsa 3072 \| openssl pkcs8 -topk8 -nocrypt -outform DER \| base64 -w0` | Zorunlu |
+| 5 | `AUTH_SECURE_COOKIES` ve `AUTH_2FA_REQUIRED_ROLES` ENV ile gevşetilemez (yalnız dev/test); ADMIN için 2FA zorunlu kalır | Kod ile korunur |
+| 6 | Google ile giriş için `GOOGLE_CLIENT_ID/SECRET` ve Google Console'da `<AUTH_PUBLIC_BASE_URL>/api/v1/auth/oauth/google/callback` | Gerçek kimlik bilgisi gerekir |
+| 7 | Gateway `GATEWAY_TRUSTED_PROXIES`: Gateway bir yük dengeleyicinin arkasındaysa onun adresi; aksi halde boş | Ortama göre |
+| 8 | Gateway hız sınırı çok örnekli kurulumda örnek başınadır; ortak limitleyici (Redis vb.) | **BEKLEYEN** |
+| 9 | Veritabanı: servis başına ayrı rol (`ltz_dev` superuser'ı prod'da kullanılmaz), güçlü `POSTGRES_PASSWORD` | Zorunlu |
+| 10 | `SWAGGER_ENABLED=false`, Actuator yalnız `health` (varsayılan böyle) | Varsayılan |
+| 11 | Servis kimliği (D4) ve hedef servislerde silme ucu | **BEKLEYEN** (§8, §9) |
+| 12 | Anahtar rotasyonu ve parola politikası (≥15 + kara liste) | **BEKLEYEN** (`acik-guvenlik-borclari.md` S9, S10) |
+| 13 | Migration'lar V61–V64 donmuştur; şema değişikliği V65+ | Süreç kuralı |
+
