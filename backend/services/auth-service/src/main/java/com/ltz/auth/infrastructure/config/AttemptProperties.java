@@ -2,6 +2,7 @@ package com.ltz.auth.infrastructure.config;
 
 import java.time.Duration;
 
+import org.hibernate.validator.constraints.time.DurationMax;
 import org.hibernate.validator.constraints.time.DurationMin;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
@@ -15,6 +16,6 @@ import jakarta.validation.constraints.NotNull;
 @ConfigurationProperties("ltz.auth.attempts")
 public record AttemptProperties(
         @Min(1) @Max(20) int maxFailures,
-        @NotNull @DurationMin(minutes = 1) Duration window,
-        @NotNull @DurationMin(minutes = 1) Duration lockDuration) {
+        @NotNull @DurationMin(minutes = 1) @DurationMax(hours = 24) Duration window,
+        @NotNull @DurationMin(minutes = 1) @DurationMax(hours = 24) Duration lockDuration) {
 }

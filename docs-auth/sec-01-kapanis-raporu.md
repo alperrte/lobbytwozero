@@ -16,7 +16,7 @@ Kapsam: yalnız `auth-service`, `docs/api.md` AUTH bölümü ve `docs-auth/`. Ga
 
 1. **Auth PII anonimleştirme zamanı:** silme onayında hemen mi, geri alma süresi sonunda mı, tüm servisler onaylayınca mı (şimdiki). Geri alınamaz; B17 ile birlikte karar.
 2. **`security_events`, durum ve rol geçmişi saklama süresi:** hukuki süre kararı gelene dek silinmez (`security-event-retention` boş).
-3. **`pending-account-ttl`** (24 saat varsayım) onayı.
+3. ~~`pending-account-ttl`~~ 24 saat **onaylandı**.
 4. **Silme hedef servis listesi** (14) ve verisi olmayan servis için "uygulanamaz" işaretleme yolu.
 
 ## Yapılandırma (yeni anahtarlar, hepsi `application.properties` varsayılanlı, gizli değer yok)
