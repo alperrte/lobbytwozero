@@ -20,6 +20,7 @@ public class GameDetailRefreshService {
     private final GameProviderSyncStateRepository states;
     private final GameTypeClassifier types;
     private final ProviderRetryPolicy retries;
+    private final GameFieldOverrideRepository overrides;
     private final Clock clock;
 
     @Transactional(readOnly = true)
@@ -44,7 +45,7 @@ public class GameDetailRefreshService {
         try {
             GameProvider.Details details = provider.details(reference.getExternalId());
             if (details == null) throw new ProviderException("INVALID_PROVIDER_RESPONSE");
-            applyDetails(game, details);
+            applyDetails(game, details, lockedFields(game));
             game.setDetailsFetchedAt(clock.instant());
             game.setDetailsExpiresAt(clock.instant().plus(Duration.ofHours(24)));
             game.setDetailsFailureCount(0);
@@ -64,12 +65,19 @@ public class GameDetailRefreshService {
         }
     }
 
-    private void applyDetails(Game game, GameProvider.Details details) {
-        if (details.description() != null) game.setDescription(details.description());
-        if (details.releaseDate() != null) game.setReleaseDate(details.releaseDate());
-        if (!details.developers().isEmpty()) { game.getDevelopers().clear(); game.getDevelopers().addAll(details.developers()); }
-        if (!details.publishers().isEmpty()) { game.getPublishers().clear(); game.getPublishers().addAll(details.publishers()); }
-        if (provider.capabilities().contains(GameProvider.Capability.ITEM_TYPE)) {
+    /** Admin tarafından manuel düzeltilmiş alanlar (GAME-07) sağlayıcı verisiyle ezilmez. */
+    private java.util.Set<OverridableField> lockedFields(Game game) {
+        var locked = java.util.EnumSet.noneOf(OverridableField.class);
+        overrides.findByGameIdOrderByFieldAsc(game.getId()).forEach(override -> locked.add(override.getField()));
+        return locked;
+    }
+
+    private void applyDetails(Game game, GameProvider.Details details, java.util.Set<OverridableField> locked) {
+        if (details.description() != null && !locked.contains(OverridableField.DESCRIPTION)) game.setDescription(details.description());
+        if (details.releaseDate() != null && !locked.contains(OverridableField.RELEASE_DATE)) game.setReleaseDate(details.releaseDate());
+        if (!details.developers().isEmpty() && !locked.contains(OverridableField.DEVELOPERS)) { game.getDevelopers().clear(); game.getDevelopers().addAll(details.developers()); }
+        if (!details.publishers().isEmpty() && !locked.contains(OverridableField.PUBLISHERS)) { game.getPublishers().clear(); game.getPublishers().addAll(details.publishers()); }
+        if (!locked.contains(OverridableField.GAME_TYPE) && provider.capabilities().contains(GameProvider.Capability.ITEM_TYPE)) {
             GameType type = types.classify(details.providerType(), true);
             if (type != GameType.UNKNOWN) game.setGameType(type);
         }

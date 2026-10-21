@@ -101,6 +101,8 @@
 
 ### LTZ-HAM-GAME-04 — Yetkili Oyun Yönetimi ve Geliştirici Alanı
 
+**2026-10-21 durumu:** Kullanıcı onayıyla uygulandı. GAME-07/12/13 Game Service sınırında uygulandı ve test edildi; GAME-15'in herkese açık toplu kart ucu hazır, Review Service puan tarafı sözleşme beklediğinden açık. **Yetkili uçlar geçici, Auth'tan bağımsız ve fail-closed JWT doğrulamasına dayanır; Auth Service entegrasyonu TAMAMLANMADI (NOT VERIFIED).** Faz bütünü üretime hazır sayılmaz. İkinci geçişte gerçek eşzamanlılık testleri, toplu uç rate limit'i, medya host doğrulaması ve CSRF incelemesi tamamlandı (182 test, %98,47, SonarQube PASSED); Gateway'den istemci IP iletimi onay bekliyor. [Faz 4 raporu](LTZ-HAM-GAME-04-Rapor.md) · [Auth entegrasyonu](LTZ-HAM-GAME-04-Auth-Entegrasyonu.md). Faz 5 için onay yok; Game Service migration aralığı (V31–V40) doldu.
+
 **Sorumlu:** Hamza  
 **Servis:** `game-service`  
 **Faz:** MVP  
@@ -110,11 +112,11 @@
 
 **Alt tasklar:**
 
-- [ ] **GAME-07 — Yetkili oyun yönetimi:** Admin veya yetkili kullanıcılar oyun ekleyebilir, güncelleyebilir, arşivleyebilir/silebilir. Yetki, sahiplik ve doğrulamalar uygulanır. **Kabul:** Kütüphane veya inceleme referansı bulunan bir oyunun fiziksel silinmesi veri kaybına yol açmaz; uygun durumlarda görünürlük kapatma/arşivleme kullanılır. Harici kaynaktan gelen alanlara yapılan manuel düzeltmeler senkronizasyonda kontrolsüz ezilmez.
+- [x] **GAME-07 — Yetkili oyun yönetimi:** Admin veya yetkili kullanıcılar oyun ekleyebilir, güncelleyebilir, arşivleyebilir/silebilir. Yetki, sahiplik ve doğrulamalar uygulanır. **Kabul:** Kütüphane veya inceleme referansı bulunan bir oyunun fiziksel silinmesi veri kaybına yol açmaz; uygun durumlarda görünürlük kapatma/arşivleme kullanılır. Harici kaynaktan gelen alanlara yapılan manuel düzeltmeler senkronizasyonda kontrolsüz ezilmez.
 
-- [ ] **GAME-12 — Oyun geliştiricisi yetkileri:** Doğrulanmış geliştiriciler yalnızca yetkili oldukları oyunları yönetebilir. **Kabul:** Auth rolü ve oyun bazlı sahiplik/yetki ayrı ayrı kontrol edilir; kullanıcı başkasının oyununa değişiklik uygulayamaz.
+- [x] **GAME-12 — Oyun geliştiricisi yetkileri:** Doğrulanmış geliştiriciler yalnızca yetkili oldukları oyunları yönetebilir. **Kabul:** Auth rolü ve oyun bazlı sahiplik/yetki ayrı ayrı kontrol edilir; kullanıcı başkasının oyununa değişiklik uygulayamaz.
 
-- [ ] **GAME-13 — Geliştirici oyun içerikleri:** Yetkili geliştirici oyun açıklaması, görselleri, video/demo URL'leri ve güncelleme notlarını oyun sayfasında yönetir. **Kabul:** Girdi doğrulaması, medya/bağlantı güvenliği ve moderasyon politikası uygulanır; içerik sahipliği belirgindir.
+- [x] **GAME-13 — Geliştirici oyun içerikleri:** Yetkili geliştirici oyun açıklaması, görselleri, video/demo URL'leri ve güncelleme notlarını oyun sayfasında yönetir. **Kabul:** Girdi doğrulaması, medya/bağlantı güvenliği ve moderasyon politikası uygulanır; içerik sahipliği belirgindir.
 
 - [ ] **GAME-15 — Servis sınırları ve entegrasyon:** Game Service katalog verisinin sahibi olur; Library Service favori/koleksiyon, Review Service kullanıcı puanları/incelemeleri yönetir. `auth-service`, `library-service`, `review-service`, `content-service`, `hardware-service` ve gereken diğer servislerle sözleşme bazlı iletişim kurulur. **Kabul:** Çoklu oyun kartı sorgusu ve puan özetinde N+1 HTTP çağrısı önlenir; timeout, kısmi başarısızlık ve erişim yetkileri tanımlanır; başka veritabanına erişilmez.
 

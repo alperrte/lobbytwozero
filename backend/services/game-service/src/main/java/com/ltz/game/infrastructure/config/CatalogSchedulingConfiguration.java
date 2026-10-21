@@ -17,9 +17,17 @@ public class CatalogSchedulingConfiguration {
         this.imports = imports;
         this.details = details;
     }
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(CatalogSchedulingConfiguration.class);
+
     @Scheduled(fixedDelay = 5000, initialDelay = 30000)
     public void synchronize() {
-        imports.synchronizeNextPage();
+        try {
+            imports.synchronizeNextPage();
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException _) {
+            // Aynı oyun aynı anda yönetici tarafından değiştirildi: sayfa geri alındı, checkpoint ilerlemedi ve veri kaybı yok.
+            // Bir sonraki turda sayfa yeniden denenir; bu bir hata değildir, bu yüzden yığın izi basılmaz.
+            LOG.warn("Katalog sayfası eşzamanlı oyun değişikliği nedeniyle geri alındı; sonraki turda yeniden denenecek.");
+        }
         for (var id : details.dueCandidates()) details.refresh(id);
     }
 }

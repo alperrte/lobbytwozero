@@ -153,7 +153,7 @@ Gösterim: **PK** birincil anahtar, **FK** servis içi yabancı anahtar, **REF**
 
 ### 3.4 game_db — game-service (Hamza)
 
-**Mevcut şema:** GAME-08 V31, GAME-10 V32, GAME-16 V33, GAME-18 V34, GAME-21 V35, Faz 2 güncellik/retry altyapısı V36 ve Faz 3 keşif metadata/indeksleri V37. Gerçek detay sağlayıcısı henüz entegre edilmedi.
+**Mevcut şema:** GAME-08 V31, GAME-10 V32, GAME-16 V33, GAME-18 V34, GAME-21 V35, Faz 2 güncellik/retry altyapısı V36, Faz 3 keşif metadata/indeksleri V37 ve Faz 4 yönetim/geliştirici tabloları V38–V40. **Game Service migration aralığı (V31–V40) dolmuştur;** sonraki her şema değişikliği (ör. Faz 5) için ekipçe yeni aralık kararı gerekir. Gerçek detay sağlayıcısı henüz entegre edilmedi.
 
 - `games`: UUID `id`, `title`, `normalized_title`, UTC `created_at`/`updated_at`, optimistic `version`.
 - `catalog_terms`: UUID `id`, `kind` (GENRE/CATEGORY/TAG/PLATFORM), `code`, nullable TR/EN adlar, `version`; UNIQUE `(kind, code)`.
@@ -167,8 +167,11 @@ Gösterim: **PK** birincil anahtar, **FK** servis içi yabancı anahtar, **REF**
 - V35: `games.game_type` varchar + CHECK, varsayılan UNKNOWN; aktif katalog için tür/başlık indeksi. MAIN_GAME varsayılan arama kapsamıdır; kesin türü olmayan kayıtlar oyun diye varsayılmaz.
 - V36: `game_provider_sync_state.failure_count` ve `next_attempt_at` kalıcı retry/backoff durumudur. `games.description` (16000), `release_date`, `details_fetched_at`, `details_expires_at`, `details_next_attempt_at`, `details_failure_count`, `details_last_error_code` detay ve güncellik altyapısıdır. Zamanlar timestamptz/UTC, sayaçlar negatif olamaz. Güncellik, son başarılı kısmi detay yanıtına aittir; alan bazlı değildir. Mevcut migrationlar değiştirilmedi.
 - V37: nullable `early_access`; `game_languages` (oyun FK + dil kodu bileşik PK) ve dil arama indeksi. `editor_rank` (1–100, deferred UNIQUE), `popularity_updated_at`, `editor_actor_id` REF ve `editor_evidence` en son editör seçimini tutar; değişiklik geçmişi/audit akışı değildir. Başlık/tarih için ACTIVE MAIN_GAME kısmi indeksleri ve kapak seçimi indeksi eklendi.
+- V38: `game_field_overrides` (UNIQUE `(game_id, field)`; alan allowlist CHECK) EXTERNAL oyunlarda manuel düzeltilmiş sağlayıcı alanlarını kilitler; senkronizasyon bu alanları yazmaz. `game_admin_audits` yönetim eylemlerinin (oyun, yetki, editör, moderasyon) append-only kaydıdır: aktör REF, rol, eylem allowlist CHECK, gerekçe (varsa en az 8 karakter), değişen alan adları (içerik metni değil); trigger UPDATE/DELETE'i reddeder, `game_id` FK `RESTRICT`'tir.
+- V39: `game_developer_grants` oyun bazlı geliştirici yetkisi. `developer_user_id`/`granted_by`/`revoked_by` başka servise ait REF'tir (FK yok). Aynı geliştirici/oyun için tek aktif kayıt kısmi UNIQUE indeksle (`revoked_at is null`) korunur; geri alma kaydı silmez, `revoked_*` alanlarını doldurur (CHECK ile ikisi birlikte dolu/boş).
+- V40: `game_developer_contents` (oyun başına tek açıklama), `game_developer_media` (IMAGE/VIDEO/DEMO, yalnız HTTPS bağlantı CHECK) ve `game_update_notes`. Katalog tabloları (`games.description`, `game_media`) değiştirilmez; sağlayıcı verisi ve geliştirici içeriği birbirini ezmez. Ortak alanlar: `author_id` REF, `status` (VISIBLE/HIDDEN/DELETED; açıklamada yalnız VISIBLE/HIDDEN), moderasyon alanları, version. Yazma yetkisi uygulama katmanında rol + oyun yetkisiyle denetlenir.
 - Keşif sayfası/count/ilişkileri aynı REPEATABLE_READ görünümünde toplu SQL ile okunur; puan projeksiyonu veya review_db erişimi yoktur.
-- Yalnız servis içi FK kullanılır; fiyat ve geliştirici gönderileri sonraki fazlardır.
+- Yalnız servis içi FK kullanılır; fiyat bilgisi sonraki fazdadır.
 
 ### 3.5 library_db — library-service (Hamza)
 

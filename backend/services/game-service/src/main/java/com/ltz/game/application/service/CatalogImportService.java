@@ -13,7 +13,12 @@ import java.text.Normalizer;
 import java.time.Instant;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 /** Her çağrıda tek sayfa; checkpoint ve retry durumu aynı transaction'da saklanır. */
 @Service @RequiredArgsConstructor
@@ -26,6 +31,7 @@ public class CatalogImportService {
     private final GameExternalReferenceRepository references;
     private final Clock clock;
     private final ProviderRetryPolicy retries;
+    private final GameFieldOverrideRepository overrides;
 
     @Transactional
     public CatalogStatusResponse startInitial() { return start(CatalogRunMode.INITIAL); }
@@ -100,7 +106,8 @@ public class CatalogImportService {
             state.setNextAttemptAt(delay == null ? null : clock.instant().plus(delay));
             return response(state);
         }
-        for (var item : page.items()) importItem(item);
+        Map<String, Set<OverridableField>> locked = lockedFields(page.items());
+        for (var item : page.items()) importItem(item, locked.getOrDefault(item.externalId(), Set.of()));
         state.setCursor(page.nextAppId());
         state.setProcessedCount(state.getProcessedCount() + page.items().size());
         state.setFailureCount(0);
@@ -115,7 +122,16 @@ public class CatalogImportService {
         return response(state);
     }
 
-    private void importItem(GameProvider.CatalogItem item) {
+    /** Admin tarafından manuel düzeltilmiş alanlar (GAME-07); sayfa için tek sorguyla okunur. */
+    private Map<String, Set<OverridableField>> lockedFields(List<GameProvider.CatalogItem> items) {
+        if (items.isEmpty()) return Map.of();
+        Map<String, Set<OverridableField>> locked = new HashMap<>();
+        overrides.lockedFields(PROVIDER, items.stream().map(GameProvider.CatalogItem::externalId).toList())
+                .forEach(row -> locked.computeIfAbsent(row.getExternalId(), key -> EnumSet.noneOf(OverridableField.class)).add(row.getField()));
+        return locked;
+    }
+
+    private void importItem(GameProvider.CatalogItem item, Set<OverridableField> locked) {
             var reference = references.findByProviderAndExternalId(PROVIDER, item.externalId()).orElse(null);
             Game game;
             if (reference == null) {
@@ -131,13 +147,14 @@ public class CatalogImportService {
             } else {
                 game = reference.getGame();
                 // Eşlenmiş INTERNAL kayıtların birincil LTZ başlığı sağlayıcı tarafından ezilmez.
-                if (game.getOrigin() == GameOrigin.EXTERNAL) {
+                if (game.getOrigin() == GameOrigin.EXTERNAL && !locked.contains(OverridableField.TITLE)) {
                     game.setTitle(item.title());
                     game.setNormalizedTitle(normalize(item.title()));
                     game.setUpdatedAt(Instant.now());
                 }
             }
-            if (game.getOrigin() == GameOrigin.EXTERNAL && provider.capabilities().contains(GameProvider.Capability.ITEM_TYPE)) {
+            if (game.getOrigin() == GameOrigin.EXTERNAL && !locked.contains(OverridableField.GAME_TYPE)
+                    && provider.capabilities().contains(GameProvider.Capability.ITEM_TYPE)) {
                 GameType observed=types.classify(item.providerType(), true);
                 if (observed != GameType.UNKNOWN) game.setGameType(observed);
             }

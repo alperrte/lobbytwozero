@@ -8,6 +8,20 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class CatalogSchedulingConfigurationTest {
+    @Test void concurrentAdminEditConflictDoesNotStopTheTickOrBubbleUp() {
+        var imports = mock(CatalogImportService.class);
+        var details = mock(GameDetailRefreshService.class);
+        UUID id = UUID.randomUUID();
+        when(imports.synchronizeNextPage()).thenThrow(new org.springframework.orm.ObjectOptimisticLockingFailureException(com.ltz.game.domain.entity.Game.class, id));
+        when(details.dueCandidates()).thenReturn(List.of(id));
+        var configuration = new CatalogSchedulingConfiguration(imports, details);
+        assertDoesNotThrow(configuration::synchronize);
+        verify(details).refresh(id);
+        // Diğer hatalar gizlenmez.
+        doThrow(new IllegalStateException("beklenmeyen")).when(imports).synchronizeNextPage();
+        assertThrows(IllegalStateException.class, configuration::synchronize);
+    }
+
     @Test void schedulingRequiresExplicitOptInAndInvokesTransactionalServices() {
         var imports = mock(CatalogImportService.class);
         var details = mock(GameDetailRefreshService.class);

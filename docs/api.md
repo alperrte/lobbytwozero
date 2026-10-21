@@ -160,7 +160,7 @@ Tüketici servisler: Frontend; ileride Recommendation
 GET /api/v1/game/{gameId}/metadata
 
 #### Yetkilendirme
-Public. Yalnız okuma; yazma veya indeksleme HTTP üzerinden açılmaz. Tanımsız yollar reddedilir.
+Public. Bu uç yalnız okur; yönetim yazmaları ayrı, korumalı uçlardadır (admin/developer/moderation). Tanımsız yollar reddedilir.
 
 #### Path Parameters
 - gameId: UUID, zorunlu
@@ -407,7 +407,7 @@ Tüketici servisler: Frontend
 GET /api/v1/game/games/popular
 
 #### Yetkilendirme
-Public GET. Yalnız ACTIVE + MAIN_GAME ve editör listesinde bulunan oyunlar. Yazma endpoint'i yoktur.
+Public GET. Yalnız ACTIVE + MAIN_GAME ve editör listesinde bulunan oyunlar. Bu uç yalnız okur; listeyi değiştirmek için `PUT /api/v1/game/admin/popular` (Admin) kullanılır.
 
 #### Query Parameters
 page: varsayılan 0, 0–10000. size: varsayılan 20, 1–100. Sabit sıra POPULARITY DESC + gameId ASC; diğer filtreler için genel liste + popularOnly kullanılır.
@@ -420,10 +420,448 @@ GameDiscoveryResponse. popularityBasis=EDITORIAL, sort=POPULARITY, direction=DES
 - 500: Genel sunucu hatası.
 
 #### Bağlantı
-Frontend: Gateway üzerinden aynı path. Liste iç uygulama komutuyla hazırlanır; yetkili yönetim HTTP akışı Faz 4 kapsamındadır.
+Frontend: Gateway üzerinden aynı path. Liste yetkili yönetim ucuyla (`PUT /api/v1/game/admin/popular`) hazırlanır.
 
 #### Test Durumu
 INTEGRATION — uygunluk, sıralama, seçim zamanı, atomik liste değiştirme/temizleme, operatör/gerekçe doğrulaması, başarısız komutta önceki listeyi koruma ve detay yenileme önceliği. Gerçek detay sağlayıcısı entegrasyonu GAME-17'de bekliyor.
+
+### GAME — Toplu oyun kartı (GAME-15)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Library Service, Review Service, Frontend
+
+#### Endpoint
+POST /api/v1/game/games/batch
+
+#### Yetkilendirme
+Public. Kimlik/JWT gerekmez ve gelecekte de zorunlu tutulmaz. Yalnız herkese açık (ACTIVE) kart verisi döner; kişisel, yönetimsel veya LTZ puanı verisi içermez. Kullanıcıya özel ya da yetki gerektiren toplu okumalar bu uca eklenmez, ayrı korumalı sözleşmeyle tasarlanır. Geçersiz bir `Authorization` başlığı yine 401 verir. CSRF: durum değiştirmez ve çerez kullanmaz; bu tek istek, yalnız `Content-Type: application/json` ise CSRF filtresinden açıkça atlanır (başka içerik türleri 403 alır), başka hiçbir istek atlanmaz.
+**İstek sınırı:** istemci başına jeton kovası (ani yük 100, sürekli 20 istek/sn; `ltz.rate-limit.batch.*`). Aşımda 429. İstemci anahtarı doğrudan bağlantı adresidir; `X-Forwarded-For` varsayılan olarak yok sayılır. Gateway istemci IP'sini iletmediği sürece Gateway'den gelen trafik tek bir kovayı paylaşır; doğrudan çağıran iç servisler kendi anahtarını kullanır.
+
+#### Request Body
+```json
+{ "gameIds": ["UUID (1–50 adet, tekrarlar tek sayılır)"] }
+```
+
+#### Response — 200
+```json
+{
+  "items": [ { "gameId": "UUID", "title": "…", "origin": "INTERNAL|EXTERNAL", "metadataCompleteness": "…", "gameType": "…", "externalReferences": [], "coverUrl": "https://… | null" } ],
+  "unavailable": ["UUID"]
+}
+```
+- `items`: istek sırasını korur; her eleman `GET /{gameId}/card` ile aynı sözleşmedir. Tür (MAIN_GAME, DLC vb.) fark etmeksizin ACTIVE kayıtlar döner.
+- `unavailable`: bulunamayan, ARCHIVED veya MERGED kimlikler. Nedenler birbirinden ayırt edilmez. Library Service bu kimlikler için kendi anlık görüntüsünü kullanır (LIB-17).
+
+#### Hata Durumları
+- 400: Boş/51+ kimlik, null eleman, geçersiz UUID, bilinmeyen alan, bozuk gövde (ProblemDetail).
+- 401: Geçersiz Bearer token gönderildi.
+- 403: `Content-Type: application/json` değil (CSRF).
+- 429: İstek sınırı aşıldı (`code: RATE_LIMITED`, `Retry-After` saniye cinsinden başlığıyla; ProblemDetail).
+- 500: Beklenmeyen sunucu hatası.
+
+#### Bağlantı
+Frontend: API Gateway üzerinden aynı path.
+Diğer mikroservisler: RestClient ile doğrudan; sayfa başına tek çağrı. 429 alınırsa `Retry-After` süresi beklenmeli, otomatik sıkı döngüyle yeniden denenmemelidir. Sabit sayıda SQL (oyunlar + dış referanslar) çalışır; oyun başına sorgu yoktur. LTZ puan özeti için Review Service sözleşmesi yoktur ve bu uç puan alanı üretmez.
+
+#### Test Durumu
+INTEGRATION — sıra, tekrar, 50/51 sınırı, geçersiz gövdeler, arşiv/MERGED/olmayan kimlikler, tek kart sözleşmesiyle eşitlik, yönetim verisi sızıntısı olmaması, anonim erişim, CSRF atlamasının kapsamı (yalnız JSON, diğer tüm mutasyon yolları korumalı), salt-okunurluk, 429 istek sınırı (sahte başlıkla atlatılamaz) + birim testleri (jeton kovası, istemci adresi çözümleme).
+
+### GAME — Herkese açık geliştirici içeriği (GAME-13)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/game/games/{gameId}/developer-content
+
+#### Yetkilendirme
+Public GET. Yalnız ACTIVE oyunlar; yalnız VISIBLE (moderasyonla gizlenmemiş, silinmemiş) içerik.
+
+#### Path Parameters
+- gameId: UUID, zorunlu
+
+#### Response — 200
+`contributor` her zaman `DEVELOPER`: içerik katalog/sağlayıcı verisi değil, oyunun yetkili geliştiricisi tarafından eklenmiştir ve yayın öncesi onaylanmamıştır. Yazar kimliği dönmez.
+```json
+{
+  "gameId": "UUID",
+  "contributor": "DEVELOPER",
+  "description": { "text": "düz metin", "updatedAt": "UTC" },
+  "media": [ { "id": "UUID", "type": "IMAGE|VIDEO|DEMO", "url": "https://…", "altText": "…|null", "createdAt": "UTC" } ],
+  "updateNotes": [ { "id": "UUID", "title": "…", "body": "düz metin", "createdAt": "UTC", "updatedAt": "UTC" } ]
+}
+```
+`description` içerik yoksa null; listeler boş olabilir. Metinler düz metindir, istemci kaçışlı göstermelidir (HTML işlenmez). En fazla 50 güncelleme notu, yeniden eskiye sıralı.
+
+#### Hata Durumları
+- 400: Geçersiz UUID.
+- 404: Oyun bulunamadı veya ACTIVE değil.
+- 500: Beklenmeyen sunucu hatası.
+
+#### Bağlantı
+Frontend: API Gateway üzerinden aynı path. Oyun sayfasında katalog verisinden ayrı bölüm olarak gösterilir.
+
+#### Test Durumu
+INTEGRATION — yalnız görünür içerik, gizlenen içeriğin çıkması/geri gelmesi, yazar kimliği sızıntısı olmaması, boş içerik, arşivlenmiş/olmayan oyun.
+
+### GAME — Yönetici: oyun oluşturma (GAME-07)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend (yönetim paneli)
+
+#### Endpoint
+POST /api/v1/game/admin/games
+
+#### Yetkilendirme
+Admin. Bearer JWT zorunlu; rol `ADMIN`. **Geçici doğrulama:** Auth Service henüz JWT üretmediğinden doğrulama yapılandırılabilir bir resource-server altyapısıdır ve yapılandırma yokken hiçbir token kabul edilmez (401, fail-closed). Gerçek rol/claim sözleşmesi doğrulanmadı. Ayrıntı: `docs-Game Service/LTZ-HAM-GAME-04-Auth-Entegrasyonu.md`. Aktör kimliği yalnız doğrulanmış token'dan alınır.
+
+#### Request Body
+```json
+{
+  "title": "zorunlu, ≤256", "gameType": "zorunlu: MAIN_GAME|DLC|DEMO|SOUNDTRACK|SOFTWARE|VIDEO|PACKAGE|HARDWARE|UNKNOWN",
+  "description": "≤16000", "releaseDate": "yyyy-MM-dd", "earlyAccess": true,
+  "languages": ["tr", "en"], "developers": ["…"], "publishers": ["…"],
+  "genres": ["action"], "categories": ["single-player"], "tags": ["indie"], "platforms": ["pc"],
+  "coverUrl": "https://… (izinli görsel hostu)"
+}
+```
+Köken (`INTERNAL`), durum (`ACTIVE`) ve `gameId` sunucuda belirlenir; istekte gönderilirse 400. Terim kodları `[a-z0-9][a-z0-9-]{0,63}`; yoksa sözlüğe eklenir. Diller küçük harf BCP47 benzeri kod.
+
+#### Response — 201
+AdminGameResponse: `gameId`, `status`, `version`, `updatedAt`, `game` (ortak detay yanıtı), `manualOverrides` (INTERNAL oyunda boş). `metadataCompleteness` yalnız var olan veriyi yansıtır (INDEX_ONLY/PARTIAL), FULL iddiası yoktur.
+
+#### Hata Durumları
+- 400: Doğrulama, bilinmeyen alan, geçersiz terim/dil/URL (`code`: `INVALID_TITLE`, `INVALID_MEDIA_URL` vb.).
+- 401: Token yok/geçersiz. 403: Rol ADMIN değil.
+- 500: Beklenmeyen sunucu hatası.
+
+#### Bağlantı
+Frontend: API Gateway üzerinden aynı path. Eylem `game_admin_audits` kaydına (append-only) yazılır.
+
+#### Test Durumu
+INTEGRATION — oluşturma, public katalogda görünme, istemci kontrollü alanların reddi, doğrulama, denetim kaydı.
+
+### GAME — Yönetici: oyun görünümü (GAME-07)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend (yönetim paneli)
+
+#### Endpoint
+GET /api/v1/game/admin/games/{gameId}
+
+#### Yetkilendirme
+Admin (Bearer JWT, rol `ADMIN`; geçici doğrulama notu için bkz. oyun oluşturma kaydı).
+
+#### Response — 200
+AdminGameResponse (ARCHIVED oyunlar dahil; MERGED da görülebilir). `version` PATCH için iyimser kilit sürümüdür; `manualOverrides` senkronizasyonun ezmediği alanlardır.
+
+#### Hata Durumları
+- 400: Geçersiz UUID. 401/403: Kimlik/rol. 404: Oyun yok.
+
+#### Bağlantı
+Frontend: API Gateway üzerinden aynı path.
+
+#### Test Durumu
+INTEGRATION.
+
+### GAME — Yönetici: oyun güncelleme ve manuel düzeltme (GAME-07)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend (yönetim paneli)
+
+#### Endpoint
+PATCH /api/v1/game/admin/games/{gameId}
+
+#### Yetkilendirme
+Admin (Bearer JWT, rol `ADMIN`).
+
+#### Request Body
+`version` zorunlu. Diğer alanlar oluşturmadakiyle aynıdır ve yalnız gönderilenler değişir: gönderilmeyen (null) alan değişmez; boş metin/boş dizi alanı açıkça temizler. Bu nedenle kısmi istek sağlayıcı alanlarını silmez. `releaseDate` ve `earlyAccess` bu fazda yalnız ayarlanır, null'a döndürülemez.
+
+#### Response — 200
+AdminGameResponse. Değişiklik yoksa sürüm ve denetim kaydı değişmez. Dönen `version` istekteki tüm yazmalardan sonraki nihai sürümdür.
+**Manuel düzeltme koruması:** EXTERNAL oyunda `title`, `description`, `releaseDate`, `gameType`, `developers`, `publishers` alanlarından gerçekten değişenler `manualOverrides` içine kilitlenir; katalog aktarımı ve detay yenilemesi bu alanları ezmez. Kilit `manual-overrides/{field}/release` ile kaldırılır. INTERNAL oyunda kilit gerekmez.
+
+#### Hata Durumları
+- 400: Doğrulama / `version` yok. 401/403: Kimlik/rol. 404: Oyun yok.
+- 409: `VERSION_CONFLICT` (eski sürüm), `GAME_MERGED`, `CONCURRENT_MODIFICATION`.
+
+#### Bağlantı
+Frontend: API Gateway üzerinden aynı path. Eylem ve değişen alan adları denetim kaydına yazılır (içerik metni yazılmaz).
+
+#### Test Durumu
+INTEGRATION — kısmi güncelleme, sürüm çakışması, kilitlenen alanların katalog aktarımı ve detay yenilemesinde korunması.
+
+### GAME — Yönetici: oyunu arşivleme ve geri alma (GAME-07)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend (yönetim paneli); Library/Review (yan etki: kartlar `unavailable` döner)
+
+#### Endpoint
+POST /api/v1/game/admin/games/{gameId}/archive
+POST /api/v1/game/admin/games/{gameId}/restore
+
+#### Yetkilendirme
+Admin (Bearer JWT, rol `ADMIN`).
+
+#### Request Body
+```json
+{ "reason": "zorunlu, 8–1000 karakter" }
+```
+
+#### Response — 200
+AdminGameResponse. Arşivleme görünürlüğü kapatır (public detay/kart/liste/batch'te görünmez, editör seçimi temizlenir); oyun ve alt verileri **fiziksel olarak silinmez**. Fiziksel silme uç noktası bilinçli olarak yoktur: Library/Review referansları başka servislerde olduğundan doğrulanamaz. İşlemler idempotenttir; tekrar çağrı denetim kaydı eklemez.
+
+#### Hata Durumları
+- 400: Gerekçe yok/kısa. 401/403. 404: Oyun yok. 409: `GAME_MERGED` (kimlik birleştirme işlemidir).
+
+#### Bağlantı
+Frontend: API Gateway üzerinden aynı path. `ARCHIVE_GAME` / `RESTORE_GAME` denetim kaydı gerekçeyle yazılır.
+
+#### Test Durumu
+INTEGRATION — gizlenme, veri korunması, idempotency, geri alma, MERGED reddi, gerekçe doğrulaması.
+
+### GAME — Yönetici: manuel düzeltme kilidini kaldırma (GAME-07)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend (yönetim paneli)
+
+#### Endpoint
+POST /api/v1/game/admin/games/{gameId}/manual-overrides/{field}/release
+
+#### Yetkilendirme
+Admin (Bearer JWT, rol `ADMIN`).
+
+#### Path Parameters
+- gameId: UUID. field: `TITLE|DESCRIPTION|RELEASE_DATE|GAME_TYPE|DEVELOPERS|PUBLISHERS`.
+
+#### Request Body
+`{ "reason": "zorunlu, 8–1000 karakter" }`
+
+#### Response — 200
+AdminGameResponse. Sonraki senkronizasyon bu alanı sağlayıcı verisiyle yeniden yazabilir.
+
+#### Hata Durumları
+- 400: Geçersiz alan/gerekçe. 401/403. 404: Oyun veya kilit yok (`OVERRIDE_NOT_FOUND`).
+
+#### Bağlantı
+Frontend: API Gateway üzerinden aynı path. `RELEASE_OVERRIDE` denetim kaydı.
+
+#### Test Durumu
+INTEGRATION.
+
+### GAME — Yönetici: editör (popüler) listesi (GAME-20 yönetim girişi)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend (yönetim paneli)
+
+#### Endpoint
+PUT /api/v1/game/admin/popular
+
+#### Yetkilendirme
+Admin (Bearer JWT, rol `ADMIN`).
+
+#### Request Body
+```json
+{ "gameIds": ["UUID, sıralı, ≤100, benzersiz"], "reason": "zorunlu, 8–1000 karakter" }
+```
+Boş liste mevcut seçimi temizler. Yalnız ACTIVE MAIN_GAME seçilebilir; tüm liste doğrulanır, hatalı komut önceki listeyi değiştirmez.
+
+#### Response — 204
+
+#### Hata Durumları
+- 400: Geçersiz/yinelenen/olmayan/uygun olmayan oyun, gerekçe. 401/403.
+
+#### Bağlantı
+Frontend: API Gateway üzerinden aynı path. Seçen aktör kimliği ve gerekçe oyuna yazılır; `SET_EDITORIAL` denetim kaydı eklenir. Okuma: `GET /api/v1/game/games/popular`.
+
+#### Test Durumu
+INTEGRATION.
+
+### GAME — Yönetici: geliştirici yetkisi (GAME-12)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend (yönetim paneli)
+
+#### Endpoint
+POST /api/v1/game/admin/games/{gameId}/developers
+GET /api/v1/game/admin/games/{gameId}/developers
+POST /api/v1/game/admin/games/{gameId}/developers/{developerUserId}/revoke
+
+#### Yetkilendirme
+Admin (Bearer JWT, rol `ADMIN`).
+
+#### Request Body
+Verme: `{ "developerUserId": "UUID", "reason": "8–1000" }`. Geri alma: `{ "reason": "8–1000" }`.
+
+#### Response
+Verme 200: `{ "grantId", "gameId", "developerUserId", "grantedAt" }`; aynı geliştirici/oyun için tekrar çağrı aynı aktif kaydı döndürür (idempotent, tek aktif kayıt DB kısıtıyla korunur). Listeleme 200: aktif yetkiler. Geri alma 204; yetki kaydı silinmez, `revoked_*` alanlarıyla kapatılır.
+Bu kayıt yalnız **oyun bazlı yetkidir**. Kullanıcının `GAME_DEVELOPER` rolüne sahip olup olmadığı Auth Service'in konusudur; kullanım anında token rolü ve bu yetki ayrı ayrı denetlenir.
+
+#### Hata Durumları
+- 400: Doğrulama. 401/403. 404: Oyun yok veya (geri almada) aktif yetki yok (`GRANT_NOT_FOUND`).
+
+#### Bağlantı
+Frontend: API Gateway üzerinden aynı path. `GRANT_DEVELOPER` / `REVOKE_DEVELOPER` denetim kayıtları.
+
+#### Test Durumu
+INTEGRATION + DB kısıtı testleri.
+
+### GAME — Geliştirici: yönetilen oyunlar ve içerik görünümü (GAME-12, GAME-13)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend (geliştirici alanı)
+
+#### Endpoint
+GET /api/v1/game/developer/games
+GET /api/v1/game/developer/games/{gameId}/content
+
+#### Yetkilendirme
+Owner. Bearer JWT; rol `GAME_DEVELOPER` **ve** o oyun için aktif geliştirici yetkisi gerekir (ikisi ayrı denetlenir). Yetkisiz oyun için 403 (IDOR); ARCHIVED oyun için 404. Geçici doğrulama notu için bkz. oyun oluşturma kaydı.
+
+#### Response — 200
+`/games`: `[ { "gameId", "title" } ]` (yalnız yetkili ve ACTIVE oyunlar). `/content`: açıklama (durum, sürüm, moderasyon gerekçesi), medya ve güncelleme notları; silinmiş kayıtlar hariç, HIDDEN kayıtlar durumuyla birlikte görünür.
+
+#### Hata Durumları
+- 401: Token yok/geçersiz. 403: Rol veya oyun yetkisi yok (`ACCESS_FORBIDDEN`). 404: Oyun ACTIVE değil.
+
+#### Bağlantı
+Frontend: API Gateway üzerinden aynı path.
+
+#### Test Durumu
+INTEGRATION — rol var/yetki yok, yetki var/rol yok, başka oyun, geri alınmış yetki, arşivlenmiş oyun.
+
+### GAME — Geliştirici: açıklama (GAME-13)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend (geliştirici alanı)
+
+#### Endpoint
+PUT /api/v1/game/developer/games/{gameId}/description
+
+#### Yetkilendirme
+Owner (rol `GAME_DEVELOPER` + oyun yetkisi).
+
+#### Request Body
+```json
+{ "description": "düz metin, 1–8000", "version": "mevcut içerik varsa zorunlu (iyimser kilit)" }
+```
+Sunucu yalnız `description` ve `version` alanlarını kabul eder; yazar ve durum sunucuda belirlenir. Kontrol karakterleri reddedilir. İçerik katalog açıklamasından (`games.description`) ayrı saklanır.
+
+#### Response — 200
+`{ "text", "status", "version", "moderationReason", "updatedAt" }`
+
+#### Hata Durumları
+- 400: Doğrulama. 401/403/404.
+- 409: `VERSION_CONFLICT`, `CONTENT_HIDDEN` (moderasyonla gizli içerik düzenlenemez), `CONCURRENT_MODIFICATION`.
+
+#### Bağlantı
+Frontend: API Gateway üzerinden aynı path.
+
+#### Test Durumu
+INTEGRATION.
+
+### GAME — Geliştirici: medya bağlantıları (GAME-13)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend (geliştirici alanı)
+
+#### Endpoint
+POST /api/v1/game/developer/games/{gameId}/media
+DELETE /api/v1/game/developer/games/{gameId}/media/{mediaId}
+
+#### Yetkilendirme
+Owner (rol `GAME_DEVELOPER` + oyun yetkisi).
+
+#### Request Body
+```json
+{ "type": "IMAGE|VIDEO|DEMO", "url": "https://…", "altText": "≤200, isteğe bağlı" }
+```
+**Bağlantı politikası:** yalnız bağlantı saklanır; sunucu bu adreslere istek atmaz. Zorunlu: HTTPS, tam host eşleşmesi ve tür bazlı yol öneki allowlist'i, kullanıcı bilgisi/port/fragment yok, IP/alan adı taklidi yok, ASCII RFC 3986 karakterleri, ≤1024; yolda nokta segmenti, çift eğik çizgi, yüzde kodlaması ve noktalı virgül yok; görsellerde `.jpg/.jpeg/.png/.webp/.gif` uzantısı. Kaynaklar `application.properties` içinde `ltz.game.media.{image,video,demo}-sources` ile merkezi yönetilir (kayıt biçimi `host` veya `host/yol-öneki`). Varsayılanlar gerçek Steam sayfası ve örnek URL'lerle doğrulanmıştır: görsel `shared.akamai.steamstatic.com` ve `shared.fastly.steamstatic.com` (`/store_item_assets/steam/apps/`) ile `cdn.akamai.steamstatic.com` (`/steam/apps/`); video `www.youtube.com` (`/watch`, `/embed/`), `www.youtube-nocookie.com` (`/embed/`), `youtu.be`, `vimeo.com`, `player.vimeo.com` (`/video/`); demo `store.steampowered.com` (`/app/`). Dosya yükleme yoktur. Tür başına sınır: 10 görsel, 5 video, 3 demo.
+
+#### Response
+POST 201: `{ "id", "type", "url", "altText", "status", "moderationReason", "createdAt" }`. DELETE 204 (yumuşak silme).
+
+#### Hata Durumları
+- 400: `INVALID_MEDIA_URL` ve doğrulama. 401/403. 404: `MEDIA_NOT_FOUND`.
+- 409: `MEDIA_LIMIT_REACHED`.
+
+#### Bağlantı
+Frontend: API Gateway üzerinden aynı path. Medya depolama kararı bekliyor; ayrı media servisi yoktur.
+
+#### Test Durumu
+UNIT + INTEGRATION — URL politikası tablo testleri (taklit host, userinfo, port, IP, şema, kaçış, uzunluk), tür/host eşleşmesi, sınır, silme.
+
+### GAME — Geliştirici: güncelleme notları (GAME-13)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend (geliştirici alanı)
+
+#### Endpoint
+POST /api/v1/game/developer/games/{gameId}/update-notes
+PUT /api/v1/game/developer/games/{gameId}/update-notes/{noteId}
+DELETE /api/v1/game/developer/games/{gameId}/update-notes/{noteId}
+
+#### Yetkilendirme
+Owner (rol `GAME_DEVELOPER` + oyun yetkisi).
+
+#### Request Body
+`{ "title": "1–120", "body": "düz metin, 1–4000", "version": "yalnız PUT, zorunlu" }`
+
+#### Response
+POST 201 / PUT 200: `{ "id", "title", "body", "status", "version", "moderationReason", "createdAt", "updatedAt" }`. DELETE 204 (yumuşak silme; gizlenmiş not da kaldırılabilir). Oyun başına en fazla 100 not.
+
+#### Hata Durumları
+- 400: Doğrulama / `VERSION_REQUIRED`. 401/403. 404: `NOTE_NOT_FOUND`.
+- 409: `VERSION_CONFLICT`, `CONTENT_HIDDEN`, `NOTE_LIMIT_REACHED`.
+
+#### Bağlantı
+Frontend: API Gateway üzerinden aynı path.
+
+#### Test Durumu
+INTEGRATION.
+
+### GAME — Moderasyon: geliştirici içeriğini gizleme/geri alma (GAME-13)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend (moderasyon paneli)
+
+#### Endpoint
+POST /api/v1/game/moderation/games/{gameId}/developer-content/actions
+
+#### Yetkilendirme
+Admin veya Moderator (Bearer JWT; rol `ADMIN` ya da `MODERATOR`). Geliştirici bu uca erişemez.
+
+#### Request Body
+```json
+{ "target": "DESCRIPTION|MEDIA|UPDATE_NOTE", "targetId": "MEDIA/UPDATE_NOTE için zorunlu, DESCRIPTION için yok", "action": "HIDE|RESTORE", "reason": "zorunlu, 8–1000" }
+```
+
+#### Response — 200
+`{ "target", "targetId", "status": "VISIBLE|HIDDEN" }`. Gizlenen içerik public görünümden çıkar, sahibi düzenleyemez ama kaldırabilir ve gerekçeyi yönetim görünümünde görür. İşlem idempotenttir. Eylem `HIDE_/RESTORE_DEVELOPER_CONTENT` olarak, işlemi yapan rolle birlikte denetim kaydına yazılır. Bu politika yayın sonrası moderasyondur; yayın öncesi onay yoktur. Moderasyon bildirimi sahibine henüz gönderilmez (notification-service entegrasyonu yok).
+
+#### Hata Durumları
+- 400: Doğrulama / `INVALID_TARGET`. 401/403. 404: Oyun veya içerik yok (`CONTENT_NOT_FOUND`).
+
+#### Bağlantı
+Frontend: API Gateway üzerinden aynı path. Admin Service iş akışı bu faza dahil değildir.
+
+#### Test Durumu
+INTEGRATION — roller, hedef doğrulaması, çapraz oyun kimliği, idempotency, denetim rolü, sahibin düzenleme engeli, geri alma.
 
 ## LIBRARY
 

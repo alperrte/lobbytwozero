@@ -243,7 +243,7 @@ erDiagram
 
 ## 5. game_db
 
-Mevcut Game Service şeması (V31–V37); henüz uygulanmayan fiyat ve geliştirici gönderileri dahil edilmemiştir. Popülerlik bu aşamada editör seçimidir.
+Mevcut Game Service şeması (V31–V40); henüz uygulanmayan fiyat bilgileri dahil edilmemiştir. Popülerlik bu aşamada editör seçimidir. V38–V40 ile Game Service migration aralığı (V31–V40) dolmuştur.
 
 ```mermaid
 erDiagram
@@ -257,6 +257,12 @@ erDiagram
   games ||--o{ game_media : shows
   games ||--o{ game_system_requirements : requires
   games ||--o{ game_languages : supports
+  games ||--o{ game_field_overrides : locks
+  games ||--o{ game_admin_audits : audited_by
+  games ||--o{ game_developer_grants : grants
+  games ||--o| game_developer_contents : describes
+  games ||--o{ game_developer_media : links
+  games ||--o{ game_update_notes : announces
   games {
     uuid id PK
     varchar title
@@ -349,6 +355,65 @@ erDiagram
     varchar platform
     varchar level
     int ram_mb
+    bigint version
+  }
+  game_field_overrides {
+    uuid id PK
+    uuid game_id FK "UK(game_id,field)"
+    varchar field "TITLE|DESCRIPTION|RELEASE_DATE|GAME_TYPE|DEVELOPERS|PUBLISHERS"
+    uuid actor_id "REF"
+    timestamptz created_at
+    bigint version
+  }
+  game_admin_audits {
+    uuid id PK
+    uuid game_id FK "nullable"
+    uuid actor_id "REF"
+    varchar actor_role "ADMIN|MODERATOR|GAME_DEVELOPER"
+    varchar action
+    varchar reason
+    varchar details
+    timestamptz created_at
+  }
+  game_developer_grants {
+    uuid id PK
+    uuid game_id FK "partial UK(game_id,developer_user_id) where revoked_at is null"
+    uuid developer_user_id "REF"
+    uuid granted_by "REF"
+    timestamptz granted_at
+    uuid revoked_by "REF"
+    timestamptz revoked_at
+    bigint version
+  }
+  game_developer_contents {
+    uuid game_id PK,FK
+    varchar description
+    uuid author_id "REF"
+    varchar status "VISIBLE|HIDDEN"
+    uuid moderated_by "REF"
+    varchar moderation_reason
+    timestamptz moderated_at
+    bigint version
+  }
+  game_developer_media {
+    uuid id PK
+    uuid game_id FK
+    uuid author_id "REF"
+    varchar type "IMAGE|VIDEO|DEMO"
+    varchar url "https"
+    varchar alt_text
+    varchar status "VISIBLE|HIDDEN|DELETED"
+    uuid moderated_by "REF"
+    bigint version
+  }
+  game_update_notes {
+    uuid id PK
+    uuid game_id FK
+    uuid author_id "REF"
+    varchar title
+    varchar body
+    varchar status "VISIBLE|HIDDEN|DELETED"
+    uuid moderated_by "REF"
     bigint version
   }
 ```
