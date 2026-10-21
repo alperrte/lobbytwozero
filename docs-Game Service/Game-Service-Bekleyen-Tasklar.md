@@ -1,6 +1,6 @@
 # Game Service — bekleyen tasklar ve diğer servislerden beklenenler
 
-**Tarih:** 21 Ekim 2026 · **Sahibi:** Hamza · **Servis:** `game-service` (Faz 1–6 yerel geliştirmeleri; V171–V173 DEV'de uygulandı; dış entegrasyonlar bekliyor)
+**Tarih:** 21 Ekim 2026 · **Sahibi:** Hamza · **Servis:** `game-service` (Faz 1–6 yerel geliştirmeleri; DEV `game_db` 2026-10-21'de sıfırlanıp yeni V31–V40 zinciriyle kuruldu; dış entegrasyonlar bekliyor)
 
 Bu belge, Game Service'te **yapılamayan veya yarım kalan** işleri ve bunların **hangi servise/kişiye/karara** bağlı olduğunu söyler. Kendi servisini ilgilendiren bölümü (§3) oku; yapman gereken bir şey varsa orada yazar. Ayrıntılı API sözleşmesi: `docs/api.md` → `## GAME`.
 
@@ -58,7 +58,8 @@ entegrasyon henüz doğrulanmadı; Auth sözleşmesi/erişim yapılandırması v
 beklenir. İzole testlerde 401/403 ve ADMIN 409 doğrulandı; bunlar canlı Auth
 entegrasyonu yerine geçmez. Ayrıntı: [Auth entegrasyon notu](LTZ-HAM-GAME-04-Auth-Entegrasyonu.md).
 
-V171 DEV'de başarıyla uygulandı; migration veya dağıtım onayı artık bekleyen iş
+V171 (tarihsel eski numara; şema artık aktif V38'dedir) DEV'de başarıyla uygulanmıştı ve
+DEV sonradan sıfırlanıp yeni V31–V40 zinciriyle kuruldu; migration veya dağıtım onayı artık bekleyen iş
 değildir. DEV kataloğu boş olduğundan dolu GAME-23 yanıtı ve geçerli DEV JWT'leri
 olmadığından canlı rol senaryoları doğrulanamadı; bu senaryolar izole ortamda geçti.
 Faz 5'in tamamı entegrasyonlarıyla bitmiş sayılmaz. Ayrıntılı kabul kriterleri ve
@@ -129,7 +130,7 @@ Auth, Review ve Gateway entegrasyonlarının bekleme durumu değişmedi.
 
 1. **GAME-17 kaynağı:** Öneri — Steam indeksini koru, **IGDB**'yi yalnız detay zenginleştirme için değerlendir. Önce projenin ticari kullanım durumu, lisans/atıf koşulları ve Steam AppID eşleme yöntemi netleşmeli; sonra küçük bir pilot. (Kaynak API anahtarı yeni ENV gerektirir → onay.) Ayrıntı: `docs-Game Service/LTZ-HAM-GAME-02-Saglayici-Arastirmasi.md`.
 2. **Fiyat/indirim (GAME-24):** İzinli veri kaynağı var mı? Yoksa görev ertelenir; fiyat bilgisi uydurulmaz.
-3. **Game Service migration aralığı:** V31–V40 doldu. Ek V171–V190 aralığı 2026-10-21 tarihinde onaylandı ve `docs/decisions/migrations.md` içine işlendi. Tahsis ortak branch'e aktarılmalıdır. Faz 5 onayı alındı; V171 kullanıldı. V172–V190 kullanılmadı.
+3. **Game Service migration aralığı:** Aktif zincir kesintisiz V31–V40 (10 migration) ve aralık doldu. Ek V171–V190 aralığı 2026-10-21 tarihinde onaylanmış, sonra kaldırılmıştır (`docs/decisions/migrations.md`); eski zincirde kullanılan V171–V173 tarihsel kayıttır. Ek V171–V190 aralığı ve V174–V190 rezervasyonu sonradan kaldırıldı; Game Service yeni migration gerektirirse numara aralığı ekipçe belirlenmelidir. Tahsis ortak branch'e aktarılmalıdır.
 4. **Servisler arası kimlik modeli** (servis JWT'si mi, başka mı?) — korumalı toplu/servisler arası uçlar bunu bekliyor.
 
 ## 5. Yapma listesi
@@ -160,4 +161,6 @@ Bildirim bu fazın kapsamı değildir; bildirim işlevi tamamlandı sayılmamal�
 Gerçek Auth token'ıyla uçtan uca erişim doğrulaması bekler. Rate limit kullanıcıya
 ve IP'ye uygulanır; süreç içidir, Gateway'de gerçek IP/dağıtık koordinasyon eksikleri
 önceki fazlardan devam eder. V172/V173 DEV'e uygulandı; yalnız Game Service imajı güncellendi;
-dağıtım için ayrı kullanıcı onayı alındı. Gerçek Auth entegrasyonu bekler. Ayrıntılar: [Faz 6 raporu](LTZ-HAM-GAME-06-Rapor.md).
+dağıtım için ayrı kullanıcı onayı alındı. **Güncel (2026-10-21):** `ltz-dev` ortamı
+sıfırlanıp yeni V31–V40 zinciriyle yeniden kuruldu (V171–V173 artık yok; ayrıntı:
+[yedek/restore raporu §10](LTZ-HAM-GAME-DEV-Yedek-Restore-Hazirlik.md)). Gerçek Auth entegrasyonu bekler. Ayrıntılar: [Faz 6 raporu](LTZ-HAM-GAME-06-Rapor.md).

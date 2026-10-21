@@ -1,7 +1,3 @@
-alter table game_external_refs add constraint ck_game_external_refs_steam_appid check (
-    provider <> 'STEAM' or case when external_id ~ '^[1-9][0-9]{0,9}$'
-        then external_id::bigint <= 4294967295 else false end
-);
 create table game_identity_audits (
     id uuid primary key,
     reference_id uuid not null references game_external_refs(id) on delete restrict,

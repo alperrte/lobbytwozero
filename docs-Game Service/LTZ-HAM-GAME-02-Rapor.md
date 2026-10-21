@@ -1,5 +1,7 @@
 # LTZ-HAM-GAME-02 — Faz 2 uygulama ve doğrulama raporu
 
+> **Tarihsel not (2026-10-21):** Bu raporda geçen V31–V40 numaraları, o fazın eski migration zincirindeki anlamıyla yazılmıştır. Aynı gün `ltz-dev` ortamı sıfırlandı ve DEV `game_db` yeni V31–V40 zinciriyle (10 migration) kuruldu; aktif eşleştirme [migrations.md](../docs/decisions/migrations.md) ve [yeniden yapılandırma raporundadır](LTZ-HAM-GAME-Migration-Yeniden-Yapilandirma.md). Bu raporlardaki V171–V190 ek aralığı ve "sıradaki V174" ifadeleri o günün kararıdır; ek aralık ve V174–V190 rezervasyonu sonradan kaldırılmıştır.
+
 Tarih: 2026-10-21 · Sorumlu: Hamza · Servis: game-service
 
 **Durum: GAME-19 ve GAME-22 uygulama/test kapsamında tamamlandı; GAME-17 kısmi. Faz 2 bütünü tamamlanmadı. Gerçek detay sağlayıcısı için veri kaynağı kararı ve entegrasyon onayı bekleniyor. Faz 3 ve Faz 4 sonradan kullanıcı onayıyla uygulandı; GAME-17 gerçek sağlayıcı entegrasyonu hâlâ bekliyor.**

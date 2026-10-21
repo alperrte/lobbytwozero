@@ -11,12 +11,15 @@ class PhaseSixMigrationTest {
     @Test void populatedV171UpgradesWithoutInventingContentAndFeedbackReferencesAreRestricted() {
         try(var pg=new PostgreSQLContainer("postgres:17-alpine")) {
             pg.start(); var ds=new DriverManagerDataSource(pg.getJdbcUrl(),pg.getUsername(),pg.getPassword());
-            Flyway.configure().dataSource(ds).target("171").load().migrate();
+            Flyway.configure().dataSource(ds).locations("classpath:db/history/game-service-v173").target("171").load().migrate();
             var jdbc=new JdbcTemplate(ds); UUID game=UUID.randomUUID();
+            assertEquals("171", jdbc.queryForObject("select version from flyway_schema_history order by installed_rank desc limit 1", String.class));
+            assertNull(jdbc.queryForObject("select to_regclass('public.game_achievement_definitions')::text", String.class));
+            assertNull(jdbc.queryForObject("select to_regclass('public.game_developer_feedback')::text", String.class));
             jdbc.update("insert into games(id,title,normalized_title,created_at,updated_at,metadata_language) values (?,'Existing game','existing game',now(),now(),'tr')",game);
             jdbc.update("insert into game_languages(game_id,language_code) values (?,'tr')",game);
             jdbc.update("insert into game_metadata_provenance(game_id,field,source,data_state,recorded_at) values (?,'TITLE','ADMIN','AVAILABLE',now())",game);
-            Flyway.configure().dataSource(ds).load().migrate();
+            Flyway.configure().dataSource(ds).locations("classpath:db/history/game-service-v173").load().migrate();
             assertEquals("Existing game",jdbc.queryForObject("select title from games where id=?",String.class,game));
             assertEquals("tr",jdbc.queryForObject("select metadata_language from games where id=?",String.class,game));
             assertEquals("tr",jdbc.queryForObject("select language_code from game_languages where game_id=?",String.class,game));

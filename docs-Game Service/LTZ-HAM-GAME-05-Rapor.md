@@ -1,5 +1,7 @@
 # LTZ-HAM-GAME-05 — Yerelleştirme, fiyat hazırlığı ve manuel düzeltmeler
 
+> **Tarihsel not (2026-10-21):** Bu raporda geçen V31–V40 ve V171–V173 numaraları ve DEV geçmişi, eski 13 dosyalı migration zincirine aittir. Aynı gün `ltz-dev` ortamı sıfırlandı ve DEV `game_db` yeni V31–V40 zinciriyle (10 migration) kuruldu; aktif eşleştirme [migrations.md](../docs/decisions/migrations.md) ve [yeniden yapılandırma raporundadır](LTZ-HAM-GAME-Migration-Yeniden-Yapilandirma.md). Bu raporlardaki V171–V190 ek aralığı ve "sıradaki V174" ifadeleri o günün kararıdır; ek aralık ve V174–V190 rezervasyonu sonradan kaldırılmıştır. Aşağıdaki sonuçlar o tarihteki teslim durumunu gösterir.
+
 Tarih: 2026-10-21 · Sorumlu: Hamza · Branch: feature/game-service
 
 ## Sıra ve durum

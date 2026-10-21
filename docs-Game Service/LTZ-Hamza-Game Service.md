@@ -101,7 +101,7 @@
 
 ### LTZ-HAM-GAME-04 — Yetkili Oyun Yönetimi ve Geliştirici Alanı
 
-**2026-10-21 durumu:** Kullanıcı onayıyla uygulandı. GAME-07/12/13 Game Service sınırında uygulandı ve test edildi; GAME-15'in herkese açık toplu kart ucu hazır, Review Service puan tarafı sözleşme beklediğinden açık. **Yetkili uçlar geçici, Auth'tan bağımsız ve fail-closed JWT doğrulamasına dayanır; Auth Service entegrasyonu TAMAMLANMADI (NOT VERIFIED).** Faz bütünü üretime hazır sayılmaz. İkinci geçişte gerçek eşzamanlılık testleri, toplu uç rate limit'i, medya host doğrulaması ve CSRF incelemesi tamamlandı (182 test, %98,47, SonarQube PASSED); Gateway'den istemci IP iletimi onay bekliyor. [Faz 4 raporu](LTZ-HAM-GAME-04-Rapor.md) · [Auth entegrasyonu](LTZ-HAM-GAME-04-Auth-Entegrasyonu.md). Faz 5 kullanıcı onayıyla uygulandı; yerel kapsam ve bekleyen entegrasyonlar [Faz 5 raporunda](LTZ-HAM-GAME-05-Rapor.md) ayrılmıştır. Ek V171–V190 tahsisinden V171 kullanıldı.
+**2026-10-21 durumu:** Kullanıcı onayıyla uygulandı. GAME-07/12/13 Game Service sınırında uygulandı ve test edildi; GAME-15'in herkese açık toplu kart ucu hazır, Review Service puan tarafı sözleşme beklediğinden açık. **Yetkili uçlar geçici, Auth'tan bağımsız ve fail-closed JWT doğrulamasına dayanır; Auth Service entegrasyonu TAMAMLANMADI (NOT VERIFIED).** Faz bütünü üretime hazır sayılmaz. İkinci geçişte gerçek eşzamanlılık testleri, toplu uç rate limit'i, medya host doğrulaması ve CSRF incelemesi tamamlandı (182 test, %98,47, SonarQube PASSED); Gateway'den istemci IP iletimi onay bekliyor. [Faz 4 raporu](LTZ-HAM-GAME-04-Rapor.md) · [Auth entegrasyonu](LTZ-HAM-GAME-04-Auth-Entegrasyonu.md). Faz 5 kullanıcı onayıyla uygulandı; yerel kapsam ve bekleyen entegrasyonlar [Faz 5 raporunda](LTZ-HAM-GAME-05-Rapor.md) ayrılmıştır. Ek V171–V190 tahsisinden V171 kullanıldı (tarihsel eski numara; ek aralık sonradan kaldırıldı; güncel aktif zincir V31–V40, bkz. migrations.md).
 
 **Sorumlu:** Hamza  
 **Servis:** `game-service`  
@@ -154,7 +154,7 @@
 
 **Ana task açıklaması:** Başarım/rehber gibi modüler detaylar ve ayrı geri bildirim iş akışlarını hayata geçir.
 
-**2026-10-21 durumu:** GAME-11 KISMEN TAMAMLANDI: başarım tanımları ve modül okuma hazır; dış UGC modülleri sahiplik/API bekliyor. GAME-14 yerel özel geri bildirim iş akışı uygulandı; gerçek Auth entegrasyonu NOT VERIFIED. V172/V173 ayrı kullanıcı onayıyla DEV'e uygulandı; yalnız Game Service dağıtıldı. [Faz 6 raporu](LTZ-HAM-GAME-06-Rapor.md).
+**2026-10-21 durumu:** GAME-11 KISMEN TAMAMLANDI: başarım tanımları ve modül okuma hazır; dış UGC modülleri sahiplik/API bekliyor. GAME-14 yerel özel geri bildirim iş akışı uygulandı; gerçek Auth entegrasyonu NOT VERIFIED. V172/V173 ayrı kullanıcı onayıyla DEV'e uygulandı; yalnız Game Service dağıtıldı (tarihsel eski numaralar; aynı gün `ltz-dev` sıfırlandı ve DEV `game_db` yeni V31–V40 zinciriyle, 10 migration, kuruldu). [Faz 6 raporu](LTZ-HAM-GAME-06-Rapor.md).
 
 **Alt tasklar:**
 

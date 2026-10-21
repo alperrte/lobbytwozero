@@ -1,8 +1,8 @@
 # LTZ (LobbyTwoZero) — ER Diyagramları
 
-> Tarih: 2026-10-20
+> Tarih: 2026-10-20 · Son güncelleme: 2026-10-21
 >
-> Durum: Game Service Faz 1 diyagramı V31–V35 ile uygulanmış şemayı gösterir; diğer diyagramlar **`[ÖNERİ]`** olarak [database.md](database.md) içindeki tablo önerilerini gösterir. Bir servisin şeması değiştiğinde ilgili diyagram aynı değişiklikte güncellenir.
+> Durum: Game Service diyagramları (§5) DEV `game_db` üzerinde uygulanmış güncel V31–V40 zincirinin (10 migration, 21 tablo) şemasını gösterir; diğer diyagramlar **`[ÖNERİ]`** olarak [database.md](database.md) içindeki tablo önerilerini gösterir. Bir servisin şeması değiştiğinde ilgili diyagram aynı değişiklikte güncellenir.
 >
 > Gösterim:
 > - Düz çizgi / `FK`: aynı veritabanı içindeki gerçek yabancı anahtar.
@@ -243,7 +243,7 @@ erDiagram
 
 ## 5. game_db
 
-Faz 6 / V172–V173 eklentisi (2026-10-21 tarihinde kullanıcı onayıyla DEV'e uygulandı):
+Faz 6 eklentisi: başarım ve geri bildirim tabloları (tarihsel V172–V173; güncel aktif zincirde V39–V40, DEV'de uygulanmıştır):
 
 ```mermaid
 erDiagram
@@ -274,7 +274,8 @@ erDiagram
   }
 ```
 
-GAME-23/V171 eklentisi (eski `game_languages` ilişkisi aynen korunur):
+GAME-23 yerelleştirme ilişkileri (oyun alanları aktif V31,
+destek/provenance tabloları aktif V38 / tarihsel V171; `game_languages` ilişkisi aynen korunur):
 
 ```mermaid
 erDiagram
@@ -302,7 +303,15 @@ erDiagram
   }
 ```
 
-Ana Game Service şeması (V31–V40, GAME-23 için V171 eklentisi yukarıdadır); henüz uygulanmayan fiyat bilgileri dahil edilmemiştir. Popülerlik bu aşamada editör seçimidir. V38–V40 ile Game Service migration aralığı (V31–V40) dolmuştur.
+Ana Game Service şeması; henüz uygulanmayan fiyat bilgileri dahil edilmemiştir.
+2026-10-21 tarihli son açık talimatla başlangıç kaynakları kesintisiz V31–V40 olarak
+10 dosyada yeniden numaralandırıldı. V35 admin yönetimi, V36 grant, V37 geliştirici
+içeriği, V38 yerelleştirme/provenance, V39 başarım, V40 feedback'tir. İlişkiler ve
+fiziksel şema aynı kalır. 2026-10-21 tarihinde `ltz-dev` Compose ortamı `down -v` ile
+sıfırlanıp yeniden kuruldu; DEV `game_db` artık yeni V31–V40 zinciriyle (10 kayıt)
+temiz oluşturuldu. Eski 13 dosyalı DEV geçmişi geri yüklenmedi.
+Popülerlik bu aşamada editör seçimidir.
+[Dosya haritası ve doğrulama raporu](../docs-Game%20Service/LTZ-HAM-GAME-Migration-Yeniden-Yapilandirma.md).
 
 ```mermaid
 erDiagram
@@ -419,7 +428,7 @@ erDiagram
   game_field_overrides {
     uuid id PK
     uuid game_id FK "UK(game_id,field)"
-    varchar field "TITLE|DESCRIPTION|RELEASE_DATE|GAME_TYPE|DEVELOPERS|PUBLISHERS"
+    varchar field "TITLE|DESCRIPTION|RELEASE_DATE|GAME_TYPE|DEVELOPERS|PUBLISHERS|LOCALIZATION"
     uuid actor_id "REF"
     timestamptz created_at
     bigint version
