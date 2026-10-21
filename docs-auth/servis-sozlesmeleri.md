@@ -37,6 +37,13 @@ Auth'un imzaladığı kısa ömürlü JWT: `iss=ltz-auth`, `sub=svc:<çağıran>
 kimliksiz açılmaz. **Üretici kod yazılmadı** (kullanılmayan kod ve yakında gelecek repository geneli Security güncellemesiyle
 çakışma riski nedeniyle); sözleşme onaylanınca eklenecek.
 
+## 3.1 Servis sahipleri için
+
+Diğer servis sahiplerinin yapması gerekenler (JWT doğrulama ayrıntısı, roller, sahiplik, 401/403, iptal gecikmesi, silme ucu, Game/Library/Review
+örnekleri, test listesi) tek yerde toplanmıştır: [docs/AUTH_SERVICE_ENTEGRASYON_REHBERI.md](../docs/AUTH_SERVICE_ENTEGRASYON_REHBERI.md). Bu belge sözleşmenin
+kaynağıdır; rehber onu tekrar tanımlamaz. **Açık nokta (S2):** silme hedef listesinde `game` ve `admin` yoktur; `accountId` içeren veri tutuyorlarsa
+listeye eklenmeleri Auth sahibiyle kararlaştırılmalıdır.
+
 ## 4. Silme koordinasyonunun özeti
 
 `DELETION_REQUESTED` → her servis için görev (`account_deletion_tasks`) → worker görevi kiralar (SKIP LOCKED) → çağrı işlem

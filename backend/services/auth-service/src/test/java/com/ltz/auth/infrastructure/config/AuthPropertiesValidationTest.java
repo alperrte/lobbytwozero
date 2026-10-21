@@ -85,6 +85,14 @@ class AuthPropertiesValidationTest {
                 .run(context -> assertThat(context).hasFailed());
     }
 
+    @Test
+    void adminIcinIkiFaktorZorunluluguKapatilamaz() {
+        runner.withPropertyValues("ltz.auth.two-factor.required-roles=MODERATOR")
+                .run(context -> assertThat(context).hasFailed());
+        runner.withPropertyValues("ltz.auth.two-factor.required-roles=")
+                .run(context -> assertThat(context).hasFailed());
+    }
+
     private static String fullMessage(Throwable failure) {
         StringBuilder message = new StringBuilder();
         for (Throwable current = failure; current != null; current = current.getCause()) {

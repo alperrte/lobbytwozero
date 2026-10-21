@@ -10,6 +10,7 @@ import org.springframework.validation.annotation.Validated;
 
 import com.ltz.auth.domain.enums.RoleCode;
 
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -29,6 +30,12 @@ public record TwoFactorProperties(
         @Min(5) @Max(20) int recoveryCodeCount,
         @Min(0) @Max(2) int allowedClockSkewSteps,
         @NotNull Set<RoleCode> requiredRoles) {
+
+    /** ADMIN için TOTP zorunluluğu ortam değişkeniyle kapatılamaz; boş veya ADMIN'siz küme açılışı durdurur. */
+    @AssertTrue(message = "two-factor.required-roles ADMIN rolünü içermelidir")
+    boolean isAdminTwoFactorRequired() {
+        return requiredRoles != null && requiredRoles.contains(RoleCode.ADMIN);
+    }
 
     @Override
     public String toString() {
