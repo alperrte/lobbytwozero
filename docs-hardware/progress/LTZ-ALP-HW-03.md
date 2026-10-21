@@ -1,6 +1,6 @@
 # LTZ-ALP-HW-03 — Donanım Gizliliği, Karşılaştırma ve Servis API'leri
 
-Sorumlu: Alper. Başlangıç: 2026-10-21. Durum: READY_FOR_PDA — DEFERRED_AUTH / DEFERRED_CONTRACT; 3/3.
+Sorumlu: Alper. Başlangıç: 2026-10-21. Durum: DONE — DEFERRED_AUTH / DEFERRED_CONTRACT; 3/3. PDA kapanışı kullanıcı tarafından bildirildi.
 
 - [x] HW-08 — Donanım gizliliği
 - [x] HW-09 — Donanım karşılaştırma
@@ -94,3 +94,9 @@ V1–V7 PostgreSQL/Flyway/JPA PASS. Üç MINOR düzeltmesi son kodda doğruland�
 Toplam alt görev 13/17. HW-03 ana kutusu PDA kapanışını kullanıcı bildirene kadar
 açık; HW-04/HW-05 NOT_STARTED. Gerçek Auth ve dış consumer/policy E2E ertelenmiş;
 production-ready değildir. Commit/PDA kullanıcıya ait; ajan burada durur.
+
+## PDA kapanışı ve HW-04 geçişi
+
+2026-10-21: Kullanıcı HW-03'ü PDA'da kapattığını ve HW-04'e geçilebileceğini bildirdi.
+Kullanıcı commit'i 104524a doğrulandı; başlangıç çalışma ağacı temizdi. HW-03 ana
+kutusu bu kapanış bildirimiyle [x]; HW-04 başlangıç/erişim önerisi kendi kaydındadır.

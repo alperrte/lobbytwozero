@@ -741,6 +741,48 @@ erDiagram
 Eksik kural PRIVATE. User/Social sahipli dış tercih/ilişki verisi burada tutulmaz.
 HW-09/HW-17 mevcut profil/component tablolarından sınırlı DTO üretir; yeni tablo yok.
 
+HW-12/V8 yorum şeması (206 test / PostgreSQL/Flyway/JPA PASS):
+
+```mermaid
+erDiagram
+  hardware_products ||--o{ hardware_reviews : "catalog target FK"
+  hardware_reviews {
+    uuid id PK
+    uuid product_id FK
+    uuid user_id "external REF"
+    varchar body "1..5000 or deleted NULL"
+    int rating "optional 1..5"
+    varchar body_hash "normalized copy fingerprint"
+    varchar status "VISIBLE|HIDDEN|DELETED"
+    bigint version
+    timestamptz created_at
+    timestamptz updated_at
+    timestamptz deleted_at
+  }
+```
+
+Silinmemiş ürün/yazar ve yazar/body_hash partial tekillikleri vardır. Teknik audit
+append-only, actor/socket-peer rate bucket'ları kısa TTL'lidir; diyagramda gösterilmez.
+HW-13/V9 rapor şeması (239 test / PostgreSQL/Flyway/JPA PASS):
+
+```mermaid
+erDiagram
+  hardware_reviews ||--o{ hardware_review_reports : "report target FK"
+  hardware_review_reports {
+    uuid id PK
+    uuid review_id FK
+    uuid reporter_id "external REF"
+    varchar reason "six allowed reasons"
+    varchar details "optional 1..500"
+    uuid outbox_event_id "nullable FK; ON DELETE SET NULL"
+    bigint version
+    timestamptz created_at
+  }
+```
+
+Review/reporter tekildir; audit ve outbox teknik tabloları genel kural gereği çizilmez.
+Outbox sadece PENDING yerel kayıt üretir; gerçek Admin/Notification teslimi ertelenmiştir.
+
 **Gelecek görevler için öneri (uygulanmış değildir):**
 Aşağıdaki eski geniş diyagramdaki yorum/sync/provider tabloları hâlâ öneridir;
 kampanya için yukarıdaki V5, ürün/marka için V2/V3 uygulama tanımı geçerlidir;

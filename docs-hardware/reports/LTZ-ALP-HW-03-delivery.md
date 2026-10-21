@@ -1,8 +1,9 @@
 # LTZ-ALP-HW-03 — Donanım Gizliliği, Karşılaştırma ve Servis API'leri
 
 Tarih: 2026-10-21. Sorumlu: Alper.
-Durum: **READY_FOR_PDA — DEFERRED_AUTH / DEFERRED_CONTRACT**.
-Ana task PDA'da kapatılmadı; bu işlem kullanıcıya aittir. HW-04/HW-05 başlamadı.
+Durum: **DONE — DEFERRED_AUTH / DEFERRED_CONTRACT**.
+Kullanıcı 2026-10-21 tarihinde PDA kapanışını ve HW-04 geçişini bildirdi;
+kullanıcı commit'i 104524a doğrulandı. Aşağıdaki teknik kanıt teslim snapshot'ıdır.
 
 ## Kapsam ve kabul kanıtı
 
@@ -12,8 +13,9 @@ Ana task PDA'da kapatılmadı; bu işlem kullanıcıya aittir. HW-04/HW-05 başl
 | HW-09 karşılaştırma | DONE | HardwareComparisonControllerTest 9 PASS |
 | HW-17 teknik veri sözleşmesi | Yerel sözleşme DONE; consumer E2E ertelendi | HardwareBatchControllerTest 14 PASS |
 
-3/3 aktif alt görev; toplam 13/17. PDA'da kapanışı kullanıcı tarafından doğrulanmış
-ana görev sayısı 2/5; HW-03 ana kutusu kullanıcı kapanışı gelene kadar `[ ]` kalır.
+Teslim anında 3/3 aktif alt görev; toplam 13/17. O sırada PDA kapanışı doğrulanmış
+ana görev sayısı 2/5 idi. Sonraki kullanıcı bildirimiyle HW-03 ana kutusu `[x]`,
+PDA kapanışı doğrulanmış ana görev sayısı 3/5 oldu.
 Kullanıcı HW-03 erişim modelini ve dış sözleşmelerin güvenli ertelenmesini ayrı ayrı
 onayladı: [karar](../decisions/HW03-privacy-integration-proposal.md).
 
@@ -166,6 +168,7 @@ Yeni gerçek adapter veya diğer ana görev yalnız sonraki açık kullanıcı t
 
 ## Teslim durumu
 
-Yerel alt görevler ve iki kalite kapısı doğrulandı. Kullanıcı LTZ-ALP-HW-03'ü
-PDA üzerinden kapatabilir; commit/push kullanıcıya aittir. Ana task kutusu açık kalır.
-HW-04'e geçilmedi. Önerilen tek feature mesajı son yanıtta verilir; ajan durur.
+Yerel alt görevler ve iki kalite kapısı doğrulandı; tek feature mesajı kullanıcıya
+verildi. Kullanıcı daha sonra PDA kapanışını ve HW-04 geçişini bildirdi; 104524a
+commit'i ve temiz çalışma ağacı doğrulandı. HW-03 ana kutusu `[x]`; HW-04 kendi
+checkpoint'inden ilerler. Git yazma veya PDA kapatma ajan tarafından yapılmadı.

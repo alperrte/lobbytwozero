@@ -30,8 +30,18 @@ public class HardwareSecurityConfiguration {
                 .authorizeHttpRequests(requests -> requests
                         // Existing readiness/liveness contract only; no business data.
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        .requestMatchers("/api/v1/hardware/moderation/reviews/**")
+                        .access((authentication, context) -> {
+                            var auth = authentication.get();
+                            if (auth == null || !auth.isAuthenticated() || !(auth.getPrincipal() instanceof AuthenticatedActor)) {
+                                return new AuthorizationDecision(false);
+                            }
+                            return new AuthorizationDecision(auth.getAuthorities().stream().anyMatch(a ->
+                                    com.ltz.hardware.application.port.HardwareReviewModerationAccess.PERMISSION.equals(a.getAuthority())));
+                        })
                         .requestMatchers("/api/v1/hardware/profiles", "/api/v1/hardware/profiles/**",
-                                "/api/v1/hardware/comparisons/**")
+                                "/api/v1/hardware/comparisons/**", "/api/v1/hardware/reviews/**",
+                                "/api/v1/hardware/catalog/products/*/reviews", "/api/v1/hardware/review-reports/**")
                         .access((authentication, context) -> {
                             var auth = authentication.get();
                             return new AuthorizationDecision(auth != null && auth.isAuthenticated()

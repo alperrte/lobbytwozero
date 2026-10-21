@@ -165,7 +165,7 @@ lobbytwozero/
 
 **Ana task kabulü:** 3/3 kanıt + iki kalite kapısı PASS. **STOP + tek `feature:` mesajı.**
 
-### [ ] ANA TASK 03 — LTZ-ALP-HW-03 — Donanım Gizliliği, Karşılaştırma ve Servis API'leri
+### [x] ANA TASK 03 — LTZ-ALP-HW-03 — Donanım Gizliliği, Karşılaştırma ve Servis API'leri
 
 **Hedef:** Alan bazlı görünürlüğü backend uygular; güvenli teknik karşılaştırma ve Performance/Recommendation'ın sözleşmeli veri okuması sağlanır.
 
@@ -179,8 +179,8 @@ lobbytwozero/
 
 **Hedef:** Kullanıcı donanım ürünü deneyimini paylaşır ve uygunsuz yorum raporu ortak Admin Service moderasyon sürecine güvenli biçimde hazırlanır/iletilir.
 
-- [ ] **HW-12 — Donanım yorumları:** Donanım ürünü hakkında kullanıcı değerlendirme ve deneyim içeriği; sahiplik, validation, tekillik, uygunsuz durum/hata kontrolü, güvenli DTO.
-- [ ] **HW-13 — Donanım yorumu moderasyonu:** Raporlama, mükerrer rapor koruması, durumlar ve `ContentReported` / ilgili yönetim sözleşmesi; `admin-service` olmayan uç noktalarını varmış gibi çağırma; sözleşme/E2E blokajını kaydet.
+- [x] **HW-12 — Donanım yorumları:** Donanım ürünü hakkında kullanıcı değerlendirme ve deneyim içeriği; sahiplik, validation, tekillik, uygunsuz durum/hata kontrolü, güvenli DTO.
+- [x] **HW-13 — Donanım yorumu moderasyonu:** Raporlama, mükerrer rapor koruması, durumlar ve `ContentReported` / ilgili yönetim sözleşmesi; `admin-service` olmayan uç noktalarını varmış gibi çağırma; sözleşme/E2E blokajını kaydet.
 
 **Ana task kabulü:** 2/2 kanıt + iki kalite kapısı PASS; gerçek Admin entegrasyonunun durumu şeffaf. **STOP + tek `feature:` mesajı.**
 
@@ -337,31 +337,37 @@ Yalnız aktif taskın alt görevleri bitmediğinde ya da kapılar geçmediğinde
 
 | Alan | Başlangıç durumu |
 |---|---|
-| Aktif ana task | `LTZ-ALP-HW-03` — kullanıcı geçişi onayladı; HW-02 PDA kapanışı bildirildi |
-| Aktif alt task | `HW-08/HW-09/HW-17` — 3/3 yerel kapsam ve iki kalite kapısı doğrulandı |
-| Ana task aşaması | `READY_FOR_PDA — DEFERRED_AUTH / DEFERRED_CONTRACT` — 3/3; [teslim](docs-hardware/reports/LTZ-ALP-HW-03-delivery.md), [kalite](docs-hardware/testing/LTZ-ALP-HW-03-quality.md); ana kutu kullanıcı kapanışını bekler |
+| Aktif ana task | `LTZ-ALP-HW-04 — Donanım Yorumları ve Moderasyon` — kullanıcı geçişi ve HW-03 PDA kapanışı onaylı |
+| Aktif alt task | `HW-12/HW-13` — 2/2 yerel kurallar ve nihai iki kalite kapısı doğrulandı |
+| Ana task aşaması | `READY_FOR_PDA — DEFERRED_AUTH / DEFERRED_CONTRACT` — 2/2; [teslim](docs-hardware/reports/LTZ-ALP-HW-04-delivery.md), [ilerleme](docs-hardware/progress/LTZ-ALP-HW-04.md); PDA kapanışı kullanıcıyı bekler, STOP |
 | 01 | `DONE — DEFERRED_AUTH` — 7/7; kullanıcı kapanış bildirimiyle ana task `[x]` |
 | 02 | `DONE — DEFERRED_AUTH` — 3/3; PDA kapanışı kullanıcı tarafından bildirildi, commit 6756210 doğrulandı |
-| 03 | `READY_FOR_PDA — DEFERRED_AUTH / DEFERRED_CONTRACT` — 3/3; full dev SAFE TO COMMIT + Sonar A/A/A/gate PASS; ana kutu `[ ]` |
-| 04 | `NOT_STARTED` — 0/2 |
+| 03 | `DONE — DEFERRED_AUTH / DEFERRED_CONTRACT` — 3/3; kullanıcı PDA kapanışını bildirdi, commit 104524a doğrulandı; ana kutu `[x]` |
+| 04 | `READY_FOR_PDA — DEFERRED_AUTH / DEFERRED_CONTRACT` — 2/2; iki nihai kapı PASS; ana kutu `[ ]`, PDA kapanışını kullanıcı yapar |
 | 05 | `NOT_STARTED` — 0/2 |
-| Toplam doğrulanan alt görev | `13/17` |
-| Son doğrulanan alt görev | `HW-17` — 14 yeni batch senaryosu; modül toplamı 174 PASS; 2026-10-21 06:10:20 +03 |
-| Son değiştirilen dosyalar | HW-03: 22 yeni production Java, 5 mevcut Java, V6/V7 ve 3 yeni integration test sınıfı; docs/api.md HARDWARE, DB/ER/mimari, docs-hardware. Harici beş pre-push dosyası korunuyor |
-| Son Flyway | V6 privacy + V7 constraint/index ad standardı; V1–V7 PostgreSQL/Flyway/JPA PASS (192 backend testi); önceki migration'lar değiştirilmedi; V6/V7 canlı DB'ye uygulanmadı |
-| Son endpoint / docs/api.md değişikliği | 3 privacy/shared + 3 comparison + 1 batch; toplam 31 iş endpoint'i; [API kataloğu](docs/api.md#hardware) |
-| Son Maven/test komutu ve sonuç | Final full dev ve scan dev clean verify: 18 modül, 192 PASS; hardware 174 PASS; failure/error/skipped 0; 2026-10-21 06:27:35 +03; [kalite kaydı](docs-hardware/testing/LTZ-ALP-HW-03-quality.md) |
-| JaCoCo | Hardware 884/898=%98,44; tüm backend ağırlıklı satır kapsamı %94,94; exclusion yok |
-| Pre-push | Final full dev PASS / exit 0: 192 test, %94,94, 18/18 HTTP, SAFE TO COMMIT; log kapanışı 2026-10-21 06:23:51 +03; V7 ve Sonar düzeltmeleri dahil |
-| Sonar / Quality Gate | Final scan dev PASS / exit 0; A/A/A, Quality Gate OK, overall %91,2 / new %93,7 / duplication %0; new issue/açık issue/hotspot 0; analiz ad6e17fe-a77a-4269-92b7-9a64fda8e8c9; 06:27:35 +03 |
+| Toplam doğrulanan alt görev | `15/17` |
+| Son doğrulanan alt görev | `HW-13` — 33 yeni senaryo; modül toplamı 239 PASS; 2026-10-21 18:56:40 +03; logs/hw04-moderation-final-local.log |
+| Son değiştirilen dosyalar | Hardware 45 kaynak: 36 yeni/2 mevcut production Java, V8/V9, 4 yeni/1 mevcut test; API/DB/ER/mimari hardware bölümleri ve docs-hardware; diğer servisler/runner/ENV/Compose/dependency değişmedi |
+| Son Flyway | V8 reviews/audit/rate buckets; V9 reports/outbox; V1–V9 PostgreSQL/Flyway/JPA PASS; mevcut migration'lar değiştirilmedi; V8/V9 canlı DB'ye uygulanmadı |
+| Son endpoint / docs/api.md değişikliği | 6 yorum + 2 rapor + 2 kaynak moderasyon; toplam 41 iş endpoint'i; [API kataloğu](docs/api.md#hardware) |
+| Son Maven/test komutu ve sonuç | mvn -f backend/pom.xml -pl services/hardware-service -am verify -B -ntp: Sonar düzeltmeleri dahil 239 PASS (65 yeni), failure/error/skipped 0; 2026-10-21 19:13:07 +03; [kalite kaydı](docs-hardware/testing/LTZ-ALP-HW-04-quality.md) |
+| JaCoCo | Nihai clean rapor hardware 1176/1192=%98,66; tüm backend %95,98; exclusion yok |
+| Pre-push | `PASS / exit 0` — nihai full dev 18 modül/257 test/%95,98/18 HTTP PASS; SAFE TO COMMIT; log kapanışı 2026-10-21 19:16:18 +03 |
+| Sonar / Quality Gate | `PASS / exit 0` — tüm backend scan dev, 2026-10-21 19:19:59 +03; A/A/A + gate OK; overall %92,7/new %94,7/duplication %0, açık issue/hotspot 0/0; analysis 9e8be6f7-b5c8-49df-b977-12232620fd7d |
 | Auth bağlantısı | `DEFERRED_AUTH — gerçek auth-service/JWT sözleşmesi henüz yok` |
-| Diğer servis entegrasyonları | User/Social gerçek policy ve Performance/Recommendation consumer E2E: `DEFERRED_CONTRACT / NOT_VERIFIED`, açık onaylı |
-| Açık kullanıcı onayları | HW-03 erişim sınırı, güvenli erteleme ve tüm servisleri kapsayan pre-push full dev / Sonar scan dev açıkça onaylı |
-| Güncel engel | Yerel kapsam/kalite engeli yok. Gerçek Auth ve dış sözleşme/E2E açık onaylı ertelenmiş; production-ready değildir |
-| Bir sonraki kesin adım | Ayrıntılı tek feature mesajını kullanıcıya ver ve STOP. Kullanıcı PDA kapanışını bildirene ve HW-04'e açık izin verene kadar geliştirmeye devam etme |
+| Diğer servis entegrasyonları | HW-03 onaylı ertelemeler korunur. HW-04 Admin/Notification ve User/Social UGC policy: DEFERRED_CONTRACT / NOT_VERIFIED, açık kullanıcı onaylı |
+| Açık kullanıcı onayları | HW-04 başlangıcı/model/güvenli erteleme ve tüm servisler full dev + scan dev izni onaylı; yeni onay engeli yok |
+| Güncel engel | Yerel kabul/kalite engeli yok; gerçek Auth/consumer entegrasyonları onaylı ertelenmiş, production-ready değildir |
+| Bir sonraki kesin adım | Kullanıcıya tek ayrıntılı feature mesajını ve PDA kapanışı önerisini ver; STOP. Kullanıcı HW-04 kapanışı ve HW-05 izni vermeden ilerleme |
 | Son güncelleme (gerçek) | `2026-10-21` |
 
 ### CANLI KARAR / BLOKAJ DEFTERİ
+
+- `VERIFIED / READY 2026-10-21 / HW-04`: HW-12/HW-13 2/2, toplam 15/17; hardware 239 PASS/%98,66 (65 yeni). Nihai full dev 257 backend test/%95,98, 18 HTTP PASS ve SAFE TO COMMIT (19:16:18 +03); nihai Sonar A/A/A + gate OK, açık issue/hotspot 0/0 (19:19:59 +03). İlk üç MINOR ve callback compile düzeltmesi kalite geçmişinde korunur. [Teslim](docs-hardware/reports/LTZ-ALP-HW-04-delivery.md). Ana HW-04 `[ ]`, PDA kapanışı kullanıcıyı bekler; HW-05 NOT_STARTED, STOP. Gerçek Auth/Admin/Notification/User-Social bağlantıları onaylı DEFERRED; production-ready değildir.
+
+- `APPROVED 2026-10-21 / HW-04`: Kullanıcı önerilen yorum/moderasyon modelini ve Admin/Notification/User/Social UGC gerçek sözleşmelerinin güvenli ertelemesini onayladı. Anonim uç/ENV/dependency/başka servis değişikliği yok; önce HW-12 uygulanır.
+
+- `CLOSED / STARTED 2026-10-21`: Kullanıcı HW-03 PDA kapanışını ve HW-04 geçişini bildirdi; HW-03 `[x]`, commit 104524a doğrulandı, başlangıç çalışma ağacı temizdi. HW-04 0/2; somut yorum/moderasyon ve dış sözleşme erteleme önerisi onaya sunuldu. Sonraki HW-05 izni yok.
 
 - `VERIFIED / READY 2026-10-21 / HW-03`: HW-08/HW-09/HW-17 3/3; 40 yeni senaryo, hardware 174 PASS/%98,44; full dev 192 PASS/%94,94 ve 18 HTTP PASS, SAFE TO COMMIT; Sonar A/A/A + gate PASS, açık issue/hotspot 0. [Teslim](docs-hardware/reports/LTZ-ALP-HW-03-delivery.md). İlk DB kapalı koşusu ve üç MINOR düzeltmesi kalite geçmişinde korunur. Ana kutu `[ ]`, PDA kapanışı ve sonraki task izni beklenir. Git yazma işlemi yok.
 

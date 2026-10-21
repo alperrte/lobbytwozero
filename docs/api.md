@@ -225,6 +225,15 @@ Final kanıt [HW-03 kalite kaydında](../docs-hardware/testing/LTZ-ALP-HW-03-qua
 User/Social gerçek policy ve consumer E2E açık kullanıcı onayıyla
 DEFERRED_CONTRACT / NOT_VERIFIED. Üretimde non-owner paylaşım deny edilir.
 
+LTZ-ALP-HW-04: 10 yeni yorum/rapor/kaynak moderasyon endpoint'i; toplam 41 iş ucu.
+Hardware 239 PASS (65 yeni), JaCoCo %98,66; nihai full dev 257 backend testi,
+%95,98 ve 18 HTTP PASS / SAFE TO COMMIT. Nihai Sonar A/A/A + Quality Gate PASS,
+overall %92,7 / new %94,7 / duplication %0, açık issue/hotspot 0/0.
+[HW-04 kalite kanıtı](../docs-hardware/testing/LTZ-ALP-HW-04-quality.md).
+Üretim User/Social UGC policy başkalarını deny eder; gerçek Auth DEFERRED_AUTH,
+Admin/Notification/User-Social UGC kontrat/E2E DEFERRED_CONTRACT / NOT_VERIFIED.
+Yerel PENDING outbox, rapor/bildirim teslim edildiği anlamına gelmez.
+
 ### HARDWARE — HW-01 Profil oluşturma
 
 Durum: IMPLEMENTED
@@ -1398,6 +1407,372 @@ INTEGRATION — HardwareBatchControllerTest: owner izolasyonu, tüm isteği redd
 sayfa/sıra/devam, bilinmeyen/boş veri, 20/200 sınırları, nested validation, body limit,
 CSRF/anonim/yanlış principal; 20 profil için sabit ORM sorgu sayısı ölçülür.
 İlk modül verify 174 PASS; tüketici E2E ve gerçek Auth NOT_VERIFIED.
+
+### HARDWARE — HW-12 Ortak yorum güvenlik sözleşmesi
+
+Kimlikli yanıtlar no-store, private; tüm mutasyonlarda CSRF ve 16 KiB sınırı korunur.
+Normal yazmalar actor başına 20/dakika, socket peer başına 120/dakika; hash bucket'ları
+iki dakikayı aşınca dakikalık job ile temizlenir. X-Forwarded-For kimlik/IP kaynağı değildir.
+Sayaçlar başarılı iş transaction'ına katılır; rollback olmuş denemeler kotayı tüketmez.
+Bu, proxy zincirindeki gerçek son kullanıcı IP doğrulaması değildir (NOT_VERIFIED).
+Gerçek Auth DEFERRED_AUTH; User/Social UGC kararı DEFERRED_CONTRACT / NOT_VERIFIED,
+üretim adapter'ı deny. İzin veren policy yalnız testlerde; yeni public/anonim uç yok.
+
+### HARDWARE — HW-12 Yorum oluşturma
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/hardware/catalog/products/{productId}/reviews
+
+#### Yetkilendirme
+Typed actor; aktif genel ürün. Katalog yazma izni gerekmez; yazar UUID'si yalnız CurrentActor'dan gelir. Ortak HW-12 güvenlik sözleşmesi geçerlidir.
+
+#### Path/Query Parameters
+productId zorunlu UUID; query yok.
+
+#### Request Body
+CreateHardwareReviewRequest: body zorunlu düz metin 1..5000; rating opsiyonel tam sayı 1..5. Bilinmeyen alan reddedilir. HTML açı ayraçları/kontrol karakterleri ham ve NFKC sonrası reddedilir; satır sonu/tab desteklenir.
+
+#### Response
+201 HardwareReviewResponse; Location /api/v1/hardware/reviews/{id}. Alanlar id,productId,body,rating,status,version,ownedByActor,createdAt,updatedAt. author/user UUID, hash, IP ve rapor sayısı dönmez. İlk status VISIBLE/version 0.
+
+#### Hata Durumları
+400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED/CSRF; 404 HARDWARE_NOT_FOUND (ürün yok/arşivli); 409 DATA_CONFLICT (aynı ürün/yazar veya aynı yazarın normalize kopyası); 413 REQUEST_TOO_LARGE; 429 RATE_LIMITED (Retry-After 60); 500 INTERNAL_ERROR. ProblemDetail iç detay içermez.
+
+#### Bağlantı
+HardwareReviewService; V8__create_hardware_reviews_and_write_limits.sql.
+Başka servise/DB'ye çağrı yok; gerçek Auth ve User/Social E2E NOT_VERIFIED.
+
+#### Test Durumu
+UNIT + INTEGRATION — HardwareReviewControllerTest + HardwareReviewTextTest;
+2026-10-21 18:40:14 +03 verify exit 0: 206 PASS, 0 failure/error/skipped;
+JaCoCo 1044/1060=%98,49; gerçek PostgreSQL 17/Flyway V1–V8/JPA/MockMvc.
+
+### HARDWARE — HW-12 Görünür yorumları listeleme ve puan özeti
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/hardware/catalog/products/{productId}/reviews
+
+#### Yetkilendirme
+Typed actor; aktif ürün. VISIBLE yorumlar, owner veya güvenilir global UGC/iki yönlü engel kararıyla filtrelenir. Production policy başkalarını deny eder. Ortak HW-12 güvenlik sözleşmesi geçerlidir.
+
+#### Path/Query Parameters
+productId UUID; page 0..10000 varsayılan 0; size 1..100 varsayılan 20. createdAt,id ASC.
+
+#### Request Body
+Yok.
+
+#### Response
+200 HardwareReviewPageResponse: items,page,size,totalElements,totalPages,summary {ratedReviews,averageRating}. SQL audience/engel/status filtresi sayfa/toplam/AVG'den önce uygulanır. Yalnız dolu rating'ler ortalamaya girer; hiç puan yoksa averageRating null. Gizli/silinmiş/engelli yorum ve sayaçları sızmaz.
+
+#### Hata Durumları
+400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED; 404 HARDWARE_NOT_FOUND (ürün yok/arşivli); 500 INTERNAL_ERROR. ProblemDetail iç detay içermez.
+
+#### Bağlantı
+HardwareReviewService; V8__create_hardware_reviews_and_write_limits.sql.
+Başka servise/DB'ye çağrı yok; gerçek Auth ve User/Social E2E NOT_VERIFIED.
+
+#### Test Durumu
+UNIT + INTEGRATION — HardwareReviewControllerTest + HardwareReviewTextTest;
+2026-10-21 18:40:14 +03 verify exit 0: 206 PASS, 0 failure/error/skipped;
+JaCoCo 1044/1060=%98,49; gerçek PostgreSQL 17/Flyway V1–V8/JPA/MockMvc.
+
+### HARDWARE — HW-12 Kendi yorumlarını listeleme
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/hardware/reviews/mine
+
+#### Yetkilendirme
+Owner typed actor; yalnız CurrentActor'ın silinmemiş VISIBLE/HIDDEN yorumları. Arşivli ürün geçmişi korunur; dış audience kararı gerekmez. Ortak HW-12 güvenlik sözleşmesi geçerlidir.
+
+#### Path/Query Parameters
+page 0..10000 varsayılan 0; size 1..100 varsayılan 20; createdAt,id ASC.
+
+#### Request Body
+Yok.
+
+#### Response
+200 HardwareOwnReviewPageResponse: items,page,size,totalElements,totalPages. DELETED hariç; tüm items ownedByActor=true. Yazar kimliği veya IP dönmez.
+
+#### Hata Durumları
+400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED; 500 INTERNAL_ERROR. ProblemDetail iç detay içermez.
+
+#### Bağlantı
+HardwareReviewService; V8__create_hardware_reviews_and_write_limits.sql.
+Başka servise/DB'ye çağrı yok; gerçek Auth ve User/Social E2E NOT_VERIFIED.
+
+#### Test Durumu
+UNIT + INTEGRATION — HardwareReviewControllerTest + HardwareReviewTextTest;
+2026-10-21 18:40:14 +03 verify exit 0: 206 PASS, 0 failure/error/skipped;
+JaCoCo 1044/1060=%98,49; gerçek PostgreSQL 17/Flyway V1–V8/JPA/MockMvc.
+
+### HARDWARE — HW-12 Yorum detayı
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/hardware/reviews/{reviewId}
+
+#### Yetkilendirme
+Typed actor. Owner HIDDEN/arşivli geçmişini görebilir; non-owner yalnız VISIBLE + aktif ürün + güvenilir audience izinli ise. DELETED her durumda 404. Ortak HW-12 güvenlik sözleşmesi geçerlidir.
+
+#### Path/Query Parameters
+reviewId UUID; query yok.
+
+#### Request Body
+Yok.
+
+#### Response
+200 HardwareReviewResponse. Body yalnız izinli hedef için döner; gizli/engelli/olmayan kaynak aynı güvenli 404. Owner dışı author kimliği/profil verisi dönmez.
+
+#### Hata Durumları
+400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED; 404 HARDWARE_NOT_FOUND; 500 INTERNAL_ERROR. ProblemDetail iç detay içermez.
+
+#### Bağlantı
+HardwareReviewService; V8__create_hardware_reviews_and_write_limits.sql.
+Başka servise/DB'ye çağrı yok; gerçek Auth ve User/Social E2E NOT_VERIFIED.
+
+#### Test Durumu
+UNIT + INTEGRATION — HardwareReviewControllerTest + HardwareReviewTextTest;
+2026-10-21 18:40:14 +03 verify exit 0: 206 PASS, 0 failure/error/skipped;
+JaCoCo 1044/1060=%98,49; gerçek PostgreSQL 17/Flyway V1–V8/JPA/MockMvc.
+
+### HARDWARE — HW-12 Kendi yorumunu düzenleme
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend
+
+#### Endpoint
+PUT /api/v1/hardware/reviews/{reviewId}
+
+#### Yetkilendirme
+Owner typed actor + CSRF; yalnız VISIBLE ve aktif ürüne bağlı yorum. HIDDEN sahibi bile metin güncellemesiyle moderasyonu aşamaz. Ortak HW-12 güvenlik sözleşmesi geçerlidir.
+
+#### Path/Query Parameters
+reviewId UUID; query yok.
+
+#### Request Body
+UpdateHardwareReviewRequest: reviewVersion zorunlu >=0, body zorunlu 1..5000 düz metin, rating opsiyonel 1..5. Eksik rating puanı kaldırır; body/hash değişimi atomik tekillik kontrolüne katılır.
+
+#### Response
+200 HardwareReviewResponse; artırılmış version. Pessimistic review kilidi + @Version. Gerekçesi sabit USER_REVIEW_UPDATED olan append-only audit aynı transaction'da.
+
+#### Hata Durumları
+400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED/CSRF; 404 HARDWARE_NOT_FOUND (yabancı/olmayan/silinmiş hedef veya arşivli ürün); 409 DATA_CONFLICT (eski sürüm/HIDDEN/kopya); 413 REQUEST_TOO_LARGE; 429 RATE_LIMITED; 500 INTERNAL_ERROR. ProblemDetail iç detay içermez.
+
+#### Bağlantı
+HardwareReviewService; V8__create_hardware_reviews_and_write_limits.sql.
+Başka servise/DB'ye çağrı yok; gerçek Auth ve User/Social E2E NOT_VERIFIED.
+
+#### Test Durumu
+UNIT + INTEGRATION — HardwareReviewControllerTest + HardwareReviewTextTest;
+2026-10-21 18:40:14 +03 verify exit 0: 206 PASS, 0 failure/error/skipped;
+JaCoCo 1044/1060=%98,49; gerçek PostgreSQL 17/Flyway V1–V8/JPA/MockMvc.
+
+### HARDWARE — HW-12 Kendi yorumunu silme
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend
+
+#### Endpoint
+DELETE /api/v1/hardware/reviews/{reviewId}
+
+#### Yetkilendirme
+Owner typed actor + CSRF; VISIBLE/HIDDEN ve arşivli ürün geçmişi silinebilir. Yabancı hedef 404. Ortak HW-12 güvenlik sözleşmesi geçerlidir.
+
+#### Path/Query Parameters
+reviewId UUID; reviewVersion zorunlu query >=0.
+
+#### Request Body
+Yok.
+
+#### Response
+204; soft-delete status DELETED/deletedAt, body/rating/hash temizlenir, version artar. Unique aktif yorum/kopya anahtarları serbest kalır; yeni yorum yazılabilir. Audit korunur; silinen yorum okunamaz/geri açılamaz.
+
+#### Hata Durumları
+400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED/CSRF; 404 HARDWARE_NOT_FOUND; 409 DATA_CONFLICT (eski sürüm); 429 RATE_LIMITED; 500 INTERNAL_ERROR. ProblemDetail iç detay içermez.
+
+#### Bağlantı
+HardwareReviewService; V8__create_hardware_reviews_and_write_limits.sql.
+Başka servise/DB'ye çağrı yok; gerçek Auth ve User/Social E2E NOT_VERIFIED.
+
+#### Test Durumu
+UNIT + INTEGRATION — HardwareReviewControllerTest + HardwareReviewTextTest;
+2026-10-21 18:40:14 +03 verify exit 0: 206 PASS, 0 failure/error/skipped;
+JaCoCo 1044/1060=%98,49; gerçek PostgreSQL 17/Flyway V1–V8/JPA/MockMvc.
+
+### HARDWARE — HW-13 Ortak moderasyon/teslim sözleşmesi
+
+Tüm yanıtlar no-store, private; mutasyonlarda 16 KiB + CSRF korunur.
+Normal raporlar actor 20/dakika; moderasyon actor 60/dakika; socket peer ortak
+120/dakika sınırındadır. X-Forwarded-For güven kaynağı değildir. Body/reason/detail
+HTML olarak işlenmez; log/audit/event'e hedef UGC metni veya ham IP kopyalanmaz.
+V9 rapor, outbox ve audit action şemasını ekler; V8 değiştirilmedi.
+Yerel ContentReported/HardwareReviewModerated v1 zarfı actual consumer kontratı değildir.
+Producer/UUID/version/UTC metadata ve gerekli kimlik/enum payload'ı; 4 KiB/event,
+PENDING+FAILED toplamı en fazla 10000. Transaction advisory kilidi kapasite yarışını
+korur. Relay, broker ve uydurma servis URL/token modeli yok; olaylar PENDING kalır.
+Admin/Notification/User-Social gerçek sözleşme ve E2E DEFERRED_CONTRACT / NOT_VERIFIED,
+açık kullanıcı onaylı. Gerçek Auth DEFERRED_AUTH; production fail-closed.
+
+### HARDWARE — HW-13 Yorumu raporlama
+
+Durum: IMPLEMENTED — yerel kaynak sözleşmesi; gerçek entegrasyon DEFERRED_CONTRACT
+Sorumlu: Alper
+Tüketici servisler: Frontend, Admin (gerçek consumer NOT_VERIFIED)
+
+#### Endpoint
+POST /api/v1/hardware/reviews/{reviewId}/reports
+
+#### Yetkilendirme
+Typed actor + CSRF; yalnız okunabilen, VISIBLE/aktif ürüne bağlı yabancı yorum. Owner kendi yorumunu raporlayamaz; global UGC/engel kararı bilinmiyorsa yabancı hedef 404.
+
+#### Path/Query Parameters
+reviewId UUID; query yok.
+
+#### Request Body
+CreateHardwareReviewReportRequest: reason zorunlu SPAM/HARASSMENT/HATE_SPEECH/SEXUAL_CONTENT/PERSONAL_DATA/OTHER; details opsiyonel 1..500 düz metin. Bilinmeyen alan, boş/zararlı details reddedilir.
+
+#### Response
+201 HardwareReviewReportResponse: id,reviewId,reason,details,createdAt,outboxStatus=PENDING,deliveryStatus=NOT_DELIVERED. Location /api/v1/hardware/review-reports/{id}. Reporter/author UUID ve hedef metni dönmez. Doğal (reviewId,reporterId) tekilliği; tekrar 409, ikinci event/audit yok.
+
+#### Hata Durumları
+400 INVALID_REQUEST (self report dahil), 401 AUTHENTICATION_REQUIRED, 403 ACCESS_DENIED/CSRF, 404 HARDWARE_NOT_FOUND, 409 DATA_CONFLICT (tekrar), 413 REQUEST_TOO_LARGE, 429 RATE_LIMITED (Retry-After 60), 503 MODERATION_DELIVERY_UNAVAILABLE (outbox dolu), 500 INTERNAL_ERROR. ProblemDetail güvenli ve iç detaysızdır.
+
+#### Bağlantı
+HardwareReviewReportService / HardwareReviewModerationService;
+V9__create_hardware_review_reports_and_outbox.sql. Gerçek servis/DB çağrısı yok;
+Admin ve Notification teslimi doğrulanmadı. Yerel PENDING kayıt teslim kanıtı değildir.
+
+#### Test Durumu
+UNIT + INTEGRATION — HardwareReviewModerationControllerTest +
+SecurityContextHardwareReviewModerationAccessTest. PostgreSQL 17/Flyway V1–V9/JPA,
+239 PASS / exit 0, 2026-10-21 18:56:40 +03; JaCoCo 1176/1192=%98,66.
+Permission/IDOR, rollback, doğal tekillik, global kapasite yarışı, orphan/purge,
+stale/concurrent edit ve yalnız PENDING notice testli. Gerçek consumer E2E NOT_VERIFIED.
+
+### HARDWARE — HW-13 Kendi raporunun yerel durumunu okuma
+
+Durum: IMPLEMENTED — yerel kaynak sözleşmesi; gerçek entegrasyon DEFERRED_CONTRACT
+Sorumlu: Alper
+Tüketici servisler: Frontend, Admin (gerçek consumer NOT_VERIFIED)
+
+#### Endpoint
+GET /api/v1/hardware/review-reports/{reportId}
+
+#### Yetkilendirme
+Yalnız reporter typed actor; hedef yorumun yazarı veya katalog yöneticisi olması erişim vermez. Yabancı/olmayan rapor aynı 404.
+
+#### Path/Query Parameters
+reportId UUID; query yok.
+
+#### Request Body
+Yok.
+
+#### Response
+200 HardwareReviewReportResponse. Gerçek consumer E2E doğrulanmaz. PENDING ise NOT_DELIVERED; yerel SENT/FAILED kaydı dahi NOT_VERIFIED. Event purge edilmişse outboxStatus=NOT_AVAILABLE ve deliveryStatus=NOT_VERIFIED. Event FK ON DELETE SET NULL raporu korur.
+
+#### Hata Durumları
+400 INVALID_REQUEST, 401 AUTHENTICATION_REQUIRED, 403 ACCESS_DENIED, 404 HARDWARE_NOT_FOUND, 500 INTERNAL_ERROR. ProblemDetail güvenli ve iç detaysızdır.
+
+#### Bağlantı
+HardwareReviewReportService / HardwareReviewModerationService;
+V9__create_hardware_review_reports_and_outbox.sql. Gerçek servis/DB çağrısı yok;
+Admin ve Notification teslimi doğrulanmadı. Yerel PENDING kayıt teslim kanıtı değildir.
+
+#### Test Durumu
+UNIT + INTEGRATION — HardwareReviewModerationControllerTest +
+SecurityContextHardwareReviewModerationAccessTest. PostgreSQL 17/Flyway V1–V9/JPA,
+239 PASS / exit 0, 2026-10-21 18:56:40 +03; JaCoCo 1176/1192=%98,66.
+Permission/IDOR, rollback, doğal tekillik, global kapasite yarışı, orphan/purge,
+stale/concurrent edit ve yalnız PENDING notice testli. Gerçek consumer E2E NOT_VERIFIED.
+
+### HARDWARE — HW-13 Yetkili kaynak moderasyon detayı
+
+Durum: IMPLEMENTED — yerel kaynak sözleşmesi; gerçek entegrasyon DEFERRED_CONTRACT
+Sorumlu: Alper
+Tüketici servisler: Frontend, Admin (gerçek consumer NOT_VERIFIED)
+
+#### Endpoint
+GET /api/v1/hardware/moderation/reviews/{reviewId}
+
+#### Yetkilendirme
+Typed actor + hardware:reviews:moderate uygulama izni hem HTTP hem service sınırında zorunlu. Katalog izni/ROLE_ADMIN/X-Role tek başına kabul edilmez. Gerçek Auth rol/claim eşlemesi DEFERRED_AUTH.
+
+#### Path/Query Parameters
+reviewId UUID; page 0..10000 varsayılan 0; size 1..100 varsayılan 20; raporlar createdAt,id ASC.
+
+#### Request Body
+Yok.
+
+#### Response
+200 HardwareReviewModerationDetailResponse: review,reports,page,size,totalReports,totalPages. Yetkili kullanıcı HIDDEN hedefi ve rapor details'ını görür; DELETED metni null kalır. Reporter/author UUID ve ham IP dönmez. Event status'ları tek bounded sorguyla yüklenir; 25 rapor testinde üç ORM statement + tek JDBC status sorgusu, N+1 yok.
+
+#### Hata Durumları
+400 INVALID_REQUEST, 401 AUTHENTICATION_REQUIRED, 403 ACCESS_DENIED, 404 HARDWARE_NOT_FOUND, 500 INTERNAL_ERROR. ProblemDetail güvenli ve iç detaysızdır.
+
+#### Bağlantı
+HardwareReviewReportService / HardwareReviewModerationService;
+V9__create_hardware_review_reports_and_outbox.sql. Gerçek servis/DB çağrısı yok;
+Admin ve Notification teslimi doğrulanmadı. Yerel PENDING kayıt teslim kanıtı değildir.
+
+#### Test Durumu
+UNIT + INTEGRATION — HardwareReviewModerationControllerTest +
+SecurityContextHardwareReviewModerationAccessTest. PostgreSQL 17/Flyway V1–V9/JPA,
+239 PASS / exit 0, 2026-10-21 18:56:40 +03; JaCoCo 1176/1192=%98,66.
+Permission/IDOR, rollback, doğal tekillik, global kapasite yarışı, orphan/purge,
+stale/concurrent edit ve yalnız PENDING notice testli. Gerçek consumer E2E NOT_VERIFIED.
+
+### HARDWARE — HW-13 Kaynak yorumuna HIDE/RESTORE uygulama
+
+Durum: IMPLEMENTED — yerel kaynak sözleşmesi; gerçek entegrasyon DEFERRED_CONTRACT
+Sorumlu: Alper
+Tüketici servisler: Frontend, Admin (gerçek consumer NOT_VERIFIED)
+
+#### Endpoint
+POST /api/v1/hardware/moderation/reviews/{reviewId}/actions
+
+#### Yetkilendirme
+Typed actor + hardware:reviews:moderate; service recheck + CSRF. Bu kaynak servis komutudur; merkezi Admin case/rol/hesap yönetimi burada kurulmaz.
+
+#### Path/Query Parameters
+reviewId UUID; query yok.
+
+#### Request Body
+ModerateHardwareReviewRequest: reviewVersion >=0, action HIDE/RESTORE, reason 1..500; hepsi zorunlu. Geçersiz action/rol/userId alanı reddedilir. HIDE VISIBLE->HIDDEN; RESTORE HIDDEN->VISIBLE yalnız aktif üründe. DELETED geri getirilemez.
+
+#### Response
+200 HardwareReviewModerationResponse: review (artan version),noticeEventId,notificationDeliveryStatus=NOT_DELIVERED. Review kilidi/@Version, gerekçeli immutable audit ve PENDING notice aynı transaction'da. HIDDEN yorum normal liste/puan özetinden çıkar; RESTORE geri dahil eder. Outbox doluysa flush edilmiş hedef/audit/quota bile rollback olur.
+
+#### Hata Durumları
+400 INVALID_REQUEST, 401 AUTHENTICATION_REQUIRED, 403 ACCESS_DENIED/CSRF, 404 HARDWARE_NOT_FOUND (silinmiş/olmayan hedef, RESTORE için arşivli ürün), 409 DATA_CONFLICT (eski sürüm/yanlış transition), 413 REQUEST_TOO_LARGE, 429 RATE_LIMITED, 503 MODERATION_DELIVERY_UNAVAILABLE, 500 INTERNAL_ERROR. ProblemDetail güvenli ve iç detaysızdır.
+
+#### Bağlantı
+HardwareReviewReportService / HardwareReviewModerationService;
+V9__create_hardware_review_reports_and_outbox.sql. Gerçek servis/DB çağrısı yok;
+Admin ve Notification teslimi doğrulanmadı. Yerel PENDING kayıt teslim kanıtı değildir.
+
+#### Test Durumu
+UNIT + INTEGRATION — HardwareReviewModerationControllerTest +
+SecurityContextHardwareReviewModerationAccessTest. PostgreSQL 17/Flyway V1–V9/JPA,
+239 PASS / exit 0, 2026-10-21 18:56:40 +03; JaCoCo 1176/1192=%98,66.
+Permission/IDOR, rollback, doğal tekillik, global kapasite yarışı, orphan/purge,
+stale/concurrent edit ve yalnız PENDING notice testli. Gerçek consumer E2E NOT_VERIFIED.
 
 ## RECOMMENDATION
 

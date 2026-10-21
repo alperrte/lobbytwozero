@@ -282,8 +282,9 @@ Profil silme use-case'i yalnız owner + güncel profileVersion ile hard delete u
 bağlı bileşenler CASCADE ile silinir, katalog/marka ve diğer profiller korunur.
 İstatistikler owner filtresiyle DB'de toplanır; kayıt ve adet ayrıdır. Yalnız kaydedilen
 RAM/depolama kapasitesi adetle çarpılır, kapasitesi bilinmeyen adetler ayrıca bildirilir.
-Aşağıdaki genişletilmiş tasarım **öneridir**; sync ve yorum tabloları
-uygulanmadı. Kampanya için sonraki V5, gizlilik için V6 tanımı geçerlidir.
+Aşağıdaki genişletilmiş eski tasarım **öneridir**. Gerçek kampanya şeması için V5,
+gizlilik için V6/V7, yorum ve rapor için aşağıdaki V8/V9 uygulama tanımları
+geçerlidir; sync henüz uygulanmadı.
 JPA validate ve open-in-view=false korunur.
 
 | Tablo | Önemli sütunlar | Kısıtlar / not |
@@ -346,6 +347,33 @@ Canlı DB'ye migration uygulanmadı. HW-09 ve HW-17 yeni tablo eklemez;
 batch parametrik array unnest/LATERAL sayfalaması yalnız doğrulanmış owner profil ID'leriyle çalışır.
 User/Social gerçek global gizlilik/ilişki verisi bu DB'ye kopyalanmaz; güvenilir policy
 portu onaylı DEFERRED_CONTRACT durumunda üretimde deny eder.
+
+**HW-12 / V8 (2026-10-21):** hardware_reviews gerçek şeması: id/product_id (gerçek FK),
+user_id (dış REF), nullable body/rating/body_hash, VISIBLE/HIDDEN/DELETED status,
+version, created_at/updated_at/deleted_at. Rating 1..5 veya null. DELETED içerik/puan/hash
+null ve deleted_at dolu; diğer durumlarda geçerli body/hash ve deleted_at null CHECK'i.
+Silinmemiş (product_id,user_id) ve (user_id,body_hash) partial unique indeksleri;
+ürün/status ve yazar/status sayfa indeksleri. DTO'da yazar kimliği/IP/hash yok.
+hardware_review_audit iş mutasyonuyla atomik, UPDATE/DELETE/TRUNCATE trigger ile
+append-only; body/ham IP saklamaz. hardware_write_limits fixed-minute actor/socket-peer
+bucket'ları için composite PK ve TTL indeksidir; ayrı bir job iki dakikayı aşan
+bucket'ları dakikada bir temizler (normalde yaklaşık 2–3 dakika tutulur).
+HW-12 alt görev verify: 206 PASS, V1–V8 PostgreSQL 17/Flyway/JPA validate PASS;
+V8 canlı DB'ye uygulanmadı.
+
+**HW-13 / V9:** hardware_review_reports: id UUID, review_id gerçek FK, reporter_id
+dış REF, reason CHECK, details varchar(500), outbox_event_id FK ON DELETE SET NULL,
+version bigint ve UTC created_at. (review_id,reporter_id) ve outbox_event_id tekil.
+Merkezi Admin case durumu kopyalanmaz. Nullable event bağlantısı, ileride teknik
+outbox purge edilirken yerel raporu korur; status/teslim bilinmiyor olarak sunulur.
+outbox_events ortak §2.4 alanlarını kullanır; aggregate HARDWARE_REVIEW, v1 tipleri
+ContentReported/HardwareReviewModerated, jsonb object <=4 KiB, PENDING/SENT/FAILED
+CHECK'leri. Yazıcı PENDING/FAILED toplamını transaction advisory lock ile 10000'de
+sınırlar; kapasite aşımı 503 ve iş mutasyonu/audit/quota ile tümden rollback.
+V9 immutable audit'in izinli action CHECK'ini genişletir; V8 yeniden yazılmadı.
+239 testte PostgreSQL 17/Flyway V1–V9/JPA PASS; canlı DB'ye V8/V9 uygulanmadı.
+Gerçek consumer sözleşmesi olmadığından relay/teslim/SENT işlemi uygulanmadı.
+SENT retention ve gerçek consumer E2E sonraki mutabakatla ele alınacaktır.
 
 ### 3.14 recommendation_db — recommendation-service (Alper)
 

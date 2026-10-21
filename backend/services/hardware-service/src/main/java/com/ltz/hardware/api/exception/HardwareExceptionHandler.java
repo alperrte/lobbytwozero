@@ -3,6 +3,7 @@ package com.ltz.hardware.api.exception;
 import com.ltz.hardware.domain.exception.HardwareConflictException;
 import com.ltz.hardware.domain.exception.HardwareNotFoundException;
 import com.ltz.hardware.domain.exception.HardwareRateLimitException;
+import com.ltz.hardware.domain.exception.HardwareDeliveryUnavailableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 
@@ -61,6 +62,11 @@ public class HardwareExceptionHandler extends ResponseEntityExceptionHandler {
         var result = problem(429, "RATE_LIMITED", "İşlem sınırı aşıldı; daha sonra tekrar deneyin.");
         return ResponseEntity.status(429).headers(result.getHeaders()).header("Retry-After", "60")
                 .body(result.getBody());
+    }
+
+    @ExceptionHandler(HardwareDeliveryUnavailableException.class)
+    ResponseEntity<Object> unavailable(HardwareDeliveryUnavailableException exception) {
+        return problem(503, "MODERATION_DELIVERY_UNAVAILABLE", "Olay kuyruğu sınırı nedeniyle işlem tamamlanamadı.");
     }
 
     private static ResponseEntity<Object> problem(int status, String code, String detail) {

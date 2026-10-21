@@ -127,7 +127,19 @@ DEFERRED_CONTRACT / NOT_VERIFIED; test mock'u canlı entegrasyon sayılmaz.
 Batch en fazla 20 profil / toplam 200 istenen satır; dört sınırlı sorgu ve
 REPEATABLE_READ ile sayfalı teknik DTO döndürür. Profil/bileşen karşılaştırması
 owner-only, katalog karşılaştırması aktif aynı kategori modelleridir; FPS/benchmark
-ve öneri uydurulmaz. Yorum/moderasyon ve masaüstü sync henüz uygulanmadı.
+ve öneri uydurulmaz. HW-04 V8/V9 yorum/rapor/source moderasyonunu ekler: owner
+yorum mutasyonları, SQL audience/engel filtreli sayfalama/AVG, doğal rapor tekilliği,
+hardware:reviews:moderate uygulama izni ve gerekçeli immutable audit.
+ReviewAudiencePolicy üretimde başkalarının UGC'sini deny eder. HIDE/RESTORE yalnız
+kaynak hedefinde uygulanır; merkezi Admin case/kuyruk/rol/hesap yönetimi kurulmaz.
+ContentReported ve HardwareReviewModerated v1 kayıtları aynı DB transaction'ında
+bounded PENDING outbox'a yazılır; gerçek Admin/Notification/User-Social kontratı
+ve E2E açık kullanıcı onayıyla DEFERRED_CONTRACT / NOT_VERIFIED. Relay/broker veya
+uydurma URL/service-token açılmaz. Kaynak DTO'ları teslim edilmediğini açıklar.
+239 hardware test / %98,66 PASS. Nihai tüm backend full dev 257 test / %95,98,
+18 HTTP PASS ve SAFE TO COMMIT; Sonar A/A/A + Quality Gate PASS, açık issue/hotspot 0.
+Gerçek Auth ve consumer bağlantıları doğrulanmadığından production-ready değildir.
+Masaüstü sync henüz uygulanmadı.
 
 Kurallar:
 
