@@ -22,7 +22,7 @@ Gerçek Google/Steam ile uçtan uca deneme **yapılmadı**: `GOOGLE_CLIENT_ID/SE
 
 ## 3. Migration ve ENV
 
-- `V65__create_external_identity_tables.sql`: `external_identities`, `oauth_flows`, `openid_nonces`, `steam_registrations`, `mfa_challenges.first_factor`. V66–V70 boş.
+- `V63__create_external_identity_tables.sql`: `external_identities`, `oauth_flows`, `openid_nonces`, `steam_registrations` (`mfa_challenges.first_factor` V62'de). V65–V70 boş.
 - Yeni bağımlılık yok.
 
 | Değişken | Servis | Secret | Zorunlu | Eksikse |

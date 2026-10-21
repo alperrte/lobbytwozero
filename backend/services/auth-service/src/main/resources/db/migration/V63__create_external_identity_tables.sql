@@ -37,19 +37,19 @@ CREATE TABLE openid_nonces (
 
 CREATE INDEX ix_openid_nonces_seen_at ON openid_nonces (seen_at);
 
--- Steam e-posta vermez: doğrulanmış SteamID ile kısa ömürlü kayıt hakkı. E-posta/kullanıcı adı toplanır,
--- hesap PENDING_VERIFICATION açılır ve AUTH-02 e-posta doğrulamasıyla ACTIVE olur.
+-- Steam e-posta vermez: doğrulanmış SteamID ile kısa ömürlü, tek kullanımlık token. İki amaçlıdır:
+--   REGISTRATION       : SteamID ile hesap açma hakkı (hesap PENDING_VERIFICATION açılır).
+--   EMAIL_VERIFICATION : bekleyen Steam hesabının e-postasını onaylayanın aynı SteamID'yi kontrol ettiğinin kanıtı
+--                        (saldırganın kurbanın e-postasıyla açtığı hesabın kurban tarafından doğrulanmasını engeller).
 CREATE TABLE steam_registrations (
     token_hash  varchar(64) PRIMARY KEY,
     steam_id    varchar(17) NOT NULL,
+    purpose     varchar(24) NOT NULL DEFAULT 'REGISTRATION',
     created_at  timestamptz NOT NULL,
     expires_at  timestamptz NOT NULL,
     consumed_at timestamptz,
     CONSTRAINT ck_steam_registrations_hash CHECK (token_hash ~ '^[0-9a-f]{64}$'),
     CONSTRAINT ck_steam_registrations_steam_id CHECK (steam_id ~ '^[0-9]{17}$'),
+    CONSTRAINT ck_steam_registrations_purpose CHECK (purpose IN ('REGISTRATION', 'EMAIL_VERIFICATION')),
     CONSTRAINT ck_steam_registrations_expiry CHECK (expires_at > created_at)
 );
-
--- Parola dışı ilk faktör (harici giriş) 2FA challenge'ında amr değerini doğru taşır.
-ALTER TABLE mfa_challenges ADD COLUMN first_factor varchar(16) NOT NULL DEFAULT 'PWD';
-ALTER TABLE mfa_challenges ADD CONSTRAINT ck_mfa_challenges_first_factor CHECK (first_factor IN ('PWD', 'EXTERNAL'));

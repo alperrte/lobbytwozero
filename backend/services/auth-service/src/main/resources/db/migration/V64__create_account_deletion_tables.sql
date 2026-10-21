@@ -58,11 +58,3 @@ CREATE TABLE account_deletion_tasks (
 
 CREATE INDEX ix_account_deletion_tasks_due ON account_deletion_tasks (next_attempt_at) WHERE status = 'PENDING';
 CREATE INDEX ix_account_deletion_tasks_request ON account_deletion_tasks (request_id, status);
-
-ALTER TABLE auth_sessions DROP CONSTRAINT ck_auth_sessions_reason;
-ALTER TABLE auth_sessions ADD CONSTRAINT ck_auth_sessions_reason CHECK (
-    revoke_reason IS NULL OR revoke_reason IN (
-        'LOGOUT', 'LOGOUT_ALL', 'REFRESH_REUSE', 'ACCOUNT_INACTIVE', 'PASSWORD_CHANGED', 'PASSWORD_RESET',
-        'ROLE_CHANGED', 'ACCOUNT_DELETION'
-    )
-);

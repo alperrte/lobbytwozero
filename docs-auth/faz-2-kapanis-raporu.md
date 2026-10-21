@@ -24,8 +24,8 @@
 
 ## 3. Migration ve ENV
 
-- `V63__create_session_tables.sql`: `auth_sessions`, `refresh_tokens`, `attempt_throttles`, `accounts.token_version`, `security_events.request_id`.
-- `V64__create_two_factor_tables.sql`: `totp_credentials`, `recovery_codes`, `mfa_challenges`. V65–V70 Faz 3–6 için boş.
+- Oturum, deneme sınırı ve TOTP tabloları (`auth_sessions`, `refresh_tokens`, `attempt_throttles`, `totp_credentials`, `recovery_codes`, `mfa_challenges`) artık `V62__create_session_and_credential_tables.sql` içindedir (migration sadeleştirmesi, bkz. `sec-01-kapanis-raporu.md`).
+- `accounts.token_version` ve `security_events.request_id` `V61` içinde. V65–V70 boş.
 - Kaldırılan bağımlılık: jjwt (kullanılmıyordu). Yeni bağımlılık yok.
 
 | Değişken | Servis | Secret | Zorunlu | Eksikse |

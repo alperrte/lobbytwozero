@@ -19,7 +19,7 @@
 
 ## 3. Migration ve ENV
 
-- `V66__create_password_reset_tokens.sql`: `password_reset_tokens`; `auth_sessions.revoke_reason` CHECK'ine `PASSWORD_CHANGED`, `PASSWORD_RESET` eklendi. V67–V70 boş.
+- `password_reset_tokens` ve `auth_sessions.revoke_reason` CHECK'i (`PASSWORD_CHANGED`, `PASSWORD_RESET`) `V62` içinde. V65–V70 boş.
 - Yeni ENV anahtarı **yok** (`FRONTEND_PUBLIC_URL` mevcut). Yeni bağımlılık yok.
 
 ## 4. Açık maddeler

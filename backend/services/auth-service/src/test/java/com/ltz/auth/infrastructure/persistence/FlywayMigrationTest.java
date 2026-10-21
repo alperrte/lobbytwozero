@@ -3,12 +3,10 @@ package com.ltz.auth.infrastructure.persistence;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import com.ltz.auth.IntegrationTestSupport;
@@ -21,18 +19,13 @@ class FlywayMigrationTest extends IntegrationTestSupport {
     void authMigrationlariKendiAraligindaBasariylaUygulanir() {
         List<String> versions = jdbc.queryForList(
                 "select version from flyway_schema_history where success order by installed_rank", String.class);
-        assertThat(versions).containsExactly("61", "62", "63", "64", "65", "66", "67", "68", "69");
+        assertThat(versions).containsExactly("61", "62", "63", "64");
     }
 
-    /** Diğer testler rol ekleyebildiği için tablo yerine migration içeriği denetlenir. */
     @Test
-    void migrationYalnizPlayerRoluSeedEder() throws Exception {
-        String seedSql = new ClassPathResource("db/migration/V61__create_account_tables.sql")
-                .getContentAsString(StandardCharsets.UTF_8);
-
-        assertThat(jdbc.queryForList("select code from roles", String.class)).contains("PLAYER");
-        assertThat(seedSql.lines().filter(line -> line.startsWith("INSERT INTO roles")))
-                .containsExactly("INSERT INTO roles (id, code) VALUES (gen_random_uuid(), 'PLAYER');");
+    void migrationBesKanonikRoluSeedEder() {
+        assertThat(jdbc.queryForList("select code from roles", String.class))
+                .containsExactlyInAnyOrder("PLAYER", "CONTENT_CREATOR", "GAME_DEVELOPER", "MODERATOR", "ADMIN");
     }
 
     @Test

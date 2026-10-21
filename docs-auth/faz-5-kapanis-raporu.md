@@ -6,7 +6,7 @@
 
 | Görev | Durum | Not |
 | --- | --- | --- |
-| AUTH-11 Rol yönetimi | IMPLEMENTED | 5 kanonik rol seed (V67), ADMIN uçları, gerekçeli ve denetimli verme/alma |
+| AUTH-11 Rol yönetimi | IMPLEMENTED | 5 kanonik rol seed (V61), ADMIN uçları, gerekçeli ve denetimli verme/alma |
 | AUTH-12 Hesap durumları | IMPLEMENTED (kısmi) | Askı/yasak/devre dışı/aktif; süreli askı ve BANNED kaldırma yok |
 | AUTH-14 RBAC | IMPLEMENTED (auth-service) | `/admin/**` → ROLE_ADMIN servis sınırında; 401/403 ayrımı; diğer servislerin RBAC'i kendi görevleri |
 
@@ -15,7 +15,7 @@
 - Yönetici kendi rolünü/durumunu değiştiremez; `PLAYER` alınamaz; `ADMIN`/`MODERATOR` yalnız ACTIVE + TOTP'li hesaba verilir.
 - Rol/durum değişince oturumlar iptal, `token_version` artar: eski access token'lar auth uçlarında anında düşer (testle doğrulandı: rolü alınan yöneticinin eski token'ı 401).
 - Eşzamanlı aynı rol verme: hesap satır kilidi → 4 istekten 1 başarılı.
-- `V67`: roller, `account_status_history`, `account_role_history`, `auth_sessions.revoke_reason` CHECK'ine `ROLE_CHANGED`. V68–V70 boş.
+- `V61`: 5 kanonik rol, `account_status_history`, `account_role_history`; `V62`: `auth_sessions.revoke_reason` CHECK'i (`ROLE_CHANGED`). V65–V70 boş.
 - Yeni ENV ve yeni bağımlılık yok.
 
 ## 3. Denetim araçları ve sonuçları

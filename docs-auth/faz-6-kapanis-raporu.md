@@ -16,7 +16,7 @@
 - **Onay:** 256 bit, 30 dk, tek kullanımlık e-posta token'ı (özet saklanır, hesaba bağlı) + kullanıcı adının yazılması. Başarıda hesap `DELETION_REQUESTED`, tüm oturumlar iptal, hesap başına **tek** talep + her servis için görev (eşzamanlı 3 onaydan 1'i başarılı).
 - **Koordinasyon:** yalnız **dışa doğru** idempotent çağrı (`AccountDataEraserPort`); onay alan iç uç yok. Görev kiralama + SKIP LOCKED, çağrı işlem dışında, üstel geri çekilme (1 dk → 6 sa), yalnız başarısız görev tekrarlanır, son onay tek işlemde (talep kilitli) tamamlama yapar. Testlerle doğrulandı: kısmi hata, geri çekilme, kira, 4 eşzamanlı işlemci (her servis 1 kez çağrılır).
 - **KVKK ayrımı:** silinen — e-posta, kullanıcı adı, parola özeti, harici kimlikler, TOTP, kurtarma kodları, oturumlar, tüm token'lar; saklanan — güvenlik olayları, durum/rol geçmişi, talep/görev kayıtları, anonim hesap iskeleti.
-- **Migration/ENV:** `V68` (token, talep, görev tabloları; `ACCOUNT_DELETION` oturum nedeni). V69–V70 boş. Yeni ENV anahtarı **yok**; politika `ltz.auth.deletion.*` (tip güvenli, doğrulamalı; prod'da https bağlantı zorunlu). Yeni bağımlılık yok. Ortak dosya (Gateway, Compose, parent pom) değiştirilmedi.
+- **Migration/ENV:** `V64` (silme token, talep, görev tabloları; `ACCOUNT_DELETION` oturum nedeni `V62`'de). V65–V70 boş. Yeni ENV anahtarı **yok**; politika `ltz.auth.deletion.*` (tip güvenli, doğrulamalı; prod'da https bağlantı zorunlu). Yeni bağımlılık yok. Ortak dosya (Gateway, Compose, parent pom) değiştirilmedi.
 
 ## 3. Kontroller (bu faz kapsamı)
 
