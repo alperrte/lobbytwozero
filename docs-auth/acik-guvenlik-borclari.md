@@ -5,9 +5,9 @@
 
 | ID | Borç | Etki | Bağımlılık / karar |
 | --- | --- | --- | --- |
-| B1 | Güvenilir istemci IP'si yok (K8): IP bazlı limit yok; yalnız kimlik/hesap bazlı sınırlar | Dağıtık kayıt/giriş denemesi IP ile sınırlanamaz | Gateway `trusted-proxies` (ortak servis, onay) |
+| B1 | **KISMEN KAPANDI:** Gateway Auth uçlarında IP başına dakikalık sınır uyguluyor ve gelen Forwarded/X-Forwarded-* başlıklarını siliyor (`GATEWAY_TRUSTED_PROXIES` ile güvenilir proxy tanımlanır). Auth servisi IP'yi henüz kullanmıyor; sayaç Gateway örneği belleğinde | Çok örnekli kurulumda sınır örnek başınadır; hesap/IP birleşik kilidi yok | Ortak limitleyici (Redis vb.) + Auth'a güvenilir IP başlığı sözleşmesi |
 | B2 | Diğer servislerde token iptali en fazla 5 dk gecikmeli (D3) | Askıdaki hesap diğer servislerde kısa süre erişebilir | Olay/inbox altyapısı veya servis içi durum kontrolü |
-| B3 | Gateway CORS ve cookie → Bearer çevirisi yok | Tarayıcı entegrasyonu çalışmaz; servisler cookie ile değil Bearer ile doğrulayacak | Ortak Gateway değişikliği (Security güncellemesiyle birlikte) |
+| B3 | **KAPANDI (Gateway):** CORS allowlist, cookie → Bearer çevirisi, çerezli isteklerde CSRF + Origin doğrulaması uygulandı | Servislerde JWT doğrulaması hâlâ yok (her servis kendi sahibi) | Servis sahipleri `AUTH_SERVICE_ENTEGRASYON_REHBERI.md` ile doğrulayıcıyı ekler |
 | B4 | Servis kimliği (D4) uygulanmadı | Admin→Auth ve Auth→servis iç çağrıları kullanıcı token'ına/yok adaptöre bağlı | Sözleşme: `servis-sozlesmeleri.md` §3 |
 | B5 | Production Mail Service yok (3 e-posta portu); `prod` profili bu yüzden başlamaz | Production'da e-posta akışları çalışmaz | MAIL-01..03 + D4 |
 | B6 | Hedef servislerde silme ucu yok; silme görevleri PENDING kalır | Hesap `DELETED` olamaz, kişisel veri Auth'ta korunur | Servis geliştirmeleri + D4 |

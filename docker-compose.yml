@@ -467,6 +467,8 @@ services:
     image: ltz/api-gateway:${APP_ENV:-dev}
     environment:
       <<: *ltz-runtime-env
+      GATEWAY_TRUSTED_PROXIES: ${GATEWAY_TRUSTED_PROXIES:-}
+      GATEWAY_AUTH_RATE_LIMIT_PER_MINUTE: ${GATEWAY_AUTH_RATE_LIMIT_PER_MINUTE:-120}
     ports:
       - "127.0.0.1:${API_GATEWAY_HOST_PORT:?}:${BACKEND_INTERNAL_PORT:-8080}"
     networks:

@@ -145,7 +145,20 @@ Auth, **yalnız beş kanonik rolü** tanır: `PLAYER`, `CONTENT_CREATOR`, `GAME_
 
 - Auth bunları `ProblemDetail` (RFC 9457) olarak döner (`ProblemDetailSecurityHandler` → `GlobalExceptionHandler`) **[UYGULANDI]**. Servisleriniz de aynı biçimi kullanmalıdır.
 - Gövdeye token, claim değeri, stack trace, SQL veya iç adres koymayın.
-- 401 alan istemci, refresh akışına yönlenir (Auth `POST /api/v1/auth/session/refresh`); bu akış **cookie** ile çalışır. Gateway'in cookie→`Authorization: Bearer` çevirisi henüz yok **[BEKLEYEN, B3]**; bu yüzden servisler şimdilik doğrudan Bearer başlığıyla test edilmelidir.
+- 401 alan istemci, refresh akışına yönlenir (Auth `POST /api/v1/auth/session/refresh`); bu akış **cookie** ile çalışır. Tarayıcıdan gelen istekte Gateway çerezi `Authorization: Bearer` başlığına çevirir **[UYGULANDI]** (§6.1); servisler yalnız Bearer görür. Gateway'i kullanmadan doğrudan servise vuran testlerde başlığı kendiniz verin.
+
+### 6.1 Gateway ne yapar? (uygulanmış davranış)
+
+| Davranış | Ayrıntı |
+| --- | --- |
+| Çerez → Bearer | `/api/v1/**` (Auth hariç) isteğinde `Authorization` yoksa ve erişim çerezi (`__Host-ltz_access` veya `ltz_access`) varsa Gateway `Authorization: Bearer <çerez>` ekler. İstekte zaten `Authorization` varsa dokunulmaz. |
+| CSRF (çerezle gelen POST/PUT/PATCH/DELETE) | `X-XSRF-TOKEN` başlığı, `XSRF-TOKEN` çerezine eşit olmalı; değilse **403** `CSRF_TOKEN_INVALID`, istek servise ulaşmaz. Servisler Bearer isteklerini CSRF'den muaf tuttuğu için bu kontrol Gateway'de yapılır. |
+| Origin | Çerezle gelen durum değiştiren isteklerde `Origin` varsa izinli listede olmalıdır. |
+| CORS | `CORS_ALLOWED_ORIGINS` tam eşleşme (`*` yasak), `credentials=true`, başlıklar: `Content-Type, Authorization, X-XSRF-TOKEN, X-Request-Id, Accept`. |
+| Başlık temizliği | İstemciden gelen `X-User-*`, `X-Account-*`, `X-Auth-*`, `X-Internal-*`, `X-Role(s)` her zaman silinir; `Forwarded`/`X-Forwarded-*`/`X-Real-IP` yalnız `GATEWAY_TRUSTED_PROXIES` ile eşleşen bağlantıdan korunur. |
+| Hız sınırı | `/api/v1/auth/**` için IP başına dakikada `GATEWAY_AUTH_RATE_LIMIT_PER_MINUTE` (varsayılan 120; JWKS muaf); aşımda **429** + `Retry-After`. Sayaç Gateway örneğinin belleğindedir. |
+
+Servis sahibi için sonuç: servisinize yalnız doğrulanmış bir Bearer (veya hiç kimlik) gelir; kimliği yine **kendiniz JWKS ile doğrulayın**, Gateway'e güvenmeyin (SECURITY.md §4).
 
 ## 7. Hesap durumu, token iptali ve gecikme sınırı
 
@@ -188,7 +201,8 @@ Auth, **yalnız beş kanonik rolü** tanır: `PLAYER`, `CONTENT_CREATOR`, `GAME_
 | Auth → Mail (3 port: doğrulama, sıfırlama, silme onayı) | Port + dev (Mailpit) **[UYGULANDI]**; Mail Service ucu **[BEKLEYEN]** |
 | Auth → User `UserRegistered` | **[BEKLEYEN]** (outbox/User Service yok) |
 | Auth → servisler `AccountStatusChanged` | **[BEKLEYEN, D3]** |
-| Gateway: CORS, cookie→Bearer, güvenilir IP | **[BEKLEYEN]** (Gateway/ortak Security) |
+| Gateway: CORS, cookie→Bearer + CSRF, başlık temizliği, Auth hız sınırı | **[UYGULANDI]** (`api-gateway`, §6.1) |
+| Gateway: güvenilir proxy IP'si, çok örnekli ortak hız sınırı (Redis vb.) | Ayar var (`GATEWAY_TRUSTED_PROXIES`), ortak limitleyici **[BEKLEYEN]** |
 | İlk ADMIN oluşturma yolu | **[BEKLEYEN, B7]** |
 
 Mail Service sahibi: doğrulama/sıfırlama/silme token ve kodlarını **üretmez, loglamaz, kalıcı düz metin tutmaz** (servis-sozlesmeleri.md §1).

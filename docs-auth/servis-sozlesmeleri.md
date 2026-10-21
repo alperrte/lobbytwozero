@@ -28,6 +28,7 @@ veritabanına dokunmaz.
 | 6 | Hesap verisi silme `DELETE /internal/v1/accounts/{id}` (`AccountDataEraserPort`) | Auth → her veri sahibi servis | Auth tarafı (görev, geri çekilme, tamamlama) **IMPLEMENTED**; hedef uçlar ve gerçek adaptör **PENDING** → görevler PENDING kalır |
 | 7 | Yönetici durum/rol değişikliği | Admin → Auth | Şimdilik kullanıcı token'lı `/api/v1/auth/admin/**`; servis kimlikli `/internal` uç **PENDING (D4)** |
 | 8 | Durum değişikliği yayılımı (`AccountStatusChanged`) | Auth → servisler | **PENDING (D3)**; şimdilik en fazla access token ömrü (5 dk) gecikme |
+| 9 | Gateway: çerez→Bearer + CSRF/Origin doğrulaması, CORS allowlist, kimlik başlığı temizliği, Auth hız sınırı | tarayıcı → Gateway → servisler | **IMPLEMENTED** (`api-gateway`); güvenilir proxy IP'si ayarlanabilir, ortak (çok örnekli) limitleyici **PENDING** |
 
 ## 3. Servis kimliği (D4) — sözleşme
 
