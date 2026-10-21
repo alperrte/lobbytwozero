@@ -21,7 +21,10 @@ public enum AuthErrorCode {
     EXTERNAL_EMAIL_UNVERIFIED(403, "The provider has not verified the email address."),
     ACCOUNT_LINK_REQUIRED(409, "An account with this email already exists. Sign in and link the provider."),
     PROVIDER_NOT_CONFIGURED(503, "This sign-in method is not available."),
-    REGISTRATION_TOKEN_INVALID(400, "Registration token is invalid or has expired.");
+    REGISTRATION_TOKEN_INVALID(400, "Registration token is invalid or has expired."),
+    CURRENT_PASSWORD_INVALID(400, "Current password is incorrect."),
+    NEW_PASSWORD_SAME_AS_CURRENT(400, "New password must differ from the current password."),
+    PASSWORD_RESET_TOKEN_INVALID(400, "Password reset link is invalid or has expired.");
 
     private final int httpStatus;
     private final String detail;

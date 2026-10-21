@@ -501,6 +501,79 @@ Diğer mikroservisler:
 #### Test Durumu
 UNIT + INTEGRATION (sağlayıcılar yerel sahte sunucularla; gerçek Google/Steam ile denenmedi)
 
+### AUTH — Parola değiştir
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/auth/password/change
+
+#### Yetkilendirme
+Authenticated (+ CSRF). Hesap kimliği yalnız token'dan alınır.
+
+#### Request Body
+```json
+{
+  "currentPassword": "string, zorunlu",
+  "newPassword": "string, zorunlu, 12-128 karakter; içeriği dönüştürülmez/kırpılmaz",
+  "newPasswordConfirmation": "string, zorunlu, newPassword ile birebir aynı"
+}
+```
+
+#### Response — 204
+Gövde yok. Hesabın **tüm** oturumları (bu cihaz dahil) iptal edilir, token sürümü artar (eski access token'lar düşer), bekleyen sıfırlama token'ları geçersiz olur, cookie'ler silinir; yeniden giriş gerekir. 2FA etkilenmez.
+
+#### Hata Durumları
+- 400: Doğrulama hatası (`VALIDATION_FAILED`; tekrar uyuşmazlığı alanı `newPasswordConfirmed`), mevcut parola yanlış (`CURRENT_PASSWORD_INVALID`; parolasız harici hesap dahil), yeni parola mevcutla aynı (`NEW_PASSWORD_SAME_AS_CURRENT`)
+- 401: Kimliksiz veya oturum geçersiz
+- 403: CSRF
+- 429: Mevcut parola denemesi hesap bazında 15 dakikada 5 hatayla sınırlı (`TOO_MANY_ATTEMPTS`, `Retry-After`)
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/auth/password/change
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### AUTH — Şifremi unuttum
+
+Durum: IMPLEMENTED (development'ta Mailpit; production e-posta teslimi PENDING)
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+- POST /api/v1/auth/password/forgot — `{ "email": "…" }` → `202 { "nextStep": "CHECK_EMAIL" }`
+- POST /api/v1/auth/password/reset — `{ "token", "newPassword", "newPasswordConfirmation" }` → `204`
+
+#### Yetkilendirme
+Public (cookie okumaz; CSRF gerekmez). `reset` yetkisini gövdedeki tek kullanımlık token'dan alır.
+
+#### Davranış
+- `forgot` hesap varlığını sızdırmaz: bilinen/bilinmeyen/uygun olmayan (doğrulanmamış, askıda, parolasız) hesapta yanıt aynıdır; e-posta yalnız ACTIVE ve parolalı hesaba gider ve istek iş parçacığı dışında teslim edildiği için yanıt süresi teslimden bağımsızdır. Aynı e-posta için 15 dakikada 5 istek, hesap varlığından bağımsız sınırlıdır (`429`). Aynı hesap için 60 sn bekleme içindeki istek sessizce e-posta üretmez; yeni istek eski token'ı geçersiz kılar.
+- Token: 256 bit rastgele, 30 dk geçerli, tek kullanımlık, yalnız SHA-256 özeti saklanır. Bağlantı: `{FRONTEND_PUBLIC_URL}/auth/reset-password#token=<token>` (fragment sunucuya/Referer'a gitmez; frontend token'ı `reset` gövdesinde gönderir).
+- `reset` başarılıysa parola değişir, tüm oturumlar ve eski access token'lar iptal edilir. **Otomatik giriş yapılmaz, 2FA kapatılmaz** (giriş sonrası TOTP yine istenir).
+- Teslim edilemeyen token `DELIVERY_FAILED` ile geçersiz kılınır; yanıt gönderim iddia etmez.
+
+#### Hata Durumları
+- 400: Doğrulama hatası; `PASSWORD_RESET_TOKEN_INVALID` (geçersiz, süresi dolmuş, kullanılmış, hesap aktif değil — tek yanıt)
+- 429: `forgot` istek sınırı (`Retry-After`)
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/auth/password/**
+
+Diğer mikroservisler:
+Mail Service (MAIL-02) — production **PENDING**; development'ta Mailpit (`PasswordResetMailPort`).
+
+#### Test Durumu
+INTEGRATION
+
 ### AUTH — Giden sözleşme taslakları (PLANNED, onay bekliyor)
 
 Bunlar Auth'un çağıracağı/yayımlayacağı sözleşmelerdir; karşı servisin kaydı o servis uygulanırken kendi başlığı altında açılır.

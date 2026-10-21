@@ -32,6 +32,11 @@ public final class AuthApiPaths {
     public static final String STEAM_CALLBACK = OAUTH + "/steam/callback";
     public static final String STEAM_COMPLETE = OAUTH + "/steam/complete";
 
+    public static final String PASSWORD = BASE + "/password";
+    public static final String PASSWORD_CHANGE = PASSWORD + "/change";
+    public static final String PASSWORD_FORGOT = PASSWORD + "/forgot";
+    public static final String PASSWORD_RESET = PASSWORD + "/reset";
+
     private AuthApiPaths() {
     }
 }

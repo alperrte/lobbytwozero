@@ -11,6 +11,8 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 
+import com.ltz.auth.application.port.PasswordResetMail;
+import com.ltz.auth.application.port.PasswordResetMailPort;
 import com.ltz.auth.application.port.VerificationCodeMail;
 import com.ltz.auth.application.port.VerificationCodeMailPort;
 
@@ -27,24 +29,42 @@ public class RecordingMailPortConfiguration {
         return new RecordingMailPort();
     }
 
-    public static class RecordingMailPort implements VerificationCodeMailPort {
+    public static class RecordingMailPort implements VerificationCodeMailPort, PasswordResetMailPort {
 
         private static final Duration DELIVERY_TIMEOUT = Duration.ofSeconds(10);
+        private static final String TOKEN_MARKER = "#token=";
 
         private final Queue<VerificationCodeMail> delivered = new ConcurrentLinkedQueue<>();
+        private final Queue<PasswordResetMail> resets = new ConcurrentLinkedQueue<>();
 
         @Override
         public void sendVerificationCode(VerificationCodeMail mail) {
             delivered.add(mail);
         }
 
+        @Override
+        public void sendPasswordReset(PasswordResetMail mail) {
+            resets.add(mail);
+        }
+
         public List<VerificationCodeMail> deliveredTo(String email) {
             return delivered.stream().filter(mail -> mail.recipientEmail().equalsIgnoreCase(email)).toList();
+        }
+
+        public List<PasswordResetMail> resetsTo(String email) {
+            return resets.stream().filter(mail -> mail.recipientEmail().equalsIgnoreCase(email)).toList();
         }
 
         public String awaitLatestCode(String email, int expectedDeliveries) {
             await().atMost(DELIVERY_TIMEOUT).until(() -> deliveredTo(email).size() >= expectedDeliveries);
             return deliveredTo(email).getLast().code();
+        }
+
+        /** E-postadaki bağlantının fragment'inden token'ı çıkarır. */
+        public String awaitLatestResetToken(String email, int expectedDeliveries) {
+            await().atMost(DELIVERY_TIMEOUT).until(() -> resetsTo(email).size() >= expectedDeliveries);
+            String link = resetsTo(email).getLast().resetLink();
+            return link.substring(link.indexOf(TOKEN_MARKER) + TOKEN_MARKER.length());
         }
     }
 }

@@ -69,12 +69,15 @@ public class SecurityConfig {
             PATHS.matcher(HttpMethod.GET, AuthApiPaths.STEAM_START),
             PATHS.matcher(HttpMethod.GET, AuthApiPaths.STEAM_CALLBACK),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.STEAM_COMPLETE),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_FORGOT),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_RESET),
             PATHS.matcher(HttpMethod.GET, HEALTH),
             PATHS.matcher(HttpMethod.GET, HEALTH_GROUPS));
 
     /** Geçerli access token isteyen uçlar. */
     static final RequestMatcher AUTHENTICATED_ENDPOINTS = new OrRequestMatcher(
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.SESSION_LOGOUT_ALL),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_CHANGE),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.TOTP_SETUP),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.TOTP_ACTIVATE),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.TOTP_DISABLE));
@@ -84,7 +87,9 @@ public class SecurityConfig {
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.REGISTER),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.EMAIL_VERIFICATION_CONFIRM),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.EMAIL_VERIFICATION_RESEND),
-            PATHS.matcher(HttpMethod.POST, AuthApiPaths.STEAM_COMPLETE));
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.STEAM_COMPLETE),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_FORGOT),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_RESET));
 
     private static final RequestMatcher BEARER_HEADER = request -> request.getHeader(HttpHeaders.AUTHORIZATION) != null;
 

@@ -3,6 +3,8 @@ package com.ltz.auth.infrastructure.client;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
+import com.ltz.auth.application.port.PasswordResetMail;
+import com.ltz.auth.application.port.PasswordResetMailPort;
 import com.ltz.auth.application.port.VerificationCodeDeliveryException;
 import com.ltz.auth.application.port.VerificationCodeMail;
 import com.ltz.auth.application.port.VerificationCodeMailPort;
@@ -16,10 +18,15 @@ import com.ltz.auth.application.port.VerificationCodeMailPort;
  */
 @Component
 @ConditionalOnProperty(name = "ltz.auth.mail.adapter", havingValue = "unavailable", matchIfMissing = true)
-public class MailServiceUnavailableAdapter implements VerificationCodeMailPort {
+public class MailServiceUnavailableAdapter implements VerificationCodeMailPort, PasswordResetMailPort {
 
     @Override
     public void sendVerificationCode(VerificationCodeMail mail) {
         throw new VerificationCodeDeliveryException("Mail Service verification delivery is not available");
+    }
+
+    @Override
+    public void sendPasswordReset(PasswordResetMail mail) {
+        throw new VerificationCodeDeliveryException("Mail Service password reset delivery is not available");
     }
 }

@@ -140,6 +140,12 @@ public class Account {
         return roles.stream().map(Role::getCode).collect(Collectors.toUnmodifiableSet());
     }
 
+    /** Parola değişince önceki tüm access token'lar da geçersiz olur (token sürümü artar). */
+    public void changePassword(String newPasswordHash, Instant now) {
+        passwordHash = newPasswordHash;
+        invalidateAllTokens(now);
+    }
+
     public void invalidateAllTokens(Instant now) {
         tokenVersion++;
         updatedAt = now;
