@@ -13,7 +13,7 @@ const PRIVATE_KEY_PATTERN = '-----BEGIN [A-Z ]*' + 'PRIVATE KEY';
 const ASSIGNMENT_PATTERN = `(${SECRET_NAMES.join('|')})=[^[:space:]]{12,}`;
 const PLACEHOLDER = /^(CHANGE|REPLACE|YOUR|<|\$\{|x{3,}|\.\.\.)/i;
 // Testler ve bu kontrol kodunun kendisi bilerek sahte degerler icerir.
-const EXCLUDED = [':!pre-push/*.test.mjs', ':!ops/*.test.mjs'];
+const EXCLUDED = [':!pre-push/*.test.mjs', ':!ops/*.test.mjs', ':!sonarqube/*.test.mjs'];
 const IGNORED_PATHS = ['.env', '.env.dev', '.env.prod', 'frontend/.env.local'];
 
 // `git grep -n` ciktisi (dosya:satir:icerik) icinden yer tutucu olmayan uzun sir atamalarini bulur.
