@@ -24,7 +24,15 @@ public enum AuthErrorCode {
     REGISTRATION_TOKEN_INVALID(400, "Registration token is invalid or has expired."),
     CURRENT_PASSWORD_INVALID(400, "Current password is incorrect."),
     NEW_PASSWORD_SAME_AS_CURRENT(400, "New password must differ from the current password."),
-    PASSWORD_RESET_TOKEN_INVALID(400, "Password reset link is invalid or has expired.");
+    PASSWORD_RESET_TOKEN_INVALID(400, "Password reset link is invalid or has expired."),
+    ACCOUNT_NOT_FOUND(404, "Account was not found."),
+    INVALID_STATUS_TRANSITION(409, "The requested account status transition is not allowed."),
+    SELF_MODIFICATION_FORBIDDEN(403, "Administrators cannot change their own status or roles."),
+    TARGET_NOT_ACTIVE(409, "The target account is not active."),
+    ROLE_ALREADY_ASSIGNED(409, "The role is already assigned."),
+    ROLE_NOT_ASSIGNED(409, "The role is not assigned."),
+    BASE_ROLE_REQUIRED(409, "The base player role cannot be revoked."),
+    ROLE_REQUIRES_TWO_FACTOR(409, "The target account must enable two-factor authentication before receiving this role.");
 
     private final int httpStatus;
     private final String detail;

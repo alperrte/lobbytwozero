@@ -21,7 +21,6 @@ import com.ltz.auth.application.service.StartedFlow;
 import com.ltz.auth.application.service.SteamLoginService;
 import com.ltz.auth.domain.exception.AuthException;
 import com.ltz.auth.infrastructure.config.OAuthProperties;
-import com.ltz.auth.infrastructure.config.OAuthProperties.Steam;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

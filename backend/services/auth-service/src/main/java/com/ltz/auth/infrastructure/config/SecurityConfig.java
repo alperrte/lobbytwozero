@@ -23,6 +23,7 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 
 import com.ltz.auth.api.controller.AuthApiPaths;
 import com.ltz.auth.api.controller.SessionCookies;
+import com.ltz.auth.domain.enums.RoleCode;
 import com.ltz.auth.infrastructure.security.AccessTokenCookieFilter;
 import com.ltz.auth.infrastructure.security.AccessTokenResolver;
 import com.ltz.auth.infrastructure.security.ProblemDetailSecurityHandler;
@@ -82,6 +83,9 @@ public class SecurityConfig {
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.TOTP_ACTIVATE),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.TOTP_DISABLE));
 
+    /** Yönetici uçları: geçerli token + ADMIN rolü; aksi 401/403. Rol token'dan değil her istekte doğrulanan oturumdan gelir. */
+    static final RequestMatcher ADMIN_ENDPOINTS = PATHS.matcher(AuthApiPaths.ADMIN + "/**");
+
     /** Cookie okumayan ve oturum açmayan uçlar (yetki kaynağı gövdedeki tek kullanımlık değerdir). */
     private static final RequestMatcher COOKIELESS_ENDPOINTS = new OrRequestMatcher(
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.REGISTER),
@@ -112,6 +116,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+                        .requestMatchers(ADMIN_ENDPOINTS).hasRole(RoleCode.ADMIN.name())
                         .requestMatchers(AUTHENTICATED_ENDPOINTS).authenticated()
                         .anyRequest().denyAll())
                 // Cookie → Bearer çevirisi CSRF denetiminden sonra yapılır (bkz. AccessTokenResolver).

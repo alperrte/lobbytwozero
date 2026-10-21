@@ -37,19 +37,20 @@ public class SessionStateValidator implements OAuth2TokenValidator<Jwt> {
 
     @Override
     public OAuth2TokenValidatorResult validate(Jwt jwt) {
+        String subject = jwt.getSubject();
+        String sessionClaim = jwt.getClaimAsString(TokenClaims.SESSION_ID);
+        if (subject == null || sessionClaim == null || !(jwt.getClaim(TokenClaims.TOKEN_VERSION) instanceof Number version)) {
+            return REVOKED;
+        }
         UUID accountId;
         UUID sessionId;
-        Long tokenVersion;
         try {
-            accountId = UUID.fromString(jwt.getSubject());
-            sessionId = UUID.fromString(jwt.getClaimAsString(TokenClaims.SESSION_ID));
-            tokenVersion = jwt.getClaim(TokenClaims.TOKEN_VERSION) instanceof Number number ? number.longValue() : null;
-        } catch (IllegalArgumentException | NullPointerException exception) {
+            accountId = UUID.fromString(subject);
+            sessionId = UUID.fromString(sessionClaim);
+        } catch (IllegalArgumentException exception) {
             return REVOKED;
         }
-        if (tokenVersion == null) {
-            return REVOKED;
-        }
+        long tokenVersion = version.longValue();
         Instant now = clock.instant();
         boolean sessionActive = sessionRepository.findById(sessionId)
                 .filter(session -> session.getAccountId().equals(accountId) && session.isActiveAt(now))

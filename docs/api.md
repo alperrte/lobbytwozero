@@ -574,6 +574,45 @@ Mail Service (MAIL-02) — production **PENDING**; development'ta Mailpit (`Pass
 #### Test Durumu
 INTEGRATION
 
+### AUTH — Yönetici: hesap durumu ve rol yönetimi
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend (yönetim paneli), admin-service (servis kimliği D4 gelene kadar kullanıcı token'ıyla; ayrı `/internal` ucu yok)
+
+#### Endpoint
+- GET /api/v1/auth/admin/roles — kanonik rol kodları (`PLAYER`, `CONTENT_CREATOR`, `GAME_DEVELOPER`, `MODERATOR`, `ADMIN`)
+- GET /api/v1/auth/admin/accounts/{accountId} — `{ id, username, status, roles, twoFactorEnabled, createdAt }` (e-posta/parola yok)
+- POST /api/v1/auth/admin/accounts/{accountId}/status — `{ "status": "SUSPENDED|BANNED|DISABLED|ACTIVE", "reason": "1-500 karakter" }` → `204`
+- POST /api/v1/auth/admin/accounts/{accountId}/roles/grant — `{ "role", "reason" }` → `204`
+- POST /api/v1/auth/admin/accounts/{accountId}/roles/revoke — `{ "role", "reason" }` → `204`
+
+#### Yetkilendirme
+Admin: geçerli access token + `ROLE_ADMIN`, servis sınırında SecurityConfig ile zorunlu (Gateway'e/arayüze bırakılmaz); kimliksiz `401`, ADMIN olmayan `403`. Cookie ile çağrıda CSRF gerekir; `Authorization: Bearer` ile gerekmez. Yönetici kimliği yalnız token'dan alınır.
+
+#### Kurallar
+- **Durum geçişleri:** `ACTIVE → SUSPENDED|BANNED|DISABLED`, `SUSPENDED → ACTIVE|BANNED`, `DISABLED → ACTIVE`. `BANNED` sondur (kaldırma kararı açık). `PENDING_VERIFICATION` (AUTH-02) ve `DELETION_REQUESTED/DELETED` (AUTH-16) bu uçtan yönetilmez. Süreli askı henüz yok.
+- **ACTIVE dışına çıkış:** hesabın tüm oturumları iptal edilir ve token sürümü artar; eski access/refresh token'lar auth uçlarında anında düşer, giriş `403` olur.
+- **Rol değişikliği:** hesabın oturumları iptal edilir (yeni rol için yeniden giriş). `PLAYER` alınamaz. `ADMIN`/`MODERATOR` yalnız **ACTIVE ve TOTP'si etkin** hesaba verilir (2FA zorunluluğu atlatılamaz).
+- **Yetki yükseltme yok:** yönetici kendi durumunu/rolünü değiştiremez (`SELF_MODIFICATION_FORBIDDEN`).
+- Her işlem gerekçe + yönetici kimliğiyle `account_status_history` / `account_role_history` tablolarına ve güvenlik olaylarına yazılır.
+
+#### Hata Durumları
+- 400: Doğrulama (gerekçe boş/501+ karakter, bilinmeyen durum/rol)
+- 401 / 403: kimliksiz / ADMIN değil / kendi hesabı / CSRF
+- 404: Hesap yok (`ACCOUNT_NOT_FOUND`)
+- 409: `INVALID_STATUS_TRANSITION`, `TARGET_NOT_ACTIVE`, `ROLE_ALREADY_ASSIGNED`, `ROLE_NOT_ASSIGNED`, `BASE_ROLE_REQUIRED`, `ROLE_REQUIRES_TWO_FACTOR`
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/auth/admin/**
+
+Diğer mikroservisler:
+admin-service servis JWT'si (D4) hazır olduğunda `/internal` ucu üzerinden bağlanacak — PENDING.
+
+#### Test Durumu
+INTEGRATION
+
 ### AUTH — Giden sözleşme taslakları (PLANNED, onay bekliyor)
 
 Bunlar Auth'un çağıracağı/yayımlayacağı sözleşmelerdir; karşı servisin kaydı o servis uygulanırken kendi başlığı altında açılır.

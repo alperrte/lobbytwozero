@@ -10,7 +10,7 @@ import jakarta.validation.constraints.Size;
 
 /** Steam ile yeni hesap: doğrulanmış SteamID'ye bağlı kayıt token'ı + e-posta + kullanıcı adı. Parola yoktur. */
 public record SteamRegistrationRequest(
-        @NotBlank @Size(max = SecondFactor.CHALLENGE_MAX_LENGTH) String registrationToken,
+        @NotBlank @Size(max = SecondFactor.OPAQUE_TOKEN_MAX_LENGTH) String registrationToken,
         @NotBlank @Email @Size(max = Account.EMAIL_MAX_LENGTH) String email,
         @NotNull @Pattern(regexp = Account.USERNAME_PATTERN) String username) {
 

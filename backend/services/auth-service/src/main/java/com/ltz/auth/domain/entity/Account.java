@@ -127,6 +127,29 @@ public class Account {
         return status == AccountStatus.PENDING_VERIFICATION;
     }
 
+    /** Durum geçerliliği çağıranda (AccountStatus.canTransitionTo) denetlenir; ACTIVE'den çıkış eski token'ları düşürür. */
+    public void changeStatus(AccountStatus target, Instant now) {
+        if (!status.canTransitionTo(target)) {
+            throw new IllegalStateException("Status transition is not allowed");
+        }
+        status = target;
+        updatedAt = now;
+        if (target != AccountStatus.ACTIVE) {
+            tokenVersion++;
+        }
+    }
+
+    /** Rol değişikliği eski rolleri taşıyan token'ları düşürür (token sürümü artar). */
+    public void grantRole(Role role, Instant now) {
+        roles.add(role);
+        invalidateAllTokens(now);
+    }
+
+    public void revokeRole(RoleCode code, Instant now) {
+        roles.removeIf(role -> role.getCode() == code);
+        invalidateAllTokens(now);
+    }
+
     public boolean isActive() {
         return status == AccountStatus.ACTIVE;
     }

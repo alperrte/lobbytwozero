@@ -10,6 +10,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -29,6 +30,10 @@ import org.springframework.web.context.WebApplicationContext;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import com.ltz.auth.api.controller.AuthApiPaths;
+import com.ltz.auth.application.service.SessionService;
+import com.ltz.auth.domain.enums.AuthMethod;
+import com.ltz.auth.infrastructure.security.SecretCipher;
+import com.ltz.auth.infrastructure.security.TotpCodes;
 
 import jakarta.servlet.Filter;
 import jakarta.servlet.http.Cookie;
@@ -64,6 +69,15 @@ public abstract class IntegrationTestSupport {
 
     @Autowired
     protected JdbcTemplate jdbc;
+
+    @Autowired
+    private SecretCipher secretCipher;
+
+    @Autowired
+    private TotpCodes totpCodes;
+
+    @Autowired
+    private SessionService sessionService;
 
     protected MockMvc mockMvc;
 
@@ -117,6 +131,19 @@ public abstract class IntegrationTestSupport {
             request.addHeader(CSRF_HEADER, token);
             return request;
         };
+    }
+
+    /** Hesaba doğrudan ACTIVE bir TOTP kaydı ekler (2FA kurulum akışı bu testlerin konusu değildir). */
+    protected void enableTotp(UUID accountId) {
+        var secret = secretCipher.encrypt(totpCodes.newSecret(), accountId);
+        jdbc.update("insert into totp_credentials (account_id, secret_ciphertext, secret_nonce, key_version, status, "
+                + "created_at, activated_at) values (?, ?, ?, ?, 'ACTIVE', now(), now())", accountId,
+                secret.ciphertext(), secret.nonce(), secret.keyVersion());
+    }
+
+    /** Gerçek token üreticisiyle verilmiş, belirtilen rolleri taşıyan geçerli oturumun Authorization başlığı. */
+    protected String bearerFor(UUID accountId) {
+        return "Bearer " + sessionService.start(accountId, List.of(AuthMethod.PWD)).accessToken();
     }
 
     protected ResultActions login(String identifier, String password) throws Exception {

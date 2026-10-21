@@ -22,8 +22,6 @@ import com.ltz.auth.ConcurrentRequests;
 import com.ltz.auth.IntegrationTestSupport;
 import com.ltz.auth.RecordingMailPortConfiguration;
 import com.ltz.auth.RecordingMailPortConfiguration.RecordingMailPort;
-import com.ltz.auth.infrastructure.security.SecretCipher;
-import com.ltz.auth.infrastructure.security.TotpCodes;
 
 @Import(RecordingMailPortConfiguration.class)
 @ExtendWith(OutputCaptureExtension.class)
@@ -35,12 +33,6 @@ class PasswordResetTest extends IntegrationTestSupport {
 
     @Autowired
     private RecordingMailPort mailPort;
-
-    @Autowired
-    private SecretCipher secretCipher;
-
-    @Autowired
-    private TotpCodes totpCodes;
 
     @Test
     void bilinenVeBilinmeyenHesapAyniYaniti_alir_yalnizBilinenHesaba_epostaGider() throws Exception {
@@ -155,10 +147,7 @@ class PasswordResetTest extends IntegrationTestSupport {
     void sifirlama2faYiKapatmaz() throws Exception {
         String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
         UUID accountId = accountId(email);
-        var secret = secretCipher.encrypt(totpCodes.newSecret(), accountId);
-        jdbc.update("insert into totp_credentials (account_id, secret_ciphertext, secret_nonce, key_version, status, "
-                + "created_at, activated_at) values (?, ?, ?, ?, 'ACTIVE', now(), now())", accountId,
-                secret.ciphertext(), secret.nonce(), secret.keyVersion());
+        enableTotp(accountId);
         forgot(email).andExpect(status().isAccepted());
 
         reset(mailPort.awaitLatestResetToken(email, 1), NEW_PASSWORD, NEW_PASSWORD).andExpect(status().isNoContent());

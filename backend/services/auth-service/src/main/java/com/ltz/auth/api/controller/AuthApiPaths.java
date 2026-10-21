@@ -37,6 +37,14 @@ public final class AuthApiPaths {
     public static final String PASSWORD_FORGOT = PASSWORD + "/forgot";
     public static final String PASSWORD_RESET = PASSWORD + "/reset";
 
+    /** Yalnız ROLE_ADMIN erişir (SecurityConfig). */
+    public static final String ADMIN = BASE + "/admin";
+    public static final String ADMIN_ROLES = ADMIN + "/roles";
+    public static final String ADMIN_ACCOUNT = ADMIN + "/accounts/{accountId}";
+    public static final String ADMIN_ACCOUNT_STATUS = ADMIN_ACCOUNT + "/status";
+    public static final String ADMIN_ACCOUNT_ROLES_GRANT = ADMIN_ACCOUNT + "/roles/grant";
+    public static final String ADMIN_ACCOUNT_ROLES_REVOKE = ADMIN_ACCOUNT + "/roles/revoke";
+
     private AuthApiPaths() {
     }
 }

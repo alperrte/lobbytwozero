@@ -8,7 +8,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record ResetPasswordRequest(
-        @NotBlank @Size(max = SecondFactor.CHALLENGE_MAX_LENGTH) String token,
+        @NotBlank @Size(max = SecondFactor.OPAQUE_TOKEN_MAX_LENGTH) String token,
         @NotNull @Size(min = Account.PASSWORD_MIN_LENGTH, max = Account.PASSWORD_MAX_LENGTH) String newPassword,
         @NotNull @Size(max = Account.PASSWORD_MAX_LENGTH) String newPasswordConfirmation) {
 
