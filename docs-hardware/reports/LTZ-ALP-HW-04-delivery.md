@@ -1,7 +1,9 @@
 # LTZ-ALP-HW-04 — Donanım Yorumları ve Moderasyon
 
 Tarih 2026-10-21. Sorumlu Alper.
-Durum **READY_FOR_PDA — DEFERRED_AUTH / DEFERRED_CONTRACT**.
+Durum **DONE — DEFERRED_AUTH / DEFERRED_CONTRACT**.
+Kullanıcı PDA kapanışını ve HW-05 geçişini bildirdi; f558a69 commit'i doğrulandı.
+Aşağıdaki teknik kanıt teslim snapshot'ıdır.
 HW-12 ve HW-13 sırayla uygulandı; 2/2 alt görev, toplam 15/17.
 İki nihai kalite kapısı PASS. HW-04 ana kutusu kullanıcı PDA kapanışı gelene
 kadar `[ ]`; daha önce kapanışı doğrulanan ana görev sayısı 3/5. HW-05 başlamadı.
@@ -212,3 +214,10 @@ HW-04 alt görevleri, pre-push ve SonarQube kalite kapıları doğrulandı.
 Kullanıcı PDA üzerinden LTZ-ALP-HW-04'ü kapatabilir; commit/push işlemleri kullanıcıya
 aittir. Ana checkbox kapanış bildirimi gelene kadar boş kalır. HW-05 NOT_STARTED.
 Tek feature mesajı sunulur ve STOP yapılır; final servis raporu yalnız HW-05 sonunda yazılır.
+
+## Kullanıcı kapanış bildirimi — 2026-10-21
+
+HW-04 PDA kapanışı kullanıcı tarafından bildirildi; f558a69 commit kapsamı
+teslimdeki 57 dosyayla eşleşti, çalışma ağacı temiz ve upstream tracking 0/0.
+Ana HW-04 kutusu [x]; kapanışı doğrulanan ana görev sayısı 4/5. HW-05 geçişi onaylı.
+Git yazma veya PDA işlemi ajan tarafından yapılmadı.

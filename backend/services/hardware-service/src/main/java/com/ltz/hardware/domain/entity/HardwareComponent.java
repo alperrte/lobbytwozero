@@ -21,7 +21,8 @@ public class HardwareComponent {
     @Column(name = "brand_name", length = 100) private String brandName;
     @Column(nullable = false) private int quantity;
     @Embedded private HardwareSpecifications specifications;
-    @Column(nullable = false, length = 32, updatable = false) private String source;
+    @Column(nullable = false, length = 32) private String source;
+    @Column(name = "sync_component_key") private UUID syncComponentKey;
     @Version private long version;
     @Column(name = "created_at", nullable = false, updatable = false) private Instant createdAt;
     @Column(name = "updated_at", nullable = false) private Instant updatedAt;
@@ -59,6 +60,26 @@ public class HardwareComponent {
     }
 
     public void replaceWith(HardwareComponent replacement) {
+        copyDetails(replacement);
+        source = "MANUAL";
+        syncComponentKey = null;
+    }
+
+    public static HardwareComponent desktop(UUID profileId, HardwareScan.Component scanned) {
+        var component = new HardwareComponent(profileId, scanned.selection(), scanned.quantity());
+        component.source = "DESKTOP_SYNC";
+        component.syncComponentKey = scanned.componentKey();
+        return component;
+    }
+
+    public void replaceFromScan(HardwareScan.Component scanned) {
+        if (!"DESKTOP_SYNC".equals(source) || !Objects.equals(syncComponentKey, scanned.componentKey())) {
+            throw new IllegalArgumentException("Senkronizasyon anahtarı uyuşmuyor");
+        }
+        copyDetails(desktop(profileId, scanned));
+    }
+
+    private void copyDetails(HardwareComponent replacement) {
         if (!profileId.equals(replacement.profileId)) throw new IllegalArgumentException("Profil uyuşmuyor");
         this.category = replacement.category;
         this.productId = replacement.productId;
@@ -67,6 +88,7 @@ public class HardwareComponent {
         this.brandName = replacement.brandName;
         this.quantity = replacement.quantity;
         this.specifications = replacement.specifications;
-        this.updatedAt = Instant.now();
+        var now = Instant.now();
+        this.updatedAt = now.isAfter(updatedAt) ? now : updatedAt.plusNanos(1000);
     }
 }

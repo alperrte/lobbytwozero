@@ -4,6 +4,7 @@ import com.ltz.hardware.domain.exception.HardwareConflictException;
 import com.ltz.hardware.domain.exception.HardwareNotFoundException;
 import com.ltz.hardware.domain.exception.HardwareRateLimitException;
 import com.ltz.hardware.domain.exception.HardwareDeliveryUnavailableException;
+import com.ltz.hardware.domain.exception.HardwareSyncCapacityException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 
@@ -67,6 +68,12 @@ public class HardwareExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(HardwareDeliveryUnavailableException.class)
     ResponseEntity<Object> unavailable(HardwareDeliveryUnavailableException exception) {
         return problem(503, "MODERATION_DELIVERY_UNAVAILABLE", "Olay kuyruğu sınırı nedeniyle işlem tamamlanamadı.");
+    }
+
+    @ExceptionHandler(HardwareSyncCapacityException.class)
+    ResponseEntity<Object> syncCapacity(HardwareSyncCapacityException exception) {
+        var result = problem(429, "SYNC_RECEIPT_LIMIT_REACHED", "Senkronizasyon kayıt sınırı aşıldı.");
+        return ResponseEntity.status(429).headers(result.getHeaders()).header("Retry-After", "3600").body(result.getBody());
     }
 
     private static ResponseEntity<Object> problem(int status, String code, String detail) {

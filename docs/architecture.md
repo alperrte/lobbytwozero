@@ -139,7 +139,22 @@ uydurma URL/service-token açılmaz. Kaynak DTO'ları teslim edilmediğini açı
 239 hardware test / %98,66 PASS. Nihai tüm backend full dev 257 test / %95,98,
 18 HTTP PASS ve SAFE TO COMMIT; Sonar A/A/A + Quality Gate PASS, açık issue/hotspot 0.
 Gerçek Auth ve consumer bağlantıları doğrulanmadığından production-ready değildir.
-Masaüstü sync henüz uygulanmadı.
+HW-05/HW-06 açık onaylı stateless owner preview ekler; donanımı/izni kaydetmez.
+HW-07 profil/cihaz izni ve generation, ayrı AuthenticatedHardwareDevice +
+hardware:sync:write, deny eden HardwareSyncDevicePolicy ve idempotent snapshot
+altyapısını V10 ile ekler. Parent profil kilidi/version owner/revoke/apply
+yarışını seri hale getirir. Yalnız DESKTOP_SYNC kümesi yenilenir; MANUAL kayıtlar,
+profil kökeni ve gizlilik korunur. Receipt 24 saat/profil başına 500, sequence
+kalıcı anti-replay korumasıdır; iptal sonrası cached receipt bile reddedilir.
+Gerçek Auth cihaz credential/scope, PERF-01 cihaz sahipliği/iptal kontratı ve
+desktop E2E açık kullanıcı onayıyla DEFERRED_AUTH / DEFERRED_CONTRACT / NOT_VERIFIED.
+Hardware içinde eşleştirme servisi, credential üretimi veya uydurma dış URL yoktur.
+Production policy deny, izin veren kimlik ve policy yalnız testlerdedir.
+MVP sonrası gerçek masaüstü istemcisi bu görevde geliştirilmez.
+HW-05 nihai kalite: 293 hardware test/%98,75; full dev 311 backend test/%96,51,
+18 HTTP PASS/SAFE TO COMMIT. Sonar A/A/A + gate PASS; açık issue/hotspot 0/0.
+Toplu 46 API/17 alt görev envanteri docs-hardware/reports/HARDWARE_SERVICE_FINAL_REPORT.md
+içindedir; gerçek Auth/consumer/cihaz E2E eksikleri production hazırlığı olarak gösterilmez.
 
 Kurallar:
 

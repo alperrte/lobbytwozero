@@ -53,4 +53,6 @@ public interface HardwareComponentRepository extends JpaRepository<HardwareCompo
     Page<HardwareComponent> findAllByProfileIdAndCategoryIn(UUID profileId,
             List<ComponentCategory> categories, Pageable pageable);
     Optional<HardwareComponent> findByIdAndProfileId(UUID id, UUID profileId);
+    List<HardwareComponent> findAllByProfileIdAndSource(UUID profileId, String source);
+    long countByProfileIdAndSource(UUID profileId, String source);
 }

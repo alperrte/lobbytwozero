@@ -284,7 +284,7 @@ bağlı bileşenler CASCADE ile silinir, katalog/marka ve diğer profiller korun
 RAM/depolama kapasitesi adetle çarpılır, kapasitesi bilinmeyen adetler ayrıca bildirilir.
 Aşağıdaki genişletilmiş eski tasarım **öneridir**. Gerçek kampanya şeması için V5,
 gizlilik için V6/V7, yorum ve rapor için aşağıdaki V8/V9 uygulama tanımları
-geçerlidir; sync henüz uygulanmadı.
+geçerlidir; sync için aşağıdaki V10 uygulama tanımı geçerlidir.
 JPA validate ve open-in-view=false korunur.
 
 | Tablo | Önemli sütunlar | Kısıtlar / not |
@@ -374,6 +374,39 @@ V9 immutable audit'in izinli action CHECK'ini genişletir; V8 yeniden yazılmad�
 239 testte PostgreSQL 17/Flyway V1–V9/JPA PASS; canlı DB'ye V8/V9 uygulanmadı.
 Gerçek consumer sözleşmesi olmadığından relay/teslim/SENT işlemi uygulanmadı.
 SENT retention ve gerçek consumer E2E sonraki mutabakatla ele alınacaktır.
+
+**HW-07 / V10 (2026-10-21):** hardware_profile_components'a nullable
+sync_component_key UUID eklendi. Source CHECK artık MANUAL + null key veya
+DESKTOP_SYNC + dolu key + null product_id/brand_id ister; profil/key partial unique
+indeksi aynı tarama bileşenini tekilleştirir. Manuel PUT kaynak/key'i MANUAL/null
+yapar. Profil source=MANUAL oluşturulma kökenidir, sync bunu değiştirmez.
+
+hardware_sync_consents: id UUID PK, profile_id UNIQUE gerçek CASCADE FK,
+device_id dış REF, generation UUID, GRANTED/REVOKED status, granted_at/revoked_at,
+last_sequence/last_captured_at/last_synced_at, version ve UTC created_at/updated_at.
+Status/zaman/sequence metadata bütünlüğü CHECK'lerle korunur; device indeksi vardır.
+Her yeni grant generation ve sıra metadata'sını sıfırlar; eski receipt generation'ları
+yerel state'e FK değildir. Aktör owner'ı parent profilden gelir; cihaz ID'si yalnız
+güvenilir policy ve ayrı typed principal ile doğrulanabilir. Dış cihaz verisi bu
+DB'de hesap/credential sistemi olarak kopyalanmaz.
+
+hardware_sync_receipts: id UUID, profile CASCADE FK, UUID idempotency_key/generation,
+sequence, request_hash SHA-256, yalnız asgari metadata içeren <=4 KiB response_body
+jsonb, version, created_at/expires_at. UNIQUE (profile_id,idempotency_key) ve
+(profile_id,generation,sequence); hash/sequence/expiry/JSON CHECK, expiry indeksi.
+Profil başına 500 canlı receipt/24 saat; parent kilidi bütçeyi ve uygulamayı seri
+hale getirir. Saatlik job süresi dolan kayıtları temizler (yaklaşık 24–25 saat).
+Kalıcı last_sequence receipt silinse de eski sırayı reddeder. Profil silme iki yeni
+tabloyu ve bileşenleri CASCADE temizler; başka profil/cihaz kayıtları etkilenmez.
+
+HW-06 preview donanım/consent kaydetmez. HW-07 snapshot/state/version/receipt tek
+transaction'dır, yalnız DESKTOP_SYNC kümesi değiştirilir; MANUAL/gizlilik korunur.
+Mevcut hardware_write_limits kısa TTL altyapısı yeni user/device/peer bucket'larını
+da taşır. V1–V10 gerçek PostgreSQL/Flyway/JPA ve 269 mevcut regresyonda PASS;
+yeni davranışların final test kanıtı HW-05 kalite kaydında güncellenir. V10 artık
+değiştirilmez; hardware V1–V10 aralığı doldu, yeni SQL sürümü ekip kararı ister.
+Canlı DB'ye V10 uygulanmadı. Gerçek Auth/PERF cihaz kontratı ve desktop E2E
+onaylı DEFERRED_AUTH / DEFERRED_CONTRACT / NOT_VERIFIED; production policy deny.
 
 ### 3.14 recommendation_db — recommendation-service (Alper)
 

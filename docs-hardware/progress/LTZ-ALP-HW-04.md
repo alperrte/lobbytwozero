@@ -1,7 +1,8 @@
 # LTZ-ALP-HW-04 — Donanım Yorumları ve Moderasyon
 
-Tarih 2026-10-21; Alper. Durum READY_FOR_PDA — DEFERRED_AUTH / DEFERRED_CONTRACT.
-2/2 alt görev, toplam 15/17; iki nihai kalite kapısı PASS. PDA kapanışı kullanıcıyı bekler.
+Tarih 2026-10-21; Alper. Durum DONE — DEFERRED_AUTH / DEFERRED_CONTRACT.
+Kullanıcı PDA kapanışını ve HW-05 geçişini bildirdi; commit f558a69 doğrulandı.
+2/2 alt görev, toplam 15/17; iki nihai kalite kapısı PASS. Aşağıdaki günlük teslim snapshot'ıdır.
 
 - [x] HW-12 — Donanım yorumları
 - [x] HW-13 — Donanım yorumu moderasyonu
@@ -129,3 +130,10 @@ Kök checklist HW-12/HW-13 [x], toplam 15/17; ana HW-04 kutusu [ ] kullanıcı P
 kapanışını bekler. Auth gerçek bağlantısı DEFERRED_AUTH; Admin/Notification ve
 User/Social UGC DEFERRED_CONTRACT / NOT_VERIFIED, açık onaylı. Production-ready değildir.
 Commit/push/PDA işlemleri kullanıcıya aittir. HW-05 NOT_STARTED; STOP.
+
+## PDA kapanışı — 2026-10-21
+
+Kullanıcı HW-04 PDA kapanışını ve HW-05 geçişini açıkça bildirdi. Kullanıcının
+f558a69 commit'i teslimdeki 57 dosyayı içerir; başlangıç çalışma ağacı temiz,
+upstream tracking ahead/behind 0/0. Ana HW-04 [x]; kapanışı doğrulanan ana görev 4/5.
+Git yazma veya PDA işlemi ajan tarafından yapılmadı. HW-05 kendi checkpoint'inden ilerler.

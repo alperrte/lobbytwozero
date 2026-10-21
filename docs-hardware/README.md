@@ -1,13 +1,20 @@
 # Hardware Service çalışma kayıtları
 
-Sorumlu: Alper. Aktif kapsam: **LTZ-ALP-HW-04 — Donanım Yorumları ve Moderasyon**;
-**READY_FOR_PDA — DEFERRED_AUTH / DEFERRED_CONTRACT**, 2/2; toplam 15/17.
-Son PDA kapanışı doğrulanan ana görev LTZ-ALP-HW-03 (3/5); HW-04 kapanışı kullanıcıyı bekler.
+Sorumlu: Alper. Aktif kapsam: **LTZ-ALP-HW-05 — Masaüstü Donanım Tanıma ve İzinli Senkronizasyon Sözleşmesi**;
+**READY_FOR_PDA — DEFERRED_AUTH / DEFERRED_CONTRACT**, 2/2; toplam 17/17.
+Son PDA kapanışı HW-04 (4/5), commit f558a69; HW-05 ana kutusu kullanıcıyı bekler.
+Hardware 293 test/%98,75, full dev 311/%96,51/18 HTTP PASS/SAFE TO COMMIT;
+Sonar A/A/A + gate PASS, açık issue/hotspot 0/0.
 
 Tek durum otoritesi [kök master](../LTZ_HARDWARE_SERVICE.md), API sözleşmesi
 [docs/api.md](../docs/api.md) dosyasıdır. PDA kapatma ve Git yazma işlemleri kullanıcıya aittir.
 
-- [Aktif görev günlüğü](progress/LTZ-ALP-HW-04.md)
+- [Aktif HW-05 görev günlüğü](progress/LTZ-ALP-HW-05.md)
+- [HW-05 onaylı model ve ertelemeler](decisions/HW05-desktop-sync-proposal.md)
+- [HW-05 kalite kanıtları](testing/LTZ-ALP-HW-05-quality.md)
+- [HW-05 teslim raporu](reports/LTZ-ALP-HW-05-delivery.md)
+- [Hardware Service final envanteri](reports/HARDWARE_SERVICE_FINAL_REPORT.md)
+- [HW-04 tamamlanan görev günlüğü](progress/LTZ-ALP-HW-04.md)
 - [HW-04 yorum/moderasyon önerisi](decisions/HW04-review-moderation-proposal.md)
 - [HW-04 kalite kaydı](testing/LTZ-ALP-HW-04-quality.md)
 - [HW-04 teslim raporu](reports/LTZ-ALP-HW-04-delivery.md)
@@ -25,8 +32,9 @@ Tek durum otoritesi [kök master](../LTZ_HARDWARE_SERVICE.md), API sözleşmesi
 - [Kalite kanıtları](testing/LTZ-ALP-HW-01-quality.md)
 - [LTZ-ALP-HW-01 teslim raporu](reports/LTZ-ALP-HW-01-delivery.md)
 
-Sonraki ana görev: 05 izinli masaüstü sözleşmesi. HW-04 PDA kapanışı ve
-kullanıcı geçiş izni olmadan başlanmaz.
+Beşinci ve son ana görev teknik teslimi hazırdır; PDA kapatma ve commit/push
+kullanıcıya aittir. Gerçek Auth/cihaz/desktop bağlantıları onaylı ertelenmiştir;
+servis production-ready değildir. Yeni çalışma başlatılmaz; STOP.
 
 ## Geçmiş teslim ve başlangıç snapshot'ları
 

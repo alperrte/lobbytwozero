@@ -234,6 +234,17 @@ overall %92,7 / new %94,7 / duplication %0, açık issue/hotspot 0/0.
 Admin/Notification/User-Social UGC kontrat/E2E DEFERRED_CONTRACT / NOT_VERIFIED.
 Yerel PENDING outbox, rapor/bildirim teslim edildiği anlamına gelmez.
 
+LTZ-ALP-HW-05: açık onaylı preview ve profil/cihaz bazlı grant–revoke/idempotent
+snapshot için beş yeni endpoint; toplam 46 business uç. Donanım detay ve owner
+batch DTO'larında component.source MANUAL/DESKTOP_SYNC ayrılır; profilin MANUAL
+oluşturulma kökeni korunur. Manuel PUT synced kaydı MANUAL'a ayırır.
+Nihai hardware 293 PASS/%98,75; tüm backend full dev 311 PASS/%96,51,
+18 HTTP PASS ve SAFE TO COMMIT. Sonar A/A/A + gate PASS; overall %93,4/new %95,0,
+duplication %0, açık issue/hotspot 0/0. [HW-05 kalite](../docs-hardware/testing/LTZ-ALP-HW-05-quality.md),
+[final servis envanteri](../docs-hardware/reports/HARDWARE_SERVICE_FINAL_REPORT.md).
+Gerçek kullanıcı/cihaz Auth DEFERRED_AUTH; PERF aktif cihaz/pairing/iptal kontratı
+ve desktop E2E onaylı DEFERRED_CONTRACT / NOT_VERIFIED. Production cihaz policy deny.
+
 ### HARDWARE — HW-01 Profil oluşturma
 
 Durum: IMPLEMENTED
@@ -379,6 +390,9 @@ Owner; CSRF ve HW-01 güvenlik sınırı. Bileşenin URL'deki profile ait olmas�
 gönderilmeyen opsiyonel alanlar temizlenir; katalogda specs gönderilmezse katalog değerleri kullanılır.
 #### Response — 200
 `ComponentMutationResponse`; parent profileVersion ve bileşen version artar; kimlik/createdAt korunur.
+HW-07: Owner DESKTOP_SYNC kaydını bu manuel PUT ile değiştirirse source=MANUAL
+ve sync key=null olur. Sonraki snapshot bu kaydı ezmez; aynı tarama key'i için
+ayrı bir otomatik kayıt oluşturabilir. İstemciden source/key alınmaz.
 #### Hata Durumları
 400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED;
 404 HARDWARE_NOT_FOUND; 409 DATA_CONFLICT; 500 INTERNAL_ERROR.
@@ -387,6 +401,8 @@ Frontend: Gateway tam path. Diğer mikroservisler: yok. Mevcut V1/V2; yeni migra
 #### Test Durumu
 UNIT + INTEGRATION — HardwareComponentControllerTest güncelleme/IDOR/rollback ve paralel
 writer testleri PASS; modül toplamı 47 PASS, exit 0 (2026-10-21).
+HW-07 manualOverrideDetachesSourceAndSubsequentScanPreservesIt testi PASS;
+V10 source CHECK'iyle son 293 test / %98,75 (20:36:36 +03) doğrulandı.
 
 ### HARDWARE — HW-03 Bileşen kaldırma
 
@@ -404,6 +420,8 @@ Owner; CSRF ve HW-01 güvenlik sınırı.
 - profileVersion: long >=0, zorunlu.
 #### Response — 204
 Gövdesiz; `X-Profile-Version` yeni profil sürümüdür. Profil silinmez; private/no-store.
+HW-07: İzin aktifken silinen DESKTOP_SYNC kaydı sonraki snapshot'ta yeniden
+oluşabilir; sürekli otomatik güncellemeyi durdurmak için sync-consent iptal edilir.
 #### Hata Durumları
 400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED;
 404 HARDWARE_NOT_FOUND; 409 DATA_CONFLICT; 500 INTERNAL_ERROR.
@@ -456,6 +474,8 @@ Owner; HW-01 güvenlik sınırı/DEFERRED_AUTH. Diğer kullanıcıların profill
 Profil HW-01 yanıtı, bileşenler HW-02 DTO'sudur. Eksik teknik alanlar null kalır;
 seri numarası, owner, FPS/sıcaklık/tahmin dönmez. Kayıtlı teknik değerler ve birimleri
 HW-02 sözleşmesindedir. Sabit createdAt/id sıralaması ve REPEATABLE_READ snapshot kullanılır.
+HW-07 sonrası components.source MANUAL veya DESKTOP_SYNC olabilir; profilin
+source=MANUAL değeri oluşturulma kökeni olarak korunur. Sync key/cihaz kimliği dönmez.
 #### Hata Durumları
 400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED;
 404 HARDWARE_NOT_FOUND; 500 INTERNAL_ERROR. Cache private/no-store.
@@ -464,6 +484,7 @@ Frontend: Gateway tam path. Diğer mikroservisler: yok. V1/V2; yeni migration yo
 #### Test Durumu
 UNIT + INTEGRATION — HardwareComponentControllerTest detay/null/sayfalama/IDOR PASS;
 modül toplamı 54 PASS, exit 0 (2026-10-21).
+HW-07 otomatik/manuel küme koruma testi ve 293 test / %98,75 PASS (20:36:36 +03).
 
 ### HARDWARE — HW-15 Donanım profil istatistikleri
 
@@ -1773,6 +1794,219 @@ SecurityContextHardwareReviewModerationAccessTest. PostgreSQL 17/Flyway V1–V9/
 239 PASS / exit 0, 2026-10-21 18:56:40 +03; JaCoCo 1176/1192=%98,66.
 Permission/IDOR, rollback, doğal tekillik, global kapasite yarışı, orphan/purge,
 stale/concurrent edit ve yalnız PENDING notice testli. Gerçek consumer E2E NOT_VERIFIED.
+
+### HARDWARE — HW-06 Açık onaylı donanım tarama önizlemesi
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend; gelecekte masaüstü istemci (gerçek E2E NOT_VERIFIED)
+
+#### Endpoint
+POST /api/v1/hardware/profiles/{profileId}/sync/preview
+
+#### Yetkilendirme
+Owner typed actor + CSRF; processingConsent=true bu tek isteğin açık onayıdır.
+Sürekli sync izni vermez. Donanım/consent/source/profileVersion değiştirmez;
+yalnız kısa ömürlü rate bucket'ları kaydedilir. Gerçek Auth DEFERRED_AUTH;
+üretim doğrulayıcı yokken istekler reddedilir. Bu uç cihaz doğrulamaz.
+
+#### Path/Query Parameters
+profileId zorunlu UUID; query yok.
+
+#### Request Body
+PreviewHardwareScanRequest: processingConsent=true ve scan zorunlu.
+HardwareScanRequest: schemaVersion=1, capturedAt UTC (son 24 saat, en fazla 5 dakika
+gelecek), components 1..32. ScannedHardwareComponentRequest: tekil opaque UUID
+componentKey, mevcut kategori enum'u, modelName 1..160, opsiyonel brandName 1..100,
+quantity 1..128 ve mevcut SpecificationsRequest alanları/range'leri.
+Metinler ham/NFKC sonrası doğrulanır; body 16 KiB. source/userId/deviceId,
+seri/MAC/hostname/telemetri, katalog UUID ve bilinmeyen alanlar kabul edilmez.
+
+#### Response
+200 HardwareScanPreviewResponse: profileVersion,schemaVersion,capturedAt,
+componentCount,persisted=false,components. Her component key/category/normalize
+modelName/brandName/quantity/specifications içerir; kaynak veya owner UUID dönmez.
+capturedAt microsecond UTC'ye normalize edilir; components key'e göre stabil sıralıdır.
+Yanıt no-store/private; preview gerçek donanım attestation'ı veya sync teslimi değildir.
+
+#### Hata Durumları
+400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED/CSRF;
+404 HARDWARE_NOT_FOUND (yabancı/olmayan profil); 413 REQUEST_TOO_LARGE;
+429 RATE_LIMITED (Retry-After 60); 500 INTERNAL_ERROR. Güvenli ProblemDetail.
+Fixed-minute user 20/dakika ve socket peer 120/dakika; XFF'a güvenilmez,
+ham IP saklanmaz. Sayaçlar başarılı transaction'a katılır; rollback kota tüketmez.
+
+#### Bağlantı
+HardwareScanController/Service/Mapper, HardwareScan domain ve HardwareSyncLimits.
+Yeni migration yok; mevcut V8 rate bucket altyapısı. Başka servise/DB'ye çağrı yok.
+HW-07 kalıcı izin ve ayrı doğrulanmış cihaz apply sözleşmesi ayrıca uygulanacak.
+
+#### Test Durumu
+UNIT + INTEGRATION — HardwareScanControllerTest (28) ve HardwareScanTest (2);
+2026-10-21 20:21:49 +03 verify exit 0: 269 PASS, failure/error/skipped 0;
+JaCoCo 1243/1261=%98,57. Gerçek PostgreSQL 17/Flyway V1–V9/JPA/MockMvc.
+Gerçek Auth/desktop E2E NOT_VERIFIED. Son kalite sonucu HW-05 kalite kaydında tutulur.
+
+### HARDWARE — HW-07 Ortak sync güvenlik ve tekrar gönderim sözleşmesi
+
+Gerçek kullanıcı/cihaz Auth DEFERRED_AUTH; PERF cihaz sahipliği/iptal sözleşmesi ve
+masaüstü E2E DEFERRED_CONTRACT / NOT_VERIFIED, açık kullanıcı onaylıdır. Gerçek
+RestClient URL/JSON, eşleştirme servisi veya credential üretilmez. Production deny.
+Parent profil kilidi tüm owner/consent/apply yarışlarını ve profileVersion'ı korur.
+Yeni sıra kesin artar; eski capturedAt reddedilir. Aynı key/normalize hash 24 saat
+önceki yanıtı döndürür; güncel cihaz ve izin her retry'da yeniden doğrulanır.
+Profil başına 500 canlı receipt sınırı, saatlik expiry temizliği (yaklaşık 24–25 saat);
+expiry sonrası lastSequence anti-replay koruması sürer. Snapshot/state/version/receipt
+tek transaction, kapasite/validation hatasında rollback. Grant/revoke/preview user
+ortak 20/dakika; apply user 30 + device 10/dakika; tümü socket peer 120/dakika.
+Hash bucket'ları mevcut TTL job ile temizlenir; XFF'a güvenilmez, ham IP saklanmaz.
+Manuel PUT, synced bileşeni MANUAL'a çevirip sync key'i ayırır; sonraki snapshot
+manuel kaydı ezmez ve aynı tarama key'i için ayrı otomatik kayıt oluşturabilir.
+İzin aktifken manuel silinen otomatik bileşen sonraki snapshot'ta geri gelebilir.
+
+### HARDWARE — HW-07 Owner sync iznini okuma
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend; gelecekte masaüstü (gerçek E2E NOT_VERIFIED)
+
+#### Endpoint
+GET /api/v1/hardware/profiles/{profileId}/sync-consent
+
+#### Yetkilendirme
+Owner typed actor; yalnız kendi profili. Cihaz principal'ı kontrol API'sine giremez.
+
+#### Path/Query Parameters
+profileId UUID; query/body yok.
+
+#### Request Body
+Yok.
+
+#### Response
+200 HardwareSyncConsentResponse: profileVersion,status,deviceId,generation,grantedAt,revokedAt,lastSequence,lastCapturedAt,lastSyncedAt. Kayıt yoksa NOT_GRANTED ve null metadata. Yalnız owner; no-store/private.
+
+#### Hata Durumları
+400 INVALID_REQUEST, 401 AUTHENTICATION_REQUIRED, 403 ACCESS_DENIED, 404 HARDWARE_NOT_FOUND. Güvenli ProblemDetail, iç detay yok; tüm yanıtlar no-store/private.
+
+#### Bağlantı
+HardwareSyncController, HardwareSyncConsentService/HardwareSyncService;
+V10__add_hardware_desktop_sync.sql. Başka servis/DB çağrısı yok; gerçek Auth/PERF
+cihaz/desktop bağlantısı NOT_VERIFIED. Yerel sözleşme gerçek cihaz kanıtı değildir.
+
+#### Test Durumu
+UNIT + INTEGRATION — HardwareSyncControllerTest (21), HardwareSyncDomainTest (2),
+SecurityContextHardwareSyncDeviceAccessTest (1); 2026-10-21 20:36:36 +03 verify
+exit 0: 293 PASS (54 yeni HW-05), failure/error/skipped 0; JaCoCo
+1420/1438=%98,75. Gerçek PostgreSQL 17/Flyway V1–V10/JPA/MockMvc.
+Gerçek Auth/PERF cihaz/desktop E2E NOT_VERIFIED; final kapılar ayrıca kaydedilir.
+
+### HARDWARE — HW-07 Owner aktif cihaza sync izni verme
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend; gelecekte masaüstü (gerçek E2E NOT_VERIFIED)
+
+#### Endpoint
+PUT /api/v1/hardware/profiles/{profileId}/sync-consent
+
+#### Yetkilendirme
+Owner + CSRF; dış policy cihazın aktif ve owner'a bağlı olduğunu doğrulamalıdır. Client deviceId yalnız seçimdir. Production policy deny.
+
+#### Path/Query Parameters
+profileId UUID; query yok.
+
+#### Request Body
+GrantHardwareSyncRequest: profileVersion >=0, deviceId UUID, accepted=true; hepsi zorunlu. Aktif izin varken ikinci grant 409; cihaz değişimi için önce revoke.
+
+#### Response
+200 HardwareSyncConsentResponse, yeni generation UUID ve artan profileVersion. Yeni generation lastSequence=0 ve son sync metadata'sını sıfırlar. Profil source/gizlilik/donanımı değişmez.
+
+#### Hata Durumları
+400 INVALID_REQUEST, 401 AUTHENTICATION_REQUIRED, 403 ACCESS_DENIED/CSRF, 404 HARDWARE_NOT_FOUND (profil/cihaz), 409 DATA_CONFLICT, 413 REQUEST_TOO_LARGE, 429 RATE_LIMITED. Güvenli ProblemDetail, iç detay yok; tüm yanıtlar no-store/private.
+
+#### Bağlantı
+HardwareSyncController, HardwareSyncConsentService/HardwareSyncService;
+V10__add_hardware_desktop_sync.sql. Başka servis/DB çağrısı yok; gerçek Auth/PERF
+cihaz/desktop bağlantısı NOT_VERIFIED. Yerel sözleşme gerçek cihaz kanıtı değildir.
+
+#### Test Durumu
+UNIT + INTEGRATION — HardwareSyncControllerTest (21), HardwareSyncDomainTest (2),
+SecurityContextHardwareSyncDeviceAccessTest (1); 2026-10-21 20:36:36 +03 verify
+exit 0: 293 PASS (54 yeni HW-05), failure/error/skipped 0; JaCoCo
+1420/1438=%98,75. Gerçek PostgreSQL 17/Flyway V1–V10/JPA/MockMvc.
+Gerçek Auth/PERF cihaz/desktop E2E NOT_VERIFIED; final kapılar ayrıca kaydedilir.
+
+### HARDWARE — HW-07 Owner sync iznini iptal etme
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend; gelecekte masaüstü (gerçek E2E NOT_VERIFIED)
+
+#### Endpoint
+DELETE /api/v1/hardware/profiles/{profileId}/sync-consent
+
+#### Yetkilendirme
+Owner + CSRF; iptal için dış cihazın online/aktif olması gerekmez.
+
+#### Path/Query Parameters
+profileId UUID; profileVersion zorunlu query >=0.
+
+#### Request Body
+Yok.
+
+#### Response
+200 HardwareSyncConsentResponse: REVOKED, revokedAt, artan profileVersion. Donanım korunur; yeni apply ve eski receipt retry'ı reddedilir. Zaten REVOKED veya kayıt yoksa güncel version ile değişikliksiz yanıt; mevcut version yine doğrulanır.
+
+#### Hata Durumları
+400 INVALID_REQUEST, 401 AUTHENTICATION_REQUIRED, 403 ACCESS_DENIED/CSRF, 404 HARDWARE_NOT_FOUND, 409 DATA_CONFLICT, 429 RATE_LIMITED. Güvenli ProblemDetail, iç detay yok; tüm yanıtlar no-store/private.
+
+#### Bağlantı
+HardwareSyncController, HardwareSyncConsentService/HardwareSyncService;
+V10__add_hardware_desktop_sync.sql. Başka servis/DB çağrısı yok; gerçek Auth/PERF
+cihaz/desktop bağlantısı NOT_VERIFIED. Yerel sözleşme gerçek cihaz kanıtı değildir.
+
+#### Test Durumu
+UNIT + INTEGRATION — HardwareSyncControllerTest (21), HardwareSyncDomainTest (2),
+SecurityContextHardwareSyncDeviceAccessTest (1); 2026-10-21 20:36:36 +03 verify
+exit 0: 293 PASS (54 yeni HW-05), failure/error/skipped 0; JaCoCo
+1420/1438=%98,75. Gerçek PostgreSQL 17/Flyway V1–V10/JPA/MockMvc.
+Gerçek Auth/PERF cihaz/desktop E2E NOT_VERIFIED; final kapılar ayrıca kaydedilir.
+
+### HARDWARE — HW-07 İzinli cihaz snapshot kabulü
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend; gelecekte masaüstü (gerçek E2E NOT_VERIFIED)
+
+#### Endpoint
+POST /api/v1/hardware/profiles/{profileId}/sync/snapshots
+
+#### Yetkilendirme
+Yalnız AuthenticatedHardwareDevice + hardware:sync:write, aktif cihaz sahipliği policy'si ve aynı owner/device/generation için GRANTED yerel izin. Browser actor bu authority'ye sahip olsa da reddedilir. CSRF korunur; üretimde cihaz doğrulaması yok ve policy deny.
+
+#### Path/Query Parameters
+profileId UUID; zorunlu Idempotency-Key UUID header; query yok.
+
+#### Request Body
+ApplyHardwareSyncRequest: profileVersion >=0, consentGeneration UUID, sequence >=1 ve HW-06 ile aynı scan v1. Toplam gövde 16 KiB, snapshot 1..32 tekil componentKey. Caller userId/deviceId/source veya katalog UUID atayamaz.
+
+#### Response
+200 HardwareSyncReceiptResponse: idempotencyKey,profileVersion,sequence,capturedAt,appliedAt,receivedComponents,created,updated,removed. Version ilk uygulamanın sürümüdür; retry aynı asgari yanıtı döndürür, güncel profil görünümü değildir. Owner kimliği, cihaz kimliği veya model metni receipt'e kopyalanmaz. Yalnız DESKTOP_SYNC kümesi güncellenir; MANUAL korunur. Toplam profil kaydı apply sonrası <=200.
+
+#### Hata Durumları
+400 INVALID_REQUEST, 401 AUTHENTICATION_REQUIRED, 403 ACCESS_DENIED/CSRF, 404 HARDWARE_NOT_FOUND (owner/cihaz/policy), 409 DATA_CONFLICT (izin yok/iptal/eski generation/version/sequence/capture veya key-hash uyuşmazlığı), 413 REQUEST_TOO_LARGE, 429 RATE_LIMITED veya SYNC_RECEIPT_LIMIT_REACHED (Retry-After 3600). Güvenli ProblemDetail, iç detay yok; tüm yanıtlar no-store/private.
+
+#### Bağlantı
+HardwareSyncController, HardwareSyncConsentService/HardwareSyncService;
+V10__add_hardware_desktop_sync.sql. Başka servis/DB çağrısı yok; gerçek Auth/PERF
+cihaz/desktop bağlantısı NOT_VERIFIED. Yerel sözleşme gerçek cihaz kanıtı değildir.
+
+#### Test Durumu
+UNIT + INTEGRATION — HardwareSyncControllerTest (21), HardwareSyncDomainTest (2),
+SecurityContextHardwareSyncDeviceAccessTest (1); 2026-10-21 20:36:36 +03 verify
+exit 0: 293 PASS (54 yeni HW-05), failure/error/skipped 0; JaCoCo
+1420/1438=%98,75. Gerçek PostgreSQL 17/Flyway V1–V10/JPA/MockMvc.
+Gerçek Auth/PERF cihaz/desktop E2E NOT_VERIFIED; final kapılar ayrıca kaydedilir.
 
 ## RECOMMENDATION
 

@@ -783,10 +783,39 @@ erDiagram
 Review/reporter tekildir; audit ve outbox teknik tabloları genel kural gereği çizilmez.
 Outbox sadece PENDING yerel kayıt üretir; gerçek Admin/Notification teslimi ertelenmiştir.
 
-**Gelecek görevler için öneri (uygulanmış değildir):**
-Aşağıdaki eski geniş diyagramdaki yorum/sync/provider tabloları hâlâ öneridir;
-kampanya için yukarıdaki V5, ürün/marka için V2/V3 uygulama tanımı geçerlidir;
-ürün/marka ilişkisi yukarıdaki gerçek V2 diyagramında ayrılmıştır.
+HW-07/V10 sync şeması (V1–V10 PostgreSQL/Flyway/JPA PASS; canlı DB'ye uygulanmadı):
+
+```mermaid
+erDiagram
+  hardware_profiles ||--o| hardware_sync_consents : "CASCADE; one current consent"
+  hardware_profiles ||--o{ hardware_profile_components : "CASCADE"
+  hardware_sync_consents {
+    uuid id PK
+    uuid profile_id FK,UK
+    uuid device_id "external REF"
+    uuid generation
+    varchar status "GRANTED|REVOKED"
+    timestamptz granted_at
+    timestamptz revoked_at
+    bigint last_sequence
+    timestamptz last_captured_at
+    timestamptz last_synced_at
+    bigint version
+  }
+  hardware_profile_components {
+    uuid sync_component_key "nullable; unique with profile"
+    varchar source "MANUAL|null key; DESKTOP_SYNC|required key"
+  }
+```
+
+Profil source=MANUAL kökeni korunur. Teknik hardware_sync_receipts diyagramda
+gösterilmez: profile CASCADE FK, key ve generation/sequence tekillikleri,
+24 saat TTL ve profil başına 500 canlı kayıt sınırı vardır. Dış cihaz credential/
+hesap tablosu veya cross-DB FK eklenmedi. Gerçek cihaz policy üretimde deny.
+
+**Eski geniş tasarım önerisi (uygulanmış şemayı temsil etmez):**
+Aşağıdaki eski diyagram yerine gerçek kapsam için yukarıdaki V1–V10 tanımları
+esas alınır; provider tabloları uygulanmadı. Ürün/marka ilişkisi V2'de ayrılmıştır.
 
 ```mermaid
 erDiagram
