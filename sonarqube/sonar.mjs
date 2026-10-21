@@ -2,6 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { repositoryRoot, execute, redact, cleanGenerated, freshFile, backendResults, readModules, clearBackendReports, withReportLock, withRunLog } from '../lib/quality-tools.mjs';
 import { loadProfileEnv, requireNode } from '../lib/profile-env.mjs';
+import { startTestDatabase } from '../pre-push/test-database.mjs';
 import { requireMaven25 } from '../pre-push/backend-check.mjs';
 
 export const loadSonarEnv = loadProfileEnv;
@@ -65,7 +66,7 @@ export function overallTargets(measures) {
   return security === 1 && reliability === 1 && maintainability === 1 && values.coverage >= 80 && values.duplicated_lines_density <= 3;
 }
 
-export async function runScan({ root = repositoryRoot, profile = 'dev', ambient = process.env, runCommand = execute, request = sonarRequest, log = console.log } = {}) {
+export async function runScan({ root = repositoryRoot, profile = 'dev', ambient = process.env, runCommand = execute, request = sonarRequest, log = console.log, testDatabase = startTestDatabase } = {}) {
   const rows = Object.fromEntries(scanRows.map(name => [name, 'SKIPPED']));
   const details = {};
   let secrets = [ambient.SONAR_TOKEN];
@@ -108,7 +109,16 @@ export async function runScan({ root = repositoryRoot, profile = 'dev', ambient 
     clearBackendReports(root, modules);
     await step('Backend Reports', async () => {
       await requireMaven25(run, mvn, root);
-      const result = await run(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify']);
+      // Testler için geçici PostgreSQL; Sonar değişkenleri Docker/test ortamına geçirilmez.
+      const testEnv = Object.fromEntries(Object.entries(env).filter(([name]) => !name.startsWith('SONAR')));
+      const database = await testDatabase({ root, env: testEnv, runCommand, log: say });
+      let result;
+      try {
+        result = await runCommand(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify'],
+          { cwd: root, env: { ...env, ...database.env }, capture: false, secrets: [...secrets, ...database.secrets], log: say });
+      } finally {
+        await database.stop();
+      }
       if (result.code !== 0) throw new Error('Backend build/tests failed');
       details.backend = backendResults(root, modules, started);
       say(`Fresh reports: ${details.backend.tests} tests; local line coverage ${details.backend.lineCoverage.toFixed(2)}%`);

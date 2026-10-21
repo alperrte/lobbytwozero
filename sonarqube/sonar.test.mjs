@@ -83,7 +83,7 @@ for (const option of ['success', 'gateFail', 'lowCoverage', 'scannerFail', 'miss
         }
         throw new Error('Unexpected API ' + endpoint);
       };
-      const result = await runScan({ root, ambient: option === 'remoteHost' ? { SONAR_HOST_URL: 'http://example.com' } : {}, runCommand, request, log: line => lines.push(line) });
+      const result = await runScan({ root, ambient: option === 'remoteHost' ? { SONAR_HOST_URL: 'http://example.com' } : {}, runCommand, request, testDatabase: async () => ({ env: {}, secrets: [], stop: async () => {} }), log: line => lines.push(line) });
       assert.equal(result.exitCode, ['success', 'policyForbidden'].includes(option) ? 0 : 1);
       assert.ok(!lines.join('\n').includes('local-token'));
       if (['serverDown', 'remoteHost'].includes(option)) assert.equal(calls.length, 0);

@@ -55,6 +55,8 @@ container ve API durumunu gösterir. `down`, isim uyumluluğu için korunmuştur
 gerçekte `docker compose stop` çalıştırır, container ve volume'leri saklar.
 Bu komutlar uygulama Compose projesine dokunmaz.
 
+`scan`, testleri koşarken pre-push ile aynı **geçici PostgreSQL** container'ını kullanır (`pre-push/test-database.mjs`; bkz. [pre-push](../pre-push/pre-push.md)). Sonar değişkenleri bu container'a ve test ortamına geçirilmez.
+
 `scan` sırasıyla sunucu/token erişimini, Sonar way yeni kod koşullarını,
 tüm modüllerin taze Maven test/JaCoCo raporlarını ve gerçek analiz task'ının
 Quality Gate sonucunu kontrol eder. Ayrıca bütün kodda şu hedefleri zorunlu tutar:

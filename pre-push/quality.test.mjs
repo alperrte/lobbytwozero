@@ -42,7 +42,7 @@ async function fixture(options, action) {
     throw new Error('Unexpected command ' + command);
   };
   try {
-    const result = await runQualityChecks({ root, profile: 'dev', ambient: { SONAR_TOKEN: 'private' }, runCommand, log: line => lines.push(line) });
+    const result = await runQualityChecks({ root, profile: 'dev', ambient: { SONAR_TOKEN: 'private' }, runCommand, testDatabase: async () => ({ env: {}, secrets: [], stop: async () => {} }), log: line => lines.push(line) });
     await action({ root, write, result, calls, lines });
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 }

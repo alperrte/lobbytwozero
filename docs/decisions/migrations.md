@@ -8,6 +8,7 @@
 
 ## HAMZA
 - V31–V40      → GAME-SERVICE
+- V171–V190    → GAME-SERVICE (ek aralık; 2026-10-21 kullanıcı onayı)
 - V41–V50      → LIBRARY-SERVICE
 - V51–V60      → REVIEW-SERVICE
 
@@ -36,6 +37,12 @@ geliştirmeye başlanmadan önce belirlenmelidir.
 ---
 
 ## Migration Kuralları
+
+Game Service'in V31–V40 aralığı Faz 1–4 ile tamamen kullanılmıştır.
+İlerleyen şema ihtiyaçları için V171–V190 yalnız Game Service'e ayrılmıştır;
+diğer servisler bu numaraları kullanmamalıdır. Mevcut ve rezerve V1–V170
+tahsisleri değişmez. Bu kayıt ortak branch'e aktarılarak ekiple paylaşılmalıdır.
+Tahsis, Faz 5'i başlatmaz ve mevcut migration'ların yeniden numaralandırılmasına izin vermez.
 
 1. Her servis yalnızca kendisine ayrılan
    migration numaralarını kullanır.

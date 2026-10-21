@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { repositoryRoot, execute, backendTests, backendResults, readModules, clearBackendReports, withReportLock, withRunLog } from '../lib/quality-tools.mjs';
 import { requireNode } from '../lib/profile-env.mjs';
 import { requireMaven25 } from './backend-check.mjs';
+import { startTestDatabase } from './test-database.mjs';
 import { checkGitSecrets, checkBackendHealth } from './runtime-checks.mjs';
 
 export const requiredRows = ['Git / Secret Check', 'Backend Tests', 'Backend Build', 'Backend Coverage', 'Docker Configuration'];
@@ -14,7 +15,7 @@ export function formatQualityStatus(value, stream = process.stdout) {
     `\u001b[${status === 'SAFE TO COMMIT' ? 32 : 31}m${status}\u001b[0m`);
 }
 
-export async function runQualityChecks({ root = repositoryRoot, profile = 'dev', ambient = process.env, runCommand = execute, healthProbe, log = console.log } = {}) {
+export async function runQualityChecks({ root = repositoryRoot, profile = 'dev', ambient = process.env, runCommand = execute, healthProbe, log = console.log, testDatabase = startTestDatabase } = {}) {
   const rows = Object.fromEntries([...requiredRows, 'Backend HTTP Health'].map(name => [name, 'SKIPPED']));
   const details = {};
   const env = Object.fromEntries(Object.entries(ambient).filter(([name]) => !name.startsWith('SONAR')));
@@ -36,7 +37,14 @@ export async function runQualityChecks({ root = repositoryRoot, profile = 'dev',
     await step('Backend Tests', async () => {
       rows['Backend Build'] = 'FAIL';
       await requireMaven25(run, mvn, root);
-      const result = await run(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify']);
+      const database = await testDatabase({ root, env, runCommand, log });
+      let result;
+      try {
+        result = await runCommand(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify'],
+          { cwd: root, env: { ...env, ...database.env }, capture: false, secrets: database.secrets, log });
+      } finally {
+        await database.stop();
+      }
       rows['Backend Build'] = result.code === 0 ? 'PASS' : 'FAIL';
       return result.code === 0 && backendTests(root, modules, started) > 0;
     });

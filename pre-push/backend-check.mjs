@@ -1,4 +1,5 @@
 import { repositoryRoot, execute, backendTests, backendResults, readModules, clearBackendReports } from '../lib/quality-tools.mjs';
+import { startTestDatabase } from './test-database.mjs';
 
 export async function requireMaven25(run, mvn, root) {
   const version = await run(mvn, ['-version'], root, true);
@@ -6,7 +7,7 @@ export async function requireMaven25(run, mvn, root) {
   if (!/Java version:\s*25[.,]/.test(version.output)) throw new Error('Maven must use JDK 25; check JAVA_HOME');
 }
 
-export async function runBackendChecks({ root = repositoryRoot, service = 'all', ambient = process.env, runCommand = execute, log = console.log } = {}) {
+export async function runBackendChecks({ root = repositoryRoot, service = 'all', ambient = process.env, runCommand = execute, log = console.log, testDatabase = startTestDatabase } = {}) {
   const services = {};
   const started = Date.now();
   let buildPassed = false;
@@ -24,7 +25,13 @@ export async function runBackendChecks({ root = repositoryRoot, service = 'all',
     const args = ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end'];
     if (service !== 'all') args.push('-pl', selected[0]);
     args.push('clean', 'verify');
-    const result = await run(mvn, args);
+    const database = await testDatabase({ root, env, runCommand, log });
+    let result;
+    try {
+      result = await runCommand(mvn, args, { cwd: root, env: { ...env, ...database.env }, capture: false, secrets: database.secrets, log });
+    } finally {
+      await database.stop();
+    }
     buildPassed = result.code === 0;
     if (!buildPassed) log('[ERROR] Maven verify failed with exit code ' + result.code);
     for (const module of selected) {

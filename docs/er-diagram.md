@@ -528,7 +528,9 @@ erDiagram
   post_images {
     uuid id PK
     uuid post_id FK
-    varchar storage_key
+    bytea content
+    varchar mime_type
+    int sort_order
   }
   post_likes {
     uuid post_id PK,FK

@@ -51,6 +51,24 @@ belirtir. Uygulamanın çalıştığını veya production hazırlığını garan
 Başarısız/eksik test, coverage veya Docker kontrolü `NOT SAFE TO COMMIT` ve
 çıkış kodu 1 üretir. SonarQube bağımsızdır: [SonarQube rehberi](../sonarqube/sonarqube.md).
 
+### Geçici test veritabanı
+
+Servislerin `contextLoads` ve repository testleri PostgreSQL'e bağlanır; ortamda şifre yoksa
+`password authentication failed for user "ltz_dev"` ile düşerdi. Bu yüzden `backend`, servis adı ve
+`full` modları Maven'den önce **geçici bir PostgreSQL 17 container'ı** başlatır
+(`pre-push/test-database.mjs`):
+
+- `postgres/init/01-create-databases.sql` salt-okunur bağlanır; 17 veritabanı hazır gelir.
+- Şifre her çalışmada rastgele üretilir; komut satırında ve logda görünmez. Port yalnız
+  `127.0.0.1`'de ve rastgele yayınlanır.
+- Maven'e `POSTGRES_HOST/PORT/USER/PASSWORD` verilir; servislerin `application.properties`
+  varsayılanları bunlarla geçici veritabanına bağlanır. `.env*` dosyaları okunmaz, dev veritabanına
+  (`localhost:5542`) dokunulmaz.
+- Test bitince (hata olsa da) container silinir; yarıda kalan `ltz-prepush-pg-*` container'ları bir
+  sonraki çalışmada temizlenir.
+- Ortamda `POSTGRES_PASSWORD` zaten tanımlıysa veya `LTZ_TEST_DB=off` ise geçici veritabanı
+  başlatılmaz. Docker kapalıysa uyarı yazılır ve testler eskisi gibi çalışır.
+
 `full` için ENV profili gerekir; [ENV rehberine](../ops/ops.md) bakın.
 Backend-only komutları profili değiştirmez veya profil dosyasını uygulamaya
 yüklemez; testlerin kendi Spring test yapılandırmasını kullanır. `prod` seçimi

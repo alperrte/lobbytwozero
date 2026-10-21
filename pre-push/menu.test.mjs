@@ -108,7 +108,7 @@ async function backendFixture(options, action) {
       }
       return {code:options.buildFail?1:0,output:''};
     };
-    const result = await runBackendChecks({root,service:options.service??'auth-service',ambient:{SONAR_TOKEN:'do-not-forward'},runCommand,log:line=>lines.push(line)});
+    const result = await runBackendChecks({root,service:options.service??'auth-service',ambient:{SONAR_TOKEN:'do-not-forward'},runCommand,testDatabase:async()=>({env:{},secrets:[],stop:async()=>{}}),log:line=>lines.push(line)});
     await action({root,result,calls,lines});
   });
 }

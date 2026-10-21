@@ -228,8 +228,8 @@ Gösterim: **PK** birincil anahtar, **FK** servis içi yabancı anahtar, **REF**
 | Tablo | Önemli sütunlar | Kısıtlar / not |
 | --- | --- | --- |
 | `forums` | id, game_id REF nullable, slug, title, description, created_at | Oyun forumu/konu (COM-19) |
-| `posts` | id, author_id REF, forum_id FK nullable, game_id REF nullable, body, status (VISIBLE, HIDDEN, DELETED), repost_of_id FK nullable, like_count, comment_count, created_at, updated_at, version | Repost orijinale bağlı (COM-20) |
-| `post_images` | id, post_id FK, storage_key, mime_type, size_bytes, sort_order | |
+| `posts` | id, author_id REF, forum_id FK nullable, game_id REF nullable, body, status (VISIBLE, HIDDEN, DELETED), repost_of_id FK nullable, like_count, comment_count, created_at, updated_at, version | Repost orijinale bağlı (COM-20); **V91 ile uygulanan kolonlar:** id, author_id, game_id (REF game-service, FK yok; COM-14'te API'ye açıldı), body, status, created_at, updated_at, deleted_at, version (CHECK: status, body uzunluğu 1–5000, `deleted_at` yalnız `DELETED` durumunda dolu). forum_id, repost_of_id, sayaçlar ilgili fazlarda eklenir |
+| `post_images` | id, post_id FK, content bytea, mime_type, size_bytes, width, height, sort_order, created_at | **V92 ile uygulandı** (depolama kararı: community_db/bytea; `storage_key` yok, `id` kullanılır). UQ (post_id, sort_order); CHECK sort_order 0–3 (en çok 4 görsel), mime ∈ image/jpeg, image/png, size ≤ 2 MiB; FK `ON DELETE RESTRICT` |
 | `post_likes` | post_id FK, user_id REF, created_at | PK (post_id, user_id) |
 | `comments` | id, post_id FK, author_id REF, parent_comment_id FK nullable, body, status, created_at, updated_at | Yanıtlar (COM-09) |
 | `community_reports` | id, target_type (POST, COMMENT), target_id, reporter_id REF, reason, status, created_at | UQ (target_type, target_id, reporter_id) |
