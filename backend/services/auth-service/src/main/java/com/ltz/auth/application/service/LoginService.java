@@ -72,27 +72,49 @@ public class LoginService {
             throw new AuthException(AuthErrorCode.INVALID_CREDENTIALS);
         }
         attemptThrottle.clear(throttleKey);
+        return complete(candidate, AuthMethod.PWD);
+    }
+
+    /**
+     * Harici sağlayıcının kimliğini doğruladığı hesap için oturum akışı (Steam/Google). Hesap durumu, 2FA ve zorunlu
+     * rol kuralları parola girişiyle birebir aynıdır; harici giriş 2FA'yı atlatmanın yolu değildir.
+     */
+    public LoginResult loginVerifiedIdentity(UUID accountId, AuthMethod firstFactor) {
+        Candidate candidate = transactionTemplate.execute(status -> accountRepository.findWithRolesById(accountId)
+                .map(LoginService::toCandidate)
+                .orElse(null));
+        if (candidate == null) {
+            throw new AuthException(AuthErrorCode.ACCOUNT_UNAVAILABLE);
+        }
+        return complete(candidate, firstFactor);
+    }
+
+    private LoginResult complete(Candidate candidate, AuthMethod firstFactor) {
         if (candidate.status() != AccountStatus.ACTIVE) {
             securityEventRecorder.record(SecurityEventType.LOGIN_REJECTED_ACCOUNT_STATUS, candidate.accountId());
             throw new AuthException(statusError(candidate.status()));
         }
         if (twoFactorService.isEnabled(candidate.accountId())) {
-            return twoFactorService.issueChallenge(candidate.accountId());
+            return twoFactorService.issueChallenge(candidate.accountId(), firstFactor);
         }
         if (twoFactorService.isRequiredFor(candidate.roles())) {
             securityEventRecorder.record(SecurityEventType.LOGIN_REJECTED_TWO_FACTOR_REQUIRED, candidate.accountId());
             throw new AuthException(AuthErrorCode.TWO_FACTOR_ENROLLMENT_REQUIRED);
         }
-        return LoginResult.authenticated(sessionService.start(candidate.accountId(), List.of(AuthMethod.PWD)));
+        return LoginResult.authenticated(sessionService.start(candidate.accountId(), List.of(firstFactor)));
     }
 
     private Candidate findCandidate(String normalizedIdentifier) {
         return (normalizedIdentifier.indexOf(EMAIL_MARKER) >= 0
                 ? accountRepository.findWithRolesByEmailNormalized(normalizedIdentifier)
                 : accountRepository.findWithRolesByUsernameNormalized(normalizedIdentifier))
-                .map(account -> new Candidate(account.getId(), account.getStatus(),
-                        account.passwordHash().orElse(null), account.roleCodes()))
+                .map(LoginService::toCandidate)
                 .orElse(null);
+    }
+
+    private static Candidate toCandidate(Account account) {
+        return new Candidate(account.getId(), account.getStatus(), account.passwordHash().orElse(null),
+                account.roleCodes());
     }
 
     private static String normalize(String identifier) {

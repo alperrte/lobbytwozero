@@ -3,8 +3,12 @@ package com.ltz.auth.domain.entity;
 import java.time.Instant;
 import java.util.UUID;
 
+import com.ltz.auth.domain.enums.AuthMethod;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -31,6 +35,11 @@ public class MfaChallenge {
     @Column(name = "challenge_hash", nullable = false, updatable = false, length = 64)
     private String challengeHash;
 
+    /** Challenge'ı doğuran ilk faktör (parola veya harici sağlayıcı); oturumun amr değerine yansır. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "first_factor", nullable = false, updatable = false, length = 16)
+    private AuthMethod firstFactor;
+
     @Column(nullable = false)
     private int attempts;
 
@@ -43,9 +52,11 @@ public class MfaChallenge {
     @Column(name = "consumed_at")
     private Instant consumedAt;
 
-    public static MfaChallenge issue(UUID accountId, String challengeHash, Instant now, Instant expiresAt) {
+    public static MfaChallenge issue(UUID accountId, String challengeHash, AuthMethod firstFactor, Instant now,
+                                     Instant expiresAt) {
         MfaChallenge challenge = new MfaChallenge();
         challenge.accountId = accountId;
+        challenge.firstFactor = firstFactor;
         challenge.challengeHash = challengeHash;
         challenge.createdAt = now;
         challenge.expiresAt = expiresAt;

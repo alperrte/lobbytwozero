@@ -31,6 +31,7 @@ public class SessionCookies {
     static final String ACCESS_COOKIE = "ltz_access";
     static final String REFRESH_COOKIE = "ltz_refresh";
     static final String CSRF_COOKIE = "XSRF-TOKEN";
+    static final String OAUTH_COOKIE = "ltz_oauth";
     private static final String HOST_PREFIX = "__Host-";
     private static final String SECURE_PREFIX = "__Secure-";
     private static final String ROOT_PATH = "/";
@@ -42,6 +43,7 @@ public class SessionCookies {
     private final String accessCookieName;
     private final String refreshCookieName;
     private final String csrfCookieName;
+    private final String oauthCookieName;
 
     public SessionCookies(SessionProperties properties, Environment environment) {
         if (!properties.secureCookies() && environment.matchesProfiles(PROD_PROFILE)) {
@@ -51,6 +53,7 @@ public class SessionCookies {
         this.accessCookieName = secure ? HOST_PREFIX + ACCESS_COOKIE : ACCESS_COOKIE;
         this.refreshCookieName = secure ? SECURE_PREFIX + REFRESH_COOKIE : REFRESH_COOKIE;
         this.csrfCookieName = secure ? HOST_PREFIX + CSRF_COOKIE : CSRF_COOKIE;
+        this.oauthCookieName = secure ? HOST_PREFIX + OAUTH_COOKIE : OAUTH_COOKIE;
     }
 
     public String accessCookieName() {
@@ -69,6 +72,29 @@ public class SessionCookies {
     public void clear(HttpServletResponse response) {
         add(response, accessCookie("", Duration.ZERO));
         add(response, refreshCookie("", Duration.ZERO));
+    }
+
+    /**
+     * Harici giriş akışının state cookie'si: callback'i başlatan tarayıcıya bağlar (login CSRF koruması).
+     * Sağlayıcıdan dönüş üst düzey GET gezinmesi olduğundan SameSite=Lax gerekir; Path=/ __Host- önekinin şartıdır.
+     */
+    public void writeOAuthState(HttpServletResponse response, String state, Duration ttl) {
+        add(response, oauthStateCookie(state, ttl));
+    }
+
+    public void clearOAuthState(HttpServletResponse response) {
+        add(response, oauthStateCookie("", Duration.ZERO));
+    }
+
+    public Optional<String> oauthState(HttpServletRequest request) {
+        return Optional.ofNullable(WebUtils.getCookie(request, oauthCookieName))
+                .map(Cookie::getValue)
+                .filter(value -> !value.isBlank());
+    }
+
+    private ResponseCookie oauthStateCookie(String value, Duration maxAge) {
+        return ResponseCookie.from(oauthCookieName, value)
+                .httpOnly(true).secure(secure).sameSite(SAME_SITE_LAX).path(ROOT_PATH).maxAge(maxAge).build();
     }
 
     public Optional<String> refreshToken(HttpServletRequest request) {

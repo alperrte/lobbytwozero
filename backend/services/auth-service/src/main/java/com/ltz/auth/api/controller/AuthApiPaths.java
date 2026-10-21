@@ -25,6 +25,13 @@ public final class AuthApiPaths {
     public static final String TOTP_ACTIVATE = TOTP + "/activate";
     public static final String TOTP_DISABLE = TOTP + "/disable";
 
+    public static final String OAUTH = BASE + "/oauth";
+    public static final String GOOGLE_START = OAUTH + "/google/start";
+    public static final String GOOGLE_CALLBACK = OAUTH + "/google/callback";
+    public static final String STEAM_START = OAUTH + "/steam/start";
+    public static final String STEAM_CALLBACK = OAUTH + "/steam/callback";
+    public static final String STEAM_COMPLETE = OAUTH + "/steam/complete";
+
     private AuthApiPaths() {
     }
 }

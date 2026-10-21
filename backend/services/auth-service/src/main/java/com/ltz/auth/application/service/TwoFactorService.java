@@ -74,11 +74,12 @@ public class TwoFactorService {
     }
 
     @Transactional
-    public LoginResult issueChallenge(UUID accountId) {
+    public LoginResult issueChallenge(UUID accountId, AuthMethod firstFactor) {
         Instant now = clock.instant();
         String challengeId = secureTokens.newOpaqueToken();
         Instant expiresAt = now.plus(properties.challengeTtl());
-        challengeRepository.save(MfaChallenge.issue(accountId, secureTokens.sha256Hex(challengeId), now, expiresAt));
+        challengeRepository.save(MfaChallenge.issue(accountId, secureTokens.sha256Hex(challengeId), firstFactor, now,
+                expiresAt));
         securityEventRecorder.record(SecurityEventType.MFA_CHALLENGE_ISSUED, accountId);
         return LoginResult.mfaRequired(challengeId, expiresAt);
     }
@@ -198,7 +199,7 @@ public class TwoFactorService {
             return null;
         }
         challenge.consume(now);
-        return sessionService.start(challenge.getAccountId(), List.of(AuthMethod.PWD, method.get()));
+        return sessionService.start(challenge.getAccountId(), List.of(challenge.getFirstFactor(), method.get()));
     }
 
     private Optional<AuthMethod> verifySecondFactor(UUID accountId, String code, String recoveryCode, Instant now) {

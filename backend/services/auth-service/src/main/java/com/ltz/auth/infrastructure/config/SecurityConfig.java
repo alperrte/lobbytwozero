@@ -64,6 +64,11 @@ public class SecurityConfig {
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.SESSION_LOGOUT),
             PATHS.matcher(HttpMethod.GET, AuthApiPaths.CSRF),
             PATHS.matcher(HttpMethod.GET, AuthApiPaths.JWKS),
+            PATHS.matcher(HttpMethod.GET, AuthApiPaths.GOOGLE_START),
+            PATHS.matcher(HttpMethod.GET, AuthApiPaths.GOOGLE_CALLBACK),
+            PATHS.matcher(HttpMethod.GET, AuthApiPaths.STEAM_START),
+            PATHS.matcher(HttpMethod.GET, AuthApiPaths.STEAM_CALLBACK),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.STEAM_COMPLETE),
             PATHS.matcher(HttpMethod.GET, HEALTH),
             PATHS.matcher(HttpMethod.GET, HEALTH_GROUPS));
 
@@ -74,11 +79,12 @@ public class SecurityConfig {
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.TOTP_ACTIVATE),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.TOTP_DISABLE));
 
-    /** Cookie okumayan ve oturum açmayan Faz 1 uçları. */
+    /** Cookie okumayan ve oturum açmayan uçlar (yetki kaynağı gövdedeki tek kullanımlık değerdir). */
     private static final RequestMatcher COOKIELESS_ENDPOINTS = new OrRequestMatcher(
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.REGISTER),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.EMAIL_VERIFICATION_CONFIRM),
-            PATHS.matcher(HttpMethod.POST, AuthApiPaths.EMAIL_VERIFICATION_RESEND));
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.EMAIL_VERIFICATION_RESEND),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.STEAM_COMPLETE));
 
     private static final RequestMatcher BEARER_HEADER = request -> request.getHeader(HttpHeaders.AUTHORIZATION) != null;
 

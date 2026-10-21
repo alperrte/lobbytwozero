@@ -96,6 +96,10 @@ services:
       AUTH_OTP_HMAC_KEY: ${AUTH_OTP_HMAC_KEY:?}
       AUTH_JWT_PRIVATE_KEY: ${AUTH_JWT_PRIVATE_KEY:?}
       AUTH_TOTP_ENCRYPTION_KEY: ${AUTH_TOTP_ENCRYPTION_KEY:?}
+      AUTH_PUBLIC_BASE_URL: ${AUTH_PUBLIC_BASE_URL:-http://localhost:5080}
+      FRONTEND_PUBLIC_URL: ${FRONTEND_PUBLIC_URL:-http://localhost:5001}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
     depends_on:
       postgres:
         condition: service_healthy

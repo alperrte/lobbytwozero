@@ -16,7 +16,12 @@ public enum AuthErrorCode {
     INVALID_TWO_FACTOR_CODE(400, "Two-factor code is invalid."),
     TWO_FACTOR_ALREADY_ENABLED(409, "Two-factor authentication is already enabled."),
     TWO_FACTOR_NOT_PENDING(409, "No pending two-factor setup."),
-    TWO_FACTOR_NOT_ENABLED(409, "Two-factor authentication is not enabled.");
+    TWO_FACTOR_NOT_ENABLED(409, "Two-factor authentication is not enabled."),
+    EXTERNAL_AUTH_FAILED(401, "External authentication failed."),
+    EXTERNAL_EMAIL_UNVERIFIED(403, "The provider has not verified the email address."),
+    ACCOUNT_LINK_REQUIRED(409, "An account with this email already exists. Sign in and link the provider."),
+    PROVIDER_NOT_CONFIGURED(503, "This sign-in method is not available."),
+    REGISTRATION_TOKEN_INVALID(400, "Registration token is invalid or has expired.");
 
     private final int httpStatus;
     private final String detail;

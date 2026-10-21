@@ -108,6 +108,13 @@ public class Account {
         return account;
     }
 
+    /** Sağlayıcının doğruladığı e-postayla (Google) açılan, parolasız ve doğrudan ACTIVE hesap. */
+    public static Account registerVerifiedExternal(String email, String username, Role initialRole, Instant now) {
+        Account account = registerPending(email, username, null, initialRole, now);
+        account.markEmailVerified(now);
+        return account;
+    }
+
     public static String normalizeEmail(String email) {
         return email.strip().toLowerCase(Locale.ROOT);
     }
