@@ -63,9 +63,41 @@ Branch adındaki servis adını bul. Aşağıdaki tabloya göre eşle (büyük/k
 **ENV:** Ek ENV anahtarı gerekmez. Doğrulayıcı için ortak blokta zaten gelen `AUTH_SERVICE_URL` (JWKS adresi için), `JWT_ISSUER` ve `JWT_AUDIENCE` yeterlidir.
 Başka anahtar eklemen gerekirse `AGENTS.md` kuralı geçerli: önce kullanıcıdan onay al.
 
-**İlk kurulum (Auth'u kendi makinende çalıştıracaksan):** `docker compose` üç Auth anahtarını zorunlu tutar (`AUTH_JWT_PRIVATE_KEY`, `AUTH_OTP_HMAC_KEY`, `AUTH_TOTP_ENCRYPTION_KEY`); `.env` dosyanda yoksa **servisin başlamasa bile** `docker compose` hata verir. Kendi anahtarlarını üret: `node ops/generate-auth-dev-keys.mjs` (yalnız eksik/boş olanları doldurur, değerleri ekrana yazmaz, dolu anahtarın üzerine yazmaz). Başkasının `.env` dosyasını **kopyalama**; `.env` kişisel `SONAR_TOKEN` gibi değerler içerir. Bu anahtarlar yerel geliştirme içindir.
+**ENV dosyaları ve ilk kurulum:** bkz. §0.5 (3 anahtar eksikse `docker compose` hiçbir servisi başlatmaz; çözümü tek komut).
 
 Durum işaretleri: **VAR** = kodda var ve test edildi · **SÖZLEŞME** = karar yazıldı, kod yok · **EKSİK** = henüz yok.
+
+### 0.5 İlk kurulum: ENV dosyalarını doldur (herkes bir kez, ~2 dakika)
+
+**Neden gerekli?** `docker-compose.yml` Auth için üç anahtarı zorunlu tutar. Dosya bütün olarak okunduğu için bu anahtarlar `.env` dosyanda yoksa
+**yalnız kendi servisini başlatsan bile** `docker compose` şu hatayı verir: `required variable AUTH_JWT_PRIVATE_KEY is missing a value`.
+Bu anahtarları **kimseden isteme ve kimseye gönderme**; herkes kendi makinesi için kendi üretir (her geliştirici kendi Auth'unu çalıştırır,
+kendi servisi de o Auth'un JWKS'inden doğrular, anahtarların aynı olması gerekmez).
+
+| # | Ne yap | Komut / not |
+| --- | --- | --- |
+| 1 | Kendi dalına `main`'i çek | `git fetch` ve `git merge origin/main` (belge ve script `main`'den gelir) |
+| 2 | ENV dosyaların var mı bak | Kaynak profil **`.env.dev`**, aktif kopya **`.env`** (`ops/ops.md`). Yoksa `.env.example` dosyasını `.env.dev` olarak kopyala, sonra `.\ops\env.cmd use dev` (Windows) veya `sh ./ops/env.sh use dev`. **Var olan dosyanın üzerine yazma**, başkasının `.env` dosyasını kopyalama (kişisel `SONAR_TOKEN` gibi değerler içerir) |
+| 3 | Eksik Auth anahtarlarını üret | `node ops/generate-auth-dev-keys.mjs`. Yalnız **eksik veya boş** olanları doldurur, dolu olanı ezmez, değerleri **ekrana yazmaz**, `.env` ve `.env.dev`'e **aynı** değeri yazar. Çalıştırdığında "dolduruldu -> …" ya da "eksik anahtar yok" yazar |
+| 4 | Doğrula | `docker compose config --quiet`. Hata yoksa tamam. "required variable … missing" çıkıyorsa 3. adımı tekrarla |
+| 5 | Başlat | Yalnız ihtiyacın olanı: `docker compose up -d postgres auth-service api-gateway` (+ kendi servisin). E-posta kodlarını görmek için `.env`'de `COMPOSE_PROFILES=dev-mail` (Mailpit, http://localhost:8025) |
+| 6 | Sağlık kontrolü | Gateway: `http://localhost:5080/actuator/health` → `UP`. JWKS: `http://localhost:5080/api/v1/auth/.well-known/jwks.json` → `200`. Konteynerler `healthy` görünmeli (`docker compose ps`) |
+| 7 | Deneme hesabı | `docs/api.md` → AUTH: `register` → Mailpit'teki 6 haneli kod → `email-verification/confirm` → `login`. Token'ı JWKS ile kendi servisinde doğrula |
+
+**Ajan için:** 3. adım `.env` dosyalarını değiştirir (`AGENTS.md` ENV kuralı). Kullanıcıya tek cümleyle söyle ("`.env` ve `.env.dev` dosyalarına 3 yerel Auth anahtarı ekleyeceğim,
+değerleri göstermeyeceğim; onaylıyor musun?") ve onay al. `.env`/`.env.dev` içeriğini **okuma, yazdırma, kopyalama**.
+
+**Yeni ENV'ler opsiyoneldir:** Auth'un 35 ince ayarı (`AUTH_*`) ve Gateway ayarları (`GATEWAY_*`, `CORS_ALLOWED_ORIGINS`) varsayılanla çalışır; `.env.example` içindeki
+yorum satırları isteğe bağlıdır. Hızlı geliştirme için örnek: `.env.dev`'e `AUTH_2FA_REQUIRED_ROLES=` (boş) yazarsan yerelde ADMIN/MODERATOR için 2FA zorunluluğu kalkar
+(yalnız `SPRING_PROFILES_ACTIVE=dev` iken; başka profilde servis açılmaz).
+
+| Hata | Sebep | Çözüm |
+| --- | --- | --- |
+| `required variable AUTH_… is missing a value` | Üç anahtardan biri yok/boş | 3. adım |
+| Auth açılırken `must be a Base64 PKCS#8 RSA private key of at least 3072 bits` | JWT anahtarı yanlış biçimde (ör. `openssl genpkey … -outform DER`, OpenSSL 3.5'te Java'nın okuyamadığı çıktı verir) | `.env`/`.env.dev`'deki `AUTH_JWT_PRIVATE_KEY=` satırını boşalt ve 3. adımı çalıştır |
+| `database "auth_db" does not exist` | Postgres hacmin Auth DB'si eklenmeden önce oluşturulmuş | **`docker compose down -v` yapma** (veri kaybı). Kerem'e bildir, `auth_db` elle oluşturulur |
+| `port is already allocated` | 5080/5081 başka süreçte | `.env`'de `API_GATEWAY_HOST_PORT` / `AUTH_SERVICE_HOST_PORT` değiştir (ENV onayı) |
+| Giriş sonrası eski oturumlar geçersiz | Anahtar değişti | Yeniden giriş yap |
 
 ---
 

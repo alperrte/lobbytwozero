@@ -5,6 +5,8 @@
 //   node ops/generate-auth-dev-keys.mjs .env.local # belirli dosya(lar)
 //
 // - Yalnız YOK veya BOŞ anahtarları doldurur; dolu bir anahtarın üzerine asla yazmaz.
+// - Aynı anahtar tüm dosyalarda aynı olur (.env, .env.dev'in kopyasıdır; ops/env durumu bunu karşılaştırır).
+//   Bir dosyada dolu değer varsa diğerlerine o kopyalanır; hiçbirinde yoksa bir kez üretilir.
 // - Üretilen değerleri ekrana YAZMAZ.
 // - Bu anahtarlar yerel geliştirme içindir; production için ayrı üretilir ve sır yöneticisinde tutulur.
 
@@ -27,14 +29,28 @@ const generators = {
   AUTH_TOTP_ENCRYPTION_KEY: () => randomBytes(32).toString("base64"),
 };
 
+const lineOf = (name) => new RegExp(`^${name}=(.*?)\\r?$`, "m");
+
 const requested = process.argv.slice(2);
 const targets = (requested.length ? requested : [".env", ".env.dev"])
   .map((file) => resolve(root, file))
   .filter((file) => existsSync(file));
 
 if (targets.length === 0) {
-  console.error("Dosya bulunamadı. Önce .env.example dosyasını .env olarak kopyalayın.");
+  console.error("Dosya bulunamadı. Önce .env.example dosyasını .env.dev olarak kopyalayın.");
   process.exit(1);
+}
+
+// Herhangi bir dosyada zaten dolu olan değeri bul; diğer dosyalara onu yaz.
+const values = {};
+for (const name of Object.keys(generators)) {
+  for (const file of targets) {
+    const match = readFileSync(file, "utf8").match(lineOf(name));
+    if (match && match[1].trim() !== "") {
+      values[name] = match[1].trim();
+      break;
+    }
+  }
 }
 
 for (const file of targets) {
@@ -43,12 +59,12 @@ for (const file of targets) {
   const filled = [];
 
   for (const [name, generate] of Object.entries(generators)) {
-    const line = new RegExp(`^${name}=(.*?)\\r?$`, "m");
-    const match = text.match(line);
+    const match = text.match(lineOf(name));
     if (match && match[1].trim() !== "") continue;
-    const value = generate();
+    values[name] ??= generate();
+    const value = values[name];
     if (match) {
-      text = text.replace(line, () => `${name}=${value}`);
+      text = text.replace(lineOf(name), () => `${name}=${value}`);
     } else {
       if (!text.endsWith("\n")) text += eol;
       text += `${name}=${value}${eol}`;
