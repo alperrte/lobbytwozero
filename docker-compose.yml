@@ -9,7 +9,7 @@ x-ltz-runtime-env: &ltz-runtime-env
   REST_CLIENT_CONNECT_TIMEOUT_MS: ${REST_CLIENT_CONNECT_TIMEOUT_MS:-3000}
   REST_CLIENT_READ_TIMEOUT_MS: ${REST_CLIENT_READ_TIMEOUT_MS:-5000}
   JWT_ISSUER: ${JWT_ISSUER:-ltz-auth}
-  JWT_ACCESS_TTL_SECONDS: ${JWT_ACCESS_TTL_SECONDS:-900}
+  JWT_ACCESS_TTL_SECONDS: ${JWT_ACCESS_TTL_SECONDS:-300}
   JWT_REFRESH_TTL_SECONDS: ${JWT_REFRESH_TTL_SECONDS:-604800}
   TZ: ${TZ:-UTC}
   AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:?}
@@ -68,6 +68,20 @@ services:
     networks:
       - ltz_network
 
+  # Yalniz development: e-posta yakalama (disariya gondermez). Prod'da COMPOSE_PROFILES tanimlanmadigi icin baslamaz.
+  # Volume yok: test e-postalari container yeniden baslatilinca silinir.
+  mailpit:
+    image: axllent/mailpit:v1.31.0
+    restart: unless-stopped
+    profiles: ["dev-mail"]
+    environment:
+      MP_MAX_MESSAGES: 500
+    ports:
+      - "127.0.0.1:${MAILPIT_SMTP_HOST_PORT:-1025}:1025"
+      - "127.0.0.1:${MAILPIT_UI_HOST_PORT:-8025}:8025"
+    networks:
+      - ltz_network
+
   auth-service:
     restart: unless-stopped
     build:
@@ -79,6 +93,9 @@ services:
     environment:
       <<: *ltz-db-env
       DB_AUTH_NAME: ${DB_AUTH_NAME:?}
+      AUTH_OTP_HMAC_KEY: ${AUTH_OTP_HMAC_KEY:?}
+      AUTH_JWT_PRIVATE_KEY: ${AUTH_JWT_PRIVATE_KEY:?}
+      AUTH_TOTP_ENCRYPTION_KEY: ${AUTH_TOTP_ENCRYPTION_KEY:?}
     depends_on:
       postgres:
         condition: service_healthy

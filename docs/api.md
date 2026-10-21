@@ -1,6 +1,6 @@
 # LTZ — API Kataloğu
 
-> Son güncelleme: 2026-10-20
+> Son güncelleme: 2026-10-21
 > Bu dosya projedeki **tüm API'lerin tek kaydıdır**. Bir endpoint planlandığında, eklendiğinde, değiştiğinde veya kaldırıldığında, aynı değişiklikte buraya kendi servisinin başlığı altında yazılır.
 > İlgili belgeler: [architecture.md](architecture.md) (gateway ve servisler arası iletişim), [SECURITY.md](SECURITY.md) (yetkilendirme, ProblemDetail), [web-rules.md](web-rules.md) (frontend tüketimi).
 
@@ -132,7 +132,336 @@ Henüz kayıtlı API yok. Kayıtlar eklendikçe her başlığın altındaki "Kay
 
 Sorumlu: Kerem · Gateway: `/api/v1/auth/**` · Görevler: AUTH-
 
-_Kayıt yok._
+Ortak kurallar (aşağıdaki üç uç için):
+- Bu uçlar dışındaki her yol, fail-closed güvenlik zinciri nedeniyle kimliksiz istekte `401`, kimlikli istekte `403` döner (Faz 2'de korumalı uçlar açıkça tanımlanacak). Açık olan diğer tek uç `GET /actuator/health`.
+- İstek gövdesi en fazla 8 KB'tır; aşan istek `413`, bilinmeyen alan (ör. `role`, `status`) içeren istek `400` alır.
+- Hata gövdesi `ProblemDetail` + `code` alanıdır; doğrulama hatalarında `errors: [{field, code}]` döner, gönderilen değer geri yansıtılmaz.
+- Yanıtlar e-postanın kayıtlı olup olmadığını ve e-postanın gerçekten gönderildiğini açıklamaz (hesap numaralandırma koruması).
+
+### AUTH — Kayıt ol
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/auth/register
+
+#### Yetkilendirme
+Public
+
+#### Request Body
+```json
+{
+  "email": "string, zorunlu, geçerli e-posta, en fazla 254 karakter (büyük/küçük harf duyarsız tekil)",
+  "username": "string, zorunlu, ^[A-Za-z0-9_]{3,20}$ (büyük/küçük harf duyarsız tekil, görünen biçim korunur)",
+  "password": "string, zorunlu, 12-128 karakter; içeriği dönüştürülmez"
+}
+```
+
+#### Response — 202
+```json
+{
+  "nextStep": "VERIFY_EMAIL"
+}
+```
+E-posta zaten kayıtlıysa da aynı yanıt döner; yeni hesap açılmaz. Hesap `PENDING_VERIFICATION` durumunda ve yalnız `PLAYER` rolüyle oluşur.
+
+#### Hata Durumları
+- 400: Doğrulama hatası (`VALIDATION_FAILED`) veya okunamayan/bilinmeyen alan içeren gövde (`MALFORMED_REQUEST`)
+- 409: Kullanıcı adı kullanımda (`USERNAME_TAKEN`)
+- 413: İstek gövdesi çok büyük (`PAYLOAD_TOO_LARGE`)
+- 503: Parola hash kapasitesi geçici olarak dolu (`SERVICE_BUSY`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/auth/register
+
+Diğer mikroservisler:
+Doğrulama kodu `VerificationCodeMailPort` üzerinden iletilir (aşağıdaki "Giden sözleşme taslakları", MAIL-01).
+- Development (`dev` profili): Mailpit'e SMTP ile iletilir (Compose profili `dev-mail`, arayüz `http://127.0.0.1:8025`). Mailpit dışarıya e-posta göndermez; production teslimi sayılmaz.
+- Production: gerçek Mail Service adaptörü yok — **PENDING**. `prod` profili bu nedenle açılışta bilerek başlamaz (fail-fast).
+- Teslim başarısızsa kod `DELIVERY_FAILED` olarak geçersiz kılınır; yanıt hiçbir durumda gönderim iddia etmez.
+
+#### Test Durumu
+UNIT + INTEGRATION
+
+### AUTH — E-posta doğrulama kodunu onayla
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/auth/email-verification/confirm
+
+#### Yetkilendirme
+Public
+
+#### Request Body
+```json
+{
+  "email": "string, zorunlu, geçerli e-posta",
+  "code": "string, zorunlu, ^[0-9]{6}$ (başında 0 olabilir)"
+}
+```
+
+#### Response — 204
+Gövde yok. Hesap `ACTIVE` olur, `email_verified_at` yazılır, kod tek kullanımlık olarak tüketilir. Bu uç token veya oturum üretmez.
+
+#### Hata Durumları
+- 400: Kod geçersiz, süresi dolmuş, kullanılmış, deneme hakkı bitmiş veya e-posta bilinmiyor/zaten doğrulanmış (`VERIFICATION_FAILED`, tüm nedenler için aynı yanıt); doğrulama hatası (`VALIDATION_FAILED`)
+- 413: İstek gövdesi çok büyük
+- 500: Beklenmeyen sunucu hatası
+
+Kod 10 dakika geçerlidir; kod başına en fazla 5 deneme yapılır (deneme sonuçtan bağımsız sayılır).
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/auth/email-verification/confirm
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION
+
+### AUTH — Doğrulama kodunu yeniden gönder
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/auth/email-verification/resend
+
+#### Yetkilendirme
+Public
+
+#### Request Body
+```json
+{
+  "email": "string, zorunlu, geçerli e-posta"
+}
+```
+
+#### Response — 202
+```json
+{
+  "nextStep": "VERIFY_EMAIL"
+}
+```
+Bilinmeyen, zaten doğrulanmış veya sınıra takılmış hesap için de aynı yanıt döner. Bekleyen hesapta önceki aktif kod geçersiz kılınır ve **yeni** kod üretilir. Bekleme süresi 60 saniye, son 24 saatte en fazla 5 kod.
+
+#### Hata Durumları
+- 400: Doğrulama hatası (`VALIDATION_FAILED`)
+- 413: İstek gövdesi çok büyük
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/auth/email-verification/resend
+
+Diğer mikroservisler:
+Mail Service (MAIL-01) — production **PENDING**; development'ta Mailpit (bkz. Kayıt ol → Bağlantı).
+
+#### Test Durumu
+UNIT + INTEGRATION
+
+### AUTH — Oturum ortak kuralları (Faz 2)
+
+- Token'lar yalnız HttpOnly cookie'dedir, gövdede dönmez: `__Host-ltz_access` (Secure, SameSite=Lax, Path=/), `__Secure-ltz_refresh` (Secure, SameSite=Strict, Path=/api/v1/auth/session). Production'da Secure kapatılamaz.
+- **CSRF:** Aşağıdaki POST uçları `X-XSRF-TOKEN` başlığı ister; değer `__Host-XSRF-TOKEN` cookie'sinden okunur (`GET /api/v1/auth/csrf` ile üretilir). `Authorization: Bearer` başlığı taşıyan istekler (tarayıcı dışı istemci) muaftır. Eksik/yanlış token: `403 CSRF_TOKEN_INVALID`.
+- **Access token (JWT, RS256):** `iss`, `sub` (hesap UUID), `aud=ltz-api`, `iat`, `nbf`, `exp` (5 dk), `jti`, `sid` (oturum), `ver` (token sürümü), `roles`, `amr`; başlık `typ=at+jwt`, `kid`. Diğer servisler imzayı JWKS ile doğrular. Auth uçlarında oturum/hesap durumu her istekte denetlenir (anında iptal); diğer servislerde iptal gecikmesi D3 kararına bağlıdır.
+- Kimliksiz istek `401 UNAUTHENTICATED`, izinsiz `403 FORBIDDEN`. Parola/2FA denemeleri: 15 dakikada 5 hata → `429 TOO_MANY_ATTEMPTS` + `Retry-After`.
+
+### AUTH — Giriş
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/auth/login
+
+#### Yetkilendirme
+Public (CSRF gerekli)
+
+#### Request Body
+```json
+{
+  "identifier": "string, zorunlu, e-posta veya kullanıcı adı",
+  "password": "string, zorunlu, en fazla 128 karakter"
+}
+```
+
+#### Response — 200
+```json
+{ "status": "AUTHENTICATED", "accessTokenExpiresAt": "ISO-8601" }
+```
+Oturum cookie'leri yazılır. TOTP etkinse cookie yazılmaz ve şu döner:
+```json
+{ "status": "MFA_REQUIRED", "challengeId": "opaque string", "challengeExpiresAt": "ISO-8601" }
+```
+
+#### Hata Durumları
+- 400: Doğrulama hatası
+- 401: Kimlik veya parola hatalı (`INVALID_CREDENTIALS`, hesap var/yok ayrımı yapılmaz)
+- 403: Parola doğru ama hesap kullanılamaz (`EMAIL_NOT_VERIFIED`, `ACCOUNT_SUSPENDED`, `ACCOUNT_BANNED`, `ACCOUNT_UNAVAILABLE`); 2FA zorunlu rolde TOTP yok (`TWO_FACTOR_ENROLLMENT_REQUIRED`); CSRF
+- 429: Çok fazla deneme (`TOO_MANY_ATTEMPTS`, `Retry-After`)
+- 503: Parola hash kapasitesi dolu (`SERVICE_BUSY`)
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/auth/login
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION
+
+### AUTH — Giriş ikinci adımı (2FA)
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/auth/login/2fa
+
+#### Yetkilendirme
+Public (CSRF gerekli; geçerli `challengeId` şart)
+
+#### Request Body
+```json
+{
+  "challengeId": "string, zorunlu",
+  "code": "string, ^[0-9]{6}$ (TOTP) — recoveryCode ile birlikte gönderilemez",
+  "recoveryCode": "string, XXXXX-XXXXX (tek kullanımlık)"
+}
+```
+
+#### Response — 200
+```json
+{ "status": "AUTHENTICATED", "accessTokenExpiresAt": "ISO-8601" }
+```
+
+#### Hata Durumları
+- 400: Doğrulama hatası (iki faktör birden veya hiçbiri)
+- 401: Kod/kurtarma kodu geçersiz, tekrar kullanılmış, challenge süresi dolmuş veya 5 deneme aşılmış (`MFA_FAILED`)
+- 429: Hesap bazlı deneme sınırı
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/auth/login/2fa
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION
+
+### AUTH — Oturum uçları
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+- POST /api/v1/auth/session/refresh — refresh cookie ile yeni access + refresh (rotation)
+- POST /api/v1/auth/session/logout — bu cihazdaki oturumu kapatır, cookie'leri siler (idempotent)
+- POST /api/v1/auth/session/logout-all — tüm oturumları kapatır, eski access token'ları geçersiz kılar
+- GET /api/v1/auth/csrf — CSRF cookie'sini üretir (`204`)
+
+#### Yetkilendirme
+refresh/logout: Public (refresh cookie + CSRF) · logout-all: Authenticated (+ CSRF) · csrf: Public
+
+#### Response
+- refresh — 200: `{ "status": "AUTHENTICATED", "accessTokenExpiresAt": "ISO-8601" }`
+- logout, logout-all — 204
+
+#### Hata Durumları
+- 401: Refresh token yok, geçersiz, süresi dolmuş, oturum iptal edilmiş veya hesap aktif değil (`SESSION_INVALID`; cookie'ler silinir). Daha önce döndürülmüş token 10 sn'den sonra yeniden gelirse oturum ailesi tümüyle iptal edilir.
+- 403: CSRF
+- 409: Aynı refresh token ile eşzamanlı yenileme (`REFRESH_CONFLICT`); oturum korunur, istemci tek refresh isteği yürütüp isteği tekrarlar.
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/auth/session/** ve /api/v1/auth/csrf
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### AUTH — JWKS
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Tüm backend servisleri (access token doğrulama)
+
+#### Endpoint
+GET /api/v1/auth/.well-known/jwks.json
+
+#### Yetkilendirme
+Public
+
+#### Response — 200
+```json
+{ "keys": [ { "kty": "RSA", "use": "sig", "alg": "RS256", "kid": "string", "n": "string", "e": "AQAB" } ] }
+```
+Yalnız açık anahtar alanları döner.
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+`${AUTH_SERVICE_URL}/api/v1/auth/.well-known/jwks.json` (RestClient / resource server jwk-set-uri). Doğrulamada `iss`, `aud=ltz-api`, `exp`, `typ=at+jwt` ve yalnız RS256 zorunludur.
+
+#### Test Durumu
+INTEGRATION
+
+### AUTH — TOTP yönetimi
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+- POST /api/v1/auth/2fa/totp/setup — yeni (PENDING) secret; yanıt: `{ "secret": "Base32", "otpauthUri": "otpauth://totp/..." }` (yalnız bir kez gösterilir)
+- POST /api/v1/auth/2fa/totp/activate — `{ "code": "123456" }`; yanıt: `{ "recoveryCodes": ["XXXXX-XXXXX", ...10] }` (yalnız bir kez)
+- POST /api/v1/auth/2fa/totp/disable — `{ "password": "...", "code": "123456" }` veya `recoveryCode`; yanıt 204
+
+#### Yetkilendirme
+Authenticated (+ CSRF). Hesap kimliği yalnız token'dan alınır.
+
+#### Hata Durumları
+- 400: Kod geçersiz (`INVALID_TWO_FACTOR_CODE`) veya doğrulama hatası
+- 401: Kimliksiz; disable'da parola hatalı (`INVALID_CREDENTIALS`)
+- 403: `ADMIN`/`MODERATOR` rolünde kapatma (`TWO_FACTOR_REQUIRED_FOR_ROLE`); CSRF
+- 409: Zaten etkin (`TWO_FACTOR_ALREADY_ENABLED`), bekleyen kurulum yok (`TWO_FACTOR_NOT_PENDING`), etkin değil (`TWO_FACTOR_NOT_ENABLED`)
+- 429: Deneme sınırı
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/auth/2fa/totp/**
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION
+
+### AUTH — Giden sözleşme taslakları (PLANNED, onay bekliyor)
+
+Bunlar Auth'un çağıracağı/yayımlayacağı sözleşmelerdir; karşı servisin kaydı o servis uygulanırken kendi başlığı altında açılır.
+
+- **Auth → Mail, doğrulama kodu teslimi (MAIL-01):** `POST /internal/v1/mail/verification-codes`, Yetkilendirme: Internal (Auth'un imzaladığı, `aud=mail-service` sınırlı servis JWT'si — D4, Faz 2). Gövde: `idempotencyKey` (UUID, kod kaydı kimliği), `accountId`, `recipientEmail`, `code`, `validitySeconds`, `locale` (`tr`/`en`, açık konu). Mail Service yalnız teslim eder; kodu düz metin olarak kalıcı tutmaz (`variables_encrypted`, gönderim sonrası temizleme) ve loglamaz. `202` = teslim kuyruğa alındı; diğer her yanıt Auth'ta teslim başarısızlığı sayılır. Kimlik doğrulaması olmadan bu uç açılmaz.
+- **Auth → User, `UserRegistered` olayı:** Hesap `ACTIVE` olduktan **sonra** (kayıt anında değil) outbox ile yayımlanır. Alanlar: `eventId`, `accountId`, `username`, `occurredAt`. User Service profili `accountId` ile idempotent oluşturur; parola, e-posta doğrulama durumu ve rol User'a taşınmaz. Outbox altyapısı henüz yoktur (sonraki faz).
 
 ## USER
 
