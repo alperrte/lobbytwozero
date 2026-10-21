@@ -44,6 +44,7 @@ public final class AuthApiPaths {
     /** Yalnız ROLE_ADMIN erişir (SecurityConfig). */
     public static final String ADMIN = BASE + "/admin";
     public static final String ADMIN_ROLES = ADMIN + "/roles";
+    public static final String ADMIN_DELETIONS_PENDING = ADMIN + "/account-deletions/pending";
     public static final String ADMIN_ACCOUNT = ADMIN + "/accounts/{accountId}";
     public static final String ADMIN_ACCOUNT_STATUS = ADMIN_ACCOUNT + "/status";
     public static final String ADMIN_ACCOUNT_ROLES_GRANT = ADMIN_ACCOUNT + "/roles/grant";

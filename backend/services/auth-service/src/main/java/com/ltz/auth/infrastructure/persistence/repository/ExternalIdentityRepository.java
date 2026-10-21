@@ -11,4 +11,6 @@ import com.ltz.auth.domain.enums.ExternalProvider;
 public interface ExternalIdentityRepository extends JpaRepository<ExternalIdentity, UUID> {
 
     Optional<ExternalIdentity> findByProviderAndProviderSubject(ExternalProvider provider, String providerSubject);
+
+    Optional<ExternalIdentity> findByAccountIdAndProvider(UUID accountId, ExternalProvider provider);
 }

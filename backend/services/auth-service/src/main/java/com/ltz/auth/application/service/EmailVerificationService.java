@@ -39,6 +39,7 @@ public class EmailVerificationService {
     private final VerificationCodeDispatcher dispatcher;
     private final SecurityEventRecorder securityEventRecorder;
     private final VerificationProperties properties;
+    private final RegistrantProofVerifier proofVerifier;
     private final TransactionTemplate transactionTemplate;
     private final Clock clock;
 
@@ -68,8 +69,19 @@ public class EmailVerificationService {
         }
     }
 
-    public void confirm(String email, String submittedCode) {
-        Boolean verified = transactionTemplate.execute(status -> tryConfirm(email, submittedCode));
+    /**
+     * Doğrulama iki şeyi birlikte kanıtlar: e-postaya gelen kod (e-posta sahipliği) ve kaydı yapanın kendisi
+     * (kayıt parolası veya Steam kanıtı). Kanıt yanlışsa kod denemesi harcanmaz ve ayrım yapılmayan tek hata döner.
+     */
+    public void confirm(String email, String submittedCode, String password, String steamProof) {
+        String normalized = Account.normalizeEmail(email);
+        RegistrantProofVerifier.Requirement requirement = transactionTemplate.execute(status ->
+                accountRepository.findByEmailNormalized(normalized).filter(Account::isPendingVerification)
+                        .map(proofVerifier::requirementFor).orElse(null));
+        // Maliyetli parola doğrulaması işlem dışında yapılır.
+        boolean proven = proofVerifier.isSatisfied(requirement, password, steamProof);
+        Boolean verified = proven ? transactionTemplate.execute(
+                status -> tryConfirm(email, submittedCode, requirement, steamProof)) : Boolean.FALSE;
         if (!Boolean.TRUE.equals(verified)) {
             throw new EmailVerificationFailedException();
         }
@@ -104,7 +116,8 @@ public class EmailVerificationService {
                 account.getId(), PURPOSE, now.minus(DAILY_LIMIT_WINDOW)) >= properties.dailyLimit();
     }
 
-    private boolean tryConfirm(String email, String submittedCode) {
+    private boolean tryConfirm(String email, String submittedCode, RegistrantProofVerifier.Requirement requirement,
+                               String steamProof) {
         Optional<Account> pending = accountRepository.findByEmailNormalized(Account.normalizeEmail(email))
                 .filter(Account::isPendingVerification);
         if (pending.isEmpty()) {
@@ -124,6 +137,9 @@ public class EmailVerificationService {
         code.recordAttempt();
         if (!code.hasHash(codeHasher.hash(account.getId(), PURPOSE, submittedCode))) {
             securityEventRecorder.record(SecurityEventType.EMAIL_VERIFICATION_FAILED, account.getId());
+            return false;
+        }
+        if (!proofVerifier.consumeSteamProof(requirement, steamProof)) {
             return false;
         }
         code.consume(now);

@@ -39,8 +39,8 @@ class MailServiceUnavailableAdapterTest {
         assertThat(mail.toString()).doesNotContain(EMAIL).doesNotContain(CODE);
         assertThat(new RegisterAccountRequest(EMAIL, "player_one", password).toString())
                 .doesNotContain(EMAIL).doesNotContain(password).contains("player_one");
-        assertThat(new ConfirmEmailVerificationRequest(EMAIL, CODE).toString())
-                .doesNotContain(EMAIL).doesNotContain(CODE);
+        assertThat(new ConfirmEmailVerificationRequest(EMAIL, CODE, password, "proof-token-value").toString())
+                .doesNotContain(EMAIL).doesNotContain(CODE).doesNotContain(password).doesNotContain("proof-token-value");
         assertThat(new ResendEmailVerificationRequest(EMAIL).toString()).doesNotContain(EMAIL);
     }
 

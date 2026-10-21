@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import com.ltz.auth.api.dto.request.SteamRegistrationRequest;
+import com.ltz.auth.api.dto.response.SteamRegistrationResponse;
 import com.ltz.auth.api.dto.response.VerificationPendingResponse;
 import com.ltz.auth.application.service.ExternalLoginResult;
 import com.ltz.auth.application.service.GoogleLoginService;
@@ -69,9 +70,9 @@ public class ExternalLoginController {
     /** Cookie okumaz ve oturum açmaz; yetki kaynağı gövdedeki tek kullanımlık kayıt token'ıdır. */
     @PostMapping(AuthApiPaths.STEAM_COMPLETE)
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public VerificationPendingResponse steamComplete(@Valid @RequestBody SteamRegistrationRequest request) {
-        steamLoginService.completeRegistration(request.registrationToken(), request.email(), request.username());
-        return VerificationPendingResponse.VERIFY_EMAIL;
+    public SteamRegistrationResponse steamComplete(@Valid @RequestBody SteamRegistrationRequest request) {
+        return new SteamRegistrationResponse(VerificationPendingResponse.VERIFY_EMAIL.nextStep(),
+                steamLoginService.completeRegistration(request.registrationToken(), request.email(), request.username()));
     }
 
     private ResponseEntity<Void> redirectTo(StartedFlow flow, HttpServletResponse response) {
@@ -98,7 +99,8 @@ public class ExternalLoginController {
         return switch (result.outcome()) {
             case AUTHENTICATED -> "status=authenticated";
             case MFA_REQUIRED -> "status=mfa_required&challenge=" + result.challengeId();
-            case REGISTRATION_REQUIRED -> "status=registration_required&token=" + result.registrationToken();
+            case REGISTRATION_REQUIRED -> "status=registration_required&token=" + result.token();
+            case EMAIL_VERIFICATION_REQUIRED -> "status=email_verification_required&proof=" + result.token();
         };
     }
 

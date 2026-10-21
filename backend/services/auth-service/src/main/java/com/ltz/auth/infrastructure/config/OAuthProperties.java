@@ -43,6 +43,7 @@ public record OAuthProperties(
 
     public record Steam(@NotNull URI openIdEndpoint,
                         @NotNull @DurationMin(seconds = 30) Duration assertionMaxAge,
-                        @NotNull @DurationMin(minutes = 1) @DurationMax(minutes = 60) Duration registrationTtl) {
+                        @NotNull @DurationMin(minutes = 1) @DurationMax(minutes = 60) Duration registrationTtl,
+                        @NotNull @DurationMin(minutes = 1) @DurationMax(minutes = 120) Duration verificationProofTtl) {
     }
 }

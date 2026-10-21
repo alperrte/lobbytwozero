@@ -89,6 +89,8 @@ public abstract class IntegrationTestSupport {
         registry.add("AUTH_OTP_HMAC_KEY", () -> TEST_HMAC_KEY);
         // Silme worker'ı testlerde elle tetiklenir (deterministik); hedef servis listesi kısaltılır.
         registry.add("ltz.auth.deletion.worker-enabled", () -> "false");
+        // Temizlik de elle tetiklenir; arka plan çalıştırması testlerin verisini silmemeli.
+        registry.add("ltz.auth.cleanup.enabled", () -> "false");
         registry.add("ltz.auth.deletion.targets", () -> "user,mail");
         registry.add("AUTH_TOTP_ENCRYPTION_KEY", () -> TEST_TOTP_KEY);
         registry.add("AUTH_JWT_PRIVATE_KEY",
@@ -215,7 +217,24 @@ public abstract class IntegrationTestSupport {
                 """.formatted(email, username, password));
     }
 
+    /** Parola ile kayıt olan hesabın e-posta doğrulaması: kayıttaki parola kanıt olarak gönderilir. */
     protected ResultActions confirm(String email, String code) throws Exception {
+        return confirmWithPassword(email, code, VALID_PASSWORD);
+    }
+
+    protected ResultActions confirmWithPassword(String email, String code, String password) throws Exception {
+        return postJson(AuthApiPaths.EMAIL_VERIFICATION_CONFIRM, """
+                {"email":"%s","code":"%s","password":"%s"}
+                """.formatted(email, code, password));
+    }
+
+    protected ResultActions confirmWithProof(String email, String code, String proof) throws Exception {
+        return postJson(AuthApiPaths.EMAIL_VERIFICATION_CONFIRM, """
+                {"email":"%s","code":"%s","verificationProof":"%s"}
+                """.formatted(email, code, proof));
+    }
+
+    protected ResultActions confirmWithoutProof(String email, String code) throws Exception {
         return postJson(AuthApiPaths.EMAIL_VERIFICATION_CONFIRM, """
                 {"email":"%s","code":"%s"}
                 """.formatted(email, code));

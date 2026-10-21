@@ -29,4 +29,8 @@ public interface AccountDeletionTaskRepository extends JpaRepository<AccountDele
     List<AccountDeletionTask> findDue(DeletionTaskStatus status, Instant now, Pageable page);
 
     long countByRequestIdAndStatus(UUID requestId, DeletionTaskStatus status);
+
+    /** Yönetici görünümü: bekleyen görevler, en çok denenen ve en eski önce. */
+    @Query("select t from AccountDeletionTask t where t.status = :status order by t.attempts desc, t.createdAt")
+    List<AccountDeletionTask> findByStatusOrdered(DeletionTaskStatus status, Pageable page);
 }

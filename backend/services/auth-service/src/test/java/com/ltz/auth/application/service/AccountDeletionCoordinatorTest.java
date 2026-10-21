@@ -116,7 +116,8 @@ class AccountDeletionCoordinatorTest extends AccountDeletionTestSupport {
         assertThat(eraser.calls("user", accountId)).isEqualTo(1);
         assertThat(eraser.calls("mail", accountId)).isEqualTo(3);
         assertThat(statusOf(accountId)).isEqualTo("DELETED");
-        assertThat(securityEventCount(accountId, "ACCOUNT_DELETION_TASK_FAILED")).isEqualTo(2);
+        // Olay yalnız ilk başarısızlıkta yazılır (her denemede yazmak denetim tablosunu şişirir).
+        assertThat(securityEventCount(accountId, "ACCOUNT_DELETION_TASK_FAILED")).isEqualTo(1);
     }
 
     @Test

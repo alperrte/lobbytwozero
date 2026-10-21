@@ -18,7 +18,8 @@ import jakarta.validation.constraints.Pattern;
 /**
  * Hesap silme politikası (AUTH-16). targets: kullanıcı verisi tutan servisler; hepsi silmeyi onaylamadan hesap
  * DELETED olmaz. recentLoginWindow: parolasız (sosyal) hesaplarda yeniden doğrulama olarak kabul edilen en eski giriş.
- * Worker ayarları koordinasyon döngüsünü yönetir (kira, üstel geri çekilme).
+ * Worker ayarları koordinasyon döngüsünü yönetir (kira, üstel geri çekilme). stuckAttempts: bu kadar başarısız
+ * denemeden sonra görev "takılı" sayılır (uyarı günlüğü + yönetici uç noktasında işaretlenir); otomatik onaylanmaz.
  */
 @Validated
 @ConfigurationProperties("ltz.auth.deletion")
@@ -33,5 +34,6 @@ public record DeletionProperties(
         @Min(1) @Max(500) int batchSize,
         @NotNull @DurationMin(seconds = 10) Duration lease,
         @NotNull @DurationMin(seconds = 1) Duration initialBackoff,
-        @NotNull @DurationMin(seconds = 1) Duration maxBackoff) {
+        @NotNull @DurationMin(seconds = 1) Duration maxBackoff,
+        @Min(1) @Max(1000) int stuckAttempts) {
 }

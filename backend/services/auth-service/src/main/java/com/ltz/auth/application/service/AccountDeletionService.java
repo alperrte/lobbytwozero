@@ -25,6 +25,7 @@ import com.ltz.auth.infrastructure.persistence.repository.AccountDeletionRequest
 import com.ltz.auth.infrastructure.persistence.repository.AccountDeletionTaskRepository;
 import com.ltz.auth.infrastructure.persistence.repository.AccountDeletionTokenRepository;
 import com.ltz.auth.infrastructure.persistence.repository.AccountRepository;
+import com.ltz.auth.infrastructure.persistence.repository.AuthDataEraser;
 import com.ltz.auth.infrastructure.persistence.repository.AuthSessionRepository;
 import com.ltz.auth.infrastructure.security.SecureTokens;
 import com.ltz.auth.infrastructure.security.VerificationCodeHasher;
@@ -57,6 +58,7 @@ public class AccountDeletionService {
     private final TwoFactorService twoFactorService;
     private final AttemptThrottleService attemptThrottle;
     private final AccountDeletionDispatcher dispatcher;
+    private final AuthDataEraser authDataEraser;
     private final VerificationCodeHasher hasher;
     private final SecureTokens secureTokens;
     private final SecurityEventRecorder securityEventRecorder;
@@ -162,6 +164,8 @@ public class AccountDeletionService {
         securityEventRecorder.record(SecurityEventType.ACCOUNT_DELETION_CONFIRMED, accountId);
         // Toplu güncelleme persistence context'i temizler; bekleyen değişiklikler önce flush edilir.
         sessionRepository.revokeAllActive(accountId, SessionRevokeReason.ACCOUNT_DELETION, now);
+        // Silinecek hesabın bekleyen sıfırlama/doğrulama/MFA/Steam artıkları artık geçersiz kılınır.
+        authDataEraser.purgeEphemeral(accountId);
         return true;
     }
 

@@ -11,10 +11,12 @@ import jakarta.validation.constraints.Size;
 
 public record ConfirmEmailVerificationRequest(
         @NotBlank @Email @Size(max = Account.EMAIL_MAX_LENGTH) String email,
-        @NotNull @Pattern(regexp = EmailVerificationCode.CODE_PATTERN) String code) {
+        @NotNull @Pattern(regexp = EmailVerificationCode.CODE_PATTERN) String code,
+        @Size(max = Account.PASSWORD_MAX_LENGTH) String password,
+        @Size(max = SecondFactor.OPAQUE_TOKEN_MAX_LENGTH) String verificationProof) {
 
     @Override
     public String toString() {
-        return "ConfirmEmailVerificationRequest[email=***, code=***]";
+        return "ConfirmEmailVerificationRequest[email=***, code=***, password=***, verificationProof=***]";
     }
 }

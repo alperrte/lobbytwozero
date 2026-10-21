@@ -69,8 +69,10 @@ class SteamLoginTest extends ExternalProviderTestSupport {
                     .containsEntry("openid.claimed_id", STEAM_ID_PREFIX + steamId);
         });
 
-        complete(registrationToken, email, username).andExpect(status().isAccepted())
-                .andExpect(jsonPath("$.nextStep").value("VERIFY_EMAIL"));
+        String completeProof = complete(registrationToken, email, username).andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.nextStep").value("VERIFY_EMAIL"))
+                .andExpect(jsonPath("$.verificationProof").isNotEmpty()).andReturn().getResponse().getContentAsString();
+        assertThat(completeProof).doesNotContain(registrationToken);
 
         UUID accountId = accountId(email);
         assertThat(accountStatus(email)).isEqualTo("PENDING_VERIFICATION");
@@ -78,10 +80,13 @@ class SteamLoginTest extends ExternalProviderTestSupport {
                 .isTrue();
         assertThat(jdbc.queryForObject("select provider_subject from external_identities where account_id = ? "
                 + "and provider = 'STEAM'", String.class, accountId)).isEqualTo(steamId);
-        assertThat(fragment(steamCallback(steamId, p -> { }))).as("e-posta doğrulanmadan oturum yok")
-                .isEqualTo("error=EMAIL_NOT_VERIFIED");
+        MvcResult pendingLogin = steamCallback(steamId, p -> { });
+        assertThat(fragment(pendingLogin)).as("e-posta doğrulanmadan oturum yok")
+                .startsWith("status=email_verification_required&proof=");
+        assertThat(pendingLogin.getResponse().getCookie(ACCESS_COOKIE)).isNull();
+        String proof = fragmentValue(pendingLogin, "proof");
 
-        confirm(email, mailPort.awaitLatestCode(email, 1)).andExpect(status().isNoContent());
+        confirmWithProof(email, mailPort.awaitLatestCode(email, 1), proof).andExpect(status().isNoContent());
         MvcResult login = steamCallback(steamId, p -> { });
 
         assertThat(fragment(login)).isEqualTo("status=authenticated");
@@ -198,6 +203,46 @@ class SteamLoginTest extends ExternalProviderTestSupport {
         assertThat(fragment(result)).isEqualTo("error=TWO_FACTOR_ENROLLMENT_REQUIRED");
         assertThat(result.getResponse().getCookie(ACCESS_COOKIE)).isNull();
         assertThat(output.getAll()).doesNotContain(token).doesNotContain(steamId).doesNotContainIgnoringCase(email);
+    }
+
+    @Test
+    void steamHesabiDogrulamasiSahipKanitiOlmadanYapilamaz_kanitTekKullanimlikVeSteamIdyeBagli() throws Exception {
+        String steamId = newSteamId();
+        String email = uniqueEmail();
+        String registrationToken = fragmentValue(steamCallback(steamId, p -> { }), "token");
+        String proof = proofOf(complete(registrationToken, email, uniqueUsername()).andExpect(status().isAccepted()));
+        String code = mailPort.awaitLatestCode(email, 1);
+        String otherProof = proofOf(complete(fragmentValue(steamCallback(newSteamId(), p -> { }), "token"),
+                uniqueEmail(), uniqueUsername()).andExpect(status().isAccepted()));
+        String unusedRegistrationToken = fragmentValue(steamCallback(newSteamId(), p -> { }), "token");
+
+        confirmWithoutProof(email, code).andExpect(status().isBadRequest());
+        confirmWithPassword(email, code, VALID_PASSWORD).andExpect(status().isBadRequest());
+        confirmWithProof(email, code, otherProof).andExpect(status().isBadRequest());
+        confirmWithProof(email, code, unusedRegistrationToken).andExpect(status().isBadRequest());
+        assertThat(accountStatus(email)).isEqualTo("PENDING_VERIFICATION");
+
+        confirmWithProof(email, code, proof).andExpect(status().isNoContent());
+        assertThat(accountStatus(email)).isEqualTo("ACTIVE");
+        assertThat(jdbc.queryForObject("select count(*) from steam_registrations where steam_id = ? "
+                + "and purpose = 'EMAIL_VERIFICATION' and consumed_at is not null", Integer.class, steamId))
+                .isEqualTo(1);
+    }
+
+    @Test
+    void kayitliEpostaIcinDonenKanitDogrulamayaYaramaz() throws Exception {
+        String existing = registerActiveAccount(uniqueEmail(), uniqueUsername());
+        String token = fragmentValue(steamCallback(newSteamId(), p -> { }), "token");
+
+        String proof = proofOf(complete(token, existing, uniqueUsername()).andExpect(status().isAccepted()));
+
+        assertThat(proof).as("yanıt biçimi hesap varlığını sızdırmaz").isNotBlank();
+        confirmWithProof(existing, "000000", proof).andExpect(status().isBadRequest());
+    }
+
+    private static String proofOf(ResultActions result) throws Exception {
+        return com.jayway.jsonpath.JsonPath.read(result.andReturn().getResponse().getContentAsString(),
+                "$.verificationProof");
     }
 
     private MvcResult steamCallback(String steamId, Consumer<Map<String, String[]>> mutation) throws Exception {

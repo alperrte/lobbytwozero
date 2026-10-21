@@ -23,6 +23,7 @@ import com.ltz.auth.domain.enums.AuthMethod;
 import com.ltz.auth.domain.enums.ExternalProvider;
 import com.ltz.auth.domain.enums.RoleCode;
 import com.ltz.auth.domain.enums.SecurityEventType;
+import com.ltz.auth.domain.enums.SteamProofPurpose;
 import com.ltz.auth.domain.exception.AuthErrorCode;
 import com.ltz.auth.domain.exception.AuthException;
 import com.ltz.auth.domain.exception.UsernameAlreadyTakenException;
@@ -105,6 +106,11 @@ public class SteamLoginService {
         Optional<ExternalIdentity> linked = identityRepository.findByProviderAndProviderSubject(
                 ExternalProvider.STEAM, assertion.steamId());
         if (linked.isPresent()) {
+            // E-postası henüz doğrulanmamış Steam hesabı oturum almaz; doğrulamayı yapmak için SteamID kanıtı verilir.
+            if (accountRepository.findById(linked.get().getAccountId())
+                    .filter(Account::isPendingVerification).isPresent()) {
+                return ExternalLoginResult.emailVerificationRequired(issueVerificationProofInNewTransaction(assertion.steamId()));
+            }
             return ExternalLoginResult.from(
                     loginService.loginVerifiedIdentity(linked.get().getAccountId(), AuthMethod.EXTERNAL));
         }
@@ -115,29 +121,35 @@ public class SteamLoginService {
      * Steam ile yeni hesap: e-posta ve kullanıcı adı toplanır. Kayıtlı e-postada hesap açılmaz ve yanıt değişmez
      * (numaralandırma yok); kayıt hakkı her iki durumda da tüketilir. Kullanıcı adı çakışması 409.
      */
-    public void completeRegistration(String registrationToken, String email, String username) {
-        VerificationCodeMail mail = createPending(registrationToken, email, username);
-        if (mail != null) {
-            emailVerificationService.dispatch(mail);
+    /**
+     * @return e-posta doğrulamasında kayıt sahibini kanıtlayan tek kullanımlık Steam kanıtı (verificationProof).
+     *         Her durumda aynı biçimde bir kanıt döner (kayıtlı e-posta dahil); yanıt hesap varlığını sızdırmaz.
+     */
+    public String completeRegistration(String registrationToken, String email, String username) {
+        Completion completion = createPending(registrationToken, email, username);
+        if (completion.mail() != null) {
+            emailVerificationService.dispatch(completion.mail());
         }
+        return completion.proof();
     }
 
-    private VerificationCodeMail createPending(String registrationToken, String email, String username) {
+    private Completion createPending(String registrationToken, String email, String username) {
         try {
             return transactionTemplate.execute(status -> {
                 Instant now = clock.instant();
                 SteamRegistration registration = registrationRepository
                         .findByTokenHashForUpdate(secureTokens.sha256Hex(registrationToken))
-                        .filter(candidate -> candidate.isUsableAt(now))
+                        .filter(candidate -> candidate.isUsableAt(now, SteamProofPurpose.REGISTRATION))
                         .orElseThrow(() -> new AuthException(AuthErrorCode.REGISTRATION_TOKEN_INVALID));
                 if (accountRepository.existsByUsernameNormalized(Account.normalizeUsername(username))) {
                     throw new UsernameAlreadyTakenException();
                 }
                 registration.consume(now);
                 registrationRepository.flush();
+                String proof = issueVerificationProof(registration.getSteamId(), now);
                 if (accountRepository.findByEmailNormalized(Account.normalizeEmail(email)).isPresent()) {
                     securityEventRecorder.record(SecurityEventType.REGISTRATION_EMAIL_CONFLICT, null);
-                    return null;
+                    return new Completion(null, proof);
                 }
                 var role = roleRepository.findByCode(RoleCode.PLAYER).orElseThrow(
                         () -> new IllegalStateException("Initial role seed is missing: " + RoleCode.PLAYER));
@@ -146,7 +158,7 @@ public class SteamLoginService {
                 identityRepository.saveAndFlush(
                         ExternalIdentity.link(account.getId(), ExternalProvider.STEAM, registration.getSteamId(), now));
                 securityEventRecorder.record(SecurityEventType.ACCOUNT_REGISTERED, account.getId());
-                return emailVerificationService.issueCode(account, now);
+                return new Completion(emailVerificationService.issueCode(account, now), proof);
             });
         } catch (DataIntegrityViolationException exception) {
             String constraint = violatedConstraint(exception);
@@ -154,9 +166,9 @@ public class SteamLoginService {
                 throw new UsernameAlreadyTakenException();
             }
             if (constraint != null) {
-                // E-posta veya SteamID eşzamanlı olarak alındı: nötr yanıt, hesap açılmaz.
+                // E-posta veya SteamID eşzamanlı olarak alındı: nötr yanıt, hesap açılmaz; kanıt hiçbir kayda bağlı değildir.
                 securityEventRecorder.record(SecurityEventType.EXTERNAL_LINK_CONFLICT, null);
-                return null;
+                return new Completion(null, secureTokens.newOpaqueToken());
             }
             throw exception;
         }
@@ -166,11 +178,31 @@ public class SteamLoginService {
         String token = secureTokens.newOpaqueToken();
         transactionTemplate.executeWithoutResult(status -> {
             Instant now = clock.instant();
-            registrationRepository.save(SteamRegistration.issue(secureTokens.sha256Hex(token), steamId, now,
-                    now.plus(properties.steam().registrationTtl())));
+            registrationRepository.save(SteamRegistration.issue(secureTokens.sha256Hex(token), steamId,
+                    SteamProofPurpose.REGISTRATION, now, now.plus(properties.steam().registrationTtl())));
             securityEventRecorder.record(SecurityEventType.STEAM_REGISTRATION_STARTED, null);
         });
         return token;
+    }
+
+    /** Çağıranın işlemine katılır; e-posta doğrulamasında kayıt sahibinin SteamID'yi kontrol ettiğini kanıtlar. */
+    private String issueVerificationProof(String steamId, Instant now) {
+        String proof = secureTokens.newOpaqueToken();
+        registrationRepository.save(SteamRegistration.issue(secureTokens.sha256Hex(proof), steamId,
+                SteamProofPurpose.EMAIL_VERIFICATION, now, now.plus(properties.steam().verificationProofTtl())));
+        return proof;
+    }
+
+    private String issueVerificationProofInNewTransaction(String steamId) {
+        return transactionTemplate.execute(status -> issueVerificationProof(steamId, clock.instant()));
+    }
+
+    private record Completion(VerificationCodeMail mail, String proof) {
+
+        @Override
+        public String toString() {
+            return "Completion[mail=***, proof=***]";
+        }
     }
 
     private String returnTo(String state) {

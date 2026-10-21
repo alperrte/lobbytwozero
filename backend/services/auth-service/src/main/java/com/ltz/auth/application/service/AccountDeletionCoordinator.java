@@ -24,6 +24,7 @@ import com.ltz.auth.infrastructure.persistence.repository.AccountRepository;
 import com.ltz.auth.infrastructure.persistence.repository.AuthDataEraser;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Silme koordinasyonu (AUTH-16/17). Her veri sahibi servis için bir görev vardır; görev, servis silmeyi idempotent
@@ -37,6 +38,7 @@ import lombok.RequiredArgsConstructor;
  *       ve hesap DELETED + anonim olur. Hiçbir servis onaylamadan hesap DELETED sayılmaz.</li>
  * </ul>
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AccountDeletionCoordinator {
@@ -84,7 +86,14 @@ public class AccountDeletionCoordinator {
                 .filter(AccountDeletionTask::isPending)
                 .ifPresent(task -> {
                     task.fail(clock.instant(), errorCode, properties.initialBackoff(), properties.maxBackoff());
-                    securityEventRecorder.record(SecurityEventType.ACCOUNT_DELETION_TASK_FAILED, task.getAccountId());
+                    // Her denemede olay yazmak denetim tablosunu şişirir: yalnız ilk hata ve takılma eşiğinde.
+                    if (task.getAttempts() == 1 || task.getAttempts() == properties.stuckAttempts()) {
+                        securityEventRecorder.record(SecurityEventType.ACCOUNT_DELETION_TASK_FAILED, task.getAccountId());
+                    }
+                    if (task.getAttempts() == properties.stuckAttempts()) {
+                        log.warn("Account deletion task stuck service={} attempts={} error={}", task.getService(),
+                                task.getAttempts(), errorCode);
+                    }
                 }));
     }
 

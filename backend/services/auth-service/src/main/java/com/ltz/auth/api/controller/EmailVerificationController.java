@@ -23,7 +23,7 @@ public class EmailVerificationController {
     @PostMapping(AuthApiPaths.EMAIL_VERIFICATION_CONFIRM)
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void confirm(@Valid @RequestBody ConfirmEmailVerificationRequest request) {
-        emailVerificationService.confirm(request.email(), request.code());
+        emailVerificationService.confirm(request.email(), request.code(), request.password(), request.verificationProof());
     }
 
     @PostMapping(AuthApiPaths.EMAIL_VERIFICATION_RESEND)
