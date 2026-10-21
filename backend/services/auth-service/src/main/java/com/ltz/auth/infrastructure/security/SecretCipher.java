@@ -3,6 +3,7 @@ package com.ltz.auth.infrastructure.security;
 import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.UUID;
 
@@ -89,6 +90,18 @@ public class SecretCipher {
     }
 
     public record EncryptedSecret(byte[] ciphertext, byte[] nonce, short keyVersion) {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof EncryptedSecret(byte[] otherCiphertext, byte[] otherNonce, short otherVersion)
+                    && keyVersion == otherVersion && Arrays.equals(ciphertext, otherCiphertext)
+                    && Arrays.equals(nonce, otherNonce);
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * (31 * Short.hashCode(keyVersion) + Arrays.hashCode(ciphertext)) + Arrays.hashCode(nonce);
+        }
 
         @Override
         public String toString() {

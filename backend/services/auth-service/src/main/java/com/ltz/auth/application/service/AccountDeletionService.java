@@ -160,7 +160,9 @@ public class AccountDeletionService {
         token.consume(now);
         account.requestDeletion(now);
         // Hesap başına tek talep: tekrarlanan onay yeni talep/görev üretmez (idempotent).
-        requestRepository.findByAccountId(accountId).orElseGet(() -> openRequest(accountId, now));
+        if (requestRepository.findByAccountId(accountId).isEmpty()) {
+            openRequest(accountId, now);
+        }
         securityEventRecorder.record(SecurityEventType.ACCOUNT_DELETION_CONFIRMED, accountId);
         // Toplu güncelleme persistence context'i temizler; bekleyen değişiklikler önce flush edilir.
         sessionRepository.revokeAllActive(accountId, SessionRevokeReason.ACCOUNT_DELETION, now);

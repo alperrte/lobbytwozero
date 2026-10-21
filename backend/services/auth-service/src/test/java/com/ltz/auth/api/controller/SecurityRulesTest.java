@@ -58,6 +58,6 @@ class SecurityRulesTest extends IntegrationTestSupport {
                 .andReturn().getResponse().getHeaders(HttpHeaders.SET_COOKIE);
 
         // Yalnız (gizli olmayan) CSRF cookie'si yazılabilir; oturum veya token cookie'si yazılmaz.
-        assertThat(cookies).allMatch(cookie -> cookie.startsWith(CSRF_COOKIE + "="));
+        assertThat(cookies.stream().filter(cookie -> !cookie.startsWith(CSRF_COOKIE + "=")).toList()).isEmpty();
     }
 }

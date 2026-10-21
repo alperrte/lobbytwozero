@@ -51,7 +51,8 @@ public class TotpCodes {
 
     public String codeAt(byte[] secret, long step) {
         try {
-            Mac mac = Mac.getInstance(HMAC_ALGORITHM);
+            // RFC 6238 varsayılanı HMAC-SHA1; authenticator uygulamalarıyla uyum için zorunlu (HMAC-SHA1 kırık değildir).
+            Mac mac = Mac.getInstance(HMAC_ALGORITHM); // NOSONAR java:S4790
             mac.init(new SecretKeySpec(secret, HMAC_ALGORITHM));
             byte[] hash = mac.doFinal(ByteBuffer.allocate(Long.BYTES).putLong(step).array());
             int offset = hash[hash.length - 1] & OFFSET_MASK;

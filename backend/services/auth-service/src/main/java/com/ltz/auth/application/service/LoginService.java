@@ -1,6 +1,7 @@
 package com.ltz.auth.application.service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -63,16 +64,18 @@ public class LoginService {
         String normalizedIdentifier = normalize(identifier);
         String throttleKey = hasher.hash(LOGIN_THROTTLE_DOMAIN, normalizedIdentifier);
         attemptThrottle.reserve(throttleKey);
-        Candidate candidate = transactionTemplate.execute(status -> findCandidate(normalizedIdentifier));
-        String passwordHash = candidate == null ? null : candidate.passwordHash();
+        Optional<Candidate> candidate = Optional.ofNullable(
+                transactionTemplate.execute(status -> findCandidate(normalizedIdentifier)));
+        String passwordHash = candidate.map(Candidate::passwordHash).orElse(null);
         boolean matches = passwordEncoder.matches(password, passwordHash == null ? dummyPasswordHash : passwordHash)
                 && passwordHash != null;
         if (!matches) {
-            securityEventRecorder.record(SecurityEventType.LOGIN_FAILED, candidate == null ? null : candidate.accountId());
+            securityEventRecorder.record(SecurityEventType.LOGIN_FAILED, candidate.map(Candidate::accountId).orElse(null));
             throw new AuthException(AuthErrorCode.INVALID_CREDENTIALS);
         }
         attemptThrottle.clear(throttleKey);
-        return complete(candidate, AuthMethod.PWD);
+        // matches yalnız parola özeti varsa true olabilir; özet de yalnız aday varken vardır.
+        return complete(candidate.orElseThrow(), AuthMethod.PWD);
     }
 
     /**
@@ -80,12 +83,9 @@ public class LoginService {
      * rol kuralları parola girişiyle birebir aynıdır; harici giriş 2FA'yı atlatmanın yolu değildir.
      */
     public LoginResult loginVerifiedIdentity(UUID accountId, AuthMethod firstFactor) {
-        Candidate candidate = transactionTemplate.execute(status -> accountRepository.findWithRolesById(accountId)
-                .map(LoginService::toCandidate)
-                .orElse(null));
-        if (candidate == null) {
-            throw new AuthException(AuthErrorCode.ACCOUNT_UNAVAILABLE);
-        }
+        Candidate candidate = Optional.ofNullable(transactionTemplate.execute(status ->
+                        accountRepository.findWithRolesById(accountId).map(LoginService::toCandidate).orElse(null)))
+                .orElseThrow(() -> new AuthException(AuthErrorCode.ACCOUNT_UNAVAILABLE));
         return complete(candidate, firstFactor);
     }
 

@@ -127,25 +127,25 @@ public class TwoFactorService {
     public List<String> activate(UUID accountId, String code) {
         String throttleKey = throttleKey(accountId);
         attemptThrottle.reserve(throttleKey);
-        List<String> recoveryCodes = transactionTemplate.execute(status -> {
+        Optional<List<String>> activated = transactionTemplate.execute(status -> {
             Instant now = clock.instant();
             TotpCredential credential = credentialRepository.findByAccountIdForUpdate(accountId)
                     .filter(candidate -> !candidate.isActive())
                     .orElseThrow(() -> new AuthException(AuthErrorCode.TWO_FACTOR_NOT_PENDING));
             OptionalLong step = matchingUnusedStep(credential, code, now);
             if (step.isEmpty()) {
-                return null;
+                return Optional.<List<String>>empty();
             }
             credential.activate(step.getAsLong(), now);
             securityEventRecorder.record(SecurityEventType.TWO_FACTOR_ENABLED, accountId);
-            return replaceRecoveryCodes(accountId, now);
+            return Optional.of(replaceRecoveryCodes(accountId, now));
         });
-        if (recoveryCodes == null) {
+        if (activated.isEmpty()) {
             securityEventRecorder.record(SecurityEventType.MFA_FAILED, accountId);
             throw new AuthException(AuthErrorCode.INVALID_TWO_FACTOR_CODE);
         }
         attemptThrottle.clear(throttleKey);
-        return recoveryCodes;
+        return activated.get();
     }
 
     /** Kapatma yeniden kimlik doğrulama ister: parola + TOTP veya kurtarma kodu. Zorunlu rollerde kapatılamaz. */

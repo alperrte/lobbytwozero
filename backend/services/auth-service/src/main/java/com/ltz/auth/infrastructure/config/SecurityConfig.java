@@ -109,7 +109,9 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.spa()
                         .csrfTokenRepository(csrfTokenRepository(sessionCookies.csrfCookieName(),
                                 sessionProperties.secureCookies()))
-                        .ignoringRequestMatchers(COOKIELESS_ENDPOINTS, BEARER_HEADER))
+                        // Muaf: çerez kullanmayan uçlar ve tarayıcının kendiliğinden göndermediği Authorization başlığı.
+                        // Çerezle gelen kimlik CsrfFilter'dan SONRA AccessTokenCookieFilter ile Bearer'a çevrilir.
+                        .ignoringRequestMatchers(COOKIELESS_ENDPOINTS, BEARER_HEADER)) // NOSONAR java:S4502
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
@@ -172,7 +174,7 @@ public class SecurityConfig {
      * Secure açıkken __Host- öneki, alt alan adlarından cookie yerleştirilerek double-submit'in atlatılmasını engeller.
      */
     private static CookieCsrfTokenRepository csrfTokenRepository(String cookieName, boolean secure) {
-        CookieCsrfTokenRepository repository = CookieCsrfTokenRepository.withHttpOnlyFalse();
+        CookieCsrfTokenRepository repository = CookieCsrfTokenRepository.withHttpOnlyFalse(); // NOSONAR java:S3330 - double-submit için SPA okumalı
         repository.setCookieName(cookieName);
         repository.setCookiePath(CSRF_COOKIE_PATH);
         repository.setCookieCustomizer(cookie -> cookie.secure(secure).sameSite(CSRF_COOKIE_SAME_SITE));
