@@ -72,7 +72,7 @@ class MailDeliveryConfigTest {
 
     @Test
     void devProfiliOlmadanDevAdaptoruIstenirseBaslamaz() {
-        runner.withPropertyValues("ltz.auth.mail.adapter=dev-smtp")
+        runner.withPropertyValues("ltz.auth.mail.adapter=dev-smtp", "spring.profiles.active=test")
                 .run(context -> assertThat(context).hasFailed());
     }
 

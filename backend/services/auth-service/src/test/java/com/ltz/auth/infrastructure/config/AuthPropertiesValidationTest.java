@@ -99,7 +99,7 @@ class AuthPropertiesValidationTest {
                 .run(context -> assertThat(context).hasFailed());
         policy.withPropertyValues("ltz.auth.two-factor.required-roles=MODERATOR", "spring.profiles.active=production")
                 .run(context -> assertThat(context).hasFailed());
-        policy.withPropertyValues("ltz.auth.two-factor.required-roles=MODERATOR")
+        policy.withPropertyValues("ltz.auth.two-factor.required-roles=MODERATOR", "spring.profiles.active=")
                 .run(context -> assertThat(context).hasFailed());
         policy.withPropertyValues("ltz.auth.two-factor.required-roles=ADMIN", "spring.profiles.active=production")
                 .run(context -> assertThat(context).hasNotFailed());
@@ -114,7 +114,7 @@ class AuthPropertiesValidationTest {
         guard.withPropertyValues("spring.profiles.active=dev").run(context -> assertThat(context).hasNotFailed());
         guard.withPropertyValues("spring.profiles.active=prod").run(context -> assertThat(context).hasNotFailed());
         guard.withPropertyValues("spring.profiles.active=dev,local").run(context -> assertThat(context).hasNotFailed());
-        guard.run(context -> assertThat(context).hasNotFailed());
+        guard.withPropertyValues("spring.profiles.active=").run(context -> assertThat(context).hasNotFailed());
     }
 
     private static String fullMessage(Throwable failure) {

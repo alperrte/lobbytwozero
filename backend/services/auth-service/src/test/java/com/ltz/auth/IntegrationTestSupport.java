@@ -19,6 +19,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -43,6 +44,9 @@ import jakarta.servlet.http.Cookie;
  * bağlamı. Container tüm test sınıflarında paylaşılır; testler benzersiz e-posta/kullanıcı adı kullanır.
  * HMAC anahtarı her çalıştırmada rastgele üretilir; repoda veya çıktıda gerçek sır yoktur.
  */
+// Geliştiricinin kabuğundaki SPRING_PROFILES_ACTIVE (ör. .env.dev yüklenmişse dev) testlere sızmasın; test profili
+// dev-smtp seçmez.
+@ActiveProfiles("test")
 @SpringBootTest
 public abstract class IntegrationTestSupport {
 
