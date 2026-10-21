@@ -613,7 +613,55 @@ admin-service servis JWT'si (D4) hazır olduğunda `/internal` ucu üzerinden ba
 #### Test Durumu
 INTEGRATION
 
+### AUTH — Hesap silme
+
+Durum: IMPLEMENTED (Auth tarafı); diğer servislerle koordinasyon **PENDING** (hedef servislerde silme ucu ve servis kimliği yok)
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+- POST /api/v1/auth/account/deletion/request — yeniden doğrulama; yanıt `202 { "nextStep": "CONFIRM_BY_EMAIL" }`
+- POST /api/v1/auth/account/deletion/confirm — `{ "token": "…", "username": "…" }`; yanıt `202 { "nextStep": "DELETION_IN_PROGRESS" }`
+
+#### Yetkilendirme
+Authenticated (+ CSRF). Hesap ve oturum yalnız token'dan alınır; e-posta token'ı yalnız isteği yapan hesap için geçerlidir.
+
+#### Request Body (`request`)
+```json
+{
+  "password": "string; parolalı hesapta zorunlu",
+  "code": "string ^[0-9]{6}$; TOTP etkinse code veya recoveryCode zorunlu (yalnız biri)",
+  "recoveryCode": "string"
+}
+```
+Parolasız (yalnız Google/Steam) hesapta parola gönderilmez; son 10 dakika içinde açılmış bir oturum aranır, aksi halde `403 REAUTHENTICATION_REQUIRED` (sağlayıcıyla yeniden giriş yapılır).
+
+#### Davranış
+1. **İstek:** yeniden doğrulama + TOTP başarılıysa e-postaya 256 bit, tek kullanımlık, 30 dk geçerli token gider (bağlantı: `{FRONTEND_PUBLIC_URL}/account/delete#token=…`; yalnız SHA-256 özeti saklanır). Hesap bu aşamada silinmez. Aynı hesap için 60 sn içindeki ikinci istek yeni e-posta üretmez; yeni istek eski token'ı geçersiz kılar.
+2. **Onay:** token + kullanıcı adının yazılması (açık onay). Hesap `DELETION_REQUESTED` olur, tüm oturumlar iptal edilir, cookie'ler silinir, hesap başına **tek** silme talebi ve her veri sahibi servis için bir silme görevi açılır (idempotent).
+3. **Koordinasyon (arka plan):** Auth her servise `DELETE <SERVICE>_SERVICE_URL/internal/v1/accounts/{accountId}` çağrısı yapar (idempotent; 2xx = silindi). Başarısız görev üstel geri çekilmeyle (1 dk → en fazla 6 sa) yeniden denenir; onaylanan görev tekrarlanmaz. **Tüm** servisler onaylayınca Auth'a ait kişisel veri silinir ve hesap anonimleştirilip `DELETED` olur.
+4. **Saklananlar (KVKK/denetim):** güvenlik olayları (1 yıl), durum ve rol geçmişi, silme talebi/görev kayıtları, anonimleştirilmiş hesap iskeleti (kimlik). **Silinenler:** e-posta, kullanıcı adı, parola özeti, harici kimlikler, TOTP sırrı, kurtarma kodları, oturumlar, tüm token'lar.
+
+#### Hata Durumları
+- 400: Doğrulama; yanlış parola (`CURRENT_PASSWORD_INVALID`); yanlış/eksik ikinci faktör (`INVALID_TWO_FACTOR_CODE`); geçersiz/süresi dolmuş token veya yanlış kullanıcı adı (`DELETION_CONFIRMATION_INVALID`)
+- 401: Kimliksiz / oturum geçersiz (onaydan sonra eski oturum dahil)
+- 403: `REAUTHENTICATION_REQUIRED`; CSRF
+- 409: Yönetici hesabı silinemez (`ADMIN_DELETION_FORBIDDEN`; önce ADMIN rolü kaldırılmalı)
+- 429: Yeniden doğrulama denemesi hesap bazında sınırlı (`TOO_MANY_ATTEMPTS`)
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/auth/account/deletion/**
+
+Diğer mikroservisler:
+Mail Service (`AccountDeletionMailPort`) — production **PENDING**, development'ta Mailpit. Veri sahibi servisler (`DELETE /internal/v1/accounts/{accountId}`, bkz. aşağıdaki taslak ve `docs-auth/servis-sozlesmeleri.md`) — **PENDING**.
+
+#### Test Durumu
+INTEGRATION
+
 ### AUTH — Giden sözleşme taslakları (PLANNED, onay bekliyor)
+
+- **Auth → her veri sahibi servis, hesap verisi silme (AUTH-16/17):** `DELETE /internal/v1/accounts/{accountId}`, Yetkilendirme: Internal. Servis JWT'si (D4): `iss=ltz-auth`, `aud=<hedef servis>`, `scope=account:erase`, `typ=svc+jwt`, ≤60 sn ömür, Auth özel anahtarıyla RS256. Hedef servis imza/aud/scope/typ'ı bağımsız doğrular; kullanıcı cookie'sine dayanmaz. İdempotent: 2xx = veri silindi/anonimleştirildi (zaten yoksa da 2xx), başka her yanıt başarısızlık sayılır ve tekrarlanır. Auth'ta onay alan bir iç uç **yoktur**.
 
 Bunlar Auth'un çağıracağı/yayımlayacağı sözleşmelerdir; karşı servisin kaydı o servis uygulanırken kendi başlığı altında açılır.
 

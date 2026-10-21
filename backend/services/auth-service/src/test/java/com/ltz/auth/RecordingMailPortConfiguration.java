@@ -11,6 +11,8 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 
+import com.ltz.auth.application.port.AccountDeletionMail;
+import com.ltz.auth.application.port.AccountDeletionMailPort;
 import com.ltz.auth.application.port.PasswordResetMail;
 import com.ltz.auth.application.port.PasswordResetMailPort;
 import com.ltz.auth.application.port.VerificationCodeMail;
@@ -29,13 +31,15 @@ public class RecordingMailPortConfiguration {
         return new RecordingMailPort();
     }
 
-    public static class RecordingMailPort implements VerificationCodeMailPort, PasswordResetMailPort {
+    public static class RecordingMailPort implements VerificationCodeMailPort, PasswordResetMailPort,
+            AccountDeletionMailPort {
 
         private static final Duration DELIVERY_TIMEOUT = Duration.ofSeconds(10);
         private static final String TOKEN_MARKER = "#token=";
 
         private final Queue<VerificationCodeMail> delivered = new ConcurrentLinkedQueue<>();
         private final Queue<PasswordResetMail> resets = new ConcurrentLinkedQueue<>();
+        private final Queue<AccountDeletionMail> deletions = new ConcurrentLinkedQueue<>();
 
         @Override
         public void sendVerificationCode(VerificationCodeMail mail) {
@@ -45,6 +49,21 @@ public class RecordingMailPortConfiguration {
         @Override
         public void sendPasswordReset(PasswordResetMail mail) {
             resets.add(mail);
+        }
+
+        @Override
+        public void sendAccountDeletionConfirmation(AccountDeletionMail mail) {
+            deletions.add(mail);
+        }
+
+        public List<AccountDeletionMail> deletionsTo(String email) {
+            return deletions.stream().filter(mail -> mail.recipientEmail().equalsIgnoreCase(email)).toList();
+        }
+
+        public String awaitLatestDeletionToken(String email, int expectedDeliveries) {
+            await().atMost(DELIVERY_TIMEOUT).until(() -> deletionsTo(email).size() >= expectedDeliveries);
+            String link = deletionsTo(email).getLast().confirmationLink();
+            return link.substring(link.indexOf(TOKEN_MARKER) + TOKEN_MARKER.length());
         }
 
         public List<VerificationCodeMail> deliveredTo(String email) {

@@ -184,6 +184,18 @@ public class TwoFactorService {
         attemptThrottle.clear(throttleKey);
     }
 
+    /**
+     * Hassas işlemlerde (hesap silme) yeniden doğrulama: TOTP veya kurtarma kodunu tek kullanımlık tüketir
+     * (replay korumalı). Faktör verilmediyse veya yanlışsa false.
+     */
+    public boolean verifySecondFactorForReauthentication(UUID accountId, String code, String recoveryCode) {
+        if (code == null && (recoveryCode == null || recoveryCode.isBlank())) {
+            return false;
+        }
+        return Boolean.TRUE.equals(transactionTemplate.execute(
+                status -> verifySecondFactor(accountId, code, recoveryCode, clock.instant()).isPresent()));
+    }
+
     private IssuedSession verifyChallenge(String challengeHash, String code, String recoveryCode) {
         Instant now = clock.instant();
         MfaChallenge challenge = challengeRepository.findByChallengeHashForUpdate(challengeHash)

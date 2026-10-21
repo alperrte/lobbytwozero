@@ -35,6 +35,10 @@ import lombok.NoArgsConstructor;
 public class Account {
 
     public static final int EMAIL_MAX_LENGTH = 254;
+    private static final String DELETED_EMAIL_PREFIX = "deleted-";
+    private static final String DELETED_EMAIL_DOMAIN = "@deleted.invalid";
+    private static final String DELETED_USERNAME_PREFIX = "d_";
+    private static final int DELETED_USERNAME_ID_LENGTH = 12;
     public static final int USERNAME_MIN_LENGTH = 3;
     public static final int USERNAME_MAX_LENGTH = 20;
     /** Görünen biçim korunur; tekillik küçük harfe çevrilmiş biçim üzerinden sağlanır. */
@@ -113,6 +117,29 @@ public class Account {
         Account account = registerPending(email, username, null, initialRole, now);
         account.markEmailVerified(now);
         return account;
+    }
+
+    /**
+     * Fiili silme aşaması: kişisel alanlar geri döndürülemez biçimde anonimleştirilir. Hesap iskeleti (kimlik) diğer
+     * servislerin REF bütünlüğü ve denetim kayıtları için kalır.
+     */
+    public void anonymize(Instant now) {
+        String compactId = id.toString().replace("-", "");
+        email = DELETED_EMAIL_PREFIX + id + DELETED_EMAIL_DOMAIN;
+        emailNormalized = email;
+        username = DELETED_USERNAME_PREFIX + compactId.substring(0, DELETED_USERNAME_ID_LENGTH);
+        usernameNormalized = username;
+        passwordHash = null;
+        emailVerifiedAt = null;
+        roles.clear();
+        status = AccountStatus.DELETED;
+        invalidateAllTokens(now);
+    }
+
+    /** Silme onaylandı: hesap kapanır, önceki tüm token'lar düşer; veri servisler onaylayınca anonimleştirilir. */
+    public void requestDeletion(Instant now) {
+        status = AccountStatus.DELETION_REQUESTED;
+        invalidateAllTokens(now);
     }
 
     public static String normalizeEmail(String email) {

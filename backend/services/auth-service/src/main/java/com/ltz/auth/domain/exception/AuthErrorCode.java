@@ -32,7 +32,10 @@ public enum AuthErrorCode {
     ROLE_ALREADY_ASSIGNED(409, "The role is already assigned."),
     ROLE_NOT_ASSIGNED(409, "The role is not assigned."),
     BASE_ROLE_REQUIRED(409, "The base player role cannot be revoked."),
-    ROLE_REQUIRES_TWO_FACTOR(409, "The target account must enable two-factor authentication before receiving this role.");
+    ROLE_REQUIRES_TWO_FACTOR(409, "The target account must enable two-factor authentication before receiving this role."),
+    REAUTHENTICATION_REQUIRED(403, "Recent sign-in is required. Sign in again and retry."),
+    ADMIN_DELETION_FORBIDDEN(409, "Administrator accounts cannot be deleted. Remove the administrator role first."),
+    DELETION_CONFIRMATION_INVALID(400, "Deletion confirmation is invalid or has expired.");
 
     private final int httpStatus;
     private final String detail;

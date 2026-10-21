@@ -87,6 +87,9 @@ public abstract class IntegrationTestSupport {
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
         registry.add("AUTH_OTP_HMAC_KEY", () -> TEST_HMAC_KEY);
+        // Silme worker'ı testlerde elle tetiklenir (deterministik); hedef servis listesi kısaltılır.
+        registry.add("ltz.auth.deletion.worker-enabled", () -> "false");
+        registry.add("ltz.auth.deletion.targets", () -> "user,mail");
         registry.add("AUTH_TOTP_ENCRYPTION_KEY", () -> TEST_TOTP_KEY);
         registry.add("AUTH_JWT_PRIVATE_KEY",
                 () -> Base64.getEncoder().encodeToString(TEST_JWT_KEYS.getPrivate().getEncoded()));
@@ -139,6 +142,15 @@ public abstract class IntegrationTestSupport {
         jdbc.update("insert into totp_credentials (account_id, secret_ciphertext, secret_nonce, key_version, status, "
                 + "created_at, activated_at) values (?, ?, ?, ?, 'ACTIVE', now(), now())", accountId,
                 secret.ciphertext(), secret.nonce(), secret.keyVersion());
+    }
+
+    /** Hesabın etkin TOTP sırrından o anki geçerli kodu üretir. */
+    protected String currentTotpCode(UUID accountId) {
+        var row = jdbc.queryForMap(
+                "select secret_ciphertext, secret_nonce, key_version from totp_credentials where account_id = ?", accountId);
+        byte[] secret = secretCipher.decrypt(new SecretCipher.EncryptedSecret((byte[]) row.get("secret_ciphertext"),
+                (byte[]) row.get("secret_nonce"), ((Number) row.get("key_version")).shortValue()), accountId);
+        return totpCodes.codeAt(secret, totpCodes.stepAt(java.time.Instant.now()));
     }
 
     /** Gerçek token üreticisiyle verilmiş, belirtilen rolleri taşıyan geçerli oturumun Authorization başlığı. */
