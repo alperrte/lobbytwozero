@@ -21,6 +21,7 @@ public interface HardwareProfileRepository extends JpaRepository<HardwareProfile
     @Query("select p.deviceType as deviceType, count(p) as total from HardwareProfile p where p.userId = :userId group by p.deviceType")
     List<DeviceTypeCount> countsByDeviceType(UUID userId);
     Optional<HardwareProfile> findByIdAndUserId(UUID id, UUID userId);
+    List<HardwareProfile> findAllByIdInAndUserId(java.util.Collection<UUID> ids, UUID userId);
     Page<HardwareProfile> findAllByUserId(UUID userId, Pageable pageable);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from HardwareProfile p where p.id = :id and p.userId = :userId")

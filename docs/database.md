@@ -2,7 +2,7 @@
 
 > Tarih: 2026-10-20
 >
-> Durum: Veritabanları `[MEVCUT]` (init SQL ile oluşturulur). Hardware V1–V5 şeması §3.13'te uygulanmıştır ve izole PostgreSQL 17/Flyway/JPA testlerinden geçmiştir; canlı DB'ye uygulanma durumu doğrulanmadı. Diğer tablo tasarımları `[ÖNERİ]`dır. Kesin şema servis sahibinin migration'ı ile belirlenir.
+> Durum: Veritabanları `[MEVCUT]` (init SQL ile oluşturulur). Hardware şemasının sürüm ve test kanıtı §3.13'tedir; canlı DB'ye uygulanma durumu doğrulanmadı. Diğer tablo tasarımları `[ÖNERİ]`dır. Kesin şema servis sahibinin migration'ı ile belirlenir.
 >
 > İlgili belgeler: [er-diagram.md](er-diagram.md) (diyagramlar), [architecture.md](architecture.md) (event'ler, Saga), [SECURITY.md](SECURITY.md) §9.
 
@@ -282,8 +282,9 @@ Profil silme use-case'i yalnız owner + güncel profileVersion ile hard delete u
 bağlı bileşenler CASCADE ile silinir, katalog/marka ve diğer profiller korunur.
 İstatistikler owner filtresiyle DB'de toplanır; kayıt ve adet ayrıdır. Yalnız kaydedilen
 RAM/depolama kapasitesi adetle çarpılır, kapasitesi bilinmeyen adetler ayrıca bildirilir.
-Aşağıdaki genişletilmiş tasarım **öneridir**; visibility, sync ve yorum tabloları
-uygulanmadı. Kampanya için sonraki V5 tanımı geçerlidir. JPA validate ve open-in-view=false korunur.
+Aşağıdaki genişletilmiş tasarım **öneridir**; sync ve yorum tabloları
+uygulanmadı. Kampanya için sonraki V5, gizlilik için V6 tanımı geçerlidir.
+JPA validate ve open-in-view=false korunur.
 
 | Tablo | Önemli sütunlar | Kısıtlar / not |
 | --- | --- | --- |
@@ -327,6 +328,24 @@ Yalnız yetkili kişinin kaynak/gözlem bilgili yerel kayıtları; harici çağr
 Ürün/kampanya arşivlenince okuma filtresi gizler, FK/kayıtlar silinmez.
 V1–V5 PostgreSQL 17.11/Flyway/JPA validate ve son modül 134 test PASS;
 canlı DB'ye uygulanmadı.
+
+**LTZ-ALP-HW-03 / HW-08:** V6 hardware_profiles.visibility varchar(16) NOT NULL
+DEFAULT PRIVATE + PRIVATE/FRIENDS/PUBLIC CHECK ekler. hardware_profile_field_visibility
+(profile_id,field_name) ve hardware_profile_category_visibility (profile_id,category)
+bileşik PK'li collection tablolarıdır. Her ikisi profile CASCADE FK taşır;
+enum değerleri CHECK ile sınırlanır. Collection'lar bağımsız aggregate değildir;
+version hardware_profiles üzerindedir, parent pessimistic lock ve profileVersion
+bütün rule/component/profil değişikliklerini birlikte korur. Eksik rule PRIVATE.
+Component (profile_id,category,created_at,id) indeksi görünür kategori sayfalamasını destekler.
+V1–V5 değişmedi; V6 izole PostgreSQL 17/Flyway/JPA validate testlerinden geçti.
+V7__name_hardware_privacy_constraints.sql yalnız V6'nın otomatik constraint ve
+indeks adlarını §2.2 standardına uyarlar; veri/erişim kuralı değişmez. Test edilmiş
+V6 yeniden yazılmadı. İlk Sonar koşusunun 192 başarılı backend testi sırasında
+V1–V7 PostgreSQL/Flyway/JPA validate PASS; Sonar kod bulguları ayrı kalite kaydındadır.
+Canlı DB'ye migration uygulanmadı. HW-09 ve HW-17 yeni tablo eklemez;
+batch parametrik array unnest/LATERAL sayfalaması yalnız doğrulanmış owner profil ID'leriyle çalışır.
+User/Social gerçek global gizlilik/ilişki verisi bu DB'ye kopyalanmaz; güvenilir policy
+portu onaylı DEFERRED_CONTRACT durumunda üretimde deny eder.
 
 ### 3.14 recommendation_db — recommendation-service (Alper)
 

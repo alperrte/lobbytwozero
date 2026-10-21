@@ -2,7 +2,7 @@
 
 > Tarih: 2026-10-20
 >
-> Durum: [database.md](database.md) tasarımlarının görselidir. Hardware §14 V1–V5 uygulamasını ayrıca gösterir (PostgreSQL 17/Flyway/JPA testleri PASS; canlı DB doğrulanmadı). Diğer tasarımlar **`[ÖNERİ]`**dir. Şema değiştiğinde ilgili diyagram güncellenir.
+> Durum: [database.md](database.md) tasarımlarının görselidir. Hardware §14 uygulanmış şemayı ve sürüm/test kanıtını ayrıca gösterir; canlı DB doğrulanmadı. Diğer tasarımlar **`[ÖNERİ]`**dir. Şema değiştiğinde ilgili diyagram güncellenir.
 >
 > Gösterim:
 > - Düz çizgi / `FK`: aynı veritabanı içindeki gerçek yabancı anahtar.
@@ -714,6 +714,32 @@ erDiagram
 
 Kampanyanın fiyat ve kaynağı kayıtlı beyan; otomatik fiyat doğrulaması yok.
 Arşivleme referansları korur; normal okumada ürün/kampanya ACTIVE ve geçerli pencere aranır.
+
+HW-08/V6 gizlilik şeması (izole PostgreSQL/Flyway/JPA PASS):
+
+```mermaid
+erDiagram
+  hardware_profiles ||--o{ hardware_profile_field_visibility : "CASCADE aggregate rules"
+  hardware_profiles ||--o{ hardware_profile_category_visibility : "CASCADE aggregate rules"
+  hardware_profiles {
+    uuid id PK
+    varchar visibility "PRIVATE default; FRIENDS|PUBLIC"
+    bigint version "shared aggregate version"
+  }
+  hardware_profile_field_visibility {
+    uuid profile_id PK,FK
+    varchar field_name PK "six allowed fields"
+    varchar visibility "PRIVATE|FRIENDS|PUBLIC"
+  }
+  hardware_profile_category_visibility {
+    uuid profile_id PK,FK
+    varchar category PK "12 categories"
+    varchar visibility "PRIVATE|FRIENDS|PUBLIC"
+  }
+```
+
+Eksik kural PRIVATE. User/Social sahipli dış tercih/ilişki verisi burada tutulmaz.
+HW-09/HW-17 mevcut profil/component tablolarından sınırlı DTO üretir; yeni tablo yok.
 
 **Gelecek görevler için öneri (uygulanmış değildir):**
 Aşağıdaki eski geniş diyagramdaki yorum/sync/provider tabloları hâlâ öneridir;

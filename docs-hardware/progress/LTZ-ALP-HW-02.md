@@ -1,6 +1,6 @@
 # LTZ-ALP-HW-02 — Donanım Model Kataloğu, Arama ve Kampanyalar
 
-Sorumlu: Alper. Başlangıç: 2026-10-21. Durum: READY_FOR_PDA — DEFERRED_AUTH; 3/3.
+Sorumlu: Alper. Başlangıç: 2026-10-21. Durum: DONE — DEFERRED_AUTH; 3/3.
 
 Kullanıcı HW-01 PDA kapanışı sonrasında ikinci ana göreve geçilmesini açıkça onayladı.
 Önceki dört dokümantasyon kapanış değişikliği korunur. Git yazma işlemi yapılmaz.
@@ -149,3 +149,13 @@ oluşturuldu. Merkezi API/DB/ER/mimari, master ve kalite kayıtları eşleştiri
 bildirmediğinden [ ] kalır. Gerçek Auth DEFERRED_AUTH; production-ready değildir.
 Git add/commit/push veya PDA durum değişikliği yapılmadı. Sonraki ana taska
 başlanmadı; tek ayrıntılı feature mesajı ve PDA kapatma bildirimiyle STOP.
+
+## PDA kapanışı ve HW-03 geçişi — 2026-10-21
+
+Kullanıcı “Evet, HW-02’yi PDA’da kapattım” bildirimini verdi ve HW-03'e geçişi
+onayladı. Master ana task 02 [x], durum DONE — DEFERRED_AUTH.
+Kullanıcının 6756210 commit'i salt okunur git log/show ile doğrulandı; 60 dosyalık
+HW-02 teslimini içerir. Yeni görev HW-08 ile başlar.
+Bu sırada pre-push/backend-check.mjs, menu.test.mjs, pre-push.md, quality.mjs ve
+quality.test.mjs üzerinde bu çalışmaya ait olmayan değişiklikler bulundu; korunur.
+Bu harici runner değişiklikleri HW-02 kapsamında doğrulanmış sayılmaz.

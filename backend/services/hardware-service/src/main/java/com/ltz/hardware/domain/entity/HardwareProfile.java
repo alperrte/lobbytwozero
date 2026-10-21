@@ -1,11 +1,16 @@
 package com.ltz.hardware.domain.entity;
 
 import com.ltz.hardware.domain.enums.DeviceType;
+import com.ltz.hardware.domain.enums.ComponentCategory;
+import com.ltz.hardware.domain.enums.HardwarePrivacyField;
+import com.ltz.hardware.domain.enums.HardwareVisibility;
 import com.ltz.hardware.domain.exception.HardwareConflictException;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.Map;
+import java.util.EnumMap;
 
 @Entity
 @Table(name = "hardware_profiles")
@@ -21,6 +26,23 @@ public class HardwareProfile {
     private DeviceType deviceType;
     @Column(nullable = false, length = 32, updatable = false)
     private String source;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private HardwareVisibility visibility = HardwareVisibility.PRIVATE;
+    @ElementCollection
+    @CollectionTable(name = "hardware_profile_field_visibility", joinColumns = @JoinColumn(name = "profile_id"))
+    @MapKeyColumn(name = "field_name", length = 32)
+    @MapKeyEnumerated(EnumType.STRING)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "visibility", nullable = false, length = 16)
+    private Map<HardwarePrivacyField, HardwareVisibility> fieldVisibilities = new EnumMap<>(HardwarePrivacyField.class);
+    @ElementCollection
+    @CollectionTable(name = "hardware_profile_category_visibility", joinColumns = @JoinColumn(name = "profile_id"))
+    @MapKeyColumn(name = "category", length = 32)
+    @MapKeyEnumerated(EnumType.STRING)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "visibility", nullable = false, length = 16)
+    private Map<ComponentCategory, HardwareVisibility> categoryVisibilities = new EnumMap<>(ComponentCategory.class);
     @Version
     private long version;
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -56,6 +78,26 @@ public class HardwareProfile {
     public long getVersion() { return version; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+    public HardwareVisibility getVisibility() { return visibility; }
+    public Map<HardwarePrivacyField, HardwareVisibility> getFieldVisibilities() { return Map.copyOf(fieldVisibilities); }
+    public Map<ComponentCategory, HardwareVisibility> getCategoryVisibilities() { return Map.copyOf(categoryVisibilities); }
+    public HardwareVisibility visibilityOf(HardwarePrivacyField field) {
+        return fieldVisibilities.getOrDefault(field, HardwareVisibility.PRIVATE);
+    }
+    public HardwareVisibility visibilityOf(ComponentCategory category) {
+        return categoryVisibilities.getOrDefault(category, HardwareVisibility.PRIVATE);
+    }
+
+    public void configurePrivacy(HardwareVisibility visibility,
+            Map<HardwarePrivacyField, HardwareVisibility> fields,
+            Map<ComponentCategory, HardwareVisibility> categories) {
+        this.visibility = Objects.requireNonNull(visibility);
+        fieldVisibilities.clear();
+        fieldVisibilities.putAll(Map.copyOf(fields));
+        categoryVisibilities.clear();
+        categoryVisibilities.putAll(Map.copyOf(categories));
+        touch();
+    }
 
     public void requireVersion(long expected) {
         if (version != expected) throw new HardwareConflictException();

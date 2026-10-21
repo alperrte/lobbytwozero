@@ -155,7 +155,7 @@ lobbytwozero/
 
 **Ana task kabulü:** 7/7 alt görev kanıtlı, güvenlik/DB/API/test raporu tutarlı, zorunlu iki kalite kapısı PASS, dış bağımlılıkları açık. **STOP + tek `feature:` mesajı.**
 
-### [ ] ANA TASK 02 — LTZ-ALP-HW-02 — Donanım Model Kataloğu, Arama ve Kampanyalar
+### [x] ANA TASK 02 — LTZ-ALP-HW-02 — Donanım Model Kataloğu, Arama ve Kampanyalar
 
 **Hedef:** Marka bağımsız katalog modelleri, isteğe bağlı üretici ilişkileri, arama/filtreler ve donanım kampanyaları yönetimi.
 
@@ -169,9 +169,9 @@ lobbytwozero/
 
 **Hedef:** Alan bazlı görünürlüğü backend uygular; güvenli teknik karşılaştırma ve Performance/Recommendation'ın sözleşmeli veri okuması sağlanır.
 
-- [ ] **HW-08 — Donanım gizliliği:** Alan/profil görünürlüğü (`PUBLIC`, `FRIENDS`, `PRIVATE` gibi gerçekten onaylı durumlar) API'de filtrelenir; User Service'in sahip olduğu genel gizlilik tercihleriyle sınır netleşir. Erişilemeyen dış tercihte güvenli şekilde kapalı kalır.
-- [ ] **HW-09 — Donanım karşılaştırma:** Bilgisayar veya bileşenleri yalnız mevcut teknik değerlerle kıyasla; başkasının gizli verisini açıklama, sahte FPS/benchmark üretme.
-- [ ] **HW-17 — Donanım API entegrasyonları:** Performance ve Recommendation için güvenli, toplu sorguya uygun ve DTO tabanlı veri sözleşmeleri; gerekiyorsa client/port adapter'ı. Gerçek dış servis doğrulaması yapılmadıysa ayrıca kaydet.
+- [x] **HW-08 — Donanım gizliliği:** Alan/profil görünürlüğü (`PUBLIC`, `FRIENDS`, `PRIVATE` gibi gerçekten onaylı durumlar) API'de filtrelenir; User Service'in sahip olduğu genel gizlilik tercihleriyle sınır netleşir. Erişilemeyen dış tercihte güvenli şekilde kapalı kalır.
+- [x] **HW-09 — Donanım karşılaştırma:** Bilgisayar veya bileşenleri yalnız mevcut teknik değerlerle kıyasla; başkasının gizli verisini açıklama, sahte FPS/benchmark üretme.
+- [x] **HW-17 — Donanım API entegrasyonları:** Performance ve Recommendation için güvenli, toplu sorguya uygun ve DTO tabanlı veri sözleşmeleri; gerekiyorsa client/port adapter'ı. Gerçek dış servis doğrulaması yapılmadıysa ayrıca kaydet.
 
 **Ana task kabulü:** 3/3 kanıt + iki kalite kapısı PASS. **STOP + tek `feature:` mesajı.**
 
@@ -337,31 +337,35 @@ Yalnız aktif taskın alt görevleri bitmediğinde ya da kapılar geçmediğinde
 
 | Alan | Başlangıç durumu |
 |---|---|
-| Aktif ana task | `LTZ-ALP-HW-02` — kullanıcı geçişi onayladı |
-| Aktif alt task | Yok — HW-10/HW-11/HW-14 yerel uygulama ve testleri tamamlandı |
-| Ana task aşaması | `READY_FOR_PDA — DEFERRED_AUTH` — 3/3 ve iki final kalite kapısı PASS; [teslim](docs-hardware/reports/LTZ-ALP-HW-02-delivery.md) |
+| Aktif ana task | `LTZ-ALP-HW-03` — kullanıcı geçişi onayladı; HW-02 PDA kapanışı bildirildi |
+| Aktif alt task | `HW-08/HW-09/HW-17` — 3/3 yerel kapsam ve iki kalite kapısı doğrulandı |
+| Ana task aşaması | `READY_FOR_PDA — DEFERRED_AUTH / DEFERRED_CONTRACT` — 3/3; [teslim](docs-hardware/reports/LTZ-ALP-HW-03-delivery.md), [kalite](docs-hardware/testing/LTZ-ALP-HW-03-quality.md); ana kutu kullanıcı kapanışını bekler |
 | 01 | `DONE — DEFERRED_AUTH` — 7/7; kullanıcı kapanış bildirimiyle ana task `[x]` |
-| 02 | `READY_FOR_PDA — DEFERRED_AUTH` — 3/3; kullanıcı PDA kapanışını bildirene kadar ana task `[ ]` |
-| 03 | `NOT_STARTED` — 0/3 |
+| 02 | `DONE — DEFERRED_AUTH` — 3/3; PDA kapanışı kullanıcı tarafından bildirildi, commit 6756210 doğrulandı |
+| 03 | `READY_FOR_PDA — DEFERRED_AUTH / DEFERRED_CONTRACT` — 3/3; full dev SAFE TO COMMIT + Sonar A/A/A/gate PASS; ana kutu `[ ]` |
 | 04 | `NOT_STARTED` — 0/2 |
 | 05 | `NOT_STARTED` — 0/2 |
-| Toplam doğrulanan alt görev | `10/17` |
-| Son doğrulanan alt görev | `HW-14` — 15 kampanya senaryosu; modül toplamı 134 PASS |
-| Son değiştirilen dosyalar | Hardware: 27 yeni üst seviye production Java, 12 mevcut production Java, V3/V4/V5, dört yeni test + bileşen testi fixture/lambda güncellemesi; docs/api.md HARDWARE, DB/ER/mimari ve docs-hardware. [Envanter/teslim](docs-hardware/reports/LTZ-ALP-HW-02-delivery.md) |
-| Son Flyway | `V5__create_hardware_campaigns.sql` — V1/V2 değiştirilmedi; V1–V5 PostgreSQL 17/Flyway/JPA PASS; canlı DB'ye uygulanmadı |
-| Son endpoint / docs/api.md değişikliği | 15 yeni katalog/kampanya endpoint'i, GET ürün listesinde HW-11 filtreleri; mevcut profil seçimi arşivli ürün/markayı reddeder; toplam 24 iş endpoint'i; [API kataloğu](docs/api.md#hardware) |
-| Son Maven/test komutu ve sonuç | Final pre-push clean verify — PASS, exit 0; 134 test, 0 failure/error/skipped; 2026-10-21 02:01:49 +03:00; ardından Sonar bütün backend 152 PASS, 18 modül |
-| JaCoCo | `%98,02` — 694/708 hardware satırı; coverage exclusion yok |
-| Pre-push | `PASS` — Sonar düzeltmeleri sonrası 134 test/%98,02; exit 0, 2026-10-21 02:01:49 +03:00; BACKEND TEST CHECK PASSED |
-| Sonar / Quality Gate | `PASS` — analiz 1d274361-0d59-4aee-9e54-3303c0ef52e5, 2026-10-21 02:04:53 +03:00; A/A/A, gate/overall PASS, coverage %89,2, duplication %0, new coverage %92,3, new issue 0; scan exit 0, 02:05:11 +03:00; açık issue/vulnerability/hotspot 0 |
+| Toplam doğrulanan alt görev | `13/17` |
+| Son doğrulanan alt görev | `HW-17` — 14 yeni batch senaryosu; modül toplamı 174 PASS; 2026-10-21 06:10:20 +03 |
+| Son değiştirilen dosyalar | HW-03: 22 yeni production Java, 5 mevcut Java, V6/V7 ve 3 yeni integration test sınıfı; docs/api.md HARDWARE, DB/ER/mimari, docs-hardware. Harici beş pre-push dosyası korunuyor |
+| Son Flyway | V6 privacy + V7 constraint/index ad standardı; V1–V7 PostgreSQL/Flyway/JPA PASS (192 backend testi); önceki migration'lar değiştirilmedi; V6/V7 canlı DB'ye uygulanmadı |
+| Son endpoint / docs/api.md değişikliği | 3 privacy/shared + 3 comparison + 1 batch; toplam 31 iş endpoint'i; [API kataloğu](docs/api.md#hardware) |
+| Son Maven/test komutu ve sonuç | Final full dev ve scan dev clean verify: 18 modül, 192 PASS; hardware 174 PASS; failure/error/skipped 0; 2026-10-21 06:27:35 +03; [kalite kaydı](docs-hardware/testing/LTZ-ALP-HW-03-quality.md) |
+| JaCoCo | Hardware 884/898=%98,44; tüm backend ağırlıklı satır kapsamı %94,94; exclusion yok |
+| Pre-push | Final full dev PASS / exit 0: 192 test, %94,94, 18/18 HTTP, SAFE TO COMMIT; log kapanışı 2026-10-21 06:23:51 +03; V7 ve Sonar düzeltmeleri dahil |
+| Sonar / Quality Gate | Final scan dev PASS / exit 0; A/A/A, Quality Gate OK, overall %91,2 / new %93,7 / duplication %0; new issue/açık issue/hotspot 0; analiz ad6e17fe-a77a-4269-92b7-9a64fda8e8c9; 06:27:35 +03 |
 | Auth bağlantısı | `DEFERRED_AUTH — gerçek auth-service/JWT sözleşmesi henüz yok` |
-| Diğer servis entegrasyonları | `NOT_VERIFIED; ilgili task geldikçe ele alınacak` |
-| Açık kullanıcı onayları | HW-02 başlangıcı ve iki sözleşme onaylı. Oturumdaki “İki kalite komutunu çalıştır” onayı aynı hardware-service pre-push ve scan dev kapsamı için geçerli; yeniden onay istenmeden çalıştırılıyor |
-| Güncel engel | Yerel teslimi engelleyen kalite açığı yok. Gerçek Auth/JWT, rol/claim eşlemesi ve E2E DEFERRED_AUTH; production-ready değildir |
-| Bir sonraki kesin adım | Kullanıcı LTZ-ALP-HW-02 PDA kapanışını ve kendi Git işlemlerini tamamlayabilir. Ajan STOP; sonraki ana taska yalnız yeni açık talimatla geçilir |
+| Diğer servis entegrasyonları | User/Social gerçek policy ve Performance/Recommendation consumer E2E: `DEFERRED_CONTRACT / NOT_VERIFIED`, açık onaylı |
+| Açık kullanıcı onayları | HW-03 erişim sınırı, güvenli erteleme ve tüm servisleri kapsayan pre-push full dev / Sonar scan dev açıkça onaylı |
+| Güncel engel | Yerel kapsam/kalite engeli yok. Gerçek Auth ve dış sözleşme/E2E açık onaylı ertelenmiş; production-ready değildir |
+| Bir sonraki kesin adım | Ayrıntılı tek feature mesajını kullanıcıya ver ve STOP. Kullanıcı PDA kapanışını bildirene ve HW-04'e açık izin verene kadar geliştirmeye devam etme |
 | Son güncelleme (gerçek) | `2026-10-21` |
 
 ### CANLI KARAR / BLOKAJ DEFTERİ
+
+- `VERIFIED / READY 2026-10-21 / HW-03`: HW-08/HW-09/HW-17 3/3; 40 yeni senaryo, hardware 174 PASS/%98,44; full dev 192 PASS/%94,94 ve 18 HTTP PASS, SAFE TO COMMIT; Sonar A/A/A + gate PASS, açık issue/hotspot 0. [Teslim](docs-hardware/reports/LTZ-ALP-HW-03-delivery.md). İlk DB kapalı koşusu ve üç MINOR düzeltmesi kalite geçmişinde korunur. Ana kutu `[ ]`, PDA kapanışı ve sonraki task izni beklenir. Git yazma işlemi yok.
+
+- `APPROVED 2026-10-21 / HW-03`: Kullanıcı privacy/karşılaştırma/batch erişim sınırını ve User/Social gerçek bağlantısı ile Performance/Recommendation tüketici E2E ertelemesini onayladı. Üretim paylaşımı deny; DEFERRED_CONTRACT / NOT_VERIFIED görünür kalır. Tüm backend için pre-push full dev ve Sonar scan dev çalıştırılacak.
 
 - `OPEN`: Auth Service ile access-token JWT claim, issuer, audience, anahtar dağıtımı/JWKS, rol biçimi, account status/revocation ve HttpOnly cookie/CSRF protokolü mutabakatı. **Gerçek entegrasyon ileride**; korumalı API'ler fail-closed.
 - `APPROVED 2026-10-21`: Owner/protected profil uçları, fail-closed üretim, test-only actor ve CSRF'nin korunması kullanıcı tarafından onaylandı; WebMvc test/Testcontainers bağımlılıkları onaylandı. Yeni public iş endpoint'i, ENV veya Compose sözleşmesi eklenmedi. [Karar kaydı](docs-hardware/decisions/open-decisions.md).
@@ -370,6 +374,7 @@ Yalnız aktif taskın alt görevleri bitmediğinde ya da kapılar geçmediğinde
 - `STARTED 2026-10-21`: Kullanıcı LTZ-ALP-HW-02'ye geçişi onayladı. HW-10 ile başlanır; HW-11 ve HW-14 sırayla uygulanır. Yeni izin/kampanya sözleşmesi onay bekliyor; final kalite kapıları henüz çalıştırılmadı.
 - `APPROVED 2026-10-21 / HW-02`: Typed actor + hardware:catalog:write yönetim sınırı ve yerel kaynak/gözlem/fiyat kampanya sözleşmesi kullanıcı tarafından onaylandı. Yeni Auth rol/claim veya dış sağlayıcı tanımlanmadı.
 - `VERIFIED 2026-10-21 / HW-02`: 3/3 alt görev, pre-push 134 test/%98,02 PASS; Sonar A/A/A + Quality Gate PASS, yeni issue 0, açık issue/hotspot 0. [Teslim](docs-hardware/reports/LTZ-ALP-HW-02-delivery.md). Ana task `[ ]`; sonraki task izni yok.
+- `CLOSED / STARTED 2026-10-21`: Kullanıcı HW-02 PDA kapanışını bildirdi ve HW-03'e geçilmesini istedi. HW-02 `[x]`, HW-03 IN_PROGRESS / 0/3. Kullanıcının 6756210 commit'i doğrulandı; Git yazma işlemi ajan tarafından yapılmadı.
 
 ### CHECKPOINT GÜNCELLEME ÖRNEĞİ (GERÇEK SONUCA GÖRE DOLDUR)
 

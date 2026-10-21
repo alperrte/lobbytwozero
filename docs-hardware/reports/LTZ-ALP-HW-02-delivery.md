@@ -1,8 +1,9 @@
 # LTZ-ALP-HW-02 — Donanım Model Kataloğu, Arama ve Kampanyalar
 
 Tarih: **2026-10-21** (Europe/Istanbul). Sorumlu: **Alper**.
-Durum: **READY_FOR_PDA — DEFERRED_AUTH**. Alt görevler **3/3**, toplam **10/17**.
-Ana task kutusu kullanıcı PDA kapanışını bildirene kadar **[ ]** kalır.
+Durum: **DONE — DEFERRED_AUTH**. Alt görevler **3/3**, toplam **10/17**.
+Kullanıcı 2026-10-21 tarihinde PDA kapanışını bildirdi; ana task kutusu **[x]**.
+Kullanıcının **6756210** commit'i salt okunur doğrulandı.
 
 ## 1. Teslim kapsamı ve kanıt
 
@@ -168,5 +169,6 @@ uygulaması ve gerçek Gateway/Auth E2E bu teslimde doğrulanmadı.
 
 HW-10/HW-11/HW-14 ve iki kalite kapısı doğrulandı; kullanıcı PDA üzerinden yalnız
 **LTZ-ALP-HW-02** ana görevini kapatabilir. Ana kutu kapanış bildirimi gelene kadar açık.
-Ajan Git add/commit/push veya PDA durum değişikliği yapmadı; bu taska commit SHA atanmadı.
-LTZ-ALP-HW-03/04/05 NOT_STARTED: yeni açık kullanıcı talimatına kadar **STOP**.
+Ajan Git add/commit/push veya PDA durum değişikliği yapmadı.
+Teslim sonrası kullanıcı PDA kapanışını bildirdi ve HW-03'e geçişi onayladı.
+HW-04/HW-05 için henüz izin verilmedi.

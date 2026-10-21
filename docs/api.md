@@ -217,6 +217,14 @@ HW-11 filtreleri ve profil seçiminde ACTIVE katalog kontrolü. Son kod pre-push
 Yeni kod coverage %92,3, issue 0. [HW-02 teslimi](../docs-hardware/reports/LTZ-ALP-HW-02-delivery.md).
 Gerçek Auth rol/claim → hardware:catalog:write eşlemesi DEFERRED_AUTH.
 
+LTZ-ALP-HW-03: 7 yeni endpoint; profil/alan/kategori gizliliği, owner teknik
+karşılaştırmalar ve Performance/Recommendation için owner batch DTO sözleşmesi.
+Yerel testler 174 PASS / JaCoCo %98,44; full dev 192 backend testi + 18 HTTP PASS /
+SAFE TO COMMIT; Sonar A/A/A + Quality Gate PASS, açık issue/hotspot 0.
+Final kanıt [HW-03 kalite kaydında](../docs-hardware/testing/LTZ-ALP-HW-03-quality.md).
+User/Social gerçek policy ve consumer E2E açık kullanıcı onayıyla
+DEFERRED_CONTRACT / NOT_VERIFIED. Üretimde non-owner paylaşım deny edilir.
+
 ### HARDWARE — HW-01 Profil oluşturma
 
 Durum: IMPLEMENTED
@@ -1083,6 +1091,313 @@ currency char(3), UTC zamanlar, @Version, CHECK ve active-window indeksleri.
 
 #### Test Durumu
 INTEGRATION — HardwareCampaignControllerTest 15 senaryo PASS; modül 134 PASS, exit 0, 2026-10-21 01:53:29 +03:00. PostgreSQL 17/Flyway V1–V5/JPA validate; gerçek Auth DEFERRED_AUTH.
+
+### HARDWARE — HW-08 Gizlilik kurallarını okuma
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/hardware/profiles/{profileId}/privacy
+
+#### Yetkilendirme
+Typed actor ve owner-only; katalog yazma izni başka profil için erişim sağlamaz.
+DEFERRED_AUTH; gerçek token doğrulaması yokken üretimde fail-closed.
+
+#### Path/Query Parameters
+profileId: UUID. Query yok.
+
+#### Request Body
+Yok.
+
+#### Response — 200
+HardwarePrivacyResponse: profileId, profileVersion, visibility, fields, categories.
+visibility PRIVATE/FRIENDS/PUBLIC. Eksik map anahtarı PRIVATE; yeni/eski profiller
+PRIVATE başlar. fields anahtarları PROFILE_NAME, DEVICE_TYPE, COMPONENT_MODEL,
+COMPONENT_BRAND, COMPONENT_QUANTITY, TECHNICAL_SPECIFICATIONS; categories 12 mevcut
+ComponentCategory değerinden oluşur. no-store, private.
+
+#### Hata Durumları
+400 INVALID_REQUEST, 401 AUTHENTICATION_REQUIRED, 403 ACCESS_DENIED,
+404 HARDWARE_NOT_FOUND (olmayan ve başkasına ait kaynak aynı), 500 INTERNAL_ERROR.
+
+#### Bağlantı
+V6__add_hardware_profile_privacy.sql; User/Social global karar sözleşmesi
+DEFERRED_CONTRACT / NOT_VERIFIED; owner okuması dış karar gerektirmez.
+
+#### Test Durumu
+INTEGRATION — HardwarePrivacyControllerTest; PostgreSQL 17 + Flyway + MockMvc.
+2026-10-21 ilk modül verify 150 PASS, coverage 776/790=%98,23.
+
+### HARDWARE — HW-08 Gizlilik kurallarını değiştirme
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend
+
+#### Endpoint
+PUT /api/v1/hardware/profiles/{profileId}/privacy
+
+#### Yetkilendirme
+Owner-only typed actor; CSRF zorunlu. DEFERRED_AUTH / fail-closed.
+
+#### Path/Query Parameters
+profileId: UUID. Query yok.
+
+#### Request Body
+UpdateHardwarePrivacyRequest: profileVersion >=0, visibility, fields (en fazla 6),
+categories (en fazla 12), hepsi zorunlu; map değerleri null olamaz. Bilinmeyen alan,
+enum, userId ve rol reddedilir. PUT iki map'i tamamen değiştirir; çıkarılan kural
+PRIVATE olur. 16 KiB üst sınır. Sentetik örnek:
+
+```json
+{"profileVersion":0,"visibility":"PUBLIC","fields":{"DEVICE_TYPE":"PUBLIC","COMPONENT_QUANTITY":"FRIENDS"},"categories":{"RAM":"PUBLIC"}}
+```
+
+#### Response — 200
+HardwarePrivacyResponse; artırılmış profileVersion ve kaydedilen kurallar.
+Parent pessimistic write lock + aggregate @Version; component/profil değişiklikleri
+ile aynı sürüm sınırı. no-store, private.
+
+#### Hata Durumları
+400 INVALID_REQUEST, 401 AUTHENTICATION_REQUIRED, 403 ACCESS_DENIED (CSRF dahil),
+404 HARDWARE_NOT_FOUND, 409 DATA_CONFLICT (eski sürüm), 413 REQUEST_TOO_LARGE,
+500 INTERNAL_ERROR. ProblemDetail güvenli kodlarla döner.
+
+#### Bağlantı
+HardwarePrivacyService; V6 kural tabloları profil silindiğinde CASCADE temizlenir.
+Yeni Auth rolü/claim, ENV veya dış servis URL'si tanımlanmaz.
+
+#### Test Durumu
+INTEGRATION — HardwarePrivacyControllerTest: ownership, validation, CSRF,
+replace/default semantics, version conflict ve rollback. Gerçek Auth NOT_VERIFIED.
+
+### HARDWARE — HW-08 Filtrelenmiş profil paylaşımı
+
+Durum: IMPLEMENTED — yerel kurallar; gerçek paylaşım DEFERRED_CONTRACT
+Sorumlu: Alper
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/hardware/profiles/{profileId}/shared
+
+#### Yetkilendirme
+Anonim erişim yok. Owner kendi önizlemesinde bütün kayıtlı alanlarını görür.
+Non-owner için profile visibility, alan ve kategori kurallarının hepsi izin
+vermelidir. PUBLIC yalnız doğrulanmış kullanıcı; FRIENDS güvenilir arkadaşlık kararı
+gerektirir. HardwareVisibilityPolicy ayrıca global User görünürlüğü ve Social
+ilişki/engel kararını onaylamalıdır. Engelli, bilinmeyen, null veya erişilemeyen
+dış karar 404. Üretim UnavailableHardwareVisibilityPolicy daima deny döndürür.
+Test mock'u gerçek entegrasyon değildir. Owner detail/mutation uçları owner-only kalır.
+
+#### Path/Query Parameters
+profileId UUID; page 0..10000 varsayılan 0; size 1..100 varsayılan 20.
+Sıralama createdAt,id ASC. Sayfalama kategori filtresinden sonra veritabanında yapılır.
+
+#### Request Body
+Yok.
+
+#### Response — 200
+SharedHardwareProfileResponse: profileId; izinli ise name/deviceType; components;
+page {number,size,totalElements,totalPages}. Component yalnız category ve izinli
+modelName,brandName,quantity,specifications içerir. Gizli alanlar JSON'dan çıkarılır.
+Owner UUID, bileşen/model/marka kimlikleri, sürümler, tarihler ve gizlilik kuralları
+bu DTO'da bulunmaz. Bütün component alanları gizliyse bileşen ve sayacı da gizlenir.
+Toplam yalnız görünür kategorileri sayar; gizli kategoriler toplamı etkilemez.
+no-store, private.
+
+#### Hata Durumları
+400 INVALID_REQUEST, 401 AUTHENTICATION_REQUIRED, 403 ACCESS_DENIED,
+404 HARDWARE_NOT_FOUND (gizli/olmayan profil aynı), 500 INTERNAL_ERROR.
+
+#### Bağlantı
+V6; HardwareVisibilityPolicy portu. User/Social gerçek adapter ve E2E
+DEFERRED_CONTRACT / NOT_VERIFIED, kullanıcı tarafından açıkça ertelendi.
+
+#### Test Durumu
+INTEGRATION — HardwarePrivacyControllerTest: PRIVATE/FRIENDS/PUBLIC, non-owner
+IDOR, dış deny/null/error, filtrelenmiş sayfa/sayaç, alan/ID sızıntısı, owner önizleme.
+İlk verify 150 PASS; gerçek User/Social ve Auth E2E NOT_VERIFIED.
+
+### HARDWARE — HW-09 Bilgisayar profillerini karşılaştırma
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/hardware/comparisons/profiles
+
+#### Yetkilendirme
+Typed actor; iki profil de aynı aktöre ait olmalı. PUBLIC paylaşım veya katalog
+yazma izni başka owner'ın profilini karşılaştırma hakkı vermez. CSRF zorunlu;
+DEFERRED_AUTH, üretimde fail-closed. Read-only REPEATABLE_READ transaction.
+
+#### Path/Query Parameters
+Yok.
+
+#### Request Body
+CompareHardwareIdsRequest: leftId, rightId zorunlu UUID; aynı UUID kabul edilir.
+Bilinmeyen alanlar reddedilir, 16 KiB body sınırı korunur.
+
+#### Response — 200
+HardwareComparisonResponse {left,right}; her HardwareProfileComparisonItem
+profileId,deviceType,categories,ram,storage içerir. 12 kategorinin her biri
+entries/kayıt ve units/adet gösterir; boş kategori sıfır. ram/storage alanları
+knownCapacityGb (kayıtlı kapasite x adet) ve unitsWithoutCapacity içerir. Bilinmeyen
+kapasite uydurulmaz; sıfır bilinen toplam yanında bilinmeyen adet açıkça gösterilir.
+Kişisel profil adı/owner UUID, FPS, puan, kazanan veya uyumluluk önerisi yok.
+no-store, private. SQL aggregate yalnız iki doğrulanmış owner profiliyle sınırlıdır.
+
+#### Hata Durumları
+400 INVALID_REQUEST, 401 AUTHENTICATION_REQUIRED, 403 ACCESS_DENIED (CSRF dahil),
+404 HARDWARE_NOT_FOUND (başkasına ait/olmayan profil aynı), 413 REQUEST_TOO_LARGE,
+500 INTERNAL_ERROR.
+
+#### Bağlantı
+HardwareComparisonService; mevcut V1/V2 teknik verileri, yeni migration yok.
+Auth gerçek E2E NOT_VERIFIED; başka servise çağrı yapılmaz.
+
+#### Test Durumu
+INTEGRATION — HardwareComparisonControllerTest; PostgreSQL 17/Flyway/MockMvc:
+owner izolasyonu, public profil IDOR, bilinmeyen kapasite, adet/toplam, aynı profil.
+
+### HARDWARE — HW-09 Profil bileşenlerini karşılaştırma
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/hardware/comparisons/components
+
+#### Yetkilendirme
+Typed actor, iki profil ve iki bileşen owner-only; her componentId belirtilen
+profileId'ye ait olmalı. CSRF, no-store ve DEFERRED_AUTH korunur.
+
+#### Path/Query Parameters
+Yok.
+
+#### Request Body
+CompareHardwareComponentsRequest: left ve right zorunlu; her biri
+{profileId: UUID, componentId: UUID}. İç içe Bean Validation; aynı kategori zorunlu.
+
+#### Response — 200
+HardwareComparisonResponse {left,right}; HardwareTechnicalComparisonItem:
+id,category,modelName,quantity,specifications. SpecificationsResponse sekiz kayıtlı
+alanı içerir: capacityGb,clockMhz,coreCount,powerWatts,memoryType,socket,interfaceType,
+formFactor. Veri yoksa null; tüm değerleri yoksa specifications null.
+Farkın performans/FPS veya öneri olduğu iddia edilmez. no-store, private.
+
+#### Hata Durumları
+400 INVALID_REQUEST (farklı kategori dahil), 401 AUTHENTICATION_REQUIRED,
+403 ACCESS_DENIED, 404 HARDWARE_NOT_FOUND (yanlış profil/bileşen veya owner),
+413 REQUEST_TOO_LARGE, 500 INTERNAL_ERROR.
+
+#### Bağlantı
+HardwareComparisonService; yalnız hardware_db, gerçek Auth NOT_VERIFIED.
+
+#### Test Durumu
+INTEGRATION — HardwareComparisonControllerTest: cross-owner/cross-profile,
+eksik bileşen, kategori uyuşmazlığı, bilinmeyen teknik alanlar, CSRF/typed actor.
+
+### HARDWARE — HW-09 Genel katalog modellerini karşılaştırma
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/hardware/comparisons/catalog-products
+
+#### Yetkilendirme
+Typed actor; katalog yazma izni gerekmez. İki model ACTIVE ve aynı kategoride
+olmalı. Kullanıcı profili paylaşım yolu değildir. CSRF, DEFERRED_AUTH korunur.
+
+#### Path/Query Parameters
+Yok.
+
+#### Request Body
+CompareHardwareIdsRequest: leftId,rightId zorunlu UUID; genel model kimlikleri.
+
+#### Response — 200
+HardwareComparisonResponse {left,right}; HardwareTechnicalComparisonItem;
+model teknik değerleri ve null quantity. Marka seçimi gerektirmez. Eksik veri null;
+otomatik benchmark/FPS/uyumluluk/performans önerisi yok. no-store, private.
+
+#### Hata Durumları
+400 INVALID_REQUEST (farklı kategori), 401 AUTHENTICATION_REQUIRED,
+403 ACCESS_DENIED, 404 HARDWARE_NOT_FOUND (arşivli/olmayan model aynı),
+413 REQUEST_TOO_LARGE, 500 INTERNAL_ERROR.
+
+#### Bağlantı
+HardwareComparisonService; V2/V3 genel katalog. Dış sağlayıcı/servis çağrısı yok.
+
+#### Test Durumu
+INTEGRATION — HardwareComparisonControllerTest: aktif/markasız model, arşiv,
+olmayan kimlik, kategori, nested validation/mass assignment; üç uçta auth ve CSRF.
+2026-10-21 modül verify 160 PASS; gerçek Auth E2E NOT_VERIFIED.
+
+### HARDWARE — HW-17 Owner teknik profillerini toplu okuma
+
+Durum: IMPLEMENTED — yerel sözleşme; tüketici E2E DEFERRED_CONTRACT
+Sorumlu: Alper
+Tüketici servisler: Performance, Recommendation; gerçek tüketici çağrıları NOT_VERIFIED
+
+#### Endpoint
+POST /api/v1/hardware/profiles/batch
+
+#### Yetkilendirme
+Kullanıcı adına doğrulanmış typed actor, owner-only. Kullanıcı bağlamı olmayan yeni
+servis-token erişimi açılmaz. userId/rol/servis kimliği body/header'dan alınmaz.
+Her profil aynı aktöre ait olmalıdır; bir tane yanlış/olmayan kaynak bütün batch'i
+404 yapar. Paylaşılan PUBLIC profil de başka owner ise reddedilir. CSRF korunur;
+DEFERRED_AUTH, üretimde gerçek Auth adapter'ı yokken fail-closed.
+
+#### Path/Query Parameters
+Yok.
+
+#### Request Body
+HardwareBatchRequest {profiles:[{profileId,page,size}]}. 1..20 tekil profil; her
+profileId UUID, page 0..10000, size 1..100; üç alan da zorunlu. İstenen size
+toplamı en fazla 200; sonuç az olsa bile daha büyük istek kabul edilmez. Aynı profil
+için aynı istekte birden fazla sayfa 400. JSON bilinmeyen alanları reddeder; 16 KiB.
+
+```json
+{"profiles":[{"profileId":"00000000-0000-0000-0000-000000000001","page":0,"size":20}]}
+```
+
+#### Response — 200
+HardwareBatchResponse profiles istek sırasındadır. Her profil profileId,
+profileVersion,deviceType,components,page döndürür. Components mevcut teknik
+HardwareComponentResponse sözleşmesidir: id,category,productId,brandId,modelName,
+brandName,quantity,source,version,specifications. Seri numarası, owner UUID,
+kişisel profil adı, gizlilik ayarları ve performans ölçümü yoktur.
+Page {number,size,totalElements,totalPages,hasNext,nextPage}; son sayfada nextPage
+null. Boş profil totalElements/totalPages=0; aralık dışı sayfa boş listeyle toplamı
+korur. Her profil createdAt,id ASC sıralanır; devam ayrı istekle okunur.
+no-store, private. Dört sınırlı DB sorgusu: tek owner sorgusu, toplu count, parametrik
+parametrik array unnest + LATERAL ile ayrı sayfaların ID'leri, tek bileşen hydration sorgusu.
+Boş bileşen sonucunda hydration sorgusu atlanır. REPEATABLE_READ snapshot;
+N+1 sorgu, dış servis/DB erişimi veya sınırsız bileşen yüklemesi yapılmaz.
+
+#### Hata Durumları
+400 INVALID_REQUEST (limit/tekrar/nested validation/mass assignment),
+401 AUTHENTICATION_REQUIRED, 403 ACCESS_DENIED (CSRF dahil),
+404 HARDWARE_NOT_FOUND (owner/eksik kaynak aynı), 413 REQUEST_TOO_LARGE,
+500 INTERNAL_ERROR.
+
+#### Bağlantı
+HardwareBatchService + HardwareBatchQuery; mevcut V1/V2 component indeksi.
+Performance/Recommendation gerçek consumer adapter ve E2E DEFERRED_CONTRACT /
+NOT_VERIFIED; açık kullanıcı onayıyla ertelendi. Servisler değiştirilmedi.
+
+#### Test Durumu
+INTEGRATION — HardwareBatchControllerTest: owner izolasyonu, tüm isteği reddetme,
+sayfa/sıra/devam, bilinmeyen/boş veri, 20/200 sınırları, nested validation, body limit,
+CSRF/anonim/yanlış principal; 20 profil için sabit ORM sorgu sayısı ölçülür.
+İlk modül verify 174 PASS; tüketici E2E ve gerçek Auth NOT_VERIFIED.
 
 ## RECOMMENDATION
 

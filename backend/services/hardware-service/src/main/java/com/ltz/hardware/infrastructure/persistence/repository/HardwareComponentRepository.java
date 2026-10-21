@@ -19,6 +19,27 @@ public interface HardwareComponentRepository extends JpaRepository<HardwareCompo
         long getUnitsWithoutCapacity();
     }
 
+    interface ProfileCategoryCount extends CategoryCount {
+        UUID getProfileId();
+    }
+    interface ProfileTotal {
+        UUID getProfileId();
+        long getTotal();
+    }
+
+    @Query("select c.profileId as profileId, count(c) as total from HardwareComponent c where c.profileId in :profileIds group by c.profileId")
+    List<ProfileTotal> totalsByProfiles(List<UUID> profileIds);
+
+    @Query("""
+        select c.profileId as profileId, c.category as category, count(c) as entries,
+            sum(c.quantity) as units,
+            sum(case when c.specifications.capacityGb is null then 0
+                else c.quantity * c.specifications.capacityGb end) as knownCapacityGb,
+            sum(case when c.specifications.capacityGb is null then c.quantity else 0 end) as unitsWithoutCapacity
+        from HardwareComponent c where c.profileId in :profileIds group by c.profileId, c.category
+        """)
+    List<ProfileCategoryCount> countsByProfiles(List<UUID> profileIds);
+
     @Query("""
         select c.category as category, count(c) as entries, sum(c.quantity) as units,
             sum(case when c.specifications.capacityGb is null then 0
@@ -29,5 +50,7 @@ public interface HardwareComponentRepository extends JpaRepository<HardwareCompo
         """)
     List<CategoryCount> countsByCategory(UUID userId);
     Page<HardwareComponent> findAllByProfileId(UUID profileId, Pageable pageable);
+    Page<HardwareComponent> findAllByProfileIdAndCategoryIn(UUID profileId,
+            List<ComponentCategory> categories, Pageable pageable);
     Optional<HardwareComponent> findByIdAndProfileId(UUID id, UUID profileId);
 }

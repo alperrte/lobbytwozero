@@ -17,12 +17,14 @@ public class HardwareComponentMapper {
     }
 
     public HardwareComponentResponse toResponse(HardwareComponent component) {
-        var specs = component.getSpecifications();
-        var response = specs == null ? null : new SpecificationsResponse(specs.getCapacityGb(), specs.getClockMhz(),
-                specs.getCoreCount(), specs.getPowerWatts(), specs.getMemoryType(), specs.getSocket(),
-                specs.getInterfaceType(), specs.getFormFactor());
         return new HardwareComponentResponse(component.getId(), component.getCategory(), component.getProductId(),
                 component.getBrandId(), component.getModelName(), component.getBrandName(), component.getQuantity(),
-                component.getSource(), component.getVersion(), response);
+                component.getSource(), component.getVersion(), toSpecificationsResponse(component.getSpecifications()));
+    }
+
+    public SpecificationsResponse toSpecificationsResponse(HardwareSpecifications specs) {
+        return specs == null ? null : new SpecificationsResponse(specs.getCapacityGb(), specs.getClockMhz(),
+                specs.getCoreCount(), specs.getPowerWatts(), specs.getMemoryType(), specs.getSocket(),
+                specs.getInterfaceType(), specs.getFormFactor());
     }
 }

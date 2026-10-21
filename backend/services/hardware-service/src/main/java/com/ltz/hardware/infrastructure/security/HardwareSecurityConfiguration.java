@@ -30,7 +30,8 @@ public class HardwareSecurityConfiguration {
                 .authorizeHttpRequests(requests -> requests
                         // Existing readiness/liveness contract only; no business data.
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
-                        .requestMatchers("/api/v1/hardware/profiles", "/api/v1/hardware/profiles/**")
+                        .requestMatchers("/api/v1/hardware/profiles", "/api/v1/hardware/profiles/**",
+                                "/api/v1/hardware/comparisons/**")
                         .access((authentication, context) -> {
                             var auth = authentication.get();
                             return new AuthorizationDecision(auth != null && auth.isAuthenticated()

@@ -118,8 +118,16 @@ tarafından kaynak/gözlem/fiyat/geçerlilik bilgisiyle girilen kampanyaları su
 Harici fiyat API'si veya scraping yoktur; kaynak URL'ye sunucudan istek atılmaz.
 V3/V4/V5 yalnız hardware_db'yi genişletir. Yerel uygulama 134 testle PASS;
 HW-02 final pre-push PASS (%98,02); Sonar A/A/A + Quality Gate PASS.
-Gerçek Auth/E2E DEFERRED_AUTH. Görünürlük, yorum/moderasyon, sync ve
-servis entegrasyonları uygulanmadı.
+Gerçek Auth/E2E DEFERRED_AUTH. HW-03 kapsamında V6 profile/alan/kategori gizliliği
+ve üç karşılaştırma endpoint'i ile owner-only batch teknik veri sözleşmesi eklendi.
+Non-owner paylaşım hem yerel kuralları hem HardwareVisibilityPolicy güvenilir dış
+kararını gerektirir; production adapter sözleşme yokken deny eder. User/Social gerçek
+adapter ve Performance/Recommendation gerçek tüketici E2E akışları kullanıcı onayıyla
+DEFERRED_CONTRACT / NOT_VERIFIED; test mock'u canlı entegrasyon sayılmaz.
+Batch en fazla 20 profil / toplam 200 istenen satır; dört sınırlı sorgu ve
+REPEATABLE_READ ile sayfalı teknik DTO döndürür. Profil/bileşen karşılaştırması
+owner-only, katalog karşılaştırması aktif aynı kategori modelleridir; FPS/benchmark
+ve öneri uydurulmaz. Yorum/moderasyon ve masaüstü sync henüz uygulanmadı.
 
 Kurallar:
 

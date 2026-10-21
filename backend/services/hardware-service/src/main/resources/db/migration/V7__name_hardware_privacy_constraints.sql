@@ -1,0 +1,20 @@
+-- V6 was already exercised through Flyway; preserve it and align constraint
+-- names with docs/database.md without changing data or enforcement.
+ALTER TABLE hardware_profile_field_visibility
+    RENAME CONSTRAINT hardware_profile_field_visibility_pkey TO pk_hardware_profile_field_visibility;
+ALTER TABLE hardware_profile_field_visibility
+    RENAME CONSTRAINT hardware_profile_field_visibility_profile_id_fkey TO fk_hardware_profile_field_visibility_profile;
+ALTER TABLE hardware_profile_field_visibility
+    RENAME CONSTRAINT hardware_profile_field_visibility_field_name_check TO ck_hardware_profile_field_visibility_field_name;
+ALTER TABLE hardware_profile_field_visibility
+    RENAME CONSTRAINT hardware_profile_field_visibility_visibility_check TO ck_hardware_profile_field_visibility_visibility;
+ALTER TABLE hardware_profile_category_visibility
+    RENAME CONSTRAINT hardware_profile_category_visibility_pkey TO pk_hardware_profile_category_visibility;
+ALTER TABLE hardware_profile_category_visibility
+    RENAME CONSTRAINT hardware_profile_category_visibility_profile_id_fkey TO fk_hardware_profile_category_visibility_profile;
+ALTER TABLE hardware_profile_category_visibility
+    RENAME CONSTRAINT hardware_profile_category_visibility_category_check TO ck_hardware_profile_category_visibility_category;
+ALTER TABLE hardware_profile_category_visibility
+    RENAME CONSTRAINT hardware_profile_category_visibility_visibility_check TO ck_hardware_profile_category_visibility_visibility;
+ALTER INDEX ix_hardware_components_profile_category
+    RENAME TO ix_hardware_profile_components_profile_category_created_id;

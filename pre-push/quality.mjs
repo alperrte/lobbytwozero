@@ -2,7 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { repositoryRoot, execute, backendTests, backendResults, readModules, clearBackendReports, withReportLock, withRunLog } from '../lib/quality-tools.mjs';
 import { requireNode } from '../lib/profile-env.mjs';
-import { requireMaven25 } from './backend-check.mjs';
+import { requireMaven25, backendTestEnvironment } from './backend-check.mjs';
 import { checkGitSecrets, checkBackendHealth } from './runtime-checks.mjs';
 
 export const requiredRows = ['Git / Secret Check', 'Backend Tests', 'Backend Build', 'Backend Coverage', 'Docker Configuration'];
@@ -35,8 +35,10 @@ export async function runQualityChecks({ root = repositoryRoot, profile = 'dev',
     await step('Git / Secret Check', () => checkGitSecrets(run, log));
     await step('Backend Tests', async () => {
       rows['Backend Build'] = 'FAIL';
-      await requireMaven25(run, mvn, root);
-      const result = await run(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify']);
+      const backend = backendTestEnvironment(root, profile, env, log);
+      const runBackend = (command, args, cwd = root, capture = false) => runCommand(command, args, { cwd, env: backend.env, capture, secrets: backend.secrets, log });
+      await requireMaven25(runBackend, mvn, root);
+      const result = await runBackend(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify']);
       rows['Backend Build'] = result.code === 0 ? 'PASS' : 'FAIL';
       return result.code === 0 && backendTests(root, modules, started) > 0;
     });
