@@ -4,6 +4,7 @@ import { repositoryRoot, execute, backendTests, backendResults, readModules, cle
 import { requireNode } from '../lib/profile-env.mjs';
 import { requireMaven25 } from './backend-check.mjs';
 import { checkGitSecrets, checkBackendHealth } from './runtime-checks.mjs';
+import { checkRepositoryHygiene } from './hygiene-checks.mjs';
 
 export const requiredRows = ['Git / Secret Check', 'Backend Tests', 'Backend Build', 'Backend Coverage', 'Docker Configuration'];
 
@@ -32,7 +33,7 @@ export async function runQualityChecks({ root = repositoryRoot, profile = 'dev',
     requireNode();
     const modules = readModules(root);
     clearBackendReports(root, modules);
-    await step('Git / Secret Check', () => checkGitSecrets(run, log));
+    await step('Git / Secret Check', async () => (await checkGitSecrets(run, log)) && checkRepositoryHygiene({ run, log, root }));
     await step('Backend Tests', async () => {
       rows['Backend Build'] = 'FAIL';
       await requireMaven25(run, mvn, root);
