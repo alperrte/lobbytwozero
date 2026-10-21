@@ -2,7 +2,7 @@
 
 Tarih: 2026-10-21 · Sorumlu: Hamza · Servis: game-service
 
-**Durum: Onaylanan yerel katalog kapsamı uygulandı. Altı görev tamamlandı; GAME-04 ve GAME-05 LTZ puanı entegrasyonu nedeniyle kısmi. Faz 3 bütünü 8/8 tamamlandı değildir. GAME-17 gerçek detay sağlayıcısı için önceki onay sınırı korunuyor. Faz 4 başlatılmadı.**
+**Durum: Onaylanan yerel katalog kapsamı uygulandı. Altı görev tamamlandı; GAME-04 ve GAME-05 LTZ puanı entegrasyonu nedeniyle kısmi. Faz 3 bütünü 8/8 tamamlandı değildir. GAME-17 gerçek detay sağlayıcısı için önceki onay sınırı korunuyor. Faz 4 sonradan kullanıcı onayıyla uygulandı; güncel durum Faz 4 ve Faz 5 öncesi kalite raporlarındadır.**
 
 ## Görev sırası ve sohbet checklist'i
 
@@ -84,5 +84,5 @@ Hedefli GAME-02 artımlı derlemesinde bytecode VerifyError görüldü; temiz de
 
 - Review Service toplu puan sözleşmesi ve entegrasyonu: GAME-04/05 açık.
 - Gerçek detay sağlayıcısı seçimi/entegrasyonu: GAME-17 için önceki karar/onay bekleniyor.
-- Yetkili editör/yönetim HTTP akışı: Faz 4; bu görevde yapılmadı.
-- Faz 4'e geçiş için kullanıcı onayı beklenir. Commit veya push yapılmadı.
+- Yetkili editör/yönetim HTTP akışı Faz 4 kapsamında sonradan uygulandı; bkz. Faz 4 raporu.
+- Güncel durum: Faz 4 kullanıcı onayıyla uygulandı; Faz 5 başlatılmadı. Bu rapordaki test ve ölçümler Faz 3 teslimine ait tarihsel sonuçlardır.

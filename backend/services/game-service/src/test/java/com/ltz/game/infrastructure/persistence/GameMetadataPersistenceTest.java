@@ -48,7 +48,8 @@ class GameMetadataPersistenceTest extends PostgresTestSupport {
     @Test void sparseGameAndMissingGame() {
         UUID id = games.saveAndFlush(game("Index only")).getId(); em.clear();
         var result = service.get(id); assertTrue(result.genres().isEmpty()); assertTrue(result.media().isEmpty());
-        assertThrows(GameNotFoundException.class, () -> service.get(UUID.randomUUID()));
+        UUID missingId = UUID.randomUUID();
+        assertThrows(GameNotFoundException.class, () -> service.get(missingId));
     }
     @Test void duplicateTermIsRejectedByDatabase() {
         CatalogTerm first = new CatalogTerm(); first.setKind(TermKind.TAG); first.setCode("duplicate");

@@ -37,13 +37,15 @@ class GameIdentityServiceTest extends PostgresTestSupport {
         var separated=games.findById(split).orElseThrow();assertEquals(GameOrigin.EXTERNAL,separated.getOrigin());
         assertEquals(MetadataCompleteness.INDEX_ONLY,separated.getMetadataCompleteness());assertTrue(separated.getTerms().isEmpty());
         assertTrue(games.existsById(source.getId()));
-        assertThrows(ReferenceMappingConflictException.class,()->identity.split("STEAM","12346",source.getId(),proof));
+        UUID sourceId = source.getId();
+        assertThrows(ReferenceMappingConflictException.class,()->identity.split("STEAM","12346",sourceId,proof));
     }
     @Test void staleMappingAndMissingVerificationAreRejected() {
         Game source=game("Source",GameOrigin.EXTERNAL);Game target=game("Target",GameOrigin.INTERNAL);reference(source,"STEAM","12347");
-        assertThrows(ReferenceMappingConflictException.class,()->identity.reassign("STEAM","12347",UUID.randomUUID(),target.getId(),proof));
+        UUID sourceId = source.getId(); UUID targetId = target.getId(); UUID staleId = UUID.randomUUID();
+        assertThrows(ReferenceMappingConflictException.class,()->identity.reassign("STEAM","12347",staleId,targetId,proof));
         assertThrows(IllegalArgumentException.class,()->new GameIdentityService.Verification(null,"verified"));
-        assertThrows(IllegalArgumentException.class,()->identity.reassign("STEAM","12347",source.getId(),target.getId(),null));
+        assertThrows(IllegalArgumentException.class,()->identity.reassign("STEAM","12347",sourceId,targetId,null));
     }
     @Test void sameSteamAppIdIsUniqueAtDatabaseLevel() {
         Game source=game("A",GameOrigin.EXTERNAL);Game target=game("A",GameOrigin.EXTERNAL);reference(source,"STEAM","12348");

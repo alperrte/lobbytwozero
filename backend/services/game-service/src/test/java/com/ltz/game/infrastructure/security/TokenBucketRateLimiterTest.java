@@ -100,4 +100,66 @@ class TokenBucketRateLimiterTest {
         assertThrows(IllegalStateException.class, () -> new RateLimitProperties(batch, 10, null));
         assertTrue(new RateLimitProperties(batch, 1_000, null).trustedProxies().isEmpty());
     }
+
+    @Test void concurrentDistinctKeysNeverExceedMaxKeysAndOverflowSharesItsBudget() throws Exception {
+        var limiter = limiter(2, 0.000001, 4);
+        int workers = 32;
+        try (var pool = Executors.newFixedThreadPool(workers)) {
+            var ready = new CountDownLatch(workers);
+            var start = new CountDownLatch(1);
+            List<Future<Integer>> results = new ArrayList<>();
+            for (int index = 0; index < workers; index++) {
+                String key = "concurrent-" + index;
+                results.add(pool.submit(() -> {
+                    ready.countDown();
+                    assertTrue(start.await(10, TimeUnit.SECONDS));
+                    int allowed = 0;
+                    for (int attempt = 0; attempt < 3; attempt++) {
+                        if (limiter.tryAcquire(key).allowed()) allowed++;
+                        assertTrue(limiter.trackedKeys() <= 4);
+                    }
+                    return allowed;
+                }));
+            }
+            assertTrue(ready.await(10, TimeUnit.SECONDS));
+            start.countDown();
+            int allowed = 0;
+            for (var result : results) allowed += result.get(20, TimeUnit.SECONDS);
+            assertEquals(4, limiter.trackedKeys());
+            assertEquals(10, allowed, "Dört kayıtlı kova ve tek taşma kovası ikişer jeton sağlar");
+        }
+    }
+
+    @Test void collidingNewKeysCannotRacePastTheLastAvailableSlot() throws Exception {
+        int workers = 64;
+        try (var pool = Executors.newFixedThreadPool(workers)) {
+            for (int round = 0; round < 16; round++) {
+                var limiter = limiter(1, 0.000001, 1);
+                var ready = new CountDownLatch(workers);
+                var start = new CountDownLatch(1);
+                List<Future<Boolean>> results = new ArrayList<>();
+                for (int index = 0; index < workers; index++) {
+                    String key = collidingKey(index);
+                    results.add(pool.submit(() -> {
+                        ready.countDown();
+                        assertTrue(start.await(10, TimeUnit.SECONDS));
+                        return limiter.tryAcquire(key).allowed();
+                    }));
+                }
+                assertTrue(ready.await(10, TimeUnit.SECONDS));
+                start.countDown();
+                int allowed = 0;
+                for (var result : results) if (result.get(20, TimeUnit.SECONDS)) allowed++;
+                assertEquals(1, limiter.trackedKeys());
+                assertEquals(2, allowed, "Tek kayıtlı kova ve ortak taşma kovası birer jeton sağlar");
+            }
+        }
+    }
+
+    /** Aa ve BB aynı String hash'ini üretir; farklı anahtarlar aynı hash diliminde yarışır. */
+    private static String collidingKey(int index) {
+        StringBuilder key = new StringBuilder();
+        for (int bit = 0; bit < 6; bit++) key.append(((index >> bit) & 1) == 0 ? "Aa" : "BB");
+        return key.toString();
+    }
 }

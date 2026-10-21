@@ -52,7 +52,7 @@ Hepsi Spring özellikleridir (`application.properties` veya ortamdan). **Varsay�
 | `ltz.security.jwt.user-id-claim` | Kullanıcı UUID claim'i | `sub` |
 | `ltz.security.jwt.roles-claim` | Rol claim'i (dizi veya boşluk/virgül ayrımlı metin; `ROLE_` öneki ve büyük/küçük harf yok sayılır) | `roles` |
 | `ltz.security.jwt.clock-skew` | Süre toleransı | `60s` |
-| `ltz.game.media.image-hosts` / `video-hosts` / `demo-hosts` | Medya bağlantısı host allowlist'i (tam host) | bkz. `application.properties` |
+| `ltz.game.media.image-sources` / `video-sources` / `demo-sources` | Medya bağlantısı tam-host ve yol öneki allowlist'i | bkz. `application.properties` |
 
 ### ENV bağlama önerisi — ONAY BEKLİYOR (hiçbir `.env*`, `.env.example` veya `docker-compose.yml` değiştirilmedi)
 

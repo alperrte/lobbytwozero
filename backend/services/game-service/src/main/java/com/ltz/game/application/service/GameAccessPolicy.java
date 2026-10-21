@@ -25,6 +25,11 @@ public class GameAccessPolicy {
         if (!actor.has(ActorRole.GAME_DEVELOPER) || !grants.existsByGameIdAndDeveloperUserIdAndRevokedAtIsNull(gameId, actor.userId()))
             throw new AccessForbiddenException();
         var game = forUpdate ? games.lockGame(gameId) : games.findById(gameId);
+        // Yetki iptali de aynı oyun kilidini alır. READ COMMITTED altında kilit
+        // beklerken commit edilen iptali burada yeniden okuruz; kilit transaction
+        // sonuna kadar tutulduğu için kontrolden sonra iptal araya giremez.
+        if (forUpdate && !grants.existsByGameIdAndDeveloperUserIdAndRevokedAtIsNull(gameId, actor.userId()))
+            throw new AccessForbiddenException();
         return game.filter(Game::isActive).orElseThrow(GameNotFoundException::new);
     }
 }

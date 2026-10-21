@@ -23,7 +23,7 @@ import java.util.Set;
 /** Her çağrıda tek sayfa; checkpoint ve retry durumu aynı transaction'da saklanır. */
 @Service @RequiredArgsConstructor
 public class CatalogImportService {
-    private static final String PROVIDER = "STEAM";
+    private static final String PROVIDER_CODE = "STEAM";
     private final GameProvider provider;
     private final GameTypeClassifier types;
     private final GameProviderSyncStateRepository states;
@@ -126,13 +126,13 @@ public class CatalogImportService {
     private Map<String, Set<OverridableField>> lockedFields(List<GameProvider.CatalogItem> items) {
         if (items.isEmpty()) return Map.of();
         Map<String, Set<OverridableField>> locked = new HashMap<>();
-        overrides.lockedFields(PROVIDER, items.stream().map(GameProvider.CatalogItem::externalId).toList())
+        overrides.lockedFields(PROVIDER_CODE, items.stream().map(GameProvider.CatalogItem::externalId).toList())
                 .forEach(row -> locked.computeIfAbsent(row.getExternalId(), key -> EnumSet.noneOf(OverridableField.class)).add(row.getField()));
         return locked;
     }
 
     private void importItem(GameProvider.CatalogItem item, Set<OverridableField> locked) {
-            var reference = references.findByProviderAndExternalId(PROVIDER, item.externalId()).orElse(null);
+            var reference = references.findByProviderAndExternalId(PROVIDER_CODE, item.externalId()).orElse(null);
             Game game;
             if (reference == null) {
                 game = new Game();
@@ -142,7 +142,7 @@ public class CatalogImportService {
                 game = games.save(game);
                 reference = new GameExternalReference();
                 reference.setGame(game);
-                reference.setProvider(PROVIDER);
+                reference.setProvider(PROVIDER_CODE);
                 reference.setExternalId(item.externalId());
             } else {
                 game = reference.getGame();
@@ -163,13 +163,13 @@ public class CatalogImportService {
     }
 
     @Transactional(readOnly=true)
-    public CatalogStatusResponse status() { return response(states.findByProvider(PROVIDER).orElseThrow()); }
+    public CatalogStatusResponse status() { return response(states.findByProvider(PROVIDER_CODE).orElseThrow()); }
 
-    private GameProviderSyncState lockedState() { return states.lockProvider(PROVIDER).orElseThrow(); }
+    private GameProviderSyncState lockedState() { return states.lockProvider(PROVIDER_CODE).orElseThrow(); }
     private CatalogStatusResponse response(GameProviderSyncState state) {
-        return new CatalogStatusResponse(PROVIDER, state.getRunMode(), state.getSyncStatus(), state.getCursor(),
-                state.getProcessedCount(), references.countByProvider(PROVIDER), references.countByProviderAndGameGameType(PROVIDER, GameType.MAIN_GAME),
-                references.countByProviderAndGameGameType(PROVIDER, GameType.UNKNOWN), null, state.getRunStartedAt(),
+        return new CatalogStatusResponse(PROVIDER_CODE, state.getRunMode(), state.getSyncStatus(), state.getCursor(),
+                state.getProcessedCount(), references.countByProvider(PROVIDER_CODE), references.countByProviderAndGameGameType(PROVIDER_CODE, GameType.MAIN_GAME),
+                references.countByProviderAndGameGameType(PROVIDER_CODE, GameType.UNKNOWN), null, state.getRunStartedAt(),
                 state.getLastSuccessfulAt(), state.getLastErrorCode(), state.getFailureCount(), state.getNextAttemptAt());
     }
     public static String normalize(String title) {

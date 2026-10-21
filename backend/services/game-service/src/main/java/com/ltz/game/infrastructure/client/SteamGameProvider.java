@@ -37,25 +37,27 @@ public class SteamGameProvider implements GameProvider {
             SteamCatalogEnvelope envelope = client.get().uri(ENDPOINT + "?input_json={input}", input)
                     .header("x-webapi-key", key)
                     .exchange((request, response) -> {
-                        int status = response.getStatusCode().value();
-                        if (status == 401 || status == 403) throw new ProviderException("PROVIDER_ACCESS_DENIED");
-                        if (status == 429) throw new ProviderException("RATE_LIMITED", retryAfter(response.getHeaders().getFirst("Retry-After")));
-                        if (status >= 500) throw new ProviderException("PROVIDER_UNAVAILABLE", retryAfter(response.getHeaders().getFirst("Retry-After")));
-                        if (status != 200) throw new ProviderException("PROVIDER_REQUEST_REJECTED");
+                        validateStatus(response.getStatusCode().value(), response.getHeaders().getFirst("Retry-After"));
                         byte[] body = response.getBody().readNBytes(1048577);
                         if (body.length > 1048576) throw new ProviderException("INVALID_PROVIDER_RESPONSE");
                         try {
                             return tools.jackson.databind.json.JsonMapper.builder().build()
                                     .readValue(body, SteamCatalogEnvelope.class);
-                        } catch (tools.jackson.core.JacksonException exception) {
+                        } catch (tools.jackson.core.JacksonException _) {
                             throw new ProviderException("INVALID_PROVIDER_RESPONSE");
                         }
                     });
             return normalize(query, envelope);
-        } catch (RestClientException exception) {
+        } catch (RestClientException _) {
             // Ağ istisnasının ayrıntıları ve cause dışarı taşınmaz.
             throw new ProviderException("PROVIDER_TRANSPORT_ERROR");
         }
+    }
+    private void validateStatus(int status, String retryAfterHeader) {
+        if (status == 401 || status == 403) throw new ProviderException("PROVIDER_ACCESS_DENIED");
+        if (status == 429) throw new ProviderException("RATE_LIMITED", retryAfter(retryAfterHeader));
+        if (status >= 500) throw new ProviderException("PROVIDER_UNAVAILABLE", retryAfter(retryAfterHeader));
+        if (status != 200) throw new ProviderException("PROVIDER_REQUEST_REJECTED");
     }
     private java.time.Duration retryAfter(String value) {
         if (value == null) return null;
@@ -90,7 +92,7 @@ public class SteamGameProvider implements GameProvider {
             items.add(new CatalogItem(Long.toString(app.appid()), app.name().strip(), Instant.ofEpochSecond(app.lastModified())));
         }
         if (response.lastAppId() != null && response.lastAppId() != previous) throw new ProviderException("INVALID_PROVIDER_RESPONSE");
-        if (response.haveMoreResults() && items.isEmpty()) throw new ProviderException("INVALID_PROVIDER_RESPONSE");
+        if (Boolean.TRUE.equals(response.haveMoreResults()) && items.isEmpty()) throw new ProviderException("INVALID_PROVIDER_RESPONSE");
         return new CatalogPage(items, previous, response.haveMoreResults());
     }
 }

@@ -16,7 +16,7 @@ Bu belge, Game Service'te **yapılamayan veya yarım kalan** işleri ve bunları
 | **GAME-17** (oyun detayı zenginleştirme) | Altyapı hazır, **gerçek sağlayıcı bağlı değil** | Steam resmî API'leri kapsamlı detay vermiyor; kaynak (öneri: IGDB) ve lisans/atıf koşulları kararlaştırılmadı | **Ekip kararı** (§4) |
 | **Toplu uç istek sınırı (istemci başına)** | Game Service tarafı hazır (429), ama Gateway trafiği tek kovayı paylaşıyor | Gateway istemci IP'sini Game Service'e iletmiyor | **api-gateway (ortak yapılandırma, onay)**: §3.5 |
 | **GAME-04 indirim filtresi, GAME-24** (fiyat/indirim) | Başlanmadı | İzinli ve sürdürülebilir bir fiyat kaynağı yok; kaynak yoksa görev ertelenir | Ekip kararı (§4) |
-| **GAME-23, GAME-26** | Başlanmadı (Faz 5) | Onay yok; Game Service migration aralığı (V31–V40) **doldu** | Onay + yeni migration aralığı kararı (§4) |
+| **GAME-23, GAME-26** | Başlanmadı (Faz 5) | Faz 5 geliştirme onayı yok; V31–V40 dolu, ek V171–V190 onaylandı | Faz 5 geliştirme onayı (§4) |
 | **GAME-11, GAME-14** | Başlanmadı (Faz 6, MVP sonrası) | Onay yok. GAME-11, içeriğin sahibi başka servisse (başarım, rehber vb.) o servisin API'sine bağlanacak | Onay; ileride content/community gibi servislerden API |
 
 ## 2. Game Service şu an ne sunuyor (tüketiciler için)
@@ -78,9 +78,13 @@ Yapılmadı: yönetim paneli, geliştirici alanı, moderasyon ekranı. Geliştir
 
 ## 4. Ekipçe verilmesi gereken kararlar
 
+Son kalite ve yarış düzeltmeleri: [Faz 5 öncesi rapor](LTZ-HAM-GAME-Faz5-Oncesi-Kalite-Raporu.md).
+Yetki iptali/yazma ve rate limit anahtar kabulü yarışları bu turda düzeltildi;
+Auth, Review ve Gateway entegrasyonlarının bekleme durumu değişmedi.
+
 1. **GAME-17 kaynağı:** Öneri — Steam indeksini koru, **IGDB**'yi yalnız detay zenginleştirme için değerlendir. Önce projenin ticari kullanım durumu, lisans/atıf koşulları ve Steam AppID eşleme yöntemi netleşmeli; sonra küçük bir pilot. (Kaynak API anahtarı yeni ENV gerektirir → onay.) Ayrıntı: `docs-Game Service/LTZ-HAM-GAME-02-Saglayici-Arastirmasi.md`.
 2. **Fiyat/indirim (GAME-24):** İzinli veri kaynağı var mı? Yoksa görev ertelenir; fiyat bilgisi uydurulmaz.
-3. **Game Service migration aralığı:** V31–V40 doldu. Faz 5 şema değişikliği isterse `docs/decisions/migrations.md` için yeni aralık kararı gerekir.
+3. **Game Service migration aralığı:** V31–V40 doldu. Ek V171–V190 aralığı 2026-10-21 tarihinde onaylandı ve `docs/decisions/migrations.md` içine işlendi. Tahsis ortak branch'e aktarılmalıdır. Faz 5 geliştirme onayı ayrıca bekleniyor.
 4. **Servisler arası kimlik modeli** (servis JWT'si mi, başka mı?) — korumalı toplu/servisler arası uçlar bunu bekliyor.
 
 ## 5. Yapma listesi

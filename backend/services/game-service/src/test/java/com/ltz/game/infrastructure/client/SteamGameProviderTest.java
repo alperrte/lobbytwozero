@@ -60,8 +60,9 @@ class SteamGameProviderTest {
     }
     @Test void missingConfigurationNeverCallsNetwork() {
         var disabled = new SteamGameProvider(RestClient.create(), "", false, new SteamRequestBudget(Clock.systemUTC()));
+        var query = new CatalogQuery(0,null,10);
         assertEquals("PROVIDER_NOT_CONFIGURED", assertThrows(ProviderException.class,
-                () -> disabled.catalog(new CatalogQuery(0,null,10))).code()); server.verify();
+                () -> disabled.catalog(query)).code()); server.verify();
     }
     @ParameterizedTest @ValueSource(strings={"120","Wed, 21 Oct 2099 00:00:00 GMT","invalid"})
     void retryAfterIsParsedWithoutLeakingProviderResponse(String retryAfter) {
@@ -76,7 +77,8 @@ class SteamGameProviderTest {
     @ParameterizedTest @ValueSource(ints={400,401,403,429,503})
     void httpErrorsHaveSafeCodes(int status) {
         server.expect(anything()).andRespond(withStatus(HttpStatusCode.valueOf(status)));
-        var exception = assertThrows(ProviderException.class, () -> provider.catalog(new CatalogQuery(0,null,10)));
+        var query = new CatalogQuery(0,null,10);
+        var exception = assertThrows(ProviderException.class, () -> provider.catalog(query));
         String expected = switch(status) {
             case 401,403 -> "PROVIDER_ACCESS_DENIED";
             case 429 -> "RATE_LIMITED";
@@ -88,7 +90,8 @@ class SteamGameProviderTest {
     }
     @Test void transportFailureDoesNotExposeUriOrCause() {
         server.expect(anything()).andRespond(withException(new IOException("secret URI="+TEST_KEY)));
-        var exception = assertThrows(ProviderException.class, () -> provider.catalog(new CatalogQuery(0,null,10)));
+        var query = new CatalogQuery(0,null,10);
+        var exception = assertThrows(ProviderException.class, () -> provider.catalog(query));
         assertEquals("PROVIDER_TRANSPORT_ERROR", exception.code());assertNull(exception.getCause());
         assertFalse(exception.toString().contains(TEST_KEY));
     }
@@ -101,8 +104,9 @@ class SteamGameProviderTest {
     })
     void malformedAndNonProgressingResponsesAreRejected(String body) {
         server.expect(anything()).andRespond(withSuccess(body,MediaType.APPLICATION_JSON));
+        var query = new CatalogQuery(0,null,10);
         assertEquals("INVALID_PROVIDER_RESPONSE", assertThrows(ProviderException.class,
-                () -> provider.catalog(new CatalogQuery(0,null,10))).code());
+                () -> provider.catalog(query)).code());
     }
     @Test void emptyFinalPageIsValid() {
         server.expect(anything()).andRespond(withSuccess("{\"response\":{\"apps\":[],\"have_more_results\":false}}",MediaType.APPLICATION_JSON));
@@ -111,11 +115,13 @@ class SteamGameProviderTest {
     @Test void invalidQueryIsRejectedBeforeRequest() {
         assertThrows(IllegalArgumentException.class,()->new CatalogQuery(-1,null,10));
         assertThrows(IllegalArgumentException.class,()->new CatalogQuery(0,null,1001));
-        assertThrows(IllegalArgumentException.class,()->new CatalogQuery(0,Instant.ofEpochSecond(-1),10));
+        var negativeTime = Instant.ofEpochSecond(-1);
+        assertThrows(IllegalArgumentException.class,()->new CatalogQuery(0,negativeTime,10));
     }
     @Test void immediateRepeatIsRateLimited() {
         server.expect(anything()).andRespond(withSuccess("{\"response\":{\"apps\":[],\"have_more_results\":false}}",MediaType.APPLICATION_JSON));
         provider.catalog(new CatalogQuery(0,null,10));
-        assertEquals("RATE_LIMITED",assertThrows(ProviderException.class,()->provider.catalog(new CatalogQuery(0,null,10))).code());
+        var query = new CatalogQuery(0,null,10);
+        assertEquals("RATE_LIMITED",assertThrows(ProviderException.class,()->provider.catalog(query)).code());
     }
 }

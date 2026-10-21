@@ -19,8 +19,9 @@ class SteamProviderConfigurationTest {
         context.run(app -> {
             assertNull(app.getStartupFailure());
             var provider = app.getBean(GameProvider.class);
+            var query = new GameProvider.CatalogQuery(0, null, 1);
             assertEquals("PROVIDER_NOT_CONFIGURED", assertThrows(ProviderException.class,
-                    () -> provider.catalog(new GameProvider.CatalogQuery(0, null, 1))).code());
+                    () -> provider.catalog(query)).code());
         });
     }
 

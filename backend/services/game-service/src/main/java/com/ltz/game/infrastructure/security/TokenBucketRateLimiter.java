@@ -61,14 +61,16 @@ final class TokenBucketRateLimiter {
         this.lastSweep = new AtomicLong(now);
     }
 
-    Decision tryAcquire(String key) {
+    synchronized Decision tryAcquire(String key) {
+        // Anahtar kabulü, temizleme ve jeton alma aynı kritik bölgededir:
+        // maxKeys aşılamaz ve kullanılmak üzere seçilen kova temizlenemez.
         long now = nanoClock.getAsLong();
         Bucket bucket = buckets.get(key);
         if (bucket == null) bucket = admit(key, now);
         return bucket.take(now, capacity, refillPerSecond);
     }
 
-    int trackedKeys() { return buckets.size(); }
+    synchronized int trackedKeys() { return buckets.size(); }
 
     private Bucket admit(String key, long now) {
         if (buckets.size() >= maxKeys) {

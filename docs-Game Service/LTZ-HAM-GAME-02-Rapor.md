@@ -2,7 +2,7 @@
 
 Tarih: 2026-10-21 · Sorumlu: Hamza · Servis: game-service
 
-**Durum: GAME-19 ve GAME-22 uygulama/test kapsamında tamamlandı; GAME-17 kısmi. Faz 2 bütünü tamamlanmadı. Gerçek detay sağlayıcısı için veri kaynağı kararı ve entegrasyon onayı bekleniyor. Faz 3 başlatılmadı.**
+**Durum: GAME-19 ve GAME-22 uygulama/test kapsamında tamamlandı; GAME-17 kısmi. Faz 2 bütünü tamamlanmadı. Gerçek detay sağlayıcısı için veri kaynağı kararı ve entegrasyon onayı bekleniyor. Faz 3 ve Faz 4 sonradan kullanıcı onayıyla uygulandı; GAME-17 gerçek sağlayıcı entegrasyonu hâlâ bekliyor.**
 
 ## Güncel checklist
 
@@ -19,7 +19,7 @@ Tarih: 2026-10-21 · Sorumlu: Hamza · Servis: game-service
 - [ ] GAME-17 — Gerçek AppID eşlemeleri ve sağlayıcı alanlarının canlı doğrulaması.
 - [ ] Detay kaynağının ticari kullanım/atıf koşullarının LTZ için kesinleşmesi ve uygulanması.
 - [ ] Gerçek detay sağlayıcısıyla uçtan uca TTL/kota/kesinti doğrulaması.
-- [ ] Faz 2'nin bütünü için kapanış; Faz 3 için ayrıca açık onay.
+- [ ] Faz 2'nin bütünü için kapanış (GAME-17). Faz 3 ve Faz 4 için onay sonradan verildi ve uygulandı.
 
 Ana görev dosyasında GAME-17 açık bırakıldı. GAME-19/GAME-22 işaretleri uygulama ve otomatik test sonucudur; canlı sağlayıcıyla tam katalog yüklemesi veya üretim işletim onayı anlamına gelmez.
 

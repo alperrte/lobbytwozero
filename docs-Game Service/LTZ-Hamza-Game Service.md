@@ -47,7 +47,7 @@
 
 ### LTZ-HAM-GAME-02 — Oyun Detayı Zenginleştirme ve Otomatik Senkronizasyon
 
-**2026-10-21 durumu:** GAME-19 ve GAME-22 uygulama/test kapsamında tamamlandı. GAME-17 altyapısı hazır; gerçek detay sağlayıcısı için veri kaynağı kararı ve entegrasyon onayı bekleniyor. Faz 2 bütünü tamamlandı sayılmaz. [Faz 2 raporu](LTZ-HAM-GAME-02-Rapor.md) · [Sağlayıcı araştırması](LTZ-HAM-GAME-02-Saglayici-Arastirmasi.md). Faz 3 için onay yok.
+**2026-10-21 durumu:** GAME-19 ve GAME-22 uygulama/test kapsamında tamamlandı. GAME-17 altyapısı hazır; gerçek detay sağlayıcısı için veri kaynağı kararı ve entegrasyon onayı bekleniyor. Faz 2 bütünü tamamlandı sayılmaz. [Faz 2 raporu](LTZ-HAM-GAME-02-Rapor.md) · [Sağlayıcı araştırması](LTZ-HAM-GAME-02-Saglayici-Arastirmasi.md). Faz 3 ve Faz 4 kullanıcı onayıyla uygulandı; durumları aşağıdadır.
 
 **Sorumlu:** Hamza  
 **Servis:** `game-service`  
@@ -69,7 +69,7 @@
 
 ### LTZ-HAM-GAME-03 — Oyun Keşfi, Arama, Filtreleme ve Popüler Oyunlar
 
-**2026-10-21 durumu:** Kullanıcı onayıyla uygulandı. GAME-01/02/03/06/20/25 doğrulandı; GAME-04 ve GAME-05'in LTZ puanına bağlı kısmı Review Service sözleşmesi beklediğinden açık. Faz bütünü 8/8 tamamlandı sayılmaz. [Faz 3 raporu](LTZ-HAM-GAME-03-Rapor.md). GAME-17 gerçek sağlayıcı entegrasyonu ve Faz 4 için onay yok.
+**2026-10-21 durumu:** Kullanıcı onayıyla uygulandı. GAME-01/02/03/06/20/25 doğrulandı; GAME-04 ve GAME-05'in LTZ puanına bağlı kısmı Review Service sözleşmesi beklediğinden açık. Faz bütünü 8/8 tamamlandı sayılmaz. [Faz 3 raporu](LTZ-HAM-GAME-03-Rapor.md). GAME-17 gerçek sağlayıcı entegrasyonu bekliyor. Faz 4 kullanıcı onayıyla uygulandı.
 
 **Sorumlu:** Hamza  
 **Servis:** `game-service`  
@@ -101,7 +101,7 @@
 
 ### LTZ-HAM-GAME-04 — Yetkili Oyun Yönetimi ve Geliştirici Alanı
 
-**2026-10-21 durumu:** Kullanıcı onayıyla uygulandı. GAME-07/12/13 Game Service sınırında uygulandı ve test edildi; GAME-15'in herkese açık toplu kart ucu hazır, Review Service puan tarafı sözleşme beklediğinden açık. **Yetkili uçlar geçici, Auth'tan bağımsız ve fail-closed JWT doğrulamasına dayanır; Auth Service entegrasyonu TAMAMLANMADI (NOT VERIFIED).** Faz bütünü üretime hazır sayılmaz. İkinci geçişte gerçek eşzamanlılık testleri, toplu uç rate limit'i, medya host doğrulaması ve CSRF incelemesi tamamlandı (182 test, %98,47, SonarQube PASSED); Gateway'den istemci IP iletimi onay bekliyor. [Faz 4 raporu](LTZ-HAM-GAME-04-Rapor.md) · [Auth entegrasyonu](LTZ-HAM-GAME-04-Auth-Entegrasyonu.md). Faz 5 için onay yok; Game Service migration aralığı (V31–V40) doldu.
+**2026-10-21 durumu:** Kullanıcı onayıyla uygulandı. GAME-07/12/13 Game Service sınırında uygulandı ve test edildi; GAME-15'in herkese açık toplu kart ucu hazır, Review Service puan tarafı sözleşme beklediğinden açık. **Yetkili uçlar geçici, Auth'tan bağımsız ve fail-closed JWT doğrulamasına dayanır; Auth Service entegrasyonu TAMAMLANMADI (NOT VERIFIED).** Faz bütünü üretime hazır sayılmaz. İkinci geçişte gerçek eşzamanlılık testleri, toplu uç rate limit'i, medya host doğrulaması ve CSRF incelemesi tamamlandı (182 test, %98,47, SonarQube PASSED); Gateway'den istemci IP iletimi onay bekliyor. [Faz 4 raporu](LTZ-HAM-GAME-04-Rapor.md) · [Auth entegrasyonu](LTZ-HAM-GAME-04-Auth-Entegrasyonu.md). Faz 5 için onay yok; V31–V40 doldu; ek V171–V190 aralığı 2026-10-21 tarihinde onaylanarak merkezi tahsise işlendi. Faz 5 henüz başlatılmadı.
 
 **Sorumlu:** Hamza  
 **Servis:** `game-service`  

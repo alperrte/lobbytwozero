@@ -105,7 +105,7 @@ Testler geçici Testcontainers PostgreSQL 17 üzerinde V31–V35 migrationların
 
 LTZ-HAM-GAME-02 — Oyun Detayı Zenginleştirme ve Otomatik Senkronizasyon: GAME-17 → GAME-19 → GAME-22 (3 alt task).
 
-**2026-10-21 güncellemesi:** Kullanıcı Faz 2'yi onayladı. GAME-17 gerçek sağlayıcı entegrasyonu için ayrıca karar/onay bekleniyor; ayrıntılar [Faz 2 raporunda](LTZ-HAM-GAME-02-Rapor.md). Faz 3 için onay yok.
+**2026-10-21 güncellemesi:** Kullanıcı Faz 2'yi onayladı. GAME-17 gerçek sağlayıcı entegrasyonu için ayrıca karar/onay bekleniyor; ayrıntılar [Faz 2 raporunda](LTZ-HAM-GAME-02-Rapor.md). Faz 3 ve Faz 4 sonradan kullanıcı onayıyla uygulandı; güncel durum ilgili faz raporlarında ve Faz 5 öncesi kalite raporundadır.
 
 ## 2026-10-21 — Tam pre-push kontrolü düzeltmesi
 

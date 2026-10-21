@@ -17,9 +17,12 @@ public class CatalogSearchService {
     private final GameViewMapper mapper;
     private final CatalogImportService imports;
     @Transactional(readOnly=true)
-    public CatalogSearchResponse search(String query, int page, int size) { return search(query,page,size,false); }
+    public CatalogSearchResponse search(String query, int page, int size) { return searchIndex(query,page,size,false); }
     @Transactional(readOnly=true)
     public CatalogSearchResponse search(String query, int page, int size, boolean includeUnclassified) {
+        return searchIndex(query, page, size, includeUnclassified);
+    }
+    private CatalogSearchResponse searchIndex(String query, int page, int size, boolean includeUnclassified) {
         if (query == null || query.isBlank() || query.length() > 128 || page < 0 || size < 1 || size > 100)
             throw new IllegalArgumentException("Geçersiz indeks araması.");
         String pattern = CatalogImportService.normalize(query).replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";

@@ -2,6 +2,10 @@
 
 Tarih: 2026-10-21 · Sorumlu: Hamza · Servis: game-service
 
+Güncel takip: [Faz 5 öncesi kalite ve yarış düzeltmeleri](LTZ-HAM-GAME-Faz5-Oncesi-Kalite-Raporu.md).
+Bu rapordaki 139/182 test ve SonarQube sonuçları Faz 4 teslim turlarına aittir;
+sonraki düzeltmelerin ve DEV imajı güncellemesinin sonuçları bağlantıdaki raporda tutulur.
+
 **Durum: GAME-07, GAME-12 ve GAME-13 Game Service sınırı içinde uygulandı ve test edildi. GAME-15'in herkese açık toplu kart ucu uygulandı; Review Service puan tarafı sözleşme olmadığı için açık. Tüm yetkili uçlar GEÇİCİ, Auth'tan bağımsız JWT doğrulamasına dayanır ve Auth Service entegrasyonu TAMAMLANMADI (NOT VERIFIED). Faz 4 bütünü "üretimde kullanıma hazır" sayılmaz.** Faz 5 başlatılmadı. Commit veya push yapılmadı. **İkinci geçişte (doğrulama turu) gerçek eşzamanlılık, toplu uç rate limit'i (Game Service tarafı), medya host doğrulaması ve CSRF incelemesi tamamlandı; Gateway'den istemci IP iletimi onay bekliyor. Güncel sonuç: 182 test, %98,47 kapsam, SonarQube PASSED. Ayrıntı: "Faz 4 doğrulama turu".**
 
 Kullanıcı kararları: Auth için "resource server + test JWT" (geçici ve fail-closed), batch için "herkese açık küçük POST", medya için "HTTPS + izinli host listesi". Ayrıntı: [Auth entegrasyonu](LTZ-HAM-GAME-04-Auth-Entegrasyonu.md).
@@ -58,7 +62,7 @@ GAME-07 → GAME-12 → GAME-13 → GAME-15 sırasıyla ele alındı.
 ## Migration ve belgeler
 
 - Yeni: `V38__add_admin_game_management.sql`, `V39__create_game_developer_grants.sql`, `V40__create_game_developer_content.sql`. V31–V37 değiştirilmedi.
-- **Game Service migration aralığı (V31–V40) dolmuştur.** Faz 5 (GAME-23/24/26) şema değişikliği gerektirirse numara uydurulmayacak; ekipçe yeni aralık kararı gerekir.
+- **Game Service migration aralığı (V31–V40) dolmuştur.** Faz 5 (GAME-23/24/26) şema değişikliği gerektirirse numara uydurulmayacak; 2026-10-21 onayıyla ayrılan V171–V190 ek aralığı kullanılabilir (merkezi tahsis: `docs/decisions/migrations.md`); Faz 5 henüz başlatılmadı.
 - `docs/api.md` (14 yeni kayıt / 21 endpoint, 2 mevcut kayıt güncellendi), `docs/database.md`, `docs/er-diagram.md` ve ana faz checklist'i güncellendi. Yeni ENV, bağımlılık veya frontend değişikliği yoktur.
 
 ## Test ve kalite
@@ -160,4 +164,4 @@ Kalan sınır: Vimeo'da `vimeo.com/` önekinin tamamı kabul edilir (kanal/kulla
 - **Auth Service entegrasyonu** ve claim sözleşmesi doğrulaması (Kerem): [belge](LTZ-HAM-GAME-04-Auth-Entegrasyonu.md). ENV anahtarı onayı bekliyor.
 - Review Service toplu puan sözleşmesi (GAME-04/05/15) ve GAME-17 gerçek detay sağlayıcısı: önceki fazlardaki gibi açık.
 - Library/Review/Frontend tüketicilerinin bilgilendirilmesi. Gateway'den istemci IP iletimi ve diğer uçlarda rate limit için aşağıdaki doğrulama turuna bakın.
-- Faz 5 için migration aralığı kararı ve kullanıcı onayı gerekir; başlatılmadı.
+- Ek V171–V190 migration tahsisi onaylandı. Faz 5 geliştirmesi için ayrıca kullanıcı onayı gerekir; başlatılmadı.
