@@ -63,6 +63,8 @@ Branch adındaki servis adını bul. Aşağıdaki tabloya göre eşle (büyük/k
 **ENV:** Ek ENV anahtarı gerekmez. Doğrulayıcı için ortak blokta zaten gelen `AUTH_SERVICE_URL` (JWKS adresi için), `JWT_ISSUER` ve `JWT_AUDIENCE` yeterlidir.
 Başka anahtar eklemen gerekirse `AGENTS.md` kuralı geçerli: önce kullanıcıdan onay al.
 
+**İlk kurulum (Auth'u kendi makinende çalıştıracaksan):** `docker compose` üç Auth anahtarını zorunlu tutar (`AUTH_JWT_PRIVATE_KEY`, `AUTH_OTP_HMAC_KEY`, `AUTH_TOTP_ENCRYPTION_KEY`); `.env` dosyanda yoksa **servisin başlamasa bile** `docker compose` hata verir. Kendi anahtarlarını üret: `node ops/generate-auth-dev-keys.mjs` (yalnız eksik/boş olanları doldurur, değerleri ekrana yazmaz, dolu anahtarın üzerine yazmaz). Başkasının `.env` dosyasını **kopyalama**; `.env` kişisel `SONAR_TOKEN` gibi değerler içerir. Bu anahtarlar yerel geliştirme içindir.
+
 Durum işaretleri: **VAR** = kodda var ve test edildi · **SÖZLEŞME** = karar yazıldı, kod yok · **EKSİK** = henüz yok.
 
 ---
