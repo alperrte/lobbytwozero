@@ -8,6 +8,7 @@ public abstract class PostgresTestSupport {
     static { POSTGRES.start(); }
     @DynamicPropertySource
     static void database(DynamicPropertyRegistry properties) {
+        properties.add("AUTH_SERVICE_URL", () -> "http://127.0.0.1:9");
         properties.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         properties.add("spring.datasource.username", POSTGRES::getUsername);
         properties.add("spring.datasource.password", POSTGRES::getPassword);

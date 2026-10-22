@@ -689,6 +689,21 @@ _Kayıt yok._
 
 ## GAME
 
+> Auth entegrasyonu (2026-10-22): Korumalı GAME uçları Auth'un RS256 imzasını JWKS ile,
+> `typ=at+jwt`, `kid`, issuer/audience, UUID `sub` ve zorunlu `exp`/`nbf`/`iat` alanlarını
+> doğrular. Mevcut `AUTH_SERVICE_URL`, `JWT_ISSUER`, `JWT_AUDIENCE` kullanılır.
+> `roles` yalnız metin listesidir; ayrıcalıklı roller birebir eşleşir. Eski metin/`ROLE_`/küçük harf
+> esnekliği kaldırılmıştır. Public uçlar anonim kalır; geçersiz Bearer varsa 401 döner.
+> `SecurityBoundaryTest` mevcut 29 korumalı method/path için anonim 401 ve feedback dışındaki
+> yollar için PLAYER 403 sınırını kontrol eder. `RealAuthIntegrationTest` gerçek Auth üreticisi/JWKS
+> koduyla PLAYER feedback, ADMIN audit ve geliştirici grant senaryolarını doğrular.
+> İzole PostgreSQL/Mailpit ve ayrı Auth/Gateway/Game JVM'leriyle gerçek kayıt, e-posta doğrulama,
+> login, Gateway cookie/Bearer, PLAYER feedback/IDOR ve CSRF/Origin akışları **44 kontrol PASS**.
+> Onaylı yerel anahtar kurulumu sonrasında mevcut DEV'de Auth/Gateway/Game health,
+> Gateway routing ve Game konteynerinden Auth JWKS erişimi **PASS**.
+> DEV üzerinde canlı ADMIN/2FA ve geliştirici grant mutasyonları **NOT VERIFIED**.
+> Ayrıntı: [Game–Auth entegrasyon kaydı](../docs-Game%20Service/LTZ-HAM-GAME-04-Auth-Entegrasyonu.md).
+
 Sorumlu: Hamza · Gateway: `/api/v1/game/**` · Görevler: GAME-
 
 ### GAME — Oyun alt verileri (GAME-08)
@@ -1061,7 +1076,7 @@ Tüketici servisler: Frontend (yönetim paneli)
 POST /api/v1/game/admin/games
 
 #### Yetkilendirme
-Admin. Bearer JWT zorunlu; rol `ADMIN`. **Geçici doğrulama:** Auth Service henüz JWT üretmediğinden doğrulama yapılandırılabilir bir resource-server altyapısıdır ve yapılandırma yokken hiçbir token kabul edilmez (401, fail-closed). Gerçek rol/claim sözleşmesi doğrulanmadı. Ayrıntı: `docs-Game Service/LTZ-HAM-GAME-04-Auth-Entegrasyonu.md`. Aktör kimliği yalnız doğrulanmış token'dan alınır.
+Admin. Auth sözleşmesine uygun Bearer JWT ve birebir `ADMIN` rolü zorunludur (GAME ortak Auth notuna bakınız). Aktör kimliği yalnız doğrulanmış `sub` UUID'sinden alınır. İmza kaynağı yokken token kabul edilmez; hatalı yapılandırma uygulama başlangıcını engeller.
 
 #### Request Body
 ```json
@@ -1105,7 +1120,7 @@ Tüketici servisler: Frontend (yönetim paneli)
 GET /api/v1/game/admin/games/{gameId}
 
 #### Yetkilendirme
-Admin (Bearer JWT, rol `ADMIN`; geçici doğrulama notu için bkz. oyun oluşturma kaydı).
+Admin (Auth sözleşmesine uygun Bearer JWT, rol `ADMIN`; ortak doğrulama kuralları için bkz. GAME Auth notu).
 
 #### Response — 200
 AdminGameResponse (ARCHIVED oyunlar dahil; MERGED da görülebilir). `version` PATCH için iyimser kilit sürümüdür; `manualOverrides` senkronizasyonun ezmediği alanlardır.
@@ -1191,7 +1206,7 @@ POST /api/v1/game/admin/identity/reassign
 POST /api/v1/game/admin/identity/split
 
 #### Yetkilendirme
-Bearer JWT; yalnız `ADMIN`. Auth Service entegrasyonu NOT VERIFIED; mevcut JWT doğrulaması korunur.
+Auth sözleşmesine uygun Bearer JWT; yalnız `ADMIN`. Ortak JWT/JWKS doğrulaması uygulanmıştır; gerçek kimlik mutasyonlarının dış referans güvenliği kısıtları devam eder.
 
 #### Path/Query Parameters
 Yok.
@@ -1334,7 +1349,7 @@ GET /api/v1/game/developer/games
 GET /api/v1/game/developer/games/{gameId}/content
 
 #### Yetkilendirme
-Owner. Bearer JWT; rol `GAME_DEVELOPER` **ve** o oyun için aktif geliştirici yetkisi gerekir (ikisi ayrı denetlenir). Yetkisiz oyun için 403 (IDOR); ARCHIVED oyun için 404. Geçici doğrulama notu için bkz. oyun oluşturma kaydı.
+Owner. Auth sözleşmesine uygun Bearer JWT; rol `GAME_DEVELOPER` **ve** o oyun için aktif geliştirici yetkisi gerekir (ikisi ayrı denetlenir). Yetkisiz oyun için 403 (IDOR); ARCHIVED oyun için 404. Ortak doğrulama kuralları için bkz. GAME Auth notu.
 
 #### Response — 200
 `/games`: `[ { "gameId", "title" } ]` (yalnız yetkili ve ACTIVE oyunlar). `/content`: açıklama (durum, sürüm, moderasyon gerekçesi), medya ve güncelleme notları; silinmiş kayıtlar hariç, HIDDEN kayıtlar durumuyla birlikte görünür.
@@ -1516,7 +1531,7 @@ GET /api/v1/game/admin/games/{gameId}/achievements
 PUT /api/v1/game/admin/games/{gameId}/achievements/{code}
 
 #### Yetkilendirme
-Admin — mevcut Bearer JWT/ADMIN; gerçek Auth entegrasyonu NOT VERIFIED.
+Admin — Auth sözleşmesine uygun Bearer JWT ve `ADMIN`; ortak JWT/JWKS doğrulaması için bkz. GAME Auth notu. Bu uçta canlı Auth oturumuyla işlem **NOT VERIFIED**; izole API güvenlik testleri mevcuttur.
 
 #### Path/Query Parameters
 gameId UUID; code küçük harf/rakam/tire, 1–64 karakter.
@@ -1555,9 +1570,13 @@ GET /api/v1/game/feedback
 GET /api/v1/game/feedback/{id}
 
 #### Yetkilendirme
-Authenticated/Owner — mevcut doğrulanmış Bearer JWT; kimlik güvenlik bağlamından
-alınır. GET yalnız yazarın kendi kayıtlarıdır; başka yazara ait id 404 verir.
-ADMIN/MODERATOR rolü başka yazarların kayıtlarını açmaz. Gerçek Auth entegrasyonu NOT VERIFIED.
+Authenticated/Owner — Auth sözleşmesine uygun Bearer JWT; gerçek `PLAYER` token'ı desteklenir.
+Kimlik yalnız doğrulanmış `sub` üzerinden güvenlik bağlamından alınır.
+GET yalnız yazarın kendi kayıtlarıdır; başka yazara ait id 404 verir.
+ADMIN/MODERATOR rolü başka yazarların kayıtlarını açmaz. Gerçek Auth üreticisiyle
+oluşturma/okuma ve yazar IDOR kontrolü izole PostgreSQL üzerinde testlidir.
+Ayrıca gerçek kayıt/e-posta doğrulama/login sonrasında Gateway üzerinden iki PLAYER
+oturumuyla oluşturma, okuma ve çapraz kullanıcı 404 kontrolü geçici HTTP ortamında **PASS**.
 
 #### Path/Query Parameters
 id UUID. Liste: opsiyonel gameId UUID, type GENERAL/BUG_REPORT/EARLY_ACCESS,

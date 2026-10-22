@@ -43,8 +43,8 @@ import static org.springframework.security.test.web.servlet.setup.SecurityMockMv
  */
 @SpringBootTest @Import(AuthenticatedApiTest.Fakes.class) @Transactional
 public abstract class AuthenticatedApiTest extends PostgresTestSupport {
-    protected static final String ISSUER = "https://auth.ltz.test";
-    protected static final String AUDIENCE = "ltz-game-service-test";
+    protected static final String ISSUER = "ltz-auth";
+    protected static final String AUDIENCE = "ltz-api";
     protected static final KeyPair KEYS = generateKeys();
     protected static final KeyPair OTHER_KEYS = generateKeys();
     protected static final UUID ADMIN_ID = UUID.fromString("00000000-0000-0000-0000-0000000000a1");
@@ -57,6 +57,7 @@ public abstract class AuthenticatedApiTest extends PostgresTestSupport {
         String pem = "-----BEGIN PUBLIC KEY-----\n" + Base64.getMimeEncoder(64, "\n".getBytes()).encodeToString(KEYS.getPublic().getEncoded())
                 + "\n-----END PUBLIC KEY-----";
         properties.add("ltz.security.jwt.public-key", () -> pem);
+        properties.add("ltz.security.jwt.jwk-set-uri", () -> "");
         properties.add("ltz.security.jwt.issuer", () -> ISSUER);
         properties.add("ltz.security.jwt.audience", () -> AUDIENCE);
         // Toplu uç istek sınırı testleri belirleyici olsun diye sürekli dolum yok denecek kadar yavaştır (üretim varsayılanı 20/sn).
@@ -119,7 +120,9 @@ public abstract class AuthenticatedApiTest extends PostgresTestSupport {
     protected static JWTClaimsSet.Builder claims(Object subject, Object roles) {
         Instant now = Instant.now();
         JWTClaimsSet.Builder builder = new JWTClaimsSet.Builder().issuer(ISSUER).audience(AUDIENCE)
-                .issueTime(Date.from(now)).expirationTime(Date.from(now.plusSeconds(600)));
+                .issueTime(Date.from(now)).notBeforeTime(Date.from(now)).expirationTime(Date.from(now.plusSeconds(300)))
+                .jwtID(UUID.randomUUID().toString()).claim("sid", UUID.randomUUID().toString())
+                .claim("ver", 0L).claim("amr", List.of("pwd"));
         if (subject != null) builder.subject(subject.toString());
         if (roles != null) builder.claim("roles", roles);
         return builder;
@@ -127,7 +130,8 @@ public abstract class AuthenticatedApiTest extends PostgresTestSupport {
 
     protected static String sign(JWTClaimsSet.Builder claims, PrivateKey key) {
         try {
-            SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), claims.build());
+            SignedJWT jwt = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256)
+                    .type(new com.nimbusds.jose.JOSEObjectType("at+jwt")).keyID("game-test-key").build(), claims.build());
             jwt.sign(new RSASSASigner(key));
             return jwt.serialize();
         } catch (Exception failure) {

@@ -10,7 +10,7 @@ class GameFeedbackTest extends AuthenticatedApiTest {
     private static final String PRIVATE_BODY="Private bug details";
     private final UUID player=UUID.randomUUID();
     @org.springframework.beans.factory.annotation.Autowired jakarta.persistence.EntityManager entityManager;
-    private String playerToken() { return token(player,"USER"); }
+    private String playerToken() { return token(player,"PLAYER"); }
     private UUID active() { return game("Feedback game","INTERNAL","MAIN_GAME","ACTIVE"); }
     private String dev(UUID id) { return "/api/v1/game/developer/games/"+id+"/feedback"; }
     private String body(UUID game,String type) {
@@ -40,11 +40,11 @@ class GameFeedbackTest extends AuthenticatedApiTest {
         assertEquals(player,jdbc.queryForObject("select author_id from game_developer_feedback where id=?",UUID.class,UUID.fromString(id)));
         send(get(ROOT+"/"+id),playerToken(),null).andExpect(status().isOk())
                 .andExpect(jsonPath("$.body").value(PRIVATE_BODY)).andExpect(jsonPath("$.authorId").doesNotExist());
-        send(get(ROOT+"/"+id),token(UUID.randomUUID(),"USER"),null).andExpect(status().isNotFound());
+        send(get(ROOT+"/"+id),token(UUID.randomUUID(),"PLAYER"),null).andExpect(status().isNotFound());
         send(get(ROOT+"/"+id),admin(),null).andExpect(status().isNotFound());
         send(get(ROOT+"/"+id),moderator(),null).andExpect(status().isNotFound());
-        send(get(ROOT),token(UUID.randomUUID(),"USER"),null).andExpect(jsonPath("$.items").isEmpty());
-        send(post(ROOT),token(UUID.randomUUID(),"USER"),body(game,"GENERAL").replace("}",",\"userId\":\""+player+"\"}"))
+        send(get(ROOT),token(UUID.randomUUID(),"PLAYER"),null).andExpect(jsonPath("$.items").isEmpty());
+        send(post(ROOT),token(UUID.randomUUID(),"PLAYER"),body(game,"GENERAL").replace("}",",\"userId\":\""+player+"\"}"))
                 .andExpect(status().isBadRequest());
     }
     @Test void allPrivatePathsRequireAuthenticationAndNoPublicReadExists() throws Exception {
@@ -109,7 +109,7 @@ class GameFeedbackTest extends AuthenticatedApiTest {
         for(String invalid:new String[]{"{}",valid.replace("GENERAL","OTHER"),valid.replace("Feedback title"," "),
                 valid.replace(PRIVATE_BODY,"x".repeat(4001)),valid.replace("}",",\"status\":\"RESOLVED\"}"),
                 valid.replace("}",",\"version\":12}"),valid.replace(PRIVATE_BODY,"bad\\u0001text")}) {
-            send(post(ROOT),token(UUID.randomUUID(),"USER"),invalid).andExpect(status().isBadRequest());
+            send(post(ROOT),token(UUID.randomUUID(),"PLAYER"),invalid).andExpect(status().isBadRequest());
         }
         assertEquals(0,jdbc.queryForObject("select count(*) from game_developer_feedback",Integer.class));
     }
