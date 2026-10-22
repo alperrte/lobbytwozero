@@ -235,8 +235,8 @@ oluşturulmadı; GAME-24 sağlayıcı izni/erişimi bekler.
 
 | Tablo | Önemli sütunlar | Kısıtlar / not |
 | --- | --- | --- |
-| `friend_requests` | id, sender_id REF, receiver_id REF, status (PENDING, ACCEPTED, REJECTED, CANCELLED), created_at, responded_at | CHECK sender_id <> receiver_id; partial UQ (sender_id, receiver_id) WHERE status='PENDING' |
-| `friendships` | user_low_id REF, user_high_id REF, created_at | PK (user_low_id, user_high_id); CHECK low < high (tek satır/çift) |
+| `friend_requests` | id, sender_id REF, receiver_id REF, status (PENDING, ACCEPTED, REJECTED, CANCELLED), created_at, responded_at, version | CHECK sender_id <> receiver_id; CHECK (status='PENDING') = (responded_at IS NULL); yönden bağımsız partial UQ (LEAST(sender_id, receiver_id), GREATEST(sender_id, receiver_id)) WHERE status='PENDING' (`uq_friend_requests_pending_pair`) — **V121 ile uygulandı** |
+| `friendships` | user_low_id REF, user_high_id REF, created_at | PK (user_low_id, user_high_id); CHECK low < high (tek satır/çift); sıralama uygulamada PostgreSQL uuid sırasıyla (işaretsiz, baytsal) yapılır — `java.util.UUID.compareTo` kullanılmaz — **V121 ile uygulandı** |
 | `user_blocks` | blocker_id REF, blocked_id REF, created_at | PK (blocker_id, blocked_id); CHECK farklı |
 | `friend_invite_codes` | id, user_id REF, code, expires_at, max_uses, used_count, revoked_at | UQ code |
 | `social_privacy_settings` | user_id PK, who_can_send_requests, friends_list_visibility | |
