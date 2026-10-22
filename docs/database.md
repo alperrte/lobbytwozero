@@ -1,8 +1,8 @@
 # LTZ (LobbyTwoZero) — Veritabanı Tasarımı
 
-> Tarih: 2026-10-20
+> Tarih: 2026-10-20 · Son güncelleme: 2026-10-21
 >
-> Durum: Veritabanları `[MEVCUT]` (boş, init SQL ile oluşturulur). **Tablo tasarımları `[ÖNERİ]`dır**; henüz hiçbir serviste Flyway migration yoktur. Kesin şema servis sahibinin ilk migration'ı ile belirlenir ve bu belge aynı değişiklikte güncellenir.
+> Durum: Veritabanları `[MEVCUT]` (init SQL ile oluşturulur). Yalnız Game Service şeması uygulanmıştır: DEV `game_db` (2026-10-21'de `ltz-dev` sıfırlandıktan sonra) V31–V40, 10 migration, 21 uygulama tablosu ile çalışır. Diğer 16 servisin tablo tasarımları `[ÖNERİ]`dır; bu veritabanlarında henüz uygulanmış tablo yoktur. Kesin şema servis sahibinin migration'ı ile belirlenir ve bu belge aynı değişiklikte güncellenir.
 >
 > İlgili belgeler: [er-diagram.md](er-diagram.md) (diyagramlar), [architecture.md](architecture.md) (event'ler, Saga), [SECURITY.md](SECURITY.md) §9.
 
@@ -153,21 +153,63 @@ Gösterim: **PK** birincil anahtar, **FK** servis içi yabancı anahtar, **REF**
 
 ### 3.4 game_db — game-service (Hamza)
 
-| Tablo | Önemli sütunlar | Kısıtlar / not |
-| --- | --- | --- |
-| `games` | id (kanonik gameId), slug, title, normalized_title, description, release_date, developer_name, publisher_name, origin (INTERNAL, EXTERNAL), metadata_completeness (INDEX_ONLY, PARTIAL, FULL), status (ACTIVE, ARCHIVED, MERGED), merged_into_id FK, owner_developer_id REF, version | UQ slug |
-| `game_external_refs` | id, game_id FK, provider, external_id, last_synced_at | **UQ (provider, external_id)** |
-| `genres`, `tags`, `platforms` | id, code, name_tr, name_en | UQ code |
-| `game_genres`, `game_tags`, `game_platforms` | game_id FK, <ref>_id FK | PK bileşik |
-| `game_media` | id, game_id FK, type (COVER, SCREENSHOT, TRAILER), url, provider, sort_order | |
-| `game_system_requirements` | id, game_id FK, level (MINIMUM, RECOMMENDED), os, cpu, gpu, ram_mb, storage_mb, raw_text | REC-07/08 girdisi |
-| `game_provider_sync_state` | id, provider, cursor, sync_status, last_run_at, last_error_code | GAME-19 |
-| `game_popularity` | game_id PK/FK, score, review_count, avg_rating, library_count, calculated_at | Event ile güncellenir |
-| `game_prices` | id, game_id FK, provider, region, currency, price, discount_percent, fetched_at | GAME-24 (koşullu) |
-| `game_developer_posts` | id, game_id FK, author_id REF, title, body, status, created_at | GAME-13 |
-| `outbox_events`, `inbox_events` | §2.4 | |
+**Başlangıç migration kaynakları yeniden düzenlendi (2026-10-21, açık kullanıcı talimatı).**
+Son açık numaralandırma kararıyla aktif zincir kesintisiz **V31–V40**: 10 dosya,
+0 ALTER TABLE. Nihai oyun alanları/genel dil listesi/keşif indeksleri V31;
+harici kimlikler V32; provider sync/retry V33; identity audit V34; admin yönetimi V35;
+grant V36; geliştirici içerikleri V37; dil desteği/provenance V38; başarımlar V39;
+özel feedback V40. Aynı numaralı eski DEV migration'larıyla anlamlar karıştırılmamalıdır.
+Aşağıdaki tarihsel faz/sürüm atıfları bu ayrımı açıkça belirtir.
+Fiziksel nihai şema değişmemiştir. **Güncel DEV (2026-10-21):** `ltz-dev` Compose ortamı
+`down -v` ile sıfırlanıp mevcut kaynakla yeniden kuruldu; `game_db` yeni V31–V40 zinciriyle
+(10 başarılı Flyway kaydı, V171–V173 yok) çalışıyor. Eski 13 migration geçmişi geri yüklenmedi.
+Eski zincirle oluşmuş yerel bir `game_db` yeni kaynaklarla uyumsuzdur ve sıfırlanmalıdır.
+Yetkili (JWT'li) canlı uçlar **NOT VERIFIED**'dır.
+[Dosya haritası, testler ve tarihsel veri korumalı geçiş planı](../docs-Game%20Service/LTZ-HAM-GAME-Migration-Yeniden-Yapilandirma.md).
 
-İndeks: `ix_games_normalized_title` (`pg_trgm` GIN, arama), `ix_games_status_release_date`, `ix_game_popularity_score`.
+Tarihsel Faz 6 DEV dağıtımı (eski zincirde V172/V173, 2026-10-21; yeni aktif kaynaklarda V39/V40). Bu eski DEV geçmişi aynı gün ortam sıfırlanarak ortadan kalkmıştır:
+
+- Tarihsel V172 / aktif V39 `game_achievement_definitions`: UUID PK, game_id FK CASCADE, code/title/
+  nullable description, visible, version, UTC created_at/updated_at; UNIQUE(game_id,code)
+  ve (game_id,visible,code,id) public sayfalama indeksi. Başarım tanımıdır, oyuncu ilerlemesi değildir.
+- Tarihsel V173 / aktif V40 `game_developer_feedback`: UUID PK, game_id FK RESTRICT, author_id kullanıcı REF,
+  type GENERAL/BUG_REPORT/EARLY_ACCESS ve status OPEN/IN_PROGRESS/RESOLVED CHECK,
+  title/body, version ve UTC zamanlar. Yazar/tarih/id ve oyun/tür/durum/tarih/id indeksleri.
+  Özel kayıt; kullanıcı/rol tablosu veya Review verisi kopyalanmaz. Durum olayları
+  mevcut append-only game_admin_audits içinde içerik metni olmadan tutulur.
+- Faz 6 dağıtımında V31–V40 ve V171 değiştirilmemişti. V172/V173 yalnız eklemelidir; eski kayıtlara içerik
+  eklenmez. Dolu V171 -> V173 geçişi izole testte doğrulanır. (Bu eski zincirdeki "sonraki numara" tahsisi sonradan kaldırılmıştır; bkz. migrations.md.)
+
+Game Service GAME-23 şeması (oyun alanları V31; ilişkili tablolar aktif V38, tarihsel V171): `games.metadata_language` (nullable) ve
+`language_data_state` (UNKNOWN/EMPTY/INVALID/AVAILABLE), `game_language_supports`
+(game_id+language_code PK, üç bağımsız UNKNOWN/SUPPORTED/UNSUPPORTED alanı),
+`game_metadata_provenance` (game_id+field PK, kaynak, veri durumu, kayıt zamanı,
+nullable doğrulama zamanı). İki tablo oyun FK'siyle CASCADE bağlıdır; satırların
+eşzamanlı yönetimi mevcut games.version + oyun kilidiyle korunur. Eski
+game_languages tablosu değiştirilmez. Eski verilere kaynak/doğrulama backfill'i
+yapılmaz. LOCALIZATION mevcut manuel kilit allowlist'ine eklenir. Fiyat tablosu
+oluşturulmadı; GAME-24 sağlayıcı izni/erişimi bekler.
+
+
+**Tarihsel gelişim (eski numaralandırma — aktif zincir değildir):** GAME-08 V31, GAME-10 V32, GAME-16 V33, GAME-18 V34, GAME-21 V35, Faz 2 güncellik/retry altyapısı V36, Faz 3 keşif metadata/indeksleri V37, Faz 4 yönetim/geliştirici tabloları V38–V40, GAME-23 V171 ve Faz 6 V172–V173 eski 13 dosyalı zincirin numaralarıdır. Aşağıdaki "tarihsel Vxx" atıfları bu eski zincire, "aktif Vxx" atıfları bu bölümün başındaki yeni V31–V40 zincirine aittir; numaralar karıştırılmamalıdır (özellikle tarihsel V40 geliştirici içeriği, aktif V40 özel geri bildirimdir). V171–V173 yalnız bu eski zincirde kullanılmıştır, aktif migration değildir. V171–V190 ek aralığı ve V174–V190 rezervasyonu kaldırılmıştır; aktif V31–V40 aralığı doludur ve gelecekte yeni migration gerekirse numara aralığı ekipçe belirlenir. Gerçek detay sağlayıcısı henüz entegre edilmedi.
+
+- `games`: UUID `id`, `title`, `normalized_title`, UTC `created_at`/`updated_at`, optimistic `version`.
+- `catalog_terms`: UUID `id`, `kind` (GENRE/CATEGORY/TAG/PLATFORM), `code`, nullable TR/EN adlar, `version`; UNIQUE `(kind, code)`.
+- `game_terms`: oyun ve terim FK'leri, bileşik PK. Tek sözlük tablosunda kavramlar `kind` ile ayrılır; API dört ayrı dizi döner.
+- `game_developers`, `game_publishers`: oyun FK + şirket adı bileşik PK; birden fazla geliştirici/yayıncı desteklenir.
+- `game_media`: UUID, oyun FK, tip, HTTPS URL, kaynak, sıralama ve version.
+- `game_system_requirements`: UUID, oyun FK, platform, minimum/önerilen seviye, opsiyonel teknik alanlar/ham metin, version; UNIQUE `(game_id, platform, level)`.
+- Aktif V31/V32: `games.origin`, `metadata_completeness`, `status` V31'de; `game_external_refs` UUID, oyun FK, provider/external_id, last_synced_at, version ve UNIQUE `(provider, external_id)` V32'de. Köken yerelde saklamayla değişmez.
+- Aktif V31/V33: `normalized_title` 1024 karakter ve önek araması B-tree pattern indeksi V31'de; `game_provider_sync_state` V33'te sağlayıcı başına tek cursor, tur modu, durum, watermark, sayım ve version. Sayfa ve checkpoint tek transaction; provider state satırı pessimistic lock ile korunur.
+- Aktif V32/V34: Steam AppID başında sıfır olmayan pozitif uint32 metni olmak zorundadır; CHECK ve alias tekilliği V32'de korunur. V34 `game_identity_audits` operatör REF, kaynak/hedef oyun FK, referans FK, kanıt ve UTC zaman içerir; trigger UPDATE/DELETE işlemlerini reddeder.
+- Aktif V31 (tarihsel V35): `games.game_type` varchar + CHECK, varsayılan UNKNOWN; aktif katalog için tür/başlık indeksi. MAIN_GAME varsayılan arama kapsamıdır; kesin türü olmayan kayıtlar oyun diye varsayılmaz.
+- Tarihsel V36 (artık oyun alanları V31, sync alanları V33): `game_provider_sync_state.failure_count` ve `next_attempt_at` kalıcı retry/backoff durumudur. `games.description` (16000), `release_date`, `details_fetched_at`, `details_expires_at`, `details_next_attempt_at`, `details_failure_count`, `details_last_error_code` detay ve güncellik altyapısıdır. Zamanlar timestamptz/UTC, sayaçlar negatif olamaz. Güncellik, son başarılı kısmi detay yanıtına aittir; alan bazlı değildir.
+- Aktif V31 (tarihsel V37): nullable `early_access`; `game_languages` (oyun FK + dil kodu bileşik PK) ve dil arama indeksi. `editor_rank` (1–100, deferred UNIQUE), `popularity_updated_at`, `editor_actor_id` REF ve `editor_evidence` en son editör seçimini tutar; değişiklik geçmişi/audit akışı değildir. Başlık/tarih için ACTIVE MAIN_GAME kısmi indeksleri ve kapak seçimi indeksi vardır.
+- Aktif V35 (tarihsel V38): `game_field_overrides` (UNIQUE `(game_id, field)`; LOCALIZATION dahil alan allowlist CHECK) EXTERNAL oyunlarda manuel düzeltilmiş sağlayıcı alanlarını kilitler; senkronizasyon bu alanları yazmaz. `game_admin_audits` yönetim eylemlerinin (oyun, yetki, editör, moderasyon) append-only kaydıdır: aktör REF, rol, eylem allowlist CHECK, gerekçe (varsa en az 8 karakter), değişen alan adları (içerik metni değil); trigger UPDATE/DELETE'i reddeder, `game_id` FK `RESTRICT`'tir.
+- Aktif V36 (tarihsel V39): `game_developer_grants` oyun bazlı geliştirici yetkisi. `developer_user_id`/`granted_by`/`revoked_by` başka servise ait REF'tir (FK yok). Aynı geliştirici/oyun için tek aktif kayıt kısmi UNIQUE indeksle (`revoked_at is null`) korunur; geri alma kaydı silmez, `revoked_*` alanlarını doldurur (CHECK ile ikisi birlikte dolu/boş).
+- Aktif V37 (tarihsel V40): `game_developer_contents` (oyun başına tek açıklama), `game_developer_media` (IMAGE/VIDEO/DEMO, yalnız HTTPS bağlantı CHECK) ve `game_update_notes`. Katalog tabloları (`games.description`, `game_media`) değiştirilmez; sağlayıcı verisi ve geliştirici içeriği birbirini ezmez. Ortak alanlar: `author_id` REF, `status` (VISIBLE/HIDDEN/DELETED; açıklamada yalnız VISIBLE/HIDDEN), moderasyon alanları, version. Yazma yetkisi uygulama katmanında rol + oyun yetkisiyle denetlenir.
+- Keşif sayfası/count/ilişkileri aynı REPEATABLE_READ görünümünde toplu SQL ile okunur; puan projeksiyonu veya review_db erişimi yoktur.
+- Yalnız servis içi FK kullanılır; fiyat bilgisi sonraki fazdadır.
 
 ### 3.5 library_db — library-service (Hamza)
 

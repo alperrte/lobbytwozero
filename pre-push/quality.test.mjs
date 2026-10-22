@@ -17,7 +17,7 @@ async function fixture(options, action) {
   write('backend/pom.xml', modules.map(module => `<module>${module}</module>`).join(''));
   const calls = [], lines = [];
   const runCommand = async (command, args, settings) => {
-    calls.push({ command, args });
+    calls.push({ command, args, env: settings.env });
     assert.equal(settings.env.SONAR_TOKEN, undefined);
     if (command === 'git') return { code: 0, output: options.secret && args.includes('ls-files') ? '.env.dev\0' : '' };
     if (command.startsWith('mvn')) {
@@ -35,7 +35,10 @@ async function fixture(options, action) {
     if (command === 'docker') {
       if (options.noDocker) return { code: 1, output: '' };
       if (args.includes('--services')) return { code: 0, output: options.deployed ? 'postgres\nauth-service\n' : 'postgres\n' };
-      if (args.includes('--format') && args.includes('config')) return { code: 0, output: JSON.stringify({ name: 'ltz-dev', services: { 'auth-service': { ports: [{ target: 8080, published: '5081' }], environment: {} } } }) };
+      if (args.includes('--format') && args.includes('config')) return { code: 0, output: JSON.stringify({ name: 'ltz-dev', services: {
+        postgres: { ports: [{ target: 5432, published: '5542', host_ip: '127.0.0.1' }], environment: { POSTGRES_USER: 'fixture-user', POSTGRES_PASSWORD: 'fixture-db-pass' } },
+        'auth-service': { ports: [{ target: 8080, published: '5081' }], environment: { DB_AUTH_NAME: 'auth_db' } }
+      } }) };
       if (args.includes('ps')) return { code: 0, output: '[]' }; // configured, but stopped
       return { code: 0, output: '' };
     }
@@ -54,6 +57,12 @@ test('full check matches the current backend and postgres scope without inventin
     assert.ok(calls.every(call => !call.command.startsWith('npm')));
     assert.ok(calls.some(call => call.args.includes('.env.dev')));
     assert.ok(lines.includes('\nSAFE TO COMMIT'));
+    const maven = calls.find(call => call.args.includes('verify'));
+    assert.equal(maven.env.POSTGRES_PORT, '5542');
+    assert.equal(maven.env.POSTGRES_PASSWORD, 'fixture-db-pass');
+    assert.equal(maven.env.DB_AUTH_NAME, 'auth_db');
+    assert.ok(calls.filter(call => call.command === 'docker').every(call => call.env.POSTGRES_PASSWORD === undefined));
+    assert.ok(lines.every(line => !line.includes('fixture-db-pass')));
   });
 });
 

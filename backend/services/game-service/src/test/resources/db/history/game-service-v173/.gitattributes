@@ -1,0 +1,2 @@
+# Tarihsel fixture hash'leri checkout sırasında EOL dönüşümünden etkilenmemeli.
+*.sql -text
