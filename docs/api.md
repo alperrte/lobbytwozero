@@ -1,6 +1,6 @@
 # LTZ — API Kataloğu
 
-> Son güncelleme: 2026-10-21
+> Son güncelleme: 2026-10-22
 > Bu dosya projedeki **tüm API'lerin tek kaydıdır**. Bir endpoint planlandığında, eklendiğinde, değiştiğinde veya kaldırıldığında, aynı değişiklikte buraya kendi servisinin başlığı altında yazılır.
 > İlgili belgeler: [architecture.md](architecture.md) (gateway ve servisler arası iletişim), [SECURITY.md](SECURITY.md) (yetkilendirme, ProblemDetail), [web-rules.md](web-rules.md) (frontend tüketimi).
 
@@ -709,7 +709,239 @@ _Kayıt yok._
 
 Sorumlu: Umut · Gateway: `/api/v1/social/**` · Görevler: SOC-
 
-_Kayıt yok._
+Ortak kurallar (aşağıdaki altı uç için, görev LTZ-UMT-SOC-01 / SOC-01..SOC-06):
+- Tüm uçlar `Authorization: Bearer <access token>` ister (Gateway tarayıcı çerezini Bearer'a çevirir). Token servis tarafında Auth'un JWKS anahtarıyla yeniden doğrulanır (RS256, `iss`, `aud`, `typ=at+jwt`, `exp`). `userId` yalnız token'ın `sub` alanından alınır; gövde/başlıktaki kimlik (`senderId`, `X-User-Id` vb.) güvenilmez: gövdedeki bilinmeyen alan `400`, başlıklar yok sayılır.
+- Kimliksiz veya geçersiz token `401 UNAUTHENTICATED`; tanımsız yol `401/403`. Hata gövdesi `ProblemDetail` + `code` alanıdır; doğrulama hatalarında `errors: [{field, code}]` döner, gönderilen değer geri yansıtılmaz.
+- İstek gövdesi en fazla 8 KB'tır; aşan istek `413 PAYLOAD_TOO_LARGE`.
+- İstek kaynağı (`FriendRequest`) tek tip yanıt döner:
+  ```json
+  {
+    "id": "UUID",
+    "senderId": "UUID",
+    "receiverId": "UUID",
+    "status": "PENDING | ACCEPTED | REJECTED | CANCELLED",
+    "createdAt": "ISO-8601 (UTC)",
+    "respondedAt": "ISO-8601 (UTC) veya null"
+  }
+  ```
+- Durum makinesi: `PENDING → ACCEPTED | REJECTED | CANCELLED`; yanıtlanmış istek değişmez (`409 FRIEND_REQUEST_NOT_PENDING`). Bir isteğe yalnız tarafları dokunabilir; isteğin var olup olmadığı ve kime ait olduğu sızdırılmasın diye "yok" ve "senin değil" aynı `404 FRIEND_REQUEST_NOT_FOUND` ile döner.
+- Liste uçları keyset sayfalama kullanır: `limit` (1–50, varsayılan 20), `cursor` (opak; önceki yanıttaki `nextCursor` aynen gönderilir). Sıralama `createdAt` azalan, eşitlikte `id` azalan. Yanıt: `{ "items": [FriendRequest], "nextCursor": "string veya null" }`.
+- Kullanıcıların varlığı bu serviste doğrulanmaz (user-service ucu henüz yok — **PENDING**); `receiverId` yalnız UUID olarak saklanır. Engelleme (SOC-09) uygulandığında gönderme ucu engel kontrolü de yapacaktır — **PENDING**.
+
+### SOCIAL — Arkadaşlık isteği gönder (SOC-01)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/social/friend-requests
+
+#### Yetkilendirme
+Authenticated (gönderen = token sahibi)
+
+#### Request Body
+```json
+{
+  "receiverId": "UUID, zorunlu"
+}
+```
+
+#### Response — 201
+`FriendRequest` (`status: PENDING`, `respondedAt: null`).
+
+#### Hata Durumları
+- 400: `receiverId` eksik/biçimsiz (`VALIDATION_FAILED`, `MALFORMED_REQUEST`); kendine istek (`CANNOT_REQUEST_SELF`)
+- 401: Kimlik yok/geçersiz (`UNAUTHENTICATED`)
+- 409: Zaten arkadaş (`ALREADY_FRIENDS`); aynı kişiye bekleyen istek var (`FRIEND_REQUEST_ALREADY_PENDING`); karşı taraf zaten istek göndermiş (`INCOMING_FRIEND_REQUEST_PENDING`, önce o isteği yanıtlayın)
+- 413: İstek gövdesi çok büyük
+- 429: Bekleyen giden istek sınırı doldu (`TOO_MANY_PENDING_REQUESTS`; varsayılan 100)
+- 500: Beklenmeyen sunucu hatası
+
+Aynı kullanıcı çifti arasında yönden bağımsız en fazla bir bekleyen istek olabilir; bu kural veritabanında kısmi tekil indeksle de zorlanır (eşzamanlı istekte kaybeden `409` alır). Reddedilen/iptal edilen istekten sonra yeniden istek gönderilebilir.
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/social/friend-requests
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 64 test PASS)
+
+### SOCIAL — Arkadaşlık isteğini kabul et (SOC-02)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/social/friend-requests/{requestId}/accept
+
+#### Yetkilendirme
+Owner (yalnız isteğin alıcısı)
+
+#### Path Parameters
+- requestId: UUID, zorunlu
+
+#### Response — 200
+`FriendRequest` (`status: ACCEPTED`, `respondedAt` dolu). Aynı işlemde karşılıklı arkadaşlık kaydı oluşur (çift başına tek satır).
+
+#### Hata Durumları
+- 400: Geçersiz `requestId` (`MALFORMED_REQUEST`)
+- 401: Kimlik yok/geçersiz
+- 404: İstek yok veya çağıran alıcı değil (`FRIEND_REQUEST_NOT_FOUND`)
+- 409: İstek zaten yanıtlanmış/iptal edilmiş (`FRIEND_REQUEST_NOT_PENDING`); eşzamanlı değişiklik (`CONCURRENT_MODIFICATION`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/social/friend-requests/{requestId}/accept
+
+Diğer mikroservisler:
+`FriendshipChanged` olayı ve bildirim (SOC-13) — **PENDING**.
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 64 test PASS)
+
+### SOCIAL — Arkadaşlık isteğini reddet (SOC-03)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/social/friend-requests/{requestId}/reject
+
+#### Yetkilendirme
+Owner (yalnız isteğin alıcısı)
+
+#### Path Parameters
+- requestId: UUID, zorunlu
+
+#### Response — 200
+`FriendRequest` (`status: REJECTED`, `respondedAt` dolu). Arkadaşlık oluşmaz.
+
+#### Hata Durumları
+- 400: Geçersiz `requestId`
+- 401: Kimlik yok/geçersiz
+- 404: İstek yok veya çağıran alıcı değil (`FRIEND_REQUEST_NOT_FOUND`)
+- 409: `FRIEND_REQUEST_NOT_PENDING`; `CONCURRENT_MODIFICATION`
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/social/friend-requests/{requestId}/reject
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 64 test PASS)
+
+### SOCIAL — Arkadaşlık isteğini iptal et (SOC-04)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/social/friend-requests/{requestId}/cancel
+
+#### Yetkilendirme
+Owner (yalnız isteği gönderen)
+
+#### Path Parameters
+- requestId: UUID, zorunlu
+
+#### Response — 200
+`FriendRequest` (`status: CANCELLED`, `respondedAt` dolu). Yalnız henüz yanıtlanmamış istek iptal edilebilir.
+
+#### Hata Durumları
+- 400: Geçersiz `requestId`
+- 401: Kimlik yok/geçersiz
+- 404: İstek yok veya çağıran gönderen değil (`FRIEND_REQUEST_NOT_FOUND`)
+- 409: İstek zaten kabul/red edilmiş ya da iptal edilmiş (`FRIEND_REQUEST_NOT_PENDING`); `CONCURRENT_MODIFICATION`
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/social/friend-requests/{requestId}/cancel
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 64 test PASS)
+
+### SOCIAL — Gelen bekleyen istekler (SOC-05)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/social/friend-requests/incoming
+
+#### Yetkilendirme
+Authenticated (yalnız token sahibine gelen istekler döner)
+
+#### Query Parameters
+- limit: int, opsiyonel, varsayılan 20, 1–50
+- cursor: string, opsiyonel, önceki yanıttaki `nextCursor`
+
+#### Response — 200
+`{ "items": [FriendRequest], "nextCursor": "string | null" }` — yalnız `PENDING` istekler, en yeniden eskiye.
+
+#### Hata Durumları
+- 400: Sınır dışı `limit` (`INVALID_PAGE_SIZE`), bozuk `cursor` (`INVALID_CURSOR`)
+- 401: Kimlik yok/geçersiz
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/social/friend-requests/incoming
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 64 test PASS)
+
+### SOCIAL — Gönderilen bekleyen istekler (SOC-06)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/social/friend-requests/outgoing
+
+#### Yetkilendirme
+Authenticated (yalnız token sahibinin gönderdiği istekler döner)
+
+#### Query Parameters
+- limit: int, opsiyonel, varsayılan 20, 1–50
+- cursor: string, opsiyonel, önceki yanıttaki `nextCursor`
+
+#### Response — 200
+`{ "items": [FriendRequest], "nextCursor": "string | null" }` — yalnız `PENDING` istekler, en yeniden eskiye.
+
+#### Hata Durumları
+- 400: Sınır dışı `limit` (`INVALID_PAGE_SIZE`), bozuk `cursor` (`INVALID_CURSOR`)
+- 401: Kimlik yok/geçersiz
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/social/friend-requests/outgoing
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 64 test PASS)
 
 ## MESSAGING
 

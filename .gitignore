@@ -23,3 +23,6 @@ test-results/
 
 # Auth gelistirme notlari ve kapanis raporlari yerelde kalir; ekip rehberi docs/AUTH_SERVICE_ENTEGRASYON_REHBERI.md
 docs-auth/
+
+# Social gelistirme notlari ve task kapanis raporlari (docs-<servis> kurali) yerelde kalir
+docs-social/

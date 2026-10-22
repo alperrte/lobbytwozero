@@ -399,10 +399,14 @@ erDiagram
     uuid sender_id "REF"
     uuid receiver_id "REF"
     varchar status "PENDING|ACCEPTED|REJECTED|CANCELLED"
+    timestamptz created_at
+    timestamptz responded_at
+    bigint version
   }
   friendships {
     uuid user_low_id PK "REF"
     uuid user_high_id PK "REF"
+    timestamptz created_at
   }
   user_blocks {
     uuid blocker_id PK "REF"
