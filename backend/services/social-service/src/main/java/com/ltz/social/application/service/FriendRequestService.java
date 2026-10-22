@@ -17,6 +17,9 @@ import com.ltz.social.domain.entity.FriendRequest;
 import com.ltz.social.domain.entity.Friendship;
 import com.ltz.social.domain.entity.FriendshipId;
 import com.ltz.social.domain.enums.FriendRequestStatus;
+import com.ltz.social.domain.event.FriendRequestAcceptedEvent;
+import com.ltz.social.domain.event.FriendRequestSentEvent;
+import com.ltz.social.domain.event.FriendshipChangedEvent;
 import com.ltz.social.domain.exception.SocialErrorCode;
 import com.ltz.social.domain.exception.SocialException;
 import com.ltz.social.infrastructure.config.FriendRequestProperties;
@@ -37,6 +40,8 @@ public class FriendRequestService {
     private final FriendshipRepository friendships;
     private final FriendRequestMapper mapper;
     private final FriendRequestProperties properties;
+    private final PageSizePolicy pageSizes;
+    private final OutboxEventRecorder events;
     private final Clock clock;
 
     /** SOC-01. Kendine, zaten arkadaş olunan veya aralarında bekleyen isteği olan kullanıcıya istek gönderilemez. */
@@ -58,12 +63,15 @@ public class FriendRequestService {
                 >= properties.maxPendingOutgoing()) {
             throw new SocialException(SocialErrorCode.TOO_MANY_PENDING_REQUESTS);
         }
+        FriendRequest saved;
         try {
-            return mapper.toView(requests.saveAndFlush(FriendRequest.send(senderId, receiverId, now())));
+            saved = requests.saveAndFlush(FriendRequest.send(senderId, receiverId, now()));
         } catch (DataIntegrityViolationException exception) {
             // Eşzamanlı iki istek: uq_friend_requests_pending_pair kazananı belirler, kaybeden 409 alır.
             throw new SocialException(SocialErrorCode.FRIEND_REQUEST_ALREADY_PENDING);
         }
+        events.record(new FriendRequestSentEvent(saved.getId(), senderId, receiverId));
+        return mapper.toView(saved);
     }
 
     /** SOC-02. Yalnız alıcı kabul edebilir; karşılıklı arkadaşlık aynı işlemde oluşur. */
@@ -75,7 +83,10 @@ public class FriendRequestService {
         FriendshipId friendshipId = FriendshipId.of(request.getSenderId(), request.getReceiverId());
         if (!friendships.existsById(friendshipId)) {
             friendships.save(Friendship.between(request.getSenderId(), request.getReceiverId(), now));
+            events.record(FriendshipChangedEvent.of(request.getSenderId(), request.getReceiverId(),
+                    FriendshipChangedEvent.Change.ADDED));
         }
+        events.record(new FriendRequestAcceptedEvent(request.getId(), request.getSenderId(), request.getReceiverId()));
         return mapper.toView(request);
     }
 
@@ -98,14 +109,14 @@ public class FriendRequestService {
     /** SOC-05. Kullanıcıya gelen bekleyen istekler, en yeniden eskiye. */
     @Transactional(readOnly = true)
     public FriendRequestPageView listIncoming(UUID userId, Integer pageSize, String cursor) {
-        int size = resolvePageSize(pageSize);
+        int size = pageSizes.resolve(pageSize);
         Limit fetch = Limit.of(size + 1);
         List<FriendRequest> rows;
         if (cursor == null) {
             rows = requests.findByReceiverIdAndStatusOrderByCreatedAtDescIdDesc(userId, FriendRequestStatus.PENDING,
                     fetch);
         } else {
-            FriendRequestCursor after = FriendRequestCursor.decode(cursor);
+            KeysetCursor after = KeysetCursor.decode(cursor);
             rows = requests.findIncomingAfter(userId, FriendRequestStatus.PENDING, after.createdAt(), after.id(),
                     fetch);
         }
@@ -115,14 +126,14 @@ public class FriendRequestService {
     /** SOC-06. Kullanıcının gönderdiği bekleyen istekler, en yeniden eskiye. */
     @Transactional(readOnly = true)
     public FriendRequestPageView listOutgoing(UUID userId, Integer pageSize, String cursor) {
-        int size = resolvePageSize(pageSize);
+        int size = pageSizes.resolve(pageSize);
         Limit fetch = Limit.of(size + 1);
         List<FriendRequest> rows;
         if (cursor == null) {
             rows = requests.findBySenderIdAndStatusOrderByCreatedAtDescIdDesc(userId, FriendRequestStatus.PENDING,
                     fetch);
         } else {
-            FriendRequestCursor after = FriendRequestCursor.decode(cursor);
+            KeysetCursor after = KeysetCursor.decode(cursor);
             rows = requests.findOutgoingAfter(userId, FriendRequestStatus.PENDING, after.createdAt(), after.id(),
                     fetch);
         }
@@ -136,22 +147,16 @@ public class FriendRequestService {
                 .orElseThrow(() -> new SocialException(SocialErrorCode.FRIEND_REQUEST_NOT_FOUND));
     }
 
-    private int resolvePageSize(Integer requested) {
-        if (requested == null) {
-            return properties.defaultPageSize();
-        }
-        if (requested < 1 || requested > properties.maxPageSize()) {
-            throw new SocialException(SocialErrorCode.INVALID_PAGE_SIZE);
-        }
-        return requested;
-    }
-
     /** {@code size + 1} kayıt okunur; fazla kayıt varsa sonraki sayfa imleci son görünen kayıttan üretilir. */
     private FriendRequestPageView toPage(List<FriendRequest> rows, int size) {
         boolean hasMore = rows.size() > size;
         List<FriendRequestView> items = rows.stream().limit(size).map(mapper::toView).toList();
-        String nextCursor = hasMore ? FriendRequestCursor.of(items.getLast()).encode() : null;
+        String nextCursor = hasMore ? cursorAfter(items.getLast()).encode() : null;
         return new FriendRequestPageView(items, nextCursor);
+    }
+
+    private static KeysetCursor cursorAfter(FriendRequestView last) {
+        return new KeysetCursor(last.createdAt(), last.id());
     }
 
     /** DB timestamptz mikrosaniye tutar; imleç karşılaştırması kayıpsız olsun diye aynı kesinlikte yazılır. */

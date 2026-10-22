@@ -1713,7 +1713,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 64 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 126 test PASS)
 
 ### SOCIAL — Arkadaşlık isteğini kabul et (SOC-02)
 
@@ -1748,7 +1748,7 @@ Diğer mikroservisler:
 `FriendshipChanged` olayı ve bildirim (SOC-13) — **PENDING**.
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 64 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 126 test PASS)
 
 ### SOCIAL — Arkadaşlık isteğini reddet (SOC-03)
 
@@ -1783,7 +1783,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 64 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 126 test PASS)
 
 ### SOCIAL — Arkadaşlık isteğini iptal et (SOC-04)
 
@@ -1818,7 +1818,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 64 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 126 test PASS)
 
 ### SOCIAL — Gelen bekleyen istekler (SOC-05)
 
@@ -1852,7 +1852,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 64 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 126 test PASS)
 
 ### SOCIAL — Gönderilen bekleyen istekler (SOC-06)
 
@@ -1886,7 +1886,252 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 64 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 126 test PASS)
+
+### SOCIAL — Arkadaş listesi (SOC-07)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/social/friends
+
+#### Yetkilendirme
+Authenticated (yalnız token sahibinin kendi arkadaşları döner)
+
+#### Query Parameters
+- limit: int, opsiyonel, varsayılan 20, 1–50
+- cursor: string, opsiyonel, önceki yanıttaki `nextCursor`
+
+#### Response — 200
+```json
+{
+  "items": [
+    { "friendId": "UUID", "since": "ISO-8601 (UTC) — arkadaşlığın başlangıcı" }
+  ],
+  "nextCursor": "string veya null"
+}
+```
+En yeni arkadaşlıktan eskiye sıralıdır. Yalnız kimlik döner; ad/avatar gibi profil bilgisi user-service'tedir. Başkasının arkadaş listesi görüntüleme ve gizlilik tercihi (SOC-12) ayrı görevdir — **PENDING**.
+
+#### Hata Durumları
+- 400: Sınır dışı `limit` (`INVALID_PAGE_SIZE`), bozuk `cursor` (`INVALID_CURSOR`)
+- 401: Kimlik yok/geçersiz
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/social/friends
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; social-service 126 test PASS)
+
+### SOCIAL — Arkadaşlıktan çıkar (SOC-08)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+DELETE /api/v1/social/friends/{friendId}
+
+#### Yetkilendirme
+Owner (yalnız arkadaşlığın iki tarafından biri; işlem token sahibi ile `friendId` çiftine bağlıdır)
+
+#### Path Parameters
+- friendId: UUID, zorunlu
+
+#### Response — 204
+Gövde yok. Arkadaşlık kaydı silinir; iki tarafın listesinden de düşer. İstek geçmişi korunur; sonrasında yeniden istek gönderilebilir.
+
+#### Hata Durumları
+- 400: Geçersiz `friendId` (`MALFORMED_REQUEST`)
+- 401: Kimlik yok/geçersiz
+- 404: Kullanıcıyla arkadaş değil, ya da kendisi (`FRIENDSHIP_NOT_FOUND`). Başkalarının arkadaşlığı bu uçla etkilenemez.
+- 500: Beklenmeyen sunucu hatası
+
+Eşzamanlı iki çıkarma isteğinden yalnız biri `204`, diğeri `404` alır.
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/social/friends/{friendId}
+
+Diğer mikroservisler:
+`FriendshipChanged` (`change: REMOVED`) olayı outbox'a yazılır — teslim **PENDING**, bkz. "Giden olay sözleşmeleri".
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; social-service 126 test PASS)
+
+### SOCIAL — Davet kodumu getir (SOC-14)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/social/invite-code
+
+#### Yetkilendirme
+Authenticated (yalnız token sahibinin kendi kodu)
+
+#### Response — 200
+```json
+{
+  "code": "10 karakter, Crockford base32 (0-9 A-Z, I L O U yok)",
+  "createdAt": "ISO-8601 (UTC)",
+  "expiresAt": "ISO-8601 (UTC)",
+  "maxUses": "int — bu kodla en fazla kaç istek oluşturulabilir",
+  "usedCount": "int"
+}
+```
+
+#### Hata Durumları
+- 401: Kimlik yok/geçersiz
+- 404: Etkin ve kullanılabilir kod yok (hiç yok, iptal edilmiş, süresi dolmuş ya da kullanım hakkı bitmiş) (`INVITE_CODE_NOT_FOUND`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/social/invite-code
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; social-service 126 test PASS)
+
+### SOCIAL — Davet kodu üret (SOC-14)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/social/invite-code
+
+#### Yetkilendirme
+Authenticated
+
+#### Response — 201 / 200
+Yanıt gövdesi "Davet kodumu getir" ile aynıdır. Etkin ve kullanılabilir kod varsa **200** ile o döner (idempotent); yoksa (hiç yok, süresi dolmuş, kullanım hakkı bitmiş) eski kod iptal edilip yenisi üretilir ve **201** döner. Kullanıcının aynı anda en fazla bir etkin kodu vardır; eşzamanlı çağrılar aynı kodu görür.
+
+Kod `SecureRandom` ile üretilir (50 bit), varsayılan geçerlilik 30 gün ve en fazla 50 kullanım (`ltz.social.invite-codes.*`).
+
+#### Hata Durumları
+- 401: Kimlik yok/geçersiz
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/social/invite-code
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; social-service 126 test PASS)
+
+### SOCIAL — Davet kodumu iptal et (SOC-14)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+DELETE /api/v1/social/invite-code
+
+#### Yetkilendirme
+Authenticated (yalnız token sahibinin kendi kodu)
+
+#### Response — 204
+Gövde yok. Etkin kod iptal edilir; kod yoksa da `204` döner (idempotent). İptal edilen kod bir daha kullanılamaz; yeni kod için `POST` çağrılır.
+
+#### Hata Durumları
+- 401: Kimlik yok/geçersiz
+- 409: Aynı anda yapılan bir kullanımla çakıştı (`CONCURRENT_MODIFICATION`); istek tekrarlanabilir
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/social/invite-code
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; social-service 126 test PASS)
+
+### SOCIAL — Davet koduyla arkadaşlık isteği gönder (SOC-14)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/social/friend-requests/by-code
+
+#### Yetkilendirme
+Authenticated (gönderen = token sahibi; alıcı = kodun sahibi)
+
+#### Request Body
+```json
+{
+  "code": "string, zorunlu, en fazla 32 karakter; büyük/küçük harf, boşluk ve tire fark etmez"
+}
+```
+
+#### Response — 201
+`FriendRequest` (`status: PENDING`) — "Arkadaşlık isteği gönder" ile aynı kayıt ve aynı kurallar. Kullanım sayacı yalnız istek gerçekten oluştuğunda artar; istek reddedilirse (ör. zaten arkadaş) işlem geri alınır.
+
+#### Hata Durumları
+- 400: `code` boş/çok uzun (`VALIDATION_FAILED`); kendi kodu (`CANNOT_REQUEST_SELF`)
+- 401: Kimlik yok/geçersiz
+- 404: Kod bilinmiyor, biçimsiz, iptal edilmiş, süresi dolmuş veya kullanım hakkı bitmiş — **hepsi aynı yanıt** (`INVITE_CODE_NOT_FOUND`, kodun varlığı sızdırılmaz)
+- 409: Zaten arkadaş (`ALREADY_FRIENDS`); bekleyen istek var (`FRIEND_REQUEST_ALREADY_PENDING`, `INCOMING_FRIEND_REQUEST_PENDING`)
+- 413: İstek gövdesi çok büyük
+- 429: Bekleyen giden istek sınırı doldu (`TOO_MANY_PENDING_REQUESTS`)
+- 500: Beklenmeyen sunucu hatası
+
+Engelleme kuralı (SOC-09) uygulandığında normal istek ucuyla aynı yerde (`FriendRequestService.send`) uygulanacağı için bu akışı da kapsar — **PENDING**.
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/social/friend-requests/by-code
+
+Diğer mikroservisler:
+`FriendRequestSent` olayı outbox'a yazılır — teslim **PENDING**.
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; social-service 126 test PASS)
+
+### SOCIAL — Giden olay sözleşmeleri (SOC-13, teslim PENDING)
+
+Durum: IN PROGRESS (olaylar outbox'a yazılıyor; tüketiciye teslim bekliyor)
+Sorumlu: Umut
+Tüketici servisler: notification-service, messaging-service, recommendation-service
+
+Bunlar Social'in **yayımladığı** olay sözleşmeleridir; tüketici servislerin kaydı kendi başlıkları altında açılır. Olaylar iş verisiyle aynı transaction'da `outbox_events` tablosuna yazılır (olay kaybı ve hayalet olay yoktur) ve en az bir kez teslim edilir; tüketici `eventId` ile tekilleştirir.
+
+Zarf (docs/architecture.md §6.2): `eventId`, `eventType`, `eventVersion`, `occurredAt` (UTC), `producer: "social-service"`, `aggregateId`, `payload`. Yük yalnız kimlik/enum taşır; ad, e-posta, mesaj gibi kişisel veri yoktur.
+
+| Olay | Ne zaman | `payload` | Tüketici |
+| --- | --- | --- | --- |
+| `FriendRequestSent` v1 | Yeni istek oluştu (normal ya da kodla) | `requestId`, `senderId`, `receiverId` | notification (alıcıya bildirim) |
+| `FriendRequestAccepted` v1 | İstek kabul edildi | `requestId`, `senderId`, `receiverId` | notification (isteği gönderene bildirim) |
+| `FriendshipChanged` v1 | Arkadaşlık kuruldu / bitti | `userLowId`, `userHighId`, `change` (`ADDED` \| `REMOVED`) | messaging (sohbet izni), recommendation (arkadaş önerisi) |
+
+Red ve iptal olay üretmez (reddedilen kişiye bildirim gitmez).
+
+Teslim durumu — **PENDING**: `notification-service` henüz iç uç sunmuyor ve servisler arası kimlik (D4, `typ=svc+jwt`) hazır değil; kimliksiz bir iç uca olay göndermek yasaktır. Bu yüzden relay (`ltz.social.outbox.relay-enabled`) varsayılan **kapalı** ve teslim adaptörü `unavailable`dir; olaylar outbox'ta `PENDING` bekler. Gerçek adaptör (`SocialEventPublisher` uygulaması) tüketici uç ve servis kimliği hazır olunca eklenir; sonra relay açılır. Relay mantığı (üstel geri çekilme, en fazla 10 deneme sonrası `FAILED`, `SKIP LOCKED` ile çift teslim önleme) testlidir.
+
+Not: Social bu olayları üretir; `notification-service`/`messaging-service` tarafında tüketici uç eklenmesi o servislerin sahiplerine bildirilmelidir (notification-service ortak/sahipsizdir).
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; social-service 126 test PASS)
 
 ## MESSAGING
 

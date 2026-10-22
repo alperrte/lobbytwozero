@@ -33,8 +33,8 @@ class FlywayMigrationTest extends IntegrationTestSupport {
         List<String> tables = jdbc.queryForList(
                 "select table_name from information_schema.tables where table_schema = 'public'", String.class);
 
-        assertThat(versions).contains("121");
-        assertThat(tables).contains("friend_requests", "friendships");
+        assertThat(versions).contains("121", "122", "123");
+        assertThat(tables).contains("friend_requests", "friendships", "outbox_events", "friend_invite_codes");
     }
 
     @Test
@@ -124,6 +124,55 @@ class FlywayMigrationTest extends IntegrationTestSupport {
             assertThatCode(() -> friendships.saveAndFlush(Friendship.between(a, b, Instant.now())))
                     .doesNotThrowAnyException();
         }
+    }
+
+    @Test
+    void outboxKisitlari() {
+        assertThatThrownBy(() -> insertOutbox("DONE", 0)).hasMessageContaining("ck_outbox_events_status");
+        assertThatThrownBy(() -> insertOutbox("PENDING", -1)).hasMessageContaining("ck_outbox_events_attempts");
+        assertThatCode(() -> insertOutbox("PENDING", 0)).doesNotThrowAnyException();
+        assertThatCode(() -> insertOutbox("SENT", 2)).doesNotThrowAnyException();
+        assertThatCode(() -> insertOutbox("FAILED", 10)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void davetKoduKisitlari() {
+        UUID user = UUID.randomUUID();
+
+        assertThatThrownBy(() -> insertInvite(UUID.randomUUID(), "SHORT", 1, 0, "1 day"))
+                .hasMessageContaining("ck_friend_invite_codes_code");
+        // I, L, O, U Crockford alfabesinde yoktur.
+        assertThatThrownBy(() -> insertInvite(UUID.randomUUID(), "ILOU012345", 1, 0, "1 day"))
+                .hasMessageContaining("ck_friend_invite_codes_code");
+        assertThatThrownBy(() -> insertInvite(UUID.randomUUID(), "abcdefghjk", 1, 0, "1 day"))
+                .hasMessageContaining("ck_friend_invite_codes_code");
+        assertThatThrownBy(() -> insertInvite(UUID.randomUUID(), "0123456789", 1, 0, "-1 day"))
+                .hasMessageContaining("ck_friend_invite_codes_expiry");
+        assertThatThrownBy(() -> insertInvite(UUID.randomUUID(), "0123456789", 0, 0, "1 day"))
+                .hasMessageContaining("ck_friend_invite_codes_uses");
+        assertThatThrownBy(() -> insertInvite(UUID.randomUUID(), "0123456789", 2, 3, "1 day"))
+                .hasMessageContaining("ck_friend_invite_codes_uses");
+
+        insertInvite(user, "ABCDEFGHJK", 5, 0, "1 day");
+        assertThatThrownBy(() -> insertInvite(UUID.randomUUID(), "ABCDEFGHJK", 5, 0, "1 day"))
+                .hasMessageContaining("uq_friend_invite_codes_code");
+        // Kullanıcı başına tek etkin kod; iptal edilince yenisi alınabilir.
+        assertThatThrownBy(() -> insertInvite(user, "MNPQRSTVWX", 5, 0, "1 day"))
+                .hasMessageContaining("uq_friend_invite_codes_active_user");
+        jdbc.update("update friend_invite_codes set revoked_at = now() where user_id = ?", user);
+        assertThatCode(() -> insertInvite(user, "MNPQRSTVWX", 5, 0, "1 day")).doesNotThrowAnyException();
+    }
+
+    private void insertOutbox(String status, int attempts) {
+        jdbc.update("insert into outbox_events (id, aggregate_type, aggregate_id, event_type, payload, occurred_at, "
+                + "status, attempts) values (?, 'FriendRequest', ?, 'FriendRequestSent', '{}'::jsonb, now(), ?, ?)",
+                UUID.randomUUID(), UUID.randomUUID(), status, attempts);
+    }
+
+    private void insertInvite(UUID user, String code, int maxUses, int usedCount, String expiresIn) {
+        jdbc.update("insert into friend_invite_codes (id, user_id, code, created_at, expires_at, max_uses, used_count) "
+                + "values (?, ?, ?, now(), now() + cast(? as interval), ?, ?)", UUID.randomUUID(), user, code,
+                expiresIn, maxUses, usedCount);
     }
 
     private void insertRequest(UUID sender, UUID receiver, String status) {

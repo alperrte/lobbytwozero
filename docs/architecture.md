@@ -179,7 +179,9 @@ Bir servisteki değişikliğin diğer servisleri **sonradan** etkilemesi gerekti
 | `GameCatalogChanged` | game | library, review, recommendation | Arşivleme/birleştirme (LIB-17) |
 | `LibraryEntryChanged` | library | recommendation, user | Öneri girdisi, profil sayacı |
 | `ReviewChanged` | review | game (popülerlik), recommendation, user | Puan özeti, öneri |
-| `FriendshipChanged` | social | messaging, recommendation, notification | Sohbet izni, arkadaş önerisi |
+| `FriendRequestSent` | social | notification | Alıcıya "arkadaşlık isteği" bildirimi (SOC-13; outbox'a yazılıyor, teslim bekliyor) |
+| `FriendRequestAccepted` | social | notification | İsteği gönderene "kabul edildi" bildirimi (SOC-13; outbox'a yazılıyor, teslim bekliyor) |
+| `FriendshipChanged` | social | messaging, recommendation, notification | Sohbet izni, arkadaş önerisi (`change`: ADDED/REMOVED; SOC-13) |
 | `UserBlocked` / `UserUnblocked` | social | messaging, lfp, community, notification | Engelleme etkisi |
 | `MessageSent` | messaging | notification | Mesaj bildirimi (içerik önizlemesi gizliliğe bağlı) |
 | `PostCreated` / `CommentCreated` / `PostLiked` | community | notification | Topluluk bildirimleri |

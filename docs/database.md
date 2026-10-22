@@ -238,9 +238,9 @@ oluşturulmadı; GAME-24 sağlayıcı izni/erişimi bekler.
 | `friend_requests` | id, sender_id REF, receiver_id REF, status (PENDING, ACCEPTED, REJECTED, CANCELLED), created_at, responded_at, version | CHECK sender_id <> receiver_id; CHECK (status='PENDING') = (responded_at IS NULL); yönden bağımsız partial UQ (LEAST(sender_id, receiver_id), GREATEST(sender_id, receiver_id)) WHERE status='PENDING' (`uq_friend_requests_pending_pair`) — **V121 ile uygulandı** |
 | `friendships` | user_low_id REF, user_high_id REF, created_at | PK (user_low_id, user_high_id); CHECK low < high (tek satır/çift); sıralama uygulamada PostgreSQL uuid sırasıyla (işaretsiz, baytsal) yapılır — `java.util.UUID.compareTo` kullanılmaz — **V121 ile uygulandı** |
 | `user_blocks` | blocker_id REF, blocked_id REF, created_at | PK (blocker_id, blocked_id); CHECK farklı |
-| `friend_invite_codes` | id, user_id REF, code, expires_at, max_uses, used_count, revoked_at | UQ code |
+| `friend_invite_codes` | id, user_id REF, code (10 karakter Crockford base32), created_at, expires_at, max_uses, used_count, revoked_at, version | UQ code; CHECK code biçimi, expires_at > created_at, 0 ≤ used_count ≤ max_uses; kullanıcı başına tek etkin kod: partial UQ (user_id) WHERE revoked_at IS NULL (`uq_friend_invite_codes_active_user`) — **V123 ile uygulandı** |
 | `social_privacy_settings` | user_id PK, who_can_send_requests, friends_list_visibility | |
-| `outbox_events`, `inbox_events` | §2.4 | |
+| `outbox_events` | §2.4 — **V122 ile uygulandı** (olaylar: `FriendRequestSent`, `FriendRequestAccepted`, `FriendshipChanged`; bkz. `docs/api.md` → SOCIAL → Giden olay sözleşmeleri) | `inbox_events` Social bir olay tüketmediği için henüz yok |
 
 ### 3.8 messaging_db — messaging-service (Umut)
 

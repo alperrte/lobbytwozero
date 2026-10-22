@@ -10,6 +10,10 @@ public final class SocialApiPaths {
     public static final String FRIEND_REQUEST_ACCEPT = FRIEND_REQUESTS + "/{requestId}/accept";
     public static final String FRIEND_REQUEST_REJECT = FRIEND_REQUESTS + "/{requestId}/reject";
     public static final String FRIEND_REQUEST_CANCEL = FRIEND_REQUESTS + "/{requestId}/cancel";
+    public static final String FRIEND_REQUESTS_BY_CODE = FRIEND_REQUESTS + "/by-code";
+    public static final String FRIENDS = BASE + "/friends";
+    public static final String FRIEND = FRIENDS + "/{friendId}";
+    public static final String INVITE_CODE = BASE + "/invite-code";
 
     private SocialApiPaths() {
     }

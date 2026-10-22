@@ -1,5 +1,6 @@
 package com.ltz.social.infrastructure.security;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -53,6 +54,8 @@ class JwtValidationTest extends IntegrationTestSupport {
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(get(SocialApiPaths.FRIEND_REQUESTS_OUTGOING))
                 .andExpect(status().isUnauthorized());
+        mockMvc.perform(get(SocialApiPaths.FRIENDS)).andExpect(status().isUnauthorized());
+        mockMvc.perform(delete(SocialApiPaths.FRIEND, UUID.randomUUID())).andExpect(status().isUnauthorized());
     }
 
     @Test

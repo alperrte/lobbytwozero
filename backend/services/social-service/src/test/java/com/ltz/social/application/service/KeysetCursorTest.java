@@ -13,14 +13,14 @@ import org.junit.jupiter.api.Test;
 import com.ltz.social.domain.exception.SocialErrorCode;
 import com.ltz.social.domain.exception.SocialException;
 
-class FriendRequestCursorTest {
+class KeysetCursorTest {
 
     @Test
     void kodlanipCozulur() {
-        FriendRequestCursor cursor = new FriendRequestCursor(Instant.parse("2026-10-22T10:00:00.123456Z"),
+        KeysetCursor cursor = new KeysetCursor(Instant.parse("2026-10-22T10:00:00.123456Z"),
                 UUID.randomUUID());
 
-        assertThat(FriendRequestCursor.decode(cursor.encode())).isEqualTo(cursor);
+        assertThat(KeysetCursor.decode(cursor.encode())).isEqualTo(cursor);
     }
 
     @Test
@@ -30,7 +30,7 @@ class FriendRequestCursorTest {
         String badUuid = encode("2026-10-22T10:00:00Z|not-a-uuid");
 
         for (String invalid : new String[] {"", "bozuk", "%%%", noSeparator, badInstant, badUuid, "A".repeat(129)}) {
-            assertThatThrownBy(() -> FriendRequestCursor.decode(invalid)).isInstanceOfSatisfying(SocialException.class,
+            assertThatThrownBy(() -> KeysetCursor.decode(invalid)).isInstanceOfSatisfying(SocialException.class,
                     exception -> assertThat(exception.errorCode()).isEqualTo(SocialErrorCode.INVALID_CURSOR));
         }
     }

@@ -567,9 +567,14 @@ erDiagram
   }
   friend_invite_codes {
     uuid id PK
-    uuid user_id "REF"
+    uuid user_id "REF, UK(user_id) WHERE revoked_at IS NULL"
     varchar code UK
+    timestamptz created_at
     timestamptz expires_at
+    int max_uses
+    int used_count
+    timestamptz revoked_at
+    bigint version
   }
   social_privacy_settings {
     uuid user_id PK "REF"
