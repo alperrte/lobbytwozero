@@ -564,6 +564,7 @@ erDiagram
   user_blocks {
     uuid blocker_id PK "REF"
     uuid blocked_id PK "REF"
+    timestamptz created_at
   }
   friend_invite_codes {
     uuid id PK
@@ -576,10 +577,7 @@ erDiagram
     timestamptz revoked_at
     bigint version
   }
-  social_privacy_settings {
-    uuid user_id PK "REF"
-    varchar who_can_send_requests
-  }
+  %% social_privacy_settings oluşturulmadı: arkadaş listesi görünürlüğü user-service'te tutulur (SOC-12).
 ```
 
 ## 9. messaging_db

@@ -26,6 +26,7 @@ public class FriendshipService {
 
     private final FriendshipRepository friendships;
     private final PageSizePolicy pageSizes;
+    private final FriendsListAccessPolicy accessPolicy;
     private final OutboxEventRecorder events;
 
     /** SOC-07. Arkadaşlar, en yeni arkadaşlıktan eskiye; keyset sayfalama. */
@@ -46,6 +47,16 @@ public class FriendshipService {
                 ? new KeysetCursor(items.getLast().since(), items.getLast().friendId()).encode()
                 : null;
         return new FriendPageView(items, nextCursor);
+    }
+
+    /**
+     * SOC-12. Başka bir kullanıcının arkadaş listesi: engel ve user-service'teki görünürlük tercihi uygulanır
+     * ({@link FriendsListAccessPolicy}). Kendi listesi her zaman görünür.
+     */
+    @Transactional(readOnly = true)
+    public FriendPageView listFriendsOf(UUID viewerId, UUID ownerId, Integer pageSize, String cursor) {
+        accessPolicy.ensureVisible(viewerId, ownerId);
+        return listFriends(ownerId, pageSize, cursor);
     }
 
     /** SOC-08. Arkadaş değilse (ya da kendisiyse) 404; eşzamanlı iki çıkarmadan yalnız biri başarılı olur. */

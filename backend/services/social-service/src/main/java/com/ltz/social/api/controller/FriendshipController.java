@@ -30,6 +30,15 @@ public class FriendshipController {
         return FriendPageResponse.from(friendshipService.listFriends(AuthenticatedUser.id(jwt), limit, cursor));
     }
 
+    /** Başka bir kullanıcının arkadaş listesi (SOC-12): engel ve görünürlük tercihi sunucuda uygulanır. */
+    @GetMapping(SocialApiPaths.USER_FRIENDS)
+    public FriendPageResponse listOf(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID userId,
+                                     @RequestParam(required = false) Integer limit,
+                                     @RequestParam(required = false) String cursor) {
+        return FriendPageResponse.from(
+                friendshipService.listFriendsOf(AuthenticatedUser.id(jwt), userId, limit, cursor));
+    }
+
     @DeleteMapping(SocialApiPaths.FRIEND)
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void unfriend(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID friendId) {

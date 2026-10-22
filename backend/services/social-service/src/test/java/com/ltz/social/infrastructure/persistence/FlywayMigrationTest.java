@@ -33,8 +33,9 @@ class FlywayMigrationTest extends IntegrationTestSupport {
         List<String> tables = jdbc.queryForList(
                 "select table_name from information_schema.tables where table_schema = 'public'", String.class);
 
-        assertThat(versions).contains("121", "122", "123");
-        assertThat(tables).contains("friend_requests", "friendships", "outbox_events", "friend_invite_codes");
+        assertThat(versions).contains("121", "122", "123", "124");
+        assertThat(tables).contains("friend_requests", "friendships", "outbox_events", "friend_invite_codes",
+                "user_blocks");
     }
 
     @Test
@@ -161,6 +162,23 @@ class FlywayMigrationTest extends IntegrationTestSupport {
                 .hasMessageContaining("uq_friend_invite_codes_active_user");
         jdbc.update("update friend_invite_codes set revoked_at = now() where user_id = ?", user);
         assertThatCode(() -> insertInvite(user, "MNPQRSTVWX", 5, 0, "1 day")).doesNotThrowAnyException();
+    }
+
+    @Test
+    void engelKisitlari_yonluVeTekil() {
+        UUID first = UUID.randomUUID();
+        UUID second = UUID.randomUUID();
+
+        assertThatThrownBy(() -> insertBlock(first, first)).hasMessageContaining("ck_user_blocks_distinct_users");
+        insertBlock(first, second);
+        assertThatThrownBy(() -> insertBlock(first, second)).hasMessageContaining("pk_user_blocks");
+        // Engel yönlüdür: ters yöndeki engel ayrı kayıttır.
+        assertThatCode(() -> insertBlock(second, first)).doesNotThrowAnyException();
+    }
+
+    private void insertBlock(UUID blocker, UUID blocked) {
+        jdbc.update("insert into user_blocks (blocker_id, blocked_id, created_at) values (?, ?, now())", blocker,
+                blocked);
     }
 
     private void insertOutbox(String status, int attempts) {

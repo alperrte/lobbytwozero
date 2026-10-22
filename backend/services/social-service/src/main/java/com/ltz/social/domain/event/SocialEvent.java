@@ -7,7 +7,7 @@ import java.util.UUID;
  * olayın {@code payload}'ıdır; yalnız kimlik ve enum taşır, kişisel veri (ad, e-posta, mesaj) taşımaz.
  */
 public sealed interface SocialEvent permits FriendRequestSentEvent, FriendRequestAcceptedEvent,
-        FriendshipChangedEvent {
+        FriendshipChangedEvent, UserBlockedEvent, UserUnblockedEvent {
 
     String eventType();
 

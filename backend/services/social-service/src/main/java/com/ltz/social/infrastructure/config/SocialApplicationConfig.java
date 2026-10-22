@@ -8,8 +8,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
+import com.ltz.social.application.port.FriendsVisibilityPort;
 import com.ltz.social.application.port.SocialEventPublisher;
 import com.ltz.social.infrastructure.client.UnavailableEventPublisher;
+import com.ltz.social.infrastructure.client.UnavailableFriendsVisibility;
 
 @Configuration(proxyBeanMethods = false)
 @EnableScheduling
@@ -32,5 +34,15 @@ public class SocialApplicationConfig {
     @ConditionalOnProperty(name = "ltz.social.outbox.adapter", havingValue = "unavailable", matchIfMissing = true)
     SocialEventPublisher unavailableEventPublisher() {
         return new UnavailableEventPublisher();
+    }
+
+    /**
+     * Arkadaş listesi görünürlük tercihi user-service'tedir (SOC-12). Gerçek adaptör (user-service ucu + servis
+     * kimliği) yazılana kadar tercih okunamaz ve başkasının listesi fail-closed gizli kalır.
+     */
+    @Bean
+    @ConditionalOnProperty(name = "ltz.social.privacy.adapter", havingValue = "unavailable", matchIfMissing = true)
+    FriendsVisibilityPort unavailableFriendsVisibility() {
+        return new UnavailableFriendsVisibility();
     }
 }

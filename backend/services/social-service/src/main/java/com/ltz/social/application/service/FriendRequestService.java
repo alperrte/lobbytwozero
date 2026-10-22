@@ -16,6 +16,7 @@ import com.ltz.social.application.mapper.FriendRequestMapper;
 import com.ltz.social.domain.entity.FriendRequest;
 import com.ltz.social.domain.entity.Friendship;
 import com.ltz.social.domain.entity.FriendshipId;
+import com.ltz.social.domain.entity.UserBlockId;
 import com.ltz.social.domain.enums.FriendRequestStatus;
 import com.ltz.social.domain.event.FriendRequestAcceptedEvent;
 import com.ltz.social.domain.event.FriendRequestSentEvent;
@@ -25,6 +26,8 @@ import com.ltz.social.domain.exception.SocialException;
 import com.ltz.social.infrastructure.config.FriendRequestProperties;
 import com.ltz.social.infrastructure.persistence.repository.FriendRequestRepository;
 import com.ltz.social.infrastructure.persistence.repository.FriendshipRepository;
+import com.ltz.social.infrastructure.persistence.repository.UserBlockRepository;
+import com.ltz.social.infrastructure.persistence.repository.UserPairLock;
 
 import lombok.RequiredArgsConstructor;
 
@@ -42,6 +45,8 @@ public class FriendRequestService {
     private final FriendRequestProperties properties;
     private final PageSizePolicy pageSizes;
     private final OutboxEventRecorder events;
+    private final UserBlockRepository blocks;
+    private final UserPairLock pairLock;
     private final Clock clock;
 
     /** SOC-01. Kendine, zaten arkadaş olunan veya aralarında bekleyen isteği olan kullanıcıya istek gönderilemez. */
@@ -49,6 +54,15 @@ public class FriendRequestService {
     public FriendRequestView send(UUID senderId, UUID receiverId) {
         if (senderId.equals(receiverId)) {
             throw new SocialException(SocialErrorCode.CANNOT_REQUEST_SELF);
+        }
+        // Engelleme ile aynı anda istek göndermeyi sıraya koyar: engel konduktan sonra bekleyen istek kalamaz.
+        pairLock.acquire(senderId, receiverId);
+        if (blocks.existsById(new UserBlockId(senderId, receiverId))) {
+            throw new SocialException(SocialErrorCode.USER_BLOCKED);
+        }
+        // Engellenen taraf engelin varlığını öğrenmez: istek gizlilik tercihiyle aynı genel hatayla reddedilir.
+        if (blocks.existsById(new UserBlockId(receiverId, senderId))) {
+            throw new SocialException(SocialErrorCode.FRIEND_REQUEST_NOT_ALLOWED);
         }
         if (friendships.existsById(FriendshipId.of(senderId, receiverId))) {
             throw new SocialException(SocialErrorCode.ALREADY_FRIENDS);

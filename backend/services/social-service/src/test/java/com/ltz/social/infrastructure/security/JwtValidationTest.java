@@ -56,6 +56,9 @@ class JwtValidationTest extends IntegrationTestSupport {
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(get(SocialApiPaths.FRIENDS)).andExpect(status().isUnauthorized());
         mockMvc.perform(delete(SocialApiPaths.FRIEND, UUID.randomUUID())).andExpect(status().isUnauthorized());
+        mockMvc.perform(get(SocialApiPaths.USER_FRIENDS, UUID.randomUUID())).andExpect(status().isUnauthorized());
+        mockMvc.perform(get(SocialApiPaths.BLOCKS)).andExpect(status().isUnauthorized());
+        mockMvc.perform(delete(SocialApiPaths.BLOCK, UUID.randomUUID())).andExpect(status().isUnauthorized());
     }
 
     @Test

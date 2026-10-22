@@ -137,12 +137,6 @@ class FriendRequestConcurrencyTest extends IntegrationTestSupport {
         }
     }
 
-    private int pendingBetween(UUID first, UUID second) {
-        return jdbc.queryForObject("select count(*) from friend_requests where status = 'PENDING' and "
-                + "((sender_id = ? and receiver_id = ?) or (sender_id = ? and receiver_id = ?))",
-                Integer.class, first, second, second, first);
-    }
-
     private int friendshipRows(UUID first, UUID second) {
         return jdbc.queryForObject("select count(*) from friendships where "
                 + "(user_low_id = ? and user_high_id = ?) or (user_low_id = ? and user_high_id = ?)",

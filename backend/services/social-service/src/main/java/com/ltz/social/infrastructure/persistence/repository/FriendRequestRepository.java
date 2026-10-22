@@ -23,6 +23,15 @@ public interface FriendRequestRepository extends JpaRepository<FriendRequest, UU
     @Query("select r from FriendRequest r where r.id = :id")
     Optional<FriendRequest> findByIdForUpdate(@Param("id") UUID id);
 
+    /** İki kullanıcı arasındaki (yönden bağımsız) bekleyen istek; engelleme bunu kapatır. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select r from FriendRequest r
+            where r.status = com.ltz.social.domain.enums.FriendRequestStatus.PENDING
+              and ((r.senderId = :first and r.receiverId = :second)
+                   or (r.senderId = :second and r.receiverId = :first))""")
+    List<FriendRequest> findPendingBetweenForUpdate(@Param("first") UUID first, @Param("second") UUID second);
+
     boolean existsBySenderIdAndReceiverIdAndStatus(UUID senderId, UUID receiverId, FriendRequestStatus status);
 
     long countBySenderIdAndStatus(UUID senderId, FriendRequestStatus status);
