@@ -11,5 +11,7 @@ import jakarta.validation.constraints.NotBlank;
  */
 @Validated
 @ConfigurationProperties("ltz.social.auth")
-public record AuthProperties(@NotBlank String jwksUri, @NotBlank String issuer, @NotBlank String audience) {
+public record AuthProperties(@NotBlank String jwksUri, @NotBlank String issuer, @NotBlank String audience,
+                             /** Servis token'larında (iç uçlar) bu servisin adı: {@code aud} bu değeri içermeli. */
+                             @NotBlank String serviceAudience) {
 }

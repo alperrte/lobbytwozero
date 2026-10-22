@@ -13,7 +13,9 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.UUID;
 import java.util.function.UnaryOperator;
 
@@ -40,6 +42,7 @@ import com.nimbusds.jose.JOSEObjectType;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.crypto.RSASSASigner;
+import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
@@ -63,6 +66,9 @@ public abstract class IntegrationTestSupport {
     protected static final String AUDIENCE = "ltz-api";
     protected static final String KEY_ID = "social-test-key";
     protected static final JOSEObjectType ACCESS_TOKEN_TYPE = new JOSEObjectType("at+jwt");
+    protected static final JOSEObjectType SERVICE_TOKEN_TYPE = new JOSEObjectType("svc+jwt");
+    protected static final String SERVICE_AUDIENCE = "social-service";
+    protected static final String ERASE_SCOPE = "account:erase";
 
     private static final int TEST_RSA_BITS = 2048;
     private static final long TOKEN_TTL_SECONDS = 300;
@@ -71,9 +77,12 @@ public abstract class IntegrationTestSupport {
     /** Her test çalıştırmasında üretilen imza anahtarı. */
     protected static final RSAKey SIGNING_KEY = generateKey();
     private static final HttpServer JWKS_SERVER;
+    /** JWKS sunucusunun yayımladığı açık anahtarlar; anahtar dönüşümü testleri buraya ekler. */
+    private static final List<RSAKey> PUBLISHED_KEYS = new CopyOnWriteArrayList<>();
 
     static {
         POSTGRES.start();
+        PUBLISHED_KEYS.add(SIGNING_KEY.toPublicJWK());
         JWKS_SERVER = startJwksServer();
     }
 
@@ -94,6 +103,7 @@ public abstract class IntegrationTestSupport {
                 () -> "http://127.0.0.1:" + JWKS_SERVER.getAddress().getPort() + "/jwks.json");
         registry.add("ltz.social.auth.issuer", () -> ISSUER);
         registry.add("ltz.social.auth.audience", () -> AUDIENCE);
+        registry.add("ltz.social.auth.service-audience", () -> SERVICE_AUDIENCE);
     }
 
     /** Gerçek sunucudaki filtre sırası: gövde sınırı, ardından Spring Security zinciri. */
@@ -132,9 +142,32 @@ public abstract class IntegrationTestSupport {
                 .claim("roles", List.of("PLAYER"));
     }
 
+    /** Auth'un D4 sözleşmesindeki biçimde (svc+jwt, sub=svc:..., aud=hedef servis, scope, jti, ≤ 60 sn) geçerli servis token'ı. */
+    protected static String serviceToken(UnaryOperator<JWTClaimsSet.Builder> claimsChange) {
+        return sign(SIGNING_KEY, SERVICE_TOKEN_TYPE, claimsChange.apply(validServiceClaims()).build());
+    }
+
+    protected static JWTClaimsSet.Builder validServiceClaims() {
+        Instant now = Instant.now();
+        return new JWTClaimsSet.Builder()
+                .issuer(ISSUER)
+                .audience(SERVICE_AUDIENCE)
+                .subject("svc:auth-service")
+                .jwtID(UUID.randomUUID().toString())
+                .issueTime(Date.from(now))
+                .notBeforeTime(Date.from(now))
+                .expirationTime(Date.from(now.plusSeconds(60)))
+                .claim("scope", ERASE_SCOPE);
+    }
+
+    /** JWKS sunucusuna yeni bir açık anahtar ekler (Auth'un anahtar dönüşümünü taklit eder). */
+    protected static void publishKey(RSAKey key) {
+        PUBLISHED_KEYS.add(key.toPublicJWK());
+    }
+
     protected static String sign(RSAKey key, JOSEObjectType type, JWTClaimsSet claims) {
         try {
-            JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(KEY_ID).type(type).build();
+            JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(key.getKeyID()).type(type).build();
             SignedJWT jwt = new SignedJWT(header, claims);
             jwt.sign(new RSASSASigner(key));
             return jwt.serialize();
@@ -229,9 +262,10 @@ public abstract class IntegrationTestSupport {
 
     private static HttpServer startJwksServer() {
         try {
-            byte[] jwks = new JWKSet(SIGNING_KEY.toPublicJWK()).toString().getBytes(StandardCharsets.UTF_8);
             HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
             server.createContext("/jwks.json", exchange -> {
+                byte[] jwks = new JWKSet(new ArrayList<JWK>(PUBLISHED_KEYS)).toString()
+                        .getBytes(StandardCharsets.UTF_8);
                 exchange.getResponseHeaders().add(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
                 exchange.sendResponseHeaders(200, jwks.length);
                 try (OutputStream body = exchange.getResponseBody()) {

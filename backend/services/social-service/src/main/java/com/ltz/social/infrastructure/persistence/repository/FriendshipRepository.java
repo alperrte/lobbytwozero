@@ -38,6 +38,11 @@ public interface FriendshipRepository extends JpaRepository<Friendship, Friendsh
     List<Friendship> findPageAfter(@Param("userId") UUID userId, @Param("createdAt") Instant createdAt,
             @Param("friendId") UUID friendId, Limit limit);
 
+    /** Hesap silme: kullanıcının dahil olduğu tüm arkadaşlıklar. */
+    @Modifying
+    @Query("delete from Friendship f where f.id.userLowId = :accountId or f.id.userHighId = :accountId")
+    int deleteAllOf(@Param("accountId") UUID accountId);
+
     /** Atomik silme: eşzamanlı iki çıkarma isteğinden yalnız biri 1 döner. */
     @Modifying
     @Query("delete from Friendship f where f.id = :id")
