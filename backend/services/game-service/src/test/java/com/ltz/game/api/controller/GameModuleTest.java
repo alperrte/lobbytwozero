@@ -54,7 +54,7 @@ class GameModuleTest extends AuthenticatedApiTest {
         UUID id=active();
         send(put(root(id)+"/first"),null,body(true,"")).andExpect(status().isUnauthorized());
         send(get(root(id)),null,null).andExpect(status().isUnauthorized());
-        for(String roleToken:new String[]{token(UUID.randomUUID(),"USER"),developer(),moderator()}) {
+        for(String roleToken:new String[]{token(UUID.randomUUID(),"PLAYER"),developer(),moderator()}) {
             send(put(root(id)+"/first"),roleToken,body(true,"")).andExpect(status().isForbidden());
             send(get(root(id)),roleToken,null).andExpect(status().isForbidden());
         }

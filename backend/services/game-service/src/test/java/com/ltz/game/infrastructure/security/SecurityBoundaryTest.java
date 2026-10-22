@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpMethod;
@@ -21,6 +22,36 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import(AuthenticatedApiTest.Fakes.class)
 class SecurityBoundaryTest extends AuthenticatedApiTest {
     static final String PROBE = "/api/v1/game/admin/games/" + UUID.randomUUID();
+    private static final Pattern PATH_VARIABLE = Pattern.compile("\\{[^}]+}");
+
+    @org.springframework.beans.factory.annotation.Autowired
+    @org.springframework.beans.factory.annotation.Qualifier("requestMappingHandlerMapping")
+    org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping mappings;
+
+    @Test void everyRegisteredProtectedMethodHasAnonymousAndPlayerBoundaryChecks() throws Exception {
+        int checked = 0;
+        for (var mapping : mappings.getHandlerMethods().keySet()) {
+            for (String template : mapping.getPatternValues()) {
+                if (!template.startsWith("/api/v1/game/admin/") && !template.startsWith("/api/v1/game/developer/")
+                        && !template.startsWith("/api/v1/game/moderation/") && !template.startsWith("/api/v1/game/feedback")) continue;
+                String path = PATH_VARIABLE.matcher(template).replaceAll(UUID.randomUUID().toString());
+                for (var method : mapping.getMethodsCondition().getMethods()) {
+                    mvc.perform(MockMvcRequestBuilders.request(HttpMethod.valueOf(method.name()), path)
+                            .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                            .andExpect(status().isUnauthorized())
+                            .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
+                            .andExpect(jsonPath("$.status").value(401));
+                    if (!template.startsWith("/api/v1/game/feedback"))
+                        send(MockMvcRequestBuilders.request(HttpMethod.valueOf(method.name()), path), token(ADMIN_ID, "PLAYER"), "{}")
+                                .andExpect(status().isForbidden())
+                                .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
+                                .andExpect(jsonPath("$.status").value(403));
+                    checked++;
+                }
+            }
+        }
+        org.junit.jupiter.api.Assertions.assertEquals(29, checked, "Yeni korumalı route eklenirse matris de gözden geçirilmeli");
+    }
 
     @Test void anonymousRequestsToEveryProtectedRouteAreUnauthorizedWithProblemJson() throws Exception {
         UUID id = UUID.randomUUID();
@@ -73,9 +104,10 @@ class SecurityBoundaryTest extends AuthenticatedApiTest {
     }
 
     @Test void roleClaimVariantsAreResolvedCentrally() throws Exception {
-        for (Object roles : List.of("ADMIN", "ROLE_ADMIN", "admin", "PLAYER ADMIN", "PLAYER,ADMIN", List.of("player", "ROLE_admin")))
+        for (Object roles : List.of(List.of("ADMIN"), List.of("PLAYER", "ADMIN")))
             send(get(PROBE), sign(claims(ADMIN_ID, roles), KEYS.getPrivate()), null).andExpect(status().isNotFound());
-        for (Object roles : List.of("SUPERUSER", "ADMINISTRATOR", "", List.of(), 42, List.of(1, 2)))
+        for (Object roles : List.of("ADMIN", "ROLE_ADMIN", "admin", "PLAYER ADMIN", "PLAYER,ADMIN", List.of("player", "ROLE_admin"),
+                "SUPERUSER", "ADMINISTRATOR", "", List.of(), 42, List.of(1, 2), List.of("ADMIN", 42)))
             send(get(PROBE), sign(claims(ADMIN_ID, roles), KEYS.getPrivate()), null).andExpect(status().isForbidden());
         send(get(PROBE), sign(claims(ADMIN_ID, null), KEYS.getPrivate()), null).andExpect(status().isForbidden());
     }

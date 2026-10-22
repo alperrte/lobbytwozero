@@ -5,18 +5,17 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
- * JWT doğrulama sözleşmesi. Değerlerin tamamı yapılandırılabilir; kodda sabit anahtar, issuer veya audience yoktur.
- * Hiçbir imza kaynağı verilmezse hiçbir token kabul edilir (fail-closed). Auth Service gerçek sözleşmesini
- * yayınladığında yalnız bu özellikler (ve gerekirse {@link LtzJwtAuthenticationConverter}) güncellenir.
+ * Auth RS256/at+jwt doğrulama sözleşmesi. Üretimde imza kaynağı Auth JWKS'tir.
+ * İmza kaynağı yoksa hiçbir token kabul edilmez; publicKey izole testlerde kullanılabilir.
  *
  * @param issuer        beklenen {@code iss}; imza kaynağı verilmişse zorunludur
  * @param audience      beklenen {@code aud}; imza kaynağı verilmişse zorunludur
  * @param jwkSetUri     Auth Service JWKS adresi (publicKey ile birlikte verilemez)
  * @param publicKey     PEM X.509 RSA açık anahtarı (jwkSetUri ile birlikte verilemez; açık anahtar gizli değildir)
- * @param algorithm     izinli imza algoritması (yalnız RS256/RS384/RS512)
- * @param userIdClaim   kullanıcı kimliği (UUID) claim adı
- * @param rolesClaim    rol listesi claim adı (dizi veya boşluk/virgül ayrımlı metin)
- * @param clockSkew     süre doğrulama toleransı
+ * @param algorithm     yalnız RS256
+ * @param userIdClaim   yalnız sub (UUID)
+ * @param rolesClaim    yalnız roles (metin listesi)
+ * @param clockSkew     süre doğrulama toleransı (0–60 saniye)
  */
 @ConfigurationProperties("ltz.security.jwt")
 public record JwtSecurityProperties(

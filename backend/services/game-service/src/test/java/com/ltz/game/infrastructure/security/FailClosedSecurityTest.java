@@ -25,10 +25,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * JWT özellikleri hiç tanımlı değilken (Auth Service henüz yok) hiçbir token kabul edilmez. Bu sınıf kasıtlı olarak
- * JWT özelliği vermez; imza anahtarı yalnız bu testte üretilir.
+ * İmza kaynağı test kapsamında açıkça kaldırıldığında hiçbir token kabul edilmez.
  */
-@SpringBootTest
+@SpringBootTest(properties = {"ltz.security.jwt.jwk-set-uri=", "ltz.security.jwt.public-key="})
 class FailClosedSecurityTest extends PostgresTestSupport {
     @Autowired WebApplicationContext context;
     @Autowired JwtDecoder decoder;
@@ -61,11 +60,13 @@ class FailClosedSecurityTest extends PostgresTestSupport {
         assertRejected(properties(null, "aud", null, pem, "RS256"));
         assertRejected(properties("iss", " ", null, pem, "RS256"));
         assertRejected(properties("iss", "aud", null, pem, "HS256"));
+        assertRejected(properties("iss", "aud", null, pem, "RS384"));
+        assertRejected(properties("iss", "aud", null, pem, "RS512"));
         assertRejected(properties("iss", "aud", null, "not a key", "RS256"));
         assertRejected(properties("iss", "aud", "ftp://auth.example/jwks", null, "RS256"));
         // Geçerli yapılandırmalar decoder üretir
         assertNotNull(new JwtDecoderConfiguration().jwtDecoder(properties("iss", "aud", null, pem, "RS256")));
-        assertNotNull(new JwtDecoderConfiguration().jwtDecoder(properties("iss", "aud", jwks, null, "RS512")));
+        assertNotNull(new JwtDecoderConfiguration().jwtDecoder(properties("iss", "aud", jwks, null, "RS256")));
     }
 
     private static JwtSecurityProperties properties(String issuer, String audience, String jwks, String key, String algorithm) {

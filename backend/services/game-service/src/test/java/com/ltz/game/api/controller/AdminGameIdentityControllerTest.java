@@ -33,7 +33,7 @@ class AdminGameIdentityControllerTest extends AuthenticatedApiTest {
         for (String action : new String[]{"reassign","split"}) {
             String json=body(id,action.equals("split")?null:id);
             send(post(ROOT+action),null,json).andExpect(status().isUnauthorized());
-            send(post(ROOT+action),token(UUID.randomUUID(),"USER"),json).andExpect(status().isForbidden());
+            send(post(ROOT+action),token(UUID.randomUUID(),"PLAYER"),json).andExpect(status().isForbidden());
             send(post(ROOT+action),moderator(),json).andExpect(status().isForbidden());
             send(post(ROOT+action),developer(),json).andExpect(status().isForbidden());
         }

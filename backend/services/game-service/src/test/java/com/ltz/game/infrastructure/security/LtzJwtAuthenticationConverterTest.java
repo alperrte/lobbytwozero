@@ -13,7 +13,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException;
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Claim çözümleme tek yerdedir; özel claim adları yapılandırmayla değişir, kod değişmez. */
+/** Auth'un kanonik liste biçimi ayrıcalıklı rolleri birebir eşleşmeyle çözümler. */
 class LtzJwtAuthenticationConverterTest {
     static final UUID USER = UUID.fromString("00000000-0000-0000-0000-000000000042");
 
@@ -26,7 +26,7 @@ class LtzJwtAuthenticationConverterTest {
     }
 
     @Test void resolvesActorAndRolesFromDefaultClaims() {
-        var authentication = converter("sub", "roles").convert(jwt(Map.of("sub", USER.toString(), "roles", List.of("admin", "ROLE_GAME_DEVELOPER", "PLAYER", 7))));
+        var authentication = converter("sub", "roles").convert(jwt(Map.of("sub", USER.toString(), "roles", List.of("ADMIN", "GAME_DEVELOPER", "PLAYER", "CONTENT_CREATOR"))));
         var actor = (Actor) authentication.getPrincipal();
         assertEquals(USER, actor.userId());
         assertEquals(Set.of(ActorRole.ADMIN, ActorRole.GAME_DEVELOPER), actor.roles());
@@ -35,8 +35,13 @@ class LtzJwtAuthenticationConverterTest {
                 authentication.getAuthorities().stream().map(Object::toString).collect(java.util.stream.Collectors.toSet()));
     }
 
-    @Test void claimNamesAreConfigurableForTheFutureAuthContract() {
-        var actor = (Actor) converter("uid", "permissions").convert(jwt(Map.of("uid", USER.toString(), "permissions", "MODERATOR ADMIN"))).getPrincipal();
+    @Test void onlyCanonicalListRolesGrantPrivileges() {
+        var converter = converter("sub", "roles");
+        for (Object roles : List.of("ADMIN", "MODERATOR ADMIN", List.of("ROLE_ADMIN", "admin", " ADMIN "), List.of("ADMIN", 7), List.of("PLAYER", "CONTENT_CREATOR"))) {
+            var actor = (Actor) converter.convert(jwt(Map.of("sub", USER.toString(), "roles", roles))).getPrincipal();
+            assertTrue(actor.roles().isEmpty());
+        }
+        var actor = (Actor) converter.convert(jwt(Map.of("sub", USER.toString(), "roles", List.of("MODERATOR", "ADMIN")))).getPrincipal();
         assertEquals(Set.of(ActorRole.MODERATOR, ActorRole.ADMIN), actor.roles());
     }
 
@@ -47,7 +52,7 @@ class LtzJwtAuthenticationConverterTest {
         var badSubject = jwt(Map.of("sub", "nope", "roles", "ADMIN"));
         assertThrows(InvalidBearerTokenException.class, () -> converter.convert(badSubject));
         var otherClaimName = converter("uid", "roles");
-        var noUserClaim = jwt(Map.of("sub", USER.toString()));
+        var noUserClaim = jwt(Map.of("uid", USER.toString()));
         assertThrows(InvalidBearerTokenException.class, () -> otherClaimName.convert(noUserClaim));
     }
 

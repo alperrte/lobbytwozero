@@ -59,6 +59,7 @@ class MigrationTransferApplicationTest {
                 "--spring.datasource.password=" + source.getPassword(),
                 "--spring.flyway.locations=" + location,
                 "--spring.jpa.hibernate.ddl-auto=validate",
+                "--ltz.security.jwt.jwk-set-uri=", "--ltz.security.jwt.public-key=",
                 "--game.catalog.sync.enabled=false", "--STEAM_CATALOG_ENABLED=false",
                 "--logging.level.org.springframework.jdbc.core=INFO",
                 "--logging.level.org.hibernate.SQL=INFO");
