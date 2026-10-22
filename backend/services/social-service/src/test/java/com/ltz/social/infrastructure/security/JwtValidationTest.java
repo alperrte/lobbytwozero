@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.time.Instant;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 import java.util.function.UnaryOperator;
 
@@ -84,6 +85,41 @@ class JwtValidationTest extends IntegrationTestSupport {
         callProtected(bearerWith(claims -> claims.subject(null))).andExpect(status().isUnauthorized());
         // Geçerli imzalı ama UUID olmayan sub: kimlik çözülemez → 401, 500 değil.
         callProtected(bearerWith(claims -> claims.subject("not-a-uuid"))).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void authinGercekTokenBicimiKabulEdilir_sidVerAmrAudDizi() throws Exception {
+        // Auth'un AccessTokenIssuer çıktısı: aud dizi, sid/ver/amr/jti/roles; hepsi bu serviste yok sayılır (yalnız sub ve roles kullanılır).
+        String token = accessToken(newUser(), claims -> claims.audience(List.of(AUDIENCE))
+                .claim("sid", UUID.randomUUID().toString())
+                .claim("ver", 3)
+                .claim("amr", List.of("pwd", "otp"))
+                .claim("roles", List.of("PLAYER", "CONTENT_CREATOR")));
+
+        callProtected("Bearer " + token).andExpect(status().isOk());
+    }
+
+    @Test
+    void bilinmeyenKidReddedilir_401() throws Exception {
+        RSAKey unknown = new RSAKeyGenerator(ATTACKER_KEY_BITS).keyID("unknown-" + UUID.randomUUID()).generate();
+
+        callProtected("Bearer " + sign(unknown, ACCESS_TOKEN_TYPE, validClaims(newUser()).build()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void jwksAnahtarDonunceBilinmeyenKidIcinJwksYenilenir_sonrasindaYeniTokenGecer() throws Exception {
+        RSAKey rotated = new RSAKeyGenerator(ATTACKER_KEY_BITS).keyID("rotated-" + UUID.randomUUID()).generate();
+        String token = "Bearer " + sign(rotated, ACCESS_TOKEN_TYPE, validClaims(newUser()).build());
+        // Önce eski anahtar kümesinde yok: reddedilir.
+        callProtected(token).andExpect(status().isUnauthorized());
+
+        // Auth anahtarı yayımlayınca, Social bilinmeyen kid'i görüp JWKS'i yeniler; token'lar bekletilmeden geçer.
+        publishKey(rotated);
+
+        callProtected(token).andExpect(status().isOk());
+        // Eski anahtarla imzalı token'lar da (yayında kaldığı sürece) geçerlidir.
+        callProtected(bearer(newUser())).andExpect(status().isOk());
     }
 
     @Test

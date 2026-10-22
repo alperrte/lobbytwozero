@@ -37,6 +37,11 @@ public interface UserBlockRepository extends JpaRepository<UserBlock, UserBlockI
     List<UserBlock> findPageAfter(@Param("blockerId") UUID blockerId, @Param("createdAt") Instant createdAt,
             @Param("blockedId") UUID blockedId, Limit limit);
 
+    /** Hesap silme: kullanıcının koyduğu ve kendisine konan tüm engeller. */
+    @Modifying
+    @Query("delete from UserBlock b where b.id.blockerId = :accountId or b.id.blockedId = :accountId")
+    int deleteAllOf(@Param("accountId") UUID accountId);
+
     /** Atomik silme: eşzamanlı iki kaldırma isteğinden yalnız biri 1 döner. */
     @Modifying
     @Query("delete from UserBlock b where b.id = :id")

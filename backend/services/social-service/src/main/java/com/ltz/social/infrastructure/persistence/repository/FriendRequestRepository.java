@@ -8,6 +8,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -31,6 +32,11 @@ public interface FriendRequestRepository extends JpaRepository<FriendRequest, UU
               and ((r.senderId = :first and r.receiverId = :second)
                    or (r.senderId = :second and r.receiverId = :first))""")
     List<FriendRequest> findPendingBetweenForUpdate(@Param("first") UUID first, @Param("second") UUID second);
+
+    /** Hesap silme: kullanıcının gönderdiği ve aldığı tüm istekler (her durumda). */
+    @Modifying
+    @Query("delete from FriendRequest r where r.senderId = :accountId or r.receiverId = :accountId")
+    int deleteAllOf(@Param("accountId") UUID accountId);
 
     boolean existsBySenderIdAndReceiverIdAndStatus(UUID senderId, UUID receiverId, FriendRequestStatus status);
 
