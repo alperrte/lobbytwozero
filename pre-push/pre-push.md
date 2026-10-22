@@ -33,7 +33,7 @@ sonucu yalnızca backend test kapsamına aittir.
 
 - Git çalışma alanı ve staged whitespace kontrolü; takip edilen/staged ENV,
   anahtar ve bilinen gizli dosya yollarının kontrolü. Bu dosya adı kontrolüdür;
-  bütün kaynak içeriğinde veya Git geçmişinde secret taraması değildir.
+  bütün kaynak içeriğinde veya Git geçmişinde secret taraması değildir. Ek depo hijyeni (`pre-push/hygiene-checks.mjs`): izlenen dosyalarda özel anahtar başlığı ve uzun sır atamaları (değer yazdırılmaz), `.env` dosyalarının Git ve `.dockerignore` tarafından yok sayılması, Compose portlarının 127.0.0.1'e bağlı olması, anahtar üretici script güvenlik testi ve (kuruluysa) gitleaks ile tüm geçmiş taraması.
 - Tüm backend için Maven `clean verify`, test raporları ve modül başına merkezi progressive coverage kapısı.
 - Seçilen `.env.dev` veya `.env.prod` ile `docker-compose.yml` doğrulaması.
   Docker Compose gerekir; yapılandırma kontrolü container başlatmaz.
@@ -63,7 +63,7 @@ sonra bu kilit dosyasını elle kaldırabilirsiniz.
 Script regresyon testleri:
 
 ```powershell
-node --test pre-push/menu.test.mjs pre-push/quality.test.mjs pre-push/runtime-checks.test.mjs sonarqube/sonar.test.mjs ops/env.test.mjs
+node --test pre-push/menu.test.mjs pre-push/quality.test.mjs pre-push/runtime-checks.test.mjs sonarqube/sonar.test.mjs ops/env.test.mjs ops/generate-auth-dev-keys.test.mjs pre-push/hygiene-checks.test.mjs pre-push/backend-env.test.mjs
 ```
 
 Bu testler komut yönlendirmesini, hata durumlarını ve rapor kabul kurallarını

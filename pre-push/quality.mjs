@@ -1,10 +1,11 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { repositoryRoot, execute, backendTests, backendResults, readModules, clearBackendReports, withReportLock, withRunLog } from '../lib/quality-tools.mjs';
-import { requireNode } from '../lib/profile-env.mjs';
+import { requireNode, backendTestEnv } from '../lib/profile-env.mjs';
 import { requireMaven25 } from './backend-check.mjs';
 import { checkGitSecrets, checkBackendHealth } from './runtime-checks.mjs';
 import { prepareCoverage, enforceCoverage } from './ci/coverage.mjs';
+import { checkRepositoryHygiene } from './hygiene-checks.mjs';
 
 export const requiredRows = ['Git / Secret Check', 'Backend Tests', 'Backend Build', 'Backend Coverage', 'Docker Configuration'];
 
@@ -34,12 +35,12 @@ export async function runQualityChecks({ root = repositoryRoot, profile = 'dev',
     requireNode();
     const modules = readModules(root);
     clearBackendReports(root, modules);
-    await step('Git / Secret Check', () => checkGitSecrets(run, log));
+    await step('Git / Secret Check', async () => (await checkGitSecrets(run, log)) && checkRepositoryHygiene({ run, log, root }));
     await step('Backend Tests', async () => {
       rows['Backend Build'] = 'FAIL';
       await requireMaven25(run, mvn, root);
       env.LTZ_COVERAGE_CONTEXT = ambient.LTZ_COVERAGE_CONTEXT || await prepare(root);
-      const result = await run(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify']);
+      const result = await runCommand(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify'], { cwd: root, env: backendTestEnv(root, profile, env), capture: false, log });
       rows['Backend Build'] = result.code === 0 ? 'PASS' : 'FAIL';
       return result.code === 0 && backendTests(root, modules, started) > 0;
     });

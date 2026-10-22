@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { repositoryRoot, execute, redact, cleanGenerated, freshFile, backendResults, readModules, clearBackendReports, withReportLock, withRunLog } from '../lib/quality-tools.mjs';
-import { loadProfileEnv, requireNode } from '../lib/profile-env.mjs';
+import { loadProfileEnv, requireNode, backendTestEnv } from '../lib/profile-env.mjs';
 import { requireMaven25 } from '../pre-push/backend-check.mjs';
 import { coverageMinimum } from '../pre-push/ci/coverage.mjs';
 
@@ -66,6 +66,28 @@ export function overallTargets(measures) {
   return security === 1 && reliability === 1 && maintainability === 1 && values.coverage >= coverageMinimum() && values.duplicated_lines_density <= 3;
 }
 
+// Genel hedefler (A notları) kırmızıysa nedenini kural/dosya/satır/mesaj olarak yazdırır; token ve kaynak kod yazdırılmaz.
+export async function explainFailingTargets({ host, project, token, request, say }) {
+  try {
+    const query = '/api/issues/search?componentKeys=' + encodeURIComponent(project)
+      + '&types=VULNERABILITY,BUG&resolved=false&ps=100&s=SEVERITY';
+    const found = await request(host, query, token);
+    const issues = found.issues ?? [];
+    say('Hedefleri bozan açık bulgular (' + (found.total ?? issues.length) + '):');
+    for (const issue of issues) {
+      const file = String(issue.component ?? '').split(':').slice(1).join(':');
+      say('  [' + issue.severity + '/' + issue.type + '] ' + issue.rule + ' ' + file + ':' + (issue.line ?? '?') + ' ' + String(issue.message ?? '').slice(0, 160));
+    }
+    const fresh = await request(host, '/api/issues/search?componentKeys=' + encodeURIComponent(project)
+      + '&inNewCodePeriod=true&resolved=false&ps=50&s=SEVERITY', token);
+    say('Yeni koddaki açık bulgular (' + (fresh.total ?? (fresh.issues ?? []).length) + '):');
+    for (const issue of fresh.issues ?? []) {
+      const file = String(issue.component ?? '').split(':').slice(1).join(':');
+      say('  [' + issue.severity + '/' + issue.type + '] ' + issue.rule + ' ' + file + ':' + (issue.line ?? '?') + ' ' + String(issue.message ?? '').slice(0, 160));
+    }
+  } catch (error) { say('[WARN] Bulgu ayrıntısı alınamadı: ' + error.message); }
+}
+
 export async function runScan({ root = repositoryRoot, profile = 'dev', ambient = process.env, runCommand = execute, request = sonarRequest, log = console.log } = {}) {
   const rows = Object.fromEntries(scanRows.map(name => [name, 'SKIPPED']));
   const details = {};
@@ -109,7 +131,7 @@ export async function runScan({ root = repositoryRoot, profile = 'dev', ambient 
     clearBackendReports(root, modules);
     await step('Backend Reports', async () => {
       await requireMaven25(run, mvn, root);
-      const result = await run(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify']);
+      const result = await runCommand(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify'], { cwd: root, env: backendTestEnv(root, profile, env), capture: false, secrets, log: say });
       if (result.code !== 0) throw new Error('Backend build/tests failed');
       details.backend = backendResults(root, modules, started);
       say(`Fresh reports: ${details.backend.tests} tests; local line coverage ${details.backend.lineCoverage.toFixed(2)}%`);
@@ -138,6 +160,7 @@ export async function runScan({ root = repositoryRoot, profile = 'dev', ambient 
       details.measures = metrics.component?.measures ?? [];
       rows['Overall Targets Backend'] = overallTargets(details.measures) ? 'PASS' : 'FAIL';
       say('Backend metrics (rating 1=A): ' + JSON.stringify(details.measures));
+      if (rows['Overall Targets Backend'] === 'FAIL' || rows['Quality Gate Backend'] === 'FAIL') await explainFailingTargets({ host, project, token: env.SONAR_TOKEN, request, say });
       details.gatePolicy = await readAssignedGatePolicy({ host, project, token: env.SONAR_TOKEN, request });
       say('Assigned gate policy: ' + JSON.stringify(details.gatePolicy));
       if (result.code !== 0) say('[ERROR] Maven scanner exited with code ' + result.code);

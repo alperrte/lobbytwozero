@@ -42,4 +42,9 @@ USER ltz
 
 EXPOSE 8080
 
+# Kapsayici sagligi: Actuator health 200 donmuyorsa unhealthy (bash /dev/tcp; imajda curl yok).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
+    CMD ["bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/${BACKEND_INTERNAL_PORT:-8080} && printf 'GET /actuator/health HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && head -n1 <&3 | grep -q ' 200 '"]
+
+
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
