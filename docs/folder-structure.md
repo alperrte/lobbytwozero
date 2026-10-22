@@ -38,6 +38,7 @@ Kurallar:
 - `.env`, `.env.dev`, `*.bak` ve `frontend/.env.local` **okunmaz, içeriği hiçbir belgeye/koda aktarılmaz**. Yeni değişken gerekiyorsa yalnız `.env.example` önerilir ve kullanıcı onayı alınır.
 - `logs/`, `test-results/`, `.next/`, `target/`, `node_modules/` üretilmiş içeriktir; elle düzenlenmez, commit edilmez.
 - Kök dizine yeni betik eklenmez; Node yardımcıları `lib/`, ortam betikleri `ops/`, kalite betikleri `pre-push/` veya `sonarqube/` altına gider.
+- CI iş tanımları `.github/workflows/`, ortak Java kuralları `backend/config/`, secretsiz CI test/araç yardımcıları `pre-push/ci/` altındadır. `.mvn/` ortak kural dosyaları için repository kökünü belirler; kurulum ve test sözleşmesi [engineering.md](engineering.md) içindedir.
 
 ---
 

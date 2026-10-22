@@ -26,7 +26,7 @@ parent POM'a eklendiğinde menüye de gelir. `--help` seçenekleri gösterir.
 
 `backend` tüm modüllerde; servis adı yalnızca seçilen modülde Maven
 `clean verify` çalıştırır. Her modülde çalışmış, başarılı ve atlanmamış testler,
-taze Surefire/JaCoCo raporları ve en az %80 satır coverage aranır. Bu modların
+taze Surefire/JaCoCo raporları ve merkezi progressive coverage politikası aranır. Bu modların
 sonucu yalnızca backend test kapsamına aittir.
 
 `full` şu kontrolleri çalıştırır:
@@ -34,8 +34,7 @@ sonucu yalnızca backend test kapsamına aittir.
 - Git çalışma alanı ve staged whitespace kontrolü; takip edilen/staged ENV,
   anahtar ve bilinen gizli dosya yollarının kontrolü. Bu dosya adı kontrolüdür;
   bütün kaynak içeriğinde veya Git geçmişinde secret taraması değildir.
-- Tüm backend için Maven `clean verify`, test raporları ve ağırlıklı toplam
-  satır coverage en az %80.
+- Tüm backend için Maven `clean verify`, test raporları ve modül başına merkezi progressive coverage kapısı.
 - Seçilen `.env.dev` veya `.env.prod` ile `docker-compose.yml` doğrulaması.
   Docker Compose gerekir; yapılandırma kontrolü container başlatmaz.
 - Compose içinde tanımlı backend servisleri varsa seçilen Compose projesinde
@@ -69,3 +68,6 @@ node --test pre-push/menu.test.mjs pre-push/quality.test.mjs pre-push/runtime-ch
 
 Bu testler komut yönlendirmesini, hata durumlarını ve rapor kabul kurallarını
 doğrular; gerçek Maven testlerinin ve Sonar analizinin yerine geçmez.
+# Hızlı commit ve merkezi PR kontrolü
+
+Bu manuel betikler korunur; otomatik commit hook'u değildir. Hızlı prek/Gitleaks kurulumu ve secretsiz CI test komutları [engineering.md](../docs/engineering.md) içindedir. `full` yalnız backend/Compose/health kapsamındadır; frontend ve Node testleri merkezi PR akışında ayrıca çalışır. Coverage policy manifest'i tek kaynaktır: kayıtlı bootstrap baseline korunur, yeni/değişen ve bootstrap dışı executable kod minimumu sağlamalıdır; strict/yayınlama toplam hedefi%80'dir. Yalnız toplam repository oranı yeterli değildir.

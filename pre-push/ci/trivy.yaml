@@ -1,0 +1,12 @@
+# Secret scanning belongs to Gitleaks; Trivy owns misconfiguration/image CVEs.
+exit-code: 1
+ignorefile: ""
+severity:
+  - HIGH
+  - CRITICAL
+scan:
+  scanners:
+    - misconfig
+misconfiguration:
+  scanners:
+    - dockerfile

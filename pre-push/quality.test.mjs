@@ -26,7 +26,9 @@ async function fixture(options, action) {
         const base = `backend/${module}/target`;
         write(`${base}/surefire-reports/TEST-app.xml`, `<testsuite tests="1" failures="0" errors="0" skipped="${options.skipped ? 1 : 0}"/>`);
         if (options.missingCoverage) continue;
-        write(`${base}/site/jacoco/jacoco.xml`, `<report><counter type="LINE" missed="${options.lowCoverage ? 100 : 0}" covered="100"/></report>`);
+        const missed = options.lowCoverage || (options.unbalancedCoverage && module === modules[0]) ? 100 : 0;
+        const covered = options.unbalancedCoverage && module === modules[1] ? 10000 : 100;
+        write(`${base}/site/jacoco/jacoco.xml`, `<report><counter type="LINE" missed="${missed}" covered="${covered}"/></report>`);
         write(`${base}/site/jacoco/index.html`, 'report');
         write(`${base}/classes/App.class`, 'bytecode');
       }
@@ -42,7 +44,11 @@ async function fixture(options, action) {
     throw new Error('Unexpected command ' + command);
   };
   try {
-    const result = await runQualityChecks({ root, profile: 'dev', ambient: { SONAR_TOKEN: 'private' }, runCommand, log: line => lines.push(line) });
+    const result = await runQualityChecks({ root, profile: 'dev', ambient: { SONAR_TOKEN: 'private' }, runCommand,
+      prepare: async () => 'synthetic-context', coverageCheck: () => {
+        if (options.lowCoverage || options.unbalancedCoverage) throw new Error('Central policy rejected synthetic report');
+        return modules.map(module => ({ module, changed: { status: 'NOT_APPLICABLE' } }));
+      }, log: line => lines.push(line) });
     await action({ root, write, result, calls, lines });
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 }
@@ -57,7 +63,7 @@ test('full check matches the current backend and postgres scope without inventin
   });
 });
 
-for (const option of ['secret', 'skipped', 'missingCoverage', 'lowCoverage', 'buildFail', 'noDocker', 'deployed']) {
+for (const option of ['secret', 'skipped', 'missingCoverage', 'lowCoverage', 'unbalancedCoverage', 'buildFail', 'noDocker', 'deployed']) {
   test(`full check ${option} cannot produce a false success`, async () => {
     await fixture({ [option]: true }, async ({ result, lines }) => {
       assert.equal(result.exitCode, 1);

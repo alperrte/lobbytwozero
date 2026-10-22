@@ -1,0 +1,205 @@
+{
+  "version": 1,
+  "minimumPercent": 80,
+  "evidence": "foundation-20261021-203355-bc6d2f17e1f4469ab116d802b00f362c",
+  "modules": {
+    "services/auth-service": {
+      "level": "bootstrap",
+      "baseline": {
+        "covered": 1,
+        "missed": 2,
+        "tests": 1
+      },
+      "sources": {
+        "com/ltz/auth/AuthServiceApplication.java": "6a5553ae527c6eeb4a5d951e0b6b70c245462878ce24ba83e7faa71f9eb63f73"
+      }
+    },
+    "services/user-service": {
+      "level": "bootstrap",
+      "baseline": {
+        "covered": 1,
+        "missed": 2,
+        "tests": 1
+      },
+      "sources": {
+        "com/ltz/user/UserServiceApplication.java": "95cca3d1c4f52260feb5cde2ad6df0eae8124f00ec639a2226deaaab8479a118"
+      }
+    },
+    "services/mail-service": {
+      "level": "bootstrap",
+      "baseline": {
+        "covered": 1,
+        "missed": 2,
+        "tests": 1
+      },
+      "sources": {
+        "com/ltz/mail/MailServiceApplication.java": "4de85078be133b05fa52205e7143fac192c63042efe04b002825c0eee28dca5f"
+      }
+    },
+    "services/game-service": {
+      "level": "bootstrap",
+      "baseline": {
+        "covered": 1,
+        "missed": 2,
+        "tests": 2
+      },
+      "sources": {
+        "com/ltz/game/GameServiceApplication.java": "2a2a6ec263459bfc095f1d6a502b558c6140ea937c9cfb54dd07aa0d80d70723"
+      }
+    },
+    "services/library-service": {
+      "level": "bootstrap",
+      "baseline": {
+        "covered": 1,
+        "missed": 2,
+        "tests": 1
+      },
+      "sources": {
+        "com/ltz/library/LibraryServiceApplication.java": "33f48a4a744d09344f8d99dde6d93a82f08d9d282e4c6e55c02258bd0d99984f"
+      }
+    },
+    "services/review-service": {
+      "level": "bootstrap",
+      "baseline": {
+        "covered": 1,
+        "missed": 2,
+        "tests": 1
+      },
+      "sources": {
+        "com/ltz/review/ReviewServiceApplication.java": "7f8fff68d27e398115ffb1cec18e669be27f325280a04e7b0f3712e5ca7b021a"
+      }
+    },
+    "services/social-service": {
+      "level": "bootstrap",
+      "baseline": {
+        "covered": 1,
+        "missed": 2,
+        "tests": 1
+      },
+      "sources": {
+        "com/ltz/social/SocialServiceApplication.java": "7b2cca664d43e3e7a20f40546af179482675fef0c8c53bda2d7aef6ff3671c8e"
+      }
+    },
+    "services/messaging-service": {
+      "level": "bootstrap",
+      "baseline": {
+        "covered": 1,
+        "missed": 2,
+        "tests": 1
+      },
+      "sources": {
+        "com/ltz/messaging/MessagingServiceApplication.java": "62df495bb9c85265cd281d1b7107b3c9c565ce717a652fea2cc24f735d227169"
+      }
+    },
+    "services/lfp-service": {
+      "level": "bootstrap",
+      "baseline": {
+        "covered": 1,
+        "missed": 2,
+        "tests": 1
+      },
+      "sources": {
+        "com/ltz/lfp/LfpServiceApplication.java": "10302551c068223575ecda04c609cf91e4d7e6aceb1521f75d20947fa77fa5fe"
+      }
+    },
+    "services/community-service": {
+      "level": "bootstrap",
+      "baseline": {
+        "covered": 1,
+        "missed": 2,
+        "tests": 1
+      },
+      "sources": {
+        "com/ltz/community/CommunityServiceApplication.java": "38de2c9f2f517c4350d33068656bddcea93b3262d811f5bd0155648305e8de0b"
+      }
+    },
+    "services/content-service": {
+      "level": "bootstrap",
+      "baseline": {
+        "covered": 1,
+        "missed": 2,
+        "tests": 1
+      },
+      "sources": {
+        "com/ltz/content/ContentServiceApplication.java": "5e9e236803b726b9dc1b901a7816eaa3a296177140dca7610c8f791c12cbf217"
+      }
+    },
+    "services/event-service": {
+      "level": "bootstrap",
+      "baseline": {
+        "covered": 1,
+        "missed": 2,
+        "tests": 1
+      },
+      "sources": {
+        "com/ltz/event/EventServiceApplication.java": "abe9491e75189eceb57548c0a53224fb774608d7764e5d2fa8b2694be3ded871"
+      }
+    },
+    "services/hardware-service": {
+      "level": "bootstrap",
+      "baseline": {
+        "covered": 1,
+        "missed": 2,
+        "tests": 1
+      },
+      "sources": {
+        "com/ltz/hardware/HardwareServiceApplication.java": "db4b905898b0a30d790b57d2f2e30a867d40de89b9a997043699135bceddae11"
+      }
+    },
+    "services/recommendation-service": {
+      "level": "bootstrap",
+      "baseline": {
+        "covered": 1,
+        "missed": 2,
+        "tests": 1
+      },
+      "sources": {
+        "com/ltz/recommendation/RecommendationServiceApplication.java": "d31ca237bb1150dd0af7b525efa78fcf74c978d16139c127047925213b5eb76d"
+      }
+    },
+    "services/performance-service": {
+      "level": "bootstrap",
+      "baseline": {
+        "covered": 1,
+        "missed": 2,
+        "tests": 1
+      },
+      "sources": {
+        "com/ltz/performance/PerformanceServiceApplication.java": "e6333f07df1ee25d1d38e0a1188d89a68e43adf6c6eec62c45ec2679ea86811d"
+      }
+    },
+    "services/admin-service": {
+      "level": "bootstrap",
+      "baseline": {
+        "covered": 1,
+        "missed": 2,
+        "tests": 1
+      },
+      "sources": {
+        "com/ltz/admin/AdminServiceApplication.java": "3e49f292e7c85974c4543af80b2cb01a2daafec7a435be6b842e58ce2a2beba3"
+      }
+    },
+    "services/notification-service": {
+      "level": "bootstrap",
+      "baseline": {
+        "covered": 1,
+        "missed": 2,
+        "tests": 1
+      },
+      "sources": {
+        "com/ltz/notification/NotificationServiceApplication.java": "f50197f167988cc8f7adebb04f9ceefca954ce7e0d24959653173ca1124d9948"
+      }
+    },
+    "services/api-gateway": {
+      "level": "bootstrap",
+      "baseline": {
+        "covered": 1,
+        "missed": 2,
+        "tests": 1
+      },
+      "sources": {
+        "com/ltz/gateway/ApiGatewayApplication.java": "cfc2347ab199a44a68aa20ef09d73b5eff8577cd47a58119c67b8f7e059804bc"
+      }
+    }
+  }
+}

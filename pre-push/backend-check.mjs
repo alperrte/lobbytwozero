@@ -1,4 +1,5 @@
 import { repositoryRoot, execute, backendTests, backendResults, readModules, clearBackendReports } from '../lib/quality-tools.mjs';
+import { prepareCoverage, enforceCoverage } from './ci/coverage.mjs';
 
 export async function requireMaven25(run, mvn, root) {
   const version = await run(mvn, ['-version'], root, true);
@@ -6,7 +7,8 @@ export async function requireMaven25(run, mvn, root) {
   if (!/Java version:\s*25[.,]/.test(version.output)) throw new Error('Maven must use JDK 25; check JAVA_HOME');
 }
 
-export async function runBackendChecks({ root = repositoryRoot, service = 'all', ambient = process.env, runCommand = execute, log = console.log } = {}) {
+export async function runBackendChecks({ root = repositoryRoot, service = 'all', ambient = process.env, runCommand = execute,
+  prepare = prepareCoverage, coverageCheck = enforceCoverage, log = console.log } = {}) {
   const services = {};
   const started = Date.now();
   let buildPassed = false;
@@ -20,6 +22,7 @@ export async function runBackendChecks({ root = repositoryRoot, service = 'all',
     const run = (command, args, cwd = root, capture = false) => runCommand(command, args, { cwd, env, capture, log });
     const mvn = process.platform === 'win32' ? 'mvn.cmd' : 'mvn';
     await requireMaven25(run, mvn, root);
+    env.LTZ_COVERAGE_CONTEXT = ambient.LTZ_COVERAGE_CONTEXT || await prepare(root);
     clearBackendReports(root, selected);
     const args = ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end'];
     if (service !== 'all') args.push('-pl', selected[0]);
@@ -41,7 +44,8 @@ export async function runBackendChecks({ root = repositoryRoot, service = 'all',
       try {
         const report = backendResults(root, [module], started);
         row.lineCoverage = report.lineCoverage;
-        row.coverage = report.lineCoverage >= 80 ? 'PASS' : 'FAIL';
+        row.policy = coverageCheck(root, [module], env.LTZ_COVERAGE_CONTEXT)[0];
+        row.coverage = 'PASS';
       } catch (error) {
         row.coverage = 'FAIL';
         row.error = error.message;
@@ -53,7 +57,7 @@ export async function runBackendChecks({ root = repositoryRoot, service = 'all',
   }
   const passed = buildPassed && Object.keys(services).length > 0 && Object.values(services).every(row => row.tests === 'PASS' && row.coverage === 'PASS');
   log('\n========================================\nLTZ BACKEND TEST CHECK\n========================================');
-  log('Service'.padEnd(24) + 'Tests       Coverage    Count    Lines (target 80%)');
+  log('Service'.padEnd(24) + 'Tests       Coverage    Count    Lines (central progressive policy)');
   for (const [name, row] of Object.entries(services)) {
     log(name.padEnd(24) + row.tests.padEnd(12) + row.coverage.padEnd(12) + String(row.testCount).padEnd(9) + (row.lineCoverage === null ? 'N/A' : row.lineCoverage.toFixed(2) + '%'));
   }

@@ -92,7 +92,9 @@ Her yeni görevde, kod yazmadan önce sırasıyla oku:
 ## 6. Kalite ve doğrulama
 
 - Değiştirdiğin kod için test yaz. Test konumları [folder-structure.md](docs/folder-structure.md) §3.1 ve §5.1'de tanımlıdır.
-- Backend line coverage (JaCoCo) en az %80 olmalıdır.
+- Backend coverage için tek politika `backend/config/coverage-policy.json` ve `docs/engineering.md` içindedir. İncelenmiş bootstrap modüller baseline'da gerileyemez; yeni/değişen ve bootstrap dışı executable Java satırları minimumu sağlamalıdır. Strict modül ve yayınlama hedefi toplam en az %80'dir. Maven verify ve Node runner aynı merkezi gate'i uygular; manifest değişikliği bağımsız owner review gerektirir.
+- Ortak CI/kalite altyapısı için [docs/engineering.md](docs/engineering.md) geçerlidir. Gerçek ENV okumadan backend doğrulaması: `node pre-push/ci/backend.mjs`; bu komut JDK25 ve geçici PostgreSQL gerektirir. Ağ/araç/test engeli PASS sayılmaz.
+- Commit hook'u yalnız hızlı staged-file kontrolleridir; ağır Maven/Sonar/Docker/E2E commit hook'una eklenmez. GitHub Quality Gate ancak owner required check ayarını uyguladıysa merge korumasıdır.
 - İş bitti demeden önce uygun kontrolü çalıştır ve sonucu dürüstçe raporla:
   - Windows: `.\pre-push\pre-push.cmd service`, `backend` veya `full dev`
   - POSIX: `sh ./pre-push/pre-push.sh`

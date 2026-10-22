@@ -243,3 +243,7 @@ LTZ'nin dünyası **mikroservislerden** oluşur. Web istemcisi tüm isteklerini 
 > Ayrıntılar: [ops/ops.md](ops/ops.md) · [pre-push/pre-push.md](pre-push/pre-push.md)
 
 <p align="center"><img src="docs/assets/readme/footer.svg" width="100%" alt="In development — LTZ aktif geliştirme aşamasında. Thanks for playing!"></p>
+# Mühendislik kalite altyapısı
+
+PR doğrulamaları, hızlı prek hook kurulumu, redakte secret taraması ve izole backend testleri:
+[DevSecOps Foundation v1.0](docs/engineering.md). GitHub üzerinde gerçek CI sonucu ve merge koruması henüz **NOT VERIFIED**.

@@ -4,6 +4,7 @@ import { repositoryRoot, execute, backendTests, backendResults, readModules, cle
 import { requireNode } from '../lib/profile-env.mjs';
 import { requireMaven25 } from './backend-check.mjs';
 import { checkGitSecrets, checkBackendHealth } from './runtime-checks.mjs';
+import { prepareCoverage, enforceCoverage } from './ci/coverage.mjs';
 
 export const requiredRows = ['Git / Secret Check', 'Backend Tests', 'Backend Build', 'Backend Coverage', 'Docker Configuration'];
 
@@ -14,7 +15,8 @@ export function formatQualityStatus(value, stream = process.stdout) {
     `\u001b[${status === 'SAFE TO COMMIT' ? 32 : 31}m${status}\u001b[0m`);
 }
 
-export async function runQualityChecks({ root = repositoryRoot, profile = 'dev', ambient = process.env, runCommand = execute, healthProbe, log = console.log } = {}) {
+export async function runQualityChecks({ root = repositoryRoot, profile = 'dev', ambient = process.env, runCommand = execute,
+  prepare = prepareCoverage, coverageCheck = enforceCoverage, healthProbe, log = console.log } = {}) {
   const rows = Object.fromEntries([...requiredRows, 'Backend HTTP Health'].map(name => [name, 'SKIPPED']));
   const details = {};
   const env = Object.fromEntries(Object.entries(ambient).filter(([name]) => !name.startsWith('SONAR')));
@@ -36,6 +38,7 @@ export async function runQualityChecks({ root = repositoryRoot, profile = 'dev',
     await step('Backend Tests', async () => {
       rows['Backend Build'] = 'FAIL';
       await requireMaven25(run, mvn, root);
+      env.LTZ_COVERAGE_CONTEXT = ambient.LTZ_COVERAGE_CONTEXT || await prepare(root);
       const result = await run(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify']);
       rows['Backend Build'] = result.code === 0 ? 'PASS' : 'FAIL';
       return result.code === 0 && backendTests(root, modules, started) > 0;
@@ -44,8 +47,9 @@ export async function runQualityChecks({ root = repositoryRoot, profile = 'dev',
       if (rows['Backend Tests'] !== 'PASS') throw new Error('Successful fresh backend tests are required');
       const report = backendResults(root, modules, started);
       details.backend = report;
-      log(`Backend: ${report.tests} tests; overall line coverage ${report.lineCoverage.toFixed(2)}% (target 80%)`);
-      return report.lineCoverage >= 80;
+      log(`Backend: ${report.tests} tests; overall line coverage ${report.lineCoverage.toFixed(2)}% (central progressive policy)`);
+      details.coveragePolicy = coverageCheck(root, modules, env.LTZ_COVERAGE_CONTEXT);
+      return true;
     });
     let deployed = [];
     await step('Docker Configuration', async () => {
@@ -68,7 +72,7 @@ export async function runQualityChecks({ root = repositoryRoot, profile = 'dev',
     } else {
       log('[SKIPPED] Backend HTTP Health: no backend services in the current Compose configuration.');
     }
-    log('[SCOPE] Current backend and Compose configuration. No frontend exists; SonarQube runs separately.');
+    log('[SCOPE] Backend and Compose only. Frontend and Node regression checks run in CI; SonarQube is optional.');
   } catch (error) { log(`[ERROR] ${error.message}`); }
   const safe = requiredRows.every(name => rows[name] === 'PASS') && (!healthRequired || rows['Backend HTTP Health'] === 'PASS');
   log('\n========================================\nLTZ LOCAL QUALITY CHECK\n========================================');

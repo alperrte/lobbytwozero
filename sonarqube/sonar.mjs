@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { repositoryRoot, execute, redact, cleanGenerated, freshFile, backendResults, readModules, clearBackendReports, withReportLock, withRunLog } from '../lib/quality-tools.mjs';
 import { loadProfileEnv, requireNode } from '../lib/profile-env.mjs';
 import { requireMaven25 } from '../pre-push/backend-check.mjs';
+import { coverageMinimum } from '../pre-push/ci/coverage.mjs';
 
 export const loadSonarEnv = loadProfileEnv;
 
@@ -13,7 +14,7 @@ export function gatePassed(data) {
 export function sonarWayPolicy(conditions = []) {
   const condition = (metric, op, threshold) => conditions.some((item) => item.metric === metric && item.op === op && Number(item.error) === threshold);
   const ratings = ['new_security_rating', 'new_reliability_rating', 'new_maintainability_rating'].every((metric) => condition(metric, 'GT', 1));
-  return condition('new_coverage', 'LT', 80) && condition('new_duplicated_lines_density', 'GT', 3) && (condition('new_violations', 'GT', 0) || ratings);
+  return condition('new_coverage', 'LT', coverageMinimum()) && condition('new_duplicated_lines_density', 'GT', 3) && (condition('new_violations', 'GT', 0) || ratings);
 }
 
 export function validateSonarHost(host) {
@@ -62,7 +63,7 @@ export function overallTargets(measures) {
   const security = values.software_quality_security_rating ?? values.security_rating;
   const reliability = values.software_quality_reliability_rating ?? values.reliability_rating;
   const maintainability = values.software_quality_maintainability_rating ?? values.sqale_rating;
-  return security === 1 && reliability === 1 && maintainability === 1 && values.coverage >= 80 && values.duplicated_lines_density <= 3;
+  return security === 1 && reliability === 1 && maintainability === 1 && values.coverage >= coverageMinimum() && values.duplicated_lines_density <= 3;
 }
 
 export async function runScan({ root = repositoryRoot, profile = 'dev', ambient = process.env, runCommand = execute, request = sonarRequest, log = console.log } = {}) {
@@ -186,4 +187,3 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       { secrets: [process.env.SONAR_TOKEN] })).exitCode;
   } catch (error) { console.error('Sonar runner could not start: ' + error.message); process.exitCode = 1; }
 }
-

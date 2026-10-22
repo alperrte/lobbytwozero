@@ -108,7 +108,11 @@ async function backendFixture(options, action) {
       }
       return {code:options.buildFail?1:0,output:''};
     };
-    const result = await runBackendChecks({root,service:options.service??'auth-service',ambient:{SONAR_TOKEN:'do-not-forward'},runCommand,log:line=>lines.push(line)});
+    const result = await runBackendChecks({root,service:options.service??'auth-service',ambient:{SONAR_TOKEN:'do-not-forward'},runCommand,
+      prepare:async()=> 'synthetic-context',coverageCheck:(_root,selected)=>{
+        if(options.lowCoverage)throw new Error('Central policy rejected synthetic report');
+        return selected.map(module=>({module}));
+      },log:line=>lines.push(line)});
     await action({root,result,calls,lines});
   });
 }

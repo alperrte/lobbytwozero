@@ -1,0 +1,198 @@
+name: LTZ CI
+on:
+  pull_request:
+  pull_request_review:
+    types: [submitted, dismissed]
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: ltz-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  scope:
+    name: Change Scope
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      backend: ${{ steps.scope.outputs.backend }}
+      frontend: ${{ steps.scope.outputs.frontend }}
+      config: ${{ steps.scope.outputs.config }}
+      modules: ${{ steps.scope.outputs.modules }}
+      json: ${{ steps.scope.outputs.json }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - id: scope
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: node pre-push/ci/changes.mjs "$BASE_SHA" "$HEAD_SHA"
+  secrets:
+    name: Secret Scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - run: node pre-push/ci/install-tool.mjs gitleaks
+      - name: Scan every PR commit, including intermediate commits
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node pre-push/ci/secrets.mjs range "$BASE_SHA" "$HEAD_SHA"
+  node:
+    name: Node Regressions (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - run: node --test ops/env.test.mjs pre-push/menu.test.mjs pre-push/quality.test.mjs pre-push/runtime-checks.test.mjs sonarqube/sonar.test.mjs pre-push/ci/foundation.test.mjs pre-push/ci/coverage.test.mjs
+  hooks:
+    name: Fast Source Checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - run: node pre-push/ci/install-tool.mjs prek
+      - run: node pre-push/ci/hooks.mjs
+  backend:
+    name: Backend Verify
+    needs: scope
+    if: needs.scope.outputs.backend == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      pull-requests: read
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: ltz_test
+          POSTGRES_PASSWORD: ltz_test_only
+          POSTGRES_DB: postgres
+        ports:
+          - 127.0.0.1:65432:5432
+        options: >-
+          --health-cmd "pg_isready -U ltz_test -d postgres"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+          cache-dependency-path: "backend/**/pom.xml"
+          overwrite-settings: false
+      - name: Prepare reviewed coverage context for tested merge
+        env:
+          COVERAGE_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          COVERAGE_HEAD_SHA: ${{ github.sha }}
+          COVERAGE_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node pre-push/ci/coverage.mjs prepare
+      - name: Initialize disposable test databases
+        env:
+          PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: docker exec -i "$PG_CONTAINER" psql -v ON_ERROR_STOP=1 -U ltz_test -d postgres < pre-push/ci/init-test-databases.sql
+      - name: Verify selected backend modules
+        env:
+          MODULES: ${{ needs.scope.outputs.modules }}
+        run: node pre-push/ci/backend.mjs --ci --modules "$MODULES"
+  frontend:
+    name: Frontend Verify
+    needs: scope
+    if: needs.scope.outputs.frontend == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: frontend
+      - run: npm run lint
+        working-directory: frontend
+      - run: npm run typecheck
+        working-directory: frontend
+      - run: npm run test
+        working-directory: frontend
+  config:
+    name: Config Security
+    needs: scope
+    if: needs.scope.outputs.config == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - run: node pre-push/ci/install-tool.mjs trivy
+      - run: node pre-push/ci/formats.mjs trivy
+  quality-gate:
+    name: Quality Gate
+    if: always()
+    needs: [scope, secrets, node, hooks, backend, frontend, config]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - name: Require every applicable job to succeed
+        env:
+          SCOPE_JSON: ${{ needs.scope.outputs.json }}
+          JOB_RESULTS: >-
+            {"scope":"${{ needs.scope.result }}","secrets":"${{ needs.secrets.result }}","node":"${{ needs.node.result }}","hooks":"${{ needs.hooks.result }}","backend":"${{ needs.backend.result }}","frontend":"${{ needs.frontend.result }}","config":"${{ needs.config.result }}"}
+        run: node pre-push/ci/changes.mjs gate

@@ -1,0 +1,61 @@
+name: LTZ Security Audit
+on:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+    inputs:
+      megalinter_pilot:
+        description: "Run optional complementary format lint pilot"
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: ltz-security-audit
+  cancel-in-progress: false
+jobs:
+  history:
+    name: Full History Secret Scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - run: node pre-push/ci/install-tool.mjs gitleaks
+      - run: node pre-push/ci/secrets.mjs history
+  containers:
+    name: Container and Config Audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - run: node pre-push/ci/install-tool.mjs trivy
+      - run: node pre-push/ci/formats.mjs trivy
+      - name: Scan existing base images (no image build or publication)
+        run: node pre-push/ci/images.mjs
+  formats:
+    name: MegaLinter Pilot
+    if: github.event_name == 'workflow_dispatch' && inputs.megalinter_pilot
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - run: node pre-push/ci/formats.mjs mega
