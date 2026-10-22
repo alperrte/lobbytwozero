@@ -13,13 +13,16 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ExternalUrls {
 
-    private static final String TRAILING_SLASHES = "/+$";
-
     private final OAuthProperties properties;
 
     /** Dışarıdan görünen Gateway adresi + yol; Google redirect URI'si ve Steam return_to bunun üzerine kurulur. */
     public String publicUrl(String path) {
-        return properties.publicBaseUrl().toString().replaceAll(TRAILING_SLASHES, "") + path;
+        String base = properties.publicBaseUrl().toString();
+        int end = base.length();
+        while (end > 0 && base.charAt(end - 1) == '/') {
+            end--;
+        }
+        return base.substring(0, end) + path;
     }
 
     /** Steam realm: return_to'nun kökü (şema + host + port). */

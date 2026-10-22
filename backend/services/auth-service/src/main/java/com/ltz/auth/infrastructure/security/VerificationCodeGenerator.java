@@ -4,6 +4,7 @@ import java.security.SecureRandom;
 import java.util.Locale;
 import java.util.random.RandomGenerator;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.ltz.auth.domain.entity.EmailVerificationCode;
@@ -17,6 +18,7 @@ public class VerificationCodeGenerator {
 
     private final RandomGenerator random;
 
+    @Autowired
     public VerificationCodeGenerator() {
         this(new SecureRandom());
     }
