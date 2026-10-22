@@ -1,8 +1,10 @@
 package com.ltz.social;
 
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -162,6 +164,45 @@ public abstract class IntegrationTestSupport {
 
     protected ResultActions list(String path, UUID user, String query) throws Exception {
         return mockMvc.perform(get(path + query).header(HttpHeaders.AUTHORIZATION, bearer(user)));
+    }
+
+    /** İki kullanıcıyı gerçek akışla (istek + kabul) arkadaş yapar ve isteğin kimliğini döner. */
+    protected UUID befriend(UUID sender, UUID receiver) throws Exception {
+        UUID requestId = sendRequestAndGetId(sender, receiver);
+        act(SocialApiPaths.FRIEND_REQUEST_ACCEPT, receiver, requestId).andExpect(status().isOk());
+        return requestId;
+    }
+
+    protected ResultActions block(UUID blocker, UUID blocked) throws Exception {
+        return mockMvc.perform(post(SocialApiPaths.BLOCKS)
+                .header(HttpHeaders.AUTHORIZATION, bearer(blocker))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"blockedUserId":"%s"}
+                        """.formatted(blocked)));
+    }
+
+    protected ResultActions unblock(UUID blocker, UUID blocked) throws Exception {
+        return mockMvc.perform(delete(SocialApiPaths.BLOCK, blocked)
+                .header(HttpHeaders.AUTHORIZATION, bearer(blocker)));
+    }
+
+    protected boolean isBlocked(UUID blocker, UUID blocked) {
+        return jdbc.queryForObject("select count(*) from user_blocks where blocker_id = ? and blocked_id = ?",
+                Integer.class, blocker, blocked) == 1;
+    }
+
+    /** İki kullanıcı arasında (yönden bağımsız) bekleyen istek sayısı. */
+    protected int pendingBetween(UUID first, UUID second) {
+        return jdbc.queryForObject("select count(*) from friend_requests where status = 'PENDING' and "
+                + "((sender_id = ? and receiver_id = ?) or (sender_id = ? and receiver_id = ?))",
+                Integer.class, first, second, second, first);
+    }
+
+    /** Kaynağa ait outbox olaylarının türleri (eklenme sırasıyla). */
+    protected List<String> eventTypes(UUID aggregateId) {
+        return jdbc.queryForList("select event_type from outbox_events where aggregate_id = ? order by occurred_at, id",
+                String.class, aggregateId);
     }
 
     protected int friendshipCount() {

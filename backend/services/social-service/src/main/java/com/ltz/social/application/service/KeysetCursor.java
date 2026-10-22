@@ -11,23 +11,20 @@ import com.ltz.social.domain.exception.SocialException;
 
 /**
  * Keyset sayfalama imleci: son görülen kaydın {@code (createdAt, id)} çifti. İstemci için opak bir metindir;
- * sunucu her gelen imleci sıkı doğrular, bozuk/uzun imleç 400 {@code INVALID_CURSOR} olur.
+ * sunucu her gelen imleci sıkı doğrular, bozuk/uzun imleç 400 {@code INVALID_CURSOR} olur. {@code id}, liste
+ * kaydının sıralamadaki ikinci anahtarıdır (istek kimliği ya da arkadaş kimliği).
  */
-record FriendRequestCursor(Instant createdAt, UUID id) {
+record KeysetCursor(Instant createdAt, UUID id) {
 
     private static final String SEPARATOR = "|";
     private static final int MAX_ENCODED_LENGTH = 128;
-
-    static FriendRequestCursor of(FriendRequestView last) {
-        return new FriendRequestCursor(last.createdAt(), last.id());
-    }
 
     String encode() {
         String raw = createdAt + SEPARATOR + id;
         return Base64.getUrlEncoder().withoutPadding().encodeToString(raw.getBytes(StandardCharsets.UTF_8));
     }
 
-    static FriendRequestCursor decode(String encoded) {
+    static KeysetCursor decode(String encoded) {
         if (encoded.isEmpty() || encoded.length() > MAX_ENCODED_LENGTH) {
             throw invalid();
         }
@@ -37,7 +34,7 @@ record FriendRequestCursor(Instant createdAt, UUID id) {
             if (separator < 0) {
                 throw invalid();
             }
-            return new FriendRequestCursor(Instant.parse(raw.substring(0, separator)),
+            return new KeysetCursor(Instant.parse(raw.substring(0, separator)),
                     UUID.fromString(raw.substring(separator + 1)));
         } catch (IllegalArgumentException | DateTimeParseException exception) {
             throw invalid();
