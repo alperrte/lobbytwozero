@@ -172,7 +172,7 @@ class PostImageServiceTest {
 
 	@Test
 	void anyAuthenticatedUserCanViewImageOfVisiblePost() {
-		when(currentUser.requireUserId()).thenReturn(UUID.randomUUID());
+		when(currentUser.findUserId()).thenReturn(Optional.of(UUID.randomUUID()));
 		when(postRepository.findById(POST_ID)).thenReturn(Optional.of(post(UUID.randomUUID(), PostStatus.VISIBLE)));
 		when(postImageRepository.findByIdAndPostId(IMAGE_ID, POST_ID)).thenReturn(Optional.of(storedImage()));
 
@@ -188,17 +188,29 @@ class PostImageServiceTest {
 		when(postRepository.findById(POST_ID)).thenReturn(Optional.of(post(owner, PostStatus.HIDDEN)));
 		when(postImageRepository.findByIdAndPostId(IMAGE_ID, POST_ID)).thenReturn(Optional.of(storedImage()));
 
-		when(currentUser.requireUserId()).thenReturn(owner);
+		when(currentUser.findUserId()).thenReturn(Optional.of(owner));
 		assertThat(service.getImage(POST_ID, IMAGE_ID).content()).isEqualTo(CLEAN);
 
-		when(currentUser.requireUserId()).thenReturn(UUID.randomUUID());
+		when(currentUser.findUserId()).thenReturn(Optional.of(UUID.randomUUID()));
 		assertThatThrownBy(() -> service.getImage(POST_ID, IMAGE_ID)).isInstanceOf(PostNotFoundException.class);
+
+		when(currentUser.findUserId()).thenReturn(Optional.empty());
+		assertThatThrownBy(() -> service.getImage(POST_ID, IMAGE_ID)).isInstanceOf(PostNotFoundException.class);
+	}
+
+	@Test
+	void anonymousVisitorCanViewImageOfVisiblePost() {
+		when(currentUser.findUserId()).thenReturn(Optional.empty());
+		when(postRepository.findById(POST_ID)).thenReturn(Optional.of(post(UUID.randomUUID(), PostStatus.VISIBLE)));
+		when(postImageRepository.findByIdAndPostId(IMAGE_ID, POST_ID)).thenReturn(Optional.of(storedImage()));
+
+		assertThat(service.getImage(POST_ID, IMAGE_ID).content()).isEqualTo(CLEAN);
 	}
 
 	@Test
 	void imageOfDeletedPostIsNotFoundEvenForOwner() {
 		UUID owner = UUID.randomUUID();
-		when(currentUser.requireUserId()).thenReturn(owner);
+		when(currentUser.findUserId()).thenReturn(Optional.of(owner));
 		when(postRepository.findById(POST_ID)).thenReturn(Optional.of(post(owner, PostStatus.DELETED)));
 
 		assertThatThrownBy(() -> service.getImage(POST_ID, IMAGE_ID)).isInstanceOf(PostNotFoundException.class);
@@ -208,7 +220,7 @@ class PostImageServiceTest {
 
 	@Test
 	void imageFromAnotherPostIsNotFound() {
-		when(currentUser.requireUserId()).thenReturn(UUID.randomUUID());
+		when(currentUser.findUserId()).thenReturn(Optional.of(UUID.randomUUID()));
 		when(postRepository.findById(POST_ID)).thenReturn(Optional.of(post(UUID.randomUUID(), PostStatus.VISIBLE)));
 		when(postImageRepository.findByIdAndPostId(IMAGE_ID, POST_ID)).thenReturn(Optional.empty());
 

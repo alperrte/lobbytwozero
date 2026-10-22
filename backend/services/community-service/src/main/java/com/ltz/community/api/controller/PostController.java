@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,8 +16,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.ltz.community.api.dto.request.CreatePostRequest;
 import com.ltz.community.api.dto.request.LinkGameRequest;
+import com.ltz.community.api.dto.request.PostFeedRequest;
 import com.ltz.community.api.dto.request.UpdatePostRequest;
+import com.ltz.community.api.dto.response.PostPageResponse;
 import com.ltz.community.api.dto.response.PostResponse;
+import com.ltz.community.api.dto.response.PostViewResponse;
+import com.ltz.community.application.service.PostFeedService;
 import com.ltz.community.application.service.PostService;
 
 import jakarta.validation.Valid;
@@ -26,9 +31,21 @@ import jakarta.validation.Valid;
 public class PostController {
 
 	private final PostService postService;
+	private final PostFeedService postFeedService;
 
-	public PostController(PostService postService) {
+	public PostController(PostService postService, PostFeedService postFeedService) {
 		this.postService = postService;
+		this.postFeedService = postFeedService;
+	}
+
+	@GetMapping
+	public PostPageResponse listPosts(@Valid PostFeedRequest request) {
+		return postFeedService.listPosts(request);
+	}
+
+	@GetMapping("/{postId}")
+	public PostViewResponse getPost(@PathVariable UUID postId) {
+		return postFeedService.getPost(postId);
 	}
 
 	@PostMapping

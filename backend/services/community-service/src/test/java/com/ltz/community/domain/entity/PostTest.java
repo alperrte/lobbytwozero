@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
+import com.ltz.community.domain.enums.PostCategory;
 import com.ltz.community.domain.enums.PostStatus;
 
 class PostTest {
@@ -25,6 +26,26 @@ class PostTest {
 		assertThat(post.getUpdatedAt()).isEqualTo(now);
 		assertThat(post.getDeletedAt()).isNull();
 		assertThat(post.getGameId()).isNull();
+		assertThat(post.getLikeCount()).isZero();
+		assertThat(post.getCommentCount()).isZero();
+	}
+
+	@Test
+	void categoryDefaultsToGeneralAndChangingItUpdatesTimestampOnlyWhenDifferent() {
+		Instant created = Instant.parse("2026-10-21T10:15:30Z");
+		Instant later = created.plusSeconds(60);
+		Post defaulted = Post.publish(UUID.randomUUID(), "x", created);
+		Post explicit = Post.publish(UUID.randomUUID(), "x", null, PostCategory.QUESTION, created);
+
+		assertThat(defaulted.getCategory()).isEqualTo(PostCategory.GENERAL);
+		assertThat(Post.publish(UUID.randomUUID(), "x", null, null, created).getCategory()).isEqualTo(PostCategory.GENERAL);
+		assertThat(explicit.getCategory()).isEqualTo(PostCategory.QUESTION);
+
+		explicit.changeCategory(PostCategory.QUESTION, later);
+		assertThat(explicit.getUpdatedAt()).isEqualTo(created);
+		explicit.changeCategory(PostCategory.GUIDE, later);
+		assertThat(explicit.getCategory()).isEqualTo(PostCategory.GUIDE);
+		assertThat(explicit.getUpdatedAt()).isEqualTo(later);
 	}
 
 	@Test

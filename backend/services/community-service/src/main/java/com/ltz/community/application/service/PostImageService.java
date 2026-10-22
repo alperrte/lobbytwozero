@@ -61,7 +61,7 @@ public class PostImageService {
 
 	@Transactional(readOnly = true)
 	public PostImageContent getImage(UUID postId, UUID imageId) {
-		postAccess.loadViewable(postId, currentUser.requireUserId());
+		postAccess.loadViewable(postId, currentUser.findUserId().orElse(null));
 		PostImage image = postImageRepository.findByIdAndPostId(imageId, postId)
 				.orElseThrow(PostImageNotFoundException::new);
 		return new PostImageContent(image.getContent(), image.getMimeType());

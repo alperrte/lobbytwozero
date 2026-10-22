@@ -202,10 +202,11 @@ Authenticated. Gönderi sahibi (`authorId`) yalnız doğrulanmış JWT'nin `sub`
 ```json
 {
   "body": "string, zorunlu, boşluk dışında en az 1 karakter, en çok 5000 karakter, kontrol karakteri içermez (düz metin)",
-  "gameId": "UUID, opsiyonel; verilirse LTZ oyun kataloğunda (game-service) doğrulanır"
+  "gameId": "UUID, opsiyonel; verilirse LTZ oyun kataloğunda (game-service) doğrulanır",
+  "category": "opsiyonel; GENERAL | GUIDE | QUESTION | SCREENSHOT (varsayılan GENERAL); yalnız büyük harfli ad kabul edilir"
 }
 ```
-Bilinmeyen alanlar (ör. `authorId`) reddedilir (400). `gameId` verilmezse game-service çağrılmaz.
+Bilinmeyen alanlar (ör. `authorId`) reddedilir (400). `gameId` verilmezse game-service çağrılmaz. Geçersiz `category` (bilinmeyen ad, küçük harf, sayı, boş metin) 400 döner.
 
 #### Response — 201
 ```json
@@ -213,6 +214,7 @@ Bilinmeyen alanlar (ör. `authorId`) reddedilir (400). `gameId` verilmezse game-
   "id": "UUID",
   "authorId": "UUID",
   "gameId": "UUID | null (bağlı LTZ oyunu)",
+  "category": "GENERAL | GUIDE | QUESTION | SCREENSHOT",
   "body": "string (baştaki/sondaki boşluklar kırpılmış)",
   "status": "VISIBLE",
   "createdAt": "ISO-8601 UTC",
@@ -237,6 +239,138 @@ Diğer mikroservisler:
 #### Test Durumu
 UNIT + INTEGRATION (MockMvc + gerçek PostgreSQL üzerinde Flyway/JPA testi; game-service istemcisi `MockRestServiceServer` ile). Çalışan game-service ile uçtan uca doğrulama: NOT VERIFIED (yerel game-service container'ı batch ucunda 401 döndü; sözleşme henüz o imajda yok). Gateway ve auth-service ile uçtan uca doğrulama: NOT VERIFIED.
 
+### COMMUNITY — Gönderi Akışı
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/community/posts
+
+#### Yetkilendirme
+Public (misafir dahil; kullanıcı kararı). Yalnız `VISIBLE` gönderiler listelenir; silinmiş (`DELETED`) ve moderasyonla gizlenmiş (`HIDDEN`) gönderiler akışta görünmez. Yazma uçları hâlâ kimlik ister. Oran sınırı (anonim erişim için) NOT IMPLEMENTED.
+
+#### Query Parameters
+- q: string, opsiyonel, **arama** (COM-11): gönderi içeriğinde "içerir" araması; boşluklar kırpılır, boş değer arama yok sayılır, en az 2 en çok 100 karakter, kontrol karakteri içermez. Büyük/küçük harf duyarsızdır (ASCII için kesin; ASCII dışı harflerin büyük/küçük dönüşümü veritabanı locale'ine bağlıdır, dev/test PostgreSQL imajı `C` locale kullandığından örn. büyük `Ç`, küçük `ç` ile eşleşmez). `%` ve `_` gibi LIKE karakterleri düz metin olarak aranır. Arama servis içinde yapılır (`pg_trgm` GIN indeksi); ayrı search-service yoktur.
+- gameId: UUID, opsiyonel, **filtre** (COM-12): yalnız bu LTZ oyununa bağlı gönderiler (`gameId` game-service'te doğrulanmaz; eşleşme yoksa boş sonuç)
+- category: `GENERAL | GUIDE | QUESTION | SCREENSHOT`, opsiyonel, **filtre**: yalnız büyük harfli ad
+- from: ISO-8601 anı (ör. `2026-10-01T00:00:00Z`), opsiyonel, **filtre**: bu andan itibaren (dahil) oluşturulanlar
+- to: ISO-8601 anı, opsiyonel, **filtre**: bu andan önce (hariç) oluşturulanlar; ikisi birlikte verilirse `from` < `to` olmalıdır
+- sort: `NEWEST` (varsayılan) | `OLDEST` | `POPULAR`, opsiyonel, **sıralama** (COM-13): yalnız büyük harfli ad. `NEWEST`: `createdAt` azalan; `OLDEST`: `createdAt` artan; `POPULAR` (**kısmi**): popülerlik skoru `likeCount + commentCount` azalan, eşitlikte yenilik. Eşitlikte hepsinde `id` ile deterministik sıra. Sayaçlar Faz 3'te (COM-06/07) dolacağından şimdilik `POPULAR` fiilen `NEWEST` gibi davranır.
+- limit: int, opsiyonel, varsayılan 20, 1–50
+- cursor: string, opsiyonel, en çok 200 karakter; önceki yanıttaki `nextCursor` (opak, keyset imleci). Sonraki sayfa istenirken aynı `q`, filtreler ve **aynı `sort`** verilmelidir; imleç bunları taşımaz. Başka bir `sort` için üretilmiş imleç 400 döner.
+
+Filtreler ve `q` birlikte (AND) uygulanır.
+
+Yeni gönderiler gelse bile verilmiş bir imleç sayfaları kaydırmaz (keyset sayfalama, COUNT yok). `POPULAR`'da sayfalar arasında bir gönderinin sayaçları değişirse (Faz 3 sonrası) o gönderi sayfa sınırında atlanabilir/tekrarlanabilir; bu, değişken anahtarlı keyset sayfalamanın bilinen sınırıdır.
+
+#### Response — 200
+```json
+{
+  "items": [
+    {
+      "id": "UUID",
+      "authorId": "UUID",
+      "gameId": "UUID | null",
+      "category": "GENERAL | GUIDE | QUESTION | SCREENSHOT",
+      "body": "string",
+      "status": "VISIBLE",
+      "createdAt": "ISO-8601 UTC",
+      "updatedAt": "ISO-8601 UTC",
+      "likeCount": 0,
+      "commentCount": 0,
+      "images": [ { "id": "UUID", "postId": "UUID", "mimeType": "image/jpeg | image/png", "sizeBytes": 0, "width": 0, "height": 0, "sortOrder": 0, "contentUrl": "/api/v1/community/posts/{postId}/images/{id}", "createdAt": "ISO-8601 UTC" } ]
+    }
+  ],
+  "nextCursor": "string | null (son sayfada null)"
+}
+```
+`likeCount`/`commentCount` etkileşim sayaçlarıdır; beğeni ve yorum özellikleri Faz 3'te (COM-06/07) geldiğinden şimdilik her zaman 0'dır.
+Görsel bilgileri sayfa için tek sorguda gelir (içerik baytı yoktur). Yazar yalnız `authorId` olarak döner; görünen ad/avatar user-service sözleşmesi netleşince eklenir.
+
+#### Hata Durumları
+- 400: `limit` aralık dışı/sayı değil, `cursor` çok uzun/bozuk/başka `sort` için üretilmiş, `q` 1 karakter / 100'den uzun / kontrol karakterli, `gameId` UUID değil, `category` veya `sort` bilinmeyen/küçük harfli, `from`/`to` ISO-8601 değil veya `from` >= `to`
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/community/posts
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (MockMvc; gerçek PostgreSQL üzerinde keyset sayfalama, aynı zaman damgası, görünürlük, görsel birleştirme, arama: büyük/küçük harf, LIKE joker kaçırma, SQL enjeksiyonu metni, sayfalama). Gateway ile uçtan uca doğrulama: NOT VERIFIED.
+
+### COMMUNITY — Kullanıcı Gönderi Geçmişi
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/community/users/{userId}/posts
+
+#### Yetkilendirme
+Public (misafir dahil). Çağıranın kimliği doğrulanmışsa ve `userId` kendi kimliğiyse, kendi moderasyonla gizlenmiş (`HIDDEN`) gönderilerini de görür; diğer herkes (misafir ve başka kullanıcılar) yalnız herkese açık (`VISIBLE`) gönderileri görür. Silinmiş gönderi hiç listelenmez. Bilinmeyen kullanıcı için boş sayfa döner (kullanıcının varlığı sızdırılmaz). **Henüz yok:** engelleme (social-service) ve profil gizliliği (user-service) kuralları — Faz 4/COM-21.
+
+#### Path Parameters
+- userId: UUID, zorunlu (gönderi sahibi; doğrulama user-service'ten yapılmaz)
+
+#### Query Parameters
+"Gönderi Akışı" ile aynı: `q`, `gameId`, `category`, `from`, `to`, `sort`, `limit`, `cursor` (anlamları ve sınırları aynıdır; arama/filtre/sıralama yalnız bu kullanıcının gönderilerine uygulanır).
+
+#### Response — 200
+"Gönderi Akışı" ile aynı (`items[]` + `nextCursor`). Kendi profilinde `status` alanı `HIDDEN` olan öğeler görülebilir.
+
+#### Hata Durumları
+- 400: UUID olmayan `userId` ya da "Gönderi Akışı"ndaki geçersiz parametreler
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/community/users/{userId}/posts
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (MockMvc; gerçek PostgreSQL üzerinde sahip/başkası/misafir görünürlüğü, silinmiş gönderi, sayfalama/arama/filtre/sıralama). Gateway ile uçtan uca doğrulama: NOT VERIFIED.
+
+### COMMUNITY — Gönderi Detayı
+
+Durum: IN PROGRESS (kısmi: yorumlar ve etkileşim listeleri Faz 3'te, COM-06/07)
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/community/posts/{postId}
+
+#### Yetkilendirme
+Public (misafir dahil). Misafir ve diğer kullanıcılar yalnız `VISIBLE` gönderiyi görür; gönderi sahibi kendi gizlenmiş (`HIDDEN`) gönderisini de görür (kimlik varsa). Silinmiş gönderi herkes için 404; sahibi olmayan çağıran için gizlenmiş gönderi de 404'tür (varlığı sızdırılmaz).
+
+#### Path Parameters
+- postId: UUID, zorunlu
+
+#### Response — 200
+Akıştaki bir öğe ile aynı alanlar (`PostViewResponse`): `id`, `authorId`, `gameId`, `body`, `status`, `createdAt`, `updatedAt`, `likeCount`, `commentCount`, `images[]`. Gönderinin sahibi, tarihi, içeriği ve görselleri bu uçtan döner. **Henüz yok:** gönderiye ait yorumlar ve beğeni/repost etkileşim ayrıntıları (Faz 3); sayaçlar şimdilik 0'dır. Yazarın görünen adı/avatarı user-service sözleşmesi netleşince eklenir.
+
+#### Hata Durumları
+- 400: UUID olmayan `postId`
+- 404: Gönderi yok, silinmiş ya da çağıran için görünmez
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/community/posts/{postId}
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (MockMvc; gerçek PostgreSQL üzerinde görünürlük kuralları). Gateway ile uçtan uca doğrulama: NOT VERIFIED.
+
 ### COMMUNITY — Gönderi Düzenle
 
 Durum: IMPLEMENTED
@@ -255,10 +389,11 @@ Owner. Yalnız gönderinin sahibi (JWT `sub` = `authorId`) düzenleyebilir. Sili
 #### Request Body
 ```json
 {
-  "body": "string, zorunlu, boşluk dışında en az 1 karakter, en çok 5000 karakter, kontrol karakteri içermez (düz metin)"
+  "body": "string, zorunlu, boşluk dışında en az 1 karakter, en çok 5000 karakter, kontrol karakteri içermez (düz metin)",
+  "category": "opsiyonel; verilirse kategori değişir, verilmezse mevcut kategori korunur"
 }
 ```
-Bilinmeyen alanlar (ör. `authorId`) reddedilir (400). İçerik değişmediyse `updatedAt` değişmez.
+Bilinmeyen alanlar (ör. `authorId`) reddedilir (400). İçerik ve kategori değişmediyse `updatedAt` değişmez.
 
 #### Response — 200
 ```json
@@ -266,6 +401,7 @@ Bilinmeyen alanlar (ör. `authorId`) reddedilir (400). İçerik değişmediyse `
   "id": "UUID",
   "authorId": "UUID",
   "gameId": "UUID | null (bağlı LTZ oyunu)",
+  "category": "GENERAL | GUIDE | QUESTION | SCREENSHOT",
   "body": "string (baştaki/sondaki boşluklar kırpılmış)",
   "status": "VISIBLE",
   "createdAt": "ISO-8601 UTC",
@@ -476,7 +612,7 @@ Tüketici servisler: Frontend
 GET /api/v1/community/posts/{postId}/images/{imageId}
 
 #### Yetkilendirme
-Authenticated. Silinmiş gönderinin görseli kimseye verilmez; VISIBLE gönderinin görseli her kimliği doğrulanmış kullanıcıya, VISIBLE dışı (ör. HIDDEN) gönderinin görseli yalnız sahibine verilir. Misafir (anonim) erişim kararı Faz 2 görünürlük kuralları belirlenince verilecektir; şimdilik varsayılan olarak kapalıdır.
+Public (misafir dahil; Faz 2 kararı: akış/detay misafire açık olduğundan görselleri de açık). Silinmiş gönderinin görseli kimseye verilmez; VISIBLE gönderinin görseli herkese, VISIBLE dışı (ör. HIDDEN) gönderinin görseli yalnız kimliği doğrulanmış sahibine verilir; diğerleri için 404.
 
 #### Path Parameters
 - postId: UUID, zorunlu
@@ -487,13 +623,13 @@ Gövde: görsel baytları. `Content-Type` sunucunun doğruladığı türdür (`i
 
 #### Hata Durumları
 - 400: UUID olmayan `postId`/`imageId`
-- 401: Kimlik yok ya da token geçersiz
+- 401: Geçersiz token gönderildi (token göndermeyen misafir için 401 yoktur)
 - 404: Gönderi/görsel yok, gönderi silinmiş ya da çağıran için görünmez
 - 500: Beklenmeyen sunucu hatası
 
 #### Bağlantı
 Frontend:
-API Gateway üzerinden /api/v1/community/posts/{postId}/images/{imageId}. Not: tarayıcı `<img>` etiketi Authorization başlığı gönderemez; kimlik çerezle taşınacaksa auth-service sözleşmesine bağlıdır (NOT VERIFIED).
+API Gateway üzerinden /api/v1/community/posts/{postId}/images/{imageId}. VISIBLE gönderilerin görselleri `<img>` etiketiyle doğrudan yüklenebilir (kimlik gerekmez).
 
 Diğer mikroservisler:
 -

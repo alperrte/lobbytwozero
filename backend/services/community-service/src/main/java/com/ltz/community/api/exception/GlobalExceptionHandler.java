@@ -21,6 +21,7 @@ import com.ltz.community.domain.exception.AuthenticationRequiredException;
 import com.ltz.community.domain.exception.GameCatalogUnavailableException;
 import com.ltz.community.domain.exception.GameNotAvailableException;
 import com.ltz.community.domain.exception.InvalidImageException;
+import com.ltz.community.domain.exception.InvalidPostQueryException;
 import com.ltz.community.domain.exception.PostAccessDeniedException;
 import com.ltz.community.domain.exception.PostImageLimitExceededException;
 import com.ltz.community.domain.exception.PostImageNotFoundException;
@@ -74,6 +75,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	public ProblemDetail handleGameCatalogUnavailable(GameCatalogUnavailableException exception) {
 		log.warn("Game catalog could not be reached: {}", exception.getCause().getClass().getSimpleName());
 		return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage());
+	}
+
+	@ExceptionHandler(InvalidPostQueryException.class)
+	public ProblemDetail handleInvalidPostQuery(InvalidPostQueryException exception) {
+		return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
 	}
 
 	@ExceptionHandler(PostImageNotFoundException.class)

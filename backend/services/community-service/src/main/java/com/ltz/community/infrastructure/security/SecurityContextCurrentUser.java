@@ -1,5 +1,6 @@
 package com.ltz.community.infrastructure.security;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.security.core.Authentication;
@@ -25,5 +26,14 @@ public class SecurityContextCurrentUser implements CurrentUserPort {
 		} catch (IllegalArgumentException | NullPointerException _) {
 			throw new AuthenticationRequiredException("Authentication is required.");
 		}
+	}
+
+	@Override
+	public Optional<UUID> findUserId() {
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		if (!(authentication instanceof JwtAuthenticationToken) || !authentication.isAuthenticated()) {
+			return Optional.empty();
+		}
+		return Optional.of(requireUserId());
 	}
 }

@@ -52,7 +52,8 @@ public class PostService {
 		if (request.gameId() != null) {
 			requireAvailableGame(request.gameId());
 		}
-		Post post = Post.publish(authorId, request.body().strip(), request.gameId(), Instant.now(clock));
+		Post post = Post.publish(authorId, request.body().strip(), request.gameId(), request.category(),
+				Instant.now(clock));
 		return postMapper.toResponse(postRepository.save(post));
 	}
 
@@ -60,7 +61,11 @@ public class PostService {
 	public PostResponse updatePost(UUID postId, UpdatePostRequest request) {
 		Post post = postAccess.loadOwned(postId, currentUser.requireUserId());
 		requireEditable(post);
-		post.editBody(request.body().strip(), Instant.now(clock));
+		Instant now = Instant.now(clock);
+		post.editBody(request.body().strip(), now);
+		if (request.category() != null) {
+			post.changeCategory(request.category(), now);
+		}
 		return postMapper.toResponse(postRepository.save(post));
 	}
 

@@ -18,6 +18,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 import com.ltz.community.domain.entity.Post;
+import com.ltz.community.domain.enums.PostCategory;
 import com.ltz.community.domain.enums.PostStatus;
 import com.ltz.community.infrastructure.persistence.repository.PostRepository;
 
@@ -157,6 +158,34 @@ class PostRepositoryTest extends PostgreSqlIntegrationTest {
 		assertThat(reloaded.getDeletedAt()).isEqualTo(created.plusSeconds(30));
 		assertThat(reloaded.getBody()).isEqualTo("Silinecek");
 		assertThat(reloaded.getVersion()).isEqualTo(1L);
+	}
+
+	@Test
+	void categoryIsPersistedDefaultsToGeneralAndIsRestrictedByDatabase() {
+		Instant now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+		Post guide = postRepository.saveAndFlush(Post.publish(UUID.randomUUID(), "rehber", null, PostCategory.GUIDE, now));
+		Post plain = postRepository.saveAndFlush(Post.publish(UUID.randomUUID(), "düz", now));
+		entityManager.clear();
+
+		assertThat(postRepository.findById(guide.getId()).orElseThrow().getCategory()).isEqualTo(PostCategory.GUIDE);
+		assertThat(postRepository.findById(plain.getId()).orElseThrow().getCategory()).isEqualTo(PostCategory.GENERAL);
+
+		UUID id = plain.getId();
+		assertThatThrownBy(() -> jdbcTemplate.update("update posts set category = 'BOGUS' where id = ?", id))
+				.isInstanceOf(DataIntegrityViolationException.class);
+	}
+
+	@Test
+	void interactionCountersDefaultToZeroAndRejectNegativeValues() {
+		Post saved = postRepository.saveAndFlush(Post.publish(UUID.randomUUID(), "sayaç", Instant.now()));
+		entityManager.clear();
+		Post loaded = postRepository.findById(saved.getId()).orElseThrow();
+		assertThat(loaded.getLikeCount()).isZero();
+		assertThat(loaded.getCommentCount()).isZero();
+
+		UUID id = saved.getId();
+		assertThatThrownBy(() -> jdbcTemplate.update("update posts set like_count = -1 where id = ?", id))
+				.isInstanceOf(DataIntegrityViolationException.class);
 	}
 
 	@ParameterizedTest

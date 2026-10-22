@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -34,7 +35,10 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.ltz.community.application.mapper.PostMapper;
 import com.ltz.community.application.port.GameCatalogPort;
+import com.ltz.community.api.dto.request.PostFeedRequest;
+import com.ltz.community.api.dto.response.PostPageResponse;
 import com.ltz.community.application.service.PostAccess;
+import com.ltz.community.application.service.PostFeedService;
 import com.ltz.community.application.service.PostService;
 import com.ltz.community.domain.entity.Post;
 import com.ltz.community.domain.enums.PostStatus;
@@ -67,6 +71,9 @@ class PostControllerTest {
 
 	@MockitoBean
 	private GameCatalogPort gameCatalog;
+
+	@MockitoBean
+	private PostFeedService postFeedService;
 
 	@BeforeEach
 	void stubSave() {
@@ -353,6 +360,191 @@ class PostControllerTest {
 				.andExpect(status().isForbidden());
 
 		assertThat(post.getGameId()).isEqualTo(GAME_ID);
+	}
+
+	@Test
+	void anonymousVisitorCanReadTheFeed() throws Exception {
+		when(postFeedService.listPosts(any(PostFeedRequest.class)))
+				.thenReturn(new PostPageResponse(java.util.List.of(), "sonraki"));
+
+		mockMvc.perform(get(URL + "?limit=5&cursor=abc"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.items").isArray())
+				.andExpect(jsonPath("$.nextCursor").value("sonraki"));
+
+		ArgumentCaptor<PostFeedRequest> captured = ArgumentCaptor.forClass(PostFeedRequest.class);
+		verify(postFeedService).listPosts(captured.capture());
+		assertThat(captured.getValue().limit()).isEqualTo(5);
+		assertThat(captured.getValue().cursor()).isEqualTo("abc");
+	}
+
+	@Test
+	void feedUsesDefaultsWhenNoParametersAreGiven() throws Exception {
+		when(postFeedService.listPosts(any(PostFeedRequest.class)))
+				.thenReturn(new PostPageResponse(java.util.List.of(), null));
+
+		mockMvc.perform(get(URL)).andExpect(status().isOk());
+
+		ArgumentCaptor<PostFeedRequest> captured = ArgumentCaptor.forClass(PostFeedRequest.class);
+		verify(postFeedService).listPosts(captured.capture());
+		assertThat(captured.getValue().limit()).isNull();
+		assertThat(captured.getValue().cursor()).isNull();
+	}
+
+	@Test
+	void feedRejectsOutOfRangeAndMalformedParameters() throws Exception {
+		for (String query : new String[] { "?limit=0", "?limit=51", "?limit=abc", "?cursor=" + "x".repeat(201) }) {
+			mockMvc.perform(get(URL + query))
+					.andExpect(status().isBadRequest())
+					.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+		}
+
+		verify(postFeedService, never()).listPosts(any());
+	}
+
+	@Test
+	void feedPassesSearchTextToTheService() throws Exception {
+		when(postFeedService.listPosts(any(PostFeedRequest.class)))
+				.thenReturn(new PostPageResponse(java.util.List.of(), null));
+
+		mockMvc.perform(get(URL).param("q", "elden ring").param("limit", "10")).andExpect(status().isOk());
+
+		ArgumentCaptor<PostFeedRequest> captured = ArgumentCaptor.forClass(PostFeedRequest.class);
+		verify(postFeedService).listPosts(captured.capture());
+		assertThat(captured.getValue().q()).isEqualTo("elden ring");
+		assertThat(captured.getValue().limit()).isEqualTo(10);
+	}
+
+	@Test
+	void feedRejectsTooLongOrControlCharacterSearchText() throws Exception {
+		mockMvc.perform(get(URL).param("q", "x".repeat(101))).andExpect(status().isBadRequest());
+		mockMvc.perform(get(URL).param("q", "bad\u0000text")).andExpect(status().isBadRequest());
+		mockMvc.perform(get(URL).param("q", "satır\nsonu")).andExpect(status().isBadRequest());
+
+		verify(postFeedService, never()).listPosts(any());
+	}
+
+	@Test
+	void feedPassesFiltersToTheService() throws Exception {
+		when(postFeedService.listPosts(any(PostFeedRequest.class)))
+				.thenReturn(new PostPageResponse(java.util.List.of(), null));
+
+		mockMvc.perform(get(URL)
+				.param("gameId", GAME_ID.toString())
+				.param("category", "GUIDE")
+				.param("from", "2026-10-01T00:00:00Z")
+				.param("to", "2026-11-01T00:00:00Z"))
+				.andExpect(status().isOk());
+
+		ArgumentCaptor<PostFeedRequest> captured = ArgumentCaptor.forClass(PostFeedRequest.class);
+		verify(postFeedService).listPosts(captured.capture());
+		assertThat(captured.getValue().gameId()).isEqualTo(GAME_ID);
+		assertThat(captured.getValue().category()).isEqualTo(com.ltz.community.domain.enums.PostCategory.GUIDE);
+		assertThat(captured.getValue().from()).isEqualTo(Instant.parse("2026-10-01T00:00:00Z"));
+		assertThat(captured.getValue().to()).isEqualTo(Instant.parse("2026-11-01T00:00:00Z"));
+	}
+
+	@Test
+	void feedPassesSortToTheService() throws Exception {
+		when(postFeedService.listPosts(any(PostFeedRequest.class)))
+				.thenReturn(new PostPageResponse(java.util.List.of(), null));
+
+		mockMvc.perform(get(URL).param("sort", "POPULAR")).andExpect(status().isOk());
+
+		ArgumentCaptor<PostFeedRequest> captured = ArgumentCaptor.forClass(PostFeedRequest.class);
+		verify(postFeedService).listPosts(captured.capture());
+		assertThat(captured.getValue().sort()).isEqualTo(com.ltz.community.domain.enums.PostSort.POPULAR);
+	}
+
+	@Test
+	void feedRejectsMalformedFilterValues() throws Exception {
+		for (String[] param : new String[][] { { "gameId", "not-a-uuid" }, { "category", "FOO" },
+				{ "category", "guide" }, { "sort", "popular" }, { "sort", "BEST" }, { "sort", "1" },
+				{ "from", "yesterday" }, { "to", "2026-13-45T00:00:00Z" } }) {
+			mockMvc.perform(get(URL).param(param[0], param[1]))
+					.andExpect(status().isBadRequest())
+					.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+		}
+
+		verify(postFeedService, never()).listPosts(any());
+	}
+
+	@Test
+	void createPostAcceptsCategoryAndDefaultsToGeneral() throws Exception {
+		mockMvc.perform(post(URL).with(jwt().jwt(token -> token.subject(USER_ID.toString())))
+				.contentType(MediaType.APPLICATION_JSON).content("{\"body\":\"Rehber\",\"category\":\"GUIDE\"}"))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.category").value("GUIDE"));
+		mockMvc.perform(post(URL).with(jwt().jwt(token -> token.subject(USER_ID.toString())))
+				.contentType(MediaType.APPLICATION_JSON).content("{\"body\":\"Düz\"}"))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.category").value("GENERAL"));
+	}
+
+	@Test
+	void createPostRejectsUnknownCategory() throws Exception {
+		for (String category : new String[] { "\"FOO\"", "\"guide\"", "1", "\"\"" }) {
+			mockMvc.perform(post(URL).with(jwt().jwt(token -> token.subject(USER_ID.toString())))
+					.contentType(MediaType.APPLICATION_JSON).content("{\"body\":\"x\",\"category\":" + category + "}"))
+					.andExpect(status().isBadRequest());
+		}
+
+		verify(postRepository, never()).save(any());
+	}
+
+	@Test
+	void ownerChangesCategoryWhenUpdatingPost() throws Exception {
+		when(postRepository.findById(POST_ID)).thenReturn(Optional.of(storedPost(USER_ID, PostStatus.VISIBLE)));
+
+		mockMvc.perform(patch(URL + "/" + POST_ID).with(jwt().jwt(token -> token.subject(USER_ID.toString())))
+				.contentType(MediaType.APPLICATION_JSON).content("{\"body\":\"Eski içerik\",\"category\":\"QUESTION\"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.category").value("QUESTION"));
+	}
+
+	@Test
+	void feedReportsInvalidCursorAsBadRequest() throws Exception {
+		when(postFeedService.listPosts(any(PostFeedRequest.class)))
+				.thenThrow(new com.ltz.community.domain.exception.InvalidPostQueryException("The cursor is invalid."));
+
+		mockMvc.perform(get(URL + "?cursor=bozuk"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.detail").value("The cursor is invalid."));
+	}
+
+	@Test
+	void anonymousVisitorCanReadPostDetail() throws Exception {
+		when(postFeedService.getPost(POST_ID)).thenReturn(new com.ltz.community.api.dto.response.PostViewResponse(
+				POST_ID, USER_ID, GAME_ID, com.ltz.community.domain.enums.PostCategory.GUIDE, "ayrıntı", PostStatus.VISIBLE, Instant.parse("2026-10-21T08:00:00Z"),
+				Instant.parse("2026-10-21T08:30:00Z"), 3, 2, java.util.List.of()));
+
+		mockMvc.perform(get(URL + "/" + POST_ID))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(POST_ID.toString()))
+				.andExpect(jsonPath("$.authorId").value(USER_ID.toString()))
+				.andExpect(jsonPath("$.gameId").value(GAME_ID.toString()))
+				.andExpect(jsonPath("$.body").value("ayrıntı"))
+				.andExpect(jsonPath("$.createdAt").value("2026-10-21T08:00:00Z"))
+				.andExpect(jsonPath("$.likeCount").value(3))
+				.andExpect(jsonPath("$.commentCount").value(2))
+				.andExpect(jsonPath("$.images").isArray());
+	}
+
+	@Test
+	void postDetailReportsNotFoundAndRejectsMalformedId() throws Exception {
+		when(postFeedService.getPost(POST_ID)).thenThrow(new com.ltz.community.domain.exception.PostNotFoundException());
+
+		mockMvc.perform(get(URL + "/" + POST_ID))
+				.andExpect(status().isNotFound())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+		mockMvc.perform(get(URL + "/not-a-uuid")).andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void writeEndpointsStillRequireAuthenticationAfterOpeningTheFeed() throws Exception {
+		mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content("{\"body\":\"x\"}"))
+				.andExpect(status().isUnauthorized());
+		mockMvc.perform(delete(URL + "/" + POST_ID)).andExpect(status().isUnauthorized());
 	}
 
 	@Test

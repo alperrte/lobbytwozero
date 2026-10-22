@@ -213,8 +213,22 @@ class PostImageControllerTest {
 	}
 
 	@Test
-	void imageContentRequiresAuthentication() throws Exception {
-		mockMvc.perform(get(URL + "/" + IMAGE_ID)).andExpect(status().isUnauthorized());
+	void anonymousVisitorCanFetchImageOfVisiblePost() throws Exception {
+		PostImage image = PostImage.attach(POST_ID, TestImages.png(8, 8), "image/png", 8, 8, 0, Instant.now());
+		when(postImageRepository.findByIdAndPostId(IMAGE_ID, POST_ID)).thenReturn(Optional.of(image));
+
+		mockMvc.perform(get(URL + "/" + IMAGE_ID))
+				.andExpect(status().isOk())
+				.andExpect(content().contentType(MediaType.IMAGE_PNG));
+	}
+
+	@Test
+	void anonymousVisitorCannotFetchImageOfHiddenPost() throws Exception {
+		when(postRepository.findById(POST_ID)).thenReturn(Optional.of(postOf(USER_ID, PostStatus.HIDDEN)));
+
+		mockMvc.perform(get(URL + "/" + IMAGE_ID)).andExpect(status().isNotFound());
+
+		verify(postImageRepository, never()).findByIdAndPostId(any(), any());
 	}
 
 	@Test

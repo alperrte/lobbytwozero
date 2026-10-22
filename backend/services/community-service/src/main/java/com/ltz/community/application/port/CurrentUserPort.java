@@ -1,5 +1,6 @@
 package com.ltz.community.application.port;
 
+import java.util.Optional;
 import java.util.UUID;
 
 public interface CurrentUserPort {
@@ -9,4 +10,7 @@ public interface CurrentUserPort {
 	 * {@link com.ltz.community.domain.exception.AuthenticationRequiredException} fırlatır.
 	 */
 	UUID requireUserId();
+
+	/** Misafir (kimliksiz) okumalar için: doğrulanmış kimlik varsa kullanıcı kimliği, yoksa boş. */
+	Optional<UUID> findUserId();
 }

@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.hibernate.annotations.UuidGenerator;
 
+import com.ltz.community.domain.enums.PostCategory;
 import com.ltz.community.domain.enums.PostStatus;
 
 import jakarta.persistence.Column;
@@ -39,6 +40,10 @@ public class Post {
 	@Column(name = "game_id")
 	private UUID gameId;
 
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, length = 32)
+	private PostCategory category;
+
 	@Column(nullable = false)
 	private String body;
 
@@ -55,6 +60,17 @@ public class Post {
 	@Column(name = "deleted_at")
 	private Instant deletedAt;
 
+	/** Beğeni/yorum sayaçları Faz 3'te (COM-06/07) güncellenir; şimdilik her zaman 0'dır. */
+	@Column(name = "like_count", nullable = false)
+	private int likeCount;
+
+	@Column(name = "comment_count", nullable = false)
+	private int commentCount;
+
+	/** Veritabanı tarafından hesaplanır ({@code like_count + comment_count}); popülerlik sıralaması için. */
+	@Column(name = "popularity_score", insertable = false, updatable = false)
+	private int popularityScore;
+
 	@Version
 	private Long version;
 
@@ -64,10 +80,16 @@ public class Post {
 
 	/** {@code gameId} isteğe bağlıdır ve game-service doğrulamasından sonra verilmelidir. */
 	public static Post publish(UUID authorId, String body, UUID gameId, Instant now) {
+		return publish(authorId, body, gameId, null, now);
+	}
+
+	/** {@code category} verilmezse {@link PostCategory#GENERAL} atanır. */
+	public static Post publish(UUID authorId, String body, UUID gameId, PostCategory category, Instant now) {
 		Post post = new Post();
 		post.authorId = authorId;
 		post.body = body;
 		post.gameId = gameId;
+		post.category = category == null ? PostCategory.GENERAL : category;
 		post.status = PostStatus.VISIBLE;
 		post.createdAt = now;
 		post.updatedAt = now;
@@ -85,6 +107,14 @@ public class Post {
 	public void markDeleted(Instant now) {
 		this.status = PostStatus.DELETED;
 		this.deletedAt = now;
+		this.updatedAt = now;
+	}
+
+	public void changeCategory(PostCategory newCategory, Instant now) {
+		if (newCategory == category) {
+			return;
+		}
+		this.category = newCategory;
 		this.updatedAt = now;
 	}
 
