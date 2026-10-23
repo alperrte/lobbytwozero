@@ -11,8 +11,9 @@ import com.ltz.auth.AccountDeletionTestSupport;
 import com.ltz.auth.RecordingMailPortConfiguration;
 
 /**
- * Üretim adaptörüyle (hedef servislerde silme uçları ve servis kimliği henüz yok): silme asla tamamlanmış sayılmaz.
- * Görevler PENDING kalır ve geri çekilmeyle yeniden denenir; hesabın kişisel verisi korunur, hesap kapalıdır.
+ * Üretim adaptörüyle (gerçek HTTP + servis token'ı), hedef servisler silmeyi onaylamazsa (burada 503) silme asla
+ * tamamlanmış sayılmaz. Görevler PENDING kalır ve geri çekilmeyle yeniden denenir; hesabın kişisel verisi korunur,
+ * hesap kapalıdır.
  */
 @Import(RecordingMailPortConfiguration.class)
 class AccountDeletionUnavailableServicesTest extends AccountDeletionTestSupport {
@@ -26,7 +27,7 @@ class AccountDeletionUnavailableServicesTest extends AccountDeletionTestSupport 
 
         assertThat(pendingTasks(accountId)).isEqualTo(2);
         assertThat(jdbc.queryForList("select distinct last_error from account_deletion_tasks where account_id = ?",
-                String.class, accountId)).containsExactly("SERVICE_ERASURE_UNAVAILABLE");
+                String.class, accountId)).containsExactly("SERVICE_ERASURE_HTTP_503");
         assertThat(jdbc.queryForObject("select status from accounts where id = ?", String.class, accountId))
                 .isEqualTo("DELETION_REQUESTED");
         assertThat(jdbc.queryForObject("select status from account_deletion_requests where account_id = ?",
