@@ -101,6 +101,69 @@ flowchart LR
 | notification-service | notification_db | Ortak (sahipsiz) | `/api/v1/notification/**` | Uygulama içi bildirim, okunmamış, tercihler, duyuru dağıtımı | FR-NOT-01..07 |
 | LTZ Performance Web | — | Alper | — | `frontend/src/features/{performance,hardware,recommendation}` | PWEB-01..10 |
 
+**Hardware uygulaması (2026-10-21, LTZ-ALP-HW-01):** Profil/bileşen yönetimi ve owner
+istatistikleri api → application → domain/repository katmanlarında uygulanmıştır.
+V1/V2 yalnız hardware_db şemasını tanımlar. Mutasyonlar parent profil satırını kilitler
+ve istemcinin profileVersion değerini doğrular; detail/stats REPEATABLE_READ snapshot kullanır.
+İş API'leri protected/owner'dır. Üretimde henüz Auth adapter'ı yoktur: kimlik taşıyan
+header/cookie/token işlenmez, istekler reddedilir. Typed actor yalnız testlerde enjekte
+edilerek yerel sahiplik kuralları sınanır; bu gerçek JWT/E2E doğrulaması değildir.
+CSRF korunur, JSON mutasyonları 16 KiB ile sınırlıdır. Health probe dışında public iş API'si yoktur.
+HW-10 kapsamında katalog yönetimi uygulandı: typed actor okumaları ve ayrıca
+hardware:catalog:write uygulama izni isteyen mutasyonlar. Gerçek Auth rol/claim
+eşlemesi ertelenmiş durumda. Arşivleme referansları korur; gerekçeli append-only
+audit hardware_db transaction'ına katılır, aktör başına yönetim yazma sınırı uygulanır.
+HW-11 parametrik model/kategori/üretici/teknik alan aramasını; HW-14 yetkili kişi
+tarafından kaynak/gözlem/fiyat/geçerlilik bilgisiyle girilen kampanyaları sunar.
+Harici fiyat API'si veya scraping yoktur; kaynak URL'ye sunucudan istek atılmaz.
+V3/V4/V5 yalnız hardware_db'yi genişletir. Yerel uygulama 134 testle PASS;
+HW-02 final pre-push PASS (%98,02); Sonar A/A/A + Quality Gate PASS.
+Gerçek Auth/E2E DEFERRED_AUTH. HW-03 kapsamında V6 profile/alan/kategori gizliliği
+ve üç karşılaştırma endpoint'i ile owner-only batch teknik veri sözleşmesi eklendi.
+Non-owner paylaşım hem yerel kuralları hem HardwareVisibilityPolicy güvenilir dış
+kararını gerektirir; production adapter sözleşme yokken deny eder. User/Social gerçek
+adapter ve Performance/Recommendation gerçek tüketici E2E akışları kullanıcı onayıyla
+DEFERRED_CONTRACT / NOT_VERIFIED; test mock'u canlı entegrasyon sayılmaz.
+Batch en fazla 20 profil / toplam 200 istenen satır; dört sınırlı sorgu ve
+REPEATABLE_READ ile sayfalı teknik DTO döndürür. Profil/bileşen karşılaştırması
+owner-only, katalog karşılaştırması aktif aynı kategori modelleridir; FPS/benchmark
+ve öneri uydurulmaz. HW-04 V8/V9 yorum/rapor/source moderasyonunu ekler: owner
+yorum mutasyonları, SQL audience/engel filtreli sayfalama/AVG, doğal rapor tekilliği,
+hardware:reviews:moderate uygulama izni ve gerekçeli immutable audit.
+ReviewAudiencePolicy üretimde başkalarının UGC'sini deny eder. HIDE/RESTORE yalnız
+kaynak hedefinde uygulanır; merkezi Admin case/kuyruk/rol/hesap yönetimi kurulmaz.
+ContentReported ve HardwareReviewModerated v1 kayıtları aynı DB transaction'ında
+bounded PENDING outbox'a yazılır; gerçek Admin/Notification/User-Social kontratı
+ve E2E açık kullanıcı onayıyla DEFERRED_CONTRACT / NOT_VERIFIED. Relay/broker veya
+uydurma URL/service-token açılmaz. Kaynak DTO'ları teslim edilmediğini açıklar.
+239 hardware test / %98,66 PASS. Nihai tüm backend full dev 257 test / %95,98,
+18 HTTP PASS ve SAFE TO COMMIT; Sonar A/A/A + Quality Gate PASS, açık issue/hotspot 0.
+Gerçek Auth ve consumer bağlantıları doğrulanmadığından production-ready değildir.
+HW-05/HW-06 açık onaylı stateless owner preview ekler; donanımı/izni kaydetmez.
+HW-07 profil/cihaz izni ve generation, ayrı AuthenticatedHardwareDevice +
+hardware:sync:write, deny eden HardwareSyncDevicePolicy ve idempotent snapshot
+altyapısını V10 ile ekler. Parent profil kilidi/version owner/revoke/apply
+yarışını seri hale getirir. Yalnız DESKTOP_SYNC kümesi yenilenir; MANUAL kayıtlar,
+profil kökeni ve gizlilik korunur. Receipt 24 saat/profil başına 500, sequence
+kalıcı anti-replay korumasıdır; iptal sonrası cached receipt bile reddedilir.
+Gerçek Auth cihaz credential/scope, PERF-01 cihaz sahipliği/iptal kontratı ve
+desktop E2E açık kullanıcı onayıyla DEFERRED_AUTH / DEFERRED_CONTRACT / NOT_VERIFIED.
+Hardware içinde eşleştirme servisi, credential üretimi veya uydurma dış URL yoktur.
+Production policy deny, izin veren kimlik ve policy yalnız testlerdedir.
+MVP sonrası gerçek masaüstü istemcisi bu görevde geliştirilmez.
+HW-05 nihai kalite: 293 hardware test/%98,75; full dev 311 backend test/%96,51,
+18 HTTP PASS/SAFE TO COMMIT. Sonar A/A/A + gate PASS; açık issue/hotspot 0/0.
+Toplu 46 API/17 alt görev envanteri docs-hardware/reports/HARDWARE_SERVICE_FINAL_REPORT.md
+içindedir; gerçek Auth/consumer/cihaz E2E eksikleri production hazırlığı olarak gösterilmez.
+
+HW-05 sonrası kullanıcı onaylı geliştirme temizliği: yukarıdaki V1–V10 referansları
+özelliklerin önceki teslim tarihçesidir. Güncel hardware şeması 7 ilişkili CREATE
+migration'ıyla boş DB'de kurulur (V1 profil/gizlilik, V2 katalog, V3 bileşen,
+V4 kampanya, V5 yorum, V6 rapor/outbox, V7 sync). ALTER TABLE/INDEX yoktur;
+ilişkiler, constraint/index/trigger davranışı ve API/iş kuralları korunur.
+Eski history ile yükseltme yoktur; uygulama DB/volume resetini kullanıcı yapar.
+[Güncel karar ve test kanıtı](../docs-hardware/progress/hardware-migration-cleanup.md).
+
 Kurallar:
 
 - **Ayrı arama, medya veya moderasyon servisi yoktur.** Arama her servisin kendi verisinde yapılır; moderasyon kaynak servis + admin-service iş birliğidir; medya depolama kararı bekleniyor.

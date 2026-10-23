@@ -88,6 +88,7 @@ test('an existing report lock prevents checks and preserves the other process lo
 
 async function backendFixture(options, action) {
   await scratch(async (root, write) => {
+    write('.env.dev','POSTGRES_USER=fixture-user\nPOSTGRES_PASSWORD=fixture-password\nPOSTGRES_HOST_PORT=5542\n');
     write('frontend/coverage/keep.txt','frontend report');
     write('backend/services/mail-service/target/surefire-reports/keep.txt','other service report');
     const lines = [], calls = [];
@@ -121,6 +122,16 @@ test('single service runs only its Maven project and preserves unrelated reports
     assert.equal(fs.readFileSync(path.join(root,'frontend/coverage/keep.txt'),'utf8'),'frontend report');
     assert.equal(fs.readFileSync(path.join(root,'backend/services/mail-service/target/surefire-reports/keep.txt'),'utf8'),'other service report');
     assert.ok(!lines.some(line=>line.includes('SAFE TO COMMIT')));
+  });
+});
+
+test('single service Maven run gets profile DB settings without Sonar values', async () => {
+  await backendFixture({},async ({calls})=>{
+    const verify = calls.find(call=>call.args.includes('verify'));
+    assert.equal(verify.env.POSTGRES_USER,'fixture-user');
+    assert.equal(verify.env.POSTGRES_HOST,'127.0.0.1');
+    assert.equal(verify.env.POSTGRES_PORT,'5542');
+    assert.equal(verify.env.SONAR_TOKEN,undefined);
   });
 });
 

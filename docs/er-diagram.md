@@ -1,9 +1,5 @@
 # LTZ (LobbyTwoZero) — ER Diyagramları
 
-> Tarih: 2026-10-20 · Son güncelleme: 2026-10-21
->
-> Durum: Game Service diyagramları (§5) DEV `game_db` üzerinde uygulanmış güncel V31–V40 zincirinin (10 migration, 21 tablo) şemasını gösterir; diğer diyagramlar **`[ÖNERİ]`** olarak [database.md](database.md) içindeki tablo önerilerini gösterir. Bir servisin şeması değiştiğinde ilgili diyagram aynı değişiklikte güncellenir.
->
 > Gösterim:
 > - Düz çizgi / `FK`: aynı veritabanı içindeki gerçek yabancı anahtar.
 > - Kesikli çizgi / `REF`: servisler arası **mantıksal** referans (yalnız `uuid`, FK constraint yok).
@@ -813,6 +809,180 @@ erDiagram
 ```
 
 ## 14. hardware_db
+
+**Güncel geliştirme envanteri (2026-10-21):** Kullanıcı onayıyla aynı 16 tablo,
+7 ilişkili başlangıç migration'ında oluşturulur: V1 profil/gizlilik, V2 katalog,
+V3 bileşenler, V4 kampanyalar, V5 yorum/audit/limitler, V6 rapor/outbox, V7 sync.
+Son alanlar ve named constraint'ler doğrudan CREATE TABLE içindedir; ALTER yoktur.
+Tablo ilişkileri, CASCADE/SET NULL, partial unique ve audit korumaları değişmedi;
+eski/yeni pg_catalog karşılaştırması PASS. Eski history ile yerinde yükseltme yoktur.
+[Güncel dosya envanteri](../docs-hardware/progress/hardware-migration-cleanup.md).
+Aşağıdaki V1–V10 adımları ve test sayıları **önceki teslim tarihçesidir**;
+ilişkiler geçerlidir, aktif dosya numaraları yukarıdaki yeni gruplamadır.
+
+LTZ-ALP-HW-01 / 2026-10-21: V1 SQL/constraint kontrolü izole PostgreSQL 17'de PASS;
+V1/V2 Flyway/JPA testleri PASS; canlı DB'ye uygulanmadı.
+Uygulanan şema tanımı aşağıdadır; devamındaki geniş diyagram gelecek görevlerin önerisidir.
+
+```mermaid
+erDiagram
+  hardware_profiles {
+    uuid id PK
+    uuid user_id "Dış REF; FK yok"
+    varchar name "1..100"
+    varchar device_type "DESKTOP|LAPTOP|OTHER"
+    varchar source "MANUAL"
+    bigint version
+    timestamptz created_at
+    timestamptz updated_at
+  }
+```
+
+HW-02 V2 eklendi (PostgreSQL 17/Flyway/JPA testleri PASS):
+
+```mermaid
+erDiagram
+  hardware_profiles ||--o{ hardware_profile_components : "CASCADE"
+  hardware_products ||--o{ hardware_profile_components : "optional product/category FK"
+  hardware_products ||--o{ hardware_product_brands : supports
+  hardware_brands ||--o{ hardware_product_brands : supports
+  hardware_product_brands |o--o{ hardware_profile_components : "optional product/brand FK"
+```
+
+HW-10 / V3 (PostgreSQL/Flyway/JPA PASS): ürün ve marka status alanları
+ACTIVE/ARCHIVED; fiziksel silme yapılmaz. Aynı ürün/marka FK'leri korunur.
+`hardware_catalog_audit` actor_id (dış REF), target_id, action, reason ve UTC zaman
+tutar; iş mutasyonuyla atomik ve append-only'dir. Teknik audit tablosu yukarıdaki
+genel gösterim kuralı gereği diyagrama eklenmez. V1/V2 değiştirilmedi.
+
+HW-11/V4 teknik filtre indeksleri PostgreSQL/Flyway/JPA testlerinden geçti.
+HW-14/V5 kampanya şeması (PostgreSQL/Flyway/JPA PASS; modül 134 test):
+
+```mermaid
+erDiagram
+  hardware_products ||--o{ hardware_campaigns : promotes
+  hardware_campaigns {
+    uuid id PK
+    uuid product_id FK
+    varchar title
+    varchar source_name
+    varchar source_url
+    numeric original_price
+    numeric sale_price
+    char currency
+    timestamptz starts_at
+    timestamptz ends_at
+    timestamptz observed_at
+    varchar status "ACTIVE|ARCHIVED"
+    bigint version
+  }
+```
+
+Kampanyanın fiyat ve kaynağı kayıtlı beyan; otomatik fiyat doğrulaması yok.
+Arşivleme referansları korur; normal okumada ürün/kampanya ACTIVE ve geçerli pencere aranır.
+
+HW-08/V6 gizlilik şeması (izole PostgreSQL/Flyway/JPA PASS):
+
+```mermaid
+erDiagram
+  hardware_profiles ||--o{ hardware_profile_field_visibility : "CASCADE aggregate rules"
+  hardware_profiles ||--o{ hardware_profile_category_visibility : "CASCADE aggregate rules"
+  hardware_profiles {
+    uuid id PK
+    varchar visibility "PRIVATE default; FRIENDS|PUBLIC"
+    bigint version "shared aggregate version"
+  }
+  hardware_profile_field_visibility {
+    uuid profile_id PK,FK
+    varchar field_name PK "six allowed fields"
+    varchar visibility "PRIVATE|FRIENDS|PUBLIC"
+  }
+  hardware_profile_category_visibility {
+    uuid profile_id PK,FK
+    varchar category PK "12 categories"
+    varchar visibility "PRIVATE|FRIENDS|PUBLIC"
+  }
+```
+
+Eksik kural PRIVATE. User/Social sahipli dış tercih/ilişki verisi burada tutulmaz.
+HW-09/HW-17 mevcut profil/component tablolarından sınırlı DTO üretir; yeni tablo yok.
+
+HW-12/V8 yorum şeması (206 test / PostgreSQL/Flyway/JPA PASS):
+
+```mermaid
+erDiagram
+  hardware_products ||--o{ hardware_reviews : "catalog target FK"
+  hardware_reviews {
+    uuid id PK
+    uuid product_id FK
+    uuid user_id "external REF"
+    varchar body "1..5000 or deleted NULL"
+    int rating "optional 1..5"
+    varchar body_hash "normalized copy fingerprint"
+    varchar status "VISIBLE|HIDDEN|DELETED"
+    bigint version
+    timestamptz created_at
+    timestamptz updated_at
+    timestamptz deleted_at
+  }
+```
+
+Silinmemiş ürün/yazar ve yazar/body_hash partial tekillikleri vardır. Teknik audit
+append-only, actor/socket-peer rate bucket'ları kısa TTL'lidir; diyagramda gösterilmez.
+HW-13/V9 rapor şeması (239 test / PostgreSQL/Flyway/JPA PASS):
+
+```mermaid
+erDiagram
+  hardware_reviews ||--o{ hardware_review_reports : "report target FK"
+  hardware_review_reports {
+    uuid id PK
+    uuid review_id FK
+    uuid reporter_id "external REF"
+    varchar reason "six allowed reasons"
+    varchar details "optional 1..500"
+    uuid outbox_event_id "nullable FK; ON DELETE SET NULL"
+    bigint version
+    timestamptz created_at
+  }
+```
+
+Review/reporter tekildir; audit ve outbox teknik tabloları genel kural gereği çizilmez.
+Outbox sadece PENDING yerel kayıt üretir; gerçek Admin/Notification teslimi ertelenmiştir.
+
+HW-07/V10 sync şeması (V1–V10 PostgreSQL/Flyway/JPA PASS; canlı DB'ye uygulanmadı):
+
+```mermaid
+erDiagram
+  hardware_profiles ||--o| hardware_sync_consents : "CASCADE; one current consent"
+  hardware_profiles ||--o{ hardware_profile_components : "CASCADE"
+  hardware_sync_consents {
+    uuid id PK
+    uuid profile_id FK,UK
+    uuid device_id "external REF"
+    uuid generation
+    varchar status "GRANTED|REVOKED"
+    timestamptz granted_at
+    timestamptz revoked_at
+    bigint last_sequence
+    timestamptz last_captured_at
+    timestamptz last_synced_at
+    bigint version
+  }
+  hardware_profile_components {
+    uuid sync_component_key "nullable; unique with profile"
+    varchar source "MANUAL|null key; DESKTOP_SYNC|required key"
+  }
+```
+
+Profil source=MANUAL kökeni korunur. Teknik hardware_sync_receipts diyagramda
+gösterilmez: profile CASCADE FK, key ve generation/sequence tekillikleri,
+24 saat TTL ve profil başına 500 canlı kayıt sınırı vardır. Dış cihaz credential/
+hesap tablosu veya cross-DB FK eklenmedi. Gerçek cihaz policy üretimde deny.
+
+**Eski geniş tasarım önerisi (uygulanmış şemayı temsil etmez):**
+Aşağıdaki eski diyagram yerine gerçek kapsam için yukarıdaki uygulanmış ilişkiler
+ve güncel V1–V7 envanteri esas alınır; provider tabloları uygulanmadı.
+Ürün/marka ilişkisi güncel V2 içinde ayrıdır.
 
 ```mermaid
 erDiagram

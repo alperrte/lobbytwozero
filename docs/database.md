@@ -1,9 +1,5 @@
 # LTZ (LobbyTwoZero) — Veritabanı Tasarımı
 
-> Tarih: 2026-10-20 · Son güncelleme: 2026-10-21
->
-> Durum: Veritabanları `[MEVCUT]` (init SQL ile oluşturulur). Yalnız Game Service şeması uygulanmıştır: DEV `game_db` (2026-10-21'de `ltz-dev` sıfırlandıktan sonra) V31–V40, 10 migration, 21 uygulama tablosu ile çalışır. Diğer 16 servisin tablo tasarımları `[ÖNERİ]`dır; bu veritabanlarında henüz uygulanmış tablo yoktur. Kesin şema servis sahibinin migration'ı ile belirlenir ve bu belge aynı değişiklikte güncellenir.
->
 > İlgili belgeler: [er-diagram.md](er-diagram.md) (diyagramlar), [architecture.md](architecture.md) (event'ler, Saga), [SECURITY.md](SECURITY.md) §9.
 
 ## 1. Mevcut altyapı `[MEVCUT]`
@@ -302,6 +298,56 @@ oluşturulmadı; GAME-24 sağlayıcı izni/erişimi bekler.
 
 ### 3.13 hardware_db — hardware-service (Alper)
 
+**Güncel geliştirme şeması — 2026-10-21:** Kullanıcının “7 ilişkili grup” onayıyla
+eski V1–V10 zinciri yeniden düzenlendi. Boş DB'ye uygulanan aktif dosyalar:
+
+| Migration | Oluşturduğu tablolar |
+|---|---|
+| V1__create_hardware_profiles_and_privacy.sql | hardware_profiles, hardware_profile_field_visibility, hardware_profile_category_visibility |
+| V2__create_hardware_catalog.sql | hardware_brands, hardware_products, hardware_product_brands, hardware_catalog_audit |
+| V3__create_hardware_profile_components.sql | hardware_profile_components |
+| V4__create_hardware_campaigns.sql | hardware_campaigns |
+| V5__create_hardware_reviews.sql | hardware_reviews, hardware_review_audit, hardware_write_limits |
+| V6__create_hardware_review_reports_and_outbox.sql | outbox_events, hardware_review_reports |
+| V7__create_hardware_desktop_sync.sql | hardware_sync_consents, hardware_sync_receipts |
+
+16 tablo son sütun/default/constraint'leriyle doğrudan CREATE TABLE içinde kurulur;
+ALTER TABLE/INDEX veya rename/drop adımı yoktur. 93 named constraint, 51 toplam indeks,
+2 immutable audit trigger/fonksiyonu eski zincirle izole PostgreSQL 17.11'de eşdeğerdir.
+V8–V10 boş; sonraki değişiklikler normal ileri migration kuralına tabidir.
+Eski Flyway history ile yükseltme desteklenmez; DB sıfırlamasını kullanıcı yapar.
+[Karar ve kanıt](../docs-hardware/progress/hardware-migration-cleanup.md).
+
+**Aşağıdaki eski V1–V10 numaraları, dosya adları ve test sayıları görevlerin teslim
+tarihçesidir; güncel migration envanteri yukarıdaki V1–V7 tablosudur.**
+
+**LTZ-ALP-HW-01 uygulama durumu (2026-10-21):**
+`V1__create_hardware_profiles.sql` eklendi; SQL ve constraint'ler izole PostgreSQL 17
+üzerinde doğrulandı. V1/V2 Flyway ve JPA validate testleri de PASS; canlı DB'ye uygulanmadı.
+Gerçek ilk tablo `hardware_profiles`: `id uuid`, `user_id uuid` (dış REF),
+`name varchar(100)`, `device_type varchar(32)` (DESKTOP/LAPTOP/OTHER),
+`source varchar(32)` (yalnız MANUAL), `version bigint`, `created_at/updated_at timestamptz`.
+Ad/tür/kaynak/sürüm CHECK'leri ve `(user_id, created_at, id)` indeksi vardır.
+`V2__create_hardware_components_and_selection_catalog.sql` HW-02 için eklendi (test PASS):
+`hardware_products` genel modelleri `(category, normalized_model)` ile markadan bağımsız
+tekilleştirir. `hardware_brands` ve `hardware_product_brands` opsiyonel üretici ilişkisidir;
+ürün tablosunda nullable marka üzerinden tekillik kurulmaz. Katalog yönetimi/arşiv ve
+arama HW-10/HW-11 ile aşağıda uygulandı.
+`hardware_profile_components`: profile_id (CASCADE FK), opsiyonel product_id/brand_id,
+category, model_name/brand_name snapshot, quantity 1..128, source=MANUAL, version, UTC zamanları.
+Ürün/kategori ve ürün/marka bileşik FK'leri vardır. Parent profil kilidi ve profileVersion
+aynı profilin paralel mutasyonlarını korur. Sekiz sınırlı teknik alan (capacity_gb,
+clock_mhz, core_count, power_watts, memory_type, socket, interface_type, form_factor)
+embeddable olarak eşlenir; veri yoksa null. JSON serbest özellik alanı kullanılmaz.
+Profil silme use-case'i yalnız owner + güncel profileVersion ile hard delete uygular;
+bağlı bileşenler CASCADE ile silinir, katalog/marka ve diğer profiller korunur.
+İstatistikler owner filtresiyle DB'de toplanır; kayıt ve adet ayrıdır. Yalnız kaydedilen
+RAM/depolama kapasitesi adetle çarpılır, kapasitesi bilinmeyen adetler ayrıca bildirilir.
+Aşağıdaki genişletilmiş eski tasarım **öneridir**. Gerçek kampanya şeması için V5,
+gizlilik için V6/V7, yorum ve rapor için aşağıdaki V8/V9 uygulama tanımları
+geçerlidir; sync için aşağıdaki V10 uygulama tanımı geçerlidir.
+JPA validate ve open-in-view=false korunur.
+
 | Tablo | Önemli sütunlar | Kısıtlar / not |
 | --- | --- | --- |
 | `hardware_brands` | id, name, normalized_name | UQ normalized_name |
@@ -314,6 +360,115 @@ oluşturulmadı; GAME-24 sağlayıcı izni/erişimi bekler.
 | `hardware_campaigns` | id, product_id FK, title, url, discount_percent, starts_at, ends_at, source | HW-14 |
 | `hardware_provider_refs` | id, product_id FK, provider, external_id, last_synced_at | HW-17; UQ (provider, external_id) |
 | `outbox_events`, `inbox_events`, `idempotency_records` | §2.4 | |
+
+**LTZ-ALP-HW-02 / HW-10 geliştirmesi:** V3 katalog tablolarına ACTIVE/ARCHIVED
+durumu ve sürüm CHECK'leri, aktif ad/model/kategori sayfalama indeksleri ekler.
+Mevcut satırlar ACTIVE kalır; V1/V2 değiştirilmez. Silme yerine arşivleme yapılır.
+Ürün/marka bağı kullanılan profil bileşeninden kaldırılamaz (mevcut FK → 409).
+Yeni seçimde arşivli ürün/marka reddedilir; mevcut profil snapshot'ları korunur.
+
+`hardware_catalog_audit`: id UUID PK, actor_id dış UUID REF, action CHECK,
+target_id UUID (hardware kaydına mantıksal referans), reason varchar(500),
+created_at timestamptz. UPDATE/DELETE/TRUNCATE trigger ile engellenir;
+audit ve iş mutasyonu aynı transaction'dadır. Aktör/zaman indeksi ve transaction
+advisory kilidiyle aktör başına 60 başarılı yönetim mutasyonu/dakika sınırı uygulanır.
+Limit aşımı tüm mutasyonu geri alır. V3 PostgreSQL 17.11/Flyway/JPA validate
+90 testte PASS; canlı DB'ye uygulanmadı.
+HW-11 V4 arama migration'ı ACTIVE ürünlerde kategori ile kapasite/frekans/çekirdek/güç
+aralıkları için dört partial indeks ekler. Teknik alanlar typed; bilinmeyen değer
+filtreyi sağlamaz. LIKE alt metin araması literal escape edilir; extension/harici
+arama motoru eklenmedi. V4 ve filtreler PostgreSQL 17/Flyway/JPA ile 117 testte PASS;
+indeks varlığı doğrulandı; üretim verisi üzerinde sorgu süre hedefi ölçülmedi.
+
+HW-14 V5 geliştirmesi: `hardware_campaigns` (id UUID PK, product_id gerçek
+hardware_products FK, title/source_name/source_url, original_price/sale_price
+numeric(12,2), currency char(3), starts_at/ends_at/observed_at/created_at/updated_at
+timestamptz, ACTIVE/ARCHIVED status, version bigint). CHECK indirimli fiyatın
+pozitif ve orijinalden küçük olmasını, pencere sırasını, gözlem <= güncelleme ve
+durum/sürüm aralıklarını korur. Aktif zaman ve ürün/zaman partial indeksleri vardır.
+Yalnız yetkili kişinin kaynak/gözlem bilgili yerel kayıtları; harici çağrı yoktur.
+Ürün/kampanya arşivlenince okuma filtresi gizler, FK/kayıtlar silinmez.
+V1–V5 PostgreSQL 17.11/Flyway/JPA validate ve son modül 134 test PASS;
+canlı DB'ye uygulanmadı.
+
+**LTZ-ALP-HW-03 / HW-08:** V6 hardware_profiles.visibility varchar(16) NOT NULL
+DEFAULT PRIVATE + PRIVATE/FRIENDS/PUBLIC CHECK ekler. hardware_profile_field_visibility
+(profile_id,field_name) ve hardware_profile_category_visibility (profile_id,category)
+bileşik PK'li collection tablolarıdır. Her ikisi profile CASCADE FK taşır;
+enum değerleri CHECK ile sınırlanır. Collection'lar bağımsız aggregate değildir;
+version hardware_profiles üzerindedir, parent pessimistic lock ve profileVersion
+bütün rule/component/profil değişikliklerini birlikte korur. Eksik rule PRIVATE.
+Component (profile_id,category,created_at,id) indeksi görünür kategori sayfalamasını destekler.
+V1–V5 değişmedi; V6 izole PostgreSQL 17/Flyway/JPA validate testlerinden geçti.
+V7__name_hardware_privacy_constraints.sql yalnız V6'nın otomatik constraint ve
+indeks adlarını §2.2 standardına uyarlar; veri/erişim kuralı değişmez. Test edilmiş
+V6 yeniden yazılmadı. İlk Sonar koşusunun 192 başarılı backend testi sırasında
+V1–V7 PostgreSQL/Flyway/JPA validate PASS; Sonar kod bulguları ayrı kalite kaydındadır.
+Canlı DB'ye migration uygulanmadı. HW-09 ve HW-17 yeni tablo eklemez;
+batch parametrik array unnest/LATERAL sayfalaması yalnız doğrulanmış owner profil ID'leriyle çalışır.
+User/Social gerçek global gizlilik/ilişki verisi bu DB'ye kopyalanmaz; güvenilir policy
+portu onaylı DEFERRED_CONTRACT durumunda üretimde deny eder.
+
+**HW-12 / V8 (2026-10-21):** hardware_reviews gerçek şeması: id/product_id (gerçek FK),
+user_id (dış REF), nullable body/rating/body_hash, VISIBLE/HIDDEN/DELETED status,
+version, created_at/updated_at/deleted_at. Rating 1..5 veya null. DELETED içerik/puan/hash
+null ve deleted_at dolu; diğer durumlarda geçerli body/hash ve deleted_at null CHECK'i.
+Silinmemiş (product_id,user_id) ve (user_id,body_hash) partial unique indeksleri;
+ürün/status ve yazar/status sayfa indeksleri. DTO'da yazar kimliği/IP/hash yok.
+hardware_review_audit iş mutasyonuyla atomik, UPDATE/DELETE/TRUNCATE trigger ile
+append-only; body/ham IP saklamaz. hardware_write_limits fixed-minute actor/socket-peer
+bucket'ları için composite PK ve TTL indeksidir; ayrı bir job iki dakikayı aşan
+bucket'ları dakikada bir temizler (normalde yaklaşık 2–3 dakika tutulur).
+HW-12 alt görev verify: 206 PASS, V1–V8 PostgreSQL 17/Flyway/JPA validate PASS;
+V8 canlı DB'ye uygulanmadı.
+
+**HW-13 / V9:** hardware_review_reports: id UUID, review_id gerçek FK, reporter_id
+dış REF, reason CHECK, details varchar(500), outbox_event_id FK ON DELETE SET NULL,
+version bigint ve UTC created_at. (review_id,reporter_id) ve outbox_event_id tekil.
+Merkezi Admin case durumu kopyalanmaz. Nullable event bağlantısı, ileride teknik
+outbox purge edilirken yerel raporu korur; status/teslim bilinmiyor olarak sunulur.
+outbox_events ortak §2.4 alanlarını kullanır; aggregate HARDWARE_REVIEW, v1 tipleri
+ContentReported/HardwareReviewModerated, jsonb object <=4 KiB, PENDING/SENT/FAILED
+CHECK'leri. Yazıcı PENDING/FAILED toplamını transaction advisory lock ile 10000'de
+sınırlar; kapasite aşımı 503 ve iş mutasyonu/audit/quota ile tümden rollback.
+V9 immutable audit'in izinli action CHECK'ini genişletir; V8 yeniden yazılmadı.
+239 testte PostgreSQL 17/Flyway V1–V9/JPA PASS; canlı DB'ye V8/V9 uygulanmadı.
+Gerçek consumer sözleşmesi olmadığından relay/teslim/SENT işlemi uygulanmadı.
+SENT retention ve gerçek consumer E2E sonraki mutabakatla ele alınacaktır.
+
+**HW-07 / V10 (2026-10-21):** hardware_profile_components'a nullable
+sync_component_key UUID eklendi. Source CHECK artık MANUAL + null key veya
+DESKTOP_SYNC + dolu key + null product_id/brand_id ister; profil/key partial unique
+indeksi aynı tarama bileşenini tekilleştirir. Manuel PUT kaynak/key'i MANUAL/null
+yapar. Profil source=MANUAL oluşturulma kökenidir, sync bunu değiştirmez.
+
+hardware_sync_consents: id UUID PK, profile_id UNIQUE gerçek CASCADE FK,
+device_id dış REF, generation UUID, GRANTED/REVOKED status, granted_at/revoked_at,
+last_sequence/last_captured_at/last_synced_at, version ve UTC created_at/updated_at.
+Status/zaman/sequence metadata bütünlüğü CHECK'lerle korunur; device indeksi vardır.
+Her yeni grant generation ve sıra metadata'sını sıfırlar; eski receipt generation'ları
+yerel state'e FK değildir. Aktör owner'ı parent profilden gelir; cihaz ID'si yalnız
+güvenilir policy ve ayrı typed principal ile doğrulanabilir. Dış cihaz verisi bu
+DB'de hesap/credential sistemi olarak kopyalanmaz.
+
+hardware_sync_receipts: id UUID, profile CASCADE FK, UUID idempotency_key/generation,
+sequence, request_hash SHA-256, yalnız asgari metadata içeren <=4 KiB response_body
+jsonb, version, created_at/expires_at. UNIQUE (profile_id,idempotency_key) ve
+(profile_id,generation,sequence); hash/sequence/expiry/JSON CHECK, expiry indeksi.
+Profil başına 500 canlı receipt/24 saat; parent kilidi bütçeyi ve uygulamayı seri
+hale getirir. Saatlik job süresi dolan kayıtları temizler (yaklaşık 24–25 saat).
+Kalıcı last_sequence receipt silinse de eski sırayı reddeder. Profil silme iki yeni
+tabloyu ve bileşenleri CASCADE temizler; başka profil/cihaz kayıtları etkilenmez.
+
+HW-06 preview donanım/consent kaydetmez. HW-07 snapshot/state/version/receipt tek
+transaction'dır, yalnız DESKTOP_SYNC kümesi değiştirilir; MANUAL/gizlilik korunur.
+Mevcut hardware_write_limits kısa TTL altyapısı yeni user/device/peer bucket'larını
+da taşır. V1–V10 gerçek PostgreSQL/Flyway/JPA ve 269 mevcut regresyonda PASS;
+yeni davranışların final test kanıtı HW-05 kalite kaydında güncellenir. V10 artık
+değiştirilmez kabul edilmişti; sonraki açık geliştirme temizliği onayı bu geçmiş
+zinciri yukarıdaki V1–V7 envanteriyle değiştirdi.
+Canlı DB'ye V10 uygulanmadı. Gerçek Auth/PERF cihaz kontratı ve desktop E2E
+onaylı DEFERRED_AUTH / DEFERRED_CONTRACT / NOT_VERIFIED; production policy deny.
 
 ### 3.14 recommendation_db — recommendation-service (Alper)
 
