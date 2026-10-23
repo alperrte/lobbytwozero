@@ -20,6 +20,3 @@ test-results/
 *.keystore
 **/secrets/
 .aws/
-
-# Auth gelistirme notlari ve kapanis raporlari yerelde kalir; ekip rehberi docs/AUTH_SERVICE_ENTEGRASYON_REHBERI.md
-docs-auth/
