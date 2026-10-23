@@ -2,6 +2,7 @@ package com.ltz.auth.application.service;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -71,10 +72,7 @@ public class AccountDeletionService {
         attemptThrottle.reserve(throttleKey);
         ReauthContext context = transactionTemplate.execute(status -> loadContext(accountId, sessionId));
         verifyReauthentication(accountId, context, password, code, recoveryCode);
-        AccountDeletionMail mail = transactionTemplate.execute(status -> issueToken(accountId, context.email()));
-        if (mail != null) {
-            dispatcher.dispatch(mail);
-        }
+        transactionTemplate.execute(status -> issueToken(accountId, context.email())).ifPresent(dispatcher::dispatch);
         attemptThrottle.clear(throttleKey);
     }
 
@@ -83,7 +81,7 @@ public class AccountDeletionService {
         boolean confirmed = Boolean.TRUE.equals(transactionTemplate.execute(
                 status -> applyConfirmation(accountId, tokenHash, username)));
         if (!confirmed) {
-            securityEventRecorder.record(SecurityEventType.ACCOUNT_DELETION_REJECTED, accountId);
+            securityEventRecorder.recordEvent(SecurityEventType.ACCOUNT_DELETION_REJECTED, accountId);
             throw new AuthException(AuthErrorCode.DELETION_CONFIRMATION_INVALID);
         }
     }
@@ -121,24 +119,24 @@ public class AccountDeletionService {
     }
 
     private void rejectReauthentication(UUID accountId) {
-        securityEventRecorder.record(SecurityEventType.ACCOUNT_DELETION_REJECTED, accountId);
+        securityEventRecorder.recordEvent(SecurityEventType.ACCOUNT_DELETION_REJECTED, accountId);
     }
 
-    private AccountDeletionMail issueToken(UUID accountId, String email) {
+    private Optional<AccountDeletionMail> issueToken(UUID accountId, String email) {
         Instant now = clock.instant();
         boolean coolingDown = tokenRepository.findFirstByAccountIdOrderByCreatedAtDesc(accountId)
                 .map(latest -> now.isBefore(latest.getCreatedAt().plus(properties.requestCooldown())))
                 .orElse(false);
         if (coolingDown) {
-            return null;
+            return Optional.empty();
         }
         String rawToken = secureTokens.newOpaqueToken();
         tokenRepository.invalidateActive(accountId, CodeInvalidationReason.SUPERSEDED, now);
         AccountDeletionToken saved = tokenRepository.save(AccountDeletionToken.issue(accountId,
                 secureTokens.sha256Hex(rawToken), now, now.plus(properties.tokenTtl())));
-        securityEventRecorder.record(SecurityEventType.ACCOUNT_DELETION_REQUESTED, accountId);
-        return new AccountDeletionMail(saved.getId(), accountId, email,
-                properties.linkBaseUrl() + TOKEN_FRAGMENT + rawToken, properties.tokenTtl());
+        securityEventRecorder.recordEvent(SecurityEventType.ACCOUNT_DELETION_REQUESTED, accountId);
+        return Optional.of(new AccountDeletionMail(saved.getId(), accountId, email,
+                properties.linkBaseUrl() + TOKEN_FRAGMENT + rawToken, properties.tokenTtl()));
     }
 
     /** Tek işlemde: token tüketimi, durum geçişi, talep + görevler, oturum iptali. Token oturumun hesabına bağlıdır. */
@@ -163,7 +161,7 @@ public class AccountDeletionService {
         if (requestRepository.findByAccountId(accountId).isEmpty()) {
             openRequest(accountId, now);
         }
-        securityEventRecorder.record(SecurityEventType.ACCOUNT_DELETION_CONFIRMED, accountId);
+        securityEventRecorder.recordEvent(SecurityEventType.ACCOUNT_DELETION_CONFIRMED, accountId);
         // Toplu güncelleme persistence context'i temizler; bekleyen değişiklikler önce flush edilir.
         sessionRepository.revokeAllActive(accountId, SessionRevokeReason.ACCOUNT_DELETION, now);
         // Silinecek hesabın bekleyen sıfırlama/doğrulama/MFA/Steam artıkları artık geçersiz kılınır.

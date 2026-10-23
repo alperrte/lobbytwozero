@@ -74,7 +74,9 @@ class SteamAssertionValidatorTest {
     }
 
     private void assertRejected(String name, Consumer<Map<String, String[]>> mutation) {
-        assertThatThrownBy(() -> validator.validate(params(mutation), RETURN_TO, NOW))
+        Map<String, String[]> mutated = params(mutation);
+
+        assertThatThrownBy(() -> validator.validate(mutated, RETURN_TO, NOW))
                 .as(name).isInstanceOf(ExternalAuthenticationException.class);
     }
 

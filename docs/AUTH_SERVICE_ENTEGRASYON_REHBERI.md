@@ -29,7 +29,7 @@
 2. Kullanıcı kimliğini **yalnız `sub` claim'inden** alın; istekteki `userId` alanını yok sayın/doğrulayın.
 3. Rol kontrolünü `roles` claim'inden yapın; **sahiplik kontrolünü kendi veritabanınızda** yapın (§5).
 4. Hesap durumu/iptal değişiklikleri size en fazla **access token ömrü kadar** geç ulaşır (§7).
-5. Kişisel veri tutuyorsanız hesap silme çağrısını karşılayacak **idempotent iç uç** hazırlayın (§8). Auth bu çağrı için servis kimliği kullanacak, bu kısım henüz yok.
+5. Kişisel veri tutuyorsanız hesap silme çağrısını karşılayacak **idempotent iç uç** hazırlayın (§8). Auth bu çağrıyı D4 servis token'ıyla (`svc+jwt`) yapar; token'ın tüm alanlarını doğrulamak zorunludur (`servis-sozlesmeleri.md` §3).
 6. Auth DB'sine erişmeyin; Auth'a yalnız bu belgedeki sözleşmelerle konuşun.
 
 ## 3. JWT doğrulaması
@@ -50,7 +50,7 @@
 
 | Alan | Beklenen değer | Not |
 | --- | --- | --- |
-| JWT başlığı `typ` | `at+jwt` | Auth'un kullanıcı token'ıdır. Gelecekteki `svc+jwt` (servis kimliği) ile **karıştırılmamalı** |
+| JWT başlığı `typ` | `at+jwt` | Auth'un kullanıcı token'ıdır. `svc+jwt` (servis kimliği, yalnız `/internal/**` uçları) kullanıcı uçlarında **reddedilmeli** |
 | `iss` | `ltz-auth` (ENV `JWT_ISSUER`, varsayılan `ltz-auth`) | |
 | `aud` | `ltz-api` içermeli (ENV `JWT_AUDIENCE`, varsayılan `ltz-api`) | Değer tüm ortamlarda Auth ile aynı olmalı |
 | `exp`, `nbf`, `iat` | Zorunlu, süre/saat doğrulaması | Küçük saat sapması toleransı kullanın (≤ 60 sn) |
@@ -181,22 +181,24 @@ Servis sahibi için sonuç: servisinize yalnız doğrulanmış bir Bearer (veya 
 
 - Auth, kullanıcı silmeyi onaylayınca her **hedef servis** için bir görev açar ve şu çağrıyı yapar:
   `DELETE <SERVİS>_SERVICE_URL/internal/v1/accounts/{accountId}` (idempotent).
-- Servis, o hesaba ait kişisel veriyi **silmeyi/anonimleştirmeyi tamamladığında 2xx** döner. Zaten silinmişse de 2xx dönmelidir.
-  Başka bir yanıt veya hata, Auth tarafında yeniden denenir (üstel geri çekilme). Tüm hedefler onaylayana kadar hesap `DELETED` olmaz.
-- Servis kimliği (**D4**, `typ=svc+jwt`, `aud=<servis>`, `scope=account:erase`, `exp ≤ 60 sn`) **sözleşmedir, Auth tarafında üretici kod yoktur ve
-  hedef servislerde doğrulayıcı da yoktur [BEKLEYEN]**. Uç, kimliksiz açılmamalı; D4 gelene kadar uç dışarıya (Gateway) yayınlanmamalıdır.
-- Silme hedef listesi `ltz.auth.deletion.targets` ile yönetilir. Şu an: `user, mail, library, review, social, messaging, lfp, community, content, event,
-  hardware, recommendation, performance, notification`.
-  **`game` ve `admin` listede yok.** Bu servisler `accountId` içeren veri tutuyorsa (ör. Game'de geliştirici sahipliği/manuel düzeltme kaydı, Admin'de
-  denetim kaydı) listeye eklenmeleri ve hangi verinin silinip hangisinin (hukuki gerekçeyle) saklanacağı **Auth sahibiyle kararlaştırılmalıdır** (S2).
-- Verisi olmayan servis için "uygulanamaz" işaretleme yolu henüz yok (S2); listeye yalnız gerçekten veri tutan servis konmalıdır.
+- Servis, o hesaba ait kişisel veriyi **silmeyi/anonimleştirmeyi tamamladığında `204`** (veya `200`) döner. Zaten silinmişse veya verisi yoksa da
+  `204` dönmelidir. **`202`, `3xx`, `404`, `401/403`, `5xx` ve zaman aşımı onay sayılmaz**; Auth yeniden dener (üstel geri çekilme). Tüm
+  hedefler onaylayana kadar hesap `DELETED` olmaz.
+- Servis kimliği (**D4**) **[UYGULANDI, Auth tarafı]**: her çağrıda yeni token; `typ=svc+jwt`, `iss=ltz-auth`, `aud=<servis>-service` (ör.
+  `social-service`), `sub=svc:auth-service`, `scope=account:erase`, `account_id=<silinecek hesap>`, ömür 30 sn, `jti`. Hedef servis **hepsini**
+  doğrular; özellikle `sub` **tam eşleşme** ve `account_id` **yoldaki `{accountId}` ile aynı** olmalıdır (aksi halde `403`). Ayrıntı ve tablo:
+  `servis-sozlesmeleri.md` §3–§3.1. Uç kimliksiz açılmaz ve Gateway'e yayınlanmaz.
+- Silme hedef listesi `ltz.auth.deletion.targets` ile yönetilir (16): `user, mail, game, library, review, social, messaging, lfp, community,
+  content, event, hardware, recommendation, performance, admin, notification`. **`game` ve `admin` 2026-10-23'te eklendi (S2).** Hangi verinin
+  silinip hangisinin hukuki gerekçeyle anonim olarak saklanacağı servis sahibi ve Auth sahibi tarafından birlikte kararlaştırılır.
+- Auth "uygulanamaz" beyanını kabul etmez: **verisi olmayan servis de ucu açıp `204` döner.** Listeden çıkarma yalnız Auth sahibinin kararıdır.
 
 ## 9. Servisler arası çağrılar ve tamamlanmamış sözleşmeler
 
 | Konu | Durum |
 | --- | --- |
 | JWKS ile kullanıcı JWT doğrulama | **[UYGULANDI]** (Auth tarafı); tüketici servislerde yok |
-| Servis kimliği D4 (`svc+jwt`) | **[SÖZLEŞME]**, kod yok |
+| Servis kimliği D4 (`svc+jwt`) | Auth → hedef servis (`account:erase`) **[UYGULANDI]**; Admin → Auth iç uç **[BEKLEYEN]** |
 | Admin → Auth rol/durum | Şimdilik kullanıcı token'ıyla `/api/v1/auth/admin/**` (yalnız `ADMIN`); servis kimlikli uç **[BEKLEYEN]** |
 | Auth → Mail (3 port: doğrulama, sıfırlama, silme onayı) | Port + dev (Mailpit) **[UYGULANDI]**; Mail Service ucu **[BEKLEYEN]** |
 | Auth → User `UserRegistered` | **[BEKLEYEN]** (outbox/User Service yok) |
@@ -285,7 +287,7 @@ verilirse OAuth/bağlantı koruması servisi durdurur; `production`, `staging` g
 | 8 | Gateway hız sınırı çok örnekli kurulumda örnek başınadır; ortak limitleyici (Redis vb.) | **BEKLEYEN** |
 | 9 | Veritabanı: servis başına ayrı rol (`ltz_dev` superuser'ı prod'da kullanılmaz), güçlü `POSTGRES_PASSWORD` | Zorunlu |
 | 10 | `SWAGGER_ENABLED=false`, Actuator yalnız `health` (varsayılan böyle) | Varsayılan |
-| 11 | Servis kimliği (D4) ve hedef servislerde silme ucu | **BEKLEYEN** (§8, §9) |
+| 11 | Servis kimliği (D4): Auth tarafı **UYGULANDI**; hedef servislerde silme ucu (16 servis) | **BEKLEYEN** (§8, §9) |
 | 12 | Anahtar rotasyonu ve parola politikası (≥15 + kara liste) | **BEKLEYEN** (`acik-guvenlik-borclari.md` S9, S10) |
 | 13 | Migration'lar V61–V64 donmuştur; şema değişikliği V65+ | Süreç kuralı |
 

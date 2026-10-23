@@ -24,11 +24,15 @@ public abstract class AccountDeletionTestSupport extends IntegrationTestSupport 
     @Autowired
     protected AccountDeletionCoordinator coordinator;
 
-    /** Paylaşılan test veritabanındaki önceki testlerin bekleyen görevleri bu testin sayımlarını etkilemesin. */
+    /**
+     * Paylaşılan test veritabanındaki önceki testlerin bekleyen görevleri bu testin sayımlarını etkilemesin; hedef
+     * servis taklidi varsayılana (503, onay yok) döner.
+     */
     @BeforeEach
     void postponeForeignTasks() {
         jdbc.update("update account_deletion_tasks set next_attempt_at = now() + interval '1 day' "
                 + "where status = 'PENDING'");
+        ERASURE_TARGETS.reset();
     }
 
     protected ResultActions requestDeletion(String bearer, String json) throws Exception {

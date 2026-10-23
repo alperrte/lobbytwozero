@@ -66,7 +66,7 @@ class MailpitEndToEndTest extends IntegrationTestSupport {
         register(email, uniqueUsername(), VALID_PASSWORD).andExpect(status().isAccepted());
 
         Map<String, Object> message = awaitMessages(email, 1).getFirst();
-        assertThat(message.get("Subject")).isEqualTo(DevSmtpVerificationMailAdapter.SUBJECT);
+        assertThat(message).containsEntry("Subject", DevSmtpVerificationMailAdapter.SUBJECT);
         String code = extractCode(message);
         UUID accountId = accountId(email);
         assertThat(jdbc.queryForObject("select code_hash from email_verification_codes where account_id = ?",

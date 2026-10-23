@@ -48,7 +48,7 @@ public class AccountDeletionDispatcher {
     public void dispatch(AccountDeletionMail mail) {
         try {
             taskExecutor.execute(() -> deliver(mail));
-        } catch (TaskRejectedException exception) {
+        } catch (TaskRejectedException _) {
             log.warn("Account deletion mail rejected by executor tokenId={}", mail.idempotencyKey());
             markDeliveryFailed(mail);
         }
@@ -71,7 +71,7 @@ public class AccountDeletionDispatcher {
                 .filter(AccountDeletionToken::isActive)
                 .ifPresent(token -> {
                     token.invalidate(CodeInvalidationReason.DELIVERY_FAILED, clock.instant());
-                    securityEventRecorder.record(SecurityEventType.ACCOUNT_DELETION_MAIL_FAILED, mail.accountId());
+                    securityEventRecorder.recordEvent(SecurityEventType.ACCOUNT_DELETION_MAIL_FAILED, mail.accountId());
                 }));
     }
 }

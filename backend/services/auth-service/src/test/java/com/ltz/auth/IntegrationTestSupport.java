@@ -63,6 +63,8 @@ public abstract class IntegrationTestSupport {
     private static final int TEST_RSA_BITS = 3072;
     /** Her test çalıştırmasında üretilen imza anahtarı; repoda veya çıktıda gerçek anahtar yoktur. */
     protected static final KeyPair TEST_JWT_KEYS = rsaKeyPair();
+    /** Silme hedeflerinin (user, mail) iç ucu; gerçek HTTP + servis token'ı yolu. Varsayılan yanıt 503 = onay yok. */
+    protected static final ErasureTargetStub ERASURE_TARGETS = ErasureTargetStub.start();
 
     static {
         POSTGRES.start();
@@ -98,6 +100,9 @@ public abstract class IntegrationTestSupport {
         // Eşzamanlılık testleri kapasite değil tekillik doğrular; yüklü makinede Argon2 slot beklemesi 503 üretmesin.
         registry.add("ltz.auth.password-hashing.acquire-timeout", () -> "PT10S");
         registry.add("ltz.auth.deletion.targets", () -> "user,mail");
+        registry.add("ltz.auth.deletion.service-urls.user", ERASURE_TARGETS::baseUrl);
+        registry.add("ltz.auth.deletion.service-urls.mail", ERASURE_TARGETS::baseUrl);
+        registry.add("ltz.auth.deletion.http-timeout", () -> "PT2S");
         registry.add("AUTH_TOTP_ENCRYPTION_KEY", () -> TEST_TOTP_KEY);
         registry.add("AUTH_JWT_PRIVATE_KEY",
                 () -> Base64.getEncoder().encodeToString(TEST_JWT_KEYS.getPrivate().getEncoded()));

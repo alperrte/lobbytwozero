@@ -63,7 +63,7 @@ class BoundedPasswordEncoderTest {
                 hashing.countDown();
                 try {
                     release.await();
-                } catch (InterruptedException exception) {
+                } catch (InterruptedException _) {
                     Thread.currentThread().interrupt();
                 }
             }

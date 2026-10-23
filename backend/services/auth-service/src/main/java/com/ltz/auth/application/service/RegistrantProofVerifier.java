@@ -9,6 +9,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import com.ltz.auth.domain.entity.Account;
+import com.ltz.auth.domain.entity.ExternalIdentity;
 import com.ltz.auth.domain.entity.SteamRegistration;
 import com.ltz.auth.domain.enums.ExternalProvider;
 import com.ltz.auth.domain.enums.SteamProofPurpose;
@@ -53,7 +54,7 @@ public class RegistrantProofVerifier {
     public Requirement requirementFor(Account account) {
         String steamSubject = account.passwordHash().isPresent() ? null : identityRepository
                 .findByAccountIdAndProvider(account.getId(), ExternalProvider.STEAM)
-                .map(identity -> identity.getProviderSubject()).orElse(null);
+                .map(ExternalIdentity::getProviderSubject).orElse(null);
         return new Requirement(account.passwordHash().orElse(null), steamSubject);
     }
 

@@ -50,7 +50,7 @@ public class VerificationCodeDispatcher {
     public void dispatch(VerificationCodeMail mail) {
         try {
             taskExecutor.execute(() -> deliver(mail));
-        } catch (TaskRejectedException exception) {
+        } catch (TaskRejectedException _) {
             log.warn("Verification code delivery rejected by executor codeId={}", mail.idempotencyKey());
             markDeliveryFailed(mail);
         }
@@ -73,7 +73,7 @@ public class VerificationCodeDispatcher {
                 .filter(EmailVerificationCode::isActive)
                 .ifPresent(code -> {
                     code.invalidate(CodeInvalidationReason.DELIVERY_FAILED, clock.instant());
-                    securityEventRecorder.record(SecurityEventType.VERIFICATION_CODE_DELIVERY_FAILED,
+                    securityEventRecorder.recordEvent(SecurityEventType.VERIFICATION_CODE_DELIVERY_FAILED,
                             mail.accountId());
                 }));
     }

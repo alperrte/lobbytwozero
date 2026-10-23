@@ -33,7 +33,7 @@ public class SecurityEventRecorder {
      * yazılır. Hesaba bağlı olaylar kalıcıdır.
      */
     @Transactional
-    public void record(SecurityEventType type, UUID accountId) {
+    public void recordEvent(SecurityEventType type, UUID accountId) {
         if (accountId == null) {
             log.debug("Security event without account type={}", type);
             return;

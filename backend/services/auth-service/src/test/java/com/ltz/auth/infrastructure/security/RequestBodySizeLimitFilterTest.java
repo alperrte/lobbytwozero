@@ -49,7 +49,9 @@ class RequestBodySizeLimitFilterTest {
         filter.doFilter(chunked, new MockHttpServletResponse(),
                 (req, res) -> stream.set(req.getInputStream()));
 
-        assertThatThrownBy(() -> stream.get().readAllBytes()).isInstanceOf(PayloadTooLargeException.class);
+        ServletInputStream limited = stream.get();
+
+        assertThatThrownBy(limited::readAllBytes).isInstanceOf(PayloadTooLargeException.class);
         verifyNoInteractions(resolver);
     }
 

@@ -56,9 +56,9 @@ public class PasswordService {
         String throttleKey = hasher.hash(CHANGE_THROTTLE_DOMAIN, accountId.toString());
         attemptThrottle.reserve(throttleKey);
         String currentHash = transactionTemplate.execute(status -> accountRepository.findById(accountId)
-                .flatMap(Account::passwordHash).orElse(null));
+                .flatMap(Account::passwordHash)).orElse(null);
         if (currentHash == null || !passwordEncoder.matches(currentPassword, currentHash)) {
-            securityEventRecorder.record(SecurityEventType.PASSWORD_CHANGE_FAILED, accountId);
+            securityEventRecorder.recordEvent(SecurityEventType.PASSWORD_CHANGE_FAILED, accountId);
             throw new AuthException(AuthErrorCode.CURRENT_PASSWORD_INVALID);
         }
         if (passwordEncoder.matches(newPassword, currentHash)) {
@@ -77,7 +77,7 @@ public class PasswordService {
             // Toplu güncellemeler persistence context'i temizler; hesap değişikliği önce flush edilir.
             sessionRepository.revokeAllActive(accountId, SessionRevokeReason.PASSWORD_CHANGED, now);
             resetTokenRepository.invalidateActive(accountId, PasswordResetInvalidationReason.PASSWORD_CHANGED, now);
-            securityEventRecorder.record(SecurityEventType.PASSWORD_CHANGED, accountId);
+            securityEventRecorder.recordEvent(SecurityEventType.PASSWORD_CHANGED, accountId);
         });
         attemptThrottle.clear(throttleKey);
     }
@@ -90,10 +90,7 @@ public class PasswordService {
     public void requestReset(String email) {
         String normalized = Account.normalizeEmail(email);
         attemptThrottle.reserve(hasher.hash(RESET_REQUEST_THROTTLE_DOMAIN, normalized));
-        PasswordResetMail mail = transactionTemplate.execute(status -> issueToken(normalized));
-        if (mail != null) {
-            dispatcher.dispatch(mail);
-        }
+        transactionTemplate.execute(status -> issueToken(normalized)).ifPresent(dispatcher::dispatch);
     }
 
     public void resetPassword(String rawToken, String newPassword) {
@@ -129,11 +126,11 @@ public class PasswordService {
         token.consume(now);
         account.changePassword(newHash, now);
         sessionRepository.revokeAllActive(account.getId(), SessionRevokeReason.PASSWORD_RESET, now);
-        securityEventRecorder.record(SecurityEventType.PASSWORD_RESET_COMPLETED, account.getId());
+        securityEventRecorder.recordEvent(SecurityEventType.PASSWORD_RESET_COMPLETED, account.getId());
         return true;
     }
 
-    private PasswordResetMail issueToken(String normalizedEmail) {
+    private Optional<PasswordResetMail> issueToken(String normalizedEmail) {
         Optional<Account> eligible = accountRepository.findByEmailNormalizedForUpdate(normalizedEmail)
                 .filter(Account::isActive)
                 .filter(account -> account.passwordHash().isPresent());
@@ -141,7 +138,7 @@ public class PasswordService {
         String rawToken = secureTokens.newOpaqueToken();
         String tokenHash = secureTokens.sha256Hex(rawToken);
         if (eligible.isEmpty()) {
-            return null;
+            return Optional.empty();
         }
         Account account = eligible.get();
         Instant now = clock.instant();
@@ -149,18 +146,18 @@ public class PasswordService {
                 .map(latest -> now.isBefore(latest.getCreatedAt().plus(properties.requestCooldown())))
                 .orElse(false);
         if (coolingDown) {
-            return null;
+            return Optional.empty();
         }
         resetTokenRepository.invalidateActive(account.getId(), PasswordResetInvalidationReason.SUPERSEDED, now);
         PasswordResetToken saved = resetTokenRepository.save(PasswordResetToken.issue(account.getId(), tokenHash, now,
                 now.plus(properties.tokenTtl())));
-        securityEventRecorder.record(SecurityEventType.PASSWORD_RESET_REQUESTED, account.getId());
-        return new PasswordResetMail(saved.getId(), account.getId(), account.getEmail(),
-                properties.linkBaseUrl() + TOKEN_FRAGMENT + rawToken, properties.tokenTtl());
+        securityEventRecorder.recordEvent(SecurityEventType.PASSWORD_RESET_REQUESTED, account.getId());
+        return Optional.of(new PasswordResetMail(saved.getId(), account.getId(), account.getEmail(),
+                properties.linkBaseUrl() + TOKEN_FRAGMENT + rawToken, properties.tokenTtl()));
     }
 
     private AuthException invalidToken() {
-        securityEventRecorder.record(SecurityEventType.PASSWORD_RESET_FAILED, null);
+        securityEventRecorder.recordEvent(SecurityEventType.PASSWORD_RESET_FAILED, null);
         return new AuthException(AuthErrorCode.PASSWORD_RESET_TOKEN_INVALID);
     }
 }

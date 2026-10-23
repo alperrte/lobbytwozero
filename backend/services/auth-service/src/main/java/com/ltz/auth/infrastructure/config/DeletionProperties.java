@@ -2,6 +2,7 @@ package com.ltz.auth.infrastructure.config;
 
 import java.net.URI;
 import java.time.Duration;
+import java.util.Map;
 import java.util.Set;
 
 import org.hibernate.validator.constraints.time.DurationMax;
@@ -20,11 +21,15 @@ import jakarta.validation.constraints.Pattern;
  * DELETED olmaz. recentLoginWindow: parolasız (sosyal) hesaplarda yeniden doğrulama olarak kabul edilen en eski giriş.
  * Worker ayarları koordinasyon döngüsünü yönetir (kira, üstel geri çekilme). stuckAttempts: bu kadar başarısız
  * denemeden sonra görev "takılı" sayılır (uyarı günlüğü + yönetici uç noktasında işaretlenir); otomatik onaylanmaz.
+ * serviceUrls: her hedefin iç taban adresi ({@code <SERVİS>_SERVICE_URL}); her hedef için zorunludur
+ * ({@link DeletionConfig} açılışta denetler). httpTimeout: hedef servis çağrısının bağlantı ve okuma süresi.
  */
 @Validated
 @ConfigurationProperties("ltz.auth.deletion")
 public record DeletionProperties(
         @NotEmpty Set<@Pattern(regexp = "^[a-z0-9-]{1,32}$") String> targets,
+        @NotNull Map<String, URI> serviceUrls,
+        @NotNull @DurationMin(millis = 100) @DurationMax(seconds = 30) Duration httpTimeout,
         @NotNull @DurationMin(minutes = 5) @DurationMax(hours = 2) Duration tokenTtl,
         @NotNull @DurationMin(seconds = 1) Duration requestCooldown,
         @NotNull @DurationMin(minutes = 1) Duration recentLoginWindow,

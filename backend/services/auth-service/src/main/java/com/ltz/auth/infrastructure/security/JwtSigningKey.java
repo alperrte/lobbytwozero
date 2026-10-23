@@ -43,7 +43,7 @@ public final class JwtSigningKey {
             privateKey = crtKey;
             publicKey = (RSAPublicKey) keyFactory.generatePublic(
                     new RSAPublicKeySpec(crtKey.getModulus(), crtKey.getPublicExponent()));
-        } catch (IllegalArgumentException | GeneralSecurityException exception) {
+        } catch (IllegalArgumentException | GeneralSecurityException _) {
             throw new IllegalStateException(invalidKeyMessage());
         }
         if (publicKey.getModulus().bitLength() < MIN_KEY_BITS) {
@@ -56,7 +56,7 @@ public final class JwtSigningKey {
                     .algorithm(JWSAlgorithm.RS256)
                     .keyIDFromThumbprint()
                     .build());
-        } catch (JOSEException exception) {
+        } catch (JOSEException _) {
             throw new IllegalStateException("JWT signing key thumbprint could not be computed");
         }
     }
@@ -72,7 +72,7 @@ public final class JwtSigningKey {
     public RSAPublicKey publicKey() {
         try {
             return jwk.toRSAPublicKey();
-        } catch (JOSEException exception) {
+        } catch (JOSEException _) {
             throw new IllegalStateException("JWT public key could not be extracted");
         }
     }
