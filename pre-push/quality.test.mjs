@@ -14,10 +14,11 @@ async function fixture(options, action) {
     fs.writeFileSync(filename, content);
   };
   const modules = ['services/auth-service', 'services/api-gateway'];
+  if (!options.noProfile) write('.env.dev', 'POSTGRES_USER=fixture-user\nPOSTGRES_PASSWORD=fixture-password\nPOSTGRES_HOST=postgres\nPOSTGRES_HOST_PORT=5542\nSONAR_TOKEN=profile-token\n');
   write('backend/pom.xml', modules.map(module => `<module>${module}</module>`).join(''));
   const calls = [], lines = [];
   const runCommand = async (command, args, settings) => {
-    calls.push({ command, args });
+    calls.push({ command, args, env: settings.env, secrets: settings.secrets });
     assert.equal(settings.env.SONAR_TOKEN, undefined);
     if (command === 'git') return { code: 0, output: options.secret && args.includes('ls-files') ? '.env.dev\0' : '' };
     if (command.startsWith('mvn')) {
@@ -35,7 +36,10 @@ async function fixture(options, action) {
     if (command === 'docker') {
       if (options.noDocker) return { code: 1, output: '' };
       if (args.includes('--services')) return { code: 0, output: options.deployed ? 'postgres\nauth-service\n' : 'postgres\n' };
-      if (args.includes('--format') && args.includes('config')) return { code: 0, output: JSON.stringify({ name: 'ltz-dev', services: { 'auth-service': { ports: [{ target: 8080, published: '5081' }], environment: {} } } }) };
+      if (args.includes('--format') && args.includes('config')) return { code: 0, output: JSON.stringify({ name: 'ltz-dev', services: {
+        postgres: { ports: [{ target: 5432, published: '5542', host_ip: '127.0.0.1' }], environment: { POSTGRES_USER: 'fixture-user', POSTGRES_PASSWORD: 'fixture-db-pass' } },
+        'auth-service': { ports: [{ target: 8080, published: '5081' }], environment: { DB_AUTH_NAME: 'auth_db' } }
+      } }) };
       if (args.includes('ps')) return { code: 0, output: '[]' }; // configured, but stopped
       return { code: 0, output: '' };
     }
@@ -54,6 +58,12 @@ test('full check matches the current backend and postgres scope without inventin
     assert.ok(calls.every(call => !call.command.startsWith('npm')));
     assert.ok(calls.some(call => call.args.includes('.env.dev')));
     assert.ok(lines.includes('\nSAFE TO COMMIT'));
+    const maven = calls.find(call => call.args.includes('verify'));
+    assert.equal(maven.env.POSTGRES_PORT, '5542');
+    assert.equal(maven.env.POSTGRES_PASSWORD, 'fixture-db-pass');
+    assert.equal(maven.env.DB_AUTH_NAME, 'auth_db');
+    assert.ok(calls.filter(call => call.command === 'docker').every(call => call.env.POSTGRES_PASSWORD === undefined));
+    assert.ok(lines.every(line => !line.includes('fixture-db-pass')));
   });
 });
 
@@ -66,6 +76,26 @@ for (const option of ['secret', 'skipped', 'missingCoverage', 'lowCoverage', 'bu
     });
   });
 }
+
+test('host Maven receives profile DB settings, never Sonar values, and the password is redacted', async () => {
+  await fixture({}, async ({ calls }) => {
+    const maven = calls.filter(call => call.command.startsWith('mvn') && call.args.includes('verify'));
+    assert.equal(maven.length, 1);
+    assert.equal(maven[0].env.POSTGRES_USER, 'fixture-user');
+    assert.equal(maven[0].env.POSTGRES_PASSWORD, 'fixture-password');
+    assert.equal(maven[0].env.POSTGRES_HOST, '127.0.0.1');
+    assert.equal(maven[0].env.POSTGRES_PORT, '5542');
+    assert.deepEqual(maven[0].secrets, ['fixture-password']);
+    assert.ok(calls.filter(call => call.command === 'docker').every(call => call.env.POSTGRES_PASSWORD === undefined));
+  });
+});
+
+test('missing profile only warns; DB-bound services must then fail on their own', async () => {
+  await fixture({ noProfile: true }, async ({ calls, lines }) => {
+    assert.ok(lines.some(line => line.startsWith('[WARN]') && line.includes('Missing .env.dev')));
+    assert.ok(calls.some(call => call.args.includes('verify') && call.env.POSTGRES_PASSWORD === undefined));
+  });
+});
 
 test('module paths cannot escape the repository or repeat; generated output stays inside the repository', async () => {
   await fixture({}, async ({ root, write }) => {

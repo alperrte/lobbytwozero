@@ -1,0 +1,4 @@
+package com.ltz.game.api.dto.request;
+import com.ltz.game.domain.enums.FeedbackStatus;
+import jakarta.validation.constraints.*;
+public record FeedbackStatusRequest(@NotNull FeedbackStatus status,@NotNull @PositiveOrZero Long version) { }

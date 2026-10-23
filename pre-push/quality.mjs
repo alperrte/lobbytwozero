@@ -1,9 +1,9 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { repositoryRoot, execute, backendTests, backendResults, readModules, clearBackendReports, withReportLock, withRunLog } from '../lib/quality-tools.mjs';
-import { requireNode, backendTestEnv } from '../lib/profile-env.mjs';
+import { requireNode } from '../lib/profile-env.mjs';
 import { requireMaven25 } from './backend-check.mjs';
-import { checkGitSecrets, checkBackendHealth } from './runtime-checks.mjs';
+import { checkGitSecrets, checkBackendHealth, backendTestEnvironment } from './runtime-checks.mjs';
 import { checkRepositoryHygiene } from './hygiene-checks.mjs';
 
 export const requiredRows = ['Git / Secret Check', 'Backend Tests', 'Backend Build', 'Backend Coverage', 'Docker Configuration'];
@@ -23,24 +23,46 @@ export async function runQualityChecks({ root = repositoryRoot, profile = 'dev',
   const mvn = process.platform === 'win32' ? 'mvn.cmd' : 'mvn';
   const started = Date.now();
   let healthRequired = false;
+
   async function step(name, action) {
     log(`\n[CHECK] ${name}`);
     try { rows[name] = await action() ? 'PASS' : 'FAIL'; }
     catch (error) { rows[name] = 'FAIL'; details[name] = error.message; log(`[ERROR] ${error.message}`); }
   }
+
   try {
     if (!['dev', 'prod'].includes(profile)) throw new Error('Profile must be dev or prod');
     requireNode();
     const modules = readModules(root);
     clearBackendReports(root, modules);
-    await step('Git / Secret Check', async () => (await checkGitSecrets(run, log)) && checkRepositoryHygiene({ run, log, root }));
+
+    await step('Git / Secret Check', async () =>
+      (await checkGitSecrets(run, log)) && checkRepositoryHygiene({ run, log, root }));
+
     await step('Backend Tests', async () => {
       rows['Backend Build'] = 'FAIL';
-      await requireMaven25(run, mvn, root);
-      const result = await runCommand(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify'], { cwd: root, env: backendTestEnv(root, profile, env), capture: false, log });
+      const backend = backendTestEnvironment(root, profile, env, log);
+      const runBackend = (command, args, cwd = root, capture = false) => runCommand(command, args, { cwd, env: backend.env, capture, secrets: backend.secrets, log });
+      await requireMaven25(runBackend, mvn, root);
+      const result = await runBackend(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify']);
+      const config = await run('docker', ['compose', '--env-file', `.env.${profile}`, '-f', 'docker-compose.yml', 'config', '--format', 'json'], root, true);
+      if (config.code !== 0) throw new Error('Cannot resolve the selected Compose profile for backend tests.');
+
+      let model;
+      try { model = JSON.parse(config.output); }
+      catch { throw new Error('Cannot parse the selected Compose profile for backend tests.'); }
+
+      const testEnv = backendTestEnvironment(model, env);
+      const testRun = (command, args, cwd = root, capture = false) => runCommand(command, args,
+        { cwd, env: testEnv, capture, secrets: [testEnv.POSTGRES_PASSWORD], log });
+
+      await requireMaven25(testRun, mvn, root);
+      const result = await testRun(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify']);
+
       rows['Backend Build'] = result.code === 0 ? 'PASS' : 'FAIL';
       return result.code === 0 && backendTests(root, modules, started) > 0;
     });
+
     await step('Backend Coverage', async () => {
       if (rows['Backend Tests'] !== 'PASS') throw new Error('Successful fresh backend tests are required');
       const report = backendResults(root, modules, started);
@@ -48,6 +70,7 @@ export async function runQualityChecks({ root = repositoryRoot, profile = 'dev',
       log(`Backend: ${report.tests} tests; overall line coverage ${report.lineCoverage.toFixed(2)}% (target 80%)`);
       return report.lineCoverage >= 80;
     });
+
     let deployed = [];
     await step('Docker Configuration', async () => {
       const base = ['compose', '--env-file', `.env.${profile}`, '-f', 'docker-compose.yml'];
@@ -60,6 +83,7 @@ export async function runQualityChecks({ root = repositoryRoot, profile = 'dev',
       healthRequired = deployed.length > 0;
       return services.includes('postgres');
     });
+
     if (healthRequired) {
       await step('Backend HTTP Health', async () => {
         const report = await checkBackendHealth({ run, profile, modules: deployed, probe: healthProbe, log });
@@ -69,8 +93,10 @@ export async function runQualityChecks({ root = repositoryRoot, profile = 'dev',
     } else {
       log('[SKIPPED] Backend HTTP Health: no backend services in the current Compose configuration.');
     }
+
     log('[SCOPE] Current backend and Compose configuration. No frontend exists; SonarQube runs separately.');
   } catch (error) { log(`[ERROR] ${error.message}`); }
+
   const safe = requiredRows.every(name => rows[name] === 'PASS') && (!healthRequired || rows['Backend HTTP Health'] === 'PASS');
   log('\n========================================\nLTZ LOCAL QUALITY CHECK\n========================================');
   for (const [name, value] of Object.entries(rows)) log(`${name.padEnd(24)} ${value}`);

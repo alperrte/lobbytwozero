@@ -2,7 +2,7 @@
 
 SonarQube, uygulama PostgreSQL'inden ayrı `ltz-sonar` Compose projesinde çalışır.
 Adres: `http://localhost:5199`. Veritabanı: `ltz_sonar`. Backend proje anahtarı:
-`ltz-backend`. Frontend henüz bulunmadığı için frontend analizi uygulanmaz;
+`ltz-backend`. Bu runner yalnız backend analizi yapar;
 `.env.example` içindeki frontend anahtarı ileride kullanılmak üzere ayrılmıştır.
 
 Kaynak projedeki sabit SonarQube image sürümü/digest'i ve PostgreSQL 17 kullanılır.
@@ -40,15 +40,42 @@ sh ./sonarqube/sonar.sh up dev
 sh ./sonarqube/sonar.sh scan dev
 ```
 
-İlk başlatmadan sonra tarayıcıdan SonarQube'a girin. İlk kurulumda `admin` /
-`admin` ile giriş yapıp parolayı değiştirin. `ltz-backend` projesini oluşturun
-ve analiz yetkisi bulunan bir token üretin. Token'ı ignore edilen `.env.dev`
-dosyasında veya terminalde `SONAR_TOKEN` değişkeninde saklayın.
+İlk başlatmadan sonra `http://localhost:5199` adresine girin. İlk kurulumda
+`admin` / `admin` ile giriş yapıp parolayı değiştirin. Projects ekranından
+yerel bir proje oluşturun; proje anahtarını `ltz-backend` olarak belirleyin.
+Sağ üstteki kullanıcı menüsünden **My Account → Security** ekranını açın.
+Token adı olarak `ltz-backend-local`, tür olarak **Project Analysis Token**,
+proje olarak `ltz-backend` seçip bir son kullanma tarihi belirleyin ve **Generate**
+düğmesine basın. Üretilen değeri yalnız ignore edilen `.env.dev` dosyasındaki
+`SONAR_TOKEN=` alanına yapıştırıp kaydedin; sohbet veya loglarda paylaşmayın.
+Token yalnız oluşturulduğunda gösterilir. Resmî açıklama:
+https://docs.sonarsource.com/sonarqube-server/user-guide/managing-tokens
+
+Token bu SonarQube sunucusunda üretilmiş olmalıdır; başka bir kurulumun tokenı
+yeni LTZ sunucusunda geçerli olmaz. Sunucunun `UP` olması tokenın geçerli olduğu
+anlamına gelmez. Terminalde eski bir `SONAR_TOKEN` varsa profil değerinden önce
+gelir; mevcut PowerShell oturumunda `Remove-Item Env:SONAR_TOKEN -ErrorAction
+SilentlyContinue` ile kaldırıp taramayı yeniden çalıştırın.
 
 Komutlar yalnızca seçilen `.env.dev` / `.env.prod` dosyasını okur; aktif `.env`
 gerekmez ve değiştirilmez. Terminal değişkenleri önceliklidir. Profil dosyaları
 komut olarak çalıştırılmaz. Portu değiştirirseniz `SONAR_HOST_URL` değerini de
 güncelleyin. Scanner yalnızca yerel HTTP(S) Sonar adreslerini kabul eder.
+
+`scan` içindeki **Maven test alt süreci**, seçilen profilden mevcut
+`POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST_PORT` ve servislerin `DB_*_NAME`
+alanlarını ayrıca alır. Host test bağlantısı varsayılan olarak `127.0.0.1` ve
+`POSTGRES_HOST_PORT` (yoksa 5542) kullanır; profilin Docker içi `postgres:5432`
+adresi host Maven'e aktarılmaz. Terminalde açıkça tanımlı POSTGRES_HOST/PORT,
+kimlik ve DB adları bu test ayarlarına önceliklidir. Gerekli kimlik eksikse veya
+port geçersizse test raporları temizlenmeden işlem durur. Uygulama PostgreSQL'i
+ayrıca hazır olmalıdır; runner DB parolası değiştirmez, reset veya container başlatma yapmaz.
+
+Bu uygulama DB alanları yalnız `mvn -version` ve test `clean verify` alt sürecine
+aktarılır. Sonar scanner ve up/status/down ortamına profilden eklenmez;
+Compose/uygulama ayarları değiştirilmez. Profil dosyasından PATH/NODE_OPTIONS
+gibi çalıştırma ayarları yüklenmez. Test DB parolası, token ve Sonar DB parolası
+loglarda maskelenir; secret değerleri komut argümanına yazılmaz.
 
 `up` Sonar veritabanını ve sunucuyu başlatıp hazır olmasını bekler. `status`
 container ve API durumunu gösterir. `down`, isim uyumluluğu için korunmuştur;
@@ -73,7 +100,10 @@ scanner hatasında başarılı analiz sonucu gösterilmez. Token komut argüman�
 yazılmaz; scanner'a environment ile aktarılır ve script loglarında maskelenir.
 Loglar `logs/sonarqube-*.log` altında, raporlar ilgili `target/` dizinlerindedir.
 
-Backend testleri için veritabanı/test profili henüz tanımlı değilse önce mevcut
-uygulama test yapılandırması tamamlanmalıdır; runner bu hatayı atlamaz.
+Backend testleri için uygulama PostgreSQL'i de çalışıyor olmalıdır. Gerekirse
+`docker compose --env-file .env.dev up -d postgres` komutuyla başlatın.
+Runner seçilen uygulama Compose profilinden veritabanı adlarını, kullanıcıyı,
+parolayı ve loopback üzerinde yayımlanan PostgreSQL portunu çözerek host Maven
+testlerine aktarır. Bu değerleri loglamaz; Docker ortamını değiştirmez.
 SonarQube'u başlatmak ve gerçek analiz göndermek için yukarıdaki komutları
 yerelde çalıştırın. Script kurulumu kendi başına container veya token oluşturmaz.
