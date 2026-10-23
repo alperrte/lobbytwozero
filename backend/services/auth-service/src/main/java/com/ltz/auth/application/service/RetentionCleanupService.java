@@ -80,7 +80,7 @@ public class RetentionCleanupService {
         for (Account account : expired) {
             authDataEraser.erase(account.getId());
             account.anonymize(now);
-            securityEventRecorder.record(SecurityEventType.PENDING_ACCOUNT_EXPIRED, account.getId());
+            securityEventRecorder.recordEvent(SecurityEventType.PENDING_ACCOUNT_EXPIRED, account.getId());
         }
         return expired.size();
     }

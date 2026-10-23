@@ -92,7 +92,7 @@ public class AccountDeletionTask {
     /** Sonraki deneme: initialBackoff * 2^(deneme-1), en fazla maxBackoff. */
     public void fail(Instant now, String errorCode, Duration initialBackoff, Duration maxBackoff) {
         lastError = errorCode;
-        Duration backoff = initialBackoff.multipliedBy(1L << Math.min(Math.max(attempts - 1, 0), MAX_BACKOFF_SHIFT));
+        Duration backoff = initialBackoff.multipliedBy(1L << Math.clamp(attempts - 1L, 0, MAX_BACKOFF_SHIFT));
         nextAttemptAt = now.plus(backoff.compareTo(maxBackoff) > 0 ? maxBackoff : backoff);
     }
 }

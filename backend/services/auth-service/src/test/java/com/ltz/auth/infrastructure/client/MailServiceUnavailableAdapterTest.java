@@ -23,8 +23,9 @@ class MailServiceUnavailableAdapterTest {
     void teslimSessizceBasariliSayilmaz() {
         VerificationCodeMail mail = new VerificationCodeMail(UUID.randomUUID(), UUID.randomUUID(), EMAIL, CODE,
                 Duration.ofMinutes(10));
+        MailServiceUnavailableAdapter adapter = new MailServiceUnavailableAdapter();
 
-        assertThatThrownBy(() -> new MailServiceUnavailableAdapter().sendVerificationCode(mail))
+        assertThatThrownBy(() -> adapter.sendVerificationCode(mail))
                 .isInstanceOf(VerificationCodeDeliveryException.class)
                 .hasMessageNotContaining(EMAIL)
                 .hasMessageNotContaining(CODE);

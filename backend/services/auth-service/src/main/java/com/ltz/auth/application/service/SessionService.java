@@ -59,16 +59,16 @@ public class SessionService {
         AuthSession session = sessionRepository.save(AuthSession.open(accountId, account.getTokenVersion(), methods,
                 now, now.plus(properties.absoluteTtl())));
         IssuedSession issued = issueTokens(account, session, now);
-        securityEventRecorder.record(SecurityEventType.LOGIN_SUCCEEDED, accountId);
+        securityEventRecorder.recordEvent(SecurityEventType.LOGIN_SUCCEEDED, accountId);
         return issued;
     }
 
     public IssuedSession refresh(String rawRefreshToken) {
         RefreshOutcome outcome = transactionTemplate.execute(status -> rotate(rawRefreshToken));
         return switch (outcome) {
-            case Rotated rotated -> rotated.session();
-            case Conflict conflict -> throw new AuthException(AuthErrorCode.REFRESH_CONFLICT);
-            case Rejected rejected -> throw new AuthException(AuthErrorCode.SESSION_INVALID);
+            case Rotated(IssuedSession session) -> session;
+            case Conflict _ -> throw new AuthException(AuthErrorCode.REFRESH_CONFLICT);
+            case Rejected _ -> throw new AuthException(AuthErrorCode.SESSION_INVALID);
         };
     }
 
@@ -80,7 +80,7 @@ public class SessionService {
                 .filter(session -> session.getRevokedAt() == null)
                 .ifPresent(session -> {
                     session.revoke(SessionRevokeReason.LOGOUT, clock.instant());
-                    securityEventRecorder.record(SecurityEventType.LOGOUT, session.getAccountId());
+                    securityEventRecorder.recordEvent(SecurityEventType.LOGOUT, session.getAccountId());
                 }));
     }
 
@@ -92,7 +92,7 @@ public class SessionService {
                 .orElseThrow(() -> new AuthException(AuthErrorCode.SESSION_INVALID));
         account.invalidateAllTokens(now);
         sessionRepository.revokeAllActive(accountId, SessionRevokeReason.LOGOUT_ALL, now);
-        securityEventRecorder.record(SecurityEventType.LOGOUT_ALL, accountId);
+        securityEventRecorder.recordEvent(SecurityEventType.LOGOUT_ALL, accountId);
     }
 
     private RefreshOutcome rotate(String rawRefreshToken) {
@@ -111,7 +111,7 @@ public class SessionService {
                 return new Conflict();
             }
             session.revoke(SessionRevokeReason.REFRESH_REUSE, now);
-            securityEventRecorder.record(SecurityEventType.REFRESH_TOKEN_REUSE_DETECTED, session.getAccountId());
+            securityEventRecorder.recordEvent(SecurityEventType.REFRESH_TOKEN_REUSE_DETECTED, session.getAccountId());
             return new Rejected();
         }
         if (token.isExpiredAt(now)) {
@@ -124,12 +124,12 @@ public class SessionService {
         }
         token.rotate(now);
         IssuedSession issued = issueTokens(account, session, now);
-        securityEventRecorder.record(SecurityEventType.SESSION_REFRESHED, account.getId());
+        securityEventRecorder.recordEvent(SecurityEventType.SESSION_REFRESHED, account.getId());
         return new Rotated(issued);
     }
 
     private Rejected reject(AuthSession session) {
-        securityEventRecorder.record(SecurityEventType.SESSION_REJECTED, session.getAccountId());
+        securityEventRecorder.recordEvent(SecurityEventType.SESSION_REJECTED, session.getAccountId());
         return new Rejected();
     }
 

@@ -28,13 +28,17 @@ class CleanupConfigTest {
 
     @Test
     void nonceSaklamaSuresiReplayPenceresindenKisaysaBaslamaz() {
-        assertThatThrownBy(() -> new CleanupConfig(cleanup(ASSERTION_MAX_AGE, Duration.ofHours(1)), oauth, attempts))
+        CleanupProperties shortNonceRetention = cleanup(ASSERTION_MAX_AGE, Duration.ofHours(1));
+
+        assertThatThrownBy(() -> new CleanupConfig(shortNonceRetention, oauth, attempts))
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("nonce-retention");
     }
 
     @Test
     void sayacSaklamaSuresiKilitSuresiniKapsamazsaBaslamaz() {
-        assertThatThrownBy(() -> new CleanupConfig(cleanup(Duration.ofHours(1), Duration.ofMinutes(20)), oauth, attempts))
+        CleanupProperties shortThrottleRetention = cleanup(Duration.ofHours(1), Duration.ofMinutes(20));
+
+        assertThatThrownBy(() -> new CleanupConfig(shortThrottleRetention, oauth, attempts))
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("throttle-retention");
     }
 

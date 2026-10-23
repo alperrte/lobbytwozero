@@ -47,7 +47,7 @@ public class SessionStateValidator implements OAuth2TokenValidator<Jwt> {
         try {
             accountId = UUID.fromString(subject);
             sessionId = UUID.fromString(sessionClaim);
-        } catch (IllegalArgumentException exception) {
+        } catch (IllegalArgumentException _) {
             return REVOKED;
         }
         long tokenVersion = version.longValue();

@@ -80,7 +80,7 @@ public class TwoFactorService {
         Instant expiresAt = now.plus(properties.challengeTtl());
         challengeRepository.save(MfaChallenge.issue(accountId, secureTokens.sha256Hex(challengeId), firstFactor, now,
                 expiresAt));
-        securityEventRecorder.record(SecurityEventType.MFA_CHALLENGE_ISSUED, accountId);
+        securityEventRecorder.recordEvent(SecurityEventType.MFA_CHALLENGE_ISSUED, accountId);
         return LoginResult.mfaRequired(challengeId, expiresAt);
     }
 
@@ -94,11 +94,11 @@ public class TwoFactorService {
         attemptThrottle.reserve(throttleKey);
         IssuedSession session = transactionTemplate.execute(status -> verifyChallenge(challengeHash, code, recoveryCode));
         if (session == null) {
-            securityEventRecorder.record(SecurityEventType.MFA_FAILED, accountId);
+            securityEventRecorder.recordEvent(SecurityEventType.MFA_FAILED, accountId);
             throw new AuthException(AuthErrorCode.MFA_FAILED);
         }
         attemptThrottle.clear(throttleKey);
-        securityEventRecorder.record(SecurityEventType.MFA_SUCCEEDED, accountId);
+        securityEventRecorder.recordEvent(SecurityEventType.MFA_SUCCEEDED, accountId);
         return session;
     }
 
@@ -118,7 +118,7 @@ public class TwoFactorService {
                 credential -> credential.replaceSecret(encrypted.ciphertext(), encrypted.nonce(), encrypted.keyVersion(), now),
                 () -> credentialRepository.save(TotpCredential.pending(accountId, encrypted.ciphertext(),
                         encrypted.nonce(), encrypted.keyVersion(), now)));
-        securityEventRecorder.record(SecurityEventType.TWO_FACTOR_SETUP_STARTED, accountId);
+        securityEventRecorder.recordEvent(SecurityEventType.TWO_FACTOR_SETUP_STARTED, accountId);
         return new TotpSetup(totpCodes.base32(secret),
                 totpCodes.otpauthUri(properties.issuer(), account.getUsername(), secret));
     }
@@ -137,11 +137,11 @@ public class TwoFactorService {
                 return Optional.<List<String>>empty();
             }
             credential.activate(step.getAsLong(), now);
-            securityEventRecorder.record(SecurityEventType.TWO_FACTOR_ENABLED, accountId);
+            securityEventRecorder.recordEvent(SecurityEventType.TWO_FACTOR_ENABLED, accountId);
             return Optional.of(replaceRecoveryCodes(accountId, now));
         });
         if (activated.isEmpty()) {
-            securityEventRecorder.record(SecurityEventType.MFA_FAILED, accountId);
+            securityEventRecorder.recordEvent(SecurityEventType.MFA_FAILED, accountId);
             throw new AuthException(AuthErrorCode.INVALID_TWO_FACTOR_CODE);
         }
         attemptThrottle.clear(throttleKey);
@@ -161,7 +161,7 @@ public class TwoFactorService {
                 .map(hash -> passwordEncoder.matches(password, hash))
                 .orElse(false);
         if (!passwordMatches) {
-            securityEventRecorder.record(SecurityEventType.MFA_FAILED, accountId);
+            securityEventRecorder.recordEvent(SecurityEventType.MFA_FAILED, accountId);
             throw new AuthException(AuthErrorCode.INVALID_CREDENTIALS);
         }
         Boolean disabled = transactionTemplate.execute(status -> {
@@ -174,11 +174,11 @@ public class TwoFactorService {
             }
             credentialRepository.delete(credential);
             recoveryCodeRepository.deleteAllByAccountId(accountId);
-            securityEventRecorder.record(SecurityEventType.TWO_FACTOR_DISABLED, accountId);
+            securityEventRecorder.recordEvent(SecurityEventType.TWO_FACTOR_DISABLED, accountId);
             return true;
         });
         if (!Boolean.TRUE.equals(disabled)) {
-            securityEventRecorder.record(SecurityEventType.MFA_FAILED, accountId);
+            securityEventRecorder.recordEvent(SecurityEventType.MFA_FAILED, accountId);
             throw new AuthException(AuthErrorCode.INVALID_TWO_FACTOR_CODE);
         }
         attemptThrottle.clear(throttleKey);
@@ -237,7 +237,7 @@ public class TwoFactorService {
                 recoveryCodeHash(accountId, recoveryCode));
         unused.ifPresent(code -> {
             code.markUsed(now);
-            securityEventRecorder.record(SecurityEventType.RECOVERY_CODE_USED, accountId);
+            securityEventRecorder.recordEvent(SecurityEventType.RECOVERY_CODE_USED, accountId);
         });
         return unused.isPresent();
     }

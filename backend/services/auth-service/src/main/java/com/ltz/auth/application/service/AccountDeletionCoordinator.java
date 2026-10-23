@@ -88,7 +88,7 @@ public class AccountDeletionCoordinator {
                     task.fail(clock.instant(), errorCode, properties.initialBackoff(), properties.maxBackoff());
                     // Her denemede olay yazmak denetim tablosunu şişirir: yalnız ilk hata ve takılma eşiğinde.
                     if (task.getAttempts() == 1 || task.getAttempts() == properties.stuckAttempts()) {
-                        securityEventRecorder.record(SecurityEventType.ACCOUNT_DELETION_TASK_FAILED, task.getAccountId());
+                        securityEventRecorder.recordEvent(SecurityEventType.ACCOUNT_DELETION_TASK_FAILED, task.getAccountId());
                     }
                     if (task.getAttempts() == properties.stuckAttempts()) {
                         log.warn("Account deletion task stuck service={} attempts={} error={}", task.getService(),
@@ -119,7 +119,7 @@ public class AccountDeletionCoordinator {
             account.anonymize(now);
         }
         request.complete(now);
-        securityEventRecorder.record(SecurityEventType.ACCOUNT_DELETION_COMPLETED, request.getAccountId());
+        securityEventRecorder.recordEvent(SecurityEventType.ACCOUNT_DELETION_COMPLETED, request.getAccountId());
     }
 
     private record ClaimedTask(UUID taskId, UUID requestId, UUID accountId, String service) {

@@ -41,8 +41,9 @@ class VerificationCodeHasherTest {
     @Test
     void kisaAnahtarReddedilir_mesajAnahtariIcermez() {
         String shortKey = Base64.getEncoder().encodeToString(new byte[16]);
+        VerificationProperties shortKeyProperties = properties(shortKey);
 
-        assertThatThrownBy(() -> new VerificationCodeHasher(properties(shortKey)))
+        assertThatThrownBy(() -> new VerificationCodeHasher(shortKeyProperties))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageNotContaining(shortKey)
                 .hasNoCause();
@@ -51,8 +52,9 @@ class VerificationCodeHasherTest {
     @Test
     void base64OlmayanAnahtarReddedilir_mesajAnahtariIcermez() {
         String invalidKey = "not base64 $$$ value";
+        VerificationProperties invalidKeyProperties = properties(invalidKey);
 
-        assertThatThrownBy(() -> new VerificationCodeHasher(properties(invalidKey)))
+        assertThatThrownBy(() -> new VerificationCodeHasher(invalidKeyProperties))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageNotContaining(invalidKey)
                 .hasNoCause();

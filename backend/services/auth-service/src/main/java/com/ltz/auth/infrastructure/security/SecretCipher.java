@@ -59,7 +59,7 @@ public class SecretCipher {
             cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(TAG_BITS, secret.nonce()));
             cipher.updateAAD(aad(accountId));
             return cipher.doFinal(secret.ciphertext());
-        } catch (GeneralSecurityException exception) {
+        } catch (GeneralSecurityException _) {
             throw new IllegalStateException("Secret decryption failed");
         }
     }
@@ -75,7 +75,7 @@ public class SecretCipher {
         byte[] decoded;
         try {
             decoded = Base64.getDecoder().decode(encodedKey.strip());
-        } catch (IllegalArgumentException exception) {
+        } catch (IllegalArgumentException _) {
             throw new IllegalStateException(invalidKeyMessage());
         }
         if (decoded.length != KEY_BYTES) {

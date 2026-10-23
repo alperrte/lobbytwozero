@@ -77,7 +77,7 @@ public class SteamAssertionValidator {
         try {
             Instant issued = Instant.parse(nonce.substring(0, NONCE_TIMESTAMP_LENGTH));
             return Duration.between(issued, now).abs().compareTo(steam.assertionMaxAge()) <= 0;
-        } catch (DateTimeParseException exception) {
+        } catch (DateTimeParseException _) {
             return false;
         }
     }

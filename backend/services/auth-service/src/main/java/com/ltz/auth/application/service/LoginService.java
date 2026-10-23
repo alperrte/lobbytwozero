@@ -70,7 +70,7 @@ public class LoginService {
         boolean matches = passwordEncoder.matches(password, passwordHash == null ? dummyPasswordHash : passwordHash)
                 && passwordHash != null;
         if (!matches) {
-            securityEventRecorder.record(SecurityEventType.LOGIN_FAILED, candidate.map(Candidate::accountId).orElse(null));
+            securityEventRecorder.recordEvent(SecurityEventType.LOGIN_FAILED, candidate.map(Candidate::accountId).orElse(null));
             throw new AuthException(AuthErrorCode.INVALID_CREDENTIALS);
         }
         attemptThrottle.clear(throttleKey);
@@ -91,14 +91,14 @@ public class LoginService {
 
     private LoginResult complete(Candidate candidate, AuthMethod firstFactor) {
         if (candidate.status() != AccountStatus.ACTIVE) {
-            securityEventRecorder.record(SecurityEventType.LOGIN_REJECTED_ACCOUNT_STATUS, candidate.accountId());
+            securityEventRecorder.recordEvent(SecurityEventType.LOGIN_REJECTED_ACCOUNT_STATUS, candidate.accountId());
             throw new AuthException(statusError(candidate.status()));
         }
         if (twoFactorService.isEnabled(candidate.accountId())) {
             return twoFactorService.issueChallenge(candidate.accountId(), firstFactor);
         }
         if (twoFactorService.isRequiredFor(candidate.roles())) {
-            securityEventRecorder.record(SecurityEventType.LOGIN_REJECTED_TWO_FACTOR_REQUIRED, candidate.accountId());
+            securityEventRecorder.recordEvent(SecurityEventType.LOGIN_REJECTED_TWO_FACTOR_REQUIRED, candidate.accountId());
             throw new AuthException(AuthErrorCode.TWO_FACTOR_ENROLLMENT_REQUIRED);
         }
         return LoginResult.authenticated(sessionService.start(candidate.accountId(), List.of(firstFactor)));
