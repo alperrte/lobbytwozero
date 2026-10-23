@@ -33,7 +33,7 @@ sonucu yalnızca backend test kapsamına aittir.
 
 - Git çalışma alanı ve staged whitespace kontrolü; takip edilen/staged ENV,
   anahtar ve bilinen gizli dosya yollarının kontrolü. Bu dosya adı kontrolüdür;
-  bütün kaynak içeriğinde veya Git geçmişinde secret taraması değildir.
+  bütün kaynak içeriğinde veya Git geçmişinde secret taraması değildir. Ek depo hijyeni (`pre-push/hygiene-checks.mjs`): izlenen dosyalarda özel anahtar başlığı ve uzun sır atamaları (değer yazdırılmaz), `.env` dosyalarının Git ve `.dockerignore` tarafından yok sayılması, Compose portlarının 127.0.0.1'e bağlı olması, anahtar üretici script güvenlik testi ve (kuruluysa) gitleaks ile tüm geçmiş taraması.
 - Tüm backend için Maven `clean verify`, test raporları ve ağırlıklı toplam
   satır coverage en az %80. Host Maven testleri, seçilen `.env.<profil>` içindeki
   `POSTGRES_USER/PASSWORD/HOST_PORT` ve `DB_*` değerlerini yalnız alt süreç ortamına
@@ -45,10 +45,24 @@ sonucu yalnızca backend test kapsamına aittir.
 - Compose içinde tanımlı backend servisleri varsa seçilen Compose projesinde
   çalıştıkları ve `/actuator/health` yanıtlarının HTTP 200 / `UP` olduğu kontrolü.
 
-Mevcut Compose yalnızca PostgreSQL içerir; bu nedenle backend HTTP satırı
-`SKIPPED` olur ve nedeni yazdırılır. Frontend henüz yoktur: ESLint, TypeScript,
-frontend test/build, Playwright ve npm audit uygulanmaz. Uygulama servisleri
-Compose'a eklendikçe HTTP kontrolü bu servisler için zorunlu hale gelir.
+Mevcut Compose PostgreSQL ve 18 backend modülünü içerir. `full dev` öncesinde
+geliştirme servislerini başlatın:
+
+```powershell
+docker compose --env-file .env.dev up -d --build
+.\pre-push\pre-push.cmd full dev
+```
+
+PostgreSQL çalışmıyorsa iskelet servislerin context testleri DB bağlantısında;
+backend servisleri çalışmıyorsa HTTP health kontrolü başarısız olur.
+`full` testleri başlatmadan önce seçilen Compose profilinden yalnız DB kimlik
+bilgilerini ve DB adlarını alır. Host üzerindeki Maven için bağlantı adresini
+`127.0.0.1` ve PostgreSQL'in yayımlanan host portuna çevirir. Bu değerler yalnız
+Maven alt sürecine verilir; Docker'ın container içi adres/port ayarları ve ENV
+dosyaları değiştirilmez. DB parolası test çıktısında maskelenir. PostgreSQL
+portunun yalnız `127.0.0.1` üzerinde yayımlanması zorunludur.
+
+Bu kalite kapısında frontend kontrolleri ve SonarQube ayrı kapsamda tutulur.
 
 `SAFE TO COMMIT` yalnızca tabloda gösterilen uygulanabilir kontrollerin geçtiğini
 belirtir. Uygulamanın çalıştığını veya production hazırlığını garanti etmez.
@@ -68,7 +82,7 @@ sonra bu kilit dosyasını elle kaldırabilirsiniz.
 Script regresyon testleri:
 
 ```powershell
-node --test pre-push/menu.test.mjs pre-push/quality.test.mjs pre-push/runtime-checks.test.mjs sonarqube/sonar.test.mjs ops/env.test.mjs
+node --test pre-push/menu.test.mjs pre-push/quality.test.mjs pre-push/runtime-checks.test.mjs sonarqube/sonar.test.mjs ops/env.test.mjs ops/generate-auth-dev-keys.test.mjs pre-push/hygiene-checks.test.mjs pre-push/backend-env.test.mjs
 ```
 
 Bu testler komut yönlendirmesini, hata durumlarını ve rapor kabul kurallarını

@@ -1,3 +1,4 @@
+import { backendTestEnv } from '../lib/profile-env.mjs';
 import { repositoryRoot, execute, backendTests, backendResults, readModules, clearBackendReports } from '../lib/quality-tools.mjs';
 import { loadBackendTestEnv } from '../lib/profile-env.mjs';
 
@@ -40,7 +41,7 @@ export async function runBackendChecks({ root = repositoryRoot, service = 'all',
     const args = ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end'];
     if (service !== 'all') args.push('-pl', selected[0]);
     args.push('clean', 'verify');
-    const result = await run(mvn, args);
+    const result = await runCommand(mvn, args, { cwd: root, env: backendTestEnv(root, 'dev', env), capture: false, log });
     buildPassed = result.code === 0;
     if (!buildPassed) log('[ERROR] Maven verify failed with exit code ' + result.code);
     for (const module of selected) {

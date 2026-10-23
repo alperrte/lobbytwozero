@@ -11,10 +11,6 @@
 
 <p align="center"><img src="docs/assets/readme/section-story.svg" width="100%" alt="Stage 01 — Story Mode: proje hakkında"></p>
 
-> _Bir oyuncu yeni bir oyun arar. Mağaza sayfasını açar, inceleme okumak için bir foruma geçer, arkadaşlarına başka bir uygulamadan yazar, takım bulmak için bir Discord sunucusuna katılır, bilgisayarının o oyunu kaldırıp kaldırmayacağını ise bir benchmark sitesinde kontrol eder._
->
-> **LTZ bu dağınıklığı tek bir lobide toplamak için doğdu.**
-
 **LobbyTwoZero (LTZ)**, oyun odaklı bir sosyal platformdur. Oyuncular burada oyun keşfeder, puan verir ve inceleme yazar, kütüphanelerini düzenler, arkadaş edinip mesajlaşır, birlikte oynayacak takım arkadaşı bulur, topluluk gönderileri ve etkinliklerle bir araya gelir. Buna ek olarak bilgisayarlarının donanımını tanıtıp oyunlarda ne kadar performans alacaklarını görebilir ve kendilerine özel öneriler alabilirler.
 
 **Vizyon:** Oyuncuların oyunu keşfettiği, tartıştığı, arkadaş edindiği ve takım kurduğu sosyal merkez olmak.
