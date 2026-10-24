@@ -224,6 +224,7 @@
                                 <spring.security.user.password>ltz_test_only</spring.security.user.password>
                                 <spring.mail.host>127.0.0.1</spring.mail.host>
                                 <spring.mail.port>1</spring.mail.port>
+                                <management.health.mail.enabled>false</management.health.mail.enabled>
                             </systemPropertyVariables>
                         </configuration>
                     </plugin>
