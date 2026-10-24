@@ -308,10 +308,11 @@ class HardwareSyncControllerTest extends PostgresIntegrationSupport {
     }
 
     @ParameterizedTest
-    @CsvSource({"sync-apply-user:,30", "sync-apply-device:,10", "sync-peer:,120"})
+    @CsvSource({"sync-apply-user:,30", "sync-device:,10", "sync-peer:,120"})
     void enforcesActorDeviceAndHashedSocketPeerLimits(String prefix, int hits) throws Exception {
         grant();
         String identity = prefix.equals("sync-apply-user:") ? owner.toString() : device.toString();
+        if (prefix.equals("sync-device:")) identity = owner + ":" + device;
         if (prefix.equals("sync-peer:")) identity = HardwareSyncDigest.hash("127.0.0.1");
         jdbc.update("DELETE FROM hardware_write_limits");
         jdbc.update("INSERT INTO hardware_write_limits VALUES (?,date_trunc('minute',now()),?)", prefix + identity, hits);

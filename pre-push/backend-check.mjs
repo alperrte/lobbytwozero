@@ -1,4 +1,3 @@
-import { backendTestEnv } from '../lib/profile-env.mjs';
 import { repositoryRoot, execute, backendTests, backendResults, readModules, clearBackendReports } from '../lib/quality-tools.mjs';
 import { loadBackendTestEnv } from '../lib/profile-env.mjs';
 
@@ -32,7 +31,7 @@ export async function runBackendChecks({ root = repositoryRoot, service = 'all',
     if (!selected.length) throw new Error('Unknown backend service; use a service listed in the menu');
     for (const module of selected) services[module.split('/')[1]] = { tests: 'NOT RUN', coverage: 'NOT RUN', testCount: 0, lineCoverage: null };
     log('[SCOPE] ' + (service === 'all' ? 'Tüm backend servisleri' : service));
-    const env = Object.fromEntries(Object.entries(ambient).filter(([name]) => !name.startsWith('SONAR')));
+    const env = Object.fromEntries(Object.entries(ambient).filter(([name]) => !name.startsWith('SONAR') && name !== 'DEBUG'));
     const backend = backendTestEnvironment(root, profile, env, log);
     const run = (command, args, cwd = root, capture = false) => runCommand(command, args, { cwd, env: backend.env, capture, secrets: backend.secrets, log });
     const mvn = process.platform === 'win32' ? 'mvn.cmd' : 'mvn';
@@ -41,7 +40,7 @@ export async function runBackendChecks({ root = repositoryRoot, service = 'all',
     const args = ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end'];
     if (service !== 'all') args.push('-pl', selected[0]);
     args.push('clean', 'verify');
-    const result = await runCommand(mvn, args, { cwd: root, env: backendTestEnv(root, 'dev', env), capture: false, log });
+    const result = await run(mvn, args);
     buildPassed = result.code === 0;
     if (!buildPassed) log('[ERROR] Maven verify failed with exit code ' + result.code);
     for (const module of selected) {

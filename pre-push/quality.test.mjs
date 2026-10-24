@@ -46,7 +46,7 @@ async function fixture(options, action) {
     throw new Error('Unexpected command ' + command);
   };
   try {
-    const result = await runQualityChecks({ root, profile: 'dev', ambient: { SONAR_TOKEN: 'private' }, runCommand, log: line => lines.push(line) });
+    const result = await runQualityChecks({ root, profile: 'dev', ambient: { SONAR_TOKEN: 'private', DEBUG: 'tool-namespace' }, runCommand, log: line => lines.push(line) });
     await action({ root, write, result, calls, lines });
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 }
@@ -82,18 +82,21 @@ test('host Maven receives profile DB settings, never Sonar values, and the passw
     const maven = calls.filter(call => call.command.startsWith('mvn') && call.args.includes('verify'));
     assert.equal(maven.length, 1);
     assert.equal(maven[0].env.POSTGRES_USER, 'fixture-user');
-    assert.equal(maven[0].env.POSTGRES_PASSWORD, 'fixture-password');
+    assert.equal(maven[0].env.POSTGRES_PASSWORD, 'fixture-db-pass');
     assert.equal(maven[0].env.POSTGRES_HOST, '127.0.0.1');
     assert.equal(maven[0].env.POSTGRES_PORT, '5542');
-    assert.deepEqual(maven[0].secrets, ['fixture-password']);
+    assert.deepEqual(maven[0].secrets, ['fixture-db-pass']);
+    assert.equal(maven[0].env.DEBUG, undefined);
     assert.ok(calls.filter(call => call.command === 'docker').every(call => call.env.POSTGRES_PASSWORD === undefined));
   });
 });
 
-test('missing profile only warns; DB-bound services must then fail on their own', async () => {
+test('full checks obtain test DB settings from the resolved Compose model rather than loading a second profile', async () => {
   await fixture({ noProfile: true }, async ({ calls, lines }) => {
-    assert.ok(lines.some(line => line.startsWith('[WARN]') && line.includes('Missing .env.dev')));
-    assert.ok(calls.some(call => call.args.includes('verify') && call.env.POSTGRES_PASSWORD === undefined));
+    assert.ok(!lines.some(line => line.startsWith('[WARN]')));
+    const builds = calls.filter(call => call.args.includes('verify'));
+    assert.equal(builds.length, 1);
+    assert.equal(builds[0].env.POSTGRES_PASSWORD, 'fixture-db-pass');
   });
 });
 

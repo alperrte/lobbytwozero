@@ -298,6 +298,27 @@ oluşturulmadı; GAME-24 sağlayıcı izni/erişimi bekler.
 
 ### 3.13 hardware_db — hardware-service (Alper)
 
+**Auth entegrasyonu — 2026-10-24:** V1–V7 checksum'ları korunarak
+`V8__add_hardware_account_erasure.sql` eklenir; toplam 17 tablo. V9–V10 boştur.
+Yeni `hardware_account_erasure_fences(account_hash varchar(64) PK, expires_at timestamptz)`
+yalnız SHA-256 hesap özeti ve expiry tutar; UUID/credential içermez. Teknik fence tablosu
+entity değildir; hesap bazlı transaction advisory lock + atomik upsert ile yönetilir.
+17 dakika etkin, dakikalık süpürmede fiziksel silinir (normal scheduler çalışırken en çok
+yaklaşık bir ek dakika; scheduler kapalıysa bir sonraki çalışmada). Anonim veri sayılmaz.
+Kerem/Auth sahibiyle mutabık kullanıcı onayı kaydı:
+[HW-AUTH-02](../docs-hardware/integration/auth/auth-integration-02.md).
+V8 audit DELETE istisnasını yalnız transaction-local hesap bağlamında ilgili actor/hedef
+satırlarına sınırlar; UPDATE/TRUNCATE ve ilgisiz satırların silinmesi reddedilir.
+`erase_hardware_account(uuid)` yalnız Hardware verisini temizler; başka DB'ye erişmez.
+Fonksiyon bounded paket işler: 20 profil/20 yorum; audit/outbox/rapor türü başına
+1000 satır. Paket tamamlanır ama hesap bitmezse commit + 503; son paket commit'i 204.
+Actor/reporter/outbox aggregate ve JSON owner için V8 lookup indeksleri bulunur.
+Katalog/marka/kampanya ve ilgisiz kullanıcı kayıtları korunur. Kişisel outbox/rapor/audit,
+profil aggregate'i ve hesap rate bucket'ları kaldırılır. Cihaz bucket anahtarı artık
+`sync-device:{ownerId}:{deviceId}` biçimindedir; erasure eski bağlı cihaz bucket'ını da temizler.
+Bu ileri migration bir DB reseti gerektirmez; canlı ortama ajan tarafından uygulanmadı.
+Devamındaki 2026-10-21 envanteri tarihsel başlangıç temizliği kaydıdır.
+
 **Güncel geliştirme şeması — 2026-10-21:** Kullanıcının “7 ilişkili grup” onayıyla
 eski V1–V10 zinciri yeniden düzenlendi. Boş DB'ye uygulanan aktif dosyalar:
 
@@ -314,7 +335,7 @@ eski V1–V10 zinciri yeniden düzenlendi. Boş DB'ye uygulanan aktif dosyalar:
 16 tablo son sütun/default/constraint'leriyle doğrudan CREATE TABLE içinde kurulur;
 ALTER TABLE/INDEX veya rename/drop adımı yoktur. 93 named constraint, 51 toplam indeks,
 2 immutable audit trigger/fonksiyonu eski zincirle izole PostgreSQL 17.11'de eşdeğerdir.
-V8–V10 boş; sonraki değişiklikler normal ileri migration kuralına tabidir.
+Bu başlangıç tesliminde V8–V10 boştu; güncel V8 yukarıda kayıtlıdır.
 Eski Flyway history ile yükseltme desteklenmez; DB sıfırlamasını kullanıcı yapar.
 [Karar ve kanıt](../docs-hardware/progress/hardware-migration-cleanup.md).
 

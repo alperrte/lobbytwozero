@@ -2415,6 +2415,26 @@ _Kayıt yok._
 
 ## HARDWARE
 
+**Güncel Auth sözleşmesi — 2026-10-24:** Kullanıcı uçları gerçek Auth JWKS'i ile
+RS256/kid/at+jwt/issuer/audience/ham exp–nbf–iat ve UUID sub doğrular; typed actor
+yalnız doğrulanmış subject'ten oluşur. ADMIN katalog/kampanya yazma izni,
+ADMIN veya MODERATOR kaynak yorum moderasyon izni üretir. Roller ownership'i aşmaz.
+Yalnız health anonimdir. Cookie doğrudan Hardware'da kimlik oluşturmaz;
+Gateway cookie → Bearer öncesinde CSRF + Origin uygular. Hardware CSRF bütünüyle
+kapatılmadı; özel CSRF ignore matcher yoktur. Resource Server'ın standart açık Bearer
+davranışı uygulanır. D4'te Bearer taşımayan CSRF reddi controller'a ulaşmadan 401 döner.
+Silinen hesap fence'i etkinse kullanıcı okuma/yazmaları 401 ile reddedilir.
+Cihaz credential/PERF ve User/Social policy bağımlılıkları çözülmüş sayılmaz.
+[Güncel kapsam/kanıt](../docs-hardware/integration/auth/auth-integration-quality.md).
+Gerçek paketli Auth/Gateway/Hardware izole HTTP kabulü 16 kontrol PASS: kayıt/giriş,
+SMTP doğrulama, cookie/CSRF/Origin, owner/IDOR ve gerçek Auth worker → Hardware D4
+204/CONFIRMED, tekrar ve eski JWT ile yeniden yazma reddi.
+[Runtime kabulü](../docs-hardware/integration/auth/auth-integration-04.md).
+Ortak Compose/TLS/tarayıcı ve diğer 15 katılımcının Saga ACK'i NOT_VERIFIED.
+Önceki tarihlerdeki test sayıları ve DEFERRED_AUTH ifadeleri teslim tarihçesidir;
+aşağıdaki Yetkilendirme alanları bu güncel kullanıcı JWT kuralıyla birlikte geçerlidir.
+
+
 Sorumlu: Alper · Gateway: `/api/v1/hardware/**` · Görevler: HW-
 
 LTZ-ALP-HW-01: dokuz protected iş endpoint'i. Tüm POST/PUT gövdelerinde **16 KiB**
@@ -2422,13 +2442,15 @@ sınırı vardır (Content-Length olmasa da uygulanır); aşılırsa 413 `REQUES
 ProblemDetail döner. 2026-10-21 son pre-push: 58 PASS, JaCoCo %96,69.
 Son kod Sonar analizi: A/A/A, Quality Gate PASS (bütün backend scope; overall %84,3).
 Teslim kanıtı: [LTZ-ALP-HW-01](../docs-hardware/reports/LTZ-ALP-HW-01-delivery.md).
-Gerçek Auth/JWT/E2E DEFERRED_AUTH; bütün üretim iş istekleri doğrulayıcı gelene kadar reddedilir.
+2026-10-21 tesliminde gerçek Auth/JWT/E2E DEFERRED_AUTH idi; güncel kullanıcı JWT
+uygulaması ve kalan canlı E2E sınırı yukarıdaki 2026-10-24 kaydındadır.
 
 LTZ-ALP-HW-02: 15 yeni katalog/kampanya endpoint'i, ürün listesinde geriye uyumlu
 HW-11 filtreleri ve profil seçiminde ACTIVE katalog kontrolü. Son kod pre-push
 134 PASS / %98,02; Sonar A/A/A + Quality Gate PASS, overall %89,2 / duplication %0.
 Yeni kod coverage %92,3, issue 0. [HW-02 teslimi](../docs-hardware/reports/LTZ-ALP-HW-02-delivery.md).
-Gerçek Auth rol/claim → hardware:catalog:write eşlemesi DEFERRED_AUTH.
+2026-10-21'de ertelenen Auth rol/claim eşlemesi artık ADMIN → hardware:catalog:write
+olarak uygulanır; güncel ortak JWT/RBAC sözleşmesi geçerlidir.
 
 LTZ-ALP-HW-03: 7 yeni endpoint; profil/alan/kategori gizliliği, owner teknik
 karşılaştırmalar ve Performance/Recommendation için owner batch DTO sözleşmesi.
@@ -2475,9 +2497,10 @@ Tüketici servisler: Frontend
 POST /api/v1/hardware/profiles
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Owner. Yalnız güvenilir `AuthenticatedActor` üzerinden owner alınır; body/header kimliği
-kabul edilmez. Gerçek Auth adapter'ı yokken üretim HTTP istekleri reddedilir (DEFERRED_AUTH).
-CSRF etkin; gerçek cookie/JWT taşıma protokolü henüz uygulanmadı. Yeni public API yok.
+kabul edilmez.
+CSRF etkin; açık Bearer ve Gateway cookie/CSRF/Origin protokolü uygulanır. Yeni public API yok.
 
 #### Request Body
 `CreateHardwareProfileRequest`: `name` zorunlu, 1..100 karakter, boş/kontrol/HTML ayraçları
@@ -2504,7 +2527,8 @@ Owner UUID dönmez. `Location: /api/v1/hardware/profiles/{id}`; `Cache-Control: 
 
 #### Bağlantı
 Frontend: API Gateway üzerinden tam path; gateway değiştirilmedi.
-Diğer mikroservisler: çağrı yok. Gerçek Auth sözleşmesi/E2E DEFERRED_AUTH.
+İş akışında başka servis çağrısı yok; Auth JWKS ortak doğrulama katmanında tüketilir.
+Canlı Auth/Gateway E2E NOT_VERIFIED.
 Flyway: V1__create_hardware_profiles_and_privacy.sql.
 
 #### Test Durumu
@@ -2522,7 +2546,8 @@ Tüketici servisler: Frontend
 POST /api/v1/hardware/profiles/{profileId}/components
 
 #### Yetkilendirme
-Owner; HW-01 ile aynı onaylı güvenlik sınırı/CSRF/DEFERRED_AUTH.
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
+Owner; HW-01 ile aynı onaylı güvenlik sınırı/CSRF/JWT doğrulaması.
 Başkasına ait profil ile olmayan profil aynı 404 yanıtını verir.
 
 #### Path Parameters
@@ -2576,7 +2601,9 @@ Tüketici servisler: Frontend
 #### Endpoint
 PUT /api/v1/hardware/profiles/{profileId}
 #### Yetkilendirme
-Owner; HW-01 ile aynı CSRF/DEFERRED_AUTH sınırı. Başka owner kaynağı 404 ile gizlenir.
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
+Owner; HW-01 ile aynı CSRF/JWT doğrulaması sınırı. Başka owner kaynağı 404 ile gizlenir.
+
 #### Path Parameters
 - profileId: UUID, zorunlu.
 #### Request Body
@@ -2602,7 +2629,9 @@ Tüketici servisler: Frontend
 #### Endpoint
 PUT /api/v1/hardware/profiles/{profileId}/components/{componentId}
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Owner; CSRF ve HW-01 güvenlik sınırı. Bileşenin URL'deki profile ait olması ayrıca doğrulanır.
+
 #### Path Parameters
 - profileId, componentId: UUID, zorunlu.
 #### Request Body
@@ -2633,7 +2662,9 @@ Tüketici servisler: Frontend
 #### Endpoint
 DELETE /api/v1/hardware/profiles/{profileId}/components/{componentId}
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Owner; CSRF ve HW-01 güvenlik sınırı.
+
 #### Path Parameters
 - profileId, componentId: UUID, zorunlu.
 #### Query Parameters
@@ -2659,7 +2690,9 @@ Tüketici servisler: Frontend
 #### Endpoint
 GET /api/v1/hardware/profiles
 #### Yetkilendirme
-Owner; yalnız doğrulanmış aktörün profilleri. HW-01 güvenlik sınırı/DEFERRED_AUTH.
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
+Owner; yalnız doğrulanmış aktörün profilleri. HW-01 güvenlik sınırı/JWT doğrulaması.
+
 #### Query Parameters
 - page: int >=0, varsayılan 0.
 - size: int 1..100, varsayılan 20.
@@ -2683,7 +2716,9 @@ Tüketici servisler: Frontend
 #### Endpoint
 GET /api/v1/hardware/profiles/{profileId}
 #### Yetkilendirme
-Owner; HW-01 güvenlik sınırı/DEFERRED_AUTH. Diğer kullanıcıların profilleri 404.
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
+Owner; HW-01 güvenlik sınırı/JWT doğrulaması. Diğer kullanıcıların profilleri 404.
+
 #### Path Parameters
 - profileId: UUID, zorunlu.
 #### Query Parameters
@@ -2714,7 +2749,9 @@ Tüketici servisler: Frontend
 #### Endpoint
 GET /api/v1/hardware/profiles/statistics
 #### Yetkilendirme
-Owner; HW-01 güvenlik sınırı/DEFERRED_AUTH. Kullanıcı kimliği parametre alınmaz.
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
+Owner; HW-01 güvenlik sınırı/JWT doğrulaması. Kullanıcı kimliği parametre alınmaz.
+
 #### Response — 200
 `HardwareStatisticsResponse`: totalProfiles, profilesByDeviceType,
 totalComponentEntries, totalComponentUnits, componentsByCategory (entries/units),
@@ -2739,7 +2776,9 @@ Tüketici servisler: Frontend
 #### Endpoint
 DELETE /api/v1/hardware/profiles/{profileId}
 #### Yetkilendirme
-Owner; CSRF ve HW-01 güvenlik sınırı/DEFERRED_AUTH. Admin/header bypass yoktur.
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
+Owner; CSRF ve HW-01 güvenlik sınırı/JWT doğrulaması. Admin/header bypass yoktur.
+
 #### Path Parameters
 - profileId: UUID, zorunlu.
 #### Query Parameters
@@ -2769,8 +2808,9 @@ Tüketici servisler: Frontend
 POST /api/v1/hardware/catalog/brands
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Admin — doğrulanmış typed actor + hardware:catalog:write uygulama izni; normal kullanıcı yazamaz. CSRF zorunlu; gerekçeli audit aynı transaction'da.
-Gerçek Auth rol/claim eşlemesi DEFERRED_AUTH; üretim istekleri fail-closed reddedilir.
+
 Public iş endpoint'i yok. Tüm yanıtlar private/no-store.
 
 #### Request Body
@@ -2805,8 +2845,9 @@ Tüketici servisler: Frontend
 PUT /api/v1/hardware/catalog/brands/{id}
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Admin — doğrulanmış typed actor + hardware:catalog:write uygulama izni; normal kullanıcı yazamaz. CSRF zorunlu; gerekçeli audit aynı transaction'da.
-Gerçek Auth rol/claim eşlemesi DEFERRED_AUTH; üretim istekleri fail-closed reddedilir.
+
 Public iş endpoint'i yok. Tüm yanıtlar private/no-store.
 
 #### Path Parameters
@@ -2844,8 +2885,9 @@ Tüketici servisler: Frontend
 DELETE /api/v1/hardware/catalog/brands/{id}
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Admin — doğrulanmış typed actor + hardware:catalog:write uygulama izni; normal kullanıcı yazamaz. CSRF zorunlu; gerekçeli audit aynı transaction'da.
-Gerçek Auth rol/claim eşlemesi DEFERRED_AUTH; üretim istekleri fail-closed reddedilir.
+
 Public iş endpoint'i yok. Tüm yanıtlar private/no-store.
 
 #### Path Parameters
@@ -2883,8 +2925,9 @@ Tüketici servisler: Frontend
 GET /api/v1/hardware/catalog/brands/{id}
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Authenticated — doğrulanmış typed AuthenticatedActor.
-Gerçek Auth rol/claim eşlemesi DEFERRED_AUTH; üretim istekleri fail-closed reddedilir.
+
 Public iş endpoint'i yok. Tüm yanıtlar private/no-store.
 
 #### Path Parameters
@@ -2917,8 +2960,9 @@ Tüketici servisler: Frontend
 GET /api/v1/hardware/catalog/brands
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Authenticated — doğrulanmış typed AuthenticatedActor.
-Gerçek Auth rol/claim eşlemesi DEFERRED_AUTH; üretim istekleri fail-closed reddedilir.
+
 Public iş endpoint'i yok. Tüm yanıtlar private/no-store.
 
 #### Query Parameters
@@ -2953,8 +2997,9 @@ Tüketici servisler: Frontend
 POST /api/v1/hardware/catalog/products
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Admin — doğrulanmış typed actor + hardware:catalog:write uygulama izni; normal kullanıcı yazamaz. CSRF zorunlu; gerekçeli audit aynı transaction'da.
-Gerçek Auth rol/claim eşlemesi DEFERRED_AUTH; üretim istekleri fail-closed reddedilir.
+
 Public iş endpoint'i yok. Tüm yanıtlar private/no-store.
 
 #### Request Body
@@ -2989,8 +3034,9 @@ Tüketici servisler: Frontend
 PUT /api/v1/hardware/catalog/products/{id}
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Admin — doğrulanmış typed actor + hardware:catalog:write uygulama izni; normal kullanıcı yazamaz. CSRF zorunlu; gerekçeli audit aynı transaction'da.
-Gerçek Auth rol/claim eşlemesi DEFERRED_AUTH; üretim istekleri fail-closed reddedilir.
+
 Public iş endpoint'i yok. Tüm yanıtlar private/no-store.
 
 #### Path Parameters
@@ -3028,8 +3074,9 @@ Tüketici servisler: Frontend
 DELETE /api/v1/hardware/catalog/products/{id}
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Admin — doğrulanmış typed actor + hardware:catalog:write uygulama izni; normal kullanıcı yazamaz. CSRF zorunlu; gerekçeli audit aynı transaction'da.
-Gerçek Auth rol/claim eşlemesi DEFERRED_AUTH; üretim istekleri fail-closed reddedilir.
+
 Public iş endpoint'i yok. Tüm yanıtlar private/no-store.
 
 #### Path Parameters
@@ -3067,8 +3114,9 @@ Tüketici servisler: Frontend
 GET /api/v1/hardware/catalog/products/{id}
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Authenticated — doğrulanmış typed AuthenticatedActor.
-Gerçek Auth rol/claim eşlemesi DEFERRED_AUTH; üretim istekleri fail-closed reddedilir.
+
 Public iş endpoint'i yok. Tüm yanıtlar private/no-store.
 
 #### Path Parameters
@@ -3101,8 +3149,9 @@ Tüketici servisler: Frontend
 GET /api/v1/hardware/catalog/products
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Authenticated — doğrulanmış typed AuthenticatedActor.
-Gerçek Auth rol/claim eşlemesi DEFERRED_AUTH; üretim istekleri fail-closed reddedilir.
+
 Public iş endpoint'i yok. Tüm yanıtlar private/no-store.
 
 #### Query Parameters
@@ -3170,8 +3219,9 @@ Tüketici servisler: Frontend
 POST /api/v1/hardware/campaigns
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Admin — typed actor + hardware:catalog:write uygulama izni; CSRF ve gerekçeli atomik audit zorunlu.
-Gerçek Auth/JWT rol/claim eşlemesi DEFERRED_AUTH; üretimde fail-closed. Public uç yok.
+ Public uç yok.
 
 #### Request Body
 SaveHardwareCampaignRequest: productId zorunlu UUID; version gönderilmez. Aşağıdaki ortak kampanya alanları zorunlu.
@@ -3205,8 +3255,9 @@ Tüketici servisler: Frontend
 PUT /api/v1/hardware/campaigns/{id}
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Admin — typed actor + hardware:catalog:write uygulama izni; CSRF ve gerekçeli atomik audit zorunlu.
-Gerçek Auth/JWT rol/claim eşlemesi DEFERRED_AUTH; üretimde fail-closed. Public uç yok.
+ Public uç yok.
 
 #### Path Parameters
 - id: UUID, zorunlu.
@@ -3243,8 +3294,9 @@ Tüketici servisler: Frontend
 DELETE /api/v1/hardware/campaigns/{id}
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Admin — typed actor + hardware:catalog:write uygulama izni; CSRF ve gerekçeli atomik audit zorunlu.
-Gerçek Auth/JWT rol/claim eşlemesi DEFERRED_AUTH; üretimde fail-closed. Public uç yok.
+ Public uç yok.
 
 #### Path Parameters
 - id: UUID, zorunlu.
@@ -3281,8 +3333,9 @@ Tüketici servisler: Frontend
 GET /api/v1/hardware/campaigns/{id}
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Authenticated — doğrulanmış typed actor.
-Gerçek Auth/JWT rol/claim eşlemesi DEFERRED_AUTH; üretimde fail-closed. Public uç yok.
+ Public uç yok.
 
 #### Path Parameters
 - id: UUID, zorunlu.
@@ -3315,8 +3368,9 @@ Tüketici servisler: Frontend
 GET /api/v1/hardware/campaigns
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Authenticated — doğrulanmış typed actor.
-Gerçek Auth/JWT rol/claim eşlemesi DEFERRED_AUTH; üretimde fail-closed. Public uç yok.
+ Public uç yok.
 
 #### Query Parameters
 - productId: opsiyonel UUID, belirli ürünün geçerli kampanyalarını filtreler.
@@ -3352,8 +3406,8 @@ Tüketici servisler: Frontend
 GET /api/v1/hardware/profiles/{profileId}/privacy
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Typed actor ve owner-only; katalog yazma izni başka profil için erişim sağlamaz.
-DEFERRED_AUTH; gerçek token doğrulaması yokken üretimde fail-closed.
 
 #### Path/Query Parameters
 profileId: UUID. Query yok.
@@ -3390,7 +3444,8 @@ Tüketici servisler: Frontend
 PUT /api/v1/hardware/profiles/{profileId}/privacy
 
 #### Yetkilendirme
-Owner-only typed actor; CSRF zorunlu. DEFERRED_AUTH / fail-closed.
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
+Owner-only typed actor; CSRF zorunlu. JWT doğrulaması zorunlu.
 
 #### Path/Query Parameters
 profileId: UUID. Query yok.
@@ -3433,6 +3488,7 @@ Tüketici servisler: Frontend
 GET /api/v1/hardware/profiles/{profileId}/shared
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Anonim erişim yok. Owner kendi önizlemesinde bütün kayıtlı alanlarını görür.
 Non-owner için profile visibility, alan ve kategori kurallarının hepsi izin
 vermelidir. PUBLIC yalnız doğrulanmış kullanıcı; FRIENDS güvenilir arkadaşlık kararı
@@ -3480,9 +3536,10 @@ Tüketici servisler: Frontend
 POST /api/v1/hardware/comparisons/profiles
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Typed actor; iki profil de aynı aktöre ait olmalı. PUBLIC paylaşım veya katalog
 yazma izni başka owner'ın profilini karşılaştırma hakkı vermez. CSRF zorunlu;
-DEFERRED_AUTH, üretimde fail-closed. Read-only REPEATABLE_READ transaction.
+JWT doğrulaması zorunlu. Read-only REPEATABLE_READ transaction.
 
 #### Path/Query Parameters
 Yok.
@@ -3523,8 +3580,9 @@ Tüketici servisler: Frontend
 POST /api/v1/hardware/comparisons/components
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Typed actor, iki profil ve iki bileşen owner-only; her componentId belirtilen
-profileId'ye ait olmalı. CSRF, no-store ve DEFERRED_AUTH korunur.
+profileId'ye ait olmalı. CSRF, no-store ve JWT doğrulaması korunur.
 
 #### Path/Query Parameters
 Yok.
@@ -3562,8 +3620,9 @@ Tüketici servisler: Frontend
 POST /api/v1/hardware/comparisons/catalog-products
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Typed actor; katalog yazma izni gerekmez. İki model ACTIVE ve aynı kategoride
-olmalı. Kullanıcı profili paylaşım yolu değildir. CSRF, DEFERRED_AUTH korunur.
+olmalı. Kullanıcı profili paylaşım yolu değildir. CSRF, JWT doğrulaması korunur.
 
 #### Path/Query Parameters
 Yok.
@@ -3599,11 +3658,11 @@ Tüketici servisler: Performance, Recommendation; gerçek tüketici çağrılar�
 POST /api/v1/hardware/profiles/batch
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Kullanıcı adına doğrulanmış typed actor, owner-only. Kullanıcı bağlamı olmayan yeni
 servis-token erişimi açılmaz. userId/rol/servis kimliği body/header'dan alınmaz.
 Her profil aynı aktöre ait olmalıdır; bir tane yanlış/olmayan kaynak bütün batch'i
 404 yapar. Paylaşılan PUBLIC profil de başka owner ise reddedilir. CSRF korunur;
-DEFERRED_AUTH, üretimde gerçek Auth adapter'ı yokken fail-closed.
 
 #### Path/Query Parameters
 Yok.
@@ -3656,7 +3715,7 @@ Normal yazmalar actor başına 20/dakika, socket peer başına 120/dakika; hash 
 iki dakikayı aşınca dakikalık job ile temizlenir. X-Forwarded-For kimlik/IP kaynağı değildir.
 Sayaçlar başarılı iş transaction'ına katılır; rollback olmuş denemeler kotayı tüketmez.
 Bu, proxy zincirindeki gerçek son kullanıcı IP doğrulaması değildir (NOT_VERIFIED).
-Gerçek Auth DEFERRED_AUTH; User/Social UGC kararı DEFERRED_CONTRACT / NOT_VERIFIED,
+Kullanıcı JWT entegrasyonu uygulanmıştır; User/Social UGC kararı DEFERRED_CONTRACT / NOT_VERIFIED,
 üretim adapter'ı deny. İzin veren policy yalnız testlerde; yeni public/anonim uç yok.
 
 ### HARDWARE — HW-12 Yorum oluşturma
@@ -3669,6 +3728,7 @@ Tüketici servisler: Frontend
 POST /api/v1/hardware/catalog/products/{productId}/reviews
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Typed actor; aktif genel ürün. Katalog yazma izni gerekmez; yazar UUID'si yalnız CurrentActor'dan gelir. Ortak HW-12 güvenlik sözleşmesi geçerlidir.
 
 #### Path/Query Parameters
@@ -3702,6 +3762,7 @@ Tüketici servisler: Frontend
 GET /api/v1/hardware/catalog/products/{productId}/reviews
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Typed actor; aktif ürün. VISIBLE yorumlar, owner veya güvenilir global UGC/iki yönlü engel kararıyla filtrelenir. Production policy başkalarını deny eder. Ortak HW-12 güvenlik sözleşmesi geçerlidir.
 
 #### Path/Query Parameters
@@ -3735,6 +3796,7 @@ Tüketici servisler: Frontend
 GET /api/v1/hardware/reviews/mine
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Owner typed actor; yalnız CurrentActor'ın silinmemiş VISIBLE/HIDDEN yorumları. Arşivli ürün geçmişi korunur; dış audience kararı gerekmez. Ortak HW-12 güvenlik sözleşmesi geçerlidir.
 
 #### Path/Query Parameters
@@ -3768,6 +3830,7 @@ Tüketici servisler: Frontend
 GET /api/v1/hardware/reviews/{reviewId}
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Typed actor. Owner HIDDEN/arşivli geçmişini görebilir; non-owner yalnız VISIBLE + aktif ürün + güvenilir audience izinli ise. DELETED her durumda 404. Ortak HW-12 güvenlik sözleşmesi geçerlidir.
 
 #### Path/Query Parameters
@@ -3801,6 +3864,7 @@ Tüketici servisler: Frontend
 PUT /api/v1/hardware/reviews/{reviewId}
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Owner typed actor + CSRF; yalnız VISIBLE ve aktif ürüne bağlı yorum. HIDDEN sahibi bile metin güncellemesiyle moderasyonu aşamaz. Ortak HW-12 güvenlik sözleşmesi geçerlidir.
 
 #### Path/Query Parameters
@@ -3834,6 +3898,7 @@ Tüketici servisler: Frontend
 DELETE /api/v1/hardware/reviews/{reviewId}
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Owner typed actor + CSRF; VISIBLE/HIDDEN ve arşivli ürün geçmişi silinebilir. Yabancı hedef 404. Ortak HW-12 güvenlik sözleşmesi geçerlidir.
 
 #### Path/Query Parameters
@@ -3869,7 +3934,8 @@ Producer/UUID/version/UTC metadata ve gerekli kimlik/enum payload'ı; 4 KiB/even
 PENDING+FAILED toplamı en fazla 10000. Transaction advisory kilidi kapasite yarışını
 korur. Relay, broker ve uydurma servis URL/token modeli yok; olaylar PENDING kalır.
 Admin/Notification/User-Social gerçek sözleşme ve E2E DEFERRED_CONTRACT / NOT_VERIFIED,
-açık kullanıcı onaylı. Gerçek Auth DEFERRED_AUTH; production fail-closed.
+açık kullanıcı onaylı. Kullanıcı Auth JWT doğrulaması uygulanır; gerçek dış policy
+ve teslim sözleşmesi olmayan akışlar production fail-closed kalır.
 
 ### HARDWARE — HW-13 Yorumu raporlama
 
@@ -3881,6 +3947,7 @@ Tüketici servisler: Frontend, Admin (gerçek consumer NOT_VERIFIED)
 POST /api/v1/hardware/reviews/{reviewId}/reports
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Typed actor + CSRF; yalnız okunabilen, VISIBLE/aktif ürüne bağlı yabancı yorum. Owner kendi yorumunu raporlayamaz; global UGC/engel kararı bilinmiyorsa yabancı hedef 404.
 
 #### Path/Query Parameters
@@ -3917,6 +3984,7 @@ Tüketici servisler: Frontend, Admin (gerçek consumer NOT_VERIFIED)
 GET /api/v1/hardware/review-reports/{reportId}
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Yalnız reporter typed actor; hedef yorumun yazarı veya katalog yöneticisi olması erişim vermez. Yabancı/olmayan rapor aynı 404.
 
 #### Path/Query Parameters
@@ -3953,7 +4021,8 @@ Tüketici servisler: Frontend, Admin (gerçek consumer NOT_VERIFIED)
 GET /api/v1/hardware/moderation/reviews/{reviewId}
 
 #### Yetkilendirme
-Typed actor + hardware:reviews:moderate uygulama izni hem HTTP hem service sınırında zorunlu. Katalog izni/ROLE_ADMIN/X-Role tek başına kabul edilmez. Gerçek Auth rol/claim eşlemesi DEFERRED_AUTH.
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
+Typed actor + hardware:reviews:moderate uygulama izni hem HTTP hem service sınırında zorunlu. Katalog izni/ROLE_ADMIN/X-Role tek başına kabul edilmez.
 
 #### Path/Query Parameters
 reviewId UUID; page 0..10000 varsayılan 0; size 1..100 varsayılan 20; raporlar createdAt,id ASC.
@@ -3989,6 +4058,7 @@ Tüketici servisler: Frontend, Admin (gerçek consumer NOT_VERIFIED)
 POST /api/v1/hardware/moderation/reviews/{reviewId}/actions
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Typed actor + hardware:reviews:moderate; service recheck + CSRF. Bu kaynak servis komutudur; merkezi Admin case/rol/hesap yönetimi burada kurulmaz.
 
 #### Path/Query Parameters
@@ -4025,10 +4095,10 @@ Tüketici servisler: Frontend; gelecekte masaüstü istemci (gerçek E2E NOT_VER
 POST /api/v1/hardware/profiles/{profileId}/sync/preview
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Owner typed actor + CSRF; processingConsent=true bu tek isteğin açık onayıdır.
 Sürekli sync izni vermez. Donanım/consent/source/profileVersion değiştirmez;
-yalnız kısa ömürlü rate bucket'ları kaydedilir. Gerçek Auth DEFERRED_AUTH;
-üretim doğrulayıcı yokken istekler reddedilir. Bu uç cihaz doğrulamaz.
+yalnız kısa ömürlü rate bucket'ları kaydedilir.  Bu uç cihaz doğrulamaz.
 
 #### Path/Query Parameters
 profileId zorunlu UUID; query yok.
@@ -4069,7 +4139,7 @@ Gerçek Auth/desktop E2E NOT_VERIFIED. Son kalite sonucu HW-05 kalite kaydında 
 
 ### HARDWARE — HW-07 Ortak sync güvenlik ve tekrar gönderim sözleşmesi
 
-Gerçek kullanıcı/cihaz Auth DEFERRED_AUTH; PERF cihaz sahipliği/iptal sözleşmesi ve
+Kullanıcı JWT doğrulaması uygulanır. Cihaz Auth DEFERRED_AUTH; PERF cihaz sahipliği/iptal sözleşmesi ve
 masaüstü E2E DEFERRED_CONTRACT / NOT_VERIFIED, açık kullanıcı onaylıdır. Gerçek
 RestClient URL/JSON, eşleştirme servisi veya credential üretilmez. Production deny.
 Parent profil kilidi tüm owner/consent/apply yarışlarını ve profileVersion'ı korur.
@@ -4094,6 +4164,7 @@ Tüketici servisler: Frontend; gelecekte masaüstü (gerçek E2E NOT_VERIFIED)
 GET /api/v1/hardware/profiles/{profileId}/sync-consent
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Owner typed actor; yalnız kendi profili. Cihaz principal'ı kontrol API'sine giremez.
 
 #### Path/Query Parameters
@@ -4130,6 +4201,7 @@ Tüketici servisler: Frontend; gelecekte masaüstü (gerçek E2E NOT_VERIFIED)
 PUT /api/v1/hardware/profiles/{profileId}/sync-consent
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Owner + CSRF; dış policy cihazın aktif ve owner'a bağlı olduğunu doğrulamalıdır. Client deviceId yalnız seçimdir. Production policy deny.
 
 #### Path/Query Parameters
@@ -4166,6 +4238,7 @@ Tüketici servisler: Frontend; gelecekte masaüstü (gerçek E2E NOT_VERIFIED)
 DELETE /api/v1/hardware/profiles/{profileId}/sync-consent
 
 #### Yetkilendirme
+Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
 Owner + CSRF; iptal için dış cihazın online/aktif olması gerekmez.
 
 #### Path/Query Parameters
@@ -4202,6 +4275,7 @@ Tüketici servisler: Frontend; gelecekte masaüstü (gerçek E2E NOT_VERIFIED)
 POST /api/v1/hardware/profiles/{profileId}/sync/snapshots
 
 #### Yetkilendirme
+Güncel sınır: kullanıcı JWT'si cihaz kimliği sağlamaz; gerçek cihaz Auth/PERF hâlâ DEFERRED.
 Yalnız AuthenticatedHardwareDevice + hardware:sync:write, aktif cihaz sahipliği policy'si ve aynı owner/device/generation için GRANTED yerel izin. Browser actor bu authority'ye sahip olsa da reddedilir. CSRF korunur; üretimde cihaz doğrulaması yok ve policy deny.
 
 #### Path/Query Parameters
@@ -4227,6 +4301,63 @@ SecurityContextHardwareSyncDeviceAccessTest (1); 2026-10-21 20:36:36 +03 verify
 exit 0: 293 PASS (54 yeni HW-05), failure/error/skipped 0; JaCoCo
 1420/1438=%98,75. Gerçek PostgreSQL 17/Flyway V1–V10/JPA/MockMvc.
 Gerçek Auth/PERF cihaz/desktop E2E NOT_VERIFIED; final kapılar ayrıca kaydedilir.
+
+### HARDWARE — HW-AUTH D4 yerel hesap temizliği
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: auth-service
+
+#### Endpoint
+DELETE /internal/v1/accounts/{accountId} — INTERNAL ONLY, Gateway route'u yoktur.
+
+#### Yetkilendirme
+RS256, Auth JWKS, kid, typ=svc+jwt; iss=JWT_ISSUER, tek aud=hardware-service;
+ham iat/nbf/exp, exp−iat≤60 saniye, 30 saniye tolerans ve jti zorunlu.
+SCOPE_account:erase; tam sub=svc:auth-service; account_id string'i path UUID'ye eşit.
+Kullanıcı token'ı iç uçta ve servis token'ı iş uçlarında reddedilir.
+Cookie kabul edilmez. Özel CSRF istisnası tanımlanmaz; standart Resource Server
+Bearer davranışı geçerlidir. Bearer taşımayan D4 CSRF reddi controller'a geçmeden 401 döner.
+
+#### Path/Query Parameters
+accountId zorunlu UUID. Query parametresi yoktur.
+
+#### Request Body
+Yok.
+
+#### Response
+204, gövdesiz, Cache-Control: private, no-store. Yalnız yerel transaction commit'i
+tamamlanınca döner; hesap yoksa veya tekrar çağrıda da 204. İkinci bir Saga kurulmaz.
+Kendi profilleri ve alt kayıtları; yorum/rapor/ilgili audit/outbox ve kişisel rate bucket'ları
+silinir. Başka kullanıcıların ilgisiz kayıtları ve global katalog korunur.
+Kerem'le onaylı istisna: SHA-256 hesap özeti + expiry fence'i 17 dakika etkin tutulur;
+dakikalık purge ile kaldırılır. Bu pseudonymous metadata anonim diye gösterilmez.
+
+#### Hata Durumları
+400 bozuk UUID; 401 eksik/geçersiz kullanıcı veya servis JWT'si; 403 yanlış scope,
+sub veya account_id binding. Yanlış method/başka internal path 403.
+5xx transaction/DB/timeout hatası; temizlik ve fence rollback olur, 204 verilmez.
+202/3xx dönülmez. Auth ileri yönlü retry yapar; başka servis çağrısı yapılmaz.
+İstisna: `503 ACCOUNT_ERASURE_PENDING` / Retry-After: 60, sınırlı paketin başarıyla
+commit olduğunu fakat hesabın henüz bitmediğini belirtir. Bu durumda ilerleme ve
+fence korunur; sonraki çağrı kaldığı yerden temizler. Her çağrı en fazla 20 profil,
+20 yorum ve ilgili audit/outbox/rapor türü başına 1000 satır işler. Yalnız son paket 204'tür.
+
+#### Bağlantı
+HardwareAccountErasureController → HardwareAccountErasureService → HardwareAccountErasure portu
+→ HardwareAccountErasureRepository; V8__add_hardware_account_erasure.sql.
+Auth mevcut AccountDeletionCoordinator → direct service RestClient çağrısı.
+[Mutabakat](../docs-hardware/integration/auth/auth-integration-02.md).
+
+#### Test Durumu
+UNIT + INTEGRATION — HardwareAuthIntegrationTest: gerçek Auth ServiceTokenIssuer/JWKS,
+ortak D4 17 senaryo, tüm tablolar, başka hesabı koruma, tekrar, rollback ve race/fence.
+İzole PostgreSQL; canlı DEV Saga ve diğer 15 katılımcı E2E NOT_VERIFIED.
+[Gerçek uygulama HTTP kabulü](../docs-hardware/integration/auth/auth-integration-04.md):
+gerçek Auth worker → Hardware 204, Auth hardware görevi CONFIRMED; tekrar 204,
+başka accountId 403 ve eski kullanıcı JWT'siyle yeniden yazma 401. İzole fixture'da
+16 kontrol PASS; diğer 15 görev sahte ACK verilmeden PENDING kalır.
+[Nihai kalite kanıtı](../docs-hardware/integration/auth/auth-integration-quality.md).
 
 ## RECOMMENDATION
 

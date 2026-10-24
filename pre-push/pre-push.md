@@ -35,11 +35,14 @@ sonucu yalnızca backend test kapsamına aittir.
   anahtar ve bilinen gizli dosya yollarının kontrolü. Bu dosya adı kontrolüdür;
   bütün kaynak içeriğinde veya Git geçmişinde secret taraması değildir. Ek depo hijyeni (`pre-push/hygiene-checks.mjs`): izlenen dosyalarda özel anahtar başlığı ve uzun sır atamaları (değer yazdırılmaz), `.env` dosyalarının Git ve `.dockerignore` tarafından yok sayılması, Compose portlarının 127.0.0.1'e bağlı olması, anahtar üretici script güvenlik testi ve (kuruluysa) gitleaks ile tüm geçmiş taraması.
 - Tüm backend için Maven `clean verify`, test raporları ve ağırlıklı toplam
-  satır coverage en az %80. Host Maven testleri, seçilen `.env.<profil>` içindeki
-  `POSTGRES_USER/PASSWORD/HOST_PORT` ve `DB_*` değerlerini yalnız alt süreç ortamına
-  alır (`POSTGRES_HOST=127.0.0.1`); terminalde açıkça tanımlı değerler önceliklidir.
-  Parola loga yazılmaz. Profil okunamazsa uyarı verilir ve PostgreSQL gerektiren
-  servis testleri görünür şekilde FAIL olur.
+  satır coverage en az %80. Full mod host Maven testleri için seçilen Compose
+  profilinin çözümlenmiş PostgreSQL/DB ayarlarını yalnız test alt sürecine aktarır;
+  host adresi 127.0.0.1 ve yayınlanmış loopback portudur. Compose çözümü bozuksa
+  Maven çalıştırılmaz. Backend-only mod seçilen profilin mevcut DB anahtarlarını
+  yükler, terminal DB değerleri önceliklidir; profil eksikse görünür uyarı verir.
+  Parola loga yazılmaz. Genel host `DEBUG` bayrağı Maven test JVM'lerine taşınmaz;
+  testin açık Spring logging/property ayarları korunur. Gerçek ENV dosyası ve
+  çalışan servislerin log seviyesi değiştirilmez.
 - Seçilen `.env.dev` veya `.env.prod` ile `docker-compose.yml` doğrulaması.
   Docker Compose gerekir; yapılandırma kontrolü container başlatmaz.
 - Compose içinde tanımlı backend servisleri varsa seçilen Compose projesinde

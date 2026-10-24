@@ -9,6 +9,10 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class SecurityContextCurrentActor implements CurrentActor {
+    private final com.ltz.hardware.infrastructure.persistence.repository.HardwareAccountAccessGuard guard;
+    public SecurityContextCurrentActor(com.ltz.hardware.infrastructure.persistence.repository.HardwareAccountAccessGuard guard) {
+        this.guard = guard;
+    }
     @Override
     public UUID requireUserId() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -16,6 +20,7 @@ public class SecurityContextCurrentActor implements CurrentActor {
                 || !(authentication.getPrincipal() instanceof AuthenticatedActor(UUID userId))) {
             throw new InsufficientAuthenticationException("Doğrulanmış kullanıcı gerekli");
         }
+        guard.requireActive(userId);
         return userId;
     }
 }

@@ -24,6 +24,7 @@ public abstract class PostgresIntegrationSupport {
 
     @DynamicPropertySource
     static void databaseProperties(DynamicPropertyRegistry registry) {
+        registry.add("ltz.hardware.auth.service-url", () -> "http://127.0.0.1:1");
         registry.add("spring.datasource.url", DATABASE::getJdbcUrl);
         registry.add("spring.datasource.username", DATABASE::getUsername);
         registry.add("spring.datasource.password", DATABASE::getPassword);

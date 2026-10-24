@@ -18,7 +18,7 @@ public class HardwareSyncLimits {
 
     public void apply(UUID userId, UUID deviceId, String peer) {
         acquire("sync-apply-user:" + userId, 30);
-        acquire("sync-apply-device:" + deviceId, 10);
+        acquire("sync-device:" + userId + ":" + deviceId, 10);
         peer(peer);
     }
 
