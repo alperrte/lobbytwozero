@@ -239,6 +239,22 @@ erDiagram
 
 ## 5. game_db
 
+2026-10-24 kaynak yükseltmesi V171, hesap silme için aşağıdaki teknik bağlamı ekler.
+account_id Auth kimliğine REF'tir; başka servis DB'sine FK yoktur. Satır yalnız
+silme transaction'ında yaşar, başarıda silinir; hata olursa transaction ile geri alınır.
+Audit tablolarının ilişkileri korunur. DEV'e bu çalışma kapsamında uygulanmadı.
+
+```mermaid
+erDiagram
+  game_account_erasure_context {
+    uuid id PK
+    bigint transaction_id UK
+    uuid account_id "Auth REF; nil olamaz"
+    timestamptz created_at
+    bigint version
+  }
+```
+
 Faz 6 eklentisi: başarım ve geri bildirim tabloları (tarihsel V172–V173; güncel aktif zincirde V39–V40, DEV'de uygulanmıştır):
 
 ```mermaid

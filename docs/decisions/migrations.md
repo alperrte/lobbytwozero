@@ -7,7 +7,8 @@
 - V21–V30      → PERFORMANCE-SERVICE
 
 ## HAMZA
-- V31–V40      → GAME-SERVICE (aktif başlangıç zinciri, 10 migration; tamamı kullanıldı; yeni migration için ekipçe yeni aralık belirlenmelidir)
+- V31–V40      → GAME-SERVICE (aktif başlangıç zinciri, 10 migration; tamamı kullanıldı)
+- V171–V180    → GAME-SERVICE (2026-10-24 açık kullanıcı onayı; V171 kullanıldı, V172–V180 boş)
 - V41–V50      → LIBRARY-SERVICE
 - V51–V60      → REVIEW-SERVICE
 
@@ -36,6 +37,39 @@ geliştirmeye başlanmadan önce belirlenmelidir.
 ---
 
 ## Migration Kuralları
+
+### Güncel Game Service ek tahsisi ve hesap silme hazırlığı — 2026-10-24
+
+- Kullanıcının açık talimatıyla **V171–V180 Game Service'e yeniden tahsis edildi**.
+  Aşağıdaki 2026-10-21 tarihli ek aralık iptali kayıtları tarihseldir; güncel tahsis bu bölümdür.
+  V181–V190 tahsis edilmemiştir. V1–V170 içindeki diğer servis aralıkları değişmez.
+- Tahsis öncesi aktif klasör kontrol edildi: yalnız V31–V40 vardı. İlk boş numara
+  V171 seçildi: `V171__enable_controlled_account_erasure.sql`. Aktif zincir artık
+  V31–V40 + V171'dir. Tarihsel fixture V171–V173 bu zincire dahil değildir.
+  Eski 13 dosyalı DB geçmişiyle numara çakışabileceğinden bu tahsis, eski ortamda
+  otomatik repair/baseline/yeniden numaralandırma izni anlamına gelmez.
+- Hesap silme incelemesinde V34 `game_identity_audit_immutable` ve V35
+  `game_admin_audit_immutable` trigger'larının hem UPDATE hem DELETE'i engellediği doğrulandı.
+  Bu nedenle aktörleri nil UUID'ye çevirme önerisi mevcut şemada migration olmadan uygulanamaz.
+- İlk aşamada politika onaysız olduğu için yalnız güvenlik ve bekleme davranışı geliştirildi.
+  **Sonraki açık kullanıcı bildirimiyle Kerem'le ortak kararın alındığı teyit edildi:**
+  hesaba ait içerik/medya bağlantısı/not/feedback/grant silinir; audit ve alan kilidi
+  kayıtları korunur, ilgili aktörler nil UUID olur; ilgili nullable metinler NULL,
+  NOT NULL evidence `[silinen hesap: metin kaldırıldı]` olur. Regex ile metin temizlenmez.
+- V171 migration'ı veri silmez/anonimleştirmez; yalnız özel transaction bağlam tablosu,
+  dar audit istisnası ve `erase_game_account_data(uuid)` fonksiyonunu tanımlar.
+  Veri temizliği yalnız yetkili iç endpoint çağrıldığında tek transaction'da yapılır.
+  Normal audit UPDATE/DELETE yasak kalır. PUBLIC'a fonksiyon veya bağlam DML yetkisi verilmez.
+- Başkasının grant'ında revoked_by NULL yapılınca mevcut revoked_at CHECK'i bozulur;
+  revoke edilmiş satırda nil UUID kullanılır ve revoked_at korunur. Uygun nullable
+  editör/moderatör alanları NULL yapılır; başkasının içeriği silinmez.
+- Game ancak temizleme ve son REF kontrolü tamamlanınca `204` döner. Geçici kilit/süre
+  hatası veya eksik temizlikte `503 ACCOUNT_ERASURE_PENDING` ile Auth yeniden dener.
+  Library/Review henüz kişisel veri tablosu taşımadığı için kendi güvenli uçlarında `204` döner.
+- Bu çalışma gerçek DEV'e migration/deploy uygulamadı. Tarihsel şema eşdeğerliği testleri
+  V40 sınırında tutulur; V171 yükseltmesi ve veri güvenliği ayrı PostgreSQL testleriyle doğrulanır.
+- Tablo ilişkileri, kısıtlar ve karar bekleyen öneriler:
+  [Game Auth entegrasyon belgesi §13](../../docs-Game%20Service/LTZ-HAM-GAME-04-Auth-Entegrasyonu.md#13-hesap-silme-veri-envanteri-ve-karar-raporu--2026-10-24).
 
 ### Game Service başlangıç zinciri ve yeniden numaralandırma kararı — 2026-10-21
 

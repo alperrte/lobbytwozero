@@ -51,7 +51,10 @@ final class MigrationTransferSupport {
     }
 
     static Flyway flyway(DataSource source, String location) {
-        return Flyway.configure().dataSource(source).locations(location).load();
+        var configuration = Flyway.configure().dataSource(source).locations(location);
+        // Tarihsel V31–V40 yeniden numaralandırma/taşıma provası bu sınırda kalır.
+        if (CURRENT.equals(location)) configuration.target("40");
+        return configuration.load();
     }
 
     static void populate(DataSource source) {
