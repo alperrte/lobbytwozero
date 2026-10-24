@@ -1,6 +1,6 @@
 # LTZ — API Kataloğu
 
-> Son güncelleme: 2026-10-21
+> Son güncelleme: 2026-10-22
 > Bu dosya projedeki **tüm API'lerin tek kaydıdır**. Bir endpoint planlandığında, eklendiğinde, değiştiğinde veya kaldırıldığında, aynı değişiklikte buraya kendi servisinin başlığı altında yazılır.
 > İlgili belgeler: [architecture.md](architecture.md) (gateway ve servisler arası iletişim), [SECURITY.md](SECURITY.md) (yetkilendirme, ProblemDetail), [web-rules.md](web-rules.md) (frontend tüketimi).
 
@@ -203,10 +203,11 @@ Authenticated. Gönderi sahibi (`authorId`) yalnız doğrulanmış JWT'nin `sub`
 {
   "body": "string, zorunlu, boşluk dışında en az 1 karakter, en çok 5000 karakter, kontrol karakteri içermez (düz metin)",
   "gameId": "UUID, opsiyonel; verilirse LTZ oyun kataloğunda (game-service) doğrulanır",
-  "category": "opsiyonel; GENERAL | GUIDE | QUESTION | SCREENSHOT (varsayılan GENERAL); yalnız büyük harfli ad kabul edilir"
+  "category": "opsiyonel; GENERAL | GUIDE | QUESTION | SCREENSHOT (varsayılan GENERAL); yalnız büyük harfli ad kabul edilir",
+  "forumId": "UUID, opsiyonel (COM-19); verilirse gönderi o forumda konu olarak açılır. Forum VISIBLE olmalıdır. Forum bir oyuna bağlıysa konu o oyuna bağlanır (gameId verilmezse forumun oyunu atanır; farklı bir gameId 422 döner)"
 }
 ```
-Bilinmeyen alanlar (ör. `authorId`) reddedilir (400). `gameId` verilmezse game-service çağrılmaz. Geçersiz `category` (bilinmeyen ad, küçük harf, sayı, boş metin) 400 döner.
+Bilinmeyen alanlar (ör. `authorId`) reddedilir (400). `gameId` verilmezse (ve forumdan miras alınmıyorsa) game-service çağrılmaz. Geçersiz `category` (bilinmeyen ad, küçük harf, sayı, boş metin) 400 döner.
 
 #### Response — 201
 ```json
@@ -214,6 +215,7 @@ Bilinmeyen alanlar (ör. `authorId`) reddedilir (400). `gameId` verilmezse game-
   "id": "UUID",
   "authorId": "UUID",
   "gameId": "UUID | null (bağlı LTZ oyunu)",
+  "forumId": "UUID | null (konunun açıldığı forum)",
   "category": "GENERAL | GUIDE | QUESTION | SCREENSHOT",
   "body": "string (baştaki/sondaki boşluklar kırpılmış)",
   "status": "VISIBLE",
@@ -225,7 +227,8 @@ Bilinmeyen alanlar (ör. `authorId`) reddedilir (400). `gameId` verilmezse game-
 #### Hata Durumları
 - 400: Doğrulama hatası (boş/çok uzun/kontrol karakterli `body`, bilinmeyen alan, bozuk JSON); gövde `violations[]` içinde alan adı ve mesaj döner, girdi değeri döndürülmez
 - 401: Kimlik yok, token geçersiz ya da `sub` UUID değil
-- 422: `gameId` LTZ oyun kataloğunda yok ya da yayında değil (arşivlenmiş/birleştirilmiş)
+- 404: `forumId` verildi ama forum yok ya da gizli
+- 422: `gameId` LTZ oyun kataloğunda yok ya da yayında değil (arşivlenmiş/birleştirilmiş); ya da `gameId`, forumun oyunuyla çelişiyor
 - 503: `gameId` verildi ama game-service doğrulanamadı (zaman aşımı/bağlantı/429/beklenmeyen yanıt); gönderi oyun bağlantısı doğrulanmadan yazılmaz
 - 500: Beklenmeyen sunucu hatası
 
@@ -254,16 +257,17 @@ Public (misafir dahil; kullanıcı kararı). Yalnız `VISIBLE` gönderiler liste
 #### Query Parameters
 - q: string, opsiyonel, **arama** (COM-11): gönderi içeriğinde "içerir" araması; boşluklar kırpılır, boş değer arama yok sayılır, en az 2 en çok 100 karakter, kontrol karakteri içermez. Büyük/küçük harf duyarsızdır (ASCII için kesin; ASCII dışı harflerin büyük/küçük dönüşümü veritabanı locale'ine bağlıdır, dev/test PostgreSQL imajı `C` locale kullandığından örn. büyük `Ç`, küçük `ç` ile eşleşmez). `%` ve `_` gibi LIKE karakterleri düz metin olarak aranır. Arama servis içinde yapılır (`pg_trgm` GIN indeksi); ayrı search-service yoktur.
 - gameId: UUID, opsiyonel, **filtre** (COM-12): yalnız bu LTZ oyununa bağlı gönderiler (`gameId` game-service'te doğrulanmaz; eşleşme yoksa boş sonuç)
+- forumId: UUID, opsiyonel, **filtre** (COM-19): yalnız bu forumun konuları. Gizli (`HIDDEN`) bir forumun konuları hiçbir listede görünmez; eşleşme yoksa boş sonuç
 - category: `GENERAL | GUIDE | QUESTION | SCREENSHOT`, opsiyonel, **filtre**: yalnız büyük harfli ad
 - from: ISO-8601 anı (ör. `2026-10-01T00:00:00Z`), opsiyonel, **filtre**: bu andan itibaren (dahil) oluşturulanlar
 - to: ISO-8601 anı, opsiyonel, **filtre**: bu andan önce (hariç) oluşturulanlar; ikisi birlikte verilirse `from` < `to` olmalıdır
-- sort: `NEWEST` (varsayılan) | `OLDEST` | `POPULAR`, opsiyonel, **sıralama** (COM-13): yalnız büyük harfli ad. `NEWEST`: `createdAt` azalan; `OLDEST`: `createdAt` artan; `POPULAR` (**kısmi**): popülerlik skoru `likeCount + commentCount` azalan, eşitlikte yenilik. Eşitlikte hepsinde `id` ile deterministik sıra. Sayaçlar Faz 3'te (COM-06/07) dolacağından şimdilik `POPULAR` fiilen `NEWEST` gibi davranır.
+- sort: `NEWEST` (varsayılan) | `OLDEST` | `POPULAR`, opsiyonel, **sıralama** (COM-13): yalnız büyük harfli ad. `NEWEST`: `createdAt` azalan; `OLDEST`: `createdAt` artan; `POPULAR`: popülerlik skoru `likeCount + commentCount` azalan, eşitlikte yenilik. Eşitlikte hepsinde `id` ile deterministik sıra. Sayaçlar beğeni (COM-06) ve yorum (COM-07) uçlarıyla güncellenir.
 - limit: int, opsiyonel, varsayılan 20, 1–50
 - cursor: string, opsiyonel, en çok 200 karakter; önceki yanıttaki `nextCursor` (opak, keyset imleci). Sonraki sayfa istenirken aynı `q`, filtreler ve **aynı `sort`** verilmelidir; imleç bunları taşımaz. Başka bir `sort` için üretilmiş imleç 400 döner.
 
 Filtreler ve `q` birlikte (AND) uygulanır.
 
-Yeni gönderiler gelse bile verilmiş bir imleç sayfaları kaydırmaz (keyset sayfalama, COUNT yok). `POPULAR`'da sayfalar arasında bir gönderinin sayaçları değişirse (Faz 3 sonrası) o gönderi sayfa sınırında atlanabilir/tekrarlanabilir; bu, değişken anahtarlı keyset sayfalamanın bilinen sınırıdır.
+Yeni gönderiler gelse bile verilmiş bir imleç sayfaları kaydırmaz (keyset sayfalama, COUNT yok). `POPULAR`'da sayfalar arasında bir gönderinin sayaçları değişirse o gönderi sayfa sınırında atlanabilir/tekrarlanabilir; bu, değişken anahtarlı keyset sayfalamanın bilinen sınırıdır.
 
 #### Response — 200
 ```json
@@ -273,24 +277,27 @@ Yeni gönderiler gelse bile verilmiş bir imleç sayfaları kaydırmaz (keyset s
       "id": "UUID",
       "authorId": "UUID",
       "gameId": "UUID | null",
+      "forumId": "UUID | null (forum konusuysa)",
       "category": "GENERAL | GUIDE | QUESTION | SCREENSHOT",
-      "body": "string",
+      "body": "string | null (repost'ta reposter'ın isteğe bağlı notu; null olabilir)",
       "status": "VISIBLE",
       "createdAt": "ISO-8601 UTC",
       "updatedAt": "ISO-8601 UTC",
       "likeCount": 0,
       "commentCount": 0,
-      "images": [ { "id": "UUID", "postId": "UUID", "mimeType": "image/jpeg | image/png", "sizeBytes": 0, "width": 0, "height": 0, "sortOrder": 0, "contentUrl": "/api/v1/community/posts/{postId}/images/{id}", "createdAt": "ISO-8601 UTC" } ]
+      "likedByMe": "boolean (kimlik yoksa her zaman false)",
+      "images": [ { "id": "UUID", "postId": "UUID", "mimeType": "image/jpeg | image/png", "sizeBytes": 0, "width": 0, "height": 0, "sortOrder": 0, "contentUrl": "/api/v1/community/posts/{postId}/images/{id}", "createdAt": "ISO-8601 UTC" } ],
+      "repostOf": "null | { postId: UUID, available: boolean, authorId: UUID | null, gameId: UUID | null, category, body: string | null, createdAt, images[] } (bkz. 'Repost' kaydı)"
     }
   ],
   "nextCursor": "string | null (son sayfada null)"
 }
 ```
-`likeCount`/`commentCount` etkileşim sayaçlarıdır; beğeni ve yorum özellikleri Faz 3'te (COM-06/07) geldiğinden şimdilik her zaman 0'dır.
+`likeCount`/`commentCount` etkileşim sayaçlarıdır (beğeni ve yorum uçlarıyla atomik güncellenir). `likedByMe`, çağıranın beğenisini gösterir ve sayfa için tek sorguda hesaplanır. Repost öğelerinde `authorId` reposter'dır, orijinal gönderi ve sahibi `repostOf` içinde açık atıf olarak gömülüdür.
 Görsel bilgileri sayfa için tek sorguda gelir (içerik baytı yoktur). Yazar yalnız `authorId` olarak döner; görünen ad/avatar user-service sözleşmesi netleşince eklenir.
 
 #### Hata Durumları
-- 400: `limit` aralık dışı/sayı değil, `cursor` çok uzun/bozuk/başka `sort` için üretilmiş, `q` 1 karakter / 100'den uzun / kontrol karakterli, `gameId` UUID değil, `category` veya `sort` bilinmeyen/küçük harfli, `from`/`to` ISO-8601 değil veya `from` >= `to`
+- 400: `limit` aralık dışı/sayı değil, `cursor` çok uzun/bozuk/başka `sort` için üretilmiş, `q` 1 karakter / 100'den uzun / kontrol karakterli, `gameId` veya `forumId` UUID değil, `category` veya `sort` bilinmeyen/küçük harfli, `from`/`to` ISO-8601 değil veya `from` >= `to`
 - 500: Beklenmeyen sunucu hatası
 
 #### Bağlantı
@@ -301,7 +308,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (MockMvc; gerçek PostgreSQL üzerinde keyset sayfalama, aynı zaman damgası, görünürlük, görsel birleştirme, arama: büyük/küçük harf, LIKE joker kaçırma, SQL enjeksiyonu metni, sayfalama). Gateway ile uçtan uca doğrulama: NOT VERIFIED.
+UNIT + INTEGRATION (MockMvc; gerçek PostgreSQL üzerinde keyset sayfalama, aynı zaman damgası, görünürlük, görsel birleştirme, arama: büyük/küçük harf, LIKE joker kaçırma, SQL enjeksiyonu metni, sayfalama; gerçek beğenilerle `POPULAR` sıralama, `likedByMe`, forum filtresi ve gizli forum konularının akıştan çıkması, repost kaynağı gömme). Gateway ile uçtan uca doğrulama: NOT VERIFIED.
 
 ### COMMUNITY — Kullanıcı Gönderi Geçmişi
 
@@ -319,7 +326,7 @@ Public (misafir dahil). Çağıranın kimliği doğrulanmışsa ve `userId` kend
 - userId: UUID, zorunlu (gönderi sahibi; doğrulama user-service'ten yapılmaz)
 
 #### Query Parameters
-"Gönderi Akışı" ile aynı: `q`, `gameId`, `category`, `from`, `to`, `sort`, `limit`, `cursor` (anlamları ve sınırları aynıdır; arama/filtre/sıralama yalnız bu kullanıcının gönderilerine uygulanır).
+"Gönderi Akışı" ile aynı: `q`, `gameId`, `forumId`, `category`, `from`, `to`, `sort`, `limit`, `cursor` (anlamları ve sınırları aynıdır; arama/filtre/sıralama yalnız bu kullanıcının gönderilerine uygulanır).
 
 #### Response — 200
 "Gönderi Akışı" ile aynı (`items[]` + `nextCursor`). Kendi profilinde `status` alanı `HIDDEN` olan öğeler görülebilir.
@@ -340,7 +347,7 @@ UNIT + INTEGRATION (MockMvc; gerçek PostgreSQL üzerinde sahip/başkası/misafi
 
 ### COMMUNITY — Gönderi Detayı
 
-Durum: IN PROGRESS (kısmi: yorumlar ve etkileşim listeleri Faz 3'te, COM-06/07)
+Durum: IMPLEMENTED
 Sorumlu: Nisa
 Tüketici servisler: Frontend
 
@@ -354,7 +361,7 @@ Public (misafir dahil). Misafir ve diğer kullanıcılar yalnız `VISIBLE` gönd
 - postId: UUID, zorunlu
 
 #### Response — 200
-Akıştaki bir öğe ile aynı alanlar (`PostViewResponse`): `id`, `authorId`, `gameId`, `body`, `status`, `createdAt`, `updatedAt`, `likeCount`, `commentCount`, `images[]`. Gönderinin sahibi, tarihi, içeriği ve görselleri bu uçtan döner. **Henüz yok:** gönderiye ait yorumlar ve beğeni/repost etkileşim ayrıntıları (Faz 3); sayaçlar şimdilik 0'dır. Yazarın görünen adı/avatarı user-service sözleşmesi netleşince eklenir.
+Akıştaki bir öğe ile aynı alanlar (`PostViewResponse`): `id`, `authorId`, `gameId`, `forumId`, `category`, `body`, `status`, `createdAt`, `updatedAt`, `likeCount`, `commentCount`, `likedByMe`, `images[]`, `repostOf`. Gönderinin sahibi, tarihi, içeriği, görselleri ve etkileşim sayaçları bu uçtan döner. Gönderinin yorumları ayrı uçtan okunur (bkz. 'Gönderi Yorumlarını Listele'). Gizli (`HIDDEN`) bir forumun konusu sahibine bile 404 döner. Yazarın görünen adı/avatarı user-service sözleşmesi netleşince eklenir.
 
 #### Hata Durumları
 - 400: UUID olmayan `postId`
@@ -369,7 +376,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (MockMvc; gerçek PostgreSQL üzerinde görünürlük kuralları). Gateway ile uçtan uca doğrulama: NOT VERIFIED.
+UNIT + INTEGRATION (MockMvc; gerçek PostgreSQL üzerinde görünürlük kuralları, `likedByMe`, gizli forum konusu, repost kaynağı). Gateway ile uçtan uca doğrulama: NOT VERIFIED.
 
 ### COMMUNITY — Gönderi Düzenle
 
@@ -401,6 +408,7 @@ Bilinmeyen alanlar (ör. `authorId`) reddedilir (400). İçerik ve kategori değ
   "id": "UUID",
   "authorId": "UUID",
   "gameId": "UUID | null (bağlı LTZ oyunu)",
+  "forumId": "UUID | null",
   "category": "GENERAL | GUIDE | QUESTION | SCREENSHOT",
   "body": "string (baştaki/sondaki boşluklar kırpılmış)",
   "status": "VISIBLE",
@@ -414,7 +422,7 @@ Bilinmeyen alanlar (ör. `authorId`) reddedilir (400). İçerik ve kategori değ
 - 401: Kimlik yok ya da token geçersiz
 - 403: Gönderi başkasına ait
 - 404: Gönderi yok, silinmiş ya da çağıran için görünmez
-- 409: Gönderi sahibi için düzenlenemez durumda (ör. HIDDEN) ya da eşzamanlı değişiklik (optimistic lock)
+- 409: Gönderi sahibi için düzenlenemez durumda (ör. HIDDEN; **repost düzenlenemez**, yalnız silinebilir) ya da eşzamanlı değişiklik (optimistic lock)
 - 500: Beklenmeyen sunucu hatası
 
 #### Bağlantı
@@ -457,8 +465,8 @@ Güncel gönderi (`PostResponse`, "Gönderi Oluştur" ile aynı alanlar). Aynı 
 - 401: Kimlik yok ya da token geçersiz
 - 403: Gönderi başkasına ait
 - 404: Gönderi yok, silinmiş ya da çağıran için görünmez
-- 409: Gönderi düzenlenemez durumda (ör. HIDDEN) ya da eşzamanlı değişiklik
-- 422: `gameId` katalogda yok ya da yayında değil
+- 409: Gönderi düzenlenemez durumda (ör. HIDDEN, repost) ya da eşzamanlı değişiklik
+- 422: `gameId` katalogda yok ya da yayında değil; ya da gönderi oyuna bağlı bir forumun konusu ve `gameId` forumun oyunundan farklı (konunun oyun bağlantısı forumunkine eşit kalır)
 - 503: game-service doğrulanamadı
 - 500: Beklenmeyen sunucu hatası
 
@@ -495,7 +503,8 @@ Gövde yok.
 - 401: Kimlik yok ya da token geçersiz
 - 403: Gönderi başkasına ait
 - 404: Gönderi yok, silinmiş ya da çağıran için görünmez
-- 409: Gönderi düzenlenemez durumda (ör. HIDDEN) ya da eşzamanlı değişiklik
+- 409: Gönderi düzenlenemez durumda (ör. HIDDEN, repost) ya da eşzamanlı değişiklik
+- 422: Gönderi oyuna bağlı bir forumun konusu; oyun bağlantısı kaldırılamaz
 - 500: Beklenmeyen sunucu hatası
 
 #### Bağlantı
@@ -554,7 +563,7 @@ Tüketici servisler: Frontend
 POST /api/v1/community/posts/{postId}/images
 
 #### Yetkilendirme
-Owner. Yalnız gönderi sahibi, yalnız VISIBLE gönderiye görsel ekleyebilir. Sahiplik/görünürlük kuralları "Gönderi Düzenle" ile aynıdır (silinmiş → 404; başkasının VISIBLE gönderisi → 403; başkasının VISIBLE dışı gönderisi → 404; sahibi için VISIBLE dışı → 409).
+Owner. Yalnız gönderi sahibi, yalnız VISIBLE gönderiye görsel ekleyebilir. Sahiplik/görünürlük kuralları "Gönderi Düzenle" ile aynıdır (silinmiş → 404; başkasının VISIBLE gönderisi → 403; başkasının VISIBLE dışı gönderisi → 404; sahibi için VISIBLE dışı → 409). **Repost'a görsel eklenemez** (409): içerik orijinale aittir.
 
 #### Path Parameters
 - postId: UUID, zorunlu
@@ -672,6 +681,544 @@ Diğer mikroservisler:
 
 #### Test Durumu
 UNIT + INTEGRATION (MockMvc, servis birim testleri). Gateway ve auth-service ile uçtan uca doğrulama: NOT VERIFIED.
+
+### COMMUNITY — Gönderiyi Beğen
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+PUT /api/v1/community/posts/{postId}/like
+
+#### Yetkilendirme
+Authenticated. Beğenen kullanıcı yalnız doğrulanmış JWT'nin `sub` claim'inden alınır. Yalnız herkese açık (`VISIBLE`, forumu görünür) gönderi beğenilebilir; silinmiş, gizlenmiş ve gizli forumdaki gönderi (sahibi dahil) 404 döner. Kendi gönderini beğenmek serbesttir. Oran sınırı NOT IMPLEMENTED.
+
+#### Path Parameters
+- postId: UUID, zorunlu
+
+#### Response — 200
+```json
+{
+  "postId": "UUID",
+  "liked": true,
+  "likeCount": 0
+}
+```
+İşlem **idempotent**tir: aynı kullanıcı aynı gönderiyi tekrar beğenirse mükerrer kayıt oluşmaz ve sayaç artmaz (`post_likes` PK `(post_id, user_id)` + `on conflict do nothing`). `likeCount`, beğeni satırı ekleme ile aynı transaction'da atomik güncellenir.
+
+#### Hata Durumları
+- 400: UUID olmayan `postId`
+- 401: Kimlik yok ya da token geçersiz
+- 404: Gönderi yok, silinmiş, gizli ya da çağıran için görünmez
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/community/posts/{postId}/like
+
+Diğer mikroservisler:
+- (Bildirim, Faz 4'te notification-service ile planlıdır; şimdi yok.)
+
+#### Test Durumu
+UNIT + INTEGRATION (MockMvc, servis birim testleri, gerçek PostgreSQL: idempotentlik, farklı kullanıcıların toplanması, 12 eşzamanlı kullanıcı ve aynı kullanıcıdan 10 eşzamanlı istek). Gateway ve auth-service ile uçtan uca doğrulama: NOT VERIFIED.
+
+### COMMUNITY — Beğeniyi Geri Al
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+DELETE /api/v1/community/posts/{postId}/like
+
+#### Yetkilendirme
+Authenticated. Yalnız çağıranın kendi beğenisi kaldırılır. Gönderi çağıran için görünür olmalıdır (sahibi kendi gizli gönderisinde dahil); silinmiş ve gizli forumdaki gönderi 404 döner.
+
+#### Path Parameters
+- postId: UUID, zorunlu
+
+#### Response — 200
+"Gönderiyi Beğen" ile aynı gövde (`liked: false`). Beğeni yoksa işlem no-op'tur ve sayaç düşmez; sayaç hiçbir zaman 0'ın altına inmez.
+
+#### Hata Durumları
+- 400: UUID olmayan `postId`
+- 401: Kimlik yok ya da token geçersiz
+- 404: Gönderi yok, silinmiş ya da çağıran için görünmez
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/community/posts/{postId}/like
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (MockMvc, gerçek PostgreSQL). Gateway ve auth-service ile uçtan uca doğrulama: NOT VERIFIED.
+
+### COMMUNITY — Yorum Yaz / Yoruma Yanıt Ver
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/community/posts/{postId}/comments
+
+#### Yetkilendirme
+Authenticated. Yorum sahibi (`authorId`) yalnız JWT `sub` claim'inden alınır. Yalnız herkese açık (`VISIBLE`, forumu görünür) gönderiye yorum yazılabilir; aksi halde 404. Oran sınırı ve aynı içeriğin tekrar gönderimine karşı spam kontrolü NOT IMPLEMENTED.
+
+#### Path Parameters
+- postId: UUID, zorunlu
+
+#### Request Body
+```json
+{
+  "body": "string, zorunlu, boşluk dışında en az 1 karakter, en çok 2000 karakter, kontrol karakteri içermez (düz metin)",
+  "parentCommentId": "UUID, opsiyonel; verilirse yorum bu yoruma yanıttır"
+}
+```
+Yanıt **sınırsız iç içe** olabilir (yanıta yanıt). `parentCommentId`, **aynı gönderide** ve herkese açık (`VISIBLE`) bir yorumu göstermelidir; başka gönderideki, silinmiş, gizli ya da olmayan yorum 404 döner (varlığı sızdırılmaz). Bilinmeyen alanlar (ör. `authorId`) reddedilir (400).
+
+#### Response — 201
+```json
+{
+  "id": "UUID",
+  "postId": "UUID",
+  "authorId": "UUID",
+  "parentCommentId": "UUID | null",
+  "body": "string (baştaki/sondaki boşluklar kırpılmış)",
+  "status": "VISIBLE",
+  "createdAt": "ISO-8601 UTC",
+  "updatedAt": "ISO-8601 UTC",
+  "replyCount": 0
+}
+```
+Gönderinin `commentCount` sayacı (VISIBLE yorum sayısı, yanıtlar dahil) aynı transaction'da atomik artar.
+
+#### Hata Durumları
+- 400: Doğrulama hatası (boş/çok uzun/kontrol karakterli `body`, `parentCommentId` UUID değil, bilinmeyen alan, bozuk JSON), UUID olmayan `postId`
+- 401: Kimlik yok ya da token geçersiz
+- 404: Gönderi yok/silinmiş/gizli ya da `parentCommentId` geçerli bir üst yorum değil
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/community/posts/{postId}/comments
+
+Diğer mikroservisler:
+- (Bildirim, Faz 4'te notification-service ile planlıdır; şimdi yok.)
+
+#### Test Durumu
+UNIT + INTEGRATION (MockMvc, gerçek PostgreSQL: yorum/yanıt, 4 seviye iç içe yanıt, çapraz gönderi yanıtı, 12 eşzamanlı yorumda sayaç doğruluğu). Gateway ve auth-service ile uçtan uca doğrulama: NOT VERIFIED.
+
+### COMMUNITY — Gönderi Yorumlarını Listele
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/community/posts/{postId}/comments
+
+#### Yetkilendirme
+Public (misafir dahil). Gönderiyi görebilen herkes yorumlarını görür: silinmiş gönderi herkes için, gizli gönderi (ve gizli forum konusu) sahibi dışındakiler için 404'tür. Yalnız **üst düzey** yorumlar listelenir; yanıtlar "Yorumun Yanıtlarını Listele" ucundan okunur.
+
+#### Path Parameters
+- postId: UUID, zorunlu
+
+#### Query Parameters
+- limit: int, opsiyonel, varsayılan 20, 1–50
+- cursor: string, opsiyonel, en çok 200 karakter; önceki yanıttaki `nextCursor` (opak, keyset imleci)
+
+#### Response — 200
+```json
+{
+  "items": [
+    {
+      "id": "UUID",
+      "postId": "UUID",
+      "authorId": "UUID | null (silinmiş yorumda null)",
+      "parentCommentId": null,
+      "body": "string | null (silinmiş yorumda null)",
+      "status": "VISIBLE | DELETED",
+      "createdAt": "ISO-8601 UTC",
+      "updatedAt": "ISO-8601 UTC",
+      "replyCount": 0
+    }
+  ],
+  "nextCursor": "string | null (son sayfada null)"
+}
+```
+Sıralama eskiden yeniye (`createdAt`, `id`), keyset sayfalama, COUNT sorgusu yok. `replyCount` doğrudan ve herkese açık yanıt sayısıdır (sayfa için tek sorgu). **Silinmiş** (`DELETED`) yorum yalnız yanıtı olduğu için yer tutucu olarak listelenir (içerik ve yazar yok); yanıtı olmayan silinmiş yorum listelenmez. Moderasyonla gizlenmiş (`HIDDEN`) yorum listelenmez.
+
+#### Hata Durumları
+- 400: `limit` aralık dışı/sayı değil, `cursor` çok uzun/bozuk, UUID olmayan `postId`
+- 404: Gönderi yok, silinmiş ya da çağıran için görünmez
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/community/posts/{postId}/comments
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (MockMvc, gerçek PostgreSQL: sıralama, 3 sayfa boşluksuz/tekrarsız sayfalama, yer tutucu kuralı, gizli gönderi görünürlüğü). Gateway ile uçtan uca doğrulama: NOT VERIFIED.
+
+### COMMUNITY — Yorumun Yanıtlarını Listele
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/community/comments/{commentId}/replies
+
+#### Yetkilendirme
+Public (misafir dahil); yorumun gönderisini görebilen herkes. Gönderi çağıran için görünmezse 404. Moderasyonla gizlenmiş (`HIDDEN`) üst yorumun yanıtları 404'tür; silinmiş üst yorumun yanıtları listelenir (ilişki korunur).
+
+#### Path Parameters
+- commentId: UUID, zorunlu (üst yorum)
+
+#### Query Parameters
+"Gönderi Yorumlarını Listele" ile aynı: `limit`, `cursor`.
+
+#### Response — 200
+"Gönderi Yorumlarını Listele" ile aynı gövde; öğeler üst yorumun **doğrudan** yanıtlarıdır (`parentCommentId` = `commentId`). Daha derin yanıtlar, ilgili yanıtın `replyCount`'u ve kendi `/replies` ucu üzerinden okunur; özyinelemeli sorgu yoktur, bu yüzden iç içe derinlik sorgu maliyetini artırmaz.
+
+#### Hata Durumları
+- 400: `limit` aralık dışı/sayı değil, `cursor` çok uzun/bozuk, UUID olmayan `commentId`
+- 404: Yorum yok ya da gizli; ya da gönderisi çağıran için görünmez
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/community/comments/{commentId}/replies
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (MockMvc, gerçek PostgreSQL: iç içe yanıt zinciri, silinmiş yanıt sayımı, gizli/bilinmeyen yorum). Gateway ile uçtan uca doğrulama: NOT VERIFIED.
+
+### COMMUNITY — Yorumu Düzenle
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+PATCH /api/v1/community/comments/{commentId}
+
+#### Yetkilendirme
+Owner. Yalnız yorumun yazarı (JWT `sub` = `authorId`) düzenleyebilir. Yazarı olmayan kullanıcıya `VISIBLE` yorum 403, `VISIBLE` dışı (silinmiş/gizli) yorum 404 döner.
+
+#### Path Parameters
+- commentId: UUID, zorunlu
+
+#### Request Body
+```json
+{
+  "body": "string, zorunlu, boşluk dışında en az 1 karakter, en çok 2000 karakter, kontrol karakteri içermez (düz metin)"
+}
+```
+Bilinmeyen alanlar reddedilir (400). İçerik değişmediyse `updatedAt` değişmez. Yanıt ilişkisi (`parentCommentId`) ve gönderi değiştirilemez.
+
+#### Response — 200
+"Yorum Yaz" ile aynı gövde (`CommentResponse`; `replyCount` bu uçta 0 döner, güncel sayı liste uçlarındadır).
+
+#### Hata Durumları
+- 400: Doğrulama hatası, bilinmeyen alan, bozuk JSON ya da UUID olmayan `commentId`
+- 401: Kimlik yok ya da token geçersiz
+- 403: Yorum başkasına ait
+- 404: Yorum yok, silinmiş ya da gizli
+- 409: Eşzamanlı değişiklik (optimistic lock)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/community/comments/{commentId}
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (MockMvc, gerçek PostgreSQL: yazar/başkası/silinmiş yorum). Gateway ve auth-service ile uçtan uca doğrulama: NOT VERIFIED.
+
+### COMMUNITY — Yorumu Sil
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+DELETE /api/v1/community/comments/{commentId}
+
+#### Yetkilendirme
+Owner. Yalnız yorumun yazarı silebilir (kurallar "Yorumu Düzenle" ile aynıdır). Silme **soft delete**'tir: `status=DELETED`, `deletedAt` set edilir; satır fiziksel silinmez. Yanıtları olan yorum yer tutucu olarak kalır (içerik ve yazar API'de gösterilmez), yanıt ilişkisi korunur.
+
+#### Path Parameters
+- commentId: UUID, zorunlu
+
+#### Response — 204
+Gövde yok. Gönderinin `commentCount` sayacı aynı transaction'da atomik düşer; aynı yorumun eşzamanlı çifte silinmesinde yalnız biri başarılı olur (diğerleri 404/409), sayaç bir kez düşer.
+
+#### Hata Durumları
+- 400: UUID olmayan `commentId`
+- 401: Kimlik yok ya da token geçersiz
+- 403: Yorum başkasına ait
+- 404: Yorum yok, zaten silinmiş ya da gizli
+- 409: Eşzamanlı değişiklik (optimistic lock)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/community/comments/{commentId}
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (MockMvc, gerçek PostgreSQL: yer tutucu, sayaç, 6 eşzamanlı silme). Gateway ve auth-service ile uçtan uca doğrulama: NOT VERIFIED.
+
+### COMMUNITY — Forum Oluştur
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/community/forums
+
+#### Yetkilendirme
+Admin. Yalnız moderatör (`MODERATOR`) ya da yönetici (`ADMIN`) rolü; rol yalnız doğrulanmış JWT'nin `roles` claim'inden okunur (istemci başlıkları güven kaynağı değildir). **Varsayım:** `roles` claim'i auth-service sözleşmesiyle doğrulanmadı (NOT VERIFIED); auth-service sözleşmesi netleşene kadar decoder fail-closed olduğundan gerçek token'lar şimdilik 401 alır. Rolsüz kimlikli kullanıcı 403 alır.
+
+#### Request Body
+```json
+{
+  "slug": "string, zorunlu, 3–80 karakter, [a-z0-9] ve tekil tire (ör. elden-ring), benzersiz, sonradan değişmez",
+  "title": "string, zorunlu, en çok 120 karakter, kontrol karakteri içermez",
+  "description": "string, opsiyonel, en çok 1000 karakter (boş metin = açıklama yok)",
+  "gameId": "UUID, opsiyonel; verilirse LTZ oyun kataloğunda (game-service) doğrulanır ve sonradan değişmez"
+}
+```
+Bilinmeyen alanlar reddedilir (400).
+
+#### Response — 201
+```json
+{
+  "id": "UUID",
+  "gameId": "UUID | null",
+  "slug": "string",
+  "title": "string",
+  "description": "string | null",
+  "status": "VISIBLE",
+  "createdAt": "ISO-8601 UTC",
+  "updatedAt": "ISO-8601 UTC"
+}
+```
+
+#### Hata Durumları
+- 400: Doğrulama hatası (slug biçimi/uzunluğu, boş/çok uzun başlık, kontrol karakteri, bilinmeyen alan, bozuk JSON)
+- 401: Kimlik yok ya da token geçersiz
+- 403: Moderatör/yönetici rolü yok
+- 409: Bu `slug` ile bir forum zaten var (ön kontrol ve veritabanı UNIQUE kısıtı)
+- 422: `gameId` LTZ oyun kataloğunda yok ya da yayında değil
+- 503: `gameId` verildi ama game-service doğrulanamadı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/community/forums
+
+Diğer mikroservisler:
+`gameId` verildiğinde Game Service'e RestClient ile doğrudan `POST /api/v1/game/games/batch` ("Gönderi Oluştur" kaydına bakın). Çağrı transaction dışında yapılır.
+
+#### Test Durumu
+UNIT + INTEGRATION (MockMvc, servis birim testleri, gerçek PostgreSQL). Çalışan game-service ve auth-service rol claim'i ile uçtan uca doğrulama: NOT VERIFIED.
+
+### COMMUNITY — Forumları Listele
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/community/forums
+
+#### Yetkilendirme
+Public (misafir dahil). Yalnız `VISIBLE` forumlar listelenir (gizli forumu moderatör tek tek okuyabilir).
+
+#### Query Parameters
+- gameId: UUID, opsiyonel, **filtre**: yalnız bu oyunun forumları (game-service'te doğrulanmaz)
+- limit: int, opsiyonel, varsayılan 20, 1–50
+- cursor: string, opsiyonel, en çok 200 karakter; önceki yanıttaki `nextCursor`
+
+#### Response — 200
+```json
+{
+  "items": [ { "id": "UUID", "gameId": "UUID | null", "slug": "string", "title": "string", "description": "string | null", "status": "VISIBLE", "createdAt": "ISO-8601 UTC", "updatedAt": "ISO-8601 UTC" } ],
+  "nextCursor": "string | null (son sayfada null)"
+}
+```
+Sıralama eskiden yeniye, keyset sayfalama. Forumun konuları `GET /api/v1/community/posts?forumId=<id>` ile listelenir.
+
+#### Hata Durumları
+- 400: `limit` aralık dışı/sayı değil, `cursor` çok uzun/bozuk, `gameId` UUID değil
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/community/forums
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (MockMvc, gerçek PostgreSQL: oyun filtresi, sayfalama, gizli forum). Gateway ile uçtan uca doğrulama: NOT VERIFIED.
+
+### COMMUNITY — Forum Detayı
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/community/forums/{forumId}
+
+#### Yetkilendirme
+Public (misafir dahil) `VISIBLE` forum için. Gizli (`HIDDEN`) forum yalnız moderatör/yöneticiye görünür; diğer herkese 404 döner (varlığı sızdırılmaz).
+
+#### Path Parameters
+- forumId: UUID, zorunlu
+
+#### Response — 200
+"Forum Oluştur" yanıtıyla aynı gövde.
+
+#### Hata Durumları
+- 400: UUID olmayan `forumId`
+- 404: Forum yok ya da çağıran için görünmez
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/community/forums/{forumId}
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (MockMvc, gerçek PostgreSQL). Gateway ve auth-service ile uçtan uca doğrulama: NOT VERIFIED.
+
+### COMMUNITY — Forumu Güncelle / Gizle
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+PATCH /api/v1/community/forums/{forumId}
+
+#### Yetkilendirme
+Admin. Yalnız moderatör/yönetici ("Forum Oluştur" kaydındaki rol varsayımı geçerlidir).
+
+#### Path Parameters
+- forumId: UUID, zorunlu
+
+#### Request Body
+```json
+{
+  "title": "string, opsiyonel, boşluk dışında en az 1, en çok 120 karakter",
+  "description": "string, opsiyonel, en çok 1000 karakter (boş metin = açıklamayı kaldır)",
+  "status": "VISIBLE | HIDDEN, opsiyonel"
+}
+```
+Gönderilmeyen alanlar korunur; hiçbir şey değişmezse `updatedAt` değişmez. `slug` ve `gameId` **değiştirilemez** (gönderilirse 400). `HIDDEN`, forumu ve **tüm konularını** akış, arama, profil geçmişi, detay, beğeni, yorum ve repost kaynağından herkes için gizler (konu sahibi dahil); `VISIBLE` hepsini geri getirir. Veri silinmez.
+
+#### Response — 200
+"Forum Oluştur" yanıtıyla aynı gövde.
+
+#### Hata Durumları
+- 400: Doğrulama hatası (boş başlık, bilinmeyen `status`/alan, bozuk JSON), UUID olmayan `forumId`
+- 401: Kimlik yok ya da token geçersiz
+- 403: Moderatör/yönetici rolü yok
+- 404: Forum yok
+- 409: Eşzamanlı değişiklik (optimistic lock)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/community/forums/{forumId}
+
+Diğer mikroservisler:
+- (Moderasyon denetim kaydı admin-service ile Faz 4'te planlıdır; şimdi yok.)
+
+#### Test Durumu
+UNIT + INTEGRATION (MockMvc, gerçek PostgreSQL: gizleme/yeniden açma, konuların akıştan çıkması). auth-service rol claim'i ile uçtan uca doğrulama: NOT VERIFIED.
+
+### COMMUNITY — Gönderiyi Repostla
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/community/posts/{postId}/reposts
+
+#### Yetkilendirme
+Authenticated. Reposter yalnız JWT `sub` claim'inden alınır. Yalnız herkese açık (`VISIBLE`, forumu görünür) gönderi repostlanabilir; silinmiş, gizlenmiş ve gizli forumdaki gönderi (sahibi dahil) 404 döner, böylece erişilemeyen içerik repost üzerinden sızmaz. Hedef bir repost ise kaynak, onun **orijinalidir** (orijinal de açık olmalıdır) ve yeni repost zincir kurmadan doğrudan orijinale bağlanır. Repost'u kaldırmak için repost'un kendisi `DELETE /api/v1/community/posts/{repostId}` ile silinir.
+
+#### Path Parameters
+- postId: UUID, zorunlu
+
+#### Request Body
+```json
+{
+  "comment": "string, opsiyonel, en çok 500 karakter, kontrol karakteri içermez (boş metin = düz repost)"
+}
+```
+Gövde tamamen gönderilmeyebilir (düz repost). Bilinmeyen alanlar reddedilir (400).
+
+#### Response — 201
+Akıştaki bir öğe ile aynı alanlar (`PostViewResponse`); `authorId` reposter'dır, `body` reposter'ın notudur (null olabilir) ve orijinal **açık atıf** olarak gömülüdür:
+```json
+{
+  "id": "UUID (repost'un kendi kimliği)",
+  "authorId": "UUID (reposter)",
+  "body": "string | null",
+  "repostOf": {
+    "postId": "UUID (orijinal gönderi)",
+    "available": true,
+    "authorId": "UUID (orijinal gönderinin sahibi)",
+    "gameId": "UUID | null",
+    "category": "GENERAL | GUIDE | QUESTION | SCREENSHOT",
+    "body": "string (orijinal içerik)",
+    "createdAt": "ISO-8601 UTC",
+    "images": []
+  }
+}
+```
+Repost içeriği **kopyalamaz**; yalnız referans tutar, orijinalin içeriği, sahibi ve zaman damgaları değişmez. Görünürlük her okumada yeniden hesaplanır: orijinal sonradan silinir, gizlenir ya da gizli bir foruma düşerse `repostOf` yalnız `{ "postId": "UUID", "available": false }` olarak döner (sahip, içerik ve görseller yok); orijinal tekrar açılırsa atıf geri gelir. Repost düzenlenemez (`PATCH` 409), görsel/oyun bağlanamaz; yalnız silinebilir ve beğenilip yorumlanabilir.
+
+#### Hata Durumları
+- 400: `comment` çok uzun/kontrol karakterli, bilinmeyen alan, bozuk JSON, UUID olmayan `postId`
+- 401: Kimlik yok ya da token geçersiz
+- 404: Gönderi (ya da repost hedefinin orijinali) yok, silinmiş, gizli ya da çağıran için erişilemez
+- 409: Bu orijinal bu kullanıcı tarafından zaten (silinmemiş bir repost ile) paylaşılmış (veritabanı UNIQUE indeksi `ux_posts_one_repost_per_user` ile de korunur); eşzamanlı değişiklik
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/community/posts/{postId}/reposts
+
+Diğer mikroservisler:
+- (Orijinal sahibine bildirim, Faz 4'te notification-service ile planlıdır; şimdi yok.)
+
+#### Test Durumu
+UNIT + INTEGRATION (MockMvc, gerçek PostgreSQL: atıf, orijinalin değişmemesi, mükerrer repost, zincir, erişilemeyen kaynak, sonradan gizlenen/silinen/gizli forumdaki kaynak, görsel gömme, DB kısıtları). Gateway ve auth-service ile uçtan uca doğrulama: NOT VERIFIED.
 
 ## CONTENT
 

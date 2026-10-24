@@ -11,7 +11,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
- * Deny-by-default: yalnız actuator health/info ve herkese açık gönderi okuma uçları (GET) anonimdir. Kimlik doğrulama Bearer JWT ile yapılır;
+ * Deny-by-default: yalnız actuator health/info ve herkese açık gönderi/yorum okuma uçları (GET) anonimdir. Kimlik doğrulama Bearer JWT ile yapılır;
  * JWT doğrulama anahtarı sözleşmesi (auth-service) netleşene kadar decoder fail-closed çalışır.
  * CSRF koruması varsayılan olarak açıktır; resource server yapılandırması yalnız Bearer başlıklı istekleri muaf tutar
  * (başka bir site bu başlığı CORS izni olmadan ekleyemez). Çerez tabanlı oturuma geçilirse tasarım yeniden değerlendirilmelidir.
@@ -29,7 +29,9 @@ public class SecurityConfig {
 						// Misafir okuması (kullanıcı kararı): akış, detay ve görsel içeriği; servis katmanı yalnız VISIBLE gönderiyi (veya
 						// sahibine kendi gizli gönderisini) verir. Yazma uçları kimlik ister.
 						.requestMatchers(HttpMethod.GET, "/api/v1/community/posts", "/api/v1/community/posts/*",
-								"/api/v1/community/posts/*/images/*", "/api/v1/community/users/*/posts").permitAll()
+								"/api/v1/community/posts/*/images/*", "/api/v1/community/users/*/posts",
+								"/api/v1/community/posts/*/comments", "/api/v1/community/comments/*/replies",
+								"/api/v1/community/forums", "/api/v1/community/forums/*").permitAll()
 						.anyRequest().authenticated())
 				.exceptionHandling(handling -> handling
 						.authenticationEntryPoint(problemDetailHandler)

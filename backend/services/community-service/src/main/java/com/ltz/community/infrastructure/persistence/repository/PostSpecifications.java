@@ -11,12 +11,15 @@ import org.springframework.data.jpa.domain.Specification;
 
 import com.ltz.community.application.port.PostSearchCriteria;
 import com.ltz.community.application.port.PostSearchCriteria.FeedPosition;
+import com.ltz.community.domain.entity.Forum;
 import com.ltz.community.domain.entity.Post;
+import com.ltz.community.domain.enums.ForumStatus;
 import com.ltz.community.domain.enums.PostSort;
 
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 
 /** Gönderi akışı sorgusu; tüm değerler parametre olarak bağlanır, sıralama alanları sabittir (SQL birleştirme yok). */
 public final class PostSpecifications {
@@ -24,6 +27,7 @@ public final class PostSpecifications {
 	private static final char LIKE_ESCAPE = '\\';
 	private static final String CREATED_AT = "createdAt";
 	private static final String POPULARITY_SCORE = "popularityScore";
+	private static final String FORUM_ID = "forumId";
 
 	private PostSpecifications() {
 	}
@@ -32,6 +36,10 @@ public final class PostSpecifications {
 		return (root, query, cb) -> {
 			List<Predicate> predicates = new ArrayList<>();
 			predicates.add(root.get("status").in(criteria.statuses()));
+			predicates.add(inVisibleForumOrNone(root, query.subquery(Integer.class), cb));
+			if (criteria.forumId() != null) {
+				predicates.add(cb.equal(root.<UUID>get(FORUM_ID), criteria.forumId()));
+			}
 			if (criteria.authorId() != null) {
 				predicates.add(cb.equal(root.<UUID>get("authorId"), criteria.authorId()));
 			}
@@ -45,17 +53,32 @@ public final class PostSpecifications {
 			if (criteria.category() != null) {
 				predicates.add(cb.equal(root.get("category"), criteria.category()));
 			}
-			if (criteria.createdFrom() != null) {
-				predicates.add(cb.greaterThanOrEqualTo(root.<Instant>get(CREATED_AT), criteria.createdFrom()));
-			}
-			if (criteria.createdTo() != null) {
-				predicates.add(cb.lessThan(root.<Instant>get(CREATED_AT), criteria.createdTo()));
-			}
+			addCreatedBetween(predicates, root, cb, criteria.createdFrom(), criteria.createdTo());
 			if (criteria.after() != null) {
 				predicates.add(after(cb, root, criteria.sort(), criteria.after()));
 			}
 			return cb.and(predicates.toArray(Predicate[]::new));
 		};
+	}
+
+	/** Oluşturulma zamanı aralığı: {@code from} dahil, {@code to} hariç; null sınır uygulanmaz. */
+	private static void addCreatedBetween(List<Predicate> predicates, Root<Post> root, CriteriaBuilder cb, Instant from,
+			Instant to) {
+		if (from != null) {
+			predicates.add(cb.greaterThanOrEqualTo(root.<Instant>get(CREATED_AT), from));
+		}
+		if (to != null) {
+			predicates.add(cb.lessThan(root.<Instant>get(CREATED_AT), to));
+		}
+	}
+
+	/** Gizli (HIDDEN) bir forumun konuları hiçbir listede görünmez; forum dışı gönderiler etkilenmez. */
+	private static Predicate inVisibleForumOrNone(Root<Post> root, Subquery<Integer> visibleForum, CriteriaBuilder cb) {
+		Root<Forum> forum = visibleForum.from(Forum.class);
+		visibleForum.select(cb.literal(1)).where(
+				cb.equal(forum.get("id"), root.get(FORUM_ID)),
+				cb.equal(forum.get("status"), ForumStatus.VISIBLE));
+		return cb.or(cb.isNull(root.get(FORUM_ID)), cb.exists(visibleForum));
 	}
 
 	/** Sıralamadaki anahtar sırasına göre "bu konumdan sonra" koşulu (keyset). */

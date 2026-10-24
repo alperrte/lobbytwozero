@@ -40,12 +40,21 @@ public class Post {
 	@Column(name = "game_id")
 	private UUID gameId;
 
+	/** Konunun açıldığı forum (COM-19); null ise forum dışı gönderi. Oluşturulduktan sonra değişmez. */
+	@Column(name = "forum_id", updatable = false)
+	private UUID forumId;
+
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 32)
 	private PostCategory category;
 
-	@Column(nullable = false)
+	/** Repost'ta isteğe bağlı kısa yorumdur (null olabilir); repost olmayan gönderide her zaman doludur. */
+	@Column
 	private String body;
+
+	/** Repost ise ORİJİNAL (repost olmayan) gönderinin kimliği; aksi halde null. Oluşturulduktan sonra değişmez. */
+	@Column(name = "repost_of_id", updatable = false)
+	private UUID repostOfId;
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 32)
@@ -60,11 +69,15 @@ public class Post {
 	@Column(name = "deleted_at")
 	private Instant deletedAt;
 
-	/** Beğeni/yorum sayaçları Faz 3'te (COM-06/07) güncellenir; şimdilik her zaman 0'dır. */
-	@Column(name = "like_count", nullable = false)
+	/**
+	 * Beğeni/yorum sayaçları yalnız atomik {@code update ... set x = x + 1} sorgularıyla değişir
+	 * (bkz. {@code PostRepository}); {@code updatable = false} olduğundan gönderi düzenlerken bayat bir değer
+	 * geri yazılıp sayaç ezilmez.
+	 */
+	@Column(name = "like_count", nullable = false, updatable = false)
 	private int likeCount;
 
-	@Column(name = "comment_count", nullable = false)
+	@Column(name = "comment_count", nullable = false, updatable = false)
 	private int commentCount;
 
 	/** Veritabanı tarafından hesaplanır ({@code like_count + comment_count}); popülerlik sıralaması için. */
@@ -85,7 +98,14 @@ public class Post {
 
 	/** {@code category} verilmezse {@link PostCategory#GENERAL} atanır. */
 	public static Post publish(UUID authorId, String body, UUID gameId, PostCategory category, Instant now) {
+		return publishInForum(authorId, null, body, gameId, category, now);
+	}
+
+	/** Forum konusu olarak yayımlar; {@code forumId} görünür bir forumu göstermelidir (servis doğrular). */
+	public static Post publishInForum(UUID authorId, UUID forumId, String body, UUID gameId, PostCategory category,
+			Instant now) {
 		Post post = new Post();
+		post.forumId = forumId;
 		post.authorId = authorId;
 		post.body = body;
 		post.gameId = gameId;
@@ -94,6 +114,27 @@ public class Post {
 		post.createdAt = now;
 		post.updatedAt = now;
 		return post;
+	}
+
+	/**
+	 * Orijinal gönderiyi kaynağa atıfla yeniden paylaşır. İçerik kopyalanmaz, yalnız {@code originalId} saklanır;
+	 * {@code comment} (null olabilir) reposter'ın kısa notudur. {@code originalId} repost olmayan gönderiyi göstermelidir
+	 * (servis doğrular).
+	 */
+	public static Post repost(UUID reposterId, UUID originalId, String comment, Instant now) {
+		Post post = new Post();
+		post.authorId = reposterId;
+		post.repostOfId = originalId;
+		post.body = comment;
+		post.category = PostCategory.GENERAL;
+		post.status = PostStatus.VISIBLE;
+		post.createdAt = now;
+		post.updatedAt = now;
+		return post;
+	}
+
+	public boolean isRepost() {
+		return repostOfId != null;
 	}
 
 	public boolean isOwnedBy(UUID userId) {
@@ -135,7 +176,7 @@ public class Post {
 	}
 
 	public void editBody(String newBody, Instant now) {
-		if (body.equals(newBody)) {
+		if (newBody.equals(body)) {
 			return;
 		}
 		this.body = newBody;

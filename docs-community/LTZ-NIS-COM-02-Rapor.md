@@ -1,19 +1,19 @@
 # LTZ-NIS-COM-02 — Topluluk Akışı, Arama ve Profil Geçmişi
 
 Servis: `community-service` · Sorumlu: Nisa · Branch: `feature/community-service` · Faz: Faz 2
-Durum: **FAZ 2 TAMAMLANDI — onay bekliyor (4 tam + 2 kısmi / 6)** · Faz 1 commit'i: `3837c47`
+Durum: **FAZ 2 TAMAMLANDI (6 / 6; COM-05 ve COM-13 Faz 3'te kapatıldı)** · Faz 1 commit'i: `3837c47`
 
-Nihai faz raporu. Faz 3 kullanıcı onayı olmadan başlatılmaz.
+Nihai faz raporu. Faz 3 sonrası güncellendi.
 
 ## Task durumu
 
 | Task | Durum |
 | --- | --- |
 | COM-04 — Gönderi listeleme | Tamamlandı |
-| COM-05 — Gönderi detayları | **Kısmi** (yorum/etkileşim Faz 3) |
+| COM-05 — Gönderi detayları | Tamamlandı (yorum/etkileşim Faz 3'te kapandı; bkz. COM-03 raporu) |
 | COM-11 — Gönderi arama | Tamamlandı |
 | COM-12 — Gönderi filtreleme | Tamamlandı |
-| COM-13 — Gönderi sıralama | **Kısmi** (popülerlik sayaçları Faz 3) |
+| COM-13 — Gönderi sıralama | Tamamlandı (`POPULAR` Faz 3'te gerçek beğeni/yorum sayaçlarıyla çalışıyor) |
 | COM-15 — Kullanıcı gönderi geçmişi | Tamamlandı |
 
 ## Alınan kararlar (kullanıcı onaylı)

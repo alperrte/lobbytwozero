@@ -55,6 +55,46 @@ class SecurityContextCurrentUserTest {
 		assertThat(currentUser.requireUserId()).isEqualTo(id);
 	}
 
+	private static JwtAuthenticationToken tokenWithRoles(Object rolesClaim) {
+		Jwt.Builder builder = Jwt.withTokenValue("t").header("alg", "none").subject(UUID.randomUUID().toString())
+				.issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(60));
+		if (rolesClaim != null) {
+			builder.claim("roles", rolesClaim);
+		}
+		return new JwtAuthenticationToken(builder.build(), List.of());
+	}
+
+	@Test
+	void moderatorRoleComesOnlyFromTheRolesClaimOfAVerifiedJwt() {
+		SecurityContextHolder.getContext().setAuthentication(tokenWithRoles(List.of("USER", "MODERATOR")));
+		assertThat(currentUser.hasModeratorRole()).isTrue();
+
+		SecurityContextHolder.getContext().setAuthentication(tokenWithRoles(List.of("ADMIN")));
+		assertThat(currentUser.hasModeratorRole()).isTrue();
+	}
+
+	@Test
+	void ordinaryMissingOrMalformedRolesAreNotModerator() {
+		SecurityContextHolder.getContext().setAuthentication(tokenWithRoles(List.of("USER")));
+		assertThat(currentUser.hasModeratorRole()).isFalse();
+
+		SecurityContextHolder.getContext().setAuthentication(tokenWithRoles(null));
+		assertThat(currentUser.hasModeratorRole()).isFalse();
+
+		// Küçük harf ya da ROLE_ önekli değerler rol sayılmaz (tam eşleşme, fail-closed).
+		SecurityContextHolder.getContext().setAuthentication(tokenWithRoles(List.of("admin", "ROLE_ADMIN")));
+		assertThat(currentUser.hasModeratorRole()).isFalse();
+	}
+
+	@Test
+	void guestsAndAnonymousAuthenticationAreNeverModerators() {
+		assertThat(currentUser.hasModeratorRole()).isFalse();
+
+		SecurityContextHolder.getContext().setAuthentication(new AnonymousAuthenticationToken("key", "anonymous",
+				AuthorityUtils.createAuthorityList("ROLE_ADMIN")));
+		assertThat(currentUser.hasModeratorRole()).isFalse();
+	}
+
 	@Test
 	void jwtWithNonUuidSubjectIsRejected() {
 		SecurityContextHolder.getContext().setAuthentication(tokenFor("not-a-uuid"));

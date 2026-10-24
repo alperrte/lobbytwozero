@@ -17,11 +17,18 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+import com.ltz.community.domain.exception.AlreadyRepostedException;
 import com.ltz.community.domain.exception.AuthenticationRequiredException;
+import com.ltz.community.domain.exception.CommentAccessDeniedException;
+import com.ltz.community.domain.exception.CommentNotFoundException;
+import com.ltz.community.domain.exception.ForumGameMismatchException;
+import com.ltz.community.domain.exception.ForumNotFoundException;
+import com.ltz.community.domain.exception.ForumSlugTakenException;
 import com.ltz.community.domain.exception.GameCatalogUnavailableException;
 import com.ltz.community.domain.exception.GameNotAvailableException;
 import com.ltz.community.domain.exception.InvalidImageException;
 import com.ltz.community.domain.exception.InvalidPostQueryException;
+import com.ltz.community.domain.exception.ModeratorRequiredException;
 import com.ltz.community.domain.exception.PostAccessDeniedException;
 import com.ltz.community.domain.exception.PostImageLimitExceededException;
 import com.ltz.community.domain.exception.PostImageNotFoundException;
@@ -54,6 +61,41 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	@ExceptionHandler(PostNotFoundException.class)
 	public ProblemDetail handlePostNotFound(PostNotFoundException exception) {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+	}
+
+	@ExceptionHandler(CommentNotFoundException.class)
+	public ProblemDetail handleCommentNotFound(CommentNotFoundException exception) {
+		return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+	}
+
+	@ExceptionHandler(CommentAccessDeniedException.class)
+	public ProblemDetail handleCommentAccessDenied(CommentAccessDeniedException exception) {
+		return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, exception.getMessage());
+	}
+
+	@ExceptionHandler(AlreadyRepostedException.class)
+	public ProblemDetail handleAlreadyReposted(AlreadyRepostedException exception) {
+		return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
+	}
+
+	@ExceptionHandler(ForumNotFoundException.class)
+	public ProblemDetail handleForumNotFound(ForumNotFoundException exception) {
+		return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+	}
+
+	@ExceptionHandler(ForumSlugTakenException.class)
+	public ProblemDetail handleForumSlugTaken(ForumSlugTakenException exception) {
+		return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
+	}
+
+	@ExceptionHandler(ForumGameMismatchException.class)
+	public ProblemDetail handleForumGameMismatch(ForumGameMismatchException exception) {
+		return ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, exception.getMessage());
+	}
+
+	@ExceptionHandler(ModeratorRequiredException.class)
+	public ProblemDetail handleModeratorRequired(ModeratorRequiredException exception) {
+		return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, exception.getMessage());
 	}
 
 	@ExceptionHandler(PostAccessDeniedException.class)

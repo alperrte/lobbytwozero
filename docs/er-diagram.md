@@ -515,15 +515,20 @@ erDiagram
     uuid id PK
     uuid game_id "REF"
     varchar slug UK
+    varchar title
+    varchar status "VISIBLE|HIDDEN"
   }
   posts {
     uuid id PK
     uuid author_id "REF"
     uuid forum_id FK
     uuid game_id "REF"
-    uuid repost_of_id FK
+    uuid repost_of_id FK "orijinal gonderi"
+    text body "repost'ta null olabilir"
+    varchar category
     varchar status
     int like_count
+    int comment_count
   }
   post_images {
     uuid id PK
@@ -535,13 +540,15 @@ erDiagram
   post_likes {
     uuid post_id PK,FK
     uuid user_id PK "REF"
+    timestamptz created_at
   }
   comments {
     uuid id PK
     uuid post_id FK
     uuid parent_comment_id FK
     uuid author_id "REF"
-    varchar status
+    text body
+    varchar status "VISIBLE|HIDDEN|DELETED"
   }
   community_reports {
     uuid id PK

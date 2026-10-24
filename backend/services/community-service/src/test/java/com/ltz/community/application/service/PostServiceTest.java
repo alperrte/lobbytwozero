@@ -39,6 +39,7 @@ import com.ltz.community.domain.exception.GameNotAvailableException;
 import com.ltz.community.domain.exception.PostAccessDeniedException;
 import com.ltz.community.domain.exception.PostNotEditableException;
 import com.ltz.community.domain.exception.PostNotFoundException;
+import com.ltz.community.infrastructure.persistence.repository.ForumRepository;
 import com.ltz.community.infrastructure.persistence.repository.PostImageRepository;
 import com.ltz.community.infrastructure.persistence.repository.PostRepository;
 
@@ -57,6 +58,9 @@ class PostServiceTest {
 	private PostImageRepository postImageRepository;
 
 	@Mock
+	private ForumRepository forumRepository;
+
+	@Mock
 	private CurrentUserPort currentUser;
 
 	@Mock
@@ -66,8 +70,8 @@ class PostServiceTest {
 
 	@BeforeEach
 	void setUp() {
-		postService = new PostService(postRepository, postImageRepository, new PostAccess(postRepository),
-				new PostMapper(), currentUser, gameCatalog, Clock.fixed(NOW, ZoneOffset.UTC));
+		postService = new PostService(postRepository, postImageRepository, forumRepository,
+				new PostAccess(postRepository, forumRepository), new PostMapper(), currentUser, gameCatalog, Clock.fixed(NOW, ZoneOffset.UTC));
 	}
 
 	private Post existingPost(UUID authorId, PostStatus status) {
@@ -83,7 +87,7 @@ class PostServiceTest {
 		when(currentUser.requireUserId()).thenReturn(userId);
 		when(postRepository.save(any(Post.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-		PostResponse response = postService.createPost(new CreatePostRequest("  Merhaba LTZ  ", null, null));
+		PostResponse response = postService.createPost(new CreatePostRequest("  Merhaba LTZ  ", null, null, null));
 
 		ArgumentCaptor<Post> saved = ArgumentCaptor.forClass(Post.class);
 		verify(postRepository).save(saved.capture());
@@ -101,8 +105,8 @@ class PostServiceTest {
 		when(currentUser.requireUserId()).thenReturn(UUID.randomUUID());
 		when(postRepository.save(any(Post.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-		PostResponse withCategory = postService.createPost(new CreatePostRequest("Rehber", null, PostCategory.GUIDE));
-		PostResponse withoutCategory = postService.createPost(new CreatePostRequest("Düz", null, null));
+		PostResponse withCategory = postService.createPost(new CreatePostRequest("Rehber", null, PostCategory.GUIDE, null));
+		PostResponse withoutCategory = postService.createPost(new CreatePostRequest("Düz", null, null, null));
 
 		assertThat(withCategory.category()).isEqualTo(PostCategory.GUIDE);
 		assertThat(withoutCategory.category()).isEqualTo(PostCategory.GENERAL);
@@ -130,7 +134,7 @@ class PostServiceTest {
 		when(currentUser.requireUserId()).thenReturn(UUID.randomUUID());
 		when(postRepository.save(any(Post.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-		PostResponse response = postService.createPost(new CreatePostRequest("Merhaba", null, null));
+		PostResponse response = postService.createPost(new CreatePostRequest("Merhaba", null, null, null));
 
 		assertThat(response.gameId()).isNull();
 		verifyNoInteractions(gameCatalog);
@@ -142,7 +146,7 @@ class PostServiceTest {
 		when(gameCatalog.isAvailable(GAME_ID)).thenReturn(true);
 		when(postRepository.save(any(Post.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-		PostResponse response = postService.createPost(new CreatePostRequest("Merhaba", GAME_ID, null));
+		PostResponse response = postService.createPost(new CreatePostRequest("Merhaba", GAME_ID, null, null));
 
 		assertThat(response.gameId()).isEqualTo(GAME_ID);
 	}
@@ -152,7 +156,7 @@ class PostServiceTest {
 		when(currentUser.requireUserId()).thenReturn(UUID.randomUUID());
 		when(gameCatalog.isAvailable(GAME_ID)).thenReturn(false);
 
-		CreatePostRequest request = new CreatePostRequest("Merhaba", GAME_ID, null);
+		CreatePostRequest request = new CreatePostRequest("Merhaba", GAME_ID, null, null);
 
 		assertThatThrownBy(() -> postService.createPost(request))
 				.isInstanceOf(GameNotAvailableException.class);
@@ -165,7 +169,7 @@ class PostServiceTest {
 		when(currentUser.requireUserId()).thenReturn(UUID.randomUUID());
 		when(gameCatalog.isAvailable(GAME_ID)).thenThrow(new GameCatalogUnavailableException(new IOException("down")));
 
-		CreatePostRequest request = new CreatePostRequest("Merhaba", GAME_ID, null);
+		CreatePostRequest request = new CreatePostRequest("Merhaba", GAME_ID, null, null);
 
 		assertThatThrownBy(() -> postService.createPost(request))
 				.isInstanceOf(GameCatalogUnavailableException.class);
@@ -280,7 +284,7 @@ class PostServiceTest {
 	void createPostFailsWithoutAuthenticatedUserAndStoresNothing() {
 		when(currentUser.requireUserId()).thenThrow(new AuthenticationRequiredException("Authentication is required."));
 
-		CreatePostRequest request = new CreatePostRequest("Merhaba", null, null);
+		CreatePostRequest request = new CreatePostRequest("Merhaba", null, null, null);
 
 		assertThatThrownBy(() -> postService.createPost(request))
 				.isInstanceOf(AuthenticationRequiredException.class);

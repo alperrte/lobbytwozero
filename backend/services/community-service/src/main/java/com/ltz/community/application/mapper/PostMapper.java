@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import com.ltz.community.api.dto.response.PostImageResponse;
 import com.ltz.community.api.dto.response.PostResponse;
 import com.ltz.community.api.dto.response.PostViewResponse;
+import com.ltz.community.api.dto.response.RepostSourceResponse;
 import com.ltz.community.domain.entity.Post;
 import com.ltz.community.domain.entity.PostImage;
 import com.ltz.community.infrastructure.persistence.repository.PostImageMeta;
@@ -20,6 +21,7 @@ public class PostMapper {
 				post.getId(),
 				post.getAuthorId(),
 				post.getGameId(),
+				post.getForumId(),
 				post.getCategory(),
 				post.getBody(),
 				post.getStatus(),
@@ -40,11 +42,13 @@ public class PostMapper {
 				image.getCreatedAt());
 	}
 
-	public PostViewResponse toView(Post post, List<PostImageMeta> images) {
+	public PostViewResponse toView(Post post, List<PostImageMeta> images, boolean likedByMe,
+			RepostSourceResponse repostOf) {
 		return new PostViewResponse(
 				post.getId(),
 				post.getAuthorId(),
 				post.getGameId(),
+				post.getForumId(),
 				post.getCategory(),
 				post.getBody(),
 				post.getStatus(),
@@ -52,6 +56,21 @@ public class PostMapper {
 				post.getUpdatedAt(),
 				post.getLikeCount(),
 				post.getCommentCount(),
+				likedByMe,
+				images.stream().map(this::toResponse).toList(),
+				repostOf);
+	}
+
+	/** Orijinal gönderi erişilebilirse sahibi ve içeriğiyle, değilse içeriksiz iskelet olarak. */
+	public RepostSourceResponse toSource(Post original, List<PostImageMeta> images) {
+		return new RepostSourceResponse(
+				original.getId(),
+				true,
+				original.getAuthorId(),
+				original.getGameId(),
+				original.getCategory(),
+				original.getBody(),
+				original.getCreatedAt(),
 				images.stream().map(this::toResponse).toList());
 	}
 

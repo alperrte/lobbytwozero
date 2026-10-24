@@ -10,6 +10,7 @@ public record PostResponse(
 		UUID id,
 		UUID authorId,
 		UUID gameId,
+		UUID forumId,
 		PostCategory category,
 		String body,
 		PostStatus status,

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.time.Clock;
@@ -37,6 +38,7 @@ import com.ltz.community.domain.exception.PostImageLimitExceededException;
 import com.ltz.community.domain.exception.PostImageNotFoundException;
 import com.ltz.community.domain.exception.PostNotEditableException;
 import com.ltz.community.domain.exception.PostNotFoundException;
+import com.ltz.community.infrastructure.persistence.repository.ForumRepository;
 import com.ltz.community.infrastructure.persistence.repository.PostImageRepository;
 import com.ltz.community.infrastructure.persistence.repository.PostRepository;
 
@@ -56,6 +58,9 @@ class PostImageServiceTest {
 	private PostImageRepository postImageRepository;
 
 	@Mock
+	private ForumRepository forumRepository;
+
+	@Mock
 	private ImageSanitizer imageSanitizer;
 
 	@Mock
@@ -65,7 +70,7 @@ class PostImageServiceTest {
 
 	@BeforeEach
 	void setUp() {
-		service = new PostImageService(postImageRepository, new PostAccess(postRepository), imageSanitizer,
+		service = new PostImageService(postImageRepository, new PostAccess(postRepository, forumRepository), imageSanitizer,
 				new PostMapper(), currentUser, Clock.fixed(NOW, ZoneOffset.UTC));
 	}
 
@@ -143,6 +148,18 @@ class PostImageServiceTest {
 		assertThatThrownBy(() -> service.addImage(POST_ID, UPLOAD)).isInstanceOf(InvalidImageException.class);
 
 		verify(postImageRepository, never()).save(any());
+	}
+
+	@Test
+	void imagesCannotBeAddedToARepost() {
+		UUID owner = UUID.randomUUID();
+		Post repost = Post.repost(owner, UUID.randomUUID(), null, NOW);
+		ReflectionTestUtils.setField(repost, "id", POST_ID);
+		when(currentUser.requireUserId()).thenReturn(owner);
+		when(postRepository.findByIdForUpdate(POST_ID)).thenReturn(Optional.of(repost));
+
+		assertThatThrownBy(() -> service.addImage(POST_ID, UPLOAD)).isInstanceOf(PostNotEditableException.class);
+		verifyNoInteractions(imageSanitizer);
 	}
 
 	@Test

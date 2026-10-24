@@ -1,10 +1,8 @@
 package com.ltz.community.application.service;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,7 +10,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.ltz.community.api.dto.request.PostFeedRequest;
 import com.ltz.community.api.dto.response.PostPageResponse;
 import com.ltz.community.api.dto.response.PostViewResponse;
-import com.ltz.community.application.mapper.PostMapper;
 import com.ltz.community.application.port.CurrentUserPort;
 import com.ltz.community.application.port.PostSearchCriteria;
 import com.ltz.community.application.port.PostSearchCriteria.FeedPosition;
@@ -20,8 +17,6 @@ import com.ltz.community.domain.entity.Post;
 import com.ltz.community.domain.enums.PostSort;
 import com.ltz.community.domain.enums.PostStatus;
 import com.ltz.community.domain.exception.InvalidPostQueryException;
-import com.ltz.community.infrastructure.persistence.repository.PostImageMeta;
-import com.ltz.community.infrastructure.persistence.repository.PostImageRepository;
 import com.ltz.community.infrastructure.persistence.repository.PostRepository;
 import com.ltz.community.infrastructure.persistence.repository.PostSpecifications;
 
@@ -33,17 +28,15 @@ public class PostFeedService {
 	static final int MIN_SEARCH_LENGTH = 2;
 
 	private final PostRepository postRepository;
-	private final PostImageRepository postImageRepository;
 	private final PostAccess postAccess;
-	private final PostMapper postMapper;
+	private final PostViewAssembler viewAssembler;
 	private final CurrentUserPort currentUser;
 
-	public PostFeedService(PostRepository postRepository, PostImageRepository postImageRepository,
-			PostAccess postAccess, PostMapper postMapper, CurrentUserPort currentUser) {
+	public PostFeedService(PostRepository postRepository, PostAccess postAccess, PostViewAssembler viewAssembler,
+			CurrentUserPort currentUser) {
 		this.postRepository = postRepository;
-		this.postImageRepository = postImageRepository;
 		this.postAccess = postAccess;
-		this.postMapper = postMapper;
+		this.viewAssembler = viewAssembler;
 		this.currentUser = currentUser;
 	}
 
@@ -74,7 +67,7 @@ public class PostFeedService {
 			throw new InvalidPostQueryException("The 'from' date must be before the 'to' date.");
 		}
 		return new PostSearchCriteria(statuses, authorId, searchText(request.q()), request.gameId(),
-				request.category(), request.from(), request.to(), sort, after, limit);
+				request.forumId(), request.category(), request.from(), request.to(), sort, after, limit);
 	}
 
 	/** Boşluklar kırpılır; boş metin "arama yok" sayılır, tek karakterlik arama reddedilir (gürültü ve taramayı sınırlar). */
@@ -95,8 +88,9 @@ public class PostFeedService {
 	 */
 	@Transactional(readOnly = true)
 	public PostViewResponse getPost(UUID postId) {
-		Post post = postAccess.loadViewable(postId, currentUser.findUserId().orElse(null));
-		return postMapper.toView(post, postImageRepository.findByPostIdInOrderBySortOrderAsc(List.of(postId)));
+		UUID viewerId = currentUser.findUserId().orElse(null);
+		Post post = postAccess.loadViewable(postId, viewerId);
+		return viewAssembler.assemble(List.of(post), viewerId).getFirst();
 	}
 
 	private PostPageResponse page(PostSearchCriteria criteria) {
@@ -106,14 +100,7 @@ public class PostFeedService {
 		boolean hasMore = rows.size() > criteria.limit();
 		List<Post> posts = hasMore ? rows.subList(0, criteria.limit()) : rows;
 
-		// Sayfadaki tüm gönderilerin görselleri tek sorguda gelir (gönderi başına sorgu yok).
-		Map<UUID, List<PostImageMeta>> imagesByPost = posts.isEmpty() ? Map.of()
-				: postImageRepository.findByPostIdInOrderBySortOrderAsc(posts.stream().map(Post::getId).toList())
-						.stream().collect(Collectors.groupingBy(PostImageMeta::getPostId));
-
-		List<PostViewResponse> items = posts.stream()
-				.map(post -> postMapper.toView(post, imagesByPost.getOrDefault(post.getId(), List.of())))
-				.toList();
+		List<PostViewResponse> items = viewAssembler.assemble(posts, currentUser.findUserId().orElse(null));
 		Post last = posts.isEmpty() ? null : posts.getLast();
 		String nextCursor = hasMore
 				? PostCursor.encode(criteria.sort(),

@@ -44,6 +44,7 @@ import com.ltz.community.domain.entity.Post;
 import com.ltz.community.domain.enums.PostStatus;
 import com.ltz.community.domain.exception.GameCatalogUnavailableException;
 import com.ltz.community.infrastructure.config.ClockConfig;
+import com.ltz.community.infrastructure.persistence.repository.ForumRepository;
 import com.ltz.community.infrastructure.persistence.repository.PostImageRepository;
 import com.ltz.community.infrastructure.persistence.repository.PostRepository;
 import com.ltz.community.infrastructure.security.ProblemDetailSecurityHandler;
@@ -68,6 +69,9 @@ class PostControllerTest {
 
 	@MockitoBean
 	private PostImageRepository postImageRepository;
+
+	@MockitoBean
+	private ForumRepository forumRepository;
 
 	@MockitoBean
 	private GameCatalogPort gameCatalog;
@@ -514,9 +518,7 @@ class PostControllerTest {
 
 	@Test
 	void anonymousVisitorCanReadPostDetail() throws Exception {
-		when(postFeedService.getPost(POST_ID)).thenReturn(new com.ltz.community.api.dto.response.PostViewResponse(
-				POST_ID, USER_ID, GAME_ID, com.ltz.community.domain.enums.PostCategory.GUIDE, "ayrıntı", PostStatus.VISIBLE, Instant.parse("2026-10-21T08:00:00Z"),
-				Instant.parse("2026-10-21T08:30:00Z"), 3, 2, java.util.List.of()));
+		when(postFeedService.getPost(POST_ID)).thenReturn(new com.ltz.community.api.dto.response.PostViewResponse(POST_ID, USER_ID, GAME_ID, null, com.ltz.community.domain.enums.PostCategory.GUIDE, "ayrıntı", PostStatus.VISIBLE, Instant.parse("2026-10-21T08:00:00Z"), Instant.parse("2026-10-21T08:30:00Z"), 3, 2, true, java.util.List.of(), null));
 
 		mockMvc.perform(get(URL + "/" + POST_ID))
 				.andExpect(status().isOk())
@@ -527,6 +529,7 @@ class PostControllerTest {
 				.andExpect(jsonPath("$.createdAt").value("2026-10-21T08:00:00Z"))
 				.andExpect(jsonPath("$.likeCount").value(3))
 				.andExpect(jsonPath("$.commentCount").value(2))
+				.andExpect(jsonPath("$.likedByMe").value(true))
 				.andExpect(jsonPath("$.images").isArray());
 	}
 

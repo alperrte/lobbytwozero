@@ -46,7 +46,7 @@ public class PostImageService {
 	@Transactional
 	public PostImageResponse addImage(UUID postId, byte[] upload) {
 		Post post = postAccess.loadOwnedForUpdate(postId, currentUser.requireUserId());
-		if (post.getStatus() != PostStatus.VISIBLE) {
+		if (post.getStatus() != PostStatus.VISIBLE || post.isRepost()) {
 			throw new PostNotEditableException();
 		}
 		List<Integer> usedSlots = postImageRepository.findSortOrdersByPostId(postId);

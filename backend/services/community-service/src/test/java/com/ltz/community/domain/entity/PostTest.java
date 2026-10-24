@@ -31,6 +31,38 @@ class PostTest {
 	}
 
 	@Test
+	void publishInForumKeepsTheForumReferenceAndPlainPublishHasNone() {
+		UUID forumId = UUID.randomUUID();
+		Instant now = Instant.parse("2026-10-21T10:15:30Z");
+
+		Post thread = Post.publishInForum(UUID.randomUUID(), forumId, "konu", null, null, now);
+
+		assertThat(thread.getForumId()).isEqualTo(forumId);
+		assertThat(thread.getCategory()).isEqualTo(PostCategory.GENERAL);
+		assertThat(Post.publish(UUID.randomUUID(), "düz", now).getForumId()).isNull();
+	}
+
+	@Test
+	void repostReferencesTheOriginalWithoutCopyingContent() {
+		UUID reposter = UUID.randomUUID();
+		UUID originalId = UUID.randomUUID();
+		Instant now = Instant.parse("2026-10-21T10:15:30Z");
+
+		Post repost = Post.repost(reposter, originalId, "not", now);
+		Post plain = Post.repost(reposter, originalId, null, now);
+
+		assertThat(repost.isRepost()).isTrue();
+		assertThat(repost.getRepostOfId()).isEqualTo(originalId);
+		assertThat(repost.getAuthorId()).isEqualTo(reposter);
+		assertThat(repost.getBody()).isEqualTo("not");
+		assertThat(repost.getStatus()).isEqualTo(PostStatus.VISIBLE);
+		assertThat(repost.getGameId()).isNull();
+		assertThat(repost.getForumId()).isNull();
+		assertThat(plain.getBody()).isNull();
+		assertThat(Post.publish(reposter, "düz", now).isRepost()).isFalse();
+	}
+
+	@Test
 	void categoryDefaultsToGeneralAndChangingItUpdatesTimestampOnlyWhenDifferent() {
 		Instant created = Instant.parse("2026-10-21T10:15:30Z");
 		Instant later = created.plusSeconds(60);

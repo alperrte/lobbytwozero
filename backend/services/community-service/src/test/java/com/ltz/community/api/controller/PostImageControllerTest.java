@@ -43,6 +43,7 @@ import com.ltz.community.domain.entity.Post;
 import com.ltz.community.domain.entity.PostImage;
 import com.ltz.community.domain.enums.PostStatus;
 import com.ltz.community.infrastructure.config.ClockConfig;
+import com.ltz.community.infrastructure.persistence.repository.ForumRepository;
 import com.ltz.community.infrastructure.persistence.repository.PostImageRepository;
 import com.ltz.community.infrastructure.persistence.repository.PostRepository;
 import com.ltz.community.infrastructure.security.ProblemDetailSecurityHandler;
@@ -67,6 +68,9 @@ class PostImageControllerTest {
 
 	@MockitoBean
 	private PostImageRepository postImageRepository;
+
+	@MockitoBean
+	private ForumRepository forumRepository;
 
 	private final RequestPostProcessor owner = jwt().jwt(token -> token.subject(USER_ID.toString()));
 

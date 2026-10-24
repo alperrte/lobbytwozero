@@ -40,7 +40,7 @@ import jakarta.persistence.EntityManager;
 /** Akış sorgusunu gerçek PostgreSQL üzerinde çalıştırır (keyset sayfalama, görünürlük, görsel birleştirme). */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({ PostFeedService.class, PostAccess.class, PostMapper.class })
+@Import({ PostFeedService.class, PostAccess.class, PostViewAssembler.class, PostMapper.class })
 class PostFeedServiceIntegrationTest extends PostgreSqlIntegrationTest {
 
 	private static final Instant BASE = Instant.parse("2026-10-21T10:00:00Z");
@@ -72,11 +72,11 @@ class PostFeedServiceIntegrationTest extends PostgreSqlIntegrationTest {
 	}
 
 	private static PostFeedRequest request(Integer limit, String cursor) {
-		return new PostFeedRequest(null, null, null, null, null, null, limit, cursor);
+		return new PostFeedRequest(null, null, null, null, null, null, null, limit, cursor);
 	}
 
 	private static PostFeedRequest search(String q) {
-		return new PostFeedRequest(q, null, null, null, null, null, null, null);
+		return new PostFeedRequest(q, null, null, null, null, null, null, null, null);
 	}
 
 	@Autowired
@@ -95,7 +95,7 @@ class PostFeedServiceIntegrationTest extends PostgreSqlIntegrationTest {
 		List<String> seen = new ArrayList<>();
 		String cursor = null;
 		do {
-			PostPageResponse page = feed.listPosts(new PostFeedRequest(null, null, null, null, null, sort, limit, cursor));
+			PostPageResponse page = feed.listPosts(new PostFeedRequest(null, null, null, null, null, null, sort, limit, cursor));
 			page.items().forEach(item -> seen.add(item.body()));
 			cursor = page.nextCursor();
 		} while (cursor != null);
@@ -107,7 +107,7 @@ class PostFeedServiceIntegrationTest extends PostgreSqlIntegrationTest {
 	}
 
 	private List<String> filtered(UUID gameId, PostCategory category, Instant from, Instant to) {
-		return feed.listPosts(new PostFeedRequest(null, gameId, category, from, to, null, null, null)).items().stream()
+		return feed.listPosts(new PostFeedRequest(null, gameId, null, category, from, to, null, null, null)).items().stream()
 				.map(PostViewResponse::body).toList();
 	}
 
@@ -368,7 +368,7 @@ class PostFeedServiceIntegrationTest extends PostgreSqlIntegrationTest {
 		List<String> seen = new ArrayList<>();
 		String cursor = null;
 		do {
-			PostPageResponse page = feed.listPosts(new PostFeedRequest("rehber", null, null, null, null, null, 2, cursor));
+			PostPageResponse page = feed.listPosts(new PostFeedRequest("rehber", null, null, null, null, null, null, 2, cursor));
 			page.items().forEach(item -> seen.add(item.body()));
 			cursor = page.nextCursor();
 		} while (cursor != null);
@@ -438,8 +438,8 @@ class PostFeedServiceIntegrationTest extends PostgreSqlIntegrationTest {
 
 	@Test
 	void invertedOrEqualDateRangeIsRejected() {
-		PostFeedRequest inverted = new PostFeedRequest(null, null, null, BASE.plusSeconds(10), BASE, null, null, null);
-		PostFeedRequest equal = new PostFeedRequest(null, null, null, BASE, BASE, null, null, null);
+		PostFeedRequest inverted = new PostFeedRequest(null, null, null, null, BASE.plusSeconds(10), BASE, null, null, null);
+		PostFeedRequest equal = new PostFeedRequest(null, null, null, null, BASE, BASE, null, null, null);
 
 		assertThatThrownBy(() -> feed.listPosts(inverted)).isInstanceOf(InvalidPostQueryException.class);
 		assertThatThrownBy(() -> feed.listPosts(equal)).isInstanceOf(InvalidPostQueryException.class);
@@ -459,8 +459,7 @@ class PostFeedServiceIntegrationTest extends PostgreSqlIntegrationTest {
 		List<String> seen = new ArrayList<>();
 		String cursor = null;
 		do {
-			PostPageResponse page = feed.listPosts(new PostFeedRequest("rehber", game, PostCategory.GUIDE,
-					BASE.plusSeconds(10), BASE.plusSeconds(200), null, 2, cursor));
+			PostPageResponse page = feed.listPosts(new PostFeedRequest("rehber", game, null, PostCategory.GUIDE, BASE.plusSeconds(10), BASE.plusSeconds(200), null, 2, cursor));
 			page.items().forEach(item -> seen.add(item.body()));
 			cursor = page.nextCursor();
 		} while (cursor != null);
@@ -501,7 +500,7 @@ class PostFeedServiceIntegrationTest extends PostgreSqlIntegrationTest {
 		List<UUID> seen = new ArrayList<>();
 		String cursor = null;
 		do {
-			PostPageResponse page = feed.listPosts(new PostFeedRequest(null, null, null, null, null, PostSort.OLDEST, 1, cursor));
+			PostPageResponse page = feed.listPosts(new PostFeedRequest(null, null, null, null, null, null, PostSort.OLDEST, 1, cursor));
 			seen.addAll(ids(page));
 			cursor = page.nextCursor();
 		} while (cursor != null);
@@ -560,7 +559,7 @@ class PostFeedServiceIntegrationTest extends PostgreSqlIntegrationTest {
 		ReflectionTestUtils.setField(hidden, "status", PostStatus.HIDDEN);
 		setCounters(postRepository.saveAndFlush(hidden), 99, 99);
 
-		PostPageResponse page = feed.listPosts(new PostFeedRequest(null, game, PostCategory.GUIDE, null, null, PostSort.POPULAR, null, null));
+		PostPageResponse page = feed.listPosts(new PostFeedRequest(null, game, null, PostCategory.GUIDE, null, null, PostSort.POPULAR, null, null));
 
 		assertThat(page.items()).extracting(PostViewResponse::body).containsExactly("yüksek", "düşük");
 		assertThat(page.items().getFirst().likeCount()).isEqualTo(9);
@@ -572,8 +571,8 @@ class PostFeedServiceIntegrationTest extends PostgreSqlIntegrationTest {
 		save("b", BASE.plusSeconds(10));
 		String newestCursor = feed.listPosts(request(1, null)).nextCursor();
 
-		PostFeedRequest popular = new PostFeedRequest(null, null, null, null, null, PostSort.POPULAR, 1, newestCursor);
-		PostFeedRequest oldest = new PostFeedRequest(null, null, null, null, null, PostSort.OLDEST, 1, newestCursor);
+		PostFeedRequest popular = new PostFeedRequest(null, null, null, null, null, null, PostSort.POPULAR, 1, newestCursor);
+		PostFeedRequest oldest = new PostFeedRequest(null, null, null, null, null, null, PostSort.OLDEST, 1, newestCursor);
 
 		assertThatThrownBy(() -> feed.listPosts(popular)).isInstanceOf(InvalidPostQueryException.class);
 		assertThatThrownBy(() -> feed.listPosts(oldest)).isInstanceOf(InvalidPostQueryException.class);
@@ -645,7 +644,7 @@ class PostFeedServiceIntegrationTest extends PostgreSqlIntegrationTest {
 		String cursor = null;
 		do {
 			PostPageResponse page = feed.listUserPosts(author,
-					new PostFeedRequest("rehber", game, PostCategory.GUIDE, null, null, PostSort.OLDEST, 2, cursor));
+					new PostFeedRequest("rehber", game, null, PostCategory.GUIDE, null, null, PostSort.OLDEST, 2, cursor));
 			page.items().forEach(item -> seen.add(item.body()));
 			cursor = page.nextCursor();
 		} while (cursor != null);
