@@ -45,6 +45,43 @@ jobs:
       - run: node pre-push/ci/formats.mjs trivy
       - name: Scan existing base images (no image build or publication)
         run: node pre-push/ci/images.mjs
+  dependencies:
+    name: Application Dependency Audit (${{ matrix.target }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [backend, frontend]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - if: matrix.target == 'backend'
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+          cache-dependency-path: "backend/**/pom.xml"
+          overwrite-settings: false
+      - run: node pre-push/ci/install-tool.mjs trivy
+      - if: matrix.target == 'backend'
+        name: Record fresh dependency build start
+        run: echo "BUILD_STARTED=$(date +%s%3N)" >> "$GITHUB_ENV"
+      - if: matrix.target == 'backend'
+        name: Package for dependency inventory only (not a test or coverage result)
+        run: mvn -B -ntp -s pre-push/ci/maven-settings.xml -gs pre-push/ci/maven-settings.xml -f backend/pom.xml -DskipTests package
+      - if: matrix.target == 'backend'
+        name: Scan all packaged backend application dependencies
+        run: node pre-push/ci/dependencies.mjs backend "$BUILD_STARTED"
+      - if: matrix.target == 'frontend'
+        name: Scan frontend lockfile without executing package scripts
+        run: node pre-push/ci/dependencies.mjs frontend
   formats:
     name: MegaLinter Pilot
     if: github.event_name == 'workflow_dispatch' && inputs.megalinter_pilot

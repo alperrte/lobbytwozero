@@ -45,6 +45,7 @@ async function fixture(options, action) {
   };
   try {
     const result = await runQualityChecks({ root, profile: 'dev', ambient: { SONAR_TOKEN: 'private' }, runCommand,
+      secretScan: ({ mode }) => { assert.equal(mode, 'worktree'); if (options.scannerUnavailable) throw new Error('Pinned scanner unavailable'); return options.scannerFinding ? 1 : 0; },
       prepare: async () => 'synthetic-context', coverageCheck: () => {
         if (options.lowCoverage || options.unbalancedCoverage) throw new Error('Central policy rejected synthetic report');
         return modules.map(module => ({ module, changed: { status: 'NOT_APPLICABLE' } }));
@@ -63,7 +64,7 @@ test('full check matches the current backend and postgres scope without inventin
   });
 });
 
-for (const option of ['secret', 'skipped', 'missingCoverage', 'lowCoverage', 'unbalancedCoverage', 'buildFail', 'noDocker', 'deployed']) {
+for (const option of ['secret', 'scannerUnavailable', 'scannerFinding', 'skipped', 'missingCoverage', 'lowCoverage', 'unbalancedCoverage', 'buildFail', 'noDocker', 'deployed']) {
   test(`full check ${option} cannot produce a false success`, async () => {
     await fixture({ [option]: true }, async ({ result, lines }) => {
       assert.equal(result.exitCode, 1);

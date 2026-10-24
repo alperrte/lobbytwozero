@@ -7,9 +7,59 @@ import { repositoryRoot } from '../../lib/quality-tools.mjs';
 import { sensitiveFile } from '../runtime-checks.mjs';
 import { toolPath } from './install-tool.mjs';
 
-export function runTrivy(args, run = spawnSync, log = console.log) {
+function scannerContract(report, args, { expectedTargets = [], expectedArtifacts = [] }) {
+  const fail = () => { throw Object.assign(new Error('Trivy report identity/schema/target coverage unverified'),
+    { category: 'SCANNER_ERROR', stage: 'target-coverage' }); };
+  const mode = args[0], artifact = args.at(-1), image = mode === 'image';
+  const normalized = value => typeof value === 'string' ? value.replaceAll('\\', '/').replace(/\/$/, '') : null;
+  if (!['image', 'config', 'fs'].includes(mode) || report?.SchemaVersion !== 2
+      || report.ArtifactType !== (image ? 'container_image' : 'filesystem')
+      || normalized(report.ArtifactName) !== normalized(artifact)
+      || !Array.isArray(report.Results) || !report.Results.length) fail();
+  const seen = new Set(), covered = new Set();
+  let os = false;
+  for (const target of report.Results) {
+    if (!target || typeof target.Target !== 'string' || !target.Target || /[\x00-\x1f]/.test(target.Target)
+        || typeof target.Type !== 'string' || !/^[a-z0-9-]+$/.test(target.Type)
+        || !['os-pkgs', 'lang-pkgs', 'config'].includes(target.Class)) fail();
+    const key = target.Class + ':' + target.Target;
+    if (seen.has(key)) fail();
+    seen.add(key);
+    for (const field of ['Vulnerabilities', 'Misconfigurations', 'Packages']) {
+      if (target[field] !== undefined && !Array.isArray(target[field])) fail();
+    }
+    if (image && target.Class === 'os-pkgs') {
+      if (os || !(target.Target === artifact || target.Target.startsWith(artifact + ' ('))) fail();
+      os = true;
+    } else if (mode === 'config') {
+      const summary = target.MisconfSummary;
+      if (target.Class !== 'config' || target.Type !== 'dockerfile' || !expectedTargets.includes(normalized(target.Target))
+          || !summary || !['Successes', 'Failures'].every(k => Number.isSafeInteger(summary[k]) && summary[k] >= 0)
+          || summary.Successes + summary.Failures === 0) fail();
+      covered.add(normalized(target.Target));
+    } else if (mode === 'fs') {
+      if (target.Class !== 'lang-pkgs' || !Array.isArray(target.Packages) || !target.Packages.length) fail();
+      for (const expected of expectedArtifacts) {
+        if (expected.kind === 'npm' && target.Type === 'npm' && normalized(target.Target) === expected.path) covered.add(expected.path);
+        if (expected.kind === 'jar' && target.Type === 'jar') {
+          const paths = target.Packages.map(pkg => normalized(pkg?.FilePath ?? pkg?.PkgPath));
+          const required = expected.entries?.map(entry => expected.path + '/' + entry) ?? [expected.path];
+          if (required.length && required.every(file => paths.some(p => p === file || p?.startsWith(file + '/')))) covered.add(expected.path);
+        }
+      }
+    }
+  }
+  if (image && !os) fail();
+  if (mode === 'config' && (!expectedTargets.length || new Set(expectedTargets).size !== expectedTargets.length
+      || covered.size !== expectedTargets.length)) fail();
+  if (mode === 'fs' && (!expectedArtifacts.length || new Set(expectedArtifacts.map(a => a.path)).size !== expectedArtifacts.length
+      || covered.size !== expectedArtifacts.length)) fail();
+}
+
+export function runTrivy(args, run = spawnSync, log = console.log, expected = {}) {
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^TRIVY_/i.test(key)));
   const result = run(toolPath('trivy'), [...args, '--format', 'json', '--ignorefile', ''],
-    { encoding: 'utf8', windowsHide: true, timeout: 360_000, maxBuffer: 32 * 1024 * 1024 });
+    { env, encoding: 'utf8', windowsHide: true, timeout: 360_000, maxBuffer: 32 * 1024 * 1024 });
   const fail = (message, category, stage) => Object.assign(new Error(message), { category, stage });
   if (result.error || ![0, 1].includes(result.status)) {
     const stderr = String(result.stderr ?? '');
@@ -27,7 +77,7 @@ export function runTrivy(args, run = spawnSync, log = console.log) {
     if (/(?:registry|manifest|image|pull).*(?:failed|error|denied)|(?:failed|error).*(?:registry|manifest|image|pull)/i.test(stderr)) throw fail('Trivy image unavailable', 'DEPENDENCY_ERROR', 'image-registry');
     throw fail('Trivy report invalid; raw output withheld', 'SCANNER_ERROR', 'json');
   }
-  if (!Array.isArray(report.Results) || report.Results.length === 0) throw fail('Trivy target coverage unverified', 'SCANNER_ERROR', 'target-coverage');
+  scannerContract(report, args, expected);
   const image = args[0] === 'image' ? args.at(-1) : null;
   const imageMetadata = image ? { image, status: 'CLEAN', high: 0, critical: 0, total: 0, truncated: false, vulnerabilities: [] } : null;
   if (image && !/^[a-z0-9][a-z0-9./_:-]*(?:@sha256:[a-f0-9]{64})?$/.test(image)) throw fail('Invalid image reference', 'SCANNER_ERROR', 'json');
@@ -36,6 +86,7 @@ export function runTrivy(args, run = spawnSync, log = console.log) {
     if (image) {
       if (target.Vulnerabilities !== undefined && !Array.isArray(target.Vulnerabilities)) throw fail('Invalid vulnerabilities', 'SCANNER_ERROR', 'json');
       for (const finding of target.Vulnerabilities ?? []) {
+        if (!finding || typeof finding !== 'object') throw fail('Invalid vulnerability', 'SCANNER_ERROR', 'json');
         const entry = { VulnerabilityID: finding.VulnerabilityID, Severity: finding.Severity, PkgName: finding.PkgName, InstalledVersion: finding.InstalledVersion };
         if (!/^CVE-\d{4}-\d{4,}$|^GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}$/.test(entry.VulnerabilityID ?? '')
             || !['HIGH', 'CRITICAL'].includes(entry.Severity)
@@ -50,6 +101,9 @@ export function runTrivy(args, run = spawnSync, log = console.log) {
       continue;
     }
     for (const finding of [...(target.Misconfigurations ?? []), ...(target.Vulnerabilities ?? [])]) {
+      if (!finding || typeof finding !== 'object') throw fail('Invalid finding', 'SCANNER_ERROR', 'json');
+      if (target.Class === 'config' && ['PASS', 'EXCEPTION'].includes(finding.Status)) continue;
+      if (target.Class === 'config' && finding.Status !== 'FAIL') throw fail('Invalid misconfiguration status', 'SCANNER_ERROR', 'json');
       findings++;
       // Never print source excerpts, titles, descriptions, environment values or fixes.
       const id = finding.ID ?? finding.VulnerabilityID;
@@ -75,6 +129,15 @@ export function runTrivy(args, run = spawnSync, log = console.log) {
   log('Trivy: ' + report.Results.length + ' result entries; ' + findings + ' findings; raw output withheld');
   if (findings > 0) throw fail('Trivy findings require review', 'SECURITY_FINDINGS', 'findings');
   if (result.status !== 0) throw fail('Trivy nonzero without findings', 'SCANNER_ERROR', 'exit-without-findings');
+}
+
+export function dockerfileTargets(root) {
+  const visit = (dir, prefix = '') => fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
+    if (entry.isSymbolicLink()) throw new Error('Scanner source link refused');
+    const name = prefix + entry.name;
+    return entry.isDirectory() ? visit(path.join(dir, entry.name), name + '/') : entry.name === 'Dockerfile' ? [name] : [];
+  });
+  return visit(root).sort();
 }
 
 export function removeSnapshot(destination) {
@@ -113,7 +176,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     let result;
     if (mode === 'trivy') {
       runTrivy(['config', '--config', path.join(repositoryRoot, 'pre-push/ci/trivy.yaml'),
-        '--misconfig-scanners', 'dockerfile', '--severity', 'HIGH,CRITICAL', '--exit-code', '1', snapshot]);
+        '--misconfig-scanners', 'dockerfile', '--include-non-failures', '--severity', 'HIGH,CRITICAL', '--exit-code', '1', snapshot],
+      spawnSync, console.log, { expectedTargets: dockerfileTargets(snapshot) });
       result = { status: 0 };
     } else if (mode === 'mega') {
       result = spawnSync('docker', ['run', '--rm', '-v', snapshot + ':/tmp/lint:ro',

@@ -70,7 +70,7 @@ jobs:
         with:
           node-version: "24"
           package-manager-cache: false
-      - run: node --test ops/env.test.mjs pre-push/menu.test.mjs pre-push/quality.test.mjs pre-push/runtime-checks.test.mjs sonarqube/sonar.test.mjs pre-push/ci/foundation.test.mjs pre-push/ci/coverage.test.mjs
+      - run: node pre-push/ci/node-tests.mjs
   hooks:
     name: Fast Source Checks
     runs-on: ubuntu-24.04
@@ -133,6 +133,7 @@ jobs:
         env:
           PG_CONTAINER: ${{ job.services.postgres.id }}
         run: docker exec -i "$PG_CONTAINER" psql -v ON_ERROR_STOP=1 -U ltz_test -d postgres < pre-push/ci/init-test-databases.sql
+      - run: node pre-push/ci/install-tool.mjs trivy
       - name: Verify selected backend modules
         env:
           MODULES: ${{ needs.scope.outputs.modules }}
@@ -160,6 +161,9 @@ jobs:
         working-directory: frontend
       - run: npm run test
         working-directory: frontend
+      - run: node pre-push/ci/install-tool.mjs trivy
+      - name: Scan frontend lockfile dependencies
+        run: node pre-push/ci/dependencies.mjs frontend
   config:
     name: Config Security
     needs: scope

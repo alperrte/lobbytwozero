@@ -16,6 +16,8 @@ Workflow dosyası tek başına merge'i engellemez; owner'ın aşağıdaki ayarla
 | Hızlı dosya kontrolleri | prek 0.5.6 native hook'ları |
 | Tamamlayıcı format pilotu | MegaLinter 10.1.0: Markdown/YAML/JSON/XML/Dockerfile/shell |
 | Container/config | Trivy 0.76.0; misconfiguration ve image CVE |
+| Uygulama bağımlılığı CVE | Aynı Trivy; paketlenmiş backend runtime JAR ve frontend lockfile; PR ve haftalık |
+| Uygulama ba??ml?l??? CVE | Ayn? Trivy; paketlenmi? backend runtime JAR ve frontend lockfile; PR ve haftal?k |
 | Dependency güncelleme | Haftalık, minor/patch gruplu Dependabot |
 | Ana SAST | CodeQL devreye alma kararı bekliyor; mevcut remote setup bilinmiyor |
 
@@ -189,7 +191,7 @@ Hosted runner, dependency kurulumu ve taramalar için ağ gerekir; bu makinede e
 Kesin süre/kazanç ölçülmedi.
 
 ```powershell
-node --test ops/env.test.mjs pre-push/menu.test.mjs pre-push/quality.test.mjs pre-push/runtime-checks.test.mjs sonarqube/sonar.test.mjs pre-push/ci/foundation.test.mjs
+node pre-push/ci/node-tests.mjs
 ```
 
 Frontend için mevcut npm ci --ignore-scripts, npm run lint/typecheck/test kullanılır.
@@ -240,3 +242,33 @@ Java25 desteği için [PMD Java tablosu](https://docs.pmd-code.org/latest/pmd_la
 [Checkstyle](https://checkstyle.org/), [PMD plugin motor seçimi](https://maven.apache.org/plugins/maven-pmd-plugin/examples/upgrading-PMD-at-runtime.html)
 ve [Checkstyle plugin motor seçimi](https://maven.apache.org/plugins/maven-checkstyle-plugin/examples/upgrading-checkstyle.html) incelendi.
 Resmî dil desteği, LTZ build'inin başarı kanıtı değildir.
+
+## Gerçek Auth pilotu sonrası kontrol sözleşmesi
+
+- Node test envanteri `ops/`, `pre-push/`, `sonarqube/` ve `lib/` altındaki tüm `.test.mjs` dosyalarını bulur.
+  CI Linux/Windows aynı komutu kullanır; yeni test dosyası için workflow listesi güncellenmez.
+- Yerel `full` kontrolünde pinned Gitleaks worktree taraması zorunludur. PATH'teki başka bir Gitleaks ile ikinci
+  history taraması yapılmaz. Haftalık history taraması korunur. Tracked diff kapsamı ve untracked sınırı yukarıdakiyle aynıdır.
+- JaCoCo'da executable satırı ve pozitif instruction/branch counter'ı olmayan interface/record kaynaklarının
+  LINE counter içermemesi geçerlidir. Root LINE, executable source LINE, class/source eşleştirmesi,
+  taze ve başarılı JUnit raporu zorunlulukları korunur. Bootstrap fingerprint veya minimum değiştirilmedi.
+- İzole backend runner `clean verify` sonrasında aynı koşuda üretilen seçili JAR'ları tarar. JDK `jar` envanteriyle
+  `BOOT-INF/lib` altındaki her runtime arşivinin Trivy paket raporunda bulunduğu doğrulanır. Thin/eski/eksik JAR,
+  eksik paket hedefi, scanner/Java DB indirme hatası PASS değildir. Npm taraması `frontend/package-lock.json`
+  üzerinde çalışır; paket scripti yürütmez. HIGH/CRITICAL bulgular ilgili backend/frontend job'ını ve Quality Gate'i düşürür.
+- Trivy JSON schema/artifact kimliği, hedef türü, Dockerfile envanteri ve gerçekten uygulanmış kontroller
+  doğrulanır. Başarılı misconfiguration kayıtları bulgu sayılmaz. `TRIVY_*` kabuk değişkenleri sessiz skip/ignore yapamaz.
+  Scanner ham çıktısı ve kaynak excerpt'leri yayımlanmaz. Config taraması yalnız Dockerfile kapsamındadır.
+- İzole backend runner öncesi `node pre-push/ci/install-tool.mjs trivy` gerekir; CI bu kurulumu yapar.
+  Haftalık audit tüm backend için paketleme ve frontend lockfile taraması yapar. Buradaki `-DskipTests package`
+  yalnız bağımlılık envanteri içindir; test, coverage veya normal verify başarısı sayılmaz. Checkstyle bypass edilmez.
+- `ci` Maven profili Auth'a yalnız runner'ın loopback/sentetik PostgreSQL sözleşmesini verir. Auth bu modda
+  ikinci PostgreSQL Testcontainer açmaz; bağımsız testler kendi Testcontainer'ını kullanır. Yanlış hedef/credential
+  fail-closed reddedilir. Mailpit/Ryuk gibi testin gereken diğer geçici kaynakları ayrı kalır.
+- Sonar yerel ve isteğe bağlıdır; fresh build'den sonra aynı merkezi coverage evaluator'ını ayrıca çağırır.
+  Bir Sonar OK sonucu merkezi policy ihlalini örtemez. PR Quality Gate içinde Sonar veya CodeQL çalıştığı
+  iddia edilmez. Hosted Sonar/topoloji/lisans ve CodeQL default setup seçimi lider kararına bağlıdır;
+  PR'a secret açan veya localhost'u hosted sunucu sanan ek workflow yoktur.
+- Ürün bulguları altyapı bypass'ıyla kapatılmaz. Auth test isimlendirmesi ve PMD kayıtları servis sahibiyle
+  çözülmeden normal verify yeşil olmayabilir. Güvenlik için kasıtlı cause sanitization yapılan yerlerde
+  ham exception cause eklemek yerine güvenlik gerekçeli, dar kapsamlı çözüm ayrı review görmelidir.

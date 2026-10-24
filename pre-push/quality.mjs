@@ -6,6 +6,7 @@ import { requireMaven25 } from './backend-check.mjs';
 import { checkGitSecrets, checkBackendHealth } from './runtime-checks.mjs';
 import { prepareCoverage, enforceCoverage } from './ci/coverage.mjs';
 import { checkRepositoryHygiene } from './hygiene-checks.mjs';
+import { scanSecrets } from './ci/secrets.mjs';
 
 export const requiredRows = ['Git / Secret Check', 'Backend Tests', 'Backend Build', 'Backend Coverage', 'Docker Configuration'];
 
@@ -17,7 +18,7 @@ export function formatQualityStatus(value, stream = process.stdout) {
 }
 
 export async function runQualityChecks({ root = repositoryRoot, profile = 'dev', ambient = process.env, runCommand = execute,
-  prepare = prepareCoverage, coverageCheck = enforceCoverage, healthProbe, log = console.log } = {}) {
+  prepare = prepareCoverage, coverageCheck = enforceCoverage, secretScan = scanSecrets, healthProbe, log = console.log } = {}) {
   const rows = Object.fromEntries([...requiredRows, 'Backend HTTP Health'].map(name => [name, 'SKIPPED']));
   const details = {};
   const env = Object.fromEntries(Object.entries(ambient).filter(([name]) => !name.startsWith('SONAR')));
@@ -35,7 +36,8 @@ export async function runQualityChecks({ root = repositoryRoot, profile = 'dev',
     requireNode();
     const modules = readModules(root);
     clearBackendReports(root, modules);
-    await step('Git / Secret Check', async () => (await checkGitSecrets(run, log)) && checkRepositoryHygiene({ run, log, root }));
+    await step('Git / Secret Check', async () => (await checkGitSecrets(run, log))
+      && secretScan({ mode: 'worktree', root, log }) === 0 && checkRepositoryHygiene({ run, log, root }));
     await step('Backend Tests', async () => {
       rows['Backend Build'] = 'FAIL';
       await requireMaven25(run, mvn, root);

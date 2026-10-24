@@ -39,14 +39,23 @@ public class CoverageXml {
     }
     private static String counters(Element parent) throws Exception {
         String result = null;
+        boolean executable = parent.getElementsByTagName("line").getLength() > 0;
         for (Node n = parent.getFirstChild(); n != null; n = n.getNextSibling()) {
             if (n instanceof Element e && e.getTagName().equals("counter")) {
                 number(e, "covered"); number(e, "missed");
+                if ((e.getAttribute("type").equals("INSTRUCTION") || e.getAttribute("type").equals("BRANCH"))
+                    && number(e, "covered") + number(e, "missed") > 0) executable = true;
                 if (e.getAttribute("type").equals("LINE")) {
                     if (result != null) throw new Exception("Duplicate LINE counter");
                     result = "{\"covered\":" + number(e,"covered") + ",\"missed\":" + number(e,"missed") + "}";
                 }
             }
+        }
+        // JaCoCo emits sourcefiles for interfaces/constants/generated-only code
+        // without LINE counters. Keep them in the source/class inventory as 0/0;
+        // never grant this treatment to executable sources or the report root.
+        if (result == null && parent.getTagName().equals("sourcefile") && !executable) {
+            return "{\"covered\":0,\"missed\":0}";
         }
         if (result == null) throw new Exception("LINE counter missing");
         return result;

@@ -33,17 +33,15 @@ sonucu yalnızca backend test kapsamına aittir.
 
 - Git çalışma alanı ve staged whitespace kontrolü; takip edilen/staged ENV,
   anahtar ve bilinen gizli dosya yollarının kontrolü. Bu dosya adı kontrolüdür;
-  bütün kaynak içeriğinde veya Git geçmişinde secret taraması değildir. Ek depo hijyeni (`pre-push/hygiene-checks.mjs`): izlenen dosyalarda özel anahtar başlığı ve uzun sır atamaları (değer yazdırılmaz), `.env` dosyalarının Git ve `.dockerignore` tarafından yok sayılması, Compose portlarının 127.0.0.1'e bağlı olması, anahtar üretici script güvenlik testi ve (kuruluysa) gitleaks ile tüm geçmiş taraması.
+  bütün kaynak içeriğinde veya Git geçmişinde secret taraması değildir. Ayrıca pinned Gitleaks ile tracked worktree diff taraması zorunludur; tarayıcı yoksa FAIL olur. Ek depo hijyeni (`pre-push/hygiene-checks.mjs`): izlenen dosyalarda özel anahtar başlığı ve uzun sır atamaları (değer yazdırılmaz), `.env` dosyalarının Git ve `.dockerignore` tarafından yok sayılması, Compose portlarının 127.0.0.1'e bağlı olması ve anahtar üretici script güvenlik testi. Tam geçmiş taraması haftalık audit işidir.
 - Tüm backend için Maven `clean verify`, test raporları ve modül başına merkezi progressive coverage kapısı.
 - Seçilen `.env.dev` veya `.env.prod` ile `docker-compose.yml` doğrulaması.
   Docker Compose gerekir; yapılandırma kontrolü container başlatmaz.
 - Compose içinde tanımlı backend servisleri varsa seçilen Compose projesinde
   çalıştıkları ve `/actuator/health` yanıtlarının HTTP 200 / `UP` olduğu kontrolü.
 
-Mevcut Compose yalnızca PostgreSQL içerir; bu nedenle backend HTTP satırı
-`SKIPPED` olur ve nedeni yazdırılır. Frontend henüz yoktur: ESLint, TypeScript,
-frontend test/build, Playwright ve npm audit uygulanmaz. Uygulama servisleri
-Compose'a eklendikçe HTTP kontrolü bu servisler için zorunlu hale gelir.
+HTTP health kapsamı seçilen Compose dosyasındaki gerçek backend servislerinden hesaplanır.
+Frontend lint, typecheck, test ve bağımlılık taraması CI frontend job'ında çalışır; yerel full tablosuna dahil değildir.
 
 `SAFE TO COMMIT` yalnızca tabloda gösterilen uygulanabilir kontrollerin geçtiğini
 belirtir. Uygulamanın çalıştığını veya production hazırlığını garanti etmez.
@@ -63,11 +61,13 @@ sonra bu kilit dosyasını elle kaldırabilirsiniz.
 Script regresyon testleri:
 
 ```powershell
-node --test pre-push/menu.test.mjs pre-push/quality.test.mjs pre-push/runtime-checks.test.mjs sonarqube/sonar.test.mjs ops/env.test.mjs ops/generate-auth-dev-keys.test.mjs pre-push/hygiene-checks.test.mjs pre-push/backend-env.test.mjs
+node pre-push/ci/node-tests.mjs
 ```
 
 Bu testler komut yönlendirmesini, hata durumlarını ve rapor kabul kurallarını
 doğrular; gerçek Maven testlerinin ve Sonar analizinin yerine geçmez.
 # Hızlı commit ve merkezi PR kontrolü
+
+İzole CI runner ve uygulama bağımlılığı tarama sözleşmesi [engineering.md](../docs/engineering.md#gerçek-auth-pilotu-sonrası-kontrol-sözleşmesi) içindedir.
 
 Bu manuel betikler korunur; otomatik commit hook'u değildir. Hızlı prek/Gitleaks kurulumu ve secretsiz CI test komutları [engineering.md](../docs/engineering.md) içindedir. `full` yalnız backend/Compose/health kapsamındadır; frontend ve Node testleri merkezi PR akışında ayrıca çalışır. Coverage policy manifest'i tek kaynaktır: kayıtlı bootstrap baseline korunur, yeni/değişen ve bootstrap dışı executable kod minimumu sağlamalıdır; strict/yayınlama toplam hedefi%80'dir. Yalnız toplam repository oranı yeterli değildir.

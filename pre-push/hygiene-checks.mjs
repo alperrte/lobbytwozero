@@ -103,18 +103,7 @@ export async function checkRepositoryHygiene({ run, log, root }) {
     }
   }
 
-  // 6) gitleaks varsa tum Git gecmisini tara; yoksa atla (ek kurulum zorunlu degil).
-  let scanner = false;
-  try { scanner = (await run('gitleaks', ['version'], root, true)).code === 0; } catch { scanner = false; }
-  if (scanner) {
-    const scan = await run('gitleaks', ['detect', '--no-banner', '--redact', '--log-opts=--all'], root, true);
-    if (scan.code !== 0) {
-      log('[GITLEAKS] leaks found; run `gitleaks detect --redact -v` locally to see them.');
-      failures.push('gitleaks reported leaks');
-    }
-  } else {
-    log('[SKIPPED] gitleaks is not installed; history secret scan not performed.');
-  }
+  // Pinned content scanning is mandatory in quality.mjs. Full history belongs to the weekly audit.
 
   if (failures.length) throw new Error('Repository hygiene checks failed: ' + [...new Set(failures)].join('; ') + '.');
   log('Repository hygiene checks passed (private keys, secret values, ENV ignore rules, loopback ports, key generator guard).');

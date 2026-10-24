@@ -4,9 +4,11 @@ import { fileURLToPath } from 'node:url';
 import { execute, repositoryRoot, readModules, backendResults, clearBackendReports } from '../../lib/quality-tools.mjs';
 import { requireMaven25 } from '../backend-check.mjs';
 import { prepareCoverage, enforceCoverage } from './coverage.mjs';
+import { dependencyCheck } from './dependencies.mjs';
 
 export async function backendCheck({ root = repositoryRoot, ambient = process.env, modules, external = false, runCommand = execute,
-  prepare = prepareCoverage, coverageCheck = enforceCoverage, resetReports = clearBackendReports, log = console.log } = {}) {
+  prepare = prepareCoverage, coverageCheck = enforceCoverage, scanDependencies = dependencyCheck,
+  resetReports = clearBackendReports, log = console.log } = {}) {
   const available = readModules(root);
   const selected = modules ?? available;
   if (!selected.length || new Set(selected).size !== selected.length || selected.some(module => !available.includes(module))) throw new Error('Invalid selected backend modules');
@@ -41,12 +43,13 @@ export async function backendCheck({ root = repositoryRoot, ambient = process.en
     const settings = 'pre-push/ci/maven-settings.xml';
     const localRepository = external ? path.join(env.HOME, '.m2/repository') : path.join(root, '.cache/m2');
     const result = await run(mvn, ['-B', '-ntp', '-s', settings, '-gs', settings, '-Dmaven.repo.local=' + localRepository,
-      '-f', 'backend/pom.xml', '-pl', selected.join(','), '-Pci', '-Dltz.test.postgres.port=' + port, '--fail-at-end', 'verify']);
+      '-f', 'backend/pom.xml', '-pl', selected.join(','), '-Pci', '-Dltz.test.postgres.port=' + port, '--fail-at-end', 'clean', 'verify']);
     if (result.code !== 0) throw new Error('Maven verify failed; tests/quality/coverage are not proven');
     // Re-evaluate the same central policy even if Maven's exec goal was skipped.
     // Legacy readers additionally retain report freshness/HTML/bytecode checks.
     backendResults(root, selected, started);
     for (const report of coverageCheck(root, selected, env.LTZ_COVERAGE_CONTEXT)) log(JSON.stringify(report));
+    scanDependencies({ root, modules: selected, since: started, log });
     return 0;
   } catch (error) {
     failure = error;

@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { repositoryRoot, execute, redact, cleanGenerated, freshFile, backendResults, readModules, clearBackendReports, withReportLock, withRunLog } from '../lib/quality-tools.mjs';
 import { loadProfileEnv, requireNode, backendTestEnv } from '../lib/profile-env.mjs';
 import { requireMaven25 } from '../pre-push/backend-check.mjs';
-import { coverageMinimum } from '../pre-push/ci/coverage.mjs';
+import { coverageMinimum, prepareCoverage, enforceCoverage } from '../pre-push/ci/coverage.mjs';
 
 export const loadSonarEnv = loadProfileEnv;
 
@@ -88,7 +88,8 @@ export async function explainFailingTargets({ host, project, token, request, say
   } catch (error) { say('[WARN] Bulgu ayrıntısı alınamadı: ' + error.message); }
 }
 
-export async function runScan({ root = repositoryRoot, profile = 'dev', ambient = process.env, runCommand = execute, request = sonarRequest, log = console.log } = {}) {
+export async function runScan({ root = repositoryRoot, profile = 'dev', ambient = process.env, runCommand = execute,
+  prepare = prepareCoverage, coverageCheck = enforceCoverage, request = sonarRequest, log = console.log } = {}) {
   const rows = Object.fromEntries(scanRows.map(name => [name, 'SKIPPED']));
   const details = {};
   let secrets = [ambient.SONAR_TOKEN];
@@ -131,9 +132,11 @@ export async function runScan({ root = repositoryRoot, profile = 'dev', ambient 
     clearBackendReports(root, modules);
     await step('Backend Reports', async () => {
       await requireMaven25(run, mvn, root);
+      env.LTZ_COVERAGE_CONTEXT = ambient.LTZ_COVERAGE_CONTEXT || await prepare(root);
       const result = await runCommand(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify'], { cwd: root, env: backendTestEnv(root, profile, env), capture: false, secrets, log: say });
       if (result.code !== 0) throw new Error('Backend build/tests failed');
       details.backend = backendResults(root, modules, started);
+      details.coveragePolicy = coverageCheck(root, modules, env.LTZ_COVERAGE_CONTEXT);
       say(`Fresh reports: ${details.backend.tests} tests; local line coverage ${details.backend.lineCoverage.toFixed(2)}%`);
       return true;
     });

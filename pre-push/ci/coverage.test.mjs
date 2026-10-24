@@ -73,6 +73,24 @@ test('new source unmeasured by JaCoCo FAILS',()=>fixture(f=>{
   f.write('backend/'+module+'/src/main/java/p/NewLogic.java','package p;class NewLogic{}');
   assert.throws(()=>f.evaluate(),/absent/);
 }));
+
+test('real JaCoCo shape accepts counterless non-executable sources but never missing executable/root counters',()=>fixture(f=>{
+  const base='backend/'+module+'/target/';
+  f.write(base+'surefire-reports/TEST-app.xml','<testsuite tests="1" failures="0" errors="0" skipped="0"><testcase name="x"/></testsuite>');
+  const source='<sourcefile name="Port.java"/>';
+  const report=body=>'<report name="auth-service"><package name="p">'+body+'</package><counter type="LINE" covered="1" missed="2"/></report>';
+  f.write(base+'site/jacoco/jacoco.xml',report(source));
+  assert.deepEqual(xmlMetadata(f.root,module,0).sources[0],{path:'p/Port.java',counter:{covered:0,missed:0},lines:[]});
+  for(const body of [
+    '<sourcefile name="Port.java"><line nr="1" mi="1" ci="0" mb="0" cb="0"/></sourcefile>',
+    '<sourcefile name="Port.java"><counter type="INSTRUCTION" covered="1" missed="0"/></sourcefile>',
+    '<sourcefile name="Port.java"><counter type="BRANCH" covered="0" missed="1"/></sourcefile>',
+  ]){
+    f.write(base+'site/jacoco/jacoco.xml',report(body));assert.throws(()=>xmlMetadata(f.root,module,0),/parser/);
+  }
+  f.write(base+'site/jacoco/jacoco.xml','<report><package name="p">'+source+'</package></report>');
+  assert.throws(()=>xmlMetadata(f.root,module,0),/parser/);
+}));
 test('semantic source changes with no executable line record FAIL',()=>fixture(f=>{
   f.changed([9]);assert.throws(()=>f.evaluate(),/measurable/);
 }));

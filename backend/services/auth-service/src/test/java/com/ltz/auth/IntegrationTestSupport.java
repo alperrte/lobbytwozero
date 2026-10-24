@@ -57,7 +57,9 @@ public abstract class IntegrationTestSupport {
     protected static final String CSRF_COOKIE = "__Host-XSRF-TOKEN";
     protected static final String CSRF_HEADER = "X-XSRF-TOKEN";
 
-    private static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine");
+    private static final boolean EXTERNAL_POSTGRES = TestDatabaseSettings.useExternal(System.getProperties());
+    private static final PostgreSQLContainer POSTGRES = EXTERNAL_POSTGRES
+            ? null : new PostgreSQLContainer("postgres:17-alpine");
     private static final String TEST_HMAC_KEY = randomKey();
     private static final String TEST_TOTP_KEY = randomKey();
     private static final int TEST_RSA_BITS = 3072;
@@ -65,7 +67,9 @@ public abstract class IntegrationTestSupport {
     protected static final KeyPair TEST_JWT_KEYS = rsaKeyPair();
 
     static {
-        POSTGRES.start();
+        if (POSTGRES != null) {
+            POSTGRES.start();
+        }
     }
 
     @Autowired
@@ -87,9 +91,11 @@ public abstract class IntegrationTestSupport {
 
     @DynamicPropertySource
     static void databaseProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-        registry.add("spring.datasource.username", POSTGRES::getUsername);
-        registry.add("spring.datasource.password", POSTGRES::getPassword);
+        if (POSTGRES != null) {
+            registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
+            registry.add("spring.datasource.username", POSTGRES::getUsername);
+            registry.add("spring.datasource.password", POSTGRES::getPassword);
+        }
         registry.add("AUTH_OTP_HMAC_KEY", () -> TEST_HMAC_KEY);
         // Silme worker'ı testlerde elle tetiklenir (deterministik); hedef servis listesi kısaltılır.
         registry.add("ltz.auth.deletion.worker-enabled", () -> "false");

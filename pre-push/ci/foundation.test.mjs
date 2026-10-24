@@ -90,17 +90,19 @@ test('Windows prek uses the hash-verified flat archive member; extraction errors
 test('Trivy distinguishes findings, database/registry failures, timeout and invalid JSON without raw logging', async () => {
   const { runTrivy } = await import('./formats.mjs');
   const raw = 'SYNTHETIC_PRIVATE_VALUE';
+  const report = vulnerabilities => JSON.stringify({ SchemaVersion: 2, ArtifactName: 'image', ArtifactType: 'container_image',
+    Results: [{ Target: 'image', Class: 'os-pkgs', Type: 'ubuntu', Vulnerabilities: vulnerabilities }] });
   for (const [result, category, stage] of [
     [{ status: 2, stderr: 'failed to download vulnerability DB ' + raw }, 'DEPENDENCY_ERROR', 'vulnerability-db'],
     [{ status: 1, stdout: '', stderr: 'failed to download vulnerability DB ' + raw }, 'DEPENDENCY_ERROR', 'vulnerability-db'],
     [{ status: 2, stderr: 'image pull failed ' + raw }, 'DEPENDENCY_ERROR', 'image-registry'],
     [{ status: null, error: { code: 'ETIMEDOUT' } }, 'TIMEOUT', 'timeout'],
     [{ status: 0, stdout: raw }, 'SCANNER_ERROR', 'json'],
-    [{ status: 1, stdout: '{"Results":[{"Target":"image"}]}' }, 'SCANNER_ERROR', 'exit-without-findings'],
-    [{ status: 1, stdout: JSON.stringify({ Results: [{ Target: 'image', Vulnerabilities: [{ VulnerabilityID: 'CVE-2026-1234', Severity: 'HIGH', PkgName: 'example', InstalledVersion: '1.0', FixedVersion: '1.1', Description: raw }] }] }) }, 'SECURITY_FINDINGS', 'findings'],
+    [{ status: 1, stdout: report([]) }, 'SCANNER_ERROR', 'exit-without-findings'],
+    [{ status: 1, stdout: report([{ VulnerabilityID: 'CVE-2026-1234', Severity: 'HIGH', PkgName: 'example', InstalledVersion: '1.0', FixedVersion: '1.1', Description: raw }]) }, 'SECURITY_FINDINGS', 'findings'],
   ]) {
     const lines = [];
-    assert.throws(() => runTrivy([], () => result, line => lines.push(line)), error => error.category === category && error.stage === stage);
+    assert.throws(() => runTrivy(['image', 'image'], () => result, line => lines.push(line)), error => error.category === category && error.stage === stage);
     assert.ok(!lines.join('\n').includes(raw));
   }
 });
@@ -202,16 +204,20 @@ test('Trivy metadata reporting never logs source excerpts and rejects malformed/
   const { runTrivy } = await import('./formats.mjs');
   const lines = [];
   const secret = 'SYNTHETIC_PRIVATE_EXCERPT';
-  const finding = { ID: 'AVD-DS-0001', Severity: 'HIGH', Title: secret, Description: secret,
+  const finding = { ID: 'AVD-DS-0001', Status: 'FAIL', Severity: 'HIGH', Title: secret, Description: secret,
     CauseMetadata: { StartLine: 12, Code: { Lines: [{ Content: secret }] } } };
-  const report = { Results: [{ Target: 'Dockerfile', Misconfigurations: [finding] }] };
-  assert.throws(() => runTrivy(['config', 'fixture'], () => ({ status: 1, stdout: JSON.stringify(report) }), line => lines.push(line)), /review/);
+  const report = { SchemaVersion: 2, ArtifactName: 'fixture', ArtifactType: 'filesystem',
+    Results: [{ Target: 'Dockerfile', Class: 'config', Type: 'dockerfile',
+      MisconfSummary: { Successes: 1, Failures: 1, Exceptions: 0 }, Misconfigurations: [finding] }] };
+  assert.throws(() => runTrivy(['config', 'fixture'], () => ({ status: 1, stdout: JSON.stringify(report) }),
+    line => lines.push(line), { expectedTargets: ['Dockerfile'] }), /review/);
   assert.ok(lines.join('\n').includes('AVD-DS-0001'));
   assert.ok(!lines.join('\n').includes(secret));
   for (const response of [{ status: 0, stdout: secret }, { status: 0, stdout: '{"Results":[]}' }, { status: null, error: new Error(secret) }]) {
     assert.throws(() => runTrivy([], () => response, () => {}));
   }
-  runTrivy([], () => ({ status: 0, stdout: '{"Results":[{"Target":"Dockerfile"}]}' }), () => {});
+  const clean = structuredClone(report);clean.Results[0].Misconfigurations=[];clean.Results[0].MisconfSummary.Failures=0;
+  runTrivy(['config', 'fixture'], () => ({ status: 0, stdout: JSON.stringify(clean) }), () => {}, { expectedTargets: ['Dockerfile'] });
 });
 
 test('selected backend orchestration invokes only requested reactor modules and rejects invalid selections', async () => {
@@ -236,8 +242,14 @@ test('selected backend orchestration invokes only requested reactor modules and 
   };
   try {
     assert.equal(await backendCheck({ root, ambient: {}, modules: [selected], runCommand,
+      scanDependencies: ({ modules, since }) => { assert.deepEqual(modules, [selected]); assert.ok(since > 0); },
       prepare: async () => 'synthetic-context', coverageCheck: (_root, modules) => modules.map(module => ({module})), log: () => {} }), 0);
     assert.equal(calls.filter(call => call.args.includes('verify')).length, 1);
+    await assert.rejects(backendCheck({ root, ambient: {}, modules: [selected], runCommand,
+      prepare: async () => 'synthetic-context', coverageCheck: () => [], log: () => {},
+      scanDependencies: () => { throw new Error('Dependency scanner unavailable'); },
+    }), /Dependency scanner unavailable/);
+    assert.ok(calls.at(-1).args.includes('down'));
     const before = calls.length;
     for (const modules of [[], [selected, selected], ['../outside'], ['services/unknown']]) {
       await assert.rejects(backendCheck({ root, modules, runCommand, log: () => {} }), /Invalid selected/);

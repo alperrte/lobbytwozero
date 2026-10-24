@@ -45,7 +45,7 @@ test('Sonar host validation rejects remote servers, credentials, paths and redir
   for (const host of ['http://localhost:5199', 'http://127.0.0.1:5199', 'http://[::1]:5199']) assert.ok(validateSonarHost(host));
 });
 
-for (const option of ['success', 'gateFail', 'lowCoverage', 'scannerFail', 'missingReports', 'serverDown', 'remoteHost', 'policyForbidden']) {
+for (const option of ['success', 'gateFail', 'lowCoverage', 'coveragePolicyFail', 'scannerFail', 'missingReports', 'serverDown', 'remoteHost', 'policyForbidden']) {
   test(`backend scan ${option} checks current reports, analysis gate and overall targets`, async () => {
     await scratch(async (root, write) => {
       const lines = [], calls = [];
@@ -83,11 +83,18 @@ for (const option of ['success', 'gateFail', 'lowCoverage', 'scannerFail', 'miss
         }
         throw new Error('Unexpected API ' + endpoint);
       };
-      const result = await runScan({ root, ambient: option === 'remoteHost' ? { SONAR_HOST_URL: 'http://example.com' } : {}, runCommand, request, log: line => lines.push(line) });
+      const result = await runScan({ root, ambient: option === 'remoteHost' ? { SONAR_HOST_URL: 'http://example.com' } : {}, runCommand, request,
+        prepare: async () => 'synthetic-context', coverageCheck: (_root, modules, context) => {
+          assert.equal(context, 'synthetic-context');
+          assert.deepEqual(modules, ['services/auth-service']);
+          if (option === 'coveragePolicyFail') throw new Error('Central coverage policy rejected');
+          return [];
+        }, log: line => lines.push(line) });
       assert.equal(result.exitCode, ['success', 'policyForbidden'].includes(option) ? 0 : 1);
       assert.ok(!lines.join('\n').includes('local-token'));
       if (['serverDown', 'remoteHost'].includes(option)) assert.equal(calls.length, 0);
       if (option === 'missingReports') assert.ok(!calls.some(call => call.args.includes('sonar:sonar')));
+      if (option === 'coveragePolicyFail') assert.ok(!calls.some(call => call.args.includes('sonar:sonar')));
       if (option === 'policyForbidden') assert.equal(result.details.gatePolicy.status, 'NOT VERIFIED');
     });
   });

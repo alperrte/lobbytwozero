@@ -217,6 +217,7 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <systemPropertyVariables>
+                                <ltz.test.external-postgres>true</ltz.test.external-postgres>
                                 <spring.datasource.url>jdbc:postgresql://127.0.0.1:${ltz.test.postgres.port}/${project.artifactId}</spring.datasource.url>
                                 <spring.datasource.username>ltz_test</spring.datasource.username>
                                 <spring.datasource.password>ltz_test_only</spring.datasource.password>
