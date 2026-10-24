@@ -42,6 +42,25 @@ class RealAuthIntegrationTest extends PostgresTestSupport {
 
     @BeforeEach void setup() { mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build(); }
 
+    @Test void realAuthServiceTokenCanConfirmAnAccountWithoutGameData() throws Exception {
+        UUID account = UUID.randomUUID();
+        String token = AUTH.serviceToken(account);
+        send(delete("/internal/v1/accounts/" + account), token, null).andExpect(status().isNoContent());
+        send(get("/api/v1/game/games"), token, null).andExpect(status().isUnauthorized());
+    }
+
+    @Test void realAuthServiceTokenErasesStoredFeedbackBeforeConfirmation() throws Exception {
+        UUID account = UUID.randomUUID(), other = UUID.randomUUID();
+        UUID game = game("Erasure compatibility", "INTERNAL", "MAIN_GAME", "ACTIVE");
+        for (UUID author : java.util.List.of(account, other))
+            jdbc.update("insert into game_developer_feedback(id,game_id,author_id,type,title,body,created_at,updated_at) values (?,?,?,'GENERAL','Private title','Private body',now(),now())",
+                    UUID.randomUUID(), game, author);
+        for (int i = 0; i < 2; i++)
+            send(delete("/internal/v1/accounts/" + account), AUTH.serviceToken(account), null).andExpect(status().isNoContent());
+        assertEquals(0, jdbc.queryForObject("select count(*) from game_developer_feedback where author_id=?", Integer.class, account));
+        assertEquals(1, jdbc.queryForObject("select count(*) from game_developer_feedback where author_id=?", Integer.class, other));
+    }
+
     UUID game(String title, String origin, String type, String status) {
         UUID id = UUID.randomUUID();
         jdbc.update("insert into games(id,title,normalized_title,created_at,updated_at,origin,game_type,status,metadata_completeness) "

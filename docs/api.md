@@ -1657,17 +1657,161 @@ Audit başarısızsa durum değişikliği de geri alınır. Yeni mesajlaşma/dos
 INTEGRATION — GameFeedbackTest, GameFeedbackTransactionTest; roller/grant,
 çapraz oyun IDOR, durum/sürüm, iptal yarışı, eşzamanlı yazma ve audit rollback.
 
+### GAME — Hesap verisi silme iç ucu
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: auth-service
+
+#### Endpoint
+DELETE /internal/v1/accounts/{accountId}
+
+#### Yetkilendirme
+Internal; Gateway'e yönlendirilmez. RS256/Auth JWKS, tam `typ=svc+jwt`,
+`iss=ltz-auth` (JWT_ISSUER), tek `aud=game-service`, dolu `kid/jti`,
+ham `iat`, `nbf/exp`, pozitif ve en çok 60 saniye ömür, en çok 30 saniye saat toleransı.
+Yalnız `SCOPE_account:erase`; tam `sub=svc:auth-service` ve
+`account_id` = yol UUID'si zorunlu. Kullanıcı token'ı (ADMIN dahil) iç uçta,
+servis token'ı kullanıcı namespace'inde reddedilir. Servis rollerinden yetki türetilmez.
+
+#### Path Parameters
+- accountId: UUID, zorunlu; token'ın account_id claim'iyle eşleşmeli.
+
+#### Request Body
+Yok.
+
+#### Response — 204
+Gövde yok. Hesabın geliştirici içerikleri, medya bağlantıları, güncelleme notları,
+özel feedback ve kendi grant satırları silinir. Editör/moderatör REF'leri NULL;
+audit/alan kilidi ve başkasının grant'ındaki ilgili aktörler nil UUID olur.
+Revoke edilmiş grant'ta revoked_by nil olur; revoked_at korunur (CHECK).
+İlgili nullable reason/details metinleri NULL; NOT NULL evidence sabit
+`[silinen hesap: metin kaldırıldı]` olur. Hedef kişi audit'leri de kapsanır;
+başka hesapların aktörleri/verileri korunur. Regex ile metin temizlenmez.
+V171'in kontrollü DB fonksiyonu tek transaction'da çalışır; son REF kontrolü ve
+commit tamamlanmadan 204 verilmez. Veri yok/tekrar çağrı idempotent 204 döner.
+
+#### Hata Durumları
+- 400: Geçersiz yol UUID'si.
+- 401: Kimlik yok, kullanıcı token'ı, geçersiz imza/issuer/audience/tür/süre veya eksik token claim'i.
+- 403: Silme kapsamı yok, çağıran Auth değil veya account_id eksik/yoldaki hesaptan farklı.
+- 503: ACCOUNT_ERASURE_PENDING — kilit/zaman aşımı gibi geçici hata veya eksik temizlik; transaction geri alınır.
+- 500: Beklenmeyen sunucu hatası; silme onayı değildir.
+
+#### Bağlantı
+Frontend: Yok. Gateway route'u eklenmedi.
+Diğer mikroservisler: Auth mevcut GAME_SERVICE_URL üzerinden RestClient ile doğrudan çağırır.
+Auth yalnız 200/204'ü onaylar; bu uç gövdesiz 204 kullanır. Yeni ENV yok.
+Karar raporu ve onaylı politika: `docs-Game Service/LTZ-HAM-GAME-04-Auth-Entegrasyonu.md` §13–§14.
+Migration: V171; ayrı runtime DB rolü varsa yalnız `erase_game_account_data(uuid)`
+EXECUTE yetkisi tahsis edilir, özel bağlam tablosuna DML verilmez.
+
+#### Test Durumu
+UNIT + INTEGRATION — AccountErasureTest, ServiceTokenDecoderConfigurationTest.
+RealAuthIntegrationTest gerçek Auth ServiceTokenIssuer/JWKS uyumluluğunu sınar.
+AccountErasureMigrationTest gerçek PostgreSQL'de silme/anonimleştirme, V40 yükseltmesi,
+çapraz hesap izolasyonu, normal audit değişmezliği, DB yetkisi, rollback ve kilit tekrarını sınar.
+DEV Auth görevinin CONFIRMED olması NOT VERIFIED.
+
 ## LIBRARY
 
 Sorumlu: Hamza · Gateway: `/api/v1/library/**` · Görevler: LIB-
 
-_Kayıt yok._
+### LIBRARY — Hesap verisi silme iç ucu
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: auth-service
+
+#### Endpoint
+DELETE /internal/v1/accounts/{accountId}
+
+#### Yetkilendirme
+Internal; Gateway'e yönlendirilmez. RS256/Auth JWKS, tam `typ=svc+jwt`,
+`iss=ltz-auth` (JWT_ISSUER), tek `aud=library-service`, dolu `kid/jti`,
+ham `iat`, `nbf/exp`, pozitif ve en çok 60 saniye ömür, en çok 30 saniye saat toleransı.
+Yalnız `SCOPE_account:erase`; tam `sub=svc:auth-service` ve
+`account_id` = yol UUID'si zorunlu. Kullanıcı token'ı (ADMIN dahil) iç uçta,
+servis token'ı kullanıcı namespace'inde reddedilir. Servis rollerinden yetki türetilmez.
+
+#### Path Parameters
+- accountId: UUID, zorunlu; token'ın account_id claim'iyle eşleşmeli.
+
+#### Request Body
+Yok.
+
+#### Response — 204
+Gövde yok. Henüz kişisel veri tablosu yok; veri yok/tekrar çağrı durumunda 204.
+Bu bir saklama/anonimleştirme kararı değildir. İlk kişisel veri tablosuyla birlikte
+silme mantığı ve gerçek DB testleri aynı görevde eklenmelidir.
+
+#### Hata Durumları
+- 400: Geçersiz yol UUID'si.
+- 401: Kimlik yok, kullanıcı token'ı, geçersiz imza/issuer/audience/tür/süre veya eksik token claim'i.
+- 403: Silme kapsamı yok, çağıran Auth değil veya account_id eksik/yoldaki hesaptan farklı.
+- 500: Beklenmeyen sunucu hatası; silme onayı değildir.
+
+#### Bağlantı
+Frontend: Yok. Gateway route'u eklenmedi.
+Diğer mikroservisler: Auth mevcut LIBRARY_SERVICE_URL üzerinden RestClient ile doğrudan çağırır.
+Auth yalnız 200/204'ü onaylar; bu uç gövdesiz 204 kullanır. Yeni ENV yok.
+Karar raporu: `docs-Game Service/LTZ-HAM-GAME-04-Auth-Entegrasyonu.md` §13.
+
+#### Test Durumu
+UNIT + INTEGRATION — AccountErasureTest, ServiceTokenDecoderConfigurationTest.
+Geçici RSA/JWKS ile gerçek filtre/controller/servis sınanır.
+ProductionServiceTokenSupport gerçek Auth ServiceTokenIssuer kaynağını test dizinine derler.
+Veri tablosu yoktur; DEV Auth görevinin CONFIRMED olması NOT VERIFIED.
 
 ## REVIEW
 
 Sorumlu: Hamza · Gateway: `/api/v1/review/**` · Görevler: REV-
 
-_Kayıt yok._
+### REVIEW — Hesap verisi silme iç ucu
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: auth-service
+
+#### Endpoint
+DELETE /internal/v1/accounts/{accountId}
+
+#### Yetkilendirme
+Internal; Gateway'e yönlendirilmez. RS256/Auth JWKS, tam `typ=svc+jwt`,
+`iss=ltz-auth` (JWT_ISSUER), tek `aud=review-service`, dolu `kid/jti`,
+ham `iat`, `nbf/exp`, pozitif ve en çok 60 saniye ömür, en çok 30 saniye saat toleransı.
+Yalnız `SCOPE_account:erase`; tam `sub=svc:auth-service` ve
+`account_id` = yol UUID'si zorunlu. Kullanıcı token'ı (ADMIN dahil) iç uçta,
+servis token'ı kullanıcı namespace'inde reddedilir. Servis rollerinden yetki türetilmez.
+
+#### Path Parameters
+- accountId: UUID, zorunlu; token'ın account_id claim'iyle eşleşmeli.
+
+#### Request Body
+Yok.
+
+#### Response — 204
+Gövde yok. Henüz kişisel veri tablosu yok; veri yok/tekrar çağrı durumunda 204.
+Bu bir saklama/anonimleştirme kararı değildir. İlk kişisel veri tablosuyla birlikte
+silme mantığı ve gerçek DB testleri aynı görevde eklenmelidir.
+
+#### Hata Durumları
+- 400: Geçersiz yol UUID'si.
+- 401: Kimlik yok, kullanıcı token'ı, geçersiz imza/issuer/audience/tür/süre veya eksik token claim'i.
+- 403: Silme kapsamı yok, çağıran Auth değil veya account_id eksik/yoldaki hesaptan farklı.
+- 500: Beklenmeyen sunucu hatası; silme onayı değildir.
+
+#### Bağlantı
+Frontend: Yok. Gateway route'u eklenmedi.
+Diğer mikroservisler: Auth mevcut REVIEW_SERVICE_URL üzerinden RestClient ile doğrudan çağırır.
+Auth yalnız 200/204'ü onaylar; bu uç gövdesiz 204 kullanır. Yeni ENV yok.
+Karar raporu: `docs-Game Service/LTZ-HAM-GAME-04-Auth-Entegrasyonu.md` §13.
+
+#### Test Durumu
+UNIT + INTEGRATION — AccountErasureTest, ServiceTokenDecoderConfigurationTest.
+Geçici RSA/JWKS ile gerçek filtre/controller/servis sınanır.
+ProductionServiceTokenSupport gerçek Auth ServiceTokenIssuer kaynağını test dizinine derler.
+Veri tablosu yoktur; DEV Auth görevinin CONFIRMED olması NOT VERIFIED.
 
 ## SOCIAL
 

@@ -149,6 +149,18 @@ Gösterim: **PK** birincil anahtar, **FK** servis içi yabancı anahtar, **REF**
 
 ### 3.4 game_db — game-service (Hamza)
 
+**2026-10-24 ek yükseltme:** V171–V180 Game'e açıkça tahsis edildi; aktif kaynak
+zinciri V31–V40 + `V171__enable_controlled_account_erasure.sql` oldu. V171 yalnız
+hesap silme fonksiyonu/koruması ekler; migration çalışırken mevcut veri değişmez.
+`game_account_erasure_context`: UUID PK, unique transaction_id bigint, account_id REF,
+created_at timestamptz, version bigint. Yalnız silme transaction'ında oluşup aynı
+transaction'da kaldırılır; kalıcı silinmiş hesap listesi değildir. Normal audit
+UPDATE/DELETE yasağı korunur; özel fonksiyon ilgili aktörleri nil UUID'ye çevirip
+metinleri NULL/sabit evidence yapabilir. Kendi grant/içerik/medya/not/feedback satırları
+silinir; revoke CHECK korunur. API ve politika: Game Auth belgesi §14.
+DEV'e bu çalışma kapsamında uygulanmadı. Aşağıdaki V31–V40/21 tablo bilgileri
+2026-10-21 başlangıç kurulumu ve tarihsel eşdeğerlik kaydıdır.
+
 **Başlangıç migration kaynakları yeniden düzenlendi (2026-10-21, açık kullanıcı talimatı).**
 Son açık numaralandırma kararıyla aktif zincir kesintisiz **V31–V40**: 10 dosya,
 0 ALTER TABLE. Nihai oyun alanları/genel dil listesi/keşif indeksleri V31;
@@ -187,7 +199,7 @@ yapılmaz. LOCALIZATION mevcut manuel kilit allowlist'ine eklenir. Fiyat tablosu
 oluşturulmadı; GAME-24 sağlayıcı izni/erişimi bekler.
 
 
-**Tarihsel gelişim (eski numaralandırma — aktif zincir değildir):** GAME-08 V31, GAME-10 V32, GAME-16 V33, GAME-18 V34, GAME-21 V35, Faz 2 güncellik/retry altyapısı V36, Faz 3 keşif metadata/indeksleri V37, Faz 4 yönetim/geliştirici tabloları V38–V40, GAME-23 V171 ve Faz 6 V172–V173 eski 13 dosyalı zincirin numaralarıdır. Aşağıdaki "tarihsel Vxx" atıfları bu eski zincire, "aktif Vxx" atıfları bu bölümün başındaki yeni V31–V40 zincirine aittir; numaralar karıştırılmamalıdır (özellikle tarihsel V40 geliştirici içeriği, aktif V40 özel geri bildirimdir). V171–V173 yalnız bu eski zincirde kullanılmıştır, aktif migration değildir. V171–V190 ek aralığı ve V174–V190 rezervasyonu kaldırılmıştır; aktif V31–V40 aralığı doludur ve gelecekte yeni migration gerekirse numara aralığı ekipçe belirlenir. Gerçek detay sağlayıcısı henüz entegre edilmedi.
+**Tarihsel gelişim (eski numaralandırma — aktif zincir değildir):** GAME-08 V31, GAME-10 V32, GAME-16 V33, GAME-18 V34, GAME-21 V35, Faz 2 güncellik/retry V36, Faz 3 keşif V37, Faz 4 yönetim/geliştirici V38–V40, GAME-23 V171 ve Faz 6 V172–V173 eski 13 dosyalı zincirin numaralarıdır. "Tarihsel Vxx" bu eski zinciri; başlangıç "aktif Vxx" V31–V40 zincirini gösterir (özellikle tarihsel V40 geliştirici içeriği, aktif V40 özel feedback). Eski ek aralık 2026-10-21'de iptal edilmişti; 2026-10-24 açık talimatıyla **V171–V180 yeniden Game'e tahsis edildi**. Güncel aktif V171 hesap silmedir; tarihsel V171 dil/provenance ile karıştırılmamalıdır. V172–V180 güncel kaynakta boştur, V181–V190 tahsis edilmemiştir. Gerçek detay sağlayıcısı henüz entegre edilmedi.
 
 - `games`: UUID `id`, `title`, `normalized_title`, UTC `created_at`/`updated_at`, optimistic `version`.
 - `catalog_terms`: UUID `id`, `kind` (GENRE/CATEGORY/TAG/PLATFORM), `code`, nullable TR/EN adlar, `version`; UNIQUE `(kind, code)`.

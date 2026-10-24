@@ -22,6 +22,7 @@ final class ProductionAuthSupport implements AutoCloseable {
     private final URLClassLoader loader;
     private final Object signingKey;
     private final Object issuer;
+    private final Object serviceIssuer;
 
     ProductionAuthSupport(Path output) throws Exception {
         Path services = Path.of(System.getProperty("user.dir")).toAbsolutePath();
@@ -32,7 +33,7 @@ final class ProductionAuthSupport implements AutoCloseable {
         for (String name : List.of("domain/entity/Account", "domain/entity/AuthSession", "domain/entity/Role",
                 "domain/enums/AccountStatus", "domain/enums/RoleCode", "domain/enums/AuthMethod", "domain/enums/SessionRevokeReason",
                 "infrastructure/config/JwtProperties", "infrastructure/security/JwtSigningKey", "infrastructure/security/TokenClaims",
-                "infrastructure/security/AccessTokenIssuer", "api/controller/JwksController", "api/controller/AuthApiPaths"))
+                "infrastructure/security/AccessTokenIssuer", "infrastructure/security/ServiceTokenIssuer", "api/controller/JwksController", "api/controller/AuthApiPaths"))
             sources.add(services.resolve("auth-service/src/main/java/com/ltz/auth/" + name + ".java").toString());
         for (String name : List.of("CookieBearerFilter", "ClientRequestSanitizerFilter", "GatewaySecurityProperties",
                 "GatewayPaths", "HeaderOverrideRequest", "ProblemResponses"))
@@ -56,6 +57,13 @@ final class ProductionAuthSupport implements AutoCloseable {
         Object properties = type("infrastructure.config.JwtProperties").getConstructor(String.class, String.class, Duration.class, String.class)
                 .newInstance("ltz-auth", "ltz-api", Duration.ofMinutes(5), encoded);
         issuer = type("infrastructure.security.AccessTokenIssuer").getConstructors()[0].newInstance(encoder, signingKey, properties);
+        serviceIssuer = type("infrastructure.security.ServiceTokenIssuer").getConstructors()[0]
+                .newInstance(encoder, signingKey, properties, java.time.Clock.systemUTC());
+    }
+
+    String serviceToken(UUID accountId) throws Exception {
+        return (String) serviceIssuer.getClass().getMethod("issue", String.class, String.class, UUID.class)
+                .invoke(serviceIssuer, "game-service", "account:erase", accountId);
     }
 
     String jwks() throws Exception {

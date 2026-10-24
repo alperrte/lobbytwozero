@@ -44,14 +44,19 @@ class MigrationArchitectureTest {
     }
 
     private Flyway flyway(DriverManagerDataSource source, Path location) {
-        return Flyway.configure().dataSource(source).locations("filesystem:" + location.toAbsolutePath()).load();
+        var configuration = Flyway.configure().dataSource(source).locations("filesystem:" + location.toAbsolutePath());
+        // Bu sınıf tarihsel yeniden numaralandırma eşdeğerliğini V40 sınırında korur.
+        // Sonraki yükseltmeler AccountErasureMigrationTest'te ayrıca doğrulanır.
+        if (location.equals(CURRENT)) configuration.target("40");
+        return configuration.load();
     }
 
     @Test void productionChainHasNoAlterAndHistoricalFixturesRemainExact() throws Exception {
-        List<String> expected = java.util.stream.IntStream.rangeClosed(31, 40).mapToObj(Integer::toString).toList();
+        List<String> expected = new ArrayList<>(java.util.stream.IntStream.rangeClosed(31, 40).mapToObj(Integer::toString).toList());
+        expected.add("171");
         try (var paths = Files.list(CURRENT)) {
             var files = paths.filter(p -> p.toString().endsWith(".sql")).toList();
-            assertEquals(10, files.size());
+            assertEquals(11, files.size());
             var versions = new ArrayList<String>();
             for (Path file : files) {
                 String sql = Files.readString(file);
@@ -134,6 +139,7 @@ class MigrationArchitectureTest {
         Path destination = Files.createDirectory(work.resolve(name));
         try (var files = Files.list(source)) {
             for (Path file : files.filter(p -> p.toString().endsWith(".sql")).toList()) {
+                if (source.equals(CURRENT) && file.getFileName().toString().startsWith("V171__")) continue;
                 Files.copy(file, destination.resolve(file.getFileName()));
             }
         }

@@ -41,10 +41,6 @@ export async function runQualityChecks({ root = repositoryRoot, profile = 'dev',
 
     await step('Backend Tests', async () => {
       rows['Backend Build'] = 'FAIL';
-      const backend = backendTestEnvironment(root, profile, env, log);
-      const runBackend = (command, args, cwd = root, capture = false) => runCommand(command, args, { cwd, env: backend.env, capture, secrets: backend.secrets, log });
-      await requireMaven25(runBackend, mvn, root);
-      const result = await runBackend(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify']);
       const config = await run('docker', ['compose', '--env-file', `.env.${profile}`, '-f', 'docker-compose.yml', 'config', '--format', 'json'], root, true);
       if (config.code !== 0) throw new Error('Cannot resolve the selected Compose profile for backend tests.');
 

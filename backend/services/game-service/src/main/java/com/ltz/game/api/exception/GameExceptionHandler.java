@@ -6,6 +6,15 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.bind.annotation.*;
 @RestControllerAdvice
 public class GameExceptionHandler extends org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler {
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ProblemDetail erasureForbidden() {
+        return problem(HttpStatus.FORBIDDEN, "Bu silme işlemi için yetkiniz yok.", "ACCESS_FORBIDDEN");
+    }
+
+    @ExceptionHandler(com.ltz.game.domain.exception.AccountErasurePendingException.class)
+    public ProblemDetail erasurePending() {
+        return problem(HttpStatus.SERVICE_UNAVAILABLE, "Hesap verisi silme henüz tamamlanamadı.", "ACCOUNT_ERASURE_PENDING");
+    }
     @ExceptionHandler(com.ltz.game.domain.exception.CatalogRatingUnavailableException.class)
     public ProblemDetail ratingUnavailable() {
         var problem=ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,"LTZ puanı filtresi ve sıralaması Review Service entegrasyonu bekliyor.");
