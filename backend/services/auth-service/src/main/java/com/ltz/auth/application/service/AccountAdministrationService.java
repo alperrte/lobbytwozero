@@ -73,7 +73,7 @@ public class AccountAdministrationService {
         if (target != AccountStatus.ACTIVE) {
             sessionRepository.revokeAllActive(accountId, SessionRevokeReason.ACCOUNT_INACTIVE, now);
         }
-        securityEventRecorder.record(SecurityEventType.ACCOUNT_STATUS_CHANGED, accountId);
+        securityEventRecorder.recordEvent(SecurityEventType.ACCOUNT_STATUS_CHANGED, accountId);
     }
 
     @Transactional
@@ -93,7 +93,7 @@ public class AccountAdministrationService {
         account.grantRole(roleRepository.findByCode(role)
                 .orElseThrow(() -> new IllegalStateException("Role seed is missing: " + role)), now);
         finishRoleChange(actorId, accountId, role, RoleAction.GRANT, reason, now);
-        securityEventRecorder.record(SecurityEventType.ACCOUNT_ROLE_GRANTED, accountId);
+        securityEventRecorder.recordEvent(SecurityEventType.ACCOUNT_ROLE_GRANTED, accountId);
     }
 
     @Transactional
@@ -109,7 +109,7 @@ public class AccountAdministrationService {
         Instant now = clock.instant();
         account.revokeRole(role, now);
         finishRoleChange(actorId, accountId, role, RoleAction.REVOKE, reason, now);
-        securityEventRecorder.record(SecurityEventType.ACCOUNT_ROLE_REVOKED, accountId);
+        securityEventRecorder.recordEvent(SecurityEventType.ACCOUNT_ROLE_REVOKED, accountId);
     }
 
     private void finishRoleChange(UUID actorId, UUID accountId, RoleCode role, RoleAction action, String reason,

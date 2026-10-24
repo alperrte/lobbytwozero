@@ -100,7 +100,7 @@ public class SteamLoginService {
             if (!verifier.isValid(assertion.openIdParams())) {
                 throw new ExternalAuthenticationException("Steam rejected the assertion");
             }
-        } catch (ExternalAuthenticationException exception) {
+        } catch (ExternalAuthenticationException _) {
             throw failed();
         }
         Optional<ExternalIdentity> linked = identityRepository.findByProviderAndProviderSubject(
@@ -120,8 +120,7 @@ public class SteamLoginService {
     /**
      * Steam ile yeni hesap: e-posta ve kullanıcı adı toplanır. Kayıtlı e-postada hesap açılmaz ve yanıt değişmez
      * (numaralandırma yok); kayıt hakkı her iki durumda da tüketilir. Kullanıcı adı çakışması 409.
-     */
-    /**
+     *
      * @return e-posta doğrulamasında kayıt sahibini kanıtlayan tek kullanımlık Steam kanıtı (verificationProof).
      *         Her durumda aynı biçimde bir kanıt döner (kayıtlı e-posta dahil); yanıt hesap varlığını sızdırmaz.
      */
@@ -148,7 +147,7 @@ public class SteamLoginService {
                 registrationRepository.flush();
                 String proof = issueVerificationProof(registration.getSteamId(), now);
                 if (accountRepository.findByEmailNormalized(Account.normalizeEmail(email)).isPresent()) {
-                    securityEventRecorder.record(SecurityEventType.REGISTRATION_EMAIL_CONFLICT, null);
+                    securityEventRecorder.recordEvent(SecurityEventType.REGISTRATION_EMAIL_CONFLICT, null);
                     return new Completion(null, proof);
                 }
                 var role = roleRepository.findByCode(RoleCode.PLAYER).orElseThrow(
@@ -157,7 +156,7 @@ public class SteamLoginService {
                         Account.registerPending(email, username, null, role, now));
                 identityRepository.saveAndFlush(
                         ExternalIdentity.link(account.getId(), ExternalProvider.STEAM, registration.getSteamId(), now));
-                securityEventRecorder.record(SecurityEventType.ACCOUNT_REGISTERED, account.getId());
+                securityEventRecorder.recordEvent(SecurityEventType.ACCOUNT_REGISTERED, account.getId());
                 return new Completion(emailVerificationService.issueCode(account, now), proof);
             });
         } catch (DataIntegrityViolationException exception) {
@@ -167,7 +166,7 @@ public class SteamLoginService {
             }
             if (constraint != null) {
                 // E-posta veya SteamID eşzamanlı olarak alındı: nötr yanıt, hesap açılmaz; kanıt hiçbir kayda bağlı değildir.
-                securityEventRecorder.record(SecurityEventType.EXTERNAL_LINK_CONFLICT, null);
+                securityEventRecorder.recordEvent(SecurityEventType.EXTERNAL_LINK_CONFLICT, null);
                 return new Completion(null, secureTokens.newOpaqueToken());
             }
             throw exception;
@@ -180,7 +179,7 @@ public class SteamLoginService {
             Instant now = clock.instant();
             registrationRepository.save(SteamRegistration.issue(secureTokens.sha256Hex(token), steamId,
                     SteamProofPurpose.REGISTRATION, now, now.plus(properties.steam().registrationTtl())));
-            securityEventRecorder.record(SecurityEventType.STEAM_REGISTRATION_STARTED, null);
+            securityEventRecorder.recordEvent(SecurityEventType.STEAM_REGISTRATION_STARTED, null);
         });
         return token;
     }
@@ -211,7 +210,7 @@ public class SteamLoginService {
     }
 
     private AuthException failed() {
-        securityEventRecorder.record(SecurityEventType.EXTERNAL_LOGIN_FAILED, null);
+        securityEventRecorder.recordEvent(SecurityEventType.EXTERNAL_LOGIN_FAILED, null);
         return new AuthException(AuthErrorCode.EXTERNAL_AUTH_FAILED);
     }
 

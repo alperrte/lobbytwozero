@@ -30,13 +30,19 @@ class SessionCookiesProfileTest {
 
     @Test
     void secureOlmayanCerezDigerProfillerdeReddedilir() {
-        assertThatThrownBy(() -> new SessionCookies(properties(false), profile("prod")))
+        SessionProperties insecure = properties(false);
+        MockEnvironment prod = profile("prod");
+        MockEnvironment production = profile("production");
+        MockEnvironment noProfile = profile();
+        MockEnvironment devAndProd = profile("dev", "prod");
+
+        assertThatThrownBy(() -> new SessionCookies(insecure, prod))
                 .isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> new SessionCookies(properties(false), profile("production")))
+        assertThatThrownBy(() -> new SessionCookies(insecure, production))
                 .isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> new SessionCookies(properties(false), profile()))
+        assertThatThrownBy(() -> new SessionCookies(insecure, noProfile))
                 .isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> new SessionCookies(properties(false), profile("dev", "prod")))
+        assertThatThrownBy(() -> new SessionCookies(insecure, devAndProd))
                 .isInstanceOf(IllegalStateException.class);
     }
 

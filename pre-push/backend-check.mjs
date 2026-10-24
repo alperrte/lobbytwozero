@@ -1,5 +1,6 @@
 import { backendTestEnv } from '../lib/profile-env.mjs';
 import { repositoryRoot, execute, backendTests, backendResults, readModules, clearBackendReports } from '../lib/quality-tools.mjs';
+import { loadBackendTestEnv } from '../lib/profile-env.mjs';
 import { prepareCoverage, enforceCoverage } from './ci/coverage.mjs';
 
 export async function requireMaven25(run, mvn, root) {
@@ -8,7 +9,21 @@ export async function requireMaven25(run, mvn, root) {
   if (!/Java version:\s*25[.,]/.test(version.output)) throw new Error('Maven must use JDK 25; check JAVA_HOME');
 }
 
-export async function runBackendChecks({ root = repositoryRoot, service = 'all', ambient = process.env, runCommand = execute,
+// Host Maven tests need the existing application DB settings (127.0.0.1 + host port).
+// Values stay inside the child environment; a missing profile degrades to the plain
+// terminal environment so Testcontainers-only services still run, and DB-bound
+// services then fail visibly instead of passing silently.
+export function backendTestEnvironment(root, profile, env, log) {
+  try {
+    const backendEnv = loadBackendTestEnv(root, profile, env);
+    return { env: backendEnv, secrets: [backendEnv.POSTGRES_PASSWORD] };
+  } catch (error) {
+    log('[WARN] ' + error.message + '; services that need the shared PostgreSQL will fail.');
+    return { env, secrets: [] };
+  }
+}
+
+export async function runBackendChecks({ root = repositoryRoot, service = 'all', profile = 'dev', ambient = process.env, runCommand = execute,
   prepare = prepareCoverage, coverageCheck = enforceCoverage, log = console.log } = {}) {
   const services = {};
   const started = Date.now();
@@ -20,15 +35,15 @@ export async function runBackendChecks({ root = repositoryRoot, service = 'all',
     for (const module of selected) services[module.split('/')[1]] = { tests: 'NOT RUN', coverage: 'NOT RUN', testCount: 0, lineCoverage: null };
     log('[SCOPE] ' + (service === 'all' ? 'Tüm backend servisleri' : service));
     const env = Object.fromEntries(Object.entries(ambient).filter(([name]) => !name.startsWith('SONAR')));
-    const run = (command, args, cwd = root, capture = false) => runCommand(command, args, { cwd, env, capture, log });
     const mvn = process.platform === 'win32' ? 'mvn.cmd' : 'mvn';
-    await requireMaven25(run, mvn, root);
+    await requireMaven25((command, args, cwd = root, capture = false) => runCommand(command, args, { cwd, env, capture, log }), mvn, root);
     env.LTZ_COVERAGE_CONTEXT = ambient.LTZ_COVERAGE_CONTEXT || await prepare(root);
+    const backend = backendTestEnvironment(root, profile, env, log);
     clearBackendReports(root, selected);
     const args = ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end'];
     if (service !== 'all') args.push('-pl', selected[0]);
     args.push('clean', 'verify');
-    const result = await runCommand(mvn, args, { cwd: root, env: backendTestEnv(root, 'dev', env), capture: false, log });
+    const result = await runCommand(mvn, args, { cwd: root, env: backend.env, capture: false, secrets: backend.secrets, log });
     buildPassed = result.code === 0;
     if (!buildPassed) log('[ERROR] Maven verify failed with exit code ' + result.code);
     for (const module of selected) {

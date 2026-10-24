@@ -38,20 +38,25 @@ class SecretCipherTest {
         byte[] tampered = encrypted.ciphertext().clone();
         tampered[0] ^= 1;
 
-        assertThatThrownBy(() -> cipher.decrypt(encrypted, UUID.randomUUID())).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> cipher.decrypt(new EncryptedSecret(tampered, encrypted.nonce(), encrypted.keyVersion()),
-                accountId)).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> new SecretCipher(properties(key(SecretCipher.KEY_BYTES))).decrypt(encrypted, accountId))
+        UUID otherAccountId = UUID.randomUUID();
+        EncryptedSecret tamperedSecret = new EncryptedSecret(tampered, encrypted.nonce(), encrypted.keyVersion());
+        SecretCipher otherKeyCipher = new SecretCipher(properties(key(SecretCipher.KEY_BYTES)));
+
+        assertThatThrownBy(() -> cipher.decrypt(encrypted, otherAccountId)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> cipher.decrypt(tamperedSecret, accountId)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> otherKeyCipher.decrypt(encrypted, accountId))
                 .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
     void yanlisUzunluktakiAnahtarReddedilir_mesajAnahtariIcermez() {
         String shortKey = key(16);
+        TwoFactorProperties shortKeyProperties = properties(shortKey);
+        TwoFactorProperties invalidKeyProperties = properties("not base64 $$$");
 
-        assertThatThrownBy(() -> new SecretCipher(properties(shortKey)))
+        assertThatThrownBy(() -> new SecretCipher(shortKeyProperties))
                 .isInstanceOf(IllegalStateException.class).hasMessageNotContaining(shortKey).hasNoCause();
-        assertThatThrownBy(() -> new SecretCipher(properties("not base64 $$$")))
+        assertThatThrownBy(() -> new SecretCipher(invalidKeyProperties))
                 .isInstanceOf(IllegalStateException.class).hasNoCause();
     }
 

@@ -58,7 +58,7 @@ public class VerificationCodeHasher {
         byte[] decoded;
         try {
             decoded = Base64.getDecoder().decode(encodedKey);
-        } catch (IllegalArgumentException exception) {
+        } catch (IllegalArgumentException _) {
             throw new IllegalStateException(invalidKeyMessage());
         }
         if (decoded.length < MIN_KEY_BYTES) {

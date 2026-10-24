@@ -304,11 +304,14 @@ class GatewaySecurityFiltersTest {
     void gecersizCorsKaynaklariAcilistaReddedilir() {
         for (String bad : List.of("*", "http://localhost:5001/path", "ftp://x.example", "localhost:5001",
                 "http://user@localhost:5001")) {
-            assertThatThrownBy(() -> new GatewaySecurityProperties.Cors(List.of(bad)))
+            List<String> origins = List.of(bad);
+            assertThatThrownBy(() -> new GatewaySecurityProperties.Cors(origins))
                     .as(bad).isInstanceOf(IllegalArgumentException.class);
         }
-        assertThatThrownBy(() -> new GatewaySecurityProperties.Cors(List.of())).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new GatewaySecurityProperties.Cors(List.of(" ")))
+        List<String> empty = List.of();
+        List<String> blank = List.of(" ");
+        assertThatThrownBy(() -> new GatewaySecurityProperties.Cors(empty)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new GatewaySecurityProperties.Cors(blank))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

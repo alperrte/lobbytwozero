@@ -49,7 +49,7 @@ public class PasswordResetDispatcher {
     public void dispatch(PasswordResetMail mail) {
         try {
             taskExecutor.execute(() -> deliver(mail));
-        } catch (TaskRejectedException exception) {
+        } catch (TaskRejectedException _) {
             log.warn("Password reset delivery rejected by executor tokenId={}", mail.idempotencyKey());
             markDeliveryFailed(mail);
         }
@@ -72,7 +72,7 @@ public class PasswordResetDispatcher {
                 .filter(PasswordResetToken::isActive)
                 .ifPresent(token -> {
                     token.invalidate(PasswordResetInvalidationReason.DELIVERY_FAILED, clock.instant());
-                    securityEventRecorder.record(SecurityEventType.PASSWORD_RESET_DELIVERY_FAILED, mail.accountId());
+                    securityEventRecorder.recordEvent(SecurityEventType.PASSWORD_RESET_DELIVERY_FAILED, mail.accountId());
                 }));
     }
 }

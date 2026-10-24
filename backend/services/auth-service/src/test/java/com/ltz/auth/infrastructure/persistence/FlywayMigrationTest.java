@@ -30,24 +30,29 @@ class FlywayMigrationTest extends IntegrationTestSupport {
 
     @Test
     void tanimsizRolKoduReddedilir() {
-        assertThatThrownBy(() -> jdbc.update("insert into roles (id, code) values (?, 'SUPER_USER')", UUID.randomUUID()))
+        UUID roleId = UUID.randomUUID();
+
+        assertThatThrownBy(() -> jdbc.update("insert into roles (id, code) values (?, 'SUPER_USER')", roleId))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
     void tanimsizHesapDurumuReddedilir() {
-        assertThatThrownBy(() -> insertAccount(UUID.randomUUID(), "UNKNOWN"))
+        UUID accountId = UUID.randomUUID();
+
+        assertThatThrownBy(() -> insertAccount(accountId, "UNKNOWN"))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
     void normalizeEdilmemisEPostaReddedilir() {
         String suffix = uniqueSuffix();
+        UUID accountId = UUID.randomUUID();
         assertThatThrownBy(() -> jdbc.update("""
                 insert into accounts (id, email, email_normalized, username, username_normalized, status,
                                       created_at, updated_at)
                 values (?, ?, ?, ?, ?, 'PENDING_VERIFICATION', now(), now())
-                """, UUID.randomUUID(), "Mixed@Example.test", "Mixed." + suffix + "@Example.test",
+                """, accountId, "Mixed@Example.test", "Mixed." + suffix + "@Example.test",
                 "u" + suffix, "u" + suffix))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }

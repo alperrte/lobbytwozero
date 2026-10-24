@@ -35,6 +35,10 @@ sonucu yalnızca backend test kapsamına aittir.
   anahtar ve bilinen gizli dosya yollarının kontrolü. Bu dosya adı kontrolüdür;
   bütün kaynak içeriğinde veya Git geçmişinde secret taraması değildir. Ayrıca pinned Gitleaks ile tracked worktree diff taraması zorunludur; tarayıcı yoksa FAIL olur. Ek depo hijyeni (`pre-push/hygiene-checks.mjs`): izlenen dosyalarda özel anahtar başlığı ve uzun sır atamaları (değer yazdırılmaz), `.env` dosyalarının Git ve `.dockerignore` tarafından yok sayılması, Compose portlarının 127.0.0.1'e bağlı olması ve anahtar üretici script güvenlik testi. Tam geçmiş taraması haftalık audit işidir.
 - Tüm backend için Maven `clean verify`, test raporları ve modül başına merkezi progressive coverage kapısı.
+  Host Maven testleri, seçilen `.env.<profil>` içindeki `POSTGRES_USER/PASSWORD/HOST_PORT` ve
+  `DB_*` değerlerini yalnız alt süreç ortamına alır (`POSTGRES_HOST=127.0.0.1`); terminalde
+  açıkça tanımlı değerler önceliklidir. Parola loga yazılmaz. Profil okunamazsa uyarı verilir ve
+  PostgreSQL gerektiren servis testleri görünür şekilde FAIL olur.
 - Seçilen `.env.dev` veya `.env.prod` ile `docker-compose.yml` doğrulaması.
   Docker Compose gerekir; yapılandırma kontrolü container başlatmaz.
 - Compose içinde tanımlı backend servisleri varsa seçilen Compose projesinde
@@ -42,6 +46,17 @@ sonucu yalnızca backend test kapsamına aittir.
 
 HTTP health kapsamı seçilen Compose dosyasındaki gerçek backend servislerinden hesaplanır.
 Frontend lint, typecheck, test ve bağımlılık taraması CI frontend job'ında çalışır; yerel full tablosuna dahil değildir.
+
+`full dev` öncesinde geliştirme servislerini başlatın:
+
+```powershell
+docker compose --env-file .env.dev up -d --build
+.pre-pushpre-push.cmd full dev
+```
+
+PostgreSQL çalışmıyorsa iskelet servislerin context testleri DB bağlantısında;
+backend servisleri çalışmıyorsa HTTP health kontrolü başarısız olur.
+PostgreSQL portunun yalnız `127.0.0.1` üzerinde yayımlanması zorunludur.
 
 `SAFE TO COMMIT` yalnızca tabloda gösterilen uygulanabilir kontrollerin geçtiğini
 belirtir. Uygulamanın çalıştığını veya production hazırlığını garanti etmez.

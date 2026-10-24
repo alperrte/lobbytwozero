@@ -44,7 +44,7 @@ Branch adındaki servis adını bul. Aşağıdaki tabloya göre eşle (büyük/k
 3. **Kullanıcıya 3–5 satır özet ver:** "Branch `X` → servis `Y`; Auth'tan şunları bekliyor; şu eksikler var; şu adımları yapacağım." Sonra devam et.
 4. **Servisini denetle** (aşağıda §0.4) ve eksikleri uygula.
 5. **Yalnız kendi servisinde değişiklik yap.** Başka servisin koduna, DB'sine, migration aralığına dokunma; gerekiyorsa kullanıcıya öner. `AGENTS.md` kuralları (commit/push yasağı, ENV onayı, `docs/api.md` kaydı, Türkçe yanıt) aynen geçerlidir.
-6. **Olmayan şeyi uydurma.** §4'te EKSİK olarak işaretli yetenekleri (Mail Service, D4 servis kimliği, JWT'de e-posta/durum claim'i, `AccountStatusChanged`, cihaz kimliği) varmış gibi kodlama.
+6. **Olmayan şeyi uydurma.** §4'te EKSİK olarak işaretli yetenekleri (Mail Service, Admin→Auth servis kimlikli iç uç, JWT'de e-posta/durum claim'i, `AccountStatusChanged`, cihaz kimliği) varmış gibi kodlama.
 
 ### 0.4 Servisini şu sırayla denetle ve tamamla
 
@@ -54,7 +54,7 @@ Branch adındaki servis adını bul. Aşağıdaki tabloya göre eşle (büyük/k
 | 2 | **`roles` claim'ini yetkiye çevir** | `ROLE_` önekiyle; bkz. rehber §3.4 |
 | 3 | **Her endpoint'e açık kural yaz** | `permitAll` / `authenticated` / `hasRole`; geri kalan `denyAll` |
 | 4 | **Sahiplik (IDOR/BOLA) kontrolü** | `owner_id == sub`, `userId` yalnız `sub`'dan; gövdeden `userId` alma |
-| 5 | **Hesap silme ucu** (veri tutuyorsan) | `DELETE /internal/v1/accounts/{accountId}`, idempotent, kimliksiz açılmaz |
+| 5 | **Hesap silme ucu** (her silme hedefi; verin yoksa da) | `DELETE /internal/v1/accounts/{accountId}`, idempotent, yalnız Auth'un D4 servis token'ıyla; bitince `204` (`202` onay değildir). Doğrulama tablosu: `docs-auth/servis-sozlesmeleri.md` §3–§3.1 |
 | 6 | **401/403/ProblemDetail** | Tutarlı hata gövdesi; sır/stack trace yok |
 | 7 | **Testler** | §2 sonundaki liste; gerçek Auth token'ıyla en az bir entegrasyon testi |
 | 8 | **`docs/api.md`** | Endpoint'lerin `Yetkilendirme` alanını gerçeğe göre güncelle |
@@ -148,7 +148,7 @@ Gateway **yapmaz**: JWT doğrulaması, rol kontrolü, sahiplik kontrolü. Bunlar
 6. **401** = kimlik yok/geçersiz, **403** = kimlik var ama yetki yok, **404** = yok ya da güvenli gizleme. Gövde `ProblemDetail`; token/SQL/stack trace yok.
 7. Başkasının kaydı için 404 veya 403 ver, ayrıntı sızdırma; serviste tutarlı ol.
 8. Hesap **askıya alınır/yasaklanırsa** token en fazla **5 dakika** (access token ömrü) sende geçerli görünür. Durum claim'i ve olay yok; buna göre tasarla.
-9. Hesap silinirse Auth sana **`DELETE /internal/v1/accounts/{accountId}`** çağırır. Kişisel veriyi sil/anonimleştir, **idempotent** ol (ikinci çağrı da 2xx). Servis kimliği (D4) gelene kadar bu ucu Gateway'e açma.
+9. Hesap silinirse Auth sana **`DELETE /internal/v1/accounts/{accountId}`** çağırır (D4 servis token'ıyla). Token'da **hepsini** doğrula: `typ=svc+jwt`, RS256/JWKS, `iss=ltz-auth`, `aud=<senin servisin>-service`, `sub=svc:auth-service` (**tam eşleşme**), `scope=account:erase`, `account_id` = yoldaki `{accountId}` (değilse `403`), `exp - iat ≤ 60 sn`, `jti` var. Kişisel veriyi sil/anonimleştir, bitince `204` dön (verin yoksa da `204`; `202` onay sayılmaz), **idempotent** ol. Bu uç **asla** Gateway'e açılmaz.
 10. Auth DB'sine ve başka servisin DB'sine **asla** doğrudan erişme. Sır, token, parola loglama, koda veya belgeye yazma.
 
 **Test listesi (her servis):** token yok → 401 · bozuk/süresi dolmuş → 401 · `alg=none` ve HS256 → 401 · yanlış `iss`/`aud`/`typ` → 401 ·
@@ -206,10 +206,10 @@ Token'ı `localStorage`, `sessionStorage` veya IndexedDB'ye **yazma** (SECURITY.
 | --- | --- | --- | --- | --- |
 | 1 | **Mail Service yok** (doğrulama, sıfırlama, silme onayı, bildirim e-postaları) | mail-service | **K** | Auth'ta `prod` profili bu yüzden bilerek açılmıyor. Dev'de Mailpit ile çalışır |
 | 2 | **Servislerde JWT doğrulaması yok** | Her servis | **K** | §0.4 adım 1–4 |
-| 3 | **Hedef servislerde silme ucu yok** (`DELETE /internal/v1/accounts/{id}`) | Her veri sahibi servis | **Y** | Yoksa hesap `DELETED` olmaz, kişisel veri Auth'ta kalır |
-| 4 | **Servis kimliği (D4) yok** (`svc+jwt`) | auth + ortak Security | **Y** | Admin→Auth ve Auth→servis iç çağrıları buna bağlı |
+| 3 | **Hedef servislerde silme ucu yok** (`DELETE /internal/v1/accounts/{id}`) | Her silme hedefi (16 servis) | **Y** | Auth tarafı hazır ve gerçekten çağırıyor; uç yoksa görev PENDING kalır, hesap `DELETED` olmaz |
+| 4 | **Servis kimliği (D4): Auth→servis UYGULANDI (2026-10-23); Admin→Auth iç uç yok** | auth | **O** | Admin rol/durum işlemleri şimdilik kullanıcı token'ıyla (`ADMIN`) |
 | 5 | **Frontend CSRF başlığı ve auth sayfaları yok** | frontend | **Y** | §3'teki not |
-| 6 | **Silme hedef listesinde `game` ve `admin` yok** | game, admin + auth | **Y** | `accountId` içeren veri tutuyorlarsa listeye eklenmeli (S2) |
+| 6 | ~~Silme hedef listesinde `game` ve `admin` yok~~ **KAPANDI (2026-10-23):** ikisi de listede (16 hedef) | game, admin | **Y** | Hangi verinin silinip hangisinin hukuki gerekçeyle anonim saklanacağı Auth sahibiyle kararlaştırılır |
 | 7 | **Bağımlılık yamaları (Tomcat/Jackson CVE) yalnız auth-service'te** | Parent POM | **Y** | Gateway dahil diğer modüller eski sürümde (B13) |
 | 8 | **Durum değişikliği yayılımı yok** (`AccountStatusChanged`, D3) | auth + altyapı | O | Şimdilik en fazla 5 dk gecikme |
 | 9 | **İlk ADMIN oluşturma yolu yok** | Proje sahibi | O | Şimdilik elle SQL ile rol verilir (B7) |
@@ -244,7 +244,7 @@ community, content, event, hardware, recommendation, performance, notification).
 
 | Servis | Auth'tan beklenen | Yapılacaklar |
 | --- | --- | --- |
-| **game-service** | GAME-07 yönetim: `ADMIN`. GAME-12 geliştirici: `GAME_DEVELOPER` | Katalog okuma herkese açıksa açıkça `permitAll`. **Oyun bazlı geliştirici sahipliği Game DB'sinde** (Auth oyun yetkisi taşımaz). Auth hazır olunca yalnız yapılandırma (jwks/issuer/audience) ve `roles` → yetki dönüştürücü değişir; gerçek Auth token'ıyla entegrasyon testi yaz. Silme hedefi **değil**; `accountId` tutuyorsa (sahiplik, audit) kullanıcıya bildir (EKSİK #6) |
+| **game-service** | GAME-07 yönetim: `ADMIN`. GAME-12 geliştirici: `GAME_DEVELOPER` | Katalog okuma herkese açıksa açıkça `permitAll`. **Oyun bazlı geliştirici sahipliği Game DB'sinde** (Auth oyun yetkisi taşımaz). Auth hazır olunca yalnız yapılandırma (jwks/issuer/audience) ve `roles` → yetki dönüştürücü değişir; gerçek Auth token'ıyla entegrasyon testi yaz. **Silme hedefi** (2026-10-23): kullanıcı REF'leri (editör, geliştirici yetkisi, içerik yazarı, audit aktörü) için silme/anonimleştirme ucu gerekir; audit istisnası Auth sahibiyle kararlaştırılır |
 | **library-service** | `sub` | `userId = sub`, gövdede `userId` alanı yok. `(userId, gameId)` benzersiz; `gameId` Game Service ile doğrulanır. Başkasının koleksiyonu 404/403. Silme hedefi |
 | **review-service** | `sub`; silme/moderasyon için `MODERATOR`/`ADMIN` | Başkası adına inceleme yok; düzenle/sil `owner == sub`. Moderatör işlemi audit'li. Silme hedefi: içerik/puan için silme-anonimleştirme kuralını belirle |
 
@@ -276,7 +276,7 @@ community, content, event, hardware, recommendation, performance, notification).
 
 | Servis | Notlar |
 | --- | --- |
-| **admin-service** | Auth'un `/api/v1/auth/admin/**` uçlarını **kullanıcı token'ıyla** çağırır (yalnız `ADMIN`). Servis kimlikli iç uç D4 gelince (#4). Denetim kaydında `accountId` tutuyorsa silme listesi kararı (#6). Bu ortak servisi değiştirmeden önce kullanıcıya sorumluluğun kimde olduğunu sor (`AGENTS.md` §1) |
+| **admin-service** | Auth'un `/api/v1/auth/admin/**` uçlarını **kullanıcı token'ıyla** çağırır (yalnız `ADMIN`). Admin→Auth servis kimlikli iç uç henüz yok (#4). **Silme hedefi** (2026-10-23): denetim kaydındaki `accountId` için silme/anonimleştirme ucu gerekir. Bu ortak servisi değiştirmeden önce kullanıcıya sorumluluğun kimde olduğunu sor (`AGENTS.md` §1) |
 | **notification-service** | Silme hedefi. E-posta bildirimi Mail Service'ten, uygulama içi bildirim bu serviste kalır. Ortak servis: değiştirmeden önce kullanıcıya sor |
 
 ### 5.7 frontend
@@ -293,7 +293,7 @@ community, content, event, hardware, recommendation, performance, notification).
 | Auth **claim**/endpoint değişikliği isteği | Önce `docs-auth/servis-sozlesmeleri.md` + `docs/api.md` AUTH kaydı değişir, sonra kod; Kerem onaylar |
 | Başka servisin API'si | `docs/api.md` içindeki o servisin bölümü okunur; değişiklik gerekiyorsa sahibine bildirilmesi önerilir |
 | Silme ucu hazır | Kerem'e bildirilir: Auth ayarına eklenir, görev kuyruğu otomatik çalışır |
-| Servis kimliği (D4) | Ortak Security güncellemesiyle birlikte kararlaştırılır; o zamana kadar iç uçları Gateway'e açma |
+| Servis kimliği (D4) | Auth→servis yönü uygulandı; sözleşme `servis-sozlesmeleri.md` §3. İç uçlar (`/internal/**`) hiçbir zaman Gateway'e açılmaz |
 | ENV anahtarı ekleme/değiştirme | Onay ister (`docs/SECURITY.md`, `AGENTS.md`); önce `.env.example` önerisi |
 | Migration | Yalnız kendi aralığın; uygulanmış dosya değişmez (`docs/decisions/migrations.md`) |
 | Şüphe | "Bu bilgiyi token'dan mı alıyorum?" Cevap hayırsa dur ve kullanıcıya sor |

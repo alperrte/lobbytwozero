@@ -48,7 +48,7 @@ public record GatewaySecurityProperties(Cors cors, String trustedProxies, AuthRa
             URI uri;
             try {
                 uri = URI.create(origin);
-            } catch (IllegalArgumentException e) {
+            } catch (IllegalArgumentException _) {
                 throw new IllegalArgumentException("ltz.gateway.cors.allowed-origins contains an invalid origin");
             }
             boolean schemeOk = "http".equals(uri.getScheme()) || "https".equals(uri.getScheme());

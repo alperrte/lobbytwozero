@@ -60,7 +60,7 @@ class VerificationCodeDispatcherTest {
 
         assertThat(code.getInvalidationReason()).isEqualTo(CodeInvalidationReason.DELIVERY_FAILED);
         assertThat(code.getInvalidatedAt()).isEqualTo(NOW);
-        verify(recorder).record(SecurityEventType.VERIFICATION_CODE_DELIVERY_FAILED, accountId);
+        verify(recorder).recordEvent(SecurityEventType.VERIFICATION_CODE_DELIVERY_FAILED, accountId);
         verifyNoInteractions(mailPort);
     }
 

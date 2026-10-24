@@ -41,7 +41,7 @@ public class BoundedPasswordEncoder implements PasswordEncoder {
         boolean acquired;
         try {
             acquired = permits.tryAcquire(acquireTimeout.toNanos(), TimeUnit.NANOSECONDS);
-        } catch (InterruptedException exception) {
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
             throw new PasswordHashingCapacityExceededException();
         }

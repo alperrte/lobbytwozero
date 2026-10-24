@@ -68,7 +68,7 @@ public class RegistrationService {
         Instant now = clock.instant();
         Account account = accountRepository.saveAndFlush(
                 Account.registerPending(email, username, passwordHash, initialRole, now));
-        securityEventRecorder.record(SecurityEventType.ACCOUNT_REGISTERED, account.getId());
+        securityEventRecorder.recordEvent(SecurityEventType.ACCOUNT_REGISTERED, account.getId());
         log.info("Account registered accountId={}", account.getId());
         return emailVerificationService.issueCode(account, now);
     }
@@ -84,7 +84,7 @@ public class RegistrationService {
         UUID existingAccountId = accountRepository.findByEmailNormalized(Account.normalizeEmail(email))
                 .map(Account::getId)
                 .orElse(null);
-        securityEventRecorder.record(SecurityEventType.REGISTRATION_EMAIL_CONFLICT, existingAccountId);
+        securityEventRecorder.recordEvent(SecurityEventType.REGISTRATION_EMAIL_CONFLICT, existingAccountId);
         log.info("Registration rejected for an already registered email accountId={}", existingAccountId);
     }
 

@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { loadSonarEnv, validateSonarHost, runScan, runSonar, overallTargets } from './sonar.mjs';
+import { loadBackendTestEnv } from '../lib/profile-env.mjs';
 
 const conditions = [
   { metric: 'new_coverage', op: 'LT', error: '80' },
@@ -19,7 +20,7 @@ async function scratch(action) {
     fs.mkdirSync(path.dirname(filename), { recursive: true });
     fs.writeFileSync(filename, content);
   };
-  write('.env.dev', 'SONAR_TOKEN=local-token\nSONAR_DB_PASSWORD=local-password\n');
+  write('.env.dev', 'SONAR_TOKEN=local-token\nSONAR_DB_PASSWORD=local-password\nPOSTGRES_USER=fixture-user\nPOSTGRES_PASSWORD=fixture-password\nPOSTGRES_HOST=postgres\nPOSTGRES_PORT=5432\nPOSTGRES_HOST_PORT=5542\nDB_AUTH_NAME=fixture_auth\n');
   write('backend/pom.xml', '<module>services/auth-service</module>');
   try { await action(root, write); }
   finally { fs.rmSync(root, { recursive: true, force: true }); }
@@ -45,6 +46,45 @@ test('Sonar host validation rejects remote servers, credentials, paths and redir
   for (const host of ['http://localhost:5199', 'http://127.0.0.1:5199', 'http://[::1]:5199']) assert.ok(validateSonarHost(host));
 });
 
+test('Maven test environment loads only selected profile DB keys and maps container addresses to host', async () => {
+  await scratch(async (root, write) => {
+    write('.env', 'POSTGRES_PASSWORD=wrong-active-profile\n');
+    fs.appendFileSync(path.join(root, '.env.dev'), 'PATH=untrusted\nNODE_OPTIONS=untrusted\nOTHER_SECRET=ignored\n');
+    const env = loadBackendTestEnv(root, 'dev', {});
+    assert.equal(env.POSTGRES_USER, 'fixture-user');
+    assert.equal(env.POSTGRES_PASSWORD, 'fixture-password');
+    assert.equal(env.POSTGRES_HOST, '127.0.0.1');
+    assert.equal(env.POSTGRES_PORT, '5542');
+    assert.equal(env.DB_AUTH_NAME, 'fixture_auth');
+    for (const key of ['PATH', 'NODE_OPTIONS', 'OTHER_SECRET', 'SONAR_TOKEN']) assert.equal(env[key], undefined);
+    assert.equal(loadSonarEnv(root, 'dev', {}).POSTGRES_PASSWORD, undefined);
+    const overridden = loadBackendTestEnv(root, 'dev', {
+      POSTGRES_HOST: 'localhost', POSTGRES_PORT: '5555', POSTGRES_PASSWORD: 'terminal-password',
+      DB_AUTH_NAME: 'terminal_auth', PATH: 'trusted-terminal-path',
+    });
+    assert.equal(overridden.POSTGRES_HOST, 'localhost');
+    assert.equal(overridden.POSTGRES_PORT, '5555');
+    assert.equal(overridden.POSTGRES_PASSWORD, 'terminal-password');
+    assert.equal(overridden.DB_AUTH_NAME, 'terminal_auth');
+    assert.equal(overridden.PATH, 'trusted-terminal-path');
+    write('.env.prod', 'POSTGRES_USER=prod-fixture\nPOSTGRES_PASSWORD=prod-fixture-password\nPOSTGRES_HOST_PORT=5556\n');
+    assert.equal(loadBackendTestEnv(root, 'prod', {}).POSTGRES_PORT, '5556');
+    assert.equal(loadBackendTestEnv(root, 'dev', {}).POSTGRES_PORT, '5542');
+  });
+});
+
+test('Maven test environment rejects missing credentials, invalid ports and arbitrary profile names without leaking values', async () => {
+  await scratch(async (root, write) => {
+    assert.throws(() => loadBackendTestEnv(root, '../dev', {}), /Profile must/);
+    for (const port of ['0', '65536', 'invalid-sensitive-value']) {
+      assert.throws(() => loadBackendTestEnv(root, 'dev', { POSTGRES_PORT: port }),
+        error => /between 1 and 65535/.test(error.message) && !error.message.includes(port));
+    }
+    write('.env.dev', 'POSTGRES_USER=fixture-user\n');
+    assert.throws(() => loadBackendTestEnv(root, 'dev', {}), /require POSTGRES_USER and POSTGRES_PASSWORD/);
+  });
+});
+
 for (const option of ['success', 'gateFail', 'lowCoverage', 'coveragePolicyFail', 'scannerFail', 'missingReports', 'serverDown', 'remoteHost', 'policyForbidden']) {
   test(`backend scan ${option} checks current reports, analysis gate and overall targets`, async () => {
     await scratch(async (root, write) => {
@@ -54,6 +94,16 @@ for (const option of ['success', 'gateFail', 'lowCoverage', 'coveragePolicyFail'
         assert.match(command, /^mvn(\.cmd)?$/);
         assert.equal(settings.env.SONAR_HOST_URL, 'http://localhost:5199');
         assert.ok(!args.some(arg => arg.includes('local-token')));
+        assert.ok(!args.some(arg => arg.includes('fixture-password')));
+        if (args.includes('-version') || args.includes('verify')) {
+          assert.equal(settings.env.POSTGRES_HOST, '127.0.0.1');
+          assert.equal(settings.env.POSTGRES_PORT, '5542');
+          assert.equal(settings.env.POSTGRES_PASSWORD, 'fixture-password');
+          assert.equal(settings.env.DB_AUTH_NAME, 'fixture_auth');
+          settings.log('test DB password: fixture-password');
+        } else {
+          assert.equal(settings.env.POSTGRES_PASSWORD, undefined);
+        }
         if (args.includes('-version')) return { code: 0, output: 'Java version: 25.0.4' };
         if (args.includes('verify')) {
           if (option !== 'missingReports') {
@@ -92,6 +142,7 @@ for (const option of ['success', 'gateFail', 'lowCoverage', 'coveragePolicyFail'
         }, log: line => lines.push(line) });
       assert.equal(result.exitCode, ['success', 'policyForbidden'].includes(option) ? 0 : 1);
       assert.ok(!lines.join('\n').includes('local-token'));
+      assert.ok(!lines.join('\n').includes('fixture-password'));
       if (['serverDown', 'remoteHost'].includes(option)) assert.equal(calls.length, 0);
       if (option === 'missingReports') assert.ok(!calls.some(call => call.args.includes('sonar:sonar')));
       if (option === 'coveragePolicyFail') assert.ok(!calls.some(call => call.args.includes('sonar:sonar')));
@@ -105,10 +156,14 @@ test('missing metrics never satisfy overall targets', () => {
   assert.equal(overallTargets(Object.entries(goodMetrics).map(([metric, value]) => ({ metric, value }))), true);
 });
 
-test('Sonar down only stops the isolated project and preserves volumes; status does not need a token', async () => {
+test('Sonar down only stops the isolated project and preserves volumes; status does not need a token or application DB credentials', async () => {
   await scratch(async root => {
     const calls = [];
-    const runCommand = async (command, args) => { calls.push({ command, args }); return { code: 0, output: '' }; };
+    const runCommand = async (command, args, settings) => {
+      calls.push({ command, args });
+      assert.equal(settings.env.POSTGRES_PASSWORD, undefined);
+      return { code: 0, output: '' };
+    };
     assert.equal((await runSonar({ root, action: 'down', ambient: {}, runCommand, log: () => {} })).exitCode, 0);
     assert.ok(calls[0].args.includes('ltz-sonar'));
     assert.ok(calls[0].args.includes('stop'));

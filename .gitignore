@@ -22,6 +22,3 @@ test-results/
 .aws/
 .cache/
 megalinter-reports/
-
-# Auth gelistirme notlari ve kapanis raporlari yerelde kalir; ekip rehberi docs/AUTH_SERVICE_ENTEGRASYON_REHBERI.md
-docs-auth/

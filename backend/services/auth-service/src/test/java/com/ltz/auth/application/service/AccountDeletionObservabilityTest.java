@@ -56,7 +56,7 @@ class AccountDeletionObservabilityTest extends AccountDeletionTestSupport {
                 .andExpect(jsonPath("$[?(@.accountId=='" + accountId + "' && @.stuck==true)]").isNotEmpty())
                 .andExpect(jsonPath("$[?(@.accountId=='" + accountId
                         + "')].lastError").value(org.hamcrest.Matchers.everyItem(
-                                org.hamcrest.Matchers.is("SERVICE_ERASURE_UNAVAILABLE"))))
+                                org.hamcrest.Matchers.is("SERVICE_ERASURE_HTTP_503"))))
                 .andReturn().getResponse().getContentAsString();
         assertThat(body).doesNotContainIgnoringCase(email).doesNotContain(usernameOf(accountId));
         assertThat(jdbc.queryForObject("select status from accounts where id = ?", String.class, accountId))

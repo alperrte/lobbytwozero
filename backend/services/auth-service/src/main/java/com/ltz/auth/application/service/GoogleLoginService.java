@@ -89,7 +89,7 @@ public class GoogleLoginService {
         try {
             identity = googleOidc.authenticate(code, flowService.codeVerifier(state), redirectUri(),
                     flowService.nonce(state));
-        } catch (ExternalAuthenticationException exception) {
+        } catch (ExternalAuthenticationException _) {
             throw failed();
         }
         UUID accountId = resolveAccount(identity);
@@ -103,17 +103,17 @@ public class GoogleLoginService {
             return linked.get().getAccountId();
         }
         if (!identity.emailVerified() || identity.email() == null || identity.email().isBlank()) {
-            securityEventRecorder.record(SecurityEventType.EXTERNAL_LOGIN_FAILED, null);
+            securityEventRecorder.recordEvent(SecurityEventType.EXTERNAL_LOGIN_FAILED, null);
             throw new AuthException(AuthErrorCode.EXTERNAL_EMAIL_UNVERIFIED);
         }
         Optional<Account> sameEmail = accountRepository.findByEmailNormalized(Account.normalizeEmail(identity.email()));
         if (sameEmail.isPresent()) {
-            securityEventRecorder.record(SecurityEventType.EXTERNAL_LINK_CONFLICT, sameEmail.get().getId());
+            securityEventRecorder.recordEvent(SecurityEventType.EXTERNAL_LINK_CONFLICT, sameEmail.get().getId());
             throw new AuthException(AuthErrorCode.ACCOUNT_LINK_REQUIRED);
         }
         try {
             return transactionTemplate.execute(status -> createAccount(identity));
-        } catch (DataIntegrityViolationException exception) {
+        } catch (DataIntegrityViolationException _) {
             // Eşzamanlı ilk giriş veya aynı e-postayla eşzamanlı kayıt: ikisi de bağsız birleştirmeye izin vermez.
             return identityRepository.findByProviderAndProviderSubject(ExternalProvider.GOOGLE, identity.subject())
                     .map(ExternalIdentity::getAccountId)
@@ -129,7 +129,7 @@ public class GoogleLoginService {
                 Account.registerVerifiedExternal(identity.email(), freeUsername(), role, now));
         identityRepository.saveAndFlush(ExternalIdentity.link(account.getId(), ExternalProvider.GOOGLE,
                 identity.subject(), now));
-        securityEventRecorder.record(SecurityEventType.EXTERNAL_ACCOUNT_CREATED, account.getId());
+        securityEventRecorder.recordEvent(SecurityEventType.EXTERNAL_ACCOUNT_CREATED, account.getId());
         return account.getId();
     }
 
@@ -145,7 +145,7 @@ public class GoogleLoginService {
     }
 
     private AuthException failed() {
-        securityEventRecorder.record(SecurityEventType.EXTERNAL_LOGIN_FAILED, null);
+        securityEventRecorder.recordEvent(SecurityEventType.EXTERNAL_LOGIN_FAILED, null);
         return new AuthException(AuthErrorCode.EXTERNAL_AUTH_FAILED);
     }
 

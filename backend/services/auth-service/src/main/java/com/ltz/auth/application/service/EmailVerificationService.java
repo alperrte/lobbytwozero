@@ -52,7 +52,7 @@ public class EmailVerificationService {
         EmailVerificationCode saved = codeRepository.save(EmailVerificationCode.issue(
                 account.getId(), PURPOSE, codeHasher.hash(account.getId(), PURPOSE, code),
                 now, properties.codeTtl()));
-        securityEventRecorder.record(SecurityEventType.VERIFICATION_CODE_ISSUED, account.getId());
+        securityEventRecorder.recordEvent(SecurityEventType.VERIFICATION_CODE_ISSUED, account.getId());
         return new VerificationCodeMail(saved.getId(), account.getId(), account.getEmail(), code,
                 properties.codeTtl());
     }
@@ -63,10 +63,7 @@ public class EmailVerificationService {
 
     /** Hesap yoksa, doğrulanmışsa veya sınır aşılmışsa da sessizce döner; yanıt hesap varlığını sızdırmaz. */
     public void resend(String email) {
-        VerificationCodeMail mail = transactionTemplate.execute(status -> issueForResend(email));
-        if (mail != null) {
-            dispatch(mail);
-        }
+        transactionTemplate.execute(status -> issueForResend(email)).ifPresent(this::dispatch);
     }
 
     /**
@@ -87,24 +84,24 @@ public class EmailVerificationService {
         }
     }
 
-    private VerificationCodeMail issueForResend(String email) {
+    private Optional<VerificationCodeMail> issueForResend(String email) {
         Optional<Account> pending = accountRepository
                 .findByEmailNormalizedForUpdate(Account.normalizeEmail(email))
                 .filter(Account::isPendingVerification);
         if (pending.isEmpty()) {
-            return null;
+            return Optional.empty();
         }
         Account account = pending.get();
         Instant now = clock.instant();
         if (isThrottled(account, now)) {
-            securityEventRecorder.record(SecurityEventType.VERIFICATION_CODE_RESEND_THROTTLED, account.getId());
-            return null;
+            securityEventRecorder.recordEvent(SecurityEventType.VERIFICATION_CODE_RESEND_THROTTLED, account.getId());
+            return Optional.empty();
         }
         codeRepository.findActiveForUpdate(account.getId(), PURPOSE)
                 .ifPresent(code -> code.invalidate(CodeInvalidationReason.SUPERSEDED, now));
         // Hibernate insert'leri update'lerden önce yazar; tek aktif kod indeksi için önce geçersiz kılma yazılır.
         codeRepository.flush();
-        return issueCode(account, now);
+        return Optional.of(issueCode(account, now));
     }
 
     private boolean isThrottled(Account account, Instant now) {
@@ -121,7 +118,7 @@ public class EmailVerificationService {
         Optional<Account> pending = accountRepository.findByEmailNormalized(Account.normalizeEmail(email))
                 .filter(Account::isPendingVerification);
         if (pending.isEmpty()) {
-            securityEventRecorder.record(SecurityEventType.EMAIL_VERIFICATION_FAILED, null);
+            securityEventRecorder.recordEvent(SecurityEventType.EMAIL_VERIFICATION_FAILED, null);
             return false;
         }
         Account account = pending.get();
@@ -129,14 +126,14 @@ public class EmailVerificationService {
         Optional<EmailVerificationCode> usable = codeRepository.findActiveForUpdate(account.getId(), PURPOSE)
                 .filter(code -> code.acceptsAttempt(now, properties.maxAttempts()));
         if (usable.isEmpty()) {
-            securityEventRecorder.record(SecurityEventType.EMAIL_VERIFICATION_FAILED, account.getId());
+            securityEventRecorder.recordEvent(SecurityEventType.EMAIL_VERIFICATION_FAILED, account.getId());
             return false;
         }
         EmailVerificationCode code = usable.get();
         // Deneme, sonuçtan bağımsız olarak sayılır ve işlemle birlikte kalıcı olur.
         code.recordAttempt();
         if (!code.hasHash(codeHasher.hash(account.getId(), PURPOSE, submittedCode))) {
-            securityEventRecorder.record(SecurityEventType.EMAIL_VERIFICATION_FAILED, account.getId());
+            securityEventRecorder.recordEvent(SecurityEventType.EMAIL_VERIFICATION_FAILED, account.getId());
             return false;
         }
         if (!proofVerifier.consumeSteamProof(requirement, steamProof)) {
@@ -144,7 +141,7 @@ public class EmailVerificationService {
         }
         code.consume(now);
         account.markEmailVerified(now);
-        securityEventRecorder.record(SecurityEventType.EMAIL_VERIFIED, account.getId());
+        securityEventRecorder.recordEvent(SecurityEventType.EMAIL_VERIFIED, account.getId());
         return true;
     }
 }
