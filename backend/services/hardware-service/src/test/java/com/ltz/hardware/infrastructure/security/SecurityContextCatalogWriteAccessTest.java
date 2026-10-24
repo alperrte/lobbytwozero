@@ -1,5 +1,7 @@
 package com.ltz.hardware.infrastructure.security;
 
+import static org.mockito.Mockito.mock;
+
 import com.ltz.hardware.application.port.AuthenticatedActor;
 import com.ltz.hardware.application.port.CatalogWriteAccess;
 import java.util.List;
@@ -14,7 +16,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import static org.assertj.core.api.Assertions.*;
 
 class SecurityContextCatalogWriteAccessTest {
-    final SecurityContextCatalogWriteAccess access = new SecurityContextCatalogWriteAccess(new SecurityContextCurrentActor());
+    final SecurityContextCatalogWriteAccess access = new SecurityContextCatalogWriteAccess(new SecurityContextCurrentActor(mock(com.ltz.hardware.infrastructure.persistence.repository.HardwareAccountAccessGuard.class)));
 
     @AfterEach
     void clear() { SecurityContextHolder.clearContext(); }

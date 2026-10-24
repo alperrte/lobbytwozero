@@ -89,11 +89,12 @@ test('an existing report lock prevents checks and preserves the other process lo
 async function backendFixture(options, action) {
   await scratch(async (root, write) => {
     write('.env.dev','POSTGRES_USER=fixture-user\nPOSTGRES_PASSWORD=fixture-password\nPOSTGRES_HOST_PORT=5542\n');
+    if (options.profile === 'prod') write('.env.prod', 'POSTGRES_USER=prod-fixture\nPOSTGRES_PASSWORD=prod-fixture-password\nPOSTGRES_HOST_PORT=5556\n');
     write('frontend/coverage/keep.txt','frontend report');
     write('backend/services/mail-service/target/surefire-reports/keep.txt','other service report');
     const lines = [], calls = [];
     const runCommand = async (command,args,settings) => {
-      calls.push({command,args,env:settings.env});
+      calls.push({command,args,env:settings.env,secrets:settings.secrets});
       assert.match(command,/^mvn(\.cmd)?$/);
       assert.equal(settings.env.SONAR_TOKEN,undefined);
       if (args.includes('-version')) return {code:options.missingMaven?1:0,output:'Java version: 25.0.4'};
@@ -109,7 +110,7 @@ async function backendFixture(options, action) {
       }
       return {code:options.buildFail?1:0,output:''};
     };
-    const result = await runBackendChecks({root,service:options.service??'auth-service',ambient:{SONAR_TOKEN:'do-not-forward'},runCommand,log:line=>lines.push(line)});
+    const result = await runBackendChecks({root,service:options.service??'auth-service',profile:options.profile??'dev',ambient:{SONAR_TOKEN:'do-not-forward',DEBUG:'tool-namespace'},runCommand,log:line=>lines.push(line)});
     await action({root,result,calls,lines});
   });
 }
@@ -132,6 +133,7 @@ test('single service Maven run gets profile DB settings without Sonar values', a
     assert.equal(verify.env.POSTGRES_HOST,'127.0.0.1');
     assert.equal(verify.env.POSTGRES_PORT,'5542');
     assert.equal(verify.env.SONAR_TOKEN,undefined);
+    assert.equal(verify.env.DEBUG,undefined);
   });
 });
 
@@ -143,6 +145,18 @@ test('all backend services are reported individually without frontend or Docker 
     assert.ok(calls.some(call=>call.args.includes('--fail-at-end')));
     assert.ok(Object.values(result.services).every(row=>row.tests==='PASS'&&row.coverage==='PASS'));
     assert.ok(!lines.some(line=>line.includes('SAFE TO COMMIT')));
+  });
+});
+
+test('backend-only verify preserves the selected prod profile and password redaction list', async () => {
+  await backendFixture({profile:'prod'}, async ({calls,result}) => {
+    assert.equal(result.exitCode,0);
+    const builds=calls.filter(call=>call.args.includes('verify'));
+    assert.equal(builds.length,1);
+    assert.equal(builds[0].env.POSTGRES_USER,'prod-fixture');
+    assert.equal(builds[0].env.POSTGRES_PASSWORD,'prod-fixture-password');
+    assert.equal(builds[0].env.POSTGRES_PORT,'5556');
+    assert.deepEqual(builds[0].secrets,['prod-fixture-password']);
   });
 });
 

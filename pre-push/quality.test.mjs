@@ -47,7 +47,7 @@ async function fixture(options, action) {
     throw new Error('Unexpected command ' + command);
   };
   try {
-    const result = await runQualityChecks({ root, profile: 'dev', ambient: { SONAR_TOKEN: 'private' }, runCommand, log: line => lines.push(line) });
+    const result = await runQualityChecks({ root, profile: 'dev', ambient: { SONAR_TOKEN: 'private', DEBUG: 'tool-namespace' }, runCommand, log: line => lines.push(line) });
     await action({ root, write, result, calls, lines });
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 }
@@ -109,5 +109,13 @@ test('module paths cannot escape the repository or repeat; generated output stay
     assert.throws(() => generatedPath(root, '../outside'));
     await assert.rejects(withReportLock(root, async () => { throw new Error('fixture failure'); }), /fixture failure/);
     assert.equal(fs.existsSync(path.join(root, 'test-results/quality.lock')), false);
+  });
+});
+
+test('ambient DEBUG never reaches the Maven test process', async () => {
+  await fixture({}, async ({ calls }) => {
+    const builds = calls.filter(call => call.command.startsWith('mvn') && call.args.includes('verify'));
+    assert.equal(builds.length, 1);
+    assert.equal(builds[0].env.DEBUG, undefined);
   });
 });

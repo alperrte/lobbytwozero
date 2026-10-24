@@ -220,6 +220,7 @@ for (const option of [
 
         if (args.includes('-version') || args.includes('verify')) {
           assert.equal(settings.env.POSTGRES_HOST, '127.0.0.1');
+          assert.equal(settings.env.DEBUG, undefined);
           assert.equal(settings.env.POSTGRES_PORT, '5542');
           assert.equal(settings.env.POSTGRES_PASSWORD, 'fixture-db-pass');
           assert.equal(settings.env.DB_AUTH_NAME, 'auth_db');
@@ -350,7 +351,7 @@ for (const option of [
         ambient:
           option === 'remoteHost'
             ? { SONAR_HOST_URL: 'http://example.com' }
-            : {},
+            : { DEBUG: 'tool-namespace' },
         runCommand,
         request,
         log: line => lines.push(line),

@@ -18,6 +18,11 @@ sh ./ops/env.sh use dev
 sh ./ops/env.sh use prod
 ```
 
+auth-dev-keys ile env doldurmak için aşağıdaki komutları kullanacağız
+
+//   node ops/generate-auth-dev-keys.mjs            # .env ve .env.dev (varsa)
+//   node ops/generate-auth-dev-keys.mjs .env.local # belirli dosya(lar)
+
 Kaynak dosyalar repository kökündeki `.env.dev` ve `.env.prod` dosyalarıdır.
 Eksik profili `.env.example` üzerinden oluşturun; var olan profili üzerine
 yazmayın. Örnek parolaları değiştirin. Production profili hazırlanırken

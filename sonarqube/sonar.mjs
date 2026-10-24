@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { repositoryRoot, execute, redact, cleanGenerated, freshFile, backendResults, readModules, clearBackendReports, withReportLock, withRunLog } from '../lib/quality-tools.mjs';
-import { loadProfileEnv, loadBackendTestEnv, requireNode } from '../lib/profile-env.mjs';
+import { loadProfileEnv, requireNode } from '../lib/profile-env.mjs';
 import { requireMaven25 } from '../pre-push/backend-check.mjs';
 import { backendTestEnvironment } from '../pre-push/runtime-checks.mjs';
 
@@ -138,9 +138,6 @@ export async function runScan({ root = repositoryRoot, profile = 'dev', ambient 
     });
 
     if (rows['SonarQube Access'] !== 'PASS') throw new Error('Scan stopped before building: SonarQube access failed');
-    const backendEnv = loadBackendTestEnv(root, profile, env);
-    secrets = [env.SONAR_TOKEN, env.SONAR_DB_PASSWORD, backendEnv.POSTGRES_PASSWORD];
-    const runBackend = (command, args, cwd = root, capture = false) => run(command, args, cwd, capture, backendEnv);
     const modules = readModules(root);
     clearBackendReports(root, modules);
 
@@ -153,6 +150,8 @@ export async function runScan({ root = repositoryRoot, profile = 'dev', ambient 
       catch { throw new Error('Cannot parse the selected application Compose profile for backend tests.'); }
 
       const testEnv = backendTestEnvironment(model, env);
+      // Preserve explicit test logging properties; omit only the host tool's generic DEBUG flag.
+      delete testEnv.DEBUG;
       secrets = [...secrets, testEnv.POSTGRES_PASSWORD];
 
       const testRun = (command, args, cwd = root, capture = false) => runCommand(command, args,

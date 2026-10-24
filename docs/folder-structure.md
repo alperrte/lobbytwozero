@@ -22,6 +22,7 @@ lobbytwozero/
 ├─ docs-hardware/             # Hardware görev ilerlemesi, kararlar ve kalite kanıtları
 ├─ postgres/init/             # 01-create-databases.sql (17 DB oluşturma)
 ├─ ops/                       # env.cmd / env.ps1 / env.sh, env.test.mjs, ops.md
+│                             # hardware-auth-e2e.mjs / .test.mjs (izole gerçek HTTP kabulü)
 ├─ pre-push/                  # Push öncesi kalite kapısı (pre-push.cmd / .sh)
 ├─ sonarqube/                 # Yerel SonarQube çalıştırma betikleri
 ├─ lib/                       # profile-env.mjs, quality-tools.mjs (ortak Node yardımcıları)
@@ -287,6 +288,8 @@ src/shared/
 Hardware'e özel rapor kökü `docs-hardware/` dizinidir (LTZ_HARDWARE_SERVICE.md ile onaylı).
 `README.md` indeksi; `progress/` çalışma günlüğünü, `decisions/` açık/onaylı kararları,
 `testing/` gerçek kalite kanıtlarını, `reports/` yalnız doğrulanmış teslimleri içerir.
+Kullanıcı onaylı Hardware–Auth entegrasyon planı ve kanıtları `docs-hardware/integration/auth/`,
+Auth sahibine iletilecek eksik sözleşme kayıtları bunun `auth-service-talepleri/` altındadır.
 Durum otoritesi kökteki `LTZ_HARDWARE_SERVICE.md` checklist/checkpoint alanıdır;
 merkezi API sözleşmesi `docs/api.md` içinde kalır.
 

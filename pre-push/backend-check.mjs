@@ -31,7 +31,7 @@ export async function runBackendChecks({ root = repositoryRoot, service = 'all',
     if (!selected.length) throw new Error('Unknown backend service; use a service listed in the menu');
     for (const module of selected) services[module.split('/')[1]] = { tests: 'NOT RUN', coverage: 'NOT RUN', testCount: 0, lineCoverage: null };
     log('[SCOPE] ' + (service === 'all' ? 'Tüm backend servisleri' : service));
-    const env = Object.fromEntries(Object.entries(ambient).filter(([name]) => !name.startsWith('SONAR')));
+    const env = Object.fromEntries(Object.entries(ambient).filter(([name]) => !name.startsWith('SONAR') && name !== 'DEBUG'));
     const backend = backendTestEnvironment(root, profile, env, log);
     const run = (command, args, cwd = root, capture = false) => runCommand(command, args, { cwd, env: backend.env, capture, secrets: backend.secrets, log });
     const mvn = process.platform === 'win32' ? 'mvn.cmd' : 'mvn';

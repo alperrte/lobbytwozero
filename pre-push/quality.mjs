@@ -18,7 +18,8 @@ export function formatQualityStatus(value, stream = process.stdout) {
 export async function runQualityChecks({ root = repositoryRoot, profile = 'dev', ambient = process.env, runCommand = execute, healthProbe, log = console.log } = {}) {
   const rows = Object.fromEntries([...requiredRows, 'Backend HTTP Health'].map(name => [name, 'SKIPPED']));
   const details = {};
-  const env = Object.fromEntries(Object.entries(ambient).filter(([name]) => !name.startsWith('SONAR')));
+  // Tool DEBUG namespaces must not turn on Spring's request/form DEBUG logging in test JVMs.
+  const env = Object.fromEntries(Object.entries(ambient).filter(([name]) => !name.startsWith('SONAR') && name !== 'DEBUG'));
   const run = (command, args, cwd = root, capture = false) => runCommand(command, args, { cwd, env, capture, log });
   const mvn = process.platform === 'win32' ? 'mvn.cmd' : 'mvn';
   const started = Date.now();
