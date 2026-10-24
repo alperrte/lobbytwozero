@@ -35,6 +35,7 @@ async function fixture(options, action) {
     }
     if (command === 'docker') {
       if (options.noDocker) return { code: 1, output: '' };
+      if (options.noProfile && args.includes('--format') && args.includes('config')) return { code: 1, output: '' };
       if (args.includes('--services')) return { code: 0, output: options.deployed ? 'postgres\nauth-service\n' : 'postgres\n' };
       if (args.includes('--format') && args.includes('config')) return { code: 0, output: JSON.stringify({ name: 'ltz-dev', services: {
         postgres: { ports: [{ target: 5432, published: '5542', host_ip: '127.0.0.1' }], environment: { POSTGRES_USER: 'fixture-user', POSTGRES_PASSWORD: 'fixture-db-pass' } },
@@ -77,7 +78,7 @@ for (const option of ['secret', 'skipped', 'missingCoverage', 'lowCoverage', 'bu
   });
 }
 
-test('host Maven receives profile DB settings, never Sonar values, and the password is redacted', async () => {
+test('host Maven receives resolved Compose DB settings, never Sonar values, and the password is redacted', async () => {
   await fixture({}, async ({ calls }) => {
     const maven = calls.filter(call => call.command.startsWith('mvn') && call.args.includes('verify'));
     assert.equal(maven.length, 1);
@@ -86,17 +87,16 @@ test('host Maven receives profile DB settings, never Sonar values, and the passw
     assert.equal(maven[0].env.POSTGRES_HOST, '127.0.0.1');
     assert.equal(maven[0].env.POSTGRES_PORT, '5542');
     assert.deepEqual(maven[0].secrets, ['fixture-db-pass']);
-    assert.equal(maven[0].env.DEBUG, undefined);
     assert.ok(calls.filter(call => call.command === 'docker').every(call => call.env.POSTGRES_PASSWORD === undefined));
   });
 });
 
-test('full checks obtain test DB settings from the resolved Compose model rather than loading a second profile', async () => {
-  await fixture({ noProfile: true }, async ({ calls, lines }) => {
-    assert.ok(!lines.some(line => line.startsWith('[WARN]')));
-    const builds = calls.filter(call => call.args.includes('verify'));
-    assert.equal(builds.length, 1);
-    assert.equal(builds[0].env.POSTGRES_PASSWORD, 'fixture-db-pass');
+test('missing Compose profile fails before Maven can use fallback database settings', async () => {
+  await fixture({ noProfile: true }, async ({ result, calls, lines }) => {
+    assert.equal(result.exitCode, 1);
+    assert.equal(result.rows['Backend Tests'], 'FAIL');
+    assert.ok(lines.some(line => line.includes('Cannot resolve the selected Compose profile for backend tests.')));
+    assert.ok(!calls.some(call => call.args.includes('verify')));
   });
 });
 
@@ -109,5 +109,13 @@ test('module paths cannot escape the repository or repeat; generated output stay
     assert.throws(() => generatedPath(root, '../outside'));
     await assert.rejects(withReportLock(root, async () => { throw new Error('fixture failure'); }), /fixture failure/);
     assert.equal(fs.existsSync(path.join(root, 'test-results/quality.lock')), false);
+  });
+});
+
+test('ambient DEBUG never reaches the Maven test process', async () => {
+  await fixture({}, async ({ calls }) => {
+    const builds = calls.filter(call => call.command.startsWith('mvn') && call.args.includes('verify'));
+    assert.equal(builds.length, 1);
+    assert.equal(builds[0].env.DEBUG, undefined);
   });
 });

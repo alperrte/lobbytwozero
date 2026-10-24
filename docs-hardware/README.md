@@ -12,6 +12,7 @@ genel teslim kapısı geçmediği için hazır commit/PDA önerisi yok.
 [04 — gerçek uygulama HTTP kabulü](integration/auth/auth-integration-04.md),
 [güncel kalite](integration/auth/auth-integration-quality.md).
 [Social kaynaklı ortak Sonar engelinin kısa raporu](integration/auth/social-sonar-kisa-rapor.md).
+[PR #13 Game belgeleri ve kalite testi çakışma düzeltmesi](integration/auth/pr13-conflict-resolution.md).
 Hardware'ın kalan canlı kabulü tamamlandı: gerçek Auth kayıt/giriş, SMTP, Gateway
 routing/CSRF ve Auth worker → Hardware D4, 16 kontrol PASS; 72 Node testi PASS.
 Auth D3, gerçek cihaz credential/PERF ve canlı D4 DEV kabul talepleri
