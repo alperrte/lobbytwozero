@@ -1,5 +1,6 @@
 package com.ltz.community.application.service;
 
+import com.ltz.community.EventTestConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
@@ -46,7 +47,7 @@ import jakarta.persistence.EntityManager;
 /** Beğeni akışını gerçek PostgreSQL üzerinde çalıştırır: idempotentlik, sayaç doğruluğu, eşzamanlılık, likedByMe. */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({ PostLikeService.class, PostFeedService.class, PostAccess.class, PostViewAssembler.class, PostMapper.class,
+@Import({ EventTestConfig.class, PostLikeService.class, PostFeedService.class, PostAccess.class, PostViewAssembler.class, PostMapper.class,
 		ClockConfig.class })
 class PostLikeServiceIntegrationTest extends PostgreSqlIntegrationTest {
 
@@ -248,6 +249,7 @@ class PostLikeServiceIntegrationTest extends PostgreSqlIntegrationTest {
 	}
 
 	private void deleteTestData(Post post) {
+		jdbcTemplate.update("delete from outbox_events");
 		jdbcTemplate.update("delete from post_likes where post_id = ?", post.getId());
 		jdbcTemplate.update("delete from posts where id = ?", post.getId());
 	}

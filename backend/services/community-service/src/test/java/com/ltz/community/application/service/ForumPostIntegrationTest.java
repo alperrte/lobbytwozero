@@ -1,5 +1,6 @@
 package com.ltz.community.application.service;
 
+import com.ltz.community.EventTestConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -46,7 +47,7 @@ import jakarta.persistence.EntityManager;
 /** Forum konularını (posts.forum_id) ve forumun oyun/görünürlük kurallarını gerçek PostgreSQL üzerinde doğrular. */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({ ForumService.class, ForumMapper.class, PostService.class, PostFeedService.class, PostAccess.class,
+@Import({ EventTestConfig.class, ForumService.class, ForumMapper.class, PostService.class, PostFeedService.class, PostAccess.class,
 		PostViewAssembler.class, PostMapper.class, CommentService.class, CommentMapper.class, PostLikeService.class,
 		ClockConfig.class })
 class ForumPostIntegrationTest extends PostgreSqlIntegrationTest {

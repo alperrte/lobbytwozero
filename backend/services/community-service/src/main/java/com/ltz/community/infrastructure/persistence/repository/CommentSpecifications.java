@@ -3,6 +3,7 @@ package com.ltz.community.infrastructure.persistence.repository;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.data.domain.Sort;
@@ -30,22 +31,26 @@ public final class CommentSpecifications {
 	private CommentSpecifications() {
 	}
 
-	public static Specification<Comment> topLevelOf(UUID postId, Instant afterCreatedAt, UUID afterId) {
+	public static Specification<Comment> topLevelOf(UUID postId, Set<UUID> excludedAuthorIds, Instant afterCreatedAt,
+			UUID afterId) {
 		return (root, query, cb) -> {
 			List<Predicate> predicates = new ArrayList<>();
 			predicates.add(cb.equal(root.<UUID>get("postId"), postId));
 			predicates.add(cb.isNull(root.get(PARENT_COMMENT_ID)));
 			predicates.add(listed(root, query.subquery(Integer.class), cb));
+			addExcludedAuthors(predicates, root, cb, excludedAuthorIds);
 			addAfter(predicates, root, cb, afterCreatedAt, afterId);
 			return cb.and(predicates.toArray(Predicate[]::new));
 		};
 	}
 
-	public static Specification<Comment> repliesOf(UUID parentCommentId, Instant afterCreatedAt, UUID afterId) {
+	public static Specification<Comment> repliesOf(UUID parentCommentId, Set<UUID> excludedAuthorIds,
+			Instant afterCreatedAt, UUID afterId) {
 		return (root, query, cb) -> {
 			List<Predicate> predicates = new ArrayList<>();
 			predicates.add(cb.equal(root.<UUID>get(PARENT_COMMENT_ID), parentCommentId));
 			predicates.add(listed(root, query.subquery(Integer.class), cb));
+			addExcludedAuthors(predicates, root, cb, excludedAuthorIds);
 			addAfter(predicates, root, cb, afterCreatedAt, afterId);
 			return cb.and(predicates.toArray(Predicate[]::new));
 		};
@@ -62,6 +67,14 @@ public final class CommentSpecifications {
 		return cb.or(
 				cb.equal(root.get("status"), CommentStatus.VISIBLE),
 				cb.and(cb.equal(root.get("status"), CommentStatus.DELETED), cb.exists(hasReply)));
+	}
+
+	/** Çağıranla engelleme ilişkisi olan yazarların yorumları listelenmez (COM-21). */
+	private static void addExcludedAuthors(List<Predicate> predicates, Root<Comment> root, CriteriaBuilder cb,
+			Set<UUID> excludedAuthorIds) {
+		if (!excludedAuthorIds.isEmpty()) {
+			predicates.add(cb.not(root.get("authorId").in(excludedAuthorIds)));
+		}
 	}
 
 	private static void addAfter(List<Predicate> predicates, Root<Comment> root, CriteriaBuilder cb,

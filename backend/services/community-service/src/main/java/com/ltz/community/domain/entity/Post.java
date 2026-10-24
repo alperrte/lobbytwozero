@@ -151,6 +151,26 @@ public class Post {
 		this.updatedAt = now;
 	}
 
+	/** Moderasyonla gizleme: yalnız herkese açık gönderi gizlenir. Değişiklik olduysa true döner. */
+	public boolean hide(Instant now) {
+		if (status != PostStatus.VISIBLE) {
+			return false;
+		}
+		this.status = PostStatus.HIDDEN;
+		this.updatedAt = now;
+		return true;
+	}
+
+	/** Moderasyonla gizlenmiş gönderiyi yeniden açar; silinmiş gönderi geri getirilmez. */
+	public boolean restore(Instant now) {
+		if (status != PostStatus.HIDDEN) {
+			return false;
+		}
+		this.status = PostStatus.VISIBLE;
+		this.updatedAt = now;
+		return true;
+	}
+
 	public void changeCategory(PostCategory newCategory, Instant now) {
 		if (newCategory == category) {
 			return;

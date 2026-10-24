@@ -35,22 +35,25 @@ public class CommentFeedService {
 	private final CommentRepository commentRepository;
 	private final PostAccess postAccess;
 	private final CommentMapper commentMapper;
+	private final BlockPolicy blockPolicy;
 	private final CurrentUserPort currentUser;
 
 	public CommentFeedService(CommentRepository commentRepository, PostAccess postAccess, CommentMapper commentMapper,
-			CurrentUserPort currentUser) {
+			BlockPolicy blockPolicy, CurrentUserPort currentUser) {
 		this.commentRepository = commentRepository;
 		this.postAccess = postAccess;
 		this.commentMapper = commentMapper;
+		this.blockPolicy = blockPolicy;
 		this.currentUser = currentUser;
 	}
 
 	@Transactional(readOnly = true)
 	public CommentPageResponse listComments(UUID postId, CommentPageRequest request) {
-		postAccess.loadViewable(postId, currentUser.findUserId().orElse(null));
+		UUID viewerId = currentUser.findUserId().orElse(null);
+		postAccess.loadViewable(postId, viewerId);
 		Position after = request.cursor() == null ? null : TimeIdCursor.decode(request.cursor());
-		return page(CommentSpecifications.topLevelOf(postId, after == null ? null : after.createdAt(),
-				after == null ? null : after.id()), limit(request));
+		return page(CommentSpecifications.topLevelOf(postId, blockPolicy.counterparts(viewerId),
+				after == null ? null : after.createdAt(), after == null ? null : after.id()), limit(request));
 	}
 
 	@Transactional(readOnly = true)
@@ -58,10 +61,12 @@ public class CommentFeedService {
 		Comment parent = commentRepository.findById(commentId)
 				.filter(found -> found.getStatus() != CommentStatus.HIDDEN)
 				.orElseThrow(CommentNotFoundException::new);
-		postAccess.loadViewable(parent.getPostId(), currentUser.findUserId().orElse(null));
+		UUID viewerId = currentUser.findUserId().orElse(null);
+		postAccess.loadViewable(parent.getPostId(), viewerId);
+		postAccess.requireNotBlocked(viewerId, parent.getAuthorId(), CommentNotFoundException::new);
 		Position after = request.cursor() == null ? null : TimeIdCursor.decode(request.cursor());
-		return page(CommentSpecifications.repliesOf(commentId, after == null ? null : after.createdAt(),
-				after == null ? null : after.id()), limit(request));
+		return page(CommentSpecifications.repliesOf(commentId, blockPolicy.counterparts(viewerId),
+				after == null ? null : after.createdAt(), after == null ? null : after.id()), limit(request));
 	}
 
 	private static int limit(CommentPageRequest request) {

@@ -1,5 +1,6 @@
 package com.ltz.community.application.service;
 
+import com.ltz.community.EventTestConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
@@ -51,7 +52,7 @@ import jakarta.persistence.EntityManager;
 /** Yorum, düzenleme/silme ve yanıt akışını gerçek PostgreSQL üzerinde çalıştırır (COM-07, COM-08, COM-09). */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({ CommentService.class, CommentFeedService.class, PostAccess.class, CommentMapper.class, ClockConfig.class })
+@Import({ EventTestConfig.class, CommentService.class, CommentFeedService.class, PostAccess.class, CommentMapper.class, ClockConfig.class })
 class CommentServiceIntegrationTest extends PostgreSqlIntegrationTest {
 
 	private static final Instant NOW = Instant.parse("2026-10-21T10:00:00Z");
@@ -395,6 +396,7 @@ class CommentServiceIntegrationTest extends PostgreSqlIntegrationTest {
 	}
 
 	private void deleteTestData(Post post) {
+		jdbcTemplate.update("delete from outbox_events");
 		jdbcTemplate.update("delete from comments where post_id = ?", post.getId());
 		jdbcTemplate.update("delete from posts where id = ?", post.getId());
 	}

@@ -553,8 +553,27 @@ erDiagram
   community_reports {
     uuid id PK
     varchar target_type "POST|COMMENT"
-    uuid target_id
+    uuid target_id "polimorfik, FK yok"
+    uuid target_author_id "REF"
     uuid reporter_id "REF"
+    varchar reason
+    varchar status "OPEN|RESOLVED|DISMISSED"
+  }
+  user_blocks {
+    uuid blocker_id PK "REF"
+    uuid blocked_id PK "REF"
+    timestamptz created_at
+  }
+  outbox_events {
+    uuid id PK
+    varchar event_type
+    jsonb payload
+    varchar status "PENDING|SENT|FAILED"
+  }
+  inbox_events {
+    uuid event_id PK
+    varchar event_type
+    varchar producer
   }
 ```
 

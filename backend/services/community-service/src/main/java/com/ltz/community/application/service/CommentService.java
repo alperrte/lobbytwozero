@@ -13,6 +13,7 @@ import com.ltz.community.api.dto.response.CommentResponse;
 import com.ltz.community.application.mapper.CommentMapper;
 import com.ltz.community.application.port.CurrentUserPort;
 import com.ltz.community.domain.entity.Comment;
+import com.ltz.community.domain.entity.Post;
 import com.ltz.community.domain.exception.CommentAccessDeniedException;
 import com.ltz.community.domain.exception.CommentNotFoundException;
 import com.ltz.community.domain.exception.PostNotFoundException;
@@ -32,15 +33,17 @@ public class CommentService {
 	private final PostRepository postRepository;
 	private final PostAccess postAccess;
 	private final CommentMapper commentMapper;
+	private final InteractionEvents interactionEvents;
 	private final CurrentUserPort currentUser;
 	private final Clock clock;
 
 	public CommentService(CommentRepository commentRepository, PostRepository postRepository, PostAccess postAccess,
-			CommentMapper commentMapper, CurrentUserPort currentUser, Clock clock) {
+			CommentMapper commentMapper, InteractionEvents interactionEvents, CurrentUserPort currentUser, Clock clock) {
 		this.commentRepository = commentRepository;
 		this.postRepository = postRepository;
 		this.postAccess = postAccess;
 		this.commentMapper = commentMapper;
+		this.interactionEvents = interactionEvents;
 		this.currentUser = currentUser;
 		this.clock = clock;
 	}
@@ -48,17 +51,16 @@ public class CommentService {
 	@Transactional
 	public CommentResponse createComment(UUID postId, CreateCommentRequest request) {
 		UUID authorId = currentUser.requireUserId();
-		postAccess.loadInteractable(postId, authorId);
+		Post post = postAccess.loadInteractable(postId, authorId);
 		UUID parentId = request.parentCommentId();
-		if (parentId != null) {
-			requireReplyableParent(postId, parentId);
-		}
+		Comment parent = parentId == null ? null : requireReplyableParent(postId, parentId, authorId);
 		Comment saved = commentRepository.save(
 				Comment.write(postId, authorId, parentId, request.body().strip(), Instant.now(clock)));
 		// Artırma koşulu VISIBLE'dır; gönderi bu arada gizlendi/silindiyse 0 satır etkilenir ve işlem geri alınır.
 		if (postRepository.incrementCommentCount(postId) == 0) {
 			throw new PostNotFoundException();
 		}
+		interactionEvents.commentCreated(saved, post, parent);
 		return commentMapper.toResponse(saved, 0);
 	}
 
@@ -78,11 +80,16 @@ public class CommentService {
 		postRepository.decrementCommentCount(comment.getPostId());
 	}
 
-	/** Yanıt hedefi aynı gönderide ve herkese açık olmalıdır; aksi halde varlığı sızdırılmadan 404 döner. */
-	private void requireReplyableParent(UUID postId, UUID parentId) {
-		commentRepository.findById(parentId)
-				.filter(parent -> parent.getPostId().equals(postId) && parent.isVisible())
+	/**
+	 * Yanıt hedefi aynı gönderide ve herkese açık olmalı, yazarıyla çağıran arasında engelleme bulunmamalıdır; aksi halde
+	 * varlığı sızdırılmadan 404 döner.
+	 */
+	private Comment requireReplyableParent(UUID postId, UUID parentId, UUID replierId) {
+		Comment parent = commentRepository.findById(parentId)
+				.filter(found -> found.getPostId().equals(postId) && found.isVisible())
 				.orElseThrow(CommentNotFoundException::new);
+		postAccess.requireNotBlocked(replierId, parent.getAuthorId(), CommentNotFoundException::new);
+		return parent;
 	}
 
 	/** Yazarı olmayan kullanıcıya VISIBLE yorum 403, VISIBLE dışı (silinmiş/gizli) yorum 404'tür. */

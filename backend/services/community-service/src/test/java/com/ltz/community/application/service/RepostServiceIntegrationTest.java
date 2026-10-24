@@ -1,5 +1,6 @@
 package com.ltz.community.application.service;
 
+import com.ltz.community.EventTestConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
@@ -49,7 +50,7 @@ import jakarta.persistence.EntityManager;
 /** Kaynağa atıflı repost'u gerçek PostgreSQL üzerinde doğrular (COM-20). */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({ RepostService.class, PostService.class, PostFeedService.class, PostAccess.class, PostViewAssembler.class,
+@Import({ EventTestConfig.class, RepostService.class, PostService.class, PostFeedService.class, PostAccess.class, PostViewAssembler.class,
 		PostMapper.class, ForumService.class, ForumMapper.class, ClockConfig.class })
 class RepostServiceIntegrationTest extends PostgreSqlIntegrationTest {
 

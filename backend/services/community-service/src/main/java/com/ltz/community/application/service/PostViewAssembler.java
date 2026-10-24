@@ -35,14 +35,17 @@ public class PostViewAssembler {
 	private final PostImageRepository postImageRepository;
 	private final PostLikeRepository postLikeRepository;
 	private final ForumRepository forumRepository;
+	private final BlockPolicy blockPolicy;
 	private final PostMapper postMapper;
 
 	public PostViewAssembler(PostRepository postRepository, PostImageRepository postImageRepository,
-			PostLikeRepository postLikeRepository, ForumRepository forumRepository, PostMapper postMapper) {
+			PostLikeRepository postLikeRepository, ForumRepository forumRepository, BlockPolicy blockPolicy,
+			PostMapper postMapper) {
 		this.postRepository = postRepository;
 		this.postImageRepository = postImageRepository;
 		this.postLikeRepository = postLikeRepository;
 		this.forumRepository = forumRepository;
+		this.blockPolicy = blockPolicy;
 		this.postMapper = postMapper;
 	}
 
@@ -51,7 +54,7 @@ public class PostViewAssembler {
 		if (posts.isEmpty()) {
 			return List.of();
 		}
-		Map<UUID, Post> originals = loadAccessibleOriginals(posts);
+		Map<UUID, Post> originals = loadAccessibleOriginals(posts, viewerId);
 		List<UUID> postIds = posts.stream().map(Post::getId).toList();
 		List<UUID> imageOwnerIds = Stream.concat(postIds.stream(), originals.keySet().stream()).toList();
 		Map<UUID, List<PostImageMeta>> imagesByPost = postImageRepository.findByPostIdInOrderBySortOrderAsc(imageOwnerIds)
@@ -73,15 +76,17 @@ public class PostViewAssembler {
 				: postMapper.toSource(original, images.getOrDefault(original.getId(), List.of()));
 	}
 
-	/** Sayfadaki repost'ların, herkese açık (VISIBLE ve forumu da görünür) orijinalleri; tek seferde yüklenir. */
-	private Map<UUID, Post> loadAccessibleOriginals(List<Post> posts) {
+	/** Sayfadaki repost'ların, herkese açık (VISIBLE, forumu görünür ve yazarıyla çağıran arasında engelleme olmayan) orijinalleri; tek seferde yüklenir. */
+	private Map<UUID, Post> loadAccessibleOriginals(List<Post> posts, UUID viewerId) {
 		Set<UUID> originalIds = posts.stream().filter(Post::isRepost).map(Post::getRepostOfId)
 				.collect(Collectors.toSet());
 		if (originalIds.isEmpty()) {
 			return Map.of();
 		}
+		Set<UUID> blockedAuthors = blockPolicy.counterparts(viewerId);
 		List<Post> visible = postRepository.findAllById(originalIds).stream()
 				.filter(original -> original.getStatus() == PostStatus.VISIBLE)
+				.filter(original -> !blockedAuthors.contains(original.getAuthorId()))
 				.toList();
 		Set<UUID> forumIds = visible.stream().map(Post::getForumId).filter(Objects::nonNull)
 				.collect(Collectors.toSet());

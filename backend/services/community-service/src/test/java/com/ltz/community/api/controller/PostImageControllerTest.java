@@ -43,6 +43,7 @@ import com.ltz.community.domain.entity.Post;
 import com.ltz.community.domain.entity.PostImage;
 import com.ltz.community.domain.enums.PostStatus;
 import com.ltz.community.infrastructure.config.ClockConfig;
+import com.ltz.community.application.service.BlockPolicy;
 import com.ltz.community.infrastructure.persistence.repository.ForumRepository;
 import com.ltz.community.infrastructure.persistence.repository.PostImageRepository;
 import com.ltz.community.infrastructure.persistence.repository.PostRepository;
@@ -71,6 +72,9 @@ class PostImageControllerTest {
 
 	@MockitoBean
 	private ForumRepository forumRepository;
+
+	@MockitoBean
+	private BlockPolicy blockPolicy;
 
 	private final RequestPostProcessor owner = jwt().jwt(token -> token.subject(USER_ID.toString()));
 

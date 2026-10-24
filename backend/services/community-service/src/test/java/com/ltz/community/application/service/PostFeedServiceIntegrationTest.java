@@ -1,5 +1,6 @@
 package com.ltz.community.application.service;
 
+import com.ltz.community.EventTestConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
@@ -40,7 +41,7 @@ import jakarta.persistence.EntityManager;
 /** Akış sorgusunu gerçek PostgreSQL üzerinde çalıştırır (keyset sayfalama, görünürlük, görsel birleştirme). */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({ PostFeedService.class, PostAccess.class, PostViewAssembler.class, PostMapper.class })
+@Import({ EventTestConfig.class, PostFeedService.class, PostAccess.class, PostViewAssembler.class, PostMapper.class })
 class PostFeedServiceIntegrationTest extends PostgreSqlIntegrationTest {
 
 	private static final Instant BASE = Instant.parse("2026-10-21T10:00:00Z");

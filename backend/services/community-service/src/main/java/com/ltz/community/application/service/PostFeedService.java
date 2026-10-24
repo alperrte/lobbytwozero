@@ -30,13 +30,15 @@ public class PostFeedService {
 	private final PostRepository postRepository;
 	private final PostAccess postAccess;
 	private final PostViewAssembler viewAssembler;
+	private final BlockPolicy blockPolicy;
 	private final CurrentUserPort currentUser;
 
 	public PostFeedService(PostRepository postRepository, PostAccess postAccess, PostViewAssembler viewAssembler,
-			CurrentUserPort currentUser) {
+			BlockPolicy blockPolicy, CurrentUserPort currentUser) {
 		this.postRepository = postRepository;
 		this.postAccess = postAccess;
 		this.viewAssembler = viewAssembler;
+		this.blockPolicy = blockPolicy;
 		this.currentUser = currentUser;
 	}
 
@@ -66,7 +68,8 @@ public class PostFeedService {
 		if (request.from() != null && request.to() != null && !request.from().isBefore(request.to())) {
 			throw new InvalidPostQueryException("The 'from' date must be before the 'to' date.");
 		}
-		return new PostSearchCriteria(statuses, authorId, searchText(request.q()), request.gameId(),
+		Set<UUID> blockedAuthors = blockPolicy.counterparts(currentUser.findUserId().orElse(null));
+		return new PostSearchCriteria(statuses, authorId, blockedAuthors, searchText(request.q()), request.gameId(),
 				request.forumId(), request.category(), request.from(), request.to(), sort, after, limit);
 	}
 

@@ -61,6 +61,9 @@ class PostImageServiceTest {
 	private ForumRepository forumRepository;
 
 	@Mock
+	private BlockPolicy blockPolicy;
+
+	@Mock
 	private ImageSanitizer imageSanitizer;
 
 	@Mock
@@ -70,7 +73,7 @@ class PostImageServiceTest {
 
 	@BeforeEach
 	void setUp() {
-		service = new PostImageService(postImageRepository, new PostAccess(postRepository, forumRepository), imageSanitizer,
+		service = new PostImageService(postImageRepository, new PostAccess(postRepository, forumRepository, blockPolicy), imageSanitizer,
 				new PostMapper(), currentUser, Clock.fixed(NOW, ZoneOffset.UTC));
 	}
 

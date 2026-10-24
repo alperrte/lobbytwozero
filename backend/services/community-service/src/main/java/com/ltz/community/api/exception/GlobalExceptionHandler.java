@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+import com.ltz.community.domain.exception.AlreadyReportedException;
 import com.ltz.community.domain.exception.AlreadyRepostedException;
 import com.ltz.community.domain.exception.AuthenticationRequiredException;
 import com.ltz.community.domain.exception.CommentAccessDeniedException;
@@ -27,6 +28,7 @@ import com.ltz.community.domain.exception.ForumSlugTakenException;
 import com.ltz.community.domain.exception.GameCatalogUnavailableException;
 import com.ltz.community.domain.exception.GameNotAvailableException;
 import com.ltz.community.domain.exception.InvalidImageException;
+import com.ltz.community.domain.exception.InvalidInboundEventException;
 import com.ltz.community.domain.exception.InvalidPostQueryException;
 import com.ltz.community.domain.exception.ModeratorRequiredException;
 import com.ltz.community.domain.exception.PostAccessDeniedException;
@@ -34,6 +36,8 @@ import com.ltz.community.domain.exception.PostImageLimitExceededException;
 import com.ltz.community.domain.exception.PostImageNotFoundException;
 import com.ltz.community.domain.exception.PostNotEditableException;
 import com.ltz.community.domain.exception.PostNotFoundException;
+import com.ltz.community.domain.exception.ReportingOwnContentException;
+import com.ltz.community.domain.exception.TooManyReportsException;
 
 /** Tüm hatalar ProblemDetail (RFC 9457) döner; stack trace, SQL veya kullanıcı girdisi yanıta yazılmaz. */
 @RestControllerAdvice
@@ -71,6 +75,27 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	@ExceptionHandler(CommentAccessDeniedException.class)
 	public ProblemDetail handleCommentAccessDenied(CommentAccessDeniedException exception) {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, exception.getMessage());
+	}
+
+	@ExceptionHandler(AlreadyReportedException.class)
+	public ProblemDetail handleAlreadyReported(AlreadyReportedException exception) {
+		return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
+	}
+
+	@ExceptionHandler(ReportingOwnContentException.class)
+	public ProblemDetail handleReportingOwnContent(ReportingOwnContentException exception) {
+		return ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, exception.getMessage());
+	}
+
+	@ExceptionHandler(TooManyReportsException.class)
+	public ResponseEntity<ProblemDetail> handleTooManyReports(TooManyReportsException exception) {
+		return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).header(HttpHeaders.RETRY_AFTER, "3600")
+				.body(ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS, exception.getMessage()));
+	}
+
+	@ExceptionHandler(InvalidInboundEventException.class)
+	public ProblemDetail handleInvalidInboundEvent(InvalidInboundEventException exception) {
+		return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
 	}
 
 	@ExceptionHandler(AlreadyRepostedException.class)

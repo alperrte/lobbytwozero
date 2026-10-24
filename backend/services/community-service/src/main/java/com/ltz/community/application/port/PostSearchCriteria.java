@@ -10,13 +10,15 @@ import com.ltz.community.domain.enums.PostStatus;
 
 /**
  * Gönderi akışı sorgusunun kalıcılık katmanından bağımsız tanımı. Sayfalama keyset tabanlıdır: {@code after}
- * verilirse sıralamaya göre yalnız o konumdan sonraki kayıtlar döner. {@code text} verilirse gönderi içeriğinde
+ * verilirse sıralamaya göre yalnız o konumdan sonraki kayıtlar döner. {@code excludedAuthorIds}, çağıranla engelleme
+ * ilişkisi olan yazarlardır (COM-21); gönderileri sonuçtan çıkarılır (boş küme = uygulanmaz). {@code text} verilirse gönderi içeriğinde
  * (büyük/küçük harf duyarsız) aranır; LIKE özel karakterleri kalıcılık katmanında kaçırılır. Filtreler
  * (null = uygulanmaz): {@code gameId}, {@code forumId}, {@code category}, {@code createdFrom} (dahil), {@code createdTo} (hariç).
  */
 public record PostSearchCriteria(
 		Set<PostStatus> statuses,
 		UUID authorId,
+		Set<UUID> excludedAuthorIds,
 		String text,
 		UUID gameId,
 		UUID forumId,

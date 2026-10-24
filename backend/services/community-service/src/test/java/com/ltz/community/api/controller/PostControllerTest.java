@@ -44,6 +44,7 @@ import com.ltz.community.domain.entity.Post;
 import com.ltz.community.domain.enums.PostStatus;
 import com.ltz.community.domain.exception.GameCatalogUnavailableException;
 import com.ltz.community.infrastructure.config.ClockConfig;
+import com.ltz.community.application.service.BlockPolicy;
 import com.ltz.community.infrastructure.persistence.repository.ForumRepository;
 import com.ltz.community.infrastructure.persistence.repository.PostImageRepository;
 import com.ltz.community.infrastructure.persistence.repository.PostRepository;
@@ -72,6 +73,9 @@ class PostControllerTest {
 
 	@MockitoBean
 	private ForumRepository forumRepository;
+
+	@MockitoBean
+	private BlockPolicy blockPolicy;
 
 	@MockitoBean
 	private GameCatalogPort gameCatalog;

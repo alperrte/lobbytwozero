@@ -91,6 +91,26 @@ public class Comment {
 		this.updatedAt = now;
 	}
 
+	/** Moderasyonla gizleme: yalnız herkese açık yorum gizlenir. Değişiklik olduysa true döner. */
+	public boolean hide(Instant now) {
+		if (status != CommentStatus.VISIBLE) {
+			return false;
+		}
+		this.status = CommentStatus.HIDDEN;
+		this.updatedAt = now;
+		return true;
+	}
+
+	/** Moderasyonla gizlenmiş yorumu yeniden açar; silinmiş yorum geri getirilmez. */
+	public boolean restore(Instant now) {
+		if (status != CommentStatus.HIDDEN) {
+			return false;
+		}
+		this.status = CommentStatus.VISIBLE;
+		this.updatedAt = now;
+		return true;
+	}
+
 	/** Soft delete: yanıt ilişkisi bozulmasın diye satır korunur; içerik API'de gösterilmez. */
 	public void markDeleted(Instant now) {
 		this.status = CommentStatus.DELETED;

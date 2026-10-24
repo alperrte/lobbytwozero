@@ -43,6 +43,11 @@ public interface PostRepository extends JpaRepository<Post, UUID>, JpaSpecificat
 	@Query("update Post p set p.commentCount = p.commentCount - 1 where p.id = :id and p.commentCount > 0")
 	int decrementCommentCount(@Param("id") UUID id);
 
+	/** Moderasyonla geri açılan yorum için sayaç artışı; gönderi durumundan bağımsızdır (sayaç VISIBLE yorum sayısıdır). */
+	@Modifying(flushAutomatically = true, clearAutomatically = true)
+	@Query("update Post p set p.commentCount = p.commentCount + 1 where p.id = :id")
+	int restoreCommentCount(@Param("id") UUID id);
+
 	/** Kullanıcının bu orijinali silinmemiş bir repost ile zaten paylaşıp paylaşmadığı. */
 	boolean existsByAuthorIdAndRepostOfIdAndStatusNot(UUID authorId, UUID repostOfId, PostStatus status);
 

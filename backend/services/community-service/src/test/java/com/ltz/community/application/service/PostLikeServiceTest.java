@@ -36,8 +36,9 @@ class PostLikeServiceTest {
 	private final PostLikeRepository postLikeRepository = mock(PostLikeRepository.class);
 	private final PostAccess postAccess = mock(PostAccess.class);
 	private final CurrentUserPort currentUser = mock(CurrentUserPort.class);
+	private final InteractionEvents interactionEvents = mock(InteractionEvents.class);
 	private final PostLikeService service = new PostLikeService(postRepository, postLikeRepository, postAccess,
-			currentUser, Clock.fixed(NOW, ZoneOffset.UTC));
+			interactionEvents, currentUser, Clock.fixed(NOW, ZoneOffset.UTC));
 
 	@BeforeEach
 	void authenticate() {

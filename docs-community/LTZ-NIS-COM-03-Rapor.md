@@ -53,7 +53,7 @@ Faz 2'de kısmi bırakılan **COM-05** (etkileşim sayaçları, `likedByMe`, yor
 ## Migration (V94–V97)
 
 - `V94__create_post_likes_table.sql`, `V95__create_comments_table.sql`, `V96__create_forums_and_link_posts.sql`, `V97__add_post_reposts.sql` (hiçbiri commit edilmedi; V93 de henüz commit'lenmedi).
-- **Kalan numaralar: V98–V100 (3).** Faz 4 en az reports, outbox ve inbox gerektirir; aralık tam dolar. Daha fazlası gerekirse ekip kararı gerekir.
+- Faz 4'te V98 (outbox/inbox), V99 (raporlar) ve V100 (engelleme yansıması) kullanıldı; community aralığı (V91–V100) tamamen doldu. Bkz. COM-04 raporu.
 - `posts.body` artık NULL olabilir; `ck_posts_body_length` repost'u kapsayacak şekilde yeniden tanımlandı (yeni migration ile; uygulanmış dosya değiştirilmedi).
 
 ## API değişiklikleri (`docs/api.md`)

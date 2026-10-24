@@ -28,14 +28,16 @@ public class RepostService {
 	private final PostRepository postRepository;
 	private final PostAccess postAccess;
 	private final PostViewAssembler viewAssembler;
+	private final InteractionEvents interactionEvents;
 	private final CurrentUserPort currentUser;
 	private final Clock clock;
 
 	public RepostService(PostRepository postRepository, PostAccess postAccess, PostViewAssembler viewAssembler,
-			CurrentUserPort currentUser, Clock clock) {
+			InteractionEvents interactionEvents, CurrentUserPort currentUser, Clock clock) {
 		this.postRepository = postRepository;
 		this.postAccess = postAccess;
 		this.viewAssembler = viewAssembler;
+		this.interactionEvents = interactionEvents;
 		this.currentUser = currentUser;
 		this.clock = clock;
 	}
@@ -60,6 +62,7 @@ public class RepostService {
 		} catch (DataIntegrityViolationException _) {
 			throw new AlreadyRepostedException();
 		}
+		interactionEvents.postReposted(original, saved);
 		return viewAssembler.assemble(List.of(saved), userId).getFirst();
 	}
 

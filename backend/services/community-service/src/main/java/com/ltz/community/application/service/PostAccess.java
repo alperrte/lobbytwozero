@@ -2,6 +2,7 @@ package com.ltz.community.application.service;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 import org.springframework.stereotype.Component;
 
@@ -15,17 +16,20 @@ import com.ltz.community.infrastructure.persistence.repository.PostRepository;
 
 /**
  * Gönderiye erişim kuralları: silinmiş gönderi herkes için yok sayılır; sahibi olmayan kullanıcıya
- * VISIBLE dışındaki (ör. moderasyonla gizlenmiş) gönderinin varlığı sızdırılmaz.
+ * VISIBLE dışındaki (ör. moderasyonla gizlenmiş) gönderinin varlığı sızdırılmaz; çağıranla yazarı arasında engelleme
+ * (COM-21) varsa gönderi hiç yokmuş gibi davranılır.
  */
 @Component
 public class PostAccess {
 
 	private final PostRepository postRepository;
 	private final ForumRepository forumRepository;
+	private final BlockPolicy blockPolicy;
 
-	public PostAccess(PostRepository postRepository, ForumRepository forumRepository) {
+	public PostAccess(PostRepository postRepository, ForumRepository forumRepository, BlockPolicy blockPolicy) {
 		this.postRepository = postRepository;
 		this.forumRepository = forumRepository;
+		this.blockPolicy = blockPolicy;
 	}
 
 	public Post loadOwned(UUID postId, UUID userId) {
@@ -51,7 +55,18 @@ public class PostAccess {
 		if (post.getForumId() != null && !forumRepository.existsByIdAndStatus(post.getForumId(), ForumStatus.VISIBLE)) {
 			throw new PostNotFoundException();
 		}
+		requireNotBlocked(userId, post.getAuthorId(), PostNotFoundException::new);
 		return post;
+	}
+
+	/**
+	 * Çağıran ile içerik sahibi arasında (iki yönde) engelleme varsa içeriğin varlığı sızdırılmadan "bulunamadı"
+	 * hatası fırlatılır. Misafir ve kendi içeriği için kural uygulanmaz.
+	 */
+	public void requireNotBlocked(UUID viewerId, UUID authorId, Supplier<? extends RuntimeException> notFound) {
+		if (blockPolicy.isBlocked(viewerId, authorId)) {
+			throw notFound.get();
+		}
 	}
 
 	/** Etkileşim (beğeni, yorum) yalnız herkese açık gönderiye yapılır; gizli içerik sahibine bile etkileşime kapalıdır. */

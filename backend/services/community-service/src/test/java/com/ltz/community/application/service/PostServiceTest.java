@@ -61,6 +61,9 @@ class PostServiceTest {
 	private ForumRepository forumRepository;
 
 	@Mock
+	private BlockPolicy blockPolicy;
+
+	@Mock
 	private CurrentUserPort currentUser;
 
 	@Mock
@@ -71,7 +74,7 @@ class PostServiceTest {
 	@BeforeEach
 	void setUp() {
 		postService = new PostService(postRepository, postImageRepository, forumRepository,
-				new PostAccess(postRepository, forumRepository), new PostMapper(), currentUser, gameCatalog, Clock.fixed(NOW, ZoneOffset.UTC));
+				new PostAccess(postRepository, forumRepository, blockPolicy), new PostMapper(), currentUser, gameCatalog, Clock.fixed(NOW, ZoneOffset.UTC));
 	}
 
 	private Post existingPost(UUID authorId, PostStatus status) {

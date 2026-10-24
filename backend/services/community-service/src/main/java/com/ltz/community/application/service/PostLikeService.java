@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.ltz.community.api.dto.response.LikeStateResponse;
 import com.ltz.community.application.port.CurrentUserPort;
+import com.ltz.community.domain.entity.Post;
 import com.ltz.community.domain.exception.PostNotFoundException;
 import com.ltz.community.infrastructure.persistence.repository.PostLikeRepository;
 import com.ltz.community.infrastructure.persistence.repository.PostRepository;
@@ -25,14 +26,16 @@ public class PostLikeService {
 	private final PostRepository postRepository;
 	private final PostLikeRepository postLikeRepository;
 	private final PostAccess postAccess;
+	private final InteractionEvents interactionEvents;
 	private final CurrentUserPort currentUser;
 	private final Clock clock;
 
 	public PostLikeService(PostRepository postRepository, PostLikeRepository postLikeRepository, PostAccess postAccess,
-			CurrentUserPort currentUser, Clock clock) {
+			InteractionEvents interactionEvents, CurrentUserPort currentUser, Clock clock) {
 		this.postRepository = postRepository;
 		this.postLikeRepository = postLikeRepository;
 		this.postAccess = postAccess;
+		this.interactionEvents = interactionEvents;
 		this.currentUser = currentUser;
 		this.clock = clock;
 	}
@@ -41,11 +44,15 @@ public class PostLikeService {
 	@Transactional
 	public LikeStateResponse like(UUID postId) {
 		UUID userId = currentUser.requireUserId();
-		postAccess.loadInteractable(postId, userId);
+		Post post = postAccess.loadInteractable(postId, userId);
 		boolean inserted = postLikeRepository.insertIfAbsent(postId, userId, Instant.now(clock)) == 1;
 		// Artırma koşulu VISIBLE'dır; gönderi bu arada gizlendi/silindiyse 0 satır etkilenir ve işlem geri alınır.
 		if (inserted && postRepository.incrementLikeCount(postId) == 0) {
 			throw new PostNotFoundException();
+		}
+		// Bildirim yalnız beğeni gerçekten eklendiğinde üretilir (tekrarlanan istek ikinci bildirim yaratmaz).
+		if (inserted) {
+			interactionEvents.postLiked(post, userId);
 		}
 		return state(postId, true);
 	}

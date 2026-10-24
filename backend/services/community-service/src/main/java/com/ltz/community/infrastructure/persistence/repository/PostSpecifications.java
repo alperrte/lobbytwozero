@@ -40,6 +40,9 @@ public final class PostSpecifications {
 			if (criteria.forumId() != null) {
 				predicates.add(cb.equal(root.<UUID>get(FORUM_ID), criteria.forumId()));
 			}
+			if (!criteria.excludedAuthorIds().isEmpty()) {
+				predicates.add(cb.not(root.get("authorId").in(criteria.excludedAuthorIds())));
+			}
 			if (criteria.authorId() != null) {
 				predicates.add(cb.equal(root.<UUID>get("authorId"), criteria.authorId()));
 			}

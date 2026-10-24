@@ -26,6 +26,8 @@ public class SecurityConfig {
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(requests -> requests
 						.requestMatchers(HttpMethod.GET, "/actuator/health/**", "/actuator/info").permitAll()
+						// Servisler arası olay girişi: yalnız servis kimliği (internal.events kapsamı) kabul edilir.
+						.requestMatchers("/internal/**").hasAuthority("SCOPE_internal.events")
 						// Misafir okuması (kullanıcı kararı): akış, detay ve görsel içeriği; servis katmanı yalnız VISIBLE gönderiyi (veya
 						// sahibine kendi gizli gönderisini) verir. Yazma uçları kimlik ister.
 						.requestMatchers(HttpMethod.GET, "/api/v1/community/posts", "/api/v1/community/posts/*",

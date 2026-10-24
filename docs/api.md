@@ -252,7 +252,7 @@ Tüketici servisler: Frontend
 GET /api/v1/community/posts
 
 #### Yetkilendirme
-Public (misafir dahil; kullanıcı kararı). Yalnız `VISIBLE` gönderiler listelenir; silinmiş (`DELETED`) ve moderasyonla gizlenmiş (`HIDDEN`) gönderiler akışta görünmez. Yazma uçları hâlâ kimlik ister. Oran sınırı (anonim erişim için) NOT IMPLEMENTED.
+Public (misafir dahil; kullanıcı kararı). Yalnız `VISIBLE` gönderiler listelenir; silinmiş (`DELETED`) ve moderasyonla gizlenmiş (`HIDDEN`) gönderiler akışta görünmez. Yazma uçları hâlâ kimlik ister. Kimliği doğrulanmış çağıranla arasında **engelleme** (iki yönde, COM-21) bulunan kullanıcıların gönderileri akışta ve aramada listelenmez; misafir ve ilgisiz kullanıcılar etkilenmez. Oran sınırı (anonim erişim için) NOT IMPLEMENTED.
 
 #### Query Parameters
 - q: string, opsiyonel, **arama** (COM-11): gönderi içeriğinde "içerir" araması; boşluklar kırpılır, boş değer arama yok sayılır, en az 2 en çok 100 karakter, kontrol karakteri içermez. Büyük/küçük harf duyarsızdır (ASCII için kesin; ASCII dışı harflerin büyük/küçük dönüşümü veritabanı locale'ine bağlıdır, dev/test PostgreSQL imajı `C` locale kullandığından örn. büyük `Ç`, küçük `ç` ile eşleşmez). `%` ve `_` gibi LIKE karakterleri düz metin olarak aranır. Arama servis içinde yapılır (`pg_trgm` GIN indeksi); ayrı search-service yoktur.
@@ -320,7 +320,7 @@ Tüketici servisler: Frontend
 GET /api/v1/community/users/{userId}/posts
 
 #### Yetkilendirme
-Public (misafir dahil). Çağıranın kimliği doğrulanmışsa ve `userId` kendi kimliğiyse, kendi moderasyonla gizlenmiş (`HIDDEN`) gönderilerini de görür; diğer herkes (misafir ve başka kullanıcılar) yalnız herkese açık (`VISIBLE`) gönderileri görür. Silinmiş gönderi hiç listelenmez. Bilinmeyen kullanıcı için boş sayfa döner (kullanıcının varlığı sızdırılmaz). **Henüz yok:** engelleme (social-service) ve profil gizliliği (user-service) kuralları — Faz 4/COM-21.
+Public (misafir dahil). Çağıranın kimliği doğrulanmışsa ve `userId` kendi kimliğiyse, kendi moderasyonla gizlenmiş (`HIDDEN`) gönderilerini de görür; diğer herkes (misafir ve başka kullanıcılar) yalnız herkese açık (`VISIBLE`) gönderileri görür. Silinmiş gönderi hiç listelenmez. Bilinmeyen kullanıcı için boş sayfa döner (kullanıcının varlığı sızdırılmaz). Çağıranla arasında engelleme (iki yönde) olan kullanıcının geçmişi boş döner (COM-21). **Henüz yok:** profil gizliliği (user-service) kuralları.
 
 #### Path Parameters
 - userId: UUID, zorunlu (gönderi sahibi; doğrulama user-service'ten yapılmaz)
@@ -361,7 +361,7 @@ Public (misafir dahil). Misafir ve diğer kullanıcılar yalnız `VISIBLE` gönd
 - postId: UUID, zorunlu
 
 #### Response — 200
-Akıştaki bir öğe ile aynı alanlar (`PostViewResponse`): `id`, `authorId`, `gameId`, `forumId`, `category`, `body`, `status`, `createdAt`, `updatedAt`, `likeCount`, `commentCount`, `likedByMe`, `images[]`, `repostOf`. Gönderinin sahibi, tarihi, içeriği, görselleri ve etkileşim sayaçları bu uçtan döner. Gönderinin yorumları ayrı uçtan okunur (bkz. 'Gönderi Yorumlarını Listele'). Gizli (`HIDDEN`) bir forumun konusu sahibine bile 404 döner. Yazarın görünen adı/avatarı user-service sözleşmesi netleşince eklenir.
+Akıştaki bir öğe ile aynı alanlar (`PostViewResponse`): `id`, `authorId`, `gameId`, `forumId`, `category`, `body`, `status`, `createdAt`, `updatedAt`, `likeCount`, `commentCount`, `likedByMe`, `images[]`, `repostOf`. Gönderinin sahibi, tarihi, içeriği, görselleri ve etkileşim sayaçları bu uçtan döner. Gönderinin yorumları ayrı uçtan okunur (bkz. 'Gönderi Yorumlarını Listele'). Gizli (`HIDDEN`) bir forumun konusu sahibine bile 404 döner. Çağıranla yazar arasında (iki yönde) engelleme (COM-21) varsa içerik hiç yokmuş gibi davranılır (404). Yazarın görünen adı/avatarı user-service sözleşmesi netleşince eklenir.
 
 #### Hata Durumları
 - 400: UUID olmayan `postId`
@@ -692,7 +692,7 @@ Tüketici servisler: Frontend
 PUT /api/v1/community/posts/{postId}/like
 
 #### Yetkilendirme
-Authenticated. Beğenen kullanıcı yalnız doğrulanmış JWT'nin `sub` claim'inden alınır. Yalnız herkese açık (`VISIBLE`, forumu görünür) gönderi beğenilebilir; silinmiş, gizlenmiş ve gizli forumdaki gönderi (sahibi dahil) 404 döner. Kendi gönderini beğenmek serbesttir. Oran sınırı NOT IMPLEMENTED.
+Authenticated. Beğenen kullanıcı yalnız doğrulanmış JWT'nin `sub` claim'inden alınır. Yalnız herkese açık (`VISIBLE`, forumu görünür) gönderi beğenilebilir; silinmiş, gizlenmiş ve gizli forumdaki gönderi (sahibi dahil) 404 döner. Kendi gönderini beğenmek serbesttir. Çağıranla yazar arasında engelleme varsa 404. Oran sınırı NOT IMPLEMENTED.
 
 #### Path Parameters
 - postId: UUID, zorunlu
@@ -718,7 +718,7 @@ Frontend:
 API Gateway üzerinden /api/v1/community/posts/{postId}/like
 
 Diğer mikroservisler:
-- (Bildirim, Faz 4'te notification-service ile planlıdır; şimdi yok.)
+Beğeni gerçekten eklendiğinde (tekrarlanan istekte değil) ve beğenen gönderi sahibi değilse `PostLiked` olayı aynı transaction'da outbox'a yazılır; notification-service'e iletilir (bkz. "Servisler Arası Olay Girişi"). Relay varsayılan kapalı, teslim NOT VERIFIED.
 
 #### Test Durumu
 UNIT + INTEGRATION (MockMvc, servis birim testleri, gerçek PostgreSQL: idempotentlik, farklı kullanıcıların toplanması, 12 eşzamanlı kullanıcı ve aynı kullanıcıdan 10 eşzamanlı istek). Gateway ve auth-service ile uçtan uca doğrulama: NOT VERIFIED.
@@ -767,7 +767,7 @@ Tüketici servisler: Frontend
 POST /api/v1/community/posts/{postId}/comments
 
 #### Yetkilendirme
-Authenticated. Yorum sahibi (`authorId`) yalnız JWT `sub` claim'inden alınır. Yalnız herkese açık (`VISIBLE`, forumu görünür) gönderiye yorum yazılabilir; aksi halde 404. Oran sınırı ve aynı içeriğin tekrar gönderimine karşı spam kontrolü NOT IMPLEMENTED.
+Authenticated. Yorum sahibi (`authorId`) yalnız JWT `sub` claim'inden alınır. Yalnız herkese açık (`VISIBLE`, forumu görünür) gönderiye yorum yazılabilir; aksi halde 404. Çağıranla gönderi sahibi (ya da yanıtlanan yorumun yazarı) arasında engelleme varsa 404. Oran sınırı ve aynı içeriğin tekrar gönderimine karşı spam kontrolü NOT IMPLEMENTED.
 
 #### Path Parameters
 - postId: UUID, zorunlu
@@ -808,7 +808,7 @@ Frontend:
 API Gateway üzerinden /api/v1/community/posts/{postId}/comments
 
 Diğer mikroservisler:
-- (Bildirim, Faz 4'te notification-service ile planlıdır; şimdi yok.)
+`CommentCreated` olayı aynı transaction'da outbox'a yazılır; alıcılar gönderi sahibi ve (yanıtsa) üst yorumun yazarıdır, yorumu yazan çıkarılır ve tekrarlar tekilleştirilir (alıcı yoksa olay yazılmaz). notification-service'e iletilir; relay varsayılan kapalı, teslim NOT VERIFIED.
 
 #### Test Durumu
 UNIT + INTEGRATION (MockMvc, gerçek PostgreSQL: yorum/yanıt, 4 seviye iç içe yanıt, çapraz gönderi yanıtı, 12 eşzamanlı yorumda sayaç doğruluğu). Gateway ve auth-service ile uçtan uca doğrulama: NOT VERIFIED.
@@ -823,7 +823,7 @@ Tüketici servisler: Frontend
 GET /api/v1/community/posts/{postId}/comments
 
 #### Yetkilendirme
-Public (misafir dahil). Gönderiyi görebilen herkes yorumlarını görür: silinmiş gönderi herkes için, gizli gönderi (ve gizli forum konusu) sahibi dışındakiler için 404'tür. Yalnız **üst düzey** yorumlar listelenir; yanıtlar "Yorumun Yanıtlarını Listele" ucundan okunur.
+Public (misafir dahil). Gönderiyi görebilen herkes yorumlarını görür: silinmiş gönderi herkes için, gizli gönderi (ve gizli forum konusu) sahibi dışındakiler için 404'tür. Yalnız **üst düzey** yorumlar listelenir; yanıtlar "Yorumun Yanıtlarını Listele" ucundan okunur. Çağıranla engelleme ilişkisi (iki yönde) olan yazarların yorumları listelenmez (COM-21); `replyCount` bu filtreden etkilenmez.
 
 #### Path Parameters
 - postId: UUID, zorunlu
@@ -878,7 +878,7 @@ Tüketici servisler: Frontend
 GET /api/v1/community/comments/{commentId}/replies
 
 #### Yetkilendirme
-Public (misafir dahil); yorumun gönderisini görebilen herkes. Gönderi çağıran için görünmezse 404. Moderasyonla gizlenmiş (`HIDDEN`) üst yorumun yanıtları 404'tür; silinmiş üst yorumun yanıtları listelenir (ilişki korunur).
+Public (misafir dahil); yorumun gönderisini görebilen herkes. Gönderi çağıran için görünmezse 404. Moderasyonla gizlenmiş (`HIDDEN`) üst yorumun yanıtları 404'tür; silinmiş üst yorumun yanıtları listelenir (ilişki korunur). Üst yorumun yazarıyla çağıran arasında engelleme varsa 404; engelleme ilişkisi olan yazarların yanıtları listelenmez.
 
 #### Path Parameters
 - commentId: UUID, zorunlu (üst yorum)
@@ -1169,7 +1169,7 @@ Tüketici servisler: Frontend
 POST /api/v1/community/posts/{postId}/reposts
 
 #### Yetkilendirme
-Authenticated. Reposter yalnız JWT `sub` claim'inden alınır. Yalnız herkese açık (`VISIBLE`, forumu görünür) gönderi repostlanabilir; silinmiş, gizlenmiş ve gizli forumdaki gönderi (sahibi dahil) 404 döner, böylece erişilemeyen içerik repost üzerinden sızmaz. Hedef bir repost ise kaynak, onun **orijinalidir** (orijinal de açık olmalıdır) ve yeni repost zincir kurmadan doğrudan orijinale bağlanır. Repost'u kaldırmak için repost'un kendisi `DELETE /api/v1/community/posts/{repostId}` ile silinir.
+Authenticated. Reposter yalnız JWT `sub` claim'inden alınır. Yalnız herkese açık (`VISIBLE`, forumu görünür) gönderi repostlanabilir; silinmiş, gizlenmiş ve gizli forumdaki gönderi (sahibi dahil) 404 döner, böylece erişilemeyen içerik repost üzerinden sızmaz. Çağıranla hedefin yazarı arasında engelleme varsa 404. Hedef bir repost ise kaynak, onun **orijinalidir** (orijinal de açık olmalıdır) ve yeni repost zincir kurmadan doğrudan orijinale bağlanır. Repost'u kaldırmak için repost'un kendisi `DELETE /api/v1/community/posts/{repostId}` ile silinir.
 
 #### Path Parameters
 - postId: UUID, zorunlu
@@ -1201,7 +1201,7 @@ Akıştaki bir öğe ile aynı alanlar (`PostViewResponse`); `authorId` reposter
   }
 }
 ```
-Repost içeriği **kopyalamaz**; yalnız referans tutar, orijinalin içeriği, sahibi ve zaman damgaları değişmez. Görünürlük her okumada yeniden hesaplanır: orijinal sonradan silinir, gizlenir ya da gizli bir foruma düşerse `repostOf` yalnız `{ "postId": "UUID", "available": false }` olarak döner (sahip, içerik ve görseller yok); orijinal tekrar açılırsa atıf geri gelir. Repost düzenlenemez (`PATCH` 409), görsel/oyun bağlanamaz; yalnız silinebilir ve beğenilip yorumlanabilir.
+Repost içeriği **kopyalamaz**; yalnız referans tutar, orijinalin içeriği, sahibi ve zaman damgaları değişmez. Görünürlük her okumada yeniden hesaplanır: orijinal sonradan silinir, gizlenir, gizli bir foruma düşerse ya da yazarıyla okuyan arasında engelleme olursa `repostOf` yalnız `{ "postId": "UUID", "available": false }` olarak döner (sahip, içerik ve görseller yok); orijinal tekrar açılırsa atıf geri gelir. Repost düzenlenemez (`PATCH` 409), görsel/oyun bağlanamaz; yalnız silinebilir ve beğenilip yorumlanabilir.
 
 #### Hata Durumları
 - 400: `comment` çok uzun/kontrol karakterli, bilinmeyen alan, bozuk JSON, UUID olmayan `postId`
@@ -1215,10 +1215,162 @@ Frontend:
 API Gateway üzerinden /api/v1/community/posts/{postId}/reposts
 
 Diğer mikroservisler:
-- (Orijinal sahibine bildirim, Faz 4'te notification-service ile planlıdır; şimdi yok.)
+Repost oluşunca ve repost eden orijinalin sahibi değilse `PostReposted` olayı aynı transaction'da outbox'a yazılır; notification-service'e iletilir. Relay varsayılan kapalı, teslim NOT VERIFIED.
 
 #### Test Durumu
 UNIT + INTEGRATION (MockMvc, gerçek PostgreSQL: atıf, orijinalin değişmemesi, mükerrer repost, zincir, erişilemeyen kaynak, sonradan gizlenen/silinen/gizli forumdaki kaynak, görsel gömme, DB kısıtları). Gateway ve auth-service ile uçtan uca doğrulama: NOT VERIFIED.
+
+### COMMUNITY — Gönderiyi Raporla
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend, Admin Service (olay üzerinden)
+
+#### Endpoint
+POST /api/v1/community/posts/{postId}/reports
+
+#### Yetkilendirme
+Authenticated. Raporlayan (`reporterId`) yalnız doğrulanmış JWT'nin `sub` claim'inden alınır. Yalnız çağıranın görebildiği içerik raporlanabilir: silinmiş, moderasyonla gizlenmiş, gizli forumdaki ya da çağıranla yazarı arasında engelleme olan gönderi 404 döner. **Kendi gönderini raporlayamazsın (422).**
+
+#### Path Parameters
+- postId: UUID, zorunlu
+
+#### Request Body
+```json
+{
+  "reason": "SPAM | HARASSMENT | HATE_SPEECH | SEXUAL_CONTENT | VIOLENCE | ILLEGAL_CONTENT | MISINFORMATION | OTHER (zorunlu, yalnız büyük harfli ad)",
+  "detail": "string, opsiyonel, en çok 500 karakter, kontrol karakteri içermez (boş metin = açıklama yok)"
+}
+```
+Bilinmeyen alanlar (ör. `reporterId`) ve sıra numarası gibi geçersiz `reason` değerleri reddedilir (400).
+
+#### Response — 201
+```json
+{
+  "id": "UUID",
+  "targetType": "POST",
+  "targetId": "UUID",
+  "reason": "SPAM",
+  "status": "OPEN",
+  "createdAt": "ISO-8601 UTC"
+}
+```
+Rapor `community_reports` tablosunda içerik referansı (`targetType`, `targetId`), içeriğin yazarı ve gerekçeyle saklanır; yanıtta yazar ve diğer raporlayanlar yer almaz. Aynı kullanıcı aynı içeriği **bir kez** raporlayabilir (DB UNIQUE kısıtıyla da korunur). Kullanıcı başına saatlik rapor sayısı **20** ile sınırlıdır. Rapor, aynı transaction'da outbox'a `ContentReported` olarak yazılır (bkz. "Servisler Arası Olay Girişi" altındaki olay sözleşmesi); rapor durumu yalnız admin-service kararıyla `OPEN` → `RESOLVED` / `DISMISSED` olur.
+
+#### Hata Durumları
+- 400: Doğrulama hatası (`reason` yok/bilinmeyen, `detail` çok uzun/kontrol karakterli, bilinmeyen alan), UUID olmayan `postId`
+- 401: Kimlik yok ya da token geçersiz
+- 404: Gönderi yok, silinmiş ya da çağıran için görünmez (gizli, gizli forum, engelleme)
+- 409: Bu içeriği zaten raporladın
+- 422: Kendi içeriğini raporlayamazsın
+- 429: Saatlik rapor sınırı aşıldı (`Retry-After: 3600`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/community/posts/{postId}/reports
+
+Diğer mikroservisler:
+Admin Service'e `ContentReported` olayı (outbox → relay → `POST {ADMIN_SERVICE_URL}/internal/events`). Relay varsayılan olarak **kapalıdır** (`ltz.outbox.relay.enabled=false`); olaylar `outbox_events` tablosunda `PENDING` bekler ve veri kaybolmaz. Admin Service'in alıcı sözleşmesi henüz yok: teslim NOT VERIFIED.
+
+#### Test Durumu
+UNIT + INTEGRATION (MockMvc, gerçek PostgreSQL: kayıt, olay, tekilleştirme, sınır, engelleme, erişilemeyen içerik). Admin Service ile uçtan uca teslim: NOT VERIFIED. Gateway ve auth-service ile uçtan uca doğrulama: NOT VERIFIED.
+
+### COMMUNITY — Yorumu Raporla
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend, Admin Service (olay üzerinden)
+
+#### Endpoint
+POST /api/v1/community/comments/{commentId}/reports
+
+#### Yetkilendirme
+Authenticated. "Gönderiyi Raporla" ile aynı kurallar; ek olarak yalnız herkese açık (`VISIBLE`) yorum raporlanabilir, yorumun gönderisi çağıran için görünür olmalı ve çağıranla yorum yazarı arasında engelleme bulunmamalıdır (aksi halde 404). Kendi yorumun raporlanamaz (422).
+
+#### Path Parameters
+- commentId: UUID, zorunlu
+
+#### Request Body
+"Gönderiyi Raporla" ile aynı (`reason`, `detail`).
+
+#### Response — 201
+"Gönderiyi Raporla" ile aynı gövde (`targetType: COMMENT`, `targetId` = yorum kimliği).
+
+#### Hata Durumları
+- 400: Doğrulama hatası, UUID olmayan `commentId`
+- 401: Kimlik yok ya da token geçersiz
+- 404: Yorum yok, silinmiş/gizli ya da gönderisi/yazarı çağıran için görünmez
+- 409: Bu yorumu zaten raporladın
+- 422: Kendi yorumunu raporlayamazsın
+- 429: Saatlik rapor sınırı aşıldı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/community/comments/{commentId}/reports
+
+Diğer mikroservisler:
+"Gönderiyi Raporla" ile aynı (`ContentReported` olayı).
+
+#### Test Durumu
+UNIT + INTEGRATION (MockMvc, gerçek PostgreSQL). Admin Service ile uçtan uca teslim: NOT VERIFIED.
+
+### COMMUNITY — Servisler Arası Olay Girişi
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Admin Service, Social Service (üretici olarak); Notification Service ve Admin Service (community olaylarının alıcısı)
+
+#### Endpoint
+POST /internal/events
+
+#### Yetkilendirme
+Internal. Gateway'de **route edilmez** (`/api/v1/...` altında değildir). Yalnız `SCOPE_internal.events` yetkisi taşıyan doğrulanmış servis kimliği (JWT `scope`/`scp` claim'inde `internal.events`) kabul edilir; kimlik yoksa 401, yetki yoksa 403. **Varsayım:** servisler arası kimlik modeli (docs/architecture.md risk tablosu: ADR bekleniyor) henüz kararlaştırılmadı; bu uç "servis JWT'si" seçeneğine göre kurulmuştur. JWT doğrulama anahtarı bağlanana kadar decoder fail-closed olduğundan uç fiilen KAPALIDIR (hiçbir token kabul edilmez); gerçek bir servis token'ıyla doğrulama NOT VERIFIED.
+
+#### Request Body (olay zarfı, docs/architecture.md §6.2)
+```json
+{
+  "eventId": "UUID (tekilleştirme anahtarı)",
+  "eventType": "ModerationActionTaken | UserBlocked | UserUnblocked",
+  "eventVersion": 1,
+  "occurredAt": "ISO-8601 UTC",
+  "producer": "admin-service | social-service",
+  "aggregateId": "UUID",
+  "payload": { }
+}
+```
+Zarfta tanımsız alan reddedilir. `producer`, olay türüyle eşleşmelidir (`ModerationActionTaken` yalnız `admin-service`, `UserBlocked`/`UserUnblocked` yalnız `social-service`); aksi halde 400.
+
+**Kabul edilen olaylar ve yükleri**
+- `ModerationActionTaken` (admin-service): `{ "targetType": "POST | COMMENT", "targetId": "UUID", "action": "HIDE | RESTORE | REMOVE | DISMISS", "reportId": "UUID (opsiyonel; yalnız tek raporu hedeflemek için)" }`. `HIDE`: VISIBLE içeriği HIDDEN yapar (yorumsa gönderinin `commentCount`'u düşer); `RESTORE`: HIDDEN içeriği geri açar (sayaç geri artar); `REMOVE`: içeriği kalıcı kaldırır (soft delete, gönderi görselleri silinir; **geri alınamaz**, silinmiş içerik `RESTORE` ile geri gelmez); `DISMISS`: içeriği değiştirmez, raporu reddeder. `HIDE`/`REMOVE` içeriğin açık raporlarını `RESOLVED`, `DISMISS` ise `DISMISSED` yapar. Bulunamayan içerik için olay başarıyla işlenir (etkisiz).
+- `UserBlocked` / `UserUnblocked` (social-service): `{ "blockerId": "UUID", "blockedId": "UUID" }` (farklı olmalı). Community yerel `user_blocks` yansımasını günceller; engelleme iki yönlü uygulanır (akış/arama/profil/yorum listelerinden gizleme, beğeni/yorum/yanıt/repost/rapor engeli).
+- Bilinmeyen `eventType` başarıyla yok sayılır (`IGNORED`), üretici yeniden denemesin diye.
+
+#### Response — 200
+```json
+{
+  "eventId": "UUID",
+  "outcome": "PROCESSED | DUPLICATE | IGNORED"
+}
+```
+Olay `inbox_events` tablosunda `eventId` ile tekilleştirilir ve etkisiyle aynı transaction'da uygulanır: aynı `eventId` ikinci kez gelirse `DUPLICATE` döner ve hiçbir şey değişmez. Geçersiz yük `inbox`'a işlenmiş diye kaydedilmez.
+
+#### Hata Durumları
+- 400: Zarf doğrulama hatası, üretici-olay uyuşmazlığı, geçersiz/eksik yük alanı (bilinmeyen `action`/`targetType`, UUID olmayan alan, `blockerId` = `blockedId`)
+- 401: Kimlik yok ya da token geçersiz
+- 403: Servis yetkisi (`internal.events`) yok
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Admin Service ve Social Service bu ucu RestClient/relay ile çağırır. **Community'nin yayınladığı olaylar** (outbox, aynı zarfla alıcıların `POST /internal/events` ucuna iletilir): `ContentReported` → admin-service (`{reportId, targetType, targetId, targetAuthorId, reporterId, reason, detail, reportedAt}`); `CommentCreated` → notification-service (`{commentId, postId, parentCommentId, actorId, recipientIds[], isReply}`); `PostLiked` → notification-service (`{postId, actorId, recipientId}`); `PostReposted` → notification-service (`{postId, repostId, actorId, recipientId}`). Yükler yalnız kimlik içerir (gönderi/yorum/repost metni ve görünen ad taşınmaz); kişi kendi içeriğine yaptığı etkileşim için olay üretilmez. `PostReposted`, docs/architecture.md §6.3 olay kataloğunda henüz yoktur (kataloğa eklenmesi önerilir). Relay varsayılan KAPALIDIR; alıcı sözleşmeleri NOT VERIFIED.
+
+#### Test Durumu
+UNIT + INTEGRATION (MockMvc: yetki/doğrulama; gerçek PostgreSQL: moderasyon etkileri ve sayaçlar, tekilleştirme, üretici kontrolü, engelleme yansıması). Admin/Social Service ile uçtan uca doğrulama: NOT VERIFIED.
 
 ## CONTENT
 
