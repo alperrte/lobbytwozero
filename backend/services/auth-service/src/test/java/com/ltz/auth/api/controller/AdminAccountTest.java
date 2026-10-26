@@ -117,6 +117,21 @@ class AdminAccountTest extends IntegrationTestSupport {
     }
 
     @Test
+    void yasakKaldirilincaYenidenGirisYapilabilir() throws Exception {
+        String bearer = bearerFor(newAdmin());
+        String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
+        UUID accountId = accountId(email);
+        admin(bearer, accountId, "/status", statusJson("BANNED")).andExpect(status().isNoContent());
+        login(email, VALID_PASSWORD).andExpect(status().isForbidden());
+
+        admin(bearer, accountId, "/status", statusJson("ACTIVE")).andExpect(status().isNoContent());
+
+        login(email, VALID_PASSWORD).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("AUTHENTICATED"));
+        assertThat(jdbc.queryForList("select to_status from account_status_history where account_id = ? "
+                + "order by created_at", String.class, accountId)).containsExactly("BANNED", "ACTIVE");
+    }
+
+    @Test
     void gecersizDurumGecisleriGerekcesizIstekVeKendiniDegistirmeReddedilir() throws Exception {
         UUID admin = newAdmin();
         String bearer = bearerFor(admin);
@@ -124,7 +139,7 @@ class AdminAccountTest extends IntegrationTestSupport {
         admin(bearer, banned, "/status", statusJson("BANNED")).andExpect(status().isNoContent());
         UUID active = newAccount();
 
-        admin(bearer, banned, "/status", statusJson("ACTIVE")).andExpect(status().isConflict())
+        admin(bearer, banned, "/status", statusJson("SUSPENDED")).andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("INVALID_STATUS_TRANSITION"));
         admin(bearer, active, "/status", statusJson("ACTIVE")).andExpect(status().isConflict());
         admin(bearer, active, "/status", statusJson("PENDING_VERIFICATION")).andExpect(status().isConflict());
