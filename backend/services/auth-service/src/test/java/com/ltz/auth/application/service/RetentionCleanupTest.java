@@ -45,7 +45,7 @@ class RetentionCleanupTest extends IntegrationTestSupport {
     private Clock clock;
 
     @Test
-    void suresiDolanGeciciKayitlarSilinir_tazeOlanlarKorunur() {
+    void suresiDolanGeciciKayitlarSilinirTazeOlanlarKorunur() {
         String oldFlow = hash();
         String freshFlow = hash();
         String oldNonce = hash();
@@ -98,7 +98,7 @@ class RetentionCleanupTest extends IntegrationTestSupport {
     }
 
     @Test
-    void dogrulanmamisHesapSuresiDolunca_anonimlesirEpostaSerbestKalirOlaylarKorunur() throws Exception {
+    void dogrulanmamisHesapSuresiDoluncaAnonimlesirEpostaSerbestKalirOlaylarKorunur() throws Exception {
         String email = uniqueEmail();
         register(email, uniqueUsername(), VALID_PASSWORD).andExpect(status().isAccepted());
         UUID accountId = accountId(email);
@@ -123,7 +123,7 @@ class RetentionCleanupTest extends IntegrationTestSupport {
     }
 
     @Test
-    void temizlikIdempotent_ikinciCalismaYeniOlayUretmez() throws Exception {
+    void temizlikIdempotentIkinciCalismaYeniOlayUretmez() throws Exception {
         String email = uniqueEmail();
         register(email, uniqueUsername(), VALID_PASSWORD).andExpect(status().isAccepted());
         UUID accountId = accountId(email);
@@ -136,7 +136,7 @@ class RetentionCleanupTest extends IntegrationTestSupport {
     }
 
     @Test
-    void eszamanliTemizlikler_hesabiTekKezIsler() throws Exception {
+    void eszamanliTemizliklerHesabiTekKezIsler() throws Exception {
         List<UUID> accounts = new java.util.ArrayList<>();
         for (int index = 0; index < 4; index++) {
             String email = uniqueEmail();

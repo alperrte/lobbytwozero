@@ -28,7 +28,7 @@ class AccountDeletionTest extends AccountDeletionTestSupport {
     // ---- Yeniden doğrulama (istek adımı) ----
 
     @Test
-    void kimliksiz401_cookieIleCsrfOlmadan403() throws Exception {
+    void kimliksiz401CookieIleCsrfOlmadan403() throws Exception {
         mockMvc.perform(post(AuthApiPaths.ACCOUNT_DELETION_REQUEST).with(xsrf()).contentType(MediaType.APPLICATION_JSON)
                 .content(passwordJson())).andExpect(status().isUnauthorized());
 
@@ -40,7 +40,7 @@ class AccountDeletionTest extends AccountDeletionTestSupport {
     }
 
     @Test
-    void yanlisParolaReddedilir_dogruParolaEpostaTokenUretir_hesapHenuzSilinmez() throws Exception {
+    void yanlisParolaReddedilirDogruParolaEpostaTokenUretirHesapHenuzSilinmez() throws Exception {
         String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
         UUID accountId = accountId(email);
         String bearer = bearerFor(accountId);
@@ -64,7 +64,7 @@ class AccountDeletionTest extends AccountDeletionTestSupport {
     }
 
     @Test
-    void totpEtkinseIkinciFaktorZorunlu_kodTekKullanimlik() throws Exception {
+    void totpEtkinseIkinciFaktorZorunluKodTekKullanimlik() throws Exception {
         String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
         UUID accountId = accountId(email);
         enableTotp(accountId);
@@ -115,7 +115,7 @@ class AccountDeletionTest extends AccountDeletionTestSupport {
     }
 
     @Test
-    void bekleSuresindeIkinciIstekEpostaUretmez_sonrasindaEskiTokenGecersizlesir() throws Exception {
+    void bekleSuresindeIkinciIstekEpostaUretmezSonrasindaEskiTokenGecersizlesir() throws Exception {
         String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
         UUID accountId = accountId(email);
         String bearer = bearerFor(accountId);
@@ -138,7 +138,7 @@ class AccountDeletionTest extends AccountDeletionTestSupport {
     // ---- Onay adımı ----
 
     @Test
-    void yanlisKullaniciAdiTokeniTuketmez_dogruOnayHesabiKapatirOturumlariIptalEder() throws Exception {
+    void yanlisKullaniciAdiTokeniTuketmezDogruOnayHesabiKapatirOturumlariIptalEder() throws Exception {
         String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
         UUID accountId = accountId(email);
         SessionCookiePair device = loginSession(email);
@@ -165,7 +165,7 @@ class AccountDeletionTest extends AccountDeletionTestSupport {
     }
 
     @Test
-    void tokenYalnizIstekYapanHesapIcinGecerli_suresiDolanVeSahteTokenReddedilir() throws Exception {
+    void tokenYalnizIstekYapanHesapIcinGecerliSuresiDolanVeSahteTokenReddedilir() throws Exception {
         String victimEmail = registerActiveAccount(uniqueEmail(), uniqueUsername());
         UUID victim = accountId(victimEmail);
         requestDeletion(bearerFor(victim), passwordJson()).andExpect(status().isAccepted());
@@ -186,7 +186,7 @@ class AccountDeletionTest extends AccountDeletionTestSupport {
     }
 
     @Test
-    void eszamanliIkiOnaydanYalnizBiriBasarili_tekTalepOlusur() throws Exception {
+    void eszamanliIkiOnaydanYalnizBiriBasariliTekTalepOlusur() throws Exception {
         String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
         UUID accountId = accountId(email);
         String bearer = bearerFor(accountId);

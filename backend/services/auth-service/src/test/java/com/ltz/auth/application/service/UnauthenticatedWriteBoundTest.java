@@ -19,7 +19,7 @@ class UnauthenticatedWriteBoundTest extends IntegrationTestSupport {
     private static final int REPEATED_REQUESTS = 12;
 
     @Test
-    void hesapsizBasarisizGirisler_guvenlikOlayiTablosunuSisirmez() throws Exception {
+    void hesapsizBasarisizGirislerGuvenlikOlayiTablosunuSisirmez() throws Exception {
         int before = jdbc.queryForObject("select count(*) from security_events where account_id is null",
                 Integer.class);
 
@@ -32,7 +32,7 @@ class UnauthenticatedWriteBoundTest extends IntegrationTestSupport {
     }
 
     @Test
-    void kilitliHesaptaTekrarlananIstekler_istekBasinaOlayYazmaz() throws Exception {
+    void kilitliHesaptaTekrarlananIsteklerIstekBasinaOlayYazmaz() throws Exception {
         String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
         for (int attempt = 0; attempt < REPEATED_REQUESTS; attempt++) {
             login(email, "wrong-password-value");

@@ -15,7 +15,7 @@ class JwtSigningKeyTest {
     private static final int WEAK_KEY_BITS = 2048;
 
     @Test
-    void zayifVeyaBozukAnahtarReddedilir_mesajAnahtariIcermez() throws Exception {
+    void zayifVeyaBozukAnahtarReddedilirMesajAnahtariIcermez() throws Exception {
         KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
         generator.initialize(WEAK_KEY_BITS);
         String weakKey = Base64.getEncoder().encodeToString(generator.generateKeyPair().getPrivate().getEncoded());

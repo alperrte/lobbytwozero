@@ -121,7 +121,7 @@ class AccountDeletionCoordinatorTest extends AccountDeletionTestSupport {
     }
 
     @Test
-    void eszamanliIslemcilerAyniGorevi_ikiKezCalistirmaz_tekTamamlamaOlur() throws Exception {
+    void eszamanliIslemcilerAyniGoreviIkiKezCalistirmazTekTamamlamaOlur() throws Exception {
         String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
         UUID accountId = deleteAccountConfirmed(email);
 
@@ -137,7 +137,7 @@ class AccountDeletionCoordinatorTest extends AccountDeletionTestSupport {
     }
 
     @Test
-    void kiradakiGorevBaskaIslemciyeVerilmez_kiraDolunca_yenidenAlinir() throws Exception {
+    void kiradakiGorevBaskaIslemciyeVerilmezKiraDoluncaYenidenAlinir() throws Exception {
         String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
         UUID accountId = deleteAccountConfirmed(email);
         // Çöken bir işlemciyi taklit: görev kiralanmış (gelecekte) ama sonuç yazılmamış.

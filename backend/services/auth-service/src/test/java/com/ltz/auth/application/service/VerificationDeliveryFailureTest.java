@@ -21,7 +21,7 @@ class VerificationDeliveryFailureTest extends IntegrationTestSupport {
     private static final Duration DELIVERY_TIMEOUT = Duration.ofSeconds(10);
 
     @Test
-    void mailServiceKullanilamazsaKodGecersizKilinir_yanitGonderimIddiaEtmez() throws Exception {
+    void mailServiceKullanilamazsaKodGecersizKilinirYanitGonderimIddiaEtmez() throws Exception {
         String email = uniqueEmail();
 
         register(email, uniqueUsername(), VALID_PASSWORD)

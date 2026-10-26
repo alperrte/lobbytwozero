@@ -47,7 +47,7 @@ class TwoFactorControllerTest extends IntegrationTestSupport {
     private TotpCodes totpCodes;
 
     @Test
-    void kurulumKimlikIster_etkinlestirmeDogruKodlaKurtarmaKodlariDondurur() throws Exception {
+    void kurulumKimlikIsterEtkinlestirmeDogruKodlaKurtarmaKodlariDondurur() throws Exception {
         mockMvc.perform(post(AuthApiPaths.TOTP_SETUP).with(xsrf())).andExpect(status().isUnauthorized());
         String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
         Cookie access = loginSession(email).access();
@@ -69,7 +69,7 @@ class TwoFactorControllerTest extends IntegrationTestSupport {
     }
 
     @Test
-    void totpEtkinseParolaTokenVermez_ikinciAdimlaOturumAcilir_replayReddedilir() throws Exception {
+    void totpEtkinseParolaTokenVermezIkinciAdimlaOturumAcilirReplayReddedilir() throws Exception {
         String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
         UUID accountId = accountId(email);
         activate(accountId, loginSession(email).access());
@@ -133,7 +133,7 @@ class TwoFactorControllerTest extends IntegrationTestSupport {
     }
 
     @Test
-    void kapatmaParolaVeKodIster_sonrasindaTekAdimliGirisDoner() throws Exception {
+    void kapatmaParolaVeKodIsterSonrasindaTekAdimliGirisDoner() throws Exception {
         String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
         UUID accountId = accountId(email);
         Cookie access = loginSession(email).access();
@@ -149,7 +149,7 @@ class TwoFactorControllerTest extends IntegrationTestSupport {
     }
 
     @Test
-    void zorunluRolde2faYoksaOturumVerilmez_varsaKapatilamaz() throws Exception {
+    void zorunluRolde2faYoksaOturumVerilmezVarsaKapatilamaz() throws Exception {
         String withoutTotp = registerActiveAccount(uniqueEmail(), uniqueUsername());
         grantRole(accountId(withoutTotp), "ADMIN");
         login(withoutTotp, VALID_PASSWORD).andExpect(status().isForbidden())

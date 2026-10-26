@@ -41,7 +41,7 @@ class RegistrationControllerTest extends IntegrationTestSupport {
     private VerificationCodeHasher codeHasher;
 
     @Test
-    void kayitBekleyenHesapOlusturur_yalnizPlayerRoluVerir_sirlariHashler() throws Exception {
+    void kayitBekleyenHesapOlustururYalnizPlayerRoluVerirSirlariHashler() throws Exception {
         String email = uniqueEmail();
 
         register(email, uniqueUsername(), VALID_PASSWORD)
@@ -67,7 +67,7 @@ class RegistrationControllerTest extends IntegrationTestSupport {
     }
 
     @Test
-    void kayitliEPostaBuyukKucukHarfFarkiylaTekrarKaydedilemez_yanitAyniKalir(CapturedOutput output)
+    void kayitliEPostaBuyukKucukHarfFarkiylaTekrarKaydedilemezYanitAyniKalir(CapturedOutput output)
             throws Exception {
         String email = uniqueEmail();
         String firstBody = register(email, uniqueUsername(), VALID_PASSWORD)
@@ -124,7 +124,7 @@ class RegistrationControllerTest extends IntegrationTestSupport {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("invalidRegistrations")
-    void gecersizGirdiAlanHatasiylaReddedilir_degerYansitilmaz(String caseName, String email, String username,
+    void gecersizGirdiAlanHatasiylaReddedilirDegerYansitilmaz(String caseName, String email, String username,
                                                              String password, String field) throws Exception {
         String body = register(email, username, password)
                 .andExpect(status().isBadRequest())

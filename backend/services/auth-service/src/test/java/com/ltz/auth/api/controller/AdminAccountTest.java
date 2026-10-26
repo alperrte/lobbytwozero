@@ -31,7 +31,7 @@ class AdminAccountTest extends IntegrationTestSupport {
     // ---- RBAC (AUTH-14): 401 / 403 ayrımı ve yetki yükseltme ----
 
     @Test
-    void kimliksiz401_playerVeModeratorYoneticiUclarinaGiremez403() throws Exception {
+    void kimliksiz401PlayerVeModeratorYoneticiUclarinaGiremez403() throws Exception {
         UUID target = newAccount();
         mockMvc.perform(get(AuthApiPaths.ADMIN_ROLES)).andExpect(status().isUnauthorized());
 
@@ -63,7 +63,7 @@ class AdminAccountTest extends IntegrationTestSupport {
     }
 
     @Test
-    void yoneticiRolleriListeler_hesapGorunumuEpostaIcermez() throws Exception {
+    void yoneticiRolleriListelerHesapGorunumuEpostaIcermez() throws Exception {
         String bearer = bearerFor(newAdmin());
         UUID target = newAccount();
 
@@ -84,7 +84,7 @@ class AdminAccountTest extends IntegrationTestSupport {
 
     @ParameterizedTest
     @ValueSource(strings = {"SUSPENDED", "BANNED", "DISABLED"})
-    void kisitlananHesapAnindaOturumVeTokenKaybeder_girisEngellenir(String target) throws Exception {
+    void kisitlananHesapAnindaOturumVeTokenKaybederGirisEngellenir(String target) throws Exception {
         String bearer = bearerFor(newAdmin());
         String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
         UUID accountId = accountId(email);
@@ -159,7 +159,7 @@ class AdminAccountTest extends IntegrationTestSupport {
     // ---- Rol yönetimi (AUTH-11) ----
 
     @Test
-    void rolVerilirVeAlinir_oturumlarIptalEdilir_denetimKaydiYazilir() throws Exception {
+    void rolVerilirVeAlinirOturumlarIptalEdilirDenetimKaydiYazilir() throws Exception {
         UUID admin = newAdmin();
         String bearer = bearerFor(admin);
         String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
