@@ -22,6 +22,11 @@
 
     <properties>
         <java.version>25</java.version>
+        <!-- Boot 4.1.1 BOM'undaki zafiyetli sürümlerin yamaları (tomcat-embed-core CRITICAL, jackson HIGH).
+             Tüm servisleri kapsar. Boot yama sürümüne geçildiğinde bu üç satır kaldırılmalıdır. -->
+        <tomcat.version>11.0.25</tomcat.version>
+        <jackson-2-bom.version>2.21.7</jackson-2-bom.version>
+        <jackson-bom.version>3.1.7</jackson-bom.version>
         <jjwt.version>0.13.0</jjwt.version>
         <dotenv.version>3.2.0</dotenv.version>
         <springdoc.version>3.1.1</springdoc.version>
