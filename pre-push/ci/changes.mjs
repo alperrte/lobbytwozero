@@ -23,10 +23,12 @@ export function selectScope(files, available = readModules(repositoryRoot)) {
       if (!available.includes(service[1])) { allBackend = true; scope.config = true; continue; }
       selected.add(service[1]);
       if (/Dockerfile$/.test(file)) scope.config = true;
-      // No verified runtime consumer graph yet: API/schema/route/dependency changes expand.
+      // Services reach each other only through their public API and the gateway. Only changes another service can
+      // feel expand to the whole backend: the gateway, a service pom.xml and the exposed api/ package (controllers,
+      // DTOs). Internal code, own configuration and own migrations (one database per service) stay in their module,
+      // so one team's pull request is never judged by another team's modules.
       if (service[1] === 'services/api-gateway' || service[2] === 'pom.xml'
-        || /^src\/main\/resources\/(?:application[^/]*\.(?:properties|ya?ml)|db\/)/.test(service[2])
-        || /^src\/main\/java\/.*\/(?:api|domain|application)\//.test(service[2])) allBackend = true;
+        || /^src\/main\/java\/.*\/api\//.test(service[2])) allBackend = true;
     } else if (file.startsWith('backend/')) {
       scope.backend = true; allBackend = true;
     } else if (file.startsWith('frontend/')) scope.frontend = true;

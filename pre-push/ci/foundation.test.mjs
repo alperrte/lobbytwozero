@@ -17,7 +17,12 @@ test('unknown, renamed/deleted, parent and automation paths choose broad scope; 
   assert.deepEqual(select(['backend/services/game-service/src/test/java/GameTest.java']).modules, ['services/game-service']);
   assert.deepEqual(select(['backend/services/game-service/src/main/java/com/ltz/game/GameServiceApplication.java']).modules, ['services/game-service']);
   assert.deepEqual(select(['backend/services/game-service/src/test/java/GameTest.java', 'backend/services/library-service/src/test/java/LibraryTest.java']).modules, available.slice(0, 2));
-  for (const file of ['backend/services/removed-service/pom.xml', 'backend/config/pmd.xml', 'backend/services/game-service/pom.xml', 'backend/services/game-service/src/main/resources/db/migration/V1__fixture.sql', 'backend/services/game-service/src/main/java/com/ltz/game/api/GameController.java', 'backend/services/api-gateway/src/main/resources/application.properties']) {
+  // Internal code, own config and own migrations stay inside the module: another team's debt cannot turn this pull request red.
+  for (const file of ['backend/services/game-service/src/main/java/com/ltz/game/application/service/GameService.java', 'backend/services/game-service/src/main/java/com/ltz/game/domain/entity/Game.java',
+    'backend/services/game-service/src/main/java/com/ltz/game/infrastructure/security/Config.java', 'backend/services/game-service/src/main/resources/application.properties', 'backend/services/game-service/src/main/resources/db/migration/V1__fixture.sql']) {
+    assert.deepEqual(select([file]).modules, ['services/game-service'], file);
+  }
+  for (const file of ['backend/services/removed-service/pom.xml', 'backend/config/pmd.xml', 'backend/services/game-service/pom.xml', 'backend/services/game-service/src/main/java/com/ltz/game/api/GameController.java', 'backend/services/api-gateway/src/main/resources/application.properties']) {
     assert.deepEqual(select([file]).modules, available);
   }
 });
@@ -241,14 +246,24 @@ test('selected backend orchestration invokes only requested reactor modules and 
     return { code: 0, output: '' };
   };
   try {
-    assert.equal(await backendCheck({ root, ambient: {}, modules: [selected], runCommand,
+    const qualityCalls = [];
+    assert.equal(await backendCheck({ root, ambient: { LTZ_QUALITY_BASE_SHA: 'a'.repeat(40) }, modules: [selected], runCommand,
+      qualityCheck: ({ modules, base, since }) => { qualityCalls.push({ modules, base }); assert.ok(since > 0); },
       scanDependencies: ({ modules, since }) => { assert.deepEqual(modules, [selected]); assert.ok(since > 0); },
       prepare: async () => 'synthetic-context', coverageCheck: (_root, modules) => modules.map(module => ({module})), log: () => {} }), 0);
     assert.equal(calls.filter(call => call.args.includes('verify')).length, 1);
+    assert.deepEqual(qualityCalls, [{ modules: [selected], base: 'a'.repeat(40) }]);
     await assert.rejects(backendCheck({ root, ambient: {}, modules: [selected], runCommand,
-      prepare: async () => 'synthetic-context', coverageCheck: () => [], log: () => {},
+      prepare: async () => 'synthetic-context', coverageCheck: () => [], log: () => {}, qualityCheck: () => {},
       scanDependencies: () => { throw new Error('Dependency scanner unavailable'); },
     }), /Dependency scanner unavailable/);
+    assert.ok(calls.at(-1).args.includes('down'));
+    // A new Checkstyle/PMD violation fails the run (and the dependency scan is never reached) while cleanup still happens.
+    await assert.rejects(backendCheck({ root, ambient: {}, modules: [selected], runCommand,
+      prepare: async () => 'synthetic-context', coverageCheck: () => [], log: () => {},
+      qualityCheck: () => { throw new Error('Quality gate: 1 issue(s)'); },
+      scanDependencies: () => assert.fail('must not scan after a quality failure'),
+    }), /Quality gate/);
     assert.ok(calls.at(-1).args.includes('down'));
     const before = calls.length;
     for (const modules of [[], [selected, selected], ['../outside'], ['services/unknown']]) {
