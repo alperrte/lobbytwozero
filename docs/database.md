@@ -149,6 +149,18 @@ Gösterim: **PK** birincil anahtar, **FK** servis içi yabancı anahtar, **REF**
 
 ### 3.4 game_db — game-service (Hamza)
 
+**2026-10-24 ek yükseltme:** V171–V180 Game'e açıkça tahsis edildi; aktif kaynak
+zinciri V31–V40 + `V171__enable_controlled_account_erasure.sql` oldu. V171 yalnız
+hesap silme fonksiyonu/koruması ekler; migration çalışırken mevcut veri değişmez.
+`game_account_erasure_context`: UUID PK, unique transaction_id bigint, account_id REF,
+created_at timestamptz, version bigint. Yalnız silme transaction'ında oluşup aynı
+transaction'da kaldırılır; kalıcı silinmiş hesap listesi değildir. Normal audit
+UPDATE/DELETE yasağı korunur; özel fonksiyon ilgili aktörleri nil UUID'ye çevirip
+metinleri NULL/sabit evidence yapabilir. Kendi grant/içerik/medya/not/feedback satırları
+silinir; revoke CHECK korunur. API ve politika: Game Auth belgesi §14.
+DEV'e bu çalışma kapsamında uygulanmadı. Aşağıdaki V31–V40/21 tablo bilgileri
+2026-10-21 başlangıç kurulumu ve tarihsel eşdeğerlik kaydıdır.
+
 **Başlangıç migration kaynakları yeniden düzenlendi (2026-10-21, açık kullanıcı talimatı).**
 Son açık numaralandırma kararıyla aktif zincir kesintisiz **V31–V40**: 10 dosya,
 0 ALTER TABLE. Nihai oyun alanları/genel dil listesi/keşif indeksleri V31;
@@ -187,7 +199,7 @@ yapılmaz. LOCALIZATION mevcut manuel kilit allowlist'ine eklenir. Fiyat tablosu
 oluşturulmadı; GAME-24 sağlayıcı izni/erişimi bekler.
 
 
-**Tarihsel gelişim (eski numaralandırma — aktif zincir değildir):** GAME-08 V31, GAME-10 V32, GAME-16 V33, GAME-18 V34, GAME-21 V35, Faz 2 güncellik/retry altyapısı V36, Faz 3 keşif metadata/indeksleri V37, Faz 4 yönetim/geliştirici tabloları V38–V40, GAME-23 V171 ve Faz 6 V172–V173 eski 13 dosyalı zincirin numaralarıdır. Aşağıdaki "tarihsel Vxx" atıfları bu eski zincire, "aktif Vxx" atıfları bu bölümün başındaki yeni V31–V40 zincirine aittir; numaralar karıştırılmamalıdır (özellikle tarihsel V40 geliştirici içeriği, aktif V40 özel geri bildirimdir). V171–V173 yalnız bu eski zincirde kullanılmıştır, aktif migration değildir. V171–V190 ek aralığı ve V174–V190 rezervasyonu kaldırılmıştır; aktif V31–V40 aralığı doludur ve gelecekte yeni migration gerekirse numara aralığı ekipçe belirlenir. Gerçek detay sağlayıcısı henüz entegre edilmedi.
+**Tarihsel gelişim (eski numaralandırma — aktif zincir değildir):** GAME-08 V31, GAME-10 V32, GAME-16 V33, GAME-18 V34, GAME-21 V35, Faz 2 güncellik/retry V36, Faz 3 keşif V37, Faz 4 yönetim/geliştirici V38–V40, GAME-23 V171 ve Faz 6 V172–V173 eski 13 dosyalı zincirin numaralarıdır. "Tarihsel Vxx" bu eski zinciri; başlangıç "aktif Vxx" V31–V40 zincirini gösterir (özellikle tarihsel V40 geliştirici içeriği, aktif V40 özel feedback). Eski ek aralık 2026-10-21'de iptal edilmişti; 2026-10-24 açık talimatıyla **V171–V180 yeniden Game'e tahsis edildi**. Güncel aktif V171 hesap silmedir; tarihsel V171 dil/provenance ile karıştırılmamalıdır. V172–V180 güncel kaynakta boştur, V181–V190 tahsis edilmemiştir. Gerçek detay sağlayıcısı henüz entegre edilmedi.
 
 - `games`: UUID `id`, `title`, `normalized_title`, UTC `created_at`/`updated_at`, optimistic `version`.
 - `catalog_terms`: UUID `id`, `kind` (GENRE/CATEGORY/TAG/PLATFORM), `code`, nullable TR/EN adlar, `version`; UNIQUE `(kind, code)`.
@@ -298,6 +310,27 @@ oluşturulmadı; GAME-24 sağlayıcı izni/erişimi bekler.
 
 ### 3.13 hardware_db — hardware-service (Alper)
 
+**Auth entegrasyonu — 2026-10-24:** V1–V7 checksum'ları korunarak
+`V8__add_hardware_account_erasure.sql` eklenir; toplam 17 tablo. V9–V10 boştur.
+Yeni `hardware_account_erasure_fences(account_hash varchar(64) PK, expires_at timestamptz)`
+yalnız SHA-256 hesap özeti ve expiry tutar; UUID/credential içermez. Teknik fence tablosu
+entity değildir; hesap bazlı transaction advisory lock + atomik upsert ile yönetilir.
+17 dakika etkin, dakikalık süpürmede fiziksel silinir (normal scheduler çalışırken en çok
+yaklaşık bir ek dakika; scheduler kapalıysa bir sonraki çalışmada). Anonim veri sayılmaz.
+Kerem/Auth sahibiyle mutabık kullanıcı onayı kaydı:
+[HW-AUTH-02](../docs-hardware/integration/auth/auth-integration-02.md).
+V8 audit DELETE istisnasını yalnız transaction-local hesap bağlamında ilgili actor/hedef
+satırlarına sınırlar; UPDATE/TRUNCATE ve ilgisiz satırların silinmesi reddedilir.
+`erase_hardware_account(uuid)` yalnız Hardware verisini temizler; başka DB'ye erişmez.
+Fonksiyon bounded paket işler: 20 profil/20 yorum; audit/outbox/rapor türü başına
+1000 satır. Paket tamamlanır ama hesap bitmezse commit + 503; son paket commit'i 204.
+Actor/reporter/outbox aggregate ve JSON owner için V8 lookup indeksleri bulunur.
+Katalog/marka/kampanya ve ilgisiz kullanıcı kayıtları korunur. Kişisel outbox/rapor/audit,
+profil aggregate'i ve hesap rate bucket'ları kaldırılır. Cihaz bucket anahtarı artık
+`sync-device:{ownerId}:{deviceId}` biçimindedir; erasure eski bağlı cihaz bucket'ını da temizler.
+Bu ileri migration bir DB reseti gerektirmez; canlı ortama ajan tarafından uygulanmadı.
+Devamındaki 2026-10-21 envanteri tarihsel başlangıç temizliği kaydıdır.
+
 **Güncel geliştirme şeması — 2026-10-21:** Kullanıcının “7 ilişkili grup” onayıyla
 eski V1–V10 zinciri yeniden düzenlendi. Boş DB'ye uygulanan aktif dosyalar:
 
@@ -314,7 +347,7 @@ eski V1–V10 zinciri yeniden düzenlendi. Boş DB'ye uygulanan aktif dosyalar:
 16 tablo son sütun/default/constraint'leriyle doğrudan CREATE TABLE içinde kurulur;
 ALTER TABLE/INDEX veya rename/drop adımı yoktur. 93 named constraint, 51 toplam indeks,
 2 immutable audit trigger/fonksiyonu eski zincirle izole PostgreSQL 17.11'de eşdeğerdir.
-V8–V10 boş; sonraki değişiklikler normal ileri migration kuralına tabidir.
+Bu başlangıç tesliminde V8–V10 boştu; güncel V8 yukarıda kayıtlıdır.
 Eski Flyway history ile yükseltme desteklenmez; DB sıfırlamasını kullanıcı yapar.
 [Karar ve kanıt](../docs-hardware/progress/hardware-migration-cleanup.md).
 

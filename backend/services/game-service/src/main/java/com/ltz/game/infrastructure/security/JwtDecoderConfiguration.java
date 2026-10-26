@@ -31,6 +31,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 @EnableConfigurationProperties(JwtSecurityProperties.class)
 public class JwtDecoderConfiguration {
     @Bean
+    @org.springframework.context.annotation.Primary
     JwtDecoder jwtDecoder(JwtSecurityProperties properties) {
         if (!properties.hasJwkSetUri() && !properties.hasPublicKey()) return new FailClosedJwtDecoder();
         if (properties.hasJwkSetUri() && properties.hasPublicKey())

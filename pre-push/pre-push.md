@@ -34,11 +34,14 @@ sonucu yalnızca backend test kapsamına aittir.
 - Git çalışma alanı ve staged whitespace kontrolü; takip edilen/staged ENV,
   anahtar ve bilinen gizli dosya yollarının kontrolü. Bu dosya adı kontrolüdür;
   bütün kaynak içeriğinde veya Git geçmişinde secret taraması değildir. Ayrıca pinned Gitleaks ile tracked worktree diff taraması zorunludur; tarayıcı yoksa FAIL olur. Ek depo hijyeni (`pre-push/hygiene-checks.mjs`): izlenen dosyalarda özel anahtar başlığı ve uzun sır atamaları (değer yazdırılmaz), `.env` dosyalarının Git ve `.dockerignore` tarafından yok sayılması, Compose portlarının 127.0.0.1'e bağlı olması ve anahtar üretici script güvenlik testi. Tam geçmiş taraması haftalık audit işidir.
-- Tüm backend için Maven `clean verify`, test raporları ve modül başına merkezi progressive coverage kapısı.
-  Host Maven testleri, seçilen `.env.<profil>` içindeki `POSTGRES_USER/PASSWORD/HOST_PORT` ve
-  `DB_*` değerlerini yalnız alt süreç ortamına alır (`POSTGRES_HOST=127.0.0.1`); terminalde
-  açıkça tanımlı değerler önceliklidir. Parola loga yazılmaz. Profil okunamazsa uyarı verilir ve
-  PostgreSQL gerektiren servis testleri görünür şekilde FAIL olur.
+- Tüm backend için Maven `clean verify`, test raporları ve modül başına merkezi progressive coverage kapısı. Full mod host Maven testleri için seçilen Compose
+  profilinin çözümlenmiş PostgreSQL/DB ayarlarını yalnız test alt sürecine aktarır;
+  host adresi 127.0.0.1 ve yayınlanmış loopback portudur. Compose çözümü bozuksa
+  Maven çalıştırılmaz. Backend-only mod seçilen profilin mevcut DB anahtarlarını
+  yükler, terminal DB değerleri önceliklidir; profil eksikse görünür uyarı verir.
+  Parola loga yazılmaz. Genel host `DEBUG` bayrağı Maven test JVM'lerine taşınmaz;
+  testin açık Spring logging/property ayarları korunur. Gerçek ENV dosyası ve
+  çalışan servislerin log seviyesi değiştirilmez.
 - Seçilen `.env.dev` veya `.env.prod` ile `docker-compose.yml` doğrulaması.
   Docker Compose gerekir; yapılandırma kontrolü container başlatmaz.
 - Compose içinde tanımlı backend servisleri varsa seçilen Compose projesinde

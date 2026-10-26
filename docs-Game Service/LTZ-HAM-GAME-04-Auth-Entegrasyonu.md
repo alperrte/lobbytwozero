@@ -180,8 +180,12 @@ D3 iptal yayılımı uygulanmadı. Auth varsayılan access ömrü 5 dakika; Game
 60 saniye toleransı dikkate alınmalıdır. Anlık rol/durum/oturum iptali garanti
 edilmez; Auth sahibi ve ortak olay/inbox tasarımıyla koordinasyon gerekir.
 
-D4 servis kimliği uygulanmadı. Kimliksiz iç silme ucu veya yeni servis token
-sistemi eklenmedi. Game, Auth silme hedef listesine eklenmedi.
+D4 Auth→servis yönü Auth tarafında uygulandı; Game de 16 silme hedefi arasındadır.
+2026-10-24'te Game'e ayrı servis JWT doğrulaması ve güvenli iç silme ucu eklendi.
+İlk politika bekleme raporu §13'tedir. Kullanıcının daha sonraki Kerem'le ortak
+karar teyidiyle onaylanan politika V171 ile uygulandı (§14): yalnız temizleme ve
+son REF denetimi tamamlanınca `204`, geçici hata/eksik işlemde `503` döner.
+Admin→Auth servis kimlikli iç uç ayrı, bekleyen bir bağımlılıktır.
 
 Silme/anonimleştirme kararı gereken Game kullanıcı REF envanteri:
 
@@ -367,6 +371,12 @@ Kanıtlar: `test-results/game-auth-final/game-prepush.log`, `backend-prepush.log
 
 ## 11. Kapsam dışı Sonar bulguları — salt okunur devir kaydı
 
+**2026-10-24 durum güncellemesi:** Kerem'in `docs-auth/d4-ekip-notlari/03_HAMZA_game_library_review.md`
+bildirimine göre aşağıdaki 46 Auth + 3 Gateway bulgusu kapandı; `ltz-auth-gateway`
+projesinde açık bulgu/hotspot 0/0 ve Quality Gate PASSED. Bu çalışma Sonar sunucusunu
+yeniden sorgulamadı; kapanış Auth sahibinin bildirimi olarak kaydedildi.
+Aşağıdaki devir listesi ve eski OWNER ACTION REQUIRED başlıkları tarihsel kayıttır.
+
 Bu liste gerçek son analizden alınmıştır. Kaynak dosyalar değiştirilmedi; bulgular
 sunucuda kapatılmadı, bastırılmadı veya analizden dışlanmadı. Sonar yeni kod dönemi
 2026-10-20 tarihli PREVIOUS_VERSION tabanıdır; bu bulguların bu Game göreviyle
@@ -544,3 +554,430 @@ eksikleri nedeniyle genel kalite kapanışı verilemez; bu sorunlar Game'de gizl
 Git dışı kanıtlar: `test-results/game-auth-dev/keys.json`, `compose.json`,
 `runtime.json`, `full-prepush.log`, `full-result.json`, `http-result.json`,
 `sonar-retry-result.json`, `sonar-final.json` ve `final.json`.
+
+## 13. Hesap silme veri envanteri ve karar raporu — 2026-10-24
+
+**Tarihsel, onay öncesi değerlendirme:** Aşağıdaki karar bekleme bilgileri ilk
+rapor anını gösterir. Kullanıcı daha sonra Kerem'le ortak politika onayını iletti;
+güncel karar ve uygulama §14'tedir. Tablo envanteri/kısıt analizi geçerlidir.
+
+### 13.1 Güncel kapsam ve onay sınırı
+
+Kullanıcı yalnız güvenlik/iç uç/test altyapısına devam edilmesini, veri saklama
+politikasının önce raporlanmasını istedi. Kerem'in nil UUID yaklaşımı **öneridir**;
+ortak saklama kararı alınmadı. Bu çalışmada kullanıcı verisi silen veya anonimleştiren
+bir production SQL eklenmedi; mevcut migration ve audit trigger'ları değiştirilmedi.
+V171–V180 tahsisinin onayı yalnız yeni migration numara alanını kapsar.
+
+Game iç ucu `DELETE /internal/v1/accounts/{accountId}`:
+
+- Ayrı D4 decoder: RS256/JWKS, tam `typ=svc+jwt`, issuer, tek `aud=game-service`,
+  `kid`, `jti`, ham `iat`, `nbf`, `exp`, en çok 60 saniye ömür ve 30 saniye saat toleransı.
+- Yalnız `SCOPE_account:erase`, tam `sub=svc:auth-service` ve token `account_id` = yol UUID'si.
+  Kullanıcı token'ı (ADMIN dahil) iç uçta; servis token'ı kullanıcı uçlarında reddedilir.
+- Mevcut REF'ler veya audit metninde hesap UUID'si bulunursa `503 ACCOUNT_ERASURE_PENDING`.
+  Hiçbir satır değiştirilmez. Auth görevi onaylanmaz, yeniden denenir.
+- Bilinen hesap verisi bulunmazsa gövdesiz `204`; tekrar çağrı aynı sonucu verir.
+  Bu, tam silme/anonimleştirme implementasyonu değildir. UUID/REF taraması, kimlikten
+  bağımsız yazılmış serbest metinlerdeki bütün kişisel veriyi saptama garantisi vermez.
+- Gateway route'u, Auth kaynağı, ENV veya gerçek DEV veritabanı değiştirilmedi.
+
+### 13.2 Gerçek tablo ilişkileri ve kısıtlar
+
+Kaynak: aktif V31–V40 migration'ları ve mevcut entity/service kodu. Kullanıcı
+kimlikleri Auth DB'sine FK değildir; Game içindeki UUID REF'leridir. `games.id`
+katalog kimliğidir; hesap silme, oyunun fiziksel silinmesi anlamına gelmemelidir.
+
+- `games.editor_actor_id` nullable kullanıcı REF'i; `editor_evidence` serbest metindir.
+  Oyun silinirse katalog çocukları etkilenir; audit/reference/feedback RESTRICT
+  ilişkileri de vardır. Hesap silerken `games` satırını silme önerilmiyor.
+- `game_identity_audits.actor_id` NOT NULL; `evidence` NOT NULL ve en az 8 karakterdir.
+  `reference_id → game_external_refs`, `from_game_id/to_game_id → games` ilişkileri
+  RESTRICT'tir. V34 trigger'ı her UPDATE/DELETE'i reddeder.
+- `game_admin_audits.actor_id` NOT NULL; `game_id → games` RESTRICT. `reason` nullable,
+  doluysa en az 8 karakter; `details` nullable serbest metindir. V35 trigger'ı her
+  UPDATE/DELETE'i reddeder. `DeveloperGrantService` başka aktörün audit satırına
+  `developerUserId=<hesap UUID>` yazar; yalnız actor_id taraması bu veriyi kaçırır.
+- `game_field_overrides.actor_id` NOT NULL; `game_id → games` CASCADE ve `(game_id,field)`
+  UNIQUE. Satırın silinmesi sağlayıcı alan kilidini kaldırır, katalog senkronizasyonu
+  manuel düzeltmeyi ezebilir; aktör kimliğiyle alan kilidi ayrı ele alınmalıdır.
+- `game_developer_grants.developer_user_id/granted_by` NOT NULL; `revoked_by` nullable.
+  `game_id → games` CASCADE; aktif `(game_id,developer_user_id)` kısmi UNIQUE.
+  **CHECK: `(revoked_at is null) = (revoked_by is null)`**. Revoke edilmiş kayıtta
+  yalnız revoked_by=NULL yapmak geçersizdir; ikisini NULL yapmak yetkiyi yeniden
+  aktifleştirir. Kerem'in genel nullable→NULL önerisi burada doğrudan uygulanamaz.
+- `game_developer_contents`: game_id hem PK hem games'e CASCADE FK; description ve
+  author_id NOT NULL. `moderated_by` nullable REF, `moderation_reason` serbest metindir.
+  İçeriğin silinmesi katalog/sağlayıcı açıklamasını silmez.
+- `game_developer_media`: game_id → games CASCADE; author_id NOT NULL; moderated_by
+  nullable; URL, alt_text ve moderation_reason metin taşır. Mevcut sistem dış medya
+  URL'sini saklar; bağlantı satırını silmek harici sağlayıcıdaki dosyayı silmez.
+- `game_update_notes`: game_id → games CASCADE; author_id NOT NULL; moderated_by
+  nullable; title/body/moderation_reason içerik taşır. İçerik saklanacaksa yalnız
+  yazar UUID'sini değiştirmek metni anonimleştirmiş sayılmaz.
+- `game_developer_feedback`: game_id → games RESTRICT; author_id NOT NULL; title/body
+  özel oyuncu geri bildirimidir. Bu tablo Review içeriği değildir.
+- `game_developers`/`game_publishers` katalogdaki adlardır, Auth kullanıcı REF'i değildir.
+  Hesap kimliğine göre otomatik silinemez; bir gerçek kişi adı için ayrı veri talebi
+  gerekiyorsa eşleme ve değerlendirme süreci ayrıca belirlenmelidir.
+- Game'de mevcut outbox/inbox kişisel veri tablosu yoktur. Gelecekte eklenirse olay
+  payload'ları, bekleyen teslimler ve silme testi aynı görevde kapsama alınmalıdır.
+
+### 13.3 Önerilen işlemler — uygulanmadı, ortak karar bekliyor
+
+- Kullanıcıya ait `game_developer_grants` ve özel `game_developer_feedback` satırlarını
+  kalıcı silme; başka kullanıcıların yetkilerini ve verisini koruma.
+- `games.editor_actor_id` alanını NULL yapma; editör sıralamasını koruma. editor_evidence
+  metnini temizleme veya kişisel veriden arındırılmış kanıtla değiştirme kararı gerekli.
+- `game_field_overrides` satırını koruyup actor_id'yi anonimleştirme; alan kilidini koruma.
+- Başkasına ait grant satırlarında granted_by'ı anonimleştirme; revoked_by için
+  revoked_at ile tutarlı anonim aktör kullanma. **Revoke durumu korunmalı.**
+- İki audit tablosunda olay/oyun/referans/zaman bilgisini tutup aktör REF'ini nil UUID'ye
+  çevirme, kişisel reason/details/evidence verisini temizleme seçeneği. Özellikle
+  başka aktörün `details` alanındaki hedef hesap da kapsanmalı. Bu bir saklama istisnasıdır;
+  gerekçe, süre ve yetki modeli onaylanmadan uygulanmayacak.
+- Geliştirici açıklaması/medyası/güncelleme notları için iki seçenek: hesabın
+  içeriklerini kalıcı silme veya oyunla ilgili içeriği inceleyip kişisel metin/URL
+  verisini kaldırarak yazarını anonimleştirme. Görünür/gizli/silinmiş durumların
+  hangisinin nasıl işleneceği de seçilmeli; bu çalışma hiçbirini seçmedi.
+- Silinen hesap moderatörse başkasının içeriğini silmeden moderated_by bağlantısını
+  kaldırma ve moderation_reason metnini değerlendirme. Yazar ve moderatör işlemleri ayrılmalı.
+
+### 13.4 Kerem ve Hamza'nın kararlaştırması gerekenler
+
+1. Audit'in hangi gerekçeyle, hangi süreyle, hangi alanlarla saklanacağı; saklama
+   gerekmiyorsa kalıcı silmenin kabul edilip edilmediği.
+2. Nil UUID'nin ortak anonim aktör olarak kullanımı ve bu kimliğin hiçbir yetki/gerçek
+   hesaba dönüşmemesi; frontend/API'de nasıl gösterileceği.
+3. Geliştirici içeriğinin kalıcı silinmesi mi, incelenip anonim saklanması mı;
+   metinler, medya URL'leri ve gizli/silinmiş içerik kapsamı.
+4. Serbest metindeki hedef kimlikleri ve kişisel veriler: audit.details, reason,
+   evidence, editor_evidence, moderation_reason için temizleme yöntemi ve kanıtı.
+5. Audit değişmezliğinin yalnız izinli alanlarda kontrollü anonimleştirme istisnası:
+   dar kapsamlı trigger/fonksiyon, DB yetkileri, normal UPDATE/DELETE'in engellenmeye
+   devam etmesi, normal uygulama aktörünün istisnayı kötüye kullanamaması.
+6. D3 henüz yokken eski access token'ıyla silme sonrası tekrar veri yazılması yarışı:
+   yerel silinmiş-hesap kaydı/yazma kontrolü veya durum yayılımı tasarımı. Boş hesap
+   için verilen onay sonrasında yeni REF oluşmasını da önlemek gerekir.
+7. Büyük veri için 5 saniye çağrı bütçesi, indeksler, transaction/lock ve yeniden
+   deneme stratejisi; `204` ancak kararlaştırılan bütün temizlik tamamlanınca.
+
+Bu kararlar sonrasında V171–V180 içindeki ilk boş numarayla yeni migration yazılır.
+V34/V35 dosyaları yeniden yazılmaz; trigger disable, session_replication_role veya
+runtime DDL ile audit koruması aşılmaz. Migration/yetki sınırı ve gerçek DB silme,
+idempotency, çapraz hesap izolasyonu, rollback ve yazma yarışı testleri ayrıca eklenir.
+
+### 13.5 Library ve Review
+
+İki servis de henüz entity/migration/kişisel veri tablosu taşımıyor. Güvenli iç uç
+aynı sözleşmeyle veri yok yanıtı `204` verir; mevcut veri silme/puan saklama kararı
+uygulanmış sayılmaz. İleride Library tabloları veya Review inceleme/puan/beğeni/rapor
+tabloları eklenirken silme servisi ve DB testleri aynı görevde genişletilmelidir.
+Review metni ve puanını birlikte silme ya da puanı anonim saklama kararı ayrıca bekler.
+
+### 13.6 Doğrulama
+
+Güvenlik ve Auth üreticisi uyumluluk testleri üç serviste eklendi. Tam servis testleri,
+JaCoCo ve yerel kontrol sonuçları aşağıda nihai doğrulamadan sonra kaydedilir.
+Hesap silme politikasının veya çalışan DEV Auth koordinasyonunun tamamlandığı iddia edilmez.
+
+## 14. Onaylanan hesap silme politikası ve uygulama — 2026-10-24
+
+### 14.1 Ortak karar ve saklama istisnasının gerekçesi
+
+Kullanıcı, Auth sahibi Kerem'le görüştüğünü açıkça bildirerek Game silme politikasını
+onayladı. Bu bölüm §13'teki onay bekleme durumunun yerine geçer. İstisnanın amacı
+oyun kimliği eşleme ve yönetim değişikliklerinin olay/zaman/oyun izini ve sağlayıcı
+alan kilitlerini korurken silinen hesapla kişisel bağlantıyı kaldırmaktır.
+Audit metinleri bu amaç için tutulmaz; actor_id nil UUID, ilgili nullable metinler
+NULL, NOT NULL evidence `[silinen hesap: metin kaldırıldı]` olur. Genel saklama
+süreleri için yeni bir süre uydurulmadı; bu görev anonim olay kaydının korunmasını kapsar.
+
+- Hesabın geliştirici açıklamaları, medya bağlantıları, güncelleme notları, özel
+  feedback kayıtları ve kendi geliştirici grant satırları kalıcı silinir.
+- `games` ve başka hesapların kayıtları korunur. editor_actor_id/editor_evidence
+  NULL olur; oyun ve editör sıralaması silinmez. Alan kilidi satırı kalır, actor_id nil olur.
+- Başkasının grant'ında ilgili granted_by nil olur. Revoke edilmiş grant'ta
+  revoked_by nil olur, revoked_at korunur. Bu, kullanıcının "uygun nullable alan"
+  şartını mevcut CHECK'e uydurur; revoked_by=NULL ile grant yeniden açılamaz.
+- Silinen hesap yalnız moderatörse başkasının içeriği korunur; moderated_by ve
+  moderation_reason NULL olur. Moderasyon zamanı/durumu korunur.
+- Admin audit'inde silinen hesap aktörse veya metinde açık UUID hedefiyse ilgili
+  reason/details tamamen NULL olur. Başka aktörün kimliği korunur. Özellikle
+  `developerUserId=<UUID>` grant/revoke hedefleri, silinen feedback/media/not
+  kayıtlarının yapısal hedef kimlikleri de değerlendirilir.
+- Identity audit'inde ilgili aktör nil olur, evidence sabit metne çevrilir;
+  başka aktörün evidence alanında açık hesap UUID'si varsa bütün evidence kaldırılır.
+- Regex ile kişisel veri temizliği yapılmaz. Metindeki UUID araması yalnız ilgili
+  satırın seçimi içindir; metin parçaları yeniden yazılmaz. Kimlikle ilişkilendirilemeyen
+  başka kişilerin serbest metinlerindeki isimleri otomatik tanıma iddiası yoktur.
+- Nil UUID bir gerçek hesap veya silme hedefi olamaz; iç uçta nil hedef 400'dür.
+
+### 14.2 V171 ve veritabanı güvenlik sınırı
+
+Önceki açık kullanıcı talimatıyla alınan V171–V180 aralığında ilk boş V171 kullanıldı:
+`V171__enable_controlled_account_erasure.sql`. V31–V40 dosyaları değiştirilmedi.
+Migration mevcut veriyi değiştirmez; endpoint çağrısında kullanılacak yapıyı tanımlar.
+
+`erase_game_account_data(uuid)` tek transaction'da tablo yazmalarını kilitler,
+temizliği yapar ve uygulama son REF kontrolünden sonra transaction'ı commit eder.
+Controller ancak servis transaction'ı tamamlanınca gövdesiz 204 döner. Veri yoksa ve
+tekrar çağrıda aynı yanıt verilir. Hata/eksik temizlikte commit yapılmaz; geçici
+kilit/süre hataları 503 ACCOUNT_ERASURE_PENDING, diğer beklenmeyen hatalar 500'dür.
+202 kullanılmaz. Fonksiyon lock_timeout=1s, uygulama transaction bütçesi 3s'dir;
+servis decoder'ının JWKS bağlantı/okuma bütçesi 750'şer ms ve redirect kapalıdır;
+büyük veri çağrısı tamamlanmazsa rollback ve Auth yeniden denemesi vardır.
+
+V34/V35 trigger adları ve DELETE yasağı korunur. Değiştirilen trigger fonksiyonları
+yalnız özel transaction bağlamı varken ilgili satırın izinli alanlarını, beklenen
+nil/NULL/sabit evidence değerlerine güncelleyebilir. Oyun, olay, zaman, reference_id
+ve diğer alanlar değiştirilemez. Bağlam tablosuna PUBLIC yetkisi verilmez; bir session
+GUC/başlık ayarlamak korumayı açmaz. Bağlam satırı aynı transaction'da kaldırılır;
+hata olursa bütün değişikliklerle birlikte geri alınır. Kalıcı silinmiş-hesap listesi yoktur.
+
+Fonksiyonlar SECURITY DEFINER ve sabit `search_path=pg_catalog` kullanır; uygulama
+tabloları açık `public.` adlarıyla çağrılır. PUBLIC'a fonksiyon EXECUTE verilmez.
+Ayrı runtime DB rolü kullanılıyorsa yalnız `erase_game_account_data(uuid)` EXECUTE
+tahsis edilmelidir; bağlam tablosuna DML veya audit sahipliği verilmez. DB sahibi
+rolünün kendi trigger/tablolarını değiştirebilmesi bu mekanizmayla engellenemez;
+production'da migration sahibi/runtime rol ayrımı mevcut least-privilege şartıdır.
+
+Silme sırasındaki eşzamanlı yazmalar kilitle engellenir. Transaction bittikten sonra
+eski access token'ıyla yeniden veri yazılmasını küresel olarak engelleyen D3 veya
+yerel tombstone bu göreve eklenmedi; §7'deki access-token iptal gecikmesi sürer.
+Kalıcı hesap blok kaydı ayrıca veri saklama/mimari kararı gerektirir.
+
+### 14.3 Ayrı servis sınırları ve doğrulama
+
+Library/Review iskeletleri kendi servis audience'ı, imza/süre/scope/hesap eşleşmesi
+denetimleriyle gövdesiz 204 verir. Game politikası bu servislere taşınmadı; yeni
+kişisel veri tabloları eklendiğinde kendi silme işlemleri/testleri de eklenmelidir.
+Auth/Gateway/diğer ekip servisleri ve ENV dosyaları değiştirilmedi.
+
+Gerçek DEV dağıtımına migration uygulanmadı, çalışan Auth silme görevinin CONFIRMED
+olması bu çalışma içinde denenmedi. Nihai yerel test/kapsam sonuçları aşağıya eklenir.
+
+### 14.4 Nihai test kaydı
+
+2026-10-24, son kaynaklarla `mvn -B -ntp -f backend/pom.xml -pl
+services/game-service,services/library-service,services/review-service --fail-at-end
+clean verify` → **BUILD SUCCESS**. Gerçek ENV bulunmayan izole kaynak kopyası ve
+geçici PostgreSQL 17 kullanıldı; DEV verisi kullanılmadı.
+
+- Game: **303 test**, hata/başarısız/atlanmış 0/0/0, JaCoCo satır **%98,76**.
+- Library: **18 test**, hata/başarısız/atlanmış 0/0/0, satır **%96,97**.
+- Review: **18 test**, hata/başarısız/atlanmış 0/0/0, satır **%96,97**.
+- Gerçek Auth ServiceTokenIssuer ile kabul, kullanıcı/servis token ayrımı,
+  scope/hesap/sub sınırı, scp/roles fallback reddi, imza/süre/claim hataları doğrulandı.
+- PostgreSQL: V40→V171 veri korumalı yükseltme; gerçek silme/anonimleştirme,
+  diğer hesapların korunması, revoke CHECK, audit normal UPDATE/DELETE yasağı,
+  sınırlı runtime rolünün bağlamı taklit edememesi, rollback ve kilit sonrası tekrar.
+- 362 kaynak/test dosyası izole kopyayla SHA-256 eşit. V31–V40 HEAD ile aynı.
+  API kataloğunda GAME/LIBRARY/REVIEW dışı içerik aynı; Auth/Gateway/pre-push/lib/AGENTS diff'i boş.
+- Zorunlu `pre-push.cmd game-service`, `library-service`, `review-service`
+  denemeleri mevcut `pre-push/quality.mjs:60` sözdizimi hatasıyla başlamadan durdu:
+  `SyntaxError: Identifier 'result' has already been declared`. Ortak araç değiştirilmedi.
+  **SAFE TO COMMIT / BACKEND TEST CHECK PASSED alınmadı.** Maven/test/kapsam
+  sonuçları ayrı kanıttır; pre-push başarısı olarak sunulmaz.
+
+Git dışı kanıt: `test-results/hamza-erasure-check-20261024/maven-final.log`,
+aynı dizindeki üç `*-service-check.log`, servis `target/surefire-reports` ve
+`target/site/jacoco` raporları. Gerçek DEV Auth koordinasyonu ve Sonar yeniden taraması yapılmadı.
+
+## 15. Pre-push kök neden analizi ve güncel kalite kaydı — 2026-10-24
+
+Bu bölüm §14.4'teki önceki engel durumunu günceller. Hesap silme politikası ve V171
+korunmuştur. Kalite eşikleri, analiz kapsamı, güvenlik kontrolleri veya test atlama
+kuralları değiştirilmemiştir. DEV verisi ve migration geçmişi korunmuştur.
+
+### 15.1 Kesin kök neden ve izin verilen ortak araç düzeltmeleri
+
+`pre-push/quality.mjs:60` hatası aynı callback içinde iki backend çalıştırma bloğunun
+birleşmesiyle `const result` değişkeninin iki kez tanımlanmasından kaynaklandı.
+Git geçmişinde hata `fcec004` merge commit'inde (Alper Temiz, 2026-10-24 01:40:09 +03,
+`Merge branch 'main' into feature/hardware-service`) ortaya çıkıyor. İki parent
+`6b60134` ve `6f33cc2` sözdizimi kontrolünden geçiyor; merge ve düzeltme öncesi HEAD
+`node --input-type=module --check` ile aynı hatayı veriyor. Bu, hesap silme
+geliştirmelerinden bağımsız ortak araç birleşim hatasıdır.
+
+Kullanıcının dosya bazında açık izinleriyle şu minimal düzeltmeler yapıldı:
+
+- `pre-push/quality.mjs`: eski 44–47 arasındaki yinelenen dört satır kaldırıldı.
+  Değişken adı değiştirmek yeterli olmazdı: aynı Maven işi iki kez çalışacak ve eski
+  `backendTestEnvironment` çağrısı Compose modelini bekleyen işlevle uyuşmayacaktı.
+- `pre-push/quality.test.mjs`: iki eski beklenti gerçek Compose çözümlemesine göre
+  düzeltildi. Parola terminal profilinden değil çözümlenmiş Compose DB ayarından
+  alınır; profil çözümlenemiyorsa Maven başlamadan FAIL olur. Önce 9/11 geçiş ve bu
+  iki başarısızlık doğrulandı; sonra 11/11 geçti. Hata/secret/coverage kontrolleri korundu.
+- `pre-push/backend-check.mjs`: kullanılmayan `backendTestEnv` import'u kaldırıldı;
+  Maven çağrısı hazırlanmış `run(mvn, args)` sarmalayıcısına geçirildi. Önceki çağrı
+  profili `dev` olarak sabitliyor ve hazırlanmış bağlantı/maskeleme ortamını atlıyordu.
+  Seçilen dev/prod profili, loopback DB bağlantısı, environment aktarımı, parola
+  maskelemesi ve Maven hata kodu 7'nin FAIL olarak kalması ayrı sözleşme testleriyle
+  doğrulandı. `menu.test.mjs` değiştirilmedi.
+
+Bu üç dosya ortak araç bakım kapsamındadır; düzeltmeler kullanıcı izniyle burada
+yapıldı. Başka ortak araç veya Auth/Gateway/diğer servis kaynağı değiştirilmedi.
+Game'e ait `AccountErasureMigrationTest.java` içindeki Sonar `java:S8714` bulgusu
+`try/catch + fail` yerine `assertDoesNotThrow` kullanılarak giderildi; bütün iç
+assertion'lar ve güvenlik kontrolleri korundu.
+
+### 15.2 Gerçek repository kontrolleri
+
+- Ortak JavaScript testleri: **60/60 PASS**, atlanan 0.
+- Ek geçici dev/prod/hata-kodu sözleşme testleri: **3/3 PASS**, atlanan 0.
+- `pre-push.cmd game-service`: **BACKEND TEST CHECK PASSED**, 303 test,
+  JaCoCo satır **%98,76**. Son Game test düzenlemesi ardından tekrar çalıştırıldı.
+- `pre-push.cmd library-service`: **BACKEND TEST CHECK PASSED**, 18 test,
+  satır **%96,97**.
+- `pre-push.cmd review-service`: **BACKEND TEST CHECK PASSED**, 18 test,
+  satır **%96,97**.
+- `pre-push.cmd full dev`: **1.137 test**, 0 failure/error/skipped;
+  genel JaCoCo satır **%95,91**. Git/Secret, Backend Tests, Backend Build,
+  Backend Coverage ve Docker Configuration PASS. **Backend HTTP Health FAIL**:
+  seçilen DEV Compose projesindeki 18 uygulama konteyneri çalışmıyor.
+  Sonuç **NOT SAFE TO COMMIT**, exit 1. Bu, iskelet servislerin kapsamının
+  Game/Library/Review'a yüklenmesi değildir; ayrı runtime sağlık kontrolü engelidir.
+- İlk izole tüm-backend denemesinde terminalden miras kalan `DEBUG` nedeniyle iki
+  Auth log-gizliliği testi başarısızdı. Yalnız test alt süreci için DEBUG/TRACE=false
+  yapılarak tekrarlandı ve yukarıdaki 1.137 testin tamamı geçti; Auth kodu veya
+  kalıcı ENV değiştirilmedi. Mevcut opsiyonel gitleaks aracı kurulu olmadığı için
+  araç kendi SKIPPED uyarısını verdi; kontrol ayarı değiştirilmedi.
+- Full kontrol sonrasında yalnız Game testinin Sonar yazım düzenlemesi yapıldı;
+  Game'in 303 testi yeniden geçti. Diğer servis kaynakları değişmedi.
+
+Testler ayrı, geçici PostgreSQL 17 ile çalıştırıldı. Spring datasource ve host
+PostgreSQL ayarları bu geçici DB'ye yönlendirildi; Game Testcontainers testleri de
+kendi geçici DB'lerini kullandı. DEV servislerini başlatmak migration çalıştırabileceği
+için sağlık kontrolünü yeşile çevirmek amacıyla başlatılmadılar. İşe ait geçici
+PostgreSQL konteyneri adı/etiketi doğrulandıktan sonra temizlendi.
+
+### 15.3 Güncel SonarQube sonucu ve kapsam sınırı
+
+Proje: **ltz-backend**, [yerel panel](http://localhost:5199/dashboard?id=ltz-backend).
+CE task `bc9ed252-e5af-4539-9bd4-c1d0e78e9303`, analysis `077ce8ab-22e2-47d7-a014-0f056ca913be`;
+işleme **SUCCESS**, tamamlanma `2026-10-24T00:15:29+0000`.
+Scanner exit **1**, Quality Gate **ERROR**.
+Bu, son Game test düzenlemesini içeren yeni analizdir; eski proje sonucu kullanılmadı.
+
+- `new_coverage`: 92.4; eşik LT 80; **OK**.
+- `new_duplicated_lines_density`: 1.24659; eşik GT 3; **OK**.
+- `new_violations`: 17; eşik GT 0; **ERROR**.
+
+- Game açık bulgu: **0**.
+- Library açık bulgu: **0**.
+- Review açık bulgu: **0**.
+- Diğer servisler: **19** açık bulgu; tamamı Umut'un
+  Social Service kapsamındadır. Yeni kod dönemindeki toplam bulgu **17**.
+  Bu bulgular değiştirilmedi, bastırılmadı veya kapatılmış işaretlenmedi.
+- Aynı güncel `ltz-backend` analizinde Auth/Gateway açık bulgusu yoktur. Ayrı
+  `ltz-auth-gateway` projesindeki geçmiş 49 bulgunun durumu buraya taşınmadı.
+- Mevcut Maven analiz kapsamı Java kaynak/testlerini içerir. API dosya envanteri
+  sorgusunda V171 SQL ve kökteki `quality.mjs` indekslenmiyor; bunlar için doğrudan
+  Sonar statik analiz başarısı iddia edilmez. SQL gerçek PostgreSQL testleriyle,
+  ortak JS dosyaları 60+3 test ve sözdizimi denetimleriyle doğrulandı. Sonar kapsamı
+  izinsiz genişletilmedi. Commit edilmemiş yeni dosyalarda blame bilgisi eksikliği
+  uyarısı vardır; analiz işleme başarısını engellemedi.
+
+Umut'a iletilmesi gereken Social bulguları (dosya/satır ve Sonar kuralı):
+
+- `services/social-service/src/main/java/com/ltz/social/infrastructure/config/JwtConfig.java:46` — `java:S6831`, MAJOR: Remove this redundant "@Qualifier" annotation and rely on the @Bean method.
+- `services/social-service/src/main/java/com/ltz/social/infrastructure/config/JwtConfig.java:52` — `java:S6831`, MAJOR: Remove this redundant "@Qualifier" annotation and rely on the @Bean method.
+- `services/social-service/src/main/java/com/ltz/social/application/service/FriendsListAccessPolicy.java:56` — `java:S7467`, MINOR: Replace "exception" with an unnamed pattern.
+- `services/social-service/src/main/java/com/ltz/social/application/service/FriendshipService.java:59` — `java:S6809`, CRITICAL: Call transactional methods via an injected dependency instead of directly via 'this'.
+- `services/social-service/src/test/java/com/ltz/social/ServiceBoundaryTest.java:72` — `java:S9142`, MAJOR: Move this "compile" call outside the loop.
+- `services/social-service/src/main/java/com/ltz/social/application/service/OutboxEventRecorder.java:31` — `java:S6213`, MAJOR: Rename this method to not match a restricted identifier.
+- `services/social-service/src/test/java/com/ltz/social/application/service/OutboxEventsTest.java:40` — `java:S5838`, MINOR: Use assertThat(actual).containsEntry(key, value) instead.
+- `services/social-service/src/test/java/com/ltz/social/application/service/OutboxEventsTest.java:41` — `java:S5838`, MINOR: Use assertThat(actual).containsEntry(key, value) instead.
+- `services/social-service/src/test/java/com/ltz/social/application/service/OutboxEventsTest.java:42` — `java:S5838`, MINOR: Use assertThat(actual).containsEntry(key, value) instead.
+- `services/social-service/src/test/java/com/ltz/social/application/service/OutboxEventsTest.java:43` — `java:S5838`, MINOR: Use assertThat(actual).containsEntry(key, value) instead.
+- `services/social-service/src/test/java/com/ltz/social/application/service/OutboxEventsTest.java:44` — `java:S5838`, MINOR: Use assertThat(actual).containsEntry(key, value) instead.
+- `services/social-service/src/test/java/com/ltz/social/application/service/OutboxEventsTest.java:97` — `java:S5778`, MAJOR: Refactor the code of the lambda to have only one invocation possibly throwing a runtime exception.
+- `services/social-service/src/main/java/com/ltz/social/api/controller/AuthenticatedUser.java:17` — `java:S7467`, MINOR: Replace "exception" with an unnamed pattern.
+- `services/social-service/src/main/java/com/ltz/social/application/service/FriendRequestService.java:83` — `java:S7467`, MINOR: Replace "exception" with an unnamed pattern.
+- `services/social-service/src/main/java/com/ltz/social/application/service/KeysetCursor.java:39` — `java:S7467`, MINOR: Replace "exception" with an unnamed pattern.
+- `services/social-service/src/test/java/com/ltz/social/domain/entity/FriendshipIdTest.java:21` — `java:S5838`, MINOR: Use assertThat(actual).hasSameHashCodeAs(expected) instead.
+- `services/social-service/src/test/java/com/ltz/social/domain/entity/FriendshipIdTest.java:32` — `java:S5838`, MINOR: Use assertThat(actual).isLessThan(expected) instead.
+- `services/social-service/src/test/java/com/ltz/social/SocialServiceApplicationTests.java:8` — `java:S1186`, CRITICAL: Add a nested comment explaining why this method is empty, throw an UnsupportedOperationException or complete the implementation.
+- `services/social-service/src/test/java/com/ltz/social/SocialServiceApplicationTests.java:8` — `java:S2699`, BLOCKER: Add at least one assertion to this test case.
+
+### 15.4 V171 ve hesap silme doğrulaması
+
+V171 bu kalite çalışmasında değiştirilmedi; başlangıçtaki kaynak kopyasıyla SHA-256
+eşitliği doğrulandı. V31–V40 HEAD ile aynı. Yeni geçici PostgreSQL üzerinde migration,
+V40'tan veri korumalı yükseltme, gerçek silme/anonimleştirme, hedef kişi audit'leri,
+başka hesapların korunması, idempotency, rollback, lock timeout ve audit normal
+UPDATE/DELETE yasağı testlerle doğrulandı. Sınırlı runtime rolünün özel bağlamı
+taklit edememesi ve kontrollü anonimleştirme istisnası da test kapsamındadır.
+
+Gerçek Auth ServiceTokenIssuer ile sözleşme uyumu, svc+jwt/at+jwt ayrımı, exact
+subject/account_id/audience/scope ve diğer imza/süre sınırları üç serviste testlidir.
+Library/Review kendi veri içermeyen iskelet sözleşmeleriyle doğrulandı; Game'in
+saklama politikası bu servislere taşınmadı. DEV migration uygulanmadı, çalışan
+Auth koordinatörüyle uçtan uca hesap silme/CONFIRMED akışı denenmedi. §14.2'deki
+eski access token ile sonradan yazma sınırı geçerlidir; yeni saklama kararı alınmadı.
+
+### 15.5 Tam değişen dosya listesi ve açık engeller
+
+Aşağıdaki 45 dosya hesap silme geliştirmesi dahil çalışma ağacının tamamıdır.
+Bu kalite incelemesinde ayrıca dokunulanlar yalnız yukarıdaki üç izinli ortak araç,
+Game'in migration testi ve bu rapordur. Git add/commit/push/merge/rebase/reset yapılmadı.
+
+- `backend/services/game-service/src/main/java/com/ltz/game/api/exception/GameExceptionHandler.java` (değişti).
+- `backend/services/game-service/src/main/java/com/ltz/game/infrastructure/security/GameSecurityConfiguration.java` (değişti).
+- `backend/services/game-service/src/main/java/com/ltz/game/infrastructure/security/JwtDecoderConfiguration.java` (değişti).
+- `backend/services/game-service/src/main/resources/application.properties` (değişti).
+- `backend/services/game-service/src/test/java/com/ltz/game/infrastructure/persistence/MigrationArchitectureTest.java` (değişti).
+- `backend/services/game-service/src/test/java/com/ltz/game/infrastructure/persistence/MigrationTransferApplicationTest.java` (değişti).
+- `backend/services/game-service/src/test/java/com/ltz/game/infrastructure/persistence/MigrationTransferSupport.java` (değişti).
+- `backend/services/game-service/src/test/java/com/ltz/game/infrastructure/security/ProductionAuthSupport.java` (değişti).
+- `backend/services/game-service/src/test/java/com/ltz/game/infrastructure/security/RealAuthIntegrationTest.java` (değişti).
+- `backend/services/library-service/src/main/resources/application.properties` (değişti).
+- `backend/services/review-service/src/main/resources/application.properties` (değişti).
+- `docs-Game Service/LTZ-HAM-GAME-04-Auth-Entegrasyonu.md` (değişti).
+- `docs/api.md` (değişti).
+- `docs/database.md` (değişti).
+- `docs/decisions/migrations.md` (değişti).
+- `docs/er-diagram.md` (değişti).
+- `pre-push/backend-check.mjs` (değişti).
+- `pre-push/quality.mjs` (değişti).
+- `pre-push/quality.test.mjs` (değişti).
+- `backend/services/game-service/src/main/java/com/ltz/game/api/controller/AccountErasureController.java` (yeni).
+- `backend/services/game-service/src/main/java/com/ltz/game/application/service/AccountErasureService.java` (yeni).
+- `backend/services/game-service/src/main/java/com/ltz/game/domain/exception/AccountErasurePendingException.java` (yeni).
+- `backend/services/game-service/src/main/java/com/ltz/game/infrastructure/persistence/repository/AccountErasureRepository.java` (yeni).
+- `backend/services/game-service/src/main/java/com/ltz/game/infrastructure/security/ServiceTokenDecoderConfiguration.java` (yeni).
+- `backend/services/game-service/src/main/resources/db/migration/V171__enable_controlled_account_erasure.sql` (yeni).
+- `backend/services/game-service/src/test/java/com/ltz/game/api/controller/AccountErasureTest.java` (yeni).
+- `backend/services/game-service/src/test/java/com/ltz/game/application/service/AccountErasureServiceTest.java` (yeni).
+- `backend/services/game-service/src/test/java/com/ltz/game/infrastructure/persistence/AccountErasureMigrationTest.java` (yeni).
+- `backend/services/game-service/src/test/java/com/ltz/game/infrastructure/security/ServiceTokenDecoderConfigurationTest.java` (yeni).
+- `backend/services/library-service/src/main/java/com/ltz/library/api/controller/AccountErasureController.java` (yeni).
+- `backend/services/library-service/src/main/java/com/ltz/library/api/exception/AccountErasureExceptionHandler.java` (yeni).
+- `backend/services/library-service/src/main/java/com/ltz/library/application/service/AccountErasureService.java` (yeni).
+- `backend/services/library-service/src/main/java/com/ltz/library/infrastructure/security/AccountErasureSecurityConfiguration.java` (yeni).
+- `backend/services/library-service/src/main/java/com/ltz/library/infrastructure/security/ServiceTokenDecoderConfiguration.java` (yeni).
+- `backend/services/library-service/src/test/java/com/ltz/library/api/controller/AccountErasureTest.java` (yeni).
+- `backend/services/library-service/src/test/java/com/ltz/library/infrastructure/security/ProductionServiceTokenSupport.java` (yeni).
+- `backend/services/library-service/src/test/java/com/ltz/library/infrastructure/security/ServiceTokenDecoderConfigurationTest.java` (yeni).
+- `backend/services/review-service/src/main/java/com/ltz/review/api/controller/AccountErasureController.java` (yeni).
+- `backend/services/review-service/src/main/java/com/ltz/review/api/exception/AccountErasureExceptionHandler.java` (yeni).
+- `backend/services/review-service/src/main/java/com/ltz/review/application/service/AccountErasureService.java` (yeni).
+- `backend/services/review-service/src/main/java/com/ltz/review/infrastructure/security/AccountErasureSecurityConfiguration.java` (yeni).
+- `backend/services/review-service/src/main/java/com/ltz/review/infrastructure/security/ServiceTokenDecoderConfiguration.java` (yeni).
+- `backend/services/review-service/src/test/java/com/ltz/review/api/controller/AccountErasureTest.java` (yeni).
+- `backend/services/review-service/src/test/java/com/ltz/review/infrastructure/security/ProductionServiceTokenSupport.java` (yeni).
+- `backend/services/review-service/src/test/java/com/ltz/review/infrastructure/security/ServiceTokenDecoderConfigurationTest.java` (yeni).
+
+Açık engeller: Social bulgularının servis sahibi Umut tarafından giderilmesi ve
+güvenli çalışma ortamında 18 uygulama servisinin HTTP sağlık kontrolünün geçmesi.
+Gerçek DEV DB'ye dokunmama sınırı nedeniyle burada servisler başlatılmadı.
+**SAFE TO COMMIT alınmadı; bütün kontroller başarılı veya dağıtıma hazır denmiyor.**
+
+Git dışı kanıtlar `test-results/erasure-quality-20261024/` altında:
+`javascript-tests-final.log`, `backend-wrapper-contract.log`,
+`game-service-prepush-sonar-fix.log`, `library-service-prepush-final.log`,
+`review-service-prepush-final.log`, `full-dev-final.log`, `backend-metrics.json`,
+`sonar-first-result.json`, `sonar-current-result.json`, `sonar-scanner.log`,
+`sonar-file-scope.json` ve `changed-files.json`. Bu dosyalar çalışma kanıtıdır,
+Git'e eklenmemiştir. Testler ve kalite kayıtları gizli değer içermez.

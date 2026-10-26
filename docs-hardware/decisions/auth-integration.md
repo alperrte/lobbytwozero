@@ -1,5 +1,11 @@
 # Auth entegrasyon sınırı — DEFERRED_AUTH
 
+**Tarihçe notu — 2026-10-24:** Aşağıdaki metin 2026-10-21 teslim sınırıdır.
+Kullanıcı sonraki Hardware–Auth uygulamasını onayladı; gerçek kullanıcı JWT/JWKS,
+yerel rol eşlemesi ve D4 geliştirildi. Güncel durum ve taze kapılar
+[entegrasyon kalite kaydında](../integration/auth/auth-integration-quality.md) tutulur.
+Auth D3, cihaz credential/PERF ve canlı dağıtım E2E'si ayrı açık bağımlılıklardır.
+
 2026-10-21 kullanıcı onayıyla HW-01 ve HW-02 yerel güvenlik sınırları uygulanmıştır.
 
 `CurrentActor` uygulama portu UUID döndürür. `SecurityContextCurrentActor`, yalnız

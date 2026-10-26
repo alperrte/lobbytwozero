@@ -1,5 +1,10 @@
 # LTZ Hardware Service — Final Servis Raporu
 
+**2026-10-24 güncel ek çalışma:** Kullanıcı JWT/JWKS, RBAC ve D4 için sonraki
+Hardware–Auth entegrasyonu ayrı yürütülür; güncel durum ve iki taze kalite kapısı
+[entegrasyon kaydındadır](../integration/auth/auth-integration-quality.md).
+Aşağıdaki Auth DEFERRED ifadeleri ve test sayıları 2026-10-21 teslim tarihçesidir.
+
 Tarih 2026-10-21; sorumlu Alper; sürüm 0.0.1-SNAPSHOT.
 Durum: **yerel 17/17 alt görev TESTED, beşinci ana görev READY_FOR_PDA —
 DEFERRED_AUTH / DEFERRED_CONTRACT**. Kullanıcı PDA kapanışı 4/5; HW-05 ana kutusu

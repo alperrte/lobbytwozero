@@ -10,6 +10,9 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.security.authentication.ProviderManager;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationProvider;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.security.web.csrf.CsrfFilter;
@@ -33,10 +36,23 @@ public class GameSecurityConfiguration {
     private static final String UNAUTHORIZED = "Unauthorized";
 
     @Bean
-    SecurityFilterChain gameSecurity(HttpSecurity http, JwtDecoder decoder, LtzJwtAuthenticationConverter converter, RateLimitProperties rateLimit) {
+    SecurityFilterChain gameSecurity(HttpSecurity http, JwtDecoder decoder,
+            @Qualifier("serviceJwtDecoder") JwtDecoder serviceDecoder,
+            LtzJwtAuthenticationConverter converter, RateLimitProperties rateLimit) {
         PathPatternRequestMatcher.Builder paths = PathPatternRequestMatcher.withDefaults();
+        RequestMatcher internal = paths.matcher("/internal/**");
+        var userProvider = new JwtAuthenticationProvider(decoder);
+        userProvider.setJwtAuthenticationConverter(converter);
+        var userTokens = new ProviderManager(userProvider);
+        var serviceProvider = new JwtAuthenticationProvider(serviceDecoder);
+        var scopes = new org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter();
+        scopes.setAuthoritiesClaimName("scope");
+        var serviceConverter = new org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter();
+        serviceConverter.setJwtGrantedAuthoritiesConverter(scopes);
+        serviceProvider.setJwtAuthenticationConverter(serviceConverter);
+        var serviceTokens = new ProviderManager(serviceProvider);
         RequestMatcher batch = paths.matcher(HttpMethod.POST, "/api/v1/game/games/batch");
-        RequestMatcher tokenProtected = new OrRequestMatcher(paths.matcher(ADMIN), paths.matcher(MODERATION), paths.matcher(DEVELOPER), paths.matcher(FEEDBACK));
+        RequestMatcher tokenProtected = new OrRequestMatcher(paths.matcher(ADMIN), paths.matcher(MODERATION), paths.matcher(DEVELOPER), paths.matcher(FEEDBACK), internal);
         var limiter = new TokenBucketRateLimiter(rateLimit.batch().capacity(), rateLimit.batch().refillPerSecond(), rateLimit.maxKeys(), System::nanoTime);
         var rateLimitFilter = new BatchRateLimitFilter(batch, limiter, new ClientAddressResolver(rateLimit.trustedProxies()));
         var privateFeedback=new OrRequestMatcher(paths.matcher(FEEDBACK),paths.matcher("/api/v1/game/developer/games/*/feedback/**"));
@@ -56,13 +72,14 @@ public class GameSecurityConfiguration {
                         .requestMatchers(HttpMethod.GET, "/api/v1/game/games/*/developer-content").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/game/games/*/modules/*").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/game/games/batch").permitAll()
+                        .requestMatchers(HttpMethod.DELETE, com.ltz.game.api.controller.AccountErasureController.PATH).hasAuthority("SCOPE_account:erase")
                         .requestMatchers(ADMIN).hasRole("ADMIN")
                         .requestMatchers(MODERATION).hasAnyRole("ADMIN", "MODERATOR")
                         .requestMatchers(DEVELOPER).hasRole("GAME_DEVELOPER")
                         .requestMatchers(FEEDBACK).authenticated()
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(resource -> resource
-                        .jwt(jwt -> jwt.decoder(decoder).jwtAuthenticationConverter(converter))
+                        .authenticationManagerResolver(request -> internal.matches(request) ? serviceTokens : userTokens)
                         .authenticationEntryPoint((request, response, exception) -> writeProblem(response, 401, UNAUTHORIZED))
                         .accessDeniedHandler((request, response, exception) -> denied(request, response, exception, tokenProtected)))
                 .exceptionHandling(errors -> errors

@@ -239,6 +239,22 @@ erDiagram
 
 ## 5. game_db
 
+2026-10-24 kaynak yükseltmesi V171, hesap silme için aşağıdaki teknik bağlamı ekler.
+account_id Auth kimliğine REF'tir; başka servis DB'sine FK yoktur. Satır yalnız
+silme transaction'ında yaşar, başarıda silinir; hata olursa transaction ile geri alınır.
+Audit tablolarının ilişkileri korunur. DEV'e bu çalışma kapsamında uygulanmadı.
+
+```mermaid
+erDiagram
+  game_account_erasure_context {
+    uuid id PK
+    bigint transaction_id UK
+    uuid account_id "Auth REF; nil olamaz"
+    timestamptz created_at
+    bigint version
+  }
+```
+
 Faz 6 eklentisi: başarım ve geri bildirim tabloları (tarihsel V172–V173; güncel aktif zincirde V39–V40, DEV'de uygulanmıştır):
 
 ```mermaid
@@ -809,6 +825,26 @@ erDiagram
 ```
 
 ## 14. hardware_db
+
+**2026-10-24 Auth/D4 eklemesi:** V1–V7 korunur, V8 ile 17. tablo eklenir.
+Bu teknik fence'in profil/hesap UUID FK'si yoktur; SHA-256 özeti ve expiry dışında
+kişisel veri tutmaz. Kullanıcı yazması ve temizleme hesap bazlı transaction kilidi paylaşır.
+
+```mermaid
+erDiagram
+  hardware_account_erasure_fences {
+    varchar account_hash PK "SHA-256; pseudonymous, anonim değil"
+    timestamptz expires_at "17 dakika etkin; periyodik purge"
+  }
+```
+
+Audit trigger'ları normal UPDATE/DELETE/TRUNCATE'i reddeder; V8 yalnız onaylı hesap
+temizliğinde actor veya o hesaba ait review hedefiyle bağlı satırları kalıcı kaldırır.
+Tüm profil alt tabloları CASCADE ile, rapor/outbox/review/audit/kişisel bucket'lar
+paket başına aynı transaction'da temizlenir. Paket commit'inden sonra 503 retry,
+tüm hesap temizlenince 204 verilir. Global katalog ve ilgisiz kullanıcılar korunur.
+[Politika ve mutabakat](../docs-hardware/integration/auth/auth-integration-02.md).
+Devamındaki 16 tablo / 7 migration açıklaması 2026-10-21 başlangıç tarihçesidir.
 
 **Güncel geliştirme envanteri (2026-10-21):** Kullanıcı onayıyla aynı 16 tablo,
 7 ilişkili başlangıç migration'ında oluşturulur: V1 profil/gizlilik, V2 katalog,

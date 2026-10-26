@@ -1,8 +1,9 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { repositoryRoot, execute, redact, cleanGenerated, freshFile, backendResults, readModules, clearBackendReports, withReportLock, withRunLog } from '../lib/quality-tools.mjs';
-import { loadProfileEnv, loadBackendTestEnv, requireNode } from '../lib/profile-env.mjs';
+import { loadProfileEnv, requireNode } from '../lib/profile-env.mjs';
 import { requireMaven25 } from '../pre-push/backend-check.mjs';
+import { backendTestEnvironment } from '../pre-push/runtime-checks.mjs';
 import { coverageMinimum, prepareCoverage, enforceCoverage } from '../pre-push/ci/coverage.mjs';
 
 export const loadSonarEnv = loadProfileEnv;
@@ -139,19 +140,32 @@ export async function runScan({ root = repositoryRoot, profile = 'dev', ambient 
     });
 
     if (rows['SonarQube Access'] !== 'PASS') throw new Error('Scan stopped before building: SonarQube access failed');
-    const backendEnv = loadBackendTestEnv(root, profile, env);
-    secrets = [env.SONAR_TOKEN, env.SONAR_DB_PASSWORD, backendEnv.POSTGRES_PASSWORD];
-    const runBackend = (command, args, cwd = root, capture = false) => run(command, args, cwd, capture, backendEnv);
     const modules = readModules(root);
     clearBackendReports(root, modules);
 
     await step('Backend Reports', async () => {
-      await requireMaven25(runBackend, mvn, root);
-      backendEnv.LTZ_COVERAGE_CONTEXT = ambient.LTZ_COVERAGE_CONTEXT || await prepare(root);
-      const result = await runBackend(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify']);
+      const config = await run('docker', ['compose', '--env-file', `.env.${profile}`, '-f', 'docker-compose.yml', 'config', '--format', 'json'], root, true);
+      if (config.code !== 0) throw new Error('Cannot resolve the selected application Compose profile for backend tests.');
+
+      let model;
+      try { model = JSON.parse(config.output); }
+      catch { throw new Error('Cannot parse the selected application Compose profile for backend tests.'); }
+
+      const testEnv = backendTestEnvironment(model, env);
+      // Preserve explicit test logging properties; omit only the host tool's generic DEBUG flag.
+      delete testEnv.DEBUG;
+      secrets = [...secrets, testEnv.POSTGRES_PASSWORD];
+
+      const testRun = (command, args, cwd = root, capture = false) => runCommand(command, args,
+        { cwd, env: testEnv, capture, secrets, log: say });
+
+      await requireMaven25(testRun, mvn, root);
+      testEnv.LTZ_COVERAGE_CONTEXT = ambient.LTZ_COVERAGE_CONTEXT || await prepare(root);
+      const result = await testRun(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify']);
+
       if (result.code !== 0) throw new Error('Backend build/tests failed');
       details.backend = backendResults(root, modules, started);
-      details.coveragePolicy = coverageCheck(root, modules, backendEnv.LTZ_COVERAGE_CONTEXT);
+      details.coveragePolicy = coverageCheck(root, modules, testEnv.LTZ_COVERAGE_CONTEXT);
       say(`Fresh reports: ${details.backend.tests} tests; local line coverage ${details.backend.lineCoverage.toFixed(2)}%`);
       return true;
     });

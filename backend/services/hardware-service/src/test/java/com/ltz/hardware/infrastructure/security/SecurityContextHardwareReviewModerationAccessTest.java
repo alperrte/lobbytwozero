@@ -1,5 +1,7 @@
 package com.ltz.hardware.infrastructure.security;
 
+import static org.mockito.Mockito.mock;
+
 import com.ltz.hardware.application.port.*;
 import java.util.*;
 import org.junit.jupiter.api.*;
@@ -17,7 +19,7 @@ class SecurityContextHardwareReviewModerationAccessTest {
     @Test
     void permissionCannotSubstituteForTrustedActorOrBeSubstitutedByCatalogPermission() {
         var id = UUID.randomUUID();
-        var realActor = new SecurityContextCurrentActor();
+        var realActor = new SecurityContextCurrentActor(mock(com.ltz.hardware.infrastructure.persistence.repository.HardwareAccountAccessGuard.class));
         var access = new SecurityContextHardwareReviewModerationAccess(realActor);
         var authority = List.of(new SimpleGrantedAuthority(HardwareReviewModerationAccess.PERMISSION));
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(new AuthenticatedActor(id), null, authority));

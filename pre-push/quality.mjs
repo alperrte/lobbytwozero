@@ -2,8 +2,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { repositoryRoot, execute, backendTests, backendResults, readModules, clearBackendReports, withReportLock, withRunLog } from '../lib/quality-tools.mjs';
 import { requireNode } from '../lib/profile-env.mjs';
-import { requireMaven25, backendTestEnvironment } from './backend-check.mjs';
-import { checkGitSecrets, checkBackendHealth } from './runtime-checks.mjs';
+import { requireMaven25 } from './backend-check.mjs';
+import { checkGitSecrets, checkBackendHealth, backendTestEnvironment } from './runtime-checks.mjs';
 import { prepareCoverage, enforceCoverage } from './ci/coverage.mjs';
 import { checkRepositoryHygiene } from './hygiene-checks.mjs';
 import { scanSecrets } from './ci/secrets.mjs';
@@ -21,7 +21,8 @@ export async function runQualityChecks({ root = repositoryRoot, profile = 'dev',
   prepare = prepareCoverage, coverageCheck = enforceCoverage, secretScan = scanSecrets, healthProbe, log = console.log } = {}) {
   const rows = Object.fromEntries([...requiredRows, 'Backend HTTP Health'].map(name => [name, 'SKIPPED']));
   const details = {};
-  const env = Object.fromEntries(Object.entries(ambient).filter(([name]) => !name.startsWith('SONAR')));
+  // Tool DEBUG namespaces must not turn on Spring's request/form DEBUG logging in test JVMs.
+  const env = Object.fromEntries(Object.entries(ambient).filter(([name]) => !name.startsWith('SONAR') && name !== 'DEBUG'));
   const run = (command, args, cwd = root, capture = false) => runCommand(command, args, { cwd, env, capture, log });
   const mvn = process.platform === 'win32' ? 'mvn.cmd' : 'mvn';
   const started = Date.now();
@@ -42,11 +43,22 @@ export async function runQualityChecks({ root = repositoryRoot, profile = 'dev',
       && secretScan({ mode: 'worktree', root, log }) === 0 && checkRepositoryHygiene({ run, log, root }));
     await step('Backend Tests', async () => {
       rows['Backend Build'] = 'FAIL';
-      await requireMaven25(run, mvn, root);
+      const config = await run('docker', ['compose', '--env-file', `.env.${profile}`, '-f', 'docker-compose.yml', 'config', '--format', 'json'], root, true);
+      if (config.code !== 0) throw new Error('Cannot resolve the selected Compose profile for backend tests.');
+
+      let model;
+      try { model = JSON.parse(config.output); }
+      catch { throw new Error('Cannot parse the selected Compose profile for backend tests.'); }
+
+      const testEnv = backendTestEnvironment(model, env);
+      const testRun = (command, args, cwd = root, capture = false) => runCommand(command, args,
+        { cwd, env: testEnv, capture, secrets: [testEnv.POSTGRES_PASSWORD], log });
+
+      await requireMaven25(testRun, mvn, root);
       env.LTZ_COVERAGE_CONTEXT = ambient.LTZ_COVERAGE_CONTEXT || await prepare(root);
-      const backend = backendTestEnvironment(root, profile, env, log);
-      const result = await runCommand(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify'],
-        { cwd: root, env: backend.env, capture: false, secrets: backend.secrets, log });
+      testEnv.LTZ_COVERAGE_CONTEXT = env.LTZ_COVERAGE_CONTEXT;
+      const result = await testRun(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify']);
+
       rows['Backend Build'] = result.code === 0 ? 'PASS' : 'FAIL';
       return result.code === 0 && backendTests(root, modules, started) > 0;
     });

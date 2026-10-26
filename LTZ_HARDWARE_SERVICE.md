@@ -337,9 +337,9 @@ Yalnız aktif taskın alt görevleri bitmediğinde ya da kapılar geçmediğinde
 
 | Alan | Başlangıç durumu |
 |---|---|
-| Aktif ana task | `LTZ-ALP-HW-05 — Masaüstü Donanım Tanıma ve İzinli Senkronizasyon Sözleşmesi` |
-| Aktif alt task | HW-05 sonrası kullanıcı isteği: hardware migration geliştirme temizliği; 7 ilişkili grup, ALTER TABLE yok |
-| Ana task aşaması | Migration bakımı `COMPLETE / SAFE TO COMMIT`; HW-05 2/2 `READY_FOR_PDA — DEFERRED_AUTH / DEFERRED_CONTRACT`, PDA kapanışı kullanıcıyı bekler |
+| Aktif ana task | Kullanıcının ek isteği: Hardware–Auth entegrasyonu; yeni resmi PDA görev kodu verilmedi |
+| Aktif alt task | Hardware kullanıcı JWT/JWKS/RBAC/D4 uygulaması ve gerçek paketli Auth/Gateway HTTP kabulü VERIFIED; son kalite sonuçları kaydedildi, STOP |
+| Ana task aşaması | Hardware uygulama ve izole runtime kabulü VERIFIED; genel teslim EXTERNAL_QUALITY_BLOCKED; geçmiş ana task PDA kutuları değiştirilmedi |
 | 01 | `DONE — DEFERRED_AUTH` — 7/7; kullanıcı kapanış bildirimiyle ana task `[x]` |
 | 02 | `DONE — DEFERRED_AUTH` — 3/3; PDA kapanışı kullanıcı tarafından bildirildi, commit 6756210 doğrulandı |
 | 03 | `DONE — DEFERRED_AUTH / DEFERRED_CONTRACT` — 3/3; kullanıcı PDA kapanışını bildirdi, commit 104524a doğrulandı; ana kutu `[x]` |
@@ -347,21 +347,29 @@ Yalnız aktif taskın alt görevleri bitmediğinde ya da kapılar geçmediğinde
 | 05 | `READY_FOR_PDA — DEFERRED_AUTH / DEFERRED_CONTRACT` — 2/2 ve iki kapı PASS; ana kutu `[ ]`, PDA kapanışını kullanıcı yapar |
 | Toplam doğrulanan alt görev | `17/17` |
 | Son doğrulanan alt görev | `HW-07` — 24 yeni senaryo; 293 PASS/%98,75; 2026-10-21 20:36:36 +03; logs/hw05-sync-final-local-verify.log |
-| Son değiştirilen dosyalar | Hardware eski 10 SQL yerine 7 ilişkili başlangıç SQL'i, HardwareSchemaMigrationTest ve ilgili hardware belgeleri; üretim Java/ENV/Compose/başka servis değişmedi |
-| Son Flyway | Kullanıcı onaylı geliştirme temizliği: V1–V7, 16 tablo. Eski/yeni pg_catalog eşdeğerliği PASS. Eski history ile uyumsuz; boş DB sıfırlaması kullanıcıya ait |
-| Son endpoint / docs/api.md değişikliği | Preview + GET/PUT/DELETE sync-consent + POST sync/snapshots IMPLEMENTED / UNIT + INTEGRATION; toplam 46 iş endpoint'i |
-| Son Maven/test komutu ve sonuç | Migration temizliği hardware clean verify 295 PASS (2 yeni); tam full dev 313 PASS, failure/error/skipped 0; [güncel kalite](docs-hardware/testing/hardware-migration-cleanup-quality.md) |
-| JaCoCo | Nihai clean hardware 1420/1438=%98,75; backend %96,51; exclusion yok |
-| Pre-push | Migration temizliği full dev PASS / exit 0; 313 test/%96,51/18 HTTP PASS ve SAFE TO COMMIT; 22:32:12 +03 |
-| Sonar / Quality Gate | Migration temizliği PASS / exit 0; A/A/A + gate OK, açık issue/hotspot 0/0; 22:36:04 +03; analysis 7443910a-4dc9-4a35-b432-ebbc5a107df7 |
-| Auth bağlantısı | `DEFERRED_AUTH — gerçek auth-service/JWT sözleşmesi henüz yok` |
+| Son değiştirilen dosyalar | Hardware JWT/JWKS/RBAC, D4 controller/port/service/repository, hesap guard/fence, V8 ve testler; kendi API/DB/ER/entegrasyon belgeleri; merge kaynaklı kalite runner düzeltmeleri |
+| Son Flyway | V1–V7 korunur; onaylı V8 ile 17 tablo. İzole temiz kurulum ve veri içeren V7→V8 yükseltme testi PASS; gerçek DB reset/migration ajan tarafından yapılmadı |
+| Son endpoint / docs/api.md değişikliği | 46 iş ucu için gerçek kullanıcı JWT yetkilendirmesi; yeni INTERNAL DELETE /internal/v1/accounts/{accountId}; toplam 47 iş/iç uç |
+| Son Maven/test komutu ve sonuç | Gerçek Auth/Gateway/Hardware runtime 16 kontrol PASS / 16:40:10 +03; Node 72 PASS; full dev ve Sonar taze Maven 1138/Hardware 356 PASS (16:56:46 +03) |
+| JaCoCo | Son Hardware 1577/1595 = %98,8715; 18 missed. Son tüm-backend JaCoCo %95,88; Sonar overall %91,9/new %92,3 |
+| Pre-push | Son full dev PASS / exit 0; 1138 test, backend %95,88, 18 HTTP PASS; SAFE TO COMMIT; 2026-10-24 16:38:24 +03 Maven bitişi |
+| Sonar / Quality Gate | Son scan dev FAIL / exit 1, 2026-10-24 16:59:25 +03: A/C/A; Hardware 0, Social 17 yeni açık bulgu; kapsam tüm backend, gate politikası değiştirilmedi |
+| Auth bağlantısı | Gerçek paketli Auth kayıt/giriş + SMTP, Gateway routing/cookie/CSRF ve Auth worker → Hardware D4 VERIFIED (16 kontrol); hardware görevi CONFIRMED. Diğer 15 Saga ACK ve ortak Compose dağıtımı, Auth D3/cihaz kontratları açık |
 | Diğer servis entegrasyonları | HW-05 PERF cihaz sahipliği/iptal kontratı ve gerçek desktop E2E DEFERRED_CONTRACT / NOT_VERIFIED; önceki onaylı ertelemeler korunur |
-| Açık kullanıcı onayları | HW-05 modeli/güvenli erteleme, tüm servislerde full dev + scan dev ve geliştirme SQL'inin 7 ilişkili gruba yeniden düzenlenmesi onaylı |
-| Güncel engel | Kod/test/kalite engeli yok; boş uygulama DB kurulumu ve güncel image rebuild kullanıcıya ait, gerçek Auth/cihaz/consumer bağlantıları onaylı ertelenmiş |
-| Bir sonraki kesin adım | Bakım sonucunu ve tek feature mesajını sun; STOP. DB sıfırlama/rebuild/commit kullanıcıya ait; HW-05 ana kutusu kapanış bildirimi bekler |
-| Son güncelleme (gerçek) | `2026-10-21` |
+| Açık kullanıcı onayları | Tüm Hardware–Auth entegrasyonu ve MD düzeni; Kerem'le mutabık V8/audit hard-delete/17 dakika fence; tüm servisler full dev + scan dev; diğer dış sözleşmelerin önceki güvenli ertelemeleri |
+| Güncel engel | Hardware runtime kabulü tamam. Kullanıcı Social işlerini tekrar kapsam dışında bıraktı; Social değişmeyecek. Genel Sonar koşulu geçmeden hazır/commit/PDA kapanışı yok |
+| Bir sonraki kesin adım | STOP. Hardware uygulama/kabulü tamam; genel teslim EXTERNAL_QUALITY_BLOCKED. Social veya başka servis işine geçme; genel kapı PASS olmadan hazır commit/PDA önerme |
+| Son güncelleme (gerçek) | `2026-10-24` |
 
 ### CANLI KARAR / BLOKAJ DEFTERİ
+
+- `PR_CONFLICT_FILES_PREPARED / EXTERNAL_QUALITY_BLOCKED 2026-10-24`: Kullanıcı onayıyla Game belgeleri güncel GitHub main sürümüne ve yollarına eşitlendi (15 blob doğrulandı); ortak quality testi Compose fail-closed ve DEBUG izolasyonunu koruyacak şekilde birleştirildi. Salt okunur üç yönlü test dosyası provası PASS; 69 runner/yardımcı test PASS; hardware-service pre-push 356 test/%98,87 PASS (19:45:52 +03). Git index/geçmiş/uzak PR değiştirilmedi; kullanıcı commit/push sonrası uzak PR/CI kontrolü bekler. Yeni genel Sonar analizi yok; Social kaynaklı önceki genel engel sürer. [Çakışma düzeltmesi ve kanıt](docs-hardware/integration/auth/pr13-conflict-resolution.md).
+
+- `HARDWARE_RUNTIME_VERIFIED / EXTERNAL_QUALITY_BLOCKED 2026-10-24`: Kullanıcının “kalan işleri bitir” talimatıyla yalnız Hardware gerçek uygulama HTTP kabulü tamamlandı: Auth kayıt/giriş/SMTP, Gateway routing/cookie/CSRF, IDOR ve gerçek Auth worker → Hardware D4; 16 kontrol PASS (16:40:10 +03), hardware görevi CONFIRMED; eski JWT yeniden yazamaz, diğer hesap korunur. Yedi yeni yardımcı testle Node 72 PASS. Son full dev 1138/Hardware 356 test, %95,88, 18 HTTP PASS / SAFE TO COMMIT (16:38:24 +03). Son scan dev (16:59:25 +03) Hardware 0, Social 17; genel A/C/A ve gate FAIL. Kullanıcı Social'ı tekrar kapsam dışında bıraktı; diğer sahiplerin kaynakları değişmedi. [Runtime kabulü](docs-hardware/integration/auth/auth-integration-04.md), [son kalite](docs-hardware/integration/auth/auth-integration-quality.md). Genel teslim kapısı geçmeden hazır commit/PDA önerisi yok; diğer servis görevi başlatılmaz, STOP.
+
+- `QUALITY_BLOCKED / VERIFIED 2026-10-24 / AUTH`: Son Hardware kodu için full dev PASS (1138 test, %95,88, 18 HTTP PASS, SAFE TO COMMIT; 04:25:25 +03). Son scan dev taze testleri PASS, analiz 04:33:32 +03: Hardware 0 / Social 17 yeni açık bulgu, genel A/C/A ve gate FAIL. Kullanıcı “social'ı elleme” dedi; Social/Auth/Gateway/Game Git diff yok, kalite kapısı/kapsamı/issue durumu değiştirilmedi. Yerel JWT/JWKS/RBAC/D4 ve V8 testleri tamam; canlı Auth/Gateway/D4 Saga E2E NOT_VERIFIED, diğer sözleşmeler açık. [Nihai kanıt](docs-hardware/integration/auth/auth-integration-quality.md). Hazır commit mesajı veya PDA kapatma önerisi verilmez; STOP.
+
+- `APPROVED / IN_PROGRESS 2026-10-24 / AUTH`: Kullanıcı Aşama 1 sonrası tüm Hardware–Auth entegrasyonunu onayladı. V8, kişisel audit hard-delete ve 17 dakikalık SHA-256 hesap fence'i için ayrıca “Kerem’le mutabık, politikayı onaylıyorum” yanıtı alındı. V1–V7/Auth/Gateway/ENV/Compose değişmedi. İlk yerel verify 352 PASS; ek JWKS gövde-timeout testi 14/14 PASS. Nihai kapılar NOT_RUN. [Uygulama/kanıt](docs-hardware/integration/auth/auth-integration-quality.md), [D4 politikası](docs-hardware/integration/auth/auth-integration-02.md). Önceki 2026-10-21 sonuçları tarihçedir.
 
 - `VERIFIED / COMPLETE 2026-10-21 / MIGRATION CLEANUP`: Eski 10 SQL, kullanıcı onayıyla 7 ilişkili CREATE dosyasına düzenlendi; ALTER TABLE/INDEX yok. PostgreSQL şema eşdeğerliği 16 tablo/145 sütun/93 constraint/51 indeks/2 trigger/2 fonksiyon PASS. Hardware 295 test/%98,75; full dev 313 test/%96,51/18 HTTP PASS, SAFE TO COMMIT (22:32:12 +03); Sonar A/A/A + gate OK ve açık issue/hotspot 0/0 (22:36:04 +03). [Güncel kalite](docs-hardware/testing/hardware-migration-cleanup-quality.md). Uygulama DB/volume reseti veya image rebuild yapılmadı; eski history ile yükseltme yok. HW-05 PDA kapanışı bildirilmedi, ana kutu `[ ]`; STOP.
 

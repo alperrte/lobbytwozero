@@ -105,5 +105,9 @@ Backend testleri için uygulama PostgreSQL'i de çalışıyor olmalıdır. Gerek
 Runner seçilen uygulama Compose profilinden veritabanı adlarını, kullanıcıyı,
 parolayı ve loopback üzerinde yayımlanan PostgreSQL portunu çözerek host Maven
 testlerine aktarır. Bu değerleri loglamaz; Docker ortamını değiştirmez.
+İkinci bir profil parser'ı ile farklı test ortamı yüklenmez. Genel host `DEBUG`
+bayrağı yalnız Maven test JVM'inden çıkarılır; açık Spring test ayarları ve
+çalışan servislerin log seviyesi değişmez. Bu, DEBUG/TRACE etkin üretim loglarının
+güvenli olduğu iddiası değildir.
 SonarQube'u başlatmak ve gerçek analiz göndermek için yukarıdaki komutları
 yerelde çalıştırın. Script kurulumu kendi başına container veya token oluşturmaz.

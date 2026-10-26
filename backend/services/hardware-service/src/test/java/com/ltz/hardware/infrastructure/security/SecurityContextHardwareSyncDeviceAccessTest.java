@@ -1,5 +1,7 @@
 package com.ltz.hardware.infrastructure.security;
 
+import static org.mockito.Mockito.mock;
+
 import com.ltz.hardware.application.port.*;
 import com.ltz.hardware.domain.exception.HardwareNotFoundException;
 import java.util.*;
@@ -18,7 +20,7 @@ class SecurityContextHardwareSyncDeviceAccessTest {
         var owner = UUID.randomUUID(); var device = UUID.randomUUID();
         var principal = new AuthenticatedHardwareDevice(owner, device);
         var scope = List.of(new SimpleGrantedAuthority(HardwareSyncDeviceAccess.PERMISSION));
-        var access = new SecurityContextHardwareSyncDeviceAccess((user, id) -> owner.equals(user) && device.equals(id));
+        var access = new SecurityContextHardwareSyncDeviceAccess((user, id) -> owner.equals(user) && device.equals(id), mock(com.ltz.hardware.infrastructure.persistence.repository.HardwareAccountAccessGuard.class));
         assertThatThrownBy(access::requireDevice).isInstanceOf(AuthenticationCredentialsNotFoundException.class);
         SecurityContextHolder.getContext().setAuthentication(UsernamePasswordAuthenticationToken.unauthenticated(principal, null));
         assertThatThrownBy(access::requireDevice).isInstanceOf(AuthenticationCredentialsNotFoundException.class);
@@ -28,7 +30,7 @@ class SecurityContextHardwareSyncDeviceAccessTest {
         assertThatThrownBy(access::requireDevice).isInstanceOf(AccessDeniedException.class);
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(principal, null, scope));
         assertThat(access.requireDevice()).isEqualTo(principal);
-        var unavailable = new SecurityContextHardwareSyncDeviceAccess(new UnavailableHardwareSyncDevicePolicy());
+        var unavailable = new SecurityContextHardwareSyncDeviceAccess(new UnavailableHardwareSyncDevicePolicy(), mock(com.ltz.hardware.infrastructure.persistence.repository.HardwareAccountAccessGuard.class));
         assertThatThrownBy(unavailable::requireDevice).isInstanceOf(HardwareNotFoundException.class);
     }
 }

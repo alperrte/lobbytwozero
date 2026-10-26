@@ -1,4 +1,3 @@
-import { backendTestEnv } from '../lib/profile-env.mjs';
 import { repositoryRoot, execute, backendTests, backendResults, readModules, clearBackendReports } from '../lib/quality-tools.mjs';
 import { loadBackendTestEnv } from '../lib/profile-env.mjs';
 import { prepareCoverage, enforceCoverage } from './ci/coverage.mjs';
@@ -34,7 +33,7 @@ export async function runBackendChecks({ root = repositoryRoot, service = 'all',
     if (!selected.length) throw new Error('Unknown backend service; use a service listed in the menu');
     for (const module of selected) services[module.split('/')[1]] = { tests: 'NOT RUN', coverage: 'NOT RUN', testCount: 0, lineCoverage: null };
     log('[SCOPE] ' + (service === 'all' ? 'Tüm backend servisleri' : service));
-    const env = Object.fromEntries(Object.entries(ambient).filter(([name]) => !name.startsWith('SONAR')));
+    const env = Object.fromEntries(Object.entries(ambient).filter(([name]) => !name.startsWith('SONAR') && name !== 'DEBUG'));
     const mvn = process.platform === 'win32' ? 'mvn.cmd' : 'mvn';
     await requireMaven25((command, args, cwd = root, capture = false) => runCommand(command, args, { cwd, env, capture, log }), mvn, root);
     env.LTZ_COVERAGE_CONTEXT = ambient.LTZ_COVERAGE_CONTEXT || await prepare(root);

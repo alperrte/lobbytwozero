@@ -79,6 +79,8 @@ public class HardwareExceptionHandler extends ResponseEntityExceptionHandler {
     private static ResponseEntity<Object> problem(int status, String code, String detail) {
         var body = ProblemDetail.forStatusAndDetail(HttpStatusCode.valueOf(status), detail);
         body.setProperty("code", code);
-        return ResponseEntity.status(status).header("Cache-Control", "private, no-store").body(body);
+        var response = ResponseEntity.status(status).header("Cache-Control", "private, no-store");
+        if (status == 401) response.header(HttpHeaders.WWW_AUTHENTICATE, "Bearer");
+        return response.body(body);
     }
 }
