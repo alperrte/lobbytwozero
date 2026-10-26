@@ -29,6 +29,20 @@ jobs:
           package-manager-cache: false
       - run: node pre-push/ci/install-tool.mjs gitleaks
       - run: node pre-push/ci/secrets.mjs history
+  debt:
+    name: Quality Debt Report
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      # Frozen Checkstyle/PMD debt per service, listed every week so it is never forgotten (see the job summary).
+      - run: node pre-push/ci/lint-ratchet.mjs report
   containers:
     name: Container and Config Audit
     runs-on: ubuntu-24.04

@@ -5,10 +5,11 @@ import { requireNode } from '../lib/profile-env.mjs';
 import { requireMaven25 } from './backend-check.mjs';
 import { checkGitSecrets, checkBackendHealth, backendTestEnvironment } from './runtime-checks.mjs';
 import { prepareCoverage, enforceCoverage } from './ci/coverage.mjs';
+import { ratchetCheck, localBase } from './ci/lint-ratchet.mjs';
 import { checkRepositoryHygiene } from './hygiene-checks.mjs';
 import { scanSecrets } from './ci/secrets.mjs';
 
-export const requiredRows = ['Git / Secret Check', 'Backend Tests', 'Backend Build', 'Backend Coverage', 'Docker Configuration'];
+export const requiredRows = ['Git / Secret Check', 'Backend Tests', 'Backend Build', 'Backend Coverage', 'Code Quality (new violations)', 'Docker Configuration'];
 
 export function formatQualityStatus(value, stream = process.stdout) {
   const text = String(value);
@@ -18,7 +19,7 @@ export function formatQualityStatus(value, stream = process.stdout) {
 }
 
 export async function runQualityChecks({ root = repositoryRoot, profile = 'dev', ambient = process.env, runCommand = execute,
-  prepare = prepareCoverage, coverageCheck = enforceCoverage, secretScan = scanSecrets, healthProbe, log = console.log } = {}) {
+  prepare = prepareCoverage, coverageCheck = enforceCoverage, qualityCheck = ratchetCheck, secretScan = scanSecrets, healthProbe, log = console.log } = {}) {
   const rows = Object.fromEntries([...requiredRows, 'Backend HTTP Health'].map(name => [name, 'SKIPPED']));
   const details = {};
   // Tool DEBUG namespaces must not turn on Spring's request/form DEBUG logging in test JVMs.
@@ -69,6 +70,13 @@ export async function runQualityChecks({ root = repositoryRoot, profile = 'dev',
       details.backend = report;
       log(`Backend: ${report.tests} tests; overall line coverage ${report.lineCoverage.toFixed(2)}% (central progressive policy)`);
       details.coveragePolicy = coverageCheck(root, modules, env.LTZ_COVERAGE_CONTEXT);
+      return true;
+    });
+
+    await step('Code Quality (new violations)', async () => {
+      if (rows['Backend Tests'] !== 'PASS') throw new Error('Successful fresh backend tests are required');
+      // Checkstyle/PMD only report; existing debt is frozen in the baseline and only NEW violations fail.
+      qualityCheck({ root, modules, base: localBase(root), since: started, log });
       return true;
     });
 

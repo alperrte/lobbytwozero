@@ -54,7 +54,7 @@ async function fixture(options, action) {
       prepare: async () => 'synthetic-context', coverageCheck: () => {
         if (options.lowCoverage || options.unbalancedCoverage) throw new Error('Central policy rejected synthetic report');
         return modules.map(module => ({ module, changed: { status: 'NOT_APPLICABLE' } }));
-      }, log: line => lines.push(line) });
+      }, qualityCheck: () => { if (options.qualityFail) throw new Error('Quality gate: 1 issue(s)'); }, log: line => lines.push(line) });
     await action({ root, write, result, calls, lines });
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 }
@@ -75,7 +75,7 @@ test('full check matches the current backend and postgres scope without inventin
   });
 });
 
-for (const option of ['secret', 'scannerUnavailable', 'scannerFinding', 'skipped', 'missingCoverage', 'lowCoverage', 'unbalancedCoverage', 'buildFail', 'noDocker', 'deployed']) {
+for (const option of ['secret', 'scannerUnavailable', 'scannerFinding', 'skipped', 'missingCoverage', 'lowCoverage', 'unbalancedCoverage', 'qualityFail', 'buildFail', 'noDocker', 'deployed']) {
   test(`full check ${option} cannot produce a false success`, async () => {
     await fixture({ [option]: true }, async ({ result, lines }) => {
       assert.equal(result.exitCode, 1);

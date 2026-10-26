@@ -38,4 +38,6 @@
 # Hassas coverage politikası: /backend/config/coverage-policy.json,
 # /pre-push/ci/coverage.mjs, /pre-push/ci/CoverageXml.java, /backend/pom.xml.
 # İlk policy/promotion için coverage gate ayrıca bağımsız current-head owner review arar.
+# Hassas kalite baseline'ı: /backend/config/quality-baseline.json ve /pre-push/ci/lint-ratchet.mjs. Baseline yalnız
+# azalabilir (CI hedef dala göre artışı reddeder); yine de değişikliği bağımsız owner review görmelidir.
 # Bu yorum CODEOWNERS ataması veya GitHub required-review ayarı değildir; ekip owner/yedek atamalıdır.

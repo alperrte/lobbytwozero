@@ -272,3 +272,33 @@ Resmî dil desteği, LTZ build'inin başarı kanıtı değildir.
 - Ürün bulguları altyapı bypass'ıyla kapatılmaz. Auth test isimlendirmesi ve PMD kayıtları servis sahibiyle
   çözülmeden normal verify yeşil olmayabilir. Güvenlik için kasıtlı cause sanitization yapılan yerlerde
   ham exception cause eklemek yerine güvenlik gerekçeli, dar kapsamlı çözüm ayrı review görmelidir.
+
+## Checkstyle / PMD kalite kapısı: "yeni ihlal yok" (baseline)
+
+Amaç: herkes hızlı PR açabilsin, ama kod kalitesi **hiçbir zaman kötüleşmesin** ve eski borç **unutulmasın**.
+Maven'de Checkstyle ve PMD artık yalnız **raporlar** (`target/checkstyle-result.xml`, `target/pmd.xml`); build'i
+kırmaz. Kararı `pre-push/ci/lint-ratchet.mjs` verir ve CI'da `Backend Verify` içinde, yerelde `backend-check`/`full`
+içinde çalışır. Kurallar (`backend/config/checkstyle.xml`, `pmd.xml`) **değişmedi**, yeni kod için gevşetme yoktur.
+
+- **Eski borç donuk:** Bugünkü ihlaller `backend/config/quality-baseline.json` içinde servis → dosya → kural bazında
+  sayılarla kayıtlıdır (satır numarası yok; satır kayması yanlış alarm üretmez). PR'ın çalıştırdığı servislerde bir
+  dosyada bir kuralın sayısı baseline'ı **aşarsa kırmızı**, aynı kalır veya azalırsa yeşil. Yeni dosya 0 ihlalle başlar.
+- **Kazanç kilitlenir:** PR'da dokunduğun bir dosyanın borcunu azalttıysan baseline'ı güncellemen gerekir, yoksa kapı
+  "kazancı kilitle" diye kırmızı olur (eski sayıya geri dönülemesin diye). Komut:
+  `node pre-push/ci/lint-ratchet.mjs update --modules services/<servis>` (önce o serviste `mvn -DskipTests verify`
+  çalıştırıp raporları üret), sonra `backend/config/quality-baseline.json` dosyasını commit'e ekle. `update` borcun
+  **artmasına izin vermez**.
+- **Baseline gizli borç taşımaz:** PR'daki baseline, hedef daldakinden herhangi bir (servis, dosya, kural) için daha
+  fazla borç iddia edemez. Yeni borcu baseline'a yazıp saklamak kapıyı kırmızı yapar. Dosya taşıma/yeniden adlandırma
+  (git rename) borcunu yeni adına taşır. Baseline dosyası **hassas dosyadır**: değişikliği bağımsız owner review ister.
+- **Unutulmaz:** Haftalık `LTZ Security Audit` iş akışındaki `Quality Debt Report` işi, servis başına kalan borcu ve
+  baseline'ın yaşını Actions özetine yazar. Her PR'ın özetinde ilgili servisler için "eski borç / şimdi / yeni / kapanan"
+  tablosu çıkar. Yerelde tabloyu görmek için: `node pre-push/ci/lint-ratchet.mjs report`.
+- **Sıfır tolerans (borç temizleyenler için):** `mvn -f backend/pom.xml -pl services/<servis> validate verify -Pstrict-quality`
+  ihlal varsa build'i kırar. Borç sıfırlanınca `update` ile baseline'daki servis bölümü boşalır.
+- **İzolasyon:** Kapsam seçimi daraltıldı. Yalnız başka servisin hissedebileceği değişiklikler tüm backend'i çalıştırır:
+  `api-gateway`, bir servisin `pom.xml`'i ve dışa açılan `api/` paketi. Servis içi kod, kendi yapılandırması ve kendi
+  migration'ları yalnız kendi modülünü çalıştırır. Tüm servisler çalışsa bile başkasının borcu baseline'ı aşmadığı
+  için PR'ı kırmızı yapmaz.
+- **Sınır:** PMD sonucu derleme classpath'ine hafifçe bağlıdır; Windows ve Linux arasında nadiren sayı farkı görürsen
+  baseline'ı **CI'ın (Linux) sonucuna** göre güncelle ve nedenini PR'da yaz. Bu kapı güvenlik açığı (SAST) taraması değildir.

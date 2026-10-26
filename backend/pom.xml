@@ -38,6 +38,10 @@
         <pmd.version>7.28.0</pmd.version>
         <ltz.configDirectory>${maven.multiModuleProjectDirectory}/config</ltz.configDirectory>
         <ltz.test.postgres.port>65432</ltz.test.postgres.port>
+        <!-- Checkstyle/PMD varsayilan olarak yalniz raporlar (target/checkstyle-result.xml, target/pmd.xml); karari
+             backend/config/quality-baseline.json'a karsi pre-push/ci/lint-ratchet.mjs verir: yeni ihlal yok, eski borc bloklamaz.
+             Sifir tolerans icin: mvn validate verify -Pstrict-quality -->
+        <ltz.quality.failOnViolation>false</ltz.quality.failOnViolation>
         <maven.build.timestamp.format>yyyy-MM-dd'T'HH:mm:ssXXX</maven.build.timestamp.format>
         <!-- verify rejects explicit skip flags; package may still skip tests. -->
         <skipTests>false</skipTests>
@@ -132,7 +136,7 @@
                     <configLocation>${ltz.configDirectory}/checkstyle.xml</configLocation>
                     <includeTestSourceDirectory>true</includeTestSourceDirectory>
                     <consoleOutput>true</consoleOutput>
-                    <failOnViolation>true</failOnViolation>
+                    <failOnViolation>${ltz.quality.failOnViolation}</failOnViolation>
                     <linkXRef>false</linkXRef>
                 </configuration>
                 <executions>
@@ -164,7 +168,7 @@
                     <includeTests>true</includeTests>
                     <rulesets><ruleset>${ltz.configDirectory}/pmd.xml</ruleset></rulesets>
                     <linkXRef>false</linkXRef>
-                    <failOnViolation>true</failOnViolation>
+                    <failOnViolation>${ltz.quality.failOnViolation}</failOnViolation>
                     <skipPmdError>false</skipPmdError>
                     <printFailingErrors>true</printFailingErrors>
                 </configuration>
@@ -213,6 +217,12 @@
     </build>
 
     <profiles>
+        <profile>
+            <id>strict-quality</id>
+            <properties>
+                <ltz.quality.failOnViolation>true</ltz.quality.failOnViolation>
+            </properties>
+        </profile>
         <profile>
             <id>ci</id>
             <build>

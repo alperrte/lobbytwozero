@@ -42,6 +42,8 @@ sonucu yalnızca backend test kapsamına aittir.
   Parola loga yazılmaz. Genel host `DEBUG` bayrağı Maven test JVM'lerine taşınmaz;
   testin açık Spring logging/property ayarları korunur. Gerçek ENV dosyası ve
   çalışan servislerin log seviyesi değiştirilmez.
+- Checkstyle/PMD: Maven build'i kırmaz, yalnız raporlar. `pre-push/ci/lint-ratchet.mjs` sonucu `backend/config/quality-baseline.json`'a
+  göre değerlendirir: **yeni ihlal yok**; eski borç bloklamaz. Ayrıntı: [docs/engineering.md](../docs/engineering.md) ("Checkstyle / PMD kalite kapısı").
 - Seçilen `.env.dev` veya `.env.prod` ile `docker-compose.yml` doğrulaması.
   Docker Compose gerekir; yapılandırma kontrolü container başlatmaz.
 - Compose içinde tanımlı backend servisleri varsa seçilen Compose projesinde

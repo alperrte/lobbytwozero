@@ -5,9 +5,10 @@ import { execute, repositoryRoot, readModules, backendResults, clearBackendRepor
 import { requireMaven25 } from '../backend-check.mjs';
 import { prepareCoverage, enforceCoverage } from './coverage.mjs';
 import { dependencyCheck } from './dependencies.mjs';
+import { ratchetCheck } from './lint-ratchet.mjs';
 
 export async function backendCheck({ root = repositoryRoot, ambient = process.env, modules, external = false, runCommand = execute,
-  prepare = prepareCoverage, coverageCheck = enforceCoverage, scanDependencies = dependencyCheck,
+  prepare = prepareCoverage, coverageCheck = enforceCoverage, scanDependencies = dependencyCheck, qualityCheck = ratchetCheck,
   resetReports = clearBackendReports, log = console.log } = {}) {
   const available = readModules(root);
   const selected = modules ?? available;
@@ -49,6 +50,8 @@ export async function backendCheck({ root = repositoryRoot, ambient = process.en
     // Legacy readers additionally retain report freshness/HTML/bytecode checks.
     backendResults(root, selected, started);
     for (const report of coverageCheck(root, selected, env.LTZ_COVERAGE_CONTEXT)) log(JSON.stringify(report));
+    // Checkstyle/PMD never fail the Maven build; existing debt is frozen in the baseline and only NEW violations fail here.
+    qualityCheck({ root, modules: selected, base: ambient.LTZ_QUALITY_BASE_SHA, since: started, log });
     scanDependencies({ root, modules: selected, since: started, log });
     return 0;
   } catch (error) {

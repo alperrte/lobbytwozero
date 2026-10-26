@@ -1,6 +1,7 @@
 import { repositoryRoot, execute, backendTests, backendResults, readModules, clearBackendReports } from '../lib/quality-tools.mjs';
 import { loadBackendTestEnv } from '../lib/profile-env.mjs';
 import { prepareCoverage, enforceCoverage } from './ci/coverage.mjs';
+import { ratchetCheck, localBase } from './ci/lint-ratchet.mjs';
 
 export async function requireMaven25(run, mvn, root) {
   const version = await run(mvn, ['-version'], root, true);
@@ -23,10 +24,11 @@ export function backendTestEnvironment(root, profile, env, log) {
 }
 
 export async function runBackendChecks({ root = repositoryRoot, service = 'all', profile = 'dev', ambient = process.env, runCommand = execute,
-  prepare = prepareCoverage, coverageCheck = enforceCoverage, log = console.log } = {}) {
+  prepare = prepareCoverage, coverageCheck = enforceCoverage, qualityCheck = ratchetCheck, log = console.log } = {}) {
   const services = {};
   const started = Date.now();
   let buildPassed = false;
+  let qualityPassed = false;
   try {
     const available = readModules(root);
     const selected = service === 'all' ? available : available.filter(module => module === `services/${service}`);
@@ -67,16 +69,24 @@ export async function runBackendChecks({ root = repositoryRoot, service = 'all',
         log('[ERROR] ' + module + ': ' + error.message);
       }
     }
+    if (buildPassed) {
+      // Checkstyle/PMD only report; existing debt is frozen in the baseline and only NEW violations fail.
+      try {
+        qualityCheck({ root, modules: selected, base: localBase(root), since: started, log });
+        qualityPassed = true;
+      } catch (error) { log('[ERROR] ' + error.message); }
+    }
   } catch (error) {
     log('[ERROR] ' + error.message);
   }
-  const passed = buildPassed && Object.keys(services).length > 0 && Object.values(services).every(row => row.tests === 'PASS' && row.coverage === 'PASS');
+  const passed = buildPassed && qualityPassed && Object.keys(services).length > 0 && Object.values(services).every(row => row.tests === 'PASS' && row.coverage === 'PASS');
   log('\n========================================\nLTZ BACKEND TEST CHECK\n========================================');
   log('Service'.padEnd(24) + 'Tests       Coverage    Count    Lines (central progressive policy)');
   for (const [name, row] of Object.entries(services)) {
     log(name.padEnd(24) + row.tests.padEnd(12) + row.coverage.padEnd(12) + String(row.testCount).padEnd(9) + (row.lineCoverage === null ? 'N/A' : row.lineCoverage.toFixed(2) + '%'));
   }
   log('Maven Verify             ' + (buildPassed ? 'PASS' : 'FAIL'));
+  log('Code Quality (new only)  ' + (qualityPassed ? 'PASS' : 'FAIL'));
   log(passed ? 'BACKEND TEST CHECK PASSED' : 'BACKEND TEST CHECK FAILED');
   log("Bu sonuç seçilen backend kapsamına aittir. Tam kalite kontrolü için 'full' kullanın.");
   return { exitCode: passed ? 0 : 1, services, buildPassed };

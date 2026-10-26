@@ -137,6 +137,8 @@ jobs:
       - name: Verify selected backend modules
         env:
           MODULES: ${{ needs.scope.outputs.modules }}
+          # Target branch tip: lets the Checkstyle/PMD gate lock improvements and forbid baseline growth (not forwarded to Maven).
+          LTZ_QUALITY_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: node pre-push/ci/backend.mjs --ci --modules "$MODULES"
   frontend:
     name: Frontend Verify
