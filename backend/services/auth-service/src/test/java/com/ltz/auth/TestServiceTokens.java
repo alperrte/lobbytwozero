@@ -30,7 +30,7 @@ public final class TestServiceTokens {
     }
 
     public static ServiceTokenIssuer issuer(Clock clock) {
-        JwtProperties properties = new JwtProperties(ISSUER, "ltz-api", Duration.ofMinutes(5), PRIVATE_KEY);
+        JwtProperties properties = new JwtProperties(ISSUER, "ltz-api", Duration.ofMinutes(5), PRIVATE_KEY, null);
         return new ServiceTokenIssuer(new NimbusJwtEncoder(new ImmutableJWKSet<>(new JWKSet(SIGNING_KEY.jwk()))),
                 SIGNING_KEY, properties, clock);
     }

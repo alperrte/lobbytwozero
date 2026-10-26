@@ -6,7 +6,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.ltz.auth.api.dto.response.PendingDeletionTaskResponse;
 import com.ltz.auth.domain.enums.DeletionTaskStatus;
 import com.ltz.auth.infrastructure.config.DeletionProperties;
 import com.ltz.auth.infrastructure.persistence.repository.AccountDeletionTaskRepository;
@@ -25,9 +24,9 @@ public class PendingDeletionQueryService {
     private final DeletionProperties properties;
 
     @Transactional(readOnly = true)
-    public List<PendingDeletionTaskResponse> pending(int limit) {
+    public List<PendingDeletionTask> pending(int limit) {
         return taskRepository.findByStatusOrdered(DeletionTaskStatus.PENDING, PageRequest.of(0, limit)).stream()
-                .map(task -> new PendingDeletionTaskResponse(task.getRequestId(), task.getAccountId(),
+                .map(task -> new PendingDeletionTask(task.getRequestId(), task.getAccountId(),
                         task.getService(), task.getAttempts(), task.getLastError(), task.getNextAttemptAt(),
                         task.getCreatedAt(), task.getAttempts() >= properties.stuckAttempts()))
                 .toList();

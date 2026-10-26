@@ -38,7 +38,7 @@ public class JwtConfig {
 
     @Bean
     JwtSigningKey jwtSigningKey(JwtProperties properties) {
-        return JwtSigningKey.fromBase64Pkcs8(properties.privateKey());
+        return JwtSigningKey.fromBase64Pkcs8(properties.privateKey(), properties.additionalPublicKeys());
     }
 
     @Bean

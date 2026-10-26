@@ -42,4 +42,42 @@ class JwtSigningKeyTest {
         assertThat(keys).singleElement().satisfies(jwk -> assertThat(jwk)
                 .containsKeys("kty", "n", "e", "kid").doesNotContainKeys("d", "p", "q", "dp", "dq", "qi"));
     }
+
+    @Test
+    void ekAcikAnahtarlarJwksteImzaAnahtarindanSonraYayinlanirOzelAlanSizmaz() throws Exception {
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+        generator.initialize(JwtSigningKey.MIN_KEY_BITS);
+        var signing = generator.generateKeyPair();
+        var next = generator.generateKeyPair();
+        String signingPrivate = Base64.getEncoder().encodeToString(signing.getPrivate().getEncoded());
+        String nextPublic = Base64.getEncoder().encodeToString(next.getPublic().getEncoded());
+        String signingPublic = Base64.getEncoder().encodeToString(signing.getPublic().getEncoded());
+
+        // İmza anahtarının kendi açık anahtarı ve aynı anahtarın tekrarı yinelenmez.
+        JwtSigningKey key = JwtSigningKey.fromBase64Pkcs8(signingPrivate, List.of(nextPublic, nextPublic, signingPublic));
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> keys = (List<Map<String, Object>>) key.publicJwkSet().get("keys");
+        assertThat(keys).hasSize(2);
+        assertThat(keys.getFirst()).containsEntry("kid", key.keyId());
+        assertThat(keys.getLast().get("kid")).isNotEqualTo(key.keyId());
+        assertThat(keys).allSatisfy(jwk -> assertThat(jwk)
+                .containsKeys("kty", "n", "e", "kid").doesNotContainKeys("d", "p", "q", "dp", "dq", "qi"));
+    }
+
+    @Test
+    void zayifVeyaBozukEkAnahtarReddedilirMesajAnahtariIcermez() throws Exception {
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+        generator.initialize(JwtSigningKey.MIN_KEY_BITS);
+        String signingPrivate = Base64.getEncoder().encodeToString(generator.generateKeyPair().getPrivate().getEncoded());
+        generator.initialize(WEAK_KEY_BITS);
+        String weakPublic = Base64.getEncoder().encodeToString(generator.generateKeyPair().getPublic().getEncoded());
+
+        assertThatThrownBy(() -> JwtSigningKey.fromBase64Pkcs8(signingPrivate, List.of(weakPublic)))
+                .isInstanceOf(IllegalStateException.class).hasMessageNotContaining(weakPublic).hasNoCause();
+        assertThatThrownBy(() -> JwtSigningKey.fromBase64Pkcs8(signingPrivate, List.of("not base64 $$$")))
+                .isInstanceOf(IllegalStateException.class).hasNoCause();
+        assertThatThrownBy(() -> JwtSigningKey.fromBase64Pkcs8(signingPrivate, List.of(signingPrivate)))
+                .isInstanceOf(IllegalStateException.class).hasNoCause();
+    }
 }
