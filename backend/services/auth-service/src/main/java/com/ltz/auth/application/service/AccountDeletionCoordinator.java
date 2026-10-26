@@ -2,7 +2,9 @@ package com.ltz.auth.application.service;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.data.domain.PageRequest;
@@ -70,15 +72,35 @@ public class AccountDeletionCoordinator {
         return confirmed;
     }
 
+    /**
+     * Görev ancak bekleme süresi bitince (next_attempt_at = scheduledFor) vadesi gelir. Vadesi gelen ilk görevle birlikte
+     * hesabın Auth PII'si hemen anonimleştirilir: servislerin silmeyi onaylaması süresiz sürse bile e-posta, kullanıcı adı,
+     * parola ve 2FA sırları Auth'ta kalmaz. Hesap kimliği ve durum (DELETION_REQUESTED) korunur.
+     */
     private List<ClaimedTask> claimDue() {
         Instant now = clock.instant();
-        return taskRepository.findDue(DeletionTaskStatus.PENDING, now, PageRequest.of(0, properties.batchSize()))
-                .stream()
-                .map(task -> {
-                    task.claim(now, properties.lease());
-                    return new ClaimedTask(task.getId(), task.getRequestId(), task.getAccountId(), task.getService());
-                })
+        List<AccountDeletionTask> due = taskRepository.findDue(DeletionTaskStatus.PENDING, now,
+                PageRequest.of(0, properties.batchSize()));
+        Set<UUID> accounts = new LinkedHashSet<>();
+        for (AccountDeletionTask task : due) {
+            task.claim(now, properties.lease());
+            accounts.add(task.getAccountId());
+        }
+        accounts.forEach(accountId -> anonymizeIdentity(accountId, now));
+        return due.stream()
+                .map(task -> new ClaimedTask(task.getId(), task.getRequestId(), task.getAccountId(), task.getService()))
                 .toList();
+    }
+
+    private void anonymizeIdentity(UUID accountId, Instant now) {
+        accountRepository.findByIdForUpdate(accountId)
+                .filter(account -> account.getStatus() == AccountStatus.DELETION_REQUESTED
+                        && !account.isIdentityAnonymized())
+                .ifPresent(account -> {
+                    authDataEraser.erase(accountId);
+                    account.anonymizeIdentity(now);
+                    securityEventRecorder.recordEvent(SecurityEventType.ACCOUNT_DELETION_IDENTITY_ERASED, accountId);
+                });
     }
 
     private void recordFailure(ClaimedTask claimed, String errorCode) {

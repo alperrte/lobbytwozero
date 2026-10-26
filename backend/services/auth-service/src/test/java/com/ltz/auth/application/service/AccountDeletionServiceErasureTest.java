@@ -73,8 +73,9 @@ class AccountDeletionServiceErasureTest extends AccountDeletionTestSupport {
                 + "and service = 'user'", String.class, accountId)).isEqualTo("CONFIRMED");
         assertThat(jdbc.queryForObject("select status from accounts where id = ?", String.class, accountId))
                 .isEqualTo("DELETION_REQUESTED");
+        // Kimlik anonim ama durum DELETION_REQUESTED: bütün servisler onaylamadan "silindi" denmez.
         assertThat(jdbc.queryForObject("select email from accounts where id = ?", String.class, accountId))
-                .isEqualToIgnoringCase(email);
+                .isEqualTo("deleted-" + accountId + "@deleted.invalid").isNotEqualToIgnoringCase(email);
     }
 
     @Test

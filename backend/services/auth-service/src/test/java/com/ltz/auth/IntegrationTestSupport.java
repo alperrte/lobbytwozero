@@ -103,6 +103,8 @@ public abstract class IntegrationTestSupport {
         registry.add("ltz.auth.deletion.service-urls.user", ERASURE_TARGETS::baseUrl);
         registry.add("ltz.auth.deletion.service-urls.mail", ERASURE_TARGETS::baseUrl);
         registry.add("ltz.auth.deletion.http-timeout", () -> "PT2S");
+        // Üretim varsayılanı 14 gündür; mevcut silme testleri beklemesiz akışı sınar, bekleme davranışı ayrı testte zaman kaydırmayla.
+        registry.add("ltz.auth.deletion.grace-period", () -> "PT0S");
         registry.add("AUTH_TOTP_ENCRYPTION_KEY", () -> TEST_TOTP_KEY);
         registry.add("AUTH_JWT_PRIVATE_KEY",
                 () -> Base64.getEncoder().encodeToString(TEST_JWT_KEYS.getPrivate().getEncoded()));

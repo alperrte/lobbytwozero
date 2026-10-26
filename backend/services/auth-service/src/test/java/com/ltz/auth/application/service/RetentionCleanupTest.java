@@ -30,6 +30,8 @@ class RetentionCleanupTest extends IntegrationTestSupport {
     @Autowired
     private RetentionCleanupService cleanup;
     @Autowired
+    private CleanupProperties cleanupProperties;
+    @Autowired
     private RetentionCleanupRepository cleanupRepository;
     @Autowired
     private AccountRepository accountRepository;
@@ -172,12 +174,28 @@ class RetentionCleanupTest extends IntegrationTestSupport {
         jdbc.update("insert into security_events (id, account_id, type, created_at) values "
                 + "(?, ?, 'LOGIN_SUCCEEDED', now() - interval '5 years')", oldEvent, accountId);
 
-        cleanup.run();
-        assertThat(exists("security_events", "id", oldEvent)).as("karar bekliyor: varsayılan silme yok").isTrue();
+        serviceWith(properties(BATCH, null)).run();
+        assertThat(exists("security_events", "id", oldEvent)).as("süre verilmezse silme yok").isTrue();
 
         serviceWith(properties(BATCH, Duration.ofDays(365))).run();
         assertThat(exists("security_events", "id", oldEvent)).isFalse();
         assertThat(securityEventCount(accountId, "ACCOUNT_REGISTERED")).as("yeni olaylar korunur").isEqualTo(1);
+    }
+
+    @Test
+    void guvenlikOlayiVarsayilanSaklamaSuresiBirYildirEskiOlaySilinirYeniKorunur() throws Exception {
+        UUID accountId = accountId(registerActiveAccount(uniqueEmail(), uniqueUsername()));
+        UUID expired = UUID.randomUUID();
+        UUID recent = UUID.randomUUID();
+        jdbc.update("insert into security_events (id, account_id, type, created_at) values "
+                + "(?, ?, 'LOGIN_SUCCEEDED', now() - interval '400 days'), "
+                + "(?, ?, 'LOGIN_SUCCEEDED', now() - interval '300 days')", expired, accountId, recent, accountId);
+
+        assertThat(cleanupProperties.securityEventRetention()).isEqualTo(Duration.ofDays(365));
+        cleanup.run();
+
+        assertThat(exists("security_events", "id", expired)).isFalse();
+        assertThat(exists("security_events", "id", recent)).isTrue();
     }
 
     private RetentionCleanupService serviceWith(CleanupProperties properties) {

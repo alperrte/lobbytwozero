@@ -133,7 +133,7 @@ class HttpAccountDataEraserTest {
         DeletionProperties properties = new DeletionProperties(Set.copyOf(serviceUrls.keySet()), serviceUrls, TIMEOUT,
                 Duration.ofMinutes(30), Duration.ofSeconds(60), Duration.ofMinutes(10),
                 URI.create("http://localhost:5001/account/delete"), false, Duration.ofSeconds(30), 20,
-                Duration.ofMinutes(2), Duration.ofMinutes(1), Duration.ofHours(6), 10);
+                Duration.ofMinutes(2), Duration.ofMinutes(1), Duration.ofHours(6), 10, Duration.ofDays(14));
         return new HttpAccountDataEraser(properties, TestServiceTokens.issuer(CLOCK));
     }
 }

@@ -124,6 +124,15 @@ public class Account {
      * servislerin REF bütünlüğü ve denetim kayıtları için kalır.
      */
     public void anonymize(Instant now) {
+        anonymizeIdentity(now);
+        status = AccountStatus.DELETED;
+    }
+
+    /**
+     * Bekleme süresi bitti: kişisel kimlik alanları hemen geri döndürülemez biçimde anonimleştirilir; durum
+     * DELETION_REQUESTED kalır (servisler onaylayana kadar "silindi" denmez). Roller de düşer.
+     */
+    public void anonymizeIdentity(Instant now) {
         String compactId = id.toString().replace("-", "");
         email = DELETED_EMAIL_PREFIX + id + DELETED_EMAIL_DOMAIN;
         emailNormalized = email;
@@ -132,13 +141,25 @@ public class Account {
         passwordHash = null;
         emailVerifiedAt = null;
         roles.clear();
-        status = AccountStatus.DELETED;
         invalidateAllTokens(now);
     }
 
-    /** Silme onaylandı: hesap kapanır, önceki tüm token'lar düşer; veri servisler onaylayınca anonimleştirilir. */
+    public boolean isIdentityAnonymized() {
+        return email.endsWith(DELETED_EMAIL_DOMAIN);
+    }
+
+    /** Silme onaylandı: hesap kapanır, önceki tüm token'lar düşer; bekleme süresi bitince kimlik anonimleştirilir. */
     public void requestDeletion(Instant now) {
         status = AccountStatus.DELETION_REQUESTED;
+        invalidateAllTokens(now);
+    }
+
+    /** Bekleme süresi içinde vazgeçildi: hesap yeniden ACTIVE olur, önceki token'lar geçersiz kalır. */
+    public void cancelDeletion(Instant now) {
+        if (status != AccountStatus.DELETION_REQUESTED || isIdentityAnonymized()) {
+            throw new IllegalStateException("Only a pending, not yet anonymized deletion can be cancelled");
+        }
+        status = AccountStatus.ACTIVE;
         invalidateAllTokens(now);
     }
 
@@ -188,6 +209,14 @@ public class Account {
 
     public Set<RoleCode> roleCodes() {
         return roles.stream().map(Role::getCode).collect(Collectors.toUnmodifiableSet());
+    }
+
+    /** Yeni adres doğrulandı: adres değişir, önceki token'lar düşer (e-posta kurtarma kanalıdır). */
+    public void changeEmail(String newEmail, Instant now) {
+        email = newEmail.strip();
+        emailNormalized = normalizeEmail(newEmail);
+        emailVerifiedAt = now;
+        invalidateAllTokens(now);
     }
 
     /** Parola değişince önceki tüm access token'lar da geçersiz olur (token sürümü artar). */

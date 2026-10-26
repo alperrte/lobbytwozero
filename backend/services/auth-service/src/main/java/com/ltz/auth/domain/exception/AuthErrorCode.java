@@ -36,7 +36,12 @@ public enum AuthErrorCode {
     ROLE_REQUIRES_TWO_FACTOR(409, "The target account must enable two-factor authentication before receiving this role."),
     REAUTHENTICATION_REQUIRED(403, "Recent sign-in is required. Sign in again and retry."),
     ADMIN_DELETION_FORBIDDEN(409, "Administrator accounts cannot be deleted. Remove the administrator role first."),
-    DELETION_CONFIRMATION_INVALID(400, "Deletion confirmation is invalid or has expired.");
+    DELETION_CONFIRMATION_INVALID(400, "Deletion confirmation is invalid or has expired."),
+    ACCOUNT_DELETION_PENDING(403, "Account deletion is scheduled. Cancel it before the waiting period ends to keep the account."),
+    EMAIL_CHANGE_INVALID(400, "Email change code is invalid or has expired."),
+    PASSWORD_REQUIRED(409, "A password must be set on this account before this action."),
+    DELETION_NOT_PENDING(409, "No cancellable account deletion exists for this account."),
+    DELETION_CANCEL_WINDOW_CLOSED(409, "The waiting period has ended; the deletion can no longer be cancelled.");
 
     private final int httpStatus;
     private final String detail;

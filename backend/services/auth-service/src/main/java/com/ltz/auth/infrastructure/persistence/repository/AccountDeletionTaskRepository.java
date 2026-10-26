@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.QueryHints;
 
@@ -29,6 +30,11 @@ public interface AccountDeletionTaskRepository extends JpaRepository<AccountDele
     List<AccountDeletionTask> findDue(DeletionTaskStatus status, Instant now, Pageable page);
 
     long countByRequestIdAndStatus(UUID requestId, DeletionTaskStatus status);
+
+    /** Bekleme süresinde iptal: hiç denenmemiş görevler silinir (yeniden silme isteğinde yeniden açılır). */
+    @Modifying(flushAutomatically = true)
+    @Query("delete from AccountDeletionTask t where t.requestId = :requestId")
+    int deleteByRequestId(UUID requestId);
 
     /** Yönetici görünümü: bekleyen görevler, en çok denenen ve en eski önce. */
     @Query("select t from AccountDeletionTask t where t.status = :status order by t.attempts desc, t.createdAt")
