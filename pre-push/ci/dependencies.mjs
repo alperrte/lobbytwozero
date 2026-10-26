@@ -60,7 +60,8 @@ export function dependencyCheck({ root = repositoryRoot, modules = [], frontend 
       copy(lock, 'frontend/package-lock.json', 'npm');
     }
     log('Dependency scan: ' + expectedArtifacts.map(a => a.path).join(', '));
-    scan(['fs', '--scanners', 'vuln', '--pkg-types', 'library', '--list-all-pkgs',
+    // Trivy's plain `fs` mode never opens JAR files ("language-specific files num=0"); only `rootfs` lists the nested BOOT-INF/lib libraries.
+    scan([modules.length ? 'rootfs' : 'fs', '--scanners', 'vuln', '--pkg-types', 'library', '--list-all-pkgs',
       '--severity', 'HIGH,CRITICAL', '--exit-code', '1', destination], run, log, { expectedArtifacts });
     log('Dependency scan: PASS (complete requested package inventory; HIGH/CRITICAL gate)');
     return 0;

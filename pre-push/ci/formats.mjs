@@ -12,7 +12,7 @@ function scannerContract(report, args, { expectedTargets = [], expectedArtifacts
     { category: 'SCANNER_ERROR', stage: 'target-coverage' }); };
   const mode = args[0], artifact = args.at(-1), image = mode === 'image';
   const normalized = value => typeof value === 'string' ? value.replaceAll('\\', '/').replace(/\/$/, '') : null;
-  if (!['image', 'config', 'fs'].includes(mode) || report?.SchemaVersion !== 2
+  if (!['image', 'config', 'fs', 'rootfs'].includes(mode) || report?.SchemaVersion !== 2
       || report.ArtifactType !== (image ? 'container_image' : 'filesystem')
       || normalized(report.ArtifactName) !== normalized(artifact)
       || !Array.isArray(report.Results) || !report.Results.length) fail();
@@ -37,7 +37,7 @@ function scannerContract(report, args, { expectedTargets = [], expectedArtifacts
           || !summary || !['Successes', 'Failures'].every(k => Number.isSafeInteger(summary[k]) && summary[k] >= 0)
           || summary.Successes + summary.Failures === 0) fail();
       covered.add(normalized(target.Target));
-    } else if (mode === 'fs') {
+    } else if (mode === 'fs' || mode === 'rootfs') {
       if (target.Class !== 'lang-pkgs' || !Array.isArray(target.Packages) || !target.Packages.length) fail();
       for (const expected of expectedArtifacts) {
         if (expected.kind === 'npm' && target.Type === 'npm' && normalized(target.Target) === expected.path) covered.add(expected.path);
@@ -52,7 +52,7 @@ function scannerContract(report, args, { expectedTargets = [], expectedArtifacts
   if (image && !os) fail();
   if (mode === 'config' && (!expectedTargets.length || new Set(expectedTargets).size !== expectedTargets.length
       || covered.size !== expectedTargets.length)) fail();
-  if (mode === 'fs' && (!expectedArtifacts.length || new Set(expectedArtifacts.map(a => a.path)).size !== expectedArtifacts.length
+  if ((mode === 'fs' || mode === 'rootfs') && (!expectedArtifacts.length || new Set(expectedArtifacts.map(a => a.path)).size !== expectedArtifacts.length
       || covered.size !== expectedArtifacts.length)) fail();
 }
 

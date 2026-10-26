@@ -70,4 +70,17 @@ test('SCA refuses thin archives and a report that omits one packaged runtime lib
   assert.throws(invoke, error => error.stage === 'target-coverage');
   target.Packages.push({ FilePath: expectedArtifacts[0].path + '/BOOT-INF/lib/b.jar' });
   assert.doesNotThrow(invoke);
+  // Backend archives must be scanned with rootfs: plain fs mode ignores JAR files entirely.
+  assert.doesNotThrow(() => runTrivy(['rootfs', '/fixture'], () => ({ status: 0, stdout: JSON.stringify({
+    SchemaVersion: 2, ArtifactName: '/fixture', ArtifactType: 'filesystem', Results: [target],
+  }) }), () => {}, { expectedArtifacts }));
+}));
+
+test('SCA uses rootfs for packaged backend archives and fs for a frontend-only scan', () => fixture(({ root }) => {
+  const modes = [];
+  const run = (_command, args) => (args[0] === '--list' ? { status: 0, stdout: 'BOOT-INF/lib/example.jar\n' } : { status: 0, stdout: '' });
+  const scan = args => { modes.push(args[0]); };
+  dependencyCheck({ root, modules: ['services/auth-service'], since: Date.now(), run, scan, log: () => {} });
+  dependencyCheck({ root, frontend: true, scan, log: () => {} });
+  assert.deepEqual(modes, ['rootfs', 'fs']);
 }));
