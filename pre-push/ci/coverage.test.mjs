@@ -175,6 +175,19 @@ test('real merge-commit diff scope uses base tip and tested merge line numbers',
   assert.deepEqual(context.changes[name].lines,[4]);assert.equal(context.changes[name].semantic,true);
   assert.ok(calls.filter(a=>a.includes('diff')).every(a=>a.includes(base)&&a.includes(head)&&a.includes('--no-textconv')));
 }));
+test('changed test sources are ignored by the coverage diff while other unsupported Java paths still fail closed',()=>fixture(f=>{
+  const base='a'.repeat(40);
+  const diffOf=names=>(_command,args)=>{
+    const command=args[4],tail=args.slice(5);
+    if(command==='rev-parse'||command==='merge-base')return {status:0,stdout:base};
+    if(command==='diff')return {status:0,stdout:tail.includes('--name-only')?names.join(' ')+' ':''};
+    if(command==='ls-files'||command==='ls-tree')return {status:0,stdout:''};
+    throw Error('Unexpected Git fixture command');
+  };
+  const testSources=['backend/services/auth-service/src/test/java/com/ltz/auth/IntegrationTestSupport.java','backend/services/game-service/src/test/java/com/ltz/game/X.java','backend/services/game-service/pom.xml'];
+  assert.deepEqual(gitContext(f.root,{run:diffOf(testSources)}).changes,{});
+  for(const unsupported of ['backend/tools/Helper.java','backend/services/game-service/src/other/java/com/ltz/A.java','backend/services/game-service/src/test/resources/Fixture.java'])assert.throws(()=>gitContext(f.root,{run:diffOf([unsupported])}),/unsupported Java source path/);
+}));
 test('new files, untracked files and deletions are explicit diff records without rename heuristics',()=>fixture(f=>{
   const deleted=name.replace('App.java','Deleted.java'),base='a'.repeat(40);
   const run=(_command,args)=>{

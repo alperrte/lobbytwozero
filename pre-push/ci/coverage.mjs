@@ -127,7 +127,9 @@ export function gitContext(root, { base = process.env.COVERAGE_BASE_SHA || 'orig
   const changes = {};
   for (const name of names) {
     if (!/^backend\/services\/[a-z][a-z0-9-]*\/src\/main\/java\/(?:[A-Za-z_$][\w$]*\/)*[A-Za-z_$][\w$]*\.java$/.test(name)) {
-      if (name.endsWith('.java')) fail('unsupported Java source path');
+      // Test sources are never measured for coverage, so editing a test must not fail the build; any other Java
+      // file outside src/main/java stays unsupported and fails closed.
+      if (name.endsWith('.java') && !/^backend\/services\/[a-z][a-z0-9-]*\/src\/test\/java\//.test(name)) fail('unsupported Java source path');
       continue;
     }
     const existsBefore = git(['ls-tree', '--name-only', comparison, '--', name]).trim() !== '';
