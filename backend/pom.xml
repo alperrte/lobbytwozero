@@ -225,6 +225,7 @@
                                 <spring.mail.host>127.0.0.1</spring.mail.host>
                                 <spring.mail.port>1</spring.mail.port>
                                 <management.health.mail.enabled>false</management.health.mail.enabled>
+                                <AUTH_SERVICE_URL>http://127.0.0.1:1</AUTH_SERVICE_URL>
                             </systemPropertyVariables>
                         </configuration>
                     </plugin>
