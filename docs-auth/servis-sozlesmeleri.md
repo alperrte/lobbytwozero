@@ -20,14 +20,14 @@ veritabanına dokunmaz.
 
 | # | Sözleşme | Yön | Durum |
 | --- | --- | --- | --- |
-| 1 | JWT doğrulama: JWKS `GET /api/v1/auth/.well-known/jwks.json`; `iss`, `aud=ltz-api`, `typ=at+jwt`, RS256, `exp` | diğer servisler → Auth | Auth tarafı **IMPLEMENTED**; tüketici servislerde doğrulama yok (Security güncellemesi bekleniyor) |
+| 1 | JWT doğrulama: JWKS `GET /api/v1/auth/.well-known/jwks.json`; `iss`, `aud=ltz-api`, `typ=at+jwt`, RS256, `exp` | diğer servisler → Auth | Auth tarafı **IMPLEMENTED**; tüketici durumu (2026-10-24): **Game, Social ve Hardware uygun**, Hardware uygun (2026-10-26), Community geçici (her token reddedilir), diğerleri iskelet (bkz. `ekip-uyum-denetimi-2026-10-24.md`) |
 | 2 | Doğrulama kodu e-postası (`VerificationCodeMailPort`) | Auth → Mail | Port + dev (Mailpit) **IMPLEMENTED**; Mail Service ucu **PENDING** |
 | 3 | Parola sıfırlama e-postası (`PasswordResetMailPort`) | Auth → Mail | Aynı: port + dev **IMPLEMENTED**; Mail Service **PENDING** |
 | 4 | Hesap silme onayı e-postası (`AccountDeletionMailPort`) | Auth → Mail | Aynı: port + dev **IMPLEMENTED**; Mail Service **PENDING** |
 | 5 | `UserRegistered` (hesap ACTIVE olunca) | Auth → User | **PLANNED**; outbox altyapısı ve User Service yok |
-| 6 | Hesap verisi silme `DELETE /internal/v1/accounts/{id}` (`AccountDataEraserPort`) | Auth → her veri sahibi servis | Auth tarafı (görev, geri çekilme, tamamlama, gerçek HTTP adaptörü + D4 servis token'ı) **IMPLEMENTED**; hedef uçlar servis sahiplerinde **PENDING** (Social kendi dalında hazır) → onaylamayan hedefin görevi PENDING kalır |
-| 7 | Yönetici durum/rol değişikliği | Admin → Auth | Şimdilik kullanıcı token'lı `/api/v1/auth/admin/**`; Auth'ta servis kimlikli `/internal` uç **PENDING** (§3.2) |
-| 8 | Durum değişikliği yayılımı (`AccountStatusChanged`) | Auth → servisler | **PENDING (D3)**; şimdilik en fazla access token ömrü (5 dk) gecikme |
+| 6 | Hesap verisi silme `DELETE /internal/v1/accounts/{id}` (`AccountDataEraserPort`) | Auth → her veri sahibi servis | Auth tarafı (görev, geri çekilme, tamamlama, gerçek HTTP adaptörü + D4 servis token'ı) **IMPLEMENTED**; hedef uçlar: **Social, Game, Library, Review, Hardware hazır (main'de)**, kalan 11 servis **PENDING**; bekleme süresi 14 gün (`grace-period`), süre bitince Auth PII'si hemen anonimleşir → onaylamayan hedefin görevi PENDING kalır |
+| 7 | Yönetici durum/rol değişikliği | Admin → Auth | Auth tarafı **IMPLEMENTED (2026-10-24)**: servis kimlikli iç uçlar (`POST /internal/v1/service-tokens` client credentials, `account:read|status:write|role:write` kapsamları, `aud=auth-service`); **admin-service tüketicisi yok → uçtan uca PENDING** (§3.4). Şimdilik kullanıcı token'lı `/api/v1/auth/admin/**` de çalışır |
+| 8 | Durum değişikliği yayılımı (`AccountStatusChanged`) | Auth → servisler | **PENDING (D3)**; şimdilik en fazla access token ömrü (varsayılan 60 sn) gecikme |
 | 9 | Gateway: çerez→Bearer + CSRF/Origin doğrulaması, CORS allowlist, kimlik başlığı temizliği, Auth hız sınırı | tarayıcı → Gateway → servisler | **IMPLEMENTED** (`api-gateway`); güvenilir proxy IP'si ayarlanabilir, ortak (çok örnekli) limitleyici **PENDING** |
 
 ## 3. Servis kimliği (D4) — sözleşme
@@ -79,7 +79,7 @@ içeren hedefte Auth **açılmaz**.
 - `game` (kullanıcı REF'leri: editör, geliştirici yetkisi, içerik yazarı vb.) ve `admin` (denetim kaydı) listeye eklendi.
 - Auth "uygulanamaz" beyanını **kendi tarafında kabul etmez**: verisi olmayan servis de ucu açıp `204` döner. Bir servisi listeden
   çıkarmak yalnız Auth sahibinin kararıdır.
-- Admin → Auth yönündeki servis kimlikli iç uç (rol/durum) **PENDING**: Auth'ta henüz `/internal` uç yoktur.
+- Admin → Auth yönündeki servis kimlikli iç uç (rol/durum) Auth tarafında **hazır** (§3.4); tüketici admin-service henüz yok.
 
 ### 3.3 Servis sahipleri için
 
@@ -87,6 +87,39 @@ Diğer servis sahiplerinin yapması gerekenler (JWT doğrulama ayrıntısı, rol
 Game/Library/Review örnekleri, test listesi) tek yerde toplanmıştır:
 [docs/AUTH_SERVICE_ENTEGRASYON_REHBERI.md](../docs/AUTH_SERVICE_ENTEGRASYON_REHBERI.md). Bu belge sözleşmenin kaynağıdır; rehber onu
 tekrar tanımlamaz.
+
+### 3.4 Servis → Auth çağrıları (client credentials) — admin-service için
+
+> **Auth tarafı IMPLEMENTED (2026-10-24).** Tüketici admin-service henüz yok; sözleşme onun yazılmasından önce sabitlendi.
+
+Auth'a iç çağrı yapacak servis, **kendi gizli anahtarıyla** Auth'tan kısa ömürlü bir `svc+jwt` alır; imzalayan yalnız Auth'tur (diğer servislerde anahtar
+dağıtımı gerekmez). Akış:
+
+1. `POST {AUTH_SERVICE_URL}/internal/v1/service-tokens` — `{ "clientId": "admin", "clientSecret": "<AUTH_ADMIN_SERVICE_CLIENT_SECRET>" }` → `{ accessToken, tokenType, expiresIn: 60, scope }`.
+2. `Authorization: Bearer <accessToken>` ile iç uçlar: `GET /internal/v1/accounts/{id}`, `POST …/status`, `POST …/roles/grant|revoke` (gövdede `actorId`, `reason`).
+3. Token 60 sn'dir; süresi dolmadan yenilenir. Önbelleğe uzun süre alınmaz.
+
+| Alan | Değer | Auth'un denetimi |
+| --- | --- | --- |
+| `typ` (başlık) | `svc+jwt` | **ZORUNLU**; kullanıcı token'ı (`at+jwt`) bu uçlarda geçmez |
+| `alg`, `kid` | `RS256`, Auth'un güncel anahtarı | **ZORUNLU** |
+| `iss` | `ltz-auth` | **ZORUNLU** |
+| `aud` | **yalnız** `auth-service` | **ZORUNLU**; `ltz-api` ve `<servis>-service` token'ları reddedilir |
+| `sub` | `svc:<istemci>` (ör. `svc:admin`) | **ZORUNLU**: kayıtlı ve etkin istemci; `svc:auth-service` istemci olamaz |
+| `scope` | `account:read`, `account:status:write`, `account:role:write` | **ZORUNLU**: uç kapsamı ister; kapsam istemcinin kayıtlı kapsamlarını aşamaz |
+| `iat`, `nbf`, `exp`, `jti` | ömür 60 sn | **ZORUNLU**: `exp - iat ≤ 60 sn`, bitiş şimdiden ≤ 60 sn ileride, `iat` çıkarılarak aşılamaz |
+| `roles`, `sid`, `ver`, `amr` | taşınmaz | Servis token'ından kullanıcı yetkisi türetilmez |
+
+**Kullanıcı kimliği ayrı doğrulanır:** servis token'ı yönetici yetkisi taşımaz. Gövdedeki `actorId` Auth'ta yeniden denetlenir (hesap var, `ACTIVE`,
+`ADMIN` rolünde); değilse `403 ACTING_ADMIN_INVALID`. İş kuralları (kendini değiştirme yasağı, durum geçişleri, ADMIN/MODERATOR için TOTP,
+oturum iptali, denetim kaydı) kullanıcı uçlarıyla aynıdır; **Auth hiçbir kuralı servis çağrısı için gevşetmez.**
+
+**Gizli anahtar:** `AUTH_ADMIN_SERVICE_CLIENT_SECRET`; en az 32 karakter, yerelde `node ops/generate-auth-dev-keys.mjs` üretir. **Boşsa istemci devre
+dışıdır** (fail-closed). Zayıf anahtar veya bilinmeyen kapsam Auth'u açtırmaz. Prod için ayrı üretilir ve sır yöneticisinde tutulur. Admin servisinin
+ortamına aynı değer verilir. Hesap kilidi yoktur (iç ağdaki biri gerçek servisi kilitleyemesin); yanıt tek hata verir (`401 INVALID_CLIENT`).
+
+**Admin servisine düşenler:** (1) yukarıdaki iki adımı bir HTTP istemcisiyle yapmak, (2) kendi kullanıcısının ADMIN olduğunu kendi token doğrulamasıyla
+bilip `actorId` olarak göndermek, (3) gizli anahtarı koda/log'a yazmamak. Başka bir şey gerekmez.
 
 ## 4. Silme koordinasyonunun özeti
 
