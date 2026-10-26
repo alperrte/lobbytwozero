@@ -95,6 +95,19 @@ class PasswordChangeTest extends IntegrationTestSupport {
     }
 
     @Test
+    void zayifYeniParolaReddedilirHesapDegismez() throws Exception {
+        String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
+        Cookie access = loginSession(email).access();
+        String hashBefore = hash(email);
+
+        change(access, VALID_PASSWORD, "passwordpassword1", "passwordpassword1").andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("WEAK_PASSWORD"));
+
+        assertThat(hash(email)).isEqualTo(hashBefore);
+        change(access, VALID_PASSWORD, NEW_PASSWORD, NEW_PASSWORD).andExpect(status().isNoContent());
+    }
+
+    @Test
     void kimliksizIstek401_csrfsizCookieIstegi403() throws Exception {
         Cookie access = loginSession(registerActiveAccount(uniqueEmail(), uniqueUsername())).access();
         String body = body(VALID_PASSWORD, NEW_PASSWORD, NEW_PASSWORD);

@@ -121,6 +121,22 @@ class PasswordResetTest extends IntegrationTestSupport {
     }
 
     @Test
+    void zayifYeniParolaReddedilirTokenTuketilmezVeGucluParolayaIzinVerir() throws Exception {
+        String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
+        forgot(email).andExpect(status().isAccepted());
+        String token = mailPort.awaitLatestResetToken(email, 1);
+        String hashBefore = jdbc.queryForObject("select password_hash from accounts where id = ?", String.class,
+                accountId(email));
+
+        reset(token, "passwordpassword1", "passwordpassword1").andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("WEAK_PASSWORD"));
+
+        assertThat(jdbc.queryForObject("select password_hash from accounts where id = ?", String.class,
+                accountId(email))).isEqualTo(hashBefore);
+        reset(token, NEW_PASSWORD, NEW_PASSWORD).andExpect(status().isNoContent());
+    }
+
+    @Test
     void sifirlamaParolayiDegistirir_oturumlariIptalEder_otomatikGirisYapmaz() throws Exception {
         String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
         SessionCookiePair session = loginSession(email);

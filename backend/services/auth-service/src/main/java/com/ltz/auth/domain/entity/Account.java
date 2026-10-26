@@ -45,7 +45,7 @@ public class Account {
     public static final String USERNAME_PATTERN =
             "^[A-Za-z0-9_]{" + USERNAME_MIN_LENGTH + "," + USERNAME_MAX_LENGTH + "}$";
     /** Uzunluk UTF-16 karakteri olarak ölçülür; parola içeriği dönüştürülmez veya normalize edilmez. */
-    public static final int PASSWORD_MIN_LENGTH = 12;
+    public static final int PASSWORD_MIN_LENGTH = 15;
     public static final int PASSWORD_MAX_LENGTH = 128;
 
     @Id

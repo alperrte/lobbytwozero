@@ -24,6 +24,7 @@ public enum AuthErrorCode {
     REGISTRATION_TOKEN_INVALID(400, "Registration token is invalid or has expired."),
     CURRENT_PASSWORD_INVALID(400, "Current password is incorrect."),
     NEW_PASSWORD_SAME_AS_CURRENT(400, "New password must differ from the current password."),
+    WEAK_PASSWORD(400, "Password is too easy to guess. Choose a different one."),
     PASSWORD_RESET_TOKEN_INVALID(400, "Password reset link is invalid or has expired."),
     ACCOUNT_NOT_FOUND(404, "Account was not found."),
     INVALID_STATUS_TRANSITION(409, "The requested account status transition is not allowed."),
