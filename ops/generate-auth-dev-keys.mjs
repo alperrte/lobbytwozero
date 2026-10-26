@@ -28,6 +28,8 @@ const generators = {
   AUTH_OTP_HMAC_KEY: () => randomBytes(32).toString("base64"),
   // TOTP sırlarının AES-256-GCM anahtarı: tam 32 bayt.
   AUTH_TOTP_ENCRYPTION_KEY: () => randomBytes(32).toString("base64"),
+  // Admin servisinin Auth'a servis kimligiyle (client credentials) baglanma gizli anahtari (B4): 256 bit, URL-guvenli.
+  AUTH_ADMIN_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
 };
 
 // Eski varsayılanlar: değer TAM OLARAK eskiyse yeni varsayılana çekilir; özelleştirilmiş değere dokunulmaz.

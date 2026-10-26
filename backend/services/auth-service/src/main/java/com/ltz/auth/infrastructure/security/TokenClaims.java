@@ -25,6 +25,12 @@ public final class TokenClaims {
     public static final String ACCOUNT_ERASE_SCOPE = "account:erase";
     /** Servis token'ının bağlı olduğu tek hesap; hedef servis bunu istek yolundaki hesap kimliğiyle karşılaştırır. */
     public static final String ACCOUNT_ID = "account_id";
+    /** Auth'a gelen iç çağrılarda (servis → Auth) {@code aud}: yalnız Auth'un kendi adı. */
+    public static final String AUTH_SERVICE_AUDIENCE = "auth-service";
+    /** Servis → Auth kapsamları (iç yönetim uçları, {@code docs-auth/servis-sozlesmeleri.md}). */
+    public static final String ACCOUNT_READ_SCOPE = "account:read";
+    public static final String ACCOUNT_STATUS_WRITE_SCOPE = "account:status:write";
+    public static final String ACCOUNT_ROLE_WRITE_SCOPE = "account:role:write";
     /** Servis adı → servis token'ı {@code aud} değeri: {@code <servis>-service} (Compose ve modül adıyla aynı). */
     public static final String SERVICE_AUDIENCE_SUFFIX = "-service";
 
