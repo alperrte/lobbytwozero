@@ -17,6 +17,7 @@
 | Talep | Konu | Durum |
 |---|---|---|
 | [01](talep-01-hesap-durumu-ve-gorsel-erisimi.md) | Gerçek JWT, banlı hesap, görsel erişimi | CEVAPLANDI, Community'de iş var |
+| [02](talep-02-servis-token-silme-ve-jwks-sorulari.md) | Servis token'ı, silme, durum olayı, JWKS | CEVAPLANDI, saklama süresi Alper'de, imtiyaz tanımı Auth'ta planlı |
 
 ## BİLMEN GEREKENLER
 
