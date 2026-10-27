@@ -687,37 +687,65 @@ erDiagram
     uuid id PK
     uuid game_id "REF"
     varchar slug UK
+    varchar title
+    varchar status "VISIBLE|HIDDEN"
   }
   posts {
     uuid id PK
     uuid author_id "REF"
     uuid forum_id FK
     uuid game_id "REF"
-    uuid repost_of_id FK
+    uuid repost_of_id FK "orijinal gonderi"
+    text body "repost'ta null olabilir"
+    varchar category
     varchar status
     int like_count
+    int comment_count
   }
   post_images {
     uuid id PK
     uuid post_id FK
-    varchar storage_key
+    bytea content
+    varchar mime_type
+    int sort_order
   }
   post_likes {
     uuid post_id PK,FK
     uuid user_id PK "REF"
+    timestamptz created_at
   }
   comments {
     uuid id PK
     uuid post_id FK
     uuid parent_comment_id FK
     uuid author_id "REF"
-    varchar status
+    text body
+    varchar status "VISIBLE|HIDDEN|DELETED"
   }
   community_reports {
     uuid id PK
     varchar target_type "POST|COMMENT"
-    uuid target_id
+    uuid target_id "polimorfik, FK yok"
+    uuid target_author_id "REF"
     uuid reporter_id "REF"
+    varchar reason
+    varchar status "OPEN|RESOLVED|DISMISSED"
+  }
+  user_blocks {
+    uuid blocker_id PK "REF"
+    uuid blocked_id PK "REF"
+    timestamptz created_at
+  }
+  outbox_events {
+    uuid id PK
+    varchar event_type
+    jsonb payload
+    varchar status "PENDING|SENT|FAILED"
+  }
+  inbox_events {
+    uuid event_id PK
+    varchar event_type
+    varchar producer
   }
 ```
 
