@@ -95,7 +95,7 @@ tekrar tanımlamaz.
 Auth'a iç çağrı yapacak servis, **kendi gizli anahtarıyla** Auth'tan kısa ömürlü bir `svc+jwt` alır; imzalayan yalnız Auth'tur (diğer servislerde anahtar
 dağıtımı gerekmez). Akış:
 
-1. `POST {AUTH_SERVICE_URL}/internal/v1/service-tokens` — `{ "clientId": "admin", "clientSecret": "<AUTH_ADMIN_SERVICE_CLIENT_SECRET>" }` → `{ accessToken, tokenType, expiresIn: 60, scope }`.
+1. `POST {AUTH_SERVICE_URL}/internal/v1/service-tokens` — `{ "clientId": "admin-service", "clientSecret": "<AUTH_ADMIN_SERVICE_CLIENT_SECRET>" }` → `{ accessToken, tokenType, expiresIn: 60, scope }`.
 2. `Authorization: Bearer <accessToken>` ile iç uçlar: `GET /internal/v1/accounts/{id}`, `POST …/status`, `POST …/roles/grant|revoke` (gövdede `actorId`, `reason`).
 3. Token 60 sn'dir; süresi dolmadan yenilenir. Önbelleğe uzun süre alınmaz.
 
@@ -105,7 +105,7 @@ dağıtımı gerekmez). Akış:
 | `alg`, `kid` | `RS256`, Auth'un güncel anahtarı | **ZORUNLU** |
 | `iss` | `ltz-auth` | **ZORUNLU** |
 | `aud` | **yalnız** `auth-service` | **ZORUNLU**; `ltz-api` ve `<servis>-service` token'ları reddedilir |
-| `sub` | `svc:<istemci>` (ör. `svc:admin`) | **ZORUNLU**: kayıtlı ve etkin istemci; `svc:auth-service` istemci olamaz |
+| `sub` | `svc:<istemci>` (ör. `svc:admin-service`) | **ZORUNLU**: kayıtlı ve etkin istemci; `svc:auth-service` istemci olamaz |
 | `scope` | `account:read`, `account:status:write`, `account:role:write` | **ZORUNLU**: uç kapsamı ister; kapsam istemcinin kayıtlı kapsamlarını aşamaz |
 | `iat`, `nbf`, `exp`, `jti` | ömür 60 sn | **ZORUNLU**: `exp - iat ≤ 60 sn`, bitiş şimdiden ≤ 60 sn ileride, `iat` çıkarılarak aşılamaz |
 | `roles`, `sid`, `ver`, `amr` | taşınmaz | Servis token'ından kullanıcı yetkisi türetilmez |
@@ -121,9 +121,31 @@ ortamına aynı değer verilir. Hesap kilidi yoktur (iç ağdaki biri gerçek se
 **Admin servisine düşenler:** (1) yukarıdaki iki adımı bir HTTP istemcisiyle yapmak, (2) kendi kullanıcısının ADMIN olduğunu kendi token doğrulamasıyla
 bilip `actorId` olarak göndermek, (3) gizli anahtarı koda/log'a yazmamak. Başka bir şey gerekmez.
 
+### 3.5 Servisler arası olay girişi (`events:ingest`) — hedefe bağlı servis token'ı
+
+> **Auth tarafı kodlandı (2026-10-28), main'e PR ile girer.** Alıcı uçlar (ör. Community `POST /internal/events`) alıcı servislerin işidir.
+
+Servis, aynı token ucundan (`POST /internal/v1/service-tokens`) gövdeye `audience` ekleyerek **başka bir servise** gidecek token alır. Kimseye varsayılan
+imtiyaz yoktur: her istemci yalnız kendisine tanımlı (hedef, kapsam) çiftleri için token alır, listede olmayan çağrı `403 SERVICE_AUDIENCE_FORBIDDEN`
+olur (kimlik doğrulaması önce yapılır; yanlış gizli anahtar yine `401 INVALID_CLIENT`).
+
+| # | Çağıran (`sub`) | Hedef (`aud`) | Kapsam | Neden |
+| --- | --- | --- | --- | --- |
+| 1 | `svc:admin-service` | `community-service` | `events:ingest` | Moderasyon kararını (`ModerationActionTaken`) içeriğe uygulatmak |
+| 2 | `svc:social-service` | `community-service` | `events:ingest` | Engelleme yansıması (`UserBlocked`, `UserUnblocked`) |
+| 3 | `svc:community-service` | `admin-service` | `events:ingest` | Rapor olayı (`ContentReported`) admin kuyruğuna |
+| 4 | `svc:community-service` | `notification-service` | `events:ingest` | Etkileşim bildirimleri |
+
+Token: `typ=svc+jwt`, RS256 (JWKS aynı), `iss=ltz-auth`, **`aud=<hedef>`** (yalnız o serviste geçer, Auth'un iç uçlarında geçmez), `sub=svc:<istemci>`,
+`scope=events:ingest`, 60 sn. Alıcı doğrulaması alıcıya aittir: `aud` kendi adı, `typ`, `scope`, ayrıca olay türü ↔ `sub` eşleşmesi (örn.
+`ModerationActionTaken` yalnız `svc:admin-service` ile). Gizli anahtarlar: `AUTH_ADMIN_SERVICE_CLIENT_SECRET`, `AUTH_SOCIAL_SERVICE_CLIENT_SECRET`,
+`AUTH_COMMUNITY_SERVICE_CLIENT_SECRET` (her biri ayrı, en az 32 karakter, boşsa istemci kapalı). Yeni (çağıran, hedef) çifti eklemek Auth'ta
+yetkili bir değişikliktir (`application.properties` + test + bu tablo). Satır 5 (Auth → community, `AccountStatusChanged`) olay tanımı gelince.
+
 ## 4. Silme koordinasyonunun özeti
 
 `DELETION_REQUESTED` → her servis için görev (`account_deletion_tasks`) → worker görevi kiralar (SKIP LOCKED) → çağrı işlem
 dışında, her çağrıda yeni servis token'ıyla → `200`/`204` ise `CONFIRMED`, aksi halde üstel geri çekilme → hepsi `CONFIRMED` olunca
-tek işlemde Auth verisi silinir ve hesap anonimleşip `DELETED` olur. Kısmi başarısızlıkta hesap `DELETION_REQUESTED` kalır, kişisel
-veri korunur ve hiçbir yerde "silindi" denmez. Hedef listesi §3.2'dedir; yeni veri sahibi servis eklenince listeye girer.
+tek işlemde Auth'taki hesap kaydı, güvenlik olayları, silme görevleri ve silme talebi **tamamen silinir** (proje sahibi kararı 2026-10-28:
+silinen kullanıcının kaydı tutulmaz; kimlik içermeyen tek iz bir günlük satırıdır). Kısmi başarısızlıkta hesap `DELETION_REQUESTED` kalır
+(kimlik bekleme süresi bitince anonim), kayıtlar silme tamamlanana kadar durur ve hiçbir yerde "silindi" denmez. Hedef listesi §3.2'dedir; yeni veri sahibi servis eklenince listeye girer.
