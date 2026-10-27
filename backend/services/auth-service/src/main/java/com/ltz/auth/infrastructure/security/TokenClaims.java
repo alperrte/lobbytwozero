@@ -31,6 +31,8 @@ public final class TokenClaims {
     public static final String ACCOUNT_READ_SCOPE = "account:read";
     public static final String ACCOUNT_STATUS_WRITE_SCOPE = "account:status:write";
     public static final String ACCOUNT_ROLE_WRITE_SCOPE = "account:role:write";
+    /** Servisler arası olay girişi: hedef servisin {@code POST /internal/events} ucu; Auth yalnız izinli (hedef, kapsam) çiftine token verir. */
+    public static final String EVENTS_INGEST_SCOPE = "events:ingest";
     /** Servis adı → servis token'ı {@code aud} değeri: {@code <servis>-service} (Compose ve modül adıyla aynı). */
     public static final String SERVICE_AUDIENCE_SUFFIX = "-service";
 

@@ -104,11 +104,11 @@ export async function runAuthSmoke(root, log = console.log) {
   try {
     const password = randomBytes(32).toString('base64url');
     const dbPassword = randomBytes(32).toString('base64url');
-    const adminSecret = randomBytes(32).toString('base64url');
+    const adminSecret = randomBytes(32).toString('base64url'), socialSecret = randomBytes(32).toString('base64url');
     const privateKey = generateKeyPairSync('rsa', { modulusLength: 3072 }).privateKey.export({ format: 'der', type: 'pkcs8' }).toString('base64');
     const rotatedPublicKey = generateKeyPairSync('rsa', { modulusLength: 3072 }).publicKey.export({ format: 'der', type: 'spki' }).toString('base64');
     const hmac = randomBytes(32).toString('base64'), totp = randomBytes(32).toString('base64');
-    secrets.push(password, dbPassword, adminSecret, privateKey, hmac, totp);
+    secrets.push(password, dbPassword, adminSecret, socialSecret, privateKey, hmac, totp);
     const authDb = await container('postgres:17-alpine', [5432],
       { POSTGRES_USER: 'fixture', POSTGRES_DB: 'fixture', POSTGRES_PASSWORD: dbPassword });
     const mail = await container('axllent/mailpit:v1.31.0', [1025, 8025]);
@@ -122,7 +122,7 @@ export async function runAuthSmoke(root, log = console.log) {
     const authEnvironment = { POSTGRES_HOST: '127.0.0.1', POSTGRES_PORT: String(authDb.ports[5432]), POSTGRES_USER: 'fixture',
       POSTGRES_PASSWORD: dbPassword, DB_AUTH_NAME: 'fixture', SPRING_PROFILES_ACTIVE: 'dev', AUTH_JWT_PRIVATE_KEY: privateKey,
       AUTH_JWT_ADDITIONAL_PUBLIC_KEYS: rotatedPublicKey, AUTH_OTP_HMAC_KEY: hmac, AUTH_TOTP_ENCRYPTION_KEY: totp,
-      AUTH_ADMIN_SERVICE_CLIENT_SECRET: adminSecret, AUTH_PUBLIC_BASE_URL: gatewayOrigin, FRONTEND_PUBLIC_URL: gatewayOrigin,
+      AUTH_ADMIN_SERVICE_CLIENT_SECRET: adminSecret, AUTH_SOCIAL_SERVICE_CLIENT_SECRET: socialSecret, AUTH_PUBLIC_BASE_URL: gatewayOrigin, FRONTEND_PUBLIC_URL: gatewayOrigin,
       LTZ_AUTH_MAIL_DEVSMTP_HOST: '127.0.0.1', LTZ_AUTH_MAIL_DEVSMTP_PORT: String(mail.ports[1025]) };
     for (const service of ['USER', 'MAIL', 'GAME', 'LIBRARY', 'REVIEW', 'SOCIAL', 'MESSAGING', 'LFP', 'COMMUNITY', 'CONTENT', 'EVENT',
       'HARDWARE', 'RECOMMENDATION', 'PERFORMANCE', 'ADMIN', 'NOTIFICATION']) {
@@ -188,25 +188,41 @@ export async function runAuthSmoke(root, log = console.log) {
       body: { email: `weak_${weak}@example.test`, username: `wk_${weak}`, password: 'Abcdefg12345!x' } });
     check(true, 'A 14-character password is rejected at registration (policy minimum 15)');
 
-    const viaGateway = await postJson(gatewayOrigin + '/internal/v1/service-tokens', { clientId: 'admin', clientSecret: adminSecret });
+    const viaGateway = await postJson(gatewayOrigin + '/internal/v1/service-tokens', { clientId: 'admin-service', clientSecret: adminSecret });
     check(viaGateway.status === 404, `/internal is not routed through the Gateway (status ${viaGateway.status})`);
 
     const tokenUrl = authOrigin + '/internal/v1/service-tokens';
-    const wrong = await postJson(tokenUrl, { clientId: 'admin', clientSecret: 'x'.repeat(40) });
+    const wrong = await postJson(tokenUrl, { clientId: 'admin-service', clientSecret: 'x'.repeat(40) });
     check(wrong.status === 401, `A wrong client secret is rejected (status ${wrong.status})`);
-    const issuedResponse = await postJson(tokenUrl, { clientId: 'admin', clientSecret: adminSecret });
+    const issuedResponse = await postJson(tokenUrl, { clientId: 'admin-service', clientSecret: adminSecret });
     check(issuedResponse.status === 200 && /no-store/i.test(issuedResponse.headers.get('Cache-Control') || ''),
       'Valid client credentials issue a service token with Cache-Control no-store');
     const issued = await issuedResponse.json();
     const serviceToken = issued.accessToken ?? issued.access_token;
     secrets.push(serviceToken);
     const serviceHeader = decodeJwtPart(serviceToken, 0), service = decodeJwtPart(serviceToken, 1);
-    check(serviceHeader.typ === 'svc+jwt' && [].concat(service.aud).includes('auth-service') && service.sub === 'svc:admin'
+    check(serviceHeader.typ === 'svc+jwt' && [].concat(service.aud).includes('auth-service') && service.sub === 'svc:admin-service'
       && service.exp - service.iat === 60 && !String(service.scope).includes('account:erase'),
     `Service token: typ ${serviceHeader.typ}, aud ${[].concat(service.aud)}, sub ${service.sub}, TTL ${service.exp - service.iat}s, scope ${service.scope}`);
     await request(authOrigin, `/internal/v1/accounts/${claims.sub}`, 200, { headers: { Authorization: `Bearer ${serviceToken}` } });
     const userOnInternal = await fetch(authOrigin + `/internal/v1/accounts/${claims.sub}`, { headers: { Authorization: `Bearer ${account.token}` } });
     check(userOnInternal.status === 401, `The service token reads an account; a user access token cannot (status ${userOnInternal.status})`);
+
+    // Servisler arası olay girişi: yalnız izinli (hedef, kapsam) çifti; hedefe bağlı token Auth'ta geçmez.
+    const ingestResponse = await postJson(tokenUrl, { clientId: 'social-service', clientSecret: socialSecret, audience: 'community-service' });
+    const ingestBody = await ingestResponse.json();
+    const ingestToken = ingestBody.accessToken ?? ingestBody.access_token;
+    secrets.push(ingestToken);
+    const ingest = decodeJwtPart(ingestToken, 1);
+    check(ingestResponse.status === 200 && [].concat(ingest.aud).join() === 'community-service' && ingest.sub === 'svc:social-service'
+      && ingest.scope === 'events:ingest' && ingest.exp - ingest.iat === 60,
+    `Event-ingest token: aud ${[].concat(ingest.aud)}, sub ${ingest.sub}, scope ${ingest.scope}, TTL ${ingest.exp - ingest.iat}s`);
+    const notGranted = await postJson(tokenUrl, { clientId: 'social-service', clientSecret: socialSecret, audience: 'notification-service' });
+    const authForSocial = await postJson(tokenUrl, { clientId: 'social-service', clientSecret: socialSecret });
+    check(notGranted.status === 403 && authForSocial.status === 403,
+      `A client gets no token outside its allow-list (other target ${notGranted.status}, Auth ${authForSocial.status})`);
+    const ingestOnAuth = await fetch(authOrigin + `/internal/v1/accounts/${claims.sub}`, { headers: { Authorization: `Bearer ${ingestToken}` } });
+    check(ingestOnAuth.status === 401, `A token bound to another service is rejected by Auth (status ${ingestOnAuth.status})`);
 
     const newEmail = `chg_${randomUUID().replaceAll('-', '').slice(0, 12)}@example.test`;
     secrets.push(newEmail);

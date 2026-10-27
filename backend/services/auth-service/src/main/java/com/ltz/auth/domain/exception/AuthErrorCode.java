@@ -39,6 +39,7 @@ public enum AuthErrorCode {
     DELETION_CONFIRMATION_INVALID(400, "Deletion confirmation is invalid or has expired."),
     ACCOUNT_DELETION_PENDING(403, "Account deletion is scheduled. Cancel it before the waiting period ends to keep the account."),
     INVALID_CLIENT(401, "Service client authentication failed."),
+    SERVICE_AUDIENCE_FORBIDDEN(403, "The service client is not allowed to obtain a token for this audience."),
     ACTING_ADMIN_INVALID(403, "The acting administrator is not an active administrator."),
     EMAIL_CHANGE_INVALID(400, "Email change code is invalid or has expired."),
     PASSWORD_REQUIRED(409, "A password must be set on this account before this action."),

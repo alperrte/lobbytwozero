@@ -16,6 +16,7 @@ import com.ltz.auth.domain.exception.AuthException;
 import com.ltz.auth.infrastructure.config.ServiceClientProperties;
 import com.ltz.auth.infrastructure.security.SecureTokens;
 import com.ltz.auth.infrastructure.security.ServiceClientTokenIssuer;
+import com.ltz.auth.infrastructure.security.TokenClaims;
 
 /**
  * Servis istemcisinin (ör. admin-service) gizli anahtarını doğrulayıp kısa ömürlü {@code svc+jwt} verir.
@@ -48,6 +49,14 @@ public class ServiceClientTokenService {
     }
 
     public IssuedServiceToken issue(String clientId, String clientSecret) {
+        return issue(clientId, clientSecret, null);
+    }
+
+    /**
+     * {@code audience} boşsa {@code auth-service}. Kimlik doğrulandıktan sonra hedef istemcinin izin listesinde değilse
+     * {@code SERVICE_AUDIENCE_FORBIDDEN}; her hedef için kapsamlar yalnız o hedefe tanımlanan kapsamlardır.
+     */
+    public IssuedServiceToken issue(String clientId, String clientSecret, String audience) {
         Optional<ServiceClientProperties.Client> client = Optional.ofNullable(clientId).map(properties.clients()::get)
                 .filter(ServiceClientProperties.Client::enabled);
         byte[] expected = client.map(registered -> digest(registered.secret().strip())).orElse(dummyDigest);
@@ -56,8 +65,14 @@ public class ServiceClientTokenService {
             log.warn("Service client authentication failed clientId={}", safe(clientId));
             throw new AuthException(AuthErrorCode.INVALID_CLIENT);
         }
-        Set<String> scopes = client.get().scopes();
-        return new IssuedServiceToken(issuer.issue(clientId, scopes), ServiceClientTokenIssuer.TTL,
+        String target = audience == null || audience.isBlank() ? TokenClaims.AUTH_SERVICE_AUDIENCE : audience;
+        Set<String> scopes = TokenClaims.AUTH_SERVICE_AUDIENCE.equals(target)
+                ? client.get().scopes() : client.get().targets().getOrDefault(target, Set.of());
+        if (scopes.isEmpty()) {
+            log.warn("Service client audience not allowed clientId={} audience={}", safe(clientId), safe(target));
+            throw new AuthException(AuthErrorCode.SERVICE_AUDIENCE_FORBIDDEN);
+        }
+        return new IssuedServiceToken(issuer.issue(clientId, target, scopes), ServiceClientTokenIssuer.TTL,
                 String.join(" ", new TreeSet<>(scopes)));
     }
 

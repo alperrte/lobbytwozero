@@ -29,12 +29,45 @@ class ServiceClientTokenServiceTest {
     private final ServiceClientTokenService service = new ServiceClientTokenService(
             new ServiceClientProperties(Map.of(
                     "admin", new ServiceClientProperties.Client(SECRET, Set.of("account:read")),
+                    "social", new ServiceClientProperties.Client(SECRET, Set.of(),
+                            Map.of("community-service", Set.of("events:ingest"))),
                     "off", new ServiceClientProperties.Client("", Set.of("account:read")))),
             issuer, new SecureTokens());
 
     @Test
+    void izinliHedefIcinHedefAudienceVeKapsamlaTokenVerilir() {
+        when(issuer.issue(eq("social"), eq("community-service"), anySet())).thenReturn("community-token");
+
+        ServiceClientTokenService.IssuedServiceToken issued = service.issue("social", SECRET, "community-service");
+
+        assertThat(issued.accessToken()).isEqualTo("community-token");
+        assertThat(issued.scope()).isEqualTo("events:ingest");
+    }
+
+    @Test
+    void izinListesindeOlmayanHedefVeKapsamsizAuthHedefiReddedilirTokenUretilmez() {
+        for (String[] attempt : new String[][] {{"social", "notification-service"}, {"social", "auth-service"},
+                {"social", null}, {"admin", "community-service"}}) {
+            assertThatThrownBy(() -> service.issue(attempt[0], SECRET, attempt[1]))
+                    .isInstanceOfSatisfying(AuthException.class, exception -> assertThat(exception.errorCode())
+                            .isEqualTo(AuthErrorCode.SERVICE_AUDIENCE_FORBIDDEN));
+        }
+        verify(issuer, never()).issue(any(), any(), any());
+    }
+
+    @Test
+    void yanlisAnahtardaHedefIzinliOlsaBileHedefBilgisiSizmazAyniHataDoner() {
+        assertThatThrownBy(() -> service.issue("social", "yanlis", "community-service"))
+                .isInstanceOfSatisfying(AuthException.class,
+                        exception -> assertThat(exception.errorCode()).isEqualTo(AuthErrorCode.INVALID_CLIENT));
+        assertThatThrownBy(() -> service.issue("social", "yanlis", "notification-service"))
+                .isInstanceOfSatisfying(AuthException.class,
+                        exception -> assertThat(exception.errorCode()).isEqualTo(AuthErrorCode.INVALID_CLIENT));
+    }
+
+    @Test
     void dogruAnahtarlaKayitliKapsamlarlaTokenVerilir() {
-        when(issuer.issue(eq("admin"), anySet())).thenReturn("signed-token");
+        when(issuer.issue(eq("admin"), eq("auth-service"), anySet())).thenReturn("signed-token");
 
         ServiceClientTokenService.IssuedServiceToken issued = service.issue("admin", SECRET);
 
@@ -52,6 +85,6 @@ class ServiceClientTokenServiceTest {
                     .isInstanceOfSatisfying(AuthException.class,
                             exception -> assertThat(exception.errorCode()).isEqualTo(AuthErrorCode.INVALID_CLIENT));
         }
-        verify(issuer, never()).issue(any(), any());
+        verify(issuer, never()).issue(any(), any(), any());
     }
 }

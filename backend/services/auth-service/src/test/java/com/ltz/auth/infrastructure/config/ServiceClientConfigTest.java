@@ -56,6 +56,37 @@ class ServiceClientConfigTest {
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("client id");
     }
 
+    @Test
+    void yalnizHedefKapsamliIstemciAcilirKapsamiOlmayanHedefAcmaz() {
+        assertThatCode(() -> new ServiceClientConfig(properties("social-service", new ServiceClientProperties.Client(
+                STRONG_SECRET, Set.of(), Map.of("community-service", Set.of("events:ingest"))))))
+                .doesNotThrowAnyException();
+        // Hedefsiz ve kapsamsız istemci anlamsızdır.
+        assertThatThrownBy(() -> new ServiceClientConfig(properties("social-service", new ServiceClientProperties.Client(
+                STRONG_SECRET, Set.of(), Map.of()))))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("needs scopes or targets");
+        assertThatThrownBy(() -> new ServiceClientConfig(properties("social-service", new ServiceClientProperties.Client(
+                STRONG_SECRET, Set.of(), Map.of("community-service", Set.of())))))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("targets.community-service");
+    }
+
+    @Test
+    void hedefKapsamlariBilinenListedenOlmaliVeHedefBaskaServisOlmali() {
+        // Auth iç kapsamı başka servise, başka servis kapsamı Auth'a verilemez.
+        assertThatThrownBy(() -> new ServiceClientConfig(properties("social-service", new ServiceClientProperties.Client(
+                STRONG_SECRET, Set.of(), Map.of("community-service", Set.of("account:read"))))))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("targets.community-service");
+        assertThatThrownBy(() -> new ServiceClientConfig(properties("social-service", new ServiceClientProperties.Client(
+                STRONG_SECRET, Set.of(), Map.of("auth-service", Set.of("events:ingest"))))))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("targets key");
+        assertThatThrownBy(() -> new ServiceClientConfig(properties("social-service", new ServiceClientProperties.Client(
+                STRONG_SECRET, Set.of(), Map.of("ltz-api", Set.of("events:ingest"))))))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("targets key");
+        assertThatThrownBy(() -> new ServiceClientConfig(properties("social-service", new ServiceClientProperties.Client(
+                STRONG_SECRET, Set.of("events:ingest"), Map.of()))))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("scopes");
+    }
+
     private static ServiceClientProperties properties(String id, ServiceClientProperties.Client client) {
         return new ServiceClientProperties(Map.of(id, client));
     }

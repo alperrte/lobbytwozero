@@ -1,9 +1,11 @@
 package com.ltz.auth.infrastructure.config;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -23,12 +25,26 @@ public record ServiceClientProperties(Map<String, Client> clients) {
 
     /**
      * @param secret  en az 32 karakter (üretici betik 256 bit rastgele üretir); boşsa istemci devre dışı
-     * @param scopes  istemcinin alabileceği kapsamlar; {@link ServiceClientConfig#ALLOWED_SCOPES} içinden olmalı
+     * @param scopes  Auth'un kendisine ({@code aud=auth-service}) alabileceği kapsamlar;
+     *                {@link ServiceClientConfig#ALLOWED_SCOPES} içinden olmalı
+     * @param targets başka servislere ({@code aud=<servis>-service}) alabileceği kapsamlar: hedef → kapsamlar. Listede
+     *                olmayan hedef için token verilmez; kapsamlar {@link ServiceClientConfig#ALLOWED_TARGET_SCOPES}
+     *                içinden olmalı
      */
-    public record Client(String secret, Set<String> scopes) {
+    public record Client(String secret, Set<String> scopes, Map<String, Set<String>> targets) {
 
+        @ConstructorBinding
         public Client {
             scopes = scopes == null ? Set.of() : Set.copyOf(scopes);
+            Map<String, Set<String>> safeTargets = new HashMap<>();
+            if (targets != null) {
+                targets.forEach((audience, granted) -> safeTargets.put(audience, granted == null ? Set.of() : Set.copyOf(granted)));
+            }
+            targets = Map.copyOf(safeTargets);
+        }
+
+        public Client(String secret, Set<String> scopes) {
+            this(secret, scopes, null);
         }
 
         public boolean enabled() {
@@ -37,7 +53,7 @@ public record ServiceClientProperties(Map<String, Client> clients) {
 
         @Override
         public String toString() {
-            return "Client[secret=***, scopes=" + scopes + "]";
+            return "Client[secret=***, scopes=" + scopes + ", targets=" + targets + "]";
         }
     }
 }

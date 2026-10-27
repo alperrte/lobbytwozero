@@ -21,7 +21,8 @@ import com.ltz.auth.infrastructure.config.JwtProperties;
  * Servis → Auth yönü: kayıtlı bir servis istemcisine ({@code POST /internal/v1/service-tokens}) Auth'un imzaladığı kısa
  * ömürlü {@code svc+jwt}. Kurallar kodda sabittir:
  * <ul>
- *   <li>{@code typ=svc+jwt}, {@code aud=auth-service} (yalnız Auth'ta geçer; başka servise oynatılamaz), {@code sub=svc:<istemci>}.</li>
+ *   <li>{@code typ=svc+jwt}, {@code aud=<tek hedef>} ({@code auth-service} ya da izinli {@code <servis>-service}; yalnız o
+ *       serviste geçer, başka servise oynatılamaz), {@code sub=svc:<istemci>}.</li>
  *   <li>Ömür {@link #TTL}; her token için yeni {@code jti}. Rol, oturum ve kullanıcı claim'i taşınmaz; kullanıcı kimliği
  *       gerektiren işlemde kimlik istek gövdesinde ayrıca doğrulanır.</li>
  *   <li>Kapsam, istemcinin kayıtlı kapsamlarından fazlası olamaz (çağıran {@code ServiceClientTokenService} denetler).</li>
@@ -46,15 +47,25 @@ public class ServiceClientTokenIssuer {
         this.clock = clock;
     }
 
+    /** Auth'a ({@code aud=auth-service}) gidecek token. */
     public String issue(String clientId, Set<String> scopes) {
-        if (clientId == null || clientId.isBlank() || scopes == null || scopes.isEmpty()) {
-            throw new IllegalArgumentException("Service client token needs a client id and at least one scope");
+        return issue(clientId, TokenClaims.AUTH_SERVICE_AUDIENCE, scopes);
+    }
+
+    /**
+     * {@code audience}: token'ın geçeceği tek servis ({@code auth-service} veya {@code <servis>-service}); token yalnız
+     * o servisin JWKS doğrulamasında geçer, başka servise oynatılamaz. İzin kontrolü çağıranda ({@code ServiceClientTokenService}).
+     */
+    public String issue(String clientId, String audience, Set<String> scopes) {
+        if (clientId == null || clientId.isBlank() || audience == null || audience.isBlank()
+                || scopes == null || scopes.isEmpty()) {
+            throw new IllegalArgumentException("Service client token needs a client id, an audience and at least one scope");
         }
         Instant now = clock.instant();
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer(properties.issuer())
                 .subject(TokenClaims.SERVICE_SUBJECT_PREFIX + clientId)
-                .audience(List.of(TokenClaims.AUTH_SERVICE_AUDIENCE))
+                .audience(List.of(audience))
                 .issuedAt(now)
                 .notBefore(now)
                 .expiresAt(now.plus(TTL))

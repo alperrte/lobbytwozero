@@ -48,7 +48,7 @@ class InternalAccountAdministrationTest extends IntegrationTestSupport {
 
     @Test
     void tokenUcuSozlesmeyeUygunKisaOmurluTokenVerir() throws Exception {
-        String body = tokenRequest("admin", ADMIN_CLIENT_SECRET).andExpect(status().isOk())
+        String body = tokenRequest("admin-service", ADMIN_CLIENT_SECRET).andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
                 .andExpect(jsonPath("$.tokenType").value("Bearer"))
                 .andExpect(jsonPath("$.expiresIn").value(60))
@@ -60,7 +60,7 @@ class InternalAccountAdministrationTest extends IntegrationTestSupport {
         assertThat(jwt.getHeader().getType().getType()).isEqualTo("svc+jwt");
         assertThat(jwt.getHeader().getKeyID()).isEqualTo(signingKey.keyId());
         assertThat(jwt.getJWTClaimsSet().getAudience()).containsExactly("auth-service");
-        assertThat(jwt.getJWTClaimsSet().getSubject()).isEqualTo("svc:admin");
+        assertThat(jwt.getJWTClaimsSet().getSubject()).isEqualTo("svc:admin-service");
         assertThat(jwt.getJWTClaimsSet().getJWTID()).isNotBlank();
         assertThat(jwt.getJWTClaimsSet().getExpirationTime().getTime() - jwt.getJWTClaimsSet().getIssueTime().getTime())
                 .isEqualTo(60_000L);
@@ -69,13 +69,13 @@ class InternalAccountAdministrationTest extends IntegrationTestSupport {
 
     @Test
     void yanlisBilinmeyenVeBosAnahtarAyniYanitiAlir() throws Exception {
-        String wrong = tokenRequest("admin", "yanlis-anahtar-yanlis-anahtar-yanlis-anahtar").andExpect(status().isUnauthorized())
+        String wrong = tokenRequest("admin-service", "yanlis-anahtar-yanlis-anahtar-yanlis-anahtar").andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("INVALID_CLIENT")).andReturn().getResponse().getContentAsString();
         String unknown = tokenRequest("nobody", ADMIN_CLIENT_SECRET).andExpect(status().isUnauthorized())
                 .andReturn().getResponse().getContentAsString();
 
         assertThat(unknown).isEqualTo(wrong);
-        tokenRequest("admin", "").andExpect(status().isBadRequest());
+        tokenRequest("admin-service", "").andExpect(status().isBadRequest());
         tokenRequest("Admin;DROP", ADMIN_CLIENT_SECRET).andExpect(status().isBadRequest());
     }
 
@@ -226,7 +226,7 @@ class InternalAccountAdministrationTest extends IntegrationTestSupport {
 
     /** Gerçek akış: token ucundan alınan servis token'ı. */
     private String serviceBearer() throws Exception {
-        String body = tokenRequest("admin", ADMIN_CLIENT_SECRET).andExpect(status().isOk()).andReturn()
+        String body = tokenRequest("admin-service", ADMIN_CLIENT_SECRET).andExpect(status().isOk()).andReturn()
                 .getResponse().getContentAsString();
         return "Bearer " + com.jayway.jsonpath.JsonPath.read(body, "$.accessToken");
     }
@@ -250,7 +250,7 @@ class InternalAccountAdministrationTest extends IntegrationTestSupport {
     private String craft(String type, String keyId, Consumer<JwtClaimsSet.Builder> customize) {
         Instant now = Instant.now();
         JwtClaimsSet.Builder builder = JwtClaimsSet.builder()
-                .issuer("ltz-auth").subject("svc:admin").audience(List.of("auth-service"))
+                .issuer("ltz-auth").subject("svc:admin-service").audience(List.of("auth-service"))
                 .issuedAt(now).notBefore(now).expiresAt(now.plusSeconds(60))
                 .id(UUID.randomUUID().toString()).claim("scope", ALL_SCOPES);
         customize.accept(builder);
