@@ -1,7 +1,46 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import {sensitiveFile, readHealth, checkBackendHealth} from './runtime-checks.mjs';
+import {sensitiveFile, readHealth, checkBackendHealth, backendTestEnvironment} from './runtime-checks.mjs';
+
+function databaseModel() {
+  return { services: {
+    postgres: { ports: [{ target: 5432, published: '5542', host_ip: '127.0.0.1' }],
+      environment: { POSTGRES_USER: 'fixture-user', POSTGRES_PASSWORD: 'fixture-db-pass' } },
+    'game-service': { environment: { DB_GAME_NAME: 'game_db', STEAM_WEB_API_KEY: 'do-not-copy' } }
+  } };
+}
+
+test('host Maven uses selected database credentials and published port without changing the Docker environment', () => {
+  const ambient = { POSTGRES_HOST: 'postgres', POSTGRES_PORT: '5432', POSTGRES_PASSWORD: 'other-profile', KEEP: 'value' };
+  const env = backendTestEnvironment(databaseModel(), ambient);
+  assert.equal(env.POSTGRES_HOST, '127.0.0.1');
+  assert.equal(env.POSTGRES_PORT, '5542');
+  assert.equal(env.POSTGRES_PASSWORD, 'fixture-db-pass');
+  assert.equal(env.DB_GAME_NAME, 'game_db');
+  assert.equal(env.STEAM_WEB_API_KEY, undefined);
+  assert.equal(env.KEEP, 'value');
+  assert.equal(ambient.POSTGRES_PORT, '5432');
+  assert.equal(ambient.POSTGRES_PASSWORD, 'other-profile');
+});
+
+test('host database resolution rejects external, missing or invalid published ports', () => {
+  for (const values of [{ host_ip: '0.0.0.0' }, { host_ip: '192.0.2.1' }, { published: '0' }, { published: '65536' }]) {
+    const model = databaseModel();
+    Object.assign(model.services.postgres.ports[0], values);
+    assert.throws(() => backendTestEnvironment(model), /127.0.0.1/);
+  }
+  assert.throws(() => backendTestEnvironment({ services: {} }), /127.0.0.1/);
+});
+
+test('missing credentials and inconsistent database names fail without exposing values', () => {
+  const model = databaseModel();
+  delete model.services.postgres.environment.POSTGRES_PASSWORD;
+  assert.throws(() => backendTestEnvironment(model), /missing PostgreSQL credentials/);
+  model.services.postgres.environment.POSTGRES_PASSWORD = 'fixture-db-pass';
+  model.services.other = { environment: { DB_GAME_NAME: 'conflicting' } };
+  assert.throws(() => backendTestEnvironment(model), /inconsistent database names/);
+});
 
 test('secret paths cover nested profiles, backups, keys and credentials but allow example templates', () => {
   for(const filename of ['.env','frontend/.env.local','nested/.env.prod','.env.bak','nested/key.pem','secret.key','user.p12','user.pfx','user.jks','user.keystore','.aws/credentials','foo/secrets/data','credentials.json','service-account.json']) assert.equal(sensitiveFile(filename),true,filename);

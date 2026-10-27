@@ -33,41 +33,44 @@ sonucu yalnızca backend test kapsamına aittir.
 
 - Git çalışma alanı ve staged whitespace kontrolü; takip edilen/staged ENV,
   anahtar ve bilinen gizli dosya yollarının kontrolü. Bu dosya adı kontrolüdür;
-  bütün kaynak içeriğinde veya Git geçmişinde secret taraması değildir.
+  bütün kaynak içeriğinde veya Git geçmişinde secret taraması değildir. Ek depo hijyeni (`pre-push/hygiene-checks.mjs`): izlenen dosyalarda özel anahtar başlığı ve uzun sır atamaları (değer yazdırılmaz), `.env` dosyalarının Git ve `.dockerignore` tarafından yok sayılması, Compose portlarının 127.0.0.1'e bağlı olması, anahtar üretici script güvenlik testi ve (kuruluysa) gitleaks ile tüm geçmiş taraması.
 - Tüm backend için Maven `clean verify`, test raporları ve ağırlıklı toplam
-  satır coverage en az %80.
+  satır coverage en az %80. Full mod host Maven testleri için seçilen Compose
+  profilinin çözümlenmiş PostgreSQL/DB ayarlarını yalnız test alt sürecine aktarır;
+  host adresi 127.0.0.1 ve yayınlanmış loopback portudur. Compose çözümü bozuksa
+  Maven çalıştırılmaz. Backend-only mod seçilen profilin mevcut DB anahtarlarını
+  yükler, terminal DB değerleri önceliklidir; profil eksikse görünür uyarı verir.
+  Parola loga yazılmaz. Genel host `DEBUG` bayrağı Maven test JVM'lerine taşınmaz;
+  testin açık Spring logging/property ayarları korunur. Gerçek ENV dosyası ve
+  çalışan servislerin log seviyesi değiştirilmez.
 - Seçilen `.env.dev` veya `.env.prod` ile `docker-compose.yml` doğrulaması.
   Docker Compose gerekir; yapılandırma kontrolü container başlatmaz.
 - Compose içinde tanımlı backend servisleri varsa seçilen Compose projesinde
   çalıştıkları ve `/actuator/health` yanıtlarının HTTP 200 / `UP` olduğu kontrolü.
 
-Mevcut Compose yalnızca PostgreSQL içerir; bu nedenle backend HTTP satırı
-`SKIPPED` olur ve nedeni yazdırılır. Frontend henüz yoktur: ESLint, TypeScript,
-frontend test/build, Playwright ve npm audit uygulanmaz. Uygulama servisleri
-Compose'a eklendikçe HTTP kontrolü bu servisler için zorunlu hale gelir.
+Mevcut Compose PostgreSQL ve 18 backend modülünü içerir. `full dev` öncesinde
+geliştirme servislerini başlatın:
+
+```powershell
+docker compose --env-file .env.dev up -d --build
+.\pre-push\pre-push.cmd full dev
+```
+
+PostgreSQL çalışmıyorsa iskelet servislerin context testleri DB bağlantısında;
+backend servisleri çalışmıyorsa HTTP health kontrolü başarısız olur.
+`full` testleri başlatmadan önce seçilen Compose profilinden yalnız DB kimlik
+bilgilerini ve DB adlarını alır. Host üzerindeki Maven için bağlantı adresini
+`127.0.0.1` ve PostgreSQL'in yayımlanan host portuna çevirir. Bu değerler yalnız
+Maven alt sürecine verilir; Docker'ın container içi adres/port ayarları ve ENV
+dosyaları değiştirilmez. DB parolası test çıktısında maskelenir. PostgreSQL
+portunun yalnız `127.0.0.1` üzerinde yayımlanması zorunludur.
+
+Bu kalite kapısında frontend kontrolleri ve SonarQube ayrı kapsamda tutulur.
 
 `SAFE TO COMMIT` yalnızca tabloda gösterilen uygulanabilir kontrollerin geçtiğini
 belirtir. Uygulamanın çalıştığını veya production hazırlığını garanti etmez.
 Başarısız/eksik test, coverage veya Docker kontrolü `NOT SAFE TO COMMIT` ve
 çıkış kodu 1 üretir. SonarQube bağımsızdır: [SonarQube rehberi](../sonarqube/sonarqube.md).
-
-### Geçici test veritabanı
-
-Servislerin `contextLoads` ve repository testleri PostgreSQL'e bağlanır; ortamda şifre yoksa
-`password authentication failed for user "ltz_dev"` ile düşerdi. Bu yüzden `backend`, servis adı ve
-`full` modları Maven'den önce **geçici bir PostgreSQL 17 container'ı** başlatır
-(`pre-push/test-database.mjs`):
-
-- `postgres/init/01-create-databases.sql` salt-okunur bağlanır; 17 veritabanı hazır gelir.
-- Şifre her çalışmada rastgele üretilir; komut satırında ve logda görünmez. Port yalnız
-  `127.0.0.1`'de ve rastgele yayınlanır.
-- Maven'e `POSTGRES_HOST/PORT/USER/PASSWORD` verilir; servislerin `application.properties`
-  varsayılanları bunlarla geçici veritabanına bağlanır. `.env*` dosyaları okunmaz, dev veritabanına
-  (`localhost:5542`) dokunulmaz.
-- Test bitince (hata olsa da) container silinir; yarıda kalan `ltz-prepush-pg-*` container'ları bir
-  sonraki çalışmada temizlenir.
-- Ortamda `POSTGRES_PASSWORD` zaten tanımlıysa veya `LTZ_TEST_DB=off` ise geçici veritabanı
-  başlatılmaz. Docker kapalıysa uyarı yazılır ve testler eskisi gibi çalışır.
 
 `full` için ENV profili gerekir; [ENV rehberine](../ops/ops.md) bakın.
 Backend-only komutları profili değiştirmez veya profil dosyasını uygulamaya
@@ -82,7 +85,7 @@ sonra bu kilit dosyasını elle kaldırabilirsiniz.
 Script regresyon testleri:
 
 ```powershell
-node --test pre-push/menu.test.mjs pre-push/quality.test.mjs pre-push/runtime-checks.test.mjs sonarqube/sonar.test.mjs ops/env.test.mjs
+node --test pre-push/menu.test.mjs pre-push/quality.test.mjs pre-push/runtime-checks.test.mjs sonarqube/sonar.test.mjs ops/env.test.mjs ops/generate-auth-dev-keys.test.mjs pre-push/hygiene-checks.test.mjs pre-push/backend-env.test.mjs
 ```
 
 Bu testler komut yönlendirmesini, hata durumlarını ve rapor kabul kurallarını

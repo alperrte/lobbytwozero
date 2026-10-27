@@ -1,9 +1,5 @@
 # LTZ (LobbyTwoZero) — ER Diyagramları
 
-> Tarih: 2026-10-20
->
-> Durum: **`[ÖNERİ]`** — [database.md](database.md) içindeki tablo önerilerinin görselidir. Henüz migration yoktur. Bir servisin şeması değiştiğinde ilgili diyagram aynı değişiklikte güncellenir.
->
 > Gösterim:
 > - Düz çizgi / `FK`: aynı veritabanı içindeki gerçek yabancı anahtar.
 > - Kesikli çizgi / `REF`: servisler arası **mantıksal** referans (yalnız `uuid`, FK constraint yok).
@@ -243,93 +239,262 @@ erDiagram
 
 ## 5. game_db
 
+2026-10-24 kaynak yükseltmesi V171, hesap silme için aşağıdaki teknik bağlamı ekler.
+account_id Auth kimliğine REF'tir; başka servis DB'sine FK yoktur. Satır yalnız
+silme transaction'ında yaşar, başarıda silinir; hata olursa transaction ile geri alınır.
+Audit tablolarının ilişkileri korunur. DEV'e bu çalışma kapsamında uygulanmadı.
+
 ```mermaid
 erDiagram
-  games ||--o{ game_external_refs : "mapped by"
-  games ||--o{ game_genres : has
-  genres ||--o{ game_genres : classifies
-  games ||--o{ game_tags : has
-  tags ||--o{ game_tags : labels
-  games ||--o{ game_platforms : "runs on"
-  platforms ||--o{ game_platforms : hosts
+  game_account_erasure_context {
+    uuid id PK
+    bigint transaction_id UK
+    uuid account_id "Auth REF; nil olamaz"
+    timestamptz created_at
+    bigint version
+  }
+```
+
+Faz 6 eklentisi: başarım ve geri bildirim tabloları (tarihsel V172–V173; güncel aktif zincirde V39–V40, DEV'de uygulanmıştır):
+
+```mermaid
+erDiagram
+  games ||--o{ game_achievement_definitions : definitions
+  games ||--o{ game_developer_feedback : private_feedback
+  game_achievement_definitions {
+    uuid id PK
+    uuid game_id FK
+    varchar code "unique with game_id"
+    varchar title
+    varchar description "nullable"
+    boolean visible
+    bigint version
+    timestamptz created_at
+    timestamptz updated_at
+  }
+  game_developer_feedback {
+    uuid id PK
+    uuid game_id FK "ON DELETE RESTRICT"
+    uuid author_id "REF auth user"
+    varchar type "GENERAL|BUG_REPORT|EARLY_ACCESS"
+    varchar status "OPEN|IN_PROGRESS|RESOLVED"
+    varchar title
+    varchar body "private plain text"
+    bigint version
+    timestamptz created_at
+    timestamptz updated_at
+  }
+```
+
+GAME-23 yerelleştirme ilişkileri (oyun alanları aktif V31,
+destek/provenance tabloları aktif V38 / tarihsel V171; `game_languages` ilişkisi aynen korunur):
+
+```mermaid
+erDiagram
+  games ||--o{ game_language_supports : language_details
+  games ||--o{ game_metadata_provenance : field_sources
+  games {
+    uuid id PK
+    varchar metadata_language "nullable"
+    varchar language_data_state "UNKNOWN|EMPTY|INVALID|AVAILABLE"
+  }
+  game_language_supports {
+    uuid game_id PK,FK
+    varchar language_code PK
+    varchar interface_support "UNKNOWN|SUPPORTED|UNSUPPORTED"
+    varchar audio_support "UNKNOWN|SUPPORTED|UNSUPPORTED"
+    varchar subtitle_support "UNKNOWN|SUPPORTED|UNSUPPORTED"
+  }
+  game_metadata_provenance {
+    uuid game_id PK,FK
+    varchar field PK
+    varchar source
+    varchar data_state
+    timestamptz recorded_at
+    timestamptz verified_at "nullable"
+  }
+```
+
+Ana Game Service şeması; henüz uygulanmayan fiyat bilgileri dahil edilmemiştir.
+2026-10-21 tarihli son açık talimatla başlangıç kaynakları kesintisiz V31–V40 olarak
+10 dosyada yeniden numaralandırıldı. V35 admin yönetimi, V36 grant, V37 geliştirici
+içeriği, V38 yerelleştirme/provenance, V39 başarım, V40 feedback'tir. İlişkiler ve
+fiziksel şema aynı kalır. 2026-10-21 tarihinde `ltz-dev` Compose ortamı `down -v` ile
+sıfırlanıp yeniden kuruldu; DEV `game_db` artık yeni V31–V40 zinciriyle (10 kayıt)
+temiz oluşturuldu. Eski 13 dosyalı DEV geçmişi geri yüklenmedi.
+Popülerlik bu aşamada editör seçimidir.
+[Dosya haritası ve doğrulama raporu](../docs-Game%20Service/LTZ-HAM-GAME-Migration-Yeniden-Yapilandirma.md).
+
+```mermaid
+erDiagram
+  games ||--o{ game_external_refs : references
+  game_external_refs ||--o{ game_identity_audits : audited_by
+  games ||--o{ game_identity_audits : identity_history
+  games ||--o{ game_terms : has
+  catalog_terms ||--o{ game_terms : classifies
+  games ||--o{ game_developers : developed_by
+  games ||--o{ game_publishers : published_by
   games ||--o{ game_media : shows
   games ||--o{ game_system_requirements : requires
-  games ||--o| game_popularity : ranks
-  games ||--o{ game_prices : priced
-  games ||--o{ game_developer_posts : announces
-
+  games ||--o{ game_languages : supports
+  games ||--o{ game_field_overrides : locks
+  games ||--o{ game_admin_audits : audited_by
+  games ||--o{ game_developer_grants : grants
+  games ||--o| game_developer_contents : describes
+  games ||--o{ game_developer_media : links
+  games ||--o{ game_update_notes : announces
   games {
-    uuid id PK "kanonik gameId"
-    varchar slug UK
+    uuid id PK
     varchar title
-    varchar origin "INTERNAL|EXTERNAL"
-    varchar metadata_completeness "INDEX_ONLY|PARTIAL|FULL"
+    varchar game_type
+    varchar origin
+    varchar metadata_completeness
     varchar status
-    uuid merged_into_id FK
+    varchar normalized_title
+    varchar description
+    date release_date
+    boolean early_access
+    int editor_rank UK
+    timestamptz popularity_updated_at
+    uuid editor_actor_id "REF"
+    varchar editor_evidence
+    timestamptz details_fetched_at
+    timestamptz details_expires_at
+    timestamptz details_next_attempt_at
+    int details_failure_count
+    varchar details_last_error_code
+    timestamptz created_at
+    timestamptz updated_at
     bigint version
+  }
+  game_languages {
+    uuid game_id PK,FK
+    varchar language_code PK
   }
   game_external_refs {
     uuid id PK
     uuid game_id FK
-    varchar provider "UK(provider, external_id)"
+    varchar provider "UK(provider,external_id)"
     varchar external_id
+    timestamptz last_synced_at
+    bigint version
   }
-  genres {
+  game_identity_audits {
     uuid id PK
-    varchar code UK
+    uuid reference_id FK
+    uuid from_game_id FK
+    uuid to_game_id FK
+    uuid actor_id "REF"
+    varchar action
+    varchar evidence
+    timestamptz created_at
   }
-  tags {
+  game_provider_sync_state {
     uuid id PK
-    varchar code UK
+    varchar provider UK
+    bigint cursor
+    varchar run_mode
+    varchar sync_status
+    timestamptz query_since
+    timestamptz last_successful_at
+    bigint processed_count
+    int failure_count
+    timestamptz next_attempt_at
+    bigint version
   }
-  platforms {
+  catalog_terms {
     uuid id PK
-    varchar code UK
+    varchar kind "GENRE|CATEGORY|TAG|PLATFORM"
+    varchar code "UK(kind,code)"
+    varchar name_tr
+    varchar name_en
+    bigint version
   }
-  game_genres {
+  game_terms {
     uuid game_id PK,FK
-    uuid genre_id PK,FK
+    uuid term_id PK,FK
   }
-  game_tags {
+  game_developers {
     uuid game_id PK,FK
-    uuid tag_id PK,FK
+    varchar name PK
   }
-  game_platforms {
+  game_publishers {
     uuid game_id PK,FK
-    uuid platform_id PK,FK
+    varchar name PK
   }
   game_media {
     uuid id PK
     uuid game_id FK
     varchar type
     varchar url
+    bigint version
   }
   game_system_requirements {
     uuid id PK
     uuid game_id FK
-    varchar level "MINIMUM|RECOMMENDED"
+    varchar platform
+    varchar level
     int ram_mb
+    bigint version
   }
-  game_popularity {
-    uuid game_id PK,FK
-    numeric score
-    numeric avg_rating
-  }
-  game_prices {
+  game_field_overrides {
     uuid id PK
-    uuid game_id FK
-    numeric price
-    char currency
+    uuid game_id FK "UK(game_id,field)"
+    varchar field "TITLE|DESCRIPTION|RELEASE_DATE|GAME_TYPE|DEVELOPERS|PUBLISHERS|LOCALIZATION"
+    uuid actor_id "REF"
+    timestamptz created_at
+    bigint version
   }
-  game_developer_posts {
+  game_admin_audits {
+    uuid id PK
+    uuid game_id FK "nullable"
+    uuid actor_id "REF"
+    varchar actor_role "ADMIN|MODERATOR|GAME_DEVELOPER"
+    varchar action
+    varchar reason
+    varchar details
+    timestamptz created_at
+  }
+  game_developer_grants {
+    uuid id PK
+    uuid game_id FK "partial UK(game_id,developer_user_id) where revoked_at is null"
+    uuid developer_user_id "REF"
+    uuid granted_by "REF"
+    timestamptz granted_at
+    uuid revoked_by "REF"
+    timestamptz revoked_at
+    bigint version
+  }
+  game_developer_contents {
+    uuid game_id PK,FK
+    varchar description
+    uuid author_id "REF"
+    varchar status "VISIBLE|HIDDEN"
+    uuid moderated_by "REF"
+    varchar moderation_reason
+    timestamptz moderated_at
+    bigint version
+  }
+  game_developer_media {
     uuid id PK
     uuid game_id FK
     uuid author_id "REF"
+    varchar type "IMAGE|VIDEO|DEMO"
+    varchar url "https"
+    varchar alt_text
+    varchar status "VISIBLE|HIDDEN|DELETED"
+    uuid moderated_by "REF"
+    bigint version
   }
-  game_provider_sync_state {
+  game_update_notes {
     uuid id PK
-    varchar provider
-    varchar sync_status
+    uuid game_id FK
+    uuid author_id "REF"
+    varchar title
+    varchar body
+    varchar status "VISIBLE|HIDDEN|DELETED"
+    uuid moderated_by "REF"
+    bigint version
   }
 ```
 
@@ -399,25 +564,32 @@ erDiagram
     uuid sender_id "REF"
     uuid receiver_id "REF"
     varchar status "PENDING|ACCEPTED|REJECTED|CANCELLED"
+    timestamptz created_at
+    timestamptz responded_at
+    bigint version
   }
   friendships {
     uuid user_low_id PK "REF"
     uuid user_high_id PK "REF"
+    timestamptz created_at
   }
   user_blocks {
     uuid blocker_id PK "REF"
     uuid blocked_id PK "REF"
+    timestamptz created_at
   }
   friend_invite_codes {
     uuid id PK
-    uuid user_id "REF"
+    uuid user_id "REF, UK(user_id) WHERE revoked_at IS NULL"
     varchar code UK
+    timestamptz created_at
     timestamptz expires_at
+    int max_uses
+    int used_count
+    timestamptz revoked_at
+    bigint version
   }
-  social_privacy_settings {
-    uuid user_id PK "REF"
-    varchar who_can_send_requests
-  }
+  %% social_privacy_settings oluşturulmadı: arkadaş listesi görünürlüğü user-service'te tutulur (SOC-12).
 ```
 
 ## 9. messaging_db
@@ -681,6 +853,200 @@ erDiagram
 ```
 
 ## 14. hardware_db
+
+**2026-10-24 Auth/D4 eklemesi:** V1–V7 korunur, V8 ile 17. tablo eklenir.
+Bu teknik fence'in profil/hesap UUID FK'si yoktur; SHA-256 özeti ve expiry dışında
+kişisel veri tutmaz. Kullanıcı yazması ve temizleme hesap bazlı transaction kilidi paylaşır.
+
+```mermaid
+erDiagram
+  hardware_account_erasure_fences {
+    varchar account_hash PK "SHA-256; pseudonymous, anonim değil"
+    timestamptz expires_at "17 dakika etkin; periyodik purge"
+  }
+```
+
+Audit trigger'ları normal UPDATE/DELETE/TRUNCATE'i reddeder; V8 yalnız onaylı hesap
+temizliğinde actor veya o hesaba ait review hedefiyle bağlı satırları kalıcı kaldırır.
+Tüm profil alt tabloları CASCADE ile, rapor/outbox/review/audit/kişisel bucket'lar
+paket başına aynı transaction'da temizlenir. Paket commit'inden sonra 503 retry,
+tüm hesap temizlenince 204 verilir. Global katalog ve ilgisiz kullanıcılar korunur.
+[Politika ve mutabakat](../docs-hardware/integration/auth/auth-integration-02.md).
+Devamındaki 16 tablo / 7 migration açıklaması 2026-10-21 başlangıç tarihçesidir.
+
+**Güncel geliştirme envanteri (2026-10-21):** Kullanıcı onayıyla aynı 16 tablo,
+7 ilişkili başlangıç migration'ında oluşturulur: V1 profil/gizlilik, V2 katalog,
+V3 bileşenler, V4 kampanyalar, V5 yorum/audit/limitler, V6 rapor/outbox, V7 sync.
+Son alanlar ve named constraint'ler doğrudan CREATE TABLE içindedir; ALTER yoktur.
+Tablo ilişkileri, CASCADE/SET NULL, partial unique ve audit korumaları değişmedi;
+eski/yeni pg_catalog karşılaştırması PASS. Eski history ile yerinde yükseltme yoktur.
+[Güncel dosya envanteri](../docs-hardware/progress/hardware-migration-cleanup.md).
+Aşağıdaki V1–V10 adımları ve test sayıları **önceki teslim tarihçesidir**;
+ilişkiler geçerlidir, aktif dosya numaraları yukarıdaki yeni gruplamadır.
+
+LTZ-ALP-HW-01 / 2026-10-21: V1 SQL/constraint kontrolü izole PostgreSQL 17'de PASS;
+V1/V2 Flyway/JPA testleri PASS; canlı DB'ye uygulanmadı.
+Uygulanan şema tanımı aşağıdadır; devamındaki geniş diyagram gelecek görevlerin önerisidir.
+
+```mermaid
+erDiagram
+  hardware_profiles {
+    uuid id PK
+    uuid user_id "Dış REF; FK yok"
+    varchar name "1..100"
+    varchar device_type "DESKTOP|LAPTOP|OTHER"
+    varchar source "MANUAL"
+    bigint version
+    timestamptz created_at
+    timestamptz updated_at
+  }
+```
+
+HW-02 V2 eklendi (PostgreSQL 17/Flyway/JPA testleri PASS):
+
+```mermaid
+erDiagram
+  hardware_profiles ||--o{ hardware_profile_components : "CASCADE"
+  hardware_products ||--o{ hardware_profile_components : "optional product/category FK"
+  hardware_products ||--o{ hardware_product_brands : supports
+  hardware_brands ||--o{ hardware_product_brands : supports
+  hardware_product_brands |o--o{ hardware_profile_components : "optional product/brand FK"
+```
+
+HW-10 / V3 (PostgreSQL/Flyway/JPA PASS): ürün ve marka status alanları
+ACTIVE/ARCHIVED; fiziksel silme yapılmaz. Aynı ürün/marka FK'leri korunur.
+`hardware_catalog_audit` actor_id (dış REF), target_id, action, reason ve UTC zaman
+tutar; iş mutasyonuyla atomik ve append-only'dir. Teknik audit tablosu yukarıdaki
+genel gösterim kuralı gereği diyagrama eklenmez. V1/V2 değiştirilmedi.
+
+HW-11/V4 teknik filtre indeksleri PostgreSQL/Flyway/JPA testlerinden geçti.
+HW-14/V5 kampanya şeması (PostgreSQL/Flyway/JPA PASS; modül 134 test):
+
+```mermaid
+erDiagram
+  hardware_products ||--o{ hardware_campaigns : promotes
+  hardware_campaigns {
+    uuid id PK
+    uuid product_id FK
+    varchar title
+    varchar source_name
+    varchar source_url
+    numeric original_price
+    numeric sale_price
+    char currency
+    timestamptz starts_at
+    timestamptz ends_at
+    timestamptz observed_at
+    varchar status "ACTIVE|ARCHIVED"
+    bigint version
+  }
+```
+
+Kampanyanın fiyat ve kaynağı kayıtlı beyan; otomatik fiyat doğrulaması yok.
+Arşivleme referansları korur; normal okumada ürün/kampanya ACTIVE ve geçerli pencere aranır.
+
+HW-08/V6 gizlilik şeması (izole PostgreSQL/Flyway/JPA PASS):
+
+```mermaid
+erDiagram
+  hardware_profiles ||--o{ hardware_profile_field_visibility : "CASCADE aggregate rules"
+  hardware_profiles ||--o{ hardware_profile_category_visibility : "CASCADE aggregate rules"
+  hardware_profiles {
+    uuid id PK
+    varchar visibility "PRIVATE default; FRIENDS|PUBLIC"
+    bigint version "shared aggregate version"
+  }
+  hardware_profile_field_visibility {
+    uuid profile_id PK,FK
+    varchar field_name PK "six allowed fields"
+    varchar visibility "PRIVATE|FRIENDS|PUBLIC"
+  }
+  hardware_profile_category_visibility {
+    uuid profile_id PK,FK
+    varchar category PK "12 categories"
+    varchar visibility "PRIVATE|FRIENDS|PUBLIC"
+  }
+```
+
+Eksik kural PRIVATE. User/Social sahipli dış tercih/ilişki verisi burada tutulmaz.
+HW-09/HW-17 mevcut profil/component tablolarından sınırlı DTO üretir; yeni tablo yok.
+
+HW-12/V8 yorum şeması (206 test / PostgreSQL/Flyway/JPA PASS):
+
+```mermaid
+erDiagram
+  hardware_products ||--o{ hardware_reviews : "catalog target FK"
+  hardware_reviews {
+    uuid id PK
+    uuid product_id FK
+    uuid user_id "external REF"
+    varchar body "1..5000 or deleted NULL"
+    int rating "optional 1..5"
+    varchar body_hash "normalized copy fingerprint"
+    varchar status "VISIBLE|HIDDEN|DELETED"
+    bigint version
+    timestamptz created_at
+    timestamptz updated_at
+    timestamptz deleted_at
+  }
+```
+
+Silinmemiş ürün/yazar ve yazar/body_hash partial tekillikleri vardır. Teknik audit
+append-only, actor/socket-peer rate bucket'ları kısa TTL'lidir; diyagramda gösterilmez.
+HW-13/V9 rapor şeması (239 test / PostgreSQL/Flyway/JPA PASS):
+
+```mermaid
+erDiagram
+  hardware_reviews ||--o{ hardware_review_reports : "report target FK"
+  hardware_review_reports {
+    uuid id PK
+    uuid review_id FK
+    uuid reporter_id "external REF"
+    varchar reason "six allowed reasons"
+    varchar details "optional 1..500"
+    uuid outbox_event_id "nullable FK; ON DELETE SET NULL"
+    bigint version
+    timestamptz created_at
+  }
+```
+
+Review/reporter tekildir; audit ve outbox teknik tabloları genel kural gereği çizilmez.
+Outbox sadece PENDING yerel kayıt üretir; gerçek Admin/Notification teslimi ertelenmiştir.
+
+HW-07/V10 sync şeması (V1–V10 PostgreSQL/Flyway/JPA PASS; canlı DB'ye uygulanmadı):
+
+```mermaid
+erDiagram
+  hardware_profiles ||--o| hardware_sync_consents : "CASCADE; one current consent"
+  hardware_profiles ||--o{ hardware_profile_components : "CASCADE"
+  hardware_sync_consents {
+    uuid id PK
+    uuid profile_id FK,UK
+    uuid device_id "external REF"
+    uuid generation
+    varchar status "GRANTED|REVOKED"
+    timestamptz granted_at
+    timestamptz revoked_at
+    bigint last_sequence
+    timestamptz last_captured_at
+    timestamptz last_synced_at
+    bigint version
+  }
+  hardware_profile_components {
+    uuid sync_component_key "nullable; unique with profile"
+    varchar source "MANUAL|null key; DESKTOP_SYNC|required key"
+  }
+```
+
+Profil source=MANUAL kökeni korunur. Teknik hardware_sync_receipts diyagramda
+gösterilmez: profile CASCADE FK, key ve generation/sequence tekillikleri,
+24 saat TTL ve profil başına 500 canlı kayıt sınırı vardır. Dış cihaz credential/
+hesap tablosu veya cross-DB FK eklenmedi. Gerçek cihaz policy üretimde deny.
+
+**Eski geniş tasarım önerisi (uygulanmış şemayı temsil etmez):**
+Aşağıdaki eski diyagram yerine gerçek kapsam için yukarıdaki uygulanmış ilişkiler
+ve güncel V1–V7 envanteri esas alınır; provider tabloları uygulanmadı.
+Ürün/marka ilişkisi güncel V2 içinde ayrıdır.
 
 ```mermaid
 erDiagram

@@ -1,0 +1,33 @@
+package com.ltz.auth.infrastructure.security;
+
+/** Access token sözleşmesindeki özel claim'ler (diğer servisler de aynı adları kullanır). */
+public final class TokenClaims {
+
+    /** RFC 9068: OAuth 2.0 access token JWT türü; kimlik token'ı vb. ile karıştırılmayı engeller. */
+    public static final String ACCESS_TOKEN_TYPE = "at+jwt";
+    /** Oturum (refresh ailesi) kimliği. */
+    public static final String SESSION_ID = "sid";
+    /** Hesabın token sürümü; tüm oturumlardan çıkışta artar. */
+    public static final String TOKEN_VERSION = "ver";
+    public static final String ROLES = "roles";
+    /** Kimlik doğrulama yöntemleri (RFC 8176). */
+    public static final String AUTH_METHODS = "amr";
+
+    /** D4 servis token'ı türü; kullanıcı token'ı ({@link #ACCESS_TOKEN_TYPE}) yerine geçemez, tersi de geçemez. */
+    public static final String SERVICE_TOKEN_TYPE = "svc+jwt";
+    /** Servis token'ında {@code sub} öneki: {@code svc:<çağıran servis>}. */
+    public static final String SERVICE_SUBJECT_PREFIX = "svc:";
+    /** Auth'un servis kimliği; hesap verisi silme yetkisi yalnız bu kimliktedir. */
+    public static final String AUTH_SERVICE_SUBJECT = SERVICE_SUBJECT_PREFIX + "auth-service";
+    /** RFC 8693 kapsam claim'i (boşlukla ayrılmış). */
+    public static final String SCOPE = "scope";
+    /** Hesap verisi silme kapsamı. */
+    public static final String ACCOUNT_ERASE_SCOPE = "account:erase";
+    /** Servis token'ının bağlı olduğu tek hesap; hedef servis bunu istek yolundaki hesap kimliğiyle karşılaştırır. */
+    public static final String ACCOUNT_ID = "account_id";
+    /** Servis adı → servis token'ı {@code aud} değeri: {@code <servis>-service} (Compose ve modül adıyla aynı). */
+    public static final String SERVICE_AUDIENCE_SUFFIX = "-service";
+
+    private TokenClaims() {
+    }
+}

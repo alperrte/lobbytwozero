@@ -1,6 +1,36 @@
 import http from 'node:http';
 import { setTimeout as delay } from 'node:timers/promises';
 
+// Maven runs on the host; Compose services use the container network and port.
+// Only database settings are copied, never arbitrary service secrets.
+export function backendTestEnvironment(model, ambient = {}) {
+  const postgres = model?.services?.postgres;
+  const port = postgres?.ports?.find(item => Number(item.target) === 5432);
+  if (!port || !/^\d+$/.test(String(port.published)) || Number(port.published) < 1
+      || Number(port.published) > 65535 || port.host_ip !== '127.0.0.1') {
+    throw new Error('Backend tests require a PostgreSQL port published on 127.0.0.1.');
+  }
+  const username = postgres.environment?.POSTGRES_USER;
+  const password = postgres.environment?.POSTGRES_PASSWORD;
+  if (typeof username !== 'string' || !username || typeof password !== 'string' || !password) {
+    throw new Error('Selected Compose profile is missing PostgreSQL credentials.');
+  }
+  const env = { ...ambient, POSTGRES_HOST: '127.0.0.1', POSTGRES_PORT: String(port.published),
+    POSTGRES_USER: username, POSTGRES_PASSWORD: password };
+  const databases = new Map();
+  for (const service of Object.values(model.services)) {
+    for (const [name, value] of Object.entries(service.environment ?? {})) {
+      if (!/^DB_[A-Z_]+_NAME$/.test(name)) continue;
+      if (typeof value !== 'string' || !value || (databases.has(name) && databases.get(name) !== value)) {
+        throw new Error('Selected Compose profile has inconsistent database names.');
+      }
+      databases.set(name, value);
+      env[name] = value;
+    }
+  }
+  return env;
+}
+
 // Check committed/staged filenames without reading or printing secret values.
 export function sensitiveFile(filename) {
   const normalized = filename.replaceAll('\\', '/');

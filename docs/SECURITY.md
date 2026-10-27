@@ -11,7 +11,7 @@
 ## 0. Gerçek durum, kapsam ve temel ilkeler
 
 - LTZ; oyun kataloğu, kişisel kütüphane, inceleme/puan, arkadaşlık, mesajlaşma, oyun arkadaşı ilanı (LFP), topluluk gönderileri, haber/içerik, etkinlik, donanım profili, öneri, performans raporu, bildirim ve yönetim akışlarına sahip bir **oyuncu topluluğu platformudur**. Ana güvenlik sınırı **kullanıcı/kaynak sahipliği** ve **rol** (RBAC) bağlamıdır.
-- `[MEVCUT]` altyapı: 17 iş servisi + API Gateway, tek PostgreSQL 17 instance'ında servis başına ayrı veritabanı, Flyway, Docker Compose, RestClient timeout yapılandırması ve `contextLoads` testleri. Gateway route'ları tanımlıdır; **Gateway veya servislerde henüz security/CORS filtresi, JWT doğrulaması, RBAC veya iş endpoint'i yoktur** (NOT IMPLEMENTED).
+- `[MEVCUT]` altyapı: 17 iş servisi + API Gateway, tek PostgreSQL 17 instance'ında servis başına ayrı veritabanı, Flyway, Docker Compose, RestClient timeout yapılandırması ve `contextLoads` testleri. Gateway route'ları tanımlıdır; **Gateway'de** CORS allowlist, çerez→`Authorization: Bearer` çevirisi (çerezle gelen durum değiştiren isteklerde CSRF + Origin doğrulaması), kimlik/forwarded başlık temizliği ve Auth uçları için IP başına hız sınırı **uygulanmıştır** (`com.ltz.gateway.security`, ayrıntı: `docs/AUTH_SERVICE_ENTEGRASYON_REHBERI.md` §6); **iş servislerinde henüz JWT doğrulaması, RBAC veya iş endpoint'i yoktur** (NOT IMPLEMENTED).
 - **Deny by default, least privilege, defense in depth, fail closed, secure by design.** Frontend'in gizlediği hiçbir şey yetki kontrolü sayılmaz.
 - Gereksinim dokümanındaki (docx) eski teknoloji ifadeleri (MSSQL, React+Vite, Java 21) geçersizdir; **repo kodu ve `docs/servis-gereksinimleri/` önceliklidir.**
 - Kimlik doğrulama yöntemi, servisler arası güven modeli, gerçek zamanlı mesajlaşma taşıma katmanı (WebSocket/SSE) ve dosya depolama için nihai karar verilmeden uygulama önce tasarlanıp onaylanır. Geçici `permitAll` ile bir işlev "bitmiş" sayılmaz.
@@ -23,7 +23,7 @@
 - Root `.env`, `.env.dev`, `.env.prod`, `*.bak` gibi gerçek ortam dosyaları **Git dışında** kalır (`.gitignore`: `.env`, `.env.*`, `!.env.example`). Repoya yalnız gerçek sır içermeyen `.env.example` konur. Ajanlar gerçek `.env*` dosyalarını **okumaz, kopyalamaz, sohbete/rapora aktarmaz**.
 - Ortam değiştirme `ops/env.(cmd|ps1|sh) use dev|prod` ile yapılır; script `.env.<profil>` dosyasını `.env`'e kopyalar. Ajan bu komutu kullanıcı istemeden çalıştırmaz.
 - `NEXT_PUBLIC_` değişkenleri herkese açıktır (`NEXT_PUBLIC_API_BASE_URL`); gizli değer içeremez.
-- Yeni ENV anahtarı ekleme, silme, yeniden adlandırma, anlamını değiştirme veya `.env*` sözleşmesini düzenleme **öncesinde açık onay** istenir. Onaydan sonra `.env.example`, `docker-compose.yml` aktarımı ve ilgili belgeler tutarlı güncellenir. Örnek: `JWT_ISSUER` ve TTL anahtarları vardır, **imzalama anahtarı anahtarı henüz tanımlı değildir**; eklenmesi onay gerektirir.
+- Yeni ENV anahtarı ekleme, silme, yeniden adlandırma, anlamını değiştirme veya `.env*` sözleşmesini düzenleme **öncesinde açık onay** istenir. Onaydan sonra `.env.example`, `docker-compose.yml` aktarımı ve ilgili belgeler tutarlı güncellenir. Örnek: `JWT_ISSUER` ve TTL anahtarları vardır, imzalama anahtarı için `AUTH_JWT_PRIVATE_KEY` (Base64 PKCS#8 RSA ≥3072 bit, yalnız Auth) tanımlıdır; yeni anahtarlar yine onay gerektirir.
 - Production'da kritik ENV eksik, boş veya güvensizse uygulama **fail fast** eder. DEV kolaylıkları (`SWAGGER_ENABLED=true`, gevşek CORS, `devtools`) production'a sızmaz.
 - SonarQube isteğe bağlıdır; geliştirici kendi sunucusunu ve `SONAR_TOKEN` değerini yerel ayarlar. Pre-push SonarQube çağırmaz, token istemez.
 
@@ -41,7 +41,7 @@
 
 ## 3. Kimlik doğrulama, token ve oturum (auth-service)
 
-- Auth sözleşmesi uygulanana kadar hiçbir endpoint'in kimlik doğruladığı varsayılmaz. `[MEVCUT]` ENV: `JWT_ISSUER=ltz-auth`, `JWT_ACCESS_TTL_SECONDS=900`, `JWT_REFRESH_TTL_SECONDS=604800`.
+- Auth sözleşmesi uygulanana kadar hiçbir endpoint'in kimlik doğruladığı varsayılmaz. `[MEVCUT]` ENV: `JWT_ISSUER=ltz-auth`, `JWT_ACCESS_TTL_SECONDS=300` (Auth'ta izin verilen aralık 1–15 dk), `JWT_REFRESH_TTL_SECONDS=604800`, `JWT_AUDIENCE=ltz-api` (varsayılan; Compose'a aktarılır). Auth Service uygulanmıştır (JWT RS256 + JWKS, cookie oturumu, CSRF); diğer servislerin doğrulaması, Gateway cookie→Bearer çevirisi ve servis kimliği henüz yoktur. Servis sahipleri için uygulama rehberi: [`docs/AUTH_SERVICE_ENTEGRASYON_REHBERI.md`](AUTH_SERVICE_ENTEGRASYON_REHBERI.md).
 - `[HEDEF]` Frontend `apiRequest` `credentials: "include"` ile çalışır; bu nedenle tarayıcı oturumu **HttpOnly cookie** ile taşınır. Token'lar `localStorage`, `sessionStorage`, IndexedDB veya JS erişilebilir store içine yazılmaz. Cookie: `HttpOnly`, production'da `Secure`, uygun `SameSite`, dar path/domain ve expiry.
 - Cookie ile kimlik doğrulamada state-changing isteklerde **CSRF koruması** tasarlanıp test edilir; CORS CSRF'nin yerine geçmez.
 - JWT: imzalama anahtarı yalnız backend secret mekanizmasından; algoritma allowlist, signature/issuer/audience/expiry doğrulaması. Access token kısa ömürlü; refresh token **rotation, revocation, replay tespiti** ve hash'lenmiş saklama ile.
