@@ -49,13 +49,14 @@ class AccountDeletionServiceErasureTest extends AccountDeletionTestSupport {
         assertThat(calls).extracting(ServiceTokenEnforcement::audience)
                 .containsExactlyInAnyOrder("user-service", "mail-service");
         assertThat(calls).allSatisfy(call -> assertThat(call.method()).isEqualTo("DELETE"));
-        assertThat(jdbc.queryForObject("select status from accounts where id = ?", String.class, accountId))
-                .isEqualTo("DELETED");
-        assertThat(jdbc.queryForObject("select email from accounts where id = ?", String.class, accountId))
-                .doesNotContainIgnoringCase(email);
-        assertThat(jdbc.queryForObject("select status from account_deletion_requests where account_id = ?",
-                String.class, accountId)).isEqualTo("COMPLETED");
-        assertThat(securityEventCount(accountId, "ACCOUNT_DELETION_COMPLETED")).isEqualTo(1);
+        // Tüm hedefler onayladı: Auth'ta bu kullanıcıya ait hiçbir kayıt kalmaz (hesap, talep, görev, olay).
+        for (String table : List.of("accounts", "account_deletion_requests", "account_deletion_tasks", "security_events")) {
+            String column = "accounts".equals(table) ? "id" : "account_id";
+            assertThat(jdbc.queryForObject("select count(*) from " + table + " where " + column + " = ?", Integer.class,
+                    accountId)).as(table).isZero();
+        }
+        assertThat(jdbc.queryForObject("select count(*) from accounts where email_normalized = lower(?)", Integer.class,
+                email)).isZero();
     }
 
     @Test
