@@ -186,6 +186,7 @@ test('changed test sources are ignored by the coverage diff while other unsuppor
   };
   const testSources=['backend/services/auth-service/src/test/java/com/ltz/auth/IntegrationTestSupport.java','backend/services/game-service/src/test/java/com/ltz/game/X.java','backend/services/game-service/pom.xml'];
   assert.deepEqual(gitContext(f.root,{run:diffOf(testSources)}).changes,{});
+  assert.deepEqual(gitContext(f.root,{run:diffOf(testSources)}).testModules,['services/auth-service','services/game-service']);
   for(const unsupported of ['backend/tools/Helper.java','backend/services/game-service/src/other/java/com/ltz/A.java','backend/services/game-service/src/test/resources/Fixture.java'])assert.throws(()=>gitContext(f.root,{run:diffOf([unsupported])}),/unsupported Java source path/);
 }));
 test('new files, untracked files and deletions are explicit diff records without rename heuristics',()=>fixture(f=>{
@@ -242,3 +243,38 @@ test('coverage policy and Auth application changes select backend; README-only d
   assert.deepEqual(selectScope(['backend/config/coverage-policy.json'],available).modules,available);
   assert.equal(selectScope([name],available).backend,true);
 });
+
+function withInterface(f,{executable=false}={}){
+  const file='backend/'+module+'/src/main/java/p/Port.java';
+  f.write(file,'package p;\ninterface Port {\n  String NAME = "x";\n}\n');
+  f.write('backend/'+module+'/target/classes/p/Port.class','synthetic bytecode inventory');
+  const data=f.metadata(3,0);
+  const lines=executable?[{nr:3,ci:1,mi:0,cb:0,mb:0}]:[];
+  data.sources.push({path:'p/Port.java',counter:{covered:lines.length,missed:0},lines});
+  data.classes.push({name:'p/Port',source:'Port.java'});
+  data.counter={covered:3+lines.length,missed:0};
+  f.context.changes[file]={lines:executable?[2]:[2,3],semantic:true,deleted:false,sourceHash:hash(fs.readFileSync(path.join(f.root,file)))};
+  return data;
+}
+test('interface/constant-only change is exempt only with changed module tests, and the exemption is reported',()=>fixture(f=>{
+  const data=withInterface(f);
+  f.context.testModules=[module];
+  const result=f.evaluate(data);
+  assert.equal(result.exempt.length,1);
+  assert.equal(result.exempt[0].file,'p/Port.java');
+  assert.match(result.exempt[0].reason,/interface\/constants/);
+}));
+test('interface/constant-only change without changed tests in the module FAILS',()=>fixture(f=>{
+  const data=withInterface(f);
+  assert.throws(()=>f.evaluate(data),/needs changed tests/);
+  f.context.testModules=['services/game-service'];
+  assert.throws(()=>f.evaluate(withInterface(f)),/needs changed tests/);
+}));
+test('a source with any executable line never gets the exemption',()=>fixture(f=>{
+  const data=withInterface(f,{executable:true});
+  f.context.testModules=[module];
+  assert.throws(()=>f.evaluate(data),/measurable/);
+}));
+test('ordinary results report an empty exemption list',()=>fixture(f=>{
+  assert.deepEqual(f.evaluate().exempt,[]);
+}));
