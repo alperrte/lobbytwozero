@@ -2,7 +2,9 @@ package com.ltz.auth.application.service;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.data.domain.PageRequest;
@@ -22,6 +24,7 @@ import com.ltz.auth.infrastructure.persistence.repository.AccountDeletionRequest
 import com.ltz.auth.infrastructure.persistence.repository.AccountDeletionTaskRepository;
 import com.ltz.auth.infrastructure.persistence.repository.AccountRepository;
 import com.ltz.auth.infrastructure.persistence.repository.AuthDataEraser;
+import com.ltz.auth.infrastructure.persistence.repository.SecurityEventRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +38,8 @@ import lombok.extern.slf4j.Slf4j;
  *   <li><b>Kısmi başarısızlık:</b> yalnız başarısız görev yeniden denenir (üstel geri çekilme); onaylanmış görevler
  *       tekrarlanmaz.</li>
  *   <li><b>Tamamlama:</b> son görev onaylanınca, aynı işlemde talep kilitli olarak, Auth'un kendi kişisel verisi silinir
- *       ve hesap DELETED + anonim olur. Hiçbir servis onaylamadan hesap DELETED sayılmaz.</li>
+ *       ve hesabın Auth'taki tüm kayıtları (olaylar, görevler, talep, hesap satırı) kaldırılır. Hiçbir servis onaylamadan
+ *       hesap silinmiş sayılmaz.</li>
  * </ul>
  */
 @Slf4j
@@ -46,6 +50,7 @@ public class AccountDeletionCoordinator {
     private final AccountDeletionTaskRepository taskRepository;
     private final AccountDeletionRequestRepository requestRepository;
     private final AccountRepository accountRepository;
+    private final SecurityEventRepository securityEventRepository;
     private final AccountDataEraserPort eraser;
     private final AuthDataEraser authDataEraser;
     private final SecurityEventRecorder securityEventRecorder;
@@ -70,15 +75,35 @@ public class AccountDeletionCoordinator {
         return confirmed;
     }
 
+    /**
+     * Görev ancak bekleme süresi bitince (next_attempt_at = scheduledFor) vadesi gelir. Vadesi gelen ilk görevle birlikte
+     * hesabın Auth PII'si hemen anonimleştirilir: servislerin silmeyi onaylaması süresiz sürse bile e-posta, kullanıcı adı,
+     * parola ve 2FA sırları Auth'ta kalmaz. Hesap kimliği ve durum (DELETION_REQUESTED) korunur.
+     */
     private List<ClaimedTask> claimDue() {
         Instant now = clock.instant();
-        return taskRepository.findDue(DeletionTaskStatus.PENDING, now, PageRequest.of(0, properties.batchSize()))
-                .stream()
-                .map(task -> {
-                    task.claim(now, properties.lease());
-                    return new ClaimedTask(task.getId(), task.getRequestId(), task.getAccountId(), task.getService());
-                })
+        List<AccountDeletionTask> due = taskRepository.findDue(DeletionTaskStatus.PENDING, now,
+                PageRequest.of(0, properties.batchSize()));
+        Set<UUID> accounts = new LinkedHashSet<>();
+        for (AccountDeletionTask task : due) {
+            task.claim(now, properties.lease());
+            accounts.add(task.getAccountId());
+        }
+        accounts.forEach(accountId -> anonymizeIdentity(accountId, now));
+        return due.stream()
+                .map(task -> new ClaimedTask(task.getId(), task.getRequestId(), task.getAccountId(), task.getService()))
                 .toList();
+    }
+
+    private void anonymizeIdentity(UUID accountId, Instant now) {
+        accountRepository.findByIdForUpdate(accountId)
+                .filter(account -> account.getStatus() == AccountStatus.DELETION_REQUESTED
+                        && !account.isIdentityAnonymized())
+                .ifPresent(account -> {
+                    authDataEraser.erase(accountId);
+                    account.anonymizeIdentity(now);
+                    securityEventRecorder.recordEvent(SecurityEventType.ACCOUNT_DELETION_IDENTITY_ERASED, accountId);
+                });
     }
 
     private void recordFailure(ClaimedTask claimed, String errorCode) {
@@ -100,7 +125,11 @@ public class AccountDeletionCoordinator {
     private void recordConfirmation(ClaimedTask claimed) {
         transactionTemplate.executeWithoutResult(status -> {
             // Talep satırı kilidi: görevler eşzamanlı onaylansa da yalnız son onaylayan tamamlamayı yapar.
-            AccountDeletionRequest request = requestRepository.findByIdForUpdate(claimed.requestId()).orElseThrow();
+            // Talep yoksa silme başka bir işlemde tamamlanıp Auth kaydı temizlenmiştir (aşağıda finish): yapılacak iş kalmaz.
+            AccountDeletionRequest request = requestRepository.findByIdForUpdate(claimed.requestId()).orElse(null);
+            if (request == null) {
+                return;
+            }
             taskRepository.findById(claimed.taskId()).filter(AccountDeletionTask::isPending)
                     .ifPresent(task -> task.confirm(clock.instant()));
             taskRepository.flush();
@@ -111,15 +140,23 @@ public class AccountDeletionCoordinator {
         });
     }
 
+    /**
+     * Tüm servisler onayladı: silinen kullanıcının Auth'ta hiçbir kaydı kalmaz (proje sahibi kararı 2026-10-28). Aynı
+     * işlemde ve talep kilitliyken sırayla güvenlik olayları, silme görevleri, silme talebi ve hesap satırı silinir; hesaba
+     * bağlı diğer tablolar (oturum, kimlik bilgisi, roller, durum geçmişi) veritabanında CASCADE ile gider. Kimlik içermeyen
+     * tek iz günlük satırıdır.
+     */
     private void finish(AccountDeletionRequest request) {
-        Instant now = clock.instant();
-        Account account = accountRepository.findByIdForUpdate(request.getAccountId()).orElseThrow();
-        if (account.getStatus() == AccountStatus.DELETION_REQUESTED) {
-            authDataEraser.erase(account.getId());
-            account.anonymize(now);
-        }
-        request.complete(now);
-        securityEventRecorder.recordEvent(SecurityEventType.ACCOUNT_DELETION_COMPLETED, request.getAccountId());
+        UUID accountId = request.getAccountId();
+        Account account = accountRepository.findByIdForUpdate(accountId).orElseThrow();
+        authDataEraser.erase(accountId);
+        securityEventRepository.deleteByAccountId(accountId);
+        taskRepository.deleteByRequestId(request.getId());
+        requestRepository.delete(request);
+        requestRepository.flush();
+        accountRepository.delete(account);
+        accountRepository.flush();
+        log.info("Account deletion completed; Auth records purged");
     }
 
     private record ClaimedTask(UUID taskId, UUID requestId, UUID accountId, String service) {

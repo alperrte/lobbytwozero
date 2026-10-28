@@ -37,11 +37,21 @@ public final class AuthApiPaths {
     public static final String PASSWORD_FORGOT = PASSWORD + "/forgot";
     public static final String PASSWORD_RESET = PASSWORD + "/reset";
 
+    public static final String EMAIL_CHANGE = BASE + "/email/change";
+    public static final String EMAIL_CHANGE_CONFIRM = EMAIL_CHANGE + "/confirm";
     public static final String ACCOUNT_DELETION = BASE + "/account/deletion";
     public static final String ACCOUNT_DELETION_REQUEST = ACCOUNT_DELETION + "/request";
     public static final String ACCOUNT_DELETION_CONFIRM = ACCOUNT_DELETION + "/confirm";
+    public static final String ACCOUNT_DELETION_CANCEL = ACCOUNT_DELETION + "/cancel";
 
     /** Yalnız ROLE_ADMIN erişir (SecurityConfig). */
+    /** Servis → Auth iç uçları: Gateway'e açılmaz (Gateway yalnız /api/v1/<servis>/** yönlendirir). */
+    public static final String INTERNAL = "/internal/v1";
+    public static final String SERVICE_TOKENS = INTERNAL + "/service-tokens";
+    public static final String INTERNAL_ACCOUNT = INTERNAL + "/accounts/{accountId}";
+    public static final String INTERNAL_ACCOUNT_STATUS = INTERNAL_ACCOUNT + "/status";
+    public static final String INTERNAL_ACCOUNT_ROLES_GRANT = INTERNAL_ACCOUNT + "/roles/grant";
+    public static final String INTERNAL_ACCOUNT_ROLES_REVOKE = INTERNAL_ACCOUNT + "/roles/revoke";
     public static final String ADMIN = BASE + "/admin";
     public static final String ADMIN_ROLES = ADMIN + "/roles";
     public static final String ADMIN_DELETIONS_PENDING = ADMIN + "/account-deletions/pending";

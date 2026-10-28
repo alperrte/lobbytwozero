@@ -76,7 +76,7 @@ class SessionControllerTest extends IntegrationTestSupport {
     }
 
     @Test
-    void logoutSonrasiRefreshReddedilir_cookielerTemizlenir_tekrarCagriGuvenlidir() throws Exception {
+    void logoutSonrasiRefreshReddedilirCookielerTemizlenirTekrarCagriGuvenlidir() throws Exception {
         String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
         SessionCookiePair session = loginSession(email);
 
@@ -135,7 +135,7 @@ class SessionControllerTest extends IntegrationTestSupport {
     }
 
     @Test
-    void refreshCsrfTokenIster_cookieYoksa401() throws Exception {
+    void refreshCsrfTokenIsterCookieYoksa401() throws Exception {
         SessionCookiePair session = loginSession(registerActiveAccount(uniqueEmail(), uniqueUsername()));
 
         mockMvc.perform(post(AuthApiPaths.SESSION_REFRESH).cookie(session.refresh()))

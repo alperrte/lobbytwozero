@@ -28,6 +28,7 @@ import org.springframework.web.client.RestTemplate;
 
 import com.ltz.auth.application.port.ExternalAuthenticationException;
 import com.ltz.auth.application.port.GoogleOidcPort;
+import com.ltz.auth.domain.exception.RedactedCause;
 import com.ltz.auth.infrastructure.config.OAuthProperties;
 
 /**
@@ -94,9 +95,9 @@ public class GoogleOidcClient implements GoogleOidcPort {
             }
             return idToken;
         } catch (RestClientException exception) {
-            // Sağlayıcı yanıt gövdesi (hata ayrıntıları) taşınmaz.
+            // Sağlayıcı yanıt gövdesi (hata ayrıntıları) taşınmaz; yalnız tür ve yığın izi.
             throw new ExternalAuthenticationException("Google token exchange failed: "
-                    + exception.getClass().getSimpleName());
+                    + exception.getClass().getSimpleName(), RedactedCause.of(exception));
         }
     }
 
@@ -106,7 +107,7 @@ public class GoogleOidcClient implements GoogleOidcPort {
             jwt = decoder.decode(idToken);
         } catch (JwtException exception) {
             throw new ExternalAuthenticationException("Google id_token rejected: "
-                    + exception.getClass().getSimpleName());
+                    + exception.getClass().getSimpleName(), RedactedCause.of(exception));
         }
         // Nonce istek başınadır; sabit zamanlı karşılaştırma.
         String nonce = jwt.getClaimAsString(NONCE_CLAIM);

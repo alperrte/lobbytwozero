@@ -34,7 +34,7 @@ class BoundedPasswordEncoderTest {
     }
 
     @Test
-    void kesintiyeUgrayanBeklemeReddedilir_kesintiBayragiKorunur() {
+    void kesintiyeUgrayanBeklemeReddedilirKesintiBayragiKorunur() {
         BoundedPasswordEncoder encoder = new BoundedPasswordEncoder(new BlockingEncoder(null, null), 1, SHORT_TIMEOUT);
         Thread.currentThread().interrupt();
         try {

@@ -24,6 +24,7 @@ public enum AuthErrorCode {
     REGISTRATION_TOKEN_INVALID(400, "Registration token is invalid or has expired."),
     CURRENT_PASSWORD_INVALID(400, "Current password is incorrect."),
     NEW_PASSWORD_SAME_AS_CURRENT(400, "New password must differ from the current password."),
+    WEAK_PASSWORD(400, "Password is too easy to guess. Choose a different one."),
     PASSWORD_RESET_TOKEN_INVALID(400, "Password reset link is invalid or has expired."),
     ACCOUNT_NOT_FOUND(404, "Account was not found."),
     INVALID_STATUS_TRANSITION(409, "The requested account status transition is not allowed."),
@@ -35,7 +36,15 @@ public enum AuthErrorCode {
     ROLE_REQUIRES_TWO_FACTOR(409, "The target account must enable two-factor authentication before receiving this role."),
     REAUTHENTICATION_REQUIRED(403, "Recent sign-in is required. Sign in again and retry."),
     ADMIN_DELETION_FORBIDDEN(409, "Administrator accounts cannot be deleted. Remove the administrator role first."),
-    DELETION_CONFIRMATION_INVALID(400, "Deletion confirmation is invalid or has expired.");
+    DELETION_CONFIRMATION_INVALID(400, "Deletion confirmation is invalid or has expired."),
+    ACCOUNT_DELETION_PENDING(403, "Account deletion is scheduled. Cancel it before the waiting period ends to keep the account."),
+    INVALID_CLIENT(401, "Service client authentication failed."),
+    SERVICE_AUDIENCE_FORBIDDEN(403, "The service client is not allowed to obtain a token for this audience."),
+    ACTING_ADMIN_INVALID(403, "The acting administrator is not an active administrator."),
+    EMAIL_CHANGE_INVALID(400, "Email change code is invalid or has expired."),
+    PASSWORD_REQUIRED(409, "A password must be set on this account before this action."),
+    DELETION_NOT_PENDING(409, "No cancellable account deletion exists for this account."),
+    DELETION_CANCEL_WINDOW_CLOSED(409, "The waiting period has ended; the deletion can no longer be cancelled.");
 
     private final int httpStatus;
     private final String detail;

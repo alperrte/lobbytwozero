@@ -13,6 +13,7 @@ import com.ltz.auth.application.port.PasswordResetMailPort;
 import com.ltz.auth.application.port.VerificationCodeDeliveryException;
 import com.ltz.auth.application.port.VerificationCodeMail;
 import com.ltz.auth.application.port.VerificationCodeMailPort;
+import com.ltz.auth.domain.exception.RedactedCause;
 import com.ltz.auth.infrastructure.config.DevSmtpProperties;
 
 /**
@@ -100,9 +101,9 @@ public class DevSmtpVerificationMailAdapter implements VerificationCodeMailPort,
         try {
             mailSender.send(message);
         } catch (MailException exception) {
-            // Sağlayıcı hata mesajları alıcı adresini içerebilir; yalnız hata türü taşınır.
+            // Sağlayıcı hata mesajları alıcı adresini içerebilir; hata türü ve yığın izi taşınır, mesaj taşınmaz.
             throw new VerificationCodeDeliveryException(
-                    "Development SMTP delivery failed: " + exception.getClass().getSimpleName());
+                    "Development SMTP delivery failed: " + exception.getClass().getSimpleName(), RedactedCause.of(exception));
         }
     }
 }

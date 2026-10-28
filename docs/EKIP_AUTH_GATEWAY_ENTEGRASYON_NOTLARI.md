@@ -78,7 +78,7 @@ kendi servisi de o Auth'un JWKS'inden doğrular, anahtarların aynı olması ger
 | --- | --- | --- |
 | 1 | Kendi dalına `main`'i çek | `git fetch` ve `git merge origin/main` (belge ve script `main`'den gelir) |
 | 2 | ENV dosyaların var mı bak | Kaynak profil **`.env.dev`**, aktif kopya **`.env`** (`ops/ops.md`). Yoksa `.env.example` dosyasını `.env.dev` olarak kopyala, sonra `.\ops\env.cmd use dev` (Windows) veya `sh ./ops/env.sh use dev`. **Var olan dosyanın üzerine yazma**, başkasının `.env` dosyasını kopyalama (kişisel `SONAR_TOKEN` gibi değerler içerir) |
-| 3 | Eksik Auth anahtarlarını üret | `node ops/generate-auth-dev-keys.mjs`. Yalnız **eksik veya boş** olanları doldurur, dolu olanı ezmez, değerleri **ekrana yazmaz**, `.env` ve `.env.dev`'e **aynı** değeri yazar. Çalıştırdığında "dolduruldu -> …" ya da "eksik anahtar yok" yazar |
+| 3 | Eksik Auth anahtarlarını üret | `node ops/generate-auth-dev-keys.mjs`. Yalnız **eksik veya boş** olanları doldurur, dolu olanı ezmez, değerleri **ekrana yazmaz**, `.env` ve `.env.dev`'e **aynı** değeri yazar. Tek istisna: `JWT_ACCESS_TTL_SECONDS` değeri tam olarak eski varsayılan `300` ise `60`'a çeker ("güncellendi -> …"); özelleştirilmiş değere dokunmaz. Çalıştırdığında "dolduruldu -> …", "güncellendi -> …" ya da "eksik anahtar yok" yazar |
 | 4 | Doğrula | `docker compose config --quiet`. Hata yoksa tamam. "required variable … missing" çıkıyorsa 3. adımı tekrarla |
 | 5 | Başlat | Yalnız ihtiyacın olanı: `docker compose up -d postgres auth-service api-gateway` (+ kendi servisin). E-posta kodlarını görmek için `.env`'de `COMPOSE_PROFILES=dev-mail` (Mailpit, http://localhost:8025) |
 | 6 | Sağlık kontrolü | Gateway: `http://localhost:5080/actuator/health` → `UP`. JWKS: `http://localhost:5080/api/v1/auth/.well-known/jwks.json` → `200`. Konteynerler `healthy` görünmeli (`docker compose ps`) |
@@ -147,7 +147,7 @@ Gateway **yapmaz**: JWT doğrulaması, rol kontrolü, sahiplik kontrolü. Bunlar
 5. Varsayılan **reddet**: her endpoint ya açıkça herkese açık ya da açıkça kimlik/rol ister.
 6. **401** = kimlik yok/geçersiz, **403** = kimlik var ama yetki yok, **404** = yok ya da güvenli gizleme. Gövde `ProblemDetail`; token/SQL/stack trace yok.
 7. Başkasının kaydı için 404 veya 403 ver, ayrıntı sızdırma; serviste tutarlı ol.
-8. Hesap **askıya alınır/yasaklanırsa** token en fazla **5 dakika** (access token ömrü) sende geçerli görünür. Durum claim'i ve olay yok; buna göre tasarla.
+8. Hesap **askıya alınır/yasaklanırsa** token en fazla **60 saniye** (access token ömrü, 2026-10-24'te 5 dk'dan indirildi) sende geçerli görünür. Durum claim'i ve olay yok; buna göre tasarla.
 9. Hesap silinirse Auth sana **`DELETE /internal/v1/accounts/{accountId}`** çağırır (D4 servis token'ıyla). Token'da **hepsini** doğrula: `typ=svc+jwt`, RS256/JWKS, `iss=ltz-auth`, `aud=<senin servisin>-service`, `sub=svc:auth-service` (**tam eşleşme**), `scope=account:erase`, `account_id` = yoldaki `{accountId}` (değilse `403`), `exp - iat ≤ 60 sn`, `jti` var. Kişisel veriyi sil/anonimleştir, bitince `204` dön (verin yoksa da `204`; `202` onay sayılmaz), **idempotent** ol. Bu uç **asla** Gateway'e açılmaz.
 10. Auth DB'sine ve başka servisin DB'sine **asla** doğrudan erişme. Sır, token, parola loglama, koda veya belgeye yazma.
 
@@ -211,14 +211,14 @@ Token'ı `localStorage`, `sessionStorage` veya IndexedDB'ye **yazma** (SECURITY.
 | 5 | **Frontend CSRF başlığı ve auth sayfaları yok** | frontend | **Y** | §3'teki not |
 | 6 | ~~Silme hedef listesinde `game` ve `admin` yok~~ **KAPANDI (2026-10-23):** ikisi de listede (16 hedef) | game, admin | **Y** | Hangi verinin silinip hangisinin hukuki gerekçeyle anonim saklanacağı Auth sahibiyle kararlaştırılır |
 | 7 | **Bağımlılık yamaları (Tomcat/Jackson CVE) yalnız auth-service'te** | Parent POM | **Y** | Gateway dahil diğer modüller eski sürümde (B13) |
-| 8 | **Durum değişikliği yayılımı yok** (`AccountStatusChanged`, D3) | auth + altyapı | O | Şimdilik en fazla 5 dk gecikme |
+| 8 | **Durum değişikliği yayılımı yok** (`AccountStatusChanged`, D3) | auth + altyapı | O | Şimdilik en fazla 60 sn gecikme |
 | 9 | **İlk ADMIN oluşturma yolu yok** | Proje sahibi | O | Şimdilik elle SQL ile rol verilir (B7) |
 | 10 | **Cihaz kimliği yok** (PERF-01 masaüstü cihaz eşleştirme; `SECURITY.md`: cihaz token'ı kullanıcı token'ı değildir) | performance + auth | O | Auth'ta bu yetenek yok, tasarım kararı gerekir |
 | 11 | **`UserRegistered` olayı yok** (Auth → User) | auth, user | O | Outbox/User Service yok |
 | 12 | Gerçek Google/Steam ile uçtan uca deneme yok | auth | O | Client id/secret gerekli (B14) |
 | 13 | Çok örnekli Gateway için ortak hız sınırı (Redis vb.) | api-gateway/altyapı | O | Şimdi örnek başına, bellekte |
 | 14 | Anahtar rotasyonu yok (JWT, TOTP, HMAC) | auth | O | S9 |
-| 15 | Parola politikası: en az 12, kara liste yok | auth + ürün | O | S10 (NIST: ≥15 + kara liste) |
+| 15 | Parola politikası: **KAPANDI (2026-10-24)** en az 15 + yerel kara liste, `WEAK_PASSWORD` | auth | K | S10 (sızmış parola veritabanı sorgusu yok) |
 | 16 | Hesap bağlama/ayırma, BANNED kaldırma, süreli askı, "parola ekle" yok | auth + ürün | D | B8, B10, B11 |
 | 17 | Güvenlik olayı saklama süresi ve silme sonrası geri alma kararı yok | hukuk/ürün | D | B9, B17, S1 |
 | 18 | Servis başına DB rolü yok (hepsi `ltz_dev`) ve prod dağıtımı (sır yöneticisi, prod compose) tasarlanmadı | altyapı | **Y** | Prod öncesi |

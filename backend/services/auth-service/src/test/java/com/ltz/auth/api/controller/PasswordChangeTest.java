@@ -32,7 +32,7 @@ class PasswordChangeTest extends IntegrationTestSupport {
     private static final int MAX_FAILURES = 5;
 
     @Test
-    void parolaDegisirTumOturumlarKapanir_eskiParolaGecersizYeniGecerli(CapturedOutput output) throws Exception {
+    void parolaDegisirTumOturumlarKapanirEskiParolaGecersizYeniGecerli(CapturedOutput output) throws Exception {
         String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
         SessionCookiePair device = loginSession(email);
         SessionCookiePair otherDevice = loginSession(email);
@@ -65,7 +65,7 @@ class PasswordChangeTest extends IntegrationTestSupport {
     }
 
     @Test
-    void yanlisMevcutParolaVeAyniParolaReddedilir_hesapDegismez() throws Exception {
+    void yanlisMevcutParolaVeAyniParolaReddedilirHesapDegismez() throws Exception {
         String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
         Cookie access = loginSession(email).access();
         String hashBefore = hash(email);
@@ -95,7 +95,20 @@ class PasswordChangeTest extends IntegrationTestSupport {
     }
 
     @Test
-    void kimliksizIstek401_csrfsizCookieIstegi403() throws Exception {
+    void zayifYeniParolaReddedilirHesapDegismez() throws Exception {
+        String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
+        Cookie access = loginSession(email).access();
+        String hashBefore = hash(email);
+
+        change(access, VALID_PASSWORD, "passwordpassword1", "passwordpassword1").andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("WEAK_PASSWORD"));
+
+        assertThat(hash(email)).isEqualTo(hashBefore);
+        change(access, VALID_PASSWORD, NEW_PASSWORD, NEW_PASSWORD).andExpect(status().isNoContent());
+    }
+
+    @Test
+    void kimliksizIstek401CsrfsizCookieIstegi403() throws Exception {
         Cookie access = loginSession(registerActiveAccount(uniqueEmail(), uniqueUsername())).access();
         String body = body(VALID_PASSWORD, NEW_PASSWORD, NEW_PASSWORD);
 

@@ -42,18 +42,18 @@ public final class ErasureTargetStub implements AutoCloseable {
     private volatile ToIntFunction<Received> responder = request -> UNAVAILABLE;
     private volatile Duration delay = Duration.ZERO;
 
-    private ErasureTargetStub(HttpServer server, ExecutorService executor) {
+    /** Yürütücü bu nesneye aittir ve {@link #close()} ile kapatılır; sunucu ilk istekten önce ona bağlanır. */
+    private ErasureTargetStub(HttpServer server) {
         this.server = server;
-        this.executor = executor;
+        this.executor = Executors.newVirtualThreadPerTaskExecutor();
+        server.createContext("/", this::handle);
+        server.setExecutor(executor);
     }
 
     public static ErasureTargetStub start() {
         try {
             HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
-            ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
-            ErasureTargetStub stub = new ErasureTargetStub(server, executor);
-            server.createContext("/", stub::handle);
-            server.setExecutor(executor);
+            ErasureTargetStub stub = new ErasureTargetStub(server);
             server.start();
             return stub;
         } catch (IOException exception) {

@@ -15,6 +15,8 @@ import com.ltz.auth.application.port.SteamAssertionVerifier;
 import com.ltz.auth.infrastructure.client.GoogleOidcClient;
 import com.ltz.auth.infrastructure.client.SteamOpenIdClient;
 
+import jakarta.annotation.PreDestroy;
+
 /**
  * Harici giriş istemcileri. Sağlayıcı çağrıları yönlendirme izlemez ve zaman aşımına tabidir.
  * prod profilinde tüm adresler https olmalıdır; yarım Google kimlik bilgisi (yalnız id veya yalnız secret) her
@@ -26,6 +28,8 @@ public class OAuthConfig {
 
     static final String PROD_PROFILE = "prod";
     private static final String HTTPS = "https";
+
+    private HttpClient httpClient;
 
     OAuthConfig(OAuthProperties properties, Environment environment) {
         OAuthProperties.Google google = properties.google();
@@ -54,14 +58,25 @@ public class OAuthConfig {
         return new SteamOpenIdClient(properties.steam(), requestFactory(properties));
     }
 
-    private static ClientHttpRequestFactory requestFactory(OAuthProperties properties) {
-        HttpClient httpClient = HttpClient.newBuilder()
-                .followRedirects(HttpClient.Redirect.NEVER)
-                .connectTimeout(properties.httpTimeout())
-                .build();
+    /** Google ve Steam istemcileri aynı yönlendirmesiz, zaman aşımlı HTTP istemcisini paylaşır; sahibi bu yapılandırmadır. */
+    private ClientHttpRequestFactory requestFactory(OAuthProperties properties) {
+        if (httpClient == null) {
+            httpClient = HttpClient.newBuilder()
+                    .followRedirects(HttpClient.Redirect.NEVER)
+                    .connectTimeout(properties.httpTimeout())
+                    .build();
+        }
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClient);
         factory.setReadTimeout(properties.httpTimeout());
         return factory;
+    }
+
+    /** Bağlam kapanırken paylaşılan HTTP istemcisini kapatır (bağlantı havuzu ve iş parçacıkları kalmaz). */
+    @PreDestroy
+    void close() {
+        if (httpClient != null) {
+            httpClient.close();
+        }
     }
 
     private static void requireHttps(String scheme, String property) {

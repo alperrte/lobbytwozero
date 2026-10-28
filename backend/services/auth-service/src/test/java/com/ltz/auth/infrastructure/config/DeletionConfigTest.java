@@ -50,6 +50,7 @@ class DeletionConfigTest {
     private static DeletionProperties properties(Set<String> targets, Map<String, URI> serviceUrls) {
         return new DeletionProperties(targets, serviceUrls, Duration.ofSeconds(5), Duration.ofMinutes(30),
                 Duration.ofSeconds(60), Duration.ofMinutes(10), URI.create("http://localhost:5001/account/delete"),
-                false, Duration.ofSeconds(30), 20, Duration.ofMinutes(2), Duration.ofMinutes(1), Duration.ofHours(6), 10);
+                false, Duration.ofSeconds(30), 20, Duration.ofMinutes(2), Duration.ofMinutes(1), Duration.ofHours(6), 10,
+                Duration.ofDays(14));
     }
 }

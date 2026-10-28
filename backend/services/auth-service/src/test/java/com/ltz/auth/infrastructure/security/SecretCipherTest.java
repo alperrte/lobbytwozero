@@ -21,7 +21,7 @@ class SecretCipherTest {
     private final SecretCipher cipher = new SecretCipher(properties(key(SecretCipher.KEY_BYTES)));
 
     @Test
-    void sifrelemeGeriCozulur_herSeferindeFarkliNonceKullanilir() {
+    void sifrelemeGeriCozulurHerSeferindeFarkliNonceKullanilir() {
         UUID accountId = UUID.randomUUID();
         EncryptedSecret first = cipher.encrypt(SECRET, accountId);
         EncryptedSecret second = cipher.encrypt(SECRET, accountId);
@@ -49,7 +49,7 @@ class SecretCipherTest {
     }
 
     @Test
-    void yanlisUzunluktakiAnahtarReddedilir_mesajAnahtariIcermez() {
+    void yanlisUzunluktakiAnahtarReddedilirMesajAnahtariIcermez() {
         String shortKey = key(16);
         TwoFactorProperties shortKeyProperties = properties(shortKey);
         TwoFactorProperties invalidKeyProperties = properties("not base64 $$$");

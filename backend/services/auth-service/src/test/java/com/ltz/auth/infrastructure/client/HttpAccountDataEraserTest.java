@@ -129,11 +129,24 @@ class HttpAccountDataEraserTest {
         assertThat(TARGET.received()).extracting(ErasureTargetStub.Received::authorization).doesNotHaveDuplicates();
     }
 
+    @Test
+    void kapatildiktanSonraIstemciYenidenKullanilamazIkinciKapatmaGuvenlidir() {
+        HttpAccountDataEraser closed = eraser(Map.of("social", URI.create(TARGET.baseUrl())));
+        TARGET.respondWith(204);
+
+        closed.close();
+
+        assertThatCode(closed::close).doesNotThrowAnyException();
+        assertThatThrownBy(() -> closed.erase("social", REQUEST_ID, UUID.randomUUID()))
+                .isInstanceOf(AccountErasureException.class);
+        assertThat(TARGET.received()).isEmpty();
+    }
+
     private static HttpAccountDataEraser eraser(Map<String, URI> serviceUrls) {
         DeletionProperties properties = new DeletionProperties(Set.copyOf(serviceUrls.keySet()), serviceUrls, TIMEOUT,
                 Duration.ofMinutes(30), Duration.ofSeconds(60), Duration.ofMinutes(10),
                 URI.create("http://localhost:5001/account/delete"), false, Duration.ofSeconds(30), 20,
-                Duration.ofMinutes(2), Duration.ofMinutes(1), Duration.ofHours(6), 10);
+                Duration.ofMinutes(2), Duration.ofMinutes(1), Duration.ofHours(6), 10, Duration.ofDays(14));
         return new HttpAccountDataEraser(properties, TestServiceTokens.issuer(CLOCK));
     }
 }

@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ltz.auth.api.dto.request.CancelAccountDeletionRequest;
 import com.ltz.auth.api.dto.request.ConfirmAccountDeletionRequest;
 import com.ltz.auth.api.dto.request.RequestAccountDeletionRequest;
 import com.ltz.auth.api.dto.response.AccountDeletionResponse;
@@ -36,6 +37,15 @@ public class AccountDeletionController {
                 UUID.fromString(jwt.getClaimAsString(TokenClaims.SESSION_ID)), request.password(), request.code(),
                 request.recoveryCode());
         return AccountDeletionResponse.CONFIRM_BY_EMAIL;
+    }
+
+    /**
+     * Bekleme süresi içinde vazgeçme (herkese açık, çerez okumaz): kimlik parola ile doğrulanır, oturum açılmaz.
+     */
+    @PostMapping(AuthApiPaths.ACCOUNT_DELETION_CANCEL)
+    public AccountDeletionResponse cancel(@Valid @RequestBody CancelAccountDeletionRequest request) {
+        deletionService.cancelDeletion(request.identifier(), request.password(), request.code(), request.recoveryCode());
+        return AccountDeletionResponse.DELETION_CANCELLED;
     }
 
     /** Başarıda tüm oturumlar kapanır; cookie'ler silinir. Silme servisler onayladıkça arka planda tamamlanır. */

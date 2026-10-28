@@ -157,7 +157,7 @@ class SteamLoginTest extends ExternalProviderTestSupport {
     }
 
     @Test
-    void kayitliEpostaIcinHesapAcilmazYanitDegismez_tokenTuketilir() throws Exception {
+    void kayitliEpostaIcinHesapAcilmazYanitDegismezTokenTuketilir() throws Exception {
         String existing = registerActiveAccount(uniqueEmail(), uniqueUsername());
         String token = fragmentValue(steamCallback(newSteamId(), p -> { }), "token");
 
@@ -172,7 +172,7 @@ class SteamLoginTest extends ExternalProviderTestSupport {
     }
 
     @Test
-    void kullaniciAdiCakismasi409_gecersizVeSuresiDolmusTokenReddedilir() throws Exception {
+    void kullaniciAdiCakismasi409GecersizVeSuresiDolmusTokenReddedilir() throws Exception {
         String taken = uniqueUsername();
         register(uniqueEmail(), taken, VALID_PASSWORD).andExpect(status().isAccepted());
         String token = fragmentValue(steamCallback(newSteamId(), p -> { }), "token");
@@ -206,7 +206,7 @@ class SteamLoginTest extends ExternalProviderTestSupport {
     }
 
     @Test
-    void steamHesabiDogrulamasiSahipKanitiOlmadanYapilamaz_kanitTekKullanimlikVeSteamIdyeBagli() throws Exception {
+    void steamHesabiDogrulamasiSahipKanitiOlmadanYapilamazKanitTekKullanimlikVeSteamIdyeBagli() throws Exception {
         String steamId = newSteamId();
         String email = uniqueEmail();
         String registrationToken = fragmentValue(steamCallback(steamId, p -> { }), "token");

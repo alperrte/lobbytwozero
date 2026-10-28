@@ -34,7 +34,7 @@ class AccountDeletionObservabilityTest extends AccountDeletionTestSupport {
     private DeletionProperties properties;
 
     @Test
-    void takiliGorevlerYoneticiyeGorunur_olayHerDenemedeYazilmaz_takilinca1KezUyarilir(CapturedOutput output)
+    void takiliGorevlerYoneticiyeGorunurOlayHerDenemedeYazilmazTakilinca1KezUyarilir(CapturedOutput output)
             throws Exception {
         String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
         UUID accountId = deleteAccountConfirmed(email);
@@ -73,7 +73,7 @@ class AccountDeletionObservabilityTest extends AccountDeletionTestSupport {
     }
 
     @Test
-    void limitAralikDisiDegerlerdeSinirlanir_hataVermez() throws Exception {
+    void limitAralikDisiDegerlerdeSinirlanirHataVermez() throws Exception {
         String adminBearer = bearerFor(newAdmin());
 
         mockMvc.perform(get(AuthApiPaths.ADMIN_DELETIONS_PENDING + "?limit=-5")

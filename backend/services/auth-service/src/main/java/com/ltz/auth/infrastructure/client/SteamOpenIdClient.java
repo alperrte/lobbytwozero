@@ -11,6 +11,7 @@ import org.springframework.web.client.RestClientException;
 
 import com.ltz.auth.application.port.ExternalAuthenticationException;
 import com.ltz.auth.application.port.SteamAssertionVerifier;
+import com.ltz.auth.domain.exception.RedactedCause;
 import com.ltz.auth.infrastructure.config.OAuthProperties;
 
 /** OpenID 2.0 direct verification: alınan yanıt alanları mode=check_authentication ile Steam'e geri gönderilir. */
@@ -41,7 +42,7 @@ public class SteamOpenIdClient implements SteamAssertionVerifier {
             return body != null && body.lines().map(String::strip).anyMatch(IS_VALID_TRUE::equals);
         } catch (RestClientException exception) {
             throw new ExternalAuthenticationException("Steam verification failed: "
-                    + exception.getClass().getSimpleName());
+                    + exception.getClass().getSimpleName(), RedactedCause.of(exception));
         }
     }
 }

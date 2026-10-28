@@ -20,7 +20,7 @@ class ProviderNotConfiguredTest extends IntegrationTestSupport {
     }
 
     @Test
-    void steamAnahtarGerektirmediginden_baslangicAcikTir() throws Exception {
+    void steamAnahtarGerektirmedigindenBaslangicAcikTir() throws Exception {
         mockMvc.perform(get(AuthApiPaths.STEAM_START)).andExpect(status().isFound());
     }
 }

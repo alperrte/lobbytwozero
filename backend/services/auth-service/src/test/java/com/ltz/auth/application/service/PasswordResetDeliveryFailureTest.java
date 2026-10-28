@@ -24,7 +24,7 @@ class PasswordResetDeliveryFailureTest extends IntegrationTestSupport {
     private static final Duration DELIVERY_TIMEOUT = Duration.ofSeconds(10);
 
     @Test
-    void teslimEdilemeyenTokenGecersizKilinir_yanitDegismez() throws Exception {
+    void teslimEdilemeyenTokenGecersizKilinirYanitDegismez() throws Exception {
         String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
         UUID accountId = accountId(email);
 
