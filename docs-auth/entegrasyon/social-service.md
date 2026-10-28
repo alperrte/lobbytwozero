@@ -17,11 +17,11 @@ JWT doğrulaması ve silme ucu çalışıyor. **Silme ucunda iki güvenlik açı
 - [ ] **Silme ucu, açık 1:** `JwtConfig.java` satır 81-82 `sub` için yalnız `svc:` önekini arıyor. `svc:admin-service` gibi bir token da silme çağırabilir. Doğrusu `sub` **tam** `svc:auth-service` olmalı
 - [ ] **Silme ucu, açık 2:** `AccountErasureController` yalnız `erasure.erase(accountId)` çağırıyor, `account_id` claim'ine bakmıyor. Çalınan bir token başka hesabı silebilir. `account_id` yoldaki `accountId` ile aynı olmalı. Doğru örnek: game-service `AccountErasureController` (iki denetimi tek yerde yapıyor). Test de `account_id` üretmeli (`IntegrationTestSupport.validServiceClaims`)
 - [ ] **Olay gönderme:** `UnavailableEventPublisher` yerine gerçek yayıncı. Akış: `POST {AUTH_SERVICE_URL}/internal/v1/service-tokens` `{clientId: "social-service", clientSecret, audience: "community-service"}` ile 60 sn'lik token, sonra `POST {COMMUNITY_SERVICE_URL}/internal/events` `Authorization: Bearer`. Community'nin kapsam adı düzeltmesi bekleniyor (`community-service.md`)
-- [ ] **`POST /internal/v1/blocks/check`** (tasarlandı, yazılmadı): messaging ve lfp bunu çağıracak. Yazılınca bana haber ver, Auth'ta çağıranlar için istemci ve kapsam eklenecek
+- [ ] **`POST /internal/v1/blocks/check`** (tasarlandı, yazılmadı): messaging ve lfp bunu çağıracak. Auth tarafı hazır: iki istemci `audience: "social-service"` ile `blocks:check` token'ı alıyor (`aud=social-service`, `scope=blocks:check`, `sub=svc:messaging-service` ya da `svc:lfp-service`, 60 sn). Ucu yazarken `aud`, `typ=svc+jwt`, `scope` ve `sub` denetimini kendin yap
 
 ## AUTH'TA BEKLEYEN
 
-- `blocks:check` kapsamı ve messaging, lfp istemci kayıtları: Social ucu yazılınca eklenecek (küçük iş)
+- `blocks:check` kapsamı ve messaging, lfp istemci kayıtları: **Auth'ta hazır** (2026-10-29), Social ucu bekleniyor
 - Social → notification ve social → messaging olay teslimi: Auth'ta bu çiftler tanımlı değil, ihtiyaç yazılırsa karar
 - Kullanıcı varlık doğrulaması ve profil: user-service yazılınca
 
