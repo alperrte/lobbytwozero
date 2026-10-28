@@ -33,6 +33,9 @@ const generators = {
   // Servisler arası olay girişi (events:ingest) istemcileri: her biri ayrı 256 bit gizli anahtar.
   AUTH_SOCIAL_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
   AUTH_COMMUNITY_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
+  // Engel sorgusu (blocks:check) istemcileri: messaging ve lfp -> social.
+  AUTH_MESSAGING_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
+  AUTH_LFP_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
 };
 
 // Eski varsayılanlar: değer TAM OLARAK eskiyse yeni varsayılana çekilir; özelleştirilmiş değere dokunulmaz.

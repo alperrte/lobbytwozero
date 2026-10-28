@@ -33,6 +33,8 @@ public final class TokenClaims {
     public static final String ACCOUNT_ROLE_WRITE_SCOPE = "account:role:write";
     /** Servisler arası olay girişi: hedef servisin {@code POST /internal/events} ucu; Auth yalnız izinli (hedef, kapsam) çiftine token verir. */
     public static final String EVENTS_INGEST_SCOPE = "events:ingest";
+    /** Engel sorgusu: messaging ve lfp, Social'ın {@code POST /internal/v1/blocks/check} ucunu çağırır. */
+    public static final String BLOCKS_CHECK_SCOPE = "blocks:check";
     /** Masaüstü cihaz token'ı türü; kullanıcı ({@link #ACCESS_TOKEN_TYPE}) ve servis token'ının yerine geçemez, tersi de geçemez. */
     public static final String DEVICE_TOKEN_TYPE = "dev+jwt";
     /** Cihaz token'ının tek hedefi ve tek kapsamı (Hardware'in masaüstü senkronu). */

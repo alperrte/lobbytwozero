@@ -65,6 +65,8 @@ public abstract class IntegrationTestSupport {
     protected static final String ADMIN_CLIENT_SECRET = "test-admin-client-secret-0123456789-abcdef";
     protected static final String SOCIAL_CLIENT_SECRET = "test-social-client-secret-0123456789-abcde";
     protected static final String COMMUNITY_CLIENT_SECRET = "test-community-client-secret-0123456789-abc";
+    protected static final String MESSAGING_CLIENT_SECRET = "test-messaging-client-secret-0123456789-ab";
+    protected static final String LFP_CLIENT_SECRET = "test-lfp-client-secret-0123456789-abcdefgh";
     private static final int TEST_RSA_BITS = 3072;
     /** Her test çalıştırmasında üretilen imza anahtarı; repoda veya çıktıda gerçek anahtar yoktur. */
     protected static final KeyPair TEST_JWT_KEYS = rsaKeyPair();
@@ -118,6 +120,8 @@ public abstract class IntegrationTestSupport {
         registry.add("ltz.auth.service-clients.clients.admin-service.secret", () -> ADMIN_CLIENT_SECRET);
         registry.add("ltz.auth.service-clients.clients.social-service.secret", () -> SOCIAL_CLIENT_SECRET);
         registry.add("ltz.auth.service-clients.clients.community-service.secret", () -> COMMUNITY_CLIENT_SECRET);
+        registry.add("ltz.auth.service-clients.clients.messaging-service.secret", () -> MESSAGING_CLIENT_SECRET);
+        registry.add("ltz.auth.service-clients.clients.lfp-service.secret", () -> LFP_CLIENT_SECRET);
         registry.add("AUTH_TOTP_ENCRYPTION_KEY", () -> TEST_TOTP_KEY);
         registry.add("AUTH_JWT_PRIVATE_KEY",
                 () -> Base64.getEncoder().encodeToString(TEST_JWT_KEYS.getPrivate().getEncoded()));

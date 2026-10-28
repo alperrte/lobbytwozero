@@ -21,7 +21,8 @@ public class ServiceClientConfig {
     public static final Set<String> ALLOWED_SCOPES = Set.of(
             TokenClaims.ACCOUNT_READ_SCOPE, TokenClaims.ACCOUNT_STATUS_WRITE_SCOPE, TokenClaims.ACCOUNT_ROLE_WRITE_SCOPE);
     /** Başka servislere ({@code aud=<servis>-service}) verilebilen kapsamlar; hedef servis token'ı kendi JWKS doğrulamasıyla kabul eder. */
-    public static final Set<String> ALLOWED_TARGET_SCOPES = Set.of(TokenClaims.EVENTS_INGEST_SCOPE);
+    public static final Set<String> ALLOWED_TARGET_SCOPES = Set.of(
+            TokenClaims.EVENTS_INGEST_SCOPE, TokenClaims.BLOCKS_CHECK_SCOPE);
     static final int MIN_SECRET_LENGTH = 32;
     private static final Pattern CLIENT_ID = Pattern.compile("^[a-z0-9-]{1,32}$");
     private static final Pattern TARGET_AUDIENCE = Pattern.compile("^[a-z0-9-]{1,24}" + TokenClaims.SERVICE_AUDIENCE_SUFFIX + "$");
