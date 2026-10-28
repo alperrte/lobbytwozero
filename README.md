@@ -105,9 +105,9 @@ LTZ'nin dünyası **mikroservislerden** oluşur. Web istemcisi tüm isteklerini 
 | --- | --- | --- |
 | 🟢 Kimlik & hesap | `auth` · `user` · `mail` | 5081–5083 |
 | 🟡 Oyun & katalog | `game` · `library` · `review` | 5084–5086 |
-| 🔵 Sosyal & iletişim | `social` · `messaging` · `lfp` | 5087–5089 |
+| 🔴 Sosyal & iletişim | `social` · `messaging` · `lfp` | 5087–5089 |
 | 🩷 Topluluk & içerik | `community` · `content` · `event` | 5090–5092 |
-| 🟣 Donanım & performans | `hardware` · `recommendation` · `performance` | 5093–5095 |
+| 🟥 Donanım & performans | `hardware` · `recommendation` · `performance` | 5093–5095 |
 | ⚪ Paylaşılan | `admin` · `notification` | 5096–5097 |
 | 🏰 Kapı | `api-gateway` | 5080 |
 | 🏠 İstemci | `frontend` (Next.js) | 5001 |
