@@ -258,7 +258,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     } else if (action === 'update') {
       updateBaseline({ modules, init: args.includes('--init') });
       console.log('Baseline updated: ' + baselineFile);
+      const { writeDocs } = await import('./security-docs.mjs');
+      console.log('docs-security refreshed (' + writeDocs().length + ' files)');
+    } else if (action === 'docs') {
+      const { writeDocs } = await import('./security-docs.mjs');
+      console.log('docs-security refreshed (' + writeDocs().length + ' files)');
     } else if (action === 'report') debtReport();
-    else throw new Error(`Use: ${command} check|update|report [--modules services/a,services/b] [--base <sha>] [--init]`);
+    else throw new Error(`Use: ${command} check|update|docs|report [--modules services/a,services/b] [--base <sha>] [--init]`);
   } catch (error) { console.error(error.message); process.exitCode = 1; }
 }

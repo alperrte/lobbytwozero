@@ -302,3 +302,16 @@ içinde çalışır. Kurallar (`backend/config/checkstyle.xml`, `pmd.xml`) **de�
   için PR'ı kırmızı yapmaz.
 - **Sınır:** PMD sonucu derleme classpath'ine hafifçe bağlıdır; Windows ve Linux arasında nadiren sayı farkı görürsen
   baseline'ı **CI'ın (Linux) sonucuna** göre güncelle ve nedenini PR'da yaz. Bu kapı güvenlik açığı (SAST) taraması değildir.
+
+### Servis başına güvenlik notları (`docs-security/`)
+
+`docs-security/<servis>/` her backend servisi için iki dosya içerir ve geliştiricinin/yapay zekâ ajanının servise
+dokunmadan önce ilk bakacağı yerdir (`AGENTS.md` §2 madde 6):
+
+- `README.md` **otomatik üretilir** (kaynak `backend/config/quality-baseline.json`): sahip, dondurulmuş borç (kural ve
+  dosya bazında), nasıl düzeltileceği, doğrulama komutları ve ajan kuralları. Elle düzenlenmez.
+- `NOTLAR.md` **elle** tutulur ve hiçbir komut tarafından ezilmez: bilinen test/ortam sorunları, ertelenen güvenlik kararları.
+
+`node pre-push/ci/lint-ratchet.mjs update ...` baseline'ı güncellerken bu klasörü de yeniler; yalnız belgeyi yenilemek için
+`node pre-push/ci/lint-ratchet.mjs docs`. Baseline değişip belge yenilenmezse `pre-push/ci/security-docs.test.mjs` CI'da
+kırmızı olur ve komutu söyler.

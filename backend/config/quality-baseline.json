@@ -1,123 +1,22 @@
 {
  "version": 1,
- "generated": "2026-10-26",
+ "generated": "2026-10-28",
  "modules": {
   "services/admin-service": {},
   "services/api-gateway": {},
-  "services/auth-service": {
-   "src/main/java/com/ltz/auth/application/service/SteamLoginService.java": {
-    "pmd:PreserveStackTrace": 1
-   },
-   "src/main/java/com/ltz/auth/infrastructure/client/DevSmtpVerificationMailAdapter.java": {
-    "pmd:PreserveStackTrace": 1
-   },
-   "src/main/java/com/ltz/auth/infrastructure/client/GoogleOidcClient.java": {
+  "services/auth-service": {},
+  "services/community-service": {
+   "src/main/java/com/ltz/community/application/service/ImageSanitizer.java": {
+    "pmd:CyclomaticComplexity": 1,
     "pmd:PreserveStackTrace": 2
    },
-   "src/main/java/com/ltz/auth/infrastructure/client/HttpAccountDataEraser.java": {
+   "src/test/java/com/ltz/community/application/service/CommentServiceIntegrationTest.java": {
+    "pmd:CloseResource": 2
+   },
+   "src/test/java/com/ltz/community/application/service/PostLikeServiceIntegrationTest.java": {
     "pmd:CloseResource": 1
-   },
-   "src/main/java/com/ltz/auth/infrastructure/client/SteamOpenIdClient.java": {
-    "pmd:PreserveStackTrace": 1
-   },
-   "src/main/java/com/ltz/auth/infrastructure/config/OAuthConfig.java": {
-    "pmd:CloseResource": 1
-   },
-   "src/test/java/com/ltz/auth/ErasureTargetStub.java": {
-    "pmd:CloseResource": 1
-   },
-   "src/test/java/com/ltz/auth/api/controller/AccountDeletionTest.java": {
-    "checkstyle:MethodName": 7
-   },
-   "src/test/java/com/ltz/auth/api/controller/AccountPreHijackingTest.java": {
-    "checkstyle:MethodName": 1
-   },
-   "src/test/java/com/ltz/auth/api/controller/AdminAccountTest.java": {
-    "checkstyle:MethodName": 4
-   },
-   "src/test/java/com/ltz/auth/api/controller/EmailVerificationControllerTest.java": {
-    "checkstyle:MethodName": 3
-   },
-   "src/test/java/com/ltz/auth/api/controller/GoogleLoginTest.java": {
-    "checkstyle:MethodName": 2
-   },
-   "src/test/java/com/ltz/auth/api/controller/LoginControllerTest.java": {
-    "checkstyle:MethodName": 2
-   },
-   "src/test/java/com/ltz/auth/api/controller/PasswordChangeTest.java": {
-    "checkstyle:MethodName": 3
-   },
-   "src/test/java/com/ltz/auth/api/controller/PasswordResetTest.java": {
-    "checkstyle:MethodName": 4
-   },
-   "src/test/java/com/ltz/auth/api/controller/ProviderNotConfiguredTest.java": {
-    "checkstyle:MethodName": 1
-   },
-   "src/test/java/com/ltz/auth/api/controller/RegistrationControllerTest.java": {
-    "checkstyle:MethodName": 3
-   },
-   "src/test/java/com/ltz/auth/api/controller/SecurityRulesTest.java": {
-    "checkstyle:MethodName": 2
-   },
-   "src/test/java/com/ltz/auth/api/controller/SessionControllerTest.java": {
-    "checkstyle:MethodName": 2
-   },
-   "src/test/java/com/ltz/auth/api/controller/SteamLoginTest.java": {
-    "checkstyle:MethodName": 3
-   },
-   "src/test/java/com/ltz/auth/api/controller/TwoFactorControllerTest.java": {
-    "checkstyle:MethodName": 4
-   },
-   "src/test/java/com/ltz/auth/application/service/AccountDeletionCoordinatorTest.java": {
-    "checkstyle:MethodName": 2
-   },
-   "src/test/java/com/ltz/auth/application/service/AccountDeletionObservabilityTest.java": {
-    "checkstyle:MethodName": 2
-   },
-   "src/test/java/com/ltz/auth/application/service/PasswordResetDeliveryFailureTest.java": {
-    "checkstyle:MethodName": 1
-   },
-   "src/test/java/com/ltz/auth/application/service/RetentionCleanupTest.java": {
-    "checkstyle:MethodName": 4
-   },
-   "src/test/java/com/ltz/auth/application/service/UnauthenticatedWriteBoundTest.java": {
-    "checkstyle:MethodName": 2
-   },
-   "src/test/java/com/ltz/auth/application/service/VerificationDeliveryFailureTest.java": {
-    "checkstyle:MethodName": 1
-   },
-   "src/test/java/com/ltz/auth/infrastructure/client/MailpitEndToEndTest.java": {
-    "checkstyle:MethodName": 2
-   },
-   "src/test/java/com/ltz/auth/infrastructure/config/AuthPropertiesValidationTest.java": {
-    "checkstyle:MethodName": 1
-   },
-   "src/test/java/com/ltz/auth/infrastructure/security/BoundedPasswordEncoderTest.java": {
-    "checkstyle:MethodName": 1
-   },
-   "src/test/java/com/ltz/auth/infrastructure/security/JwtSigningKeyTest.java": {
-    "checkstyle:MethodName": 1
-   },
-   "src/test/java/com/ltz/auth/infrastructure/security/JwtValidationTest.java": {
-    "checkstyle:MethodName": 4
-   },
-   "src/test/java/com/ltz/auth/infrastructure/security/RequestBodySizeLimitFilterTest.java": {
-    "pmd:CloseResource": 1
-   },
-   "src/test/java/com/ltz/auth/infrastructure/security/SecretCipherTest.java": {
-    "checkstyle:MethodName": 2
-   },
-   "src/test/java/com/ltz/auth/infrastructure/security/SecureTokensTest.java": {
-    "checkstyle:MethodName": 1
-   },
-   "src/test/java/com/ltz/auth/infrastructure/security/TotpCodesTest.java": {
-    "checkstyle:MethodName": 1
-   },
-   "src/test/java/com/ltz/auth/infrastructure/security/VerificationCodeHasherTest.java": {
-    "checkstyle:MethodName": 3
    }
   },
-  "services/community-service": {},
   "services/content-service": {},
   "services/event-service": {},
   "services/game-service": {
