@@ -1,0 +1,17 @@
+CREATE DATABASE "auth-service";
+CREATE DATABASE "user-service";
+CREATE DATABASE "mail-service";
+CREATE DATABASE "game-service";
+CREATE DATABASE "library-service";
+CREATE DATABASE "review-service";
+CREATE DATABASE "social-service";
+CREATE DATABASE "messaging-service";
+CREATE DATABASE "lfp-service";
+CREATE DATABASE "community-service";
+CREATE DATABASE "content-service";
+CREATE DATABASE "event-service";
+CREATE DATABASE "hardware-service";
+CREATE DATABASE "recommendation-service";
+CREATE DATABASE "performance-service";
+CREATE DATABASE "admin-service";
+CREATE DATABASE "notification-service";

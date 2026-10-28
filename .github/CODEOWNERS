@@ -1,0 +1,43 @@
+# Sorumluluklar: AGENTS.md ve docs/servis-gereksinimleri; hesaplar: README.md ekip bağlantıları.
+# GitHub Write erişimleri owner tarafından doğrulanmalıdır; burada doğrulandığı iddia edilmez.
+
+# Kerem
+/backend/services/auth-service/ @KeremKalyoncu
+/backend/services/user-service/ @KeremKalyoncu
+/backend/services/mail-service/ @KeremKalyoncu
+/docs/servis-gereksinimleri/LTZ_Servis_Icerikleri_Kerem.md @KeremKalyoncu
+
+# Hamza
+/backend/services/game-service/ @HmzT270
+/backend/services/library-service/ @HmzT270
+/backend/services/review-service/ @HmzT270
+/docs/servis-gereksinimleri/LTZ_Servis_Icerikleri_Hamza.md @HmzT270
+
+# Umut
+/backend/services/social-service/ @Umutys61
+/backend/services/messaging-service/ @Umutys61
+/backend/services/lfp-service/ @Umutys61
+/docs/servis-gereksinimleri/LTZ_Servis_Icerikleri_Umut.md @Umutys61
+
+# Nisa
+/backend/services/community-service/ @Camcinisa
+/backend/services/content-service/ @Camcinisa
+/backend/services/event-service/ @Camcinisa
+/docs/servis-gereksinimleri/LTZ_Servis_Icerikleri_Nisa.md @Camcinisa
+
+# Alper
+/backend/services/hardware-service/ @alperrte
+/backend/services/recommendation-service/ @alperrte
+/backend/services/performance-service/ @alperrte
+/docs/servis-gereksinimleri/LTZ_Servis_Icerikleri_Alper.md @alperrte
+
+# SAHİP ATANMADI: .github/, backend/.mvn/, backend/pom.xml, backend/config/, pre-push/,
+# lib/, docs/SECURITY.md, docs/engineering.md, frontend ortak altyapısı, Gateway,
+# admin ve notification. Rastgele kişi atanmamıştır. Ekip birincil/yedek atamalıdır.
+# Bu alanlarda zorunlu bağımsız insan review'ü için owner kontrol listesine bakın.
+# Hassas coverage politikası: /backend/config/coverage-policy.json,
+# /pre-push/ci/coverage.mjs, /pre-push/ci/CoverageXml.java, /backend/pom.xml.
+# İlk policy/promotion için coverage gate ayrıca bağımsız current-head owner review arar.
+# Hassas kalite baseline'ı: /backend/config/quality-baseline.json ve /pre-push/ci/lint-ratchet.mjs. Baseline yalnız
+# azalabilir (CI hedef dala göre artışı reddeder); yine de değişikliği bağımsız owner review görmelidir.
+# Bu yorum CODEOWNERS ataması veya GitHub required-review ayarı değildir; ekip owner/yedek atamalıdır.

@@ -4,9 +4,12 @@ import { repositoryRoot, execute, backendTests, backendResults, readModules, cle
 import { requireNode } from '../lib/profile-env.mjs';
 import { requireMaven25 } from './backend-check.mjs';
 import { checkGitSecrets, checkBackendHealth, backendTestEnvironment } from './runtime-checks.mjs';
+import { prepareCoverage, enforceCoverage } from './ci/coverage.mjs';
+import { ratchetCheck, localBase } from './ci/lint-ratchet.mjs';
 import { checkRepositoryHygiene } from './hygiene-checks.mjs';
+import { scanSecrets } from './ci/secrets.mjs';
 
-export const requiredRows = ['Git / Secret Check', 'Backend Tests', 'Backend Build', 'Backend Coverage', 'Docker Configuration'];
+export const requiredRows = ['Git / Secret Check', 'Backend Tests', 'Backend Build', 'Backend Coverage', 'Code Quality (new violations)', 'Docker Configuration'];
 
 export function formatQualityStatus(value, stream = process.stdout) {
   const text = String(value);
@@ -15,7 +18,8 @@ export function formatQualityStatus(value, stream = process.stdout) {
     `\u001b[${status === 'SAFE TO COMMIT' ? 32 : 31}m${status}\u001b[0m`);
 }
 
-export async function runQualityChecks({ root = repositoryRoot, profile = 'dev', ambient = process.env, runCommand = execute, healthProbe, log = console.log } = {}) {
+export async function runQualityChecks({ root = repositoryRoot, profile = 'dev', ambient = process.env, runCommand = execute,
+  prepare = prepareCoverage, coverageCheck = enforceCoverage, qualityCheck = ratchetCheck, secretScan = scanSecrets, healthProbe, log = console.log } = {}) {
   const rows = Object.fromEntries([...requiredRows, 'Backend HTTP Health'].map(name => [name, 'SKIPPED']));
   const details = {};
   // Tool DEBUG namespaces must not turn on Spring's request/form DEBUG logging in test JVMs.
@@ -36,10 +40,8 @@ export async function runQualityChecks({ root = repositoryRoot, profile = 'dev',
     requireNode();
     const modules = readModules(root);
     clearBackendReports(root, modules);
-
-    await step('Git / Secret Check', async () =>
-      (await checkGitSecrets(run, log)) && checkRepositoryHygiene({ run, log, root }));
-
+    await step('Git / Secret Check', async () => (await checkGitSecrets(run, log))
+      && secretScan({ mode: 'worktree', root, log }) === 0 && checkRepositoryHygiene({ run, log, root }));
     await step('Backend Tests', async () => {
       rows['Backend Build'] = 'FAIL';
       const config = await run('docker', ['compose', '--env-file', `.env.${profile}`, '-f', 'docker-compose.yml', 'config', '--format', 'json'], root, true);
@@ -54,6 +56,8 @@ export async function runQualityChecks({ root = repositoryRoot, profile = 'dev',
         { cwd, env: testEnv, capture, secrets: [testEnv.POSTGRES_PASSWORD], log });
 
       await requireMaven25(testRun, mvn, root);
+      env.LTZ_COVERAGE_CONTEXT = ambient.LTZ_COVERAGE_CONTEXT || await prepare(root);
+      testEnv.LTZ_COVERAGE_CONTEXT = env.LTZ_COVERAGE_CONTEXT;
       const result = await testRun(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify']);
 
       rows['Backend Build'] = result.code === 0 ? 'PASS' : 'FAIL';
@@ -64,8 +68,16 @@ export async function runQualityChecks({ root = repositoryRoot, profile = 'dev',
       if (rows['Backend Tests'] !== 'PASS') throw new Error('Successful fresh backend tests are required');
       const report = backendResults(root, modules, started);
       details.backend = report;
-      log(`Backend: ${report.tests} tests; overall line coverage ${report.lineCoverage.toFixed(2)}% (target 80%)`);
-      return report.lineCoverage >= 80;
+      log(`Backend: ${report.tests} tests; overall line coverage ${report.lineCoverage.toFixed(2)}% (central progressive policy)`);
+      details.coveragePolicy = coverageCheck(root, modules, env.LTZ_COVERAGE_CONTEXT);
+      return true;
+    });
+
+    await step('Code Quality (new violations)', async () => {
+      if (rows['Backend Tests'] !== 'PASS') throw new Error('Successful fresh backend tests are required');
+      // Checkstyle/PMD only report; existing debt is frozen in the baseline and only NEW violations fail.
+      qualityCheck({ root, modules, base: localBase(root), since: started, log });
+      return true;
     });
 
     let deployed = [];
@@ -90,8 +102,7 @@ export async function runQualityChecks({ root = repositoryRoot, profile = 'dev',
     } else {
       log('[SKIPPED] Backend HTTP Health: no backend services in the current Compose configuration.');
     }
-
-    log('[SCOPE] Current backend and Compose configuration. No frontend exists; SonarQube runs separately.');
+    log('[SCOPE] Backend and Compose only. Frontend and Node regression checks run in CI; SonarQube is optional.');
   } catch (error) { log(`[ERROR] ${error.message}`); }
 
   const safe = requiredRows.every(name => rows[name] === 'PASS') && (!healthRequired || rows['Backend HTTP Health'] === 'PASS');

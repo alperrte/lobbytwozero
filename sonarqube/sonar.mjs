@@ -4,6 +4,7 @@ import { repositoryRoot, execute, redact, cleanGenerated, freshFile, backendResu
 import { loadProfileEnv, requireNode } from '../lib/profile-env.mjs';
 import { requireMaven25 } from '../pre-push/backend-check.mjs';
 import { backendTestEnvironment } from '../pre-push/runtime-checks.mjs';
+import { coverageMinimum, prepareCoverage, enforceCoverage } from '../pre-push/ci/coverage.mjs';
 
 export const loadSonarEnv = loadProfileEnv;
 
@@ -14,7 +15,7 @@ export function gatePassed(data) {
 export function sonarWayPolicy(conditions = []) {
   const condition = (metric, op, threshold) => conditions.some((item) => item.metric === metric && item.op === op && Number(item.error) === threshold);
   const ratings = ['new_security_rating', 'new_reliability_rating', 'new_maintainability_rating'].every((metric) => condition(metric, 'GT', 1));
-  return condition('new_coverage', 'LT', 80) && condition('new_duplicated_lines_density', 'GT', 3) && (condition('new_violations', 'GT', 0) || ratings);
+  return condition('new_coverage', 'LT', coverageMinimum()) && condition('new_duplicated_lines_density', 'GT', 3) && (condition('new_violations', 'GT', 0) || ratings);
 }
 
 export function validateSonarHost(host) {
@@ -67,7 +68,7 @@ export function overallTargets(measures) {
   const security = values.software_quality_security_rating ?? values.security_rating;
   const reliability = values.software_quality_reliability_rating ?? values.reliability_rating;
   const maintainability = values.software_quality_maintainability_rating ?? values.sqale_rating;
-  return security === 1 && reliability === 1 && maintainability === 1 && values.coverage >= 80 && values.duplicated_lines_density <= 3;
+  return security === 1 && reliability === 1 && maintainability === 1 && values.coverage >= coverageMinimum() && values.duplicated_lines_density <= 3;
 }
 
 // Genel hedefler (A notları) kırmızıysa nedenini kural/dosya/satır/mesaj olarak yazdırır; token ve kaynak kod yazdırılmaz.
@@ -92,7 +93,8 @@ export async function explainFailingTargets({ host, project, token, request, say
   } catch (error) { say('[WARN] Bulgu ayrıntısı alınamadı: ' + error.message); }
 }
 
-export async function runScan({ root = repositoryRoot, profile = 'dev', ambient = process.env, runCommand = execute, request = sonarRequest, log = console.log } = {}) {
+export async function runScan({ root = repositoryRoot, profile = 'dev', ambient = process.env, runCommand = execute,
+  prepare = prepareCoverage, coverageCheck = enforceCoverage, request = sonarRequest, log = console.log } = {}) {
   const rows = Object.fromEntries(scanRows.map(name => [name, 'SKIPPED']));
   const details = {};
   let secrets = [ambient.SONAR_TOKEN];
@@ -158,10 +160,12 @@ export async function runScan({ root = repositoryRoot, profile = 'dev', ambient 
         { cwd, env: testEnv, capture, secrets, log: say });
 
       await requireMaven25(testRun, mvn, root);
+      testEnv.LTZ_COVERAGE_CONTEXT = ambient.LTZ_COVERAGE_CONTEXT || await prepare(root);
       const result = await testRun(mvn, ['-B', '-ntp', '-f', 'backend/pom.xml', '--fail-at-end', 'clean', 'verify']);
 
       if (result.code !== 0) throw new Error('Backend build/tests failed');
       details.backend = backendResults(root, modules, started);
+      details.coveragePolicy = coverageCheck(root, modules, testEnv.LTZ_COVERAGE_CONTEXT);
       say(`Fresh reports: ${details.backend.tests} tests; local line coverage ${details.backend.lineCoverage.toFixed(2)}%`);
       return true;
     });

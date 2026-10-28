@@ -290,4 +290,3 @@ verilirse OAuth/bağlantı koruması servisi durdurur; `production`, `staging` g
 | 11 | Servis kimliği (D4): Auth tarafı **UYGULANDI**; hedef servislerde silme ucu (16 servis) | **BEKLEYEN** (§8, §9) |
 | 12 | Anahtar rotasyonu ve parola politikası (≥15 + kara liste) | **BEKLEYEN** (`acik-guvenlik-borclari.md` S9, S10) |
 | 13 | Migration'lar V61–V64 donmuştur; şema değişikliği V65+ | Süreç kuralı |
-

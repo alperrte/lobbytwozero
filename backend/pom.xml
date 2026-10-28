@@ -22,11 +22,32 @@
 
     <properties>
         <java.version>25</java.version>
+        <!-- Boot 4.1.1 BOM'undaki zafiyetli sürümlerin yamaları (tomcat-embed-core CRITICAL, jackson HIGH).
+             Tüm servisleri kapsar. Boot yama sürümüne geçildiğinde bu üç satır kaldırılmalıdır. -->
+        <tomcat.version>11.0.25</tomcat.version>
+        <jackson-2-bom.version>2.21.7</jackson-2-bom.version>
+        <jackson-bom.version>3.1.7</jackson-bom.version>
         <jjwt.version>0.13.0</jjwt.version>
         <dotenv.version>3.2.0</dotenv.version>
         <springdoc.version>3.1.1</springdoc.version>
         <jacoco.version>0.8.15</jacoco.version>
         <sonar-maven-plugin.version>5.8.0.7211</sonar-maven-plugin.version>
+        <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
+        <checkstyle.version>14.3.0</checkstyle.version>
+        <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
+        <pmd.version>7.28.0</pmd.version>
+        <ltz.configDirectory>${maven.multiModuleProjectDirectory}/config</ltz.configDirectory>
+        <ltz.test.postgres.port>65432</ltz.test.postgres.port>
+        <!-- Checkstyle/PMD varsayilan olarak yalniz raporlar (target/checkstyle-result.xml, target/pmd.xml); karari
+             backend/config/quality-baseline.json'a karsi pre-push/ci/lint-ratchet.mjs verir: yeni ihlal yok, eski borc bloklamaz.
+             Sifir tolerans icin: mvn validate verify -Pstrict-quality -->
+        <ltz.quality.failOnViolation>false</ltz.quality.failOnViolation>
+        <maven.build.timestamp.format>yyyy-MM-dd'T'HH:mm:ssXXX</maven.build.timestamp.format>
+        <!-- verify rejects explicit skip flags; package may still skip tests. -->
+        <skipTests>false</skipTests>
+        <maven.test.skip>false</maven.test.skip>
+        <maven.test.skip.exec>false</maven.test.skip.exec>
+        <jacoco.skip>false</jacoco.skip>
 
         <sonar.projectKey>ltz-backend</sonar.projectKey>
         <sonar.projectName>LobbyTwoZero Backend</sonar.projectName>
@@ -86,9 +107,102 @@
                     <execution>
                         <id>coverage-report</id>
                         <phase>verify</phase>
+                        <configuration><title>${project.artifactId}</title></configuration>
                         <goals>
                             <goal>report</goal>
                         </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration><failIfNoTests>true</failIfNoTests></configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>${maven-checkstyle-plugin.version}</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.puppycrawl.tools</groupId>
+                        <artifactId>checkstyle</artifactId>
+                        <version>${checkstyle.version}</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <configLocation>${ltz.configDirectory}/checkstyle.xml</configLocation>
+                    <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                    <consoleOutput>true</consoleOutput>
+                    <failOnViolation>${ltz.quality.failOnViolation}</failOnViolation>
+                    <linkXRef>false</linkXRef>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>java-structure</id><phase>validate</phase>
+                        <goals><goal>check</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-pmd-plugin</artifactId>
+                <version>${maven-pmd-plugin.version}</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>net.sourceforge.pmd</groupId><artifactId>pmd-core</artifactId>
+                        <version>${pmd.version}</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>net.sourceforge.pmd</groupId><artifactId>pmd-java</artifactId>
+                        <version>${pmd.version}</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <targetJdk>25</targetJdk>
+                    <!-- Skip only empty HTML; PMD XML analysis and the check goal remain mandatory. -->
+                    <skipEmptyReport>true</skipEmptyReport>
+                    <includeTests>true</includeTests>
+                    <rulesets><ruleset>${ltz.configDirectory}/pmd.xml</ruleset></rulesets>
+                    <linkXRef>false</linkXRef>
+                    <failOnViolation>${ltz.quality.failOnViolation}</failOnViolation>
+                    <skipPmdError>false</skipPmdError>
+                    <printFailingErrors>true</printFailingErrors>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>java-behavior</id><phase>verify</phase>
+                        <goals><goal>check</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- JaCoCo still instruments/reports every production class. A single
+                 reviewed policy owns strict, bootstrap and changed-line gates. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.6.4</version>
+                <executions>
+                    <execution>
+                        <id>coverage-policy</id><phase>verify</phase>
+                        <goals><goal>exec</goal></goals>
+                        <configuration>
+                            <executable>node</executable>
+                            <arguments>
+                                <argument>${ltz.configDirectory}/../../pre-push/ci/coverage.mjs</argument>
+                                <argument>maven-module</argument>
+                                <argument>${project.basedir}</argument>
+                                <argument>${maven.build.timestamp}</argument>
+                                <argument>${skipTests}</argument>
+                                <argument>${maven.test.skip}</argument>
+                                <argument>${maven.test.skip.exec}</argument>
+                                <argument>${jacoco.skip}</argument>
+                            </arguments>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
@@ -101,6 +215,39 @@
 
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>strict-quality</id>
+            <properties>
+                <ltz.quality.failOnViolation>true</ltz.quality.failOnViolation>
+            </properties>
+        </profile>
+        <profile>
+            <id>ci</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <systemPropertyVariables>
+                                <ltz.test.external-postgres>true</ltz.test.external-postgres>
+                                <spring.datasource.url>jdbc:postgresql://127.0.0.1:${ltz.test.postgres.port}/${project.artifactId}</spring.datasource.url>
+                                <spring.datasource.username>ltz_test</spring.datasource.username>
+                                <spring.datasource.password>ltz_test_only</spring.datasource.password>
+                                <spring.security.user.password>ltz_test_only</spring.security.user.password>
+                                <spring.mail.host>127.0.0.1</spring.mail.host>
+                                <spring.mail.port>1</spring.mail.port>
+                                <management.health.mail.enabled>false</management.health.mail.enabled>
+                                <AUTH_SERVICE_URL>http://127.0.0.1:1</AUTH_SERVICE_URL>
+                            </systemPropertyVariables>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
     <modules>
         <module>services/auth-service</module>

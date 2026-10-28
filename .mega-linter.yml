@@ -1,0 +1,25 @@
+# Optional manual pilot. Java and frontend quality remain with Maven/npm.
+ENABLE_LINTERS:
+  - MARKDOWN_MARKDOWNLINT
+  - YAML_YAMLLINT
+  - JSON_JSONLINT
+  - XML_XMLLINT
+  - DOCKERFILE_HADOLINT
+  - BASH_SHELLCHECK
+APPLY_FIXES: none
+VALIDATE_ALL_CODEBASE: true
+DISABLE_ERRORS: false
+PRINT_ALPACA: false
+SHOW_ELAPSED_TIME: true
+FILEIO_REPORTER: false
+CONSOLE_REPORTER: false
+JSON_REPORTER: false
+TEXT_REPORTER: false
+SARIF_REPORTER: false
+TAP_REPORTER: false
+GITHUB_COMMENT_REPORTER: false
+GITHUB_STATUS_REPORTER: false
+UPDATED_SOURCES_REPORTER: false
+FILTER_REGEX_EXCLUDE: '(^|/)(\.git|\.cache|target|node_modules|coverage|test-results|megalinter-reports)/|(^|/)\.env($|\.)'
+MARKDOWN_MARKDOWNLINT_CONFIG_FILE: .markdownlint.json
+YAML_YAMLLINT_CONFIG_FILE: .yamllint.yml

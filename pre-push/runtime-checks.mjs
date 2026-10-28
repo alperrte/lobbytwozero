@@ -128,4 +128,3 @@ export async function checkBackendHealth({ run, profile, modules, probe = readHe
   for (const row of results) log(`${row.service.padEnd(24)} HTTP ${row.status}${row.error ? ': ' + row.error : ''}`);
   return { passed: results.every(row => row.status === 'PASS'), services: results };
 }
-

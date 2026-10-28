@@ -160,6 +160,7 @@ for (const option of [
   'success',
   'gateFail',
   'lowCoverage',
+  'coveragePolicyFail',
   'scannerFail',
   'missingReports',
   'serverDown',
@@ -354,6 +355,13 @@ for (const option of [
             : { DEBUG: 'tool-namespace' },
         runCommand,
         request,
+        prepare: async () => 'synthetic-context',
+        coverageCheck: (_root, modules, context) => {
+          assert.equal(context, 'synthetic-context');
+          assert.deepEqual(modules, ['services/auth-service']);
+          if (option === 'coveragePolicyFail') throw new Error('Central coverage policy rejected');
+          return [];
+        },
         log: line => lines.push(line),
       });
 
@@ -373,6 +381,10 @@ for (const option of [
       }
 
       if (option === 'missingReports') {
+        assert.ok(!calls.some(call => call.args.includes('sonar:sonar')));
+      }
+
+      if (option === 'coveragePolicyFail') {
         assert.ok(!calls.some(call => call.args.includes('sonar:sonar')));
       }
 
