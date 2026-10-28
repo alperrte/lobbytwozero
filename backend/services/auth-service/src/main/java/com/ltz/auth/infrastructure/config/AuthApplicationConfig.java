@@ -14,7 +14,8 @@ import org.springframework.context.annotation.Configuration;
         JwtProperties.class,
         SessionProperties.class,
         AttemptProperties.class,
-        TwoFactorProperties.class
+        TwoFactorProperties.class,
+        DeviceProperties.class
 })
 public class AuthApplicationConfig {
 

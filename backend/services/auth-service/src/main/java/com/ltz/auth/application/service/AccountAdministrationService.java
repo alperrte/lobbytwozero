@@ -12,6 +12,7 @@ import com.ltz.auth.domain.entity.Account;
 import com.ltz.auth.domain.entity.AccountRoleHistory;
 import com.ltz.auth.domain.entity.AccountStatusHistory;
 import com.ltz.auth.domain.enums.AccountStatus;
+import com.ltz.auth.domain.enums.DeviceRevokeReason;
 import com.ltz.auth.domain.enums.RoleAction;
 import com.ltz.auth.domain.enums.RoleCode;
 import com.ltz.auth.domain.enums.SecurityEventType;
@@ -43,6 +44,7 @@ public class AccountAdministrationService {
     private final AccountRepository accountRepository;
     private final RoleRepository roleRepository;
     private final AuthSessionRepository sessionRepository;
+    private final DeviceRevoker deviceRevoker;
     private final AccountStatusHistoryRepository statusHistoryRepository;
     private final AccountRoleHistoryRepository roleHistoryRepository;
     private final TwoFactorService twoFactorService;
@@ -72,6 +74,7 @@ public class AccountAdministrationService {
         // Toplu güncelleme persistence context'i temizler; bekleyen değişiklikler önce flush edilir.
         if (target != AccountStatus.ACTIVE) {
             sessionRepository.revokeAllActive(accountId, SessionRevokeReason.ACCOUNT_INACTIVE, now);
+            deviceRevoker.revokeAll(accountId, DeviceRevokeReason.ACCOUNT_INACTIVE, now);
         }
         securityEventRecorder.recordEvent(SecurityEventType.ACCOUNT_STATUS_CHANGED, accountId);
     }

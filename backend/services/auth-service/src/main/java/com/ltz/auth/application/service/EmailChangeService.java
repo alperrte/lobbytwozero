@@ -15,6 +15,7 @@ import com.ltz.auth.application.port.VerificationCodeMail;
 import com.ltz.auth.domain.entity.Account;
 import com.ltz.auth.domain.entity.EmailVerificationCode;
 import com.ltz.auth.domain.enums.CodeInvalidationReason;
+import com.ltz.auth.domain.enums.DeviceRevokeReason;
 import com.ltz.auth.domain.enums.PasswordResetInvalidationReason;
 import com.ltz.auth.domain.enums.SecurityEventType;
 import com.ltz.auth.domain.enums.SessionRevokeReason;
@@ -54,6 +55,7 @@ public class EmailChangeService {
     private final AccountRepository accountRepository;
     private final EmailVerificationCodeRepository codeRepository;
     private final AuthSessionRepository sessionRepository;
+    private final DeviceRevoker deviceRevoker;
     private final PasswordResetTokenRepository resetTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final TwoFactorService twoFactorService;
@@ -160,6 +162,7 @@ public class EmailChangeService {
         }
         // Toplu güncellemeler persistence context'i temizler; hesap değişikliği yukarıda flush edildi.
         sessionRepository.revokeAllActive(accountId, SessionRevokeReason.EMAIL_CHANGED, now);
+        deviceRevoker.revokeAll(accountId, DeviceRevokeReason.EMAIL_CHANGED, now);
         resetTokenRepository.invalidateActive(accountId, PasswordResetInvalidationReason.PASSWORD_CHANGED, now);
         securityEventRecorder.recordEvent(SecurityEventType.EMAIL_CHANGED, accountId);
         return true;

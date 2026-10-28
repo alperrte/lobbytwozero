@@ -12,6 +12,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.ltz.auth.application.port.PasswordResetMail;
 import com.ltz.auth.domain.entity.Account;
 import com.ltz.auth.domain.entity.PasswordResetToken;
+import com.ltz.auth.domain.enums.DeviceRevokeReason;
 import com.ltz.auth.domain.enums.PasswordResetInvalidationReason;
 import com.ltz.auth.domain.enums.SecurityEventType;
 import com.ltz.auth.domain.enums.SessionRevokeReason;
@@ -40,6 +41,7 @@ public class PasswordService {
 
     private final AccountRepository accountRepository;
     private final AuthSessionRepository sessionRepository;
+    private final DeviceRevoker deviceRevoker;
     private final PasswordResetTokenRepository resetTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final PasswordPolicy passwordPolicy;
@@ -78,6 +80,7 @@ public class PasswordService {
             account.changePassword(newHash, now);
             // Toplu güncellemeler persistence context'i temizler; hesap değişikliği önce flush edilir.
             sessionRepository.revokeAllActive(accountId, SessionRevokeReason.PASSWORD_CHANGED, now);
+            deviceRevoker.revokeAll(accountId, DeviceRevokeReason.PASSWORD_CHANGED, now);
             resetTokenRepository.invalidateActive(accountId, PasswordResetInvalidationReason.PASSWORD_CHANGED, now);
             securityEventRecorder.recordEvent(SecurityEventType.PASSWORD_CHANGED, accountId);
         });
@@ -131,6 +134,7 @@ public class PasswordService {
         token.consume(now);
         account.changePassword(newHash, now);
         sessionRepository.revokeAllActive(account.getId(), SessionRevokeReason.PASSWORD_RESET, now);
+        deviceRevoker.revokeAll(account.getId(), DeviceRevokeReason.PASSWORD_RESET, now);
         securityEventRecorder.recordEvent(SecurityEventType.PASSWORD_RESET_COMPLETED, account.getId());
         return true;
     }

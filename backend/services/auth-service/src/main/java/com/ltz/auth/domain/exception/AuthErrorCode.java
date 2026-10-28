@@ -43,6 +43,9 @@ public enum AuthErrorCode {
     ACTING_ADMIN_INVALID(403, "The acting administrator is not an active administrator."),
     EMAIL_CHANGE_INVALID(400, "Email change code is invalid or has expired."),
     PASSWORD_REQUIRED(409, "A password must be set on this account before this action."),
+    DEVICE_NOT_FOUND(404, "The device was not found."),
+    DEVICE_LIMIT_REACHED(409, "Too many active devices. Remove one before binding another."),
+    INVALID_DEVICE_CREDENTIALS(401, "Device authentication failed."),
     DELETION_NOT_PENDING(409, "No cancellable account deletion exists for this account."),
     DELETION_CANCEL_WINDOW_CLOSED(409, "The waiting period has ended; the deletion can no longer be cancelled.");
 

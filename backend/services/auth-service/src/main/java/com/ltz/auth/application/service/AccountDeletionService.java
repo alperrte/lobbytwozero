@@ -17,6 +17,7 @@ import com.ltz.auth.domain.entity.AccountDeletionTask;
 import com.ltz.auth.domain.entity.AccountDeletionToken;
 import com.ltz.auth.domain.enums.AccountStatus;
 import com.ltz.auth.domain.enums.CodeInvalidationReason;
+import com.ltz.auth.domain.enums.DeviceRevokeReason;
 import com.ltz.auth.domain.enums.RoleCode;
 import com.ltz.auth.domain.enums.SecurityEventType;
 import com.ltz.auth.domain.enums.SessionRevokeReason;
@@ -55,6 +56,7 @@ public class AccountDeletionService {
 
     private final AccountRepository accountRepository;
     private final AuthSessionRepository sessionRepository;
+    private final DeviceRevoker deviceRevoker;
     private final AccountDeletionTokenRepository tokenRepository;
     private final AccountDeletionRequestRepository requestRepository;
     private final AccountDeletionTaskRepository taskRepository;
@@ -231,6 +233,7 @@ public class AccountDeletionService {
         securityEventRecorder.recordEvent(SecurityEventType.ACCOUNT_DELETION_CONFIRMED, accountId);
         // Toplu güncelleme persistence context'i temizler; bekleyen değişiklikler önce flush edilir.
         sessionRepository.revokeAllActive(accountId, SessionRevokeReason.ACCOUNT_DELETION, now);
+        deviceRevoker.revokeAll(accountId, DeviceRevokeReason.ACCOUNT_DELETION, now);
         // Silinecek hesabın bekleyen sıfırlama/doğrulama/MFA/Steam artıkları artık geçersiz kılınır.
         authDataEraser.purgeEphemeral(accountId);
         return true;
