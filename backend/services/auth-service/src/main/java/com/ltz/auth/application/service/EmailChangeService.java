@@ -11,6 +11,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.ltz.auth.application.port.SecurityNotificationType;
 import com.ltz.auth.application.port.VerificationCodeMail;
 import com.ltz.auth.domain.entity.Account;
 import com.ltz.auth.domain.entity.EmailVerificationCode;
@@ -66,6 +67,7 @@ public class EmailChangeService {
     private final VerificationCodeDispatcher dispatcher;
     private final SecurityEventRecorder securityEventRecorder;
     private final AuthEventPublisher eventPublisher;
+    private final SecurityNotificationDispatcher notifier;
     private final VerificationProperties properties;
     private final TransactionTemplate transactionTemplate;
     private final Clock clock;
@@ -155,6 +157,7 @@ public class EmailChangeService {
             return false;
         }
         code.consume(now);
+        String previousEmail = account.getEmail();
         account.changeEmail(code.getNewEmail(), now);
         try {
             accountRepository.flush();
@@ -168,6 +171,8 @@ public class EmailChangeService {
         resetTokenRepository.invalidateActive(accountId, PasswordResetInvalidationReason.PASSWORD_CHANGED, now);
         securityEventRecorder.recordEvent(SecurityEventType.EMAIL_CHANGED, accountId);
         eventPublisher.publish(AuthEventType.ACCOUNT_EMAIL_CHANGED, accountId, null);
+        // Bildirim ESKİ adrese gider: hesabı ele geçirilen gerçek sahip izinsiz değişikliği buradan öğrenir.
+        notifier.notifyAfterCommit(accountId, previousEmail, SecurityNotificationType.EMAIL_CHANGED);
         return true;
     }
 }

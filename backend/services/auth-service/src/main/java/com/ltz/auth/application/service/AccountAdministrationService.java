@@ -2,12 +2,14 @@ package com.ltz.auth.application.service;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ltz.auth.application.port.SecurityNotificationType;
 import com.ltz.auth.domain.entity.Account;
 import com.ltz.auth.domain.entity.AccountRoleHistory;
 import com.ltz.auth.domain.entity.AccountStatusHistory;
@@ -51,6 +53,7 @@ public class AccountAdministrationService {
     private final TwoFactorService twoFactorService;
     private final SecurityEventRecorder securityEventRecorder;
     private final AuthEventPublisher eventPublisher;
+    private final SecurityNotificationDispatcher notifier;
     private final Clock clock;
 
     @Transactional(readOnly = true)
@@ -80,6 +83,18 @@ public class AccountAdministrationService {
         }
         securityEventRecorder.recordEvent(SecurityEventType.ACCOUNT_STATUS_CHANGED, accountId);
         eventPublisher.publish(AuthEventType.ACCOUNT_STATUS_CHANGED, accountId, target.name());
+        notificationFor(target).ifPresent(type -> notifier.notifyAfterCommit(accountId, account.getEmail(), type));
+    }
+
+    /** Kullanıcıya bildirilen durum geçişleri (MAIL-04); diğer hedefler yönetici uçlarından zaten ulaşılamaz. */
+    private static Optional<SecurityNotificationType> notificationFor(AccountStatus target) {
+        return switch (target) {
+            case ACTIVE -> Optional.of(SecurityNotificationType.ACCOUNT_REACTIVATED);
+            case SUSPENDED -> Optional.of(SecurityNotificationType.ACCOUNT_SUSPENDED);
+            case BANNED -> Optional.of(SecurityNotificationType.ACCOUNT_BANNED);
+            case DISABLED -> Optional.of(SecurityNotificationType.ACCOUNT_DISABLED);
+            default -> Optional.empty();
+        };
     }
 
     @Transactional

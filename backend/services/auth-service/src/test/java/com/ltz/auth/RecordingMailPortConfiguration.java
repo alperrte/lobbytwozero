@@ -15,6 +15,9 @@ import com.ltz.auth.application.port.AccountDeletionMail;
 import com.ltz.auth.application.port.AccountDeletionMailPort;
 import com.ltz.auth.application.port.PasswordResetMail;
 import com.ltz.auth.application.port.PasswordResetMailPort;
+import com.ltz.auth.application.port.SecurityNotificationMail;
+import com.ltz.auth.application.port.SecurityNotificationMailPort;
+import com.ltz.auth.application.port.SecurityNotificationType;
 import com.ltz.auth.application.port.VerificationCodeMail;
 import com.ltz.auth.application.port.VerificationCodeMailPort;
 
@@ -32,7 +35,7 @@ public class RecordingMailPortConfiguration {
     }
 
     public static class RecordingMailPort implements VerificationCodeMailPort, PasswordResetMailPort,
-            AccountDeletionMailPort {
+            AccountDeletionMailPort, SecurityNotificationMailPort {
 
         private static final Duration DELIVERY_TIMEOUT = Duration.ofSeconds(10);
         private static final String TOKEN_MARKER = "#token=";
@@ -40,6 +43,23 @@ public class RecordingMailPortConfiguration {
         private final Queue<VerificationCodeMail> delivered = new ConcurrentLinkedQueue<>();
         private final Queue<PasswordResetMail> resets = new ConcurrentLinkedQueue<>();
         private final Queue<AccountDeletionMail> deletions = new ConcurrentLinkedQueue<>();
+        private final Queue<SecurityNotificationMail> notifications = new ConcurrentLinkedQueue<>();
+
+        @Override
+        public void sendSecurityNotification(SecurityNotificationMail mail) {
+            notifications.add(mail);
+        }
+
+        public List<SecurityNotificationMail> notificationsTo(String email) {
+            return notifications.stream().filter(mail -> mail.recipientEmail().equalsIgnoreCase(email)).toList();
+        }
+
+        /** Beklenen türde bildirim gelene kadar bekler (teslim istek iş parçacığı dışında, commit sonrası yapılır). */
+        public SecurityNotificationMail awaitNotification(String email, SecurityNotificationType type) {
+            await().atMost(DELIVERY_TIMEOUT).until(() -> notificationsTo(email).stream()
+                    .anyMatch(mail -> mail.type() == type));
+            return notificationsTo(email).stream().filter(mail -> mail.type() == type).findFirst().orElseThrow();
+        }
 
         @Override
         public void sendVerificationCode(VerificationCodeMail mail) {
