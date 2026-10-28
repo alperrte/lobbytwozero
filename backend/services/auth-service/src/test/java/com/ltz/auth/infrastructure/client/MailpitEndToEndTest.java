@@ -61,7 +61,7 @@ class MailpitEndToEndTest extends IntegrationTestSupport {
     }
 
     @Test
-    void kayitMailpiteUlasir_kodHesabiAktiflestirir_ikinciKullanimReddedilir() throws Exception {
+    void kayitMailpiteUlasirKodHesabiAktiflestirirIkinciKullanimReddedilir() throws Exception {
         String email = uniqueEmail();
         register(email, uniqueUsername(), VALID_PASSWORD).andExpect(status().isAccepted());
 
@@ -82,7 +82,7 @@ class MailpitEndToEndTest extends IntegrationTestSupport {
     }
 
     @Test
-    void yenidenGondermeMailpiteYeniKodGonderir_eskiKodGecersizdir() throws Exception {
+    void yenidenGondermeMailpiteYeniKodGonderirEskiKodGecersizdir() throws Exception {
         String email = uniqueEmail();
         register(email, uniqueUsername(), VALID_PASSWORD).andExpect(status().isAccepted());
         String oldCode = extractCode(awaitMessages(email, 1).getFirst());

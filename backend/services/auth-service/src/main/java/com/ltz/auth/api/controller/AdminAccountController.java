@@ -48,7 +48,8 @@ public class AdminAccountController {
     @GetMapping(AuthApiPaths.ADMIN_DELETIONS_PENDING)
     public List<PendingDeletionTaskResponse> pendingDeletions(
             @RequestParam(defaultValue = "50") int limit) {
-        return pendingDeletionQueryService.pending(Math.clamp(limit, 1, MAX_PENDING_LIMIT));
+        return pendingDeletionQueryService.pending(Math.clamp(limit, 1, MAX_PENDING_LIMIT)).stream()
+                .map(PendingDeletionTaskResponse::from).toList();
     }
 
     @GetMapping(AuthApiPaths.ADMIN_ACCOUNT)

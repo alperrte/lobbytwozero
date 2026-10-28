@@ -59,7 +59,7 @@ class GoogleLoginTest extends ExternalProviderTestSupport {
     }
 
     @Test
-    void yeniHesapAcarOturumVerir_pkceDogrulanir_sirlarLogaYazilmaz(CapturedOutput output) throws Exception {
+    void yeniHesapAcarOturumVerirPkceDogrulanirSirlarLogaYazilmaz(CapturedOutput output) throws Exception {
         String subject = "g-" + uniqueSuffix();
         String email = uniqueEmail();
         Started started = start(AuthApiPaths.GOOGLE_START);
@@ -124,7 +124,7 @@ class GoogleLoginTest extends ExternalProviderTestSupport {
     }
 
     @Test
-    void gecersizIdTokenlarReddedilir_hesapOlusmaz() throws Exception {
+    void gecersizIdTokenlarReddedilirHesapOlusmaz() throws Exception {
         KeyPair attacker = newKeyPair();
         record Case(String name, TokenFactory token) {
         }

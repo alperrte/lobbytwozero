@@ -77,7 +77,7 @@ class AccountPreHijackingTest extends IntegrationTestSupport {
     }
 
     @Test
-    void esZamanliOnaylarTekBasariUretir_kodTekKullanimlik() throws Exception {
+    void esZamanliOnaylarTekBasariUretirKodTekKullanimlik() throws Exception {
         String email = uniqueEmail();
         register(email, uniqueUsername(), VALID_PASSWORD).andExpect(status().isAccepted());
         String code = mailPort.awaitLatestCode(email, 1);

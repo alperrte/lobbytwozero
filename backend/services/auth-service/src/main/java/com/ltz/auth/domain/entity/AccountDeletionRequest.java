@@ -38,19 +38,48 @@ public class AccountDeletionRequest {
     @Column(name = "requested_at", nullable = false, updatable = false)
     private Instant requestedAt;
 
+    /** Bekleme süresinin bittiği an: bundan önce iptal edilebilir, görevler bundan önce çalışmaz. */
+    @Column(name = "scheduled_for", nullable = false)
+    private Instant scheduledFor;
+
     @Column(name = "completed_at")
     private Instant completedAt;
 
-    public static AccountDeletionRequest open(UUID accountId, Instant now) {
+    @Column(name = "cancelled_at")
+    private Instant cancelledAt;
+
+    public static AccountDeletionRequest open(UUID accountId, Instant now, Instant scheduledFor) {
         AccountDeletionRequest request = new AccountDeletionRequest();
         request.accountId = accountId;
         request.status = DeletionRequestStatus.COORDINATING;
         request.requestedAt = now;
+        request.scheduledFor = scheduledFor;
         return request;
     }
 
     public boolean isCompleted() {
         return status == DeletionRequestStatus.COMPLETED;
+    }
+
+    public boolean isCoordinating() {
+        return status == DeletionRequestStatus.COORDINATING;
+    }
+
+    public boolean isCancelled() {
+        return status == DeletionRequestStatus.CANCELLED;
+    }
+
+    /** İptal yalnız bekleme süresi dolmadan yapılır; çağıran süreyi ve hesap durumunu önce denetler. */
+    public void cancel(Instant now) {
+        status = DeletionRequestStatus.CANCELLED;
+        cancelledAt = now;
+    }
+
+    /** İptal edilmiş talep, hesap yeniden silme isterse yeni bekleme süresiyle tekrar açılır (hesap başına tek satır). */
+    public void reopen(Instant newScheduledFor) {
+        status = DeletionRequestStatus.COORDINATING;
+        scheduledFor = newScheduledFor;
+        cancelledAt = null;
     }
 
     public void complete(Instant now) {

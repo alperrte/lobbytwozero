@@ -26,6 +26,7 @@ import com.ltz.auth.domain.enums.SecurityEventType;
 import com.ltz.auth.domain.enums.SteamProofPurpose;
 import com.ltz.auth.domain.exception.AuthErrorCode;
 import com.ltz.auth.domain.exception.AuthException;
+import com.ltz.auth.domain.exception.RedactedCause;
 import com.ltz.auth.domain.exception.UsernameAlreadyTakenException;
 import com.ltz.auth.infrastructure.config.OAuthProperties;
 import com.ltz.auth.infrastructure.persistence.repository.AccountRepository;
@@ -162,7 +163,7 @@ public class SteamLoginService {
         } catch (DataIntegrityViolationException exception) {
             String constraint = violatedConstraint(exception);
             if (UNIQUE_USERNAME.equalsIgnoreCase(constraint)) {
-                throw new UsernameAlreadyTakenException();
+                throw new UsernameAlreadyTakenException(RedactedCause.of(exception));
             }
             if (constraint != null) {
                 // E-posta veya SteamID eşzamanlı olarak alındı: nötr yanıt, hesap açılmaz; kanıt hiçbir kayda bağlı değildir.

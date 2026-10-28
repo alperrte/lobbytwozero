@@ -22,6 +22,7 @@ import com.ltz.auth.infrastructure.config.DeletionProperties;
 import com.ltz.auth.infrastructure.security.ServiceTokenIssuer;
 import com.ltz.auth.infrastructure.security.TokenClaims;
 
+import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -47,12 +48,13 @@ public class HttpAccountDataEraser implements AccountDataEraserPort {
     private static final Set<HttpStatusCode> CONFIRMED = Set.of(HttpStatus.OK, HttpStatus.NO_CONTENT);
     private static final String BEARER = "Bearer ";
 
+    private final HttpClient httpClient;
     private final RestClient restClient;
     private final ServiceTokenIssuer serviceTokens;
     private final Map<String, URI> serviceUrls;
 
     public HttpAccountDataEraser(DeletionProperties properties, ServiceTokenIssuer serviceTokens) {
-        HttpClient httpClient = HttpClient.newBuilder()
+        this.httpClient = HttpClient.newBuilder()
                 .followRedirects(HttpClient.Redirect.NEVER)
                 .connectTimeout(properties.httpTimeout())
                 .build();
@@ -61,6 +63,12 @@ public class HttpAccountDataEraser implements AccountDataEraserPort {
         this.restClient = RestClient.builder().requestFactory(factory).build();
         this.serviceTokens = serviceTokens;
         this.serviceUrls = Map.copyOf(properties.serviceUrls());
+    }
+
+    /** Bağlam kapanırken kendi oluşturduğu HTTP istemcisini kapatır (bağlantı havuzu ve iş parçacıkları kalmaz). */
+    @PreDestroy
+    void close() {
+        httpClient.close();
     }
 
     @Override

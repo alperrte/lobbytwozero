@@ -93,7 +93,7 @@ class LoginControllerTest extends IntegrationTestSupport {
     }
 
     @Test
-    void besHatadanSonraKimlikKilitlenir_dogruParolaDaReddedilir() throws Exception {
+    void besHatadanSonraKimlikKilitlenirDogruParolaDaReddedilir() throws Exception {
         String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
         for (int attempt = 0; attempt < MAX_FAILURES; attempt++) {
             login(email, WRONG_PASSWORD).andExpect(status().isUnauthorized());
@@ -106,7 +106,7 @@ class LoginControllerTest extends IntegrationTestSupport {
     }
 
     @Test
-    void bilinmeyenKimlikDeAyniSekildeKilitlenir_varlikSizmaz() throws Exception {
+    void bilinmeyenKimlikDeAyniSekildeKilitlenirVarlikSizmaz() throws Exception {
         String unknown = uniqueEmail();
         for (int attempt = 0; attempt < MAX_FAILURES; attempt++) {
             login(unknown, WRONG_PASSWORD).andExpect(status().isUnauthorized());

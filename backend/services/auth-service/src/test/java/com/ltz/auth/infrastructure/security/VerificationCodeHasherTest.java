@@ -19,7 +19,7 @@ class VerificationCodeHasherTest {
     private static final VerificationPurpose PURPOSE = VerificationPurpose.EMAIL_VERIFICATION;
 
     @Test
-    void ayniGirdiAyniOzetiUretir_ozetHexVeAcikKoduIcermez() {
+    void ayniGirdiAyniOzetiUretirOzetHexVeAcikKoduIcermez() {
         VerificationCodeHasher hasher = hasherWithKeyBytes(32);
 
         String hash = hasher.hash(ACCOUNT, PURPOSE, "012345");
@@ -39,7 +39,7 @@ class VerificationCodeHasherTest {
     }
 
     @Test
-    void kisaAnahtarReddedilir_mesajAnahtariIcermez() {
+    void kisaAnahtarReddedilirMesajAnahtariIcermez() {
         String shortKey = Base64.getEncoder().encodeToString(new byte[16]);
         VerificationProperties shortKeyProperties = properties(shortKey);
 
@@ -50,7 +50,7 @@ class VerificationCodeHasherTest {
     }
 
     @Test
-    void base64OlmayanAnahtarReddedilir_mesajAnahtariIcermez() {
+    void base64OlmayanAnahtarReddedilirMesajAnahtariIcermez() {
         String invalidKey = "not base64 $$$ value";
         VerificationProperties invalidKeyProperties = properties(invalidKey);
 

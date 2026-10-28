@@ -22,6 +22,8 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
 
     boolean existsByUsernameNormalized(String usernameNormalized);
 
+    boolean existsByEmailNormalized(String emailNormalized);
+
     Optional<Account> findByEmailNormalized(String emailNormalized);
 
     /** Aynı hesap için eşzamanlı kod üretimini sıraya sokar (yeniden gönderme yarışı). */

@@ -6,7 +6,11 @@ import java.security.interfaces.RSAPrivateCrtKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.RSAPublicKeySpec;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.nimbusds.jose.JOSEException;
@@ -26,12 +30,19 @@ public final class JwtSigningKey {
     private static final String RSA = "RSA";
 
     private final RSAKey jwk;
+    /** JWKS'te yayınlanan, yalnız doğrulama için ek açık anahtarlar (rotasyon geçişi). */
+    private final List<RSAKey> additionalPublicKeys;
 
-    private JwtSigningKey(RSAKey jwk) {
+    private JwtSigningKey(RSAKey jwk, List<RSAKey> additionalPublicKeys) {
         this.jwk = jwk;
+        this.additionalPublicKeys = additionalPublicKeys;
     }
 
     public static JwtSigningKey fromBase64Pkcs8(String encodedKey) {
+        return fromBase64Pkcs8(encodedKey, List.of());
+    }
+
+    public static JwtSigningKey fromBase64Pkcs8(String encodedKey, List<String> additionalPublicKeys) {
         RSAPrivateCrtKey privateKey;
         RSAPublicKey publicKey;
         try {
@@ -50,12 +61,13 @@ public final class JwtSigningKey {
             throw new IllegalStateException(invalidKeyMessage());
         }
         try {
-            return new JwtSigningKey(new RSAKey.Builder(publicKey)
+            RSAKey signing = new RSAKey.Builder(publicKey)
                     .privateKey(privateKey)
                     .keyUse(KeyUse.SIGNATURE)
                     .algorithm(JWSAlgorithm.RS256)
                     .keyIDFromThumbprint()
-                    .build());
+                    .build();
+            return new JwtSigningKey(signing, parseAdditional(signing.getKeyID(), additionalPublicKeys));
         } catch (JOSEException _) {
             throw new IllegalStateException("JWT signing key thumbprint could not be computed");
         }
@@ -77,9 +89,49 @@ public final class JwtSigningKey {
         }
     }
 
-    /** Yalnız açık anahtar alanları; özel anahtar parçaları ("d", "p", "q" ...) asla yayınlanmaz. */
+    /**
+     * Yalnız açık anahtar alanları; özel anahtar parçaları ("d", "p", "q" ...) asla yayınlanmaz. İmza anahtarı ilk sıradadır,
+     * ek doğrulama anahtarları (varsa) ardından gelir.
+     */
     public Map<String, Object> publicJwkSet() {
-        return new JWKSet(jwk.toPublicJWK()).toJSONObject(true);
+        List<com.nimbusds.jose.jwk.JWK> keys = new ArrayList<>();
+        keys.add(jwk.toPublicJWK());
+        keys.addAll(additionalPublicKeys);
+        return new JWKSet(keys).toJSONObject(true);
+    }
+
+    /** Ek anahtarlar X.509 açık anahtarıdır (özel anahtar kabul edilmez); imza anahtarıyla aynı kid yinelenmez. */
+    private static List<RSAKey> parseAdditional(String signingKeyId, List<String> encodedKeys) {
+        Map<String, RSAKey> byKeyId = new LinkedHashMap<>();
+        for (String encoded : encodedKeys) {
+            RSAKey key = parsePublicKey(encoded);
+            if (!key.getKeyID().equals(signingKeyId)) {
+                byKeyId.putIfAbsent(key.getKeyID(), key);
+            }
+        }
+        return List.copyOf(byKeyId.values());
+    }
+
+    private static RSAKey parsePublicKey(String encoded) {
+        try {
+            byte[] der = Base64.getDecoder().decode(encoded.strip());
+            RSAPublicKey publicKey = (RSAPublicKey) KeyFactory.getInstance(RSA).generatePublic(new X509EncodedKeySpec(der));
+            if (publicKey.getModulus().bitLength() < MIN_KEY_BITS) {
+                throw new IllegalStateException(invalidAdditionalKeyMessage());
+            }
+            return new RSAKey.Builder(publicKey)
+                    .keyUse(KeyUse.SIGNATURE)
+                    .algorithm(JWSAlgorithm.RS256)
+                    .keyIDFromThumbprint()
+                    .build();
+        } catch (ClassCastException | IllegalArgumentException | GeneralSecurityException | JOSEException _) {
+            throw new IllegalStateException(invalidAdditionalKeyMessage());
+        }
+    }
+
+    private static String invalidAdditionalKeyMessage() {
+        return "ltz.auth.jwt.additional-public-keys entries must be Base64 X.509 RSA public keys of at least "
+                + MIN_KEY_BITS + " bits";
     }
 
     private static String invalidKeyMessage() {

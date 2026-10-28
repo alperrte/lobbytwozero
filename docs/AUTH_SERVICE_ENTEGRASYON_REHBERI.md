@@ -169,7 +169,7 @@ Servis sahibi için sonuç: servisinize yalnız doğrulanmış bir Bearer (veya 
 | Rol/durum değişikliği (askı, yasak, rol alma) | Anında | Aynı |
 | Hesap silme isteği onayı | Anında | Aynı |
 
-- **En fazla gecikme = access token ömrü.** Varsayılan **300 sn (5 dk)**, Auth'ta izin verilen aralık 1–15 dk (`JWT_ACCESS_TTL_SECONDS`).
+- **En fazla gecikme = access token ömrü.** Varsayılan **60 sn** (2026-10-24'te 300 sn'den indirildi), Auth'ta izin verilen aralık 1–15 dk (`JWT_ACCESS_TTL_SECONDS`).
   `docs/SECURITY.md` §3'teki `900` değeri eski bir örnektir; geçerli değer ENV'dedir.
 - Hesap durumu claim'de **yoktur**. Askıdaki/yasaklı bir hesabın token'ı, süresi dolana kadar sizde geçerli görünür (B2/D3).
 - `AccountStatusChanged` olayı ve introspection ucu **yoktur** **[BEKLEYEN, D3]**. Uydurmayın.

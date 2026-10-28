@@ -59,7 +59,7 @@ class AuthPropertiesValidationTest {
     }
 
     @Test
-    void kisaAnahtarlaBaslamaz_hataAnahtariIcermez() {
+    void kisaAnahtarlaBaslamazHataAnahtariIcermez() {
         String shortKey = Base64.getEncoder().encodeToString(new byte[8]);
 
         runner.withPropertyValues("ltz.auth.verification.hmac-key=" + shortKey)

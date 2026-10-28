@@ -11,8 +11,8 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 /**
- * Süresi dolan geçici kayıtların ve bekleyen hesapların temizliği (SEC-01). Hukuki saklama süresi gerektiren veriler
- * (securityEventRetention) için <b>varsayılan yoktur</b>: değer verilmedikçe hiçbir güvenlik olayı silinmez.
+ * Süresi dolan geçici kayıtların ve bekleyen hesapların temizliği (SEC-01). Güvenlik olayı saklama süresi
+ * (securityEventRetention) uygulama varsayılanında 1 yıldır (docs/database.md); kayıt boş bırakılırsa silme yapılmaz.
  * Süreler birbirinden bağımsız değildir; tutarsız kombinasyonlar açılışta reddedilir ({@link CleanupConfig}).
  *
  * @param pendingAccountTtl      e-postası doğrulanmayan hesabın ömrü; dolunca hesap anonimleştirilir (e-posta ve
@@ -22,7 +22,7 @@ import jakarta.validation.constraints.NotNull;
  * @param throttleRetention      deneme sayaçlarının tutulma süresi; sayma penceresi + kilit süresinden uzun olmalıdır
  * @param tokenRetention         süresi dolan kod/token kayıtlarının tutulma süresi (günlük gönderim sınırı penceresini kapsar)
  * @param sessionRetention       süresi dolan oturumların (ve refresh token'larının) tutulma süresi
- * @param securityEventRetention güvenlik olaylarının saklama süresi; <b>boşsa silme yapılmaz</b> (karar bekliyor)
+ * @param securityEventRetention güvenlik olaylarının saklama süresi (varsayılan 365 gün); <b>boşsa silme yapılmaz</b>
  */
 @Validated
 @ConfigurationProperties("ltz.auth.cleanup")
