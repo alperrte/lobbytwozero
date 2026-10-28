@@ -1,6 +1,6 @@
 # CİHAZ KİMLİĞİ (B YOLU) — TASARIM TASLAĞI
 
-**Durum:** TASLAK, onay bekliyor. Kod yok. · **Sahip:** Kerem · **İlgili:** Alper (Hardware, Performance) · **Kaynak karar:** `docs-auth/verilen-cevaplar/hardware-service/talep-02-masaustu-cihaz-kimligi.md` (B yolu seçildi)
+**Durum:** UYGULANDI (2026-10-29, V67); bu belge tasarım kaydıdır, gerçek sözleşme `docs/api.md` "Masaüstü cihaz kimliği" bölümündedir. Sapmalar: hesap kilidi yok, `DEVICE_TOKEN_REJECTED` olayı yok, etiket biçimi kısıtlı, günde 10 bağlama sınırı. · **Sahip:** Kerem · **İlgili:** Alper (Hardware, Performance) · **Kaynak karar:** `docs-auth/verilen-cevaplar/hardware-service/talep-02-masaustu-cihaz-kimligi.md` (B yolu seçildi)
 **Tarih:** 2026-10-29 · **Migration aralığı:** Auth V67–V70 boş, bu iş V67 kullanır
 
 ---

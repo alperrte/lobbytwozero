@@ -4,7 +4,7 @@
 
 ## ÖZET
 
-Kullanıcı JWT doğrulaması ve hesap silme ucu hazır ve gerçek Auth ile denenmiş. Masaüstü senkronu (`sync/snapshots`) için gereken **cihaz kimliği Auth'ta henüz yok**, tasarım taslağı hazır, onay bekliyor.
+Kullanıcı JWT doğrulaması ve hesap silme ucu hazır ve gerçek Auth ile denenmiş. Masaüstü senkronu (`sync/snapshots`) için gereken **cihaz kimliği Auth'ta hazır** (2026-10-29): bağlama, listeleme, iptal ve `dev+jwt` token ucu uygulandı. Hardware tarafında `dev+jwt` doğrulayıcısı bekliyor.
 
 ## AUTH'TAN HAZIR OLANLAR
 
@@ -16,12 +16,12 @@ Kullanıcı JWT doğrulaması ve hesap silme ucu hazır ve gerçek Auth ile dene
 
 - [ ] E2E betiğinde Auth'a `AUTH_DELETION_GRACE_PERIOD: 'PT0S'` ver (silme artık 14 gün bekleme süresiyle başlıyor, betik aksi halde silme adımında takılır). `LTZ_AUTH_DELETION_GRACEPERIOD` adı da çalışmalı, denenmedi
 - [ ] Betikteki "15 ACK" ifadesini "11 ACK", "15 dk"yı "90 sn" yap (Auth artık 60 sn token, 11 servisin silme ucu hâlâ yok)
-- [ ] Cihaz kimliği gelince: `dev+jwt` için ayrı doğrulayıcı yaz (aşağıda ve `cihaz-kimligi-tasarimi.md`'de). Mevcut `svc:` önek kuralına dokunma
+- [ ] `dev+jwt` için ayrı doğrulayıcı yaz: `typ=dev+jwt`, `aud=hardware-service`, `sub=deviceId`, `account_id`, `scope` içinde `hardware:sync:write`, ömür ≤ 60 sn. Mevcut `svc:` önek kuralına dokunma. Uç sözleşmesi: `docs/api.md` "Masaüstü cihaz kimliği"
 - [ ] Re-test: Google/Steam testlerini DEBUG logda bir kez çalıştır (Auth artık hassas logları INFO'ya sabitledi)
 
 ## AUTH'TA BEKLEYEN
 
-- **Masaüstü cihaz kimliği (B yolu):** kod yok. Önerilen biçim: `typ=dev+jwt`, `aud=hardware-service`, `sub=deviceId`, `account_id=hesap`, `scope=hardware:sync:write`, 60 sn. Hardware'deki karşılığı `AuthenticatedHardwareDevice(userId=account_id, deviceId=sub)` ve `hardware:sync:write` yetkisi. Karar Alper ve Kerem: `cihaz-kimligi-tasarimi.md` açık kararlar bölümü
+- **Masaüstü cihaz kimliği (B yolu): UYGULANDI.** Token: `typ=dev+jwt`, `aud=hardware-service`, `sub=deviceId`, `account_id=hesap`, `scope=hardware:sync:write`, 60 sn. Hardware karşılığı `AuthenticatedHardwareDevice(userId=account_id, deviceId=sub)`. Tasarımdan farklar: en fazla 5 etkin cihaz ve günde 10 bağlama, 365 gün, etiket yalnız harf/rakam/boşluk/`._()-`, token ucunda hesap kilidi yok (IP sınırı Gateway'de), `DEVICE_TOKEN_REJECTED` olayı yok
 - Hesap durumu olayı (`AccountStatusChanged`): yok, askı ve yasak en fazla 90 sn içinde token ömrüyle yayılır
 
 ## NASIL DENERSİN

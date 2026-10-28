@@ -135,6 +135,14 @@ olur (kimlik doğrulaması önce yapılır; yanlış gizli anahtar yine `401 INV
 | 2 | `svc:social-service` | `community-service` | `events:ingest` | Engelleme yansıması (`UserBlocked`, `UserUnblocked`) |
 | 3 | `svc:community-service` | `admin-service` | `events:ingest` | Rapor olayı (`ContentReported`) admin kuyruğuna |
 | 4 | `svc:community-service` | `notification-service` | `events:ingest` | Etkileşim bildirimleri |
+| 5 | `svc:messaging-service` | `social-service` | `blocks:check` | Mesaj öncesi engel sorgusu |
+| 6 | `svc:lfp-service` | `social-service` | `blocks:check` | Eşleşme öncesi engel sorgusu |
+
+Satır 5 ve 6 için gizli anahtarlar `AUTH_MESSAGING_SERVICE_CLIENT_SECRET` ve `AUTH_LFP_SERVICE_CLIENT_SECRET` (yeni, boşsa istemci kapalı).
+
+**Auth olayları (outbox, 2026-10-29):** `AccountStatusChanged`, `UserRegistered`, `AccountEmailChanged` aynı işlemde `auth_events` tablosuna yazılır; arka plan işçisi hedeflere `eventId/eventType/eventVersion/occurredAt/producer/aggregateId/payload` zarfıyla HTTP ile iletir (en az bir kez; alıcı `eventId` ile tekilleştirir). Hedef listesi `ltz.auth.events.targets`, varsayılan **boş** (olay gönderilmez); prod'da hedef adresleri `https` olmalı.
+
+**Cihaz token'ı (2026-10-29):** `typ=dev+jwt`, `aud=hardware-service`, `sub=<deviceId>`, `scope=hardware:sync:write`; uç sözleşmesi `docs/api.md`.
 
 Token: `typ=svc+jwt`, RS256 (JWKS aynı), `iss=ltz-auth`, **`aud=<hedef>`** (yalnız o serviste geçer, Auth'un iç uçlarında geçmez), `sub=svc:<istemci>`,
 `scope=events:ingest`, 60 sn. Alıcı doğrulaması alıcıya aittir: `aud` kendi adı, `typ`, `scope`, ayrıca olay türü ↔ `sub` eşleşmesi (örn.
