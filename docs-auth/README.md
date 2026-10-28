@@ -10,7 +10,7 @@ Bu klasör Auth servisinin (auth-service ve Gateway güvenlik katmanı) bütün 
 
 | Ben kimim | İlk okuyacağın | Sonra |
 |---|---|---|
-| **Servis sahibiyim, Auth'a bağlanacağım** | [`../docs/AUTH_SERVICE_ENTEGRASYON_REHBERI.md`](../docs/AUTH_SERVICE_ENTEGRASYON_REHBERI.md) (token doğrulama, roller, silme ucu) | [`servis-sozlesmeleri.md`](servis-sozlesmeleri.md), [`d4-ekip-notlari/`](d4-ekip-notlari/) içinde kendi adına olan not |
+| **Servis sahibiyim, Auth'a bağlanacağım** | [`entegrasyon/README.md`](entegrasyon/README.md) içinde kendi servisinin dosyası (ne hazır, ne yapacaksın, ne bekliyor) | [`../docs/AUTH_SERVICE_ENTEGRASYON_REHBERI.md`](../docs/AUTH_SERVICE_ENTEGRASYON_REHBERI.md) (token doğrulama, roller, silme ucu), [`servis-sozlesmeleri.md`](servis-sozlesmeleri.md), [`d4-ekip-notlari/`](d4-ekip-notlari/) içinde kendi adına olan not |
 | **Auth'tan bir şey istedim ya da sordum** | [`verilen-cevaplar/`](verilen-cevaplar/) içinde kendi branch'inin klasörü | O klasördeki talep dosyaları |
 | **Frontend geliştiriciyim** | [`../docs/EKIP_AUTH_GATEWAY_ENTEGRASYON_NOTLARI.md`](../docs/EKIP_AUTH_GATEWAY_ENTEGRASYON_NOTLARI.md) (cookie, CSRF, giriş akışları) | [`../docs/api.md`](../docs/api.md) içinde `## AUTH` |
 | **Güvenlik bakıyorum** | [`acik-guvenlik-borclari.md`](acik-guvenlik-borclari.md) | [`sec-01-kapanis-raporu.md`](sec-01-kapanis-raporu.md), güvenlik taraması bölümü aşağıda |
@@ -32,6 +32,7 @@ Bu klasör Auth servisinin (auth-service ve Gateway güvenlik katmanı) bütün 
 ### Cevaplar ve ekip notları
 | Klasör / dosya | Ne |
 |---|---|
+| [`entegrasyon/`](entegrasyon/README.md) | Her servis için Auth entegrasyon dosyası (17 dosya), [boşluk raporu](entegrasyon/bosluk-raporu-2026-10-29.md) ve [cihaz kimliği tasarım taslağı](entegrasyon/cihaz-kimligi-tasarimi.md) |
 | [`verilen-cevaplar/`](verilen-cevaplar/README.md) | Her branch'in Auth'tan istediği şeylere cevaplar, branch adıyla klasörlenmiş |
 | [`d4-ekip-notlari/`](d4-ekip-notlari/) | Hesap silme için kişiye özel notlar (Umut, Hamza, Nisa, Alper) |
 | [`ekip-uyum-denetimi-2026-10-24.md`](ekip-uyum-denetimi-2026-10-24.md) | Servislerin Auth sözleşmesine uyum denetimi |
