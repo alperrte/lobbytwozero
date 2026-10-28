@@ -12,6 +12,7 @@ import com.ltz.auth.domain.entity.Account;
 import com.ltz.auth.domain.entity.AccountRoleHistory;
 import com.ltz.auth.domain.entity.AccountStatusHistory;
 import com.ltz.auth.domain.enums.AccountStatus;
+import com.ltz.auth.domain.enums.AuthEventType;
 import com.ltz.auth.domain.enums.DeviceRevokeReason;
 import com.ltz.auth.domain.enums.RoleAction;
 import com.ltz.auth.domain.enums.RoleCode;
@@ -49,6 +50,7 @@ public class AccountAdministrationService {
     private final AccountRoleHistoryRepository roleHistoryRepository;
     private final TwoFactorService twoFactorService;
     private final SecurityEventRecorder securityEventRecorder;
+    private final AuthEventPublisher eventPublisher;
     private final Clock clock;
 
     @Transactional(readOnly = true)
@@ -77,6 +79,7 @@ public class AccountAdministrationService {
             deviceRevoker.revokeAll(accountId, DeviceRevokeReason.ACCOUNT_INACTIVE, now);
         }
         securityEventRecorder.recordEvent(SecurityEventType.ACCOUNT_STATUS_CHANGED, accountId);
+        eventPublisher.publish(AuthEventType.ACCOUNT_STATUS_CHANGED, accountId, target.name());
     }
 
     @Transactional

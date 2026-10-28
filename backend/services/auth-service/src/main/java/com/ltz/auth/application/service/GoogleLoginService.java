@@ -20,6 +20,7 @@ import com.ltz.auth.application.port.GoogleOidcPort;
 import com.ltz.auth.application.port.GoogleOidcPort.GoogleIdentity;
 import com.ltz.auth.domain.entity.Account;
 import com.ltz.auth.domain.entity.ExternalIdentity;
+import com.ltz.auth.domain.enums.AuthEventType;
 import com.ltz.auth.domain.enums.AuthMethod;
 import com.ltz.auth.domain.enums.ExternalProvider;
 import com.ltz.auth.domain.enums.RoleCode;
@@ -59,6 +60,7 @@ public class GoogleLoginService {
     private final RoleRepository roleRepository;
     private final LoginService loginService;
     private final SecurityEventRecorder securityEventRecorder;
+    private final AuthEventPublisher eventPublisher;
     private final TransactionTemplate transactionTemplate;
     private final Clock clock;
 
@@ -130,6 +132,7 @@ public class GoogleLoginService {
         identityRepository.saveAndFlush(ExternalIdentity.link(account.getId(), ExternalProvider.GOOGLE,
                 identity.subject(), now));
         securityEventRecorder.recordEvent(SecurityEventType.EXTERNAL_ACCOUNT_CREATED, account.getId());
+        eventPublisher.publish(AuthEventType.USER_REGISTERED, account.getId(), account.getUsername());
         return account.getId();
     }
 

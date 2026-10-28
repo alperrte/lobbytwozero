@@ -14,6 +14,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.ltz.auth.application.port.VerificationCodeMail;
 import com.ltz.auth.domain.entity.Account;
 import com.ltz.auth.domain.entity.EmailVerificationCode;
+import com.ltz.auth.domain.enums.AuthEventType;
 import com.ltz.auth.domain.enums.CodeInvalidationReason;
 import com.ltz.auth.domain.enums.DeviceRevokeReason;
 import com.ltz.auth.domain.enums.PasswordResetInvalidationReason;
@@ -64,6 +65,7 @@ public class EmailChangeService {
     private final VerificationCodeHasher codeHasher;
     private final VerificationCodeDispatcher dispatcher;
     private final SecurityEventRecorder securityEventRecorder;
+    private final AuthEventPublisher eventPublisher;
     private final VerificationProperties properties;
     private final TransactionTemplate transactionTemplate;
     private final Clock clock;
@@ -165,6 +167,7 @@ public class EmailChangeService {
         deviceRevoker.revokeAll(accountId, DeviceRevokeReason.EMAIL_CHANGED, now);
         resetTokenRepository.invalidateActive(accountId, PasswordResetInvalidationReason.PASSWORD_CHANGED, now);
         securityEventRecorder.recordEvent(SecurityEventType.EMAIL_CHANGED, accountId);
+        eventPublisher.publish(AuthEventType.ACCOUNT_EMAIL_CHANGED, accountId, null);
         return true;
     }
 }

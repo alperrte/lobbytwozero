@@ -106,6 +106,8 @@ public abstract class IntegrationTestSupport {
         registry.add("AUTH_OTP_HMAC_KEY", () -> TEST_HMAC_KEY);
         // Silme worker'ı testlerde elle tetiklenir (deterministik); hedef servis listesi kısaltılır.
         registry.add("ltz.auth.deletion.worker-enabled", () -> "false");
+        // Olay aktarıcısı da elle tetiklenir (deterministik); hedef listesi varsayılan boştur, olay testleri kendi hedefini açar.
+        registry.add("ltz.auth.events.worker-enabled", () -> "false");
         // Temizlik de elle tetiklenir; arka plan çalıştırması testlerin verisini silmemeli.
         registry.add("ltz.auth.cleanup.enabled", () -> "false");
         // Eşzamanlılık testleri kapasite değil tekillik doğrular; yüklü makinede Argon2 slot beklemesi 503 üretmesin.

@@ -11,6 +11,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.ltz.auth.application.port.VerificationCodeMail;
 import com.ltz.auth.domain.entity.Account;
 import com.ltz.auth.domain.entity.EmailVerificationCode;
+import com.ltz.auth.domain.enums.AuthEventType;
 import com.ltz.auth.domain.enums.CodeInvalidationReason;
 import com.ltz.auth.domain.enums.SecurityEventType;
 import com.ltz.auth.domain.enums.VerificationPurpose;
@@ -38,6 +39,7 @@ public class EmailVerificationService {
     private final VerificationCodeHasher codeHasher;
     private final VerificationCodeDispatcher dispatcher;
     private final SecurityEventRecorder securityEventRecorder;
+    private final AuthEventPublisher eventPublisher;
     private final VerificationProperties properties;
     private final RegistrantProofVerifier proofVerifier;
     private final TransactionTemplate transactionTemplate;
@@ -142,6 +144,7 @@ public class EmailVerificationService {
         code.consume(now);
         account.markEmailVerified(now);
         securityEventRecorder.recordEvent(SecurityEventType.EMAIL_VERIFIED, account.getId());
+        eventPublisher.publish(AuthEventType.USER_REGISTERED, account.getId(), account.getUsername());
         return true;
     }
 }
