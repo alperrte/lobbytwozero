@@ -47,9 +47,37 @@ class DeletionConfigTest {
                 .hasMessageNotContaining("secret");
     }
 
+    @Test
+    void prodProfilindeSifresizHedefAdresiServisiAcmazMesajTokenIcermez() {
+        environment.setActiveProfiles("prod");
+        DeletionProperties plain = properties(Set.of("user"), Map.of("user", URI.create("http://user-service:8080")),
+                "https://app.example/account/delete");
+
+        assertThatThrownBy(() -> new DeletionConfig(plain, environment))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("ltz.auth.deletion.service-urls.user")
+                .hasMessageContaining("https");
+    }
+
+    @Test
+    void prodProfilindeHttpsHedefAdresiKabulEdilirDevdeHttpDeKabulEdilir() {
+        environment.setActiveProfiles("prod");
+        DeletionProperties secure = properties(Set.of("user"), Map.of("user", URI.create("https://user.internal")),
+                "https://app.example/account/delete");
+        assertThatCode(() -> new DeletionConfig(secure, environment)).doesNotThrowAnyException();
+
+        MockEnvironment dev = new MockEnvironment();
+        DeletionProperties plain = properties(Set.of("user"), Map.of("user", URI.create("http://user-service:8080")));
+        assertThatCode(() -> new DeletionConfig(plain, dev)).doesNotThrowAnyException();
+    }
+
     private static DeletionProperties properties(Set<String> targets, Map<String, URI> serviceUrls) {
+        return properties(targets, serviceUrls, "http://localhost:5001/account/delete");
+    }
+
+    private static DeletionProperties properties(Set<String> targets, Map<String, URI> serviceUrls, String linkBaseUrl) {
         return new DeletionProperties(targets, serviceUrls, Duration.ofSeconds(5), Duration.ofMinutes(30),
-                Duration.ofSeconds(60), Duration.ofMinutes(10), URI.create("http://localhost:5001/account/delete"),
+                Duration.ofSeconds(60), Duration.ofMinutes(10), URI.create(linkBaseUrl),
                 false, Duration.ofSeconds(30), 20, Duration.ofMinutes(2), Duration.ofMinutes(1), Duration.ofHours(6), 10,
                 Duration.ofDays(14));
     }
