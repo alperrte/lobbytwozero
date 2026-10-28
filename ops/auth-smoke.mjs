@@ -237,10 +237,10 @@ export async function runAuthSmoke(root, log = console.log) {
         && blocks.scope === 'blocks:check' && blocks.exp - blocks.iat === 60,
       `${clientId}: block-check token aud ${[].concat(blocks.aud)}, scope ${blocks.scope}, TTL ${blocks.exp - blocks.iat}s`);
       const other = await postJson(tokenUrl, { clientId, clientSecret, audience: 'community-service' });
-      const toAuth = await postJson(tokenUrl, { clientId, clientSecret });
-      check(other.status === 403 && toAuth.status === 403, `${clientId} gets nothing outside social-service (other ${other.status}, Auth ${toAuth.status})`);
-      const onAuth = await fetch(authOrigin + `/internal/v1/accounts/${claims.sub}`, { headers: { Authorization: `Bearer ${blocksToken}` } });
-      check(onAuth.status === 401, `${clientId} block-check token is rejected by Auth (status ${onAuth.status})`);
+      const noAudience = await postJson(tokenUrl, { clientId, clientSecret });
+      check(other.status === 403 && noAudience.status === 403, `${clientId} gets nothing outside social-service (other ${other.status}, no audience ${noAudience.status})`);
+      const internalCall = await fetch(authOrigin + `/internal/v1/accounts/${claims.sub}`, { headers: { Authorization: `Bearer ${blocksToken}` } });
+      check(internalCall.status === 401, `${clientId} block-check token is rejected by Auth (status ${internalCall.status})`);
     }
 
     // Masaüstü cihaz kimliği: bağlama (yeniden doğrulama), cihaz token'ı, dar kapsam, iptal.
