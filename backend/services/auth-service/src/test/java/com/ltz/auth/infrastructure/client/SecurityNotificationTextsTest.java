@@ -28,7 +28,7 @@ class SecurityNotificationTextsTest {
     }
 
     @Test
-    void epostaDegisimiBildirimiEskiAdrese_gittiginiSoyler() {
+    void epostaDegisimiBildirimiEskiAdreseGittiginiSoyler() {
         assertThat(SecurityNotificationTexts.body(SecurityNotificationType.EMAIL_CHANGED, WHEN))
                 .contains("eski adrese").contains("old address");
     }
