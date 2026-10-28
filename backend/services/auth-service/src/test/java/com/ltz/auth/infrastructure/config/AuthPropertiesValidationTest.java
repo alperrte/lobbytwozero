@@ -18,7 +18,7 @@ class AuthPropertiesValidationTest {
 
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(ValidationAutoConfiguration.class))
-            .withUserConfiguration(AuthApplicationConfig.class, VerificationCodeHasher.class)
+            .withUserConfiguration(AuthApplicationConfig.class, DeviceConfig.class, VerificationCodeHasher.class)
             .withPropertyValues(
                     "ltz.auth.verification.code-ttl=PT10M",
                     "ltz.auth.verification.max-attempts=5",
