@@ -23,7 +23,7 @@ Aşağıdaki yeni şeyler `feature/auth-service` dalında hazır ve test edildi 
 - **İzinsiz hedef:** örneğin social'ın notification için token istemesi `403 SERVICE_AUDIENCE_FORBIDDEN`, yanlış gizli anahtar `401 INVALID_CLIENT`. Auth'a (`auth-service`) bile token isteyemez, o yalnız admin-service'te
 - **Bu token Auth'ta geçmez:** hedefe bağlı token Auth'un iç uçlarında reddedilir (401)
 - **Alıcı tarafın işi:** `aud` kendi adın mı, `typ=svc+jwt`, `scope=events:ingest`, olay türü ↔ `sub` eşleşmesi. Dediğin gibi `ModerationActionTaken` yalnız `svc:admin-service` ile kabul edilmeli. Sende bu zaten var
-- **5. satır** (Auth → community, `AccountStatusChanged`): olay tanımı gelince, şimdilik yok
+- **5. satır** (Auth → community, `AccountStatusChanged`): olay Auth tarafında hazır (2026-10-29, outbox); hedef listesi varsayılan boş, Community alıcı ucunu yazınca eklenir
 
 ## ALTI SORUNUN CEVABI
 
@@ -35,7 +35,7 @@ Aşağıdaki yeni şeyler `feature/auth-service` dalında hazır ve test edildi 
 
 **4. Dev'de birlikte silip CONFIRMED görebilir miyiz:** Görebiliriz. Silme 14 gün geri alma süresiyle başlıyor, dev'de bunu `AUTH_DELETION_GRACE_PERIOD=PT0S` ile sıfırlayacağız (sadece dev, canlıda 14 gün). Şartlar: yeni Auth dev'e çıkmış olmalı, senin community container'ın güncel imajla çalışmalı. Dev env'ini ekip ekleyecek. Tüm 16 hedef onaylamadan Auth kaydı silinmez, o yüzden göreceğin şey "community görevi CONFIRMED"
 
-**5. `AccountStatusChanged` ne zaman, askıdaki hesabın içeriği gizlensin mi:** Olay henüz yok, planlı ama tarih yok. O zamana kadar durum değişince eski token'lar en fazla 90 saniyede ölüyor (60 sn token + 30 sn saat farkı). İçeriği gizleme Community'nin ürün kararı
+**5. `AccountStatusChanged` ne zaman, askıdaki hesabın içeriği gizlensin mi:** Olay Auth tarafında hazır (2026-10-29, transactional outbox), ama yalnız yönetici durum değişikliğinde çıkar (silme isteği ve iptal olay üretmez) ve hedef listesi varsayılan boştur; Community alıcı ucunu yazınca `community` hedef olarak eklenir. Olay gelene kadar durum değişince eski token'lar en fazla 90 saniyede ölüyor (60 sn token + 30 sn saat farkı). İçeriği gizleme Community'nin ürün kararı
 
 **6. JWKS önbellek ve eski anahtar süresi:** Anahtar değişirken eski açık anahtarı JWKS'te bir süre daha yayınlayabiliyoruz (`AUTH_JWT_ADDITIONAL_PUBLIC_KEYS`). Süre en az 90 saniye olmalı, ben pratikte 5 dakikadan fazla tutacağım. Sen kendi önbelleğini en fazla 5 dakika yap ve tanımadığın `kid` görürsen bir kez yeniden çek. Game servisi böyle yapıyor
 

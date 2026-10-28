@@ -11,23 +11,23 @@ Alper'in Auth'tan istediği 4 talebe ve ek sorularına cevaplar burada. Her tale
 | Talep | Konu | Cevabım | Durum |
 |---|---|---|---|
 | [01](talep-01-token-iptali-ve-hesap-durumu.md) | Banlanan veya çıkış yapan kullanıcının eski token'ı | En fazla 90 sn (60 sn token + 30 sn tolerans). Olay ya da sorgu ucu yok | KAPANDI |
-| [02](talep-02-masaustu-cihaz-kimligi.md) | Masaüstü cihaz kimliği | B yolu: kimliği Auth verecek. Şu an geliştirmeye kapalı, masaüstü tarihi belli olunca açılır | KARAR VERİLDİ, SIRADA |
+| [02](talep-02-masaustu-cihaz-kimligi.md) | Masaüstü cihaz kimliği | B yolu: kimliği Auth verecek. **Auth tarafı uygulandı (2026-10-29)**: bağlama, listeleme, iptal ve `dev+jwt` token ucu hazır, gerçek yığında denendi. Sözleşme: `docs/api.md` "Masaüstü cihaz kimliği" | AUTH HAZIR, HARDWARE DOĞRULAYICI BEKLİYOR |
 | [03](talep-03-gercek-dev-silme-kabulu.md) | Gerçek DEV'de silme kabulü | Evet yapalım. Ama bizim 14 gün bekleme eklememiz E2E betiğini etkiliyor, tek satır ayar lazım | CEVAPLANDI, DENEME BEKLİYOR |
-| [04](talep-04-debug-loglarinda-oauth-formlari.md) | DEBUG açıkken OAuth formları loglanıyor | Haklısın, ve sorun daha genişti (Hibernate varlık dökümü, SQL parametreleri). Düzelttim, 3 modda 22/22 | KAPANDI (main'e girince etkin) |
+| [04](talep-04-debug-loglarinda-oauth-formlari.md) | DEBUG açıkken OAuth formları loglanıyor | Haklısın, ve sorun daha genişti (Hibernate varlık dökümü, SQL parametreleri). Düzelttim, 3 modda 22/22 | KAPANDI (main'de etkin) |
 
 ## ALPER'İN YAPMASI GEREKENLER (KISA LİSTE)
 
 1. Belgendeki "15 dakika" ifadesini "90 saniye" yap (talep 01)
-2. `ops/hardware-auth-e2e.mjs` içinde Auth ortamına `LTZ_AUTH_DELETION_GRACEPERIOD: 'PT0S'` ekle (talep 03)
+2. `ops/hardware-auth-e2e.mjs` içinde Auth ortamına `AUTH_DELETION_GRACE_PERIOD: 'PT0S'` ekle (talep 03)
 3. Belgendeki "diğer 15 ACK" ifadesini "kalan 11 ACK" yap (talep 03)
-4. Masaüstü uygulamasının başlama tarihi belli olunca bana haber ver (talep 02)
+4. Hardware'de `dev+jwt` doğrulayıcısını yaz: `typ=dev+jwt`, `aud=hardware-service`, `sub=deviceId`, `account_id`, `scope` içinde `hardware:sync:write`, ömür ≤ 60 sn; `svc:` önek kuralına dokunma (talep 02, ayrıntı `docs-auth/entegrasyon/hardware-service.md`)
 5. Log düzeltmesi main'e girince iki Google/Steam testini DEBUG açıkken bir kez koştur (talep 04)
 
 ## KERİM'İN YAPACAKLARI
 
 1. ~~Log sertleştirmesini yapmak (talep 04)~~ YAPILDI (2026-10-27)
-2. Bizim değişiklikleri main'e almak, sonra ortak DEV denemesi (talep 03)
-3. Masaüstü cihaz kimliği tasarımı, tarih belli olunca (talep 02)
+2. ~~Bizim değişiklikleri main'e almak~~ YAPILDI (PR #19); ortak DEV denemesi Alper'in E2E betiği düzelince (talep 03)
+3. ~~Masaüstü cihaz kimliği~~ YAPILDI (2026-10-29, PR #25)
 
 ---
 
@@ -43,7 +43,7 @@ Hepsi yazılı ve uygulanmış durumda. Hardware kendi doğrulayıcısını yazm
 
 - Kullanıcı token'ı doğrulaması: uygun
 - Silme ucu (`DELETE /internal/v1/accounts/{accountId}`): uygun ve gerçek Auth'la denenmiş
-- Masaüstü senkronizasyon ucu: Auth'taki cihaz kimliği gelene kadar kapalı kalacak (talep 02)
+- Masaüstü senkronizasyon ucu: Hardware'de `dev+jwt` doğrulayıcısı yazılana kadar kapalı kalacak (talep 02; Auth tarafı hazır)
 
 ## BİR UYARI: SENİN TESTLERİN AUTH KAYNAĞINA BAĞLI
 

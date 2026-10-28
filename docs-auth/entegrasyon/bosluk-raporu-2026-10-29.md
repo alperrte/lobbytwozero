@@ -8,7 +8,7 @@
 ## KISA SONUÇ
 
 - **Auth'un verdikleri tamam:** JWT ve JWKS, roller, hesap silme koordinasyonu, servis token'ı ve izin listesi, admin iç uçları. Hiçbir ekibin belgesinde Auth'ta bulamadığı bir kullanıcı ucu çıkmadı
-- **Boş bıraktığımız 3 şey var:** masaüstü cihaz kimliği, hesap durumu olayı, güvenlik ve durum e-postaları
+- **Boş bıraktığımız 3 şey vardı** (masaüstü cihaz kimliği, hesap durumu olayı, güvenlik ve durum e-postaları). **2026-10-29 itibarıyla Auth tarafında hepsi uygulandı**; karşı servislerin işleri aşağıdaki tabloda.
 - **Başka ekiplerin kodunda 3 gerçek sorun çıktı:** Community kapsam adı, Social silme ucu, Community giden çağrıları
 - **Çoğu servis iskelet:** 11 servisin silme ucu yok, bu yüzden hesap silme global olarak tamamlanamaz
 
@@ -28,11 +28,11 @@
 
 | # | Eksik | Kim bekliyor | Durum | Önerilen |
 |---|---|---|---|---|
-| A1 | **Masaüstü cihaz kimliği (B yolu)** | Hardware, Performance | Karar B, kod yok | [Tasarım taslağı](cihaz-kimligi-tasarimi.md) hazır, onay sonrası yaz |
-| A2 | **`AccountStatusChanged` olayı** (D3) | Community, Game, diğerleri | Tarih yok, şimdilik en fazla 90 sn gecikme | Ayrı tasarım, alıcılar hazır olunca |
-| A3 | **Güvenlik e-postaları (MAIL-03) ve hesap durumu e-postaları (MAIL-04)** | Mail servisi, kullanıcılar | Auth'ta port yok, mail-service iskelet. Borç B12 | Auth'a iki port + sözleşme, mail-service yazılınca bağlanır |
-| A4 | **`UserRegistered` ve e-posta değişti olayı** | user-service | PLANNED | user-service başlayınca |
-| A5 | **`blocks:check` için istemci kayıtları** (messaging, lfp → social) | Messaging, LFP, Social | Auth'ta kapsam ve istemci yok. Social ucu da yazılmadı | Social ucu yazılınca Auth'a ekle, küçük iş |
+| A1 | **Masaüstü cihaz kimliği (B yolu)** | Hardware, Performance | Karar B, **Auth'ta uygulandı (2026-10-29)** | `docs/api.md` "Masaüstü cihaz kimliği"; Hardware'de `dev+jwt` doğrulayıcısı bekliyor |
+| A2 | **`AccountStatusChanged` olayı** (D3) | Community, Game, diğerleri | **Auth'ta hazır (2026-10-29):** transactional outbox; yalnız yönetici durum değişikliğinde çıkar, hedef listesi varsayılan boş | Alıcı uç yazılınca `ltz.auth.events.targets`'a eklenir |
+| A3 | **Güvenlik e-postaları (MAIL-03) ve hesap durumu e-postaları (MAIL-04)** | Mail servisi, kullanıcılar | **Auth'ta hazır (2026-10-29):** `SecurityNotificationMailPort`; parola, e-posta ve durum bildirimleri. Prod'da Mail ucu gelene kadar kapalı (fail-closed). Borç B12 kısmen kapandı | Mail Service bildirim sözleşmesi ve adaptörü |
+| A4 | **`UserRegistered` ve e-posta değişti olayı** | user-service | **Auth'ta hazır (2026-10-29):** outbox, `UserRegistered` ve `AccountEmailChanged`; hedef listesi varsayılan boş | user-service alıcı ucu yazılınca `user` hedefi eklenir |
+| A5 | **`blocks:check` için istemci kayıtları** (messaging, lfp → social) | Messaging, LFP, Social | **Auth'ta hazır (2026-10-29):** iki istemci `audience: "social-service"` ile `blocks:check` token'ı alıyor | Social ucunun yazılması |
 | A6 | **Tanımsız çiftler:** admin → review (REV-07/15), content/event → notification, admin, mail | Review, Content, Event | Sözleşme yok | Önce ihtiyaç yazılsın, sonra karar |
 
 ---
@@ -60,6 +60,6 @@
 
 ## KARAR BEKLEYENLER (Kerem)
 
-1. A1 cihaz kimliği tasarımı onaylansın mı, bu hafta mı yazılsın
-2. A5: messaging ve lfp için `blocks:check` kapsamı ve istemcileri Social ucu yazılınca mı eklensin
-3. A2: `AccountStatusChanged` tasarımına ne zaman başlansın
+1. ~~A1 cihaz kimliği tasarımı~~ yapıldı (2026-10-29)
+2. ~~A5 `blocks:check` istemcileri~~ yapıldı (2026-10-29)
+3. ~~A2 `AccountStatusChanged`~~ yapıldı (2026-10-29, outbox)

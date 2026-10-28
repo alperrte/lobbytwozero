@@ -4,7 +4,7 @@
 
 ## ÖZET
 
-Auth bugün e-postayı **kendi içinde** yalnız geliştirmede, Mailpit'e gönderiyor. Üretimde gerçek teslim Mail Service'in işi olacak ve Auth'ta bu bağ henüz **yok** (üretim e-posta bağdaştırıcısı bilerek kapalı). Güvenlik ve hesap durumu e-postaları (MAIL-03, MAIL-04) için Auth'ta hiç port yok.
+Auth bugün doğrulama, sıfırlama ve silme e-postalarını **kendi içinde** yalnız geliştirmede, Mailpit'e gönderiyor. Üretimde gerçek teslim Mail Service'in işi olacak ve Auth'ta bu bağ henüz **yok** (üretim e-posta bağdaştırıcısı bilerek kapalı). Güvenlik ve hesap durumu e-postaları (MAIL-03, MAIL-04) için Auth tarafında port hazır (`SecurityNotificationMailPort`, 2026-10-29); gerçek teslim Mail Service'in ucuna bağlanınca açılır.
 
 ## AUTH'TAN HAZIR OLANLAR
 
@@ -20,8 +20,8 @@ Auth bugün e-postayı **kendi içinde** yalnız geliştirmede, Mailpit'e gönde
 
 ## AUTH'TA BEKLEYEN
 
-- **MAIL-03 (güvenlik e-postaları):** parola değişti, şüpheli giriş. Auth bunları tetiklemiyor (borç B12). Mail sözleşmesi yazılınca bağlanır
-- **MAIL-04 (hesap durumu e-postaları):** admin askıya alma ve yasaklama sonrası e-posta yok, aynı bağ
+- **MAIL-03 (güvenlik e-postaları):** parola değişti, parola sıfırlandı, e-posta değişti (eski adrese). Auth bunları commit sonrası tetikliyor (2026-10-29, borç B12 kısmen kapandı); içerikte parola, token ya da bağlantı yok. Prod'da Mail ucu gelene kadar kapalı. "Şüpheli giriş" bildirimi henüz yok
+- **MAIL-04 (hesap durumu e-postaları):** admin askıya alma, yasaklama, devre dışı bırakma ve yeniden açma sonrası Auth aynı porttan bildirim tetikliyor (2026-10-29)
 - **MAIL-05 (hoş geldin):** tetikleyici belirsiz. Önerim: kullanıcı ACTIVE olunca Auth tetikler
 - E-posta değiştirme kodunun hangi porttan gittiği ayrıca kontrol edilmedi: Mail sözleşmesi yazılırken netleştirilecek
 - Üretim e-posta bağdaştırıcısı: Mail Service hazır olunca yazılacak. Sorun: ana akışı bloke etmemesi gerekir (kuyruğa yazıp dönmek)

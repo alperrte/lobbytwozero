@@ -20,7 +20,7 @@ Game, Auth sözleşmesine en iyi uyan servis: kullanıcı JWT'si, servis token'l
 
 ## AUTH'TA BEKLEYEN
 
-- Hesap durumu olayı (`AccountStatusChanged`): yok. Game 60 ila 90 sn gecikmeyi kabul ediyor
+- Hesap durumu olayı (`AccountStatusChanged`): Auth'ta hazır (2026-10-29, outbox, yalnız yönetici durum değişikliğinde). Game isterse alıcı uç yazar ve hedef olarak eklenir; istemezse 60 ila 90 sn gecikme kabulü geçerli
 - Kullanıcı görünen adı ve profil: JWT'de e-posta, kullanıcı adı ve hesap durumu yok. User Service yazılınca oradan alınacak (Auth'ın işi değil)
 
 ## İLGİLİ BELGELER

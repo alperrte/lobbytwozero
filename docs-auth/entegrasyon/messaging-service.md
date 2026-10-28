@@ -4,7 +4,7 @@
 
 ## ÖZET
 
-Henüz kod yok. Auth'tan gereken: kullanıcı token'ı ve hesap silme. Engel kontrolü için Social'ı çağırmak gerekecek ve bunun için Auth'ta bir istemci kaydı lazım. O kayıt Social'ın ucu yazılınca eklenecek.
+Henüz kod yok. Auth'tan gereken: kullanıcı token'ı ve hesap silme. Engel kontrolü için Social'ı çağıracaksın; Auth tarafı hazır: `messaging-service` istemcisi `audience: "social-service"` ile `blocks:check` token'ı alabiliyor (2026-10-29). Social'ın ucu henüz yazılmadı.
 
 ## AUTH'TAN HAZIR OLANLAR
 

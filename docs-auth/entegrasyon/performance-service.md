@@ -4,7 +4,7 @@
 
 ## ÖZET
 
-Henüz kod yok. Performance'ın Auth ile iki bağı olacak: kullanıcı token'ı ve hesap silme. Üçüncüsü, **aktif cihaz envanteri**, masaüstü cihaz kimliğine (B yolu) bağlı ve ikisinin sözleşmesi henüz yazılmadı.
+Henüz kod yok. Performance'ın Auth ile iki bağı olacak: kullanıcı token'ı ve hesap silme. Üçüncüsü, **aktif cihaz envanteri**: cihaz kimliği Auth'ta hazır (2026-10-29), cihazın aktif olup olmadığını söyleyen API Performance'ın işi ve onun uç adı ile yanıt biçimi henüz yazılmadı.
 
 ## AUTH'TAN HAZIR OLANLAR
 
@@ -20,7 +20,7 @@ Henüz kod yok. Performance'ın Auth ile iki bağı olacak: kullanıcı token'ı
 
 ## AUTH'TA BEKLEYEN
 
-- Cihaz kimliği (B yolu): tasarım taslağı hazır, onay bekliyor
+- Cihaz kimliği (B yolu): **Auth'ta uygulandı (2026-10-29)**, ayrıntı `hardware-service.md` ve `docs/api.md` "Masaüstü cihaz kimliği"
 - Auth'ta Performance için servis istemcisi yok. İhtiyaç çıkarsa kendi klasörüne talep yaz (`README.md` bölüm 3)
 - Auth cihazı iptal edince Performance'a olay gidecek mi: önerilen ikinci aşama, şimdilik gerekmiyor
 

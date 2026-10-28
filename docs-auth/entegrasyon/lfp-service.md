@@ -4,7 +4,7 @@
 
 ## ÖZET
 
-Henüz kod yok. Auth'tan gereken: kullanıcı token'ı ve hesap silme. Engel ve gizlilik kontrolü için Social'ı çağıracaksın, onun için Auth'ta bir istemci kaydı lazım. Social'ın ucu yazılınca eklenecek.
+Henüz kod yok. Auth'tan gereken: kullanıcı token'ı ve hesap silme. Engel ve gizlilik kontrolü için Social'ı çağıracaksın; Auth tarafı hazır: `lfp-service` istemcisi `audience: "social-service"` ile `blocks:check` token'ı alabiliyor (2026-10-29). Social'ın ucu henüz yazılmadı.
 
 ## AUTH'TAN HAZIR OLANLAR
 

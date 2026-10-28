@@ -4,7 +4,7 @@
 
 ## ÖZET
 
-User Service profil sahibi, Auth kimlik sahibi. Aralarındaki bağ iki olay (hesap oluştu, e-posta değişti) ve hesap silme. Olaylar Auth'ta **planlı, yazılmadı**; user-service başlayınca birlikte yapılacak.
+User Service profil sahibi, Auth kimlik sahibi. Aralarındaki bağ iki olay (hesap oluştu, e-posta değişti) ve hesap silme. Olaylar Auth tarafında **hazır** (2026-10-29, transactional outbox); hedef listesi varsayılan boş, User'ın alıcı ucu yazılınca `user` hedef olarak eklenir.
 
 ## AUTH'TAN HAZIR OLANLAR
 
@@ -20,9 +20,9 @@ User Service profil sahibi, Auth kimlik sahibi. Aralarındaki bağ iki olay (hes
 
 ## AUTH'TA BEKLEYEN
 
-- `UserRegistered` olayı (ACTIVE olunca): Auth tarafında yok. Önerim: user-service açık olunca Auth, `events:ingest` ile `user-service`'e gönderir (`svc:auth-service` kimliğiyle), yeni (çağıran, hedef) çifti eklenir. Karar user-service başlarken
-- E-posta değişti olayı (borç B19): aynı yol
-- `AccountStatusChanged` (D3): yok
+- `UserRegistered` olayı (ACTIVE olunca): **Auth'ta hazır** (2026-10-29). Gövde `eventId`, `eventType`, `eventVersion`, `occurredAt`, `producer`, `aggregateId`, `payload`; payload kullanıcı adıdır, e-posta yoktur. Alıcı: `POST /internal/events`, `aud=user-service`, `typ=svc+jwt`, `scope=events:ingest`, `sub=svc:auth-service`. Alıcı uç yazılınca Auth ortamında `ltz.auth.events.targets` listesine `user` eklenir (yeni (çağıran, hedef) çifti gerekmez, Auth kendi adıyla gönderir)
+- E-posta değişti olayı (`AccountEmailChanged`, borç B19 kısmen kapandı): **Auth'ta hazır** (2026-10-29), aynı yol. Olay yeni adresi taşımaz (e-posta kişisel veri, olaylara konmaz). Profilde e-posta tutacaksan yeni adresi kullanıcıdan ya da kendi akışından al; Auth'ta User için bir hesap-okuma izni tanımlı değil, gerekirse `talep` yaz
+- `AccountStatusChanged` (D3): Auth'ta hazır (2026-10-29), yalnız yönetici durum değişikliğinde çıkar
 - USER-07 (Steam ve Discord bağlantısı): Auth'ta Steam ve Google girişi var (kimlik kanıtı), Discord yok. Auth'ın bağlı hesap bilgisini User'a vermesi için sözleşme yazılı değil
 
 ## İLGİLİ BELGELER

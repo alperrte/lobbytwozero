@@ -1,7 +1,7 @@
 # TALEP 02 — MASAÜSTÜ CİHAZ KİMLİĞİ
 
 **Talep kodu:** HW-AUTH-REQ-02 · **Kimden:** Alper (hardware-service) · **Kime:** Kerem (auth-service) · **Cevap tarihi:** 2026-10-26
-**Durum:** KARAR VERİLDİ — B yolu seçildi · **GELİŞTİRMEYE ŞU AN KAPALI**, sıraya alındı
+**Durum:** AUTH TARAFI UYGULANDI (2026-10-29, PR #25) — B yolu · Hardware'de `dev+jwt` doğrulayıcısı bekliyor
 
 ---
 
@@ -43,23 +43,29 @@ B'yi seçtim. Yönü şöyle.
 
 A yolu işi bana yüklemiyor ama yetkiyi geniş bırakıyor. C yolu da cihaz güvenliğini Hardware'a yüklüyor. İkisini seçmedik.
 
-## GELİŞTİRMEYE AÇIK MI
+## GÜNCELLEME (2026-10-29): AUTH TARAFI HAZIR
 
-**HAYIR. ŞU AN KAPALI.** Sebepleri şunlar.
+Önceki sürümde "geliştirmeye şu an kapalı" yazıyordu. Mevcut işler main'e girdi ve cihaz kimliği Auth'ta uygulandı (migration V67, PR #25). Gerçek Auth ve Gateway ile denendi: bağlama, listeleme, iptal, cihaz token'ı, token'ın Auth'ta geçmemesi, e-posta değişiminde cihazların iptali.
 
-- Masaüstü uygulaması yok. Alper'in kendi belgesi de "desktop apply açılmadan önce" diyor
-- Performance servisinin aktif cihaz listesi API'si yok. Auth tarafını yazsam bile uçtan uca denenemez
-- Ben şu an önce mevcut işleri kapatıyorum. Silme geri alma süresi, e-posta değiştirme, servis kimlikli uçlar ve tarama düzeltmeleri henüz main'de değil
-- Tasarım yazılı karar ister. Kimlik bilgisi tipi, süreler, yenileme ve iptal kuralları
+**Uçlar** (ayrıntı `docs/api.md` "Masaüstü cihaz kimliği"):
+- `POST /api/v1/auth/devices`: kullanıcı oturumuyla cihazı bağlar; parola (TOTP varsa o da) şart. Gizli anahtar yalnız bu yanıtta bir kez döner
+- `GET /api/v1/auth/devices`, `DELETE /api/v1/auth/devices/{deviceId}`: liste ve iptal
+- `POST /api/v1/auth/devices/token`: `deviceId` + `deviceSecret` ile 60 sn'lik token (çerezsiz, herkese açık uç)
 
-**Ne zaman açılır:** Alper masaüstü tarafına ne zaman başlayacağını söylediğinde. O zaman önce kısa bir tasarım kararı yazarım, sonra migration ve uçları yaparım. Auth migration aralığında V67 ile V70 arası boş. Bu iş bir ya da iki tanesini kullanır.
+**Cihaz token'ı:** `typ=dev+jwt`, `iss=ltz-auth`, `aud=hardware-service`, `sub=<deviceId>`, `account_id=<hesap>`, `scope=hardware:sync:write`, `jti`, ömür 60 sn. Rol taşımaz, Auth'un hiçbir ucunda geçmez.
 
-## ŞİMDİLİK SENDEN NE BEKLİYORUM
+**Kurallar:** hesap başına en fazla 5 etkin cihaz, günde 10 bağlama, anahtar 365 gün. Parola/e-posta değişimi, hesabın aktif olmaması ve silme onayı cihazları iptal eder. Token ucunda tüm kimlik hataları tek yanıt verir (`INVALID_DEVICE_CREDENTIALS`); hesap kilidi yok, IP sınırı Gateway'de.
 
-- Hardware `sync/snapshots` ucu fail-closed kalsın. Şu an zaten öyle
-- Auth'ta cihaz uç adı, claim adı ya da kapsam adı varmış gibi kod yazma. Henüz hiçbiri yok
+**Tasarımdan farklar:** `DEVICE_TOKEN_REJECTED` olayı yok; cihaz adı yalnız harf, rakam, boşluk ve `._()-` içerebilir (en fazla 64 karakter).
+
+**Performance ile bölüşüm değişmedi:** Auth cihazın kimliğini ve hangi hesaba bağlı olduğunu söyler; cihazın aktif/çalışıyor olduğu kararı Performance'ta (PERF-01). Performance'ın aktif cihaz API'si henüz yok, uç adı ve yanıt biçimi yazılı değil. Hardware bu kararı ona soracak, o uç sende/Performance'ta belirlenmeli.
+
+## SENDEN NE BEKLİYORUM
+
+- Hardware'de `dev+jwt` için ayrı doğrulayıcı yaz: `typ=dev+jwt`, `iss`, `aud=hardware-service`, `sub=deviceId` (UUID), `account_id` (UUID), `scope` içinde `hardware:sync:write`, ömür ≤ 60 sn. Mevcut `svc:` önek kuralına dokunma
 - ADMIN cihaz yerine geçemez. Bu kuralı sen de yazmışsın, aynen kabul
-- Masaüstü başlangıç tarihi belli olunca bana haber ver
+- `sync/snapshots` ucu doğrulayıcı hazır olana kadar fail-closed kalsın
+- Performance'ın aktif cihaz API'si için uç adı ve yanıt biçimini belirle (PERF-01)
 
 ## NEREDEN BAKARSIN
 

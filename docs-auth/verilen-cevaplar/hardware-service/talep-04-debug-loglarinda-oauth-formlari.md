@@ -1,7 +1,7 @@
 # TALEP 04 — DEBUG VE TRACE AÇIKKEN OAUTH FORMLARININ LOGLANMASI
 
 **Talep kodu:** HW-AUTH-REQ-04 · **Kimden:** Alper (hardware-service) · **Kime:** Kerem (auth-service) · **Cevap tarihi:** 2026-10-26 · **Düzeltme tarihi:** 2026-10-27
-**Durum:** KAPANDI — Auth'ta düzeltildi ve test edildi, main'e girince etkin olacak
+**Durum:** KAPANDI — Auth'ta düzeltildi, test edildi ve main'de etkin (PR #19)
 
 ---
 
@@ -42,7 +42,7 @@ Kök seviyeyi TRACE yapan bir test eklemedim, çünkü bu aynı süreçteki diğ
 ## SENDEN NE BEKLİYORUM
 
 - Senin kalite betiğinin genel DEBUG bayrağını test sürecinden ayırması kalabilir. O senin tarafın. Ama güvenlik artık ona bağlı değil
-- Düzeltme main'e girince Google ve Steam testlerini DEBUG açıkken bir kez koştur ve sonucu paylaş
+- Düzeltme main'de: Google ve Steam testlerini DEBUG açıkken bir kez koştur ve sonucu paylaş
 - **Prod'da DEBUG ya da TRACE açılmasın.** Pin'ler korumayı sağlıyor ama bu ayrı bir kural olarak dağıtım belgesine de yazılacak
 
 ## NEREDEN BAKARSIN

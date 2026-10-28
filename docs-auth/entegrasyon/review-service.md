@@ -20,7 +20,7 @@ Review'ın Auth ile bağı: kullanıcı token'ı, roller (moderasyon silme) ve h
 ## AUTH'TA BEKLEYEN
 
 - Admin → Review servis kimlikli çağrı: çift tanımsız (karar bekliyor)
-- Yazar adı ve görünen ad: JWT'de yok, User Service yazılınca oradan (`UserRegistered` olayı Auth'ta planlı)
+- Yazar adı ve görünen ad: JWT'de yok, User Service yazılınca oradan (`UserRegistered` olayı Auth'ta hazır, 2026-10-29; hedef listesi varsayılan boş, User'ın alıcı ucu yazılınca eklenir)
 
 ## İLGİLİ BELGELER
 

@@ -21,7 +21,7 @@ Hardware gelen kullanıcı token'ını kendi içinde doğruluyor. Ama biri banla
 
 Access token ömrü 60 saniye. Üstüne 30 saniye saat toleransı var. Yani banlanan biri en kötü ihtimalle bir buçuk dakika daha eski token'ıyla görünür. Sonra token ölür ve yenisini alamaz çünkü Auth'ta oturumları anında iptal oluyor.
 
-Olay yok. Sorgu ucu da yok. Hardware yeni bir şey kurmasın.
+Olay yok (bu cevap yazıldığında). Güncelleme (2026-10-29): Auth artık yönetici durum değişikliğinde `AccountStatusChanged` olayını outbox ile yayımlayabiliyor, hedef listesi varsayılan boş. Hardware için gerekli değil, 90 sn kabul edildi; istersen alıcı uç yazarsın ve `hardware` hedef olarak eklenir. Sorgu ucu yok. Hardware yeni bir şey kurmasın.
 
 Auth'a ulaşılamazsa şu zaten senin tarafta var. Anahtar önbellekte duruyorsa doğrulamaya devam et. Bilinmeyen anahtar gelirse reddet. Yani güvenli tarafta kal.
 

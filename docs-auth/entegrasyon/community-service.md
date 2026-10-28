@@ -28,7 +28,7 @@ Auth'tan Community'nin ihtiyacı büyük ölçüde hazır: JWKS, roller, servis 
 
 ## AUTH'TA BEKLEYEN
 
-- `AccountStatusChanged` olayı: yok, tarih yok. Askıdaki hesabın içeriğini gizleme Community'nin kararı. Olay gelene kadar durum bilgisi yalnız token'ın geçerliliği
+- `AccountStatusChanged` olayı: **Auth'ta hazır (2026-10-29, outbox)**, ama yalnız yönetici durum değişikliğinde çıkar (silme isteği ve iptal olay üretmez) ve hedef listesi varsayılan boş; alıcı ucu yazınca `community` hedef olarak eklenir. Askıdaki hesabın içeriğini gizleme Community'nin kararı. Olay gelene kadar durum bilgisi yalnız token'ın geçerliliği (en fazla 90 sn)
 - `COM-04` raporundaki `AccountDeleted` beklentisi: Auth bunu olay olarak yayınlamıyor, senkron `DELETE` ile yapıyor
 
 ## NASIL DENERSİN
