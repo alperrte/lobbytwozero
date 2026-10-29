@@ -1,5 +1,8 @@
 package com.ltz.community.api.controller;
 
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -8,16 +11,19 @@ import org.springframework.web.bind.annotation.RestController;
 import com.ltz.community.api.dto.request.InboundEventRequest;
 import com.ltz.community.api.dto.response.InboundEventResult;
 import com.ltz.community.application.service.InboundEventService;
+import com.ltz.community.infrastructure.security.TokenClaims;
 
 import jakarta.validation.Valid;
 
 /**
- * Servisler arası olay girişi. Gateway'de route edilmez; yalnız {@code SCOPE_internal.events} yetkisi taşıyan servis
- * kimliğini kabul eder (bkz. {@code SecurityConfig}). Servisler arası kimlik modeli ADR'si netleşene kadar bu yetki
- * hiçbir token'da bulunmadığından uç fiilen kapalıdır (fail-closed).
+ * Servisler arası olay girişi. Gateway'de route edilmez; yalnız Auth'un imzaladığı servis token'ını ({@code svc+jwt},
+ * {@code aud=community-service}) ve {@code SCOPE_events:ingest} yetkisini kabul eder (bkz. {@code SecurityConfig}). Zarftaki
+ * {@code producer} alanı kendi başına güvenilmez: token'ın çağıranı ({@code sub}) tam olarak {@code svc:<producer>}
+ * olmalıdır, böylece bir servis başka bir servis adına olay yayınlayamaz. Auth şu an bu kapsamlı token üretmediği için uç
+ * fiilen kapalıdır (bkz. auth-requests-01.md).
  */
 @RestController
-@RequestMapping("/internal/events")
+@RequestMapping(InternalApiPaths.EVENTS)
 public class InternalEventController {
 
 	private final InboundEventService inboundEventService;
@@ -27,7 +33,10 @@ public class InternalEventController {
 	}
 
 	@PostMapping
-	public InboundEventResult receive(@Valid @RequestBody InboundEventRequest event) {
+	public InboundEventResult receive(@Valid @RequestBody InboundEventRequest event, @AuthenticationPrincipal Jwt token) {
+		if (!(TokenClaims.SERVICE_SUBJECT_PREFIX + event.producer()).equals(token.getSubject())) {
+			throw new AccessDeniedException("The service token does not belong to the declared producer");
+		}
 		return inboundEventService.handle(event);
 	}
 }

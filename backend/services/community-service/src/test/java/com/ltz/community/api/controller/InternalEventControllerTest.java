@@ -44,7 +44,8 @@ class InternalEventControllerTest {
 			 "payload":{"blockerId":"0198a3c2-3333-7d44-9a55-3f1c2b4d5e66","blockedId":"0198a3c2-4444-7d44-9a55-3f1c2b4d5e66"}}
 			""";
 
-	private final RequestPostProcessor service = jwt().authorities(new SimpleGrantedAuthority("SCOPE_internal.events"));
+	private final RequestPostProcessor service = jwt().jwt(token -> token.subject("svc:social-service"))
+			.authorities(new SimpleGrantedAuthority("SCOPE_events:ingest"));
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -76,7 +77,20 @@ class InternalEventControllerTest {
 		mockMvc.perform(post(URL).with(jwt().authorities(new SimpleGrantedAuthority("SCOPE_other")))
 				.contentType(MediaType.APPLICATION_JSON).content(VALID))
 				.andExpect(status().isForbidden());
-		mockMvc.perform(get(URL).with(service)).andExpect(status().isMethodNotAllowed());
+		// Tanımsız yöntem/yol iç uçlarda reddedilir (denyAll).
+		mockMvc.perform(get(URL).with(service)).andExpect(status().isForbidden());
+		verifyNoInteractions(inboundEventService);
+	}
+
+	@Test
+	void aServiceCannotPublishEventsOnBehalfOfAnotherProducer() throws Exception {
+		RequestPostProcessor adminToken = jwt().jwt(token -> token.subject("svc:admin-service"))
+				.authorities(new SimpleGrantedAuthority("SCOPE_events:ingest"));
+
+		// Zarf social-service diyor ama token admin-service'e ait.
+		mockMvc.perform(post(URL).with(adminToken).contentType(MediaType.APPLICATION_JSON).content(VALID))
+				.andExpect(status().isForbidden())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
 		verifyNoInteractions(inboundEventService);
 	}
 
