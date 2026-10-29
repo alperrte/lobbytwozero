@@ -19,8 +19,8 @@ import jakarta.validation.Valid;
  * Servisler arası olay girişi. Gateway'de route edilmez; yalnız Auth'un imzaladığı servis token'ını ({@code svc+jwt},
  * {@code aud=community-service}) ve {@code SCOPE_events:ingest} yetkisini kabul eder (bkz. {@code SecurityConfig}). Zarftaki
  * {@code producer} alanı kendi başına güvenilmez: token'ın çağıranı ({@code sub}) tam olarak {@code svc:<producer>}
- * olmalıdır, böylece bir servis başka bir servis adına olay yayınlayamaz. Auth şu an bu kapsamlı token üretmediği için uç
- * fiilen kapalıdır (bkz. docs-community/integration/auth/entegrasyon-v1/auth-service-talepleri/auth-requests-01.md).
+ * olmalıdır, böylece bir servis başka bir servis adına olay yayınlayamaz. Auth'un olay token'ı fazladan {@code account_id}
+ * claim'i taşıyabilir; bu uçta yok sayılır (bkz. docs-community/integration/auth/entegrasyon-v2/auth-service-talepleri/auth-requests-05.md).
  */
 @RestController
 @RequestMapping(InternalApiPaths.EVENTS)

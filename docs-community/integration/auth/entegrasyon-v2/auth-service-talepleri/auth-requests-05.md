@@ -1,8 +1,9 @@
 # Auth Talebi 05 — `AccountStatusChanged` alıcısı hazır, giden servis token'ı bağlandı; Auth'tan beklenen üç teyit
 
-> Tarih: 2026-10-29 · Gönderen: Nisa (community-service) → Kerem (Auth) · Durum: **GÖNDERİLECEK**
+> Tarih: 2026-10-29 · Gönderen: Nisa (community-service) → Kerem (Auth) · Durum: **CEVAPLANDI (2026-10-29); Auth tarafında açık istek kalmadı, kalanlar §6'da**
+> Kerem'in yazılı cevabı: `docs-auth/verilen-cevaplar/community-service/talep-05-accountstatuschanged-alicisi-ve-uc-teyit.md`
 > Not: Aşağıdakiler Auth'un yapısını değiştirme isteği değildir. Community, Auth'un yayımladığı sözleşmeye uydu; burada yalnız Auth tarafında yapılacak **ayar/teyit** istenir.
-> Önceki talepler ve cevapları: `../entegrasyon-v1/auth-service-talepleri/auth-requests-01..04.md`. Bu talebin dayanağı: `docs-auth/entegrasyon/community-service.md` (2026-10-29) ve `docs-auth/verilen-cevaplar/community-service/*`.
+> Önceki talepler ve cevapları: `../../entegrasyon-v1/auth-service-talepleri/auth-requests-01..04.md`. Bu talebin dayanağı: `docs-auth/entegrasyon/community-service.md` (2026-10-29) ve `docs-auth/verilen-cevaplar/community-service/*`.
 
 ## 1. Community'de ne bitti (Auth'un bilmesi için)
 
@@ -55,3 +56,18 @@ Açık maddelerin ayrıntısı:
 
 - Auth §3'ü yanıtlar ve `community` hedefini eklediğinde dev'de bir hesabın durumu yönetici ucundan değiştirilir; community `inbox_events` tablosunda olay kaydı oluşur ve Auth'un outbox satırı teslim edilmiş görünür.
 - Community relay'i (`LTZ_OUTBOX_RELAY_ENABLED=true`) açıldığında dev'de bir rapor/yorum/beğeni olayı admin/notification'a Auth token'ıyla `2xx` ile teslim edilir (alıcı uçları hazırsa).
+
+## 6. Kerem'in cevabı (2026-10-29) ve sonuç
+
+| # | İstek | Cevap | Sonuç |
+| --- | --- | --- | --- |
+| 1 | `community` hedefinin eklenmesi | **Kerem ekler**: Auth ortamında `AUTH_EVENT_TARGETS=community` (virgülle ayrılmış servis adları, boşsa olay yok), sonra Auth yeniden başlatılır. Bu değişken `docker-compose.yml`'a aktarılmıyordu; **Kerem eksiği kapattı** (`.env.example` ve Compose, `EventConfigTest`). Eklemenin zamanı: community'nin bu dalı birleşip dev imajı güncellendikten ve `POST /internal/events` yayına girdikten sonra; öncesinde eklenirse Auth üstel geri çekilmeyle (10 sn–1 saat) yeniden dener, 20. denemede bir kez "takılı" uyarısı yazar, veri kaybı yok | Kapandı. Elde kalan: **"alıcı yayında" haberini Kerem'e vermek** (aşağıda) |
+| 2 | `svc:auth-service → community-service` çifti | **Hazır.** `HttpAuthEventSender` her teslimde yeni token üretir: `typ=svc+jwt`, `iss=ltz-auth`, `sub=svc:auth-service`, `aud=community-service`, `scope=events:ingest`, 60 sn, `jti/iat/nbf/exp`; **ek claim `account_id`** (alıcı yok sayabilir). Zarf ve yük bizim beklentimizle birebir (`payload` yalnız `accountId`, `status`). Olay yalnız yönetici durum değişikliğinde çıkar; silme isteği/iptal/silme tamamlanması olay üretmez | Kapandı. Community tarafı `account_id` içeren token'ı kabul eder (`InternalEndpointSecurityTest.authsEventTokenWithTheExtraAccountIdClaimIsAccepted`) |
+| 3 | `community-service` istemcisi dev'de etkin mi | **Evet**, `AUTH_COMMUNITY_SERVICE_CLIENT_SECRET` doluysa (üretici betik doldurur). Çiftler: `admin-service`, `notification-service` (`events:ingest`); başka hedef `403 SERVICE_AUDIENCE_FORBIDDEN`. Yanıt: `{accessToken, tokenType:"Bearer", expiresIn:60, scope:"events:ingest"}`; ek alan eklenirse haber verilir | Kapandı. Yanıt alanları community'nin ayrıştırmasıyla aynı |
+
+**Auth'un açık bıraktığı (dürüst) nokta:** Gerçek community jar'ıyla gerçek Auth'un birlikte çalıştığı bir deneme **yapılmadı**; Auth tarafı sahte alıcıyla ve Gateway duman testiyle doğrulandı. Aynı şekilde community tarafı da sahte Auth/JWKS ile doğrulandı.
+
+**Sonuç:** Auth'a yönelik açık istek kalmadı. Kalan işler Auth dışıdır ve `../auth-integration-05.md` §5–6'da izlenir:
+1. Nisa → Kerem: **"alıcı yayında" haberi** (community dalı birleşip dev imajı güncellenince). Kerem `AUTH_EVENT_TARGETS=community` ekleyip Auth'u yeniden başlatır.
+2. Birlikte: dev'de durum değişikliği ile `inbox_events` ve Auth outbox teslim kontrolü; dev'de hesap silme `CONFIRMED` (`AUTH_DELETION_GRACE_PERIOD=PT0S`, yalnız dev).
+3. Alper: rapor saklama süresi (Auth bunu etkilemez).
