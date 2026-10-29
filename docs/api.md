@@ -2089,7 +2089,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 184 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 218 test PASS)
 
 ### SOCIAL — Arkadaşlık isteğini kabul et (SOC-02)
 
@@ -2124,7 +2124,7 @@ Diğer mikroservisler:
 `FriendshipChanged` olayı ve bildirim (SOC-13) — **PENDING**.
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 184 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 218 test PASS)
 
 ### SOCIAL — Arkadaşlık isteğini reddet (SOC-03)
 
@@ -2159,7 +2159,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 184 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 218 test PASS)
 
 ### SOCIAL — Arkadaşlık isteğini iptal et (SOC-04)
 
@@ -2194,7 +2194,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 184 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 218 test PASS)
 
 ### SOCIAL — Gelen bekleyen istekler (SOC-05)
 
@@ -2228,7 +2228,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 184 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 218 test PASS)
 
 ### SOCIAL — Gönderilen bekleyen istekler (SOC-06)
 
@@ -2262,7 +2262,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 184 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 218 test PASS)
 
 ### SOCIAL — Arkadaş listesi (SOC-07)
 
@@ -2304,7 +2304,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; social-service 184 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; social-service 218 test PASS)
 
 ### SOCIAL — Arkadaşlıktan çıkar (SOC-08)
 
@@ -2340,7 +2340,7 @@ Diğer mikroservisler:
 `FriendshipChanged` (`change: REMOVED`) olayı outbox'a yazılır — teslim **PENDING**, bkz. "Giden olay sözleşmeleri".
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; social-service 184 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; social-service 218 test PASS)
 
 ### SOCIAL — Davet kodumu getir (SOC-14)
 
@@ -2378,7 +2378,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; social-service 184 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; social-service 218 test PASS)
 
 ### SOCIAL — Davet kodu üret (SOC-14)
 
@@ -2409,7 +2409,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; social-service 184 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; social-service 218 test PASS)
 
 ### SOCIAL — Davet kodumu iptal et (SOC-14)
 
@@ -2439,7 +2439,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; social-service 184 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; social-service 218 test PASS)
 
 ### SOCIAL — Davet koduyla arkadaşlık isteği gönder (SOC-14)
 
@@ -2483,7 +2483,7 @@ Diğer mikroservisler:
 `FriendRequestSent` olayı outbox'a yazılır — teslim **PENDING**.
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; social-service 184 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; social-service 218 test PASS)
 
 ### SOCIAL — Kullanıcıyı engelle (SOC-09)
 
@@ -2533,7 +2533,7 @@ Diğer mikroservisler:
 `UserBlocked` olayı outbox'a yazılır (messaging, lfp, community, notification) — teslim **PENDING**. messaging/lfp'nin engel sorgusu için bkz. "Giden sözleşme taslağı: engel sorgusu".
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; social-service 184 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; social-service 218 test PASS)
 
 ### SOCIAL — Engeli kaldır (SOC-10)
 
@@ -2567,7 +2567,7 @@ Diğer mikroservisler:
 `UserUnblocked` olayı outbox'a yazılır — teslim **PENDING**.
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; social-service 184 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; social-service 218 test PASS)
 
 ### SOCIAL — Engellenen kullanıcılar (SOC-11)
 
@@ -2607,7 +2607,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; social-service 184 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; social-service 218 test PASS)
 
 ### SOCIAL — Başka kullanıcının arkadaş listesi (SOC-12)
 
@@ -2651,29 +2651,69 @@ Diğer mikroservisler:
 user-service'ten görünürlük tercihi okunacak — **PENDING**: user-service henüz bir uç sunmuyor ve servisler arası kimlik (D4) hazır değil. Bu yüzden `ltz.social.privacy.adapter=unavailable` varsayılandır ve başkasının listesi görünmez. Gerçek adaptör (`FriendsVisibilityPort` uygulaması) eklenince kurallar aynen çalışır (kurallar sahte adaptörle testlidir).
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; social-service 184 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; social-service 218 test PASS)
 
-### SOCIAL — Giden sözleşme taslağı: engel sorgusu (SOC-15, PLANNED, onay bekliyor)
+### SOCIAL — Engel sorgusu (Internal, messaging/lfp → Social) (SOC-15)
 
-Durum: PLANNED
+Durum: IMPLEMENTED
 Sorumlu: Umut
-Tüketici servisler: messaging-service (MSG-15), lfp-service (LFP-17), community-service, recommendation-service
+Tüketici servisler: messaging-service (MSG-15), lfp-service (LFP-17)
 
-Social, engelleme verisinin tek sahibidir; diğer servisler Social veritabanına erişmez. İhtiyaç anında çağrı yapacak (RestClient) iç uç **tasarlandı ama yazılmadı**:
+Social, engelleme verisinin tek sahibidir; diğer servisler Social veritabanına erişmez. Messaging ve LFP, bir kullanıcı ile bir grup kullanıcı arasında engel olup olmadığını bu uçla sorar (N+1 çağrı yerine toplu).
 
-- `POST /internal/v1/blocks/check` — Yetkilendirme: **Internal** (Gateway'de yayımlanmaz).
-- Gövde: `{ "userId": "UUID", "otherUserIds": ["UUID", ... en fazla 100] }` (N+1 çağrı yerine toplu).
-- Yanıt `200`: `{ "results": [ { "userId": "UUID", "blocked": true | false } ] }` — `blocked`, `userId` ile ilgili kullanıcı arasında **herhangi bir yönde** engel varsa `true`.
-- Kimlik: servis JWT'si (D4): `iss=ltz-auth`, `aud=social-service`, `scope=blocks:check`, `typ=svc+jwt`, ≤ 60 sn. Kimliksiz açılmaz.
+#### Endpoint
+POST /internal/v1/blocks/check
 
-**Neden yazılmadı:** D4 servis kimliği (üretici ve doğrulayıcı) henüz yok ve "servisler arası güven modeli" onay gerektirir (SECURITY.md §19); kimliksiz bir iç uç açılmaz. D4 hazır olunca uç eklenir. Bu arada engel kuralı Social içinde (istek gönderme, davet kodu, arkadaş listesi) uygulanıyor; messaging/lfp tarafı kendi akışlarında bu uca bağlanacak.
+#### Yetkilendirme
+Internal. Gateway'e açık **değildir** (`/internal/**` Gateway'de route edilmez). Yalnız Auth'un imzaladığı **servis token'ı** kabul edilir (`docs-auth/entegrasyon/README.md` bölüm 3):
+- JWT başlığı `typ=svc+jwt`; RS256, Auth'un JWKS anahtarıyla doğrulanır.
+- `iss=ltz-auth`, `aud` içinde `social-service`, `jti` zorunlu, ömür en fazla 60 sn.
+- `scope` içinde `blocks:check` (eksik/farklı kapsam `403`). Silme token'ının `account:erase` kapsamı bu uca yetmez.
+- `sub` **tam olarak** `svc:messaging-service` ya da `svc:lfp-service` olmalı; kapsam doğru olsa bile başka bir servis kimliği `403` alır.
+- Kullanıcı token'ı (`at+jwt`) bu uçta **kabul edilmez**; servis token'ı da kullanıcı uçlarında geçmez.
+- Auth tarafında iki istemci `audience: "social-service"` ile bu token'ı alabilir; gizli anahtar değişkenleri `AUTH_MESSAGING_SERVICE_CLIENT_SECRET` ve `AUTH_LFP_SERVICE_CLIENT_SECRET`.
+
+#### Request Body
+```json
+{
+  "userId": "UUID (zorunlu)",
+  "otherUserIds": ["UUID", "... en az 1, en fazla 100"]
+}
+```
+Tanımsız alan reddedilir.
+
+#### Response — 200
+```json
+{
+  "results": [
+    { "userId": "UUID", "blocked": true }
+  ]
+}
+```
+- `results[].userId`, sorgulanan **diğer** kullanıcıdır; `blocked`, istekteki `userId` ile arasında **herhangi bir yönde** engel varsa `true`.
+- Yinelenen kimlikler tek sonuç verir; sonuçlar ilk görülme sırasıyla döner. `userId` kendi listesinde yer alırsa `blocked=false` olur.
+- Engelin yönü ve zamanı yanıtta yoktur (sızdırılmaz).
+
+#### Hata Durumları
+- 400: Eksik/boş `otherUserIds`, 100'den fazla kimlik, UUID olmayan değer, tanımsız alan (`VALIDATION_FAILED` / `MALFORMED_REQUEST`)
+- 401: Token yok/geçersiz; kullanıcı token'ı; yanlış `iss`/`aud`/`typ`; süresi dolmuş veya 60 sn'den uzun ömürlü; bozuk imza
+- 403: Geçerli servis token'ı ama `blocks:check` kapsamı yok ya da çağıran messaging/lfp değil; bu yolda başka yöntem (GET)
+- 413: Gövde 8KB sınırını aşıyor
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+messaging-service ve lfp-service Auth'tan `POST /internal/v1/service-tokens` ile (`audience: "social-service"`) 60 sn'lik token alıp bu ucu `${SOCIAL_SERVICE_URL}/internal/v1/blocks/check` adresinde çağırır. Tüketici servislerin tarafı iskelet olduğundan uçtan uca çağrı **NOT VERIFIED**.
 
 #### Test Durumu
-NOT IMPLEMENTED
+UNIT + INTEGRATION (gerçek PostgreSQL; `BlocksCheckTest` 13 test: iki yön, engel kaldırma, başkasının engeli, yinelenen kimlik, 100/101 sınırı, geçersiz gövde, kimlik/kapsam/çağıran/`aud`/`iss`/`typ` ihlalleri). Gerçek Auth token'ıyla uçtan uca: NOT VERIFIED.
 
 ### SOCIAL — Hesap verisi silme (Internal, Auth → Social)
 
-Durum: IMPLEMENTED (alıcı taraf); çağıran taraf — **PENDING** (Auth'ta servis token'ı üreticisi ve gerçek adaptör yok)
+Durum: IMPLEMENTED (alıcı taraf)
 Sorumlu: Umut
 Tüketici servisler: auth-service (hesap silme koordinasyonu, `ltz.auth.deletion.targets` içinde `social` var)
 
@@ -2681,11 +2721,13 @@ Tüketici servisler: auth-service (hesap silme koordinasyonu, `ltz.auth.deletion
 DELETE /internal/v1/accounts/{accountId}
 
 #### Yetkilendirme
-Internal. Gateway'e açık **değildir** (Gateway yalnız `/api/v1/**` route eder; `/internal/**` 404). Yalnız Auth'un imzaladığı **servis token'ı** kabul edilir (`docs-auth/servis-sozlesmeleri.md` §3, D4):
+Internal. Gateway'e açık **değildir** (Gateway yalnız `/api/v1/**` route eder; `/internal/**` 404). Yalnız Auth'un imzaladığı **servis token'ı** kabul edilir (`docs-auth/servis-sozlesmeleri.md` §3.1):
 - JWT başlığı `typ=svc+jwt`; RS256, Auth'un JWKS anahtarıyla doğrulanır.
-- `iss=ltz-auth`, `aud` içinde `social-service`, `sub=svc:<çağıran>`, `jti` zorunlu.
+- `iss=ltz-auth`, `aud` içinde `social-service`, `jti` zorunlu.
 - `scope` içinde `account:erase` (eksik/farklı kapsam `403`).
-- Ömür en fazla 60 sn: `exp - iat ≤ 60 sn` ve `exp`, şimdiden en fazla 60 sn (+30 sn saat sapması) ileride. (Spring, `iat` yoksa `exp-1` atadığı için ikinci koşul `iat` çıkarılarak aşılmayı engeller.)
+- `sub` **tam olarak** `svc:auth-service` olmalı: silme yetkisi yalnız Auth'tadır, `svc:admin-service` gibi başka bir servis kimliği `403` alır.
+- `account_id` claim'i yoldaki `{accountId}` ile **aynı** olmalı (yol UUID olarak çözülüp küçük harfle karşılaştırılır); eksik ya da başka hesap `403` verir, çalınan/yeniden oynatılan bir token başka hesabı silemez.
+- Ömür en fazla 60 sn: `exp - iat ≤ 60 sn` ve `exp`, şimdiden en fazla 60 sn (+30 sn saat sapması) ileride.
 - Kullanıcı token'ı (`at+jwt`) bu uçta **kabul edilmez**, servis token'ı da kullanıcı uçlarında geçmez (`typ` ve yol bazlı doğrulayıcı ayrımı).
 
 #### Path Parameters
@@ -2697,7 +2739,7 @@ Gövde yok. Hesaba ait tüm Social verisi tek transaction'da kalıcı olarak sil
 #### Hata Durumları
 - 400: Geçersiz `accountId` (`MALFORMED_REQUEST`)
 - 401: Token yok/geçersiz; kullanıcı token'ı; yanlış `iss`/`aud`/`typ`; süresi dolmuş veya 60 sn'den uzun ömürlü; `sub` `svc:` ile başlamıyor; `jti` yok; bozuk/yanlış anahtarlı imza; `alg=none`/HS256
-- 403: Geçerli servis token'ı ama `account:erase` kapsamı yok; bu yolda başka yöntem (GET/POST) ya da başka iç yol
+- 403: Geçerli servis token'ı ama `account:erase` kapsamı yok; `sub` `svc:auth-service` değil; `account_id` yok ya da yoldaki hesapla aynı değil (hiçbir şey silinmez); bu yolda başka yöntem (GET/POST) ya da başka iç yol
 - 500: Beklenmeyen sunucu hatası
 
 #### Bağlantı
@@ -2705,16 +2747,16 @@ Frontend:
 -
 
 Diğer mikroservisler:
-Auth, silme onaylandığında bu ucu `${SOCIAL_SERVICE_URL}/internal/v1/accounts/{accountId}` adresine RestClient ile çağıracak. **PENDING:** Auth'ta bugün `UnavailableAccountDataEraser` var (hedef uçlar ve servis token'ı üreticisi yok); görevler PENDING kalır, bu uç Auth tarafı yazılana kadar kimse tarafından çağrılmaz. Auth sahibine (Kerem) iletilecek: `aud` değeri `social-service` olarak beklenir; `sub=svc:<çağıran>`, `jti`, `scope=account:erase`, `typ=svc+jwt`, ömür ≤ 60 sn.
+Auth, silme onaylandığında bu ucu `${SOCIAL_SERVICE_URL}/internal/v1/accounts/{accountId}` adresine RestClient ile çağırır. Auth tarafı (üretici ve adaptör) main'e alındı; gerçek Auth token'ıyla canlı silme **NOT VERIFIED**.
 
 Not: Silme, "silinen hesaba sonradan istek gönderilmesi" ihtimalini ortadan kaldırmaz; kullanıcı varlık doğrulaması (user-service ucu) hâlâ **PENDING**. Social, silinen hesabın arkadaşlarına `FriendshipChanged REMOVED` olayı yazmaz (olay yükü silinen kimliği taşıyacağından); messaging gibi servisler kendi silme çağrısını Auth'tan alır.
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; social-service 184 test PASS). Gerçek Auth ile uçtan uca deneme: kullanıcı token'ı bu uçta 401 verir (canlı doğrulandı); servis token'ı canlıda **NOT VERIFIED** (Auth üreticisi yok).
+UNIT + INTEGRATION (gerçek PostgreSQL; `AccountErasureTest` 17 test, `sub` tam eşleşme ve `account_id` denetimi dahil). Gerçek Auth servis token'ıyla uçtan uca: NOT VERIFIED.
 
-### SOCIAL — Giden olay sözleşmeleri (SOC-13, teslim PENDING)
+### SOCIAL — Giden olay sözleşmeleri (SOC-13, teslim kısmen)
 
-Durum: IN PROGRESS (olaylar outbox'a yazılıyor; tüketiciye teslim bekliyor)
+Durum: IN PROGRESS (olaylar outbox'a yazılıyor; `UserBlocked`/`UserUnblocked` community'ye teslim edilebilir, diğer türlerin hedefi yok)
 Sorumlu: Umut
 Tüketici servisler: notification-service, messaging-service, recommendation-service
 
@@ -2732,12 +2774,15 @@ Zarf (docs/architecture.md §6.2): `eventId`, `eventType`, `eventVersion`, `occu
 
 Red ve iptal olay üretmez (reddedilen kişiye bildirim gitmez). Engellenen kullanıcıya hiçbir bildirim/olay gönderilmez; engel olayları yalnız etkileşimi durduracak servisler içindir.
 
-Teslim durumu — **PENDING**: `notification-service` henüz iç uç sunmuyor ve servisler arası kimlik (D4, `typ=svc+jwt`) hazır değil; kimliksiz bir iç uca olay göndermek yasaktır. Bu yüzden relay (`ltz.social.outbox.relay-enabled`) varsayılan **kapalı** ve teslim adaptörü `unavailable`dir; olaylar outbox'ta `PENDING` bekler. Gerçek adaptör (`SocialEventPublisher` uygulaması) tüketici uç ve servis kimliği hazır olunca eklenir; sonra relay açılır. Relay mantığı (üstel geri çekilme, en fazla 10 deneme sonrası `FAILED`, `SKIP LOCKED` ile çift teslim önleme) testlidir.
+Teslim durumu:
+- **`UserBlocked`, `UserUnblocked` → community-service:** Gerçek adaptör `CommunityEventPublisher` (`ltz.social.outbox.adapter=community`, varsayılan). Her teslim, Auth'tan `POST /internal/v1/service-tokens` ile (`clientId: "social-service"`, `audience: "community-service"`) alınan 60 sn'lik token'la `POST {COMMUNITY_SERVICE_URL}/internal/events` ucuna yapılır (`scope=events:ingest`, `sub=svc:social-service`). Gizli anahtar `AUTH_SOCIAL_SERVICE_CLIENT_SECRET` ortam değişkeninden gelir; boşsa relay hiç olay denemez ve deneme hakkı yanmaz. 2xx dışındaki her yanıt (3xx dahil) teslim sayılmaz ve olay üstel geri çekilmeyle yeniden denenir.
+- **`FriendRequestSent`, `FriendRequestAccepted`, `FriendshipChanged`:** Auth'ta social → notification/messaging/recommendation çifti **tanımlı değil** ve alıcı uçlar yok; bu türler `No delivery target` ile teslim edilemez, relay açılırsa en fazla 10 denemeden sonra `FAILED` olur (el ile müdahale bekler). Hedef tanımlanınca `CommunityEventPublisher`'a yönlendirme eklenir.
+- Relay (`ltz.social.outbox.relay-enabled`, ENV `SOCIAL_OUTBOX_RELAY_ENABLED`) varsayılan **kapalı**; community alıcı ucu gerçek token'la doğrulanınca açılır. Relay mantığı (üstel geri çekilme, en fazla 10 deneme sonrası `FAILED`, `SKIP LOCKED` ile çift teslim önleme) testlidir.
 
 Not: Social bu olayları üretir; `notification-service`/`messaging-service` tarafında tüketici uç eklenmesi o servislerin sahiplerine bildirilmelidir (notification-service ortak/sahipsizdir).
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; social-service 184 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; social-service 218 test PASS; `CommunityEventPublisherTest` ve `AuthServiceTokenClientTest` giden çağrıyı MockRestServiceServer ile doğrular). Community ve Auth ile gerçek uçtan uca teslim: NOT VERIFIED.
 
 ## MESSAGING
 

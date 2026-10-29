@@ -6,4 +6,9 @@ public class EventDeliveryException extends RuntimeException {
     public EventDeliveryException(String message) {
         super(message);
     }
+
+    /** Neden zincirde kalır ama loglanmaz: relay yalnız {@link #getMessage()} yazar. */
+    public EventDeliveryException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

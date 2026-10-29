@@ -269,6 +269,10 @@ services:
     environment:
       <<: *ltz-db-env
       DB_SOCIAL_NAME: ${DB_SOCIAL_NAME:?}
+      # Auth'tan giden olay çağrısı (community) için servis token'ı alma gizli anahtarı; boşsa relay olay denemez.
+      AUTH_SOCIAL_SERVICE_CLIENT_SECRET: ${AUTH_SOCIAL_SERVICE_CLIENT_SECRET:-}
+      # Olay teslimi varsayılan olarak kapalı; community alıcı ucu doğrulanınca true yapılır.
+      SOCIAL_OUTBOX_RELAY_ENABLED: ${SOCIAL_OUTBOX_RELAY_ENABLED:-false}
     depends_on:
       postgres:
         condition: service_healthy

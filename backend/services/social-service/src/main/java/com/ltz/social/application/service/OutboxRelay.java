@@ -25,6 +25,10 @@ public class OutboxRelay {
 
     /** Bir tur çalışır; başarıyla teslim edilen olay sayısını döner. */
     public int deliverDue() {
+        if (!publisher.isReady()) {
+            log.debug("Event publisher is not ready; outbox delivery skipped");
+            return 0;
+        }
         List<EventEnvelope> claimed = store.claimDue();
         int delivered = 0;
         for (EventEnvelope envelope : claimed) {

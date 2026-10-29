@@ -69,6 +69,7 @@ public abstract class IntegrationTestSupport {
     protected static final JOSEObjectType SERVICE_TOKEN_TYPE = new JOSEObjectType("svc+jwt");
     protected static final String SERVICE_AUDIENCE = "social-service";
     protected static final String ERASE_SCOPE = "account:erase";
+    protected static final String BLOCKS_CHECK_SCOPE = "blocks:check";
 
     private static final int TEST_RSA_BITS = 2048;
     private static final long TOKEN_TTL_SECONDS = 300;
@@ -142,22 +143,35 @@ public abstract class IntegrationTestSupport {
                 .claim("roles", List.of("PLAYER"));
     }
 
-    /** Auth'un D4 sözleşmesindeki biçimde (svc+jwt, sub=svc:..., aud=hedef servis, scope, jti, ≤ 60 sn) geçerli servis token'ı. */
-    protected static String serviceToken(UnaryOperator<JWTClaimsSet.Builder> claimsChange) {
-        return sign(SIGNING_KEY, SERVICE_TOKEN_TYPE, claimsChange.apply(validServiceClaims()).build());
+    /**
+     * Auth'un D4 sözleşmesindeki biçimde (svc+jwt, sub=svc:auth-service, aud=hedef servis, scope=account:erase,
+     * account_id, jti, ≤ 60 sn) {@code accountId} hesabının silinmesi için geçerli servis token'ı.
+     */
+    protected static String serviceToken(UUID accountId, UnaryOperator<JWTClaimsSet.Builder> claimsChange) {
+        return sign(SIGNING_KEY, SERVICE_TOKEN_TYPE, claimsChange.apply(validServiceClaims(accountId)).build());
     }
 
-    protected static JWTClaimsSet.Builder validServiceClaims() {
+    protected static JWTClaimsSet.Builder validServiceClaims(UUID accountId) {
+        return serviceClaims("svc:auth-service", ERASE_SCOPE).claim("account_id", accountId.toString());
+    }
+
+    /** messaging/lfp'nin Auth'tan aldığı {@code blocks:check} token'ı (aud=social-service). */
+    protected static String blocksCheckToken(String caller, UnaryOperator<JWTClaimsSet.Builder> claimsChange) {
+        return sign(SIGNING_KEY, SERVICE_TOKEN_TYPE,
+                claimsChange.apply(serviceClaims("svc:" + caller, BLOCKS_CHECK_SCOPE)).build());
+    }
+
+    protected static JWTClaimsSet.Builder serviceClaims(String subject, String scope) {
         Instant now = Instant.now();
         return new JWTClaimsSet.Builder()
                 .issuer(ISSUER)
                 .audience(SERVICE_AUDIENCE)
-                .subject("svc:auth-service")
+                .subject(subject)
                 .jwtID(UUID.randomUUID().toString())
                 .issueTime(Date.from(now))
                 .notBeforeTime(Date.from(now))
                 .expirationTime(Date.from(now.plusSeconds(60)))
-                .claim("scope", ERASE_SCOPE);
+                .claim("scope", scope);
     }
 
     /** JWKS sunucusuna yeni bir açık anahtar ekler (Auth'un anahtar dönüşümünü taklit eder). */
