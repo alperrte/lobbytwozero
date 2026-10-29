@@ -3,7 +3,7 @@
 > Tarih: 2026-10-27 · Servis: community-service (Nisa)
 > Önceki belgeler: `auth-integration-01.md` (kullanıcı token'ı), `auth-integration-02.md` (servis token'ı, hesap silme). Muhatap taleplerin tamamı: `auth-service-talepleri/auth-requests-01..03.md`.
 
-> **Güncelleme (2026-10-29):** Bu belge birinci aşamanın (`entegrasyon-v1`) kaydıdır ve olduğu gibi saklanır. §3–§4'te "bekliyor / relay kapalı" denen giden token ve `AccountStatusChanged` alıcısı ikinci aşamada tamamlandı: bkz. `../auth-integration-05.md`.
+> **Güncelleme (2026-10-29):** Bu belge birinci aşamanın (`entegrasyon-v1`) kaydıdır ve olduğu gibi saklanır. §3–§4'te "bekliyor / relay kapalı" denen giden token ve `AccountStatusChanged` alıcısı ikinci aşamada tamamlandı: bkz. `../entegrasyon-v2/auth-integration-05.md`.
 
 ## 1. Bağlam
 

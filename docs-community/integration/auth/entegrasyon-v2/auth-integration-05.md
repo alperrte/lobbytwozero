@@ -1,8 +1,8 @@
 # Auth Entegrasyonu 05 — İkinci aşama: beklentilerin karşılık denetimi ve kapatılan eksikler
 
 > Tarih: 2026-10-29 · Servis: community-service (Nisa)
-> Birinci aşama belgeleri: `entegrasyon-v1/auth-integration-01..03.md`; talepler ve cevaplar: `entegrasyon-v1/auth-service-talepleri/auth-requests-01..04.md`.
-> Bu aşamanın talebi: `auth-service-talepleri/auth-requests-05.md`. Auth'un yapısı değişmedi; yalnız community Auth'un yayımladığı sözleşmeye uyduruldu.
+> Birinci aşama belgeleri: `../entegrasyon-v1/auth-integration-01..03.md`; talepler ve cevaplar: `../entegrasyon-v1/auth-service-talepleri/auth-requests-01..04.md`.
+> Bu aşamanın talebi ve Kerem'in cevabı: `auth-service-talepleri/auth-requests-05.md` (§6; yazılı cevap `docs-auth/verilen-cevaplar/community-service/talep-05-*.md`). Auth'un yapısı değişmedi; yalnız community Auth'un yayımladığı sözleşmeye uyduruldu.
 
 ## 1. Yöntem
 
@@ -79,8 +79,12 @@ Auth `README.md` §1: kullanıcı ve servis token'larında `exp`, `nbf`, `iat`, 
 - **Dev'de hesap silme `CONFIRMED`:** ortam şartları (`auth-requests-04.md` §4).
 - **Dev DB:** paylaşılan `community_db` migration V92'de; bu aşama migration eklemedi (yeni şema yok).
 
-## 6. Sonraki adımlar
+## 6. Kerem'in cevabından sonra (2026-10-29)
 
-1. Nisa → Kerem: `auth-requests-05.md` (hedef ekleme zamanı, çift teyidi, istemci etkinliği).
+Auth üç teyidi de verdi (`auth-requests-05.md` §6): `community` hedefini Kerem `AUTH_EVENT_TARGETS=community` ile ekleyecek (Compose'a aktarım eksiğini kendisi kapattı); `svc:auth-service → community-service` çifti hazır (token ek olarak `account_id` taşır, community yok sayar ve testle sabit); `community-service` istemcisi dev'de etkin, yanıt alanları bizim ayrıştırmamızla aynı. Auth'a yönelik açık istek kalmadı. Hâlâ yapılmamış olan, iki tarafın da **gerçek jar'larla birlikte** bir denemesidir (NOT VERIFIED).
+
+## 7. Sonraki adımlar
+
+1. Nisa → Kerem: **"alıcı yayında" haberi** (bu dal birleşip dev imajı güncellenince); Kerem `AUTH_EVENT_TARGETS=community` ekler.
 2. Nisa → Alper: rapor saklama süresi; Gateway'in `/internal/**` yolunu route etmediği teyidi.
 3. Birlikte: dev'de (a) hesap silme `CONFIRMED`, (b) durum değişikliğinin community inbox'ında görünmesi, (c) relay'i açıp rapor olayının admin'e Auth token'ıyla ulaşması.

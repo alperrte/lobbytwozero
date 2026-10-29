@@ -208,6 +208,22 @@ class InternalEndpointSecurityTest {
 				.contentType(MediaType.APPLICATION_JSON).content(EVENT)).andExpect(status().isUnauthorized());
 	}
 
+	@Test
+	void authsEventTokenWithTheExtraAccountIdClaimIsAccepted() throws Exception {
+		when(inboundEventService.handle(any())).thenReturn(new InboundEventResult(UUID.randomUUID(), Outcome.PROCESSED));
+		// Auth, olay token'ına olayın hesabını `account_id` olarak ekler (talep 05 cevabı); alıcı bunu yok sayar.
+		String fromAuth = AuthTestSupport.serviceToken(AuthTestSupport.AUTH_SUBJECT, AuthTestSupport.INGEST_SCOPE,
+				claims -> claims.claim("account_id", ACCOUNT_ID.toString()));
+		String authEvent = """
+				{"eventId":"0198a3c2-1111-7d44-9a55-3f1c2b4d5e66","eventType":"AccountStatusChanged","eventVersion":1,
+				 "occurredAt":"2026-10-29T10:00:00Z","producer":"auth-service","aggregateId":"%s",
+				 "payload":{"accountId":"%s","status":"SUSPENDED"}}""".formatted(ACCOUNT_ID, ACCOUNT_ID);
+
+		mockMvc.perform(post(EVENTS_URL).header(HttpHeaders.AUTHORIZATION, "Bearer " + fromAuth)
+				.contentType(MediaType.APPLICATION_JSON).content(authEvent))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.outcome").value("PROCESSED"));
+	}
+
 	// ------------------------------------------------------------------ kullanıcı uçları: token türü yola göre
 
 	@Test
