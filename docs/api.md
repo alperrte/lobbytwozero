@@ -734,6 +734,34 @@ Mail Service (`AccountDeletionMailPort`) — production **PENDING**, development
 #### Test Durumu
 INTEGRATION
 
+### AUTH — Token iptali ve hesap durumu yayılımı (politika)
+
+Durum: IMPLEMENTED (politika; yeni uç yoktur)
+Sorumlu: Kerem
+Tüketici servisler: kullanıcı token'ı doğrulayan tüm servisler (hardware-service dahil)
+
+#### Endpoint
+Yeni uç yoktur. Bilinçli karar: tüketicilere iptal sorgusu (introspection) ya da iptal listesi (revocation list) sunulmaz; iptal, kısa token ömrüyle yayılır.
+
+#### Politika
+- Access token ömrü **60 sn** (`JWT_ACCESS_TTL_SECONDS`, prod'da da 60; değişirse tüketicilere önceden haber verilir). Servis token'ı JWKS ile yerel doğrular, Auth'a çağrı yapmaz.
+- Alıcı servis saat sapması için en çok **30 sn** tolerans uygular. Dolayısıyla iptal edilen bir hesabın eski access token'ı diğer servislerde **en çok 90 sn** (60 sn + 30 sn) geçerli görünür. Yeni token alınamaz, çünkü oturum iptal edilmiştir.
+- Şu olaylar hesabın tüm oturumlarını iptal eder ve token sürümünü artırır: çıkış, parola değişimi ve sıfırlama, e-posta değişimi, rol verme ve alma, hesabın askıya alınması, yasaklanması ya da devre dışı bırakılması, silme onayı. **Auth'un kendi uçları** eski token'ı anında reddeder (`401`).
+- Anlık iptal iddiası yoktur. 90 sn kritik bir işlem için yetmiyorsa ayrı bir sözleşme (sorgu ya da iptal listesi) gerekir; şu an böyle bir ihtiyaç kaydı yoktur.
+- Auth'a ulaşılamazsa: servis önbellekteki JWKS ile doğrulamaya devam eder, bilinmeyen `kid` reddedilir (fail-closed). Hesap durumunu öğrenmek için Auth'a çağrı yapılmaz, yeni bir polling ya da önbellek kurulmaz.
+- **İsteğe bağlı olay:** `AccountStatusChanged` yalnız yönetici durum değişikliğinde (askıya alma, yasaklama, devre dışı bırakma, yeniden açma) transactional outbox ile hedef servise iletilir. Çıkış, parola, rol ve silme olay üretmez. Hedef listesi (`ltz.auth.events.targets`) varsayılan boştur; alıcı uç yazan servis eklenmesini ister. Zarf alanları ve alıcı doğrulama kuralları: `docs-auth/servis-sozlesmeleri.md` bölüm 3.5. Olay gecikmeyi kısaltabilir ama zorunlu değildir; olay yoksa 90 sn kuralı geçerlidir.
+
+#### Hata Durumları
+Yeni uç olmadığı için yeni hata kodu yoktur. İptal edilmiş token Auth'un uçlarında `401 UNAUTHENTICATED` alır.
+
+#### Bağlantı
+Frontend: oturum yenileme `401` sonrası `session/refresh` ile yapılır (bkz. "Oturum uçları").
+
+Diğer mikroservisler: token doğrulama kuralları `docs/AUTH_SERVICE_ENTEGRASYON_REHBERI.md` ve `docs-auth/entegrasyon/<servis>.md` içindedir. İstek geçmişi: `docs-auth/verilen-cevaplar/hardware-service/talep-01-token-iptali-ve-hesap-durumu.md`.
+
+#### Test Durumu
+INTEGRATION (Auth tarafı: oturum iptali, token sürümü ve eski token'ın Auth uçlarında reddi). Diğer servislerdeki yayılım süresi tüketicinin kendi testleriyle kanıtlanır.
+
 ### AUTH — Masaüstü cihaz kimliği (hardware-service)
 
 Durum: IMPLEMENTED (Auth tarafı); tüketici hardware-service ve masaüstü uygulaması **PENDING**
