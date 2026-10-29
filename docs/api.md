@@ -768,11 +768,11 @@ Response — 201, `Cache-Control: no-store`: `{ "deviceId", "deviceSecret", "lab
 - Cihaz yeniden bağlanmaz, iptal edilip yeni cihaz bağlanır.
 
 #### Hata Durumları
-- 400: Doğrulama (geçersiz ad, birden fazla ikinci faktör); `CURRENT_PASSWORD_INVALID`; `INVALID_TWO_FACTOR_CODE`; `PASSWORD_REQUIRED` (parolasız hesap bağlayamaz)
+- 400: Doğrulama (geçersiz ad, birden fazla ikinci faktör); `CURRENT_PASSWORD_INVALID`; `INVALID_TWO_FACTOR_CODE`
 - 401: Kimliksiz; `token` için `INVALID_DEVICE_CREDENTIALS`
 - 403: CSRF
 - 404: `DEVICE_NOT_FOUND` (başkasının cihazı da 404)
-- 409: `DEVICE_LIMIT_REACHED`
+- 409: `DEVICE_LIMIT_REACHED`; `PASSWORD_REQUIRED` (parolasız hesap, yani yalnız Google/Steam, cihaz bağlayamaz)
 - 429: Günlük bağlama sınırı (`TOO_MANY_ATTEMPTS`)
 
 #### Bağlantı
