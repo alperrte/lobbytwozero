@@ -15,7 +15,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param algorithm     yalnız RS256
  * @param userIdClaim   yalnız sub (UUID)
  * @param rolesClaim    yalnız roles (metin listesi)
- * @param clockSkew     süre doğrulama toleransı (0–60 saniye)
+ * @param clockSkew     süre doğrulama toleransı (0–30 saniye)
  */
 @ConfigurationProperties("ltz.security.jwt")
 public record JwtSecurityProperties(
@@ -26,7 +26,13 @@ public record JwtSecurityProperties(
         @DefaultValue("RS256") String algorithm,
         @DefaultValue("sub") String userIdClaim,
         @DefaultValue("roles") String rolesClaim,
-        @DefaultValue("60s") Duration clockSkew) {
+        Duration clockSkew) {
+    private static final Duration DEFAULT_CLOCK_SKEW = Duration.ofSeconds(30);
+
+    public JwtSecurityProperties {
+        clockSkew = clockSkew == null ? DEFAULT_CLOCK_SKEW : clockSkew;
+    }
+
     boolean hasJwkSetUri() { return jwkSetUri != null && !jwkSetUri.isBlank(); }
     boolean hasPublicKey() { return publicKey != null && !publicKey.isBlank(); }
 }

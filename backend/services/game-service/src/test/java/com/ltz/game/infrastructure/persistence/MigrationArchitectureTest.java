@@ -18,8 +18,12 @@ import org.junit.jupiter.api.io.TempDir;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.testcontainers.postgresql.PostgreSQLContainer;
-import static org.junit.jupiter.api.Assertions.*;
-import static com.ltz.game.infrastructure.persistence.MigrationSchemaSupport.*;
+import static com.ltz.game.infrastructure.persistence.MigrationSchemaSupport.schema;
+import static com.ltz.game.infrastructure.persistence.MigrationSchemaSupport.schemaCounts;
+import static com.ltz.game.infrastructure.persistence.MigrationSchemaSupport.validateHibernate;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Eski tarihçe yalnız test kaynağıdır; DEV'e bağlanılmaz. */
 class MigrationArchitectureTest {

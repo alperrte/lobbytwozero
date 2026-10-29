@@ -1,9 +1,15 @@
 package com.ltz.game.application.service;
-import com.ltz.game.domain.entity.*;
-import com.ltz.game.domain.enums.*;
+import com.ltz.game.domain.entity.Game;
+import com.ltz.game.domain.entity.GameLanguageSupport;
+import com.ltz.game.domain.enums.LanguageSupportStatus;
+import com.ltz.game.domain.enums.MetadataDataState;
 import com.ltz.game.domain.exception.InvalidGameRequestException;
 import java.text.Normalizer;
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 @Service @RequiredArgsConstructor
@@ -14,10 +20,8 @@ public class LocalizationService {
         RequestRules.reason(edit.evidence());
         String locale = edit.metadataLanguage()==null ? game.getMetadataLanguage() : normalizedLocale(edit.metadataLanguage());
         Set<GameLanguageSupport> supports = edit.languageSupport()==null ? new HashSet<>(game.getLanguageSupport()) : supports(edit.languageSupport());
-        MetadataDataState state = edit.dataState()==null ? game.getLanguageDataState() : edit.dataState();
-        if (edit.dataState()==null && edit.languageSupport()!=null) state = supports.isEmpty() ? MetadataDataState.EMPTY : MetadataDataState.AVAILABLE;
-        if ((state==MetadataDataState.AVAILABLE) != !supports.isEmpty()) throw invalid();
-        if (edit.verified() && (state==MetadataDataState.UNKNOWN || state==MetadataDataState.INVALID)) throw invalid();
+        MetadataDataState state = resolveState(game, edit, supports);
+        validateState(state, supports, edit.verified());
         boolean changed = !Objects.equals(locale,game.getMetadataLanguage()) || state!=game.getLanguageDataState()
                 || !supports.equals(game.getLanguageSupport()) || edit.verified();
         if (!changed) return false;
@@ -26,6 +30,16 @@ public class LocalizationService {
         game.getLanguageSupport().clear(); game.getLanguageSupport().addAll(supports);
         provenance.recordObservation(game,"LOCALIZATION","ADMIN",state,edit.verified());
         return true;
+    }
+    private MetadataDataState resolveState(Game game, LocalizationEdit edit, Set<GameLanguageSupport> supports) {
+        MetadataDataState state = edit.dataState()==null ? game.getLanguageDataState() : edit.dataState();
+        if (edit.dataState()==null && edit.languageSupport()!=null)
+            state = supports.isEmpty() ? MetadataDataState.EMPTY : MetadataDataState.AVAILABLE;
+        return state;
+    }
+    private void validateState(MetadataDataState state, Set<GameLanguageSupport> supports, boolean verified) {
+        if ((state==MetadataDataState.AVAILABLE) != !supports.isEmpty()) throw invalid();
+        if (verified && (state==MetadataDataState.UNKNOWN || state==MetadataDataState.INVALID)) throw invalid();
     }
     private Set<GameLanguageSupport> supports(List<LocalizationEdit.Support> inputs) {
         if (inputs.size()>100) throw invalid();

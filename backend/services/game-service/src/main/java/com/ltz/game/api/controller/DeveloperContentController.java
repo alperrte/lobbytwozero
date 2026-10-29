@@ -1,6 +1,8 @@
 package com.ltz.game.api.controller;
 
-import com.ltz.game.api.dto.request.*;
+import com.ltz.game.api.dto.request.DeveloperDescriptionRequest;
+import com.ltz.game.api.dto.request.DeveloperMediaRequest;
+import com.ltz.game.api.dto.request.UpdateNoteRequest;
 import com.ltz.game.api.dto.response.DeveloperContentManagementResponse;
 import com.ltz.game.api.dto.response.ManagedGameResponse;
 import com.ltz.game.application.port.Actor;
@@ -11,7 +13,15 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
 
 /** Yetkili geliştirici alanı (GAME-12/13). Rol zincirde, oyun bazlı yetki servis katmanında ayrıca denetlenir. */
 @RestController @RequestMapping("/api/v1/game/developer") @RequiredArgsConstructor

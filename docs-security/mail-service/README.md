@@ -1,6 +1,6 @@
 # mail-service: güvenlik ve kalite durumu
 
-> **Bu dosya otomatik üretilir, elle düzenleme.** Kaynak: `backend/config/quality-baseline.json` (2026-10-28). Yenilemek için: `node pre-push/ci/lint-ratchet.mjs docs`.
+> **Bu dosya otomatik üretilir, elle düzenleme.** Kaynak: `backend/config/quality-baseline.json` (2026-10-29). Yenilemek için: `node pre-push/ci/lint-ratchet.mjs docs`.
 > Elle tutulan notlar için: [NOTLAR.md](NOTLAR.md).
 
 **Sahip:** Kerem (@KeremKalyoncu)  •  **Eski borç:** ✅ yok (temiz)

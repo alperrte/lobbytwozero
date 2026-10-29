@@ -1,6 +1,8 @@
 package com.ltz.game.infrastructure.security;
 
+import jakarta.annotation.PreDestroy;
 import java.net.URI;
+import java.net.http.HttpClient;
 import java.security.KeyFactory;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.X509EncodedKeySpec;
@@ -12,6 +14,7 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
@@ -24,11 +27,14 @@ import org.springframework.security.oauth2.jwt.JwtIssuerValidator;
 import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
 import org.springframework.security.oauth2.jwt.MappedJwtClaimSetConverter;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.web.client.RestOperations;
+import org.springframework.web.client.RestTemplate;
 
 /** D4: kullanıcı doğrulayıcısından bağımsız, yalnız kısa ömürlü servis token'ları. */
 @Configuration(proxyBeanMethods = false)
 public class ServiceTokenDecoderConfiguration {
     private static final Duration SKEW = Duration.ofSeconds(30);
+    private HttpClient jwksHttpClient;
 
     @Bean("serviceJwtDecoder")
     JwtDecoder serviceJwtDecoder(
@@ -80,12 +86,22 @@ public class ServiceTokenDecoderConfiguration {
         return new DelegatingOAuth2TokenValidator<>(new JwtIssuerValidator(issuer), timestamps, contract);
     }
 
-    private static org.springframework.web.client.RestOperations jwksClient() {
-        var client = java.net.http.HttpClient.newBuilder().connectTimeout(Duration.ofMillis(750))
-                .followRedirects(java.net.http.HttpClient.Redirect.NEVER).build();
-        var factory = new org.springframework.http.client.JdkClientHttpRequestFactory(client);
+    private synchronized RestOperations jwksClient() {
+        if (jwksHttpClient == null) {
+            jwksHttpClient = HttpClient.newBuilder().connectTimeout(Duration.ofMillis(750))
+                    .followRedirects(HttpClient.Redirect.NEVER).build();
+        }
+        var factory = new JdkClientHttpRequestFactory(jwksHttpClient);
         factory.setReadTimeout(Duration.ofMillis(750));
-        return new org.springframework.web.client.RestTemplate(factory);
+        return new RestTemplate(factory);
+    }
+
+    @PreDestroy
+    synchronized void closeJwksClient() {
+        if (jwksHttpClient != null) {
+            jwksHttpClient.close();
+            jwksHttpClient = null;
+        }
     }
 
     private static String checkedUri(String value) {

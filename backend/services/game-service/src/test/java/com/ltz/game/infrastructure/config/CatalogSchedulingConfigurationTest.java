@@ -1,11 +1,18 @@
 package com.ltz.game.infrastructure.config;
 
-import com.ltz.game.application.service.*;
-import java.util.*;
+import com.ltz.game.application.service.CatalogImportService;
+import com.ltz.game.application.service.GameDetailRefreshService;
+import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class CatalogSchedulingConfigurationTest {
     @Test void concurrentAdminEditConflictDoesNotStopTheTickOrBubbleUp() {

@@ -1,9 +1,14 @@
 package com.ltz.game.domain.entity;
 import com.ltz.game.domain.enums.ContentStatus;
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.MappedSuperclass;
+import jakarta.persistence.Version;
 import java.time.Instant;
 import java.util.UUID;
+import lombok.Getter;
+import lombok.Setter;
 /** Geliştirici içeriğinde ortak sahiplik ve moderasyon alanları. */
 @MappedSuperclass @Getter @Setter
 public abstract class DeveloperContentBase {

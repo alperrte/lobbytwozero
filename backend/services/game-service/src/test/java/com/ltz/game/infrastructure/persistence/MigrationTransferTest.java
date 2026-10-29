@@ -12,8 +12,23 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.testcontainers.postgresql.PostgreSQLContainer;
-import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.*;
-import static org.junit.jupiter.api.Assertions.*;
+import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.CURRENT;
+import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.Checkpoint;
+import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.GAME;
+import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.HISTORY;
+import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.Receipt;
+import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.TABLES;
+import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.database;
+import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.digests;
+import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.flyway;
+import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.populate;
+import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.requireReady;
+import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.transfer;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MigrationTransferTest {
     private static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine");

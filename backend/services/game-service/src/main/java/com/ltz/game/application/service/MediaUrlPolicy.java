@@ -30,21 +30,34 @@ public class MediaUrlPolicy {
 
     public String validate(DeveloperMediaType type, String value) {
         String text = value == null ? "" : value.strip();
+        validateText(text);
+        URI uri = parseUri(text);
+        validateAuthority(uri);
+        String host = uri.getHost().toLowerCase(Locale.ROOT);
+        validateSource(type, host, uri.getRawPath());
+        return text;
+    }
+
+    private static void validateText(String text) {
         if (text.isEmpty() || text.length() > MAX_LENGTH || !ALLOWED_CHARACTERS.matcher(text).matches()) throw invalid();
-        URI uri;
+    }
+
+    private static URI parseUri(String text) {
         try {
-            uri = new URI(text);
+            return new URI(text);
         } catch (URISyntaxException _) {
             throw invalid();
         }
-        String host = uri.getHost();
-        if (!"https".equalsIgnoreCase(uri.getScheme()) || host == null || uri.getRawUserInfo() != null
+    }
+
+    private static void validateAuthority(URI uri) {
+        if (!"https".equalsIgnoreCase(uri.getScheme()) || uri.getHost() == null || uri.getRawUserInfo() != null
                 || uri.getPort() != -1 || uri.getRawFragment() != null) throw invalid();
-        host = host.toLowerCase(Locale.ROOT);
-        String path = uri.getRawPath();
+    }
+
+    private void validateSource(DeveloperMediaType type, String host, String path) {
         if (!validHost(host) || !safePath(path) || !allowed(sources(type), host, path)
                 || (type == DeveloperMediaType.IMAGE && !hasImageExtension(path))) throw invalid();
-        return text;
     }
 
     /** DNS adı: en az iki etiket, etiket başına 1-63 küçük harf/rakam/tire (başta ve sonda tire yok), son etiket yalnız rakam değil (IP yok). */

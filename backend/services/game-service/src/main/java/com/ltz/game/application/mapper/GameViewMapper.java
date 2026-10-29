@@ -1,13 +1,15 @@
 package com.ltz.game.application.mapper;
 
-import com.ltz.game.api.dto.response.*;
+import com.ltz.game.api.dto.response.DetailFreshnessResponse;
+import com.ltz.game.api.dto.response.GameCardResponse;
+import com.ltz.game.api.dto.response.GameDetailResponse;
 import com.ltz.game.domain.entity.Game;
 import com.ltz.game.domain.entity.GameExternalReference;
 import com.ltz.game.domain.entity.GameMedia;
 import com.ltz.game.domain.enums.MediaType;
+import java.util.Comparator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import java.util.Comparator;
 
 @Component @RequiredArgsConstructor
 public class GameViewMapper {

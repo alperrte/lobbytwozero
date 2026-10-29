@@ -1,11 +1,11 @@
 package com.ltz.game.infrastructure.security;
 
+import com.ltz.game.PostgresTestSupport;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.crypto.RSASSASigner;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
-import com.ltz.game.PostgresTestSupport;
 import java.security.KeyPairGenerator;
 import java.time.Duration;
 import java.util.Base64;
@@ -19,7 +19,8 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -70,7 +71,7 @@ class FailClosedSecurityTest extends PostgresTestSupport {
     }
 
     private static JwtSecurityProperties properties(String issuer, String audience, String jwks, String key, String algorithm) {
-        return new JwtSecurityProperties(issuer, audience, jwks, key, algorithm, "sub", "roles", Duration.ofSeconds(60));
+        return new JwtSecurityProperties(issuer, audience, jwks, key, algorithm, "sub", "roles", Duration.ofSeconds(30));
     }
 
     private static void assertRejected(JwtSecurityProperties properties) {

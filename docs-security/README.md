@@ -1,6 +1,6 @@
 # docs-security: servis başına güvenlik ve kalite durumu
 
-> **Bu dosya otomatik üretilir** (kaynak: `backend/config/quality-baseline.json`, 2026-10-28). Yenilemek için: `node pre-push/ci/lint-ratchet.mjs docs`.
+> **Bu dosya otomatik üretilir** (kaynak: `backend/config/quality-baseline.json`, 2026-10-29). Yenilemek için: `node pre-push/ci/lint-ratchet.mjs docs`.
 
 Her servisin klasöründe iki dosya var:
 
@@ -14,9 +14,9 @@ Her servisin klasöründe iki dosya var:
 | auth-service | Kerem | ✅ 0 | [auth-service](auth-service/README.md) |
 | user-service | Kerem | ✅ 0 | [user-service](user-service/README.md) |
 | mail-service | Kerem | ✅ 0 | [mail-service](mail-service/README.md) |
-| game-service | Hamza | 293 | [game-service](game-service/README.md) |
-| library-service | Hamza | 21 | [library-service](library-service/README.md) |
-| review-service | Hamza | 21 | [review-service](review-service/README.md) |
+| game-service | Hamza | ✅ 0 | [game-service](game-service/README.md) |
+| library-service | Hamza | ✅ 0 | [library-service](library-service/README.md) |
+| review-service | Hamza | ✅ 0 | [review-service](review-service/README.md) |
 | social-service | Umut | 137 | [social-service](social-service/README.md) |
 | messaging-service | Umut | ✅ 0 | [messaging-service](messaging-service/README.md) |
 | lfp-service | Umut | ✅ 0 | [lfp-service](lfp-service/README.md) |
@@ -30,4 +30,4 @@ Her servisin klasöründe iki dosya var:
 | notification-service | Ortak (sahip atanmadı) | ✅ 0 | [notification-service](notification-service/README.md) |
 | api-gateway | Ortak (sahip atanmadı) | ✅ 0 | [api-gateway](api-gateway/README.md) |
 
-**Toplam donmuş borç: 691.** Borç yalnızca azalabilir; yeni ihlal PR'ı kırmızı yapar. Ayrıntı: [docs/engineering.md](../docs/engineering.md).
+**Toplam donmuş borç: 356.** Borç yalnızca azalabilir; yeni ihlal PR'ı kırmızı yapar. Ayrıntı: [docs/engineering.md](../docs/engineering.md).

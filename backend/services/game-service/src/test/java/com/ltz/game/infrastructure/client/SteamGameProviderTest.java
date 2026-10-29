@@ -1,19 +1,34 @@
 package com.ltz.game.infrastructure.client;
 
-import com.ltz.game.application.port.GameProvider.*;
+import com.ltz.game.application.port.GameProvider.Capability;
+import com.ltz.game.application.port.GameProvider.CatalogQuery;
 import com.ltz.game.domain.exception.ProviderException;
+import java.io.IOException;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.springframework.http.*;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
-import java.io.IOException;
-import java.time.*;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.springframework.test.web.client.match.MockRestRequestMatchers.*;
-import static org.springframework.test.web.client.response.MockRestResponseCreators.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.anything;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withException;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 class SteamGameProviderTest {
     // Sabit test girdisi; gerçek anahtar değildir.
@@ -100,7 +115,12 @@ class SteamGameProviderTest {
         "{\"response\":{\"apps\":[{\"appid\":1,\"name\":\" \",\"last_modified\":1}],\"have_more_results\":false}}",
         "{\"response\":{\"apps\":[{\"appid\":0,\"name\":\"A\",\"last_modified\":1}],\"have_more_results\":false}}",
         "{\"response\":{\"apps\":[{\"appid\":1,\"name\":\"A\"}],\"have_more_results\":false}}",
-        "{\"response\":{\"apps\":[],\"last_appid\":3,\"have_more_results\":false}}"
+        "{\"response\":{\"apps\":[],\"last_appid\":3,\"have_more_results\":false}}",
+        "{\"response\":{\"apps\":[null],\"have_more_results\":false}}",
+        "{\"response\":{\"apps\":[{\"appid\":4294967296,\"name\":\"A\",\"last_modified\":1}],\"have_more_results\":false}}",
+        "{\"response\":{\"apps\":[{\"appid\":1,\"name\":\"A\",\"last_modified\":-1}],\"have_more_results\":false}}",
+        "{\"response\":{\"apps\":[{\"appid\":1,\"name\":\"A\",\"last_modified\":4294967296}],\"have_more_results\":false}}",
+        "{\"response\":{\"apps\":[{\"appid\":1,\"name\":\"A\",\"last_modified\":1},{\"appid\":1,\"name\":\"B\",\"last_modified\":2}],\"have_more_results\":false}}"
     })
     void malformedAndNonProgressingResponsesAreRejected(String body) {
         server.expect(anything()).andRespond(withSuccess(body,MediaType.APPLICATION_JSON));
@@ -111,6 +131,18 @@ class SteamGameProviderTest {
     @Test void emptyFinalPageIsValid() {
         server.expect(anything()).andRespond(withSuccess("{\"response\":{\"apps\":[],\"have_more_results\":false}}",MediaType.APPLICATION_JSON));
         var page=provider.catalog(new CatalogQuery(10,null,10));assertEquals(10,page.nextAppId());assertFalse(page.hasMore());
+    }
+    @Test void unsignedUpperBoundsPreserveCursorAndNormalizedItem() {
+        server.expect(anything()).andRespond(withSuccess("""
+                {"response":{"apps":[{"appid":4294967295,"name":" Last ","last_modified":4294967295}],
+                "last_appid":4294967295,"have_more_results":false}}
+                """, MediaType.APPLICATION_JSON));
+        var page = provider.catalog(new CatalogQuery(4294967294L, null, 1));
+        assertEquals(4294967295L, page.nextAppId());
+        assertEquals("4294967295", page.items().getFirst().externalId());
+        assertEquals("Last", page.items().getFirst().title());
+        assertEquals(Instant.ofEpochSecond(4294967295L), page.items().getFirst().lastModified());
+        assertFalse(page.hasMore());
     }
     @Test void invalidQueryIsRejectedBeforeRequest() {
         assertThrows(IllegalArgumentException.class,()->new CatalogQuery(-1,null,10));

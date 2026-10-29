@@ -1,9 +1,15 @@
 package com.ltz.game.api.exception;
-import com.ltz.game.domain.exception.*;
+import com.ltz.game.domain.exception.AccessForbiddenException;
+import com.ltz.game.domain.exception.ContentNotFoundException;
+import com.ltz.game.domain.exception.GameConflictException;
+import com.ltz.game.domain.exception.GameNotFoundException;
+import com.ltz.game.domain.exception.InvalidGameRequestException;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.http.*;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GameExceptionHandler extends org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler {
     @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)

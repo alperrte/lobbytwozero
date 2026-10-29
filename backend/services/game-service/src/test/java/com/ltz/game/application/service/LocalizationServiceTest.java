@@ -1,11 +1,17 @@
 package com.ltz.game.application.service;
 import com.ltz.game.domain.entity.Game;
-import com.ltz.game.domain.enums.*;
+import com.ltz.game.domain.enums.LanguageSupportStatus;
+import com.ltz.game.domain.enums.MetadataDataState;
 import com.ltz.game.domain.exception.InvalidGameRequestException;
-import java.time.*;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 class LocalizationServiceTest {
     final LocalizationService service=new LocalizationService(new MetadataProvenanceService(Clock.fixed(Instant.EPOCH,ZoneOffset.UTC)));
     @Test void turkishNamesAndTagsNormalizeWithoutGuessingSupport() {
@@ -27,5 +33,25 @@ class LocalizationServiceTest {
         var game=new Game();
         assertThrows(InvalidGameRequestException.class,()->service.apply(game,edit));
         assertTrue(game.getLanguageSupport().isEmpty());
+    }
+    @Test void invalidStateDoesNotApplyCandidateLocaleOrProvenance() {
+        for (var state : List.of(MetadataDataState.AVAILABLE, MetadataDataState.UNKNOWN, MetadataDataState.INVALID)) {
+            var game = new Game();
+            game.setMetadataLanguage("en");
+            var edit = new LocalizationEdit("tr", state, List.of(), true, "Dil desteği kaynağı kontrol edildi");
+            var error = assertThrows(InvalidGameRequestException.class, () -> service.apply(game, edit));
+            assertEquals("INVALID_LOCALIZATION", error.code());
+            assertEquals("en", game.getMetadataLanguage());
+            assertTrue(game.getLanguageSupport().isEmpty());
+            assertTrue(game.getMetadataProvenance().isEmpty());
+        }
+    }
+    @Test void verifiedEmptyStateRemainsAnObservationEvenWhenRepeated() {
+        var game = new Game();
+        var edit = new LocalizationEdit(null, MetadataDataState.EMPTY, List.of(), true, "Boş dil desteği doğrulandı");
+        assertTrue(service.apply(game, edit));
+        assertTrue(service.apply(game, edit));
+        assertEquals(MetadataDataState.EMPTY, game.getLanguageDataState());
+        assertEquals(Instant.EPOCH, game.getMetadataProvenance().get("LOCALIZATION").getVerifiedAt());
     }
 }

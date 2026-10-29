@@ -3,9 +3,12 @@ package com.ltz.game.application.service;
 import com.ltz.game.application.port.GameProvider;
 import com.ltz.game.domain.exception.ProviderException;
 import java.time.Duration;
-import java.util.*;
+import java.util.HashSet;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ProviderRetryPolicyTest {
     private final ProviderRetryPolicy policy = new ProviderRetryPolicy();

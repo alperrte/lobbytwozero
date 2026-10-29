@@ -2,9 +2,11 @@ package com.ltz.game.api.controller;
 import com.ltz.game.AuthenticatedApiTest;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 class GameModuleTest extends AuthenticatedApiTest {
     private static final String TITLE="Original achievement";
     private String root(UUID id) { return "/api/v1/game/admin/games/"+id+"/achievements"; }

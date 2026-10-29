@@ -5,8 +5,11 @@ import com.ltz.game.infrastructure.persistence.repository.AccountErasureReposito
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.CannotAcquireLockException;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 class AccountErasureServiceTest {
     final AccountErasureRepository repository = mock(AccountErasureRepository.class);

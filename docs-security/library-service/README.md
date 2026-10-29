@@ -1,9 +1,9 @@
 # library-service: güvenlik ve kalite durumu
 
-> **Bu dosya otomatik üretilir, elle düzenleme.** Kaynak: `backend/config/quality-baseline.json` (2026-10-28). Yenilemek için: `node pre-push/ci/lint-ratchet.mjs docs`.
+> **Bu dosya otomatik üretilir, elle düzenleme.** Kaynak: `backend/config/quality-baseline.json` (2026-10-29). Yenilemek için: `node pre-push/ci/lint-ratchet.mjs docs`.
 > Elle tutulan notlar için: [NOTLAR.md](NOTLAR.md).
 
-**Sahip:** Hamza (@HmzT270)  •  **Eski borç:** ⚠️ 21 ihlal, 4 dosya
+**Sahip:** Hamza (@HmzT270)  •  **Eski borç:** ✅ yok (temiz)
 
 ## Önce bunu oku (geliştirici ve yapay zekâ ajanı için)
 
@@ -13,19 +13,9 @@
 4. Bir dosyanın borcunu azaltırsan kazancı kilitle (aşağıda "Borcu kapatınca"). Baseline dosyasına borç **ekleyemezsin**.
 5. Davranışı değiştirme; önce servisin testlerini çalıştır. `git commit`/`push` kararını sahibine bırak (`AGENTS.md`).
 
-## Eski borç: kural bazında
+## Eski borç
 
-| Kural | Adet | Ne demek | Nasıl düzeltilir |
-|---|---:|---|---|
-| `checkstyle:AvoidStarImport` | 20 | Yıldızlı import (`import x.*;`) | Her sınıfı tek tek import et. IDE'de "Optimize Imports"; IntelliJ'de "Class count to use import with '*'" değerini 999 yap. |
-| `pmd:CloseResource` | 1 | Kaynak (ExecutorService, HttpClient, stream) kapatılmıyor | Testte try-with-resources; üretim kodunda uygulama boyu yaşayan nesneyse gerekçeli çözüm (sahibine sor). |
-
-## Eski borç: dosya dosya
-
-- `src/main/java/com/ltz/library/infrastructure/security/ServiceTokenDecoderConfiguration.java`: pmd:CloseResource ×1
-- `src/test/java/com/ltz/library/api/controller/AccountErasureTest.java`: checkstyle:AvoidStarImport ×13
-- `src/test/java/com/ltz/library/infrastructure/security/ProductionServiceTokenSupport.java`: checkstyle:AvoidStarImport ×4
-- `src/test/java/com/ltz/library/infrastructure/security/ServiceTokenDecoderConfigurationTest.java`: checkstyle:AvoidStarImport ×3
+Bu serviste dondurulmuş borç yok. Kapı **sıfır yeni ihlal** bekler: yeni kod Checkstyle ve PMD'den temiz geçmeli.
 
 ## Doğrulama
 

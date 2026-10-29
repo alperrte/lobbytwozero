@@ -1,9 +1,13 @@
 package com.ltz.game.infrastructure.persistence.repository;
 import com.ltz.game.domain.entity.GameDeveloperFeedback;
-import com.ltz.game.domain.enums.*;
-import java.util.*;
-import org.springframework.data.domain.*;
-import org.springframework.data.jpa.repository.*;
+import com.ltz.game.domain.enums.FeedbackStatus;
+import com.ltz.game.domain.enums.FeedbackType;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 public interface GameFeedbackRepository extends JpaRepository<GameDeveloperFeedback,UUID> {
     Optional<GameDeveloperFeedback> findByIdAndAuthorId(UUID id,UUID authorId);

@@ -1,10 +1,14 @@
 package com.ltz.game.application.service;
-import com.ltz.game.application.port.GamePriceProvider.*;
+import com.ltz.game.application.port.GamePriceProvider.Market;
+import com.ltz.game.application.port.GamePriceProvider.Quote;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 class GamePriceContractTest {
     final UUID id=UUID.randomUUID();
     final Market market=new Market("TR","USD");

@@ -16,8 +16,17 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
-import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.*;
-import static org.junit.jupiter.api.Assertions.*;
+import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.CURRENT;
+import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.GAME;
+import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.HISTORY;
+import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.Receipt;
+import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.database;
+import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.flyway;
+import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.populate;
+import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.requireReady;
+import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.transfer;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MigrationTransferApplicationTest {
     private static final ObjectMapper JSON = new ObjectMapper();

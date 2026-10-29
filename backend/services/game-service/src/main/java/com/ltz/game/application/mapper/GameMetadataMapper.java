@@ -2,8 +2,10 @@ package com.ltz.game.application.mapper;
 import com.ltz.game.api.dto.response.GameMetadataResponse;
 import com.ltz.game.domain.entity.Game;
 import com.ltz.game.domain.enums.TermKind;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Component;
-import java.util.*;
 @Component
 public class GameMetadataMapper {
     public GameMetadataResponse toResponse(Game game) {

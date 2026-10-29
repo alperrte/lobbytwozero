@@ -1,13 +1,20 @@
 package com.ltz.game.application.service;
 
-import com.ltz.game.domain.entity.*;
-import com.ltz.game.domain.enums.*;
-import com.ltz.game.domain.exception.*;
-import com.ltz.game.infrastructure.persistence.repository.*;
+import com.ltz.game.domain.entity.Game;
+import com.ltz.game.domain.entity.GameExternalReference;
+import com.ltz.game.domain.entity.GameIdentityAudit;
+import com.ltz.game.domain.enums.GameOrigin;
+import com.ltz.game.domain.exception.GameConflictException;
+import com.ltz.game.domain.exception.GameNotFoundException;
+import com.ltz.game.domain.exception.ReferenceMappingConflictException;
+import com.ltz.game.infrastructure.persistence.repository.GameExternalReferenceRepository;
+import com.ltz.game.infrastructure.persistence.repository.GameIdentityAuditRepository;
+import com.ltz.game.infrastructure.persistence.repository.GameProviderSyncStateRepository;
+import com.ltz.game.infrastructure.persistence.repository.GameRepository;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.UUID;
 
 /** HTTP'ye açık değildir. Doğrulayan operatör ve eşleme kanıtı zorunludur;
  * JWT/rol kullanan yönetim giriş noktaları Faz 4'te bu servisi çağırmalıdır.

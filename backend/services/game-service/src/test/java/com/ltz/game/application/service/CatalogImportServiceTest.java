@@ -2,20 +2,38 @@ package com.ltz.game.application.service;
 
 import com.ltz.game.PostgresTestSupport;
 import com.ltz.game.application.port.GameProvider;
-import com.ltz.game.domain.enums.*;
+import com.ltz.game.domain.enums.CatalogRunMode;
+import com.ltz.game.domain.enums.CatalogSyncStatus;
+import com.ltz.game.domain.enums.GameOrigin;
+import com.ltz.game.domain.enums.GameType;
+import com.ltz.game.domain.enums.MetadataCompleteness;
 import com.ltz.game.domain.exception.ProviderException;
-import com.ltz.game.infrastructure.persistence.repository.*;
-import org.junit.jupiter.api.*;
+import com.ltz.game.infrastructure.persistence.repository.GameExternalReferenceRepository;
+import com.ltz.game.infrastructure.persistence.repository.GameRepository;
+import java.time.Instant;
+import java.util.List;
+import java.util.Objects;
+import java.util.Queue;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.*;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
-import java.time.Instant;
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.function.Supplier;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @SpringBootTest @Import(CatalogImportServiceTest.Fakes.class)
 class CatalogImportServiceTest extends PostgresTestSupport {

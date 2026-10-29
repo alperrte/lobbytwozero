@@ -1,17 +1,24 @@
 package com.ltz.game.application.service;
 
 import com.ltz.game.PostgresTestSupport;
-import com.ltz.game.domain.entity.*;
-import com.ltz.game.domain.enums.*;
-import com.ltz.game.domain.exception.*;
-import com.ltz.game.infrastructure.persistence.repository.*;
+import com.ltz.game.domain.entity.Game;
+import com.ltz.game.domain.entity.GameExternalReference;
+import com.ltz.game.domain.enums.GameOrigin;
+import com.ltz.game.domain.enums.MetadataCompleteness;
+import com.ltz.game.domain.exception.ReferenceMappingConflictException;
+import com.ltz.game.infrastructure.persistence.repository.GameExternalReferenceRepository;
+import com.ltz.game.infrastructure.persistence.repository.GameIdentityAuditRepository;
+import com.ltz.game.infrastructure.persistence.repository.GameRepository;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.UUID;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest @Transactional
 class GameIdentityServiceTest extends PostgresTestSupport {

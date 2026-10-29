@@ -1,11 +1,18 @@
 package com.ltz.game.domain.entity;
 import com.ltz.game.domain.enums.ActorRole;
 import com.ltz.game.domain.enums.AdminAuditAction;
-import jakarta.persistence.*;
-import lombok.*;
-import org.hibernate.annotations.Immutable;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.hibernate.annotations.Immutable;
 /** Append-only yönetim kaydı. İçerik metni değil, aktör, eylem, gerekçe ve değişen alan adları tutulur. */
 @Entity @Table(name="game_admin_audits") @Immutable @Getter @Setter @NoArgsConstructor
 public class GameAdminAudit {
