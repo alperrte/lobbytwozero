@@ -5,7 +5,19 @@ import path from 'node:path';
 import os from 'node:os';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
-import { isolatedEnvironment, CookieJar, scrub, requireFreshJar, captureCommand } from './hardware-auth-e2e.mjs';
+import { isolatedEnvironment, CookieJar, scrub, requireFreshJar, captureCommand,
+  deletionFixtureEnvironment, deletionFixturePending } from './hardware-auth-e2e.mjs';
+
+test('deletion fixture bypasses only its own grace period and pins the agreed short access lifetime', () => {
+  assert.deepEqual(deletionFixtureEnvironment(), { AUTH_DELETION_GRACE_PERIOD: 'PT0S', JWT_ACCESS_TTL_SECONDS: '60' });
+});
+
+test('missing endpoint inventory cannot substitute for actual durable deletion acknowledgements', () => {
+  assert.equal(deletionFixturePending(16, 1, 15), true);
+  assert.equal(deletionFixturePending(16, 1, 11), false);
+  assert.equal(deletionFixturePending(12, 1, 11), false);
+  assert.equal(deletionFixturePending(16, 5, 11), false);
+});
 
 test('runtime fixture never inherits application credentials or ambient JVM/debug configuration', () => {
   const env = isolatedEnvironment({ POSTGRES_PASSWORD: 'disposable-fixture' }, {

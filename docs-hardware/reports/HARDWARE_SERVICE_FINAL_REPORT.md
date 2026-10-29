@@ -1,8 +1,13 @@
 # LTZ Hardware Service — Final Servis Raporu
 
+**2026-10-29 ikinci aşama:** Auth'un dört cevabı kaynakla karşılaştırıldı; ayrı cihaz JWT
+tüketicisi ve 60 sn kullanıcı TTL sınırı eklendi. [Güncel sonuçlar](../integration/auth/auth-integration-06.md):
+405 Hardware testi, 46 seçili Auth DEBUG testi, 155 Node testi ve 20 gerçek HTTP kontrolü PASS.
+Performance aktif cihaz sözleşmesi kullanıcı kararıyla açık; gerçek apply başarı E2E'si yoktur.
+
 **2026-10-24 güncel ek çalışma:** Kullanıcı JWT/JWKS, RBAC ve D4 için sonraki
-Hardware–Auth entegrasyonu ayrı yürütülür; güncel durum ve iki taze kalite kapısı
-[entegrasyon kaydındadır](../integration/auth/auth-integration-quality.md).
+Hardware–Auth entegrasyonu ayrı yürütüldü; o tarihin durumu ve kalite kapıları
+[entegrasyon kaydındadır](../integration/auth/entegrasyon-v1/auth-integration-quality.md).
 Aşağıdaki Auth DEFERRED ifadeleri ve test sayıları 2026-10-21 teslim tarihçesidir.
 
 Tarih 2026-10-21; sorumlu Alper; sürüm 0.0.1-SNAPSHOT.
