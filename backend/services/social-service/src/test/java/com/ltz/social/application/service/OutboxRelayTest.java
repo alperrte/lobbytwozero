@@ -88,6 +88,21 @@ class OutboxRelayTest extends IntegrationTestSupport {
     }
 
     @Test
+    void yayinciHazirDegilseOlayAlinmazDenemeHakkiYanmazHazirOluncaTeslimEdilir() throws Exception {
+        UUID requestId = sendRequestAndGetId(newUser(), newUser());
+        publisher.ready(false);
+
+        assertThat(relay.deliverDue()).isZero();
+
+        assertThat(publisher.calls()).isZero();
+        assertThat(status(requestId)).isEqualTo("PENDING");
+        assertThat(attempts(requestId)).isZero();
+        publisher.ready(true);
+        assertThat(relay.deliverDue()).isEqualTo(1);
+        assertThat(status(requestId)).isEqualTo("SENT");
+    }
+
+    @Test
     void teslimDuzelinceZamaniGelenOlayTeslimEdilir() throws Exception {
         UUID requestId = sendRequestAndGetId(newUser(), newUser());
         publisher.failing(true);
@@ -200,6 +215,16 @@ class OutboxRelayTest extends IntegrationTestSupport {
         private volatile boolean failing;
         private volatile UUID failingAggregate;
         private volatile int calls;
+        private volatile boolean ready = true;
+
+        @Override
+        public boolean isReady() {
+            return ready;
+        }
+
+        void ready(boolean value) {
+            ready = value;
+        }
 
         @Override
         public synchronized void publish(EventEnvelope envelope) {
@@ -231,6 +256,7 @@ class OutboxRelayTest extends IntegrationTestSupport {
             failing = false;
             failingAggregate = null;
             calls = 0;
+            ready = true;
         }
     }
 

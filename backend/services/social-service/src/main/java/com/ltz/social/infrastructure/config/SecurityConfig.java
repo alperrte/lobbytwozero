@@ -83,6 +83,8 @@ public class SecurityConfig {
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .requestMatchers(PATHS.matcher(HttpMethod.DELETE, InternalApiPaths.ACCOUNT_ERASURE))
                                 .hasAuthority(SCOPE_PREFIX + TokenClaims.ACCOUNT_ERASE_SCOPE)
+                        .requestMatchers(PATHS.matcher(HttpMethod.POST, InternalApiPaths.BLOCKS_CHECK))
+                                .hasAuthority(SCOPE_PREFIX + TokenClaims.BLOCKS_CHECK_SCOPE)
                         .requestMatchers(AUTHENTICATED_ENDPOINTS).authenticated()
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(resourceServer -> resourceServer

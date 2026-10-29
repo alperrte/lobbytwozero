@@ -1,6 +1,7 @@
 package com.ltz.social.infrastructure.persistence.repository;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,6 +22,14 @@ public interface UserBlockRepository extends JpaRepository<UserBlock, UserBlockI
             where (b.id.blockerId = :first and b.id.blockedId = :second)
                or (b.id.blockerId = :second and b.id.blockedId = :first)""")
     boolean existsBetween(@Param("first") UUID first, @Param("second") UUID second);
+
+    /** {@code userId}'nin engellediği hesaplardan {@code others} içinde olanlar (engel sorgusu, yön 1). */
+    @Query("select b.id.blockedId from UserBlock b where b.id.blockerId = :userId and b.id.blockedId in :others")
+    List<UUID> findBlockedAmong(@Param("userId") UUID userId, @Param("others") Collection<UUID> others);
+
+    /** {@code userId}'yi engelleyen hesaplardan {@code others} içinde olanlar (engel sorgusu, yön 2). */
+    @Query("select b.id.blockerId from UserBlock b where b.id.blockedId = :userId and b.id.blockerId in :others")
+    List<UUID> findBlockersAmong(@Param("userId") UUID userId, @Param("others") Collection<UUID> others);
 
     /** Kullanıcının engellediği hesaplar, en yeniden eskiye; eşitlikte engellenen kimliği azalan. */
     @Query("""

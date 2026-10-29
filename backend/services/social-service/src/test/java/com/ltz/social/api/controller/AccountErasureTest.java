@@ -42,7 +42,7 @@ class AccountErasureTest extends IntegrationTestSupport {
         UUID account = newUser();
         Seed seed = seed(account);
 
-        erase(account, serviceTokenValue()).andExpect(status().isNoContent());
+        erase(account, serviceTokenValue(account)).andExpect(status().isNoContent());
 
         assertThat(rowsOf(account)).as("silinen hesabın hiçbir verisi kalmamalı").isZero();
         assertThat(jdbc.queryForObject("select count(*) from friend_requests where id = ?", Integer.class,
@@ -63,7 +63,7 @@ class AccountErasureTest extends IntegrationTestSupport {
         block(bystander, newUser()).andExpect(status().isCreated());
         int before = rowsOf(bystander) + rowsOf(friendA) + rowsOf(friendB);
 
-        erase(account, serviceTokenValue()).andExpect(status().isNoContent());
+        erase(account, serviceTokenValue(account)).andExpect(status().isNoContent());
 
         assertThat(rowsOf(bystander) + rowsOf(friendA) + rowsOf(friendB)).isEqualTo(before);
         assertThat(requestStatus(unrelatedRequest)).isEqualTo("PENDING");
@@ -74,9 +74,10 @@ class AccountErasureTest extends IntegrationTestSupport {
         UUID account = newUser();
         seed(account);
 
-        erase(account, serviceTokenValue()).andExpect(status().isNoContent());
-        erase(account, serviceTokenValue()).andExpect(status().isNoContent());
-        erase(UUID.randomUUID(), serviceTokenValue()).andExpect(status().isNoContent());
+        erase(account, serviceTokenValue(account)).andExpect(status().isNoContent());
+        erase(account, serviceTokenValue(account)).andExpect(status().isNoContent());
+        UUID unknown = UUID.randomUUID();
+        erase(unknown, serviceTokenValue(unknown)).andExpect(status().isNoContent());
 
         assertThat(rowsOf(account)).isZero();
     }
@@ -89,7 +90,7 @@ class AccountErasureTest extends IntegrationTestSupport {
         UUID friendsOwnRequest = sendRequestAndGetId(friend, newUser());
         String friendsCode = codeOf(friend);
 
-        erase(account, serviceTokenValue()).andExpect(status().isNoContent());
+        erase(account, serviceTokenValue(account)).andExpect(status().isNoContent());
 
         assertThat(areFriends(account, friend)).isFalse();
         assertThat(requestStatus(friendsOwnRequest)).isEqualTo("PENDING");
@@ -100,7 +101,7 @@ class AccountErasureTest extends IntegrationTestSupport {
     @Test
     void gecersizHesapKimligi400() throws Exception {
         mockMvc.perform(delete("/internal/v1/accounts/not-a-uuid")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + serviceTokenValue()))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + serviceTokenValue(UUID.randomUUID())))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("MALFORMED_REQUEST"));
     }
@@ -135,7 +136,7 @@ class AccountErasureTest extends IntegrationTestSupport {
 
     @Test
     void servisTokeniKullaniciUclarindaGecmez_401() throws Exception {
-        String serviceToken = serviceTokenValue();
+        String serviceToken = serviceTokenValue(newUser());
 
         mockMvc.perform(get(SocialApiPaths.FRIENDS).header(HttpHeaders.AUTHORIZATION, "Bearer " + serviceToken))
                 .andExpect(status().isUnauthorized());
@@ -147,12 +148,12 @@ class AccountErasureTest extends IntegrationTestSupport {
     void yanlisAudienceIssuerVeTur401() throws Exception {
         UUID account = newUser();
 
-        erase(account, serviceToken(claims -> claims.audience("messaging-service"))).andExpect(status().isUnauthorized());
-        erase(account, serviceToken(claims -> claims.audience("ltz-api"))).andExpect(status().isUnauthorized());
-        erase(account, serviceToken(claims -> claims.issuer("evil-issuer"))).andExpect(status().isUnauthorized());
-        erase(account, sign(SIGNING_KEY, JOSEObjectType.JWT, validServiceClaims().build()))
+        erase(account, serviceToken(account, claims -> claims.audience("messaging-service"))).andExpect(status().isUnauthorized());
+        erase(account, serviceToken(account, claims -> claims.audience("ltz-api"))).andExpect(status().isUnauthorized());
+        erase(account, serviceToken(account, claims -> claims.issuer("evil-issuer"))).andExpect(status().isUnauthorized());
+        erase(account, sign(SIGNING_KEY, JOSEObjectType.JWT, validServiceClaims(account).build()))
                 .andExpect(status().isUnauthorized());
-        erase(account, sign(SIGNING_KEY, ACCESS_TOKEN_TYPE, validServiceClaims().build()))
+        erase(account, sign(SIGNING_KEY, ACCESS_TOKEN_TYPE, validServiceClaims(account).build()))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -162,18 +163,66 @@ class AccountErasureTest extends IntegrationTestSupport {
         seed(account);
         int before = rowsOf(account);
 
-        erase(account, serviceToken(claims -> claims.claim("scope", "account:read"))).andExpect(status().isForbidden())
+        erase(account, serviceToken(account, claims -> claims.claim("scope", "account:read"))).andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
-        erase(account, serviceToken(claims -> claims.claim("scope", null))).andExpect(status().isForbidden());
-        erase(account, serviceToken(claims -> claims.claim("scope", "account:erase-all")))
+        erase(account, serviceToken(account, claims -> claims.claim("scope", null))).andExpect(status().isForbidden());
+        erase(account, serviceToken(account, claims -> claims.claim("scope", "account:erase-all")))
                 .andExpect(status().isForbidden());
 
         assertThat(rowsOf(account)).isEqualTo(before);
     }
 
     @Test
+    void baskaServisinTokeniHesapSilemez403VeriSilinmez() throws Exception {
+        UUID account = newUser();
+        seed(account);
+        int before = rowsOf(account);
+
+        // Diğer her şey geçerli (aud, scope, account_id) ama çağıran Auth değil.
+        erase(account, serviceToken(account, claims -> claims.subject("svc:admin-service")))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+        erase(account, serviceToken(account, claims -> claims.subject("svc:auth-service-evil")))
+                .andExpect(status().isForbidden());
+
+        assertThat(rowsOf(account)).isEqualTo(before);
+    }
+
+    @Test
+    void tokenBaskaHesabaBagliysa403VeriSilinmez() throws Exception {
+        UUID account = newUser();
+        seed(account);
+        int before = rowsOf(account);
+
+        // account_id başka bir hesap
+        erase(account, serviceToken(account, claims -> claims.claim("account_id", UUID.randomUUID().toString())))
+                .andExpect(status().isForbidden());
+        // account_id yok
+        erase(account, serviceToken(account, claims -> claims.claim("account_id", null)))
+                .andExpect(status().isForbidden());
+        // başka hesap için üretilmiş geçerli token yeniden oynatılıyor
+        erase(account, serviceTokenValue(newUser())).andExpect(status().isForbidden());
+
+        assertThat(rowsOf(account)).isEqualTo(before);
+    }
+
+    @Test
+    void yolVeClaimdeAyniUuidFarkliHarfBuyuklugunde204() throws Exception {
+        UUID account = newUser();
+        seed(account);
+
+        // Yol UUID olarak çözülür; claim küçük harfli (Auth'un yolladığı biçim) olduğundan eşleşmeli.
+        mockMvc.perform(delete("/internal/v1/accounts/" + account.toString().toUpperCase())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + serviceTokenValue(account)))
+                .andExpect(status().isNoContent());
+
+        assertThat(rowsOf(account)).isZero();
+    }
+
+    @Test
     void fazlaKapsamliTokendeDeErasekapsamiYeterli() throws Exception {
-        erase(newUser(), serviceToken(claims -> claims.claim("scope", "account:read account:erase")))
+        UUID account = newUser();
+        erase(account, serviceToken(account, claims -> claims.claim("scope", "account:read account:erase")))
                 .andExpect(status().isNoContent());
     }
 
@@ -183,18 +232,18 @@ class AccountErasureTest extends IntegrationTestSupport {
         Instant now = Instant.now();
 
         // Ömür 60 sn'yi aşıyor.
-        erase(account, serviceToken(claims -> claims.expirationTime(Date.from(now.plusSeconds(600)))))
+        erase(account, serviceToken(account, claims -> claims.expirationTime(Date.from(now.plusSeconds(600)))))
                 .andExpect(status().isUnauthorized());
         // Süresi dolmuş.
-        erase(account, serviceToken(claims -> claims.issueTime(Date.from(now.minusSeconds(600)))
+        erase(account, serviceToken(account, claims -> claims.issueTime(Date.from(now.minusSeconds(600)))
                 .notBeforeTime(Date.from(now.minusSeconds(600))).expirationTime(Date.from(now.minusSeconds(540)))))
                 .andExpect(status().isUnauthorized());
         // sub svc: ile başlamıyor, jti yok.
-        erase(account, serviceToken(claims -> claims.subject(UUID.randomUUID().toString())))
+        erase(account, serviceToken(account, claims -> claims.subject(UUID.randomUUID().toString())))
                 .andExpect(status().isUnauthorized());
-        erase(account, serviceToken(claims -> claims.jwtID(null))).andExpect(status().isUnauthorized());
+        erase(account, serviceToken(account, claims -> claims.jwtID(null))).andExpect(status().isUnauthorized());
         // iat çıkarılarak ömür kuralı aşılamaz: Spring iat'ı exp-1 sayar, bu yüzden bitiş zamanı ayrıca denetlenir.
-        erase(account, serviceToken(claims -> claims.issueTime(null).expirationTime(Date.from(now.plusSeconds(3600)))))
+        erase(account, serviceToken(account, claims -> claims.issueTime(null).expirationTime(Date.from(now.plusSeconds(3600)))))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -204,7 +253,7 @@ class AccountErasureTest extends IntegrationTestSupport {
         seed(account);
         int before = rowsOf(account);
         RSAKey attacker = new RSAKeyGenerator(2048).keyID(KEY_ID).generate();
-        JWTClaimsSet claims = validServiceClaims().build();
+        JWTClaimsSet claims = validServiceClaims(account).build();
 
         erase(account, sign(attacker, SERVICE_TOKEN_TYPE, claims)).andExpect(status().isUnauthorized());
         erase(account, new PlainJWT(claims).serialize()).andExpect(status().isUnauthorized());
@@ -212,7 +261,7 @@ class AccountErasureTest extends IntegrationTestSupport {
                 .type(SERVICE_TOKEN_TYPE).build(), claims);
         hmac.sign(new MACSigner(SIGNING_KEY.toPublicJWK().toRSAPublicKey().getEncoded()));
         erase(account, hmac.serialize()).andExpect(status().isUnauthorized());
-        String token = serviceTokenValue();
+        String token = serviceTokenValue(account);
         erase(account, token.substring(0, token.length() - 4) + (token.endsWith("AAAA") ? "BBBB" : "AAAA"))
                 .andExpect(status().isUnauthorized());
 
@@ -222,7 +271,7 @@ class AccountErasureTest extends IntegrationTestSupport {
     @Test
     void digerIcYollarVeYontemlerKapali_servisTokeniyleDe() throws Exception {
         UUID account = newUser();
-        String bearer = "Bearer " + serviceTokenValue();
+        String bearer = "Bearer " + serviceTokenValue(account);
 
         mockMvc.perform(get(InternalApiPaths.ACCOUNT_ERASURE, account).header(HttpHeaders.AUTHORIZATION, bearer))
                 .andExpect(status().isForbidden());
@@ -234,8 +283,8 @@ class AccountErasureTest extends IntegrationTestSupport {
 
     // ------------------------------------------------------------ yardımcılar
 
-    private static String serviceTokenValue() {
-        return serviceToken(UnaryOperator.identity());
+    private static String serviceTokenValue(UUID account) {
+        return serviceToken(account, UnaryOperator.identity());
     }
 
     private ResultActions erase(UUID account, String token) throws Exception {
