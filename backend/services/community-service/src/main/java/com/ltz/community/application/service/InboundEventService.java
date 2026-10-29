@@ -24,7 +24,8 @@ import tools.jackson.databind.json.JsonMapper;
  * Diğer servislerin community-service'e ilettiği olayları işler (docs/architecture.md §6.2). Olay, inbox'ta
  * {@code eventId} ile tekilleştirilir ve etkisiyle aynı transaction'da uygulanır; böylece en az bir kez teslim edilen
  * olay iş etkisini en fazla bir kez yaratır. Üretici, olay türüyle eşleşmiyorsa reddedilir (örn. engelleme olayını
- * yalnız social-service, moderasyon kararını yalnız admin-service yayınlayabilir). Bilinmeyen olay türü başarıyla
+ * yalnız social-service, moderasyon kararını yalnız admin-service, hesap durumunu yalnız auth-service yayınlayabilir).
+ * {@code AccountStatusChanged} kabul edilir ve tekilleştirilir ama içeriğe etki etmez. Bilinmeyen olay türü başarıyla
  * yok sayılır; üretici sonsuz yeniden denemesin diye.
  */
 @Service
@@ -33,8 +34,10 @@ public class InboundEventService {
 	static final String MODERATION_ACTION_TAKEN = "ModerationActionTaken";
 	static final String USER_BLOCKED = "UserBlocked";
 	static final String USER_UNBLOCKED = "UserUnblocked";
+	static final String ACCOUNT_STATUS_CHANGED = "AccountStatusChanged";
 	static final String ADMIN_PRODUCER = "admin-service";
 	static final String SOCIAL_PRODUCER = "social-service";
+	static final String AUTH_PRODUCER = "auth-service";
 
 	private final InboxPort inbox;
 	private final ModerationService moderationService;
@@ -55,6 +58,7 @@ public class InboundEventService {
 		String expectedProducer = switch (event.eventType()) {
 			case MODERATION_ACTION_TAKEN -> ADMIN_PRODUCER;
 			case USER_BLOCKED, USER_UNBLOCKED -> SOCIAL_PRODUCER;
+			case ACCOUNT_STATUS_CHANGED -> AUTH_PRODUCER;
 			default -> null;
 		};
 		if (expectedProducer == null) {
@@ -67,6 +71,8 @@ public class InboundEventService {
 		Runnable effect = switch (event.eventType()) {
 			case MODERATION_ACTION_TAKEN -> moderation(event.payload());
 			case USER_BLOCKED -> block(event.payload(), event.occurredAt());
+			// Askıya alma/yasak içeriği gizlemez (ürün kararı, Auth zorunlu kılmıyor); olay yalnız kayda geçer.
+			case ACCOUNT_STATUS_CHANGED -> accountStatus(event.payload());
 			default -> unblock(event.payload());
 		};
 		if (!inbox.markProcessed(event.eventId(), event.eventType(), event.producer())) {
@@ -96,6 +102,16 @@ public class InboundEventService {
 		return () -> userBlockRepository.deleteBlock(parsed.blockerId(), parsed.blockedId());
 	}
 
+	/** Yük doğrulanır ama içeriğe etki edilmez: yeni durum community'de kayda geçer, gizleme kararı ürün tarafındadır. */
+	private Runnable accountStatus(Map<String, Object> payload) {
+		AccountStatusPayload parsed = parse(payload, AccountStatusPayload.class);
+		if (parsed.accountId() == null || parsed.status() == null || parsed.status().isBlank()) {
+			throw new InvalidInboundEventException("accountId and status are required.");
+		}
+		return () -> {
+		};
+	}
+
 	private static BlockPayload requireBlockPayload(BlockPayload payload) {
 		if (payload.blockerId() == null || payload.blockedId() == null || payload.blockerId().equals(payload.blockedId())) {
 			throw new InvalidInboundEventException("blockerId and blockedId are required and must differ.");
@@ -113,6 +129,10 @@ public class InboundEventService {
 
 	/** {@code ModerationActionTaken} yükü; {@code reportId} yalnız tek bir raporu hedeflemek içindir. */
 	record ModerationPayload(ReportTarget targetType, UUID targetId, ModerationAction action, UUID reportId) {
+	}
+
+	/** {@code AccountStatusChanged} yükü (Auth: hesap kimliği ve yeni durum adı, örn. {@code BANNED}). */
+	record AccountStatusPayload(UUID accountId, String status) {
 	}
 
 	/** {@code UserBlocked} / {@code UserUnblocked} yükü. */

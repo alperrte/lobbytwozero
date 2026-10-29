@@ -74,6 +74,14 @@ class JwtConfigTest {
 		assertRejected(users, user(claims -> claims.notBeforeTime(at(now.plusSeconds(600)))));
 		assertRejected(users, user(claims -> claims.subject(null)));
 		assertRejected(users, user(claims -> claims.expirationTime(null)));
+		// Auth'un sözleşmesi exp/nbf/iat/sub'ı zorunlu kılar (docs-auth/entegrasyon/README.md §1).
+		assertRejected(users, user(claims -> claims.notBeforeTime(null)));
+		assertRejected(users, user(claims -> claims.issueTime(null)));
+	}
+
+	@Test
+	void serviceTokenWithoutNotBeforeIsRejected() {
+		assertRejected(services, service(claims -> claims.notBeforeTime(null)));
 	}
 
 	@Test

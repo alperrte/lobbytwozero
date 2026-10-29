@@ -325,6 +325,8 @@ services:
     environment:
       <<: *ltz-db-env
       DB_COMMUNITY_NAME: ${DB_COMMUNITY_NAME:?}
+      # Auth'tan giden olay çağrıları (admin, notification) için servis token'ı alma gizli anahtarı; boşsa relay kapalı kalır.
+      AUTH_COMMUNITY_SERVICE_CLIENT_SECRET: ${AUTH_COMMUNITY_SERVICE_CLIENT_SECRET:-}
     depends_on:
       postgres:
         condition: service_healthy

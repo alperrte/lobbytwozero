@@ -24,7 +24,7 @@ public final class TokenClaims {
 	public static final String ACCOUNT_ID = "account_id";
 	/**
 	 * Olay girişi ({@code POST /internal/events}) için ÖNERİLEN kapsam adı. Auth bu kapsamı henüz üretmiyor; adı ve
-	 * üretimi Auth'tan talep edildi (docs-community/integration/auth/auth-service-talepleri/auth-requests-01.md).
+	 * üretimi Auth'tan talep edildi (docs-community/integration/auth/entegrasyon-v1/auth-service-talepleri/auth-requests-01.md).
 	 */
 	public static final String EVENT_INGEST_SCOPE = "events:ingest";
 	/** Kullanıcı token'ında rol listesi, öneksiz ad ({@code PLAYER}, {@code MODERATOR}, {@code ADMIN} ...). */

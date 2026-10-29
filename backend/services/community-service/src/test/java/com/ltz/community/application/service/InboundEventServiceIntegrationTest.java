@@ -275,11 +275,14 @@ class InboundEventServiceIntegrationTest extends PostgreSqlIntegrationTest {
 		InboundEventRequest unknownAction = event("ModerationActionTaken", "admin-service", moderation(ReportTarget.POST, id, "EXPLODE"));
 		InboundEventRequest badTarget = event("ModerationActionTaken", "admin-service", Map.of("targetType", "FORUM", "targetId", id, "action", "HIDE"));
 		InboundEventRequest badUuid = event("ModerationActionTaken", "admin-service", Map.of("targetType", "POST", "targetId", "degil", "action", "HIDE"));
+		InboundEventRequest noStatus = event("AccountStatusChanged", "auth-service", Map.of("accountId", id));
+		InboundEventRequest blankStatus = event("AccountStatusChanged", "auth-service", Map.of("accountId", id, "status", " "));
+		InboundEventRequest noAccount = event("AccountStatusChanged", "auth-service", Map.of("status", "BANNED"));
 		InboundEventRequest selfBlock = event("UserBlocked", "social-service", Map.of("blockerId", id, "blockedId", id));
 		InboundEventRequest missingBlocked = event("UserUnblocked", "social-service", Map.of("blockerId", id));
 
-		for (InboundEventRequest invalid : new InboundEventRequest[] { missingAction, unknownAction, badTarget, badUuid, selfBlock,
-				missingBlocked }) {
+		for (InboundEventRequest invalid : new InboundEventRequest[] { missingAction, unknownAction, badTarget, badUuid, noStatus,
+				blankStatus, noAccount, selfBlock, missingBlocked }) {
 			assertThatThrownBy(() -> events.handle(invalid)).isInstanceOf(InvalidInboundEventException.class);
 		}
 		assertThat(jdbcTemplate.queryForObject("select count(*) from inbox_events", Integer.class)).isZero();
@@ -302,5 +305,28 @@ class InboundEventServiceIntegrationTest extends PostgreSqlIntegrationTest {
 		assertThat(userBlockRepository.existsBetween(blocker, blocked)).isFalse();
 		// Olmayan engellemeyi kaldırmak hata değildir.
 		assertThat(events.handle(event("UserUnblocked", "social-service", payload)).outcome()).isEqualTo(Outcome.PROCESSED);
+	}
+
+	@Test
+	void accountStatusChangesAreRecordedOnceAndNeverTouchContent() {
+		Post post = visiblePost();
+		InboundEventRequest banned = event("AccountStatusChanged", "auth-service",
+				Map.of("accountId", post.getAuthorId(), "status", "BANNED"));
+
+		assertThat(events.handle(banned).outcome()).isEqualTo(Outcome.PROCESSED);
+		assertThat(events.handle(banned).outcome()).isEqualTo(Outcome.DUPLICATE);
+
+		assertThat(reload(post).getStatus()).isEqualTo(post.getStatus());
+		assertThat(jdbcTemplate.queryForObject("select count(*) from inbox_events where event_id = ?", Integer.class, banned.eventId()))
+				.isEqualTo(1);
+	}
+
+	@Test
+	void accountStatusChangesFromAnyoneButAuthAreRejected() {
+		InboundEventRequest spoofed = event("AccountStatusChanged", "admin-service",
+				Map.of("accountId", UUID.randomUUID(), "status", "BANNED"));
+
+		assertThatThrownBy(() -> events.handle(spoofed)).isInstanceOf(InvalidInboundEventException.class);
+		assertThat(jdbcTemplate.queryForObject("select count(*) from inbox_events", Integer.class)).isZero();
 	}
 }

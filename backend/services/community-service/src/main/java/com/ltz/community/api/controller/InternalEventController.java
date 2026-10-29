@@ -20,7 +20,7 @@ import jakarta.validation.Valid;
  * {@code aud=community-service}) ve {@code SCOPE_events:ingest} yetkisini kabul eder (bkz. {@code SecurityConfig}). Zarftaki
  * {@code producer} alanı kendi başına güvenilmez: token'ın çağıranı ({@code sub}) tam olarak {@code svc:<producer>}
  * olmalıdır, böylece bir servis başka bir servis adına olay yayınlayamaz. Auth şu an bu kapsamlı token üretmediği için uç
- * fiilen kapalıdır (bkz. auth-requests-01.md).
+ * fiilen kapalıdır (bkz. docs-community/integration/auth/entegrasyon-v1/auth-service-talepleri/auth-requests-01.md).
  */
 @RestController
 @RequestMapping(InternalApiPaths.EVENTS)

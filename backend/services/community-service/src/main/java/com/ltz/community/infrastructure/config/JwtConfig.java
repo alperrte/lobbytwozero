@@ -45,7 +45,7 @@ public class JwtConfig {
 	private static final Duration CLOCK_SKEW = Duration.ofSeconds(30);
 
 	/** Auth'un her token'ında bulunan, ham JWT'de zorunlu tutulan alanlar (rehber §3.2). */
-	private static final Set<String> REQUIRED_CLAIMS = Set.of("exp", "iat", "sub");
+	private static final Set<String> REQUIRED_CLAIMS = Set.of("exp", "nbf", "iat", "sub");
 
 	@Bean
 	JwtDecoder userTokenDecoder(@Value("${ltz.community.auth.jwks-uri}") String jwksUri,

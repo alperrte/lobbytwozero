@@ -3889,31 +3889,32 @@ UNIT + INTEGRATION (MockMvc, gerçek PostgreSQL). Admin Service ile uçtan uca t
 
 Durum: IMPLEMENTED
 Sorumlu: Nisa
-Tüketici servisler: Admin Service, Social Service (üretici olarak); Notification Service ve Admin Service (community olaylarının alıcısı). Servis kimliği: Auth Service servis token'ı
+Tüketici servisler: Admin Service, Social Service, Auth Service (üretici olarak); Notification Service ve Admin Service (community olaylarının alıcısı). Servis kimliği: Auth Service servis token'ı
 
 #### Endpoint
 POST /internal/events
 
 #### Yetkilendirme
-Internal. Gateway'de **route edilmez** (`/api/v1/...` altında değildir). Auth'un servis token'ı sözleşmesine (D4: `typ=svc+jwt`, RS256/JWKS, `iss=ltz-auth`, `aud=community-service`, `jti`, ömür ≤ 60 sn) uyan token kabul edilir ve `SCOPE_events:ingest` kapsamı gerekir; token'ın `sub` değeri zarftaki `producer` ile **tam olarak `svc:<producer>`** olmalıdır (bir servis başkası adına olay yayınlayamaz). Kimlik yoksa/geçersizse 401, kapsam ya da çağıran uyuşmazsa 403; kullanıcı token'ı 401. **Auth şu an bu kapsamlı servis token'ı üretmiyor** (yalnız `account:erase` için üretir): `events:ingest` adı ve token üretim yolu Auth'tan talep edildi (`docs-community/integration/auth/auth-service-talepleri/auth-requests-01.md`); o zamana kadar uç fiilen KAPALIDIR. Gerçek servis token'ıyla doğrulama NOT VERIFIED.
+Internal. Gateway'de **route edilmez** (`/api/v1/...` altında değildir). Auth'un servis token'ı sözleşmesine (D4: `typ=svc+jwt`, RS256/JWKS, `iss=ltz-auth`, `aud=community-service`, `jti`, ömür ≤ 60 sn) uyan token kabul edilir ve `SCOPE_events:ingest` kapsamı gerekir; token'ın `sub` değeri zarftaki `producer` ile **tam olarak `svc:<producer>`** olmalıdır (bir servis başkası adına olay yayınlayamaz). Kimlik yoksa/geçersizse 401, kapsam ya da çağıran uyuşmazsa 403; kullanıcı token'ı 401. `iat`, `exp`, `nbf`, `sub` zorunludur. Auth bu kapsamı **çağıran→hedef çifti tanımlandığında** verir (`events:ingest` adı Auth tarafından uygun bulundu, her çift ayrı tanımlanır); `admin-service`, `social-service` ve `auth-service` → `community-service` çiftleri Auth'ta tanımlanana kadar uç fiilen KAPALIDIR (`docs-community/integration/auth/auth-service-talepleri/auth-requests-05.md`). Gerçek servis token'ıyla doğrulama NOT VERIFIED.
 
 #### Request Body (olay zarfı, docs/architecture.md §6.2)
 ```json
 {
   "eventId": "UUID (tekilleştirme anahtarı)",
-  "eventType": "ModerationActionTaken | UserBlocked | UserUnblocked",
+  "eventType": "ModerationActionTaken | UserBlocked | UserUnblocked | AccountStatusChanged",
   "eventVersion": 1,
   "occurredAt": "ISO-8601 UTC",
-  "producer": "admin-service | social-service",
+  "producer": "admin-service | social-service | auth-service",
   "aggregateId": "UUID",
   "payload": { }
 }
 ```
-Zarfta tanımsız alan reddedilir. `producer`, olay türüyle eşleşmelidir (`ModerationActionTaken` yalnız `admin-service`, `UserBlocked`/`UserUnblocked` yalnız `social-service`); aksi halde 400.
+Zarfta tanımsız alan reddedilir. `producer`, olay türüyle eşleşmelidir (`ModerationActionTaken` yalnız `admin-service`, `UserBlocked`/`UserUnblocked` yalnız `social-service`, `AccountStatusChanged` yalnız `auth-service`); aksi halde 400.
 
 **Kabul edilen olaylar ve yükleri**
 - `ModerationActionTaken` (admin-service): `{ "targetType": "POST | COMMENT", "targetId": "UUID", "action": "HIDE | RESTORE | REMOVE | DISMISS", "reportId": "UUID (opsiyonel; yalnız tek raporu hedeflemek için)" }`. `HIDE`: VISIBLE içeriği HIDDEN yapar (yorumsa gönderinin `commentCount`'u düşer); `RESTORE`: HIDDEN içeriği geri açar (sayaç geri artar); `REMOVE`: içeriği kalıcı kaldırır (soft delete, gönderi görselleri silinir; **geri alınamaz**, silinmiş içerik `RESTORE` ile geri gelmez); `DISMISS`: içeriği değiştirmez, raporu reddeder. `HIDE`/`REMOVE` içeriğin açık raporlarını `RESOLVED`, `DISMISS` ise `DISMISSED` yapar. Bulunamayan içerik için olay başarıyla işlenir (etkisiz).
 - `UserBlocked` / `UserUnblocked` (social-service): `{ "blockerId": "UUID", "blockedId": "UUID" }` (farklı olmalı). Community yerel `user_blocks` yansımasını günceller; engelleme iki yönlü uygulanır (akış/arama/profil/yorum listelerinden gizleme, beğeni/yorum/yanıt/repost/rapor engeli).
+- `AccountStatusChanged` (auth-service): `{ "accountId": "UUID", "status": "ACTIVE | SUSPENDED | BANNED | DISABLED | ..." }` (Auth'un yayımladığı yük; ikisi de zorunlu, eksikse 400, bilinmeyen durum adları kabul edilir). Olay tekilleştirilir ve kaydedilir (`PROCESSED`/`DUPLICATE`) ama **içeriğe etki etmez**: askıya alınan/yasaklanan hesabın içeriği gizlenmez (Auth bunu zorunlu kılmıyor; ürün kararı bekleniyor).
 - Bilinmeyen `eventType` başarıyla yok sayılır (`IGNORED`), üretici yeniden denemesin diye.
 
 #### Response — 200
@@ -3928,7 +3929,7 @@ Olay `inbox_events` tablosunda `eventId` ile tekilleştirilir ve etkisiyle aynı
 #### Hata Durumları
 - 400: Zarf doğrulama hatası, üretici-olay uyuşmazlığı, geçersiz/eksik yük alanı (bilinmeyen `action`/`targetType`, UUID olmayan alan, `blockerId` = `blockedId`)
 - 401: Kimlik yok ya da token geçersiz
-- 403: Servis yetkisi (`internal.events`) yok
+- 403: `events:ingest` kapsamı yok ya da token'ın `sub` değeri `svc:<producer>` ile eşleşmiyor
 - 500: Beklenmeyen sunucu hatası
 
 #### Bağlantı
@@ -3936,10 +3937,10 @@ Frontend:
 -
 
 Diğer mikroservisler:
-Admin Service ve Social Service bu ucu RestClient/relay ile çağırır. **Community'nin yayınladığı olaylar** (outbox, aynı zarfla alıcıların `POST /internal/events` ucuna iletilir): `ContentReported` → admin-service (`{reportId, targetType, targetId, targetAuthorId, reporterId, reason, detail, reportedAt}`); `CommentCreated` → notification-service (`{commentId, postId, parentCommentId, actorId, recipientIds[], isReply}`); `PostLiked` → notification-service (`{postId, actorId, recipientId}`); `PostReposted` → notification-service (`{postId, repostId, actorId, recipientId}`). Yükler yalnız kimlik içerir (gönderi/yorum/repost metni ve görünen ad taşınmaz); kişi kendi içeriğine yaptığı etkileşim için olay üretilmez. `PostReposted`, docs/architecture.md §6.3 olay kataloğunda henüz yoktur (kataloğa eklenmesi önerilir). Relay varsayılan KAPALIDIR; alıcı sözleşmeleri NOT VERIFIED.
+Admin Service, Social Service ve Auth Service bu ucu servis token'ıyla çağırır. **Community'nin yayınladığı olaylar** (outbox, aynı zarfla alıcıların `POST /internal/events` ucuna iletilir; her çağrı Auth'tan `POST /internal/v1/service-tokens` ile alınan, hedefe bağlı (`aud=admin-service` / `notification-service`) 60 sn'lik servis token'ıyla `Authorization: Bearer` başlığında yapılır; istemci kimliği `community-service`, gizli anahtar `AUTH_COMMUNITY_SERVICE_CLIENT_SECRET` ortam değişkeninden gelir ve boşsa relay hiçbir olay denemez): `ContentReported` → admin-service (`{reportId, targetType, targetId, targetAuthorId, reporterId, reason, detail, reportedAt}`); `CommentCreated` → notification-service (`{commentId, postId, parentCommentId, actorId, recipientIds[], isReply}`); `PostLiked` → notification-service (`{postId, actorId, recipientId}`); `PostReposted` → notification-service (`{postId, repostId, actorId, recipientId}`). Yükler yalnız kimlik içerir (gönderi/yorum/repost metni ve görünen ad taşınmaz); kişi kendi içeriğine yaptığı etkileşim için olay üretilmez. `PostReposted`, docs/architecture.md §6.3 olay kataloğunda henüz yoktur (kataloğa eklenmesi önerilir). Relay varsayılan KAPALIDIR; alıcı sözleşmeleri ve Auth'tan gerçek token alımı NOT VERIFIED.
 
 #### Test Durumu
-UNIT + INTEGRATION (MockMvc: yetki/doğrulama; gerçek PostgreSQL: moderasyon etkileri ve sayaçlar, tekilleştirme, üretici kontrolü, engelleme yansıması). Admin/Social Service ile uçtan uca doğrulama: NOT VERIFIED.
+UNIT + INTEGRATION (MockMvc: yetki/doğrulama; gerçek PostgreSQL: moderasyon etkileri ve sayaçlar, tekilleştirme, üretici kontrolü, engelleme yansıması, `AccountStatusChanged` kaydı; giden çağrı: token istemcisi ve `Authorization` başlığı için MockRestServiceServer). Admin/Social/Auth Service ile uçtan uca doğrulama: NOT VERIFIED.
 
 ### COMMUNITY — Hesap Verisi Silme (İç Uç)
 

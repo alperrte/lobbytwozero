@@ -1,6 +1,9 @@
 package com.ltz.community.infrastructure.client;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
@@ -13,6 +16,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.restclient.test.autoconfigure.RestClientTest;
@@ -20,11 +24,14 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClientException;
 
 import com.ltz.community.application.port.EventDeliveryPort.Envelope;
 import com.ltz.community.application.port.EventDeliveryPort.Target;
+import com.ltz.community.application.port.ServiceTokenPort;
+import com.ltz.community.domain.exception.ServiceTokenUnavailableException;
 
 @RestClientTest(EventDeliveryClient.class)
 @TestPropertySource(properties = {
@@ -41,6 +48,14 @@ class EventDeliveryClientTest {
 	@Autowired
 	private MockRestServiceServer server;
 
+	@MockitoBean
+	private ServiceTokenPort serviceTokens;
+
+	@BeforeEach
+	void tokens() {
+		when(serviceTokens.tokenFor(anyString())).thenAnswer(call -> "token-for-" + call.getArgument(0));
+	}
+
 	private static Envelope envelope() {
 		return new Envelope(EVENT_ID, "PostLiked", 1, Instant.parse("2026-10-21T10:00:00Z"), "community-service",
 				AGGREGATE_ID, Map.of("postId", "p1"));
@@ -51,6 +66,7 @@ class EventDeliveryClientTest {
 		server.expect(requestTo("http://notification-service:8080/internal/events"))
 				.andExpect(method(HttpMethod.POST))
 				.andExpect(header("Content-Type", MediaType.APPLICATION_JSON_VALUE))
+				.andExpect(header("Authorization", "Bearer token-for-notification-service"))
 				.andExpect(jsonPath("$.eventId").value(EVENT_ID.toString()))
 				.andExpect(jsonPath("$.eventType").value("PostLiked"))
 				.andExpect(jsonPath("$.eventVersion").value(1))
@@ -68,10 +84,22 @@ class EventDeliveryClientTest {
 	void moderationReportsGoToTheAdminServiceInternalEndpoint() {
 		server.expect(requestTo("http://admin-service:8080/internal/events"))
 				.andExpect(method(HttpMethod.POST))
+				.andExpect(header("Authorization", "Bearer token-for-admin-service"))
 				.andRespond(withSuccess());
 
 		client.deliver(Target.ADMIN, envelope());
 
+		server.verify();
+		verify(serviceTokens).tokenFor("admin-service");
+	}
+
+	@Test
+	void noRequestIsSentWhenTheServiceTokenCannotBeObtained() {
+		when(serviceTokens.tokenFor("admin-service")).thenThrow(new ServiceTokenUnavailableException("no token"));
+
+		Envelope envelope = envelope();
+		assertThatThrownBy(() -> client.deliver(Target.ADMIN, envelope))
+				.isInstanceOf(ServiceTokenUnavailableException.class);
 		server.verify();
 	}
 
