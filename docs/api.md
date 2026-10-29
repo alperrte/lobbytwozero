@@ -2765,7 +2765,7 @@ Tüketici servisler: Frontend
 POST /api/v1/community/posts
 
 #### Yetkilendirme
-Authenticated. Gönderi sahibi (`authorId`) yalnız doğrulanmış JWT'nin `sub` claim'inden alınır; istek gövdesindeki kimlik güven kaynağı değildir. Not: JWT doğrulama anahtarı/JWKS sözleşmesi auth-service tarafında netleşene kadar community-service decoder'ı fail-closed çalışır; gerçek token'lar şimdilik 401 alır.
+Authenticated. Gönderi sahibi (`authorId`) yalnız doğrulanmış JWT'nin `sub` claim'inden alınır; istek gövdesindeki kimlik güven kaynağı değildir. Token, Auth Service'in JWKS anahtarıyla bu serviste doğrulanır (yalnız RS256; `typ=at+jwt`, `iss=ltz-auth`, `aud=ltz-api`, `exp`/`nbf`/`iat`, `sub`); Gateway'e ve istemci başlıklarına güvenilmez. Servis token'ı (`svc+jwt`) bu uçlarda `401` alır. Gerçek Auth Service ile uçtan uca doğrulama: NOT VERIFIED.
 
 #### Request Body
 ```json
@@ -3563,7 +3563,7 @@ Tüketici servisler: Frontend
 POST /api/v1/community/forums
 
 #### Yetkilendirme
-Admin. Yalnız moderatör (`MODERATOR`) ya da yönetici (`ADMIN`) rolü; rol yalnız doğrulanmış JWT'nin `roles` claim'inden okunur (istemci başlıkları güven kaynağı değildir). **Varsayım:** `roles` claim'i auth-service sözleşmesiyle doğrulanmadı (NOT VERIFIED); auth-service sözleşmesi netleşene kadar decoder fail-closed olduğundan gerçek token'lar şimdilik 401 alır. Rolsüz kimlikli kullanıcı 403 alır.
+Admin. Yalnız moderatör (`MODERATOR`) ya da yönetici (`ADMIN`) rolü; rol yalnız doğrulanmış JWT'nin `roles` claim'inden okunur (istemci başlıkları güven kaynağı değildir). `roles` claim'i Auth sözleşmesindeki öneksiz rol listesidir (`PLAYER`, `CONTENT_CREATOR`, `GAME_DEVELOPER`, `MODERATOR`, `ADMIN`; docs/AUTH_SERVICE_ENTEGRASYON_REHBERI.md §3.3). Rol, access token ömrü kadar (varsayılan 5 dk) gecikmeyle iptal olur (§7). Rolsüz kimlikli kullanıcı 403 alır.
 
 #### Request Body
 ```json
@@ -3889,31 +3889,32 @@ UNIT + INTEGRATION (MockMvc, gerçek PostgreSQL). Admin Service ile uçtan uca t
 
 Durum: IMPLEMENTED
 Sorumlu: Nisa
-Tüketici servisler: Admin Service, Social Service (üretici olarak); Notification Service ve Admin Service (community olaylarının alıcısı)
+Tüketici servisler: Admin Service, Social Service, Auth Service (üretici olarak); Notification Service ve Admin Service (community olaylarının alıcısı). Servis kimliği: Auth Service servis token'ı
 
 #### Endpoint
 POST /internal/events
 
 #### Yetkilendirme
-Internal. Gateway'de **route edilmez** (`/api/v1/...` altında değildir). Yalnız `SCOPE_internal.events` yetkisi taşıyan doğrulanmış servis kimliği (JWT `scope`/`scp` claim'inde `internal.events`) kabul edilir; kimlik yoksa 401, yetki yoksa 403. **Varsayım:** servisler arası kimlik modeli (docs/architecture.md risk tablosu: ADR bekleniyor) henüz kararlaştırılmadı; bu uç "servis JWT'si" seçeneğine göre kurulmuştur. JWT doğrulama anahtarı bağlanana kadar decoder fail-closed olduğundan uç fiilen KAPALIDIR (hiçbir token kabul edilmez); gerçek bir servis token'ıyla doğrulama NOT VERIFIED.
+Internal. Gateway'de **route edilmez** (`/api/v1/...` altında değildir). Auth'un servis token'ı sözleşmesine (D4: `typ=svc+jwt`, RS256/JWKS, `iss=ltz-auth`, `aud=community-service`, `jti`, ömür ≤ 60 sn) uyan token kabul edilir ve `SCOPE_events:ingest` kapsamı gerekir; token'ın `sub` değeri zarftaki `producer` ile **tam olarak `svc:<producer>`** olmalıdır (bir servis başkası adına olay yayınlayamaz). Kimlik yoksa/geçersizse 401, kapsam ya da çağıran uyuşmazsa 403; kullanıcı token'ı 401. `iat`, `exp`, `nbf`, `sub` zorunludur. Auth bu kapsamı **çağıran→hedef çifti tanımlandığında** verir (`events:ingest` adı Auth tarafından uygun bulundu, her çift ayrı tanımlanır); `admin-service`, `social-service` ve `auth-service` → `community-service` çiftleri Auth'ta tanımlanana kadar uç fiilen KAPALIDIR (`docs-community/integration/auth/auth-service-talepleri/auth-requests-05.md`). Gerçek servis token'ıyla doğrulama NOT VERIFIED.
 
 #### Request Body (olay zarfı, docs/architecture.md §6.2)
 ```json
 {
   "eventId": "UUID (tekilleştirme anahtarı)",
-  "eventType": "ModerationActionTaken | UserBlocked | UserUnblocked",
+  "eventType": "ModerationActionTaken | UserBlocked | UserUnblocked | AccountStatusChanged",
   "eventVersion": 1,
   "occurredAt": "ISO-8601 UTC",
-  "producer": "admin-service | social-service",
+  "producer": "admin-service | social-service | auth-service",
   "aggregateId": "UUID",
   "payload": { }
 }
 ```
-Zarfta tanımsız alan reddedilir. `producer`, olay türüyle eşleşmelidir (`ModerationActionTaken` yalnız `admin-service`, `UserBlocked`/`UserUnblocked` yalnız `social-service`); aksi halde 400.
+Zarfta tanımsız alan reddedilir. `producer`, olay türüyle eşleşmelidir (`ModerationActionTaken` yalnız `admin-service`, `UserBlocked`/`UserUnblocked` yalnız `social-service`, `AccountStatusChanged` yalnız `auth-service`); aksi halde 400.
 
 **Kabul edilen olaylar ve yükleri**
 - `ModerationActionTaken` (admin-service): `{ "targetType": "POST | COMMENT", "targetId": "UUID", "action": "HIDE | RESTORE | REMOVE | DISMISS", "reportId": "UUID (opsiyonel; yalnız tek raporu hedeflemek için)" }`. `HIDE`: VISIBLE içeriği HIDDEN yapar (yorumsa gönderinin `commentCount`'u düşer); `RESTORE`: HIDDEN içeriği geri açar (sayaç geri artar); `REMOVE`: içeriği kalıcı kaldırır (soft delete, gönderi görselleri silinir; **geri alınamaz**, silinmiş içerik `RESTORE` ile geri gelmez); `DISMISS`: içeriği değiştirmez, raporu reddeder. `HIDE`/`REMOVE` içeriğin açık raporlarını `RESOLVED`, `DISMISS` ise `DISMISSED` yapar. Bulunamayan içerik için olay başarıyla işlenir (etkisiz).
 - `UserBlocked` / `UserUnblocked` (social-service): `{ "blockerId": "UUID", "blockedId": "UUID" }` (farklı olmalı). Community yerel `user_blocks` yansımasını günceller; engelleme iki yönlü uygulanır (akış/arama/profil/yorum listelerinden gizleme, beğeni/yorum/yanıt/repost/rapor engeli).
+- `AccountStatusChanged` (auth-service): `{ "accountId": "UUID", "status": "ACTIVE | SUSPENDED | BANNED | DISABLED | ..." }` (Auth'un yayımladığı yük; ikisi de zorunlu, eksikse 400, bilinmeyen durum adları kabul edilir). Olay tekilleştirilir ve kaydedilir (`PROCESSED`/`DUPLICATE`) ama **içeriğe etki etmez**: askıya alınan/yasaklanan hesabın içeriği gizlenmez (Auth bunu zorunlu kılmıyor; ürün kararı bekleniyor).
 - Bilinmeyen `eventType` başarıyla yok sayılır (`IGNORED`), üretici yeniden denemesin diye.
 
 #### Response — 200
@@ -3928,7 +3929,7 @@ Olay `inbox_events` tablosunda `eventId` ile tekilleştirilir ve etkisiyle aynı
 #### Hata Durumları
 - 400: Zarf doğrulama hatası, üretici-olay uyuşmazlığı, geçersiz/eksik yük alanı (bilinmeyen `action`/`targetType`, UUID olmayan alan, `blockerId` = `blockedId`)
 - 401: Kimlik yok ya da token geçersiz
-- 403: Servis yetkisi (`internal.events`) yok
+- 403: `events:ingest` kapsamı yok ya da token'ın `sub` değeri `svc:<producer>` ile eşleşmiyor
 - 500: Beklenmeyen sunucu hatası
 
 #### Bağlantı
@@ -3936,10 +3937,52 @@ Frontend:
 -
 
 Diğer mikroservisler:
-Admin Service ve Social Service bu ucu RestClient/relay ile çağırır. **Community'nin yayınladığı olaylar** (outbox, aynı zarfla alıcıların `POST /internal/events` ucuna iletilir): `ContentReported` → admin-service (`{reportId, targetType, targetId, targetAuthorId, reporterId, reason, detail, reportedAt}`); `CommentCreated` → notification-service (`{commentId, postId, parentCommentId, actorId, recipientIds[], isReply}`); `PostLiked` → notification-service (`{postId, actorId, recipientId}`); `PostReposted` → notification-service (`{postId, repostId, actorId, recipientId}`). Yükler yalnız kimlik içerir (gönderi/yorum/repost metni ve görünen ad taşınmaz); kişi kendi içeriğine yaptığı etkileşim için olay üretilmez. `PostReposted`, docs/architecture.md §6.3 olay kataloğunda henüz yoktur (kataloğa eklenmesi önerilir). Relay varsayılan KAPALIDIR; alıcı sözleşmeleri NOT VERIFIED.
+Admin Service, Social Service ve Auth Service bu ucu servis token'ıyla çağırır. **Community'nin yayınladığı olaylar** (outbox, aynı zarfla alıcıların `POST /internal/events` ucuna iletilir; her çağrı Auth'tan `POST /internal/v1/service-tokens` ile alınan, hedefe bağlı (`aud=admin-service` / `notification-service`) 60 sn'lik servis token'ıyla `Authorization: Bearer` başlığında yapılır; istemci kimliği `community-service`, gizli anahtar `AUTH_COMMUNITY_SERVICE_CLIENT_SECRET` ortam değişkeninden gelir ve boşsa relay hiçbir olay denemez): `ContentReported` → admin-service (`{reportId, targetType, targetId, targetAuthorId, reporterId, reason, detail, reportedAt}`); `CommentCreated` → notification-service (`{commentId, postId, parentCommentId, actorId, recipientIds[], isReply}`); `PostLiked` → notification-service (`{postId, actorId, recipientId}`); `PostReposted` → notification-service (`{postId, repostId, actorId, recipientId}`). Yükler yalnız kimlik içerir (gönderi/yorum/repost metni ve görünen ad taşınmaz); kişi kendi içeriğine yaptığı etkileşim için olay üretilmez. `PostReposted`, docs/architecture.md §6.3 olay kataloğunda henüz yoktur (kataloğa eklenmesi önerilir). Relay varsayılan KAPALIDIR; alıcı sözleşmeleri ve Auth'tan gerçek token alımı NOT VERIFIED.
 
 #### Test Durumu
-UNIT + INTEGRATION (MockMvc: yetki/doğrulama; gerçek PostgreSQL: moderasyon etkileri ve sayaçlar, tekilleştirme, üretici kontrolü, engelleme yansıması). Admin/Social Service ile uçtan uca doğrulama: NOT VERIFIED.
+UNIT + INTEGRATION (MockMvc: yetki/doğrulama; gerçek PostgreSQL: moderasyon etkileri ve sayaçlar, tekilleştirme, üretici kontrolü, engelleme yansıması, `AccountStatusChanged` kaydı; giden çağrı: token istemcisi ve `Authorization` başlığı için MockRestServiceServer). Admin/Social/Auth Service ile uçtan uca doğrulama: NOT VERIFIED.
+
+### COMMUNITY — Hesap Verisi Silme (İç Uç)
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: auth-service
+
+#### Endpoint
+DELETE /internal/v1/accounts/{accountId}
+
+#### Yetkilendirme
+Internal. Gateway'de **route edilmez**; kimliksiz açılmaz. Yalnız Auth'un imzaladığı servis token'ı (`Authorization: Bearer`, D4 sözleşmesi: `docs-auth/servis-sozlesmeleri.md` §3) kabul edilir ve **tüm alanları** doğrulanır: `typ=svc+jwt`, yalnız RS256 (imza Auth JWKS'i ile), `iss=ltz-auth`, `aud=community-service` (`ltz-api` kabul edilmez), `sub=svc:auth-service` (**tam eşleşme**), `scope=account:erase` (`SCOPE_account:erase`), `account_id` = yoldaki `{accountId}` (yoksa/farklıysa `403`), `iat`/`nbf`/`exp` (`exp - iat ≤ 60 sn`, saat sapması ≤ 30 sn, `iat` zorunlu), `jti` zorunlu. `roles`, `sid`, `ver`, `amr` servis token'ında aranmaz. Kullanıcı token'ı (`at+jwt`) bu uçta `401`; servis token'ı `/api/v1/community/**` uçlarında `401`.
+
+#### Path Parameters
+- accountId: UUID, zorunlu (silinecek hesap)
+
+#### Response — 204
+Gövde yok. Kişisel veri silindi/anonimleştirildi **ya da zaten yoktu** (idempotent: ikinci çağrı ve verisi olmayan hesap da `204`). `202` ve yönlendirme (`3xx`) dönülmez; silme tek işlemde ve istek içinde biter.
+
+#### Veri etkisi (tek `@Transactional`, set tabanlı)
+- **Gönderiler ve yorumlar** (yazarı bu hesap): metin sabit `[removed]` yer tutucusuyla değiştirilir (repost notu `null`), yazar referansı "silinmiş hesap" kimliğine (`00000000-0000-0000-0000-000000000000`) çevrilir, durum `DELETED` olur; gönderi görselleri silinir. Soft delete ile saklanan eski metinler de temizlenir. Satırlar silinmez, çünkü başkalarının yorumları, yanıtları ve repostları bu satırlara bağlıdır ve **başkalarının verisi silinmez**.
+- **Beğeniler**: hesabın beğenileri silinir, gönderilerin `likeCount` değeri düşer; silinen görünür yorumlar `commentCount`'tan çıkar.
+- **Raporlar**: hesabın yaptığı raporlar silinir; hesabın içeriği hakkındaki raporlarda yalnız içerik yazarı referansı anonimleşir.
+- **Engellemeler** (`user_blocks`): hesabın taraf olduğu satırlar silinir. **Forumlar**: oluşturan referansı anonimleşir.
+- **Outbox**: hesabın kimliğini taşıyan tüm olaylar (bekleyen, başarısız, teslim edilmiş) silinir.
+- Başka servise çağrı yapılmaz; yalnız `community_db`. Günlüğe yalnız `accountId` yazılır.
+
+#### Hata Durumları
+- 400: UUID olmayan `accountId`
+- 401: Token yok/bozuk/süresi dolmuş; yanlış `typ`, `aud`, `iss`, algoritma (HS256, `alg=none`) ya da bilinmeyen `kid`; `exp - iat > 60 sn`; `jti`/`iat` yok; kullanıcı token'ı
+- 403: `scope` yok/farklı; `sub` ≠ `svc:auth-service`; `account_id` yok ya da yoldaki hesapla aynı değil; tanımsız `/internal/**` yol/yöntem
+- 500: Beklenmeyen sunucu hatası (Auth görevi bekletir, yeniden dener)
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Auth Service `DELETE {COMMUNITY_SERVICE_URL}/internal/v1/accounts/{accountId}` ile doğrudan çağırır (Gateway'den geçmez). Adres Compose'taki `COMMUNITY_SERVICE_URL`; yeni ENV yoktur.
+
+#### Test Durumu
+UNIT + INTEGRATION: gerçek RS256 imzalı token'lar ve yerel JWKS sunucusuyla güvenlik zinciri testi (`InternalEndpointSecurityTest`, `JwtConfigTest`), denetleyici kuralları (`AccountErasureControllerTest`) ve gerçek PostgreSQL üzerinde veri etkisi (`AccountDataEraserIntegrationTest`: silme, başkalarının verisine dokunmama, sayaç düzeltmesi, idempotentlik). **Auth Service'in gerçek `ServiceTokenIssuer`'ıyla uyumluluk ve dev ortamında gerçek hesap silme (görevin `CONFIRMED` olması): NOT VERIFIED** (Auth sahibiyle birlikte denenecek).
 
 ## CONTENT
 
