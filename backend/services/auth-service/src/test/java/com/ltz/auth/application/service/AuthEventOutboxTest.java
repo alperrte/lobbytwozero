@@ -161,6 +161,30 @@ class AuthEventOutboxTest extends IntegrationTestSupport {
         assertThat(request.body()).as("kişisel veri taşınmaz").doesNotContain("@").doesNotContain("email");
     }
 
+    /** Community alıcısının uyguladığı kurallar: ömür, zaman alanları, jti ve zarf üreticisi ile token öznesinin eşleşmesi. */
+    @Test
+    void zarfVeTokenCommunityAliciKurallarinaUyar() throws Exception {
+        UUID account = newActive();
+        administration.changeStatus(newActive(), account, AccountStatus.SUSPENDED, "test");
+
+        relay.processDue();
+
+        CapturingServer.Request request = COMMUNITY.requests().stream()
+                .filter(captured -> captured.body().contains(account.toString())).findFirst().orElseThrow();
+        JWTClaimsSet claims = SignedJWT.parse(request.authorization().substring("Bearer ".length())).getJWTClaimsSet();
+        assertThat(claims.getIssueTime()).isNotNull();
+        assertThat(claims.getNotBeforeTime()).isNotNull();
+        assertThat(claims.getJWTID()).isNotBlank();
+        assertThat(claims.getExpirationTime().getTime() - claims.getIssueTime().getTime())
+                .as("ömür en çok 60 sn").isPositive().isLessThanOrEqualTo(60_000L);
+        assertThat(claims.getSubject()).as("token öznesi svc:<zarf üreticisi>")
+                .isEqualTo("svc:" + JsonPath.read(request.body(), "$.producer"));
+        Map<String, Object> payload = JsonPath.read(request.body(), "$.payload");
+        assertThat(payload).containsOnlyKeys("accountId", "status");
+        assertThat(payload.get("status")).isEqualTo("SUSPENDED");
+        assertThat((String) JsonPath.read(request.body(), "$.aggregateId")).isEqualTo(payload.get("accountId"));
+    }
+
     @Test
     void teslimEdilenSatirlarSaklamaSuresiSonundaSilinirBekleyenKalir() throws Exception {
         UUID account = newActive();

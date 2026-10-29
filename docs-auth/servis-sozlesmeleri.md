@@ -140,7 +140,7 @@ olur (kimlik doğrulaması önce yapılır; yanlış gizli anahtar yine `401 INV
 
 Satır 5 ve 6 için gizli anahtarlar `AUTH_MESSAGING_SERVICE_CLIENT_SECRET` ve `AUTH_LFP_SERVICE_CLIENT_SECRET` (yeni, boşsa istemci kapalı).
 
-**Auth olayları (outbox, 2026-10-29):** `AccountStatusChanged`, `UserRegistered`, `AccountEmailChanged` aynı işlemde `auth_events` tablosuna yazılır; arka plan işçisi hedeflere `eventId/eventType/eventVersion/occurredAt/producer/aggregateId/payload` zarfıyla HTTP ile iletir (en az bir kez; alıcı `eventId` ile tekilleştirir). `AccountStatusChanged` yalnız yönetici durum değişikliğinde çıkar; silme isteği, iptal ve silme tamamlanması olay üretmez (bunlar silme koordinasyonuyla `account:erase` çağrısı üzerinden yürür). Hedef listesi `ltz.auth.events.targets`, varsayılan **boş** (olay gönderilmez); prod'da hedef adresleri `https` olmalı.
+**Auth olayları (outbox, 2026-10-29):** `AccountStatusChanged`, `UserRegistered`, `AccountEmailChanged` aynı işlemde `auth_events` tablosuna yazılır; arka plan işçisi hedeflere `eventId/eventType/eventVersion/occurredAt/producer/aggregateId/payload` zarfıyla HTTP ile iletir (en az bir kez; alıcı `eventId` ile tekilleştirir). `AccountStatusChanged` yalnız yönetici durum değişikliğinde çıkar; silme isteği, iptal ve silme tamamlanması olay üretmez (bunlar silme koordinasyonuyla `account:erase` çağrısı üzerinden yürür). Hedef listesi `ltz.auth.events.targets` (ortam değişkeni `AUTH_EVENT_TARGETS`, virgülle ayrılmış servis adları), varsayılan **boş** (olay gönderilmez); prod'da hedef adresleri `https` olmalı.
 
 **Cihaz token'ı (2026-10-29):** `typ=dev+jwt`, `aud=hardware-service`, `sub=<deviceId>`, `scope=hardware:sync:write`; uç sözleşmesi `docs/api.md`.
 

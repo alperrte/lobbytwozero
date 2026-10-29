@@ -7,9 +7,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.context.properties.bind.Bindable;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.core.env.PropertiesPropertySource;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.support.PropertiesLoaderUtils;
 import org.springframework.mock.env.MockEnvironment;
 
 class EventConfigTest {
@@ -63,6 +69,26 @@ class EventConfigTest {
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("https");
         assertThatCode(() -> new EventConfig(events,
                 deletion(Map.of("community", URI.create("https://community.internal"))), prod)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void hedefListesiAuthEventTargetsOrtamDegiskeniylePropertiesDosyasindanBaglanir() throws Exception {
+        assertThat(boundTargets(null)).as("ENV yoksa olay kapalı").isEmpty();
+        assertThat(boundTargets("")).as("boş ENV olay kapalı").isEmpty();
+        assertThat(boundTargets("community")).containsExactly("community");
+        assertThat(boundTargets("community, user")).containsExactlyInAnyOrder("community", "user");
+    }
+
+    /** Gerçek application.properties satırı ve AUTH_EVENT_TARGETS yer tutucusuyla hedef kümesini bağlar. */
+    private static Set<String> boundTargets(String environmentValue) throws Exception {
+        MockEnvironment env = new MockEnvironment();
+        if (environmentValue != null) {
+            env.setProperty("AUTH_EVENT_TARGETS", environmentValue);
+        }
+        Properties file = PropertiesLoaderUtils.loadProperties(
+                new FileSystemResource("src/main/resources/application.properties"));
+        env.getPropertySources().addLast(new PropertiesPropertySource("application", file));
+        return Binder.get(env).bind("ltz.auth.events.targets", Bindable.setOf(String.class)).orElse(Set.of());
     }
 
     private static EventProperties events(Set<String> targets, Duration initialBackoff, Duration maxBackoff) {
