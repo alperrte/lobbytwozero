@@ -8,9 +8,9 @@
 
 | Konu | Durum |
 |---|---|
-| Servisin durumu | Aktif geliştirme, henüz main'e birleşmedi |
-| Kullanıcı token doğrulaması (JWT) | Geçici decoder her token'ı reddediyor (yazma uçları 401). Gerçek doğrulayıcı bekliyor |
-| Hesap silme ucu | YOK. Hesap silme hedeflerinden biri, görevi PENDING kalıyor |
+| Servisin durumu | Auth entegrasyonu main'de (2026-10-29): gerçek JWT, servis token'ı, silme ucu, `AccountStatusChanged` alıcısı |
+| Kullanıcı token doğrulaması (JWT) | Gerçek doğrulayıcı yazıldı (`at+jwt`, RS256/JWKS, `roles`) |
+| Hesap silme ucu | Yazıldı (`DELETE /internal/v1/accounts/{accountId}`); dev'de `CONFIRMED` denemesi bekliyor |
 
 ## TALEP VE CEVAPLAR
 
@@ -18,6 +18,7 @@
 |---|---|---|
 | [01](talep-01-hesap-durumu-ve-gorsel-erisimi.md) | Gerçek JWT, banlı hesap, görsel erişimi | CEVAPLANDI, Community'de iş var |
 | [02](talep-02-servis-token-silme-ve-jwks-sorulari.md) | Servis token'ı, silme, durum olayı, JWKS | CEVAPLANDI, saklama süresi Alper'de, imtiyaz tanımı Auth'ta planlı |
+| [05](talep-05-accountstatuschanged-alicisi-ve-uc-teyit.md) | `AccountStatusChanged` alıcısı, `community` hedefi, çift ve istemci teyidi | CEVAPLANDI; hedef ekleme "alıcı yayında" haberini bekliyor, gerçek uçtan uca deneme yapılmadı |
 
 ## BİLMEN GEREKENLER
 
