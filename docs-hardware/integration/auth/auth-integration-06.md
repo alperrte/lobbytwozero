@@ -71,6 +71,30 @@ idempotent tekrar, yabancı hesap reddi ve eski JWT ile yeniden yazma engeli ge�
 16 hedef korunur; izole fixture sonucu 1 CONFIRMED + 15 PENDING'dir. Repo genelindeki
 eksik silme ucu sayısı 11'dir; hazır dört katılımcı bu fixture'da başlatılmaz.
 
+## Ortak DEV doğrulama takibi
+
+Durum: **NOT VERIFIED**. Önceki kabul kapsamı:
+[REQ-03](entegrasyon-v1/auth-service-talepleri/auth-requests-03.md).
+Bu, ortak ortamda birlikte yürütülecek entegrasyon kabulüdür; Kerem'den beklenen
+yeni bir Auth geliştirmesi veya endpoint talebi bulunmuyor.
+
+İzole E2E'de doğrulanan akış ortak DEV ortamında henüz tekrarlanmadı. Bu kabulde
+yalnız sentetik hesapla ve güncel imajlarla şu sonuçlar birlikte kaydedilir:
+
+- Auth worker → Hardware iç DELETE çağrısı, yerel kişisel veri temizliği ve 204 yanıtı.
+- Auth'ta kalıcı `hardware=CONFIRMED` kaydı.
+- Aynı komutun tekrarında 204 ve eski kullanıcı JWT'siyle yeniden yazmanın reddi.
+- Gerçekten çalışan katılımcılara göre ölçülmüş CONFIRMED/PENDING sayıları.
+
+Mevcut `svc+jwt` / `account:erase` güvenlik ve hata sözleşmesi korunur. 401/403/5xx/timeout
+ACK değildir; kısmi temizlik 503 + Retry-After ile tekrar edilir. Eksik ACK atlanmaz,
+hedef listesi daraltılmaz, sahte 204 verilmez. Ortak DEV doğrulamasının yapılmamış olması,
+geçen izole Hardware–Auth testlerini geçersiz kılmaz; sonuçlar kendi ortam kapsamıyla kaydedilir.
+
+Repodaki 11 eksik silme endpoint'i ilgili servis sahiplerine, PERF-01/02 aktif cihaz
+bağımlılığı Alper'in ayrı işine aittir. Bu takip gerçek kullanıcı hesabında silme veya
+veri reseti yetkisi vermez.
+
 ## Teslim sınırı
 
 Performance policy üretimde deny eder. Gerçek consent→snapshot başarı E2E'si,

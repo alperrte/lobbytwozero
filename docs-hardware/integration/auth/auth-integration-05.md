@@ -62,4 +62,5 @@ uç listesi yerine kullanılmadı; kullanıcı token'ı cihaz kanıtı yapılmad
 
 **NOT VERIFIED:** Ortak Compose DEV, TLS/tarayıcı kabulü ve bütün 16 katılımcılı Saga.
 11 eksik silme endpoint'i ilgili servis sahiplerine aittir; bu görev kapsamına alınmadı.
-[05 numaralı takip talebi](auth-service-talepleri/auth-requests-05.md) yeni Auth API'si istemez.
+Auth'tan beklenen yeni bir geliştirme talebi saptanmadı. Ortak DEV kabulü
+[entegrasyon doğrulama kaydında](auth-integration-06.md#ortak-dev-doğrulama-takibi) izlenir.

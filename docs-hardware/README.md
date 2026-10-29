@@ -7,7 +7,7 @@ bağımlılığı açık kaldı; grant/apply üretimde deny eder.
 [Güncel dizin](integration/auth/README.md),
 [05 — karşılaştırma ve uygulama](integration/auth/auth-integration-05.md),
 [06 — doğrulama](integration/auth/auth-integration-06.md),
-[05 — ortak DEV takip talebi](integration/auth/auth-service-talepleri/auth-requests-05.md).
+[Ortak DEV doğrulama takibi](integration/auth/auth-integration-06.md#ortak-dev-doğrulama-takibi).
 
 Birinci aşama tarihçesi: kullanıcı JWT/JWKS, yerel RBAC,
 D4 atomik hesap temizliği ve onaylı V8/fence. Hardware uygulama ve izole runtime kabulü
