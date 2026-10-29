@@ -1,10 +1,12 @@
 package com.ltz.game.api.controller;
 
 import com.ltz.game.PostgresTestSupport;
-import com.ltz.game.domain.entity.*;
-import com.ltz.game.domain.enums.*;
+import com.ltz.game.domain.entity.Game;
+import com.ltz.game.domain.entity.GameExternalReference;
+import com.ltz.game.domain.enums.GameOrigin;
+import com.ltz.game.domain.enums.GameType;
 import com.ltz.game.infrastructure.persistence.repository.GameRepository;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
@@ -13,7 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest @Transactional
 class CatalogTypeFilteringTest extends PostgresTestSupport {

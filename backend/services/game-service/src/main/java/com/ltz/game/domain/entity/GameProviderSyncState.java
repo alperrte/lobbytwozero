@@ -1,12 +1,19 @@
 package com.ltz.game.domain.entity;
 
-import com.ltz.game.domain.enums.*;
-import jakarta.persistence.*;
+import com.ltz.game.domain.enums.CatalogRunMode;
+import com.ltz.game.domain.enums.CatalogSyncStatus;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.Version;
+import java.time.Instant;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import java.time.Instant;
-import java.util.UUID;
 
 @Entity @Table(name="game_provider_sync_state") @Getter @Setter @NoArgsConstructor
 public class GameProviderSyncState {

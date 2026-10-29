@@ -1,10 +1,15 @@
 package com.ltz.game.api.controller;
 
-import com.ltz.game.api.dto.response.GameDiscoveryResponse;
-import com.ltz.game.application.service.*;
 import com.ltz.game.api.dto.request.GameDiscoveryRequest;
+import com.ltz.game.api.dto.response.GameDiscoveryResponse;
+import com.ltz.game.application.service.DiscoveryQuery;
+import com.ltz.game.application.service.GameDiscoveryService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController @RequestMapping("/api/v1/game/games") @RequiredArgsConstructor
 public class GameDiscoveryController {

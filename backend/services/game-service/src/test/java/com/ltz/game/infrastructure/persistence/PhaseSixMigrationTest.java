@@ -2,11 +2,13 @@ package com.ltz.game.infrastructure.persistence;
 import java.util.UUID;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
-import org.springframework.dao.DataAccessException;
 import org.testcontainers.postgresql.PostgreSQLContainer;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 class PhaseSixMigrationTest {
     @Test void populatedV171UpgradesWithoutInventingContentAndFeedbackReferencesAreRestricted() {
         try(var pg=new PostgreSQLContainer("postgres:17-alpine")) {

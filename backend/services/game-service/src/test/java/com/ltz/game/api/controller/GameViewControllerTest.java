@@ -2,10 +2,16 @@ package com.ltz.game.api.controller;
 
 import com.ltz.game.PostgresTestSupport;
 import com.ltz.game.application.service.GameViewService;
-import com.ltz.game.domain.entity.*;
-import com.ltz.game.domain.enums.*;
+import com.ltz.game.domain.entity.Game;
+import com.ltz.game.domain.entity.GameExternalReference;
+import com.ltz.game.domain.entity.GameMedia;
+import com.ltz.game.domain.enums.GameOrigin;
+import com.ltz.game.domain.enums.GameStatus;
+import com.ltz.game.domain.enums.MediaType;
+import com.ltz.game.domain.enums.MetadataCompleteness;
 import com.ltz.game.infrastructure.persistence.repository.GameRepository;
 import jakarta.persistence.EntityManager;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,11 +20,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
-import java.util.UUID;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest @Transactional
 class GameViewControllerTest extends PostgresTestSupport {

@@ -1,8 +1,11 @@
 package com.ltz.game.api.dto.request;
 import com.ltz.game.application.service.LocalizationEdit;
-import com.ltz.game.domain.enums.*;
+import com.ltz.game.domain.enums.LanguageSupportStatus;
+import com.ltz.game.domain.enums.MetadataDataState;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 /** verified=true, admin'in bu girdiyi ayrıca doğruladığını beyan eder; kaydetmek tek başına doğrulama değildir. */
 public record LocalizationRequest(@Size(max=35) String metadataLanguage, MetadataDataState dataState,

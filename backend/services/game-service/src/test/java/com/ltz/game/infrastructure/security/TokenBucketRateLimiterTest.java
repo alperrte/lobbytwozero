@@ -9,7 +9,10 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Sahte saatli birim testleri; gerçek zaman beklenmez. */
 class TokenBucketRateLimiterTest {
@@ -76,20 +79,24 @@ class TokenBucketRateLimiterTest {
     @Test void concurrentCallersNeverExceedTheCapacity() throws Exception {
         var limiter = limiter(100, 0.000001, 100);
         int threads = 16;
-        ExecutorService pool = Executors.newFixedThreadPool(threads);
-        CountDownLatch start = new CountDownLatch(1);
-        List<Future<Integer>> results = new ArrayList<>();
-        for (int t = 0; t < threads; t++) results.add(pool.submit(() -> {
-            start.await();
-            int allowed = 0;
-            for (int i = 0; i < 200; i++) if (limiter.tryAcquire("shared").allowed()) allowed++;
-            return allowed;
-        }));
-        start.countDown();
-        int total = 0;
-        for (Future<Integer> result : results) total += result.get(30, TimeUnit.SECONDS);
-        pool.shutdownNow();
-        assertEquals(100, total);
+        try (ExecutorService pool = Executors.newFixedThreadPool(threads)) {
+            try {
+                CountDownLatch start = new CountDownLatch(1);
+                List<Future<Integer>> results = new ArrayList<>();
+                for (int t = 0; t < threads; t++) results.add(pool.submit(() -> {
+                    start.await();
+                    int allowed = 0;
+                    for (int i = 0; i < 200; i++) if (limiter.tryAcquire("shared").allowed()) allowed++;
+                    return allowed;
+                }));
+                start.countDown();
+                int total = 0;
+                for (Future<Integer> result : results) total += result.get(30, TimeUnit.SECONDS);
+                assertEquals(100, total);
+            } finally {
+                pool.shutdownNow();
+            }
+        }
     }
 
     @Test void invalidConfigurationFailsFast() {

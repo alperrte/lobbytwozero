@@ -2,6 +2,9 @@
 
 Tarih: 2026-10-22 · Sorumlu: Hamza · Branch: feature/game-service
 
+Son güncelleme: **2026-10-29**. Güncel kalite, JWKS yaşam döngüsü ve JWT clock skew
+kapanışı **§16**'dadır. Önceki tarihli test, Sonar ve ortam kayıtları tarihsel kanıttır.
+
 ## 1. Amaç ve kapsam
 
 Game Service, mevcut Auth Service'in RS256 / `at+jwt` / JWKS sözleşmesine uyarlandı.
@@ -17,7 +20,9 @@ Doğrulama iki ayrı katmanda yürütüldü:
   PostgreSQL ve Mailpit ile kayıt → e-posta doğrulama → login → Game akışı.
   Bu çalışma mevcut DEV dağıtımının sağlıklı olduğunu kanıtlamaz.
 
-İlk kalite kapanışı §10'dadır. Açık ENV yazma onayı sonrasındaki en güncel DEV
+İlk entegrasyonun kapsamı yukarıda anlatılmıştır; sonraki hesap silme çalışmaları
+§13–15'te, Game/Library/Review kalite iyileştirmeleri §16'da kayıtlıdır.
+İlk kalite kapanışı §10'dadır. Açık ENV yazma onayı sonrasındaki son kayıtlı DEV
 doğrulaması §12'de kayıtlıdır. Eski `BLOCKED`/`NOT VERIFIED` durumları tarihsel
 kayıttır; güncel sonuç olarak kullanılmaz.
 
@@ -62,7 +67,11 @@ Game'e verilmez. `AUTH_SERVICE_URL` yoksa üretim başlangıcı güvenli biçimd
   `JwtTypeValidator(at+jwt)` doğrulayıcısına devreder.
 - `iss`, `aud` ve kanonik UUID `sub` zorunludur; kimlik başka claim'den alınmaz.
 - `exp`, `nbf`, `iat` zorunludur. `JwtTimestampValidator` süre/nbf kontrolünü yapar;
-  `iat` toleransın ötesinde gelecekte olamaz. Tolerans 0–60 saniye, varsayılan 60'tır.
+  `iat` toleransın ötesinde gelecekte olamaz. Tolerans 0–30 saniye, varsayılan 30'dur.
+  Clock skew belirtilmezse veya constructor'a null verilirse compact constructor
+  `DEFAULT_CLOCK_SKEW = Duration.ofSeconds(30)` değerini uygular. Açık 0 ve 30 saniye
+  korunur; negatif ve 30 saniyeden büyük değerleri `JwtDecoderConfiguration` reddeder.
+  Süre/nbf ve gelecekteki iat kontrolleri aynı toleransı ve UTC saatini kullanır.
 - `kid` boş olmayan metindir; JWKS anahtarı `kid` ve imzayla seçilir.
 - Nimbus süreç içi JWKS önbelleği kullanılır (varsayılan yaklaşık 5 dakika).
   Bilinen anahtarın tekrar indirilmemesi ve yeni `kid` ile yenileme testlidir.
@@ -73,6 +82,13 @@ Game'e verilmez. `AUTH_SERVICE_URL` yoksa üretim başlangıcı güvenli biçimd
 - Sabit public key alternatifi izole testlerde kullanılır; test JWKS ayarı açıkça
   boşaltılır. Fail-closed testleri her iki imza kaynağını da boşaltır.
 - JWKS adresi HTTP(S), host içeren, user-info/query/fragment taşımayan sunucu ayarıdır.
+
+2026-10-29 güncellemesi: kullanıcı JWT saat toleransı, Auth'un
+[2121117 commit'indeki ortak sözleşmeyle](https://github.com/alperrte/lobbytwozero/blob/2121117907c691d7fbc323ba0c01d7fa95f53e69/docs-auth/entegrasyon/README.md)
+hizalandı. Bu saat toleransı değişikliği servis token doğrulama sözleşmesini
+değiştirmedi. Servis JWT doğrulayıcılarının JWKS kaynak yönetimi iyileştirmeleri
+§16.2'de, son constructor varsayılanı §16.3'te açıklanır.
+İlerideki bölümlerde bulunan tarihli karar/test kayıtları kendi dönemlerini anlatır.
 
 Eski esnek token biçimleri artık kabul edilmez. Auth'un kanonik token biçimi
 değişmemiştir. [Spring Resource Server JWT belgesi](https://docs.spring.io/spring-security/reference/servlet/oauth2/resource-server/jwt.html)
@@ -149,6 +165,10 @@ ayrıcalık vermez. Tokensız korumalı uç 401'dir. Bearer ile doğrudan Game P
 
 ## 6. Test katmanları ve kanıt sınırları
 
+Bu bölümdeki sayılar ilk entegrasyon çalışmasının tarihsel sonuçlarıdır.
+2026-10-29 son doğrulamasında Game 338, Library 25 ve Review 25 test geçmiştir;
+güncel test/coverage ve pre-push kapsamı §16.5'tedir.
+
 `ProductionAuthSupport`, seçilmiş 13 Auth ve 6 Gateway üretim Java kaynağını
 geçici dizine JavaCompiler ve mevcut Lombok ile derler. Kaynaklar değiştirilmez;
 yeni Maven veya çalışma zamanı servis bağımlılığı eklenmez. 3072-bit test özel
@@ -176,9 +196,13 @@ Java katmanının kapsamı bunların canlı doğrulandığı anlamına gelmez.
 ## 7. D3, D4 ve hesap silme
 
 Game `sid`/`ver` ile bağımsız oturum doğrulamaz, Auth DB'sini sorgulamaz.
-D3 iptal yayılımı uygulanmadı. Auth varsayılan access ömrü 5 dakika; Game'in
-60 saniye toleransı dikkate alınmalıdır. Anlık rol/durum/oturum iptali garanti
-edilmez; Auth sahibi ve ortak olay/inbox tasarımıyla koordinasyon gerekir.
+D3 iptal yayılımı uygulanmadı. Güncel Auth varsayılan access ömrü 60 saniye,
+Game'in varsayılan ve en yüksek saat toleransı 30 saniyedir. Bu varsayılanlarla,
+son token'ın üretiminden itibaren kabul penceresi yaklaşık 90 saniyeye uzayabilir.
+Auth token ömrü konfigürasyonla değişebilir; 90 saniye bütün yapılandırmalar için
+mutlak üst sınır değildir. Kullanıcı JWT'sine yeni bir maksimum ömür doğrulaması
+eklenmedi. Anlık rol/durum/oturum iptali garanti edilmez; Auth sahibi ve ortak
+olay/inbox tasarımıyla koordinasyon gerekir.
 
 D4 Auth→servis yönü Auth tarafında uygulandı; Game de 16 silme hedefi arasındadır.
 2026-10-24'te Game'e ayrı servis JWT doğrulaması ve güvenli iç silme ucu eklendi.
@@ -981,3 +1005,144 @@ Git dışı kanıtlar `test-results/erasure-quality-20261024/` altında:
 `sonar-first-result.json`, `sonar-current-result.json`, `sonar-scanner.log`,
 `sonar-file-scope.json` ve `changed-files.json`. Bu dosyalar çalışma kanıtıdır,
 Git'e eklenmemiştir. Testler ve kalite kayıtları gizli değer içermez.
+
+## 16. 2026-10-29 — Güvenlik, kod kalitesi ve son JWT coverage kapanışı
+
+Bu bölüm 26–29 Ekim çalışmalarının son durumunu kaydeder. §10–15'teki eski test
+sayıları, açık engeller ve Sonar sonuçları kendi tarihleri için korunmuştur;
+aşağıdaki backend sonuçları yeni bir full DEV veya Sonar başarısı anlamına gelmez.
+
+### 16.1 Kod kalitesi ve davranışı koruyan refactor'lar
+
+Game, Library ve Review servislerinde wildcard importlar açık importlara çevrildi,
+kullanılmayan importlar temizlendi ve test kaynaklarının kapanışı düzenlendi.
+Game'de şu yedi CyclomaticComplexity bulgusu giderildi:
+
+- `AdminGameService`: düzenleme işlemleri `GameEditApplier` yardımcı sınıfına ayrıldı.
+  Transaction, lock, audit, version ve flush sırası korundu.
+- `GameTypeClassifier.classify`: tür/alias çözümlemesi sadeleştirildi.
+- `LocalizationService.apply`: yerelleştirme doğrulaması küçük metotlara ayrıldı.
+- `MediaUrlPolicy.validate`: URL ayrıştırma ve güvenlik denetimleri ayrıştırıldı;
+  kabul edilen kaynaklar veya güvenlik kuralları gevşetilmedi.
+- `MetadataProvenanceService.adminChanges`: alan durumu/provenance işlemleri ayrıldı.
+- `SteamGameProvider.normalize`: envelope, uygulama verisi ve cursor doğrulaması ayrıldı.
+- `JwtDecoderConfiguration.jwtDecoder`: imza kaynağı ve Auth sözleşmesi denetimleri
+  yardımcı metotlara ayrıldı; RS256, issuer/audience, typ/kid ve fail-closed korundu.
+
+Regresyon testleri bu düzenlemelerle birlikte genişletildi. Kural suppression'ı,
+kalite eşiği düşürme veya production kaynaklarını ölçümden çıkarma uygulanmadı.
+
+### 16.2 Servis JWT doğrulayıcılarında JWKS HttpClient yaşam döngüsü
+
+Kerem'le koordinasyon sonrasında üç servisin `ServiceTokenDecoderConfiguration`
+sınıfında JWKS HTTP kaynağı uygulama yaşam döngüsüne bağlandı:
+
+- `HttpClient` gerektiğinde oluşturulur ve aynı örnek sonraki isteklerde kullanılır.
+- Oluşturma ve kapanış eşzamanlı erişime karşı korunur; ayrı bir genel HttpClient
+  bean'i eklenmedi. `@PreDestroy` ile kapatılır; tekrar kapatma güvenlidir.
+- Bağlantı ve okuma timeout'ları **750 ms**, redirect politikası **NEVER** olarak korundu.
+- Public-key modunda veya anahtar yapılandırması yokken HTTP istemcisi oluşturulmaz.
+- Üç servisin her birinde yedi yaşam döngüsü testi; yeniden kullanım, cache/timeout,
+  redirect reddi, eşzamanlı oluşturma ve Spring context kapanışını doğrular.
+
+Bu kaynak yönetimi çalışması servis JWT claim sözleşmesini değiştirmedi.
+`svc+jwt`/`at+jwt` ayrımı, `sub=svc:auth-service` tam eşleşmesi, hedef audience,
+`account:erase` scope ve URL ile eşleşen `account_id` denetimleri korundu.
+Game'in onaylı D4 silme/anonimleştirme politikası ve V171 migration'ı değiştirilmedi;
+Library/Review için Game'e ait yeni bir saklama politikası uygulanmadı.
+
+### 16.3 Kullanıcı JWT saat toleransı ve yeni null sözleşmesi
+
+Game kullanıcı JWT toleransı **varsayılan 30 saniye, izin verilen aralık 0–30 saniye**
+olacak şekilde Auth sözleşmesine hizalandı. `exp`, `nbf` ve gelecekteki `iat`
+kontrolleri aynı clock ve clock skew değerini kullanır; üretimde UTC sistem saati,
+sınır testlerinde sabit clock kullanılır. Yeni bir kullanıcı JWT maksimum ömür
+kontrolü eklenmedi; §7'deki yaklaşık 90 saniyelik pencerenin koşulları geçerlidir.
+
+Kerem'in son önerisiyle `JwtSecurityProperties.clockSkew` üzerindeki
+`@DefaultValue("30s")` kaldırıldı ve varsayılan executable Java koduna taşındı:
+
+```java
+private static final Duration DEFAULT_CLOCK_SKEW = Duration.ofSeconds(30);
+
+public JwtSecurityProperties {
+    clockSkew = clockSkew == null ? DEFAULT_CLOCK_SKEW : clockSkew;
+}
+```
+
+Record bileşenleri, canonical constructor imzası ve property adları korundu.
+Diğer bileşenlerin `@DefaultValue` anotasyonları kullanıldığı için import korundu.
+Eksik property ve doğrudan constructor'a verilen **null artık 30 saniyeye dönüşür**;
+önceki null-reddi beklentisi bu yeni sözleşmeye göre güncellendi. Açık 0 ve 30 saniye
+değerleri korunur. Negatif ve 31 saniye dahil 30 saniyeyi aşan değerleri mevcut
+`JwtDecoderConfiguration` reddetmeye devam eder.
+
+`AuthJwtContractTest` 45'ten **48** vakaya çıktı. Mevcut 15 deterministik zaman
+sınırı vakası korundu; açık 0/30 binding'i için iki vaka ve null constructor için
+bir vaka eklendi. Null varsayılanıyla gelecekteki `iat` için +30 kabulü/+31 reddi
+ayrıca doğrulandı. İmza, issuer/audience, typ/kid ve diğer claim sınırları korundu.
+
+### 16.4 PR #30, coverage engeli ve baseline
+
+Main referansı `e6366223455192c691e3a54ce56b6514fb1cbe0c`, PR #30 merge commit'i
+`e9ed5c0`, import-only düzeltmesi `cf628e1`'dir. Main üzerinden alınan düzeltme,
+önceki 40 adaydan **39** import-only dosyanın semantik değişiklik sayılmasını giderdi.
+Kalan `JwtSecurityProperties` anotasyonu gerçek bir deklarasyon değişikliğiydi;
+JaCoCo executable satırı üretmediği için aynı hata devam etmişti:
+
+```text
+semantic Java change without measurable changed executable lines; review required
+```
+
+§16.3'teki constructor çözümüyle bu hata **ortadan kalktı**. Son JaCoCo raporunda
+`JwtSecurityProperties.java` satır **30, 32, 33 ve 34** ölçüldü; missed instruction
+sayısı sıfırdır. Ternary ifadenin null/nonnull iki dalı da çalıştı. Game'in main'e
+göre değişen executable satır kapsamı **171/174 = %98,28**, changed-line kapısı PASS'tır.
+
+Önceki kalite aşamasında `backend/config/quality-baseline.json` içindeki Game,
+Library ve Review kayıtları sıfırlandı; diğer 15 servisin değerleri korundu.
+Baseline ile birlikte 19 otomatik `docs-security` README'si yenilendi; diğer
+servis README'lerinde yalnız üretim tarihi değişti. Son constructor düzeltmesinde
+baseline, coverage politikası, ortak Maven/CI veya pre-push kodu değiştirilmedi.
+
+### 16.5 Son doğrulama ve kapsam sınırları
+
+Gerçek ENV okumadan, değiştirilmemiş `runBackendChecks` backend motoru üzerinden
+Maven **`ci,strict-quality`** profilleriyle üç servis sırayla doğrulandı. Testler
+göreve ait geçici PostgreSQL 17 ve Game Testcontainers veritabanlarını kullandı.
+DEV/production veritabanlarına erişilmedi; geçici PostgreSQL ve ağı kapatıldı.
+
+- **Game:** 338 test, failure/error/skipped **0/0/0**; JaCoCo LINE
+  **1618/1638 = %98,78**; Checkstyle **0**, PMD **0**;
+  **BACKEND TEST CHECK PASSED**, exit **0**.
+- **Library:** 25 test, failure/error/skipped **0/0/0**; JaCoCo LINE
+  **101/104 = %97,12**; Checkstyle **0**, PMD **0**;
+  **BACKEND TEST CHECK PASSED**, exit **0**.
+- **Review:** 25 test, failure/error/skipped **0/0/0**; JaCoCo LINE
+  **101/104 = %97,12**; Checkstyle **0**, PMD **0**;
+  **BACKEND TEST CHECK PASSED**, exit **0**.
+- Toplam **388 test** başarılıdır. Hedefli JWT sözleşme koşusunda ayrıca
+  **48/48** geçti; bu sayı 388'e tekrar eklenmez.
+- JWT/JWKS, D4, migration geçmişi/veri koruma, rollback ve audit güvenlik
+  regresyonları geçti. Üç servisteki toplam 21 JWKS yaşam döngüsü testi korundu.
+- İlk tam Game denemesinde `MigrationTransferTest` içindeki bir JDBC bağlantısı
+  Windows `SocketException: No buffer space available` hatası verdi. Kaynak veya
+  test değiştirilmeden tam clean verify/pre-push tekrarlandı; 338 testin tamamı geçti.
+- Son çalışma ağacı Gitleaks taraması PASS'tır. Son constructor görevinde yalnız
+  `JwtSecurityProperties.java` ve `AuthJwtContractTest.java` değişti; envanterdeki
+  diğer 379 dosya, Library/Review kaynakları, JWKS/D4 ve dokuz `Hamza/` raporu korundu.
+
+Bu sonuç üç servisin backend kontrollerine aittir. Son aşamada yeni **full DEV,
+tüm 18 servis veya SonarQube analizi çalıştırılmadı**; eski Sonar/runtime engellerinin
+kapandığı iddia edilmez. Backend başarısı tek başına repository genelinde
+`SAFE TO COMMIT`, production hazırlığı veya zorunlu GitHub kontrollerinin geçtiği
+anlamına gelmez. Son kaynak düzeltmesinde commit, push, fetch veya merge yapılmadı;
+commit/push işlemleri kullanıcıya bırakıldı. `Hamza/` raporları ve aşağıdaki kanıtlar
+commit kapsamı dışındadır.
+
+Git dışı güncel kanıtlar: `test-results/hamza-skew-constructor-20261029/results.json`,
+`jwt-contract-tests.log`, `prepush-game-service.log`, `prepush-library-service.log`,
+`prepush-review-service.log`, `prepush-game-service-attempt1.log`,
+`first-attempt-results.json` ve `secrets-worktree.log`. Önceki PR #30 teşhisi
+`test-results/hamza-pr30-20261029/` altındadır; oradaki anotasyon coverage engeli
+bu bölümdeki son constructor çalışmasıyla kapanmıştır.

@@ -2,23 +2,33 @@ package com.ltz.game.application.service;
 
 import com.ltz.game.api.dto.response.CatalogStatusResponse;
 import com.ltz.game.application.port.GameProvider;
-import com.ltz.game.domain.entity.*;
-import com.ltz.game.domain.enums.*;
+import com.ltz.game.domain.entity.Game;
+import com.ltz.game.domain.entity.GameExternalReference;
+import com.ltz.game.domain.entity.GameProviderSyncState;
+import com.ltz.game.domain.enums.CatalogRunMode;
+import com.ltz.game.domain.enums.CatalogSyncStatus;
+import com.ltz.game.domain.enums.GameOrigin;
+import com.ltz.game.domain.enums.GameType;
+import com.ltz.game.domain.enums.MetadataDataState;
+import com.ltz.game.domain.enums.OverridableField;
 import com.ltz.game.domain.exception.ProviderException;
-import com.ltz.game.infrastructure.persistence.repository.*;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import com.ltz.game.infrastructure.persistence.repository.GameExternalReferenceRepository;
+import com.ltz.game.infrastructure.persistence.repository.GameFieldOverrideRepository;
+import com.ltz.game.infrastructure.persistence.repository.GameProviderSyncStateRepository;
+import com.ltz.game.infrastructure.persistence.repository.GameRepository;
 import java.text.Normalizer;
-import java.time.Instant;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /** Her çağrıda tek sayfa; checkpoint ve retry durumu aynı transaction'da saklanır. */
 @Service @RequiredArgsConstructor

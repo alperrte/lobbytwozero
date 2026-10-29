@@ -1,7 +1,11 @@
 package com.ltz.game.application.port;
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.*;
+import java.util.Currency;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.UUID;
 /** GAME-24 hazırlığı: izinli sağlayıcı onaylanmadan adaptör/bean/ağ çağrısı yoktur. */
 public interface GamePriceProvider {
     /** Çoklu kimlik tek çağrıda; sağlayıcı kimliği ile LTZ gameId doğrulanmış eşleme gerektirir. */

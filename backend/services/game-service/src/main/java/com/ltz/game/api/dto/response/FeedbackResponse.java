@@ -1,5 +1,6 @@
 package com.ltz.game.api.dto.response;
-import com.ltz.game.domain.enums.*;
+import com.ltz.game.domain.enums.FeedbackStatus;
+import com.ltz.game.domain.enums.FeedbackType;
 import java.time.Instant;
 import java.util.UUID;
 /** Yazar kimliği ve profil bilgisi gereksiz yere geliştiriciye açılmaz. */

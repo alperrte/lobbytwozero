@@ -5,7 +5,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.testcontainers.postgresql.PostgreSQLContainer;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 class LocalizationMigrationTest {
     @Test void upgradingPopulatedV40PreservesGeneralLanguagesAndDoesNotInventVerification() {
         try(var postgres=new PostgreSQLContainer("postgres:17-alpine")) {

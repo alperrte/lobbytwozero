@@ -8,7 +8,8 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class MetadataProvenanceServiceTest {
     private final MetadataProvenanceService service=new MetadataProvenanceService(Clock.fixed(Instant.EPOCH,ZoneOffset.UTC));

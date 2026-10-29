@@ -39,8 +39,13 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -72,26 +77,27 @@ class ConcurrencyIntegrationTest extends AuthenticatedApiTest {
     // ------------------------------------------------------------------ yardımcılar
 
     <T> List<T> parallel(int count, IntFunction<Callable<T>> task) throws Exception {
-        ExecutorService pool = Executors.newFixedThreadPool(count);
-        try {
-            CountDownLatch ready = new CountDownLatch(count);
-            CountDownLatch go = new CountDownLatch(1);
-            List<Future<T>> futures = new ArrayList<>();
-            for (int i = 0; i < count; i++) {
-                Callable<T> work = task.apply(i);
-                futures.add(pool.submit(() -> {
-                    ready.countDown();
-                    go.await();
-                    return work.call();
-                }));
+        try (ExecutorService pool = Executors.newFixedThreadPool(count)) {
+            try {
+                CountDownLatch ready = new CountDownLatch(count);
+                CountDownLatch go = new CountDownLatch(1);
+                List<Future<T>> futures = new ArrayList<>();
+                for (int i = 0; i < count; i++) {
+                    Callable<T> work = task.apply(i);
+                    futures.add(pool.submit(() -> {
+                        ready.countDown();
+                        go.await();
+                        return work.call();
+                    }));
+                }
+                assertTrue(ready.await(20, TimeUnit.SECONDS));
+                go.countDown();
+                List<T> results = new ArrayList<>();
+                for (Future<T> future : futures) results.add(future.get(90, TimeUnit.SECONDS));
+                return results;
+            } finally {
+                pool.shutdownNow();
             }
-            assertTrue(ready.await(20, TimeUnit.SECONDS));
-            go.countDown();
-            List<T> results = new ArrayList<>();
-            for (Future<T> future : futures) results.add(future.get(90, TimeUnit.SECONDS));
-            return results;
-        } finally {
-            pool.shutdownNow();
         }
     }
 

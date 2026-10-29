@@ -3,10 +3,12 @@ package com.ltz.game.infrastructure.client;
 import com.ltz.game.application.port.GameProvider;
 import com.ltz.game.domain.exception.ProviderException;
 import com.ltz.game.infrastructure.client.dto.response.SteamCatalogEnvelope;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
-import java.time.Instant;
-import java.util.*;
 
 /** Sadece belgelenmiş GetAppList; mağaza scraping veya belgelenmemiş detay çağrısı yoktur. */
 public class SteamGameProvider implements GameProvider {
@@ -75,24 +77,36 @@ public class SteamGameProvider implements GameProvider {
         catch (NumberFormatException _) { return java.time.Duration.ofDays(2); }
     }
     private CatalogPage normalize(CatalogQuery query, SteamCatalogEnvelope envelope) {
+        var response = checkedResponse(query, envelope);
+        List<CatalogItem> items = new ArrayList<>();
+        long previous = query.afterAppId();
+        for (var app : response.apps()) {
+            validateApp(app, previous);
+            previous = app.appid();
+            items.add(new CatalogItem(Long.toString(app.appid()), app.name().strip(), Instant.ofEpochSecond(app.lastModified())));
+        }
+        validateContinuation(response, previous, items.isEmpty());
+        return new CatalogPage(items, previous, response.haveMoreResults());
+    }
+
+    private SteamCatalogEnvelope.Response checkedResponse(CatalogQuery query, SteamCatalogEnvelope envelope) {
         if (envelope == null || envelope.response() == null || envelope.response().apps() == null
                 || envelope.response().haveMoreResults() == null || envelope.response().apps().size() > query.size()) {
             throw new ProviderException("INVALID_PROVIDER_RESPONSE");
         }
-        var response = envelope.response();
-        List<CatalogItem> items = new ArrayList<>();
-        long previous = query.afterAppId();
-        for (var app : response.apps()) {
-            if (app == null || app.appid() == null || app.appid() <= previous || app.appid() > 4294967295L
+        return envelope.response();
+    }
+
+    private void validateApp(SteamCatalogEnvelope.App app, long previous) {
+        if (app == null || app.appid() == null || app.appid() <= previous || app.appid() > 4294967295L
                     || app.name() == null || app.name().isBlank() || app.name().length() > 256
                     || app.lastModified() == null || app.lastModified() < 0 || app.lastModified() > 4294967295L) {
-                throw new ProviderException("INVALID_PROVIDER_RESPONSE");
-            }
-            previous = app.appid();
-            items.add(new CatalogItem(Long.toString(app.appid()), app.name().strip(), Instant.ofEpochSecond(app.lastModified())));
+            throw new ProviderException("INVALID_PROVIDER_RESPONSE");
         }
+    }
+
+    private void validateContinuation(SteamCatalogEnvelope.Response response, long previous, boolean empty) {
         if (response.lastAppId() != null && response.lastAppId() != previous) throw new ProviderException("INVALID_PROVIDER_RESPONSE");
-        if (Boolean.TRUE.equals(response.haveMoreResults()) && items.isEmpty()) throw new ProviderException("INVALID_PROVIDER_RESPONSE");
-        return new CatalogPage(items, previous, response.haveMoreResults());
+        if (Boolean.TRUE.equals(response.haveMoreResults()) && empty) throw new ProviderException("INVALID_PROVIDER_RESPONSE");
     }
 }

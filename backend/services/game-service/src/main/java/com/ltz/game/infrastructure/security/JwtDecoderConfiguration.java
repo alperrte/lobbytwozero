@@ -4,6 +4,7 @@ import java.net.URI;
 import java.security.KeyFactory;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.X509EncodedKeySpec;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
@@ -34,32 +35,50 @@ public class JwtDecoderConfiguration {
     @org.springframework.context.annotation.Primary
     JwtDecoder jwtDecoder(JwtSecurityProperties properties) {
         if (!properties.hasJwkSetUri() && !properties.hasPublicKey()) return new FailClosedJwtDecoder();
+        validateSignatureSource(properties);
+        validateAuthContract(properties);
+        NimbusJwtDecoder decoder = createDecoder(properties);
+        decoder.setJwtValidator(validator(properties));
+        return decoder;
+    }
+
+    private static void validateSignatureSource(JwtSecurityProperties properties) {
         if (properties.hasJwkSetUri() && properties.hasPublicKey())
             throw new IllegalStateException("JWT imza kaynağı olarak yalnız biri yapılandırılabilir.");
         if (isBlank(properties.issuer()) || isBlank(properties.audience()))
             throw new IllegalStateException("JWT issuer ve audience, imza kaynağıyla birlikte zorunludur.");
+    }
+
+    private static void validateAuthContract(JwtSecurityProperties properties) {
         if (!"RS256".equals(properties.algorithm()))
             throw new IllegalStateException("Desteklenmeyen JWT imza algoritması.");
         if (!"sub".equals(properties.userIdClaim()) || !"roles".equals(properties.rolesClaim()))
             throw new IllegalStateException("Auth kimlik ve rol claim adları sub ve roles olmalıdır.");
         if (properties.clockSkew() == null || properties.clockSkew().isNegative()
-                || properties.clockSkew().compareTo(Duration.ofSeconds(60)) > 0)
-            throw new IllegalStateException("JWT saat toleransı 0–60 saniye olmalıdır.");
+                || properties.clockSkew().compareTo(Duration.ofSeconds(30)) > 0)
+            throw new IllegalStateException("JWT saat toleransı 0–30 saniye olmalıdır.");
+    }
+
+    private static NimbusJwtDecoder createDecoder(JwtSecurityProperties properties) {
         SignatureAlgorithm algorithm = Objects.requireNonNull(SignatureAlgorithm.from(properties.algorithm()), "JWT imza algoritması");
-        NimbusJwtDecoder decoder = properties.hasJwkSetUri()
+        return properties.hasJwkSetUri()
                 ? NimbusJwtDecoder.withJwkSetUri(checkedUri(properties.jwkSetUri())).jwsAlgorithm(algorithm).validateType(false).build()
                 : NimbusJwtDecoder.withPublicKey(parseRsaPublicKey(properties.publicKey())).signatureAlgorithm(algorithm).validateType(false).build();
-        decoder.setJwtValidator(validator(properties));
-        return decoder;
     }
 
     static OAuth2TokenValidator<Jwt> validator(JwtSecurityProperties properties) {
+        return validator(properties, Clock.systemUTC());
+    }
+
+    static OAuth2TokenValidator<Jwt> validator(JwtSecurityProperties properties, Clock clock) {
+        var timestamps = new JwtTimestampValidator(properties.clockSkew());
+        timestamps.setClock(clock);
         return new DelegatingOAuth2TokenValidator<>(List.of(
-                new JwtTimestampValidator(properties.clockSkew()),
+                timestamps,
                 new JwtTypeValidator("at+jwt"),
                 new JwtClaimValidator<Object>("exp", Objects::nonNull),
                 new JwtClaimValidator<Object>("nbf", Objects::nonNull),
-                new JwtClaimValidator<Instant>("iat", issued -> issued != null && !issued.isAfter(Instant.now().plus(properties.clockSkew()))),
+                new JwtClaimValidator<Instant>("iat", issued -> issued != null && !issued.isAfter(clock.instant().plus(properties.clockSkew()))),
                 new JwtIssuerValidator(properties.issuer()),
                 new JwtClaimValidator<List<String>>("aud", audience -> audience != null && audience.contains(properties.audience())),
                 keyIdPresent(), subjectIsUuid("sub")));

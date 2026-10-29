@@ -43,12 +43,11 @@ final class MigrationSchemaSupport {
     }
 
     static void validateHibernate(DriverManagerDataSource source) throws Exception {
-        var registry = new StandardServiceRegistryBuilder().applySettings(Map.of(
+        try (var registry = new StandardServiceRegistryBuilder().applySettings(Map.of(
                 "hibernate.connection.url", Objects.requireNonNull(source.getUrl()),
                 "hibernate.connection.username", Objects.requireNonNull(source.getUsername()),
                 "hibernate.connection.password", Objects.requireNonNull(source.getPassword()),
-                "hibernate.hbm2ddl.auto", "validate", "hibernate.show_sql", "false")).build();
-        try {
+                "hibernate.hbm2ddl.auto", "validate", "hibernate.show_sql", "false")).build()) {
             var sources = new MetadataSources(registry);
             try (var files = Files.list(Path.of("src/main/java/com/ltz/game/domain/entity"))) {
                 for (Path file : files.filter(p -> p.toString().endsWith(".java")).toList()) {
@@ -61,8 +60,6 @@ final class MigrationSchemaSupport {
                     new PhysicalNamingStrategySnakeCaseImpl()).build().buildSessionFactory()) {
                 assertTrue(factory.isOpen());
             }
-        } finally {
-            StandardServiceRegistryBuilder.destroy(registry);
         }
     }
 }

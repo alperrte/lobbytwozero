@@ -1,6 +1,7 @@
 package com.ltz.game.api.dto.response;
 
-import com.ltz.game.domain.enums.*;
+import com.ltz.game.domain.enums.CatalogRunMode;
+import com.ltz.game.domain.enums.CatalogSyncStatus;
 import java.time.Instant;
 
 public record CatalogStatusResponse(String provider, CatalogRunMode runMode, CatalogSyncStatus syncStatus,

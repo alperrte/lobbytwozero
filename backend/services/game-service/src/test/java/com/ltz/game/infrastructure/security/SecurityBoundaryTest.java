@@ -1,7 +1,7 @@
 package com.ltz.game.infrastructure.security;
 
-import com.nimbusds.jwt.PlainJWT;
 import com.ltz.game.AuthenticatedApiTest;
+import com.nimbusds.jwt.PlainJWT;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
@@ -12,8 +12,15 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * JWT doğrulama, rol çözümleme ve uç yetkilendirme sınırı. Tüm token'lar bu testte yerel üretilmiştir; bu sınıf
