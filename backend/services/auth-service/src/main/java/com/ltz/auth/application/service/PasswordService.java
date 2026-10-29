@@ -10,8 +10,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.ltz.auth.application.port.PasswordResetMail;
+import com.ltz.auth.application.port.SecurityNotificationType;
 import com.ltz.auth.domain.entity.Account;
 import com.ltz.auth.domain.entity.PasswordResetToken;
+import com.ltz.auth.domain.enums.DeviceRevokeReason;
 import com.ltz.auth.domain.enums.PasswordResetInvalidationReason;
 import com.ltz.auth.domain.enums.SecurityEventType;
 import com.ltz.auth.domain.enums.SessionRevokeReason;
@@ -40,8 +42,11 @@ public class PasswordService {
 
     private final AccountRepository accountRepository;
     private final AuthSessionRepository sessionRepository;
+    private final DeviceRevoker deviceRevoker;
+    private final SecurityNotificationDispatcher notifier;
     private final PasswordResetTokenRepository resetTokenRepository;
     private final PasswordEncoder passwordEncoder;
+    private final PasswordPolicy passwordPolicy;
     private final AttemptThrottleService attemptThrottle;
     private final VerificationCodeHasher hasher;
     private final SecureTokens secureTokens;
@@ -55,8 +60,8 @@ public class PasswordService {
     public void changePassword(UUID accountId, String currentPassword, String newPassword) {
         String throttleKey = hasher.hash(CHANGE_THROTTLE_DOMAIN, accountId.toString());
         attemptThrottle.reserve(throttleKey);
-        String currentHash = transactionTemplate.execute(status -> accountRepository.findById(accountId)
-                .flatMap(Account::passwordHash)).orElse(null);
+        Account current = transactionTemplate.execute(status -> accountRepository.findById(accountId).orElse(null));
+        String currentHash = current == null ? null : current.passwordHash().orElse(null);
         if (currentHash == null || !passwordEncoder.matches(currentPassword, currentHash)) {
             securityEventRecorder.recordEvent(SecurityEventType.PASSWORD_CHANGE_FAILED, accountId);
             throw new AuthException(AuthErrorCode.CURRENT_PASSWORD_INVALID);
@@ -64,6 +69,7 @@ public class PasswordService {
         if (passwordEncoder.matches(newPassword, currentHash)) {
             throw new AuthException(AuthErrorCode.NEW_PASSWORD_SAME_AS_CURRENT);
         }
+        passwordPolicy.require(newPassword, current.getEmail(), current.getUsername());
         String newHash = passwordEncoder.encode(newPassword);
         transactionTemplate.executeWithoutResult(status -> {
             Instant now = clock.instant();
@@ -76,8 +82,10 @@ public class PasswordService {
             account.changePassword(newHash, now);
             // Toplu güncellemeler persistence context'i temizler; hesap değişikliği önce flush edilir.
             sessionRepository.revokeAllActive(accountId, SessionRevokeReason.PASSWORD_CHANGED, now);
+            deviceRevoker.revokeAll(accountId, DeviceRevokeReason.PASSWORD_CHANGED, now);
             resetTokenRepository.invalidateActive(accountId, PasswordResetInvalidationReason.PASSWORD_CHANGED, now);
             securityEventRecorder.recordEvent(SecurityEventType.PASSWORD_CHANGED, accountId);
+            notifier.notifyAfterCommit(accountId, account.getEmail(), SecurityNotificationType.PASSWORD_CHANGED);
         });
         attemptThrottle.clear(throttleKey);
     }
@@ -96,11 +104,14 @@ public class PasswordService {
     public void resetPassword(String rawToken, String newPassword) {
         String tokenHash = secureTokens.sha256Hex(rawToken);
         // Çöp token için maliyetli parola hash'i hesaplanmaz.
-        boolean plausible = Boolean.TRUE.equals(transactionTemplate.execute(status ->
-                resetTokenRepository.findByTokenHash(tokenHash).filter(t -> t.isUsableAt(clock.instant())).isPresent()));
-        if (!plausible) {
+        Account owner = transactionTemplate.execute(status -> resetTokenRepository.findByTokenHash(tokenHash)
+                .filter(t -> t.isUsableAt(clock.instant()))
+                .flatMap(t -> accountRepository.findById(t.getAccountId()))
+                .orElse(null));
+        if (owner == null) {
             throw invalidToken();
         }
+        passwordPolicy.require(newPassword, owner.getEmail(), owner.getUsername());
         String newHash = passwordEncoder.encode(newPassword);
         boolean done = Boolean.TRUE.equals(transactionTemplate.execute(status -> applyReset(tokenHash, newHash)));
         if (!done) {
@@ -126,7 +137,9 @@ public class PasswordService {
         token.consume(now);
         account.changePassword(newHash, now);
         sessionRepository.revokeAllActive(account.getId(), SessionRevokeReason.PASSWORD_RESET, now);
+        deviceRevoker.revokeAll(account.getId(), DeviceRevokeReason.PASSWORD_RESET, now);
         securityEventRecorder.recordEvent(SecurityEventType.PASSWORD_RESET_COMPLETED, account.getId());
+        notifier.notifyAfterCommit(account.getId(), account.getEmail(), SecurityNotificationType.PASSWORD_RESET);
         return true;
     }
 

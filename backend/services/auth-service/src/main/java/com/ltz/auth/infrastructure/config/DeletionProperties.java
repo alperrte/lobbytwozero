@@ -21,6 +21,8 @@ import jakarta.validation.constraints.Pattern;
  * DELETED olmaz. recentLoginWindow: parolasız (sosyal) hesaplarda yeniden doğrulama olarak kabul edilen en eski giriş.
  * Worker ayarları koordinasyon döngüsünü yönetir (kira, üstel geri çekilme). stuckAttempts: bu kadar başarısız
  * denemeden sonra görev "takılı" sayılır (uyarı günlüğü + yönetici uç noktasında işaretlenir); otomatik onaylanmaz.
+ * gracePeriod: silme onayından sonra geri alma süresi (varsayılan 14 gün); bitince Auth PII anonimleştirilir ve görevler
+ * başlar. 0 yalnız testlerde anlamlıdır.
  * serviceUrls: her hedefin iç taban adresi ({@code <SERVİS>_SERVICE_URL}); her hedef için zorunludur
  * ({@link DeletionConfig} açılışta denetler). httpTimeout: hedef servis çağrısının bağlantı ve okuma süresi.
  */
@@ -40,5 +42,6 @@ public record DeletionProperties(
         @NotNull @DurationMin(seconds = 10) Duration lease,
         @NotNull @DurationMin(seconds = 1) Duration initialBackoff,
         @NotNull @DurationMin(seconds = 1) Duration maxBackoff,
-        @Min(1) @Max(1000) int stuckAttempts) {
+        @Min(1) @Max(1000) int stuckAttempts,
+        @NotNull @DurationMin(seconds = 0) @DurationMax(days = 90) Duration gracePeriod) {
 }

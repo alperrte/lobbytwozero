@@ -155,7 +155,7 @@ Public
 {
   "email": "string, zorunlu, geçerli e-posta, en fazla 254 karakter (büyük/küçük harf duyarsız tekil)",
   "username": "string, zorunlu, ^[A-Za-z0-9_]{3,20}$ (büyük/küçük harf duyarsız tekil, görünen biçim korunur)",
-  "password": "string, zorunlu, 12-128 karakter; içeriği dönüştürülmez"
+  "password": "string, zorunlu, 15-128 karakter; içeriği dönüştürülmez; yaygın/tahmin edilebilir parola reddedilir (WEAK_PASSWORD)"
 }
 ```
 
@@ -168,7 +168,7 @@ Public
 E-posta zaten kayıtlıysa da aynı yanıt döner; yeni hesap açılmaz. Hesap `PENDING_VERIFICATION` durumunda ve yalnız `PLAYER` rolüyle oluşur.
 
 #### Hata Durumları
-- 400: Doğrulama hatası (`VALIDATION_FAILED`) veya okunamayan/bilinmeyen alan içeren gövde (`MALFORMED_REQUEST`)
+- 400: Doğrulama hatası (`VALIDATION_FAILED`), zayıf parola (`WEAK_PASSWORD`: yaygın parola listesi, tekrar/ardışık desen, kullanıcı adı veya e-posta yerel kısmını içerme, servis adı) veya okunamayan/bilinmeyen alan içeren gövde (`MALFORMED_REQUEST`)
 - 409: Kullanıcı adı kullanımda (`USERNAME_TAKEN`)
 - 413: İstek gövdesi çok büyük (`PAYLOAD_TOO_LARGE`)
 - 503: Parola hash kapasitesi geçici olarak dolu (`SERVICE_BUSY`)
@@ -278,7 +278,7 @@ UNIT + INTEGRATION
 
 - Token'lar yalnız HttpOnly cookie'dedir, gövdede dönmez: `__Host-ltz_access` (Secure, SameSite=Lax, Path=/), `__Secure-ltz_refresh` (Secure, SameSite=Strict, Path=/api/v1/auth/session). Production'da Secure kapatılamaz.
 - **CSRF:** Aşağıdaki POST uçları `X-XSRF-TOKEN` başlığı ister; değer `__Host-XSRF-TOKEN` cookie'sinden okunur (`GET /api/v1/auth/csrf` ile üretilir). `Authorization: Bearer` başlığı taşıyan istekler (tarayıcı dışı istemci) muaftır. Eksik/yanlış token: `403 CSRF_TOKEN_INVALID`.
-- **Access token (JWT, RS256):** `iss`, `sub` (hesap UUID), `aud=ltz-api`, `iat`, `nbf`, `exp` (5 dk), `jti`, `sid` (oturum), `ver` (token sürümü), `roles`, `amr`; başlık `typ=at+jwt`, `kid`. Diğer servisler imzayı JWKS ile doğrular. Auth uçlarında oturum/hesap durumu her istekte denetlenir (anında iptal); diğer servislerde iptal gecikmesi D3 kararına bağlıdır.
+- **Access token (JWT, RS256):** `iss`, `sub` (hesap UUID), `aud=ltz-api`, `iat`, `nbf`, `exp` (varsayılan 60 sn; `JWT_ACCESS_TTL_SECONDS`, 1–15 dk), `jti`, `sid` (oturum), `ver` (token sürümü), `roles`, `amr`; başlık `typ=at+jwt`, `kid`. Diğer servisler imzayı JWKS ile doğrular. Auth uçlarında oturum/hesap durumu her istekte denetlenir (anında iptal); diğer servislerde iptal gecikmesi D3 kararına bağlıdır.
 - Kimliksiz istek `401 UNAUTHENTICATED`, izinsiz `403 FORBIDDEN`. Parola/2FA denemeleri: 15 dakikada 5 hata → `429 TOO_MANY_ATTEMPTS` + `Retry-After`.
 
 ### AUTH — Giriş
@@ -523,7 +523,7 @@ Authenticated (+ CSRF). Hesap kimliği yalnız token'dan alınır.
 ```json
 {
   "currentPassword": "string, zorunlu",
-  "newPassword": "string, zorunlu, 12-128 karakter; içeriği dönüştürülmez/kırpılmaz",
+  "newPassword": "string, zorunlu, 15-128 karakter; içeriği dönüştürülmez/kırpılmaz; yaygın/tahmin edilebilir parola reddedilir (WEAK_PASSWORD)",
   "newPasswordConfirmation": "string, zorunlu, newPassword ile birebir aynı"
 }
 ```
@@ -532,7 +532,7 @@ Authenticated (+ CSRF). Hesap kimliği yalnız token'dan alınır.
 Gövde yok. Hesabın **tüm** oturumları (bu cihaz dahil) iptal edilir, token sürümü artar (eski access token'lar düşer), bekleyen sıfırlama token'ları geçersiz olur, cookie'ler silinir; yeniden giriş gerekir. 2FA etkilenmez.
 
 #### Hata Durumları
-- 400: Doğrulama hatası (`VALIDATION_FAILED`; tekrar uyuşmazlığı alanı `newPasswordConfirmed`), mevcut parola yanlış (`CURRENT_PASSWORD_INVALID`; parolasız harici hesap dahil), yeni parola mevcutla aynı (`NEW_PASSWORD_SAME_AS_CURRENT`)
+- 400: Doğrulama hatası (`VALIDATION_FAILED`; tekrar uyuşmazlığı alanı `newPasswordConfirmed`), mevcut parola yanlış (`CURRENT_PASSWORD_INVALID`; parolasız harici hesap dahil), yeni parola mevcutla aynı (`NEW_PASSWORD_SAME_AS_CURRENT`), zayıf yeni parola (`WEAK_PASSWORD`)
 - 401: Kimliksiz veya oturum geçersiz
 - 403: CSRF
 - 429: Mevcut parola denemesi hesap bazında 15 dakikada 5 hatayla sınırlı (`TOO_MANY_ATTEMPTS`, `Retry-After`)
@@ -543,6 +543,58 @@ API Gateway üzerinden /api/v1/auth/password/change
 
 Diğer mikroservisler:
 -
+
+#### Test Durumu
+INTEGRATION
+
+### AUTH — E-posta değiştir
+
+Durum: IMPLEMENTED (development'ta Mailpit; production e-posta teslimi PENDING)
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+- POST /api/v1/auth/email/change — yeniden doğrulama + yeni adres; yanıt `202 { "nextStep": "VERIFY_EMAIL" }`
+- POST /api/v1/auth/email/change/confirm — yeni adrese gelen kod; yanıt `204`
+
+#### Yetkilendirme
+Authenticated (+ CSRF). Hesap kimliği yalnız token'dan alınır.
+
+#### Request Body (`change`)
+```json
+{
+  "newEmail": "string, zorunlu, geçerli e-posta, en fazla 254 karakter",
+  "password": "string, zorunlu (mevcut parola)",
+  "code": "string ^[0-9]{6}$; TOTP etkinse code veya recoveryCode zorunlu (yalnız biri)",
+  "recoveryCode": "string"
+}
+```
+
+#### Request Body (`confirm`)
+```json
+{ "code": "string, zorunlu, ^[0-9]{6}$ (yeni adrese gelen kod)" }
+```
+
+#### Davranış
+- `change`: parola (+ TOTP) doğrulanırsa **yeni** adrese 6 haneli, tek kullanımlık kod gider (kayıttaki doğrulama koduyla aynı TTL, deneme sınırı ve bekleme/günlük limit kuralları). Hesap adresi bu aşamada değişmez; yeni istek eski kodu geçersiz kılar. Yeni adres başka hesapta varsa (veya mevcut adresle aynıysa) yanıt aynıdır, kod gönderilmez (e-posta numaralandırması sızmaz).
+- `confirm`: kod doğruysa adres değişir ve doğrulanmış sayılır; hesabın **tüm** oturumları iptal edilir, token sürümü artar, eski adrese gitmiş bekleyen parola sıfırlama bağlantıları geçersiz olur, cookie'ler silinir; yeni adresle yeniden giriş gerekir. Kod tek kullanımlıktır.
+- Parolasız (yalnız Google/Steam) hesap bu uçtan adres değiştiremez (`PASSWORD_REQUIRED`).
+- Yeni adres yalnız bekleyen kod satırında tutulur; süresi dolan kod (ve adres) temizlik işiyle, hesap silinirken silme akışıyla silinir.
+- **Açık:** eski adrese "e-posta adresiniz değişti" bildirimi gönderilmez (Mail Service bildirim sözleşmesi yok; B12 ile birlikte PENDING).
+
+#### Hata Durumları
+- 400: Doğrulama; yanlış parola (`CURRENT_PASSWORD_INVALID`); yanlış/eksik ikinci faktör (`INVALID_TWO_FACTOR_CODE`); kod yanlış/süresi dolmuş/deneme hakkı bitmiş veya adres bu arada başkasına geçmiş (`EMAIL_CHANGE_INVALID`, tek yanıt)
+- 401: Kimliksiz / oturum geçersiz
+- 403: CSRF
+- 409: Hesapta parola yok (`PASSWORD_REQUIRED`)
+- 429: Yeniden doğrulama denemesi hesap bazında sınırlı (`TOO_MANY_ATTEMPTS`)
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/auth/email/**
+
+Diğer mikroservisler:
+Mail Service (`VerificationCodeMailPort`, alıcı = yeni adres; amaç alanı port sözleşmesinde yok) — production **PENDING**, development'ta Mailpit. **User Service:** adres değişikliği için olay/çağrı yok (`UserRegistered` gibi Auth→User olayları PLANNED); profil servisi e-posta tutuyorsa ayrıca senkronize edilmelidir.
 
 #### Test Durumu
 INTEGRATION
@@ -567,7 +619,7 @@ Public (cookie okumaz; CSRF gerekmez). `reset` yetkisini gövdedeki tek kullanı
 - Teslim edilemeyen token `DELIVERY_FAILED` ile geçersiz kılınır; yanıt gönderim iddia etmez.
 
 #### Hata Durumları
-- 400: Doğrulama hatası; `PASSWORD_RESET_TOKEN_INVALID` (geçersiz, süresi dolmuş, kullanılmış, hesap aktif değil — tek yanıt)
+- 400: Doğrulama hatası; `PASSWORD_RESET_TOKEN_INVALID` (geçersiz, süresi dolmuş, kullanılmış, hesap aktif değil — tek yanıt); `WEAK_PASSWORD` (token tüketilmez, aynı bağlantıyla güçlü parola denenebilir)
 - 429: `forgot` istek sınırı (`Retry-After`)
 
 #### Bağlantı
@@ -598,7 +650,7 @@ Tüketici servisler: Frontend (yönetim paneli), admin-service (servis kimliği 
 Admin: geçerli access token + `ROLE_ADMIN`, servis sınırında SecurityConfig ile zorunlu (Gateway'e/arayüze bırakılmaz); kimliksiz `401`, ADMIN olmayan `403`. Cookie ile çağrıda CSRF gerekir; `Authorization: Bearer` ile gerekmez. Yönetici kimliği yalnız token'dan alınır.
 
 #### Kurallar
-- **Durum geçişleri:** `ACTIVE → SUSPENDED|BANNED|DISABLED`, `SUSPENDED → ACTIVE|BANNED`, `DISABLED → ACTIVE`. `BANNED` sondur (kaldırma kararı açık). `PENDING_VERIFICATION` (AUTH-02) ve `DELETION_REQUESTED/DELETED` (AUTH-16) bu uçtan yönetilmez. Süreli askı henüz yok.
+- **Durum geçişleri:** `ACTIVE → SUSPENDED|BANNED|DISABLED`, `SUSPENDED → ACTIVE|BANNED`, `DISABLED → ACTIVE`, `BANNED → ACTIVE` (yasak yönetici kararıyla kaldırılabilir; gerekçe ve denetim kaydı zorunlu). `PENDING_VERIFICATION` (AUTH-02) ve `DELETION_REQUESTED/DELETED` (AUTH-16) bu uçtan yönetilmez. Süreli askı henüz yok.
 - **ACTIVE dışına çıkış:** hesabın tüm oturumları iptal edilir ve token sürümü artar; eski access/refresh token'lar auth uçlarında anında düşer, giriş `403` olur.
 - **Rol değişikliği:** hesabın oturumları iptal edilir (yeni rol için yeniden giriş). `PLAYER` alınamaz. `ADMIN`/`MODERATOR` yalnız **ACTIVE ve TOTP'si etkin** hesaba verilir (2FA zorunluluğu atlatılamaz).
 - **Yetki yükseltme yok:** yönetici kendi durumunu/rolünü değiştiremez (`SELF_MODIFICATION_FORBIDDEN`).
@@ -629,9 +681,22 @@ Tüketici servisler: Frontend
 #### Endpoint
 - POST /api/v1/auth/account/deletion/request — yeniden doğrulama; yanıt `202 { "nextStep": "CONFIRM_BY_EMAIL" }`
 - POST /api/v1/auth/account/deletion/confirm — `{ "token": "…", "username": "…" }`; yanıt `202 { "nextStep": "DELETION_IN_PROGRESS" }`
+- POST /api/v1/auth/account/deletion/cancel — bekleme süresi içinde vazgeçme (aşağıda); yanıt `200 { "nextStep": "DELETION_CANCELLED" }`
 
 #### Yetkilendirme
-Authenticated (+ CSRF). Hesap ve oturum yalnız token'dan alınır; e-posta token'ı yalnız isteği yapan hesap için geçerlidir.
+`request` ve `confirm`: Authenticated (+ CSRF). Hesap ve oturum yalnız token'dan alınır; e-posta token'ı yalnız isteği yapan hesap için geçerlidir.
+`cancel`: Public (cookie okumaz, CSRF gerekmez, oturum açmaz); kimlik gövdedeki parolayla doğrulanır.
+
+#### Request Body (`cancel`)
+```json
+{
+  "identifier": "string, zorunlu, e-posta veya kullanıcı adı",
+  "password": "string, zorunlu",
+  "code": "string ^[0-9]{6}$; TOTP etkinse code veya recoveryCode zorunlu (yalnız biri)",
+  "recoveryCode": "string"
+}
+```
+Parolasız (yalnız Google/Steam) hesap bu uçla iptal edemez (yönetici müdahalesi gerekir). Başarıda oturum açılmaz; kullanıcı normal girişle devam eder.
 
 #### Request Body (`request`)
 ```json
@@ -645,7 +710,9 @@ Parolasız (yalnız Google/Steam) hesapta parola gönderilmez; son 10 dakika iç
 
 #### Davranış
 1. **İstek:** yeniden doğrulama + TOTP başarılıysa e-postaya 256 bit, tek kullanımlık, 30 dk geçerli token gider (bağlantı: `{FRONTEND_PUBLIC_URL}/account/delete#token=…`; yalnız SHA-256 özeti saklanır). Hesap bu aşamada silinmez. Aynı hesap için 60 sn içindeki ikinci istek yeni e-posta üretmez; yeni istek eski token'ı geçersiz kılar.
-2. **Onay:** token + kullanıcı adının yazılması (açık onay). Hesap `DELETION_REQUESTED` olur, tüm oturumlar iptal edilir, cookie'ler silinir, hesap başına **tek** silme talebi ve her veri sahibi servis için bir silme görevi açılır (idempotent).
+2. **Onay:** token + kullanıcı adının yazılması (açık onay). Hesap `DELETION_REQUESTED` olur, tüm oturumlar iptal edilir, cookie'ler silinir, hesap başına **tek** silme talebi ve her veri sahibi servis için bir silme görevi açılır (idempotent). Talep **14 günlük geri alma (bekleme) süresiyle** zamanlanır (`ltz.auth.deletion.grace-period`, `scheduled_for`); görevler bu süre bitene kadar çalışmaz. Bu sürede giriş `403 ACCOUNT_DELETION_PENDING` döner (parola doğruysa; hesap kapalı).
+2a. **İptal:** süre dolmadan `cancel` doğru parolayla (+ TOTP) çağrılırsa hesap `ACTIVE` olur, görevler silinir, talep `CANCELLED` olur; tüm eski token'lar geçersiz kalır. Süre dolduktan sonra `409 DELETION_CANCEL_WINDOW_CLOSED`. İptal sonrası yeniden silme isteği aynı talebi yeni bekleme süresiyle yeniden açar.
+2b. **Bekleme bitince:** vadesi gelen ilk görevle birlikte Auth PII'si (e-posta, kullanıcı adı, parola özeti, harici kimlikler, TOTP, kurtarma kodları, oturumlar) **hemen** silinir/anonimleştirilir; servislerin onayı gecikse bile Auth'ta kişisel veri kalmaz. Hesap kimliği ve durum (`DELETION_REQUESTED`) kalır; "silindi" yalnız tüm servisler onaylayınca denir.
 3. **Koordinasyon (arka plan):** Auth her servise `DELETE <SERVICE>_SERVICE_URL/internal/v1/accounts/{accountId}` çağrısı yapar (idempotent; her çağrıda yeni D4 servis token'ı; yalnız `200`/`204` = silindi, `202`/`3xx`/`404`/`401`/`403`/`5xx`/zaman aşımı onay değildir). Başarısız görev üstel geri çekilmeyle (1 dk → en fazla 6 sa) yeniden denenir; onaylanan görev tekrarlanmaz. **Tüm** servisler onaylayınca Auth'a ait kişisel veri silinir ve hesap anonimleştirilip `DELETED` olur.
 4. **Saklananlar (KVKK/denetim):** güvenlik olayları (1 yıl), durum ve rol geçmişi, silme talebi/görev kayıtları, anonimleştirilmiş hesap iskeleti (kimlik). **Silinenler:** e-posta, kullanıcı adı, parola özeti, harici kimlikler, TOTP sırrı, kurtarma kodları, oturumlar, tüm token'lar.
 
@@ -653,8 +720,9 @@ Parolasız (yalnız Google/Steam) hesapta parola gönderilmez; son 10 dakika iç
 - 400: Doğrulama; yanlış parola (`CURRENT_PASSWORD_INVALID`); yanlış/eksik ikinci faktör (`INVALID_TWO_FACTOR_CODE`); geçersiz/süresi dolmuş token veya yanlış kullanıcı adı (`DELETION_CONFIRMATION_INVALID`)
 - 401: Kimliksiz / oturum geçersiz (onaydan sonra eski oturum dahil)
 - 403: `REAUTHENTICATION_REQUIRED`; CSRF
-- 409: Yönetici hesabı silinemez (`ADMIN_DELETION_FORBIDDEN`; önce ADMIN rolü kaldırılmalı)
-- 429: Yeniden doğrulama denemesi hesap bazında sınırlı (`TOO_MANY_ATTEMPTS`)
+- 409: Yönetici hesabı silinemez (`ADMIN_DELETION_FORBIDDEN`; önce ADMIN rolü kaldırılmalı); `cancel`: iptal edilecek silme yok (`DELETION_NOT_PENDING`) veya bekleme süresi bitti (`DELETION_CANCEL_WINDOW_CLOSED`)
+- 401: `cancel` için yanlış/bilinmeyen kimlik tek yanıt (`INVALID_CREDENTIALS`)
+- 429: Yeniden doğrulama / iptal denemesi hesap bazında sınırlı (`TOO_MANY_ATTEMPTS`)
 
 #### Bağlantı
 Frontend:
@@ -665,6 +733,150 @@ Mail Service (`AccountDeletionMailPort`) — production **PENDING**, development
 
 #### Test Durumu
 INTEGRATION
+
+### AUTH — Token iptali ve hesap durumu yayılımı (politika)
+
+Durum: IMPLEMENTED (politika; yeni uç yoktur)
+Sorumlu: Kerem
+Tüketici servisler: kullanıcı token'ı doğrulayan tüm servisler (hardware-service dahil)
+
+#### Endpoint
+Yeni uç yoktur. Bilinçli karar: tüketicilere iptal sorgusu (introspection) ya da iptal listesi (revocation list) sunulmaz; iptal, kısa token ömrüyle yayılır.
+
+#### Politika
+- Access token ömrü **60 sn** (`JWT_ACCESS_TTL_SECONDS`, prod'da da 60; değişirse tüketicilere önceden haber verilir). Servis token'ı JWKS ile yerel doğrular, Auth'a çağrı yapmaz.
+- Alıcı servis saat sapması için en çok **30 sn** tolerans uygular. Dolayısıyla iptal edilen bir hesabın eski access token'ı diğer servislerde **en çok 90 sn** (60 sn + 30 sn) geçerli görünür. Yeni token alınamaz, çünkü oturum iptal edilmiştir.
+- Şu olaylar hesabın tüm oturumlarını iptal eder ve token sürümünü artırır: çıkış, parola değişimi ve sıfırlama, e-posta değişimi, rol verme ve alma, hesabın askıya alınması, yasaklanması ya da devre dışı bırakılması, silme onayı. **Auth'un kendi uçları** eski token'ı anında reddeder (`401`).
+- Anlık iptal iddiası yoktur. 90 sn kritik bir işlem için yetmiyorsa ayrı bir sözleşme (sorgu ya da iptal listesi) gerekir; şu an böyle bir ihtiyaç kaydı yoktur.
+- Auth'a ulaşılamazsa: servis önbellekteki JWKS ile doğrulamaya devam eder, bilinmeyen `kid` reddedilir (fail-closed). Hesap durumunu öğrenmek için Auth'a çağrı yapılmaz, yeni bir polling ya da önbellek kurulmaz.
+- **İsteğe bağlı olay:** `AccountStatusChanged` yalnız yönetici durum değişikliğinde (askıya alma, yasaklama, devre dışı bırakma, yeniden açma) transactional outbox ile hedef servise iletilir. Çıkış, parola, rol ve silme olay üretmez. Hedef listesi (`ltz.auth.events.targets`) varsayılan boştur; alıcı uç yazan servis eklenmesini ister. Zarf alanları ve alıcı doğrulama kuralları: `docs-auth/servis-sozlesmeleri.md` bölüm 3.5. Olay gecikmeyi kısaltabilir ama zorunlu değildir; olay yoksa 90 sn kuralı geçerlidir.
+
+#### Hata Durumları
+Yeni uç olmadığı için yeni hata kodu yoktur. İptal edilmiş token Auth'un uçlarında `401 UNAUTHENTICATED` alır.
+
+#### Bağlantı
+Frontend: oturum yenileme `401` sonrası `session/refresh` ile yapılır (bkz. "Oturum uçları").
+
+Diğer mikroservisler: token doğrulama kuralları `docs/AUTH_SERVICE_ENTEGRASYON_REHBERI.md` ve `docs-auth/entegrasyon/<servis>.md` içindedir. İstek geçmişi: `docs-auth/verilen-cevaplar/hardware-service/talep-01-token-iptali-ve-hesap-durumu.md`.
+
+#### Test Durumu
+INTEGRATION (Auth tarafı: oturum iptali, token sürümü ve eski token'ın Auth uçlarında reddi). Diğer servislerdeki yayılım süresi tüketicinin kendi testleriyle kanıtlanır.
+
+### AUTH — Masaüstü cihaz kimliği (hardware-service)
+
+Durum: IMPLEMENTED (Auth tarafı); tüketici hardware-service ve masaüstü uygulaması **PENDING**
+Sorumlu: Kerem
+Tüketici servisler: hardware-service (cihaz token'ını doğrular), masaüstü uygulaması (bağlama/token)
+
+#### Endpoint
+- POST /api/v1/auth/devices — cihazı hesaba bağlar (kullanıcı oturumu + CSRF)
+- GET /api/v1/auth/devices — hesabın etkin cihazları
+- DELETE /api/v1/auth/devices/{deviceId} — cihazı iptal eder (204)
+- POST /api/v1/auth/devices/token — cihaz anahtarıyla kısa ömürlü cihaz token'ı alır
+
+#### Yetkilendirme
+Bağlama, listeleme, iptal: kullanıcı oturumu (cookie + CSRF veya Bearer). `devices/token`: Public, çerezsiz; kimlik yalnız gövdedeki `deviceId` + `deviceSecret`.
+
+#### Request Body (`bind`)
+```json
+{ "label": "1-64 karakter; harf, rakam, boşluk ve . _ ( ) -", "password": "zorunlu (yeniden doğrulama)", "code": "TOTP etkinse ^[0-9]{6}$", "recoveryCode": "code yerine, yalnız biri" }
+```
+Response — 201, `Cache-Control: no-store`: `{ "deviceId", "deviceSecret", "label", "createdAt", "expiresAt" }`. `deviceSecret` (256 bit) **yalnız bu yanıtta bir kez** görünür; Auth yalnız SHA-256 özetini saklar, sonradan alınamaz.
+
+#### Request / Response (`token`)
+```json
+{ "deviceId": "UUID", "deviceSecret": "string" }
+```
+200, `no-store`: `{ "accessToken", "tokenType": "Bearer", "expiresIn": 60, "scope": "hardware:sync:write" }`. Token: `typ=dev+jwt`, RS256 (JWKS aynı), `iss=ltz-auth`, `aud=hardware-service`, `sub=<deviceId>`, `account_id`, `scope=hardware:sync:write`, `jti`, ömür 60 sn. Kullanıcı rolü/oturumu taşımaz; Auth'un uçlarında ve başka servislerde geçmez.
+
+#### Davranış
+- Hesap başına en fazla 5 etkin cihaz, günde en fazla 10 bağlama; cihaz anahtarı 365 gün geçerlidir.
+- Cihaz şu durumlarda otomatik iptal edilir: parola değişimi/sıfırlama, hesabın ACTIVE dışına geçmesi, silme onayı, e-posta değişimi.
+- `token` uçta kimlik hatalarının hepsi tek yanıt verir (`INVALID_DEVICE_CREDENTIALS`; yanlış anahtar, bilinmeyen/iptal/süresi dolmuş cihaz, pasif hesap); zamanlama farkı yoktur. Hesap kilidi yoktur (iç servis kilitlenmesin); IP sınırı Gateway'dedir.
+- Cihaz yeniden bağlanmaz, iptal edilip yeni cihaz bağlanır.
+
+#### Hata Durumları
+- 400: Doğrulama (geçersiz ad, birden fazla ikinci faktör); `CURRENT_PASSWORD_INVALID`; `INVALID_TWO_FACTOR_CODE`
+- 401: Kimliksiz; `token` için `INVALID_DEVICE_CREDENTIALS`
+- 403: CSRF
+- 404: `DEVICE_NOT_FOUND` (başkasının cihazı da 404)
+- 409: `DEVICE_LIMIT_REACHED`; `PASSWORD_REQUIRED` (parolasız hesap, yani yalnız Google/Steam, cihaz bağlayamaz)
+- 429: Günlük bağlama sınırı (`TOO_MANY_ATTEMPTS`)
+
+#### Bağlantı
+Frontend: Gateway üzerinden `/api/v1/auth/devices/**` (cihaz yönetim ekranı).
+Diğer mikroservisler: hardware-service tokenı JWKS ile doğrular (`typ=dev+jwt`, `aud=hardware-service`, `scope`). Ayrıntı: `docs-auth/entegrasyon/hardware-service.md`.
+
+#### Test Durumu
+UNIT + INTEGRATION
+
+### AUTH — Servis kimlikli iç uçlar (Admin → Auth, B4)
+
+Durum: IMPLEMENTED (Auth tarafı, altyapı); **tüketici admin-service henüz yok** → uçtan uca PENDING
+Sorumlu: Kerem
+Tüketici servisler: admin-service (şimdilik başka tüketici yok)
+
+#### Endpoint
+- POST /internal/v1/service-tokens — servis kimlik bilgisiyle (client credentials) Auth'tan kısa ömürlü `svc+jwt` alır
+- GET /internal/v1/accounts/{accountId} — hesap özeti (kapsam `account:read`)
+- POST /internal/v1/accounts/{accountId}/status — durum değişikliği (kapsam `account:status:write`)
+- POST /internal/v1/accounts/{accountId}/roles/grant — rol ver (kapsam `account:role:write`)
+- POST /internal/v1/accounts/{accountId}/roles/revoke — rol al (kapsam `account:role:write`)
+
+Bu uçlar **Gateway'e açılmaz** (Gateway yalnız `/api/v1/<servis>/**` yönlendirir); yalnız iç ağdan, `AUTH_SERVICE_URL` ile çağrılır.
+
+#### Yetkilendirme
+- `service-tokens`: Public (cookie okunmaz, CSRF gerekmez); kimlik gövdedeki `clientId` + `clientSecret`.
+- Diğer uçlar: `Authorization: Bearer <svc+jwt>`. Kullanıcı token'ı (`at+jwt`), cookie ve Auth'un başka servislere yolladığı token'lar kabul edilmez.
+
+#### Request Body (`service-tokens`)
+```json
+{ "clientId": "admin-service", "clientSecret": "string, en az 32 karakter (AUTH_ADMIN_SERVICE_CLIENT_SECRET)", "audience": "isteğe bağlı; boşsa auth-service" }
+```
+
+İstemci kimliği servis adıdır: `admin-service` (Auth'a `account:*`, community'ye `events:ingest`), `social-service` (community'ye `events:ingest`), `community-service` (admin ve notification'a `events:ingest`), `messaging-service` ve `lfp-service` (social-service'e `blocks:check`). Her istemci **yalnız kendisine tanımlı (hedef, kapsam) çiftleri** için token alır; kimseye varsayılan imtiyaz yoktur. `audience` başka servis ise token o servisin JWKS doğrulamasında geçer (`aud=<servis>-service`, `scope=events:ingest`, `sub=svc:<istemci>`, 60 sn) ve Auth'un iç uçlarında **geçmez**.
+
+#### Response — 200 (`service-tokens`, `Cache-Control: no-store`)
+```json
+{ "accessToken": "…", "tokenType": "Bearer", "expiresIn": 60, "scope": "account:read account:role:write account:status:write" }
+```
+Token: `typ=svc+jwt`, RS256 (JWKS aynı), `iss=ltz-auth`, **`aud=auth-service`** (yalnız Auth'ta geçer), `sub=svc:<istemci>`, `scope`, `jti`, `iat`/`nbf`/`exp` (60 sn).
+`roles`, `sid`, `ver`, `amr` taşınmaz. Token'ı 60 sn dolmadan önce yenileyin; önbelleğe uzun süre almayın.
+
+#### Request Body (`status`)
+```json
+{ "actorId": "UUID, işlemi yapan yönetici hesabı", "status": "SUSPENDED|BANNED|DISABLED|ACTIVE", "reason": "1-500 karakter" }
+```
+
+#### Request Body (`roles/grant`, `roles/revoke`)
+```json
+{ "actorId": "UUID", "role": "PLAYER|CONTENT_CREATOR|GAME_DEVELOPER|MODERATOR|ADMIN", "reason": "1-500 karakter" }
+```
+
+#### Davranış
+- Servis token'ı kullanıcı yetkisi taşımaz: `actorId` Auth'ta yeniden doğrulanır (hesap var, `ACTIVE` ve `ADMIN` rolünde). Değilse `403 ACTING_ADMIN_INVALID`.
+- Kurallar kullanıcı uçlarıyla (`/api/v1/auth/admin/**`) **aynıdır** ve gevşetilmez: kendini değiştirme yasağı, durum geçişleri (`BANNED → ACTIVE` dahil), ADMIN/MODERATOR için TOTP şartı, oturum iptali ve token sürümü artışı, gerekçe + `actorId` ile denetim kaydı.
+- Doğrulama kuralları (hepsi zorunlu): imza + `kid`, `typ=svc+jwt`, `iss`, `aud` **yalnız** `auth-service`, `sub=svc:<kayıtlı ve etkin istemci>`, `jti`, `iat`, `nbf`, ömür ≤ 60 sn (bitiş şimdiden ≤ 60 sn ileride), `scope` istemcinin kayıtlı kapsamları içinde.
+- Gizli anahtarı boş istemci **devre dışıdır**; `AUTH_ADMIN_SERVICE_CLIENT_SECRET` boşsa token alınamaz (fail-closed). Zayıf (32 karakterden kısa) anahtar veya bilinmeyen kapsam Auth'u açtırmaz.
+- Yanlış / bilinmeyen / devre dışı istemci tek yanıt verir (`401 INVALID_CLIENT`), hesap kilidi yoktur (iç ağdaki biri gerçek servisi kilitleyemesin); başarısız denemeler günlüğe anahtarsız yazılır.
+
+#### Hata Durumları
+- 400: Doğrulama (bilinmeyen alan, eksik `actorId`/`reason`, geçersiz `clientId`)
+- 401: Kimliksiz, geçersiz/süresi dolmuş/yanlış `aud`·`typ`·`sub`·kapsam dışı servis token'ı (`UNAUTHENTICATED`); `service-tokens` için `INVALID_CLIENT`
+- 403: Kapsam yetersiz; `ACTING_ADMIN_INVALID`; `SELF_MODIFICATION_FORBIDDEN`; `service-tokens` için `SERVICE_AUDIENCE_FORBIDDEN` (kimlik doğrulandı ama istemcinin bu hedefe izni yok)
+- 404: Hesap yok (`ACCOUNT_NOT_FOUND`)
+- 409: `INVALID_STATUS_TRANSITION`, `TARGET_NOT_ACTIVE`, `ROLE_ALREADY_ASSIGNED`, `ROLE_NOT_ASSIGNED`, `BASE_ROLE_REQUIRED`, `ROLE_REQUIRES_TWO_FACTOR`
+
+#### Bağlantı
+Frontend:
+Yok (yalnız servisler arası).
+
+Diğer mikroservisler:
+social-service, community-service: kendi ortamlarına `AUTH_SOCIAL_SERVICE_CLIENT_SECRET` / `AUTH_COMMUNITY_SERVICE_CLIENT_SECRET` ile aynı değer verilir; olay göndermeden önce `audience` ile hedef servis için token alırlar.
+admin-service: kendi ortamına `AUTH_ADMIN_SERVICE_CLIENT_SECRET` ile aynı değer verilir; `POST /internal/v1/service-tokens` ile token alıp iç uçları çağırır. Admin servisinin kullanıcı kimliği/rolü doğrulaması (yönetici oturumu) Admin'in kendi sorumluluğudur; Auth yalnız `actorId`'yi yeniden doğrular.
+
+#### Test Durumu
+UNIT + INTEGRATION (Auth tarafı; Admin tüketici testi yok)
 
 ### AUTH — Giden sözleşmeler
 
@@ -3785,7 +3997,7 @@ _Kayıt yok._
 
 ## HARDWARE
 
-**Güncel Auth sözleşmesi — 2026-10-24:** Kullanıcı uçları gerçek Auth JWKS'i ile
+**Güncel Auth sözleşmesi — 2026-10-29:** Kullanıcı uçları gerçek Auth JWKS'i ile
 RS256/kid/at+jwt/issuer/audience/ham exp–nbf–iat ve UUID sub doğrular; typed actor
 yalnız doğrulanmış subject'ten oluşur. ADMIN katalog/kampanya yazma izni,
 ADMIN veya MODERATOR kaynak yorum moderasyon izni üretir. Roller ownership'i aşmaz.
@@ -3793,14 +4005,18 @@ Yalnız health anonimdir. Cookie doğrudan Hardware'da kimlik oluşturmaz;
 Gateway cookie → Bearer öncesinde CSRF + Origin uygular. Hardware CSRF bütünüyle
 kapatılmadı; özel CSRF ignore matcher yoktur. Resource Server'ın standart açık Bearer
 davranışı uygulanır. D4'te Bearer taşımayan CSRF reddi controller'a ulaşmadan 401 döner.
-Silinen hesap fence'i etkinse kullanıcı okuma/yazmaları 401 ile reddedilir.
-Cihaz credential/PERF ve User/Social policy bağımlılıkları çözülmüş sayılmaz.
-[Güncel kapsam/kanıt](../docs-hardware/integration/auth/auth-integration-quality.md).
-Gerçek paketli Auth/Gateway/Hardware izole HTTP kabulü 16 kontrol PASS: kayıt/giriş,
+Silinen hesap fence'i etkinse kullanıcı ve cihaz işlemleri 401 ile reddedilir.
+Kullanıcı token ömrü en çok 60 sn, tolerans 30 sn'dir; 15 dakikalık token artık reddedilir.
+Cihaz kimliği ayrı `dev+jwt` doğrulayıcısıyla yalnız snapshot POST'unda kabul edilir;
+aktif cihaz için Performance ve User/Social policy bağımlılıkları çözülmüş sayılmaz.
+[Güncel kapsam](../docs-hardware/integration/auth/auth-integration-05.md),
+[güncel test/kalite kanıtı](../docs-hardware/integration/auth/auth-integration-06.md).
+Önceki paketli Auth/Gateway/Hardware izole HTTP kabulü 16 kontrol PASS: kayıt/giriş,
 SMTP doğrulama, cookie/CSRF/Origin, owner/IDOR ve gerçek Auth worker → Hardware D4
 204/CONFIRMED, tekrar ve eski JWT ile yeniden yazma reddi.
-[Runtime kabulü](../docs-hardware/integration/auth/auth-integration-04.md).
-Ortak Compose/TLS/tarayıcı ve diğer 15 katılımcının Saga ACK'i NOT_VERIFIED.
+[Runtime kabulü](../docs-hardware/integration/auth/entegrasyon-v1/auth-integration-04.md).
+Ortak Compose/TLS/tarayıcı ve bütün Saga NOT_VERIFIED. Repoda 11 silme ucu eksiktir;
+yalnız Hardware'ı çalıştıran izole fixture 15 PENDING ACK bekler.
 Önceki tarihlerdeki test sayıları ve DEFERRED_AUTH ifadeleri teslim tarihçesidir;
 aşağıdaki Yetkilendirme alanları bu güncel kullanıcı JWT kuralıyla birlikte geçerlidir.
 
@@ -5509,9 +5725,13 @@ Gerçek Auth/desktop E2E NOT_VERIFIED. Son kalite sonucu HW-05 kalite kaydında 
 
 ### HARDWARE — HW-07 Ortak sync güvenlik ve tekrar gönderim sözleşmesi
 
-Kullanıcı JWT doğrulaması uygulanır. Cihaz Auth DEFERRED_AUTH; PERF cihaz sahipliği/iptal sözleşmesi ve
-masaüstü E2E DEFERRED_CONTRACT / NOT_VERIFIED, açık kullanıcı onaylıdır. Gerçek
-RestClient URL/JSON, eşleştirme servisi veya credential üretilmez. Production deny.
+Kullanıcı JWT doğrulaması uygulanır. Auth cihaz token'ı için ayrı RS256/JWKS/kid,
+tam typ=dev+jwt, issuer, aud içinde hardware-service, UUID sub=deviceId ve account_id,
+scope içinde tam hardware:sync:write, dolu jti ve ham exp/nbf/iat kontrolü uygulanır.
+Ömür en çok 60 sn, tolerans 30 sn'dir. Principal kullanıcıya veya yöneticiye dönüşmez.
+PERF cihaz sahipliği/iptal sözleşmesi ve masaüstü başarı E2E'si kullanıcı kararıyla
+DEFERRED_CONTRACT / NOT_VERIFIED kalır. Gerçek dış URL/JSON veya credential uydurulmaz.
+Production aktif cihaz policy'si deny eder; grant ve geçerli cihazla apply 404 alır.
 Parent profil kilidi tüm owner/consent/apply yarışlarını ve profileVersion'ı korur.
 Yeni sıra kesin artar; eski capturedAt reddedilir. Aynı key/normalize hash 24 saat
 önceki yanıtı döndürür; güncel cihaz ve izin her retry'da yeniden doğrulanır.
@@ -5645,8 +5865,11 @@ Tüketici servisler: Frontend; gelecekte masaüstü (gerçek E2E NOT_VERIFIED)
 POST /api/v1/hardware/profiles/{profileId}/sync/snapshots
 
 #### Yetkilendirme
-Güncel sınır: kullanıcı JWT'si cihaz kimliği sağlamaz; gerçek cihaz Auth/PERF hâlâ DEFERRED.
-Yalnız AuthenticatedHardwareDevice + hardware:sync:write, aktif cihaz sahipliği policy'si ve aynı owner/device/generation için GRANTED yerel izin. Browser actor bu authority'ye sahip olsa da reddedilir. CSRF korunur; üretimde cihaz doğrulaması yok ve policy deny.
+Auth RS256/JWKS doğrulanmış dev+jwt → AuthenticatedHardwareDevice(account_id, sub),
+hardware:sync:write, aktif cihaz sahipliği policy'si ve aynı owner/device/generation için
+GRANTED yerel izin. Kullanıcı/ADMIN token'ı 403; geçersiz cihaz veya svc+jwt 401 alır.
+Cihaz token'ı kullanıcı ve D4 uçlarında kabul edilmez. CSRF korunur; üretimde Performance
+policy'si deny eder. Geçerli cihaz kimliği tek başına apply yetkisi sağlamaz.
 
 #### Path/Query Parameters
 profileId UUID; zorunlu Idempotency-Key UUID header; query yok.
@@ -5666,11 +5889,13 @@ V7__create_hardware_desktop_sync.sql. Başka servis/DB çağrısı yok; gerçek 
 cihaz/desktop bağlantısı NOT_VERIFIED. Yerel sözleşme gerçek cihaz kanıtı değildir.
 
 #### Test Durumu
-UNIT + INTEGRATION — HardwareSyncControllerTest (21), HardwareSyncDomainTest (2),
-SecurityContextHardwareSyncDeviceAccessTest (1); 2026-10-21 20:36:36 +03 verify
-exit 0: 293 PASS (54 yeni HW-05), failure/error/skipped 0; JaCoCo
-1420/1438=%98,75. Gerçek PostgreSQL 17/Flyway V1–V10/JPA/MockMvc.
-Gerçek Auth/PERF cihaz/desktop E2E NOT_VERIFIED; final kapılar ayrıca kaydedilir.
+UNIT + INTEGRATION — 2026-10-29 Hardware Maven verify: 405 PASS, hata/atlama 0,
+JaCoCo %98,90. HardwareDeviceJwtValidatorTest ve gerçek Auth üreticili
+HardwareAuthIntegrationTest cihaz türü/claim/scope/zaman/hesap fence ve policy sınırını doğrular.
+E2E — gerçek Auth/Gateway/Hardware izole HTTP kabulü 20/20 PASS; cihaz kimliğinin
+policy'ye ulaşması ve Performance yokken 404 ile reddi dahil. Gerçek consent→apply
+başarı E2E'si DEFERRED_CONTRACT / NOT_VERIFIED.
+[Güncel kanıt](../docs-hardware/integration/auth/auth-integration-06.md).
 
 ### HARDWARE — HW-AUTH D4 yerel hesap temizliği
 
@@ -5717,17 +5942,17 @@ fence korunur; sonraki çağrı kaldığı yerden temizler. Her çağrı en fazl
 HardwareAccountErasureController → HardwareAccountErasureService → HardwareAccountErasure portu
 → HardwareAccountErasureRepository; V8__add_hardware_account_erasure.sql.
 Auth mevcut AccountDeletionCoordinator → direct service RestClient çağrısı.
-[Mutabakat](../docs-hardware/integration/auth/auth-integration-02.md).
+[Mutabakat](../docs-hardware/integration/auth/entegrasyon-v1/auth-integration-02.md).
 
 #### Test Durumu
 UNIT + INTEGRATION — HardwareAuthIntegrationTest: gerçek Auth ServiceTokenIssuer/JWKS,
 ortak D4 17 senaryo, tüm tablolar, başka hesabı koruma, tekrar, rollback ve race/fence.
 İzole PostgreSQL; canlı DEV Saga ve diğer 15 katılımcı E2E NOT_VERIFIED.
-[Gerçek uygulama HTTP kabulü](../docs-hardware/integration/auth/auth-integration-04.md):
+[Gerçek uygulama HTTP kabulü](../docs-hardware/integration/auth/entegrasyon-v1/auth-integration-04.md):
 gerçek Auth worker → Hardware 204, Auth hardware görevi CONFIRMED; tekrar 204,
 başka accountId 403 ve eski kullanıcı JWT'siyle yeniden yazma 401. İzole fixture'da
 16 kontrol PASS; diğer 15 görev sahte ACK verilmeden PENDING kalır.
-[Nihai kalite kanıtı](../docs-hardware/integration/auth/auth-integration-quality.md).
+[Nihai kalite kanıtı](../docs-hardware/integration/auth/entegrasyon-v1/auth-integration-quality.md).
 
 ## RECOMMENDATION
 

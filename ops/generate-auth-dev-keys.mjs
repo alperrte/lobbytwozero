@@ -4,7 +4,8 @@
 //   node ops/generate-auth-dev-keys.mjs            # .env ve .env.dev (varsa)
 //   node ops/generate-auth-dev-keys.mjs .env.local # belirli dosya(lar)
 //
-// - Yalnız YOK veya BOŞ anahtarları doldurur; dolu bir anahtarın üzerine asla yazmaz.
+// - Yalnız YOK veya BOŞ anahtarları doldurur; dolu bir anahtarın üzerine asla yazmaz. Tek istisna staleDefaults:
+//   değeri tam olarak ESKİ varsayılana eşit olan ayar (ör. JWT_ACCESS_TTL_SECONDS=300) yeni varsayılana çekilir.
 // - Aynı anahtar tüm dosyalarda aynı olur (.env, .env.dev'in kopyasıdır; ops/env durumu bunu karşılaştırır).
 //   Bir dosyada dolu değer varsa diğerlerine o kopyalanır; hiçbirinde yoksa bir kez üretilir.
 // - Üretilen değerleri ekrana YAZMAZ.
@@ -27,6 +28,20 @@ const generators = {
   AUTH_OTP_HMAC_KEY: () => randomBytes(32).toString("base64"),
   // TOTP sırlarının AES-256-GCM anahtarı: tam 32 bayt.
   AUTH_TOTP_ENCRYPTION_KEY: () => randomBytes(32).toString("base64"),
+  // Admin servisinin Auth'a servis kimligiyle (client credentials) baglanma gizli anahtari (B4): 256 bit, URL-guvenli.
+  AUTH_ADMIN_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
+  // Servisler arası olay girişi (events:ingest) istemcileri: her biri ayrı 256 bit gizli anahtar.
+  AUTH_SOCIAL_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
+  AUTH_COMMUNITY_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
+  // Engel sorgusu (blocks:check) istemcileri: messaging ve lfp -> social.
+  AUTH_MESSAGING_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
+  AUTH_LFP_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
+};
+
+// Eski varsayılanlar: değer TAM OLARAK eskiyse yeni varsayılana çekilir; özelleştirilmiş değere dokunulmaz.
+// JWT_ACCESS_TTL_SECONDS: access token ömrü 300 sn'den 60 sn'ye indi (askıya alınan hesabın diğer servislerde görünürlüğü).
+const staleDefaults = {
+  JWT_ACCESS_TTL_SECONDS: { from: "300", to: "60" },
 };
 
 const lineOf = (name) => new RegExp(`^${name}=(.*?)\\r?$`, "m");
@@ -72,7 +87,20 @@ for (const file of targets) {
     filled.push(name);
   }
 
-  if (filled.length) writeFileSync(file, text);
+  const refreshed = [];
+  for (const [name, change] of Object.entries(staleDefaults)) {
+    const found = text.match(lineOf(name));
+    if (found && found[1].trim() === change.from) {
+      // Eşleşme satır sonundaki CR karakterini de kapsar; CRLF dosyalarda korunur.
+      text = text.replace(lineOf(name), (line) => `${name}=${change.to}${line.endsWith("\r") ? "\r" : ""}`);
+      refreshed.push(`${name} (${change.from} -> ${change.to})`);
+    }
+  }
+
+  if (filled.length || refreshed.length) writeFileSync(file, text);
   const shown = file.startsWith(root) ? file.slice(root.length + 1) : file;
-  console.log(filled.length ? `${shown}: dolduruldu -> ${filled.join(", ")}` : `${shown}: eksik anahtar yok`);
+  const report = [];
+  if (filled.length) report.push(`dolduruldu -> ${filled.join(", ")}`);
+  if (refreshed.length) report.push(`güncellendi -> ${refreshed.join(", ")}`);
+  console.log(`${shown}: ${report.length ? report.join("; ") : "eksik anahtar yok"}`);
 }

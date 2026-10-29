@@ -19,7 +19,7 @@ import org.springframework.security.oauth2.jwt.MappedJwtClaimSetConverter;
 
 public final class HardwareJwtValidators {
     public static final Duration CLOCK_SKEW = Duration.ofSeconds(30);
-    public static final Duration MAX_USER_LIFETIME = Duration.ofMinutes(15);
+    public static final Duration MAX_USER_LIFETIME = Duration.ofSeconds(60);
     private static final OAuth2TokenValidatorResult INVALID = OAuth2TokenValidatorResult.failure(
             new OAuth2Error("invalid_token", "Token validation failed", null));
 

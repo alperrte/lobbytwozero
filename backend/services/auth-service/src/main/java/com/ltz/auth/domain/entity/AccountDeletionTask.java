@@ -62,13 +62,15 @@ public class AccountDeletionTask {
     @Column(name = "confirmed_at")
     private Instant confirmedAt;
 
-    public static AccountDeletionTask create(UUID requestId, UUID accountId, String service, Instant now) {
+    /** {@code dueAt}: bekleme süresi bitene kadar görev işlenmez (ilk deneme zamanı). */
+    public static AccountDeletionTask create(UUID requestId, UUID accountId, String service, Instant now,
+                                             Instant dueAt) {
         AccountDeletionTask task = new AccountDeletionTask();
         task.requestId = requestId;
         task.accountId = accountId;
         task.service = service;
         task.status = DeletionTaskStatus.PENDING;
-        task.nextAttemptAt = now;
+        task.nextAttemptAt = dueAt;
         task.createdAt = now;
         return task;
     }

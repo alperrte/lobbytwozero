@@ -29,11 +29,15 @@
 
 ## 2. Repository, ajanlar ve yerel kalite kapısı
 
+- `[MEVCUT YAPILANDIRMA / ÇALIŞMASI NOT VERIFIED]` PR kalite sistemi, hızlı prek ve redakte Gitleaks CLI komutları [engineering.md](engineering.md) içinde tanımlıdır. Gerçek ENV kullanılmaz; Java kontrol sahibi Maven, frontend kontrol sahibi npm'dir. MegaLinter tamamlayıcı ve manuel pilottur.
+- Backend coverage sözleşmesinin tek kaynağı `backend/config/coverage-policy.json` ve [engineering.md](engineering.md) içindedir: incelenmiş bootstrap baseline gerileyemez; yeni/değişen ve bootstrap dışı executable Java minimumu sağlamalıdır. Strict modül/yayınlama toplam LINE hedefi ≥ %80'dir. Maven verify ve Node runner aynı merkezi kapıyı uygular. İlk politika/promotion bağımsız owner review ister; sahte test/production exclude yoktur. Workflow tek başına merge koruması değildir; required Quality Gate ve bağımsız review ayarları owner tarafından doğrulanır.
+- Güvenlik bulguları public issue/PR loguna secret değeri veya sömürü ayrıntısıyla yazılmaz. Repository Security sekmesindeki özel bildirim seçeneği mevcutsa kullanılır; etkinliği doğrulanmadı. Seçenek yoksa ekipçe bilinen özel kanaldan owner'a ulaşılır. Security sorumlusu/yedeği, gerçek özel kanal ve yanıt SLA'sı ekip kararı beklemektedir.
+
 - Kodlama ajanları açık izin olmadan `git add`, commit, push, merge, rebase, release, branch silme, repository ayarı değişikliği veya deploy yapmaz.
 - Push öncesi yerel kalite komutu (manuel, git hook değildir):
   - Windows: `.\pre-push\pre-push.cmd service | backend | full dev | full prod`
   - Linux/macOS: `sh ./pre-push/pre-push.sh full dev`
-  - Gereksinimler: Node 22.12+, Maven, JDK 25. Backend `clean verify` + JaCoCo **≥ %80 satır kapsamı**, compose doğrulama, env/anahtar dosya adı kontrolü, actuator health kontrolü.
+  - Gereksinimler: Node 22.12+, Maven, JDK 25. Backend `clean verify` + merkezi progressive JaCoCo politikası (strict/yayınlama toplam hedefi **≥ %80**), compose doğrulama, env/anahtar dosya adı kontrolü, actuator health kontrolü.
 - `SAFE TO COMMIT` (veya backend modunda `BACKEND TEST CHECK PASSED`) **yalnız yerel kontrollerin geçtiği** anlamına gelir; SonarQube, Quality Gate veya production güvenlik onayı değildir.
 - Test atlama, coverage şişirmek için production kodunu hariç tutma, güvenlik kuralını kapatma, başarısız kontrolü PASS gösterme yasaktır.
 - `package-lock.json` ve Maven sürüm kontratları korunur. Yeni bağımlılığın güvenlik ve lisans etkisi incelenir; `npm audit fix --force` onaysız kullanılmaz. HIGH/CRITICAL bulgular ayrıca değerlendirilir.

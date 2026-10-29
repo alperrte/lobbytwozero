@@ -59,6 +59,13 @@ public class EmailVerificationCode {
     @Column(name = "consumed_at")
     private Instant consumedAt;
 
+    /** Yalnız EMAIL_CHANGE kodunda dolu: doğrulanınca hesaba yazılacak yeni adres. */
+    @Column(name = "new_email", updatable = false, length = Account.EMAIL_MAX_LENGTH)
+    private String newEmail;
+
+    @Column(name = "new_email_normalized", updatable = false, length = Account.EMAIL_MAX_LENGTH)
+    private String newEmailNormalized;
+
     @Column(name = "invalidated_at")
     private Instant invalidatedAt;
 
@@ -74,6 +81,15 @@ public class EmailVerificationCode {
         code.codeHash = codeHash;
         code.createdAt = now;
         code.expiresAt = now.plus(timeToLive);
+        return code;
+    }
+
+    /** E-posta değiştirme kodu; kod yeni adrese gider ve doğrulanana kadar hesap adresi değişmez. */
+    public static EmailVerificationCode issueForEmailChange(UUID accountId, String newEmail, String codeHash,
+                                                            Instant now, Duration timeToLive) {
+        EmailVerificationCode code = issue(accountId, VerificationPurpose.EMAIL_CHANGE, codeHash, now, timeToLive);
+        code.newEmail = newEmail.strip();
+        code.newEmailNormalized = Account.normalizeEmail(newEmail);
         return code;
     }
 

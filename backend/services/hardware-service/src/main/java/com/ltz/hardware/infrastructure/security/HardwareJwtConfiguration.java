@@ -9,6 +9,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 
@@ -27,15 +29,25 @@ public class HardwareJwtConfiguration {
         return decoder(properties, source, clock, true);
     }
 
+    @Bean("hardwareDeviceDecoder")
+    JwtDecoder deviceDecoder(HardwareAuthProperties properties, JWKSource<SecurityContext> source, Clock clock) {
+        return decoder(properties, source, HardwareDeviceJwtValidator.validator(properties.issuer(), clock));
+    }
+
     private JwtDecoder decoder(HardwareAuthProperties properties, JWKSource<SecurityContext> source,
             Clock clock, boolean service) {
+        return decoder(properties, source, HardwareJwtValidators.validator(properties.issuer(),
+                service ? "hardware-service" : properties.audience(), service, clock));
+    }
+
+    private JwtDecoder decoder(HardwareAuthProperties properties, JWKSource<SecurityContext> source,
+            OAuth2TokenValidator<Jwt> validator) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(properties.jwksUri().toString())
                 .jwsAlgorithm(SignatureAlgorithm.RS256).validateType(false)
                 .jwtProcessorCustomizer(processor -> processor.setJWSKeySelector(
                         new JWSVerificationKeySelector<>(JWSAlgorithm.RS256, source))).build();
         decoder.setClaimSetConverter(HardwareJwtValidators::requiredRawClaims);
-        decoder.setJwtValidator(HardwareJwtValidators.validator(properties.issuer(),
-                service ? "hardware-service" : properties.audience(), service, clock));
+        decoder.setJwtValidator(validator);
         return token -> {
             try { return decoder.decode(token); }
             catch (org.springframework.security.oauth2.jwt.JwtException _) {

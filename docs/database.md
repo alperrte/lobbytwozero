@@ -319,7 +319,7 @@ entity değildir; hesap bazlı transaction advisory lock + atomik upsert ile yö
 17 dakika etkin, dakikalık süpürmede fiziksel silinir (normal scheduler çalışırken en çok
 yaklaşık bir ek dakika; scheduler kapalıysa bir sonraki çalışmada). Anonim veri sayılmaz.
 Kerem/Auth sahibiyle mutabık kullanıcı onayı kaydı:
-[HW-AUTH-02](../docs-hardware/integration/auth/auth-integration-02.md).
+[HW-AUTH-02](../docs-hardware/integration/auth/entegrasyon-v1/auth-integration-02.md).
 V8 audit DELETE istisnasını yalnız transaction-local hesap bağlamında ilgili actor/hedef
 satırlarına sınırlar; UPDATE/TRUNCATE ve ilgisiz satırların silinmesi reddedilir.
 `erase_hardware_account(uuid)` yalnız Hardware verisini temizler; başka DB'ye erişmez.

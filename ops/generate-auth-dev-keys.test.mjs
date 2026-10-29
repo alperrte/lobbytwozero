@@ -58,3 +58,28 @@ test("eksik anahtarları üretir, dolu olanı ezmez, dosyalarda aynı değeri ku
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("eski varsayılan JWT_ACCESS_TTL_SECONDS=300 değeri 60'a çekilir; özelleştirilmiş değere ve eksik satıra dokunulmaz", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ltz-ttl-"));
+  try {
+    const stale = join(dir, "stale.env");
+    const custom = join(dir, "custom.env");
+    const missing = join(dir, "missing.env");
+    writeFileSync(stale, "JWT_ACCESS_TTL_SECONDS=300\r\nJWT_ISSUER=ltz-auth\r\n");
+    writeFileSync(custom, "JWT_ACCESS_TTL_SECONDS=120\n");
+    writeFileSync(missing, "OTHER=1\n");
+
+    const run = spawnSync(process.execPath, [script, stale, custom, missing], { encoding: "utf8" });
+    assert.equal(run.status, 0, run.stderr);
+    assert.ok(readFileSync(stale, "utf8").startsWith("JWT_ACCESS_TTL_SECONDS=60\r\nJWT_ISSUER=ltz-auth\r\n"));
+    assert.match(run.stdout, /güncellendi -> JWT_ACCESS_TTL_SECONDS \(300 -> 60\)/);
+    assert.ok(readFileSync(custom, "utf8").startsWith("JWT_ACCESS_TTL_SECONDS=120\n"));
+    assert.ok(!/JWT_ACCESS_TTL_SECONDS/.test(readFileSync(missing, "utf8")), "eksik satır eklenmemeli (Compose varsayılanı 60)");
+
+    const again = spawnSync(process.execPath, [script, stale], { encoding: "utf8" });
+    assert.ok(readFileSync(stale, "utf8").startsWith("JWT_ACCESS_TTL_SECONDS=60\r\n"));
+    assert.ok(!/güncellendi/.test(again.stdout), "ikinci çalıştırmada değişiklik olmamalı");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

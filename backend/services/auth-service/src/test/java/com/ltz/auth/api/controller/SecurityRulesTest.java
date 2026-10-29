@@ -20,7 +20,7 @@ import com.ltz.auth.IntegrationTestSupport;
 class SecurityRulesTest extends IntegrationTestSupport {
 
     @Test
-    void healthKimlikDogrulamasizErisilebilir_ayrintiVermez() throws Exception {
+    void healthKimlikDogrulamasizErisilebilirAyrintiVermez() throws Exception {
         mockMvc.perform(get("/actuator/health"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"))
@@ -50,7 +50,7 @@ class SecurityRulesTest extends IntegrationTestSupport {
     }
 
     @Test
-    void yanitlarGuvenlikBasliklariTasir_oturumCerezOlusturulmaz() throws Exception {
+    void yanitlarGuvenlikBasliklariTasirOturumCerezOlusturulmaz() throws Exception {
         List<String> cookies = resend(uniqueEmail())
                 .andExpect(status().isAccepted())
                 .andExpect(header().string("X-Content-Type-Options", "nosniff"))

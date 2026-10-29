@@ -1,0 +1,26 @@
+# Native hooks are versioned with the pinned prek 0.5.6 distribution.
+minimum_prek_version: "0.5.6"
+default_install_hook_types: [pre-commit]
+default_stages: [pre-commit]
+exclude: '(^|/)(target|node_modules|\.next|\.cache|coverage|test-results|megalinter-reports)/|(^|/)\.env($|\.)'
+repos:
+  - repo: builtin
+    hooks:
+      - id: check-merge-conflict
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-json
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-xml
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+  - repo: local
+    hooks:
+      - id: ltz-secrets
+        name: LTZ staged secrets (pinned Gitleaks CLI)
+        entry: node pre-push/ci/secrets.mjs staged
+        language: system
+        pass_filenames: false
+        always_run: true

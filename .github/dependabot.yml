@@ -1,0 +1,57 @@
+version: 2
+updates:
+  - package-ecosystem: maven
+    directories:
+      - "/backend"
+      - "/backend/services/*"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Europe/Istanbul
+    open-pull-requests-limit: 3
+    groups:
+      compatible-updates:
+        patterns: ["*"]
+        update-types: [minor, patch]
+  - package-ecosystem: npm
+    directories:
+      - "/frontend"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Europe/Istanbul
+    open-pull-requests-limit: 3
+    groups:
+      compatible-updates:
+        patterns: ["*"]
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directories:
+      - "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Europe/Istanbul
+    open-pull-requests-limit: 3
+    groups:
+      compatible-updates:
+        patterns: ["*"]
+        update-types: [minor, patch]
+  - package-ecosystem: docker
+    directories:
+      - "/"
+      - "/backend/services/*"
+      - "/pre-push/ci"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Europe/Istanbul
+    open-pull-requests-limit: 3
+    groups:
+      compatible-updates:
+        patterns: ["*"]
+        update-types: [minor, patch]

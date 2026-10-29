@@ -38,6 +38,7 @@ public class RegistrationService {
     private final AccountRepository accountRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final PasswordPolicy passwordPolicy;
     private final EmailVerificationService emailVerificationService;
     private final SecurityEventRecorder securityEventRecorder;
     private final TransactionTemplate transactionTemplate;
@@ -51,6 +52,8 @@ public class RegistrationService {
         if (accountRepository.existsByUsernameNormalized(Account.normalizeUsername(username))) {
             throw new UsernameAlreadyTakenException();
         }
+        // Politika yalnız girdiye bağlıdır (hesap varlığına değil), bu yüzden e-posta numaralandırması sızdırmaz.
+        passwordPolicy.require(password, email, username);
         String passwordHash = passwordEncoder.encode(password);
         VerificationCodeMail mail;
         try {

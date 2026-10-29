@@ -871,7 +871,7 @@ temizliğinde actor veya o hesaba ait review hedefiyle bağlı satırları kalı
 Tüm profil alt tabloları CASCADE ile, rapor/outbox/review/audit/kişisel bucket'lar
 paket başına aynı transaction'da temizlenir. Paket commit'inden sonra 503 retry,
 tüm hesap temizlenince 204 verilir. Global katalog ve ilgisiz kullanıcılar korunur.
-[Politika ve mutabakat](../docs-hardware/integration/auth/auth-integration-02.md).
+[Politika ve mutabakat](../docs-hardware/integration/auth/entegrasyon-v1/auth-integration-02.md).
 Devamındaki 16 tablo / 7 migration açıklaması 2026-10-21 başlangıç tarihçesidir.
 
 **Güncel geliştirme envanteri (2026-10-21):** Kullanıcı onayıyla aynı 16 tablo,

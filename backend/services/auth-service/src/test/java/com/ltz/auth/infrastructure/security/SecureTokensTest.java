@@ -17,7 +17,7 @@ class SecureTokensTest {
     }
 
     @Test
-    void kurtarmaKoduOkunabilirBicimdedir_karsilastirmaBicimiAyractanBagimsizdir() {
+    void kurtarmaKoduOkunabilirBicimdedirKarsilastirmaBicimiAyractanBagimsizdir() {
         String code = tokens.newRecoveryCode();
 
         assertThat(code).matches("^[A-HJ-NP-Z2-9]{5}-[A-HJ-NP-Z2-9]{5}$");

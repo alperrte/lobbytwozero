@@ -25,6 +25,21 @@ public final class TokenClaims {
     public static final String ACCOUNT_ERASE_SCOPE = "account:erase";
     /** Servis token'ının bağlı olduğu tek hesap; hedef servis bunu istek yolundaki hesap kimliğiyle karşılaştırır. */
     public static final String ACCOUNT_ID = "account_id";
+    /** Auth'a gelen iç çağrılarda (servis → Auth) {@code aud}: yalnız Auth'un kendi adı. */
+    public static final String AUTH_SERVICE_AUDIENCE = "auth-service";
+    /** Servis → Auth kapsamları (iç yönetim uçları, {@code docs-auth/servis-sozlesmeleri.md}). */
+    public static final String ACCOUNT_READ_SCOPE = "account:read";
+    public static final String ACCOUNT_STATUS_WRITE_SCOPE = "account:status:write";
+    public static final String ACCOUNT_ROLE_WRITE_SCOPE = "account:role:write";
+    /** Servisler arası olay girişi: hedef servisin {@code POST /internal/events} ucu; Auth yalnız izinli (hedef, kapsam) çiftine token verir. */
+    public static final String EVENTS_INGEST_SCOPE = "events:ingest";
+    /** Engel sorgusu: messaging ve lfp, Social'ın {@code POST /internal/v1/blocks/check} ucunu çağırır. */
+    public static final String BLOCKS_CHECK_SCOPE = "blocks:check";
+    /** Masaüstü cihaz token'ı türü; kullanıcı ({@link #ACCESS_TOKEN_TYPE}) ve servis token'ının yerine geçemez, tersi de geçemez. */
+    public static final String DEVICE_TOKEN_TYPE = "dev+jwt";
+    /** Cihaz token'ının tek hedefi ve tek kapsamı (Hardware'in masaüstü senkronu). */
+    public static final String HARDWARE_SERVICE_AUDIENCE = "hardware-service";
+    public static final String HARDWARE_SYNC_WRITE_SCOPE = "hardware:sync:write";
     /** Servis adı → servis token'ı {@code aud} değeri: {@code <servis>-service} (Compose ve modül adıyla aynı). */
     public static final String SERVICE_AUDIENCE_SUFFIX = "-service";
 

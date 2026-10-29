@@ -7,11 +7,14 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationProvider;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
@@ -49,6 +52,7 @@ public class SecurityConfig {
     private static final String HEALTH = "/actuator/health";
     private static final String HEALTH_GROUPS = HEALTH + "/**";
     private static final String ROLE_PREFIX = "ROLE_";
+    private static final String SCOPE_PREFIX = "SCOPE_";
     private static final String CSRF_COOKIE_PATH = "/";
     private static final String CSRF_COOKIE_SAME_SITE = "Strict";
 
@@ -72,6 +76,9 @@ public class SecurityConfig {
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.STEAM_COMPLETE),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_FORGOT),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_RESET),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.ACCOUNT_DELETION_CANCEL),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.SERVICE_TOKENS),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.DEVICES_TOKEN),
             PATHS.matcher(HttpMethod.GET, HEALTH),
             PATHS.matcher(HttpMethod.GET, HEALTH_GROUPS));
 
@@ -79,14 +86,22 @@ public class SecurityConfig {
     static final RequestMatcher AUTHENTICATED_ENDPOINTS = new OrRequestMatcher(
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.SESSION_LOGOUT_ALL),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_CHANGE),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.EMAIL_CHANGE),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.EMAIL_CHANGE_CONFIRM),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.ACCOUNT_DELETION_REQUEST),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.ACCOUNT_DELETION_CONFIRM),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.TOTP_SETUP),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.TOTP_ACTIVATE),
-            PATHS.matcher(HttpMethod.POST, AuthApiPaths.TOTP_DISABLE));
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.TOTP_DISABLE),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.DEVICES),
+            PATHS.matcher(HttpMethod.GET, AuthApiPaths.DEVICES),
+            PATHS.matcher(HttpMethod.DELETE, AuthApiPaths.DEVICE));
 
     /** Yönetici uçları: geçerli token + ADMIN rolü; aksi 401/403. Rol token'dan değil her istekte doğrulanan oturumdan gelir. */
     static final RequestMatcher ADMIN_ENDPOINTS = PATHS.matcher(AuthApiPaths.ADMIN + "/**");
+
+    /** Servis token'ı isteyen iç uçlar (Gateway'e açılmaz): cookie okunmaz, kapsam yetkisi SCOPE_ ile denetlenir. */
+    static final RequestMatcher INTERNAL_ENDPOINTS = PATHS.matcher(AuthApiPaths.INTERNAL + "/**");
 
     /** Cookie okumayan ve oturum açmayan uçlar (yetki kaynağı gövdedeki tek kullanımlık değerdir). */
     private static final RequestMatcher COOKIELESS_ENDPOINTS = new OrRequestMatcher(
@@ -95,7 +110,10 @@ public class SecurityConfig {
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.EMAIL_VERIFICATION_RESEND),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.STEAM_COMPLETE),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_FORGOT),
-            PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_RESET));
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_RESET),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.ACCOUNT_DELETION_CANCEL),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.SERVICE_TOKENS),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.DEVICES_TOKEN));
 
     private static final RequestMatcher BEARER_HEADER = request -> request.getHeader(HttpHeaders.AUTHORIZATION) != null;
 
@@ -103,8 +121,11 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http,
                                             ProblemDetailSecurityHandler problemDetailSecurityHandler,
                                             JwtDecoder jwtDecoder,
+                                            @Qualifier("serviceTokenAuthenticationManager")
+                                            AuthenticationManager serviceTokens,
                                             SessionCookies sessionCookies,
                                             SessionProperties sessionProperties) {
+        AuthenticationManager userManager = userTokens(jwtDecoder);
         http
                 .csrf(csrf -> csrf.spa()
                         .csrfTokenRepository(csrfTokenRepository(sessionCookies.csrfCookieName(),
@@ -121,14 +142,23 @@ public class SecurityConfig {
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .requestMatchers(ADMIN_ENDPOINTS).hasRole(RoleCode.ADMIN.name())
+                        .requestMatchers(PATHS.matcher(HttpMethod.GET, AuthApiPaths.INTERNAL_ACCOUNT))
+                                .hasAuthority(SCOPE_PREFIX + TokenClaims.ACCOUNT_READ_SCOPE)
+                        .requestMatchers(PATHS.matcher(HttpMethod.POST, AuthApiPaths.INTERNAL_ACCOUNT_STATUS))
+                                .hasAuthority(SCOPE_PREFIX + TokenClaims.ACCOUNT_STATUS_WRITE_SCOPE)
+                        .requestMatchers(PATHS.matcher(HttpMethod.POST, AuthApiPaths.INTERNAL_ACCOUNT_ROLES_GRANT),
+                                PATHS.matcher(HttpMethod.POST, AuthApiPaths.INTERNAL_ACCOUNT_ROLES_REVOKE))
+                                .hasAuthority(SCOPE_PREFIX + TokenClaims.ACCOUNT_ROLE_WRITE_SCOPE)
                         .requestMatchers(AUTHENTICATED_ENDPOINTS).authenticated()
                         .anyRequest().denyAll())
                 // Cookie → Bearer çevirisi CSRF denetiminden sonra yapılır (bkz. AccessTokenResolver).
-                .addFilterAfter(new AccessTokenCookieFilter(sessionCookies.accessCookieName(), PUBLIC_ENDPOINTS),
+                .addFilterAfter(new AccessTokenCookieFilter(sessionCookies.accessCookieName(),
+                        new OrRequestMatcher(PUBLIC_ENDPOINTS, INTERNAL_ENDPOINTS)),
                         CsrfFilter.class)
                 .oauth2ResourceServer(resourceServer -> resourceServer
                         .bearerTokenResolver(new AccessTokenResolver(PUBLIC_ENDPOINTS))
-                        .jwt(jwt -> jwt.decoder(jwtDecoder).jwtAuthenticationConverter(jwtAuthenticationConverter()))
+                        .authenticationManagerResolver(request -> INTERNAL_ENDPOINTS.matches(request)
+                                ? serviceTokens : userManager)
                         .authenticationEntryPoint(problemDetailSecurityHandler)
                         .accessDeniedHandler(problemDetailSecurityHandler))
                 .exceptionHandling(exceptions -> exceptions
@@ -158,6 +188,13 @@ public class SecurityConfig {
                 new RequestBodySizeLimitFilter(properties.maxBodySize().toBytes(), exceptionResolver));
         registration.setOrder(SecurityFilterProperties.DEFAULT_FILTER_ORDER - 1);
         return registration;
+    }
+
+    /** Kullanıcı access token'ları ({@code at+jwt}): {@code roles} claim'i {@code ROLE_} önekiyle yetkiye çevrilir. */
+    private static AuthenticationManager userTokens(JwtDecoder jwtDecoder) {
+        JwtAuthenticationProvider provider = new JwtAuthenticationProvider(jwtDecoder);
+        provider.setJwtAuthenticationConverter(jwtAuthenticationConverter());
+        return new ProviderManager(provider);
     }
 
     private static JwtAuthenticationConverter jwtAuthenticationConverter() {

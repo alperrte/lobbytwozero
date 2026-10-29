@@ -25,21 +25,29 @@ public class DeletionConfig {
         if (properties.maxBackoff().compareTo(properties.initialBackoff()) < 0) {
             throw new IllegalStateException("ltz.auth.deletion.max-backoff must not be shorter than initial-backoff");
         }
-        if (environment.matchesProfiles(PROD_PROFILE) && !HTTPS.equalsIgnoreCase(properties.linkBaseUrl().getScheme())) {
+        boolean prod = environment.matchesProfiles(PROD_PROFILE);
+        if (prod && !HTTPS.equalsIgnoreCase(properties.linkBaseUrl().getScheme())) {
             throw new IllegalStateException("ltz.auth.deletion.link-base-url must use https in the 'prod' profile");
         }
         for (String target : properties.targets()) {
-            requireServiceUrl(target, properties.serviceUrls().get(target));
+            requireServiceUrl(target, properties.serviceUrls().get(target), prod);
         }
     }
 
-    private static void requireServiceUrl(String target, URI url) {
+    /**
+     * Hedef servis çağrısı servis token'ını taşır; prod profilinde iç ağda da şifresiz (http) gönderilmez, böylece ağı
+     * dinleyen biri 60 sn'lik token'ı yeniden oynatamaz (B18).
+     */
+    private static void requireServiceUrl(String target, URI url, boolean prod) {
         String property = "ltz.auth.deletion.service-urls." + target;
         if (url == null) {
             throw new IllegalStateException(property + " is required for every deletion target");
         }
         if (!isOrigin(url)) {
             throw new IllegalStateException(property + " must be an http(s) origin without path, credentials or query");
+        }
+        if (prod && !HTTPS.equalsIgnoreCase(url.getScheme())) {
+            throw new IllegalStateException(property + " must use https in the 'prod' profile");
         }
     }
 

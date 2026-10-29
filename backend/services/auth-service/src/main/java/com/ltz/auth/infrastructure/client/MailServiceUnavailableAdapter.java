@@ -7,6 +7,8 @@ import com.ltz.auth.application.port.AccountDeletionMail;
 import com.ltz.auth.application.port.AccountDeletionMailPort;
 import com.ltz.auth.application.port.PasswordResetMail;
 import com.ltz.auth.application.port.PasswordResetMailPort;
+import com.ltz.auth.application.port.SecurityNotificationMail;
+import com.ltz.auth.application.port.SecurityNotificationMailPort;
 import com.ltz.auth.application.port.VerificationCodeDeliveryException;
 import com.ltz.auth.application.port.VerificationCodeMail;
 import com.ltz.auth.application.port.VerificationCodeMailPort;
@@ -21,7 +23,7 @@ import com.ltz.auth.application.port.VerificationCodeMailPort;
 @Component
 @ConditionalOnProperty(name = "ltz.auth.mail.adapter", havingValue = "unavailable", matchIfMissing = true)
 public class MailServiceUnavailableAdapter implements VerificationCodeMailPort, PasswordResetMailPort,
-        AccountDeletionMailPort {
+        AccountDeletionMailPort, SecurityNotificationMailPort {
 
     @Override
     public void sendVerificationCode(VerificationCodeMail mail) {
@@ -36,5 +38,10 @@ public class MailServiceUnavailableAdapter implements VerificationCodeMailPort, 
     @Override
     public void sendAccountDeletionConfirmation(AccountDeletionMail mail) {
         throw new VerificationCodeDeliveryException("Mail Service account deletion delivery is not available");
+    }
+
+    @Override
+    public void sendSecurityNotification(SecurityNotificationMail mail) {
+        throw new VerificationCodeDeliveryException("Mail Service security notification delivery is not available");
     }
 }

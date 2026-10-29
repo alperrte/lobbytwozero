@@ -38,6 +38,7 @@ Her yeni görevde, kod yazmadan önce sırasıyla oku:
    6. [docs/web-rules.md](docs/web-rules.md). Frontend işi varsa bu belge zorunludur. Backend işinde de API sözleşmesi için göz at.
 4. **Migration yazılacaksa:** [docs/decisions/migrations.md](docs/decisions/migrations.md). Ayrıntı için bkz. §4.
 5. **API kataloğu:** [docs/api.md](docs/api.md). Başka servisin API'sini tüketmeden önce sözleşmeyi buradan oku. Kendi API'ni yazınca buraya kaydet (bkz. §4.1).
+6. **Servisin güvenlik ve kalite notları:** `docs-security/<servis>/README.md` (otomatik üretilir: dondurulmuş Checkstyle/PMD borcu, dosya dosya liste, doğrulama komutları) ve `NOTLAR.md` (bilinen test/ortam sorunları). Dokunacağın her servisin klasörünü **koda başlamadan oku**; yeni ihlal ekleme, ihlali kural kapatarak gizleme. Genel liste: [docs-security/README.md](docs-security/README.md).
 
 **Kaynak önceliği:** repo kodu > `servis-gereksinimleri` > `gereksinimler` (docx). Çelişkiyi sessizce çözme; kullanıcıya bildir.
 
@@ -92,7 +93,9 @@ Her yeni görevde, kod yazmadan önce sırasıyla oku:
 ## 6. Kalite ve doğrulama
 
 - Değiştirdiğin kod için test yaz. Test konumları [folder-structure.md](docs/folder-structure.md) §3.1 ve §5.1'de tanımlıdır.
-- Backend line coverage (JaCoCo) en az %80 olmalıdır.
+- Backend coverage için tek politika `backend/config/coverage-policy.json` ve `docs/engineering.md` içindedir. İncelenmiş bootstrap modüller baseline'da gerileyemez; yeni/değişen ve bootstrap dışı executable Java satırları minimumu sağlamalıdır. Strict modül ve yayınlama hedefi toplam en az %80'dir. Maven verify ve Node runner aynı merkezi gate'i uygular; manifest değişikliği bağımsız owner review gerektirir.
+- Ortak CI/kalite altyapısı için [docs/engineering.md](docs/engineering.md) geçerlidir. Gerçek ENV okumadan backend doğrulaması: `node pre-push/ci/backend.mjs`; bu komut JDK25 ve geçici PostgreSQL gerektirir. Ağ/araç/test engeli PASS sayılmaz.
+- Commit hook'u yalnız hızlı staged-file kontrolleridir; ağır Maven/Sonar/Docker/E2E commit hook'una eklenmez. GitHub Quality Gate ancak owner required check ayarını uyguladıysa merge korumasıdır.
 - İş bitti demeden önce uygun kontrolü çalıştır ve sonucu dürüstçe raporla:
   - Windows: `.\pre-push\pre-push.cmd service`, `backend` veya `full dev`
   - POSIX: `sh ./pre-push/pre-push.sh`

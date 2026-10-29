@@ -35,7 +35,7 @@ class PasswordResetTest extends IntegrationTestSupport {
     private RecordingMailPort mailPort;
 
     @Test
-    void bilinenVeBilinmeyenHesapAyniYaniti_alir_yalnizBilinenHesaba_epostaGider() throws Exception {
+    void bilinenVeBilinmeyenHesapAyniYanitiAlirYalnizBilinenHesabaEpostaGider() throws Exception {
         String known = registerActiveAccount(uniqueEmail(), uniqueUsername());
         String unknown = uniqueEmail();
 
@@ -50,7 +50,7 @@ class PasswordResetTest extends IntegrationTestSupport {
     }
 
     @Test
-    void tokenYuksekEntropiliVeYalnizOzetOlarakSaklanir_baglantiFragmentTasir() throws Exception {
+    void tokenYuksekEntropiliVeYalnizOzetOlarakSaklanirBaglantiFragmentTasir() throws Exception {
         String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
 
         forgot(email).andExpect(status().isAccepted());
@@ -83,7 +83,7 @@ class PasswordResetTest extends IntegrationTestSupport {
     }
 
     @Test
-    void beklemeSuresindeIkinciIstekEpostaUretmez_sonrasindaEskiTokenGecersizlesir() throws Exception {
+    void beklemeSuresindeIkinciIstekEpostaUretmezSonrasindaEskiTokenGecersizlesir() throws Exception {
         String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
         UUID accountId = accountId(email);
         forgot(email).andExpect(status().isAccepted());
@@ -121,7 +121,23 @@ class PasswordResetTest extends IntegrationTestSupport {
     }
 
     @Test
-    void sifirlamaParolayiDegistirir_oturumlariIptalEder_otomatikGirisYapmaz() throws Exception {
+    void zayifYeniParolaReddedilirTokenTuketilmezVeGucluParolayaIzinVerir() throws Exception {
+        String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
+        forgot(email).andExpect(status().isAccepted());
+        String token = mailPort.awaitLatestResetToken(email, 1);
+        String hashBefore = jdbc.queryForObject("select password_hash from accounts where id = ?", String.class,
+                accountId(email));
+
+        reset(token, "passwordpassword1", "passwordpassword1").andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("WEAK_PASSWORD"));
+
+        assertThat(jdbc.queryForObject("select password_hash from accounts where id = ?", String.class,
+                accountId(email))).isEqualTo(hashBefore);
+        reset(token, NEW_PASSWORD, NEW_PASSWORD).andExpect(status().isNoContent());
+    }
+
+    @Test
+    void sifirlamaParolayiDegistirirOturumlariIptalEderOtomatikGirisYapmaz() throws Exception {
         String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
         SessionCookiePair session = loginSession(email);
         forgot(email).andExpect(status().isAccepted());

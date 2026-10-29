@@ -78,10 +78,10 @@ async function check(options, runnerOptions) {
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 }
 
-test('clean repository passes and a missing gitleaks is skipped, not failed', async () => {
+test('hygiene passes without spawning a second PATH-dependent history scanner', async () => {
   const result = await check({}, {});
   assert.equal(result.outcome, 'pass');
-  assert.ok(result.lines.some(line => line.startsWith('[SKIPPED] gitleaks')));
+  assert.ok(result.calls.every(call => !call.startsWith('gitleaks')));
   assert.ok(result.calls.some(call => call.startsWith('git check-ignore -q .env.dev')));
 });
 
@@ -112,9 +112,7 @@ test('exposed compose ports and a missing .dockerignore fail', async () => {
   assert.match(weakIgnore.outcome, /\.dockerignore does not exclude/);
 });
 
-test('gitleaks findings fail the check; the key generator guard test failing also fails it', async () => {
-  const leaks = await check({}, { gitleaks: 'leaks' });
-  assert.match(leaks.outcome, /gitleaks reported leaks/);
+test('the key generator guard test failing fails hygiene', async () => {
 
   const root = fixtureRoot();
   fs.mkdirSync(path.join(root, 'ops'));

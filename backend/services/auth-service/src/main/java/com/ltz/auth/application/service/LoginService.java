@@ -128,7 +128,8 @@ public class LoginService {
             case PENDING_VERIFICATION -> AuthErrorCode.EMAIL_NOT_VERIFIED;
             case SUSPENDED -> AuthErrorCode.ACCOUNT_SUSPENDED;
             case BANNED -> AuthErrorCode.ACCOUNT_BANNED;
-            case ACTIVE, DISABLED, DELETION_REQUESTED, DELETED -> AuthErrorCode.ACCOUNT_UNAVAILABLE;
+            case DELETION_REQUESTED -> AuthErrorCode.ACCOUNT_DELETION_PENDING;
+            case ACTIVE, DISABLED, DELETED -> AuthErrorCode.ACCOUNT_UNAVAILABLE;
         };
     }
 

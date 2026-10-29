@@ -57,9 +57,16 @@ public abstract class IntegrationTestSupport {
     protected static final String CSRF_COOKIE = "__Host-XSRF-TOKEN";
     protected static final String CSRF_HEADER = "X-XSRF-TOKEN";
 
-    private static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine");
+    private static final boolean EXTERNAL_POSTGRES = TestDatabaseSettings.useExternal(System.getProperties());
+    private static final PostgreSQLContainer POSTGRES = EXTERNAL_POSTGRES
+            ? null : new PostgreSQLContainer("postgres:17-alpine");
     private static final String TEST_HMAC_KEY = randomKey();
     private static final String TEST_TOTP_KEY = randomKey();
+    protected static final String ADMIN_CLIENT_SECRET = "test-admin-client-secret-0123456789-abcdef";
+    protected static final String SOCIAL_CLIENT_SECRET = "test-social-client-secret-0123456789-abcde";
+    protected static final String COMMUNITY_CLIENT_SECRET = "test-community-client-secret-0123456789-abc";
+    protected static final String MESSAGING_CLIENT_SECRET = "test-messaging-client-secret-0123456789-ab";
+    protected static final String LFP_CLIENT_SECRET = "test-lfp-client-secret-0123456789-abcdefgh";
     private static final int TEST_RSA_BITS = 3072;
     /** Her test çalıştırmasında üretilen imza anahtarı; repoda veya çıktıda gerçek anahtar yoktur. */
     protected static final KeyPair TEST_JWT_KEYS = rsaKeyPair();
@@ -67,7 +74,9 @@ public abstract class IntegrationTestSupport {
     protected static final ErasureTargetStub ERASURE_TARGETS = ErasureTargetStub.start();
 
     static {
-        POSTGRES.start();
+        if (POSTGRES != null) {
+            POSTGRES.start();
+        }
     }
 
     @Autowired
@@ -89,12 +98,16 @@ public abstract class IntegrationTestSupport {
 
     @DynamicPropertySource
     static void databaseProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-        registry.add("spring.datasource.username", POSTGRES::getUsername);
-        registry.add("spring.datasource.password", POSTGRES::getPassword);
+        if (POSTGRES != null) {
+            registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
+            registry.add("spring.datasource.username", POSTGRES::getUsername);
+            registry.add("spring.datasource.password", POSTGRES::getPassword);
+        }
         registry.add("AUTH_OTP_HMAC_KEY", () -> TEST_HMAC_KEY);
         // Silme worker'ı testlerde elle tetiklenir (deterministik); hedef servis listesi kısaltılır.
         registry.add("ltz.auth.deletion.worker-enabled", () -> "false");
+        // Olay aktarıcısı da elle tetiklenir (deterministik); hedef listesi varsayılan boştur, olay testleri kendi hedefini açar.
+        registry.add("ltz.auth.events.worker-enabled", () -> "false");
         // Temizlik de elle tetiklenir; arka plan çalıştırması testlerin verisini silmemeli.
         registry.add("ltz.auth.cleanup.enabled", () -> "false");
         // Eşzamanlılık testleri kapasite değil tekillik doğrular; yüklü makinede Argon2 slot beklemesi 503 üretmesin.
@@ -103,6 +116,14 @@ public abstract class IntegrationTestSupport {
         registry.add("ltz.auth.deletion.service-urls.user", ERASURE_TARGETS::baseUrl);
         registry.add("ltz.auth.deletion.service-urls.mail", ERASURE_TARGETS::baseUrl);
         registry.add("ltz.auth.deletion.http-timeout", () -> "PT2S");
+        // Üretim varsayılanı 14 gündür; mevcut silme testleri beklemesiz akışı sınar, bekleme davranışı ayrı testte zaman kaydırmayla.
+        registry.add("ltz.auth.deletion.grace-period", () -> "PT0S");
+        // Servis -> Auth iç uçları testleri: admin istemcisi etkin (test gizli anahtarı sabit, yalnız test).
+        registry.add("ltz.auth.service-clients.clients.admin-service.secret", () -> ADMIN_CLIENT_SECRET);
+        registry.add("ltz.auth.service-clients.clients.social-service.secret", () -> SOCIAL_CLIENT_SECRET);
+        registry.add("ltz.auth.service-clients.clients.community-service.secret", () -> COMMUNITY_CLIENT_SECRET);
+        registry.add("ltz.auth.service-clients.clients.messaging-service.secret", () -> MESSAGING_CLIENT_SECRET);
+        registry.add("ltz.auth.service-clients.clients.lfp-service.secret", () -> LFP_CLIENT_SECRET);
         registry.add("AUTH_TOTP_ENCRYPTION_KEY", () -> TEST_TOTP_KEY);
         registry.add("AUTH_JWT_PRIVATE_KEY",
                 () -> Base64.getEncoder().encodeToString(TEST_JWT_KEYS.getPrivate().getEncoded()));

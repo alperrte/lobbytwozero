@@ -105,9 +105,9 @@ LTZ'nin dünyası **mikroservislerden** oluşur. Web istemcisi tüm isteklerini 
 | --- | --- | --- |
 | 🟢 Kimlik & hesap | `auth` · `user` · `mail` | 5081–5083 |
 | 🟡 Oyun & katalog | `game` · `library` · `review` | 5084–5086 |
-| 🔵 Sosyal & iletişim | `social` · `messaging` · `lfp` | 5087–5089 |
+| 🔴 Sosyal & iletişim | `social` · `messaging` · `lfp` | 5087–5089 |
 | 🩷 Topluluk & içerik | `community` · `content` · `event` | 5090–5092 |
-| 🟣 Donanım & performans | `hardware` · `recommendation` · `performance` | 5093–5095 |
+| 🟥 Donanım & performans | `hardware` · `recommendation` · `performance` | 5093–5095 |
 | ⚪ Paylaşılan | `admin` · `notification` | 5096–5097 |
 | 🏰 Kapı | `api-gateway` | 5080 |
 | 🏠 İstemci | `frontend` (Next.js) | 5001 |
@@ -243,3 +243,7 @@ LTZ'nin dünyası **mikroservislerden** oluşur. Web istemcisi tüm isteklerini 
 > Ayrıntılar: [ops/ops.md](ops/ops.md) · [pre-push/pre-push.md](pre-push/pre-push.md)
 
 <p align="center"><img src="docs/assets/readme/footer.svg" width="100%" alt="In development — LTZ aktif geliştirme aşamasında. Thanks for playing!"></p>
+# Mühendislik kalite altyapısı
+
+PR doğrulamaları, hızlı prek hook kurulumu, redakte secret taraması ve izole backend testleri:
+[DevSecOps Foundation v1.0](docs/engineering.md). GitHub üzerinde gerçek CI sonucu ve merge koruması henüz **NOT VERIFIED**.

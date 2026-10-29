@@ -86,7 +86,8 @@ Bu çalışma DEBUG/TRACE etkin üretim Auth loglarını güvenli diye doğrulam
 İkinci tam pre-push: Auth 290/290, Hardware 354/354 ve 18 HTTP PASS; Game satır sonu farkı
 nedeniyle FAIL. Kullanıcı iki SQL çalışma kopyasını LF yapmayı ve `.gitattributes`
 SQL kuralını açıklama sonrası onayladı. V34/V35 normalleştirildi; her iki dosya Git HEAD
-ile tam bayt eşit, Game altında Git diff yok. [Dar onay/kanıt](quality-blocker-game-eol.md).
+ile tam bayt eşit, Game altında Git diff yok. Tarihsel ek kayıt adı:
+`quality-blocker-game-eol.md` (arşivleme sırasında checkout'ta bulunmuyordu).
 Son tam pre-push `full dev`: PASS / exit 0; `logs/hardware-auth-pre-push-after-eol.log`.
 Maven bitişi 03:41:13 +03; 1138 test, failure/error/skipped 0; backend line coverage
 %95,88; 18/18 HTTP health PASS, Git/secret/Compose PASS, **SAFE TO COMMIT**.
@@ -105,7 +106,8 @@ Hardware bulguları kendi kapsamında düzeltildi: nullable claim yerel değişk
 CSRF açık istisnasının kaldırılması, tekrar sabitleri, kullanılmayan catch değişkenleri,
 matcher ve test assertion/rotation bekleme düzenlemeleri. Son yerel Maven verify
 356/356 PASS, 03:55:54 +03 (`logs/hardware-auth-sonar-fixes-local.log`).
-Kullanıcı Social müdahalesini açıkça reddetti; [öneri uygulanmadı](quality-blocker-social-sonar.md).
+Kullanıcı Social müdahalesini açıkça reddetti; öneri uygulanmadı. Tarihsel ek kayıt adı:
+`quality-blocker-social-sonar.md` (arşivleme sırasında checkout'ta bulunmuyordu).
 Son Hardware kodu için iki tam kapı tekrar çalıştırılıyor. Social değişmeden kapı
 başarısız kalırsa teslim `QUALITY_BLOCKED`; commit/PDA hazır bildirimi yapılmaz.
 

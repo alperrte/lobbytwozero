@@ -25,14 +25,21 @@ public class HardwareSecurityConfiguration {
     private static final org.springframework.security.web.util.matcher.RequestMatcher ACCOUNT_ERASURE =
             org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.withDefaults()
                     .matcher(org.springframework.http.HttpMethod.DELETE, "/internal/v1/accounts/*");
+    private static final org.springframework.security.web.util.matcher.RequestMatcher SNAPSHOTS =
+            org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.withDefaults()
+                    .matcher(org.springframework.http.HttpMethod.POST, "/api/v1/hardware/profiles/*/sync/snapshots");
     @Bean
     SecurityFilterChain hardwareSecurity(HttpSecurity http, ObjectMapper mapper,
             @Qualifier("hardwareUserDecoder") JwtDecoder decoder,
-            @Qualifier("hardwareServiceDecoder") JwtDecoder serviceDecoder, HardwareJwtAuthenticationConverter converter) {
+            @Qualifier("hardwareServiceDecoder") JwtDecoder serviceDecoder,
+            @Qualifier("hardwareDeviceDecoder") JwtDecoder deviceDecoder, HardwareJwtAuthenticationConverter converter) {
         var userProvider = new JwtAuthenticationProvider(decoder);
         userProvider.setJwtAuthenticationConverter(converter);
         var userManager = new ProviderManager(userProvider);
         var serviceManager = new ProviderManager(new JwtAuthenticationProvider(serviceDecoder));
+        var deviceProvider = new JwtAuthenticationProvider(deviceDecoder);
+        deviceProvider.setJwtAuthenticationConverter(new HardwareDeviceJwtAuthenticationConverter());
+        var snapshotManager = new ProviderManager(userProvider, deviceProvider);
         // Cookie authentication is owned by Gateway; Hardware only resolves Bearer tokens.
         http.httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
@@ -71,7 +78,7 @@ public class HardwareSecurityConfiguration {
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(resource -> resource.authenticationManagerResolver(request ->
                         request.getRequestURI().startsWith("/internal/", request.getContextPath().length())
-                                ? serviceManager : userManager)
+                                ? serviceManager : SNAPSHOTS.matches(request) ? snapshotManager : userManager)
                         .authenticationEntryPoint((request, response, error) ->
                                 writeProblem(response, mapper, 401, AUTHENTICATION_REQUIRED))
                         .accessDeniedHandler((request, response, error) ->

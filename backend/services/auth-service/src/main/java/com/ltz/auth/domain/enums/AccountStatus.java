@@ -15,14 +15,14 @@ public enum AccountStatus {
 
     /**
      * Yönetici (AUTH-12) geçişleri. PENDING_VERIFICATION AUTH-02, DELETION_REQUESTED/DELETED AUTH-16 ile yönetilir.
-     * BANNED sondur: kaldırma kararı henüz verilmemiştir (açık karar).
+     * Askı ve yasak yönetici kararıyla geri alınabilir (SUSPENDED/DISABLED/BANNED → ACTIVE); süreli otomatik açılma yoktur.
      */
     public boolean canTransitionTo(AccountStatus target) {
         return switch (this) {
             case ACTIVE -> target == SUSPENDED || target == BANNED || target == DISABLED;
             case SUSPENDED -> target == ACTIVE || target == BANNED;
-            case DISABLED -> target == ACTIVE;
-            case PENDING_VERIFICATION, BANNED, DELETION_REQUESTED, DELETED -> false;
+            case DISABLED, BANNED -> target == ACTIVE;
+            case PENDING_VERIFICATION, DELETION_REQUESTED, DELETED -> false;
         };
     }
 }

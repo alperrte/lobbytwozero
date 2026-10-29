@@ -37,14 +37,14 @@ class JwtValidationTest extends IntegrationTestSupport {
     private static final String PROTECTED = AuthApiPaths.TOTP_SETUP;
 
     @Test
-    void gecerliTokenBearerBasligiylaKabulEdilir_csrfGerekmez() throws Exception {
+    void gecerliTokenBearerBasligiylaKabulEdilirCsrfGerekmez() throws Exception {
         String token = loginSession(registerActiveAccount(uniqueEmail(), uniqueUsername())).access().getValue();
 
         callProtected(token).andExpect(status().isOk());
     }
 
     @Test
-    void baskaAnahtarlaImzalanmisTokenReddedilir_rolEnjeksiyonuIseYaramaz() throws Exception {
+    void baskaAnahtarlaImzalanmisTokenReddedilirRolEnjeksiyonuIseYaramaz() throws Exception {
         SignedJWT original = realToken();
         KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
         generator.initialize(ATTACKER_KEY_BITS);
@@ -79,7 +79,7 @@ class JwtValidationTest extends IntegrationTestSupport {
     }
 
     @Test
-    void algoritmaKarisikligiReddedilir_noneVeHs256() throws Exception {
+    void algoritmaKarisikligiReddedilirNoneVeHs256() throws Exception {
         SignedJWT original = realToken();
         JWTClaimsSet claims = original.getJWTClaimsSet();
 
@@ -100,7 +100,7 @@ class JwtValidationTest extends IntegrationTestSupport {
     }
 
     @Test
-    void tokensizIstek401_gecerliTokenleIzinVerilmeyenUc403() throws Exception {
+    void tokensizIstek401GecerliTokenleIzinVerilmeyenUc403() throws Exception {
         String token = realToken().serialize();
 
         mockMvc.perform(post(PROTECTED).with(xsrf())).andExpect(status().isUnauthorized())

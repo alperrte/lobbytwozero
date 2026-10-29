@@ -1,0 +1,3 @@
+title = "LTZ upstream Gitleaks rules — no blanket suppressions"
+[extend]
+useDefault = true

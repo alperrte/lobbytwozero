@@ -18,7 +18,7 @@ class AuthPropertiesValidationTest {
 
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(ValidationAutoConfiguration.class))
-            .withUserConfiguration(AuthApplicationConfig.class, VerificationCodeHasher.class)
+            .withUserConfiguration(AuthApplicationConfig.class, DeviceConfig.class, VerificationCodeHasher.class)
             .withPropertyValues(
                     "ltz.auth.verification.code-ttl=PT10M",
                     "ltz.auth.verification.max-attempts=5",
@@ -45,7 +45,20 @@ class AuthPropertiesValidationTest {
                     "ltz.auth.two-factor.max-challenge-attempts=5",
                     "ltz.auth.two-factor.recovery-code-count=10",
                     "ltz.auth.two-factor.allowed-clock-skew-steps=1",
-                    "ltz.auth.two-factor.required-roles=ADMIN,MODERATOR");
+                    "ltz.auth.two-factor.required-roles=ADMIN,MODERATOR",
+                    "ltz.auth.device.max-active=5",
+                    "ltz.auth.device.credential-ttl=P365D",
+                    "ltz.auth.device.daily-bind-limit=10");
+
+    @Test
+    void gecersizCihazAyarlariylaBaslamaz() {
+        runner.withPropertyValues("ltz.auth.device.max-active=0").run(context -> assertThat(context).hasFailed());
+        runner.withPropertyValues("ltz.auth.device.max-active=21").run(context -> assertThat(context).hasFailed());
+        runner.withPropertyValues("ltz.auth.device.credential-ttl=PT1H").run(context -> assertThat(context).hasFailed());
+        runner.withPropertyValues("ltz.auth.device.credential-ttl=P1000D").run(context -> assertThat(context).hasFailed());
+        runner.withPropertyValues("ltz.auth.device.daily-bind-limit=0").run(context -> assertThat(context).hasFailed());
+        runner.withPropertyValues("ltz.auth.device.daily-bind-limit=101").run(context -> assertThat(context).hasFailed());
+    }
 
     @Test
     void gecerliAyarlarlaBaslar() {
@@ -59,7 +72,7 @@ class AuthPropertiesValidationTest {
     }
 
     @Test
-    void kisaAnahtarlaBaslamaz_hataAnahtariIcermez() {
+    void kisaAnahtarlaBaslamazHataAnahtariIcermez() {
         String shortKey = Base64.getEncoder().encodeToString(new byte[8]);
 
         runner.withPropertyValues("ltz.auth.verification.hmac-key=" + shortKey)

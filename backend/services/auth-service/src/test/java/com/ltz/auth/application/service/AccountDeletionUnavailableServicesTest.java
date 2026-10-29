@@ -32,8 +32,12 @@ class AccountDeletionUnavailableServicesTest extends AccountDeletionTestSupport 
                 .isEqualTo("DELETION_REQUESTED");
         assertThat(jdbc.queryForObject("select status from account_deletion_requests where account_id = ?",
                 String.class, accountId)).isEqualTo("COORDINATING");
+        // Bekleme süresi bitti ve görevler başladı: servisler onaylamasa da Auth PII'si anonimdir (S1), kimlik ve durum kalır.
         assertThat(jdbc.queryForObject("select email from accounts where id = ?", String.class, accountId))
-                .isEqualToIgnoringCase(email);
+                .isEqualTo("deleted-" + accountId + "@deleted.invalid");
+        assertThat(jdbc.queryForObject("select password_hash from accounts where id = ?", String.class, accountId))
+                .isNull();
+        assertThat(securityEventCount(accountId, "ACCOUNT_DELETION_IDENTITY_ERASED")).isEqualTo(1);
         assertThat(securityEventCount(accountId, "ACCOUNT_DELETION_COMPLETED")).isZero();
     }
 }

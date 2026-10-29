@@ -24,7 +24,7 @@ class TotpCodesTest {
     }
 
     @Test
-    void saatPenceresiIcindekiAdimiBulur_disindakiniReddeder() {
+    void saatPenceresiIcindekiAdimiBulurDisindakiniReddeder() {
         Instant now = Instant.ofEpochSecond(1111111111);
         long step = totp.stepAt(now);
 

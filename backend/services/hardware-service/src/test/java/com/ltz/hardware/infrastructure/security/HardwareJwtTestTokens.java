@@ -17,7 +17,7 @@ final class HardwareJwtTestTokens {
         result.put("sub", service ? "svc:auth-service" : account.toString());
         result.put("aud", List.of(service ? "hardware-service" : "ltz-api"));
         result.put("iat", now.getEpochSecond()); result.put("nbf", now.getEpochSecond());
-        result.put("exp", now.plusSeconds(service ? 30 : 300).getEpochSecond());
+        result.put("exp", now.plusSeconds(service ? 30 : 60).getEpochSecond());
         result.put("jti", UUID.randomUUID().toString());
         if (service) { result.put("scope", "account:erase"); result.put("account_id", account.toString()); }
         else result.put("roles", List.of("PLAYER"));

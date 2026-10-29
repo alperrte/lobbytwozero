@@ -10,9 +10,12 @@ import com.ltz.auth.application.port.AccountDeletionMail;
 import com.ltz.auth.application.port.AccountDeletionMailPort;
 import com.ltz.auth.application.port.PasswordResetMail;
 import com.ltz.auth.application.port.PasswordResetMailPort;
+import com.ltz.auth.application.port.SecurityNotificationMail;
+import com.ltz.auth.application.port.SecurityNotificationMailPort;
 import com.ltz.auth.application.port.VerificationCodeDeliveryException;
 import com.ltz.auth.application.port.VerificationCodeMail;
 import com.ltz.auth.application.port.VerificationCodeMailPort;
+import com.ltz.auth.domain.exception.RedactedCause;
 import com.ltz.auth.infrastructure.config.DevSmtpProperties;
 
 /**
@@ -22,7 +25,7 @@ import com.ltz.auth.infrastructure.config.DevSmtpProperties;
  * health göstergesi devreye girmez ve Mailpit kapalıyken servis sağlığı etkilenmez.
  */
 public class DevSmtpVerificationMailAdapter implements VerificationCodeMailPort, PasswordResetMailPort,
-        AccountDeletionMailPort {
+        AccountDeletionMailPort, SecurityNotificationMailPort {
 
     static final String SUBJECT = "LTZ e-posta doğrulama kodu / email verification code";
     static final String RESET_SUBJECT = "LTZ parola sıfırlama / password reset";
@@ -91,6 +94,12 @@ public class DevSmtpVerificationMailAdapter implements VerificationCodeMailPort,
                 DELETION_BODY_TEMPLATE.formatted(mail.confirmationLink(), mail.validity().toMinutes()));
     }
 
+    @Override
+    public void sendSecurityNotification(SecurityNotificationMail mail) {
+        send(mail.recipientEmail(), SecurityNotificationTexts.subject(mail.type()),
+                SecurityNotificationTexts.body(mail.type(), mail.occurredAt()));
+    }
+
     private void send(String recipient, String subject, String text) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(from);
@@ -100,9 +109,9 @@ public class DevSmtpVerificationMailAdapter implements VerificationCodeMailPort,
         try {
             mailSender.send(message);
         } catch (MailException exception) {
-            // Sağlayıcı hata mesajları alıcı adresini içerebilir; yalnız hata türü taşınır.
+            // Sağlayıcı hata mesajları alıcı adresini içerebilir; hata türü ve yığın izi taşınır, mesaj taşınmaz.
             throw new VerificationCodeDeliveryException(
-                    "Development SMTP delivery failed: " + exception.getClass().getSimpleName());
+                    "Development SMTP delivery failed: " + exception.getClass().getSimpleName(), RedactedCause.of(exception));
         }
     }
 }

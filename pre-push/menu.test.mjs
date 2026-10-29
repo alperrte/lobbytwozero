@@ -110,7 +110,13 @@ async function backendFixture(options, action) {
       }
       return {code:options.buildFail?1:0,output:''};
     };
-    const result = await runBackendChecks({root,service:options.service??'auth-service',profile:options.profile??'dev',ambient:{SONAR_TOKEN:'do-not-forward',DEBUG:'tool-namespace'},runCommand,log:line=>lines.push(line)});
+    const result = await runBackendChecks({root,service:options.service??'auth-service',profile:options.profile??'dev',ambient:{SONAR_TOKEN:'do-not-forward',DEBUG:'tool-namespace'},runCommand,
+      prepare:async()=> 'synthetic-context',coverageCheck:(_root,selected)=>{
+        if(options.lowCoverage)throw new Error('Central policy rejected synthetic report');
+        return selected.map(module=>({module}));
+      },qualityCheck:()=>{
+        if(options.qualityFail)throw new Error('Quality gate: 1 issue(s)');
+      },log:line=>lines.push(line)});
     await action({root,result,calls,lines});
   });
 }
@@ -160,7 +166,7 @@ test('backend-only verify preserves the selected prod profile and password redac
   });
 });
 
-for (const option of ['missingMaven','missingReports','emptyTests','failedTests','lowCoverage','stale','buildFail']) {
+for (const option of ['missingMaven','missingReports','emptyTests','failedTests','lowCoverage','stale','buildFail','qualityFail']) {
   test(`backend-only ${option} returns failure without a false success message`, async () => {
     await backendFixture({[option]:true},async ({result,lines})=>{
       assert.equal(result.exitCode,1);

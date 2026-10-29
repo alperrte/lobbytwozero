@@ -39,7 +39,7 @@ class EmailVerificationControllerTest extends IntegrationTestSupport {
     private VerificationCodeHasher codeHasher;
 
     @Test
-    void dogruKodHesabiAktiflestirir_kodIkinciKezKullanilamaz() throws Exception {
+    void dogruKodHesabiAktiflestirirKodIkinciKezKullanilamaz() throws Exception {
         String email = registerNewAccount();
         String code = mailPort.awaitLatestCode(email, 1);
 
@@ -66,7 +66,7 @@ class EmailVerificationControllerTest extends IntegrationTestSupport {
     }
 
     @Test
-    void yanlisKodDenemeHakkiniTuketir_hakBitinceDogruKodDaReddedilir() throws Exception {
+    void yanlisKodDenemeHakkiniTuketirHakBitinceDogruKodDaReddedilir() throws Exception {
         String email = registerNewAccount();
         String code = mailPort.awaitLatestCode(email, 1);
         String wrongCode = code.equals("111111") ? "222222" : "111111";
@@ -116,7 +116,7 @@ class EmailVerificationControllerTest extends IntegrationTestSupport {
     }
 
     @Test
-    void yenidenGondermeEskiKoduGecersizKilar_yeniKodCalisir() throws Exception {
+    void yenidenGondermeEskiKoduGecersizKilarYeniKodCalisir() throws Exception {
         String email = registerNewAccount();
         String oldCode = mailPort.awaitLatestCode(email, 1);
         shiftCodesBack(accountId(email), PAST_COOLDOWN);

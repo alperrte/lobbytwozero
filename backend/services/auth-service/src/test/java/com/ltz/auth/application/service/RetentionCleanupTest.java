@@ -30,6 +30,8 @@ class RetentionCleanupTest extends IntegrationTestSupport {
     @Autowired
     private RetentionCleanupService cleanup;
     @Autowired
+    private CleanupProperties cleanupProperties;
+    @Autowired
     private RetentionCleanupRepository cleanupRepository;
     @Autowired
     private AccountRepository accountRepository;
@@ -43,7 +45,7 @@ class RetentionCleanupTest extends IntegrationTestSupport {
     private Clock clock;
 
     @Test
-    void suresiDolanGeciciKayitlarSilinir_tazeOlanlarKorunur() {
+    void suresiDolanGeciciKayitlarSilinirTazeOlanlarKorunur() {
         String oldFlow = hash();
         String freshFlow = hash();
         String oldNonce = hash();
@@ -96,7 +98,7 @@ class RetentionCleanupTest extends IntegrationTestSupport {
     }
 
     @Test
-    void dogrulanmamisHesapSuresiDolunca_anonimlesirEpostaSerbestKalirOlaylarKorunur() throws Exception {
+    void dogrulanmamisHesapSuresiDoluncaAnonimlesirEpostaSerbestKalirOlaylarKorunur() throws Exception {
         String email = uniqueEmail();
         register(email, uniqueUsername(), VALID_PASSWORD).andExpect(status().isAccepted());
         UUID accountId = accountId(email);
@@ -121,7 +123,7 @@ class RetentionCleanupTest extends IntegrationTestSupport {
     }
 
     @Test
-    void temizlikIdempotent_ikinciCalismaYeniOlayUretmez() throws Exception {
+    void temizlikIdempotentIkinciCalismaYeniOlayUretmez() throws Exception {
         String email = uniqueEmail();
         register(email, uniqueUsername(), VALID_PASSWORD).andExpect(status().isAccepted());
         UUID accountId = accountId(email);
@@ -134,7 +136,7 @@ class RetentionCleanupTest extends IntegrationTestSupport {
     }
 
     @Test
-    void eszamanliTemizlikler_hesabiTekKezIsler() throws Exception {
+    void eszamanliTemizliklerHesabiTekKezIsler() throws Exception {
         List<UUID> accounts = new java.util.ArrayList<>();
         for (int index = 0; index < 4; index++) {
             String email = uniqueEmail();
@@ -172,12 +174,28 @@ class RetentionCleanupTest extends IntegrationTestSupport {
         jdbc.update("insert into security_events (id, account_id, type, created_at) values "
                 + "(?, ?, 'LOGIN_SUCCEEDED', now() - interval '5 years')", oldEvent, accountId);
 
-        cleanup.run();
-        assertThat(exists("security_events", "id", oldEvent)).as("karar bekliyor: varsayılan silme yok").isTrue();
+        serviceWith(properties(BATCH, null)).run();
+        assertThat(exists("security_events", "id", oldEvent)).as("süre verilmezse silme yok").isTrue();
 
         serviceWith(properties(BATCH, Duration.ofDays(365))).run();
         assertThat(exists("security_events", "id", oldEvent)).isFalse();
         assertThat(securityEventCount(accountId, "ACCOUNT_REGISTERED")).as("yeni olaylar korunur").isEqualTo(1);
+    }
+
+    @Test
+    void guvenlikOlayiVarsayilanSaklamaSuresiBirYildirEskiOlaySilinirYeniKorunur() throws Exception {
+        UUID accountId = accountId(registerActiveAccount(uniqueEmail(), uniqueUsername()));
+        UUID expired = UUID.randomUUID();
+        UUID recent = UUID.randomUUID();
+        jdbc.update("insert into security_events (id, account_id, type, created_at) values "
+                + "(?, ?, 'LOGIN_SUCCEEDED', now() - interval '400 days'), "
+                + "(?, ?, 'LOGIN_SUCCEEDED', now() - interval '300 days')", expired, accountId, recent, accountId);
+
+        assertThat(cleanupProperties.securityEventRetention()).isEqualTo(Duration.ofDays(365));
+        cleanup.run();
+
+        assertThat(exists("security_events", "id", expired)).isFalse();
+        assertThat(exists("security_events", "id", recent)).isTrue();
     }
 
     private RetentionCleanupService serviceWith(CleanupProperties properties) {
