@@ -45,6 +45,16 @@ export function javaTokens(text) {
     token => token.startsWith('//') || token.startsWith('/*') ? ' ' : token)
     .match(/"""[\s\S]*?"""|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[A-Za-z_$][\w$]*|\d+(?:[.\w]*)|[^\s]/g) ?? [];
 }
+// An edit that only adds, removes or reorders import declarations changes no behavior: javac and the module tests
+// still verify it. Any other token, including a package or class change in the same file, keeps the file semantic.
+export function withoutImports(tokens) {
+  const kept = [];
+  for (let i = 0; i < tokens.length; i++) {
+    if (tokens[i] !== 'import') { kept.push(tokens[i]); continue; }
+    while (i < tokens.length && tokens[i] !== ';') i++;
+  }
+  return kept;
+}
 function bootstrapExemptions(text, filename, measured) {
   const clean = text.replace(/\/\*[\s\S]*?\*\/|\/\/[^\r\n]*|"""[\s\S]*?"""|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/g,
     token => token.startsWith('//') || token.startsWith('/*') ? token.replace(/[^\r\n]/g, ' ') : token);
@@ -152,7 +162,7 @@ export function gitContext(root, { base = process.env.COVERAGE_BASE_SHA || 'orig
       const start = Number(match[1]), length = match[2] === undefined ? 1 : Number(match[2]);
       for (let i = start; i < start + length; i++) lines.add(i);
     }
-    changes[name] = { lines: [...lines], semantic: !same(javaTokens(old), javaTokens(now)), deleted: now === '', sourceHash: sha(now) };
+    changes[name] = { lines: [...lines], semantic: !same(withoutImports(javaTokens(old)), withoutImports(javaTokens(now))), deleted: now === '', sourceHash: sha(now) };
   }
   const previous = git(['ls-tree', '--name-only', comparison, '--', policyPath]).trim()
     ? JSON.parse(git(['show', comparison + ':' + policyPath])) : null;
