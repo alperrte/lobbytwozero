@@ -125,11 +125,15 @@ export function gitContext(root, { base = process.env.COVERAGE_BASE_SHA || 'orig
   const names = new Set(changed.split('\0').filter(Boolean));
   if (!head) for (const name of git(['ls-files', '--others', '--exclude-standard', '-z', '--', 'backend/']).split('\0').filter(Boolean)) names.add(name);
   const changes = {};
+  // Modules whose test sources changed: a non-executable (interface/constant) change is only accepted together with tests.
+  const testModules = new Set();
   for (const name of names) {
     if (!/^backend\/services\/[a-z][a-z0-9-]*\/src\/main\/java\/(?:[A-Za-z_$][\w$]*\/)*[A-Za-z_$][\w$]*\.java$/.test(name)) {
       // Test sources are never measured for coverage, so editing a test must not fail the build; any other Java
       // file outside src/main/java stays unsupported and fails closed.
-      if (name.endsWith('.java') && !/^backend\/services\/[a-z][a-z0-9-]*\/src\/test\/java\//.test(name)) fail('unsupported Java source path');
+      const testSource = /^backend\/(services\/[a-z][a-z0-9-]*)\/src\/test\/java\//.exec(name);
+      if (name.endsWith('.java') && !testSource) fail('unsupported Java source path');
+      if (testSource && name.endsWith('.java')) testModules.add(testSource[1]);
       continue;
     }
     const existsBefore = git(['ls-tree', '--name-only', comparison, '--', name]).trim() !== '';
@@ -152,7 +156,7 @@ export function gitContext(root, { base = process.env.COVERAGE_BASE_SHA || 'orig
   }
   const previous = git(['ls-tree', '--name-only', comparison, '--', policyPath]).trim()
     ? JSON.parse(git(['show', comparison + ':' + policyPath])) : null;
-  return { version: 1, base: comparison, head: headSha, mergeBase, changes, previous };
+  return { version: 1, base: comparison, head: headSha, mergeBase, changes, testModules: [...testModules].sort(), previous };
 }
 export async function ownerApprovedPolicy({ repository, pullNumber, head, author, owner, token, fetcher = fetch }) {
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository ?? '') || !Number.isSafeInteger(pullNumber) || pullNumber < 1
@@ -285,8 +289,8 @@ export function evaluateModule({ root, module, policy, context, metadata }) {
   }
   if (item.level === 'bootstrap' && total === baselineTotal && !same(inventory, item.sources) && overall < min) fail('changed logic cannot hide inside bootstrap line budget');
   let changedCovered = 0, changedTotal = 0, semanticFiles = 0;
-  const reasons = [];
-  const prefix = 'backend/' + module + '/src/main/java/';
+  const reasons = [], exempt = [];
+  const prefix ='backend/' + module + '/src/main/java/';
   for (const [name, change] of Object.entries(context.changes)) {
     if (!/^backend\/services\/[a-z][a-z0-9-]*\/src\/main\/java\/(?:[A-Za-z_$][\w$]*\/)*[A-Za-z_$][\w$]*\.java$/.test(name)
         || typeof change.semantic !== 'boolean' || typeof change.deleted !== 'boolean' || !/^[a-f0-9]{64}$/.test(change.sourceHash)
@@ -307,13 +311,25 @@ export function evaluateModule({ root, module, policy, context, metadata }) {
       const line = lines.get(nr);
       if (line && line.mi + line.ci > 0) { executable++; changedTotal++; if (line.ci > 0) changedCovered++; }
     }
-    if (!executable) fail('semantic Java change without measurable changed executable lines; review required');
+    if (!executable) {
+      // Narrow exception: JaCoCo saw this compiled source and reports no executable line anywhere in it (interface
+      // declarations, constants). A file with any executable line, such as a default/static body, never qualifies and
+      // keeps the normal changed-line rule. The change must also come with changed tests in the same module.
+      const measuredClass = metadata.classes.some(c => c.name.slice(0, c.name.lastIndexOf('/') + 1) + c.source === sourceName);
+      const noExecutableCode = [...lines.values()].every(line => line.mi + line.ci === 0);
+      if (!measuredClass || !noExecutableCode) fail('semantic Java change without measurable changed executable lines; review required');
+      if (!Array.isArray(context.testModules) || !context.testModules.includes(module)) {
+        fail('non-executable Java change (interface/constants) needs changed tests in the same module; review required');
+      }
+      exempt.push({ file: sourceName, reason: 'no executable lines in the whole compiled source (interface/constants); tests changed in module' });
+    }
   }
   if (changedTotal && changedCovered * 100 < min * changedTotal) fail('changed-line coverage below policy');
   return { module, level: item.level, tests: metadata.tests, covered: metadata.counter.covered, missed: metadata.counter.missed,
     overallPercent: overall, baseline: 'PASS', additional: { covered: additionalCovered, total: additionalTotal }, changed: { status: changedTotal ? 'PASS' : 'NOT_APPLICABLE', covered: changedCovered,
       total: changedTotal, percent: changedTotal ? changedCovered * 100 / changedTotal : null,
-      reason: changedTotal ? 'JaCoCo sourcefile/line mapped to Git additions' : reasons.join('; ') || 'no changed production Java sources', semanticFiles } };
+      reason: changedTotal ? 'JaCoCo sourcefile/line mapped to Git additions' : reasons.join('; ') || 'no changed production Java sources', semanticFiles },
+    exempt };
 }
 export function enforceCoverage(root, modules, contextFile = process.env.LTZ_COVERAGE_CONTEXT) {
   if (!contextFile) fail('coverage context required');
@@ -324,7 +340,7 @@ export function enforceCoverage(root, modules, contextFile = process.env.LTZ_COV
   // Context is not an authority to choose a convenient base or hide a diff.
   // Re-read read-only Git facts from the original checkout even for a filtered copy.
   const facts = gitContext(witness);
-  if (['base','head','mergeBase','changes','previous'].some(key => !same(context[key], facts[key]))) fail('Git facts changed or context forged');
+  if (['base','head','mergeBase','changes','testModules','previous'].some(key => !same(context[key], facts[key]))) fail('Git facts changed or context forged');
   const reviewRequired = validatePolicy(policy, readModules(root), facts.previous);
   if (reviewRequired && process.env.GITHUB_ACTIONS !== 'true') fail('POLICY_REVIEW_REQUIRED; a local context cannot assert owner approval');
   if (sha(fs.readFileSync(plain(path.join(witness,policyPath)))) !== sha(fs.readFileSync(plain(path.join(root,policyPath))))) fail('copy/witness policy mismatch');
@@ -357,7 +373,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       } else {
         const module = path.relative(path.join(repositoryRoot, 'backend'), moduleDirectory).split(path.sep).join('/');
         if (!readModules(repositoryRoot).includes(module)) fail('unknown Maven module');
-        console.log(JSON.stringify(enforceCoverage(repositoryRoot, [module], contextFile)[0]));
+        const result = enforceCoverage(repositoryRoot, [module], contextFile)[0];
+        for (const item of result.exempt) console.log(`COVERAGE-EXEMPT ${module}/${item.file}: ${item.reason}`);
+        console.log(JSON.stringify(result));
       }
     } else throw new Error('Use prepare or maven-module <module-directory>');
   } catch (error) { console.error(error.message); process.exitCode = 1; }

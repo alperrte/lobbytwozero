@@ -78,6 +78,7 @@ public class SecurityConfig {
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_RESET),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.ACCOUNT_DELETION_CANCEL),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.SERVICE_TOKENS),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.DEVICES_TOKEN),
             PATHS.matcher(HttpMethod.GET, HEALTH),
             PATHS.matcher(HttpMethod.GET, HEALTH_GROUPS));
 
@@ -91,7 +92,10 @@ public class SecurityConfig {
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.ACCOUNT_DELETION_CONFIRM),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.TOTP_SETUP),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.TOTP_ACTIVATE),
-            PATHS.matcher(HttpMethod.POST, AuthApiPaths.TOTP_DISABLE));
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.TOTP_DISABLE),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.DEVICES),
+            PATHS.matcher(HttpMethod.GET, AuthApiPaths.DEVICES),
+            PATHS.matcher(HttpMethod.DELETE, AuthApiPaths.DEVICE));
 
     /** Yönetici uçları: geçerli token + ADMIN rolü; aksi 401/403. Rol token'dan değil her istekte doğrulanan oturumdan gelir. */
     static final RequestMatcher ADMIN_ENDPOINTS = PATHS.matcher(AuthApiPaths.ADMIN + "/**");
@@ -108,7 +112,8 @@ public class SecurityConfig {
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_FORGOT),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_RESET),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.ACCOUNT_DELETION_CANCEL),
-            PATHS.matcher(HttpMethod.POST, AuthApiPaths.SERVICE_TOKENS));
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.SERVICE_TOKENS),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.DEVICES_TOKEN));
 
     private static final RequestMatcher BEARER_HEADER = request -> request.getHeader(HttpHeaders.AUTHORIZATION) != null;
 

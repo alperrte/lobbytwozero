@@ -734,6 +734,54 @@ Mail Service (`AccountDeletionMailPort`) — production **PENDING**, development
 #### Test Durumu
 INTEGRATION
 
+### AUTH — Masaüstü cihaz kimliği (hardware-service)
+
+Durum: IMPLEMENTED (Auth tarafı); tüketici hardware-service ve masaüstü uygulaması **PENDING**
+Sorumlu: Kerem
+Tüketici servisler: hardware-service (cihaz token'ını doğrular), masaüstü uygulaması (bağlama/token)
+
+#### Endpoint
+- POST /api/v1/auth/devices — cihazı hesaba bağlar (kullanıcı oturumu + CSRF)
+- GET /api/v1/auth/devices — hesabın etkin cihazları
+- DELETE /api/v1/auth/devices/{deviceId} — cihazı iptal eder (204)
+- POST /api/v1/auth/devices/token — cihaz anahtarıyla kısa ömürlü cihaz token'ı alır
+
+#### Yetkilendirme
+Bağlama, listeleme, iptal: kullanıcı oturumu (cookie + CSRF veya Bearer). `devices/token`: Public, çerezsiz; kimlik yalnız gövdedeki `deviceId` + `deviceSecret`.
+
+#### Request Body (`bind`)
+```json
+{ "label": "1-64 karakter; harf, rakam, boşluk ve . _ ( ) -", "password": "zorunlu (yeniden doğrulama)", "code": "TOTP etkinse ^[0-9]{6}$", "recoveryCode": "code yerine, yalnız biri" }
+```
+Response — 201, `Cache-Control: no-store`: `{ "deviceId", "deviceSecret", "label", "createdAt", "expiresAt" }`. `deviceSecret` (256 bit) **yalnız bu yanıtta bir kez** görünür; Auth yalnız SHA-256 özetini saklar, sonradan alınamaz.
+
+#### Request / Response (`token`)
+```json
+{ "deviceId": "UUID", "deviceSecret": "string" }
+```
+200, `no-store`: `{ "accessToken", "tokenType": "Bearer", "expiresIn": 60, "scope": "hardware:sync:write" }`. Token: `typ=dev+jwt`, RS256 (JWKS aynı), `iss=ltz-auth`, `aud=hardware-service`, `sub=<deviceId>`, `account_id`, `scope=hardware:sync:write`, `jti`, ömür 60 sn. Kullanıcı rolü/oturumu taşımaz; Auth'un uçlarında ve başka servislerde geçmez.
+
+#### Davranış
+- Hesap başına en fazla 5 etkin cihaz, günde en fazla 10 bağlama; cihaz anahtarı 365 gün geçerlidir.
+- Cihaz şu durumlarda otomatik iptal edilir: parola değişimi/sıfırlama, hesabın ACTIVE dışına geçmesi, silme onayı, e-posta değişimi.
+- `token` uçta kimlik hatalarının hepsi tek yanıt verir (`INVALID_DEVICE_CREDENTIALS`; yanlış anahtar, bilinmeyen/iptal/süresi dolmuş cihaz, pasif hesap); zamanlama farkı yoktur. Hesap kilidi yoktur (iç servis kilitlenmesin); IP sınırı Gateway'dedir.
+- Cihaz yeniden bağlanmaz, iptal edilip yeni cihaz bağlanır.
+
+#### Hata Durumları
+- 400: Doğrulama (geçersiz ad, birden fazla ikinci faktör); `CURRENT_PASSWORD_INVALID`; `INVALID_TWO_FACTOR_CODE`; `PASSWORD_REQUIRED` (parolasız hesap bağlayamaz)
+- 401: Kimliksiz; `token` için `INVALID_DEVICE_CREDENTIALS`
+- 403: CSRF
+- 404: `DEVICE_NOT_FOUND` (başkasının cihazı da 404)
+- 409: `DEVICE_LIMIT_REACHED`
+- 429: Günlük bağlama sınırı (`TOO_MANY_ATTEMPTS`)
+
+#### Bağlantı
+Frontend: Gateway üzerinden `/api/v1/auth/devices/**` (cihaz yönetim ekranı).
+Diğer mikroservisler: hardware-service tokenı JWKS ile doğrular (`typ=dev+jwt`, `aud=hardware-service`, `scope`). Ayrıntı: `docs-auth/entegrasyon/hardware-service.md`.
+
+#### Test Durumu
+UNIT + INTEGRATION
+
 ### AUTH — Servis kimlikli iç uçlar (Admin → Auth, B4)
 
 Durum: IMPLEMENTED (Auth tarafı, altyapı); **tüketici admin-service henüz yok** → uçtan uca PENDING
@@ -758,7 +806,7 @@ Bu uçlar **Gateway'e açılmaz** (Gateway yalnız `/api/v1/<servis>/**` yönlen
 { "clientId": "admin-service", "clientSecret": "string, en az 32 karakter (AUTH_ADMIN_SERVICE_CLIENT_SECRET)", "audience": "isteğe bağlı; boşsa auth-service" }
 ```
 
-İstemci kimliği servis adıdır: `admin-service` (Auth'a `account:*`, community'ye `events:ingest`), `social-service` (community'ye `events:ingest`), `community-service` (admin ve notification'a `events:ingest`). Her istemci **yalnız kendisine tanımlı (hedef, kapsam) çiftleri** için token alır; kimseye varsayılan imtiyaz yoktur. `audience` başka servis ise token o servisin JWKS doğrulamasında geçer (`aud=<servis>-service`, `scope=events:ingest`, `sub=svc:<istemci>`, 60 sn) ve Auth'un iç uçlarında **geçmez**.
+İstemci kimliği servis adıdır: `admin-service` (Auth'a `account:*`, community'ye `events:ingest`), `social-service` (community'ye `events:ingest`), `community-service` (admin ve notification'a `events:ingest`), `messaging-service` ve `lfp-service` (social-service'e `blocks:check`). Her istemci **yalnız kendisine tanımlı (hedef, kapsam) çiftleri** için token alır; kimseye varsayılan imtiyaz yoktur. `audience` başka servis ise token o servisin JWKS doğrulamasında geçer (`aud=<servis>-service`, `scope=events:ingest`, `sub=svc:<istemci>`, 60 sn) ve Auth'un iç uçlarında **geçmez**.
 
 #### Response — 200 (`service-tokens`, `Cache-Control: no-store`)
 ```json

@@ -1,7 +1,7 @@
 # TALEP 03 — GERÇEK DEV ORTAMINDA HESAP SİLME KABULÜ
 
 **Talep kodu:** HW-AUTH-REQ-03 · **Kimden:** Alper (hardware-service) · **Kime:** Kerem (auth-service) · **Cevap tarihi:** 2026-10-26
-**Durum:** CEVAPLANDI — ortak DEV denemesi bekliyor (bizim değişiklikler main'e girince)
+**Durum:** CEVAPLANDI — Auth değişiklikleri main'de (PR #19); ortak DEV denemesi E2E betiği düzeltilince (aşağıdaki "Senden ne bekliyorum")
 
 ---
 
@@ -33,7 +33,7 @@ Senin `ops/hardware-auth-e2e.mjs` betiğin silme onayından hemen sonra görevin
 
 **Çözüm tek satır.** Betikte Auth'u başlattığın ortama şunu ekle:
 
-`LTZ_AUTH_DELETION_GRACEPERIOD: 'PT0S'`
+`AUTH_DELETION_GRACE_PERIOD: 'PT0S'`
 
 Bu sadece test ortamı için. PT0S bekleme yok demek. Prod'da 14 gün kalacak. Betik senin olduğu için dokunmadım.
 
@@ -55,9 +55,9 @@ Belge notu: "diğer 15 ACK" ifaden artık "kalan 11 ACK" olmalı.
 
 ## SENDEN NE BEKLİYORUM
 
-- E2E betiğine `LTZ_AUTH_DELETION_GRACEPERIOD: 'PT0S'` eklemek
+- E2E betiğine `AUTH_DELETION_GRACE_PERIOD: 'PT0S'` eklemek
 - Belgedeki 15 sayısını 11'e çevirmek
-- Bizim PR main'e girince ortak denemenin gününü birlikte seçmek
+- Betik düzelince ortak denemenin gününü birlikte seçmek (Auth değişiklikleri main'de)
 
 ## NEREDEN BAKARSIN
 

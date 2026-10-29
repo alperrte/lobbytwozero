@@ -16,7 +16,7 @@
 
 Şu an Auth'a yönelik açık bir talep yok. Soru çıkarsa buraya yazılır.
 
-**Ek not:** Auth'tan User'a hesap kayıt olayı (`UserRegistered`) ve e-posta değişikliği bildirimi henüz yok. Profil e-posta tutacaksa değişiklik ayrıca senkronize edilmeli (borç B19).
+**Ek not:** Auth artık `UserRegistered` ve `AccountEmailChanged` olaylarını transactional outbox ile yayımlayabiliyor (2026-10-29); olay e-posta taşımaz, yalnız hesap kimliği ve (kayıtta) kullanıcı adı taşır. Hedef listesi `ltz.auth.events.targets` varsayılan boştur, User'ın alıcı ucu (`POST /internal/events`, `aud=user-service`, `scope=events:ingest`) yazılınca Auth ortamına `user` eklenir. Profil e-posta tutacaksa değişikliği kendi tarafında eşitle (borç B19, kısmen kapandı).
 
 ## BİLMEN GEREKENLER
 

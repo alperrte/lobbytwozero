@@ -44,6 +44,11 @@ public final class AuthApiPaths {
     public static final String ACCOUNT_DELETION_CONFIRM = ACCOUNT_DELETION + "/confirm";
     public static final String ACCOUNT_DELETION_CANCEL = ACCOUNT_DELETION + "/cancel";
 
+    /** Masaüstü cihaz kimliği: bağlama, listeleme, iptal (oturumlu) ve cihaz token'ı (cihaz anahtarıyla, çerezsiz). */
+    public static final String DEVICES = BASE + "/devices";
+    public static final String DEVICE = DEVICES + "/{deviceId}";
+    public static final String DEVICES_TOKEN = DEVICES + "/token";
+
     /** Yalnız ROLE_ADMIN erişir (SecurityConfig). */
     /** Servis → Auth iç uçları: Gateway'e açılmaz (Gateway yalnız /api/v1/<servis>/** yönlendirir). */
     public static final String INTERNAL = "/internal/v1";

@@ -56,6 +56,28 @@ class ServiceAudienceTokenTest extends IntegrationTestSupport {
     }
 
     @Test
+    void messagingVeLfpYalnizSocialIcinEngelSorgusuTokeniAlir() throws Exception {
+        String body = tokenRequest("messaging-service", MESSAGING_CLIENT_SECRET, "social-service")
+                .andExpect(status().isOk()).andExpect(jsonPath("$.scope").value("blocks:check"))
+                .andReturn().getResponse().getContentAsString();
+        JWTClaimsSet claims = SignedJWT.parse(JsonPath.<String>read(body, "$.accessToken")).getJWTClaimsSet();
+        assertThat(claims.getAudience()).containsExactly("social-service");
+        assertThat(claims.getSubject()).isEqualTo("svc:messaging-service");
+        assertThat(claims.getStringClaim("scope")).isEqualTo("blocks:check");
+        assertThat(audienceOf(tokenRequest("lfp-service", LFP_CLIENT_SECRET, "social-service")))
+                .containsExactly("social-service");
+
+        // Kapsam yalnız o hedefe bağlıdır: başka hedef, Auth ve olay girişi verilmez.
+        tokenRequest("messaging-service", MESSAGING_CLIENT_SECRET, "community-service").andExpect(status().isForbidden());
+        tokenRequest("lfp-service", LFP_CLIENT_SECRET, "notification-service").andExpect(status().isForbidden());
+        tokenRequest("lfp-service", LFP_CLIENT_SECRET, "auth-service").andExpect(status().isForbidden());
+        tokenRequest("messaging-service", MESSAGING_CLIENT_SECRET, null).andExpect(status().isForbidden());
+        // Social kendisine engel sorgusu token'ı alamaz; başkasının anahtarı da geçmez.
+        tokenRequest("social-service", SOCIAL_CLIENT_SECRET, "social-service").andExpect(status().isForbidden());
+        tokenRequest("lfp-service", MESSAGING_CLIENT_SECRET, "social-service").andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void izinListesindeOlmayanHedefReddedilirAuthKapsamiSizmaz() throws Exception {
         // social yalnız community'ye yazabilir.
         tokenRequest("social-service", SOCIAL_CLIENT_SECRET, "notification-service")

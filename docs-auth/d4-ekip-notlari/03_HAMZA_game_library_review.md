@@ -7,16 +7,17 @@
 
 | Servis | Durum | Yapılacak |
 | --- | --- | --- |
-| **game** | **Yeni silme hedefi** (S2 kararı, 2026-10-23). Uç yok | İkinci decoder (`svc+jwt`) + uç + REF'ler için silme/anonimleştirme kararı |
-| **library** | Uç yok | Ucu aç; kütüphane, istek listesi vb. silinir |
-| **review** | Uç yok | Ucu aç; inceleme içeriği silinir veya anonimleşir (karar) |
+| **game** | **Uç yazıldı ve main'de** (2026-10-24). Güncel durum: `docs-auth/entegrasyon/game-service.md` | Auth tarafında yapılacak iş kalmadı |
+| **library** | **Silme ucu yazıldı ve main'de** (kişisel tablo yoksa 204 ile no-op). `docs-auth/entegrasyon/library-service.md` | İlk kişisel tabloyla birlikte silme mantığı eklenecek |
+| **review** | **Silme ucu yazıldı ve main'de.** `docs-auth/entegrasyon/review-service.md` | İnceleme içeriği silinir mi anonimleşir mi kararı açık |
 
 ## 1. Game belgen için güncellemeler
 
 - Game belgesindeki §11'de devrettiğin **46 Auth + 3 Gateway Sonar bulgusunun hepsi kapandı** (`ltz-auth-gateway` projesi:
   0 bulgu, 0 hotspot, tüm notlar A, Quality Gate PASSED). §11'i "kapandı" diye işaretleyebilirsin.
-- "D4 servis kimliği açık sınır" maddesi: Auth→servis yönü **uygulandı**. Açık kalan: Admin→Auth iç uç (Auth'ta henüz yok).
-- "Hesap silme açık sınır" maddesi: Auth artık Game'i gerçekten çağırıyor; Game ucu açana kadar hiçbir hesap `DELETED` olamaz.
+- "D4 servis kimliği açık sınır" maddesi: Auth→servis yönü **uygulandı**. Admin→Auth iç uç da artık Auth'ta var (`/internal/v1/service-tokens`, `docs-auth/servis-sozlesmeleri.md` bölüm 3.4); tüketicisi admin-service henüz yok.
+- "Hesap silme açık sınır" maddesi: Auth artık Game'i gerçekten çağırıyor ve Game ucu açık. Hesap, 16 hedefin **hepsi** onaylayınca silinir; onaylamayan servis olduğu sürece görev PENDING kalır.
+- Game belgesindeki "Auth varsayılan access ömrü 5 dakika" ifadesi eskidi: güncel değer **60 sn** (yayılım üst sınırı 90 sn).
 
 ## 2. Game — hesaba bağlı sütunlar (main'deki V31–V40'tan)
 

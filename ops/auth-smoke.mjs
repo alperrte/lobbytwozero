@@ -105,10 +105,11 @@ export async function runAuthSmoke(root, log = console.log) {
     const password = randomBytes(32).toString('base64url');
     const dbPassword = randomBytes(32).toString('base64url');
     const adminSecret = randomBytes(32).toString('base64url'), socialSecret = randomBytes(32).toString('base64url');
+    const messagingSecret = randomBytes(32).toString('base64url'), lfpSecret = randomBytes(32).toString('base64url');
     const privateKey = generateKeyPairSync('rsa', { modulusLength: 3072 }).privateKey.export({ format: 'der', type: 'pkcs8' }).toString('base64');
     const rotatedPublicKey = generateKeyPairSync('rsa', { modulusLength: 3072 }).publicKey.export({ format: 'der', type: 'spki' }).toString('base64');
     const hmac = randomBytes(32).toString('base64'), totp = randomBytes(32).toString('base64');
-    secrets.push(password, dbPassword, adminSecret, socialSecret, privateKey, hmac, totp);
+    secrets.push(password, dbPassword, adminSecret, socialSecret, messagingSecret, lfpSecret, privateKey, hmac, totp);
     const authDb = await container('postgres:17-alpine', [5432],
       { POSTGRES_USER: 'fixture', POSTGRES_DB: 'fixture', POSTGRES_PASSWORD: dbPassword });
     const mail = await container('axllent/mailpit:v1.31.0', [1025, 8025]);
@@ -122,7 +123,8 @@ export async function runAuthSmoke(root, log = console.log) {
     const authEnvironment = { POSTGRES_HOST: '127.0.0.1', POSTGRES_PORT: String(authDb.ports[5432]), POSTGRES_USER: 'fixture',
       POSTGRES_PASSWORD: dbPassword, DB_AUTH_NAME: 'fixture', SPRING_PROFILES_ACTIVE: 'dev', AUTH_JWT_PRIVATE_KEY: privateKey,
       AUTH_JWT_ADDITIONAL_PUBLIC_KEYS: rotatedPublicKey, AUTH_OTP_HMAC_KEY: hmac, AUTH_TOTP_ENCRYPTION_KEY: totp,
-      AUTH_ADMIN_SERVICE_CLIENT_SECRET: adminSecret, AUTH_SOCIAL_SERVICE_CLIENT_SECRET: socialSecret, AUTH_PUBLIC_BASE_URL: gatewayOrigin, FRONTEND_PUBLIC_URL: gatewayOrigin,
+      AUTH_ADMIN_SERVICE_CLIENT_SECRET: adminSecret, AUTH_SOCIAL_SERVICE_CLIENT_SECRET: socialSecret,
+      AUTH_MESSAGING_SERVICE_CLIENT_SECRET: messagingSecret, AUTH_LFP_SERVICE_CLIENT_SECRET: lfpSecret, AUTH_PUBLIC_BASE_URL: gatewayOrigin, FRONTEND_PUBLIC_URL: gatewayOrigin,
       LTZ_AUTH_MAIL_DEVSMTP_HOST: '127.0.0.1', LTZ_AUTH_MAIL_DEVSMTP_PORT: String(mail.ports[1025]) };
     for (const service of ['USER', 'MAIL', 'GAME', 'LIBRARY', 'REVIEW', 'SOCIAL', 'MESSAGING', 'LFP', 'COMMUNITY', 'CONTENT', 'EVENT',
       'HARDWARE', 'RECOMMENDATION', 'PERFORMANCE', 'ADMIN', 'NOTIFICATION']) {
@@ -224,6 +226,64 @@ export async function runAuthSmoke(root, log = console.log) {
     const ingestOnAuth = await fetch(authOrigin + `/internal/v1/accounts/${claims.sub}`, { headers: { Authorization: `Bearer ${ingestToken}` } });
     check(ingestOnAuth.status === 401, `A token bound to another service is rejected by Auth (status ${ingestOnAuth.status})`);
 
+    // Engel sorgusu istemcileri: yalnız social-service hedefi ve blocks:check kapsamı.
+    for (const [clientId, clientSecret] of [['messaging-service', messagingSecret], ['lfp-service', lfpSecret]]) {
+      const blocksResponse = await postJson(tokenUrl, { clientId, clientSecret, audience: 'social-service' });
+      const blocksBody = await blocksResponse.json();
+      const blocksToken = blocksBody.accessToken ?? blocksBody.access_token;
+      secrets.push(blocksToken);
+      const blocks = decodeJwtPart(blocksToken, 1);
+      check(blocksResponse.status === 200 && [].concat(blocks.aud).join() === 'social-service' && blocks.sub === `svc:${clientId}`
+        && blocks.scope === 'blocks:check' && blocks.exp - blocks.iat === 60,
+      `${clientId}: block-check token aud ${[].concat(blocks.aud)}, scope ${blocks.scope}, TTL ${blocks.exp - blocks.iat}s`);
+      const other = await postJson(tokenUrl, { clientId, clientSecret, audience: 'community-service' });
+      const noAudience = await postJson(tokenUrl, { clientId, clientSecret });
+      check(other.status === 403 && noAudience.status === 403, `${clientId} gets nothing outside social-service (other ${other.status}, no audience ${noAudience.status})`);
+      const internalCall = await fetch(authOrigin + `/internal/v1/accounts/${claims.sub}`, { headers: { Authorization: `Bearer ${blocksToken}` } });
+      check(internalCall.status === 401, `${clientId} block-check token is rejected by Auth (status ${internalCall.status})`);
+    }
+
+    // Masaüstü cihaz kimliği: bağlama (yeniden doğrulama), cihaz token'ı, dar kapsam, iptal.
+    await request(gatewayOrigin, '/api/v1/auth/devices', 400, { jar: account.jar, method: 'POST', csrf: true,
+      headers: { Origin: gatewayOrigin }, body: { label: 'Bad <name>', password } });
+    await request(gatewayOrigin, '/api/v1/auth/devices', 400, { jar: account.jar, method: 'POST', csrf: true,
+      headers: { Origin: gatewayOrigin }, body: { label: 'Desk PC', password: 'x'.repeat(20) } });
+    const bound = await request(gatewayOrigin, '/api/v1/auth/devices', 201, { jar: account.jar, method: 'POST', csrf: true,
+      headers: { Origin: gatewayOrigin }, body: { label: 'Desk PC', password } });
+    const deviceSecret = bound.body.deviceSecret, deviceId = bound.body.deviceId;
+    secrets.push(deviceSecret);
+    check(/no-store/i.test(bound.response.headers.get('Cache-Control') || '') && Boolean(deviceId) && String(deviceSecret).length >= 43,
+      'Device bind needs the password, returns the 256-bit secret once with Cache-Control no-store');
+    const listed = await request(gatewayOrigin, '/api/v1/auth/devices', 200, { jar: account.jar });
+    check(listed.body.length === 1 && listed.body[0].deviceId === deviceId && !JSON.stringify(listed.body).includes(deviceSecret),
+      'Device list shows the device and never the secret');
+    const wrongDevice = await postJson(authOrigin + '/api/v1/auth/devices/token', { deviceId, deviceSecret: 'x'.repeat(43) });
+    const unknownDevice = await postJson(authOrigin + '/api/v1/auth/devices/token', { deviceId: randomUUID(), deviceSecret });
+    check(wrongDevice.status === 401 && unknownDevice.status === 401
+      && (await wrongDevice.text()) === (await unknownDevice.text()),
+    `Wrong secret and unknown device give the same 401 (${wrongDevice.status}/${unknownDevice.status})`);
+    const deviceResponse = await postJson(authOrigin + '/api/v1/auth/devices/token', { deviceId, deviceSecret });
+    const deviceBody = await deviceResponse.json();
+    const deviceToken = deviceBody.accessToken ?? deviceBody.access_token;
+    secrets.push(deviceToken);
+    const deviceHeader = decodeJwtPart(deviceToken, 0), deviceClaims = decodeJwtPart(deviceToken, 1);
+    check(deviceResponse.status === 200 && /no-store/i.test(deviceResponse.headers.get('Cache-Control') || '')
+      && deviceHeader.typ === 'dev+jwt' && [].concat(deviceClaims.aud).join() === 'hardware-service' && deviceClaims.sub === deviceId
+      && deviceClaims.account_id === claims.sub && deviceClaims.scope === 'hardware:sync:write' && deviceClaims.exp - deviceClaims.iat === 60
+      && !deviceClaims.roles,
+    `Device token: typ ${deviceHeader.typ}, aud ${[].concat(deviceClaims.aud)}, scope ${deviceClaims.scope}, TTL ${deviceClaims.exp - deviceClaims.iat}s, no roles`);
+    const deviceOnInternal = await fetch(authOrigin + `/internal/v1/accounts/${claims.sub}`, { headers: { Authorization: `Bearer ${deviceToken}` } });
+    const deviceOnUserApi = await fetch(authOrigin + '/api/v1/auth/devices', { headers: { Authorization: `Bearer ${deviceToken}` } });
+    check(deviceOnInternal.status === 401 && deviceOnUserApi.status === 401,
+      `The device token opens nothing in Auth (internal ${deviceOnInternal.status}, user API ${deviceOnUserApi.status})`);
+    await request(gatewayOrigin, `/api/v1/auth/devices/${deviceId}`, 204, { jar: account.jar, method: 'DELETE', csrf: true,
+      headers: { Origin: gatewayOrigin } });
+    const revoked = await postJson(authOrigin + '/api/v1/auth/devices/token', { deviceId, deviceSecret });
+    check(revoked.status === 401, `A revoked device cannot get a new token (status ${revoked.status})`);
+    const rebound = await request(gatewayOrigin, '/api/v1/auth/devices', 201, { jar: account.jar, method: 'POST', csrf: true,
+      headers: { Origin: gatewayOrigin }, body: { label: 'Laptop', password } });
+    secrets.push(rebound.body.deviceSecret);
+
     const newEmail = `chg_${randomUUID().replaceAll('-', '').slice(0, 12)}@example.test`;
     secrets.push(newEmail);
     await request(gatewayOrigin, '/api/v1/auth/email/change', 202, { jar: account.jar, method: 'POST', csrf: true,
@@ -234,6 +294,11 @@ export async function runAuthSmoke(root, log = console.log) {
     await loginAs(account.email, 401);
     await loginAs(newEmail, 200);
     check(true, 'Email change: the code goes to the new address, the old address stops working, the new address signs in');
+    const afterEmailChange = await postJson(authOrigin + '/api/v1/auth/devices/token',
+      { deviceId: rebound.body.deviceId, deviceSecret: rebound.body.deviceSecret });
+    check(afterEmailChange.status === 401, `Email change revokes bound devices (status ${afterEmailChange.status})`);
+    const notice = await message(account.email, /(Bu işlemi siz yapmadıysanız)/);
+    check(Boolean(notice), 'The old address receives the e-mail-changed security notification');
 
     const leaving = await register();
     await request(gatewayOrigin, '/api/v1/auth/account/deletion/request', 202, { jar: leaving.jar, method: 'POST', csrf: true,

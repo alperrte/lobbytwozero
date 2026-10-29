@@ -10,6 +10,8 @@ import com.ltz.auth.application.port.AccountDeletionMail;
 import com.ltz.auth.application.port.AccountDeletionMailPort;
 import com.ltz.auth.application.port.PasswordResetMail;
 import com.ltz.auth.application.port.PasswordResetMailPort;
+import com.ltz.auth.application.port.SecurityNotificationMail;
+import com.ltz.auth.application.port.SecurityNotificationMailPort;
 import com.ltz.auth.application.port.VerificationCodeDeliveryException;
 import com.ltz.auth.application.port.VerificationCodeMail;
 import com.ltz.auth.application.port.VerificationCodeMailPort;
@@ -23,7 +25,7 @@ import com.ltz.auth.infrastructure.config.DevSmtpProperties;
  * health göstergesi devreye girmez ve Mailpit kapalıyken servis sağlığı etkilenmez.
  */
 public class DevSmtpVerificationMailAdapter implements VerificationCodeMailPort, PasswordResetMailPort,
-        AccountDeletionMailPort {
+        AccountDeletionMailPort, SecurityNotificationMailPort {
 
     static final String SUBJECT = "LTZ e-posta doğrulama kodu / email verification code";
     static final String RESET_SUBJECT = "LTZ parola sıfırlama / password reset";
@@ -90,6 +92,12 @@ public class DevSmtpVerificationMailAdapter implements VerificationCodeMailPort,
     public void sendAccountDeletionConfirmation(AccountDeletionMail mail) {
         send(mail.recipientEmail(), DELETION_SUBJECT,
                 DELETION_BODY_TEMPLATE.formatted(mail.confirmationLink(), mail.validity().toMinutes()));
+    }
+
+    @Override
+    public void sendSecurityNotification(SecurityNotificationMail mail) {
+        send(mail.recipientEmail(), SecurityNotificationTexts.subject(mail.type()),
+                SecurityNotificationTexts.body(mail.type(), mail.occurredAt()));
     }
 
     private void send(String recipient, String subject, String text) {
