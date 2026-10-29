@@ -23,6 +23,7 @@ final class ProductionAuthSupport implements AutoCloseable {
     private final Object signingKey;
     private final Object issuer;
     private final Object serviceIssuer;
+    private final Object deviceIssuer;
     private final RSAKey key;
 
     ProductionAuthSupport(Path output) throws Exception {
@@ -34,7 +35,8 @@ final class ProductionAuthSupport implements AutoCloseable {
         for (String name : List.of("domain/entity/Account", "domain/entity/AuthSession", "domain/entity/Role",
                 "domain/enums/AccountStatus", "domain/enums/RoleCode", "domain/enums/AuthMethod", "domain/enums/SessionRevokeReason",
                 "infrastructure/config/JwtProperties", "infrastructure/security/JwtSigningKey", "infrastructure/security/TokenClaims",
-                "infrastructure/security/AccessTokenIssuer", "infrastructure/security/ServiceTokenIssuer", "api/controller/JwksController", "api/controller/AuthApiPaths"))
+                "infrastructure/security/AccessTokenIssuer", "infrastructure/security/ServiceTokenIssuer",
+                "infrastructure/security/DeviceTokenIssuer", "api/controller/JwksController", "api/controller/AuthApiPaths"))
             sources.add(services.resolve("auth-service/src/main/java/com/ltz/auth/" + name + ".java").toString());
         for (String name : List.of("CookieBearerFilter", "ClientRequestSanitizerFilter", "GatewaySecurityProperties",
                 "GatewayPaths", "HeaderOverrideRequest", "ProblemResponses"))
@@ -59,13 +61,20 @@ final class ProductionAuthSupport implements AutoCloseable {
         key = jwk;
         var encoder = new NimbusJwtEncoder(new ImmutableJWKSet<>(new JWKSet(jwk)));
         Object properties = type("infrastructure.config.JwtProperties").getConstructor(String.class, String.class, Duration.class, String.class)
-                .newInstance("ltz-auth", "ltz-api", Duration.ofMinutes(5), encoded);
+                .newInstance("ltz-auth", "ltz-api", Duration.ofSeconds(60), encoded);
         issuer = type("infrastructure.security.AccessTokenIssuer").getConstructors()[0].newInstance(encoder, signingKey, properties);
         serviceIssuer = type("infrastructure.security.ServiceTokenIssuer").getConstructors()[0]
+                .newInstance(encoder, signingKey, properties, java.time.Clock.systemUTC());
+        deviceIssuer = type("infrastructure.security.DeviceTokenIssuer").getConstructors()[0]
                 .newInstance(encoder, signingKey, properties, java.time.Clock.systemUTC());
     }
 
     RSAKey key() { return key; }
+
+    String deviceToken(UUID deviceId, UUID accountId) throws Exception {
+        return (String) deviceIssuer.getClass().getMethod("issue", UUID.class, UUID.class)
+                .invoke(deviceIssuer, deviceId, accountId);
+    }
 
     String serviceToken(UUID accountId) throws Exception {
         return (String) serviceIssuer.getClass().getMethod("issue", String.class, String.class, UUID.class)

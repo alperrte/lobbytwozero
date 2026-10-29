@@ -1,9 +1,15 @@
 # Auth entegrasyon sınırı — DEFERRED_AUTH
 
+**Güncel ikinci aşama (2026-10-29):** Kullanıcı ve cihaz JWT tüketicileri uygulanmıştır.
+60 sn TTL / 30 sn tolerans uygulanır; Performance aktif cihaz bağımlılığı ayrı iş kalır.
+[Güncel kapsam ve kalan sınırlar](../integration/auth/auth-integration-05.md),
+[gerçek test sonuçları](../integration/auth/auth-integration-06.md).
+Aşağıdaki açıklamalar ilk teslim tarihçesidir.
+
 **Tarihçe notu — 2026-10-24:** Aşağıdaki metin 2026-10-21 teslim sınırıdır.
 Kullanıcı sonraki Hardware–Auth uygulamasını onayladı; gerçek kullanıcı JWT/JWKS,
 yerel rol eşlemesi ve D4 geliştirildi. Güncel durum ve taze kapılar
-[entegrasyon kalite kaydında](../integration/auth/auth-integration-quality.md) tutulur.
+[entegrasyon kalite kaydında](../integration/auth/entegrasyon-v1/auth-integration-quality.md) tutulur.
 Auth D3, cihaz credential/PERF ve canlı dağıtım E2E'si ayrı açık bağımlılıklardır.
 
 2026-10-21 kullanıcı onayıyla HW-01 ve HW-02 yerel güvenlik sınırları uygulanmıştır.

@@ -3927,7 +3927,7 @@ _Kayıt yok._
 
 ## HARDWARE
 
-**Güncel Auth sözleşmesi — 2026-10-24:** Kullanıcı uçları gerçek Auth JWKS'i ile
+**Güncel Auth sözleşmesi — 2026-10-29:** Kullanıcı uçları gerçek Auth JWKS'i ile
 RS256/kid/at+jwt/issuer/audience/ham exp–nbf–iat ve UUID sub doğrular; typed actor
 yalnız doğrulanmış subject'ten oluşur. ADMIN katalog/kampanya yazma izni,
 ADMIN veya MODERATOR kaynak yorum moderasyon izni üretir. Roller ownership'i aşmaz.
@@ -3935,14 +3935,18 @@ Yalnız health anonimdir. Cookie doğrudan Hardware'da kimlik oluşturmaz;
 Gateway cookie → Bearer öncesinde CSRF + Origin uygular. Hardware CSRF bütünüyle
 kapatılmadı; özel CSRF ignore matcher yoktur. Resource Server'ın standart açık Bearer
 davranışı uygulanır. D4'te Bearer taşımayan CSRF reddi controller'a ulaşmadan 401 döner.
-Silinen hesap fence'i etkinse kullanıcı okuma/yazmaları 401 ile reddedilir.
-Cihaz credential/PERF ve User/Social policy bağımlılıkları çözülmüş sayılmaz.
-[Güncel kapsam/kanıt](../docs-hardware/integration/auth/auth-integration-quality.md).
-Gerçek paketli Auth/Gateway/Hardware izole HTTP kabulü 16 kontrol PASS: kayıt/giriş,
+Silinen hesap fence'i etkinse kullanıcı ve cihaz işlemleri 401 ile reddedilir.
+Kullanıcı token ömrü en çok 60 sn, tolerans 30 sn'dir; 15 dakikalık token artık reddedilir.
+Cihaz kimliği ayrı `dev+jwt` doğrulayıcısıyla yalnız snapshot POST'unda kabul edilir;
+aktif cihaz için Performance ve User/Social policy bağımlılıkları çözülmüş sayılmaz.
+[Güncel kapsam](../docs-hardware/integration/auth/auth-integration-05.md),
+[güncel test/kalite kanıtı](../docs-hardware/integration/auth/auth-integration-06.md).
+Önceki paketli Auth/Gateway/Hardware izole HTTP kabulü 16 kontrol PASS: kayıt/giriş,
 SMTP doğrulama, cookie/CSRF/Origin, owner/IDOR ve gerçek Auth worker → Hardware D4
 204/CONFIRMED, tekrar ve eski JWT ile yeniden yazma reddi.
-[Runtime kabulü](../docs-hardware/integration/auth/auth-integration-04.md).
-Ortak Compose/TLS/tarayıcı ve diğer 15 katılımcının Saga ACK'i NOT_VERIFIED.
+[Runtime kabulü](../docs-hardware/integration/auth/entegrasyon-v1/auth-integration-04.md).
+Ortak Compose/TLS/tarayıcı ve bütün Saga NOT_VERIFIED. Repoda 11 silme ucu eksiktir;
+yalnız Hardware'ı çalıştıran izole fixture 15 PENDING ACK bekler.
 Önceki tarihlerdeki test sayıları ve DEFERRED_AUTH ifadeleri teslim tarihçesidir;
 aşağıdaki Yetkilendirme alanları bu güncel kullanıcı JWT kuralıyla birlikte geçerlidir.
 
@@ -5651,9 +5655,13 @@ Gerçek Auth/desktop E2E NOT_VERIFIED. Son kalite sonucu HW-05 kalite kaydında 
 
 ### HARDWARE — HW-07 Ortak sync güvenlik ve tekrar gönderim sözleşmesi
 
-Kullanıcı JWT doğrulaması uygulanır. Cihaz Auth DEFERRED_AUTH; PERF cihaz sahipliği/iptal sözleşmesi ve
-masaüstü E2E DEFERRED_CONTRACT / NOT_VERIFIED, açık kullanıcı onaylıdır. Gerçek
-RestClient URL/JSON, eşleştirme servisi veya credential üretilmez. Production deny.
+Kullanıcı JWT doğrulaması uygulanır. Auth cihaz token'ı için ayrı RS256/JWKS/kid,
+tam typ=dev+jwt, issuer, aud içinde hardware-service, UUID sub=deviceId ve account_id,
+scope içinde tam hardware:sync:write, dolu jti ve ham exp/nbf/iat kontrolü uygulanır.
+Ömür en çok 60 sn, tolerans 30 sn'dir. Principal kullanıcıya veya yöneticiye dönüşmez.
+PERF cihaz sahipliği/iptal sözleşmesi ve masaüstü başarı E2E'si kullanıcı kararıyla
+DEFERRED_CONTRACT / NOT_VERIFIED kalır. Gerçek dış URL/JSON veya credential uydurulmaz.
+Production aktif cihaz policy'si deny eder; grant ve geçerli cihazla apply 404 alır.
 Parent profil kilidi tüm owner/consent/apply yarışlarını ve profileVersion'ı korur.
 Yeni sıra kesin artar; eski capturedAt reddedilir. Aynı key/normalize hash 24 saat
 önceki yanıtı döndürür; güncel cihaz ve izin her retry'da yeniden doğrulanır.
@@ -5787,8 +5795,11 @@ Tüketici servisler: Frontend; gelecekte masaüstü (gerçek E2E NOT_VERIFIED)
 POST /api/v1/hardware/profiles/{profileId}/sync/snapshots
 
 #### Yetkilendirme
-Güncel sınır: kullanıcı JWT'si cihaz kimliği sağlamaz; gerçek cihaz Auth/PERF hâlâ DEFERRED.
-Yalnız AuthenticatedHardwareDevice + hardware:sync:write, aktif cihaz sahipliği policy'si ve aynı owner/device/generation için GRANTED yerel izin. Browser actor bu authority'ye sahip olsa da reddedilir. CSRF korunur; üretimde cihaz doğrulaması yok ve policy deny.
+Auth RS256/JWKS doğrulanmış dev+jwt → AuthenticatedHardwareDevice(account_id, sub),
+hardware:sync:write, aktif cihaz sahipliği policy'si ve aynı owner/device/generation için
+GRANTED yerel izin. Kullanıcı/ADMIN token'ı 403; geçersiz cihaz veya svc+jwt 401 alır.
+Cihaz token'ı kullanıcı ve D4 uçlarında kabul edilmez. CSRF korunur; üretimde Performance
+policy'si deny eder. Geçerli cihaz kimliği tek başına apply yetkisi sağlamaz.
 
 #### Path/Query Parameters
 profileId UUID; zorunlu Idempotency-Key UUID header; query yok.
@@ -5808,11 +5819,13 @@ V7__create_hardware_desktop_sync.sql. Başka servis/DB çağrısı yok; gerçek 
 cihaz/desktop bağlantısı NOT_VERIFIED. Yerel sözleşme gerçek cihaz kanıtı değildir.
 
 #### Test Durumu
-UNIT + INTEGRATION — HardwareSyncControllerTest (21), HardwareSyncDomainTest (2),
-SecurityContextHardwareSyncDeviceAccessTest (1); 2026-10-21 20:36:36 +03 verify
-exit 0: 293 PASS (54 yeni HW-05), failure/error/skipped 0; JaCoCo
-1420/1438=%98,75. Gerçek PostgreSQL 17/Flyway V1–V10/JPA/MockMvc.
-Gerçek Auth/PERF cihaz/desktop E2E NOT_VERIFIED; final kapılar ayrıca kaydedilir.
+UNIT + INTEGRATION — 2026-10-29 Hardware Maven verify: 405 PASS, hata/atlama 0,
+JaCoCo %98,90. HardwareDeviceJwtValidatorTest ve gerçek Auth üreticili
+HardwareAuthIntegrationTest cihaz türü/claim/scope/zaman/hesap fence ve policy sınırını doğrular.
+E2E — gerçek Auth/Gateway/Hardware izole HTTP kabulü 20/20 PASS; cihaz kimliğinin
+policy'ye ulaşması ve Performance yokken 404 ile reddi dahil. Gerçek consent→apply
+başarı E2E'si DEFERRED_CONTRACT / NOT_VERIFIED.
+[Güncel kanıt](../docs-hardware/integration/auth/auth-integration-06.md).
 
 ### HARDWARE — HW-AUTH D4 yerel hesap temizliği
 
@@ -5859,17 +5872,17 @@ fence korunur; sonraki çağrı kaldığı yerden temizler. Her çağrı en fazl
 HardwareAccountErasureController → HardwareAccountErasureService → HardwareAccountErasure portu
 → HardwareAccountErasureRepository; V8__add_hardware_account_erasure.sql.
 Auth mevcut AccountDeletionCoordinator → direct service RestClient çağrısı.
-[Mutabakat](../docs-hardware/integration/auth/auth-integration-02.md).
+[Mutabakat](../docs-hardware/integration/auth/entegrasyon-v1/auth-integration-02.md).
 
 #### Test Durumu
 UNIT + INTEGRATION — HardwareAuthIntegrationTest: gerçek Auth ServiceTokenIssuer/JWKS,
 ortak D4 17 senaryo, tüm tablolar, başka hesabı koruma, tekrar, rollback ve race/fence.
 İzole PostgreSQL; canlı DEV Saga ve diğer 15 katılımcı E2E NOT_VERIFIED.
-[Gerçek uygulama HTTP kabulü](../docs-hardware/integration/auth/auth-integration-04.md):
+[Gerçek uygulama HTTP kabulü](../docs-hardware/integration/auth/entegrasyon-v1/auth-integration-04.md):
 gerçek Auth worker → Hardware 204, Auth hardware görevi CONFIRMED; tekrar 204,
 başka accountId 403 ve eski kullanıcı JWT'siyle yeniden yazma 401. İzole fixture'da
 16 kontrol PASS; diğer 15 görev sahte ACK verilmeden PENDING kalır.
-[Nihai kalite kanıtı](../docs-hardware/integration/auth/auth-integration-quality.md).
+[Nihai kalite kanıtı](../docs-hardware/integration/auth/entegrasyon-v1/auth-integration-quality.md).
 
 ## RECOMMENDATION
 

@@ -79,6 +79,57 @@ class HardwareAuthIntegrationTest extends PostgresIntegrationSupport {
                 .andExpect(status().isCreated()).andReturn().getResponse().getHeader("Location");
     }
 
+    @Test void realAuthDeviceIdentityReachesOnlySnapshotAndKeepsPerformancePolicyClosed() throws Exception {
+        UUID owner=UUID.randomUUID(), device=UUID.randomUUID();
+        String profile=createProfile(owner);
+        String token=AUTH.deviceToken(device,owner);
+        String snapshot="""
+            {"profileVersion":0,"consentGeneration":"%s","sequence":1,
+             "scan":{"schemaVersion":1,"capturedAt":"%s","components":[
+               {"componentKey":"%s","category":"CPU","modelName":"Test CPU","quantity":1}]}}
+            """.formatted(UUID.randomUUID(),java.time.Instant.now(),UUID.randomUUID());
+        send(post(profile+"/sync/snapshots").header("Idempotency-Key",UUID.randomUUID()),token,snapshot)
+                .andExpect(status().isNotFound());
+        send(get(profile),token,null).andExpect(status().isUnauthorized());
+        send(get(profile+"/sync-consent"),token,null).andExpect(status().isUnauthorized());
+        send(delete("/internal/v1/accounts/"+owner),token,null).andExpect(status().isUnauthorized());
+        send(post(profile+"/sync/snapshots"),AUTH.token(owner,"ADMIN"),snapshot)
+                .andExpect(status().isForbidden());
+        send(post(profile+"/sync/snapshots"),AUTH.serviceToken(owner),snapshot)
+                .andExpect(status().isUnauthorized());
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM hardware_sync_consents WHERE profile_id=?",Integer.class,
+                profileId(profile))).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM hardware_sync_receipts WHERE profile_id=?",Integer.class,
+                profileId(profile))).isZero();
+        erasure.erase(owner);
+        send(post(profile+"/sync/snapshots").header("Idempotency-Key",UUID.randomUUID()),token,snapshot)
+                .andExpect(status().isUnauthorized());
+    }
+
+    @ParameterizedTest @ValueSource(strings={"account_id","scope","jti","exp","iat","nbf","sub","aud","iss",
+            "longLifetime","badOwner","badSubject","wrongScope","badSignature","missingKid","wrongType"})
+    void invalidDeviceCredentialsNeverReachSnapshotPolicy(String scenario) throws Exception {
+        UUID owner=UUID.randomUUID();
+        var produced=com.nimbusds.jwt.SignedJWT.parse(AUTH.deviceToken(UUID.randomUUID(),owner));
+        var claims=new HashMap<String,Object>(produced.getJWTClaimsSet().getClaims());
+        var header=new com.nimbusds.jose.JWSHeader.Builder(produced.getHeader());
+        var key=AUTH.key();
+        switch(scenario) {
+            case "longLifetime" -> claims.put("exp",new Date(System.currentTimeMillis()+120000));
+            case "badOwner" -> claims.put("account_id","1-1-1-1-1");
+            case "badSubject" -> claims.put("sub","svc:auth-service");
+            case "wrongScope" -> claims.put("scope","hardware:sync:write-extra");
+            case "badSignature" -> key=new com.nimbusds.jose.jwk.gen.RSAKeyGenerator(3072).generate();
+            case "missingKid" -> header.keyID(null);
+            case "wrongType" -> header.type(new com.nimbusds.jose.JOSEObjectType("svc+jwt"));
+            default -> claims.remove(scenario);
+        }
+        String token=HardwareJwtTestTokens.signed(key,header.build(),claims);
+        send(post(PROFILES+"/"+UUID.randomUUID()+"/sync/snapshots"),token,"{}")
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith("application/problem+json"));
+    }
+
     @Test void realPlayerOwnershipMassAssignmentAndForgedHeadersRemainBoundToVerifiedSubject() throws Exception {
         UUID owner=UUID.randomUUID(), other=UUID.randomUUID();
         String path=createProfile(owner);

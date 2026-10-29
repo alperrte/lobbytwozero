@@ -55,6 +55,16 @@ export function requireFreshJar(root, service) {
   return jar;
 }
 
+export function deletionFixtureEnvironment() {
+  // Yalnız bu geçici test süreci; gerçek DEV/prod ortam dosyası değiştirilmez.
+  return { AUTH_DELETION_GRACE_PERIOD: 'PT0S', JWT_ACCESS_TTL_SECONDS: '60' };
+}
+
+export function deletionFixturePending(total, confirmed, pending) {
+  // Repo genelinde 5 uç hazır, 11 uç eksik. Bu fixture yalnız Hardware'ı başlatır.
+  return total === 16 && confirmed === 1 && pending === 15;
+}
+
 export function captureCommand(child, name, secrets = []) {
   return new Promise((resolve, reject) => {
     let output = '', errors = '';
@@ -89,6 +99,8 @@ async function unusedPort() {
 }
 
 export async function runHardwareAuthE2e(root, log = console.log) {
+  // Kaynak eskiyse geçici kaynak oluşturmadan açık hata ver.
+  for (const service of ['auth-service', 'hardware-service', 'api-gateway']) requireFreshJar(root, service);
   const containers = [], children = [], listeners = [], secrets = [];
   const label = `hardware-auth-e2e-${randomUUID()}`;
   let checks = 0;
@@ -184,7 +196,8 @@ export async function runHardwareAuthE2e(root, log = console.log) {
     listeners.push(relay.server, unavailable.server);
     const dbProperties = db => ({ POSTGRES_HOST: '127.0.0.1', POSTGRES_PORT: String(db.ports[5432]),
       POSTGRES_USER: 'fixture', POSTGRES_PASSWORD: dbPassword, DB_AUTH_NAME: 'fixture', DB_HARDWARE_NAME: 'fixture' });
-    const authEnvironment = { ...dbProperties(authDb), SPRING_PROFILES_ACTIVE: 'dev', AUTH_JWT_PRIVATE_KEY: privateKey,
+    const authEnvironment = { ...dbProperties(authDb), ...deletionFixtureEnvironment(),
+      SPRING_PROFILES_ACTIVE: 'dev', AUTH_JWT_PRIVATE_KEY: privateKey,
       AUTH_OTP_HMAC_KEY: hmac, AUTH_TOTP_ENCRYPTION_KEY: totp, AUTH_PUBLIC_BASE_URL: gatewayOrigin,
       FRONTEND_PUBLIC_URL: gatewayOrigin, AUTH_DELETION_POLL_INTERVAL: 'PT1S', AUTH_DELETION_INITIAL_BACKOFF: 'PT1S',
       AUTH_DELETION_MAX_BACKOFF: 'PT2S', AUTH_DELETION_HTTP_TIMEOUT: 'PT1S',
@@ -246,6 +259,31 @@ export async function runHardwareAuthE2e(root, log = console.log) {
     check(true, 'Hardware accepts no direct cookie identity and PLAYER gains no catalog write permission');
     const headers = { Authorization: `Bearer ${owner.token}` };
     const accountId = JSON.parse(Buffer.from(owner.token.split('.')[1], 'base64url')).sub;
+    check(JSON.parse(Buffer.from(owner.token.split('.')[1], 'base64url')).exp
+      - JSON.parse(Buffer.from(owner.token.split('.')[1], 'base64url')).iat === 60,
+    'Real user token lifetime is 60 seconds; local acceptance has at most 30 seconds skew');
+    const deviceRoute = '/api/v1/auth/devices';
+    const device = (await request(gatewayOrigin, deviceRoute, 201, { jar: owner.jar, method: 'POST', csrf: true,
+      headers: { Origin: gatewayOrigin }, body: { label: 'Hardware fixture', password } })).body;
+    secrets.push(device.deviceSecret);
+    const deviceCredentials = { deviceId: device.deviceId, deviceSecret: device.deviceSecret };
+    const issued = (await request(gatewayOrigin, deviceRoute + '/token', 200,
+      { method: 'POST', body: deviceCredentials })).body;
+    secrets.push(issued.accessToken);
+    check(issued.expiresIn === 60 && issued.scope === 'hardware:sync:write', 'Real Auth issues a narrow 60-second device token');
+    const deviceHeaders = { Authorization: `Bearer ${issued.accessToken}` };
+    const snapshot = { profileVersion: first.version, consentGeneration: randomUUID(), sequence: 1,
+      scan: { schemaVersion: 1, capturedAt: new Date().toISOString(), components: [
+        { componentKey: randomUUID(), category: 'CPU', modelName: 'Fixture CPU', quantity: 1 }] } };
+    await request(gatewayOrigin, `${profiles}/${first.id}/sync/snapshots`, 404, { method: 'POST',
+      headers: { ...deviceHeaders, 'Idempotency-Key': randomUUID() }, body: snapshot });
+    await request(gatewayOrigin, profiles, 401, { headers: deviceHeaders });
+    await request(hardwareOrigin, `/internal/v1/accounts/${accountId}`, 401, { method: 'DELETE', headers: deviceHeaders });
+    check(true, 'Real device identity reaches snapshot policy; missing Performance contract denies apply and user/internal access');
+    await request(gatewayOrigin, `${deviceRoute}/${device.deviceId}`, 204, { jar: owner.jar, method: 'DELETE', csrf: true,
+      headers: { Origin: gatewayOrigin } });
+    await request(gatewayOrigin, deviceRoute + '/token', 401, { method: 'POST', body: deviceCredentials });
+    check(true, 'Fixture device is revoked after use and cannot obtain another token');
     await request(hardwareOrigin, `/internal/v1/accounts/${accountId}`, 401, { method: 'DELETE', headers });
     check(true, 'A real user access token cannot invoke internal D4');
     await request(gatewayOrigin, '/api/v1/auth/account/deletion/request', 202, { jar: owner.jar, method: 'POST', csrf: true,
@@ -263,8 +301,11 @@ export async function runHardwareAuthE2e(root, log = console.log) {
     await request(gatewayOrigin, profiles, 401, { method: 'POST', headers, body: { name: 'Rejected resurrection', deviceType: 'DESKTOP' } });
     await request(gatewayOrigin, `${profiles}/${second.id}`, 200, { jar: other.jar });
     check(true, 'Old user JWT cannot read or recreate data; another account remains accessible');
-    check(await sql(authDb, "SELECT count(*) FROM account_deletion_tasks WHERE status='PENDING'") === '15'
-      && await sql(authDb, "SELECT count(*) FROM accounts WHERE status='DELETION_REQUESTED'") === '1', 'All 16 Auth targets remain configured; missing 15 ACKs keep the global Saga pending');
+    check(deletionFixturePending(Number(await sql(authDb, 'SELECT count(*) FROM account_deletion_tasks')),
+      Number(await sql(authDb, "SELECT count(*) FROM account_deletion_tasks WHERE status='CONFIRMED'")),
+      Number(await sql(authDb, "SELECT count(*) FROM account_deletion_tasks WHERE status='PENDING'")))
+      && await sql(authDb, "SELECT count(*) FROM accounts WHERE status='DELETION_REQUESTED'") === '1',
+    'All 16 Auth targets remain configured; fixture leaves 15 ACKs pending (11 endpoints missing repo-wide, 4 ready services not started)');
     log(`HARDWARE AUTH RUNTIME E2E PASS: ${checks} checks; other-service Saga completion NOT_VERIFIED`);
     return { checks, status: 'PASS', globalSaga: 'NOT_VERIFIED' };
   } catch (error) {
