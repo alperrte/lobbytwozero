@@ -46,7 +46,7 @@ public class AccountErasureSecurityConfiguration {
                             .hasAnyRole("PLAYER", "CONTENT_CREATOR", "GAME_DEVELOPER", "MODERATOR", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/library/entries/*/favorite", "/api/v1/library/entries/*/completed")
                             .hasAnyRole("PLAYER", "CONTENT_CREATOR", "GAME_DEVELOPER", "MODERATOR", "ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/library/entries/favorites", "/api/v1/library/entries/completed")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/library/entries", "/api/v1/library/entries/statistics", "/api/v1/library/entries/favorites", "/api/v1/library/entries/completed")
                             .hasAnyRole("PLAYER", "CONTENT_CREATOR", "GAME_DEVELOPER", "MODERATOR", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                             .access((authentication, context) -> new org.springframework.security.authorization.AuthorizationDecision(swagger))

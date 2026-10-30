@@ -556,6 +556,234 @@ class LibraryApiTest {
         verifyNoInteractions(catalog);
     }
 
+    @org.junit.jupiter.api.Nested
+    class CollectionTests {
+
+        @Test void collectionListsAllOwnerEntriesWithOneBatchAndPreservesMissingGame() throws Exception {
+            fixture("00000000-0000-4000-8000-000000000001", USER, false, false);
+            fixture("00000000-0000-4000-8000-000000000002", USER, true, true);
+            fixture("00000000-0000-4000-8000-000000000003", UUID.randomUUID(), true, false);
+            UUID known = jdbc.queryForObject("SELECT game_id FROM library_entries WHERE id='00000000-0000-4000-8000-000000000002'", UUID.class);
+            org.mockito.Mockito.when(catalog.summaries(org.mockito.ArgumentMatchers.anyList())).thenReturn(java.util.Map.of(known,
+                    new com.ltz.library.application.port.GameSummary(known, "Example", "https://cdn.example.test/cover.jpg", "EXTERNAL", "INDEX_ONLY", "MAIN_GAME")));
+            mvc.perform(get("/api/v1/library/entries").header("Authorization", "Bearer " + token(USER, List.of("PLAYER"))))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(2))
+                    .andExpect(jsonPath("$.items.length()").value(2))
+                    .andExpect(jsonPath("$.items[0].game.title").value("Example"))
+                    .andExpect(jsonPath("$.items[0].entry.favorite").value(true))
+                    .andExpect(jsonPath("$.items[0].entry.completed").value(true))
+                    .andExpect(jsonPath("$.items[1].game.status").value("UNAVAILABLE"))
+                    .andExpect(jsonPath("$.metadataPartial").value(true));
+            org.mockito.Mockito.verify(catalog).summaries(org.mockito.ArgumentMatchers.argThat(ids -> ids.size() == 2));
+            assertEquals(3, count());
+        }
+
+        @Test void collectionSurvivesCatalogOutageAndCallsCatalogOutsideDatabaseTransaction() throws Exception {
+            fixture("00000000-0000-4000-8000-000000000001", USER, true, true);
+            org.mockito.Mockito.when(catalog.summaries(org.mockito.ArgumentMatchers.anyList())).thenAnswer(invocation -> {
+                org.junit.jupiter.api.Assertions.assertFalse(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive());
+                throw new CatalogUnavailableException();
+            });
+            mvc.perform(get("/api/v1/library/entries").header("Authorization", "Bearer " + token(USER, List.of("PLAYER"))))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].game.status").value("TEMPORARILY_UNAVAILABLE"))
+                    .andExpect(jsonPath("$.items[0].entry.favorite").value(true))
+                    .andExpect(jsonPath("$.items[0].entry.completed").value(true))
+                    .andExpect(jsonPath("$.totalElements").value(1));
+            assertEquals(1, count());
+        }
+
+        @Test void emptyCollectionAndUnauthorizedReadDoNotCallGame() throws Exception {
+            mvc.perform(get("/api/v1/library/entries")).andExpect(status().isUnauthorized());
+            mvc.perform(get("/api/v1/library/entries").header("Authorization", "Bearer " + token(USER, List.of())))
+                    .andExpect(status().isForbidden());
+            mvc.perform(get("/api/v1/library/entries").header("Authorization", "Bearer " + token(USER, List.of("PLAYER"))))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.items").isEmpty())
+                    .andExpect(jsonPath("$.totalElements").value(0)).andExpect(jsonPath("$.metadataPartial").value(false));
+            verifyNoInteractions(catalog);
+        }
+
+        @Test void collectionBooleanFiltersUseAndAndNeverIncludeAnotherOwner() throws Exception {
+            fixture("00000000-0000-4000-8000-000000000001", USER, false, false);
+            fixture("00000000-0000-4000-8000-000000000002", USER, true, false);
+            fixture("00000000-0000-4000-8000-000000000003", USER, false, true);
+            fixture("00000000-0000-4000-8000-000000000004", USER, true, true);
+            UUID other = UUID.randomUUID();
+            fixture("00000000-0000-4000-8000-000000000005", other, true, true);
+            String bearer = token(USER, List.of("PLAYER"));
+            for (var test : java.util.Map.of("", 4, "favorite=true", 2, "favorite=false", 2,
+                    "completed=true", 2, "completed=false", 2, "favorite=true&completed=true", 1,
+                    "favorite=true&completed=false", 1, "favorite=false&completed=true", 1,
+                    "favorite=false&completed=false", 1).entrySet()) {
+                mvc.perform(get("/api/v1/library/entries?" + test.getKey() + "&userId=" + other)
+                        .header("X-User-Id", other.toString()).header("Authorization", "Bearer " + bearer))
+                        .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(test.getValue()))
+                        .andExpect(jsonPath("$.items.length()").value(test.getValue()));
+            }
+            mvc.perform(get("/api/v1/library/entries?favorite=invalid").header("Authorization", "Bearer " + bearer))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test void collectionSortsTitlesGloballyBeforePagingAndKeepsUnknownTitlesLast() throws Exception {
+            for (int i = 1; i <= 4; i++) fixture("00000000-0000-4000-8000-00000000000" + i, USER, i != 4, false);
+            var rows = jdbc.queryForList("SELECT id,game_id FROM library_entries ORDER BY id");
+            var cards = new java.util.HashMap<UUID, com.ltz.library.application.port.GameSummary>();
+            String[] titles = {"Zulu", "Alpha", "alpha", null};
+            for (int i = 0; i < rows.size(); i++) {
+                UUID id = (UUID) rows.get(i).get("game_id");
+                cards.put(id, new com.ltz.library.application.port.GameSummary(id, titles[i], null, "INTERNAL", "INDEX_ONLY", "MAIN_GAME"));
+            }
+            org.mockito.Mockito.when(catalog.summaries(org.mockito.ArgumentMatchers.anyList())).thenReturn(cards);
+            String bearer = token(USER, List.of("PLAYER"));
+            collectionGet(bearer, "?sort=TITLE&direction=ASC&size=1").andExpect(status().isOk())
+                    .andExpect(jsonPath("$.items[0].entry.id").value(rows.get(1).get("id").toString()))
+                    .andExpect(jsonPath("$.metadataPartial").value(true));
+            collectionGet(bearer, "?sort=TITLE&direction=ASC&size=1&page=1").andExpect(status().isOk())
+                    .andExpect(jsonPath("$.items[0].entry.id").value(rows.get(2).get("id").toString()));
+            collectionGet(bearer, "?sort=TITLE&direction=DESC&size=1").andExpect(status().isOk())
+                    .andExpect(jsonPath("$.items[0].game.title").value("Zulu"));
+            for (String direction : List.of("ASC", "DESC"))
+                collectionGet(bearer, "?sort=TITLE&direction=" + direction + "&size=1&page=3").andExpect(status().isOk())
+                        .andExpect(jsonPath("$.items[0].game.title").doesNotExist()).andExpect(jsonPath("$.totalElements").value(4));
+            collectionGet(bearer, "?sort=TITLE&favorite=true").andExpect(status().isOk())
+                    .andExpect(jsonPath("$.totalElements").value(3)).andExpect(jsonPath("$.metadataPartial").value(false));
+            org.mockito.Mockito.verify(catalog, org.mockito.Mockito.times(5)).summaries(org.mockito.ArgumentMatchers.argThat(ids -> ids.size() == 4));
+            org.mockito.Mockito.verify(catalog).summaries(org.mockito.ArgumentMatchers.argThat(ids -> ids.size() == 3));
+        }
+
+        @Test void collectionSortsAddedTimeInBothDirectionsAndDoesNotGuessNamesDuringOutage() throws Exception {
+            fixture("00000000-0000-4000-8000-000000000001", USER, true, false);
+            fixture("00000000-0000-4000-8000-000000000002", USER, true, false);
+            jdbc.update("UPDATE library_entries SET added_at='2026-10-29T12:00:00Z' WHERE id='00000000-0000-4000-8000-000000000002'");
+            String bearer = token(USER, List.of("PLAYER"));
+            collectionGet(bearer, "?sort=ADDED_AT&direction=ASC&size=1").andExpect(status().isOk())
+                    .andExpect(jsonPath("$.items[0].entry.id").value("00000000-0000-4000-8000-000000000002"));
+            collectionGet(bearer, "?sort=ADDED_AT&direction=DESC&size=1").andExpect(status().isOk())
+                    .andExpect(jsonPath("$.items[0].entry.id").value("00000000-0000-4000-8000-000000000001"));
+            org.mockito.Mockito.when(catalog.summaries(org.mockito.ArgumentMatchers.anyList())).thenThrow(new CatalogUnavailableException());
+            collectionGet(bearer, "?sort=TITLE&direction=DESC").andExpect(status().isOk())
+                    .andExpect(jsonPath("$.items[0].entry.id").value("00000000-0000-4000-8000-000000000001"))
+                    .andExpect(jsonPath("$.metadataPartial").value(true)).andExpect(jsonPath("$.totalElements").value(2));
+            assertEquals(2, count());
+            collectionGet(bearer, "?sort=invalid").andExpect(status().isBadRequest());
+            collectionGet(bearer, "?direction=invalid").andExpect(status().isBadRequest());
+        }
+
+        private org.springframework.test.web.servlet.ResultActions collectionGet(String bearer, String query) throws Exception {
+            return mvc.perform(get("/api/v1/library/entries" + query).header("Authorization", "Bearer " + bearer));
+        }
+
+        @Test void collectionPagingValidatesBoundsAndAvoidsMetadataForOutOfRangePages() throws Exception {
+            String bearer = token(USER, List.of("PLAYER"));
+            for (String query : List.of("?page=-1", "?size=0", "?size=51", "?size=abc", "?page=2147483648"))
+                collectionGet(bearer, query).andExpect(status().isBadRequest()).andExpect(jsonPath("$.status").value(400));
+            verifyNoInteractions(catalog);
+            fixture("00000000-0000-4000-8000-000000000001", USER, true, true);
+            for (String sort : List.of("ADDED_AT", "TITLE"))
+                collectionGet(bearer, "?sort=" + sort + "&page=2147483647&size=50").andExpect(status().isOk())
+                        .andExpect(jsonPath("$.items").isEmpty()).andExpect(jsonPath("$.totalElements").value(1))
+                        .andExpect(jsonPath("$.page").value(2147483647)).andExpect(jsonPath("$.size").value(50));
+            verifyNoInteractions(catalog);
+            collectionGet(bearer, "").andExpect(status().isOk()).andExpect(jsonPath("$.page").value(0))
+                    .andExpect(jsonPath("$.size").value(20));
+        }
+
+        @Test void collectionPagesDoNotRepeatOrSkipFilteredRowsWithIdenticalDates() throws Exception {
+            for (int i = 1; i <= 12; i++) fixture(String.format("00000000-0000-4000-8000-%012d", i), USER, i % 2 == 0, true);
+            String bearer = token(USER, List.of("PLAYER"));
+            for (String direction : List.of("ASC", "DESC")) {
+                var seen = new java.util.HashSet<String>();
+                for (int page = 0; page < 3; page++) {
+                    var result = collectionGet(bearer, "?favorite=true&completed=true&direction=" + direction + "&size=2&page=" + page)
+                            .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(6))
+                            .andExpect(jsonPath("$.items.length()").value(2)).andReturn();
+                    List<String> ids = com.jayway.jsonpath.JsonPath.read(result.getResponse().getContentAsString(), "$.items[*].entry.id");
+                    for (String id : ids) org.junit.jupiter.api.Assertions.assertTrue(seen.add(id));
+                }
+                assertEquals(6, seen.size());
+            }
+            listed(bearer, "favorites", "").andExpect(status().isOk())
+                    .andExpect(jsonPath("$.metadataPartial").doesNotExist()).andExpect(jsonPath("$.items[0].gameId").exists())
+                    .andExpect(jsonPath("$.items[0].entry").doesNotExist());
+            listed(bearer, "completed", "").andExpect(status().isOk())
+                    .andExpect(jsonPath("$.metadataPartial").doesNotExist()).andExpect(jsonPath("$.items[0].gameId").exists());
+        }
+
+        @Test void collectionRowsAndTotalUseOneDatabaseSnapshotDuringConcurrentWrite() throws Exception {
+            writer.write(USER, GAME, com.ltz.library.domain.enums.LibraryAction.COLLECT);
+            org.mockito.Mockito.doAnswer(invocation -> {
+                Object snapshot = invocation.callRealMethod();
+                try (var worker = java.util.concurrent.Executors.newSingleThreadExecutor()) {
+                    worker.submit(() -> writer.write(USER, UUID.randomUUID(), com.ltz.library.domain.enums.LibraryAction.COLLECT))
+                            .get(10, java.util.concurrent.TimeUnit.SECONDS);
+                }
+                return snapshot;
+            }).when(entries).findCollection(USER, null, null, com.ltz.library.domain.enums.SortDirection.DESC, 0, 20);
+            collectionGet(token(USER, List.of("PLAYER")), "").andExpect(status().isOk())
+                    .andExpect(jsonPath("$.items.length()").value(1)).andExpect(jsonPath("$.totalElements").value(1));
+            assertEquals(2, count());
+        }
+
+        @Test void collectionStatisticsCountOverlapOnceAndIgnoreIdempotentRepeatsAndOtherOwners() throws Exception {
+            String bearer = token(USER, List.of("PLAYER"));
+            fixture("00000000-0000-4000-8000-000000000001", UUID.randomUUID(), true, true);
+            for (int i = 0; i < 2; i++) {
+                mark(bearer, "favorite").andExpect(status().isOk());
+                mark(bearer, "completed").andExpect(status().isOk());
+            }
+            org.mockito.Mockito.clearInvocations(catalog);
+            stats(bearer).andExpect(status().isOk()).andExpect(jsonPath("$.totalGames").value(1))
+                    .andExpect(jsonPath("$.favoriteGames").value(1)).andExpect(jsonPath("$.completedGames").value(1));
+            clear(bearer, "favorite").andExpect(status().isNoContent());
+            stats(bearer).andExpect(status().isOk()).andExpect(jsonPath("$.totalGames").value(1))
+                    .andExpect(jsonPath("$.favoriteGames").value(0)).andExpect(jsonPath("$.completedGames").value(1));
+            clear(bearer, "completed").andExpect(status().isNoContent());
+            stats(bearer).andExpect(status().isOk()).andExpect(jsonPath("$.totalGames").value(1))
+                    .andExpect(jsonPath("$.favoriteGames").value(0)).andExpect(jsonPath("$.completedGames").value(0));
+            mvc.perform(delete("/api/v1/library/entries/" + GAME).header("Authorization", "Bearer " + bearer)).andExpect(status().isNoContent());
+            stats(bearer).andExpect(status().isOk()).andExpect(jsonPath("$.totalGames").value(0));
+            verifyNoInteractions(catalog);
+        }
+
+        @Test void emptyStatisticsAndIdentityRulesAreEnforcedWithoutExternalCalls() throws Exception {
+            mvc.perform(get("/api/v1/library/entries/statistics")).andExpect(status().isUnauthorized());
+            stats(token(USER, List.of())).andExpect(status().isForbidden());
+            stats(sign(claims(), "svc+jwt")).andExpect(status().isUnauthorized());
+            stats(token(USER, List.of("PLAYER"))).andExpect(status().isOk()).andExpect(jsonPath("$.totalGames").value(0))
+                    .andExpect(jsonPath("$.favoriteGames").value(0)).andExpect(jsonPath("$.completedGames").value(0));
+            verifyNoInteractions(catalog);
+        }
+
+        private org.springframework.test.web.servlet.ResultActions stats(String bearer) throws Exception {
+            return mvc.perform(get("/api/v1/library/entries/statistics?userId=" + UUID.randomUUID())
+                    .header("X-User-Id", UUID.randomUUID().toString()).header("Authorization", "Bearer " + bearer));
+        }
+
+        @Test void fiftyDisplayedGamesUseOneBatchButTitleSortReadsAllFilteredGamesBeforePage() throws Exception {
+            for (int i = 1; i <= 60; i++) fixture(String.format("00000000-0000-4000-8000-%012d", i), USER, true, false);
+            var titles = new java.util.HashMap<UUID, String>();
+            var rows = jdbc.queryForList("SELECT id,game_id FROM library_entries ORDER BY id");
+            for (int i = 0; i < rows.size(); i++) titles.put((UUID) rows.get(i).get("game_id"), String.format("Game %03d", 60 - i));
+            org.mockito.Mockito.when(catalog.summaries(org.mockito.ArgumentMatchers.anyList())).thenAnswer(invocation -> {
+                org.junit.jupiter.api.Assertions.assertFalse(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive());
+                List<UUID> ids = invocation.getArgument(0);
+                return ids.stream().collect(java.util.stream.Collectors.toMap(id -> id,
+                        id -> new com.ltz.library.application.port.GameSummary(id, titles.get(id), null, "INTERNAL", "INDEX_ONLY", "MAIN_GAME")));
+            });
+            String bearer = token(USER, List.of("PLAYER"));
+            collectionGet(bearer, "?size=50").andExpect(status().isOk())
+                    .andExpect(jsonPath("$.items.length()").value(50)).andExpect(jsonPath("$.totalElements").value(60));
+            org.mockito.Mockito.verify(catalog).summaries(org.mockito.ArgumentMatchers.argThat(ids -> ids.size() == 50));
+            org.mockito.Mockito.clearInvocations(catalog);
+            collectionGet(bearer, "?favorite=true&sort=TITLE&direction=DESC&size=1").andExpect(status().isOk())
+                    .andExpect(jsonPath("$.items[0].entry.id").value(rows.getFirst().get("id").toString()))
+                    .andExpect(jsonPath("$.items[0].game.title").value("Game 060"))
+                    .andExpect(jsonPath("$.totalElements").value(60));
+            org.mockito.Mockito.verify(catalog, org.mockito.Mockito.times(2)).summaries(org.mockito.ArgumentMatchers.anyList());
+            assertEquals(60, count());
+        }
+
+    }
+
     private org.springframework.test.web.servlet.ResultActions clear(String bearer, String flag) throws Exception {
         return mvc.perform(delete("/api/v1/library/entries/" + GAME + "/" + flag).header("Authorization", "Bearer " + bearer));
     }

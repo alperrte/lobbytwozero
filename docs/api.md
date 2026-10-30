@@ -1929,6 +1929,118 @@ DEV Auth görevinin CONFIRMED olması NOT VERIFIED.
 
 Sorumlu: Hamza · Gateway: `/api/v1/library/**` · Görevler: LIB-
 
+### LIBRARY — Kütüphane listeleme (LIB-05, LIB-06, LIB-07, LIB-08, LIB-16)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/library/entries
+
+#### Yetkilendirme
+Authenticated + Owner. Mevcut RS256/JWKS kullanıcı token'ı ve kanonik rol sözleşmesi;
+yalnız JWT sub sahibinin koleksiyon satırları. userId query/header sahip seçemez.
+
+#### Path/Query Parameters
+- page: integer, minimum 0, varsayılan 0.
+- size: integer, 1–50, varsayılan 20.
+- favorite: isteğe bağlı boolean. Yoksa bu bayrak filtrelenmez; true işaretlileri, false işaretsizleri seçer.
+- completed: isteğe bağlı boolean; aynı davranış.
+İki filtre birlikte AND uygulanır; false değerleri filtre yokmuş gibi değerlendirilmez.
+- sort: ADDED_AT (varsayılan) veya TITLE.
+- direction: ASC veya DESC (varsayılan).
+ADDED_AT sıralamasında id aynı yönde ikincil anahtardır. TITLE, filtrelenmiş bütün
+küme batch ile zenginleştirildikten sonra, sayfalama öncesinde sıralanır; yalnız sayfa sıralanmaz.
+Adlar Unicode NFKC + Locale.ROOT küçük harf anahtarıyla karşılaştırılır; eşit adlarda id ASC.
+Eksik adlar her iki yönde en sondadır, kendi aralarında id ASC. Ad sıralamasında herhangi
+bir özet eksikse metadataPartial tüm filtrelenmiş küme üzerinden true olur.
+Sonuç dışı sayfa boş items ve doğru totalElements ile 200 döner; metadata HTTP çağrısı
+yapılmaz, metadataPartial=false olur. page hesabı long olduğundan integer çarpım taşması yoktur.
+Liste/toplam aynı yerel snapshot'tandır; ayrı HTTP sayfa istekleri arasında veri değişirse
+sonuç kümesi de değişebilir. Faz 2 favori/bitirildi listelerinin düz DTO sözleşmesi korunur.
+
+#### Request Body
+Yok.
+
+#### Response — 200
+```json
+{ "items": [], "page": 0, "size": 20, "totalElements": 0, "metadataPartial": false }
+```
+items[].entry mevcut LibraryEntryResponse'tur; koleksiyon/favori/bitirildi korunur.
+items[].game: gameId, title, coverUrl, origin, metadataCompleteness, gameType, status.
+status: AVAILABLE, UNAVAILABLE veya TEMPORARILY_UNAVAILABLE. Eksik ad/görsel null;
+arşivlenmiş/MERGED/olmayan oyun ayırt edilmez. Koleksiyon kaydı silinmez.
+metadataPartial, gösterilen kayıtlarda bilinmeyen ad veya kullanılamayan özet varsa true'dur.
+
+#### Hata Durumları
+- 400: Geçersiz page/size, sınır aşımı, boolean filtre, sort veya direction.
+- 401: Kimlik yok/geçersiz kullanıcı token'ı.
+- 403: Kanonik kullanıcı rolü yok.
+- 500: Beklenmeyen yerel hata; ProblemDetail.
+Game hatası listeyi düşürmez: 200 ve açık metadataPartial/status fallback'i kullanılır.
+
+#### Bağlantı
+Frontend Gateway üzerinden. Library DB liste/toplam snapshot'ı kapandıktan sonra
+mevcut Game public batch API'si çağrılır. ADDED_AT sıralamasında yalnız dönen sayfa
+zenginleştirilir: en fazla 50 oyun için tek batch. TITLE sıralamasında filtrelenmiş K
+kaydın tamamı gerekir: her istekte en fazla 50 farklı kimlik, en fazla ceil(K/50) batch.
+İstekler sıralıdır; ilk geçici hatadan sonra kalan batch'ler çağrılmaz, önceki başarılı
+özetler korunur. N+1 yoktur. TITLE bellek maliyeti O(K), sıralama maliyeti O(K log K)'dır.
+Yerel snapshot ile ayrı Game batch yanıtları arasında dağıtık snapshot garantisi yoktur.
+Boş/256 karakterden uzun ad, geçersiz/HTTPS olmayan/2048 karakterden uzun görsel URL'si
+ve tanınmayan opsiyonel enum alanları null döner; sahte metadata üretilmez.
+429/timeout/bozuk yanıt otomatik yeniden denenmez; kişisel token dış servise aktarılmaz.
+Yeni migration veya başka servis DB erişimi yoktur.
+
+#### Test Durumu
+UNIT + INTEGRATION — LibraryApiTest.CollectionTests, GameServiceClientTest,
+LibraryGameSummariesTest: owner izolasyonu, boolean AND/false filtreleri, global ad sırası,
+kararlı sayfalama, eşzamanlı liste/toplam snapshot'ı, 50/121 oyun batch sınırları,
+bozuk/eksik/çelişkili yanıtlar, timeout/429 fallback ve kayıtların korunması.
+Faz 3 clean verify: 78 test PASS, LINE %98,84; Checkstyle/PMD 0 ihlal.
+ltz-dev Library/Gateway anonim ve geçersiz kimlik HTTP kontrolleri PASS.
+Pozitif canlı kullanıcı E2E NOT VERIFIED; başka serviste test verisi oluşturulmadı.
+
+### LIBRARY — Kütüphane istatistikleri (LIB-09)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/library/entries/statistics
+
+#### Yetkilendirme
+Authenticated + Owner. Aynı kullanıcı JWT/kanonik rol sözleşmesi; yalnız JWT sub.
+userId query/header başka kullanıcı seçemez. Profil/Recommendation erişimi bu uca eklenmez.
+
+#### Path/Query Parameters
+Yok. Liste filtreleri istatistiğe uygulanmaz; bütün kişisel koleksiyon sayılır.
+
+#### Request Body
+Yok.
+
+#### Response — 200
+```json
+{ "totalGames": 0, "favoriteGames": 0, "completedGames": 0 }
+```
+Tek SQL aggregate aynı snapshot'ta hesaplar. Aynı oyun iki bayrağı da true ise toplamda
+bir kez, favori ve bitirildi sayılarında ayrı ayrı bir kez sayılır. İdempotent tekrar
+sayıları artırmaz; iki bayrak false olsa da koleksiyon toplamına dahildir.
+
+#### Hata Durumları
+- 401: Kimlik yok/geçersiz kullanıcı token'ı.
+- 403: Kanonik kullanıcı rolü yok.
+- 500: Beklenmeyen yerel hata; ProblemDetail.
+
+#### Bağlantı
+Frontend Gateway üzerinden; yalnız library_db aggregate sorgusu. Game HTTP çağrısı yoktur.
+
+#### Test Durumu
+INTEGRATION — boş koleksiyon, çakışan bayraklar, idempotent tekrar, geri alma/silme,
+başka kullanıcı izolasyonu ve 401/403; LibraryApiTest.
+
 ### LIBRARY — Koleksiyona oyun ekleme (LIB-01, LIB-12, LIB-13)
 
 Durum: IMPLEMENTED
@@ -2134,7 +2246,7 @@ Yok.
 items, mevcut LibraryEntryResponse kayıtlarıdır; gameId, koleksiyon ve iki bayrak,
 id, addedAt, updatedAt ve version içerir. Kişisel userId veya oyun metadata'sı dönmez.
 Liste/toplam aynı REPEATABLE_READ snapshot'ında iki sınırlı SQL sorgusuyla okunur.
-Bu yalnız favori listesidir; genel kütüphane filtre/sıralama ve oyun kartları Faz 3'tedir.
+Bu uç düz favori listesidir; filtre/sıralama ve oyun özetleri GET /api/v1/library/entries ucundadır.
 
 #### Hata Durumları
 - 400: Geçersiz page/size veya size sınırının aşılması.
@@ -2260,7 +2372,7 @@ Yok.
 ```
 items mevcut LibraryEntryResponse biçimindedir. Liste ve toplam aynı REPEATABLE_READ
 snapshot'ından gelir; boş/sonraki sayfada da gerçek toplam korunur. userId veya oyun
-adı/görseli dönmez. Genel kütüphane filtre/sıralama ve toplu oyun kartları Faz 3 kapsamıdır.
+adı/görseli dönmez. Filtre/sıralama ve toplu oyun özetleri GET /api/v1/library/entries ucundadır.
 
 #### Hata Durumları
 - 400: Geçersiz page/size veya size sınırının aşılması.

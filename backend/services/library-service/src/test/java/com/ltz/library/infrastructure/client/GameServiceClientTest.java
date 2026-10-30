@@ -12,6 +12,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.headerDoesNotExist;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
@@ -69,6 +71,66 @@ class GameServiceClientTest {
         server.reset();
         server.expect(requestTo("http://catalog.test/api/v1/game/games/batch")).andRespond(withException(new IOException("test timeout")));
         assertThrows(CatalogUnavailableException.class, () -> client.requireAvailable(GAME));
+        server.verify();
+    }
+
+    @Test void fiftySummariesAreReadWithOneHttpRequestAndNoCredentials() {
+        var ids = java.util.stream.IntStream.range(0, 50).mapToObj(i -> UUID.randomUUID()).toList();
+        String requested = ids.stream().map(id -> "\"" + id + "\"").collect(java.util.stream.Collectors.joining(","));
+        String cards = ids.stream().map(id -> "{\"gameId\":\"" + id + "\",\"title\":\"Example\"}")
+                .collect(java.util.stream.Collectors.joining(","));
+        server.expect(requestTo("http://catalog.test/api/v1/game/games/batch")).andExpect(method(HttpMethod.POST))
+                .andExpect(headerDoesNotExist("Authorization")).andExpect(content().json("{\"gameIds\":[" + requested + "]}"))
+                .andRespond(withSuccess("{\"items\":[" + cards + "],\"unavailable\":[]}", MediaType.APPLICATION_JSON));
+        assertEquals(50, client.summaries(ids).size());
+        server.verify();
+    }
+
+    @Test void mapsKnownMetadataAndConfirmedUnavailableWithoutInventingMissingFields() {
+        UUID other = UUID.randomUUID();
+        respond("{\"items\":[{\"gameId\":\"" + GAME + "\",\"title\":\" Example \",\"coverUrl\":\"https://cdn.example.test/cover.jpg\","
+                + "\"origin\":\"EXTERNAL\",\"metadataCompleteness\":\"PARTIAL\",\"gameType\":\"DLC\",\"externalReferences\":[]}],\"unavailable\":[\"" + other + "\"]}");
+        var result = client.summaries(java.util.List.of(GAME, other));
+        assertEquals(1, result.size());
+        assertEquals("Example", result.get(GAME).title());
+        assertEquals("https://cdn.example.test/cover.jpg", result.get(GAME).coverUrl());
+        assertEquals("EXTERNAL", result.get(GAME).origin());
+        assertEquals("PARTIAL", result.get(GAME).metadataCompleteness());
+        assertEquals("DLC", result.get(GAME).gameType());
+        server.verify();
+    }
+
+    @Test void malformedPartitionsDuplicatesAndUnrequestedIdsFailClosed() {
+        UUID other = UUID.randomUUID();
+        for (String body : java.util.List.of(
+                "{\"items\":[{\"gameId\":\"" + GAME + "\"},{\"gameId\":\"" + GAME + "\"}],\"unavailable\":[\"" + other + "\"]}",
+                "{\"items\":[{\"gameId\":\"" + GAME + "\"}],\"unavailable\":[\"" + GAME + "\",\"" + other + "\"]}",
+                "{\"items\":[],\"unavailable\":[\"" + GAME + "\",\"" + GAME + "\"]}",
+                "{\"items\":[],\"unavailable\":[null]}",
+                "{\"items\":[{\"gameId\":\"" + UUID.randomUUID() + "\"}],\"unavailable\":[\"" + other + "\"]}",
+                "{\"items\":[{\"gameId\":\"" + GAME + "\"}],\"unavailable\":[]}")) {
+            server.reset(); respond(body);
+            assertThrows(CatalogUnavailableException.class, () -> client.summaries(java.util.List.of(GAME, other)));
+            server.verify();
+        }
+    }
+
+    @Test void unsafeOptionalMetadataIsOmittedAndBatchLimitsAreChecked() {
+        for (String url : java.util.List.of("http://cdn.example.test/x", "https://user@cdn.example.test/x", "https://[", "x".repeat(2049))) {
+            server.reset();
+            respond("{\"items\":[{\"gameId\":\"" + GAME + "\",\"title\":\"" + "x".repeat(257) + "\",\"coverUrl\":\"" + url
+                    + "\",\"origin\":\"OTHER\",\"metadataCompleteness\":\"OTHER\",\"gameType\":\"OTHER\"}],\"unavailable\":[]}");
+            var result = client.summaries(java.util.List.of(GAME)).get(GAME);
+            assertNull(result.title()); assertNull(result.coverUrl()); assertNull(result.origin());
+            assertNull(result.metadataCompleteness()); assertNull(result.gameType());
+            server.verify();
+        }
+        server.reset();
+        assertEquals(java.util.Map.of(), client.summaries(java.util.List.of()));
+        assertThrows(IllegalArgumentException.class, () -> client.summaries(java.util.stream.IntStream.range(0, 51).mapToObj(i -> UUID.randomUUID()).toList()));
+        assertThrows(IllegalArgumentException.class, () -> client.summaries(java.util.Arrays.asList(GAME, null)));
+        respond("{\"items\":[{\"gameId\":\"" + GAME + "\",\"title\":\"   \"}],\"unavailable\":[]}");
+        assertNull(client.summaries(java.util.List.of(GAME, GAME)).get(GAME).title());
         server.verify();
     }
 

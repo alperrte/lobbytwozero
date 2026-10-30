@@ -7,5 +7,6 @@ import java.util.UUID;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record GameBatchResponse(List<Card> items, List<UUID> unavailable) {
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Card(UUID gameId) { }
+    public record Card(UUID gameId, String title, String coverUrl, String origin,
+            String metadataCompleteness, String gameType) { }
 }
