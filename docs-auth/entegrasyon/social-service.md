@@ -22,7 +22,7 @@ JWT doğrulaması ve silme ucu çalışıyor. **Silme ucunda iki güvenlik açı
 ## AUTH'TA BEKLEYEN
 
 - `blocks:check` kapsamı ve messaging, lfp istemci kayıtları: **Auth'ta hazır** (2026-10-29), Social ucu bekleniyor
-- `user-service` istemcisi (`blocks:check`, `friends:check`): **Auth'ta hazır** (2026-10-30). Arkadaşlık sorgu ucunu sen tasarlarsın; uçta `scope=friends:check` iste. `blocks/check` ucunda `sub` için `svc:messaging-service`, `svc:lfp-service`, `svc:user-service` kabul et
+- `user-service` istemcisi (`blocks:check`, `friends:check`): **Auth'ta hazır** (2026-10-30). Arkadaşlık sorgu ucunu sen tasarlarsın; uçta `scope=friends:check` iste. `blocks/check` ucu main'de (PR #35) yalnız `svc:messaging-service` ve `svc:lfp-service` kabul ediyor; listeye `svc:user-service` ekle
 - Social → notification ve social → messaging olay teslimi: Auth'ta bu çiftler tanımlı değil, ihtiyaç yazılırsa karar
 - Kullanıcı varlık doğrulaması ve profil: user-service yazılınca
 

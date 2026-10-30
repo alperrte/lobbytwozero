@@ -27,7 +27,7 @@
 | **A** User → Library (LIB-10) | **MEVCUT.** Auth değişikliği gerekmez (karar K1) | User'ın Library'yi kullanıcı token'ıyla çağırması; Library'nin izin kararını C ile alması |
 | **B** Recommendation → Library (LIB-14) | **AUTH HAZIR** (`signals:read`, hesaba bağlı) | Library sinyal ucu, User izin kararı, Recommendation istemcisi |
 | **C** Library → User (LIB-11) | **AUTH HAZIR** (`access:decide`) | **User'ın erişim karar API'si** (henüz yok) |
-| **D** User → Social | **AUTH HAZIR** (`blocks:check`, `friends:check`) | Social'ın `blocks/check` ve arkadaşlık ucu (ikisi de yazılmadı) |
+| **D** User → Social | **AUTH HAZIR** (`blocks:check`, `friends:check`) | Social `blocks/check` main'de (PR #35) ama yalnız `svc:messaging-service` ve `svc:lfp-service` kabul ediyor: `svc:user-service` eklenmeli. Arkadaşlık ucu yok |
 
 ## 3. KARARLAR (KEREM, 2026-10-30)
 
@@ -140,7 +140,7 @@ Library'nin public uçları değişmez: kullanıcı JWT'si doğrulaması, `viewe
 | **Auth (Kerem)** | Yapıldı: üç istemci, üç kapsam, hesaba bağlı kapsam kuralı, testler, `docs/api.md` ve `servis-sozlesmeleri.md` §3.5. Kalan: main'e PR |
 | **Library (Hamza)** | (1) 4.1 erişim kararı istemcisi, fail-closed. (2) 4.2 sinyal ucu ve doğrulayıcı (`account_id` eşitliği). (3) Dev `JWT_ACCESS_TTL_SECONDS=60` ile iptal testinin tekrarı. (4) D4 (b) ortak denemesi |
 | **User** | Erişim karar API'si (Library'nin çağıracağı, `aud=user-service`, `scope=access:decide`); Library'yi kullanıcı adına çağırırken token kuralları (4.3); Social'dan token alıp engel/arkadaşlık sorgusu |
-| **Social (Umut)** | `POST /internal/v1/blocks/check` (messaging, lfp, user) ve arkadaşlık sorgu ucu (`friends:check`) |
+| **Social (Umut)** | `POST /internal/v1/blocks/check` çağıran listesine `svc:user-service` eklemek (uç main'de, PR #35) ve arkadaşlık sorgu ucu (`friends:check`) |
 | **Recommendation (Alper)** | Arka plan işinde hesap başına token (`accountId`), kullanıcı JWT'si iletmeden |
 
 **Sıra:**
