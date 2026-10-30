@@ -17,7 +17,7 @@ Library'nin Auth ile bağı iki parça: kullanıcı token'ı ve hesap silme. Sil
 - [ ] `main`'deki `contextLoads` testi `AUTH_SERVICE_URL` olmadan kırık. `chore/security` (#16) ile `pom.xml`'e eklenen CI ayarı bunu çözüyor, `main`'i dalına al
 - [ ] Silme ucu `sub` ve `account_id` denetliyor mu bir kez daha bak (game-service `AccountErasureController` örnek)
 
-- [ ] LIB-11: User'dan erişim kararı. Token: `{clientId: "library-service", clientSecret, audience: "user-service"}` → `scope=access:decide`. Ortam `AUTH_LIBRARY_SERVICE_CLIENT_SECRET`. Karar alınamazsa **erişilemez** (fail-closed)
+- [ ] LIB-11: User'dan gizlilik kararı (`POST /internal/v1/privacy/decisions`, User'da hazır). Token: `{clientId: "library-service", clientSecret, audience: "user-service"}` → `scope="events:ingest privacy:read"`. Ortam `AUTH_LIBRARY_SERVICE_CLIENT_SECRET`. Karar alınamazsa **erişilemez** (fail-closed). `events:ingest` kapsamı `LibrarySummaryChanged` olayı içindir
 - [ ] LIB-14: sinyal ucu. Kabul edilen token `aud=library-service`, `sub` tam `svc:recommendation-service`, `scope=signals:read`, `account_id` istekteki hesapla eşit; sonra User izni
 - [ ] Dev'de `JWT_ACCESS_TTL_SECONDS=60` ile iptal testini tekrarla (900 sn prod'u temsil etmez)
 

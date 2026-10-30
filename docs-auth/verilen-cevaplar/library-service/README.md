@@ -16,7 +16,7 @@
 
 | # | Konu | Cevap | Durum |
 |---|---|---|---|
-| [01](talep-01-servisler-arasi-yetki-iptal-ve-d4.md) | LIB-10/11/14 servisler arası yetki, logout/iptal penceresi, D4 gerçek E2E | Kullanıcı adına çağrıda kullanıcının kendi token'ı; Library → User `access:decide`; Recommendation → Library hesaba bağlı `signals:read`; iptal 90 sn; D4 (b) PT0S ile izole | AUTH HAZIR (2026-10-30), USER/SOCIAL/LIBRARY UÇLARI BEKLENİYOR |
+| [01](talep-01-servisler-arasi-yetki-iptal-ve-d4.md) | LIB-10/11/14 servisler arası yetki, logout/iptal penceresi, D4 gerçek E2E | Kullanıcı adına çağrıda kullanıcının kendi token'ı; Library → User `privacy:read` (+ `events:ingest`); Recommendation → Library hesaba bağlı `signals:read`; iptal 90 sn; D4 (b) PT0S ile izole | AUTH HAZIR (2026-10-30), USER/SOCIAL/LIBRARY UÇLARI BEKLENİYOR |
 
 ## BİLMEN GEREKENLER
 

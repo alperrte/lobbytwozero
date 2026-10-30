@@ -106,13 +106,13 @@ export async function runAuthSmoke(root, log = console.log) {
     const dbPassword = randomBytes(32).toString('base64url');
     const adminSecret = randomBytes(32).toString('base64url'), socialSecret = randomBytes(32).toString('base64url');
     const messagingSecret = randomBytes(32).toString('base64url'), lfpSecret = randomBytes(32).toString('base64url');
-    const librarySecret = randomBytes(32).toString('base64url'), userSecret = randomBytes(32).toString('base64url');
-    const recommendationSecret = randomBytes(32).toString('base64url');
+    const librarySecret = randomBytes(32).toString('base64url'), hardwareSecret = randomBytes(32).toString('base64url');
+    const reviewSecret = randomBytes(32).toString('base64url'), recommendationSecret = randomBytes(32).toString('base64url');
     const privateKey = generateKeyPairSync('rsa', { modulusLength: 3072 }).privateKey.export({ format: 'der', type: 'pkcs8' }).toString('base64');
     const rotatedPublicKey = generateKeyPairSync('rsa', { modulusLength: 3072 }).publicKey.export({ format: 'der', type: 'spki' }).toString('base64');
     const hmac = randomBytes(32).toString('base64'), totp = randomBytes(32).toString('base64');
-    secrets.push(password, dbPassword, adminSecret, socialSecret, messagingSecret, lfpSecret, librarySecret, userSecret,
-      recommendationSecret, privateKey, hmac, totp);
+    secrets.push(password, dbPassword, adminSecret, socialSecret, messagingSecret, lfpSecret, librarySecret, hardwareSecret,
+      reviewSecret, recommendationSecret, privateKey, hmac, totp);
     const authDb = await container('postgres:17-alpine', [5432],
       { POSTGRES_USER: 'fixture', POSTGRES_DB: 'fixture', POSTGRES_PASSWORD: dbPassword });
     const mail = await container('axllent/mailpit:v1.31.0', [1025, 8025]);
@@ -128,8 +128,8 @@ export async function runAuthSmoke(root, log = console.log) {
       AUTH_JWT_ADDITIONAL_PUBLIC_KEYS: rotatedPublicKey, AUTH_OTP_HMAC_KEY: hmac, AUTH_TOTP_ENCRYPTION_KEY: totp,
       AUTH_ADMIN_SERVICE_CLIENT_SECRET: adminSecret, AUTH_SOCIAL_SERVICE_CLIENT_SECRET: socialSecret,
       AUTH_MESSAGING_SERVICE_CLIENT_SECRET: messagingSecret, AUTH_LFP_SERVICE_CLIENT_SECRET: lfpSecret,
-      AUTH_LIBRARY_SERVICE_CLIENT_SECRET: librarySecret, AUTH_USER_SERVICE_CLIENT_SECRET: userSecret,
-      AUTH_RECOMMENDATION_SERVICE_CLIENT_SECRET: recommendationSecret, AUTH_PUBLIC_BASE_URL: gatewayOrigin, FRONTEND_PUBLIC_URL: gatewayOrigin,
+      AUTH_LIBRARY_SERVICE_CLIENT_SECRET: librarySecret, AUTH_HARDWARE_SERVICE_CLIENT_SECRET: hardwareSecret,
+      AUTH_REVIEW_SERVICE_CLIENT_SECRET: reviewSecret, AUTH_RECOMMENDATION_SERVICE_CLIENT_SECRET: recommendationSecret, AUTH_PUBLIC_BASE_URL: gatewayOrigin, FRONTEND_PUBLIC_URL: gatewayOrigin,
       LTZ_AUTH_MAIL_DEVSMTP_HOST: '127.0.0.1', LTZ_AUTH_MAIL_DEVSMTP_PORT: String(mail.ports[1025]) };
     for (const service of ['USER', 'MAIL', 'GAME', 'LIBRARY', 'REVIEW', 'SOCIAL', 'MESSAGING', 'LFP', 'COMMUNITY', 'CONTENT', 'EVENT',
       'HARDWARE', 'RECOMMENDATION', 'PERFORMANCE', 'ADMIN', 'NOTIFICATION']) {
@@ -248,7 +248,7 @@ export async function runAuthSmoke(root, log = console.log) {
       check(internalCall.status === 401, `${clientId} block-check token is rejected by Auth (status ${internalCall.status})`);
     }
 
-    // Library entegrasyonu: library -> user karar, user -> social sorgu (kullanıcı bağı yok), recommendation -> library tek hesaba bağlı.
+    // User Service: gizlilik kararı ve özet olayı token'ları (kullanıcı bağı yok); recommendation -> library tek hesaba bağlı.
     const targetToken = async (body) => {
       const response = await postJson(tokenUrl, body);
       const json = await response.json();
@@ -256,8 +256,10 @@ export async function runAuthSmoke(root, log = console.log) {
       if (value) secrets.push(value);
       return { status: response.status, json, claims: value ? decodeJwtPart(value, 1) : {} };
     };
-    for (const [clientId, clientSecret, audience, scope] of [['library-service', librarySecret, 'user-service', 'access:decide'],
-      ['user-service', userSecret, 'social-service', 'blocks:check friends:check']]) {
+    for (const [clientId, clientSecret, audience, scope] of [['social-service', socialSecret, 'user-service', 'events:ingest privacy:read'],
+      ['library-service', librarySecret, 'user-service', 'events:ingest privacy:read'],
+      ['hardware-service', hardwareSecret, 'user-service', 'privacy:read'],
+      ['review-service', reviewSecret, 'user-service', 'events:ingest']]) {
       const issuedTarget = await targetToken({ clientId, clientSecret, audience });
       check(issuedTarget.status === 200 && [].concat(issuedTarget.claims.aud).join() === audience && issuedTarget.claims.sub === `svc:${clientId}`
         && issuedTarget.claims.scope === scope && !('account_id' in issuedTarget.claims) && issuedTarget.claims.exp - issuedTarget.claims.iat === 60,

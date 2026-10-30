@@ -59,6 +59,40 @@ test("eksik anahtarları üretir, dolu olanı ezmez, dosyalarda aynı değeri ku
   }
 });
 
+test("AUTH_EVENT_TARGETS satır yoksa veya boşsa user yazılır; dolu listeye dokunulmaz, user yoksa uyarılır", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ltz-targets-"));
+  try {
+    const missing = join(dir, "missing.env");
+    const blank = join(dir, "blank.env");
+    const custom = join(dir, "custom.env");
+    const already = join(dir, "already.env");
+    writeFileSync(missing, "OTHER=1\n");
+    writeFileSync(blank, "AUTH_EVENT_TARGETS=\r\n");
+    writeFileSync(custom, "AUTH_EVENT_TARGETS=community\n");
+    writeFileSync(already, "AUTH_EVENT_TARGETS=community,user\n");
+    const get = (file) => readFileSync(file, "utf8").match(/^AUTH_EVENT_TARGETS=(.*?)\r?$/m)?.[1];
+
+    // Aynı çalıştırmadaki dosyalar aynı değeri paylaşır (betiğin sözleşmesi); bu yüzden gruplar ayrı çalıştırılır.
+    const empty = spawnSync(process.execPath, [script, missing, blank], { encoding: "utf8" });
+    assert.equal(empty.status, 0, empty.stderr);
+    assert.equal(get(missing), "user");
+    assert.equal(get(blank), "user");
+
+    const filled = spawnSync(process.execPath, [script, custom, already], { encoding: "utf8" });
+    assert.equal(filled.status, 0, filled.stderr);
+    assert.equal(get(custom), "community", "dolu liste ezilmemeli");
+    assert.equal(get(already), "community,user");
+    assert.match(filled.stdout, /custom.env: .*uyarı -> AUTH_EVENT_TARGETS/);
+    assert.ok(!/already.env: .*uyarı/.test(filled.stdout), "user içeren listede uyarı olmamalı");
+
+    const again = spawnSync(process.execPath, [script, missing, blank], { encoding: "utf8" });
+    assert.equal(get(missing), "user");
+    assert.ok(!/dolduruldu -> AUTH_EVENT_TARGETS/.test(again.stdout), "ikinci çalıştırmada değişiklik olmamalı");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("eski varsayılan JWT_ACCESS_TTL_SECONDS=300 değeri 60'a çekilir; özelleştirilmiş değere ve eksik satıra dokunulmaz", () => {
   const dir = mkdtempSync(join(tmpdir(), "ltz-ttl-"));
   try {

@@ -68,7 +68,8 @@ public abstract class IntegrationTestSupport {
     protected static final String MESSAGING_CLIENT_SECRET = "test-messaging-client-secret-0123456789-ab";
     protected static final String LFP_CLIENT_SECRET = "test-lfp-client-secret-0123456789-abcdefgh";
     protected static final String LIBRARY_CLIENT_SECRET = "test-library-client-secret-0123456789-abcd";
-    protected static final String USER_CLIENT_SECRET = "test-user-client-secret-0123456789-abcdefg";
+    protected static final String HARDWARE_CLIENT_SECRET = "test-hardware-client-secret-0123456789-abc";
+    protected static final String REVIEW_CLIENT_SECRET = "test-review-client-secret-0123456789-abcde";
     protected static final String RECOMMENDATION_CLIENT_SECRET = "test-recommendation-client-secret-012345678";
     private static final int TEST_RSA_BITS = 3072;
     /** Her test çalıştırmasında üretilen imza anahtarı; repoda veya çıktıda gerçek anahtar yoktur. */
@@ -128,7 +129,8 @@ public abstract class IntegrationTestSupport {
         registry.add("ltz.auth.service-clients.clients.messaging-service.secret", () -> MESSAGING_CLIENT_SECRET);
         registry.add("ltz.auth.service-clients.clients.lfp-service.secret", () -> LFP_CLIENT_SECRET);
         registry.add("ltz.auth.service-clients.clients.library-service.secret", () -> LIBRARY_CLIENT_SECRET);
-        registry.add("ltz.auth.service-clients.clients.user-service.secret", () -> USER_CLIENT_SECRET);
+        registry.add("ltz.auth.service-clients.clients.hardware-service.secret", () -> HARDWARE_CLIENT_SECRET);
+        registry.add("ltz.auth.service-clients.clients.review-service.secret", () -> REVIEW_CLIENT_SECRET);
         registry.add("ltz.auth.service-clients.clients.recommendation-service.secret", () -> RECOMMENDATION_CLIENT_SECRET);
         registry.add("AUTH_TOTP_ENCRYPTION_KEY", () -> TEST_TOTP_KEY);
         registry.add("AUTH_JWT_PRIVATE_KEY",
