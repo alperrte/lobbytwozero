@@ -128,6 +128,24 @@ Gösterim: **PK** birincil anahtar, **FK** servis içi yabancı anahtar, **REF**
 
 ### 3.2 user_db — user-service (Kerem)
 
+**Uygulanan (2026-10-30, LTZ-KER-USER-01 faz 1a): `V71__create_user_profile_tables.sql`** — `user_profiles`, `user_media`, `inbox_events`. Aşağıdaki tablo hedef taslaktır (`[ÖNERİ]`); `privacy_settings`, `user_preferences` ve `linked_accounts` sonraki fazlarda V72–V74 ile gelir.
+
+- `user_profiles`: `user_id` PK (Auth REF), `username_snapshot`/`username_normalized` (Auth'tan `UserRegistered` ile; ikisi birlikte dolu ya da boş, normalize için kısmi tekil indeks), `display_name` ≤32, `bio` ≤500, `player_types` (en çok 2), `favorite_genres` ve `favorite_platforms` (en çok 10) **`text[]`** (düz string listeleri için `jsonb` yerine; Hibernate'in JSON eşlemesine bağımlılık yok, CHECK ile kardinalite sınırlı), `country` ISO alpha-2, `account_status` (Auth'taki durumun kopyası, `varchar` + CHECK), `status_changed_at` (eski `AccountStatusChanged` olayı yeni durumu ezmesin), `onboarding_completed_at`, `created_at`, `updated_at`, `version`. Taslaktaki `avatar_key`/`cover_key` sütunları yerine görseller `user_media` tablosundadır.
+- `user_media` (faz 1b ile kullanımda): `kind` (`AVATAR|COVER`), `storage_key` (rastgele 128 bit, tekil), `content_type`, `byte_size` (iki sürümün toplamı), `width`, `height` (büyük sürüm), `frame_count`, `status` (`CURRENT|PENDING_DELETE`). `user_id` FK **`ON DELETE CASCADE`**; kullanıcı başına her tür için tek `CURRENT` satır (kısmi tekil indeks). Dosyalar diskte (`user_media` volume'ü): `<anahtar>.<uzantı>` ve `<anahtar>-s.<uzantı>`. `PENDING_DELETE` satırları yükleme sayacı penceresi (1 saat) dolana kadar tutulur çünkü saatlik yükleme sınırı bu satırlardan hesaplanır.
+- `inbox_events`: `event_id` PK, `event_type`, `producer`, `processed_at`. Olay yükü ve hesap kimliği saklanmaz.
+- `outbox_events` bu serviste henüz yoktur: giden olay üreten bir tüketici talebi çıkınca eklenir.
+
+**Uygulanan (2026-10-30, LTZ-KER-USER-04): `V73__create_user_preferences.sql`** — `user_preferences`: `user_id` PK/FK (`ON DELETE CASCADE`), `locale` (`tr|en`), `theme` (`LIGHT|DARK|SYSTEM`), `reduced_motion`, `compact_layout` (sınırlı arayüz tercihleri; taslaktaki `favorite_genres`/`platforms` profilde durur), `updated_at`, `version`. Satır yoksa varsayılanlar geçerlidir. Onboarding durumu ayrı tablo değil, `user_profiles.onboarding_completed_at` sütunudur.
+
+**Uygulanan (2026-10-30, LTZ-KER-USER-03): `V74__create_linked_accounts.sql`** — `linked_accounts`: `id` PK, `user_id` FK (`ON DELETE CASCADE`), `provider` (CHECK `STEAM`), `external_id` (Steam için `^[0-9]{17}$`, kaldırılınca `NULL`), `active`, `show_on_profile` (varsayılan `false`; yalnız `active` iken `true` olabilir), `consent_at`, `linked_at`, `changed_at` (durumu belirleyen son olayın `occurredAt` değeri), `version`. `UQ(user_id, provider)`, `UQ(provider, external_id)`. Satır Auth olaylarıyla yazılır; kaldırılan bağlantı `active=false` olarak kalır ki gecikmiş eski bir "bağlandı" olayı onu geri getiremesin. Token ya da başka kimlik verisi saklanmaz.
+
+**Uygulanan (2026-10-30, LTZ-KER-USER-02): `V72__create_privacy_and_social_projection.sql`**
+
+- `user_profiles.display_name_normalized` (varchar 64): arama anahtarı; Java'da `UserProfile.normalize` ile üretilir (yerelden bağımsız küçük harf + Türkçe `ı`/`i̇` → `i`). Kısmi `text_pattern_ops` indeksleri: `username_normalized` ve `display_name_normalized`, yalnız `account_status='ACTIVE'`.
+- `privacy_settings`: `user_id` PK/FK (`ON DELETE CASCADE`), dört alan görünürlüğü (`PUBLIC|FRIENDS|PRIVATE`), `guest_profile_access` (`BASIC|DETAILED`), `updated_at`, `version`. Satır yoksa varsayılanlar geçerlidir (taslaktaki `activity_visibility` yerine kütüphane/oyun geçmişi tek alandır).
+- `social_friendships` (`user_low_id`, `user_high_id`, `active`, `changed_at`) ve `social_blocks` (`blocker_id`, `blocked_id`, `active`, `changed_at`): social-service olaylarının yansıması (REF, FK yok). Kaldırılan ilişki `active=false` olarak kalır; daha eski `changed_at` ile gelen olay yeni durumu ezmez.
+- `profile_counters`: Library/Review'dan gelen **mutlak** sayılar ve kaynak başına `*_changed_at`; `NULL` = kaynaktan henüz veri yok. Profil olmadan da gelebilir (FK yok), hesap silmede ayrıca silinir.
+
 | Tablo | Önemli sütunlar | Kısıtlar / not |
 | --- | --- | --- |
 | `user_profiles` | user_id PK (REF auth.accounts), display_name, username_snapshot, bio, avatar_key, cover_key, country, onboarding_completed_at, version | Profil tamamen gizlenemez |

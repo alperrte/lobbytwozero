@@ -892,7 +892,695 @@ Aşağıdakiler Auth'un çağıracağı/yayımlayacağı **PLANNED** sözleşmel
 
 Sorumlu: Kerem · Gateway: `/api/v1/user/**` · Görevler: USER-
 
-_Kayıt yok._
+> Açık uçlar (2026-10-30, LTZ-KER-USER-02): `GET /api/v1/user/profiles/**` ve `GET /api/v1/user/media/*` misafire açıktır (token varsa doğrulanır); diğer tüm `/api/v1/user/**` uçları kimlik ister. Görünürlük kuralı tektir: "Gizlilik ayarlarım" kaydındaki tablo.
+>
+> Kimlik doğrulama (2026-10-30, LTZ-KER-USER-01 faz 1a): Kullanıcı uçları Auth'un RS256 imzasını JWKS ile, `typ=at+jwt`, `iss`, `aud` ⊇ `ltz-api`, UUID `sub` ve zorunlu `exp`/`nbf`/`iat` alanlarını doğrular; `iat` eksikse token reddedilir. İç uçlar (`/internal/**`) yalnız `typ=svc+jwt`, `aud=user-service` servis token'ı kabul eder; kullanıcı token'ı iç uçta, servis token'ı kullanıcı uçlarında geçmez. Mevcut `AUTH_SERVICE_URL`, `JWT_ISSUER`, `JWT_AUDIENCE` kullanılır, yeni ENV yoktur. Tanımsız her yol `denyAll`. Gerçek Auth token'ıyla uçtan uca doğrulama **NOT VERIFIED**.
+
+### USER — Kendi profilimi getir (USER-01)
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/user/me
+
+#### Yetkilendirme
+Authenticated (Owner). `userId` yalnız token'ın `sub` değerinden alınır; istekte kimlik alanı yoktur.
+
+#### Response — 200
+Profil yoksa varsayılan değerlerle **oluşturulur** (Auth'un `UserRegistered` olayı gecikmiş ya da henüz hedef açılmamış olsa da kullanıcı 404 görmez; eşzamanlı ilk isteklerde tek satır oluşur). `Cache-Control: no-store`.
+```json
+{
+  "userId": "UUID",
+  "username": "string | null (Auth'tan UserRegistered olayıyla gelen kopya; olay gelene kadar null)",
+  "displayName": "string 2-32 | null",
+  "bio": "string ≤500 | null",
+  "playerTypes": ["CASUAL | COMPETITIVE | STORY | SOCIAL | COLLECTOR (en çok 2)"],
+  "favoriteGenres": ["katalog kodu (en çok 10)"],
+  "favoritePlatforms": ["katalog kodu (en çok 10)"],
+  "country": "ISO 3166-1 alpha-2 | null",
+  "avatar": { "small": "/api/v1/user/media/<anahtar>-s.jpg", "large": "/api/v1/user/media/<anahtar>.jpg", "animated": false },
+  "cover": { "small": "...", "large": "...", "animated": false },
+  "onboardingCompletedAt": "ISO-8601 | null",
+  "updatedAt": "ISO-8601",
+  "version": 0
+}
+```
+`avatar`/`cover` görsel yoksa `null`. Adresler **değişmezdir** (her yükleme yeni adres alır) ve herkese açıktır; ayrıntı: "Profil görseli yükle" kaydı. GIF'te `small` ve `large` aynı dosyadır.
+
+Yanıt e-posta, hesap durumu veya kimlik bilgisi içermez.
+
+#### Hata Durumları
+- 401: Token yok/geçersiz (imza, `iss`, `aud`, `typ`, süre, `iat`, UUID olmayan `sub`); servis token'ı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/user/me
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; `MeControllerTest`, eşzamanlı ilk istek ve token saldırı matrisi dahil). Gerçek Auth token'ıyla uçtan uca: NOT VERIFIED.
+
+### USER — Profil güncelle (USER-02)
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+PATCH /api/v1/user/me/profile
+
+#### Yetkilendirme
+Authenticated (Owner). Başka kullanıcının profilini değiştiren bir yol yoktur.
+
+#### Request Body
+Gönderilmeyen ya da `null` alan **değişmez**; metin alanında `""`, liste alanında `[]` alanı **temizler**. Tanımsız alan (ör. `userId`, `accountStatus`) `400` döner (`fail-on-unknown-properties`). Gövde en fazla 16 KB.
+```json
+{
+  "version": "long ≥ 0, zorunlu: istemcinin son gördüğü sürüm",
+  "displayName": "string 2-32 Unicode kod noktası",
+  "bio": "string ≤500 kod noktası (düz metin; satır sonu \\n serbest)",
+  "country": "ISO 3166-1 alpha-2 (küçük harf kabul, büyük harfe çevrilir)",
+  "playerTypes": ["CASUAL | COMPETITIVE | STORY | SOCIAL | COLLECTOR"],
+  "favoriteGenres": ["^[a-z0-9][a-z0-9_-]{0,47}$, en çok 10"],
+  "favoritePlatforms": ["^[a-z0-9][a-z0-9_-]{0,47}$, en çok 10"]
+}
+```
+Metinler Unicode NFC'ye çevrilir ve kırpılır; denetim, biçim (bidi/sıfır genişlik), özel kullanım karakterleri ve `nbsp` reddedilir. Biyografi HTML'e çevrilmeden **düz metin** saklanır: istemci onu yalnız metin olarak göstermelidir. Listeler küçük/büyük harf normalize edilir, yinelenenler birleştirilir.
+
+#### Response — 200
+`GET /me` ile aynı gövde (güncel `version` dahil). Değişiklik yoksa `version` artmaz.
+
+#### Hata Durumları
+- 400: Doğrulama (`VALIDATION_FAILED`, `INVALID_DISPLAY_NAME`, `INVALID_BIO`, `INVALID_COUNTRY`, `INVALID_PLAYER_TYPES`, `INVALID_FAVORITE_GENRES`, `INVALID_FAVORITE_PLATFORMS`), bozuk JSON, tanımsız alan
+- 401: Token yok/geçersiz
+- 409: `CONCURRENT_MODIFICATION`: `version` güncel değil ya da eşzamanlı güncelleme
+- 413: Gövde 16 KB'ı aşıyor (`PAYLOAD_TOO_LARGE`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/user/me/profile
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; `MeControllerTest`, `ProfileTextTest`; eşzamanlı güncellemede yalnız biri başarılı).
+
+### USER — Profil görseli yükle: avatar ve kapak (USER-03, USER-04)
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+PUT /api/v1/user/me/avatar
+PUT /api/v1/user/me/cover
+
+#### Yetkilendirme
+Authenticated (Owner). Kimlik yalnız token'dan gelir; çerez/başlık/gövdedeki kimlik okunmaz.
+
+#### Request Body
+**Ham gövde**: gövde görselin kendisidir (multipart değil). `Content-Type` yalnız `image/jpeg`, `image/png` veya `image/gif` olabilir; başka tür `415`. Bildirilen tür gerçek içerikle (ilk baytlar / magic byte) **uyuşmak zorundadır**; SVG, HTML ve tanınmayan her içerik `400`. Gövde boyutu akış sırasında sınırlanır:
+
+| Tür | En büyük yükleme | Kenar / piksel sınırı | Çıktı |
+| --- | --- | --- | --- |
+| Avatar JPEG/PNG | 2 MB | ≤ 8000 px kenar, ≤ 40 MP | Ortadan kare kırpılır; büyük 512 px, küçük 128 px; **büyütülmez** |
+| Kapak JPEG/PNG | 4 MB | ≤ 8000 px kenar, ≤ 40 MP | En-boy oranı korunur, 1600×1600 içine sığdırılır (büyük) ve 800×800 içine (küçük); **büyütülmez** |
+| Avatar GIF | 2 MB | ekran ≤ 512×512, ≤ 100 kare | Yeniden kodlanmaz, tek dosya |
+| Kapak GIF | 4 MB | ekran ≤ 1600×1600, ≤ 100 kare | Yeniden kodlanmaz, tek dosya |
+
+JPEG/PNG sunucuda yeniden kodlanır: EXIF/konum bilgisi ve gizli (polyglot) içerik temizlenir, JPEG'in EXIF yönlendirmesi uygulanır (telefon fotoğrafı yan dönük görünmez). Saydamlığı olmayan görsel progressive JPEG (kalite 0,85), saydam piksel içeren PNG olarak kalır. GIF'te yalnız kare verisi, süre/saydamlık bloğu ve döngü bloğu korunur; yorum ve diğer uygulama blokları atılır.
+
+#### Response — 200
+Güncel profil (`GET /me` ile aynı gövde; `avatar` ya da `cover` dolu). `Cache-Control: no-store`. Yükleme eski görseli değiştirir; eski dosyalar commit sonrası silinir.
+
+#### Hata Durumları
+- 400: `INVALID_IMAGE` (SVG/HTML/tanınmayan içerik, bildirilen tür içerikle uyuşmuyor, bozuk/kesik/CMYK görsel, bozuk GIF yapısı), `INVALID_IMAGE_DIMENSIONS` (kenar/piksel/kare sayısı ya da GIF ekranı sınırı aşıldı), `MALFORMED_REQUEST` (boş gövde)
+- 401: Token yok/geçersiz; servis token'ı; çerezle kimlik
+- 409: `CONCURRENT_MODIFICATION`: aynı kullanıcı aynı türü eşzamanlı yükledi
+- 413: Gövde tür sınırını aşıyor (`PAYLOAD_TOO_LARGE`)
+- 415: `Content-Type` jpeg/png/gif değil
+- 429: `MEDIA_RATE_LIMITED`: kullanıcı başına saatte en çok 10 yükleme (değiştirilenler dahil)
+- 503: `MEDIA_BUSY` (aynı anda en çok 2 görsel işlenir; sıra 3 sn içinde boşalmadı), `MEDIA_STORAGE_UNAVAILABLE` (depo yazılamadı; hiçbir kalıntı bırakılmaz)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/user/me/avatar ve /api/v1/user/me/cover (`fetch` ile `body: file`, `Content-Type: file.type`).
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL ve geçici disk; `MediaControllerTest` 23, `ImageIoInspectorTest`, `GifSanitizerTest`, `ExifOrientationTest`, `LocalFileMediaStorageTest`, `MediaCleanupServiceTest`).
+
+### USER — Profil görseli kaldır (USER-03, USER-04)
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+DELETE /api/v1/user/me/avatar
+DELETE /api/v1/user/me/cover
+
+#### Yetkilendirme
+Authenticated (Owner).
+
+#### Response — 204
+Gövde yok. Görsel profilden kalkar ve dosyaları silinir; görsel yoksa da `204` (idempotent). Dosya silme geçici olarak başarısız olursa görsel yine profilden kalkar, dosya zamanlanmış temizleyici (5 dk) tarafından silinir.
+
+#### Hata Durumları
+- 401: Token yok/geçersiz
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/user/me/avatar ve /api/v1/user/me/cover
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (`MediaControllerTest`, `MediaCleanupServiceTest`, `MediaCleanupWorkerTest`).
+
+### USER — Profil görselini oku (herkese açık)
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend, diğer servislerin istemcileri (adres bir yıl önbelleğe alınabilir)
+
+#### Endpoint
+GET /api/v1/user/media/{fileName}
+
+#### Yetkilendirme
+Public (kimlik gerekmez; misafir kartında da görünür). Adres, 128 bitlik rastgele anahtardır ve profil yanıtlarındaki `avatar`/`cover` alanlarından alınır; liste uç noktası yoktur.
+
+#### Path Parameters
+- fileName: `^[0-9a-f]{32}(-s)?\.(jpg|png|gif)$`, zorunlu. `-s` küçük sürümdür (GIF'te yok).
+
+#### Response — 200
+Görselin baytları. Başlıklar: `Content-Type: image/jpeg|png|gif`, `Cache-Control: max-age=31536000, public, immutable`, `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; sandbox`, `Content-Disposition: inline`. **Veritabanına gitmez**: okuma yalnız diskten yapılır. Adres değişmezdir; görsel değiştirilince ya da kaldırılınca eski adres `404` olur (daha önce önbelleğe alan istemci süre dolana kadar görebilir).
+
+#### Hata Durumları
+- 404: `MEDIA_NOT_FOUND`: geçersiz ad deseni, büyük harf, tanımsız uzantı ya da dosya yok (hepsi aynı yanıt; yol atlatma denemeleri dahil)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/user/media/{fileName}
+
+Diğer mikroservisler:
+Diğer servisler görsel baytlarını kopyalamaz; yalnız bu adresi taşır.
+
+#### Test Durumu
+UNIT + INTEGRATION (`MediaControllerTest`, `LocalFileMediaStorageTest`: yol atlatma).
+
+### USER — Hesap verisi silme (Internal, Auth → User)
+
+Durum: IMPLEMENTED (alıcı taraf)
+Sorumlu: Kerem
+Tüketici servisler: auth-service (hesap silme koordinasyonu, `ltz.auth.deletion.targets` içinde `user` var)
+
+#### Endpoint
+DELETE /internal/v1/accounts/{accountId}
+
+#### Yetkilendirme
+Internal. Gateway'e açık **değildir** (`/internal/**` route edilmez). Yalnız Auth'un imzaladığı **servis token'ı** (`docs-auth/servis-sozlesmeleri.md` §3.1): `typ=svc+jwt`, RS256/JWKS, `iss=ltz-auth`, `aud` ⊇ `user-service`, `jti` zorunlu, `scope` ⊇ `account:erase` (yoksa `403`), `sub` **tam olarak** `svc:auth-service` (`403`), `account_id` yoldaki `{accountId}` ile **aynı** (eksik/farklı `403`), `exp - iat ≤ 60 sn` ve `iat` zorunlu. Kullanıcı token'ı bu uçta kabul edilmez.
+
+#### Path Parameters
+- accountId: UUID, zorunlu — silinecek hesap
+
+#### Response — 204
+Gövde yok. Önce hesabın **tüm** profil görseli dosyaları (güncel olanlar ve silinmeyi bekleyenler dahil) diskten silinir; sonra tek transaction'da profil satırı silinir (görsel üst veri satırları FK `ON DELETE CASCADE` ile gider). **İdempotenttir:** veri yoksa, ikinci çağrıda ya da bilinmeyen hesapta da `204`. Başka hesapların verisine dokunulmaz. `inbox_events` hesap kimliği taşımadığı için silinecek veri içermez.
+
+Dosyalar silinemezse (depo erişilemez) **hiçbir veri satırı silinmez** ve `503 ACCOUNT_ERASURE_PENDING` döner; Auth yeniden dener. Bu yüzden `204` her zaman "kişisel veri kalmadı" demektir.
+
+#### Hata Durumları
+- 400: Geçersiz `accountId` (`MALFORMED_REQUEST`)
+- 401: Token yok/geçersiz; kullanıcı token'ı; yanlış `iss`/`aud`/`typ`; süresi dolmuş, 60 sn'den uzun ömürlü ya da `iat`/`jti` eksik; `sub` `svc:` ile başlamıyor; bozuk/yanlış anahtarlı imza; `alg=none`/HS256; bilinmeyen `kid`
+- 403: `account:erase` kapsamı yok; `sub` `svc:auth-service` değil; `account_id` yok ya da yoldaki hesapla aynı değil (hiçbir şey silinmez); bu yolda başka yöntem ya da başka iç yol
+- 500: Beklenmeyen sunucu hatası
+- 503: `ACCOUNT_ERASURE_PENDING`: görsel dosyaları silinemedi, hiçbir veri silinmedi; Auth yeniden dener
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Auth, silme onaylandığında bu ucu `${USER_SERVICE_URL}/internal/v1/accounts/{accountId}` adresine çağırır. Gerçek Auth token'ıyla canlı silme **NOT VERIFIED**.
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; `AccountErasureTest` 18 test: rehberdeki 17 senaryo + büyük/küçük harf UUID, Auth `ServiceTokenIssuer` biçimi uyumluluğu dahil; `AccountErasureStorageFailureTest` depo hatasında 503 ve satırların korunması; `MediaControllerTest` görsel dosyalarının silindiğini doğrular).
+
+### USER — Servisler arası olay girişi (Internal)
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler (üretici olarak): auth-service; social-service (T6, henüz göndermiyor); library-service ve review-service (önerilen sözleşme T7, henüz göndermiyor).
+
+#### Endpoint
+POST /internal/events
+
+#### Yetkilendirme
+Internal. Gateway'de **route edilmez**. `typ=svc+jwt`, `aud=user-service`, `scope` ⊇ `events:ingest` (yoksa `403`); token'ın `sub` değeri zarftaki `producer` ile tam olarak `svc:<producer>` olmalı (bir servis başkası adına olay yayınlayamaz, `403`). Auth olaylarında token ayrıca olayın hesabına bağlıdır: `account_id` claim'i `aggregateId` ile aynı olmalı (`403`). Kullanıcı token'ı `401`.
+
+#### Request Body (olay zarfı, docs/architecture.md §6.2)
+Zarfta tanımsız alan reddedilir. Gövde en fazla 16 KB.
+```json
+{
+  "eventId": "UUID (tekilleştirme anahtarı)",
+  "eventType": "UserRegistered | AccountStatusChanged | AccountEmailChanged | ExternalIdentityLinked | ExternalIdentityUnlinked",
+  "eventVersion": 1,
+  "occurredAt": "ISO-8601 UTC",
+  "producer": "auth-service",
+  "aggregateId": "UUID (hesap)",
+  "payload": { }
+}
+```
+**Kabul edilen olaylar** (hepsi yalnız `producer=auth-service`; farklı üretici `400 EVENT_PRODUCER_MISMATCH`):
+- `UserRegistered`: `{ "accountId": "UUID = aggregateId", "username": "^[A-Za-z0-9_]{3,20}$" }`. Profili açar ya da var olan profile kullanıcı adı kopyasını yazar; **hesap durumunu değiştirmez**.
+- `AccountStatusChanged`: `{ "accountId": "UUID = aggregateId", "status": "ACTIVE | SUSPENDED | BANNED | DISABLED | ..." }`. Profil varsa durumu günceller; **eski olay yeni durumu ezemez** (`occurredAt` karşılaştırılır). Profil yoksa yalnız kısıtlayıcı durumlar (`SUSPENDED`, `BANNED`, `DISABLED`) kaydedilir (askıdaki hesap sonradan görünür hale gelmesin); `ACTIVE` için profil ilk kullanımda zaten `ACTIVE` açılır. Tanınmayan durum adı profili değiştirmez.
+- `AccountEmailChanged`: `{ "accountId": "UUID = aggregateId" }`. Yük doğrulanır, etkisi yoktur (User e-posta tutmaz; yeni adres olayda gelmez).
+- `FriendshipChanged` (yalnız `social-service`): `{ "userLowId": "UUID", "userHighId": "UUID", "change": "ADDED | REMOVED" }`. social-service'in mevcut olay kaydıyla aynıdır. Arkadaşlık yansımasını günceller.
+- `UserBlocked` / `UserUnblocked` (yalnız `social-service`): `{ "blockerId": "UUID", "blockedId": "UUID" }` (farklı olmalı). Engel yansımasını günceller; engel iki yönde uygulanır.
+- `LibrarySummaryChanged` (yalnız `library-service`, **önerilen sözleşme**): `{ "userId": "UUID = aggregateId", "collectionCount": int ≥ 0, "completedCount": int ≥ 0, "favoriteCount": int ≥ 0 }`. **Mutlak** sayılar (fark değil).
+- `ReviewSummaryChanged` (yalnız `review-service`, **önerilen sözleşme**): `{ "userId": "UUID = aggregateId", "reviewCount": int ≥ 0 }`. Mutlak sayı.
+- Yansıma ve sayaç yazmaları son-durum upsert'üdür: aynı ilişki/kullanıcı için `occurredAt`'i daha eski olay yeni durumu **ezmez** (sıra bozuk teslime dayanıklı). Kaldırılan arkadaşlık/engel satırı `active=false` olarak kalır ki gecikmiş eski bir "eklendi" olayı onu geri getiremesin. Sayılar ondalık/metin/negatif ise `400`.
+- Bilinmeyen `eventType` başarıyla yok sayılır (`IGNORED`), kaydedilmez, üretici yeniden denemez. `eventVersion` ≠ 1 `400`.
+
+#### Response — 200
+```json
+{
+  "eventId": "UUID",
+  "outcome": "PROCESSED | DUPLICATE | IGNORED"
+}
+```
+Olay `inbox_events` tablosunda `eventId` ile tekilleştirilir ve etkisiyle **aynı transaction'da** uygulanır: aynı `eventId` ikinci kez gelirse (eşzamanlı teslim dahil) `DUPLICATE` döner ve hiçbir şey değişmez. Geçersiz yük işlenmiş diye kaydedilmez, aynı olay düzeltilmiş yükle sonra işlenebilir. Olay yükü ve hesap kimliği tabloya yazılmaz.
+
+#### Hata Durumları
+- 400: Zarf doğrulama hatası (`VALIDATION_FAILED`), üretici-olay uyuşmazlığı (`EVENT_PRODUCER_MISMATCH`), geçersiz yük ya da `accountId` ≠ `aggregateId` (`INVALID_EVENT`), desteklenmeyen sürüm, tanımsız zarf alanı
+- 401: Token yok/geçersiz; kullanıcı token'ı; yanlış `aud`
+- 403: `events:ingest` kapsamı yok; `sub` ≠ `svc:<producer>`; Auth olayında `account_id` ≠ `aggregateId` ya da yok; GET gibi başka yöntem
+- 413: Gövde 16 KB'ı aşıyor
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Auth, `ltz.auth.events.targets` (ortam değişkeni `AUTH_EVENT_TARGETS`) listesine `user` eklenince olayları bu uca iletir (`docs-user/integration/auth/auth-service-talepleri/auth-requests-01.md`). Hedef eklenene kadar Auth hiçbir olay yazmaz. Gerçek Auth token'ıyla uçtan uca: **NOT VERIFIED**.
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; `InternalEventTest` 27 test: tekilleştirme, eşzamanlı teslim, sıra bozukluğu, üretici/hesap bağı, geri alma, doğrulama; `ProjectionEventTest` 8 test: arkadaşlık/engel ve özet olayları, sıra bozukluğu, üretici kuralları). Gerçek social/library/review üreticileriyle uçtan uca: NOT VERIFIED.
+
+### USER — Gizlilik ayarlarım (USER-06)
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/user/me/privacy
+PUT /api/v1/user/me/privacy
+
+#### Yetkilendirme
+Authenticated (Owner). Kimlik yalnız token'dan.
+
+#### Request Body (PUT)
+Ayarların **tamamı** zorunludur; tanımsız alan ve değer `400`.
+```json
+{
+  "version": "long ≥ 0, zorunlu: son görülen sürüm; hiç kaydedilmemişse 0",
+  "friendsList": "PUBLIC | FRIENDS | PRIVATE",
+  "library": "PUBLIC | FRIENDS | PRIVATE",
+  "hardware": "PUBLIC | FRIENDS | PRIVATE",
+  "performance": "PUBLIC | FRIENDS | PRIVATE",
+  "guestProfileAccess": "BASIC | DETAILED"
+}
+```
+
+#### Response — 200
+Aynı alanlar ve güncel `version`. Ayar hiç kaydedilmemişse `GET` varsayılanları döner (okuma satır oluşturmaz): `friendsList=FRIENDS`, `library=PUBLIC`, `hardware=FRIENDS`, `performance=PRIVATE`, `guestProfileAccess=BASIC`, `version=0`. İlk `PUT` sürüm 0 ile yazar; sonraki her değişiklik sürümü artırır, değişiklik yoksa artırmaz. `Cache-Control: no-store`.
+
+**Görünürlük kuralı** (tüm uçlarda tek kural, `PrivacyRules`):
+
+| İzleyici | PUBLIC | FRIENDS | PRIVATE |
+| --- | --- | --- | --- |
+| Sahip | evet | evet | evet |
+| Arkadaş | evet | evet | hayır |
+| Giriş yapmış üye | evet | hayır | hayır |
+| Misafir | yalnız `DETAILED` | hayır | hayır |
+
+Aralarında herhangi bir yönde engel olan izleyici profili hiç göremez. Profil bütünüyle gizlenemez: temel kart (ad, avatar, kapak) her zaman görünür.
+
+#### Hata Durumları
+- 400: `VALIDATION_FAILED`, tanımsız alan/değer, negatif sürüm
+- 401: Token yok/geçersiz; servis token'ı
+- 409: `CONCURRENT_MODIFICATION`: sürüm güncel değil ya da eşzamanlı ilk kayıt
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/user/me/privacy
+
+Diğer mikroservisler:
+Ayarlar diğer servislere "Gizlilik kararı" iç ucuyla verilir.
+
+#### Test Durumu
+UNIT + INTEGRATION (`PrivacyControllerTest`, `PrivacyRulesTest` tam matris).
+
+### USER — Açık profil (USER-05, USER-12)
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/user/profiles/{userId}
+GET /api/v1/user/profiles/by-username/{username}
+
+#### Yetkilendirme
+Public + isteğe bağlı kimlik. Token yoksa izleyici **misafirdir**; token varsa doğrulanır ve **geçersiz token misafir sayılmaz, `401`** olur. Servis token'ı `401`.
+
+#### Path Parameters
+- userId: UUID
+- username: `^[A-Za-z0-9_]{3,20}$` (büyük/küçük harfe duyarsız); desene uymayan değer `404`
+
+#### Response — 200
+```json
+{
+  "userId": "UUID",
+  "username": "string | null",
+  "displayName": "string | null",
+  "avatar": { "small": "...", "large": "...", "animated": false },
+  "cover": null,
+  "details": {
+    "bio": "string | null", "playerTypes": [], "favoriteGenres": [], "favoritePlatforms": [], "country": "TR | null",
+    "steam": { "steamId": "76561198000000000", "profileUrl": "https://steamcommunity.com/profiles/..." }
+  },
+  "visible": { "friendsList": false, "library": true, "hardware": false, "performance": false },
+  "summary": {
+    "friends": { "status": "AVAILABLE | HIDDEN | UNAVAILABLE", "count": 12 },
+    "library": { "status": "AVAILABLE | HIDDEN | UNAVAILABLE", "collection": 40, "completed": 12, "favorite": 5 },
+    "reviews": { "status": "AVAILABLE | HIDDEN | UNAVAILABLE", "count": 7 }
+  }
+}
+```
+- Temel kart (`userId`, `username`, `displayName`, `avatar`, `cover`) her zaman doludur.
+- `details`: üye/arkadaş/sahip için dolu; misafir için yalnız sahip `guestProfileAccess=DETAILED` yaptıysa, aksi halde `null`. `details.steam` yalnız sahibi Steam bağlantısını profilde göstermeyi seçtiyse doludur, aksi halde `null`.
+- `visible`: izleyicinin görebileceği bölümler; istemci diğer servislere (Social, Library, Hardware, Performance) yalnız bunlar için gider. O servisler de kararı kendi tarafında yeniden uygular.
+- `summary` (USER-12): sayı yalnız `AVAILABLE` iken doludur. `HIDDEN` = izleyici göremez, `UNAVAILABLE` = kaynak servisten henüz veri yok (sayı **uydurulmaz**). Arkadaş sayısı Social yansıması güvenilir ilan edilene kadar (`ltz.user.social.projection-enabled`) `UNAVAILABLE`; incelemeler herkese açık UGC olduğundan `PUBLIC` bölüm kuralıyla gösterilir.
+- E-posta, hesap durumu, kimlik bilgisi yoktur. `Cache-Control: no-store, private` (yanıt izleyiciye göre değişir).
+
+#### Hata Durumları
+- 400: Geçersiz `userId`
+- 401: Geçersiz/süresi dolmuş token; servis token'ı
+- 404: `PROFILE_NOT_FOUND`: profil yok, hesap yasaklı/devre dışı/silinmekte/doğrulanmamış **ya da** izleyiciyle arasında herhangi bir yönde engel var (hepsi aynı yanıt). Askıdaki (`SUSPENDED`) hesap görünür.
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/user/profiles/{userId} ve /api/v1/user/profiles/by-username/{username}
+
+Diğer mikroservisler:
+Arkadaşlık/engel ve özet sayıları olaylardan gelen yansımadır; bu uç hiçbir servisi senkron çağırmaz.
+
+#### Test Durumu
+UNIT + INTEGRATION (`PublicProfileControllerTest` 12, `SocialProjectionTrustedTest`).
+
+### USER — Toplu profil kartı
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend (arkadaş listesi, mesaj listesi gibi kimlik listelerine ad/avatar eklemek için)
+
+#### Endpoint
+POST /api/v1/user/profiles/batch
+
+#### Yetkilendirme
+Authenticated. Misafir `401`.
+
+#### Request Body
+```json
+{ "userIds": ["UUID (1-50 adet; yinelenenler tek sayılır)"] }
+```
+
+#### Response — 200
+```json
+{ "items": [ { "userId": "UUID", "username": "string | null", "displayName": "string | null", "avatar": { "small": "...", "large": "...", "animated": false } } ] }
+```
+İstek sırası korunur. Olmayan, yasaklı/devre dışı hesaplar ve izleyiciyle engel ilişkisi olanlar **sessizce atlanır** (hangisi olduğu sızdırılmaz). Askıdaki hesap listelenir. Tüm kart verisi en çok üç sorguyla okunur (N+1 yok). `Cache-Control: no-store, private`.
+
+#### Hata Durumları
+- 400: `VALIDATION_FAILED` (boş liste, 50'den fazla kimlik, geçersiz UUID)
+- 401: Token yok/geçersiz
+- 413: Gövde 16 KB'ı aşıyor
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/user/profiles/batch
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (`PlayerSearchTest`).
+
+### USER — Oyuncu arama (USER-11)
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/user/search?q={metin}
+
+#### Yetkilendirme
+Authenticated. **Misafir arama yapamaz** (`401`; kullanıcı listesinin toplu çekilmesine karşı).
+
+#### Query Parameters
+- q: string, zorunlu; kırpıldıktan sonra 2-32 karakter, denetim/biçim karakteri yok
+
+#### Response — 200
+Toplu kart ile aynı gövde (`items`), **en çok 20** sonuç; sayfalama yok (sorguyu daraltın). Kullanıcı adı **ya da** görünen ad **önekiyle** eşleşir; büyük/küçük harfe duyarsızdır ve Türkçe `ı/I/İ/i` aynı sayılır. `%`, `_`, `\` joker değil düz karakterdir. Yalnız `ACTIVE` hesaplar döner: askıdaki, yasaklı ve izleyiciyle herhangi bir yönde engeli olan hesaplar çıkmaz. Sıra: kullanıcı adı (yoksa sonda), görünen ad. Kısmi `text_pattern_ops` indeksleri kullanılır; ayrı arama servisi yoktur.
+
+#### Hata Durumları
+- 400: `INVALID_SEARCH_QUERY` (kısa/uzun/yasak karakter), `q` yok
+- 401: Token yok/geçersiz
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/user/search
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (`PlayerSearchTest` 9 test: önek, Türkçe katlama, durum/engel süzgeci, sınır, joker kaçırma).
+
+### USER — Gizlilik kararı (Internal, Social/Hardware/Library → User)
+
+Durum: IMPLEMENTED (çağıran tüketiciler ve Auth kapsamı **PENDING**: T3, T6, T7, T8)
+Sorumlu: Kerem
+Tüketici servisler: social-service (SOC-12), hardware-service (HW-08 `HardwareVisibilityPolicy`), library-service (LIB-11)
+
+#### Endpoint
+POST /internal/v1/privacy/decisions
+
+#### Yetkilendirme
+Internal. Gateway'de route edilmez. `typ=svc+jwt`, `aud=user-service`, `scope` ⊇ `privacy:read` (yoksa `403`); çağıran (`sub`) yalnız `svc:social-service`, `svc:hardware-service`, `svc:library-service` olabilir (aksi halde `403`). Kullanıcı token'ı `401`. **Auth'ta bu kapsam ve çağıran→hedef çiftleri henüz tanımlı değildir (talep T3).**
+
+#### Request Body
+```json
+{
+  "viewerId": "UUID | null (çağıranın doğruladığı kullanıcı; misafir için null)",
+  "field": "FRIENDS_LIST | LIBRARY | HARDWARE | PERFORMANCE",
+  "ownerIds": ["UUID (1-100; yinelenenler tek)"]
+}
+```
+
+#### Response — 200
+```json
+{ "decisions": [ { "ownerId": "UUID", "setting": "PUBLIC | FRIENDS | PRIVATE", "allowed": false, "friends": false } ] }
+```
+İstek sırasıyla. `setting`: sahibin ayarı (kayıt yoksa varsayılan; yasaklı/devre dışı hesapta `PRIVATE`). `allowed`: izleyici görebilir mi (görünürlük kuralı + engel + hesap durumu). `friends`: izleyici ile sahip arkadaş mı. En çok dört sorgu (N+1 yok).
+
+**Fail-closed:** Social yansıması güvenilir ilan edilene kadar (`ltz.user.social.projection-enabled=false`, varsayılan) engel ve arkadaşlık bilinmez; bu yüzden **sahibi olmayan izleyiciye `allowed` her zaman `false`** döner (Hardware sözleşmesi: bilinmeyen karar reddedilir). `setting` yine döner: engel ve arkadaşlığı kendisi bilen Social yalnız `setting`'i kullanabilir. Sahip kendi bölümü için her zaman `allowed=true` alır.
+
+#### Hata Durumları
+- 400: `VALIDATION_FAILED` (boş/101+ sahip, alan yok), tanımsız alan değeri
+- 401: Token yok/geçersiz; kullanıcı token'ı; yanlış `aud`
+- 403: `privacy:read` kapsamı yok; çağıran izinli değil; başka yöntem (GET)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+social-service, hardware-service ve library-service Auth'tan `aud=user-service`, `scope=privacy:read` servis token'ı alıp bu ucu `${USER_SERVICE_URL}` üzerinden çağırır (Auth T3 sonrası). Gerçek tüketicilerle uçtan uca: **NOT VERIFIED**.
+
+#### Test Durumu
+UNIT + INTEGRATION (`PrivacyDecisionTest` 8, `SocialProjectionTrustedTest` 3, `PrivacyRulesTest` 21).
+
+### USER — Tercihlerim (USER-10)
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/user/me/preferences
+PUT /api/v1/user/me/preferences
+
+#### Yetkilendirme
+Authenticated (Owner). Kimlik yalnız token'dan.
+
+#### Request Body (PUT)
+Tercihlerin **tamamı** zorunludur; tanımsız alan ve tanımsız tema `400`.
+```json
+{
+  "version": "long ≥ 0, zorunlu: son görülen sürüm; hiç kaydedilmemişse 0",
+  "locale": "tr | en",
+  "theme": "LIGHT | DARK | SYSTEM",
+  "reducedMotion": true,
+  "compactLayout": false
+}
+```
+
+#### Response — 200
+Aynı alanlar ve güncel `version`. Hiç kaydedilmemişse `GET` varsayılanları döner (okuma satır oluşturmaz): `locale=tr`, `theme=SYSTEM`, `reducedMotion=false`, `compactLayout=false`, `version=0`. İlk `PUT` sürüm 0 ile yazar; sonraki her değişiklik sürümü artırır, değişiklik yoksa artırmaz. Tema dilden bağımsızdır. `Cache-Control: no-store`.
+
+#### Hata Durumları
+- 400: `VALIDATION_FAILED`, `INVALID_LOCALE` (`tr`/`en` dışı), tanımsız alan, negatif sürüm
+- 401: Token yok/geçersiz; servis token'ı
+- 409: `CONCURRENT_MODIFICATION`: sürüm güncel değil ya da eşzamanlı ilk kayıt
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/user/me/preferences
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (`PreferenceOnboardingTest` 11).
+
+### USER — İlk kurulum (onboarding) durumu ve tamamlama (USER-09)
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/user/me/onboarding
+POST /api/v1/user/me/onboarding/complete
+
+#### Yetkilendirme
+Authenticated (Owner). Profil yoksa ilk çağrıda varsayılanlarla oluşturulur.
+
+#### Request Body (POST complete)
+Tanımsız alan `400`. Favori tür ve platform listeleri zorunludur ve **boş olamaz** (en az birer tane).
+```json
+{
+  "version": "long ≥ 0, zorunlu: GET /me/onboarding yanıtındaki version",
+  "playerTypes": ["isteğe bağlı: CASUAL | COMPETITIVE | STORY | SOCIAL | COLLECTOR (en çok 2)"],
+  "favoriteGenres": ["katalog kodu (en az 1, en çok 10)"],
+  "favoritePlatforms": ["katalog kodu (en az 1, en çok 10)"],
+  "locale": "isteğe bağlı: tr | en",
+  "theme": "isteğe bağlı: LIGHT | DARK | SYSTEM"
+}
+```
+Seçimler profil alanlarına (`PATCH /me/profile` ile aynı doğrulama) ve tercihlere yazılır; ayrı bir onboarding tablosu yoktur. Gönderilmeyen `locale`/`theme` ve diğer tercih alanları mevcut değerinde kalır.
+
+#### Response — 200
+```json
+{ "completed": false, "completedAt": "ISO-8601 | null", "missing": ["FAVORITE_GENRES", "FAVORITE_PLATFORMS"], "version": 0 }
+```
+`missing`: tamamlanması için eksik adımlar (tamamlanmışsa boş). `GET` yalnız durumu okur. `POST complete` **idempotenttir**: kurulum zaten tamamlandıysa hiçbir şey değişmez ve güncel durum `200` döner (seçimleri sonradan değiştirmek profil ve tercih uçlarının işidir). Dönen `version` güncel profil sürümüdür. `Cache-Control: no-store`.
+
+#### Hata Durumları
+- 400: `VALIDATION_FAILED`, `ONBOARDING_INCOMPLETE` (tür ya da platform listesi boş), `INVALID_FAVORITE_GENRES`, `INVALID_FAVORITE_PLATFORMS`, `INVALID_PLAYER_TYPES`, `INVALID_LOCALE`
+- 401: Token yok/geçersiz; servis token'ı
+- 409: `CONCURRENT_MODIFICATION`: profil sürümü güncel değil (kurulum tamamlanmamışken)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/user/me/onboarding ve /api/v1/user/me/onboarding/complete
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (`PreferenceOnboardingTest` 11).
+
+### USER — Bağlı hesaplar: Steam (USER-07/08)
+
+Durum: IMPLEMENTED. Auth tarafı (bağlama/kaldırma ucu ve olaylar) PENDING (T4).
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+Bağlama ve kaldırma **Auth'tadır** (kimlik kanıtı yalnız Auth'ta üretilir; son giriş yöntemi koruması da Auth'tadır). User, Auth'un `ExternalIdentityLinked` / `ExternalIdentityUnlinked` olaylarından durumu yansıtır ve yalnız açık profilde gösterme iznini yönetir. Yalnız Steam; Discord kapsam dışıdır. Steam OpenID access token vermez, saklanacak token yoktur.
+
+#### Endpoint
+GET /api/v1/user/me/linked-accounts
+PATCH /api/v1/user/me/linked-accounts/{provider}   (`steam`, büyük/küçük harfe duyarsız)
+
+#### Yetkilendirme
+Authenticated (Owner). Kimlik yalnız token'dan.
+
+#### Request Body (PATCH)
+Tanımsız alan reddedilir.
+```json
+{ "version": "long ≥ 0, zorunlu: GET yanıtındaki sürüm", "showOnProfile": true }
+```
+
+#### Response — 200
+`GET`: her desteklenen sağlayıcı için bir kayıt; bağlantı yoksa `linked=false`. `PATCH`: tek kayıt. `Cache-Control: no-store`.
+```json
+{ "accounts": [ {
+    "provider": "STEAM", "linked": true, "externalId": "76561198000000000",
+    "profileUrl": "https://steamcommunity.com/profiles/76561198000000000",
+    "showOnProfile": false, "linkedAt": "ISO-8601 UTC", "version": 3
+} ] }
+```
+- `showOnProfile` varsayılanı `false`; her yeni bağlantıda (farklı Steam kimliği dahil) sıfırlanır. Aynı kimliğin yeniden bildirilmesi izni korur.
+- Açık profilde (`GET /profiles/...`) `details.steam` `{ "steamId", "profileUrl" }` yalnız bağlantı etkin, sahibi `showOnProfile=true` yapmış ve izleyici `details` görebiliyorsa doludur; aksi halde `null`.
+- Bağlantı kaldırılınca kimlik ve izin silinir; kayıt `linked=false` olur.
+
+#### Hata Durumları
+- 400: `VALIDATION_FAILED` (eksik/tanımsız alan, negatif sürüm)
+- 401: Token yok/geçersiz; servis token'ı
+- 404: `LINKED_ACCOUNT_NOT_FOUND` (bilinmeyen sağlayıcı ya da bağlantı yok)
+- 409: `CONCURRENT_MODIFICATION` (sürüm güncel değil; bağlantı olayı araya girmiş olabilir)
+- 500: Beklenmeyen sunucu hatası
+
+#### Olay girişi (`POST /internal/events`, yalnız `auth-service`, **önerilen sözleşme T4**)
+- `ExternalIdentityLinked`: `{ "accountId": "UUID = aggregateId", "provider": "STEAM", "providerSubject": "^[0-9]{17}$" }`
+- `ExternalIdentityUnlinked`: `{ "accountId": "UUID = aggregateId", "provider": "STEAM" }`
+- Son-durum upsert, `occurredAt` ile korunur: eski bir "bağlandı" olayı daha yeni bir "kaldırıldı"yı geri alamaz. Tanınmayan `provider` sessizce yok sayılır (`200`); geçersiz kimlik ya da başka hesapta etkin aynı kimlik `400 INVALID_EVENT`.
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/user/me/linked-accounts
+
+Diğer mikroservisler:
+Auth: `ExternalIdentityLinked/Unlinked` olayları (T4, henüz yayınlanmıyor)
+
+#### Test Durumu
+INTEGRATION (`LinkedAccountTest` 11, `AccountErasureTest` tohumu).
 
 ## MAIL
 

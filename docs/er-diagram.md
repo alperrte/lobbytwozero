@@ -172,8 +172,41 @@ erDiagram
 
 ## 3. user_db
 
+> Uygulanan (V71–V74): `user_profiles`, `user_media`, `inbox_events`, `privacy_settings`, `social_friendships`, `social_blocks`, `profile_counters`, `user_preferences` (V73: `locale`, `theme`, `reduced_motion`, `compact_layout`), `linked_accounts` (V74: yalnız Steam, token saklanmaz; aşağıdaki şema uygulanan hâldir). Ayrıntı: [database.md §3.2](database.md).
+
 ```mermaid
 erDiagram
+  social_friendships {
+    uuid user_low_id PK "REF social"
+    uuid user_high_id PK "REF social"
+    boolean active
+    timestamptz changed_at
+  }
+  social_blocks {
+    uuid blocker_id PK "REF social"
+    uuid blocked_id PK "REF social"
+    boolean active
+    timestamptz changed_at
+  }
+  profile_counters {
+    uuid user_id PK "REF; FK yok"
+    int library_collection_count
+    int review_count
+  }
+  user_profiles ||--o{ user_media : has
+  user_media {
+    uuid id PK
+    uuid user_id FK "ON DELETE CASCADE"
+    varchar kind "AVATAR|COVER"
+    varchar storage_key UK
+    varchar status "CURRENT|PENDING_DELETE"
+  }
+  inbox_events {
+    uuid event_id PK
+    varchar event_type
+    varchar producer
+    timestamptz processed_at
+  }
   user_profiles ||--|| privacy_settings : has
   user_profiles ||--|| user_preferences : has
   user_profiles ||--o{ linked_accounts : links
@@ -200,11 +233,15 @@ erDiagram
   }
   linked_accounts {
     uuid id PK
-    uuid user_id FK
-    varchar provider "STEAM|DISCORD"
-    varchar external_id
-    text access_token_encrypted
+    uuid user_id FK "UQ(user_id, provider)"
+    varchar provider "STEAM"
+    varchar external_id "UQ(provider, external_id); NULL = kaldırıldı"
+    boolean active
+    boolean show_on_profile
     timestamptz consent_at
+    timestamptz linked_at
+    timestamptz changed_at
+    bigint version
   }
 ```
 

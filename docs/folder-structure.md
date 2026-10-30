@@ -123,6 +123,7 @@ Servis klasör adı her zaman `<ad>-service` biçimindedir; Java base package `c
    │  │     ├─ client/dto/request/      # Dış servise giden istek DTO'ları
    │  │     ├─ client/dto/response/     # Dış servisten gelen yanıt DTO'ları
    │  │     ├─ config/                  # @Configuration, @ConfigurationProperties
+   │  │     ├─ storage/                 # [yalnız dosya depolayan servislerde: user] MediaStoragePort adaptörü, görsel işleme
    │  │     ├─ messaging/outbox/        # outbox_events yazımı + relay
    │  │     ├─ messaging/inbox/         # POST /internal/events alımı, inbox_events dedup
    │  │     ├─ persistence/repository/  # Spring Data JPA repository'leri
