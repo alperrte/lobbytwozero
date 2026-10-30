@@ -1,7 +1,7 @@
 # USER-AUTH-REQ-02 — Hedef açılmadan önce kayıt olmuş hesaplar
 
 Tarih: 2026-10-30. Gönderen: Kerem / user-service. Hedef: Kerem / auth-service.
-Öncelik: MEDIUM. Durum: OPEN — DEV ortamı sıfırlanırsa gerekmez.
+Öncelik: MEDIUM. Durum: KARAR B (2026-10-30) — geriye dönük yayın yok; eski DEV hesapları yeniden kaydolur veya DEV DB sıfırlanır, `username` boş olabilir. Gerçek (üretim) hesap çıkarsa A için yeniden onay istenir.
 
 **Gerekçe:** `AUTH_EVENT_TARGETS` boşken kayıt olan hesaplar için `UserRegistered` hiç yazılmamıştır; hedef sonradan açılsa da
 bu olaylar geriye dönük üretilmez. User tarafında bu hesapların profili `GET /me` ile açılır ama `username` alanı **boş kalır**

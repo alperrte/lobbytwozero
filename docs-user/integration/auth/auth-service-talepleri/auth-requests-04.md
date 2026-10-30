@@ -1,7 +1,7 @@
 # USER-AUTH-REQ-04 — `privacy:read` kapsamı ve user-service'e giden servis token çiftleri (T3)
 
 Tarih: 2026-10-30. Gönderen: Kerem / user-service. Hedef: Kerem / auth-service.
-Öncelik: HIGH. Durum: OPEN — user-service alıcı uçları hazır; Auth'ta kapsam ve çiftler tanımlı değil.
+Öncelik: HIGH. Durum: AUTH HAZIR (2026-10-30) — çiftler: social/library `privacy:read`+`events:ingest`, hardware `privacy:read`, review `events:ingest` (aud=user-service). `access:decide` bırakıldı. Library/hardware/review gizli anahtarlarını ilgili servis sahipleri kendi ortamına vermeli; uçtan uca NOT VERIFIED.
 
 **Gerekçe:** Diğer servisler User'a iki yoldan ulaşır ve ikisi de Auth'un `POST /internal/v1/service-tokens` ucundan alınan,
 hedefe bağlı (`aud=user-service`) servis token'ı ister. Bugün `ltz.auth.service-clients.clients.*.targets` listesinde

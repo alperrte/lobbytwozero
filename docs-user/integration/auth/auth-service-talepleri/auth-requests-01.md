@@ -1,7 +1,7 @@
 # USER-AUTH-REQ-01 — `user` olay hedefinin açılması
 
 Tarih: 2026-10-30. Gönderen: Kerem / user-service. Hedef: Kerem / auth-service.
-Öncelik: HIGH. Durum: OPEN — alıcı uç hazır, Auth ortam ayarı bekleniyor.
+Öncelik: HIGH. Durum: AUTH HAZIR (2026-10-30) — `AUTH_EVENT_TARGETS=user` dev şablonunda ve `ops/generate-auth-dev-keys.mjs` varsayılanı. Uçtan uca NOT VERIFIED. Cevap: `docs-auth/verilen-cevaplar/user-service/talep-01-olay-hedefi-servis-token-ciftleri-ve-silme-durumu.md`.
 
 **Gerekçe:** Auth `UserRegistered`, `AccountStatusChanged` ve `AccountEmailChanged` olaylarını üretir ama
 `ltz.auth.events.targets` boşken hiçbir olay yazılmaz (`AuthEventPublisher.publish` erken döner). User Service'in alıcı ucu
