@@ -106,10 +106,13 @@ export async function runAuthSmoke(root, log = console.log) {
     const dbPassword = randomBytes(32).toString('base64url');
     const adminSecret = randomBytes(32).toString('base64url'), socialSecret = randomBytes(32).toString('base64url');
     const messagingSecret = randomBytes(32).toString('base64url'), lfpSecret = randomBytes(32).toString('base64url');
+    const librarySecret = randomBytes(32).toString('base64url'), userSecret = randomBytes(32).toString('base64url');
+    const recommendationSecret = randomBytes(32).toString('base64url');
     const privateKey = generateKeyPairSync('rsa', { modulusLength: 3072 }).privateKey.export({ format: 'der', type: 'pkcs8' }).toString('base64');
     const rotatedPublicKey = generateKeyPairSync('rsa', { modulusLength: 3072 }).publicKey.export({ format: 'der', type: 'spki' }).toString('base64');
     const hmac = randomBytes(32).toString('base64'), totp = randomBytes(32).toString('base64');
-    secrets.push(password, dbPassword, adminSecret, socialSecret, messagingSecret, lfpSecret, privateKey, hmac, totp);
+    secrets.push(password, dbPassword, adminSecret, socialSecret, messagingSecret, lfpSecret, librarySecret, userSecret,
+      recommendationSecret, privateKey, hmac, totp);
     const authDb = await container('postgres:17-alpine', [5432],
       { POSTGRES_USER: 'fixture', POSTGRES_DB: 'fixture', POSTGRES_PASSWORD: dbPassword });
     const mail = await container('axllent/mailpit:v1.31.0', [1025, 8025]);
@@ -124,7 +127,9 @@ export async function runAuthSmoke(root, log = console.log) {
       POSTGRES_PASSWORD: dbPassword, DB_AUTH_NAME: 'fixture', SPRING_PROFILES_ACTIVE: 'dev', AUTH_JWT_PRIVATE_KEY: privateKey,
       AUTH_JWT_ADDITIONAL_PUBLIC_KEYS: rotatedPublicKey, AUTH_OTP_HMAC_KEY: hmac, AUTH_TOTP_ENCRYPTION_KEY: totp,
       AUTH_ADMIN_SERVICE_CLIENT_SECRET: adminSecret, AUTH_SOCIAL_SERVICE_CLIENT_SECRET: socialSecret,
-      AUTH_MESSAGING_SERVICE_CLIENT_SECRET: messagingSecret, AUTH_LFP_SERVICE_CLIENT_SECRET: lfpSecret, AUTH_PUBLIC_BASE_URL: gatewayOrigin, FRONTEND_PUBLIC_URL: gatewayOrigin,
+      AUTH_MESSAGING_SERVICE_CLIENT_SECRET: messagingSecret, AUTH_LFP_SERVICE_CLIENT_SECRET: lfpSecret,
+      AUTH_LIBRARY_SERVICE_CLIENT_SECRET: librarySecret, AUTH_USER_SERVICE_CLIENT_SECRET: userSecret,
+      AUTH_RECOMMENDATION_SERVICE_CLIENT_SECRET: recommendationSecret, AUTH_PUBLIC_BASE_URL: gatewayOrigin, FRONTEND_PUBLIC_URL: gatewayOrigin,
       LTZ_AUTH_MAIL_DEVSMTP_HOST: '127.0.0.1', LTZ_AUTH_MAIL_DEVSMTP_PORT: String(mail.ports[1025]) };
     for (const service of ['USER', 'MAIL', 'GAME', 'LIBRARY', 'REVIEW', 'SOCIAL', 'MESSAGING', 'LFP', 'COMMUNITY', 'CONTENT', 'EVENT',
       'HARDWARE', 'RECOMMENDATION', 'PERFORMANCE', 'ADMIN', 'NOTIFICATION']) {
@@ -242,6 +247,31 @@ export async function runAuthSmoke(root, log = console.log) {
       const internalCall = await fetch(authOrigin + `/internal/v1/accounts/${claims.sub}`, { headers: { Authorization: `Bearer ${blocksToken}` } });
       check(internalCall.status === 401, `${clientId} block-check token is rejected by Auth (status ${internalCall.status})`);
     }
+
+    // Library entegrasyonu: library -> user karar, user -> social sorgu (kullanıcı bağı yok), recommendation -> library tek hesaba bağlı.
+    const targetToken = async (body) => {
+      const response = await postJson(tokenUrl, body);
+      const json = await response.json();
+      const value = json.accessToken ?? json.access_token;
+      if (value) secrets.push(value);
+      return { status: response.status, json, claims: value ? decodeJwtPart(value, 1) : {} };
+    };
+    for (const [clientId, clientSecret, audience, scope] of [['library-service', librarySecret, 'user-service', 'access:decide'],
+      ['user-service', userSecret, 'social-service', 'blocks:check friends:check']]) {
+      const issuedTarget = await targetToken({ clientId, clientSecret, audience });
+      check(issuedTarget.status === 200 && [].concat(issuedTarget.claims.aud).join() === audience && issuedTarget.claims.sub === `svc:${clientId}`
+        && issuedTarget.claims.scope === scope && !('account_id' in issuedTarget.claims) && issuedTarget.claims.exp - issuedTarget.claims.iat === 60,
+      `${clientId}: ${audience} token scope ${issuedTarget.claims.scope}, no account binding`);
+    }
+    const signals = await targetToken({ clientId: 'recommendation-service', clientSecret: recommendationSecret, audience: 'library-service', accountId: claims.sub });
+    check(signals.status === 200 && [].concat(signals.claims.aud).join() === 'library-service' && signals.claims.scope === 'signals:read'
+      && signals.claims.account_id === claims.sub && signals.claims.exp - signals.claims.iat === 60,
+    `recommendation-service: signals:read token bound to one active account (TTL ${signals.claims.exp - signals.claims.iat}s)`);
+    const unbound = await targetToken({ clientId: 'recommendation-service', clientSecret: recommendationSecret, audience: 'library-service' });
+    const unknownAccount = await targetToken({ clientId: 'recommendation-service', clientSecret: recommendationSecret, audience: 'library-service', accountId: randomUUID() });
+    check(unbound.status === 400 && unbound.json.code === 'SERVICE_ACCOUNT_BINDING_INVALID'
+      && unknownAccount.status === 403 && unknownAccount.json.code === 'SERVICE_TARGET_ACCOUNT_UNAVAILABLE',
+    `Account-bound scope needs an active account (missing ${unbound.status}, unknown ${unknownAccount.status})`);
 
     // Masaüstü cihaz kimliği: bağlama (yeniden doğrulama), cihaz token'ı, dar kapsam, iptal.
     await request(gatewayOrigin, '/api/v1/auth/devices', 400, { jar: account.jar, method: 'POST', csrf: true,
