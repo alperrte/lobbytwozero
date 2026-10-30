@@ -1944,6 +1944,8 @@ Görüntüleyen yalnız JWT sub'dır; viewerId/userId query veya kimlik başlı�
 Owner kendi verisine erişir. Başka owner için LibraryVisibilityPort açık ALLOW vermelidir.
 Üretim adaptörü User API'si bulunmadığından UNAVAILABLE döner; dış veri açılmaz.
 ADMIN rolü gizlilik denetimini atlamaz. Anonim profil koleksiyonu erişimi sunulmaz.
+User, kullanıcı isteğinde o kullanıcının kendi at+jwt'sini bu uca iletir (Auth karar K1); token
+saklanmaz ve arka planda kullanılmaz (User'ın sorumluluğu). Ayrı delegasyon token'ı yoktur.
 
 #### Path/Query Parameters
 userId: hedef UUID. page: >=0, varsayılan 0; size: 1..50, varsayılan 20.
@@ -2006,9 +2008,13 @@ doğrulanmış viewer kullanımı. Gerçek User entegrasyonu PENDING.
 
 ### LIBRARY — User servisinin profil okuması (LIB-10, LIB-11)
 
-Durum: IMPLEMENTED (Library kabul sınırı); Auth delegasyonu ve User tüketicisi PENDING.
+Durum: DEPRECATED (karar K1, 2026-10-30). Kod yerinde ve kapalıdır; kullanılmaz, kaldırılması ayrı bir temizlik işidir.
 Sorumlu: Hamza
-Tüketici servisler: user-service
+Tüketici servisler: yok. User, kullanıcının kendi at+jwt'siyle yukarıdaki public profil uçlarını çağırır.
+
+Auth (Kerem) görüntüleyeni taşıyan delegasyon veya library:profile:read kapsamlı token üretmez
+(docs-auth/verilen-cevaplar/library-service/talep-01-servisler-arasi-yetki-iptal-ve-d4.md K1).
+Bu iç uçlara gerçek token verilemediği için fail-closed kalır; yeni tüketici eklenmez.
 
 #### Endpoint
 GET /internal/v1/library/users/{userId}/entries
@@ -2048,7 +2054,7 @@ sub/scope/target/viewer pozitif-negatif sınanır. Gerçek token edinme ve User 
 
 ### LIBRARY — Recommendation girdileri (LIB-14)
 
-Durum: IMPLEMENTED (Library kabul sınırı); Auth, izin kararı ve tüketici entegrasyonu PENDING.
+Durum: IMPLEMENTED (Library kabul sınırı, Auth signals:read sözleşmesine uyarlandı); User izin kararı ve Recommendation tüketicisi PENDING.
 Sorumlu: Hamza
 Tüketici servisler: recommendation-service
 
@@ -2056,11 +2062,15 @@ Tüketici servisler: recommendation-service
 GET /internal/v1/library/users/{userId}/recommendation-signals
 
 #### Yetkilendirme
-Internal; yukarıdaki svc+jwt imza/issuer/audience/zaman sözleşmesi.
-sub tam svc:recommendation-service; scope library:recommendation:read;
-target_user_id yoldaki kanonik UUID ile aynı olmalıdır. Ardından RECOMMENDATION amacıyla
-ayrı açık izin gerekir. Owner eşitliği bu amacı atlatmaz; PUBLIC profil tercihi kendi
-başına öneri kullanım izni sayılmaz. Üretim görünürlük adaptörü 503 ile kapalıdır.
+Internal; Auth'un yayımlanmış hesaba bağlı servis token'ı (talep-01 K2): RS256/JWKS, typ=svc+jwt,
+iss=ltz-auth, tek aud=library-service, kid/jti/iat/nbf/exp, en fazla 60 sn ömür, 30 sn saat toleransı.
+sub tam svc:recommendation-service; scope signals:read; account_id yoldaki {userId} ile kanonik
+UUID olarak aynı olmalıdır (eşleşmezse veya yoksa 403). Eski library:recommendation:read ve
+target_user_id artık kabul edilmez. Kullanıcı at+jwt'si, D4 account:erase token'ı ve başka
+servislerin token'ları kabul edilmez. Ardından RECOMMENDATION amacıyla User'dan ayrı açık izin
+gerekir: Auth hesabın ACTIVE olduğunu denetler, kullanıcı iznini kanıtlamaz. Owner eşitliği bu amacı
+atlatmaz; PUBLIC profil tercihi kendi başına öneri kullanım izni sayılmaz. Üretim görünürlük
+adaptörü User karar API'si olmadığı için 503 ile kapalıdır.
 
 #### Path/Query Parameters
 userId UUID. page>=0 varsayılan 0; size=1..50 varsayılan 20.
@@ -2081,13 +2091,18 @@ tarih/version veya Game metadata'sı yoktur. Liste/toplam REPEATABLE_READ; no-st
 503: izin kararı alınamıyor. ProblemDetail; özel kayıt ve sayaç dönmez.
 
 #### Bağlantı
-Doğrudan Library iç ağı; Game/diğer DB çağrısı yoktur. Recommendation istemcisi ve Auth
-token izinleri henüz yoktur; kullanılabilir üretim entegrasyonu olarak değerlendirilmez.
+Doğrudan Library iç ağı; Game/diğer DB çağrısı yoktur. Auth tarafı hazırdır (PR #36, origin/main):
+Recommendation, POST /internal/v1/service-tokens ile clientId=recommendation-service, audience=library-service,
+accountId=<hesap UUID> göndererek token alır. Recommendation istemcisi ve User izin kararı henüz yoktur;
+kullanılabilir üretim entegrasyonu olarak değerlendirilmez.
 
 #### Test Durumu
-INTEGRATION — 3 sinyal/2 sayfa, her iki bayrak, işaretsiz kayıt ve başka owner dışlama,
-alan azaltma, yüksek offset, parametre sınırları, ret/ulaşılamama/izin iptali ve token ayrımı.
-İzinli senaryolar test görünürlük portuyla sınandı; gerçek Recommendation E2E PENDING.
+INTEGRATION — LibraryApiTest.PrivacyTests: 3 sinyal/2 sayfa, her iki bayrak, işaretsiz kayıt ve başka
+owner dışlama, alan azaltma, yüksek offset, parametre sınırları, ret/ulaşılamama/izin iptali; signals:read
+sınırları (yanlış sub/scope/account_id, eksik veya kanonik olmayan account_id, süresi dolmuş, yanlış aud/typ,
+eski taslak kapsamı, D4 ve sinyal token'ının çapraz kullanılamaması). AuthIssuedServiceTokenIntegrationTest:
+Auth'un gerçek ServiceClientTokenIssuer çıktısı Library'nin gerçek HTTP/PostgreSQL katmanına karşı
+(User kararı SAHTE). Gerçek Recommendation ve gerçek User izin kararı E2E'si PENDING.
 
 ### LIBRARY — Kütüphane listeleme (LIB-05, LIB-06, LIB-07, LIB-08, LIB-16, LIB-17)
 
@@ -2284,6 +2299,10 @@ iki sentetik hesabın gerçek kayıt/doğrulama/login oturumu ile Auth→Gateway
 E2E akışı 62/62 PASS: ekleme/tekrar, iki kullanıcı izolasyonu, otomatik bayraklar,
 atomik silme, geçersiz oyun/JWT/CSRF ve gerçek Game kesintisinde 503/no-write.
 Kanıt: `docs-library/LTZ-HAM-LIB-01-E2E-Sonuc.md`; tekrar: `node ops/library-phase1-e2e.mjs`.
+Kullanıcı JWT doğrulayıcısı ayrıca UserTokenDecoderConfigurationTest ile gerçek RS256/JWKS üzerinde
+(bozuk imza, alg=none, HS256 karışıklığı, bilinmeyen/eksik kid, anahtar rotasyonu örtüşmesi, süre, issuer/audience, rol)
+sınanır. Auth→Library kullanıcı JWT entegrasyonunun canlı negatif/sahiplik doğrulaması:
+`docs-library/LTZ-HAM-LIB-06-Auth-Entegrasyonu-Sonuc.md`.
 Maven clean verify 45 test PASS, LINE %98,13. Pre-push/SonarQube kullanıcı tarafından manuel yapılır.
 Yeni imaj ltz-dev üzerinde çalıştırıldı; Library/Gateway gerçek HTTP health ve
 anonim/geçersiz Bearer/sahte kimlik/CSRF kontrolleri 15/15 başarılı. Library
@@ -2624,7 +2643,12 @@ UNIT + INTEGRATION — AccountErasureTest, ServiceTokenDecoderConfigurationTest.
 Geçici RSA/JWKS ile gerçek filtre/controller/servis sınanır.
 ProductionServiceTokenSupport gerçek Auth ServiceTokenIssuer kaynağını test dizinine derler.
 LibraryApiTest gerçek PostgreSQL üzerinde hedef hesabın silinmesi, tekrar ve diğer
-hesabın korunmasını sınar. DEV Auth görevinin CONFIRMED olması NOT VERIFIED.
+hesabın korunmasını sınar. AuthErasureAdapterIntegrationTest, Auth'un gerçek
+HttpAccountDataEraser + ServiceTokenIssuer kaynaklarını (test dizinine derlenir, geçici anahtarla)
+Library'nin gerçek HTTP sunucusuna (RANDOM_PORT, gerçek güvenlik zinciri/JWKS/PostgreSQL) karşı çalıştırır:
+204 onayı, tekrarda idempotentlik, yalnız bağlı hesabın silinmesi ve başka `aud` token'ının 401 ile
+onaylanmaması doğrulanır. Gerçek Auth servisinin canlı silme akışı (14 günlük bekleme süresi nedeniyle)
+ve DEV Auth görevinin CONFIRMED olması NOT VERIFIED.
 
 ## REVIEW
 

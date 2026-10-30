@@ -127,8 +127,10 @@ class GameServiceClientTest {
         }
         server.reset();
         assertEquals(java.util.Map.of(), client.summaries(java.util.List.of()));
-        assertThrows(IllegalArgumentException.class, () -> client.summaries(java.util.stream.IntStream.range(0, 51).mapToObj(i -> UUID.randomUUID()).toList()));
-        assertThrows(IllegalArgumentException.class, () -> client.summaries(java.util.Arrays.asList(GAME, null)));
+        var tooMany = java.util.stream.IntStream.range(0, 51).mapToObj(i -> UUID.randomUUID()).toList();
+        assertThrows(IllegalArgumentException.class, () -> client.summaries(tooMany));
+        var withNull = java.util.Arrays.asList(GAME, null);
+        assertThrows(IllegalArgumentException.class, () -> client.summaries(withNull));
         respond("{\"items\":[{\"gameId\":\"" + GAME + "\",\"title\":\"   \"}],\"unavailable\":[]}");
         assertNull(client.summaries(java.util.List.of(GAME, GAME)).get(GAME).title());
         server.verify();

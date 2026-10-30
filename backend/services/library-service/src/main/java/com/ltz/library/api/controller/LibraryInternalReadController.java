@@ -18,7 +18,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Taslak servis okuma sözleşmesi: Auth istemci/delegasyon desteği henüz yoktur. */
+/**
+ * Servis okumaları. Sinyal ucu Auth'un yayımlanmış signals:read sözleşmesidir. Profil uçları eski taslaktır: Auth karar K1
+ * gereği delegasyon token'ı üretmez, User kullanıcının kendi at+jwt'siyle public uçları çağırır; bu uçlara token verilemez.
+ */
 @RestController
 @RequestMapping("/internal/v1/library/users/{userId}")
 public class LibraryInternalReadController {
@@ -44,12 +47,18 @@ public class LibraryInternalReadController {
     public ResponseEntity<LibrarySignalPageResponse> signals(@PathVariable UUID userId, @AuthenticationPrincipal Jwt token,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size) {
-        bound(token, userId, "svc:recommendation-service");
+        // Auth sözleşmesi (talep-01 K2): hesaba bağlı signals:read token'ı; hesap Auth'un imzaladığı account_id claim'inden gelir.
+        accountBound(token, userId, "svc:recommendation-service");
         return response(reads.signals(userId, page, size));
     }
 
     private static void bound(Jwt token, UUID target, String subject) {
         if (!subject.equals(token.getSubject()) || !target.toString().equals(token.getClaims().get("target_user_id")))
+            throw new AccessDeniedException("Servis okuma yetkisi geçersiz.");
+    }
+
+    private static void accountBound(Jwt token, UUID target, String subject) {
+        if (!subject.equals(token.getSubject()) || !target.toString().equals(token.getClaims().get("account_id")))
             throw new AccessDeniedException("Servis okuma yetkisi geçersiz.");
     }
 

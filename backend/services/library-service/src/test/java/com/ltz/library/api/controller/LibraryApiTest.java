@@ -1025,6 +1025,18 @@ class LibraryApiTest {
                     .claim("viewer_id", UUID.randomUUID().toString());
         }
 
+        /** Auth talep-01 K2: svc+jwt, scope=signals:read, tek hesaba bağlı account_id; target_user_id/viewer_id taşımaz. */
+        private JWTClaimsSet.Builder signals(String subject, String scope, Object account) {
+            Instant now = Instant.now();
+            return new JWTClaimsSet.Builder().issuer("ltz-auth").audience("library-service").subject(subject)
+                    .issueTime(Date.from(now)).notBeforeTime(Date.from(now)).expirationTime(Date.from(now.plusSeconds(60)))
+                    .jwtID(UUID.randomUUID().toString()).claim("scope", scope).claim("account_id", account);
+        }
+
+        private String signalsToken() throws Exception {
+            return sign(signals("svc:recommendation-service", "signals:read", USER.toString()), "svc+jwt");
+        }
+
         @Test void ownProfileUsesVerifiedIdentityWithoutRemoteDecision() throws Exception {
             String bearer = token(USER, List.of("PLAYER"));
             read(PUBLIC + USER + "/entries", bearer).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0))
@@ -1105,16 +1117,73 @@ class LibraryApiTest {
 
         @Test void internalReadRejectsUserD4AndInvalidServiceContracts() throws Exception {
             String route = INTERNAL + USER + "/recommendation-signals";
-            String scope = "library:recommendation:read";
+            String scope = "signals:read";
+            String account = USER.toString();
             mvc.perform(get(route)).andExpect(status().isUnauthorized());
             read(route, token(USER, List.of("ADMIN"))).andExpect(status().isUnauthorized());
             read(route, sign(service("svc:auth-service", "account:erase"), "svc+jwt")).andExpect(status().isForbidden());
-            for (var invalid : List.of(service("svc:recommendation-service", scope).audience("user-service"),
-                    service("svc:recommendation-service", scope).issuer("other"),
-                    service("svc:recommendation-service", scope).jwtID(null),
-                    service("svc:recommendation-service", scope).expirationTime(Date.from(Instant.now().plusSeconds(300))))) {
+            for (var invalid : List.of(signals("svc:recommendation-service", scope, account).audience("user-service"),
+                    signals("svc:recommendation-service", scope, account).audience(List.of("library-service", "user-service")),
+                    signals("svc:recommendation-service", scope, account).issuer("other"),
+                    signals("svc:recommendation-service", scope, account).jwtID(null),
+                    signals("svc:recommendation-service", scope, account).expirationTime(Date.from(Instant.now().plusSeconds(300))),
+                    signals("svc:recommendation-service", scope, account).issueTime(Date.from(Instant.now().minusSeconds(600)))
+                            .expirationTime(Date.from(Instant.now().minusSeconds(300))),
+                    signals("svc:recommendation-service", scope, account).notBeforeTime(Date.from(Instant.now().plusSeconds(300))))) {
                 read(route, sign(invalid, "svc+jwt")).andExpect(status().isUnauthorized());
             }
+            // Kullanıcı token'ı biçimi (typ=at+jwt) servis kapısından geçemez.
+            read(route, sign(signals("svc:recommendation-service", scope, account), "at+jwt")).andExpect(status().isUnauthorized());
+            verifyNoInteractions(visibility, entries, catalog);
+        }
+
+        @Test void signalsRequireExactCallerScopeAndTheAccountBoundByAuth() throws Exception {
+            String route = INTERNAL + USER + "/recommendation-signals";
+            decision(com.ltz.library.domain.enums.LibraryAccessDecision.ALLOW);
+            read(route, signalsToken()).andExpect(status().isOk());
+            org.mockito.Mockito.clearInvocations(visibility, entries);
+            UUID other = UUID.randomUUID();
+            for (var invalid : List.of(
+                    signals("svc:user-service", "signals:read", USER.toString()),                  // başka servis kimliği
+                    signals("svc:recommendation-service", "library:recommendation:read", USER.toString()), // eski taslak kapsamı
+                    signals("svc:recommendation-service", "library:profile:read", USER.toString()),
+                    signals("svc:recommendation-service", "events:ingest", USER.toString()),
+                    signals("svc:recommendation-service", "access:decide", USER.toString()),
+                    signals("svc:recommendation-service", "privacy:read", USER.toString()),             // Library→User kapsamı sinyal okutmaz
+                    signals("svc:library-service", "privacy:read events:ingest", USER.toString()),
+                    signals("svc:recommendation-service", "account:erase", USER.toString()),
+                    signals("svc:recommendation-service", "", USER.toString()),
+                    signals("svc:recommendation-service", "signals:read", other.toString()),       // başka hesaba bağlı token
+                    signals("svc:recommendation-service", "signals:read", null),                   // account_id yok
+                    signals("svc:recommendation-service", "signals:read", USER.toString().toUpperCase(java.util.Locale.ROOT)),
+                    signals("svc:recommendation-service", "signals:read", " " + USER),
+                    signals("svc:recommendation-service", "signals:read", 7),
+                    signals("svc:recommendation-service", "signals:read", USER.toString()).claim("account_id", List.of(USER.toString())),
+                    signals("svc:recommendation-service", "signals:read", null).claim("target_user_id", USER.toString()), // eski claim hesap yerine geçmez
+                    signals("svc:recommendation-service", "signals:read", null).claim("viewer_id", USER.toString()))) {
+                read(route, sign(invalid, "svc+jwt")).andExpect(status().isForbidden());
+            }
+            // Yoldaki hesap token'daki hesaptan farklıysa: iki ayrı hesap birbirinin verisini okuyamaz.
+            read(INTERNAL + other + "/recommendation-signals", signalsToken()).andExpect(status().isForbidden());
+            verifyNoInteractions(visibility, entries, catalog);
+        }
+
+        @Test void signalsTokenCannotReachWriteDeleteProfileOrOtherInternalPaths() throws Exception {
+            String bearer = signalsToken();
+            mvc.perform(delete("/internal/v1/accounts/" + USER).header("Authorization", "Bearer " + bearer)).andExpect(status().isForbidden());
+            read(INTERNAL + USER + "/entries", bearer).andExpect(status().isForbidden());
+            read(INTERNAL + USER + "/entries/statistics", bearer).andExpect(status().isForbidden());
+            // Servis token'ı kullanıcı (public) uçlarında yetki vermez.
+            read(PUBLIC + USER + "/entries", bearer).andExpect(status().isUnauthorized());
+            mvc.perform(post("/api/v1/library/entries").header("Authorization", "Bearer " + bearer)
+                    .contentType("application/json").content("{\"gameId\":\"" + GAME + "\"}")).andExpect(status().isUnauthorized());
+            mvc.perform(delete("/api/v1/library/entries/" + GAME).header("Authorization", "Bearer " + bearer)).andExpect(status().isUnauthorized());
+            // Tersi: D4 token'ı sinyal okuyamaz (kapsam ve servis kimliği ayrı).
+            String erase = sign(new JWTClaimsSet.Builder().issuer("ltz-auth").audience("library-service").subject("svc:auth-service")
+                    .issueTime(Date.from(Instant.now())).notBeforeTime(Date.from(Instant.now()))
+                    .expirationTime(Date.from(Instant.now().plusSeconds(30))).jwtID(UUID.randomUUID().toString())
+                    .claim("scope", "account:erase").claim("account_id", USER.toString()), "svc+jwt");
+            read(INTERNAL + USER + "/recommendation-signals", erase).andExpect(status().isForbidden());
             verifyNoInteractions(visibility, entries, catalog);
         }
 
@@ -1122,7 +1191,7 @@ class LibraryApiTest {
             for (int i = 1; i <= 4; i++) fixture(String.format("00000000-0000-4000-8000-%012d", i), USER, i % 2 == 0, i > 2);
             fixture(UUID.randomUUID().toString(), UUID.randomUUID(), true, true);
             decision(com.ltz.library.domain.enums.LibraryAccessDecision.ALLOW);
-            String bearer = sign(service("svc:recommendation-service", "library:recommendation:read"), "svc+jwt");
+            String bearer = signalsToken();
             String route = INTERNAL + USER + "/recommendation-signals";
             read(route + "?size=2", bearer).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(3))
                     .andExpect(jsonPath("$.items.length()").value(2)).andExpect(jsonPath("$.items[0].id").doesNotExist())
@@ -1136,7 +1205,7 @@ class LibraryApiTest {
         }
 
         @Test void revokedOrUnavailableRecommendationPermissionNeverUsesPreviousAllow() throws Exception {
-            String bearer = sign(service("svc:recommendation-service", "library:recommendation:read"), "svc+jwt");
+            String bearer = signalsToken();
             String route = INTERNAL + USER + "/recommendation-signals";
             decision(com.ltz.library.domain.enums.LibraryAccessDecision.ALLOW);
             read(route, bearer).andExpect(status().isOk());
@@ -1145,7 +1214,7 @@ class LibraryApiTest {
             read(route, bearer).andExpect(status().isForbidden());
             decision(com.ltz.library.domain.enums.LibraryAccessDecision.UNAVAILABLE);
             read(route, bearer).andExpect(status().isServiceUnavailable());
-            read(route, sign(service("svc:user-service", "library:recommendation:read"), "svc+jwt")).andExpect(status().isForbidden());
+            read(route, sign(signals("svc:user-service", "signals:read", USER.toString()), "svc+jwt")).andExpect(status().isForbidden());
             verifyNoInteractions(entries, catalog);
         }
 
@@ -1155,9 +1224,7 @@ class LibraryApiTest {
                 read(PUBLIC + USER + "/entries" + query, userToken).andExpect(status().isBadRequest());
                 read(INTERNAL + USER + "/entries" + query, sign(service("svc:user-service", "library:profile:read"), "svc+jwt"))
                         .andExpect(status().isBadRequest());
-                read(INTERNAL + USER + "/recommendation-signals" + query,
-                        sign(service("svc:recommendation-service", "library:recommendation:read"), "svc+jwt"))
-                        .andExpect(status().isBadRequest());
+                read(INTERNAL + USER + "/recommendation-signals" + query, signalsToken()).andExpect(status().isBadRequest());
             }
             verifyNoInteractions(visibility, entries, catalog);
         }

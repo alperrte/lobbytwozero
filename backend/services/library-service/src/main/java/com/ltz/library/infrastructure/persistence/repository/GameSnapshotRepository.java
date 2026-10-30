@@ -20,7 +20,7 @@ public class GameSnapshotRepository {
     public Map<UUID, GameSnapshot> find(List<UUID> ids) {
         if (ids.isEmpty()) return Map.of();
         return jdbc.query(connection -> {
-            var statement = connection.prepareStatement("SELECT * FROM game_snapshots WHERE game_id = ANY (?)");
+            var statement = connection.prepareStatement("SELECT game_id, title, cover_url, origin, metadata_completeness, game_type, status, refreshed_at, version FROM game_snapshots WHERE game_id = ANY (?)");
             statement.setArray(1, connection.createArrayOf("uuid", ids.toArray()));
             return statement;
         }, (rs, row) ->
