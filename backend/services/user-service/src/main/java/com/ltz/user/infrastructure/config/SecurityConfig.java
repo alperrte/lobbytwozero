@@ -29,6 +29,7 @@ import com.ltz.user.infrastructure.security.RequestBodySizeLimitFilter;
 import com.ltz.user.infrastructure.security.TokenClaims;
 
 import jakarta.servlet.DispatcherType;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * Fail-closed güvenlik zinciri: yalnız sağlık ucu herkese açıktır; User uçları geçerli kullanıcı token'ı
@@ -52,7 +53,9 @@ public class SecurityConfig {
     /** Kimlik gerektirmeyen uçlar. */
     static final RequestMatcher PUBLIC_ENDPOINTS = new OrRequestMatcher(
             PATHS.matcher(HttpMethod.GET, HEALTH),
-            PATHS.matcher(HttpMethod.GET, HEALTH + "/**"));
+            PATHS.matcher(HttpMethod.GET, HEALTH + "/**"),
+            // Profil görselleri herkese açıktır (misafir kartında da görünür); adres 128 bitlik rastgele anahtardır.
+            PATHS.matcher(HttpMethod.GET, UserApiPaths.MEDIA + "/*"));
 
     /** Geçerli kullanıcı token'ı isteyen uçlar (tüm kayıtlı oyuncular; sahiplik kontrolü servis katmanındadır). */
     static final RequestMatcher AUTHENTICATED_ENDPOINTS = PATHS.matcher(UserApiPaths.BASE + "/**");
@@ -100,14 +103,31 @@ public class SecurityConfig {
         return http.build();
     }
 
+    /** JSON uçları için küçük sınır; görsel yükleme uçları yalnız kendi (tür başına) sınırını alır. */
     @Bean
     FilterRegistrationBean<RequestBodySizeLimitFilter> requestBodySizeLimitFilter(
-            RequestLimitProperties properties,
+            RequestLimitProperties properties, MediaProperties media,
             @Qualifier("handlerExceptionResolver") HandlerExceptionResolver resolver) {
+        long json = properties.maxBodySize().toBytes();
+        long avatar = media.avatarMaxSize().toBytes();
+        long cover = media.coverMaxSize().toBytes();
         FilterRegistrationBean<RequestBodySizeLimitFilter> registration = new FilterRegistrationBean<>(
-                new RequestBodySizeLimitFilter(properties.maxBodySize().toBytes(), resolver));
+                new RequestBodySizeLimitFilter(request -> bodyLimit(request, json, avatar, cover), resolver));
         registration.setOrder(SecurityFilterProperties.DEFAULT_FILTER_ORDER - 1);
         return registration;
+    }
+
+    private static long bodyLimit(HttpServletRequest request, long json, long avatar, long cover) {
+        if (HttpMethod.PUT.matches(request.getMethod())) {
+            String path = request.getRequestURI();
+            if (UserApiPaths.ME_AVATAR.equals(path)) {
+                return avatar;
+            }
+            if (UserApiPaths.ME_COVER.equals(path)) {
+                return cover;
+            }
+        }
+        return json;
     }
 
     private static AuthenticationManager jwtManager(JwtDecoder decoder, JwtAuthenticationConverter converter) {

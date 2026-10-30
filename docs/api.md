@@ -917,11 +917,15 @@ Profil yoksa varsayılan değerlerle **oluşturulur** (Auth'un `UserRegistered` 
   "favoriteGenres": ["katalog kodu (en çok 10)"],
   "favoritePlatforms": ["katalog kodu (en çok 10)"],
   "country": "ISO 3166-1 alpha-2 | null",
+  "avatar": { "small": "/api/v1/user/media/<anahtar>-s.jpg", "large": "/api/v1/user/media/<anahtar>.jpg", "animated": false },
+  "cover": { "small": "...", "large": "...", "animated": false },
   "onboardingCompletedAt": "ISO-8601 | null",
   "updatedAt": "ISO-8601",
   "version": 0
 }
 ```
+`avatar`/`cover` görsel yoksa `null`. Adresler **değişmezdir** (her yükleme yeni adres alır) ve herkese açıktır; ayrıntı: "Profil görseli yükle" kaydı. GIF'te `small` ve `large` aynı dosyadır.
+
 Yanıt e-posta, hesap durumu veya kimlik bilgisi içermez.
 
 #### Hata Durumları
@@ -985,6 +989,116 @@ Diğer mikroservisler:
 #### Test Durumu
 UNIT + INTEGRATION (gerçek PostgreSQL; `MeControllerTest`, `ProfileTextTest`; eşzamanlı güncellemede yalnız biri başarılı).
 
+### USER — Profil görseli yükle: avatar ve kapak (USER-03, USER-04)
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+PUT /api/v1/user/me/avatar
+PUT /api/v1/user/me/cover
+
+#### Yetkilendirme
+Authenticated (Owner). Kimlik yalnız token'dan gelir; çerez/başlık/gövdedeki kimlik okunmaz.
+
+#### Request Body
+**Ham gövde**: gövde görselin kendisidir (multipart değil). `Content-Type` yalnız `image/jpeg`, `image/png` veya `image/gif` olabilir; başka tür `415`. Bildirilen tür gerçek içerikle (ilk baytlar / magic byte) **uyuşmak zorundadır**; SVG, HTML ve tanınmayan her içerik `400`. Gövde boyutu akış sırasında sınırlanır:
+
+| Tür | En büyük yükleme | Kenar / piksel sınırı | Çıktı |
+| --- | --- | --- | --- |
+| Avatar JPEG/PNG | 2 MB | ≤ 8000 px kenar, ≤ 40 MP | Ortadan kare kırpılır; büyük 512 px, küçük 128 px; **büyütülmez** |
+| Kapak JPEG/PNG | 4 MB | ≤ 8000 px kenar, ≤ 40 MP | En-boy oranı korunur, 1600×1600 içine sığdırılır (büyük) ve 800×800 içine (küçük); **büyütülmez** |
+| Avatar GIF | 2 MB | ekran ≤ 512×512, ≤ 100 kare | Yeniden kodlanmaz, tek dosya |
+| Kapak GIF | 4 MB | ekran ≤ 1600×1600, ≤ 100 kare | Yeniden kodlanmaz, tek dosya |
+
+JPEG/PNG sunucuda yeniden kodlanır: EXIF/konum bilgisi ve gizli (polyglot) içerik temizlenir, JPEG'in EXIF yönlendirmesi uygulanır (telefon fotoğrafı yan dönük görünmez). Saydamlığı olmayan görsel progressive JPEG (kalite 0,85), saydam piksel içeren PNG olarak kalır. GIF'te yalnız kare verisi, süre/saydamlık bloğu ve döngü bloğu korunur; yorum ve diğer uygulama blokları atılır.
+
+#### Response — 200
+Güncel profil (`GET /me` ile aynı gövde; `avatar` ya da `cover` dolu). `Cache-Control: no-store`. Yükleme eski görseli değiştirir; eski dosyalar commit sonrası silinir.
+
+#### Hata Durumları
+- 400: `INVALID_IMAGE` (SVG/HTML/tanınmayan içerik, bildirilen tür içerikle uyuşmuyor, bozuk/kesik/CMYK görsel, bozuk GIF yapısı), `INVALID_IMAGE_DIMENSIONS` (kenar/piksel/kare sayısı ya da GIF ekranı sınırı aşıldı), `MALFORMED_REQUEST` (boş gövde)
+- 401: Token yok/geçersiz; servis token'ı; çerezle kimlik
+- 409: `CONCURRENT_MODIFICATION`: aynı kullanıcı aynı türü eşzamanlı yükledi
+- 413: Gövde tür sınırını aşıyor (`PAYLOAD_TOO_LARGE`)
+- 415: `Content-Type` jpeg/png/gif değil
+- 429: `MEDIA_RATE_LIMITED`: kullanıcı başına saatte en çok 10 yükleme (değiştirilenler dahil)
+- 503: `MEDIA_BUSY` (aynı anda en çok 2 görsel işlenir; sıra 3 sn içinde boşalmadı), `MEDIA_STORAGE_UNAVAILABLE` (depo yazılamadı; hiçbir kalıntı bırakılmaz)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/user/me/avatar ve /api/v1/user/me/cover (`fetch` ile `body: file`, `Content-Type: file.type`).
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL ve geçici disk; `MediaControllerTest` 23, `ImageIoInspectorTest`, `GifSanitizerTest`, `ExifOrientationTest`, `LocalFileMediaStorageTest`, `MediaCleanupServiceTest`).
+
+### USER — Profil görseli kaldır (USER-03, USER-04)
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+DELETE /api/v1/user/me/avatar
+DELETE /api/v1/user/me/cover
+
+#### Yetkilendirme
+Authenticated (Owner).
+
+#### Response — 204
+Gövde yok. Görsel profilden kalkar ve dosyaları silinir; görsel yoksa da `204` (idempotent). Dosya silme geçici olarak başarısız olursa görsel yine profilden kalkar, dosya zamanlanmış temizleyici (5 dk) tarafından silinir.
+
+#### Hata Durumları
+- 401: Token yok/geçersiz
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/user/me/avatar ve /api/v1/user/me/cover
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (`MediaControllerTest`, `MediaCleanupServiceTest`, `MediaCleanupWorkerTest`).
+
+### USER — Profil görselini oku (herkese açık)
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend, diğer servislerin istemcileri (adres bir yıl önbelleğe alınabilir)
+
+#### Endpoint
+GET /api/v1/user/media/{fileName}
+
+#### Yetkilendirme
+Public (kimlik gerekmez; misafir kartında da görünür). Adres, 128 bitlik rastgele anahtardır ve profil yanıtlarındaki `avatar`/`cover` alanlarından alınır; liste uç noktası yoktur.
+
+#### Path Parameters
+- fileName: `^[0-9a-f]{32}(-s)?\.(jpg|png|gif)$`, zorunlu. `-s` küçük sürümdür (GIF'te yok).
+
+#### Response — 200
+Görselin baytları. Başlıklar: `Content-Type: image/jpeg|png|gif`, `Cache-Control: max-age=31536000, public, immutable`, `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; sandbox`, `Content-Disposition: inline`. **Veritabanına gitmez**: okuma yalnız diskten yapılır. Adres değişmezdir; görsel değiştirilince ya da kaldırılınca eski adres `404` olur (daha önce önbelleğe alan istemci süre dolana kadar görebilir).
+
+#### Hata Durumları
+- 404: `MEDIA_NOT_FOUND`: geçersiz ad deseni, büyük harf, tanımsız uzantı ya da dosya yok (hepsi aynı yanıt; yol atlatma denemeleri dahil)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/user/media/{fileName}
+
+Diğer mikroservisler:
+Diğer servisler görsel baytlarını kopyalamaz; yalnız bu adresi taşır.
+
+#### Test Durumu
+UNIT + INTEGRATION (`MediaControllerTest`, `LocalFileMediaStorageTest`: yol atlatma).
+
 ### USER — Hesap verisi silme (Internal, Auth → User)
 
 Durum: IMPLEMENTED (alıcı taraf)
@@ -1001,13 +1115,16 @@ Internal. Gateway'e açık **değildir** (`/internal/**` route edilmez). Yalnız
 - accountId: UUID, zorunlu — silinecek hesap
 
 #### Response — 204
-Gövde yok. Hesabın profili ve profil görselleri üst verisi tek transaction'da kalıcı silinir (görsel satırları FK `ON DELETE CASCADE` ile gider; görsel dosyalarının silinmesi Faz 1b'de eklenecek, o zamana kadar dosya yoktur). **İdempotenttir:** veri yoksa, ikinci çağrıda ya da bilinmeyen hesapta da `204`. Başka hesapların verisine dokunulmaz. `inbox_events` hesap kimliği taşımadığı için silinecek veri içermez.
+Gövde yok. Önce hesabın **tüm** profil görseli dosyaları (güncel olanlar ve silinmeyi bekleyenler dahil) diskten silinir; sonra tek transaction'da profil satırı silinir (görsel üst veri satırları FK `ON DELETE CASCADE` ile gider). **İdempotenttir:** veri yoksa, ikinci çağrıda ya da bilinmeyen hesapta da `204`. Başka hesapların verisine dokunulmaz. `inbox_events` hesap kimliği taşımadığı için silinecek veri içermez.
+
+Dosyalar silinemezse (depo erişilemez) **hiçbir veri satırı silinmez** ve `503 ACCOUNT_ERASURE_PENDING` döner; Auth yeniden dener. Bu yüzden `204` her zaman "kişisel veri kalmadı" demektir.
 
 #### Hata Durumları
 - 400: Geçersiz `accountId` (`MALFORMED_REQUEST`)
 - 401: Token yok/geçersiz; kullanıcı token'ı; yanlış `iss`/`aud`/`typ`; süresi dolmuş, 60 sn'den uzun ömürlü ya da `iat`/`jti` eksik; `sub` `svc:` ile başlamıyor; bozuk/yanlış anahtarlı imza; `alg=none`/HS256; bilinmeyen `kid`
 - 403: `account:erase` kapsamı yok; `sub` `svc:auth-service` değil; `account_id` yok ya da yoldaki hesapla aynı değil (hiçbir şey silinmez); bu yolda başka yöntem ya da başka iç yol
 - 500: Beklenmeyen sunucu hatası
+- 503: `ACCOUNT_ERASURE_PENDING`: görsel dosyaları silinemedi, hiçbir veri silinmedi; Auth yeniden dener
 
 #### Bağlantı
 Frontend:
@@ -1017,7 +1134,7 @@ Diğer mikroservisler:
 Auth, silme onaylandığında bu ucu `${USER_SERVICE_URL}/internal/v1/accounts/{accountId}` adresine çağırır. Gerçek Auth token'ıyla canlı silme **NOT VERIFIED**.
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; `AccountErasureTest` 18 test: rehberdeki 17 senaryo + büyük/küçük harf UUID, Auth `ServiceTokenIssuer` biçimi uyumluluğu dahil).
+UNIT + INTEGRATION (gerçek PostgreSQL; `AccountErasureTest` 18 test: rehberdeki 17 senaryo + büyük/küçük harf UUID, Auth `ServiceTokenIssuer` biçimi uyumluluğu dahil; `AccountErasureStorageFailureTest` depo hatasında 503 ve satırların korunması; `MediaControllerTest` görsel dosyalarının silindiğini doğrular).
 
 ### USER — Servisler arası olay girişi (Internal)
 

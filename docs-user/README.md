@@ -7,7 +7,7 @@ Görev kimlikleri: `LTZ-KER-USER-01..04` (USER-01..13). Tek API sözleşmesi [do
 
 | Faz | Görevler | Durum |
 | --- | --- | --- |
-| LTZ-KER-USER-01 — Oyuncu profili + medya | USER-01..04 | **1a tamamlandı (Auth bağları, profil, silme, olay girişi)**; 1b (avatar/kapak medyası) bekliyor |
+| LTZ-KER-USER-01 — Oyuncu profili + medya | USER-01..04 | **Tamamlandı (yerel doğrulama):** 1a profil, Auth bağları, silme, olay girişi; 1b avatar/kapak medyası. Docker imajı ve gerçek Auth doğrulaması NOT VERIFIED |
 | LTZ-KER-USER-02 — Açık profil, gizlilik, arama, özet | USER-05, 06, 11, 12, 13 | Bekliyor |
 | LTZ-KER-USER-03 — Steam bağlantısı | USER-07, 08 | Bekliyor (Auth tarafı talebine bağlı) |
 | LTZ-KER-USER-04 — Onboarding ve tercihler | USER-09, 10 | Bekliyor |

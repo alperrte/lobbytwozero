@@ -10,7 +10,14 @@ public enum UserErrorCode {
     INVALID_COUNTRY(400, "The country is invalid."),
     INVALID_EVENT(400, "The event is invalid."),
     EVENT_PRODUCER_MISMATCH(400, "The event type does not belong to this producer."),
-    CONCURRENT_MODIFICATION(409, "The resource was modified concurrently. Reload it and retry the request.");
+    INVALID_IMAGE(400, "The image is invalid, corrupted or its type does not match its content."),
+    INVALID_IMAGE_DIMENSIONS(400, "The image dimensions or frame count are outside the allowed limits."),
+    MEDIA_NOT_FOUND(404, "The requested media was not found."),
+    CONCURRENT_MODIFICATION(409, "The resource was modified concurrently. Reload it and retry the request."),
+    MEDIA_RATE_LIMITED(429, "Too many image uploads. Try again later."),
+    MEDIA_BUSY(503, "The image processor is busy. Try again shortly."),
+    MEDIA_STORAGE_UNAVAILABLE(503, "Media storage is temporarily unavailable. Try again shortly."),
+    ACCOUNT_ERASURE_PENDING(503, "Account data erasure is not finished yet. Retry later.");
 
     private final int httpStatus;
     private final String detail;

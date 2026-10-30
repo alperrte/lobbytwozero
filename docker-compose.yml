@@ -172,6 +172,9 @@ services:
     environment:
       <<: *ltz-db-env
       DB_USER_NAME: ${DB_USER_NAME:?}
+    volumes:
+      # Profil gorselleri (avatar/kapak); konteyner yeniden olusturulsa da kaybolmaz.
+      - user_media:/data/user-media
     depends_on:
       postgres:
         condition: service_healthy
@@ -492,6 +495,7 @@ services:
 
 volumes:
   postgres_data:
+  user_media:
 
 networks:
   ltz_network:

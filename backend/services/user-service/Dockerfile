@@ -34,6 +34,11 @@ WORKDIR /app
 RUN groupadd --system ltz \
     && useradd --system --gid ltz ltz
 
+# Profil gorselleri (ltz.user.media.root). Docker bos bir named volume'u ilk baglamada bu klasorun sahibi/izniyle
+# doldurur; klasor ltz kullanicisina ait olmazsa root olmayan uygulama yazamaz.
+RUN mkdir -p /data/user-media \
+    && chown -R ltz:ltz /data
+
 COPY --from=build \
     --chown=ltz:ltz \
     /workspace/app.jar /app/app.jar
@@ -42,4 +47,4 @@ USER ltz
 
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "-Djava.awt.headless=true", "-jar", "/app/app.jar"]

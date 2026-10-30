@@ -13,8 +13,10 @@ import com.ltz.user.application.mapper.ProfileMapper;
 import com.ltz.user.domain.entity.UserProfile;
 import com.ltz.user.domain.entity.UserProfile.ProfileChanges;
 import com.ltz.user.domain.enums.AccountStatus;
+import com.ltz.user.domain.enums.MediaStatus;
 import com.ltz.user.domain.exception.UserErrorCode;
 import com.ltz.user.domain.exception.UserException;
+import com.ltz.user.infrastructure.persistence.repository.UserMediaRepository;
 import com.ltz.user.infrastructure.persistence.repository.UserProfileRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,7 @@ import lombok.RequiredArgsConstructor;
 public class ProfileService {
 
     private final UserProfileRepository profiles;
+    private final UserMediaRepository media;
     private final Clock clock;
 
     /**
@@ -37,7 +40,7 @@ public class ProfileService {
      */
     @Transactional
     public ProfileView getOrProvision(UUID userId) {
-        return ProfileMapper.toView(loadOrProvision(userId));
+        return view(loadOrProvision(userId));
     }
 
     @Transactional
@@ -52,7 +55,11 @@ public class ProfileService {
             // transaction sonunu beklemeden yazılır.
             profiles.flush();
         }
-        return ProfileMapper.toView(profile);
+        return view(profile);
+    }
+
+    private ProfileView view(UserProfile profile) {
+        return ProfileMapper.toView(profile, media.findByUserIdAndStatus(profile.getUserId(), MediaStatus.CURRENT));
     }
 
     private UserProfile loadOrProvision(UUID userId) {

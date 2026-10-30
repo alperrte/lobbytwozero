@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.function.ToLongFunction;
 
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.server.ContentTooLargeException;
@@ -19,22 +20,24 @@ import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 
 /**
- * İstek gövdesinin bayt üst sınırı. Bildirilen Content-Length sınırı aşıyorsa gövde okunmadan reddedilir; uzunluk
- * bildirilmeyen (chunked) gövdede ise okuma bütçesi tükenince ayrıştırma durdurulur. İkisi de 413 ProblemDetail döner.
+ * İstek gövdesinin bayt üst sınırı; sınır isteğe göre seçilir (JSON uçları küçük, görsel yükleme uçları kendi sınırında).
+ * Bildirilen Content-Length sınırı aşıyorsa gövde okunmadan reddedilir; uzunluk bildirilmeyen (chunked) gövdede ise okuma
+ * bütçesi tükenince ayrıştırma durdurulur. İkisi de 413 ProblemDetail döner.
  */
 public class RequestBodySizeLimitFilter extends OncePerRequestFilter {
 
-    private final long limit;
+    private final ToLongFunction<HttpServletRequest> limits;
     private final HandlerExceptionResolver resolver;
 
-    public RequestBodySizeLimitFilter(long limit, HandlerExceptionResolver resolver) {
-        this.limit = limit;
+    public RequestBodySizeLimitFilter(ToLongFunction<HttpServletRequest> limits, HandlerExceptionResolver resolver) {
+        this.limits = limits;
         this.resolver = resolver;
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
+        long limit = limits.applyAsLong(request);
         if (request.getContentLengthLong() > limit) {
             resolver.resolveException(request, response, null, new ContentTooLargeException(null));
             return;

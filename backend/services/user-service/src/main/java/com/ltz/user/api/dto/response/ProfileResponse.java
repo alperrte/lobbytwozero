@@ -6,14 +6,16 @@ import java.util.UUID;
 
 import com.ltz.user.application.service.ProfileView;
 
-/** Kullanıcının kendi profili. Hesap durumu, e-posta ve kimlik bilgisi içermez. */
+/** Kullanıcının kendi profili. Hesap durumu, e-posta ve kimlik bilgisi içermez; görsel yoksa {@code null}. */
 public record ProfileResponse(UUID userId, String username, String displayName, String bio, List<String> playerTypes,
                               List<String> favoriteGenres, List<String> favoritePlatforms, String country,
-                              Instant onboardingCompletedAt, Instant updatedAt, long version) {
+                              MediaResponse avatar, MediaResponse cover, Instant onboardingCompletedAt,
+                              Instant updatedAt, long version) {
 
     public static ProfileResponse from(ProfileView view) {
         return new ProfileResponse(view.userId(), view.username(), view.displayName(), view.bio(),
                 view.playerTypes(), view.favoriteGenres(), view.favoritePlatforms(), view.country(),
-                view.onboardingCompletedAt(), view.updatedAt(), view.version());
+                MediaResponse.from(view.avatar()), MediaResponse.from(view.cover()), view.onboardingCompletedAt(),
+                view.updatedAt(), view.version());
     }
 }

@@ -19,6 +19,19 @@ ADR'lerin yerine geçmez; User'a özgü kararların kaydıdır.
 | K10 | `country` dışında kişisel bilgi alanı yok (KVKK yükü, gereksinimde tanımlı değil) | |
 | K11 | Düz string listeleri `jsonb` yerine `text[]` | Hibernate JSON eşlemesine bağımlılık yok; CHECK ile kardinalite sınırı |
 
+## Uygulama kararları (faz 1b, 2026-10-30)
+
+- **Ham gövde yükleme:** `PUT /me/avatar|cover`, gövde görselin kendisi (multipart yok). Plan multipart diyordu; ham gövde,
+  ayrıştırıcı ve geçici dosya yükünü kaldırır ve bayt sınırını akışta uygular.
+- **İki boyutlu çıktı:** büyük (512 / 1600) ve küçük (128 / 800). Liste ve arama sonuçları küçüğü kullanır.
+- **Okuma DB'siz:** dosya adı anahtarı taşır; `GET /media/{dosya}` yalnız diske gider, `immutable` 1 yıl önbellek.
+- **Alt örnekleyerek açma:** 40 MP'lik fotoğraf tam boyutta açılmaz; bellek ~160 MB yerine birkaç MB.
+- **Eşzamanlılık sınırı 2, saatlik yükleme sınırı 10:** sırasıyla CPU ve kötüye kullanım koruması; değerler
+  `application.properties` içinde `ltz.user.media.*` (ENV değil).
+- **WebP/AVIF ertelendi:** native kütüphane gerektirir (güvenlik/lisans incelemesi); `MediaStoragePort` ve URL sözleşmesi
+  eklemeye uygun.
+- **Kota yok:** disk üst sınırı boyut sınırlarından gelir; volume izlenmeli.
+
 ## Uygulama notları (faz 1a)
 
 - `GET /me` profil yoksa oluşturur: Auth'un `UserRegistered` olayı hedef açılana kadar ya da gecikirse kullanıcı 404 görmez.

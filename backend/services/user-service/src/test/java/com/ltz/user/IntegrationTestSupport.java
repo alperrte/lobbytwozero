@@ -7,6 +7,8 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
@@ -69,6 +71,8 @@ public abstract class IntegrationTestSupport {
     private static final long TOKEN_TTL_SECONDS = 300;
 
     private static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine");
+    /** Test görsellerinin yazıldığı geçici klasör. */
+    protected static final Path MEDIA_ROOT = createMediaRoot();
     /** Her test çalıştırmasında üretilen imza anahtarı. */
     protected static final RSAKey SIGNING_KEY = generateKey();
     private static final HttpServer JWKS_SERVER;
@@ -99,6 +103,10 @@ public abstract class IntegrationTestSupport {
         registry.add("ltz.user.auth.issuer", () -> ISSUER);
         registry.add("ltz.user.auth.audience", () -> AUDIENCE);
         registry.add("ltz.user.auth.service-audience", () -> SERVICE_AUDIENCE);
+        // Görseller her test çalıştırmasında geçici klasöre yazılır; zamanlanmış temizleyici testlerde kapalıdır
+        // (temizleyici doğrudan çağrılarak sınanır).
+        registry.add("ltz.user.media.root", MEDIA_ROOT::toString);
+        registry.add("ltz.user.media.cleanup-enabled", () -> "false");
     }
 
     /** Gerçek sunucudaki filtre sırası: gövde sınırı, ardından Spring Security zinciri. */
@@ -187,6 +195,16 @@ public abstract class IntegrationTestSupport {
         jdbc.update("""
                 insert into user_profiles (user_id, display_name, bio, account_status, created_at, updated_at, version)
                 values (?, 'Test Oyuncu', 'merhaba', 'ACTIVE', now(), now(), 0)""", userId);
+    }
+
+    private static Path createMediaRoot() {
+        try {
+            Path root = Files.createTempDirectory("ltz-user-media-test-");
+            root.toFile().deleteOnExit();
+            return root;
+        } catch (IOException exception) {
+            throw new IllegalStateException(exception);
+        }
     }
 
     private static RSAKey generateKey() {
