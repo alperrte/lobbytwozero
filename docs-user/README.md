@@ -9,8 +9,8 @@ Görev kimlikleri: `LTZ-KER-USER-01..04` (USER-01..13). Tek API sözleşmesi [do
 | --- | --- | --- |
 | LTZ-KER-USER-01 — Oyuncu profili + medya | USER-01..04 | **Tamamlandı (yerel doğrulama):** 1a profil, Auth bağları, silme, olay girişi; 1b avatar/kapak medyası. Docker imajı ve gerçek Auth doğrulaması NOT VERIFIED |
 | LTZ-KER-USER-02 — Açık profil, gizlilik, arama, özet | USER-05, 06, 11, 12, 13 | **User tarafı tamamlandı (yerel doğrulama).** Çağıran servisler ve Auth kapsamı PENDING (T3, T6, T7, T8) |
-| LTZ-KER-USER-03 — Steam bağlantısı | USER-07, 08 | **Kod tamamlandı, testler sona ertelendi** ([ilerleme](progress/LTZ-KER-USER-03.md)). Auth bağlama/kaldırma ve olayları bekliyor ([REQ-05](integration/auth/auth-service-talepleri/auth-requests-05.md)) |
-| LTZ-KER-USER-04 — Onboarding ve tercihler | USER-09, 10 | **Kod tamamlandı, testler sona ertelendi** ([ilerleme](progress/LTZ-KER-USER-04.md)) |
+| LTZ-KER-USER-03 — Steam bağlantısı | USER-07, 08 | **Tamamlandı (kod + testler)** ([ilerleme](progress/LTZ-KER-USER-03.md)). Auth bağlama/kaldırma ve olayları bekliyor ([REQ-05](integration/auth/auth-service-talepleri/auth-requests-05.md)) |
+| LTZ-KER-USER-04 — Onboarding ve tercihler | USER-09, 10 | **Tamamlandı (kod + testler)** ([ilerleme](progress/LTZ-KER-USER-04.md)) |
 
 Önceki kararlar ve fazlama: [kararlar](decisions/kararlar.md). Gün gün kayıt: [progress/](progress/).
 

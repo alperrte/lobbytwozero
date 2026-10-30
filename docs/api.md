@@ -1435,7 +1435,7 @@ UNIT + INTEGRATION (`PrivacyDecisionTest` 8, `SocialProjectionTrustedTest` 3, `P
 
 ### USER — Tercihlerim (USER-10)
 
-Durum: IMPLEMENTED (kod derlendi; testler sona ertelendi)
+Durum: IMPLEMENTED
 Sorumlu: Kerem
 Tüketici servisler: Frontend
 
@@ -1475,11 +1475,11 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-NOT IMPLEMENTED (kod derlendi; testler tüm fazlar bitince toplu yazılacak).
+UNIT + INTEGRATION (`PreferenceOnboardingTest` 11).
 
 ### USER — İlk kurulum (onboarding) durumu ve tamamlama (USER-09)
 
-Durum: IMPLEMENTED (kod derlendi; testler sona ertelendi)
+Durum: IMPLEMENTED
 Sorumlu: Kerem
 Tüketici servisler: Frontend
 
@@ -1524,11 +1524,11 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-NOT IMPLEMENTED (kod derlendi; testler tüm fazlar bitince toplu yazılacak).
+UNIT + INTEGRATION (`PreferenceOnboardingTest` 11).
 
 ### USER — Bağlı hesaplar: Steam (USER-07/08)
 
-Durum: IMPLEMENTED (kod derlendi; testler sona ertelendi). Auth tarafı (bağlama/kaldırma ucu ve olaylar) PENDING (T4).
+Durum: IMPLEMENTED. Auth tarafı (bağlama/kaldırma ucu ve olaylar) PENDING (T4).
 Sorumlu: Kerem
 Tüketici servisler: Frontend
 
@@ -1580,7 +1580,7 @@ Diğer mikroservisler:
 Auth: `ExternalIdentityLinked/Unlinked` olayları (T4, henüz yayınlanmıyor)
 
 #### Test Durumu
-NOT IMPLEMENTED (kod derlendi, mevcut 201 test geçti; testler tüm fazlar bitince toplu yazılacak).
+INTEGRATION (`LinkedAccountTest` 11, `AccountErasureTest` tohumu).
 
 ## MAIL
 

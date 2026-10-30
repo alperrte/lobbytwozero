@@ -325,6 +325,11 @@ class AccountErasureTest extends IntegrationTestSupport {
         befriend(newUser(), account);
         block(account, newUser());
         block(newUser(), account);
+        jdbc.update("insert into user_preferences (user_id, locale, theme, reduced_motion, compact_layout, updated_at) "
+                + "values (?, 'en', 'DARK', false, false, now())", account);
+        jdbc.update("insert into linked_accounts (id, user_id, provider, external_id, active, linked_at, changed_at) "
+                + "values (?, ?, 'STEAM', '7656119' || lpad(floor(random() * 1e10)::bigint::text, 10, '0'), true, "
+                + "now(), now())", UUID.randomUUID(), account);
         jdbc.update("insert into profile_counters (user_id, review_count, review_changed_at) values (?, 3, now())",
                 account);
         assertThat(rowsOf(account)).isPositive();
@@ -347,7 +352,9 @@ class AccountErasureTest extends IntegrationTestSupport {
                      + (select count(*) from privacy_settings where user_id = ?::uuid)
                      + (select count(*) from social_friendships where user_low_id = ?::uuid or user_high_id = ?::uuid)
                      + (select count(*) from social_blocks where blocker_id = ?::uuid or blocked_id = ?::uuid)
-                     + (select count(*) from profile_counters where user_id = ?::uuid)""", Integer.class,
-                id, id, id, id, id, id, id, id);
+                     + (select count(*) from profile_counters where user_id = ?::uuid)
+                     + (select count(*) from user_preferences where user_id = ?::uuid)
+                     + (select count(*) from linked_accounts where user_id = ?::uuid)""", Integer.class,
+                id, id, id, id, id, id, id, id, id, id);
     }
 }

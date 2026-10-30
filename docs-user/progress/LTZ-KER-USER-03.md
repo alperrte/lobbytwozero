@@ -1,7 +1,7 @@
 # LTZ-KER-USER-03 — Steam Hesap Bağlantısı
 
 Sorumlu: Kerem. Görevler: USER-07, USER-08. Tarih: 2026-10-30.
-Durum: **User tarafı kodu tamamlandı ve derlendi. TESTLER SONA ERTELENDİ.** Auth tarafı (bağlama/kaldırma ucu ve olaylar) bekliyor (T4, [auth-requests-05](../integration/auth/auth-service-talepleri/auth-requests-05.md)).
+Durum: **User tarafı kodu ve testleri tamamlandı (223 test yeşil).** Auth tarafı (bağlama/kaldırma ucu ve olaylar) bekliyor (T4, [auth-requests-05](../integration/auth/auth-service-talepleri/auth-requests-05.md)).
 
 ## Yapılanlar
 

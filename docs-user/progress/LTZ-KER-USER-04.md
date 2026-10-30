@@ -1,7 +1,7 @@
 # LTZ-KER-USER-04 — Onboarding ve Kullanıcı Tercihleri
 
 Sorumlu: Kerem. Görevler: USER-09, USER-10. Tarih: 2026-10-30.
-Durum: **Kod tamamlandı ve derlendi. TESTLER SONA ERTELENDİ** (proje sahibi kararı: testler tüm fazlar bitince toplu yazılacak).
+Durum: **Kod ve testler tamamlandı (223 test yeşil, 2026-10-30).**.
 
 ## Yapılanlar
 
@@ -46,3 +46,8 @@ Aşağıdaki kapsam, tüm fazlar bitince tek seferde yazılacak (Checkstyle: tes
 ## Açık işler
 
 - Testler (yukarıdaki liste), Faz 3 (Steam), Auth talepleri.
+
+## Toplu test fazı (2026-10-30)
+
+Faz 3 ve 4 testleri yazıldı: `PreferenceOnboardingTest` (11), `LinkedAccountTest` (11), `AccountErasureTest` tohumuna
+`user_preferences` ve `linked_accounts` eklendi. Toplam **223 test yeşil**, JaCoCo ~%96, Checkstyle/PMD temiz, `lint-ratchet` yeşil.
