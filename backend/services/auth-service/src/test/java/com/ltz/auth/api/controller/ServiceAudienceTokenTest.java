@@ -78,6 +78,70 @@ class ServiceAudienceTokenTest extends IntegrationTestSupport {
     }
 
     @Test
+    void libraryYalnizUserIcinErisimKarariTokeniAlirKullaniciBagiTasimaz() throws Exception {
+        String body = tokenRequest("library-service", LIBRARY_CLIENT_SECRET, "user-service")
+                .andExpect(status().isOk()).andExpect(jsonPath("$.scope").value("access:decide"))
+                .andReturn().getResponse().getContentAsString();
+        JWTClaimsSet claims = SignedJWT.parse(JsonPath.<String>read(body, "$.accessToken")).getJWTClaimsSet();
+        assertThat(claims.getAudience()).containsExactly("user-service");
+        assertThat(claims.getSubject()).isEqualTo("svc:library-service");
+        assertThat(claims.getClaims()).doesNotContainKeys("roles", "sid", "ver", "amr", "account_id");
+
+        tokenRequest("library-service", LIBRARY_CLIENT_SECRET, "social-service").andExpect(status().isForbidden());
+        tokenRequest("library-service", LIBRARY_CLIENT_SECRET, null).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void userSocialIcinEngelVeArkadaslikSorgusuTokeniAlir() throws Exception {
+        String body = tokenRequest("user-service", USER_CLIENT_SECRET, "social-service")
+                .andExpect(status().isOk()).andExpect(jsonPath("$.scope").value("blocks:check friends:check"))
+                .andReturn().getResponse().getContentAsString();
+        JWTClaimsSet claims = SignedJWT.parse(JsonPath.<String>read(body, "$.accessToken")).getJWTClaimsSet();
+        assertThat(claims.getAudience()).containsExactly("social-service");
+        assertThat(claims.getSubject()).isEqualTo("svc:user-service");
+
+        tokenRequest("user-service", USER_CLIENT_SECRET, "library-service").andExpect(status().isForbidden());
+        // Messaging ve lfp'nin yetkisi genişlemedi: arkadaşlık sorgusu yalnız user'da.
+        tokenRequest("messaging-service", MESSAGING_CLIENT_SECRET, "social-service")
+                .andExpect(jsonPath("$.scope").value("blocks:check"));
+    }
+
+    @Test
+    void recommendationYalnizAktifTekHesabaBagliSinyalTokeniAlir() throws Exception {
+        UUID account = accountId(registerActiveAccount(uniqueEmail(), uniqueUsername()));
+
+        String body = boundTokenRequest(account.toString())
+                .andExpect(status().isOk()).andExpect(jsonPath("$.scope").value("signals:read"))
+                .andReturn().getResponse().getContentAsString();
+        JWTClaimsSet claims = SignedJWT.parse(JsonPath.<String>read(body, "$.accessToken")).getJWTClaimsSet();
+        assertThat(claims.getAudience()).containsExactly("library-service");
+        assertThat(claims.getSubject()).isEqualTo("svc:recommendation-service");
+        assertThat(claims.getStringClaim("account_id")).isEqualTo(account.toString());
+        assertThat(claims.getExpirationTime().getTime() - claims.getIssueTime().getTime()).isEqualTo(60_000L);
+        assertThat(claims.getClaims()).doesNotContainKeys("roles", "sid", "ver", "amr");
+
+        // Hesapsız istek, olmayan hesap, bozuk kimlik ve hesaba bağlı olmayan hedefe hesap eklemek reddedilir.
+        tokenRequest("recommendation-service", RECOMMENDATION_CLIENT_SECRET, "library-service")
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("SERVICE_ACCOUNT_BINDING_INVALID"));
+        boundTokenRequest(UUID.randomUUID().toString())
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("SERVICE_TARGET_ACCOUNT_UNAVAILABLE"));
+        boundTokenRequest("hesap-degil").andExpect(status().isBadRequest());
+        postJson("/internal/v1/service-tokens", "{\"clientId\":\"social-service\",\"clientSecret\":\"%s\",\"audience\":\"community-service\",\"accountId\":\"%s\"}"
+                .formatted(SOCIAL_CLIENT_SECRET, account))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("SERVICE_ACCOUNT_BINDING_INVALID"));
+        tokenRequest("recommendation-service", RECOMMENDATION_CLIENT_SECRET, "user-service").andExpect(status().isForbidden());
+    }
+
+    @Test
+    void askidakiHesapIcinSinyalTokeniVerilmez() throws Exception {
+        UUID account = accountId(registerActiveAccount(uniqueEmail(), uniqueUsername()));
+        jdbc.update("update accounts set status = 'SUSPENDED' where id = ?", account);
+
+        boundTokenRequest(account.toString())
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("SERVICE_TARGET_ACCOUNT_UNAVAILABLE"));
+    }
+
+    @Test
     void izinListesindeOlmayanHedefReddedilirAuthKapsamiSizmaz() throws Exception {
         // social yalnız community'ye yazabilir.
         tokenRequest("social-service", SOCIAL_CLIENT_SECRET, "notification-service")
@@ -120,6 +184,12 @@ class ServiceAudienceTokenTest extends IntegrationTestSupport {
     private List<String> audienceOf(ResultActions result) throws Exception {
         String body = result.andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         return SignedJWT.parse(JsonPath.<String>read(body, "$.accessToken")).getJWTClaimsSet().getAudience();
+    }
+
+    private ResultActions boundTokenRequest(String accountId) throws Exception {
+        return postJson("/internal/v1/service-tokens",
+                "{\"clientId\":\"recommendation-service\",\"clientSecret\":\"%s\",\"audience\":\"library-service\",\"accountId\":\"%s\"}"
+                        .formatted(RECOMMENDATION_CLIENT_SECRET, accountId));
     }
 
     private ResultActions tokenRequest(String clientId, String secret, String audience) throws Exception {

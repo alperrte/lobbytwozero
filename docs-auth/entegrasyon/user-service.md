@@ -18,6 +18,10 @@ User Service profil sahibi, Auth kimlik sahibi. Aralarındaki bağ iki olay (hes
 - [ ] Silme ucu. Profil ve profil görselleri silinir, kimlik bağı kalmaz. Yazılmadıkça User görevi `PENDING`
 - [ ] Karar: kullanıcı adı ve görünen ad **hangi serviste duruyor**. Auth'ta `username` var ve herkese açık. Önerim: Auth kimlik kaynağı, User `userId` ile profil sahibi, kullanıcı adını Auth'tan bir kez alıp kopyalamak yerine her seferinde sormamak için olay ile eşitle
 
+- [ ] Library için erişim karar ucu (LIB-11): Library `aud=user-service`, `sub=svc:library-service`, `scope=access:decide` token'ıyla çağırır. Yanıt yalnız izin/ret/erişilemez; uç biçimi senin. Bkz. `verilen-cevaplar/library-service/talep-01-*` §4.1
+- [ ] Social'a engel ve arkadaşlık sorgusu: `{clientId: "user-service", clientSecret, audience: "social-service"}` → `scope="blocks:check friends:check"`. Ortam `AUTH_USER_SERVICE_CLIENT_SECRET`
+- [ ] Profil sayfasında Library'yi kullanıcı adına çağırırsan (LIB-10) o kullanıcının kendi `at+jwt`'sini ilet; saklama, loglama, arka planda kullanma. Auth kullanıcıyı taşıyan servis token'ı üretmez
+
 ## AUTH'TA BEKLEYEN
 
 - `UserRegistered` olayı (ACTIVE olunca): **Auth'ta hazır** (2026-10-29). Gövde `eventId`, `eventType`, `eventVersion`, `occurredAt`, `producer`, `aggregateId`, `payload`; payload kullanıcı adıdır, e-posta yoktur. Alıcı: `POST /internal/events`, `aud=user-service`, `typ=svc+jwt`, `scope=events:ingest`, `sub=svc:auth-service`. Alıcı uç yazılınca Auth ortamında `ltz.auth.events.targets` listesine `user` eklenir (yeni (çağıran, hedef) çifti gerekmez, Auth kendi adıyla gönderir)
