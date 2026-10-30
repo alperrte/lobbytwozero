@@ -83,7 +83,7 @@ class AuthEventOutboxTest extends IntegrationTestSupport {
         assertThat(rows).extracting(row -> row.get("event_type")).containsOnly("ACCOUNT_STATUS_CHANGED");
         assertThat(rows).extracting(row -> row.get("payload_value")).containsOnly("SUSPENDED");
         assertThat(rows).extracting(row -> row.get("status")).containsOnly("PENDING");
-        assertThat(rows.get(0).get("event_id")).as("aynı olay, ortak eventId").isEqualTo(rows.get(1).get("event_id"));
+        assertThat(rows.get(0)).as("aynı olay, ortak eventId").containsEntry("event_id", rows.get(1).get("event_id"));
     }
 
     @Test
@@ -134,10 +134,10 @@ class AuthEventOutboxTest extends IntegrationTestSupport {
 
         Map<String, Object> community = row(account, "community");
         Map<String, Object> lfp = row(account, "lfp");
-        assertThat(community.get("status")).isEqualTo("DELIVERED");
-        assertThat(lfp.get("status")).isEqualTo("PENDING");
-        assertThat(lfp.get("attempts")).isEqualTo(1);
-        assertThat(lfp.get("last_error")).isEqualTo("EVENT_UNREACHABLE");
+        assertThat(community).containsEntry("status", "DELIVERED");
+        assertThat(lfp).containsEntry("status", "PENDING");
+        assertThat(lfp).containsEntry("attempts", 1);
+        assertThat(lfp).containsEntry("last_error", "EVENT_UNREACHABLE");
         assertThat(((Timestamp) lfp.get("next_attempt_at")).toInstant()).isAfter(Instant.now().plusSeconds(1800));
 
         CapturingServer.Request request = COMMUNITY.requests().stream()
@@ -181,7 +181,7 @@ class AuthEventOutboxTest extends IntegrationTestSupport {
                 .isEqualTo("svc:" + JsonPath.read(request.body(), "$.producer"));
         Map<String, Object> payload = JsonPath.read(request.body(), "$.payload");
         assertThat(payload).containsOnlyKeys("accountId", "status");
-        assertThat(payload.get("status")).isEqualTo("SUSPENDED");
+        assertThat(payload).containsEntry("status", "SUSPENDED");
         assertThat((String) JsonPath.read(request.body(), "$.aggregateId")).isEqualTo(payload.get("accountId"));
     }
 

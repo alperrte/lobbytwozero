@@ -60,7 +60,8 @@ public class PasswordService {
     public void changePassword(UUID accountId, String currentPassword, String newPassword) {
         String throttleKey = hasher.hash(CHANGE_THROTTLE_DOMAIN, accountId.toString());
         attemptThrottle.reserve(throttleKey);
-        Account current = transactionTemplate.execute(status -> accountRepository.findById(accountId).orElse(null));
+        Optional<Account> found = transactionTemplate.execute(status -> accountRepository.findById(accountId));
+        Account current = found.orElse(null);
         String currentHash = current == null ? null : current.passwordHash().orElse(null);
         if (currentHash == null || !passwordEncoder.matches(currentPassword, currentHash)) {
             securityEventRecorder.recordEvent(SecurityEventType.PASSWORD_CHANGE_FAILED, accountId);
@@ -104,13 +105,10 @@ public class PasswordService {
     public void resetPassword(String rawToken, String newPassword) {
         String tokenHash = secureTokens.sha256Hex(rawToken);
         // Çöp token için maliyetli parola hash'i hesaplanmaz.
-        Account owner = transactionTemplate.execute(status -> resetTokenRepository.findByTokenHash(tokenHash)
+        Optional<Account> found = transactionTemplate.execute(status -> resetTokenRepository.findByTokenHash(tokenHash)
                 .filter(t -> t.isUsableAt(clock.instant()))
-                .flatMap(t -> accountRepository.findById(t.getAccountId()))
-                .orElse(null));
-        if (owner == null) {
-            throw invalidToken();
-        }
+                .flatMap(t -> accountRepository.findById(t.getAccountId())));
+        Account owner = found.orElseThrow(this::invalidToken);
         passwordPolicy.require(newPassword, owner.getEmail(), owner.getUsername());
         String newHash = passwordEncoder.encode(newPassword);
         boolean done = Boolean.TRUE.equals(transactionTemplate.execute(status -> applyReset(tokenHash, newHash)));

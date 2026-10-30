@@ -60,7 +60,7 @@ class JwtSigningKeyTest {
         List<Map<String, Object>> keys = (List<Map<String, Object>>) key.publicJwkSet().get("keys");
         assertThat(keys).hasSize(2);
         assertThat(keys.getFirst()).containsEntry("kid", key.keyId());
-        assertThat(keys.getLast().get("kid")).isNotEqualTo(key.keyId());
+        assertThat(keys.getLast()).doesNotContainEntry("kid", key.keyId());
         assertThat(keys).allSatisfy(jwk -> assertThat(jwk)
                 .containsKeys("kty", "n", "e", "kid").doesNotContainKeys("d", "p", "q", "dp", "dq", "qi"));
     }
@@ -73,11 +73,15 @@ class JwtSigningKeyTest {
         generator.initialize(WEAK_KEY_BITS);
         String weakPublic = Base64.getEncoder().encodeToString(generator.generateKeyPair().getPublic().getEncoded());
 
-        assertThatThrownBy(() -> JwtSigningKey.fromBase64Pkcs8(signingPrivate, List.of(weakPublic)))
+        List<String> weakKeys = List.of(weakPublic);
+        List<String> notBase64 = List.of("not base64 $$$");
+        List<String> privateAsPublic = List.of(signingPrivate);
+
+        assertThatThrownBy(() -> JwtSigningKey.fromBase64Pkcs8(signingPrivate, weakKeys))
                 .isInstanceOf(IllegalStateException.class).hasMessageNotContaining(weakPublic).hasNoCause();
-        assertThatThrownBy(() -> JwtSigningKey.fromBase64Pkcs8(signingPrivate, List.of("not base64 $$$")))
+        assertThatThrownBy(() -> JwtSigningKey.fromBase64Pkcs8(signingPrivate, notBase64))
                 .isInstanceOf(IllegalStateException.class).hasNoCause();
-        assertThatThrownBy(() -> JwtSigningKey.fromBase64Pkcs8(signingPrivate, List.of(signingPrivate)))
+        assertThatThrownBy(() -> JwtSigningKey.fromBase64Pkcs8(signingPrivate, privateAsPublic))
                 .isInstanceOf(IllegalStateException.class).hasNoCause();
     }
 }

@@ -22,8 +22,8 @@ class SecurityNotificationTextsTest {
 
         assertThat(subject).contains(" / ").startsWith("LTZ");
         assertThat(body).contains("2026-10-29 10:15 UTC").contains("Bu işlemi siz yapmadıysanız")
-                .contains("If you did not do this");
-        assertThat(body).as("güvenlik bildirimi tıklanacak bağlantı, token veya parola içermez")
+                .contains("If you did not do this")
+                .as("güvenlik bildirimi tıklanacak bağlantı, token veya parola içermez")
                 .doesNotContain("http").doesNotContain("token").doesNotContain("#");
     }
 

@@ -107,7 +107,10 @@ public class PasswordPolicy {
             return raw;
         }
         int wrapped = Math.floorMod(raw, 10);
-        return wrapped == 1 ? 1 : wrapped == 9 ? -1 : 0;
+        if (wrapped == 1) {
+            return 1;
+        }
+        return wrapped == 9 ? -1 : 0;
     }
 
     static String normalize(String value) {

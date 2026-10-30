@@ -54,7 +54,7 @@ class ConsumerContractTest {
     }
 
     @Test
-    void tokenUreticileriKorunur() throws Exception {
+    void tokenUreticileriKorunur() {
         assertThatCode(() -> {
             AccessTokenIssuer.class.getConstructor(JwtEncoder.class, JwtSigningKey.class, JwtProperties.class);
             AccessTokenIssuer.class.getMethod("issue", Account.class, AuthSession.class, Instant.class);
@@ -65,7 +65,7 @@ class ConsumerContractTest {
     }
 
     @Test
-    void hesapVeOturumFabrikalariKorunur() throws Exception {
+    void hesapVeOturumFabrikalariKorunur() {
         assertThatCode(() -> {
             Account.class.getMethod("registerVerifiedExternal", String.class, String.class, Role.class, Instant.class);
             Account.class.getMethod("grantRole", Role.class, Instant.class);
