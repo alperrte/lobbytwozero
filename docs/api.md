@@ -2089,7 +2089,7 @@ INTEGRATION — 3 sinyal/2 sayfa, her iki bayrak, işaretsiz kayıt ve başka ow
 alan azaltma, yüksek offset, parametre sınırları, ret/ulaşılamama/izin iptali ve token ayrımı.
 İzinli senaryolar test görünürlük portuyla sınandı; gerçek Recommendation E2E PENDING.
 
-### LIBRARY — Kütüphane listeleme (LIB-05, LIB-06, LIB-07, LIB-08, LIB-16)
+### LIBRARY — Kütüphane listeleme (LIB-05, LIB-06, LIB-07, LIB-08, LIB-16, LIB-17)
 
 Durum: IMPLEMENTED
 Sorumlu: Hamza
@@ -2115,6 +2115,8 @@ küme batch ile zenginleştirildikten sonra, sayfalama öncesinde sıralanır; y
 Adlar Unicode NFKC + Locale.ROOT küçük harf anahtarıyla karşılaştırılır; eşit adlarda id ASC.
 Eksik adlar her iki yönde en sondadır, kendi aralarında id ASC. Ad sıralamasında herhangi
 bir özet eksikse metadataPartial tüm filtrelenmiş küme üzerinden true olur.
+LIB-17: Son bilinen snapshot adı varsa TITLE sırasına bu ad katılır; metadataSource
+LAST_KNOWN olarak işaretlenir. Hiç bilinen adı olmayanlar en sonda kalır.
 Sonuç dışı sayfa boş items ve doğru totalElements ile 200 döner; metadata HTTP çağrısı
 yapılmaz, metadataPartial=false olur. page hesabı long olduğundan integer çarpım taşması yoktur.
 Liste/toplam aynı yerel snapshot'tandır; ayrı HTTP sayfa istekleri arasında veri değişirse
@@ -2128,10 +2130,19 @@ Yok.
 { "items": [], "page": 0, "size": 20, "totalElements": 0, "metadataPartial": false }
 ```
 items[].entry mevcut LibraryEntryResponse'tur; koleksiyon/favori/bitirildi korunur.
-items[].game: gameId, title, coverUrl, origin, metadataCompleteness, gameType, status.
+items[].game: gameId, title, coverUrl, origin, metadataCompleteness, gameType, status,
+metadataSource, metadataRefreshedAt.
 status: AVAILABLE, UNAVAILABLE veya TEMPORARILY_UNAVAILABLE. Eksik ad/görsel null;
 arşivlenmiş/MERGED/olmayan oyun ayırt edilmez. Koleksiyon kaydı silinmez.
-metadataPartial, gösterilen kayıtlarda bilinmeyen ad veya kullanılamayan özet varsa true'dur.
+metadataSource: LIVE (bu istekte doğrulanan kart), LAST_KNOWN (son bilinen public
+snapshot) veya NONE (snapshot da yok). metadataRefreshedAt, LIVE için bu batch'in
+başarılı gözlem zamanı; LAST_KNOWN için snapshot'ın özgün zamanı; NONE için null'dır.
+Zaman Game sağlayıcısının güncelleme zamanı değildir. LAST_KNOWN metadata güncel katalog
+durumu veya tekrar ekleme izni sayılmaz; status güncel batch sonucunu anlatır.
+Game erişilebilir olsa da title eksikse mevcut snapshot kullanılır; status AVAILABLE,
+metadataSource LAST_KNOWN ve metadataPartial true döner. Snapshot da yoksa alanlar null'dır.
+metadataPartial, bilinmeyen ad, kullanılamayan özet veya LAST_KNOWN kullanımı varsa true'dur;
+TITLE için tüm filtrelenmiş küme, ADDED_AT için dönen sayfa değerlendirilir.
 
 #### Hata Durumları
 - 400: Geçersiz page/size, sınır aşımı, boolean filtre, sort veya direction.
@@ -2151,7 +2162,17 @@ Yerel snapshot ile ayrı Game batch yanıtları arasında dağıtık snapshot ga
 Boş/256 karakterden uzun ad, geçersiz/HTTPS olmayan/2048 karakterden uzun görsel URL'si
 ve tanınmayan opsiyonel enum alanları null döner; sahte metadata üretilmez.
 429/timeout/bozuk yanıt otomatik yeniden denenmez; kişisel token dış servise aktarılmaz.
-Yeni migration veya başka servis DB erişimi yoktur.
+V42__create_game_snapshots.sql yalnız library_db'ye public metadata tablosunu ekler;
+V41 değişmez. Kişisel satırlara veya başka servis DB'sine FK yoktur. Game HTTP çağrısı
+yerel transaction dışında kalır; snapshot okuma/yazma ayrı, kısa yerel transaction'lardır.
+Başarılı ve geçerli title içeren kartlar snapshot'ı yeniler; eksik title, unavailable,
+429/timeout/bozuk yanıt son bilinen kaydı ezmez. Daha eski/eşit gözlem snapshot'ı geri alamaz.
+Snapshot aktif Game doğrulamasını atlatmaz; yeni ekleme/favori/bitirildi PUT hâlâ Game'i
+doğrular. DELETE/işaret geri alma dış katalog gerektirmez. Koleksiyon satırı id/bayrak/
+tarih/version alanları okumadan etkilenmez. Snapshot kullanıcıdan bağımsız public veridir;
+hesap/koleksiyon silinince başka kullanıcıların da yararlanabileceği snapshot silinmez.
+Katalog event tüketimi veya otomatik MERGED kimlik yönlendirmesi eklenmedi; mevcut batch
+sözleşmesi yeni kanonik kimliği/ayrıntılı kullanılamama nedenini sağlamaz.
 
 #### Test Durumu
 UNIT + INTEGRATION — LibraryApiTest.CollectionTests, GameServiceClientTest,
@@ -2161,6 +2182,14 @@ bozuk/eksik/çelişkili yanıtlar, timeout/429 fallback ve kayıtların korunmas
 Faz 3 clean verify: 78 test PASS, LINE %98,84; Checkstyle/PMD 0 ihlal.
 ltz-dev Library/Gateway anonim ve geçersiz kimlik HTTP kontrolleri PASS.
 Pozitif canlı kullanıcı E2E NOT VERIFIED; başka serviste test verisi oluşturulmadı.
+LIB-17 — CatalogResilienceTests gerçek PostgreSQL ve GameServiceClient ile, simüle Game
+HTTP yanıtlarında available→unavailable→timeout→eksik title→yeniden available geçişini;
+snapshot yokluğunu, bozuk batch'i, güvenli mutasyonları, fallback global sırasını,
+eşzamanlı yenilemeyi ve V41→V42 veri korumalı yükseltmesini sınar. Gerçek Game arşivleme
+E2E'si değildir. LibraryGameSummariesTest sonraki atlanan batch'lerin snapshot fallback'ini sınar.
+Faz 5 clean verify: 100 PASS, LINE %99,09; Checkstyle/PMD 0 ihlal. ltz-dev V42
+uygulaması ve 34 HTTP sağlık/güvenlik/public Game batch kontrolü PASS; pozitif canlı
+snapshot/arşivleme akışı NOT VERIFIED.
 
 ### LIBRARY — Kütüphane istatistikleri (LIB-09)
 

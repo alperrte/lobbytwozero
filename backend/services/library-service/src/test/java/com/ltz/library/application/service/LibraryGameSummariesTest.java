@@ -22,8 +22,13 @@ import static org.mockito.Mockito.times;
 class LibraryGameSummariesTest {
     private GameCatalogPort catalog;
     private LibraryGameSummaries summaries;
+    private GameSnapshotService snapshots;
 
-    @BeforeEach void setup() { catalog = mock(GameCatalogPort.class); summaries = new LibraryGameSummaries(catalog); }
+    @BeforeEach void setup() {
+        catalog = mock(GameCatalogPort.class);
+        snapshots = mock(GameSnapshotService.class);
+        summaries = new LibraryGameSummaries(catalog, snapshots);
+    }
 
     @Test void fiftyGamesUseOneBatchAndLargerRequestsUseOnlyBoundedChunks() {
         when(catalog.summaries(anyList())).thenAnswer(invocation -> available(invocation.getArgument(0)));
@@ -68,6 +73,24 @@ class LibraryGameSummariesTest {
     }
 
     private static List<UUID> ids(int count) { return IntStream.range(0, count).mapToObj(i -> UUID.randomUUID()).toList(); }
+
+    @Test void snapshotFallbackAlsoCoversBatchesSkippedAfterFirstTransientFailure() {
+        var ids = ids(121);
+        var refreshed = java.time.Instant.parse("2026-10-30T12:00:00Z");
+        when(snapshots.read(anyList())).thenAnswer(call -> {
+            List<UUID> batch = call.getArgument(0);
+            return batch.stream().collect(java.util.stream.Collectors.toMap(id -> id,
+                    id -> new com.ltz.library.domain.entity.GameSnapshot(id, "Last known", null, "EXTERNAL", "PARTIAL", "MAIN_GAME", "AVAILABLE", refreshed, 0)));
+        });
+        when(catalog.summaries(anyList())).thenThrow(new CatalogUnavailableException());
+        var result = summaries.resolve(ids);
+        assertEquals(121, result.size());
+        org.junit.jupiter.api.Assertions.assertTrue(result.values().stream().allMatch(card -> "Last known".equals(card.title())
+                && card.metadataSource() == com.ltz.library.domain.enums.GameMetadataSource.LAST_KNOWN
+                && card.status() == GameSummaryStatus.TEMPORARILY_UNAVAILABLE && refreshed.equals(card.metadataRefreshedAt())));
+        verify(catalog).summaries(anyList());
+        verify(snapshots, times(3)).read(anyList());
+    }
 
     private static Map<UUID, GameSummary> available(List<UUID> ids) {
         return ids.stream().collect(java.util.stream.Collectors.toMap(id -> id,

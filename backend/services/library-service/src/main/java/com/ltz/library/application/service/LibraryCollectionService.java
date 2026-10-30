@@ -64,6 +64,7 @@ public class LibraryCollectionService {
     }
 
     private static boolean partial(List<LibraryCollectionItemResponse> items) {
-        return items.stream().anyMatch(item -> item.game().status() != GameSummaryStatus.AVAILABLE || item.game().title() == null);
+        return items.stream().anyMatch(item -> item.game().status() != GameSummaryStatus.AVAILABLE || item.game().title() == null
+                || item.game().metadataSource() == com.ltz.library.domain.enums.GameMetadataSource.LAST_KNOWN);
     }
 }

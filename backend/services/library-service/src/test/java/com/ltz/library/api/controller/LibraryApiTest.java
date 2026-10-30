@@ -79,6 +79,7 @@ class LibraryApiTest {
         requireTestDatabase(jdbc.queryForObject("SELECT current_database()", String.class),
                 jdbc.queryForObject("SELECT current_user", String.class));
         jdbc.update("DELETE FROM library_entries");
+        jdbc.update("DELETE FROM game_snapshots");
         mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
     }
     @AfterAll static void stop() { JWKS.stop(0); }
@@ -783,6 +784,220 @@ class LibraryApiTest {
             assertEquals(60, count());
         }
 
+    }
+
+    @org.junit.jupiter.api.Nested
+    class CatalogResilienceTests {
+        private org.springframework.test.web.client.MockRestServiceServer http;
+        private com.ltz.library.infrastructure.client.GameServiceClient client;
+
+        @BeforeEach void realCatalogAdapter() {
+            var builder = org.springframework.web.client.RestClient.builder();
+            http = org.springframework.test.web.client.MockRestServiceServer.bindTo(builder).build();
+            client = new com.ltz.library.infrastructure.client.GameServiceClient(builder, "http://catalog.test");
+            org.mockito.Mockito.when(catalog.summaries(org.mockito.ArgumentMatchers.anyList())).thenAnswer(call -> {
+                org.junit.jupiter.api.Assertions.assertFalse(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive());
+                return client.summaries(call.getArgument(0));
+            });
+            org.mockito.Mockito.doAnswer(call -> { client.requireAvailable(call.getArgument(0)); return null; })
+                    .when(catalog).requireAvailable(org.mockito.ArgumentMatchers.any());
+            jdbc.update("INSERT INTO library_entries(id,user_id,game_id,favorite,completed) VALUES (?,?,?,true,true)", UUID.randomUUID(), USER, GAME);
+        }
+
+        private void response(String body) {
+            http.reset();
+            http.expect(org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo("http://catalog.test/api/v1/game/games/batch"))
+                    .andExpect(org.springframework.test.web.client.match.MockRestRequestMatchers.headerDoesNotExist("Authorization"))
+                    .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess(body, MediaType.APPLICATION_JSON));
+        }
+
+        private String card(String title) {
+            return "{\"items\":[{\"gameId\":\"" + GAME + "\",\"title\":" + title
+                    + ",\"coverUrl\":\"https://cdn.example.test/cover.jpg\",\"origin\":\"EXTERNAL\",\"metadataCompleteness\":\"FULL\",\"gameType\":\"MAIN_GAME\"}],\"unavailable\":[]}";
+        }
+
+        private String unavailable() { return "{\"items\":[],\"unavailable\":[\"" + GAME + "\"]}"; }
+
+        private org.springframework.test.web.servlet.ResultActions read(String query) throws Exception {
+            return mvc.perform(get("/api/v1/library/entries" + query).header("Authorization", "Bearer " + token(USER, List.of("PLAYER"))));
+        }
+
+        @Test void lastKnownMetadataSurvivesArchiveOutageMissingTitleAndRecoveryWithoutChangingHistory() throws Exception {
+            var before = jdbc.queryForMap("SELECT * FROM library_entries WHERE user_id=?", USER);
+            response(card("\"Original\""));
+            read("").andExpect(status().isOk()).andExpect(jsonPath("$.items[0].game.metadataSource").value("LIVE"))
+                    .andExpect(jsonPath("$.metadataPartial").value(false));
+            http.verify();
+            var stored = jdbc.queryForMap("SELECT * FROM game_snapshots WHERE game_id=?", GAME);
+            response(unavailable());
+            read("?sort=TITLE&direction=ASC").andExpect(status().isOk())
+                    .andExpect(jsonPath("$.items[0].game.status").value("UNAVAILABLE"))
+                    .andExpect(jsonPath("$.items[0].game.title").value("Original"))
+                    .andExpect(jsonPath("$.items[0].game.metadataSource").value("LAST_KNOWN"))
+                    .andExpect(jsonPath("$.items[0].game.metadataRefreshedAt").isNotEmpty())
+                    .andExpect(jsonPath("$.metadataPartial").value(true));
+            http.verify();
+            http.reset();
+            http.expect(org.springframework.test.web.client.match.MockRestRequestMatchers.anything())
+                    .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators.withException(new java.net.SocketTimeoutException("test timeout")));
+            read("").andExpect(status().isOk()).andExpect(jsonPath("$.items[0].game.status").value("TEMPORARILY_UNAVAILABLE"))
+                    .andExpect(jsonPath("$.items[0].game.title").value("Original"));
+            http.verify();
+            response(card("null"));
+            read("").andExpect(status().isOk()).andExpect(jsonPath("$.items[0].game.status").value("AVAILABLE"))
+                    .andExpect(jsonPath("$.items[0].game.metadataSource").value("LAST_KNOWN"))
+                    .andExpect(jsonPath("$.metadataPartial").value(true));
+            http.verify();
+            assertEquals(stored, jdbc.queryForMap("SELECT * FROM game_snapshots WHERE game_id=?", GAME));
+            response(card("\"Renamed\""));
+            read("").andExpect(status().isOk()).andExpect(jsonPath("$.items[0].game.title").value("Renamed"))
+                    .andExpect(jsonPath("$.items[0].game.metadataSource").value("LIVE"));
+            http.verify();
+            assertEquals(before, jdbc.queryForMap("SELECT * FROM library_entries WHERE user_id=?", USER));
+            assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM game_snapshots", Integer.class));
+        }
+
+        @Test void firstSeenUnavailableGameUsesExplicitEmptyFallbackAndNoSnapshot() throws Exception {
+            response(unavailable());
+            read("").andExpect(status().isOk()).andExpect(jsonPath("$.items[0].game.title").isEmpty())
+                    .andExpect(jsonPath("$.items[0].game.status").value("UNAVAILABLE"))
+                    .andExpect(jsonPath("$.items[0].game.metadataSource").value("NONE"))
+                    .andExpect(jsonPath("$.items[0].game.metadataRefreshedAt").isEmpty())
+                    .andExpect(jsonPath("$.items[0].entry.favorite").value(true))
+                    .andExpect(jsonPath("$.items[0].entry.completed").value(true));
+            http.verify();
+            assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM game_snapshots", Integer.class));
+            assertEquals(1, count());
+        }
+
+        @Test void invalidBatchDoesNotPoisonSnapshotOrMakeArchivedGameWritable() throws Exception {
+            response(card("\"Known\"")); read("").andExpect(status().isOk()); http.verify();
+            var before = jdbc.queryForMap("SELECT * FROM library_entries");
+            var snapshot = jdbc.queryForMap("SELECT * FROM game_snapshots");
+            response("{\"items\":[{\"gameId\":\"" + UUID.randomUUID() + "\",\"title\":\"Wrong\"}],\"unavailable\":[]}");
+            read("").andExpect(status().isOk()).andExpect(jsonPath("$.items[0].game.title").value("Known"))
+                    .andExpect(jsonPath("$.items[0].game.status").value("TEMPORARILY_UNAVAILABLE"));
+            http.verify();
+            String bearer = token(USER, List.of("PLAYER"));
+            for (String action : List.of("collect", "favorite", "completed")) {
+                response(unavailable());
+                if (action.equals("collect")) add(bearer, "{\"gameId\":\"" + GAME + "\"}").andExpect(status().isNotFound());
+                else mark(bearer, action).andExpect(status().isNotFound());
+                http.verify();
+            }
+            assertEquals(before, jdbc.queryForMap("SELECT * FROM library_entries"));
+            assertEquals(snapshot, jdbc.queryForMap("SELECT * FROM game_snapshots"));
+        }
+
+        @Test void archivedEntryCanBeUnmarkedAndRemovedWithoutCatalogOrOtherOwnerLoss() throws Exception {
+            UUID other = UUID.randomUUID();
+            jdbc.update("INSERT INTO library_entries(id,user_id,game_id,favorite,completed) VALUES (?,?,?,true,true)", UUID.randomUUID(), other, GAME);
+            String bearer = token(USER, List.of("PLAYER"));
+            clear(bearer, "favorite").andExpect(status().isNoContent());
+            listed(bearer, "completed", "").andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                    .andExpect(jsonPath("$.items[0].favorite").value(false));
+            clear(bearer, "completed").andExpect(status().isNoContent());
+            mvc.perform(get("/api/v1/library/entries/statistics").header("Authorization", "Bearer " + bearer))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.totalGames").value(1))
+                    .andExpect(jsonPath("$.favoriteGames").value(0)).andExpect(jsonPath("$.completedGames").value(0));
+            for (int i = 0; i < 2; i++) mvc.perform(delete("/api/v1/library/entries/" + GAME).header("Authorization", "Bearer " + bearer))
+                    .andExpect(status().isNoContent());
+            assertEquals(1, count());
+            assertEquals(other, jdbc.queryForObject("SELECT user_id FROM library_entries", UUID.class));
+            verifyNoInteractions(catalog);
+            http.verify();
+        }
+
+        @Test void snapshotRefreshIgnoresOlderObservationsAndMissingTitles() {
+            var snapshots = context.getBean(com.ltz.library.application.service.GameSnapshotService.class);
+            Instant newer = Instant.parse("2026-10-30T12:00:01Z");
+            var current = new com.ltz.library.application.port.GameSummary(GAME, "Newer", null, "INTERNAL", "FULL", "MAIN_GAME");
+            snapshots.remember(List.of(current), newer);
+            snapshots.remember(List.of(new com.ltz.library.application.port.GameSummary(GAME, "Older", null, null, null, null)), newer.minusSeconds(1));
+            snapshots.remember(List.of(new com.ltz.library.application.port.GameSummary(GAME, null, null, null, null, null)), newer.plusSeconds(1));
+            var saved = snapshots.read(List.of(GAME)).get(GAME);
+            assertEquals("Newer", saved.getTitle());
+            assertEquals(newer, saved.getRefreshedAt());
+            assertEquals(0, saved.getVersion());
+            assertEquals(java.util.Map.of(), snapshots.read(List.of()));
+        }
+
+        @Test void v41UpgradePreservesExistingCollectionAndCreatesOnlyPublicSnapshotTable() {
+            var datasource = context.getBean(javax.sql.DataSource.class);
+            try {
+                var flyway = org.flywaydb.core.Flyway.configure().dataSource(datasource).defaultSchema("phase5_upgrade")
+                        .locations("classpath:db/migration").target("41").load();
+                flyway.migrate();
+                jdbc.update("INSERT INTO phase5_upgrade.library_entries(id,user_id,game_id,favorite,completed) VALUES (?,?,?,true,true)", UUID.randomUUID(), USER, GAME);
+                var original = jdbc.queryForMap("SELECT * FROM phase5_upgrade.library_entries");
+                org.flywaydb.core.Flyway.configure().dataSource(datasource).defaultSchema("phase5_upgrade")
+                        .locations("classpath:db/migration").load().migrate();
+                assertEquals(original, jdbc.queryForMap("SELECT * FROM phase5_upgrade.library_entries"));
+                assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM phase5_upgrade.game_snapshots", Integer.class));
+                org.junit.jupiter.api.Assertions.assertThrows(org.springframework.dao.DataIntegrityViolationException.class,
+                        () -> jdbc.update("INSERT INTO phase5_upgrade.game_snapshots(game_id,title,refreshed_at,version) VALUES (?, 'Valid', CURRENT_TIMESTAMP, -1)", GAME));
+            } finally { jdbc.execute("DROP SCHEMA IF EXISTS phase5_upgrade CASCADE"); }
+        }
+
+        @Test void fallbackTitlesParticipateInGlobalSortingAndUnknownTitlesStayLast() throws Exception {
+            UUID alpha = UUID.randomUUID();
+            UUID unknown = UUID.randomUUID();
+            for (UUID id : List.of(alpha, unknown)) jdbc.update("INSERT INTO library_entries(id,user_id,game_id) VALUES (?,?,?)", UUID.randomUUID(), USER, id);
+            var snapshots = context.getBean(com.ltz.library.application.service.GameSnapshotService.class);
+            snapshots.remember(List.of(new com.ltz.library.application.port.GameSummary(GAME, "Zulu", null, null, null, null),
+                    new com.ltz.library.application.port.GameSummary(alpha, "Alpha", null, null, null, null)), Instant.now());
+            for (String direction : List.of("ASC", "DESC")) {
+                response("{\"items\":[],\"unavailable\":[\"" + GAME + "\",\"" + alpha + "\",\"" + unknown + "\"]}");
+                read("?sort=TITLE&direction=" + direction + "&size=1").andExpect(status().isOk())
+                        .andExpect(jsonPath("$.items[0].game.title").value(direction.equals("ASC") ? "Alpha" : "Zulu"))
+                        .andExpect(jsonPath("$.totalElements").value(3)).andExpect(jsonPath("$.metadataPartial").value(true));
+                http.verify();
+                response("{\"items\":[],\"unavailable\":[\"" + GAME + "\",\"" + alpha + "\",\"" + unknown + "\"]}");
+                read("?sort=TITLE&direction=" + direction + "&size=1&page=2").andExpect(status().isOk())
+                        .andExpect(jsonPath("$.items[0].game.gameId").value(unknown.toString()))
+                        .andExpect(jsonPath("$.items[0].game.metadataSource").value("NONE"));
+                http.verify();
+            }
+            assertEquals(3, count());
+        }
+
+        @Test void concurrentSnapshotRefreshKeepsMostRecentObservedMetadata() throws Exception {
+            var snapshots = context.getBean(com.ltz.library.application.service.GameSnapshotService.class);
+            Instant base = Instant.parse("2026-10-30T12:00:00Z");
+            try (var workers = java.util.concurrent.Executors.newFixedThreadPool(6)) {
+                var tasks = new java.util.ArrayList<java.util.concurrent.Callable<Void>>();
+                for (int i = 0; i < 16; i++) {
+                    int sequence = i;
+                    tasks.add(() -> {
+                        snapshots.remember(List.of(new com.ltz.library.application.port.GameSummary(GAME, "Observed " + sequence, null, null, null, null)),
+                                base.plusSeconds(sequence));
+                        return null;
+                    });
+                }
+                for (var future : workers.invokeAll(tasks)) future.get(15, java.util.concurrent.TimeUnit.SECONDS);
+            }
+            var saved = snapshots.read(List.of(GAME)).get(GAME);
+            assertEquals("Observed 15", saved.getTitle());
+            assertEquals(base.plusSeconds(15), saved.getRefreshedAt());
+            assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM game_snapshots", Integer.class));
+        }
+
+        @Test void accountErasurePreservesSharedPublicMetadataAndOtherOwnersCollection() throws Exception {
+            UUID other = UUID.randomUUID();
+            jdbc.update("INSERT INTO library_entries(id,user_id,game_id,favorite,completed) VALUES (?,?,?,true,true)", UUID.randomUUID(), other, GAME);
+            var snapshots = context.getBean(com.ltz.library.application.service.GameSnapshotService.class);
+            snapshots.remember(List.of(new com.ltz.library.application.port.GameSummary(GAME, "Public title", null, null, null, null)), Instant.now());
+            var saved = jdbc.queryForMap("SELECT * FROM game_snapshots");
+            Instant now = Instant.now();
+            String bearer = sign(new JWTClaimsSet.Builder().issuer("ltz-auth").audience("library-service").subject("svc:auth-service")
+                    .issueTime(Date.from(now)).notBeforeTime(Date.from(now)).expirationTime(Date.from(now.plusSeconds(30)))
+                    .jwtID(UUID.randomUUID().toString()).claim("scope", "account:erase").claim("account_id", USER.toString()), "svc+jwt");
+            mvc.perform(delete("/internal/v1/accounts/" + USER).header("Authorization", "Bearer " + bearer)).andExpect(status().isNoContent());
+            assertEquals(1, count());
+            assertEquals(other, jdbc.queryForObject("SELECT user_id FROM library_entries", UUID.class));
+            assertEquals(saved, jdbc.queryForMap("SELECT * FROM game_snapshots"));
+            verifyNoInteractions(catalog);
+        }
     }
 
     @org.junit.jupiter.api.Nested
