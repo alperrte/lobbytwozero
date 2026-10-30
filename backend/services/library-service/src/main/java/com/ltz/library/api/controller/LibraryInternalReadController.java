@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/internal/v1/library/users/{userId}")
 public class LibraryInternalReadController {
+    private static final String VIEWER_REQUIRED = "Doğrulanmış görüntüleyen zorunludur.";
     private final LibrarySharedReadService reads;
     public LibraryInternalReadController(LibrarySharedReadService reads) { this.reads = reads; }
 
@@ -58,9 +59,11 @@ public class LibraryInternalReadController {
             try {
                 UUID id = UUID.fromString(value);
                 if (id.toString().equals(value)) return id;
-            } catch (IllegalArgumentException ignored) { /* ret */ }
+            } catch (IllegalArgumentException _) {
+                throw new AccessDeniedException(VIEWER_REQUIRED);
+            }
         }
-        throw new AccessDeniedException("Doğrulanmış görüntüleyen zorunludur.");
+        throw new AccessDeniedException(VIEWER_REQUIRED);
     }
 
     private static <T> ResponseEntity<T> response(T body) { return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(body); }

@@ -36,6 +36,9 @@ import org.springframework.web.context.WebApplicationContext;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -566,7 +569,7 @@ class LibraryApiTest {
             fixture("00000000-0000-4000-8000-000000000002", USER, true, true);
             fixture("00000000-0000-4000-8000-000000000003", UUID.randomUUID(), true, false);
             UUID known = jdbc.queryForObject("SELECT game_id FROM library_entries WHERE id='00000000-0000-4000-8000-000000000002'", UUID.class);
-            org.mockito.Mockito.when(catalog.summaries(org.mockito.ArgumentMatchers.anyList())).thenReturn(java.util.Map.of(known,
+            when(catalog.summaries(org.mockito.ArgumentMatchers.anyList())).thenReturn(java.util.Map.of(known,
                     new com.ltz.library.application.port.GameSummary(known, "Example", "https://cdn.example.test/cover.jpg", "EXTERNAL", "INDEX_ONLY", "MAIN_GAME")));
             mvc.perform(get("/api/v1/library/entries").header("Authorization", "Bearer " + token(USER, List.of("PLAYER"))))
                     .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(2))
@@ -576,13 +579,13 @@ class LibraryApiTest {
                     .andExpect(jsonPath("$.items[0].entry.completed").value(true))
                     .andExpect(jsonPath("$.items[1].game.status").value("UNAVAILABLE"))
                     .andExpect(jsonPath("$.metadataPartial").value(true));
-            org.mockito.Mockito.verify(catalog).summaries(org.mockito.ArgumentMatchers.argThat(ids -> ids.size() == 2));
+            verify(catalog).summaries(org.mockito.ArgumentMatchers.argThat(ids -> ids.size() == 2));
             assertEquals(3, count());
         }
 
         @Test void collectionSurvivesCatalogOutageAndCallsCatalogOutsideDatabaseTransaction() throws Exception {
             fixture("00000000-0000-4000-8000-000000000001", USER, true, true);
-            org.mockito.Mockito.when(catalog.summaries(org.mockito.ArgumentMatchers.anyList())).thenAnswer(invocation -> {
+            when(catalog.summaries(org.mockito.ArgumentMatchers.anyList())).thenAnswer(invocation -> {
                 org.junit.jupiter.api.Assertions.assertFalse(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive());
                 throw new CatalogUnavailableException();
             });
@@ -634,7 +637,7 @@ class LibraryApiTest {
                 UUID id = (UUID) rows.get(i).get("game_id");
                 cards.put(id, new com.ltz.library.application.port.GameSummary(id, titles[i], null, "INTERNAL", "INDEX_ONLY", "MAIN_GAME"));
             }
-            org.mockito.Mockito.when(catalog.summaries(org.mockito.ArgumentMatchers.anyList())).thenReturn(cards);
+            when(catalog.summaries(org.mockito.ArgumentMatchers.anyList())).thenReturn(cards);
             String bearer = token(USER, List.of("PLAYER"));
             collectionGet(bearer, "?sort=TITLE&direction=ASC&size=1").andExpect(status().isOk())
                     .andExpect(jsonPath("$.items[0].entry.id").value(rows.get(1).get("id").toString()))
@@ -648,8 +651,8 @@ class LibraryApiTest {
                         .andExpect(jsonPath("$.items[0].game.title").doesNotExist()).andExpect(jsonPath("$.totalElements").value(4));
             collectionGet(bearer, "?sort=TITLE&favorite=true").andExpect(status().isOk())
                     .andExpect(jsonPath("$.totalElements").value(3)).andExpect(jsonPath("$.metadataPartial").value(false));
-            org.mockito.Mockito.verify(catalog, org.mockito.Mockito.times(5)).summaries(org.mockito.ArgumentMatchers.argThat(ids -> ids.size() == 4));
-            org.mockito.Mockito.verify(catalog).summaries(org.mockito.ArgumentMatchers.argThat(ids -> ids.size() == 3));
+            verify(catalog, times(5)).summaries(org.mockito.ArgumentMatchers.argThat(ids -> ids.size() == 4));
+            verify(catalog).summaries(org.mockito.ArgumentMatchers.argThat(ids -> ids.size() == 3));
         }
 
         @Test void collectionSortsAddedTimeInBothDirectionsAndDoesNotGuessNamesDuringOutage() throws Exception {
@@ -661,7 +664,7 @@ class LibraryApiTest {
                     .andExpect(jsonPath("$.items[0].entry.id").value("00000000-0000-4000-8000-000000000002"));
             collectionGet(bearer, "?sort=ADDED_AT&direction=DESC&size=1").andExpect(status().isOk())
                     .andExpect(jsonPath("$.items[0].entry.id").value("00000000-0000-4000-8000-000000000001"));
-            org.mockito.Mockito.when(catalog.summaries(org.mockito.ArgumentMatchers.anyList())).thenThrow(new CatalogUnavailableException());
+            when(catalog.summaries(org.mockito.ArgumentMatchers.anyList())).thenThrow(new CatalogUnavailableException());
             collectionGet(bearer, "?sort=TITLE&direction=DESC").andExpect(status().isOk())
                     .andExpect(jsonPath("$.items[0].entry.id").value("00000000-0000-4000-8000-000000000001"))
                     .andExpect(jsonPath("$.metadataPartial").value(true)).andExpect(jsonPath("$.totalElements").value(2));
@@ -765,7 +768,7 @@ class LibraryApiTest {
             var titles = new java.util.HashMap<UUID, String>();
             var rows = jdbc.queryForList("SELECT id,game_id FROM library_entries ORDER BY id");
             for (int i = 0; i < rows.size(); i++) titles.put((UUID) rows.get(i).get("game_id"), String.format("Game %03d", 60 - i));
-            org.mockito.Mockito.when(catalog.summaries(org.mockito.ArgumentMatchers.anyList())).thenAnswer(invocation -> {
+            when(catalog.summaries(org.mockito.ArgumentMatchers.anyList())).thenAnswer(invocation -> {
                 org.junit.jupiter.api.Assertions.assertFalse(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive());
                 List<UUID> ids = invocation.getArgument(0);
                 return ids.stream().collect(java.util.stream.Collectors.toMap(id -> id,
@@ -774,13 +777,13 @@ class LibraryApiTest {
             String bearer = token(USER, List.of("PLAYER"));
             collectionGet(bearer, "?size=50").andExpect(status().isOk())
                     .andExpect(jsonPath("$.items.length()").value(50)).andExpect(jsonPath("$.totalElements").value(60));
-            org.mockito.Mockito.verify(catalog).summaries(org.mockito.ArgumentMatchers.argThat(ids -> ids.size() == 50));
+            verify(catalog).summaries(org.mockito.ArgumentMatchers.argThat(ids -> ids.size() == 50));
             org.mockito.Mockito.clearInvocations(catalog);
             collectionGet(bearer, "?favorite=true&sort=TITLE&direction=DESC&size=1").andExpect(status().isOk())
                     .andExpect(jsonPath("$.items[0].entry.id").value(rows.getFirst().get("id").toString()))
                     .andExpect(jsonPath("$.items[0].game.title").value("Game 060"))
                     .andExpect(jsonPath("$.totalElements").value(60));
-            org.mockito.Mockito.verify(catalog, org.mockito.Mockito.times(2)).summaries(org.mockito.ArgumentMatchers.anyList());
+            verify(catalog, times(2)).summaries(org.mockito.ArgumentMatchers.anyList());
             assertEquals(60, count());
         }
 
@@ -795,7 +798,7 @@ class LibraryApiTest {
             var builder = org.springframework.web.client.RestClient.builder();
             http = org.springframework.test.web.client.MockRestServiceServer.bindTo(builder).build();
             client = new com.ltz.library.infrastructure.client.GameServiceClient(builder, "http://catalog.test");
-            org.mockito.Mockito.when(catalog.summaries(org.mockito.ArgumentMatchers.anyList())).thenAnswer(call -> {
+            when(catalog.summaries(org.mockito.ArgumentMatchers.anyList())).thenAnswer(call -> {
                 org.junit.jupiter.api.Assertions.assertFalse(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive());
                 return client.summaries(call.getArgument(0));
             });
@@ -1006,7 +1009,7 @@ class LibraryApiTest {
         private static final String INTERNAL = "/internal/v1/library/users/";
 
         private void decision(com.ltz.library.domain.enums.LibraryAccessDecision value) {
-            org.mockito.Mockito.when(visibility.decide(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+            when(visibility.decide(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
                     org.mockito.ArgumentMatchers.any())).thenReturn(value);
         }
 
@@ -1052,7 +1055,7 @@ class LibraryApiTest {
             }
             decision(null);
             read(PUBLIC + USER + "/entries/statistics", bearer).andExpect(status().isServiceUnavailable());
-            org.mockito.Mockito.when(visibility.decide(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+            when(visibility.decide(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
                     org.mockito.ArgumentMatchers.any())).thenThrow(new IllegalStateException("internal-policy-detail"));
             read(PUBLIC + USER + "/entries", bearer).andExpect(status().isServiceUnavailable())
                     .andExpect(jsonPath("$.detail").value("Erişim kararı geçici olarak alınamıyor."));
@@ -1066,7 +1069,7 @@ class LibraryApiTest {
             decision(com.ltz.library.domain.enums.LibraryAccessDecision.ALLOW);
             read(PUBLIC + USER + "/entries/statistics?viewerId=" + USER, token(viewer, List.of("PLAYER")))
                     .andExpect(status().isOk()).andExpect(jsonPath("$.totalGames").value(1)).andExpect(jsonPath("$.favoriteGames").value(0));
-            org.mockito.Mockito.verify(visibility).decide(USER, viewer, com.ltz.library.domain.enums.LibraryAccessPurpose.PROFILE);
+            verify(visibility).decide(USER, viewer, com.ltz.library.domain.enums.LibraryAccessPurpose.PROFILE);
             read(PUBLIC + USER + "/entries", token(viewer, List.of("PLAYER")))
                     .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
                     .andExpect(jsonPath("$.items[0].entry.favorite").value(false));
@@ -1096,7 +1099,7 @@ class LibraryApiTest {
                     service("svc:user-service", scope).claim("viewer_id", "1-1-1-1-1"))) {
                 read(route, sign(invalid, "svc+jwt")).andExpect(status().isForbidden());
             }
-            org.mockito.Mockito.verify(visibility, org.mockito.Mockito.times(2)).decide(org.mockito.ArgumentMatchers.any(),
+            verify(visibility, times(2)).decide(org.mockito.ArgumentMatchers.any(),
                     org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
         }
 
@@ -1128,7 +1131,7 @@ class LibraryApiTest {
             read(route + "?size=2&page=1", bearer).andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(1));
             read(route + "?page=2147483647", bearer).andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(0));
             verifyNoInteractions(catalog);
-            org.mockito.Mockito.verify(visibility, org.mockito.Mockito.times(3)).decide(USER, USER,
+            verify(visibility, times(3)).decide(USER, USER,
                     com.ltz.library.domain.enums.LibraryAccessPurpose.RECOMMENDATION);
         }
 

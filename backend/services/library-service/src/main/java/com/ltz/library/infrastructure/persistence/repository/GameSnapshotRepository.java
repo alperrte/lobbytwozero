@@ -19,11 +19,14 @@ public class GameSnapshotRepository {
 
     public Map<UUID, GameSnapshot> find(List<UUID> ids) {
         if (ids.isEmpty()) return Map.of();
-        String parameters = String.join(",", java.util.Collections.nCopies(ids.size(), "?"));
-        return jdbc.query("SELECT * FROM game_snapshots WHERE game_id IN (" + parameters + ")", (rs, row) ->
+        return jdbc.query(connection -> {
+            var statement = connection.prepareStatement("SELECT * FROM game_snapshots WHERE game_id = ANY (?)");
+            statement.setArray(1, connection.createArrayOf("uuid", ids.toArray()));
+            return statement;
+        }, (rs, row) ->
                 new GameSnapshot(rs.getObject("game_id", UUID.class), rs.getString("title"), rs.getString("cover_url"),
                         rs.getString("origin"), rs.getString("metadata_completeness"), rs.getString("game_type"),
-                        rs.getString("status"), rs.getTimestamp("refreshed_at").toInstant(), rs.getLong("version")), ids.toArray())
+                        rs.getString("status"), rs.getTimestamp("refreshed_at").toInstant(), rs.getLong("version")))
                 .stream().collect(Collectors.toMap(GameSnapshot::getGameId, Function.identity()));
     }
 

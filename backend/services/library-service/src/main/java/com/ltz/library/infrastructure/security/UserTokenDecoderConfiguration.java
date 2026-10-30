@@ -61,15 +61,17 @@ public class UserTokenDecoderConfiguration {
     }
 
     private static boolean validContract(Jwt jwt, String audience) {
-        return validSubject(jwt.getSubject()) && jwt.getAudience() != null && jwt.getAudience().contains(audience)
+        List<String> audiences = jwt.getAudience();
+        Instant issuedAt = jwt.getIssuedAt();
+        return validSubject(jwt.getSubject()) && audiences != null && audiences.contains(audience)
                 && jwt.getHeaders().get("kid") instanceof String kid && !kid.isBlank()
-                && jwt.getExpiresAt() != null && jwt.getNotBefore() != null && jwt.getIssuedAt() != null
-                && !jwt.getIssuedAt().isAfter(Instant.now().plusSeconds(30));
+                && jwt.getExpiresAt() != null && jwt.getNotBefore() != null && issuedAt != null
+                && !issuedAt.isAfter(Instant.now().plusSeconds(30));
     }
 
     private static boolean validSubject(String subject) {
         try { return subject != null && UUID.fromString(subject).toString().equalsIgnoreCase(subject); }
-        catch (IllegalArgumentException ignored) { return false; }
+        catch (IllegalArgumentException _) { return false; }
     }
 
     static List<org.springframework.security.core.GrantedAuthority> authorities(Jwt token) {

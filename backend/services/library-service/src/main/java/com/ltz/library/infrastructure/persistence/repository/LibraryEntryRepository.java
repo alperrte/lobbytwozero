@@ -12,6 +12,18 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public class LibraryEntryRepository {
+    /** Sorgular yalnız derleme zamanı sabitleridir; filtreler ve kimlikler bağlı parametredir, SQL birleştirilmez. */
+    private static final String COLLECTION_FILTER = " WHERE user_id = :userId AND (:filterFavorite = false OR favorite = :favorite)"
+            + " AND (:filterCompleted = false OR completed = :completed)";
+    private static final String COLLECTION_ALL = "SELECT * FROM library_entries" + COLLECTION_FILTER;
+    private static final String COLLECTION_COUNT = "SELECT count(*) FROM library_entries" + COLLECTION_FILTER;
+    private static final String COLLECTION_ASC = COLLECTION_ALL + " ORDER BY added_at ASC, id ASC LIMIT :size OFFSET :offset";
+    private static final String COLLECTION_DESC = COLLECTION_ALL + " ORDER BY added_at DESC, id DESC LIMIT :size OFFSET :offset";
+    private static final String CLEAR_FAVORITE = "UPDATE library_entries SET favorite = false, updated_at = clock_timestamp(),"
+            + " version = version + 1 WHERE user_id = :userId AND game_id = :gameId AND favorite = true";
+    private static final String CLEAR_COMPLETED = "UPDATE library_entries SET completed = false, updated_at = clock_timestamp(),"
+            + " version = version + 1 WHERE user_id = :userId AND game_id = :gameId AND completed = true";
+
     private final EntityManager entities;
 
     public LibraryEntryRepository(EntityManager entities) { this.entities = entities; }
@@ -42,41 +54,33 @@ public class LibraryEntryRepository {
     }
 
     public void clearFlag(UUID userId, UUID gameId, LibraryFlag flag) {
-        String column = flag.column();
-        entities.createNativeQuery("UPDATE library_entries SET " + column
-                + " = false, updated_at = clock_timestamp(), version = version + 1"
-                + " WHERE user_id = :userId AND game_id = :gameId AND " + column + " = true")
+        entities.createNativeQuery(flag == LibraryFlag.FAVORITE ? CLEAR_FAVORITE : CLEAR_COMPLETED)
                 .setParameter("userId", userId).setParameter("gameId", gameId).executeUpdate();
     }
 
     public List<LibraryEntry> findFlagged(UUID userId, LibraryFlag flag, int page, int size) {
-        List<?> rows = entities.createNativeQuery("SELECT * FROM library_entries WHERE user_id = :userId AND "
-                + flag.column() + " = true ORDER BY added_at DESC, id DESC LIMIT :size OFFSET :offset", LibraryEntry.class)
-                .setParameter("userId", userId).setParameter("size", size)
-                .setParameter("offset", (long) page * size).getResultList();
-        return rows.stream().map(LibraryEntry.class::cast).toList();
+        return findCollection(userId, flag == LibraryFlag.FAVORITE ? Boolean.TRUE : null,
+                flag == LibraryFlag.COMPLETED ? Boolean.TRUE : null, SortDirection.DESC, page, size);
     }
 
     public long countFlagged(UUID userId, LibraryFlag flag) {
-        return ((Number) entities.createNativeQuery("SELECT count(*) FROM library_entries WHERE user_id = :userId AND "
-                + flag.column() + " = true").setParameter("userId", userId).getSingleResult()).longValue();
+        return countCollection(userId, flag == LibraryFlag.FAVORITE ? Boolean.TRUE : null,
+                flag == LibraryFlag.COMPLETED ? Boolean.TRUE : null);
     }
 
     public List<LibraryEntry> findCollection(UUID userId, Boolean favorite, Boolean completed, SortDirection direction, int page, int size) {
-        List<?> rows = bindFilters(entities.createNativeQuery("SELECT * FROM library_entries" + collectionWhere(favorite, completed)
-                + " ORDER BY added_at " + direction.name() + ", id " + direction.name() + " LIMIT :size OFFSET :offset", LibraryEntry.class)
+        List<?> rows = bindFilters(entities.createNativeQuery(direction == SortDirection.ASC ? COLLECTION_ASC : COLLECTION_DESC, LibraryEntry.class)
                 .setParameter("size", size).setParameter("offset", (long) page * size), userId, favorite, completed).getResultList();
         return rows.stream().map(LibraryEntry.class::cast).toList();
     }
 
     public long countCollection(UUID userId, Boolean favorite, Boolean completed) {
-        return ((Number) bindFilters(entities.createNativeQuery("SELECT count(*) FROM library_entries" + collectionWhere(favorite, completed)),
-                userId, favorite, completed).getSingleResult()).longValue();
+        return ((Number) bindFilters(entities.createNativeQuery(COLLECTION_COUNT), userId, favorite, completed)
+                .getSingleResult()).longValue();
     }
 
     public List<LibraryEntry> collectionSnapshot(UUID userId, Boolean favorite, Boolean completed) {
-        List<?> rows = bindFilters(entities.createNativeQuery("SELECT * FROM library_entries" + collectionWhere(favorite, completed), LibraryEntry.class),
-                userId, favorite, completed).getResultList();
+        List<?> rows = bindFilters(entities.createNativeQuery(COLLECTION_ALL, LibraryEntry.class), userId, favorite, completed).getResultList();
         return rows.stream().map(LibraryEntry.class::cast).toList();
     }
 
@@ -89,16 +93,10 @@ public class LibraryEntryRepository {
         return new Counts(((Number) counts[0]).longValue(), ((Number) counts[1]).longValue(), ((Number) counts[2]).longValue());
     }
 
-    private static String collectionWhere(Boolean favorite, Boolean completed) {
-        return " WHERE user_id = :userId" + (favorite == null ? "" : " AND favorite = :favorite")
-                + (completed == null ? "" : " AND completed = :completed");
-    }
-
     private static Query bindFilters(Query query, UUID userId, Boolean favorite, Boolean completed) {
-        query.setParameter("userId", userId);
-        if (favorite != null) query.setParameter("favorite", favorite);
-        if (completed != null) query.setParameter("completed", completed);
-        return query;
+        return query.setParameter("userId", userId)
+                .setParameter("filterFavorite", favorite != null).setParameter("favorite", Boolean.TRUE.equals(favorite))
+                .setParameter("filterCompleted", completed != null).setParameter("completed", Boolean.TRUE.equals(completed));
     }
 
     public void eraseAccount(UUID userId) {

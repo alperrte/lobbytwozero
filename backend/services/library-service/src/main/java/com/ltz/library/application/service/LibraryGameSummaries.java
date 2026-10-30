@@ -41,7 +41,7 @@ public class LibraryGameSummaries {
                         var card = cards.get(id);
                         result.put(id, current(id, card, stored.get(id), observedAt));
                     }
-                } catch (CatalogUnavailableException ignored) { unavailable = true; }
+                } catch (CatalogUnavailableException _) { unavailable = true; }
             }
             if (unavailable) batch.forEach(id -> result.put(id, fallback(id, stored.get(id), GameSummaryStatus.TEMPORARILY_UNAVAILABLE)));
         }

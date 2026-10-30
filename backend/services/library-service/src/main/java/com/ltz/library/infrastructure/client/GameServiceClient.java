@@ -87,6 +87,6 @@ public class GameServiceClient implements GameCatalogPort {
         try {
             URI uri = URI.create(value);
             return "https".equals(uri.getScheme()) && uri.getHost() != null && uri.getRawUserInfo() == null ? value : null;
-        } catch (IllegalArgumentException ignored) { return null; }
+        } catch (IllegalArgumentException _) { return null; }
     }
 }

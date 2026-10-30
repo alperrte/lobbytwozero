@@ -185,7 +185,7 @@ class ServiceTokenDecoderLifecycleTest {
                     entered.countDown();
                     try {
                         release.await(10, TimeUnit.SECONDS);
-                    } catch (InterruptedException error) {
+                    } catch (InterruptedException _) {
                         Thread.currentThread().interrupt();
                     }
                 }

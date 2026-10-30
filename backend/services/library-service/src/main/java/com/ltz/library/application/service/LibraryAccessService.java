@@ -18,7 +18,7 @@ public class LibraryAccessService {
         if (purpose == LibraryAccessPurpose.PROFILE && owner.equals(viewer)) return;
         LibraryAccessDecision decision;
         try { decision = visibility.decide(owner, viewer, purpose); }
-        catch (RuntimeException ignored) { throw new LibraryPrivacyUnavailableException(); }
+        catch (RuntimeException _) { throw new LibraryPrivacyUnavailableException(); }
         if (decision == LibraryAccessDecision.DENY) throw new AccessDeniedException("Koleksiyon görünür değil.");
         if (decision != LibraryAccessDecision.ALLOW) throw new LibraryPrivacyUnavailableException();
     }
