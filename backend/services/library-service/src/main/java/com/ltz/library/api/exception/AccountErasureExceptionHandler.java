@@ -21,7 +21,12 @@ public class AccountErasureExceptionHandler extends org.springframework.web.serv
     }
     @ExceptionHandler(AccessDeniedException.class)
     public ProblemDetail forbidden() {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, "Bu silme işlemi için yetkiniz yok.");
+        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, "Bu işlem için yetkiniz yok.");
+    }
+
+    @ExceptionHandler(com.ltz.library.domain.exception.LibraryPrivacyUnavailableException.class)
+    public ProblemDetail privacyUnavailable() {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, "Erişim kararı geçici olarak alınamıyor.");
     }
 
     @ExceptionHandler(Exception.class)

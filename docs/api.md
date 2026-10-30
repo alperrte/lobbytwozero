@@ -1929,6 +1929,166 @@ DEV Auth görevinin CONFIRMED olması NOT VERIFIED.
 
 Sorumlu: Hamza · Gateway: `/api/v1/library/**` · Görevler: LIB-
 
+### LIBRARY — Profil koleksiyonunu listeleme (LIB-10, LIB-11)
+
+Durum: IMPLEMENTED (Library tarafı); User görünürlük adaptörü PENDING, dış erişim fail-closed.
+Sorumlu: Hamza
+Tüketici servisler: Frontend / User profil akışı
+
+#### Endpoint
+GET /api/v1/library/users/{userId}/entries
+
+#### Yetkilendirme
+Authenticated; kanonik kullanıcı rolü ve mevcut at+jwt doğrulaması.
+Görüntüleyen yalnız JWT sub'dır; viewerId/userId query veya kimlik başlığı yetki vermez.
+Owner kendi verisine erişir. Başka owner için LibraryVisibilityPort açık ALLOW vermelidir.
+Üretim adaptörü User API'si bulunmadığından UNAVAILABLE döner; dış veri açılmaz.
+ADMIN rolü gizlilik denetimini atlamaz. Anonim profil koleksiyonu erişimi sunulmaz.
+
+#### Path/Query Parameters
+userId: hedef UUID. page: >=0, varsayılan 0; size: 1..50, varsayılan 20.
+Sıra addedAt DESC, id DESC; bu uçta filtre/ad sırası parametresi yoktur.
+
+#### Request Body
+Yok.
+
+#### Response — 200
+LibraryCollectionPageResponse: items[].entry, items[].game, page, size, totalElements,
+metadataPartial. Mevcut kişisel liste ile aynı DTO; Cache-Control: no-store.
+Görünürlük denetimi DB sayımı/listeleme ve Game çağrısından önce yapılır.
+
+#### Hata Durumları
+400: geçersiz UUID/page/size. 401: kimlik yok/geçersiz. 403: rol yok veya görünür değil.
+503: karar alınamıyor, null karar veya adaptör hatası. ProblemDetail; veri/sayaç dönmez.
+Olmayan/gizli kullanıcı için özel varlık sorgusu veya ayırt edici ret açıklaması üretilmez.
+
+#### Bağlantı
+Gateway üzerinden. Görünürlük User'ın sorumluluğundadır; henüz HTTP adaptörü yoktur.
+Karar cache'lenmez. ALLOW sonrası mevcut Library liste/Game batch akışı kullanılır.
+
+#### Test Durumu
+UNIT + INTEGRATION — LibraryApiTest.PrivacyTests ve LibraryAccessServiceTest.
+İzinli/ret/ulaşılamama/null/adaptör hatası, owner, ADMIN, kimlik sahteciliği ve sayaç sızıntısı.
+İzinli dış erişim yalnız test portuyla sınandı; gerçek User entegrasyonu NOT VERIFIED/PENDING.
+
+### LIBRARY — Profil koleksiyon sayacı (LIB-10, LIB-11)
+
+Durum: IMPLEMENTED (Library tarafı); User görünürlük adaptörü PENDING.
+Sorumlu: Hamza
+Tüketici servisler: Frontend / User profil akışı
+
+#### Endpoint
+GET /api/v1/library/users/{userId}/entries/statistics
+
+#### Yetkilendirme
+Profil koleksiyon listesiyle aynı at+jwt/rol/owner ve açık görünürlük izni denetimi.
+Sayaçlar gizli koleksiyonu açığa çıkaramaz; üretimde non-owner erişimi 503 ile kapanır.
+
+#### Path/Query Parameters
+userId: UUID. Query parametresi yok.
+
+#### Request Body
+Yok.
+
+#### Response — 200
+LibraryStatisticsResponse: totalGames, favoriteGames, completedGames. Cache-Control: no-store.
+
+#### Hata Durumları
+400: UUID. 401: kimlik. 403: rol/ret. 503: görünürlük kararı alınamıyor. ProblemDetail.
+
+#### Bağlantı
+Gateway; izin sonrası yalnız Library aggregate. Game çağrısı yok. Liste ve sayaç ayrı
+HTTP istekleridir; ikisi arasında ortak snapshot veya dağıtık gizlilik kilidi vaat edilmez.
+
+#### Test Durumu
+INTEGRATION — PrivacyTests: owner sayacı, izinli hedef izolasyonu, ret/ulaşılamama,
+doğrulanmış viewer kullanımı. Gerçek User entegrasyonu PENDING.
+
+### LIBRARY — User servisinin profil okuması (LIB-10, LIB-11)
+
+Durum: IMPLEMENTED (Library kabul sınırı); Auth delegasyonu ve User tüketicisi PENDING.
+Sorumlu: Hamza
+Tüketici servisler: user-service
+
+#### Endpoint
+GET /internal/v1/library/users/{userId}/entries
+GET /internal/v1/library/users/{userId}/entries/statistics
+
+#### Yetkilendirme
+Internal; RS256/JWKS svc+jwt, issuer, tek aud=library-service, kid/jti/iat/nbf/exp ve
+en fazla 60 saniye ömür; mevcut 30 saniye saat toleransı. Scope library:profile:read,
+sub tam svc:user-service, imzalı target_user_id yoldaki kanonik UUID ile aynı olmalıdır.
+viewer_id imzalı kanonik UUID claim'i zorunludur; query/header görüntüleyen seçemez.
+Viewer=owner ise kişisel erişim; aksi halde PROFILE amacıyla açık görünürlük izni gerekir.
+Mevcut Auth bu scope/delegasyon claim'lerini üretmez. D4 account:erase yetkisi kabul edilmez.
+
+#### Path/Query Parameters
+userId: UUID. Liste: page>=0 varsayılan 0, size=1..50 varsayılan 20.
+İstatistik: query yok.
+
+#### Request Body
+Yok.
+
+#### Response — 200
+Liste: LibraryCollectionPageResponse; sayaç: LibraryStatisticsResponse.
+Cache-Control: no-store. Public profil uçlarıyla aynı veri ve gizlilik sınırı.
+
+#### Hata Durumları
+400: parametreler. 401: token yok/geçersiz, yanlış typ/aud/issuer/zaman.
+403: scope/sub/target/viewer geçersiz veya görünürlük reddi. 503: karar alınamıyor.
+ProblemDetail. Token hatasında veri/görünürlük portu çağrılmaz.
+
+#### Bağlantı
+Yalnız servis iç ağı; Gateway iç yolları yönlendirmez. User tüketici adaptörü ve Auth
+istemci/hedef/kapsam/delegasyon desteği uygulanmadı. Gerekenler ayrı bağımlılık raporunda.
+
+#### Test Durumu
+INTEGRATION — gerçek RSA/JWKS ve PostgreSQL; yerelde üretilmiş test token'larıyla
+sub/scope/target/viewer pozitif-negatif sınanır. Gerçek token edinme ve User E2E PENDING.
+
+### LIBRARY — Recommendation girdileri (LIB-14)
+
+Durum: IMPLEMENTED (Library kabul sınırı); Auth, izin kararı ve tüketici entegrasyonu PENDING.
+Sorumlu: Hamza
+Tüketici servisler: recommendation-service
+
+#### Endpoint
+GET /internal/v1/library/users/{userId}/recommendation-signals
+
+#### Yetkilendirme
+Internal; yukarıdaki svc+jwt imza/issuer/audience/zaman sözleşmesi.
+sub tam svc:recommendation-service; scope library:recommendation:read;
+target_user_id yoldaki kanonik UUID ile aynı olmalıdır. Ardından RECOMMENDATION amacıyla
+ayrı açık izin gerekir. Owner eşitliği bu amacı atlatmaz; PUBLIC profil tercihi kendi
+başına öneri kullanım izni sayılmaz. Üretim görünürlük adaptörü 503 ile kapalıdır.
+
+#### Path/Query Parameters
+userId UUID. page>=0 varsayılan 0; size=1..50 varsayılan 20.
+addedAt DESC, id DESC. Yalnız favorite OR completed olan satırlar; toplam aynı filtrededir.
+
+#### Request Body
+Yok.
+
+#### Response — 200
+```json
+{ "items": [], "page": 0, "size": 20, "totalElements": 0 }
+```
+items[] yalnız gameId, favorite, completed içerir. Yerel kayıt UUID'si, kullanıcı kimliği,
+tarih/version veya Game metadata'sı yoktur. Liste/toplam REPEATABLE_READ; no-store.
+
+#### Hata Durumları
+400: UUID/page/size. 401: kimlik/token sözleşmesi. 403: kapsam/caller/hedef/izin reddi.
+503: izin kararı alınamıyor. ProblemDetail; özel kayıt ve sayaç dönmez.
+
+#### Bağlantı
+Doğrudan Library iç ağı; Game/diğer DB çağrısı yoktur. Recommendation istemcisi ve Auth
+token izinleri henüz yoktur; kullanılabilir üretim entegrasyonu olarak değerlendirilmez.
+
+#### Test Durumu
+INTEGRATION — 3 sinyal/2 sayfa, her iki bayrak, işaretsiz kayıt ve başka owner dışlama,
+alan azaltma, yüksek offset, parametre sınırları, ret/ulaşılamama/izin iptali ve token ayrımı.
+İzinli senaryolar test görünürlük portuyla sınandı; gerçek Recommendation E2E PENDING.
+
 ### LIBRARY — Kütüphane listeleme (LIB-05, LIB-06, LIB-07, LIB-08, LIB-16)
 
 Durum: IMPLEMENTED

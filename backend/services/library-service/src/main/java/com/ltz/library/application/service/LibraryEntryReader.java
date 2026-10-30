@@ -42,4 +42,11 @@ public class LibraryEntryReader {
         var counts = entries.statistics(userId);
         return new LibraryStatisticsResponse(counts.total(), counts.favorite(), counts.completed());
     }
+
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ, timeout = 4)
+    public com.ltz.library.api.dto.response.LibrarySignalPageResponse signals(UUID userId, int page, int size) {
+        var items = entries.findSignals(userId, page, size).stream()
+                .map(entry -> new com.ltz.library.api.dto.response.LibrarySignalResponse(entry.getGameId(), entry.isFavorite(), entry.isCompleted())).toList();
+        return new com.ltz.library.api.dto.response.LibrarySignalPageResponse(items, page, size, entries.countSignals(userId));
+    }
 }

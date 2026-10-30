@@ -63,6 +63,7 @@ class LibraryApiTest {
     @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
     private com.ltz.library.infrastructure.persistence.repository.LibraryEntryRepository entries;
     @MockitoBean private GameCatalogPort catalog;
+    @MockitoBean private com.ltz.library.application.port.LibraryVisibilityPort visibility;
     private MockMvc mvc;
 
     @DynamicPropertySource static void properties(DynamicPropertyRegistry registry) {
@@ -782,6 +783,191 @@ class LibraryApiTest {
             assertEquals(60, count());
         }
 
+    }
+
+    @org.junit.jupiter.api.Nested
+    class PrivacyTests {
+        private static final String PUBLIC = "/api/v1/library/users/";
+        private static final String INTERNAL = "/internal/v1/library/users/";
+
+        private void decision(com.ltz.library.domain.enums.LibraryAccessDecision value) {
+            org.mockito.Mockito.when(visibility.decide(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                    org.mockito.ArgumentMatchers.any())).thenReturn(value);
+        }
+
+        private org.springframework.test.web.servlet.ResultActions read(String path, String bearer) throws Exception {
+            return mvc.perform(get(path).header("Authorization", "Bearer " + bearer));
+        }
+
+        private JWTClaimsSet.Builder service(String subject, String scope) {
+            Instant now = Instant.now();
+            return new JWTClaimsSet.Builder().issuer("ltz-auth").audience("library-service").subject(subject)
+                    .issueTime(Date.from(now)).notBeforeTime(Date.from(now)).expirationTime(Date.from(now.plusSeconds(60)))
+                    .jwtID(UUID.randomUUID().toString()).claim("scope", scope).claim("target_user_id", USER.toString())
+                    .claim("viewer_id", UUID.randomUUID().toString());
+        }
+
+        @Test void ownProfileUsesVerifiedIdentityWithoutRemoteDecision() throws Exception {
+            String bearer = token(USER, List.of("PLAYER"));
+            read(PUBLIC + USER + "/entries", bearer).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0))
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Cache-Control", "no-store"));
+            read(PUBLIC + USER + "/entries/statistics", bearer).andExpect(status().isOk()).andExpect(jsonPath("$.totalGames").value(0));
+            verifyNoInteractions(visibility, catalog);
+        }
+
+        @Test void deniedProfileDoesNotLeakCountsRowsOrExistence() throws Exception {
+            fixture(UUID.randomUUID().toString(), USER, true, true);
+            decision(com.ltz.library.domain.enums.LibraryAccessDecision.DENY);
+            String bearer = token(UUID.randomUUID(), List.of("ADMIN"));
+            String first = read(PUBLIC + USER + "/entries", bearer).andExpect(status().isForbidden()).andReturn().getResponse().getContentAsString();
+            String empty = read(PUBLIC + UUID.randomUUID() + "/entries", bearer).andExpect(status().isForbidden()).andReturn().getResponse().getContentAsString();
+            // ProblemDetail instance contains the path, but the status/detail never discloses data.
+            assertEquals(new tools.jackson.databind.ObjectMapper().readTree(first).get("detail"),
+                    new tools.jackson.databind.ObjectMapper().readTree(empty).get("detail"));
+            read(PUBLIC + USER + "/entries/statistics", bearer).andExpect(status().isForbidden()).andExpect(jsonPath("$.totalGames").doesNotExist());
+            verifyNoInteractions(entries, catalog);
+        }
+
+        @Test void unavailableNullAndThrowingPolicyFailClosedBeforeDataRead() throws Exception {
+            String bearer = token(UUID.randomUUID(), List.of("PLAYER"));
+            for (var value : com.ltz.library.domain.enums.LibraryAccessDecision.values()) {
+                if (value != com.ltz.library.domain.enums.LibraryAccessDecision.UNAVAILABLE) continue;
+                decision(value);
+                read(PUBLIC + USER + "/entries", bearer).andExpect(status().isServiceUnavailable());
+            }
+            decision(null);
+            read(PUBLIC + USER + "/entries/statistics", bearer).andExpect(status().isServiceUnavailable());
+            org.mockito.Mockito.when(visibility.decide(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                    org.mockito.ArgumentMatchers.any())).thenThrow(new IllegalStateException("internal-policy-detail"));
+            read(PUBLIC + USER + "/entries", bearer).andExpect(status().isServiceUnavailable())
+                    .andExpect(jsonPath("$.detail").value("Erişim kararı geçici olarak alınamıyor."));
+            verifyNoInteractions(entries, catalog);
+        }
+
+        @Test void allowedProfileReadsOnlyTargetAndUsesVerifiedViewer() throws Exception {
+            UUID viewer = UUID.randomUUID();
+            fixture(UUID.randomUUID().toString(), USER, false, false);
+            fixture(UUID.randomUUID().toString(), viewer, true, true);
+            decision(com.ltz.library.domain.enums.LibraryAccessDecision.ALLOW);
+            read(PUBLIC + USER + "/entries/statistics?viewerId=" + USER, token(viewer, List.of("PLAYER")))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.totalGames").value(1)).andExpect(jsonPath("$.favoriteGames").value(0));
+            org.mockito.Mockito.verify(visibility).decide(USER, viewer, com.ltz.library.domain.enums.LibraryAccessPurpose.PROFILE);
+            read(PUBLIC + USER + "/entries", token(viewer, List.of("PLAYER")))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                    .andExpect(jsonPath("$.items[0].entry.favorite").value(false));
+        }
+
+        @Test void publicPathsRejectAnonymousRolesAndServiceTokens() throws Exception {
+            for (String suffix : List.of("/entries", "/entries/statistics")) {
+                mvc.perform(get(PUBLIC + USER + suffix)).andExpect(status().isUnauthorized());
+                read(PUBLIC + USER + suffix, token(USER, List.of())).andExpect(status().isForbidden());
+                read(PUBLIC + USER + suffix, sign(service("svc:user-service", "library:profile:read"), "svc+jwt"))
+                        .andExpect(status().isUnauthorized());
+            }
+            verifyNoInteractions(visibility, entries, catalog);
+        }
+
+        @Test void internalProfileRequiresExactCallerScopeTargetAndSignedViewer() throws Exception {
+            String route = INTERNAL + USER + "/entries/statistics";
+            String scope = "library:profile:read";
+            decision(com.ltz.library.domain.enums.LibraryAccessDecision.ALLOW);
+            read(route, sign(service("svc:user-service", scope), "svc+jwt")).andExpect(status().isOk());
+            read(INTERNAL + USER + "/entries", sign(service("svc:user-service", scope), "svc+jwt"))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
+            for (var invalid : List.of(service("svc:recommendation-service", scope), service("svc:user-service", "account:erase"),
+                    service("svc:user-service", scope).claim("target_user_id", UUID.randomUUID().toString()),
+                    service("svc:user-service", scope).claim("target_user_id", null),
+                    service("svc:user-service", scope).claim("viewer_id", null),
+                    service("svc:user-service", scope).claim("viewer_id", "1-1-1-1-1"))) {
+                read(route, sign(invalid, "svc+jwt")).andExpect(status().isForbidden());
+            }
+            org.mockito.Mockito.verify(visibility, org.mockito.Mockito.times(2)).decide(org.mockito.ArgumentMatchers.any(),
+                    org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+        }
+
+        @Test void internalReadRejectsUserD4AndInvalidServiceContracts() throws Exception {
+            String route = INTERNAL + USER + "/recommendation-signals";
+            String scope = "library:recommendation:read";
+            mvc.perform(get(route)).andExpect(status().isUnauthorized());
+            read(route, token(USER, List.of("ADMIN"))).andExpect(status().isUnauthorized());
+            read(route, sign(service("svc:auth-service", "account:erase"), "svc+jwt")).andExpect(status().isForbidden());
+            for (var invalid : List.of(service("svc:recommendation-service", scope).audience("user-service"),
+                    service("svc:recommendation-service", scope).issuer("other"),
+                    service("svc:recommendation-service", scope).jwtID(null),
+                    service("svc:recommendation-service", scope).expirationTime(Date.from(Instant.now().plusSeconds(300))))) {
+                read(route, sign(invalid, "svc+jwt")).andExpect(status().isUnauthorized());
+            }
+            verifyNoInteractions(visibility, entries, catalog);
+        }
+
+        @Test void recommendationReturnsOnlyPermittedSignalsWithStablePaging() throws Exception {
+            for (int i = 1; i <= 4; i++) fixture(String.format("00000000-0000-4000-8000-%012d", i), USER, i % 2 == 0, i > 2);
+            fixture(UUID.randomUUID().toString(), UUID.randomUUID(), true, true);
+            decision(com.ltz.library.domain.enums.LibraryAccessDecision.ALLOW);
+            String bearer = sign(service("svc:recommendation-service", "library:recommendation:read"), "svc+jwt");
+            String route = INTERNAL + USER + "/recommendation-signals";
+            read(route + "?size=2", bearer).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(3))
+                    .andExpect(jsonPath("$.items.length()").value(2)).andExpect(jsonPath("$.items[0].id").doesNotExist())
+                    .andExpect(jsonPath("$.items[0].userId").doesNotExist()).andExpect(jsonPath("$.items[0].addedAt").doesNotExist())
+                    .andExpect(jsonPath("$.items[0].favorite").value(true)).andExpect(jsonPath("$.items[0].completed").value(true));
+            read(route + "?size=2&page=1", bearer).andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(1));
+            read(route + "?page=2147483647", bearer).andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(0));
+            verifyNoInteractions(catalog);
+            org.mockito.Mockito.verify(visibility, org.mockito.Mockito.times(3)).decide(USER, USER,
+                    com.ltz.library.domain.enums.LibraryAccessPurpose.RECOMMENDATION);
+        }
+
+        @Test void revokedOrUnavailableRecommendationPermissionNeverUsesPreviousAllow() throws Exception {
+            String bearer = sign(service("svc:recommendation-service", "library:recommendation:read"), "svc+jwt");
+            String route = INTERNAL + USER + "/recommendation-signals";
+            decision(com.ltz.library.domain.enums.LibraryAccessDecision.ALLOW);
+            read(route, bearer).andExpect(status().isOk());
+            org.mockito.Mockito.clearInvocations(entries);
+            decision(com.ltz.library.domain.enums.LibraryAccessDecision.DENY);
+            read(route, bearer).andExpect(status().isForbidden());
+            decision(com.ltz.library.domain.enums.LibraryAccessDecision.UNAVAILABLE);
+            read(route, bearer).andExpect(status().isServiceUnavailable());
+            read(route, sign(service("svc:user-service", "library:recommendation:read"), "svc+jwt")).andExpect(status().isForbidden());
+            verifyNoInteractions(entries, catalog);
+        }
+
+        @Test void allNewPagedPathsValidateBounds() throws Exception {
+            String userToken = token(USER, List.of("PLAYER"));
+            for (String query : List.of("?size=0", "?size=51", "?page=-1", "?page=bad")) {
+                read(PUBLIC + USER + "/entries" + query, userToken).andExpect(status().isBadRequest());
+                read(INTERNAL + USER + "/entries" + query, sign(service("svc:user-service", "library:profile:read"), "svc+jwt"))
+                        .andExpect(status().isBadRequest());
+                read(INTERNAL + USER + "/recommendation-signals" + query,
+                        sign(service("svc:recommendation-service", "library:recommendation:read"), "svc+jwt"))
+                        .andExpect(status().isBadRequest());
+            }
+            verifyNoInteractions(visibility, entries, catalog);
+        }
+
+        @Test void concurrentAddMarkAndDeletePreservesUniqueOwnerRows() throws Exception {
+            UUID other = UUID.randomUUID();
+            String bearer = token(USER, List.of("PLAYER"));
+            add(token(other, List.of("PLAYER")), "{\"gameId\":\"" + GAME + "\"}").andExpect(status().isOk());
+            try (var workers = java.util.concurrent.Executors.newFixedThreadPool(8)) {
+                var tasks = new java.util.ArrayList<java.util.concurrent.Callable<Void>>();
+                for (int i = 0; i < 32; i++) {
+                    int action = i % 4;
+                    tasks.add(() -> {
+                        if (action == 0) add(bearer, "{\"gameId\":\"" + GAME + "\"}").andExpect(status().isOk());
+                        else if (action == 1) mark(bearer, "favorite").andExpect(status().isOk());
+                        else if (action == 2) mark(bearer, "completed").andExpect(status().isOk());
+                        else mvc.perform(delete("/api/v1/library/entries/" + GAME).header("Authorization", "Bearer " + bearer))
+                                .andExpect(status().isNoContent());
+                        return null;
+                    });
+                }
+                for (var future : workers.invokeAll(tasks)) future.get(15, java.util.concurrent.TimeUnit.SECONDS);
+            }
+            assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM (SELECT user_id,game_id FROM library_entries GROUP BY user_id,game_id HAVING count(*)>1) duplicates", Integer.class));
+            mvc.perform(delete("/api/v1/library/entries/" + GAME).header("Authorization", "Bearer " + bearer)).andExpect(status().isNoContent());
+            assertEquals(1, count());
+            assertEquals(other, jdbc.queryForObject("SELECT user_id FROM library_entries", UUID.class));
+        }
     }
 
     private org.springframework.test.web.servlet.ResultActions clear(String bearer, String flag) throws Exception {

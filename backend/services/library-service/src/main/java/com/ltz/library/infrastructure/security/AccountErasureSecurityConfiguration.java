@@ -38,6 +38,12 @@ public class AccountErasureSecurityConfiguration {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers(HttpMethod.DELETE, AccountErasureController.PATH).hasAuthority("SCOPE_account:erase")
+                        .requestMatchers(HttpMethod.GET, "/internal/v1/library/users/*/entries", "/internal/v1/library/users/*/entries/statistics")
+                            .hasAuthority("SCOPE_library:profile:read")
+                        .requestMatchers(HttpMethod.GET, "/internal/v1/library/users/*/recommendation-signals")
+                            .hasAuthority("SCOPE_library:recommendation:read")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/library/users/*/entries", "/api/v1/library/users/*/entries/statistics")
+                            .hasAnyRole("PLAYER", "CONTENT_CREATOR", "GAME_DEVELOPER", "MODERATOR", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/v1/library/entries")
                             .hasAnyRole("PLAYER", "CONTENT_CREATOR", "GAME_DEVELOPER", "MODERATOR", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/library/entries/*")

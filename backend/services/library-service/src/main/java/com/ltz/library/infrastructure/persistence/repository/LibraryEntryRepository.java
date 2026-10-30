@@ -105,4 +105,16 @@ public class LibraryEntryRepository {
         entities.createNativeQuery("DELETE FROM library_entries WHERE user_id = :userId")
                 .setParameter("userId", userId).executeUpdate();
     }
+
+    public List<LibraryEntry> findSignals(UUID userId, int page, int size) {
+        List<?> rows = entities.createNativeQuery("SELECT * FROM library_entries WHERE user_id = :userId"
+                + " AND (favorite OR completed) ORDER BY added_at DESC, id DESC LIMIT :size OFFSET :offset", LibraryEntry.class)
+                .setParameter("userId", userId).setParameter("size", size).setParameter("offset", (long) page * size).getResultList();
+        return rows.stream().map(LibraryEntry.class::cast).toList();
+    }
+
+    public long countSignals(UUID userId) {
+        return ((Number) entities.createNativeQuery("SELECT count(*) FROM library_entries WHERE user_id = :userId AND (favorite OR completed)")
+                .setParameter("userId", userId).getSingleResult()).longValue();
+    }
 }
