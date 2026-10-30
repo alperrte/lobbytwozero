@@ -135,6 +135,8 @@ Gösterim: **PK** birincil anahtar, **FK** servis içi yabancı anahtar, **REF**
 - `inbox_events`: `event_id` PK, `event_type`, `producer`, `processed_at`. Olay yükü ve hesap kimliği saklanmaz.
 - `outbox_events` bu serviste henüz yoktur: giden olay üreten bir tüketici talebi çıkınca eklenir.
 
+**Uygulanan (2026-10-30, LTZ-KER-USER-04): `V73__create_user_preferences.sql`** — `user_preferences`: `user_id` PK/FK (`ON DELETE CASCADE`), `locale` (`tr|en`), `theme` (`LIGHT|DARK|SYSTEM`), `reduced_motion`, `compact_layout` (sınırlı arayüz tercihleri; taslaktaki `favorite_genres`/`platforms` profilde durur), `updated_at`, `version`. Satır yoksa varsayılanlar geçerlidir. Onboarding durumu ayrı tablo değil, `user_profiles.onboarding_completed_at` sütunudur. `linked_accounts` (Faz 3) V74 olacak.
+
 **Uygulanan (2026-10-30, LTZ-KER-USER-02): `V72__create_privacy_and_social_projection.sql`**
 
 - `user_profiles.display_name_normalized` (varchar 64): arama anahtarı; Java'da `UserProfile.normalize` ile üretilir (yerelden bağımsız küçük harf + Türkçe `ı`/`i̇` → `i`). Kısmi `text_pattern_ops` indeksleri: `username_normalized` ve `display_name_normalized`, yalnız `account_status='ACTIVE'`.

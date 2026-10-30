@@ -1431,6 +1431,99 @@ social-service, hardware-service ve library-service Auth'tan `aud=user-service`,
 #### Test Durumu
 UNIT + INTEGRATION (`PrivacyDecisionTest` 8, `SocialProjectionTrustedTest` 3, `PrivacyRulesTest` 21).
 
+### USER — Tercihlerim (USER-10)
+
+Durum: IMPLEMENTED (kod derlendi; testler sona ertelendi)
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/user/me/preferences
+PUT /api/v1/user/me/preferences
+
+#### Yetkilendirme
+Authenticated (Owner). Kimlik yalnız token'dan.
+
+#### Request Body (PUT)
+Tercihlerin **tamamı** zorunludur; tanımsız alan ve tanımsız tema `400`.
+```json
+{
+  "version": "long ≥ 0, zorunlu: son görülen sürüm; hiç kaydedilmemişse 0",
+  "locale": "tr | en",
+  "theme": "LIGHT | DARK | SYSTEM",
+  "reducedMotion": true,
+  "compactLayout": false
+}
+```
+
+#### Response — 200
+Aynı alanlar ve güncel `version`. Hiç kaydedilmemişse `GET` varsayılanları döner (okuma satır oluşturmaz): `locale=tr`, `theme=SYSTEM`, `reducedMotion=false`, `compactLayout=false`, `version=0`. İlk `PUT` sürüm 0 ile yazar; sonraki her değişiklik sürümü artırır, değişiklik yoksa artırmaz. Tema dilden bağımsızdır. `Cache-Control: no-store`.
+
+#### Hata Durumları
+- 400: `VALIDATION_FAILED`, `INVALID_LOCALE` (`tr`/`en` dışı), tanımsız alan, negatif sürüm
+- 401: Token yok/geçersiz; servis token'ı
+- 409: `CONCURRENT_MODIFICATION`: sürüm güncel değil ya da eşzamanlı ilk kayıt
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/user/me/preferences
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+NOT IMPLEMENTED (kod derlendi; testler tüm fazlar bitince toplu yazılacak).
+
+### USER — İlk kurulum (onboarding) durumu ve tamamlama (USER-09)
+
+Durum: IMPLEMENTED (kod derlendi; testler sona ertelendi)
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/user/me/onboarding
+POST /api/v1/user/me/onboarding/complete
+
+#### Yetkilendirme
+Authenticated (Owner). Profil yoksa ilk çağrıda varsayılanlarla oluşturulur.
+
+#### Request Body (POST complete)
+Tanımsız alan `400`. Favori tür ve platform listeleri zorunludur ve **boş olamaz** (en az birer tane).
+```json
+{
+  "version": "long ≥ 0, zorunlu: GET /me/onboarding yanıtındaki version",
+  "playerTypes": ["isteğe bağlı: CASUAL | COMPETITIVE | STORY | SOCIAL | COLLECTOR (en çok 2)"],
+  "favoriteGenres": ["katalog kodu (en az 1, en çok 10)"],
+  "favoritePlatforms": ["katalog kodu (en az 1, en çok 10)"],
+  "locale": "isteğe bağlı: tr | en",
+  "theme": "isteğe bağlı: LIGHT | DARK | SYSTEM"
+}
+```
+Seçimler profil alanlarına (`PATCH /me/profile` ile aynı doğrulama) ve tercihlere yazılır; ayrı bir onboarding tablosu yoktur. Gönderilmeyen `locale`/`theme` ve diğer tercih alanları mevcut değerinde kalır.
+
+#### Response — 200
+```json
+{ "completed": false, "completedAt": "ISO-8601 | null", "missing": ["FAVORITE_GENRES", "FAVORITE_PLATFORMS"], "version": 0 }
+```
+`missing`: tamamlanması için eksik adımlar (tamamlanmışsa boş). `GET` yalnız durumu okur. `POST complete` **idempotenttir**: kurulum zaten tamamlandıysa hiçbir şey değişmez ve güncel durum `200` döner (seçimleri sonradan değiştirmek profil ve tercih uçlarının işidir). Dönen `version` güncel profil sürümüdür. `Cache-Control: no-store`.
+
+#### Hata Durumları
+- 400: `VALIDATION_FAILED`, `ONBOARDING_INCOMPLETE` (tür ya da platform listesi boş), `INVALID_FAVORITE_GENRES`, `INVALID_FAVORITE_PLATFORMS`, `INVALID_PLAYER_TYPES`, `INVALID_LOCALE`
+- 401: Token yok/geçersiz; servis token'ı
+- 409: `CONCURRENT_MODIFICATION`: profil sürümü güncel değil (kurulum tamamlanmamışken)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/user/me/onboarding ve /api/v1/user/me/onboarding/complete
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+NOT IMPLEMENTED (kod derlendi; testler tüm fazlar bitince toplu yazılacak).
+
 ## MAIL
 
 Sorumlu: Kerem · Gateway: `/api/v1/mail/**` · Görevler: MAIL-

@@ -8,6 +8,8 @@ public enum UserErrorCode {
     INVALID_FAVORITE_GENRES(400, "The favorite genres are invalid."),
     INVALID_FAVORITE_PLATFORMS(400, "The favorite platforms are invalid."),
     INVALID_COUNTRY(400, "The country is invalid."),
+    INVALID_LOCALE(400, "The locale must be one of: tr, en."),
+    ONBOARDING_INCOMPLETE(400, "Select at least one favorite genre and one favorite platform to finish onboarding."),
     INVALID_EVENT(400, "The event is invalid."),
     INVALID_SEARCH_QUERY(400, "The search query must be 2-32 characters without control characters."),
     PROFILE_NOT_FOUND(404, "The profile was not found."),

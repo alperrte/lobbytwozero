@@ -62,7 +62,8 @@ public class ProfileService {
         return ProfileMapper.toView(profile, media.findByUserIdAndStatus(profile.getUserId(), MediaStatus.CURRENT));
     }
 
-    private UserProfile loadOrProvision(UUID userId) {
+    /** Aynı paketteki servisler (onboarding) için: profili yükler, yoksa idempotent oluşturur. */
+    UserProfile loadOrProvision(UUID userId) {
         return profiles.findById(userId).orElseGet(() -> {
             Instant now = clock.instant();
             profiles.insertIfAbsent(userId, AccountStatus.ACTIVE.name(), null, now);

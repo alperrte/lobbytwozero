@@ -19,6 +19,13 @@ ADR'lerin yerine geçmez; User'a özgü kararların kaydıdır.
 | K10 | `country` dışında kişisel bilgi alanı yok (KVKK yükü, gereksinimde tanımlı değil) | |
 | K11 | Düz string listeleri `jsonb` yerine `text[]` | Hibernate JSON eşlemesine bağımlılık yok; CHECK ile kardinalite sınırı |
 
+## Süreç kararı (2026-10-30)
+
+- **Testler en sona:** fazlarda yalnız üretim kodu ve belge yazılır; testler tüm fazlar bitince toplu yazılır (bağlam ve token
+  tasarrufu). Her fazın ilerleme dosyası "sonda yazılacak testler" listesini taşır. Faz 1a, 1b ve 2'nin testleri zaten yazıldı.
+- **Migration numarası:** Faz 4 `V73` aldı (planda V74); Faz 3 `linked_accounts` `V74` olacak, böylece sıra artarak kalır.
+- **Auth'a bağlı işler en sona:** Steam bağlama (Faz 3) ve talepler REQ-01..04, T6-T8.
+
 ## Uygulama kararları (faz 1b, 2026-10-30)
 
 - **Ham gövde yükleme:** `PUT /me/avatar|cover`, gövde görselin kendisi (multipart yok). Plan multipart diyordu; ham gövde,

@@ -166,6 +166,18 @@ public class UserProfile {
         return text.toLowerCase(Locale.ROOT).replace("i̇", "i").replace('ı', 'i');
     }
 
+    public boolean isOnboardingCompleted() {
+        return onboardingCompletedAt != null;
+    }
+
+    /** İlk kurulumu tamamlandı olarak işaretler. İkinci çağrı zamanı değiştirmez (idempotent). */
+    public void completeOnboarding(Instant now) {
+        if (onboardingCompletedAt == null) {
+            this.onboardingCompletedAt = now;
+            this.updatedAt = now;
+        }
+    }
+
     /** Herkese açık profil yalnız etkin ve askıdaki hesaplar için gösterilir; diğer durumlar "profil yok" sayılır (K6). */
     public boolean isPubliclyVisible() {
         return accountStatus == AccountStatus.ACTIVE || accountStatus == AccountStatus.SUSPENDED;
