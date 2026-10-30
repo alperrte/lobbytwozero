@@ -41,6 +41,7 @@ import static org.springframework.security.test.web.servlet.setup.SecurityMockMv
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -59,6 +60,8 @@ class LibraryApiTest {
     @Autowired private JdbcTemplate jdbc;
     @Autowired private org.springframework.transaction.PlatformTransactionManager transactions;
     @Autowired private com.ltz.library.application.service.LibraryEntryWriter writer;
+    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
+    private com.ltz.library.infrastructure.persistence.repository.LibraryEntryRepository entries;
     @MockitoBean private GameCatalogPort catalog;
     private MockMvc mvc;
 
@@ -295,6 +298,21 @@ class LibraryApiTest {
             throughGateway.perform(put("/api/v1/library/entries/" + GAME + "/favorite").cookie(cookies)
                     .header("X-XSRF-TOKEN", "library-test-csrf").header("Origin", "https://app.example.test"))
                     .andExpect(status().isOk()).andExpect(jsonPath("$.favorite").value(true));
+            for (String flag : List.of("favorite", "completed")) {
+                throughGateway.perform(put("/api/v1/library/entries/" + GAME + "/" + flag).cookie(cookies)
+                        .header("X-XSRF-TOKEN", "library-test-csrf").header("Origin", "https://app.example.test"))
+                        .andExpect(status().isOk());
+                String list = flag.equals("favorite") ? "favorites" : "completed";
+                throughGateway.perform(get("/api/v1/library/entries/" + list).cookie(cookies))
+                        .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1));
+                throughGateway.perform(delete("/api/v1/library/entries/" + GAME + "/" + flag).cookie(cookies))
+                        .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("CSRF_TOKEN_INVALID"));
+                throughGateway.perform(delete("/api/v1/library/entries/" + GAME + "/" + flag).cookie(cookies)
+                        .header("X-XSRF-TOKEN", "library-test-csrf").header("Origin", "https://app.example.test"))
+                        .andExpect(status().isNoContent());
+                throughGateway.perform(get("/api/v1/library/entries/" + list).cookie(cookies))
+                        .andExpect(status().isOk()).andExpect(jsonPath("$.items").isEmpty());
+            }
             throughGateway.perform(delete("/internal/v1/accounts/" + USER).header("Authorization", "Bearer " + auth.serviceToken(USER)))
                     .andExpect(status().isNoContent());
             assertEquals(0, count());
@@ -315,6 +333,241 @@ class LibraryApiTest {
             add(token(USER, List.of("PLAYER")), body).andExpect(status().isBadRequest());
         verifyNoInteractions(catalog);
         assertEquals(0, count());
+    }
+
+    @Test void unfavoritePreservesCollectionCompletedAndRepeatedRequestIsNoOp() throws Exception {
+        String bearer = token(USER, List.of("PLAYER"));
+        mark(bearer, "favorite").andExpect(status().isOk());
+        mark(bearer, "completed").andExpect(status().isOk());
+        var before = jdbc.queryForMap("SELECT * FROM library_entries");
+        org.mockito.Mockito.clearInvocations(catalog);
+        clear(bearer, "favorite").andExpect(status().isNoContent());
+        var after = jdbc.queryForMap("SELECT * FROM library_entries");
+        assertEquals(before.get("id"), after.get("id"));
+        assertEquals(before.get("added_at"), after.get("added_at"));
+        assertEquals(true, after.get("in_collection"));
+        assertEquals(false, after.get("favorite"));
+        assertEquals(true, after.get("completed"));
+        assertEquals(((Number) before.get("version")).longValue() + 1, ((Number) after.get("version")).longValue());
+        clear(bearer, "favorite").andExpect(status().isNoContent());
+        assertEquals(after, jdbc.queryForMap("SELECT * FROM library_entries"));
+        verifyNoInteractions(catalog);
+    }
+
+    @Test void missingUnfavoriteDoesNotCreateAndFavoritesCanBeReappliedToSameEntry() throws Exception {
+        String bearer = token(USER, List.of("PLAYER"));
+        clear(bearer, "favorite").andExpect(status().isNoContent());
+        assertEquals(0, count());
+        verifyNoInteractions(catalog);
+        mark(bearer, "favorite").andExpect(status().isOk());
+        UUID id = jdbc.queryForObject("SELECT id FROM library_entries", UUID.class);
+        clear(bearer, "favorite").andExpect(status().isNoContent());
+        mark(bearer, "favorite").andExpect(status().isOk()).andExpect(jsonPath("$.id").value(id.toString()));
+        assertEquals(1, count());
+    }
+
+    @Test void favoriteListContainsOnlyOwnerFavoritesWithStableBoundedPages() throws Exception {
+        UUID other = UUID.randomUUID();
+        String first = "00000000-0000-4000-8000-000000000001";
+        String second = "00000000-0000-4000-8000-000000000002";
+        fixture(first, USER, true, false);
+        fixture(second, USER, true, true);
+        fixture("00000000-0000-4000-8000-000000000003", USER, false, true);
+        fixture("00000000-0000-4000-8000-000000000004", other, true, false);
+        String bearer = token(USER, List.of("PLAYER"));
+        listed(bearer, "favorites", "").andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(2)).andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.size").value(20)).andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.items[0].id").value(second));
+        listed(bearer, "favorites", "?size=1&page=0&userId=" + other).andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1)).andExpect(jsonPath("$.items[0].id").value(second));
+        listed(bearer, "favorites", "?size=1&page=1").andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].id").value(first)).andExpect(jsonPath("$.totalElements").value(2));
+        listed(bearer, "favorites", "?size=1&page=2").andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isEmpty()).andExpect(jsonPath("$.totalElements").value(2));
+        verifyNoInteractions(catalog);
+    }
+
+    @Test void favoriteRemovalCannotAffectAnotherUserAndEmptyListHasStableShape() throws Exception {
+        String other = "00000000-0000-4000-8000-000000000005";
+        fixture(other, UUID.randomUUID(), true, true);
+        String bearer = token(USER, List.of("PLAYER"));
+        mvc.perform(delete("/api/v1/library/entries/" + jdbc.queryForObject("SELECT game_id FROM library_entries", UUID.class) + "/favorite")
+                .queryParam("userId", UUID.randomUUID().toString()).header("X-User-Id", UUID.randomUUID().toString())
+                .header("Authorization", "Bearer " + bearer)).andExpect(status().isNoContent());
+        assertEquals(true, jdbc.queryForObject("SELECT favorite FROM library_entries", Boolean.class));
+        listed(bearer, "favorites", "").andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isEmpty()).andExpect(jsonPath("$.totalElements").value(0));
+        verifyNoInteractions(catalog);
+    }
+
+    @Test void favoriteListRejectsInvalidPagingAndAcceptsMaximumSizeAndLargeOffset() throws Exception {
+        String bearer = token(USER, List.of("PLAYER"));
+        for (String query : List.of("?page=-1", "?size=0", "?size=51", "?size=abc", "?page=2147483648"))
+            listed(bearer, "favorites", query).andExpect(status().isBadRequest()).andExpect(jsonPath("$.status").value(400));
+        listed(bearer, "favorites", "?page=2147483647&size=50").andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isEmpty()).andExpect(jsonPath("$.totalElements").value(0));
+        verifyNoInteractions(catalog);
+    }
+
+    @Test void favoriteReadAndRemovalRequireUserJwtAndRole() throws Exception {
+        mvc.perform(get("/api/v1/library/entries/favorites")).andExpect(status().isUnauthorized());
+        mvc.perform(delete("/api/v1/library/entries/" + GAME + "/favorite")).andExpect(status().isUnauthorized());
+        listed(token(USER, List.of()), "favorites", "").andExpect(status().isForbidden());
+        clear(token(USER, List.of()), "favorite").andExpect(status().isForbidden());
+        listed(sign(claims(), "svc+jwt"), "favorites", "").andExpect(status().isUnauthorized());
+        mvc.perform(delete("/api/v1/library/entries/invalid/favorite")
+                .header("Authorization", "Bearer " + token(USER, List.of("PLAYER")))).andExpect(status().isBadRequest());
+        verifyNoInteractions(catalog);
+    }
+
+    @Test void concurrentFavoriteEnableAndDisablePreserveCompletedAndSingleCollectionRow() throws Exception {
+        String bearer = token(USER, List.of("PLAYER"));
+        mark(bearer, "completed").andExpect(status().isOk());
+        var start = new java.util.concurrent.CountDownLatch(1);
+        try (var workers = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
+            var futures = new java.util.ArrayList<java.util.concurrent.Future<?>>();
+            for (int i = 0; i < 16; i++) {
+                boolean enable = i % 2 == 0;
+                futures.add(workers.submit(() -> {
+                    start.await();
+                    if (enable) mark(bearer, "favorite").andExpect(status().isOk());
+                    else clear(bearer, "favorite").andExpect(status().isNoContent());
+                    return null;
+                }));
+            }
+            start.countDown();
+            for (var future : futures) future.get(20, java.util.concurrent.TimeUnit.SECONDS);
+        }
+        assertEquals(1, count());
+        assertEquals(true, jdbc.queryForObject("SELECT completed AND in_collection FROM library_entries", Boolean.class));
+    }
+
+    @Test void uncompletePreservesFavoriteAndCollectionAndRepeatIsNoOp() throws Exception {
+        String bearer = token(USER, List.of("PLAYER"));
+        mark(bearer, "favorite").andExpect(status().isOk());
+        mark(bearer, "completed").andExpect(status().isOk());
+        var before = jdbc.queryForMap("SELECT * FROM library_entries");
+        org.mockito.Mockito.clearInvocations(catalog);
+        clear(bearer, "completed").andExpect(status().isNoContent());
+        var after = jdbc.queryForMap("SELECT * FROM library_entries");
+        assertEquals(before.get("id"), after.get("id"));
+        assertEquals(before.get("added_at"), after.get("added_at"));
+        assertEquals(true, after.get("favorite"));
+        assertEquals(true, after.get("in_collection"));
+        assertEquals(false, after.get("completed"));
+        assertEquals(((Number) before.get("version")).longValue() + 1, ((Number) after.get("version")).longValue());
+        clear(bearer, "completed").andExpect(status().isNoContent());
+        assertEquals(after, jdbc.queryForMap("SELECT * FROM library_entries"));
+        verifyNoInteractions(catalog);
+        mark(bearer, "completed").andExpect(status().isOk()).andExpect(jsonPath("$.id").value(before.get("id").toString()));
+        assertEquals(1, count());
+    }
+
+    @Test void missingUncompleteDoesNotCreateAndBothFlagsMayBeFalseInCollection() throws Exception {
+        String bearer = token(USER, List.of("PLAYER"));
+        clear(bearer, "completed").andExpect(status().isNoContent());
+        assertEquals(0, count());
+        verifyNoInteractions(catalog);
+        mark(bearer, "completed").andExpect(status().isOk());
+        org.mockito.Mockito.clearInvocations(catalog);
+        clear(bearer, "completed").andExpect(status().isNoContent());
+        assertEquals(1, count());
+        assertEquals(true, jdbc.queryForObject("SELECT in_collection AND NOT favorite AND NOT completed FROM library_entries", Boolean.class));
+        listed(bearer, "completed", "").andExpect(status().isOk()).andExpect(jsonPath("$.items").isEmpty())
+                .andExpect(jsonPath("$.totalElements").value(0));
+        verifyNoInteractions(catalog);
+    }
+
+    @Test void completedListIsIndependentOfFavoritesAndIsolatedWithStablePages() throws Exception {
+        UUID other = UUID.randomUUID();
+        String first = "00000000-0000-4000-8000-000000000001";
+        String second = "00000000-0000-4000-8000-000000000002";
+        fixture(first, USER, false, true);
+        fixture(second, USER, true, true);
+        fixture("00000000-0000-4000-8000-000000000003", USER, true, false);
+        fixture("00000000-0000-4000-8000-000000000004", other, true, true);
+        String bearer = token(USER, List.of("PLAYER"));
+        listed(bearer, "completed", "").andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(2)).andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.items[0].id").value(second));
+        listed(bearer, "completed", "?size=1&page=1&userId=" + other).andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].id").value(first));
+        listed(bearer, "completed", "?page=2&size=1").andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isEmpty()).andExpect(jsonPath("$.totalElements").value(2));
+        UUID otherGame = jdbc.queryForObject("SELECT game_id FROM library_entries WHERE user_id = ?", UUID.class, other);
+        mvc.perform(delete("/api/v1/library/entries/" + otherGame + "/completed")
+                .header("Authorization", "Bearer " + bearer)).andExpect(status().isNoContent());
+        assertEquals(true, jdbc.queryForObject("SELECT completed FROM library_entries WHERE user_id = ?", Boolean.class, other));
+        verifyNoInteractions(catalog);
+    }
+
+    @Test void completedReadAndRemovalValidateIdentityRoleAndInput() throws Exception {
+        String bearer = token(USER, List.of("PLAYER"));
+        mvc.perform(get("/api/v1/library/entries/completed")).andExpect(status().isUnauthorized());
+        mvc.perform(delete("/api/v1/library/entries/" + GAME + "/completed")).andExpect(status().isUnauthorized());
+        listed(token(USER, List.of()), "completed", "").andExpect(status().isForbidden());
+        clear(token(USER, List.of()), "completed").andExpect(status().isForbidden());
+        listed(sign(claims(), "svc+jwt"), "completed", "").andExpect(status().isUnauthorized());
+        mvc.perform(delete("/api/v1/library/entries/invalid/completed").header("Authorization", "Bearer " + bearer))
+                .andExpect(status().isBadRequest());
+        for (String query : List.of("?page=-1", "?size=0", "?size=51", "?page=abc"))
+            listed(bearer, "completed", query).andExpect(status().isBadRequest());
+        listed(bearer, "completed", "?page=2147483647&size=50").andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isEmpty());
+        verifyNoInteractions(catalog);
+    }
+
+    @Test void concurrentCompletedEnableAndDisableNeverClearFavoriteOrDuplicateCollection() throws Exception {
+        String bearer = token(USER, List.of("PLAYER"));
+        mark(bearer, "favorite").andExpect(status().isOk());
+        var start = new java.util.concurrent.CountDownLatch(1);
+        try (var workers = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
+            var futures = new java.util.ArrayList<java.util.concurrent.Future<?>>();
+            for (int i = 0; i < 16; i++) {
+                boolean enable = i % 2 == 0;
+                futures.add(workers.submit(() -> {
+                    start.await();
+                    if (enable) mark(bearer, "completed").andExpect(status().isOk());
+                    else clear(bearer, "completed").andExpect(status().isNoContent());
+                    return null;
+                }));
+            }
+            start.countDown();
+            for (var future : futures) future.get(20, java.util.concurrent.TimeUnit.SECONDS);
+        }
+        assertEquals(1, count());
+        assertEquals(true, jdbc.queryForObject("SELECT favorite AND in_collection FROM library_entries", Boolean.class));
+    }
+
+    @Test void flagListUsesOneSnapshotForRowsAndTotalDuringConcurrentWrite() throws Exception {
+        writer.write(USER, GAME, com.ltz.library.domain.enums.LibraryAction.FAVORITE);
+        org.mockito.Mockito.doAnswer(invocation -> {
+            Object snapshot = invocation.callRealMethod();
+            try (var worker = java.util.concurrent.Executors.newSingleThreadExecutor()) {
+                worker.submit(() -> writer.write(USER, UUID.randomUUID(), com.ltz.library.domain.enums.LibraryAction.FAVORITE))
+                        .get(10, java.util.concurrent.TimeUnit.SECONDS);
+            }
+            return snapshot;
+        }).when(entries).findFlagged(USER, com.ltz.library.domain.enums.LibraryFlag.FAVORITE, 0, 20);
+        listed(token(USER, List.of("PLAYER")), "favorites", "").andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1)).andExpect(jsonPath("$.totalElements").value(1));
+        assertEquals(2, count());
+        verifyNoInteractions(catalog);
+    }
+
+    private org.springframework.test.web.servlet.ResultActions clear(String bearer, String flag) throws Exception {
+        return mvc.perform(delete("/api/v1/library/entries/" + GAME + "/" + flag).header("Authorization", "Bearer " + bearer));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions listed(String bearer, String list, String query) throws Exception {
+        return mvc.perform(get("/api/v1/library/entries/" + list + query).header("Authorization", "Bearer " + bearer));
+    }
+
+    private void fixture(String id, UUID owner, boolean favorite, boolean completed) {
+        jdbc.update("INSERT INTO library_entries(id,user_id,game_id,favorite,completed,added_at,updated_at)"
+                + " VALUES (?,?,?,?,?,'2026-10-30T12:00:00Z','2026-10-30T12:00:00Z')",
+                UUID.fromString(id), owner, UUID.randomUUID(), favorite, completed);
     }
 
     private org.springframework.test.web.servlet.ResultActions add(String bearer, String body) throws Exception {
