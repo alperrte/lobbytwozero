@@ -21,7 +21,7 @@ Görev kimlikleri: `LTZ-KER-USER-01..04` (USER-01..13). Tek API sözleşmesi [do
 - [progress/LTZ-KER-USER-02.md](progress/LTZ-KER-USER-02.md) — faz 2 ilerleme ve test kanıtı
 - [progress/LTZ-KER-USER-03.md](progress/LTZ-KER-USER-03.md) — faz 3 ilerleme ve sonda yazılacak test listesi
 - [progress/LTZ-KER-USER-04.md](progress/LTZ-KER-USER-04.md) — faz 4 ilerleme ve sonda yazılacak test listesi
-- [integration/services/](integration/services/) — Social, Library/Review, Hardware'den beklenenler
+- [integration/README.md](integration/README.md) — kimden ne bekleniyor, durum ve gönderilecek mesajlar (Auth, Social, Library/Review, Hardware)
 - [integration/auth/auth-service-talepleri/](integration/auth/auth-service-talepleri/) — Auth'a yazılı talepler; Auth cevapları
   `docs-auth/verilen-cevaplar/user-service/` altında (REQ-01..04 cevaplandı, 2026-10-30; Steam talebi bekliyor)
 

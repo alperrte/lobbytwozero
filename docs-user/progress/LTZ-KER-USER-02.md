@@ -42,6 +42,6 @@ Durum: **User tarafı tamamlandı (yerel doğrulama).** Çağıran servisler ve 
 ## Açık işler
 
 - Talepler: [USER-AUTH-REQ-04](../integration/auth/auth-service-talepleri/auth-requests-04.md) (T3),
-  [USER-SVC-REQ-01](../integration/services/requests-01-social-library-review-hardware.md) (T6, T7, T8).
+  [USER-SVC-REQ-01](../integration/README.md) (T6, T7, T8).
 - Social başlangıç aktarımı bitmeden `ltz.user.social.projection-enabled=true` yapılmamalı.
 - Arama için kullanıcı başına oran sınırı yok (izlenecek).
