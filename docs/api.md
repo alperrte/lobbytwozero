@@ -1929,6 +1929,185 @@ DEV Auth görevinin CONFIRMED olması NOT VERIFIED.
 
 Sorumlu: Hamza · Gateway: `/api/v1/library/**` · Görevler: LIB-
 
+### LIBRARY — Koleksiyona oyun ekleme (LIB-01, LIB-12, LIB-13)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/library/entries
+
+#### Yetkilendirme
+RS256/Auth JWKS ile `typ=at+jwt`, issuer, audience, zamanlar ve UUID `sub` doğrulanır.
+Kanonik rollerden biri gerekir: PLAYER, CONTENT_CREATOR, GAME_DEVELOPER, MODERATOR, ADMIN.
+Kullanıcı yalnız doğrulanmış `sub` üzerinden belirlenir; `userId` gövde alanı reddedilir.
+Servis yalnız Bearer kabul eder; cookie→Bearer ve cookie CSRF/Origin kontrolü Gateway'dedir.
+
+#### Path/Query Parameters
+Yok. Query veya kimlik başlıkları kullanıcı kimliğini belirlemez.
+
+#### Request Body
+```json
+{ "gameId": "00000000-0000-4000-8000-000000000001" }
+```
+Zorunlu UUID; bilinmeyen gövde alanları reddedilir.
+
+#### Response — 200
+İlk ekleme ve tekrar aynı HTTP durumunu kullanır. `id`, `gameId`, `inCollection`,
+`favorite`, `completed`, `addedAt`, `updatedAt`, `version` döner.
+Yeni kayıt: `inCollection=true`, `favorite=false`, `completed=false`, `version=0`.
+Tekrar ekleme mevcut kimliği, tarihleri ve bayrakları korur; oyun sahipliği kanıtı değildir.
+DB `uq_library_entries_user_game` gerçek tekillik garantisidir; atomik PostgreSQL upsert kullanılır.
+
+#### Hata Durumları
+- 400: Geçersiz/eksik UUID, bozuk JSON veya bilinmeyen alan.
+- 401: Kimlik yok veya token geçersiz (servis token'ı dahil).
+- 403: Geçerli token'da izin verilen rol yok.
+- 404: Game batch sözleşmesinde oyun `unavailable` (olmayan/arşivlenmiş/birleştirilmiş).
+- 503: Game Service timeout/kesinti/429/hatalı veya tutarsız yanıt; kayıt oluşturulmaz.
+- 500: Beklenmeyen sunucu hatası. Tüm hatalar ProblemDetail biçimindedir.
+
+#### Bağlantı
+Frontend Gateway üzerinden aynı path'i çağırır. Library, transaction dışında mevcut
+`GAME_SERVICE_URL` üzerinden public `POST /api/v1/game/games/batch` sözleşmesini
+tek `gameId` ile tüketir; token aktarımı ve otomatik retry yoktur.
+Migration: `V41__create_library_entries.sql`; yalnız library_db. Yeni ENV yoktur.
+
+#### Test Durumu
+UNIT + INTEGRATION — LibraryApiTest: gerçek PostgreSQL/Flyway/JPA, RSA/JWKS,
+16 eşzamanlı ekleme ve doğrudan SQL tekillik testi. GameServiceClientTest:
+MockRestServiceServer ile sözleşme, kesinti, timeout, 429 ve tutarsız yanıtlar.
+Gerçek Auth issuer/Gateway filtre sözleşmesi sınandı. 30 Ekim 2026 son kontrolünde
+iki sentetik hesabın gerçek kayıt/doğrulama/login oturumu ile Auth→Gateway→Library→Game→DB
+E2E akışı 62/62 PASS: ekleme/tekrar, iki kullanıcı izolasyonu, otomatik bayraklar,
+atomik silme, geçersiz oyun/JWT/CSRF ve gerçek Game kesintisinde 503/no-write.
+Kanıt: `docs-library/LTZ-HAM-LIB-01-E2E-Sonuc.md`; tekrar: `node ops/library-phase1-e2e.mjs`.
+Maven clean verify 45 test PASS, LINE %98,13. Pre-push/SonarQube kullanıcı tarafından manuel yapılır.
+Yeni imaj ltz-dev üzerinde çalıştırıldı; Library/Gateway gerçek HTTP health ve
+anonim/geçersiz Bearer/sahte kimlik/CSRF kontrolleri 15/15 başarılı. Library
+konteynerinden Auth JWKS erişimi HTTP 200. Game public batch gerçek HTTP 200.
+
+### LIBRARY — Koleksiyondan oyun kaldırma (LIB-02)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend
+
+#### Endpoint
+DELETE /api/v1/library/entries/{gameId}
+
+#### Yetkilendirme
+Koleksiyona ekleme ile aynı kullanıcı JWT/rol sözleşmesi. Silme SQL'i hem doğrulanmış
+`sub=user_id` hem `game_id` ile sınırlıdır; başka kullanıcı adına silme yolu yoktur.
+
+#### Path/Query Parameters
+- gameId: zorunlu UUID. Query kimlik kaynağı değildir.
+
+#### Request Body
+Yok.
+
+#### Response — 204
+Gövde yok. Kayıt yoksa veya tekrar silinirse de 204. Koleksiyon/favori/bitirildi tek
+satırda tutulur ve tek transaction'da fiziksel silinir. Başkasındaki aynı oyun korunur.
+Game Service çağrısı gerekmez; katalog kesintisi veya arşivleme kaldırmayı engellemez.
+
+#### Hata Durumları
+- 400: Geçersiz yol UUID'si.
+- 401: Kimlik yok/geçersiz JWT.
+- 403: Gerekli kullanıcı rolü yok.
+- 500: Beklenmeyen sunucu hatası; ProblemDetail.
+
+#### Bağlantı
+Frontend Gateway üzerinden aynı path; yalnız library_db transaction'ı.
+
+#### Test Durumu
+INTEGRATION — LibraryApiTest: gerçek PostgreSQL üzerinde iki kullanıcı izolasyonu,
+iki bayrakla birlikte silme, tekrar, anonim erişim ve geçersiz UUID.
+
+### LIBRARY — Favori işaretiyle otomatik koleksiyon kaydı (LIB-15)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend
+
+#### Endpoint
+PUT /api/v1/library/entries/{gameId}/favorite
+
+#### Yetkilendirme
+Koleksiyona ekleme ile aynı JWT/rol/sahiplik sözleşmesi; kullanıcı yalnız `sub`'dan.
+
+#### Path/Query Parameters
+- gameId: zorunlu UUID. Query parametresi kullanılmaz.
+
+#### Request Body
+Yok. Bu uç yalnız işareti açar; `false` kabul eden bir durum güncelleme API'si değildir.
+
+#### Response — 200
+Koleksiyona ekleme ile aynı LibraryEntryResponse. Eksik kayıt oluşturulurken
+`inCollection=true`, `favorite=true`, `completed=false`. Var olan kaydın completed
+alanı korunur. Tekrar aynı id/tarih/version değerlerini korur. Gerçek değişiklikte
+updatedAt ve version ilerler. Benzersiz upsert, ekleme/bitirildi yarışında işaret kaybetmez.
+Favoriden çıkarma ve favori listeleme Faz 2'dir; bu görevde uygulanmadı.
+
+#### Hata Durumları
+- 400: Geçersiz yol UUID'si.
+- 401: Kimlik yok/geçersiz kullanıcı token'ı.
+- 403: İzin verilen kullanıcı rolü yok.
+- 404: Game Service oyunu kullanılabilir olarak doğrulamadı.
+- 503: Oyun doğrulaması kesinti/timeout/429/tutarsız yanıt nedeniyle tamamlanamadı.
+- 500: Beklenmeyen hata. Yanıtlar ProblemDetail.
+
+#### Bağlantı
+Frontend Gateway üzerinden. Game batch doğrulaması transaction dışında; yalnız
+library_db upsert'i atomiktir. HTTP çağrısı dağıtık transaction değildir.
+Silme ile eşzamanlı işaretlemede DB işlem sırası geçerlidir: silmeden sonraki
+başarılı işaretleme yeniden kayıt oluşturabilir; silmeden önceki işaretler silinir.
+
+#### Test Durumu
+INTEGRATION — hedef bayrak, tekrar, 24 karma eşzamanlı istek, geçersiz oyun,
+katalog kesintisi, 401/403; gerçek PostgreSQL/JWT. Game adaptörü ayrıca mock HTTP ile sınandı.
+
+### LIBRARY — Bitirildi işaretiyle otomatik koleksiyon kaydı (LIB-15)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend
+
+#### Endpoint
+PUT /api/v1/library/entries/{gameId}/completed
+
+#### Yetkilendirme
+Koleksiyona ekleme ile aynı JWT/rol/sahiplik sözleşmesi; kullanıcı yalnız `sub`'dan.
+
+#### Path/Query Parameters
+- gameId: zorunlu UUID. Query parametresi kullanılmaz.
+
+#### Request Body
+Yok. Yalnız bitirildi işaretini açar.
+
+#### Response — 200
+LibraryEntryResponse. Yeni kayıtta `inCollection=true`, `favorite=false`,
+`completed=true`. Mevcut favorite korunur. Tekrar kimlik/tarih/version değiştirmez.
+Gerçek değişiklik updatedAt/version ilerletir. Aynı benzersiz upsert mekanizması.
+Bitirildi durumunu geri alma ve listeleme Faz 2'dir; uygulanmadı.
+
+#### Hata Durumları
+- 400: Geçersiz yol UUID'si.
+- 401: Kimlik yok/geçersiz kullanıcı token'ı.
+- 403: İzin verilen kullanıcı rolü yok.
+- 404: Kullanılabilir oyun bulunamadı.
+- 503: Game Service doğrulaması tamamlanamadı; yeni kayıt yok.
+- 500: Beklenmeyen hata. Yanıtlar ProblemDetail.
+
+#### Bağlantı
+Frontend Gateway üzerinden. Game batch doğrulaması ve yerel transaction sınırı,
+silme ile yarış davranışı favori otomatik kayıt ucuyla aynıdır.
+
+#### Test Durumu
+INTEGRATION — hedef bayrak/diğer bayrağın korunması, tekrar, eşzamanlılık,
+geçersiz oyun/kesinti ve 401/403; gerçek PostgreSQL/JWT.
+
 ### LIBRARY — Hesap verisi silme iç ucu
 
 Durum: IMPLEMENTED
@@ -1953,9 +2132,8 @@ servis token'ı kullanıcı namespace'inde reddedilir. Servis rollerinden yetki 
 Yok.
 
 #### Response — 204
-Gövde yok. Henüz kişisel veri tablosu yok; veri yok/tekrar çağrı durumunda 204.
-Bu bir saklama/anonimleştirme kararı değildir. İlk kişisel veri tablosuyla birlikte
-silme mantığı ve gerçek DB testleri aynı görevde eklenmelidir.
+Gövde yok. Yalnız hedef hesabın `library_entries` satırları, favori ve bitirildi
+alanlarıyla birlikte tek transaction'da fiziksel silinir. Veri yok/tekrar çağrıda 204.
 
 #### Hata Durumları
 - 400: Geçersiz yol UUID'si.
@@ -1973,7 +2151,8 @@ Karar raporu: `docs-Game Service/LTZ-HAM-GAME-04-Auth-Entegrasyonu.md` §13.
 UNIT + INTEGRATION — AccountErasureTest, ServiceTokenDecoderConfigurationTest.
 Geçici RSA/JWKS ile gerçek filtre/controller/servis sınanır.
 ProductionServiceTokenSupport gerçek Auth ServiceTokenIssuer kaynağını test dizinine derler.
-Veri tablosu yoktur; DEV Auth görevinin CONFIRMED olması NOT VERIFIED.
+LibraryApiTest gerçek PostgreSQL üzerinde hedef hesabın silinmesi, tekrar ve diğer
+hesabın korunmasını sınar. DEV Auth görevinin CONFIRMED olması NOT VERIFIED.
 
 ## REVIEW
 
