@@ -172,8 +172,24 @@ erDiagram
 
 ## 3. user_db
 
+> Uygulanan (V71): `user_profiles`, `user_media`, `inbox_events`. `privacy_settings`, `user_preferences` ve `linked_accounts` sonraki fazlar için hedef şemadır. Ayrıntı: [database.md §3.2](database.md).
+
 ```mermaid
 erDiagram
+  user_profiles ||--o{ user_media : has
+  user_media {
+    uuid id PK
+    uuid user_id FK "ON DELETE CASCADE"
+    varchar kind "AVATAR|COVER"
+    varchar storage_key UK
+    varchar status "CURRENT|PENDING_DELETE"
+  }
+  inbox_events {
+    uuid event_id PK
+    varchar event_type
+    varchar producer
+    timestamptz processed_at
+  }
   user_profiles ||--|| privacy_settings : has
   user_profiles ||--|| user_preferences : has
   user_profiles ||--o{ linked_accounts : links

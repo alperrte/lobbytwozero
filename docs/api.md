@@ -891,7 +891,190 @@ Aşağıdakiler Auth'un çağıracağı/yayımlayacağı **PLANNED** sözleşmel
 
 Sorumlu: Kerem · Gateway: `/api/v1/user/**` · Görevler: USER-
 
-_Kayıt yok._
+> Kimlik doğrulama (2026-10-30, LTZ-KER-USER-01 faz 1a): Kullanıcı uçları Auth'un RS256 imzasını JWKS ile, `typ=at+jwt`, `iss`, `aud` ⊇ `ltz-api`, UUID `sub` ve zorunlu `exp`/`nbf`/`iat` alanlarını doğrular; `iat` eksikse token reddedilir. İç uçlar (`/internal/**`) yalnız `typ=svc+jwt`, `aud=user-service` servis token'ı kabul eder; kullanıcı token'ı iç uçta, servis token'ı kullanıcı uçlarında geçmez. Mevcut `AUTH_SERVICE_URL`, `JWT_ISSUER`, `JWT_AUDIENCE` kullanılır, yeni ENV yoktur. Tanımsız her yol `denyAll`. Gerçek Auth token'ıyla uçtan uca doğrulama **NOT VERIFIED**.
+
+### USER — Kendi profilimi getir (USER-01)
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/user/me
+
+#### Yetkilendirme
+Authenticated (Owner). `userId` yalnız token'ın `sub` değerinden alınır; istekte kimlik alanı yoktur.
+
+#### Response — 200
+Profil yoksa varsayılan değerlerle **oluşturulur** (Auth'un `UserRegistered` olayı gecikmiş ya da henüz hedef açılmamış olsa da kullanıcı 404 görmez; eşzamanlı ilk isteklerde tek satır oluşur). `Cache-Control: no-store`.
+```json
+{
+  "userId": "UUID",
+  "username": "string | null (Auth'tan UserRegistered olayıyla gelen kopya; olay gelene kadar null)",
+  "displayName": "string 2-32 | null",
+  "bio": "string ≤500 | null",
+  "playerTypes": ["CASUAL | COMPETITIVE | STORY | SOCIAL | COLLECTOR (en çok 2)"],
+  "favoriteGenres": ["katalog kodu (en çok 10)"],
+  "favoritePlatforms": ["katalog kodu (en çok 10)"],
+  "country": "ISO 3166-1 alpha-2 | null",
+  "onboardingCompletedAt": "ISO-8601 | null",
+  "updatedAt": "ISO-8601",
+  "version": 0
+}
+```
+Yanıt e-posta, hesap durumu veya kimlik bilgisi içermez.
+
+#### Hata Durumları
+- 401: Token yok/geçersiz (imza, `iss`, `aud`, `typ`, süre, `iat`, UUID olmayan `sub`); servis token'ı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/user/me
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; `MeControllerTest`, eşzamanlı ilk istek ve token saldırı matrisi dahil). Gerçek Auth token'ıyla uçtan uca: NOT VERIFIED.
+
+### USER — Profil güncelle (USER-02)
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+PATCH /api/v1/user/me/profile
+
+#### Yetkilendirme
+Authenticated (Owner). Başka kullanıcının profilini değiştiren bir yol yoktur.
+
+#### Request Body
+Gönderilmeyen ya da `null` alan **değişmez**; metin alanında `""`, liste alanında `[]` alanı **temizler**. Tanımsız alan (ör. `userId`, `accountStatus`) `400` döner (`fail-on-unknown-properties`). Gövde en fazla 16 KB.
+```json
+{
+  "version": "long ≥ 0, zorunlu: istemcinin son gördüğü sürüm",
+  "displayName": "string 2-32 Unicode kod noktası",
+  "bio": "string ≤500 kod noktası (düz metin; satır sonu \\n serbest)",
+  "country": "ISO 3166-1 alpha-2 (küçük harf kabul, büyük harfe çevrilir)",
+  "playerTypes": ["CASUAL | COMPETITIVE | STORY | SOCIAL | COLLECTOR"],
+  "favoriteGenres": ["^[a-z0-9][a-z0-9_-]{0,47}$, en çok 10"],
+  "favoritePlatforms": ["^[a-z0-9][a-z0-9_-]{0,47}$, en çok 10"]
+}
+```
+Metinler Unicode NFC'ye çevrilir ve kırpılır; denetim, biçim (bidi/sıfır genişlik), özel kullanım karakterleri ve `nbsp` reddedilir. Biyografi HTML'e çevrilmeden **düz metin** saklanır: istemci onu yalnız metin olarak göstermelidir. Listeler küçük/büyük harf normalize edilir, yinelenenler birleştirilir.
+
+#### Response — 200
+`GET /me` ile aynı gövde (güncel `version` dahil). Değişiklik yoksa `version` artmaz.
+
+#### Hata Durumları
+- 400: Doğrulama (`VALIDATION_FAILED`, `INVALID_DISPLAY_NAME`, `INVALID_BIO`, `INVALID_COUNTRY`, `INVALID_PLAYER_TYPES`, `INVALID_FAVORITE_GENRES`, `INVALID_FAVORITE_PLATFORMS`), bozuk JSON, tanımsız alan
+- 401: Token yok/geçersiz
+- 409: `CONCURRENT_MODIFICATION`: `version` güncel değil ya da eşzamanlı güncelleme
+- 413: Gövde 16 KB'ı aşıyor (`PAYLOAD_TOO_LARGE`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/user/me/profile
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; `MeControllerTest`, `ProfileTextTest`; eşzamanlı güncellemede yalnız biri başarılı).
+
+### USER — Hesap verisi silme (Internal, Auth → User)
+
+Durum: IMPLEMENTED (alıcı taraf)
+Sorumlu: Kerem
+Tüketici servisler: auth-service (hesap silme koordinasyonu, `ltz.auth.deletion.targets` içinde `user` var)
+
+#### Endpoint
+DELETE /internal/v1/accounts/{accountId}
+
+#### Yetkilendirme
+Internal. Gateway'e açık **değildir** (`/internal/**` route edilmez). Yalnız Auth'un imzaladığı **servis token'ı** (`docs-auth/servis-sozlesmeleri.md` §3.1): `typ=svc+jwt`, RS256/JWKS, `iss=ltz-auth`, `aud` ⊇ `user-service`, `jti` zorunlu, `scope` ⊇ `account:erase` (yoksa `403`), `sub` **tam olarak** `svc:auth-service` (`403`), `account_id` yoldaki `{accountId}` ile **aynı** (eksik/farklı `403`), `exp - iat ≤ 60 sn` ve `iat` zorunlu. Kullanıcı token'ı bu uçta kabul edilmez.
+
+#### Path Parameters
+- accountId: UUID, zorunlu — silinecek hesap
+
+#### Response — 204
+Gövde yok. Hesabın profili ve profil görselleri üst verisi tek transaction'da kalıcı silinir (görsel satırları FK `ON DELETE CASCADE` ile gider; görsel dosyalarının silinmesi Faz 1b'de eklenecek, o zamana kadar dosya yoktur). **İdempotenttir:** veri yoksa, ikinci çağrıda ya da bilinmeyen hesapta da `204`. Başka hesapların verisine dokunulmaz. `inbox_events` hesap kimliği taşımadığı için silinecek veri içermez.
+
+#### Hata Durumları
+- 400: Geçersiz `accountId` (`MALFORMED_REQUEST`)
+- 401: Token yok/geçersiz; kullanıcı token'ı; yanlış `iss`/`aud`/`typ`; süresi dolmuş, 60 sn'den uzun ömürlü ya da `iat`/`jti` eksik; `sub` `svc:` ile başlamıyor; bozuk/yanlış anahtarlı imza; `alg=none`/HS256; bilinmeyen `kid`
+- 403: `account:erase` kapsamı yok; `sub` `svc:auth-service` değil; `account_id` yok ya da yoldaki hesapla aynı değil (hiçbir şey silinmez); bu yolda başka yöntem ya da başka iç yol
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Auth, silme onaylandığında bu ucu `${USER_SERVICE_URL}/internal/v1/accounts/{accountId}` adresine çağırır. Gerçek Auth token'ıyla canlı silme **NOT VERIFIED**.
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; `AccountErasureTest` 18 test: rehberdeki 17 senaryo + büyük/küçük harf UUID, Auth `ServiceTokenIssuer` biçimi uyumluluğu dahil).
+
+### USER — Servisler arası olay girişi (Internal)
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: auth-service (üretici). Faz 2'de social, library, review üretici olarak eklenecek.
+
+#### Endpoint
+POST /internal/events
+
+#### Yetkilendirme
+Internal. Gateway'de **route edilmez**. `typ=svc+jwt`, `aud=user-service`, `scope` ⊇ `events:ingest` (yoksa `403`); token'ın `sub` değeri zarftaki `producer` ile tam olarak `svc:<producer>` olmalı (bir servis başkası adına olay yayınlayamaz, `403`). Auth olaylarında token ayrıca olayın hesabına bağlıdır: `account_id` claim'i `aggregateId` ile aynı olmalı (`403`). Kullanıcı token'ı `401`.
+
+#### Request Body (olay zarfı, docs/architecture.md §6.2)
+Zarfta tanımsız alan reddedilir. Gövde en fazla 16 KB.
+```json
+{
+  "eventId": "UUID (tekilleştirme anahtarı)",
+  "eventType": "UserRegistered | AccountStatusChanged | AccountEmailChanged",
+  "eventVersion": 1,
+  "occurredAt": "ISO-8601 UTC",
+  "producer": "auth-service",
+  "aggregateId": "UUID (hesap)",
+  "payload": { }
+}
+```
+**Kabul edilen olaylar** (hepsi yalnız `producer=auth-service`; farklı üretici `400 EVENT_PRODUCER_MISMATCH`):
+- `UserRegistered`: `{ "accountId": "UUID = aggregateId", "username": "^[A-Za-z0-9_]{3,20}$" }`. Profili açar ya da var olan profile kullanıcı adı kopyasını yazar; **hesap durumunu değiştirmez**.
+- `AccountStatusChanged`: `{ "accountId": "UUID = aggregateId", "status": "ACTIVE | SUSPENDED | BANNED | DISABLED | ..." }`. Profil varsa durumu günceller; **eski olay yeni durumu ezemez** (`occurredAt` karşılaştırılır). Profil yoksa yalnız kısıtlayıcı durumlar (`SUSPENDED`, `BANNED`, `DISABLED`) kaydedilir (askıdaki hesap sonradan görünür hale gelmesin); `ACTIVE` için profil ilk kullanımda zaten `ACTIVE` açılır. Tanınmayan durum adı profili değiştirmez.
+- `AccountEmailChanged`: `{ "accountId": "UUID = aggregateId" }`. Yük doğrulanır, etkisi yoktur (User e-posta tutmaz; yeni adres olayda gelmez).
+- Bilinmeyen `eventType` başarıyla yok sayılır (`IGNORED`), kaydedilmez, üretici yeniden denemez. `eventVersion` ≠ 1 `400`.
+
+#### Response — 200
+```json
+{
+  "eventId": "UUID",
+  "outcome": "PROCESSED | DUPLICATE | IGNORED"
+}
+```
+Olay `inbox_events` tablosunda `eventId` ile tekilleştirilir ve etkisiyle **aynı transaction'da** uygulanır: aynı `eventId` ikinci kez gelirse (eşzamanlı teslim dahil) `DUPLICATE` döner ve hiçbir şey değişmez. Geçersiz yük işlenmiş diye kaydedilmez, aynı olay düzeltilmiş yükle sonra işlenebilir. Olay yükü ve hesap kimliği tabloya yazılmaz.
+
+#### Hata Durumları
+- 400: Zarf doğrulama hatası (`VALIDATION_FAILED`), üretici-olay uyuşmazlığı (`EVENT_PRODUCER_MISMATCH`), geçersiz yük ya da `accountId` ≠ `aggregateId` (`INVALID_EVENT`), desteklenmeyen sürüm, tanımsız zarf alanı
+- 401: Token yok/geçersiz; kullanıcı token'ı; yanlış `aud`
+- 403: `events:ingest` kapsamı yok; `sub` ≠ `svc:<producer>`; Auth olayında `account_id` ≠ `aggregateId` ya da yok; GET gibi başka yöntem
+- 413: Gövde 16 KB'ı aşıyor
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Auth, `ltz.auth.events.targets` (ortam değişkeni `AUTH_EVENT_TARGETS`) listesine `user` eklenince olayları bu uca iletir (`docs-user/integration/auth/auth-service-talepleri/auth-requests-01.md`). Hedef eklenene kadar Auth hiçbir olay yazmaz. Gerçek Auth token'ıyla uçtan uca: **NOT VERIFIED**.
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; `InternalEventTest` 27 test: tekilleştirme, eşzamanlı teslim, sıra bozukluğu, üretici/hesap bağı, geri alma, doğrulama).
 
 ## MAIL
 
