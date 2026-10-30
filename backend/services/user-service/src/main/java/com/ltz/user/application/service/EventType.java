@@ -9,7 +9,14 @@ import java.util.Optional;
 enum EventType {
     USER_REGISTERED("UserRegistered", "auth-service"),
     ACCOUNT_STATUS_CHANGED("AccountStatusChanged", "auth-service"),
-    ACCOUNT_EMAIL_CHANGED("AccountEmailChanged", "auth-service");
+    ACCOUNT_EMAIL_CHANGED("AccountEmailChanged", "auth-service"),
+    FRIENDSHIP_CHANGED("FriendshipChanged", "social-service"),
+    USER_BLOCKED("UserBlocked", "social-service"),
+    USER_UNBLOCKED("UserUnblocked", "social-service"),
+    /** Önerilen sözleşme (T7): library-service mutlak koleksiyon sayıları. */
+    LIBRARY_SUMMARY_CHANGED("LibrarySummaryChanged", "library-service"),
+    /** Önerilen sözleşme (T7): review-service mutlak inceleme sayısı. */
+    REVIEW_SUMMARY_CHANGED("ReviewSummaryChanged", "review-service");
 
     private final String eventName;
     private final String producer;

@@ -891,6 +891,8 @@ Aşağıdakiler Auth'un çağıracağı/yayımlayacağı **PLANNED** sözleşmel
 
 Sorumlu: Kerem · Gateway: `/api/v1/user/**` · Görevler: USER-
 
+> Açık uçlar (2026-10-30, LTZ-KER-USER-02): `GET /api/v1/user/profiles/**` ve `GET /api/v1/user/media/*` misafire açıktır (token varsa doğrulanır); diğer tüm `/api/v1/user/**` uçları kimlik ister. Görünürlük kuralı tektir: "Gizlilik ayarlarım" kaydındaki tablo.
+>
 > Kimlik doğrulama (2026-10-30, LTZ-KER-USER-01 faz 1a): Kullanıcı uçları Auth'un RS256 imzasını JWKS ile, `typ=at+jwt`, `iss`, `aud` ⊇ `ltz-api`, UUID `sub` ve zorunlu `exp`/`nbf`/`iat` alanlarını doğrular; `iat` eksikse token reddedilir. İç uçlar (`/internal/**`) yalnız `typ=svc+jwt`, `aud=user-service` servis token'ı kabul eder; kullanıcı token'ı iç uçta, servis token'ı kullanıcı uçlarında geçmez. Mevcut `AUTH_SERVICE_URL`, `JWT_ISSUER`, `JWT_AUDIENCE` kullanılır, yeni ENV yoktur. Tanımsız her yol `denyAll`. Gerçek Auth token'ıyla uçtan uca doğrulama **NOT VERIFIED**.
 
 ### USER — Kendi profilimi getir (USER-01)
@@ -1140,7 +1142,7 @@ UNIT + INTEGRATION (gerçek PostgreSQL; `AccountErasureTest` 18 test: rehberdeki
 
 Durum: IMPLEMENTED
 Sorumlu: Kerem
-Tüketici servisler: auth-service (üretici). Faz 2'de social, library, review üretici olarak eklenecek.
+Tüketici servisler (üretici olarak): auth-service; social-service (T6, henüz göndermiyor); library-service ve review-service (önerilen sözleşme T7, henüz göndermiyor).
 
 #### Endpoint
 POST /internal/events
@@ -1165,6 +1167,11 @@ Zarfta tanımsız alan reddedilir. Gövde en fazla 16 KB.
 - `UserRegistered`: `{ "accountId": "UUID = aggregateId", "username": "^[A-Za-z0-9_]{3,20}$" }`. Profili açar ya da var olan profile kullanıcı adı kopyasını yazar; **hesap durumunu değiştirmez**.
 - `AccountStatusChanged`: `{ "accountId": "UUID = aggregateId", "status": "ACTIVE | SUSPENDED | BANNED | DISABLED | ..." }`. Profil varsa durumu günceller; **eski olay yeni durumu ezemez** (`occurredAt` karşılaştırılır). Profil yoksa yalnız kısıtlayıcı durumlar (`SUSPENDED`, `BANNED`, `DISABLED`) kaydedilir (askıdaki hesap sonradan görünür hale gelmesin); `ACTIVE` için profil ilk kullanımda zaten `ACTIVE` açılır. Tanınmayan durum adı profili değiştirmez.
 - `AccountEmailChanged`: `{ "accountId": "UUID = aggregateId" }`. Yük doğrulanır, etkisi yoktur (User e-posta tutmaz; yeni adres olayda gelmez).
+- `FriendshipChanged` (yalnız `social-service`): `{ "userLowId": "UUID", "userHighId": "UUID", "change": "ADDED | REMOVED" }`. social-service'in mevcut olay kaydıyla aynıdır. Arkadaşlık yansımasını günceller.
+- `UserBlocked` / `UserUnblocked` (yalnız `social-service`): `{ "blockerId": "UUID", "blockedId": "UUID" }` (farklı olmalı). Engel yansımasını günceller; engel iki yönde uygulanır.
+- `LibrarySummaryChanged` (yalnız `library-service`, **önerilen sözleşme**): `{ "userId": "UUID = aggregateId", "collectionCount": int ≥ 0, "completedCount": int ≥ 0, "favoriteCount": int ≥ 0 }`. **Mutlak** sayılar (fark değil).
+- `ReviewSummaryChanged` (yalnız `review-service`, **önerilen sözleşme**): `{ "userId": "UUID = aggregateId", "reviewCount": int ≥ 0 }`. Mutlak sayı.
+- Yansıma ve sayaç yazmaları son-durum upsert'üdür: aynı ilişki/kullanıcı için `occurredAt`'i daha eski olay yeni durumu **ezmez** (sıra bozuk teslime dayanıklı). Kaldırılan arkadaşlık/engel satırı `active=false` olarak kalır ki gecikmiş eski bir "eklendi" olayı onu geri getiremesin. Sayılar ondalık/metin/negatif ise `400`.
 - Bilinmeyen `eventType` başarıyla yok sayılır (`IGNORED`), kaydedilmez, üretici yeniden denemez. `eventVersion` ≠ 1 `400`.
 
 #### Response — 200
@@ -1191,7 +1198,238 @@ Diğer mikroservisler:
 Auth, `ltz.auth.events.targets` (ortam değişkeni `AUTH_EVENT_TARGETS`) listesine `user` eklenince olayları bu uca iletir (`docs-user/integration/auth/auth-service-talepleri/auth-requests-01.md`). Hedef eklenene kadar Auth hiçbir olay yazmaz. Gerçek Auth token'ıyla uçtan uca: **NOT VERIFIED**.
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; `InternalEventTest` 27 test: tekilleştirme, eşzamanlı teslim, sıra bozukluğu, üretici/hesap bağı, geri alma, doğrulama).
+UNIT + INTEGRATION (gerçek PostgreSQL; `InternalEventTest` 27 test: tekilleştirme, eşzamanlı teslim, sıra bozukluğu, üretici/hesap bağı, geri alma, doğrulama; `ProjectionEventTest` 8 test: arkadaşlık/engel ve özet olayları, sıra bozukluğu, üretici kuralları). Gerçek social/library/review üreticileriyle uçtan uca: NOT VERIFIED.
+
+### USER — Gizlilik ayarlarım (USER-06)
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/user/me/privacy
+PUT /api/v1/user/me/privacy
+
+#### Yetkilendirme
+Authenticated (Owner). Kimlik yalnız token'dan.
+
+#### Request Body (PUT)
+Ayarların **tamamı** zorunludur; tanımsız alan ve değer `400`.
+```json
+{
+  "version": "long ≥ 0, zorunlu: son görülen sürüm; hiç kaydedilmemişse 0",
+  "friendsList": "PUBLIC | FRIENDS | PRIVATE",
+  "library": "PUBLIC | FRIENDS | PRIVATE",
+  "hardware": "PUBLIC | FRIENDS | PRIVATE",
+  "performance": "PUBLIC | FRIENDS | PRIVATE",
+  "guestProfileAccess": "BASIC | DETAILED"
+}
+```
+
+#### Response — 200
+Aynı alanlar ve güncel `version`. Ayar hiç kaydedilmemişse `GET` varsayılanları döner (okuma satır oluşturmaz): `friendsList=FRIENDS`, `library=PUBLIC`, `hardware=FRIENDS`, `performance=PRIVATE`, `guestProfileAccess=BASIC`, `version=0`. İlk `PUT` sürüm 0 ile yazar; sonraki her değişiklik sürümü artırır, değişiklik yoksa artırmaz. `Cache-Control: no-store`.
+
+**Görünürlük kuralı** (tüm uçlarda tek kural, `PrivacyRules`):
+
+| İzleyici | PUBLIC | FRIENDS | PRIVATE |
+| --- | --- | --- | --- |
+| Sahip | evet | evet | evet |
+| Arkadaş | evet | evet | hayır |
+| Giriş yapmış üye | evet | hayır | hayır |
+| Misafir | yalnız `DETAILED` | hayır | hayır |
+
+Aralarında herhangi bir yönde engel olan izleyici profili hiç göremez. Profil bütünüyle gizlenemez: temel kart (ad, avatar, kapak) her zaman görünür.
+
+#### Hata Durumları
+- 400: `VALIDATION_FAILED`, tanımsız alan/değer, negatif sürüm
+- 401: Token yok/geçersiz; servis token'ı
+- 409: `CONCURRENT_MODIFICATION`: sürüm güncel değil ya da eşzamanlı ilk kayıt
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/user/me/privacy
+
+Diğer mikroservisler:
+Ayarlar diğer servislere "Gizlilik kararı" iç ucuyla verilir.
+
+#### Test Durumu
+UNIT + INTEGRATION (`PrivacyControllerTest`, `PrivacyRulesTest` tam matris).
+
+### USER — Açık profil (USER-05, USER-12)
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/user/profiles/{userId}
+GET /api/v1/user/profiles/by-username/{username}
+
+#### Yetkilendirme
+Public + isteğe bağlı kimlik. Token yoksa izleyici **misafirdir**; token varsa doğrulanır ve **geçersiz token misafir sayılmaz, `401`** olur. Servis token'ı `401`.
+
+#### Path Parameters
+- userId: UUID
+- username: `^[A-Za-z0-9_]{3,20}$` (büyük/küçük harfe duyarsız); desene uymayan değer `404`
+
+#### Response — 200
+```json
+{
+  "userId": "UUID",
+  "username": "string | null",
+  "displayName": "string | null",
+  "avatar": { "small": "...", "large": "...", "animated": false },
+  "cover": null,
+  "details": {
+    "bio": "string | null", "playerTypes": [], "favoriteGenres": [], "favoritePlatforms": [], "country": "TR | null"
+  },
+  "visible": { "friendsList": false, "library": true, "hardware": false, "performance": false },
+  "summary": {
+    "friends": { "status": "AVAILABLE | HIDDEN | UNAVAILABLE", "count": 12 },
+    "library": { "status": "AVAILABLE | HIDDEN | UNAVAILABLE", "collection": 40, "completed": 12, "favorite": 5 },
+    "reviews": { "status": "AVAILABLE | HIDDEN | UNAVAILABLE", "count": 7 }
+  }
+}
+```
+- Temel kart (`userId`, `username`, `displayName`, `avatar`, `cover`) her zaman doludur.
+- `details`: üye/arkadaş/sahip için dolu; misafir için yalnız sahip `guestProfileAccess=DETAILED` yaptıysa, aksi halde `null`.
+- `visible`: izleyicinin görebileceği bölümler; istemci diğer servislere (Social, Library, Hardware, Performance) yalnız bunlar için gider. O servisler de kararı kendi tarafında yeniden uygular.
+- `summary` (USER-12): sayı yalnız `AVAILABLE` iken doludur. `HIDDEN` = izleyici göremez, `UNAVAILABLE` = kaynak servisten henüz veri yok (sayı **uydurulmaz**). Arkadaş sayısı Social yansıması güvenilir ilan edilene kadar (`ltz.user.social.projection-enabled`) `UNAVAILABLE`; incelemeler herkese açık UGC olduğundan `PUBLIC` bölüm kuralıyla gösterilir.
+- E-posta, hesap durumu, kimlik bilgisi yoktur. `Cache-Control: no-store, private` (yanıt izleyiciye göre değişir).
+
+#### Hata Durumları
+- 400: Geçersiz `userId`
+- 401: Geçersiz/süresi dolmuş token; servis token'ı
+- 404: `PROFILE_NOT_FOUND`: profil yok, hesap yasaklı/devre dışı/silinmekte/doğrulanmamış **ya da** izleyiciyle arasında herhangi bir yönde engel var (hepsi aynı yanıt). Askıdaki (`SUSPENDED`) hesap görünür.
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/user/profiles/{userId} ve /api/v1/user/profiles/by-username/{username}
+
+Diğer mikroservisler:
+Arkadaşlık/engel ve özet sayıları olaylardan gelen yansımadır; bu uç hiçbir servisi senkron çağırmaz.
+
+#### Test Durumu
+UNIT + INTEGRATION (`PublicProfileControllerTest` 12, `SocialProjectionTrustedTest`).
+
+### USER — Toplu profil kartı
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend (arkadaş listesi, mesaj listesi gibi kimlik listelerine ad/avatar eklemek için)
+
+#### Endpoint
+POST /api/v1/user/profiles/batch
+
+#### Yetkilendirme
+Authenticated. Misafir `401`.
+
+#### Request Body
+```json
+{ "userIds": ["UUID (1-50 adet; yinelenenler tek sayılır)"] }
+```
+
+#### Response — 200
+```json
+{ "items": [ { "userId": "UUID", "username": "string | null", "displayName": "string | null", "avatar": { "small": "...", "large": "...", "animated": false } } ] }
+```
+İstek sırası korunur. Olmayan, yasaklı/devre dışı hesaplar ve izleyiciyle engel ilişkisi olanlar **sessizce atlanır** (hangisi olduğu sızdırılmaz). Askıdaki hesap listelenir. Tüm kart verisi en çok üç sorguyla okunur (N+1 yok). `Cache-Control: no-store, private`.
+
+#### Hata Durumları
+- 400: `VALIDATION_FAILED` (boş liste, 50'den fazla kimlik, geçersiz UUID)
+- 401: Token yok/geçersiz
+- 413: Gövde 16 KB'ı aşıyor
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/user/profiles/batch
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (`PlayerSearchTest`).
+
+### USER — Oyuncu arama (USER-11)
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/user/search?q={metin}
+
+#### Yetkilendirme
+Authenticated. **Misafir arama yapamaz** (`401`; kullanıcı listesinin toplu çekilmesine karşı).
+
+#### Query Parameters
+- q: string, zorunlu; kırpıldıktan sonra 2-32 karakter, denetim/biçim karakteri yok
+
+#### Response — 200
+Toplu kart ile aynı gövde (`items`), **en çok 20** sonuç; sayfalama yok (sorguyu daraltın). Kullanıcı adı **ya da** görünen ad **önekiyle** eşleşir; büyük/küçük harfe duyarsızdır ve Türkçe `ı/I/İ/i` aynı sayılır. `%`, `_`, `\` joker değil düz karakterdir. Yalnız `ACTIVE` hesaplar döner: askıdaki, yasaklı ve izleyiciyle herhangi bir yönde engeli olan hesaplar çıkmaz. Sıra: kullanıcı adı (yoksa sonda), görünen ad. Kısmi `text_pattern_ops` indeksleri kullanılır; ayrı arama servisi yoktur.
+
+#### Hata Durumları
+- 400: `INVALID_SEARCH_QUERY` (kısa/uzun/yasak karakter), `q` yok
+- 401: Token yok/geçersiz
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/user/search
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (`PlayerSearchTest` 9 test: önek, Türkçe katlama, durum/engel süzgeci, sınır, joker kaçırma).
+
+### USER — Gizlilik kararı (Internal, Social/Hardware/Library → User)
+
+Durum: IMPLEMENTED (çağıran tüketiciler ve Auth kapsamı **PENDING**: T3, T6, T7, T8)
+Sorumlu: Kerem
+Tüketici servisler: social-service (SOC-12), hardware-service (HW-08 `HardwareVisibilityPolicy`), library-service (LIB-11)
+
+#### Endpoint
+POST /internal/v1/privacy/decisions
+
+#### Yetkilendirme
+Internal. Gateway'de route edilmez. `typ=svc+jwt`, `aud=user-service`, `scope` ⊇ `privacy:read` (yoksa `403`); çağıran (`sub`) yalnız `svc:social-service`, `svc:hardware-service`, `svc:library-service` olabilir (aksi halde `403`). Kullanıcı token'ı `401`. **Auth'ta bu kapsam ve çağıran→hedef çiftleri henüz tanımlı değildir (talep T3).**
+
+#### Request Body
+```json
+{
+  "viewerId": "UUID | null (çağıranın doğruladığı kullanıcı; misafir için null)",
+  "field": "FRIENDS_LIST | LIBRARY | HARDWARE | PERFORMANCE",
+  "ownerIds": ["UUID (1-100; yinelenenler tek)"]
+}
+```
+
+#### Response — 200
+```json
+{ "decisions": [ { "ownerId": "UUID", "setting": "PUBLIC | FRIENDS | PRIVATE", "allowed": false, "friends": false } ] }
+```
+İstek sırasıyla. `setting`: sahibin ayarı (kayıt yoksa varsayılan; yasaklı/devre dışı hesapta `PRIVATE`). `allowed`: izleyici görebilir mi (görünürlük kuralı + engel + hesap durumu). `friends`: izleyici ile sahip arkadaş mı. En çok dört sorgu (N+1 yok).
+
+**Fail-closed:** Social yansıması güvenilir ilan edilene kadar (`ltz.user.social.projection-enabled=false`, varsayılan) engel ve arkadaşlık bilinmez; bu yüzden **sahibi olmayan izleyiciye `allowed` her zaman `false`** döner (Hardware sözleşmesi: bilinmeyen karar reddedilir). `setting` yine döner: engel ve arkadaşlığı kendisi bilen Social yalnız `setting`'i kullanabilir. Sahip kendi bölümü için her zaman `allowed=true` alır.
+
+#### Hata Durumları
+- 400: `VALIDATION_FAILED` (boş/101+ sahip, alan yok), tanımsız alan değeri
+- 401: Token yok/geçersiz; kullanıcı token'ı; yanlış `aud`
+- 403: `privacy:read` kapsamı yok; çağıran izinli değil; başka yöntem (GET)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+social-service, hardware-service ve library-service Auth'tan `aud=user-service`, `scope=privacy:read` servis token'ı alıp bu ucu `${USER_SERVICE_URL}` üzerinden çağırır (Auth T3 sonrası). Gerçek tüketicilerle uçtan uca: **NOT VERIFIED**.
+
+#### Test Durumu
+UNIT + INTEGRATION (`PrivacyDecisionTest` 8, `SocialProjectionTrustedTest` 3, `PrivacyRulesTest` 21).
 
 ## MAIL
 

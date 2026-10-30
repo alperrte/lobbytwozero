@@ -23,7 +23,8 @@ public final class ProfileMapper {
                 profile.getOnboardingCompletedAt(), profile.getUpdatedAt(), profile.getVersion());
     }
 
-    private static MediaView mediaOf(List<UserMedia> media, MediaKind kind) {
+    /** Güncel görsellerden istenen türünkini görünüme çevirir; yoksa {@code null}. */
+    public static MediaView mediaOf(List<UserMedia> media, MediaKind kind) {
         return media.stream().filter(item -> item.getKind() == kind).findFirst()
                 .map(item -> new MediaView(item.smallFileName() != null ? item.smallFileName() : item.largeFileName(),
                         item.largeFileName(), item.isAnimated()))

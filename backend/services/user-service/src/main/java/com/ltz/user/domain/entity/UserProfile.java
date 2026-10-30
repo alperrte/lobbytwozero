@@ -47,6 +47,10 @@ public class UserProfile {
     @Column(name = "display_name", length = 32)
     private String displayName;
 
+    /** Arama için küçük harfli kopya; {@link #normalize(String)} ile üretilir. */
+    @Column(name = "display_name_normalized", length = 64)
+    private String displayNameNormalized;
+
     @Column(name = "bio", length = 500)
     private String bio;
 
@@ -130,6 +134,7 @@ public class UserProfile {
         boolean changed = false;
         if (changes.displayNameSet() && !Objects.equals(displayName, changes.displayName())) {
             this.displayName = changes.displayName();
+            this.displayNameNormalized = normalize(changes.displayName());
             changed = true;
         }
         if (changes.bioSet() && !Objects.equals(bio, changes.bio())) {
@@ -147,6 +152,23 @@ public class UserProfile {
             this.updatedAt = now;
         }
         return changed;
+    }
+
+    /**
+     * Arama anahtarı: yerelden bağımsız küçük harf ve Türkçe i katlaması. {@code İ} (küçük harfte {@code i̇}) ve noktasız
+     * {@code ı}, {@code i}'ye çevrilir; böylece "Çağrı", "ÇAĞRI", "çağri" aynı anahtara düşer. Arama sorgusu da aynı
+     * fonksiyonla normalize edilir.
+     */
+    public static String normalize(String text) {
+        if (text == null) {
+            return null;
+        }
+        return text.toLowerCase(Locale.ROOT).replace("i̇", "i").replace('ı', 'i');
+    }
+
+    /** Herkese açık profil yalnız etkin ve askıdaki hesaplar için gösterilir; diğer durumlar "profil yok" sayılır (K6). */
+    public boolean isPubliclyVisible() {
+        return accountStatus == AccountStatus.ACTIVE || accountStatus == AccountStatus.SUSPENDED;
     }
 
     private static boolean replaceList(List<String> incoming, List<String> current,

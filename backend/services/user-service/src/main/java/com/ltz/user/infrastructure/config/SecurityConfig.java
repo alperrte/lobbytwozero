@@ -55,7 +55,10 @@ public class SecurityConfig {
             PATHS.matcher(HttpMethod.GET, HEALTH),
             PATHS.matcher(HttpMethod.GET, HEALTH + "/**"),
             // Profil görselleri herkese açıktır (misafir kartında da görünür); adres 128 bitlik rastgele anahtardır.
-            PATHS.matcher(HttpMethod.GET, UserApiPaths.MEDIA + "/*"));
+            PATHS.matcher(HttpMethod.GET, UserApiPaths.MEDIA + "/*"),
+            // Açık profil misafire de açıktır (K5); token varsa yine doğrulanır, geçersiz token 401'dir.
+            PATHS.matcher(HttpMethod.GET, UserApiPaths.PROFILES + "/*"),
+            PATHS.matcher(HttpMethod.GET, UserApiPaths.PROFILES + "/by-username/*"));
 
     /** Geçerli kullanıcı token'ı isteyen uçlar (tüm kayıtlı oyuncular; sahiplik kontrolü servis katmanındadır). */
     static final RequestMatcher AUTHENTICATED_ENDPOINTS = PATHS.matcher(UserApiPaths.BASE + "/**");
@@ -90,6 +93,8 @@ public class SecurityConfig {
                                 .hasAuthority(SCOPE_PREFIX + TokenClaims.ACCOUNT_ERASE_SCOPE)
                         .requestMatchers(PATHS.matcher(HttpMethod.POST, InternalApiPaths.EVENTS))
                                 .hasAuthority(SCOPE_PREFIX + TokenClaims.EVENTS_INGEST_SCOPE)
+                        .requestMatchers(PATHS.matcher(HttpMethod.POST, InternalApiPaths.PRIVACY_DECISIONS))
+                                .hasAuthority(SCOPE_PREFIX + TokenClaims.PRIVACY_READ_SCOPE)
                         .requestMatchers(AUTHENTICATED_ENDPOINTS).authenticated()
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(resourceServer -> resourceServer

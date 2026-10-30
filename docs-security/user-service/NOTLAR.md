@@ -28,6 +28,24 @@
   Auth'un olay tablosu hesaba `ON DELETE CASCADE` bağlı olduğundan, silinen hesabın bekleyen olayları da silinir.
 - **`inbox_events` temizlenmiyor.** Satırlar küçüktür; saklama süresi kararı verilene kadar silinmez. Üretici yeniden
   deneme penceresinden kısa bir süreyle silinmemelidir.
+## Gizlilik, açık profil ve arama (faz 2)
+
+- **Tek kural:** `PrivacyRules` (sahip/arkadaş/üye/misafir × `PUBLIC/FRIENDS/PRIVATE`). Açık profil, toplu kart, arama ve
+  servis karar ucu aynı kuralı çağırır; tam matris `PrivacyRulesTest` ile sınanır.
+- **Gizleme yanıtları ayırt edilemez:** olmayan profil, yasaklı/devre dışı/silinmekte/doğrulanmamış hesap ve engel (iki yön)
+  aynı `404 PROFILE_NOT_FOUND`. Toplu kartta bunlar sessizce atlanır.
+- **Misafir:** yalnız açık profil ve görsel okunabilir; arama ve toplu kart `401`. Geçersiz token misafir sayılmaz (`401`).
+- **İç karar ucu fail-closed:** `ltz.user.social.projection-enabled=false` (varsayılan) iken engel/arkadaşlık bilinmez ve
+  sahibi olmayan izleyiciye hiçbir izin verilmez. Social olayları (T6) gelmeye başlayıp geçmiş ilişkiler aktarılmadan bu
+  değer `true` yapılmamalıdır; aksi halde eski engeller bilinmeden izin verilir.
+- **`viewerId` doğrulanamaz:** karar ucu izleyiciyi çağıran servisin token doğrulamasına güvenir; bu yüzden yalnız
+  `privacy:read` kapsamlı ve izinli listedeki (social, hardware, library) servislere yanıt verir.
+- **Yansıma gecikmesi:** engel/arkadaşlık olayla gelir; Social'daki değişiklik birkaç saniye gecikmeyle yansır. Açık profil
+  engel tablosunu her zaman denetler (yansıma boşken engel yok sayılır, misafirle aynı görünüm).
+- **Arama:** yalnız `ACTIVE`, en çok 20 sonuç, önek; LIKE özel karakterleri kaçırılır; Türkçe `ı/I/İ/i` aynı sayılır.
+  Kullanıcı başına arama oran sınırı **yok** (giriş zorunlu ve sonuç 20 ile sınırlı); kötüye kullanım görülürse eklenmeli.
+- **Bilinen sınır:** özet sayıları (Library/Review) için üretici olaylar henüz yok; bölümler `UNAVAILABLE` döner.
+
 ## Profil görselleri (faz 1b)
 
 - **Yükleme ham gövdeyle** (`PUT`, `Content-Type: image/*`), multipart değil: ayrıştırıcı ve geçici dosya yükü yok; bayt sınırı

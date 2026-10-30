@@ -135,6 +135,13 @@ Gösterim: **PK** birincil anahtar, **FK** servis içi yabancı anahtar, **REF**
 - `inbox_events`: `event_id` PK, `event_type`, `producer`, `processed_at`. Olay yükü ve hesap kimliği saklanmaz.
 - `outbox_events` bu serviste henüz yoktur: giden olay üreten bir tüketici talebi çıkınca eklenir.
 
+**Uygulanan (2026-10-30, LTZ-KER-USER-02): `V72__create_privacy_and_social_projection.sql`**
+
+- `user_profiles.display_name_normalized` (varchar 64): arama anahtarı; Java'da `UserProfile.normalize` ile üretilir (yerelden bağımsız küçük harf + Türkçe `ı`/`i̇` → `i`). Kısmi `text_pattern_ops` indeksleri: `username_normalized` ve `display_name_normalized`, yalnız `account_status='ACTIVE'`.
+- `privacy_settings`: `user_id` PK/FK (`ON DELETE CASCADE`), dört alan görünürlüğü (`PUBLIC|FRIENDS|PRIVATE`), `guest_profile_access` (`BASIC|DETAILED`), `updated_at`, `version`. Satır yoksa varsayılanlar geçerlidir (taslaktaki `activity_visibility` yerine kütüphane/oyun geçmişi tek alandır).
+- `social_friendships` (`user_low_id`, `user_high_id`, `active`, `changed_at`) ve `social_blocks` (`blocker_id`, `blocked_id`, `active`, `changed_at`): social-service olaylarının yansıması (REF, FK yok). Kaldırılan ilişki `active=false` olarak kalır; daha eski `changed_at` ile gelen olay yeni durumu ezmez.
+- `profile_counters`: Library/Review'dan gelen **mutlak** sayılar ve kaynak başına `*_changed_at`; `NULL` = kaynaktan henüz veri yok. Profil olmadan da gelebilir (FK yok), hesap silmede ayrıca silinir.
+
 | Tablo | Önemli sütunlar | Kısıtlar / not |
 | --- | --- | --- |
 | `user_profiles` | user_id PK (REF auth.accounts), display_name, username_snapshot, bio, avatar_key, cover_key, country, onboarding_completed_at, version | Profil tamamen gizlenemez |

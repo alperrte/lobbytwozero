@@ -8,6 +8,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import com.ltz.user.domain.entity.UserProfile;
 import com.ltz.user.domain.enums.PlayerType;
 import com.ltz.user.domain.exception.UserErrorCode;
 import com.ltz.user.domain.exception.UserException;
@@ -23,6 +24,7 @@ final class ProfileText {
     static final int DISPLAY_NAME_MAX = 32;
     static final int BIO_MAX = 500;
     static final int LIST_MAX = 10;
+    static final int SEARCH_MIN = 2;
 
     private static final Pattern CODE = Pattern.compile("^[a-z0-9][a-z0-9_-]{0,47}$");
     private static final Pattern SPACE_RUN = Pattern.compile(" {2,}");
@@ -107,6 +109,28 @@ final class ProfileText {
             throw new UserException(error);
         }
         return new ArrayList<>(codes);
+    }
+
+    /**
+     * Arama sorgusunu LIKE önekine çevirir: NFC, kırpma, profil anahtarlarıyla aynı küçük harf ({@code UserProfile.normalize}),
+     * 2-32 kod noktası, yasak karakter yok; {@code \ % _} kaçırılır ve sona {@code %} eklenir.
+     */
+    static String searchPrefix(String raw) {
+        String text;
+        try {
+            text = clean(raw, false);
+        } catch (UserException _) {
+            throw new UserException(UserErrorCode.INVALID_SEARCH_QUERY);
+        }
+        if (text == null) {
+            throw new UserException(UserErrorCode.INVALID_SEARCH_QUERY);
+        }
+        String normalized = UserProfile.normalize(text);
+        int length = normalized.codePointCount(0, normalized.length());
+        if (length < SEARCH_MIN || length > DISPLAY_NAME_MAX) {
+            throw new UserException(UserErrorCode.INVALID_SEARCH_QUERY);
+        }
+        return normalized.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
     }
 
     /** NFC + kırpma; yasak karakter varsa hata. Boş sonuç {@code null} döner. */

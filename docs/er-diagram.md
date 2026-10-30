@@ -172,10 +172,27 @@ erDiagram
 
 ## 3. user_db
 
-> Uygulanan (V71): `user_profiles`, `user_media`, `inbox_events`. `privacy_settings`, `user_preferences` ve `linked_accounts` sonraki fazlar için hedef şemadır. Ayrıntı: [database.md §3.2](database.md).
+> Uygulanan (V71, V72): `user_profiles`, `user_media`, `inbox_events`, `privacy_settings`, `social_friendships`, `social_blocks`, `profile_counters`. `user_preferences` ve `linked_accounts` sonraki fazlar için hedef şemadır. Ayrıntı: [database.md §3.2](database.md).
 
 ```mermaid
 erDiagram
+  social_friendships {
+    uuid user_low_id PK "REF social"
+    uuid user_high_id PK "REF social"
+    boolean active
+    timestamptz changed_at
+  }
+  social_blocks {
+    uuid blocker_id PK "REF social"
+    uuid blocked_id PK "REF social"
+    boolean active
+    timestamptz changed_at
+  }
+  profile_counters {
+    uuid user_id PK "REF; FK yok"
+    int library_collection_count
+    int review_count
+  }
   user_profiles ||--o{ user_media : has
   user_media {
     uuid id PK

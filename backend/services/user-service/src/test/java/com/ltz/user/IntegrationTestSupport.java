@@ -197,6 +197,35 @@ public abstract class IntegrationTestSupport {
                 values (?, 'Test Oyuncu', 'merhaba', 'ACTIVE', now(), now(), 0)""", userId);
     }
 
+    /** Kullanıcı adı ve görünen adı olan, verilen durumda bir profil açar. */
+    protected void insertNamedProfile(UUID userId, String username, String displayName, String status) {
+        jdbc.update("""
+                insert into user_profiles (user_id, username_snapshot, username_normalized, display_name,
+                                           display_name_normalized, bio, country, player_types, account_status,
+                                           created_at, updated_at, version)
+                values (?, ?, lower(?), ?, lower(?), 'biyografi', 'TR', '{CASUAL}', ?, now(), now(), 0)""",
+                userId, username, username, displayName, displayName, status);
+    }
+
+    protected void insertPrivacy(UUID userId, String friends, String library, String hardware, String performance,
+                                 String guest) {
+        jdbc.update("""
+                insert into privacy_settings (user_id, friends_visibility, library_visibility, hardware_visibility,
+                                              performance_visibility, guest_profile_access, updated_at, version)
+                values (?, ?, ?, ?, ?, ?, now(), 0)""", userId, friends, library, hardware, performance, guest);
+    }
+
+    /** Social yansımasına aktif arkadaşlık yazar (olay yolu {@code InternalEventTest} içinde sınanır). */
+    protected void befriend(UUID first, UUID second) {
+        jdbc.update("insert into social_friendships (user_low_id, user_high_id, active, changed_at) values (?, ?, true, now())",
+                first, second);
+    }
+
+    protected void block(UUID blocker, UUID blocked) {
+        jdbc.update("insert into social_blocks (blocker_id, blocked_id, active, changed_at) values (?, ?, true, now())",
+                blocker, blocked);
+    }
+
     private static Path createMediaRoot() {
         try {
             Path root = Files.createTempDirectory("ltz-user-media-test-");

@@ -9,6 +9,7 @@ public final class InternalApiPaths {
     public static final String BASE = "/internal";
     public static final String ACCOUNT_ERASURE = BASE + "/v1/accounts/{accountId}";
     public static final String EVENTS = BASE + "/events";
+    public static final String PRIVACY_DECISIONS = BASE + "/v1/privacy/decisions";
 
     private InternalApiPaths() {
     }

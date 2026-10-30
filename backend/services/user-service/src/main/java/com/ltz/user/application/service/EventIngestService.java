@@ -37,6 +37,7 @@ public class EventIngestService {
 
     private final InboxEventRepository inbox;
     private final UserProfileRepository profiles;
+    private final ProjectionEventHandler projections;
     private final Clock clock;
 
     @Transactional
@@ -55,12 +56,21 @@ public class EventIngestService {
         if (inbox.recordIfNew(event.eventId(), event.eventType(), event.producer(), now) == 0) {
             return EventOutcome.DUPLICATE;
         }
-        switch (type.get()) {
+        apply(type.get(), event, now);
+        return EventOutcome.PROCESSED;
+    }
+
+    private void apply(EventType type, IncomingEvent event, Instant now) {
+        switch (type) {
             case USER_REGISTERED -> applyUserRegistered(event, now);
             case ACCOUNT_STATUS_CHANGED -> applyAccountStatusChanged(event, now);
             case ACCOUNT_EMAIL_CHANGED -> requireAccountId(event);
+            case FRIENDSHIP_CHANGED -> projections.friendshipChanged(event);
+            case USER_BLOCKED -> projections.blockChanged(event, true);
+            case USER_UNBLOCKED -> projections.blockChanged(event, false);
+            case LIBRARY_SUMMARY_CHANGED -> projections.librarySummaryChanged(event);
+            case REVIEW_SUMMARY_CHANGED -> projections.reviewSummaryChanged(event);
         }
-        return EventOutcome.PROCESSED;
     }
 
     /** Hesap ACTIVE olunca profili açar ya da var olan profile kullanıcı adı kopyasını yazar. Durumu değiştirmez. */
@@ -97,22 +107,14 @@ public class EventIngestService {
 
     /** Yükteki {@code accountId}, zarftaki {@code aggregateId} ile aynı hesabı göstermelidir. */
     private static UUID requireAccountId(IncomingEvent event) {
-        String raw = text(event.payload(), "accountId");
-        try {
-            UUID accountId = UUID.fromString(raw);
-            if (!accountId.equals(event.aggregateId())) {
-                throw new UserException(UserErrorCode.INVALID_EVENT);
-            }
-            return accountId;
-        } catch (IllegalArgumentException _) {
-            throw new UserException(UserErrorCode.INVALID_EVENT);
+        UUID accountId = EventPayload.uuid(event.payload(), "accountId");
+        if (!accountId.equals(event.aggregateId())) {
+            throw EventPayload.invalid();
         }
+        return accountId;
     }
 
     private static String text(Map<String, Object> payload, String field) {
-        if (payload.get(field) instanceof String value && !value.isBlank()) {
-            return value;
-        }
-        throw new UserException(UserErrorCode.INVALID_EVENT);
+        return EventPayload.text(payload, field);
     }
 }

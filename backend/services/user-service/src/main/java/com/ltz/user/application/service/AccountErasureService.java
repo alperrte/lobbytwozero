@@ -11,6 +11,8 @@ import com.ltz.user.application.port.MediaStoragePort;
 import com.ltz.user.domain.entity.UserMedia;
 import com.ltz.user.domain.exception.UserErrorCode;
 import com.ltz.user.domain.exception.UserException;
+import com.ltz.user.infrastructure.persistence.repository.ProfileCounterRepository;
+import com.ltz.user.infrastructure.persistence.repository.SocialProjectionRepository;
 import com.ltz.user.infrastructure.persistence.repository.UserMediaRepository;
 import com.ltz.user.infrastructure.persistence.repository.UserProfileRepository;
 
@@ -22,7 +24,8 @@ import lombok.extern.slf4j.Slf4j;
  * yoksa (ya da ikinci çağrıda) hiçbir şey silinmez ve işlem yine başarılıdır; Auth yalnız 2xx'i "silindi" sayar.
  *
  * <p>Sıra: önce hesabın <b>tüm</b> görsel dosyaları (aktif ve silinmeyi bekleyenler dahil) silinir, sonra tek
- * transaction'da profil satırı silinir (görsel üst verisi FK {@code ON DELETE CASCADE} ile gider). Dosya silinemezse
+ * transaction'da veri satırları: profil (görsel üst verisi ve gizlilik ayarları FK {@code ON DELETE CASCADE} ile gider),
+ * hesabın taraf olduğu Social yansıması (arkadaşlık/engel, iki yönde) ve profil özeti sayaçları. Dosya silinemezse
  * {@code 503 ACCOUNT_ERASURE_PENDING} döner ve hiçbir veri satırı silinmez; Auth yeniden dener. Bu yüzden {@code 204},
  * "kişisel veri kalmadı" demektir. {@code inbox_events} hesap kimliği taşımadığından silinecek bir şey içermez.
  */
@@ -33,6 +36,8 @@ public class AccountErasureService {
 
     private final UserProfileRepository profiles;
     private final UserMediaRepository media;
+    private final SocialProjectionRepository social;
+    private final ProfileCounterRepository counters;
     private final MediaStoragePort storage;
 
     @Transactional
@@ -47,7 +52,10 @@ public class AccountErasureService {
             throw new UserException(UserErrorCode.ACCOUNT_ERASURE_PENDING);
         }
         int rows = profiles.deleteByUserId(accountId);
+        int relations = social.deleteAllOf(accountId);
+        int counterRows = counters.deleteFor(accountId);
         // Yalnız hesap kimliği ve sayılar loglanır; profil içeriği yazılmaz.
-        log.info("Account data erased: accountId={}, profiles={}, mediaFiles={}", accountId, rows, files.size());
+        log.info("Account data erased: accountId={}, profiles={}, mediaFiles={}, relations={}, counters={}",
+                accountId, rows, files.size(), relations, counterRows);
     }
 }

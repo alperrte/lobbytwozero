@@ -1,6 +1,7 @@
 package com.ltz.user.infrastructure.persistence.repository;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,6 +22,9 @@ public interface UserMediaRepository extends JpaRepository<UserMedia, UUID> {
     List<UserMedia> findByUserIdAndKindAndStatus(UUID userId, MediaKind kind, MediaStatus status);
 
     List<UserMedia> findByUserId(UUID userId);
+
+    /** Kart listeleri (arama, toplu okuma): birden çok kullanıcının güncel görselleri tek sorguda. */
+    List<UserMedia> findByUserIdInAndStatus(Collection<UUID> userIds, MediaStatus status);
 
     /** Yükleme sınırı: kullanıcının son pencerede yaptığı yüklemeler (değiştirilenler dahil). */
     @Query("select count(m) from UserMedia m where m.userId = :userId and m.createdAt >= :since")

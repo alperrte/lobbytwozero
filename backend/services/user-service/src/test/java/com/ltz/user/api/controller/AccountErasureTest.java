@@ -320,6 +320,13 @@ class AccountErasureTest extends IntegrationTestSupport {
         insertProfile(account);
         insertMedia(account, "AVATAR");
         insertMedia(account, "COVER");
+        insertPrivacy(account, "PUBLIC", "PUBLIC", "PUBLIC", "PUBLIC", "DETAILED");
+        befriend(account, newUser());
+        befriend(newUser(), account);
+        block(account, newUser());
+        block(newUser(), account);
+        jdbc.update("insert into profile_counters (user_id, review_count, review_changed_at) values (?, 3, now())",
+                account);
         assertThat(rowsOf(account)).isPositive();
     }
 
@@ -333,8 +340,14 @@ class AccountErasureTest extends IntegrationTestSupport {
 
     /** Hesapla ilgili tüm User satırlarının toplamı. */
     private int rowsOf(UUID account) {
+        String id = account.toString();
         return jdbc.queryForObject("""
-                select (select count(*) from user_profiles where user_id = ?)
-                     + (select count(*) from user_media where user_id = ?)""", Integer.class, account, account);
+                select (select count(*) from user_profiles where user_id = ?::uuid)
+                     + (select count(*) from user_media where user_id = ?::uuid)
+                     + (select count(*) from privacy_settings where user_id = ?::uuid)
+                     + (select count(*) from social_friendships where user_low_id = ?::uuid or user_high_id = ?::uuid)
+                     + (select count(*) from social_blocks where blocker_id = ?::uuid or blocked_id = ?::uuid)
+                     + (select count(*) from profile_counters where user_id = ?::uuid)""", Integer.class,
+                id, id, id, id, id, id, id, id);
     }
 }
