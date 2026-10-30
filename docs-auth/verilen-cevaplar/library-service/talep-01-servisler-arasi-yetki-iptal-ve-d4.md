@@ -158,7 +158,28 @@ Library'nin public uçları değişmez: kullanıcı JWT'si doğrulaması, `viewe
 | Çok servisli gerçek E2E (B, C, D) | NOT VERIFIED (karşı uçlar yok) |
 | D4 (b) | NOT VERIFIED |
 
-## 9. RİSKLER
+## 9. AÇIKTA KALAN SORULARA KISA CEVAPLAR
+
+**Değerlendirilip seçilmeyenler:**
+
+| Seçenek | Neden seçilmedi |
+|---|---|
+| A için token exchange (görüntüleyeni taşıyan servis token'ı) | Servis token'ından kullanıcı yetkisi türetilir; yeni bir Auth yüzeyi açılır. Kullanıcının kendi token'ını iletmek aynı kanıtı yeni kural olmadan verir. İleride kullanıcı isteği olmadan viewer gerekirse yeniden konuşulur |
+| B için hesaba bağlı olmayan düz `signals:read` | Çalınan token 60 sn boyunca her hesabı okur; hesaba bağlamak bunu tek hesaba indirir |
+| B için kullanıcı JWT'sini Recommendation üzerinden Library'ye iletmek | Arka planda kullanıcı token'ı yok. Olsa da Recommendation'a kullanıcının tüm yetkisi geçer (`aud=ltz-api`) |
+| Merkezi introspection / iptal listesi / logout olayı | Her istekte Auth bağımlılığı ya da tüm servislere yeni iş. 90 sn diğer ekiplerle kabul edilmiş sınır. Kritik yazma işlemi çıkarsa yeniden konuşulur |
+
+**Kullanıcı kaynaklı istek ile arka plan işi aynı model mi? (B3)** Recommendation için evet, aynı model. Kullanıcı o an online olsa da olmasa da Library'yi hesaba bağlı `signals:read` token'ıyla çağırır, kullanıcı JWT'sini iletmez. Tek bir yol olduğu için Library tek doğrulayıcı yazar. Kullanıcının kendi token'ını iletmek (K1) yalnız A'da, kullanıcının o anki isteği içindir.
+
+**Kim neye karar verir? (D3)** Auth: istemci, hedef, kapsam adı, token biçimi ve ömrü. Social: uçların biçimi, arkadaşlık sorgusunun içeriği, hangi çağıranı kabul edeceği. User: görünürlük kuralı (`PUBLIC`/`FRIENDS`), engel ve arkadaşlığı karara nasıl kattığı.
+
+**Library'de değişmesi beklenen yerler** (main'deki koda göre; senin dalın farklıysa ona uyarla):
+- `infrastructure/security/`: sinyal ucu için ayrı bir `svc+jwt` doğrulayıcısı. Silme ucunun doğrulayıcısını (`ServiceTokenDecoderConfiguration`, `AccountErasureSecurityConfiguration`) genişletme; o yalnız `svc:auth-service` ve `account:erase` içindir. Okuma ve silme ayrı kalır.
+- `infrastructure/client/`: Auth token istemcisi ve User karar istemcisi (fail-closed).
+- `api/controller/`: sinyal ucu.
+- Ortam: `AUTH_LIBRARY_SERVICE_CLIENT_SECRET`, `USER_SERVICE_URL`.
+
+## 10. RİSKLER
 
 - `signals:read`'de `account_id` istemci beyanıdır. Recommendation'ın kendisi ele geçirilirse herhangi bir `ACTIVE` hesap için token alabilir. Bunu yalnız User izni ve Library denetimi sınırlar.
 - K1'de User gerçek kullanıcı token'ı taşır; saklama ve loglama yasağının testi User'ın sorumluluğu.
