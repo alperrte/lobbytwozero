@@ -87,6 +87,20 @@ class ServiceClientConfigTest {
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("scopes");
     }
 
+    @Test
+    void hesabaBagliKapsamTekBasinaAcilirBagsizKapsamlaKarisamaz() {
+        assertThatCode(() -> new ServiceClientConfig(properties("recommendation-service", new ServiceClientProperties.Client(
+                STRONG_SECRET, Set.of(), Map.of("library-service", Set.of("signals:read"))))))
+                .doesNotThrowAnyException();
+        assertThatThrownBy(() -> new ServiceClientConfig(properties("recommendation-service", new ServiceClientProperties.Client(
+                STRONG_SECRET, Set.of(), Map.of("library-service", Set.of("signals:read", "events:ingest"))))))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("must not mix");
+        // Okuma ve silme ayrıdır: istemciye hiçbir hedefte silme kapsamı verilemez.
+        assertThatThrownBy(() -> new ServiceClientConfig(properties("recommendation-service", new ServiceClientProperties.Client(
+                STRONG_SECRET, Set.of(), Map.of("library-service", Set.of("account:erase"))))))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("targets.library-service");
+    }
+
     private static ServiceClientProperties properties(String id, ServiceClientProperties.Client client) {
         return new ServiceClientProperties(Map.of(id, client));
     }

@@ -26,7 +26,7 @@ public class ServiceTokenController {
     @PostMapping(AuthApiPaths.SERVICE_TOKENS)
     public ResponseEntity<ServiceTokenResponse> token(@Valid @RequestBody ServiceTokenRequest request) {
         ServiceTokenResponse body = ServiceTokenResponse.from(
-                tokenService.issue(request.clientId(), request.clientSecret(), request.audience()));
+                tokenService.issue(request.clientId(), request.clientSecret(), request.audience(), request.accountId()));
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(body);
     }
 }

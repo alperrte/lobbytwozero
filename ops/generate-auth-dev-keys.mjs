@@ -36,6 +36,10 @@ const generators = {
   // Engel sorgusu (blocks:check) istemcileri: messaging ve lfp -> social.
   AUTH_MESSAGING_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
   AUTH_LFP_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
+  // Library entegrasyonu: library -> user, user -> social, recommendation -> library.
+  AUTH_LIBRARY_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
+  AUTH_USER_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
+  AUTH_RECOMMENDATION_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
 };
 
 // Eski varsayılanlar: değer TAM OLARAK eskiyse yeni varsayılana çekilir; özelleştirilmiş değere dokunulmaz.

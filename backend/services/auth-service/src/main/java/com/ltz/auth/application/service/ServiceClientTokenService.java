@@ -6,14 +6,18 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import com.ltz.auth.domain.entity.Account;
 import com.ltz.auth.domain.exception.AuthErrorCode;
 import com.ltz.auth.domain.exception.AuthException;
+import com.ltz.auth.infrastructure.config.ServiceClientConfig;
 import com.ltz.auth.infrastructure.config.ServiceClientProperties;
+import com.ltz.auth.infrastructure.persistence.repository.AccountRepository;
 import com.ltz.auth.infrastructure.security.SecureTokens;
 import com.ltz.auth.infrastructure.security.ServiceClientTokenIssuer;
 import com.ltz.auth.infrastructure.security.TokenClaims;
@@ -37,14 +41,16 @@ public class ServiceClientTokenService {
     private final ServiceClientProperties properties;
     private final ServiceClientTokenIssuer issuer;
     private final SecureTokens secureTokens;
+    private final AccountRepository accountRepository;
     /** Bilinmeyen/devre dışı istemcide karşılaştırılan rastgele özet (yanıt süresi farkını azaltır). */
     private final byte[] dummyDigest;
 
     public ServiceClientTokenService(ServiceClientProperties properties, ServiceClientTokenIssuer issuer,
-                                     SecureTokens secureTokens) {
+                                     SecureTokens secureTokens, AccountRepository accountRepository) {
         this.properties = properties;
         this.issuer = issuer;
         this.secureTokens = secureTokens;
+        this.accountRepository = accountRepository;
         this.dummyDigest = digest(secureTokens.newOpaqueToken());
     }
 
@@ -57,6 +63,16 @@ public class ServiceClientTokenService {
      * {@code SERVICE_AUDIENCE_FORBIDDEN}; her hedef için kapsamlar yalnız o hedefe tanımlanan kapsamlardır.
      */
     public IssuedServiceToken issue(String clientId, String clientSecret, String audience) {
+        return issue(clientId, clientSecret, audience, null);
+    }
+
+    /**
+     * Hesaba bağlı kapsamlı hedefte ({@link ServiceClientConfig#ACCOUNT_BOUND_TARGET_SCOPES}) {@code accountId} zorunludur,
+     * diğerlerinde verilemez ({@code SERVICE_ACCOUNT_BINDING_INVALID}); hesap ACTIVE değilse ya da yoksa
+     * {@code SERVICE_TARGET_ACCOUNT_UNAVAILABLE}. Auth hesabın meşru hedef olduğunu ya da kullanıcı iznini kanıtlamaz:
+     * izin kararı hedef servisin (ör. Library → User) işidir; bağ yalnız çalınan token'ı tek hesapla sınırlar.
+     */
+    public IssuedServiceToken issue(String clientId, String clientSecret, String audience, UUID accountId) {
         Optional<ServiceClientProperties.Client> client = Optional.ofNullable(clientId).map(properties.clients()::get)
                 .filter(ServiceClientProperties.Client::enabled);
         byte[] expected = client.map(registered -> digest(registered.secret().strip())).orElse(dummyDigest);
@@ -72,7 +88,16 @@ public class ServiceClientTokenService {
             log.warn("Service client audience not allowed clientId={} audience={}", safe(clientId), safe(target));
             throw new AuthException(AuthErrorCode.SERVICE_AUDIENCE_FORBIDDEN);
         }
-        return new IssuedServiceToken(issuer.issue(clientId, target, scopes), ServiceClientTokenIssuer.TTL,
+        boolean accountBound = ServiceClientConfig.isAccountBound(scopes);
+        if (accountBound != (accountId != null)) {
+            log.warn("Service client account binding invalid clientId={} audience={}", safe(clientId), safe(target));
+            throw new AuthException(AuthErrorCode.SERVICE_ACCOUNT_BINDING_INVALID);
+        }
+        if (accountBound && accountRepository.findById(accountId).filter(Account::isActive).isEmpty()) {
+            log.warn("Service client target account unavailable clientId={} audience={}", safe(clientId), safe(target));
+            throw new AuthException(AuthErrorCode.SERVICE_TARGET_ACCOUNT_UNAVAILABLE);
+        }
+        return new IssuedServiceToken(issuer.issue(clientId, target, scopes, accountId), ServiceClientTokenIssuer.TTL,
                 String.join(" ", new TreeSet<>(scopes)));
     }
 
