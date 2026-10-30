@@ -135,7 +135,9 @@ Gösterim: **PK** birincil anahtar, **FK** servis içi yabancı anahtar, **REF**
 - `inbox_events`: `event_id` PK, `event_type`, `producer`, `processed_at`. Olay yükü ve hesap kimliği saklanmaz.
 - `outbox_events` bu serviste henüz yoktur: giden olay üreten bir tüketici talebi çıkınca eklenir.
 
-**Uygulanan (2026-10-30, LTZ-KER-USER-04): `V73__create_user_preferences.sql`** — `user_preferences`: `user_id` PK/FK (`ON DELETE CASCADE`), `locale` (`tr|en`), `theme` (`LIGHT|DARK|SYSTEM`), `reduced_motion`, `compact_layout` (sınırlı arayüz tercihleri; taslaktaki `favorite_genres`/`platforms` profilde durur), `updated_at`, `version`. Satır yoksa varsayılanlar geçerlidir. Onboarding durumu ayrı tablo değil, `user_profiles.onboarding_completed_at` sütunudur. `linked_accounts` (Faz 3) V74 olacak.
+**Uygulanan (2026-10-30, LTZ-KER-USER-04): `V73__create_user_preferences.sql`** — `user_preferences`: `user_id` PK/FK (`ON DELETE CASCADE`), `locale` (`tr|en`), `theme` (`LIGHT|DARK|SYSTEM`), `reduced_motion`, `compact_layout` (sınırlı arayüz tercihleri; taslaktaki `favorite_genres`/`platforms` profilde durur), `updated_at`, `version`. Satır yoksa varsayılanlar geçerlidir. Onboarding durumu ayrı tablo değil, `user_profiles.onboarding_completed_at` sütunudur.
+
+**Uygulanan (2026-10-30, LTZ-KER-USER-03): `V74__create_linked_accounts.sql`** — `linked_accounts`: `id` PK, `user_id` FK (`ON DELETE CASCADE`), `provider` (CHECK `STEAM`), `external_id` (Steam için `^[0-9]{17}$`, kaldırılınca `NULL`), `active`, `show_on_profile` (varsayılan `false`; yalnız `active` iken `true` olabilir), `consent_at`, `linked_at`, `changed_at` (durumu belirleyen son olayın `occurredAt` değeri), `version`. `UQ(user_id, provider)`, `UQ(provider, external_id)`. Satır Auth olaylarıyla yazılır; kaldırılan bağlantı `active=false` olarak kalır ki gecikmiş eski bir "bağlandı" olayı onu geri getiremesin. Token ya da başka kimlik verisi saklanmaz.
 
 **Uygulanan (2026-10-30, LTZ-KER-USER-02): `V72__create_privacy_and_social_projection.sql`**
 

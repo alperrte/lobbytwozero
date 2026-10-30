@@ -38,6 +38,7 @@ public class EventIngestService {
     private final InboxEventRepository inbox;
     private final UserProfileRepository profiles;
     private final ProjectionEventHandler projections;
+    private final LinkedAccountEventHandler linkedAccounts;
     private final Clock clock;
 
     @Transactional
@@ -65,6 +66,8 @@ public class EventIngestService {
             case USER_REGISTERED -> applyUserRegistered(event, now);
             case ACCOUNT_STATUS_CHANGED -> applyAccountStatusChanged(event, now);
             case ACCOUNT_EMAIL_CHANGED -> requireAccountId(event);
+            case EXTERNAL_IDENTITY_LINKED -> linkedAccounts.linked(event, now);
+            case EXTERNAL_IDENTITY_UNLINKED -> linkedAccounts.unlinked(event, now);
             case FRIENDSHIP_CHANGED -> projections.friendshipChanged(event);
             case USER_BLOCKED -> projections.blockChanged(event, true);
             case USER_UNBLOCKED -> projections.blockChanged(event, false);

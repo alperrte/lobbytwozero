@@ -10,9 +10,16 @@ import java.util.UUID;
 public record PublicProfileView(UUID userId, String username, String displayName, MediaView avatar, MediaView cover,
                                 Details details, Sections visible, Summary summary) {
 
-    /** Alan gizliliğine tabi olmayan profil ayrıntıları. */
+    /**
+     * Alan gizliliğine tabi olmayan profil ayrıntıları. {@code steam}, yalnız bağlantı etkin ve sahibi açık profilde
+     * göstermeyi seçmişse doludur (USER-08).
+     */
     public record Details(String bio, List<String> playerTypes, List<String> favoriteGenres,
-                          List<String> favoritePlatforms, String country) {
+                          List<String> favoritePlatforms, String country, SteamLink steam) {
+    }
+
+    /** Açık profilde gösterilen Steam bağlantısı. */
+    public record SteamLink(String steamId, String profileUrl) {
     }
 
     /** İzleyicinin görebileceği bölümler; istemci diğer servislere yalnız bunlar için gider. */

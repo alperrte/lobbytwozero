@@ -13,6 +13,7 @@ public enum UserErrorCode {
     INVALID_EVENT(400, "The event is invalid."),
     INVALID_SEARCH_QUERY(400, "The search query must be 2-32 characters without control characters."),
     PROFILE_NOT_FOUND(404, "The profile was not found."),
+    LINKED_ACCOUNT_NOT_FOUND(404, "The linked account was not found."),
     EVENT_PRODUCER_MISMATCH(400, "The event type does not belong to this producer."),
     INVALID_IMAGE(400, "The image is invalid, corrupted or its type does not match its content."),
     INVALID_IMAGE_DIMENSIONS(400, "The image dimensions or frame count are outside the allowed limits."),

@@ -23,8 +23,10 @@ ADR'lerin yerine geçmez; User'a özgü kararların kaydıdır.
 
 - **Testler en sona:** fazlarda yalnız üretim kodu ve belge yazılır; testler tüm fazlar bitince toplu yazılır (bağlam ve token
   tasarrufu). Her fazın ilerleme dosyası "sonda yazılacak testler" listesini taşır. Faz 1a, 1b ve 2'nin testleri zaten yazıldı.
-- **Migration numarası:** Faz 4 `V73` aldı (planda V74); Faz 3 `linked_accounts` `V74` olacak, böylece sıra artarak kalır.
-- **Auth'a bağlı işler en sona:** Steam bağlama (Faz 3) ve talepler REQ-01..04, T6-T8.
+- **Migration numarası:** Faz 4 `V73` aldı (planda V74); Faz 3 `linked_accounts` `V74` aldı, sıra artarak kaldı.
+- **Faz 3 User tarafı Auth beklemeden yapıldı (2026-10-30):** User yalnız olayları alır ve izni yönetir; bağlama/kaldırma ve
+  olay üretimi Auth'ta (T4, REQ-05). Olay sözleşmesi önerilendir; Auth farklı alan adı seçerse alıcı uyarlanır.
+- **Auth'a bağlı kalan işler:** REQ-05 (Steam), T6-T8 (diğer servisler), gerçek uçtan uca doğrulama.
 
 ## Uygulama kararları (faz 1b, 2026-10-30)
 

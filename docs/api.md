@@ -1156,7 +1156,7 @@ Zarfta tanımsız alan reddedilir. Gövde en fazla 16 KB.
 ```json
 {
   "eventId": "UUID (tekilleştirme anahtarı)",
-  "eventType": "UserRegistered | AccountStatusChanged | AccountEmailChanged",
+  "eventType": "UserRegistered | AccountStatusChanged | AccountEmailChanged | ExternalIdentityLinked | ExternalIdentityUnlinked",
   "eventVersion": 1,
   "occurredAt": "ISO-8601 UTC",
   "producer": "auth-service",
@@ -1283,7 +1283,8 @@ Public + isteğe bağlı kimlik. Token yoksa izleyici **misafirdir**; token vars
   "avatar": { "small": "...", "large": "...", "animated": false },
   "cover": null,
   "details": {
-    "bio": "string | null", "playerTypes": [], "favoriteGenres": [], "favoritePlatforms": [], "country": "TR | null"
+    "bio": "string | null", "playerTypes": [], "favoriteGenres": [], "favoritePlatforms": [], "country": "TR | null",
+    "steam": { "steamId": "76561198000000000", "profileUrl": "https://steamcommunity.com/profiles/..." }
   },
   "visible": { "friendsList": false, "library": true, "hardware": false, "performance": false },
   "summary": {
@@ -1294,7 +1295,7 @@ Public + isteğe bağlı kimlik. Token yoksa izleyici **misafirdir**; token vars
 }
 ```
 - Temel kart (`userId`, `username`, `displayName`, `avatar`, `cover`) her zaman doludur.
-- `details`: üye/arkadaş/sahip için dolu; misafir için yalnız sahip `guestProfileAccess=DETAILED` yaptıysa, aksi halde `null`.
+- `details`: üye/arkadaş/sahip için dolu; misafir için yalnız sahip `guestProfileAccess=DETAILED` yaptıysa, aksi halde `null`. `details.steam` yalnız sahibi Steam bağlantısını profilde göstermeyi seçtiyse doludur, aksi halde `null`.
 - `visible`: izleyicinin görebileceği bölümler; istemci diğer servislere (Social, Library, Hardware, Performance) yalnız bunlar için gider. O servisler de kararı kendi tarafında yeniden uygular.
 - `summary` (USER-12): sayı yalnız `AVAILABLE` iken doludur. `HIDDEN` = izleyici göremez, `UNAVAILABLE` = kaynak servisten henüz veri yok (sayı **uydurulmaz**). Arkadaş sayısı Social yansıması güvenilir ilan edilene kadar (`ltz.user.social.projection-enabled`) `UNAVAILABLE`; incelemeler herkese açık UGC olduğundan `PUBLIC` bölüm kuralıyla gösterilir.
 - E-posta, hesap durumu, kimlik bilgisi yoktur. `Cache-Control: no-store, private` (yanıt izleyiciye göre değişir).
@@ -1524,6 +1525,62 @@ Diğer mikroservisler:
 
 #### Test Durumu
 NOT IMPLEMENTED (kod derlendi; testler tüm fazlar bitince toplu yazılacak).
+
+### USER — Bağlı hesaplar: Steam (USER-07/08)
+
+Durum: IMPLEMENTED (kod derlendi; testler sona ertelendi). Auth tarafı (bağlama/kaldırma ucu ve olaylar) PENDING (T4).
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+Bağlama ve kaldırma **Auth'tadır** (kimlik kanıtı yalnız Auth'ta üretilir; son giriş yöntemi koruması da Auth'tadır). User, Auth'un `ExternalIdentityLinked` / `ExternalIdentityUnlinked` olaylarından durumu yansıtır ve yalnız açık profilde gösterme iznini yönetir. Yalnız Steam; Discord kapsam dışıdır. Steam OpenID access token vermez, saklanacak token yoktur.
+
+#### Endpoint
+GET /api/v1/user/me/linked-accounts
+PATCH /api/v1/user/me/linked-accounts/{provider}   (`steam`, büyük/küçük harfe duyarsız)
+
+#### Yetkilendirme
+Authenticated (Owner). Kimlik yalnız token'dan.
+
+#### Request Body (PATCH)
+Tanımsız alan reddedilir.
+```json
+{ "version": "long ≥ 0, zorunlu: GET yanıtındaki sürüm", "showOnProfile": true }
+```
+
+#### Response — 200
+`GET`: her desteklenen sağlayıcı için bir kayıt; bağlantı yoksa `linked=false`. `PATCH`: tek kayıt. `Cache-Control: no-store`.
+```json
+{ "accounts": [ {
+    "provider": "STEAM", "linked": true, "externalId": "76561198000000000",
+    "profileUrl": "https://steamcommunity.com/profiles/76561198000000000",
+    "showOnProfile": false, "linkedAt": "ISO-8601 UTC", "version": 3
+} ] }
+```
+- `showOnProfile` varsayılanı `false`; her yeni bağlantıda (farklı Steam kimliği dahil) sıfırlanır. Aynı kimliğin yeniden bildirilmesi izni korur.
+- Açık profilde (`GET /profiles/...`) `details.steam` `{ "steamId", "profileUrl" }` yalnız bağlantı etkin, sahibi `showOnProfile=true` yapmış ve izleyici `details` görebiliyorsa doludur; aksi halde `null`.
+- Bağlantı kaldırılınca kimlik ve izin silinir; kayıt `linked=false` olur.
+
+#### Hata Durumları
+- 400: `VALIDATION_FAILED` (eksik/tanımsız alan, negatif sürüm)
+- 401: Token yok/geçersiz; servis token'ı
+- 404: `LINKED_ACCOUNT_NOT_FOUND` (bilinmeyen sağlayıcı ya da bağlantı yok)
+- 409: `CONCURRENT_MODIFICATION` (sürüm güncel değil; bağlantı olayı araya girmiş olabilir)
+- 500: Beklenmeyen sunucu hatası
+
+#### Olay girişi (`POST /internal/events`, yalnız `auth-service`, **önerilen sözleşme T4**)
+- `ExternalIdentityLinked`: `{ "accountId": "UUID = aggregateId", "provider": "STEAM", "providerSubject": "^[0-9]{17}$" }`
+- `ExternalIdentityUnlinked`: `{ "accountId": "UUID = aggregateId", "provider": "STEAM" }`
+- Son-durum upsert, `occurredAt` ile korunur: eski bir "bağlandı" olayı daha yeni bir "kaldırıldı"yı geri alamaz. Tanınmayan `provider` sessizce yok sayılır (`200`); geçersiz kimlik ya da başka hesapta etkin aynı kimlik `400 INVALID_EVENT`.
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/user/me/linked-accounts
+
+Diğer mikroservisler:
+Auth: `ExternalIdentityLinked/Unlinked` olayları (T4, henüz yayınlanmıyor)
+
+#### Test Durumu
+NOT IMPLEMENTED (kod derlendi, mevcut 201 test geçti; testler tüm fazlar bitince toplu yazılacak).
 
 ## MAIL
 

@@ -13,11 +13,14 @@ import com.ltz.user.application.service.PublicProfileView.Count;
 import com.ltz.user.application.service.PublicProfileView.Details;
 import com.ltz.user.application.service.PublicProfileView.Library;
 import com.ltz.user.application.service.PublicProfileView.Sections;
+import com.ltz.user.application.service.PublicProfileView.SteamLink;
 import com.ltz.user.application.service.PublicProfileView.Summary;
 import com.ltz.user.application.service.PublicProfileView.SummaryStatus;
+import com.ltz.user.domain.entity.LinkedAccount;
 import com.ltz.user.domain.entity.PrivacySettings;
 import com.ltz.user.domain.entity.UserMedia;
 import com.ltz.user.domain.entity.UserProfile;
+import com.ltz.user.domain.enums.LinkedProvider;
 import com.ltz.user.domain.enums.MediaKind;
 import com.ltz.user.domain.enums.MediaStatus;
 import com.ltz.user.domain.enums.PrivacyField;
@@ -26,6 +29,7 @@ import com.ltz.user.domain.enums.Visibility;
 import com.ltz.user.domain.exception.UserErrorCode;
 import com.ltz.user.domain.exception.UserException;
 import com.ltz.user.infrastructure.config.SocialProperties;
+import com.ltz.user.infrastructure.persistence.repository.LinkedAccountRepository;
 import com.ltz.user.infrastructure.persistence.repository.PrivacySettingsRepository;
 import com.ltz.user.infrastructure.persistence.repository.ProfileCounterRepository;
 import com.ltz.user.infrastructure.persistence.repository.ProfileCounterRepository.Counters;
@@ -51,6 +55,7 @@ public class PublicProfileService {
     private final PrivacySettingsRepository settings;
     private final SocialProjectionRepository social;
     private final ProfileCounterRepository counters;
+    private final LinkedAccountRepository links;
     private final SocialProperties socialProperties;
 
     @Transactional(readOnly = true)
@@ -76,7 +81,7 @@ public class PublicProfileService {
         Details details = PrivacyRules.showsDetails(relation, privacy.getGuestAccess())
                 ? new Details(profile.getBio(), List.copyOf(profile.getPlayerTypes()),
                         List.copyOf(profile.getFavoriteGenres()), List.copyOf(profile.getFavoritePlatforms()),
-                        profile.getCountry())
+                        profile.getCountry(), steamLink(ownerId))
                 : null;
         Sections sections = new Sections(allows(relation, privacy, PrivacyField.FRIENDS_LIST),
                 allows(relation, privacy, PrivacyField.LIBRARY), allows(relation, privacy, PrivacyField.HARDWARE),
@@ -84,6 +89,12 @@ public class PublicProfileService {
         return new PublicProfileView(ownerId, profile.getUsernameSnapshot(), profile.getDisplayName(),
                 ProfileMapper.mediaOf(current, MediaKind.AVATAR), ProfileMapper.mediaOf(current, MediaKind.COVER),
                 details, sections, summary(ownerId, relation, privacy, sections));
+    }
+
+    private SteamLink steamLink(UUID ownerId) {
+        return links.findByUserIdAndProvider(ownerId, LinkedProvider.STEAM).filter(LinkedAccount::isPubliclyShown)
+                .map(link -> new SteamLink(link.getExternalId(), LinkedProvider.STEAM.profileUrl(link.getExternalId())))
+                .orElse(null);
     }
 
     /** Engel varsa ilişki hesaplanmaz: profil yokmuş gibi {@code 404}. */

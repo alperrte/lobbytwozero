@@ -10,6 +10,9 @@ enum EventType {
     USER_REGISTERED("UserRegistered", "auth-service"),
     ACCOUNT_STATUS_CHANGED("AccountStatusChanged", "auth-service"),
     ACCOUNT_EMAIL_CHANGED("AccountEmailChanged", "auth-service"),
+    /** Önerilen sözleşme (T4): Auth'un oturumlu hesaba dış kimlik bağlaması / kaldırması. */
+    EXTERNAL_IDENTITY_LINKED("ExternalIdentityLinked", "auth-service"),
+    EXTERNAL_IDENTITY_UNLINKED("ExternalIdentityUnlinked", "auth-service"),
     FRIENDSHIP_CHANGED("FriendshipChanged", "social-service"),
     USER_BLOCKED("UserBlocked", "social-service"),
     USER_UNBLOCKED("UserUnblocked", "social-service"),

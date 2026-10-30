@@ -68,3 +68,20 @@
   sınırı belirler. Volume doluluğu izlenmelidir.
 - **NOT VERIFIED:** Docker imajında/volume'de (root olmayan `ltz` kullanıcısı, `/data/user-media`) gerçek yazma ve
   `docker-compose.yml` doğrulaması bu çalışmada yapılmadı; yalnız yerel disk ve Testcontainers ile sınandı.
+
+## Bağlı hesaplar: Steam (faz 3)
+
+- **Kimlik kanıtı User'da üretilmez.** Steam kimliği yalnız Auth'un imzalı `ExternalIdentityLinked` olayıyla gelir
+  (`servis-sozlesmeleri.md` §1); kullanıcı uçları yalnız `showOnProfile` iznini değiştirir, kimlik yazamaz.
+- **Varsayılan gizli:** bağlantı ilk geldiğinde `showOnProfile=false`; farklı bir Steam kimliği bağlanırsa izin sıfırlanır
+  (eski kimliğe verilen onay yenisine geçmez). Açık profilde yalnız etkin bağlantı + sahibin izni + `details` hakkı olan
+  izleyici görür; misafire yalnız sahip `DETAILED` açtıysa.
+- **Token saklanmaz** (Steam OpenID access token vermez); yalnız 17 haneli SteamID64 ve herkese açık profil adresi.
+- **Sırası bozuk olay:** son-durum upsert `occurredAt` ile korunur; kaldırılan bağlantı `active=false` satırı olarak kalır
+  (kimlik ve izin silinmiş), böylece gecikmiş eski bir "bağlandı" kaldırmayı geri alamaz.
+- **Tekillik:** aynı SteamID64 iki hesapta etkin olamaz (DB `UQ(provider, external_id)` + olay öncesi denetim); ihlal
+  `400 INVALID_EVENT` olur ve Auth'ta görünür. Tekillik asıl olarak Auth'ta uygulanmalıdır.
+- **Bilinen sınır:** bağlama/kaldırma olayı profil yoksa profili `ACTIVE` açar (`UserRegistered` gibi). Hesap silindikten
+  sonra gecikmiş bir olay profili yeniden oluşturabilir; Auth'un silinen hesabın bekleyen olaylarını sildiği (REQ-03) için
+  pratikte beklenmez.
+- **NOT VERIFIED:** olay sözleşmesi (T4) Auth tarafından henüz kabul edilmedi ve uygulanmadı.
