@@ -18,9 +18,9 @@ User Service profil sahibi, Auth kimlik sahibi. Aralarındaki bağ iki olay (hes
 - [ ] Silme ucu. Profil ve profil görselleri silinir, kimlik bağı kalmaz. Yazılmadıkça User görevi `PENDING`
 - [ ] Karar: kullanıcı adı ve görünen ad **hangi serviste duruyor**. Auth'ta `username` var ve herkese açık. Önerim: Auth kimlik kaynağı, User `userId` ile profil sahibi, kullanıcı adını Auth'tan bir kez alıp kopyalamak yerine her seferinde sormamak için olay ile eşitle
 
-- [ ] Library için erişim karar ucu (LIB-11): Library `aud=user-service`, `sub=svc:library-service`, `scope=access:decide` token'ıyla çağırır. Yanıt yalnız izin/ret/erişilemez; uç biçimi senin. Bkz. `verilen-cevaplar/library-service/talep-01-*` §4.1
-- [ ] Social'a engel ve arkadaşlık sorgusu: `{clientId: "user-service", clientSecret, audience: "social-service"}` → `scope="blocks:check friends:check"`. Ortam `AUTH_USER_SERVICE_CLIENT_SECRET`
-- [ ] Profil sayfasında Library'yi kullanıcı adına çağırırsan (LIB-10) o kullanıcının kendi `at+jwt`'sini ilet; saklama, loglama, arka planda kullanma. Auth kullanıcıyı taşıyan servis token'ı üretmez
+- [x] Gizlilik kararı ve özet olayları: User'ın `POST /internal/v1/privacy/decisions` ve `POST /internal/events` uçları hazır (REQ-04). Çağıranlar Auth'ta tanımlı: social (`privacy:read`, `events:ingest`), library (`privacy:read`, `events:ingest`), hardware (`privacy:read`), review (`events:ingest`). Alıcı denetimi User'ındır: `typ`, `aud=user-service`, kapsam, izinli çağıran listesi, olay türü ↔ `sub`
+- User Service **istemci değildir**: kimseyi senkron çağırmaz, Social/Library/Review verisi olayla gelir. Bu yüzden Auth'ta `user-service` istemcisi ve `friends:check` kapsamı yoktur
+- [ ] Profil sayfasında Library'yi kullanıcı adına çağırırsan (LIB-10) o kullanıcının kendi `at+jwt`'sini ilet; saklama, loglama, arka planda kullanma. Auth kullanıcıyı taşıyan servis token'ı üretmez. User kimseyi çağırmadığı için bu yol seçilirse karar gerekir
 
 ## AUTH'TA BEKLEYEN
 

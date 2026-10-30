@@ -35,10 +35,11 @@ public final class TokenClaims {
     public static final String EVENTS_INGEST_SCOPE = "events:ingest";
     /** Engel sorgusu: messaging ve lfp, Social'ın {@code POST /internal/v1/blocks/check} ucunu çağırır. */
     public static final String BLOCKS_CHECK_SCOPE = "blocks:check";
-    /** Arkadaşlık sorgusu: user, görünürlük kararı için Social'a iki hesabın arkadaş olup olmadığını sorar. */
-    public static final String FRIENDS_CHECK_SCOPE = "friends:check";
-    /** Erişim kararı sorgusu: library, başkasının verisini açmadan önce User'dan izin/ret/erişilemez kararı ister. */
-    public static final String ACCESS_DECIDE_SCOPE = "access:decide";
+    /**
+     * Gizlilik kararı: social, hardware ve library, User'ın {@code POST /internal/v1/privacy/decisions} ucundan başkasının
+     * verisini açmadan önce izin/ret kararı ister. Kullanıcıya bağlı değildir; görüntüleyen ve sahip istek gövdesindedir.
+     */
+    public static final String PRIVACY_READ_SCOPE = "privacy:read";
     /**
      * Öneri sinyali okuma: recommendation, Library'den tek hesabın sinyallerini okur. Hesaba bağlı kapsamdır: token
      * {@link #ACCOUNT_ID} taşır, hedef servis bunu istekteki hesapla karşılaştırır.

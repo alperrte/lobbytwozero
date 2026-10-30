@@ -13,7 +13,7 @@
 | Kullanıcı token'ı RS256, `typ=at+jwt`, `iss=ltz-auth`, `aud=ltz-api`, `sub` hesap UUID'si, `sid`/`ver`/`roles`/`jti` | **Doğru.** `docs/api.md` "Access token" |
 | JWKS `GET /api/v1/auth/.well-known/jwks.json` | **Doğru.** |
 | Oturum durumu yalnız Auth uçlarında denetlenir; diğer servislere introspection/iptal ucu yok | **Doğru.** `SessionStateValidator` yalnız auth-service'te çalışır. Ayrı bir iptal ya da sorgu ucu yok |
-| Düz servis token'ı: `POST /internal/v1/service-tokens`, kapsamlar `events:ingest` ve `blocks:check`, kullanıcı/hedef bağı yok | **30 Ekim'e kadar doğruydu.** Bu cevapla `access:decide`, `friends:check` ve hesaba bağlı `signals:read` eklendi (§5) |
+| Düz servis token'ı: `POST /internal/v1/service-tokens`, kapsamlar `events:ingest` ve `blocks:check`, kullanıcı/hedef bağı yok | **30 Ekim'e kadar doğruydu.** Bu cevapla `privacy:read` (User Service) ve hesaba bağlı `signals:read` eklendi (§4) |
 | `library-service`, `user-service`, `recommendation-service` istemci kaydı yok | **Doğruydu.** Üçü eklendi; gizli anahtar boşsa kapalı (fail-closed) |
 | D4: `account:erase` tek hesaba bağlı kısa ömürlü token, 14 gün bekleme | **Doğru.** `ServiceTokenIssuer` 30 sn, `account_id`, `sub=svc:auth-service`. Bekleme `ltz.auth.deletion.grace-period=P14D` |
 | Dev token'ı 900 sn, prod 60 sn | **Kısmen.** Kodda, Compose'da ve `.env.example`'da varsayılan **60 sn** (`JWT_ACCESS_TTL_SECONDS`, izinli aralık 60–900 sn). 900, yerel `.env`'den geliyor olmalı (**NOT VERIFIED**: `.env` okunmadı). `ops/generate-auth-dev-keys.mjs` yalnız tam `300` değerini 60'a çeker, 900'e dokunmaz |
@@ -26,8 +26,8 @@
 |---|---|---|
 | **A** User → Library (LIB-10) | **MEVCUT.** Auth değişikliği gerekmez (karar K1) | User'ın Library'yi kullanıcı token'ıyla çağırması; Library'nin izin kararını C ile alması |
 | **B** Recommendation → Library (LIB-14) | **AUTH HAZIR** (`signals:read`, hesaba bağlı) | Library sinyal ucu, User izin kararı, Recommendation istemcisi |
-| **C** Library → User (LIB-11) | **AUTH HAZIR** (`access:decide`) | **User'ın erişim karar API'si** (henüz yok) |
-| **D** User → Social | **AUTH HAZIR** (`blocks:check`, `friends:check`) | Social `blocks/check` main'de (PR #35) ama yalnız `svc:messaging-service` ve `svc:lfp-service` kabul ediyor: `svc:user-service` eklenmeli. Arkadaşlık ucu yok |
+| **C** Library → User (LIB-11) | **AUTH HAZIR** (`privacy:read`) | User Service ucu hazır: `POST /internal/v1/privacy/decisions`. Gerçek Auth token'ıyla uçtan uca NOT VERIFIED |
+| **D** User → Social | **GEREKSİZ (karar değişti).** User Service kimseyi çağırmıyor; Social verisi olayla gelir (`FriendshipChanged`, `UserBlocked`, `UserUnblocked`). `user-service` istemcisi ve `friends:check` kapsamı kaldırıldı | Social: olayları User'a göndermek (`social-service` → `user-service`, `events:ingest`, Auth'ta hazır) |
 
 ## 3. KARARLAR (KEREM, 2026-10-30)
 
@@ -35,8 +35,8 @@
 |---|---|---|
 | K1 | **A:** Auth, görüntüleyeni taşıyan delegasyon/exchange token'ı üretmez. User, kullanıcı isteğinde o kullanıcının kendi `at+jwt`'sini Library'ye iletir; Library `viewer`'ı yalnız `sub`'dan okur | Servis token'ından kullanıcı yetkisi türetilmez. Token 60 sn yaşar ve kullanıcının kendi yetkisini aşmaz. Yeni Auth yüzeyi açılmaz |
 | K2 | **B:** Hesaba bağlı servis token'ı. `aud=library-service`, `scope=signals:read`, tek `account_id`, 60 sn; hesap `ACTIVE` olmalı. Kullanıcı JWT'si iletilmez | Kişisel veri okuyan kapsam tek hesaba bağlanır; çalınan token yalnız o hesabı okur |
-| K3 | **C:** Düz servis token'ı. `aud=user-service`, `scope=access:decide`, kullanıcı bağı yok | Library viewer'ı kendi doğrular; karar User'ındır |
-| K4 | **D:** `user-service` → `social-service`, `blocks:check` ve ayrı `friends:check` | Her soru ayrı kapsam; Social uç başına denetleyebilir |
+| K3 | **C:** Düz servis token'ı. `aud=user-service`, `scope=privacy:read` (User Service'in hazır ucunun kapsamı; ilk önerdiğimiz `access:decide` bırakıldı), kullanıcı bağı yok | Library viewer'ı kendi doğrular; karar User'ındır |
+| K4 | **D (değişti):** `user-service` istemcisi ve `friends:check` yok. User Service Social verisini olayla alır | User dış servisi senkron çağırmaz, döngü oluşmaz; gereksiz yetki verilmedi |
 | K5 | **İptal penceresi değişmez:** 60 sn token + 30 sn saat toleransı = en çok 90 sn. Introspection, iptal listesi ve logout olayı yok | Game, Hardware ve Community ile aynı kabul. Library okuması salt-okunur |
 | K6 | Dev ve test ortamı da **60 sn** çalışır | 900 sn ile yapılan iptal testi prod'u temsil etmez |
 | K7 | **D4 kapanış kanıtı:** sözleşme testi ve izole gerçek Auth+Library E2E (`AUTH_DELETION_GRACE_PERIOD=PT0S`, sentetik hesap). Gerçek 14 gün **NOT VERIFIED** kalır; üretimde süre atlatılmaz | Hardware talep-03 ile aynı yöntem |
@@ -45,7 +45,7 @@
 
 ## 4. KESİN SÖZLEŞME (LIBRARY'NİN UYACAĞI)
 
-### 4.1 Library'nin aldığı token: Library → User erişim kararı (C)
+### 4.1 Library'nin aldığı token: Library → User gizlilik kararı (C)
 
 ```http
 POST {AUTH_SERVICE_URL}/internal/v1/service-tokens
@@ -55,10 +55,10 @@ Content-Type: application/json
 ```
 
 ```json
-{ "accessToken": "…", "tokenType": "Bearer", "expiresIn": 60, "scope": "access:decide" }
+{ "accessToken": "…", "tokenType": "Bearer", "expiresIn": 60, "scope": "events:ingest privacy:read" }
 ```
 
-Token: `typ=svc+jwt`, `aud=user-service`, `sub=svc:library-service`, `scope=access:decide`, 60 sn, `account_id` yok. Yanıtta `Cache-Control: no-store` gelir; token yalnız süresi dolmadan yeniden kullanılır.
+Token: `typ=svc+jwt`, `aud=user-service`, `sub=svc:library-service`, `scope=events:ingest privacy:read`, 60 sn, `account_id` yok. `privacy:read` User'ın `POST /internal/v1/privacy/decisions` ucu içindir; `events:ingest` Library'nin User'a göndereceği `LibrarySummaryChanged` olayı içindir. Yanıtta `Cache-Control: no-store` gelir; token yalnız süresi dolmadan yeniden kullanılır.
 
 **User'ın karar ucu ve gövdesi User'ın tasarımıdır** (henüz yok). Library'nin fail-closed kuralı:
 - Token alınamazsa, 401/403, zaman aşımı, 5xx ya da tanınmayan karar gelirse sonuç **erişilemez** sayılır.
@@ -137,10 +137,10 @@ Library'nin public uçları değişmez: kullanıcı JWT'si doğrulaması, `viewe
 
 | Sahip | İş |
 |---|---|
-| **Auth (Kerem)** | Yapıldı: üç istemci, üç kapsam, hesaba bağlı kapsam kuralı, testler, `docs/api.md` ve `servis-sozlesmeleri.md` §3.5. Kalan: main'e PR |
-| **Library (Hamza)** | (1) 4.1 erişim kararı istemcisi, fail-closed. (2) 4.2 sinyal ucu ve doğrulayıcı (`account_id` eşitliği). (3) Dev `JWT_ACCESS_TTL_SECONDS=60` ile iptal testinin tekrarı. (4) D4 (b) ortak denemesi |
-| **User** | Erişim karar API'si (Library'nin çağıracağı, `aud=user-service`, `scope=access:decide`); Library'yi kullanıcı adına çağırırken token kuralları (4.3); Social'dan token alıp engel/arkadaşlık sorgusu |
-| **Social (Umut)** | `POST /internal/v1/blocks/check` çağıran listesine `svc:user-service` eklemek (uç main'de, PR #35) ve arkadaşlık sorgu ucu (`friends:check`) |
+| **Auth (Kerem)** | Yapıldı: User Service için dört çağıran (social, library, hardware, review), recommendation → library hesaba bağlı kapsam, testler, `docs/api.md` ve `servis-sozlesmeleri.md` §3.5. Kalan: main'e PR |
+| **Library (Hamza)** | (1) 4.1 gizlilik kararı istemcisi (`POST /internal/v1/privacy/decisions`), fail-closed; `LibrarySummaryChanged` olayını `events:ingest` ile User'a gönder. (2) 4.2 sinyal ucu ve doğrulayıcı (`account_id` eşitliği). (3) Dev `JWT_ACCESS_TTL_SECONDS=60` ile iptal testinin tekrarı. (4) D4 (b) ortak denemesi |
+| **User (Kerem)** | Gizlilik karar ucu ve olay girişi hazır (`privacy:read`, `events:ingest`); kalan: gerçek Auth token'ıyla uçtan uca doğrulama ve Library'yi kullanıcı adına çağırma kuralları (4.3) |
+| **Social (Umut)** | Arkadaşlık ve engel olaylarını User'a göndermek (`social-service` → `user-service`, `events:ingest`) ve gizlilik kararı için `privacy:read`. Arkadaşlık sorgu ucu gerekmez |
 | **Recommendation (Alper)** | Arka plan işinde hesap başına token (`accountId`), kullanıcı JWT'si iletmeden |
 
 **Sıra:**

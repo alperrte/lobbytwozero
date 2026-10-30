@@ -78,32 +78,34 @@ class ServiceAudienceTokenTest extends IntegrationTestSupport {
     }
 
     @Test
-    void libraryYalnizUserIcinErisimKarariTokeniAlirKullaniciBagiTasimaz() throws Exception {
-        String body = tokenRequest("library-service", LIBRARY_CLIENT_SECRET, "user-service")
-                .andExpect(status().isOk()).andExpect(jsonPath("$.scope").value("access:decide"))
-                .andReturn().getResponse().getContentAsString();
-        JWTClaimsSet claims = SignedJWT.parse(JsonPath.<String>read(body, "$.accessToken")).getJWTClaimsSet();
-        assertThat(claims.getAudience()).containsExactly("user-service");
-        assertThat(claims.getSubject()).isEqualTo("svc:library-service");
-        assertThat(claims.getClaims()).doesNotContainKeys("roles", "sid", "ver", "amr", "account_id");
+    void userServiceIcinGizlilikKarariVeOzetOlayiTokenleriIzinListesinedir() throws Exception {
+        // REQ-04: hangi istemci user-service'e hangi kapsamla gidebilir. Kullanıcı bağı (account_id) hiçbirinde yok.
+        for (Object[] pair : new Object[][] {
+                {"social-service", SOCIAL_CLIENT_SECRET, "events:ingest privacy:read"},
+                {"library-service", LIBRARY_CLIENT_SECRET, "events:ingest privacy:read"},
+                {"hardware-service", HARDWARE_CLIENT_SECRET, "privacy:read"},
+                {"review-service", REVIEW_CLIENT_SECRET, "events:ingest"}}) {
+            String body = tokenRequest((String) pair[0], (String) pair[1], "user-service")
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.scope").value(pair[2]))
+                    .andReturn().getResponse().getContentAsString();
+            JWTClaimsSet claims = SignedJWT.parse(JsonPath.<String>read(body, "$.accessToken")).getJWTClaimsSet();
+            assertThat(claims.getAudience()).containsExactly("user-service");
+            assertThat(claims.getSubject()).isEqualTo("svc:" + pair[0]);
+            assertThat(claims.getStringClaim("scope")).isEqualTo(pair[2]);
+            assertThat(claims.getClaims()).doesNotContainKeys("roles", "sid", "ver", "amr", "account_id");
+        }
 
+        // Kapsam hedefe ve çifte bağlıdır: review gizlilik kararı alamaz, hardware olay yazamaz.
         tokenRequest("library-service", LIBRARY_CLIENT_SECRET, "social-service").andExpect(status().isForbidden());
         tokenRequest("library-service", LIBRARY_CLIENT_SECRET, null).andExpect(status().isForbidden());
-    }
-
-    @Test
-    void userSocialIcinEngelVeArkadaslikSorgusuTokeniAlir() throws Exception {
-        String body = tokenRequest("user-service", USER_CLIENT_SECRET, "social-service")
-                .andExpect(status().isOk()).andExpect(jsonPath("$.scope").value("blocks:check friends:check"))
-                .andReturn().getResponse().getContentAsString();
-        JWTClaimsSet claims = SignedJWT.parse(JsonPath.<String>read(body, "$.accessToken")).getJWTClaimsSet();
-        assertThat(claims.getAudience()).containsExactly("social-service");
-        assertThat(claims.getSubject()).isEqualTo("svc:user-service");
-
-        tokenRequest("user-service", USER_CLIENT_SECRET, "library-service").andExpect(status().isForbidden());
-        // Messaging ve lfp'nin yetkisi genişlemedi: arkadaşlık sorgusu yalnız user'da.
+        tokenRequest("review-service", REVIEW_CLIENT_SECRET, "social-service").andExpect(status().isForbidden());
+        tokenRequest("hardware-service", HARDWARE_CLIENT_SECRET, "community-service").andExpect(status().isForbidden());
+        // User kimseyi çağırmaz: istemcisi yoktur, kimlik bilgisi tanınmaz.
+        tokenRequest("user-service", LIBRARY_CLIENT_SECRET, "social-service").andExpect(status().isUnauthorized());
+        // Başkalarının yetkisi genişlemedi: messaging yalnız blocks:check alır.
         tokenRequest("messaging-service", MESSAGING_CLIENT_SECRET, "social-service")
                 .andExpect(jsonPath("$.scope").value("blocks:check"));
+        tokenRequest("messaging-service", MESSAGING_CLIENT_SECRET, "user-service").andExpect(status().isForbidden());
     }
 
     @Test
