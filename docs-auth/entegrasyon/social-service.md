@@ -22,6 +22,7 @@ JWT doğrulaması ve silme ucu çalışıyor. **Silme ucunda iki güvenlik açı
 ## AUTH'TA BEKLEYEN
 
 - `blocks:check` kapsamı ve messaging, lfp istemci kayıtları: **Auth'ta hazır** (2026-10-29), Social ucu bekleniyor
+- `social-service` → `user-service` (`privacy:read`, `events:ingest`): **Auth'ta hazır** (2026-10-30), aynı `AUTH_SOCIAL_SERVICE_CLIENT_SECRET`. `FriendshipChanged`, `UserBlocked`, `UserUnblocked` olayları ve gizlilik kararı için `{clientId: "social-service", clientSecret, audience: "user-service"}`. User Service kimseyi çağırmaz, arkadaşlık ve engel verisini bu olaylarla alır; bu yüzden Social'dan arkadaşlık sorgu ucu **gerekmez** (`friends:check` kapsamı yoktur)
 - Social → notification ve social → messaging olay teslimi: Auth'ta bu çiftler tanımlı değil, ihtiyaç yazılırsa karar
 - Kullanıcı varlık doğrulaması ve profil: user-service yazılınca
 

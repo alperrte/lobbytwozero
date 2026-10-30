@@ -137,10 +137,29 @@ olur (kimlik doğrulaması önce yapılır; yanlış gizli anahtar yine `401 INV
 | 4 | `svc:community-service` | `notification-service` | `events:ingest` | Etkileşim bildirimleri |
 | 5 | `svc:messaging-service` | `social-service` | `blocks:check` | Mesaj öncesi engel sorgusu |
 | 6 | `svc:lfp-service` | `social-service` | `blocks:check` | Eşleşme öncesi engel sorgusu |
+| 7 | `svc:social-service` | `user-service` | `privacy:read`, `events:ingest` | SOC-12 arkadaş listesi görünürlüğü; `FriendshipChanged`, `UserBlocked`, `UserUnblocked` |
+| 8 | `svc:library-service` | `user-service` | `privacy:read`, `events:ingest` | LIB-11 koleksiyon gizliliği; `LibrarySummaryChanged` |
+| 9 | `svc:hardware-service` | `user-service` | `privacy:read` | HW-08 `HardwareVisibilityPolicy` |
+| 10 | `svc:review-service` | `user-service` | `events:ingest` | `ReviewSummaryChanged` |
+| 11 | `svc:recommendation-service` | `library-service` | `signals:read` (**hesaba bağlı**) | Tek hesabın öneri sinyali (LIB-14) |
 
 Satır 5 ve 6 için gizli anahtarlar `AUTH_MESSAGING_SERVICE_CLIENT_SECRET` ve `AUTH_LFP_SERVICE_CLIENT_SECRET` (yeni, boşsa istemci kapalı).
+Satır 7–11 için (2026-10-30, boşsa kapalı): social satır 2'deki `AUTH_SOCIAL_SERVICE_CLIENT_SECRET`'i kullanır; ayrıca `AUTH_LIBRARY_SERVICE_CLIENT_SECRET`,
+`AUTH_HARDWARE_SERVICE_CLIENT_SECRET`, `AUTH_REVIEW_SERVICE_CLIENT_SECRET`, `AUTH_RECOMMENDATION_SERVICE_CLIENT_SECRET`.
+**User Service istemci değildir:** kimseyi senkron çağırmaz, Social/Library/Review verisi olayla gelir. `privacy:read` kullanıcıya bağlı değildir;
+görüntüleyen ve sahip istek gövdesindedir, çağıranın kendi doğruladığı beyandır. Kararı User verir, Auth vermez.
 
-**Auth olayları (outbox, 2026-10-29):** `AccountStatusChanged`, `UserRegistered`, `AccountEmailChanged` aynı işlemde `auth_events` tablosuna yazılır; arka plan işçisi hedeflere `eventId/eventType/eventVersion/occurredAt/producer/aggregateId/payload` zarfıyla HTTP ile iletir (en az bir kez; alıcı `eventId` ile tekilleştirir). `AccountStatusChanged` yalnız yönetici durum değişikliğinde çıkar; silme isteği, iptal ve silme tamamlanması olay üretmez (bunlar silme koordinasyonuyla `account:erase` çağrısı üzerinden yürür). Hedef listesi `ltz.auth.events.targets` (ortam değişkeni `AUTH_EVENT_TARGETS`, virgülle ayrılmış servis adları), varsayılan **boş** (olay gönderilmez); prod'da hedef adresleri `https` olmalı.
+**Hesaba bağlı kapsam (2026-10-30, `signals:read`):** İstek gövdesinde `accountId` zorunludur; token `account_id` claim'iyle o tek hesaba bağlanır.
+Auth hesabın var ve `ACTIVE` olduğunu denetler (değilse `403 SERVICE_TARGET_ACCOUNT_UNAVAILABLE`). Hesaba bağlı olmayan kapsamda `accountId` verilemez,
+bağlı kapsamda eksik olamaz (`400 SERVICE_ACCOUNT_BINDING_INVALID`). Bir hedefin kapsamları ya hep hesaba bağlıdır ya hiç (açılış denetimi).
+**Sınır:** `account_id` çağıranın beyanıdır; Auth kullanıcı iznini ve hedefin meşruiyetini kanıtlamaz. Bağ, çalınan token'ı tek hesapla ve
+60 sn ile sınırlar. İzin kararı hedef servisindir (Library her istekte User'a sorar, kararsızlıkta veri açmaz).
+
+**Kullanıcı adına çağrı (LIB-10, 2026-10-30 kararı):** Auth, görüntüleyen kullanıcıyı taşıyan delegasyon/exchange token'ı **üretmez** (servis
+token'ından kullanıcı yetkisi türetilmez). Kullanıcı isteğiyle gelen çağrıda servis, o kullanıcının kendi `at+jwt`'sini hedefe iletir; hedef
+`viewer`'ı yalnız `sub`'dan okur. İletilen token saklanmaz, loglanmaz, arka plan işinde kullanılmaz.
+
+**Auth olayları (outbox, 2026-10-29):** `AccountStatusChanged`, `UserRegistered`, `AccountEmailChanged` aynı işlemde `auth_events` tablosuna yazılır; arka plan işçisi hedeflere `eventId/eventType/eventVersion/occurredAt/producer/aggregateId/payload` zarfıyla HTTP ile iletir (en az bir kez; alıcı `eventId` ile tekilleştirir). `AccountStatusChanged` yalnız yönetici durum değişikliğinde çıkar; silme isteği, iptal ve silme tamamlanması olay üretmez (bunlar silme koordinasyonuyla `account:erase` çağrısı üzerinden yürür). Hedef listesi `ltz.auth.events.targets` (ortam değişkeni `AUTH_EVENT_TARGETS`, virgülle ayrılmış servis adları), kodda varsayılan **boş** (olay gönderilmez); dev şablonunda (`.env.example`, `node ops/generate-auth-dev-keys.mjs`) `user` yazılıdır (2026-10-30). Hedef henüz yayında değilse teslim yeniden denenir, olay kaybolmaz. Prod'da hedef bilinçli açılır ve adresleri `https` olmalı.
 
 **Cihaz token'ı (2026-10-29):** `typ=dev+jwt`, `aud=hardware-service`, `sub=<deviceId>`, `scope=hardware:sync:write`; uç sözleşmesi `docs/api.md`.
 

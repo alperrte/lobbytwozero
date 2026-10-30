@@ -22,7 +22,13 @@ public class ServiceClientConfig {
             TokenClaims.ACCOUNT_READ_SCOPE, TokenClaims.ACCOUNT_STATUS_WRITE_SCOPE, TokenClaims.ACCOUNT_ROLE_WRITE_SCOPE);
     /** Başka servislere ({@code aud=<servis>-service}) verilebilen kapsamlar; hedef servis token'ı kendi JWKS doğrulamasıyla kabul eder. */
     public static final Set<String> ALLOWED_TARGET_SCOPES = Set.of(
-            TokenClaims.EVENTS_INGEST_SCOPE, TokenClaims.BLOCKS_CHECK_SCOPE);
+            TokenClaims.EVENTS_INGEST_SCOPE, TokenClaims.BLOCKS_CHECK_SCOPE, TokenClaims.PRIVACY_READ_SCOPE,
+            TokenClaims.SIGNALS_READ_SCOPE);
+    /**
+     * Tek hesabın kişisel verisini okutan kapsamlar: token yalnız istekte verilen tek hesap için ({@code account_id}) ve o
+     * hesap ACTIVE ise verilir. Bir hedefin kapsamları ya hep hesaba bağlıdır ya hiç (token'ın anlamı karışmasın).
+     */
+    public static final Set<String> ACCOUNT_BOUND_TARGET_SCOPES = Set.of(TokenClaims.SIGNALS_READ_SCOPE);
     static final int MIN_SECRET_LENGTH = 32;
     private static final Pattern CLIENT_ID = Pattern.compile("^[a-z0-9-]{1,32}$");
     private static final Pattern TARGET_AUDIENCE = Pattern.compile("^[a-z0-9-]{1,24}" + TokenClaims.SERVICE_AUDIENCE_SUFFIX + "$");
@@ -59,5 +65,14 @@ public class ServiceClientConfig {
             throw new IllegalStateException(
                     property + ".targets." + audience + " must be a non-empty subset of " + ALLOWED_TARGET_SCOPES);
         }
+        if (isAccountBound(granted) && !ACCOUNT_BOUND_TARGET_SCOPES.containsAll(granted)) {
+            throw new IllegalStateException(
+                    property + ".targets." + audience + " must not mix account-bound and unbound scopes");
+        }
+    }
+
+    /** Kapsamlardan biri hesaba bağlıysa token tek hesaba bağlanır (açılış denetimi karışımı engeller). */
+    public static boolean isAccountBound(Set<String> scopes) {
+        return scopes.stream().anyMatch(ACCOUNT_BOUND_TARGET_SCOPES::contains);
     }
 }

@@ -36,6 +36,15 @@ const generators = {
   // Engel sorgusu (blocks:check) istemcileri: messaging ve lfp -> social.
   AUTH_MESSAGING_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
   AUTH_LFP_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
+  // User Service ve Library entegrasyonu: library/hardware/review -> user, recommendation -> library.
+  AUTH_LIBRARY_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
+  AUTH_HARDWARE_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
+  AUTH_REVIEW_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
+  AUTH_RECOMMENDATION_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
+  // Sır değil, dev varsayılanı: Auth olaylarının (UserRegistered, AccountStatusChanged, AccountEmailChanged) gideceği servisler.
+  // Satır yoksa veya boşsa "user" yazılır; dolu listeye dokunulmaz (aşağıdaki uyarı yalnız hatırlatır). Hedef erken açılırsa
+  // Auth üstel geri çekilmeyle yeniden dener, olay kaybolmaz; User ayağa kalkınca birikenler teslim edilir.
+  AUTH_EVENT_TARGETS: () => "user",
 };
 
 // Eski varsayılanlar: değer TAM OLARAK eskiyse yeni varsayılana çekilir; özelleştirilmiş değere dokunulmaz.
@@ -97,10 +106,14 @@ for (const file of targets) {
     }
   }
 
+  const targets = (text.match(lineOf("AUTH_EVENT_TARGETS"))?.[1] ?? "").split(",").map((name) => name.trim());
+  const missingTargets = targets.includes("user") ? [] : ["AUTH_EVENT_TARGETS ('user' yok; dolu liste korunur, elle ekleyin)"];
+
   if (filled.length || refreshed.length) writeFileSync(file, text);
   const shown = file.startsWith(root) ? file.slice(root.length + 1) : file;
   const report = [];
   if (filled.length) report.push(`dolduruldu -> ${filled.join(", ")}`);
   if (refreshed.length) report.push(`güncellendi -> ${refreshed.join(", ")}`);
+  if (missingTargets.length) report.push(`uyarı -> ${missingTargets.join(", ")}`);
   console.log(`${shown}: ${report.length ? report.join("; ") : "eksik anahtar yok"}`);
 }

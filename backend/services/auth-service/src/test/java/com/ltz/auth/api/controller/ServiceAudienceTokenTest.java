@@ -78,6 +78,72 @@ class ServiceAudienceTokenTest extends IntegrationTestSupport {
     }
 
     @Test
+    void userServiceIcinGizlilikKarariVeOzetOlayiTokenleriIzinListesinedir() throws Exception {
+        // REQ-04: hangi istemci user-service'e hangi kapsamla gidebilir. Kullanıcı bağı (account_id) hiçbirinde yok.
+        for (Object[] pair : new Object[][] {
+                {"social-service", SOCIAL_CLIENT_SECRET, "events:ingest privacy:read"},
+                {"library-service", LIBRARY_CLIENT_SECRET, "events:ingest privacy:read"},
+                {"hardware-service", HARDWARE_CLIENT_SECRET, "privacy:read"},
+                {"review-service", REVIEW_CLIENT_SECRET, "events:ingest"}}) {
+            String body = tokenRequest((String) pair[0], (String) pair[1], "user-service")
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.scope").value(pair[2]))
+                    .andReturn().getResponse().getContentAsString();
+            JWTClaimsSet claims = SignedJWT.parse(JsonPath.<String>read(body, "$.accessToken")).getJWTClaimsSet();
+            assertThat(claims.getAudience()).containsExactly("user-service");
+            assertThat(claims.getSubject()).isEqualTo("svc:" + pair[0]);
+            assertThat(claims.getStringClaim("scope")).isEqualTo(pair[2]);
+            assertThat(claims.getClaims()).doesNotContainKeys("roles", "sid", "ver", "amr", "account_id");
+        }
+
+        // Kapsam hedefe ve çifte bağlıdır: review gizlilik kararı alamaz, hardware olay yazamaz.
+        tokenRequest("library-service", LIBRARY_CLIENT_SECRET, "social-service").andExpect(status().isForbidden());
+        tokenRequest("library-service", LIBRARY_CLIENT_SECRET, null).andExpect(status().isForbidden());
+        tokenRequest("review-service", REVIEW_CLIENT_SECRET, "social-service").andExpect(status().isForbidden());
+        tokenRequest("hardware-service", HARDWARE_CLIENT_SECRET, "community-service").andExpect(status().isForbidden());
+        // User kimseyi çağırmaz: istemcisi yoktur, kimlik bilgisi tanınmaz.
+        tokenRequest("user-service", LIBRARY_CLIENT_SECRET, "social-service").andExpect(status().isUnauthorized());
+        // Başkalarının yetkisi genişlemedi: messaging yalnız blocks:check alır.
+        tokenRequest("messaging-service", MESSAGING_CLIENT_SECRET, "social-service")
+                .andExpect(jsonPath("$.scope").value("blocks:check"));
+        tokenRequest("messaging-service", MESSAGING_CLIENT_SECRET, "user-service").andExpect(status().isForbidden());
+    }
+
+    @Test
+    void recommendationYalnizAktifTekHesabaBagliSinyalTokeniAlir() throws Exception {
+        UUID account = accountId(registerActiveAccount(uniqueEmail(), uniqueUsername()));
+
+        String body = boundTokenRequest(account.toString())
+                .andExpect(status().isOk()).andExpect(jsonPath("$.scope").value("signals:read"))
+                .andReturn().getResponse().getContentAsString();
+        JWTClaimsSet claims = SignedJWT.parse(JsonPath.<String>read(body, "$.accessToken")).getJWTClaimsSet();
+        assertThat(claims.getAudience()).containsExactly("library-service");
+        assertThat(claims.getSubject()).isEqualTo("svc:recommendation-service");
+        assertThat(claims.getStringClaim("account_id")).isEqualTo(account.toString());
+        assertThat(claims.getExpirationTime().getTime() - claims.getIssueTime().getTime()).isEqualTo(60_000L);
+        assertThat(claims.getClaims()).doesNotContainKeys("roles", "sid", "ver", "amr");
+
+        // Hesapsız istek, olmayan hesap, bozuk kimlik ve hesaba bağlı olmayan hedefe hesap eklemek reddedilir.
+        tokenRequest("recommendation-service", RECOMMENDATION_CLIENT_SECRET, "library-service")
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("SERVICE_ACCOUNT_BINDING_INVALID"));
+        boundTokenRequest(UUID.randomUUID().toString())
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("SERVICE_TARGET_ACCOUNT_UNAVAILABLE"));
+        boundTokenRequest("hesap-degil").andExpect(status().isBadRequest());
+        postJson("/internal/v1/service-tokens", "{\"clientId\":\"social-service\",\"clientSecret\":\"%s\",\"audience\":\"community-service\",\"accountId\":\"%s\"}"
+                .formatted(SOCIAL_CLIENT_SECRET, account))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("SERVICE_ACCOUNT_BINDING_INVALID"));
+        tokenRequest("recommendation-service", RECOMMENDATION_CLIENT_SECRET, "user-service").andExpect(status().isForbidden());
+    }
+
+    @Test
+    void askidakiHesapIcinSinyalTokeniVerilmez() throws Exception {
+        UUID account = accountId(registerActiveAccount(uniqueEmail(), uniqueUsername()));
+        jdbc.update("update accounts set status = 'SUSPENDED' where id = ?", account);
+
+        boundTokenRequest(account.toString())
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("SERVICE_TARGET_ACCOUNT_UNAVAILABLE"));
+    }
+
+    @Test
     void izinListesindeOlmayanHedefReddedilirAuthKapsamiSizmaz() throws Exception {
         // social yalnız community'ye yazabilir.
         tokenRequest("social-service", SOCIAL_CLIENT_SECRET, "notification-service")
@@ -120,6 +186,12 @@ class ServiceAudienceTokenTest extends IntegrationTestSupport {
     private List<String> audienceOf(ResultActions result) throws Exception {
         String body = result.andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         return SignedJWT.parse(JsonPath.<String>read(body, "$.accessToken")).getJWTClaimsSet().getAudience();
+    }
+
+    private ResultActions boundTokenRequest(String accountId) throws Exception {
+        return postJson("/internal/v1/service-tokens",
+                "{\"clientId\":\"recommendation-service\",\"clientSecret\":\"%s\",\"audience\":\"library-service\",\"accountId\":\"%s\"}"
+                        .formatted(RECOMMENDATION_CLIENT_SECRET, accountId));
     }
 
     private ResultActions tokenRequest(String clientId, String secret, String audience) throws Exception {

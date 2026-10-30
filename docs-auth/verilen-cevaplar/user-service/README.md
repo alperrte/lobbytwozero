@@ -14,7 +14,9 @@
 
 ## BU BRANCH İÇİN AUTH'TAN GELEN TALEP VE CEVAPLAR
 
-Şu an Auth'a yönelik açık bir talep yok. Soru çıkarsa buraya yazılır.
+| # | Konu | Cevap | Durum |
+|---|---|---|---|
+| [01](talep-01-olay-hedefi-servis-token-ciftleri-ve-silme-durumu.md) | REQ-01..04: `user` olay hedefi, kayıtlı hesapların yeniden yayını, silme bekleme durumu, servis token çiftleri | REQ-01 `user` hedefi `.env.example` ve anahtar betiğiyle varsayılan açık; REQ-02 karar B (eski DEV hesapları yeniden kaydolur, bundan sonrakiler kaybolmaz); REQ-03 hayır, token alamaz; REQ-04 social/library/hardware/review çiftleri Auth'ta hazır | AUTH HAZIR (2026-10-30), uçtan uca NOT VERIFIED |
 
 **Ek not:** Auth artık `UserRegistered` ve `AccountEmailChanged` olaylarını transactional outbox ile yayımlayabiliyor (2026-10-29); olay e-posta taşımaz, yalnız hesap kimliği ve (kayıtta) kullanıcı adı taşır. Hedef listesi `ltz.auth.events.targets` varsayılan boştur, User'ın alıcı ucu (`POST /internal/events`, `aud=user-service`, `scope=events:ingest`) yazılınca Auth ortamına `user` eklenir. Profil e-posta tutacaksa değişikliği kendi tarafında eşitle (borç B19, kısmen kapandı).
 

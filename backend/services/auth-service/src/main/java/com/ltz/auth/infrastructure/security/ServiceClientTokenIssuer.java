@@ -24,7 +24,8 @@ import com.ltz.auth.infrastructure.config.JwtProperties;
  *   <li>{@code typ=svc+jwt}, {@code aud=<tek hedef>} ({@code auth-service} ya da izinli {@code <servis>-service}; yalnız o
  *       serviste geçer, başka servise oynatılamaz), {@code sub=svc:<istemci>}.</li>
  *   <li>Ömür {@link #TTL}; her token için yeni {@code jti}. Rol, oturum ve kullanıcı claim'i taşınmaz; kullanıcı kimliği
- *       gerektiren işlemde kimlik istek gövdesinde ayrıca doğrulanır.</li>
+ *       gerektiren işlemde kimlik istek gövdesinde ayrıca doğrulanır. Hesaba bağlı kapsamda yalnız hedef hesap
+ *       ({@code account_id}) yazılır; bu bir yetki değil, token'ın tek hesap dışında kullanılmasını engelleyen bağdır.</li>
  *   <li>Kapsam, istemcinin kayıtlı kapsamlarından fazlası olamaz (çağıran {@code ServiceClientTokenService} denetler).</li>
  * </ul>
  */
@@ -57,12 +58,20 @@ public class ServiceClientTokenIssuer {
      * o servisin JWKS doğrulamasında geçer, başka servise oynatılamaz. İzin kontrolü çağıranda ({@code ServiceClientTokenService}).
      */
     public String issue(String clientId, String audience, Set<String> scopes) {
+        return issue(clientId, audience, scopes, null);
+    }
+
+    /**
+     * {@code accountId} doluysa token tek hesaba bağlanır ({@code account_id}); hesaba bağlı kapsamın gerektirip
+     * gerektirmediği ve hesabın ACTIVE olduğu çağıranda ({@code ServiceClientTokenService}) denetlenir.
+     */
+    public String issue(String clientId, String audience, Set<String> scopes, UUID accountId) {
         if (clientId == null || clientId.isBlank() || audience == null || audience.isBlank()
                 || scopes == null || scopes.isEmpty()) {
             throw new IllegalArgumentException("Service client token needs a client id, an audience and at least one scope");
         }
         Instant now = clock.instant();
-        JwtClaimsSet claims = JwtClaimsSet.builder()
+        JwtClaimsSet.Builder claims = JwtClaimsSet.builder()
                 .issuer(properties.issuer())
                 .subject(TokenClaims.SERVICE_SUBJECT_PREFIX + clientId)
                 .audience(List.of(audience))
@@ -70,12 +79,14 @@ public class ServiceClientTokenIssuer {
                 .notBefore(now)
                 .expiresAt(now.plus(TTL))
                 .id(UUID.randomUUID().toString())
-                .claim(TokenClaims.SCOPE, String.join(" ", new TreeSet<>(scopes)))
-                .build();
+                .claim(TokenClaims.SCOPE, String.join(" ", new TreeSet<>(scopes)));
+        if (accountId != null) {
+            claims.claim(TokenClaims.ACCOUNT_ID, accountId.toString());
+        }
         JwsHeader header = JwsHeader.with(SignatureAlgorithm.RS256)
                 .type(TokenClaims.SERVICE_TOKEN_TYPE)
                 .keyId(signingKey.keyId())
                 .build();
-        return jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
+        return jwtEncoder.encode(JwtEncoderParameters.from(header, claims.build())).getTokenValue();
     }
 }

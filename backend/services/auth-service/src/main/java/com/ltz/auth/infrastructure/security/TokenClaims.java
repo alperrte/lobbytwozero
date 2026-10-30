@@ -35,6 +35,16 @@ public final class TokenClaims {
     public static final String EVENTS_INGEST_SCOPE = "events:ingest";
     /** Engel sorgusu: messaging ve lfp, Social'ın {@code POST /internal/v1/blocks/check} ucunu çağırır. */
     public static final String BLOCKS_CHECK_SCOPE = "blocks:check";
+    /**
+     * Gizlilik kararı: social, hardware ve library, User'ın {@code POST /internal/v1/privacy/decisions} ucundan başkasının
+     * verisini açmadan önce izin/ret kararı ister. Kullanıcıya bağlı değildir; görüntüleyen ve sahip istek gövdesindedir.
+     */
+    public static final String PRIVACY_READ_SCOPE = "privacy:read";
+    /**
+     * Öneri sinyali okuma: recommendation, Library'den tek hesabın sinyallerini okur. Hesaba bağlı kapsamdır: token
+     * {@link #ACCOUNT_ID} taşır, hedef servis bunu istekteki hesapla karşılaştırır.
+     */
+    public static final String SIGNALS_READ_SCOPE = "signals:read";
     /** Masaüstü cihaz token'ı türü; kullanıcı ({@link #ACCESS_TOKEN_TYPE}) ve servis token'ının yerine geçemez, tersi de geçemez. */
     public static final String DEVICE_TOKEN_TYPE = "dev+jwt";
     /** Cihaz token'ının tek hedefi ve tek kapsamı (Hardware'in masaüstü senkronu). */
