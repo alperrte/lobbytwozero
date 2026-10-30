@@ -64,18 +64,22 @@ public class UserMedia {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    public static UserMedia create(UUID userId, MediaKind kind, String storageKey, String contentType, long byteSize,
-                                   int width, int height, int frameCount, Instant now) {
+    /** Yeni görselin dosya ve boyut üst verisi. */
+    public record Upload(String storageKey, String contentType, long byteSize, int width, int height,
+                         int frameCount) {
+    }
+
+    public static UserMedia create(UUID userId, MediaKind kind, Upload upload, Instant now) {
         UserMedia media = new UserMedia();
         media.id = UUID.randomUUID();
         media.userId = userId;
         media.kind = kind;
-        media.storageKey = storageKey;
-        media.contentType = contentType;
-        media.byteSize = byteSize;
-        media.width = width;
-        media.height = height;
-        media.frameCount = frameCount;
+        media.storageKey = upload.storageKey();
+        media.contentType = upload.contentType();
+        media.byteSize = upload.byteSize();
+        media.width = upload.width();
+        media.height = upload.height();
+        media.frameCount = upload.frameCount();
         media.status = MediaStatus.CURRENT;
         media.createdAt = now;
         return media;

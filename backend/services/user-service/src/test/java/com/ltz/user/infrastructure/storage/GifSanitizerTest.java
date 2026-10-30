@@ -24,7 +24,7 @@ class GifSanitizerTest {
         assertThat(result.height()).isEqualTo(16);
         String text = new String(result.bytes(), StandardCharsets.ISO_8859_1);
         assertThat(text).contains("NETSCAPE2.0").doesNotContain("hello");
-        assertThat(result.bytes().length).isEqualTo(gif.length - 9); // yorum bloğu: 2 + 1 + 5 + 1 bayt
+        assertThat(result.bytes()).hasSize(gif.length - 9); // yorum bloğu: 2 + 1 + 5 + 1 bayt
     }
 
     @Test

@@ -115,9 +115,9 @@ public class ImageIoInspector implements ImageInspectorPort {
 
     /** Hedef boyuta yetecek en büyük tam sayı alt örnekleme çarpanıyla okur; tam çözünürlük hiç belleğe alınmaz. */
     private BufferedImage decode(ImageReader reader, MediaKind kind, int width, int height) throws IOException {
-        int factor = kind == MediaKind.AVATAR
-                ? Math.max(1, Math.min(width, height) / properties.avatarLarge())
-                : Math.max(1, Math.max(width, height) / properties.coverLarge());
+        int factor = Math.max(1, kind == MediaKind.AVATAR
+                ? Math.min(width, height) / properties.avatarLarge()
+                : Math.max(width, height) / properties.coverLarge());
         ImageReadParam param = reader.getDefaultReadParam();
         param.setSourceSubsampling(factor, factor, 0, 0);
         return reader.read(0, param);

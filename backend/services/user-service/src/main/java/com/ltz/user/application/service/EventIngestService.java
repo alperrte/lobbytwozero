@@ -33,7 +33,7 @@ public class EventIngestService {
 
     static final String AUTH_PRODUCER = "auth-service";
     private static final int SUPPORTED_VERSION = 1;
-    private static final Pattern USERNAME = Pattern.compile("^[A-Za-z0-9_]{3,20}$");
+    private static final Pattern USERNAME = Pattern.compile("^\\w{3,20}$");
 
     private final InboxEventRepository inbox;
     private final UserProfileRepository profiles;

@@ -52,9 +52,9 @@ final class ExifOrientation {
             return NORMAL;
         }
         boolean littleEndian;
-        if (data[start] == 'I' && data[start + 1] == 'I') {
+        if (hasMarker(data, start, 'I')) {
             littleEndian = true;
-        } else if (data[start] == 'M' && data[start + 1] == 'M') {
+        } else if (hasMarker(data, start, 'M')) {
             littleEndian = false;
         } else {
             return NORMAL;
@@ -63,8 +63,16 @@ final class ExifOrientation {
         if (ifdOffset < 8 || ifdOffset + 2 > available) {
             return NORMAL;
         }
-        int entries = unsigned16(data, start + (int) ifdOffset, littleEndian);
-        int entryStart = start + (int) ifdOffset + 2;
+        return readEntries(data, start, available, (int) ifdOffset, littleEndian);
+    }
+
+    private static boolean hasMarker(byte[] data, int start, char marker) {
+        return data[start] == marker && data[start + 1] == marker;
+    }
+
+    private static int readEntries(byte[] data, int start, int available, int ifdOffset, boolean littleEndian) {
+        int entries = unsigned16(data, start + ifdOffset, littleEndian);
+        int entryStart = start + ifdOffset + 2;
         for (int i = 0; i < entries; i++) {
             int entry = entryStart + i * 12;
             if (entry + 12 > start + available) {

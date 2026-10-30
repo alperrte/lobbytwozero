@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
@@ -47,13 +46,11 @@ public class JwtConfig {
     private static final Duration CLOCK_SKEW = Duration.ofSeconds(30);
 
     @Bean
-    @Qualifier("userTokenDecoder")
     JwtDecoder userTokenDecoder(AuthProperties properties, Clock clock) {
         return decoder(properties.jwksUri(), accessTokenValidator(properties.issuer(), properties.audience(), clock));
     }
 
     @Bean
-    @Qualifier("serviceTokenDecoder")
     JwtDecoder serviceTokenDecoder(AuthProperties properties, Clock clock) {
         return decoder(properties.jwksUri(),
                 serviceTokenValidator(properties.issuer(), properties.serviceAudience(), clock));

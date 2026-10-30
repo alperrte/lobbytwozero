@@ -6,7 +6,7 @@ import java.util.regex.Pattern;
 
 /** Desteklenen dış hesap sağlayıcıları (K8: yalnız Steam; Discord kapsam dışı). DB'deki CHECK ile aynı küme. */
 public enum LinkedProvider {
-    STEAM(Pattern.compile("^[0-9]{17}$"), "https://steamcommunity.com/profiles/");
+    STEAM(Pattern.compile("^\\d{17}$"), "https://steamcommunity.com/profiles/");
 
     private final Pattern subjectFormat;
     private final String profileUrlPrefix;

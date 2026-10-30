@@ -1,5 +1,8 @@
 package com.ltz.user.application.port;
 
+import java.util.Arrays;
+import java.util.Objects;
+
 import com.ltz.user.domain.enums.MediaKind;
 
 /**
@@ -19,5 +22,26 @@ public interface ImageInspectorPort {
      */
     record ProcessedImage(String extension, String contentType, byte[] large, byte[] small, int width, int height,
                           int frameCount) {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof ProcessedImage that && Objects.equals(extension, that.extension)
+                    && Objects.equals(contentType, that.contentType) && width == that.width
+                    && height == that.height && frameCount == that.frameCount && Arrays.equals(large, that.large)
+                    && Arrays.equals(small, that.small);
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * (31 * Objects.hash(extension, contentType, width, height, frameCount)
+                    + Arrays.hashCode(large)) + Arrays.hashCode(small);
+        }
+
+        @Override
+        public String toString() {
+            return "ProcessedImage[extension=" + extension + ", contentType=" + contentType + ", large="
+                    + large.length + ", small=" + (small == null ? 0 : small.length) + ", width=" + width
+                    + ", height=" + height + ", frameCount=" + frameCount + "]";
+        }
     }
 }

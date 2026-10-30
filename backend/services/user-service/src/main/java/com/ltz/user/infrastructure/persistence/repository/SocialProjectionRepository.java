@@ -75,8 +75,8 @@ public class SocialProjectionRepository {
     }
 
     public long countFriends(UUID userId) {
-        Long count = jdbc.queryForObject("""
-                SELECT count(*) FROM social_friendships WHERE active AND (user_low_id = :a OR user_high_id = :a)""",
+        Long count = jdbc.queryForObject(
+                "SELECT count(*) FROM social_friendships WHERE active AND (user_low_id = :a OR user_high_id = :a)",
                 new MapSqlParameterSource(RELATION_SOURCE, userId), Long.class);
         return count == null ? 0 : count;
     }

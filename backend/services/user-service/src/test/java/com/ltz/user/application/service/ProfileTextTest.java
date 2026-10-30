@@ -43,7 +43,7 @@ class ProfileTextTest {
 
     @Test
     void gorunenAdGizliVeYonDegistirenKarakterlerReddedilir() {
-        String[] forbidden = {"Ad‮soyad", "Ad​soyad", "Ad\u0000soyad", "Ad\tsoyad", "Ad\nsoyad",
+        String[] forbidden = {"Ad\u202Esoyad", "Ad\u200Bsoyad", "Ad\u0000soyad", "Ad\tsoyad", "Ad\nsoyad",
                 "Ad soyad", "Adsoyad", "Ad soyad", "Ad﻿soyad"};
         for (String value : forbidden) {
             assertThatCode(value, UserErrorCode.INVALID_DISPLAY_NAME, () -> ProfileText.displayName(value));
@@ -62,7 +62,7 @@ class ProfileTextTest {
     void biyografiSinirVeYasakKarakter() {
         assertThat(ProfileText.bio("b".repeat(500))).hasSize(500);
         assertThatCode("501", UserErrorCode.INVALID_BIO, () -> ProfileText.bio("b".repeat(501)));
-        assertThatCode("bidi", UserErrorCode.INVALID_BIO, () -> ProfileText.bio("merhaba‮dünya"));
+        assertThatCode("bidi", UserErrorCode.INVALID_BIO, () -> ProfileText.bio("merhaba\u202Edünya"));
         assertThatCode("tab", UserErrorCode.INVALID_BIO, () -> ProfileText.bio("a\tb"));
     }
 

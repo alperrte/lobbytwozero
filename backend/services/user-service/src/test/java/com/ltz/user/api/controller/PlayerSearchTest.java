@@ -108,7 +108,7 @@ class PlayerSearchTest extends IntegrationTestSupport {
         search(viewer, "a").andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_SEARCH_QUERY"));
         search(viewer, "   ").andExpect(status().isBadRequest());
         search(viewer, "a".repeat(33)).andExpect(status().isBadRequest());
-        search(viewer, "ab‮cd").andExpect(status().isBadRequest());
+        search(viewer, "ab\u202Ecd").andExpect(status().isBadRequest());
         mockMvc.perform(get(UserApiPaths.SEARCH).header(HttpHeaders.AUTHORIZATION, bearer(viewer)))
                 .andExpect(status().isBadRequest());
     }

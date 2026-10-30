@@ -48,7 +48,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class PublicProfileService {
 
-    private static final Pattern USERNAME = Pattern.compile("^[A-Za-z0-9_]{3,20}$");
+    private static final Pattern USERNAME = Pattern.compile("^\\w{3,20}$");
 
     private final UserProfileRepository profiles;
     private final UserMediaRepository media;
@@ -123,15 +123,13 @@ public class PublicProfileService {
             friends = new Count(SummaryStatus.AVAILABLE, Math.toIntExact(social.countFriends(ownerId)));
         }
         Library library;
-        Integer collection = stored.map(Counters::libraryCollection).orElse(null);
         if (!sections.library()) {
             library = new Library(SummaryStatus.HIDDEN, null, null, null);
-        } else if (collection == null) {
-            library = new Library(SummaryStatus.UNAVAILABLE, null, null, null);
         } else {
-            Counters values = stored.get();
-            library = new Library(SummaryStatus.AVAILABLE, collection, values.libraryCompleted(),
-                    values.libraryFavorite());
+            library = stored.filter(values -> values.libraryCollection() != null)
+                    .map(values -> new Library(SummaryStatus.AVAILABLE, values.libraryCollection(),
+                            values.libraryCompleted(), values.libraryFavorite()))
+                    .orElseGet(() -> new Library(SummaryStatus.UNAVAILABLE, null, null, null));
         }
         // İncelemeler kendi servisinde herkese açık UGC'dir: sayısı PUBLIC bölüm kuralıyla gösterilir.
         Integer reviewCount = stored.map(Counters::reviews).orElse(null);

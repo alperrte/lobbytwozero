@@ -136,7 +136,7 @@ class MediaControllerTest extends IntegrationTestSupport {
                 .andReturn().getResponse().getContentAsByteArray();
         String text = new String(served, StandardCharsets.ISO_8859_1);
         assertThat(text).contains("NETSCAPE2.0").doesNotContain("hello");
-        assertThat(served.length).isLessThan(gif.length);
+        assertThat(served).hasSizeLessThan(gif.length);
     }
 
     @Test

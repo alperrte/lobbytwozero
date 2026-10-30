@@ -2,6 +2,8 @@ package com.ltz.user.infrastructure.storage;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * GIF'i çözmeden (CPU yükü yok) yapısını doğrular ve temizler: yalnız kare verisi, grafik denetim blokları (süre/saydamlık)
@@ -31,6 +33,23 @@ final class GifSanitizer {
 
     /** Temizlenmiş GIF ve ölçüleri. */
     record Result(byte[] bytes, int width, int height, int frames) {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof Result that && width == that.width && height == that.height
+                    && frames == that.frames && Arrays.equals(bytes, that.bytes);
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * Objects.hash(width, height, frames) + Arrays.hashCode(bytes);
+        }
+
+        @Override
+        public String toString() {
+            return "Result[bytes=" + bytes.length + ", width=" + width + ", height=" + height + ", frames=" + frames
+                    + "]";
+        }
     }
 
     static boolean hasGifSignature(byte[] data) {
@@ -71,31 +90,27 @@ final class GifSanitizer {
         int frames = 0;
         while (true) {
             int block = require(position++);
-            if (block == TRAILER) {
-                output.write(TRAILER);
-                return frames;
-            }
-            if (block == EXTENSION) {
-                extension();
-            } else if (block == IMAGE_DESCRIPTOR) {
-                frames++;
-                if (frames > maxFrames) {
-                    throw new InvalidGifException();
+            switch (block) {
+                case TRAILER -> {
+                    output.write(TRAILER);
+                    return frames;
                 }
-                frame();
-            } else {
-                throw new InvalidGifException();
+                case EXTENSION -> extension();
+                case IMAGE_DESCRIPTOR -> {
+                    frames++;
+                    if (frames > maxFrames) {
+                        throw new InvalidGifException();
+                    }
+                    frame();
+                }
+                default -> throw new InvalidGifException();
             }
         }
     }
 
     private void extension() {
         int label = require(position++);
-        if (label == GRAPHIC_CONTROL) {
-            output.write(EXTENSION);
-            output.write(label);
-            copySubBlocks();
-        } else if (label == APPLICATION && isLoopApplication()) {
+        if (label == GRAPHIC_CONTROL || (label == APPLICATION && isLoopApplication())) {
             output.write(EXTENSION);
             output.write(label);
             copySubBlocks();

@@ -63,8 +63,8 @@ public class MediaService {
         Instant now = clock.instant();
         requireWithinUploadLimit(userId, now);
         ProcessedImage image = inspector.process(kind, content, declaredContentType);
-        UserMedia created = UserMedia.create(userId, kind, newKey(), image.contentType(), size(image), image.width(),
-                image.height(), image.frameCount(), now);
+        UserMedia created = UserMedia.create(userId, kind, new UserMedia.Upload(newKey(), image.contentType(),
+                size(image), image.width(), image.height(), image.frameCount()), now);
 
         List<String> written = writeFiles(created, image);
         List<UserMedia> replaced;
@@ -149,7 +149,7 @@ public class MediaService {
     }
 
     private static long size(ProcessedImage image) {
-        return image.large().length + (image.small() == null ? 0 : image.small().length);
+        return (long) image.large().length + (image.small() == null ? 0 : image.small().length);
     }
 
     private static String newKey() {

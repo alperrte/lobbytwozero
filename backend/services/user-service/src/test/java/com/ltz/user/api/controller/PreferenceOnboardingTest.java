@@ -79,7 +79,9 @@ class PreferenceOnboardingTest extends IntegrationTestSupport {
         List<Integer> codes = parallel(() -> put(user, prefs(0, "en", "DARK")).andReturn().getResponse().getStatus(),
                 () -> put(user, prefs(0, "tr", "LIGHT")).andReturn().getResponse().getStatus());
 
-        assertThat(codes).containsExactlyInAnyOrder(200, 409);
+        // Sıralı gelirse ikisi de sürüm 0'ı güncel görür (200, 200); gerçekten yarışırsa biri 409 alır. Tek satır kalır.
+        assertThat(codes).contains(200).allMatch(code -> code == 200 || code == 409);
+        assertThat(rows("user_preferences", user)).isEqualTo(1);
     }
 
     @Test
@@ -177,8 +179,7 @@ class PreferenceOnboardingTest extends IntegrationTestSupport {
                 () -> complete(user, onboarding(version, "[\"fps\"]", "[\"ps\"]", "")).andReturn().getResponse()
                         .getStatus());
 
-        assertThat(codes).allMatch(code -> code == 200 || code == 409);
-        assertThat(codes).contains(200);
+        assertThat(codes).contains(200).allMatch(code -> code == 200 || code == 409);
         assertThat(jdbc.queryForObject("select count(*) from user_profiles where user_id = ? and "
                 + "onboarding_completed_at is not null", Integer.class, user)).isEqualTo(1);
     }
