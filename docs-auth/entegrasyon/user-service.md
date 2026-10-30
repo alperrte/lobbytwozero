@@ -24,7 +24,7 @@ User Service profil sahibi, Auth kimlik sahibi. Aralarındaki bağ iki olay (hes
 
 ## AUTH'TA BEKLEYEN
 
-- `UserRegistered` olayı (ACTIVE olunca): **Auth'ta hazır** (2026-10-29). Gövde `eventId`, `eventType`, `eventVersion`, `occurredAt`, `producer`, `aggregateId`, `payload`; payload kullanıcı adıdır, e-posta yoktur. Alıcı: `POST /internal/events`, `aud=user-service`, `typ=svc+jwt`, `scope=events:ingest`, `sub=svc:auth-service`. Alıcı uç yazılınca Auth ortamında `ltz.auth.events.targets` listesine `user` eklenir (yeni (çağıran, hedef) çifti gerekmez, Auth kendi adıyla gönderir)
+- `UserRegistered` olayı (ACTIVE olunca): **Auth'ta hazır** (2026-10-29). Gövde `eventId`, `eventType`, `eventVersion`, `occurredAt`, `producer`, `aggregateId`, `payload`; payload kullanıcı adıdır, e-posta yoktur. Alıcı: `POST /internal/events`, `aud=user-service`, `typ=svc+jwt`, `scope=events:ingest`, `sub=svc:auth-service`. Alıcı uç hazır (User dalı); dev şablonunda `AUTH_EVENT_TARGETS=user` varsayılandır ve `node ops/generate-auth-dev-keys.mjs` eksik ortamlara ekler (yeni (çağıran, hedef) çifti gerekmez, Auth kendi adıyla gönderir)
 - E-posta değişti olayı (`AccountEmailChanged`, borç B19 kısmen kapandı): **Auth'ta hazır** (2026-10-29), aynı yol. Olay yeni adresi taşımaz (e-posta kişisel veri, olaylara konmaz). Profilde e-posta tutacaksan yeni adresi kullanıcıdan ya da kendi akışından al; Auth'ta User için bir hesap-okuma izni tanımlı değil, gerekirse `talep` yaz
 - `AccountStatusChanged` (D3): Auth'ta hazır (2026-10-29), yalnız yönetici durum değişikliğinde çıkar
 - USER-07 (Steam ve Discord bağlantısı): Auth'ta Steam ve Google girişi var (kimlik kanıtı), Discord yok. Auth'ın bağlı hesap bilgisini User'a vermesi için sözleşme yazılı değil

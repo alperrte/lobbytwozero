@@ -1,7 +1,7 @@
 # TALEP 01 — `user` OLAY HEDEFİ, SERVİS TOKEN ÇİFTLERİ VE SİLME DURUMU
 
 **Talep kodları:** USER-AUTH-REQ-01..04 · **Kimden:** Kerem (user-service) · **Kime:** Kerem (auth-service) · **Cevap tarihi:** 2026-10-30
-**Durum:** REQ-01 AUTH HAZIR (ortam ayarı bekliyor) · REQ-02 KARAR BEKLİYOR · REQ-03 KAPALI · REQ-04 AUTH HAZIR (PR #36)
+**Durum:** REQ-01 AUTH HAZIR (şablon ve betik `user` ekler) · REQ-02 KARAR: B · REQ-03 KAPALI · REQ-04 AUTH HAZIR
 **Kaynak:** `docs-user/integration/auth/auth-service-talepleri/auth-requests-01..04.md` (`feature/user-service`)
 
 ---
@@ -18,17 +18,26 @@
 | `UserRegistered` | payload `{accountId, username}` | `AuthEventRelay` |
 | Yeniden yönlendirme | izlenmez; yalnız 2xx teslim sayılır, aksi halde yeniden dener | `HttpAuthEventSender` |
 
-**Yapılacak (ortam, Kerem):** DEV `.env` içinde `AUTH_EVENT_TARGETS=user` (Community alıcı ucu da hazırsa `community,user`), sonra `docker compose up -d auth-service`. Bu repoda değiştirmedim; ENV sende.
+**Karar: `user` hedefi her ortamda varsayılan olarak açık olacak.** Bunu tek tek `.env` düzenlemeyle değil, ortak araçlarla yapıyoruz:
+- `.env.example` artık `AUTH_EVENT_TARGETS=user` taşır (yeni kopyalar doğru başlar).
+- `node ops/generate-auth-dev-keys.mjs` satır yoksa veya boşsa `user` yazar; dolu listeye (ör. `community`) dokunmaz, `user` yoksa uyarı basar (`ops/generate-auth-dev-keys.test.mjs`).
+- Koddaki varsayılan hâlâ boş: üretim ortamı hedefi bilinçli ve ayrı açar (ortam değişkeni).
+
+**Hedef User henüz ayağa kalkmamışken açılırsa ne olur:** Auth üstel geri çekilmeyle (10 sn–1 saat) yeniden dener, 20. denemede bir kez "takılı" uyarısı yazar; **olay kaybolmaz**. User ayağa kalkınca birikenler teslim edilir.
 **Doğrulama:** Yeni hesap kaydı + e-posta doğrulama → `GET /api/v1/user/me` yanıtında `username` dolu. **NOT VERIFIED** (Auth ile gerçek User birlikte çalıştırılmadı).
 
-## REQ-02 — Hedef açılmadan önce kayıt olan hesaplar
+## REQ-02 — Hedef açılmadan önce kayıt olmuş hesaplar
 
-**Öneri: B (DEV'i sıfırla veya hesapları yeniden aç).** Gerekçe: ortam henüz üretim değil, A için yeni migration veya tek seferlik iş gerekir ve bu, `UserRegistered` bilgisinin eski hesaplar için yeniden üretilmesi demektir (kullanıcı adı kopyası). Üretimde ACTIVE hesap yoksa A'ya değmez.
+**Karar: B.** DEV'de hedef açılmadan önce kayıt olmuş hesaplar için geriye dönük yayın yapmıyoruz; User tarafında bu hesapların `username` alanı boş kalır.
 
-- **A seçilirse (Auth işi):** `auth_event_outbox`'a ACTIVE hesaplar için yeni `eventId`'li `UserRegistered` satırları yazan tek seferlik bir yol. Yeni migration V69+ gerekir; ayrıca onay istenir.
-- **C (`account:read` okuma ucu):** Reddediyorum. User'a istemci gizli anahtarı ve hesap okuma yetkisi verir; Auth'un çizgisi "olay yoluyla, yetki genişletmeden".
+Gerekçe:
+1. Bu ortam henüz üretim değil. Gerçek kullanıcı hesabı yok; kalan yalnız geliştirme ve test hesapları.
+2. REQ-01'in kararıyla `user` hedefi artık şablonda varsayılan açık. **Bundan sonra kayıt olan her hesabın `UserRegistered` olayı, User o an kapalı olsa bile outbox'ta bekler ve teslim edilir.** Boşluk yalnız hedefin açıldığı günden öncekiler için; yeni açığa yol açmaz.
+3. A (geriye dönük yayın) Auth'a yeni bir migration (V69+) ve tek seferlik iş getirir; yalnız tek seferlik bir DEV boşluğu için kalıcı kod ekler. Auth'un çizgisi: kalıcı yüzeyi gerçek ihtiyaç doğurmadan büyütmemek.
+4. C (`account:read` okuma ucu) **reddedildi:** User'a istemci gizli anahtarı ve hesap okuma yetkisi verir. Kullanıcı adını isteyen servis bunu olayla alır, Auth'a sormaz.
 
-**Karar Kerem'de:** B mi A mı? Üretimde gerçek hesap var mı?
+**User tarafı için pratik:** Eski DEV hesaplarını yeniden kaydedin veya DEV veritabanını sıfırlayın (kendi ortamınızda `docker compose down -v` yerel verileri siler, yalnız DEV'de). `username` boş profili kırılma değil beklenen durum olarak ele alın.
+**Yeniden bakma koşulu:** Hedef açılmadan önce kayıt olmuş **gerçek** hesaplar varsa (üretim dahil) A seçeneği için ayrıca onay istenir; o zaman tek seferlik, idempotent bir yeniden yayın yazılır (yeni `eventId`, ACTIVE hesaplar, alıcı idempotent).
 
 ## REQ-03 — `DELETION_REQUESTED` hesabı bekleme süresinde token alabilir mi? (bilgi)
 
