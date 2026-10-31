@@ -135,9 +135,8 @@ class AuthEventOutboxTest extends IntegrationTestSupport {
         Map<String, Object> community = row(account, "community");
         Map<String, Object> lfp = row(account, "lfp");
         assertThat(community).containsEntry("status", "DELIVERED");
-        assertThat(lfp).containsEntry("status", "PENDING");
-        assertThat(lfp).containsEntry("attempts", 1);
-        assertThat(lfp).containsEntry("last_error", "EVENT_UNREACHABLE");
+        assertThat(lfp).containsEntry("status", "PENDING").containsEntry("attempts", 1)
+                .containsEntry("last_error", "EVENT_UNREACHABLE");
         assertThat(((Timestamp) lfp.get("next_attempt_at")).toInstant()).isAfter(Instant.now().plusSeconds(1800));
 
         CapturingServer.Request request = COMMUNITY.requests().stream()
@@ -180,8 +179,7 @@ class AuthEventOutboxTest extends IntegrationTestSupport {
         assertThat(claims.getSubject()).as("token öznesi svc:<zarf üreticisi>")
                 .isEqualTo("svc:" + JsonPath.read(request.body(), "$.producer"));
         Map<String, Object> payload = JsonPath.read(request.body(), "$.payload");
-        assertThat(payload).containsOnlyKeys("accountId", "status");
-        assertThat(payload).containsEntry("status", "SUSPENDED");
+        assertThat(payload).containsOnlyKeys("accountId", "status").containsEntry("status", "SUSPENDED");
         assertThat((String) JsonPath.read(request.body(), "$.aggregateId")).isEqualTo(payload.get("accountId"));
     }
 
