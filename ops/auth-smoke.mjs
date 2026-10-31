@@ -108,11 +108,12 @@ export async function runAuthSmoke(root, log = console.log) {
     const messagingSecret = randomBytes(32).toString('base64url'), lfpSecret = randomBytes(32).toString('base64url');
     const librarySecret = randomBytes(32).toString('base64url'), hardwareSecret = randomBytes(32).toString('base64url');
     const reviewSecret = randomBytes(32).toString('base64url'), recommendationSecret = randomBytes(32).toString('base64url');
+    const gameSecret = randomBytes(32).toString('base64url');
     const privateKey = generateKeyPairSync('rsa', { modulusLength: 3072 }).privateKey.export({ format: 'der', type: 'pkcs8' }).toString('base64');
     const rotatedPublicKey = generateKeyPairSync('rsa', { modulusLength: 3072 }).publicKey.export({ format: 'der', type: 'spki' }).toString('base64');
     const hmac = randomBytes(32).toString('base64'), totp = randomBytes(32).toString('base64');
     secrets.push(password, dbPassword, adminSecret, socialSecret, messagingSecret, lfpSecret, librarySecret, hardwareSecret,
-      reviewSecret, recommendationSecret, privateKey, hmac, totp);
+      reviewSecret, recommendationSecret, gameSecret, privateKey, hmac, totp);
     const authDb = await container('postgres:17-alpine', [5432],
       { POSTGRES_USER: 'fixture', POSTGRES_DB: 'fixture', POSTGRES_PASSWORD: dbPassword });
     const mail = await container('axllent/mailpit:v1.31.0', [1025, 8025]);
@@ -129,7 +130,7 @@ export async function runAuthSmoke(root, log = console.log) {
       AUTH_ADMIN_SERVICE_CLIENT_SECRET: adminSecret, AUTH_SOCIAL_SERVICE_CLIENT_SECRET: socialSecret,
       AUTH_MESSAGING_SERVICE_CLIENT_SECRET: messagingSecret, AUTH_LFP_SERVICE_CLIENT_SECRET: lfpSecret,
       AUTH_LIBRARY_SERVICE_CLIENT_SECRET: librarySecret, AUTH_HARDWARE_SERVICE_CLIENT_SECRET: hardwareSecret,
-      AUTH_REVIEW_SERVICE_CLIENT_SECRET: reviewSecret, AUTH_RECOMMENDATION_SERVICE_CLIENT_SECRET: recommendationSecret, AUTH_PUBLIC_BASE_URL: gatewayOrigin, FRONTEND_PUBLIC_URL: gatewayOrigin,
+      AUTH_REVIEW_SERVICE_CLIENT_SECRET: reviewSecret, AUTH_GAME_SERVICE_CLIENT_SECRET: gameSecret, AUTH_RECOMMENDATION_SERVICE_CLIENT_SECRET: recommendationSecret, AUTH_PUBLIC_BASE_URL: gatewayOrigin, FRONTEND_PUBLIC_URL: gatewayOrigin,
       LTZ_AUTH_MAIL_DEVSMTP_HOST: '127.0.0.1', LTZ_AUTH_MAIL_DEVSMTP_PORT: String(mail.ports[1025]) };
     for (const service of ['USER', 'MAIL', 'GAME', 'LIBRARY', 'REVIEW', 'SOCIAL', 'MESSAGING', 'LFP', 'COMMUNITY', 'CONTENT', 'EVENT',
       'HARDWARE', 'RECOMMENDATION', 'PERFORMANCE', 'ADMIN', 'NOTIFICATION']) {
@@ -275,6 +276,18 @@ export async function runAuthSmoke(root, log = console.log) {
       && unknownAccount.status === 403 && unknownAccount.json.code === 'SERVICE_TARGET_ACCOUNT_UNAVAILABLE',
     `Account-bound scope needs an active account (missing ${unbound.status}, unknown ${unknownAccount.status})`);
 
+    // Review ve Performance entegrasyonu: game -> review (özet okuma), hardware -> performance (cihaz doğrulama, hesaba bağlı).
+    const rating = await targetToken({ clientId: 'game-service', clientSecret: gameSecret, audience: 'review-service' });
+    check(rating.status === 200 && [].concat(rating.claims.aud).join() === 'review-service' && rating.claims.sub === 'svc:game-service'
+      && rating.claims.scope === 'rating-summaries:read' && !('account_id' in rating.claims),
+    `game-service: review-service token scope ${rating.claims.scope}, no account binding`);
+    const deviceVerify = await targetToken({ clientId: 'hardware-service', clientSecret: hardwareSecret, audience: 'performance-service', accountId: claims.sub });
+    const deviceVerifyUnbound = await targetToken({ clientId: 'hardware-service', clientSecret: hardwareSecret, audience: 'performance-service' });
+    check(deviceVerify.status === 200 && [].concat(deviceVerify.claims.aud).join() === 'performance-service'
+      && deviceVerify.claims.sub === 'svc:hardware-service' && deviceVerify.claims.scope === 'devices:verify'
+      && deviceVerify.claims.account_id === claims.sub && deviceVerifyUnbound.status === 400,
+    `hardware-service: devices:verify token bound to one active account (without account ${deviceVerifyUnbound.status})`);
+
     // Masaüstü cihaz kimliği: bağlama (yeniden doğrulama), cihaz token'ı, dar kapsam, iptal.
     await request(gatewayOrigin, '/api/v1/auth/devices', 400, { jar: account.jar, method: 'POST', csrf: true,
       headers: { Origin: gatewayOrigin }, body: { label: 'Bad <name>', password } });
@@ -304,6 +317,17 @@ export async function runAuthSmoke(root, log = console.log) {
       && deviceClaims.account_id === claims.sub && deviceClaims.scope === 'hardware:sync:write' && deviceClaims.exp - deviceClaims.iat === 60
       && !deviceClaims.roles,
     `Device token: typ ${deviceHeader.typ}, aud ${[].concat(deviceClaims.aud)}, scope ${deviceClaims.scope}, TTL ${deviceClaims.exp - deviceClaims.iat}s, no roles`);
+    // Aynı cihaz, Performance için ayrı token alır: tek aud, tek kapsam; tanımsız hedef 400.
+    const performanceResponse = await postJson(authOrigin + '/api/v1/auth/devices/token', { deviceId, deviceSecret, target: 'performance' });
+    const performanceBody = await performanceResponse.json();
+    const performanceToken = performanceBody.accessToken ?? performanceBody.access_token;
+    if (performanceToken) secrets.push(performanceToken);
+    const performanceClaims = performanceToken ? decodeJwtPart(performanceToken, 1) : {};
+    const unknownTarget = await postJson(authOrigin + '/api/v1/auth/devices/token', { deviceId, deviceSecret, target: 'game' });
+    check(performanceResponse.status === 200 && [].concat(performanceClaims.aud).join() === 'performance-service'
+      && performanceClaims.scope === 'performance:sync:write' && performanceClaims.sub === deviceId
+      && performanceClaims.account_id === claims.sub && performanceClaims.exp - performanceClaims.iat === 60 && unknownTarget.status === 400,
+    `Device token for performance: aud ${[].concat(performanceClaims.aud)}, scope ${performanceClaims.scope}; unknown target ${unknownTarget.status}`);
     const deviceOnInternal = await fetch(authOrigin + `/internal/v1/accounts/${claims.sub}`, { headers: { Authorization: `Bearer ${deviceToken}` } });
     const deviceOnUserApi = await fetch(authOrigin + '/api/v1/auth/devices', { headers: { Authorization: `Bearer ${deviceToken}` } });
     check(deviceOnInternal.status === 401 && deviceOnUserApi.status === 401,

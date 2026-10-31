@@ -14,7 +14,9 @@
 
 ## BU BRANCH İÇİN AUTH'TAN GELEN TALEP VE CEVAPLAR
 
-Şu an Auth'a yönelik açık bir talep yok. Soru çıkarsa buraya yazılır.
+| # | Konu | Cevap | Durum |
+|---|---|---|---|
+| [01](talep-01-servis-kimligi-ciftleri-ve-moderasyon-yetkisi.md) | Servis kimliği çiftleri (Game/Admin/Notification) ve insan moderatör yetkisi | Game → Review `rating-summaries:read` hazır; Review ↔ Admin ve Review → Notification alıcı yokken açılmaz; yetki servis kimliğinden, insan Admin'de doğrulanır | AUTH HAZIR (Game), ALICILAR BEKLİYOR |
 
 ## BİLMEN GEREKENLER
 

@@ -21,8 +21,9 @@ Henüz kod yok. Performance'ın Auth ile iki bağı olacak: kullanıcı token'ı
 ## AUTH'TA BEKLEYEN
 
 - Cihaz kimliği (B yolu): **Auth'ta uygulandı (2026-10-29)**, ayrıntı `hardware-service.md` ve `docs/api.md` "Masaüstü cihaz kimliği"
-- Auth'ta Performance için servis istemcisi yok. İhtiyaç çıkarsa kendi klasörüne talep yaz (`README.md` bölüm 3)
-- Auth cihazı iptal edince Performance'a olay gidecek mi: önerilen ikinci aşama, şimdilik gerekmiyor
+- **Cihaz token'ı hedefi: HAZIR (2026-10-31).** `POST /api/v1/auth/devices/token` gövdesinde `target=performance` → `aud=performance-service`, `scope=performance:sync:write`. Alıcı denetimleri: `verilen-cevaplar/performance-service/talep-01-*`
+- **Hardware → Performance cihaz doğrulama (`devices:verify`): HAZIR.** Hesaba bağlı servis token'ı (istekte `accountId`); Performance `account_id == yoldaki accountId` denetler
+- Cihaz iptali Performance'a bildirilmez: karar "kabul" (iptal edilen cihaz yeni token alamaz, eski token en çok 60 sn yaşar). Bkz. talep-01 B
 
 ## İLGİLİ BELGELER
 

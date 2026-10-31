@@ -785,9 +785,16 @@ Response — 201, `Cache-Control: no-store`: `{ "deviceId", "deviceSecret", "lab
 
 #### Request / Response (`token`)
 ```json
-{ "deviceId": "UUID", "deviceSecret": "string" }
+{ "deviceId": "UUID", "deviceSecret": "string", "target": "isteğe bağlı: hardware (varsayılan) | performance" }
 ```
-200, `no-store`: `{ "accessToken", "tokenType": "Bearer", "expiresIn": 60, "scope": "hardware:sync:write" }`. Token: `typ=dev+jwt`, RS256 (JWKS aynı), `iss=ltz-auth`, `aud=hardware-service`, `sub=<deviceId>`, `account_id`, `scope=hardware:sync:write`, `jti`, ömür 60 sn. Kullanıcı rolü/oturumu taşımaz; Auth'un uçlarında ve başka servislerde geçmez.
+200, `no-store`: `{ "accessToken", "tokenType": "Bearer", "expiresIn": 60, "scope": "<hedefin kapsamı>" }`. Token: `typ=dev+jwt`, RS256 (JWKS aynı), `iss=ltz-auth`, `sub=<deviceId>`, `account_id`, `jti`, ömür 60 sn; **tek `aud` ve o hedefin tek kapsamı**:
+
+| `target` | `aud` | `scope` |
+| --- | --- | --- |
+| `hardware` (yoksa bu) | `hardware-service` | `hardware:sync:write` |
+| `performance` | `performance-service` | `performance:sync:write` |
+
+Bir hedef için alınan token başka hedefte geçmez; istemci her servis için ayrı token alır. Tanımsız `target` `400`. Kimlik doğrulama ve iptal kuralları hedeften bağımsızdır (iptal edilmiş cihaz hiçbir hedef için token alamaz; hata yanıtı hedefi sızdırmaz). Kullanıcı rolü/oturumu taşımaz; Auth'un uçlarında ve başka servislerde geçmez.
 
 #### Davranış
 - Hesap başına en fazla 5 etkin cihaz, günde en fazla 10 bağlama; cihaz anahtarı 365 gün geçerlidir.
@@ -834,7 +841,7 @@ Bu uçlar **Gateway'e açılmaz** (Gateway yalnız `/api/v1/<servis>/**` yönlen
 { "clientId": "admin-service", "clientSecret": "string, en az 32 karakter (AUTH_ADMIN_SERVICE_CLIENT_SECRET)", "audience": "isteğe bağlı; boşsa auth-service", "accountId": "UUID; yalnız hesaba bağlı kapsamda (signals:read) zorunlu, diğerlerinde verilemez" }
 ```
 
-İstemci kimliği servis adıdır: `admin-service` (Auth'a `account:*`, community'ye `events:ingest`), `social-service` (community'ye `events:ingest`; user-service'e `privacy:read events:ingest`), `community-service` (admin ve notification'a `events:ingest`), `messaging-service` ve `lfp-service` (social-service'e `blocks:check`), `library-service` (user-service'e `privacy:read events:ingest`), `hardware-service` (user-service'e `privacy:read`), `review-service` (user-service'e `events:ingest`), `recommendation-service` (library-service'e `signals:read`, hesaba bağlı: token `account_id` taşır, hesap `ACTIVE` olmalı). Her istemci **yalnız kendisine tanımlı (hedef, kapsam) çiftleri** için token alır; kimseye varsayılan imtiyaz yoktur. `audience` başka servis ise token o servisin JWKS doğrulamasında geçer (`aud=<servis>-service`, `scope=events:ingest`, `sub=svc:<istemci>`, 60 sn) ve Auth'un iç uçlarında **geçmez**.
+İstemci kimliği servis adıdır: `admin-service` (Auth'a `account:*`, community'ye `events:ingest`), `social-service` (community'ye `events:ingest`; user-service'e `privacy:read events:ingest`), `community-service` (admin ve notification'a `events:ingest`), `messaging-service` ve `lfp-service` (social-service'e `blocks:check`), `library-service` (user-service'e `privacy:read events:ingest`), `hardware-service` (user-service'e `privacy:read`; performance-service'e `devices:verify`, hesaba bağlı: token `account_id` taşır, hesap `ACTIVE` olmalı), `review-service` (user-service'e `events:ingest`), `game-service` (review-service'e `rating-summaries:read`), `recommendation-service` (library-service'e `signals:read`, hesaba bağlı: token `account_id` taşır, hesap `ACTIVE` olmalı). Her istemci **yalnız kendisine tanımlı (hedef, kapsam) çiftleri** için token alır; kimseye varsayılan imtiyaz yoktur. `audience` başka servis ise token o servisin JWKS doğrulamasında geçer (`aud=<servis>-service`, `scope=events:ingest`, `sub=svc:<istemci>`, 60 sn) ve Auth'un iç uçlarında **geçmez**.
 
 #### Response — 200 (`service-tokens`, `Cache-Control: no-store`)
 ```json

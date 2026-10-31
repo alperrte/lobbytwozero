@@ -233,6 +233,52 @@ class DeviceCredentialTest extends IntegrationTestSupport {
     }
 
     @Test
+    void hedefVerilmezseHardwareVerilirPerformanceHedefiTekAudienceVeTekKapsamlaToken() throws Exception {
+        UUID account = newAccount();
+        Bound device = bound(bearerFor(account));
+
+        // Hedef yok ya da hardware: bugünkü davranış birebir aynı.
+        assertThat(tokenClaims(tokenRequest(device.deviceId(), device.secret(), null)).getAudience())
+                .containsExactly("hardware-service");
+        assertThat(tokenClaims(tokenRequest(device.deviceId(), device.secret(), "hardware")).getStringClaim("scope"))
+                .isEqualTo("hardware:sync:write");
+
+        String body = tokenRequest(device.deviceId(), device.secret(), "performance").andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+                .andExpect(jsonPath("$.expiresIn").value(60)).andExpect(jsonPath("$.scope").value("performance:sync:write"))
+                .andReturn().getResponse().getContentAsString();
+        SignedJWT jwt = SignedJWT.parse(JsonPath.read(body, "$.accessToken"));
+        JWTClaimsSet claims = jwt.getJWTClaimsSet();
+        assertThat(jwt.verify(new RSASSAVerifier((RSAPublicKey) TEST_JWT_KEYS.getPublic()))).isTrue();
+        assertThat(jwt.getHeader().getType().getType()).isEqualTo("dev+jwt");
+        assertThat(claims.getAudience()).containsExactly("performance-service");
+        assertThat(claims.getSubject()).isEqualTo(device.deviceId());
+        assertThat(claims.getStringClaim("account_id")).isEqualTo(account.toString());
+        assertThat(claims.getStringClaim("scope")).isEqualTo("performance:sync:write");
+        assertThat(claims.getJWTID()).isNotBlank();
+        assertThat(claims.getExpirationTime().getTime() - claims.getIssueTime().getTime()).isEqualTo(60_000L);
+        assertThat(claims.getClaims()).doesNotContainKeys("roles", "sid", "ver", "amr");
+    }
+
+    @Test
+    void tanimsizHedefReddedilirVeIptalEdilmisCihazHicbirHedefIcinTokenAlamaz() throws Exception {
+        UUID account = newAccount();
+        String bearer = bearerFor(account);
+        Bound device = bound(bearer);
+
+        tokenRequest(device.deviceId(), device.secret(), "game").andExpect(status().isBadRequest());
+        tokenRequest(device.deviceId(), device.secret(), "").andExpect(status().isBadRequest());
+        tokenRequest(device.deviceId(), device.secret(), "Performance").andExpect(status().isBadRequest());
+        // Yanlış anahtar hedeften bağımsız aynı yanıt (hedef bilgisi sızmaz).
+        tokenRequest(device.deviceId(), "x".repeat(43), "performance").andExpect(status().isUnauthorized());
+
+        mockMvc.perform(delete(AuthApiPaths.DEVICES + "/" + device.deviceId()).header(HttpHeaders.AUTHORIZATION, bearer))
+                .andExpect(status().isNoContent());
+        tokenRequest(device.deviceId(), device.secret(), "performance").andExpect(status().isUnauthorized());
+        tokenRequest(device.deviceId(), device.secret(), "hardware").andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void yanlisBilinmeyenIptalSuresiDolmusCihazVeAktifOlmayanHesapAyniYaniti() throws Exception {
         UUID account = newAccount();
         Bound device = bound(bearerFor(account));
@@ -347,6 +393,18 @@ class DeviceCredentialTest extends IntegrationTestSupport {
     private ResultActions tokenRequest(String deviceId, String secret) throws Exception {
         return postJson(AuthApiPaths.DEVICES_TOKEN,
                 "{\"deviceId\":\"%s\",\"deviceSecret\":\"%s\"}".formatted(deviceId, secret));
+    }
+
+    /** {@code target} null ise alan hiç gönderilmez (geriye dönük uyumlu istek). */
+    private ResultActions tokenRequest(String deviceId, String secret, String target) throws Exception {
+        String targetField = target == null ? "" : ",\"target\":\"%s\"".formatted(target);
+        return postJson(AuthApiPaths.DEVICES_TOKEN,
+                "{\"deviceId\":\"%s\",\"deviceSecret\":\"%s\"%s}".formatted(deviceId, secret, targetField));
+    }
+
+    private JWTClaimsSet tokenClaims(ResultActions result) throws Exception {
+        String body = result.andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        return SignedJWT.parse(JsonPath.<String>read(body, "$.accessToken")).getJWTClaimsSet();
     }
 
     private int deviceCount(UUID account) {

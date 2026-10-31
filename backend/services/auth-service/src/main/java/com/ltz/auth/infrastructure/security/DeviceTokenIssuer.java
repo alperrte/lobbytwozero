@@ -19,8 +19,10 @@ import com.ltz.auth.infrastructure.config.JwtProperties;
  * Masaüstü cihaz token'ı. Kurallar kodda sabittir (cihaz kimliği tasarımı, {@code docs-auth/entegrasyon}):
  * <ul>
  *   <li>{@code typ=dev+jwt}: kullanıcı ({@code at+jwt}) ve servis ({@code svc+jwt}) token'ının yerine geçemez.</li>
- *   <li>{@code aud=hardware-service}: yalnız Hardware'de geçer, Auth'ta ve başka serviste geçmez.</li>
- *   <li>{@code sub=<deviceId>}, {@code account_id=<hesap>}, {@code scope=hardware:sync:write}: başka kapsam yoktur.</li>
+ *   <li>Tek {@code aud} ve o hedefin tek kapsamı ({@link DeviceTokenTarget}): {@code hardware-service} +
+ *       {@code hardware:sync:write} (varsayılan) veya {@code performance-service} + {@code performance:sync:write}.
+ *       Token yalnız o serviste geçer, Auth'ta ve başka serviste geçmez.</li>
+ *   <li>{@code sub=<deviceId>}, {@code account_id=<hesap>}: başka kapsam yoktur.</li>
  *   <li>Ömür {@link #TTL}; her token için yeni {@code jti}. Rol, oturum ve kullanıcı claim'i taşınmaz.</li>
  * </ul>
  */
@@ -42,17 +44,22 @@ public class DeviceTokenIssuer {
         this.clock = clock;
     }
 
+    /** Hardware için token. Bu imza başka servislerin testleri tarafından kullanılır (docs-auth/README.md); değişmez. */
     public String issue(UUID deviceId, UUID accountId) {
+        return issue(deviceId, accountId, DeviceTokenTarget.HARDWARE);
+    }
+
+    public String issue(UUID deviceId, UUID accountId, DeviceTokenTarget target) {
         Instant now = clock.instant();
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer(properties.issuer())
                 .subject(deviceId.toString())
-                .audience(List.of(TokenClaims.HARDWARE_SERVICE_AUDIENCE))
+                .audience(List.of(target.audience()))
                 .issuedAt(now)
                 .notBefore(now)
                 .expiresAt(now.plus(TTL))
                 .id(UUID.randomUUID().toString())
-                .claim(TokenClaims.SCOPE, TokenClaims.HARDWARE_SYNC_WRITE_SCOPE)
+                .claim(TokenClaims.SCOPE, target.scope())
                 .claim(TokenClaims.ACCOUNT_ID, accountId.toString())
                 .build();
         JwsHeader header = JwsHeader.with(SignatureAlgorithm.RS256)
