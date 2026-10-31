@@ -198,6 +198,16 @@ services:
     environment:
       <<: *ltz-db-env
       DB_MAIL_NAME: ${DB_MAIL_NAME:?}
+      # Mail Service ayarlari. SMTP degerleri saglayici secilene kadar bos kalir; bos iken dev'de Mailpit varsayilanlari gecerlidir.
+      # Sifreleme anahtari bos ise mail-service bilerek acilmaz (fail-fast); node ops/generate-auth-dev-keys.mjs uretir.
+      MAIL_PAYLOAD_ENCRYPTION_KEY: ${MAIL_PAYLOAD_ENCRYPTION_KEY:-}
+      MAIL_SMTP_HOST: ${MAIL_SMTP_HOST:-}
+      MAIL_SMTP_PORT: ${MAIL_SMTP_PORT:-}
+      MAIL_SMTP_USERNAME: ${MAIL_SMTP_USERNAME:-}
+      MAIL_SMTP_PASSWORD: ${MAIL_SMTP_PASSWORD:-}
+      MAIL_SMTP_SECURITY: ${MAIL_SMTP_SECURITY:-}
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-}
+      MAIL_ALLOWED_LINK_HOSTS: ${MAIL_ALLOWED_LINK_HOSTS:-}
     depends_on:
       postgres:
         condition: service_healthy

@@ -1,13 +1,14 @@
 package com.ltz.mail;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
-class MailServiceApplicationTests {
+import org.junit.jupiter.api.Test;
+
+class MailServiceApplicationTests extends IntegrationTestSupport {
 
 	@Test
 	void contextLoads() {
+		assertThat(mockMvc).isNotNull();
 	}
 
 }

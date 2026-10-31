@@ -45,7 +45,21 @@ const generators = {
   // Satır yoksa veya boşsa "user" yazılır; dolu listeye dokunulmaz (aşağıdaki uyarı yalnız hatırlatır). Hedef erken açılırsa
   // Auth üstel geri çekilmeyle yeniden dener, olay kaybolmaz; User ayağa kalkınca birikenler teslim edilir.
   AUTH_EVENT_TARGETS: () => "user",
+  // Mail Service: kuyruktaki doğrulama kodu/bağlantısını şifreleyen AES-256-GCM anahtarı (tam 32 bayt).
+  MAIL_PAYLOAD_ENCRYPTION_KEY: () => randomBytes(32).toString("base64"),
 };
+
+// Mail Service SMTP ayarları: sır üretilmez. Satır yoksa dosyanın sonuna BOŞ eklenir; var olan satıra (dolu ya da boş)
+// asla dokunulmaz. Sağlayıcı seçilince değerler elle doldurulur. Boşken dev'de Mailpit varsayılanları geçerlidir.
+const blankDefaults = [
+  "MAIL_SMTP_HOST",
+  "MAIL_SMTP_PORT",
+  "MAIL_SMTP_USERNAME",
+  "MAIL_SMTP_PASSWORD",
+  "MAIL_SMTP_SECURITY",
+  "MAIL_FROM_ADDRESS",
+  "MAIL_ALLOWED_LINK_HOSTS",
+];
 
 // Eski varsayılanlar: değer TAM OLARAK eskiyse yeni varsayılana çekilir; özelleştirilmiş değere dokunulmaz.
 // JWT_ACCESS_TTL_SECONDS: access token ömrü 300 sn'den 60 sn'ye indi (askıya alınan hesabın diğer servislerde görünürlüğü).
@@ -96,6 +110,14 @@ for (const file of targets) {
     filled.push(name);
   }
 
+  const added = [];
+  for (const name of blankDefaults) {
+    if (text.match(lineOf(name))) continue;
+    if (!text.endsWith("\n")) text += eol;
+    text += `${name}=${eol}`;
+    added.push(name);
+  }
+
   const refreshed = [];
   for (const [name, change] of Object.entries(staleDefaults)) {
     const found = text.match(lineOf(name));
@@ -109,10 +131,11 @@ for (const file of targets) {
   const targets = (text.match(lineOf("AUTH_EVENT_TARGETS"))?.[1] ?? "").split(",").map((name) => name.trim());
   const missingTargets = targets.includes("user") ? [] : ["AUTH_EVENT_TARGETS ('user' yok; dolu liste korunur, elle ekleyin)"];
 
-  if (filled.length || refreshed.length) writeFileSync(file, text);
+  if (filled.length || refreshed.length || added.length) writeFileSync(file, text);
   const shown = file.startsWith(root) ? file.slice(root.length + 1) : file;
   const report = [];
   if (filled.length) report.push(`dolduruldu -> ${filled.join(", ")}`);
+  if (added.length) report.push(`boş eklendi -> ${added.join(", ")}`);
   if (refreshed.length) report.push(`güncellendi -> ${refreshed.join(", ")}`);
   if (missingTargets.length) report.push(`uyarı -> ${missingTargets.join(", ")}`);
   console.log(`${shown}: ${report.length ? report.join("; ") : "eksik anahtar yok"}`);

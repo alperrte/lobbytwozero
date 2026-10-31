@@ -1584,9 +1584,220 @@ INTEGRATION (`LinkedAccountTest` 11, `AccountErasureTest` tohumu).
 
 ## MAIL
 
-Sorumlu: Kerem · Gateway: `/api/v1/mail/**` · Görevler: MAIL-
+Sorumlu: Kerem · Gateway: `/api/v1/mail/**` · Görevler: MAIL-01..05, 08, 09, 10..16
 
-_Kayıt yok._
+> Mail Service'in **kullanıcıya açık ucu yoktur**; hepsi `/internal/**` yollarıdır ve Gateway'e açılmaz. Çağıran yalnız Auth'tur (`sub=svc:auth-service`). Auth'un `Mail*Port` sözleşmesine bire bir uyar.
+>
+> Kimlik doğrulama (2026-10-31, LTZ-KER-MAIL-01): Auth'un RS256 imzasını JWKS ile; `typ=svc+jwt`, `iss`, `aud=mail-service`, `sub=svc:auth-service`, UUID `account_id` claim'i ve zorunlu `exp`/`nbf`/`iat` doğrulanır. Kullanıcı token'ı hiçbir uçta geçmez. Token'daki `account_id`, gövdedeki `accountId` (silme ucunda yoldaki hesap) ile aynı olmalıdır; değilse `403`. Tanımsız her yol reddedilir. Yeni ENV'ler: `MAIL_PAYLOAD_ENCRYPTION_KEY`, `MAIL_SMTP_*`, `MAIL_FROM_ADDRESS`, `MAIL_ALLOWED_LINK_HOSTS` (hepsi `.env.example`'da, boş). Gerçek Auth token'ıyla uçtan uca doğrulama **NOT VERIFIED** (Auth tarafında Mail adaptörü henüz yok).
+>
+> Teslim modeli: `202` e-postanın gönderildiği anlamına gelmez; istek **kalıcı olarak kuyruğa yazıldı** demektir. Gönderim ayrı işleyicide yapılır (5 sn tarama, üstel geri çekilme 1 dk → 6 sa, en çok 8 deneme). Doğrulama kodu/bağlantı kuyrukta AES-256-GCM ile şifreli tutulur, terminal durumda silinir; e-posta adresi terminal durumda maskelenir. Kod, bağlantı ve adres loglanmaz.
+
+### MAIL — Doğrulama kodu e-postası (MAIL-01)
+
+Durum: IMPLEMENTED (kuyruk, şifreleme ve işleyici testli; production SMTP sağlayıcısı henüz seçilmedi, development'ta Mailpit)
+Sorumlu: Kerem
+Tüketici servisler: Auth
+
+#### Endpoint
+POST /internal/v1/mail/verification-codes
+
+#### Yetkilendirme
+Internal. `svc+jwt`, `aud=mail-service`, `sub=svc:auth-service`, `scope=mail:send`, `account_id` = gövdedeki `accountId`.
+
+#### Request Body
+```json
+{
+  "idempotencyKey": "UUID (Auth'un kod kaydı kimliği)",
+  "accountId": "UUID",
+  "recipientEmail": "string ≤254, geçerli e-posta",
+  "code": "string, 6 hane (^[0-9]{6}$)",
+  "validitySeconds": "int 60-3600",
+  "locale": "tr | en (opsiyonel; yoksa e-posta TR + EN iki dilli gider)"
+}
+```
+
+#### Response — 202
+Gövde yok. Aynı `idempotencyKey` + aynı içerik tekrar gelirse yine `202` döner ve ikinci e-posta kuyruğa alınmaz.
+
+#### Hata Durumları
+- 400: Doğrulama (`VALIDATION_FAILED`, yalnız alan adı ve kural kodu döner; istek değeri geri yansıtılmaz); gövde okunamadı (`MALFORMED_REQUEST`)
+- 401: Token yok/geçersiz (`UNAUTHENTICATED`)
+- 403: Çağıran `svc:auth-service` değil, scope `mail:send` değil veya token `account_id` ≠ gövde `accountId` (`FORBIDDEN`)
+- 409: Aynı `idempotencyKey` farklı içerikle kullanıldı (`IDEMPOTENCY_CONFLICT`)
+- 413: Gövde 16 KB üstü (`PAYLOAD_TOO_LARGE`)
+- 503: İstek kalıcı yazılamadı, kısa süre sonra tekrar dene (`TEMPORARILY_UNAVAILABLE`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Auth → Mail, RestClient. Auth tarafı `VerificationCodeMailPort` için Mail adaptörü **PENDING** (Auth'ta `MAIL_SERVICE` adaptörü ayrı görev).
+
+#### Test Durumu
+INTEGRATION (`MailDeliveryControllerTest`, `MailDispatchServiceTest`, `MailSchemaAndRetentionTest`)
+
+### MAIL — Parola sıfırlama e-postası (MAIL-02)
+
+Durum: IMPLEMENTED (aynı kısıtlar: production SMTP PENDING)
+Sorumlu: Kerem
+Tüketici servisler: Auth
+
+#### Endpoint
+POST /internal/v1/mail/password-resets
+
+#### Yetkilendirme
+Internal. Doğrulama kodu ucu ile aynı (`scope=mail:send`).
+
+#### Request Body
+```json
+{
+  "idempotencyKey": "UUID",
+  "accountId": "UUID",
+  "recipientEmail": "string ≤254, geçerli e-posta",
+  "resetLink": "string ≤512; host allowlist (MAIL_ALLOWED_LINK_HOSTS) politikasına uymalı",
+  "validitySeconds": "int 60-86400",
+  "locale": "tr | en (opsiyonel)"
+}
+```
+
+#### Response — 202
+Gövde yok.
+
+#### Hata Durumları
+- 400: Doğrulama; bağlantı politikası dışı host/şema (`INVALID_LINK`)
+- 401, 403, 409, 413, 503: Doğrulama kodu ucu ile aynı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Auth → Mail. Auth tarafı `PasswordResetMailPort` adaptörü **PENDING**.
+
+#### Test Durumu
+INTEGRATION (`MailDeliveryControllerTest`)
+
+### MAIL — Hesap silme onay e-postası (MAIL-03)
+
+Durum: IMPLEMENTED (aynı kısıtlar: production SMTP PENDING)
+Sorumlu: Kerem
+Tüketici servisler: Auth
+
+#### Endpoint
+POST /internal/v1/mail/account-deletions
+
+#### Yetkilendirme
+Internal. Doğrulama kodu ucu ile aynı (`scope=mail:send`).
+
+#### Request Body
+```json
+{
+  "idempotencyKey": "UUID",
+  "accountId": "UUID",
+  "recipientEmail": "string ≤254, geçerli e-posta",
+  "confirmationLink": "string ≤512; host allowlist politikasına uymalı",
+  "validitySeconds": "int 60-86400",
+  "locale": "tr | en (opsiyonel)"
+}
+```
+
+#### Response — 202
+Gövde yok.
+
+#### Hata Durumları
+- 400: Doğrulama; bağlantı politikası dışı (`INVALID_LINK`)
+- 401, 403, 409, 413, 503: Doğrulama kodu ucu ile aynı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Auth → Mail. Auth tarafı `AccountDeletionMailPort` adaptörü **PENDING**.
+
+#### Test Durumu
+INTEGRATION (`MailDeliveryControllerTest`)
+
+### MAIL — Güvenlik bildirimi e-postası (MAIL-03, MAIL-04)
+
+Durum: IMPLEMENTED (aynı kısıtlar: production SMTP PENDING)
+Sorumlu: Kerem
+Tüketici servisler: Auth
+
+#### Endpoint
+POST /internal/v1/mail/security-notifications
+
+#### Yetkilendirme
+Internal. Doğrulama kodu ucu ile aynı (`scope=mail:send`).
+
+#### Request Body
+```json
+{
+  "idempotencyKey": "UUID",
+  "accountId": "UUID",
+  "recipientEmail": "string ≤254, geçerli e-posta",
+  "type": "PASSWORD_CHANGED | PASSWORD_RESET | EMAIL_CHANGED | ACCOUNT_SUSPENDED | ACCOUNT_BANNED | ACCOUNT_DISABLED | ACCOUNT_REACTIVATED",
+  "occurredAt": "ISO-8601 (gelecekte olamaz)",
+  "locale": "tr | en (opsiyonel)"
+}
+```
+Bildirim parola, kod, bağlantı veya gerekçe metni taşımaz; yalnız ne olduğunu ve ne zaman olduğunu söyler. `EMAIL_CHANGED` eski adrese gönderilir. Süresi geçmiş (24 saatten eski) bildirim gönderilmez.
+
+#### Response — 202
+Gövde yok.
+
+#### Hata Durumları
+- 400: Doğrulama; `occurredAt` kabul edilemez (`INVALID_OCCURRED_AT`)
+- 401, 403, 409, 413, 503: Doğrulama kodu ucu ile aynı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Auth → Mail. Auth tarafı `SecurityNotificationMailPort` adaptörü **PENDING**.
+
+#### Test Durumu
+INTEGRATION (`MailDeliveryControllerTest`)
+
+### MAIL — Hesap verisini sil (silme akışı)
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Auth
+
+#### Endpoint
+DELETE /internal/v1/accounts/{accountId}
+
+#### Yetkilendirme
+Internal. `svc+jwt`, `aud=mail-service`, `sub=svc:auth-service`, `scope=account:erase`, `account_id` = yoldaki `accountId`.
+
+#### Path Parameters
+- accountId: UUID, zorunlu
+
+#### Response — 204
+Gövde yok. İdempotenttir: hesaba ait kayıt olmasa da `204` döner. Hesabın kuyruktaki e-postaları ve gönderim geçmişi silinir.
+
+#### Hata Durumları
+- 400: `accountId` UUID değil (`MALFORMED_REQUEST`)
+- 401: Token yok/geçersiz
+- 403: Çağıran `svc:auth-service` değil, scope `account:erase` değil veya `account_id` ≠ yol (hiçbir şey silinmez)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Auth → Mail, RestClient (`HttpAccountDataEraser` deseni). Auth'un silme işçisi bu ucu çağıracak şekilde yapılandırılmalıdır.
+
+#### Test Durumu
+INTEGRATION (`AccountErasureTest`)
 
 ## GAME
 
