@@ -187,7 +187,7 @@ class ReviewApiTest {
         create("Deneyim").andExpect(status().isCreated()).andExpect(header().string("Cache-Control", "private, no-store"));
     }
 
-    @Test void databaseRejectsWhitespaceAndInvalidReviewStates() throws Exception {
+    @Test void databaseRejectsWhitespaceAndInvalidReviewStates() {
         String insert = "INSERT INTO reviews (id,user_id,game_id,body,status,created_at,updated_at) VALUES (?,?,?,?,'VISIBLE',now(),now())";
         org.junit.jupiter.api.Assertions.assertThrows(org.springframework.dao.DataIntegrityViolationException.class,
                 () -> jdbc.sql(insert).params(UUID.randomUUID(), user, game, "\n\t ").update());

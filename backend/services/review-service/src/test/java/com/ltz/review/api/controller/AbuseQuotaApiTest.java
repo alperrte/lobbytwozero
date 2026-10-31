@@ -34,7 +34,10 @@ import static com.ltz.review.api.controller.RatingApiTest.actor;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
@@ -43,6 +46,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -116,10 +120,12 @@ class AbuseQuotaApiTest {
         for (int i = 0; i < 5; i++) assertEquals(201, createReview(user, UUID.randomUUID(), "Deneyim " + i));
         mvc.perform(post("/api/v1/review/games/" + UUID.randomUUID() + "/reviews").with(actor(user))
                 .contentType(MediaType.APPLICATION_JSON).content("{\"body\":\"Altıncı\"}"))
-                .andExpect(status().isTooManyRequests()).andExpect(header().string("Retry-After", "60"))
+                .andExpect(status().isTooManyRequests()).andExpect(header().stringValues("Retry-After", "60"))
                 .andExpect(header().string("Cache-Control", "private, no-store"))
-                .andExpect(jsonPath("$.status").value(429));
+                .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
+                .andExpect(jsonPath("$.status").value(429)).andExpect(jsonPath("$.title").value("Too Many Requests"));
         assertEquals(5L, jdbc.sql("SELECT count(*) FROM reviews WHERE user_id = ?").param(user).query(Long.class).single());
+        verify(games, times(5)).requireAvailable(any()); // engellenen 6. istek denetçi/servis katmanına ulaşmadı
         assertEquals(201, createReview(UUID.randomUUID(), UUID.randomUUID(), "Başka kullanıcı"));
     }
 
@@ -165,6 +171,9 @@ class AbuseQuotaApiTest {
         }
         assertEquals("429:60", like(voter, review, true));
         assertEquals("429:60", like(voter, review, false));
+        // Engellenen PUT servise ulaşsaydı oy eklenirdi; 30 PUT + 30 DELETE sonrası oy yok.
+        mvc.perform(get("/api/v1/review/reviews/" + review + "/like").with(actor(voter)))
+                .andExpect(jsonPath("$.likedByActor").value(false)).andExpect(jsonPath("$.likeCount").value(0));
         for (int i = 0; i < 100; i++)
             mvc.perform(get("/api/v1/review/reviews/" + review + "/like").with(actor(voter))).andExpect(status().isOk());
         assertEquals("200:null", like(UUID.randomUUID(), review, true));
@@ -265,14 +274,18 @@ class AbuseQuotaApiTest {
                 .param(hash).query(Long.class).single());
     }
 
+    void insertCounter(String accountHash, String action, int attempts, String lifetime) {
+        jdbc.sql("INSERT INTO review_rate_limits (account_hash, action, window_start, expires_at, attempts) VALUES (?, ?, now(), now() + ?::interval, ?)")
+                .param(accountHash).param(action).param(lifetime).param(attempts).update();
+    }
+
     @Test void counterTableRejectsInvalidRowsAndStoresNoRawAccountId() {
-        String statement = "INSERT INTO review_rate_limits (account_hash, action, window_start, expires_at, attempts) VALUES (?, ?, now(), now() + interval '1 minute', ?)";
-        assertThrows(DataIntegrityViolationException.class, () -> jdbc.sql(statement).param(user.toString()).param("REVIEW_LIKE").param(1).update());
-        assertThrows(DataIntegrityViolationException.class, () -> jdbc.sql(statement).param(hash(user)).param("review-like").param(1).update());
-        assertThrows(DataIntegrityViolationException.class, () -> jdbc.sql(statement).param(hash(user)).param("REVIEW_LIKE").param(0).update());
-        assertThrows(DataIntegrityViolationException.class, () -> jdbc.sql(
-                "INSERT INTO review_rate_limits (account_hash, action, window_start, expires_at, attempts) VALUES (?, 'REVIEW_LIKE', now(), now(), 1)")
-                .param(hash(user)).update());
+        String valid = hash(user);
+        String rawId = user.toString();
+        assertThrows(DataIntegrityViolationException.class, () -> insertCounter(rawId, "REVIEW_LIKE", 1, "1 minute"));
+        assertThrows(DataIntegrityViolationException.class, () -> insertCounter(valid, "review-like", 1, "1 minute"));
+        assertThrows(DataIntegrityViolationException.class, () -> insertCounter(valid, "REVIEW_LIKE", 0, "1 minute"));
+        assertThrows(DataIntegrityViolationException.class, () -> insertCounter(valid, "REVIEW_LIKE", 1, "0 minutes"));
         var columns = jdbc.sql("SELECT column_name FROM information_schema.columns WHERE table_name = 'review_rate_limits'")
                 .query(String.class).list();
         assertTrue(columns.containsAll(List.of("account_hash", "action", "window_start", "expires_at", "attempts")));

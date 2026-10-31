@@ -26,5 +26,7 @@ public class AccountErasureService {
         jdbc.sql("DELETE FROM game_ratings WHERE user_id = ?").param(accountId).update();
         jdbc.sql("DELETE FROM reviews WHERE user_id = ?").param(accountId).update();
         jdbc.sql("DELETE FROM game_recommendations WHERE user_id = ?").param(accountId).update();
+        // REV-13 kota sayaçları: silinen hesabın hiçbir izi kalmasın (yalnız kısa ömürlü silme engeli V54 tutulur).
+        jdbc.sql("DELETE FROM review_rate_limits WHERE account_hash = ?").param(AccountWriteLock.hash(accountId)).update();
     }
 }

@@ -49,7 +49,8 @@ class GameServiceClientTest {
         var server = MockRestServiceServer.bindTo(builder).build();
         server.expect(requestTo("http://localhost/api/v1/game/games/batch")).andRespond(withServerError());
         var client = new GameServiceClient(builder, "http://localhost");
-        assertEquals(503, assertThrows(ReviewException.class, () -> client.requireAvailable(UUID.randomUUID())).status());
+        UUID game = UUID.randomUUID();
+        assertEquals(503, assertThrows(ReviewException.class, () -> client.requireAvailable(game)).status());
         server.verify();
     }
 }

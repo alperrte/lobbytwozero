@@ -44,6 +44,8 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -68,10 +70,10 @@ class AccountErasureTest {
             ServiceTokenDecoderConfiguration.class, AccountErasureSecurityConfiguration.class})
     static class WebConfig {
         @org.springframework.context.annotation.Bean
-        AccountErasureService erasure() { return org.mockito.Mockito.mock(AccountErasureService.class); }
+        AccountErasureService erasure() { return mock(AccountErasureService.class); }
         @org.springframework.context.annotation.Bean
         com.ltz.review.application.service.RatingService ratings() {
-            return org.mockito.Mockito.mock(com.ltz.review.application.service.RatingService.class);
+            return mock(com.ltz.review.application.service.RatingService.class);
         }
     }
 
@@ -165,8 +167,8 @@ class AccountErasureTest {
     }
 
     @Test void accountErasureRejectsNullIdentity() {
-        var service = new AccountErasureService(org.mockito.Mockito.mock(org.springframework.jdbc.core.simple.JdbcClient.class),
-                org.mockito.Mockito.mock(com.ltz.review.infrastructure.persistence.repository.AccountWriteLock.class));
+        var service = new AccountErasureService(mock(org.springframework.jdbc.core.simple.JdbcClient.class),
+                mock(com.ltz.review.infrastructure.persistence.repository.AccountWriteLock.class));
         assertThrows(NullPointerException.class, () -> service.erase(null));
     }
 
@@ -176,7 +178,7 @@ class AccountErasureTest {
         var user = claims().audience("ltz-api").subject(ACCOUNT.toString()).claim("roles", List.of("PLAYER"));
         call(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(path)
                 .contentType("application/json").content("{\"rating\":7}"), sign(user, header)).andExpect(status().isOk());
-        org.mockito.Mockito.verify(context.getBean(com.ltz.review.application.service.RatingService.class))
+        verify(context.getBean(com.ltz.review.application.service.RatingService.class))
                 .rate(org.mockito.ArgumentMatchers.eq(ACCOUNT), org.mockito.ArgumentMatchers.any(UUID.class), org.mockito.ArgumentMatchers.eq(7));
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(path)
                 .cookie(new jakarta.servlet.http.Cookie("ltz_access", sign(user, header)))

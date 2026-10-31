@@ -30,11 +30,8 @@ public class AccountErasureSecurityConfiguration {
         provider.setJwtAuthenticationConverter(converter);
         var serviceTokens = new ProviderManager(provider);
         var userProvider = new JwtAuthenticationProvider(userDecoder);
-        var roles = new org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter();
-        roles.setAuthoritiesClaimName("roles");
-        roles.setAuthorityPrefix("ROLE_");
         var userConverter = new org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter();
-        userConverter.setJwtGrantedAuthoritiesConverter(roles);
+        userConverter.setJwtGrantedAuthoritiesConverter(UserTokenDecoderConfiguration::authorities); // yalnız kanonik roller
         userProvider.setJwtAuthenticationConverter(userConverter);
         var userTokens = new ProviderManager(userProvider);
         return http.addFilterBefore(new ReviewRequestFilter(),

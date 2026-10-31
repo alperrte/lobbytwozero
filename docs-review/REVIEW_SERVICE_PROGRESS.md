@@ -88,3 +88,25 @@ Kullanıcı Faz 4 raporunu kabul etti (31 Ekim 2026) ve REV-15 politikasını k�
 Commit/push/merge/branch değişikliği yapılmadı. REV-07, REV-10, REV-13 (raporlama kısmı) ve REV-15 entegrasyon bağımlılıkları açıktır; Game→Review entegrasyonu da başlatılmadı.
 
 **Entegrasyon talepleri tamamlandı (yalnız dokümantasyon, 31 Ekim 2026):** REV-13'ün raporlamaya bağlı ihtiyaçları (kendi incelemesini raporlama yasağı, rapor tekilliği, rapor oran sınırı, mükerrer vaka engeli, güvenilir iletim/timeout/retry, spam kabul kriterleri) [Admin talebine](request/admin-review-integration.md); REV-15'in entegrasyon ihtiyaçları (sorumluluk matrisi, onaylı politikalar, `KARAR BEKLİYOR` listesi) Admin, [Auth](request/auth-review-integration.md) ve [Notification](request/notification-review-integration.md) taleplerine işlendi. Belgelemek ilgili görevi tamamlamaz; durumlar değişmedi: REV-07 ve REV-10 ENTEGRASYON BEKLİYOR, REV-13 KISMEN TAMAMLANDI — REV-07 RAPORLAMA ALTYAPISI BEKLENİYOR, REV-15 ENTEGRASYON BEKLİYOR, REV-14 tamamlandı. Kod, migration ve test değişmedi.
+
+## Auth entegrasyonu (31 Ekim 2026)
+
+Review tarafındaki Auth uyumu doğrulandı ve eksikler giderildi: kullanıcı `at+jwt` uyumu ve rol sertleştirmesi, `aud` eksik token'ın NPE yerine 401 olması, Auth servis token alıcısı, Auth'un gerçek silme adaptörüyle silme testi, REV-13 sayaçlarının hesap silmeyle uyumu. Sonuç: yalnız Review Maven `test`, **149 test, 0 failure/error/skipped** (iki ardışık koşu; 135 + 14 yeni). Auth'un gerçek kaynakları geçici dizine derlenip testin kendi anahtarıyla çalıştırıldı; **canlı Auth uçtan uca doğrulaması NOT VERIFIED**. Pre-push, backendCheck, Trivy, SonarQube: KULLANICI TALEBİYLE ÇALIŞTIRILMADI. Ayrıntı: [REVIEW_AUTH_INTEGRATION_REPORT.md](REVIEW_AUTH_INTEGRATION_REPORT.md); talep: [auth-review-integration.md](request/auth-review-integration.md).
+
+REV-10 yalnız kısmen ilerledi (Auth→Review silme ve kullanıcı JWT tamam); Review→Admin, Admin→Review, Game→Review, koşullu Notification ve Review→User üretici bekliyor. Görev durumları değişmedi.
+
+### Dört fazlık checklist
+
+**FAZ 1** — [x] REV-01 · [x] REV-02 · [x] REV-03 · [x] REV-04 · [x] REV-05 · [x] REV-11
+
+**FAZ 2** — [x] REV-06 · [ ] REV-07 ENTEGRASYON BEKLİYOR · [x] REV-09 · [ ] REV-10 ENTEGRASYON BEKLİYOR
+
+**FAZ 3** — [x] REV-08 · [x] REV-12 (Game entegrasyonu bekliyor)
+
+**FAZ 4** — [ ] REV-13 KISMEN TAMAMLANDI (raporlama REV-07'yi bekliyor) · [x] REV-14 · [ ] REV-15 ENTEGRASYON BEKLİYOR
+
+**Kalite kapıları (kullanıcının sonraki açık talimatıyla, 31 Ekim 2026):** Review modülü için pre-push izole backend hattı **PASS** (149 test; coverage %98, değişen satır %98,01; Checkstyle/PMD ratchet yeni ihlal yok; Trivy HIGH/CRITICAL kapısı PASS) ve Sonar `ltz-review-service` **Quality Gate OK** (A/A/A, coverage %95,0, duplication %0, açık issue 0). İlk Sonar koşusunda bulunan 31 bulgu (1 BLOCKER bug dahil) düzeltildi. Ayrıntı: [REVIEW_AUTH_INTEGRATION_REPORT.md](REVIEW_AUTH_INTEGRATION_REPORT.md) sonundaki "Ek". Önceki satırlardaki "KULLANICI TALEBİYLE ÇALIŞTIRILMADI" ifadeleri o fazların kayıtlarıdır; Faz 4 ve Auth entegrasyon kodu için bu kapılar artık çalıştırılmıştır. Canlı Auth uçtan uca ve tüm-repo `full` pre-push (dev PostgreSQL profili) çalıştırılmadı.
+
+**FULL pre-push (31 Ekim 2026): FULL PRE-PUSH PASSED** — 18 backend modülü, 2274 test (0 başarısız/atlanan), kapsam %96,30, yeni Checkstyle/PMD ihlali 0, Git/Gitleaks/hijyen, Docker yapılandırması ve 18/18 HTTP health PASS; testler izole geçici PostgreSQL'de koşuldu (dev DB'ye dokunulmadı). `AbuseQuotaInterceptor` kota aşımında artık `false` döner ve tek 429 yanıtı yazar (153 Review testi PASS). Ayrıntı: [REVIEW_AUTH_INTEGRATION_REPORT.md](REVIEW_AUTH_INTEGRATION_REPORT.md) "Ek 2". Görev durumları değişmedi (REV-07, REV-10, REV-13 raporlama, REV-15 entegrasyon bekliyor).
+
+**Review Sonar yeniden doğrulaması (31 Ekim 2026, AbuseQuotaInterceptor düzeltmesi sonrası):** izole pre-push hattı PASS (153 test, coverage %98) ve `ltz-review-service` Quality Gate **OK** (A/A/A, coverage %95,2, açık issue 0). Tam repo Sonar (`ltz-backend`) Auth'un aralıklı `MailpitEndToEndTest` testi nedeniyle tamamlanamadı; Review kaynaklı değildir. Ayrıntı: REVIEW_AUTH_INTEGRATION_REPORT.md "Ek 2".

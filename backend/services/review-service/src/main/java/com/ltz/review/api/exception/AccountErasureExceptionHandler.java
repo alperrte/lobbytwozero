@@ -1,13 +1,10 @@
 package com.ltz.review.api.exception;
 
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import com.ltz.review.domain.exception.RateLimitExceededException;
 import com.ltz.review.domain.exception.ReviewException;
 import org.springframework.dao.DataIntegrityViolationException;
 
@@ -16,13 +13,6 @@ public class AccountErasureExceptionHandler extends org.springframework.web.serv
     @ExceptionHandler(ReviewException.class)
     public ProblemDetail review(ReviewException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.valueOf(exception.status()), exception.getMessage());
-    }
-
-    @ExceptionHandler(RateLimitExceededException.class)
-    public ResponseEntity<ProblemDetail> rateLimited(RateLimitExceededException exception) {
-        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                .header(HttpHeaders.RETRY_AFTER, Long.toString(exception.retryAfterSeconds()))
-                .body(ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS, exception.getMessage()));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

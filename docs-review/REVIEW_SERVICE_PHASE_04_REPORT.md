@@ -23,7 +23,7 @@ Uygulanan (kullanıcı onaylı politika):
 - Aşımda 429 `ProblemDetail`, doğru `Retry-After` (pencere bitimine kalan süre, yukarı yuvarlı, en az 1 sn) ve `Cache-Control: private, no-store`.
 - Sayaç PostgreSQL'de tek atomik `INSERT … ON CONFLICT DO UPDATE … RETURNING` ile tutulur; servis örnekleri arasında ortaktır. Kota iş transaction'ından önce `REQUIRES_NEW` ile kesinleşir; iş transaction'ı geri alınsa da deneme geri verilmez.
 - Sınırlar `ltz.review.abuse.*` altında merkezidir (doğrulanır; yeni ENV yok). Süresi dolan sayaçlar dakikada bir silinir (bitişten 5 dk sonra).
-- Kod: `AbuseAction`, `RateLimitExceededException`, `AbuseControlProperties`, `AbuseControlConfiguration`, `AbuseQuotaInterceptor`, `AbuseQuotaService`, `AbuseQuotaRepository`, `AbuseQuotaCleanup`; 429 işleyicisi `AccountErasureExceptionHandler`'a eklendi.
+- Kod: `AbuseAction`, `RateLimitExceededException`, `AbuseControlProperties`, `AbuseControlConfiguration`, `AbuseQuotaInterceptor`, `AbuseQuotaService`, `AbuseQuotaRepository`, `AbuseQuotaCleanup`; 429 yanıtı `AbuseQuotaInterceptor` içinde tek kez yazılır ve `preHandle` `false` döner (ilk sürümdeki advice işleyicisi sonradan kaldırıldı; bkz. REVIEW_AUTH_INTEGRATION_REPORT.md sonundaki ek).
 
 Bilinen sınırlar: sabit pencere algoritması pencere sınırında art arda iki pencerede `2×limit` işleme izin verebilir. Örnek saatleri NTP ile senkron olmalıdır (hesap silme engeliyle aynı işletim varsayımı). Puan PUT, tavsiye PUT, inceleme PATCH/DELETE ve okumalar için sayısal sınır onaylanmadığından uygulanmadı.
 
@@ -69,7 +69,7 @@ Komut (yalnız Review modülü, Maven `test` aşaması): `mvn -o -B -ntp -s pre-
 
 - Kimlik yalnız Auth RS256/JWKS `at+jwt` `sub` alanıdır; kota anahtarı da budur. Anonim ve servis-token erişimi eklenmedi; güvenlik yapılandırması değişmedi.
 - Kota deposu hata verirse istek fail-closed 500 ile reddedilir (kota atlanmaz).
-- Sayaç satırları ham kullanıcı UUID'si içermez; hesap silme bu tabloya dokunmaz, satırlar kendiliğinden silinir.
+- Sayaç satırları ham kullanıcı UUID'si içermez; hesap silme (Auth entegrasyon görevinde güncellendi) hesabın satırlarını da siler ve silinmiş hesap için yeni satır yazılmaz; kalanlar süre dolunca kendiliğinden silinir.
 - Kendi incelemesini beğenme yasağı, silinmiş hedefte 404, tek aktif metin (409), hesap silme guard'ı ve puan/metin/tavsiye bağımsızlığı korundu.
 
 ## 8. Diğer servislere yönelik entegrasyon talepleri

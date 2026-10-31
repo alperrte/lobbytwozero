@@ -23,6 +23,7 @@ Uygulanmış bir moderasyon eylemi sonucunda inceleme sahibinin güvenli ve tuta
 - [Mimari katalog](../../docs/architecture.md) `ModerationActionTaken` akışını Admin→kaynak servis/Notification için **ÖNERİ** olarak listeliyor; bu uygulanmış bir tüketici sözleşmesi değildir.
 - Auth'ta community→notification örneği var; Review→Notification ve Admin→Notification izni mevcut yapılandırmada bulunmuyor. Üretici kararı olmadan bu izinlerin hepsi istenmemeli.
 - Review'da bu çalışmada moderasyon, bildirim üretimi veya outbox/relay uygulanmadı. REV-06 kaynak görevi beğeni bildirimini zorunlu kılmıyor; “beğenildi”, rapor gönderildi veya raporlayana sonuç bildirimi bu taleple kapsam kazanmaz.
+- 31 Ekim 2026'da yeniden doğrulandı (değişiklik yok): Notification Service'te `NotificationServiceApplication` dışında Java sınıfı yoktur; `docs/api.md` NOTIFICATION bölümü hâlâ "Kayıt yok"; Auth'ta Review→Notification ve Admin→Notification çifti hâlâ tanımsızdır. Bu belgedeki hiçbir öneri uygulanmış değildir.
 
 ## 6. Eksik gereksinimler
 

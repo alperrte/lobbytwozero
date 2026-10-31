@@ -23,6 +23,7 @@ Review'de gelecekte oluşturulacak uygunsuz inceleme raporlarının Admin'e güv
 - [Mimari olay kataloğu](../../docs/architecture.md) `ContentReported` ve `ModerationActionTaken` akışlarını **ÖNERİ** olarak listeliyor. Community'nin önerilmiş `POST /internal/events` teslim modeli hazır Admin alıcısı kanıtı değildir.
 - Auth yapılandırmasında Review→Admin ve Admin→Review çiftleri yok; [Auth talebi](auth-review-integration.md) ile birlikte ele alınmalı.
 - Review'da şu an metin görünürlüğü VISIBLE/DELETED; rapor tablosu, rapor endpoint'i, outbox, relay ve moderasyon endpoint'i bu çalışma kapsamında oluşturulmadı.
+- 31 Ekim 2026'da yeniden doğrulandı (değişiklik yok): Admin Service'te `AdminServiceApplication` dışında Java sınıfı yoktur; `docs/api.md` ADMIN bölümü hâlâ "Kayıt yok"; Auth'ta Review↔Admin çifti hâlâ tanımsızdır. Bu belgedeki hiçbir öneri uygulanmış değildir.
 
 ## 6. Eksik gereksinimler
 
@@ -80,7 +81,7 @@ Kullanıcı kendi incelemesini raporlayamaz (Review backend politikası). Review
 
 ## 11. Bağımlılık ve etki
 
-REV-07 ve REV-10 **ENTEGRASYON BEKLİYOR**. Yerel bir rapor kaydı veya taslak zarf bu kabul kriterlerinin yerine geçmez. REV-06 tamamlanmasını engellemez; REV-09 da bu çalışmada geliştirilmez.
+REV-07 ve REV-10 **ENTEGRASYON BEKLİYOR**. Yerel bir rapor kaydı veya taslak zarf bu kabul kriterlerinin yerine geçmez. REV-06 tamamlanmasını engellemez; REV-09 da sonradan tamamlandı ve bu talepten etkilenmez.
 
 ## 12. Durum
 

@@ -43,7 +43,7 @@ public class AccountWriteLock {
                 """).param("hash", hash(userId)).param("seconds", UserTokenPolicy.ERASURE_BLOCK_TTL.toSeconds()).update();
     }
 
-    static String hash(UUID userId) {
+    public static String hash(UUID userId) {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(userId.toString().getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException exception) {

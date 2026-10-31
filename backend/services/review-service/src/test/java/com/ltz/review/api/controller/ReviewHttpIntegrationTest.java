@@ -265,7 +265,7 @@ class ReviewHttpIntegrationTest {
     static HttpServer dependencies() {
         try {
             var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-            server.setExecutor(command -> Thread.startVirtualThread(command));
+            server.setExecutor(Thread::startVirtualThread);
             byte[] jwks = new JWKSet(new RSAKey.Builder((java.security.interfaces.RSAPublicKey) KEYS.getPublic())
                     .keyID("http-test").build()).toString().getBytes(StandardCharsets.UTF_8);
             server.createContext("/jwks", exchange -> {
@@ -277,8 +277,8 @@ class ReviewHttpIntegrationTest {
             server.createContext("/api/v1/game/games/batch", exchange -> {
                 exchange.getRequestBody().readAllBytes();
                 if (GAME_DELAY.get()) {
-                    try { Thread.sleep(750); }
-                    catch (InterruptedException error) { Thread.currentThread().interrupt(); }
+                    try { new java.util.concurrent.CountDownLatch(1).await(750, java.util.concurrent.TimeUnit.MILLISECONDS); }
+                    catch (InterruptedException _) { Thread.currentThread().interrupt(); }
                 }
                 byte[] result = JsonMapper.builder().build().writeValueAsBytes(java.util.Map.of(
                         "items", List.of(java.util.Map.of("gameId", GAME.toString(), "title", "Oyun")), "unavailable", List.of()));

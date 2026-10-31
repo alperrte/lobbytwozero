@@ -23,7 +23,8 @@ class RatingSummaryServiceTest {
         var result = new RatingSummaryService(repository).getAll(List.of(first, second, first));
         assertEquals(summaries, result.items());
         verify(repository).findAll(List.of(first, second));
-        assertThrows(UnsupportedOperationException.class, () -> result.items().clear());
+        var items = result.items();
+        assertThrows(UnsupportedOperationException.class, items::clear);
     }
 
     @Test void singleSummaryPreservesDecimalPrecision() {

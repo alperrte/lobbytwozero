@@ -4,11 +4,15 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import jakarta.annotation.PreDestroy;
 import java.time.Clock;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
@@ -26,6 +30,7 @@ import org.springframework.web.client.RestTemplate;
 
 @Configuration(proxyBeanMethods = false)
 public class UserTokenDecoderConfiguration {
+    private static final Set<String> CANONICAL_ROLES = Set.of("PLAYER", "CONTENT_CREATOR", "GAME_DEVELOPER", "MODERATOR", "ADMIN");
     private HttpClient jwksClient;
 
     @Bean("userJwtDecoder")
@@ -58,7 +63,7 @@ public class UserTokenDecoderConfiguration {
         return jwt -> {
             boolean valid = "at+jwt".equals(jwt.getHeaders().get("typ"))
                     && jwt.getHeaders().get("kid") instanceof String key && !key.isBlank()
-                    && jwt.getAudience().contains(audience) && canonicalSubject(jwt.getSubject())
+                    && jwt.getAudience() != null && jwt.getAudience().contains(audience) && canonicalSubject(jwt.getSubject())
                     && jwt.getIssuedAt() != null && jwt.getNotBefore() != null && jwt.getExpiresAt() != null
                     && !jwt.getIssuedAt().isAfter(clock.instant().plus(UserTokenPolicy.CLOCK_SKEW))
                     && jwt.getExpiresAt().isAfter(jwt.getIssuedAt())
@@ -68,11 +73,22 @@ public class UserTokenDecoderConfiguration {
         };
     }
 
+    /**
+     * Auth'un beş kanonik rolü (docs/AUTH_SERVICE_ENTEGRASYON_REHBERI.md §4) {@code roles} listesinden alınır.
+     * Liste olmayan, metin dışı öğe içeren veya bilinmeyen roller hiçbir yetki vermez; {@code roles} metin olarak
+     * gelirse boşlukla ayrılmış yetkiye çevrilmez.
+     */
+    static List<GrantedAuthority> authorities(Jwt token) {
+        if (!(token.getClaim("roles") instanceof List<?> values) || !values.stream().allMatch(String.class::isInstance)) return List.of();
+        return values.stream().map(String.class::cast).filter(CANONICAL_ROLES::contains)
+                .<GrantedAuthority>map(role -> new SimpleGrantedAuthority("ROLE_" + role)).toList();
+    }
+
     private static boolean canonicalSubject(String subject) {
         if (subject == null) return false;
         try {
             return UUID.fromString(subject).toString().equalsIgnoreCase(subject);
-        } catch (IllegalArgumentException exception) {
+        } catch (IllegalArgumentException _) {
             return false;
         }
     }
