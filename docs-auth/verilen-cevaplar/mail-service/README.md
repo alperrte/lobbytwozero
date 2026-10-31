@@ -10,7 +10,7 @@
 |---|---|
 | Servisin durumu | MAIL-01/02 kodu ve testi tamam (54 test, resmi kapı PASS, coverage %88,99); Auth adaptörü hazır, 4 e-posta akışı Mailpit ile uçtan uca doğrulandı (2026-10-31) |
 | Kullanıcı token doğrulaması (JWT) | Yok, bilerek: Mail'in kullanıcıya açık ucu yok; yalnız Auth'un `svc+jwt` token'ı (`aud=mail-service`, `sub=svc:auth-service`, `scope=mail:send`, `account_id`) kabul edilir |
-| Hesap silme ucu (`DELETE /internal/v1/accounts/{accountId}`) | Var (`scope=account:erase`, idempotent, `204`). Auth silme koordinatörüyle (14 gün bekleme) uçtan uca denenmedi |
+| Hesap silme ucu (`DELETE /internal/v1/accounts/{accountId}`) | Var (`scope=account:erase`, idempotent, `204`). Auth silme koordinatörüyle uçtan uca doğrulandı (2026-10-31) |
 
 ## BU BRANCH İÇİN AUTH'TAN GELEN TALEP VE CEVAPLAR
 

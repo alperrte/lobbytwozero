@@ -73,6 +73,16 @@ public class ServiceClientTokenService {
      * izin kararı hedef servisin (ör. Library → User) işidir; bağ yalnız çalınan token'ı tek hesapla sınırlar.
      */
     public IssuedServiceToken issue(String clientId, String clientSecret, String audience, UUID accountId) {
+        ServiceClientProperties.Client client = authenticate(clientId, clientSecret);
+        String target = audience == null || audience.isBlank() ? TokenClaims.AUTH_SERVICE_AUDIENCE : audience;
+        Set<String> scopes = allowedScopes(client, clientId, target);
+        requireAccountBinding(scopes, accountId, clientId, target);
+        return new IssuedServiceToken(issuer.issue(clientId, target, scopes, accountId), ServiceClientTokenIssuer.TTL,
+                String.join(" ", new TreeSet<>(scopes)));
+    }
+
+    /** Sabit zamanlı karşılaştırma: bilinmeyen/kapalı istemci de aynı yolu izler (zamanlama farkı sızmaz). */
+    private ServiceClientProperties.Client authenticate(String clientId, String clientSecret) {
         Optional<ServiceClientProperties.Client> client = Optional.ofNullable(clientId).map(properties.clients()::get)
                 .filter(ServiceClientProperties.Client::enabled);
         byte[] expected = client.map(registered -> digest(registered.secret().strip())).orElse(dummyDigest);
@@ -81,13 +91,20 @@ public class ServiceClientTokenService {
             log.warn("Service client authentication failed clientId={}", safe(clientId));
             throw new AuthException(AuthErrorCode.INVALID_CLIENT);
         }
-        String target = audience == null || audience.isBlank() ? TokenClaims.AUTH_SERVICE_AUDIENCE : audience;
+        return client.get();
+    }
+
+    private Set<String> allowedScopes(ServiceClientProperties.Client client, String clientId, String target) {
         Set<String> scopes = TokenClaims.AUTH_SERVICE_AUDIENCE.equals(target)
-                ? client.get().scopes() : client.get().targets().getOrDefault(target, Set.of());
+                ? client.scopes() : client.targets().getOrDefault(target, Set.of());
         if (scopes.isEmpty()) {
             log.warn("Service client audience not allowed clientId={} audience={}", safe(clientId), safe(target));
             throw new AuthException(AuthErrorCode.SERVICE_AUDIENCE_FORBIDDEN);
         }
+        return scopes;
+    }
+
+    private void requireAccountBinding(Set<String> scopes, UUID accountId, String clientId, String target) {
         boolean accountBound = ServiceClientConfig.isAccountBound(scopes);
         if (accountBound != (accountId != null)) {
             log.warn("Service client account binding invalid clientId={} audience={}", safe(clientId), safe(target));
@@ -97,8 +114,6 @@ public class ServiceClientTokenService {
             log.warn("Service client target account unavailable clientId={} audience={}", safe(clientId), safe(target));
             throw new AuthException(AuthErrorCode.SERVICE_TARGET_ACCOUNT_UNAVAILABLE);
         }
-        return new IssuedServiceToken(issuer.issue(clientId, target, scopes, accountId), ServiceClientTokenIssuer.TTL,
-                String.join(" ", new TreeSet<>(scopes)));
     }
 
     private byte[] digest(String value) {
