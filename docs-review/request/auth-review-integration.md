@@ -10,7 +10,7 @@
 
 ## 3. İlgili task
 
-REV-07, REV-10 ve REV-12'nin bekleyen Game→Review sunucu entegrasyonu. Bildirim üreticisi Review seçilirse koşullu bildirim yetkisi de REV-10 ile ilişkilidir. REV-06 ve REV-12'nin tamamlanan Review kullanıcı API kabulü bu talepten bağımsızdır.
+REV-07, REV-10 ve REV-12'nin bekleyen Game→Review sunucu entegrasyonu. Bildirim üreticisi Review seçilirse koşullu bildirim yetkisi de REV-10 ile ilişkilidir. REV-06 ve REV-12'nin tamamlanan Review kullanıcı API kabulü bu talepten bağımsızdır. REV-13'ün raporlamaya bağlı kısmı ve REV-15'in entegrasyon bağımlılıkları (Admin→Review moderasyon kararı) da bu belgeyle ilişkilidir; ikisi tamamlanmış sayılmaz.
 
 ## 4. Talebin amacı
 
@@ -33,6 +33,13 @@ Faz 3 eki: Game'in Review toplu puan özetini sunucudan kendi servis kimliğiyle
 - Admin'in onaylı rapor durum/karar mesajlarını yalnız Review'a iletebilmesine uygun ters hedef/kapsam çifti.
 - **Koşullu:** moderasyonun uygulandığı bilgisini Notification'a Review gönderecekse Review→Notification için ayrı hedef/kapsam. Üretici Admin seçilirse gereksiz Review izni verilmemeli.
 - Mevcut Review→User izni korunmalı; bu taleple genel admin yetkisi, başka hesap okuma veya tüm hedeflere erişim istenmiyor.
+
+**REV-13 / REV-15 için Auth sorumluluğu (yalnız gerçekten gerekli olanlar):**
+
+- **[Auth] REV-13:** Review'ın rapor kotası, tekilliği ve sayacı Review içinde çözülür; Auth'tan yeni izin istenmez. Rapor teslimi için gereken tek çift yukarıdaki Review→Admin çiftidir ve Admin alıcı protokolü onaylanana kadar bekler.
+- **[Auth] REV-15 — Admin→Review moderasyon kararı:** Servis token'ı yalnız *hangi servisin* konuştuğunu kanıtlar. `events:ingest` mevcut allowlist'te bir olay alma kapsamıdır; moderasyon *komutu* (gizle/arşivle/yeniden görünür yap) için ayrı bir kapsam gerekip gerekmediği veya `events:ingest` + Review'daki tam producer/olay-türü allowlist'inin yeterli olup olmadığı **KARAR BEKLİYOR** (Auth ve Admin sahipleri). Yeni kapsam adı bu belgede öngörülmemiştir.
+- **[Auth] İnsan moderatör ile servis kimliğinin ayrımı:** Auth'ta kullanıcı rolleri (`MODERATOR`, `ADMIN`) vardır, fakat Review bu rollere özel bir yetki tanımaz; `/api/v1/review/**` tüm izinli rollere aynı kullanıcı işlemlerini açar ve moderasyon yetkisi vermez. Bir kullanıcı `at+jwt`'si hiçbir koşulda Review'da moderasyon kararı yerine geçmemeli. İnsan moderatörün kimliğinin/yetkisinin Review'a nasıl güvenilir aktarılacağı (Admin'in doğrulayıp audit aktör referansını imzalı servis çağrısı içinde taşıması mı, Auth'un aktöre bağlı bir token üretmesi mi) **KARAR BEKLİYOR**; body'deki `actorId` tek başına kabul edilmez.
+- **[Auth] Bildirim:** Üretici Admin ise Review→Notification izni gerekmez; Review ise yukarıdaki koşullu çift geçerlidir. Üretici seçimi [Notification talebinde](notification-review-integration.md) **KARAR BEKLİYOR**.
 
 ## 7. Önerilen sözleşme — kesinleşmedi
 
@@ -71,6 +78,8 @@ Outbox/relay bu belgede yalnız gelecekteki güvenilirlik gereksinimidir; Review
 - Mevcut Review→User ve Auth→Review D4 regresyonları geçer; yeni imtiyaz yayılımı oluşmaz.
 - Gerçek Auth token'ıyla Admin/Review alıcı uçları arasında olumlu ve olumsuz HTTP testleri yapılır; yalnız mock token üretimi teslim kabulü sayılmaz.
 
+- REV-15, karar onaylanırsa: insan moderatör kullanıcı token'ı, başka bir servisin token'ı, doğru servis ama yanlış kapsam ve doğru token fakat gövdedeki sahte aktör referansı Review karar alıcısında reddedilir (olumsuz testler); servis kimliğiyle insan yetkisi karıştırılmaz.
+
 ## 11. Bağımlılık ve etki
 
 Admin alıcı protokolü ve güven modeli birlikte onaylanmadan REV-07 gerçek teslimi ve REV-10 tam entegrasyonu kapanamaz. REV-06'nın kullanıcı JWT'siyle yerel beğeni akışını engellemez.
@@ -86,3 +95,5 @@ Game servis kimliği eksikliği REV-12 Review backend kabulünü engellemez; Gam
 Faz 3: Game istemci kimliği, hedefe bağlı dar kapsam, allowlist uyarlaması, güvenli dağıtım ve Review okuma alıcısının yolu netleştirilmeli. Yeni scope/ENV/token bu fazda üretilmedi.
 
 Olay mı senkron komut mu kullanılacak; hangi çiftler hangi kapsamı alacak; Notification üreticisi kim olacak; insan moderatör yetkisi nasıl doğrulanacak; secret'ın mevcut güvenli dağıtımı ve rotasyonu nasıl işletilecek? Nihai kararı ilgili servis sahipleri verir; Review sonradan onaylı sözleşmeye uyarlanır.
+
+**REV-13/REV-15 eki — KARAR BEKLİYOR:** moderasyon komutu için ayrı kapsam gerekliliği; insan moderatör yetkisinin Review'a aktarım modeli (Admin güveni mi, aktöre bağlı Auth token'ı mı); Notification üreticisi seçilirse buna bağlı çift. REV-13'ün kota/tekillik ihtiyaçları Auth kararı gerektirmez.

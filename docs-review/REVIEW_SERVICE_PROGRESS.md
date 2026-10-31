@@ -69,6 +69,22 @@ Pre-push/CI/backendCheck, Trivy ve Sonar Scanner/Quality Gate/A/A/A: **KULLANICI
 
 ## Faz 4 — LTZ-HAM-REV-04
 
-- [ ] REV-13 — Spam ve kötüye kullanım kontrolü
-- [ ] REV-14 — İnceleme ve puan istatistikleri
-- [ ] REV-15 — Moderasyon sonrası içerik davranışı
+- [ ] REV-13 — Spam ve kötüye kullanım kontrolü — **KISMEN TAMAMLANDI — REV-07 ENTEGRASYONU BEKLİYOR.** Bağımsız kısım (inceleme oluşturma 5/60 sn, beğenme+kaldırma ortak 60/60 sn, 429 + `Retry-After`, PostgreSQL ortak sayaç) uygulandı; rapor kotası ve mükerrer rapor engeli REV-07 rapor altyapısı olmadığından uygulanamadı.
+- [x] REV-14 — İnceleme ve puan istatistikleri — Review backend kabulü tamamlandı (`GET /api/v1/review/games/{gameId}/statistics`).
+- [ ] REV-15 — Moderasyon sonrası içerik davranışı — **ENTEGRASYON BEKLİYOR (+ ürün kararı bekliyor).** Kod yazılmadı; mevcut durum doğrulandı, karar maddeleri belgelendi.
+
+Faz 4 devralma notu: Önceki Codex oturumu ("İncele Faz 1 PostgreSQL promptu") REV-13 oran sınırı politikasının onayında bitti; kullanıcı politikayı onayladı (31 Ekim 2026, 12:07), ancak çalışma ağacında hiçbir Faz 4 kodu/belgesi yoktu (git temiz, son commit 920a3c4, son migration V56). Faz 4 çalışması bu kayıt üzerinden sıfırdan devralındı; Faz 1–3 koduna dokunulmadı.
+
+**Faz 4 durumu: FAZ 4 KISMEN TAMAMLANDI — ENTEGRASYON BEKLEYEN GÖREVLER VAR.**
+
+Doğrulama (yalnız Review Service Maven `test` aşaması, disposable PostgreSQL 17 Alpine, `-Pci` Surefire ayarları, offline Maven): **135 test, 0 failure/error/skipped, BUILD SUCCESS** (başlangıç 102 → +33: AbuseQuotaApiTest 14, AbuseQuotaServiceTest 4, AbuseControlPropertiesTest 2, AbuseQuotaFailureTest 1, ReviewStatisticsApiTest 10, ReviewHttpIntegrationTest +2). Flyway V51–V57 doğrulandı, Hibernate `validate` geçti. Mevcut `ReviewApiTest` yalnız test içi kota limiti yükseltilerek (`review-create.limit=1000`) çalıştırıldı; davranış beklentileri değişmedi.
+
+Pre-push/CI/backendCheck, Trivy, SonarQube Scanner/Quality Gate/A/A/A, strict verify, PMD, merkezi coverage ve ratchet: **KULLANICI TALEBİYLE ÇALIŞTIRILMADI**. Önceki fazların kalite sonuçları Faz 4 koduna taşınmaz.
+
+Ayrıntılar: [Faz 4 raporu](REVIEW_SERVICE_PHASE_04_REPORT.md), [API](REVIEW_SERVICE_API.md), [kararlar](REVIEW_SERVICE_DECISIONS.md). Talep belgeleri: yeni dosya açılmadı; [admin-review-integration.md](request/admin-review-integration.md) §13 REV-15 maddeleriyle genişletildi.
+
+Kullanıcı Faz 4 raporunu kabul etti (31 Ekim 2026) ve REV-15 politikasını kısmen karara bağladı: gizlenen/arşivlenen incelemelerin bağımsız puanı ortalamaya dahil kalır; bu incelemeler herkese açık listelerde ve öne çıkanlarda gösterilmez. Beğeniler ve yazar müdahalesi gibi kalan kararlar Admin entegrasyonuyla netleşecek. Kod değişmedi; kararlar [DECISIONS](REVIEW_SERVICE_DECISIONS.md) içinde. `docs/api.md` ve `docs-security/` değiştirilmeyecek.
+
+Commit/push/merge/branch değişikliği yapılmadı. REV-07, REV-10, REV-13 (raporlama kısmı) ve REV-15 entegrasyon bağımlılıkları açıktır; Game→Review entegrasyonu da başlatılmadı.
+
+**Entegrasyon talepleri tamamlandı (yalnız dokümantasyon, 31 Ekim 2026):** REV-13'ün raporlamaya bağlı ihtiyaçları (kendi incelemesini raporlama yasağı, rapor tekilliği, rapor oran sınırı, mükerrer vaka engeli, güvenilir iletim/timeout/retry, spam kabul kriterleri) [Admin talebine](request/admin-review-integration.md); REV-15'in entegrasyon ihtiyaçları (sorumluluk matrisi, onaylı politikalar, `KARAR BEKLİYOR` listesi) Admin, [Auth](request/auth-review-integration.md) ve [Notification](request/notification-review-integration.md) taleplerine işlendi. Belgelemek ilgili görevi tamamlamaz; durumlar değişmedi: REV-07 ve REV-10 ENTEGRASYON BEKLİYOR, REV-13 KISMEN TAMAMLANDI — REV-07 RAPORLAMA ALTYAPISI BEKLENİYOR, REV-15 ENTEGRASYON BEKLİYOR, REV-14 tamamlandı. Kod, migration ve test değişmedi.

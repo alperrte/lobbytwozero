@@ -3,7 +3,7 @@
 ## Onaylı kapsam ve iş kuralları
 
 - Kullanıcı Hamza; branch `feature/review-service`. Yalnız Review backend ve bu klasör değiştirilebilir.
-- Faz 1 tamamlandı; sonraki açık onaylarla Faz 2 ve Faz 3 başlatıldı. Faz 3 Review backend kabulü tamamlandı; Faz 4 ayrı açık onay bekler. Faz 2 REV-07/REV-10 entegrasyonları hâlâ açıktır.
+- Faz 1 tamamlandı; sonraki açık onaylarla Faz 2, Faz 3 ve Faz 4 başlatıldı. Faz 3 Review backend kabulü tamamlandı. Faz 4 (REV-13/14/15) kullanıcının açık onayıyla geliştirilir; durum [PROGRESS](REVIEW_SERVICE_PROGRESS.md) içindedir. Faz 2 REV-07/REV-10 entegrasyonları hâlâ açıktır.
 
 - Kullanıcı 31 Ekim 2026 tarihinde şu politikaları onayladı: puan 1–10 tam sayı; metin olmadan puan ve tavsiye verilebilir; metin silinince bağımsız puan ve tavsiye korunur; ikinci aktif metin oluşturma 409 döner.
 - Puan, metin ve tavsiye ayrı tablolarda tutulur; başka servise FK veya SQL erişimi yoktur.
@@ -60,6 +60,20 @@ REV-01/02/03/04/05 kabul testleri sırasıyla tamamlandı. REV-11 ve final kalit
 - V51–V55 korunur; sıradaki boş numara V56 ile görünür kayıtlar için (game_id, created_at DESC, id ASC) kısmi indeks eklenir. Mevcut review_likes PK'si review_id ile başlar; yinelenen beğeni indeksi eklenmez. Beğeni toplulaştırması ve son sıralama çalışma zamanında hesaplanır; önceden hesaplanan sayaç/ranking tablosu yoktur.
 - Kullanıcının bu göreve özel açık talimatıyla yalnız Review Maven test aşaması çalıştırıldı. `verify` aşamasının ortak coverage/pre-push çalıştırıcısını tetiklediği görüldüğünden `test` aşaması kullanıldı. Pre-push, backendCheck, Trivy, Sonar Scanner ve Quality Gate: **KULLANICI TALEBİYLE ÇALIŞTIRILMADI**. Önceki kalite sonuçları REV-09'a ait güncel sonuç değildir.
 
+## Faz 4 — REV-13 spam ve kötüye kullanım kontrolü (kullanıcı onaylı politika)
+
+- **Onay kaydı:** Kullanıcı 31 Ekim 2026'da Faz 4 talimatıyla geliştirmeyi, ardından önerilen oran sınırı politikasını açıkça onayladı: inceleme oluşturma kullanıcı başına 60 saniyede 5 deneme; beğenme ve beğeni kaldırma ortak kotada kullanıcı başına 60 saniyede toplam 60 deneme; tekrarlanan ve iş kuralı açısından geçersiz istekler kotaya dahil; anonim/yetkisiz istekler mevcut 401/403 davranışını korur; aşımda 429 + doğru `Retry-After`; PostgreSQL'de atomik, çok örnekli tutarlı sayaç; başarısız iş transaction'ı kota tüketimini geri almaz; sınırlar merkezi ve değiştirilebilir; kullanılmayan sayaçlar sınırsız birikmez. Bu sayısal değerler yalnız bu onaya dayanır; başka uca genişletilmez.
+- **Algoritma:** Epoch'a hizalı sabit pencere + PostgreSQL `INSERT … ON CONFLICT (hesap, eylem, pencere) DO UPDATE … RETURNING` ile tek ifadede atomik sayaç. Satır kilidi eşzamanlı istekleri sıralar; aynı anda gelen N istekten tam `limit` tanesi geçer. Sayaç `limit+1`'de durur (taşma/şişme yok). Kayan pencere/token-bucket seçilmedi: tek satırlı basit ve denetlenebilir yapı yeterli görüldü; bedeli pencere sınırında kısa süreli `2×limit` patlamasıdır (belgelenmiş sınır).
+- **Sayım noktası:** Spring MVC `HandlerInterceptor` (yalnız `POST …/games/*/reviews`, `PUT|DELETE …/reviews/*/like`). Güvenlik zinciri 401/403 verdiğinde veya gövde filtresi 413 verdiğinde istek buraya gelmez; sayaç yazılmaz. Interceptor bağlama/doğrulamadan önce çalıştığı için JSON/alan doğrulama hataları ve geçersiz path UUID'si de deneme sayılır (onaylı "geçersiz istekler de sayılsın" kuralının doğal sonucu); Game kesintisi (503) de sayılır. Kullanıcı kimliği yalnız token `sub` alanıdır.
+- **Transaction:** Sayaç `REQUIRES_NEW` ile iş transaction'ından önce kesinleşir; iş transaction'ı 409/403/404/503 ile geri alınsa da deneme geri verilmez. Kota deposu çalışmazsa istek güvenli tarafta 500 alır ve iş mantığı çalışmaz (kota atlanmaz/fail-open değildir).
+- **Depolama (V57):** `review_rate_limits(account_hash, action, window_start, expires_at, attempts)`, doğal PK `(account_hash, action, window_start)`, `expires_at` indeksi. V54 ile aynı gerekçeyle teknik/kısa ömürlü tablodur: UUID PK/`version` kolonu taşımaz; ham kullanıcı kimliği değil SHA-256 özeti saklanır; kişisel profil/metin/token yoktur. Hesap silme bu tabloya dokunmaz: satırlar en geç pencere (en çok 1 gün, varsayılan 60 sn) + 5 dakika sonra kendiliğinden silinir. Temizlik dakikada bir (`AbuseQuotaCleanup`); çok örnekte aynı anda çalışması zararsızdır (idempotent DELETE).
+- **Saat varsayımı:** Pencere sınırı servis örneğinin UTC saatinden (epoch bölümü) hesaplanır; sayaç satırı ortaktır. Örnek saatleri NTP ile senkron olmalıdır (Faz 1 hesap silme engeliyle aynı işletim varsayımı). Küçük saat farkı yalnız pencere sınırını kaydırır, sayımı çift saymaz veya sıfırlamaz. 5 dakikalık temizlik payı bu farkı karşılar.
+- **Yapılandırma:** `ltz.review.abuse.review-create|review-like.limit|window` (`application.properties`). `limit` 1–100000, `window` tam saniye ve 1 sn–1 gün; geçersiz değer uygulamayı başlatmaz. Yeni ENV tanımlanmadı; ENV üzerinden geçersiz kılma Spring relaxed binding ile mümkündür ve ENV değişikliği kullanıcı onayı gerektirir.
+- **Sınırsız kalanlar (karar bekliyor):** Puan PUT, tavsiye PUT, inceleme PATCH/DELETE ve okumalar için sayısal sınır onaylanmadı; uygulanmadı. Bunlar zaten tekil/idempotent yazımlardır (aynı kayıt güncellenir) ve satır üretmez; sınır istenirse ayrı ürün kararı gerekir.
+- **Korunan davranışlar:** Kendi incelemesini beğenme yasağı (403), silinmiş/görünmez hedefte 404, bir kullanıcı/oyun için tek aktif metin (409), idempotent PUT/DELETE, hesap silme guard'ı değişmedi. Normal kullanım (ör. 5 inceleme, 30 beğeni + 30 kaldırma, çok sayıda okuma) testle doğrulandı ve engellenmedi.
+- **REV-07 bağımlılığı (açık):** Rapor oluşturma API'si olmadığından rapor kotası ve mükerrer rapor engeli uygulanmadı. REV-07 tasarlanırken `REPORT_CREATE` eylemi aynı tabloyla eklenebilir (action sütunu biçim CHECK'idir, yeni migration gerekmez); mükerrer rapor engeli `(review_id, reporter)` benzersizliği olarak Admin sözleşmesiyle birlikte kararlaştırılmalıdır. Kendi incelemesini raporlayamama kararı REV-07 kabul koşulu olarak durur. Bunlar uygulanmış sayılmaz.
+- **Test notu:** `ReviewApiTest` tek kullanıcıyla 11–12 inceleme isteği atan doğrulama/eşzamanlı tekillik testleri içerir; bu sınıfta `review-create.limit=1000` verildi. Kota davranışı varsayılan 5/60 ve 60/60 değerleriyle `AbuseQuotaApiTest`'te doğrulanır.
+
 ## Faz 3 — REV-08 ve REV-12
 
 - Kullanıcı önce REV-08, test/kapanış/checklist; sonra REV-12 sırasını açıkça onayladı. Bu sıra uygulandı: 92/92 ve ardından 102/102 Review testi PASS. Faz 4 onaylı değildir; REV-07/REV-10 beklemeye devam eder.
@@ -70,3 +84,55 @@ REV-01/02/03/04/05 kabul testleri sırasıyla tamamlandı. REV-11 ve final kalit
 - Kullanıcı ayrıca açıkça mevcut kullanıcı JWT güvenliğinin korunmasını istedi. Anonim veya yeni svc+jwt erişimi yok; AccountErasureSecurityConfiguration ve Auth kodu değiştirilmedi. Kullanıcı JWT'si Game servis kimliği yerine taşınmayacak. Game→Review erişimi NOT IMPLEMENTED/NOT VERIFIED olarak kalır.
 - [Game talebi](request/game-review-integration.md) yeni 13 başlıklı ihtiyaç belgesidir; [Auth talebi](request/auth-review-integration.md) hedefe bağlı dar okuma izniyle genişletildi. Örnek scope adı kesinleşmiş değildir; ilgili sahipler nihai yolu/izinleri belirler. Bu API'nin Review kabulünün tamamlanması canlı Game entegrasyonunu veya global katalog minRating/RATING sıralamasını tamamlamaz.
 - Histogram, tavsiye oranı, spam/rate-limit ve moderasyon etkileri eklenmedi; Faz 4 görevleri saklıdır. Pre-push/backendCheck/Trivy/Sonar **KULLANICI TALEBİYLE ÇALIŞTIRILMADI**; verify/merkezi coverage/PMD/ratchet sonucu yoktur. Yalnız modül testleri, PostgreSQL/Flyway ve API hata senaryoları çalıştırıldı. Ayrıntı [Faz 3 raporunda](REVIEW_SERVICE_PHASE_03_REPORT.md).
+
+## Faz 4 — REV-14 istatistik kararları
+
+- **Kaynaklar ayrıdır:** Puan dağılımı yalnız `game_ratings`, aktif inceleme sayısı yalnız `reviews` (`status='VISIBLE'`), tavsiye sayıları yalnız `game_recommendations` tablosundan gelir. Birbirinin yerine kullanılmaz; "puan veren kullanıcı sayısı" (`ratings.ratingCount`) ile "aktif inceleme sayısı" (`reviews.activeCount`) bilerek ayrı alanlardır.
+- **Ortalama tek politikadır:** Dağılımla birlikte dönen `averageRating`, REV-08/REV-12 ile aynı `round(avg(rating),2)` SQL ifadesidir; ikinci bir hesap yolu yazılmadı. Test, aynı veride `rating-summary` yanıtıyla eşitliği doğrular.
+- **Payda ve yuvarlama:** Tavsiye yüzdesinin paydası `recommendedCount + notRecommendedCount`'tur; tavsiye vermeyen kullanıcılar paydaya girmez. İki ondalık, HALF_UP, 0–100 ölçeği (Java `BigDecimal`, kesin tam sayı oranı). Payda sıfırsa yüzdeler `null`'dır (0 yazmak "herkes olumsuz" gibi okunurdu). Yüzdeler bağımsız yuvarlanır; yalnız tam eşitlik (ör. 1/800) durumlarında toplam 100,01 olabilir ve bu belgelenmiştir.
+- **Boş veri:** Bilinmeyen veya hiç verisi olmayan oyun 200 döner; 10 sıfırlı kova, sıfır sayılar, `null` ortalama/yüzdeler. Game kataloğu çağrılmaz (REV-08 ile aynı: görünürlük politikası Game'indir).
+- **Tutarlılık:** Tüm değerler tek SQL ifadesinde (bağımsız skaler alt sorgular) tek snapshot'tan okunur; `sum(distribution) = ratingCount` ve `recommended + notRecommended = total` eşzamanlı yazıcılar altında testle doğrulandı. N+1, kalıcı sayaç, materialized view, yeni tablo ve migration yoktur.
+- **Uç adı:** `GET /api/v1/review/games/{gameId}/statistics`. Frontend/Game tüketicisi yoktur, ad bu görevde sabitlendi; tüketici belgesi/talebi gerekmedi. Yalnız kullanıcı JWT'si; anonim ve servis token erişimi eklenmedi.
+- **Moderasyon ilişkisi:** `activeCount`, `VISIBLE` beyaz listesidir; ileride `HIDDEN/ARCHIVED` eklenirse otomatik dışlanır. Bu davranışın puan/tavsiye için de geçerli olup olmadığı REV-15 kararıdır (aşağıda); bugün puan ve tavsiye hiçbir moderasyon durumuna bağlı değildir.
+
+## Faz 4 — REV-15 değerlendirmesi (UYGULANMADI — ENTEGRASYON VE ÜRÜN KARARI BEKLİYOR)
+
+**Doğrulanan mevcut durum (kod incelemesi):**
+
+- Şemada yalnız `VISIBLE` ve `DELETED` vardır (`ck_reviews_status`, V52). `HIDDEN`/`ARCHIVED`, moderasyon alanı, rapor tablosu, karar sürümü ve rapor kapanışı yoktur. Admin Service'te moderasyon kararını Review'a ileten onaylı sözleşme yoktur ([admin talebi](request/admin-review-integration.md) §12: TALEP/ÖNERİ).
+- Görünürlük beyaz listedir: tek inceleme okuma, güncelleme, beğenme/kaldırma/okuma, öne çıkanlar (V56 kısmi indeks dâhil) ve REV-14 `activeCount` yalnız `status='VISIBLE'` kabul eder. `VISIBLE` dışındaki herhangi bir gelecekteki durum bu yollarda otomatik olarak 404/dışlanmış olur (fail-closed). Bu, "gizlenmiş içerik genel listede görünmez" kabul koşulunun yerel yarısını yapısal olarak karşılar; ancak şemada gizli durum olmadığından davranış testi yazılamaz ve kabul edilmiş sayılmaz.
+- Bağımsız sayısal puan (`game_ratings`) ve tavsiye hiçbir inceleme durumuna bağlı değildir; metin silme onları etkilemez (REV-11, REV-14 testleri). Hesap silme tüm yerel kayıtları fiziksel siler.
+- `uq_reviews_active_user_game` kısmi indeksi `status <> 'DELETED'` koşulludur; yani gelecekte gizlenmiş/arşivlenmiş bir inceleme kullanıcının tek aktif inceleme hakkını **tutmaya devam eder** (gizlenen yazarın yeni metinle moderasyonu aşması engellenir). Bu istenen sonuç olabilir ama bir ürün kararıdır.
+
+**Neden kod yazılmadı:** Kalan işler ya Admin/Auth/Notification sözleşmesine ya da kesinleşmemiş ürün politikasına bağlıdır. Sahte moderasyon ucu, kullanıcıya moderatör yetkisi, gövdedeki `actorId` ile karar, yeni servis token yetkisi, yerel karar taklidi, rapor kapanışı ve kullanılmayacak `HIDDEN/ARCHIVED` şeması eklenmedi. Karar verilmeden eklenen şema/statü, ileride Admin sözleşmesini kısıtlayan ölü bir kontrat olurdu.
+
+**Ürün kararı gereken konular (öneri yalnız yön gösterir, karar sahibi Hamza/ekip):**
+
+1. *Gizlenen/arşivlenen incelemenin yazarının sayısal puanı ortalamaya ve dağılıma girer mi?* Öneri: girer — puan metinden bağımsızdır (REV-11) ve moderasyon metin içeriğine yönelir; puanı düşürmek kötü niyetli bir kullanıcıyı değil ortalamayı cezalandırır. Alternatif: kullanıcı moderasyonla puanından da düşürülür (kampanya/spam puanlaması için). Kabul: Hamza görev dosyası "açık politika ile tutarlı" der, politika seçilmedi, kod değişmedi.
+2. *Tavsiye (olumlu/olumsuz) aynı kuralı izler mi?* Öneri: puanla aynı.
+3. *`HIDDEN` ile `ARCHIVED` farkı:* geçici moderasyon (geri alınabilir) ve kalıcı/emekli içerik ayrımı; her ikisinde yazar kendi içeriğini görebilir mi? Yazar gizli incelemesini silebilir/düzenleyebilir mi (bugün `delete` VISIBLE olmayan kayıtta da çalışır; gizliyken silmek moderasyon kanıtını yok edebilir)?
+4. *Beğeniler:* gizlenince korunur ve geri alınca döner mi, yoksa silinir mi? Öne çıkanlarda ve `likeCount`'ta gizli kayıt zaten dışlanır.
+5. *Tek aktif inceleme hakkı* gizliyken tutulur mu (mevcut indeks tutar)?
+6. *Rapor kapanışı:* kimin otoritesi (Admin vaka durumu mu, Review uygulama ACK'i mi), kapanış hangi karar/sürümle bağlanır; Review'da yalnız moderasyon sonucu mu saklanır, rapor mu (rapor REV-07'dir).
+7. *Sıra/idempotency:* karar `actionId` + monoton sürüm/`decidedAt` ile gelmeli; eski kararın yeni durumu ezmemesi alıcı kuralıdır (admin talebi §9–§10 ile uyumlu). Hesap silmede kararlar ve izler fiziksel silinmeli, eski olay silinen veriyi geri oluşturmamalıdır.
+
+Bu maddeler [Admin talebinin](request/admin-review-integration.md) §13'üne işlendi. REV-15, hem Admin sözleşmesi hem de yukarıdaki politika kararı gelene kadar `[ ] ENTEGRASYON BEKLİYOR` kalır.
+
+## Faz 4 sonrası kullanıcı kararları — REV-15 politikası (31 Ekim 2026)
+
+Kullanıcı Faz 4 raporunu kabul etti ve aşağıdaki kararları verdi. Bunlar yukarıdaki "Ürün kararı gereken konular" listesinin 1–2. maddelerinin karşılığıdır; kalan maddeler Admin entegrasyonuyla netleşir.
+
+**Karara bağlananlar:**
+
+1. **Sayısal puan ve ortalama:** Gizlenen veya arşivlenen metinsel incelemelerin bağımsız sayısal puanları, puanın kendisi ayrıca geçersiz kılınmadığı sürece LTZ ortalamasına, dağılıma ve puan sayısına dahil edilmeye devam eder. Metinsel incelemenin görünürlük durumu sayısal puanı otomatik silmez veya dışlamaz. (Puanın ayrıca geçersiz kılınması ayrı bir moderasyon eylemi olarak tanımlanmamıştır ve bu kararla uygulanmamıştır.) REV-08/REV-12/REV-14 mevcut davranışı bu karara zaten uyar: bu hesaplar `game_ratings` üzerindedir ve inceleme durumuna bağlı değildir. Kod değişmedi.
+2. **Görünürlük:** Gizlenen veya arşivlenen incelemeler herkese açık listelerde ve öne çıkan incelemelerde gösterilmez. Mevcut `VISIBLE` beyaz listesi (tek okuma, güncelleme, beğeni, öne çıkanlar, `activeCount`) bu kuralı gelecekteki her gizli durum için yapısal olarak karşılar; ancak şemada gizli durum olmadığından davranış testi yoktur ve kabul tamamlanmış sayılmaz.
+3. **Kapsam:** `docs/api.md` ve `docs-security/` değiştirilmez; değişiklik sınırı yalnız `backend/services/review-service/` ve `docs-review/`'dir. (Önceki "merkezi kataloğa aktarım için kapsam izni gerekir" notu, bu kararla aktarımın yapılmayacağı şeklinde güncellenmiştir.)
+4. **Kod yasağı:** Onaylanmamış moderasyon sözleşmeleri için kod geliştirilmez; `HIDDEN/ARCHIVED` durumu, karar alıcı, rapor kapanışı ve Admin uçları eklenmedi.
+
+**Admin entegrasyonuyla birlikte netleştirilecekler (karar verilmedi):** beğenilerin saklanması veya silinmesi, yazarın gizlenmiş/arşivlenmiş içeriğe müdahalesi (görme, düzenleme, silme), tavsiyenin gizlenmiş incelemeyle ilişkisi, tek aktif inceleme hakkının tutulması, rapor kapanışı otoritesi, karar sırası/idempotency ve hesap silme izleri. Bunlar [Admin talebinin](request/admin-review-integration.md) §13'ündedir.
+
+**Açık kalanlar:** REV-07, REV-10, REV-13'ün raporlama kısmı (rapor kotası, mükerrer rapor engeli) ve REV-15'in entegrasyon bağımlılıkları tamamlanmış sayılmaz.
+
+## Entegrasyon gereksinimlerinin belgelenmesi (31 Ekim 2026)
+
+REV-13 (raporlamaya bağlı) ve REV-15 (moderasyon) için dış servis gereksinimleri yeni dosya açılmadan mevcut [Admin](request/admin-review-integration.md), [Auth](request/auth-review-integration.md) ve [Notification](request/notification-review-integration.md) taleplerine, her satırda sorumlu servis belirtilerek eklendi. Yeni karar verilmedi: raporlama oran sınırı sayısı, tekrar rapor yanıtı (200/409), kapanış durum adları, beğenilerin akıbeti, yazarın gizli içeriğe müdahalesi, gizle/arşivle/yeniden görünür geçişleri, bildirim üreticisi, moderasyon komutu kapsamı ve insan moderatör yetki aktarım modeli talep belgelerinde `KARAR BEKLİYOR` olarak kalır. Bu belgeleme REV-07, REV-10, REV-13 (raporlama kısmı) ve REV-15'i tamamlanmış yapmaz.

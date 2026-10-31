@@ -25,7 +25,9 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -176,6 +178,68 @@ class ReviewHttpIntegrationTest {
             }
             assertEquals(204, send(client, "DELETE", reviewPath + "?version=0", null, ownerToken).statusCode());
             assertEquals(404, send(client, "PUT", likePath, null, voterToken).statusCode());
+        }
+    }
+
+    @Test void signedHttpStatisticsRequireUserTokenAndKeepRatingsReviewsAndRecommendationsSeparate() throws Exception {
+        UUID statsGame = UUID.randomUUID();
+        UUID account = UUID.randomUUID();
+        String path = "/api/v1/review/games/" + statsGame + "/statistics";
+        try (var client = HttpClient.newHttpClient()) {
+            assertEquals(401, send(client, "GET", path, null, token(true, account)).statusCode());
+            assertEquals(401, client.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path)).build(),
+                    HttpResponse.BodyHandlers.ofString()).statusCode());
+            var empty = send(client, "GET", path, null, token(false, account));
+            assertEquals(200, empty.statusCode());
+            assertEquals("private, no-store", empty.headers().firstValue("Cache-Control").orElseThrow());
+            assertTrue(empty.body().contains("\"ratingCount\":0"));
+            assertTrue(empty.body().contains("\"activeCount\":0"));
+            assertTrue(empty.body().contains("\"recommendedPercentage\":null"));
+            jdbcInsertRatingAndRecommendation(statsGame);
+            var filled = send(client, "GET", path, null, token(false, account));
+            assertTrue(filled.body().contains("\"ratingCount\":1"));
+            assertTrue(filled.body().contains("{\"rating\":8,\"userCount\":1}"));
+            assertTrue(filled.body().contains("\"activeCount\":0"));
+            assertTrue(filled.body().contains("\"recommendedCount\":1"));
+            assertTrue(filled.body().contains("\"recommendedPercentage\":100.00"));
+        }
+    }
+
+    @Autowired JdbcClient jdbc;
+
+    void jdbcInsertRatingAndRecommendation(UUID game) {
+        jdbc.sql("INSERT INTO game_ratings (id,user_id,game_id,rating,created_at,updated_at) VALUES (?,?,?,8,now(),now())")
+                .params(UUID.randomUUID(), UUID.randomUUID(), game).update();
+        jdbc.sql("INSERT INTO game_recommendations (id,user_id,game_id,recommended,created_at,updated_at) VALUES (?,?,?,true,now(),now())")
+                .params(UUID.randomUUID(), UUID.randomUUID(), game).update();
+    }
+
+    @Test void signedHttpReviewCreationQuotaCountsDuplicatesAndReturns429WithRetryAfter() throws Exception {
+        UUID account = UUID.randomUUID();
+        String accountToken = token(false, account);
+        String path = "/api/v1/review/games/" + GAME + "/reviews";
+        try (var client = HttpClient.newHttpClient()) {
+            assertEquals(401, send(client, "POST", path, "{\"body\":\"Servis\"}", token(true, account)).statusCode());
+            assertEquals(401, client.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path))
+                    .header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString("{\"body\":\"Anonim\"}")).build(),
+                    HttpResponse.BodyHandlers.ofString()).statusCode());
+            HttpResponse<String> limited = null;
+            int accepted = 0;
+            // Gerçek saat kullanıldığından bir pencere sınırı denemeleri bölebilir: en çok iki pencere (10) kabul edilir.
+            for (int attempt = 0; attempt < 12 && limited == null; attempt++) {
+                var response = send(client, "POST", path, "{\"body\":\"Deneyim " + attempt + "\"}", accountToken);
+                if (response.statusCode() == 429) limited = response;
+                else {
+                    assertEquals(attempt == 0 ? 201 : 409, response.statusCode());
+                    accepted++;
+                }
+            }
+            assertTrue(limited != null && accepted >= 5 && accepted <= 10);
+            long retryAfter = Long.parseLong(limited.headers().firstValue("Retry-After").orElseThrow());
+            assertTrue(retryAfter >= 1 && retryAfter <= 60);
+            assertTrue(limited.headers().firstValue("Content-Type").orElseThrow().startsWith("application/problem+json"));
+            assertEquals("private, no-store", limited.headers().firstValue("Cache-Control").orElseThrow());
+            assertTrue(limited.body().contains("\"status\":429"));
         }
     }
 

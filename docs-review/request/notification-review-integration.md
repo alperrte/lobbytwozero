@@ -10,7 +10,7 @@
 
 ## 3. İlgili task
 
-REV-10; moderasyon sonucu içerik davranışının ele alınacağı REV-15 ile de ilişkilidir. REV-07 akışındaki yetkili moderasyonun sonucu için hazırlık belgesidir. REV-06 beğeni API'sine yeni bildirim gereksinimi eklemez.
+REV-10; moderasyon sonucu içerik davranışının ele alınacağı REV-15 ile de ilişkilidir. REV-07 akışındaki yetkili moderasyonun sonucu için hazırlık belgesidir. REV-06 beğeni API'sine yeni bildirim gereksinimi eklemez. REV-15'in "başarılı moderasyon uygulamasından sonra inceleme sahibine bildirim" gereksinimi bu belgenin konusudur; REV-13 (spam/rapor kotası) bildirim gereksinimi doğurmaz. Bu belge REV-15'i tamamlanmış göstermez.
 
 ## 4. Talebin amacı
 
@@ -30,6 +30,14 @@ Uygulanmış bir moderasyon eylemi sonucunda inceleme sahibinin güvenli ve tuta
 - Doğru inceleme sahibi alıcının seçimi, tercihler ve silinmiş hesap davranışı.
 - Aynı action/event için yinelenmeyen bildirim ve kalıcı kabul/başarısızlık anlamı.
 - Tek üretici kararı: Review uygulama transaction'ı sonrası üretim veya Admin'in Review uygulama ACK'i sonrası üretimi. İkisinin aynı bildirim üretmesi engellenmeli.
+
+**REV-15 için eklenen gereksinimler (sorumlu servis belirtilerek):**
+
+- **[Notification]** Alıcı yalnız başarıyla uygulanmış moderasyonun *inceleme sahibidir*; raportör, rapor detayı veya serbest karar gerekçesi alıcıya ulaşmaz. Bildirimin hangi eylem türlerini kapsadığı (gizle, arşivle, yeniden görünür yap) ve yeniden görünür yapmanın ayrı bildirim üretip üretmeyeceği **KARAR BEKLİYOR**. Puan geçersiz kılma eylemi tanımlanırsa bildirim kapsamı ayrıca kararlaştırılır.
+- **[Admin veya Review — üretici KARAR BEKLİYOR]** Bildirim yalnız Review kararı uyguladıktan sonra üretilir; Admin kararının verilmiş olması yetmez. Seçenekler: (a) Review, uygulama transaction'ı sonrası üretir (Review→Notification izni ve outbox gerekir; Admin ACK'inden bağımsız ilerler); (b) Admin, Review'ın uygulama ACK'ini aldıktan sonra üretir (Review'a yeni Notification izni gerekmez; ACK gecikirse bildirim gecikir). Tek üretici seçilmeli; ikisi birden üretirse mükerrer bildirim oluşur. Bu belge seçimi yapmaz.
+- **[Notification]** Doğal tekillik: `actionId` + `recipientId` (+ uygulanan durum). Aynı olayın yeniden teslimi ek bildirim üretmez. Sırası bozulmuş (eski) bir olay yeni durumu çürütmemeli veya yanlış bildirim üretmemeli; sıra bilgisi olay zarfında taşınmalı (alan adı **KARAR BEKLİYOR**).
+- **[Notification]** Silinmiş hesap/alıcı için bildirim üretilmez veya silinir; silinmiş incelemeye ait eski olay veri yeniden oluşturmaz. Bildirim kanalı ve tercih kuralları (uygulama içi/e-posta) bu talepte varsayılmaz.
+- **[Review]** Bildirim hatası uygulanmış moderasyonu geri almaz. Review yalnız üretici olarak seçilirse (a) güvenilir üretimden (outbox) sorumludur.
 
 ## 7. Önerilen sözleşme — kesinleşmedi
 
@@ -61,6 +69,8 @@ Gelecekte onaylanırsa üretici outbox'ı ve alıcı inbox/bildirim transaction'
 - Yanlış sub/producer/audience/scope ve kullanıcı token'ı reddedilir; başka kişinin bildirimine erişim engellenir.
 - Silinmiş hesap, tercihler ve içerik minimizasyonu test edilir; reporter/rapor detayı yazara sızmaz.
 
+- REV-15: Admin kararı verilmiş fakat Review uygulayamamışsa (silinmiş inceleme/hesap, eski sürüm) bildirim üretilmez; tek üretici testle doğrulanır ve iki üreticinin aynı `actionId` için ikinci bildirim yaratamadığı gösterilir; yeniden görünür yapma için seçilen kapsam davranışı test edilir.
+
 ## 11. Bağımlılık ve etki
 
 REV-10'un moderasyon bildirim hattı ve ileride REV-15'in sahibini bilgilendirme kriteri sözleşme bekler. REV-06'nın kabulünü engellemez. REV-07 rapor alıcısı Admin olduğundan bildirim sözleşmesi rapor teslimi yerine geçmez.
@@ -72,3 +82,5 @@ REV-10'un moderasyon bildirim hattı ve ileride REV-15'in sahibini bilgilendirme
 ## 13. Karar bekleyen konular
 
 Notification sorumlusu, tek üretici, olay adı/sürümü, alıcı alanları/tercihler, gerekçe minimizasyonu, uygulama ACK'i, teslim durumu, dedup ve retention. Bildirim gereksinimini genişletme kararı ilgili servis sahipleri ve kullanıcı onayıyla verilir; Review karşılıklı onaylı sözleşmeye uyarlanır.
+
+**REV-15 eki — KARAR BEKLİYOR:** tek bildirim üreticisi (Admin ACK sonrası / Review uygulaması sonrası); bildirim kapsamındaki eylem türleri ve yeniden görünür yapma bildirimi; olay zarfında sıra/sürüm alanı; saklama ve silinmiş hesap davranışı. REV-13 için bildirim kararı gerekmez.

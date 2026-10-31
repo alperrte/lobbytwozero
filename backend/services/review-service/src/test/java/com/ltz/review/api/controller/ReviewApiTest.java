@@ -30,7 +30,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+/** Doğrulama ve eşzamanlı tekillik testleri tek kullanıcıyla çok istek attığından kota yükseltilir; kota AbuseQuotaApiTest'te. */
+@SpringBootTest(properties = "ltz.review.abuse.review-create.limit=1000")
 class ReviewApiTest {
     @Autowired WebApplicationContext context;
     @Autowired JdbcClient jdbc;

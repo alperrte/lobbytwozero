@@ -8,7 +8,7 @@ Sorumlu: Hamza. Gateway öneki: `/api/v1/review`. Merkezi kataloğa aktarım, ku
 
 Kullanıcı token'ı en fazla 15 dakika ömürlü olabilir (Auth JwtProperties sınırı). JSON gövdesi 64 KiB ile sınırlıdır; Content-Length olmadan gelen chunked istekler de sınırlanır. Korunan iş yanıtları `Cache-Control: private, no-store` taşır. Sayısal/boolean alanlara metin değeri verilmesi kabul edilmez.
 
-401: kimlik yok/geçersiz; 403: rol/sahiplik yetersiz veya hesap silme engeli; 404: kaynak veya kullanılabilir oyun yok; 409: tekillik/sürüm çakışması; 400: geçersiz UUID/gövde/alan; 413: gövde sınırı aşıldı; 503: Game Service kesintisi veya bozuk sözleşme; 500: beklenmeyen hata. Hatalar `application/problem+json` (`ProblemDetail`); SQL/token/iç adresler dönmez.
+401: kimlik yok/geçersiz; 403: rol/sahiplik yetersiz veya hesap silme engeli; 404: kaynak veya kullanılabilir oyun yok; 409: tekillik/sürüm çakışması; 400: geçersiz UUID/gövde/alan; 413: gövde sınırı aşıldı; 429: kullanıcı kotası aşıldı (`Retry-After` saniye; yalnız inceleme oluşturma ve beğenme/kaldırma, bkz. REV-13); 503: Game Service kesintisi veya bozuk sözleşme; 500: beklenmeyen hata. Hatalar `application/problem+json` (`ProblemDetail`); SQL/token/iç adresler dönmez.
 
 ## REV-01 — Puan yazma
 
@@ -49,7 +49,7 @@ Metin/tavsiye gerekmez. `(user_id,game_id)` UNIQUE ve `rating BETWEEN 1 AND 10` 
 - Path/Query Parameters: `gameId` zorunlu UUID; query yok.
 - Request Body: `{"body":"Oyun deneyimim"}`. 1–5000 UTF-16 karakter; baş/son whitespace temizlenir. Unicode yalnız boşluk içeriği ve newline/tab dışındaki kontrol karakterleri reddedilir. HTML etkinleştirilmez; içerik düz metindir, istemci metin olarak render etmelidir.
 - Response: 201 ve `Location: /api/v1/review/reviews/{id}`; `id`, `gameId`, `body`, `ownedByActor`, `version`, `createdAt`, `updatedAt`.
-- Hata Durumları: 400/401/403/404/409/503/500. Aynı kullanıcı/oyun için ikinci aktif metin her zaman 409; POST tekrarında önceki metin değiştirilmez.
+- Hata Durumları: 400/401/403/404/409/429/503/500. 429 için REV-13 bölümüne bakın. Aynı kullanıcı/oyun için ikinci aktif metin her zaman 409; POST tekrarında önceki metin değiştirilmez.
 - Bağlantı: Game batch doğrulaması transaction dışında; ReviewWriter içinde JPA save/flush. V52 partial UNIQUE aktif kullanıcı/oyun metnini korur.
 - Test Durumu: INTEGRATION — 45 testlik koşu PASS; sınırlar, bağımsız puan, kimlik, Game kesintisi ve eşzamanlı oluşturma.
 
@@ -150,7 +150,7 @@ Test Durumu: Gerçek PostgreSQL silme/yazma yarışı, süre sonu temizliği ve 
 - Path/Query Parameters: reviewId zorunlu UUID; query yok.
 - Request Body: Yok. Boş/whitespace dışında gövde 400; userId/rol/oy sahibi seçilemez.
 - Response: 200 `ReviewLikeResponse`: `reviewId`, `likeCount` (long), `likedByActor` (boolean). Tekrar PUT aynı oy/sayıyı korur. Beğeni yazarın inceleme sürümünü, metnini, puanını veya tavsiyesini değiştirmez.
-- Hata Durumları: 400 geçersiz UUID/gövde; 401 kimlik yok/geçersiz; 403 rol, self-vote veya silinen hesap engeli; 404 olmayan/silinmiş inceleme; 500 beklenmeyen hata. ProblemDetail ortak sözleşmesi geçerli.
+- Hata Durumları: 400 geçersiz UUID/gövde; 401 kimlik yok/geçersiz; 403 rol, self-vote veya silinen hesap engeli; 404 olmayan/silinmiş inceleme; 429 kullanıcı kotası aşıldı (REV-13); 500 beklenmeyen hata. ProblemDetail ortak sözleşmesi geçerli.
 - Bağlantı: ReviewLikeService → hesap silme guard'ı → inceleme satır kilidi → ReviewLikeRepository atomik INSERT ON CONFLICT DO NOTHING → gerçek DB satırlarından count/aktör durumu. V55 PK `(review_id,user_id)` ve review FK. Dış servis çağrısı yok.
 - Test Durumu: UNIT/INTEGRATION — 75 testlik strict koşuda PASS; PostgreSQL tekillik/yarışlar ve gerçek TCP üzerinden RS256/JWKS kullanıcı token'ı ile beğeni/tekrar/self-vote/servis kimliği reddi.
 
@@ -164,7 +164,7 @@ Test Durumu: Gerçek PostgreSQL silme/yazma yarışı, süre sonu temizliği ve 
 - Path/Query Parameters: reviewId zorunlu UUID; query yok.
 - Request Body: Yok; dolu gövde 400.
 - Response: 200 `ReviewLikeResponse`. Zaten oy yoksa aynı sıfır/aktör-false sonucu; başka kullanıcıların oyları korunur. Kendi incelemesine oy veremeyen yazarın DELETE'i no-op olabilir.
-- Hata Durumları: 400/401/403/404/500. Olmayan veya DELETED hedefte 404; silinmiş incelemenin beğenileri metin silme transaction'ında zaten temizlenir.
+- Hata Durumları: 400/401/403/404/429/500. 429 REV-13 kotasıdır (PUT ile ortak). Olmayan veya DELETED hedefte 404; silinmiş incelemenin beğenileri metin silme transaction'ında zaten temizlenir.
 - Bağlantı: Aynı hesap guard'ı ve parent review kilidi; yalnız `(reviewId,sub)` satırı silinir. Fiziksel hesap silmesinde verilen oylar ve silinen incelemelerin oyları temizlenir. Karşılıklı oyları olan iki hesabın silmesi kısa erasure advisory lock ile sıralanır.
 - Test Durumu: INTEGRATION — tekrar DELETE, kullanıcı izolasyonu, author no-op, içerik silmesi, hesap silmesi/tekrar engeli, karşılıklı hesap silme ve beğeni/silme yarışı PASS; gerçek HTTP DELETE akışı PASS.
 
@@ -182,6 +182,23 @@ Test Durumu: Gerçek PostgreSQL silme/yazma yarışı, süre sonu temizliği ve 
 - Test Durumu: INTEGRATION — farklı aktör görünümü, toplam, sıfır, anonim/silinmiş hedef ve gerçek JWT/HTTP PASS.
 
 REV-07 rapor API'si, outbox/relay ve REV-10 dış teslimi uygulanmadı. Önerilen hedef sözleşmeler [request/](request/) altında; mevcut endpoint olarak kullanılamaz.
+
+## REV-13 — Kullanıcı kotası ve 429 sözleşmesi
+
+- Durum: IMPLEMENTED (yalnız bağımsız kısım). Rapor oluşturma kotası ve mükerrer rapor engeli REV-07'ye bağlıdır: NOT IMPLEMENTED, ENTEGRASYON BEKLİYOR.
+- Sorumlu: Hamza.
+- Tüketici servisler: Frontend (Gateway üzerinden); yeni endpoint yoktur.
+- Kapsam (yeni endpoint değil, mevcut üç işleme uygulanan kota):
+  - `POST /api/v1/review/games/{gameId}/reviews` → kullanıcı başına **60 saniyede 5** deneme (`REVIEW_CREATE`).
+  - `PUT` ve `DELETE /api/v1/review/reviews/{reviewId}/like` → ortak kota, kullanıcı başına **60 saniyede toplam 60** deneme (`REVIEW_LIKE`).
+  - Diğer uçlar (puan/tavsiye PUT, inceleme PATCH/DELETE, tüm GET'ler) sınırsızdır; bunlar için sayısal politika onaylanmadı.
+- Yetkilendirme: Kota yalnız kimliği doğrulanmış ve rolü uygun kullanıcı isteğinde tüketilir. Anonim/geçersiz token 401, rol/servis token'ı 403/401 mevcut davranışını korur ve sayaç yazmaz. Sayaç anahtarı token `sub` alanıdır; istemci seçemez.
+- Sayım kuralı: Kimlik doğrulama geçildikten sonra ilgili rotaya gelen her istek bir denemedir; sonucundan bağımsızdır: 201/200, tekrar (409), kendi incelemesini beğenme (403), olmayan hedef (404), gövde/alan doğrulama hatası (400), Game kesintisi (503). Kota iş transaction'ından önce kendi transaction'ında kesinleşir; iş transaction'ı geri alınsa da deneme geri verilmez. 413 (gövde sınırı) güvenlik/filtre katmanında kaldığından sayılmaz.
+- Pencere: Epoch'a hizalı sabit pencere (örn. 12:00:00–12:01:00 UTC). Sayaç `limit+1`'de durur. Pencere sınırında art arda iki pencerede toplam `2×limit` işleme izin verilebilir; bu sabit pencere algoritmasının bilinen sınırıdır.
+- Response (aşımda): 429, `application/problem+json` (`ProblemDetail`, `status=429`), `Retry-After: <saniye>` (pencere bitimine kalan süre, yukarı yuvarlanmış, en az 1) ve `Cache-Control: private, no-store`. İş mantığı çalıştırılmaz; kayıt oluşturulmaz/değiştirilmez.
+- Hata Durumları: 429 yukarıdaki gibi; kota deposu (PostgreSQL) hatasında istek güvenli tarafta 500 ile reddedilir.
+- Bağlantı: `AbuseQuotaInterceptor` (Spring MVC, yalnız eşleşen rota ve metotlarda) → `AbuseQuotaService` → `AbuseQuotaRepository` (REQUIRES_NEW, tek atomik `INSERT … ON CONFLICT DO UPDATE … RETURNING`). Tablo `review_rate_limits` (V57): SHA-256 hesap özeti, eylem, pencere başlangıcı/bitişi, sayaç; ham kullanıcı kimliği yoktur. Süresi dolan satırlar (bitişten 5 dakika sonra) dakikada bir temizlenir. Sınırlar `ltz.review.abuse.*` ayarlarıdır. Dış servis çağrısı yoktur.
+- Test Durumu: UNIT + INTEGRATION — PostgreSQL 17 üzerinde kontrollü saatle: 5/60 ve 60/60 sınırları, `Retry-After`, pencere yenilenmesi, tekrar/geçersiz/self-like/404/503 sayımı, eşzamanlı 16 inceleme ve 75 beğeni isteğinde kesin sayım, ortak beğeni/kaldırma kotası, GET'lerin sınırsızlığı, 401/403'ün sayaç yazmaması, temizlik ve tablo kısıtları; gerçek TCP/RS256/JWKS ile 429 + `Retry-After`. Ayrıntı: [Faz 4 raporu](REVIEW_SERVICE_PHASE_04_REPORT.md).
 
 ## REV-09 — Öne çıkan incelemeler
 
@@ -229,3 +246,36 @@ REV-07 rapor API'si, outbox/relay ve REV-10 dış teslimi uygulanmadı. Önerile
 - Bağlantı: RatingSummaryController → RatingSummaryService → RatingSummaryRepository; tek parametreli IN/GROUP BY AVG/count SQL'i, game_ratings dışına JOIN/HTTP yok. En fazla 50 anahtar bellekte sıralanıp eksik oyunlar null/0 tamamlanır; oyun başına SQL yoktur. Boş listede SQL yok. Tek salt okunur transaction/4 saniye; tek statement snapshot'ı bütün gruplar ve ortalama/count için tutarlıdır. Aynı sorgu tekil özette de kullanılır. Yeni tablo/migration/bağımlılık/kalıcı sayaç eklenmedi.
 - Test Durumu: UNIT/INTEGRATION — 102/102 Review testi PASS. 50 oyun/10.000 puanda JdbcClient spy ile tam 1 SQL ve sıfır Game çağrısı doğrulandı; boş/geçersiz listede sıfır SQL. Eşzamanlı okuma/yazma ve gerçek TCP/RS256/JWKS olumlu/olumsuz testleri PASS. Canlı Game/Auth servis tüketimi NOT VERIFIED. Pre-push/backendCheck/Trivy/Sonar: KULLANICI TALEBİYLE ÇALIŞTIRILMADI.
 - Bekleyen sözleşme: [Game talebi](request/game-review-integration.md), [Auth talebi](request/auth-review-integration.md). Servis okuma yolu ve dar izin adı yalnız öneridir; mevcut yetki olarak kullanılamaz.
+
+## REV-14 — Oyun inceleme ve puan istatistikleri
+
+- Durum: IMPLEMENTED — Review backend kabulü. Endpoint adı (`/statistics`) ve DTO bu görevde mevcut `rating-summary` adlandırmasına uygun seçilmiş yeni sözleşmedir; Frontend/Game tüketimi henüz yoktur (NOT VERIFIED).
+- Sorumlu: Hamza.
+- Tüketici servisler: Frontend (Gateway). Game→Review servis erişimi tanımlı değildir; bu uç svc+jwt kabul etmez.
+- Endpoint: `GET /api/v1/review/games/{gameId}/statistics`.
+- Yetkilendirme: Mevcut kullanıcı at+jwt ve PLAYER/CONTENT_CREATOR/GAME_DEVELOPER/MODERATOR/ADMIN rolleri. Anonim erişim ve servis token'ı yoktur. Kimlikler yanıtta dönmez.
+- Path/Query Parameters: `gameId` zorunlu kanonik UUID; query/body yok.
+- Response: 200.
+  ```json
+  {
+    "gameId": "…uuid…",
+    "ratings": {
+      "ratingCount": 6,
+      "averageRating": 5.50,
+      "distribution": [{"rating": 1, "userCount": 2}, …, {"rating": 10, "userCount": 1}]
+    },
+    "reviews": {"activeCount": 2},
+    "recommendations": {
+      "recommendedCount": 3, "notRecommendedCount": 1, "totalCount": 4,
+      "recommendedPercentage": 75.00, "notRecommendedPercentage": 25.00
+    }
+  }
+  ```
+  - `ratings`: yalnız sayısal puanlar. `ratingCount` puan veren **benzersiz kullanıcı** sayısıdır (kullanıcı/oyun başına tek puan); REV-08/REV-12 ile aynıdır. `distribution` her zaman 1–10 arası 10 kova içerir, boş kovalar `userCount=0` ile açıkça yazılır; kovaların toplamı `ratingCount`'a eşittir. `averageRating` REV-08/REV-12 ile aynı `round(avg(rating),2)` ifadesidir (iki ondalık, HALF_UP), puan yoksa `null`.
+  - `reviews.activeCount`: yalnız `VISIBLE` metin incelemeleri. Silinmişler sayılmaz; puan veren veya tavsiye veren kullanıcı sayısıyla ilgisi yoktur (puan/tavsiye verip metin yazmayan kullanıcı bu sayıya girmez).
+  - `recommendations`: yalnız `game_recommendations`. `totalCount = recommendedCount + notRecommendedCount`. Yüzde = `100 × sayı / totalCount`, iki ondalık, HALF_UP, **0–100 ölçeği**; payda `totalCount`'tur (tavsiye vermeyen veya yalnız puan veren kullanıcılar paydaya girmez). `totalCount=0` ise iki yüzde de `null` (0 değil). Her yüzde bağımsız yuvarlandığından tam eşitlik durumlarında toplam 100,01 veya 99,99 olabilir (örn. 1/800 → 0,13 ve 99,88).
+  - Boş oyun (bilinmeyen UUID dahil): tüm sayılar 0, `averageRating=null`, 10 sıfırlı kova, yüzdeler `null`; HTTP 200, Game kataloğu çağrılmaz ve oyun varlığı doğrulanmaz (REV-08 ile aynı politika).
+- Hata Durumları: 400 geçersiz UUID; 401 kimlik yok/geçersiz veya servis token'ı; 403 izinli rol yok; 405 desteklenmeyen metot; 500 beklenmeyen hata. `Cache-Control: private, no-store`.
+- Bağlantı: `ReviewStatisticsController → ReviewStatisticsService → ReviewStatisticsRepository`. Tek salt okunur transaction/4 saniye ve **tek SQL ifadesi**: bağımsız skaler alt sorgular tek snapshot'tan okur; dağılım `generate_series(1,10)` ile tamamlanır. Oyun başına/kova başına ayrı sorgu (N+1) yoktur; yeni tablo, kalıcı sayaç, materialized view veya migration eklenmedi (V57 yalnız REV-13 kotasıdır). Mevcut `ix_game_ratings_game_id` ve `ix_game_recommendations_game_id` kullanılır (disposable PostgreSQL'de 10.000 puan + 4.000 tavsiye + 2.000 inceleme için ~3,8 ms, sıcak yerel ölçüm; üretim SLA'sı değildir). Dış servis çağrısı yoktur.
+- Davranış: Puan PUT güncellemesi kullanıcının kovasını taşır, sayıyı artırmaz; aynı değerin tekrarı değişiklik üretmez. Tavsiye değişikliği iki sayıyı tutarlı kaydırır. Metin silme yalnız `activeCount`'u düşürür; puan/tavsiye korunur. Hesap silme kullanıcının puan, tavsiye ve metnini aynı mevcut transaction'da kaldırdığından sonraki okuma doğru değerleri verir. Gizlenmiş/arşivlenmiş durumlar şemada yoktur; REV-15 politikası kararlaştırılana kadar `activeCount` yalnız `VISIBLE` sayar.
+- Test Durumu: UNIT/INTEGRATION — PostgreSQL 17: boş sonuç, dağılım/kova toplamı, inceleme–puan–tavsiye ayrımı, REV-08 ortalamasıyla eşitlik, yüzde yuvarlama (33,33/66,67 ve 0,13/99,88), puan/tavsiye güncellemesi, metin silme bağımsızlığı, hesap silme, 10.000 puan/tek SQL (JdbcClient spy), eşzamanlı yazıcılarla iç tutarlılık, 401/403/400/405; gerçek TCP/RS256/JWKS ile kullanıcı token'ı 200, svc+jwt ve anonim 401. Pre-push/backendCheck/Trivy/Sonar: KULLANICI TALEBİYLE ÇALIŞTIRILMADI.
