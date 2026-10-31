@@ -96,7 +96,7 @@ flowchart LR
 | event-service | event_db | Nisa | `/api/v1/event/**` | Etkinlik, katılım, kapasite, ceza, turnuva, oylama, hatırlatma | EVT-01..24 |
 | hardware-service | hardware_db | Alper | `/api/v1/hardware/**` | Donanım profilleri, ürün kataloğu, karşılaştırma, donanım yorumları, kampanyalar | HW-01..17 |
 | recommendation-service | recommendation_db | Alper | `/api/v1/recommendation/**` | Kişisel öneri, uyumluluk, tahmini FPS, öneri nedeni/geri bildirim, Python algoritmalı yardımcı | REC-01..23 |
-| performance-service | performance_db | Alper | `/api/v1/performance/**` | Cihaz, performans oturumu, ölçümler, rapor, istatistik, senkronizasyon | PERF-01..22 |
+| performance-service | performance_db | Alper | `/api/v1/performance/**` | Cihaz referansı (kimlik/token/iptal Auth'ta), performans oturumu, ölçümler, rapor, istatistik, senkronizasyon | PERF-01..22 |
 | admin-service | admin_db | Ortak (sahipsiz) | `/api/v1/admin/**` | Kullanıcı yönetimi orkestrasyonu, moderasyon kuyruğu, istatistik, audit | FR-ADM-01..08 |
 | notification-service | notification_db | Ortak (sahipsiz) | `/api/v1/notification/**` | Uygulama içi bildirim, okunmamış, tercihler, duyuru dağıtımı | FR-NOT-01..07 |
 | LTZ Performance Web | — | Alper | — | `frontend/src/features/{performance,hardware,recommendation}` | PWEB-01..10 |

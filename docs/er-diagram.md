@@ -1216,51 +1216,95 @@ erDiagram
 
 ## 16. performance_db
 
+> Cihaz kimliği, eşleştirme kodu, cihaz token'ı ve iptal `auth_db`'dedir (AUTH-17). Performance yalnız cihaz **referansını** (`device_links.auth_device_id`, FK yok) tutar.
+> V21 ile kurulan tablolar: `sync_consents`, `device_links`, `sync_batches`, `performance_write_limits`, `performance_account_erasure_fences`. V22 (Faz 2) ile `performance_sessions` ve `performance_reports` eklendi. V23 (Faz 3) ile `performance_samples` eklendi; `performance_sessions.sample_count` ve `sync_batches.session_id/stored_count/duplicate_count` sütunları geldi.
+> `performance_sessions.user_id`, `game_id` ve `hardware_profile_id` başka servis/hesap kimlikleridir (REF, FK yok). `device_links → performance_sessions` ilişkisi `ON DELETE RESTRICT`, `performance_sessions → performance_reports` ilişkisi `ON DELETE CASCADE`'dir.
+
 ```mermaid
 erDiagram
-  devices ||--o{ performance_sessions : records
-  performance_sessions ||--o{ performance_samples : contains
-  performance_sessions ||--o| performance_reports : summarizes
-  devices ||--o{ sync_batches : sends
+  device_links ||--o{ sync_batches : receives
+  device_links ||--o{ performance_sessions : "records (RESTRICT)"
+  performance_sessions ||--o{ performance_samples : "contains (CASCADE)"
+  device_links ||--o{ performance_samples : "reported by (RESTRICT)"
+  performance_sessions ||--o| performance_reports : "summarizes (CASCADE)"
 
-  devices {
-    uuid id PK
-    uuid user_id "REF"
-    uuid hardware_profile_id "REF hardware"
-    varchar status "PENDING_PAIRING|ACTIVE|REVOKED"
-    varchar credential_hash
+  sync_consents {
+    uuid user_id PK "REF"
+    varchar status "GRANTED|REVOKED"
+    timestamptz granted_at
+    timestamptz revoked_at
   }
-  device_pairing_codes {
+  device_links {
     uuid id PK
+    uuid auth_device_id UK "REF auth_db"
     uuid user_id "REF"
-    varchar code_hash
+    varchar label
+    varchar status "ACTIVE|DISABLED"
+    timestamptz last_sync_at
+  }
+  sync_batches {
+    uuid id PK
+    uuid device_link_id FK
+    uuid user_id "REF"
+    uuid idempotency_key "UK(device_link_id, key)"
+    varchar request_hash "SHA-256 hex"
+    int schema_version "1|2"
+    int sample_count
+    uuid session_id "REF, v2'de dolu (FK yok)"
+    int stored_count
+    int duplicate_count
+    timestamptz expires_at
+  }
+  performance_write_limits {
+    varchar bucket_key PK
+    timestamptz window_start PK
+    int hits
+  }
+  performance_account_erasure_fences {
+    varchar account_hash PK "SHA-256 hex"
     timestamptz expires_at
   }
   performance_sessions {
     uuid id PK
-    uuid user_id "REF"
-    uuid device_id FK "nullable"
-    uuid game_id "REF"
-    varchar source "MANUAL|DESKTOP"
+    uuid user_id "REF, UK kısmi (ACTIVE)"
+    uuid device_link_id FK "nullable, RESTRICT"
+    uuid game_id "REF game_db"
+    varchar game_title "gösterim kopyası"
+    uuid hardware_profile_id "REF hardware_db, nullable"
+    varchar source "MANUAL (Faz 2)"
     varchar status "ACTIVE|COMPLETED|ABANDONED"
+    timestamptz started_at
+    timestamptz ended_at
+    int sample_count "0..100000, sayaç"
+    bigint version
   }
   performance_samples {
     uuid id PK
-    uuid session_id FK
+    uuid session_id FK "CASCADE; UK(session_id, metric, captured_at)"
+    uuid user_id "REF"
+    uuid device_link_id FK "RESTRICT"
+    uuid batch_id "sync_batches.id (FK yok, makbuz 24 sa sonra silinir)"
+    varchar metric "10 metrik (CHECK)"
+    double value "metriğe özgü CHECK"
     timestamptz captured_at
-    varchar metric
-    numeric value
+    timestamptz received_at
+    varchar source "DEVICE"
   }
   performance_reports {
     uuid id PK
-    uuid session_id FK,UK
-    numeric avg_fps
-    numeric max_gpu_temp
-  }
-  sync_batches {
-    uuid id PK
-    uuid device_id FK
-    varchar idempotency_key "UK(device_id, key)"
+    uuid session_id FK,UK "CASCADE"
+    uuid user_id "REF"
+    varchar resolution "WIDTHxHEIGHT"
+    varchar graphics_preset "LOW|MEDIUM|HIGH|ULTRA|CUSTOM"
+    double avg_fps "nullable"
+    double p1_low_fps "nullable"
+    double max_cpu_temp_c "nullable"
+    double max_gpu_temp_c "nullable"
+    double avg_cpu_usage_percent "nullable"
+    double avg_gpu_usage_percent "nullable"
+    varchar notes
+    varchar source "MANUAL"
+    bigint version
   }
 ```
 

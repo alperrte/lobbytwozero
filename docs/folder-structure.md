@@ -20,6 +20,7 @@ lobbytwozero/
 ├─ frontend/                  # Next.js 16 web uygulaması
 ├─ docs/                      # Mimari, güvenlik, veri, kural ve gereksinim belgeleri
 ├─ docs-hardware/             # Hardware görev ilerlemesi, kararlar ve kalite kanıtları
+├─ docs-performance/          # Performance görev ilerlemesi, kararlar, Auth entegrasyonu ve kalite kanıtları
 ├─ postgres/init/             # 01-create-databases.sql (17 DB oluşturma)
 ├─ ops/                       # env.cmd / env.ps1 / env.sh, env.test.mjs, ops.md
 │                             # hardware-auth-e2e.mjs / .test.mjs (izole gerçek HTTP kabulü)
@@ -294,6 +295,12 @@ Kullanıcı onaylı Hardware–Auth entegrasyon planı ve kanıtları `docs-hard
 Auth sahibine iletilecek eksik sözleşme kayıtları bunun `auth-service-talepleri/` altındadır.
 Durum otoritesi kökteki `LTZ_HARDWARE_SERVICE.md` checklist/checkpoint alanıdır;
 merkezi API sözleşmesi `docs/api.md` içinde kalır.
+
+Performance'a özel rapor kökü `docs-performance/` dizinidir (kaynak: `LTZ_Performance_Service_Master_Prompt.md`).
+`progress/` faz ilerlemesini ve `performance-master-checklist.md` PDA kontrol listesini, `decisions/` faz kararlarını,
+`testings/` gerçek kalite kanıtlarını (PASS/FAIL/BLOCKED/NOT RUN), `reports/` sorun kaydı ve nihai raporu içerir.
+Auth entegrasyon kanıtları `integration/auth/`, Auth sahibine iletilecek talepler `integration/auth-service-talepleri/` altındadır.
+Merkezi API sözleşmesi `docs/api.md` içinde kalır.
 
 | Eklenecek | Konum |
 | --- | --- |

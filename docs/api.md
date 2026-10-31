@@ -1,6 +1,6 @@
 # LTZ — API Kataloğu
 
-> Son güncelleme: 2026-10-22
+> Son güncelleme: 2026-10-31
 > Bu dosya projedeki **tüm API'lerin tek kaydıdır**. Bir endpoint planlandığında, eklendiğinde, değiştiğinde veya kaldırıldığında, aynı değişiklikte buraya kendi servisinin başlığı altında yazılır.
 > İlgili belgeler: [architecture.md](architecture.md) (gateway ve servisler arası iletişim), [SECURITY.md](SECURITY.md) (yetkilendirme, ProblemDetail), [web-rules.md](web-rules.md) (frontend tüketimi).
 
@@ -8082,7 +8082,1193 @@ _Kayıt yok._
 
 Sorumlu: Alper · Gateway: `/api/v1/performance/**` · Görevler: PERF-, PWEB-
 
-_Kayıt yok._
+> **Faz 1 (LTZ-ALP-PERF-01) notu.** Cihaz kimliği, eşleştirme, cihaz token'ı ve iptal **Auth Service'tedir** (bkz. AUTH — Masaüstü cihaz kimliği). Performance yalnız cihazın kendi referansını (`device_links`), izni, senkronizasyon kaydını ve silmeyi yönetir.
+> Cihaz token'ıyla senkronizasyon (`POST /sync/batches`) Auth'un `aud=performance-service` / `scope=performance:sync:write` üretmesine bağlıdır (talep: [auth-requests-01.md](../docs-performance/integration/auth-service-talepleri/auth-requests-01.md) REQ-01-A) ve **gerçek Auth cihaz token'ıyla uçtan uca doğrulanmadı**. Aşağıdaki `Test Durumu` alanları bunu açıkça belirtir.
+> Tüm başarılı yanıtlar `Cache-Control: private, no-store` taşır. Tüm hata gövdeleri `ProblemDetail` + `code` alanıdır. Ortak hata kodları: `AUTHENTICATION_REQUIRED` (401), `ACCESS_DENIED` (403), `INVALID_REQUEST` (400/422), `RATE_LIMITED` (429), `REQUEST_TOO_LARGE` (413), `AUTH_UNAVAILABLE` (503 + `Retry-After: 30`), `PERFORMANCE_NOT_FOUND` (404), `INTERNAL_ERROR` (500).
+
+### PERFORMANCE — Senkronizasyon izni (oku)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+GET /api/v1/performance/sync-consent
+
+#### Yetkilendirme
+Owner (kullanıcı token'ı `at+jwt`; yalnız kendi izni)
+
+#### Response — 200
+```json
+{
+  "granted": false,
+  "grantedAt": null,
+  "revokedAt": null
+}
+```
+Kayıt yoksa izin verilmemiş sayılır (`granted=false`).
+
+#### Hata Durumları
+- 401: Bearer yok/geçersiz; cihaz veya servis token'ı kullanıcı ucunda geçmez
+- 403: Kullanıcı hesabı pasif/silinmeye alınmış
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sync-consent
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION (PostgreSQL Testcontainers + gerçek filtre zinciri; Auth kullanıcı token'ı gerçek Auth kaynak kodundan üretilen JWKS ile imzalı)
+
+### PERFORMANCE — Senkronizasyon izni ver
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+PUT /api/v1/performance/sync-consent
+
+#### Yetkilendirme
+Owner
+
+#### Response — 200
+```json
+{
+  "granted": true,
+  "grantedAt": "2026-01-01T10:00:00Z",
+  "revokedAt": null
+}
+```
+İdempotenttir; tekrar çağrı `grantedAt` değerini değiştirmez.
+
+#### Hata Durumları
+- 401: Bearer yok/geçersiz
+- 403: Hesap pasif / silinmeye alınmış (`ACCESS_DENIED`)
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sync-consent
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### PERFORMANCE — Senkronizasyon iznini geri al
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+DELETE /api/v1/performance/sync-consent
+
+#### Yetkilendirme
+Owner
+
+#### Response — 200
+```json
+{
+  "granted": false,
+  "grantedAt": "2026-01-01T10:00:00Z",
+  "revokedAt": "2026-01-02T10:00:00Z"
+}
+```
+İdempotenttir. İzin geri alınınca sonraki senkronizasyonlar `403 SYNC_CONSENT_REQUIRED` ile reddedilir.
+
+#### Hata Durumları
+- 401: Bearer yok/geçersiz
+- 403: Hesap pasif / silinmeye alınmış
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sync-consent
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### PERFORMANCE — Bağlı cihazları listele
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+GET /api/v1/performance/devices
+
+#### Yetkilendirme
+Owner (yalnız çağıranın kendi cihaz referansları)
+
+#### Response — 200
+```json
+[
+  {
+    "id": "UUID — Performance bağlantı kimliği (yol parametresi olarak kullanılır)",
+    "deviceId": "UUID — Auth Service cihaz kimliği",
+    "label": "Oyun PC",
+    "status": "ACTIVE | DISABLED",
+    "linkedAt": "2026-01-01T10:00:00Z",
+    "lastSyncAt": null,
+    "disabledAt": null
+  }
+]
+```
+
+#### Hata Durumları
+- 401: Bearer yok/geçersiz
+- 403: Hesap pasif / silinmeye alınmış
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/devices
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### PERFORMANCE — Cihaz bağla
+
+Durum: IN PROGRESS
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+POST /api/v1/performance/devices
+
+#### Yetkilendirme
+Owner. Cihaz sahipliği ve etkinliği, çağıranın Bearer token'ı **Auth Service'e iletilerek** `GET /api/v1/auth/devices` yanıtından doğrulanır (Auth DB'sine erişilmez). Auth yanıt vermezse fail-closed: `503 AUTH_UNAVAILABLE`.
+
+#### Request Body
+```json
+{
+  "deviceId": "UUID — Auth'ta oluşturulmuş, kullanıcının kendi cihazı"
+}
+```
+
+#### Response — 200
+```json
+{
+  "id": "UUID",
+  "deviceId": "UUID",
+  "label": "Auth'taki cihaz etiketi (temizlenmiş, en çok 64 karakter)",
+  "status": "ACTIVE",
+  "linkedAt": "2026-01-01T10:00:00Z",
+  "lastSyncAt": null,
+  "disabledAt": null
+}
+```
+İdempotenttir: aynı cihaz tekrar bağlanırsa mevcut kayıt döner (devre dışıysa yeniden etkinleşir).
+
+#### Hata Durumları
+- 400/422: Geçersiz `deviceId` (`INVALID_REQUEST`)
+- 401: Bearer yok/geçersiz
+- 403: Cihaz çağıranın Auth listesinde yok / iptal edilmiş (`DEVICE_NOT_LINKED`) ya da hesap pasif
+- 409: Hesap başına 5 bağlantı sınırı (`DEVICE_LINK_LIMIT_REACHED`); cihaz başka hesapta bağlı (`DEVICE_LINK_CONFLICT`)
+- 429: Hız sınırı
+- 503: Auth Service erişilemez/bozuk yanıt (`AUTH_UNAVAILABLE`, `Retry-After: 30`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/devices
+
+Diğer mikroservisler:
+Auth Service'e RestClient: `GET /api/v1/auth/devices` (çağıranın Bearer'ı iletilir)
+
+#### Test Durumu
+INTEGRATION — Auth cihaz listesi **yerel Auth sapmasıyla** (belgelenmiş yanıt şekli) test edildi; gerçek Auth ortamıyla uçtan uca doğrulanmadı (durum IN PROGRESS).
+
+### PERFORMANCE — Cihaz bağlantısını kaldır
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+DELETE /api/v1/performance/devices/{linkId}
+
+#### Yetkilendirme
+Owner (başkasının bağlantısı için 404 — IDOR bilgi sızdırmaz)
+
+#### Path Parameters
+- linkId: UUID, zorunlu — `GET /devices` yanıtındaki `id`
+
+#### Response — 200
+```json
+{
+  "id": "UUID",
+  "deviceId": "UUID",
+  "label": "Oyun PC",
+  "status": "DISABLED",
+  "linkedAt": "2026-01-01T10:00:00Z",
+  "lastSyncAt": null,
+  "disabledAt": "2026-01-02T10:00:00Z"
+}
+```
+Kayıt silinmez, `DISABLED` yapılır; idempotenttir. Devre dışı cihaz yeni senkronizasyon yapamaz. Cihaz kimliğinin Auth'ta iptali ayrıca `DELETE /api/v1/auth/devices/{deviceId}` ile yapılır (Performance iptal etmez).
+
+#### Hata Durumları
+- 400: Geçersiz `linkId`
+- 401: Bearer yok/geçersiz
+- 404: Bağlantı yok veya çağıranın değil (`PERFORMANCE_NOT_FOUND`)
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/devices/{linkId}
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### PERFORMANCE — Ölçüm senkronizasyonu kabul (zarf v1 + örnekler v2, PERF-05..12)
+
+Durum: IN PROGRESS
+Sorumlu: Alper
+Tüketici servisler: Masaüstü istemcisi (planlı)
+
+#### Endpoint
+POST /api/v1/performance/sync/batches
+
+#### Yetkilendirme
+Cihaz token'ı (`Authorization: Bearer <dev+jwt>`): `typ=dev+jwt`, `iss=ltz-auth`, **tek** `aud=performance-service`, `scope=performance:sync:write`, `sub`=cihaz UUID, `account_id`, `jti`, ömür ≤ 60 sn. Kullanıcı ve servis token'ı bu uçta geçmez; Hardware için üretilmiş cihaz token'ı (`aud=hardware-service`) **reddedilir**.
+Ayrıca: hesapta açık senkronizasyon izni + bu cihaz için aktif `device_links` kaydı gerekir. v2'de `sessionId` çağıran hesabın oturumu olmalıdır (başkasının veya olmayan oturum aynı 404).
+> **BLOCKED:** Auth bugün yalnız `aud=hardware-service` cihaz token'ı üretir. Gerçek akış REQ-01-A (Auth değişikliği) sonrası çalışır.
+
+#### Header Parameters
+- Idempotency-Key: UUID, zorunlu
+
+#### Request Body — v1 (Faz 1, geriye uyumlu; yalnız zarf)
+```json
+{
+  "schemaVersion": 1,
+  "clientSentAt": "2026-01-01T10:00:00Z",
+  "sampleCount": 0
+}
+```
+`sampleCount` 0..500 zorunlu; `sessionId` ve `samples` v1'de gönderilemez (400).
+
+#### Request Body — v2 (Faz 3, örnek içeren)
+```json
+{
+  "schemaVersion": 2,
+  "clientSentAt": "2026-01-01T10:00:00Z",
+  "sessionId": "UUID",
+  "samples": [
+    { "capturedAt": "2026-01-01T10:00:00.250Z", "metric": "FPS", "value": 143.9 },
+    { "capturedAt": "2026-01-01T10:00:00.250Z", "metric": "CPU_TEMP_C", "value": 61.5 }
+  ]
+}
+```
+- `sessionId` ve `samples` zorunludur (`samples` boş olabilir, en çok **500**); v2'de `sampleCount` gönderilemez (400), sayı `samples` uzunluğundan türetilir.
+- `metric` yalnız **kanonik büyük harfli** ad (büyük/küçük harf dönüşümü yoktur). Birimi istemci seçmez; her metriğin tek birimi vardır.
+- `value` yalnız JSON **sayısı**dır; `"60"`, `true`, `null`, dizi ve nesne 400 ile reddedilir. Ölçülemeyen değer için örnek gönderilmez; sunucu hiçbir zaman eksik değeri 0 ile doldurmaz.
+- `capturedAt` milisaniyeye kesilir. Pencere: `oturum başlangıcı − 5 dk` .. `min(şimdi + 5 dk, oturum bitişi + 5 dk)`. Sırasız gönderim kabul edilir.
+- Kaynak her zaman `DEVICE`'tır (sunucu atar). `clientSentAt` şu andan −24 sa .. +5 dk aralığında olmalıdır.
+- Gövde üst sınırı bu uçta **64 KiB** (diğer uçlarda 16 KiB); aşılırsa 413.
+
+| Metrik | Birim | Geçerli aralık |
+|---|---|---|
+| `CPU_TEMP_C`, `GPU_TEMP_C` | °C | 0 < v ≤ 150 |
+| `CPU_USAGE_PERCENT`, `GPU_USAGE_PERCENT` | % | 0 ≤ v ≤ 100 |
+| `RAM_USED_MB` | MB | 0 ≤ v ≤ 1.048.576 |
+| `VRAM_USED_MB` | MB | 0 ≤ v ≤ 262.144 |
+| `DISK_READ_MBPS`, `DISK_WRITE_MBPS` | MB/s | 0 ≤ v ≤ 100.000 |
+| `FAN_RPM` | RPM | 0 ≤ v ≤ 30.000 |
+| `FPS` | FPS | 0 < v ≤ 1000 |
+
+> Aralıklar **geçici varsayımdır**: gerçek masaüstü sensör sözleşmesi henüz yoktur (bkz. docs-performance/reports/issues.md). Sıcaklık ve FPS için 0 "ölçülememiş" demektir ve reddedilir.
+
+#### Response — 200
+```json
+{
+  "batchId": "UUID",
+  "sampleCount": 2,
+  "storedSamples": 2,
+  "duplicateSamples": 0,
+  "receivedAt": "2026-01-01T10:00:01Z",
+  "replayed": false
+}
+```
+- v1'de `storedSamples` ve `duplicateSamples` 0'dır (zarf içeriği saklanmaz).
+- Aynı oturumda aynı `(metric, capturedAt)` noktası zaten varsa **ilk yazılan korunur**, yeni gelen yazılmaz ve `duplicateSamples`'a sayılır (farklı anahtarla yeniden gönderim çoğaltma yaratmaz).
+- Aynı `Idempotency-Key` + aynı içerik tekrarında aynı `batchId` ve ilk sonuçla `replayed=true` döner (yeni kayıt oluşmaz; oturum sonradan silinmiş olsa da ilk sonuç döner).
+- Gönderim **hep-ya-hiç**tir: herhangi bir örnek geçersizse hiçbir örnek yazılmaz ve makbuz oluşmaz (aynı anahtar düzeltilmiş içerikle yeniden kullanılabilir).
+
+#### Hata Durumları
+- 400: Geçersiz/eksik Idempotency-Key, geçersiz gövde, bilinmeyen alan, şema–alan uyumsuzluğu (v1'de örnek/`sessionId`, v2'de `sampleCount`/eksik `sessionId`/`samples`), 500'den fazla örnek, sayı olmayan `value` (`INVALID_REQUEST`)
+- 401: Token yok/geçersiz/yanlış `aud`/`scope`/`typ`/ömür
+- 403: Açık izin yok (`SYNC_CONSENT_REQUIRED`); cihaz bağlı değil/devre dışı (`DEVICE_NOT_LINKED`); hesap pasif
+- 404: Oturum yok veya başkasına ait (`PERFORMANCE_NOT_FOUND`)
+- 409: Aynı anahtar farklı içerikle (`IDEMPOTENCY_KEY_REUSED`); cihaz başına 1500 canlı makbuz sınırı (`SYNC_BATCH_LIMIT_REACHED`); oturum ACTIVE (24 saatten eski değil) veya en çok 10 dk önce COMPLETED değil (`SESSION_NOT_ACCEPTING_SAMPLES`); oturum başına 100.000 örnek (`SESSION_SAMPLE_LIMIT_REACHED`); hesap başına 500.000 örnek (`USER_SAMPLE_QUOTA_REACHED`)
+- 413: Gövde çok büyük (`REQUEST_TOO_LARGE`)
+- 422 (`sampleIndex` ihlal eden örneğin 0 tabanlı sırasıdır, değer yansıtılmaz): `SYNC_CLIENT_TIME_INVALID`; `SAMPLE_METRIC_UNSUPPORTED`; `SAMPLE_VALUE_INVALID` (aralık dışı/NaN/sonsuz); `SAMPLE_TIME_INVALID` (pencere dışı); `SAMPLE_DUPLICATE_IN_BATCH` (aynı gönderimde aynı metrik+an)
+- 429: Hız sınırı
+- 503: JWKS/Auth erişilemez (fail-closed)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Masaüstü istemcisi API Gateway üzerinden /api/v1/performance/sync/batches. Auth JWKS ile imza doğrulanır. Okuma/istatistik uçları Faz 4'tedir.
+
+#### Test Durumu
+INTEGRATION — gerçek filtre zinciri + PostgreSQL; cihaz token'ı **yerel imzalı** sözleşme token'ıdır, gerçek Auth cihaz token'ıyla E2E değildir (BLOCKED, REQ-01-A). Gerçek masaüstü istemcisiyle E2E yapılmadı (istemci sözleşmesi yok).
+
+### PERFORMANCE — Hesap verisi silme (Auth D4)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Auth Service
+
+#### Endpoint
+DELETE /internal/v1/accounts/{accountId}
+
+#### Yetkilendirme
+Internal — `svc+jwt`, **tek** `aud=performance-service`, `sub=svc:auth-service`, `scope=account:erase`, `account_id` = path, `jti`, ≤ 60 sn. Gateway'den açılmaz.
+
+#### Path Parameters
+- accountId: UUID, zorunlu
+
+#### Response — 204
+Gövde yok. İdempotenttir. Hesap için silme çiti (fence) kurulur; silme sonrası yazma engellenir.
+
+#### Hata Durumları
+- 401: Token yok/geçersiz
+- 403: Yanlış scope/sub/`account_id` bağlaması
+- 503: Temizlik partisi tamamlanmadı (`ACCOUNT_ERASURE_PENDING`, `Retry-After: 60`) — Auth yeniden dener
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Auth Service silme işçisi (`ltz.auth.deletion.targets` → `performance`) doğrudan çağırır.
+
+#### Test Durumu
+INTEGRATION — uç ve token bağlaması test edildi; ortak DEV ortamında Auth silme işçisiyle **doğrulanmadı** (NOT VERIFIED).
+
+### PERFORMANCE — Aktif sahipli cihaz doğrulama (Hardware)
+
+Durum: IN PROGRESS
+Sorumlu: Alper
+Tüketici servisler: Hardware Service (istemci henüz yok — öneri)
+
+#### Endpoint
+GET /internal/v1/accounts/{accountId}/devices/{deviceId}
+
+#### Yetkilendirme
+Internal — `svc+jwt`, `aud=performance-service`, `sub=svc:hardware-service`, `scope=devices:verify`, `account_id` = path. Gateway'den açılmaz.
+> **BLOCKED (REQ-01-C):** Auth servis token üreticisi `sub` değerini her zaman `svc:auth-service` yapar ve `devices:verify` çifti yoktur; bu nedenle gerçek Hardware token'ı alınamaz.
+
+#### Path Parameters
+- accountId: UUID, zorunlu
+- deviceId: UUID, zorunlu — Auth cihaz kimliği
+
+#### Response — 204
+Gövde yok: cihaz hesaba ait ve Performance'ta aktif.
+
+#### Hata Durumları
+- 401: Token yok/geçersiz
+- 403: Yanlış `sub`/scope/`account_id` bağlaması
+- 404: Cihaz yok, başka hesaba ait veya devre dışı (bilgi sızdırmaz)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Hardware `HardwareSyncDevicePolicy` için RestClient istemcisi **öneridir**; Hardware kodu değiştirilmemiştir (Hardware sahibine ayrıca bildirilmelidir).
+
+#### Test Durumu
+INTEGRATION — yalnız yerel imzalı `sub=svc:hardware-service` token'ıyla; gerçek Auth servis token'ı bu uçta 403 alır (BLOCKED).
+
+> **Faz 2 (LTZ-ALP-PERF-02) notu — manuel oturum ve rapor (PERF-03/04/13/20).** Aşağıdaki uçlar yalnız **kullanıcı token'ıyla** (`at+jwt`, `aud=ltz-api`) çalışır; cihaz ve servis token'ı geçmez (401). Her uçta sahiplik sorgusu `user_id = token.sub` ile yapılır; başkasının veya olmayan kaynak **aynı** `404 PERFORMANCE_NOT_FOUND` döner (IDOR bilgi sızdırmaz). Zaman her zaman sunucu saatindendir; istemci `startedAt`/`endedAt`/`status`/`userId` gönderirse 400 (bilinmeyen alan). Bu fazda oturum yalnız `MANUAL`'dır; cihaz kaynaklı (`DEVICE`) oturum yoktur.
+> Oyun ve donanım profili doğrulaması **servis sözleşmeleriyle** yapılır: Game `POST /api/v1/game/games/batch` (GAME-15) ve Hardware `POST /api/v1/hardware/profiles/batch` (HW-17, çağıranın kendi Bearer'ı iletilir). Bu çağrılar **gerçek Game/Hardware ile uçtan uca doğrulanmadı**; testler yerel sapma (mock) kullanır (`DEFERRED_CONTRACT` / `NOT_VERIFIED`). Bağımlı servis yanıt vermezse veya sözleşme dışı gövde dönerse kayıt **açılmaz**; `503` + `Retry-After: 30` (kapalı başarısızlık).
+> Ek hata kodları: `ACTIVE_SESSION_EXISTS`, `SESSION_LIMIT_REACHED`, `SESSION_ALREADY_ENDED`, `SESSION_NOT_COMPLETED` (409); `GAME_NOT_FOUND`, `HARDWARE_PROFILE_NOT_FOUND`, `DEVICE_LINK_NOT_FOUND`, `REPORT_EMPTY`, `REPORT_INCONSISTENT` (422); `GAME_SERVICE_UNAVAILABLE`, `HARDWARE_SERVICE_UNAVAILABLE` (503). Yazma uçları hesap başına 60/dk (`session-user`) ve ortak adres kovası 120/dk ile sınırlıdır (429, `Retry-After: 60`).
+
+### PERFORMANCE — Oturum başlat (PERF-03)
+
+Durum: IN PROGRESS
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+POST /api/v1/performance/sessions
+
+#### Yetkilendirme
+Owner (kullanıcı token'ı). Kullanıcı başına aynı anda en çok bir `ACTIVE` oturum; hesap başına en çok 1000 saklanan oturum.
+
+#### Request Body
+```json
+{
+  "gameId": "UUID",
+  "hardwareProfileId": "UUID (opsiyonel)",
+  "deviceLinkId": "UUID (opsiyonel)"
+}
+```
+`gameId` zorunludur ve Game Service'ten doğrulanır; oyun adı gösterim için kopyalanır. `hardwareProfileId` verilirse Hardware Service'ten çağıranın sahipliği doğrulanır. `deviceLinkId` verilirse çağıranın **aktif** `device_links` kaydı olmalıdır. Bilinmeyen alan reddedilir.
+
+#### Response — 201
+```json
+{
+  "id": "UUID",
+  "gameId": "UUID",
+  "gameTitle": "Oyun adı",
+  "hardwareProfileId": null,
+  "deviceLinkId": null,
+  "source": "MANUAL",
+  "status": "ACTIVE",
+  "startedAt": "2026-01-01T10:00:00Z",
+  "endedAt": null,
+  "durationSeconds": null,
+  "sampleCount": 0
+}
+```
+24 saatten uzun süredir `ACTIVE` kalan eski oturum otomatik `ABANDONED` yapılır (`endedAt = startedAt + 24 sa`) ve yeni başlatmayı engellemez.
+
+#### Hata Durumları
+- 400: Geçersiz/eksik gövde, bilinmeyen alan (`INVALID_REQUEST`)
+- 401: Token yok/geçersiz; cihaz/servis token'ı
+- 403: Hesap pasif/silinmeye alınmış
+- 409: Zaten aktif oturum var (`ACTIVE_SESSION_EXISTS`); 1000 oturum sınırı (`SESSION_LIMIT_REACHED`)
+- 422: Oyun yok (`GAME_NOT_FOUND`); profil yok/başkasının (`HARDWARE_PROFILE_NOT_FOUND`); bağlantı yok/başkasının/devre dışı (`DEVICE_LINK_NOT_FOUND`)
+- 429: Hız sınırı
+- 503: Game/Hardware yanıtsız veya sözleşme dışı (`GAME_SERVICE_UNAVAILABLE`, `HARDWARE_SERVICE_UNAVAILABLE`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions
+
+Diğer mikroservisler:
+Game GAME-15 (`/api/v1/game/games/batch`, anonim) ve Hardware HW-17 (`/api/v1/hardware/profiles/batch`, kullanıcı Bearer'ı iletilir). Çağrılar transaction dışında yapılır; yeniden deneme yoktur.
+
+#### Test Durumu
+INTEGRATION (PostgreSQL Testcontainers, gerçek filtre zinciri, kullanıcı token'ı gerçek Auth kaynak kodundan üretilen JWKS ile imzalı). Game/Hardware **yerel sapma (mock)**; gerçek servislerle E2E DEFERRED_CONTRACT / NOT_VERIFIED.
+
+### PERFORMANCE — Oturumları listele (PERF-03)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+GET /api/v1/performance/sessions
+
+#### Yetkilendirme
+Owner (yalnız kendi oturumları)
+
+#### Query Parameters
+- page: int, varsayılan 0, ≥ 0
+- size: int, varsayılan 20, 1..50
+- gameId, hardwareProfileId, deviceLinkId: UUID, isteğe bağlı (PERF-19); birlikte verilirse AND
+- status: `ACTIVE`, `COMPLETED`, `ABANDONED`, isteğe bağlı
+- startedFrom, startedTo: ISO-8601 an, oturum başlangıcına göre yarı açık aralık `[startedFrom, startedTo)`; `startedFrom < startedTo`, sınırlar 2000-01-01..2200-01-01
+
+#### Response — 200
+```json
+{
+  "items": [ { "id": "UUID", "gameId": "UUID", "gameTitle": "Oyun adı", "hardwareProfileId": null, "deviceLinkId": null, "source": "MANUAL", "status": "COMPLETED", "startedAt": "2026-01-01T10:00:00Z", "endedAt": "2026-01-01T11:00:00Z", "durationSeconds": 3600, "sampleCount": 0 } ],
+  "page": 0,
+  "size": 20,
+  "hasNext": false,
+  "totalElements": 1
+}
+```
+Sıra sabittir: `startedAt DESC, id DESC`. `totalElements` filtreye uyan toplam oturum sayısıdır (PERF-14).
+
+#### Hata Durumları
+- 400: Geçersiz `page`/`size`/filtre/zaman aralığı (`INVALID_REQUEST`)
+- 401: Token yok/geçersiz
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### PERFORMANCE — Aktif oturum (PERF-03)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+GET /api/v1/performance/sessions/active
+
+#### Yetkilendirme
+Owner
+
+#### Response — 200
+Oturum nesnesi ([Oturum başlat](#performance--oturum-başlat-perf-03) ile aynı biçim, `status=ACTIVE`).
+
+#### Hata Durumları
+- 401: Token yok/geçersiz
+- 404: Aktif oturum yok veya 24 saati aşmış (terk edilmiş sayılır) (`PERFORMANCE_NOT_FOUND`)
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions/active
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### PERFORMANCE — Oturum detayı (PERF-03)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+GET /api/v1/performance/sessions/{sessionId}
+
+#### Yetkilendirme
+Owner (başkasının oturumu 404)
+
+#### Path Parameters
+- sessionId: UUID, zorunlu
+
+#### Response — 200
+Oturum nesnesi ([Oturum başlat](#performance--oturum-başlat-perf-03) ile aynı biçim).
+
+#### Hata Durumları
+- 400: `sessionId` UUID değil
+- 401: Token yok/geçersiz
+- 404: Oturum yok veya başkasına ait (`PERFORMANCE_NOT_FOUND`)
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions/{sessionId}
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION (IDOR: başkasının/olmayan oturum aynı 404)
+
+### PERFORMANCE — Oturumu bitir (PERF-04)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+POST /api/v1/performance/sessions/{sessionId}/end
+
+#### Yetkilendirme
+Owner
+
+#### Path Parameters
+- sessionId: UUID, zorunlu
+
+#### Request Body (opsiyonel)
+```json
+{ "status": "COMPLETED" }
+```
+`status` yalnız `COMPLETED` (varsayılan) veya `ABANDONED`. `ACTIVE`, geçersiz değer ve istemci zamanı reddedilir. Bitiş zamanı sunucu saatidir.
+
+#### Response — 200
+```json
+{
+  "id": "UUID",
+  "gameId": "UUID",
+  "gameTitle": "Oyun adı",
+  "hardwareProfileId": null,
+  "deviceLinkId": null,
+  "source": "MANUAL",
+  "status": "COMPLETED",
+  "startedAt": "2026-01-01T10:00:00Z",
+  "endedAt": "2026-01-01T11:00:00Z",
+  "durationSeconds": 3600,
+  "sampleCount": 0
+}
+```
+İdempotenttir: aynı bitiş durumu tekrar istenirse kayıt ve `version` değişmez. Eşzamanlı bitirmelerde hesap kilidi sayesinde tek kazanan oluşur.
+
+#### Hata Durumları
+- 400: Geçersiz gövde/durum (`INVALID_REQUEST`)
+- 401: Token yok/geçersiz
+- 404: Oturum yok veya başkasına ait
+- 409: Oturum farklı bir sonuçla zaten bitmiş; mevcut sonuç ezilmez (`SESSION_ALREADY_ENDED`)
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions/{sessionId}/end
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION (idempotent tekrar, 8 eşzamanlı bitirme, bitirme–silme yarışı, iyimser kilit, IDOR)
+
+### PERFORMANCE — Oturumu sil (PERF-20)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+DELETE /api/v1/performance/sessions/{sessionId}
+
+#### Yetkilendirme
+Owner
+
+#### Path Parameters
+- sessionId: UUID, zorunlu
+
+#### Response — 204
+Gövde yok. Oturum ve bağlı raporu (CASCADE) kalıcı silinir; `ACTIVE` oturum da silinebilir.
+
+#### Hata Durumları
+- 401: Token yok/geçersiz
+- 404: Oturum yok, başkasına ait veya zaten silinmiş (`PERFORMANCE_NOT_FOUND`)
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions/{sessionId}
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### PERFORMANCE — Tüm oturumları sil (PERF-20)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+DELETE /api/v1/performance/sessions?confirm=true
+
+#### Yetkilendirme
+Owner (yalnız çağıranın verisi)
+
+#### Query Parameters
+- confirm: boolean, zorunlu; yalnız `true` kabul edilir
+
+#### Response — 200
+```json
+{ "deletedSessions": 3 }
+```
+Çağıranın tüm oturumları ve raporları silinir; başka kullanıcılar etkilenmez. İdempotenttir (ikinci çağrı `0`). Cihaz bağlantıları ve senkronizasyon izni korunur.
+
+#### Hata Durumları
+- 400: `confirm` eksik veya `false` (`INVALID_REQUEST`)
+- 401: Token yok/geçersiz
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions?confirm=true
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### PERFORMANCE — Oyun performans raporu yaz (PERF-13)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+PUT /api/v1/performance/sessions/{sessionId}/report
+
+#### Yetkilendirme
+Owner. Oturum **COMPLETED** olmalıdır; oturum başına en çok bir rapor.
+
+#### Path Parameters
+- sessionId: UUID, zorunlu
+
+#### Request Body
+```json
+{
+  "resolution": "1920x1080",
+  "graphicsPreset": "HIGH",
+  "avgFps": 92.5,
+  "p1LowFps": 61,
+  "maxCpuTempC": 78,
+  "maxGpuTempC": 81,
+  "avgCpuUsagePercent": 55,
+  "avgGpuUsagePercent": 97,
+  "notes": "Elle girilen not"
+}
+```
+`resolution` (`^[0-9]{3,5}x[0-9]{3,5}$`) ve `graphicsPreset` (`LOW|MEDIUM|HIGH|ULTRA|CUSTOM`) zorunlu. Ölçümler opsiyoneldir ve **girilmezse `null` kalır, sistem doldurmaz**; en az biri gerekir. Aralıklar: FPS > 0..1000, sıcaklık 0..150, kullanım 0..100, `p1LowFps ≤ avgFps`, `notes` ≤ 500. `source` her zaman `MANUAL`; istemci `source`/`sessionId` gönderemez.
+
+#### Response — 201 (ilk yazım) / 200 (güncelleme)
+```json
+{
+  "id": "UUID",
+  "sessionId": "UUID",
+  "resolution": "1920x1080",
+  "graphicsPreset": "HIGH",
+  "avgFps": 92.5,
+  "p1LowFps": 61.0,
+  "maxCpuTempC": 78.0,
+  "maxGpuTempC": 81.0,
+  "avgCpuUsagePercent": 55.0,
+  "avgGpuUsagePercent": 97.0,
+  "notes": "Elle girilen not",
+  "source": "MANUAL",
+  "createdAt": "2026-01-01T11:00:01Z",
+  "updatedAt": "2026-01-01T11:00:01Z"
+}
+```
+İdempotenttir: aynı değerlerle tekrar `200` döner ve kaydı değiştirmez; farklı değerler raporu tamamen değiştirir (tek satır).
+
+#### Hata Durumları
+- 400: Geçersiz alan/aralık/biçim, bilinmeyen alan (`INVALID_REQUEST`)
+- 401: Token yok/geçersiz
+- 404: Oturum yok veya başkasına ait
+- 409: Oturum `COMPLETED` değil (`SESSION_NOT_COMPLETED`)
+- 422: Hiç ölçüm yok (`REPORT_EMPTY`); `p1LowFps > avgFps` (`REPORT_INCONSISTENT`)
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions/{sessionId}/report
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION + DB CHECK kısıtları gerçek PostgreSQL'de doğrulandı. Otomatik/cihaz kaynaklı ölçüm bu fazda yoktur.
+
+### PERFORMANCE — Oyun performans raporunu oku (PERF-13)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+GET /api/v1/performance/sessions/{sessionId}/report
+
+#### Yetkilendirme
+Owner
+
+#### Path Parameters
+- sessionId: UUID, zorunlu
+
+#### Response — 200
+Rapor nesnesi ([Rapor yaz](#performance--oyun-performans-raporu-yaz-perf-13) ile aynı biçim).
+
+#### Hata Durumları
+- 401: Token yok/geçersiz
+- 404: Oturum veya rapor yok, ya da başkasına ait (`PERFORMANCE_NOT_FOUND`)
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions/{sessionId}/report
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### PERFORMANCE — Oyun performans raporunu sil (PERF-20)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+DELETE /api/v1/performance/sessions/{sessionId}/report
+
+#### Yetkilendirme
+Owner (başkasının raporu silinemez)
+
+#### Path Parameters
+- sessionId: UUID, zorunlu
+
+#### Response — 204
+Gövde yok. Yalnız rapor silinir; oturum korunur ve rapor yeniden yazılabilir.
+
+#### Hata Durumları
+- 401: Token yok/geçersiz
+- 404: Rapor yok, zaten silinmiş veya başkasına ait (`PERFORMANCE_NOT_FOUND`)
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions/{sessionId}/report
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### PERFORMANCE — Oturum örneklerini sil (PERF-05..12)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+DELETE /api/v1/performance/sessions/{sessionId}/samples
+
+#### Yetkilendirme
+Owner (kullanıcı token'ı; cihaz token'ı kabul edilmez). Başkasının veya olmayan oturum aynı 404'ü döner.
+
+#### Path Parameters
+- sessionId: UUID, zorunlu
+
+#### Response — 204
+Gövde yok. Oturumun tüm ölçüm örnekleri silinir ve `sampleCount` 0'a döner; oturum ve rapor korunur. Örnek yoksa da 204 (idempotent). Silinen aralık yeniden gönderilebilir; hesap örnek kotası serbest kalır.
+
+#### Hata Durumları
+- 401: Token yok/geçersiz; cihaz/servis token'ı
+- 403: Hesap pasif/silinmeye alınmış
+- 404: Oturum yok veya başkasına ait (`PERFORMANCE_NOT_FOUND`)
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions/{sessionId}/samples
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### PERFORMANCE — Oturum örneklerini oku (PERF-14/19)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+GET /api/v1/performance/sessions/{sessionId}/samples
+
+#### Yetkilendirme
+Owner (kullanıcı token'ı; cihaz/servis token'ı kabul edilmez). Başkasının veya olmayan oturum aynı 404'ü döner.
+
+#### Path/Query Parameters
+- sessionId: UUID, zorunlu
+- metric: `CPU_TEMP_C`, `GPU_TEMP_C`, `CPU_USAGE_PERCENT`, `GPU_USAGE_PERCENT`, `RAM_USED_MB`, `VRAM_USED_MB`, `DISK_READ_MBPS`, `DISK_WRITE_MBPS`, `FAN_RPM`, `FPS` (kanonik büyük harf); verilmezse tümü
+- from: ISO-8601 an, isteğe bağlı, `capturedAt >= from`
+- to: ISO-8601 an, isteğe bağlı, `capturedAt < to`; `from < to` olmalı, sınırlar 2000-01-01..2200-01-01
+- page: int, varsayılan 0, ≥ 0
+- size: int, varsayılan 100, 1..500
+
+#### Response — 200
+```json
+{
+  "items": [ { "metric": "FPS", "unit": "FPS", "capturedAt": "2026-01-01T10:00:01Z", "value": 60.0 } ],
+  "page": 0,
+  "size": 100,
+  "hasNext": false
+}
+```
+Sıra sabittir: `capturedAt, metric, id`. Yanıt yalnız ölçümü taşır (örnek/cihaz/oturum iç kimlikleri yok). `Cache-Control: private, no-store`.
+
+#### Hata Durumları
+- 400: Geçersiz `metric`/`from`/`to`/`page`/`size` (`INVALID_REQUEST`)
+- 401: Token yok/geçersiz; cihaz/servis token'ı
+- 403: Hesap pasif/silinmeye alınmış
+- 404: Oturum yok veya başkasına ait (`PERFORMANCE_NOT_FOUND`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions/{sessionId}/samples
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION (okuma uçlarında hız sınırı yok; bkz. I-26)
+
+### PERFORMANCE — Oturum istatistikleri (PERF-15)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+GET /api/v1/performance/sessions/{sessionId}/stats
+
+#### Yetkilendirme
+Owner (kullanıcı token'ı). Başkasının veya olmayan oturum aynı 404'ü döner.
+
+#### Path/Query Parameters
+- sessionId: UUID, zorunlu
+- metric, from, to: örnek okuma ucundakiyle aynı (isteğe bağlı)
+
+#### Response — 200
+```json
+{
+  "sessionId": "UUID",
+  "sampleCount": 3,
+  "metrics": [
+    { "metric": "FPS", "unit": "FPS", "count": 3, "sessionCount": 1, "avg": 60.0, "min": 30.0, "max": 90.0,
+      "firstAt": "2026-01-01T10:00:00Z", "lastAt": "2026-01-01T10:00:02Z" }
+  ]
+}
+```
+Değerler yalnız saklanmış gerçek örneklerden hesaplanır. Örneği olmayan metrik listede **yer almaz** (0 ile doldurulmaz); örneksiz oturum `sampleCount=0`, `metrics=[]` döner. `sampleCount` metriklerin `count` toplamıdır. Sıra: metrik adı.
+
+#### Hata Durumları
+- 400: Geçersiz `metric`/`from`/`to` (`INVALID_REQUEST`)
+- 401: Token yok/geçersiz; cihaz/servis token'ı
+- 403: Hesap pasif/silinmeye alınmış
+- 404: Oturum yok veya başkasına ait (`PERFORMANCE_NOT_FOUND`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions/{sessionId}/stats
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### PERFORMANCE — Hesap istatistikleri (PERF-15/19)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+GET /api/v1/performance/stats
+
+#### Yetkilendirme
+Owner (yalnız kendi oturumları; başka hesaplarla toplama yoktur).
+
+#### Query Parameters
+- gameId, hardwareProfileId, deviceLinkId: UUID, isteğe bağlı oturum filtresi
+- status: `ACTIVE`, `COMPLETED`, `ABANDONED`, isteğe bağlı
+- startedFrom, startedTo: ISO-8601 an, oturum başlangıcına göre yarı açık aralık `[startedFrom, startedTo)`
+- metric: tek metrik, isteğe bağlı
+
+#### Response — 200
+```json
+{
+  "sessionCount": 3,
+  "sampleCount": 4,
+  "metrics": [
+    { "metric": "FPS", "unit": "FPS", "count": 3, "sessionCount": 2, "avg": 80.0, "min": 40.0, "max": 100.0,
+      "firstAt": "2026-01-01T10:00:00Z", "lastAt": "2026-01-01T12:00:00Z" }
+  ]
+}
+```
+Ortalama **örnek ağırlıklıdır** (oturum ortalamalarının ortalaması değil). `sessionCount` filtreye uyan tüm oturumları (örneksizler dahil) sayar; metrik `sessionCount` o metrikten örneği olan oturumları. Örneksiz sonuçta `metrics=[]`. Maliyet notu: hesap kotası (500.000 örnek) tek sorguda taranabilir üst sınırdır (I-27).
+
+#### Hata Durumları
+- 400: Geçersiz filtre/metrik/zaman aralığı (`INVALID_REQUEST`)
+- 401: Token yok/geçersiz; cihaz/servis token'ı
+- 403: Hesap pasif/silinmeye alınmış
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/stats
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### PERFORMANCE — Oturum grafik serisi (PERF-16)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+GET /api/v1/performance/sessions/{sessionId}/series
+
+#### Yetkilendirme
+Owner (kullanıcı token'ı). Başkasının veya olmayan oturum aynı 404'ü döner.
+
+#### Path/Query Parameters
+- sessionId: UUID, zorunlu
+- metric: zorunlu, tek metrik
+- from, to: isteğe bağlı zaman penceresi (`captured_at`, yarı açık)
+- maxPoints: int, varsayılan 300, 10..1000
+
+#### Response — 200
+```json
+{
+  "sessionId": "UUID",
+  "metric": "FPS",
+  "unit": "FPS",
+  "resolution": "BUCKET",
+  "downsampled": true,
+  "bucketMillis": 199991,
+  "aggregation": "AVG_MIN_MAX",
+  "totalSamples": 20000,
+  "points": [ { "at": "2026-01-01T10:00:00Z", "value": 54.5, "min": 30.0, "max": 79.0, "count": 200 } ]
+}
+```
+Pencerede en çok `maxPoints` örnek varsa `resolution=RAW` (her nokta gerçek örnek, `count=1`, `bucketMillis=null`, `aggregation=NONE`). Daha fazlaysa örnekler gerçek ilk/son zamanları arasında **eşit genişlikli kovalara** bölünür; her nokta kovanın ortalama/min/max/örnek sayısını taşır, `at` kova başlangıcıdır ve yanıt açıkça `downsampled=true` ile bunu bildirir. Nokta sayısı `maxPoints`'i aşmaz; `totalSamples` toplam örnek sayısını korur (kovaların `count` toplamı). Veri yoksa `points=[]`.
+
+#### Hata Durumları
+- 400: `metric` yok/bilinmeyen, `maxPoints` aralık dışı, geçersiz zaman (`INVALID_REQUEST`)
+- 401: Token yok/geçersiz; cihaz/servis token'ı
+- 403: Hesap pasif/silinmeye alınmış
+- 404: Oturum yok veya başkasına ait (`PERFORMANCE_NOT_FOUND`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions/{sessionId}/series
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### PERFORMANCE — Hesabın donanım profili performans özeti (Hardware, PERF-21)
+
+Durum: IMPLEMENTED (sözleşme) — gerçek servis kimliği ile uçtan uca BLOCKED (REQ-04-A)
+Sorumlu: Alper
+Tüketici servisler: Hardware (planlı)
+
+#### Endpoint
+GET /internal/v1/accounts/{accountId}/performance-summary
+
+#### Yetkilendirme
+Servis token'ı (`svc+jwt`): `aud=performance-service`, `sub=svc:hardware-service`, `scope=summary:read`, `account_id` = yoldaki `accountId`. Başka konu/kapsam/hesap → 403; token yok, kullanıcı/cihaz token'ı veya yanlış audience → 401. Gateway üzerinden dışarı açılmaz.
+
+#### Path/Query Parameters
+- accountId: UUID, zorunlu
+- hardwareProfileId: UUID, zorunlu
+
+#### Response — 200
+```json
+{
+  "hardwareProfileId": "UUID",
+  "sessionCount": 2,
+  "sampleCount": 3,
+  "lastMeasuredAt": "2026-01-01T10:00:10Z",
+  "metrics": [ { "metric": "FPS", "unit": "FPS", "count": 2, "sessionCount": 2, "avg": 60.0, "min": 50.0, "max": 70.0, "firstAt": "2026-01-01T10:00:00Z", "lastAt": "2026-01-01T10:00:10Z" } ]
+}
+```
+Yalnız **o hesabın, o donanım profiliyle, tamamlanmış (`COMPLETED`)** oturumları özetlenir. Oturum/oyun/cihaz kimliği, oyun adı veya ham örnek **dönmez**. Ölçüm yoksa `sessionCount=0`, `metrics=[]`, `lastMeasuredAt=null`. Başka hesapların verisiyle toplama yapılmaz. `Cache-Control: private, no-store`.
+
+#### Hata Durumları
+- 400: Eksik/geçersiz `hardwareProfileId` (`INVALID_REQUEST`)
+- 401: Token yok/geçersiz; yanlış audience; kullanıcı/cihaz token'ı
+- 403: Yanlış servis konusu, kapsam veya hesap bağı; hesap pasif
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Hardware → Performance (RestClient; servis token'ı Auth'tan alınır, REQ-04-A)
+
+#### Test Durumu
+INTEGRATION (yerel imzalı sözleşme token'ı; gerçek Auth/Hardware entegrasyonu BLOCKED)
+
+### PERFORMANCE — Oyun performans referansı (Recommendation, PERF-21)
+
+Durum: IMPLEMENTED (sözleşme) — gerçek servis kimliği ile uçtan uca BLOCKED (REQ-04-A)
+Sorumlu: Alper
+Tüketici servisler: Recommendation (planlı)
+
+#### Endpoint
+GET /internal/v1/accounts/{accountId}/games/{gameId}/performance-reference
+
+#### Yetkilendirme
+Servis token'ı (`svc+jwt`): `aud=performance-service`, `sub=svc:recommendation-service`, `scope=reference:read`, `account_id` = yoldaki `accountId`. Diğer kurallar özet ucuyla aynı.
+
+#### Path/Query Parameters
+- accountId, gameId: UUID, zorunlu
+- hardwareProfileId: UUID, isteğe bağlı (verilirse yalnız o profil)
+
+#### Response — 200
+```json
+{
+  "gameId": "UUID",
+  "hardwareProfileId": null,
+  "reliable": true,
+  "sessionCount": 2,
+  "fpsSampleCount": 100,
+  "avgFps": 54.5,
+  "minFps": 30.0,
+  "maxFps": 79.0,
+  "lastMeasuredAt": "2026-01-01T10:00:10Z"
+}
+```
+Yalnız hesabın tamamlanmış oturumlarındaki **FPS** örnekleri kullanılır. `fpsSampleCount` 60'ın altındaysa `reliable=false` ve `avgFps/minFps/maxFps=null` döner (eşik varsayımdır, I-24); veri yoksa `fpsSampleCount=0`. Tahmin/doldurma yapılmaz; oturum veya cihaz kimliği dönmez.
+
+#### Hata Durumları
+- 400: Geçersiz kimlik (`INVALID_REQUEST`)
+- 401: Token yok/geçersiz; yanlış audience; kullanıcı/cihaz token'ı
+- 403: Yanlış servis konusu, kapsam veya hesap bağı; hesap pasif
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Recommendation → Performance (RestClient; servis token'ı Auth'tan alınır, REQ-04-A)
+
+#### Test Durumu
+INTEGRATION (yerel imzalı sözleşme token'ı; gerçek Auth/Recommendation entegrasyonu BLOCKED)
 
 ## NOTIFICATION
 
