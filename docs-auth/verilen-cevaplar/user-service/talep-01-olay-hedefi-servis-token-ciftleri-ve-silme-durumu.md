@@ -24,7 +24,7 @@
 - Koddaki varsayılan hâlâ boş: üretim ortamı hedefi bilinçli ve ayrı açar (ortam değişkeni).
 
 **Hedef User henüz ayağa kalkmamışken açılırsa ne olur:** Auth üstel geri çekilmeyle (10 sn–1 saat) yeniden dener, 20. denemede bir kez "takılı" uyarısı yazar; **olay kaybolmaz**. User ayağa kalkınca birikenler teslim edilir.
-**Doğrulama:** Yeni hesap kaydı + e-posta doğrulama → `GET /api/v1/user/me` yanıtında `username` dolu. **NOT VERIFIED** (Auth ile gerçek User birlikte çalıştırılmadı).
+**Doğrulama (2026-10-31, DEV, gerçek Auth + gerçek User kapsayıcıları): GEÇTİ.** Yeni hesap kaydı (`202`) + e-posta kodu (Mailpit) + doğrulama (`204`) → Auth `auth_event_outbox`'ta `USER_REGISTERED -> user` satırı **ilk denemede `DELIVERED`**; User `user_profiles`'ta profil oluştu ve `username_snapshot` dolu, hesap durumu `ACTIVE`. Kontrol veritabanı sorgularıyla yapıldı; `GET /api/v1/user/me` Gateway ve kullanıcı token'ı gerektirdiği için ayrıca denenmedi. `AccountStatusChanged` (yönetici işlemi) ve Steam olayları bu denemede **NOT VERIFIED**.
 
 ## REQ-02 — Hedef açılmadan önce kayıt olmuş hesaplar
 
