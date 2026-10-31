@@ -1216,30 +1216,52 @@ erDiagram
 
 ## 16. performance_db
 
+> Cihaz kimliği, eşleştirme kodu, cihaz token'ı ve iptal `auth_db`'dedir (AUTH-17). Performance yalnız cihaz **referansını** (`device_links.auth_device_id`, FK yok) tutar.
+> V21 ile kurulan tablolar: `sync_consents`, `device_links`, `sync_batches`, `performance_write_limits`, `performance_account_erasure_fences`. Oturum/örnek/rapor tabloları Faz 2–3'te gelir (planlı).
+
 ```mermaid
 erDiagram
-  devices ||--o{ performance_sessions : records
-  performance_sessions ||--o{ performance_samples : contains
-  performance_sessions ||--o| performance_reports : summarizes
-  devices ||--o{ sync_batches : sends
+  device_links ||--o{ sync_batches : receives
+  device_links ||--o{ performance_sessions : "records (planlı, Faz 2)"
+  performance_sessions ||--o{ performance_samples : "contains (planlı, Faz 3)"
+  performance_sessions ||--o| performance_reports : "summarizes (planlı, Faz 2)"
 
-  devices {
-    uuid id PK
-    uuid user_id "REF"
-    uuid hardware_profile_id "REF hardware"
-    varchar status "PENDING_PAIRING|ACTIVE|REVOKED"
-    varchar credential_hash
+  sync_consents {
+    uuid user_id PK "REF"
+    varchar status "GRANTED|REVOKED"
+    timestamptz granted_at
+    timestamptz revoked_at
   }
-  device_pairing_codes {
+  device_links {
     uuid id PK
+    uuid auth_device_id UK "REF auth_db"
     uuid user_id "REF"
-    varchar code_hash
+    varchar label
+    varchar status "ACTIVE|DISABLED"
+    timestamptz last_sync_at
+  }
+  sync_batches {
+    uuid id PK
+    uuid device_link_id FK
+    uuid user_id "REF"
+    uuid idempotency_key "UK(device_link_id, key)"
+    varchar request_hash "SHA-256 hex"
+    int sample_count
+    timestamptz expires_at
+  }
+  performance_write_limits {
+    varchar bucket_key PK
+    timestamptz window_start PK
+    int hits
+  }
+  performance_account_erasure_fences {
+    varchar account_hash PK "SHA-256 hex"
     timestamptz expires_at
   }
   performance_sessions {
     uuid id PK
     uuid user_id "REF"
-    uuid device_id FK "nullable"
+    uuid device_link_id FK "nullable"
     uuid game_id "REF"
     varchar source "MANUAL|DESKTOP"
     varchar status "ACTIVE|COMPLETED|ABANDONED"
@@ -1256,11 +1278,6 @@ erDiagram
     uuid session_id FK,UK
     numeric avg_fps
     numeric max_gpu_temp
-  }
-  sync_batches {
-    uuid id PK
-    uuid device_id FK
-    varchar idempotency_key "UK(device_id, key)"
   }
 ```
 

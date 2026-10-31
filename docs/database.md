@@ -540,13 +540,17 @@ onaylı DEFERRED_AUTH / DEFERRED_CONTRACT / NOT_VERIFIED; production policy deny
 
 | Tablo | Önemli sütunlar | Kısıtlar / not |
 | --- | --- | --- |
-| `devices` | id, user_id REF, hardware_profile_id REF nullable, name, platform, status (PENDING_PAIRING, ACTIVE, REVOKED), credential_hash, paired_at, last_seen_at, revoked_at | PERF-01/02; cihaz kimlik bilgisi hash'li |
-| `device_pairing_codes` | id, user_id REF, code_hash, expires_at, consumed_at | Kısa ömürlü, tek kullanımlık |
-| `performance_sessions` | id, user_id REF, device_id FK nullable, game_id REF, game_title_snapshot, source (MANUAL, DESKTOP), status (ACTIVE, COMPLETED, ABANDONED), started_at, ended_at, graphics_preset, resolution, notes, version | PERF-03/04 |
+| `sync_consents` | user_id PK REF, status (GRANTED, REVOKED), granted_at, revoked_at, version, created_at, updated_at | **V21** · PERF-17/22; kullanıcı başına tek açık izin kaydı; CHECK status ↔ zaman alanları |
+| `device_links` | id, auth_device_id REF Auth (UQ), user_id REF, label, status (ACTIVE, DISABLED), linked_at, last_sync_at, disabled_at, version, created_at, updated_at | **V21** · PERF-01/02; cihaz kimliği/token/iptal **Auth'tadır**, burada yalnız Performance referansı; hesap başına en çok 5 aktif bağlantı (uygulama kuralı) |
+| `performance_sessions` | id, user_id REF, device_link_id FK nullable (device_links.id; Faz 2), game_id REF, game_title_snapshot, source (MANUAL, DESKTOP), status (ACTIVE, COMPLETED, ABANDONED), started_at, ended_at, graphics_preset, resolution, notes, version | PERF-03/04 |
 | `performance_samples` | id, session_id FK, captured_at, metric (CPU_TEMP, GPU_TEMP, CPU_USAGE, GPU_USAGE, RAM_USED_MB, VRAM_USED_MB, DISK_READ_MBPS, DISK_WRITE_MBPS, FAN_RPM, FPS, FRAME_TIME_MS), value numeric, unit | PERF-05..12; ix (session_id, metric, captured_at); CHECK değer aralıkları |
 | `performance_reports` | id, session_id FK UQ, user_id REF, avg_fps, p1_low_fps, max_cpu_temp, max_gpu_temp, avg_cpu_usage, avg_gpu_usage, summary jsonb, visibility, created_at | PERF-13 |
-| `sync_batches` | id, device_id FK, idempotency_key, received_at, sample_count, status | **UQ (device_id, idempotency_key)** — PERF-17/18 |
+| `sync_batches` | id, device_link_id FK, user_id REF, idempotency_key uuid, request_hash (SHA-256 hex), schema_version, sample_count, client_sent_at, received_at, expires_at | **V21** · PERF-17/18; **UQ (device_link_id, idempotency_key)**; ON DELETE CASCADE; Faz 1'de yalnız zarf kaydı, örnek içeriği Faz 3 |
+| `performance_write_limits` | bucket_key, window_start, hits | **V21** · PK (bucket_key, window_start); yazma hız sınırı sayaçları |
+| `performance_account_erasure_fences` | account_hash PK (SHA-256 hex), expires_at | **V21** · PERF-22; Auth D4 silme sonrası yazma çiti (düz hesap kimliği tutulmaz) |
 | `idempotency_records`, `outbox_events`, `inbox_events` | §2.4 | |
+
+> **Karar (Faz 1, A + C):** Eşleştirme kodu, cihaz secret'ı, cihaz token'ı ve iptal Auth Service'tedir (`auth_db`). Planlanan `devices` ve `device_pairing_codes` tabloları **kurulmadı**; Performance yalnız `device_links` (REF) tutar. `performance_sessions.device_id` ve sonraki fazlar `device_links.id` üzerine kurulur. `erase_performance_account(uuid)` fonksiyonu (V21) Auth D4 silmesini tek geçişte yürütür. Ayrıntı: `docs-performance/decisions/phase-01-decisions.md`.
 
 > `performance_samples` hızlı büyür; MVP'de manuel/az veriyle başlar. Masaüstü senkronizasyonu açıldığında aylık **range partitioning** (`captured_at`) ve saklama süresi değerlendirilir.
 
@@ -592,6 +596,7 @@ onaylı DEFERRED_AUTH / DEFERRED_CONTRACT / NOT_VERIFIED; production policy deny
 | `mail_messages` (SENT) | 90 gün, değişkenler gönderimde temizlenir | Zamanlanmış silme |
 | `security_events` | 1 yıl | Zamanlanmış silme |
 | `audit_logs` | Hukuki karara bağlı (NFR-LEG) | Yalnız arşivleme |
+| `sync_batches` (performance) | 24 saat (`expires_at`) | Saatlik zamanlanmış silme |
 | `performance_samples` | Kullanıcı silene kadar veya ürün kararıyla belirlenen süre | Partition drop |
 | Silinen hesap verisi | AccountDeleted saga'sı | Silme/anonimleştirme |
 

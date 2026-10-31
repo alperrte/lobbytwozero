@@ -1,6 +1,6 @@
 # LTZ — API Kataloğu
 
-> Son güncelleme: 2026-10-22
+> Son güncelleme: 2026-10-31
 > Bu dosya projedeki **tüm API'lerin tek kaydıdır**. Bir endpoint planlandığında, eklendiğinde, değiştiğinde veya kaldırıldığında, aynı değişiklikte buraya kendi servisinin başlığı altında yazılır.
 > İlgili belgeler: [architecture.md](architecture.md) (gateway ve servisler arası iletişim), [SECURITY.md](SECURITY.md) (yetkilendirme, ProblemDetail), [web-rules.md](web-rules.md) (frontend tüketimi).
 
@@ -6699,7 +6699,392 @@ _Kayıt yok._
 
 Sorumlu: Alper · Gateway: `/api/v1/performance/**` · Görevler: PERF-, PWEB-
 
-_Kayıt yok._
+> **Faz 1 (LTZ-ALP-PERF-01) notu.** Cihaz kimliği, eşleştirme, cihaz token'ı ve iptal **Auth Service'tedir** (bkz. AUTH — Masaüstü cihaz kimliği). Performance yalnız cihazın kendi referansını (`device_links`), izni, senkronizasyon kaydını ve silmeyi yönetir.
+> Cihaz token'ıyla senkronizasyon (`POST /sync/batches`) Auth'un `aud=performance-service` / `scope=performance:sync:write` üretmesine bağlıdır (talep: [auth-requests-01.md](../docs-performance/integration/auth-service-talepleri/auth-requests-01.md) REQ-01-A) ve **gerçek Auth cihaz token'ıyla uçtan uca doğrulanmadı**. Aşağıdaki `Test Durumu` alanları bunu açıkça belirtir.
+> Tüm başarılı yanıtlar `Cache-Control: private, no-store` taşır. Tüm hata gövdeleri `ProblemDetail` + `code` alanıdır. Ortak hata kodları: `AUTHENTICATION_REQUIRED` (401), `ACCESS_DENIED` (403), `INVALID_REQUEST` (400/422), `RATE_LIMITED` (429), `REQUEST_TOO_LARGE` (413), `AUTH_UNAVAILABLE` (503 + `Retry-After: 30`), `PERFORMANCE_NOT_FOUND` (404), `INTERNAL_ERROR` (500).
+
+### PERFORMANCE — Senkronizasyon izni (oku)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+GET /api/v1/performance/sync-consent
+
+#### Yetkilendirme
+Owner (kullanıcı token'ı `at+jwt`; yalnız kendi izni)
+
+#### Response — 200
+```json
+{
+  "granted": false,
+  "grantedAt": null,
+  "revokedAt": null
+}
+```
+Kayıt yoksa izin verilmemiş sayılır (`granted=false`).
+
+#### Hata Durumları
+- 401: Bearer yok/geçersiz; cihaz veya servis token'ı kullanıcı ucunda geçmez
+- 403: Kullanıcı hesabı pasif/silinmeye alınmış
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sync-consent
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION (PostgreSQL Testcontainers + gerçek filtre zinciri; Auth kullanıcı token'ı gerçek Auth kaynak kodundan üretilen JWKS ile imzalı)
+
+### PERFORMANCE — Senkronizasyon izni ver
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+PUT /api/v1/performance/sync-consent
+
+#### Yetkilendirme
+Owner
+
+#### Response — 200
+```json
+{
+  "granted": true,
+  "grantedAt": "2026-01-01T10:00:00Z",
+  "revokedAt": null
+}
+```
+İdempotenttir; tekrar çağrı `grantedAt` değerini değiştirmez.
+
+#### Hata Durumları
+- 401: Bearer yok/geçersiz
+- 403: Hesap pasif / silinmeye alınmış (`ACCESS_DENIED`)
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sync-consent
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### PERFORMANCE — Senkronizasyon iznini geri al
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+DELETE /api/v1/performance/sync-consent
+
+#### Yetkilendirme
+Owner
+
+#### Response — 200
+```json
+{
+  "granted": false,
+  "grantedAt": "2026-01-01T10:00:00Z",
+  "revokedAt": "2026-01-02T10:00:00Z"
+}
+```
+İdempotenttir. İzin geri alınınca sonraki senkronizasyonlar `403 SYNC_CONSENT_REQUIRED` ile reddedilir.
+
+#### Hata Durumları
+- 401: Bearer yok/geçersiz
+- 403: Hesap pasif / silinmeye alınmış
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sync-consent
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### PERFORMANCE — Bağlı cihazları listele
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+GET /api/v1/performance/devices
+
+#### Yetkilendirme
+Owner (yalnız çağıranın kendi cihaz referansları)
+
+#### Response — 200
+```json
+[
+  {
+    "id": "UUID — Performance bağlantı kimliği (yol parametresi olarak kullanılır)",
+    "deviceId": "UUID — Auth Service cihaz kimliği",
+    "label": "Oyun PC",
+    "status": "ACTIVE | DISABLED",
+    "linkedAt": "2026-01-01T10:00:00Z",
+    "lastSyncAt": null,
+    "disabledAt": null
+  }
+]
+```
+
+#### Hata Durumları
+- 401: Bearer yok/geçersiz
+- 403: Hesap pasif / silinmeye alınmış
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/devices
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### PERFORMANCE — Cihaz bağla
+
+Durum: IN PROGRESS
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+POST /api/v1/performance/devices
+
+#### Yetkilendirme
+Owner. Cihaz sahipliği ve etkinliği, çağıranın Bearer token'ı **Auth Service'e iletilerek** `GET /api/v1/auth/devices` yanıtından doğrulanır (Auth DB'sine erişilmez). Auth yanıt vermezse fail-closed: `503 AUTH_UNAVAILABLE`.
+
+#### Request Body
+```json
+{
+  "deviceId": "UUID — Auth'ta oluşturulmuş, kullanıcının kendi cihazı"
+}
+```
+
+#### Response — 200
+```json
+{
+  "id": "UUID",
+  "deviceId": "UUID",
+  "label": "Auth'taki cihaz etiketi (temizlenmiş, en çok 64 karakter)",
+  "status": "ACTIVE",
+  "linkedAt": "2026-01-01T10:00:00Z",
+  "lastSyncAt": null,
+  "disabledAt": null
+}
+```
+İdempotenttir: aynı cihaz tekrar bağlanırsa mevcut kayıt döner (devre dışıysa yeniden etkinleşir).
+
+#### Hata Durumları
+- 400/422: Geçersiz `deviceId` (`INVALID_REQUEST`)
+- 401: Bearer yok/geçersiz
+- 403: Cihaz çağıranın Auth listesinde yok / iptal edilmiş (`DEVICE_NOT_LINKED`) ya da hesap pasif
+- 409: Hesap başına 5 bağlantı sınırı (`DEVICE_LINK_LIMIT_REACHED`); cihaz başka hesapta bağlı (`DEVICE_LINK_CONFLICT`)
+- 429: Hız sınırı
+- 503: Auth Service erişilemez/bozuk yanıt (`AUTH_UNAVAILABLE`, `Retry-After: 30`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/devices
+
+Diğer mikroservisler:
+Auth Service'e RestClient: `GET /api/v1/auth/devices` (çağıranın Bearer'ı iletilir)
+
+#### Test Durumu
+INTEGRATION — Auth cihaz listesi **yerel Auth sapmasıyla** (belgelenmiş yanıt şekli) test edildi; gerçek Auth ortamıyla uçtan uca doğrulanmadı (durum IN PROGRESS).
+
+### PERFORMANCE — Cihaz bağlantısını kaldır
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+DELETE /api/v1/performance/devices/{linkId}
+
+#### Yetkilendirme
+Owner (başkasının bağlantısı için 404 — IDOR bilgi sızdırmaz)
+
+#### Path Parameters
+- linkId: UUID, zorunlu — `GET /devices` yanıtındaki `id`
+
+#### Response — 200
+```json
+{
+  "id": "UUID",
+  "deviceId": "UUID",
+  "label": "Oyun PC",
+  "status": "DISABLED",
+  "linkedAt": "2026-01-01T10:00:00Z",
+  "lastSyncAt": null,
+  "disabledAt": "2026-01-02T10:00:00Z"
+}
+```
+Kayıt silinmez, `DISABLED` yapılır; idempotenttir. Devre dışı cihaz yeni senkronizasyon yapamaz. Cihaz kimliğinin Auth'ta iptali ayrıca `DELETE /api/v1/auth/devices/{deviceId}` ile yapılır (Performance iptal etmez).
+
+#### Hata Durumları
+- 400: Geçersiz `linkId`
+- 401: Bearer yok/geçersiz
+- 404: Bağlantı yok veya çağıranın değil (`PERFORMANCE_NOT_FOUND`)
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/devices/{linkId}
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### PERFORMANCE — Ölçüm senkronizasyon zarfı kabul
+
+Durum: IN PROGRESS
+Sorumlu: Alper
+Tüketici servisler: Masaüstü istemcisi (planlı)
+
+#### Endpoint
+POST /api/v1/performance/sync/batches
+
+#### Yetkilendirme
+Cihaz token'ı (`Authorization: Bearer <dev+jwt>`): `typ=dev+jwt`, `iss=ltz-auth`, **tek** `aud=performance-service`, `scope=performance:sync:write`, `sub`=cihaz UUID, `account_id`, `jti`, ömür ≤ 60 sn. Kullanıcı ve servis token'ı bu uçta geçmez; Hardware için üretilmiş cihaz token'ı (`aud=hardware-service`) **reddedilir**.
+Ayrıca: hesapta açık senkronizasyon izni + bu cihaz için aktif `device_links` kaydı gerekir.
+> **BLOCKED:** Auth bugün yalnız `aud=hardware-service` cihaz token'ı üretir. Gerçek akış REQ-01-A (Auth değişikliği) sonrası çalışır.
+
+#### Header Parameters
+- Idempotency-Key: UUID, zorunlu
+
+#### Request Body
+```json
+{
+  "schemaVersion": 1,
+  "clientSentAt": "2026-01-01T10:00:00Z",
+  "sampleCount": 0
+}
+```
+Faz 1'de yalnız zarf kabul edilir (`sampleCount` 0..500); örnek içeriği Faz 3'te eklenir. Bilinmeyen alanlar reddedilir. `clientSentAt` şu andan −24 sa .. +5 dk aralığında olmalıdır. İstek gövdesi üst sınırı aşılırsa 413.
+
+#### Response — 200
+```json
+{
+  "batchId": "UUID",
+  "sampleCount": 0,
+  "receivedAt": "2026-01-01T10:00:01Z",
+  "replayed": false
+}
+```
+Aynı `Idempotency-Key` + aynı içerik tekrarında aynı `batchId` ile `replayed=true` döner (yeni kayıt oluşmaz).
+
+#### Hata Durumları
+- 400/422: Geçersiz/eksik Idempotency-Key, geçersiz gövde, bilinmeyen alan; `clientSentAt` aralık dışı (`SYNC_CLIENT_TIME_INVALID`)
+- 401: Token yok/geçersiz/yanlış `aud`/`scope`/`typ`/ömür
+- 403: Açık izin yok (`SYNC_CONSENT_REQUIRED`); cihaz bağlı değil/devre dışı (`DEVICE_NOT_LINKED`); hesap pasif
+- 409: Aynı anahtar farklı içerikle (`IDEMPOTENCY_KEY_REUSED`); cihaz başına 500 canlı toplu sınırı (`SYNC_BATCH_LIMIT_REACHED`)
+- 413: Gövde çok büyük (`REQUEST_TOO_LARGE`)
+- 429: Hız sınırı
+- 503: JWKS/Auth erişilemez (fail-closed)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Masaüstü istemcisi API Gateway üzerinden /api/v1/performance/sync/batches. Auth JWKS ile imza doğrulanır.
+
+#### Test Durumu
+INTEGRATION — gerçek filtre zinciri + PostgreSQL; cihaz token'ı **yerel imzalı** sözleşme token'ıdır, gerçek Auth cihaz token'ıyla E2E değildir (BLOCKED, REQ-01-A).
+
+### PERFORMANCE — Hesap verisi silme (Auth D4)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Auth Service
+
+#### Endpoint
+DELETE /internal/v1/accounts/{accountId}
+
+#### Yetkilendirme
+Internal — `svc+jwt`, **tek** `aud=performance-service`, `sub=svc:auth-service`, `scope=account:erase`, `account_id` = path, `jti`, ≤ 60 sn. Gateway'den açılmaz.
+
+#### Path Parameters
+- accountId: UUID, zorunlu
+
+#### Response — 204
+Gövde yok. İdempotenttir. Hesap için silme çiti (fence) kurulur; silme sonrası yazma engellenir.
+
+#### Hata Durumları
+- 401: Token yok/geçersiz
+- 403: Yanlış scope/sub/`account_id` bağlaması
+- 503: Temizlik partisi tamamlanmadı (`ACCOUNT_ERASURE_PENDING`, `Retry-After: 60`) — Auth yeniden dener
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Auth Service silme işçisi (`ltz.auth.deletion.targets` → `performance`) doğrudan çağırır.
+
+#### Test Durumu
+INTEGRATION — uç ve token bağlaması test edildi; ortak DEV ortamında Auth silme işçisiyle **doğrulanmadı** (NOT VERIFIED).
+
+### PERFORMANCE — Aktif sahipli cihaz doğrulama (Hardware)
+
+Durum: IN PROGRESS
+Sorumlu: Alper
+Tüketici servisler: Hardware Service (istemci henüz yok — öneri)
+
+#### Endpoint
+GET /internal/v1/accounts/{accountId}/devices/{deviceId}
+
+#### Yetkilendirme
+Internal — `svc+jwt`, `aud=performance-service`, `sub=svc:hardware-service`, `scope=devices:verify`, `account_id` = path. Gateway'den açılmaz.
+> **BLOCKED (REQ-01-C):** Auth servis token üreticisi `sub` değerini her zaman `svc:auth-service` yapar ve `devices:verify` çifti yoktur; bu nedenle gerçek Hardware token'ı alınamaz.
+
+#### Path Parameters
+- accountId: UUID, zorunlu
+- deviceId: UUID, zorunlu — Auth cihaz kimliği
+
+#### Response — 204
+Gövde yok: cihaz hesaba ait ve Performance'ta aktif.
+
+#### Hata Durumları
+- 401: Token yok/geçersiz
+- 403: Yanlış `sub`/scope/`account_id` bağlaması
+- 404: Cihaz yok, başka hesaba ait veya devre dışı (bilgi sızdırmaz)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Hardware `HardwareSyncDevicePolicy` için RestClient istemcisi **öneridir**; Hardware kodu değiştirilmemiştir (Hardware sahibine ayrıca bildirilmelidir).
+
+#### Test Durumu
+INTEGRATION — yalnız yerel imzalı `sub=svc:hardware-service` token'ıyla; gerçek Auth servis token'ı bu uçta 403 alır (BLOCKED).
 
 ## NOTIFICATION
 
