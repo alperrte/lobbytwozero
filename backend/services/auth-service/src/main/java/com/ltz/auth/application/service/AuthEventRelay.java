@@ -34,6 +34,7 @@ public class AuthEventRelay {
 
     static final int EVENT_VERSION = 1;
     static final String PRODUCER = "auth-service";
+    private static final String ACCOUNT_ID = "accountId";
 
     private final AuthEventRepository repository;
     private final AuthEventSenderPort sender;
@@ -47,7 +48,7 @@ public class AuthEventRelay {
                 repository.deleteDeliveredBefore(clock.instant().minus(properties.deliveredRetention())));
         List<ClaimedEvent> claimed = transactionTemplate.execute(status -> claimDue());
         int delivered = 0;
-        for (ClaimedEvent event : claimed == null ? List.<ClaimedEvent>of() : claimed) {
+        for (ClaimedEvent event : claimed) {
             try {
                 sender.send(event.target(), envelope(event));
             } catch (AuthEventDeliveryException exception) {
@@ -87,9 +88,9 @@ public class AuthEventRelay {
 
     private static AuthEventEnvelope envelope(ClaimedEvent event) {
         Map<String, Object> payload = switch (event.type()) {
-            case ACCOUNT_STATUS_CHANGED -> Map.of("accountId", event.accountId().toString(), "status", event.value());
-            case USER_REGISTERED -> Map.of("accountId", event.accountId().toString(), "username", event.value());
-            case ACCOUNT_EMAIL_CHANGED -> Map.of("accountId", event.accountId().toString());
+            case ACCOUNT_STATUS_CHANGED -> Map.of(ACCOUNT_ID, event.accountId().toString(), "status", event.value());
+            case USER_REGISTERED -> Map.of(ACCOUNT_ID, event.accountId().toString(), "username", event.value());
+            case ACCOUNT_EMAIL_CHANGED -> Map.of(ACCOUNT_ID, event.accountId().toString());
         };
         return new AuthEventEnvelope(event.eventId(), event.type().eventName(), EVENT_VERSION, event.occurredAt(),
                 PRODUCER, event.accountId(), payload);

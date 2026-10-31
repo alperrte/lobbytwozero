@@ -53,10 +53,11 @@ public class ServiceClientTokenValidator implements OAuth2TokenValidator<Jwt> {
         Instant now = clock.instant();
         Instant issued = jwt.getIssuedAt();
         Instant expires = jwt.getExpiresAt();
+        String tokenId = jwt.getId();
         if (!TokenClaims.SERVICE_TOKEN_TYPE.equals(jwt.getHeaders().get("typ"))
                 || !signingKeyId.equals(jwt.getHeaders().get("kid"))
                 || !List.of(TokenClaims.AUTH_SERVICE_AUDIENCE).equals(jwt.getAudience())
-                || jwt.getId() == null || jwt.getId().isBlank()
+                || tokenId == null || tokenId.isBlank()
                 || issued == null || expires == null || jwt.getNotBefore() == null
                 || issued.isAfter(now.plus(CLOCK_SKEW))
                 || Duration.between(issued, expires).compareTo(MAX_LIFETIME) > 0

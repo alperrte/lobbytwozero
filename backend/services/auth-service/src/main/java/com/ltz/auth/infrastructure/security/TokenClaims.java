@@ -17,16 +17,16 @@ public final class TokenClaims {
     public static final String SERVICE_TOKEN_TYPE = "svc+jwt";
     /** Servis token'ında {@code sub} öneki: {@code svc:<çağıran servis>}. */
     public static final String SERVICE_SUBJECT_PREFIX = "svc:";
+    /** Auth'a gelen iç çağrılarda (servis → Auth) {@code aud}: yalnız Auth'un kendi adı. */
+    public static final String AUTH_SERVICE_AUDIENCE = "auth-service";
     /** Auth'un servis kimliği; hesap verisi silme yetkisi yalnız bu kimliktedir. */
-    public static final String AUTH_SERVICE_SUBJECT = SERVICE_SUBJECT_PREFIX + "auth-service";
+    public static final String AUTH_SERVICE_SUBJECT = SERVICE_SUBJECT_PREFIX + AUTH_SERVICE_AUDIENCE;
     /** RFC 8693 kapsam claim'i (boşlukla ayrılmış). */
     public static final String SCOPE = "scope";
     /** Hesap verisi silme kapsamı. */
     public static final String ACCOUNT_ERASE_SCOPE = "account:erase";
     /** Servis token'ının bağlı olduğu tek hesap; hedef servis bunu istek yolundaki hesap kimliğiyle karşılaştırır. */
     public static final String ACCOUNT_ID = "account_id";
-    /** Auth'a gelen iç çağrılarda (servis → Auth) {@code aud}: yalnız Auth'un kendi adı. */
-    public static final String AUTH_SERVICE_AUDIENCE = "auth-service";
     /** Servis → Auth kapsamları (iç yönetim uçları, {@code docs-auth/servis-sozlesmeleri.md}). */
     public static final String ACCOUNT_READ_SCOPE = "account:read";
     public static final String ACCOUNT_STATUS_WRITE_SCOPE = "account:status:write";

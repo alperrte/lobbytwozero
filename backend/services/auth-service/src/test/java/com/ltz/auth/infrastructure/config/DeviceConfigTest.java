@@ -26,7 +26,9 @@ class DeviceConfigTest {
 
     @Test
     void gunlukSinirEtkinSinirdanKucukseServisAcilmaz() {
-        assertThatThrownBy(() -> new DeviceConfig(properties(5, 4)))
+        DeviceProperties tooSmall = properties(5, 4);
+
+        assertThatThrownBy(() -> new DeviceConfig(tooSmall))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("daily-bind-limit")
                 .satisfies(error -> assertThat(error.getMessage()).doesNotContain("365"));

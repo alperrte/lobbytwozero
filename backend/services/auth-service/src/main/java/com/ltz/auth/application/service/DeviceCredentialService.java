@@ -54,6 +54,8 @@ public class DeviceCredentialService {
     private static final Duration DAILY_WINDOW = Duration.ofDays(1);
     private static final Duration LAST_USED_RESOLUTION = Duration.ofMinutes(5);
     private static final int DIGEST_LENGTH = 64;
+    /** Her çağrıda yeni örnek yerine tek örnek (statik başlatma sırası için {@link #DUMMY_DIGEST}'ten önce tanımlı). */
+    private static final SecureRandom RANDOM = new SecureRandom();
     /** Bilinmeyen cihazda karşılaştırılan rastgele değer (yanıt süresi farkını azaltır). */
     private static final byte[] DUMMY_DIGEST = randomBytes();
 
@@ -73,11 +75,9 @@ public class DeviceCredentialService {
     public BoundDevice bind(UUID accountId, String label, String password, String code, String recoveryCode) {
         String throttleKey = throttleHasher.hash(THROTTLE_DOMAIN, accountId.toString());
         attemptThrottle.reserve(throttleKey);
-        Account account = transactionTemplate.execute(status -> accountRepository.findById(accountId)
-                .filter(Account::isActive).orElse(null));
-        if (account == null) {
-            throw new AuthException(AuthErrorCode.SESSION_INVALID);
-        }
+        Optional<Account> activeAccount = transactionTemplate.execute(status -> accountRepository.findById(accountId)
+                .filter(Account::isActive));
+        Account account = activeAccount.orElseThrow(() -> new AuthException(AuthErrorCode.SESSION_INVALID));
         String passwordHash = account.passwordHash().orElseThrow(() -> new AuthException(AuthErrorCode.PASSWORD_REQUIRED));
         if (password == null || !passwordEncoder.matches(password, passwordHash)) {
             securityEventRecorder.recordEvent(SecurityEventType.DEVICE_BIND_REJECTED, accountId);
@@ -110,7 +110,7 @@ public class DeviceCredentialService {
 
     public IssuedDeviceToken issueToken(UUID deviceId, String deviceSecret) {
         Optional<IssuedDeviceToken> issued = transactionTemplate.execute(status -> tryIssue(deviceId, deviceSecret));
-        if (issued == null || issued.isEmpty()) {
+        if (issued.isEmpty()) {
             log.warn("Device authentication failed deviceId={}", deviceId);
             throw new AuthException(AuthErrorCode.INVALID_DEVICE_CREDENTIALS);
         }
@@ -153,7 +153,7 @@ public class DeviceCredentialService {
 
     private static byte[] randomBytes() {
         byte[] bytes = new byte[DIGEST_LENGTH];
-        new SecureRandom().nextBytes(bytes);
+        RANDOM.nextBytes(bytes);
         return bytes;
     }
 

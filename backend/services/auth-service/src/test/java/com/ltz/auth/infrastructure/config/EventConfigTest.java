@@ -34,7 +34,9 @@ class EventConfigTest {
     void hedefinAdresiTanimliOlmalidir() {
         EventProperties events = events(Set.of("community"), Duration.ofSeconds(10), Duration.ofHours(1));
 
-        assertThatThrownBy(() -> new EventConfig(events, deletion(Map.of()), environment))
+        DeletionProperties noUrls = deletion(Map.of());
+
+        assertThatThrownBy(() -> new EventConfig(events, noUrls, environment))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("ltz.auth.deletion.service-urls.community");
     }
@@ -43,16 +45,19 @@ class EventConfigTest {
     void gecersizHedefAdiReddedilir() {
         EventProperties events = events(Set.of("Community;DROP"), Duration.ofSeconds(10), Duration.ofHours(1));
 
-        assertThatThrownBy(() -> new EventConfig(events, deletion(Map.of("Community;DROP", URI.create("http://x:1"))),
-                environment)).isInstanceOf(IllegalStateException.class).hasMessageContaining("plain service names");
+        DeletionProperties invalidName = deletion(Map.of("Community;DROP", URI.create("http://x:1")));
+
+        assertThatThrownBy(() -> new EventConfig(events, invalidName, environment))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("plain service names");
     }
 
     @Test
     void azamiGeriCekilmeIlkindenKisaOlamaz() {
         EventProperties events = events(Set.of("community"), Duration.ofMinutes(10), Duration.ofMinutes(1));
 
-        assertThatThrownBy(() -> new EventConfig(events,
-                deletion(Map.of("community", URI.create("http://community-service:8080"))), environment))
+        DeletionProperties community = deletion(Map.of("community", URI.create("http://community-service:8080")));
+
+        assertThatThrownBy(() -> new EventConfig(events, community, environment))
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("max-backoff");
     }
 

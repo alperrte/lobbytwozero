@@ -73,32 +73,45 @@ public class ServiceClientTokenService {
      * izin kararı hedef servisin (ör. Library → User) işidir; bağ yalnız çalınan token'ı tek hesapla sınırlar.
      */
     public IssuedServiceToken issue(String clientId, String clientSecret, String audience, UUID accountId) {
+        String loggedClient = safe(clientId);
+        ServiceClientProperties.Client client = authenticate(clientId, clientSecret, loggedClient);
+        String target = audience == null || audience.isBlank() ? TokenClaims.AUTH_SERVICE_AUDIENCE : audience;
+        String loggedTarget = safe(target);
+        Set<String> scopes = TokenClaims.AUTH_SERVICE_AUDIENCE.equals(target)
+                ? client.scopes() : client.targets().getOrDefault(target, Set.of());
+        if (scopes.isEmpty()) {
+            log.warn("Service client audience not allowed clientId={} audience={}", loggedClient, loggedTarget);
+            throw new AuthException(AuthErrorCode.SERVICE_AUDIENCE_FORBIDDEN);
+        }
+        requireAccountBinding(scopes, accountId, loggedClient, loggedTarget);
+        return new IssuedServiceToken(issuer.issue(clientId, target, scopes, accountId), ServiceClientTokenIssuer.TTL,
+                String.join(" ", new TreeSet<>(scopes)));
+    }
+
+    /** Yanıt, istemcinin yokluğunu, devre dışılığını ve yanlış anahtarı ayırt ettirmez (tek {@code INVALID_CLIENT}). */
+    private ServiceClientProperties.Client authenticate(String clientId, String clientSecret, String loggedClient) {
         Optional<ServiceClientProperties.Client> client = Optional.ofNullable(clientId).map(properties.clients()::get)
                 .filter(ServiceClientProperties.Client::enabled);
         byte[] expected = client.map(registered -> digest(registered.secret().strip())).orElse(dummyDigest);
         boolean matches = MessageDigest.isEqual(expected, digest(clientSecret == null ? "" : clientSecret.strip()));
         if (client.isEmpty() || !matches) {
-            log.warn("Service client authentication failed clientId={}", safe(clientId));
+            log.warn("Service client authentication failed clientId={}", loggedClient);
             throw new AuthException(AuthErrorCode.INVALID_CLIENT);
         }
-        String target = audience == null || audience.isBlank() ? TokenClaims.AUTH_SERVICE_AUDIENCE : audience;
-        Set<String> scopes = TokenClaims.AUTH_SERVICE_AUDIENCE.equals(target)
-                ? client.get().scopes() : client.get().targets().getOrDefault(target, Set.of());
-        if (scopes.isEmpty()) {
-            log.warn("Service client audience not allowed clientId={} audience={}", safe(clientId), safe(target));
-            throw new AuthException(AuthErrorCode.SERVICE_AUDIENCE_FORBIDDEN);
-        }
+        return client.get();
+    }
+
+    /** Hesaba bağlı kapsamda hesap zorunlu ve ACTIVE; bağsız kapsamda hesap verilemez. */
+    private void requireAccountBinding(Set<String> scopes, UUID accountId, String loggedClient, String loggedTarget) {
         boolean accountBound = ServiceClientConfig.isAccountBound(scopes);
         if (accountBound != (accountId != null)) {
-            log.warn("Service client account binding invalid clientId={} audience={}", safe(clientId), safe(target));
+            log.warn("Service client account binding invalid clientId={} audience={}", loggedClient, loggedTarget);
             throw new AuthException(AuthErrorCode.SERVICE_ACCOUNT_BINDING_INVALID);
         }
         if (accountBound && accountRepository.findById(accountId).filter(Account::isActive).isEmpty()) {
-            log.warn("Service client target account unavailable clientId={} audience={}", safe(clientId), safe(target));
+            log.warn("Service client target account unavailable clientId={} audience={}", loggedClient, loggedTarget);
             throw new AuthException(AuthErrorCode.SERVICE_TARGET_ACCOUNT_UNAVAILABLE);
         }
-        return new IssuedServiceToken(issuer.issue(clientId, target, scopes, accountId), ServiceClientTokenIssuer.TTL,
-                String.join(" ", new TreeSet<>(scopes)));
     }
 
     private byte[] digest(String value) {
