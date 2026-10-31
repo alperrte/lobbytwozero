@@ -8,8 +8,7 @@ import org.springframework.core.env.Environment;
  * Açılışta adaptör ile profilin uyumunu denetler (fail-fast):
  * <ul>
  *   <li>DEV_SMTP yalnız dev profilinde ve prod profili yokken kullanılabilir.</li>
- *   <li>prod profili yalnız production'a hazır bir adaptörle başlar; gerçek Mail Service adaptörü
- *       eklenene kadar production açılışı bilerek reddedilir.</li>
+ *   <li>prod profili yalnız production'a hazır bir adaptörle ({@code mail-service}) başlar.</li>
  * </ul>
  */
 @Configuration(proxyBeanMethods = false)
@@ -28,7 +27,7 @@ public class MailDeliveryConfig {
         }
         if (prod && !adapter.isProductionReady()) {
             throw new IllegalStateException("Production mail delivery is not configured (ltz.auth.mail.adapter="
-                    + adapter + "); Mail Service integration is PENDING");
+                    + adapter + "); set ltz.auth.mail.adapter=mail-service");
         }
     }
 }

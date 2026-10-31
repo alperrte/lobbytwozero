@@ -1,6 +1,6 @@
 # Mail Service — entegrasyon (Auth merkezli)
 
-Güncelleme: 2026-10-31. Sorumlu: Kerem. Mail kodu yok; aşağıdakiler Auth'un **gerçek kodu** ve `docs/api.md` kaydına göre türetilmiş taslaktır.
+Güncelleme: 2026-10-31. Sorumlu: Kerem. Mail Service ve Auth adaptörü yazıldı (2026-10-31); aşağıdakiler Auth'un **gerçek kodu** ve `docs/api.md` kaydıyla uyumludur.
 
 ## Kim Mail'e istek atıyor?
 
@@ -34,7 +34,9 @@ Hepsi `Internal`, `Authorization: Bearer <svc+jwt>` (`aud=mail-service`, `sub=sv
 
 Bağlantılar (`resetLink`, `confirmationLink`): yalnız `https` (dev'de `http://localhost`), kimlik bilgisi içermez; allowlist host. Parola, token, kod hiçbir yanıtta ve loga yazılmaz.
 
-## Auth tarafında yapılacaklar (ayrı küçük görev, Kerem)
+## Auth tarafı — YAPILDI (2026-10-31, Kerem)
+
+`HttpMailServiceAdapter` + `MailAdapter.MAIL_SERVICE` hazır; seçmek için `ltz.auth.mail.adapter=mail-service` (adres `MAIL_SERVICE_URL`). Compose uçtan uca (2026-10-31): Auth `ltz.auth.mail.adapter=mail-service` ile kayıt → Auth `HttpMailServiceAdapter` → Mail `202` → kuyruk → SMTP → Mailpit. `EMAIL_VERIFICATION` kaydı `SENT`, 1 deneme, gönderim sonrası şifreli içerik ve alıcı adresi temizlendi; e-posta TR+EN iki dilli geldi. Diğer 3 e-posta ucu ve silme ucu uçtan uca denenmedi. Aşağıdaki liste yapılan işin özetidir (madde 3 hariç: `api.md` Auth kaydı güncellendi; madde 4 hâlâ açık).
 
 1. `MailAdapter`'a `MAIL_SERVICE` (`productionReady=true`) ve RestClient adaptörü (`HttpAccountDataEraser` kopyası: yönlendirme yok, her çağrıda yeni token, 202 dışı = hata). `MAIL_SERVICE_URL` zaten Compose'ta tanımlı.
 2. `MailDeliveryConfig` fail-fast'i açılır: prod artık bu adaptörle başlar → **B5 kapanır**, B12/B19 (bildirim e-postaları) kısmen kapanır.

@@ -6,9 +6,10 @@
 
 ## 1. Durum (2026-10-31)
 
-- **Mail Service kodu yazıldı ve testten geçti** (MAIL-01 + MAIL-02 kapsamı): V81/V82, kuyruk + işleyici + SMTP + şifreleme, 4 iç uç + silme ucu, TR/EN şablonlar. Doğrulama (2026-10-31, `mvn verify`, JDK 25.0.5): **44 test PASS**, Checkstyle 0, PMD 0, satır coverage **%81,7** (JaCoCo; hedef ≥%80). **Resmi kapı (`pre-push mail-service`, coverage-policy) bu makinede PASS alamadı**: sebep §10 (klasör adındaki `İ`), kod değil. Kod henüz commit edilmedi (kullanıcı atacak).
+- **Mail Service kodu yazıldı ve testten geçti** (MAIL-01 + MAIL-02 kapsamı): V81/V82, kuyruk + işleyici + SMTP + şifreleme, 4 iç uç + silme ucu, TR/EN şablonlar. Doğrulama (2026-10-31, `mvn verify`, JDK 25.0.5): **44 test PASS**, Checkstyle 0, PMD 0, satır coverage **%81,7** (JaCoCo; hedef ≥%80). **Resmi kapı PASS** (`pre-push mail-service`, klasör ASCII `LTZ-MAIL` yapıldıktan sonra: 44 test, %81,65; §10 çözüldü). Commit `2e51f70`.
 - Tamamlanan yan işler: `ops/generate-auth-dev-keys.mjs` (+test), `docker-compose.yml` (mail-service ENV), `.env.example` (8 boş anahtar, kullanıcı ekledi), `ltz-logo.png`, `docs/api.md` `## MAIL` (5 kayıt), `docs-mail/`.
-- **Sıradaki adımlar:** (1) kapıyı ASCII yolda yeniden koştur (§10), (2) Auth `MAIL_SERVICE` adaptörü (ayrı görev), (3) zayıf coverage: `SmtpMailSender` %36, `MailDispatchWorker`/`MailRetentionWorker` %0 (hedef ≥%80 toplam sağlanıyor, ama bu sınıflar test ister), (4) `docs-security/mail-service` notları, (5) Mailpit ile elle uçtan uca deneme (yapılmadı).
+- **Auth `MAIL_SERVICE` adaptörü yazıldı** (2026-10-31): `HttpMailServiceAdapter` (4 port; `scope=mail:send`, yalnız `202` kabul, yönlendirme yok), `MailAdapter.MAIL_SERVICE` (`productionReady=true`), `TokenClaims.MAIL_SEND_SCOPE`. Adres/zaman aşımı hesap silme ayarlarındaki `mail` hedefinden. Testler: `HttpMailServiceAdapterTest` (22), `MailDeliveryConfigTest` (11), `HttpAccountDataEraserTest` (19) PASS. Compose uçtan uca (2026-10-31): Auth `ltz.auth.mail.adapter=mail-service` ile kayıt → Auth `HttpMailServiceAdapter` → Mail `202` → kuyruk → SMTP → Mailpit. `EMAIL_VERIFICATION` kaydı `SENT`, 1 deneme, gönderim sonrası şifreli içerik ve alıcı adresi temizlendi; e-posta TR+EN iki dilli geldi. Diğer 3 e-posta ucu ve silme ucu uçtan uca denenmedi. Auth'ta kod commit edilmedi (kullanıcı atar).
+- **Sıradaki adımlar:** (1) **BEKLEMEDE (kullanıcı kararı):** zayıf coverage: `SmtpMailSender` %36, `MailDispatchWorker`/`MailRetentionWorker` %0, (2) SMTP sağlayıcısı seçimi (`MAIL_SMTP_*` boş; dev'de Mailpit varsayılanı), (3) kalan 3 e-posta ucu + silme ucu için uçtan uca deneme, (4) Auth tam test paketi + `pre-push auth-service` kapısı henüz koşulmadı, (5) `WELCOME` / `SUSPICIOUS_LOGIN` (Auth tetikleyicisi yok).
 - Repo: dal `feature/mail-service`, `origin/main` (af6e1cc, PR #38 user-service) ile aynı; `git fetch` yapıldı. Uzak `feature/auth-service` 4450435 = yalnız Auth Sonar düzeltmesi (`AUTH-35`), Mail'i etkilemez. `docs-mail/` henüz izlenmiyor (untracked).
 - Servis durumları: **gerçek kod** auth, user, game, hardware, community, social, api-gateway; **kısmi** library, review; **iskelet** event, notification, admin, content, lfp, messaging, performance, recommendation, mail.
 
@@ -72,12 +73,14 @@
 
 ## 8. Fazlar (ayrıntı `progress/`)
 
-1. **MAIL-01 (altyapı):** KOD + TEST TAMAM (44 test PASS); resmi coverage kapısı doğrulanmadı (§10). Mailpit ile elle deneme yapılmadı.
+1. **MAIL-01 (altyapı):** KOD + TEST TAMAM (44 test PASS); resmi kapı PASS (%81,65). Mailpit ile uçtan uca doğrulandı (doğrulama kodu akışı).
 2. **MAIL-02 (hesap e-postaları):** KOD + TEST TAMAM (10 tür × TR/EN, V82 seed, `TemplateRendererTest`); `WELCOME` ve `SUSPICIOUS_LOGIN` şablonları yok (Auth tetikleyicisi yok).
-3. **Auth adaptör görevi:** BEKLİYOR. `MAIL_SERVICE` adaptörü, prod açılışı (B5/B12/B19 kapanır).
+3. **Auth adaptör görevi:** KOD + TEST TAMAM (2026-10-31). `MAIL_SERVICE` adaptörü; prod artık bu adaptörle açılır (B5 kapandı, B12/B19 kısmen).
 4. **MAIL-03:** ertelendi; çağıran çıkınca.
 
-## 10. Bilinen ortam sorunu: klasör adındaki `İ` (2026-10-31)
+## 10. Ortam sorunu: klasör adındaki `İ` — ÇÖZÜLDÜ (2026-10-31)
+
+Klasör `LTZ-MAIL` (ASCII) yapıldı; kapı PASS. Aşağısı tarihçe:
 
 Repo `...\LTZ\LTZ-MAİL\...` altında. Windows'ta bu yol JaCoCo ajanına `LTZ-MAÝL` olarak (bozuk) geçiyor; `jacoco.exec` yanlış klasöre yazılıyor, `jacoco.xml` üretilmiyor ve `coverage-policy` / `pre-push` kapısı `Missing fresh report ... jacoco.xml` ile düşüyor. Testler ve Checkstyle/PMD etkilenmiyor. Kanıt: aynı kod ASCII yolda (`C:\ltz-ascii` kopyası) `jacoco.xml` üretti (satır %81,7). `subst`/junction işe yaramadı (Java yolu gerçek haline çeviriyor).
 - **Çözüm (kullanıcı kararı):** repo kökünü ASCII adlı klasöre taşı/kopyala (ör. `LTZ-MAIL`) ve kapıyı orada koştur: `.\pre-push\pre-push.cmd mail-service`. Bu oturumda klasör yeniden adlandırılmadı.

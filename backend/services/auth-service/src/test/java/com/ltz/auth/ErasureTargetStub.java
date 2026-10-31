@@ -3,6 +3,7 @@ package com.ltz.auth;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -26,12 +27,12 @@ public final class ErasureTargetStub implements AutoCloseable {
     private static final int UNAVAILABLE = 503;
     private static final int NO_BODY = -1;
 
-    /** Hedefin gördüğü istek: yöntem, ham yol ve Authorization başlığı. */
-    public record Received(String method, String path, String authorization) {
+    /** Hedefin gördüğü istek: yöntem, ham yol, Authorization başlığı ve gövde (yoksa boş metin). */
+    public record Received(String method, String path, String authorization, String body) {
 
         @Override
         public String toString() {
-            return "Received[method=" + method + ", path=" + path + ", authorization=***]";
+            return "Received[method=" + method + ", path=" + path + ", authorization=***, body=***]";
         }
     }
 
@@ -91,7 +92,8 @@ public final class ErasureTargetStub implements AutoCloseable {
     private void handle(HttpExchange exchange) throws IOException {
         try (exchange) {
             Received request = new Received(exchange.getRequestMethod(), exchange.getRequestURI().getRawPath(),
-                    exchange.getRequestHeaders().getFirst("Authorization"));
+                    exchange.getRequestHeaders().getFirst("Authorization"),
+                    new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
             received.add(request);
             int status = awaitDelay() ? responder.applyAsInt(request) : UNAVAILABLE;
             if (status >= 300 && status < 400) {

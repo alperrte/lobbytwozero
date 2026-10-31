@@ -21,6 +21,8 @@ public final class TokenClaims {
     public static final String AUTH_SERVICE_SUBJECT = SERVICE_SUBJECT_PREFIX + "auth-service";
     /** RFC 8693 kapsam claim'i (boşlukla ayrılmış). */
     public static final String SCOPE = "scope";
+    /** Mail Service'e e-posta kuyruğa alma kapsamı. */
+    public static final String MAIL_SEND_SCOPE = "mail:send";
     /** Hesap verisi silme kapsamı. */
     public static final String ACCOUNT_ERASE_SCOPE = "account:erase";
     /** Servis token'ının bağlı olduğu tek hesap; hedef servis bunu istek yolundaki hesap kimliğiyle karşılaştırır. */
