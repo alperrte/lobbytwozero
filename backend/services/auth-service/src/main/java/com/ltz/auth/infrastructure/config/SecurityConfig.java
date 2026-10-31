@@ -73,6 +73,8 @@ public class SecurityConfig {
             PATHS.matcher(HttpMethod.GET, AuthApiPaths.GOOGLE_CALLBACK),
             PATHS.matcher(HttpMethod.GET, AuthApiPaths.STEAM_START),
             PATHS.matcher(HttpMethod.GET, AuthApiPaths.STEAM_CALLBACK),
+            // Bağlama dönüşü: hesap akıştan gelir (state + çerez), oturum çerezi okunmaz.
+            PATHS.matcher(HttpMethod.GET, AuthApiPaths.STEAM_LINK_CALLBACK),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.STEAM_COMPLETE),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_FORGOT),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_RESET),
@@ -93,6 +95,8 @@ public class SecurityConfig {
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.TOTP_SETUP),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.TOTP_ACTIVATE),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.TOTP_DISABLE),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.STEAM_LINK_START),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.STEAM_UNLINK),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.DEVICES),
             PATHS.matcher(HttpMethod.GET, AuthApiPaths.DEVICES),
             PATHS.matcher(HttpMethod.DELETE, AuthApiPaths.DEVICE));

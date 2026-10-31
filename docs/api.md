@@ -181,7 +181,7 @@ API Gateway üzerinden /api/v1/auth/register
 Diğer mikroservisler:
 Doğrulama kodu `VerificationCodeMailPort` üzerinden iletilir (aşağıdaki "Giden sözleşme taslakları", MAIL-01).
 - Development (`dev` profili): Mailpit'e SMTP ile iletilir (Compose profili `dev-mail`, arayüz `http://127.0.0.1:8025`). Mailpit dışarıya e-posta göndermez; production teslimi sayılmaz.
-- Production: gerçek Mail Service adaptörü yok — **PENDING**. `prod` profili bu nedenle açılışta bilerek başlamaz (fail-fast).
+- Production: `ltz.auth.mail.adapter=mail-service` (`HttpMailServiceAdapter`, hesap silme ayarlarındaki `mail` adresi) — **IMPLEMENTED** (2026-10-31, Mailpit ile uçtan uca doğrulandı, 2026-10-31). `prod` profili bu adaptör olmadan açılışta bilerek başlamaz (fail-fast).
 - Teslim başarısızsa kod `DELIVERY_FAILED` olarak geçersiz kılınır; yanıt hiçbir durumda gönderim iddia etmez.
 
 #### Test Durumu
@@ -269,7 +269,7 @@ Frontend:
 API Gateway üzerinden /api/v1/auth/email-verification/resend
 
 Diğer mikroservisler:
-Mail Service (MAIL-01) — production **PENDING**; development'ta Mailpit (bkz. Kayıt ol → Bağlantı).
+Mail Service (MAIL-01) — production `mail-service` adaptörü **IMPLEMENTED** (Mailpit ile uçtan uca doğrulandı, 2026-10-31); development varsayılanı Mailpit (bkz. Kayıt ol → Bağlantı).
 
 #### Test Durumu
 UNIT + INTEGRATION
@@ -507,6 +507,50 @@ Diğer mikroservisler:
 #### Test Durumu
 UNIT + INTEGRATION (sağlayıcılar yerel sahte sunucularla; gerçek Google/Steam ile denenmedi)
 
+### AUTH — Steam bağlama ve kaldırma (oturumdaki hesap)
+
+Durum: IMPLEMENTED (gerçek Steam ile uçtan uca doğrulanmadı; yerel sahte sağlayıcı ve duman testi)
+Sorumlu: Kerem
+Tüketici servisler: Frontend (tarayıcı gezinmesi), User Service (olay)
+
+#### Endpoint
+- POST /api/v1/auth/oauth/steam/link/start — yeniden doğrulayıp bağlama akışını başlatır → `200 { "redirectUrl": "<Steam OpenID adresi>" }`, `Cache-Control: no-store`; tek kullanımlık `state` HttpOnly `__Host-ltz_oauth` çerezine yazılır. Tarayıcı `redirectUrl`'e gönderilir.
+- GET /api/v1/auth/oauth/steam/link/callback?state&openid.* — Steam dönüşü (tarayıcı gezinmesi)
+- POST /api/v1/auth/oauth/steam/unlink — bağlantıyı kaldırır → `204`
+
+#### Yetkilendirme
+`start` ve `unlink`: oturum (çerez + CSRF veya Bearer) **ve yeniden doğrulama**: `{ "password", "code"?, "recoveryCode"? }`. Mevcut parola zorunlu; TOTP etkinse `code` veya `recoveryCode` (yalnız biri). Cihaz bağlama ve e-posta değiştirmeyle aynı kural; denemeler hesap başına sınırlıdır. `callback` public: hesap oturumdan değil, `start`'ın yazdığı hesaba bağlı akıştan gelir; `state` çerezle eşleşmeli ve tek kullanımlık olmalıdır (başkasının başlattığı akış kurbanın tarayıcısında tamamlanamaz). Bir giriş akışının `state`'i bağlamada, bağlama `state`'i girişte geçmez.
+
+#### Sonuç iletimi (callback)
+Yapılandırmadaki SABİT frontend adresine URL **fragment**'i ile (`302`):
+- `#status=steam_linked` — Steam kimliği hesaba bağlandı (aynı kimlik zaten bu hesaptaysa da bu sonuç, olay üretilmez)
+- `#error=<KOD>` — `EXTERNAL_AUTH_FAILED` (state/imza/nonce/replay/Steam hatası; ayrıntı verilmez), `EXTERNAL_IDENTITY_TAKEN` (bu Steam kimliği başka hesapta), `EXTERNAL_IDENTITY_ALREADY_LINKED` (hesapta zaten başka bir Steam kimliği var), `SESSION_INVALID` (hesap aktif değil)
+
+#### Kurallar
+- **Tekillik:** bir SteamID64 tek hesaba, bir hesap tek Steam kimliğine bağlanır (veritabanı kısıtlarıyla da zorlanır).
+- **Son giriş yöntemi koruması:** hesapta parola yoksa ve başka harici kimlik (Google) yoksa kaldırma `409 LAST_LOGIN_METHOD`.
+- **Parolasız hesap** bağlama ve kaldırmada `409 PASSWORD_REQUIRED` alır (cihaz bağlama ve e-posta değiştirmeyle aynı davranış; açık B11 kararına bağlı).
+- Bağlama ve kaldırma güvenlik olayı olarak kaydedilir (`EXTERNAL_IDENTITY_LINKED`, `EXTERNAL_IDENTITY_UNLINKED`, `EXTERNAL_LINK_CONFLICT`, `EXTERNAL_IDENTITY_LINK_REJECTED`).
+- **Olaylar** (outbox, `AUTH_EVENT_TARGETS`, hedef User): `ExternalIdentityLinked { accountId, provider: "STEAM", providerSubject: "<17 haneli SteamID64>" }` ve `ExternalIdentityUnlinked { accountId, provider: "STEAM" }`, `eventVersion=1`. SteamID64 herkese açık bir kimliktir; olaylara konabilen tek kimlik bilgisi odur (e-posta ve parola konmaz). Zarf ve teslim kuralları `docs-auth/servis-sozlesmeleri.md` 3.5.
+- **Mevcut Steam hesapları** için geriye dönük `ExternalIdentityLinked` yayını yoktur (DEV'de hesaplar yeniden kaydolur; gerçek hesap varsa ayrıca konuşulur).
+
+#### Hata Durumları
+- 400: yeniden doğrulama hatası (`CURRENT_PASSWORD_INVALID`, `INVALID_TWO_FACTOR_CODE`), doğrulama hatası
+- 401/403: oturum yok / CSRF yok
+- 404: `unlink` için bağlı Steam kimliği yok (`EXTERNAL_IDENTITY_NOT_LINKED`)
+- 409: `PASSWORD_REQUIRED`, `EXTERNAL_IDENTITY_ALREADY_LINKED` (`start`), `LAST_LOGIN_METHOD` (`unlink`)
+- 429: yeniden doğrulama denemesi sınırı
+
+#### Bağlantı
+Frontend:
+Tarayıcı bağlantısı ile API Gateway üzerinden /api/v1/auth/oauth/** ; `start` bir `fetch` ile çağrılır, dönen `redirectUrl`'e `window.location` ile gidilir.
+
+Diğer mikroservisler:
+User Service: `POST /internal/events` ile `ExternalIdentityLinked/Unlinked` alır (`aud=user-service`, `scope=events:ingest`, `sub=svc:auth-service`).
+
+#### Test Durumu
+UNIT + INTEGRATION (`SteamLinkTest`, `AuthEventOutboxTest`; sahte sağlayıcı) + duman testi (start, yanlış parola, bağsız kaldırma); gerçek Steam ile denenmedi
+
 ### AUTH — Parola değiştir
 
 Durum: IMPLEMENTED
@@ -594,7 +638,7 @@ Frontend:
 API Gateway üzerinden /api/v1/auth/email/**
 
 Diğer mikroservisler:
-Mail Service (`VerificationCodeMailPort`, alıcı = yeni adres; amaç alanı port sözleşmesinde yok) — production **PENDING**, development'ta Mailpit. **User Service:** adres değişikliği için olay/çağrı yok (`UserRegistered` gibi Auth→User olayları PLANNED); profil servisi e-posta tutuyorsa ayrıca senkronize edilmelidir.
+Mail Service (`VerificationCodeMailPort`, alıcı = yeni adres; amaç alanı port sözleşmesinde yok) — production `mail-service` adaptörü **IMPLEMENTED** (Mailpit ile uçtan uca doğrulandı, 2026-10-31), development'ta Mailpit. **User Service:** adres değişikliği için olay/çağrı yok (`UserRegistered` gibi Auth→User olayları PLANNED); profil servisi e-posta tutuyorsa ayrıca senkronize edilmelidir.
 
 #### Test Durumu
 INTEGRATION
@@ -627,7 +671,7 @@ Frontend:
 API Gateway üzerinden /api/v1/auth/password/**
 
 Diğer mikroservisler:
-Mail Service (MAIL-02) — production **PENDING**; development'ta Mailpit (`PasswordResetMailPort`).
+Mail Service (MAIL-02) — production `mail-service` adaptörü **IMPLEMENTED** (Mailpit ile uçtan uca doğrulandı, 2026-10-31); development'ta Mailpit (`PasswordResetMailPort`).
 
 #### Test Durumu
 INTEGRATION
@@ -729,7 +773,7 @@ Frontend:
 API Gateway üzerinden /api/v1/auth/account/deletion/**
 
 Diğer mikroservisler:
-Mail Service (`AccountDeletionMailPort`) — production **PENDING**, development'ta Mailpit. Veri sahibi 16 servis (`DELETE /internal/v1/accounts/{accountId}`, bkz. aşağıdaki sözleşme ve `docs-auth/servis-sozlesmeleri.md` §3–§3.2) — Auth tarafı (D4 servis token'ı + HTTP adaptörü) **IMPLEMENTED**; hedef uçlar servis sahiplerinde **PENDING**.
+Mail Service (`AccountDeletionMailPort`) — production `mail-service` adaptörü **IMPLEMENTED** (Mailpit ile uçtan uca doğrulandı, 2026-10-31), development'ta Mailpit. Veri sahibi 16 servis (`DELETE /internal/v1/accounts/{accountId}`, bkz. aşağıdaki sözleşme ve `docs-auth/servis-sozlesmeleri.md` §3–§3.2) — Auth tarafı (D4 servis token'ı + HTTP adaptörü) **IMPLEMENTED**; hedef uçlar servis sahiplerinde **PENDING**.
 
 #### Test Durumu
 INTEGRATION
@@ -785,9 +829,16 @@ Response — 201, `Cache-Control: no-store`: `{ "deviceId", "deviceSecret", "lab
 
 #### Request / Response (`token`)
 ```json
-{ "deviceId": "UUID", "deviceSecret": "string" }
+{ "deviceId": "UUID", "deviceSecret": "string", "target": "isteğe bağlı: hardware (varsayılan) | performance" }
 ```
-200, `no-store`: `{ "accessToken", "tokenType": "Bearer", "expiresIn": 60, "scope": "hardware:sync:write" }`. Token: `typ=dev+jwt`, RS256 (JWKS aynı), `iss=ltz-auth`, `aud=hardware-service`, `sub=<deviceId>`, `account_id`, `scope=hardware:sync:write`, `jti`, ömür 60 sn. Kullanıcı rolü/oturumu taşımaz; Auth'un uçlarında ve başka servislerde geçmez.
+200, `no-store`: `{ "accessToken", "tokenType": "Bearer", "expiresIn": 60, "scope": "<hedefin kapsamı>" }`. Token: `typ=dev+jwt`, RS256 (JWKS aynı), `iss=ltz-auth`, `sub=<deviceId>`, `account_id`, `jti`, ömür 60 sn; **tek `aud` ve o hedefin tek kapsamı**:
+
+| `target` | `aud` | `scope` |
+| --- | --- | --- |
+| `hardware` (yoksa bu) | `hardware-service` | `hardware:sync:write` |
+| `performance` | `performance-service` | `performance:sync:write` |
+
+Bir hedef için alınan token başka hedefte geçmez; istemci her servis için ayrı token alır. Tanımsız `target` `400`. Kimlik doğrulama ve iptal kuralları hedeften bağımsızdır (iptal edilmiş cihaz hiçbir hedef için token alamaz; hata yanıtı hedefi sızdırmaz). Kullanıcı rolü/oturumu taşımaz; Auth'un uçlarında ve başka servislerde geçmez.
 
 #### Davranış
 - Hesap başına en fazla 5 etkin cihaz, günde en fazla 10 bağlama; cihaz anahtarı 365 gün geçerlidir.
@@ -834,7 +885,7 @@ Bu uçlar **Gateway'e açılmaz** (Gateway yalnız `/api/v1/<servis>/**` yönlen
 { "clientId": "admin-service", "clientSecret": "string, en az 32 karakter (AUTH_ADMIN_SERVICE_CLIENT_SECRET)", "audience": "isteğe bağlı; boşsa auth-service", "accountId": "UUID; yalnız hesaba bağlı kapsamda (signals:read) zorunlu, diğerlerinde verilemez" }
 ```
 
-İstemci kimliği servis adıdır: `admin-service` (Auth'a `account:*`, community'ye `events:ingest`), `social-service` (community'ye `events:ingest`; user-service'e `privacy:read events:ingest`), `community-service` (admin ve notification'a `events:ingest`), `messaging-service` ve `lfp-service` (social-service'e `blocks:check`), `library-service` (user-service'e `privacy:read events:ingest`), `hardware-service` (user-service'e `privacy:read`), `review-service` (user-service'e `events:ingest`), `recommendation-service` (library-service'e `signals:read`, hesaba bağlı: token `account_id` taşır, hesap `ACTIVE` olmalı). Her istemci **yalnız kendisine tanımlı (hedef, kapsam) çiftleri** için token alır; kimseye varsayılan imtiyaz yoktur. `audience` başka servis ise token o servisin JWKS doğrulamasında geçer (`aud=<servis>-service`, `scope=events:ingest`, `sub=svc:<istemci>`, 60 sn) ve Auth'un iç uçlarında **geçmez**.
+İstemci kimliği servis adıdır: `admin-service` (Auth'a `account:*`, community'ye `events:ingest`), `social-service` (community'ye `events:ingest`; user-service'e `privacy:read events:ingest`), `community-service` (admin ve notification'a `events:ingest`), `messaging-service` ve `lfp-service` (social-service'e `blocks:check`), `library-service` (user-service'e `privacy:read events:ingest`), `hardware-service` (user-service'e `privacy:read`; performance-service'e `devices:verify`, hesaba bağlı: token `account_id` taşır, hesap `ACTIVE` olmalı), `review-service` (user-service'e `events:ingest`), `game-service` (review-service'e `rating-summaries:read`), `recommendation-service` (library-service'e `signals:read`, hesaba bağlı: token `account_id` taşır, hesap `ACTIVE` olmalı). Her istemci **yalnız kendisine tanımlı (hedef, kapsam) çiftleri** için token alır; kimseye varsayılan imtiyaz yoktur. `audience` başka servis ise token o servisin JWKS doğrulamasında geçer (`aud=<servis>-service`, `scope=events:ingest`, `sub=svc:<istemci>`, 60 sn) ve Auth'un iç uçlarında **geçmez**.
 
 #### Response — 200 (`service-tokens`, `Cache-Control: no-store`)
 ```json
@@ -885,7 +936,7 @@ UNIT + INTEGRATION (Auth tarafı; Admin tüketici testi yok)
 
 Aşağıdakiler Auth'un çağıracağı/yayımlayacağı **PLANNED** sözleşmelerdir; karşı servisin kaydı o servis uygulanırken kendi başlığı altında açılır.
 
-- **Auth → Mail, doğrulama kodu teslimi (MAIL-01):** `POST /internal/v1/mail/verification-codes`, Yetkilendirme: Internal (Auth'un imzaladığı, `aud=mail-service` sınırlı servis JWT'si — D4, Faz 2). Gövde: `idempotencyKey` (UUID, kod kaydı kimliği), `accountId`, `recipientEmail`, `code`, `validitySeconds`, `locale` (`tr`/`en`, açık konu). Mail Service yalnız teslim eder; kodu düz metin olarak kalıcı tutmaz (`variables_encrypted`, gönderim sonrası temizleme) ve loglamaz. `202` = teslim kuyruğa alındı; diğer her yanıt Auth'ta teslim başarısızlığı sayılır. Kimlik doğrulaması olmadan bu uç açılmaz.
+- **Auth → Mail, doğrulama kodu teslimi (MAIL-01) — IMPLEMENTED (2026-10-31, `HttpMailServiceAdapter`; ayrıntılı sözleşme `## MAIL` altında; aynı adaptör `password-resets`, `account-deletions`, `security-notifications` uçlarını da çağırır, `scope=mail:send`, yalnız `202` kabul, `locale` gönderilmez → iki dilli):** `POST /internal/v1/mail/verification-codes`, Yetkilendirme: Internal (Auth'un imzaladığı, `aud=mail-service` sınırlı servis JWT'si — D4, Faz 2). Gövde: `idempotencyKey` (UUID, kod kaydı kimliği), `accountId`, `recipientEmail`, `code`, `validitySeconds`, `locale` (`tr`/`en`, açık konu). Mail Service yalnız teslim eder; kodu düz metin olarak kalıcı tutmaz (`variables_encrypted`, gönderim sonrası temizleme) ve loglamaz. `202` = teslim kuyruğa alındı; diğer her yanıt Auth'ta teslim başarısızlığı sayılır. Kimlik doğrulaması olmadan bu uç açılmaz.
 - **Auth → User, `UserRegistered` olayı:** Hesap `ACTIVE` olduktan **sonra** (kayıt anında değil) outbox ile yayımlanır. Alanlar: `eventId`, `accountId`, `username`, `occurredAt`. User Service profili `accountId` ile idempotent oluşturur; parola, e-posta doğrulama durumu ve rol User'a taşınmaz. Outbox altyapısı henüz yoktur (sonraki faz).
 
 ## USER
@@ -1584,9 +1635,220 @@ INTEGRATION (`LinkedAccountTest` 11, `AccountErasureTest` tohumu).
 
 ## MAIL
 
-Sorumlu: Kerem · Gateway: `/api/v1/mail/**` · Görevler: MAIL-
+Sorumlu: Kerem · Gateway: `/api/v1/mail/**` · Görevler: MAIL-01..05, 08, 09, 10..16
 
-_Kayıt yok._
+> Mail Service'in **kullanıcıya açık ucu yoktur**; hepsi `/internal/**` yollarıdır ve Gateway'e açılmaz. Çağıran yalnız Auth'tur (`sub=svc:auth-service`). Auth'un `Mail*Port` sözleşmesine bire bir uyar.
+>
+> Kimlik doğrulama (2026-10-31, LTZ-KER-MAIL-01): Auth'un RS256 imzasını JWKS ile; `typ=svc+jwt`, `iss`, `aud=mail-service`, `sub=svc:auth-service`, UUID `account_id` claim'i ve zorunlu `exp`/`nbf`/`iat` doğrulanır. Kullanıcı token'ı hiçbir uçta geçmez. Token'daki `account_id`, gövdedeki `accountId` (silme ucunda yoldaki hesap) ile aynı olmalıdır; değilse `403`. Tanımsız her yol reddedilir. Yeni ENV'ler: `MAIL_PAYLOAD_ENCRYPTION_KEY`, `MAIL_SMTP_*`, `MAIL_FROM_ADDRESS`, `MAIL_ALLOWED_LINK_HOSTS` (hepsi `.env.example`'da, boş). Gerçek Auth token'ıyla uçtan uca doğrulama **VERIFIED** (2026-10-31, Compose: Auth `mail-service` adaptörü → Mail → Mailpit; `EMAIL_VERIFICATION` kaydı `SENT`, 1 deneme, gönderim sonrası şifreli içerik ve alıcı adresi temizlendi). Diğer 3 e-posta ucu da aynı gün uçtan uca doğrulandı (`PASSWORD_RESET_LINK`, `PASSWORD_CHANGED`, `ACCOUNT_DELETION_CONFIRMATION`: hepsi `SENT`, 1 deneme). Silme ucu da uçtan uca doğrulandı (Auth silme koordinatörü, bekleme süresi dev'de `PT0S`: onaydan sonra hesabın Mail kayıtları 2 → 0).
+>
+> Teslim modeli: `202` e-postanın gönderildiği anlamına gelmez; istek **kalıcı olarak kuyruğa yazıldı** demektir. Gönderim ayrı işleyicide yapılır (5 sn tarama, üstel geri çekilme 1 dk → 6 sa, en çok 8 deneme). Doğrulama kodu/bağlantı kuyrukta AES-256-GCM ile şifreli tutulur, terminal durumda silinir; e-posta adresi terminal durumda maskelenir. Kod, bağlantı ve adres loglanmaz.
+
+### MAIL — Doğrulama kodu e-postası (MAIL-01)
+
+Durum: IMPLEMENTED (kuyruk, şifreleme ve işleyici testli; production SMTP sağlayıcısı henüz seçilmedi, development'ta Mailpit)
+Sorumlu: Kerem
+Tüketici servisler: Auth
+
+#### Endpoint
+POST /internal/v1/mail/verification-codes
+
+#### Yetkilendirme
+Internal. `svc+jwt`, `aud=mail-service`, `sub=svc:auth-service`, `scope=mail:send`, `account_id` = gövdedeki `accountId`.
+
+#### Request Body
+```json
+{
+  "idempotencyKey": "UUID (Auth'un kod kaydı kimliği)",
+  "accountId": "UUID",
+  "recipientEmail": "string ≤254, geçerli e-posta",
+  "code": "string, 6 hane (^[0-9]{6}$)",
+  "validitySeconds": "int 60-3600",
+  "locale": "tr | en (opsiyonel; yoksa e-posta TR + EN iki dilli gider)"
+}
+```
+
+#### Response — 202
+Gövde yok. Aynı `idempotencyKey` + aynı içerik tekrar gelirse yine `202` döner ve ikinci e-posta kuyruğa alınmaz.
+
+#### Hata Durumları
+- 400: Doğrulama (`VALIDATION_FAILED`, yalnız alan adı ve kural kodu döner; istek değeri geri yansıtılmaz); gövde okunamadı (`MALFORMED_REQUEST`)
+- 401: Token yok/geçersiz (`UNAUTHENTICATED`)
+- 403: Çağıran `svc:auth-service` değil, scope `mail:send` değil veya token `account_id` ≠ gövde `accountId` (`FORBIDDEN`)
+- 409: Aynı `idempotencyKey` farklı içerikle kullanıldı (`IDEMPOTENCY_CONFLICT`)
+- 413: Gövde 16 KB üstü (`PAYLOAD_TOO_LARGE`)
+- 503: İstek kalıcı yazılamadı, kısa süre sonra tekrar dene (`TEMPORARILY_UNAVAILABLE`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Auth → Mail, RestClient. Auth tarafı `HttpMailServiceAdapter` **IMPLEMENTED** (`ltz.auth.mail.adapter=mail-service`); uçtan uca doğrulandı (2026-10-31).
+
+#### Test Durumu
+INTEGRATION (`MailDeliveryControllerTest`, `MailDispatchServiceTest`, `MailSchemaAndRetentionTest`)
+
+### MAIL — Parola sıfırlama e-postası (MAIL-02)
+
+Durum: IMPLEMENTED (aynı kısıtlar: production SMTP PENDING)
+Sorumlu: Kerem
+Tüketici servisler: Auth
+
+#### Endpoint
+POST /internal/v1/mail/password-resets
+
+#### Yetkilendirme
+Internal. Doğrulama kodu ucu ile aynı (`scope=mail:send`).
+
+#### Request Body
+```json
+{
+  "idempotencyKey": "UUID",
+  "accountId": "UUID",
+  "recipientEmail": "string ≤254, geçerli e-posta",
+  "resetLink": "string ≤512; host allowlist (MAIL_ALLOWED_LINK_HOSTS) politikasına uymalı",
+  "validitySeconds": "int 60-86400",
+  "locale": "tr | en (opsiyonel)"
+}
+```
+
+#### Response — 202
+Gövde yok.
+
+#### Hata Durumları
+- 400: Doğrulama; bağlantı politikası dışı host/şema (`INVALID_LINK`)
+- 401, 403, 409, 413, 503: Doğrulama kodu ucu ile aynı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Auth → Mail. Auth tarafı `HttpMailServiceAdapter` **IMPLEMENTED** (Mailpit ile uçtan uca doğrulandı, 2026-10-31).
+
+#### Test Durumu
+INTEGRATION (`MailDeliveryControllerTest`)
+
+### MAIL — Hesap silme onay e-postası (MAIL-03)
+
+Durum: IMPLEMENTED (aynı kısıtlar: production SMTP PENDING)
+Sorumlu: Kerem
+Tüketici servisler: Auth
+
+#### Endpoint
+POST /internal/v1/mail/account-deletions
+
+#### Yetkilendirme
+Internal. Doğrulama kodu ucu ile aynı (`scope=mail:send`).
+
+#### Request Body
+```json
+{
+  "idempotencyKey": "UUID",
+  "accountId": "UUID",
+  "recipientEmail": "string ≤254, geçerli e-posta",
+  "confirmationLink": "string ≤512; host allowlist politikasına uymalı",
+  "validitySeconds": "int 60-86400",
+  "locale": "tr | en (opsiyonel)"
+}
+```
+
+#### Response — 202
+Gövde yok.
+
+#### Hata Durumları
+- 400: Doğrulama; bağlantı politikası dışı (`INVALID_LINK`)
+- 401, 403, 409, 413, 503: Doğrulama kodu ucu ile aynı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Auth → Mail. Auth tarafı `HttpMailServiceAdapter` **IMPLEMENTED** (Mailpit ile uçtan uca doğrulandı, 2026-10-31).
+
+#### Test Durumu
+INTEGRATION (`MailDeliveryControllerTest`)
+
+### MAIL — Güvenlik bildirimi e-postası (MAIL-03, MAIL-04)
+
+Durum: IMPLEMENTED (aynı kısıtlar: production SMTP PENDING)
+Sorumlu: Kerem
+Tüketici servisler: Auth
+
+#### Endpoint
+POST /internal/v1/mail/security-notifications
+
+#### Yetkilendirme
+Internal. Doğrulama kodu ucu ile aynı (`scope=mail:send`).
+
+#### Request Body
+```json
+{
+  "idempotencyKey": "UUID",
+  "accountId": "UUID",
+  "recipientEmail": "string ≤254, geçerli e-posta",
+  "type": "PASSWORD_CHANGED | PASSWORD_RESET | EMAIL_CHANGED | ACCOUNT_SUSPENDED | ACCOUNT_BANNED | ACCOUNT_DISABLED | ACCOUNT_REACTIVATED",
+  "occurredAt": "ISO-8601 (gelecekte olamaz)",
+  "locale": "tr | en (opsiyonel)"
+}
+```
+Bildirim parola, kod, bağlantı veya gerekçe metni taşımaz; yalnız ne olduğunu ve ne zaman olduğunu söyler. `EMAIL_CHANGED` eski adrese gönderilir. Süresi geçmiş (24 saatten eski) bildirim gönderilmez.
+
+#### Response — 202
+Gövde yok.
+
+#### Hata Durumları
+- 400: Doğrulama; `occurredAt` kabul edilemez (`INVALID_OCCURRED_AT`)
+- 401, 403, 409, 413, 503: Doğrulama kodu ucu ile aynı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Auth → Mail. Auth tarafı `HttpMailServiceAdapter` **IMPLEMENTED** (Mailpit ile uçtan uca doğrulandı, 2026-10-31).
+
+#### Test Durumu
+INTEGRATION (`MailDeliveryControllerTest`)
+
+### MAIL — Hesap verisini sil (silme akışı)
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Auth
+
+#### Endpoint
+DELETE /internal/v1/accounts/{accountId}
+
+#### Yetkilendirme
+Internal. `svc+jwt`, `aud=mail-service`, `sub=svc:auth-service`, `scope=account:erase`, `account_id` = yoldaki `accountId`.
+
+#### Path Parameters
+- accountId: UUID, zorunlu
+
+#### Response — 204
+Gövde yok. İdempotenttir: hesaba ait kayıt olmasa da `204` döner. Hesabın kuyruktaki e-postaları ve gönderim geçmişi silinir.
+
+#### Hata Durumları
+- 400: `accountId` UUID değil (`MALFORMED_REQUEST`)
+- 401: Token yok/geçersiz
+- 403: Çağıran `svc:auth-service` değil, scope `account:erase` değil veya `account_id` ≠ yol (hiçbir şey silinmez)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Auth → Mail, RestClient (`HttpAccountDataEraser` deseni). Auth'un silme işçisi bu ucu çağıracak şekilde yapılandırılmalıdır.
+
+#### Test Durumu
+INTEGRATION (`AccountErasureTest`)
 
 ## GAME
 

@@ -27,7 +27,7 @@ User Service profil sahibi, Auth kimlik sahibi. Aralarındaki bağ iki olay (hes
 - `UserRegistered` olayı (ACTIVE olunca): **Auth'ta hazır** (2026-10-29). Gövde `eventId`, `eventType`, `eventVersion`, `occurredAt`, `producer`, `aggregateId`, `payload`; payload kullanıcı adıdır, e-posta yoktur. Alıcı: `POST /internal/events`, `aud=user-service`, `typ=svc+jwt`, `scope=events:ingest`, `sub=svc:auth-service`. Alıcı uç hazır (User dalı); dev şablonunda `AUTH_EVENT_TARGETS=user` varsayılandır ve `node ops/generate-auth-dev-keys.mjs` eksik ortamlara ekler (yeni (çağıran, hedef) çifti gerekmez, Auth kendi adıyla gönderir)
 - E-posta değişti olayı (`AccountEmailChanged`, borç B19 kısmen kapandı): **Auth'ta hazır** (2026-10-29), aynı yol. Olay yeni adresi taşımaz (e-posta kişisel veri, olaylara konmaz). Profilde e-posta tutacaksan yeni adresi kullanıcıdan ya da kendi akışından al; Auth'ta User için bir hesap-okuma izni tanımlı değil, gerekirse `talep` yaz
 - `AccountStatusChanged` (D3): Auth'ta hazır (2026-10-29), yalnız yönetici durum değişikliğinde çıkar
-- USER-07 (Steam ve Discord bağlantısı): Auth'ta Steam ve Google girişi var (kimlik kanıtı), Discord yok. Auth'ın bağlı hesap bilgisini User'a vermesi için sözleşme yazılı değil
+- **USER-07 Steam bağlama/kaldırma: HAZIR (2026-10-31).** `POST /api/v1/auth/oauth/steam/link/start` (yeniden doğrulamalı), Steam dönüşü `GET .../steam/link/callback`, `POST .../steam/unlink`; olaylar `ExternalIdentityLinked { accountId, provider, providerSubject }` ve `ExternalIdentityUnlinked { accountId, provider }` (`AUTH_EVENT_TARGETS=user`). Sözleşme: `docs/api.md` "Steam bağlama ve kaldırma"; cevap: `verilen-cevaplar/user-service/talep-02-*`. Discord Auth'ta yok
 
 ## İLGİLİ BELGELER
 

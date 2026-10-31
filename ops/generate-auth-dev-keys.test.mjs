@@ -93,6 +93,45 @@ test("AUTH_EVENT_TARGETS satır yoksa veya boşsa user yazılır; dolu listeye d
   }
 });
 
+test("Mail anahtarı üretilir; SMTP satırları yoksa boş eklenir, var olan (dolu/boş) satıra dokunulmaz", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ltz-mail-"));
+  try {
+    const fresh = join(dir, "fresh.env");
+    const custom = join(dir, "custom.env");
+    writeFileSync(fresh, "OTHER=1\r\n");
+    writeFileSync(custom, "MAIL_SMTP_HOST=smtp.example.test\nMAIL_SMTP_PORT=\nMAIL_PAYLOAD_ENCRYPTION_KEY=dolu-anahtar\n");
+    const get = (text, name) => text.match(new RegExp(`^${name}=(.*?)\\r?$`, "m"))?.[1];
+    const smtpKeys = ["MAIL_SMTP_HOST", "MAIL_SMTP_PORT", "MAIL_SMTP_USERNAME", "MAIL_SMTP_PASSWORD",
+      "MAIL_SMTP_SECURITY", "MAIL_FROM_ADDRESS", "MAIL_ALLOWED_LINK_HOSTS"];
+
+    // Betik, bir dosyada dolu olan anahtarı aynı çalıştırmadaki tüm dosyalara kopyalar; bu yüzden ayrı çalıştırılır.
+    const run = spawnSync(process.execPath, [script, fresh], { encoding: "utf8" });
+    assert.equal(run.status, 0, run.stderr);
+    const customRun = spawnSync(process.execPath, [script, custom], { encoding: "utf8" });
+    assert.equal(customRun.status, 0, customRun.stderr);
+    const freshText = readFileSync(fresh, "utf8");
+    const customText = readFileSync(custom, "utf8");
+
+    assert.equal(Buffer.from(get(freshText, "MAIL_PAYLOAD_ENCRYPTION_KEY"), "base64").length, 32);
+    assert.ok(!run.stdout.includes(get(freshText, "MAIL_PAYLOAD_ENCRYPTION_KEY")), "anahtar çıktıya sızdı");
+    for (const name of smtpKeys) {
+      assert.equal(get(freshText, name), "", `${name} boş eklenmeli`);
+    }
+    assert.equal(get(customText, "MAIL_SMTP_HOST"), "smtp.example.test", "dolu satır ezilmemeli");
+    assert.equal(get(customText, "MAIL_SMTP_PORT"), "", "boş satır doldurulmamalı ve çoğaltmamalı");
+    assert.equal(get(customText, "MAIL_PAYLOAD_ENCRYPTION_KEY"), "dolu-anahtar");
+    assert.equal(customText.match(/^MAIL_SMTP_PORT=/gm).length, 1);
+
+    const again = spawnSync(process.execPath, [script, fresh], { encoding: "utf8" });
+    const againCustom = spawnSync(process.execPath, [script, custom], { encoding: "utf8" });
+    assert.equal(readFileSync(fresh, "utf8"), freshText);
+    assert.equal(readFileSync(custom, "utf8"), customText);
+    assert.ok(!/boş eklendi/.test(again.stdout + againCustom.stdout), "ikinci çalıştırmada değişiklik olmamalı");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("eski varsayılan JWT_ACCESS_TTL_SECONDS=300 değeri 60'a çekilir; özelleştirilmiş değere ve eksik satıra dokunulmaz", () => {
   const dir = mkdtempSync(join(tmpdir(), "ltz-ttl-"));
   try {

@@ -24,6 +24,11 @@ public class RetentionCleanupRepository {
                 + "(select state_hash from oauth_flows where expires_at < ? limit ?)", Timestamp.from(cutoff), limit);
     }
 
+    public int deleteExpiredOAuthLinkFlows(Instant cutoff, int limit) {
+        return jdbc.update("delete from oauth_link_flows where state_hash in "
+                + "(select state_hash from oauth_link_flows where expires_at < ? limit ?)", Timestamp.from(cutoff), limit);
+    }
+
     public int deleteOldOpenIdNonces(Instant cutoff, int limit) {
         return jdbc.update("delete from openid_nonces where nonce_hash in "
                 + "(select nonce_hash from openid_nonces where seen_at < ? limit ?)", Timestamp.from(cutoff), limit);

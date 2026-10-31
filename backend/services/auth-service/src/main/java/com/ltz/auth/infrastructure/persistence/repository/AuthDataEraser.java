@@ -25,8 +25,11 @@ public class AuthDataEraser {
     private static final String STEAM_PROOF_DELETE = "delete from steam_registrations where steam_id in "
             + "(select provider_subject from external_identities where account_id = ? and provider = 'STEAM')";
 
+    /** Steam bağlama akışı (oauth_link_flows): hesaba bağlı geçici kayıt; hem silmede hem silme onayında temizlenir. */
+    private static final String LINK_FLOW_DELETE = "delete from oauth_link_flows where account_id = ?";
+
     /** Hesap kimliğine bağlı, kişisel veri taşıyan tablolar; ifadeler tamamen sabittir (dinamik SQL yok). */
-    private static final List<String> DELETE_STATEMENTS = List.of(
+    private static final List<String> DELETE_STATEMENTS = List.of(LINK_FLOW_DELETE,
             // external_identities silinmeden ÖNCE: Steam kimliği buradan çözülür.
             STEAM_PROOF_DELETE,
             "delete from external_identities where account_id = ?",
@@ -39,7 +42,7 @@ public class AuthDataEraser {
             "delete from account_deletion_tokens where account_id = ?");
 
     /** Silme talebi onaylandığında çalışır: hesabın hâlâ kullanılabilir geçici kimlik doğrulama artıklarını yok eder. */
-    private static final List<String> EPHEMERAL_STATEMENTS = List.of(
+    private static final List<String> EPHEMERAL_STATEMENTS = List.of(LINK_FLOW_DELETE,
             STEAM_PROOF_DELETE,
             "delete from mfa_challenges where account_id = ?",
             "delete from email_verification_codes where account_id = ?",

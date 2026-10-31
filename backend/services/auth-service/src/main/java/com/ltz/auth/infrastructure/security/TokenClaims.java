@@ -23,6 +23,8 @@ public final class TokenClaims {
     public static final String AUTH_SERVICE_SUBJECT = SERVICE_SUBJECT_PREFIX + AUTH_SERVICE_AUDIENCE;
     /** RFC 8693 kapsam claim'i (boşlukla ayrılmış). */
     public static final String SCOPE = "scope";
+    /** Mail Service'e e-posta kuyruğa alma kapsamı. */
+    public static final String MAIL_SEND_SCOPE = "mail:send";
     /** Hesap verisi silme kapsamı. */
     public static final String ACCOUNT_ERASE_SCOPE = "account:erase";
     /** Servis token'ının bağlı olduğu tek hesap; hedef servis bunu istek yolundaki hesap kimliğiyle karşılaştırır. */
@@ -45,11 +47,21 @@ public final class TokenClaims {
      * {@link #ACCOUNT_ID} taşır, hedef servis bunu istekteki hesapla karşılaştırır.
      */
     public static final String SIGNALS_READ_SCOPE = "signals:read";
+    /** Oyun puan özeti okuma: game, Review'ın toplu puan özetini yalnız okur; kullanıcıya bağlı değildir. */
+    public static final String RATING_SUMMARIES_READ_SCOPE = "rating-summaries:read";
+    /**
+     * Cihaz doğrulama: hardware, Performance'tan bir hesabın cihazının aktif olup olmadığını sorar. Hesaba bağlı kapsamdır:
+     * token {@link #ACCOUNT_ID} taşır, Performance bunu istek yolundaki hesapla karşılaştırır.
+     */
+    public static final String DEVICES_VERIFY_SCOPE = "devices:verify";
     /** Masaüstü cihaz token'ı türü; kullanıcı ({@link #ACCESS_TOKEN_TYPE}) ve servis token'ının yerine geçemez, tersi de geçemez. */
     public static final String DEVICE_TOKEN_TYPE = "dev+jwt";
     /** Cihaz token'ının tek hedefi ve tek kapsamı (Hardware'in masaüstü senkronu). */
     public static final String HARDWARE_SERVICE_AUDIENCE = "hardware-service";
     public static final String HARDWARE_SYNC_WRITE_SCOPE = "hardware:sync:write";
+    /** Cihaz token'ının ikinci hedefi ve kapsamı (Performance'ın ölçüm senkronu); token yine tek {@code aud}, tek kapsam taşır. */
+    public static final String PERFORMANCE_SERVICE_AUDIENCE = "performance-service";
+    public static final String PERFORMANCE_SYNC_WRITE_SCOPE = "performance:sync:write";
     /** Servis adı → servis token'ı {@code aud} değeri: {@code <servis>-service} (Compose ve modül adıyla aynı). */
     public static final String SERVICE_AUDIENCE_SUFFIX = "-service";
 

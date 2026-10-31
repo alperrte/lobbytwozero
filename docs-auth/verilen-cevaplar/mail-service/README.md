@@ -8,15 +8,17 @@
 
 | Konu | Durum |
 |---|---|
-| Servisin durumu | İskelet (henüz iş yok) |
-| Kullanıcı token doğrulaması (JWT) | Yok (kod yok) |
-| Hesap silme ucu (`DELETE /internal/v1/accounts/{accountId}`) | Yok. Mail Service başlayınca ilk iş silme ucu |
+| Servisin durumu | MAIL-01/02 kodu ve testi tamam (54 test, resmi kapı PASS, coverage %88,99); Auth adaptörü hazır, 4 e-posta akışı Mailpit ile uçtan uca doğrulandı (2026-10-31) |
+| Kullanıcı token doğrulaması (JWT) | Yok, bilerek: Mail'in kullanıcıya açık ucu yok; yalnız Auth'un `svc+jwt` token'ı (`aud=mail-service`, `sub=svc:auth-service`, `scope=mail:send`, `account_id`) kabul edilir |
+| Hesap silme ucu (`DELETE /internal/v1/accounts/{accountId}`) | Var (`scope=account:erase`, idempotent, `204`). Auth silme koordinatörüyle uçtan uca doğrulandı (2026-10-31) |
 
 ## BU BRANCH İÇİN AUTH'TAN GELEN TALEP VE CEVAPLAR
 
 Şu an Auth'a yönelik açık bir talep yok. Soru çıkarsa buraya yazılır.
 
-**Ek not:** Auth'un üç e-posta portu var (doğrulama kodu, parola sıfırlama, hesap silme onayı). Production Mail Service yazılana kadar Auth dev'de Mailpit kullanıyor ve prod profili bilerek açılmıyor.
+**Auth'tan beklenenler (Auth adaptörüyle karşılandı, 2026-10-31):** `ltz.auth.mail.adapter=mail-service`; her çağrıda yeni `svc+jwt`; `POST /internal/v1/mail/{verification-codes,password-resets,account-deletions,security-notifications}`; gövde `idempotencyKey, accountId, recipientEmail` + türe özgü alanlar (`locale` gönderilmez → iki dilli); yalnız `202` başarı, diğer her yanıt Auth'ta teslim hatası. Sözleşme ayrıntısı: `docs/api.md` `## MAIL`; Mail tarafı özeti: `docs-mail/integration/README.md`.
+
+**Ek not:** Auth'un dört e-posta portu var (doğrulama kodu, parola sıfırlama, hesap silme onayı, güvenlik bildirimi). Varsayılan adaptör fail-closed (`unavailable`), dev'de Mailpit (`dev-smtp`); prod yalnız `mail-service` adaptörüyle açılır.
 
 ## BİLMEN GEREKENLER
 

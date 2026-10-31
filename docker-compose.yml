@@ -105,6 +105,7 @@ services:
       AUTH_LIBRARY_SERVICE_CLIENT_SECRET: ${AUTH_LIBRARY_SERVICE_CLIENT_SECRET:-}
       AUTH_HARDWARE_SERVICE_CLIENT_SECRET: ${AUTH_HARDWARE_SERVICE_CLIENT_SECRET:-}
       AUTH_REVIEW_SERVICE_CLIENT_SECRET: ${AUTH_REVIEW_SERVICE_CLIENT_SECRET:-}
+      AUTH_GAME_SERVICE_CLIENT_SECRET: ${AUTH_GAME_SERVICE_CLIENT_SECRET:-}
       AUTH_RECOMMENDATION_SERVICE_CLIENT_SECRET: ${AUTH_RECOMMENDATION_SERVICE_CLIENT_SECRET:-}
       AUTH_EVENT_TARGETS: ${AUTH_EVENT_TARGETS:-}
       AUTH_TOTP_ENCRYPTION_KEY: ${AUTH_TOTP_ENCRYPTION_KEY:?}
@@ -134,6 +135,8 @@ services:
       AUTH_STEAM_REGISTRATION_TTL: ${AUTH_STEAM_REGISTRATION_TTL:-PT15M}
       AUTH_STEAM_PROOF_TTL: ${AUTH_STEAM_PROOF_TTL:-PT30M}
       AUTH_PASSWORD_RESET_COOLDOWN: ${AUTH_PASSWORD_RESET_COOLDOWN:-PT60S}
+      # E-posta teslim adaptoru: dev-smtp (Mailpit) | mail-service (gercek Mail Service) | unavailable. prod yalniz mail-service ile acilir.
+      LTZ_AUTH_MAIL_ADAPTER: ${AUTH_MAIL_ADAPTER:-dev-smtp}
       AUTH_DELETION_TOKEN_TTL: ${AUTH_DELETION_TOKEN_TTL:-PT30M}
       AUTH_DELETION_REQUEST_COOLDOWN: ${AUTH_DELETION_REQUEST_COOLDOWN:-PT60S}
       AUTH_DELETION_RECENT_LOGIN_WINDOW: ${AUTH_DELETION_RECENT_LOGIN_WINDOW:-PT10M}
@@ -198,6 +201,16 @@ services:
     environment:
       <<: *ltz-db-env
       DB_MAIL_NAME: ${DB_MAIL_NAME:?}
+      # Mail Service ayarlari. SMTP degerleri saglayici secilene kadar bos kalir; bos iken dev'de Mailpit varsayilanlari gecerlidir.
+      # Sifreleme anahtari bos ise mail-service bilerek acilmaz (fail-fast); node ops/generate-auth-dev-keys.mjs uretir.
+      MAIL_PAYLOAD_ENCRYPTION_KEY: ${MAIL_PAYLOAD_ENCRYPTION_KEY:-}
+      MAIL_SMTP_HOST: ${MAIL_SMTP_HOST:-}
+      MAIL_SMTP_PORT: ${MAIL_SMTP_PORT:-}
+      MAIL_SMTP_USERNAME: ${MAIL_SMTP_USERNAME:-}
+      MAIL_SMTP_PASSWORD: ${MAIL_SMTP_PASSWORD:-}
+      MAIL_SMTP_SECURITY: ${MAIL_SMTP_SECURITY:-}
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-}
+      MAIL_ALLOWED_LINK_HOSTS: ${MAIL_ALLOWED_LINK_HOSTS:-}
     depends_on:
       postgres:
         condition: service_healthy

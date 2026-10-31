@@ -40,6 +40,12 @@ public final class ServiceTokenContract {
     /** @throws org.springframework.security.oauth2.jwt.JwtException sözleşmeye uymayan token için */
     public static Jwt verify(String token, RSAPublicKey key, String issuer, String audience, UUID pathAccountId,
                              Clock clock) {
+        return verify(token, key, issuer, audience, TokenClaims.ACCOUNT_ERASE_SCOPE, pathAccountId, clock);
+    }
+
+    /** @throws org.springframework.security.oauth2.jwt.JwtException sözleşmeye uymayan token için */
+    public static Jwt verify(String token, RSAPublicKey key, String issuer, String audience, String requiredScope,
+                             UUID pathAccountId, Clock clock) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withPublicKey(key)
                 .signatureAlgorithm(SignatureAlgorithm.RS256)
                 .validateType(false)
@@ -55,7 +61,7 @@ public final class ServiceTokenContract {
                 new JwtClaimValidator<String>(JwtClaimNames.SUB, TokenClaims.AUTH_SERVICE_SUBJECT::equals),
                 new JwtClaimValidator<Object>(JwtClaimNames.JTI, Objects::nonNull),
                 new JwtClaimValidator<String>(TokenClaims.SCOPE, scope -> scope != null
-                        && Arrays.asList(scope.split(" ")).contains(TokenClaims.ACCOUNT_ERASE_SCOPE)),
+                        && Arrays.asList(scope.split(" ")).contains(requiredScope)),
                 new JwtClaimValidator<String>(TokenClaims.ACCOUNT_ID, pathAccountId.toString()::equals),
                 maxLifetime(clock));
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(rules));

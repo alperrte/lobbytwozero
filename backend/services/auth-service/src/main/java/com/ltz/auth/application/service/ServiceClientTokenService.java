@@ -77,18 +77,13 @@ public class ServiceClientTokenService {
         ServiceClientProperties.Client client = authenticate(clientId, clientSecret, loggedClient);
         String target = audience == null || audience.isBlank() ? TokenClaims.AUTH_SERVICE_AUDIENCE : audience;
         String loggedTarget = safe(target);
-        Set<String> scopes = TokenClaims.AUTH_SERVICE_AUDIENCE.equals(target)
-                ? client.scopes() : client.targets().getOrDefault(target, Set.of());
-        if (scopes.isEmpty()) {
-            log.warn("Service client audience not allowed clientId={} audience={}", loggedClient, loggedTarget);
-            throw new AuthException(AuthErrorCode.SERVICE_AUDIENCE_FORBIDDEN);
-        }
+        Set<String> scopes = allowedScopes(client, loggedClient, loggedTarget, target);
         requireAccountBinding(scopes, accountId, loggedClient, loggedTarget);
         return new IssuedServiceToken(issuer.issue(clientId, target, scopes, accountId), ServiceClientTokenIssuer.TTL,
                 String.join(" ", new TreeSet<>(scopes)));
     }
 
-    /** Yanıt, istemcinin yokluğunu, devre dışılığını ve yanlış anahtarı ayırt ettirmez (tek {@code INVALID_CLIENT}). */
+    /** Sabit zamanlı karşılaştırma: bilinmeyen/kapalı istemci de aynı yolu izler (zamanlama farkı sızmaz). */
     private ServiceClientProperties.Client authenticate(String clientId, String clientSecret, String loggedClient) {
         Optional<ServiceClientProperties.Client> client = Optional.ofNullable(clientId).map(properties.clients()::get)
                 .filter(ServiceClientProperties.Client::enabled);
@@ -99,6 +94,17 @@ public class ServiceClientTokenService {
             throw new AuthException(AuthErrorCode.INVALID_CLIENT);
         }
         return client.get();
+    }
+
+    private Set<String> allowedScopes(ServiceClientProperties.Client client, String loggedClient, String loggedTarget,
+                                      String target) {
+        Set<String> scopes = TokenClaims.AUTH_SERVICE_AUDIENCE.equals(target)
+                ? client.scopes() : client.targets().getOrDefault(target, Set.of());
+        if (scopes.isEmpty()) {
+            log.warn("Service client audience not allowed clientId={} audience={}", loggedClient, loggedTarget);
+            throw new AuthException(AuthErrorCode.SERVICE_AUDIENCE_FORBIDDEN);
+        }
+        return scopes;
     }
 
     /** Hesaba bağlı kapsamda hesap zorunlu ve ACTIVE; bağsız kapsamda hesap verilemez. */

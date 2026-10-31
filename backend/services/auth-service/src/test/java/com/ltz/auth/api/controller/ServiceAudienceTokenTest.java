@@ -109,6 +109,52 @@ class ServiceAudienceTokenTest extends IntegrationTestSupport {
     }
 
     @Test
+    void gameYalnizReviewIcinPuanOzetiOkumaTokeniAlirKullaniciBagiTasimaz() throws Exception {
+        String body = tokenRequest("game-service", GAME_CLIENT_SECRET, "review-service")
+                .andExpect(status().isOk()).andExpect(jsonPath("$.scope").value("rating-summaries:read"))
+                .andReturn().getResponse().getContentAsString();
+        JWTClaimsSet claims = SignedJWT.parse(JsonPath.<String>read(body, "$.accessToken")).getJWTClaimsSet();
+        assertThat(claims.getAudience()).containsExactly("review-service");
+        assertThat(claims.getSubject()).isEqualTo("svc:game-service");
+        assertThat(claims.getClaims()).doesNotContainKeys("roles", "sid", "ver", "amr", "account_id");
+
+        // Yalnız okuma: Game ne olay yazabilir ne de başka hedefe token alabilir.
+        tokenRequest("game-service", GAME_CLIENT_SECRET, "admin-service").andExpect(status().isForbidden());
+        tokenRequest("game-service", GAME_CLIENT_SECRET, "user-service").andExpect(status().isForbidden());
+        tokenRequest("game-service", GAME_CLIENT_SECRET, null).andExpect(status().isForbidden());
+        // Review'a yalnız bu çift açık: user-service'e giden review istemcisi özet okuma kapsamı alamaz.
+        tokenRequest("review-service", REVIEW_CLIENT_SECRET, "review-service").andExpect(status().isForbidden());
+    }
+
+    @Test
+    void hardwarePerformanceIcinCihazDogrulamaTokeniniYalnizAktifTekHesabaBagliAlir() throws Exception {
+        UUID account = accountId(registerActiveAccount(uniqueEmail(), uniqueUsername()));
+
+        String body = postJson("/internal/v1/service-tokens",
+                "{\"clientId\":\"hardware-service\",\"clientSecret\":\"%s\",\"audience\":\"performance-service\",\"accountId\":\"%s\"}"
+                        .formatted(HARDWARE_CLIENT_SECRET, account))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.scope").value("devices:verify"))
+                .andReturn().getResponse().getContentAsString();
+        JWTClaimsSet claims = SignedJWT.parse(JsonPath.<String>read(body, "$.accessToken")).getJWTClaimsSet();
+        assertThat(claims.getAudience()).containsExactly("performance-service");
+        assertThat(claims.getSubject()).isEqualTo("svc:hardware-service");
+        assertThat(claims.getStringClaim("account_id")).isEqualTo(account.toString());
+        assertThat(claims.getClaims()).doesNotContainKeys("roles", "sid", "ver", "amr");
+
+        // Hesapsız istek, olmayan hesap ve askıdaki hesap reddedilir; user-service'e giden token hesaba bağlı değildir.
+        tokenRequest("hardware-service", HARDWARE_CLIENT_SECRET, "performance-service")
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("SERVICE_ACCOUNT_BINDING_INVALID"));
+        postJson("/internal/v1/service-tokens",
+                "{\"clientId\":\"hardware-service\",\"clientSecret\":\"%s\",\"audience\":\"performance-service\",\"accountId\":\"%s\"}"
+                        .formatted(HARDWARE_CLIENT_SECRET, UUID.randomUUID()))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("SERVICE_TARGET_ACCOUNT_UNAVAILABLE"));
+        tokenRequest("hardware-service", HARDWARE_CLIENT_SECRET, "user-service").andExpect(status().isOk());
+        // Başka istemciler Performance'a cihaz doğrulama için token alamaz.
+        tokenRequest("library-service", LIBRARY_CLIENT_SECRET, "performance-service").andExpect(status().isForbidden());
+        tokenRequest("game-service", GAME_CLIENT_SECRET, "performance-service").andExpect(status().isForbidden());
+    }
+
+    @Test
     void recommendationYalnizAktifTekHesabaBagliSinyalTokeniAlir() throws Exception {
         UUID account = accountId(registerActiveAccount(uniqueEmail(), uniqueUsername()));
 

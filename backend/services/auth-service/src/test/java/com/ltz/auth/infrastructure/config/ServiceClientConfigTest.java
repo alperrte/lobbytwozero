@@ -78,6 +78,15 @@ class ServiceClientConfigTest {
                 "targets.library-service");
     }
 
+    @Test
+    void cihazDogrulamaHesabaBagliOlduguIcinBagsizKapsamlaKarisamaz() {
+        assertAccepted("hardware-service", targets(Map.of("performance-service", Set.of("devices:verify"))));
+        assertRejected("hardware-service",
+                targets(Map.of("performance-service", Set.of("devices:verify", "events:ingest"))), "must not mix");
+        // Puan özeti okuma kullanıcıya bağlı değildir; tek başına ya da başka bağsız kapsamla açılabilir.
+        assertAccepted("game-service", targets(Map.of("review-service", Set.of("rating-summaries:read"))));
+    }
+
     /** Yalnız hedef kapsamlı istemci (Auth'a kapsamı yok). */
     private static ServiceClientProperties.Client targets(Map<String, Set<String>> targets) {
         return new ServiceClientProperties.Client(STRONG_SECRET, Set.of(), targets);
