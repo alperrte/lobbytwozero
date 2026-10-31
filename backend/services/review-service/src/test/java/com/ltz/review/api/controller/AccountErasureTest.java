@@ -44,6 +44,8 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -64,9 +66,16 @@ class AccountErasureTest {
     MockMvc mvc;
 
     @Configuration @EnableWebMvc @EnableWebSecurity
-    @Import({AccountErasureController.class, AccountErasureService.class, AccountErasureExceptionHandler.class,
+    @Import({AccountErasureController.class, RatingController.class, AccountErasureExceptionHandler.class,
             ServiceTokenDecoderConfiguration.class, AccountErasureSecurityConfiguration.class})
-    static class WebConfig {}
+    static class WebConfig {
+        @org.springframework.context.annotation.Bean
+        AccountErasureService erasure() { return mock(AccountErasureService.class); }
+        @org.springframework.context.annotation.Bean
+        com.ltz.review.application.service.RatingService ratings() {
+            return mock(com.ltz.review.application.service.RatingService.class);
+        }
+    }
 
     @DynamicPropertySource static void properties(DynamicPropertyRegistry registry) {
         registry.add("ltz.security.jwt.jwk-set-uri", () -> "http://127.0.0.1:" + JWKS.getAddress().getPort() + "/jwks");
@@ -157,11 +166,40 @@ class AccountErasureTest {
         call(get("/unknown"), token(claims())).andExpect(status().isUnauthorized());
     }
 
-    @Test void skeletonServiceHasNoAccountState() {
-        var service = new AccountErasureService();
-        service.erase(ACCOUNT);
-        service.erase(UUID.randomUUID());
+    @Test void accountErasureRejectsNullIdentity() {
+        var service = new AccountErasureService(mock(org.springframework.jdbc.core.simple.JdbcClient.class),
+                mock(com.ltz.review.infrastructure.persistence.repository.AccountWriteLock.class));
         assertThrows(NullPointerException.class, () -> service.erase(null));
+    }
+
+    @Test void signedUserTokenWritesWithoutCsrfButCookieAloneCannotAuthenticate() throws Exception {
+        String path = "/api/v1/review/games/" + UUID.randomUUID() + "/rating";
+        var header = new JWSHeader.Builder(JWSAlgorithm.RS256).type(new JOSEObjectType("at+jwt")).keyID("erasure-test").build();
+        var user = claims().audience("ltz-api").subject(ACCOUNT.toString()).claim("roles", List.of("PLAYER"));
+        call(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(path)
+                .contentType("application/json").content("{\"rating\":7}"), sign(user, header)).andExpect(status().isOk());
+        verify(context.getBean(com.ltz.review.application.service.RatingService.class))
+                .rate(org.mockito.ArgumentMatchers.eq(ACCOUNT), org.mockito.ArgumentMatchers.any(UUID.class), org.mockito.ArgumentMatchers.eq(7));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(path)
+                .cookie(new jakarta.servlet.http.Cookie("ltz_access", sign(user, header)))
+                .contentType("application/json").content("{\"rating\":7}")).andExpect(status().isUnauthorized());
+    }
+
+    @Test void userEndpointRejectsInvalidUserClaimsAndServiceToken() throws Exception {
+        String path = "/api/v1/review/games/" + UUID.randomUUID() + "/rating";
+        var header = new JWSHeader.Builder(JWSAlgorithm.RS256).type(new JOSEObjectType("at+jwt")).keyID("erasure-test").build();
+        for (var invalid : List.of(userClaims().issuer("wrong"), userClaims().audience("wrong"), userClaims().subject("svc:auth-service"),
+                userClaims().issueTime(null), userClaims().notBeforeTime(null), userClaims().expirationTime(null),
+                userClaims().expirationTime(Date.from(Instant.now().minusSeconds(60))),
+                userClaims().issueTime(Date.from(Instant.now().plusSeconds(90))))) {
+            call(get(path), sign(invalid, header)).andExpect(status().isUnauthorized());
+        }
+        call(get(path), token(claims())).andExpect(status().isUnauthorized());
+        call(get(path), sign(userClaims().claim("roles", List.of()), header)).andExpect(status().isForbidden());
+    }
+
+    static JWTClaimsSet.Builder userClaims() {
+        return claims().audience("ltz-api").subject(ACCOUNT.toString()).claim("roles", List.of("PLAYER"));
     }
 
     @Test void realAuthServiceTokenIssuerIsCompatible(@org.junit.jupiter.api.io.TempDir java.nio.file.Path output) throws Exception {
