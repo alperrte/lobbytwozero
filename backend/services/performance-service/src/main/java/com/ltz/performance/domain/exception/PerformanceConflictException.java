@@ -9,6 +9,9 @@ public class PerformanceConflictException extends RuntimeException {
     public static final String SESSION_LIMIT_REACHED = "SESSION_LIMIT_REACHED";
     public static final String SESSION_ALREADY_ENDED = "SESSION_ALREADY_ENDED";
     public static final String SESSION_NOT_COMPLETED = "SESSION_NOT_COMPLETED";
+    public static final String SESSION_NOT_ACCEPTING_SAMPLES = "SESSION_NOT_ACCEPTING_SAMPLES";
+    public static final String SESSION_SAMPLE_LIMIT_REACHED = "SESSION_SAMPLE_LIMIT_REACHED";
+    public static final String USER_SAMPLE_QUOTA_REACHED = "USER_SAMPLE_QUOTA_REACHED";
 
     private final String code;
 

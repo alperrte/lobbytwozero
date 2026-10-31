@@ -6958,7 +6958,7 @@ Diğer mikroservisler:
 #### Test Durumu
 INTEGRATION
 
-### PERFORMANCE — Ölçüm senkronizasyon zarfı kabul
+### PERFORMANCE — Ölçüm senkronizasyonu kabul (zarf v1 + örnekler v2, PERF-05..12)
 
 Durum: IN PROGRESS
 Sorumlu: Alper
@@ -6969,13 +6969,13 @@ POST /api/v1/performance/sync/batches
 
 #### Yetkilendirme
 Cihaz token'ı (`Authorization: Bearer <dev+jwt>`): `typ=dev+jwt`, `iss=ltz-auth`, **tek** `aud=performance-service`, `scope=performance:sync:write`, `sub`=cihaz UUID, `account_id`, `jti`, ömür ≤ 60 sn. Kullanıcı ve servis token'ı bu uçta geçmez; Hardware için üretilmiş cihaz token'ı (`aud=hardware-service`) **reddedilir**.
-Ayrıca: hesapta açık senkronizasyon izni + bu cihaz için aktif `device_links` kaydı gerekir.
+Ayrıca: hesapta açık senkronizasyon izni + bu cihaz için aktif `device_links` kaydı gerekir. v2'de `sessionId` çağıran hesabın oturumu olmalıdır (başkasının veya olmayan oturum aynı 404).
 > **BLOCKED:** Auth bugün yalnız `aud=hardware-service` cihaz token'ı üretir. Gerçek akış REQ-01-A (Auth değişikliği) sonrası çalışır.
 
 #### Header Parameters
 - Idempotency-Key: UUID, zorunlu
 
-#### Request Body
+#### Request Body — v1 (Faz 1, geriye uyumlu; yalnız zarf)
 ```json
 {
   "schemaVersion": 1,
@@ -6983,25 +6983,63 @@ Ayrıca: hesapta açık senkronizasyon izni + bu cihaz için aktif `device_links
   "sampleCount": 0
 }
 ```
-Faz 1'de yalnız zarf kabul edilir (`sampleCount` 0..500); örnek içeriği Faz 3'te eklenir. Bilinmeyen alanlar reddedilir. `clientSentAt` şu andan −24 sa .. +5 dk aralığında olmalıdır. İstek gövdesi üst sınırı aşılırsa 413.
+`sampleCount` 0..500 zorunlu; `sessionId` ve `samples` v1'de gönderilemez (400).
+
+#### Request Body — v2 (Faz 3, örnek içeren)
+```json
+{
+  "schemaVersion": 2,
+  "clientSentAt": "2026-01-01T10:00:00Z",
+  "sessionId": "UUID",
+  "samples": [
+    { "capturedAt": "2026-01-01T10:00:00.250Z", "metric": "FPS", "value": 143.9 },
+    { "capturedAt": "2026-01-01T10:00:00.250Z", "metric": "CPU_TEMP_C", "value": 61.5 }
+  ]
+}
+```
+- `sessionId` ve `samples` zorunludur (`samples` boş olabilir, en çok **500**); v2'de `sampleCount` gönderilemez (400), sayı `samples` uzunluğundan türetilir.
+- `metric` yalnız **kanonik büyük harfli** ad (büyük/küçük harf dönüşümü yoktur). Birimi istemci seçmez; her metriğin tek birimi vardır.
+- `value` yalnız JSON **sayısı**dır; `"60"`, `true`, `null`, dizi ve nesne 400 ile reddedilir. Ölçülemeyen değer için örnek gönderilmez; sunucu hiçbir zaman eksik değeri 0 ile doldurmaz.
+- `capturedAt` milisaniyeye kesilir. Pencere: `oturum başlangıcı − 5 dk` .. `min(şimdi + 5 dk, oturum bitişi + 5 dk)`. Sırasız gönderim kabul edilir.
+- Kaynak her zaman `DEVICE`'tır (sunucu atar). `clientSentAt` şu andan −24 sa .. +5 dk aralığında olmalıdır.
+- Gövde üst sınırı bu uçta **64 KiB** (diğer uçlarda 16 KiB); aşılırsa 413.
+
+| Metrik | Birim | Geçerli aralık |
+|---|---|---|
+| `CPU_TEMP_C`, `GPU_TEMP_C` | °C | 0 < v ≤ 150 |
+| `CPU_USAGE_PERCENT`, `GPU_USAGE_PERCENT` | % | 0 ≤ v ≤ 100 |
+| `RAM_USED_MB` | MB | 0 ≤ v ≤ 1.048.576 |
+| `VRAM_USED_MB` | MB | 0 ≤ v ≤ 262.144 |
+| `DISK_READ_MBPS`, `DISK_WRITE_MBPS` | MB/s | 0 ≤ v ≤ 100.000 |
+| `FAN_RPM` | RPM | 0 ≤ v ≤ 30.000 |
+| `FPS` | FPS | 0 < v ≤ 1000 |
+
+> Aralıklar **geçici varsayımdır**: gerçek masaüstü sensör sözleşmesi henüz yoktur (bkz. docs-performance/reports/issues.md). Sıcaklık ve FPS için 0 "ölçülememiş" demektir ve reddedilir.
 
 #### Response — 200
 ```json
 {
   "batchId": "UUID",
-  "sampleCount": 0,
+  "sampleCount": 2,
+  "storedSamples": 2,
+  "duplicateSamples": 0,
   "receivedAt": "2026-01-01T10:00:01Z",
   "replayed": false
 }
 ```
-Aynı `Idempotency-Key` + aynı içerik tekrarında aynı `batchId` ile `replayed=true` döner (yeni kayıt oluşmaz).
+- v1'de `storedSamples` ve `duplicateSamples` 0'dır (zarf içeriği saklanmaz).
+- Aynı oturumda aynı `(metric, capturedAt)` noktası zaten varsa **ilk yazılan korunur**, yeni gelen yazılmaz ve `duplicateSamples`'a sayılır (farklı anahtarla yeniden gönderim çoğaltma yaratmaz).
+- Aynı `Idempotency-Key` + aynı içerik tekrarında aynı `batchId` ve ilk sonuçla `replayed=true` döner (yeni kayıt oluşmaz; oturum sonradan silinmiş olsa da ilk sonuç döner).
+- Gönderim **hep-ya-hiç**tir: herhangi bir örnek geçersizse hiçbir örnek yazılmaz ve makbuz oluşmaz (aynı anahtar düzeltilmiş içerikle yeniden kullanılabilir).
 
 #### Hata Durumları
-- 400/422: Geçersiz/eksik Idempotency-Key, geçersiz gövde, bilinmeyen alan; `clientSentAt` aralık dışı (`SYNC_CLIENT_TIME_INVALID`)
+- 400: Geçersiz/eksik Idempotency-Key, geçersiz gövde, bilinmeyen alan, şema–alan uyumsuzluğu (v1'de örnek/`sessionId`, v2'de `sampleCount`/eksik `sessionId`/`samples`), 500'den fazla örnek, sayı olmayan `value` (`INVALID_REQUEST`)
 - 401: Token yok/geçersiz/yanlış `aud`/`scope`/`typ`/ömür
 - 403: Açık izin yok (`SYNC_CONSENT_REQUIRED`); cihaz bağlı değil/devre dışı (`DEVICE_NOT_LINKED`); hesap pasif
-- 409: Aynı anahtar farklı içerikle (`IDEMPOTENCY_KEY_REUSED`); cihaz başına 500 canlı toplu sınırı (`SYNC_BATCH_LIMIT_REACHED`)
+- 404: Oturum yok veya başkasına ait (`PERFORMANCE_NOT_FOUND`)
+- 409: Aynı anahtar farklı içerikle (`IDEMPOTENCY_KEY_REUSED`); cihaz başına 1500 canlı makbuz sınırı (`SYNC_BATCH_LIMIT_REACHED`); oturum ACTIVE (24 saatten eski değil) veya en çok 10 dk önce COMPLETED değil (`SESSION_NOT_ACCEPTING_SAMPLES`); oturum başına 100.000 örnek (`SESSION_SAMPLE_LIMIT_REACHED`); hesap başına 500.000 örnek (`USER_SAMPLE_QUOTA_REACHED`)
 - 413: Gövde çok büyük (`REQUEST_TOO_LARGE`)
+- 422 (`sampleIndex` ihlal eden örneğin 0 tabanlı sırasıdır, değer yansıtılmaz): `SYNC_CLIENT_TIME_INVALID`; `SAMPLE_METRIC_UNSUPPORTED`; `SAMPLE_VALUE_INVALID` (aralık dışı/NaN/sonsuz); `SAMPLE_TIME_INVALID` (pencere dışı); `SAMPLE_DUPLICATE_IN_BATCH` (aynı gönderimde aynı metrik+an)
 - 429: Hız sınırı
 - 503: JWKS/Auth erişilemez (fail-closed)
 - 500: Beklenmeyen sunucu hatası
@@ -7011,10 +7049,10 @@ Frontend:
 -
 
 Diğer mikroservisler:
-Masaüstü istemcisi API Gateway üzerinden /api/v1/performance/sync/batches. Auth JWKS ile imza doğrulanır.
+Masaüstü istemcisi API Gateway üzerinden /api/v1/performance/sync/batches. Auth JWKS ile imza doğrulanır. Okuma/istatistik uçları Faz 4'tedir.
 
 #### Test Durumu
-INTEGRATION — gerçek filtre zinciri + PostgreSQL; cihaz token'ı **yerel imzalı** sözleşme token'ıdır, gerçek Auth cihaz token'ıyla E2E değildir (BLOCKED, REQ-01-A).
+INTEGRATION — gerçek filtre zinciri + PostgreSQL; cihaz token'ı **yerel imzalı** sözleşme token'ıdır, gerçek Auth cihaz token'ıyla E2E değildir (BLOCKED, REQ-01-A). Gerçek masaüstü istemcisiyle E2E yapılmadı (istemci sözleşmesi yok).
 
 ### PERFORMANCE — Hesap verisi silme (Auth D4)
 
@@ -7124,7 +7162,8 @@ Owner (kullanıcı token'ı). Kullanıcı başına aynı anda en çok bir `ACTIV
   "status": "ACTIVE",
   "startedAt": "2026-01-01T10:00:00Z",
   "endedAt": null,
-  "durationSeconds": null
+  "durationSeconds": null,
+  "sampleCount": 0
 }
 ```
 24 saatten uzun süredir `ACTIVE` kalan eski oturum otomatik `ABANDONED` yapılır (`endedAt = startedAt + 24 sa`) ve yeni başlatmayı engellemez.
@@ -7168,7 +7207,7 @@ Owner (yalnız kendi oturumları)
 #### Response — 200
 ```json
 {
-  "items": [ { "id": "UUID", "gameId": "UUID", "gameTitle": "Oyun adı", "hardwareProfileId": null, "deviceLinkId": null, "source": "MANUAL", "status": "COMPLETED", "startedAt": "2026-01-01T10:00:00Z", "endedAt": "2026-01-01T11:00:00Z", "durationSeconds": 3600 } ],
+  "items": [ { "id": "UUID", "gameId": "UUID", "gameTitle": "Oyun adı", "hardwareProfileId": null, "deviceLinkId": null, "source": "MANUAL", "status": "COMPLETED", "startedAt": "2026-01-01T10:00:00Z", "endedAt": "2026-01-01T11:00:00Z", "durationSeconds": 3600, "sampleCount": 0 } ],
   "page": 0,
   "size": 20,
   "hasNext": false
@@ -7291,7 +7330,8 @@ Owner
   "status": "COMPLETED",
   "startedAt": "2026-01-01T10:00:00Z",
   "endedAt": "2026-01-01T11:00:00Z",
-  "durationSeconds": 3600
+  "durationSeconds": 3600,
+  "sampleCount": 0
 }
 ```
 İdempotenttir: aynı bitiş durumu tekrar istenirse kayıt ve `version` değişmez. Eşzamanlı bitirmelerde hesap kilidi sayesinde tek kazanan oluşur.
@@ -7523,6 +7563,42 @@ Diğer mikroservisler:
 
 #### Test Durumu
 INTEGRATION
+
+### PERFORMANCE — Oturum örneklerini sil (PERF-05..12)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+DELETE /api/v1/performance/sessions/{sessionId}/samples
+
+#### Yetkilendirme
+Owner (kullanıcı token'ı; cihaz token'ı kabul edilmez). Başkasının veya olmayan oturum aynı 404'ü döner.
+
+#### Path Parameters
+- sessionId: UUID, zorunlu
+
+#### Response — 204
+Gövde yok. Oturumun tüm ölçüm örnekleri silinir ve `sampleCount` 0'a döner; oturum ve rapor korunur. Örnek yoksa da 204 (idempotent). Silinen aralık yeniden gönderilebilir; hesap örnek kotası serbest kalır.
+
+#### Hata Durumları
+- 401: Token yok/geçersiz; cihaz/servis token'ı
+- 403: Hesap pasif/silinmeye alınmış
+- 404: Oturum yok veya başkasına ait (`PERFORMANCE_NOT_FOUND`)
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions/{sessionId}/samples
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
 
 ## NOTIFICATION
 

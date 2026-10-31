@@ -17,9 +17,13 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.web.filter.OncePerRequestFilter;
 import tools.jackson.databind.ObjectMapper;
 
-/** Performance mutasyonları küçük JSON zarflarıdır; toplu yükleme bu katmanda kabul edilmez. */
+/**
+ * Performance mutasyonları küçük JSON zarflarıdır; toplu yükleme bu katmanda kabul edilmez. Tek istisna örnek
+ * taşıyan senkronizasyon ucudur (en çok 500 örnek, ~100 bayt/örnek): 64 KiB.
+ */
 final class PerformanceRequestBodyLimitFilter extends OncePerRequestFilter {
     static final int MAX_BYTES = 16 * 1024;
+    static final int MAX_SYNC_BYTES = 64 * 1024;
     private final ObjectMapper mapper;
 
     PerformanceRequestBodyLimitFilter(ObjectMapper mapper) { this.mapper = mapper; }
@@ -35,10 +39,12 @@ final class PerformanceRequestBodyLimitFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws IOException, ServletException {
-        byte[] body = request.getInputStream().readNBytes(MAX_BYTES + 1);
-        if (body.length > MAX_BYTES) {
+        String path = request.getServletPath().isEmpty() ? request.getRequestURI() : request.getServletPath();
+        int limit = isSyncPath(path) ? MAX_SYNC_BYTES : MAX_BYTES;
+        byte[] body = request.getInputStream().readNBytes(limit + 1);
+        if (body.length > limit) {
             var problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONTENT_TOO_LARGE,
-                    "İstek gövdesi en fazla 16 KiB olabilir.");
+                    "İstek gövdesi en fazla " + (limit / 1024) + " KiB olabilir.");
             problem.setProperty("code", "REQUEST_TOO_LARGE");
             response.setStatus(413);
             response.setContentType("application/problem+json");
@@ -48,6 +54,10 @@ final class PerformanceRequestBodyLimitFilter extends OncePerRequestFilter {
             return;
         }
         chain.doFilter(new BufferedRequest(request, body), response);
+    }
+
+    private static boolean isSyncPath(String path) {
+        return path.equals("/api/v1/performance/sync/batches");
     }
 
     private static final class BufferedRequest extends HttpServletRequestWrapper {

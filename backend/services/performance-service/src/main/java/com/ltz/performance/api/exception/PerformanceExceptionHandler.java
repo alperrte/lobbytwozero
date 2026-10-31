@@ -51,7 +51,11 @@ public class PerformanceExceptionHandler extends ResponseEntityExceptionHandler 
 
     @ExceptionHandler(PerformanceUnprocessableException.class)
     ResponseEntity<Object> unprocessable(PerformanceUnprocessableException exception) {
-        return problem(422, exception.code(), "İstek içeriği işlenemedi.");
+        var response = problem(422, exception.code(), "İstek içeriği işlenemedi.");
+        if (exception.sampleIndex() != null && response.getBody() instanceof ProblemDetail body) {
+            body.setProperty("sampleIndex", exception.sampleIndex());
+        }
+        return response;
     }
 
     @ExceptionHandler(PerformanceNotFoundException.class)

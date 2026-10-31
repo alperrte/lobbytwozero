@@ -9,6 +9,7 @@ import com.ltz.performance.api.dto.response.SessionPageResponse;
 import com.ltz.performance.api.dto.response.SessionResponse;
 import com.ltz.performance.application.port.CurrentActor;
 import com.ltz.performance.application.service.PerformanceReportService;
+import com.ltz.performance.application.service.PerformanceSampleService;
 import com.ltz.performance.application.service.PerformanceSessionService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,12 +33,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class PerformanceSessionController {
     private final PerformanceSessionService sessions;
     private final PerformanceReportService reports;
+    private final PerformanceSampleService samples;
     private final CurrentActor actor;
 
     public PerformanceSessionController(PerformanceSessionService sessions, PerformanceReportService reports,
-            CurrentActor actor) {
+            PerformanceSampleService samples, CurrentActor actor) {
         this.sessions = sessions;
         this.reports = reports;
+        this.samples = samples;
         this.actor = actor;
     }
 
@@ -91,6 +94,13 @@ public class PerformanceSessionController {
         if (!confirm) throw new IllegalArgumentException("confirm=true is required");
         return PerformanceControllerSupport.privateResponse(
                 sessions.deleteAll(actor.requireUserId(), servlet.getRemoteAddr()));
+    }
+
+    @DeleteMapping("/{sessionId}/samples")
+    @Operation(summary = "PERF-05..12: Oturumun ölçüm örneklerini siler; oturum ve rapor korunur")
+    public ResponseEntity<Void> deleteSamples(@PathVariable UUID sessionId, HttpServletRequest servlet) {
+        samples.deleteForSession(actor.requireUserId(), sessionId, servlet.getRemoteAddr());
+        return PerformanceControllerSupport.noContent();
     }
 
     @PutMapping("/{sessionId}/report")

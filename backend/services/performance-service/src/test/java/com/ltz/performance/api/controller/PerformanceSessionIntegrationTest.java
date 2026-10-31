@@ -23,6 +23,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -338,16 +339,17 @@ class PerformanceSessionIntegrationTest extends PostgresIntegrationSupport {
         UUID gameId = game("Test");
         String body = startBody(gameId, null, null);
         String token = bearer(account);
-        int limited = 0;
-        for (int i = 0; i < 70; i++) {
-            int status = mvc.perform(post(SESSIONS).header("Authorization", token).contentType(MediaType.APPLICATION_JSON)
-                    .content(body)).andReturn().getResponse().getStatus();
-            if (status == 429) limited++;
+        // Sınır dakikalık kovadır; istekler dakika sınırını geçerse kova sıfırlanır. En kötü durumda 60 + 59 istekten
+        // sonra sınır görülür, bu yüzden ilk 429'a kadar (üst sınırla) istek atılır ve o yanıt doğrulanır.
+        MockHttpServletResponse limited = null;
+        for (int i = 0; i < 130 && limited == null; i++) {
+            var response = mvc.perform(post(SESSIONS).header("Authorization", token)
+                    .contentType(MediaType.APPLICATION_JSON).content(body)).andReturn().getResponse();
+            if (response.getStatus() == 429) limited = response;
         }
-        assertThat(limited).isPositive();
-        mvc.perform(post(SESSIONS).header("Authorization", token).contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isTooManyRequests()).andExpect(header().string("Retry-After", "60"))
-                .andExpect(jsonPath("$.code").value("RATE_LIMITED"));
+        assertThat(limited).isNotNull();
+        assertThat(limited.getHeader("Retry-After")).isEqualTo("60");
+        assertThat(limited.getContentAsString()).contains("RATE_LIMITED");
     }
 
     // ---------- PERF-04: oturumu bitirme ----------

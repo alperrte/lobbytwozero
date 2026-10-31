@@ -81,10 +81,11 @@ class PerformanceDomainTest {
 
     @Test
     void batchCanonicalFormChangesWithAnyField() {
-        var base = new SyncBatchRequest(1, T0, 5);
-        assertThat(base.canonical()).isEqualTo("v1|1|" + T0.toEpochMilli() + "|5");
-        assertThat(new SyncBatchRequest(1, T0.plusMillis(1), 5).canonical()).isNotEqualTo(base.canonical());
-        assertThat(new SyncBatchRequest(1, T0, 6).canonical()).isNotEqualTo(base.canonical());
+        var base = new SyncBatchRequest(1, T0, 5, null, null);
+        assertThat(base.canonicalV1()).isEqualTo("v1|1|" + T0.toEpochMilli() + "|5");
+        assertThat(new SyncBatchRequest(1, T0.plusMillis(1), 5, null, null).canonicalV1())
+                .isNotEqualTo(base.canonicalV1());
+        assertThat(new SyncBatchRequest(1, T0, 6, null, null).canonicalV1()).isNotEqualTo(base.canonicalV1());
     }
 
     @Test

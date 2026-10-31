@@ -38,6 +38,8 @@ public class PerformanceSession {
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 16) private SessionStatus status;
     @Column(name = "started_at", nullable = false, updatable = false) private Instant startedAt;
     @Column(name = "ended_at") private Instant endedAt;
+    /** Saklanan örnek sayısı; yalnız örnek yazımı/silimi SQL ile değiştirir (JPA yazmaz, version artmaz). */
+    @Column(name = "sample_count", nullable = false, insertable = false, updatable = false) private int sampleCount;
     @Version private Long version;
     @Column(name = "created_at", nullable = false, updatable = false) private Instant createdAt;
     @Column(name = "updated_at", nullable = false) private Instant updatedAt;

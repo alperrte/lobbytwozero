@@ -18,8 +18,21 @@
 | # | Konu | Durum | Sahip | Etki / önlem |
 | --- | --- | --- | --- | --- |
 | I-10 | Game GAME-15 ve Hardware HW-17 tüketici tarafı gerçek servislerle doğrulanmadı | NOT VERIFIED (`DEFERRED_CONTRACT`) | Alper (Hardware), Hamza (Game) | Testler yerel mock kullanır (`PerformancePeerDoubles`). Bağımlı servis yanıtsızsa kayıt açılmaz (503, kapalı başarısızlık). Her iki servisin kodu değiştirilmedi |
-| I-11 | Cihaz kaynaklı oturum (`source=DEVICE`) yok | Faz 3 kapsamı | Alper | `source` CHECK'i yalnız `MANUAL`; REQ-01-A gelmeden eklenmedi |
+| I-11 | Cihaz kaynaklı oturum (`source=DEVICE`) yok | Karar (KARAR-P3-02) — Faz 3'te kapandı | Alper | Oturumu kullanıcı açar, cihaz yalnız örnek yazar; kaynak ayrımı örnek düzeyinde (`source='DEVICE'`). Oturum `source` CHECK'i `MANUAL` kalır |
 | I-12 | Tembel `ABANDONED` geçişi (arka plan zamanlayıcısı yok) | Karar (KARAR-P2-03) | Alper | Terk edilmiş oturum bir sonraki başlatma/okumada kapanır; veri tabanında bir süre `ACTIVE` görünebilir, ancak API tutarlıdır |
 | I-13 | `erase_performance_account` en çok 1000 oturum/çağrı siler | Karar (KARAR-P2-10) | Alper | Hesap başına 1000 oturum sınırı bunu tek geçişte yeterli kılar |
 | I-14 | Standart pre-push ve SonarQube Faz 2 sonuçları | Pre-push PASS; Sonar kapısı FAIL (performance-service dışı) | Alper | Pre-push 77 test / %96,02 PASS. Sonar: performance-service bulgusu 0, Faz 1 düzeltmeleri doğrulandı. Kapı hardware (Alper), social, user, game, review, library bulgularıyla kırmızı; bu servislere dokunulmadı |
 | I-15 | Hardware-service Sonar bulguları (S2259 ×3, S3358, S3776: `HardwareDeviceJwtValidator`, `HardwareSecurityConfiguration`) | AÇIK — kullanıcı kararı bekliyor | Alper | Performance'ın bu fazına ait değil; hardware kodu önce bildirilmeden değiştirilmedi. Düzeltme istenirse ayrı iş olarak yapılabilir |
+
+## Faz 3
+
+| # | Konu | Durum | Sahip | Etki / önlem |
+| --- | --- | --- | --- | --- |
+| I-16 | Gerçek masaüstü sensör/istemci sözleşmesi yok; metrik aralıkları geçici | AÇIK (varsayım) | Alper | Sıcaklık 0<v≤150, FPS 0<v≤1000, yüzde 0..100, RAM ≤1.048.576 MB, VRAM ≤262.144 MB, disk ≤100.000 MB/s, fan ≤30.000 RPM. Gerçek istemci sözleşmesiyle gözden geçirilmeli (KARAR-P3-06) |
+| I-17 | `FAN_RPM` hangi fanı ölçtüğü belirsiz (CPU/GPU/kasa) | AÇIK (ekip kararı) | Alper | Tek metrik; çoklu fan için yeni metrik/`sensor` alanı ve yeni migration gerekir |
+| I-18 | Disk için yalnız okuma/yazma verimi (MB/s); doluluk/gecikme yok | AÇIK (sözleşme yok) | Alper | PERF-10 "kullanım ve performans" kısmen karşılandı |
+| I-19 | Kotalar ayarlanabilir varsayımdır (oturum 100.000, hesap 500.000, gönderim 500, sync gövdesi 64 KiB, cihaz makbuz 1500) | Karar (KARAR-P3-09) | Alper | Gerçek ölçüm yoğunluğu öğrenilince yeniden değerlendirilmeli |
+| I-20 | Saklama süresi/otomatik temizlik ve bölümleme (partitioning) yok | AÇIK (risk) | Alper | Örnekler kullanıcı silene/hesap silinene kadar kalır; hesap kotası (500.000) büyümeyi sınırlar. Üretim öncesi saklama politikası gerekli |
+| I-21 | Gerçek Auth cihaz token'ıyla örnek yazımı E2E değil | BLOCKED (REQ-01-A) | Alper / Kerem (Auth) | Testler yerel imzalı sözleşme token'ı kullanır |
+| I-22 | Replay, oturum sonradan silinse de ilk sonucu döndürür | Karar (KARAR-P3-04) | Alper | Yanıt yalnız sayaçlardır; veri sızmaz, yazım yapılmaz |
+| I-23 | Jackson `"60"` → 60.0 sessiz dönüşümü yakalandı ve kapatıldı | ÇÖZÜLDÜ | Alper | `StrictNumberDeserializer`; testle doğrulandı (KARAR-P3-07) |

@@ -2,6 +2,7 @@ package com.ltz.performance.api.controller;
 
 import com.ltz.performance.application.service.PerformanceAccountErasureService;
 import com.ltz.performance.infrastructure.persistence.PostgresIntegrationSupport;
+import com.ltz.performance.infrastructure.persistence.repository.SyncBatchRepository;
 import com.ltz.performance.infrastructure.security.PerformanceTestAuth;
 import com.nimbusds.jose.JOSEObjectType;
 import com.nimbusds.jose.JWSAlgorithm;
@@ -322,9 +323,12 @@ class PerformanceSyncIntegrationTest extends PostgresIntegrationSupport {
         prepare(account, device);
         String token = PerformanceTestAuth.performanceDeviceToken(device, account);
         String huge = "{\"schemaVersion\":1,\"clientSentAt\":\"" + Instant.now() + "\",\"sampleCount\":1,\"pad\":\""
-                + "x".repeat(20_000) + "\"}";
+                + "x".repeat(70_000) + "\"}";
         mvc.perform(sync(token, UUID.randomUUID(), huge)).andExpect(status().isPayloadTooLarge())
                 .andExpect(jsonPath("$.code").value("REQUEST_TOO_LARGE"));
+        // 16 KiB'ı aşan ama 64 KiB altındaki gövde artık boyut sınırına takılmaz; bilinmeyen alan nedeniyle 400 olur.
+        String medium = huge.replace("x".repeat(70_000), "x".repeat(20_000));
+        mvc.perform(sync(token, UUID.randomUUID(), medium)).andExpect(status().isBadRequest());
     }
 
     @Test
@@ -380,13 +384,13 @@ class PerformanceSyncIntegrationTest extends PostgresIntegrationSupport {
         UUID account = UUID.randomUUID();
         UUID device = UUID.randomUUID();
         UUID linkId = prepare(account, device);
-        // 500 canlı makbuzu doğrudan ekle (HTTP hız sınırını aşmadan kapasite kuralını sınar)
+        // Sınır kadar canlı makbuzu doğrudan ekle (HTTP hız sınırını aşmadan kapasite kuralını sınar)
         jdbc.update("""
                 INSERT INTO sync_batches (id, device_link_id, user_id, idempotency_key, request_hash, schema_version,
                                           sample_count, client_sent_at, received_at, expires_at)
                 SELECT gen_random_uuid(), ?, ?, gen_random_uuid(), repeat('a', 64), 1, 1, now(), now(), now() + interval '1 hour'
-                FROM generate_series(1, 500)
-                """, linkId, account);
+                FROM generate_series(1, ?)
+                """, linkId, account, SyncBatchRepository.MAX_LIVE_PER_DEVICE);
         mvc.perform(sync(PerformanceTestAuth.performanceDeviceToken(device, account), UUID.randomUUID(),
                 batchBody(Instant.now(), 1))).andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("SYNC_BATCH_LIMIT_REACHED"));

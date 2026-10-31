@@ -73,18 +73,35 @@ Auth talebi: [auth-requests-01.md](../integration/auth-service-talepleri/auth-re
 
 **Ana task açıklaması:** Desteklenen kaynaklardan CPU/GPU/RAM/VRAM/disk/fan/FPS ölçümlerini doğrulayıp saklayan backend kuruludur.
 **PDA gereksinimleri:** PERF-05, PERF-06, PERF-07, PERF-08, PERF-09, PERF-10, PERF-11, PERF-12
-**Durum:** PLANNED
+**Durum:** KOD/TEST/DOKÜMAN TAMAM — gerçek cihaz/Auth E2E bekliyor (bkz. [phase-03.md](phase-03.md), [phase-03-tests.md](../testings/phase-03-tests.md))
 
 - [ ] **PERF-05 — CPU sıcaklık ölçümleri:** Desteklenen kaynaktan gelen CPU sıcaklık ölçümlerinin alınması ve saklanması.
+  - Durum: **PARTIAL** — `CPU_TEMP_C` v2 örnekleriyle `POST /sync/batches` üzerinden saklanır (PostgreSQL'de kanıtlı: aralık, hep-ya-hiç, idempotency, IDOR, kota). Sıcaklık 0 < v ≤ 150 (0 ölçülememiş sayılır, reddedilir).
+  - Bekleyen: gerçek Auth cihaz token'ı ve gerçek masaüstü istemcisiyle E2E yok (REQ-01-A, I-16, I-21).
 - [ ] **PERF-06 — GPU sıcaklık ölçümleri:** Desteklenen kaynaktan gelen GPU sıcaklık ölçümlerinin alınması ve saklanması.
+  - Durum: **PARTIAL** — `GPU_TEMP_C` v2 örnekleriyle `POST /sync/batches` üzerinden saklanır (PostgreSQL'de kanıtlı: aralık, hep-ya-hiç, idempotency, IDOR, kota). Sıcaklık 0 < v ≤ 150.
+  - Bekleyen: gerçek Auth cihaz token'ı ve gerçek masaüstü istemcisiyle E2E yok (REQ-01-A, I-16, I-21).
 - [ ] **PERF-07 — CPU kullanım ölçümleri:** İşlemci kullanım oranlarının kaydedilmesi.
+  - Durum: **PARTIAL** — `CPU_USAGE_PERCENT` v2 örnekleriyle `POST /sync/batches` üzerinden saklanır (PostgreSQL'de kanıtlı: aralık, hep-ya-hiç, idempotency, IDOR, kota). Yüzde 0..100.
+  - Bekleyen: gerçek Auth cihaz token'ı ve gerçek masaüstü istemcisiyle E2E yok (REQ-01-A, I-16, I-21).
 - [ ] **PERF-08 — GPU kullanım ölçümleri:** Ekran kartı kullanım oranlarının kaydedilmesi.
+  - Durum: **PARTIAL** — `GPU_USAGE_PERCENT` v2 örnekleriyle `POST /sync/batches` üzerinden saklanır (PostgreSQL'de kanıtlı: aralık, hep-ya-hiç, idempotency, IDOR, kota). Yüzde 0..100.
+  - Bekleyen: gerçek Auth cihaz token'ı ve gerçek masaüstü istemcisiyle E2E yok (REQ-01-A, I-16, I-21).
 - [ ] **PERF-09 — RAM ve VRAM ölçümleri:** Bellek kullanım bilgilerinin saklanması.
+  - Durum: **PARTIAL** — `RAM_USED_MB, VRAM_USED_MB` v2 örnekleriyle `POST /sync/batches` üzerinden saklanır (PostgreSQL'de kanıtlı: aralık, hep-ya-hiç, idempotency, IDOR, kota). MB; negatif reddedilir.
+  - Bekleyen: gerçek Auth cihaz token'ı ve gerçek masaüstü istemcisiyle E2E yok (REQ-01-A, I-16, I-21).
 - [ ] **PERF-10 — Disk performans verileri:** Desteklenen disk kullanım ve performans ölçümlerinin yönetilmesi.
+  - Durum: **PARTIAL** — `DISK_READ_MBPS, DISK_WRITE_MBPS` v2 örnekleriyle `POST /sync/batches` üzerinden saklanır (PostgreSQL'de kanıtlı: aralık, hep-ya-hiç, idempotency, IDOR, kota). Yalnız okuma/yazma verimi; doluluk/gecikme sözleşmesi yok (I-18).
+  - Bekleyen: gerçek Auth cihaz token'ı ve gerçek masaüstü istemcisiyle E2E yok (REQ-01-A, I-16, I-21).
 - [ ] **PERF-11 — Fan hızı verileri:** Desteklenen sensörlerin fan RPM verilerinin saklanması.
+  - Durum: **PARTIAL** — `FAN_RPM` v2 örnekleriyle `POST /sync/batches` üzerinden saklanır (PostgreSQL'de kanıtlı: aralık, hep-ya-hiç, idempotency, IDOR, kota). Hangi fan olduğu belirsiz (I-17); negatif reddedilir.
+  - Bekleyen: gerçek Auth cihaz token'ı ve gerçek masaüstü istemcisiyle E2E yok (REQ-01-A, I-16, I-21).
 - [ ] **PERF-12 — FPS ölçümleri:** Desteklenen kaynaktan gelen FPS ölçümlerinin kaydedilmesi.
+  - Durum: **PARTIAL** — `FPS` v2 örnekleriyle `POST /sync/batches` üzerinden saklanır (PostgreSQL'de kanıtlı: aralık, hep-ya-hiç, idempotency, IDOR, kota). 0 < v ≤ 1000; negatif/0 reddedilir.
+  - Bekleyen: gerçek Auth cihaz token'ı ve gerçek masaüstü istemcisiyle E2E yok (REQ-01-A, I-16, I-21).
 
 **Ana task kapanış koşulu:** Üstteki bütün alt tasklar, API/veri sahipliği kuralları, ilgili testler, dokümantasyon ve faz kalite kapısı tamamlanmalı; özellik commit metni hazırlanıp kullanıcıya sunulmalıdır.
+**Faz 3 kapanış durumu:** Commit metni hazırlanacak; PERF-05..12 gerçek Auth cihaz token'ı ve masaüstü istemcisi olmadan tam kapatılmadı.
 
 ---
 
