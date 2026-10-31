@@ -1,5 +1,7 @@
 # LTZ-HAM-REV-02 — Faz 2 çalışma raporu
 
+Bu rapor Faz 2 kapanış anının kanıtıdır. Sonraki açık onayla tamamlanan REV-08/REV-12 için [Faz 3 raporuna](REVIEW_SERVICE_PHASE_03_REPORT.md) bakın; aşağıdaki Faz 3'e geçilmedi ifadesi Faz 2 durma noktasını anlatır.
+
 Durum: REV-06 ve REV-09 tamamlandı; servis bazlı talepler hazır. Kullanıcının son açık talimatıyla REV-07/REV-10 beklerken yalnız REV-09 geliştirildi. **Faz 2 kısmen tamamlandı**. REV-07/REV-10 ENTEGRASYON BEKLİYOR; Faz 3/4'e geçilmedi. Kapsam yalnız `backend/services/review-service/` ve `docs-review/`; branch `feature/review-service`.
 
 ## Doğrulanan görevler

@@ -47,12 +47,25 @@ Pre-push/CI/backendCheck, Trivy, Sonar Scanner/analiz/Quality Gate/A/A/A: **KULL
 
 Sıralama: likeCount DESC, createdAt DESC, id ASC; yalnız VISIBLE ve gameId/minLikes filtreleri. Snapshot tek istek içindir; ayrı sayfalarda yeni oy/içerik/silme sonuçları değiştirebilir. Rapor/moderasyon verileri bulunmadığından kullanılmadı; REV-07/REV-15 uygulanmış sayılmaz. Dış servisten yeni özellik gerekmemiştir. Ayrıntı: [Faz 2 çalışma raporu](REVIEW_SERVICE_PHASE_02_REPORT.md), [API](REVIEW_SERVICE_API.md), [kararlar](REVIEW_SERVICE_DECISIONS.md).
 
-**Faz 2 kısmen tamamlandı:** REV-06/REV-09 [x], REV-07/REV-10 [ ] ENTEGRASYON BEKLİYOR. REV-09 sonrasında duruldu; Faz 3 için açık kullanıcı onayı bekleniyor. Faz 3/4 geliştirilmedi. Commit/push/merge/branch değişikliği yapılmadı.
+**Faz 2 kısmen tamamlandı:** REV-06/REV-09 [x], REV-07/REV-10 [ ] ENTEGRASYON BEKLİYOR. Önceki durma noktası REV-09 sonrasıydı; sonraki açık kullanıcı onayıyla Faz 3 başlatılıp aşağıdaki kapsamda tamamlandı. Faz 4 geliştirilmedi. Commit/push/merge/branch değişikliği yapılmadı.
 
 ## Faz 3 — LTZ-HAM-REV-03
 
-- [ ] REV-08 — Ortalama oyun puanı
-- [ ] REV-12 — Toplu oyun puanı özetleri
+- [x] REV-08 — Ortalama oyun puanı (92/92 Review testi PASS; sayısal puan AVG/count, iki basamak HALF_UP, boş sonuç ve hesap temizliği)
+- [x] REV-12 — Toplu oyun puanı özetleri (Review backend kabulü; 102/102 test PASS, 50 oyun/10.000 puanda tek aggregate SQL; Game→Review entegrasyonu bekliyor)
+
+Faz 3'te yalnız Review Maven test aşaması çalıştırıldı: REV-08 kapanışında 92, son REV-12 koşusunda **102 test, 0 failure/error/skipped, BUILD SUCCESS**. Başlangıç 85 teste 6 tekil API, 7 toplu API, 2 servis birim ve 2 gerçek JWT/HTTP testi eklendi. PostgreSQL 17/Flyway V51–V56 uygulama/checksum ve Hibernate validate PASS. Yeni migration yok; game_ratings game_id indeksi EXPLAIN ile doğrulandı. Test DB'si disposable container içindeydi ve sonunda kaldırıldı.
+
+Tekil GET /games/{gameId}/rating-summary ve toplu POST /games/rating-summaries: yalnız sayısal puan AVG/count, iki basamak HALF_UP, puansız null/0. Metin/tavsiye/beğeni/Steam ayrıdır. Topluda en fazla 50 ham UUID, boş liste items=[], ilk görülme sırasında tekilleştirme; dolu listede tek SQL, boş listede sıfır SQL. Eşzamanlı okuyucu/yazıcı tutarlılığı doğrulandı. Ayrıntı: [Faz 3 raporu](REVIEW_SERVICE_PHASE_03_REPORT.md).
+
+Kullanıcı kararıyla mevcut kullanıcı JWT güvenliği korundu; anonim veya yeni servis-token yetkisi açılmadı. Kullanıcı JWT'si Game servis kimliği yerine kullanılmayacak. **Game→Review servis erişimi NOT IMPLEMENTED / NOT VERIFIED, ENTEGRASYON BEKLİYOR.** Review tarafındaki REV-12 kabulünü kapatmak bu entegrasyonu kapatmaz.
+
+- [game-review-integration.md](request/game-review-integration.md) — Game/Hamza: toplu özet tüketimi, servis okuma yolu, Auth kimliği, timeout/cache/hata davranışı ve global puan filtre/sıralaması için kararlar bekleniyor.
+- [auth-review-integration.md](request/auth-review-integration.md) — Auth/Kerem: mevcut taleplere Game→Review hedefe bağlı dar okuma izni eklendi; scope/yol/istemci dağıtımı henüz öneri. Auth ve diğer servisler değiştirilmedi. Admin/Notification talepleri beklemeyi sürdürür.
+
+Pre-push/CI/backendCheck, Trivy ve Sonar Scanner/Quality Gate/A/A/A: **KULLANICI TALEBİYLE ÇALIŞTIRILMADI**. PMD/strict verify/coverage/ratchet için yeni sonuç yoktur. Önceki fazların PASS değerleri bu faza taşınmadı.
+
+**FAZ 3 TAMAMLANDI — FAZ 4 İÇİN ONAY BEKLİYORUM.** REV-07/REV-10 bekliyor; bu görevlere veya Faz 4'e kendiliğinden geçilmedi. Commit/push/merge/branch değişikliği yapılmadı.
 
 ## Faz 4 — LTZ-HAM-REV-04
 

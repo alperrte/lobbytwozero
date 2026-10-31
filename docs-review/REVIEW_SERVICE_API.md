@@ -199,3 +199,33 @@ REV-07 rapor API'si, outbox/relay ve REV-10 dış teslimi uygulanmadı. Önerile
 - Bağlantı: FeaturedReviewController → FeaturedReviewService → FeaturedReviewRepository. Parametreli PostgreSQL toplulaştırması; gerçek review_likes satırlarından sayım, sıfır beğeniler için LEFT JOIN. İki set sorgusu (toplam + sayfa) tek REPEATABLE_READ salt okunur, 4 saniye timeout'lu transaction içinde çalışır. N+1 sorgu/HTTP yok. V56 görünür oyun/tarih/UUID kısmi indeksi; V55 review_id önekli PK beğeni JOIN'ini destekler. Beğeniye göre son sıralama hesaplanır; indeksin bütün sıralamayı kaldırdığı iddia edilmez.
 - Sayfalama sınırı: Snapshot tek istek içindir. Ayrı sayfa istekleri arasında beğeni, ekleme veya silme değişirse sonuçlar yer değiştirebilir; istekler arası sabit snapshot/cursor garantisi verilmez.
 - Test Durumu: UNIT/INTEGRATION — Review modülünün 85/85 testlik Maven test koşusunda PASS. Yeni 7 PostgreSQL/MockMvc testi + 2 servis birim testi + 1 gerçek TCP/RS256/JWKS testi. Canlı Auth/Game/Gateway E2E iddiası yoktur. Pre-push/backendCheck/Trivy/Sonar: **KULLANICI TALEBİYLE ÇALIŞTIRILMADI**.
+
+## REV-08 — Tek oyun LTZ puan özeti
+
+- Durum: IMPLEMENTED — Review tarafı.
+- Sorumlu: Hamza.
+- Tüketici servisler: Frontend; Game sunucu entegrasyonu ayrıca sözleşme bekliyor.
+- Endpoint: `GET /api/v1/review/games/{gameId}/rating-summary`.
+- Yetkilendirme: Mevcut kullanıcı JWT/rol politikası. Anonim ve servis token erişimi yoktur. Kullanıcı JWT'si servis kimliği yerine kullanılamaz.
+- Path/Query Parameters: gameId zorunlu kanonik LTZ UUID; query yok.
+- Request Body: Yok.
+- Response: 200 `{gameId, averageRating, ratingCount}`. averageRating PostgreSQL numeric/Java BigDecimal, iki ondalık basamak, pozitif puanlarda HALF_UP; ratingCount long ve benzersiz puan veren kullanıcı sayısıdır. Puan yoksa averageRating=null/ratingCount=0; 404 değildir. 0 puan uydurulmaz. JSON sayısı tüketicide sondaki sıfırları korumayabilir.
+- Hata Durumları: 400 geçersiz UUID (ProblemDetail), 401 kimlik yok/geçersiz/servis token'ı, 403 izinli kullanıcı rolü yok, 500 beklenmeyen hata.
+- Bağlantı: RatingSummaryController → RatingSummaryService → RatingSummaryRepository; tek parametreli AVG/count SQL sorgusu. V51 kullanıcı/oyun tekilliği nedeniyle count(*) benzersiz kullanıcı sayısıdır. Yalnız game_ratings kullanılır; inceleme, beğeni, tavsiye ve Steam oranları katılmaz. Mevcut game_id indeksi yeterlidir; migration eklenmedi. Salt okunur transaction, 4 saniye timeout, tek SQL snapshot; dış servis çağrısı yok.
+- Silme/boş sonuç: Metin silmek bağımsız puanı etkilemez; hesap silme puanını aynı mevcut transaction içinde kaldırır. Bilinmeyen/puan verilmeyen oyun aynı boş özeti alır; bu Game katalog görünürlüğü/varlık doğrulaması değildir. Cache-Control private,no-store.
+- Test Durumu: INTEGRATION — 6 yeni PostgreSQL/MockMvc ve 1 gerçek TCP/RS256/JWKS testi; REV-08 kapanışında 92/92 Review testi PASS. Pre-push/backendCheck/Trivy/Sonar: KULLANICI TALEBİYLE ÇALIŞTIRILMADI.
+
+## REV-12 — Toplu LTZ oyun puanı özetleri
+
+- Durum: IMPLEMENTED — Review backend kabulü; Game→Review sunucu entegrasyonu SÖZLEŞME BEKLENİYOR / NOT IMPLEMENTED / NOT VERIFIED.
+- Sorumlu: Hamza.
+- Tüketici servisler: Frontend; Game hedef tüketicidir, servis kimliği henüz yetkilendirilmedi. Kullanıcı JWT'si servis kimliği yerine taşınmaz.
+- Endpoint: `POST /api/v1/review/games/rating-summaries`.
+- Yetkilendirme: Mevcut kullanıcı at+jwt ve PLAYER/CONTENT_CREATOR/GAME_DEVELOPER/MODERATOR/ADMIN rol politikası. Anonim veya svc+jwt erişimi açılmadı. Mevcut CSRF/Bearer ayrımı ve Cache-Control private,no-store korunur.
+- Path/Query Parameters: Yok.
+- Request Body: application/json `{gameIds: UUID[]}`; gameIds zorunlu, null olamaz; ham dizi en fazla 50 eleman, her eleman null olmayan UUID. Sınır tekilleştirmeden önce uygulanır. Boş dizi geçerli; tekrarlar ilk görülme sırasıyla tekilleştirilir. Bilinmeyen alanlar/tür dönüşümü reddedilir. Mevcut 64 KiB gövde sınırı geçerlidir.
+- Response: 200 `{items:[{gameId,averageRating,ratingCount}]}`; yalnız istenen benzersiz oyunlar, ilk görülme sırasıyla. Puan verilmemiş/bilinmeyen UUID için averageRating=null/ratingCount=0; boş dizi items=[]. Ortalama REV-08 ile aynı iki basamak HALF_UP BigDecimal/numeric hesabıdır. ratingCount benzersiz kullanıcı sayısı; histogram/tavsiye oranı/inceleme adedi/Steam oranı eklenmedi.
+- Hata Durumları: 400 eksik/null/51+ dizi, null/geçersiz UUID, yanlış JSON türü/bilinmeyen alan/bozuk gövde (ProblemDetail); 401 kimlik eksik/geçersiz veya servis token'ı; 403 izinli kullanıcı rolü yok; 413 gövde limiti; 415 desteklenmeyen içerik türü; 500 beklenmeyen hata. Sonuç 404 veya kısmi hata listesi değildir; katalog varlığı doğrulanmaz.
+- Bağlantı: RatingSummaryController → RatingSummaryService → RatingSummaryRepository; tek parametreli IN/GROUP BY AVG/count SQL'i, game_ratings dışına JOIN/HTTP yok. En fazla 50 anahtar bellekte sıralanıp eksik oyunlar null/0 tamamlanır; oyun başına SQL yoktur. Boş listede SQL yok. Tek salt okunur transaction/4 saniye; tek statement snapshot'ı bütün gruplar ve ortalama/count için tutarlıdır. Aynı sorgu tekil özette de kullanılır. Yeni tablo/migration/bağımlılık/kalıcı sayaç eklenmedi.
+- Test Durumu: UNIT/INTEGRATION — 102/102 Review testi PASS. 50 oyun/10.000 puanda JdbcClient spy ile tam 1 SQL ve sıfır Game çağrısı doğrulandı; boş/geçersiz listede sıfır SQL. Eşzamanlı okuma/yazma ve gerçek TCP/RS256/JWKS olumlu/olumsuz testleri PASS. Canlı Game/Auth servis tüketimi NOT VERIFIED. Pre-push/backendCheck/Trivy/Sonar: KULLANICI TALEBİYLE ÇALIŞTIRILMADI.
+- Bekleyen sözleşme: [Game talebi](request/game-review-integration.md), [Auth talebi](request/auth-review-integration.md). Servis okuma yolu ve dar izin adı yalnız öneridir; mevcut yetki olarak kullanılamaz.

@@ -91,6 +91,29 @@ class ReviewHttpIntegrationTest {
         }
     }
 
+    @Test void signedHttpRatingSummaryKeepsUserAndServiceIdentitiesSeparate() throws Exception {
+        try (var client = HttpClient.newHttpClient()) {
+            String path = "/api/v1/review/games/" + UUID.randomUUID() + "/rating-summary";
+            var result = send(client, "GET", path, null, token(false, UUID.randomUUID()));
+            assertEquals(200, result.statusCode());
+            assertTrue(result.body().contains("\"averageRating\":null"));
+            assertTrue(result.body().contains("\"ratingCount\":0"));
+            assertEquals(401, send(client, "GET", path, null, token(true, USER)).statusCode());
+        }
+    }
+
+    @Test void signedHttpBatchSummaryRejectsServiceTokenAndInvalidPayload() throws Exception {
+        try (var client = HttpClient.newHttpClient()) {
+            String path = "/api/v1/review/games/rating-summaries";
+            String user = token(false, UUID.randomUUID());
+            var result = send(client, "POST", path, "{\"gameIds\":[\"" + UUID.randomUUID() + "\"]}", user);
+            assertEquals(200, result.statusCode());
+            assertTrue(result.body().contains("\"averageRating\":null"));
+            assertEquals(401, send(client, "POST", path, "{\"gameIds\":[]}", token(true, USER)).statusCode());
+            assertEquals(400, send(client, "POST", path, "{\"gameIds\":[null]}", user).statusCode());
+        }
+    }
+
     @Test void actualGameHttpFailureIsControlledAndDoesNotLeakAddressOrAcceptGame() throws Exception {
         GAME_AVAILABLE.set(false);
         try (var client = HttpClient.newHttpClient()) {

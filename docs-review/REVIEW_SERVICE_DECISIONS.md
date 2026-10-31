@@ -3,7 +3,7 @@
 ## Onaylı kapsam ve iş kuralları
 
 - Kullanıcı Hamza; branch `feature/review-service`. Yalnız Review backend ve bu klasör değiştirilebilir.
-- Faz 1 tamamlandı; kullanıcının sonraki açık onayıyla Faz 2 başlatıldı. Faz 3/4 ayrı kullanıcı onayı gerektirir.
+- Faz 1 tamamlandı; sonraki açık onaylarla Faz 2 ve Faz 3 başlatıldı. Faz 3 Review backend kabulü tamamlandı; Faz 4 ayrı açık onay bekler. Faz 2 REV-07/REV-10 entegrasyonları hâlâ açıktır.
 
 - Kullanıcı 31 Ekim 2026 tarihinde şu politikaları onayladı: puan 1–10 tam sayı; metin olmadan puan ve tavsiye verilebilir; metin silinince bağımsız puan ve tavsiye korunur; ikinci aktif metin oluşturma 409 döner.
 - Puan, metin ve tavsiye ayrı tablolarda tutulur; başka servise FK veya SQL erişimi yoktur.
@@ -59,3 +59,14 @@ REV-01/02/03/04/05 kabul testleri sırasıyla tamamlandı. REV-11 ve final kalit
 - Okuma yalnız Review DB'sini kullanır. Game erişim hatası yerel tarihsel inceleme okumalarını engellemez. Boş oyun sonucu katalog doğrulaması değildir; başka servis özelliği veya yeni entegrasyon talebi gerekmemiştir.
 - V51–V55 korunur; sıradaki boş numara V56 ile görünür kayıtlar için (game_id, created_at DESC, id ASC) kısmi indeks eklenir. Mevcut review_likes PK'si review_id ile başlar; yinelenen beğeni indeksi eklenmez. Beğeni toplulaştırması ve son sıralama çalışma zamanında hesaplanır; önceden hesaplanan sayaç/ranking tablosu yoktur.
 - Kullanıcının bu göreve özel açık talimatıyla yalnız Review Maven test aşaması çalıştırıldı. `verify` aşamasının ortak coverage/pre-push çalıştırıcısını tetiklediği görüldüğünden `test` aşaması kullanıldı. Pre-push, backendCheck, Trivy, Sonar Scanner ve Quality Gate: **KULLANICI TALEBİYLE ÇALIŞTIRILMADI**. Önceki kalite sonuçları REV-09'a ait güncel sonuç değildir.
+
+## Faz 3 — REV-08 ve REV-12
+
+- Kullanıcı önce REV-08, test/kapanış/checklist; sonra REV-12 sırasını açıkça onayladı. Bu sıra uygulandı: 92/92 ve ardından 102/102 Review testi PASS. Faz 4 onaylı değildir; REV-07/REV-10 beklemeye devam eder.
+- Yalnız game_ratings üzerinden PostgreSQL numeric round(avg(rating),2) ve count(*) hesaplanır. Java BigDecimal kullanılır; pozitif 1–10 değerlerde iki basamak HALF_UP (1.125 → 1.13). Tek kullanıcı/oyun kaydı V51 UNIQUE ile korunduğu için count(*) benzersiz puan veren kullanıcı sayısıdır. Kayıt statüsü sütunu yoktur; geçerli satırların tümü katılır. Metin/tavsiye/beğeni veya Steam verisi bu sayıya/ortalamaya girmez.
+- Puan yoksa averageRating=null/ratingCount=0 ve HTTP 200. Bilinmeyen UUID ile puansız oyun ayrılmaz; Game'e callback veya katalog/görünürlük doğrulaması yapılmaz. Bu davranış Game'in görünmeyen oyunları göstermesi için izin değildir. Game kendi katalog kimlik/görünürlük politikasının sahibidir.
+- GET /api/v1/review/games/{gameId}/rating-summary ve POST /api/v1/review/games/rating-summaries aynı aggregate sorgusunu kullanır. Toplu API zorunlu gameIds dizisi, en fazla 50 ham UUID, null eleman reddi, ilk görülme sırasında tekilleştirme sunar. Boş liste 200/items=[] ve sıfır SQL; dolu liste tek IN/GROUP BY SQL. Yanıt her benzersiz istenen oyun için öğe içerir; eksik gruplar null/0 ile bellekte tamamlanır.
+- İki API de tek statement snapshot'ıyla AVG/count ve bütün oyun gruplarını tutarlı okur; readOnly/4 saniye transaction kullanılır. Ayrı isteklerde veri değişebilir. Kalıcı sayaç/cache veya istatistik tablosu eklenmedi. V51–V56 ve silme politikaları değişmedi; yeni migration gerekmedi. Mevcut game_id indeksi EXPLAIN ile doğrulandı; yeni yinelenen indeks eklenmedi.
+- Kullanıcı ayrıca açıkça mevcut kullanıcı JWT güvenliğinin korunmasını istedi. Anonim veya yeni svc+jwt erişimi yok; AccountErasureSecurityConfiguration ve Auth kodu değiştirilmedi. Kullanıcı JWT'si Game servis kimliği yerine taşınmayacak. Game→Review erişimi NOT IMPLEMENTED/NOT VERIFIED olarak kalır.
+- [Game talebi](request/game-review-integration.md) yeni 13 başlıklı ihtiyaç belgesidir; [Auth talebi](request/auth-review-integration.md) hedefe bağlı dar okuma izniyle genişletildi. Örnek scope adı kesinleşmiş değildir; ilgili sahipler nihai yolu/izinleri belirler. Bu API'nin Review kabulünün tamamlanması canlı Game entegrasyonunu veya global katalog minRating/RATING sıralamasını tamamlamaz.
+- Histogram, tavsiye oranı, spam/rate-limit ve moderasyon etkileri eklenmedi; Faz 4 görevleri saklıdır. Pre-push/backendCheck/Trivy/Sonar **KULLANICI TALEBİYLE ÇALIŞTIRILMADI**; verify/merkezi coverage/PMD/ratchet sonucu yoktur. Yalnız modül testleri, PostgreSQL/Flyway ve API hata senaryoları çalıştırıldı. Ayrıntı [Faz 3 raporunda](REVIEW_SERVICE_PHASE_03_REPORT.md).
