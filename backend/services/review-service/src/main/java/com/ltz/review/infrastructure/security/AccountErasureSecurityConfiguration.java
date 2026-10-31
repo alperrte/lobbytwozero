@@ -4,6 +4,7 @@ import com.ltz.review.api.controller.AccountErasureController;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -14,9 +15,11 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 
 @Configuration(proxyBeanMethods = false)
+@Import(UserTokenDecoderConfiguration.class)
 public class AccountErasureSecurityConfiguration {
     @Bean
-    SecurityFilterChain security(HttpSecurity http, @Qualifier("serviceJwtDecoder") JwtDecoder decoder) {
+    SecurityFilterChain security(HttpSecurity http, @Qualifier("serviceJwtDecoder") JwtDecoder decoder,
+            @Qualifier("userJwtDecoder") JwtDecoder userDecoder) {
         var paths = PathPatternRequestMatcher.withDefaults();
         var internal = paths.matcher("/internal/**");
         var provider = new JwtAuthenticationProvider(decoder); // yalnız scope → SCOPE_*, roles okunmaz
@@ -26,21 +29,32 @@ public class AccountErasureSecurityConfiguration {
         converter.setJwtGrantedAuthoritiesConverter(scopes);
         provider.setJwtAuthenticationConverter(converter);
         var serviceTokens = new ProviderManager(provider);
-        var rejectTokens = new ProviderManager(new JwtAuthenticationProvider(
-                token -> { throw new org.springframework.security.oauth2.jwt.BadJwtException("Kullanıcı uçları henüz uygulanmadı."); }));
-        return http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        var userProvider = new JwtAuthenticationProvider(userDecoder);
+        var roles = new org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter();
+        roles.setAuthoritiesClaimName("roles");
+        roles.setAuthorityPrefix("ROLE_");
+        var userConverter = new org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter();
+        userConverter.setJwtGrantedAuthoritiesConverter(roles);
+        userProvider.setJwtAuthenticationConverter(userConverter);
+        var userTokens = new ProviderManager(userProvider);
+        return http.addFilterBefore(new ReviewRequestFilter(),
+                        org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter.class)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers(HttpMethod.DELETE, AccountErasureController.PATH).hasAuthority("SCOPE_account:erase")
+                        .requestMatchers("/api/v1/review/**").hasAnyRole("PLAYER", "CONTENT_CREATOR", "GAME_DEVELOPER", "MODERATOR", "ADMIN")
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(resource -> resource
-                        .authenticationManagerResolver(request -> internal.matches(request) ? serviceTokens : rejectTokens)
+                        .authenticationManagerResolver(request -> internal.matches(request) ? serviceTokens : userTokens)
                         .authenticationEntryPoint((request, response, error) -> writeProblem(response, 401))
                         .accessDeniedHandler((request, response, error) -> writeProblem(response, 403)))
                 .exceptionHandling(errors -> errors
                         .authenticationEntryPoint((request, response, error) -> writeProblem(response, 401))
                         .accessDeniedHandler((request, response, error) -> writeProblem(response,
-                                internal.matches(request) && request.getHeader("Authorization") == null ? 401 : 403)))
+                                error instanceof org.springframework.security.web.csrf.CsrfException
+                                        && (internal.matches(request) || request.getRequestURI().startsWith("/api/v1/review/"))
+                                        && request.getHeader("Authorization") == null ? 401 : 403)))
                 .build();
     }
 
