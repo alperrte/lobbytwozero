@@ -1,6 +1,6 @@
 # Review Service API sözleşmesi
 
-Sorumlu: Hamza. Gateway öneki: `/api/v1/review`. Merkezi kataloğa aktarım, kullanıcının yalnız `docs-review/` değişikliği sınırı nedeniyle bu görevde yapılmaz.
+Sorumlu: Hamza. Gateway öneki: `/api/v1/review`. Endpointler kullanıcının merkezi kayıt talebiyle [docs/api.md REVIEW bölümüne](../docs/api.md#review) aktarıldı (31 Ekim 2026). Bu belge faz bazlı ayrıntılı sözleşme ve doğrulama geçmişini korur; güncel kalite sonuçları [Auth entegrasyon raporunun Ek 2 bölümündedir](REVIEW_AUTH_INTEGRATION_REPORT.md).
 
 ## Ortak güvenlik ve hata sözleşmesi
 
