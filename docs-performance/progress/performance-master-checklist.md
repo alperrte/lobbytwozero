@@ -109,15 +109,21 @@ Auth talebi: [auth-requests-01.md](../integration/auth-service-talepleri/auth-re
 
 **Ana task açıklaması:** Gerçek kayıtlardan sayfalı/filtreli ölçüm geçmişi, özet değerler ve grafik zaman serileri sunulur.
 **PDA gereksinimleri:** PERF-14, PERF-15, PERF-16, PERF-19, PERF-21
-**Durum:** PLANNED
+**Durum:** PARTIAL — kod/test/belge tamam; gerçek Auth/Hardware/Recommendation entegrasyonu BLOCKED
 
 - [ ] **PERF-14 — Ölçüm geçmişi:** Kullanıcının geçmiş performans kayıtlarının listelenmesi.
+  - Durum: **PARTIAL** — `GET /sessions` filtre/sayfa/`totalElements`, `GET /sessions/{id}/samples`; sabit sıra, IDOR ve sınırlar PostgreSQL ile kanıtlı. Bekleyen: gerçek cihaz verisi/Auth E2E (REQ-01-A).
 - [ ] **PERF-15 — Performans istatistikleri:** Ortalama, minimum ve maksimum değerlerin hesaplanması.
+  - Durum: **PARTIAL** — oturum ve hesap istatistikleri (gerçek örneklerden avg/min/max/count, örnek ağırlıklı, sıfır doldurma yok) PostgreSQL ile kanıtlı. Bekleyen: büyük hesap maliyeti (I-27).
 - [ ] **PERF-16 — Performans grafikleri API'si:** Web modülü için zaman serisi verilerinin sunulması.
+  - Durum: **PARTIAL** — `GET /sessions/{id}/series`: ham veya açıkça belirtilmiş kova ortalaması, `maxPoints` sınırı, indeks kullanımı (EXPLAIN) kanıtlı. Bekleyen: Performance web (PWEB) ile gerçek tüketim.
 - [ ] **PERF-19 — Ölçüm filtreleme:** Cihaz, oyun, tarih ve ölçüm türüne göre filtreleme.
+  - Durum: **PARTIAL** — oyun, donanım profili, cihaz, durum, tarih ve metrik filtreleri birleşimli test edildi. Bekleyen: yok (servis içi); web tüketimi PWEB.
 - [ ] **PERF-21 — Servis entegrasyonu:** Hardware ve Recommendation servislerine gerekli verilerin API sözleşmeleriyle sunulması.
+  - Durum: **PARTIAL** — Hardware özeti ve Recommendation FPS referansı uçları, en az ayrıcalık ve servis kimliği doğrulamasıyla yerel sözleşme token'ıyla test edildi. **BLOCKED:** gerçek Auth servis token'ı (REQ-04-A) ve gerçek Hardware/Recommendation tüketimi yok (I-28).
 
 **Ana task kapanış koşulu:** Üstteki bütün alt tasklar, API/veri sahipliği kuralları, ilgili testler, dokümantasyon ve faz kalite kapısı tamamlanmalı; özellik commit metni hazırlanıp kullanıcıya sunulmalıdır.
+**Faz 4 kapanış durumu:** Commit metni hazırlanacak; PERF-21 gerçek servis kimliği olmadan tam kapatılmadı, PERF-14/15/16/19 servis içi tamam ancak gerçek cihaz verisiyle E2E yok.
 
 ---
 

@@ -17,9 +17,11 @@ import com.ltz.performance.infrastructure.persistence.repository.PerformanceAcco
 import com.ltz.performance.infrastructure.persistence.repository.PerformanceSessionMaintenance;
 import com.ltz.performance.infrastructure.persistence.repository.PerformanceSessionRepository;
 import com.ltz.performance.infrastructure.persistence.repository.PerformanceWriteLimits;
+import com.ltz.performance.infrastructure.persistence.repository.SessionSpecifications;
 import java.time.Clock;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -118,12 +120,14 @@ public class PerformanceSessionService {
     }
 
     @Transactional(readOnly = true)
-    public SessionPageResponse list(UUID userId, int page, int size) {
+    public SessionPageResponse list(UUID userId, SessionFilter filter, int page, int size) {
         if (page < 0 || size < 1 || size > MAX_PAGE_SIZE) throw new IllegalArgumentException("Invalid page");
         guard.requireActive(userId);
-        var slice = sessions.findByUserIdOrderByStartedAtDescIdDesc(userId, PageRequest.of(page, size));
-        return new SessionPageResponse(slice.getContent().stream().map(SessionResponse::from).toList(), page, size,
-                slice.hasNext());
+        // Sıra sabittir (en yeni başlayan önce, eşitlikte id): sayfalar arasında kayma/yinelenme olmaz.
+        var sort = Sort.by(Sort.Order.desc("startedAt"), Sort.Order.desc("id"));
+        var result = sessions.findAll(SessionSpecifications.matching(userId, filter), PageRequest.of(page, size, sort));
+        return new SessionPageResponse(result.getContent().stream().map(SessionResponse::from).toList(), page, size,
+                result.hasNext(), result.getTotalElements());
     }
 
     /** Raporu veritabanı CASCADE ile birlikte siler. Sahiplik sorguda; tekrar çağrı 404'tür. */

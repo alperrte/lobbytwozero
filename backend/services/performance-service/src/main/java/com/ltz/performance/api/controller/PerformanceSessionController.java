@@ -11,10 +11,15 @@ import com.ltz.performance.application.port.CurrentActor;
 import com.ltz.performance.application.service.PerformanceReportService;
 import com.ltz.performance.application.service.PerformanceSampleService;
 import com.ltz.performance.application.service.PerformanceSessionService;
+import com.ltz.performance.application.service.SessionFilter;
+import com.ltz.performance.application.service.TimeWindow;
+import com.ltz.performance.domain.enums.SessionStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.time.Instant;
 import java.util.UUID;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -53,10 +58,16 @@ public class PerformanceSessionController {
     }
 
     @GetMapping
-    @Operation(summary = "PERF-03: Çağıranın oturumları, en yeniden eskiye")
-    public ResponseEntity<SessionPageResponse> list(@RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return PerformanceControllerSupport.privateResponse(sessions.list(actor.requireUserId(), page, size));
+    @Operation(summary = "PERF-03/14/19: Çağıranın oturum geçmişi, en yeniden eskiye; oyun, donanım profili, cihaz, durum ve başlangıç tarihi filtreleri")
+    public ResponseEntity<SessionPageResponse> list(@RequestParam(required = false) UUID gameId,
+            @RequestParam(required = false) UUID hardwareProfileId, @RequestParam(required = false) UUID deviceLinkId,
+            @RequestParam(required = false) SessionStatus status,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant startedFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant startedTo,
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+        var filter = new SessionFilter(gameId, hardwareProfileId, deviceLinkId, status,
+                new TimeWindow(startedFrom, startedTo));
+        return PerformanceControllerSupport.privateResponse(sessions.list(actor.requireUserId(), filter, page, size));
     }
 
     @GetMapping("/active")

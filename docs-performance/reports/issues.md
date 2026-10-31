@@ -36,3 +36,15 @@
 | I-21 | Gerçek Auth cihaz token'ıyla örnek yazımı E2E değil | BLOCKED (REQ-01-A) | Alper / Kerem (Auth) | Testler yerel imzalı sözleşme token'ı kullanır |
 | I-22 | Replay, oturum sonradan silinse de ilk sonucu döndürür | Karar (KARAR-P3-04) | Alper | Yanıt yalnız sayaçlardır; veri sızmaz, yazım yapılmaz |
 | I-23 | Jackson `"60"` → 60.0 sessiz dönüşümü yakalandı ve kapatıldı | ÇÖZÜLDÜ | Alper | `StrictNumberDeserializer`; testle doğrulandı (KARAR-P3-07) |
+
+## Faz 4
+
+| # | Konu | Durum | Sahip | Etki / önlem |
+| --- | --- | --- | --- | --- |
+| I-24 | Recommendation referansı güvenilirlik eşiği (≥ 60 FPS örneği) bir varsayım | AÇIK (varsayım) | Alper | Eşik altında değerler `null`, `reliable=false`. Recommendation ihtiyacı netleşince ayarlanmalı (KARAR-P4-07) |
+| I-25 | Hesaplar arası ("tüm oyuncularda bu oyun") toplam yok | AÇIK (gizlilik kararı) | Alper / ekip | Başka kullanıcıların verisini toplamak ayrı gizlilik kararı ve k-anonimlik eşiği ister; yapılmadı. Sözleşme yalnız çağıran hesabın verisini döner (KARAR-P4-06) |
+| I-26 | Okuma uçlarında hız sınırı yok | AÇIK (risk) | Alper | Her sorgu `size`/`maxPoints`/kota ile sınırlıdır ama tekrarlı çağrılabilir; üretim öncesi okuma sınırı değerlendirilmeli (KARAR-P4-09) |
+| I-27 | Hesap istatistiği tek sorguda hesap kotasına (≤ 500.000 örnek) kadar tarayabilir | AÇIK (risk) | Alper | Kota maliyeti sınırlar; büyük hesaplarda önbellek/özet tablo veya zaman penceresi zorunluluğu düşünülmeli. Saklama/bölümleme I-20 ile birlikte ele alınmalı |
+| I-28 | Hardware/Recommendation servis token'ı gerçek Auth ile alınamıyor | BLOCKED (REQ-04-A, REQ-01-C) | Alper / Kerem (Auth) | Testler yerel imzalı sözleşme token'ı kullanır; gerçek entegrasyon DEĞİL. Tüketici servisler (Hardware/Recommendation) bu fazda değiştirilmedi |
+| I-29 | İlk kapsam adları (`performance:summary:read`) Auth desenine uymuyordu | ÇÖZÜLDÜ | Alper | `summary:read` / `reference:read` seçildi; gerçek issuer ile token üretimi testte doğrulandı (KARAR-P4-08) |
+| I-30 | Grafik serisi eşit genişlikli kova ortalamasıdır; görsel olarak ince tepe noktaları LTTB gibi algoritmalardan farklı görünebilir | Karar (KARAR-P4-05) | Alper | min/max kova bazında verilir, böylece uç değerler kaybolmaz |

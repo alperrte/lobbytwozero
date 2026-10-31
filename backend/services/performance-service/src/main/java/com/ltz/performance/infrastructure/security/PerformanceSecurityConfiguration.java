@@ -38,6 +38,10 @@ public class PerformanceSecurityConfiguration {
             .matcher(HttpMethod.DELETE, "/internal/v1/accounts/*");
     private static final RequestMatcher DEVICE_VERIFY = PathPatternRequestMatcher.withDefaults()
             .matcher(HttpMethod.GET, "/internal/v1/accounts/*/devices/*");
+    private static final RequestMatcher PERFORMANCE_SUMMARY = PathPatternRequestMatcher.withDefaults()
+            .matcher(HttpMethod.GET, "/internal/v1/accounts/*/performance-summary");
+    private static final RequestMatcher PERFORMANCE_REFERENCE = PathPatternRequestMatcher.withDefaults()
+            .matcher(HttpMethod.GET, "/internal/v1/accounts/*/games/*/performance-reference");
     private static final RequestMatcher SYNC_BATCHES = PathPatternRequestMatcher.withDefaults()
             .matcher(HttpMethod.POST, "/api/v1/performance/sync/batches");
 
@@ -65,12 +69,16 @@ public class PerformanceSecurityConfiguration {
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers(ACCOUNT_ERASURE).hasAuthority("SCOPE_account:erase")
                         .requestMatchers(DEVICE_VERIFY).hasAuthority("SCOPE_devices:verify")
+                        .requestMatchers(PERFORMANCE_SUMMARY).hasAuthority("SCOPE_summary:read")
+                        .requestMatchers(PERFORMANCE_REFERENCE).hasAuthority("SCOPE_reference:read")
                         .requestMatchers(SYNC_BATCHES)
                         .access((authentication, context) -> deviceAccess(authentication.get()))
                         .requestMatchers("/api/v1/performance/sync-consent", "/api/v1/performance/devices",
                                 "/api/v1/performance/devices/*", "/api/v1/performance/sessions",
                                 "/api/v1/performance/sessions/*", "/api/v1/performance/sessions/*/end",
-                                "/api/v1/performance/sessions/*/report", "/api/v1/performance/sessions/*/samples")
+                                "/api/v1/performance/sessions/*/report", "/api/v1/performance/sessions/*/samples",
+                                "/api/v1/performance/sessions/*/stats", "/api/v1/performance/sessions/*/series",
+                                "/api/v1/performance/stats")
                         .access((authentication, context) -> actorAccess(authentication.get()))
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(resource -> resource.authenticationManagerResolver(request -> {

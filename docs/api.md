@@ -7203,6 +7203,9 @@ Owner (yalnız kendi oturumları)
 #### Query Parameters
 - page: int, varsayılan 0, ≥ 0
 - size: int, varsayılan 20, 1..50
+- gameId, hardwareProfileId, deviceLinkId: UUID, isteğe bağlı (PERF-19); birlikte verilirse AND
+- status: `ACTIVE`, `COMPLETED`, `ABANDONED`, isteğe bağlı
+- startedFrom, startedTo: ISO-8601 an, oturum başlangıcına göre yarı açık aralık `[startedFrom, startedTo)`; `startedFrom < startedTo`, sınırlar 2000-01-01..2200-01-01
 
 #### Response — 200
 ```json
@@ -7210,13 +7213,14 @@ Owner (yalnız kendi oturumları)
   "items": [ { "id": "UUID", "gameId": "UUID", "gameTitle": "Oyun adı", "hardwareProfileId": null, "deviceLinkId": null, "source": "MANUAL", "status": "COMPLETED", "startedAt": "2026-01-01T10:00:00Z", "endedAt": "2026-01-01T11:00:00Z", "durationSeconds": 3600, "sampleCount": 0 } ],
   "page": 0,
   "size": 20,
-  "hasNext": false
+  "hasNext": false,
+  "totalElements": 1
 }
 ```
-En yeniden eskiye (`startedAt DESC`).
+Sıra sabittir: `startedAt DESC, id DESC`. `totalElements` filtreye uyan toplam oturum sayısıdır (PERF-14).
 
 #### Hata Durumları
-- 400: Geçersiz `page`/`size` (`INVALID_REQUEST`)
+- 400: Geçersiz `page`/`size`/filtre/zaman aralığı (`INVALID_REQUEST`)
 - 401: Token yok/geçersiz
 - 429: Hız sınırı
 - 500: Beklenmeyen sunucu hatası
@@ -7599,6 +7603,289 @@ Diğer mikroservisler:
 #### Test Durumu
 INTEGRATION
 
+### PERFORMANCE — Oturum örneklerini oku (PERF-14/19)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+GET /api/v1/performance/sessions/{sessionId}/samples
+
+#### Yetkilendirme
+Owner (kullanıcı token'ı; cihaz/servis token'ı kabul edilmez). Başkasının veya olmayan oturum aynı 404'ü döner.
+
+#### Path/Query Parameters
+- sessionId: UUID, zorunlu
+- metric: `CPU_TEMP_C`, `GPU_TEMP_C`, `CPU_USAGE_PERCENT`, `GPU_USAGE_PERCENT`, `RAM_USED_MB`, `VRAM_USED_MB`, `DISK_READ_MBPS`, `DISK_WRITE_MBPS`, `FAN_RPM`, `FPS` (kanonik büyük harf); verilmezse tümü
+- from: ISO-8601 an, isteğe bağlı, `capturedAt >= from`
+- to: ISO-8601 an, isteğe bağlı, `capturedAt < to`; `from < to` olmalı, sınırlar 2000-01-01..2200-01-01
+- page: int, varsayılan 0, ≥ 0
+- size: int, varsayılan 100, 1..500
+
+#### Response — 200
+```json
+{
+  "items": [ { "metric": "FPS", "unit": "FPS", "capturedAt": "2026-01-01T10:00:01Z", "value": 60.0 } ],
+  "page": 0,
+  "size": 100,
+  "hasNext": false
+}
+```
+Sıra sabittir: `capturedAt, metric, id`. Yanıt yalnız ölçümü taşır (örnek/cihaz/oturum iç kimlikleri yok). `Cache-Control: private, no-store`.
+
+#### Hata Durumları
+- 400: Geçersiz `metric`/`from`/`to`/`page`/`size` (`INVALID_REQUEST`)
+- 401: Token yok/geçersiz; cihaz/servis token'ı
+- 403: Hesap pasif/silinmeye alınmış
+- 404: Oturum yok veya başkasına ait (`PERFORMANCE_NOT_FOUND`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions/{sessionId}/samples
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION (okuma uçlarında hız sınırı yok; bkz. I-26)
+
+### PERFORMANCE — Oturum istatistikleri (PERF-15)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+GET /api/v1/performance/sessions/{sessionId}/stats
+
+#### Yetkilendirme
+Owner (kullanıcı token'ı). Başkasının veya olmayan oturum aynı 404'ü döner.
+
+#### Path/Query Parameters
+- sessionId: UUID, zorunlu
+- metric, from, to: örnek okuma ucundakiyle aynı (isteğe bağlı)
+
+#### Response — 200
+```json
+{
+  "sessionId": "UUID",
+  "sampleCount": 3,
+  "metrics": [
+    { "metric": "FPS", "unit": "FPS", "count": 3, "sessionCount": 1, "avg": 60.0, "min": 30.0, "max": 90.0,
+      "firstAt": "2026-01-01T10:00:00Z", "lastAt": "2026-01-01T10:00:02Z" }
+  ]
+}
+```
+Değerler yalnız saklanmış gerçek örneklerden hesaplanır. Örneği olmayan metrik listede **yer almaz** (0 ile doldurulmaz); örneksiz oturum `sampleCount=0`, `metrics=[]` döner. `sampleCount` metriklerin `count` toplamıdır. Sıra: metrik adı.
+
+#### Hata Durumları
+- 400: Geçersiz `metric`/`from`/`to` (`INVALID_REQUEST`)
+- 401: Token yok/geçersiz; cihaz/servis token'ı
+- 403: Hesap pasif/silinmeye alınmış
+- 404: Oturum yok veya başkasına ait (`PERFORMANCE_NOT_FOUND`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions/{sessionId}/stats
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### PERFORMANCE — Hesap istatistikleri (PERF-15/19)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+GET /api/v1/performance/stats
+
+#### Yetkilendirme
+Owner (yalnız kendi oturumları; başka hesaplarla toplama yoktur).
+
+#### Query Parameters
+- gameId, hardwareProfileId, deviceLinkId: UUID, isteğe bağlı oturum filtresi
+- status: `ACTIVE`, `COMPLETED`, `ABANDONED`, isteğe bağlı
+- startedFrom, startedTo: ISO-8601 an, oturum başlangıcına göre yarı açık aralık `[startedFrom, startedTo)`
+- metric: tek metrik, isteğe bağlı
+
+#### Response — 200
+```json
+{
+  "sessionCount": 3,
+  "sampleCount": 4,
+  "metrics": [
+    { "metric": "FPS", "unit": "FPS", "count": 3, "sessionCount": 2, "avg": 80.0, "min": 40.0, "max": 100.0,
+      "firstAt": "2026-01-01T10:00:00Z", "lastAt": "2026-01-01T12:00:00Z" }
+  ]
+}
+```
+Ortalama **örnek ağırlıklıdır** (oturum ortalamalarının ortalaması değil). `sessionCount` filtreye uyan tüm oturumları (örneksizler dahil) sayar; metrik `sessionCount` o metrikten örneği olan oturumları. Örneksiz sonuçta `metrics=[]`. Maliyet notu: hesap kotası (500.000 örnek) tek sorguda taranabilir üst sınırdır (I-27).
+
+#### Hata Durumları
+- 400: Geçersiz filtre/metrik/zaman aralığı (`INVALID_REQUEST`)
+- 401: Token yok/geçersiz; cihaz/servis token'ı
+- 403: Hesap pasif/silinmeye alınmış
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/stats
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### PERFORMANCE — Oturum grafik serisi (PERF-16)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+GET /api/v1/performance/sessions/{sessionId}/series
+
+#### Yetkilendirme
+Owner (kullanıcı token'ı). Başkasının veya olmayan oturum aynı 404'ü döner.
+
+#### Path/Query Parameters
+- sessionId: UUID, zorunlu
+- metric: zorunlu, tek metrik
+- from, to: isteğe bağlı zaman penceresi (`captured_at`, yarı açık)
+- maxPoints: int, varsayılan 300, 10..1000
+
+#### Response — 200
+```json
+{
+  "sessionId": "UUID",
+  "metric": "FPS",
+  "unit": "FPS",
+  "resolution": "BUCKET",
+  "downsampled": true,
+  "bucketMillis": 199991,
+  "aggregation": "AVG_MIN_MAX",
+  "totalSamples": 20000,
+  "points": [ { "at": "2026-01-01T10:00:00Z", "value": 54.5, "min": 30.0, "max": 79.0, "count": 200 } ]
+}
+```
+Pencerede en çok `maxPoints` örnek varsa `resolution=RAW` (her nokta gerçek örnek, `count=1`, `bucketMillis=null`, `aggregation=NONE`). Daha fazlaysa örnekler gerçek ilk/son zamanları arasında **eşit genişlikli kovalara** bölünür; her nokta kovanın ortalama/min/max/örnek sayısını taşır, `at` kova başlangıcıdır ve yanıt açıkça `downsampled=true` ile bunu bildirir. Nokta sayısı `maxPoints`'i aşmaz; `totalSamples` toplam örnek sayısını korur (kovaların `count` toplamı). Veri yoksa `points=[]`.
+
+#### Hata Durumları
+- 400: `metric` yok/bilinmeyen, `maxPoints` aralık dışı, geçersiz zaman (`INVALID_REQUEST`)
+- 401: Token yok/geçersiz; cihaz/servis token'ı
+- 403: Hesap pasif/silinmeye alınmış
+- 404: Oturum yok veya başkasına ait (`PERFORMANCE_NOT_FOUND`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions/{sessionId}/series
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### PERFORMANCE — Hesabın donanım profili performans özeti (Hardware, PERF-21)
+
+Durum: IMPLEMENTED (sözleşme) — gerçek servis kimliği ile uçtan uca BLOCKED (REQ-04-A)
+Sorumlu: Alper
+Tüketici servisler: Hardware (planlı)
+
+#### Endpoint
+GET /internal/v1/accounts/{accountId}/performance-summary
+
+#### Yetkilendirme
+Servis token'ı (`svc+jwt`): `aud=performance-service`, `sub=svc:hardware-service`, `scope=summary:read`, `account_id` = yoldaki `accountId`. Başka konu/kapsam/hesap → 403; token yok, kullanıcı/cihaz token'ı veya yanlış audience → 401. Gateway üzerinden dışarı açılmaz.
+
+#### Path/Query Parameters
+- accountId: UUID, zorunlu
+- hardwareProfileId: UUID, zorunlu
+
+#### Response — 200
+```json
+{
+  "hardwareProfileId": "UUID",
+  "sessionCount": 2,
+  "sampleCount": 3,
+  "lastMeasuredAt": "2026-01-01T10:00:10Z",
+  "metrics": [ { "metric": "FPS", "unit": "FPS", "count": 2, "sessionCount": 2, "avg": 60.0, "min": 50.0, "max": 70.0, "firstAt": "2026-01-01T10:00:00Z", "lastAt": "2026-01-01T10:00:10Z" } ]
+}
+```
+Yalnız **o hesabın, o donanım profiliyle, tamamlanmış (`COMPLETED`)** oturumları özetlenir. Oturum/oyun/cihaz kimliği, oyun adı veya ham örnek **dönmez**. Ölçüm yoksa `sessionCount=0`, `metrics=[]`, `lastMeasuredAt=null`. Başka hesapların verisiyle toplama yapılmaz. `Cache-Control: private, no-store`.
+
+#### Hata Durumları
+- 400: Eksik/geçersiz `hardwareProfileId` (`INVALID_REQUEST`)
+- 401: Token yok/geçersiz; yanlış audience; kullanıcı/cihaz token'ı
+- 403: Yanlış servis konusu, kapsam veya hesap bağı; hesap pasif
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Hardware → Performance (RestClient; servis token'ı Auth'tan alınır, REQ-04-A)
+
+#### Test Durumu
+INTEGRATION (yerel imzalı sözleşme token'ı; gerçek Auth/Hardware entegrasyonu BLOCKED)
+
+### PERFORMANCE — Oyun performans referansı (Recommendation, PERF-21)
+
+Durum: IMPLEMENTED (sözleşme) — gerçek servis kimliği ile uçtan uca BLOCKED (REQ-04-A)
+Sorumlu: Alper
+Tüketici servisler: Recommendation (planlı)
+
+#### Endpoint
+GET /internal/v1/accounts/{accountId}/games/{gameId}/performance-reference
+
+#### Yetkilendirme
+Servis token'ı (`svc+jwt`): `aud=performance-service`, `sub=svc:recommendation-service`, `scope=reference:read`, `account_id` = yoldaki `accountId`. Diğer kurallar özet ucuyla aynı.
+
+#### Path/Query Parameters
+- accountId, gameId: UUID, zorunlu
+- hardwareProfileId: UUID, isteğe bağlı (verilirse yalnız o profil)
+
+#### Response — 200
+```json
+{
+  "gameId": "UUID",
+  "hardwareProfileId": null,
+  "reliable": true,
+  "sessionCount": 2,
+  "fpsSampleCount": 100,
+  "avgFps": 54.5,
+  "minFps": 30.0,
+  "maxFps": 79.0,
+  "lastMeasuredAt": "2026-01-01T10:00:10Z"
+}
+```
+Yalnız hesabın tamamlanmış oturumlarındaki **FPS** örnekleri kullanılır. `fpsSampleCount` 60'ın altındaysa `reliable=false` ve `avgFps/minFps/maxFps=null` döner (eşik varsayımdır, I-24); veri yoksa `fpsSampleCount=0`. Tahmin/doldurma yapılmaz; oturum veya cihaz kimliği dönmez.
+
+#### Hata Durumları
+- 400: Geçersiz kimlik (`INVALID_REQUEST`)
+- 401: Token yok/geçersiz; yanlış audience; kullanıcı/cihaz token'ı
+- 403: Yanlış servis konusu, kapsam veya hesap bağı; hesap pasif
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Recommendation → Performance (RestClient; servis token'ı Auth'tan alınır, REQ-04-A)
+
+#### Test Durumu
+INTEGRATION (yerel imzalı sözleşme token'ı; gerçek Auth/Recommendation entegrasyonu BLOCKED)
 
 ## NOTIFICATION
 
