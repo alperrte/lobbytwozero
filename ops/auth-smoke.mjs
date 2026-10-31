@@ -288,6 +288,21 @@ export async function runAuthSmoke(root, log = console.log) {
       && deviceVerify.claims.account_id === claims.sub && deviceVerifyUnbound.status === 400,
     `hardware-service: devices:verify token bound to one active account (without account ${deviceVerifyUnbound.status})`);
 
+    // Steam bağlama: oturum + yeniden doğrulama gerekir; Steam'e gerçek istek gitmez (yalnız yönlendirme adresi üretilir).
+    const steamLinkWrong = await request(gatewayOrigin, '/api/v1/auth/oauth/steam/link/start', 400, { jar: account.jar, method: 'POST', csrf: true,
+      headers: { Origin: gatewayOrigin }, body: { password: 'x'.repeat(20) } });
+    const steamLink = await request(gatewayOrigin, '/api/v1/auth/oauth/steam/link/start', 200, { jar: account.jar, method: 'POST', csrf: true,
+      headers: { Origin: gatewayOrigin }, body: { password } });
+    const steamLinkUrl = new URL(steamLink.body.redirectUrl);
+    check(steamLinkWrong.body.code === 'CURRENT_PASSWORD_INVALID' && steamLinkUrl.hostname === 'steamcommunity.com'
+      && /\/api\/v1\/auth\/oauth\/steam\/link\/callback\?state=/.test(steamLinkUrl.searchParams.get('openid.return_to') || '')
+      && /no-store/i.test(steamLink.response.headers.get('Cache-Control') || '')
+      && steamLink.response.headers.getSetCookie().some(c => /ltz_oauth=/.test(c) && /HttpOnly/i.test(c)),
+    'Steam link start needs the password, redirects to Steam with a link-specific return_to and an HttpOnly state cookie');
+    const steamUnlinkNone = await request(gatewayOrigin, '/api/v1/auth/oauth/steam/unlink', 404, { jar: account.jar, method: 'POST', csrf: true,
+      headers: { Origin: gatewayOrigin }, body: { password } });
+    check(steamUnlinkNone.body.code === 'EXTERNAL_IDENTITY_NOT_LINKED', 'Unlinking a Steam identity that is not linked is rejected (404)');
+
     // Masaüstü cihaz kimliği: bağlama (yeniden doğrulama), cihaz token'ı, dar kapsam, iptal.
     await request(gatewayOrigin, '/api/v1/auth/devices', 400, { jar: account.jar, method: 'POST', csrf: true,
       headers: { Origin: gatewayOrigin }, body: { label: 'Bad <name>', password } });

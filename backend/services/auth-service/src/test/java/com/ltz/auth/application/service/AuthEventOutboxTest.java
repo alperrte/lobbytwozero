@@ -30,6 +30,7 @@ import com.ltz.auth.RecordingMailPortConfiguration;
 import com.ltz.auth.RecordingMailPortConfiguration.RecordingMailPort;
 import com.ltz.auth.api.controller.AuthApiPaths;
 import com.ltz.auth.domain.enums.AccountStatus;
+import com.ltz.auth.domain.enums.AuthEventType;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import com.sun.net.httpserver.HttpExchange;
@@ -53,6 +54,9 @@ class AuthEventOutboxTest extends IntegrationTestSupport {
 
     @Autowired
     private RecordingMailPort mailPort;
+
+    @Autowired
+    private AuthEventPublisher eventPublisher;
 
     @DynamicPropertySource
     static void eventTargets(DynamicPropertyRegistry registry) {
@@ -181,6 +185,33 @@ class AuthEventOutboxTest extends IntegrationTestSupport {
         Map<String, Object> payload = JsonPath.read(request.body(), "$.payload");
         assertThat(payload).containsOnlyKeys("accountId", "status").containsEntry("status", "SUSPENDED");
         assertThat((String) JsonPath.read(request.body(), "$.aggregateId")).isEqualTo(payload.get("accountId"));
+    }
+
+    /** User Service sözleşmesi: bağlama {accountId, provider, providerSubject}, kaldırma {accountId, provider} taşır. */
+    @Test
+    void hariciKimlikOlaylariUserSozlesmesindekiYukuTasir() throws Exception {
+        UUID account = newActive();
+        String steamId = "76561198000000042";
+        eventPublisher.publish(AuthEventType.EXTERNAL_IDENTITY_LINKED, account, "STEAM:" + steamId);
+        eventPublisher.publish(AuthEventType.EXTERNAL_IDENTITY_UNLINKED, account, "STEAM");
+
+        relay.processDue();
+
+        List<CapturingServer.Request> bodies = COMMUNITY.requests().stream()
+                .filter(captured -> captured.body().contains(account.toString())).toList();
+        Map<String, Object> linked = payloadOf(bodies, "ExternalIdentityLinked");
+        Map<String, Object> unlinked = payloadOf(bodies, "ExternalIdentityUnlinked");
+        assertThat(linked).containsOnlyKeys("accountId", "provider", "providerSubject")
+                .containsEntry("accountId", account.toString()).containsEntry("provider", "STEAM")
+                .containsEntry("providerSubject", steamId);
+        assertThat(unlinked).containsOnlyKeys("accountId", "provider").containsEntry("provider", "STEAM");
+        assertThat(bodies).allSatisfy(request -> assertThat(request.body()).doesNotContain("@").doesNotContain("email"));
+    }
+
+    private static Map<String, Object> payloadOf(List<CapturingServer.Request> bodies, String eventType) {
+        CapturingServer.Request request = bodies.stream()
+                .filter(captured -> eventType.equals(JsonPath.read(captured.body(), "$.eventType"))).findFirst().orElseThrow();
+        return JsonPath.read(request.body(), "$.payload");
     }
 
     @Test

@@ -47,6 +47,7 @@ public class RetentionCleanupService {
         int batch = properties.batchSize();
         int pendingAccounts = purgePendingAccounts(now);
         int ephemeral = drain(() -> cleanupRepository.deleteExpiredOAuthFlows(now.minus(properties.flowGrace()), batch))
+                + drain(() -> cleanupRepository.deleteExpiredOAuthLinkFlows(now.minus(properties.flowGrace()), batch))
                 + drain(() -> cleanupRepository.deleteOldOpenIdNonces(now.minus(properties.nonceRetention()), batch))
                 + drain(() -> cleanupRepository.deleteExpiredSteamProofs(now.minus(properties.flowGrace()), batch))
                 + drain(() -> cleanupRepository.deleteStaleThrottles(now.minus(properties.throttleRetention()), batch))

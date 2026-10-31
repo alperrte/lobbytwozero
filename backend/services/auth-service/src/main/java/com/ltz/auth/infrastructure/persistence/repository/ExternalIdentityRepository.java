@@ -13,4 +13,7 @@ public interface ExternalIdentityRepository extends JpaRepository<ExternalIdenti
     Optional<ExternalIdentity> findByProviderAndProviderSubject(ExternalProvider provider, String providerSubject);
 
     Optional<ExternalIdentity> findByAccountIdAndProvider(UUID accountId, ExternalProvider provider);
+
+    /** Hesabın, verilen sağlayıcı dışındaki harici kimliği var mı (son giriş yöntemi koruması). */
+    boolean existsByAccountIdAndProviderNot(UUID accountId, ExternalProvider provider);
 }

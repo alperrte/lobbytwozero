@@ -33,6 +33,10 @@ public final class AuthApiPaths {
     public static final String STEAM_START = OAUTH + "/steam/start";
     public static final String STEAM_CALLBACK = OAUTH + "/steam/callback";
     public static final String STEAM_COMPLETE = OAUTH + "/steam/complete";
+    /** Oturumdaki hesaba Steam bağlama (yeniden doğrulamalı başlatma, Steam dönüşü) ve kaldırma. */
+    public static final String STEAM_LINK_START = OAUTH + "/steam/link/start";
+    public static final String STEAM_LINK_CALLBACK = OAUTH + "/steam/link/callback";
+    public static final String STEAM_UNLINK = OAUTH + "/steam/unlink";
 
     public static final String PASSWORD = BASE + "/password";
     public static final String PASSWORD_CHANGE = PASSWORD + "/change";

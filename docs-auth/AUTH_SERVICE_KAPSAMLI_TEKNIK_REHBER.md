@@ -569,6 +569,7 @@ erDiagram
 | `V62__sessions_and_credentials.sql` | oturum: `auth_sessions`, `refresh_tokens`, `attempt_throttles`; e-posta/parola: `email_verification_codes` (EMAIL_CHANGE dahil), `password_reset_tokens`; 2FA: `totp_credentials`, `recovery_codes`, `mfa_challenges`; cihaz: `device_credentials` |
 | `V63__external_identities.sql` | `external_identities`, `oauth_flows`, `openid_nonces`, `steam_registrations` |
 | `V64__account_deletion_and_event_outbox.sql` | silme: `account_deletion_tokens`, `account_deletion_requests` (geri alma süresi dahil), `account_deletion_tasks`; olay: `auth_event_outbox` |
+| `V65__external_identity_linking.sql` | `oauth_link_flows` (Steam bağlama akışı); `auth_event_outbox` olay türü listesine `ExternalIdentityLinked/Unlinked` (AUTH-20) |
 
 **Tasarım ilkeleri [K].** PK `uuid`; zamanlar `timestamptz`; durum kolonları `varchar + CHECK`; token/kod özetleri `CHECK (… ~ '^[0-9a-f]{64}$')` (açık kod biçimi kolona girilemez — `FlywayMigrationTest.acikKodBicimindekiDegerOzetSutunundaReddedilir`); `email_normalized = lower(…)` ve kullanıcı adı deseni DB'de zorlanır; hesap başına **tek aktif kod/token** kısmi benzersiz indeks (`uq_*_active … WHERE consumed_at IS NULL AND invalidated_at IS NULL`); çok sütunlu `CHECK`lar durum tutarlılığını sağlar (örn. `(revoked_at IS NULL) = (revoke_reason IS NULL)`).
 
