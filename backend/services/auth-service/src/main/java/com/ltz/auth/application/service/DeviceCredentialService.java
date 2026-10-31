@@ -151,7 +151,8 @@ public class DeviceCredentialService {
                 .filter(found -> accountRepository.findById(found.getAccountId()).filter(Account::isActive).isPresent())
                 .map(found -> {
                     found.markUsed(now, LAST_USED_RESOLUTION);
-                    return new IssuedDeviceToken(tokenIssuer.issue(found.getId(), found.getAccountId(), target),
+                    return new IssuedDeviceToken(tokenIssuer.issue(found.getId(), found.getAccountId(), target.audience(),
+                            target.scope()),
                             DeviceTokenIssuer.TTL, target.scope());
                 });
     }

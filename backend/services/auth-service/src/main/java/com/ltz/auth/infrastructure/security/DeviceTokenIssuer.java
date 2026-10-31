@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
@@ -19,7 +20,7 @@ import com.ltz.auth.infrastructure.config.JwtProperties;
  * Masaüstü cihaz token'ı. Kurallar kodda sabittir (cihaz kimliği tasarımı, {@code docs-auth/entegrasyon}):
  * <ul>
  *   <li>{@code typ=dev+jwt}: kullanıcı ({@code at+jwt}) ve servis ({@code svc+jwt}) token'ının yerine geçemez.</li>
- *   <li>Tek {@code aud} ve o hedefin tek kapsamı ({@link DeviceTokenTarget}): {@code hardware-service} +
+ *   <li>Tek {@code aud} ve o hedefin tek kapsamı ({@code DeviceTokenTarget}): {@code hardware-service} +
  *       {@code hardware:sync:write} (varsayılan) veya {@code performance-service} + {@code performance:sync:write}.
  *       Token yalnız o serviste geçer, Auth'ta ve başka serviste geçmez.</li>
  *   <li>{@code sub=<deviceId>}, {@code account_id=<hesap>}: başka kapsam yoktur.</li>
@@ -31,6 +32,14 @@ public class DeviceTokenIssuer {
 
     /** Servis token'larıyla aynı kısa ömür; iptal en geç bu sürede etkili olur. */
     public static final Duration TTL = Duration.ofSeconds(60);
+
+    /**
+     * İmzalanabilecek tek (aud → kapsam) çiftleri. Hedef düz String olarak geldiği için sınır burada zorlanır: başka bir
+     * audience veya kapsam (örneğin hesap silme kapsamı) hiçbir çağrıyla cihaz token'ına yazılamaz.
+     */
+    private static final Map<String, String> ALLOWED_SCOPES = Map.of(
+            TokenClaims.HARDWARE_SERVICE_AUDIENCE, TokenClaims.HARDWARE_SYNC_WRITE_SCOPE,
+            TokenClaims.PERFORMANCE_SERVICE_AUDIENCE, TokenClaims.PERFORMANCE_SYNC_WRITE_SCOPE);
 
     private final JwtEncoder jwtEncoder;
     private final JwtSigningKey signingKey;
@@ -46,20 +55,28 @@ public class DeviceTokenIssuer {
 
     /** Hardware için token. Bu imza başka servislerin testleri tarafından kullanılır (docs-auth/README.md); değişmez. */
     public String issue(UUID deviceId, UUID accountId) {
-        return issue(deviceId, accountId, DeviceTokenTarget.HARDWARE);
+        return issue(deviceId, accountId, TokenClaims.HARDWARE_SERVICE_AUDIENCE, TokenClaims.HARDWARE_SYNC_WRITE_SCOPE);
     }
 
-    public String issue(UUID deviceId, UUID accountId, DeviceTokenTarget target) {
+    /**
+     * Hedefe göre token. Hedef bilgisi düz {@code String} olarak gelir: Hardware'in testi bu sınıfı Auth'un diğer
+     * kaynaklarından yalnızca sabit bir kümeyle derler (docs-auth/README.md); buraya yeni bir Auth tipi bağımlılığı
+     * eklemek o derlemeyi kırar.
+     */
+    public String issue(UUID deviceId, UUID accountId, String audience, String scope) {
+        if (audience == null || scope == null || !scope.equals(ALLOWED_SCOPES.get(audience))) {
+            throw new IllegalArgumentException("Device token audience and scope pair is not allowed");
+        }
         Instant now = clock.instant();
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer(properties.issuer())
                 .subject(deviceId.toString())
-                .audience(List.of(target.audience()))
+                .audience(List.of(audience))
                 .issuedAt(now)
                 .notBefore(now)
                 .expiresAt(now.plus(TTL))
                 .id(UUID.randomUUID().toString())
-                .claim(TokenClaims.SCOPE, target.scope())
+                .claim(TokenClaims.SCOPE, scope)
                 .claim(TokenClaims.ACCOUNT_ID, accountId.toString())
                 .build();
         JwsHeader header = JwsHeader.with(SignatureAlgorithm.RS256)

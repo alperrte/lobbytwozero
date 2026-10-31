@@ -90,10 +90,13 @@ Game, Hardware, Library ve Review servislerinin testleri (`ProductionAuthSupport
 | `JwksController` | `(JwtSigningKey)` yapıcısı ve `jwks()` |
 | `AccessTokenIssuer` | `(JwtEncoder, JwtSigningKey, JwtProperties)` yapıcısı, `issue(Account, AuthSession, Instant)`, sonuçta `value()` |
 | `ServiceTokenIssuer` | `(JwtEncoder, JwtSigningKey, JwtProperties, Clock)` yapıcısı, `issue(String, String, UUID)` |
+| `DeviceTokenIssuer` | `(JwtEncoder, JwtSigningKey, JwtProperties, Clock)` tek yapıcısı, `issue(UUID, UUID)` (Hardware token'ı). Hedef seçimi `issue(UUID, UUID, String, String)` ile, **düz String** parametrelerle yapılır |
 | `Account` | `registerVerifiedExternal(String, String, Role, Instant)`, `grantRole(Role, Instant)`, `getTokenVersion()` |
 | `AuthSession` | `open(UUID, long, List, Instant, Instant)` |
 | `TokenClaims` | Tür, konu, kapsam ve claim adları sabitleri |
 | Ayrıca derlenenler | `Role`, `AccountStatus`, `RoleCode`, `AuthMethod`, `SessionRevokeReason`, `AuthApiPaths` |
+
+**Kapalı küme kuralı.** Hardware testi yukarıdaki 15 dosyayı (bu 15 sınıf: Account, AuthSession, Role, AccountStatus, RoleCode, AuthMethod, SessionRevokeReason, JwtProperties, JwtSigningKey, TokenClaims, AccessTokenIssuer, ServiceTokenIssuer, DeviceTokenIssuer, JwksController, AuthApiPaths) **tek başına** derler; Auth'un diğer sınıfları sınıf yolunda yoktur. Bu dosyalardan biri küme dışı bir Auth tipine (yeni enum, servis, DTO) bağımlı olursa Hardware'in testi `cannot find symbol` ile kırılır, Auth'un kendi testleri ise geçer. Bu yüzden bu dosyalara yeni bir Auth tipi referansı eklenmez; yeni davranış düz tiplerle (`String`, `UUID`, `Duration`) taşınır. `ConsumerSourceCompilationTest` aynı derlemeyi Auth tarafında yapar ve Auth PR'ında yakalar. Küme değişirse (Hardware kendi listesini güncellerse) test içindeki liste de güncellenir. 2026-10-31'de `DeviceTokenIssuer`'a eklenen `DeviceTokenTarget` bağımlılığı bu kuralı bozmuş ve main'de Hardware testlerini kırmıştı; `String` parametrelere çevrilerek düzeltildi.
 
 Bu imzaları Auth'ta `ConsumerContractTest` kilitler. Bir imzayı bilerek değiştirmek gerekiyorsa önce ilgili servis sahiplerine haber verilir, sonra testle birlikte bu tablo güncellenir.
 
