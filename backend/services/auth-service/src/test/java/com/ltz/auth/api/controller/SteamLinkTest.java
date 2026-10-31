@@ -16,6 +16,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -26,6 +27,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 
 import com.jayway.jsonpath.JsonPath;
 import com.ltz.auth.ExternalProviderTestSupport;
+import com.ltz.auth.infrastructure.persistence.repository.AuthDataEraser;
 
 import jakarta.servlet.http.Cookie;
 
@@ -44,6 +46,9 @@ class SteamLinkTest extends ExternalProviderTestSupport {
         // Olay satırları yazılsın (aktarıcı testlerde elle tetiklenir).
         registry.add("ltz.auth.events.targets", () -> "user");
     }
+
+    @Autowired
+    private AuthDataEraser dataEraser;
 
     @BeforeEach
     void resetProviders() {
@@ -247,6 +252,22 @@ class SteamLinkTest extends ExternalProviderTestSupport {
         unlink(bearerFor(steamAndGoogle), reauth(VALID_PASSWORD)).andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("PASSWORD_REQUIRED"));
         assertThat(identityCount(steamAndGoogle)).isEqualTo(2);
+    }
+
+    // ---- Hesap silme ----
+
+    @Test
+    void hesapSilmeVeSilmeOnayiBekleyenBaglamaAkislariniTemizler() throws Exception {
+        UUID onayda = newAccount();
+        startLink(onayda);
+        assertThat(linkFlowCount(onayda)).isEqualTo(1);
+        dataEraser.purgeEphemeral(onayda);
+        assertThat(linkFlowCount(onayda)).as("silme onayı: bekleyen akış geçersiz kılınır").isZero();
+
+        UUID silinen = newAccount();
+        startLink(silinen);
+        dataEraser.erase(silinen);
+        assertThat(linkFlowCount(silinen)).as("silme tamamlanınca: akış kalmaz").isZero();
     }
 
     // ---- Yardımcılar ----
