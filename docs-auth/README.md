@@ -75,7 +75,7 @@ Bu klasör Auth servisinin (auth-service ve Gateway güvenlik katmanı) bütün 
 | Hesap silme | 14 gün geri alma süresi, sonra servislere silme görevi |
 | Güvenlik olayı saklama | 365 gün |
 | Silme ucu yazılmış servisler | 5 / 16 (Social, Game, Library, Review, Hardware) |
-| Auth migration aralığı | V61–V70 (V66'ya kadar kullanıldı) |
+| Auth migration aralığı | V61–V70 (V64'e kadar kullanıldı, V65–V70 boş; V61–V64 donuk, bkz. `migration-yazim-kurallari.md`) |
 
 ---
 

@@ -1,5 +1,13 @@
--- AUTH-01/11/12/14: hesap çekirdeği, roller, güvenlik olayları ile durum ve rol geçmişi.
+-- AUTH-01/11/12/14: hesaplar, roller ve denetim kayıtları.
 -- Durum ve rol listeleri sözleşmedir (docs/database.md §3.1).
+--
+-- İçindekiler
+--   1. Hesap ve roller   : accounts, roles (5 kanonik rol), account_roles
+--   2. Denetim kayıtları : security_events, account_status_history, account_role_history
+
+-- =====================================================================================================================
+-- 1. HESAP VE ROLLER
+-- =====================================================================================================================
 
 CREATE TABLE accounts (
     id                  uuid         PRIMARY KEY,
@@ -50,6 +58,10 @@ CREATE TABLE account_roles (
 );
 
 CREATE INDEX ix_account_roles_role_id ON account_roles (role_id);
+
+-- =====================================================================================================================
+-- 2. DENETİM KAYITLARI
+-- =====================================================================================================================
 
 -- Olay türleri uygulamadaki SecurityEventType enum'ı ile sınırlanır; parola, kod veya e-posta tutulmaz.
 CREATE TABLE security_events (
