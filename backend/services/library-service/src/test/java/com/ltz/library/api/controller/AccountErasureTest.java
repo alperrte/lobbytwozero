@@ -44,6 +44,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -61,6 +62,8 @@ class AccountErasureTest {
     static final HttpServer JWKS = jwks();
     static final String PATH = "/internal/v1/accounts/" + ACCOUNT;
     @Autowired WebApplicationContext context;
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    com.ltz.library.infrastructure.persistence.repository.LibraryEntryRepository entries;
     MockMvc mvc;
 
     @Configuration @EnableWebMvc @EnableWebSecurity
@@ -157,10 +160,10 @@ class AccountErasureTest {
         call(get("/unknown"), token(claims())).andExpect(status().isUnauthorized());
     }
 
-    @Test void skeletonServiceHasNoAccountState() {
-        var service = new AccountErasureService();
+    @Test void erasureDelegatesToLocalRepositoryAndRejectsNullAccount() {
+        var service = new AccountErasureService(entries);
         service.erase(ACCOUNT);
-        service.erase(UUID.randomUUID());
+        verify(entries).eraseAccount(ACCOUNT);
         assertThrows(NullPointerException.class, () -> service.erase(null));
     }
 

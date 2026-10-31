@@ -2618,6 +2618,676 @@ DEV Auth görevinin CONFIRMED olması NOT VERIFIED.
 
 Sorumlu: Hamza · Gateway: `/api/v1/library/**` · Görevler: LIB-
 
+### LIBRARY — Profil koleksiyonunu listeleme (LIB-10, LIB-11)
+
+Durum: IMPLEMENTED (Library tarafı); User görünürlük adaptörü PENDING, dış erişim fail-closed.
+Sorumlu: Hamza
+Tüketici servisler: Frontend / User profil akışı
+
+#### Endpoint
+GET /api/v1/library/users/{userId}/entries
+
+#### Yetkilendirme
+Authenticated; kanonik kullanıcı rolü ve mevcut at+jwt doğrulaması.
+Görüntüleyen yalnız JWT sub'dır; viewerId/userId query veya kimlik başlığı yetki vermez.
+Owner kendi verisine erişir. Başka owner için LibraryVisibilityPort açık ALLOW vermelidir.
+Üretim adaptörü User API'si bulunmadığından UNAVAILABLE döner; dış veri açılmaz.
+ADMIN rolü gizlilik denetimini atlamaz. Anonim profil koleksiyonu erişimi sunulmaz.
+User, kullanıcı isteğinde o kullanıcının kendi at+jwt'sini bu uca iletir (Auth karar K1); token
+saklanmaz ve arka planda kullanılmaz (User'ın sorumluluğu). Ayrı delegasyon token'ı yoktur.
+
+#### Path/Query Parameters
+userId: hedef UUID. page: >=0, varsayılan 0; size: 1..50, varsayılan 20.
+Sıra addedAt DESC, id DESC; bu uçta filtre/ad sırası parametresi yoktur.
+
+#### Request Body
+Yok.
+
+#### Response — 200
+LibraryCollectionPageResponse: items[].entry, items[].game, page, size, totalElements,
+metadataPartial. Mevcut kişisel liste ile aynı DTO; Cache-Control: no-store.
+Görünürlük denetimi DB sayımı/listeleme ve Game çağrısından önce yapılır.
+
+#### Hata Durumları
+400: geçersiz UUID/page/size. 401: kimlik yok/geçersiz. 403: rol yok veya görünür değil.
+503: karar alınamıyor, null karar veya adaptör hatası. ProblemDetail; veri/sayaç dönmez.
+Olmayan/gizli kullanıcı için özel varlık sorgusu veya ayırt edici ret açıklaması üretilmez.
+
+#### Bağlantı
+Gateway üzerinden. Görünürlük User'ın sorumluluğundadır; henüz HTTP adaptörü yoktur.
+Karar cache'lenmez. ALLOW sonrası mevcut Library liste/Game batch akışı kullanılır.
+
+#### Test Durumu
+UNIT + INTEGRATION — LibraryApiTest.PrivacyTests ve LibraryAccessServiceTest.
+İzinli/ret/ulaşılamama/null/adaptör hatası, owner, ADMIN, kimlik sahteciliği ve sayaç sızıntısı.
+İzinli dış erişim yalnız test portuyla sınandı; gerçek User entegrasyonu NOT VERIFIED/PENDING.
+
+### LIBRARY — Profil koleksiyon sayacı (LIB-10, LIB-11)
+
+Durum: IMPLEMENTED (Library tarafı); User görünürlük adaptörü PENDING.
+Sorumlu: Hamza
+Tüketici servisler: Frontend / User profil akışı
+
+#### Endpoint
+GET /api/v1/library/users/{userId}/entries/statistics
+
+#### Yetkilendirme
+Profil koleksiyon listesiyle aynı at+jwt/rol/owner ve açık görünürlük izni denetimi.
+Sayaçlar gizli koleksiyonu açığa çıkaramaz; üretimde non-owner erişimi 503 ile kapanır.
+
+#### Path/Query Parameters
+userId: UUID. Query parametresi yok.
+
+#### Request Body
+Yok.
+
+#### Response — 200
+LibraryStatisticsResponse: totalGames, favoriteGames, completedGames. Cache-Control: no-store.
+
+#### Hata Durumları
+400: UUID. 401: kimlik. 403: rol/ret. 503: görünürlük kararı alınamıyor. ProblemDetail.
+
+#### Bağlantı
+Gateway; izin sonrası yalnız Library aggregate. Game çağrısı yok. Liste ve sayaç ayrı
+HTTP istekleridir; ikisi arasında ortak snapshot veya dağıtık gizlilik kilidi vaat edilmez.
+
+#### Test Durumu
+INTEGRATION — PrivacyTests: owner sayacı, izinli hedef izolasyonu, ret/ulaşılamama,
+doğrulanmış viewer kullanımı. Gerçek User entegrasyonu PENDING.
+
+### LIBRARY — User servisinin profil okuması (LIB-10, LIB-11)
+
+Durum: DEPRECATED (karar K1, 2026-10-30). Kod yerinde ve kapalıdır; kullanılmaz, kaldırılması ayrı bir temizlik işidir.
+Sorumlu: Hamza
+Tüketici servisler: yok. User, kullanıcının kendi at+jwt'siyle yukarıdaki public profil uçlarını çağırır.
+
+Auth (Kerem) görüntüleyeni taşıyan delegasyon veya library:profile:read kapsamlı token üretmez
+(docs-auth/verilen-cevaplar/library-service/talep-01-servisler-arasi-yetki-iptal-ve-d4.md K1).
+Bu iç uçlara gerçek token verilemediği için fail-closed kalır; yeni tüketici eklenmez.
+
+#### Endpoint
+GET /internal/v1/library/users/{userId}/entries
+GET /internal/v1/library/users/{userId}/entries/statistics
+
+#### Yetkilendirme
+Internal; RS256/JWKS svc+jwt, issuer, tek aud=library-service, kid/jti/iat/nbf/exp ve
+en fazla 60 saniye ömür; mevcut 30 saniye saat toleransı. Scope library:profile:read,
+sub tam svc:user-service, imzalı target_user_id yoldaki kanonik UUID ile aynı olmalıdır.
+viewer_id imzalı kanonik UUID claim'i zorunludur; query/header görüntüleyen seçemez.
+Viewer=owner ise kişisel erişim; aksi halde PROFILE amacıyla açık görünürlük izni gerekir.
+Mevcut Auth bu scope/delegasyon claim'lerini üretmez. D4 account:erase yetkisi kabul edilmez.
+
+#### Path/Query Parameters
+userId: UUID. Liste: page>=0 varsayılan 0, size=1..50 varsayılan 20.
+İstatistik: query yok.
+
+#### Request Body
+Yok.
+
+#### Response — 200
+Liste: LibraryCollectionPageResponse; sayaç: LibraryStatisticsResponse.
+Cache-Control: no-store. Public profil uçlarıyla aynı veri ve gizlilik sınırı.
+
+#### Hata Durumları
+400: parametreler. 401: token yok/geçersiz, yanlış typ/aud/issuer/zaman.
+403: scope/sub/target/viewer geçersiz veya görünürlük reddi. 503: karar alınamıyor.
+ProblemDetail. Token hatasında veri/görünürlük portu çağrılmaz.
+
+#### Bağlantı
+Yalnız servis iç ağı; Gateway iç yolları yönlendirmez. User tüketici adaptörü ve Auth
+istemci/hedef/kapsam/delegasyon desteği uygulanmadı. Gerekenler ayrı bağımlılık raporunda.
+
+#### Test Durumu
+INTEGRATION — gerçek RSA/JWKS ve PostgreSQL; yerelde üretilmiş test token'larıyla
+sub/scope/target/viewer pozitif-negatif sınanır. Gerçek token edinme ve User E2E PENDING.
+
+### LIBRARY — Recommendation girdileri (LIB-14)
+
+Durum: IMPLEMENTED (Library kabul sınırı, Auth signals:read sözleşmesine uyarlandı); User izin kararı ve Recommendation tüketicisi PENDING.
+Sorumlu: Hamza
+Tüketici servisler: recommendation-service
+
+#### Endpoint
+GET /internal/v1/library/users/{userId}/recommendation-signals
+
+#### Yetkilendirme
+Internal; Auth'un yayımlanmış hesaba bağlı servis token'ı (talep-01 K2): RS256/JWKS, typ=svc+jwt,
+iss=ltz-auth, tek aud=library-service, kid/jti/iat/nbf/exp, en fazla 60 sn ömür, 30 sn saat toleransı.
+sub tam svc:recommendation-service; scope signals:read; account_id yoldaki {userId} ile kanonik
+UUID olarak aynı olmalıdır (eşleşmezse veya yoksa 403). Eski library:recommendation:read ve
+target_user_id artık kabul edilmez. Kullanıcı at+jwt'si, D4 account:erase token'ı ve başka
+servislerin token'ları kabul edilmez. Ardından RECOMMENDATION amacıyla User'dan ayrı açık izin
+gerekir: Auth hesabın ACTIVE olduğunu denetler, kullanıcı iznini kanıtlamaz. Owner eşitliği bu amacı
+atlatmaz; PUBLIC profil tercihi kendi başına öneri kullanım izni sayılmaz. Üretim görünürlük
+adaptörü User karar API'si olmadığı için 503 ile kapalıdır.
+
+#### Path/Query Parameters
+userId UUID. page>=0 varsayılan 0; size=1..50 varsayılan 20.
+addedAt DESC, id DESC. Yalnız favorite OR completed olan satırlar; toplam aynı filtrededir.
+
+#### Request Body
+Yok.
+
+#### Response — 200
+```json
+{ "items": [], "page": 0, "size": 20, "totalElements": 0 }
+```
+items[] yalnız gameId, favorite, completed içerir. Yerel kayıt UUID'si, kullanıcı kimliği,
+tarih/version veya Game metadata'sı yoktur. Liste/toplam REPEATABLE_READ; no-store.
+
+#### Hata Durumları
+400: UUID/page/size. 401: kimlik/token sözleşmesi. 403: kapsam/caller/hedef/izin reddi.
+503: izin kararı alınamıyor. ProblemDetail; özel kayıt ve sayaç dönmez.
+
+#### Bağlantı
+Doğrudan Library iç ağı; Game/diğer DB çağrısı yoktur. Auth tarafı hazırdır (PR #36, origin/main):
+Recommendation, POST /internal/v1/service-tokens ile clientId=recommendation-service, audience=library-service,
+accountId=<hesap UUID> göndererek token alır. Recommendation istemcisi ve User izin kararı henüz yoktur;
+kullanılabilir üretim entegrasyonu olarak değerlendirilmez.
+
+#### Test Durumu
+INTEGRATION — LibraryApiTest.PrivacyTests: 3 sinyal/2 sayfa, her iki bayrak, işaretsiz kayıt ve başka
+owner dışlama, alan azaltma, yüksek offset, parametre sınırları, ret/ulaşılamama/izin iptali; signals:read
+sınırları (yanlış sub/scope/account_id, eksik veya kanonik olmayan account_id, süresi dolmuş, yanlış aud/typ,
+eski taslak kapsamı, D4 ve sinyal token'ının çapraz kullanılamaması). AuthIssuedServiceTokenIntegrationTest:
+Auth'un gerçek ServiceClientTokenIssuer çıktısı Library'nin gerçek HTTP/PostgreSQL katmanına karşı
+(User kararı SAHTE). Gerçek Recommendation ve gerçek User izin kararı E2E'si PENDING.
+
+### LIBRARY — Kütüphane listeleme (LIB-05, LIB-06, LIB-07, LIB-08, LIB-16, LIB-17)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/library/entries
+
+#### Yetkilendirme
+Authenticated + Owner. Mevcut RS256/JWKS kullanıcı token'ı ve kanonik rol sözleşmesi;
+yalnız JWT sub sahibinin koleksiyon satırları. userId query/header sahip seçemez.
+
+#### Path/Query Parameters
+- page: integer, minimum 0, varsayılan 0.
+- size: integer, 1–50, varsayılan 20.
+- favorite: isteğe bağlı boolean. Yoksa bu bayrak filtrelenmez; true işaretlileri, false işaretsizleri seçer.
+- completed: isteğe bağlı boolean; aynı davranış.
+İki filtre birlikte AND uygulanır; false değerleri filtre yokmuş gibi değerlendirilmez.
+- sort: ADDED_AT (varsayılan) veya TITLE.
+- direction: ASC veya DESC (varsayılan).
+ADDED_AT sıralamasında id aynı yönde ikincil anahtardır. TITLE, filtrelenmiş bütün
+küme batch ile zenginleştirildikten sonra, sayfalama öncesinde sıralanır; yalnız sayfa sıralanmaz.
+Adlar Unicode NFKC + Locale.ROOT küçük harf anahtarıyla karşılaştırılır; eşit adlarda id ASC.
+Eksik adlar her iki yönde en sondadır, kendi aralarında id ASC. Ad sıralamasında herhangi
+bir özet eksikse metadataPartial tüm filtrelenmiş küme üzerinden true olur.
+LIB-17: Son bilinen snapshot adı varsa TITLE sırasına bu ad katılır; metadataSource
+LAST_KNOWN olarak işaretlenir. Hiç bilinen adı olmayanlar en sonda kalır.
+Sonuç dışı sayfa boş items ve doğru totalElements ile 200 döner; metadata HTTP çağrısı
+yapılmaz, metadataPartial=false olur. page hesabı long olduğundan integer çarpım taşması yoktur.
+Liste/toplam aynı yerel snapshot'tandır; ayrı HTTP sayfa istekleri arasında veri değişirse
+sonuç kümesi de değişebilir. Faz 2 favori/bitirildi listelerinin düz DTO sözleşmesi korunur.
+
+#### Request Body
+Yok.
+
+#### Response — 200
+```json
+{ "items": [], "page": 0, "size": 20, "totalElements": 0, "metadataPartial": false }
+```
+items[].entry mevcut LibraryEntryResponse'tur; koleksiyon/favori/bitirildi korunur.
+items[].game: gameId, title, coverUrl, origin, metadataCompleteness, gameType, status,
+metadataSource, metadataRefreshedAt.
+status: AVAILABLE, UNAVAILABLE veya TEMPORARILY_UNAVAILABLE. Eksik ad/görsel null;
+arşivlenmiş/MERGED/olmayan oyun ayırt edilmez. Koleksiyon kaydı silinmez.
+metadataSource: LIVE (bu istekte doğrulanan kart), LAST_KNOWN (son bilinen public
+snapshot) veya NONE (snapshot da yok). metadataRefreshedAt, LIVE için bu batch'in
+başarılı gözlem zamanı; LAST_KNOWN için snapshot'ın özgün zamanı; NONE için null'dır.
+Zaman Game sağlayıcısının güncelleme zamanı değildir. LAST_KNOWN metadata güncel katalog
+durumu veya tekrar ekleme izni sayılmaz; status güncel batch sonucunu anlatır.
+Game erişilebilir olsa da title eksikse mevcut snapshot kullanılır; status AVAILABLE,
+metadataSource LAST_KNOWN ve metadataPartial true döner. Snapshot da yoksa alanlar null'dır.
+metadataPartial, bilinmeyen ad, kullanılamayan özet veya LAST_KNOWN kullanımı varsa true'dur;
+TITLE için tüm filtrelenmiş küme, ADDED_AT için dönen sayfa değerlendirilir.
+
+#### Hata Durumları
+- 400: Geçersiz page/size, sınır aşımı, boolean filtre, sort veya direction.
+- 401: Kimlik yok/geçersiz kullanıcı token'ı.
+- 403: Kanonik kullanıcı rolü yok.
+- 500: Beklenmeyen yerel hata; ProblemDetail.
+Game hatası listeyi düşürmez: 200 ve açık metadataPartial/status fallback'i kullanılır.
+
+#### Bağlantı
+Frontend Gateway üzerinden. Library DB liste/toplam snapshot'ı kapandıktan sonra
+mevcut Game public batch API'si çağrılır. ADDED_AT sıralamasında yalnız dönen sayfa
+zenginleştirilir: en fazla 50 oyun için tek batch. TITLE sıralamasında filtrelenmiş K
+kaydın tamamı gerekir: her istekte en fazla 50 farklı kimlik, en fazla ceil(K/50) batch.
+İstekler sıralıdır; ilk geçici hatadan sonra kalan batch'ler çağrılmaz, önceki başarılı
+özetler korunur. N+1 yoktur. TITLE bellek maliyeti O(K), sıralama maliyeti O(K log K)'dır.
+Yerel snapshot ile ayrı Game batch yanıtları arasında dağıtık snapshot garantisi yoktur.
+Boş/256 karakterden uzun ad, geçersiz/HTTPS olmayan/2048 karakterden uzun görsel URL'si
+ve tanınmayan opsiyonel enum alanları null döner; sahte metadata üretilmez.
+429/timeout/bozuk yanıt otomatik yeniden denenmez; kişisel token dış servise aktarılmaz.
+V42__create_game_snapshots.sql yalnız library_db'ye public metadata tablosunu ekler;
+V41 değişmez. Kişisel satırlara veya başka servis DB'sine FK yoktur. Game HTTP çağrısı
+yerel transaction dışında kalır; snapshot okuma/yazma ayrı, kısa yerel transaction'lardır.
+Başarılı ve geçerli title içeren kartlar snapshot'ı yeniler; eksik title, unavailable,
+429/timeout/bozuk yanıt son bilinen kaydı ezmez. Daha eski/eşit gözlem snapshot'ı geri alamaz.
+Snapshot aktif Game doğrulamasını atlatmaz; yeni ekleme/favori/bitirildi PUT hâlâ Game'i
+doğrular. DELETE/işaret geri alma dış katalog gerektirmez. Koleksiyon satırı id/bayrak/
+tarih/version alanları okumadan etkilenmez. Snapshot kullanıcıdan bağımsız public veridir;
+hesap/koleksiyon silinince başka kullanıcıların da yararlanabileceği snapshot silinmez.
+Katalog event tüketimi veya otomatik MERGED kimlik yönlendirmesi eklenmedi; mevcut batch
+sözleşmesi yeni kanonik kimliği/ayrıntılı kullanılamama nedenini sağlamaz.
+
+#### Test Durumu
+UNIT + INTEGRATION — LibraryApiTest.CollectionTests, GameServiceClientTest,
+LibraryGameSummariesTest: owner izolasyonu, boolean AND/false filtreleri, global ad sırası,
+kararlı sayfalama, eşzamanlı liste/toplam snapshot'ı, 50/121 oyun batch sınırları,
+bozuk/eksik/çelişkili yanıtlar, timeout/429 fallback ve kayıtların korunması.
+Faz 3 clean verify: 78 test PASS, LINE %98,84; Checkstyle/PMD 0 ihlal.
+ltz-dev Library/Gateway anonim ve geçersiz kimlik HTTP kontrolleri PASS.
+Pozitif canlı kullanıcı E2E NOT VERIFIED; başka serviste test verisi oluşturulmadı.
+LIB-17 — CatalogResilienceTests gerçek PostgreSQL ve GameServiceClient ile, simüle Game
+HTTP yanıtlarında available→unavailable→timeout→eksik title→yeniden available geçişini;
+snapshot yokluğunu, bozuk batch'i, güvenli mutasyonları, fallback global sırasını,
+eşzamanlı yenilemeyi ve V41→V42 veri korumalı yükseltmesini sınar. Gerçek Game arşivleme
+E2E'si değildir. LibraryGameSummariesTest sonraki atlanan batch'lerin snapshot fallback'ini sınar.
+Faz 5 clean verify: 100 PASS, LINE %99,09; Checkstyle/PMD 0 ihlal. ltz-dev V42
+uygulaması ve 34 HTTP sağlık/güvenlik/public Game batch kontrolü PASS; pozitif canlı
+snapshot/arşivleme akışı NOT VERIFIED.
+
+### LIBRARY — Kütüphane istatistikleri (LIB-09)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/library/entries/statistics
+
+#### Yetkilendirme
+Authenticated + Owner. Aynı kullanıcı JWT/kanonik rol sözleşmesi; yalnız JWT sub.
+userId query/header başka kullanıcı seçemez. Profil/Recommendation erişimi bu uca eklenmez.
+
+#### Path/Query Parameters
+Yok. Liste filtreleri istatistiğe uygulanmaz; bütün kişisel koleksiyon sayılır.
+
+#### Request Body
+Yok.
+
+#### Response — 200
+```json
+{ "totalGames": 0, "favoriteGames": 0, "completedGames": 0 }
+```
+Tek SQL aggregate aynı snapshot'ta hesaplar. Aynı oyun iki bayrağı da true ise toplamda
+bir kez, favori ve bitirildi sayılarında ayrı ayrı bir kez sayılır. İdempotent tekrar
+sayıları artırmaz; iki bayrak false olsa da koleksiyon toplamına dahildir.
+
+#### Hata Durumları
+- 401: Kimlik yok/geçersiz kullanıcı token'ı.
+- 403: Kanonik kullanıcı rolü yok.
+- 500: Beklenmeyen yerel hata; ProblemDetail.
+
+#### Bağlantı
+Frontend Gateway üzerinden; yalnız library_db aggregate sorgusu. Game HTTP çağrısı yoktur.
+
+#### Test Durumu
+INTEGRATION — boş koleksiyon, çakışan bayraklar, idempotent tekrar, geri alma/silme,
+başka kullanıcı izolasyonu ve 401/403; LibraryApiTest.
+
+### LIBRARY — Koleksiyona oyun ekleme (LIB-01, LIB-12, LIB-13)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/library/entries
+
+#### Yetkilendirme
+RS256/Auth JWKS ile `typ=at+jwt`, issuer, audience, zamanlar ve UUID `sub` doğrulanır.
+Kanonik rollerden biri gerekir: PLAYER, CONTENT_CREATOR, GAME_DEVELOPER, MODERATOR, ADMIN.
+Kullanıcı yalnız doğrulanmış `sub` üzerinden belirlenir; `userId` gövde alanı reddedilir.
+Servis yalnız Bearer kabul eder; cookie→Bearer ve cookie CSRF/Origin kontrolü Gateway'dedir.
+
+#### Path/Query Parameters
+Yok. Query veya kimlik başlıkları kullanıcı kimliğini belirlemez.
+
+#### Request Body
+```json
+{ "gameId": "00000000-0000-4000-8000-000000000001" }
+```
+Zorunlu UUID; bilinmeyen gövde alanları reddedilir.
+
+#### Response — 200
+İlk ekleme ve tekrar aynı HTTP durumunu kullanır. `id`, `gameId`, `inCollection`,
+`favorite`, `completed`, `addedAt`, `updatedAt`, `version` döner.
+Yeni kayıt: `inCollection=true`, `favorite=false`, `completed=false`, `version=0`.
+Tekrar ekleme mevcut kimliği, tarihleri ve bayrakları korur; oyun sahipliği kanıtı değildir.
+DB `uq_library_entries_user_game` gerçek tekillik garantisidir; atomik PostgreSQL upsert kullanılır.
+
+#### Hata Durumları
+- 400: Geçersiz/eksik UUID, bozuk JSON veya bilinmeyen alan.
+- 401: Kimlik yok veya token geçersiz (servis token'ı dahil).
+- 403: Geçerli token'da izin verilen rol yok.
+- 404: Game batch sözleşmesinde oyun `unavailable` (olmayan/arşivlenmiş/birleştirilmiş).
+- 503: Game Service timeout/kesinti/429/hatalı veya tutarsız yanıt; kayıt oluşturulmaz.
+- 500: Beklenmeyen sunucu hatası. Tüm hatalar ProblemDetail biçimindedir.
+
+#### Bağlantı
+Frontend Gateway üzerinden aynı path'i çağırır. Library, transaction dışında mevcut
+`GAME_SERVICE_URL` üzerinden public `POST /api/v1/game/games/batch` sözleşmesini
+tek `gameId` ile tüketir; token aktarımı ve otomatik retry yoktur.
+Migration: `V41__create_library_entries.sql`; yalnız library_db. Yeni ENV yoktur.
+
+#### Test Durumu
+UNIT + INTEGRATION — LibraryApiTest: gerçek PostgreSQL/Flyway/JPA, RSA/JWKS,
+16 eşzamanlı ekleme ve doğrudan SQL tekillik testi. GameServiceClientTest:
+MockRestServiceServer ile sözleşme, kesinti, timeout, 429 ve tutarsız yanıtlar.
+Gerçek Auth issuer/Gateway filtre sözleşmesi sınandı. 30 Ekim 2026 son kontrolünde
+iki sentetik hesabın gerçek kayıt/doğrulama/login oturumu ile Auth→Gateway→Library→Game→DB
+E2E akışı 62/62 PASS: ekleme/tekrar, iki kullanıcı izolasyonu, otomatik bayraklar,
+atomik silme, geçersiz oyun/JWT/CSRF ve gerçek Game kesintisinde 503/no-write.
+Kanıt: `docs-library/LTZ-HAM-LIB-01-E2E-Sonuc.md`; tekrar: `node ops/library-phase1-e2e.mjs`.
+Kullanıcı JWT doğrulayıcısı ayrıca UserTokenDecoderConfigurationTest ile gerçek RS256/JWKS üzerinde
+(bozuk imza, alg=none, HS256 karışıklığı, bilinmeyen/eksik kid, anahtar rotasyonu örtüşmesi, süre, issuer/audience, rol)
+sınanır. Auth→Library kullanıcı JWT entegrasyonunun canlı negatif/sahiplik doğrulaması:
+`docs-library/LTZ-HAM-LIB-06-Auth-Entegrasyonu-Sonuc.md`.
+Maven clean verify 45 test PASS, LINE %98,13. Pre-push/SonarQube kullanıcı tarafından manuel yapılır.
+Yeni imaj ltz-dev üzerinde çalıştırıldı; Library/Gateway gerçek HTTP health ve
+anonim/geçersiz Bearer/sahte kimlik/CSRF kontrolleri 15/15 başarılı. Library
+konteynerinden Auth JWKS erişimi HTTP 200. Game public batch gerçek HTTP 200.
+
+### LIBRARY — Koleksiyondan oyun kaldırma (LIB-02)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend
+
+#### Endpoint
+DELETE /api/v1/library/entries/{gameId}
+
+#### Yetkilendirme
+Koleksiyona ekleme ile aynı kullanıcı JWT/rol sözleşmesi. Silme SQL'i hem doğrulanmış
+`sub=user_id` hem `game_id` ile sınırlıdır; başka kullanıcı adına silme yolu yoktur.
+
+#### Path/Query Parameters
+- gameId: zorunlu UUID. Query kimlik kaynağı değildir.
+
+#### Request Body
+Yok.
+
+#### Response — 204
+Gövde yok. Kayıt yoksa veya tekrar silinirse de 204. Koleksiyon/favori/bitirildi tek
+satırda tutulur ve tek transaction'da fiziksel silinir. Başkasındaki aynı oyun korunur.
+Game Service çağrısı gerekmez; katalog kesintisi veya arşivleme kaldırmayı engellemez.
+
+#### Hata Durumları
+- 400: Geçersiz yol UUID'si.
+- 401: Kimlik yok/geçersiz JWT.
+- 403: Gerekli kullanıcı rolü yok.
+- 500: Beklenmeyen sunucu hatası; ProblemDetail.
+
+#### Bağlantı
+Frontend Gateway üzerinden aynı path; yalnız library_db transaction'ı.
+
+#### Test Durumu
+INTEGRATION — LibraryApiTest: gerçek PostgreSQL üzerinde iki kullanıcı izolasyonu,
+iki bayrakla birlikte silme, tekrar, anonim erişim ve geçersiz UUID.
+
+### LIBRARY — Favori işaretiyle otomatik koleksiyon kaydı (LIB-03, LIB-15)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend
+
+#### Endpoint
+PUT /api/v1/library/entries/{gameId}/favorite
+
+#### Yetkilendirme
+Koleksiyona ekleme ile aynı JWT/rol/sahiplik sözleşmesi; kullanıcı yalnız `sub`'dan.
+
+#### Path/Query Parameters
+- gameId: zorunlu UUID. Query parametresi kullanılmaz.
+
+#### Request Body
+Yok. Bu uç yalnız işareti açar; `false` kabul eden bir durum güncelleme API'si değildir.
+
+#### Response — 200
+Koleksiyona ekleme ile aynı LibraryEntryResponse. Eksik kayıt oluşturulurken
+`inCollection=true`, `favorite=true`, `completed=false`. Var olan kaydın completed
+alanı korunur. Tekrar aynı id/tarih/version değerlerini korur. Gerçek değişiklikte
+updatedAt ve version ilerler. Benzersiz upsert, ekleme/bitirildi yarışında işaret kaybetmez.
+Favoriden çıkarma ve favori listesi aşağıdaki LIB-03 uçlarıyla sunulur.
+
+#### Hata Durumları
+- 400: Geçersiz yol UUID'si.
+- 401: Kimlik yok/geçersiz kullanıcı token'ı.
+- 403: İzin verilen kullanıcı rolü yok.
+- 404: Game Service oyunu kullanılabilir olarak doğrulamadı.
+- 503: Oyun doğrulaması kesinti/timeout/429/tutarsız yanıt nedeniyle tamamlanamadı.
+- 500: Beklenmeyen hata. Yanıtlar ProblemDetail.
+
+#### Bağlantı
+Frontend Gateway üzerinden. Game batch doğrulaması transaction dışında; yalnız
+library_db upsert'i atomiktir. HTTP çağrısı dağıtık transaction değildir.
+Silme ile eşzamanlı işaretlemede DB işlem sırası geçerlidir: silmeden sonraki
+başarılı işaretleme yeniden kayıt oluşturabilir; silmeden önceki işaretler silinir.
+
+#### Test Durumu
+INTEGRATION — hedef bayrak, tekrar, 24 karma eşzamanlı istek, geçersiz oyun,
+katalog kesintisi, 401/403; gerçek PostgreSQL/JWT. Game adaptörü ayrıca mock HTTP ile sınandı.
+
+### LIBRARY — Favoriden çıkarma (LIB-03)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend
+
+#### Endpoint
+DELETE /api/v1/library/entries/{gameId}/favorite
+
+#### Yetkilendirme
+Authenticated + Owner. Mevcut kullanıcı JWT/rol sözleşmesi geçerlidir; user_id yalnız
+doğrulanmış sub'dan alınır. ADMIN dahil hiçbir rol başka kullanıcı adına işlem yapamaz.
+
+#### Path/Query Parameters
+- gameId: zorunlu UUID. Query/kimlik başlıkları sahip belirlemez.
+
+#### Request Body
+Yok.
+
+#### Response — 204
+Gövdesiz. Yalnız favorite=false yapılır; koleksiyon, completed, id ve addedAt korunur.
+Gerçek değişiklikte updatedAt/version ilerler. Zaten false/olmayan kayıt ve tekrarda 204;
+satır oluşturulmaz, timestamp/version değiştirilmez. Game doğrulaması gerekmez.
+Tek atomik UPDATE, aynı kayıttaki eşzamanlı işlemlerle DB kilidi altında sıralanır.
+
+#### Hata Durumları
+- 400: Geçersiz yol UUID'si.
+- 401: Kimlik yok/geçersiz kullanıcı token'ı.
+- 403: Geçerli kullanıcı token'ında kanonik rol yok.
+- 500: Beklenmeyen hata; ProblemDetail.
+
+#### Bağlantı
+Frontend Gateway üzerinden aynı path. Yalnız library_db; dış servis çağrısı yoktur.
+
+#### Test Durumu
+INTEGRATION — LibraryApiTest: gerçek PostgreSQL/JWT ile korunan bayrak/koleksiyon,
+tekrar, olmayan kayıt, kullanıcı izolasyonu, 401/403/400 ve 16 eşzamanlı aç/kapat.
+
+### LIBRARY — Kendi favorilerini listeleme (LIB-03)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/library/entries/favorites
+
+#### Yetkilendirme
+Authenticated + Owner; yalnız JWT sub sahibinin favorite=true kayıtları.
+İstemcinin userId query/header değeri başka koleksiyona erişim vermez.
+
+#### Path/Query Parameters
+- page: integer, varsayılan 0, minimum 0; sıfır tabanlı.
+- size: integer, varsayılan 20, 1–50.
+Sabit sıra addedAt DESC, id DESC. Büyük page değeri taşma üretmez; boş sayfada da toplam döner.
+
+#### Request Body
+Yok.
+
+#### Response — 200
+```json
+{ "items": [], "page": 0, "size": 20, "totalElements": 0 }
+```
+items, mevcut LibraryEntryResponse kayıtlarıdır; gameId, koleksiyon ve iki bayrak,
+id, addedAt, updatedAt ve version içerir. Kişisel userId veya oyun metadata'sı dönmez.
+Liste/toplam aynı REPEATABLE_READ snapshot'ında iki sınırlı SQL sorgusuyla okunur.
+Bu uç düz favori listesidir; filtre/sıralama ve oyun özetleri GET /api/v1/library/entries ucundadır.
+
+#### Hata Durumları
+- 400: Geçersiz page/size veya size sınırının aşılması.
+- 401: Kimlik yok/geçersiz kullanıcı token'ı.
+- 403: Kanonik kullanıcı rolü yok.
+- 500: Beklenmeyen hata; ProblemDetail.
+
+#### Bağlantı
+Frontend Gateway üzerinden. Yalnız library_db okunur; Game HTTP çağrısı/N+1 yoktur.
+Katalog kesintisi mevcut kayıtların listelenmesini veya favoriden çıkarılmasını engellemez.
+
+#### Test Durumu
+INTEGRATION — LibraryApiTest: yalnız owner/favorite, aynı tarihli kayıtlarda stabil sıra,
+boş ve sınır dışı sayfa, size limiti, yüksek offset, 401/403/400 ve katalogdan bağımsızlık.
+Faz 2 canlı pozitif E2E NOT VERIFIED. ltz-dev üzerinde doğrudan servis/Gateway
+sağlık, 401/403, sahte kimlik, geçersiz Bearer/cookie ve CSRF kontrolleri 32/32 PASS.
+Tam modül Maven clean verify: 58 test, 0 failure/error/skipped, LINE %98,40;
+gerçek Auth issuer/Gateway cookie-CSRF filtreleri yeni GET/DELETE uçlarıyla testlidir.
+
+### LIBRARY — Bitirildi işaretiyle otomatik koleksiyon kaydı (LIB-04, LIB-15)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend
+
+#### Endpoint
+PUT /api/v1/library/entries/{gameId}/completed
+
+#### Yetkilendirme
+Koleksiyona ekleme ile aynı JWT/rol/sahiplik sözleşmesi; kullanıcı yalnız `sub`'dan.
+
+#### Path/Query Parameters
+- gameId: zorunlu UUID. Query parametresi kullanılmaz.
+
+#### Request Body
+Yok. Yalnız bitirildi işaretini açar.
+
+#### Response — 200
+LibraryEntryResponse. Yeni kayıtta `inCollection=true`, `favorite=false`,
+`completed=true`. Mevcut favorite korunur. Tekrar kimlik/tarih/version değiştirmez.
+Gerçek değişiklik updatedAt/version ilerletir. Aynı benzersiz upsert mekanizması.
+Bitirildi durumunu geri alma ve listeleme aşağıdaki LIB-04 uçlarıyla sunulur.
+
+#### Hata Durumları
+- 400: Geçersiz yol UUID'si.
+- 401: Kimlik yok/geçersiz kullanıcı token'ı.
+- 403: İzin verilen kullanıcı rolü yok.
+- 404: Kullanılabilir oyun bulunamadı.
+- 503: Game Service doğrulaması tamamlanamadı; yeni kayıt yok.
+- 500: Beklenmeyen hata. Yanıtlar ProblemDetail.
+
+#### Bağlantı
+Frontend Gateway üzerinden. Game batch doğrulaması ve yerel transaction sınırı,
+silme ile yarış davranışı favori otomatik kayıt ucuyla aynıdır.
+
+#### Test Durumu
+INTEGRATION — hedef bayrak/diğer bayrağın korunması, tekrar, eşzamanlılık,
+geçersiz oyun/kesinti ve 401/403; gerçek PostgreSQL/JWT.
+
+### LIBRARY — Bitirildi durumunu geri alma (LIB-04)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend
+
+#### Endpoint
+DELETE /api/v1/library/entries/{gameId}/completed
+
+#### Yetkilendirme
+Authenticated + Owner; yalnız doğrulanmış kullanıcı JWT sub'ına ait satır.
+Mevcut beş kanonik rol sözleşmesi geçerlidir; başka kullanıcıya müdahale yolu yoktur.
+
+#### Path/Query Parameters
+- gameId: zorunlu UUID. Query/header kimliği kullanılmaz.
+
+#### Request Body
+Yok.
+
+#### Response — 204
+Gövdesiz. Yalnız completed=false yapılır; favorite, koleksiyon, id ve addedAt korunur.
+Gerçek değişiklikte updatedAt/version ilerler. Zaten false/olmayan kayıt ve tekrar 204;
+yeni kayıt oluşmaz, tarih/version değişmez. İki bayrak false olsa da koleksiyon kaydı kalır.
+Tek atomik UPDATE kullanılır; eşzamanlı işlemler DB satır kilidi altında sıralanır.
+
+#### Hata Durumları
+- 400: Geçersiz yol UUID'si.
+- 401: Kimlik yok/geçersiz kullanıcı token'ı.
+- 403: Kanonik kullanıcı rolü yok.
+- 500: Beklenmeyen hata; ProblemDetail.
+
+#### Bağlantı
+Frontend Gateway üzerinden. Yalnız library_db; Game HTTP çağrısı yapılmaz.
+Katalog kesintisi/arşivleme kullanıcının kendi işaretini kaldırmasını engellemez.
+
+#### Test Durumu
+INTEGRATION — LibraryApiTest: koleksiyon/favori korunması, tekrar, olmayan kayıt,
+yeniden işaretleme, kullanıcı izolasyonu, 401/403/400 ve 16 eşzamanlı aç/kapat isteği.
+
+### LIBRARY — Kendi bitirilen oyunlarını listeleme (LIB-04)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/library/entries/completed
+
+#### Yetkilendirme
+Authenticated + Owner; yalnız JWT sub sahibinin completed=true kayıtları.
+Bir oyun iki bayrağı da true ise hem favori hem bitirilen listesinde bulunur.
+
+#### Path/Query Parameters
+- page: integer, varsayılan 0, minimum 0; sıfır tabanlı.
+- size: integer, varsayılan 20, 1–50.
+Sabit sıra addedAt DESC, id DESC. Büyük offset taşma üretmez.
+
+#### Request Body
+Yok.
+
+#### Response — 200
+```json
+{ "items": [], "page": 0, "size": 20, "totalElements": 0 }
+```
+items mevcut LibraryEntryResponse biçimindedir. Liste ve toplam aynı REPEATABLE_READ
+snapshot'ından gelir; boş/sonraki sayfada da gerçek toplam korunur. userId veya oyun
+adı/görseli dönmez. Filtre/sıralama ve toplu oyun özetleri GET /api/v1/library/entries ucundadır.
+
+#### Hata Durumları
+- 400: Geçersiz page/size veya size sınırının aşılması.
+- 401: Kimlik yok/geçersiz kullanıcı token'ı.
+- 403: Kanonik kullanıcı rolü yok.
+- 500: Beklenmeyen hata; ProblemDetail.
+
+#### Bağlantı
+Frontend Gateway üzerinden. Yalnız library_db; dış HTTP çağrısı ve N+1 yoktur.
+
+#### Test Durumu
+INTEGRATION — LibraryApiTest: yalnız owner/completed, favorite'den bağımsızlık,
+aynı tarihte stabil sıra, boş/sınır dışı sayfa, sayfa sınırları ve JWT/rol doğrulaması.
+Ortak reader için eşzamanlı yazma sırasında liste/toplam snapshot tutarlılığı testlidir.
+Faz 2 canlı pozitif E2E NOT VERIFIED; başka servis kalıcı verisi üretilmedi.
+Yeni Library imajı ltz-dev'de çalışır; gerçek HTTP sağlık/401/403/CSRF kontrolleri
+32/32 PASS. Modül clean verify 58 test PASS, LINE %98,40. Pre-push/SonarQube manueldir.
+
 ### LIBRARY — Hesap verisi silme iç ucu
 
 Durum: IMPLEMENTED
@@ -2642,9 +3312,8 @@ servis token'ı kullanıcı namespace'inde reddedilir. Servis rollerinden yetki 
 Yok.
 
 #### Response — 204
-Gövde yok. Henüz kişisel veri tablosu yok; veri yok/tekrar çağrı durumunda 204.
-Bu bir saklama/anonimleştirme kararı değildir. İlk kişisel veri tablosuyla birlikte
-silme mantığı ve gerçek DB testleri aynı görevde eklenmelidir.
+Gövde yok. Yalnız hedef hesabın `library_entries` satırları, favori ve bitirildi
+alanlarıyla birlikte tek transaction'da fiziksel silinir. Veri yok/tekrar çağrıda 204.
 
 #### Hata Durumları
 - 400: Geçersiz yol UUID'si.
@@ -2662,7 +3331,13 @@ Karar raporu: `docs-Game Service/LTZ-HAM-GAME-04-Auth-Entegrasyonu.md` §13.
 UNIT + INTEGRATION — AccountErasureTest, ServiceTokenDecoderConfigurationTest.
 Geçici RSA/JWKS ile gerçek filtre/controller/servis sınanır.
 ProductionServiceTokenSupport gerçek Auth ServiceTokenIssuer kaynağını test dizinine derler.
-Veri tablosu yoktur; DEV Auth görevinin CONFIRMED olması NOT VERIFIED.
+LibraryApiTest gerçek PostgreSQL üzerinde hedef hesabın silinmesi, tekrar ve diğer
+hesabın korunmasını sınar. AuthErasureAdapterIntegrationTest, Auth'un gerçek
+HttpAccountDataEraser + ServiceTokenIssuer kaynaklarını (test dizinine derlenir, geçici anahtarla)
+Library'nin gerçek HTTP sunucusuna (RANDOM_PORT, gerçek güvenlik zinciri/JWKS/PostgreSQL) karşı çalıştırır:
+204 onayı, tekrarda idempotentlik, yalnız bağlı hesabın silinmesi ve başka `aud` token'ının 401 ile
+onaylanmaması doğrulanır. Gerçek Auth servisinin canlı silme akışı (14 günlük bekleme süresi nedeniyle)
+ve DEV Auth görevinin CONFIRMED olması NOT VERIFIED.
 
 ## REVIEW
 
