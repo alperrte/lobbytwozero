@@ -6,6 +6,7 @@ import com.ltz.performance.domain.exception.PerformanceForbiddenException;
 import com.ltz.performance.domain.exception.PerformanceNotFoundException;
 import com.ltz.performance.domain.exception.PerformanceRateLimitException;
 import com.ltz.performance.domain.exception.PerformanceUnprocessableException;
+import com.ltz.performance.domain.exception.ServiceDependencyUnavailableException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
@@ -76,6 +77,11 @@ public class PerformanceExceptionHandler extends ResponseEntityExceptionHandler 
     @ExceptionHandler(AuthServiceUnavailableException.class)
     ResponseEntity<Object> authUnavailable(AuthServiceUnavailableException exception) {
         return withRetryAfter(problem(503, "AUTH_UNAVAILABLE", "Kimlik doğrulama servisi şu an doğrulama yapamıyor."), "30");
+    }
+
+    @ExceptionHandler(ServiceDependencyUnavailableException.class)
+    ResponseEntity<Object> dependencyUnavailable(ServiceDependencyUnavailableException exception) {
+        return withRetryAfter(problem(503, exception.code(), "Bağımlı servis şu an doğrulama yapamıyor."), "30");
     }
 
     @ExceptionHandler(Exception.class)

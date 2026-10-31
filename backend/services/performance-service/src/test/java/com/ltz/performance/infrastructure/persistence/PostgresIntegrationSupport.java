@@ -1,5 +1,6 @@
 package com.ltz.performance.infrastructure.persistence;
 
+import com.ltz.performance.infrastructure.client.PerformancePeerDoubles;
 import com.ltz.performance.infrastructure.security.PerformanceTestAuth;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +22,8 @@ public abstract class PostgresIntegrationSupport {
 
     @BeforeEach
     void clearFixtures() {
+        fixtureJdbc.update("DELETE FROM performance_reports");
+        fixtureJdbc.update("DELETE FROM performance_sessions");
         fixtureJdbc.update("DELETE FROM sync_batches");
         fixtureJdbc.update("DELETE FROM device_links");
         fixtureJdbc.update("DELETE FROM sync_consents");
@@ -31,6 +34,10 @@ public abstract class PostgresIntegrationSupport {
     @DynamicPropertySource
     static void databaseProperties(DynamicPropertyRegistry registry) {
         registry.add("ltz.performance.auth.service-url", PerformanceTestAuth::serviceUrl);
+        // Game/Hardware yerel sapmaları (mock); gerçek servis entegrasyonu değildir.
+        registry.add("ltz.performance.clients.game-service-url", PerformancePeerDoubles::origin);
+        registry.add("ltz.performance.clients.hardware-service-url", PerformancePeerDoubles::origin);
+        registry.add("ltz.performance.clients.read-timeout", () -> "1s");
         registry.add("spring.datasource.url", DATABASE::getJdbcUrl);
         registry.add("spring.datasource.username", DATABASE::getUsername);
         registry.add("spring.datasource.password", DATABASE::getPassword);

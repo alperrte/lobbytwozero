@@ -9,6 +9,17 @@
 | I-03 | Auth servis token'ı `sub` değerini hep `svc:auth-service` yapıyor, `devices:verify` yok (REQ-01-C) | BLOCKED | Kerem | Hardware→Performance aktif cihaz ucu gerçek token ile çağrılamaz; Hardware kodu değiştirilmedi (Hardware istemcisi önce Hardware sahibine bildirilmeli) |
 | I-04 | Auth silme işçisi → Performance D4 ucu ortak ortamda doğrulanmadı | NOT VERIFIED | Alper + Kerem | Uç ve testler hazır |
 | I-05 | Standart `pre-push` (`.\pre-push\pre-push.cmd performance-service`) | ÇÖZÜLDÜ — PASS | Alper | BACKEND TEST CHECK PASSED, EXIT 0 (31 test, %94,25) |
-| I-06 | SonarQube (`sonar.cmd scan dev`) | Kapı FAIL — tüm repo taraması | Alper | Analiz çalıştı; kapı repo genelinde kırmızı. performance-service'in 9 bulgusu (S2259, S1075, S3358, S107, S1192×2, S5778×4) düzeltildi; yeniden tarama sonucu `phase-01-tests.md` §1'de. Diğer servislerin bulguları bu görevin kapsamı dışında, dokunulmadı |
+| I-06 | SonarQube (`sonar.cmd scan dev`) | Kapı FAIL — tüm repo taraması | Alper | Analiz çalıştı; kapı repo genelinde kırmızı. performance-service'in 9 bulgusu (S2259, S1075, S3358, S107, S1192×2, S5778×4) düzeltildi; üçüncü tarama araç hatasıyla (`Git facts changed`, tarama sürerken ağaç değişti) geçersiz kaldı; düzeltmelerin Sonar'daki etkisi NOT VERIFIED, yeniden tarama Faz 2 sonunda (`phase-01-tests.md` §1). Diğer servislerin bulguları bu görevin kapsamı dışında, dokunulmadı |
 | I-08 | Bearer'sız yazma isteğinde CSRF reddi 401'e çevrildi | Karar (KARAR-04) | Alper | Oturum/cookie desteklenmediği için doğru semantik; gözden geçirilebilir |
 | I-09 | Test kapsamına iki bağımlılık eklendi | Bilgi | Alper | Hardware'de zaten kullanılıyor; yeni üretim bağımlılığı yok |
+
+## Faz 2
+
+| # | Konu | Durum | Sahip | Etki / önlem |
+| --- | --- | --- | --- | --- |
+| I-10 | Game GAME-15 ve Hardware HW-17 tüketici tarafı gerçek servislerle doğrulanmadı | NOT VERIFIED (`DEFERRED_CONTRACT`) | Alper (Hardware), Hamza (Game) | Testler yerel mock kullanır (`PerformancePeerDoubles`). Bağımlı servis yanıtsızsa kayıt açılmaz (503, kapalı başarısızlık). Her iki servisin kodu değiştirilmedi |
+| I-11 | Cihaz kaynaklı oturum (`source=DEVICE`) yok | Faz 3 kapsamı | Alper | `source` CHECK'i yalnız `MANUAL`; REQ-01-A gelmeden eklenmedi |
+| I-12 | Tembel `ABANDONED` geçişi (arka plan zamanlayıcısı yok) | Karar (KARAR-P2-03) | Alper | Terk edilmiş oturum bir sonraki başlatma/okumada kapanır; veri tabanında bir süre `ACTIVE` görünebilir, ancak API tutarlıdır |
+| I-13 | `erase_performance_account` en çok 1000 oturum/çağrı siler | Karar (KARAR-P2-10) | Alper | Hesap başına 1000 oturum sınırı bunu tek geçişte yeterli kılar |
+| I-14 | Standart pre-push ve SonarQube Faz 2 sonuçları | Pre-push PASS; Sonar kapısı FAIL (performance-service dışı) | Alper | Pre-push 77 test / %96,02 PASS. Sonar: performance-service bulgusu 0, Faz 1 düzeltmeleri doğrulandı. Kapı hardware (Alper), social, user, game, review, library bulgularıyla kırmızı; bu servislere dokunulmadı |
+| I-15 | Hardware-service Sonar bulguları (S2259 ×3, S3358, S3776: `HardwareDeviceJwtValidator`, `HardwareSecurityConfiguration`) | AÇIK — kullanıcı kararı bekliyor | Alper | Performance'ın bu fazına ait değil; hardware kodu önce bildirilmeden değiştirilmedi. Düzeltme istenirse ayrı iş olarak yapılabilir |

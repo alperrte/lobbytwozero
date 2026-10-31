@@ -7,7 +7,7 @@ Görev adları ve açıklamaları PDA kaynağından aynen alınmıştır; kod at
 İşaretleme: `[ ]` başlamadı veya tamamlanmadı · `[x]` kod + gerçek test + güvenlik kontrolü + dokümantasyon tamam.
 Kısmi işler `[ ]` kalır, yanında `DURUM`, neden ve test bağlantısı yazılır. Ana task; alt tasklar ve faz kalite kapısı doğrulanmadan tamamlanmış sayılmaz.
 
-Son güncelleme: 2026-10-31 · Genel durum: Faz 1 IN_PROGRESS (Auth bağımlılığı nedeniyle kısmen BLOCKED), Faz 2–4 PLANNED.
+Son güncelleme: 2026-10-31 · Genel durum: Faz 1 IN_PROGRESS (Auth bağımlılığı nedeniyle kısmen BLOCKED), Faz 2 kod/test/doküman tamam (gerçek Game/Hardware E2E bekliyor), Faz 3–4 PLANNED.
 
 ## Karar özeti (Faz 1)
 
@@ -51,14 +51,21 @@ Auth talebi: [auth-requests-01.md](../integration/auth-service-talepleri/auth-re
 
 **Ana task açıklaması:** Kullanıcı manuel oturum açar/kapatır, oyun bazlı performans raporu kaydeder ve kendi kayıtlarını silebilir.
 **PDA gereksinimleri:** PERF-03, PERF-04, PERF-13, PERF-20
-**Durum:** PLANNED
+**Durum:** KOD/TEST/DOKÜMAN TAMAM — kalite kapısı ve gerçek servis entegrasyonu kısmen bekliyor (bkz. [phase-02.md](phase-02.md), [phase-02-tests.md](../testings/phase-02-tests.md))
 
 - [ ] **PERF-03 — Performans oturumu oluşturma:** Kullanıcının performans oturumu kaydı oluşturabilmesi.
-- [ ] **PERF-04 — Performans oturumu sonlandırma:** Kaydedilmiş performans oturumunun tamamlanması.
+  - Durum: **PARTIAL** — `POST/GET /sessions`, `GET /sessions/active|{id}`; tek aktif oturum, terk edilmiş oturum, sunucu zamanı, 1000 sınırı PostgreSQL'de kanıtlandı.
+  - Bekleyen: Game GAME-15 / Hardware HW-17 gerçek servis E2E (yalnız yerel mock); cihaz kaynaklı oturum Faz 3 (REQ-01-A).
+- [x] **PERF-04 — Performans oturumu sonlandırma:** Kaydedilmiş performans oturumunun tamamlanması.
+  - Durum: **DONE (servis içi)** — idempotent bitirme, çelişkili bitirme 409, eşzamanlı bitirme/silme, iyimser kilit, IDOR.
 - [ ] **PERF-13 — Oyun performans raporu:** Oyun, donanım, çözünürlük ve grafik ayarlarıyla ilişkili performans raporlarının oluşturulması.
-- [ ] **PERF-20 — Performans verisi silme:** Kullanıcının kendi ölçüm ve performans raporlarını silebilmesi.
+  - Durum: **PARTIAL** — manuel rapor (`PUT/GET/DELETE /sessions/{id}/report`), ölçüm uydurma yok, DB CHECK'leri doğrulandı.
+  - Bekleyen: oyun/donanım bağı Game/Hardware gerçek E2E'ye bağlı; otomatik/cihaz ölçümü Faz 3.
+- [x] **PERF-20 — Performans verisi silme:** Kullanıcının kendi ölçüm ve performans raporlarını silebilmesi.
+  - Durum: **DONE (servis içi)** — oturum/rapor/toplu silme (`confirm=true`), CASCADE, hesap silme fonksiyonu genişledi. Ham ölçüm (örnek) silme Faz 3 tablosuyla gelir; Auth silme işçisi DEV doğrulaması NOT VERIFIED (REQ-01-D).
 
 **Ana task kapanış koşulu:** Üstteki bütün alt tasklar, API/veri sahipliği kuralları, ilgili testler, dokümantasyon ve faz kalite kapısı tamamlanmalı; özellik commit metni hazırlanıp kullanıcıya sunulmalıdır.
+**Faz 2 kapanış durumu:** Commit metni hazırlandı; PERF-03/PERF-13 gerçek Game/Hardware E2E'si olmadan tam kapatılmadı.
 
 ---
 

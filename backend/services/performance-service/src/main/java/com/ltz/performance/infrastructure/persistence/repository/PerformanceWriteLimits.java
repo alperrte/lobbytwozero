@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 public class PerformanceWriteLimits {
     static final int CONSENT_OR_LINK_PER_USER = 30;
+    static final int SESSION_PER_USER = 60;
     static final int SYNC_PER_USER = 60;
     static final int SYNC_PER_DEVICE = 30;
     static final int SYNC_PER_PEER = 120;
@@ -26,6 +27,12 @@ public class PerformanceWriteLimits {
     /** Onay ve cihaz bağlama/devre dışı bırakma işlemleri. */
     public void link(UUID userId, String peer) {
         acquire("link-user:" + userId, CONSENT_OR_LINK_PER_USER);
+        peer(peer);
+    }
+
+    /** Oturum ve rapor yazma/silme işlemleri. */
+    public void session(UUID userId, String peer) {
+        acquire("session-user:" + userId, SESSION_PER_USER);
         peer(peer);
     }
 

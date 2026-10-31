@@ -1217,14 +1217,15 @@ erDiagram
 ## 16. performance_db
 
 > Cihaz kimliği, eşleştirme kodu, cihaz token'ı ve iptal `auth_db`'dedir (AUTH-17). Performance yalnız cihaz **referansını** (`device_links.auth_device_id`, FK yok) tutar.
-> V21 ile kurulan tablolar: `sync_consents`, `device_links`, `sync_batches`, `performance_write_limits`, `performance_account_erasure_fences`. Oturum/örnek/rapor tabloları Faz 2–3'te gelir (planlı).
+> V21 ile kurulan tablolar: `sync_consents`, `device_links`, `sync_batches`, `performance_write_limits`, `performance_account_erasure_fences`. V22 (Faz 2) ile `performance_sessions` ve `performance_reports` eklendi. `performance_samples` Faz 3'te gelir (planlı).
+> `performance_sessions.user_id`, `game_id` ve `hardware_profile_id` başka servis/hesap kimlikleridir (REF, FK yok). `device_links → performance_sessions` ilişkisi `ON DELETE RESTRICT`, `performance_sessions → performance_reports` ilişkisi `ON DELETE CASCADE`'dir.
 
 ```mermaid
 erDiagram
   device_links ||--o{ sync_batches : receives
-  device_links ||--o{ performance_sessions : "records (planlı, Faz 2)"
+  device_links ||--o{ performance_sessions : "records (RESTRICT)"
   performance_sessions ||--o{ performance_samples : "contains (planlı, Faz 3)"
-  performance_sessions ||--o| performance_reports : "summarizes (planlı, Faz 2)"
+  performance_sessions ||--o| performance_reports : "summarizes (CASCADE)"
 
   sync_consents {
     uuid user_id PK "REF"
@@ -1260,11 +1261,16 @@ erDiagram
   }
   performance_sessions {
     uuid id PK
-    uuid user_id "REF"
-    uuid device_link_id FK "nullable"
-    uuid game_id "REF"
-    varchar source "MANUAL|DESKTOP"
+    uuid user_id "REF, UK kısmi (ACTIVE)"
+    uuid device_link_id FK "nullable, RESTRICT"
+    uuid game_id "REF game_db"
+    varchar game_title "gösterim kopyası"
+    uuid hardware_profile_id "REF hardware_db, nullable"
+    varchar source "MANUAL (Faz 2)"
     varchar status "ACTIVE|COMPLETED|ABANDONED"
+    timestamptz started_at
+    timestamptz ended_at
+    bigint version
   }
   performance_samples {
     uuid id PK
@@ -1275,9 +1281,19 @@ erDiagram
   }
   performance_reports {
     uuid id PK
-    uuid session_id FK,UK
-    numeric avg_fps
-    numeric max_gpu_temp
+    uuid session_id FK,UK "CASCADE"
+    uuid user_id "REF"
+    varchar resolution "WIDTHxHEIGHT"
+    varchar graphics_preset "LOW|MEDIUM|HIGH|ULTRA|CUSTOM"
+    double avg_fps "nullable"
+    double p1_low_fps "nullable"
+    double max_cpu_temp_c "nullable"
+    double max_gpu_temp_c "nullable"
+    double avg_cpu_usage_percent "nullable"
+    double avg_gpu_usage_percent "nullable"
+    varchar notes
+    varchar source "MANUAL"
+    bigint version
   }
 ```
 

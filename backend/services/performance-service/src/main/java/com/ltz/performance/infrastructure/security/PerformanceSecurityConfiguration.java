@@ -68,7 +68,9 @@ public class PerformanceSecurityConfiguration {
                         .requestMatchers(SYNC_BATCHES)
                         .access((authentication, context) -> deviceAccess(authentication.get()))
                         .requestMatchers("/api/v1/performance/sync-consent", "/api/v1/performance/devices",
-                                "/api/v1/performance/devices/*")
+                                "/api/v1/performance/devices/*", "/api/v1/performance/sessions",
+                                "/api/v1/performance/sessions/*", "/api/v1/performance/sessions/*/end",
+                                "/api/v1/performance/sessions/*/report")
                         .access((authentication, context) -> actorAccess(authentication.get()))
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(resource -> resource.authenticationManagerResolver(request -> {

@@ -7086,6 +7086,444 @@ Hardware `HardwareSyncDevicePolicy` için RestClient istemcisi **öneridir**; Ha
 #### Test Durumu
 INTEGRATION — yalnız yerel imzalı `sub=svc:hardware-service` token'ıyla; gerçek Auth servis token'ı bu uçta 403 alır (BLOCKED).
 
+> **Faz 2 (LTZ-ALP-PERF-02) notu — manuel oturum ve rapor (PERF-03/04/13/20).** Aşağıdaki uçlar yalnız **kullanıcı token'ıyla** (`at+jwt`, `aud=ltz-api`) çalışır; cihaz ve servis token'ı geçmez (401). Her uçta sahiplik sorgusu `user_id = token.sub` ile yapılır; başkasının veya olmayan kaynak **aynı** `404 PERFORMANCE_NOT_FOUND` döner (IDOR bilgi sızdırmaz). Zaman her zaman sunucu saatindendir; istemci `startedAt`/`endedAt`/`status`/`userId` gönderirse 400 (bilinmeyen alan). Bu fazda oturum yalnız `MANUAL`'dır; cihaz kaynaklı (`DEVICE`) oturum yoktur.
+> Oyun ve donanım profili doğrulaması **servis sözleşmeleriyle** yapılır: Game `POST /api/v1/game/games/batch` (GAME-15) ve Hardware `POST /api/v1/hardware/profiles/batch` (HW-17, çağıranın kendi Bearer'ı iletilir). Bu çağrılar **gerçek Game/Hardware ile uçtan uca doğrulanmadı**; testler yerel sapma (mock) kullanır (`DEFERRED_CONTRACT` / `NOT_VERIFIED`). Bağımlı servis yanıt vermezse veya sözleşme dışı gövde dönerse kayıt **açılmaz**; `503` + `Retry-After: 30` (kapalı başarısızlık).
+> Ek hata kodları: `ACTIVE_SESSION_EXISTS`, `SESSION_LIMIT_REACHED`, `SESSION_ALREADY_ENDED`, `SESSION_NOT_COMPLETED` (409); `GAME_NOT_FOUND`, `HARDWARE_PROFILE_NOT_FOUND`, `DEVICE_LINK_NOT_FOUND`, `REPORT_EMPTY`, `REPORT_INCONSISTENT` (422); `GAME_SERVICE_UNAVAILABLE`, `HARDWARE_SERVICE_UNAVAILABLE` (503). Yazma uçları hesap başına 60/dk (`session-user`) ve ortak adres kovası 120/dk ile sınırlıdır (429, `Retry-After: 60`).
+
+### PERFORMANCE — Oturum başlat (PERF-03)
+
+Durum: IN PROGRESS
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+POST /api/v1/performance/sessions
+
+#### Yetkilendirme
+Owner (kullanıcı token'ı). Kullanıcı başına aynı anda en çok bir `ACTIVE` oturum; hesap başına en çok 1000 saklanan oturum.
+
+#### Request Body
+```json
+{
+  "gameId": "UUID",
+  "hardwareProfileId": "UUID (opsiyonel)",
+  "deviceLinkId": "UUID (opsiyonel)"
+}
+```
+`gameId` zorunludur ve Game Service'ten doğrulanır; oyun adı gösterim için kopyalanır. `hardwareProfileId` verilirse Hardware Service'ten çağıranın sahipliği doğrulanır. `deviceLinkId` verilirse çağıranın **aktif** `device_links` kaydı olmalıdır. Bilinmeyen alan reddedilir.
+
+#### Response — 201
+```json
+{
+  "id": "UUID",
+  "gameId": "UUID",
+  "gameTitle": "Oyun adı",
+  "hardwareProfileId": null,
+  "deviceLinkId": null,
+  "source": "MANUAL",
+  "status": "ACTIVE",
+  "startedAt": "2026-01-01T10:00:00Z",
+  "endedAt": null,
+  "durationSeconds": null
+}
+```
+24 saatten uzun süredir `ACTIVE` kalan eski oturum otomatik `ABANDONED` yapılır (`endedAt = startedAt + 24 sa`) ve yeni başlatmayı engellemez.
+
+#### Hata Durumları
+- 400: Geçersiz/eksik gövde, bilinmeyen alan (`INVALID_REQUEST`)
+- 401: Token yok/geçersiz; cihaz/servis token'ı
+- 403: Hesap pasif/silinmeye alınmış
+- 409: Zaten aktif oturum var (`ACTIVE_SESSION_EXISTS`); 1000 oturum sınırı (`SESSION_LIMIT_REACHED`)
+- 422: Oyun yok (`GAME_NOT_FOUND`); profil yok/başkasının (`HARDWARE_PROFILE_NOT_FOUND`); bağlantı yok/başkasının/devre dışı (`DEVICE_LINK_NOT_FOUND`)
+- 429: Hız sınırı
+- 503: Game/Hardware yanıtsız veya sözleşme dışı (`GAME_SERVICE_UNAVAILABLE`, `HARDWARE_SERVICE_UNAVAILABLE`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions
+
+Diğer mikroservisler:
+Game GAME-15 (`/api/v1/game/games/batch`, anonim) ve Hardware HW-17 (`/api/v1/hardware/profiles/batch`, kullanıcı Bearer'ı iletilir). Çağrılar transaction dışında yapılır; yeniden deneme yoktur.
+
+#### Test Durumu
+INTEGRATION (PostgreSQL Testcontainers, gerçek filtre zinciri, kullanıcı token'ı gerçek Auth kaynak kodundan üretilen JWKS ile imzalı). Game/Hardware **yerel sapma (mock)**; gerçek servislerle E2E DEFERRED_CONTRACT / NOT_VERIFIED.
+
+### PERFORMANCE — Oturumları listele (PERF-03)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+GET /api/v1/performance/sessions
+
+#### Yetkilendirme
+Owner (yalnız kendi oturumları)
+
+#### Query Parameters
+- page: int, varsayılan 0, ≥ 0
+- size: int, varsayılan 20, 1..50
+
+#### Response — 200
+```json
+{
+  "items": [ { "id": "UUID", "gameId": "UUID", "gameTitle": "Oyun adı", "hardwareProfileId": null, "deviceLinkId": null, "source": "MANUAL", "status": "COMPLETED", "startedAt": "2026-01-01T10:00:00Z", "endedAt": "2026-01-01T11:00:00Z", "durationSeconds": 3600 } ],
+  "page": 0,
+  "size": 20,
+  "hasNext": false
+}
+```
+En yeniden eskiye (`startedAt DESC`).
+
+#### Hata Durumları
+- 400: Geçersiz `page`/`size` (`INVALID_REQUEST`)
+- 401: Token yok/geçersiz
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### PERFORMANCE — Aktif oturum (PERF-03)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+GET /api/v1/performance/sessions/active
+
+#### Yetkilendirme
+Owner
+
+#### Response — 200
+Oturum nesnesi ([Oturum başlat](#performance--oturum-başlat-perf-03) ile aynı biçim, `status=ACTIVE`).
+
+#### Hata Durumları
+- 401: Token yok/geçersiz
+- 404: Aktif oturum yok veya 24 saati aşmış (terk edilmiş sayılır) (`PERFORMANCE_NOT_FOUND`)
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions/active
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### PERFORMANCE — Oturum detayı (PERF-03)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+GET /api/v1/performance/sessions/{sessionId}
+
+#### Yetkilendirme
+Owner (başkasının oturumu 404)
+
+#### Path Parameters
+- sessionId: UUID, zorunlu
+
+#### Response — 200
+Oturum nesnesi ([Oturum başlat](#performance--oturum-başlat-perf-03) ile aynı biçim).
+
+#### Hata Durumları
+- 400: `sessionId` UUID değil
+- 401: Token yok/geçersiz
+- 404: Oturum yok veya başkasına ait (`PERFORMANCE_NOT_FOUND`)
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions/{sessionId}
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION (IDOR: başkasının/olmayan oturum aynı 404)
+
+### PERFORMANCE — Oturumu bitir (PERF-04)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+POST /api/v1/performance/sessions/{sessionId}/end
+
+#### Yetkilendirme
+Owner
+
+#### Path Parameters
+- sessionId: UUID, zorunlu
+
+#### Request Body (opsiyonel)
+```json
+{ "status": "COMPLETED" }
+```
+`status` yalnız `COMPLETED` (varsayılan) veya `ABANDONED`. `ACTIVE`, geçersiz değer ve istemci zamanı reddedilir. Bitiş zamanı sunucu saatidir.
+
+#### Response — 200
+```json
+{
+  "id": "UUID",
+  "gameId": "UUID",
+  "gameTitle": "Oyun adı",
+  "hardwareProfileId": null,
+  "deviceLinkId": null,
+  "source": "MANUAL",
+  "status": "COMPLETED",
+  "startedAt": "2026-01-01T10:00:00Z",
+  "endedAt": "2026-01-01T11:00:00Z",
+  "durationSeconds": 3600
+}
+```
+İdempotenttir: aynı bitiş durumu tekrar istenirse kayıt ve `version` değişmez. Eşzamanlı bitirmelerde hesap kilidi sayesinde tek kazanan oluşur.
+
+#### Hata Durumları
+- 400: Geçersiz gövde/durum (`INVALID_REQUEST`)
+- 401: Token yok/geçersiz
+- 404: Oturum yok veya başkasına ait
+- 409: Oturum farklı bir sonuçla zaten bitmiş; mevcut sonuç ezilmez (`SESSION_ALREADY_ENDED`)
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions/{sessionId}/end
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION (idempotent tekrar, 8 eşzamanlı bitirme, bitirme–silme yarışı, iyimser kilit, IDOR)
+
+### PERFORMANCE — Oturumu sil (PERF-20)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+DELETE /api/v1/performance/sessions/{sessionId}
+
+#### Yetkilendirme
+Owner
+
+#### Path Parameters
+- sessionId: UUID, zorunlu
+
+#### Response — 204
+Gövde yok. Oturum ve bağlı raporu (CASCADE) kalıcı silinir; `ACTIVE` oturum da silinebilir.
+
+#### Hata Durumları
+- 401: Token yok/geçersiz
+- 404: Oturum yok, başkasına ait veya zaten silinmiş (`PERFORMANCE_NOT_FOUND`)
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions/{sessionId}
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### PERFORMANCE — Tüm oturumları sil (PERF-20)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+DELETE /api/v1/performance/sessions?confirm=true
+
+#### Yetkilendirme
+Owner (yalnız çağıranın verisi)
+
+#### Query Parameters
+- confirm: boolean, zorunlu; yalnız `true` kabul edilir
+
+#### Response — 200
+```json
+{ "deletedSessions": 3 }
+```
+Çağıranın tüm oturumları ve raporları silinir; başka kullanıcılar etkilenmez. İdempotenttir (ikinci çağrı `0`). Cihaz bağlantıları ve senkronizasyon izni korunur.
+
+#### Hata Durumları
+- 400: `confirm` eksik veya `false` (`INVALID_REQUEST`)
+- 401: Token yok/geçersiz
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions?confirm=true
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### PERFORMANCE — Oyun performans raporu yaz (PERF-13)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+PUT /api/v1/performance/sessions/{sessionId}/report
+
+#### Yetkilendirme
+Owner. Oturum **COMPLETED** olmalıdır; oturum başına en çok bir rapor.
+
+#### Path Parameters
+- sessionId: UUID, zorunlu
+
+#### Request Body
+```json
+{
+  "resolution": "1920x1080",
+  "graphicsPreset": "HIGH",
+  "avgFps": 92.5,
+  "p1LowFps": 61,
+  "maxCpuTempC": 78,
+  "maxGpuTempC": 81,
+  "avgCpuUsagePercent": 55,
+  "avgGpuUsagePercent": 97,
+  "notes": "Elle girilen not"
+}
+```
+`resolution` (`^[0-9]{3,5}x[0-9]{3,5}$`) ve `graphicsPreset` (`LOW|MEDIUM|HIGH|ULTRA|CUSTOM`) zorunlu. Ölçümler opsiyoneldir ve **girilmezse `null` kalır, sistem doldurmaz**; en az biri gerekir. Aralıklar: FPS > 0..1000, sıcaklık 0..150, kullanım 0..100, `p1LowFps ≤ avgFps`, `notes` ≤ 500. `source` her zaman `MANUAL`; istemci `source`/`sessionId` gönderemez.
+
+#### Response — 201 (ilk yazım) / 200 (güncelleme)
+```json
+{
+  "id": "UUID",
+  "sessionId": "UUID",
+  "resolution": "1920x1080",
+  "graphicsPreset": "HIGH",
+  "avgFps": 92.5,
+  "p1LowFps": 61.0,
+  "maxCpuTempC": 78.0,
+  "maxGpuTempC": 81.0,
+  "avgCpuUsagePercent": 55.0,
+  "avgGpuUsagePercent": 97.0,
+  "notes": "Elle girilen not",
+  "source": "MANUAL",
+  "createdAt": "2026-01-01T11:00:01Z",
+  "updatedAt": "2026-01-01T11:00:01Z"
+}
+```
+İdempotenttir: aynı değerlerle tekrar `200` döner ve kaydı değiştirmez; farklı değerler raporu tamamen değiştirir (tek satır).
+
+#### Hata Durumları
+- 400: Geçersiz alan/aralık/biçim, bilinmeyen alan (`INVALID_REQUEST`)
+- 401: Token yok/geçersiz
+- 404: Oturum yok veya başkasına ait
+- 409: Oturum `COMPLETED` değil (`SESSION_NOT_COMPLETED`)
+- 422: Hiç ölçüm yok (`REPORT_EMPTY`); `p1LowFps > avgFps` (`REPORT_INCONSISTENT`)
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions/{sessionId}/report
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION + DB CHECK kısıtları gerçek PostgreSQL'de doğrulandı. Otomatik/cihaz kaynaklı ölçüm bu fazda yoktur.
+
+### PERFORMANCE — Oyun performans raporunu oku (PERF-13)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+GET /api/v1/performance/sessions/{sessionId}/report
+
+#### Yetkilendirme
+Owner
+
+#### Path Parameters
+- sessionId: UUID, zorunlu
+
+#### Response — 200
+Rapor nesnesi ([Rapor yaz](#performance--oyun-performans-raporu-yaz-perf-13) ile aynı biçim).
+
+#### Hata Durumları
+- 401: Token yok/geçersiz
+- 404: Oturum veya rapor yok, ya da başkasına ait (`PERFORMANCE_NOT_FOUND`)
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions/{sessionId}/report
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
+### PERFORMANCE — Oyun performans raporunu sil (PERF-20)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (PWEB, planlı)
+
+#### Endpoint
+DELETE /api/v1/performance/sessions/{sessionId}/report
+
+#### Yetkilendirme
+Owner (başkasının raporu silinemez)
+
+#### Path Parameters
+- sessionId: UUID, zorunlu
+
+#### Response — 204
+Gövde yok. Yalnız rapor silinir; oturum korunur ve rapor yeniden yazılabilir.
+
+#### Hata Durumları
+- 401: Token yok/geçersiz
+- 404: Rapor yok, zaten silinmiş veya başkasına ait (`PERFORMANCE_NOT_FOUND`)
+- 429: Hız sınırı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/performance/sessions/{sessionId}/report
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION
+
 ## NOTIFICATION
 
 Sorumlu: Ortak (belirlenecek) · Gateway: `/api/v1/notification/**`
