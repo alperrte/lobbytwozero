@@ -26,8 +26,8 @@ import com.ltz.auth.infrastructure.config.DeviceProperties;
 import com.ltz.auth.infrastructure.persistence.repository.AccountRepository;
 import com.ltz.auth.infrastructure.persistence.repository.DeviceCredentialRepository;
 import com.ltz.auth.infrastructure.security.DeviceTokenIssuer;
+import com.ltz.auth.infrastructure.security.DeviceTokenTarget;
 import com.ltz.auth.infrastructure.security.SecureTokens;
-import com.ltz.auth.infrastructure.security.TokenClaims;
 import com.ltz.auth.infrastructure.security.VerificationCodeHasher;
 
 import lombok.RequiredArgsConstructor;
@@ -54,6 +54,8 @@ public class DeviceCredentialService {
     private static final Duration DAILY_WINDOW = Duration.ofDays(1);
     private static final Duration LAST_USED_RESOLUTION = Duration.ofMinutes(5);
     private static final int DIGEST_LENGTH = 64;
+    /** Her çağrıda yeni örnek yerine tek örnek (statik başlatma sırası için {@link #DUMMY_DIGEST}'ten önce tanımlı). */
+    private static final SecureRandom RANDOM = new SecureRandom();
     /** Bilinmeyen cihazda karşılaştırılan rastgele değer (yanıt süresi farkını azaltır). */
     private static final byte[] DUMMY_DIGEST = randomBytes();
 
@@ -73,11 +75,9 @@ public class DeviceCredentialService {
     public BoundDevice bind(UUID accountId, String label, String password, String code, String recoveryCode) {
         String throttleKey = throttleHasher.hash(THROTTLE_DOMAIN, accountId.toString());
         attemptThrottle.reserve(throttleKey);
-        Account account = transactionTemplate.execute(status -> accountRepository.findById(accountId)
-                .filter(Account::isActive).orElse(null));
-        if (account == null) {
-            throw new AuthException(AuthErrorCode.SESSION_INVALID);
-        }
+        Optional<Account> activeAccount = transactionTemplate.execute(status -> accountRepository.findById(accountId)
+                .filter(Account::isActive));
+        Account account = activeAccount.orElseThrow(() -> new AuthException(AuthErrorCode.SESSION_INVALID));
         String passwordHash = account.passwordHash().orElseThrow(() -> new AuthException(AuthErrorCode.PASSWORD_REQUIRED));
         if (password == null || !passwordEncoder.matches(password, passwordHash)) {
             securityEventRecorder.recordEvent(SecurityEventType.DEVICE_BIND_REJECTED, accountId);
@@ -109,8 +109,13 @@ public class DeviceCredentialService {
     }
 
     public IssuedDeviceToken issueToken(UUID deviceId, String deviceSecret) {
-        Optional<IssuedDeviceToken> issued = transactionTemplate.execute(status -> tryIssue(deviceId, deviceSecret));
-        if (issued == null || issued.isEmpty()) {
+        return issueToken(deviceId, deviceSecret, DeviceTokenTarget.HARDWARE);
+    }
+
+    /** Hedef ne olursa olsun kimlik doğrulaması ve iptal kuralları aynıdır; hata yanıtı hedefi sızdırmaz. */
+    public IssuedDeviceToken issueToken(UUID deviceId, String deviceSecret, DeviceTokenTarget target) {
+        Optional<IssuedDeviceToken> issued = transactionTemplate.execute(status -> tryIssue(deviceId, deviceSecret, target));
+        if (issued.isEmpty()) {
             log.warn("Device authentication failed deviceId={}", deviceId);
             throw new AuthException(AuthErrorCode.INVALID_DEVICE_CREDENTIALS);
         }
@@ -136,7 +141,7 @@ public class DeviceCredentialService {
         return new BoundDevice(device, secret);
     }
 
-    private Optional<IssuedDeviceToken> tryIssue(UUID deviceId, String deviceSecret) {
+    private Optional<IssuedDeviceToken> tryIssue(UUID deviceId, String deviceSecret, DeviceTokenTarget target) {
         Instant now = clock.instant();
         String presentedHash = secureTokens.sha256Hex(deviceSecret == null ? "" : deviceSecret.strip());
         Optional<DeviceCredential> device = deviceRepository.findById(deviceId).filter(found -> found.isUsableAt(now));
@@ -146,14 +151,14 @@ public class DeviceCredentialService {
                 .filter(found -> accountRepository.findById(found.getAccountId()).filter(Account::isActive).isPresent())
                 .map(found -> {
                     found.markUsed(now, LAST_USED_RESOLUTION);
-                    return new IssuedDeviceToken(tokenIssuer.issue(found.getId(), found.getAccountId()),
-                            DeviceTokenIssuer.TTL, TokenClaims.HARDWARE_SYNC_WRITE_SCOPE);
+                    return new IssuedDeviceToken(tokenIssuer.issue(found.getId(), found.getAccountId(), target),
+                            DeviceTokenIssuer.TTL, target.scope());
                 });
     }
 
     private static byte[] randomBytes() {
         byte[] bytes = new byte[DIGEST_LENGTH];
-        new SecureRandom().nextBytes(bytes);
+        RANDOM.nextBytes(bytes);
         return bytes;
     }
 

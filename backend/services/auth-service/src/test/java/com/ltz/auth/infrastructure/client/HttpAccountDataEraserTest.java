@@ -137,7 +137,8 @@ class HttpAccountDataEraserTest {
         closed.close();
 
         assertThatCode(closed::close).doesNotThrowAnyException();
-        assertThatThrownBy(() -> closed.erase("social", REQUEST_ID, UUID.randomUUID()))
+        UUID accountId = UUID.randomUUID();
+        assertThatThrownBy(() -> closed.erase("social", REQUEST_ID, accountId))
                 .isInstanceOf(AccountErasureException.class);
         assertThat(TARGET.received()).isEmpty();
     }

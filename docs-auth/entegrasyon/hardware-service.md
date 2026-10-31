@@ -22,6 +22,8 @@ Kullanıcı JWT doğrulaması ve hesap silme ucu hazır ve gerçek Auth ile dene
 ## AUTH'TA BEKLEYEN
 
 - **Masaüstü cihaz kimliği (B yolu): UYGULANDI.** Token: `typ=dev+jwt`, `aud=hardware-service`, `sub=deviceId`, `account_id=hesap`, `scope=hardware:sync:write`, 60 sn. Hardware karşılığı `AuthenticatedHardwareDevice(userId=account_id, deviceId=sub)`. Tasarımdan farklar: en fazla 5 etkin cihaz ve günde 10 bağlama, 365 gün, etiket yalnız harf/rakam/boşluk/`._()-`, token ucunda hesap kilidi yok (IP sınırı Gateway'de), `DEVICE_TOKEN_REJECTED` olayı yok
+- **Performance cihaz doğrulama (`devices:verify`): HAZIR (2026-10-31).** `{clientId: "hardware-service", clientSecret, audience: "performance-service", accountId}` → hesaba bağlı 60 sn'lik token. Hardware'de `UnavailableHardwareSyncDevicePolicy` yerine bu token'ı alan istemci yazılacak (Hardware sahibinin işi). Bkz. `verilen-cevaplar/performance-service/talep-01-*`
+- Cihaz token'ında artık `target` var; `target` yoksa Hardware token'ı aynen verilir, Hardware doğrulayıcısı değişmez
 - Hesap durumu olayı (`AccountStatusChanged`): Auth'ta hazır (outbox), yalnız yönetici durum değişikliğinde çıkar, hedef listesi varsayılan boş. Hardware için gerekli değil: askı ve yasak en fazla 90 sn içinde token ömrüyle yayılır. İstersen alıcı uç yazarsın, `hardware` hedef olarak eklenir
 
 ## CİHAZ KİMLİĞİ: UÇTAN UCA

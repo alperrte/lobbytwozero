@@ -30,6 +30,7 @@ public class AuthDataEraser {
             // external_identities silinmeden ÖNCE: Steam kimliği buradan çözülür.
             STEAM_PROOF_DELETE,
             "delete from external_identities where account_id = ?",
+            "delete from oauth_link_flows where account_id = ?",
             "delete from totp_credentials where account_id = ?",
             "delete from recovery_codes where account_id = ?",
             "delete from mfa_challenges where account_id = ?",
@@ -41,6 +42,7 @@ public class AuthDataEraser {
     /** Silme talebi onaylandığında çalışır: hesabın hâlâ kullanılabilir geçici kimlik doğrulama artıklarını yok eder. */
     private static final List<String> EPHEMERAL_STATEMENTS = List.of(
             STEAM_PROOF_DELETE,
+            "delete from oauth_link_flows where account_id = ?",
             "delete from mfa_challenges where account_id = ?",
             "delete from email_verification_codes where account_id = ?",
             "delete from password_reset_tokens where account_id = ?");

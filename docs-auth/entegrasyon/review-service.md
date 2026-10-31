@@ -19,7 +19,9 @@ Review'ın Auth ile bağı: kullanıcı token'ı, roller (moderasyon silme) ve h
 
 ## AUTH'TA BEKLEYEN
 
-- Admin → Review servis kimlikli çağrı: çift tanımsız (karar bekliyor)
+- **Game → Review `rating-summaries:read`: HAZIR (2026-10-31).** İstemci `game-service`, ortam `AUTH_GAME_SERVICE_CLIENT_SECRET`. Alıcı denetimleri: `verilen-cevaplar/review-service/talep-01-*`
+- Admin → Review moderasyon komutu: yetki servis kimliğinden (`svc:admin-service` + olay türü); insan moderatörü Admin doğrular, `actorId` yalnız denetim kaydı. Çift Admin alıcısı gelince açılır
+- Review → Admin ve Review → Notification: alıcı yok, çift tanımlanmadı (Notification için önerilen üretici Admin)
 - Yazar adı ve görünen ad: JWT'de yok, User Service yazılınca oradan (`UserRegistered` olayı Auth'ta hazır, 2026-10-29; hedef listesi varsayılan boş, User'ın alıcı ucu yazılınca eklenir)
 
 ## İLGİLİ BELGELER

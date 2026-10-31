@@ -1,5 +1,6 @@
 package com.ltz.auth.application.service;
 
+import java.net.URI;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Map;
@@ -73,15 +74,19 @@ public class SteamLoginService {
 
     public StartedFlow start() {
         String state = flowService.start(ExternalProvider.STEAM);
-        var redirect = UriComponentsBuilder.fromUri(properties.steam().openIdEndpoint())
+        return new StartedFlow(authorizationUri(returnTo(state)), state);
+    }
+
+    /** Steam OpenID yönlendirme adresi; giriş ve bağlama akışları yalnız {@code returnTo} ile ayrılır. */
+    URI authorizationUri(String returnTo) {
+        return UriComponentsBuilder.fromUri(properties.steam().openIdEndpoint())
                 .queryParam("openid.ns", SteamAssertionValidator.OPENID_NS)
                 .queryParam("openid.mode", "checkid_setup")
-                .queryParam("openid.return_to", returnTo(state))
+                .queryParam("openid.return_to", returnTo)
                 .queryParam("openid.realm", urls.realm())
                 .queryParam("openid.identity", IDENTIFIER_SELECT)
                 .queryParam("openid.claimed_id", IDENTIFIER_SELECT)
                 .build().encode().toUri();
-        return new StartedFlow(redirect, state);
     }
 
     /** @param requestParams callback isteğinin tüm sorgu parametreleri (state + openid.*) */
@@ -90,10 +95,29 @@ public class SteamLoginService {
         if (!flowService.consume(ExternalProvider.STEAM, state, stateFromCookie)) {
             throw failed();
         }
-        ValidAssertion assertion;
+        String steamId = verifiedSteamId(requestParams, returnTo(state));
+        Optional<ExternalIdentity> linked = identityRepository.findByProviderAndProviderSubject(
+                ExternalProvider.STEAM, steamId);
+        if (linked.isPresent()) {
+            // E-postası henüz doğrulanmamış Steam hesabı oturum almaz; doğrulamayı yapmak için SteamID kanıtı verilir.
+            if (accountRepository.findById(linked.get().getAccountId())
+                    .filter(Account::isPendingVerification).isPresent()) {
+                return ExternalLoginResult.emailVerificationRequired(issueVerificationProofInNewTransaction(steamId));
+            }
+            return ExternalLoginResult.from(
+                    loginService.loginVerifiedIdentity(linked.get().getAccountId(), AuthMethod.EXTERNAL));
+        }
+        return ExternalLoginResult.registrationRequired(issueRegistrationToken(steamId));
+    }
+
+    /**
+     * Steam yanıtını doğrular ve doğrulanmış SteamID64'ü verir: imza/alan denetimi, replay (nonce) ve Steam'e geri
+     * sorgu. Herhangi bir hata aynı {@code EXTERNAL_AUTH_FAILED} olur. Giriş ve bağlama akışları aynı doğrulamayı kullanır.
+     */
+    String verifiedSteamId(Map<String, String[]> requestParams, String returnTo) {
         try {
             Instant now = clock.instant();
-            assertion = validator.validate(requestParams, returnTo(state), now);
+            ValidAssertion assertion = validator.validate(requestParams, returnTo, now);
             // Replay: nonce Steam'e sorulmadan önce atomik olarak tüketilir; ikinci kullanım burada düşer.
             if (!nonceStore.firstUse(assertion.responseNonce(), now)) {
                 throw new ExternalAuthenticationException("Steam response_nonce already used");
@@ -101,21 +125,10 @@ public class SteamLoginService {
             if (!verifier.isValid(assertion.openIdParams())) {
                 throw new ExternalAuthenticationException("Steam rejected the assertion");
             }
+            return assertion.steamId();
         } catch (ExternalAuthenticationException _) {
             throw failed();
         }
-        Optional<ExternalIdentity> linked = identityRepository.findByProviderAndProviderSubject(
-                ExternalProvider.STEAM, assertion.steamId());
-        if (linked.isPresent()) {
-            // E-postası henüz doğrulanmamış Steam hesabı oturum almaz; doğrulamayı yapmak için SteamID kanıtı verilir.
-            if (accountRepository.findById(linked.get().getAccountId())
-                    .filter(Account::isPendingVerification).isPresent()) {
-                return ExternalLoginResult.emailVerificationRequired(issueVerificationProofInNewTransaction(assertion.steamId()));
-            }
-            return ExternalLoginResult.from(
-                    loginService.loginVerifiedIdentity(linked.get().getAccountId(), AuthMethod.EXTERNAL));
-        }
-        return ExternalLoginResult.registrationRequired(issueRegistrationToken(assertion.steamId()));
     }
 
     /**

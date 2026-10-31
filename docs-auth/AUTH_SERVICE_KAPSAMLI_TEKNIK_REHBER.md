@@ -565,10 +565,11 @@ erDiagram
 
 | Dosya | Tablolar |
 | --- | --- |
-| `V61__create_account_tables.sql` | `accounts` (token_version dahil), `roles` (5 kanonik seed), `account_roles`, `security_events` (request_id), `account_status_history`, `account_role_history` |
-| `V62__create_session_and_credential_tables.sql` | `auth_sessions`, `refresh_tokens`, `attempt_throttles`, `email_verification_codes`, `password_reset_tokens`, `totp_credentials`, `recovery_codes`, `mfa_challenges` |
-| `V63__create_external_identity_tables.sql` | `external_identities`, `oauth_flows`, `openid_nonces`, `steam_registrations` |
-| `V64__create_account_deletion_tables.sql` | `account_deletion_tokens`, `account_deletion_requests`, `account_deletion_tasks` |
+| `V61__accounts_roles_and_audit.sql` | `accounts` (token_version dahil), `roles` (5 kanonik seed), `account_roles`; denetim: `security_events` (request_id), `account_status_history`, `account_role_history` |
+| `V62__sessions_and_credentials.sql` | oturum: `auth_sessions`, `refresh_tokens`, `attempt_throttles`; e-posta/parola: `email_verification_codes` (EMAIL_CHANGE dahil), `password_reset_tokens`; 2FA: `totp_credentials`, `recovery_codes`, `mfa_challenges`; cihaz: `device_credentials` |
+| `V63__external_identities.sql` | `external_identities`, `oauth_flows`, `openid_nonces`, `steam_registrations` |
+| `V64__account_deletion_and_event_outbox.sql` | silme: `account_deletion_tokens`, `account_deletion_requests` (geri alma süresi dahil), `account_deletion_tasks`; olay: `auth_event_outbox` |
+| `V65__external_identity_linking.sql` | `oauth_link_flows` (Steam bağlama akışı); `auth_event_outbox` olay türü listesine `ExternalIdentityLinked/Unlinked` (AUTH-20) |
 
 **Tasarım ilkeleri [K].** PK `uuid`; zamanlar `timestamptz`; durum kolonları `varchar + CHECK`; token/kod özetleri `CHECK (… ~ '^[0-9a-f]{64}$')` (açık kod biçimi kolona girilemez — `FlywayMigrationTest.acikKodBicimindekiDegerOzetSutunundaReddedilir`); `email_normalized = lower(…)` ve kullanıcı adı deseni DB'de zorlanır; hesap başına **tek aktif kod/token** kısmi benzersiz indeks (`uq_*_active … WHERE consumed_at IS NULL AND invalidated_at IS NULL`); çok sütunlu `CHECK`lar durum tutarlılığını sağlar (örn. `(revoked_at IS NULL) = (revoke_reason IS NULL)`).
 
@@ -596,13 +597,14 @@ erDiagram
 ### 7.4 V61–V64 düzeninin değerlendirmesi [Y]
 
 - **Artı:** ALTER içermeyen 4 temiz dosya; her dosya tek bir alan (hesap / oturum+kimlik bilgisi / harici kimlik / silme); aralık V65–V70 boş.
-- **Eksi/Not:** `V62` 158 satır ve sekiz tabloyla büyük; ileride tablo eklemek yeni dosya (V65+) gerektirir — bu doğru kullanım.
+- **Not:** `V62` en büyük dosya (9 tablo, 4 bölüm). Her dosyanın başında içindekiler ve bölüm başlıkları vardır. İleride yeni tablo eklemek yeni dosya (V65+) gerektirir — bu doğru kullanım.
+- **2026-10-31 sadeleştirme.** V61–V68 (8 dosya, 2'si yalnız `ALTER`) konuya göre 4 dosyaya (V61–V64) indirildi; V65–V70 yeni işler için boş. Şema birebir aynı: iki boş PostgreSQL 17'ye eski 8 ve yeni 4 dosya uygulanıp `pg_dump -s` çıktıları karşılaştırıldı (23 tablo, 61 indeks, 127 kısıt, fark yok). Proje sahibi onayıyla yapıldı; bu bir istisnadır, kural aşağıda geçerlidir.
 - **Önemli tarihçe.** SEC-02'de (`30121eb`) V61–V69 (9 dosya) bu 4 dosyaya **içerik değiştirilerek** birleştirildi. Henüz push edilmediği için bu kabul edilebilir bir karardı (proje sahibi onayı var); yerel DB'de Flyway sağlama toplamı uyuşmazlığı oluştu ve yalnız yerel DEV `auth_db` yeniden oluşturularak çözüldü. `flyway repair` kullanılmadı.
 
 ### 7.5 Değişmezlik kuralı ve ortamlara uygulama
 
 - **Kural.** Bir migration **başka bir ortamda uygulandıktan sonra** değiştirilmez; her değişiklik yeni sürümdür (`V65__…`). Flyway her migration'ın sağlama toplamını `flyway_schema_history`'ye yazar ve açılışta `validate` ile karşılaştırır; uyuşmazlıkta uygulama açılmaz. `flyway repair` sağlama toplamlarını mevcut dosyalara **eşitler** [D: Flyway belgesi, doğrulandı] — yani uyuşmazlığı sessizce gizler; bu yüzden yalnız bilinçli ve belgelenmiş durumlarda kullanılır.
-- **Mevcut durum.** Dal henüz GitHub'a push edilmedi. **İlk push'tan sonra V61–V64 donar**; sonraki her şema değişikliği V65+ olmalıdır. Bu, ekip politikası olarak `AGENTS.md` §4 ve `docs-auth/acik-guvenlik-borclari.md` S5'te kayıtlıdır.
+- **Mevcut durum.** **V61–V64 bundan sonra donuktur.** Sonraki her şema değişikliği V65+ olmalıdır (`docs-auth/migration-yazim-kurallari.md`). Bu, ekip politikası olarak `AGENTS.md` §4 ve `docs-auth/acik-guvenlik-borclari.md` S5'te kayıtlıdır.
 - **Ortamlar.** Test: Testcontainers (her çalıştırmada boş PG17 + Flyway); DEV: Compose'taki `auth_db` (servis açılışında `spring.flyway.enabled=true`); production: aynı mekanizma, **farklı veritabanı kullanıcısı** gerekir (şu an tek `ltz_dev` superuser rolü kullanılıyor — production öncesi servis başına rol zorunlu, Faz 1 raporunda kayıtlı).
 - **Hibernate** `ddl-auto=validate`: entity ile şema uyuşmazlığı açılışta hata verir (doğru).
 

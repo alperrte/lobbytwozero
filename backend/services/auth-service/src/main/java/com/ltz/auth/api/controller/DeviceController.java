@@ -22,6 +22,7 @@ import com.ltz.auth.api.dto.response.BoundDeviceResponse;
 import com.ltz.auth.api.dto.response.DeviceResponse;
 import com.ltz.auth.api.dto.response.DeviceTokenResponse;
 import com.ltz.auth.application.service.DeviceCredentialService;
+import com.ltz.auth.infrastructure.security.DeviceTokenTarget;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -61,7 +62,8 @@ public class DeviceController {
     @PostMapping(AuthApiPaths.DEVICES_TOKEN)
     public ResponseEntity<DeviceTokenResponse> token(@Valid @RequestBody DeviceTokenRequest request) {
         DeviceTokenResponse body = DeviceTokenResponse.from(
-                deviceService.issueToken(request.deviceId(), request.deviceSecret()));
+                deviceService.issueToken(request.deviceId(), request.deviceSecret(),
+                        DeviceTokenTarget.fromRequest(request.target())));
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(body);
     }
 }

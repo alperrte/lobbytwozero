@@ -34,6 +34,8 @@ public class AuthEventRelay {
 
     static final int EVENT_VERSION = 1;
     static final String PRODUCER = "auth-service";
+    private static final String ACCOUNT_ID = "accountId";
+    private static final String PROVIDER = "provider";
 
     private final AuthEventRepository repository;
     private final AuthEventSenderPort sender;
@@ -47,7 +49,7 @@ public class AuthEventRelay {
                 repository.deleteDeliveredBefore(clock.instant().minus(properties.deliveredRetention())));
         List<ClaimedEvent> claimed = transactionTemplate.execute(status -> claimDue());
         int delivered = 0;
-        for (ClaimedEvent event : claimed == null ? List.<ClaimedEvent>of() : claimed) {
+        for (ClaimedEvent event : claimed) {
             try {
                 sender.send(event.target(), envelope(event));
             } catch (AuthEventDeliveryException exception) {
@@ -85,11 +87,21 @@ public class AuthEventRelay {
                 }));
     }
 
+    /** Değer {@code <SAĞLAYICI>:<kimlik>} biçimindedir (bkz. {@code AuthEventType.EXTERNAL_IDENTITY_LINKED}). */
+    private static Map<String, Object> linkedPayload(ClaimedEvent event) {
+        String value = event.value();
+        int separator = value.indexOf(':');
+        return Map.of(ACCOUNT_ID, event.accountId().toString(), PROVIDER, value.substring(0, separator),
+                "providerSubject", value.substring(separator + 1));
+    }
+
     private static AuthEventEnvelope envelope(ClaimedEvent event) {
         Map<String, Object> payload = switch (event.type()) {
-            case ACCOUNT_STATUS_CHANGED -> Map.of("accountId", event.accountId().toString(), "status", event.value());
-            case USER_REGISTERED -> Map.of("accountId", event.accountId().toString(), "username", event.value());
-            case ACCOUNT_EMAIL_CHANGED -> Map.of("accountId", event.accountId().toString());
+            case ACCOUNT_STATUS_CHANGED -> Map.of(ACCOUNT_ID, event.accountId().toString(), "status", event.value());
+            case USER_REGISTERED -> Map.of(ACCOUNT_ID, event.accountId().toString(), "username", event.value());
+            case ACCOUNT_EMAIL_CHANGED -> Map.of(ACCOUNT_ID, event.accountId().toString());
+            case EXTERNAL_IDENTITY_LINKED -> linkedPayload(event);
+            case EXTERNAL_IDENTITY_UNLINKED -> Map.of(ACCOUNT_ID, event.accountId().toString(), PROVIDER, event.value());
         };
         return new AuthEventEnvelope(event.eventId(), event.type().eventName(), EVENT_VERSION, event.occurredAt(),
                 PRODUCER, event.accountId(), payload);

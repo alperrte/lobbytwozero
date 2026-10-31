@@ -26,8 +26,10 @@ class AuthEventTest {
 
     @Test
     void degerGerektirenOlayDegersizOlusmazDegerTasimayanOlayDegerSaklamaz() {
-        assertThatThrownBy(() -> AuthEvent.pending(UUID.randomUUID(), UUID.randomUUID(),
-                AuthEventType.USER_REGISTERED, null, "user", NOW)).isInstanceOf(NullPointerException.class);
+        UUID eventId = UUID.randomUUID();
+        UUID accountId = UUID.randomUUID();
+        assertThatThrownBy(() -> AuthEvent.pending(eventId, accountId, AuthEventType.USER_REGISTERED, null, "user", NOW))
+                .isInstanceOf(NullPointerException.class);
 
         AuthEvent emailChanged = AuthEvent.pending(UUID.randomUUID(), UUID.randomUUID(),
                 AuthEventType.ACCOUNT_EMAIL_CHANGED, "gizli@ornek.test", "user", NOW);

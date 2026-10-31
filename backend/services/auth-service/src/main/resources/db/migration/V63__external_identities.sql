@@ -1,4 +1,12 @@
 -- AUTH-05/06: Steam (OpenID 2.0) ve Google (OIDC) ile giriş.
+--
+-- İçindekiler
+--   1. Hesap bağı     : external_identities
+--   2. Giriş akışları : oauth_flows, openid_nonces, steam_registrations
+
+-- =====================================================================================================================
+-- 1. HESAP BAĞI
+-- =====================================================================================================================
 
 -- Harici kimlik: sağlayıcının değişmez kimliği (Steam: SteamID64, Google: "sub") hesaba bağlanır.
 -- E-posta eşleşmesiyle hesap birleştirilmez; bağ yalnız bu tabloda, doğrulanmış sağlayıcı kimliğiyle kurulur.
@@ -12,6 +20,10 @@ CREATE TABLE external_identities (
     CONSTRAINT uq_external_identities_subject UNIQUE (provider, provider_subject),
     CONSTRAINT uq_external_identities_account_provider UNIQUE (account_id, provider)
 );
+
+-- =====================================================================================================================
+-- 2. GİRİŞ AKIŞLARI
+-- =====================================================================================================================
 
 -- Tek kullanımlık OAuth/OpenID akışı (state). Yalnız state özeti saklanır; PKCE verifier ve nonce
 -- sunucu anahtarıyla state'ten türetilir, bu yüzden saklanmaz.

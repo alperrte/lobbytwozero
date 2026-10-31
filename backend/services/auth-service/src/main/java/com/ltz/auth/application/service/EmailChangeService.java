@@ -75,11 +75,9 @@ public class EmailChangeService {
     public void requestChange(UUID accountId, String newEmail, String password, String code, String recoveryCode) {
         String throttleKey = codeHasher.hash(THROTTLE_DOMAIN, accountId.toString());
         attemptThrottle.reserve(throttleKey);
-        Account account = transactionTemplate.execute(status -> accountRepository.findById(accountId)
-                .filter(Account::isActive).orElse(null));
-        if (account == null) {
-            throw new AuthException(AuthErrorCode.SESSION_INVALID);
-        }
+        Optional<Account> activeAccount = transactionTemplate.execute(status -> accountRepository.findById(accountId)
+                .filter(Account::isActive));
+        Account account = activeAccount.orElseThrow(() -> new AuthException(AuthErrorCode.SESSION_INVALID));
         String passwordHash = account.passwordHash().orElseThrow(() -> new AuthException(AuthErrorCode.PASSWORD_REQUIRED));
         if (password == null || !passwordEncoder.matches(password, passwordHash)) {
             securityEventRecorder.recordEvent(SecurityEventType.EMAIL_CHANGE_REJECTED, accountId);

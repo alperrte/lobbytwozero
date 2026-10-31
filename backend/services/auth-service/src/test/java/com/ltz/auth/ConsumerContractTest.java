@@ -20,6 +20,7 @@ import com.ltz.auth.domain.entity.Role;
 import com.ltz.auth.domain.enums.AuthMethod;
 import com.ltz.auth.infrastructure.config.JwtProperties;
 import com.ltz.auth.infrastructure.security.AccessTokenIssuer;
+import com.ltz.auth.infrastructure.security.DeviceTokenIssuer;
 import com.ltz.auth.infrastructure.security.JwtSigningKey;
 import com.ltz.auth.infrastructure.security.ServiceTokenIssuer;
 import com.ltz.auth.infrastructure.security.TokenClaims;
@@ -54,18 +55,21 @@ class ConsumerContractTest {
     }
 
     @Test
-    void tokenUreticileriKorunur() throws Exception {
+    void tokenUreticileriKorunur() {
         assertThatCode(() -> {
             AccessTokenIssuer.class.getConstructor(JwtEncoder.class, JwtSigningKey.class, JwtProperties.class);
             AccessTokenIssuer.class.getMethod("issue", Account.class, AuthSession.class, Instant.class);
             AccessTokenIssuer.IssuedAccessToken.class.getMethod("value");
             ServiceTokenIssuer.class.getConstructor(JwtEncoder.class, JwtSigningKey.class, JwtProperties.class, Clock.class);
             ServiceTokenIssuer.class.getMethod("issue", String.class, String.class, UUID.class);
+            // Hardware'in testi cihaz token üreticisini yansımayla çağırır: tek yapıcı ve issue(UUID, UUID) korunur.
+            DeviceTokenIssuer.class.getConstructor(JwtEncoder.class, JwtSigningKey.class, JwtProperties.class, Clock.class);
+            DeviceTokenIssuer.class.getMethod("issue", UUID.class, UUID.class);
         }).doesNotThrowAnyException();
     }
 
     @Test
-    void hesapVeOturumFabrikalariKorunur() throws Exception {
+    void hesapVeOturumFabrikalariKorunur() {
         assertThatCode(() -> {
             Account.class.getMethod("registerVerifiedExternal", String.class, String.class, Role.class, Instant.class);
             Account.class.getMethod("grantRole", Role.class, Instant.class);

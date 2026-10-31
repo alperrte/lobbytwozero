@@ -1,6 +1,6 @@
 # PERFORMANCE-SERVICE — AUTH'A VERİLEN CEVAPLAR
 
-**Sahip:** Alper · **Branch:** `feature/performance-service` · **Güncelleme:** 2026-10-26
+**Sahip:** Alper · **Branch:** `feature/performance-service` · **Güncelleme:** 2026-10-31
 
 ---
 
@@ -8,13 +8,18 @@
 
 | Konu | Durum |
 |---|---|
-| Servisin durumu | İskelet (henüz iş yok) |
-| Kullanıcı token doğrulaması (JWT) | Yok (kod yok) |
-| Hesap silme ucu (`DELETE /internal/v1/accounts/{accountId}`) | Yok. Hesap silme hedeflerinden biri, görevi PENDING kalır |
+| Servisin durumu | Faz 1 kodu tamamlandı (Performance tarafı), main'e girmedi |
+| Kullanıcı token doğrulaması (JWT) | Performance tarafında; gerçek Auth ile uçtan uca NOT VERIFIED |
+| Cihaz token'ı (`aud=performance-service`) | Auth'ta HAZIR (talep 01 A) |
+| Hesap silme ucu (`DELETE /internal/v1/accounts/{accountId}`) | Performance tarafında hazırlanıyor; ortak DEV doğrulaması bekliyor |
 
 ## BU BRANCH İÇİN AUTH'TAN GELEN TALEP VE CEVAPLAR
 
-Doğrudan talep yok. Ama Alper'in masaüstü cihaz kimliği talebi (PERF-01 aktif cihaz envanteri) bu servisle ilgili: [talep 02](../hardware-service/talep-02-masaustu-cihaz-kimligi.md). Auth cihaz kimliği verecek, aktif cihaz kararı Performance'ta kalacak. Masaüstü tarihi belli olunca konuşulur.
+| # | Konu | Cevap | Durum |
+|---|---|---|---|
+| [01](talep-01-cihaz-token-hedefi-iptal-ve-cihaz-dogrulama.md) | Cihaz token hedefi, iptal yayılımı, Hardware → Performance cihaz doğrulama | Cihaz token'ında `target=performance`; `devices:verify` hesaba bağlı token; iptal bildirimi yapılmıyor (60 sn) | AUTH HAZIR (A, C), B KARAR: kabul |
+
+Önceki bağlam: masaüstü cihaz kimliği [hardware talep 02](../hardware-service/talep-02-masaustu-cihaz-kimligi.md) (Auth cihaz kimliği verir, aktif cihaz kararı Performance'ta kalır).
 
 ## BİLMEN GEREKENLER
 

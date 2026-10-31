@@ -14,91 +14,93 @@ class ServiceClientConfigTest {
 
     @Test
     void gizliAnahtariBosIstemciDevreDisiOlarakKabulEdilir() {
-        assertThatCode(() -> new ServiceClientConfig(properties("admin", new ServiceClientProperties.Client("", Set.of()))))
-                .doesNotThrowAnyException();
-        assertThatCode(() -> new ServiceClientConfig(properties("admin", new ServiceClientProperties.Client(null, null))))
-                .doesNotThrowAnyException();
-        assertThatCode(() -> new ServiceClientConfig(new ServiceClientProperties(null))).doesNotThrowAnyException();
+        assertAccepted("admin", new ServiceClientProperties.Client("", Set.of()));
+        assertAccepted("admin", new ServiceClientProperties.Client(null, null));
+        ServiceClientProperties empty = new ServiceClientProperties(null);
+        assertThatCode(() -> new ServiceClientConfig(empty)).doesNotThrowAnyException();
     }
 
     @Test
     void gecerliIstemciAcilir() {
-        assertThatCode(() -> new ServiceClientConfig(properties("admin",
-                new ServiceClientProperties.Client(STRONG_SECRET, Set.of("account:read", "account:status:write")))))
-                .doesNotThrowAnyException();
+        assertAccepted("admin",
+                new ServiceClientProperties.Client(STRONG_SECRET, Set.of("account:read", "account:status:write")));
     }
 
     @Test
     void zayifGizliAnahtarServisiAcmazMesajAnahtariIcermez() {
         String weak = "kisa-anahtar";
+        ServiceClientProperties properties =
+                properties("admin", new ServiceClientProperties.Client(weak, Set.of("account:read")));
 
-        assertThatThrownBy(() -> new ServiceClientConfig(properties("admin",
-                new ServiceClientProperties.Client(weak, Set.of("account:read")))))
+        assertThatThrownBy(() -> new ServiceClientConfig(properties))
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("at least")
                 .hasMessageNotContaining(weak);
     }
 
     @Test
     void kapsamsizVeyaBilinmeyenKapsamliIstemciServisiAcmaz() {
-        assertThatThrownBy(() -> new ServiceClientConfig(properties("admin",
-                new ServiceClientProperties.Client(STRONG_SECRET, Set.of()))))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("scopes");
+        assertRejected("admin", new ServiceClientProperties.Client(STRONG_SECRET, Set.of()), "scopes");
         // Silme kapsamı yalnız Auth'un kendi çıkış çağrılarındadır; istemciye verilemez.
-        assertThatThrownBy(() -> new ServiceClientConfig(properties("admin",
-                new ServiceClientProperties.Client(STRONG_SECRET, Set.of("account:erase")))))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("scopes");
+        assertRejected("admin", new ServiceClientProperties.Client(STRONG_SECRET, Set.of("account:erase")), "scopes");
     }
 
     @Test
     void gecersizIstemciKimligiServisiAcmaz() {
-        assertThatThrownBy(() -> new ServiceClientConfig(properties("Admin_X",
-                new ServiceClientProperties.Client(STRONG_SECRET, Set.of("account:read")))))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("client id");
+        assertRejected("Admin_X", new ServiceClientProperties.Client(STRONG_SECRET, Set.of("account:read")), "client id");
     }
 
     @Test
     void yalnizHedefKapsamliIstemciAcilirKapsamiOlmayanHedefAcmaz() {
-        assertThatCode(() -> new ServiceClientConfig(properties("social-service", new ServiceClientProperties.Client(
-                STRONG_SECRET, Set.of(), Map.of("community-service", Set.of("events:ingest"))))))
-                .doesNotThrowAnyException();
+        assertAccepted("social-service", targets(Map.of("community-service", Set.of("events:ingest"))));
         // Hedefsiz ve kapsamsız istemci anlamsızdır.
-        assertThatThrownBy(() -> new ServiceClientConfig(properties("social-service", new ServiceClientProperties.Client(
-                STRONG_SECRET, Set.of(), Map.of()))))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("needs scopes or targets");
-        assertThatThrownBy(() -> new ServiceClientConfig(properties("social-service", new ServiceClientProperties.Client(
-                STRONG_SECRET, Set.of(), Map.of("community-service", Set.of())))))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("targets.community-service");
+        assertRejected("social-service", targets(Map.of()), "needs scopes or targets");
+        assertRejected("social-service", targets(Map.of("community-service", Set.of())), "targets.community-service");
     }
 
     @Test
     void hedefKapsamlariBilinenListedenOlmaliVeHedefBaskaServisOlmali() {
         // Auth iç kapsamı başka servise, başka servis kapsamı Auth'a verilemez.
-        assertThatThrownBy(() -> new ServiceClientConfig(properties("social-service", new ServiceClientProperties.Client(
-                STRONG_SECRET, Set.of(), Map.of("community-service", Set.of("account:read"))))))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("targets.community-service");
-        assertThatThrownBy(() -> new ServiceClientConfig(properties("social-service", new ServiceClientProperties.Client(
-                STRONG_SECRET, Set.of(), Map.of("auth-service", Set.of("events:ingest"))))))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("targets key");
-        assertThatThrownBy(() -> new ServiceClientConfig(properties("social-service", new ServiceClientProperties.Client(
-                STRONG_SECRET, Set.of(), Map.of("ltz-api", Set.of("events:ingest"))))))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("targets key");
-        assertThatThrownBy(() -> new ServiceClientConfig(properties("social-service", new ServiceClientProperties.Client(
-                STRONG_SECRET, Set.of("events:ingest"), Map.of()))))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("scopes");
+        assertRejected("social-service", targets(Map.of("community-service", Set.of("account:read"))),
+                "targets.community-service");
+        assertRejected("social-service", targets(Map.of("auth-service", Set.of("events:ingest"))), "targets key");
+        assertRejected("social-service", targets(Map.of("ltz-api", Set.of("events:ingest"))), "targets key");
+        assertRejected("social-service",
+                new ServiceClientProperties.Client(STRONG_SECRET, Set.of("events:ingest"), Map.of()), "scopes");
     }
 
     @Test
     void hesabaBagliKapsamTekBasinaAcilirBagsizKapsamlaKarisamaz() {
-        assertThatCode(() -> new ServiceClientConfig(properties("recommendation-service", new ServiceClientProperties.Client(
-                STRONG_SECRET, Set.of(), Map.of("library-service", Set.of("signals:read"))))))
-                .doesNotThrowAnyException();
-        assertThatThrownBy(() -> new ServiceClientConfig(properties("recommendation-service", new ServiceClientProperties.Client(
-                STRONG_SECRET, Set.of(), Map.of("library-service", Set.of("signals:read", "events:ingest"))))))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("must not mix");
+        assertAccepted("recommendation-service", targets(Map.of("library-service", Set.of("signals:read"))));
+        assertRejected("recommendation-service",
+                targets(Map.of("library-service", Set.of("signals:read", "events:ingest"))), "must not mix");
         // Okuma ve silme ayrıdır: istemciye hiçbir hedefte silme kapsamı verilemez.
-        assertThatThrownBy(() -> new ServiceClientConfig(properties("recommendation-service", new ServiceClientProperties.Client(
-                STRONG_SECRET, Set.of(), Map.of("library-service", Set.of("account:erase"))))))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("targets.library-service");
+        assertRejected("recommendation-service", targets(Map.of("library-service", Set.of("account:erase"))),
+                "targets.library-service");
+    }
+
+    @Test
+    void cihazDogrulamaHesabaBagliOlduguIcinBagsizKapsamlaKarisamaz() {
+        assertAccepted("hardware-service", targets(Map.of("performance-service", Set.of("devices:verify"))));
+        assertRejected("hardware-service",
+                targets(Map.of("performance-service", Set.of("devices:verify", "events:ingest"))), "must not mix");
+        // Puan özeti okuma kullanıcıya bağlı değildir; tek başına ya da başka bağsız kapsamla açılabilir.
+        assertAccepted("game-service", targets(Map.of("review-service", Set.of("rating-summaries:read"))));
+    }
+
+    /** Yalnız hedef kapsamlı istemci (Auth'a kapsamı yok). */
+    private static ServiceClientProperties.Client targets(Map<String, Set<String>> targets) {
+        return new ServiceClientProperties.Client(STRONG_SECRET, Set.of(), targets);
+    }
+
+    private static void assertAccepted(String id, ServiceClientProperties.Client client) {
+        ServiceClientProperties properties = properties(id, client);
+        assertThatCode(() -> new ServiceClientConfig(properties)).doesNotThrowAnyException();
+    }
+
+    private static void assertRejected(String id, ServiceClientProperties.Client client, String messagePart) {
+        ServiceClientProperties properties = properties(id, client);
+        assertThatThrownBy(() -> new ServiceClientConfig(properties))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining(messagePart);
     }
 
     private static ServiceClientProperties properties(String id, ServiceClientProperties.Client client) {

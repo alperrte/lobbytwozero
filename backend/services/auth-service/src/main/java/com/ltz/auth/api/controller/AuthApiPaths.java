@@ -3,10 +3,12 @@ package com.ltz.auth.api.controller;
 /** Gateway formatındaki yollar (/api/v1/auth/**); güvenlik yapılandırması da bu sabitleri kullanır. */
 public final class AuthApiPaths {
 
+    private static final String CONFIRM = "/confirm";
+
     public static final String BASE = "/api/v1/auth";
     public static final String REGISTER = BASE + "/register";
     public static final String EMAIL_VERIFICATION = BASE + "/email-verification";
-    public static final String EMAIL_VERIFICATION_CONFIRM = EMAIL_VERIFICATION + "/confirm";
+    public static final String EMAIL_VERIFICATION_CONFIRM = EMAIL_VERIFICATION + CONFIRM;
     public static final String EMAIL_VERIFICATION_RESEND = EMAIL_VERIFICATION + "/resend";
 
     public static final String LOGIN = BASE + "/login";
@@ -31,6 +33,10 @@ public final class AuthApiPaths {
     public static final String STEAM_START = OAUTH + "/steam/start";
     public static final String STEAM_CALLBACK = OAUTH + "/steam/callback";
     public static final String STEAM_COMPLETE = OAUTH + "/steam/complete";
+    /** Oturumdaki hesaba Steam bağlama (yeniden doğrulamalı başlatma, Steam dönüşü) ve kaldırma. */
+    public static final String STEAM_LINK_START = OAUTH + "/steam/link/start";
+    public static final String STEAM_LINK_CALLBACK = OAUTH + "/steam/link/callback";
+    public static final String STEAM_UNLINK = OAUTH + "/steam/unlink";
 
     public static final String PASSWORD = BASE + "/password";
     public static final String PASSWORD_CHANGE = PASSWORD + "/change";
@@ -38,10 +44,10 @@ public final class AuthApiPaths {
     public static final String PASSWORD_RESET = PASSWORD + "/reset";
 
     public static final String EMAIL_CHANGE = BASE + "/email/change";
-    public static final String EMAIL_CHANGE_CONFIRM = EMAIL_CHANGE + "/confirm";
+    public static final String EMAIL_CHANGE_CONFIRM = EMAIL_CHANGE + CONFIRM;
     public static final String ACCOUNT_DELETION = BASE + "/account/deletion";
     public static final String ACCOUNT_DELETION_REQUEST = ACCOUNT_DELETION + "/request";
-    public static final String ACCOUNT_DELETION_CONFIRM = ACCOUNT_DELETION + "/confirm";
+    public static final String ACCOUNT_DELETION_CONFIRM = ACCOUNT_DELETION + CONFIRM;
     public static final String ACCOUNT_DELETION_CANCEL = ACCOUNT_DELETION + "/cancel";
 
     /** Masaüstü cihaz kimliği: bağlama, listeleme, iptal (oturumlu) ve cihaz token'ı (cihaz anahtarıyla, çerezsiz). */
@@ -49,7 +55,6 @@ public final class AuthApiPaths {
     public static final String DEVICE = DEVICES + "/{deviceId}";
     public static final String DEVICES_TOKEN = DEVICES + "/token";
 
-    /** Yalnız ROLE_ADMIN erişir (SecurityConfig). */
     /** Servis → Auth iç uçları: Gateway'e açılmaz (Gateway yalnız /api/v1/<servis>/** yönlendirir). */
     public static final String INTERNAL = "/internal/v1";
     public static final String SERVICE_TOKENS = INTERNAL + "/service-tokens";
@@ -57,6 +62,7 @@ public final class AuthApiPaths {
     public static final String INTERNAL_ACCOUNT_STATUS = INTERNAL_ACCOUNT + "/status";
     public static final String INTERNAL_ACCOUNT_ROLES_GRANT = INTERNAL_ACCOUNT + "/roles/grant";
     public static final String INTERNAL_ACCOUNT_ROLES_REVOKE = INTERNAL_ACCOUNT + "/roles/revoke";
+    /** Yalnız ROLE_ADMIN erişir (SecurityConfig). */
     public static final String ADMIN = BASE + "/admin";
     public static final String ADMIN_ROLES = ADMIN + "/roles";
     public static final String ADMIN_DELETIONS_PENDING = ADMIN + "/account-deletions/pending";

@@ -142,12 +142,16 @@ olur (kimlik doğrulaması önce yapılır; yanlış gizli anahtar yine `401 INV
 | 9 | `svc:hardware-service` | `user-service` | `privacy:read` | HW-08 `HardwareVisibilityPolicy` |
 | 10 | `svc:review-service` | `user-service` | `events:ingest` | `ReviewSummaryChanged` |
 | 11 | `svc:recommendation-service` | `library-service` | `signals:read` (**hesaba bağlı**) | Tek hesabın öneri sinyali (LIB-14) |
+| 12 | `svc:game-service` | `review-service` | `rating-summaries:read` | Toplu oyun puan özetini okuma (REV-08/12) |
+| 13 | `svc:hardware-service` | `performance-service` | `devices:verify` (**hesaba bağlı**) | Cihazın hesaba ait ve aktif olduğunu sorma (PERF-01) |
 
 Satır 5 ve 6 için gizli anahtarlar `AUTH_MESSAGING_SERVICE_CLIENT_SECRET` ve `AUTH_LFP_SERVICE_CLIENT_SECRET` (yeni, boşsa istemci kapalı).
 Satır 7–11 için (2026-10-30, boşsa kapalı): social satır 2'deki `AUTH_SOCIAL_SERVICE_CLIENT_SECRET`'i kullanır; ayrıca `AUTH_LIBRARY_SERVICE_CLIENT_SECRET`,
 `AUTH_HARDWARE_SERVICE_CLIENT_SECRET`, `AUTH_REVIEW_SERVICE_CLIENT_SECRET`, `AUTH_RECOMMENDATION_SERVICE_CLIENT_SECRET`.
 **User Service istemci değildir:** kimseyi senkron çağırmaz, Social/Library/Review verisi olayla gelir. `privacy:read` kullanıcıya bağlı değildir;
 görüntüleyen ve sahip istek gövdesindedir, çağıranın kendi doğruladığı beyandır. Kararı User verir, Auth vermez.
+Satır 12–13 için (2026-10-31): `AUTH_GAME_SERVICE_CLIENT_SECRET` (yeni, boşsa kapalı) ve mevcut `AUTH_HARDWARE_SERVICE_CLIENT_SECRET`. Satır 13 `signals:read` gibi hesaba bağlıdır: istekte `accountId` zorunlu, token `account_id` taşır, Performance bunu yoldaki hesapla karşılaştırır.
+**Henüz tanımlanmayan çiftler (bilinçli):** Review ↔ Admin `events:ingest` ve Review → Notification. Alıcı servisler (Admin, Notification) ve üretici kararı yokken çift açılmaz (alıcısı olmayan izin tanımlanmaz); alıcı sözleşmesi gelince tek satırlık yapılandırmadır. Admin → Review moderasyon komutunda yetki servis kimliğinden gelir (Admin insan moderatörü kendi doğrular, `actorId` yalnız denetim kaydıdır); Auth Review için "bu kullanıcı moderatör mü" diye cevaplayan yeni bir uç açmaz.
 
 **Hesaba bağlı kapsam (2026-10-30, `signals:read`):** İstek gövdesinde `accountId` zorunludur; token `account_id` claim'iyle o tek hesaba bağlanır.
 Auth hesabın var ve `ACTIVE` olduğunu denetler (değilse `403 SERVICE_TARGET_ACCOUNT_UNAVAILABLE`). Hesaba bağlı olmayan kapsamda `accountId` verilemez,
@@ -159,9 +163,9 @@ bağlı kapsamda eksik olamaz (`400 SERVICE_ACCOUNT_BINDING_INVALID`). Bir hedef
 token'ından kullanıcı yetkisi türetilmez). Kullanıcı isteğiyle gelen çağrıda servis, o kullanıcının kendi `at+jwt`'sini hedefe iletir; hedef
 `viewer`'ı yalnız `sub`'dan okur. İletilen token saklanmaz, loglanmaz, arka plan işinde kullanılmaz.
 
-**Auth olayları (outbox, 2026-10-29):** `AccountStatusChanged`, `UserRegistered`, `AccountEmailChanged` aynı işlemde `auth_events` tablosuna yazılır; arka plan işçisi hedeflere `eventId/eventType/eventVersion/occurredAt/producer/aggregateId/payload` zarfıyla HTTP ile iletir (en az bir kez; alıcı `eventId` ile tekilleştirir). `AccountStatusChanged` yalnız yönetici durum değişikliğinde çıkar; silme isteği, iptal ve silme tamamlanması olay üretmez (bunlar silme koordinasyonuyla `account:erase` çağrısı üzerinden yürür). Hedef listesi `ltz.auth.events.targets` (ortam değişkeni `AUTH_EVENT_TARGETS`, virgülle ayrılmış servis adları), kodda varsayılan **boş** (olay gönderilmez); dev şablonunda (`.env.example`, `node ops/generate-auth-dev-keys.mjs`) `user` yazılıdır (2026-10-30). Hedef henüz yayında değilse teslim yeniden denenir, olay kaybolmaz. Prod'da hedef bilinçli açılır ve adresleri `https` olmalı.
+**Auth olayları (outbox, 2026-10-29; harici kimlik olayları 2026-10-31):** `AccountStatusChanged`, `UserRegistered`, `AccountEmailChanged`, `ExternalIdentityLinked`, `ExternalIdentityUnlinked` aynı işlemde `auth_events` tablosuna yazılır; arka plan işçisi hedeflere `eventId/eventType/eventVersion/occurredAt/producer/aggregateId/payload` zarfıyla HTTP ile iletir (en az bir kez; alıcı `eventId` ile tekilleştirir). `ExternalIdentityLinked { accountId, provider, providerSubject }` ve `ExternalIdentityUnlinked { accountId, provider }` oturumdaki hesaba Steam bağlanınca/kaldırılınca çıkar (SteamID64 herkese açık bir kimliktir; e-posta ve parola olaylara konmaz). `AccountStatusChanged` yalnız yönetici durum değişikliğinde çıkar; silme isteği, iptal ve silme tamamlanması olay üretmez (bunlar silme koordinasyonuyla `account:erase` çağrısı üzerinden yürür). Hedef listesi `ltz.auth.events.targets` (ortam değişkeni `AUTH_EVENT_TARGETS`, virgülle ayrılmış servis adları), kodda varsayılan **boş** (olay gönderilmez); dev şablonunda (`.env.example`, `node ops/generate-auth-dev-keys.mjs`) `user` yazılıdır (2026-10-30). Hedef henüz yayında değilse teslim yeniden denenir, olay kaybolmaz. Prod'da hedef bilinçli açılır ve adresleri `https` olmalı.
 
-**Cihaz token'ı (2026-10-29):** `typ=dev+jwt`, `aud=hardware-service`, `sub=<deviceId>`, `scope=hardware:sync:write`; uç sözleşmesi `docs/api.md`.
+**Cihaz token'ı (2026-10-29, hedef seçimi 2026-10-31):** `typ=dev+jwt`, `sub=<deviceId>`, tek `aud` ve o hedefin tek kapsamı: `target=hardware` (varsayılan) → `hardware-service` + `hardware:sync:write`, `target=performance` → `performance-service` + `performance:sync:write`; uç sözleşmesi `docs/api.md`.
 
 Token: `typ=svc+jwt`, RS256 (JWKS aynı), `iss=ltz-auth`, **`aud=<hedef>`** (yalnız o serviste geçer, Auth'un iç uçlarında geçmez), `sub=svc:<istemci>`,
 `scope=events:ingest`, 60 sn. Alıcı doğrulaması alıcıya aittir: `aud` kendi adı, `typ`, `scope`, ayrıca olay türü ↔ `sub` eşleşmesi (örn.
