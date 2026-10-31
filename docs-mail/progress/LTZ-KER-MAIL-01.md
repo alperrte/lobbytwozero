@@ -10,7 +10,7 @@ Sorumlu: Kerem. Görevler: MAIL-10, 11, 12, 13, 14, 15, 16. Durum: **KOD + TEST 
 | V81 şema (`mail_templates`, `mail_messages`, `mail_delivery_attempts`) | TAMAM | `V81__create_mail_tables.sql`, `MailSchemaAndRetentionTest` (7) |
 | Domain + enqueue + idempotency (`request_hash`, 409) | TAMAM | `MailDeliveryControllerTest` (15) |
 | Kuyruk işleyici (SKIP LOCKED, kiralama, retry, FAILED, expires_at) | TAMAM | `MailDispatchServiceTest` (12) |
-| SMTP gönderici (`SmtpMailSender`, TLS, timeout) | KODLANDI, **kısmi test** (satır %36); Mailpit'e gerçek gönderim uçtan uca doğrulandı (2026-10-31) | — |
+| SMTP gönderici (`SmtpMailSender`, TLS, timeout) | TAMAM: `SmtpMailSenderTest` (6, gerçek SMTP konuşması: başarı, 4xx/5xx, geçersiz alıcı, erişilemez sunucu, kimlik hatası); Mailpit'e gerçek gönderim uçtan uca doğrulandı (2026-10-31) | — |
 | AES-256-GCM payload şifreleme, terminalde silme/maskeleme | TAMAM | `MailDispatchServiceTest`, `MailSchemaAndRetentionTest` |
 | Servis token doğrulama (typ/aud/sub/scope/account_id) | TAMAM | `MailDeliveryControllerTest` (401/403 negatifleri) |
 | Hesap silme ucu (idempotent) | TAMAM | `AccountErasureTest` (3) |

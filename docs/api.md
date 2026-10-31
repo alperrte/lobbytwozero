@@ -594,7 +594,7 @@ Frontend:
 API Gateway üzerinden /api/v1/auth/email/**
 
 Diğer mikroservisler:
-Mail Service (`VerificationCodeMailPort`, alıcı = yeni adres; amaç alanı port sözleşmesinde yok) — production `mail-service` adaptörü **IMPLEMENTED** (birim/sözleşme testli; bu akış uçtan uca denenmedi), development'ta Mailpit. **User Service:** adres değişikliği için olay/çağrı yok (`UserRegistered` gibi Auth→User olayları PLANNED); profil servisi e-posta tutuyorsa ayrıca senkronize edilmelidir.
+Mail Service (`VerificationCodeMailPort`, alıcı = yeni adres; amaç alanı port sözleşmesinde yok) — production `mail-service` adaptörü **IMPLEMENTED** (Mailpit ile uçtan uca doğrulandı, 2026-10-31), development'ta Mailpit. **User Service:** adres değişikliği için olay/çağrı yok (`UserRegistered` gibi Auth→User olayları PLANNED); profil servisi e-posta tutuyorsa ayrıca senkronize edilmelidir.
 
 #### Test Durumu
 INTEGRATION
@@ -627,7 +627,7 @@ Frontend:
 API Gateway üzerinden /api/v1/auth/password/**
 
 Diğer mikroservisler:
-Mail Service (MAIL-02) — production `mail-service` adaptörü **IMPLEMENTED** (birim/sözleşme testli; bu akış uçtan uca denenmedi); development'ta Mailpit (`PasswordResetMailPort`).
+Mail Service (MAIL-02) — production `mail-service` adaptörü **IMPLEMENTED** (Mailpit ile uçtan uca doğrulandı, 2026-10-31); development'ta Mailpit (`PasswordResetMailPort`).
 
 #### Test Durumu
 INTEGRATION
@@ -729,7 +729,7 @@ Frontend:
 API Gateway üzerinden /api/v1/auth/account/deletion/**
 
 Diğer mikroservisler:
-Mail Service (`AccountDeletionMailPort`) — production `mail-service` adaptörü **IMPLEMENTED** (birim/sözleşme testli; bu akış uçtan uca denenmedi), development'ta Mailpit. Veri sahibi 16 servis (`DELETE /internal/v1/accounts/{accountId}`, bkz. aşağıdaki sözleşme ve `docs-auth/servis-sozlesmeleri.md` §3–§3.2) — Auth tarafı (D4 servis token'ı + HTTP adaptörü) **IMPLEMENTED**; hedef uçlar servis sahiplerinde **PENDING**.
+Mail Service (`AccountDeletionMailPort`) — production `mail-service` adaptörü **IMPLEMENTED** (Mailpit ile uçtan uca doğrulandı, 2026-10-31), development'ta Mailpit. Veri sahibi 16 servis (`DELETE /internal/v1/accounts/{accountId}`, bkz. aşağıdaki sözleşme ve `docs-auth/servis-sozlesmeleri.md` §3–§3.2) — Auth tarafı (D4 servis token'ı + HTTP adaptörü) **IMPLEMENTED**; hedef uçlar servis sahiplerinde **PENDING**.
 
 #### Test Durumu
 INTEGRATION
@@ -1588,7 +1588,7 @@ Sorumlu: Kerem · Gateway: `/api/v1/mail/**` · Görevler: MAIL-01..05, 08, 09, 
 
 > Mail Service'in **kullanıcıya açık ucu yoktur**; hepsi `/internal/**` yollarıdır ve Gateway'e açılmaz. Çağıran yalnız Auth'tur (`sub=svc:auth-service`). Auth'un `Mail*Port` sözleşmesine bire bir uyar.
 >
-> Kimlik doğrulama (2026-10-31, LTZ-KER-MAIL-01): Auth'un RS256 imzasını JWKS ile; `typ=svc+jwt`, `iss`, `aud=mail-service`, `sub=svc:auth-service`, UUID `account_id` claim'i ve zorunlu `exp`/`nbf`/`iat` doğrulanır. Kullanıcı token'ı hiçbir uçta geçmez. Token'daki `account_id`, gövdedeki `accountId` (silme ucunda yoldaki hesap) ile aynı olmalıdır; değilse `403`. Tanımsız her yol reddedilir. Yeni ENV'ler: `MAIL_PAYLOAD_ENCRYPTION_KEY`, `MAIL_SMTP_*`, `MAIL_FROM_ADDRESS`, `MAIL_ALLOWED_LINK_HOSTS` (hepsi `.env.example`'da, boş). Gerçek Auth token'ıyla uçtan uca doğrulama **VERIFIED** (2026-10-31, Compose: Auth `mail-service` adaptörü → Mail → Mailpit; `EMAIL_VERIFICATION` kaydı `SENT`, 1 deneme, gönderim sonrası şifreli içerik ve alıcı adresi temizlendi). Diğer 3 e-posta ucu ve silme ucu uçtan uca denenmedi.
+> Kimlik doğrulama (2026-10-31, LTZ-KER-MAIL-01): Auth'un RS256 imzasını JWKS ile; `typ=svc+jwt`, `iss`, `aud=mail-service`, `sub=svc:auth-service`, UUID `account_id` claim'i ve zorunlu `exp`/`nbf`/`iat` doğrulanır. Kullanıcı token'ı hiçbir uçta geçmez. Token'daki `account_id`, gövdedeki `accountId` (silme ucunda yoldaki hesap) ile aynı olmalıdır; değilse `403`. Tanımsız her yol reddedilir. Yeni ENV'ler: `MAIL_PAYLOAD_ENCRYPTION_KEY`, `MAIL_SMTP_*`, `MAIL_FROM_ADDRESS`, `MAIL_ALLOWED_LINK_HOSTS` (hepsi `.env.example`'da, boş). Gerçek Auth token'ıyla uçtan uca doğrulama **VERIFIED** (2026-10-31, Compose: Auth `mail-service` adaptörü → Mail → Mailpit; `EMAIL_VERIFICATION` kaydı `SENT`, 1 deneme, gönderim sonrası şifreli içerik ve alıcı adresi temizlendi). Diğer 3 e-posta ucu da aynı gün uçtan uca doğrulandı (`PASSWORD_RESET_LINK`, `PASSWORD_CHANGED`, `ACCOUNT_DELETION_CONFIRMATION`: hepsi `SENT`, 1 deneme). Silme ucu Auth silme koordinatörüyle (14 gün bekleme) uçtan uca denenmedi.
 >
 > Teslim modeli: `202` e-postanın gönderildiği anlamına gelmez; istek **kalıcı olarak kuyruğa yazıldı** demektir. Gönderim ayrı işleyicide yapılır (5 sn tarama, üstel geri çekilme 1 dk → 6 sa, en çok 8 deneme). Doğrulama kodu/bağlantı kuyrukta AES-256-GCM ile şifreli tutulur, terminal durumda silinir; e-posta adresi terminal durumda maskelenir. Kod, bağlantı ve adres loglanmaz.
 
@@ -1675,7 +1675,7 @@ Frontend:
 -
 
 Diğer mikroservisler:
-Auth → Mail. Auth tarafı `HttpMailServiceAdapter` **IMPLEMENTED** (birim/sözleşme testli; uçtan uca denenmedi).
+Auth → Mail. Auth tarafı `HttpMailServiceAdapter` **IMPLEMENTED** (Mailpit ile uçtan uca doğrulandı, 2026-10-31).
 
 #### Test Durumu
 INTEGRATION (`MailDeliveryControllerTest`)
@@ -1717,7 +1717,7 @@ Frontend:
 -
 
 Diğer mikroservisler:
-Auth → Mail. Auth tarafı `HttpMailServiceAdapter` **IMPLEMENTED** (birim/sözleşme testli; uçtan uca denenmedi).
+Auth → Mail. Auth tarafı `HttpMailServiceAdapter` **IMPLEMENTED** (Mailpit ile uçtan uca doğrulandı, 2026-10-31).
 
 #### Test Durumu
 INTEGRATION (`MailDeliveryControllerTest`)
@@ -1760,7 +1760,7 @@ Frontend:
 -
 
 Diğer mikroservisler:
-Auth → Mail. Auth tarafı `HttpMailServiceAdapter` **IMPLEMENTED** (birim/sözleşme testli; uçtan uca denenmedi).
+Auth → Mail. Auth tarafı `HttpMailServiceAdapter` **IMPLEMENTED** (Mailpit ile uçtan uca doğrulandı, 2026-10-31).
 
 #### Test Durumu
 INTEGRATION (`MailDeliveryControllerTest`)
