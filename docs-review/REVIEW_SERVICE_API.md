@@ -139,3 +139,63 @@ Mevcut `DELETE /internal/v1/accounts/{accountId}` yolu ve D4 güvenliği korunur
 Hesap bazlı PostgreSQL transaction advisory lock tüm mutasyonlarla ortaktır. Aynı transaction'da V54 tablosuna yalnız hesap UUID'sinin SHA-256 özeti ve sona erme zamanı yazılır. Sonraki 17 dakika tüm kullanıcı yazmaları 403 alır; aktif engel her kullanıcı yazmasında transaction içinde yeniden kontrol edilir. Silme tekrarı süreyi uzatabilir. Süresi dolan özetler dakikalık job ile kaldırılır (çalışan serviste yaklaşık 17–18 dakika; servis kapalıysa sonraki çalışan temizliğe kadar). Ayrıntılı TTL kanıtı karar belgesindedir.
 
 Test Durumu: Gerçek PostgreSQL silme/yazma yarışı, süre sonu temizliği ve gerçek TCP üzerinden imzalı D4 silme + eski kullanıcı token'ıyla yeniden yazmanın 403 alması PASS. JWKS/Game bu testlerde yerel sözleşme sunucularıdır; gerçek Auth/Game/Gateway ile canlı E2E **NOT VERIFIED**.
+
+## REV-06 — İnceleme beğenme
+
+- Durum: IMPLEMENTED.
+- Sorumlu: Hamza.
+- Tüketici servisler: Frontend, Gateway üzerinden.
+- Endpoint: `PUT /api/v1/review/reviews/{reviewId}/like`.
+- Yetkilendirme: Ortak korumalı kullanıcı JWT/rol sözleşmesi; aktör yalnız doğrulanmış sub. Kendi incelemesini beğenme 403. Servis token'ı kabul edilmez.
+- Path/Query Parameters: reviewId zorunlu UUID; query yok.
+- Request Body: Yok. Boş/whitespace dışında gövde 400; userId/rol/oy sahibi seçilemez.
+- Response: 200 `ReviewLikeResponse`: `reviewId`, `likeCount` (long), `likedByActor` (boolean). Tekrar PUT aynı oy/sayıyı korur. Beğeni yazarın inceleme sürümünü, metnini, puanını veya tavsiyesini değiştirmez.
+- Hata Durumları: 400 geçersiz UUID/gövde; 401 kimlik yok/geçersiz; 403 rol, self-vote veya silinen hesap engeli; 404 olmayan/silinmiş inceleme; 500 beklenmeyen hata. ProblemDetail ortak sözleşmesi geçerli.
+- Bağlantı: ReviewLikeService → hesap silme guard'ı → inceleme satır kilidi → ReviewLikeRepository atomik INSERT ON CONFLICT DO NOTHING → gerçek DB satırlarından count/aktör durumu. V55 PK `(review_id,user_id)` ve review FK. Dış servis çağrısı yok.
+- Test Durumu: UNIT/INTEGRATION — 75 testlik strict koşuda PASS; PostgreSQL tekillik/yarışlar ve gerçek TCP üzerinden RS256/JWKS kullanıcı token'ı ile beğeni/tekrar/self-vote/servis kimliği reddi.
+
+## REV-06 — Beğeniyi kaldırma
+
+- Durum: IMPLEMENTED.
+- Sorumlu: Hamza.
+- Tüketici servisler: Frontend.
+- Endpoint: `DELETE /api/v1/review/reviews/{reviewId}/like`.
+- Yetkilendirme: Korumalı kullanıcı JWT; yalnız aktörün oyunu kaldırır. İnceleme sahibi olmak başkalarının oyunu silme yetkisi vermez.
+- Path/Query Parameters: reviewId zorunlu UUID; query yok.
+- Request Body: Yok; dolu gövde 400.
+- Response: 200 `ReviewLikeResponse`. Zaten oy yoksa aynı sıfır/aktör-false sonucu; başka kullanıcıların oyları korunur. Kendi incelemesine oy veremeyen yazarın DELETE'i no-op olabilir.
+- Hata Durumları: 400/401/403/404/500. Olmayan veya DELETED hedefte 404; silinmiş incelemenin beğenileri metin silme transaction'ında zaten temizlenir.
+- Bağlantı: Aynı hesap guard'ı ve parent review kilidi; yalnız `(reviewId,sub)` satırı silinir. Fiziksel hesap silmesinde verilen oylar ve silinen incelemelerin oyları temizlenir. Karşılıklı oyları olan iki hesabın silmesi kısa erasure advisory lock ile sıralanır.
+- Test Durumu: INTEGRATION — tekrar DELETE, kullanıcı izolasyonu, author no-op, içerik silmesi, hesap silmesi/tekrar engeli, karşılıklı hesap silme ve beğeni/silme yarışı PASS; gerçek HTTP DELETE akışı PASS.
+
+## REV-06 — Beğeni durumunu okuma
+
+- Durum: IMPLEMENTED.
+- Sorumlu: Hamza.
+- Tüketici servisler: Frontend.
+- Endpoint: `GET /api/v1/review/reviews/{reviewId}/like`.
+- Yetkilendirme: Korumalı kullanıcı JWT/rol. Görünür inceleme için toplam ve yalnız token sahibinin oy durumu; oy veren kullanıcı kimlikleri döndürülmez.
+- Path/Query Parameters: reviewId zorunlu UUID; query/body yok.
+- Response: 200 `ReviewLikeResponse`. Oy yoksa `likeCount=0`, `likedByActor=false`. `Cache-Control: private, no-store`.
+- Hata Durumları: 400/401/403/404/500. Silinen hedefin varlığı veya oy listesi açılmaz.
+- Bağlantı: REPEATABLE_READ salt okunur transaction ile görünürlük ve count/aktör sorgusu aynı snapshot'ta; N+1 HTTP çağrısı yok.
+- Test Durumu: INTEGRATION — farklı aktör görünümü, toplam, sıfır, anonim/silinmiş hedef ve gerçek JWT/HTTP PASS.
+
+REV-07 rapor API'si, outbox/relay ve REV-10 dış teslimi uygulanmadı. Önerilen hedef sözleşmeler [request/](request/) altında; mevcut endpoint olarak kullanılamaz.
+
+## REV-09 — Öne çıkan incelemeler
+
+- Durum: IMPLEMENTED.
+- Sorumlu: Hamza.
+- Tüketici servisler: Frontend, mevcut Gateway yolu üzerinden; bu görevde frontend/Gateway değiştirilmedi.
+- Endpoint: `GET /api/v1/review/games/{gameId}/reviews/featured`.
+- Yetkilendirme: Mevcut korumalı kullanıcı JWT/rol sözleşmesi; PLAYER, CONTENT_CREATOR, GAME_DEVELOPER, MODERATOR veya ADMIN. Aktör doğrulanmış `sub`; servis token'ı kabul edilmez. Anonim endpoint değildir.
+- Path/Query Parameters: `gameId` zorunlu kanonik UUID; `page` tamsayı 0–10000, varsayılan 0; `size` tamsayı 1–50, varsayılan 20; `minLikes` tamsayı 0–2147483647, varsayılan 0. Oyun ve minimum beğeni filtreleri birlikte uygulanır. Görünürlük yalnız sunucunun `VISIBLE` koşuludur; istemci silinmiş kayıtları açamaz. Serbest sıralama/rapor/moderasyon filtresi sunulmaz.
+- Request Body: Yok.
+- Response: 200 `FeaturedReviewsResponse`: `items` (`FeaturedReviewResponse[]`), `page`, `size`, `totalElements` (long), `totalPages` (long). Her öğe `review` (mevcut ReviewResponse: id/gameId/body/ownedByActor/version/createdAt/updatedAt) ve `likeCount` (long) içerir. Yazar ve oy veren kullanıcı UUID'leri döndürülmez. `ownedByActor` token sahibine göre hesaplanır.
+- Sıralama: `likeCount DESC, createdAt DESC, id ASC`; aynı snapshot/veride deterministiktir. Sıfır beğenili görünür kayıtlar varsayılan filtreye dahildir. İnceleme düzenlenmesi oluşturulma tarihini değiştirmez, sıralamada updatedAt kullanılmaz. Rapor/şikâyet cezası veya moderasyon skoru yoktur.
+- Boş durum: İnceleme olmayan/Review'de bilinmeyen oyun UUID'si 200, `items=[]`, `totalElements=0`, `totalPages=0`. Game Service çağrısı yapılmaz; bu yanıt oyunun katalogda varlığını ya da güncel erişilebilirliğini doğrulamaz. Son sayfa dışına taşan geçerli sayfa 200/boş items döndürür; toplamlar filtrelenen kümenin toplamıdır.
+- Hata Durumları: 400 geçersiz UUID/tamsayı/aralık (ProblemDetail); 401 eksik/geçersiz kullanıcı kimliği veya servis token'ı; 403 mevcut rol politikası; 500 beklenmeyen sunucu hatası. `Cache-Control: private, no-store`.
+- Bağlantı: FeaturedReviewController → FeaturedReviewService → FeaturedReviewRepository. Parametreli PostgreSQL toplulaştırması; gerçek review_likes satırlarından sayım, sıfır beğeniler için LEFT JOIN. İki set sorgusu (toplam + sayfa) tek REPEATABLE_READ salt okunur, 4 saniye timeout'lu transaction içinde çalışır. N+1 sorgu/HTTP yok. V56 görünür oyun/tarih/UUID kısmi indeksi; V55 review_id önekli PK beğeni JOIN'ini destekler. Beğeniye göre son sıralama hesaplanır; indeksin bütün sıralamayı kaldırdığı iddia edilmez.
+- Sayfalama sınırı: Snapshot tek istek içindir. Ayrı sayfa istekleri arasında beğeni, ekleme veya silme değişirse sonuçlar yer değiştirebilir; istekler arası sabit snapshot/cursor garantisi verilmez.
+- Test Durumu: UNIT/INTEGRATION — Review modülünün 85/85 testlik Maven test koşusunda PASS. Yeni 7 PostgreSQL/MockMvc testi + 2 servis birim testi + 1 gerçek TCP/RS256/JWKS testi. Canlı Auth/Game/Gateway E2E iddiası yoktur. Pre-push/backendCheck/Trivy/Sonar: **KULLANICI TALEBİYLE ÇALIŞTIRILMADI**.

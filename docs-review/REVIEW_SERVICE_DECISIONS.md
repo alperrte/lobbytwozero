@@ -3,7 +3,8 @@
 ## Onaylı kapsam ve iş kuralları
 
 - Kullanıcı Hamza; branch `feature/review-service`. Yalnız Review backend ve bu klasör değiştirilebilir.
-- Yalnız Faz 1 uygulanır. Sonraki fazlar ayrı kullanıcı onayı gerektirir.
+- Faz 1 tamamlandı; kullanıcının sonraki açık onayıyla Faz 2 başlatıldı. Faz 3/4 ayrı kullanıcı onayı gerektirir.
+
 - Kullanıcı 31 Ekim 2026 tarihinde şu politikaları onayladı: puan 1–10 tam sayı; metin olmadan puan ve tavsiye verilebilir; metin silinince bağımsız puan ve tavsiye korunur; ikinci aktif metin oluşturma 409 döner.
 - Puan, metin ve tavsiye ayrı tablolarda tutulur; başka servise FK veya SQL erişimi yoktur.
 - Eski `database.md`/ER şeması öneridir; Review'de mevcut iş tablosu/migration yoktur. Gerçek şema yeni PostgreSQL migration'larıyla kurulur. Mevcut migration yeniden yazılmaz.
@@ -36,3 +37,25 @@ V54 yalnız `account_hash` (SHA-256, 64 hex) ve `expires_at` tutar; açık UUID,
 ## Doğrulama durumu
 
 REV-01/02/03/04/05 kabul testleri sırasıyla tamamlandı. REV-11 ve final kalite koşusu sonuçları faz raporunda kaydedilir. Gerçek ENV okunmadı, canlı DB'ye migration uygulanmadı. Gerçek HTTP testi yerel JWKS/Game sözleşme sunucuları kullanır; canlı Auth/Game/Gateway E2E veya Sonar kanıtı değildir.
+
+## Faz 2 — REV-06 ve önceki kullanıcı onaylı durma noktası
+
+- Önceki kullanıcı kararı REV-06'yı bitirme ve `docs-review/request/` altında servis bazlı ihtiyaç belgeleme sınırıydı. Sonraki açık talimat yalnız REV-09'a geçişi onayladı (aşağıda). REV-07/outbox/relay/geçici teslim altyapısı kodlanmayacak; REV-07/REV-10 ENTEGRASYON BEKLİYOR kalır.
+- V55: `review_likes` gerçek review FK'si ve `(review_id,user_id)` PK ile korunur. PUT/DELETE yalnız token sahibinin durumunu değiştirir; tekrarlar aynı sayıyı verir. Sayaç ayrı sütun değildir, aynı transaction görünümünde gerçek satırlardan okunur.
+- Beğeni mutasyonları önce hesabın mevcut silme engelini, sonra review satır kilidiyle görünürlüğü kontrol eder. GET REPEATABLE_READ snapshot kullanır. Silinen/olmayan hedefte 404; kullanıcı metin silmesinde beğeniler aynı transaction'da kaldırılır.
+- Kullanıcı politikayı açıkça onayladı: kendi incelemesine beğeni ve gelecekte rapor oluşturma yasak. REV-06'da kendi incelemesine PUT 403'tür ve gerçek JWT/HTTP dahil testlidir. Rapor oluşturma henüz uygulanmadığından kendi raporunu engelleme kabulü gelecekte REV-07 testinde doğrulanacak; bugün test edilmiş sayılmaz.
+- Kendi incelemesinin sayaçlarını okumak mümkündür. DELETE yalnız kendi oyunu kaldırır; başkasının oyunu silemez. Kendi review'ına hiç oy veremeyen kişinin DELETE'i doğal olarak no-op'tur.
+- Hesap silme hem verilen oyları hem silinen yazarın incelemelerine ait oyları temizler. Karşılıklı oyların FK CASCADE kilit çevrimi oluşturmaması için hesap silmeleri kısa bir PostgreSQL transaction advisory lock ile sıralanır; normal yazmalar hesap/review kilitlerini kullanmayı sürdürür.
+- Auth/Admin/Notification talepleri öneridir; hedef servis tasarımlarını bağlamaz. Mevcut olmayan endpoint, izin, teslim veya moderasyon durumu mevcutmuş gibi kullanılmaz. Game batch ve User özet alıcısı/Review→User izni bulunduğundan bunlar için yeni eksik özellik talebi üretilmedi.
+
+## REV-09 — Mevcut verilerle öne çıkan incelemeler
+
+- Kullanıcı dış entegrasyonları bekleyen REV-07/REV-10'u açık tutarak yalnız REV-09'a geçişi açıkça onayladı. Bu istisna Faz 3/4 onayı değildir; REV-09 sonrasında durulur.
+- Faydalılık sıralaması gerçek beğeni sayısı azalan, oluşturulma tarihi azalan, eşitlikte PostgreSQL UUID artan şeklindedir. Ağırlıklı zaman skoru/şikâyet katsayısı uydurulmaz. Düzenleme tarihi sıralamayı yükseltmez. Tüm görünür sıfır beğenili kayıtlar da varsayılan listede yer alabilir.
+- Oyun UUID'si ve isteğe bağlı minimum beğeni filtresi; sıfır tabanlı sayfa, varsayılan 20/en çok 50 kayıt ve en çok 10000 sayfa indeksi kullanılır. Sayısal sınırlar HTTP validation ile uygulanır; SQL alanı/sort ifadesi istemciden alınmaz.
+- Görünürlük ve sinyal toplama tek FeaturedReviewRepository sorgu sınırında tutulur. Gelecekte onaylı rapor/moderasyon sözleşmesi geldiğinde bu sorgu ve kabul testleri genişletilebilir. Bugün yalnız VISIBLE/DELETED şeması vardır; rapor tablosu, moderasyon alanı, sahte sıfır rapor sayısı veya outbox eklenmedi. REV-07/REV-15 uygulanmış sayılmaz.
+- Salt okunur REPEATABLE_READ transaction toplam ve öğeleri aynı snapshot'tan okur; eşzamanlı commit'in yalnız bir sorguya yansıması önlenir. Ayrı HTTP sayfa istekleri arasında sabit sonuç garantisi yoktur; yaşayan beğeni/veri değişiklikleri sayfa kaymasına yol açabilir. Cursor veya geçmiş snapshot saklama bu görevin kapsamı değildir.
+- Mevcut ReviewResponse korunur; liste DTO'su bunu likeCount ile sarar. Yazarın UUID'si yalnız ownedByActor hesabında kullanılır, yanıtla açılmaz. Oy veren kimlikleri dönülmez. Liste kullanıcı JWT'si ister; mevcut rol/güvenlik/önbellek politikası korunur.
+- Okuma yalnız Review DB'sini kullanır. Game erişim hatası yerel tarihsel inceleme okumalarını engellemez. Boş oyun sonucu katalog doğrulaması değildir; başka servis özelliği veya yeni entegrasyon talebi gerekmemiştir.
+- V51–V55 korunur; sıradaki boş numara V56 ile görünür kayıtlar için (game_id, created_at DESC, id ASC) kısmi indeks eklenir. Mevcut review_likes PK'si review_id ile başlar; yinelenen beğeni indeksi eklenmez. Beğeni toplulaştırması ve son sıralama çalışma zamanında hesaplanır; önceden hesaplanan sayaç/ranking tablosu yoktur.
+- Kullanıcının bu göreve özel açık talimatıyla yalnız Review Maven test aşaması çalıştırıldı. `verify` aşamasının ortak coverage/pre-push çalıştırıcısını tetiklediği görüldüğünden `test` aşaması kullanıldı. Pre-push, backendCheck, Trivy, Sonar Scanner ve Quality Gate: **KULLANICI TALEBİYLE ÇALIŞTIRILMADI**. Önceki kalite sonuçları REV-09'a ait güncel sonuç değildir.

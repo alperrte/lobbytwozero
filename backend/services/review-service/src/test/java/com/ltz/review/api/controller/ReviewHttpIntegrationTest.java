@@ -79,6 +79,18 @@ class ReviewHttpIntegrationTest {
         }
     }
 
+    @Test void signedHttpFeaturedListRequiresUserTokenAndValidatesPagination() throws Exception {
+        try (var client = HttpClient.newHttpClient()) {
+            String path = "/api/v1/review/games/" + UUID.randomUUID() + "/reviews/featured";
+            var response = send(client, "GET", path, null, token(false, UUID.randomUUID()));
+            assertEquals(200, response.statusCode());
+            assertTrue(response.body().contains("\"items\":[]"));
+            assertEquals("private, no-store", response.headers().firstValue("Cache-Control").orElseThrow());
+            assertEquals(401, send(client, "GET", path, null, token(true, USER)).statusCode());
+            assertEquals(400, send(client, "GET", path + "?size=51", null, token(false, UUID.randomUUID())).statusCode());
+        }
+    }
+
     @Test void actualGameHttpFailureIsControlledAndDoesNotLeakAddressOrAcceptGame() throws Exception {
         GAME_AVAILABLE.set(false);
         try (var client = HttpClient.newHttpClient()) {
@@ -111,6 +123,36 @@ class ReviewHttpIntegrationTest {
             assertEquals(503, response.statusCode());
         } finally {
             GAME_DELAY.set(false);
+        }
+    }
+
+    @Test void signedHttpLikesAreIdempotentAndRejectSelfAndServiceIdentity() throws Exception {
+        UUID owner = UUID.randomUUID();
+        String ownerToken = token(false, owner);
+        String voterToken = token(false, UUID.randomUUID());
+        try (var client = HttpClient.newHttpClient()) {
+            var created = send(client, "POST", "/api/v1/review/games/" + GAME + "/reviews", "{\"body\":\"Beğeni deneyimi\"}", ownerToken);
+            assertEquals(201, created.statusCode());
+            String reviewPath = created.headers().firstValue("Location").orElseThrow();
+            String likePath = reviewPath + "/like";
+            assertEquals(403, send(client, "PUT", likePath, null, ownerToken).statusCode());
+            assertEquals(401, send(client, "PUT", likePath, null, token(true, owner)).statusCode());
+            for (int i = 0; i < 2; i++) {
+                var liked = send(client, "PUT", likePath, null, voterToken);
+                assertEquals(200, liked.statusCode());
+                assertTrue(liked.body().contains("\"likeCount\":1"));
+                assertTrue(liked.body().contains("\"likedByActor\":true"));
+            }
+            var authorView = send(client, "GET", likePath, null, ownerToken);
+            assertEquals(200, authorView.statusCode());
+            assertTrue(authorView.body().contains("\"likedByActor\":false"));
+            for (int i = 0; i < 2; i++) {
+                var removed = send(client, "DELETE", likePath, null, voterToken);
+                assertEquals(200, removed.statusCode());
+                assertTrue(removed.body().contains("\"likeCount\":0"));
+            }
+            assertEquals(204, send(client, "DELETE", reviewPath + "?version=0", null, ownerToken).statusCode());
+            assertEquals(404, send(client, "PUT", likePath, null, voterToken).statusCode());
         }
     }
 

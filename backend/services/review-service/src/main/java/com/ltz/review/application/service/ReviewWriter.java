@@ -6,6 +6,7 @@ import com.ltz.review.domain.entity.Review;
 import com.ltz.review.domain.exception.ReviewException;
 import com.ltz.review.infrastructure.persistence.repository.ReviewRepository;
 import com.ltz.review.infrastructure.persistence.repository.AccountWriteLock;
+import com.ltz.review.infrastructure.persistence.repository.ReviewLikeRepository;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
@@ -16,10 +17,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReviewWriter {
     private final ReviewRepository reviews;
     private final AccountWriteLock accounts;
+    private final ReviewLikeRepository likes;
 
-    public ReviewWriter(ReviewRepository reviews, AccountWriteLock accounts) {
+    public ReviewWriter(ReviewRepository reviews, AccountWriteLock accounts, ReviewLikeRepository likes) {
         this.reviews = reviews;
         this.accounts = accounts;
+        this.likes = likes;
     }
 
     @Transactional(timeout = 4)
@@ -57,6 +60,7 @@ public class ReviewWriter {
         if (review.getVersion() != version) throw new ReviewException(409, "İnceleme sürümü güncel değil.");
         review.remove(now());
         reviews.flush();
+        likes.removeForReview(reviewId);
     }
 
     private static Instant now() { return Instant.now().truncatedTo(ChronoUnit.MICROS); }

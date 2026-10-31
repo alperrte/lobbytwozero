@@ -18,7 +18,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 /** UGC JSON belleğini sınırlar; kimlikli yanıtlar paylaşımlı cache'e yazılmaz. */
 public class ReviewRequestFilter extends OncePerRequestFilter {
     private static final int MAX_BODY = 65536;
-    private static final Set<String> BODY_METHODS = Set.of("POST", "PUT", "PATCH");
+    private static final Set<String> BODY_METHODS = Set.of("POST", "PUT", "PATCH", "DELETE");
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
