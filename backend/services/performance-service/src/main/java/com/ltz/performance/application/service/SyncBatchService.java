@@ -76,8 +76,9 @@ public class SyncBatchService {
             if (!batches.hasCapacity(link.getId(), now)) {
                 throw new PerformanceConflictException(PerformanceConflictException.SYNC_BATCH_LIMIT_REACHED);
             }
-            var created = batches.store(link.getId(), device.userId(), idempotencyKey, requestHash,
-                    request.schemaVersion(), request.sampleCount(), request.clientSentAt(), now);
+            var created = batches.store(new SyncBatchRepository.NewBatch(link.getId(), device.userId(),
+                    idempotencyKey, requestHash, request.schemaVersion(), request.sampleCount(),
+                    request.clientSentAt()), now);
             link.recordSync(now);
             links.save(link);
             return new SyncBatchResponse(created.id(), created.sampleCount(), created.receivedAt(), false);

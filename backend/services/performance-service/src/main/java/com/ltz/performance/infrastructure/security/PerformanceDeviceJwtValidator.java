@@ -34,6 +34,7 @@ public final class PerformanceDeviceJwtValidator {
             Object kid = jwt.getHeaders().get("kid");
             Object account = jwt.getClaim("account_id");
             Object scope = jwt.getClaim("scope");
+            String jti = jwt.getId();
             boolean valid = "dev+jwt".equals(jwt.getHeaders().get("typ"))
                     && kid instanceof String id && !id.isBlank() && id.length() <= 256
                     && audiences != null && audiences.size() == 1
@@ -42,7 +43,7 @@ public final class PerformanceDeviceJwtValidator {
                     && account instanceof String owner && PerformanceJwtValidators.canonicalUuid(owner)
                     && scope instanceof String scopes && Arrays.asList(scopes.split(" +"))
                             .contains(PerformanceSyncDeviceAccess.PERMISSION)
-                    && jwt.getId() != null && !jwt.getId().isBlank()
+                    && jti != null && !jti.isBlank()
                     && issued != null && expires != null && notBefore != null
                     && expires.isAfter(issued) && !notBefore.isAfter(expires)
                     && !issued.isAfter(clock.instant().plus(PerformanceJwtValidators.CLOCK_SKEW))

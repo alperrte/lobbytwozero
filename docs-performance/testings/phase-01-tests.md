@@ -12,8 +12,10 @@ Durum değerleri: PASS · FAIL · BLOCKED · NOT RUN.
 | Checkstyle / PMD ratchet | **PASS** | Baseline 0 / şimdi 0 / yeni 0 (`node pre-push/ci/lint-ratchet.mjs check --modules services/performance-service`) |
 | Bağımlılık taraması (Trivy) | **PASS** | CI runner içinde |
 | CI backend runner (`node pre-push/ci/backend.mjs --modules services/performance-service`) | **PASS** | EXIT 0, BUILD SUCCESS. ENV okumaz |
-| Standart repo pre-push (`.\pre-push\pre-push.cmd service`) | **NOT RUN** | Gerçek DEV ENV profilini okuyabilir; kurallar gereği ENV okunmadı. Yerine ENV'siz CI runner çalıştırıldı. Alper kendi makinesinde çalıştırmalıdır |
-| SonarQube (A/A/A hedefi) | **NOT RUN** | `sonarqube/sonar.mjs` gerçek ENV'den `SONAR_TOKEN` yükler; okunamaz. Sonar sunucusu `localhost:5199` yanıt veriyor. Alper çalıştırıp sonucu eklemeli (bkz. §5) |
+| Standart repo pre-push (`.\pre-push\pre-push.cmd performance-service`) | **PASS** | BACKEND TEST CHECK PASSED, EXIT 0; Tests PASS, Coverage PASS (31 test / %94,25), Maven Verify PASS, Code Quality (yalnız yeni) PASS. Script ENV'i kendisi yükler; değerler okunmadı/yazdırılmadı |
+| SonarQube — ilk tarama | **FAIL (araç)** | Maven `clean verify` başka sahiplerin `library-service`/`review-service` `contextLoads` testlerinde düştü (`AUTH_SERVICE_URL` çözülemedi); Sonar analizi çalışmadı |
+| SonarQube — ikinci tarama (`AUTH_SERVICE_URL` süreç değişkeniyle) | **FAIL (kapı)** | Analiz çalıştı, `new_violations > 0` nedeniyle kapı kırmızı. performance-service bulguları: S2259, S1075, S3358, S107, S1192 (×2), S5778 (×4). Hepsi bu görevde düzeltildi. Diğer servislerin bulguları kapsam dışıdır, dokunulmadı |
+| SonarQube — düzeltme sonrası tarama | **Aşağıdaki not** | Sonuç bu satırın altına işlenir; repo genelindeki kapı başka servislerin bulguları yüzünden kırmızı kalabilir. Bu performance-service'in başarısı sayılmaz, hatası da sayılmaz |
 | Gerçek Auth cihaz token'ı ile E2E | **BLOCKED** | REQ-01-A (Auth değişikliği bekleniyor) |
 | Hardware→Performance gerçek servis token'ı | **BLOCKED** | REQ-01-C |
 | Auth silme işçisi ile DEV doğrulaması | **NOT RUN** | Ortak ortam yok (REQ-01-D) |
@@ -49,8 +51,8 @@ Durum değerleri: PASS · FAIL · BLOCKED · NOT RUN.
 $env:JAVA_HOME = "C:\Users\alper\Tools\jdk-25.0.4.1+1"; $env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
 node pre-push/ci/backend.mjs --modules services/performance-service
 node pre-push/ci/lint-ratchet.mjs check --modules services/performance-service
-.\pre-push\pre-push.cmd service        # standart pre-push (ENV gerektirir) — Alper çalıştırmalı
-.\sonarqube\sonar.cmd                  # SonarQube — kendi SONAR_TOKEN'ınızla; sonucu buraya ekleyin
+.\pre-push\pre-push.cmd performance-service   # standart pre-push — PASS (script ENV'i kendisi yükler)
+.\sonarqube\sonar.cmd scan dev                 # SonarQube; token'ı script yükler
 ```
 
-SonarQube sonucu (Alper tarafından doldurulacak): `NOT RUN` → _Reliability / Security / Maintainability / Hotspot / Coverage: ?_
+Not: Sonar taraması tüm backend'i derler; başka servislerin testleri `AUTH_SERVICE_URL` bekliyorsa süreç değişkeni olarak verilmelidir (değer repo dışı, sahiplerin işi).

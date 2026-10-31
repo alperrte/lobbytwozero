@@ -39,16 +39,20 @@ public class SyncBatchRepository {
         return count == null || count < MAX_LIVE_PER_DEVICE;
     }
 
-    public StoredBatch store(UUID deviceLinkId, UUID userId, UUID idempotencyKey, String requestHash,
-            int schemaVersion, int sampleCount, Instant clientSentAt, Instant now) {
+    /** Kaydedilecek makbuzun istemci tarafından gelen alanları. */
+    public record NewBatch(UUID deviceLinkId, UUID userId, UUID idempotencyKey, String requestHash,
+            int schemaVersion, int sampleCount, Instant clientSentAt) { }
+
+    public StoredBatch store(NewBatch batch, Instant now) {
         UUID id = UUID.randomUUID();
         jdbc.update("""
             INSERT INTO sync_batches(id,device_link_id,user_id,idempotency_key,request_hash,schema_version,
                 sample_count,client_sent_at,received_at,expires_at)
             VALUES (?,?,?,?,?,?,?,?,?,?)
-            """, id, deviceLinkId, userId, idempotencyKey, requestHash, schemaVersion, sampleCount,
-                Timestamp.from(clientSentAt), Timestamp.from(now), Timestamp.from(now.plusSeconds(RETENTION_SECONDS)));
-        return new StoredBatch(id, requestHash, sampleCount, now);
+            """, id, batch.deviceLinkId(), batch.userId(), batch.idempotencyKey(), batch.requestHash(),
+                batch.schemaVersion(), batch.sampleCount(), Timestamp.from(batch.clientSentAt()),
+                Timestamp.from(now), Timestamp.from(now.plusSeconds(RETENTION_SECONDS)));
+        return new StoredBatch(id, batch.requestHash(), batch.sampleCount(), now);
     }
 
     @Scheduled(initialDelay = 3600000, fixedDelay = 3600000)

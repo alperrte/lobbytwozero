@@ -34,13 +34,12 @@ import tools.jackson.databind.ObjectMapper;
 @Configuration
 public class PerformanceSecurityConfiguration {
     private static final String AUTHENTICATION_REQUIRED = "AUTHENTICATION_REQUIRED";
-    private static final String SYNC_BATCHES_PATH = "/api/v1/performance/sync/batches";
     private static final RequestMatcher ACCOUNT_ERASURE = PathPatternRequestMatcher.withDefaults()
             .matcher(HttpMethod.DELETE, "/internal/v1/accounts/*");
     private static final RequestMatcher DEVICE_VERIFY = PathPatternRequestMatcher.withDefaults()
             .matcher(HttpMethod.GET, "/internal/v1/accounts/*/devices/*");
     private static final RequestMatcher SYNC_BATCHES = PathPatternRequestMatcher.withDefaults()
-            .matcher(HttpMethod.POST, SYNC_BATCHES_PATH);
+            .matcher(HttpMethod.POST, "/api/v1/performance/sync/batches");
 
     @Bean
     SecurityFilterChain performanceSecurity(HttpSecurity http, ObjectMapper mapper,
@@ -72,9 +71,12 @@ public class PerformanceSecurityConfiguration {
                                 "/api/v1/performance/devices/*")
                         .access((authentication, context) -> actorAccess(authentication.get()))
                         .anyRequest().denyAll())
-                .oauth2ResourceServer(resource -> resource.authenticationManagerResolver(request ->
-                        request.getRequestURI().startsWith("/internal/", request.getContextPath().length())
-                                ? serviceManager : SYNC_BATCHES.matches(request) ? deviceManager : userManager)
+                .oauth2ResourceServer(resource -> resource.authenticationManagerResolver(request -> {
+                    if (request.getRequestURI().startsWith("/internal/", request.getContextPath().length())) {
+                        return serviceManager;
+                    }
+                    return SYNC_BATCHES.matches(request) ? deviceManager : userManager;
+                })
                         .authenticationEntryPoint((request, response, error) ->
                                 writeProblem(response, mapper, 401, AUTHENTICATION_REQUIRED))
                         .accessDeniedHandler((request, response, error) ->

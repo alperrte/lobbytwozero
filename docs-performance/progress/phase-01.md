@@ -24,5 +24,5 @@ Tarih: 2026-10-31 · Durum: **IN_PROGRESS — kod ve testler tamam, gerçek Auth
 ## Açık işler (Faz 1'i kapatmak için)
 
 1. Kerem: REQ-01-A (zorunlu), REQ-01-C, REQ-01-B kararı.
-2. Alper: standart `pre-push` ve SonarQube çalıştırma (ENV/token gerektirir).
+2. Alper: standart `pre-push` PASS. SonarQube analizi çalıştı, performance-service bulguları düzeltildi; repo genelindeki kapı başka servislerin bulguları yüzünden kırmızı olabilir (bkz. [phase-01-tests.md](../testings/phase-01-tests.md) §1).
 3. Auth hazır olunca [auth-integration-01.md](../integration/auth/auth-integration-01.md) §4 kabul adımlarının gerçek ortamda koşulması.

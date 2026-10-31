@@ -4,6 +4,7 @@ import com.ltz.performance.application.service.DeviceActiveCheckService;
 import com.ltz.performance.application.service.PerformanceAccountErasureService;
 import com.ltz.performance.domain.exception.PerformanceNotFoundException;
 import java.util.UUID;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class PerformanceInternalController {
     private static final String AUTH_SUBJECT = "svc:auth-service";
     private static final String HARDWARE_SUBJECT = "svc:hardware-service";
+    private static final String NO_STORE = "private, no-store";
 
     private final PerformanceAccountErasureService erasure;
     private final DeviceActiveCheckService deviceCheck;
@@ -38,10 +40,10 @@ public class PerformanceInternalController {
             var problem = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE,
                     "Hesap temizliği devam ediyor; tekrar deneyin.");
             problem.setProperty("code", "ACCOUNT_ERASURE_PENDING");
-            return ResponseEntity.status(503).header("Cache-Control", "private, no-store")
+            return ResponseEntity.status(503).header(HttpHeaders.CACHE_CONTROL, NO_STORE)
                     .header("Retry-After", "60").body(problem);
         }
-        return ResponseEntity.noContent().header("Cache-Control", "private, no-store").build();
+        return ResponseEntity.noContent().header(HttpHeaders.CACHE_CONTROL, NO_STORE).build();
     }
 
     /** Hardware'in sync cihaz politikası için: cihaz hesaba ait ve Performance'ta aktifse 204, değilse 404. */
@@ -50,7 +52,7 @@ public class PerformanceInternalController {
             @AuthenticationPrincipal Jwt jwt) {
         requireBinding(jwt, HARDWARE_SUBJECT, accountId);
         if (!deviceCheck.isActiveOwnedDevice(accountId, deviceId)) throw new PerformanceNotFoundException();
-        return ResponseEntity.noContent().header("Cache-Control", "private, no-store").build();
+        return ResponseEntity.noContent().header(HttpHeaders.CACHE_CONTROL, NO_STORE).build();
     }
 
     private static void requireBinding(Jwt jwt, String subject, UUID accountId) {

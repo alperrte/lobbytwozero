@@ -48,9 +48,10 @@ class PerformanceDomainTest {
 
     @Test
     void linkRequiresDeviceAndOwner() {
-        assertThatThrownBy(() -> DeviceLink.create(null, UUID.randomUUID(), "a", T0))
+        UUID id = UUID.randomUUID();
+        assertThatThrownBy(() -> DeviceLink.create(null, id, "a", T0))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> DeviceLink.create(UUID.randomUUID(), null, "a", T0))
+        assertThatThrownBy(() -> DeviceLink.create(id, null, "a", T0))
                 .isInstanceOf(NullPointerException.class);
     }
 
@@ -95,7 +96,8 @@ class PerformanceDomainTest {
         assertThat(props.devicesUri()).hasToString("http://auth.internal:8081/api/v1/auth/devices");
 
         for (String bad : new String[]{"ftp://auth", "http://user:pw@auth", "http://auth/path", "http://auth?x=1", "http://auth#f"}) {
-            assertThatThrownBy(() -> new PerformanceAuthProperties(URI.create(bad), "i", "a", t, t))
+            URI badUri = URI.create(bad);
+            assertThatThrownBy(() -> new PerformanceAuthProperties(badUri, "i", "a", t, t))
                     .isInstanceOf(IllegalArgumentException.class);
         }
         assertThatThrownBy(() -> new PerformanceAuthProperties(null, "i", "a", t, t)).isInstanceOf(IllegalArgumentException.class);
@@ -103,7 +105,8 @@ class PerformanceDomainTest {
         assertThatThrownBy(() -> new PerformanceAuthProperties(ok, "i", "", t, t)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new PerformanceAuthProperties(ok, "i", "a", Duration.ZERO, t))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new PerformanceAuthProperties(ok, "i", "a", t, Duration.ofSeconds(31)))
+        Duration tooLong = Duration.ofSeconds(31);
+        assertThatThrownBy(() -> new PerformanceAuthProperties(ok, "i", "a", t, tooLong))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 }
