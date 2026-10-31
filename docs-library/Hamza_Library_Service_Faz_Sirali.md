@@ -21,9 +21,9 @@
 
 ### LTZ-HAM-GAME-01 — Kanonik Oyun Modeli ve Steam Katalog İndeksi
 
-**Sorumlu:** Hamza  
-**Servis:** `game-service`  
-**Faz:** MVP/P0  
+**Sorumlu:** Hamza\
+**Servis:** `game-service`\
+**Faz:** MVP/P0\
 **İlgili gereksinimler:** GAME-08, GAME-09, GAME-10, GAME-16, GAME-18, GAME-21
 
 **Ana task açıklaması:** Dahili/harici oyunlar tek gameId üzerinden yönetilir; izinli Steam katalog kaynağıyla temiz yerel indeks oluşturulur.
@@ -47,9 +47,9 @@
 
 ### LTZ-HAM-GAME-02 — Oyun Detayı Zenginleştirme ve Otomatik Senkronizasyon
 
-**Sorumlu:** Hamza  
-**Servis:** `game-service`  
-**Faz:** MVP/P0  
+**Sorumlu:** Hamza\
+**Servis:** `game-service`\
+**Faz:** MVP/P0\
 **İlgili gereksinimler:** GAME-17, GAME-19, GAME-22
 
 **Ana task açıklaması:** Eksik oyun verileri izinli sağlayıcıdan dayanıklı biçimde zenginleştirilir, senkronizasyon ilerlemesi ve güncellik izlenir.
@@ -67,9 +67,9 @@
 
 ### LTZ-HAM-GAME-03 — Oyun Keşfi, Arama, Filtreleme ve Popüler Oyunlar
 
-**Sorumlu:** Hamza  
-**Servis:** `game-service`  
-**Faz:** MVP/P0  
+**Sorumlu:** Hamza\
+**Servis:** `game-service`\
+**Faz:** MVP/P0\
 **İlgili gereksinimler:** GAME-01, GAME-02, GAME-03, GAME-04, GAME-05, GAME-06, GAME-20, GAME-25
 
 **Ana task açıklaması:** Yerel veriden hızlı, deterministik ve sayfalı oyun keşfi; detay, popüler kartlar ve ölçülen performans sunulur.
@@ -97,9 +97,9 @@
 
 ### LTZ-HAM-GAME-04 — Yetkili Oyun Yönetimi ve Geliştirici Alanı
 
-**Sorumlu:** Hamza  
-**Servis:** `game-service`  
-**Faz:** MVP  
+**Sorumlu:** Hamza\
+**Servis:** `game-service`\
+**Faz:** MVP\
 **İlgili gereksinimler:** GAME-07, GAME-12, GAME-13, GAME-15
 
 **Ana task açıklaması:** Yetkili admin/geliştirici kendi kapsamındaki oyunları ve içeriklerini güvenle yönetir; servis sözleşmeleri korunur.
@@ -119,9 +119,9 @@
 
 ### LTZ-HAM-GAME-05 — Gelişmiş Katalog Metadata, Fiyat ve Düzeltmeler
 
-**Sorumlu:** Hamza  
-**Servis:** `game-service`  
-**Faz:** MVP sonrası / P1, koşullu  
+**Sorumlu:** Hamza\
+**Servis:** `game-service`\
+**Faz:** MVP sonrası / P1, koşullu\
 **İlgili gereksinimler:** GAME-23, GAME-24, GAME-26
 
 **Ana task açıklaması:** Kaynak/yerelleştirme izlenebilirliğini, izinli fiyat/indirim verisini ve manuel metadata düzeltmelerini geliştir.
@@ -139,9 +139,9 @@
 
 ### LTZ-HAM-GAME-06 — Genişletilmiş Oyun İçeriği ve Geliştirici Geri Bildirimi
 
-**Sorumlu:** Hamza  
-**Servis:** `game-service`  
-**Faz:** MVP sonrası  
+**Sorumlu:** Hamza\
+**Servis:** `game-service`\
+**Faz:** MVP sonrası\
 **İlgili gereksinimler:** GAME-11, GAME-14
 
 **Ana task açıklaması:** Başarım/rehber gibi modüler detaylar ve ayrı geri bildirim iş akışlarını hayata geçir.
@@ -172,9 +172,9 @@
 
 ### LTZ-HAM-LIB-01 — Koleksiyon Ekle/Kaldır ve Veri Bütünlüğü
 
-**Sorumlu:** Hamza  
-**Servis:** `library-service`  
-**Faz:** MVP/P0  
+**Sorumlu:** Hamza\
+**Servis:** `library-service`\
+**Faz:** MVP/P0\
 **İlgili gereksinimler:** LIB-01, LIB-02, LIB-12, LIB-13, LIB-15
 
 **Ana task açıklaması:** Geçerli oyunlar tek kullanıcı-oyun kaydına eklenir/kaldırılır; sahiplik, atomiklik ve tekrar koruması sağlanır.
@@ -196,9 +196,9 @@
 
 ### LTZ-HAM-LIB-02 — Favori ve Bitirildi İşlemleri
 
-**Sorumlu:** Hamza  
-**Servis:** `library-service`  
-**Faz:** MVP  
+**Sorumlu:** Hamza\
+**Servis:** `library-service`\
+**Faz:** MVP\
 **İlgili gereksinimler:** LIB-03, LIB-04
 
 **Ana task açıklaması:** Oyunun önce koleksiyona eklenmesi gerekmeden favori/bitirildi işaretlenebilir, geri alınabilir ve listelenebilir.
@@ -214,9 +214,9 @@
 
 ### LTZ-HAM-LIB-03 — Kütüphane Listeleme, Filtreleme ve İstatistik
 
-**Sorumlu:** Hamza  
-**Servis:** `library-service`  
-**Faz:** MVP/P0  
+**Sorumlu:** Hamza\
+**Servis:** `library-service`\
+**Faz:** MVP/P0\
 **İlgili gereksinimler:** LIB-05, LIB-06, LIB-07, LIB-08, LIB-09, LIB-16
 
 **Ana task açıklaması:** Oyunlar toplu Game Service sorgularıyla listelenir; doğru filtre/sıra/sayfa ve istatistik döndürülür.
@@ -240,9 +240,9 @@
 
 ### LTZ-HAM-LIB-04 — Kütüphane Gizliliği ve Servis Entegrasyonları
 
-**Sorumlu:** Hamza  
-**Servis:** `library-service`  
-**Faz:** MVP/P0  
+**Sorumlu:** Hamza\
+**Servis:** `library-service`\
+**Faz:** MVP/P0\
 **İlgili gereksinimler:** LIB-10, LIB-11, LIB-14, LIB-18
 
 **Ana task açıklaması:** Profil gizliliği, Recommendation özet erişimi ve eşzamanlı işlemler API seviyesinde test edilerek güvenceye alınır.
@@ -262,9 +262,9 @@
 
 ### LTZ-HAM-LIB-05 — Arşivlenen Oyunlarda Kütüphane Dayanıklılığı
 
-**Sorumlu:** Hamza  
-**Servis:** `library-service`  
-**Faz:** MVP sonrası / P1  
+**Sorumlu:** Hamza\
+**Servis:** `library-service`\
+**Faz:** MVP sonrası / P1\
 **İlgili gereksinimler:** LIB-17
 
 **Ana task açıklaması:** Katalogdan kaldırılan/arşivlenen oyunlar kişisel koleksiyon geçmişini kaybettirmez.
@@ -281,9 +281,9 @@
 
 ### LTZ-HAM-REV-01 — Oyun Puanlama ve İnceleme Oluştur/Düzenle/Sil
 
-**Sorumlu:** Hamza  
-**Servis:** `review-service`  
-**Faz:** MVP/P0  
+**Sorumlu:** Hamza\
+**Servis:** `review-service`\
+**Faz:** MVP/P0\
 **İlgili gereksinimler:** REV-01, REV-02, REV-03, REV-04, REV-05, REV-11
 
 **Ana task açıklaması:** Sayısal LTZ puanı, metin incelemesi ve olumlu/olumsuz tavsiye ayrı kurallarla yönetilir.
@@ -307,9 +307,9 @@
 
 ### LTZ-HAM-REV-02 — İnceleme Beğenileri, Raporlama ve Öne Çıkarma
 
-**Sorumlu:** Hamza  
-**Servis:** `review-service`  
-**Faz:** MVP  
+**Sorumlu:** Hamza\
+**Servis:** `review-service`\
+**Faz:** MVP\
 **İlgili gereksinimler:** REV-06, REV-07, REV-09, REV-10
 
 **Ana task açıklaması:** İnceleme etkileşimleri, moderasyona bildirim ve yetkili servis entegrasyonları tutarlı işler.
@@ -329,9 +329,9 @@
 
 ### LTZ-HAM-REV-03 — Oyun Puan Ortalaması ve Toplu Özet API
 
-**Sorumlu:** Hamza  
-**Servis:** `review-service`  
-**Faz:** MVP/P0  
+**Sorumlu:** Hamza\
+**Servis:** `review-service`\
+**Faz:** MVP/P0\
 **İlgili gereksinimler:** REV-08, REV-12
 
 **Ana task açıklaması:** Tekli/çoklu oyunlara ait geçerli LTZ puan ortalamaları Game Service tarafından N+1 oluşturmadan okunur.
@@ -347,9 +347,9 @@
 
 ### LTZ-HAM-REV-04 — Gelişmiş İnceleme Moderasyonu ve Analitik
 
-**Sorumlu:** Hamza  
-**Servis:** `review-service`  
-**Faz:** MVP sonrası / P1  
+**Sorumlu:** Hamza\
+**Servis:** `review-service`\
+**Faz:** MVP sonrası / P1\
 **İlgili gereksinimler:** REV-13, REV-14, REV-15
 
 **Ana task açıklaması:** Spam önlemleri, istatistik dağılımları ve moderasyon sonrası görünürlük politikası uygulanır.
@@ -364,4 +364,3 @@
 
 
 **Bitmiş sayılma:** Yukarıdaki akış API/veri sahipliği kurallarına uygun çalışır, ilgili testler geçer ve ana taskın tek özellik teslimi yapılır.
-

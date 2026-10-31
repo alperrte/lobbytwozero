@@ -67,4 +67,3 @@ Efektif token ömrü izole Auth'ta 60 sn (`exp−iat=60`). Logout → Auth aynı
 ## 6. Checklist (15/18)
 
 Faz 1: [x] LIB-01 [x] LIB-02 [x] LIB-12 [x] LIB-13 [x] LIB-15 · Faz 2: [x] LIB-03 [x] LIB-04 · Faz 3: [x] LIB-05 [x] LIB-06 [x] LIB-07 [x] LIB-08 [x] LIB-09 [x] LIB-16 · Faz 4: **[ ] LIB-10 [ ] LIB-11 [ ] LIB-14** [x] LIB-18 · Faz 5: [x] LIB-17
-
