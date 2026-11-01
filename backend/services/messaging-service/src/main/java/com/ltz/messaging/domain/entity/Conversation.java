@@ -51,6 +51,14 @@ public class Conversation {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    /** Bu sohbetteki son mesajın sırası; yeni mesaj bunun bir fazlasını alır (0: henüz mesaj yok). */
+    @Column(name = "last_message_seq", nullable = false)
+    private long lastMessageSeq;
+
+    /** Sohbet listesinin sıralama anahtarı: son mesaj, yoksa oluşturulma zamanı. */
+    @Column(name = "last_activity_at", nullable = false)
+    private Instant lastActivityAt;
+
     @Version
     @Column(name = "version", nullable = false)
     private long version;
@@ -64,6 +72,7 @@ public class Conversation {
         conversation.directKey = directKey(initiator, other);
         conversation.createdBy = initiator;
         conversation.createdAt = now;
+        conversation.lastActivityAt = now;
         return conversation;
     }
 
@@ -74,6 +83,7 @@ public class Conversation {
         conversation.title = title;
         conversation.createdBy = owner;
         conversation.createdAt = now;
+        conversation.lastActivityAt = now;
         return conversation;
     }
 
@@ -91,6 +101,21 @@ public class Conversation {
 
     public boolean isGroup() {
         return type == ConversationType.GROUP;
+    }
+
+    /**
+     * Yeni mesajın sırasını ayırır ve sohbetin son etkinliğini günceller. Yalnız sohbet satırı kilitliyken
+     * çağrılmalıdır; aksi halde sıra commit sırasını izlemez.
+     */
+    public long appendMessage(Instant now) {
+        lastMessageSeq++;
+        lastActivityAt = now;
+        return lastMessageSeq;
+    }
+
+    /** Şu an katılan bir üyenin görebileceği ilk mesaj sırası. */
+    public long nextMessageSeq() {
+        return lastMessageSeq + 1;
     }
 
     public void requireGroup() {

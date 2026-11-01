@@ -72,13 +72,13 @@ class ConversationTest {
         Instant joined = Instant.parse("2026-11-01T10:00:00Z");
         UUID admin = UUID.randomUUID();
         ConversationMember member = ConversationMember.join(UUID.randomUUID(), UUID.randomUUID(), MemberRole.ADMIN,
-                joined);
+                joined, 1);
 
         member.removeBy(admin, joined.plusSeconds(5));
         assertThat(member.isActive()).isFalse();
         assertThat(member.getRemovedBy()).isEqualTo(admin);
 
-        member.rejoin(joined.plusSeconds(10));
+        member.rejoin(joined.plusSeconds(10), 8);
         assertThat(member.isActive()).isTrue();
         assertThat(member.getRole()).isEqualTo(MemberRole.MEMBER);
         assertThat(member.getRemovedBy()).isNull();
@@ -87,5 +87,36 @@ class ConversationTest {
         member.leave(joined.plusSeconds(20));
         assertThat(member.isActive()).isFalse();
         assertThat(member.getRemovedBy()).isNull();
+    }
+
+    @Test
+    void mesajSirasiArtarKatilanYalnizSonrakileriGorur() {
+        Instant now = Instant.parse("2026-11-01T10:00:00Z");
+        Conversation group = Conversation.group("Takım", UUID.randomUUID(), now);
+
+        assertThat(group.nextMessageSeq()).isEqualTo(1);
+        assertThat(group.appendMessage(now.plusSeconds(1))).isEqualTo(1);
+        assertThat(group.appendMessage(now.plusSeconds(2))).isEqualTo(2);
+        assertThat(group.getLastActivityAt()).isEqualTo(now.plusSeconds(2));
+
+        ConversationMember late = ConversationMember.join(UUID.randomUUID(), UUID.randomUUID(), MemberRole.MEMBER,
+                now, group.nextMessageSeq());
+        assertThat(late.canSee(2)).isFalse();
+        assertThat(late.canSee(3)).isTrue();
+    }
+
+    @Test
+    void okumaIsaretcisiGeriGitmezYenidenKatilinincaAraOkunmusSayilir() {
+        ConversationMember member = ConversationMember.join(UUID.randomUUID(), UUID.randomUUID(), MemberRole.MEMBER,
+                Instant.now(), 1);
+
+        member.markRead(5);
+        member.markRead(3);
+        assertThat(member.getLastReadSeq()).isEqualTo(5);
+
+        member.leave(Instant.now());
+        member.rejoin(Instant.now(), 12);
+        assertThat(member.getVisibleFromSeq()).isEqualTo(12);
+        assertThat(member.getLastReadSeq()).isEqualTo(11);
     }
 }

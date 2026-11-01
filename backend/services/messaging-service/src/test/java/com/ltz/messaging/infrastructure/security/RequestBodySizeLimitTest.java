@@ -25,10 +25,10 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-/** 8 KB gövde sınırı: bildirilen ve bildirilmeyen (chunked) uzunlukta 413; sınır içindeki gövde aynen iletilir. */
+/** 32 KB gövde sınırı: bildirilen ve bildirilmeyen (chunked) uzunlukta 413; sınır içindeki gövde aynen iletilir. */
 class RequestBodySizeLimitTest extends IntegrationTestSupport {
 
-    private static final int LIMIT = 8 * 1024;
+    private static final int LIMIT = 32 * 1024;
 
     @Test
     void sinirAsanGovde413() throws Exception {

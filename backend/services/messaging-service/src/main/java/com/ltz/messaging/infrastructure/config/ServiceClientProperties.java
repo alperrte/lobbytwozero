@@ -19,7 +19,9 @@ public record ServiceClientProperties(
         @NotBlank String clientId,
         /** İstemci gizli anahtarı; boş olabilir (istemci kapalı, fail-closed). */
         String clientSecret,
-        @NotBlank String socialServiceUrl) {
+        @NotBlank String socialServiceUrl,
+        /** Social'in engel sorgusu iç yolu (docs/api.md → SOCIAL → Engel sorgusu). */
+        @NotBlank String blocksCheckPath) {
 
     public boolean hasClientSecret() {
         return clientSecret != null && !clientSecret.isBlank();
@@ -28,7 +30,7 @@ public record ServiceClientProperties(
     @Override
     public String toString() {
         // Gizli anahtar kazara loglanmasın.
-        return "ServiceClientProperties[authServiceUrl=" + authServiceUrl + ", clientId=" + clientId
-                + ", socialServiceUrl=" + socialServiceUrl + "]";
+        return "ServiceClientProperties[authServiceUrl=%s, clientId=%s, socialServiceUrl=%s, blocksCheckPath=%s]"
+                .formatted(authServiceUrl, clientId, socialServiceUrl, blocksCheckPath);
     }
 }

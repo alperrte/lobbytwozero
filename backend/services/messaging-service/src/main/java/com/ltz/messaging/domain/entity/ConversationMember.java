@@ -42,11 +42,22 @@ public class ConversationMember {
     @Column(name = "removed_by")
     private UUID removedBy;
 
-    public static ConversationMember join(UUID conversationId, UUID userId, MemberRole role, Instant now) {
+    /** Üyenin görebildiği ilk mesaj sırası: katılmadan önceki mesajlar görünmez. */
+    @Column(name = "visible_from_seq", nullable = false)
+    private long visibleFromSeq;
+
+    /** Üyenin okuduğunu bildirdiği son mesaj sırası (MSG-13). */
+    @Column(name = "last_read_seq", nullable = false)
+    private long lastReadSeq;
+
+    /** @param visibleFromSeq sohbetin şu anki {@link Conversation#nextMessageSeq()} değeri */
+    public static ConversationMember join(UUID conversationId, UUID userId, MemberRole role, Instant now,
+                                          long visibleFromSeq) {
         ConversationMember member = new ConversationMember();
         member.id = new ConversationMemberId(conversationId, userId);
         member.role = role;
         member.joinedAt = now;
+        member.visibleFromSeq = visibleFromSeq;
         return member;
     }
 
@@ -58,12 +69,27 @@ public class ConversationMember {
         return leftAt == null;
     }
 
-    /** Ayrılmış ya da çıkarılmış üyeyi yeniden ekler; önceki rolü geri gelmez. */
-    public void rejoin(Instant now) {
+    /**
+     * Ayrılmış ya da çıkarılmış üyeyi yeniden ekler; önceki rolü geri gelmez ve yalnız yeniden katıldıktan sonraki
+     * mesajları görür (aradaki mesajlar dahil eski mesajlar görünmez).
+     */
+    public void rejoin(Instant now, long visibleFrom) {
         role = MemberRole.MEMBER;
         joinedAt = now;
         leftAt = null;
         removedBy = null;
+        visibleFromSeq = visibleFrom;
+        lastReadSeq = Math.max(lastReadSeq, visibleFrom - 1);
+    }
+
+    /** Bu sıradaki mesaj üyeye görünür mü (katılmadan önceki mesajlar görünmez). */
+    public boolean canSee(long seq) {
+        return seq >= visibleFromSeq;
+    }
+
+    /** Okuma işaretçisi yalnız ileri gider; geri alınamaz. */
+    public void markRead(long seq) {
+        lastReadSeq = Math.max(lastReadSeq, seq);
     }
 
     public void leave(Instant now) {

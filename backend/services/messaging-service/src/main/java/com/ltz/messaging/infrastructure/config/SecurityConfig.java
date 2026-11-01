@@ -54,7 +54,8 @@ public class SecurityConfig {
                 .requestCache(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
-                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                        // ASYNC: SSE akışının devam dispatch'i; ilk istek zaten kimlik doğrulamasından geçmiştir.
+                        .dispatcherTypeMatchers(DispatcherType.ERROR, DispatcherType.ASYNC).permitAll()
                         .requestMatchers(PATHS.matcher(HttpMethod.GET, HEALTH),
                                 PATHS.matcher(HttpMethod.GET, HEALTH + "/**")).permitAll()
                         .requestMatchers(PATHS.matcher(MessagingApiPaths.BASE + "/**")).authenticated()

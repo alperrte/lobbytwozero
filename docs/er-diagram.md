@@ -648,6 +648,8 @@ erDiagram
     varchar direct_key UK "yalnız DIRECT"
     uuid created_by "REF"
     timestamptz created_at
+    bigint last_message_seq "mesaj sırası"
+    timestamptz last_activity_at
     bigint version
   }
   conversation_members {
@@ -657,16 +659,18 @@ erDiagram
     timestamptz joined_at
     timestamptz left_at "dolu: ayrıldı/çıkarıldı"
     uuid removed_by "REF"
+    bigint visible_from_seq "görebildiği ilk mesaj"
+    bigint last_read_seq "okuma işaretçisi"
   }
   messages {
     uuid id PK
     uuid conversation_id FK
+    bigint seq "UK(conversation_id, seq)"
     uuid sender_id "REF"
     varchar client_message_id "UK(sender_id, client_message_id)"
-    varchar type
-    text body
-    uuid reply_to_id FK
-    timestamptz deleted_for_everyone_at
+    varchar type "TEXT"
+    text body "1-4000"
+    timestamptz created_at
   }
   message_attachments {
     uuid id PK

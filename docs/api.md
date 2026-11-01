@@ -4860,10 +4860,10 @@ UNIT + INTEGRATION (gerçek PostgreSQL; social-service 218 test PASS; `Community
 
 Sorumlu: Umut · Gateway: `/api/v1/messaging/**` · Görevler: MSG-
 
-Ortak kurallar (aşağıdaki yedi uç için, görev LTZ-UMT-MSG-01 / MSG-01..05, MSG-14, MSG-15):
+Ortak kurallar (aşağıdaki tüm MESSAGING uçları için; görevler LTZ-UMT-MSG-01 (MSG-01..05, MSG-14, MSG-15) ve LTZ-UMT-MSG-02 (MSG-06..10, MSG-13, MSG-16, MSG-27)):
 - Tüm uçlar `Authorization: Bearer <access token>` (kullanıcı token'ı, `typ=at+jwt`) ister; Gateway tarayıcı çerezini Bearer'a çevirir. Token servis tarafında Auth'un JWKS anahtarıyla yeniden doğrulanır (RS256, `iss`, `aud`, `typ=at+jwt`, `exp`/`nbf`/`iat`/`sub` zorunlu, 30 sn saat payı). Servis token'ı (`svc+jwt`) bu uçlarda geçmez. Messaging'in henüz iç (`/internal/**`) ucu yoktur; bu yollar kapalıdır.
 - `userId` yalnız token'ın `sub` alanından alınır; gövde/başlıktaki kimlik (`senderId`, `ownerId`, `X-User-Id` vb.) güvenilmez: gövdedeki bilinmeyen alan `400`, başlıklar yok sayılır.
-- Kimliksiz/geçersiz token `401 UNAUTHENTICATED`. Hata gövdesi `ProblemDetail` + `code`; doğrulama hatalarında `errors: [{field, code}]` döner, gönderilen değer geri yansıtılmaz. İstek gövdesi en fazla 8 KB (`413 PAYLOAD_TOO_LARGE`).
+- Kimliksiz/geçersiz token `401 UNAUTHENTICATED`. Hata gövdesi `ProblemDetail` + `code`; doğrulama hatalarında `errors: [{field, code}]` döner, gönderilen değer geri yansıtılmaz. İstek gövdesi en fazla 32 KB (`413 PAYLOAD_TOO_LARGE`).
 - **Erişim (MSG-14):** Sohbete yalnız **aktif üyesi** erişir. Hiç üye olmamış, ayrılmış ya da çıkarılmış kullanıcı ile var olmayan sohbet **aynı** `404 CONVERSATION_NOT_FOUND` alır (sohbetin varlığı ve türü sızdırılmaz). Yazma (mesaj uçları MSG-02 görevinde) ayrıca birebir sohbette iki taraf arasında engel olmamasını ister.
 - **Engel (MSG-15):** Engel verisi social-service'tedir; Messaging saklamaz, her etkileşimde `POST /internal/v1/blocks/check` ile sorar. İki kullanıcı arasında **herhangi bir yönde** engel varsa: birebir sohbet açılamaz (yeni ya da mevcut), engelli kişi gruba eklenemez (grup kurarken de) → `403 MESSAGING_NOT_ALLOWED` (engelin yönü ve hangi kişide olduğu söylenmez). Grupta yalnız **ekleyen ↔ eklenen** çifti denetlenir; mevcut grup üyeliği engelden etkilenmez. Engel durumu öğrenilemezse (Auth gizli anahtarı yok, Auth/Social ulaşılamaz ya da yanıt eksik) işlem **fail-closed** `503 BLOCK_CHECK_UNAVAILABLE` ile reddedilir.
 - **Roller:** Birebir sohbette iki taraf da `MEMBER`'dır. Grupta tek `OWNER` (oluşturan) vardır; `OWNER` ve `ADMIN` üye ekler, `OWNER` herkesi, `ADMIN` yalnız `MEMBER`'ı çıkarır; rolü yalnız `OWNER` değiştirir. Grup işlemleri birebir sohbette `409 GROUP_CONVERSATION_REQUIRED`.
@@ -4920,7 +4920,7 @@ Diğer mikroservisler:
 social-service `POST /internal/v1/blocks/check` (RestClient). Token: Auth `POST /internal/v1/service-tokens` (`clientId: "messaging-service"`, `audience: "social-service"`, `scope=blocks:check`, 60 sn); gizli anahtar `AUTH_MESSAGING_SERVICE_CLIENT_SECRET`.
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 80 test PASS; engel Social yerine test adaptörüyle, gerçek Social istemcisi MockRestServiceServer ile). Gerçek Auth + Social ile uçtan uca: NOT VERIFIED.
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS; engel Social yerine test adaptörüyle, gerçek Social istemcisi MockRestServiceServer ile). Gerçek Auth + Social ile uçtan uca: NOT VERIFIED.
 
 ### MESSAGING — Grup sohbeti oluştur (MSG-02)
 
@@ -4963,7 +4963,7 @@ Diğer mikroservisler:
 social-service engel sorgusu (oluşturan ↔ tüm ilk üyeler, tek toplu çağrı).
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 80 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED.
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED.
 
 ### MESSAGING — Sohbet detayı (MSG-14)
 
@@ -4999,7 +4999,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 80 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS)
 
 ### MESSAGING — Gruba üye ekle (MSG-03)
 
@@ -5046,7 +5046,7 @@ Diğer mikroservisler:
 social-service engel sorgusu (tek toplu çağrı).
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 80 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED.
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED.
 
 ### MESSAGING — Gruptan üye çıkar (MSG-05)
 
@@ -5083,7 +5083,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 80 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS)
 
 ### MESSAGING — Üye rolünü değiştir (MSG-03)
 
@@ -5128,7 +5128,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 80 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS)
 
 ### MESSAGING — Gruptan ayrıl (MSG-04)
 
@@ -5163,7 +5163,281 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 80 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS)
+
+### MESSAGING — Sohbet listesi (MSG-08, MSG-13)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/messaging/conversations
+
+#### Yetkilendirme
+Authenticated (yalnız token sahibinin **aktif** üyesi olduğu sohbetler; ayrıldığı/çıkarıldığı sohbet listede yoktur)
+
+#### Query Parameters
+- limit: int, opsiyonel, varsayılan 20, 1–50
+- cursor: string, opsiyonel, önceki yanıttaki `nextCursor` (opak)
+
+#### Response — 200
+```json
+{
+  "items": [
+    {
+      "id": "UUID",
+      "type": "DIRECT | GROUP",
+      "title": "string (yalnız GROUP) veya null",
+      "peerUserId": "UUID (yalnız DIRECT: karşı taraf) veya null",
+      "memberCount": 2,
+      "myRole": "OWNER | ADMIN | MEMBER",
+      "lastActivityAt": "ISO-8601 (UTC)",
+      "lastMessage": "Message veya null",
+      "unreadCount": 0
+    }
+  ],
+  "nextCursor": "string veya null"
+}
+```
+- Sıra: `lastActivityAt` azalan (son mesaj; mesaj yoksa oluşturulma), eşitlikte `id` azalan. Keyset sayfalama: sayfalar arasında tekrar ya da atlama olmaz.
+- `lastMessage`, kullanıcının göremediği (gruba katılmadan önceki) bir mesajsa `null` döner.
+- `unreadCount` (MSG-13): okuma işaretçisinden sonraki, kullanıcının görebildiği ve **başkasının** gönderdiği mesaj sayısı. Mesaj gönderen, sohbeti o mesaja kadar okumuş sayılır.
+- Bir sayfa sabit sayıda sorguyla kurulur (N+1 yok).
+
+#### Hata Durumları
+- 400: Sınır dışı `limit` (`INVALID_PAGE_SIZE`), bozuk `cursor` (`INVALID_CURSOR`)
+- 401: Kimlik yok/geçersiz
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/messaging/conversations
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS)
+
+### MESSAGING — Metin mesajı gönder (MSG-06, MSG-10)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/messaging/conversations/{conversationId}/messages
+
+#### Yetkilendirme
+Authenticated + sohbetin aktif üyesi; birebir sohbette iki taraf arasında herhangi bir yönde engel olmamalı (MSG-15). Gönderen = token sahibi.
+
+#### Path Parameters
+- conversationId: UUID, zorunlu
+
+#### Request Body
+```json
+{
+  "clientMessageId": "string, zorunlu, 1–64 karakter [A-Za-z0-9_-] (istemcinin ürettiği tekil kimlik, ör. UUID)",
+  "body": "string, zorunlu, en fazla 4000 karakter; boşluktan ibaret olamaz; satır sonu/sekme dışında kontrol karakteri yok"
+}
+```
+`body` olduğu gibi saklanır (emoji, satır sonu serbest). Sunucu HTML yorumlamaz; istemci **düz metin** olarak gösterir (`dangerouslySetInnerHTML` yok).
+
+#### Response — 201 / 200
+`Message`:
+```json
+{
+  "id": "UUID",
+  "conversationId": "UUID",
+  "seq": 7,
+  "senderId": "UUID",
+  "type": "TEXT",
+  "body": "string",
+  "clientMessageId": "string",
+  "createdAt": "ISO-8601 (UTC)"
+}
+```
+- **201** yeni mesaj. **200** aynı `clientMessageId` ve aynı içerikle yapılmış yeniden deneme: kayıtlı mesaj döner, yeni mesaj/olay üretilmez (ağ yeniden denemesi çift mesaj oluşturmaz). Tekillik veritabanında da zorlanır: `(senderId, clientMessageId)`.
+- `seq` sohbet içinde boşluksuz ve artandır; sohbet satırı kilitlenerek verilir, böylece sıra commit sırasıyla aynıdır (eşzamanlı gönderim testli).
+- Aynı transaction'da: gönderenin okuma işaretçisi bu mesaja ilerler ve `MessageSent` olayı outbox'a yazılır (bkz. "Giden olay sözleşmeleri"). Commit sonrası mesaj, gönderim anındaki aktif üyelerin açık akışlarına iletilir (MSG-09).
+- Oran sınırı: kullanıcı başına son 60 sn'de en fazla 30 mesaj (`ltz.messaging.messages.max-per-minute`).
+
+#### Hata Durumları
+- 400: Eksik/boş/uzun `body`, kontrol karakteri, geçersiz `clientMessageId`, tanımsız alan (ör. `senderId`) (`VALIDATION_FAILED`, `MALFORMED_REQUEST`)
+- 401: Kimlik yok/geçersiz
+- 403: Birebir sohbette aralarında engel var (`MESSAGING_NOT_ALLOWED`)
+- 404: Sohbet yok ya da aktif üyesi değilsiniz (`CONVERSATION_NOT_FOUND`)
+- 409: `clientMessageId` başka bir içerik ya da sohbet için kullanılmış (`CLIENT_MESSAGE_ID_REUSED`)
+- 413: İstek gövdesi 32 KB'ı aşıyor
+- 429: Gönderim oranı aşıldı (`TOO_MANY_MESSAGES`)
+- 503: Birebir sohbette engel durumu öğrenilemedi (`BLOCK_CHECK_UNAVAILABLE`); mesaj kaydedilmez
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/messaging/conversations/{conversationId}/messages
+
+Diğer mikroservisler:
+Birebir sohbette social-service engel sorgusu. `MessageSent` olayı outbox'a (notification-service) — teslim **PENDING**.
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED.
+
+### MESSAGING — Mesaj geçmişi (MSG-07, MSG-09 eşitleme)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/messaging/conversations/{conversationId}/messages
+
+#### Yetkilendirme
+Authenticated + sohbetin aktif üyesi. Üye yalnız **katıldıktan sonraki** mesajları görür (gruba sonradan eklenen ve çıkarılıp geri eklenen dahil; kullanıcı kararı 2026-11-01).
+
+#### Path Parameters
+- conversationId: UUID, zorunlu
+
+#### Query Parameters
+- before: long, opsiyonel — bu `seq`'ten **önceki** mesajlar, yeniden eskiye (verilmezse en sondan başlar; geçmişte geriye kaydırma)
+- after: long, opsiyonel — bu `seq`'ten **sonraki** mesajlar, eskiden yeniye (yeniden bağlanınca kayıpsız eşitleme)
+- limit: int, opsiyonel, varsayılan 30, 1–100
+
+`before` ile `after` birlikte verilemez.
+
+#### Response — 200
+```json
+{
+  "items": ["Message"],
+  "hasMore": true
+}
+```
+`hasMore`, aynı yönde daha fazla mesaj olduğunu söyler. Sonraki sayfa: `before=<en küçük seq>` ya da `after=<en büyük seq>`.
+
+#### Hata Durumları
+- 400: `before` ve `after` birlikte (`CONFLICTING_PAGE_DIRECTION`); sınır dışı `limit` (`INVALID_PAGE_SIZE`); sayı olmayan değer (`MALFORMED_REQUEST`)
+- 401: Kimlik yok/geçersiz
+- 404: Sohbet yok ya da aktif üyesi değilsiniz (`CONVERSATION_NOT_FOUND`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/messaging/conversations/{conversationId}/messages
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS)
+
+### MESSAGING — Okundu işaretle (MSG-13)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/messaging/conversations/{conversationId}/read
+
+#### Yetkilendirme
+Authenticated + sohbetin aktif üyesi (yalnız kendi okuma işaretçisi)
+
+#### Path Parameters
+- conversationId: UUID, zorunlu
+
+#### Request Body
+```json
+{
+  "seq": "long, zorunlu, ≥ 0 — okunan son mesajın sırası"
+}
+```
+
+#### Response — 200
+```json
+{ "conversationId": "UUID", "lastReadSeq": 7, "unreadCount": 0 }
+```
+İşaretçi yalnız ileri gider (daha küçük `seq` yan etkisizdir) ve sohbetteki son mesajın ötesine geçmez. Okundu bilgisinin başka üyelere gösterilmesi (MSG-11/12) ayrı görevdir.
+
+#### Hata Durumları
+- 400: Eksik/negatif `seq` (`VALIDATION_FAILED`)
+- 401: Kimlik yok/geçersiz
+- 404: Sohbet yok ya da aktif üyesi değilsiniz (`CONVERSATION_NOT_FOUND`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/messaging/conversations/{conversationId}/read
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS)
+
+### MESSAGING — Gerçek zamanlı mesaj akışı (MSG-09)
+
+Durum: IMPLEMENTED (Gateway üzerinden canlı geçiş NOT VERIFIED)
+Sorumlu: Umut
+Tüketici servisler: Frontend (`EventSource`, `withCredentials: true`)
+
+Karar ve gerekçe: [ADR 0001](decisions/0001-gercek-zamanli-mesajlasma.md).
+
+#### Endpoint
+GET /api/v1/messaging/stream
+
+#### Yetkilendirme
+Authenticated. Kullanıcı yalnız gönderim anında aktif üyesi olduğu sohbetlerin mesajlarını alır.
+
+#### Response — 200 (`text/event-stream`)
+```text
+event:ready
+data:{"heartbeatSeconds":4}
+
+event:message
+id:<conversationId>:<seq>
+data:<Message JSON>
+
+:hb
+```
+- Yalnız **commit edilmiş** mesajlar iletilir; reddedilen/geri alınan mesaj gitmez. Gönderenin diğer açık akışları da alır.
+- Akış token'ın bitişinde (en çok 30 dk) kapanır; `EventSource` yeniden bağlanır. İstemci yeniden bağlanınca sohbet listesini yeniler ve açık sohbet için `GET .../messages?after=<son seq>` ile kaçırdıklarını çeker. Mesaj DB'de olduğu için kaybolmaz.
+- Her 4 sn'de kalp atışı (`:hb`). Başlıklar: `Cache-Control: no-store`, `X-Accel-Buffering: no`.
+- Kullanıcı başına en fazla 5 eşzamanlı akış.
+
+#### Hata Durumları
+- 401: Kimlik yok/geçersiz
+- 429: Açık akış sınırı dolu (`TOO_MANY_STREAMS`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/messaging/stream
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (servis içi uçtan uca akış MockMvc + gerçek PostgreSQL; `SseMessageHubTest` birim). Gateway üzerinden gerçek tarayıcıyla: NOT VERIFIED.
+
+### MESSAGING — Giden olay sözleşmeleri (MSG-16, teslim bekliyor)
+
+Durum: IN PROGRESS (olay outbox'a yazılıyor; teslim hedefi yok)
+Sorumlu: Umut
+Tüketici servisler: notification-service
+
+Olay mesajla **aynı transaction'da** `outbox_events` tablosuna yazılır: mesaj kaydedildiyse olay da vardır, mesaj geri alındıysa olay da yoktur. Mesaj kaydı bildirim tesliminden bağımsızdır (MSG-27). Zarf: `eventId`, `eventType`, `eventVersion`, `occurredAt` (UTC), `producer: "messaging-service"`, `aggregateId` (= `conversationId`), `payload`.
+
+| Olay | Ne zaman | `payload` | Tüketici |
+| --- | --- | --- | --- |
+| `MessageSent` v1 | Yeni mesaj kaydedildi (yeniden denemede üretilmez) | `messageId`, `conversationId`, `conversationType` (`DIRECT`\|`GROUP`), `seq`, `senderId`, `recipientIds` (gönderen dışındaki aktif üyeler) | notification (alıcılara bildirim) |
+
+Yük **mesaj içeriği ve önizleme taşımaz** (SECURITY.md §6); bildirimde önizleme gösterilecekse gizlilik kararıyla ayrıca tasarlanır.
+
+Teslim durumu: **PENDING.** notification-service iskelet halinde (alıcı uç yok) ve Auth'ta `messaging-service → notification-service` (`events:ingest`) çifti tanımlı değil. Bu yüzden relay yazılmadı; olaylar `PENDING` bekler. Alıcı uç ve Auth çifti hazır olunca relay eklenir. Sahiplere bildirilmesi önerilir: notification-service ortak/sahipsiz, Auth'a talep `docs-auth/verilen-cevaplar/messaging-service/` altına yazılır.
+
+#### Test Durumu
+INTEGRATION (gerçek PostgreSQL; `MessageSendTest`: olay tek kez yazılır, içerik taşımaz, alıcılar gönderen dışındaki aktif üyeler, engelli/ret durumunda olay yok). Gerçek teslim: NOT IMPLEMENTED.
 
 ## LFP
 

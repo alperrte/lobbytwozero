@@ -14,7 +14,10 @@ import org.junit.jupiter.api.Test;
 import com.ltz.messaging.IntegrationTestSupport;
 import com.ltz.messaging.domain.entity.Conversation;
 
-/** V131 şeması gerçek PostgreSQL'de: tür/başlık tutarlılığı, birebir tekilliği ve tek aktif sahip DB'de zorlanır. */
+/**
+ * V131/V132 şeması gerçek PostgreSQL'de: tür/başlık tutarlılığı, birebir tekilliği, tek aktif sahip, mesaj sırası ve
+ * istemci kimliği tekilliği DB'de zorlanır.
+ */
 class FlywayMigrationTest extends IntegrationTestSupport {
 
     @Test
@@ -24,8 +27,8 @@ class FlywayMigrationTest extends IntegrationTestSupport {
         List<String> tables = jdbc.queryForList(
                 "select table_name from information_schema.tables where table_schema = 'public'", String.class);
 
-        assertThat(versions).contains("131");
-        assertThat(tables).contains("conversations", "conversation_members");
+        assertThat(versions).contains("131", "132");
+        assertThat(tables).contains("conversations", "conversation_members", "messages", "outbox_events");
     }
 
     @Test
@@ -94,10 +97,32 @@ class FlywayMigrationTest extends IntegrationTestSupport {
         assertThat(activeMemberCount(group)).isZero();
     }
 
+    @Test
+    void mesajSirasiVeIstemciKimligiTekilGovdeBosOlamaz() {
+        UUID group = insertConversation("GROUP", "Takım", null);
+        UUID sender = UUID.randomUUID();
+        insertMessage(group, 1, sender, "c-1", "Merhaba");
+
+        assertThatThrownBy(() -> insertMessage(group, 1, UUID.randomUUID(), "c-2", "Aynı sıra"))
+                .hasMessageContaining("uq_messages_conversation_seq");
+        assertThatThrownBy(() -> insertMessage(group, 2, sender, "c-1", "Aynı istemci kimliği"))
+                .hasMessageContaining("uq_messages_sender_client_message");
+        assertThatThrownBy(() -> insertMessage(group, 3, sender, "c-3", ""))
+                .hasMessageContaining("ck_messages_body");
+        assertThatThrownBy(() -> insertMessage(group, 0, sender, "c-4", "Sıfır"))
+                .hasMessageContaining("ck_messages_seq");
+    }
+
+    private void insertMessage(UUID conversationId, long seq, UUID sender, String clientMessageId, String body) {
+        jdbc.update("insert into messages (id, conversation_id, seq, sender_id, client_message_id, type, body, created_at) "
+                + "values (?, ?, ?, ?, ?, 'TEXT', ?, now())", UUID.randomUUID(), conversationId, seq, sender,
+                clientMessageId, body);
+    }
+
     private UUID insertConversation(String type, String title, String directKey) {
         UUID id = UUID.randomUUID();
-        jdbc.update("insert into conversations (id, type, title, direct_key, created_by, created_at) "
-                + "values (?, ?, ?, ?, ?, now())", id, type, title, directKey, UUID.randomUUID());
+        jdbc.update("insert into conversations (id, type, title, direct_key, created_by, created_at, last_activity_at) "
+                + "values (?, ?, ?, ?, ?, now(), now())", id, type, title, directKey, UUID.randomUUID());
         return id;
     }
 

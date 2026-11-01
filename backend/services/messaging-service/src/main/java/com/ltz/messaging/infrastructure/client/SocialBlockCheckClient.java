@@ -28,7 +28,6 @@ import com.ltz.messaging.infrastructure.config.ServiceClientProperties;
  */
 public class SocialBlockCheckClient implements BlockCheckPort {
 
-    static final String BLOCKS_CHECK_PATH = "/internal/v1/blocks/check";
     static final String SOCIAL_AUDIENCE = "social-service";
     /** Social'in tek çağrıda kabul ettiği en fazla kimlik. */
     static final int MAX_USERS_PER_CALL = 100;
@@ -46,11 +45,13 @@ public class SocialBlockCheckClient implements BlockCheckPort {
 
     private final RestClient restClient;
     private final ServiceTokenPort serviceTokens;
+    private final String blocksCheckPath;
 
     public SocialBlockCheckClient(RestClient.Builder builder, ServiceTokenPort serviceTokens,
                                   ServiceClientProperties properties) {
         this.restClient = builder.clone().baseUrl(properties.socialServiceUrl()).build();
         this.serviceTokens = serviceTokens;
+        this.blocksCheckPath = properties.blocksCheckPath();
     }
 
     @Override
@@ -67,7 +68,7 @@ public class SocialBlockCheckClient implements BlockCheckPort {
         try {
             String token = serviceTokens.tokenFor(SOCIAL_AUDIENCE);
             return restClient.post()
-                    .uri(BLOCKS_CHECK_PATH)
+                    .uri(blocksCheckPath)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(request)

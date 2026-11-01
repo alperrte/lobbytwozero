@@ -95,8 +95,10 @@ public class ConversationService {
         Instant now = now();
         Conversation conversation = conversations.save(Conversation.direct(initiator, other, now));
         List<ConversationMember> pair = members.saveAll(List.of(
-                ConversationMember.join(conversation.getId(), initiator, MemberRole.MEMBER, now),
-                ConversationMember.join(conversation.getId(), other, MemberRole.MEMBER, now)));
+                ConversationMember.join(conversation.getId(), initiator, MemberRole.MEMBER, now,
+                        conversation.nextMessageSeq()),
+                ConversationMember.join(conversation.getId(), other, MemberRole.MEMBER, now,
+                        conversation.nextMessageSeq())));
         return new DirectConversationResult(ConversationMapper.toView(conversation, pair, initiator), true);
     }
 
@@ -104,9 +106,10 @@ public class ConversationService {
         Instant now = now();
         Conversation conversation = conversations.save(Conversation.group(title, owner, now));
         List<ConversationMember> joined = new ArrayList<>();
-        joined.add(ConversationMember.join(conversation.getId(), owner, MemberRole.OWNER, now));
+        long visibleFrom = conversation.nextMessageSeq();
+        joined.add(ConversationMember.join(conversation.getId(), owner, MemberRole.OWNER, now, visibleFrom));
         for (UUID userId : invited) {
-            joined.add(ConversationMember.join(conversation.getId(), userId, MemberRole.MEMBER, now));
+            joined.add(ConversationMember.join(conversation.getId(), userId, MemberRole.MEMBER, now, visibleFrom));
         }
         members.saveAll(joined);
         members.flush();

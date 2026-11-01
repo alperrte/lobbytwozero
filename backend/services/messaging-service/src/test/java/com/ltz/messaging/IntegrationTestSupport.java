@@ -15,6 +15,7 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
@@ -217,6 +218,39 @@ public abstract class IntegrationTestSupport {
     protected ResultActions leave(UUID actor, UUID conversationId) throws Exception {
         return mockMvc.perform(post(MessagingApiPaths.LEAVE, conversationId)
                 .header(HttpHeaders.AUTHORIZATION, bearer(actor)));
+    }
+
+    protected ResultActions sendMessage(UUID sender, UUID conversationId, String clientMessageId, String body)
+            throws Exception {
+        return mockMvc.perform(post(MessagingApiPaths.MESSAGES, conversationId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(sender))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(JsonPath.parse(Map.of("clientMessageId", clientMessageId, "body", body))
+                        .jsonString()));
+    }
+
+    /** Yeni bir istemci kimliğiyle mesaj gönderir (201 beklenir) ve mesajın {@code seq} değerini döner. */
+    protected long send(UUID sender, UUID conversationId, String body) throws Exception {
+        String response = sendMessage(sender, conversationId, UUID.randomUUID().toString(), body)
+                .andReturn().getResponse().getContentAsString();
+        return ((Number) JsonPath.read(response, "$.seq")).longValue();
+    }
+
+    protected ResultActions history(UUID viewer, UUID conversationId, String query) throws Exception {
+        return mockMvc.perform(get(MessagingApiPaths.MESSAGES + query, conversationId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(viewer)));
+    }
+
+    protected ResultActions listConversations(UUID user, String query) throws Exception {
+        return mockMvc.perform(get(MessagingApiPaths.CONVERSATIONS + query)
+                .header(HttpHeaders.AUTHORIZATION, bearer(user)));
+    }
+
+    protected ResultActions markRead(UUID user, UUID conversationId, long seq) throws Exception {
+        return mockMvc.perform(post(MessagingApiPaths.READ, conversationId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"seq\":%d}".formatted(seq)));
     }
 
     // ------------------------------------------------------------ DB gözlemi

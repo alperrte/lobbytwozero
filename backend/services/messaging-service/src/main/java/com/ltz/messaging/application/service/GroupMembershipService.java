@@ -65,7 +65,8 @@ public class GroupMembershipService {
     /**
      * MSG-03. Yetki önce okunur (yetkisiz kişi engel sorgusu tetikleyemez), engel transaction dışında sorulur, sonra
      * kilit altında yetki ve sınır yeniden denetlenip üyeler eklenir. Ayrılmış/çıkarılmış eski üye {@code MEMBER}
-     * olarak geri döner. Zaten aktif olan biri varsa hiçbiri eklenmez.
+     * olarak geri döner. Eklenen üye yalnız eklendikten sonraki mesajları görür. Zaten aktif olan biri varsa hiçbiri
+     * eklenmez.
      */
     public ConversationView addMembers(UUID actor, UUID conversationId, Collection<UUID> userIds) {
         Set<UUID> invited = new LinkedHashSet<>(userIds);
@@ -134,14 +135,16 @@ public class GroupMembershipService {
             throw new MessagingException(MessagingErrorCode.GROUP_MEMBER_LIMIT_REACHED);
         }
         Instant now = now();
+        // Yeni ve geri dönen üye yalnız bundan sonraki mesajları görür (sohbet satırı kilitli: sıra sabit).
+        long visibleFrom = conversation.nextMessageSeq();
         Map<UUID, ConversationMember> former = members.findAllOf(conversationId, invited).stream()
                 .collect(Collectors.toMap(ConversationMember::getUserId, Function.identity()));
         for (UUID userId : invited) {
             ConversationMember previous = former.get(userId);
             if (previous == null) {
-                members.save(ConversationMember.join(conversationId, userId, MemberRole.MEMBER, now));
+                members.save(ConversationMember.join(conversationId, userId, MemberRole.MEMBER, now, visibleFrom));
             } else {
-                previous.rejoin(now);
+                previous.rejoin(now, visibleFrom);
             }
         }
         members.flush();
