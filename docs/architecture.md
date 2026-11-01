@@ -246,7 +246,7 @@ Bir servisteki değişikliğin diğer servisleri **sonradan** etkilemesi gerekti
 | `FriendRequestAccepted` | social | notification | İsteği gönderene "kabul edildi" bildirimi (SOC-13; outbox'a yazılıyor, teslim bekliyor) |
 | `FriendshipChanged` | social | messaging, recommendation, notification | Sohbet izni, arkadaş önerisi (`change`: ADDED/REMOVED; SOC-13) |
 | `UserBlocked` / `UserUnblocked` | social | messaging, lfp, community, notification | Engelleme etkisi (SOC-09/10; outbox'a yazılıyor, teslim bekliyor). Engellenen kullanıcıya bildirim gitmez; notification bu olayla engellenenden bildirim üretmeyi durdurur |
-| `MessageSent` | messaging | notification | Mesaj bildirimi (içerik önizlemesi gizliliğe bağlı) |
+| `MessageSent` | messaging | notification | Mesaj bildirimi; yük içerik/önizleme taşımaz, `recipientIds` taşır (MSG-16; outbox'a yazılıyor, teslim bekliyor — notification'da alıcı uç ve Auth'ta messaging → notification çifti yok) |
 | `PostCreated` / `CommentCreated` / `PostLiked` | community | notification | Topluluk bildirimleri |
 | `ContentPublished` / `ContentRemoved` | content | notification | Haber/duyuru bildirimi |
 | `EventCreated` / `EventUpdated` / `EventCancelled` / `EventReminderDue` | event | notification, mail, recommendation | Hatırlatma, iptal bildirimi |
@@ -379,9 +379,10 @@ stateDiagram-v2
 | Performans oturumu | `ACTIVE → COMPLETED`, `ACTIVE → ABANDONED` | Kapalı oturuma ölçüm eklenmez |
 | Oyun senkronu (game) | `syncStatus`: `PENDING → SYNCED / FAILED / STALE` | `metadataCompleteness`: `INDEX_ONLY → PARTIAL → FULL` |
 
-## 9. Gerçek zamanlı iletişim `[KARAR BEKLİYOR]`
+## 9. Gerçek zamanlı iletişim `[MESAJLAŞMA İÇİN KARAR VERİLDİ — bildirimler KARAR BEKLİYOR]`
 
-- Mesajlaşma (MSG-09) ve bildirimler için WebSocket veya SSE seçilecektir.
+- **Mesajlaşma (MSG-09): SSE seçildi** — [ADR 0001](decisions/0001-gercek-zamanli-mesajlasma.md). `GET /api/v1/messaging/stream`; gönderim POST ile; kayıpsızlık sohbet içi `seq` ve `?after=` eşitlemesiyle. Gateway WebMVC WebSocket proxy'lemediği için WebSocket seçilmedi. Gateway üzerinden canlı akış **NOT VERIFIED**.
+- Bildirimler için WebSocket veya SSE seçilecektir.
   - **WebSocket:** çift yönlü, yazıyor göstergesi/okundu için uygun; Gateway Web MVC üzerinden proxy desteği doğrulanmalıdır.
   - **SSE:** tek yönlü, HTTP üzerinden basit; gönderim normal POST ile yapılır.
 - Karar verilene kadar istemci kısa aralıklı polling ile çalışabilir; karar `docs/decisions/` altına ADR olarak yazılır.

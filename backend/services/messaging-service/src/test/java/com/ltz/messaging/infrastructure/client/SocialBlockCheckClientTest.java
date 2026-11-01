@@ -57,7 +57,7 @@ class SocialBlockCheckClientTest {
 
     private static ServiceClientProperties properties() {
         return new ServiceClientProperties("http://auth-service:8080", "/internal/v1/service-tokens",
-                "messaging-service", "test-only-secret", "http://social-service:8080");
+                "messaging-service", "test-only-secret", "http://social-service:8080", "/internal/v1/blocks/check");
     }
 
     private static String results(String... entries) {
@@ -90,8 +90,9 @@ class SocialBlockCheckClientTest {
         server.expect(once(), requestTo(CHECK_URL)).andRespond(withStatus(HttpStatus.FOUND)
                 .header(HttpHeaders.LOCATION, "http://elsewhere"));
 
+        List<UUID> others = List.of(free);
         for (int i = 0; i < 3; i++) {
-            assertThatThrownBy(() -> client.blockedAmong(user, List.of(free)))
+            assertThatThrownBy(() -> client.blockedAmong(user, others))
                     .isInstanceOf(BlockCheckUnavailableException.class)
                     .hasMessageNotContaining("svc-token");
         }
@@ -109,7 +110,8 @@ class SocialBlockCheckClientTest {
         for (String response : responses) {
             server.reset();
             server.expect(once(), requestTo(CHECK_URL)).andRespond(withSuccess(response, MediaType.APPLICATION_JSON));
-            assertThatThrownBy(() -> client.blockedAmong(user, List.of(blocked, free)))
+            List<UUID> asked = List.of(blocked, free);
+            assertThatThrownBy(() -> client.blockedAmong(user, asked))
                     .isInstanceOf(BlockCheckUnavailableException.class);
         }
     }
@@ -123,7 +125,8 @@ class SocialBlockCheckClientTest {
             throw new ServiceTokenUnavailableException("no secret");
         }, properties());
 
-        assertThatThrownBy(() -> noToken.blockedAmong(user, List.of(free)))
+        List<UUID> others = List.of(free);
+        assertThatThrownBy(() -> noToken.blockedAmong(user, others))
                 .isInstanceOf(BlockCheckUnavailableException.class)
                 .hasCauseInstanceOf(ServiceTokenUnavailableException.class);
         silent.verify();

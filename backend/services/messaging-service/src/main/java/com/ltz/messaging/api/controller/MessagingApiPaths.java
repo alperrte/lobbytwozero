@@ -12,6 +12,9 @@ public final class MessagingApiPaths {
     public static final String MEMBER = MEMBERS + "/{userId}";
     public static final String MEMBER_ROLE = MEMBER + "/role";
     public static final String LEAVE = CONVERSATION + "/leave";
+    public static final String MESSAGES = CONVERSATION + "/messages";
+    public static final String READ = CONVERSATION + "/read";
+    public static final String STREAM = BASE + "/stream";
 
     private MessagingApiPaths() {
     }

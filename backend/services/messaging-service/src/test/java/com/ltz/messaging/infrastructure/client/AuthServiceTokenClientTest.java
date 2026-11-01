@@ -47,7 +47,8 @@ class AuthServiceTokenClientTest {
 
     private AuthServiceTokenClient client(String secret) {
         return new AuthServiceTokenClient(builder, clock, new ServiceClientProperties("http://auth-service:8080",
-                "/internal/v1/service-tokens", "messaging-service", secret, "http://social-service:8080"));
+                "/internal/v1/service-tokens", "messaging-service", secret, "http://social-service:8080",
+                "/internal/v1/blocks/check"));
     }
 
     private static String token(String value, long expiresIn) {
@@ -102,9 +103,11 @@ class AuthServiceTokenClientTest {
     void gizliAnahtarYoksaAuthCagrilmaz() {
         server.expect(never(), requestTo(TOKEN_URL));
 
-        assertThatThrownBy(() -> client("").tokenFor("social-service"))
+        AuthServiceTokenClient emptySecret = client("");
+        AuthServiceTokenClient noSecret = client(null);
+        assertThatThrownBy(() -> emptySecret.tokenFor("social-service"))
                 .isInstanceOf(ServiceTokenUnavailableException.class);
-        assertThatThrownBy(() -> client(null).tokenFor("social-service"))
+        assertThatThrownBy(() -> noSecret.tokenFor("social-service"))
                 .isInstanceOf(ServiceTokenUnavailableException.class);
         server.verify();
     }
@@ -127,7 +130,7 @@ class AuthServiceTokenClientTest {
     @Test
     void ozellikMetniGizliAnahtariGostermez() {
         assertThat(new ServiceClientProperties("http://auth-service:8080", "/t", "messaging-service", SECRET,
-                "http://social-service:8080").toString()).doesNotContain(SECRET);
+                "http://social-service:8080", "/internal/v1/blocks/check").toString()).doesNotContain(SECRET);
     }
 
     private static final class MutableClock extends Clock {

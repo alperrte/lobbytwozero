@@ -16,6 +16,15 @@
 - **Hesap silme iç ucu yok.** Auth silme hedeflerinde `messaging` var; `DELETE /internal/v1/accounts/{accountId}` henüz
   yazılmadı (`/internal/**` şu an kapalı, 401). Messaging artık kişisel veri (üyelik) tuttuğu için ayrı görev olarak
   yazılmalı (docs-auth/d4-ekip-notlari/02_UMUT_social_messaging_lfp.md §4).
-- **Oran sınırı yok.** Sohbet açma/grup kurma için kullanıcı başı oran sınırı (SECURITY.md §12) bu görevde eklenmedi.
+- **Oran sınırı.** Mesaj gönderimi kullanıcı başına dakikada 30 ile sınırlı (LTZ-UMT-MSG-02, DB sayımı, 429).
+  Sohbet açma/grup kurma için oran sınırı hâlâ yok (SECURITY.md §12).
+- **Gerçek zamanlı akış (SSE, ADR 0001).** Akış token bitişinde kapanır (askıya alınan hesap en geç token ömrü kadar
+  akış alır). Kayıt bellektedir: tek örnek varsayımı. Gateway WebMVC üzerinden canlı akış ve 4 sn kalp atışının 5 sn
+  proxy okuma zaman aşımını aştığı **NOT VERIFIED**. `SecurityConfig` `ASYNC` dispatch'e izin verir (yalnız zaten
+  doğrulanmış SSE isteğinin devamı; yeni istek değildir).
+- **Mesaj içeriği.** Loglanmaz; `MessageSent` outbox olayı içerik/önizleme taşımaz. Gövde düz metin olarak saklanır,
+  sunucu HTML temizlemez — istemci düz metin göstermelidir (web-rules: `dangerouslySetInnerHTML` yok).
+- **Bildirim teslimi yok.** `MessageSent` olayları `PENDING` birikir (relay yok; notification ucu ve Auth çifti yok).
+  Saklama/temizlik görevi de yok — relay eklenirken birlikte ele alınmalı.
 - ProblemDetail `instance` alanı istenen yolu taşır (Spring varsayılanı, social ile aynı); `detail`/`code` gönderilen
   değeri yansıtmaz.

@@ -127,6 +127,7 @@ Servis klasör adı her zaman `<ad>-service` biçimindedir; Java base package `c
    │  │     ├─ storage/                 # [yalnız dosya depolayan servislerde: user] MediaStoragePort adaptörü, görsel işleme
    │  │     ├─ messaging/outbox/        # outbox_events yazımı + relay
    │  │     ├─ messaging/inbox/         # POST /internal/events alımı, inbox_events dedup
+   │  │     ├─ messaging/realtime/      # [yalnız messaging] SSE akış kaydı (ADR 0001)
    │  │     ├─ persistence/repository/  # Spring Data JPA repository'leri
    │  │     └─ security/                # Servis içi güvenlik (kimlik başlığı, rol kontrolü)
    │  └─ resources/

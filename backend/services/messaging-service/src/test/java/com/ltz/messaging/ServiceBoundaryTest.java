@@ -24,6 +24,7 @@ class ServiceBoundaryTest {
     private static final Pattern FOREIGN_IMPORT = Pattern.compile(
             "^import\\s+(?:static\\s+)?com\\.ltz\\.(?!messaging\\.)", Pattern.MULTILINE);
     private static final Pattern DATABASE_NAME = Pattern.compile("\\b([a-z]+_db)\\b");
+    private static final Pattern SQL_LINE_COMMENT = Pattern.compile("(?m)--.*$");
 
     @Test
     void kaynakKodBaskaServisinPaketlerineBagimliDegil() throws IOException {
@@ -57,7 +58,7 @@ class ServiceBoundaryTest {
         Pattern reference = Pattern.compile("(?i)\\breferences\\s+(\\w+)");
         try (Stream<Path> migrations = Files.list(MAIN_RESOURCES.resolve("db/migration"))) {
             for (Path migration : migrations.filter(path -> path.toString().endsWith(".sql")).toList()) {
-                String sql = Files.readString(migration).replaceAll("(?m)--.*$", "");
+                String sql = SQL_LINE_COMMENT.matcher(Files.readString(migration)).replaceAll("");
                 assertThat(foreignTable.matcher(sql).find())
                         .as("%s başka servisin tablosuna dokunmamalı", migration.getFileName())
                         .isFalse();
