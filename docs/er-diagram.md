@@ -644,14 +644,19 @@ erDiagram
   conversations {
     uuid id PK
     varchar type "DIRECT|GROUP"
-    varchar direct_key UK
+    varchar title "yalnız GROUP, 1-100"
+    varchar direct_key UK "yalnız DIRECT"
     uuid created_by "REF"
+    timestamptz created_at
+    bigint version
   }
   conversation_members {
     uuid conversation_id PK,FK
     uuid user_id PK "REF"
-    varchar role "OWNER|ADMIN|MEMBER"
-    timestamptz left_at
+    varchar role "OWNER|ADMIN|MEMBER; aktif tek OWNER"
+    timestamptz joined_at
+    timestamptz left_at "dolu: ayrıldı/çıkarıldı"
+    uuid removed_by "REF"
   }
   messages {
     uuid id PK

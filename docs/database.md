@@ -272,8 +272,8 @@ oluşturulmadı; GAME-24 sağlayıcı izni/erişimi bekler.
 
 | Tablo | Önemli sütunlar | Kısıtlar / not |
 | --- | --- | --- |
-| `conversations` | id, type (DIRECT, GROUP), title, direct_key, created_by REF, created_at | UQ direct_key (birebir sohbet tekilliği: sıralı iki userId) |
-| `conversation_members` | conversation_id FK, user_id REF, role (OWNER, ADMIN, MEMBER), joined_at, left_at, removed_by REF, last_read_message_id | PK (conversation_id, user_id) |
+| `conversations` | id, type (DIRECT, GROUP), title, direct_key, created_by REF, created_at, version | UQ direct_key (birebir sohbet tekilliği: PostgreSQL uuid sırasıyla `küçük:büyük` iki userId); CHECK (type='DIRECT') = (direct_key dolu); CHECK title yalnız GROUP'ta ve 1–100 karakter — **V131 ile uygulandı** |
+| `conversation_members` | conversation_id FK (ON DELETE CASCADE), user_id REF, role (OWNER, ADMIN, MEMBER), joined_at, left_at, removed_by REF | PK (conversation_id, user_id); ayrılan/çıkarılan üyenin satırı kalır (`left_at`, çıkarıldıysa `removed_by`), yeniden eklenince aynı satır `MEMBER` olarak döner; CHECK left_at ≥ joined_at, removed_by yalnız left_at doluyken; aktif tek sahip: partial UQ (conversation_id) WHERE role='OWNER' AND left_at IS NULL (`uq_conversation_members_active_owner`); ix (user_id, conversation_id) WHERE left_at IS NULL — **V131 ile uygulandı**. `last_read_message_id` okundu bilgisi görevinde (MSG-11/13) eklenecek |
 | `messages` | id, conversation_id FK, sender_id REF, client_message_id, type (TEXT, IMAGE, GIF, VOICE), body, reply_to_id FK, forwarded_from_id FK, deleted_for_everyone_at, created_at, edited_at | **UQ (sender_id, client_message_id)**; ix (conversation_id, created_at desc) |
 | `message_attachments` | id, message_id FK, storage_key, mime_type, size_bytes, width, height | CHECK size_bytes ≤ 1048576 |
 | `message_reactions` | message_id FK, user_id REF, emoji | PK (message_id, user_id, emoji) |

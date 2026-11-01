@@ -1,6 +1,6 @@
 # LTZ — API Kataloğu
 
-> Son güncelleme: 2026-10-31
+> Son güncelleme: 2026-11-01
 > Bu dosya projedeki **tüm API'lerin tek kaydıdır**. Bir endpoint planlandığında, eklendiğinde, değiştiğinde veya kaldırıldığında, aynı değişiklikte buraya kendi servisinin başlığı altında yazılır.
 > İlgili belgeler: [architecture.md](architecture.md) (gateway ve servisler arası iletişim), [SECURITY.md](SECURITY.md) (yetkilendirme, ProblemDetail), [web-rules.md](web-rules.md) (frontend tüketimi).
 
@@ -4778,7 +4778,7 @@ Frontend:
 -
 
 Diğer mikroservisler:
-messaging-service ve lfp-service Auth'tan `POST /internal/v1/service-tokens` ile (`audience: "social-service"`) 60 sn'lik token alıp bu ucu `${SOCIAL_SERVICE_URL}/internal/v1/blocks/check` adresinde çağırır. Tüketici servislerin tarafı iskelet olduğundan uçtan uca çağrı **NOT VERIFIED**.
+messaging-service ve lfp-service Auth'tan `POST /internal/v1/service-tokens` ile (`audience: "social-service"`) 60 sn'lik token alıp bu ucu `${SOCIAL_SERVICE_URL}/internal/v1/blocks/check` adresinde çağırır. messaging-service istemcisi (`SocialBlockCheckClient`, LTZ-UMT-MSG-01) yazıldı ve MockRestServiceServer ile testli; lfp-service tarafı iskelet. Gerçek Auth token'ıyla uçtan uca çağrı **NOT VERIFIED**.
 
 #### Test Durumu
 UNIT + INTEGRATION (gerçek PostgreSQL; `BlocksCheckTest` 13 test: iki yön, engel kaldırma, başkasının engeli, yinelenen kimlik, 100/101 sınırı, geçersiz gövde, kimlik/kapsam/çağıran/`aud`/`iss`/`typ` ihlalleri). Gerçek Auth token'ıyla uçtan uca: NOT VERIFIED.
@@ -4860,7 +4860,310 @@ UNIT + INTEGRATION (gerçek PostgreSQL; social-service 218 test PASS; `Community
 
 Sorumlu: Umut · Gateway: `/api/v1/messaging/**` · Görevler: MSG-
 
-_Kayıt yok._
+Ortak kurallar (aşağıdaki yedi uç için, görev LTZ-UMT-MSG-01 / MSG-01..05, MSG-14, MSG-15):
+- Tüm uçlar `Authorization: Bearer <access token>` (kullanıcı token'ı, `typ=at+jwt`) ister; Gateway tarayıcı çerezini Bearer'a çevirir. Token servis tarafında Auth'un JWKS anahtarıyla yeniden doğrulanır (RS256, `iss`, `aud`, `typ=at+jwt`, `exp`/`nbf`/`iat`/`sub` zorunlu, 30 sn saat payı). Servis token'ı (`svc+jwt`) bu uçlarda geçmez. Messaging'in henüz iç (`/internal/**`) ucu yoktur; bu yollar kapalıdır.
+- `userId` yalnız token'ın `sub` alanından alınır; gövde/başlıktaki kimlik (`senderId`, `ownerId`, `X-User-Id` vb.) güvenilmez: gövdedeki bilinmeyen alan `400`, başlıklar yok sayılır.
+- Kimliksiz/geçersiz token `401 UNAUTHENTICATED`. Hata gövdesi `ProblemDetail` + `code`; doğrulama hatalarında `errors: [{field, code}]` döner, gönderilen değer geri yansıtılmaz. İstek gövdesi en fazla 8 KB (`413 PAYLOAD_TOO_LARGE`).
+- **Erişim (MSG-14):** Sohbete yalnız **aktif üyesi** erişir. Hiç üye olmamış, ayrılmış ya da çıkarılmış kullanıcı ile var olmayan sohbet **aynı** `404 CONVERSATION_NOT_FOUND` alır (sohbetin varlığı ve türü sızdırılmaz). Yazma (mesaj uçları MSG-02 görevinde) ayrıca birebir sohbette iki taraf arasında engel olmamasını ister.
+- **Engel (MSG-15):** Engel verisi social-service'tedir; Messaging saklamaz, her etkileşimde `POST /internal/v1/blocks/check` ile sorar. İki kullanıcı arasında **herhangi bir yönde** engel varsa: birebir sohbet açılamaz (yeni ya da mevcut), engelli kişi gruba eklenemez (grup kurarken de) → `403 MESSAGING_NOT_ALLOWED` (engelin yönü ve hangi kişide olduğu söylenmez). Grupta yalnız **ekleyen ↔ eklenen** çifti denetlenir; mevcut grup üyeliği engelden etkilenmez. Engel durumu öğrenilemezse (Auth gizli anahtarı yok, Auth/Social ulaşılamaz ya da yanıt eksik) işlem **fail-closed** `503 BLOCK_CHECK_UNAVAILABLE` ile reddedilir.
+- **Roller:** Birebir sohbette iki taraf da `MEMBER`'dır. Grupta tek `OWNER` (oluşturan) vardır; `OWNER` ve `ADMIN` üye ekler, `OWNER` herkesi, `ADMIN` yalnız `MEMBER`'ı çıkarır; rolü yalnız `OWNER` değiştirir. Grup işlemleri birebir sohbette `409 GROUP_CONVERSATION_REQUIRED`.
+- Grup en fazla **100 üye** (sahip dahil, `ltz.messaging.groups.max-members`). Kullanıcıların varlığı doğrulanmaz (user-service ucu yok — **PENDING**); kimlikler yalnız UUID (REF) olarak saklanır.
+- Sohbet kaynağı (`Conversation`) tek tip yanıt döner:
+  ```json
+  {
+    "id": "UUID",
+    "type": "DIRECT | GROUP",
+    "title": "string (yalnız GROUP) veya null",
+    "createdBy": "UUID",
+    "createdAt": "ISO-8601 (UTC)",
+    "myRole": "OWNER | ADMIN | MEMBER (isteyen kullanıcının rolü)",
+    "members": [ { "userId": "UUID", "role": "OWNER | ADMIN | MEMBER", "joinedAt": "ISO-8601 (UTC)" } ]
+  }
+  ```
+  `members` yalnız aktif üyelerdir, katılma sırasıyla. Ad/avatar user-service'tedir.
+
+### MESSAGING — Birebir sohbet aç (MSG-01)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend (ileride LFP-16 "ilan sahibiyle iletişim" bu uca yönlendirir)
+
+#### Endpoint
+POST /api/v1/messaging/conversations/direct
+
+#### Yetkilendirme
+Authenticated (açan = token sahibi)
+
+#### Request Body
+```json
+{
+  "userId": "UUID, zorunlu — karşı taraf"
+}
+```
+
+#### Response — 201 / 200
+`Conversation` (`type: DIRECT`, `title: null`, iki üye). İki kullanıcı arasında sohbet yoksa oluşturulur (**201**), varsa aynı sohbet döner (**200**); yön önemli değildir (A→B ve B→A aynı sohbet). Eşzamanlı açılışlar tek sohbette buluşur (çift advisory kilidi + `uq_conversations_direct_key`). Arkadaşlık şartı yoktur; yalnız engel denetlenir.
+
+#### Hata Durumları
+- 400: `userId` eksik/biçimsiz, tanımsız alan (`VALIDATION_FAILED`, `MALFORMED_REQUEST`); kendisiyle sohbet (`CANNOT_MESSAGE_SELF`)
+- 401: Kimlik yok/geçersiz (`UNAUTHENTICATED`)
+- 403: Aralarında herhangi bir yönde engel var (`MESSAGING_NOT_ALLOWED`; mevcut sohbet de açılmaz)
+- 413: İstek gövdesi çok büyük
+- 503: Engel durumu öğrenilemedi (`BLOCK_CHECK_UNAVAILABLE`); sohbet oluşturulmaz
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/messaging/conversations/direct
+
+Diğer mikroservisler:
+social-service `POST /internal/v1/blocks/check` (RestClient). Token: Auth `POST /internal/v1/service-tokens` (`clientId: "messaging-service"`, `audience: "social-service"`, `scope=blocks:check`, 60 sn); gizli anahtar `AUTH_MESSAGING_SERVICE_CLIENT_SECRET`.
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 80 test PASS; engel Social yerine test adaptörüyle, gerçek Social istemcisi MockRestServiceServer ile). Gerçek Auth + Social ile uçtan uca: NOT VERIFIED.
+
+### MESSAGING — Grup sohbeti oluştur (MSG-02)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/messaging/conversations/groups
+
+#### Yetkilendirme
+Authenticated (oluşturan = token sahibi, `OWNER` olur)
+
+#### Request Body
+```json
+{
+  "title": "string, zorunlu, 1–100 karakter, kontrol karakteri yok (baş/son boşluk kırpılır)",
+  "memberIds": ["UUID", "... en az 1, en fazla 99; oluşturan dışındaki ilk üyeler"]
+}
+```
+Yinelenen kimlikler tek sayılır.
+
+#### Response — 201
+`Conversation` (`type: GROUP`, `myRole: OWNER`, diğer üyeler `MEMBER`).
+
+#### Hata Durumları
+- 400: Boş/uzun/kontrol karakterli başlık, boş ya da 99'dan uzun liste, `null`/biçimsiz kimlik, tanımsız alan (`VALIDATION_FAILED`, `MALFORMED_REQUEST`); oluşturan listede (`CANNOT_ADD_SELF`)
+- 401: Kimlik yok/geçersiz
+- 403: Oluşturan ile listedeki biri arasında engel var (`MESSAGING_NOT_ALLOWED`; hiçbir kayıt oluşmaz)
+- 409: Üye sınırı aşılıyor (`GROUP_MEMBER_LIMIT_REACHED`; sınır 100'den küçük yapılandırılırsa)
+- 413: İstek gövdesi çok büyük
+- 503: Engel durumu öğrenilemedi (`BLOCK_CHECK_UNAVAILABLE`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/messaging/conversations/groups
+
+Diğer mikroservisler:
+social-service engel sorgusu (oluşturan ↔ tüm ilk üyeler, tek toplu çağrı).
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 80 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED.
+
+### MESSAGING — Sohbet detayı (MSG-14)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/messaging/conversations/{conversationId}
+
+#### Yetkilendirme
+Authenticated + sohbetin aktif üyesi
+
+#### Path Parameters
+- conversationId: UUID, zorunlu
+
+#### Response — 200
+`Conversation` (isteyenin rolü `myRole`'de).
+
+#### Hata Durumları
+- 400: Geçersiz `conversationId` (`MALFORMED_REQUEST`)
+- 401: Kimlik yok/geçersiz
+- 404: Sohbet yok **ya da** aktif üyesi değilsiniz (ayrıldınız/çıkarıldınız) — aynı yanıt (`CONVERSATION_NOT_FOUND`)
+- 500: Beklenmeyen sunucu hatası
+
+Engel sorgusu yapılmaz (Social'a bağımlı değildir).
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/messaging/conversations/{conversationId}
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 80 test PASS)
+
+### MESSAGING — Gruba üye ekle (MSG-03)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/messaging/conversations/{conversationId}/members
+
+#### Yetkilendirme
+Authenticated + grubun aktif `OWNER` ya da `ADMIN`'i
+
+#### Path Parameters
+- conversationId: UUID, zorunlu
+
+#### Request Body
+```json
+{
+  "userIds": ["UUID", "... en az 1, en fazla 99"]
+}
+```
+
+#### Response — 200
+Güncel `Conversation`. Yeni üyeler `MEMBER` olur. Daha önce ayrılmış/çıkarılmış kullanıcı yeniden eklenebilir; eski rolü geri gelmez (`MEMBER`), katılma zamanı yenilenir. İstek hep-ya-hiç işlenir.
+
+Sıra: yetki önce denetlenir (üye olmayan ya da yetkisiz kişi engel sorgusu tetikleyemez) → engel sorgusu (ekleyen ↔ eklenenler) → sohbet satırı kilitlenip yetki, mevcut üyelik ve sınır yeniden denetlenir → kayıt.
+
+#### Hata Durumları
+- 400: Liste boş/99'dan uzun, biçimsiz kimlik (`VALIDATION_FAILED`, `MALFORMED_REQUEST`); kendinizi eklemek (`CANNOT_ADD_SELF`)
+- 401: Kimlik yok/geçersiz
+- 403: Rolünüz `MEMBER` (`INSUFFICIENT_GROUP_ROLE`); siz ile eklenen biri arasında engel var (`MESSAGING_NOT_ALLOWED`)
+- 404: Sohbet yok ya da aktif üyesi değilsiniz (`CONVERSATION_NOT_FOUND`)
+- 409: Birebir sohbet (`GROUP_CONVERSATION_REQUIRED`); listedeki biri zaten aktif üye (`ALREADY_MEMBER`, hiçbiri eklenmez); 100 üye sınırı aşılıyor (`GROUP_MEMBER_LIMIT_REACHED`)
+- 413: İstek gövdesi çok büyük
+- 503: Engel durumu öğrenilemedi (`BLOCK_CHECK_UNAVAILABLE`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/messaging/conversations/{conversationId}/members
+
+Diğer mikroservisler:
+social-service engel sorgusu (tek toplu çağrı).
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 80 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED.
+
+### MESSAGING — Gruptan üye çıkar (MSG-05)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+DELETE /api/v1/messaging/conversations/{conversationId}/members/{userId}
+
+#### Yetkilendirme
+Authenticated + yetkili grup yöneticisi: `OWNER` herkesi (kendisi hariç), `ADMIN` yalnız `MEMBER`'ı çıkarır.
+
+#### Path Parameters
+- conversationId: UUID, zorunlu
+- userId: UUID, zorunlu — çıkarılacak üye
+
+#### Response — 204
+Gövde yok. Üyelik satırı silinmez; `left_at` ve `removed_by` dolar, çıkarılanın sohbete erişimi hemen biter (sonraki isteklerinde `404`).
+
+#### Hata Durumları
+- 400: Geçersiz kimlik (`MALFORMED_REQUEST`); kendinizi çıkarmak (`CANNOT_REMOVE_SELF` — ayrılma ucunu kullanın)
+- 401: Kimlik yok/geçersiz
+- 403: Rolünüz bu üyeyi çıkarmaya yetmiyor (`INSUFFICIENT_GROUP_ROLE`: `MEMBER` kimseyi, `ADMIN` `ADMIN`/`OWNER`'ı çıkaramaz)
+- 404: Sohbet yok ya da aktif üyesi değilsiniz (`CONVERSATION_NOT_FOUND`); hedef aktif üye değil (`MEMBER_NOT_FOUND`)
+- 409: Birebir sohbet (`GROUP_CONVERSATION_REQUIRED`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/messaging/conversations/{conversationId}/members/{userId}
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 80 test PASS)
+
+### MESSAGING — Üye rolünü değiştir (MSG-03)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+PUT /api/v1/messaging/conversations/{conversationId}/members/{userId}/role
+
+#### Yetkilendirme
+Authenticated + grubun `OWNER`'ı
+
+#### Path Parameters
+- conversationId: UUID, zorunlu
+- userId: UUID, zorunlu — rolü değişecek üye
+
+#### Request Body
+```json
+{
+  "role": "ADMIN | MEMBER, zorunlu"
+}
+```
+`OWNER` bu uçla atanamaz (sahiplik yalnız sahip ayrılınca devredilir).
+
+#### Response — 200
+Güncel `Conversation`. Aynı rolü yeniden göndermek yan etkisizdir.
+
+#### Hata Durumları
+- 400: Eksik/bilinmeyen rol (`VALIDATION_FAILED`, `MALFORMED_REQUEST`); `OWNER` istendi (`ROLE_NOT_ASSIGNABLE`); kendi rolünüz (`CANNOT_CHANGE_OWN_ROLE`)
+- 401: Kimlik yok/geçersiz
+- 403: Sahip değilsiniz (`INSUFFICIENT_GROUP_ROLE`)
+- 404: Sohbet yok ya da aktif üyesi değilsiniz (`CONVERSATION_NOT_FOUND`); hedef aktif üye değil (`MEMBER_NOT_FOUND`)
+- 409: Birebir sohbet (`GROUP_CONVERSATION_REQUIRED`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/messaging/conversations/{conversationId}/members/{userId}/role
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 80 test PASS)
+
+### MESSAGING — Gruptan ayrıl (MSG-04)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/messaging/conversations/{conversationId}/leave
+
+#### Yetkilendirme
+Authenticated + grubun aktif üyesi
+
+#### Path Parameters
+- conversationId: UUID, zorunlu
+
+#### Response — 204
+Gövde yok. Ayrılanın erişimi biter (`left_at` dolar). **Sahip ayrılırsa** sahiplik aynı işlemde en eski `ADMIN`'e, `ADMIN` yoksa en eski üyeye geçer (katılma zamanı, eşitlikte kullanıcı kimliği). Son üye de ayrılırsa grup boş kalır ve kimse erişemez.
+
+#### Hata Durumları
+- 400: Geçersiz `conversationId` (`MALFORMED_REQUEST`)
+- 401: Kimlik yok/geçersiz
+- 404: Sohbet yok ya da aktif üyesi değilsiniz — ikinci ayrılma da `404` (`CONVERSATION_NOT_FOUND`)
+- 409: Birebir sohbetten ayrılınmaz (`GROUP_CONVERSATION_REQUIRED`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/messaging/conversations/{conversationId}/leave
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 80 test PASS)
 
 ## LFP
 
