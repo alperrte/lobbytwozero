@@ -312,6 +312,9 @@ services:
     environment:
       <<: *ltz-db-env
       DB_MESSAGING_NAME: ${DB_MESSAGING_NAME:?}
+      # Engel sorgusu (MSG-15) için Auth'tan social-service servis token'ı alma gizli anahtarı; boşsa sohbet açma ve
+      # gruba ekleme fail-closed 503 döner.
+      AUTH_MESSAGING_SERVICE_CLIENT_SECRET: ${AUTH_MESSAGING_SERVICE_CLIENT_SECRET:-}
     depends_on:
       postgres:
         condition: service_healthy

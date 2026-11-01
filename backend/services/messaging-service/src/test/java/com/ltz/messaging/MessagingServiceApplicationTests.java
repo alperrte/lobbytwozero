@@ -1,13 +1,11 @@
 package com.ltz.messaging;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
-class MessagingServiceApplicationTests {
+class MessagingServiceApplicationTests extends IntegrationTestSupport {
 
-	@Test
-	void contextLoads() {
-	}
+    @Test
+    void contextLoads() {
+    }
 
 }
