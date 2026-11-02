@@ -4,7 +4,7 @@
 # LTZ - DERLEME ASAMASI
 # ==========================================
 
-FROM maven:3.9-eclipse-temurin-25 AS build
+FROM maven:3.9-eclipse-temurin-26 AS build
 
 ARG SERVICE_NAME
 
