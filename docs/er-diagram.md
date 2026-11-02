@@ -635,9 +635,9 @@ erDiagram
 erDiagram
   conversations ||--o{ conversation_members : includes
   conversations ||--o{ messages : contains
+  conversations ||--o{ message_read_ranges : "read ranges"
   messages ||--o{ message_attachments : attaches
   messages ||--o{ message_reactions : reacted
-  messages ||--o{ message_reads : "read by"
   messages ||--o{ message_hidden_for_users : "hidden for"
   messages |o--o{ messages : "reply_to / forwarded_from"
 
@@ -683,10 +683,13 @@ erDiagram
     uuid user_id PK "REF"
     varchar emoji PK
   }
-  message_reads {
-    uuid message_id PK,FK
-    uuid user_id PK "REF"
-    timestamptz read_at
+  message_read_ranges {
+    uuid id PK
+    uuid conversation_id FK "ON DELETE CASCADE"
+    uuid user_id "REF"
+    bigint from_seq "CHECK >= 1"
+    bigint to_seq "CHECK from_seq <= to_seq"
+    timestamptz read_at "aralığın okunma saati"
   }
   message_hidden_for_users {
     uuid message_id PK,FK

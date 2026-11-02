@@ -5,6 +5,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -18,6 +19,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.ltz.messaging.application.port.MessageStreamPort;
 import com.ltz.messaging.application.service.MessageView;
+import com.ltz.messaging.application.service.ReadReceiptView;
+import com.ltz.messaging.domain.enums.ReadStatus;
 import com.ltz.messaging.domain.exception.MessagingErrorCode;
 import com.ltz.messaging.domain.exception.MessagingException;
 import com.ltz.messaging.infrastructure.config.StreamProperties;
@@ -36,6 +39,7 @@ public class SseMessageHub implements MessageStreamPort {
 
     static final String MESSAGE_EVENT = "message";
     static final String READY_EVENT = "ready";
+    static final String READ_EVENT = "read";
     /** Token bitişine çok yakın açılan akış hemen kapanmasın diye en kısa ömür. */
     static final Duration MIN_LIFETIME = Duration.ofSeconds(5);
 
@@ -75,13 +79,12 @@ public class SseMessageHub implements MessageStreamPort {
 
     @Override
     public void publish(Collection<UUID> recipients, MessageView message) {
-        try {
-            executor.execute(() -> deliver(recipients, message));
-        } catch (RejectedExecutionException _) {
-            // Kuyruk dolu: alıcıların akışları kapanır, istemciler yeniden bağlanıp geçmişten eşitlenir (mesaj kaybolmaz).
-            log.warn("Realtime dispatch queue is full; closing affected streams");
-            recipients.forEach(this::closeAll);
-        }
+        dispatch(recipients, () -> deliver(recipients, message));
+    }
+
+    @Override
+    public void publishReadReceipt(UUID recipient, ReadReceiptView receipt) {
+        dispatch(List.of(recipient), () -> deliverReadReceipt(recipient, receipt));
     }
 
     /** Aradaki proxy'lerin okuma zaman aşımına karşı boş yorum satırı gönderir. */
@@ -97,17 +100,41 @@ public class SseMessageHub implements MessageStreamPort {
         return open == null ? 0 : open.size();
     }
 
+    private void dispatch(Collection<UUID> recipients, Runnable delivery) {
+        try {
+            executor.execute(delivery);
+        } catch (RejectedExecutionException _) {
+            // Kuyruk dolu: alıcıların akışları kapanır, istemciler yeniden bağlanıp geçmişten eşitlenir (mesaj kaybolmaz).
+            log.warn("Realtime dispatch queue is full; closing affected streams");
+            recipients.forEach(this::closeAll);
+        }
+    }
+
     private void deliver(Collection<UUID> recipients, MessageView message) {
         for (UUID recipient : recipients) {
             Set<SseEmitter> open = streams.get(recipient);
             if (open == null) {
                 continue;
             }
+            // Okundu durumu yalnız göndericinin kendi akışlarına gider (MSG-11); diğerlerinde alan null kalır.
+            MessageView payload = recipient.equals(message.senderId())
+                    ? message.withReadStatus(ReadStatus.SENT) : message;
             for (SseEmitter emitter : open) {
                 send(recipient, emitter, SseEmitter.event().name(MESSAGE_EVENT)
                         .id(message.conversationId() + ":" + message.seq())
-                        .data(message, MediaType.APPLICATION_JSON));
+                        .data(payload, MediaType.APPLICATION_JSON));
             }
+        }
+    }
+
+    /** Okundu olayı {@code id} taşımaz: tekilleştirme gerekmez, istemci gelen en büyük değeri uygular. */
+    private void deliverReadReceipt(UUID recipient, ReadReceiptView receipt) {
+        Set<SseEmitter> open = streams.get(recipient);
+        if (open == null) {
+            return;
+        }
+        for (SseEmitter emitter : open) {
+            send(recipient, emitter, SseEmitter.event().name(READ_EVENT).data(receipt, MediaType.APPLICATION_JSON));
         }
     }
 

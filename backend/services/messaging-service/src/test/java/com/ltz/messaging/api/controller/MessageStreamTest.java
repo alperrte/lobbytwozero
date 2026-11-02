@@ -56,6 +56,21 @@ class MessageStreamTest extends IntegrationTestSupport {
     }
 
     @Test
+    void okunduDurumuYalnizGondericininAkisinaGider() throws Exception {
+        UUID alice = newUser();
+        UUID bob = newUser();
+        UUID direct = openDirectAndGetId(alice, bob);
+        MvcResult bobStream = openStream(bob);
+        MvcResult aliceStream = openStream(alice);
+
+        send(alice, direct, "Durumlu");
+
+        await().atMost(WAIT).untilAsserted(() -> assertThat(content(aliceStream)).contains("\"readStatus\":\"SENT\""));
+        await().atMost(WAIT).untilAsserted(() -> assertThat(content(bobStream)).contains("Durumlu"));
+        assertThat(content(bobStream)).doesNotContain("\"readStatus\":\"");
+    }
+
+    @Test
     void cikarilanUyeYeniMesajiAlmaz() throws Exception {
         UUID owner = newUser();
         UUID removed = newUser();

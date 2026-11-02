@@ -28,3 +28,18 @@
   Saklama/temizlik görevi de yok — relay eklenirken birlikte ele alınmalı.
 - ProblemDetail `instance` alanı istenen yolu taşır (Spring varsayılanı, social ile aynı); `detail`/`code` gönderilen
   değeri yansıtmaz.
+- **Okundu bilgisi gizliliği (LTZ-UMT-MSG-03, MSG-11/12).** Kimin okuduğunu yalnız mesajın göndereni görür:
+  `GET .../messages/{messageId}/reads` gönderen dışındaki aktif üyeye `403 NOT_MESSAGE_SENDER` verir. Sıra: üyelik
+  (404 `CONVERSATION_NOT_FOUND`) → mesaj bu sohbette ve üyeye görünür (404 `MESSAGE_NOT_FOUND`) → gönderen (403);
+  böylece gönderen olmayan biri, başka sohbetin ya da katılımından önceki bir mesajın varlığını öğrenemez (var olan ile
+  olmayan aynı 404). `readStatus` alanı yalnız isteyenin kendi mesajında doludur, başkasında `null`.
+- **SSE `read` olayı kırpması.** Olay yalnız okunan aralıkta mesajı olan, hâlâ aktif göndericiye gider ve alıcının kendi
+  mesajlarıyla kırpılır (`readUpToSeq`, `allReadUpToSeq`); ham işaretçi, ham su seviyesi ve içerik taşımaz. Aksi hâlde A,
+  R'nin B'nin mesajını okuduğunu öğrenirdi. Yeni katılan okuyucunun aralığı görebildiği ilk mesaja kırpılır (görmediği
+  mesajlar için alıcıya olay gitmez). Kanıt: `ReadReceiptStreamTest` (A seq 5, B seq 9, R `(0, 9]` okur → A
+  `readUpToSeq = 5`). Olay en iyi çabadır; eşzamanlı iki okumada canlı `allReadUpToSeq` eski kalabilir, geçmiş/liste
+  çekimi `readStatus`'u yeniden hesaplar (ADR 0001).
+- **Okuma aralığı tablosu (`message_read_ranges`, V133).** Satır sayısı gerçek ilerleme sayısıyla büyür (mesaj sayısıyla
+  değil; gönderim de bir ilerlemedir); ilerlemeyen çağrı satır yazmaz, böylece okuma çağrısı sınırsız satır üretemez. Eşzamanlı okumalar üye satırı
+  kilidiyle sıralanır (çakışan ya da boşluklu aralık yok). Saklama/temizlik görevi yok; ayrılan üyenin satırları kalır
+  (sohbet silinince `on delete cascade`). V133 öncesi okumalar için `readAt` `null`'dır.

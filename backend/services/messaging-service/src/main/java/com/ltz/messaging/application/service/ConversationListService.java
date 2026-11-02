@@ -23,7 +23,8 @@ import lombok.RequiredArgsConstructor;
 /**
  * Sohbet listesi (MSG-08) ve sohbet başına okunmamış sayısı (MSG-13). Yalnız kullanıcının aktif üyesi olduğu sohbetler,
  * son etkinlikten eskiye, keyset sayfalamayla listelenir. Bir sayfa sabit sayıda sorguyla kurulur (N+1 yok): sohbetler,
- * üyelikler, son mesajlar, okunmamış sayıları, üye sayıları ve birebir karşı taraflar.
+ * üyelikler, son mesajlar, okunmamış sayıları, üye sayıları, birebir karşı taraflar ve (son mesajı kullanıcıya ait
+ * sohbetler için) okundu durumunun aktif üyeleri.
  */
 @Service
 @RequiredArgsConstructor
@@ -63,6 +64,13 @@ public class ConversationListService {
                 .collect(Collectors.toMap(member -> member.getId().getConversationId(), ConversationMember::getUserId,
                         (first, second) -> first));
 
+        // Okundu durumu (MSG-11) yalnız son mesajı kullanıcıya ait sohbetlerde hesaplanır; üyeler tek sorguyla çekilir.
+        List<UUID> ownLastIds = page.stream().map(Conversation::getId)
+                .filter(id -> isOwnVisibleLast(lastMessages.get(id), memberships.get(id), userId)).toList();
+        Map<UUID, List<ConversationMember>> activeMembers = ownLastIds.isEmpty() ? Map.of()
+                : members.findActiveMembersOf(ownLastIds).stream()
+                        .collect(Collectors.groupingBy(member -> member.getId().getConversationId()));
+
         // Sayfa sorgusu ile üyelik sorgusu arasında ayrılan üyeliğin satırı atlanır.
         List<ConversationSummaryView> items = page.stream()
                 .filter(conversation -> memberships.containsKey(conversation.getId()))
@@ -70,6 +78,10 @@ public class ConversationListService {
             ConversationMember membership = memberships.get(conversation.getId());
             Message last = lastMessages.get(conversation.getId());
             MessageView visibleLast = last != null && membership.canSee(last.getSeq()) ? MessageView.of(last) : null;
+            if (visibleLast != null && last.getSenderId().equals(userId)) {
+                long watermark = ReadWatermark.of(userId, activeMembers.getOrDefault(conversation.getId(), List.of()));
+                visibleLast = visibleLast.withReadStatus(ReadWatermark.status(last.getSeq(), watermark));
+            }
             return new ConversationSummaryView(conversation.getId(), conversation.getType(), conversation.getTitle(),
                     peers.get(conversation.getId()), memberCounts.getOrDefault(conversation.getId(), 0L),
                     membership.getRole(), conversation.getLastActivityAt(), visibleLast,
@@ -79,6 +91,11 @@ public class ConversationListService {
                 ? new ActivityCursor(page.getLast().getLastActivityAt(), page.getLast().getId()).encode()
                 : null;
         return new ConversationPageView(items, nextCursor);
+    }
+
+    private static boolean isOwnVisibleLast(Message last, ConversationMember membership, UUID userId) {
+        return last != null && membership != null && membership.canSee(last.getSeq())
+                && last.getSenderId().equals(userId);
     }
 
     private static Map<UUID, Long> counts(List<Object[]> rows) {

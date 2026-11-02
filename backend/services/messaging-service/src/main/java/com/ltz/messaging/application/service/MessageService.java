@@ -19,6 +19,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.ltz.messaging.domain.entity.Conversation;
 import com.ltz.messaging.domain.entity.ConversationMember;
 import com.ltz.messaging.domain.entity.Message;
+import com.ltz.messaging.domain.enums.ReadStatus;
 import com.ltz.messaging.domain.event.MessageSentEvent;
 import com.ltz.messaging.domain.exception.MessagingErrorCode;
 import com.ltz.messaging.domain.exception.MessagingException;
@@ -30,12 +31,14 @@ import com.ltz.messaging.infrastructure.persistence.repository.MessageRepository
 import lombok.RequiredArgsConstructor;
 
 /**
- * Metin mesajı gönderme (MSG-06), mesaj geçmişi (MSG-07, MSG-10) ve okuma işaretçisi (MSG-13).
+ * Metin mesajı gönderme (MSG-06), mesaj geçmişi (MSG-07, MSG-10), okuma işaretçisi (MSG-13) ve okuma saati (MSG-11).
  * <p>
  * Gönderim sırası: aynı {@code clientMessageId} ile daha önce kaydedilmiş mesaj varsa o döner (yeniden deneme, yan etki
  * yok) → yazma yetkisi (aktif üye; birebirde engel yok, MSG-14/15; engel sorgusu transaction dışında) → sohbet satırı
  * kilitlenir, üyelik ve oran sınırı yeniden denetlenir, mesaj {@code seq} alır, gönderenin okuma işaretçisi ilerler ve
  * {@code MessageSent} olayı aynı transaction'da outbox'a yazılır → commit sonrası açık akışlara iletilir (MSG-09).
+ * İşaretçi her iki yolda da {@link ReadTracker} üzerinden ilerler; gerçek ilerleme bir okuma aralığı yazar. İsteyenin
+ * kendi mesajlarına okundu durumu {@link ReadWatermark} ile eklenir (MSG-11): yeni mesaj {@code SENT} döner.
  */
 @Service
 @RequiredArgsConstructor
@@ -47,6 +50,7 @@ public class MessageService {
     private final ConversationMemberRepository members;
     private final MessageRepository messages;
     private final ConversationAccessPolicy access;
+    private final ReadTracker tracker;
     private final OutboxRecorder outbox;
     private final ApplicationEventPublisher events;
     private final MessageProperties properties;
@@ -90,12 +94,21 @@ public class MessageService {
             long upperBound = before == null ? Long.MAX_VALUE : before;
             rows = messages.findOlder(conversationId, upperBound, fromSeq, fetch);
         }
-        return new MessagePageView(rows.stream().limit(size).map(MessageView::of).toList(), rows.size() > size);
+        List<Message> page = rows.stream().limit(size).toList();
+        // Üye listesi yalnız sayfada isteyenin kendi mesajı varsa, bir kez çekilir.
+        boolean hasOwn = page.stream().anyMatch(message -> message.getSenderId().equals(viewer));
+        long watermark = hasOwn ? ReadWatermark.of(viewer, members.findActiveMembers(conversationId)) : 0L;
+        List<MessageView> items = page.stream()
+                .map(message -> message.getSenderId().equals(viewer)
+                        ? MessageView.of(message).withReadStatus(ReadWatermark.status(message.getSeq(), watermark))
+                        : MessageView.of(message))
+                .toList();
+        return new MessagePageView(items, rows.size() > size);
     }
 
     /**
      * MSG-13. Okuma işaretçisini {@code seq}'e kadar ilerletir (geri gitmez; sohbetteki son mesajın ötesine geçmez) ve
-     * kalan okunmamış sayısını döner.
+     * kalan okunmamış sayısını döner. İşaretçi ilerlediyse okuma aralığı yazılır (MSG-11).
      */
     @Transactional
     public ReadStateView markRead(UUID reader, UUID conversationId, long seq) {
@@ -103,13 +116,12 @@ public class MessageService {
         long lastMessage = conversations.findById(conversationId)
                 .orElseThrow(() -> new MessagingException(MessagingErrorCode.CONVERSATION_NOT_FOUND))
                 .getLastMessageSeq();
-        long target = Math.min(seq, lastMessage);
-        long lastRead = Math.max(member.getLastReadSeq(), target);
-        members.advanceLastRead(conversationId, reader, target);
+        tracker.advance(member, Math.min(seq, lastMessage), now());
+        // Sayım sorgusu öncesi otomatik flush, ilerlemiş işaretçiyi veritabanına yazar.
         long unread = members.countUnread(reader, List.of(conversationId)).stream()
                 .mapToLong(row -> (Long) row[1])
                 .sum();
-        return new ReadStateView(conversationId, lastRead, unread);
+        return new ReadStateView(conversationId, member.getLastReadSeq(), unread);
     }
 
     private Optional<MessageView> findRetry(UUID sender, UUID conversationId, String clientMessageId, String body) {
@@ -119,7 +131,10 @@ public class MessageService {
                     if (!existing.isRetryOf(conversationId, body)) {
                         throw new MessagingException(MessagingErrorCode.CLIENT_MESSAGE_ID_REUSED);
                     }
-                    return MessageView.of(existing);
+                    // Yeniden denemede durum, kayıttan sonra okunmuş olabilir: aynı transaction'da hesaplanır.
+                    long watermark = ReadWatermark.of(sender, members.findActiveMembers(conversationId));
+                    return MessageView.of(existing)
+                            .withReadStatus(ReadWatermark.status(existing.getSeq(), watermark));
                 });
     }
 
@@ -138,7 +153,7 @@ public class MessageService {
         }
         long seq = conversation.appendMessage(now);
         Message message = messages.saveAndFlush(Message.text(conversationId, seq, sender, clientMessageId, body, now));
-        senderMember.markRead(seq);
+        tracker.advance(senderMember, seq, now);
         List<UUID> recipients = members.findActiveMembers(conversationId).stream()
                 .map(ConversationMember::getUserId)
                 .toList();
@@ -146,7 +161,8 @@ public class MessageService {
         outbox.messageSent(new MessageSentEvent(message.getId(), conversationId, conversation.getType(), seq, sender,
                 recipients.stream().filter(recipient -> !recipient.equals(sender)).toList()), now);
         events.publishEvent(new MessageCreated(view, recipients));
-        return new SendMessageResult(view, true);
+        // Yeni mesaj henüz kimse okumadı; akış olayı durumsuz kalır (gönderene hub SENT ekler).
+        return new SendMessageResult(view.withReadStatus(ReadStatus.SENT), true);
     }
 
     private Instant now() {

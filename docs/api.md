@@ -4860,7 +4860,7 @@ UNIT + INTEGRATION (gerçek PostgreSQL; social-service 218 test PASS; `Community
 
 Sorumlu: Umut · Gateway: `/api/v1/messaging/**` · Görevler: MSG-
 
-Ortak kurallar (aşağıdaki tüm MESSAGING uçları için; görevler LTZ-UMT-MSG-01 (MSG-01..05, MSG-14, MSG-15) ve LTZ-UMT-MSG-02 (MSG-06..10, MSG-13, MSG-16, MSG-27)):
+Ortak kurallar (aşağıdaki tüm MESSAGING uçları için; görevler LTZ-UMT-MSG-01 (MSG-01..05, MSG-14, MSG-15), LTZ-UMT-MSG-02 (MSG-06..10, MSG-13, MSG-16, MSG-27) ve LTZ-UMT-MSG-03 (MSG-11, MSG-12)):
 - Tüm uçlar `Authorization: Bearer <access token>` (kullanıcı token'ı, `typ=at+jwt`) ister; Gateway tarayıcı çerezini Bearer'a çevirir. Token servis tarafında Auth'un JWKS anahtarıyla yeniden doğrulanır (RS256, `iss`, `aud`, `typ=at+jwt`, `exp`/`nbf`/`iat`/`sub` zorunlu, 30 sn saat payı). Servis token'ı (`svc+jwt`) bu uçlarda geçmez. Messaging'in henüz iç (`/internal/**`) ucu yoktur; bu yollar kapalıdır.
 - `userId` yalnız token'ın `sub` alanından alınır; gövde/başlıktaki kimlik (`senderId`, `ownerId`, `X-User-Id` vb.) güvenilmez: gövdedeki bilinmeyen alan `400`, başlıklar yok sayılır.
 - Kimliksiz/geçersiz token `401 UNAUTHENTICATED`. Hata gövdesi `ProblemDetail` + `code`; doğrulama hatalarında `errors: [{field, code}]` döner, gönderilen değer geri yansıtılmaz. İstek gövdesi en fazla 32 KB (`413 PAYLOAD_TOO_LARGE`).
@@ -4881,6 +4881,7 @@ Ortak kurallar (aşağıdaki tüm MESSAGING uçları için; görevler LTZ-UMT-MS
   }
   ```
   `members` yalnız aktif üyelerdir, katılma sırasıyla. Ad/avatar user-service'tedir.
+- **Okundu durumu (MSG-11, MSG-12):** Durum iki değerlidir: `SENT` (sunucuya kaydedildi) ve `READ` (okundu). "Okumak", istemcinin `POST .../read` ile işaretçiyi ilerletmesidir; "görüldü" ile "okundu" aynı olaydır. Bir mesaj, **o anda aktif olan ve mesajı görebilen herkes** (gönderen hariç) okuyunca `READ` olur; mesajdan sonra katılanlar ile ayrılan/çıkarılanlar hesaba katılmaz. Bu kural gönderenin su seviyesi (`min` over aktif diğer üyeler `max(last_read_seq, visible_from_seq - 1)`) ile tek yerde hesaplanır; geçmiş, liste, `.../reads` ve `read` olayı aynı sonucu verir. `readStatus` **yalnız isteyenin kendi mesajında** doludur; başkasının mesajında `null` döner. Kimin okuduğunu yalnız mesajın göndereni görebilir (`GET .../reads`). Okundu bilgisini kapatma ayarı yoktur.
 
 ### MESSAGING — Birebir sohbet aç (MSG-01)
 
@@ -4920,7 +4921,7 @@ Diğer mikroservisler:
 social-service `POST /internal/v1/blocks/check` (RestClient). Token: Auth `POST /internal/v1/service-tokens` (`clientId: "messaging-service"`, `audience: "social-service"`, `scope=blocks:check`, 60 sn); gizli anahtar `AUTH_MESSAGING_SERVICE_CLIENT_SECRET`.
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS; engel Social yerine test adaptörüyle, gerçek Social istemcisi MockRestServiceServer ile). Gerçek Auth + Social ile uçtan uca: NOT VERIFIED.
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 164 test PASS; engel Social yerine test adaptörüyle, gerçek Social istemcisi MockRestServiceServer ile). Gerçek Auth + Social ile uçtan uca: NOT VERIFIED.
 
 ### MESSAGING — Grup sohbeti oluştur (MSG-02)
 
@@ -4963,7 +4964,7 @@ Diğer mikroservisler:
 social-service engel sorgusu (oluşturan ↔ tüm ilk üyeler, tek toplu çağrı).
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED.
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 164 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED.
 
 ### MESSAGING — Sohbet detayı (MSG-14)
 
@@ -4999,7 +5000,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 164 test PASS)
 
 ### MESSAGING — Gruba üye ekle (MSG-03)
 
@@ -5046,7 +5047,7 @@ Diğer mikroservisler:
 social-service engel sorgusu (tek toplu çağrı).
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED.
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 164 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED.
 
 ### MESSAGING — Gruptan üye çıkar (MSG-05)
 
@@ -5083,7 +5084,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 164 test PASS)
 
 ### MESSAGING — Üye rolünü değiştir (MSG-03)
 
@@ -5128,7 +5129,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 164 test PASS)
 
 ### MESSAGING — Gruptan ayrıl (MSG-04)
 
@@ -5163,9 +5164,9 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 164 test PASS)
 
-### MESSAGING — Sohbet listesi (MSG-08, MSG-13)
+### MESSAGING — Sohbet listesi (MSG-08, MSG-13, MSG-11)
 
 Durum: IMPLEMENTED
 Sorumlu: Umut
@@ -5201,7 +5202,7 @@ Authenticated (yalnız token sahibinin **aktif** üyesi olduğu sohbetler; ayrı
 }
 ```
 - Sıra: `lastActivityAt` azalan (son mesaj; mesaj yoksa oluşturulma), eşitlikte `id` azalan. Keyset sayfalama: sayfalar arasında tekrar ya da atlama olmaz.
-- `lastMessage`, kullanıcının göremediği (gruba katılmadan önceki) bir mesajsa `null` döner.
+- `lastMessage`, kullanıcının göremediği (gruba katılmadan önceki) bir mesajsa `null` döner. `lastMessage.readStatus` (MSG-11) son mesaj isteyene aitse `SENT | READ`, değilse `null` olur.
 - `unreadCount` (MSG-13): okuma işaretçisinden sonraki, kullanıcının görebildiği ve **başkasının** gönderdiği mesaj sayısı. Mesaj gönderen, sohbeti o mesaja kadar okumuş sayılır.
 - Bir sayfa sabit sayıda sorguyla kurulur (N+1 yok).
 
@@ -5218,9 +5219,9 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 164 test PASS)
 
-### MESSAGING — Metin mesajı gönder (MSG-06, MSG-10)
+### MESSAGING — Metin mesajı gönder (MSG-06, MSG-10, MSG-11)
 
 Durum: IMPLEMENTED
 Sorumlu: Umut
@@ -5255,12 +5256,14 @@ Authenticated + sohbetin aktif üyesi; birebir sohbette iki taraf arasında herh
   "type": "TEXT",
   "body": "string",
   "clientMessageId": "string",
-  "createdAt": "ISO-8601 (UTC)"
+  "createdAt": "ISO-8601 (UTC)",
+  "readStatus": "SENT | READ | null"
 }
 ```
+- `readStatus` (MSG-11): isteyen mesajın göndereniyse dolu, değilse `null`. Yeni gönderilen mesaj `SENT` döner; yeniden denemede (200) durum o anki su seviyesinden hesaplanır.
 - **201** yeni mesaj. **200** aynı `clientMessageId` ve aynı içerikle yapılmış yeniden deneme: kayıtlı mesaj döner, yeni mesaj/olay üretilmez (ağ yeniden denemesi çift mesaj oluşturmaz). Tekillik veritabanında da zorlanır: `(senderId, clientMessageId)`.
 - `seq` sohbet içinde boşluksuz ve artandır; sohbet satırı kilitlenerek verilir, böylece sıra commit sırasıyla aynıdır (eşzamanlı gönderim testli).
-- Aynı transaction'da: gönderenin okuma işaretçisi bu mesaja ilerler ve `MessageSent` olayı outbox'a yazılır (bkz. "Giden olay sözleşmeleri"). Commit sonrası mesaj, gönderim anındaki aktif üyelerin açık akışlarına iletilir (MSG-09).
+- Aynı transaction'da: gönderenin okuma işaretçisi bu mesaja ilerler (ilerlediyse okuma aralığı da yazılır, MSG-11) ve `MessageSent` olayı outbox'a yazılır (bkz. "Giden olay sözleşmeleri"). Commit sonrası mesaj, gönderim anındaki aktif üyelerin açık akışlarına iletilir (MSG-09); işaretçi ilerlediği için, ilerleyen aralıkta başka bir aktif üyenin mesajı varsa `read` olayı da gider (bkz. "Gerçek zamanlı mesaj akışı").
 - Oran sınırı: kullanıcı başına son 60 sn'de en fazla 30 mesaj (`ltz.messaging.messages.max-per-minute`).
 
 #### Hata Durumları
@@ -5282,9 +5285,9 @@ Diğer mikroservisler:
 Birebir sohbette social-service engel sorgusu. `MessageSent` olayı outbox'a (notification-service) — teslim **PENDING**.
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED.
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 164 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED.
 
-### MESSAGING — Mesaj geçmişi (MSG-07, MSG-09 eşitleme)
+### MESSAGING — Mesaj geçmişi (MSG-07, MSG-09 eşitleme, MSG-11)
 
 Durum: IMPLEMENTED
 Sorumlu: Umut
@@ -5315,6 +5318,8 @@ Authenticated + sohbetin aktif üyesi. Üye yalnız **katıldıktan sonraki** me
 ```
 `hasMore`, aynı yönde daha fazla mesaj olduğunu söyler. Sonraki sayfa: `before=<en küçük seq>` ya da `after=<en büyük seq>`.
 
+`Message.readStatus` (MSG-11) isteyenin **kendi mesajlarında** `SENT | READ`, başkalarının mesajlarında `null` olur; her istekte yeniden hesaplanır (canlı `read` olayı kaçsa bile bu uç doğruyu verir). Sayfa için üyeler tek sorguyla çekilir; mesaj başına sorgu yoktur.
+
 #### Hata Durumları
 - 400: `before` ve `after` birlikte (`CONFLICTING_PAGE_DIRECTION`); sınır dışı `limit` (`INVALID_PAGE_SIZE`); sayı olmayan değer (`MALFORMED_REQUEST`)
 - 401: Kimlik yok/geçersiz
@@ -5329,9 +5334,57 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 164 test PASS)
 
-### MESSAGING — Okundu işaretle (MSG-13)
+### MESSAGING — Mesajı görenler (MSG-12)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/messaging/conversations/{conversationId}/messages/{messageId}/reads
+
+#### Yetkilendirme
+Authenticated + sohbetin aktif üyesi + **mesajın göndereni**. Kimin okuduğunu yalnız gönderen görür; sohbetin diğer üyeleri `403` alır.
+
+#### Path Parameters
+- conversationId: UUID, zorunlu
+- messageId: UUID, zorunlu
+
+#### Response — 200
+```json
+{
+  "messageId": "UUID",
+  "seq": 42,
+  "readStatus": "SENT | READ",
+  "readers": [ { "userId": "UUID", "readAt": "ISO-8601 (UTC) veya null" } ],
+  "pending": [ { "userId": "UUID" } ]
+}
+```
+- **Uygun okuyucu:** aktif üye, gönderen değil ve mesajı görebilen (`visible_from_seq <= seq`) kişi. Mesajdan sonra katılan, ayrılan/çıkarılan ve çıkarılıp geri eklenerek mesajı göremeyen kişi listelerde yer almaz.
+- `readers`: `last_read_seq >= seq` olan uygun okuyucular, `readAt` değerine göre yeniden eskiye; saati bilinmeyenler (`null`) en sonda. `pending`: henüz okumamış uygun okuyucular, katılma sırasıyla.
+- `readAt`, mesajı kapsayan okuma aralığının zamanıdır. V133 öncesinde okunmuş mesajlar için aralık yoktur (geçmişe dönük doldurma yapılmadı), bu durumda `readAt` `null` döner.
+- `readStatus` geçmiş ucuyla **aynı** su seviyesi formülünden gelir, listelerden türetilmez. Bu yüzden mesajın tüm uygun okuyucuları ayrılmış ve yerlerine yalnız sonradan katılanlar gelmişse `readStatus` `READ`, `readers` ve `pending` boş döner (kabul edilmiş uç durum, testli).
+- Birebir sohbette de çalışır; listeler tek kişiden oluşur. Grup üye sınırı (100) nedeniyle sayfalama yoktur.
+
+#### Hata Durumları
+- 401: Kimlik yok/geçersiz
+- 403: Aktif üyesiniz ama mesajın göndereni değilsiniz (`NOT_MESSAGE_SENDER`)
+- 404: Sohbet yok ya da aktif üyesi değilsiniz (`CONVERSATION_NOT_FOUND`; eski üyenin kendi eski mesajı için sorgusu dahil). Mesaj bu sohbette değil, hiç yok ya da katılımınızdan önce olduğu için göremiyorsunuz (`MESSAGE_NOT_FOUND`); var olan ile olmayan arasında fark sızdırılmaz, bu durumlarda `403` değil `404` döner
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/messaging/conversations/{conversationId}/messages/{messageId}/reads
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; `MessageReadsTest` 8 test; messaging-service 164 test PASS). Gateway üzerinden gerçek kullanıcılarla: NOT VERIFIED.
+
+### MESSAGING — Okundu işaretle (MSG-13, MSG-11)
 
 Durum: IMPLEMENTED
 Sorumlu: Umut
@@ -5357,7 +5410,7 @@ Authenticated + sohbetin aktif üyesi (yalnız kendi okuma işaretçisi)
 ```json
 { "conversationId": "UUID", "lastReadSeq": 7, "unreadCount": 0 }
 ```
-İşaretçi yalnız ileri gider (daha küçük `seq` yan etkisizdir) ve sohbetteki son mesajın ötesine geçmez. Okundu bilgisinin başka üyelere gösterilmesi (MSG-11/12) ayrı görevdir.
+İşaretçi yalnız ileri gider (daha küçük `seq` yan etkisizdir) ve sohbetteki son mesajın ötesine geçmez. Sözleşme MSG-11 ile değişmedi; işaretçi **gerçekten ilerlediğinde** (MSG-11) eski işaretçi + 1'den yeni işaretçiye tek bir okuma aralığı (okuma saatiyle) yazılır ve commit sonrası `read` akış olayı gönderilir. İlerlemeyen çağrı (aynı `seq`, geri gitme, son mesajın ötesi) satır ve olay üretmez. Eşzamanlı çağrılar üye satırı kilidiyle sıralanır; aralıklar çakışmaz, boşluk bırakmaz.
 
 #### Hata Durumları
 - 400: Eksik/negatif `seq` (`VALIDATION_FAILED`)
@@ -5373,9 +5426,9 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 164 test PASS)
 
-### MESSAGING — Gerçek zamanlı mesaj akışı (MSG-09)
+### MESSAGING — Gerçek zamanlı mesaj akışı (MSG-09, MSG-11)
 
 Durum: IMPLEMENTED (Gateway üzerinden canlı geçiş NOT VERIFIED)
 Sorumlu: Umut
@@ -5398,12 +5451,23 @@ event:message
 id:<conversationId>:<seq>
 data:<Message JSON>
 
+event:read
+data:{"conversationId":"UUID","readerId":"UUID|null","readUpToSeq":5,"readAt":"ISO-8601|null","allReadUpToSeq":5}
+
 :hb
 ```
 - Yalnız **commit edilmiş** mesajlar iletilir; reddedilen/geri alınan mesaj gitmez. Gönderenin diğer açık akışları da alır.
 - Akış token'ın bitişinde (en çok 30 dk) kapanır; `EventSource` yeniden bağlanır. İstemci yeniden bağlanınca sohbet listesini yeniler ve açık sohbet için `GET .../messages?after=<son seq>` ile kaçırdıklarını çeker. Mesaj DB'de olduğu için kaybolmaz.
 - Her 4 sn'de kalp atışı (`:hb`). Başlıklar: `Cache-Control: no-store`, `X-Accel-Buffering: no`.
 - Kullanıcı başına en fazla 5 eşzamanlı akış.
+- **`message` olayında `readStatus` (MSG-11):** mesajın göndereni kendi akışında `SENT` alır; diğer üyeler `null` alır (alan yalnız isteyenin kendi mesajında doludur).
+- **`read` olayı (MSG-11):** bir üyenin okuma işaretçisi gerçekten ilerlediğinde (`POST .../read` ya da kendi mesajını göndermesi), commit sonrası ve en iyi çabayla gönderilir. `id` yoktur. **Yalnız o aralıkta mesajı olan, hâlâ aktif göndericiye** gider (alıcının kendi görünürlük sınırının altındaki mesajları sayılmaz); okuyucuya gitmez, aralıkta mesajı olmayan üye almaz (başkasının mesajının okunduğu sızmaz). Yük alıcı başına kırpılır ve içerik taşımaz:
+  - `readerId`, `readAt`: okuyan üye ve okuma saati.
+  - `readUpToSeq`: alıcının, okunan aralıktaki en büyük **kendi** `seq`'i (okuyucu alıcının mesajlarını bu `seq`'e kadar okudu).
+  - `allReadUpToSeq`: alıcının, su seviyesine (tüm uygun okuyucuların okuduğu sınır) kadarki en büyük kendi `seq`'i; yoksa `0`. İstemci kendi mesajlarından `seq <= allReadUpToSeq` olanları `READ` yapar.
+  - Ham işaretçi ve ham su seviyesi gönderilmez. Okuyucunun yeni katıldığı ilk okumada, görmediği önceki mesajlar için olay üretilmez.
+- **Ayrılma/çıkarma (MSG-11):** bir üye gruptan ayrılınca ya da çıkarılınca kalan göndericilerin su seviyesi yükselebilir. Durumu `SENT`'ten `READ`'e geçen göndericilere aynı `read` olayı gider; `readerId`, `readUpToSeq`, `readAt` `null`, yalnız `allReadUpToSeq` doludur. Ayrılan/çıkarılan kişi bu olayı almaz.
+- **En iyi çaba:** olay kaçarsa istemci geçmiş ucundan (`readStatus`) eşitlenir. İki üye aynı mesajı eşzamanlı okursa her işlem su seviyesini diğerinin commit öncesi işaretçisiyle hesapladığı için iki olay da eski `allReadUpToSeq` taşıyabilir; gönderen sonraki geçmiş/liste çekimine kadar `SENT` görür (bilinen sınırlama, bkz. ADR 0001).
 
 #### Hata Durumları
 - 401: Kimlik yok/geçersiz
@@ -5418,7 +5482,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (servis içi uçtan uca akış MockMvc + gerçek PostgreSQL; `SseMessageHubTest` birim). Gateway üzerinden gerçek tarayıcıyla: NOT VERIFIED.
+UNIT + INTEGRATION (servis içi uçtan uca akış MockMvc + gerçek PostgreSQL; `SseMessageHubTest` birim; `read` olayı `ReadReceiptStreamTest` 16 test). Gateway üzerinden gerçek tarayıcıyla: NOT VERIFIED.
 
 ### MESSAGING — Giden olay sözleşmeleri (MSG-16, teslim bekliyor)
 

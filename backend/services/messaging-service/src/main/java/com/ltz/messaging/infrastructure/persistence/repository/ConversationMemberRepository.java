@@ -6,7 +6,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -49,6 +48,12 @@ public interface ConversationMemberRepository extends JpaRepository<Conversation
     List<ConversationMember> findActiveOthers(@Param("conversationIds") Collection<UUID> conversationIds,
                                               @Param("userId") UUID userId);
 
+    /** Verilen sohbetlerin tüm aktif üyeleri, tek sorguda (okundu durumu su seviyesi, MSG-11). */
+    @Query("""
+            select m from ConversationMember m
+            where m.id.conversationId in :conversationIds and m.leftAt is null""")
+    List<ConversationMember> findActiveMembersOf(@Param("conversationIds") Collection<UUID> conversationIds);
+
     /** Sohbet başına aktif üye sayısı: {@code [conversationId, count]}. */
     @Query("""
             select m.id.conversationId, count(m) from ConversationMember m
@@ -68,13 +73,4 @@ public interface ConversationMemberRepository extends JpaRepository<Conversation
             group by m.id.conversationId""")
     List<Object[]> countUnread(@Param("userId") UUID userId,
                                @Param("conversationIds") Collection<UUID> conversationIds);
-
-    /** Okuma işaretçisini yalnız ileri taşır (eşzamanlı isteklerde geri gitmez). */
-    @Modifying(flushAutomatically = true, clearAutomatically = true)
-    @Query("""
-            update ConversationMember m set m.lastReadSeq = :seq
-            where m.id.conversationId = :conversationId and m.id.userId = :userId and m.leftAt is null
-              and m.lastReadSeq < :seq""")
-    int advanceLastRead(@Param("conversationId") UUID conversationId, @Param("userId") UUID userId,
-                        @Param("seq") long seq);
 }

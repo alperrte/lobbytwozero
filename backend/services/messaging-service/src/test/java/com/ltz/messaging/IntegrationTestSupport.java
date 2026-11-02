@@ -253,6 +253,11 @@ public abstract class IntegrationTestSupport {
                 .content("{\"seq\":%d}".formatted(seq)));
     }
 
+    protected ResultActions messageReads(UUID viewer, UUID conversationId, UUID messageId) throws Exception {
+        return mockMvc.perform(get(MessagingApiPaths.MESSAGE_READS, conversationId, messageId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(viewer)));
+    }
+
     // ------------------------------------------------------------ DB gözlemi
 
     protected int conversationCount() {

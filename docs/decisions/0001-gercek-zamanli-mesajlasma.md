@@ -2,7 +2,7 @@
 
 - **Tarih:** 2026-11-01
 - **Durum:** Kabul edildi (messaging-service sahibi Umut'un kararı; LTZ-UMT-MSG-02)
-- **Kapsam:** messaging-service, MSG-09. Bildirim servisi kendi kararını ayrıca verir.
+- **Kapsam:** messaging-service, MSG-09 (`message` olayı) ve MSG-11 (`read` olayı, LTZ-UMT-MSG-03). Bildirim servisi kendi kararını ayrıca verir.
 - **İlgili:** `docs/architecture.md` §9, `docs/SECURITY.md` §6, `docs/api.md` → MESSAGING
 
 ## Bağlam
@@ -30,12 +30,21 @@ data:{"heartbeatSeconds":4}
 
 event:message
 id:<conversationId>:<seq>
-data:{"id":"…","conversationId":"…","seq":7,"senderId":"…","type":"TEXT","body":"…","clientMessageId":"…","createdAt":"…"}
+data:{"id":"…","conversationId":"…","seq":7,"senderId":"…","type":"TEXT","body":"…","clientMessageId":"…","createdAt":"…","readStatus":"SENT"}
+
+event:read
+data:{"conversationId":"…","readerId":"…","readUpToSeq":5,"readAt":"…","allReadUpToSeq":5}
 
 :hb
 ```
 
+`readStatus` gönderenin kendi akışlarında `"SENT"`, diğer üyelerin akışlarında `null` gider.
+
 `id`, `Last-Event-ID` için değil, istemcinin tekilleştirmesi içindir (sohbet + seq tekildir). Yeniden bağlanınca istemci önce sohbet listesini (okunmamış sayıları) yeniler, açık sohbet için `after=<son seq>` ile eşitlenir.
+
+`read` (MSG-11, LTZ-UMT-MSG-03) commit edilmiş okuma ilerlemesinde yalnız okunan aralıkta mesajı olan aktif göndericiye gider. Değerler alıcının kendi mesajlarıyla kırpılır; ham işaretçi, ham su seviyesi ve mesaj içeriği taşınmaz. `id` yoktur. Kaçan olay geçmişteki `readStatus` ile eşitlenir.
+
+Bir üye gruptan ayrılınca ya da çıkarılınca kalan göndericilerin su seviyesi yükselebilir; durumu `SENT`'ten `READ`'e geçen göndericilere aynı `read` olayı gider (`readerId`, `readUpToSeq`, `readAt` `null`, yalnız `allReadUpToSeq` dolu). Ayrılan kişi olayı almaz. `read` olayı outbox'a yazılmaz ve notification-service'e gitmez.
 
 ## Değerlendirilen seçenekler
 
@@ -50,4 +59,5 @@ data:{"id":"…","conversationId":"…","seq":7,"senderId":"…","type":"TEXT","
 - **Gateway üzerinden canlı geçiş NOT VERIFIED.** Servis içi uçtan uca akış testlidir (MockMvc + gerçek PostgreSQL). Gateway WebMVC'nin `text/event-stream` yanıtını tamponlamadan akıtması ve 4 sn kalp atışının okuma zaman aşımını aşması gerçek yığında doğrulanmalıdır. Sorun çıkarsa Gateway sahibiyle `/api/v1/messaging/stream` rotası için akış ve zaman aşımı ayarı konuşulur; istemci geçici olarak `after` polling'ine düşer.
 - **Tek örnek varsayımı.** Akış kaydı bellektedir. messaging-service birden çok örnekte çalışırsa örnekler arası yayın gerekir (ör. PostgreSQL `LISTEN/NOTIFY` ya da broker). O zaman ayrı ADR yazılır. Mesaj kaybı olmaz (eşitleme DB'den), yalnız diğer örneğe bağlı istemci olayı geç görür.
 - **CORS/Origin.** Tarayıcı akışı ancak Gateway'in CORS izin listesindeki kökenden okuyabilir. Akış GET'tir ve durum değiştirmez.
+- **`read` olayı en iyi çabadır; eşzamanlı okumada eski değer taşıyabilir (bilinen sınırlama, LTZ-UMT-MSG-03).** İki üye aynı mesajı eşzamanlı okursa her işlem `allReadUpToSeq`'i diğerinin henüz commit edilmemiş işaretçisiyle hesaplar; iki canlı olay da eski değeri taşıyabilir ve gönderen, bir sonraki geçmiş ya da sohbet listesi çekimine kadar mesajı `SENT` görür (o uçlar `readStatus`'u her istekte yeniden hesaplar). Hesabı commit sonrasına taşımak mümkündür ama en iyi çaba sözleşmesi için gereksiz karmaşıklık sayıldı; ihtiyaç olursa ayrı iş olarak ele alınır. Okuyucunun kendi `readUpToSeq` değeri etkilenmez.
 - Bildirimler (MSG-16) bu kanalı kullanmaz: `MessageSent` olayı outbox üzerinden notification-service'e gider (teslim notification hazır olunca).

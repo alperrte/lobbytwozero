@@ -16,12 +16,16 @@ import org.junit.jupiter.api.Test;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.ltz.messaging.application.service.MessageView;
+import com.ltz.messaging.application.service.ReadReceiptView;
 import com.ltz.messaging.domain.enums.MessageType;
 import com.ltz.messaging.domain.exception.MessagingErrorCode;
 import com.ltz.messaging.domain.exception.MessagingException;
 import com.ltz.messaging.infrastructure.config.StreamProperties;
 
-/** Akış kaydı: ömür hesabı, kullanıcı sınırı, dolu kuyrukta kapatma ve yazma hatasında kayıttan çıkarma. */
+/**
+ * Akış kaydı: ömür hesabı, kullanıcı sınırı, dolu kuyrukta kapatma ve yazma hatasında kayıttan çıkarma; mesaj ve
+ * okundu ({@code read}) olayları için aynı kurallar.
+ */
 class SseMessageHubTest {
 
     private static final Instant NOW = Instant.parse("2026-11-01T10:00:00Z");
@@ -83,8 +87,47 @@ class SseMessageHubTest {
         assertThat(hub.openStreams(other)).isEqualTo(1);
     }
 
+    @Test
+    void okunduOlayiAdiRead() {
+        assertThat(SseMessageHub.READ_EVENT).isEqualTo("read");
+    }
+
+    @Test
+    void okunduOlayindaKuyrukDoluysaYalnizAlicininAkislariKapanir() {
+        Executor full = task -> {
+            throw new RejectedExecutionException("full");
+        };
+        SseMessageHub hub = new SseMessageHub(PROPERTIES, full, CLOCK);
+        UUID other = UUID.randomUUID();
+        hub.open(user, NOW.plusSeconds(60));
+        hub.open(other, NOW.plusSeconds(60));
+
+        hub.publishReadReceipt(user, receipt());
+
+        assertThat(hub.openStreams(user)).isZero();
+        assertThat(hub.openStreams(other)).isEqualTo(1);
+    }
+
+    @Test
+    void okunduOlayiYazilamayanAkistaKayittanCikarirAkisiOlmayanAliciyiAtlar() {
+        SseMessageHub hub = new SseMessageHub(PROPERTIES, DIRECT, CLOCK);
+        SseEmitter gone = hub.open(user, NOW.plusSeconds(60));
+        hub.open(user, NOW.plusSeconds(60));
+        // Tamamlanmış akışa yazma hata verir; aynı kullanıcının diğer akışı açık kalır.
+        gone.complete();
+
+        hub.publishReadReceipt(user, receipt());
+        hub.publishReadReceipt(UUID.randomUUID(), receipt());
+
+        assertThat(hub.openStreams(user)).isEqualTo(1);
+    }
+
+    private static ReadReceiptView receipt() {
+        return new ReadReceiptView(UUID.randomUUID(), UUID.randomUUID(), 3L, NOW, 3);
+    }
+
     private static MessageView message() {
         return new MessageView(UUID.randomUUID(), UUID.randomUUID(), 1, UUID.randomUUID(), MessageType.TEXT, "x",
-                "c", NOW);
+                "c", NOW, null);
     }
 }

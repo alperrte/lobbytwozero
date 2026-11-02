@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.ltz.messaging.application.service.MessageView;
+import com.ltz.messaging.application.service.ReadReceiptView;
 
 /**
  * Gerçek zamanlı iletim (MSG-09, docs/decisions/0001-gercek-zamanli-mesajlasma.md). Akış yalnız bildirim taşır; mesajın
@@ -24,4 +25,10 @@ public interface MessageStreamPort {
 
     /** Mesajı alıcıların açık akışlarına iletir; teslim en iyi çabadır, kalıcı değildir. */
     void publish(Collection<UUID> recipients, MessageView message);
+
+    /**
+     * Okundu bilgisini (MSG-11) alıcının açık akışlarına {@code read} olayı olarak iletir. Yük alıcıya göre
+     * kırpılmıştır; teslim en iyi çabadır, kaçan olay geçmişteki {@code readStatus} ile eşitlenir.
+     */
+    void publishReadReceipt(UUID recipient, ReadReceiptView receipt);
 }
