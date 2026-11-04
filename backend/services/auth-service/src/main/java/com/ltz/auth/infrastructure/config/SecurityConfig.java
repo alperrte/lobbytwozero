@@ -91,6 +91,8 @@ public class SecurityConfig {
     static final RequestMatcher AUTHENTICATED_ENDPOINTS = new OrRequestMatcher(
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.SESSION_LOGOUT_ALL),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_CHANGE),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_SET_REQUEST),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_SET),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.EMAIL_CHANGE),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.EMAIL_CHANGE_CONFIRM),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.ACCOUNT_DELETION_REQUEST),

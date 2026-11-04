@@ -45,6 +45,9 @@ public final class AuthApiPaths {
 
     public static final String PASSWORD = BASE + "/password";
     public static final String PASSWORD_CHANGE = PASSWORD + "/change";
+    /** Parolasız (Google/Steam) hesabın ilk parolasını belirlemesi: önce e-posta kodu istenir, sonra parola yazılır. */
+    public static final String PASSWORD_SET_REQUEST = PASSWORD + "/set/request";
+    public static final String PASSWORD_SET = PASSWORD + "/set";
     public static final String PASSWORD_FORGOT = PASSWORD + "/forgot";
     public static final String PASSWORD_RESET = PASSWORD + "/reset";
 

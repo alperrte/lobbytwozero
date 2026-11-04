@@ -45,6 +45,8 @@ public enum AuthErrorCode {
     ACTING_ADMIN_INVALID(403, "The acting administrator is not an active administrator."),
     EMAIL_CHANGE_INVALID(400, "Email change code is invalid or has expired."),
     PASSWORD_REQUIRED(409, "A password must be set on this account before this action."),
+    PASSWORD_ALREADY_SET(409, "This account already has a password."),
+    PASSWORD_SET_INVALID(400, "Password setup code is invalid or has expired."),
     EXTERNAL_IDENTITY_TAKEN(409, "This external identity is already linked to another account."),
     EXTERNAL_IDENTITY_ALREADY_LINKED(409, "This account already has an identity from this provider."),
     EXTERNAL_IDENTITY_NOT_LINKED(404, "No identity from this provider is linked to this account."),

@@ -581,6 +581,35 @@ User Service: `POST /internal/events` ile `ExternalIdentityLinked/Unlinked` alı
 #### Test Durumu
 UNIT + INTEGRATION (`SteamLinkTest`, `AuthEventOutboxTest`; sahte sağlayıcı) + duman testi (start, yanlış parola, bağsız kaldırma); gerçek Steam ile denenmedi
 
+### AUTH — Parola belirle (parolasız Google/Steam hesabı)
+
+Durum: IMPLEMENTED (2026-11-05, karar: Kerem, B11)
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+- POST /api/v1/auth/password/set/request `{ "code"?, "recoveryCode"? }` → `202 { "nextStep": "VERIFY_EMAIL" }`; hesabın **doğrulanmış** adresine tek kullanımlık 6 haneli kod gider (Mail Service `verification-codes` ucu)
+- POST /api/v1/auth/password/set `{ "emailCode", "newPassword", "newPasswordConfirmation" }` → `204`; başarıda hesabın tüm oturumları ve cihaz kimlikleri iptal edilir, çerezler silinir, yeni parolayla yeniden giriş gerekir; `PASSWORD_CHANGED` güvenlik bildirimi gider
+
+#### Yetkilendirme
+Oturum (çerez + CSRF veya Bearer). `request`: TOTP etkinse `code` veya `recoveryCode` (yalnız biri, tek kullanımlık); etkin değilse boş gövde (`{}`). Steam kimliği bağlı hesapta ayar açıksa (`ltz.auth.two-factor.require-for-steam-accounts`, üretimde açık) TOTP **zorunludur**: etkin değilse `403 TWO_FACTOR_ENROLLMENT_REQUIRED`. Google hesabında TOTP açıksa istenir, zorunlu değildir.
+
+#### Kurallar
+- Yalnız parolası olmayan hesap kullanır; parolalı hesap `409 PASSWORD_ALREADY_SET` (parola değiştirme ayrı uçtur). "Unuttum" akışı parolasız hesaba token vermeye devam etmez.
+- Kod tek kullanımlıktır, süreli (`AUTH_OTP_TTL`) ve deneme sınırlıdır; yeniden gönderme bekleme süresi ve günlük sınır e-posta değiştirmeyle aynıdır. Yanlış/süresi dolmuş/tükenmiş kod tek hata döner: `400 PASSWORD_SET_INVALID`.
+- Parola politikası geçerlidir (en az 15 karakter, kara liste, kullanıcı bilgisi içermez): `400 WEAK_PASSWORD`; zayıf parola kodu yakmaz.
+- Güvenlik olayları: `PASSWORD_SET_REQUESTED`, `PASSWORD_SET_REJECTED`, `PASSWORD_SET_FAILED`, `PASSWORD_SET`.
+- Parola belirlendikten sonra cihaz bağlama, e-posta değiştirme ve harici kimlik bağlama (`PASSWORD_REQUIRED` hatası veren yollar) kullanılabilir; silme iptali (B17) de parolayla yapılabilir.
+
+#### Hata Durumları
+- 400: `INVALID_TWO_FACTOR_CODE`, `PASSWORD_SET_INVALID`, `WEAK_PASSWORD`, doğrulama hatası (tekrar eşleşmiyor vb.)
+- 401/403: oturum yok / CSRF yok; `TWO_FACTOR_ENROLLMENT_REQUIRED` (Steam hesabında TOTP kurulu değil)
+- 409: `PASSWORD_ALREADY_SET`
+- 429: yeniden doğrulama/istek sınırı
+
+#### Test Durumu
+INTEGRATION (`PasswordSetTest`, 6 test; `SteamTwoFactorEnrollmentTest` içinde Steam/TOTP kuralı)
+
 ### AUTH — Parola değiştir
 
 Durum: IMPLEMENTED

@@ -176,6 +176,18 @@ class SteamTwoFactorEnrollmentTest extends ExternalProviderTestSupport {
         assertThat(totpStatus(linked.account())).isEqualTo("ACTIVE");
     }
 
+    @Test
+    void steamBagliParolasizHesapTotpOlmadanParolaBelirlemeKoduIsteyemez() throws Exception {
+        Linked linked = steamLinkedAccount();
+        jdbc.update("update accounts set password_hash = null where id = ?", linked.account());
+
+        mockMvc.perform(post(AuthApiPaths.PASSWORD_SET_REQUEST).header("Authorization", bearerFor(linked.account()))
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("TWO_FACTOR_ENROLLMENT_REQUIRED"));
+        assertThat(securityEventCount(linked.account(), "PASSWORD_SET_REJECTED")).isEqualTo(1);
+    }
+
     // ---- Yardımcılar ----
 
     private record Linked(UUID account, String email, String steamId) {
