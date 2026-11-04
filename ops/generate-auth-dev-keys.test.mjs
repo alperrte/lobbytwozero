@@ -13,7 +13,7 @@ const source = readFileSync(script, "utf8");
 // dinamik kod yürütme eklenirse bu test kırılır ve değişiklik gözden geçirmede açıkça görünür.
 test("script yalnız izinli modülleri içe aktarır, ağ/süreç/dinamik kod kullanmaz", () => {
   const imports = [...source.matchAll(/from\s+"([^"]+)"/g)].map((match) => match[1]).sort();
-  assert.deepEqual(imports, ["node:crypto", "node:fs", "node:path", "node:url"]);
+  assert.deepEqual(imports, ["./auth-env-rules.mjs", "node:crypto", "node:fs", "node:path", "node:url"]);
   for (const forbidden of [
     "child_process", "node:http", "node:https", "node:net", "node:dns", "node:tls", "node:worker_threads",
     "fetch(", "XMLHttpRequest", "WebSocket", "eval(", "new Function", "process.env", "import(",
@@ -36,7 +36,9 @@ test("eksik anahtarları üretir, dolu olanı ezmez, dosyalarda aynı değeri ku
     writeFileSync(b, "OTHER=2\r\n");
 
     const first = spawnSync(process.execPath, [script, a, b], { encoding: "utf8" });
-    assert.equal(first.status, 0, first.stderr);
+    // Var olan HMAC değeri geçersiz bir yer tutucu: üzerine YAZILMAZ ama sondaki kontrol bunu hata olarak bildirir.
+    assert.equal(first.status, 1, first.stderr);
+    assert.match(first.stdout, /\[FAIL\] AUTH_OTP_HMAC_KEY/);
     const textA = readFileSync(a, "utf8");
     const textB = readFileSync(b, "utf8");
     const get = (text, name) => text.match(new RegExp(`^${name}=(.*?)\\r?$`, "m"))?.[1];
@@ -51,7 +53,7 @@ test("eksik anahtarları üretir, dolu olanı ezmez, dosyalarda aynı değeri ku
     assert.ok(textA.startsWith("KEEP=1\r\n"), "mevcut satırlar ve satır sonları korunmalı");
 
     const second = spawnSync(process.execPath, [script, a, b], { encoding: "utf8" });
-    assert.equal(second.status, 0);
+    assert.equal(second.status, 1);
     assert.equal(readFileSync(a, "utf8"), textA);
     assert.equal(readFileSync(b, "utf8"), textB);
   } finally {
@@ -147,7 +149,7 @@ test("eski varsayılan JWT_ACCESS_TTL_SECONDS=300 değeri 60'a çekilir; özelle
     assert.ok(readFileSync(stale, "utf8").startsWith("JWT_ACCESS_TTL_SECONDS=60\r\nJWT_ISSUER=ltz-auth\r\n"));
     assert.match(run.stdout, /güncellendi -> JWT_ACCESS_TTL_SECONDS \(300 -> 60\)/);
     assert.ok(readFileSync(custom, "utf8").startsWith("JWT_ACCESS_TTL_SECONDS=120\n"));
-    assert.ok(!/JWT_ACCESS_TTL_SECONDS/.test(readFileSync(missing, "utf8")), "eksik satır eklenmemeli (Compose varsayılanı 60)");
+    assert.match(readFileSync(missing, "utf8"), /^JWT_ACCESS_TTL_SECONDS=60\r?$/m, "eksik satır .env.example'dan (60) eklenir");
 
     const again = spawnSync(process.execPath, [script, stale], { encoding: "utf8" });
     assert.ok(readFileSync(stale, "utf8").startsWith("JWT_ACCESS_TTL_SECONDS=60\r\n"));
@@ -228,5 +230,98 @@ test("rotasyon, boş anahtarlı dosyada hata verir ve dosyayı değiştirmez", (
     assert.equal(readFileSync(file, "utf8"), "AUTH_TOTP_ENCRYPTION_KEY=\n");
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// ---- Tek komutla tamamlama: .env.example eşitleme, dosya oluşturma, sondaki kontrol ----
+
+import { copyFileSync, existsSync, mkdirSync } from "node:fs";
+
+/** Geçici bir "depo" kurar (ops/ betikleri + verilen .env.example); gerçek .env dosyalarına asla dokunulmaz. */
+function fakeRepo(exampleBody) {
+  const dir = mkdtempSync(join(tmpdir(), "ltz-repo-"));
+  mkdirSync(join(dir, "ops"));
+  const opsDir = dirname(script);
+  for (const file of ["generate-auth-dev-keys.mjs", "auth-env-rules.mjs"]) copyFileSync(join(opsDir, file), join(dir, "ops", file));
+  writeFileSync(join(dir, ".env.example"), exampleBody);
+  const run = (...args) => spawnSync(process.execPath, [join(dir, "ops", "generate-auth-dev-keys.mjs"), ...args], { encoding: "utf8" });
+  return { dir, run, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
+}
+
+const exampleBody = [
+  "# Auth anahtarları",
+  "AUTH_JWT_PRIVATE_KEY=",
+  "AUTH_OTP_HMAC_KEY=",
+  "AUTH_TOTP_ENCRYPTION_KEY=",
+  "",
+  "# Mailpit kodları gösterir",
+  "COMPOSE_PROFILES=dev-mail",
+  "AUTH_EVENT_TARGETS=user",
+  "",
+  "# Yeni ayar: açıklaması da gelir",
+  "NEW_SETTING=varsayilan",
+  "DB_PASSWORD=ornek-parola",
+  "",
+].join("\n");
+
+test("hiç ENV dosyası yoksa .env.dev, .env.example'dan oluşturulur; anahtarlar üretilir; sondaki kontrol geçer", () => {
+  const repo = fakeRepo(exampleBody);
+  try {
+    const run = repo.run();
+    assert.equal(run.status, 0, run.stdout + run.stderr);
+    assert.match(run.stdout, /\.env\.dev oluşturuldu/);
+    assert.match(run.stdout, /Hata yok: Auth ayarları açılış doğrulamasından geçer/);
+    const body = readFileSync(join(repo.dir, ".env.dev"), "utf8");
+    const get = (name) => body.match(new RegExp(`^${name}=(.*?)\r?$`, "m"))?.[1];
+    assert.equal(Buffer.from(get("AUTH_TOTP_ENCRYPTION_KEY"), "base64").length, 32);
+    assert.equal(get("COMPOSE_PROFILES"), "dev-mail");
+    assert.equal(get("DB_PASSWORD"), "ornek-parola");
+    assert.ok(body.includes("# Mailpit kodları gösterir"), "açıklamalar korunmalı");
+    for (const name of ["AUTH_JWT_PRIVATE_KEY", "AUTH_OTP_HMAC_KEY", "AUTH_TOTP_ENCRYPTION_KEY"]) {
+      assert.ok(!run.stdout.includes(get(name)), `${name} değeri çıktıya sızdı`);
+    }
+    assert.ok(!existsSync(join(repo.dir, ".env")), "yalnız .env.dev oluşturulur");
+  } finally {
+    repo.cleanup();
+  }
+});
+
+test("eksik ayarlar açıklamalarıyla eklenir; var olana (örnekten farklı olsa da) dokunulmaz; ikinci çalıştırma hiçbir şeyi değiştirmez", () => {
+  const repo = fakeRepo(exampleBody);
+  try {
+    const file = join(repo.dir, ".env.dev");
+    writeFileSync(file, "KEEP=1\r\nDB_PASSWORD=benim-parolam\r\nCOMPOSE_PROFILES=\r\n");
+
+    const first = repo.run();
+    assert.equal(first.status, 0, first.stdout + first.stderr);
+    const body = readFileSync(file, "utf8");
+    assert.ok(body.startsWith("KEEP=1\r\nDB_PASSWORD=benim-parolam\r\nCOMPOSE_PROFILES=\r\n"), "mevcut satırlar ve satır sonları aynen korunmalı");
+    assert.match(body, /# --- \.env\.example ile eşitlendi: eksik ayarlar eklendi ---/);
+    assert.match(body, /# Yeni ayar: açıklaması da gelir\r\nNEW_SETTING=varsayilan\r\n/);
+    assert.match(first.stdout, /\.env\.example'dan eklendi/);
+    assert.ok(!/\r?\nDB_PASSWORD=ornek-parola/.test(body), "var olan ayar örnek değerle tekrar eklenmemeli");
+    assert.ok(!/[^\r]\n/.test(body), "CRLF dosyada LF satır sonu kalmamalı");
+
+    const second = repo.run();
+    assert.equal(second.status, 0, second.stdout + second.stderr);
+    assert.equal(readFileSync(file, "utf8"), body, "ikinci çalıştırmada dosya değişmemeli");
+    assert.match(second.stdout, /eksik ayar yok/);
+  } finally {
+    repo.cleanup();
+  }
+});
+
+test("sondaki kontrol hata bulursa çıkış kodu 1 olur ama dosya yine de tamamlanır", () => {
+  const repo = fakeRepo(exampleBody);
+  try {
+    const file = join(repo.dir, ".env.dev");
+    writeFileSync(file, `${exampleBody}\nAUTH_TOTP_ENCRYPTION_PREVIOUS_KEYS=bozuk\n`);
+    const run = repo.run();
+    assert.equal(run.status, 1);
+    assert.match(run.stdout, /\[FAIL\] AUTH_TOTP_ENCRYPTION_PREVIOUS_KEYS/);
+    assert.match(run.stdout, /Auth bu ayarlarla AÇILMAZ/);
+    assert.equal(readFileSync(file, "utf8").match(/^AUTH_TOTP_ENCRYPTION_PREVIOUS_KEYS=(.*)$/m)[1], "bozuk", "bozuk değer sessizce düzeltilmez");
+  } finally {
+    repo.cleanup();
   }
 });

@@ -33,7 +33,7 @@ const good = (more = "") =>
 // Güvenlik bekçisi: araç yalnız yerel dosya okur; ağ/süreç/dinamik kod yok ve dosyaya yazmaz.
 test("script yalnız izinli modülleri içe aktarır, yazma/ağ/süreç/dinamik kod kullanmaz", () => {
   const imports = [...source.matchAll(/from\s+"([^"]+)"/g)].map((match) => match[1]).sort();
-  assert.deepEqual(imports, ["node:fs", "node:path", "node:url"]);
+  assert.deepEqual(imports, ["./auth-env-rules.mjs", "node:fs", "node:path", "node:url"]);
   for (const forbidden of [
     "writeFileSync", "appendFileSync", "child_process", "node:http", "node:https", "node:net", "node:crypto",
     "fetch(", "eval(", "new Function", "process.env", "import(",
@@ -145,4 +145,12 @@ test("prod profili yalnız mail-service adaptörüyle açılır; dev'de Mailpit 
 test("dosya yoksa hata verir", () => {
   const result = spawnSync(process.execPath, [script, join(tmpdir(), "yok-boyle-dosya.env")], { encoding: "utf8" });
   assert.equal(result.status, 1);
+});
+
+test("kural modülü saftır: içe aktarma, dosya/ağ/süreç erişimi ve ortam okuması yok", () => {
+  const rules = readFileSync(join(here, "auth-env-rules.mjs"), "utf8");
+  assert.ok(!/^\s*import\s/m.test(rules), "kural modülü içe aktarma yapmamalı");
+  for (const forbidden of ["node:", "require(", "fetch(", "process.", "console."]) {
+    assert.ok(!rules.includes(forbidden), `izin verilmeyen kullanım: ${forbidden}`);
+  }
 });

@@ -6,17 +6,25 @@ Bu sayfa, Auth'u yerelde hızlı ve güvenli çalıştırmak isteyen herkes (ve 
 
 ---
 
-## 1. Auth'u yerelde ayağa kaldır (4 komut)
+## 1. Auth'u yerelde ayağa kaldır (tek komut)
 
 ```text
-1. .env.example dosyasını .env.dev olarak kopyala         (bir kez)
-2. node ops/generate-auth-dev-keys.mjs                     anahtarları üretir; dolu olana dokunmaz, ekrana değer yazmaz
-3. node ops/auth-env-check.mjs                             Auth'un AÇILIŞTA reddedeceği hatayı Docker'dan önce yakalar
-4. .\ops\env.cmd use dev   (Linux/macOS: sh ./ops/env.sh use dev)   sonra Compose'u olağan şekilde başlat
+node ops/generate-auth-dev-keys.mjs
 ```
 
-- `COMPOSE_PROFILES=dev-mail` olmalı: doğrulama ve parola kodları **Mailpit**'e düşer (arayüz: `http://127.0.0.1:8025`). Gerçek e-posta gitmez.
-- `node ops/auth-env-check.mjs` çıktısında `[FAIL]` varsa Auth açılmaz; yanındaki `->` satırı çözümü söyler. `[WARN]` açılışı durdurmaz ama bir kolaylığı kaçırırsın.
+Bu **tek komut** yeterli; ayrıca başka betik çalıştırmana gerek yok. Her çalıştırmada sırayla:
+
+1. `.env`/`.env.dev` yoksa `.env.example`'dan `.env.dev` oluşturur.
+2. `.env.example`'da olup dosyanda **hiç bulunmayan** ayarları açıklamalarıyla sona ekler (yeni gelen ayarlar böyle otomatik gelir).
+3. Boş anahtarları (JWT, HMAC, TOTP, servis sırları) üretir.
+4. Sonunda Auth'un açılış kurallarını kontrol edip raporlar.
+
+Güvenle tekrar çalıştırabilirsin: **var olan satırlara dokunmaz** (dolu değeri ezmez, sırayı bozmaz), eksik yoksa hiçbir şeyi değiştirmez, üretilen değerleri ekrana yazmaz.
+
+Sonra: `.\ops\env.cmd use dev` (Linux/macOS: `sh ./ops/env.sh use dev`) ve Compose'u olağan şekilde başlat.
+
+- Raporda `[FAIL]` varsa Auth açılmaz (komut çıkış kodu 1 verir); yanındaki `->` satırı çözümü söyler. `[WARN]` açılışı durdurmaz ama bir kolaylığı kaçırırsın. Dosyaya dokunmadan yalnız raporu görmek istersen: `node ops/auth-env-check.mjs`.
+- `COMPOSE_PROFILES=dev-mail` olmalı (örnek dosyada hazır gelir): doğrulama ve parola kodları **Mailpit**'e düşer (arayüz: `http://127.0.0.1:8025`). Gerçek e-posta gitmez.
 - V61–V65'i zaten uygulamış yerel veritabanı yeni sürümlerle **kendiliğinden ileri taşınır** (V66–V69 yeni dosyalardır, eskilere dokunulmadı); sıfırlamana gerek yok. Eski bir yerel veritabanında "checksum mismatch" görürsen aşağıdaki tabloya bak.
 
 ## 2. Dev'de kolay, prod'da zorunlu
@@ -58,8 +66,8 @@ Yani gevşetilebilenler sınırlı, adı konmuş ve yalnız dev/test profilinde:
 
 | Ne yapıyor | Komut |
 | --- | --- |
-| Eksik anahtarları üret | `node ops/generate-auth-dev-keys.mjs` |
-| ENV'i Docker'dan önce doğrula | `node ops/auth-env-check.mjs` |
+| ENV'i tamamla (eksik ayarları ekle, anahtarları üret, sonunda kontrol et) | `node ops/generate-auth-dev-keys.mjs` |
+| Yalnız raporu gör (dosyaya dokunmaz) | `node ops/auth-env-check.mjs` |
 | TOTP şifreleme anahtarını döndür | `node ops/generate-auth-dev-keys.mjs --rotate-totp` |
 | Doğrulama (HMAC) anahtarını döndür | `node ops/generate-auth-dev-keys.mjs --rotate-hmac` |
 | Aktif profili seç / göster | `.\ops\env.cmd use dev` · `.\ops\env.cmd status` |
