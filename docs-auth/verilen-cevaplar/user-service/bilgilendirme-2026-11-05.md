@@ -17,4 +17,3 @@ Ayrıntılı ve herkes için ortak metin: [../bilgilendirme-2026-11-05-auth-degi
 - `ExternalIdentityUnlinked` olayı şu an **üretilmiyor** (kullanıcı kimliği kaldıramaz). Kaldırma yönetici yoluyla planlı; o gün olay geri gelir.
 - Açık istek: `AccountEmailChanged` olayını tüketme (B19). Profil servisi e-posta tutuyorsa bu olay olmadan eskir.
 - Durum: **AÇIK** (olay tüketimi User'da yapılacak)
-

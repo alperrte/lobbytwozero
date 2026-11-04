@@ -17,4 +17,3 @@ Ayrıntılı ve herkes için ortak metin: [../bilgilendirme-2026-11-05-auth-degi
 - Neden: Auth silme koordinatörü 16 hedeften hepsi onaylamadan hesabı "silindi" saymaz. Bu uç yazılmadıkça görev `PENDING` kalır, hesap silme tamamlanmaz.
 - Verisi olmayan servis de ucu açıp `204` döner (Auth kararı, S2).
 - Durum: **AÇIK** (bu serviste yapılacak)
-

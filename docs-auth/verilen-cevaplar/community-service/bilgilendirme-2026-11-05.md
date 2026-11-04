@@ -15,4 +15,3 @@ Ayrıntılı ve herkes için ortak metin: [../bilgilendirme-2026-11-05-auth-degi
 
 - `AUTH_EVENT_TARGETS=community` henüz açılmadı; Community olayları almaya hazır olduğunda haber ver, Kerem dev ortamında açar. Gerçek Auth + Community uçtan uca deneme henüz yapılmadı.
 - Durum: **BİLGİ**
-

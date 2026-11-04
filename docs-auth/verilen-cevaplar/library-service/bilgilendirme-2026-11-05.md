@@ -12,4 +12,3 @@ Ayrıntılı ve herkes için ortak metin: [../bilgilendirme-2026-11-05-auth-degi
 ## BU SERVİS İÇİN
 
 Yapılacak iş yok. Durum: **KAPANDI**
-

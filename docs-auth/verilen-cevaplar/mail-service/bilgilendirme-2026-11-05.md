@@ -17,4 +17,3 @@ Ayrıntılı ve herkes için ortak metin: [../bilgilendirme-2026-11-05-auth-degi
 - `WELCOME` ve `SUSPICIOUS_LOGIN` şablonları için Auth tetikleyicisi hâlâ yok; Auth çıkmadan Mail tarafı uç açmaz.
 - Üretim SMTP sağlayıcısı kararı Kerem'dedir.
 - Durum: **BİLGİ**
-

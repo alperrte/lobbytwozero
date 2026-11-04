@@ -18,4 +18,3 @@ Ayrıntılı ve herkes için ortak metin: [../bilgilendirme-2026-11-05-auth-degi
 3. **İç ağ şifrelemesi (B18, bilgi).** Servisler birbirine düz `http` ile konuşuyor; ağı dinleyen biri 30 sn'lik servis token'ını aynı servis ve hesap için yeniden oynatabilir. Auth `prod` profilinde `https` zorunluluğunu getirdi; servislerin birbirini sertifikayla doğrulaması (mTLS) deploy mimarisine bağlı, deploy planı netleşince birlikte karar verelim.
 
 Durum: **AÇIK** (1 ve 2 Alper'de; 3 bilgi)
-

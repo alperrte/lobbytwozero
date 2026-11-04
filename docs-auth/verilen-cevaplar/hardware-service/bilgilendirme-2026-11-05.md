@@ -16,4 +16,3 @@ Ayrıntılı ve herkes için ortak metin: [../bilgilendirme-2026-11-05-auth-degi
 - Cihaz bağlama (`POST /api/v1/auth/devices`) parola ister; yalnız Google/Steam ile açılmış kullanıcı `409 PASSWORD_REQUIRED` alıyordu. Artık kullanıcı `password/set` ile parola belirleyip cihazı bağlayabilir. Hardware tarafında kod değişikliği gerekmez.
 - Steam bağlı hesaplarda girişte 2FA kurulumu zorunlu olabilir; masaüstü istemcisi `MFA_ENROLLMENT_REQUIRED` durumunu ele almalı (Frontend ile aynı akış).
 - Durum: **BİLGİ**
-
