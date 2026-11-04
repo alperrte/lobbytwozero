@@ -8,9 +8,9 @@
 
 - **Mail Service kodu yazıldı ve testten geçti** (MAIL-01 + MAIL-02 kapsamı): V81/V82, kuyruk + işleyici + SMTP + şifreleme, 4 iç uç + silme ucu, TR/EN şablonlar. Doğrulama (2026-10-31, `mvn verify`, JDK 25.0.5): **54 test PASS** (44 + `SmtpMailSenderTest` 6 + `MailWorkersTest` 4), Checkstyle 0, PMD 0, satır coverage **%88,99** (JaCoCo; hedef ≥%80). **Resmi kapı PASS** (`pre-push mail-service`, klasör ASCII `LTZ-MAIL` yapıldıktan sonra: 54 test, %88,99; §10 çözüldü). Commit `2e51f70`.
 - Tamamlanan yan işler: `ops/generate-auth-dev-keys.mjs` (+test), `docker-compose.yml` (mail-service ENV), `.env.example` (8 boş anahtar, kullanıcı ekledi), `ltz-logo.png`, `docs/api.md` `## MAIL` (5 kayıt), `docs-mail/`.
-- **Auth `MAIL_SERVICE` adaptörü yazıldı** (2026-10-31): `HttpMailServiceAdapter` (4 port; `scope=mail:send`, yalnız `202` kabul, yönlendirme yok), `MailAdapter.MAIL_SERVICE` (`productionReady=true`), `TokenClaims.MAIL_SEND_SCOPE`. Adres/zaman aşımı hesap silme ayarlarındaki `mail` hedefinden. Testler: `HttpMailServiceAdapterTest` (22), `MailDeliveryConfigTest` (11), `HttpAccountDataEraserTest` (19) PASS. Compose uçtan uca (2026-10-31): Auth `ltz.auth.mail.adapter=mail-service` ile kayıt → Auth `HttpMailServiceAdapter` → Mail `202` → kuyruk → SMTP → Mailpit. `EMAIL_VERIFICATION` kaydı `SENT`, 1 deneme, gönderim sonrası şifreli içerik ve alıcı adresi temizlendi; e-posta TR+EN iki dilli geldi. 4 e-posta akışının (doğrulama kodu, parola sıfırlama bağlantısı, parola değişti bildirimi, hesap silme onayı) hepsi Compose'ta Auth → Mail → Mailpit uçtan uca doğrulandı (2026-10-31, hepsi `SENT`, 1 deneme). Silme ucu da uçtan uca doğrulandı (Auth silme koordinatörü, bekleme süresi dev'de `PT0S`: onaydan sonra hesabın Mail kayıtları 2 → 0). Auth'ta kod commit edilmedi (kullanıcı atar).
+- **Auth `MAIL_SERVICE` adaptörü yazıldı** (2026-10-31): `HttpMailServiceAdapter` (4 port; `scope=mail:send`, yalnız `202` kabul, yönlendirme yok), `MailAdapter.MAIL_SERVICE` (`productionReady=true`), `TokenClaims.MAIL_SEND_SCOPE`. Adres/zaman aşımı hesap silme ayarlarındaki `mail` hedefinden. Testler: `HttpMailServiceAdapterTest` (22), `MailDeliveryConfigTest` (11), `HttpAccountDataEraserTest` (19) PASS. Compose uçtan uca (2026-10-31): Auth `ltz.auth.mail.adapter=mail-service` ile kayıt → Auth `HttpMailServiceAdapter` → Mail `202` → kuyruk → SMTP → Mailpit. `EMAIL_VERIFICATION` kaydı `SENT`, 1 deneme, gönderim sonrası şifreli içerik ve alıcı adresi temizlendi; e-posta TR+EN iki dilli geldi. 4 e-posta akışının (doğrulama kodu, parola sıfırlama bağlantısı, parola değişti bildirimi, hesap silme onayı) hepsi Compose'ta Auth → Mail → Mailpit uçtan uca doğrulandı (2026-10-31, hepsi `SENT`, 1 deneme). Silme ucu da uçtan uca doğrulandı (Auth silme koordinatörü, bekleme süresi dev'de `PT0S`: onaydan sonra hesabın Mail kayıtları 2 → 0). Auth tarafı commit'li (`7ccb70e`, `ab52026`) ve main'dedir.
 - **Sıradaki adımlar:** (1) ~~zayıf coverage~~ yapıldı: `SmtpMailSender` gerçek SMTP konuşmasıyla (yerel sahte sunucu), iki worker testli, (2) SMTP sağlayıcısı: şimdilik yok, Mailpit ile devam (karar 2026-10-31), (3) ~~kalan e-posta uçları~~ uçtan uca yapıldı; silme ucu da uçtan uca yapıldı, (4) ~~Auth kapısı~~ yeşil (470 test, %93,47; `ServiceClientTokenService` bölündü), `lint-ratchet` temiz, (5) `WELCOME` / `SUSPICIOUS_LOGIN` (Auth tetikleyicisi yok).
-- Repo: dal `feature/mail-service`, `origin/main` (af6e1cc, PR #38 user-service) ile aynı; `git fetch` yapıldı. Uzak `feature/auth-service` 4450435 = yalnız Auth Sonar düzeltmesi (`AUTH-35`), Mail'i etkilemez. `docs-mail/` henüz izlenmiyor (untracked).
+- Repo (2026-11-04 güncellemesi): Mail ve Auth adaptörü işi `main`'de (PR #41 `feature/mail-service`); `docs-mail/` git'te izleniyor. Etkin dal `feature/auth-service`.
 - Servis durumları: **gerçek kod** auth, user, game, hardware, community, social, api-gateway; **kısmi** library, review; **iskelet** event, notification, admin, content, lfp, messaging, performance, recommendation, mail.
 
 ## 2. Kilit ilke (kullanıcı talimatı)
@@ -26,8 +26,8 @@
 | Port / adres | host 5083, container 8080, `MAIL_SERVICE_URL`; Gateway `/api/v1/mail/**` (kullanıcı ucu yok) |
 | Görevler | LTZ-KER-MAIL-01 (MAIL-10..16), -02 (MAIL-01..05, 08, 09), -03 (MAIL-06, 07 ertelendi) |
 | Stack | Java 25, Spring Boot 4.1.1, JPA, Flyway, `spring-boot-starter-mail`, resource-server (pom'da hazır) |
-| Mevcut | `MailServiceApplication`, 1 `contextLoads`, boş katmanlar, `application.properties`, migration yok; `docker-compose.yml`'de `mail-service` bloğu var (SMTP ENV yok) |
-| Kalite | Checkstyle/PMD sıfır yeni ihlal, JaCoCo ≥ %80 (iskelet %33), Sonar A |
+| Mevcut | Tam çalışan servis: V81/V82, kuyruk + işleyici, SMTP, şifreleme, 5 iç uç, TR/EN şablonlar, 54 test; `docker-compose.yml`'de `mail-service` bloğu 8 ENV ile (boş varsayılan) |
+| Kalite | Checkstyle/PMD sıfır yeni ihlal, JaCoCo ≥ %80 (güncel %88,99), Sonar A |
 
 ## 4. Auth gerçekleri (koddan doğrulandı)
 
@@ -35,7 +35,7 @@
 - Çağrı, commit sonrası ayrı iş parçacığında; port istisna → kod/token `DELIVERY_FAILED` + güvenlik olayı (güvenlik bildirimlerinde yalnız log, en iyi çaba).
 - Portlar `locale` taşımaz → Mail: `locale` isteğe bağlı, yoksa TR+EN iki dilli.
 - Token: `ServiceTokenIssuer.issue(aud, scope, accountId)` (`aud` `…-service` kalıbı, scope `^[a-z]+:[a-z]+$`, **accountId zorunlu**, ömür 30 sn, `sub=svc:auth-service`, `account_id` claim). Silme deseni: `HttpAccountDataEraser` (yönlendirme yok, 200/204 dışı hata, 5 sn zaman aşımı).
-- `MailDeliveryConfig`: prod profili yalnız `productionReady` adaptörle açılır (şu an yok → B5). Dev: `ltz.auth.mail.adapter=dev-smtp` (Mailpit `mailpit:1025`, Compose profili `dev-mail`).
+- `MailDeliveryConfig`: prod profili yalnız `productionReady` adaptörle açılır (`MAIL_SERVICE` adaptörü yazıldı → B5 kapandı). Dev: `ltz.auth.mail.adapter=dev-smtp` (Mailpit `mailpit:1025`, Compose profili `dev-mail`).
 - Auth'un event relay'i Mail'e olay göndermez; Mail olay tüketmez.
 
 ## 5. Kesinleşen mimari (ayrıntı SPEC.md)

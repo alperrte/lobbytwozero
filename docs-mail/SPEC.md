@@ -1,6 +1,6 @@
 # Mail Service — Teknik Spesifikasyon (kesinleşmiş plan)
 
-Tarih: 2026-10-31. Durum: **onay bekleyen 3 madde dışında kesin** (bkz. [decisions/kararlar.md](decisions/kararlar.md)). Kodlamadan önce bu belge esastır.
+Tarih: 2026-10-31. Durum: **kesin; onaylar verildi ve plan kodlandı** (2026-10-31, bkz. [decisions/kararlar.md](decisions/kararlar.md), [MEMORY.md](MEMORY.md)). Bu belge tasarım esasıdır; gerçek durum için MEMORY ve `docs/api.md` `## MAIL`.
 Dayanak: Auth'un gerçek kodu (`origin/main` af6e1cc + `feature/auth-service` 4450435), `docs/api.md`, `docs-auth/servis-sozlesmeleri.md`, `docs/SECURITY.md`.
 
 ## 1. Amaç ve sınır
@@ -46,7 +46,7 @@ Ortak: `Authorization: Bearer <svc+jwt>`; gövde en fazla 16 KB (`413`); bilinme
 | `POST /internal/v1/mail/security-notifications` | `idempotencyKey`, `accountId`, `recipientEmail`, `type`, `occurredAt`, `locale?` | `SCOPE_mail:send` | `type`: `PASSWORD_CHANGED, PASSWORD_RESET, EMAIL_CHANGED, ACCOUNT_SUSPENDED, ACCOUNT_BANNED, ACCOUNT_DISABLED, ACCOUNT_REACTIVATED` (Auth `SecurityNotificationType` ile birebir). Sonra: `WELCOME`, `SUSPICIOUS_LOGIN` |
 | `DELETE /internal/v1/accounts/{accountId}` | — | `SCOPE_account:erase` | `204`, idempotent; `sub=svc:auth-service` ve `account_id`=yol şart, aksi `403` |
 
-Hatalar: `400` doğrulama; `401` token yok/geçersiz; `403` kapsam, `sub`, `account_id`≠gövde `accountId` ya da `locale` dışı; `409` aynı `idempotencyKey` farklı içerik (`IDEMPOTENCY_CONFLICT`); `413`; `500`.
+Hatalar: `400` doğrulama; `401` token yok/geçersiz; `403` kapsam, `sub`, `account_id`≠gövde `accountId` ya da `locale` dışı; `409` aynı `idempotencyKey` farklı içerik (`IDEMPOTENCY_CONFLICT`); `413`; `503` kayıt yazılamadı (`TEMPORARILY_UNAVAILABLE`); `500`.
 Aynı anahtar + aynı içerik: `202` (yeni kayıt açılmaz). Gateway'de `/api/v1/mail/**` rotası vardır ama bu serviste hiçbir kullanıcı ucu yoktur → `denyAll`.
 
 ## 3. Kimlik doğrulama (User'ın `JwtConfig` + `SecurityConfig` deseni)

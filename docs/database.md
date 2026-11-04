@@ -159,11 +159,12 @@ Gösterim: **PK** birincil anahtar, **FK** servis içi yabancı anahtar, **REF**
 | Tablo | Önemli sütunlar | Kısıtlar / not |
 | --- | --- | --- |
 | `mail_templates` | id, code, locale, subject, body_html, body_text, version, active | UQ (code, locale, version) |
-| `mail_messages` | id, idempotency_key, template_code, locale, recipient_email, recipient_user_id REF, variables_encrypted jsonb, status, attempts, next_attempt_at, last_error_code, sent_at, created_at | UQ idempotency_key; status ∈ PENDING, PROCESSING, SENT, FAILED |
-| `mail_delivery_attempts` | id, message_id FK, attempted_at, result, smtp_code | Hata metni kişisel veri içermez |
-| `inbox_events` | §2.4 | |
+| `mail_messages` | id, idempotency_key, request_hash, type, recipient_user_id REF, recipient_email (terminalde NULL), recipient_masked, locale (NULL = TR+EN), payload_encrypted bytea, payload_key_version, status, attempts, next_attempt_at, lease_until, expires_at, last_error_code, created_at, updated_at, sent_at, version | UQ idempotency_key; status ∈ PENDING, PROCESSING, SENT, FAILED; type CHECK |
+| `mail_delivery_attempts` | id, message_id FK (ON DELETE CASCADE), attempt_no, attempted_at, result, smtp_code, error_code, duration_ms | Hata metni ve adres saklanmaz |
 
-> Doğrulama kodu/sıfırlama linki gibi hassas değişkenler `variables_encrypted` içinde şifreli ve gönderimden sonra temizlenir.
+> Gerçek şema `V81__create_mail_tables.sql`. Mail olay tüketmediği için `inbox_events` bu serviste **yoktur**; ayrı `idempotency_records` da yoktur (tekillik `uq_mail_messages_idempotency_key`).
+
+> Doğrulama kodu/sıfırlama linki gibi hassas değişkenler `payload_encrypted` içinde AES-256-GCM ile şifreli tutulur; terminal durumda payload silinir, tam adres NULL olur ve yalnız maskeli kopya kalır.
 
 ### 3.4 game_db — game-service (Hamza)
 
