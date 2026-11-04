@@ -32,8 +32,8 @@ import com.ltz.auth.infrastructure.persistence.repository.AuthDataEraser;
 import jakarta.servlet.http.Cookie;
 
 /**
- * Oturumdaki hesaba Steam bağlama ve kaldırma (AUTH-20): yeniden doğrulama, hesaba bağlı tek kullanımlık akış, tekillik,
- * son giriş yöntemi koruması ve User Service'e giden olaylar. Steam yerine yerel sahte sağlayıcı kullanılır; üretim kodu
+ * Oturumdaki hesaba Steam bağlama (AUTH-20): yeniden doğrulama, hesaba bağlı tek kullanımlık akış, tekillik,
+ * kullanıcı tarafı kaldırma ucunun olmaması ve User Service'e giden olaylar. Steam yerine yerel sahte sağlayıcı kullanılır; üretim kodu
  * aynı HTTP ve imza/nonce doğrulama yolundan geçer.
  */
 class SteamLinkTest extends ExternalProviderTestSupport {
@@ -64,9 +64,6 @@ class SteamLinkTest extends ExternalProviderTestSupport {
 
         // Kimliksiz ve CSRF belirteçsiz istek: diğer oturumlu uçlarla aynı şekilde çerezli CSRF kontrolünde düşer.
         mockMvc.perform(post(AuthApiPaths.STEAM_LINK_START).contentType(MediaType.APPLICATION_JSON)
-                        .content(reauth(VALID_PASSWORD)))
-                .andExpect(status().isForbidden());
-        mockMvc.perform(post(AuthApiPaths.STEAM_UNLINK).contentType(MediaType.APPLICATION_JSON)
                         .content(reauth(VALID_PASSWORD)))
                 .andExpect(status().isForbidden());
         linkStart(bearer, reauth(WRONG_PASSWORD)).andExpect(status().isBadRequest())
@@ -214,44 +211,16 @@ class SteamLinkTest extends ExternalProviderTestSupport {
     // ---- Kaldırma ----
 
     @Test
-    void kaldirmaYenidenDogrulamaIsterBaglantiyiSilerOlayKuyrugaGirer() throws Exception {
+    void kullaniciTarafiKaldirmaUcuYokBagliKimlikKalir() throws Exception {
         UUID account = newAccount();
         linkSteam(account, newSteamId());
-        String bearer = bearerFor(account);
 
-        unlink(bearer, reauth(WRONG_PASSWORD)).andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("CURRENT_PASSWORD_INVALID"));
+        // 2026-11-05 kararı: bağlanan kimlik kullanıcı tarafından çıkarılamaz (yalnız yönetici/ticket yoluyla).
+        mockMvc.perform(post(AuthApiPaths.OAUTH + "/steam/unlink").header(HttpHeaders.AUTHORIZATION, bearerFor(account))
+                        .contentType(MediaType.APPLICATION_JSON).content(reauth(VALID_PASSWORD)))
+                .andExpect(status().is4xxClientError());
         assertThat(identityCount(account)).isEqualTo(1);
-
-        unlink(bearer, reauth(VALID_PASSWORD)).andExpect(status().isNoContent());
-        assertThat(identityCount(account)).isZero();
-        assertThat(securityEventCount(account, "EXTERNAL_IDENTITY_UNLINKED")).isEqualTo(1);
-        assertThat(outbox(account)).extracting(row -> row.get("event_type"))
-                .containsExactlyInAnyOrder("EXTERNAL_IDENTITY_LINKED", "EXTERNAL_IDENTITY_UNLINKED");
-        assertThat(payloadValue(account, "EXTERNAL_IDENTITY_UNLINKED")).as("kimlik taşınmaz, yalnız sağlayıcı").isEqualTo("STEAM");
-
-        unlink(bearer, reauth(VALID_PASSWORD)).andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.code").value("EXTERNAL_IDENTITY_NOT_LINKED"));
-    }
-
-    @Test
-    void steamTekGirisYontemiyseKaldirilamazBaskaYontemVarsaParolaGerekir() throws Exception {
-        UUID steamOnly = newAccount();
-        jdbc.update("update accounts set password_hash = null where id = ?", steamOnly);
-        insertSteamIdentity(steamOnly, newSteamId());
-        unlink(bearerFor(steamOnly), reauth(VALID_PASSWORD)).andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("LAST_LOGIN_METHOD"));
-        assertThat(identityCount(steamOnly)).isEqualTo(1);
-
-        // Steam + Google, parola yok: Steam tek yöntem değil ama yeniden doğrulama için parola gerekir.
-        UUID steamAndGoogle = newAccount();
-        jdbc.update("update accounts set password_hash = null where id = ?", steamAndGoogle);
-        insertSteamIdentity(steamAndGoogle, newSteamId());
-        jdbc.update("insert into external_identities (id, account_id, provider, provider_subject, linked_at) "
-                + "values (gen_random_uuid(), ?, 'GOOGLE', ?, now())", steamAndGoogle, "google-" + uniqueSuffix());
-        unlink(bearerFor(steamAndGoogle), reauth(VALID_PASSWORD)).andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("PASSWORD_REQUIRED"));
-        assertThat(identityCount(steamAndGoogle)).isEqualTo(2);
+        assertThat(securityEventCount(account, "EXTERNAL_IDENTITY_UNLINKED")).isZero();
     }
 
     // ---- Hesap silme ----
@@ -282,11 +251,6 @@ class SteamLinkTest extends ExternalProviderTestSupport {
 
     private ResultActions linkStart(String bearer, String body) throws Exception {
         return mockMvc.perform(post(AuthApiPaths.STEAM_LINK_START).header(HttpHeaders.AUTHORIZATION, bearer)
-                .contentType(MediaType.APPLICATION_JSON).content(body));
-    }
-
-    private ResultActions unlink(String bearer, String body) throws Exception {
-        return mockMvc.perform(post(AuthApiPaths.STEAM_UNLINK).header(HttpHeaders.AUTHORIZATION, bearer)
                 .contentType(MediaType.APPLICATION_JSON).content(body));
     }
 
@@ -348,11 +312,6 @@ class SteamLinkTest extends ExternalProviderTestSupport {
     private List<Map<String, Object>> outbox(UUID account) {
         return jdbc.queryForList("select event_type, payload_value, target from auth_event_outbox where account_id = ? "
                 + "order by created_at, event_type", account);
-    }
-
-    private String payloadValue(UUID account, String eventType) {
-        return jdbc.queryForObject("select payload_value from auth_event_outbox where account_id = ? and event_type = ?",
-                String.class, account, eventType);
     }
 
     private static String newSteamId() {

@@ -299,9 +299,7 @@ export async function runAuthSmoke(root, log = console.log) {
       && /no-store/i.test(steamLink.response.headers.get('Cache-Control') || '')
       && steamLink.response.headers.getSetCookie().some(c => /ltz_oauth=/.test(c) && /HttpOnly/i.test(c)),
     'Steam link start needs the password, redirects to Steam with a link-specific return_to and an HttpOnly state cookie');
-    const steamUnlinkNone = await request(gatewayOrigin, '/api/v1/auth/oauth/steam/unlink', 404, { jar: account.jar, method: 'POST', csrf: true,
-      headers: { Origin: gatewayOrigin }, body: { password } });
-    check(steamUnlinkNone.body.code === 'EXTERNAL_IDENTITY_NOT_LINKED', 'Unlinking a Steam identity that is not linked is rejected (404)');
+    // Kullanıcı tarafı Steam/Google kaldırma ucu yoktur (2026-11-05 kararı): bağlanan kimlik kalıcıdır.
 
     // Masaüstü cihaz kimliği: bağlama (yeniden doğrulama), cihaz token'ı, dar kapsam, iptal.
     await request(gatewayOrigin, '/api/v1/auth/devices', 400, { jar: account.jar, method: 'POST', csrf: true,

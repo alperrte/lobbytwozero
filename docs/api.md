@@ -507,7 +507,7 @@ Diğer mikroservisler:
 #### Test Durumu
 UNIT + INTEGRATION (sağlayıcılar yerel sahte sunucularla; gerçek Google/Steam ile denenmedi)
 
-### AUTH — Steam bağlama ve kaldırma (oturumdaki hesap)
+### AUTH — Steam ve Google bağlama (oturumdaki hesap)
 
 Durum: IMPLEMENTED (gerçek Steam ile uçtan uca doğrulanmadı; yerel sahte sağlayıcı ve duman testi)
 Sorumlu: Kerem
@@ -516,29 +516,31 @@ Tüketici servisler: Frontend (tarayıcı gezinmesi), User Service (olay)
 #### Endpoint
 - POST /api/v1/auth/oauth/steam/link/start — yeniden doğrulayıp bağlama akışını başlatır → `200 { "redirectUrl": "<Steam OpenID adresi>" }`, `Cache-Control: no-store`; tek kullanımlık `state` HttpOnly `__Host-ltz_oauth` çerezine yazılır. Tarayıcı `redirectUrl`'e gönderilir.
 - GET /api/v1/auth/oauth/steam/link/callback?state&openid.* — Steam dönüşü (tarayıcı gezinmesi)
-- POST /api/v1/auth/oauth/steam/unlink — bağlantıyı kaldırır → `204`
+- POST /api/v1/auth/oauth/google/link/start — yeniden doğrulayıp Google bağlama akışını başlatır (Authorization Code + PKCE S256, `nonce`) → `200 { "redirectUrl": "<Google yetkilendirme adresi>" }`, `Cache-Control: no-store`; tek kullanımlık `state` HttpOnly `__Host-ltz_oauth` çerezine yazılır. `redirect_uri` `…/api/v1/auth/oauth/google/link/callback` olur ve Google istemcisinin yetkili yönlendirme adreslerine **ayrıca eklenmelidir**.
+- GET /api/v1/auth/oauth/google/link/callback?code&state — Google dönüşü (tarayıcı gezinmesi)
+- **Kaldırma ucu yoktur** (2026-11-05 kararı): bağlanan Steam/Google kimliği kullanıcı tarafından kaldırılamaz; kaldırma yalnız yönetici (ticket) yoluyla yapılır (planlı, B7'ye bağlı). Eski `POST …/steam/unlink` kaldırıldı.
 
 #### Yetkilendirme
-`start` ve `unlink`: oturum (çerez + CSRF veya Bearer) **ve yeniden doğrulama**: `{ "password", "code"?, "recoveryCode"? }`. Mevcut parola zorunlu; TOTP etkinse `code` veya `recoveryCode` (yalnız biri). Cihaz bağlama ve e-posta değiştirmeyle aynı kural; denemeler hesap başına sınırlıdır. `callback` public: hesap oturumdan değil, `start`'ın yazdığı hesaba bağlı akıştan gelir; `state` çerezle eşleşmeli ve tek kullanımlık olmalıdır (başkasının başlattığı akış kurbanın tarayıcısında tamamlanamaz). Bir giriş akışının `state`'i bağlamada, bağlama `state`'i girişte geçmez.
+`start` uçları: oturum (çerez + CSRF veya Bearer) **ve yeniden doğrulama**: `{ "password", "code"?, "recoveryCode"? }`. Mevcut parola zorunlu; TOTP etkinse `code` veya `recoveryCode` (yalnız biri). Cihaz bağlama ve e-posta değiştirmeyle aynı kural; denemeler hesap başına sınırlıdır. `callback` public: hesap oturumdan değil, `start`'ın yazdığı hesaba bağlı akıştan gelir; `state` çerezle eşleşmeli ve tek kullanımlık olmalıdır (başkasının başlattığı akış kurbanın tarayıcısında tamamlanamaz). Bir giriş akışının `state`'i bağlamada, bağlama `state`'i girişte geçmez.
 
 #### Sonuç iletimi (callback)
 Yapılandırmadaki SABİT frontend adresine URL **fragment**'i ile (`302`):
 - `#status=steam_linked` — Steam kimliği hesaba bağlandı (aynı kimlik zaten bu hesaptaysa da bu sonuç, olay üretilmez)
+- `#status=google_linked` — Google kimliği hesaba bağlandı (e-posta eşleşmesi aranmaz; eşleşme yalnız Google `sub` iledir)
 - `#error=<KOD>` — `EXTERNAL_AUTH_FAILED` (state/imza/nonce/replay/Steam hatası; ayrıntı verilmez), `EXTERNAL_IDENTITY_TAKEN` (bu Steam kimliği başka hesapta), `EXTERNAL_IDENTITY_ALREADY_LINKED` (hesapta zaten başka bir Steam kimliği var), `SESSION_INVALID` (hesap aktif değil)
 
 #### Kurallar
-- **Tekillik:** bir SteamID64 tek hesaba, bir hesap tek Steam kimliğine bağlanır (veritabanı kısıtlarıyla da zorlanır).
-- **Son giriş yöntemi koruması:** hesapta parola yoksa ve başka harici kimlik (Google) yoksa kaldırma `409 LAST_LOGIN_METHOD`.
-- **Parolasız hesap** bağlama ve kaldırmada `409 PASSWORD_REQUIRED` alır (cihaz bağlama ve e-posta değiştirmeyle aynı davranış; açık B11 kararına bağlı).
-- Bağlama ve kaldırma güvenlik olayı olarak kaydedilir (`EXTERNAL_IDENTITY_LINKED`, `EXTERNAL_IDENTITY_UNLINKED`, `EXTERNAL_LINK_CONFLICT`, `EXTERNAL_IDENTITY_LINK_REJECTED`).
-- **Olaylar** (outbox, `AUTH_EVENT_TARGETS`, hedef User): `ExternalIdentityLinked { accountId, provider: "STEAM", providerSubject: "<17 haneli SteamID64>" }` ve `ExternalIdentityUnlinked { accountId, provider: "STEAM" }`, `eventVersion=1`. SteamID64 herkese açık bir kimliktir; olaylara konabilen tek kimlik bilgisi odur (e-posta ve parola konmaz). Zarf ve teslim kuralları `docs-auth/servis-sozlesmeleri.md` 3.5.
+- **Tekillik:** bir SteamID64 / Google `sub` tek hesaba, bir hesap sağlayıcı başına tek kimliğe bağlanır (veritabanı kısıtlarıyla da zorlanır).
+- **Kalıcılık:** bağlanan kimlik çıkarılamadığı için hesap, ilk bağlı harici yöntemini kaybetmez (`LAST_LOGIN_METHOD` artık kullanıcı yolunda üretilmez).
+- **Parolasız hesap** bağlamada `409 PASSWORD_REQUIRED` alır (cihaz bağlama ve e-posta değiştirmeyle aynı davranış); önce parola belirlemelidir (B11, planlı).
+- Bağlama güvenlik olayı olarak kaydedilir (`EXTERNAL_IDENTITY_LINKED`, `EXTERNAL_LINK_CONFLICT`, `EXTERNAL_IDENTITY_LINK_REJECTED`).
+- **Olaylar** (outbox, `AUTH_EVENT_TARGETS`, hedef User): `ExternalIdentityLinked { accountId, provider: "STEAM" | "GOOGLE", providerSubject: "<17 haneli SteamID64> | <Google sub>" }` ve `ExternalIdentityUnlinked { accountId, provider: "STEAM" }`, `eventVersion=1`. SteamID64 herkese açık bir kimliktir; olaylara konabilen tek kimlik bilgisi odur (e-posta ve parola konmaz). Zarf ve teslim kuralları `docs-auth/servis-sozlesmeleri.md` 3.5.
 - **Mevcut Steam hesapları** için geriye dönük `ExternalIdentityLinked` yayını yoktur (DEV'de hesaplar yeniden kaydolur; gerçek hesap varsa ayrıca konuşulur).
 
 #### Hata Durumları
 - 400: yeniden doğrulama hatası (`CURRENT_PASSWORD_INVALID`, `INVALID_TWO_FACTOR_CODE`), doğrulama hatası
 - 401/403: oturum yok / CSRF yok
-- 404: `unlink` için bağlı Steam kimliği yok (`EXTERNAL_IDENTITY_NOT_LINKED`)
-- 409: `PASSWORD_REQUIRED`, `EXTERNAL_IDENTITY_ALREADY_LINKED` (`start`), `LAST_LOGIN_METHOD` (`unlink`)
+- 409: `PASSWORD_REQUIRED`, `EXTERNAL_IDENTITY_ALREADY_LINKED` (`start`)
 - 429: yeniden doğrulama denemesi sınırı
 
 #### Bağlantı
