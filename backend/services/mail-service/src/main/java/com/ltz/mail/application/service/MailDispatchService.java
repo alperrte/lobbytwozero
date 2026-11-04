@@ -75,7 +75,8 @@ public class MailDispatchService {
     }
 
     private List<MailMessage> claim(Instant now) {
-        List<MailMessage> claimed = transaction.execute(status -> {
+        // execute(...) callback sonucunu olduğu gibi döndürür; lambda her yolda liste verdiği için sonuç null olamaz.
+        return transaction.execute(status -> {
             List<UUID> ids = messages.lockDueIds(now, worker.batchSize());
             if (ids.isEmpty()) {
                 return List.<MailMessage>of();
@@ -85,7 +86,6 @@ public class MailDispatchService {
             rows.forEach(row -> row.lease(now, leaseUntil));
             return messages.saveAll(rows);
         });
-        return claimed == null ? List.of() : claimed;
     }
 
     private void process(MailMessage message) {

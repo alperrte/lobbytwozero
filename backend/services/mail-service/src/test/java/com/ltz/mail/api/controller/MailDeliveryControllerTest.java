@@ -28,6 +28,8 @@ import com.ltz.mail.IntegrationTestSupport;
 import com.ltz.mail.domain.enums.SecurityNotificationType;
 import com.nimbusds.jwt.JWTClaimsSet;
 
+import jakarta.servlet.http.Cookie;
+
 class MailDeliveryControllerTest extends IntegrationTestSupport {
 
     private static final String EMAIL = "kerem@example.com";
@@ -235,6 +237,21 @@ class MailDeliveryControllerTest extends IntegrationTestSupport {
         postCode(account, UUID.randomUUID(), bearer(newAccount(), MAIL_SEND_SCOPE)).andExpect(status().isForbidden());
         postCode(account, UUID.randomUUID(),
                 "Bearer " + serviceToken(account, MAIL_SEND_SCOPE, claims -> claims.claim("account_id", null)))
+                .andExpect(status().isForbidden());
+        assertThat(messageCount()).isZero();
+    }
+
+    @Test
+    void csrfExemptionCoversOnlyInternalApiAndIdentityIsNeverReadFromCookies() throws Exception {
+        UUID account = newAccount();
+
+        // /internal/** CSRF belirteci istemez ama çerez kimlik sayılmaz: Bearer yoksa 401.
+        mockMvc.perform(post(InternalApiPaths.VERIFICATION_CODES).contentType(MediaType.APPLICATION_JSON)
+                .cookie(new Cookie("JSESSIONID", "forged"), new Cookie("XSRF-TOKEN", "forged"))
+                .content(verificationBody(UUID.randomUUID(), account, EMAIL, "123456")))
+                .andExpect(status().isUnauthorized());
+        // /internal dışında CSRF koruması açık kalır: durum değiştiren istek belirteçsiz 403 alır.
+        mockMvc.perform(post("/api/v1/mail/messages").contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isForbidden());
         assertThat(messageCount()).isZero();
     }

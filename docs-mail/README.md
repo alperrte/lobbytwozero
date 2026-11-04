@@ -9,7 +9,7 @@ Görev kimlikleri: `LTZ-KER-MAIL-01..03` (MAIL-01..16). Tek API sözleşmesi [do
 
 | Faz | Görevler | Durum |
 | --- | --- | --- |
-| LTZ-KER-MAIL-01 — SMTP, kalıcı kuyruk, güvenilir teslim | MAIL-10..16 | **KOD + TEST TAMAM** (54 test PASS, satır coverage %88,99); resmi kapı (`pre-push mail-service`) PASS ([plan](progress/LTZ-KER-MAIL-01.md), [MEMORY §10](MEMORY.md)) |
+| LTZ-KER-MAIL-01 — SMTP, kalıcı kuyruk, güvenilir teslim | MAIL-10..16 | **KOD + TEST TAMAM** (55 test PASS, satır coverage %89,22; 2026-11-05); resmi kapı (`pre-push mail-service`) 2026-10-31'de PASS ([plan](progress/LTZ-KER-MAIL-01.md), [MEMORY §10](MEMORY.md)) |
 | LTZ-KER-MAIL-02 — Hesap e-postaları ve TR/EN şablonlar | MAIL-01..05, 08, 09 | **KOD + TEST TAMAM** (10 tür × TR/EN); `WELCOME` / `SUSPICIOUS_LOGIN` şablonu yok ([plan](progress/LTZ-KER-MAIL-02.md)) |
 | LTZ-KER-MAIL-03 — Etkinlik ve bildirim e-postaları | MAIL-06, 07 | **ERTELENDİ**: çağıran servis yok ([plan](progress/LTZ-KER-MAIL-03.md)) |
 
