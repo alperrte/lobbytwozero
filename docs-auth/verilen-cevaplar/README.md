@@ -6,6 +6,12 @@ Bir ekip arkadaşı Auth'tan bir şey istediyse, sorduysa ya da Auth hakkında b
 
 ---
 
+## HERKES İÇİN YENİ (2026-11-05)
+
+[bilgilendirme-2026-11-05-auth-degisiklikleri.md](bilgilendirme-2026-11-05-auth-degisiklikleri.md) — Google bağlama, Steam'de zorunlu 2FA, parola belirleme, kaldırılan `steam/unlink` ve kimden ne beklendiği. Her servis klasöründe kendi özel notu `bilgilendirme-2026-11-05.md` olarak durur.
+
+---
+
 ## NASIL OKUNUR
 
 - Her branch klasörünün adı branch adıyla aynı (`feature/` öneki olmadan). Örnek: `feature/hardware-service` → `hardware-service/`
