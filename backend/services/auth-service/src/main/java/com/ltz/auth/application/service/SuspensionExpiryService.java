@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,7 @@ import lombok.RequiredArgsConstructor;
  * servislere {@code AccountStatusChanged(ACTIVE)} olayı yayımlanır.
  */
 @Service
+@EnableConfigurationProperties(SuspensionProperties.class)
 @RequiredArgsConstructor
 public class SuspensionExpiryService {
 

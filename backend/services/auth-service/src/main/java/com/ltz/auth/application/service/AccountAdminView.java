@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import com.ltz.auth.domain.entity.Account;
 import com.ltz.auth.domain.enums.AccountStatus;
 
 /**
@@ -15,5 +16,12 @@ public record AccountAdminView(UUID id, String username, AccountStatus status, L
 
     public AccountAdminView {
         roles = List.copyOf(roles);
+    }
+
+    /** Hesabın yönetici görünümü; roller ada göre sıralı, e-posta ve parola özeti hiçbir alanda yoktur. */
+    public static AccountAdminView of(Account account, boolean twoFactorEnabled) {
+        return new AccountAdminView(account.getId(), account.getUsername(), account.getStatus(),
+                account.roleCodes().stream().map(Enum::name).sorted().toList(), twoFactorEnabled,
+                account.getCreatedAt(), account.getSuspendedUntil());
     }
 }

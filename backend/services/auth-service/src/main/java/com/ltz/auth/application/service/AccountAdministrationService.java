@@ -62,9 +62,7 @@ public class AccountAdministrationService {
     public AccountAdminView get(UUID accountId) {
         Account account = accountRepository.findWithRolesById(accountId)
                 .orElseThrow(() -> new AuthException(AuthErrorCode.ACCOUNT_NOT_FOUND));
-        return new AccountAdminView(account.getId(), account.getUsername(), account.getStatus(),
-                account.roleCodes().stream().map(Enum::name).sorted().toList(),
-                twoFactorService.isEnabled(accountId), account.getCreatedAt(), account.getSuspendedUntil());
+        return AccountAdminView.of(account, twoFactorService.isEnabled(accountId));
     }
 
     @Transactional
