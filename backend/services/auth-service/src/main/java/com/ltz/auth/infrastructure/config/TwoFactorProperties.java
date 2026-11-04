@@ -38,6 +38,12 @@ public record TwoFactorProperties(
         @DefaultValue("1") @Min(1) @Max(Short.MAX_VALUE) int encryptionKeyVersion,
         String previousEncryptionKeys) {
 
+    public TwoFactorProperties {
+        // Boş ya da yalnız boşluktan oluşan eski anahtar listesi "rotasyon yok" demektir (ENV'de satır boş bırakılabilir).
+        previousEncryptionKeys = previousEncryptionKeys == null || previousEncryptionKeys.isBlank()
+                ? null : previousEncryptionKeys.strip();
+    }
+
     @Override
     public String toString() {
         return "TwoFactorProperties[issuer=" + issuer + ", encryptionKey=***, challengeTtl=" + challengeTtl

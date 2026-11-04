@@ -30,6 +30,11 @@ public record VerificationProperties(
         @NotBlank String hmacKey,
         String previousHmacKey) {
 
+    public VerificationProperties {
+        // Boş ya da yalnız boşluktan oluşan önceki anahtar "rotasyon yok" demektir (ENV'de satır boş bırakılabilir).
+        previousHmacKey = previousHmacKey == null || previousHmacKey.isBlank() ? null : previousHmacKey.strip();
+    }
+
     @Override
     public String toString() {
         return "VerificationProperties[codeTtl=" + codeTtl + ", maxAttempts=" + maxAttempts
