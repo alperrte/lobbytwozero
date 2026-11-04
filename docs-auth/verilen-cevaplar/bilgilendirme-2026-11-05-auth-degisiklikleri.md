@@ -39,6 +39,13 @@ Bu dosya herkes içindir. Kendi servisinin özel notu, kendi klasöründeki `bil
 - `POST /api/v1/auth/password/set` `{ emailCode, newPassword, newPasswordConfirmation }` → `204`; tüm oturumlar kapanır, çerezler silinir, yeni parolayla yeniden giriş yapılır
 - Neden: yalnız Google/Steam ile açılmış hesap parolasızdı; `PASSWORD_REQUIRED (409)` alıyordu (cihaz bağlama, e-posta değiştirme, hesap silme iptali, Google/Steam bağlama). Parola belirleyince hepsi açılır.
 
+### 4. Süreli hesap askısı (B8)
+- `SUSPENDED` hesap isteğe bağlı bitiş tarihiyle verilebilir: `POST /api/v1/auth/admin/accounts/{id}/status` ve servis kimlikli `POST /internal/v1/accounts/{id}/status` gövdesine isteğe bağlı `"suspendedUntil": "ISO-8601"` (yalnız `SUSPENDED` hedefinde; şimdi + 1 dk ile şimdi + 365 gün arası, aksi `400 INVALID_SUSPENSION_END`). Süre dolunca Auth hesabı otomatik `ACTIVE` yapar, `AccountStatusChanged(ACTIVE)` olayı yayımlanır ve kullanıcıya e-posta gider. `BANNED` ve `DISABLED` süresizdir.
+- Yönetici görünümü (`GET .../admin/accounts/{id}`) süreli askıdaki hesapta `suspendedUntil` döner. Verilmezse askı süresizdir (eskisi gibi elle açılır); mevcut istemciler değişmeden çalışır.
+
+### 5. Anahtar rotasyonu (S9, yalnız Auth)
+- TOTP şifreleme ve HMAC anahtarları döndürülebilir hale geldi (`docs-auth/anahtar-rotasyonu.md`). Diğer servisleri etkilemez.
+
 Sözleşme ayrıntısı: `docs/api.md` ("Steam ve Google bağlama", "Zorunlu 2FA kurulumu", "Parola belirle").
 
 ---
@@ -60,4 +67,4 @@ Sözleşme ayrıntısı: `docs/api.md` ("Steam ve Google bağlama", "Zorunlu 2FA
 
 ## DOĞRULAMA
 
-Auth tarafı: 514 test geçti, satır kapsamı %93,56, Checkstyle 0 ihlal, kapsam politikası geçti. Sağlayıcı davranışı (Google/Steam) yerel sahte sunucularla denendi; **gerçek Google/Steam ile uçtan uca denenmedi** (OAuth kimlik bilgileri gerekir).
+Auth tarafı: 528 test geçti, satır kapsamı %93,40, Checkstyle 0 ihlal, kapsam politikası geçti. Sağlayıcı davranışı (Google/Steam) yerel sahte sunucularla denendi; **gerçek Google/Steam ile uçtan uca denenmedi** (OAuth kimlik bilgileri gerekir).

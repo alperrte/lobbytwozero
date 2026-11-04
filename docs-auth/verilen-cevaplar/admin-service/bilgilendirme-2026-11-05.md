@@ -20,3 +20,5 @@ Ayrıntılı ve herkes için ortak metin: [../bilgilendirme-2026-11-05-auth-degi
 
 Ek: servis→Auth iç uçları (`/internal/v1/accounts/**`) hazırdır; Admin yazılınca `servis-sozlesmeleri.md` §3.4 ile bağlanır.
 
+**Yeni (B8):** `POST /internal/v1/accounts/{id}/status` gövdesine isteğe bağlı `suspendedUntil` (ISO-8601) eklendi; yalnız `SUSPENDED` hedefinde ve 1 dk – 365 gün aralığında geçerlidir, süre dolunca Auth hesabı kendisi açar. Alan verilmezse davranış eskisi gibidir (süresiz askı). Admin arayüzü isterse "şu tarihe kadar askıya al" seçeneği sunabilir. Durum: **BİLGİ**
+
