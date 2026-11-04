@@ -20,9 +20,9 @@ Mail kimseyi çağırmaz. Tek yön: Auth → Mail.
 - Bu yüzden Mail `202` dönmeden önce kaydı **kalıcı** yazmalı; SMTP anında gitmek zorunda değil (kuyruk + retry).
 - Auth `recipientEmail`'i her çağrıda verir; kod/bağlantı yalnız Auth belleğinde, Mail'e giderken düz metin (iç ağ, `svc+jwt` korumalı).
 
-## Uçlar (taslak → onaydan sonra `docs/api.md` `## MAIL`)
+## Uçlar (`docs/api.md` `## MAIL` ile aynı; hepsi IMPLEMENTED)
 
-Hepsi `Internal`, `Authorization: Bearer <svc+jwt>` (`aud=mail-service`, `sub=svc:auth-service`, `scope=mail:send`). Yanıt `202`; hata: 400, 401, 403, 409 (aynı anahtar farklı içerik), 413, 429.
+Hepsi `Internal`, `Authorization: Bearer <svc+jwt>` (`aud=mail-service`, `sub=svc:auth-service`, `scope=mail:send`). Yanıt `202`; hata: 400, 401, 403, 409 (aynı anahtar farklı içerik), 413, 503 (kayıt yazılamadı, `TEMPORARILY_UNAVAILABLE`), 500.
 
 | Uç | Gövde (Auth portundan) | Kaynak port |
 | --- | --- | --- |
