@@ -63,3 +63,7 @@ gerekir. Pre-push ve Sonar komutları ise açıkça verilen profil dosyasını k
 
 İlgili rehberler: [pre-push](../pre-push/pre-push.md),
 [SonarQube](../sonarqube/sonarqube.md).
+
+## Auth ENV kontrolü
+
+`node ops/auth-env-check.mjs` Auth için gerekli anahtarların ve rotasyon ayarlarının biçimini, Auth açılmadan önce kontrol eder (değer yazmaz, dosya değiştirmez). Ayrıntı: `docs-auth/ekip-hizli-baslangic.md`.

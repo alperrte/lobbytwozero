@@ -2,7 +2,7 @@
 
 **Sahip:** Kerem (auth-service) · **Kapsam:** Auth'taki yeni özellikler ve herkesten beklenenler · **Branch:** `feature/auth-service`
 
-Bu dosya herkes içindir. Kendi servisinin özel notu, kendi klasöründeki `bilgilendirme-2026-11-05.md` dosyasındadır. Yapay zekâ asistanına vereceksen bu dosyanın ve kendi klasörünün yolunu ver ve "bunları oku, bana yapılacakları söyle" de.
+Bu dosya herkes içindir. Kendi servisinin özel notu, kendi klasöründeki `bilgilendirme-2026-11-05.md` dosyasındadır. Yapay zekâ asistanına vereceksen bu dosyanın ve kendi klasörünün yolunu ver ve "bunları oku, bana yapılacakları söyle" de. Auth'u yerelde çalıştırma, dev/prod farkı ve hata giderme için: [`../ekip-hizli-baslangic.md`](../ekip-hizli-baslangic.md).
 
 ---
 
@@ -32,7 +32,7 @@ Bu dosya herkes içindir. Kendi servisinin özel notu, kendi klasöründeki `bil
   - Harici giriş dönüşü: `#status=mfa_enrollment_required&challenge=<id>`
 - `POST /api/v1/auth/login/2fa/enrollment/start` `{ challengeId }` → `{ secret, otpauthUri }`
 - `POST /api/v1/auth/login/2fa/enrollment/complete` `{ challengeId, code }` → oturum çerezleri + `recoveryCodes` (yalnız bir kez)
-- Steam bağlı hesapta TOTP kapatılamaz. Ayar üretimde açık, yerel dev'de kapalıdır (`ltz.auth.two-factor.require-for-steam-accounts`). Yerelde bunu denemek isteyen `LTZ_AUTH_TWOFACTOR_REQUIREFORSTEAMACCOUNTS=true` verebilir.
+- Steam bağlı hesapta TOTP kapatılamaz. Ayar üretimde açık, yerel dev'de kapalıdır (`ltz.auth.two-factor.require-for-steam-accounts`). Dev'de denemek için: `mvn`/IDE ile çalışıyorsan `LTZ_AUTH_TWOFACTOR_REQUIREFORSTEAMACCOUNTS=true`; Compose ile çalışıyorsan `application-dev.properties` satırını geçici olarak `true` yap (commit etme). Ayrıntı: `docs-auth/ekip-hizli-baslangic.md`.
 
 ### 3. Parola belirleme (B11)
 - `POST /api/v1/auth/password/set/request` `{ code?, recoveryCode? }` → `202`; hesabın doğrulanmış e-postasına 6 haneli kod gider (Mail `verification-codes` ucu, yeni uç yok)
