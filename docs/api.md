@@ -430,6 +430,34 @@ Diğer mikroservisler:
 #### Test Durumu
 INTEGRATION
 
+### AUTH — Zorunlu 2FA kurulumu (Steam hesapları)
+
+Durum: IMPLEMENTED (2026-11-05, karar: Kerem). Üretimde açık; yerel dev'de kapalı (`ltz.auth.two-factor.require-for-steam-accounts`, `application.properties` / `application-dev.properties`; yeni ENV yok).
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Kural
+Steam kimliği bağlı bir hesap, TOTP etkin değilken **oturum alamaz**. Parola veya Steam girişi parolayı/kimliği doğruladıktan sonra token yerine kısa ömürlü (`AUTH_MFA_CHALLENGE_TTL`, varsayılan 5 dk), tek kullanımlık bir **kurulum challenge'ı** döner. Kurulum bitince oturum açılır. TOTP etkinse olağan ikinci faktör akışı (`/login/2fa`) çalışır. Steam bağlı hesapta TOTP **kapatılamaz** (`403 TWO_FACTOR_REQUIRED_FOR_ROLE`).
+
+#### Giriş yanıtları
+- Parola girişi (`POST /login`): `200 { "status": "MFA_ENROLLMENT_REQUIRED", "challengeId", "challengeExpiresAt" }`, çerez yazılmaz.
+- Harici giriş dönüşü: `#status=mfa_enrollment_required&challenge=<id>`, çerez yazılmaz.
+
+#### Endpoint
+- POST /api/v1/auth/login/2fa/enrollment/start `{ "challengeId" }` → `200 { "secret", "otpauthUri" }` (TOTP gizli anahtarı yalnız bu yanıtta; yeniden çağrılırsa bekleyen anahtar yenilenir)
+- POST /api/v1/auth/login/2fa/enrollment/complete `{ "challengeId", "code" }` → `200 { "status": "AUTHENTICATED", "accessTokenExpiresAt", "recoveryCodes": [...] }`; oturum HttpOnly çerezlerle açılır, gövdede token yoktur; kurtarma kodları yalnız bu yanıtta görünür
+
+#### Yetkilendirme
+Public (oturum yok); yetki kaynağı kurulum challenge'ıdır. `/login/2fa` ile aynı CSRF kuralı. Kurulum challenge'ı `/login/2fa` adımında, giriş challenge'ı kurulum uçlarında **geçersizdir** (amaç sütunu ayırır).
+
+#### Hata Durumları
+- 400: `INVALID_TWO_FACTOR_CODE` (yanlış kod; deneme challenge ve hesap bazında sınırlı, `AUTH_2FA_MAX_ATTEMPTS`)
+- 401: `MFA_FAILED` (challenge bilinmiyor, süresi dolmuş, tüketilmiş veya deneme hakkı bitmiş)
+- 409: `TWO_FACTOR_ALREADY_ENABLED` (`start`, aynı anda başka yoldan kurulmuşsa)
+
+#### Test Durumu
+INTEGRATION (`SteamTwoFactorEnrollmentTest`, 8 test)
+
 ### AUTH — TOTP yönetimi
 
 Durum: IMPLEMENTED

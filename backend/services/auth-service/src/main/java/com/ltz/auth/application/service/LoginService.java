@@ -101,6 +101,10 @@ public class LoginService {
             securityEventRecorder.recordEvent(SecurityEventType.LOGIN_REJECTED_TWO_FACTOR_REQUIRED, candidate.accountId());
             throw new AuthException(AuthErrorCode.TWO_FACTOR_ENROLLMENT_REQUIRED);
         }
+        // Steam hesabı (ayar açıksa): oturum yok, önce TOTP kurulumu. Parola ve harici giriş aynı kuralı izler.
+        if (twoFactorService.isRequiredForSteamAccount(candidate.accountId())) {
+            return twoFactorService.issueEnrollmentChallenge(candidate.accountId(), firstFactor);
+        }
         return LoginResult.authenticated(sessionService.start(candidate.accountId(), List.of(firstFactor)));
     }
 

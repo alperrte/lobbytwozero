@@ -67,6 +67,6 @@ class SecretCipherTest {
     }
 
     private static TwoFactorProperties properties(String key) {
-        return new TwoFactorProperties("LTZ", key, Duration.ofMinutes(5), 5, 10, 1, Set.of());
+        return new TwoFactorProperties("LTZ", key, Duration.ofMinutes(5), 5, 10, 1, Set.of(), false);
     }
 }

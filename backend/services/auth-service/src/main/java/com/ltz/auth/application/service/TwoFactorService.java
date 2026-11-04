@@ -20,6 +20,7 @@ import com.ltz.auth.domain.entity.MfaChallenge;
 import com.ltz.auth.domain.entity.RecoveryCode;
 import com.ltz.auth.domain.entity.TotpCredential;
 import com.ltz.auth.domain.enums.AuthMethod;
+import com.ltz.auth.domain.enums.ExternalProvider;
 import com.ltz.auth.domain.enums.RoleCode;
 import com.ltz.auth.domain.enums.SecurityEventType;
 import com.ltz.auth.domain.enums.TotpStatus;
@@ -27,6 +28,7 @@ import com.ltz.auth.domain.exception.AuthErrorCode;
 import com.ltz.auth.domain.exception.AuthException;
 import com.ltz.auth.infrastructure.config.TwoFactorProperties;
 import com.ltz.auth.infrastructure.persistence.repository.AccountRepository;
+import com.ltz.auth.infrastructure.persistence.repository.ExternalIdentityRepository;
 import com.ltz.auth.infrastructure.persistence.repository.MfaChallengeRepository;
 import com.ltz.auth.infrastructure.persistence.repository.RecoveryCodeRepository;
 import com.ltz.auth.infrastructure.persistence.repository.TotpCredentialRepository;
@@ -53,6 +55,7 @@ public class TwoFactorService {
     private final RecoveryCodeRepository recoveryCodeRepository;
     private final MfaChallengeRepository challengeRepository;
     private final AccountRepository accountRepository;
+    private final ExternalIdentityRepository externalIdentityRepository;
     private final TotpCodes totpCodes;
     private final SecretCipher secretCipher;
     private final SecureTokens secureTokens;
@@ -71,6 +74,68 @@ public class TwoFactorService {
 
     public boolean isRequiredFor(Set<RoleCode> roles) {
         return !Collections.disjoint(roles, properties.requiredRoles());
+    }
+
+    /** Steam kimliği bağlı hesap için 2FA zorunlu mu (ayar açıksa). */
+    public boolean isRequiredForSteamAccount(UUID accountId) {
+        return properties.requireForSteamAccounts()
+                && externalIdentityRepository.findByAccountIdAndProvider(accountId, ExternalProvider.STEAM).isPresent();
+    }
+
+    /**
+     * Zorunlu 2FA'da TOTP henüz kurulu değilse oturum verilmez; yalnız kurulumu tamamlamaya yarayan, kısa ömürlü ve
+     * tek kullanımlık bir challenge döner. Kurulum bitince oturum açılır ({@link #completeEnrollment}).
+     */
+    @Transactional
+    public LoginResult issueEnrollmentChallenge(UUID accountId, AuthMethod firstFactor) {
+        Instant now = clock.instant();
+        String challengeId = secureTokens.newOpaqueToken();
+        Instant expiresAt = now.plus(properties.challengeTtl());
+        challengeRepository.save(MfaChallenge.issueEnrollment(accountId, secureTokens.sha256Hex(challengeId), firstFactor,
+                now, expiresAt));
+        securityEventRecorder.recordEvent(SecurityEventType.MFA_CHALLENGE_ISSUED, accountId);
+        return LoginResult.enrollmentRequired(challengeId, expiresAt);
+    }
+
+    /** Kurulum adımı 1: kurulum challenge'ı geçerliyse yeni TOTP gizli anahtarını üretir. */
+    public TotpSetup startEnrollment(String challengeId) {
+        String challengeHash = secureTokens.sha256Hex(challengeId);
+        // startSetup bu sınıf içinden çağrıldığında @Transactional proxy'si devreye girmez; işlemi burada açıyoruz.
+        return transactionTemplate.execute(status -> {
+            UUID accountId = challengeRepository.findByChallengeHash(challengeHash)
+                    .filter(candidate -> candidate.isEnrollment() && candidate.isOpen(clock.instant()))
+                    .map(MfaChallenge::getAccountId)
+                    .orElseThrow(() -> new AuthException(AuthErrorCode.MFA_FAILED));
+            return startSetup(accountId);
+        });
+    }
+
+    /**
+     * Kurulum adımı 2: uygulamadaki ilk kodla TOTP etkinleşir, kurtarma kodları bir kez döner ve oturum açılır.
+     * Yanlış kod denemeleri hem challenge hem hesap bazında sınırlıdır.
+     */
+    public EnrollmentResult completeEnrollment(String challengeId, String code) {
+        String challengeHash = secureTokens.sha256Hex(challengeId);
+        // Deneme, sonuçtan bağımsız sayılır ve işlemle birlikte kalıcı olur.
+        UUID accountId = transactionTemplate.execute(status -> {
+            MfaChallenge challenge = challengeRepository.findByChallengeHashForUpdate(challengeHash)
+                    .filter(candidate -> candidate.isEnrollment()
+                            && candidate.acceptsAttempt(clock.instant(), properties.maxChallengeAttempts()))
+                    .orElseThrow(() -> new AuthException(AuthErrorCode.MFA_FAILED));
+            challenge.recordAttempt();
+            return challenge.getAccountId();
+        });
+        List<String> recoveryCodes = activate(accountId, code);
+        IssuedSession session = transactionTemplate.execute(status -> {
+            Instant now = clock.instant();
+            MfaChallenge challenge = challengeRepository.findByChallengeHashForUpdate(challengeHash)
+                    .filter(candidate -> candidate.isEnrollment() && candidate.isOpen(now))
+                    .orElseThrow(() -> new AuthException(AuthErrorCode.MFA_FAILED));
+            challenge.consume(now);
+            return sessionService.start(accountId, List.of(challenge.getFirstFactor(), AuthMethod.OTP));
+        });
+        securityEventRecorder.recordEvent(SecurityEventType.MFA_SUCCEEDED, accountId);
+        return new EnrollmentResult(session, recoveryCodes);
     }
 
     @Transactional
@@ -154,7 +219,7 @@ public class TwoFactorService {
         attemptThrottle.reserve(throttleKey);
         Account account = transactionTemplate.execute(status -> accountRepository.findWithRolesById(accountId)
                 .orElseThrow(() -> new AuthException(AuthErrorCode.SESSION_INVALID)));
-        if (isRequiredFor(account.roleCodes())) {
+        if (isRequiredFor(account.roleCodes()) || isRequiredForSteamAccount(accountId)) {
             throw new AuthException(AuthErrorCode.TWO_FACTOR_REQUIRED_FOR_ROLE);
         }
         boolean passwordMatches = account.passwordHash()
@@ -199,7 +264,8 @@ public class TwoFactorService {
     private IssuedSession verifyChallenge(String challengeHash, String code, String recoveryCode) {
         Instant now = clock.instant();
         MfaChallenge challenge = challengeRepository.findByChallengeHashForUpdate(challengeHash)
-                .filter(candidate -> candidate.acceptsAttempt(now, properties.maxChallengeAttempts()))
+                .filter(candidate -> !candidate.isEnrollment()
+                        && candidate.acceptsAttempt(now, properties.maxChallengeAttempts()))
                 .orElse(null);
         if (challenge == null) {
             return null;

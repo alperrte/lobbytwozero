@@ -65,6 +65,8 @@ public class SecurityConfig {
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.EMAIL_VERIFICATION_RESEND),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.LOGIN),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.LOGIN_TWO_FACTOR),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.LOGIN_TWO_FACTOR_ENROLLMENT_START),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.LOGIN_TWO_FACTOR_ENROLLMENT_COMPLETE),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.SESSION_REFRESH),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.SESSION_LOGOUT),
             PATHS.matcher(HttpMethod.GET, AuthApiPaths.CSRF),

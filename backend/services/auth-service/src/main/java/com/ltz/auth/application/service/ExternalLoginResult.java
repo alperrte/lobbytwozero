@@ -6,11 +6,15 @@ public record ExternalLoginResult(Outcome outcome, IssuedSession session, String
     public enum Outcome {
         AUTHENTICATED,
         MFA_REQUIRED,
+        MFA_ENROLLMENT_REQUIRED,
         REGISTRATION_REQUIRED,
         EMAIL_VERIFICATION_REQUIRED
     }
 
     static ExternalLoginResult from(LoginResult login) {
+        if (login.requiresEnrollment()) {
+            return new ExternalLoginResult(Outcome.MFA_ENROLLMENT_REQUIRED, null, login.challengeId(), null);
+        }
         return login.requiresSecondFactor()
                 ? new ExternalLoginResult(Outcome.MFA_REQUIRED, null, login.challengeId(), null)
                 : new ExternalLoginResult(Outcome.AUTHENTICATED, login.session(), null, null);

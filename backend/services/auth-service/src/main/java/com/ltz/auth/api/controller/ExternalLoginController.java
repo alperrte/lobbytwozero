@@ -31,7 +31,8 @@ import lombok.RequiredArgsConstructor;
 /**
  * Tarayıcı gezinmesiyle çalışan harici giriş uçları. Sonuç, yapılandırmadaki SABİT frontend adresine URL fragment'i
  * ile iletilir (fragment sunucuya, log'lara ve Referer'a gitmez); token'lar yalnız HttpOnly cookie'dedir.
- * Fragment: status=authenticated | status=mfa_required&challenge=… | status=registration_required&token=… | error=KOD
+ * Fragment: status=authenticated | status=mfa_required&challenge=… | status=mfa_enrollment_required&challenge=… |
+ * status=registration_required&token=… | error=KOD
  */
 @RestController
 @RequiredArgsConstructor
@@ -99,6 +100,7 @@ public class ExternalLoginController {
         return switch (result.outcome()) {
             case AUTHENTICATED -> "status=authenticated";
             case MFA_REQUIRED -> "status=mfa_required&challenge=" + result.challengeId();
+            case MFA_ENROLLMENT_REQUIRED -> "status=mfa_enrollment_required&challenge=" + result.challengeId();
             case REGISTRATION_REQUIRED -> "status=registration_required&token=" + result.token();
             case EMAIL_VERIFICATION_REQUIRED -> "status=email_verification_required&proof=" + result.token();
         };

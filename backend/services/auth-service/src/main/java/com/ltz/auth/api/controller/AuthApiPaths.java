@@ -13,6 +13,9 @@ public final class AuthApiPaths {
 
     public static final String LOGIN = BASE + "/login";
     public static final String LOGIN_TWO_FACTOR = LOGIN + "/2fa";
+    /** Zorunlu 2FA'nın (Steam hesapları) ilk kurulumu: oturum yok, yalnız girişte verilen kurulum challenge'ı. */
+    public static final String LOGIN_TWO_FACTOR_ENROLLMENT_START = LOGIN_TWO_FACTOR + "/enrollment/start";
+    public static final String LOGIN_TWO_FACTOR_ENROLLMENT_COMPLETE = LOGIN_TWO_FACTOR + "/enrollment/complete";
     public static final String CSRF = BASE + "/csrf";
     public static final String JWKS = BASE + "/.well-known/jwks.json";
 
