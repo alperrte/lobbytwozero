@@ -61,7 +61,8 @@ public class AdminAccountController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void changeStatus(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID accountId,
                              @Valid @RequestBody StatusChangeRequest request) {
-        administrationService.changeStatus(actorId(jwt), accountId, request.status(), request.reason());
+        administrationService.changeStatus(actorId(jwt), accountId, request.status(), request.reason(),
+                request.suspendedUntil());
     }
 
     @PostMapping(AuthApiPaths.ADMIN_ACCOUNT_ROLES_GRANT)

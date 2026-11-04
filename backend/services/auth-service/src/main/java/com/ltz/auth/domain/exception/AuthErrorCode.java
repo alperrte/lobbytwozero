@@ -28,6 +28,7 @@ public enum AuthErrorCode {
     PASSWORD_RESET_TOKEN_INVALID(400, "Password reset link is invalid or has expired."),
     ACCOUNT_NOT_FOUND(404, "Account was not found."),
     INVALID_STATUS_TRANSITION(409, "The requested account status transition is not allowed."),
+    INVALID_SUSPENSION_END(400, "The suspension end must be for a suspension and within the allowed range."),
     SELF_MODIFICATION_FORBIDDEN(403, "Administrators cannot change their own status or roles."),
     TARGET_NOT_ACTIVE(409, "The target account is not active."),
     ROLE_ALREADY_ASSIGNED(409, "The role is already assigned."),

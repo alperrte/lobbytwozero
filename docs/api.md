@@ -743,8 +743,8 @@ Tüketici servisler: Frontend (yönetim paneli), admin-service (servis kimliği 
 
 #### Endpoint
 - GET /api/v1/auth/admin/roles — kanonik rol kodları (`PLAYER`, `CONTENT_CREATOR`, `GAME_DEVELOPER`, `MODERATOR`, `ADMIN`)
-- GET /api/v1/auth/admin/accounts/{accountId} — `{ id, username, status, roles, twoFactorEnabled, createdAt }` (e-posta/parola yok)
-- POST /api/v1/auth/admin/accounts/{accountId}/status — `{ "status": "SUSPENDED|BANNED|DISABLED|ACTIVE", "reason": "1-500 karakter" }` → `204`
+- GET /api/v1/auth/admin/accounts/{accountId} — `{ id, username, status, roles, twoFactorEnabled, createdAt, suspendedUntil? }` (e-posta/parola yok) `suspendedUntil` yalnız süreli askıdaki hesapta gelir.
+- POST /api/v1/auth/admin/accounts/{accountId}/status — `{ "status": "SUSPENDED|BANNED|DISABLED|ACTIVE", "reason": "1-500 karakter", "suspendedUntil": "ISO-8601, yalnız SUSPENDED" }` → `204`
 - POST /api/v1/auth/admin/accounts/{accountId}/roles/grant — `{ "role", "reason" }` → `204`
 - POST /api/v1/auth/admin/accounts/{accountId}/roles/revoke — `{ "role", "reason" }` → `204`
 - GET /api/v1/auth/admin/account-deletions/pending?limit=50 — tamamlanmamış hesap silme görevleri (`limit` 1–200 aralığına sınırlanır): `[{ requestId, accountId, service, attempts, lastError, nextAttemptAt, createdAt, stuck }]`. `stuck`, `ltz.auth.deletion.stuck-attempts` (varsayılan 10) denemeye ulaşıldığını gösterir. E-posta/kullanıcı adı içermez. Takılı görev otomatik onaylanmaz; ulaşılamayan servis başarı sayılmaz.
@@ -754,6 +754,7 @@ Admin: geçerli access token + `ROLE_ADMIN`, servis sınırında SecurityConfig 
 
 #### Kurallar
 - **Durum geçişleri:** `ACTIVE → SUSPENDED|BANNED|DISABLED`, `SUSPENDED → ACTIVE|BANNED`, `DISABLED → ACTIVE`, `BANNED → ACTIVE` (yasak yönetici kararıyla kaldırılabilir; gerekçe ve denetim kaydı zorunlu). `PENDING_VERIFICATION` (AUTH-02) ve `DELETION_REQUESTED/DELETED` (AUTH-16) bu uçtan yönetilmez. Süreli askı henüz yok.
+- **Süreli askı (B8):** `SUSPENDED` isteğe bağlı `suspendedUntil` ile verilebilir; değer `[şimdi + ltz.auth.suspension.min-duration (1 dk), şimdi + max-duration (365 gün)]` aralığında olmalıdır, aksi `400 INVALID_SUSPENSION_END`. Başka hedefte (`BANNED`, `DISABLED`, `ACTIVE`) verilirse `400`. Bitiş gelince arka plan işi (dakikada bir, `ltz.auth.suspension.poll-interval`) hesabı `ACTIVE` yapar: denetim kaydına sistem kimliği (`00000000-0000-0000-0000-000000000000`) ve gerekçe "Süreli askı süresi doldu" yazılır, `AccountStatusChanged(ACTIVE)` olayı yayımlanır, kullanıcıya "hesap yeniden etkinleştirildi" e-postası gider. `suspendedUntil` verilmezse askı **süresizdir** (yalnız elle açılır). `BANNED` ve `DISABLED` süresizdir ve otomatik açılmaz. Elle açma veya yasaklama bitişi temizler. Askı bitişini uzatmak için `SUSPENDED → SUSPENDED` geçişi yoktur: önce `ACTIVE`, sonra yeniden `SUSPENDED` verilir.
 - **ACTIVE dışına çıkış:** hesabın tüm oturumları iptal edilir ve token sürümü artar; eski access/refresh token'lar auth uçlarında anında düşer, giriş `403` olur.
 - **Rol değişikliği:** hesabın oturumları iptal edilir (yeni rol için yeniden giriş). `PLAYER` alınamaz. `ADMIN`/`MODERATOR` yalnız **ACTIVE ve TOTP'si etkin** hesaba verilir (2FA zorunluluğu atlatılamaz).
 - **Yetki yükseltme yok:** yönetici kendi durumunu/rolünü değiştiremez (`SELF_MODIFICATION_FORBIDDEN`).
@@ -955,7 +956,7 @@ Token: `typ=svc+jwt`, RS256 (JWKS aynı), `iss=ltz-auth`, **`aud=auth-service`**
 
 #### Request Body (`status`)
 ```json
-{ "actorId": "UUID, işlemi yapan yönetici hesabı", "status": "SUSPENDED|BANNED|DISABLED|ACTIVE", "reason": "1-500 karakter" }
+{ "actorId": "UUID, işlemi yapan yönetici hesabı", "status": "SUSPENDED|BANNED|DISABLED|ACTIVE", "reason": "1-500 karakter", "suspendedUntil": "ISO-8601, yalnız SUSPENDED" }
 ```
 
 #### Request Body (`roles/grant`, `roles/revoke`)

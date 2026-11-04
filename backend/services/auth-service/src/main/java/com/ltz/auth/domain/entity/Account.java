@@ -75,6 +75,10 @@ public class Account {
     @Column(name = "email_verified_at")
     private Instant emailVerifiedAt;
 
+    /** Süreli askının bitişi; yalnız SUSPENDED hesapta dolu olabilir (veritabanı kısıtı da zorlar). Null: süresiz. */
+    @Column(name = "suspended_until")
+    private Instant suspendedUntil;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -177,9 +181,21 @@ public class Account {
 
     /** Durum geçerliliği çağıranda (AccountStatus.canTransitionTo) denetlenir; ACTIVE'den çıkış eski token'ları düşürür. */
     public void changeStatus(AccountStatus target, Instant now) {
+        changeStatus(target, now, null);
+    }
+
+    /**
+     * Durum değiştirir. {@code suspendedUntil} yalnız SUSPENDED hedefinde anlamlıdır (null: süresiz askı); başka hedefte
+     * önceki askı bitişi temizlenir.
+     */
+    public void changeStatus(AccountStatus target, Instant now, Instant suspendedUntil) {
         if (!status.canTransitionTo(target)) {
             throw new IllegalStateException("Status transition is not allowed");
         }
+        if (suspendedUntil != null && target != AccountStatus.SUSPENDED) {
+            throw new IllegalArgumentException("A suspension end is only valid for SUSPENDED");
+        }
+        this.suspendedUntil = target == AccountStatus.SUSPENDED ? suspendedUntil : null;
         status = target;
         updatedAt = now;
         if (target != AccountStatus.ACTIVE) {

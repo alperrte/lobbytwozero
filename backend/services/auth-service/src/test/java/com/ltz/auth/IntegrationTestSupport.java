@@ -115,6 +115,8 @@ public abstract class IntegrationTestSupport {
         registry.add("ltz.auth.events.worker-enabled", () -> "false");
         // Temizlik de elle tetiklenir; arka plan çalıştırması testlerin verisini silmemeli.
         registry.add("ltz.auth.cleanup.enabled", () -> "false");
+        // Süreli askı bitişi de elle tetiklenir; arka plan işi testlerde hesabı kendiliğinden açmamalı.
+        registry.add("ltz.auth.suspension.worker-enabled", () -> "false");
         // Eşzamanlılık testleri kapasite değil tekillik doğrular; yüklü makinede Argon2 slot beklemesi 503 üretmesin.
         registry.add("ltz.auth.password-hashing.acquire-timeout", () -> "PT10S");
         registry.add("ltz.auth.deletion.targets", () -> "user,mail");
