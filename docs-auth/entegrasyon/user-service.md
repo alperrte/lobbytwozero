@@ -15,7 +15,7 @@ User Service profil sahibi, Auth kimlik sahibi. Aralarındaki bağ iki olay (hes
 ## SENİN YAPACAKLARIN
 
 - [ ] JWT doğrulayıcı (JWKS)
-- [ ] Silme ucu. Profil ve profil görselleri silinir, kimlik bağı kalmaz. Yazılmadıkça User görevi `PENDING`
+- [x] Silme ucu (main'de, kod doğrulandı 2026-11-05). Profil ve profil görselleri silinir, kimlik bağı kalmaz. Yazılmadıkça User görevi `PENDING`
 - [ ] Karar: kullanıcı adı ve görünen ad **hangi serviste duruyor**. Auth'ta `username` var ve herkese açık. Önerim: Auth kimlik kaynağı, User `userId` ile profil sahibi, kullanıcı adını Auth'tan bir kez alıp kopyalamak yerine her seferinde sormamak için olay ile eşitle
 
 - [x] Gizlilik kararı ve özet olayları: User'ın `POST /internal/v1/privacy/decisions` ve `POST /internal/events` uçları hazır (REQ-04). Çağıranlar Auth'ta tanımlı: social (`privacy:read`, `events:ingest`), library (`privacy:read`, `events:ingest`), hardware (`privacy:read`), review (`events:ingest`). Alıcı denetimi User'ındır: `typ`, `aud=user-service`, kapsam, izinli çağıran listesi, olay türü ↔ `sub`
