@@ -295,12 +295,34 @@ public class TwoFactorService {
         }
         OptionalLong step = matchingUnusedStep(credential.get(), code, now);
         step.ifPresent(credential.get()::markStepUsed);
+        if (step.isPresent()) {
+            rewrapIfStale(credential.get());
+        }
         return step.isPresent();
     }
 
+    /** Anahtar rotasyonu (S9): eski anahtar sürümündeki gizli anahtar, başarılı doğrulamada güncel anahtarla yeniden şifrelenir. */
+    private void rewrapIfStale(TotpCredential credential) {
+        if (secretCipher.isCurrent(credential.getKeyVersion())) {
+            return;
+        }
+        UUID accountId = credential.getAccountId();
+        byte[] secret = secretCipher.decrypt(new EncryptedSecret(credential.getSecretCiphertext(),
+                credential.getSecretNonce(), credential.getKeyVersion()), accountId);
+        EncryptedSecret rewrapped = secretCipher.encrypt(secret, accountId);
+        credential.rewrapSecret(rewrapped.ciphertext(), rewrapped.nonce(), rewrapped.keyVersion());
+    }
+
     private boolean useRecoveryCode(UUID accountId, String recoveryCode, Instant now) {
-        Optional<RecoveryCode> unused = recoveryCodeRepository.findUnusedForUpdate(accountId,
-                recoveryCodeHash(accountId, recoveryCode));
+        // Anahtar rotasyonunda (S9) henüz kullanılmamış eski kodlar önceki anahtarın özetiyle kayıtlıdır; kod tek
+        // kullanımlık olduğundan eşleşince tüketilir, yeniden özetlemeye gerek kalmaz.
+        Optional<RecoveryCode> unused = Optional.empty();
+        for (String hash : recoveryCodeHashes(accountId, recoveryCode)) {
+            unused = recoveryCodeRepository.findUnusedForUpdate(accountId, hash);
+            if (unused.isPresent()) {
+                break;
+            }
+        }
         unused.ifPresent(code -> {
             code.markUsed(now);
             securityEventRecorder.recordEvent(SecurityEventType.RECOVERY_CODE_USED, accountId);
@@ -329,6 +351,11 @@ public class TwoFactorService {
 
     private String recoveryCodeHash(UUID accountId, String code) {
         return hasher.hash(RECOVERY_CODE_DOMAIN, accountId + ":" + secureTokens.normalizeRecoveryCode(code));
+    }
+
+    /** Karşılaştırma özetleri: güncel anahtar, varsa önceki anahtar (rotasyon). */
+    private List<String> recoveryCodeHashes(UUID accountId, String code) {
+        return hasher.allHashes(RECOVERY_CODE_DOMAIN, accountId + ":" + secureTokens.normalizeRecoveryCode(code));
     }
 
     private String throttleKey(UUID accountId) {

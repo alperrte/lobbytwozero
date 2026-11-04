@@ -67,6 +67,38 @@ class VerificationCodeHasherTest {
         assertThat(properties(key).toString()).doesNotContain(key).contains("hmacKey=***");
     }
 
+    @Test
+    void rotasyondaKarsilastirmaOzetleriGuncelVeOncekiAnahtariKapsarYeniOzetGuncelleUretilir() {
+        String oldKey = randomKey(32);
+        String newKey = randomKey(32);
+        UUID accountId = UUID.randomUUID();
+        VerificationCodeHasher before = new VerificationCodeHasher(properties(oldKey));
+        VerificationCodeHasher rotated = new VerificationCodeHasher(
+                new VerificationProperties(Duration.ofMinutes(10), 5, Duration.ofSeconds(60), 5, newKey, oldKey));
+
+        String legacyCode = before.hash(accountId, VerificationPurpose.EMAIL_CHANGE, "123456");
+        String legacyValue = before.hash("RECOVERY_CODE", "x:ABCDE");
+
+        assertThat(rotated.allHashes(accountId, VerificationPurpose.EMAIL_CHANGE, "123456")).hasSize(2)
+                .contains(legacyCode).first().isEqualTo(rotated.hash(accountId, VerificationPurpose.EMAIL_CHANGE, "123456"));
+        assertThat(rotated.allHashes("RECOVERY_CODE", "x:ABCDE")).hasSize(2).contains(legacyValue)
+                .first().isEqualTo(rotated.hash("RECOVERY_CODE", "x:ABCDE"));
+        assertThat(rotated.hash("RECOVERY_CODE", "x:ABCDE")).isNotEqualTo(legacyValue);
+    }
+
+    @Test
+    void oncekiAnahtarYoksaYalnizGuncelOzetDonerGecersizOncekiAnahtarReddedilir() {
+        VerificationCodeHasher single = new VerificationCodeHasher(properties(randomKey(32)));
+        assertThat(single.allHashes("D", "v")).hasSize(1);
+        assertThat(new VerificationCodeHasher(new VerificationProperties(Duration.ofMinutes(10), 5, Duration.ofSeconds(60), 5,
+                randomKey(32), "  ")).allHashes("D", "v")).hasSize(1);
+
+        String shortKey = randomKey(16);
+        assertThatThrownBy(() -> new VerificationCodeHasher(new VerificationProperties(Duration.ofMinutes(10), 5,
+                Duration.ofSeconds(60), 5, randomKey(32), shortKey)))
+                .isInstanceOf(IllegalStateException.class).hasMessageNotContaining(shortKey).hasNoCause();
+    }
+
     private static VerificationCodeHasher hasherWithKeyBytes(int bytes) {
         return new VerificationCodeHasher(properties(randomKey(bytes)));
     }
@@ -78,6 +110,6 @@ class VerificationCodeHasherTest {
     }
 
     private static VerificationProperties properties(String key) {
-        return new VerificationProperties(Duration.ofMinutes(10), 5, Duration.ofSeconds(60), 5, key);
+        return new VerificationProperties(Duration.ofMinutes(10), 5, Duration.ofSeconds(60), 5, key, null);
     }
 }

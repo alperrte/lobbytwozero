@@ -70,7 +70,8 @@ const staleDefaults = {
 
 const lineOf = (name) => new RegExp(`^${name}=(.*?)\\r?$`, "m");
 
-const requested = process.argv.slice(2);
+const flags = new Set(process.argv.slice(2).filter((arg) => arg.startsWith("--")));
+const requested = process.argv.slice(2).filter((arg) => !arg.startsWith("--"));
 const targets = (requested.length ? requested : [".env", ".env.dev"])
   .map((file) => resolve(root, file))
   .filter((file) => existsSync(file));
@@ -78,6 +79,71 @@ const targets = (requested.length ? requested : [".env", ".env.dev"])
 if (targets.length === 0) {
   console.error("Dosya bulunamadı. Önce .env.example dosyasını .env.dev olarak kopyalayın.");
   process.exit(1);
+}
+
+// Anahtar rotasyonu (S9). Normal üretim yapılmaz; yalnız istenen anahtar döndürülür ve çıkılır.
+//   --rotate-totp : AUTH_TOTP_ENCRYPTION_KEY güncel anahtarı AUTH_TOTP_ENCRYPTION_PREVIOUS_KEYS listesine ("<sürüm>=<anahtar>")
+//                   taşınır, AUTH_TOTP_ENCRYPTION_KEY_VERSION bir artar, yeni anahtar üretilir. Eski sürümdeki TOTP sırları
+//                   kullanıcı TOTP ile girdikçe yeni anahtarla yeniden şifrelenir; liste tüm kayıtlar geçince temizlenebilir.
+//   --rotate-hmac : AUTH_OTP_HMAC_KEY güncel anahtarı AUTH_OTP_HMAC_PREVIOUS_KEY'e taşınır, yeni anahtar üretilir. Önceki anahtar
+//                   zaten doluysa üzerine yazmak kullanılmamış kurtarma kodlarını geçersiz kılar; yalnız --force ile yapılır.
+// Aynı yeni anahtarlar tüm hedef dosyalara yazılır (başvuru: ilk dolu dosya). Çıktıda anahtar değeri yoktur.
+if (flags.has("--rotate-totp") || flags.has("--rotate-hmac")) {
+  const setLine = (body, name, newContent, eol) => {
+    // Eşleşme satır sonundaki CR karakterini de kapsar; CRLF dosyalarda korunur.
+    if (lineOf(name).test(body)) {
+      return body.replace(lineOf(name), (line) => `${name}=${newContent}${line.endsWith("\r") ? "\r" : ""}`);
+    }
+    return `${body}${body.endsWith("\n") || body === "" ? "" : eol}${name}=${newContent}${eol}`;
+  };
+  const read = (name) => {
+    for (const file of targets) {
+      const found = readFileSync(file, "utf8").match(lineOf(name));
+      if (found && found[1].trim() !== "") return found[1].trim();
+    }
+    return "";
+  };
+  const changes = {};
+  if (flags.has("--rotate-totp")) {
+    const current = read("AUTH_TOTP_ENCRYPTION_KEY");
+    if (current === "") {
+      console.error("AUTH_TOTP_ENCRYPTION_KEY boş: önce node ops/generate-auth-dev-keys.mjs ile üretin.");
+      process.exit(1);
+    }
+    const oldVersion = Number.parseInt(read("AUTH_TOTP_ENCRYPTION_KEY_VERSION") || "1", 10);
+    if (!Number.isInteger(oldVersion) || oldVersion < 1 || oldVersion >= 32767) {
+      console.error("AUTH_TOTP_ENCRYPTION_KEY_VERSION geçerli bir sürüm numarası değil.");
+      process.exit(1);
+    }
+    const previous = read("AUTH_TOTP_ENCRYPTION_PREVIOUS_KEYS");
+    changes.AUTH_TOTP_ENCRYPTION_KEY = generators.AUTH_TOTP_ENCRYPTION_KEY();
+    changes.AUTH_TOTP_ENCRYPTION_KEY_VERSION = String(oldVersion + 1);
+    changes.AUTH_TOTP_ENCRYPTION_PREVIOUS_KEYS = `${previous ? `${previous},` : ""}${oldVersion}=${current}`;
+  }
+  if (flags.has("--rotate-hmac")) {
+    const current = read("AUTH_OTP_HMAC_KEY");
+    if (current === "") {
+      console.error("AUTH_OTP_HMAC_KEY boş: önce node ops/generate-auth-dev-keys.mjs ile üretin.");
+      process.exit(1);
+    }
+    if (read("AUTH_OTP_HMAC_PREVIOUS_KEY") !== "" && !flags.has("--force")) {
+      console.error("AUTH_OTP_HMAC_PREVIOUS_KEY zaten dolu: üzerine yazmak kullanılmamış kurtarma kodlarını geçersiz kılar. "
+        + "Eski kodlar yenilendikten sonra --force ile tekrarlayın.");
+      process.exit(1);
+    }
+    changes.AUTH_OTP_HMAC_PREVIOUS_KEY = current;
+    changes.AUTH_OTP_HMAC_KEY = generators.AUTH_OTP_HMAC_KEY();
+  }
+  for (const file of targets) {
+    let body = readFileSync(file, "utf8");
+    const eol = body.includes("\r\n") ? "\r\n" : "\n";
+    for (const [name, newContent] of Object.entries(changes)) body = setLine(body, name, newContent, eol);
+    writeFileSync(file, body);
+    const shown = file.startsWith(root) ? file.slice(root.length + 1) : file;
+    console.log(`${shown}: döndürüldü -> ${Object.keys(changes).join(", ")}`);
+  }
+  console.log("Auth Service'i yeniden başlatın. Eski anahtar listeleri, eski kayıtlar yenilenene kadar kalmalıdır.");
+  process.exit(0);
 }
 
 // Herhangi bir dosyada zaten dolu olan değeri bul; diğer dosyalara onu yaz.

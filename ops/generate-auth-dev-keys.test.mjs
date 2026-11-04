@@ -156,3 +156,77 @@ test("eski varsayılan JWT_ACCESS_TTL_SECONDS=300 değeri 60'a çekilir; özelle
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// ---- Anahtar rotasyonu (S9) ----
+
+const getLine = (body, name) => body.match(new RegExp(`^${name}=(.*?)\r?$`, "m"))?.[1];
+
+test("--rotate-totp güncel anahtarı önceki listesine taşır, sürümü artırır, yeni anahtar üretir ve çıktıya yazmaz", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ltz-rotate-"));
+  try {
+    const file = join(dir, "a.env");
+    const first = Buffer.alloc(32, 1).toString("base64");
+    writeFileSync(file, `KEEP=1\r\nAUTH_TOTP_ENCRYPTION_KEY=${first}\r\n`);
+
+    const run1 = spawnSync(process.execPath, [script, "--rotate-totp", file], { encoding: "utf8" });
+    assert.equal(run1.status, 0, run1.stderr);
+    const body1 = readFileSync(file, "utf8");
+    const second = getLine(body1, "AUTH_TOTP_ENCRYPTION_KEY");
+    assert.notEqual(second, first);
+    assert.equal(Buffer.from(second, "base64").length, 32);
+    assert.equal(getLine(body1, "AUTH_TOTP_ENCRYPTION_KEY_VERSION"), "2");
+    assert.equal(getLine(body1, "AUTH_TOTP_ENCRYPTION_PREVIOUS_KEYS"), `1=${first}`);
+    assert.equal(getLine(body1, "KEEP"), "1");
+    assert.ok(body1.includes("\r\n") && !/[^\r]\n/.test(body1), "satır sonları korunmalı");
+    for (const secret of [first, second]) assert.ok(!run1.stdout.includes(secret), "anahtar çıktıya sızdı");
+
+    const run2 = spawnSync(process.execPath, [script, "--rotate-totp", file], { encoding: "utf8" });
+    assert.equal(run2.status, 0, run2.stderr);
+    const body2 = readFileSync(file, "utf8");
+    assert.equal(getLine(body2, "AUTH_TOTP_ENCRYPTION_KEY_VERSION"), "3");
+    assert.equal(getLine(body2, "AUTH_TOTP_ENCRYPTION_PREVIOUS_KEYS"), `1=${first},2=${second}`);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("--rotate-hmac önceki anahtarı doldurur; dolu önceki anahtarın üzerine yalnız --force ile yazar", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ltz-rotate-"));
+  try {
+    const file = join(dir, "a.env");
+    const first = Buffer.alloc(32, 7).toString("base64");
+    writeFileSync(file, `AUTH_OTP_HMAC_KEY=${first}\nAUTH_OTP_HMAC_PREVIOUS_KEY=\n`);
+
+    const run1 = spawnSync(process.execPath, [script, "--rotate-hmac", file], { encoding: "utf8" });
+    assert.equal(run1.status, 0, run1.stderr);
+    const body1 = readFileSync(file, "utf8");
+    const second = getLine(body1, "AUTH_OTP_HMAC_KEY");
+    assert.notEqual(second, first);
+    assert.equal(getLine(body1, "AUTH_OTP_HMAC_PREVIOUS_KEY"), first);
+    for (const secret of [first, second]) assert.ok(!run1.stdout.includes(secret), "anahtar çıktıya sızdı");
+
+    // Önceki anahtar dolu: eski kurtarma kodlarını kaybettirmemek için ikinci döndürme reddedilir.
+    const refused = spawnSync(process.execPath, [script, "--rotate-hmac", file], { encoding: "utf8" });
+    assert.notEqual(refused.status, 0);
+    assert.equal(readFileSync(file, "utf8"), body1, "reddedilen döndürme dosyayı değiştirmemeli");
+
+    const forced = spawnSync(process.execPath, [script, "--rotate-hmac", "--force", file], { encoding: "utf8" });
+    assert.equal(forced.status, 0, forced.stderr);
+    assert.equal(getLine(readFileSync(file, "utf8"), "AUTH_OTP_HMAC_PREVIOUS_KEY"), second);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("rotasyon, boş anahtarlı dosyada hata verir ve dosyayı değiştirmez", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ltz-rotate-"));
+  try {
+    const file = join(dir, "a.env");
+    writeFileSync(file, "AUTH_TOTP_ENCRYPTION_KEY=\n");
+    const run = spawnSync(process.execPath, [script, "--rotate-totp", file], { encoding: "utf8" });
+    assert.notEqual(run.status, 0);
+    assert.equal(readFileSync(file, "utf8"), "AUTH_TOTP_ENCRYPTION_KEY=\n");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

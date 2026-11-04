@@ -143,7 +143,7 @@ public class EmailChangeService {
         EmailVerificationCode code = usable.get();
         // Deneme, sonuçtan bağımsız olarak sayılır ve işlemle birlikte kalıcı olur.
         code.recordAttempt();
-        if (!code.hasHash(codeHasher.hash(accountId, PURPOSE, submittedCode))) {
+        if (!code.hasAnyHash(codeHasher.allHashes(accountId, PURPOSE, submittedCode))) {
             securityEventRecorder.recordEvent(SecurityEventType.EMAIL_CHANGE_FAILED, accountId);
             return false;
         }
