@@ -37,7 +37,7 @@ Bir ekip arkadaşı Auth'tan bir şey istediyse, sorduysa ya da Auth hakkında b
 | [hardware-service](hardware-service/README.md) | Alper | 4 talep cevaplandı, 04 kapandı | Evet: talep 02 (cihaz kimliği, sıraya alındı), 03 (ortak deneme). Talep 04 kapandı |
 | [social-service](social-service/README.md) | Umut | Uyumlu, 2 sıkılaştırma açık | Evet: Social'da yapılacak |
 | [community-service](community-service/README.md) | Nisa | Gerçek JWT bekliyor | Evet: Community'de yapılacak |
-| [game-service](game-service/README.md) | Hamza | Eski talepler kapandı, yeni talep 02 cevaplandı | Evet: HttpClient düzeltmesi Hamza'da |
+| [game-service](game-service/README.md) | Hamza | Eski talepler kapandı, talep 02 cevaplandı, talep 03 kapandı | Evet: HttpClient düzeltmesi Hamza'da |
 | [library-service](library-service/README.md) | Hamza | İskelet + silme ucu var | Hayır |
 | [review-service](review-service/README.md) | Hamza | İskelet + silme ucu var | Hayır |
 | [messaging-service](messaging-service/README.md) | Umut | İskelet | Hayır |

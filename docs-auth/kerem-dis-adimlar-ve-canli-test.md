@@ -52,7 +52,9 @@ Ayrıntı: docs-auth/verilen-cevaplar/bilgilendirme-2026-11-05-auth-degisiklikle
 
 Ortak ön koşul: dev yığını ayakta (Auth + Gateway + Mailpit), `node ops/generate-auth-dev-keys.mjs` çalıştırılmış ve çıktısı `Hata yok`. Tarayıcı adımlarını **sen** yaparsın (kendi Steam/Google hesabınla); sonuçları bana yapıştırırsan doğrulamaya yardım ederim. Sır içeren değerleri (token, kod) sohbete yapıştırma.
 
-### 4.1 Steam (anahtar gerekmez; yerelde çalışır)
+### 4.1 Steam — **YAPILDI (2026-11-05, Kerem + Claude)**
+
+Sonuç: yalıtılmış düzenekle (geçici Postgres + Mailpit + ayrı Auth, zorunlu 2FA açık) gerçek Steam'le kayıt → e-posta doğrulama → `mfa_enrollment_required` → TOTP kurulumu (10 kurtarma kodu) → `mfa_required` → giriş başarılı. Veritabanı: TOTP ACTIVE, kurtarma kodları 10, kurulum challenge'ı tüketildi. Aşağıdaki adımlar elle tekrar denemek içindir.
 
 Steam, dönüşü tarayıcıya yaptırır ve doğrulamayı Auth'tan Steam'e giden sunucu isteğiyle yapar; `localhost` yeterlidir.
 
@@ -72,7 +74,9 @@ Steam, dönüşü tarayıcıya yaptırır ve doğrulamayı Auth'tan Steam'e gide
 5. Aynı Google hesabını ikinci bir Auth hesabına bağlamayı dene. **Beklenen:** `#error=EXTERNAL_IDENTITY_TAKEN`.
 6. `redirect_uri_mismatch` görürsen bölüm 1'deki 1. madde eksiktir.
 
-### 4.3 Anahtar rotasyonu (dev yığınında prova)
+### 4.3 Anahtar rotasyonu — **YAPILDI (2026-11-05, otomatik, yalıtılmış)**
+
+Sonuç: gerçek Auth jar'ı + gerçek PostgreSQL ile dört farklı anahtar ayarı denendi, **16/16 kontrol geçti**: önceki anahtar verilmezse eski TOTP ve kurtarma kodu bozulur (kontrol deneyi); önceki anahtarlarla eski kayıtlar çalışır ve `key_version` 1'den 2'ye geçer; eski TOTP anahtarı kaldırılınca yeniden şifrelenmiş kayıt yalnız yeni anahtarla çözülür; eski HMAC ile özetli kurtarma kodları geçer ve tek kullanımlıktır. Aşağıdaki adımlar kendi dev yığınında elle tekrar etmek içindir.
 
 Amaç: eski sürümdeki TOTP kaydı ve kurtarma kodu rotasyondan sonra çalışsın.
 

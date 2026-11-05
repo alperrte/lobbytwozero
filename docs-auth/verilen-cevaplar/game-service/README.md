@@ -1,6 +1,6 @@
 # GAME-SERVICE — AUTH'A VERİLEN CEVAPLAR
 
-**Sahip:** Hamza · **Branch:** `feature/game-service` · **Güncelleme:** 2026-10-26
+**Sahip:** Hamza · **Branch:** `feature/game-service` · **Güncelleme:** 2026-11-05
 
 ---
 
@@ -18,6 +18,7 @@
 |---|---|---|
 | [01](talep-01-kapanan-talepler.md) | Game raporundaki "AUTH OWNER ACTION" maddeleri | HEPSİ KAPANDI |
 | [02](talep-02-jwks-httpclient-ve-coverage-onayi.md) | JWKS HttpClient yaşam döngüsü ve POLICY_REVIEW_REQUIRED onayı | CEVAPLANDI, Hamza'da yapılacak |
+| [03](talep-03-review-puan-okuma-kapsami.md) | `game-service → review-service` puan okuma kapsamı (çift zaten var: `rating-summaries:read`) | KAPANDI (Review uyarlandı, Auth'ta iş yok) |
 
 ## BİLMEN GEREKENLER
 
