@@ -94,8 +94,9 @@ class VerificationCodeHasherTest {
                 randomKey(32), "  ")).allHashes("D", "v")).hasSize(1);
 
         String shortKey = randomKey(16);
-        assertThatThrownBy(() -> new VerificationCodeHasher(new VerificationProperties(Duration.ofMinutes(10), 5,
-                Duration.ofSeconds(60), 5, randomKey(32), shortKey)))
+        VerificationProperties shortPreviousKey = new VerificationProperties(Duration.ofMinutes(10), 5,
+                Duration.ofSeconds(60), 5, randomKey(32), shortKey);
+        assertThatThrownBy(() -> new VerificationCodeHasher(shortPreviousKey))
                 .isInstanceOf(IllegalStateException.class).hasMessageNotContaining(shortKey).hasNoCause();
     }
 

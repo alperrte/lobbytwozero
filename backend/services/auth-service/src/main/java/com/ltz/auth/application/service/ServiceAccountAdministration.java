@@ -34,12 +34,17 @@ public class ServiceAccountAdministration {
 
     @Transactional
     public void changeStatus(UUID actorId, UUID accountId, AccountStatus target, String reason) {
-        changeStatus(actorId, accountId, target, reason, null);
+        applyStatusChange(actorId, accountId, target, reason, null);
     }
 
     @Transactional
     public void changeStatus(UUID actorId, UUID accountId, AccountStatus target, String reason,
                              java.time.Instant suspendedUntil) {
+        applyStatusChange(actorId, accountId, target, reason, suspendedUntil);
+    }
+
+    private void applyStatusChange(UUID actorId, UUID accountId, AccountStatus target, String reason,
+                                   java.time.Instant suspendedUntil) {
         requireActiveAdmin(actorId);
         administrationService.changeStatus(actorId, accountId, target, reason, suspendedUntil);
     }

@@ -67,7 +67,7 @@ public class AccountAdministrationService {
 
     @Transactional
     public void changeStatus(UUID actorId, UUID accountId, AccountStatus target, String reason) {
-        changeStatus(actorId, accountId, target, reason, null);
+        applyStatusChange(actorId, accountId, target, reason, null);
     }
 
     /**
@@ -77,6 +77,11 @@ public class AccountAdministrationService {
      */
     @Transactional
     public void changeStatus(UUID actorId, UUID accountId, AccountStatus target, String reason, Instant suspendedUntil) {
+        applyStatusChange(actorId, accountId, target, reason, suspendedUntil);
+    }
+
+    private void applyStatusChange(UUID actorId, UUID accountId, AccountStatus target, String reason,
+                                   Instant suspendedUntil) {
         forbidSelfModification(actorId, accountId);
         Account account = lock(accountId);
         AccountStatus from = account.getStatus();
