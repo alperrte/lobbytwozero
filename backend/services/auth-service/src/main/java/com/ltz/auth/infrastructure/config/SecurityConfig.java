@@ -65,6 +65,8 @@ public class SecurityConfig {
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.EMAIL_VERIFICATION_RESEND),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.LOGIN),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.LOGIN_TWO_FACTOR),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.LOGIN_TWO_FACTOR_ENROLLMENT_START),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.LOGIN_TWO_FACTOR_ENROLLMENT_COMPLETE),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.SESSION_REFRESH),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.SESSION_LOGOUT),
             PATHS.matcher(HttpMethod.GET, AuthApiPaths.CSRF),
@@ -75,6 +77,7 @@ public class SecurityConfig {
             PATHS.matcher(HttpMethod.GET, AuthApiPaths.STEAM_CALLBACK),
             // Bağlama dönüşü: hesap akıştan gelir (state + çerez), oturum çerezi okunmaz.
             PATHS.matcher(HttpMethod.GET, AuthApiPaths.STEAM_LINK_CALLBACK),
+            PATHS.matcher(HttpMethod.GET, AuthApiPaths.GOOGLE_LINK_CALLBACK),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.STEAM_COMPLETE),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_FORGOT),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_RESET),
@@ -88,6 +91,8 @@ public class SecurityConfig {
     static final RequestMatcher AUTHENTICATED_ENDPOINTS = new OrRequestMatcher(
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.SESSION_LOGOUT_ALL),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_CHANGE),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_SET_REQUEST),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_SET),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.EMAIL_CHANGE),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.EMAIL_CHANGE_CONFIRM),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.ACCOUNT_DELETION_REQUEST),
@@ -96,7 +101,7 @@ public class SecurityConfig {
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.TOTP_ACTIVATE),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.TOTP_DISABLE),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.STEAM_LINK_START),
-            PATHS.matcher(HttpMethod.POST, AuthApiPaths.STEAM_UNLINK),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.GOOGLE_LINK_START),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.DEVICES),
             PATHS.matcher(HttpMethod.GET, AuthApiPaths.DEVICES),
             PATHS.matcher(HttpMethod.DELETE, AuthApiPaths.DEVICE));

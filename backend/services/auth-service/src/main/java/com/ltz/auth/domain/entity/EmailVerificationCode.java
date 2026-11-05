@@ -1,6 +1,7 @@
 package com.ltz.auth.domain.entity;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.Instant;
@@ -110,6 +111,18 @@ public class EmailVerificationCode {
         return MessageDigest.isEqual(
                 codeHash.getBytes(StandardCharsets.US_ASCII),
                 candidateHash.getBytes(StandardCharsets.US_ASCII));
+    }
+
+    /**
+     * Anahtar rotasyonu sırasında kabul edilen özetlerden biri kayıtlıyla eşleşiyor mu. Hepsi sabit zamanlı karşılaştırılır
+     * ve erken çıkılmaz; hangi anahtarın eşleştiği zamanlamadan anlaşılmaz.
+     */
+    public boolean hasAnyHash(List<String> candidateHashes) {
+        boolean matched = false;
+        for (String candidate : candidateHashes) {
+            matched |= hasHash(candidate);
+        }
+        return matched;
     }
 
     public void consume(Instant now) {

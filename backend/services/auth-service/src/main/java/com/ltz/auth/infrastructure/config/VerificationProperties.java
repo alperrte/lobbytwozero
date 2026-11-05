@@ -17,6 +17,8 @@ import jakarta.validation.constraints.NotNull;
  *
  * @param hmacKey Base64 kodlu, en az 32 baytlık gizli anahtar (AUTH_OTP_HMAC_KEY). Uzunluk kontrolü,
  *                değerin hata mesajına düşmemesi için Bean Validation ile değil hasher'da yapılır.
+ * @param previousHmacKey rotasyon için isteğe bağlı önceki anahtar (AUTH_OTP_HMAC_PREVIOUS_KEY); verilirse kayıtlı özetler
+ *                        bununla da karşılaştırılır, yeni özetler yine {@code hmacKey} ile üretilir.
  */
 @Validated
 @ConfigurationProperties("ltz.auth.verification")
@@ -25,11 +27,17 @@ public record VerificationProperties(
         @Min(1) @Max(10) int maxAttempts,
         @NotNull @DurationMin(seconds = 1) Duration resendCooldown,
         @Min(1) int dailyLimit,
-        @NotBlank String hmacKey) {
+        @NotBlank String hmacKey,
+        String previousHmacKey) {
+
+    public VerificationProperties {
+        // Boş ya da yalnız boşluktan oluşan önceki anahtar "rotasyon yok" demektir (ENV'de satır boş bırakılabilir).
+        previousHmacKey = previousHmacKey == null || previousHmacKey.isBlank() ? null : previousHmacKey.strip();
+    }
 
     @Override
     public String toString() {
         return "VerificationProperties[codeTtl=" + codeTtl + ", maxAttempts=" + maxAttempts
-                + ", resendCooldown=" + resendCooldown + ", dailyLimit=" + dailyLimit + ", hmacKey=***]";
+                + ", resendCooldown=" + resendCooldown + ", dailyLimit=" + dailyLimit + ", hmacKey=***, previousHmacKey=***]";
     }
 }

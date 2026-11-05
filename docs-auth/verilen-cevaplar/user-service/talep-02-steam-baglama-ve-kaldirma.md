@@ -11,7 +11,7 @@
 | # | İstenen | Cevap |
 |---|---|---|
 | 1 | Oturumlu kullanıcı hesabına Steam bağlasın; aynı SteamID başka hesaptaysa reddedilsin | Yapıldı. `start` + Steam OpenID + `callback`. Tekillik hem kodda (`EXTERNAL_IDENTITY_TAKEN`) hem veritabanı kısıtlarıyla zorlanır. |
-| 2 | Kaldırma; Steam tek giriş yöntemiyse reddedilsin | Yapıldı. `POST .../steam/unlink`; tek yöntemse `409 LAST_LOGIN_METHOD`. |
+| 2 | Kaldırma; Steam tek giriş yöntemiyse reddedilsin | **Değişti (2026-11-05, proje kararı):** bağlanan kimlik kullanıcı tarafından kaldırılamaz, `POST .../steam/unlink` kaldırıldı; kaldırma yalnız yönetici (ticket) yoluyla planlı. Google bağlama aynı kurallarla eklendi. |
 | 3 | `ExternalIdentityLinked/Unlinked` olayları | Yapıldı. Aynı outbox, aynı zarf. |
 | 4 | Mevcut Steam hesapları için tek seferlik `Linked` yayını | **Yapılmıyor** (REQ-02 ile aynı karar B). DEV'de hesaplar yeniden kaydolur; gerçek hesap varsa ayrıca konuşulur. |
 
@@ -21,7 +21,7 @@
 |---|---|---|
 | `POST /api/v1/auth/oauth/steam/link/start` | oturum + **yeniden doğrulama** (`password`, TOTP etkinse `code`/`recoveryCode`) | `200 { "redirectUrl" }`; HttpOnly `__Host-ltz_oauth` state çerezi |
 | `GET /api/v1/auth/oauth/steam/link/callback` | public; state çerezi + tek kullanımlık, hesaba bağlı akış | `302` frontend fragment'i: `#status=steam_linked` veya `#error=<KOD>` |
-| `POST /api/v1/auth/oauth/steam/unlink` | oturum + yeniden doğrulama | `204` |
+| ~~`POST /api/v1/auth/oauth/steam/unlink`~~ | — | **Kaldırıldı (2026-11-05)** |
 
 Hata kodları: `EXTERNAL_IDENTITY_TAKEN`, `EXTERNAL_IDENTITY_ALREADY_LINKED`, `EXTERNAL_IDENTITY_NOT_LINKED` (404), `LAST_LOGIN_METHOD`, `PASSWORD_REQUIRED`, `CURRENT_PASSWORD_INVALID`, `INVALID_TWO_FACTOR_CODE`, `EXTERNAL_AUTH_FAILED`.
 

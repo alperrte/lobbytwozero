@@ -15,7 +15,8 @@ Bu klasör Auth servisinin (auth-service ve Gateway güvenlik katmanı) bütün 
 | **Frontend geliştiriciyim** | [`../docs/EKIP_AUTH_GATEWAY_ENTEGRASYON_NOTLARI.md`](../docs/EKIP_AUTH_GATEWAY_ENTEGRASYON_NOTLARI.md) (cookie, CSRF, giriş akışları) | [`../docs/api.md`](../docs/api.md) içinde `## AUTH` |
 | **Güvenlik bakıyorum** | [`acik-guvenlik-borclari.md`](acik-guvenlik-borclari.md) | [`sec-01-kapanis-raporu.md`](sec-01-kapanis-raporu.md), güvenlik taraması bölümü aşağıda |
 | **Repo sahibiyim (Alper)** | [`ALPER_REPO_SAHIBI_NOTLARI.md`](ALPER_REPO_SAHIBI_NOTLARI.md) | [`verilen-cevaplar/hardware-service/`](verilen-cevaplar/hardware-service/README.md) |
-| **Auth'u geliştiriyorum (Kerem)** | [`surec-borclari-plani.md`](surec-borclari-plani.md) | [`commit-plani-2026-10-24.md`](commit-plani-2026-10-24.md), [`d4-ekip-notlari/06_KEREM_TAKIP_LISTESI.md`](d4-ekip-notlari/06_KEREM_TAKIP_LISTESI.md) |
+| **Auth'u yerelde çalıştıracağım / Auth açılmıyor** | [`ekip-hizli-baslangic.md`](ekip-hizli-baslangic.md) (tek komut, dev/prod farkı, hata tablosu) | `node ops/generate-auth-dev-keys.mjs` |
+| **Auth'u geliştiriyorum (Kerem)** | [`kerem-dis-adimlar-ve-canli-test.md`](kerem-dis-adimlar-ve-canli-test.md) (elle yapılacaklar, Frontend mesajı, canlı test planı), [`surec-borclari-plani.md`](surec-borclari-plani.md) | [`commit-plani-2026-10-24.md`](commit-plani-2026-10-24.md), [`d4-ekip-notlari/06_KEREM_TAKIP_LISTESI.md`](d4-ekip-notlari/06_KEREM_TAKIP_LISTESI.md) |
 | **Auth'un nasıl çalıştığını öğrenmek istiyorum** | [`AUTH_SERVICE_KAPSAMLI_TEKNIK_REHBER.md`](AUTH_SERVICE_KAPSAMLI_TEKNIK_REHBER.md) | Faz raporları |
 
 ---

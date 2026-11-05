@@ -22,7 +22,7 @@ Auth'tan Community'nin ihtiyacı büyük ölçüde hazır: JWKS, roller, servis 
 - [ ] **Olay ucu doğrulaması:** `aud=community-service`, `typ=svc+jwt`, `scope=events:ingest`, ömür ≤ 60 sn; `ModerationActionTaken` yalnız `svc:admin-service`, `UserBlocked` ve `UserUnblocked` yalnız `svc:social-service` (README bölüm 4)
 - [ ] **Giden çağrılarda token:** `EventDeliveryClient` hiç `Authorization` göndermiyor. Admin ve notification için `POST {AUTH_SERVICE_URL}/internal/v1/service-tokens` ile `audience` verip 60 sn'lik token al, her hedef için ayrı
 - [ ] Ortama `AUTH_COMMUNITY_SERVICE_CLIENT_SECRET` ver (üretici betik doldurur: `node ops/generate-auth-dev-keys.mjs`)
-- [ ] **Silme ucu:** `DELETE /internal/v1/accounts/{accountId}` (`README.md` bölüm 2). Yazılmadıkça Community görevi `PENDING`, hesap silme tamamlanmaz
+- [x] **Silme ucu (main'de, kod doğrulandı 2026-11-05):** `DELETE /internal/v1/accounts/{accountId}` (`README.md` bölüm 2). Yazılmadıkça Community görevi `PENDING`, hesap silme tamamlanmaz
 - [ ] Silme kararı: Auth çizgisi "silinen kullanıcının kaydı tutulmaz". Raporlarda kimlik bağını koparıp anonim bırak ya da sil
 - [ ] Görsel çerez akışı: `docs/EKIP_AUTH_GATEWAY_ENTEGRASYON_NOTLARI.md`
 

@@ -1,5 +1,6 @@
 package com.ltz.auth.application.service;
 
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -67,11 +68,20 @@ public class GoogleLoginService {
     public StartedFlow start() {
         requireConfigured();
         String state = flowService.start(ExternalProvider.GOOGLE);
+        return new StartedFlow(authorizationUri(state, redirectUri()), state);
+    }
+
+    /**
+     * Verilen state için Google yetkilendirme adresi. Giriş ve bağlama akışları paylaşır; PKCE doğrulayıcısı ve nonce
+     * state'ten türetilir, saklanmaz.
+     */
+    URI authorizationUri(String state, String redirectUri) {
+        requireConfigured();
         var google = properties.google();
-        var redirect = UriComponentsBuilder.fromUri(google.authorizationUri())
+        return UriComponentsBuilder.fromUri(google.authorizationUri())
                 .queryParam("response_type", "code")
                 .queryParam("client_id", google.clientId())
-                .queryParam("redirect_uri", redirectUri())
+                .queryParam("redirect_uri", redirectUri)
                 .queryParam("scope", SCOPE)
                 .queryParam("state", state)
                 .queryParam("nonce", flowService.nonce(state))
@@ -79,7 +89,19 @@ public class GoogleLoginService {
                 .queryParam("code_challenge_method", "S256")
                 .queryParam("prompt", "select_account")
                 .build().encode().toUri();
-        return new StartedFlow(redirect, state);
+    }
+
+    /** Kodu Google'da doğrular ve kimliği döner; hesap eşleştirmesi çağırana aittir. */
+    GoogleIdentity verifiedIdentity(String code, String state, String redirectUri) {
+        requireConfigured();
+        if (code == null || code.isBlank()) {
+            throw failed();
+        }
+        try {
+            return googleOidc.authenticate(code, flowService.codeVerifier(state), redirectUri, flowService.nonce(state));
+        } catch (ExternalAuthenticationException _) {
+            throw failed();
+        }
     }
 
     public ExternalLoginResult callback(String code, String state, String stateFromCookie) {
@@ -87,13 +109,7 @@ public class GoogleLoginService {
         if (code == null || code.isBlank() || !flowService.consume(ExternalProvider.GOOGLE, state, stateFromCookie)) {
             throw failed();
         }
-        GoogleIdentity identity;
-        try {
-            identity = googleOidc.authenticate(code, flowService.codeVerifier(state), redirectUri(),
-                    flowService.nonce(state));
-        } catch (ExternalAuthenticationException _) {
-            throw failed();
-        }
+        GoogleIdentity identity = verifiedIdentity(code, state, redirectUri());
         UUID accountId = resolveAccount(identity);
         return ExternalLoginResult.from(loginService.loginVerifiedIdentity(accountId, AuthMethod.EXTERNAL));
     }

@@ -13,6 +13,9 @@ public final class AuthApiPaths {
 
     public static final String LOGIN = BASE + "/login";
     public static final String LOGIN_TWO_FACTOR = LOGIN + "/2fa";
+    /** Zorunlu 2FA'nın (Steam hesapları) ilk kurulumu: oturum yok, yalnız girişte verilen kurulum challenge'ı. */
+    public static final String LOGIN_TWO_FACTOR_ENROLLMENT_START = LOGIN_TWO_FACTOR + "/enrollment/start";
+    public static final String LOGIN_TWO_FACTOR_ENROLLMENT_COMPLETE = LOGIN_TWO_FACTOR + "/enrollment/complete";
     public static final String CSRF = BASE + "/csrf";
     public static final String JWKS = BASE + "/.well-known/jwks.json";
 
@@ -33,13 +36,18 @@ public final class AuthApiPaths {
     public static final String STEAM_START = OAUTH + "/steam/start";
     public static final String STEAM_CALLBACK = OAUTH + "/steam/callback";
     public static final String STEAM_COMPLETE = OAUTH + "/steam/complete";
-    /** Oturumdaki hesaba Steam bağlama (yeniden doğrulamalı başlatma, Steam dönüşü) ve kaldırma. */
+    /** Oturumdaki hesaba Steam bağlama (yeniden doğrulamalı başlatma, Steam dönüşü). Kullanıcı tarafı kaldırma yoktur. */
     public static final String STEAM_LINK_START = OAUTH + "/steam/link/start";
     public static final String STEAM_LINK_CALLBACK = OAUTH + "/steam/link/callback";
-    public static final String STEAM_UNLINK = OAUTH + "/steam/unlink";
+    /** Oturumdaki hesaba Google bağlama (yeniden doğrulamalı başlatma, Google dönüşü). */
+    public static final String GOOGLE_LINK_START = OAUTH + "/google/link/start";
+    public static final String GOOGLE_LINK_CALLBACK = OAUTH + "/google/link/callback";
 
     public static final String PASSWORD = BASE + "/password";
     public static final String PASSWORD_CHANGE = PASSWORD + "/change";
+    /** Parolasız (Google/Steam) hesabın ilk parolasını belirlemesi: önce e-posta kodu istenir, sonra parola yazılır. */
+    public static final String PASSWORD_SET_REQUEST = PASSWORD + "/set/request";
+    public static final String PASSWORD_SET = PASSWORD + "/set";
     public static final String PASSWORD_FORGOT = PASSWORD + "/forgot";
     public static final String PASSWORD_RESET = PASSWORD + "/reset";
 

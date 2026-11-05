@@ -33,16 +33,18 @@ import com.ltz.auth.infrastructure.security.VerificationCodeHasher;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Oturumdaki hesaba Steam bağlama ve kaldırma (AUTH-20). Kimlik kanıtı yalnız Auth'ta üretilir: SteamID64 giriş akışıyla
- * aynı OpenID doğrulamasından ({@link SteamLoginService#verifiedSteamId}) geçer.
+ * Oturumdaki hesaba Steam ve Google bağlama (AUTH-20). Kimlik kanıtı yalnız Auth'ta üretilir: SteamID64 giriş akışıyla
+ * aynı OpenID doğrulamasından ({@link SteamLoginService#verifiedSteamId}), Google kimliği aynı OIDC kod + PKCE
+ * doğrulamasından geçer.
  * <ul>
- *   <li><b>Yeniden doğrulama:</b> bağlama ve kaldırma, giriş yöntemini değiştirir. Cihaz bağlama ve e-posta
- *       değiştirmedeki gibi mevcut parola (TOTP etkinse ikinci faktör) istenir; çalınmış bir oturum kendi Steam'ini
- *       bağlayıp hesabı sonradan ele geçiremez. Parolasız hesap bu işlemi yapamaz ({@code PASSWORD_REQUIRED}).</li>
+ *   <li><b>Yeniden doğrulama:</b> bağlama giriş yöntemini değiştirir. Cihaz bağlama ve e-posta değiştirmedeki gibi mevcut
+ *       parola (TOTP etkinse ikinci faktör) istenir; çalınmış bir oturum kendi kimliğini bağlayıp hesabı sonradan ele
+ *       geçiremez. Parolasız hesap bu işlemi yapamaz ({@code PASSWORD_REQUIRED}); önce parola belirlemelidir.</li>
+ *   <li><b>Kalıcılık (2026-11-05 kararı):</b> bağlanan kimlik kullanıcı tarafından kaldırılamaz; kaldırma yalnız yönetici
+ *       (ticket) yoluyla yapılır, bu yüzden burada kaldırma işlemi yoktur.</li>
  *   <li><b>Hesaba bağlı akış:</b> hangi hesaba bağlanacağı akışa yazılır ({@code oauth_link_flows}); state ayrıca tarayıcı
  *       çerezine bağlıdır. Başkasının başlattığı akış, kurbanın tarayıcısında tamamlanamaz.</li>
- *   <li><b>Tekillik:</b> bir Steam kimliği tek hesaba, bir hesap tek Steam kimliğine bağlıdır (veritabanı da zorlar).</li>
- *   <li><b>Son yöntem koruması:</b> Steam, hesabın tek giriş yöntemiyse kaldırılamaz ({@code LAST_LOGIN_METHOD}).</li>
+ *   <li><b>Tekillik:</b> bir harici kimlik tek hesaba, bir hesap sağlayıcı başına tek kimliğe bağlıdır (veritabanı da zorlar).</li>
  * </ul>
  */
 @Service
@@ -50,9 +52,9 @@ import lombok.RequiredArgsConstructor;
 public class ExternalIdentityLinkService {
 
     private static final String THROTTLE_DOMAIN = "EXTERNAL_IDENTITY_LINK";
-    private static final String STEAM_VALUE_PREFIX = "STEAM:";
 
     private final SteamLoginService steamLoginService;
+    private final GoogleLoginService googleLoginService;
     private final OAuthLinkFlowRepository flowRepository;
     private final ExternalIdentityRepository identityRepository;
     private final AccountRepository accountRepository;
@@ -68,21 +70,32 @@ public class ExternalIdentityLinkService {
     private final TransactionTemplate transactionTemplate;
     private final Clock clock;
 
-    /** Yeniden doğrulamadan sonra bağlama akışını başlatır; tarayıcı dönen adrese yönlendirilir. */
+    /** Yeniden doğrulamadan sonra Steam bağlama akışını başlatır; tarayıcı dönen adrese yönlendirilir. */
     public StartedFlow startSteamLink(UUID accountId, String password, String code, String recoveryCode) {
+        String state = startFlow(accountId, ExternalProvider.STEAM, password, code, recoveryCode);
+        return new StartedFlow(steamLoginService.authorizationUri(returnTo(state)), state);
+    }
+
+    /** Yeniden doğrulamadan sonra Google bağlama akışını başlatır (Authorization Code + PKCE). */
+    public StartedFlow startGoogleLink(UUID accountId, String password, String code, String recoveryCode) {
+        String state = startFlow(accountId, ExternalProvider.GOOGLE, password, code, recoveryCode);
+        return new StartedFlow(googleLoginService.authorizationUri(state, googleRedirectUri()), state);
+    }
+
+    private String startFlow(UUID accountId, ExternalProvider provider, String password, String code,
+                             String recoveryCode) {
         Account account = activeAccount(accountId);
         reauthenticate(account, password, code, recoveryCode);
-        if (identityRepository.findByAccountIdAndProvider(accountId, ExternalProvider.STEAM).isPresent()) {
+        if (identityRepository.findByAccountIdAndProvider(accountId, provider).isPresent()) {
             throw new AuthException(AuthErrorCode.EXTERNAL_IDENTITY_ALREADY_LINKED);
         }
-        String state = transactionTemplate.execute(status -> {
+        return transactionTemplate.execute(status -> {
             Instant now = clock.instant();
             String newState = secureTokens.newOpaqueToken();
-            flowRepository.save(OAuthLinkFlow.start(secureTokens.sha256Hex(newState), accountId, ExternalProvider.STEAM,
+            flowRepository.save(OAuthLinkFlow.start(secureTokens.sha256Hex(newState), accountId, provider,
                     now, now.plus(properties.flowTtl())));
             return newState;
         });
-        return new StartedFlow(steamLoginService.authorizationUri(returnTo(state)), state);
     }
 
     /**
@@ -94,12 +107,30 @@ public class ExternalIdentityLinkService {
     public UUID completeSteamLink(Map<String, String[]> requestParams, String stateFromCookie) {
         String[] values = requestParams.get("state");
         String state = values != null && values.length == 1 ? values[0] : null;
-        UUID accountId = consumeFlow(state, stateFromCookie);
+        UUID accountId = consumeFlow(state, stateFromCookie, ExternalProvider.STEAM);
         String steamId = steamLoginService.verifiedSteamId(requestParams, returnTo(state));
+        persistLink(accountId, ExternalProvider.STEAM, steamId);
+        return accountId;
+    }
+
+    /**
+     * Google'dan dönen kodu tamamlar. State çerezle aynı ve tek kullanımlık olmalıdır; hesap akıştan gelir. Kimlik yalnız
+     * Google {@code sub} ile eşleşir (e-posta eşleşmesi aranmaz: hesap parolayla zaten yeniden doğrulandı).
+     *
+     * @return bağlanan hesap
+     */
+    public UUID completeGoogleLink(String code, String state, String stateFromCookie) {
+        UUID accountId = consumeFlow(state, stateFromCookie, ExternalProvider.GOOGLE);
+        String subject = googleLoginService.verifiedIdentity(code, state, googleRedirectUri()).subject();
+        persistLink(accountId, ExternalProvider.GOOGLE, subject);
+        return accountId;
+    }
+
+    private void persistLink(UUID accountId, ExternalProvider provider, String subject) {
         try {
-            transactionTemplate.executeWithoutResult(status -> link(accountId, steamId));
+            transactionTemplate.executeWithoutResult(status -> link(accountId, provider, subject));
         } catch (DataIntegrityViolationException _) {
-            // Eşzamanlı iki hesap aynı Steam kimliğini bağlamaya çalıştı: veritabanı tekilliği birini reddeder.
+            // Eşzamanlı iki hesap aynı harici kimliği bağlamaya çalıştı: veritabanı tekilliği birini reddeder.
             recordConflict(accountId);
             throw new AuthException(AuthErrorCode.EXTERNAL_IDENTITY_TAKEN);
         } catch (AuthException exception) {
@@ -108,42 +139,24 @@ public class ExternalIdentityLinkService {
             }
             throw exception;
         }
-        return accountId;
     }
 
-    /** Steam bağlantısını kaldırır. Hesabın tek giriş yöntemiyse kaldırma reddedilir. */
-    public void unlinkSteam(UUID accountId, String password, String code, String recoveryCode) {
-        Account account = activeAccount(accountId);
-        if (account.passwordHash().isEmpty() && !identityRepository.existsByAccountIdAndProviderNot(accountId,
-                ExternalProvider.STEAM)) {
-            throw new AuthException(AuthErrorCode.LAST_LOGIN_METHOD);
-        }
-        reauthenticate(account, password, code, recoveryCode);
-        transactionTemplate.executeWithoutResult(status -> {
-            ExternalIdentity identity = identityRepository.findByAccountIdAndProvider(accountId, ExternalProvider.STEAM)
-                    .orElseThrow(() -> new AuthException(AuthErrorCode.EXTERNAL_IDENTITY_NOT_LINKED));
-            identityRepository.delete(identity);
-            securityEventRecorder.recordEvent(SecurityEventType.EXTERNAL_IDENTITY_UNLINKED, accountId);
-            eventPublisher.publish(AuthEventType.EXTERNAL_IDENTITY_UNLINKED, accountId, ExternalProvider.STEAM.name());
-        });
-    }
-
-    private void link(UUID accountId, String steamId) {
+    private void link(UUID accountId, ExternalProvider provider, String subject) {
         accountRepository.findByIdForUpdate(accountId).filter(Account::isActive)
                 .orElseThrow(() -> new AuthException(AuthErrorCode.SESSION_INVALID));
-        Optional<ExternalIdentity> owner = identityRepository.findByProviderAndProviderSubject(ExternalProvider.STEAM, steamId);
+        Optional<ExternalIdentity> owner = identityRepository.findByProviderAndProviderSubject(provider, subject);
         if (owner.isPresent()) {
             if (owner.get().getAccountId().equals(accountId)) {
                 return; // Aynı kimlik zaten bu hesapta: idempotent, ikinci olay yok.
             }
             throw new AuthException(AuthErrorCode.EXTERNAL_IDENTITY_TAKEN);
         }
-        if (identityRepository.findByAccountIdAndProvider(accountId, ExternalProvider.STEAM).isPresent()) {
+        if (identityRepository.findByAccountIdAndProvider(accountId, provider).isPresent()) {
             throw new AuthException(AuthErrorCode.EXTERNAL_IDENTITY_ALREADY_LINKED);
         }
-        identityRepository.saveAndFlush(ExternalIdentity.link(accountId, ExternalProvider.STEAM, steamId, clock.instant()));
+        identityRepository.saveAndFlush(ExternalIdentity.link(accountId, provider, subject, clock.instant()));
         securityEventRecorder.recordEvent(SecurityEventType.EXTERNAL_IDENTITY_LINKED, accountId);
-        eventPublisher.publish(AuthEventType.EXTERNAL_IDENTITY_LINKED, accountId, STEAM_VALUE_PREFIX + steamId);
+        eventPublisher.publish(AuthEventType.EXTERNAL_IDENTITY_LINKED, accountId, provider.name() + ":" + subject);
     }
 
     /** Çakışma güvenlik olayı işlem dışında yazılır: işlem geri alınınca kaybolmaz. */
@@ -151,7 +164,7 @@ public class ExternalIdentityLinkService {
         securityEventRecorder.recordEvent(SecurityEventType.EXTERNAL_LINK_CONFLICT, accountId);
     }
 
-    private UUID consumeFlow(String state, String stateFromCookie) {
+    private UUID consumeFlow(String state, String stateFromCookie, ExternalProvider provider) {
         if (state == null || stateFromCookie == null || !MessageDigest.isEqual(
                 state.getBytes(StandardCharsets.UTF_8), stateFromCookie.getBytes(StandardCharsets.UTF_8))) {
             throw failed();
@@ -159,7 +172,7 @@ public class ExternalIdentityLinkService {
         String stateHash = secureTokens.sha256Hex(state);
         Optional<OAuthLinkFlow> flow = flowRepository.findById(stateHash);
         Integer consumed = transactionTemplate.execute(status ->
-                flowRepository.consume(stateHash, ExternalProvider.STEAM, clock.instant()));
+                flowRepository.consume(stateHash, provider, clock.instant()));
         if (flow.isEmpty() || consumed == null || consumed != 1) {
             throw failed();
         }
@@ -188,6 +201,10 @@ public class ExternalIdentityLinkService {
             throw new AuthException(AuthErrorCode.INVALID_TWO_FACTOR_CODE);
         }
         attemptThrottle.clear(throttleKey);
+    }
+
+    private String googleRedirectUri() {
+        return urls.publicUrl(AuthApiPaths.GOOGLE_LINK_CALLBACK);
     }
 
     private String returnTo(String state) {

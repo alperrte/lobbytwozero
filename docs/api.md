@@ -430,6 +430,34 @@ Diğer mikroservisler:
 #### Test Durumu
 INTEGRATION
 
+### AUTH — Zorunlu 2FA kurulumu (Steam hesapları)
+
+Durum: IMPLEMENTED (2026-11-05, karar: Kerem). Üretimde açık; yerel dev'de kapalı (`ltz.auth.two-factor.require-for-steam-accounts`, `application.properties` / `application-dev.properties`; yeni ENV yok).
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Kural
+Steam kimliği bağlı bir hesap, TOTP etkin değilken **oturum alamaz**. Parola veya Steam girişi parolayı/kimliği doğruladıktan sonra token yerine kısa ömürlü (`AUTH_MFA_CHALLENGE_TTL`, varsayılan 5 dk), tek kullanımlık bir **kurulum challenge'ı** döner. Kurulum bitince oturum açılır. TOTP etkinse olağan ikinci faktör akışı (`/login/2fa`) çalışır. Steam bağlı hesapta TOTP **kapatılamaz** (`403 TWO_FACTOR_REQUIRED_FOR_ROLE`).
+
+#### Giriş yanıtları
+- Parola girişi (`POST /login`): `200 { "status": "MFA_ENROLLMENT_REQUIRED", "challengeId", "challengeExpiresAt" }`, çerez yazılmaz.
+- Harici giriş dönüşü: `#status=mfa_enrollment_required&challenge=<id>`, çerez yazılmaz.
+
+#### Endpoint
+- POST /api/v1/auth/login/2fa/enrollment/start `{ "challengeId" }` → `200 { "secret", "otpauthUri" }` (TOTP gizli anahtarı yalnız bu yanıtta; yeniden çağrılırsa bekleyen anahtar yenilenir)
+- POST /api/v1/auth/login/2fa/enrollment/complete `{ "challengeId", "code" }` → `200 { "status": "AUTHENTICATED", "accessTokenExpiresAt", "recoveryCodes": [...] }`; oturum HttpOnly çerezlerle açılır, gövdede token yoktur; kurtarma kodları yalnız bu yanıtta görünür
+
+#### Yetkilendirme
+Public (oturum yok); yetki kaynağı kurulum challenge'ıdır. `/login/2fa` ile aynı CSRF kuralı. Kurulum challenge'ı `/login/2fa` adımında, giriş challenge'ı kurulum uçlarında **geçersizdir** (amaç sütunu ayırır).
+
+#### Hata Durumları
+- 400: `INVALID_TWO_FACTOR_CODE` (yanlış kod; deneme challenge ve hesap bazında sınırlı, `AUTH_2FA_MAX_ATTEMPTS`)
+- 401: `MFA_FAILED` (challenge bilinmiyor, süresi dolmuş, tüketilmiş veya deneme hakkı bitmiş)
+- 409: `TWO_FACTOR_ALREADY_ENABLED` (`start`, aynı anda başka yoldan kurulmuşsa)
+
+#### Test Durumu
+INTEGRATION (`SteamTwoFactorEnrollmentTest`, 8 test)
+
 ### AUTH — TOTP yönetimi
 
 Durum: IMPLEMENTED
@@ -507,7 +535,7 @@ Diğer mikroservisler:
 #### Test Durumu
 UNIT + INTEGRATION (sağlayıcılar yerel sahte sunucularla; gerçek Google/Steam ile denenmedi)
 
-### AUTH — Steam bağlama ve kaldırma (oturumdaki hesap)
+### AUTH — Steam ve Google bağlama (oturumdaki hesap)
 
 Durum: IMPLEMENTED (gerçek Steam ile uçtan uca doğrulanmadı; yerel sahte sağlayıcı ve duman testi)
 Sorumlu: Kerem
@@ -516,29 +544,31 @@ Tüketici servisler: Frontend (tarayıcı gezinmesi), User Service (olay)
 #### Endpoint
 - POST /api/v1/auth/oauth/steam/link/start — yeniden doğrulayıp bağlama akışını başlatır → `200 { "redirectUrl": "<Steam OpenID adresi>" }`, `Cache-Control: no-store`; tek kullanımlık `state` HttpOnly `__Host-ltz_oauth` çerezine yazılır. Tarayıcı `redirectUrl`'e gönderilir.
 - GET /api/v1/auth/oauth/steam/link/callback?state&openid.* — Steam dönüşü (tarayıcı gezinmesi)
-- POST /api/v1/auth/oauth/steam/unlink — bağlantıyı kaldırır → `204`
+- POST /api/v1/auth/oauth/google/link/start — yeniden doğrulayıp Google bağlama akışını başlatır (Authorization Code + PKCE S256, `nonce`) → `200 { "redirectUrl": "<Google yetkilendirme adresi>" }`, `Cache-Control: no-store`; tek kullanımlık `state` HttpOnly `__Host-ltz_oauth` çerezine yazılır. `redirect_uri` `…/api/v1/auth/oauth/google/link/callback` olur ve Google istemcisinin yetkili yönlendirme adreslerine **ayrıca eklenmelidir**.
+- GET /api/v1/auth/oauth/google/link/callback?code&state — Google dönüşü (tarayıcı gezinmesi)
+- **Kaldırma ucu yoktur** (2026-11-05 kararı): bağlanan Steam/Google kimliği kullanıcı tarafından kaldırılamaz; kaldırma yalnız yönetici (ticket) yoluyla yapılır (planlı, B7'ye bağlı). Eski `POST …/steam/unlink` kaldırıldı.
 
 #### Yetkilendirme
-`start` ve `unlink`: oturum (çerez + CSRF veya Bearer) **ve yeniden doğrulama**: `{ "password", "code"?, "recoveryCode"? }`. Mevcut parola zorunlu; TOTP etkinse `code` veya `recoveryCode` (yalnız biri). Cihaz bağlama ve e-posta değiştirmeyle aynı kural; denemeler hesap başına sınırlıdır. `callback` public: hesap oturumdan değil, `start`'ın yazdığı hesaba bağlı akıştan gelir; `state` çerezle eşleşmeli ve tek kullanımlık olmalıdır (başkasının başlattığı akış kurbanın tarayıcısında tamamlanamaz). Bir giriş akışının `state`'i bağlamada, bağlama `state`'i girişte geçmez.
+`start` uçları: oturum (çerez + CSRF veya Bearer) **ve yeniden doğrulama**: `{ "password", "code"?, "recoveryCode"? }`. Mevcut parola zorunlu; TOTP etkinse `code` veya `recoveryCode` (yalnız biri). Cihaz bağlama ve e-posta değiştirmeyle aynı kural; denemeler hesap başına sınırlıdır. `callback` public: hesap oturumdan değil, `start`'ın yazdığı hesaba bağlı akıştan gelir; `state` çerezle eşleşmeli ve tek kullanımlık olmalıdır (başkasının başlattığı akış kurbanın tarayıcısında tamamlanamaz). Bir giriş akışının `state`'i bağlamada, bağlama `state`'i girişte geçmez.
 
 #### Sonuç iletimi (callback)
 Yapılandırmadaki SABİT frontend adresine URL **fragment**'i ile (`302`):
 - `#status=steam_linked` — Steam kimliği hesaba bağlandı (aynı kimlik zaten bu hesaptaysa da bu sonuç, olay üretilmez)
+- `#status=google_linked` — Google kimliği hesaba bağlandı (e-posta eşleşmesi aranmaz; eşleşme yalnız Google `sub` iledir)
 - `#error=<KOD>` — `EXTERNAL_AUTH_FAILED` (state/imza/nonce/replay/Steam hatası; ayrıntı verilmez), `EXTERNAL_IDENTITY_TAKEN` (bu Steam kimliği başka hesapta), `EXTERNAL_IDENTITY_ALREADY_LINKED` (hesapta zaten başka bir Steam kimliği var), `SESSION_INVALID` (hesap aktif değil)
 
 #### Kurallar
-- **Tekillik:** bir SteamID64 tek hesaba, bir hesap tek Steam kimliğine bağlanır (veritabanı kısıtlarıyla da zorlanır).
-- **Son giriş yöntemi koruması:** hesapta parola yoksa ve başka harici kimlik (Google) yoksa kaldırma `409 LAST_LOGIN_METHOD`.
-- **Parolasız hesap** bağlama ve kaldırmada `409 PASSWORD_REQUIRED` alır (cihaz bağlama ve e-posta değiştirmeyle aynı davranış; açık B11 kararına bağlı).
-- Bağlama ve kaldırma güvenlik olayı olarak kaydedilir (`EXTERNAL_IDENTITY_LINKED`, `EXTERNAL_IDENTITY_UNLINKED`, `EXTERNAL_LINK_CONFLICT`, `EXTERNAL_IDENTITY_LINK_REJECTED`).
-- **Olaylar** (outbox, `AUTH_EVENT_TARGETS`, hedef User): `ExternalIdentityLinked { accountId, provider: "STEAM", providerSubject: "<17 haneli SteamID64>" }` ve `ExternalIdentityUnlinked { accountId, provider: "STEAM" }`, `eventVersion=1`. SteamID64 herkese açık bir kimliktir; olaylara konabilen tek kimlik bilgisi odur (e-posta ve parola konmaz). Zarf ve teslim kuralları `docs-auth/servis-sozlesmeleri.md` 3.5.
+- **Tekillik:** bir SteamID64 / Google `sub` tek hesaba, bir hesap sağlayıcı başına tek kimliğe bağlanır (veritabanı kısıtlarıyla da zorlanır).
+- **Kalıcılık:** bağlanan kimlik çıkarılamadığı için hesap, ilk bağlı harici yöntemini kaybetmez (`LAST_LOGIN_METHOD` artık kullanıcı yolunda üretilmez).
+- **Parolasız hesap** bağlamada `409 PASSWORD_REQUIRED` alır (cihaz bağlama ve e-posta değiştirmeyle aynı davranış); önce parola belirlemelidir (B11, planlı).
+- Bağlama güvenlik olayı olarak kaydedilir (`EXTERNAL_IDENTITY_LINKED`, `EXTERNAL_LINK_CONFLICT`, `EXTERNAL_IDENTITY_LINK_REJECTED`).
+- **Olaylar** (outbox, `AUTH_EVENT_TARGETS`, hedef User): `ExternalIdentityLinked { accountId, provider: "STEAM" | "GOOGLE", providerSubject: "<17 haneli SteamID64> | <Google sub>" }` ve `ExternalIdentityUnlinked { accountId, provider: "STEAM" }`, `eventVersion=1`. SteamID64 herkese açık bir kimliktir; olaylara konabilen tek kimlik bilgisi odur (e-posta ve parola konmaz). Zarf ve teslim kuralları `docs-auth/servis-sozlesmeleri.md` 3.5.
 - **Mevcut Steam hesapları** için geriye dönük `ExternalIdentityLinked` yayını yoktur (DEV'de hesaplar yeniden kaydolur; gerçek hesap varsa ayrıca konuşulur).
 
 #### Hata Durumları
 - 400: yeniden doğrulama hatası (`CURRENT_PASSWORD_INVALID`, `INVALID_TWO_FACTOR_CODE`), doğrulama hatası
 - 401/403: oturum yok / CSRF yok
-- 404: `unlink` için bağlı Steam kimliği yok (`EXTERNAL_IDENTITY_NOT_LINKED`)
-- 409: `PASSWORD_REQUIRED`, `EXTERNAL_IDENTITY_ALREADY_LINKED` (`start`), `LAST_LOGIN_METHOD` (`unlink`)
+- 409: `PASSWORD_REQUIRED`, `EXTERNAL_IDENTITY_ALREADY_LINKED` (`start`)
 - 429: yeniden doğrulama denemesi sınırı
 
 #### Bağlantı
@@ -550,6 +580,35 @@ User Service: `POST /internal/events` ile `ExternalIdentityLinked/Unlinked` alı
 
 #### Test Durumu
 UNIT + INTEGRATION (`SteamLinkTest`, `AuthEventOutboxTest`; sahte sağlayıcı) + duman testi (start, yanlış parola, bağsız kaldırma); gerçek Steam ile denenmedi
+
+### AUTH — Parola belirle (parolasız Google/Steam hesabı)
+
+Durum: IMPLEMENTED (2026-11-05, karar: Kerem, B11)
+Sorumlu: Kerem
+Tüketici servisler: Frontend
+
+#### Endpoint
+- POST /api/v1/auth/password/set/request `{ "code"?, "recoveryCode"? }` → `202 { "nextStep": "VERIFY_EMAIL" }`; hesabın **doğrulanmış** adresine tek kullanımlık 6 haneli kod gider (Mail Service `verification-codes` ucu)
+- POST /api/v1/auth/password/set `{ "emailCode", "newPassword", "newPasswordConfirmation" }` → `204`; başarıda hesabın tüm oturumları ve cihaz kimlikleri iptal edilir, çerezler silinir, yeni parolayla yeniden giriş gerekir; `PASSWORD_CHANGED` güvenlik bildirimi gider
+
+#### Yetkilendirme
+Oturum (çerez + CSRF veya Bearer). `request`: TOTP etkinse `code` veya `recoveryCode` (yalnız biri, tek kullanımlık); etkin değilse boş gövde (`{}`). Steam kimliği bağlı hesapta ayar açıksa (`ltz.auth.two-factor.require-for-steam-accounts`, üretimde açık) TOTP **zorunludur**: etkin değilse `403 TWO_FACTOR_ENROLLMENT_REQUIRED`. Google hesabında TOTP açıksa istenir, zorunlu değildir.
+
+#### Kurallar
+- Yalnız parolası olmayan hesap kullanır; parolalı hesap `409 PASSWORD_ALREADY_SET` (parola değiştirme ayrı uçtur). "Unuttum" akışı parolasız hesaba token vermeye devam etmez.
+- Kod tek kullanımlıktır, süreli (`AUTH_OTP_TTL`) ve deneme sınırlıdır; yeniden gönderme bekleme süresi ve günlük sınır e-posta değiştirmeyle aynıdır. Yanlış/süresi dolmuş/tükenmiş kod tek hata döner: `400 PASSWORD_SET_INVALID`.
+- Parola politikası geçerlidir (en az 15 karakter, kara liste, kullanıcı bilgisi içermez): `400 WEAK_PASSWORD`; zayıf parola kodu yakmaz.
+- Güvenlik olayları: `PASSWORD_SET_REQUESTED`, `PASSWORD_SET_REJECTED`, `PASSWORD_SET_FAILED`, `PASSWORD_SET`.
+- Parola belirlendikten sonra cihaz bağlama, e-posta değiştirme ve harici kimlik bağlama (`PASSWORD_REQUIRED` hatası veren yollar) kullanılabilir; silme iptali (B17) de parolayla yapılabilir.
+
+#### Hata Durumları
+- 400: `INVALID_TWO_FACTOR_CODE`, `PASSWORD_SET_INVALID`, `WEAK_PASSWORD`, doğrulama hatası (tekrar eşleşmiyor vb.)
+- 401/403: oturum yok / CSRF yok; `TWO_FACTOR_ENROLLMENT_REQUIRED` (Steam hesabında TOTP kurulu değil)
+- 409: `PASSWORD_ALREADY_SET`
+- 429: yeniden doğrulama/istek sınırı
+
+#### Test Durumu
+INTEGRATION (`PasswordSetTest`, 6 test; `SteamTwoFactorEnrollmentTest` içinde Steam/TOTP kuralı)
 
 ### AUTH — Parola değiştir
 
@@ -684,8 +743,8 @@ Tüketici servisler: Frontend (yönetim paneli), admin-service (servis kimliği 
 
 #### Endpoint
 - GET /api/v1/auth/admin/roles — kanonik rol kodları (`PLAYER`, `CONTENT_CREATOR`, `GAME_DEVELOPER`, `MODERATOR`, `ADMIN`)
-- GET /api/v1/auth/admin/accounts/{accountId} — `{ id, username, status, roles, twoFactorEnabled, createdAt }` (e-posta/parola yok)
-- POST /api/v1/auth/admin/accounts/{accountId}/status — `{ "status": "SUSPENDED|BANNED|DISABLED|ACTIVE", "reason": "1-500 karakter" }` → `204`
+- GET /api/v1/auth/admin/accounts/{accountId} — `{ id, username, status, roles, twoFactorEnabled, createdAt, suspendedUntil? }` (e-posta/parola yok) `suspendedUntil` yalnız süreli askıdaki hesapta gelir.
+- POST /api/v1/auth/admin/accounts/{accountId}/status — `{ "status": "SUSPENDED|BANNED|DISABLED|ACTIVE", "reason": "1-500 karakter", "suspendedUntil": "ISO-8601, yalnız SUSPENDED" }` → `204`
 - POST /api/v1/auth/admin/accounts/{accountId}/roles/grant — `{ "role", "reason" }` → `204`
 - POST /api/v1/auth/admin/accounts/{accountId}/roles/revoke — `{ "role", "reason" }` → `204`
 - GET /api/v1/auth/admin/account-deletions/pending?limit=50 — tamamlanmamış hesap silme görevleri (`limit` 1–200 aralığına sınırlanır): `[{ requestId, accountId, service, attempts, lastError, nextAttemptAt, createdAt, stuck }]`. `stuck`, `ltz.auth.deletion.stuck-attempts` (varsayılan 10) denemeye ulaşıldığını gösterir. E-posta/kullanıcı adı içermez. Takılı görev otomatik onaylanmaz; ulaşılamayan servis başarı sayılmaz.
@@ -695,6 +754,7 @@ Admin: geçerli access token + `ROLE_ADMIN`, servis sınırında SecurityConfig 
 
 #### Kurallar
 - **Durum geçişleri:** `ACTIVE → SUSPENDED|BANNED|DISABLED`, `SUSPENDED → ACTIVE|BANNED`, `DISABLED → ACTIVE`, `BANNED → ACTIVE` (yasak yönetici kararıyla kaldırılabilir; gerekçe ve denetim kaydı zorunlu). `PENDING_VERIFICATION` (AUTH-02) ve `DELETION_REQUESTED/DELETED` (AUTH-16) bu uçtan yönetilmez. Süreli askı henüz yok.
+- **Süreli askı (B8):** `SUSPENDED` isteğe bağlı `suspendedUntil` ile verilebilir; değer `[şimdi + ltz.auth.suspension.min-duration (1 dk), şimdi + max-duration (365 gün)]` aralığında olmalıdır, aksi `400 INVALID_SUSPENSION_END`. Başka hedefte (`BANNED`, `DISABLED`, `ACTIVE`) verilirse `400`. Bitiş gelince arka plan işi (dakikada bir, `ltz.auth.suspension.poll-interval`) hesabı `ACTIVE` yapar: denetim kaydına sistem kimliği (`00000000-0000-0000-0000-000000000000`) ve gerekçe "Süreli askı süresi doldu" yazılır, `AccountStatusChanged(ACTIVE)` olayı yayımlanır, kullanıcıya "hesap yeniden etkinleştirildi" e-postası gider. `suspendedUntil` verilmezse askı **süresizdir** (yalnız elle açılır). `BANNED` ve `DISABLED` süresizdir ve otomatik açılmaz. Elle açma veya yasaklama bitişi temizler. Askı bitişini uzatmak için `SUSPENDED → SUSPENDED` geçişi yoktur: önce `ACTIVE`, sonra yeniden `SUSPENDED` verilir.
 - **ACTIVE dışına çıkış:** hesabın tüm oturumları iptal edilir ve token sürümü artar; eski access/refresh token'lar auth uçlarında anında düşer, giriş `403` olur.
 - **Rol değişikliği:** hesabın oturumları iptal edilir (yeni rol için yeniden giriş). `PLAYER` alınamaz. `ADMIN`/`MODERATOR` yalnız **ACTIVE ve TOTP'si etkin** hesaba verilir (2FA zorunluluğu atlatılamaz).
 - **Yetki yükseltme yok:** yönetici kendi durumunu/rolünü değiştiremez (`SELF_MODIFICATION_FORBIDDEN`).
@@ -896,7 +956,7 @@ Token: `typ=svc+jwt`, RS256 (JWKS aynı), `iss=ltz-auth`, **`aud=auth-service`**
 
 #### Request Body (`status`)
 ```json
-{ "actorId": "UUID, işlemi yapan yönetici hesabı", "status": "SUSPENDED|BANNED|DISABLED|ACTIVE", "reason": "1-500 karakter" }
+{ "actorId": "UUID, işlemi yapan yönetici hesabı", "status": "SUSPENDED|BANNED|DISABLED|ACTIVE", "reason": "1-500 karakter", "suspendedUntil": "ISO-8601, yalnız SUSPENDED" }
 ```
 
 #### Request Body (`roles/grant`, `roles/revoke`)

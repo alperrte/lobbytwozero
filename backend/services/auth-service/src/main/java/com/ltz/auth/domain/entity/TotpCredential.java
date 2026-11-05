@@ -65,6 +65,13 @@ public class TotpCredential {
         return status == TotpStatus.ACTIVE;
     }
 
+    /** Aynı gizli anahtarı başka bir şifreleme anahtarı sürümüyle yeniden sarar (rotasyon); durum ve adım değişmez. */
+    public void rewrapSecret(byte[] ciphertext, byte[] nonce, short keyVersion) {
+        secretCiphertext = ciphertext;
+        secretNonce = nonce;
+        this.keyVersion = keyVersion;
+    }
+
     public void replaceSecret(byte[] ciphertext, byte[] nonce, short keyVersion, Instant now) {
         if (isActive()) {
             throw new IllegalStateException("Active TOTP secret cannot be replaced");

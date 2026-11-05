@@ -6,6 +6,7 @@ import java.util.Set;
 import org.hibernate.validator.constraints.time.DurationMax;
 import org.hibernate.validator.constraints.time.DurationMin;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.validation.annotation.Validated;
 
 import com.ltz.auth.domain.enums.RoleCode;
@@ -18,6 +19,10 @@ import jakarta.validation.constraints.NotNull;
 /**
  * TOTP (D5). encryptionKey: Base64 kodlu 32 baytlık AES-256 anahtarı (AUTH_TOTP_ENCRYPTION_KEY).
  * requiredRoles: bu rollerden birine sahip hesap TOTP etkin değilse oturum alamaz ve TOTP'yi kapatamaz.
+ * requireForSteamAccounts: Steam kimliği bağlı hesap TOTP etkin değilse girişte önce TOTP kurulumunu tamamlar (kısıtlı
+ * kurulum challenge'ı, oturum yok) ve TOTP'yi kapatamaz. Üretimde açık; yerel dev'de application-dev.properties kapatır.
+ * encryptionKeyVersion / previousEncryptionKeys: anahtar rotasyonu (S9). Güncel anahtarın sürümü ve eski sürümlerin
+ * {@code "1=<base64>,2=<base64>"} listesi; boşsa rotasyon yoktur. Eski anahtarlar yalnız çözmede kullanılır.
  */
 @Validated
 @ConfigurationProperties("ltz.auth.two-factor")
@@ -28,12 +33,23 @@ public record TwoFactorProperties(
         @Min(1) @Max(10) int maxChallengeAttempts,
         @Min(5) @Max(20) int recoveryCodeCount,
         @Min(0) @Max(2) int allowedClockSkewSteps,
-        @NotNull Set<RoleCode> requiredRoles) {
+        @NotNull Set<RoleCode> requiredRoles,
+        @DefaultValue("true") boolean requireForSteamAccounts,
+        @DefaultValue("1") @Min(1) @Max(Short.MAX_VALUE) int encryptionKeyVersion,
+        String previousEncryptionKeys) {
+
+    public TwoFactorProperties {
+        // Boş ya da yalnız boşluktan oluşan eski anahtar listesi "rotasyon yok" demektir (ENV'de satır boş bırakılabilir).
+        previousEncryptionKeys = previousEncryptionKeys == null || previousEncryptionKeys.isBlank()
+                ? null : previousEncryptionKeys.strip();
+    }
 
     @Override
     public String toString() {
         return "TwoFactorProperties[issuer=" + issuer + ", encryptionKey=***, challengeTtl=" + challengeTtl
                 + ", maxChallengeAttempts=" + maxChallengeAttempts + ", recoveryCodeCount=" + recoveryCodeCount
-                + ", allowedClockSkewSteps=" + allowedClockSkewSteps + ", requiredRoles=" + requiredRoles + "]";
+                + ", allowedClockSkewSteps=" + allowedClockSkewSteps + ", requiredRoles=" + requiredRoles
+                + ", requireForSteamAccounts=" + requireForSteamAccounts
+                + ", encryptionKeyVersion=" + encryptionKeyVersion + ", previousEncryptionKeys=***]";
     }
 }

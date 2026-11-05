@@ -11,7 +11,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -28,9 +28,10 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Oturumdaki hesaba Steam bağlama ve kaldırma. Başlatma ve kaldırma kullanıcı oturumuyla (çerez + CSRF) ve yeniden
- * doğrulamayla çalışır. Steam dönüşü tarayıcı gezinmesidir: sonuç, giriş akışındaki gibi yapılandırmadaki SABİT frontend
- * adresine URL fragment'i ile iletilir ({@code status=steam_linked} veya {@code error=KOD}); token taşınmaz.
+ * Oturumdaki hesaba Steam ve Google bağlama. Başlatma kullanıcı oturumuyla (çerez + CSRF) ve yeniden doğrulamayla
+ * çalışır. Sağlayıcı dönüşü tarayıcı gezinmesidir: sonuç, giriş akışındaki gibi yapılandırmadaki SABİT frontend adresine
+ * URL fragment'i ile iletilir ({@code status=steam_linked}, {@code status=google_linked} veya {@code error=KOD}); token
+ * taşınmaz. Bağlanan kimlik kullanıcı tarafından kaldırılamaz (2026-11-05 kararı).
  */
 @RestController
 @RequiredArgsConstructor
@@ -65,11 +66,30 @@ public class ExternalIdentityLinkController {
         }
     }
 
-    @PostMapping(AuthApiPaths.STEAM_UNLINK)
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void steamUnlink(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody ExternalIdentityReauthRequest request) {
-        linkService.unlinkSteam(UUID.fromString(jwt.getSubject()), request.password(), request.code(),
-                request.recoveryCode());
+    @PostMapping(AuthApiPaths.GOOGLE_LINK_START)
+    public ResponseEntity<ExternalLinkStartResponse> googleLinkStart(@AuthenticationPrincipal Jwt jwt,
+                                                                     @Valid @RequestBody ExternalIdentityReauthRequest request,
+                                                                     HttpServletResponse response) {
+        StartedFlow flow = linkService.startGoogleLink(UUID.fromString(jwt.getSubject()), request.password(),
+                request.code(), request.recoveryCode());
+        sessionCookies.writeOAuthState(response, flow.state(), properties.flowTtl());
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .body(new ExternalLinkStartResponse(flow.redirectUri().toString()));
+    }
+
+    /** Oturum çerezini okumaz; hesap, state çerezine bağlı tek kullanımlık akıştan gelir. */
+    @GetMapping(AuthApiPaths.GOOGLE_LINK_CALLBACK)
+    public ResponseEntity<Void> googleLinkCallback(@RequestParam(required = false) String code,
+                                                   @RequestParam(required = false) String state,
+                                                   HttpServletRequest request, HttpServletResponse response) {
+        try {
+            linkService.completeGoogleLink(code, state, sessionCookies.oauthState(request).orElse(null));
+            return frontend("status=google_linked");
+        } catch (AuthException exception) {
+            return frontend("error=" + exception.errorCode().name());
+        } finally {
+            sessionCookies.clearOAuthState(response);
+        }
     }
 
     private ResponseEntity<Void> frontend(String fragment) {

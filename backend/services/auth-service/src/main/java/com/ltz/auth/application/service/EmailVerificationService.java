@@ -134,7 +134,7 @@ public class EmailVerificationService {
         EmailVerificationCode code = usable.get();
         // Deneme, sonuçtan bağımsız olarak sayılır ve işlemle birlikte kalıcı olur.
         code.recordAttempt();
-        if (!code.hasHash(codeHasher.hash(account.getId(), PURPOSE, submittedCode))) {
+        if (!code.hasAnyHash(codeHasher.allHashes(account.getId(), PURPOSE, submittedCode))) {
             securityEventRecorder.recordEvent(SecurityEventType.EMAIL_VERIFICATION_FAILED, account.getId());
             return false;
         }

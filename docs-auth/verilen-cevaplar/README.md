@@ -6,6 +6,12 @@ Bir ekip arkadaşı Auth'tan bir şey istediyse, sorduysa ya da Auth hakkında b
 
 ---
 
+## HERKES İÇİN YENİ (2026-11-05)
+
+[bilgilendirme-2026-11-05-auth-degisiklikleri.md](bilgilendirme-2026-11-05-auth-degisiklikleri.md) — Google bağlama, Steam'de zorunlu 2FA, parola belirleme, kaldırılan `steam/unlink` ve kimden ne beklendiği. Her servis klasöründe kendi özel notu `bilgilendirme-2026-11-05.md` olarak durur.
+
+---
+
 ## NASIL OKUNUR
 
 - Her branch klasörünün adı branch adıyla aynı (`feature/` öneki olmadan). Örnek: `feature/hardware-service` → `hardware-service/`
@@ -31,7 +37,7 @@ Bir ekip arkadaşı Auth'tan bir şey istediyse, sorduysa ya da Auth hakkında b
 | [hardware-service](hardware-service/README.md) | Alper | 4 talep cevaplandı, 04 kapandı | Evet: talep 02 (cihaz kimliği, sıraya alındı), 03 (ortak deneme). Talep 04 kapandı |
 | [social-service](social-service/README.md) | Umut | Uyumlu, 2 sıkılaştırma açık | Evet: Social'da yapılacak |
 | [community-service](community-service/README.md) | Nisa | Gerçek JWT bekliyor | Evet: Community'de yapılacak |
-| [game-service](game-service/README.md) | Hamza | Eski talepler kapandı, yeni talep 02 cevaplandı | Evet: HttpClient düzeltmesi Hamza'da |
+| [game-service](game-service/README.md) | Hamza | Eski talepler kapandı, talep 02 cevaplandı, talep 03 kapandı | Evet: HttpClient düzeltmesi Hamza'da |
 | [library-service](library-service/README.md) | Hamza | İskelet + silme ucu var | Hayır |
 | [review-service](review-service/README.md) | Hamza | İskelet + silme ucu var | Hayır |
 | [messaging-service](messaging-service/README.md) | Umut | İskelet | Hayır |

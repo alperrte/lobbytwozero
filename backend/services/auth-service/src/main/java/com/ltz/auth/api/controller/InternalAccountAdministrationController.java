@@ -45,7 +45,8 @@ public class InternalAccountAdministrationController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void changeStatus(@AuthenticationPrincipal Jwt serviceToken, @PathVariable UUID accountId,
                              @Valid @RequestBody InternalStatusChangeRequest request) {
-        administration.changeStatus(request.actorId(), accountId, request.status(), request.reason());
+        administration.changeStatus(request.actorId(), accountId, request.status(), request.reason(),
+                request.suspendedUntil());
         log.info("Internal account status change caller={} account={}", serviceToken.getSubject(), accountId);
     }
 
