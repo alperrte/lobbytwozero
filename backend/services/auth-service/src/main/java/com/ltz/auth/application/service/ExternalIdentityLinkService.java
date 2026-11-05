@@ -15,6 +15,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import com.ltz.auth.api.controller.AuthApiPaths;
+import com.ltz.auth.application.port.SecurityNotificationType;
 import com.ltz.auth.domain.entity.Account;
 import com.ltz.auth.domain.entity.ExternalIdentity;
 import com.ltz.auth.domain.entity.OAuthLinkFlow;
@@ -64,6 +65,7 @@ public class ExternalIdentityLinkService {
     private final VerificationCodeHasher throttleHasher;
     private final SecureTokens secureTokens;
     private final SecurityEventRecorder securityEventRecorder;
+    private final SecurityNotificationDispatcher notifier;
     private final AuthEventPublisher eventPublisher;
     private final OAuthProperties properties;
     private final ExternalUrls urls;
@@ -142,7 +144,7 @@ public class ExternalIdentityLinkService {
     }
 
     private void link(UUID accountId, ExternalProvider provider, String subject) {
-        accountRepository.findByIdForUpdate(accountId).filter(Account::isActive)
+        Account account = accountRepository.findByIdForUpdate(accountId).filter(Account::isActive)
                 .orElseThrow(() -> new AuthException(AuthErrorCode.SESSION_INVALID));
         Optional<ExternalIdentity> owner = identityRepository.findByProviderAndProviderSubject(provider, subject);
         if (owner.isPresent()) {
@@ -156,6 +158,7 @@ public class ExternalIdentityLinkService {
         }
         identityRepository.saveAndFlush(ExternalIdentity.link(accountId, provider, subject, clock.instant()));
         securityEventRecorder.recordEvent(SecurityEventType.EXTERNAL_IDENTITY_LINKED, accountId);
+        notifier.notifyAfterCommit(accountId, account.getEmail(), SecurityNotificationType.EXTERNAL_IDENTITY_LINKED);
         eventPublisher.publish(AuthEventType.EXTERNAL_IDENTITY_LINKED, accountId, provider.name() + ":" + subject);
     }
 

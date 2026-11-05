@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.ltz.auth.application.port.SecurityNotificationType;
 import com.ltz.auth.domain.entity.Account;
 import com.ltz.auth.domain.entity.MfaChallenge;
 import com.ltz.auth.domain.entity.RecoveryCode;
@@ -63,6 +64,7 @@ public class TwoFactorService {
     private final AttemptThrottleService attemptThrottle;
     private final SessionService sessionService;
     private final SecurityEventRecorder securityEventRecorder;
+    private final SecurityNotificationDispatcher notifier;
     private final PasswordEncoder passwordEncoder;
     private final TwoFactorProperties properties;
     private final TransactionTemplate transactionTemplate;
@@ -203,6 +205,7 @@ public class TwoFactorService {
             }
             credential.activate(step.getAsLong(), now);
             securityEventRecorder.recordEvent(SecurityEventType.TWO_FACTOR_ENABLED, accountId);
+            notifySecurity(accountId, SecurityNotificationType.TWO_FACTOR_ENABLED);
             return Optional.of(replaceRecoveryCodes(accountId, now));
         });
         if (activated.isEmpty()) {
@@ -240,6 +243,7 @@ public class TwoFactorService {
             credentialRepository.delete(credential);
             recoveryCodeRepository.deleteAllByAccountId(accountId);
             securityEventRecorder.recordEvent(SecurityEventType.TWO_FACTOR_DISABLED, accountId);
+            notifySecurity(accountId, SecurityNotificationType.TWO_FACTOR_DISABLED);
             return true;
         });
         if (!Boolean.TRUE.equals(disabled)) {
@@ -326,8 +330,15 @@ public class TwoFactorService {
         unused.ifPresent(code -> {
             code.markUsed(now);
             securityEventRecorder.recordEvent(SecurityEventType.RECOVERY_CODE_USED, accountId);
+            notifySecurity(accountId, SecurityNotificationType.RECOVERY_CODE_USED);
         });
         return unused.isPresent();
+    }
+
+    /** Hesap sahibine bildirim; işlem commit olduktan sonra, ayrı iş parçacığında ve en iyi çabayla gider. */
+    private void notifySecurity(UUID accountId, SecurityNotificationType type) {
+        accountRepository.findById(accountId)
+                .ifPresent(account -> notifier.notifyAfterCommit(accountId, account.getEmail(), type));
     }
 
     /** Saat penceresinde eşleşen ve daha önce kullanılmamış (replay değil) adım. */

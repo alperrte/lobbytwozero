@@ -18,11 +18,16 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.context.annotation.Import;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 
 import com.jayway.jsonpath.JsonPath;
 import com.ltz.auth.ExternalProviderTestSupport;
+import com.ltz.auth.RecordingMailPortConfiguration;
+import com.ltz.auth.application.port.SecurityNotificationMail;
+import com.ltz.auth.application.port.SecurityNotificationType;
 
 import jakarta.servlet.http.Cookie;
 
@@ -31,7 +36,11 @@ import jakarta.servlet.http.Cookie;
  * tekillik, kalıcılık (kullanıcı tarafı kaldırma yok) ve User Service'e giden olay. Google yerine yerel sahte sağlayıcı
  * kullanılır; üretim kodu aynı token uç noktası ve imza/nonce doğrulama yolundan geçer.
  */
+@Import(RecordingMailPortConfiguration.class)
 class GoogleLinkTest extends ExternalProviderTestSupport {
+
+    @Autowired
+    private RecordingMailPortConfiguration.RecordingMailPort mailPort;
 
     private static final String WRONG_PASSWORD = "yanlis-parola-yanlis-parola";
 
@@ -125,6 +134,10 @@ class GoogleLinkTest extends ExternalProviderTestSupport {
         assertThat(jdbc.queryForObject("select count(*) from oauth_link_flows where account_id = ? "
                 + "and consumed_at is not null", Integer.class, account)).isEqualTo(1);
         assertThat(securityEventCount(account, "EXTERNAL_IDENTITY_LINKED")).isEqualTo(1);
+        String ownerEmail = jdbc.queryForObject("select email from accounts where id = ?", String.class, account);
+        mailPort.awaitNotification(ownerEmail, SecurityNotificationType.EXTERNAL_IDENTITY_LINKED);
+        assertThat(mailPort.notificationsTo(ownerEmail)).extracting(SecurityNotificationMail::type)
+                .containsExactly(SecurityNotificationType.EXTERNAL_IDENTITY_LINKED);
         assertThat(outbox(account)).singleElement().satisfies(row -> assertThat(row)
                 .containsEntry("event_type", "EXTERNAL_IDENTITY_LINKED")
                 .containsEntry("payload_value", "GOOGLE:" + subject).containsEntry("target", "user"));

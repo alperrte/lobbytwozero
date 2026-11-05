@@ -1851,7 +1851,7 @@ Internal. Doğrulama kodu ucu ile aynı (`scope=mail:send`).
   "idempotencyKey": "UUID",
   "accountId": "UUID",
   "recipientEmail": "string ≤254, geçerli e-posta",
-  "type": "PASSWORD_CHANGED | PASSWORD_RESET | EMAIL_CHANGED | ACCOUNT_SUSPENDED | ACCOUNT_BANNED | ACCOUNT_DISABLED | ACCOUNT_REACTIVATED",
+  "type": "PASSWORD_CHANGED | PASSWORD_RESET | EMAIL_CHANGED | ACCOUNT_SUSPENDED | ACCOUNT_BANNED | ACCOUNT_DISABLED | ACCOUNT_REACTIVATED | TWO_FACTOR_ENABLED | TWO_FACTOR_DISABLED | RECOVERY_CODE_USED | EXTERNAL_IDENTITY_LINKED",
   "occurredAt": "ISO-8601 (gelecekte olamaz)",
   "locale": "tr | en (opsiyonel)"
 }
