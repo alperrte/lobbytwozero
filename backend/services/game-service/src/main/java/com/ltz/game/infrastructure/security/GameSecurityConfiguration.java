@@ -51,7 +51,8 @@ public class GameSecurityConfiguration {
         serviceConverter.setJwtGrantedAuthoritiesConverter(scopes);
         serviceProvider.setJwtAuthenticationConverter(serviceConverter);
         var serviceTokens = new ProviderManager(serviceProvider);
-        RequestMatcher batch = paths.matcher(HttpMethod.POST, "/api/v1/game/games/batch");
+        RequestMatcher batch = new OrRequestMatcher(paths.matcher(HttpMethod.POST, "/api/v1/game/games/batch"),
+                paths.matcher(HttpMethod.GET,"/api/v1/game/games/prices"));
         RequestMatcher tokenProtected = new OrRequestMatcher(paths.matcher(ADMIN), paths.matcher(MODERATION), paths.matcher(DEVELOPER), paths.matcher(FEEDBACK), internal);
         var limiter = new TokenBucketRateLimiter(rateLimit.batch().capacity(), rateLimit.batch().refillPerSecond(), rateLimit.maxKeys(), System::nanoTime);
         var rateLimitFilter = new BatchRateLimitFilter(batch, limiter, new ClientAddressResolver(rateLimit.trustedProxies()));
@@ -68,6 +69,7 @@ public class GameSecurityConfiguration {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/game/games", "/api/v1/game/games/search", "/api/v1/game/games/popular").permitAll()
+                        .requestMatchers(HttpMethod.GET,"/api/v1/game/games/prices").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/game/*/metadata", "/api/v1/game/*/card", "/api/v1/game/games/*", "/api/v1/game/catalog", "/api/v1/game/catalog/status").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/game/games/*/developer-content").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/game/games/*/modules/*").permitAll()

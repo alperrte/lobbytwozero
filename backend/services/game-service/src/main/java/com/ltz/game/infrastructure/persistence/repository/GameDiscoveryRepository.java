@@ -41,6 +41,9 @@ public class GameDiscoveryRepository {
              and (cast(:releasedBefore as date) is null or g.release_date <= cast(:releasedBefore as date))
              and (:popularOnly = false or g.editor_rank is not null)
              and (cast(:minRating as numeric) is null or r.average_rating >= cast(:minRating as numeric))
+             and (:discountedOnly = false or exists(select 1 from game_price_quotes p where p.game_id=g.id
+                 and p.country=:priceCountry and p.currency=:priceCurrency and p.expires_at>current_timestamp
+                 and p.current_price<p.regular_price))
             """;
     private static final String COUNT = "select count(*)" + FILTERED;
     private static final String PAGE = """
@@ -86,6 +89,7 @@ public class GameDiscoveryRepository {
         params.put("releasedAfter",query.releasedAfter()); params.put("releasedBefore",query.releasedBefore());
         params.put("popularOnly",query.popularOnly());
         params.put("minRating",query.minRating());
+        params.put("discountedOnly",query.discountedOnly());params.put("priceCountry",query.country());params.put("priceCurrency",query.currency());
         return params;
     }
     private List<GameDiscoveryResponse.Item> cards(List<Row> rows,boolean ratingsReady) {

@@ -19,7 +19,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** İç uygulama komutu. Public GET yazma yapmaz; gerçek detay adaptörü henüz yoktur. */
+/** İç uygulama komutu. Public GET yazma yapmaz; yapılandırılmış detay sağlayıcısı arka planda yeniler. */
 @Service @RequiredArgsConstructor
 public class GameDetailRefreshService {
     private final GameProvider provider;

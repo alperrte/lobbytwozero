@@ -276,6 +276,47 @@ erDiagram
 
 ## 5. game_db
 
+GAME-24 kaynak yükseltmesi (V173, 5 Kasım 2026); gerçek DEV dağıtımı yapılmadı:
+
+```mermaid
+erDiagram
+  games ||--o{ game_price_quotes : prices
+  games ||--o{ game_price_refresh_state : market_refresh
+  game_price_quotes {
+    uuid id PK
+    uuid game_id FK
+    varchar country
+    varchar currency
+    varchar store
+    numeric regular_price
+    numeric current_price
+    smallint discount_percent
+    varchar source
+    varchar url
+    timestamptz source_updated_at
+    timestamptz fetched_at
+    timestamptz expires_at
+    bigint version
+  }
+  game_price_refresh_state {
+    uuid id PK
+    uuid game_id FK
+    varchar country
+    varchar currency
+    varchar status
+    timestamptz checked_at
+    timestamptz next_attempt_at
+    varchar error_code
+    bigint version
+  }
+  game_price_sync_lock {
+    uuid id PK
+    uuid owner
+    timestamptz expires_at
+    bigint version
+  }
+```
+
 2026-10-24 kaynak yükseltmesi V171, hesap silme için aşağıdaki teknik bağlamı ekler.
 account_id Auth kimliğine REF'tir; başka servis DB'sine FK yoktur. Satır yalnız
 silme transaction'ında yaşar, başarıda silinir; hata olursa transaction ile geri alınır.
@@ -378,7 +419,7 @@ erDiagram
   }
 ```
 
-Ana Game Service şeması; henüz uygulanmayan fiyat bilgileri dahil edilmemiştir.
+Aşağıdaki başlangıç şema kaydı tarihseldir; fiyat tabloları güncel V173 diyagramında yukarıda gösterilmiştir.
 2026-10-21 tarihli son açık talimatla başlangıç kaynakları kesintisiz V31–V40 olarak
 10 dosyada yeniden numaralandırıldı. V35 admin yönetimi, V36 grant, V37 geliştirici
 içeriği, V38 yerelleştirme/provenance, V39 başarım, V40 feedback'tir. İlişkiler ve

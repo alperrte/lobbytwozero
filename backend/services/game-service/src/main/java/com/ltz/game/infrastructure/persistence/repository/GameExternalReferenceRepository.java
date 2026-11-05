@@ -6,6 +6,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface GameExternalReferenceRepository extends JpaRepository<GameExternalReference, UUID> {
+    @org.springframework.data.jpa.repository.Query("select r from GameExternalReference r join fetch r.game where r.game.id in :ids")
+    java.util.List<com.ltz.game.domain.entity.GameExternalReference> findByGameIdIn(
+            @org.springframework.data.repository.query.Param("ids") java.util.Collection<UUID> ids);
     Optional<GameExternalReference> findByProviderAndExternalId(String provider, String externalId);
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @org.springframework.data.jpa.repository.Query("select r from GameExternalReference r where r.provider = :provider and r.externalId = :externalId")

@@ -34,7 +34,7 @@ class RatingProjectionMigrationTest {
         Flyway.configure().dataSource(source).locations("classpath:db/migration").target("171").load().migrate();
         jdbc = new JdbcTemplate(source);
         jdbc.update("insert into games(id,title,normalized_title,created_at,updated_at) values (?,'Preserved','preserved',now(),now())", game);
-        assertEquals(1, Flyway.configure().dataSource(source).locations("classpath:db/migration").load().migrate().migrationsExecuted);
+        assertEquals(1, Flyway.configure().dataSource(source).locations("classpath:db/migration").target("172").load().migrate().migrationsExecuted);
     }
 
     @Test void upgradePreservesDataSeedsTheSingleStateRowAndValidates() {
@@ -44,8 +44,8 @@ class RatingProjectionMigrationTest {
         assertNull(jdbc.queryForObject("select last_completed_at from game_rating_sync_state", Object.class), "ilk tarama bitmeden hazır sayılmaz");
         assertEquals(0L, jdbc.queryForObject("select scan_generation from game_rating_sync_state", Long.class));
         assertEquals(0, jdbc.queryForObject("select count(*) from game_rating_projection", Integer.class));
-        Flyway.configure().dataSource(source).locations("classpath:db/migration").load().validate();
-        assertEquals(0, Flyway.configure().dataSource(source).locations("classpath:db/migration").load().migrate().migrationsExecuted);
+        Flyway.configure().dataSource(source).locations("classpath:db/migration").target("172").load().validate();
+        assertEquals(0, Flyway.configure().dataSource(source).locations("classpath:db/migration").target("172").load().migrate().migrationsExecuted);
     }
 
     @Test void stateTableIsASingletonWithAConsistentLease() {

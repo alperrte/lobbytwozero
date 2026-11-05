@@ -8,7 +8,7 @@
 
 ## HAMZA
 - V31–V40      → GAME-SERVICE (aktif başlangıç zinciri, 10 migration; tamamı kullanıldı)
-- V171–V180    → GAME-SERVICE (2026-10-24 açık kullanıcı onayı; V171 ve V172 kullanıldı, V173–V180 boş)
+- V171–V180    → GAME-SERVICE (2026-10-24 açık kullanıcı onayı; V171–V173 kullanıldı, V174–V180 boş)
 - V41–V50      → LIBRARY-SERVICE
 - V51–V60      → REVIEW-SERVICE
 
@@ -39,6 +39,16 @@ geliştirmeye başlanmadan önce belirlenmelidir.
 ## Migration Kuralları
 
 ### Güncel Game Service ek tahsisi ve hesap silme hazırlığı — 2026-10-24
+
+- **V173 kullanıldı (2026-11-05, GAME-24 / GAME-04 indirim filtresi):**
+  `V173__create_game_price_cache.sql`, ITAD fiyat snapshot'larını, pazar bazlı
+  yenileme durumunu ve tek worker kiralamasını ekler. Kullanıcının ITAD seçimi ve
+  şablon/Compose için `ITAD_API_KEY` onayı bu oturumda alındı. Aktif klasör V31–V40,
+  V171, V172 kontrol edilerek ilk boş V173 seçildi. Mevcut migration değiştirilmedi;
+  gerçek DEV'e migration/deploy uygulanmadı. Kalan numaralar V174–V180'dir.
+  Tarihsel fixture'daki V173 özel feedback'tir ve aktif V173 fiyat migration'ı ile
+  karıştırılmamalıdır. Tarihsel eşdeğerlik testleri V40'ta, V172 puan yükseltmesi
+  target=172'de kalır; fiyat tabloları yeni ITAD/PostgreSQL testlerinde doğrulanır.
 
 - Kullanıcının açık talimatıyla **V171–V180 Game Service'e yeniden tahsis edildi**.
   Aşağıdaki 2026-10-21 tarihli ek aralık iptali kayıtları tarihseldir; güncel tahsis bu bölümdür.

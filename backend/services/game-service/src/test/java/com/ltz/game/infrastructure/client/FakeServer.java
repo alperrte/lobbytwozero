@@ -30,7 +30,7 @@ final class FakeServer implements AutoCloseable {
         }
     }
 
-    record Received(String method, String pathAndQuery, String authorization, String body) { }
+    record Received(String method, String pathAndQuery, String authorization, String body, String apiKey) { }
 
     private final HttpServer server;
     private final ExecutorService executor = Executors.newCachedThreadPool();
@@ -38,6 +38,7 @@ final class FakeServer implements AutoCloseable {
     private final List<Received> received = Collections.synchronizedList(new ArrayList<>());
     private final java.util.concurrent.atomic.AtomicInteger abandoned = new java.util.concurrent.atomic.AtomicInteger();
     private volatile Reply fallback = Reply.json(500, "{}");
+    private volatile String retryAfter;
 
     FakeServer() throws IOException {
         server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
@@ -46,7 +47,7 @@ final class FakeServer implements AutoCloseable {
             String query = exchange.getRequestURI().getRawQuery();
             received.add(new Received(exchange.getRequestMethod(),
                     exchange.getRequestURI().getRawPath() + (query == null ? "" : "?" + query),
-                    exchange.getRequestHeaders().getFirst("Authorization"), body));
+                    exchange.getRequestHeaders().getFirst("Authorization"), body,exchange.getRequestHeaders().getFirst("ITAD-API-Key")));
             Reply reply;
             synchronized (replies) {
                 reply = replies.isEmpty() ? fallback : replies.poll();
@@ -60,6 +61,7 @@ final class FakeServer implements AutoCloseable {
             }
             byte[] bytes = reply.body().getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json");
+            if(retryAfter!=null) exchange.getResponseHeaders().set("Retry-After",retryAfter);
             if (reply.location() != null) {
                 exchange.getResponseHeaders().add("Location", reply.location());
             }
@@ -89,6 +91,7 @@ final class FakeServer implements AutoCloseable {
         fallback = reply;
         return this;
     }
+    FakeServer retryAfter(String value) { retryAfter=value;return this; }
 
     FakeServer enqueue(Reply... next) {
         synchronized (replies) {

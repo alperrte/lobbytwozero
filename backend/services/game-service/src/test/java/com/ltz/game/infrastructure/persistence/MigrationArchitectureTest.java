@@ -59,9 +59,10 @@ class MigrationArchitectureTest {
         List<String> expected = new ArrayList<>(java.util.stream.IntStream.rangeClosed(31, 40).mapToObj(Integer::toString).toList());
         expected.add("171");
         expected.add("172");
+        expected.add("173");
         try (var paths = Files.list(CURRENT)) {
             var files = paths.filter(p -> p.toString().endsWith(".sql")).toList();
-            assertEquals(12, files.size());
+            assertEquals(13, files.size());
             var versions = new ArrayList<String>();
             for (Path file : files) {
                 String sql = Files.readString(file);
@@ -145,7 +146,7 @@ class MigrationArchitectureTest {
         try (var files = Files.list(source)) {
             for (Path file : files.filter(p -> p.toString().endsWith(".sql")).toList()) {
                 String fileName = file.getFileName().toString();
-                if (source.equals(CURRENT) && (fileName.startsWith("V171__") || fileName.startsWith("V172__"))) continue;
+                if (source.equals(CURRENT) && (fileName.startsWith("V171__") || fileName.startsWith("V172__") || fileName.startsWith("V173__"))) continue;
                 Files.copy(file, destination.resolve(file.getFileName()));
             }
         }
