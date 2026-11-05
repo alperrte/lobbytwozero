@@ -1,6 +1,7 @@
 package com.ltz.review.infrastructure.security;
 
 import com.ltz.review.api.controller.AccountErasureController;
+import com.ltz.review.api.controller.InternalRatingSummaryController;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -40,6 +41,10 @@ public class AccountErasureSecurityConfiguration {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers(HttpMethod.DELETE, AccountErasureController.PATH).hasAuthority("SCOPE_account:erase")
+                        .requestMatchers(HttpMethod.POST, InternalRatingSummaryController.PATH)
+                                .hasAuthority("SCOPE_" + InternalRatingSummaryController.SCOPE)
+                        .requestMatchers(HttpMethod.GET, InternalRatingSummaryController.PATH)
+                                .hasAuthority("SCOPE_" + InternalRatingSummaryController.SCOPE)
                         .requestMatchers("/api/v1/review/**").hasAnyRole("PLAYER", "CONTENT_CREATOR", "GAME_DEVELOPER", "MODERATOR", "ADMIN")
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(resource -> resource

@@ -14,24 +14,42 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 import javax.tools.ToolProvider;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Auth'un dört gerçek kaynak dosyasını yalnız geçici test dizinine derler; ENV/DB başlatmaz. */
+/** Auth'un gerçek servis token üreticilerini yalnız geçici test dizinine derler; ENV/DB başlatmaz. */
 public final class ProductionServiceTokenSupport {
     private ProductionServiceTokenSupport() {}
 
+    /** Auth → servis (D4): sub=svc:auth-service, scope=account:erase, account_id. */
     public static String issue(Path output, KeyPair keys, String audience, UUID account) throws Exception {
+        return issue(output, keys, "ServiceTokenIssuer", (issuerType, issuer) ->
+                issuerType.getMethod("issue", String.class, String.class, UUID.class)
+                        .invoke(issuer, audience, "account:erase", account));
+    }
+
+    /** Auth'un client-credentials üreticisi ({@code POST /internal/v1/service-tokens}): sub=svc:istemci. */
+    public static String issueClientToken(Path output, KeyPair keys, String client, String audience, Set<String> scopes)
+            throws Exception {
+        return issue(output, keys, "ServiceClientTokenIssuer", (issuerType, issuer) ->
+                issuerType.getMethod("issue", String.class, String.class, Set.class).invoke(issuer, client, audience, scopes));
+    }
+
+    @FunctionalInterface
+    private interface Call { Object invoke(Class<?> issuerType, Object issuer) throws Exception; }
+
+    private static String issue(Path output, KeyPair keys, String issuerName, Call call) throws Exception {
         Path services = Path.of(System.getProperty("user.dir")).toAbsolutePath();
         while (services != null && !Files.isDirectory(services.resolve("auth-service/src/main/java")))
             services = services.getParent();
         assertNotNull(services, "Auth kaynakları checkout içinde bulunmalı");
         List<String> sources = new ArrayList<>();
         for (String name : List.of("infrastructure/config/JwtProperties", "infrastructure/security/TokenClaims",
-                "infrastructure/security/JwtSigningKey", "infrastructure/security/ServiceTokenIssuer"))
+                "infrastructure/security/JwtSigningKey", "infrastructure/security/" + issuerName))
             sources.add(services.resolve("auth-service/src/main/java/com/ltz/auth/" + name + ".java").toString());
         var compiler = ToolProvider.getSystemJavaCompiler();
         assertNotNull(compiler, "JDK 25 gereklidir");
@@ -52,10 +70,9 @@ public final class ProductionServiceTokenSupport {
             var propsType = loader.loadClass("com.ltz.auth.infrastructure.config.JwtProperties");
             var props = propsType.getConstructor(String.class, String.class, Duration.class, String.class)
                     .newInstance("ltz-auth", "ltz-api", Duration.ofMinutes(5), encoded);
-            var issuerType = loader.loadClass("com.ltz.auth.infrastructure.security.ServiceTokenIssuer");
+            var issuerType = loader.loadClass("com.ltz.auth.infrastructure.security." + issuerName);
             var issuer = issuerType.getConstructors()[0].newInstance(encoder, signingKey, props, Clock.systemUTC());
-            return (String) issuerType.getMethod("issue", String.class, String.class, UUID.class)
-                    .invoke(issuer, audience, "account:erase", account);
+            return (String) call.invoke(issuerType, issuer);
         }
     }
 }
