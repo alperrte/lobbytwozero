@@ -21,6 +21,7 @@ Game, Auth sözleşmesine en iyi uyan servis: kullanıcı JWT'si, servis token'l
 ## AUTH'TA BEKLEYEN
 
 - **Review özet okuma: HAZIR (2026-10-31).** `{clientId: "game-service", clientSecret, audience: "review-service"}` → `scope=rating-summaries:read`, 60 sn. Ortam `AUTH_GAME_SERVICE_CLIENT_SECRET` (Auth'taki ile aynı değer Game ortamına). Yalnız `GET /games/{gameId}/rating-summary` ve `POST /games/rating-summaries` içindir; kullanıcı JWT'sine fallback yok. Bkz. `verilen-cevaplar/review-service/talep-01-*`
+- **GAME-26 referans kontrolü: HAZIR (2026-11-05).** `audience: "library-service"` → `scope=game-references:read`; `audience: "review-service"` → `scope=game-references:read rating-summaries:read`. Yeni secret yok. Ayrıntı: `verilen-cevaplar/game-service/talep-04-referans-kontrolu-servis-kimligi-ciftleri.md`.
 - Hesap durumu olayı (`AccountStatusChanged`): Auth'ta hazır (2026-10-29, outbox, yalnız yönetici durum değişikliğinde). Game isterse alıcı uç yazar ve hedef olarak eklenir; istemezse 60 ila 90 sn gecikme kabulü geçerli
 - Kullanıcı görünen adı ve profil: JWT'de e-posta, kullanıcı adı ve hesap durumu yok. User Service yazılınca oradan alınacak (Auth'ın işi değil)
 

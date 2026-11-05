@@ -50,6 +50,11 @@ public final class TokenClaims {
     /** Oyun puan özeti okuma: game, Review'ın toplu puan özetini yalnız okur; kullanıcıya bağlı değildir. */
     public static final String RATING_SUMMARIES_READ_SCOPE = "rating-summaries:read";
     /**
+     * Oyun referans kontrolü: game, bir oyunun dış kimliğini taşımadan/ayırmadan önce Library ve Review'da o {@code gameId} için
+     * kayıt olup olmadığını (yalnız sayı) sorar. Kullanıcıya bağlı değildir.
+     */
+    public static final String GAME_REFERENCES_READ_SCOPE = "game-references:read";
+    /**
      * Cihaz doğrulama: hardware, Performance'tan bir hesabın cihazının aktif olup olmadığını sorar. Hesaba bağlı kapsamdır:
      * token {@link #ACCOUNT_ID} taşır, Performance bunu istek yolundaki hesapla karşılaştırır.
      */
