@@ -237,7 +237,8 @@ class MailDeliveryControllerTest extends IntegrationTestSupport {
                 serviceToken(account, MAIL_SEND_SCOPE, tooLong),
                 userAccessToken(account));
 
-        postCode(account, key, null).andExpect(status().isUnauthorized());
+        // Bearer başlığı yoksa CSRF filtresi isteği 403 ile durdurur; başlık varsa (geçersiz token) 401 döner.
+        postCode(account, key, null).andExpect(status().isForbidden());
         for (String token : rejected) {
             postCode(account, key, "Bearer " + token).andExpect(status().isUnauthorized());
         }
@@ -266,18 +267,37 @@ class MailDeliveryControllerTest extends IntegrationTestSupport {
     }
 
     @Test
-    void csrfExemptionCoversOnlyInternalApiAndIdentityIsNeverReadFromCookies() throws Exception {
+    void csrfProtectionIsNeverDisabledAndIdentityIsNeverReadFromCookies() throws Exception {
         UUID account = newAccount();
 
-        // /internal/** CSRF belirteci istemez ama çerez kimlik sayılmaz: Bearer yoksa 401.
+        // Muafiyet yok: Bearer başlığı olmayan istek (sahte çerezlerle bile) CSRF filtresinde 403 alır.
         mockMvc.perform(post(InternalApiPaths.VERIFICATION_CODES).contentType(MediaType.APPLICATION_JSON)
                 .cookie(new Cookie("JSESSIONID", "forged"), new Cookie("XSRF-TOKEN", "forged"))
                 .content(verificationBody(UUID.randomUUID(), account, EMAIL, "123456")))
-                .andExpect(status().isUnauthorized());
-        // /internal dışında CSRF koruması açık kalır: durum değiştiren istek belirteçsiz 403 alır.
+                .andExpect(status().isForbidden());
+        // /internal dışında da aynı: durum değiştiren istek belirteçsiz 403 alır.
         mockMvc.perform(post("/api/v1/mail/messages").contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isForbidden());
         assertThat(messageCount()).isZero();
+    }
+
+    @Test
+    void validServiceTokenIsAcceptedOnlyFromTheAuthorizationHeader() throws Exception {
+        UUID account = newAccount();
+        String token = bearer(account, MAIL_SEND_SCOPE).substring("Bearer ".length());
+        String body = verificationBody(UUID.randomUUID(), account, EMAIL, "123456");
+
+        // Aynı geçerli token sorgu parametresi, form gövdesi ya da çerezle gelirse kimlik sayılmaz (CSRF'de 403).
+        mockMvc.perform(post(InternalApiPaths.VERIFICATION_CODES + "?access_token=" + token)
+                .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isForbidden());
+        mockMvc.perform(post(InternalApiPaths.VERIFICATION_CODES).contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .param("access_token", token)).andExpect(status().isForbidden());
+        mockMvc.perform(post(InternalApiPaths.VERIFICATION_CODES).contentType(MediaType.APPLICATION_JSON)
+                .cookie(new Cookie("access_token", token), new Cookie("Authorization", "Bearer " + token))
+                .content(body)).andExpect(status().isForbidden());
+        assertThat(messageCount()).isZero();
+
+        postCode(account, UUID.randomUUID(), "Bearer " + token).andExpect(status().isAccepted());
     }
 
     @Test

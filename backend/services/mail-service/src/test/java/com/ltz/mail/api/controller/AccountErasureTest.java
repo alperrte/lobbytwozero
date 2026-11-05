@@ -62,7 +62,8 @@ class AccountErasureTest extends IntegrationTestSupport {
         UUID account = newAccount();
         seed(account, UUID.randomUUID());
 
-        mockMvc.perform(delete(PATH, account)).andExpect(status().isUnauthorized());
+        // Bearer başlığı yoksa CSRF filtresi isteği 403 ile durdurur; başlık varsa kimlik doğrulama 401 döner.
+        mockMvc.perform(delete(PATH, account)).andExpect(status().isForbidden());
         mockMvc.perform(delete(PATH, account).header(HttpHeaders.AUTHORIZATION, "Bearer " + userAccessToken(account)))
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(delete(PATH, account).header(HttpHeaders.AUTHORIZATION, bearer(account, MAIL_SEND_SCOPE)))
