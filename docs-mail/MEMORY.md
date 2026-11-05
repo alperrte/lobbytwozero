@@ -31,7 +31,7 @@
 
 ## 4. Auth gerçekleri (koddan doğrulandı)
 
-- 4 port: `VerificationCodeMailPort` (+ e-posta değişikliği kodu), `PasswordResetMailPort`, `AccountDeletionMailPort`, `SecurityNotificationMailPort` (tipler: `PASSWORD_CHANGED, PASSWORD_RESET, EMAIL_CHANGED (eski adrese), ACCOUNT_SUSPENDED, ACCOUNT_BANNED, ACCOUNT_DISABLED, ACCOUNT_REACTIVATED`; veri: `idempotencyKey, accountId, recipientEmail, type, occurredAt`).
+- 4 port: `VerificationCodeMailPort` (+ e-posta değişikliği kodu), `PasswordResetMailPort`, `AccountDeletionMailPort`, `SecurityNotificationMailPort` (tipler: `PASSWORD_CHANGED, PASSWORD_RESET, EMAIL_CHANGED (eski adrese), ACCOUNT_SUSPENDED, ACCOUNT_BANNED, ACCOUNT_DISABLED, ACCOUNT_REACTIVATED, TWO_FACTOR_ENABLED, TWO_FACTOR_DISABLED, RECOVERY_CODE_USED, EXTERNAL_IDENTITY_LINKED` (11 tür; Auth PR #57, main `e3bb795`; Auth+Mail+Mailpit yalıtılmış denemesi 30/30 geçti, 2026-11-05); veri: `idempotencyKey, accountId, recipientEmail, type, occurredAt`).
 - Çağrı, commit sonrası ayrı iş parçacığında; port istisna → kod/token `DELIVERY_FAILED` + güvenlik olayı (güvenlik bildirimlerinde yalnız log, en iyi çaba).
 - Portlar `locale` taşımaz → Mail: `locale` isteğe bağlı, yoksa TR+EN iki dilli.
 - Token: `ServiceTokenIssuer.issue(aud, scope, accountId)` (`aud` `…-service` kalıbı, scope `^[a-z]+:[a-z]+$`, **accountId zorunlu**, ömür 30 sn, `sub=svc:auth-service`, `account_id` claim). Silme deseni: `HttpAccountDataEraser` (yönlendirme yok, 200/204 dışı hata, 5 sn zaman aşımı).
