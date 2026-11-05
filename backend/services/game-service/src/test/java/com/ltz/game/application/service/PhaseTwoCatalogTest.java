@@ -58,6 +58,11 @@ class PhaseTwoCatalogTest extends PostgresTestSupport {
         final List<CatalogQuery> queries = new CopyOnWriteArrayList<>();
         final Queue<Supplier<Details>> details = new ConcurrentLinkedQueue<>();
         int detailCalls;
+        String source;
+        @Override public String detailSource() { return source == null ? provider() : source; }
+        void detailWith(GameProvider.LanguageSupport... languages) {
+            details.add(() -> new Details("Provider description", LocalDate.of(2020, 1, 1), Set.of(), Set.of(), null, List.of(languages)));
+        }
         @Override public String provider() { return "STEAM"; }
         @Override public Set<Capability> capabilities() { return supported ? Set.of(Capability.CATALOG, Capability.INCREMENTAL_CATALOG, Capability.DETAILS, Capability.ITEM_TYPE) : Set.of(Capability.CATALOG); }
         @Override public CatalogPage catalog(CatalogQuery query) { queries.add(query); return Objects.requireNonNull(pages.poll()).get(); }
@@ -81,7 +86,7 @@ class PhaseTwoCatalogTest extends PostgresTestSupport {
         mvc = org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup(context)
                 .apply(org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity()).build();
         clock.now = Instant.parse("2026-10-21T00:00:00Z");
-        provider.supported = true; provider.pages.clear(); provider.queries.clear(); provider.details.clear(); provider.detailCalls = 0;
+        provider.supported = true; provider.pages.clear(); provider.queries.clear(); provider.details.clear(); provider.detailCalls = 0; provider.source = null;
         jdbc.update("delete from game_external_refs"); jdbc.update("delete from games");
         jdbc.update("update game_provider_sync_state set cursor=0,sync_status='IDLE',run_mode=null,query_since=null,run_started_at=null,last_successful_at=null,processed_count=0,last_error_code=null,failure_count=0,next_attempt_at=null");
     }
@@ -197,5 +202,63 @@ class PhaseTwoCatalogTest extends PostgresTestSupport {
         provider.supported=false;
         assertTrue(refresh.dueCandidates().isEmpty());
         assertEquals(0,provider.detailCalls);
+    }
+
+    // ---- GAME-17/23: ayrı detay kaynağından (IGDB) dil desteği
+    private static GameProvider.LanguageSupport english() {
+        return new GameProvider.LanguageSupport("en-us", com.ltz.game.domain.enums.LanguageSupportStatus.SUPPORTED,
+                com.ltz.game.domain.enums.LanguageSupportStatus.SUPPORTED, com.ltz.game.domain.enums.LanguageSupportStatus.UNKNOWN);
+    }
+    private static GameProvider.LanguageSupport turkishSubtitles() {
+        return new GameProvider.LanguageSupport("tr-tr", com.ltz.game.domain.enums.LanguageSupportStatus.UNKNOWN,
+                com.ltz.game.domain.enums.LanguageSupportStatus.UNKNOWN, com.ltz.game.domain.enums.LanguageSupportStatus.SUPPORTED);
+    }
+    private List<String> languageRows(UUID id) {
+        return jdbc.queryForList("select language_code||':'||interface_support||':'||audio_support||':'||subtitle_support "
+                + "from game_language_supports where game_id=? order by language_code", String.class, id);
+    }
+    private List<String> flatLanguages(UUID id) {
+        return jdbc.queryForList("select language_code from game_languages where game_id=? order by language_code", String.class, id);
+    }
+    @Test void detailSourceLanguagesAreStoredWithSourceProvenanceAndNothingIsInventedAsUnsupported() {
+        provider.source = "IGDB";
+        UUID id = indexed();
+        provider.detailWith(english(), turkishSubtitles());
+        assertEquals("REFRESHED", refresh.refresh(id));
+        assertEquals(List.of("en-us:SUPPORTED:SUPPORTED:UNKNOWN", "tr-tr:UNKNOWN:UNKNOWN:SUPPORTED"), languageRows(id));
+        assertEquals("AVAILABLE", jdbc.queryForObject("select language_data_state from games where id=?", String.class, id));
+        assertEquals(List.of("en-us", "tr-tr"), flatLanguages(id));
+        for (String field : List.of("LOCALIZATION", "LANGUAGES", "DESCRIPTION", "RELEASE_DATE")) {
+            assertEquals("IGDB", jdbc.queryForObject("select source from game_metadata_provenance where game_id=? and field=?", String.class, id, field), field);
+        }
+        assertEquals(0, jdbc.queryForObject("select count(*) from game_language_supports where game_id=? and (interface_support='UNSUPPORTED' "
+                + "or audio_support='UNSUPPORTED' or subtitle_support='UNSUPPORTED')", Integer.class, id));
+    }
+    @Test void manuallyLockedLocalizationIsNotOverwrittenByTheDetailSource() {
+        UUID id = indexed();
+        jdbc.update("insert into game_field_overrides(id,game_id,field,actor_id,created_at) values (?,?,'LOCALIZATION',?,now())",
+                UUID.randomUUID(), id, UUID.randomUUID());
+        provider.detailWith(english());
+        assertEquals("REFRESHED", refresh.refresh(id));
+        assertTrue(languageRows(id).isEmpty());
+        assertEquals("UNKNOWN", jdbc.queryForObject("select language_data_state from games where id=?", String.class, id));
+    }
+    @Test void detailsWithoutLanguagesKeepExistingLanguageData() {
+        UUID id = indexed();
+        provider.detailWith(english());
+        assertEquals("REFRESHED", refresh.refresh(id));
+        clock.advance(Duration.ofDays(2));
+        provider.detail(); // dil bilgisi yok: "dil yok" anlamına gelmez, mevcut veri silinmez
+        assertEquals("REFRESHED", refresh.refresh(id));
+        assertEquals(List.of("en-us:SUPPORTED:SUPPORTED:UNKNOWN"), languageRows(id));
+        assertEquals("AVAILABLE", jdbc.queryForObject("select language_data_state from games where id=?", String.class, id));
+    }
+    @Test void flatLanguageListIsFilledOnlyWhenEmptyAndAdminDataIsNeverReplaced() {
+        UUID id = indexed();
+        jdbc.update("insert into game_languages(game_id,language_code) values (?,'tr')", id);
+        provider.detailWith(english());
+        assertEquals("REFRESHED", refresh.refresh(id));
+        assertEquals(List.of("tr"), flatLanguages(id));
+        assertEquals(1, languageRows(id).size());
     }
 }
