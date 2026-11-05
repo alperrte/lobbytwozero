@@ -46,7 +46,7 @@ Ortak: `Authorization: Bearer <svc+jwt>`; gövde en fazla 16 KB (`413`); bilinme
 | `POST /internal/v1/mail/security-notifications` | `idempotencyKey`, `accountId`, `recipientEmail`, `type`, `occurredAt`, `locale?` | `SCOPE_mail:send` | `type`: `PASSWORD_CHANGED, PASSWORD_RESET, EMAIL_CHANGED, ACCOUNT_SUSPENDED, ACCOUNT_BANNED, ACCOUNT_DISABLED, ACCOUNT_REACTIVATED, TWO_FACTOR_ENABLED, TWO_FACTOR_DISABLED, RECOVERY_CODE_USED, EXTERNAL_IDENTITY_LINKED` (Auth `SecurityNotificationType` ile birebir; son 4 tür V83 ile eklendi). `WELCOME`, `SUSPICIOUS_LOGIN`: Auth göndermeyecek, eklenmedi |
 | `DELETE /internal/v1/accounts/{accountId}` | — | `SCOPE_account:erase` | `204`, idempotent; `sub=svc:auth-service` ve `account_id`=yol şart, aksi `403` |
 
-Hatalar: `400` doğrulama; `401` token yok/geçersiz; `403` kapsam, `sub`, `account_id`≠gövde `accountId` ya da `locale` dışı; `409` aynı `idempotencyKey` farklı içerik (`IDEMPOTENCY_CONFLICT`); `413`; `503` kayıt yazılamadı (`TEMPORARILY_UNAVAILABLE`); `500`.
+Hatalar: `400` doğrulama; `401` Bearer başlığı var ama token geçersiz (başlık hiç yoksa `403`, CSRF filtresi); `403` kapsam, `sub`, `account_id`≠gövde `accountId` ya da `locale` dışı; `409` aynı `idempotencyKey` farklı içerik (`IDEMPOTENCY_CONFLICT`); `413`; `503` kayıt yazılamadı (`TEMPORARILY_UNAVAILABLE`); `500`.
 Aynı anahtar + aynı içerik: `202` (yeni kayıt açılmaz). Gateway'de `/api/v1/mail/**` rotası vardır ama bu serviste hiçbir kullanıcı ucu yoktur → `denyAll`.
 
 ## 3. Kimlik doğrulama (User'ın `JwtConfig` + `SecurityConfig` deseni)
@@ -55,7 +55,7 @@ Aynı anahtar + aynı içerik: `202` (yeni kayıt açılmaz). Gateway'de `/api/v
 - Mail doğrular: JWKS (`AUTH_SERVICE_URL/api/v1/auth/.well-known/jwks.json`), yalnız RS256, `typ`, `iss`, `aud=mail-service`, `sub` önek `svc:` **ve tam `svc:auth-service`**, `jti`, `iat` zorunlu, ömür ≤ 60 sn, `scope`. Kullanıcı token'ı (`at+jwt`) hiçbir uçta kabul edilmez (tek token türü: servis).
 - Mail uçları için `account_id` claim'i gövdedeki `accountId` ile eşit olmalı (çalınan token başka hesap için e-posta tetikleyemez). Auth bu bağı zaten üretir.
 - Ek ENV yok (Mail ENV'leri §7'de): `AUTH_SERVICE_URL`, `JWT_ISSUER` mevcut. `ltz.mail.auth.service-audience=mail-service` (sabit).
-- CSRF kapalı, stateless, çerez okunmaz (User gibi); `denyAll` varsayılan.
+- CSRF koruması AÇIK, hiçbir yol için muaf tutulmaz; `oauth2ResourceServer` Bearer başlıklı isteklerde CSRF'yi kendisi atlar. Stateless, çerez okunmaz; başlıksız istek `403` alır (token geçersizse `401`); `denyAll` varsayılan.
 
 ## 4. Veri modeli — `V81__create_mail_tables.sql` (V81–V90 aralığı; başka numara yok)
 

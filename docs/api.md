@@ -1732,7 +1732,7 @@ Gövde yok. Aynı `idempotencyKey` + aynı içerik tekrar gelirse yine `202` dö
 
 #### Hata Durumları
 - 400: Doğrulama (`VALIDATION_FAILED`, yalnız alan adı ve kural kodu döner; istek değeri geri yansıtılmaz); gövde okunamadı (`MALFORMED_REQUEST`)
-- 401: Token yok/geçersiz (`UNAUTHENTICATED`)
+- 401: `Authorization: Bearer` başlığı var ama token geçersiz (`UNAUTHENTICATED`). Başlık hiç yoksa istek CSRF filtresinde `403` ile durur
 - 403: Çağıran `svc:auth-service` değil, scope `mail:send` değil veya token `account_id` ≠ gövde `accountId` (`FORBIDDEN`)
 - 409: Aynı `idempotencyKey` farklı içerikle kullanıldı (`IDEMPOTENCY_CONFLICT`)
 - 413: Gövde 16 KB üstü (`PAYLOAD_TOO_LARGE`)
@@ -1896,7 +1896,7 @@ Gövde yok. İdempotenttir: hesaba ait kayıt olmasa da `204` döner. Hesabın k
 
 #### Hata Durumları
 - 400: `accountId` UUID değil (`MALFORMED_REQUEST`)
-- 401: Token yok/geçersiz
+- 401: `Authorization: Bearer` başlığı var ama token geçersiz. Başlık hiç yoksa `403` (CSRF filtresi)
 - 403: Çağıran `svc:auth-service` değil, scope `account:erase` değil veya `account_id` ≠ yol (hiçbir şey silinmez)
 - 500: Beklenmeyen sunucu hatası
 
