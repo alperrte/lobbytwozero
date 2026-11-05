@@ -51,8 +51,8 @@
 
 | # | Konu | Durum |
 | --- | --- | --- |
-| 1 | SMTP ENV'leri | **YAPILDI:** `ops/generate-auth-dev-keys.mjs` içinde `blankDefaults`: `MAIL_SMTP_HOST/PORT/USERNAME/PASSWORD/SECURITY`, `MAIL_FROM_ADDRESS`, `MAIL_ALLOWED_LINK_HOSTS` satır yoksa dosya sonuna **boş** eklenir, var olana dokunmaz. Sağlayıcı seçilince elle doldurulur; boş iken dev'de Mailpit varsayılanları geçerli. Test eklendi (`generate-auth-dev-keys.test.mjs`, 6/6 PASS) |
-| 2 | `MAIL_PAYLOAD_ENCRYPTION_KEY` | **YAPILDI:** aynı betikte üretici (32 bayt Base64, boş/yoksa doldurur, doluyu ezmez). Betik henüz **çalıştırılmadı**: kullanıcı `node ops/generate-auth-dev-keys.mjs` ile `.env`/`.env.dev`'i doldurur |
+| 1 | SMTP ENV'leri | **YAPILDI:** `ops/generate-auth-dev-keys.mjs` içinde `blankDefaults`: `MAIL_SMTP_HOST/PORT/USERNAME/PASSWORD/SECURITY`, `MAIL_FROM_ADDRESS`, `MAIL_ALLOWED_LINK_HOSTS` satır yoksa dosya sonuna **boş** eklenir, var olana dokunmaz. Sağlayıcı seçilince elle doldurulur; boş iken dev'de Mailpit varsayılanları geçerli. Test eklendi (`generate-auth-dev-keys.test.mjs`, 12/12 PASS; `ops/*.test.mjs` toplam 37/37) |
+| 2 | `MAIL_PAYLOAD_ENCRYPTION_KEY` | **YAPILDI:** aynı betikte üretici (32 bayt Base64, boş/yoksa doldurur, doluyu ezmez). Betik çalıştırıldı (2026-11-06): `.env`/`.env.dev` anahtarı geçerli; kontrol (`buildReport`) artık bu anahtarı da doğrular (boş/bozuksa `[FAIL] … Mail Service açılmaz`, Auth etkilenmez). Auth→Mail→Mailpit e-postası izole Compose ile canlı doğrulandı. Adım adım kurulum: `docs-auth/ekip-hizli-baslangic.md` §1.1 |
 | 3 | `testcontainers-postgresql` | **ONAYLI** (Docker kullanımına izin verildi; pom'a kodlama fazunda eklenecek) |
 | 4 | Logo | **YAPILDI:** `C:\Users\gsker\Desktop\logo.png` (512×512, 186 KB) → 256×256 RGBA, 56 KB → `backend/services/mail-service/src/main/resources/mail/ltz-logo.png`. E-postaya CID (inline) ek olarak gömülür; uzak URL/izleme yok. Görseli kontrol etmedim |
 | 5 | `docker-compose.yml` `mail-service` bloğu | **YAPILDI:** 8 ENV aktarımı (`${...:-}`; hepsi boş varsayılan, fail-fast kontrolü uygulamada) |

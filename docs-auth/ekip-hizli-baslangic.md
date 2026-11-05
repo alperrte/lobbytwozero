@@ -1,6 +1,6 @@
 # AUTH — EKİP HIZLI BAŞLANGIÇ
 
-**Sahip:** Kerem (auth-service) · **Güncelleme:** 2026-11-05
+**Sahip:** Kerem (auth-service) · **Güncelleme:** 2026-11-06
 
 Bu sayfa, Auth'u yerelde hızlı ve güvenli çalıştırmak isteyen herkes (ve yapay zekâ asistanları) içindir. Amaç: geliştirmeyi **yavaşlatmadan** güvenliği **gevşetmemek.** Kısa cümlelerle yazıldı; yapay zekâya "bu dosyayı oku, bana adımları söyle" diyebilirsin.
 
@@ -27,6 +27,27 @@ Sonra: `.\ops\env.cmd use dev` (Linux/macOS: `sh ./ops/env.sh use dev`) ve Compo
 - `COMPOSE_PROFILES=dev-mail` olmalı (örnek dosyada hazır gelir): doğrulama ve parola kodları **Mailpit**'e düşer (arayüz: `http://127.0.0.1:8025`). Gerçek e-posta gitmez.
 - V61–V65'i zaten uygulamış yerel veritabanı yeni sürümlerle **kendiliğinden ileri taşınır** (V66–V69 yeni dosyalardır, eskilere dokunulmadı); sıfırlamana gerek yok. Eski bir yerel veritabanında "checksum mismatch" görürsen aşağıdaki tabloya bak.
 
+## 1.1 Mail Service'i yerelde ayağa kaldır (adım adım)
+
+**Önce şunu bil:** Mail Service'i yalnız Auth çağırır; tarayıcıdan ya da başka servisten erişilmez. Varsayılan dev ayarında Auth e-postayı Mail Service'e **hiç göndermez**, doğrudan Mailpit'e yazar (`AUTH_MAIL_ADAPTER=dev-smtp`). Mail Service'i denemek istemiyorsan aşağıdakilere gerek yok.
+
+**Mail Service üzerinden e-posta denemek için:**
+
+1. ✅ **Anahtarları üret:** `node ops/generate-auth-dev-keys.mjs`. Sonda `MAIL_PAYLOAD_ENCRYPTION_KEY: geçerli` ve `Hata yok` yazmalı. Bu anahtar boşsa Mail Service **bilerek açılmaz**.
+2. ✅ **Ortamı seç:** `.\ops\env.cmd use dev` (Linux/macOS: `sh ./ops/env.sh use dev`).
+3. ✅ **Auth'a Mail Service'i söyle:** `.env.dev` içinde `AUTH_MAIL_ADAPTER=mail-service` (satırın başındaki `#` kalkacak). `MAIL_SERVICE_URL` örnek dosyada hazır gelir.
+4. ✅ **Mailpit'i aç:** `COMPOSE_PROFILES=dev-mail` olmalı (örnek dosyada hazır). Mailpit, Mail Service'in dev'de e-postayı bıraktığı kutudur; kapalıysa gönderim bağlantı hatası verir.
+5. ✅ **Başlat:** `docker compose up -d --build mail-service auth-service`. Mailpit profille birlikte kalkar; kalkmadıysa `docker compose --profile dev-mail up -d mailpit`.
+6. ✅ **Sağlığı kontrol et:** `http://127.0.0.1:5083/actuator/health` (port `MAIL_SERVICE_HOST_PORT`, örnekte 5083) `UP` dönmeli.
+7. ✅ **E-postayı gör:** Auth'tan bir kod iste (kayıt ya da parola sıfırlama). Mesaj `http://127.0.0.1:8025` adresinde (Mailpit) görünür. Kuyruk her ~5 sn işlenir; hemen gelmezse 10–15 sn bekle.
+
+**SMTP satırları (`MAIL_SMTP_HOST` vb.) dev'de BOŞ kalır.** Boşken Mail Service Mailpit'i kullanır. Gerçek sağlayıcı seçilince (prod) doldurulur; o zaman TLS ve `MAIL_FROM_ADDRESS` ile `MAIL_ALLOWED_LINK_HOSTS` de zorunludur. Dev'de bunlara dokunma.
+
+**Takılırsan** bize şunu gönder (anahtar, parola ya da kod değerlerini asla gönderme):
+
+- `docker compose logs mail-service --tail 50`
+- `node ops/auth-env-check.mjs` çıktısı (değer içermez)
+
 ## 2. Dev'de kolay, prod'da zorunlu
 
 | Konu | Yerel dev | Production |
@@ -48,6 +69,9 @@ Yani gevşetilebilenler sınırlı, adı konmuş ve yalnız dev/test profilinde:
 | Açılışta `previous-encryption-keys` hatası | Anahtar rotasyon listesi bozuk | `node ops/auth-env-check.mjs` hangi ayar olduğunu söyler |
 | `prod` profilinde açılmıyor | `AUTH_MAIL_ADAPTER` `mail-service` değil, ya da güvenlik ayarı gevşetilmiş | Hata mesajı hangi ayarı söyler; prod'da gevşetilemez |
 | Kod/bağlantı e-postası gelmiyor | `dev-mail` Compose profili kapalı | `COMPOSE_PROFILES=dev-mail` |
+| Mail Service açılmıyor, logda `payload-key must be Base64` / `32 bytes` | `MAIL_PAYLOAD_ENCRYPTION_KEY` boş ya da bozuk | `node ops/generate-auth-dev-keys.mjs`, sonra `docker compose up -d --build mail-service` |
+| Mail Service açık ama e-posta gitmiyor, logda SMTP bağlantı hatası | Mailpit kapalı (SMTP boşken dev'de `mailpit:1025` kullanılır) | `docker compose --profile dev-mail up -d mailpit`; mesajlar kuyrukta bekler ve yeniden denenir |
+| Mailpit'te e-posta yok, Mail Service'e istek de gitmiyor | `AUTH_MAIL_ADAPTER` `dev-smtp` (Auth Mailpit'e doğrudan yazıyordur) ya da Auth yeniden başlatılmadı | `.env.dev`'de `AUTH_MAIL_ADAPTER=mail-service`, sonra Auth'u yeniden başlat |
 | `409 PASSWORD_REQUIRED` | Hesap Google/Steam ile açılmış, parolası yok | `POST /api/v1/auth/password/set/request`, sonra `/password/set` |
 | Girişte `MFA_ENROLLMENT_REQUIRED` | Steam bağlı hesapta 2FA zorunlu ve henüz kurulu değil | `/login/2fa/enrollment/start`, sonra `/complete` |
 | `403` ve hesap durumu | Hesap askıda/yasaklı; süreli askı kendiliğinden açılır | Yönetici uçlarından durum; ayrıntı `docs/api.md` |
