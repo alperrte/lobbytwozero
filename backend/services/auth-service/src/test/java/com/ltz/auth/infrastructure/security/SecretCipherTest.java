@@ -107,7 +107,8 @@ class SecretCipherTest {
 
         for (String bad : new String[] {"1=" + shortKey, "x=" + other, "0=" + other, "2=" + other, "1" + other,
                 "1=" + other + ",1=" + other, "=" + other, "1=not base64 $$$"}) {
-            assertThatThrownBy(() -> new SecretCipher(properties(current, 2, bad)))
+            TwoFactorProperties badProperties = properties(current, 2, bad);
+            assertThatThrownBy(() -> new SecretCipher(badProperties))
                     .as("reddedilmeli: " + bad.length()).isInstanceOf(IllegalStateException.class)
                     .hasMessageNotContaining(other).hasMessageNotContaining(shortKey).hasNoCause();
         }

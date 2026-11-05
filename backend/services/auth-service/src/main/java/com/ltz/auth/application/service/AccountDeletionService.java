@@ -104,18 +104,18 @@ public class AccountDeletionService {
                 ? Account.normalizeEmail(identifier) : Account.normalizeUsername(identifier);
         String throttleKey = hasher.hash(CANCEL_THROTTLE_DOMAIN, normalized);
         attemptThrottle.reserve(throttleKey);
-        Account account = transactionTemplate.execute(status -> (normalized.indexOf('@') >= 0
+        Optional<Account> account = transactionTemplate.execute(status -> normalized.indexOf('@') >= 0
                 ? accountRepository.findWithRolesByEmailNormalized(normalized)
-                : accountRepository.findWithRolesByUsernameNormalized(normalized)).orElse(null));
-        String passwordHash = account == null ? null : account.passwordHash().orElse(null);
+                : accountRepository.findWithRolesByUsernameNormalized(normalized));
+        String passwordHash = account.flatMap(Account::passwordHash).orElse(null);
         boolean matches = passwordEncoder.matches(password, passwordHash == null ? dummyPasswordHash : passwordHash)
                 && passwordHash != null;
         if (!matches) {
             securityEventRecorder.recordEvent(SecurityEventType.ACCOUNT_DELETION_REJECTED,
-                    account == null ? null : account.getId());
+                    account.map(Account::getId).orElse(null));
             throw new AuthException(AuthErrorCode.INVALID_CREDENTIALS);
         }
-        UUID accountId = account.getId();
+        UUID accountId = account.orElseThrow().getId();
         if (twoFactorService.isEnabled(accountId)
                 && !twoFactorService.verifySecondFactorForReauthentication(accountId, code, recoveryCode)) {
             rejectReauthentication(accountId);

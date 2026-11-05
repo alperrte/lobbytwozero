@@ -102,13 +102,13 @@ public class TwoFactorService {
     /** Kurulum adımı 1: kurulum challenge'ı geçerliyse yeni TOTP gizli anahtarını üretir. */
     public TotpSetup startEnrollment(String challengeId) {
         String challengeHash = secureTokens.sha256Hex(challengeId);
-        // startSetup bu sınıf içinden çağrıldığında @Transactional proxy'si devreye girmez; işlemi burada açıyoruz.
+        // İşlem sınırını burada açıyoruz; gövde anotasyonsuz yardımcıda, böylece this üzerinden işlemli çağrı yok.
         return transactionTemplate.execute(status -> {
             UUID accountId = challengeRepository.findByChallengeHash(challengeHash)
                     .filter(candidate -> candidate.isEnrollment() && candidate.isOpen(clock.instant()))
                     .map(MfaChallenge::getAccountId)
                     .orElseThrow(() -> new AuthException(AuthErrorCode.MFA_FAILED));
-            return startSetup(accountId);
+            return createPendingSetup(accountId);
         });
     }
 
@@ -172,6 +172,10 @@ public class TwoFactorService {
     /** Yeni (PENDING) secret üretir; etkin TOTP varken çağrılamaz. Secret yalnız bu yanıtta görünür. */
     @Transactional
     public TotpSetup startSetup(UUID accountId) {
+        return createPendingSetup(accountId);
+    }
+
+    private TotpSetup createPendingSetup(UUID accountId) {
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new AuthException(AuthErrorCode.SESSION_INVALID));
         Instant now = clock.instant();
