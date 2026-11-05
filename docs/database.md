@@ -168,6 +168,17 @@ Gösterim: **PK** birincil anahtar, **FK** servis içi yabancı anahtar, **REF**
 
 ### 3.4 game_db — game-service (Hamza)
 
+**5 Kasım 2026 kaynak güncellemesi — GAME-24:** V173, `game_price_quotes`
+(game_id FK, ülke, para birimi, mağaza, regular/current numeric(19,4), indirim,
+ITAD URL'si, sağlayıcı zamanı, çekim ve sona erme zamanı), `game_price_refresh_state`
+(oyun/pazar tekilliği, AVAILABLE/NO_OFFER/FAILED, checked_at, next_attempt_at,
+güvenli hata kodu) ve `game_price_sync_lock` (tek worker kiralaması) ekler.
+UUID PK, timestamptz, version bigint ve para/durum CHECK kuralları kullanılır.
+Fiyatlar kişisel veri değildir; başka DB'ye erişim yoktur. Süresi dolmuş fiyat
+indirim filtresine katılmaz; başarısız yenileme eski snapshot'ı silmez. Gerçek
+DEV'e bu çalışma kapsamında uygulanmadı. Aktif kaynak zinciri V31–V40 + V171–V173;
+aşağıdaki başlangıç şema/DEV bilgileri tarihsel kayıttır.
+
 **2026-10-24 ek yükseltme:** V171–V180 Game'e açıkça tahsis edildi; aktif kaynak
 zinciri V31–V40 + `V171__enable_controlled_account_erasure.sql` oldu. V171 yalnız
 hesap silme fonksiyonu/koruması ekler; migration çalışırken mevcut veri değişmez.

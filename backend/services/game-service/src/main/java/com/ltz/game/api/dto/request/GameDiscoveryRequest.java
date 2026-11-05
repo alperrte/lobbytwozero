@@ -19,9 +19,12 @@ public class GameDiscoveryRequest {
     private java.time.LocalDate releasedBefore;
     private boolean popularOnly;
     private java.math.BigDecimal minRating;
+    private boolean discountedOnly;
+    private String country="TR";
+    private String currency="USD";
     private com.ltz.game.domain.enums.CatalogSort sort=com.ltz.game.domain.enums.CatalogSort.TITLE;
     private com.ltz.game.domain.enums.CatalogDirection direction=com.ltz.game.domain.enums.CatalogDirection.ASC;
     public DiscoveryQuery toQuery() {
-        return new DiscoveryQuery(page,size,q,genre,platform,language,earlyAccess,releasedAfter,releasedBefore,popularOnly,minRating,sort,direction);
+        return new DiscoveryQuery(page,size,q,genre,platform,language,earlyAccess,releasedAfter,releasedBefore,popularOnly,minRating,sort,direction,discountedOnly,country,currency);
     }
 }

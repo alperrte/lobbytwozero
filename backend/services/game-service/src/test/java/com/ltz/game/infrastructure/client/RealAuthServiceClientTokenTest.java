@@ -67,7 +67,7 @@ class RealAuthServiceClientTokenTest {
     @Test void authRegistersTheGameToReviewPairAndTheSameSecretVariableNameGameReads() throws Exception {
         Properties auth = properties(authService().resolve("src/main/resources/application.properties"));
         Properties game = properties(Path.of("src/main/resources/application.properties"));
-        assertEquals(SCOPE, auth.getProperty(ISSUER_KEY + ".targets." + TARGET), "Auth'ta game-service → review-service çifti");
+        assertTrue(scopes(auth).contains(SCOPE), "Auth'ta game-service → review-service puan okuma kapsamı");
         // Aynı ENV adı iki tarafta da kullanılmalı; aksi halde Auth ve Game farklı değişkenleri okur ve token alınamaz.
         assertTrue(auth.getProperty(ISSUER_KEY + ".secret").contains("${AUTH_GAME_SERVICE_CLIENT_SECRET"));
         assertTrue(game.getProperty("ltz.game.rating.client-secret").contains("${AUTH_GAME_SERVICE_CLIENT_SECRET"));
@@ -79,11 +79,12 @@ class RealAuthServiceClientTokenTest {
         KeyPair keys = generator.generateKeyPair();
         Properties auth = properties(authService().resolve("src/main/resources/application.properties"));
         // Kapsam, Auth'un gerçek kaydından okunur (sabit yazılmaz).
-        Set<String> registered = Set.copyOf(Arrays.asList(auth.getProperty(ISSUER_KEY + ".targets." + TARGET).split(",")));
+        Set<String> registered = scopes(auth);
         String token = mint(keys, registered);
 
         try (FakeServer authServer = new FakeServer(); FakeServer review = new FakeServer()) {
-            authServer.enqueue(Reply.json(200, "{\"accessToken\":\"" + token + "\",\"tokenType\":\"Bearer\",\"expiresIn\":60,\"scope\":\"" + SCOPE + "\"}"));
+            authServer.enqueue(Reply.json(200, "{\"accessToken\":\"" + token + "\",\"tokenType\":\"Bearer\",\"expiresIn\":60,\"scope\":\""
+                    + String.join(" ", registered) + "\"}"));
             review.enqueue(Reply.json(200, "{\"items\":[{\"gameId\":\"00000000-0000-4000-8000-000000000001\",\"averageRating\":8.5,\"ratingCount\":3}],\"nextAfter\":null}"));
             var props = new GameRatingProperties(review.baseUrl(), authServer.baseUrl(), "/internal/v1/service-tokens", CLIENT,
                     "test-only-secret-value", TARGET, Duration.ofSeconds(1), Duration.ofSeconds(2), 500,
@@ -110,12 +111,16 @@ class RealAuthServiceClientTokenTest {
             assertEquals("ltz-auth", claims.getIssuer());
             assertEquals(List.of(TARGET), claims.getAudience(), "tek aud=review-service");
             assertEquals("svc:" + CLIENT, claims.getSubject(), "tam sub=svc:game-service");
-            assertEquals(SCOPE, claims.getStringClaim("scope"));
+            assertEquals(registered, Set.copyOf(Arrays.asList(claims.getStringClaim("scope").split(" "))));
             assertFalse(claims.getJWTID() == null || claims.getJWTID().isBlank());
             long lifetime = claims.getExpirationTime().toInstant().getEpochSecond() - claims.getIssueTime().toInstant().getEpochSecond();
             assertTrue(lifetime > 0 && lifetime <= 60, "ömür ≤ 60 sn: " + lifetime);
             assertNotNull(claims.getNotBeforeTime());
         }
+    }
+
+    private static Set<String> scopes(Properties auth) {
+        return Set.copyOf(Arrays.asList(auth.getProperty(ISSUER_KEY + ".targets." + TARGET).split(",")));
     }
 
     /** Auth'un gerçek ServiceClientTokenIssuer'ını geçici dizine derleyip game-service → review-service token'ı üretir. */

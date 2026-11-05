@@ -2141,6 +2141,7 @@ Public. Kullanıcı onayıyla yalnız GET. Yalnız ACTIVE + MAIN_GAME kayıtlar�
 - sort: TITLE (varsayılan), RELEASE_DATE veya POPULARITY. direction: ASC (varsayılan) veya DESC. Alan/yön allowlist ile sınırlıdır.
 - minRating: opsiyonel ondalık, 1–10 aralığında ve en çok iki ondalık (ör. `7`, `7.5`, `7.25`); sınır dahildir (`average >= minRating`). Aralık/ondalık dışı değer 400 verir, boş sonuç üretmez.
 - sort=RATING: LTZ puan ortalamasına göredir (ASC düşükten, DESC yüksekten). direction ile birlikte kullanılır.
+- discountedOnly: varsayılan false; true ise yalnız ülke/para birimine uygun, süresi dolmamış yerel ITAD teklifinde currentPrice < regularPrice olan oyunlar. country/currency varsayılan TR/USD, ISO büyük harf; kur dönüşümü yok. Eksik/eski fiyat eşleşmez. Toplam sonuç tüm katalogdaki **bilinen güncel teklifleri** kapsar; bütün mağaza/oyunların fiyatının indekslendiği garantisi yoktur. Aynı SQL filtresi count ve sayfaya uygulanır.
 
 Filtreler AND ile birleşir. İlgili metadata bilinmiyorsa o filtreye eşleşmez; filtresiz listede kayıt kalır. Fiyat/indirim filtresi uygulanmadı. Her sıralamada gameId ASC bağlayıcıdır. Null tarih ve editör sırası her iki yönde sonda. POPULARITY DESC küçük editör sırasını önce getirir; ölçülmüş kullanıcı etkileşimi puanı değildir.
 
@@ -2165,7 +2166,7 @@ Filtreler AND ile birleşir. İlgili metadata bilinmiyorsa o filtreye eşleşmez
 Frontend: API Gateway üzerinden aynı path. Mikroservisler: sözleşmeli RestClient ile Game Service; başka DB erişimi yok. Puan projeksiyonunun Review'dan beslenmesi: "GAME — Giden sözleşme: Review puan projeksiyonu" kaydı.
 
 #### Test Durumu
-INTEGRATION — birleşik kökenler, görünürlük/tür temizliği, toplam/sayfa, boş sayfa, filtre bileşimi ve eksik veri, allowlist, null sırası, 400/403 ve 100.000 kayıtta eşzamanlı ölçüm. Puan: `GameRatingDiscoveryTest` (hazır olmayan projeksiyonda 400/UNAVAILABLE; RATED/UNRATED; `minRating` sınırı dahil ve puansız hariç; `sort=RATING` puansız her iki yönde sonda, eşitlikte gameId; sayfalar arası tekrar/atlama yok; geçersiz `minRating` 400; tür/durum/arama ile birleşim) ve `RatingSyncEndToEndTest` (gerçek token/Review istemcileri + sahte HTTP + PostgreSQL). Gerçek Review ve gerçek Auth token'ıyla uçtan uca: NOT VERIFIED. Ölçüm (`CatalogRatingPerformanceTest`, 100.000 oyun, ~40.000 puanlı satır, geçici PostgreSQL 17 Testcontainers, geliştirici makinesi) p95: liste 65 ms, `minRating=7` 36 ms, `sort=RATING` DESC 49 / ASC 52 ms, tür filtresi + `minRating=5` + `sort=RATING` 132 ms, derin sayfa (page=2000) 105 ms; hedef 300 ms, hepsi altında. Üretim ölçümü değildir; `EXPLAIN` planı alınmadı.
+INTEGRATION — birleşik kökenler, görünürlük/tür temizliği, toplam/sayfa, boş sayfa, filtre bileşimi ve eksik veri, allowlist, null sırası, 400/403 ve 100.000 kayıtta eşzamanlı ölçüm. Puan: `GameRatingDiscoveryTest` (hazır olmayan projeksiyonda 400/UNAVAILABLE; RATED/UNRATED; `minRating` sınırı dahil ve puansız hariç; `sort=RATING` puansız her iki yönde sonda, eşitlikte gameId; sayfalar arası tekrar/atlama yok; geçersiz `minRating` 400; tür/durum/arama ile birleşim) ve `RatingSyncEndToEndTest` (gerçek token/Review istemcileri + sahte HTTP + PostgreSQL). Gerçek Auth servis token üretimi + gerçek Game/Review jar'ları + ayrı geçici PostgreSQL ile ops/game-review-e2e.mjs: 11 kontrol PASS. Kullanıcı/admin ve D4 token'ları fixture anahtarından; gerçek kullanıcı login'i ve Auth silme worker'ı kapsam dışıdır. Ölçüm (`CatalogRatingPerformanceTest`, 100.000 oyun, ~40.000 puanlı satır, geçici PostgreSQL 17 Testcontainers, geliştirici makinesi) p95: liste 65 ms, `minRating=7` 36 ms, `sort=RATING` DESC 49 / ASC 52 ms, tür filtresi + `minRating=5` + `sort=RATING` 132 ms, derin sayfa (page=2000) 105 ms; hedef 300 ms, hepsi altında. Üretim ölçümü değildir; `EXPLAIN` planı alınmadı.
 
 ### GAME — Birleşik yerel oyun araması (GAME-03)
 
@@ -2267,7 +2268,7 @@ INTEGRATION — sıra, tekrar, 50/51 sınırı, geçersiz gövdeler, arşiv/MERG
 
 ### GAME — Giden sözleşme: Review puan projeksiyonu (GAME-04, GAME-05, GAME-15)
 
-Durum: IMPLEMENTED — DEV'de (2026-11-05; auth/game/review yeni imajla, temiz DB) Auth'tan token alma, Review'ın imleçli ucunu okuma ve ilk hatasız taramanın tamamlanması (`ratingsSyncedAt` doldu) doğrulandı. Ancak DEV'de katalog ve puan verisi boş olduğundan gerçek puanlı veriyle uçtan uca (RATED, `minRating`, güncelleme/hesap silme etkisi) **NOT VERIFIED**. Auth istemci gizli anahtarı (`AUTH_GAME_SERVICE_CLIENT_SECRET`) Game ortamında tanımlı değilse tarama çalışmaz.
+Durum: IMPLEMENTED — DEV'de (2026-11-05; auth/game/review yeni imajla, temiz DB) Auth'tan token alma, Review'ın imleçli ucunu okuma ve ilk hatasız taramanın tamamlanması (`ratingsSyncedAt` doldu) doğrulandı. Ayrıca `node ops/game-review-e2e.mjs` ile gerçek Auth/Game/Review jar'ları ve üç ayrı geçici PostgreSQL üzerinde puanlı veriyle 11 kabul kontrolü geçti (RATED, minRating, iki yönlü sayfalama, güncelleme, Review silme etkisi ve Review kesintisi). Game servis token'ını gerçek Auth HTTP üreticisinden alır; kullanıcı/admin ve D4 kimlikleri yalnız geçici test anahtarıyla imzalanır. Gerçek kullanıcı login'i, Auth silme worker'ı ve canlı DEV fiyat/veri hazırlığı bu fixture'ın kapsamı dışındadır. Auth istemci gizli anahtarı (`AUTH_GAME_SERVICE_CLIENT_SECRET`) Game ortamında tanımlı değilse tarama çalışmaz.
 Sorumlu: Hamza
 Tüketici servisler: - (iç kullanım; sonucu `GET /api/v1/game/games` ve `/games/search` yanıtlarında Frontend görür)
 
@@ -2275,7 +2276,7 @@ Tüketici servisler: - (iç kullanım; sonucu `GET /api/v1/game/games` ve `/game
 Game'in **çağırdığı** uç: `GET {REVIEW_SERVICE_URL}/internal/v1/games/rating-summaries?after={uuid}&limit={1..500}` (sahibi Review; sözleşme: bu dosya → REVIEW → "Game → Review puan dışa aktarma iç ucu"). Game bu işlem için yeni bir HTTP ucu **açmaz**; mevcut Game uçları ve güvenlik zinciri değişmedi.
 
 #### Yetkilendirme
-Internal (Game → Review). `POST {AUTH_SERVICE_URL}/internal/v1/service-tokens` ile `{clientId: "game-service", clientSecret, audience: "review-service"}` karşılığı alınan `svc+jwt` (`scope=rating-summaries:read`, `sub=svc:game-service`, ≤60 sn) `Authorization: Bearer` ile gönderilir. Token hedef başına bellekte tutulur ve bitimden 15 sn önce yenilenir. Kullanıcı token'ına geri düşme yoktur; gizli anahtar (`AUTH_GAME_SERVICE_CLIENT_SECRET`) boşsa istemci kapalıdır: Auth'a da Review'a da istek atılmaz.
+Internal (Game → Review). `POST {AUTH_SERVICE_URL}/internal/v1/service-tokens` ile `{clientId: "game-service", clientSecret, audience: "review-service"}` karşılığı alınan `svc+jwt` (`scope` içinde `rating-summaries:read` (güncel Auth ayrıca `game-references:read` verir), `sub=svc:game-service`, ≤60 sn) `Authorization: Bearer` ile gönderilir. Token hedef başına bellekte tutulur ve bitimden 15 sn önce yenilenir. Kullanıcı token'ına geri düşme yoktur; gizli anahtar (`AUTH_GAME_SERVICE_CLIENT_SECRET`) boşsa istemci kapalıdır: Auth'a da Review'a da istek atılmaz.
 
 #### Tarama protokolü
 1. Tek tarayıcı: veritabanı kiralaması (`game_rating_sync_state`, süre `ltz.game.rating.sync.lease-ttl`, her sayfada yenilenir). Çok örnekli dağıtımda aynı anda yalnız bir örnek tarar; kiralamayı kaybeden tarama durur.
@@ -2292,7 +2293,67 @@ Frontend: -
 Diğer mikroservisler: RestClient ile Auth (`/internal/v1/service-tokens`) ve Review (yukarıdaki uç). Auth çifti (`game-service → review-service / rating-summaries:read`) Auth `origin/main` bf473ed'de mevcuttur. Yeni ENV adı yalnız `AUTH_GAME_SERVICE_CLIENT_SECRET`'tır (adı `.env.example`'da zaten vardır; `docker-compose.yml`'de `game-service` ortamına geçirilir); `REVIEW_SERVICE_URL` ve `AUTH_SERVICE_URL` mevcuttur. Şema: `V172__create_game_rating_projection.sql` (`game_rating_projection`, `game_rating_sync_state`). Projeksiyon yalnız toplamları tutar, kişisel veri içermez; hesap silme bu tabloları etkilemez.
 
 #### Test Durumu
-UNIT + INTEGRATION — `ReviewRatingClientTest` (Bearer/imleç sorgusu, 401/403'te yeniden deneme yok ve token atma, 5xx'te tek yeniden deneme, sınırlı zaman aşımı, erişilemez Review, yönlendirme izlenmez, geçersiz/çelişkili yanıtlar, işaretli UUID sırası tuzağı), `AuthServiceTokenClientTest` (hedefe özgü token, önbellek ve 15 sn yenileme payı, invalidate, kapalı istemci, sızıntı yok), `GameRatingSyncServiceTest` (gerçek PostgreSQL: çok sayfalı tarama, bilinmeyen oyun, tamamlanan taramada puansızlaşma, yarıda kesilende sıfırlama yok, kiralama ve eski tarama koruması), `RatingSyncEndToEndTest` (gerçek istemciler + sahte Auth/Review HTTP), `RealAuthServiceClientTokenTest` (Auth'un **gerçek** `ServiceClientTokenIssuer`'ı geçici dizine derlenip `game-service → review-service` token'ı üretilir; token typ/iss/aud/sub/scope/≤60 sn, RS256 imzası ve Game istemcileriyle uyumu sınanır; Auth'un gerçek `application.properties`'indeki çift ve secret ENV adı sözleşme olarak denetlenir; Review'ın kendi güvenlik zinciri Review testlerindedir), `RatingProjectionMigrationTest`. Gerçek Review ile otomatik uçtan uca test yoktur; DEV'de elle doğrulandı. 100.000 oyunla süre ölçümü yapıldı (bkz. Birleşik yerel katalog, p95 ≤ 132 ms); `EXPLAIN` planı alınmadı.
+UNIT + INTEGRATION — `ReviewRatingClientTest` (Bearer/imleç sorgusu, 401/403'te yeniden deneme yok ve token atma, 5xx'te tek yeniden deneme, sınırlı zaman aşımı, erişilemez Review, yönlendirme izlenmez, geçersiz/çelişkili yanıtlar, işaretli UUID sırası tuzağı), `AuthServiceTokenClientTest` (hedefe özgü token, önbellek ve 15 sn yenileme payı, invalidate, kapalı istemci, sızıntı yok), `GameRatingSyncServiceTest` (gerçek PostgreSQL: çok sayfalı tarama, bilinmeyen oyun, tamamlanan taramada puansızlaşma, yarıda kesilende sıfırlama yok, kiralama ve eski tarama koruması), `RatingSyncEndToEndTest` (gerçek istemciler + sahte Auth/Review HTTP), `RealAuthServiceClientTokenTest` (Auth'un **gerçek** `ServiceClientTokenIssuer`'ı geçici dizine derlenip `game-service → review-service` token'ı üretilir; token typ/iss/aud/sub/scope/≤60 sn, RS256 imzası ve Game istemcileriyle uyumu sınanır; Auth'un gerçek `application.properties`'indeki çift ve secret ENV adı sözleşme olarak denetlenir; Review'ın kendi güvenlik zinciri Review testlerindedir), `RatingProjectionMigrationTest`. Gerçek Review ve Game uygulamalarıyla ops/game-review-e2e.mjs otomatik kabulü eklendi ve 11 kontrol PASS; DEV'de önceki boş tarama doğrulaması ayrıca korunur. 100.000 oyunla süre ölçümü yapıldı (bkz. Birleşik yerel katalog, p95 ≤ 132 ms); `EXPLAIN` planı alınmadı.
+
+### GAME — Bölgesel toplu fiyat okuma (GAME-24)
+
+Durum: IMPLEMENTED — kod ve izole sağlayıcı/PostgreSQL testleri; gerçek ITAD anahtarıyla canlı veri NOT VERIFIED.
+Sorumlu: Hamza
+Tüketici servisler: Frontend oyun kartları/detayı; diğer servisler için herkese açık katalog verisi.
+
+#### Endpoint
+GET /api/v1/game/games/prices?gameIds={uuid}&gameIds={uuid}&country=TR&currency=USD
+
+#### Yetkilendirme
+Public, salt okunur. Kullanıcı isteği ITAD çağırmaz. GET'e toplu kartla aynı istemci IP kovası uygulanır: kapasite 100, sürekli 20 istek/sn; süreç içi, trusted-proxies politikasına bağlı. Diğer HTTP metotları kapalıdır.
+
+#### Path/Query Parameters
+- gameIds: zorunlu UUID listesi; ham listede en fazla 50, tekrarlar ilk görülme sırasında tekilleşir.
+- country: zorunlu ISO 3166-1 alpha-2 büyük harf; currency: zorunlu ISO 4217 büyük harf. Başka ülke fiyatı veya kur dönüşümüyle sonuç uydurulmaz.
+- Request Body: yok.
+
+#### Response
+200 `{market:{country,currency},items:[{gameId,status,offers:[]}]}`, `Cache-Control: no-store`.
+Status: AVAILABLE (en az bir güncel teklif; yalnız güncel teklifler), STALE (eski snapshot; güncel fiyat değildir), NO_OFFER (taze başarılı kontrolde eşleme/teklif yok), UNAVAILABLE (veri hiç alınmadı, yok/arşivli oyun veya kontrol eskidi). NO_OFFER/UNAVAILABLE ücretsiz oyun veya 0 fiyat anlamına gelmez.
+Offer: gameId, store, market, regularPrice, currentPrice, source=ITAD, fetchedAt, expiresAt, url, discountPercent, sourceUpdatedAt. Ücretsiz gerçek teklif currentPrice=0 olabilir. Provider'ın tutar/para birimi, indirim ve affiliate URL'si korunur; linke backend istek atmaz.
+Listeleme, aktif oyun kimlikleri + fiyatlar + boş teklif durumu için sabit sayıda toplu SQL kullanır; HTTP/SQL N+1 yoktur. Aynı transaction görünümü kullanılır.
+
+#### Hata Durumları
+400 eksik/geçersiz UUID, 51+ kimlik, geçersiz ülke/para birimi; 401 public uçta bozuk Bearer; 429 IP kovası + Retry-After; 403 diğer metotlar; 500 beklenmeyen hata. Sağlayıcı kesintisi bu yerel okumayı durdurmaz.
+
+#### Bağlantı
+Frontend → Gateway → GamePriceController → GamePriceService → GamePriceRepository. V173 fiyat/state/kiralama tabloları; kişisel veri yok. Eski endpoint/DTO alanları korunur. `/games` ve `/games/search` yeni `discountedOnly`, `country`, `currency` filtrelerini aynı yerel veriden kullanır.
+
+#### Test Durumu
+UNIT + INTEGRATION — ItadPriceClientTest / ItadPriceIntegrationTest: toplu kimlik eşleme/fiyat, gerçek HTTP adaptörü ve PostgreSQL, TTL, NO_OFFER/UNAVAILABLE ayrımı, manuel snapshot koruma, ülke/para birimi, indirim, lease kaybı, rollback, SQL CHECK, validation ve kimliksiz GET. Canlı ITAD ve frontend gösterimi NOT VERIFIED.
+
+### GAME — Giden sözleşme: IsThereAnyDeal fiyat sağlayıcısı (GAME-24)
+
+Durum: IMPLEMENTED — anahtar boşsa kapalı; canlı ITAD NOT VERIFIED.
+Sorumlu: Hamza
+Tüketici servisler: Game iç kullanımı; sağlayıcı frontend'e doğrudan açılmaz.
+
+#### Endpoint
+Game'in çağırdığı resmî uçlar: POST https://api.isthereanydeal.com/lookup/shop/61/id/v1 (Steam `app/{AppID}` → ITAD UUID), POST https://api.isthereanydeal.com/games/prices/v3?country={country}&capacity=5&vouchers=false (toplu ITAD UUID). İsimle otomatik eşleme yoktur; Steam AppID veya LTZ gameId değiştirilmez. Her tur en çok 50 oyun, toplam en çok iki HTTP çağrısı; oyun başına çağrı yoktur.
+
+#### Yetkilendirme
+Yalnız backend `ITAD-API-Key` başlığı. Anahtar URL/gövde/log/DTO'ya yazılmaz. `ITAD_API_KEY` boşsa ağ isteği yok. Kullanıcı bu oturumda yalnız .env.example boş satırını ve game-service Compose aktarımını onayladı; gerçek .env dosyaları okunmadı/değiştirilmedi.
+
+#### Path/Query Parameters ve Request Body
+Steam mağazası kimliği 61; eşlemede `["app/570",…]`, fiyat sorgusunda `["<itad UUID>",…]`. İlk otomatik pazar `ltz.game.pricing.country=TR`, `currency=USD`. Sağlayıcı başka para birimi döndürürse sessiz dönüşüm yerine başarısız kontrol olarak kaydedilir. En fazla 5 teklif/oyun; kupon gerektiren fiyatlar kapalıdır.
+
+#### Response / Yenileme
+Başlangıç 30 sn, tur aralığı 60 sn; en eski kontrol edilen 50 aktif MAIN_GAME/Steam oyun seçilir. Varsayılan TTL 15 dk (yapılandırılabilir 1–60 dk). Uygulama süreci/örneği çoğalsa da DB kiralaması tek fiyat worker'ı sağlar. Ağ çağrısı transaction dışında; yalnız lease sahibi atomik snapshot yayımlar. Başarılı boş yanıtta teklif silinir ve NO_OFFER kaydedilir; yarım/geçersiz yanıtta eski snapshot korunur. Fiyat TTL veya provider expiry'den erken olan zamanda eskir; provider timestamp ayrıca korunur.
+
+#### Hata Durumları
+401/403 yeniden deneme yok; 429 Retry-After saniye/HTTP-date kalıcı next_attempt_at ile izlenir; başlık bozuksa 15 dk. 5xx/transport bir turu başarısız yapar, sıkı retry yoktur. Bağlantı/okuma 1/3 sn; redirect yok; yanıt en çok 4 MiB. Hatalar PRICE_ACCESS_DENIED, PRICE_RATE_LIMITED, PRICE_CURRENCY_UNAVAILABLE, PRICE_STALE_SOURCE, PRICE_MAPPING_LIMIT, AMBIGUOUS_PRICE_MAPPING, PRICE_UNAVAILABLE, INVALID_PRICE_RESPONSE gibi sabit kodlardır. Eksik/mükerrer/istenmeyen oyun satırı, bozuk sayı/UUID/URL fiyat olarak kabul edilmez.
+
+#### Bağlantı
+GamePriceSchedulingConfiguration → GamePriceService → GamePriceProvider / ItadPriceClient. Yeni bağımlılık yok. Kullanım koşulları: herkese açık ticari kullanım mümkün, rakip fiyat karşılaştırma ürünü oluşturmak yasak; fiyat/affiliate URL değiştirilemez; kaynak belirtmek önerilir. LTZ'nin kullanım uygunluğu sağlayıcıyla teyit edilmeden anahtar etkinleştirilmemeli. Deploy otomatik ücretli plana geçiş olarak belgelenmiyor; gelecekteki ücret/kota garantisi verilmez.
+Resmî kaynaklar: https://docs.isthereanydeal.com/ ; https://github.com/IsThereAnyDeal/API/blob/master/docs/routes/lookup/gid-by-shopid.v1.yaml ; https://github.com/IsThereAnyDeal/API/blob/master/docs/routes/games/prices.v3.yaml .
+
+#### Test Durumu
+UNIT + INTEGRATION — sahte ITAD HTTP sunucusu + gerçek adaptör, PostgreSQL ve HTTP API. Gerçek anahtar/kota/lisans teyidi ve frontend atıf/gösterimi NOT VERIFIED. `ltz.game.pricing.sync.enabled=false` zamanlamayı kapatır.
 
 ### GAME — Giden sözleşme: IGDB detay kaynağı (GAME-17, GAME-23)
 
