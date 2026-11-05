@@ -104,6 +104,30 @@ class MailDeliveryControllerTest extends IntegrationTestSupport {
     }
 
     @Test
+    void accountTakeoverNotificationTypesFollowTheAuthContractNames() throws Exception {
+        UUID account = newAccount();
+        for (String name : List.of("TWO_FACTOR_ENABLED", "TWO_FACTOR_DISABLED", "RECOVERY_CODE_USED",
+                "EXTERNAL_IDENTITY_LINKED")) {
+            UUID key = UUID.randomUUID();
+            postJson(InternalApiPaths.SECURITY_NOTIFICATIONS, bearer(account, MAIL_SEND_SCOPE),
+                    notificationBody(key, account, EMAIL, name)).andExpect(status().isAccepted());
+            assertThat(messageByKey(key)).containsEntry("type", name).containsEntry("status", "PENDING");
+        }
+        assertThat(messageCount()).isEqualTo(4);
+    }
+
+    @Test
+    void unknownNotificationTypeIsRejected() throws Exception {
+        UUID account = newAccount();
+
+        for (String name : List.of("WELCOME", "SUSPICIOUS_LOGIN", "two_factor_enabled", "UNKNOWN")) {
+            postJson(InternalApiPaths.SECURITY_NOTIFICATIONS, bearer(account, MAIL_SEND_SCOPE),
+                    notificationBody(UUID.randomUUID(), account, EMAIL, name)).andExpect(status().isBadRequest());
+        }
+        assertThat(messageCount()).isZero();
+    }
+
+    @Test
     void futureOccurredAtIsRejected() throws Exception {
         UUID account = newAccount();
         String body = notificationBody(UUID.randomUUID(), account, EMAIL, "PASSWORD_CHANGED")

@@ -1791,12 +1791,12 @@ Internal. Doğrulama kodu ucu ile aynı (`scope=mail:send`).
   "idempotencyKey": "UUID",
   "accountId": "UUID",
   "recipientEmail": "string ≤254, geçerli e-posta",
-  "type": "PASSWORD_CHANGED | PASSWORD_RESET | EMAIL_CHANGED | ACCOUNT_SUSPENDED | ACCOUNT_BANNED | ACCOUNT_DISABLED | ACCOUNT_REACTIVATED",
+  "type": "PASSWORD_CHANGED | PASSWORD_RESET | EMAIL_CHANGED | ACCOUNT_SUSPENDED | ACCOUNT_BANNED | ACCOUNT_DISABLED | ACCOUNT_REACTIVATED | TWO_FACTOR_ENABLED | TWO_FACTOR_DISABLED | RECOVERY_CODE_USED | EXTERNAL_IDENTITY_LINKED",
   "occurredAt": "ISO-8601 (gelecekte olamaz)",
   "locale": "tr | en (opsiyonel)"
 }
 ```
-Bildirim parola, kod, bağlantı veya gerekçe metni taşımaz; yalnız ne olduğunu ve ne zaman olduğunu söyler. `EMAIL_CHANGED` eski adrese gönderilir. Süresi geçmiş (24 saatten eski) bildirim gönderilmez.
+Bildirim parola, kod, bağlantı veya gerekçe metni taşımaz; yalnız ne olduğunu ve ne zaman olduğunu söyler. `EMAIL_CHANGED` eski adrese gönderilir. `TWO_FACTOR_ENABLED`, `TWO_FACTOR_DISABLED`, `RECOVERY_CODE_USED` ve `EXTERNAL_IDENTITY_LINKED` hesap ele geçirme belirtisi olan olaylardır (Google ya da Steam bağlama dahil); yalnız `occurredAt` taşır, IP/cihaz bilgisi yoktur. Bilinmeyen `type` (`WELCOME`, `SUSPICIOUS_LOGIN` dahil) `400` döner. Süresi geçmiş (24 saatten eski) bildirim gönderilmez.
 
 #### Response — 202
 Gövde yok.
