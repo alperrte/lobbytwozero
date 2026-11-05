@@ -3625,7 +3625,7 @@ Ayrıntı: [Auth ve kalite raporu](../docs-review/REVIEW_AUTH_INTEGRATION_REPORT
 Endpointlerin aşağıdaki Test Durumu alanlarında bulunan faz bazlı test sayıları
 tarihsel kanıttır; son 153 testlik doğrulama ilgili endpoint testlerini de içerir.
 REV-07, REV-10, REV-13 raporlama ve REV-15 entegrasyon bağımlılıkları açıktır.
-Game sunucu tüketimi ve servis okuma izni uygulanmış değildir.
+Game servis okuma ucu Review'da uygulandı ("Game → Review toplu puan özeti iç ucu" kaydı); Auth tarafındaki `game-service → review-service` / `rating-summaries:read` tanımı ve Game tüketicisi uygulanmış değildir.
 
 ### REVIEW — REV-01 — Puan yazma
 
@@ -3937,9 +3937,9 @@ INTEGRATION — 6 yeni PostgreSQL/MockMvc ve 1 gerçek TCP/RS256/JWKS testi; REV
 
 ### REVIEW — REV-12 — Toplu LTZ oyun puanı özetleri
 
-Durum: IMPLEMENTED — Review backend kabulü; Game→Review sunucu entegrasyonu SÖZLEŞME BEKLENİYOR / NOT IMPLEMENTED / NOT VERIFIED.
+Durum: IMPLEMENTED — Review backend kabulü (kullanıcı API'si). Game sunucu okuması için ayrı servis ucu Review'da IMPLEMENTED'tır (aşağıdaki "Game → Review toplu puan özeti iç ucu" kaydı); Auth `game-service → review-service` çifti ve Game tüketicisi bekliyor, canlı E2E NOT VERIFIED.
 Sorumlu: Hamza.
-Tüketici servisler: Frontend; Game hedef tüketicidir, servis kimliği henüz yetkilendirilmedi. Kullanıcı JWT'si servis kimliği yerine taşınmaz.
+Tüketici servisler: Frontend. Game sunucu çağrısı bu uç yerine iç ucu kullanır; kullanıcı JWT'si servis kimliği yerine taşınmaz.
 #### Endpoint
 `POST /api/v1/review/games/rating-summaries`.
 #### Yetkilendirme
@@ -3956,7 +3956,7 @@ application/json `{gameIds: UUID[]}`; gameIds zorunlu, null olamaz; ham dizi en 
 RatingSummaryController → RatingSummaryService → RatingSummaryRepository; tek parametreli IN/GROUP BY AVG/count SQL'i, game_ratings dışına JOIN/HTTP yok. En fazla 50 anahtar bellekte sıralanıp eksik oyunlar null/0 tamamlanır; oyun başına SQL yoktur. Boş listede SQL yok. Tek salt okunur transaction/4 saniye; tek statement snapshot'ı bütün gruplar ve ortalama/count için tutarlıdır. Aynı sorgu tekil özette de kullanılır. Yeni tablo/migration/bağımlılık/kalıcı sayaç eklenmedi.
 #### Test Durumu
 UNIT/INTEGRATION — 102/102 Review testi PASS. 50 oyun/10.000 puanda JdbcClient spy ile tam 1 SQL ve sıfır Game çağrısı doğrulandı; boş/geçersiz listede sıfır SQL. Eşzamanlı okuma/yazma ve gerçek TCP/RS256/JWKS olumlu/olumsuz testleri PASS. Canlı Game/Auth servis tüketimi NOT VERIFIED. Güncel kalite sonuçları için ortak doğrulama notuna bakın.
-- Bekleyen sözleşme: [Game talebi](../docs-review/request/game-review-integration.md), [Auth talebi](../docs-review/request/auth-review-integration.md). Servis okuma yolu ve dar izin adı yalnız öneridir; mevcut yetki olarak kullanılamaz.
+- Game servis okuması: [Game talebi ve devir notu](../docs-review/request/game-review-integration.md), [Auth talebi](../docs-review/request/auth-review-integration.md). Servis yolu aşağıdaki iç uçtur; bu kullanıcı ucu servis token'ı kabul etmez.
 
 ### REVIEW — REV-14 — Oyun inceleme ve puan istatistikleri
 
@@ -4096,6 +4096,70 @@ Auth'un gerçek token üreticisi/HTTP silme adaptörü geçici test anahtarıyla
 Review HTTP sunucusuna karşı sınanır. Başka hesap verisi, kota temizliği, tekrar
 silme ve eski token ile yeniden yazmanın reddi test edilir. Canlı Auth login ve
 14 günlük silme worker'ı E2E: NOT VERIFIED.
+
+### REVIEW — REV-12 — Game → Review toplu puan özeti iç ucu
+
+Durum: IMPLEMENTED — Review tarafı. Auth `game-service → review-service` / `rating-summaries:read` çifti Auth'un `origin/main` dalında MEVCUT (commit bf473ed, LTZ-KER-AUTH-37; bu dalda main birleşince gelir; canlı doğrulama yapılmadı); Game tüketicisi (RestClient adaptörü) NOT IMPLEMENTED; canlı Auth/Game E2E NOT VERIFIED.
+Sorumlu: Hamza.
+Tüketici servisler: game-service (GAME-04/05/15). Başka servis çağıramaz.
+
+#### Endpoint
+`POST /internal/v1/games/rating-summaries`.
+
+#### Yetkilendirme
+Internal; Gateway'e yönlendirilmez. RS256/Auth JWKS, tam `typ=svc+jwt`, `iss=ltz-auth` (JWT_ISSUER), tek `aud=review-service`, dolu `kid/jti`, ham `iat`, `nbf/exp`, pozitif ve en çok 60 saniye ömür, en çok 30 saniye saat toleransı (hesap silme ucuyla aynı servis doğrulayıcısı). Yalnız `SCOPE_rating-summaries:read` ve tam `sub=svc:game-service`. Kullanıcı `at+jwt`'si (ADMIN dahil) iç uçta 401; servis token'ı `/api/v1/review/**` kullanıcı namespace'inde 401; `account:erase` token'ı bu uçta, `rating-summaries:read` token'ı silme ucunda 403. `scp` claim'i, roller veya gövdedeki servis adı yetki vermez. Kullanıcı token'ına fallback yoktur.
+
+#### Path/Query Parameters
+Yok.
+
+#### Request Body
+application/json `{gameIds: UUID[]}` — kullanıcı toplu ucuyla aynı sözleşme: `gameIds` zorunlu; ham dizi en fazla 50 eleman, her eleman null olmayan UUID; sınır tekilleştirmeden önce uygulanır; boş dizi geçerli; tekrarlar ilk görülme sırasıyla tekilleştirilir. Gövde en fazla 64 KiB (chunked dahil).
+
+#### Response
+200 `{items:[{gameId,averageRating,ratingCount}]}` — `POST /api/v1/review/games/rating-summaries` ile birebir aynı alanlar, sıra ve hesap: yalnız istenen benzersiz oyunlar, ilk görülme sırasıyla; ortalama iki ondalık HALF_UP; `ratingCount` benzersiz puan veren kullanıcı sayısı. Puan verilmemiş **veya Review'ın hiç bilmediği** oyun için `averageRating=null`, `ratingCount=0` (404 değildir; katalog varlığı doğrulanmaz, sahibi Game'dir). `Cache-Control: private, no-store`.
+
+#### Hata Durumları
+400 eksik/null/51+ dizi, null/geçersiz UUID, yanlış JSON türü, bozuk gövde (ProblemDetail); 401 kimlik yok/geçersiz, kullanıcı token'ı, yanlış `aud`/`typ`/imza/süre, `svc:` öneki olmayan `sub`; 403 `rating-summaries:read` kapsamı yok veya `sub` tam `svc:game-service` değil; 405/403 diğer HTTP metotları ve kardeş iç yollar (varsayılan `denyAll`); 413 gövde limiti; 500 beklenmeyen hata. Sonuç 404 veya kısmi hata listesi değildir.
+
+#### Bağlantı
+`InternalRatingSummaryController → RatingSummaryService → RatingSummaryRepository` — kullanıcı toplu ucuyla aynı servis ve tek parametreli IN/GROUP BY SQL'i (tek salt okunur transaction, 4 saniye, oyun başına SQL yok, boş listede SQL yok). Yeni tablo, migration, ENV ve bağımlılık yoktur. Güvenlik zinciri `AccountErasureSecurityConfiguration` içinde: `/internal/**` → servis token çözücüsü (`serviceJwtDecoder`), `POST /internal/v1/games/rating-summaries` → `SCOPE_rating-summaries:read`.
+- Game tüketimi için gerekenler (Review'ın sağlamadığı kısımlar): (1) Auth'ta `ltz.auth.service-clients.clients.game-service.targets.review-service=rating-summaries:read` çifti Auth `origin/main`'de mevcuttur (bf473ed) — [Auth talebi ve cevabı](../docs-review/request/auth-review-integration.md); Game'in istemci secret'ı (`AUTH_GAME_SERVICE_CLIENT_SECRET`) ve dağıtımı ENV onayı gerektirir; (2) Game'in `POST /internal/v1/service-tokens` ile (`audience=review-service`) kısa ömürlü token alıp bellekte tutması, süresi dolmadan yenilemesi; (3) bounded connect/read timeout ve sınırlı retry (401/403'te retry yok); (4) Review erişilemezken puanı 0 göstermemek — erişilemeyen veri ile doğrulanmış `null/0` ayrılmalı.
+- Sınır: Bu uç yalnız en çok 50 oyunluk bir sayfayı puanla zenginleştirir. `minRating` filtresi veya `sort=RATING` sıralaması yalnız getirilmiş sayfaya uygulanırsa yanlıştır; global filtre/sıralama için Game'in puan projeksiyonu ve aynı yoldaki imleçli `GET` dışa aktarma ucu kullanılır (sonraki kayıt, [Game talebi §14.4](../docs-review/request/game-review-integration.md)).
+- Güncellik: Sonuç her çağrıda canlı `game_ratings` satırlarından okunur; Review tarafında cache yoktur. Hesap silme puanı aynı transaction'da kaldırdığından sonraki okuma doğru değeri verir. Game cache kullanırsa tazelik gecikmesini kendi belgelemelidir.
+#### Test Durumu
+UNIT/INTEGRATION — `InternalRatingSummaryTest` (18 test, DB'siz gerçek imza/JWKS/güvenlik zinciri; Auth'un gerçek `ServiceClientTokenIssuer`'ı geçici dizine derlenip `game-service → review-service / rating-summaries:read` token'ı üretilerek sınanır; yanlış istemci/kapsam/audience, kullanıcı token'ı, erişim yayılımı, zaman claim'leri, 413, 400 ve diğer metot/yol reddi) + `ReviewHttpIntegrationTest` (gerçek TCP/RS256/JWKS/PostgreSQL ile olumlu ve olumsuz akış). Review modülü 174/174 test PASS (failure/error/skipped 0/0/0), Maven clean verify + coverage-policy PASS, Checkstyle/PMD yeni ihlal 0. Canlı Auth token'ı ve gerçek Game çağrısı: NOT VERIFIED.
+
+### REVIEW — REV-12 — Game → Review puan dışa aktarma iç ucu (imleçli)
+
+Durum: IMPLEMENTED — Review tarafı. Auth `game-service → review-service` / `rating-summaries:read` çifti Auth'un `origin/main` dalında MEVCUT (commit bf473ed, LTZ-KER-AUTH-37; bu dalda main birleşince gelir; canlı doğrulama yapılmadı); Game projeksiyonu/tüketicisi NOT IMPLEMENTED; canlı E2E NOT VERIFIED.
+Sorumlu: Hamza.
+Tüketici servisler: game-service (GAME-04/05: LTZ puanına göre filtre ve sıralama için puan projeksiyonu). Başka servis çağıramaz.
+
+#### Endpoint
+`GET /internal/v1/games/rating-summaries?after={uuid}&limit={n}`.
+
+#### Yetkilendirme
+Toplu iç uçla (`POST` aynı yol) birebir aynı: Internal, Gateway'e yönlendirilmez; `typ=svc+jwt`, `iss=ltz-auth`, tek `aud=review-service`, ≤60 sn ömür, yalnız `SCOPE_rating-summaries:read` ve tam `sub=svc:game-service`. Kullanıcı token'ı 401; başka kapsam/çağıran 403.
+
+#### Path/Query Parameters
+`after`: isteğe bağlı kanonik UUID, **dışlayıcı** imleç (yalnız `gameId > after`); yoksa baştan. `limit`: tamsayı 1–500, varsayılan 200. Geçersiz değer 400.
+
+#### Request Body
+Yok.
+
+#### Response
+200 `{items:[{gameId,averageRating,ratingCount}], nextAfter}`. `items` yalnız **en az bir puanı olan** oyunları `gameId` artan sırada içerir (UUID'nin küçük harf onaltılık metin sırası PostgreSQL `uuid` sırasıyla aynıdır). Alan anlamı ve hesap toplu uçla birebir aynıdır (iki ondalık HALF_UP, benzersiz kullanıcı sayısı). `nextAfter`: sonraki sayfanın `after` değeri; **null ise son sayfadır**. Listede olmayan oyun = puansız (`null/0`). `Cache-Control: private, no-store`.
+- **Tarama protokolü (Game için):** `nextAfter` null olana kadar sayfaları sırayla çek; satırları upsert et. Tarama **hatasız tamamlanırsa** görülmeyen projeksiyon satırlarını puansız (`null/0`) yap — son puanı hesap silmeyle kalkan oyun listede görünmez. Tarama yarıda kesilirse hiçbir satırı sıfırlama.
+- **Tutarlılık:** Her sayfa kendi tek-SQL snapshot'ıdır; bir oyunun ortalaması ve sayısı daima aynı snapshot'tandır. Sayfalar arasında puan eklenir/silinirse imlecin gerisindeki değişiklik bir sonraki taramaya kalır; gerçek zamanlı tazelik garantisi yoktur, tazelik sınırı Game'in tarama periyodudur.
+
+#### Hata Durumları
+400 geçersiz `after`/`limit`; 401 kimlik yok/geçersiz, kullanıcı token'ı, yanlış aud/typ/imza/süre; 403 kapsam yok veya sub `svc:game-service` değil; 500 beklenmeyen hata. Diğer metotlar/yollar varsayılan `denyAll` (403).
+
+#### Bağlantı
+`InternalRatingSummaryController → RatingSummaryService.page → RatingSummaryRepository.findPage`. Tek parametreli `GROUP BY game_id ORDER BY game_id LIMIT limit+1` SQL'i (fazladan satır `nextAfter` kararı içindir), tek salt okunur transaction/4 sn; `game_ratings.game_id` indeksi mevcut, migration/ENV/bağımlılık yok. Sorgu planı bu çalışmada ölçülmedi (EXPLAIN yok); sayfa başı en çok 500 grup okunur.
+
+#### Test Durumu
+UNIT/INTEGRATION — InternalRatingSummaryTest (imleç/limit varsayılanı, 400 sınırları, kimlik/kapsam/sub reddi), RatingSummaryServiceTest (nextAfter yalnız fazla satır varsa) ve ReviewHttpIntegrationTest (gerçek TCP/RS256/JWKS/PostgreSQL: tüm tabloyu limit=2 ile sayfalar, sıra/tekillik/değer/POST ile eşitlik, uç dışı imleç, 400/401/403). Review modülü 174/174 PASS; Maven clean verify + coverage-policy PASS; Checkstyle/PMD yeni ihlal 0. Canlı Auth/Game: NOT VERIFIED.
 
 ## SOCIAL
 

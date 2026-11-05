@@ -52,7 +52,7 @@ Sıralama: likeCount DESC, createdAt DESC, id ASC; yalnız VISIBLE ve gameId/min
 ## Faz 3 — LTZ-HAM-REV-03
 
 - [x] REV-08 — Ortalama oyun puanı (92/92 Review testi PASS; sayısal puan AVG/count, iki basamak HALF_UP, boş sonuç ve hesap temizliği)
-- [x] REV-12 — Toplu oyun puanı özetleri (Review backend kabulü; 102/102 test PASS, 50 oyun/10.000 puanda tek aggregate SQL; Game→Review entegrasyonu bekliyor)
+- [x] REV-12 — Toplu oyun puanı özetleri (Review backend kabulü; 102/102 test PASS, 50 oyun/10.000 puanda tek aggregate SQL). **5 Kasım 2026:** Game→Review servis okuma iç ucu da Review'da uygulandı (`POST /internal/v1/games/rating-summaries`, `rating-summaries:read`, `sub=svc:game-service`; Review modülü 174/174 test PASS). Auth çifti `game-service → review-service / rating-summaries:read` Auth `origin/main`'de mevcut (bf473ed); Game tüketicisi bekliyor; global minRating/RATING için Seçenek A seçildi ve Review imleçli dışa aktarma ucu uygulandı (Game projeksiyonu bekliyor; Review modülü 174/174 test PASS).
 
 Faz 3'te yalnız Review Maven test aşaması çalıştırıldı: REV-08 kapanışında 92, son REV-12 koşusunda **102 test, 0 failure/error/skipped, BUILD SUCCESS**. Başlangıç 85 teste 6 tekil API, 7 toplu API, 2 servis birim ve 2 gerçek JWT/HTTP testi eklendi. PostgreSQL 17/Flyway V51–V56 uygulama/checksum ve Hibernate validate PASS. Yeni migration yok; game_ratings game_id indeksi EXPLAIN ile doğrulandı. Test DB'si disposable container içindeydi ve sonunda kaldırıldı.
 
@@ -61,7 +61,7 @@ Tekil GET /games/{gameId}/rating-summary ve toplu POST /games/rating-summaries: 
 Kullanıcı kararıyla mevcut kullanıcı JWT güvenliği korundu; anonim veya yeni servis-token yetkisi açılmadı. Kullanıcı JWT'si Game servis kimliği yerine kullanılmayacak. **Game→Review servis erişimi NOT IMPLEMENTED / NOT VERIFIED, ENTEGRASYON BEKLİYOR.** Review tarafındaki REV-12 kabulünü kapatmak bu entegrasyonu kapatmaz.
 
 - [game-review-integration.md](request/game-review-integration.md) — Game/Hamza: toplu özet tüketimi, servis okuma yolu, Auth kimliği, timeout/cache/hata davranışı ve global puan filtre/sıralaması için kararlar bekleniyor.
-- [auth-review-integration.md](request/auth-review-integration.md) — Auth/Kerem: mevcut taleplere Game→Review hedefe bağlı dar okuma izni eklendi; scope/yol/istemci dağıtımı henüz öneri. Auth ve diğer servisler değiştirilmedi. Admin/Notification talepleri beklemeyi sürdürür.
+- [auth-review-integration.md](request/auth-review-integration.md) — Auth/Kerem: Game→Review çifti Auth main'de mevcut (`rating-summaries:read`, bf473ed); Review alıcısı bu kapsam adına uyarlandı (5 Kasım 2026); secret dağıtımı ve canlı doğrulama bekliyor. Auth ve diğer servisler değiştirilmedi. Admin/Notification talepleri beklemeyi sürdürür.
 
 Pre-push/CI/backendCheck, Trivy ve Sonar Scanner/Quality Gate/A/A/A: **KULLANICI TALEBİYLE ÇALIŞTIRILMADI**. PMD/strict verify/coverage/ratchet için yeni sonuç yoktur. Önceki fazların PASS değerleri bu faza taşınmadı.
 
