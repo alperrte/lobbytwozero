@@ -11,5 +11,13 @@ public enum SecurityNotificationType {
     ACCOUNT_SUSPENDED,
     ACCOUNT_BANNED,
     ACCOUNT_DISABLED,
-    ACCOUNT_REACTIVATED
+    ACCOUNT_REACTIVATED,
+    /** İki adımlı doğrulama (TOTP) açıldı. */
+    TWO_FACTOR_ENABLED,
+    /** İki adımlı doğrulama kapatıldı: hesap ele geçirme belirtisi olabilir. */
+    TWO_FACTOR_DISABLED,
+    /** Tek kullanımlık kurtarma kodu kullanıldı (giriş ya da hassas işlem). */
+    RECOVERY_CODE_USED,
+    /** Hesaba Google ya da Steam kimliği bağlandı. */
+    EXTERNAL_IDENTITY_LINKED
 }

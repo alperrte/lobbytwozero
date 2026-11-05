@@ -36,6 +36,10 @@ final class SecurityNotificationTexts {
             case ACCOUNT_BANNED -> "LTZ hesabınız yasaklandı / your account was banned";
             case ACCOUNT_DISABLED -> "LTZ hesabınız devre dışı bırakıldı / your account was disabled";
             case ACCOUNT_REACTIVATED -> "LTZ hesabınız yeniden açıldı / your account was reactivated";
+            case TWO_FACTOR_ENABLED -> "LTZ iki adımlı doğrulama açıldı / two-step verification was enabled";
+            case TWO_FACTOR_DISABLED -> "LTZ iki adımlı doğrulama kapatıldı / two-step verification was disabled";
+            case RECOVERY_CODE_USED -> "LTZ kurtarma kodu kullanıldı / a recovery code was used";
+            case EXTERNAL_IDENTITY_LINKED -> "LTZ hesabınıza harici hesap bağlandı / an external account was linked";
         };
     }
 
@@ -53,6 +57,10 @@ final class SecurityNotificationTexts {
             case ACCOUNT_BANNED -> "LTZ hesabınız yasaklandı";
             case ACCOUNT_DISABLED -> "LTZ hesabınız devre dışı bırakıldı";
             case ACCOUNT_REACTIVATED -> "LTZ hesabınız yeniden etkinleştirildi";
+            case TWO_FACTOR_ENABLED -> "LTZ hesabınızda iki adımlı doğrulama açıldı";
+            case TWO_FACTOR_DISABLED -> "LTZ hesabınızda iki adımlı doğrulama kapatıldı";
+            case RECOVERY_CODE_USED -> "LTZ hesabınızda bir kurtarma kodu kullanıldı";
+            case EXTERNAL_IDENTITY_LINKED -> "LTZ hesabınıza bir Google ya da Steam hesabı bağlandı";
         };
     }
 
@@ -65,6 +73,10 @@ final class SecurityNotificationTexts {
             case ACCOUNT_BANNED -> "Your LTZ account was banned";
             case ACCOUNT_DISABLED -> "Your LTZ account was disabled";
             case ACCOUNT_REACTIVATED -> "Your LTZ account was reactivated";
+            case TWO_FACTOR_ENABLED -> "Two-step verification was enabled on your LTZ account";
+            case TWO_FACTOR_DISABLED -> "Two-step verification was disabled on your LTZ account";
+            case RECOVERY_CODE_USED -> "A recovery code was used on your LTZ account";
+            case EXTERNAL_IDENTITY_LINKED -> "A Google or Steam account was linked to your LTZ account";
         };
     }
 }

@@ -14,6 +14,6 @@ Ayrıntılı ve herkes için ortak metin: [../bilgilendirme-2026-11-05-auth-degi
 **Bilgi**
 
 - Parola belirleme kodu mevcut `POST /internal/v1/mail/verification-codes` ucunu kullanır; sözleşme değişmedi, yeni uç yok. E-posta metni genel "doğrulama kodu" şablonudur. İstenirse "parola belirleme" için ayrı bir şablon türü eklenebilir (isteğe bağlı; Auth tarafı bunu gerektirmez).
-- `WELCOME` ve `SUSPICIOUS_LOGIN` şablonları için Auth tetikleyicisi hâlâ yok; Auth çıkmadan Mail tarafı uç açmaz.
+- `WELCOME` ve `SUSPICIOUS_LOGIN` Auth'ta **yapılmayacak** (karşılama e-postası güvenlik katkısı sağlamaz; şüpheli giriş sezgisi gerektirir ve yanlış alarm üretir). Yerine 4 yeni güvenlik bildirimi türü geldi: bkz. [bilgilendirme-2026-11-05-guvenlik-bildirimleri.md](bilgilendirme-2026-11-05-guvenlik-bildirimleri.md) (**Mail tarafında iş var**).
 - Üretim SMTP sağlayıcısı kararı Kerem'dedir.
 - Durum: **BİLGİ**
