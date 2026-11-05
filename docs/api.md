@@ -1,6 +1,6 @@
 # LTZ — API Kataloğu
 
-> Son güncelleme: 2026-11-01
+> Son güncelleme: 2026-11-05
 > Bu dosya projedeki **tüm API'lerin tek kaydıdır**. Bir endpoint planlandığında, eklendiğinde, değiştiğinde veya kaldırıldığında, aynı değişiklikte buraya kendi servisinin başlığı altında yazılır.
 > İlgili belgeler: [architecture.md](architecture.md) (gateway ve servisler arası iletişim), [SECURITY.md](SECURITY.md) (yetkilendirme, ProblemDetail), [web-rules.md](web-rules.md) (frontend tüketimi).
 
@@ -1924,7 +1924,14 @@ INTEGRATION (`AccountErasureTest`)
 > login, Gateway cookie/Bearer, PLAYER feedback/IDOR ve CSRF/Origin akışları **44 kontrol PASS**.
 > Onaylı yerel anahtar kurulumu sonrasında mevcut DEV'de Auth/Gateway/Game health,
 > Gateway routing ve Game konteynerinden Auth JWKS erişimi **PASS**.
-> DEV üzerinde canlı ADMIN/2FA ve geliştirici grant mutasyonları **NOT VERIFIED**.
+> Auth sahibi (Kerem) gerçek Auth + Game jar'ıyla GAME-07/12/13 için **22/22** canlı kontrol bildirdi
+> (ADMIN token'ıyla oyun açma, `GAME_DEVELOPER` verme, yetkisiz/rolsüz 401/403, yetki geri alma; 5 Kasım 2026).
+> Game tarafında da DEV'de (5 Kasım 2026; gerçek Auth + Game imajları; doğrudan servis portları, Bearer) iki turda **82/82** canlı kontrol PASS
+> (1. tur 42, 2. tur 40): GAME-07 ADMIN ile oyun açma/güncelleme (sürüm çakışması 409)/arşivleme/geri alma (fiziksel silme yok, toplu kartta
+> `unavailable`), GAME-12 rol ve oyun yetkisinin ayrı denetimi ve geri alma, GAME-13 geliştirici içeriği (izinli medya hostu, not) ve
+> **ADMIN ve MODERATOR** ile moderasyon (açıklama/medya/not HIDE ve RESTORE; MODERATOR admin ve geliştirici uçlarında 403), GAME-14 özel geri bildirim
+> (yazar IDOR 404, OPEN -> IN_PROGRESS -> RESOLVED, atlama/yeniden açma/yanlış sürüm 409). Canlıda **denenmedi**: Gateway üzerinden çerez akışı,
+> EXTERNAL oyunda manuel kilidin senkronizasyonda korunması ve kilit kaldırmanın başarılı yolu (katalog Steam'den dolmadı), gerçek dış kimlik taşıma.
 > Ayrıntı: [Game–Auth entegrasyon kaydı](../docs-Game%20Service/LTZ-HAM-GAME-04-Auth-Entegrasyonu.md).
 
 Sorumlu: Hamza · Gateway: `/api/v1/game/**` · Görevler: GAME-
@@ -2027,7 +2034,7 @@ Public. Yalnız ACTIVE oyunlar görünür.
 - `metadata.languages` ve `metadata.earlyAccess`: GAME-02 kapsamında yerelde bilinen dil ve erken erişim bilgisi; kaynak sağlamazsa boş/null.
 - Güncellik son başarılı detay yanıtına aittir; alan bazlı güncellik garantisi değildir. Fiyat verisi sunulmaz.
 - GET yalnız yerel okuma yapar; sağlayıcıya istek, yenileme tetikleme veya DB yazımı yapmaz. STALE veri korunur.
-- Steam adaptörünün DETAILS yeteneği yoktur: EXTERNAL kayıtlar UNSUPPORTED döner. Gerçek detay entegrasyonu veri kaynağı kararı ve kullanıcı onayı bekliyor; altyapı varlığı gerçek sağlayıcı desteği anlamına gelmez.
+- Steam adaptörünün DETAILS yeteneği yoktur. Detay kaynağı olarak **IGDB** (5 Kasım 2026 kararı) ayrı bir adaptörle bağlıdır ve yalnız Twitch kimlik bilgileri (`IGDB_CLIENT_ID`, `IGDB_CLIENT_SECRET`) tanımlıysa etkinleşir. Kimlik bilgisi yoksa EXTERNAL kayıtlar UNSUPPORTED döner (davranış değişmez). Etkinse alanlar yalnız IGDB'nin gerçekten verdiği kadardır; kaynak `metadata` provenance'ında `IGDB` olarak görünür ve arayüzde IGDB atfı gösterilmelidir. Bkz. "Giden sözleşme: IGDB detay kaynağı".
 
 #### Hata Durumları
 - 400: Geçersiz UUID.
@@ -2039,7 +2046,7 @@ Frontend: API Gateway üzerinden aynı path.
 Diğer mikroservisler: RestClient ile Game Service.
 
 #### Test Durumu
-INTEGRATION — PostgreSQL/Flyway üzerinde ortak model, 200/400/404, kökenin korunması, salt okunur GET ve STALE yanıtı. Gerçek detay sağlayıcısı: NOT IMPLEMENTED.
+INTEGRATION — PostgreSQL/Flyway üzerinde ortak model, 200/400/404, kökenin korunması, salt okunur GET ve STALE yanıtı. IGDB adaptörü: sahte sunucuyla birim/entegrasyon testli; gerçek IGDB sözleşmesi canlı doğrulandı (bkz. "Giden sözleşme: IGDB detay kaynağı"); konteynerde uçtan uca NOT VERIFIED.
 
 ### GAME — Yerel Steam indeks araması (GAME-16)
 
@@ -2132,25 +2139,33 @@ Public. Kullanıcı onayıyla yalnız GET. Yalnız ACTIVE + MAIN_GAME kayıtlar�
 - releasedAfter, releasedBefore: opsiyonel ISO tarih, yıl 0001–9999; iki sınır da dahil. Ters aralık reddedilir.
 - popularOnly: varsayılan false; true ise yalnız editör listesine alınmış uygun kayıtlar.
 - sort: TITLE (varsayılan), RELEASE_DATE veya POPULARITY. direction: ASC (varsayılan) veya DESC. Alan/yön allowlist ile sınırlıdır.
-- minRating veya sort=RATING: **desteklenmiyor**; Review Service entegrasyonu bekleniyor, veri uydurulmaz.
+- minRating: opsiyonel ondalık, 1–10 aralığında ve en çok iki ondalık (ör. `7`, `7.5`, `7.25`); sınır dahildir (`average >= minRating`). Aralık/ondalık dışı değer 400 verir, boş sonuç üretmez.
+- sort=RATING: LTZ puan ortalamasına göredir (ASC düşükten, DESC yüksekten). direction ile birlikte kullanılır.
 
 Filtreler AND ile birleşir. İlgili metadata bilinmiyorsa o filtreye eşleşmez; filtresiz listede kayıt kalır. Fiyat/indirim filtresi uygulanmadı. Her sıralamada gameId ASC bağlayıcıdır. Null tarih ve editör sırası her iki yönde sonda. POPULARITY DESC küçük editör sırasını önce getirir; ölçülmüş kullanıcı etkileşimi puanı değildir.
 
+**LTZ puanı (GAME-04, GAME-05, GAME-15):** Puan Review Service'ten **istek anında okunmaz**. Game, Review'ın imleçli dışa aktarma ucunu periyodik tarayıp kendi `game_rating_projection` tablosuna yazar; filtre, sıralama ve gösterilen puan aynı projeksiyondan ve aynı transaction görünümünden gelir (sayfalar arasında tutarlıdır; istek başına Review çağrısı, N+1 ve Review'a senkron bağımlılık yoktur). Eksik değer kuralları:
+- `minRating=x` yalnız `average >= x` olan **puanlı** oyunları döndürür; **puansız oyunlar hariç tutulur** (puansız oyun için `average` bilinmediğinden hiçbir eşiği sağlamaz).
+- `sort=RATING` puansız oyunları **her iki yönde sona** koyar; eşit ortalamada `gameId ASC` ile kararlı sıralanır. `ratingCount` sıralamayı etkilemez.
+- **Hazırlık:** Projeksiyon ilk hatasız taramayı tamamlayana kadar boş tablo "kimsenin puanı yok" sayılmaz: `minRating` ve `sort=RATING` **400 `RATING_INTEGRATION_PENDING`** verir ve her öğenin puan durumu `UNAVAILABLE` olur. Hiç tarama tamamlanmazsa (ör. Auth istemci gizli anahtarı yok, Review erişilemez) bu durum sürer; Review kesintisi sonradan olursa son hatasız projeksiyon sunulmaya devam eder ve `ratingsSyncedAt` eskir.
+- **Tazelik:** Sınır tarama periyodudur (`ltz.game.rating.sync.interval`, varsayılan 5 dk). Gerçek zamanlı garanti yoktur; puan güncellemesi veya hesap silme kaynaklı puan değişimi bir sonraki hatasız taramada görünür. Hatasız biten tarama, görmediği satırları puansız yapar; yarıda kesilen taramada hiçbir satır sıfırlanmaz.
+
 #### Response — 200
-- items: her elemanda `game` (ortak GameCardResponse), nullable `releaseDate`, nullable `earlyAccess`, `languages`, nullable `editorialRank`, nullable `popularityUpdatedAt`.
-- page, size, totalElements; sort, direction; popularityBasis=EDITORIAL.
+- items: her elemanda `game` (ortak GameCardResponse), nullable `releaseDate`, nullable `earlyAccess`, `languages`, nullable `editorialRank`, nullable `popularityUpdatedAt`, `rating`.
+- `rating`: `{status, averageRating, ratingCount}`. `status=RATED`: `averageRating` iki ondalık (1–10) ve `ratingCount` benzersiz puan veren sayısı dolu. `status=UNRATED`: doğrulanmış "henüz puan yok" (`averageRating=null`, `ratingCount=0`). `status=UNAVAILABLE`: puan verisi henüz alınamadı (`averageRating=null`, `ratingCount=null`; **0 değildir**, istemci 0 puan göstermemelidir).
+- page, size, totalElements; sort, direction; popularityBasis=EDITORIAL; `ratingsSyncedAt`: puan projeksiyonunun son hatasız tamamlanan tarama zamanı (ISO-8601 UTC) veya hiç tamamlanmadıysa `null`.
 - Kayıt yoksa boş items ve gerçek totalElements. Aynı veri kümesinde kararlı sayfalama; farklı istekler arasında katalog değişirse snapshot devamlılığı garanti edilmez.
-- Count, sayfa ve toplu kart ilişkileri tek REPEATABLE_READ transaction görünümündedir. Dolu sayfada dört toplu SQL okuması; HTTP/sağlayıcı çağrısı veya oyun başına servis çağrısı yoktur.
+- Count, sayfa, toplu kart ilişkileri ve puan projeksiyonu durumu tek REPEATABLE_READ transaction görünümündedir. Dolu sayfada toplu SQL okumaları (puan projeksiyonu sayfa sorgusuna LEFT JOIN ile katılır); HTTP/sağlayıcı çağrısı veya oyun başına servis çağrısı yoktur.
 
 #### Hata Durumları
-- 400: Geçersiz parametre/enum/aralık veya desteklenmeyen puan filtresi/sıralaması. Puan için ProblemDetail code=RATING_INTEGRATION_PENDING.
+- 400: Geçersiz parametre/enum/aralık (`minRating` 1–10 ve en çok iki ondalık dışı dahil). Puan projeksiyonu ilk hatasız taramasını tamamlamadan `minRating` veya `sort=RATING`: ProblemDetail code=RATING_INTEGRATION_PENDING (kod sabittir; anlamı "puan verisi henüz hazır değil").
 - 500: Beklenmeyen sunucu hatası; SQL veya iç hata ayrıntısı dönmez.
 
 #### Bağlantı
-Frontend: API Gateway üzerinden aynı path. Mikroservisler: sözleşmeli RestClient ile Game Service; başka DB erişimi yok.
+Frontend: API Gateway üzerinden aynı path. Mikroservisler: sözleşmeli RestClient ile Game Service; başka DB erişimi yok. Puan projeksiyonunun Review'dan beslenmesi: "GAME — Giden sözleşme: Review puan projeksiyonu" kaydı.
 
 #### Test Durumu
-INTEGRATION — birleşik kökenler, görünürlük/tür temizliği, toplam/sayfa, boş sayfa, filtre bileşimi ve eksik veri, allowlist, null sırası, 400/403 ve 100.000 kayıtta eşzamanlı ölçüm. LTZ puanı entegrasyonu: NOT IMPLEMENTED; GAME-04/05 bu nedenle kısmi.
+INTEGRATION — birleşik kökenler, görünürlük/tür temizliği, toplam/sayfa, boş sayfa, filtre bileşimi ve eksik veri, allowlist, null sırası, 400/403 ve 100.000 kayıtta eşzamanlı ölçüm. Puan: `GameRatingDiscoveryTest` (hazır olmayan projeksiyonda 400/UNAVAILABLE; RATED/UNRATED; `minRating` sınırı dahil ve puansız hariç; `sort=RATING` puansız her iki yönde sonda, eşitlikte gameId; sayfalar arası tekrar/atlama yok; geçersiz `minRating` 400; tür/durum/arama ile birleşim) ve `RatingSyncEndToEndTest` (gerçek token/Review istemcileri + sahte HTTP + PostgreSQL). Gerçek Review ve gerçek Auth token'ıyla uçtan uca: NOT VERIFIED. Ölçüm (`CatalogRatingPerformanceTest`, 100.000 oyun, ~40.000 puanlı satır, geçici PostgreSQL 17 Testcontainers, geliştirici makinesi) p95: liste 65 ms, `minRating=7` 36 ms, `sort=RATING` DESC 49 / ASC 52 ms, tür filtresi + `minRating=5` + `sort=RATING` 132 ms, derin sayfa (page=2000) 105 ms; hedef 300 ms, hepsi altında. Üretim ölçümü değildir; `EXPLAIN` planı alınmadı.
 
 ### GAME — Birleşik yerel oyun araması (GAME-03)
 
@@ -2168,10 +2183,10 @@ Public GET. Yalnız ACTIVE + MAIN_GAME, iki köken birlikte. Diğer HTTP metotla
 q zorunludur; diğer filtreler, sayfa ve sıralama parametreleri birleşik katalog kaydıyla aynıdır. Eksik/boş q reddedilir. Arama yalnız yerel önek aramasıdır; canlı harici arama eklenmedi. Eski `/api/v1/game/catalog` Steam indeks araması mevcut sözleşmesiyle korunur.
 
 #### Response — 200
-GameDiscoveryResponse; birleşik katalog kaydıyla aynı alanlar. Eşleşme yoksa 200 + boş items.
+GameDiscoveryResponse; birleşik katalog kaydıyla aynı alanlar (`rating` ve `ratingsSyncedAt` dahil; `minRating` ve `sort=RATING` aynı kurallarla çalışır). Eşleşme yoksa 200 + boş items.
 
 #### Hata Durumları
-- 400: Eksik/boş/geçersiz q veya diğer parametreler; puan bağımlılığı için RATING_INTEGRATION_PENDING.
+- 400: Eksik/boş/geçersiz q veya diğer parametreler; puan projeksiyonu hazır değilken `minRating`/`sort=RATING` için RATING_INTEGRATION_PENDING (bkz. Birleşik yerel katalog).
 - 500: Genel sunucu hatası.
 
 #### Bağlantı
@@ -2218,7 +2233,7 @@ Tüketici servisler: Library Service, Review Service, Frontend
 POST /api/v1/game/games/batch
 
 #### Yetkilendirme
-Public. Kimlik/JWT gerekmez ve gelecekte de zorunlu tutulmaz. Yalnız herkese açık (ACTIVE) kart verisi döner; kişisel, yönetimsel veya LTZ puanı verisi içermez. Kullanıcıya özel ya da yetki gerektiren toplu okumalar bu uca eklenmez, ayrı korumalı sözleşmeyle tasarlanır. Geçersiz bir `Authorization` başlığı yine 401 verir. CSRF: durum değiştirmez ve çerez kullanmaz; bu tek istek, yalnız `Content-Type: application/json` ise CSRF filtresinden açıkça atlanır (başka içerik türleri 403 alır), başka hiçbir istek atlanmaz.
+Public. Kimlik/JWT gerekmez ve gelecekte de zorunlu tutulmaz. Yalnız herkese açık (ACTIVE) kart verisi döner; kişisel, yönetimsel veya LTZ puanı verisi içermez (puan listelerde `GET /games` ve `/games/search` yanıtındadır). Kullanıcıya özel ya da yetki gerektiren toplu okumalar bu uca eklenmez, ayrı korumalı sözleşmeyle tasarlanır. Geçersiz bir `Authorization` başlığı yine 401 verir. CSRF: durum değiştirmez ve çerez kullanmaz; bu tek istek, yalnız `Content-Type: application/json` ise CSRF filtresinden açıkça atlanır (başka içerik türleri 403 alır), başka hiçbir istek atlanmaz.
 **İstek sınırı:** istemci başına jeton kovası (ani yük 100, sürekli 20 istek/sn; `ltz.rate-limit.batch.*`). Aşımda 429. İstemci anahtarı doğrudan bağlantı adresidir; `X-Forwarded-For` varsayılan olarak yok sayılır. Gateway istemci IP'sini iletmediği sürece Gateway'den gelen trafik tek bir kovayı paylaşır; doğrudan çağıran iç servisler kendi anahtarını kullanır.
 
 #### Request Body
@@ -2245,10 +2260,68 @@ Public. Kimlik/JWT gerekmez ve gelecekte de zorunlu tutulmaz. Yalnız herkese a�
 
 #### Bağlantı
 Frontend: API Gateway üzerinden aynı path.
-Diğer mikroservisler: RestClient ile doğrudan; sayfa başına tek çağrı. 429 alınırsa `Retry-After` süresi beklenmeli, otomatik sıkı döngüyle yeniden denenmemelidir. Sabit sayıda SQL (oyunlar + dış referanslar) çalışır; oyun başına sorgu yoktur. LTZ puan özeti için Review Service sözleşmesi yoktur ve bu uç puan alanı üretmez.
+Diğer mikroservisler: RestClient ile doğrudan; sayfa başına tek çağrı. 429 alınırsa `Retry-After` süresi beklenmeli, otomatik sıkı döngüyle yeniden denenmemelidir. Sabit sayıda SQL (oyunlar + dış referanslar) çalışır; oyun başına sorgu yoktur. Bu uç puan alanı üretmez ve Review'ı çağırmaz; puan için bkz. Birleşik yerel katalog.
 
 #### Test Durumu
 INTEGRATION — sıra, tekrar, 50/51 sınırı, geçersiz gövdeler, arşiv/MERGED/olmayan kimlikler, tek kart sözleşmesiyle eşitlik, yönetim verisi sızıntısı olmaması, anonim erişim, CSRF atlamasının kapsamı (yalnız JSON, diğer tüm mutasyon yolları korumalı), salt-okunurluk, 429 istek sınırı (sahte başlıkla atlatılamaz) + birim testleri (jeton kovası, istemci adresi çözümleme).
+
+### GAME — Giden sözleşme: Review puan projeksiyonu (GAME-04, GAME-05, GAME-15)
+
+Durum: IMPLEMENTED — DEV'de (2026-11-05; auth/game/review yeni imajla, temiz DB) Auth'tan token alma, Review'ın imleçli ucunu okuma ve ilk hatasız taramanın tamamlanması (`ratingsSyncedAt` doldu) doğrulandı. Ancak DEV'de katalog ve puan verisi boş olduğundan gerçek puanlı veriyle uçtan uca (RATED, `minRating`, güncelleme/hesap silme etkisi) **NOT VERIFIED**. Auth istemci gizli anahtarı (`AUTH_GAME_SERVICE_CLIENT_SECRET`) Game ortamında tanımlı değilse tarama çalışmaz.
+Sorumlu: Hamza
+Tüketici servisler: - (iç kullanım; sonucu `GET /api/v1/game/games` ve `/games/search` yanıtlarında Frontend görür)
+
+#### Endpoint
+Game'in **çağırdığı** uç: `GET {REVIEW_SERVICE_URL}/internal/v1/games/rating-summaries?after={uuid}&limit={1..500}` (sahibi Review; sözleşme: bu dosya → REVIEW → "Game → Review puan dışa aktarma iç ucu"). Game bu işlem için yeni bir HTTP ucu **açmaz**; mevcut Game uçları ve güvenlik zinciri değişmedi.
+
+#### Yetkilendirme
+Internal (Game → Review). `POST {AUTH_SERVICE_URL}/internal/v1/service-tokens` ile `{clientId: "game-service", clientSecret, audience: "review-service"}` karşılığı alınan `svc+jwt` (`scope=rating-summaries:read`, `sub=svc:game-service`, ≤60 sn) `Authorization: Bearer` ile gönderilir. Token hedef başına bellekte tutulur ve bitimden 15 sn önce yenilenir. Kullanıcı token'ına geri düşme yoktur; gizli anahtar (`AUTH_GAME_SERVICE_CLIENT_SECRET`) boşsa istemci kapalıdır: Auth'a da Review'a da istek atılmaz.
+
+#### Tarama protokolü
+1. Tek tarayıcı: veritabanı kiralaması (`game_rating_sync_state`, süre `ltz.game.rating.sync.lease-ttl`, her sayfada yenilenir). Çok örnekli dağıtımda aynı anda yalnız bir örnek tarar; kiralamayı kaybeden tarama durur.
+2. Sayfalar (`limit=500`) `nextAfter` boşalana kadar sırayla çekilir ve `game_rating_projection` tablosuna upsert edilir (Game kataloğunda olmayan `gameId` atlanır; eski bir tarama yeni taramanın satırını ezmez).
+3. Tarama **hatasız tamamlanırsa** görülmeyen projeksiyon satırları puansız (`average=NULL`, `count=0`) yapılır ve `last_completed_at` yazılır. **Yarıda kesilirse** (hata, zaman aşımı, 401/403, geçersiz yanıt, kiralama kaybı) hiçbir satır sıfırlanmaz, `last_completed_at` değişmez; hata yalnız sabit kodla (`REVIEW_REJECTED`, `REVIEW_UNAVAILABLE`, `TOKEN_UNAVAILABLE`, `INVALID_RESPONSE`, `LEASE_LOST`, `SYNC_ERROR`) kaydedilir.
+4. Review yanıtı güvenilmez girdidir: sıra (kanonik küçük harf metin sırasıyla artan), ortalama aralığı (1–10, ≤2 ondalık), sayı (≥1), sayfa/imleç tutarlılığı ve sayfa sayısı üst sınırı (10.000) doğrulanır; ihlalde tarama başarısız sayılır.
+5. Periyot `ltz.game.rating.sync.interval` (varsayılan PT5M; ilk tarama açılıştan PT30S sonra). Kapatmak: `ltz.game.rating.sync.enabled=false`.
+
+#### Hata ve güvenilirlik davranışı
+Bağlantı/okuma zaman aşımı 1 sn / 2 sn (genel RestClient ayarından bağımsız), yönlendirme izlenmez. **401/403'te yeniden deneme yok** (bellekteki token atılır, sonraki tarama yenisini alır); 5xx/zaman aşımında aynı sayfa için **en çok bir** 300 ms sonraki yeniden deneme. Hata iletilerine ve loglara token, gizli anahtar veya yanıt gövdesi yazılmaz. Review kesintisi Game'in sayfalarını kırmaz: listeler projeksiyondan sunulur; hiç tamamlanmış tarama yoksa puan `UNAVAILABLE` (0 değil) görünür.
+
+#### Bağlantı
+Frontend: -
+Diğer mikroservisler: RestClient ile Auth (`/internal/v1/service-tokens`) ve Review (yukarıdaki uç). Auth çifti (`game-service → review-service / rating-summaries:read`) Auth `origin/main` bf473ed'de mevcuttur. Yeni ENV adı yalnız `AUTH_GAME_SERVICE_CLIENT_SECRET`'tır (adı `.env.example`'da zaten vardır; `docker-compose.yml`'de `game-service` ortamına geçirilir); `REVIEW_SERVICE_URL` ve `AUTH_SERVICE_URL` mevcuttur. Şema: `V172__create_game_rating_projection.sql` (`game_rating_projection`, `game_rating_sync_state`). Projeksiyon yalnız toplamları tutar, kişisel veri içermez; hesap silme bu tabloları etkilemez.
+
+#### Test Durumu
+UNIT + INTEGRATION — `ReviewRatingClientTest` (Bearer/imleç sorgusu, 401/403'te yeniden deneme yok ve token atma, 5xx'te tek yeniden deneme, sınırlı zaman aşımı, erişilemez Review, yönlendirme izlenmez, geçersiz/çelişkili yanıtlar, işaretli UUID sırası tuzağı), `AuthServiceTokenClientTest` (hedefe özgü token, önbellek ve 15 sn yenileme payı, invalidate, kapalı istemci, sızıntı yok), `GameRatingSyncServiceTest` (gerçek PostgreSQL: çok sayfalı tarama, bilinmeyen oyun, tamamlanan taramada puansızlaşma, yarıda kesilende sıfırlama yok, kiralama ve eski tarama koruması), `RatingSyncEndToEndTest` (gerçek istemciler + sahte Auth/Review HTTP), `RealAuthServiceClientTokenTest` (Auth'un **gerçek** `ServiceClientTokenIssuer`'ı geçici dizine derlenip `game-service → review-service` token'ı üretilir; token typ/iss/aud/sub/scope/≤60 sn, RS256 imzası ve Game istemcileriyle uyumu sınanır; Auth'un gerçek `application.properties`'indeki çift ve secret ENV adı sözleşme olarak denetlenir; Review'ın kendi güvenlik zinciri Review testlerindedir), `RatingProjectionMigrationTest`. Gerçek Review ile otomatik uçtan uca test yoktur; DEV'de elle doğrulandı. 100.000 oyunla süre ölçümü yapıldı (bkz. Birleşik yerel katalog, p95 ≤ 132 ms); `EXPLAIN` planı alınmadı.
+
+### GAME — Giden sözleşme: IGDB detay kaynağı (GAME-17, GAME-23)
+
+Durum: IMPLEMENTED — kod ve sahte sunucu testleri hazır; kimlik bilgisi yoksa **KAPALI** (hiçbir bean kurulmaz, IGDB'ye istek atılmaz). 5 Kasım 2026'da gerçek Twitch/IGDB anahtarlarıyla salt okunur canlı doğrulama yapıldı (Steam AppID 570): Twitch token isteği form gövdesiyle 200; `external_game_sources` adıyla Steam (id 1); `external_games` eşlemesi tek oyun; `games` alanları (`summary`, `first_release_date`, `involved_companies.company.name`, `language_supports` ve tür adları `Interface`/`Audio`/`Subtitles`) adaptörün beklediği biçimde. Adaptörün kendisi dağıtılmış bir Game konteynerinde henüz çalıştırılmadı (imaj derlemesi bekliyor).
+Sorumlu: Hamza
+Tüketici servisler: - (iç kullanım; sonucu `GET /api/v1/game/games/{gameId}` ve `/{gameId}/metadata` yanıtlarında Frontend görür)
+
+#### Endpoint
+Game'in **çağırdığı** uçlar (sahibi IGDB/Twitch; şema: api-docs.igdb.com): `POST https://id.twitch.tv/oauth2/token` ve `POST https://api.igdb.com/v4/{external_game_sources|external_games|games}` (Apicalypse gövdesi). Game bu iş için yeni bir HTTP ucu **açmaz**.
+
+#### Yetkilendirme
+Internal (Game → IGDB). Twitch client-credentials; `client_id`/`client_secret` yalnız ortam değişkeninden gelir ve **form gövdesinde** gönderilir (URL'de değil). Token bellekte tutulur, bitiminden önce yenilenir. IGDB'ye `Client-ID` ve `Authorization: Bearer` başlıklarıyla gidilir. İki kimlik bilgisi de dolu değilse kaynak kapalıdır (fail-closed).
+
+#### Eşleme ve alanlar
+1. **Eşleme:** Katalogdaki Steam AppID, IGDB `external_games` kaydıyla tam eşleşme kanıtıyla bulunur: `external_game_source` Steam kaynağının kimliği **adından** çözülür (kullanımdan kalkan `category` ve sabit kimlik kullanılmaz). Sıfır aday `PROVIDER_ITEM_NOT_FOUND`, birden çok farklı IGDB oyunu `AMBIGUOUS_PROVIDER_MAPPING` verir; **otomatik birleştirme yapılmaz**, kanonik `gameId` değişmez. İkisi de kalıcı hatadır (yeniden denenmez; yönetici sıfırlayana kadar durur).
+2. **Alanlar (yalnız IGDB'nin verdiği):** açıklama (`summary`), çıkış tarihi (`first_release_date`), geliştirici/yayıncı (`involved_companies`), dil desteği (`language_supports`). Veri yoksa hiçbir alan uydurulmaz; boş yanıt mevcut veriyi silmez.
+3. **GAME-23 dil verisi:** Dil kodu IGDB'nin yerel ayarıdır, küçük harfe çevrilir (`tr-tr`, `en-us`); dil ailesine indirgenmez. IGDB yalnız desteklenen türleri listeler: listelenmeyen arayüz/ses/altyazı **UNKNOWN** kalır, UNSUPPORTED sayılmaz; bilinmeyen tür adları ve bozuk yerel ayarlar atlanır. Yazılan veri `game_language_supports` + provenance (`LOCALIZATION`, kaynak `IGDB`, doğrulanmamış) olarak saklanır. Düz dil listesi (`game_languages`, `language` filtresi) yalnız **boşsa** doldurulur; yönetici verisi ezilmez. Dil filtresi saklanan kodla birebir eşleşir (ör. `language=tr-tr`).
+4. **Kilitler:** Yöneticinin manuel düzelttiği alanlar (`DESCRIPTION`, `RELEASE_DATE`, `DEVELOPERS`, `PUBLISHERS`, `LOCALIZATION`) IGDB verisiyle ezilmez.
+5. **Provenance:** Her alan için kaynak `IGDB` yazılır (katalog kaynağı `STEAM` kalır). Arayüz IGDB atfını göstermelidir.
+
+#### Hata ve güvenilirlik davranışı
+Zaman aşımı 2 sn / 5 sn, yönlendirme izlenmez, gövde ≤1 MiB. İstekler arası en az 300 ms (IGDB sınırı 4 istek/sn; en çok 8 açık istek). Hata kodları mevcut yeniden deneme politikasına uyar: `RATE_LIMITED` (Retry-After), `PROVIDER_UNAVAILABLE` (5xx), `PROVIDER_TRANSPORT_ERROR` geçicidir; `PROVIDER_ACCESS_DENIED` (401/403; token atılır, aynı çağrıda yeniden deneme yok), `INVALID_PROVIDER_RESPONSE` ve eşleme hataları kalıcıdır. Hata iletilerine ve loglara anahtar, token, URL veya ham yanıt yazılmaz. IGDB kesintisi yerel okumayı bozmaz; GET yalnız yerel veriyi okur.
+
+#### Bağlantı
+Frontend: -
+Diğer mikroservisler: Game, katalog sağlayıcısını (Steam) değiştirmez; yalnız detay yeteneği ve provenance kaynağı eklenir. Yeni ENV adları: `IGDB_CLIENT_ID`, `IGDB_CLIENT_SECRET` (`.env.example` ve compose'a eklendi). **Ticari kullanım:** IGDB belgesi API'nin Twitch Developer Service Agreement şartlarıyla yalnızca ticari olmayan kullanım için ücretsiz olduğunu söyler; ticari çıkışta Twitch ile ayrıca anlaşma gerekir, canlıya çıkmadan önce karar verilmelidir. Şema değişikliği yoktur (provenance kaynağı serbest metindir).
+
+#### Test Durumu
+UNIT + INTEGRATION — `IgdbDetailSourceTest` (belgelenmiş istek biçimi ve başlıklar, gizli anahtarın URL'de olmaması, token/kaynak kimliği önbelleği ve süre dolunca yenileme, sıfır/belirsiz eşleme, enjeksiyon denemeleri, 401/403/429/5xx/ulaşılamaz, Twitch hataları, bozuk yanıt, hız aralığı), `IgdbConfigurationTest` (kimlik yokken hiçbir değişiklik, kısmi kimlik kapalı, iki kimlikle yalnız detay yeteneği eklenir, https zorunlu), `PhaseTwoCatalogTest` (dil desteği + provenance kaynağı, manuel kilit, boş yanıt veriyi silmez, düz liste yalnız boşken). Canlı IGDB: yukarıdaki salt okunur doğrulama PASS; dağıtılmış konteynerde adaptörün uçtan uca çalışması NOT VERIFIED.
 
 ### GAME — Herkese açık geliştirici içeriği (GAME-13)
 
@@ -2420,7 +2493,7 @@ INTEGRATION — gizlenme, veri korunması, idempotency, geri alma, MERGED reddi,
 
 ### GAME — Yönetici: dış kimliği yeniden eşleme ve ayırma (GAME-26)
 
-Durum: IMPLEMENTED — korumalı giriş ve güvenlik engeli; gerçek mutasyon entegrasyon bekler.
+Durum: IMPLEMENTED — korumalı giriş ve güvenlik engeli. Gerçek dış kimlik taşıma/ayırma **bilerek kapalıdır** (GAME-26 kabulle kapatıldı, 5 Kasım 2026): Library/Review referans kontrol protokolü yapılmadı; Auth'ta gerekli servis kimliği çiftleri (`game-references:read`) hazırdır, ihtiyaç doğarsa protokol ayrıca açılır.
 Sorumlu: Hamza
 Tüketici servisler: Frontend (yönetim paneli)
 

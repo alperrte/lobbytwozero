@@ -42,6 +42,10 @@ class MigrationTransferApplicationTest {
             requireReady(source, target, receipt);
             // Önce eski fixture zinciriyle aynı güncel kod, sonra yeni zincir + taşınmış veri.
             Map<String, JsonNode> reference;
+            // Tarihsel fixture zinciri V172 (LTZ puan projeksiyonu) öncesidir; güncel kod bu tabloları okur. Eşdeğer tablolar
+            // yalnız bu izole test veritabanına elle eklenir; böylece iki uygulama aynı sözleşmeyi (puan henüz taranmadı) sunar.
+            new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
+                    new org.springframework.core.io.ClassPathResource("db/migration/V172__create_game_rating_projection.sql")).execute(source);
             try (var app = startApplication(source, HISTORY)) { reference = readPublicApis(app); }
             try (var app = startApplication(target, CURRENT)) {
                 assertEquals(reference, readPublicApis(app));
@@ -67,7 +71,7 @@ class MigrationTransferApplicationTest {
                 "--spring.datasource.username=" + source.getUsername(),
                 "--spring.datasource.password=" + source.getPassword(),
                 "--spring.flyway.locations=" + location,
-                "--spring.flyway.target=" + (CURRENT.equals(location) ? "40" : "173"),
+                "--spring.flyway.target=" + (CURRENT.equals(location) ? "172" : "173"),
                 "--spring.jpa.hibernate.ddl-auto=validate",
                 "--ltz.security.jwt.jwk-set-uri=", "--ltz.security.jwt.public-key=",
                 "--game.catalog.sync.enabled=false", "--STEAM_CATALOG_ENABLED=false",

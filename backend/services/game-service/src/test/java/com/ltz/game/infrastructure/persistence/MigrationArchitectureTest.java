@@ -58,9 +58,10 @@ class MigrationArchitectureTest {
     @Test void productionChainHasNoAlterAndHistoricalFixturesRemainExact() throws Exception {
         List<String> expected = new ArrayList<>(java.util.stream.IntStream.rangeClosed(31, 40).mapToObj(Integer::toString).toList());
         expected.add("171");
+        expected.add("172");
         try (var paths = Files.list(CURRENT)) {
             var files = paths.filter(p -> p.toString().endsWith(".sql")).toList();
-            assertEquals(11, files.size());
+            assertEquals(12, files.size());
             var versions = new ArrayList<String>();
             for (Path file : files) {
                 String sql = Files.readString(file);
@@ -143,7 +144,8 @@ class MigrationArchitectureTest {
         Path destination = Files.createDirectory(work.resolve(name));
         try (var files = Files.list(source)) {
             for (Path file : files.filter(p -> p.toString().endsWith(".sql")).toList()) {
-                if (source.equals(CURRENT) && file.getFileName().toString().startsWith("V171__")) continue;
+                String fileName = file.getFileName().toString();
+                if (source.equals(CURRENT) && (fileName.startsWith("V171__") || fileName.startsWith("V172__"))) continue;
                 Files.copy(file, destination.resolve(file.getFileName()));
             }
         }

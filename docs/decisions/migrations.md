@@ -8,7 +8,7 @@
 
 ## HAMZA
 - V31–V40      → GAME-SERVICE (aktif başlangıç zinciri, 10 migration; tamamı kullanıldı)
-- V171–V180    → GAME-SERVICE (2026-10-24 açık kullanıcı onayı; V171 kullanıldı, V172–V180 boş)
+- V171–V180    → GAME-SERVICE (2026-10-24 açık kullanıcı onayı; V171 ve V172 kullanıldı, V173–V180 boş)
 - V41–V50      → LIBRARY-SERVICE
 - V51–V60      → REVIEW-SERVICE
 
@@ -68,6 +68,13 @@ geliştirmeye başlanmadan önce belirlenmelidir.
   Library/Review henüz kişisel veri tablosu taşımadığı için kendi güvenli uçlarında `204` döner.
 - Bu çalışma gerçek DEV'e migration/deploy uygulamadı. Tarihsel şema eşdeğerliği testleri
   V40 sınırında tutulur; V171 yükseltmesi ve veri güvenliği ayrı PostgreSQL testleriyle doğrulanır.
+- **V172 kullanıldı (2026-11-05, GAME-04/05/15):** `V172__create_game_rating_projection.sql` Review'ın
+  imleçli dışa aktarma ucundan beslenen LTZ puan projeksiyonunu (`game_rating_projection`) ve tek satırlı
+  tarama durumunu (`game_rating_sync_state`) ekler. Numara, yukarıdaki V171–V180 tahsisinin bir sonraki boş
+  numarasıdır (aralık uydurulmadı; kullanıcı onayı oturumda alındı). Kalan boş numaralar V173–V180'dir.
+  Devir notundaki (`docs-review/REVIEW_GAME_SERVICE_DEVIR.md`) "V31–V40 doldu, numara ekip kararı" ifadesi bu
+  güncel tahsisten önceki durumu anlatır. V172 yalnız ekleme yapar (ALTER yok), veri silmez veya anonimleştirmez;
+  `AccountErasureMigrationTest` V171 yükseltmesini `target=171` ile, V172'yi `RatingProjectionMigrationTest` ayrı doğrular.
 - Tablo ilişkileri, kısıtlar ve karar bekleyen öneriler:
   [Game Auth entegrasyon belgesi §13](../../docs-Game%20Service/LTZ-HAM-GAME-04-Auth-Entegrasyonu.md#13-hesap-silme-veri-envanteri-ve-karar-raporu--2026-10-24).
 

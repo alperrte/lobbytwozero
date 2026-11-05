@@ -7,6 +7,7 @@ import com.ltz.game.domain.enums.CatalogDirection;
 import com.ltz.game.domain.enums.GameOrigin;
 import com.ltz.game.domain.enums.GameType;
 import com.ltz.game.domain.enums.MetadataCompleteness;
+import com.ltz.game.domain.enums.RatingStatus;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -26,7 +27,8 @@ public class GameDiscoveryRepository {
     private final NamedParameterJdbcTemplate jdbc;
     // Tüm SQL derleme zamanı sabitidir; filtreler isteğe bağlı koşul olarak named parameter ile bağlanır.
     private static final String FILTERED = """
-             from games g where g.status='ACTIVE' and g.game_type='MAIN_GAME'
+             from games g left join game_rating_projection r on r.game_id=g.id
+             where g.status='ACTIVE' and g.game_type='MAIN_GAME'
              and (cast(:pattern as text) is null or g.normalized_title like cast(:pattern as text) escape '!')
              and (cast(:genre as text) is null or exists(select 1 from game_terms gt join catalog_terms t on t.id=gt.term_id
                  where gt.game_id=g.id and t.kind='GENRE' and t.code=cast(:genre as text)))
@@ -38,11 +40,13 @@ public class GameDiscoveryRepository {
              and (cast(:releasedAfter as date) is null or g.release_date >= cast(:releasedAfter as date))
              and (cast(:releasedBefore as date) is null or g.release_date <= cast(:releasedBefore as date))
              and (:popularOnly = false or g.editor_rank is not null)
+             and (cast(:minRating as numeric) is null or r.average_rating >= cast(:minRating as numeric))
             """;
     private static final String COUNT = "select count(*)" + FILTERED;
     private static final String PAGE = """
             select g.*, (select m.url from game_media m where m.game_id=g.id and m.type='COVER'
-                order by m.sort_order,m.id limit 1) as cover_url
+                order by m.sort_order,m.id limit 1) as cover_url,
+                r.average_rating as rating_average, r.rating_count as rating_count
             """ + FILTERED;
     private static final String LIMIT = " limit :limit offset :offset";
     private static final String TITLE_ASC = PAGE + " order by g.normalized_title asc,g.id asc" + LIMIT;
@@ -52,13 +56,17 @@ public class GameDiscoveryRepository {
     // Küçük editör sırası daha popülerdir; DESC en popülerden başlar.
     private static final String POPULARITY_ASC = PAGE + " order by g.editor_rank desc nulls last,g.id asc" + LIMIT;
     private static final String POPULARITY_DESC = PAGE + " order by g.editor_rank asc nulls last,g.id asc" + LIMIT;
+    // Puansız oyunlar (projeksiyonda satır yok veya ortalama null) her iki yönde sona gider; eşitlikte gameId bağlar.
+    private static final String RATING_ASC = PAGE + " order by r.average_rating asc nulls last,g.id asc" + LIMIT;
+    private static final String RATING_DESC = PAGE + " order by r.average_rating desc nulls last,g.id asc" + LIMIT;
 
-    public GameDiscoveryResponse discover(DiscoveryQuery query) {
+    /** @param syncedAt puan projeksiyonunun son hatasız tarama zamanı; null ise puan durumu UNAVAILABLE'dır. */
+    public GameDiscoveryResponse discover(DiscoveryQuery query, Instant syncedAt) {
         Map<String,Object> params = parameters(query);
         long total = Objects.requireNonNull(jdbc.queryForObject(COUNT,params,Long.class));
         List<Row> rows = jdbc.query(pageSql(query),params,(rs,index) -> row(rs));
-        List<GameDiscoveryResponse.Item> items = cards(rows);
-        return new GameDiscoveryResponse(items,query.page(),query.size(),total,query.sort().name(),query.direction().name(),"EDITORIAL");
+        List<GameDiscoveryResponse.Item> items = cards(rows,syncedAt != null);
+        return new GameDiscoveryResponse(items,query.page(),query.size(),total,query.sort().name(),query.direction().name(),"EDITORIAL",syncedAt);
     }
     private String pageSql(DiscoveryQuery query) {
         boolean ascending = query.direction()==CatalogDirection.ASC;
@@ -66,7 +74,7 @@ public class GameDiscoveryRepository {
             case TITLE -> ascending ? TITLE_ASC : TITLE_DESC;
             case RELEASE_DATE -> ascending ? RELEASE_ASC : RELEASE_DESC;
             case POPULARITY -> ascending ? POPULARITY_ASC : POPULARITY_DESC;
-            case RATING -> throw new com.ltz.game.domain.exception.CatalogRatingUnavailableException();
+            case RATING -> ascending ? RATING_ASC : RATING_DESC;
         };
     }
     private Map<String,Object> parameters(DiscoveryQuery query) {
@@ -77,9 +85,10 @@ public class GameDiscoveryRepository {
         params.put("earlyAccess",query.earlyAccess());
         params.put("releasedAfter",query.releasedAfter()); params.put("releasedBefore",query.releasedBefore());
         params.put("popularOnly",query.popularOnly());
+        params.put("minRating",query.minRating());
         return params;
     }
-    private List<GameDiscoveryResponse.Item> cards(List<Row> rows) {
+    private List<GameDiscoveryResponse.Item> cards(List<Row> rows,boolean ratingsReady) {
         if (rows.isEmpty()) return List.of();
         Map<UUID,List<GameCardResponse.ExternalReference>> references = new HashMap<>();
         Map<UUID,List<String>> languages = new HashMap<>();
@@ -92,18 +101,28 @@ public class GameDiscoveryRepository {
         return rows.stream().map(row -> new GameDiscoveryResponse.Item(
                 new GameCardResponse(row.id(),row.title(),row.origin(),row.completeness(),GameType.MAIN_GAME,
                         List.copyOf(references.getOrDefault(row.id(),List.of())),row.cover()),
-                row.releaseDate(),row.earlyAccess(),List.copyOf(languages.getOrDefault(row.id(),List.of())),row.rank(),row.updatedAt())).toList();
+                row.releaseDate(),row.earlyAccess(),List.copyOf(languages.getOrDefault(row.id(),List.of())),row.rank(),row.updatedAt(),
+                rating(row,ratingsReady))).toList();
+    }
+    /** Hazır projeksiyonda satır yoksa veya sayı 0 ise doğrulanmış "puan yok"; hazır değilse "alınamadı" (0 değil). */
+    private static GameDiscoveryResponse.Rating rating(Row row,boolean ratingsReady) {
+        if (!ratingsReady) return new GameDiscoveryResponse.Rating(RatingStatus.UNAVAILABLE,null,null);
+        if (row.ratingAverage()==null || row.ratingCount()==null || row.ratingCount()<1)
+            return new GameDiscoveryResponse.Rating(RatingStatus.UNRATED,null,0L);
+        return new GameDiscoveryResponse.Rating(RatingStatus.RATED,row.ratingAverage(),row.ratingCount());
     }
     private Row row(ResultSet rs) throws SQLException {
         return new Row(rs.getObject("id",UUID.class),rs.getString("title"),GameOrigin.valueOf(rs.getString("origin")),
                 MetadataCompleteness.valueOf(rs.getString("metadata_completeness")),rs.getString("cover_url"),
                 rs.getObject("release_date",java.time.LocalDate.class),rs.getObject("early_access",Boolean.class),
-                rs.getObject("editor_rank",Integer.class),instant(rs,"popularity_updated_at"));
+                rs.getObject("editor_rank",Integer.class),instant(rs,"popularity_updated_at"),
+                rs.getBigDecimal("rating_average"),rs.getObject("rating_count",Long.class));
     }
     private static Instant instant(ResultSet rs,String column) throws SQLException {
         var timestamp = rs.getTimestamp(column);
         return timestamp == null ? null : timestamp.toInstant();
     }
     private record Row(UUID id,String title,GameOrigin origin,MetadataCompleteness completeness,String cover,
-            java.time.LocalDate releaseDate,Boolean earlyAccess,Integer rank,Instant updatedAt) { }
+            java.time.LocalDate releaseDate,Boolean earlyAccess,Integer rank,Instant updatedAt,
+            java.math.BigDecimal ratingAverage,Long ratingCount) { }
 }

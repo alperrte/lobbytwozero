@@ -292,6 +292,32 @@ erDiagram
   }
 ```
 
+GAME-04/05/15 LTZ puan projeksiyonu (aktif V172): Review'ın imleçli dışa aktarma ucundan periyodik beslenen toplam bilgi; kişisel veri yok, Review DB'sine FK/erişim yok.
+
+```mermaid
+erDiagram
+  games ||--o| game_rating_projection : rating
+  game_rating_projection {
+    uuid game_id PK,FK
+    numeric average_rating "nullable, 1-10, 2 ondalik"
+    bigint rating_count
+    bigint last_seen_scan
+    timestamptz synced_at
+    bigint version
+  }
+  game_rating_sync_state {
+    uuid id PK "tek satir"
+    bigint scan_generation
+    uuid lease_owner "nullable"
+    timestamptz lease_until "nullable"
+    timestamptz last_attempt_at
+    bigint last_completed_scan
+    timestamptz last_completed_at "bos ise projeksiyon hazir degil"
+    varchar last_error_code
+    bigint version
+  }
+```
+
 Faz 6 eklentisi: başarım ve geri bildirim tabloları (tarihsel V172–V173; güncel aktif zincirde V39–V40, DEV'de uygulanmıştır):
 
 ```mermaid

@@ -23,7 +23,7 @@ public class GameExceptionHandler extends org.springframework.web.servlet.mvc.me
     }
     @ExceptionHandler(com.ltz.game.domain.exception.CatalogRatingUnavailableException.class)
     public ProblemDetail ratingUnavailable() {
-        var problem=ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,"LTZ puanı filtresi ve sıralaması Review Service entegrasyonu bekliyor.");
+        var problem=ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,"LTZ puanı filtresi ve sıralaması, puan projeksiyonunun ilk taraması tamamlanana kadar kullanılamaz.");
         problem.setProperty("code","RATING_INTEGRATION_PENDING");
         return problem;
     }

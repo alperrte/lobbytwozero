@@ -88,10 +88,34 @@ public class GameDetailRefreshService {
             game.setReleaseDate(details.releaseDate()); observed(game,"RELEASE_DATE");
         }
         applyCompanies(game,details,locked);
+        applyLanguages(game,details,locked);
         if (!locked.contains(OverridableField.GAME_TYPE) && provider.capabilities().contains(GameProvider.Capability.ITEM_TYPE)) {
             GameType type = types.classify(details.providerType(), true);
             if (type != GameType.UNKNOWN) { game.setGameType(type); observed(game,"GAME_TYPE"); }
         }
+    }
+    /**
+     * GAME-23: sağlayıcının bildirdiği dil desteği. Yalnız veri varsa yazılır; boş yanıt mevcut dil verisini silmez
+     * ve "dil yok" anlamına gelmez. Manuel LOCALIZATION kilidi sağlayıcı verisiyle ezilmez. Sağlayıcının listelemediği
+     * ses/altyazı/arayüz türü UNKNOWN kalır. Düz dil listesi yalnız boşken doldurulur (yönetici verisi ezilmez).
+     */
+    private void applyLanguages(Game game, GameProvider.Details details, java.util.Set<OverridableField> locked) {
+        if (details.languages().isEmpty() || locked.contains(OverridableField.LOCALIZATION)) return;
+        java.util.Set<com.ltz.game.domain.entity.GameLanguageSupport> supports = new java.util.HashSet<>();
+        java.util.Set<String> supported = new java.util.TreeSet<>();
+        for (GameProvider.LanguageSupport language : details.languages()) {
+            var value = new com.ltz.game.domain.entity.GameLanguageSupport();
+            value.setLanguageCode(language.languageCode());
+            value.setInterfaceSupport(language.interfaceSupport());
+            value.setAudioSupport(language.audioSupport());
+            value.setSubtitleSupport(language.subtitleSupport());
+            supports.add(value);
+            supported.add(language.languageCode());
+        }
+        game.getLanguageSupport().clear(); game.getLanguageSupport().addAll(supports);
+        game.setLanguageDataState(MetadataDataState.AVAILABLE);
+        provenance.recordObservation(game,"LOCALIZATION",provider.detailSource(),MetadataDataState.AVAILABLE,false);
+        if (game.getLanguages().isEmpty()) { game.getLanguages().addAll(supported); observed(game,"LANGUAGES"); }
     }
     private void applyCompanies(Game game, GameProvider.Details details, java.util.Set<OverridableField> locked) {
         if (!details.developers().isEmpty() && !locked.contains(OverridableField.DEVELOPERS)) {
@@ -101,7 +125,7 @@ public class GameDetailRefreshService {
             game.getPublishers().clear(); game.getPublishers().addAll(details.publishers()); observed(game,"PUBLISHERS");
         }
     }
-    private void observed(Game game, String field) { provenance.recordObservation(game,field,provider.provider(),MetadataDataState.AVAILABLE,false); }
+    private void observed(Game game, String field) { provenance.recordObservation(game,field,provider.detailSource(),MetadataDataState.AVAILABLE,false); }
 
     /** Kalıcı hatada yalnız açık uygulama komutuyla yeniden denemeye izin verilir. */
     @Transactional
