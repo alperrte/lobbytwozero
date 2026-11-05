@@ -18,10 +18,22 @@ sh ./ops/env.sh use dev
 sh ./ops/env.sh use prod
 ```
 
-auth-dev-keys ile env doldurmak için aşağıdaki komutları kullanacağız
+## ENV'i tek komutla doldur
 
-//   node ops/generate-auth-dev-keys.mjs            # .env ve .env.dev (varsa)
-//   node ops/generate-auth-dev-keys.mjs .env.local # belirli dosya(lar)
+```sh
+node ops/generate-auth-dev-keys.mjs              # .env ve .env.dev (hangisi varsa); hiçbiri yoksa .env.dev'i .env.example'dan oluşturur
+node ops/generate-auth-dev-keys.mjs .env.local   # yalnız verilen dosya(lar)
+```
+
+Yeni klonda sıra: bu komut, sonra `.\ops\env.cmd use dev` (POSIX: `sh ./ops/env.sh use dev`). Komut güvenle tekrar
+çalıştırılır: dolu satıra dokunmaz, eksik bir şey yoksa dosyayı değiştirmez, anahtar değerlerini ekrana yazmaz.
+
+Komut **kendisi doldurur:** Auth, servis ve Mail anahtarları (`AUTH_*`, `MAIL_PAYLOAD_ENCRYPTION_KEY`), `.env.example`'da
+olup dosyada hiç bulunmayan ayarlar, SMTP/bağlantı satırları (boş), `AUTH_EVENT_TARGETS=user`.
+Komut **doldurmaz, siz verirsiniz** (dış sağlayıcı bilgisi; boş kalması dev'de normaldir): `STEAM_WEB_API_KEY`,
+`IGDB_CLIENT_ID/SECRET`, `ITAD_API_KEY`, `GOOGLE_CLIENT_ID/SECRET`, `SONAR_TOKEN`, gerçek SMTP sağlayıcı bilgileri.
+`POSTGRES_PASSWORD` gibi `CHANGE_ME…` örnek parolalara da dokunmaz (var olan veritabanı hacmiyle uyuşmazlık çıkarır);
+gerekirse elle değiştirin. Mail Service'i çalıştırmak için: `docs-auth/ekip-hizli-baslangic.md` §1.1.
 
 Kaynak dosyalar repository kökündeki `.env.dev` ve `.env.prod` dosyalarıdır.
 Eksik profili `.env.example` üzerinden oluşturun; var olan profili üzerine
@@ -50,13 +62,14 @@ Zorlanan değiştirmede önce `.env.bak` oluşturulur; önceki backup varsa üze
 yazılır. `.env`, profiller, backup ve geçici ENV dosyaları Git tarafından ignore
 edilir; `.env.example` paylaşılabilir şablondur.
 
-Aktif profili seçtikten sonra mevcut PostgreSQL Compose servisini başlatmak için:
+Aktif profili seçtikten sonra Compose yığınını başlatmak için:
 
 ```powershell
 docker compose up -d
 ```
 
-Mevcut Compose yalnızca PostgreSQL içerir; uygulama servislerini başlatmaz.
+Compose PostgreSQL, API Gateway ve uygulama servislerinin tamamını içerir; yalnız ihtiyacınız olanı da
+başlatabilirsiniz (örn. `docker compose up -d postgres auth-service api-gateway`).
 Çalışan uygulamaların ENV değişikliklerini alması için yeniden başlatılması
 gerekir. Pre-push ve Sonar komutları ise açıkça verilen profil dosyasını kullanır;
 öncesinde `use` çalıştırmak zorunlu değildir.
@@ -66,4 +79,4 @@ gerekir. Pre-push ve Sonar komutları ise açıkça verilen profil dosyasını k
 
 ## Auth ENV kontrolü
 
-`node ops/generate-auth-dev-keys.mjs` tek komutla `.env`/`.env.dev` dosyalarını tamamlar (eksik ayarları `.env.example`'dan ekler, boş anahtarları üretir, var olan satırlara dokunmaz) ve sonunda Auth'un açılış kurallarını kontrol eder. Yalnız raporu görmek için `node ops/auth-env-check.mjs` (dosyaya dokunmaz, değer yazmaz). Ayrıntı: `docs-auth/ekip-hizli-baslangic.md`.
+`node ops/generate-auth-dev-keys.mjs` tek komutla `.env`/`.env.dev` dosyalarını tamamlar (eksik ayarları `.env.example`'dan ekler, boş anahtarları üretir, var olan satırlara dokunmaz) ve sonunda Auth'un açılış kurallarını ve Mail Service'in şifreleme anahtarını (`MAIL_PAYLOAD_ENCRYPTION_KEY`, Base64, tam 32 bayt) kontrol eder; Mail anahtarı hatalıysa `[FAIL]` yanında "Mail Service açılmaz" yazar (Auth etkilenmez). Yalnız raporu görmek için `node ops/auth-env-check.mjs` (dosyaya dokunmaz, değer yazmaz). Mail Service'i adım adım ayağa kaldırmak ve sık hatalar için: `docs-auth/ekip-hizli-baslangic.md` §1.1 ve §3. Ayrıntı: `docs-auth/ekip-hizli-baslangic.md`.

@@ -110,7 +110,12 @@ test("Mail anahtarı üretilir; SMTP satırları yoksa boş eklenir, var olan (d
     const run = spawnSync(process.execPath, [script, fresh], { encoding: "utf8" });
     assert.equal(run.status, 0, run.stderr);
     const customRun = spawnSync(process.execPath, [script, custom], { encoding: "utf8" });
-    assert.equal(customRun.status, 0, customRun.stderr);
+    // Dolu ama geçersiz Mail anahtarı ezilmez; kontrol bunu FAIL olarak bildirir (çıkış 1) ve Auth'un açılacağını söyler.
+    assert.equal(customRun.status, 1, customRun.stderr);
+    assert.match(customRun.stdout, /\[FAIL\] MAIL_PAYLOAD_ENCRYPTION_KEY: Base64 değil veya tam 32 bayt değil; Mail Service açılmaz/);
+    assert.match(customRun.stdout, /Mail Service bu ayarlarla AÇILMAZ/);
+    assert.ok(!customRun.stdout.includes("dolu-anahtar"), "anahtar çıktıya sızdı");
+    assert.match(run.stdout, /\[OK {2}\] MAIL_PAYLOAD_ENCRYPTION_KEY: geçerli/);
     const freshText = readFileSync(fresh, "utf8");
     const customText = readFileSync(custom, "utf8");
 

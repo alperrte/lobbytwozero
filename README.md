@@ -234,7 +234,7 @@ LTZ'nin dünyası **mikroservislerden** oluşur. Web istemcisi tüm isteklerini 
 > INSERT COIN ...
 ```
 
-1. `.env.example` şablonundan kendi `.env.dev` profilini oluştur. Gerçek değerleri asla commit etme.
+1. ENV'i tek komutla hazırla: `node ops/generate-auth-dev-keys.mjs`. `.env.dev` yoksa `.env.example`'dan oluşturur ve yerel anahtarları üretir (dolu satıra dokunmaz). Dış sağlayıcı anahtarlarını (Steam, IGDB, Google vb.) sen eklersin. Gerçek değerleri asla commit etme.
 2. Profili seç: `.\ops\env.cmd use dev` (Windows) veya `sh ./ops/env.sh use dev` (POSIX)
 3. PostgreSQL, API Gateway ve 17 servisi Docker Compose ile ayağa kaldır: `docker compose up -d`. Gateway `http://localhost:5080` adresinde açılır.
 4. Web istemcisini başlat: `frontend/` klasöründe `npm install` ve ardından `npm run dev`

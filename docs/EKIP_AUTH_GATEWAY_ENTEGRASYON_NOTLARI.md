@@ -77,14 +77,14 @@ kendi servisi de o Auth'un JWKS'inden doğrular, anahtarların aynı olması ger
 | # | Ne yap | Komut / not |
 | --- | --- | --- |
 | 1 | Kendi dalına `main`'i çek | `git fetch` ve `git merge origin/main` (belge ve script `main`'den gelir) |
-| 2 | ENV dosyaların var mı bak | Kaynak profil **`.env.dev`**, aktif kopya **`.env`** (`ops/ops.md`). Yoksa `.env.example` dosyasını `.env.dev` olarak kopyala, sonra `.\ops\env.cmd use dev` (Windows) veya `sh ./ops/env.sh use dev`. **Var olan dosyanın üzerine yazma**, başkasının `.env` dosyasını kopyalama (kişisel `SONAR_TOKEN` gibi değerler içerir) |
-| 3 | Eksik Auth anahtarlarını üret | `node ops/generate-auth-dev-keys.mjs`. Yalnız **eksik veya boş** olanları doldurur, dolu olanı ezmez, değerleri **ekrana yazmaz**, `.env` ve `.env.dev`'e **aynı** değeri yazar. Tek istisna: `JWT_ACCESS_TTL_SECONDS` değeri tam olarak eski varsayılan `300` ise `60`'a çeker ("güncellendi -> …"); özelleştirilmiş değere dokunmaz. Çalıştırdığında "dolduruldu -> …", "güncellendi -> …" ya da "eksik anahtar yok" yazar |
+| 2 | ENV dosyaların var mı bak | Kaynak profil **`.env.dev`**, aktif kopya **`.env`** (`ops/ops.md`). Hiçbiri yoksa 3. adımdaki komut `.env.dev`'i `.env.example`'dan kendisi oluşturur; sonra `.\ops\env.cmd use dev` (Windows) veya `sh ./ops/env.sh use dev`. **Var olan dosyanın üzerine yazma**, başkasının `.env` dosyasını kopyalama (kişisel `SONAR_TOKEN` gibi değerler içerir) |
+| 3 | Eksik anahtarları üret ve ENV'i tamamla | `node ops/generate-auth-dev-keys.mjs`. Auth/servis anahtarlarını ve Mail Service şifreleme anahtarını üretir, `.env.example`'da olup dosyanda olmayan ayarları ekler, sonunda sonucu kontrol eder (`Hata yok`). Yalnız **eksik veya boş** olanları doldurur, dolu olanı ezmez, değerleri **ekrana yazmaz**, `.env` ve `.env.dev`'e **aynı** değeri yazar. Tek istisna: `JWT_ACCESS_TTL_SECONDS` değeri tam olarak eski varsayılan `300` ise `60`'a çeker ("güncellendi -> …"); özelleştirilmiş değere dokunmaz. Çalıştırdığında "dolduruldu -> …", "güncellendi -> …" ya da "eksik anahtar yok" yazar |
 | 4 | Doğrula | `docker compose config --quiet`. Hata yoksa tamam. "required variable … missing" çıkıyorsa 3. adımı tekrarla |
 | 5 | Başlat | Yalnız ihtiyacın olanı: `docker compose up -d postgres auth-service api-gateway` (+ kendi servisin). E-posta kodlarını görmek için `.env`'de `COMPOSE_PROFILES=dev-mail` (Mailpit, http://localhost:8025) |
 | 6 | Sağlık kontrolü | Gateway: `http://localhost:5080/actuator/health` → `UP`. JWKS: `http://localhost:5080/api/v1/auth/.well-known/jwks.json` → `200`. Konteynerler `healthy` görünmeli (`docker compose ps`) |
 | 7 | Deneme hesabı | `docs/api.md` → AUTH: `register` → Mailpit'teki 6 haneli kod → `email-verification/confirm` → `login`. Token'ı JWKS ile kendi servisinde doğrula |
 
-**Ajan için:** 3. adım `.env` dosyalarını değiştirir (`AGENTS.md` ENV kuralı). Kullanıcıya tek cümleyle söyle ("`.env` ve `.env.dev` dosyalarına 3 yerel Auth anahtarı ekleyeceğim,
+**Ajan için:** 3. adım `.env` dosyalarını değiştirir (`AGENTS.md` ENV kuralı). Kullanıcıya tek cümleyle söyle ("`.env` ve `.env.dev` dosyalarına eksik yerel anahtarları (Auth, servis, Mail) ekleyeceğim,
 değerleri göstermeyeceğim; onaylıyor musun?") ve onay al. `.env`/`.env.dev` içeriğini **okuma, yazdırma, kopyalama**.
 
 **Yeni ENV'ler opsiyoneldir:** Auth'un 35 ince ayarı (`AUTH_*`) ve Gateway ayarları (`GATEWAY_*`, `CORS_ALLOWED_ORIGINS`) varsayılanla çalışır; `.env.example` içindeki

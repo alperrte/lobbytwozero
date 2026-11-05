@@ -45,6 +45,12 @@ export function check(settings) {
   else if (!BASE64.test(jwt)) add("FAIL", "AUTH_JWT_PRIVATE_KEY", "Base64 (PKCS#8 DER) biçiminde değil; Auth açılmaz", regenerate);
   else add("OK", "AUTH_JWT_PRIVATE_KEY", "dolu");
 
+  // Mail Service: kuyruktaki kodu şifreleyen AES-256-GCM anahtarı; boş ya da geçersizse Mail Service açılmaz (Auth etkilenmez).
+  const mailKey = settings.MAIL_PAYLOAD_ENCRYPTION_KEY ?? "";
+  if (mailKey === "") add("FAIL", "MAIL_PAYLOAD_ENCRYPTION_KEY", "boş; Mail Service açılmaz", regenerate);
+  else if (byteLength(mailKey) !== 32) add("FAIL", "MAIL_PAYLOAD_ENCRYPTION_KEY", "Base64 değil veya tam 32 bayt değil; Mail Service açılmaz", regenerate);
+  else add("OK", "MAIL_PAYLOAD_ENCRYPTION_KEY", "geçerli");
+
   // Rotasyon (S9) — hepsi isteğe bağlı; ayarlıysa Auth açılışta biçimini doğrular.
   const versionText = settings.AUTH_TOTP_ENCRYPTION_KEY_VERSION ?? "";
   let version = 1;
@@ -120,7 +126,7 @@ export function check(settings) {
 export function consistency(parsedList) {
   if (parsedList.length < 2) return [];
   const names = ["AUTH_OTP_HMAC_KEY", "AUTH_TOTP_ENCRYPTION_KEY", "AUTH_JWT_PRIVATE_KEY", "AUTH_OTP_HMAC_PREVIOUS_KEY",
-    "AUTH_TOTP_ENCRYPTION_KEY_VERSION", "AUTH_TOTP_ENCRYPTION_PREVIOUS_KEYS"];
+    "AUTH_TOTP_ENCRYPTION_KEY_VERSION", "AUTH_TOTP_ENCRYPTION_PREVIOUS_KEYS", "MAIL_PAYLOAD_ENCRYPTION_KEY"];
   return names.filter((name) => new Set(parsedList.map((entry) => entry[name] ?? "")).size > 1);
 }
 
@@ -133,11 +139,15 @@ const rank = { FAIL: 0, WARN: 1, INFO: 2, OK: 3 };
 export function buildReport(entries) {
   const lines = [];
   let failures = 0;
+  let authFailures = 0;
   const parsedList = entries.map((entry) => parse(entry.body));
   entries.forEach((entry, index) => {
     lines.push(`== ${entry.shown}`);
     for (const item of check(parsedList[index]).sort((a, b) => rank[a.level] - rank[b.level])) {
-      if (item.level === "FAIL") failures++;
+      if (item.level === "FAIL") {
+        failures++;
+        if (!item.name.startsWith("MAIL_")) authFailures++;
+      }
       lines.push(`  [${item.level.padEnd(4)}] ${item.name}: ${item.problem}${item.fix ? `  -> ${item.fix}` : ""}`);
     }
   });
@@ -148,6 +158,8 @@ export function buildReport(entries) {
       lines.push(`  [WARN] ${name}: dosyalarda farklı; ops/env durumu uyuşmazlık gösterir  -> aynı değeri kullanın`);
     }
   }
-  lines.push(failures ? `\n${failures} hata: Auth bu ayarlarla AÇILMAZ.` : "\nHata yok: Auth ayarları açılış doğrulamasından geçer.");
+  // Yalnız Mail ayarı hatalıysa Auth açılır; mesaj hangi servisin açılmayacağını doğru söylemeli.
+  const subject = authFailures ? "Auth" : "Mail Service";
+  lines.push(failures ? `\n${failures} hata: ${subject} bu ayarlarla AÇILMAZ.` : "\nHata yok: Auth ayarları açılış doğrulamasından geçer.");
   return { lines, failures };
 }

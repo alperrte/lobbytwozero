@@ -28,6 +28,7 @@ function run(body, extra = []) {
 
 const good = (more = "") =>
   `AUTH_OTP_HMAC_KEY=${key32(1)}\nAUTH_TOTP_ENCRYPTION_KEY=${key32(2)}\nAUTH_JWT_PRIVATE_KEY=${jwt}\n`
+  + `MAIL_PAYLOAD_ENCRYPTION_KEY=${key32(3)}\n`
   + `COMPOSE_PROFILES=dev-mail\nAUTH_EVENT_TARGETS=user\n${more}`;
 
 // Güvenlik bekçisi: araç yalnız yerel dosya okur; ağ/süreç/dinamik kod yok ve dosyaya yazmaz.
@@ -65,6 +66,21 @@ test("boş, kısa veya Base64 olmayan anahtarlar hata verir (Auth açılmaz) ve 
   }
   assert.ok(!result.output.includes(shortKey), "kısa anahtar çıktıya sızdı");
   assert.match(result.output, /Auth bu ayarlarla AÇILMAZ/);
+});
+
+test("Mail anahtarı boş, kısa veya Base64 değilse FAIL; Auth ayarları sağlamsa mesaj Mail Service'i işaret eder", () => {
+  const withoutMail = good().replace(/MAIL_PAYLOAD_ENCRYPTION_KEY=.*\n/, "");
+  for (const mailLine of ["", "MAIL_PAYLOAD_ENCRYPTION_KEY=\n", `MAIL_PAYLOAD_ENCRYPTION_KEY=${Buffer.alloc(16, 5).toString("base64")}\n`,
+    "MAIL_PAYLOAD_ENCRYPTION_KEY=@@@@\n"]) {
+    const result = run(withoutMail + mailLine);
+    assert.equal(result.status, 1, mailLine);
+    assert.match(result.output, /\[FAIL\] MAIL_PAYLOAD_ENCRYPTION_KEY/);
+    assert.match(result.output, /Mail Service bu ayarlarla AÇILMAZ/);
+    assert.ok(!result.output.includes("Auth bu ayarlarla AÇILMAZ"), "Auth sağlamken Auth açılmaz denmemeli");
+    assert.ok(!result.output.includes(Buffer.alloc(16, 5).toString("base64")), "kısa anahtar çıktıya sızdı");
+  }
+  // Auth ayarı da bozuksa mesaj Auth'u söyler.
+  assert.match(run(withoutMail.replace(key32(1), "")).output, /Auth bu ayarlarla AÇILMAZ/);
 });
 
 test("TOTP anahtarı tam 32 bayt olmalı; 48 bayt reddedilir", () => {
