@@ -1,6 +1,6 @@
 # Game Service — bekleyen tasklar ve diğer servislerden beklenenler
 
-**Tarih:** 21 Ekim 2026 · **Sahibi:** Hamza · **Servis:** `game-service` (Faz 1–6 yerel geliştirmeleri; DEV `game_db` 2026-10-21'de sıfırlanıp yeni V31–V40 zinciriyle kuruldu; dış entegrasyonlar bekliyor)
+**Tarih:** 21 Ekim 2026 (Review puan entegrasyonu güncellemesi: 5 Kasım 2026) · **Sahibi:** Hamza · **Servis:** `game-service` (Faz 1–6 yerel geliştirmeleri; DEV `game_db` 2026-10-21'de sıfırlanıp yeni V31–V40 zinciriyle kuruldu; dış entegrasyonlar bekliyor)
 
 Bu belge, Game Service'te **yapılamayan veya yarım kalan** işleri ve bunların **hangi servise/kişiye/karara** bağlı olduğunu söyler. Kendi servisini ilgilendiren bölümü (§3) oku; yapman gereken bir şey varsa orada yazar. Ayrıntılı API sözleşmesi: `docs/api.md` → `## GAME`.
 
@@ -11,8 +11,8 @@ Bu belge, Game Service'te **yapılamayan veya yarım kalan** işleri ve bunları
 | Task | Durum | Neden | Bekleyen |
 | --- | --- | --- | --- |
 | **GAME-07 / 12 / 13** (admin yönetimi, geliştirici yetkisi, geliştirici içeriği) | Kod ve testler hazır; **Auth ile doğrulanmadı** | Auth Service henüz JWT üretmiyor. Geçici, fail-closed bir doğrulama kuruldu: yapılandırma yokken **tüm yönetim uçları 401 döner**, yani şu an gerçek kullanımda çalışmaz | **auth-service (Kerem)**: JWT sözleşmesi (§3.1) · ENV onayı |
-| **GAME-04 / 05** (LTZ puanına göre filtre ve sıralama) | Puan dışındaki filtre/sıralamalar çalışıyor | LTZ puanı Review Service'e ait ve toplu puan API'si yok. `minRating` ve `sort=RATING` şimdilik **400 `RATING_INTEGRATION_PENDING`** döner | **review-service**: toplu puan özeti (REV-12) |
-| **GAME-15** (servis sınırları) | Yarım: herkese açık toplu kart ucu hazır | Review'dan puan özeti alınamıyor (sözleşme yok); diğer servisler henüz batch ucunu kullanmıyor | **review-service** (REV-12) · **tüketici servisler** (§3.3) |
+| **GAME-04 / 05** (LTZ puanına göre filtre ve sıralama) | **Kod ve yerel testler hazır (5 Kasım 2026); canlı doğrulanmadı.** `minRating` ve `sort=RATING` Game'in kendi puan projeksiyonu (V172) üzerinde çalışır; listelerde `rating` alanı (`RATED`/`UNRATED`/`UNAVAILABLE`) ve `ratingsSyncedAt` döner | Review iç uçları hazır (REV-12). Projeksiyon, ilk hatasız tarama tamamlanana kadar boştur: o zamana dek `minRating`/`sort=RATING` **400 `RATING_INTEGRATION_PENDING`**, puan durumu `UNAVAILABLE` | **Game ortamına** `AUTH_GAME_SERVICE_CLIENT_SECRET` verilmesi (gizli değeri kullanıcı verir; compose'a geçirme eklendi) · gerçek Auth token'ı ve gerçek Review ile uçtan uca doğrulama |
+| **GAME-15** (servis sınırları) | Kısmen tamam: herkese açık toplu kart ucu hazır; **puan listelerde projeksiyondan sunulur** (istek başına Review çağrısı, N+1 yok); Review tüketicisi (Auth token + RestClient, timeout, 401/403'te yeniden deneme yok) hazır | `POST /games/batch` kartı hâlâ puan alanı taşımaz (karar: puan yalnız keşif listelerinde). Diğer servisler henüz batch ucunu kullanmıyor | **tüketici servisler** (§3.3) · gerçek Auth/Review ile uçtan uca doğrulama |
 | **GAME-17** (oyun detayı zenginleştirme) | Altyapı hazır, **gerçek sağlayıcı bağlı değil** | Steam resmî API'leri kapsamlı detay vermiyor; kaynak (öneri: IGDB) ve lisans/atıf koşulları kararlaştırılmadı | **Ekip kararı** (§4) |
 | **Toplu uç istek sınırı (istemci başına)** | Game Service tarafı hazır (429), ama Gateway trafiği tek kovayı paylaşıyor | Gateway istemci IP'sini Game Service'e iletmiyor | **api-gateway (ortak yapılandırma, onay)**: §3.5 |
 | **GAME-04 indirim filtresi, GAME-24** (fiyat/indirim) | Bölgesel fiyat portu ve testleri hazır; gerçek veri bekliyor | İzinli sağlayıcı/erişim ve kullanım-saklama koşulları kesinleşmedi | Sağlayıcı ve ENV onayı (§4) |
@@ -99,7 +99,7 @@ Game Service'e eklenecek ENV anahtarları için **önerim** (henüz hiçbir `.en
 **Bağlama günü yapılacak test:** Mevcut testler yerel üretilmiş token'larla koşuyor ve yalnız Game Service'in kendi davranışını doğruluyor. Auth hazır olunca **gerçek Auth token'ıyla bir entegrasyon testi** yazılmalı (kimlik, rol ve `iss`/`aud` doğrulaması, askıya alınmış hesap davranışı); bu yapılmadan yönetim uçları "Auth ile doğrulandı" sayılmaz.
 
 ### 3.2 review-service — Hamza
-`POST`/toplu bir uç sağla: çoklu `gameId` için ortalama LTZ puanı ve puan sayısı (REV-12), puanı olmayan oyunlar için açık boş değer. Gelince Game Service'e bir RestClient adaptörü eklenecek; o zamana kadar puan filtresi/sıralaması kapalıdır. Review'ın oyun doğrulaması için Game Service'in `card`/`batch` ucunu kullan.
+**Güncel (5 Kasım 2026):** Review iç uçları hazır (`POST` toplu özet ve imleçli `GET` dışa aktarma; bkz. `docs-review/REVIEW_GAME_SERVICE_DEVIR.md`). Game tarafı eklendi: Auth token istemcisi + Review RestClient adaptörü (1 sn / 2 sn zaman aşımı; 401/403'te yeniden deneme yok), V172 puan projeksiyonu, periyodik tarama (varsayılan 5 dk, tek tarayıcı kiralaması) ve `minRating` / `sort=RATING`. Game Review'ın toplu `POST` ucunu çağırmaz: puan filtre/sıralama/gösterim aynı projeksiyondan gelir ki sayfa tutarlı kalsın ve Game, Review'a senkron bağımlı olmasın. Kalan: Game ortamına Auth istemci gizli anahtarı, gerçek Auth token'ı ve gerçek Review ile uçtan uca doğrulama, sorgu planı ölçümü. Sözleşme ve eksik değer kuralları: `docs/api.md` → GAME. Review'ın oyun doğrulaması için Game Service'in `card`/`batch` ucunu kullan.
 
 ### 3.3 Oyun kimliği kullanan servisler — library (Hamza), lfp (Umut), event (Nisa), community (Nisa), performance ve recommendation (Alper)
 
@@ -130,14 +130,14 @@ Auth, Review ve Gateway entegrasyonlarının bekleme durumu değişmedi.
 
 1. **GAME-17 kaynağı:** Öneri — Steam indeksini koru, **IGDB**'yi yalnız detay zenginleştirme için değerlendir. Önce projenin ticari kullanım durumu, lisans/atıf koşulları ve Steam AppID eşleme yöntemi netleşmeli; sonra küçük bir pilot. (Kaynak API anahtarı yeni ENV gerektirir → onay.) Ayrıntı: `docs-Game Service/LTZ-HAM-GAME-02-Saglayici-Arastirmasi.md`.
 2. **Fiyat/indirim (GAME-24):** İzinli veri kaynağı var mı? Yoksa görev ertelenir; fiyat bilgisi uydurulmaz.
-3. **Game Service migration aralığı:** Aktif zincir kesintisiz V31–V40 (10 migration) ve aralık doldu. Ek V171–V190 aralığı 2026-10-21 tarihinde onaylanmış, sonra kaldırılmıştır (`docs/decisions/migrations.md`); eski zincirde kullanılan V171–V173 tarihsel kayıttır. Ek V171–V190 aralığı ve V174–V190 rezervasyonu sonradan kaldırıldı; Game Service yeni migration gerektirirse numara aralığı ekipçe belirlenmelidir. Tahsis ortak branch'e aktarılmalıdır.
+3. **Game Service migration aralığı:** Aktif zincir kesintisiz V31–V40 (10 migration) ve aralık doldu. Ek V171–V190 aralığı 2026-10-21 tarihinde onaylanmış, sonra kaldırılmıştır (`docs/decisions/migrations.md`); eski zincirde kullanılan V171–V173 tarihsel kayıttır. Ek V171–V190 aralığı ve V174–V190 rezervasyonu sonradan kaldırıldı; Game Service yeni migration gerektirirse numara aralığı ekipçe belirlenmelidir. Tahsis ortak branch'e aktarılmalıdır. **Güncel (5 Kasım 2026):** `docs/decisions/migrations.md` içindeki 2026-10-24 tahsisi (V171–V180) geçerlidir; V171 hesap silme, V172 LTZ puan projeksiyonu için kullanıldı, V173–V180 boştur. Yukarıdaki "aralık doldu / V171–V190 kaldırıldı" anlatımı bu tahsisten önceki durumdur.
 4. **Servisler arası kimlik modeli** (servis JWT'si mi, başka mı?) — korumalı toplu/servisler arası uçlar bunu bekliyor.
 
 ## 5. Yapma listesi
 
 - `game_db`'ye veya `review_db`/`library_db` gibi başka servis DB'lerine erişme.
 - Game Service yönetim uçlarını (`/admin`, `/developer`, `/moderation`) token olmadan veya sahte başlıkla çağırmaya çalışma; şu an hepsi 401.
-- Toplu karttan LTZ puanı bekleme; puan alanı yok ve uydurulmayacak.
+- Toplu karttan (`POST /games/batch`) LTZ puanı bekleme; puan alanı yok. Puan yalnız `GET /games` ve `/games/search` yanıtında `rating` ile gelir; `UNAVAILABLE` durumu 0 puan değildir.
 - Oyun başına döngüyle `GET /card` çağırma.
 
 Faz 5 güncel kapsam ve kanıtlar: [Faz 5 raporu](LTZ-HAM-GAME-05-Rapor.md).

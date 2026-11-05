@@ -230,6 +230,7 @@ services:
     environment:
       <<: *ltz-db-env
       DB_GAME_NAME: ${DB_GAME_NAME:?}
+      AUTH_GAME_SERVICE_CLIENT_SECRET: ${AUTH_GAME_SERVICE_CLIENT_SECRET:-}
       STEAM_WEB_API_KEY: ${STEAM_WEB_API_KEY:-}
       STEAM_CATALOG_ENABLED: ${STEAM_CATALOG_ENABLED:-false}
     depends_on:
