@@ -29,7 +29,7 @@ Hepsi `Internal`, `Authorization: Bearer <svc+jwt>` (`aud=mail-service`, `sub=sv
 | `POST /internal/v1/mail/verification-codes` | `idempotencyKey, accountId, recipientEmail, code (^[0-9]{6}$), validitySeconds, locale?` | `VerificationCodeMail` (e-posta değişikliği kodu da bunu kullanır) |
 | `POST /internal/v1/mail/password-resets` | `idempotencyKey, accountId, recipientEmail, resetLink, validitySeconds, locale?` | `PasswordResetMail` |
 | `POST /internal/v1/mail/account-deletions` | `idempotencyKey, accountId, recipientEmail, confirmationLink, validitySeconds, locale?` | `AccountDeletionMail` |
-| `POST /internal/v1/mail/security-notifications` | `idempotencyKey, accountId, recipientEmail, type, occurredAt, locale?`; `type`: `PASSWORD_CHANGED, PASSWORD_RESET, EMAIL_CHANGED, ACCOUNT_SUSPENDED, ACCOUNT_BANNED, ACCOUNT_DISABLED, ACCOUNT_REACTIVATED` | `SecurityNotificationMail` |
+| `POST /internal/v1/mail/security-notifications` | `idempotencyKey, accountId, recipientEmail, type, occurredAt, locale?`; `type`: `PASSWORD_CHANGED, PASSWORD_RESET, EMAIL_CHANGED, ACCOUNT_SUSPENDED, ACCOUNT_BANNED, ACCOUNT_DISABLED, ACCOUNT_REACTIVATED, TWO_FACTOR_ENABLED, TWO_FACTOR_DISABLED, RECOVERY_CODE_USED, EXTERNAL_IDENTITY_LINKED` | `SecurityNotificationMail` |
 | `DELETE /internal/v1/accounts/{accountId}` | — (`scope=account:erase`, `account_id`=yol) → `204` | `AccountDataEraserPort` |
 
 Bağlantılar (`resetLink`, `confirmationLink`): yalnız `https` (dev'de `http://localhost`), kimlik bilgisi içermez; allowlist host. Parola, token, kod hiçbir yanıtta ve loga yazılmaz.

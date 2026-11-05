@@ -82,6 +82,22 @@ class TemplateRendererTest extends IntegrationTestSupport {
     }
 
     @Test
+    void accountTakeoverTypesRenderDateAndWarningInBothLanguages() {
+        for (MailType type : List.of(MailType.TWO_FACTOR_ENABLED, MailType.TWO_FACTOR_DISABLED,
+                MailType.RECOVERY_CODE_USED, MailType.EXTERNAL_IDENTITY_LINKED)) {
+            RenderedMail turkish = renderer.render(type, MailLocale.TR, payloadFor(type));
+            RenderedMail english = renderer.render(type, MailLocale.EN, payloadFor(type));
+
+            assertThat(turkish.text()).contains("Tarih: 31.10.2026 12:30 UTC",
+                    "Bu işlemi siz yapmadıysanız hemen parolanızı sıfırlayın ve destek ile iletişime geçin.");
+            assertThat(english.text()).contains("Date: 2026-10-31 12:30 UTC",
+                    "reset your password immediately and contact support.");
+            assertThat(turkish.html()).contains("31.10.2026 12:30 UTC").doesNotContain("{{");
+            assertThat(english.html()).contains("2026-10-31 12:30 UTC").doesNotContain("{{");
+        }
+    }
+
+    @Test
     void missingVariableIsAPermanentTemplateError() {
         MailPayload withoutDate = new MailPayload(null, null, null, null);
 
