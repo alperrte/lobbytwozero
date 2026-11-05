@@ -85,6 +85,11 @@ class ServiceClientConfigTest {
                 targets(Map.of("performance-service", Set.of("devices:verify", "events:ingest"))), "must not mix");
         // Puan özeti okuma kullanıcıya bağlı değildir; tek başına ya da başka bağsız kapsamla açılabilir.
         assertAccepted("game-service", targets(Map.of("review-service", Set.of("rating-summaries:read"))));
+        assertAccepted("game-service", targets(Map.of("review-service", Set.of("rating-summaries:read", "game-references:read"),
+                "library-service", Set.of("game-references:read"))));
+        // Referans kontrolü hesaba bağlı bir kapsamla karışamaz.
+        assertRejected("game-service",
+                targets(Map.of("library-service", Set.of("game-references:read", "signals:read"))), "must not mix");
     }
 
     /** Yalnız hedef kapsamlı istemci (Auth'a kapsamı yok). */

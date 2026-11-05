@@ -142,8 +142,9 @@ olur (kimlik doğrulaması önce yapılır; yanlış gizli anahtar yine `401 INV
 | 9 | `svc:hardware-service` | `user-service` | `privacy:read` | HW-08 `HardwareVisibilityPolicy` |
 | 10 | `svc:review-service` | `user-service` | `events:ingest` | `ReviewSummaryChanged` |
 | 11 | `svc:recommendation-service` | `library-service` | `signals:read` (**hesaba bağlı**) | Tek hesabın öneri sinyali (LIB-14) |
-| 12 | `svc:game-service` | `review-service` | `rating-summaries:read` | Toplu oyun puan özetini okuma (REV-08/12) |
+| 12 | `svc:game-service` | `review-service` | `rating-summaries:read`, `game-references:read` | Toplu oyun puan özetini okuma (REV-08/12); GAME-26 referans kontrolü (yalnız sayı) |
 | 13 | `svc:hardware-service` | `performance-service` | `devices:verify` (**hesaba bağlı**) | Cihazın hesaba ait ve aktif olduğunu sorma (PERF-01) |
+| 14 | `svc:game-service` | `library-service` | `game-references:read` | GAME-26: dış kimlik taşıma/ayırma öncesi oyun için referans var mı (yalnız sayı) |
 
 Satır 5 ve 6 için gizli anahtarlar `AUTH_MESSAGING_SERVICE_CLIENT_SECRET` ve `AUTH_LFP_SERVICE_CLIENT_SECRET` (yeni, boşsa istemci kapalı).
 Satır 7–11 için (2026-10-30, boşsa kapalı): social satır 2'deki `AUTH_SOCIAL_SERVICE_CLIENT_SECRET`'i kullanır; ayrıca `AUTH_LIBRARY_SERVICE_CLIENT_SECRET`,

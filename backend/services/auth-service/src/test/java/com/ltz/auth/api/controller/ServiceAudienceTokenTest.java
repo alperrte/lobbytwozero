@@ -111,7 +111,7 @@ class ServiceAudienceTokenTest extends IntegrationTestSupport {
     @Test
     void gameYalnizReviewIcinPuanOzetiOkumaTokeniAlirKullaniciBagiTasimaz() throws Exception {
         String body = tokenRequest("game-service", GAME_CLIENT_SECRET, "review-service")
-                .andExpect(status().isOk()).andExpect(jsonPath("$.scope").value("rating-summaries:read"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.scope").value("game-references:read rating-summaries:read"))
                 .andReturn().getResponse().getContentAsString();
         JWTClaimsSet claims = SignedJWT.parse(JsonPath.<String>read(body, "$.accessToken")).getJWTClaimsSet();
         assertThat(claims.getAudience()).containsExactly("review-service");
@@ -124,6 +124,21 @@ class ServiceAudienceTokenTest extends IntegrationTestSupport {
         tokenRequest("game-service", GAME_CLIENT_SECRET, null).andExpect(status().isForbidden());
         // Review'a yalnız bu çift açık: user-service'e giden review istemcisi özet okuma kapsamı alamaz.
         tokenRequest("review-service", REVIEW_CLIENT_SECRET, "review-service").andExpect(status().isForbidden());
+    }
+
+    @Test
+    void gameLibraryIcinYalnizReferansKontroluTokeniAlirDigerIstemcilerAlamaz() throws Exception {
+        String body = tokenRequest("game-service", GAME_CLIENT_SECRET, "library-service")
+                .andExpect(status().isOk()).andExpect(jsonPath("$.scope").value("game-references:read"))
+                .andReturn().getResponse().getContentAsString();
+        JWTClaimsSet claims = SignedJWT.parse(JsonPath.<String>read(body, "$.accessToken")).getJWTClaimsSet();
+        assertThat(claims.getAudience()).containsExactly("library-service");
+        assertThat(claims.getSubject()).isEqualTo("svc:game-service");
+        assertThat(claims.getClaims()).doesNotContainKeys("roles", "sid", "ver", "amr", "account_id");
+
+        // Başkalarının yetkisi genişlemedi: kapsam yalnız game-service'e tanımlıdır.
+        tokenRequest("review-service", REVIEW_CLIENT_SECRET, "library-service").andExpect(status().isForbidden());
+        tokenRequest("recommendation-service", RECOMMENDATION_CLIENT_SECRET, "review-service").andExpect(status().isForbidden());
     }
 
     @Test
