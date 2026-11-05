@@ -1,5 +1,6 @@
 package com.ltz.review.infrastructure.security;
 
+import com.ltz.review.api.controller.InternalRatingSummaryController;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletException;
@@ -22,7 +23,8 @@ public class ReviewRequestFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !request.getRequestURI().startsWith("/api/v1/review/");
+        String uri = request.getRequestURI();
+        return !uri.startsWith("/api/v1/review/") && !InternalRatingSummaryController.PATH.equals(uri);
     }
 
     @Override

@@ -19,6 +19,16 @@ public class RatingSummaryRepository {
         return findAll(List.of(gameId)).getFirst();
     }
 
+    /** En az bir puanı olan oyunlar, game_id artan; after dışlayıcı imleçtir. Tek SQL, tek snapshot. */
+    public List<GameRatingSummaryResponse> findPage(UUID after, int limit) {
+        String where = after == null ? "" : "WHERE game_id > :after ";
+        var statement = jdbc.sql("SELECT game_id, round(avg(rating),2) AS average_rating, count(*) AS rating_count "
+                + "FROM game_ratings " + where + "GROUP BY game_id ORDER BY game_id LIMIT :limit").param("limit", limit);
+        if (after != null) statement = statement.param("after", after);
+        return statement.query((rs, row) -> new GameRatingSummaryResponse(
+                rs.getObject("game_id", UUID.class), rs.getBigDecimal("average_rating"), rs.getLong("rating_count"))).list();
+    }
+
     public List<GameRatingSummaryResponse> findAll(List<UUID> gameIds) {
         if (gameIds.isEmpty()) return List.of();
         Map<UUID, GameRatingSummaryResponse> found = jdbc.sql("""
