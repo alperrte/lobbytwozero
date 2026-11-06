@@ -16,7 +16,8 @@ const DESKTOP_QUERY = "(min-width: 1024px)";
 
 /**
  * Tek ortak uygulama kabuğu: skip link, kenar çubuğu (masaüstünde daraltılabilir,
- * küçük ekranda drawer), yüzen navbar, ana içerik ve footer. Sayfa içeriği ve footer
+ * küçük ekranda drawer), yüzen navbar, ana içerik ve footer. Footer, sidebar ve içeriğin oluşturduğu
+ * üst satırın altında, tam genişlikte ve belge akışındadır. Sayfa içeriği ve footer
  * Server Component olarak dışarıdan gelir; yalnız etkileşim burada Client'tır.
  * Arama navbar'a gömülüdür; Ayarlar ayrı bir sayfadır (diyalog yok). İçerik, navbar ile aynı
  * yan boşluklara hizalıdır ve ortalanmış dar bir sütuna sıkıştırılmaz.
@@ -87,36 +88,42 @@ export function AppShell({ children, footer }: AppShellProps) {
         {t("skipToContent")}
       </a>
 
-      <div className="flex min-h-dvh">
-        <Sidebar
-          open={menuOpen}
-          onClose={() => closeMenu(true)}
-          onNavigate={() => closeMenu(false)}
-          closeButtonRef={closeButtonRef}
-        />
-
-        <div
-          aria-hidden="true"
-          data-open={menuOpen}
-          onClick={() => closeMenu(true)}
-          className="pointer-events-none fixed inset-0 z-40 bg-scrim opacity-0 transition-opacity duration-300 ease-out motion-reduce:duration-0 data-[open=true]:pointer-events-auto data-[open=true]:opacity-100 lg:hidden"
-        />
-
-        <div inert={menuOpen} className="flex min-w-0 flex-1 flex-col">
-          <Navbar
-            menuOpen={menuOpen}
-            onOpenMenu={() => setOpenedAt(pathname)}
-            menuButtonRef={menuButtonRef}
+      <div>
+        {/* Bölge A — uygulama kabuğu: sidebar + (navbar, içerik). En az viewport yüksekliğindedir ve içerik
+            uzadıkça büyür (yükseklik KESİLMEZ). Sidebar paneli bu satırda sticky durur. */}
+        <div className="flex min-h-dvh">
+          <Sidebar
+            open={menuOpen}
+            onClose={() => closeMenu(true)}
+            onNavigate={() => closeMenu(false)}
+            closeButtonRef={closeButtonRef}
           />
-          <main
-            id="main-content"
-            tabIndex={-1}
-            className="flex-1 px-3 pb-8 pt-6 focus:outline-none sm:px-5 sm:pb-10"
-          >
-            {children}
-          </main>
-          {footer}
+
+          <div
+            aria-hidden="true"
+            data-open={menuOpen}
+            onClick={() => closeMenu(true)}
+            className="pointer-events-none fixed inset-0 z-40 bg-scrim opacity-0 transition-opacity duration-300 ease-out motion-reduce:duration-0 data-[open=true]:pointer-events-auto data-[open=true]:opacity-100 lg:hidden"
+          />
+
+          <div inert={menuOpen} className="flex min-w-0 flex-1 flex-col">
+            <Navbar
+              menuOpen={menuOpen}
+              onOpenMenu={() => setOpenedAt(pathname)}
+              menuButtonRef={menuButtonRef}
+            />
+            <main
+              id="main-content"
+              tabIndex={-1}
+              className="flex-1 px-3 pb-8 pt-6 focus:outline-none sm:px-5 sm:pb-10"
+            >
+              {children}
+            </main>
+          </div>
         </div>
+
+        {/* Bölge B — footer: kabuğun tamamen altında, tam genişlikte, normal akışta; altında ek boşluk yok. */}
+        <div inert={menuOpen}>{footer}</div>
       </div>
 
       <ThemeTransitionLayer />

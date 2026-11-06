@@ -129,10 +129,8 @@
   },
   "Footer": {
     "label": "Footer",
-    "tagline": "A game-focused social platform for game discovery, the player community, and hardware and game performance.",
-    "platform": "Platform",
-    "support": "Support",
-    "soon": "Soon",
+    "tagline": "Discover games, connect with players, and share your experiences. LobbyTwoZero brings the gaming world together in one community.",
+    "groups": { "discover": "Discover", "community": "Community", "performance": "LTZ Performance", "support": "Support" },
     "socialLabel": "Social media",
     "socialSoon": "{name} (link coming soon)",
     "legalNav": "Legal links",

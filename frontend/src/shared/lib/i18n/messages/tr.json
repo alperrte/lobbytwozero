@@ -129,10 +129,8 @@
   },
   "Footer": {
     "label": "Alt bilgi",
-    "tagline": "Oyun keşfi, oyuncu topluluğu ile donanım ve oyun performansı için oyun odaklı sosyal platform.",
-    "platform": "Platform",
-    "support": "Destek",
-    "soon": "Yakında",
+    "tagline": "Oyunları keşfet, oyuncularla bağlantı kur, deneyimlerini paylaş. LobbyTwoZero, oyun dünyasını tek bir toplulukta buluşturur.",
+    "groups": { "discover": "Keşfet", "community": "Topluluk", "performance": "LTZ Performance", "support": "Destek" },
     "socialLabel": "Sosyal medya",
     "socialSoon": "{name} (bağlantı yakında)",
     "legalNav": "Yasal bağlantılar",

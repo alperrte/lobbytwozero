@@ -55,6 +55,49 @@ describe("AppShell", () => {
     ).toBeInTheDocument();
   });
 
+  it("footer sidebar ve içeriğin altında, bağımsız tam genişlikli satırdır", () => {
+    renderShell();
+    const footer = screen.getByRole("contentinfo");
+    const main = screen.getByRole("main");
+    const sidebar = document.getElementById("app-sidebar") as HTMLElement;
+
+    const topRow = sidebar.parentElement as HTMLElement;
+    const root = topRow.parentElement as HTMLElement;
+    // Sidebar ve içerik aynı üst satırdadır; footer o satırın dışında, kök sütunun son çocuğudur.
+    expect(topRow.contains(main)).toBe(true);
+    expect(topRow.contains(footer)).toBe(false);
+    expect(root.lastElementChild?.contains(footer)).toBe(true);
+    expect(root.lastElementChild).not.toBe(topRow);
+    expect(sidebar.contains(footer)).toBe(false);
+  });
+
+  it("uygulama kabuğu en az viewport yüksekliğindedir ama sabit yükseklik yoktur; footer onun dışındadır", () => {
+    renderShell();
+    const sidebar = document.getElementById("app-sidebar") as HTMLElement;
+    const topRow = sidebar.parentElement as HTMLElement;
+    const root = topRow.parentElement as HTMLElement;
+
+    // Bölge A: min-h-dvh (içerik uzayınca büyür); sabit h-dvh yok. Kök sarmalayıcıda yükseklik zorlaması yok.
+    expect(topRow.className).toContain("min-h-dvh");
+    expect(topRow.className).not.toMatch(/(^|\s)h-(dvh|screen)/);
+    expect(root.className).not.toMatch(/min-h-(dvh|screen)|h-(dvh|screen)/);
+    // Sidebar paneli sticky ve viewport yüksekliğindedir; footer'ın altına geçmez (aside satır boyunca esner).
+    const rail = sidebar.querySelector("[data-rail]") as HTMLElement;
+    expect(rail.className).toContain("lg:sticky");
+    expect(rail.className).toContain("lg:h-[calc(100dvh-1.5rem)]");
+    expect(sidebar.className).not.toContain("lg:h-dvh");
+  });
+
+  it("navbar genişliği footer'dan bağımsızdır: üst sınır 60rem ve içerik sütununa göre ortalanır", () => {
+    renderShell();
+    const header = screen.getByRole("banner");
+    const column = header.parentElement?.parentElement as HTMLElement;
+
+    expect(header.className).toContain("max-w-[60rem]");
+    expect(header.className).toContain("w-full");
+    expect(column.contains(screen.getByRole("contentinfo"))).toBe(false);
+  });
+
   it("yalnız gerçek rotayı bağlantı yapar; hazır olmayanlar 'Yakında' ile işaretlenir", () => {
     renderShell();
     const nav = screen.getByRole("navigation", { name: "Ana gezinme" });

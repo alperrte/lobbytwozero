@@ -45,11 +45,11 @@ export function Sidebar({
     <aside
       id={SIDEBAR_ID}
       data-open={open}
-      className="invisible fixed inset-y-0 start-0 z-50 w-72 max-w-[86vw] -translate-x-full transition-[translate,visibility] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] delay-[0s,300ms] data-[open=true]:visible data-[open=true]:translate-x-0 data-[open=true]:transition-[translate] data-[open=true]:duration-300 data-[open=true]:delay-0 motion-reduce:duration-0 lg:visible lg:sticky lg:top-0 lg:z-20 lg:h-dvh lg:w-[17.25rem] lg:max-w-none lg:shrink-0 lg:translate-x-0 lg:p-3 lg:pe-2 lg:transition-[width] lg:duration-[220ms] lg:ease-[cubic-bezier(0.32,0.72,0,1)] lg:delay-0 lg:in-data-[sidebar=collapsed]:w-[5.75rem]"
+      className="invisible fixed inset-y-0 start-0 z-50 w-72 max-w-[86vw] -translate-x-full transition-[translate,visibility] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] delay-[0s,300ms] data-[open=true]:visible data-[open=true]:translate-x-0 data-[open=true]:transition-[translate] data-[open=true]:duration-300 data-[open=true]:delay-0 motion-reduce:duration-0 lg:visible lg:relative lg:z-20 lg:w-[17.25rem] lg:max-w-none lg:shrink-0 lg:translate-x-0 lg:p-3 lg:pe-2 lg:transition-[width] lg:duration-[220ms] lg:ease-[cubic-bezier(0.32,0.72,0,1)] lg:delay-0 lg:in-data-[sidebar=collapsed]:w-[5.75rem]"
     >
       <div
         data-rail
-        className="flex h-full min-h-0 flex-col overflow-hidden bg-surface max-lg:border-e max-lg:border-border max-lg:shadow-drawer lg:rounded-2xl lg:border lg:border-border lg:shadow-float"
+        className="flex h-full min-h-0 flex-col overflow-hidden bg-surface max-lg:border-e max-lg:border-border max-lg:shadow-drawer lg:sticky lg:top-3 lg:h-[calc(100dvh-1.5rem)] lg:max-h-full lg:rounded-2xl lg:border lg:border-border lg:shadow-float"
       >
         {/* 1) Sabit logo alanı */}
         <div className="relative flex h-20 shrink-0 items-center justify-center border-b border-border/70 px-14 lg:px-4 lg:in-data-[sidebar=collapsed]:px-0">
