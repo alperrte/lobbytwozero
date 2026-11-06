@@ -42,6 +42,9 @@
   --ltz-sun: #f5a524;
   --ltz-moon: #c9d1e0;
   --ltz-on-celestial: #17171b;
+
+  /* Kaydırma çubuğu izi; tutamaç marka gradyanıdır (bu ize karşı ≈4,1:1). */
+  --ltz-scrollbar-track: #0b0b0f;
 }
 
 :root[data-theme="light"] {
@@ -72,6 +75,9 @@
   --ltz-sun: #e8920c;
   --ltz-moon: #8b94a8;
   --ltz-on-celestial: #17171b;
+
+  /* Tutamaç marka gradyanıdır (bu ize karşı ≈4,4:1). */
+  --ltz-scrollbar-track: #f5f5f7;
 }
 
 @theme inline {
@@ -145,6 +151,50 @@
   h2,
   h3 {
     text-wrap: balance;
+  }
+
+  /*
+   * Özel kaydırma çubuğu (Light/Dark tokenlarına bağlı).
+   * Chromium ve Safari ::-webkit-scrollbar ile çizer. Chrome 121+ bir öğede scrollbar-color görürse
+   * webkit stilini yok sayar; bu yüzden standart özellik yalnız webkit desteklemeyen tarayıcıya (Firefox) verilir.
+   * Sayfa çubuğunun izi zemin rengindedir; iç kaydırıcılarda (menü, liste) iz şeffaftır, yüzeyle kaynaşır.
+   * Tutamaç LTZ kenar ışığı diliyle kırmızı → magenta gradyandır; üzerine gelince pembe → kırmızıya parlar,
+   * sürüklerken magenta → kırmızıya koyulaşır. Firefox gradyan desteklemez, düz marka kırmızısı kullanır.
+   */
+  @supports not selector(::-webkit-scrollbar) {
+    html {
+      scrollbar-color: var(--ltz-primary) var(--ltz-scrollbar-track);
+    }
+  }
+
+  ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  html::-webkit-scrollbar-track,
+  html::-webkit-scrollbar-corner {
+    background: var(--ltz-scrollbar-track);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 4px;
+    background: linear-gradient(180deg, var(--ltz-primary), var(--ltz-secondary)) padding-box;
+    min-height: 40px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, var(--ltz-accent), var(--ltz-primary)) padding-box;
+  }
+
+  ::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(180deg, var(--ltz-secondary), var(--ltz-primary)) padding-box;
   }
 
   ::selection {

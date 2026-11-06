@@ -10,6 +10,7 @@ import { useNavbarMode } from "@/shared/hooks/use-navbar-mode";
 import { useSidebarCollapsed } from "@/shared/hooks/use-sidebar-collapsed";
 import { useThemePreference } from "@/shared/hooks/use-theme-preference";
 import { useTransitionPack } from "@/shared/hooks/use-transition-pack";
+import { useTransitionSound } from "@/shared/hooks/use-transition-sound";
 import { locales, type Locale } from "@/shared/lib/i18n/config";
 import { usePathname, useRouter } from "@/shared/lib/i18n/navigation";
 import type { AppPathname } from "@/shared/lib/i18n/routing";
@@ -43,7 +44,7 @@ function SettingCard({ title, info, children }: SettingCardProps) {
 }
 
 /**
- * Ayarlar sayfasının içeriği: görünüm, dil, üst çubuk ve kenar çubuğu tercihleri.
+ * Ayarlar sayfasının içeriği: görünüm, dil, üst çubuk, kenar çubuğu, tema geçişi ve geçiş sesi tercihleri.
  * Masaüstünde iki sütun (üstte Görünüm + Dil, altta Üst Çubuk + Kenar Çubuğu), dar ekranda tek sütun.
  * Seçimler anında uygulanır ve bu cihazda saklanır; "Kaydet" adımı yoktur.
  * Hesap/güvenlik ayarı yoktur. Her grubun yanındaki "i" ne işe yaradığını anlatır.
@@ -57,6 +58,7 @@ export function SettingsForm() {
   const [navbar, setNavbar] = useNavbarMode();
   const [collapsed, setCollapsed] = useSidebarCollapsed();
   const [transitionPack, setTransitionPack] = useTransitionPack();
+  const [transitionSound, setTransitionSound] = useTransitionSound();
   const [pending, startTransition] = useTransition();
 
   function changeLocale(locale: Locale) {
@@ -207,6 +209,35 @@ export function SettingsForm() {
                     label: t("transition.minimal"),
                     hint: t("transition.minimalHint"),
                     leading: <Icon name="contrast" className="size-[18px]" />
+                  }
+                ]}
+              />
+            )}
+          </SettingCard>
+        </div>
+
+        <div className="lg:col-span-2">
+          <SettingCard title={t("sound.title")} info={t("sound.info")}>
+            {() => (
+              <OptionGroup
+                hideLegend
+                legend={t("sound.title")}
+                name="settings-transition-sound"
+                value={transitionSound}
+                onChange={setTransitionSound}
+                note={t("sound.note")}
+                options={[
+                  {
+                    value: "on",
+                    label: t("sound.on"),
+                    hint: t("sound.onHint"),
+                    leading: <Icon name="volume" className="size-[18px]" />
+                  },
+                  {
+                    value: "off",
+                    label: t("sound.off"),
+                    hint: t("sound.offHint"),
+                    leading: <Icon name="volumeOff" className="size-[18px]" />
                   }
                 ]}
               />

@@ -12,6 +12,7 @@ import {
   type OperatorFrame
 } from "./operator-frames";
 import { createScenePlayer, HOLD, readViewport, type ScenePlayer, type TrackPoint } from "./scene-player";
+import { blackoutCues, daybreakCues, playSceneSound } from "./scene-sound";
 import { pixelDiscPath, RIDGE_VIEW, RIDGES, ridgePath, ridgeRimPath } from "./scenery";
 import { anchorOnScreen, layoutLamps, operatorBox, OPERATOR_SCALE, type OperatorBox } from "./stage";
 import { blackoutPlan, daybreakPlan, flareArc, type BlackoutPlan, type DaybreakPlan, type FrameCue } from "./timeline";
@@ -29,6 +30,10 @@ const SPRITE_URL = typeof spriteSource === "string" ? spriteSource : spriteSourc
 
 const PIXEL = { desktop: 4, compact: 3 } as const;
 const TYPE_MS_PER_CHAR = 22;
+// Levha sönmeden önce tam metnin okunabileceği en kısa süre; uzun metinde yazma bu süreye sığacak kadar hızlanır.
+const CAPTION_READ_MS = 400;
+const TYPE_MS_PER_CHAR_MIN = 10;
+const LINE_GAP_MS = 40;
 
 type Query = {
   one(part: string): HTMLElement | null;
@@ -94,14 +99,17 @@ function playCaption(player: ScenePlayer, q: Query, startAt: number, fadeOutAt: 
     [fadeOutAt + 220, 0]
   ]);
   let at = startAt + 60;
-  for (const line of q.all("caption-line")) {
-    const length = Math.max(1, (line.textContent ?? "").length);
-    const end = at + length * TYPE_MS_PER_CHAR;
+  const lines = q.all("caption-line").map((line) => ({ line, length: Math.max(1, (line.textContent ?? "").length) }));
+  const chars = lines.reduce((sum, { length }) => sum + length, 0);
+  const budget = fadeOutAt - CAPTION_READ_MS - at - LINE_GAP_MS * Math.max(0, lines.length - 1);
+  const msPerChar = Math.max(TYPE_MS_PER_CHAR_MIN, Math.min(TYPE_MS_PER_CHAR, budget / Math.max(1, chars)));
+  for (const { line, length } of lines) {
+    const end = Math.round(at + length * msPerChar);
     player.track(line, "clipPath", [
       [at, "inset(0 100% 0 0)", `steps(${length}, end)`],
       [end, "inset(0 0% 0 0)"]
     ]);
-    at = end + 40;
+    at = end + LINE_GAP_MS;
   }
 }
 
@@ -311,10 +319,15 @@ export function BlackoutV3Scene({ compact, startedAt }: V3SceneProps) {
     }
     const plan = blackoutPlan(compact);
     const player = createScenePlayer(element, plan.totalMs, startedAt);
+    let stopSound: (() => void) | undefined;
     if (player.live) {
       runBlackout(element, plan, compact, player);
+      stopSound = playSceneSound(blackoutCues(plan), startedAt);
     }
-    return () => player.cancel();
+    return () => {
+      player.cancel();
+      stopSound?.();
+    };
   }, [compact, startedAt]);
 
   return (
@@ -534,10 +547,15 @@ export function DaybreakV3Scene({ compact, startedAt }: V3SceneProps) {
     }
     const plan = daybreakPlan(compact);
     const player = createScenePlayer(element, plan.totalMs, startedAt);
+    let stopSound: (() => void) | undefined;
     if (player.live) {
       runDaybreak(element, plan, compact, player);
+      stopSound = playSceneSound(daybreakCues(plan), startedAt);
     }
-    return () => player.cancel();
+    return () => {
+      player.cancel();
+      stopSound?.();
+    };
   }, [compact, startedAt]);
 
   return (
@@ -577,7 +595,7 @@ export function DaybreakV3Scene({ compact, startedAt }: V3SceneProps) {
       ))}
       <span className="v3-flare" data-part="flare" />
       <Operator flashes={1} />
-      <Caption lead={t("title")} sub={t("status")} />
+      <Caption lead={t("status")} sub={t("title")} />
     </div>
   );
 }

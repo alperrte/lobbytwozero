@@ -23,7 +23,7 @@ beforeEach(() => {
     removeEventListener: vi.fn()
   }));
   const root = document.documentElement;
-  for (const attribute of ["data-theme", "data-theme-pref", "data-navbar", "data-sidebar", "data-transition"]) {
+  for (const attribute of ["data-theme", "data-theme-pref", "data-navbar", "data-sidebar", "data-transition", "data-transition-sound"]) {
     root.removeAttribute(attribute);
   }
 });
@@ -37,9 +37,9 @@ function renderForm() {
 }
 
 describe("SettingsForm", () => {
-  it("dört ayar grubunu Görünüm, Dil, Üst çubuk, Kenar çubuğu, Tema geçişi sırasıyla sunar; hesap ve güvenlik ayarı yoktur", () => {
+  it("ayar gruplarını Görünüm, Dil, Üst çubuk, Kenar çubuğu, Tema geçişi, Geçiş sesi sırasıyla sunar; hesap ve güvenlik ayarı yoktur", () => {
     renderForm();
-    const names = ["Görünüm", "Dil", "Üst çubuk", "Kenar çubuğu", "Tema geçişi"];
+    const names = ["Görünüm", "Dil", "Üst çubuk", "Kenar çubuğu", "Tema geçişi", "Geçiş sesi"];
     const regions = names.map((name) => screen.getByRole("region", { name }));
     regions.forEach((region, index) => {
       if (index > 0) {
@@ -53,7 +53,7 @@ describe("SettingsForm", () => {
 
   it("her grubun yanında yuvarlak 'i' bilgi düğmesi bulunur ve ne işe yaradığını anlatır", () => {
     renderForm();
-    for (const subject of ["Görünüm", "Üst çubuk", "Kenar çubuğu", "Dil", "Tema geçişi"]) {
+    for (const subject of ["Görünüm", "Üst çubuk", "Kenar çubuğu", "Dil", "Tema geçişi", "Geçiş sesi"]) {
       const button = screen.getByRole("button", { name: `${subject} hakkında bilgi` });
       fireEvent.focus(button);
       expect(screen.getByRole("tooltip").textContent?.length).toBeGreaterThan(20);
@@ -140,5 +140,24 @@ describe("SettingsForm", () => {
     expect(root.dataset.transition).toBeUndefined();
     expect(window.localStorage.getItem("ltz-transition")).toBeNull();
     expect(root.dataset.theme).toBeUndefined();
+  });
+
+  it("geçiş sesi varsayılan olarak açıktır; Sessiz seçilince kapanır, kalıcı saklanır ve Sesli ile geri açılır", () => {
+    renderForm();
+    const root = document.documentElement;
+    const options = within(screen.getByRole("group", { name: "Geçiş sesi" })).getAllByRole("radio");
+    expect(options).toHaveLength(2);
+    expect(screen.getByRole("radio", { name: /^Sesli/ })).toBeChecked();
+    expect(screen.getByText("Ses yalnız Taktik V3 paketinde çalar.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("radio", { name: /^Sessiz/ }));
+    expect(root.dataset.transitionSound).toBe("off");
+    expect(window.localStorage.getItem("ltz-transition-sound")).toBe("off");
+    expect(screen.getByRole("radio", { name: /^Sessiz/ })).toBeChecked();
+
+    fireEvent.click(screen.getByRole("radio", { name: /^Sesli/ }));
+    expect(root.dataset.transitionSound).toBeUndefined();
+    expect(window.localStorage.getItem("ltz-transition-sound")).toBeNull();
+    expect(root.dataset.transition).toBeUndefined();
   });
 });

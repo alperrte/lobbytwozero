@@ -127,6 +127,15 @@
       "minimal": "Sade",
       "minimalHint": "Animasyon yok, tema anında değişir."
     },
+    "sound": {
+      "title": "Geçiş sesi",
+      "info": "Taktik V3 geçişinin sesini açar veya kapatır. Koyu temaya geçerken tüfek atışı ve kırılan lamba camı, açık temaya geçerken fişek atışı ve patlaması duyulur. Ses yalnız tema düğmesine bastığında çalar.",
+      "on": "Sesli",
+      "onHint": "Atış, cam kırılması ve fişek patlaması sesleri çalar.",
+      "off": "Sessiz",
+      "offHint": "Geçiş animasyonu sessiz oynar.",
+      "note": "Ses yalnız Taktik V3 paketinde çalar."
+    },
     "deviceNote": "Tercihlerin yalnızca bu cihazda saklanır ve seçtiğin anda uygulanır."
   },
   "ThemeTransition": {
@@ -145,7 +154,7 @@
       },
       "daybreak": {
         "title": "OPERASYON GÜN DOĞUMU",
-        "status": "IŞIKLAR AÇIK"
+        "status": "LTZ BİRİMİ // GÜN DOĞUYOR"
       }
     }
   },
