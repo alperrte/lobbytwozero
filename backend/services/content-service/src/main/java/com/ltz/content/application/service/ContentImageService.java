@@ -23,9 +23,9 @@ import com.ltz.content.domain.exception.ContentNotEditableException;
 import com.ltz.content.infrastructure.persistence.repository.ContentImageRepository;
 
 /**
- * Taslak görselleri (CONT-14). Ekleme ve silme yalnız sahibine ve yalnız taslak içeriğe açıktır; okuma, sahibi dışında
- * yalnız yayımlanmış içerik için mümkündür (taslak görseline başkası erişemez, 404). Görsel baytları ayrı bir media-service
- * yerine bu servisin veritabanında tutulur.
+ * İçerik görselleri (CONT-14). Ekleme ve silme yalnız sahibine ve yalnız taslak ya da yayımlanmış içeriğe açıktır; okuma,
+ * yayımlanmış içerik için herkese (misafir dahil) açıktır, taslak görseline yalnız sahibi erişir (başkası için 404). Görsel
+ * baytları ayrı bir media-service yerine bu servisin veritabanında tutulur.
  */
 @Service
 public class ContentImageService {
@@ -50,7 +50,7 @@ public class ContentImageService {
 	@Transactional
 	public ContentImageResponse addImage(UUID contentId, byte[] upload) {
 		Content content = contentAccess.loadOwnedForUpdate(contentId, currentUser.requireUserId());
-		if (!content.isDraft()) {
+		if (!content.isEditableByOwner()) {
 			throw new ContentNotEditableException();
 		}
 		List<Integer> usedSlots = imageRepository.findSortOrdersByContentId(contentId);
@@ -65,7 +65,7 @@ public class ContentImageService {
 
 	@Transactional(readOnly = true)
 	public ContentImageContent getImage(UUID contentId, UUID imageId) {
-		contentAccess.loadViewable(contentId, currentUser.requireUserId());
+		contentAccess.loadViewable(contentId, currentUser.findUserId().orElse(null));
 		ContentImage image = imageRepository.findByIdAndContentId(imageId, contentId)
 				.orElseThrow(ContentImageNotFoundException::new);
 		return new ContentImageContent(image.getContent(), image.getMimeType());
@@ -74,7 +74,7 @@ public class ContentImageService {
 	@Transactional
 	public void deleteImage(UUID contentId, UUID imageId) {
 		Content content = contentAccess.loadOwnedForUpdate(contentId, currentUser.requireUserId());
-		if (!content.isDraft()) {
+		if (!content.isEditableByOwner()) {
 			throw new ContentNotEditableException();
 		}
 		ContentImage image = imageRepository.findByIdAndContentId(imageId, contentId)

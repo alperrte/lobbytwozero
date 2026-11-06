@@ -6,4 +6,8 @@ public class InvalidContentRequestException extends RuntimeException {
 	public InvalidContentRequestException(String message) {
 		super(message);
 	}
+
+	public InvalidContentRequestException(String message, Throwable cause) {
+		super(message, cause);
+	}
 }

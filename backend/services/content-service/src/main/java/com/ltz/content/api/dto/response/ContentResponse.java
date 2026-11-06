@@ -7,7 +7,11 @@ import java.util.UUID;
 import com.ltz.content.domain.enums.ContentStatus;
 import com.ltz.content.domain.enums.ContentType;
 
-/** Taslak/içerik görünümü; metin içeriğin ilk dilindeki çevirisidir ({@code locale}). */
+/**
+ * İçerik görünümü. Metin ({@code title}, {@code summary}, {@code body}) {@code locale} alanındaki dildedir: istenen dilde
+ * çeviri varsa o, yoksa içeriğin ilk dilindeki çeviri sunulur; {@code availableLocales} mevcut çevirileri listeler.
+ * {@code publishedAt} taslakta null'dır.
+ */
 public record ContentResponse(
 		UUID id,
 		UUID authorId,
@@ -19,5 +23,11 @@ public record ContentResponse(
 		String body,
 		List<ContentImageResponse> images,
 		Instant createdAt,
-		Instant updatedAt) {
+		Instant updatedAt,
+		UUID gameId,
+		List<String> categories,
+		List<ContentSourceResponse> sources,
+		boolean featured,
+		Instant publishedAt,
+		List<String> availableLocales) {
 }

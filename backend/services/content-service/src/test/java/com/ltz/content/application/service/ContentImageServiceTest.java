@@ -56,6 +56,7 @@ class ContentImageServiceTest {
 	@BeforeEach
 	void stubStorage() {
 		when(currentUser.requireUserId()).thenReturn(USER);
+		when(currentUser.findUserId()).thenReturn(Optional.of(USER));
 		when(imageRepository.save(any(ContentImage.class))).thenAnswer(invocation -> {
 			ContentImage image = invocation.getArgument(0);
 			ReflectionTestUtils.setField(image, "id", IMAGE_ID);
@@ -138,8 +139,8 @@ class ContentImageServiceTest {
 	}
 
 	@Test
-	void imagesCanOnlyBeAddedToDrafts() throws IOException {
-		content(USER, ContentStatus.PUBLISHED);
+	void imagesCannotBeAddedToRemovedOrArchivedContent() throws IOException {
+		content(USER, ContentStatus.REMOVED);
 
 		byte[] upload = TestImages.png(10, 10);
 		assertThatThrownBy(() -> service.addImage(CONTENT_ID, upload)).isInstanceOf(ContentNotEditableException.class);
@@ -180,7 +181,9 @@ class ContentImageServiceTest {
 		content(OTHER, ContentStatus.PUBLISHED);
 		storedImage();
 
-		assertThat(service.getImage(CONTENT_ID, IMAGE_ID).mimeType()).isEqualTo("image/png");
+		ContentImageContent image = service.getImage(CONTENT_ID, IMAGE_ID);
+
+		assertThat(image.mimeType()).isEqualTo("image/png");
 	}
 
 	@Test
@@ -213,8 +216,8 @@ class ContentImageServiceTest {
 	}
 
 	@Test
-	void imagesOfNonDraftContentCannotBeDeleted() {
-		content(USER, ContentStatus.PUBLISHED);
+	void imagesOfRemovedContentCannotBeDeleted() {
+		content(USER, ContentStatus.REMOVED);
 		storedImage();
 
 		assertThatThrownBy(() -> service.deleteImage(CONTENT_ID, IMAGE_ID)).isInstanceOf(ContentNotEditableException.class);
@@ -227,5 +230,29 @@ class ContentImageServiceTest {
 		when(imageRepository.findByIdAndContentId(IMAGE_ID, CONTENT_ID)).thenReturn(Optional.empty());
 
 		assertThatThrownBy(() -> service.deleteImage(CONTENT_ID, IMAGE_ID)).isInstanceOf(ContentImageNotFoundException.class);
+	}
+
+	@Test
+	void ownerCanAddAndDeleteImagesOfPublishedContent() throws IOException {
+		content(USER, ContentStatus.PUBLISHED);
+		when(imageRepository.findSortOrdersByContentId(CONTENT_ID)).thenReturn(List.of());
+		byte[] upload = TestImages.png(10, 10);
+
+		assertThat(service.addImage(CONTENT_ID, upload).sortOrder()).isZero();
+
+		ContentImage image = storedImage();
+		service.deleteImage(CONTENT_ID, IMAGE_ID);
+		verify(imageRepository).delete(image);
+	}
+
+	@Test
+	void guestsReadImagesOfPublishedContentButNeverOfDrafts() {
+		when(currentUser.findUserId()).thenReturn(Optional.empty());
+		storedImage();
+		content(OTHER, ContentStatus.PUBLISHED);
+		assertThat(service.getImage(CONTENT_ID, IMAGE_ID).mimeType()).isEqualTo("image/png");
+
+		content(OTHER, ContentStatus.DRAFT);
+		assertThatThrownBy(() -> service.getImage(CONTENT_ID, IMAGE_ID)).isInstanceOf(ContentNotFoundException.class);
 	}
 }

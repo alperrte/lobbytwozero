@@ -14,6 +14,10 @@ import static org.mockito.Mockito.when;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -38,11 +42,15 @@ import com.ltz.content.domain.exception.ContentNotEditableException;
 import com.ltz.content.domain.exception.ContentNotFoundException;
 import com.ltz.content.domain.exception.DraftLimitExceededException;
 import com.ltz.content.domain.exception.DuplicateContentException;
+import com.ltz.content.domain.exception.InvalidContentQueryException;
 import com.ltz.content.domain.exception.InvalidContentRequestException;
 import com.ltz.content.domain.exception.OfficialAnnouncementForbiddenException;
 import com.ltz.content.domain.exception.TooManyContentsException;
+import com.ltz.content.domain.exception.PublishRequirementsNotMetException;
+import com.ltz.content.infrastructure.persistence.repository.ContentCategoryAssignmentRepository;
 import com.ltz.content.infrastructure.persistence.repository.ContentImageRepository;
 import com.ltz.content.infrastructure.persistence.repository.ContentRepository;
+import com.ltz.content.infrastructure.persistence.repository.ContentSourceRepository;
 import com.ltz.content.infrastructure.persistence.repository.ContentTranslationRepository;
 
 class ContentServiceTest {
@@ -56,14 +64,22 @@ class ContentServiceTest {
 	private final ContentRepository contentRepository = mock(ContentRepository.class);
 	private final ContentTranslationRepository translationRepository = mock(ContentTranslationRepository.class);
 	private final ContentImageRepository imageRepository = mock(ContentImageRepository.class);
+	private final ContentCategoryAssignmentRepository assignmentRepository = mock(ContentCategoryAssignmentRepository.class);
+	private final ContentSourceRepository sourceRepository = mock(ContentSourceRepository.class);
 	private final CurrentUserPort currentUser = mock(CurrentUserPort.class);
+	private final ContentViewAssembler assembler = new ContentViewAssembler(translationRepository, imageRepository,
+			assignmentRepository, sourceRepository, new ContentMapper());
 	private final ContentService service = new ContentService(contentRepository, translationRepository, imageRepository,
-			new ContentAccess(contentRepository), new ContentMapper(), new ContentFingerprint(), currentUser,
-			Clock.fixed(NOW, ZoneOffset.UTC));
+			assignmentRepository, sourceRepository, new ContentAccess(contentRepository), assembler,
+			new ContentFingerprint(), currentUser, Clock.fixed(NOW, ZoneOffset.UTC));
+
+	/** Sahte depodaki çeviriler (içerik kimliğine göre); görünüm derleyicisi bunları okur. */
+	private final Map<UUID, List<ContentTranslation>> storedTranslations = new HashMap<>();
 
 	@BeforeEach
 	void stubStorage() {
 		when(currentUser.requireUserId()).thenReturn(USER);
+		when(currentUser.findUserId()).thenReturn(Optional.of(USER));
 		when(contentRepository.saveAndFlush(any(Content.class))).thenAnswer(invocation -> {
 			Content content = invocation.getArgument(0);
 			if (content.getId() == null) {
@@ -72,7 +88,16 @@ class ContentServiceTest {
 			return content;
 		});
 		when(contentRepository.save(any(Content.class))).then(returnsFirstArg());
-		when(translationRepository.save(any(ContentTranslation.class))).then(returnsFirstArg());
+		when(translationRepository.save(any(ContentTranslation.class))).thenAnswer(invocation -> {
+			ContentTranslation translation = invocation.getArgument(0);
+			List<ContentTranslation> list = storedTranslations.computeIfAbsent(translation.getId().contentId(),
+					key -> new ArrayList<>());
+			list.removeIf(stored -> stored.getId().equals(translation.getId()));
+			list.add(translation);
+			return translation;
+		});
+		when(translationRepository.findByIdContentId(any(UUID.class)))
+				.thenAnswer(invocation -> storedTranslations.getOrDefault(invocation.<UUID>getArgument(0), List.of()));
 	}
 
 	private static CreateContentRequest create(ContentType type, String title, String summary, String body) {
@@ -91,6 +116,7 @@ class ContentServiceTest {
 	private ContentTranslation existingTranslation() {
 		ContentTranslation translation = ContentTranslation.of(CONTENT_ID, "tr", "Eski başlık", "Eski özet", "Eski gövde");
 		when(translationRepository.findById(new ContentTranslationId(CONTENT_ID, "tr"))).thenReturn(Optional.of(translation));
+		storedTranslations.put(CONTENT_ID, new ArrayList<>(List.of(translation)));
 		return translation;
 	}
 
@@ -229,7 +255,7 @@ class ContentServiceTest {
 		Content content = existing(USER, ContentStatus.DRAFT);
 		ContentTranslation translation = existingTranslation();
 
-		ContentResponse response = service.updateDraft(CONTENT_ID, new UpdateContentRequest(null, "  Yeni özet ", null));
+		ContentResponse response = service.updateContent(CONTENT_ID, new UpdateContentRequest(null, "  Yeni özet ", null));
 
 		assertThat(translation.getTitle()).isEqualTo("Eski başlık");
 		assertThat(translation.getSummary()).isEqualTo("Yeni özet");
@@ -245,7 +271,7 @@ class ContentServiceTest {
 		Content content = existing(USER, ContentStatus.DRAFT);
 		existingTranslation();
 
-		service.updateDraft(CONTENT_ID, new UpdateContentRequest("Başka başlık", null, null));
+		service.updateContent(CONTENT_ID, new UpdateContentRequest("Başka başlık", null, null));
 
 		assertThat(content.getAuthorId()).isEqualTo(USER);
 		assertThat(content.getType()).isEqualTo(ContentType.NEWS);
@@ -258,7 +284,7 @@ class ContentServiceTest {
 		existing(USER, ContentStatus.DRAFT);
 		ContentTranslation translation = existingTranslation();
 
-		service.updateDraft(CONTENT_ID, new UpdateContentRequest(null, "   ", ""));
+		service.updateContent(CONTENT_ID, new UpdateContentRequest(null, "   ", ""));
 
 		assertThat(translation.getSummary()).isNull();
 		assertThat(translation.getBody()).isNull();
@@ -271,7 +297,7 @@ class ContentServiceTest {
 		existingTranslation();
 
 		UpdateContentRequest request = new UpdateContentRequest(null, null, null);
-		assertThatThrownBy(() -> service.updateDraft(CONTENT_ID, request))
+		assertThatThrownBy(() -> service.updateContent(CONTENT_ID, request))
 				.isInstanceOf(InvalidContentRequestException.class);
 	}
 
@@ -281,7 +307,7 @@ class ContentServiceTest {
 		existingTranslation();
 
 		UpdateContentRequest request = new UpdateContentRequest("   ", null, null);
-		assertThatThrownBy(() -> service.updateDraft(CONTENT_ID, request))
+		assertThatThrownBy(() -> service.updateContent(CONTENT_ID, request))
 				.isInstanceOf(InvalidContentRequestException.class);
 		verify(contentRepository, never()).saveAndFlush(any());
 	}
@@ -291,7 +317,7 @@ class ContentServiceTest {
 		existing(USER, ContentStatus.DRAFT);
 		existingTranslation();
 
-		ContentResponse response = service.updateDraft(CONTENT_ID, new UpdateContentRequest("Eski başlık", "Eski özet", null));
+		ContentResponse response = service.updateContent(CONTENT_ID, new UpdateContentRequest("Eski başlık", "Eski özet", null));
 
 		verify(contentRepository, never()).saveAndFlush(any());
 		verify(translationRepository, never()).save(any());
@@ -306,7 +332,7 @@ class ContentServiceTest {
 				eq(ContentType.NEWS), anyString(), eq(CONTENT_ID))).thenReturn(true);
 
 		UpdateContentRequest request = new UpdateContentRequest("Başka içeriğin başlığı", null, null);
-		assertThatThrownBy(() -> service.updateDraft(CONTENT_ID, request))
+		assertThatThrownBy(() -> service.updateContent(CONTENT_ID, request))
 				.isInstanceOf(DuplicateContentException.class);
 		verify(contentRepository, never()).saveAndFlush(any());
 	}
@@ -316,7 +342,7 @@ class ContentServiceTest {
 		existing(OTHER, ContentStatus.DRAFT);
 
 		UpdateContentRequest request = new UpdateContentRequest("Hack", null, null);
-		assertThatThrownBy(() -> service.updateDraft(CONTENT_ID, request))
+		assertThatThrownBy(() -> service.updateContent(CONTENT_ID, request))
 				.isInstanceOf(ContentNotFoundException.class);
 		verify(contentRepository, never()).saveAndFlush(any());
 	}
@@ -326,17 +352,17 @@ class ContentServiceTest {
 		existing(OTHER, ContentStatus.PUBLISHED);
 
 		UpdateContentRequest request = new UpdateContentRequest("Hack", null, null);
-		assertThatThrownBy(() -> service.updateDraft(CONTENT_ID, request))
+		assertThatThrownBy(() -> service.updateContent(CONTENT_ID, request))
 				.isInstanceOf(ContentAccessDeniedException.class);
 	}
 
 	@Test
-	void onlyDraftsCanBeEditedByTheirOwner() {
-		for (ContentStatus status : new ContentStatus[] { ContentStatus.PUBLISHED, ContentStatus.REMOVED, ContentStatus.ARCHIVED }) {
+	void removedAndArchivedContentCannotBeEdited() {
+		for (ContentStatus status : new ContentStatus[] { ContentStatus.REMOVED, ContentStatus.ARCHIVED }) {
 			existing(USER, status);
 
 			UpdateContentRequest request = new UpdateContentRequest("Yeni", null, null);
-			assertThatThrownBy(() -> service.updateDraft(CONTENT_ID, request))
+			assertThatThrownBy(() -> service.updateContent(CONTENT_ID, request))
 					.isInstanceOf(ContentNotEditableException.class);
 		}
 	}
@@ -346,7 +372,7 @@ class ContentServiceTest {
 		when(contentRepository.findByIdAndDeletedAtIsNull(CONTENT_ID)).thenReturn(Optional.empty());
 
 		UpdateContentRequest request = new UpdateContentRequest("Yeni", null, null);
-		assertThatThrownBy(() -> service.updateDraft(CONTENT_ID, request))
+		assertThatThrownBy(() -> service.updateContent(CONTENT_ID, request))
 				.isInstanceOf(ContentNotFoundException.class);
 	}
 
@@ -365,6 +391,8 @@ class ContentServiceTest {
 		verify(contentRepository).save(content);
 		verify(imageRepository).deleteByContentId(CONTENT_ID);
 		verify(translationRepository).deleteByContentId(CONTENT_ID);
+		verify(assignmentRepository).deleteByContentId(CONTENT_ID);
+		verify(sourceRepository).deleteByContentId(CONTENT_ID);
 	}
 
 	@Test
@@ -426,7 +454,7 @@ class ContentServiceTest {
 		existing(USER, ContentStatus.DRAFT);
 		existingTranslation();
 
-		ContentResponse response = service.getContent(CONTENT_ID);
+		ContentResponse response = service.getContent(CONTENT_ID, null);
 
 		assertThat(response.title()).isEqualTo("Eski başlık");
 		assertThat(response.status()).isEqualTo(ContentStatus.DRAFT);
@@ -437,7 +465,7 @@ class ContentServiceTest {
 	void aDraftOfAnotherUserIsNotVisible() {
 		existing(OTHER, ContentStatus.DRAFT);
 
-		assertThatThrownBy(() -> service.getContent(CONTENT_ID)).isInstanceOf(ContentNotFoundException.class);
+		assertThatThrownBy(() -> service.getContent(CONTENT_ID, null)).isInstanceOf(ContentNotFoundException.class);
 	}
 
 	@Test
@@ -445,7 +473,7 @@ class ContentServiceTest {
 		existing(OTHER, ContentStatus.PUBLISHED);
 		existingTranslation();
 
-		assertThat(service.getContent(CONTENT_ID).status()).isEqualTo(ContentStatus.PUBLISHED);
+		assertThat(service.getContent(CONTENT_ID, null).status()).isEqualTo(ContentStatus.PUBLISHED);
 	}
 
 	@Test
@@ -453,6 +481,80 @@ class ContentServiceTest {
 		existing(USER, ContentStatus.DRAFT);
 		when(translationRepository.findById(any(ContentTranslationId.class))).thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> service.getContent(CONTENT_ID)).isInstanceOf(IllegalStateException.class);
+		assertThatThrownBy(() -> service.getContent(CONTENT_ID, null)).isInstanceOf(IllegalStateException.class);
+	}
+
+	// ------------------------------------------------------------------ yayımlanmış içeriği düzenleme (CONT-02)
+
+	@Test
+	void ownerCanEditPublishedContentWhileItStillMeetsThePublishRules() {
+		Content content = existing(USER, ContentStatus.PUBLISHED);
+		existingTranslation();
+
+		ContentResponse response = service.updateContent(CONTENT_ID, new UpdateContentRequest(null, null,
+				"Yeni ve yeterince uzun bir gövde metni burada yer alıyor."));
+
+		assertThat(response.status()).isEqualTo(ContentStatus.PUBLISHED);
+		assertThat(response.body()).startsWith("Yeni ve yeterince uzun");
+		verify(contentRepository).saveAndFlush(content);
+	}
+
+	@Test
+	void editingPublishedContentCannotBreakThePublishRules() {
+		existing(USER, ContentStatus.PUBLISHED);
+		ContentTranslation translation = existingTranslation();
+		UpdateContentRequest request = new UpdateContentRequest(null, null, "çok kısa");
+
+		assertThatThrownBy(() -> service.updateContent(CONTENT_ID, request))
+				.isInstanceOfSatisfying(PublishRequirementsNotMetException.class,
+						exception -> assertThat(exception.getIssues()).containsExactly("tr:BODY_TOO_SHORT"));
+		assertThat(translation.getBody()).isEqualTo("Eski gövde");
+		verify(contentRepository, never()).saveAndFlush(any());
+	}
+
+	@Test
+	void aDraftMayBeSavedBelowThePublishMinimums() {
+		existing(USER, ContentStatus.DRAFT);
+		ContentTranslation translation = existingTranslation();
+
+		service.updateContent(CONTENT_ID, new UpdateContentRequest("Kısa", null, "az"));
+
+		assertThat(translation.getTitle()).isEqualTo("Kısa");
+		assertThat(translation.getBody()).isEqualTo("az");
+	}
+
+	@Test
+	void anInvalidLocaleIsRejectedWhenReading() {
+		assertThatThrownBy(() -> service.getContent(CONTENT_ID, "de")).isInstanceOf(InvalidContentQueryException.class);
+	}
+
+	@Test
+	void theRequestedLanguageIsServedWhenItExistsOtherwiseTheOriginal() {
+		existing(OTHER, ContentStatus.PUBLISHED);
+		ContentTranslation turkish = existingTranslation();
+		ContentTranslation english = ContentTranslation.of(CONTENT_ID, "en", "Old title", null, null);
+		storedTranslations.get(CONTENT_ID).add(english);
+		assertThat(turkish.getId().locale()).isEqualTo("tr");
+
+		ContentResponse inEnglish = service.getContent(CONTENT_ID, "en");
+		storedTranslations.get(CONTENT_ID).remove(english);
+		ContentResponse fallback = service.getContent(CONTENT_ID, "en");
+
+		assertThat(inEnglish.locale()).isEqualTo("en");
+		assertThat(inEnglish.title()).isEqualTo("Old title");
+		assertThat(inEnglish.availableLocales()).containsExactly("tr", "en");
+		assertThat(fallback.locale()).isEqualTo("tr");
+		assertThat(fallback.availableLocales()).containsExactly("tr");
+	}
+
+	@Test
+	void guestsReadPublishedContentButNeverDrafts() {
+		when(currentUser.findUserId()).thenReturn(Optional.empty());
+		existingTranslation();
+		existing(OTHER, ContentStatus.PUBLISHED);
+		assertThat(service.getContent(CONTENT_ID, null).status()).isEqualTo(ContentStatus.PUBLISHED);
+
+		existing(OTHER, ContentStatus.DRAFT);
+		assertThatThrownBy(() -> service.getContent(CONTENT_ID, null)).isInstanceOf(ContentNotFoundException.class);
 	}
 }

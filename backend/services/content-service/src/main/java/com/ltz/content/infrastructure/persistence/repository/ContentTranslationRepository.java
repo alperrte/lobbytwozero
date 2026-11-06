@@ -1,5 +1,6 @@
 package com.ltz.content.infrastructure.persistence.repository;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -11,6 +12,9 @@ import com.ltz.content.domain.entity.ContentTranslation;
 import com.ltz.content.domain.entity.ContentTranslationId;
 
 public interface ContentTranslationRepository extends JpaRepository<ContentTranslation, ContentTranslationId> {
+
+	/** İçeriğin tüm dillerdeki çevirileri. */
+	List<ContentTranslation> findByIdContentId(UUID contentId);
 
 	/** İçeriğin tüm dillerdeki metnini kalıcı olarak siler (silinen içerik için saklama süresi 0 gün). */
 	@Modifying(flushAutomatically = true, clearAutomatically = true)

@@ -288,7 +288,7 @@ class ContentRepositoryIntegrationTest extends PostgreSqlIntegrationTest {
 	void databaseRejectsUnknownStatusTypeAndLocale() {
 		UUID id = saveDraft(UUID.randomUUID(), ContentType.NEWS, hash('b')).getId();
 
-		assertRejected("ck_contents_status", "update contents set status = 'DELETED' where id = ?", id);
+		assertRejected("ck_contents_status", "update contents set status = 'DELETED', published_at = created_at where id = ?", id);
 		assertRejected("ck_contents_type", "update contents set type = 'POEM' where id = ?", id);
 		assertRejected("ck_contents_default_locale", "update contents set default_locale = 'de' where id = ?", id);
 		assertRejected("ck_contents_content_hash", "update contents set content_hash = 'kisa' where id = ?", id);
@@ -353,5 +353,76 @@ class ContentRepositoryIntegrationTest extends PostgreSqlIntegrationTest {
 				contentId)).isZero();
 		assertThat(jdbcTemplate.queryForObject("select count(*) from content_images where content_id = ?", Integer.class,
 				contentId)).isZero();
+	}
+	// ------------------------------------------------------------------ V103 / V104 (CONT-02)
+
+	@Test
+	void theFixedCategoryListIsSeededWithBothKinds() {
+		assertThat(jdbcTemplate.queryForObject("select count(*) from content_categories", Integer.class)).isEqualTo(14);
+		assertThat(jdbcTemplate.queryForObject("select count(*) from content_categories where kind = 'PLATFORM'", Integer.class)).isEqualTo(6);
+		assertThat(jdbcTemplate.queryForObject("select count(*) from content_categories where kind = 'TOPIC'", Integer.class)).isEqualTo(8);
+		assertThat(jdbcTemplate.queryForList("select code from content_categories order by sort_order", String.class))
+				.startsWith("PC", "PLAYSTATION", "XBOX").contains("UPDATE", "ESPORTS");
+		assertRejected("uq_content_categories_code", "insert into content_categories (id, code, kind, name_tr, name_en, sort_order) values (?, 'PC', 'PLATFORM', 'x', 'x', 99)",
+				UUID.randomUUID());
+	}
+
+	@Test
+	void categoryAssignmentsAreUniquePerContentAndCascadeOnDelete() {
+		UUID id = saveDraft(UUID.randomUUID(), ContentType.NEWS, hash('c')).getId();
+		jdbcTemplate.update("insert into content_category_assignments (content_id, category_id) select ?, id from content_categories where code = 'PC'", id);
+
+		assertRejected("pk_content_category_assignments",
+				"insert into content_category_assignments (content_id, category_id) select ?, id from content_categories where code = 'PC'", id);
+		assertRejected("fk_content_category_assignments_category",
+				"insert into content_category_assignments (content_id, category_id) values (?, ?)", id, UUID.randomUUID());
+		assertRejected("fk_content_category_assignments_content",
+				"insert into content_category_assignments (content_id, category_id) select ?, id from content_categories where code = 'XBOX'", UUID.randomUUID());
+		assertRejected("fk_content_category_assignments_category", "delete from content_categories where code = 'PC'");
+
+		jdbcTemplate.update("delete from contents where id = ?", id);
+		assertThat(jdbcTemplate.queryForObject("select count(*) from content_category_assignments where content_id = ?", Integer.class, id)).isZero();
+	}
+
+	@Test
+	void sourcesAcceptOnlyHttpsLinksAndAtMostThreeSlots() {
+		UUID id = saveDraft(UUID.randomUUID(), ContentType.NEWS, hash('d')).getId();
+		String insert = "insert into content_sources (id, content_id, title, url, source_date, sort_order) values (?, ?, ?, ?, null, ?)";
+		jdbcTemplate.update(insert, UUID.randomUUID(), id, "IGN", "https://www.ign.com/a", 0);
+
+		assertRejected("uq_content_sources_content_id_sort_order", insert, UUID.randomUUID(), id, "IGN", "https://www.ign.com/b", 0);
+		assertRejected("ck_content_sources_sort_order", insert, UUID.randomUUID(), id, "IGN", "https://www.ign.com/b", 3);
+		for (String unsafe : new String[] { "http://www.ign.com/a", "javascript:alert(1)", "data:text/html,x", "https://a b.com", "ftp://x.com/a" }) {
+			assertRejected("ck_content_sources_url", insert, UUID.randomUUID(), id, "IGN", unsafe, 1);
+		}
+		assertRejected("ck_content_sources_title", insert, UUID.randomUUID(), id, "   ", "https://www.ign.com/b", 1);
+
+		jdbcTemplate.update("delete from contents where id = ?", id);
+		assertThat(jdbcTemplate.queryForObject("select count(*) from content_sources where content_id = ?", Integer.class, id)).isZero();
+	}
+
+	@Test
+	void publicationColumnsFollowTheStatusRules() {
+		UUID id = saveDraft(UUID.randomUUID(), ContentType.NEWS, hash('e')).getId();
+
+		assertRejected("ck_contents_published_at", "update contents set status = 'PUBLISHED' where id = ?", id);
+		assertRejected("ck_contents_published_at", "update contents set published_at = now() where id = ?", id);
+		assertRejected("ck_contents_featured", "update contents set featured = true where id = ?", id);
+
+		jdbcTemplate.update("update contents set status = 'PUBLISHED', published_at = now() where id = ?", id);
+		assertRejected("ck_contents_featured", "update contents set featured = true where id = ?", id);
+		assertRejected("ck_contents_featured", "update contents set featured = true, featured_at = now() where id = ?", id);
+		jdbcTemplate.update("update contents set featured = true, featured_at = now(), featured_by = ? where id = ?", UUID.randomUUID(), id);
+		assertThat(jdbcTemplate.queryForObject("select featured from contents where id = ?", Boolean.class, id)).isTrue();
+	}
+
+	@Test
+	void gameLinkIsAnOptionalReferenceWithoutAForeignKey() {
+		UUID id = saveDraft(UUID.randomUUID(), ContentType.NEWS, hash('f')).getId();
+		UUID game = UUID.randomUUID();
+
+		jdbcTemplate.update("update contents set game_id = ? where id = ?", game, id);
+
+		assertThat(jdbcTemplate.queryForObject("select game_id from contents where id = ?", UUID.class, id)).isEqualTo(game);
 	}
 }

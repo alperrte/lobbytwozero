@@ -198,8 +198,8 @@ class ContentImageControllerTest {
 	}
 
 	@Test
-	void imagesCannotBeAddedToContentThatIsNoLongerADraft() throws Exception {
-		givenContent(USER_ID, ContentStatus.PUBLISHED);
+	void imagesCannotBeAddedToRemovedContent() throws Exception {
+		givenContent(USER_ID, ContentStatus.REMOVED);
 
 		mockMvc.perform(multipart(URL).file(file(TestImages.png(10, 10), "a.png", "image/png")).with(owner))
 				.andExpect(status().isConflict());
@@ -225,8 +225,7 @@ class ContentImageControllerTest {
 				.andExpect(status().isOk())
 				.andExpect(content().contentType(MediaType.IMAGE_PNG))
 				.andExpect(content().bytes(new byte[] { 1, 2, 3 }))
-				.andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("no-store")))
-				.andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("private")))
+				.andExpect(header().string("Cache-Control", "no-store"))
 				.andExpect(header().string("X-Content-Type-Options", "nosniff"))
 				.andExpect(header().string("Content-Security-Policy", "default-src 'none'; sandbox"))
 				.andExpect(header().string("Content-Disposition", "inline"));
@@ -241,8 +240,9 @@ class ContentImageControllerTest {
 	}
 
 	@Test
-	void readingWithoutATokenIsUnauthorized() throws Exception {
-		mockMvc.perform(get(URL + "/" + IMAGE_ID)).andExpect(status().isUnauthorized());
+	void guestsCannotReadADraftImage() throws Exception {
+		// Okuma herkese açıktır; ancak taslağın varlığı misafire sızdırılmaz (404).
+		mockMvc.perform(get(URL + "/" + IMAGE_ID)).andExpect(status().isNotFound());
 	}
 
 	@Test
@@ -277,5 +277,26 @@ class ContentImageControllerTest {
 	@Test
 	void deletingWithoutATokenIsUnauthorized() throws Exception {
 		mockMvc.perform(delete(URL + "/" + IMAGE_ID)).andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void guestsReadImagesOfPublishedContentAndNothingIsCached() throws Exception {
+		givenContent(USER_ID, ContentStatus.PUBLISHED);
+		ContentImage image = ContentImage.attach(CONTENT_ID, new byte[] { 9 }, "image/jpeg", 10, 10, 0, NOW);
+		when(imageRepository.findByIdAndContentId(IMAGE_ID, CONTENT_ID)).thenReturn(Optional.of(image));
+
+		mockMvc.perform(get(URL + "/" + IMAGE_ID))
+				.andExpect(status().isOk())
+				.andExpect(content().contentType(MediaType.IMAGE_JPEG))
+				.andExpect(header().string("Cache-Control", "no-store"))
+				.andExpect(header().string("X-Content-Type-Options", "nosniff"));
+	}
+
+	@Test
+	void ownerCanAddImagesToPublishedContent() throws Exception {
+		givenContent(USER_ID, ContentStatus.PUBLISHED);
+
+		mockMvc.perform(multipart(URL).file(file(TestImages.png(10, 10), "a.png", "image/png")).with(owner))
+				.andExpect(status().isCreated());
 	}
 }

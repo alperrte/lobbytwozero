@@ -34,6 +34,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import com.ltz.content.api.dto.request.CreateContentRequest;
 import com.ltz.content.api.dto.response.ContentResponse;
+import com.ltz.content.application.service.ContentFeedService;
 import com.ltz.content.application.service.ContentService;
 import com.ltz.content.domain.entity.Content;
 import com.ltz.content.domain.enums.ContentStatus;
@@ -64,11 +65,14 @@ class ContentControllerTest {
 	@MockitoBean
 	private ContentService contentService;
 
+	@MockitoBean
+	private ContentFeedService feedService;
+
 	private final RequestPostProcessor owner = jwt().jwt(token -> token.subject(USER_ID.toString()));
 
 	private static ContentResponse response() {
 		return new ContentResponse(CONTENT_ID, USER_ID, ContentType.NEWS, ContentStatus.DRAFT, "tr", "Yeni Güncelleme",
-				"Kısa özet", null, List.of(), NOW, NOW);
+				"Kısa özet", null, List.of(), NOW, NOW, null, List.of(), List.of(), false, null, List.of("tr"));
 	}
 
 	private org.springframework.test.web.servlet.ResultActions create(String json) throws Exception {
@@ -184,7 +188,7 @@ class ContentControllerTest {
 
 	@Test
 	void getReturnsTheContent() throws Exception {
-		when(contentService.getContent(CONTENT_ID)).thenReturn(response());
+		when(contentService.getContent(CONTENT_ID, null)).thenReturn(response());
 
 		mockMvc.perform(get(URL + "/" + CONTENT_ID).with(owner))
 				.andExpect(status().isOk())
@@ -194,7 +198,7 @@ class ContentControllerTest {
 
 	@Test
 	void getOfAMissingOrForeignDraftIs404() throws Exception {
-		when(contentService.getContent(CONTENT_ID)).thenThrow(new ContentNotFoundException());
+		when(contentService.getContent(CONTENT_ID, null)).thenThrow(new ContentNotFoundException());
 
 		mockMvc.perform(get(URL + "/" + CONTENT_ID).with(owner)).andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.detail").value("Content not found."));
@@ -211,7 +215,7 @@ class ContentControllerTest {
 
 	@Test
 	void patchUpdatesOnlyTheGivenFields() throws Exception {
-		when(contentService.updateDraft(eq(CONTENT_ID), any())).thenReturn(response());
+		when(contentService.updateContent(eq(CONTENT_ID), any())).thenReturn(response());
 
 		update("{\"summary\":\"Kısa özet\"}").andExpect(status().isOk()).andExpect(jsonPath("$.summary").value("Kısa özet"));
 	}
@@ -241,22 +245,22 @@ class ContentControllerTest {
 
 	@Test
 	void patchErrorsAreMappedToProblemDetails() throws Exception {
-		when(contentService.updateDraft(eq(CONTENT_ID), any())).thenThrow(new InvalidContentRequestException("At least one of title, summary or body is required."));
+		when(contentService.updateContent(eq(CONTENT_ID), any())).thenThrow(new InvalidContentRequestException("At least one of title, summary or body is required."));
 		update("{}").andExpect(status().isBadRequest());
 
-		when(contentService.updateDraft(eq(CONTENT_ID), any())).thenThrow(new ContentNotFoundException());
+		when(contentService.updateContent(eq(CONTENT_ID), any())).thenThrow(new ContentNotFoundException());
 		update("{\"title\":\"Yeni\"}").andExpect(status().isNotFound());
 
-		when(contentService.updateDraft(eq(CONTENT_ID), any())).thenThrow(new ContentAccessDeniedException());
+		when(contentService.updateContent(eq(CONTENT_ID), any())).thenThrow(new ContentAccessDeniedException());
 		update("{\"title\":\"Yeni\"}").andExpect(status().isForbidden());
 
-		when(contentService.updateDraft(eq(CONTENT_ID), any())).thenThrow(new ContentNotEditableException());
+		when(contentService.updateContent(eq(CONTENT_ID), any())).thenThrow(new ContentNotEditableException());
 		update("{\"title\":\"Yeni\"}").andExpect(status().isConflict());
 
-		when(contentService.updateDraft(eq(CONTENT_ID), any())).thenThrow(new DuplicateContentException());
+		when(contentService.updateContent(eq(CONTENT_ID), any())).thenThrow(new DuplicateContentException());
 		update("{\"title\":\"Yeni\"}").andExpect(status().isConflict());
 
-		when(contentService.updateDraft(eq(CONTENT_ID), any()))
+		when(contentService.updateContent(eq(CONTENT_ID), any()))
 				.thenThrow(new ObjectOptimisticLockingFailureException(Content.class, CONTENT_ID));
 		update("{\"title\":\"Yeni\"}").andExpect(status().isConflict());
 	}
@@ -283,7 +287,7 @@ class ContentControllerTest {
 
 	@Test
 	void unexpectedFailuresNeverLeakInternalDetails() throws Exception {
-		when(contentService.getContent(CONTENT_ID)).thenThrow(new IllegalStateException("jdbc:postgresql://db password=secret"));
+		when(contentService.getContent(CONTENT_ID, null)).thenThrow(new IllegalStateException("jdbc:postgresql://db password=secret"));
 
 		mockMvc.perform(get(URL + "/" + CONTENT_ID).with(owner))
 				.andExpect(status().isInternalServerError())
@@ -296,7 +300,8 @@ class ContentControllerTest {
 		mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content("{\"type\":\"NEWS\",\"title\":\"Başlık\"}"))
 				.andExpect(status().isUnauthorized())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
-		mockMvc.perform(get(URL + "/" + CONTENT_ID)).andExpect(status().isUnauthorized());
+		mockMvc.perform(patch(URL + "/" + CONTENT_ID).contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"x\"}"))
+				.andExpect(status().isUnauthorized());
 		verifyNoInteractions(contentService);
 	}
 }

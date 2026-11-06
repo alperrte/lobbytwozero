@@ -866,26 +866,38 @@ erDiagram
 
 ```mermaid
 erDiagram
-  content_categories ||--o{ contents : categorizes
+  content_categories ||--o{ content_category_assignments : classifies
+  contents ||--o{ content_category_assignments : "categorized as"
   contents ||--o{ content_translations : "translated as"
   contents ||--o{ content_images : has
   contents ||--o{ content_sources : cites
 
   content_categories {
     uuid id PK
-    varchar code UK
+    varchar code UK "sabit liste, 14 kayıt (V103)"
+    varchar kind "PLATFORM|TOPIC"
+    varchar name_tr
+    varchar name_en
+    int sort_order
+  }
+  content_category_assignments {
+    uuid content_id PK,FK
+    uuid category_id PK,FK
   }
   contents {
     uuid id PK
     uuid author_id "REF"
     varchar type "NEWS|ANNOUNCEMENT|USER_CONTENT"
-    uuid category_id FK "sonraki faz"
+    uuid game_id "REF game-service (V104)"
+    timestamptz published_at "V104"
     varchar slug UK "sonraki faz"
     varchar status "DRAFT|PUBLISHED|REMOVED|ARCHIVED"
     varchar default_locale "tr|en (V101)"
     varchar content_hash "mükerrer içerik, kısmi UQ (V101)"
     timestamptz deleted_at "soft delete (V101)"
-    boolean featured "sonraki faz"
+    boolean featured "V104, yalnız PUBLISHED"
+    timestamptz featured_at "V104"
+    uuid featured_by "REF, ADMIN (V104)"
   }
   content_translations {
     uuid content_id PK,FK
@@ -904,7 +916,10 @@ erDiagram
   content_sources {
     uuid id PK
     uuid content_id FK
-    varchar url
+    varchar title
+    varchar url "yalnız https (V103)"
+    date source_date
+    int sort_order "0-2, UQ (content_id, sort_order)"
   }
 ```
 

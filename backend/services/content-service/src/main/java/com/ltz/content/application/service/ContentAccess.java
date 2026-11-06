@@ -12,8 +12,8 @@ import com.ltz.content.domain.exception.ContentNotFoundException;
 import com.ltz.content.infrastructure.persistence.repository.ContentRepository;
 
 /**
- * İçeriğe erişim kuralları: silinmiş içerik herkes için yok sayılır. Sahibi olmayan kullanıcıya yayımlanmamış (taslak,
- * kaldırılmış, arşivlenmiş) içeriğin varlığı sızdırılmaz (404); yayımlanmış içerikte başkasının içeriğini değiştirme
+ * İçeriğe erişim kuralları: silinmiş içerik herkes için yok sayılır. Sahibi olmayan kullanıcıya (misafir dahil) yayımlanmamış
+ * (taslak, kaldırılmış, arşivlenmiş) içeriğin varlığı sızdırılmaz (404); yayımlanmış içerikte başkasının içeriğini değiştirme
  * girişimi 403'tür. Her zaman sunucu tarafında, doğrulanmış kullanıcı kimliğiyle denetlenir (IDOR).
  */
 @Component
@@ -29,19 +29,27 @@ public class ContentAccess {
 		return requireOwned(contentRepository.findByIdAndDeletedAtIsNull(contentId), userId);
 	}
 
-	/** Eşzamanlı görsel işlemlerini sıraya sokmak için satır kilidiyle yükler. */
+	/** Eşzamanlı işlemleri sıraya sokmak için satır kilidiyle yükler. */
 	public Content loadOwnedForUpdate(UUID contentId, UUID userId) {
 		return requireOwned(contentRepository.findActiveByIdForUpdate(contentId), userId);
 	}
 
-	/** Sahibi her durumda, diğer kullanıcılar yalnız yayımlanmış içeriği görebilir. */
-	public Content loadViewable(UUID contentId, UUID userId) {
+	/**
+	 * Yayımlanmış içeriği herkes (misafir dahil), diğer durumları yalnız sahibi görebilir. {@code viewerId} misafirde null'dır.
+	 */
+	public Content loadViewable(UUID contentId, UUID viewerId) {
 		Content content = contentRepository.findByIdAndDeletedAtIsNull(contentId)
 				.orElseThrow(ContentNotFoundException::new);
-		if (!content.isOwnedBy(userId) && content.getStatus() != ContentStatus.PUBLISHED) {
+		boolean visible = content.getStatus() == ContentStatus.PUBLISHED || content.isOwnedBy(viewerId);
+		if (!visible) {
 			throw new ContentNotFoundException();
 		}
 		return content;
+	}
+
+	/** Silinmemiş içeriği sahiplik aramadan yükler (yönetici işlemleri için); yoksa 404. */
+	public Content loadActiveForUpdate(UUID contentId) {
+		return contentRepository.findActiveByIdForUpdate(contentId).orElseThrow(ContentNotFoundException::new);
 	}
 
 	private Content requireOwned(Optional<Content> found, UUID userId) {

@@ -17,17 +17,25 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+import com.ltz.content.domain.exception.AdministratorRequiredException;
 import com.ltz.content.domain.exception.AuthenticationRequiredException;
 import com.ltz.content.domain.exception.ContentAccessDeniedException;
+import com.ltz.content.domain.exception.ContentAlreadyPublishedException;
 import com.ltz.content.domain.exception.ContentImageLimitExceededException;
 import com.ltz.content.domain.exception.ContentImageNotFoundException;
 import com.ltz.content.domain.exception.ContentNotEditableException;
 import com.ltz.content.domain.exception.ContentNotFoundException;
+import com.ltz.content.domain.exception.ContentNotPublishedException;
+import com.ltz.content.domain.exception.ContentTranslationNotFoundException;
 import com.ltz.content.domain.exception.DraftLimitExceededException;
 import com.ltz.content.domain.exception.DuplicateContentException;
+import com.ltz.content.domain.exception.GameCatalogUnavailableException;
+import com.ltz.content.domain.exception.GameNotAvailableException;
+import com.ltz.content.domain.exception.InvalidContentQueryException;
 import com.ltz.content.domain.exception.InvalidContentRequestException;
 import com.ltz.content.domain.exception.InvalidImageException;
 import com.ltz.content.domain.exception.OfficialAnnouncementForbiddenException;
+import com.ltz.content.domain.exception.PublishRequirementsNotMetException;
 import com.ltz.content.domain.exception.TooManyContentsException;
 
 /** Tüm hatalar ProblemDetail (RFC 9457) döner; stack trace, SQL veya kullanıcı girdisi yanıta yazılmaz. */
@@ -53,25 +61,48 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "Authentication is required.");
 	}
 
-	@ExceptionHandler({ ContentNotFoundException.class, ContentImageNotFoundException.class })
+	@ExceptionHandler({ ContentNotFoundException.class, ContentImageNotFoundException.class,
+			ContentTranslationNotFoundException.class })
 	public ProblemDetail handleNotFound(RuntimeException exception) {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
 	}
 
-	@ExceptionHandler({ ContentAccessDeniedException.class, OfficialAnnouncementForbiddenException.class })
+	@ExceptionHandler({ ContentAccessDeniedException.class, OfficialAnnouncementForbiddenException.class,
+			AdministratorRequiredException.class })
 	public ProblemDetail handleForbidden(RuntimeException exception) {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, exception.getMessage());
 	}
 
 	@ExceptionHandler({ ContentNotEditableException.class, DuplicateContentException.class,
-			DraftLimitExceededException.class, ContentImageLimitExceededException.class })
+			DraftLimitExceededException.class, ContentImageLimitExceededException.class,
+			ContentAlreadyPublishedException.class, ContentNotPublishedException.class })
 	public ProblemDetail handleConflict(RuntimeException exception) {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
 	}
 
-	@ExceptionHandler(InvalidContentRequestException.class)
-	public ProblemDetail handleInvalidContentRequest(InvalidContentRequestException exception) {
+	@ExceptionHandler({ InvalidContentRequestException.class, InvalidContentQueryException.class })
+	public ProblemDetail handleBadRequest(RuntimeException exception) {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+	}
+
+	/** Yayın kuralları sağlanmıyor: {@code issues} her eksiği {@code <dil>:<kod>} olarak listeler. */
+	@ExceptionHandler(PublishRequirementsNotMetException.class)
+	public ProblemDetail handlePublishRequirementsNotMet(PublishRequirementsNotMetException exception) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, exception.getMessage());
+		problem.setTitle("Publication Requirements Not Met");
+		problem.setProperty("issues", exception.getIssues());
+		return problem;
+	}
+
+	@ExceptionHandler(GameNotAvailableException.class)
+	public ProblemDetail handleGameNotAvailable(GameNotAvailableException exception) {
+		return ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, exception.getMessage());
+	}
+
+	@ExceptionHandler(GameCatalogUnavailableException.class)
+	public ProblemDetail handleGameCatalogUnavailable(GameCatalogUnavailableException exception) {
+		log.warn("Game catalog could not be reached: {}", exception.getCause().getClass().getSimpleName());
+		return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage());
 	}
 
 	@ExceptionHandler(TooManyContentsException.class)

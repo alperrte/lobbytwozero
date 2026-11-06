@@ -10,12 +10,16 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ltz.content.api.dto.request.ContentFeedRequest;
 import com.ltz.content.api.dto.request.CreateContentRequest;
 import com.ltz.content.api.dto.request.UpdateContentRequest;
+import com.ltz.content.api.dto.response.ContentPageResponse;
 import com.ltz.content.api.dto.response.ContentResponse;
+import com.ltz.content.application.service.ContentFeedService;
 import com.ltz.content.application.service.ContentService;
 
 import jakarta.validation.Valid;
@@ -25,9 +29,17 @@ import jakarta.validation.Valid;
 public class ContentController {
 
 	private final ContentService contentService;
+	private final ContentFeedService feedService;
 
-	public ContentController(ContentService contentService) {
+	public ContentController(ContentService contentService, ContentFeedService feedService) {
 		this.contentService = contentService;
+		this.feedService = feedService;
+	}
+
+	/** Herkese açık akış: yalnız yayımlanmış içerik (arama, filtre, sayfalama). */
+	@GetMapping
+	public ContentPageResponse listContents(@Valid ContentFeedRequest request) {
+		return feedService.list(request);
 	}
 
 	@PostMapping
@@ -36,14 +48,16 @@ public class ContentController {
 		return contentService.createDraft(request);
 	}
 
+	/** Yayımlanmış içerik herkese açık; taslak yalnız sahibine görünür. {@code locale}: tr | en (çeviri yoksa ilk dil). */
 	@GetMapping("/{contentId}")
-	public ContentResponse getContent(@PathVariable UUID contentId) {
-		return contentService.getContent(contentId);
+	public ContentResponse getContent(@PathVariable UUID contentId,
+			@RequestParam(required = false) String locale) {
+		return contentService.getContent(contentId, locale);
 	}
 
 	@PatchMapping("/{contentId}")
-	public ContentResponse updateDraft(@PathVariable UUID contentId, @Valid @RequestBody UpdateContentRequest request) {
-		return contentService.updateDraft(contentId, request);
+	public ContentResponse updateContent(@PathVariable UUID contentId, @Valid @RequestBody UpdateContentRequest request) {
+		return contentService.updateContent(contentId, request);
 	}
 
 	@DeleteMapping("/{contentId}")

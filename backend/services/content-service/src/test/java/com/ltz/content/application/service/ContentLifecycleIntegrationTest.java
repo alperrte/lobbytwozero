@@ -47,7 +47,7 @@ import jakarta.persistence.EntityManager;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({ ContentService.class, ContentImageService.class, ContentAccess.class, ContentMapper.class,
-		ContentFingerprint.class, ImageSanitizer.class, ClockConfig.class })
+		ContentFingerprint.class, ImageSanitizer.class, ContentViewAssembler.class, ClockConfig.class })
 class ContentLifecycleIntegrationTest extends PostgreSqlIntegrationTest {
 
 	private static final UUID USER = UUID.fromString("0198a3c2-7b1e-7d44-9a55-3f1c2b4d5e66");
@@ -78,6 +78,7 @@ class ContentLifecycleIntegrationTest extends PostgreSqlIntegrationTest {
 
 	private void asUser(UUID userId, boolean admin) {
 		when(currentUser.requireUserId()).thenReturn(userId);
+		when(currentUser.findUserId()).thenReturn(java.util.Optional.of(userId));
 		when(currentUser.hasAdminRole()).thenReturn(admin);
 	}
 
@@ -99,7 +100,7 @@ class ContentLifecycleIntegrationTest extends PostgreSqlIntegrationTest {
 		assertThat(created.authorId()).isEqualTo(USER);
 		assertThat(created.images()).isEmpty();
 
-		ContentResponse edited = contentService.updateDraft(created.id(), new UpdateContentRequest("Düzenlenmiş haber", null, "Yeni gövde"));
+		ContentResponse edited = contentService.updateContent(created.id(), new UpdateContentRequest("Düzenlenmiş haber", null, "Yeni gövde"));
 		assertThat(edited.title()).isEqualTo("Düzenlenmiş haber");
 		assertThat(edited.summary()).isEqualTo("Kısa özet");
 		assertThat(edited.body()).isEqualTo("Yeni gövde");
@@ -111,7 +112,7 @@ class ContentLifecycleIntegrationTest extends PostgreSqlIntegrationTest {
 
 		entityManager.flush();
 		entityManager.clear();
-		ContentResponse loaded = contentService.getContent(created.id());
+		ContentResponse loaded = contentService.getContent(created.id(), null);
 		assertThat(loaded.title()).isEqualTo("Düzenlenmiş haber");
 		assertThat(loaded.images()).hasSize(1);
 		assertThat(loaded.images().get(0).contentUrl())
@@ -124,7 +125,7 @@ class ContentLifecycleIntegrationTest extends PostgreSqlIntegrationTest {
 
 		UUID createdId = created.id();
 		UUID imageId = image.id();
-		assertThatThrownBy(() -> contentService.getContent(createdId)).isInstanceOf(ContentNotFoundException.class);
+		assertThatThrownBy(() -> contentService.getContent(createdId, null)).isInstanceOf(ContentNotFoundException.class);
 		assertThatThrownBy(() -> imageService.getImage(createdId, imageId)).isInstanceOf(ContentNotFoundException.class);
 		assertThatThrownBy(() -> contentService.deleteContent(createdId)).isInstanceOf(ContentNotFoundException.class);
 	}
@@ -201,9 +202,9 @@ class ContentLifecycleIntegrationTest extends PostgreSqlIntegrationTest {
 
 		asUser(OTHER, false);
 
-		assertThatThrownBy(() -> contentService.getContent(id)).isInstanceOf(ContentNotFoundException.class);
+		assertThatThrownBy(() -> contentService.getContent(id, null)).isInstanceOf(ContentNotFoundException.class);
 		UpdateContentRequest hijack = new UpdateContentRequest("Ele geçirildi", null, null);
-		assertThatThrownBy(() -> contentService.updateDraft(id, hijack))
+		assertThatThrownBy(() -> contentService.updateContent(id, hijack))
 				.isInstanceOf(ContentNotFoundException.class);
 		assertThatThrownBy(() -> contentService.deleteContent(id)).isInstanceOf(ContentNotFoundException.class);
 		assertThatThrownBy(() -> imageService.getImage(id, imageId)).isInstanceOf(ContentNotFoundException.class);
@@ -213,7 +214,7 @@ class ContentLifecycleIntegrationTest extends PostgreSqlIntegrationTest {
 
 		// Hiçbir şey değişmedi: sahibi hâlâ aynı içeriği ve görseli görür.
 		asUser(USER, false);
-		ContentResponse intact = contentService.getContent(id);
+		ContentResponse intact = contentService.getContent(id, null);
 		assertThat(intact.title()).isEqualTo("Özel taslak");
 		assertThat(intact.images()).hasSize(1);
 	}
@@ -222,7 +223,7 @@ class ContentLifecycleIntegrationTest extends PostgreSqlIntegrationTest {
 	void theAuthorCannotBeChangedThroughEditing() {
 		UUID id = contentService.createDraft(news("Sahipli haber")).id();
 
-		contentService.updateDraft(id, new UpdateContentRequest("Başka başlık", null, null));
+		contentService.updateContent(id, new UpdateContentRequest("Başka başlık", null, null));
 		entityManager.flush();
 		entityManager.clear();
 
@@ -267,7 +268,7 @@ class ContentLifecycleIntegrationTest extends PostgreSqlIntegrationTest {
 		assertThatThrownBy(() -> contentService.createDraft(duplicate)).isInstanceOf(DuplicateContentException.class);
 
 		UpdateContentRequest rename = new UpdateContentRequest("ayni haber", null, null);
-		assertThatThrownBy(() -> contentService.updateDraft(second, rename))
+		assertThatThrownBy(() -> contentService.updateContent(second, rename))
 				.isInstanceOf(DuplicateContentException.class);
 	}
 

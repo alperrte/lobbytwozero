@@ -39,13 +39,18 @@ public class ContentImageController {
 		return imageService.addImage(contentId, file.getBytes());
 	}
 
-	/** Taslak görseli özeldir: paylaşımlı önbelleğe girmez, tarayıcı içeriği yorumlamaz (nosniff, sandbox CSP). */
+	/**
+	 * Yayımlanmış içeriğin görseli herkese açıktır, taslak görseli yalnız sahibine. Her istekte bağlı içeriğin hâlâ görünür
+	 * (yayımlanmış ve silinmemiş) olduğu servis katmanında yeniden denetlenir; bu yüzden yanıt hiçbir önbelleğe alınmaz
+	 * ({@code no-store}), silinen ya da kaldırılan içeriğin görseli önbellekten sunulmaz. Tarayıcı içeriği yorumlamaz
+	 * (nosniff, sandbox CSP).
+	 */
 	@GetMapping("/{imageId}")
 	public ResponseEntity<byte[]> getImage(@PathVariable UUID contentId, @PathVariable UUID imageId) {
 		ContentImageContent image = imageService.getImage(contentId, imageId);
 		return ResponseEntity.ok()
 				.contentType(MediaType.parseMediaType(image.mimeType()))
-				.cacheControl(CacheControl.noStore().cachePrivate())
+				.cacheControl(CacheControl.noStore())
 				.header(HttpHeaders.CONTENT_DISPOSITION, "inline")
 				.header("X-Content-Type-Options", "nosniff")
 				.header("Content-Security-Policy", "default-src 'none'; sandbox")

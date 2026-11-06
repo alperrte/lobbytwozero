@@ -5,9 +5,9 @@ import java.util.List;
 
 /**
  * Yayın için gereken asgari içerik kuralları (MVP kararı, LTZ-NIS-CONT-01): başlık en az 5, gövde en az 30 karakter; baştaki
- * ve sondaki boşluklar sayılmaz. Bu kurallar yalnız yayın sırasında uygulanır ve taslak kaydetmeyi engellemez: taslakta yalnız
- * başlık zorunludur, özet ve gövde boş olabilir (bkz. {@code ContentTranslation}). Yayınlama ucu sonraki fazdadır (CONT-09);
- * bu sınıf o fazın kullanacağı kuralları ve eşikleri tek yerde tutar. Özet için asgari uzunluk yoktur.
+ * ve sondaki boşluklar sayılmaz. Bu kurallar yalnız yayın sırasında (ve yayımlanmış içeriğin düzenlenmesinde) uygulanır ve
+ * taslak kaydetmeyi engellemez: taslakta yalnız başlık zorunludur, özet ve gövde boş olabilir (bkz. {@code ContentTranslation}).
+ * Özet için asgari uzunluk yoktur.
  */
 public final class ContentPublishRules {
 
@@ -32,6 +32,11 @@ public final class ContentPublishRules {
 			issues.add(Issue.BODY_TOO_SHORT);
 		}
 		return issues;
+	}
+
+	/** {@link #check} sonucunu {@code <dil>:<kod>} biçimli dizelere çevirir (ör. {@code tr:BODY_TOO_SHORT}). */
+	public static List<String> issuesFor(String locale, String title, String body) {
+		return check(title, body).stream().map(issue -> locale + ":" + issue.name()).toList();
 	}
 
 	private static int lengthOf(String text) {

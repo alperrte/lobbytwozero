@@ -1,5 +1,6 @@
 package com.ltz.content.application.port;
 
+import java.util.Optional;
 import java.util.UUID;
 
 public interface CurrentUserPort {
@@ -10,6 +11,9 @@ public interface CurrentUserPort {
 	 * token'dan gelir; istek gövdesi, sorgu ya da başlıklardaki kimlik kullanılmaz.
 	 */
 	UUID requireUserId();
+
+	/** Herkese açık okumalar için: doğrulanmış kimlik varsa kullanıcı kimliği, misafirde boş. */
+	Optional<UUID> findUserId();
 
 	/**
 	 * Doğrulanmış kimlik yönetici ({@code ADMIN}) rolündeyse true döner; kimlik ya da rol yoksa false (fail-closed). Rol,

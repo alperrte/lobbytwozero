@@ -56,6 +56,23 @@ public class Content {
 	@Column(name = "content_hash", nullable = false, length = 64)
 	private String contentHash;
 
+	/** LTZ oyun kataloğundaki ilişkili oyun (REF, isteğe bağlı); game-service doğrulamasından sonra verilir. */
+	@Column(name = "game_id")
+	private UUID gameId;
+
+	/** Yayınlanma anı; taslakta null, yayınlandıktan sonra hiç değişmez. */
+	@Column(name = "published_at")
+	private Instant publishedAt;
+
+	@Column(nullable = false)
+	private boolean featured;
+
+	@Column(name = "featured_at")
+	private Instant featuredAt;
+
+	@Column(name = "featured_by")
+	private UUID featuredBy;
+
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;
 
@@ -89,8 +106,17 @@ public class Content {
 		return status == ContentStatus.DRAFT;
 	}
 
+	public boolean isPublished() {
+		return status == ContentStatus.PUBLISHED && !isDeleted();
+	}
+
 	public boolean isDeleted() {
 		return deletedAt != null;
+	}
+
+	/** Sahibi taslağını ve yayımlanmış içeriğini düzenleyebilir; kaldırılmış (REMOVED) ve arşivlenmiş içerik düzenlenemez. */
+	public boolean isEditableByOwner() {
+		return !isDeleted() && (status == ContentStatus.DRAFT || status == ContentStatus.PUBLISHED);
 	}
 
 	/**
@@ -107,14 +133,71 @@ public class Content {
 		this.updatedAt = now;
 	}
 
+	/** Değişiklik zamanını günceller (kategori, kaynak, çeviri ya da oyun ilişkisi değiştiğinde). */
+	public void touch(Instant now) {
+		this.updatedAt = now;
+	}
+
+	/** Taslağı yayınlar (ön moderatör onayı yoktur, CONT-09). Yayın kuralları servis katmanında denetlenir. */
+	public void publish(Instant now) {
+		this.status = ContentStatus.PUBLISHED;
+		this.publishedAt = now;
+		this.updatedAt = now;
+	}
+
+	/** Yayımlanmış içeriği öne çıkarır; yetki (ADMIN) ve durum denetimi servis katmanındadır. Değişiklik olduysa true döner. */
+	public boolean feature(UUID adminId, Instant now) {
+		if (featured) {
+			return false;
+		}
+		this.featured = true;
+		this.featuredAt = now;
+		this.featuredBy = adminId;
+		this.updatedAt = now;
+		return true;
+	}
+
+	public boolean unfeature(Instant now) {
+		if (!featured) {
+			return false;
+		}
+		this.featured = false;
+		this.featuredAt = null;
+		this.featuredBy = null;
+		this.updatedAt = now;
+		return true;
+	}
+
+	public boolean linkGame(UUID newGameId, Instant now) {
+		if (newGameId.equals(gameId)) {
+			return false;
+		}
+		this.gameId = newGameId;
+		this.updatedAt = now;
+		return true;
+	}
+
+	public boolean unlinkGame(Instant now) {
+		if (gameId == null) {
+			return false;
+		}
+		this.gameId = null;
+		this.updatedAt = now;
+		return true;
+	}
+
 	/**
 	 * Silme işareti: satır fiziksel silinmez (docs/database.md §2.3), ancak hiçbir okuma yolunda görünmez; saatlik oluşturma
 	 * kotası bu satırları saymaya devam eder. Silinen metin saklanmaz (saklama süresi 0 gün): çevirileri ve görselleri servis
-	 * aynı transaction'da kalıcı olarak siler, metinden türeyen parmak izi de burada nötr değerle değiştirilir.
+	 * aynı transaction'da kalıcı olarak siler, metinden türeyen parmak izi de burada nötr değerle değiştirilir. Öne çıkarma da
+	 * kaldırılır.
 	 */
 	public void markDeleted(Instant now) {
 		this.deletedAt = now;
 		this.updatedAt = now;
 		this.contentHash = ERASED_HASH;
+		this.featured = false;
+		this.featuredAt = null;
+		this.featuredBy = null;
 	}
 }

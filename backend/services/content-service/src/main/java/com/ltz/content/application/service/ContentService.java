@@ -3,7 +3,7 @@ package com.ltz.content.application.service;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.dao.DataIntegrityViolationException;
@@ -13,7 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.ltz.content.api.dto.request.CreateContentRequest;
 import com.ltz.content.api.dto.request.UpdateContentRequest;
 import com.ltz.content.api.dto.response.ContentResponse;
-import com.ltz.content.application.mapper.ContentMapper;
 import com.ltz.content.application.port.CurrentUserPort;
 import com.ltz.content.domain.entity.Content;
 import com.ltz.content.domain.entity.ContentTranslation;
@@ -23,18 +22,21 @@ import com.ltz.content.domain.enums.ContentType;
 import com.ltz.content.domain.exception.ContentNotEditableException;
 import com.ltz.content.domain.exception.DraftLimitExceededException;
 import com.ltz.content.domain.exception.DuplicateContentException;
+import com.ltz.content.domain.exception.InvalidContentQueryException;
 import com.ltz.content.domain.exception.InvalidContentRequestException;
 import com.ltz.content.domain.exception.OfficialAnnouncementForbiddenException;
+import com.ltz.content.domain.exception.PublishRequirementsNotMetException;
 import com.ltz.content.domain.exception.TooManyContentsException;
-import com.ltz.content.infrastructure.persistence.repository.ContentImageMeta;
+import com.ltz.content.infrastructure.persistence.repository.ContentCategoryAssignmentRepository;
 import com.ltz.content.infrastructure.persistence.repository.ContentImageRepository;
 import com.ltz.content.infrastructure.persistence.repository.ContentRepository;
+import com.ltz.content.infrastructure.persistence.repository.ContentSourceRepository;
 import com.ltz.content.infrastructure.persistence.repository.ContentTranslationRepository;
 
 /**
- * Taslak oluşturma, düzenleme, silme ve okuma (CONT-05/06/07/08/18). Yazar yalnız doğrulanmış oturumdan alınır; istemci
- * yazarı, türü, dili ya da durumu değiştiremez. Taslak doğrulaması yayın doğrulamasından ayrıdır
- * ({@link ContentPublishRules}).
+ * Taslak oluşturma, düzenleme, silme ve detay okuma (CONT-05/06/07/08/18, CONT-02). Yazar yalnız doğrulanmış oturumdan alınır;
+ * istemci yazarı, türü, dili ya da durumu değiştiremez. Taslak doğrulaması yayın doğrulamasından ayrıdır
+ * ({@link ContentPublishRules}); yayımlanmış içerik düzenlenirken yayın kuralları yeniden denetlenir.
  */
 @Service
 public class ContentService {
@@ -45,6 +47,9 @@ public class ContentService {
 	/** MVP kuralı: bir kullanıcının aynı anda en çok bu kadar etkin taslağı olabilir (sınırsız depolama büyümesini engeller). */
 	static final int MAX_ACTIVE_DRAFTS = 20;
 
+	/** Desteklenen diller (CONT-15). */
+	static final Set<String> SUPPORTED_LOCALES = Set.of("tr", "en");
+
 	/** Mükerrer içeriği engelleyen kısmi tekil indeksin adı (V101). */
 	private static final String DUPLICATE_INDEX = "uq_contents_author_id_type_content_hash";
 	private static final int MAX_CAUSE_DEPTH = 10;
@@ -52,20 +57,25 @@ public class ContentService {
 	private final ContentRepository contentRepository;
 	private final ContentTranslationRepository translationRepository;
 	private final ContentImageRepository imageRepository;
+	private final ContentCategoryAssignmentRepository assignmentRepository;
+	private final ContentSourceRepository sourceRepository;
 	private final ContentAccess contentAccess;
-	private final ContentMapper contentMapper;
+	private final ContentViewAssembler viewAssembler;
 	private final ContentFingerprint fingerprint;
 	private final CurrentUserPort currentUser;
 	private final Clock clock;
 
 	public ContentService(ContentRepository contentRepository, ContentTranslationRepository translationRepository,
-			ContentImageRepository imageRepository, ContentAccess contentAccess, ContentMapper contentMapper,
+			ContentImageRepository imageRepository, ContentCategoryAssignmentRepository assignmentRepository,
+			ContentSourceRepository sourceRepository, ContentAccess contentAccess, ContentViewAssembler viewAssembler,
 			ContentFingerprint fingerprint, CurrentUserPort currentUser, Clock clock) {
 		this.contentRepository = contentRepository;
 		this.translationRepository = translationRepository;
 		this.imageRepository = imageRepository;
+		this.assignmentRepository = assignmentRepository;
+		this.sourceRepository = sourceRepository;
 		this.contentAccess = contentAccess;
-		this.contentMapper = contentMapper;
+		this.viewAssembler = viewAssembler;
 		this.fingerprint = fingerprint;
 		this.currentUser = currentUser;
 		this.clock = clock;
@@ -90,23 +100,72 @@ public class ContentService {
 		}
 
 		Content content = saveUnique(Content.draft(authorId, request.type(), locale, hash, now));
-		ContentTranslation translation = translationRepository
-				.save(ContentTranslation.of(content.getId(), locale, title, summary, body));
-		return contentMapper.toResponse(content, translation, List.of());
+		translationRepository.save(ContentTranslation.of(content.getId(), locale, title, summary, body));
+		return viewAssembler.assemble(content, locale);
 	}
 
+	/** Sahibi taslağını ya da yayımlanmış içeriğini düzenler (ilk dildeki metin); yayımlanmışsa yayın kuralları yeniden denetlenir. */
 	@Transactional
-	public ContentResponse updateDraft(UUID contentId, UpdateContentRequest request) {
+	public ContentResponse updateContent(UUID contentId, UpdateContentRequest request) {
 		Content content = contentAccess.loadOwned(contentId, currentUser.requireUserId());
-		if (!content.isDraft()) {
+		if (!content.isEditableByOwner()) {
 			throw new ContentNotEditableException();
 		}
-		ContentTranslation translation = requireTranslation(content);
+		ContentTranslation translation = translationRepository
+				.findById(new ContentTranslationId(content.getId(), content.getDefaultLocale()))
+				.orElseThrow(() -> new IllegalStateException("Content has no translation: " + content.getId()));
 		Text next = mergeText(translation, request);
 		if (!next.equals(Text.of(translation))) {
+			if (content.isPublished()) {
+				requirePublishable(content.getDefaultLocale(), next);
+			}
 			applyChange(content, translation, next);
 		}
-		return toResponse(content, translation);
+		return viewAssembler.assemble(content, content.getDefaultLocale());
+	}
+
+	/**
+	 * Sahibi içeriğini siler. Aynı transaction'da: {@code contents} satırına silme işareti konur (satır kalır, saatlik
+	 * oluşturma kotası bu satırları saymaya devam eder); metin ({@code content_translations}), görsel baytları, kategori
+	 * bağlantıları ve kaynaklar kalıcı olarak silinir; silinen metin için saklama süresi 0 gündür. Silinmiş içerik ve görselleri
+	 * hiçbir yoldan okunamaz; ikinci silme 404 döner.
+	 */
+	@Transactional
+	public void deleteContent(UUID contentId) {
+		Content content = contentAccess.loadOwnedForUpdate(contentId, currentUser.requireUserId());
+		if (!content.isDeletableByOwner()) {
+			throw new ContentNotEditableException();
+		}
+		content.markDeleted(Instant.now(clock));
+		contentRepository.save(content);
+		imageRepository.deleteByContentId(contentId);
+		translationRepository.deleteByContentId(contentId);
+		assignmentRepository.deleteByContentId(contentId);
+		sourceRepository.deleteByContentId(contentId);
+	}
+
+	/**
+	 * İçerik detayı (herkese açık): yayımlanmış içeriği misafir dahil herkes görür; taslağı ve diğer durumları yalnız sahibi
+	 * görür (başkası için 404). {@code locale} istenen dildir; çeviri yoksa içeriğin ilk dili sunulur.
+	 */
+	@Transactional(readOnly = true)
+	public ContentResponse getContent(UUID contentId, String locale) {
+		if (locale != null && !SUPPORTED_LOCALES.contains(locale)) {
+			throw new InvalidContentQueryException("The locale must be one of: tr, en.");
+		}
+		UUID viewerId = currentUser.findUserId().orElse(null);
+		return viewAssembler.assemble(contentAccess.loadViewable(contentId, viewerId), locale);
+	}
+
+	private void requireWithinQuotas(UUID authorId, Instant now) {
+		if (contentRepository.countByAuthorIdAndCreatedAtAfter(authorId,
+				now.minus(Duration.ofHours(1))) >= MAX_CREATIONS_PER_HOUR) {
+			throw new TooManyContentsException();
+		}
+		if (contentRepository.countByAuthorIdAndStatusAndDeletedAtIsNull(authorId,
+				ContentStatus.DRAFT) >= MAX_ACTIVE_DRAFTS) {
+			throw new DraftLimitExceededException(MAX_ACTIVE_DRAFTS);
+		}
 	}
 
 	/** Verilen alanları mevcut metinle birleştirir: verilmeyen alan korunur, boş özet/gövde alanı temizler. */
@@ -123,6 +182,13 @@ public class ContentService {
 				request.body() == null ? current.getBody() : clean(request.body()));
 	}
 
+	private static void requirePublishable(String locale, Text text) {
+		var issues = ContentPublishRules.issuesFor(locale, text.title(), text.body());
+		if (!issues.isEmpty()) {
+			throw new PublishRequirementsNotMetException(issues);
+		}
+	}
+
 	/** Mükerrer içeriği reddeder, yeni metni ve parmak izini kaydeder. */
 	private void applyChange(Content content, ContentTranslation translation, Text next) {
 		String hash = fingerprint.of(content.getDefaultLocale(), next.title(), next.summary(), next.body());
@@ -135,51 +201,6 @@ public class ContentService {
 		translationRepository.save(translation);
 		content.revise(hash, Instant.now(clock));
 		saveUnique(content);
-	}
-
-	/**
-	 * Sahibi içeriğini siler. Aynı transaction'da: {@code contents} satırına silme işareti konur (satır kalır, saatlik
-	 * oluşturma kotası bu satırları saymaya devam eder), metin ({@code content_translations}) ve görsel baytları kalıcı olarak
-	 * silinir; silinen metin için saklama süresi 0 gündür. Silinmiş içerik ve görselleri hiçbir yoldan okunamaz; ikinci silme
-	 * 404 döner.
-	 */
-	@Transactional
-	public void deleteContent(UUID contentId) {
-		Content content = contentAccess.loadOwnedForUpdate(contentId, currentUser.requireUserId());
-		if (!content.isDeletableByOwner()) {
-			throw new ContentNotEditableException();
-		}
-		content.markDeleted(Instant.now(clock));
-		contentRepository.save(content);
-		imageRepository.deleteByContentId(contentId);
-		translationRepository.deleteByContentId(contentId);
-	}
-
-	@Transactional(readOnly = true)
-	public ContentResponse getContent(UUID contentId) {
-		Content content = contentAccess.loadViewable(contentId, currentUser.requireUserId());
-		return toResponse(content, requireTranslation(content));
-	}
-
-	private ContentResponse toResponse(Content content, ContentTranslation translation) {
-		List<ContentImageMeta> images = imageRepository.findByContentIdOrderBySortOrderAsc(content.getId());
-		return contentMapper.toResponse(content, translation, images);
-	}
-
-	private void requireWithinQuotas(UUID authorId, Instant now) {
-		if (contentRepository.countByAuthorIdAndCreatedAtAfter(authorId,
-				now.minus(Duration.ofHours(1))) >= MAX_CREATIONS_PER_HOUR) {
-			throw new TooManyContentsException();
-		}
-		if (contentRepository.countByAuthorIdAndStatusAndDeletedAtIsNull(authorId,
-				ContentStatus.DRAFT) >= MAX_ACTIVE_DRAFTS) {
-			throw new DraftLimitExceededException(MAX_ACTIVE_DRAFTS);
-		}
-	}
-
-	private ContentTranslation requireTranslation(Content content) {
-		return translationRepository.findById(new ContentTranslationId(content.getId(), content.getDefaultLocale()))
-				.orElseThrow(() -> new IllegalStateException("Content has no translation: " + content.getId()));
 	}
 
 	/** Yarışta (iki eşzamanlı istek) mükerrer içeriği veritabanının tekil indeksi yakalar; 409'a çevrilir. */
@@ -214,7 +235,7 @@ public class ContentService {
 	}
 
 	/** Boş/yalnız boşluk metin "yok" sayılır (null); aksi halde baştaki ve sondaki boşluklar kırpılır. */
-	private static String clean(String text) {
+	static String clean(String text) {
 		if (text == null) {
 			return null;
 		}
