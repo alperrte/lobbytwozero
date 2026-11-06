@@ -1,5 +1,9 @@
 # Performance Service — Sorunlar ve riskler
 
+> **REQ-04-A son güncelleme (2026-11-06):** Kullanıcının bildirdiği Kerem onayıyla Auth `summary:read` / `reference:read` izinleri uygulandı. I-28'in Auth izin engeli kapandı; Hardware/Recommendation üretim istemcileri hâlâ ayrı iş. [En güncel kabul ve kalite kaydı](../integration/auth/auth-integration-06.md). Aşağıdaki önceki ek teslim/faz kayıtları tarihçedir.
+
+> **2026-11-06 güncel durum:** I-01/I-03 kapandı (gerçek Auth hedef cihaz token'ı ve hesaba bağlı `devices:verify` HTTP kabulü PASS). I-02 için Auth bildirimi yapılmaması kabul edildi: ≤60 sn token ömrü, kullanıcı cihaz listesinde Auth yenilemesi ve iptalde DISABLED. I-04 izole gerçek Auth işçisiyle PASS; ortak DEV/tüm Saga ayrı bekler. I-21'in token engeli kapandı; v2 sensörlerin gerçek masaüstü/Game/Hardware E2E'si yapılmadı. I-28 yalnız REQ-04-A eksik okuma izinleri nedeniyle açık; konu üretimi engeli yok. [Güncel kanıt](../integration/auth/auth-integration-05.md). Aşağıdaki faz kayıtları tarihçedir.
+
 ## Faz 1
 
 | # | Konu | Durum | Sahip | Etki / önlem |

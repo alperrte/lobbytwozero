@@ -1,5 +1,6 @@
 package com.ltz.performance.application.port;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -15,5 +16,10 @@ public interface AuthDeviceDirectory {
      *
      * @throws com.ltz.performance.domain.exception.AuthServiceUnavailableException Auth yanıt vermezse (kapalı başarısızlık)
      */
-    Optional<AuthDevice> findUsableDevice(String authorization, UUID deviceId);
+    default Optional<AuthDevice> findUsableDevice(String authorization, UUID deviceId) {
+        return listUsableDevices(authorization).stream().filter(device -> device.deviceId().equals(deviceId)).findFirst();
+    }
+
+    /** Çağıranın kullanılabilir cihazlarının tamamı; eksik veya belirsiz yanıt kabul edilmez. */
+    List<AuthDevice> listUsableDevices(String authorization);
 }

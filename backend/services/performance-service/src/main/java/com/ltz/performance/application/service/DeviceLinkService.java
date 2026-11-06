@@ -12,8 +12,8 @@ import com.ltz.performance.infrastructure.persistence.repository.PerformanceWrit
 import java.time.Clock;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -44,10 +44,20 @@ public class DeviceLinkService {
         this.clock = clock;
     }
 
-    @Transactional(readOnly = true)
-    public List<DeviceLinkResponse> list(UUID userId) {
-        guard.requireActive(userId);
-        return links.findAllByUserIdOrderByLinkedAtAsc(userId).stream().map(DeviceLinkResponse::from).toList();
+    public List<DeviceLinkResponse> list(UUID userId, String authorization) {
+        // Auth çağrısı transaction dışında; hata halinde yerel durum değişmez ve eski ACTIVE listesi sunulmaz.
+        var usable = authDevices.listUsableDevices(authorization).stream()
+                .map(AuthDeviceDirectory.AuthDevice::deviceId).collect(Collectors.toSet());
+        return transaction.execute(_ -> {
+            guard.requireActive(userId);
+            var owned = links.findAllByUserIdOrderByLinkedAtAsc(userId);
+            var now = clock.instant();
+            for (var link : owned) {
+                if (link.isActive() && !usable.contains(link.getAuthDeviceId())) link.disable(now);
+            }
+            // Kullanıcının yerelde kapattığı cihaz Auth'ta aktif olsa da kendiliğinden yeniden açılmaz.
+            return owned.stream().map(DeviceLinkResponse::from).toList();
+        });
     }
 
     /** İdempotent: aynı cihazı tekrar bağlamak aynı kaydı döner; devre dışı kayıt yeniden etkinleştirilir. */

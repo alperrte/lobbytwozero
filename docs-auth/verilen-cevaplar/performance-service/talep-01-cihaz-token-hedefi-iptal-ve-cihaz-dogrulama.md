@@ -1,5 +1,7 @@
 # TALEP 01 — PERFORMANCE CİHAZ TOKEN HEDEFİ, İPTAL YAYILIMI VE CİHAZ DOĞRULAMA
 
+> **2026-11-06 uygulama güncellemesi (Alper):** Kullanıcının bildirdiği Kerem onayıyla REQ-04-A da uygulandı. Hardware'in Performance hedefli servis token'ı artık `devices:verify summary:read` taşır; aşağıdaki eski C yanıtındaki tek kapsam örneği ilk sözleşmenin tarihçesidir. Cihaz token'ının tek audience/tek kapsam kuralı değişmedi. [Güncel uygulama kaydı](talep-02-performans-okuma-izinleri.md).
+
 **Kimden:** Alper (performance-service) · **Kime:** Kerem (auth-service) · **Kaynak:** `docs-performance/integration/auth-service-talepleri/auth-requests-01.md` (`feature/performance-service`)
 **Cevap tarihi:** 2026-10-31 · **Durum:** REQ-01-A ve REQ-01-C AUTH HAZIR · REQ-01-B KARAR: kabul (iptal 60 sn) · D/E teyit
 

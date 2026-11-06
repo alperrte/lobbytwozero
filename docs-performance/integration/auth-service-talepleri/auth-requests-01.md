@@ -1,5 +1,9 @@
 # Auth Service Talepleri — Faz 1 (LTZ-ALP-PERF-01)
 
+> **2026-11-06 güncellemesi:** A ve C Auth'ta hazır ve izole gerçek Auth + Performance + Gateway HTTP kabulünde PASS. B için karar push/pull yapılmaması, ≤60 sn cihaz token ömrü ve kullanıcı cihaz listesinin Auth'tan yenilenmesidir; uygulandı ve test edildi. D gerçek Auth işçisi → Performance 204/CONFIRMED olarak izole ortamda doğrulandı; tüm Saga/ortak DEV ayrıca bekler. E teyit edildi. Güncel kanıt: [auth-integration-05.md](../auth/auth-integration-05.md).
+>
+> Aşağıdaki 2026-10-31 talep metni tarihçedir. `ServiceTokenIssuer` hakkında genellenen `sub` engeli düzeltilmiştir: istemci token'larında `ServiceClientTokenIssuer` zaten `svc:<istemci>` üretir. Güncel durum için [auth-integration-01.md](../auth/auth-integration-01.md) geçerlidir; eski BLOCKED/REQUESTED satırları güncel durum değildir.
+
 | Alan | Değer |
 | --- | --- |
 | Talep eden | Alper (performance-service) |

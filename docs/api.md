@@ -925,7 +925,7 @@ UNIT + INTEGRATION
 
 Durum: IMPLEMENTED (Auth tarafı, altyapı); **tüketici admin-service henüz yok** → uçtan uca PENDING
 Sorumlu: Kerem
-Tüketici servisler: admin-service (şimdilik başka tüketici yok)
+Tüketici servisler: admin-service (yönetim uçları); hardware-service, recommendation-service ve aşağıda kayıtlı diğer istemciler (`service-tokens`)
 
 #### Endpoint
 - POST /internal/v1/service-tokens — servis kimlik bilgisiyle (client credentials) Auth'tan kısa ömürlü `svc+jwt` alır
@@ -942,10 +942,12 @@ Bu uçlar **Gateway'e açılmaz** (Gateway yalnız `/api/v1/<servis>/**` yönlen
 
 #### Request Body (`service-tokens`)
 ```json
-{ "clientId": "admin-service", "clientSecret": "string, en az 32 karakter (AUTH_ADMIN_SERVICE_CLIENT_SECRET)", "audience": "isteğe bağlı; boşsa auth-service", "accountId": "UUID; yalnız hesaba bağlı kapsamda (signals:read) zorunlu, diğerlerinde verilemez" }
+{ "clientId": "admin-service", "clientSecret": "string, en az 32 karakter (AUTH_ADMIN_SERVICE_CLIENT_SECRET)", "audience": "isteğe bağlı; boşsa auth-service", "accountId": "UUID; signals:read, devices:verify, summary:read ve reference:read kapsamlarında zorunlu; bağsız kapsamda verilemez" }
 ```
 
-İstemci kimliği servis adıdır: `admin-service` (Auth'a `account:*`, community'ye `events:ingest`), `social-service` (community'ye `events:ingest`; user-service'e `privacy:read events:ingest`), `community-service` (admin ve notification'a `events:ingest`), `messaging-service` ve `lfp-service` (social-service'e `blocks:check`), `library-service` (user-service'e `privacy:read events:ingest`), `hardware-service` (user-service'e `privacy:read`; performance-service'e `devices:verify`, hesaba bağlı: token `account_id` taşır, hesap `ACTIVE` olmalı), `review-service` (user-service'e `events:ingest`), `game-service` (review-service'e `rating-summaries:read game-references:read`; library-service'e `game-references:read`, ikisi de kullanıcıya bağlı değil), `recommendation-service` (library-service'e `signals:read`, hesaba bağlı: token `account_id` taşır, hesap `ACTIVE` olmalı). Her istemci **yalnız kendisine tanımlı (hedef, kapsam) çiftleri** için token alır; kimseye varsayılan imtiyaz yoktur. `audience` başka servis ise token o servisin JWKS doğrulamasında geçer (`aud=<servis>-service`, `scope=events:ingest`, `sub=svc:<istemci>`, 60 sn) ve Auth'un iç uçlarında **geçmez**.
+İstemci kimliği servis adıdır: `admin-service` (Auth'a `account:*`, community'ye `events:ingest`), `social-service` (community'ye `events:ingest`; user-service'e `privacy:read events:ingest`), `community-service` (admin ve notification'a `events:ingest`), `messaging-service` ve `lfp-service` (social-service'e `blocks:check`), `library-service` (user-service'e `privacy:read events:ingest`), `hardware-service` (user-service'e `privacy:read`; performance-service'e `devices:verify summary:read`, hesaba bağlı: token `account_id` taşır, hesap `ACTIVE` olmalı), `review-service` (user-service'e `events:ingest`), `game-service` (review-service'e `rating-summaries:read game-references:read`; library-service'e `game-references:read`, ikisi de kullanıcıya bağlı değil), `recommendation-service` (library-service'e `signals:read`; performance-service'e `reference:read`; iki hedef de hesaba bağlı: token `account_id` taşır, hesap `ACTIVE` olmalı). Her istemci **yalnız kendisine tanımlı (hedef, kapsam) çiftleri** için token alır; kimseye varsayılan imtiyaz yoktur. `audience` başka servis ise token o servisin JWKS doğrulamasında geçer (`aud=<servis>-service`, hedefin yapılandırılmış kapsamları, `sub=svc:<istemci>`, 60 sn) ve Auth'un iç uçlarında **geçmez**.
+
+**REQ-04-A (2026-11-06):** Mevcut token ucu seçilen hedefin bütün tanımlı kapsamlarını aynı token'a yazar; istek gövdesine `scope` alanı eklenmedi. Hardware → Performance token'ı `devices:verify summary:read`, Recommendation → Performance token'ı yalnız `reference:read` taşır. Recommendation cihaz doğrulayamaz/özet okuyamaz; Hardware FPS referansını okuyamaz. İkisinde de tek `aud=performance-service` ve tek hedef `account_id` korunur. Yeni ENV/migration yoktur; mevcut `AUTH_HARDWARE_SERVICE_CLIENT_SECRET` ve `AUTH_RECOMMENDATION_SERVICE_CLIENT_SECRET` kullanılır (boşsa istemci kapalıdır).
 
 #### Response — 200 (`service-tokens`, `Cache-Control: no-store`)
 ```json
@@ -988,7 +990,7 @@ library-service, hardware-service, review-service, recommendation-service: `AUTH
 admin-service: kendi ortamına `AUTH_ADMIN_SERVICE_CLIENT_SECRET` ile aynı değer verilir; `POST /internal/v1/service-tokens` ile token alıp iç uçları çağırır. Admin servisinin kullanıcı kimliği/rolü doğrulaması (yönetici oturumu) Admin'in kendi sorumluluğudur; Auth yalnız `actorId`'yi yeniden doğrular.
 
 #### Test Durumu
-UNIT + INTEGRATION (Auth tarafı; Admin tüketici testi yok)
+UNIT + INTEGRATION (Auth tarafı; Admin tüketici testi yok). REQ-04-A hedef/hesap/kapsam testleri `ServiceAudienceTokenTest` ve `ServiceClientConfigTest` içindedir. Gerçek Performance token kabulü ve güncel kalite sonucu: [auth-integration-06.md](../docs-performance/integration/auth/auth-integration-06.md).
 
 ### AUTH — Giden sözleşmeler
 
@@ -8918,7 +8920,7 @@ _Kayıt yok._
 Sorumlu: Alper · Gateway: `/api/v1/performance/**` · Görevler: PERF-, PWEB-
 
 > **Faz 1 (LTZ-ALP-PERF-01) notu.** Cihaz kimliği, eşleştirme, cihaz token'ı ve iptal **Auth Service'tedir** (bkz. AUTH — Masaüstü cihaz kimliği). Performance yalnız cihazın kendi referansını (`device_links`), izni, senkronizasyon kaydını ve silmeyi yönetir.
-> Cihaz token'ıyla senkronizasyon (`POST /sync/batches`) Auth'un `aud=performance-service` / `scope=performance:sync:write` üretmesine bağlıdır (talep: [auth-requests-01.md](../docs-performance/integration/auth-service-talepleri/auth-requests-01.md) REQ-01-A) ve **gerçek Auth cihaz token'ıyla uçtan uca doğrulanmadı**. Aşağıdaki `Test Durumu` alanları bunu açıkça belirtir.
+> **2026-11-06 Auth entegrasyonu:** `target=performance` cihaz token'ı, Hardware cihaz doğrulaması ve gerçek Auth D4 işçisi ilk izole HTTP kabulünde doğrulandı ([13 kontrollü ilk kanıt](../docs-performance/integration/auth/auth-integration-05.md)). Daha sonra kullanıcı tarafından bildirilen Kerem onayıyla REQ-04-A okuma izinleri de eklendi: Hardware `devices:verify summary:read`, Recommendation `reference:read` alır. [Güncel kabul/kalite kanıtı](../docs-performance/integration/auth/auth-integration-06.md). Üretim tüketici istemcileri ayrı iştir.
 > Tüm başarılı yanıtlar `Cache-Control: private, no-store` taşır. Tüm hata gövdeleri `ProblemDetail` + `code` alanıdır. Ortak hata kodları: `AUTHENTICATION_REQUIRED` (401), `ACCESS_DENIED` (403), `INVALID_REQUEST` (400/422), `RATE_LIMITED` (429), `REQUEST_TOO_LARGE` (413), `AUTH_UNAVAILABLE` (503 + `Retry-After: 30`), `PERFORMANCE_NOT_FOUND` (404), `INTERNAL_ERROR` (500).
 
 ### PERFORMANCE — Senkronizasyon izni (oku)
@@ -9045,7 +9047,7 @@ Tüketici servisler: Frontend (PWEB, planlı)
 GET /api/v1/performance/devices
 
 #### Yetkilendirme
-Owner (yalnız çağıranın kendi cihaz referansları)
+Owner (yalnız çağıranın kendi cihaz referansları). Çağıranın Bearer'ı ile Auth `GET /api/v1/auth/devices` listesi yenilenir; listede bulunmayan ACTIVE bağlar DISABLED yapılır. Kullanıcının yerelde kapattığı bağ kendiliğinden yeniden açılmaz. Auth hatasında eski ACTIVE liste sunulmaz, yerel durum değişmeden 503 döner.
 
 #### Response — 200
 ```json
@@ -9066,6 +9068,7 @@ Owner (yalnız çağıranın kendi cihaz referansları)
 - 401: Bearer yok/geçersiz
 - 403: Hesap pasif / silinmeye alınmış
 - 429: Hız sınırı
+- 503: Auth erişilemez veya cihaz listesi bozuk/eksik (`AUTH_UNAVAILABLE`, `Retry-After: 30`)
 - 500: Beklenmeyen sunucu hatası
 
 #### Bağlantı
@@ -9073,14 +9076,14 @@ Frontend:
 API Gateway üzerinden /api/v1/performance/devices
 
 Diğer mikroservisler:
--
+Auth Service `GET /api/v1/auth/devices` (RestClient, çağıranın Bearer'ı; HTTP çağrısı DB transaction'ı dışında).
 
 #### Test Durumu
-INTEGRATION
+INTEGRATION + izole gerçek HTTP kabulü PASS (2026-11-06). İptalin yansıması, yerel DISABLED'ın korunması, hesap izolasyonu ve bozuk/eksik Auth listesinde kısmi güncelleme yapılmaması testli. Auth erişim/yanıt hatası: `503 AUTH_UNAVAILABLE`, `Retry-After: 30`.
 
 ### PERFORMANCE — Cihaz bağla
 
-Durum: IN PROGRESS
+Durum: IMPLEMENTED
 Sorumlu: Alper
 Tüketici servisler: Frontend (PWEB, planlı)
 
@@ -9114,7 +9117,8 @@ Owner. Cihaz sahipliği ve etkinliği, çağıranın Bearer token'ı **Auth Serv
 #### Hata Durumları
 - 400/422: Geçersiz `deviceId` (`INVALID_REQUEST`)
 - 401: Bearer yok/geçersiz
-- 403: Cihaz çağıranın Auth listesinde yok / iptal edilmiş (`DEVICE_NOT_LINKED`) ya da hesap pasif
+- 403: Hesap pasif/silinmeye alınmış
+- 404: Cihaz çağıranın Auth listesinde yok, yabancı veya iptal edilmiş (`PERFORMANCE_NOT_FOUND`)
 - 409: Hesap başına 5 bağlantı sınırı (`DEVICE_LINK_LIMIT_REACHED`); cihaz başka hesapta bağlı (`DEVICE_LINK_CONFLICT`)
 - 429: Hız sınırı
 - 503: Auth Service erişilemez/bozuk yanıt (`AUTH_UNAVAILABLE`, `Retry-After: 30`)
@@ -9128,7 +9132,7 @@ Diğer mikroservisler:
 Auth Service'e RestClient: `GET /api/v1/auth/devices` (çağıranın Bearer'ı iletilir)
 
 #### Test Durumu
-INTEGRATION — Auth cihaz listesi **yerel Auth sapmasıyla** (belgelenmiş yanıt şekli) test edildi; gerçek Auth ortamıyla uçtan uca doğrulanmadı (durum IN PROGRESS).
+INTEGRATION + izole gerçek Auth/Gateway HTTP kabulü PASS (2026-11-06): cihaz bağlama, Auth sahipliği, yabancı hesapta 404. Ortak DEV/production kabulü ayrı tutulur.
 
 ### PERFORMANCE — Cihaz bağlantısını kaldır
 
@@ -9270,7 +9274,7 @@ Diğer mikroservisler:
 Masaüstü istemcisi API Gateway üzerinden /api/v1/performance/sync/batches. Auth JWKS ile imza doğrulanır. Okuma/istatistik uçları Faz 4'tedir.
 
 #### Test Durumu
-INTEGRATION — gerçek filtre zinciri + PostgreSQL; cihaz token'ı **yerel imzalı** sözleşme token'ıdır, gerçek Auth cihaz token'ıyla E2E değildir (BLOCKED, REQ-01-A). Gerçek masaüstü istemcisiyle E2E yapılmadı (istemci sözleşmesi yok).
+INTEGRATION — gerçek filtre zinciri + PostgreSQL; olumlu cihaz token'ları gerçek Auth üreticisinden gelir. İzole gerçek Auth/Gateway HTTP kabulünde v1 sync ve replay PASS (2026-11-06); Hardware hedefli token 401, listeyle tespit edilen iptal sonrası mevcut token 403. Cihaz token'ı `exp` anında reddedilir; 30 sn kullanıcı saat toleransı yazma süresine eklenmez. v2 örneklerin gerçek Game/Hardware/masaüstü istemcisiyle E2E kabulü yapılmadı.
 
 ### PERFORMANCE — Hesap verisi silme (Auth D4)
 
@@ -9304,11 +9308,11 @@ Diğer mikroservisler:
 Auth Service silme işçisi (`ltz.auth.deletion.targets` → `performance`) doğrudan çağırır.
 
 #### Test Durumu
-INTEGRATION — uç ve token bağlaması test edildi; ortak DEV ortamında Auth silme işçisiyle **doğrulanmadı** (NOT VERIFIED).
+INTEGRATION + izole gerçek Auth işçisi HTTP kabulü PASS (2026-11-06): Performance 204, Auth görevi CONFIRMED, hedef izin/cihaz/makbuz verileri temiz, tekrar 204, yanlış hesap 403, başka hesap korunur ve eski JWT ile yeniden yazma engellenir. Oturum/rapor/örnek temizliği PostgreSQL entegrasyon testlerinde sınanır. Ortak DEV ve diğer 15 servisin Saga tamamlanması NOT VERIFIED. [Kanıt](../docs-performance/integration/auth/auth-integration-05.md).
 
 ### PERFORMANCE — Aktif sahipli cihaz doğrulama (Hardware)
 
-Durum: IN PROGRESS
+Durum: IMPLEMENTED (alıcı); Hardware tüketici istemcisi ayrı iş
 Sorumlu: Alper
 Tüketici servisler: Hardware Service (istemci henüz yok — öneri)
 
@@ -9317,7 +9321,7 @@ GET /internal/v1/accounts/{accountId}/devices/{deviceId}
 
 #### Yetkilendirme
 Internal — `svc+jwt`, `aud=performance-service`, `sub=svc:hardware-service`, `scope=devices:verify`, `account_id` = path. Gateway'den açılmaz.
-> **BLOCKED (REQ-01-C):** Auth servis token üreticisi `sub` değerini her zaman `svc:auth-service` yapar ve `devices:verify` çifti yoktur; bu nedenle gerçek Hardware token'ı alınamaz.
+> Auth `/internal/v1/service-tokens` ile `clientId=hardware-service`, `audience=performance-service`, zorunlu `accountId` karşılığında `devices:verify summary:read` verir. Cihaz doğrulama bu token'daki `devices:verify` yetkisini arar. `ServiceClientTokenIssuer` konusu `svc:hardware-service` olur; Auth'un kendi D4 üreticisiyle karıştırılmaz.
 
 #### Path Parameters
 - accountId: UUID, zorunlu
@@ -9340,7 +9344,7 @@ Diğer mikroservisler:
 Hardware `HardwareSyncDevicePolicy` için RestClient istemcisi **öneridir**; Hardware kodu değiştirilmemiştir (Hardware sahibine ayrıca bildirilmelidir).
 
 #### Test Durumu
-INTEGRATION — yalnız yerel imzalı `sub=svc:hardware-service` token'ıyla; gerçek Auth servis token'ı bu uçta 403 alır (BLOCKED).
+INTEGRATION + izole gerçek Auth client-credentials HTTP kabulü PASS (2026-11-06): hesaba bağlı Hardware token'ı 204, başka hesap 403, iptal sonrası yenilenen bağ 404. Hardware üretim tüketici istemcisi bu görevde eklenmedi.
 
 > **Faz 2 (LTZ-ALP-PERF-02) notu — manuel oturum ve rapor (PERF-03/04/13/20).** Aşağıdaki uçlar yalnız **kullanıcı token'ıyla** (`at+jwt`, `aud=ltz-api`) çalışır; cihaz ve servis token'ı geçmez (401). Her uçta sahiplik sorgusu `user_id = token.sub` ile yapılır; başkasının veya olmayan kaynak **aynı** `404 PERFORMANCE_NOT_FOUND` döner (IDOR bilgi sızdırmaz). Zaman her zaman sunucu saatindendir; istemci `startedAt`/`endedAt`/`status`/`userId` gönderirse 400 (bilinmeyen alan). Bu fazda oturum yalnız `MANUAL`'dır; cihaz kaynaklı (`DEVICE`) oturum yoktur.
 > Oyun ve donanım profili doğrulaması **servis sözleşmeleriyle** yapılır: Game `POST /api/v1/game/games/batch` (GAME-15) ve Hardware `POST /api/v1/hardware/profiles/batch` (HW-17, çağıranın kendi Bearer'ı iletilir). Bu çağrılar **gerçek Game/Hardware ile uçtan uca doğrulanmadı**; testler yerel sapma (mock) kullanır (`DEFERRED_CONTRACT` / `NOT_VERIFIED`). Bağımlı servis yanıt vermezse veya sözleşme dışı gövde dönerse kayıt **açılmaz**; `503` + `Retry-After: 30` (kapalı başarısızlık).
@@ -10015,7 +10019,7 @@ INTEGRATION
 
 ### PERFORMANCE — Hesabın donanım profili performans özeti (Hardware, PERF-21)
 
-Durum: IMPLEMENTED (sözleşme) — gerçek servis kimliği ile uçtan uca BLOCKED (REQ-04-A)
+Durum: IMPLEMENTED — REQ-04-A Auth izni tanımlı; üretim Hardware tüketicisi ayrı iş
 Sorumlu: Alper
 Tüketici servisler: Hardware (planlı)
 
@@ -10023,7 +10027,7 @@ Tüketici servisler: Hardware (planlı)
 GET /internal/v1/accounts/{accountId}/performance-summary
 
 #### Yetkilendirme
-Servis token'ı (`svc+jwt`): `aud=performance-service`, `sub=svc:hardware-service`, `scope=summary:read`, `account_id` = yoldaki `accountId`. Başka konu/kapsam/hesap → 403; token yok, kullanıcı/cihaz token'ı veya yanlış audience → 401. Gateway üzerinden dışarı açılmaz.
+Servis token'ı (`svc+jwt`): tek `aud=performance-service`, `sub=svc:hardware-service`, kapsamlar içinde `summary:read`, `account_id` = yoldaki `accountId`. Auth'un güncel Hardware token'ı `devices:verify summary:read` taşır. Başka konu/yetersiz kapsam/yanlış hesap → 403; token yok, kullanıcı/cihaz token'ı veya yanlış audience → 401. Gateway üzerinden dışarı açılmaz.
 
 #### Path/Query Parameters
 - accountId: UUID, zorunlu
@@ -10055,11 +10059,11 @@ Diğer mikroservisler:
 Hardware → Performance (RestClient; servis token'ı Auth'tan alınır, REQ-04-A)
 
 #### Test Durumu
-INTEGRATION (yerel imzalı sözleşme token'ı; gerçek Auth/Hardware entegrasyonu BLOCKED)
+INTEGRATION + izole gerçek Auth HTTP kabulü PASS: Hardware istemci token'ıyla özet 200; başka hesap veya Recommendation kimliğiyle 403. Olumlu veri hesaplama testleri gerçek Auth `ServiceClientTokenIssuer` çıktısını kullanır; bozuk kapsam/konu testleri yerel imzalıdır. [Kanıt](../docs-performance/integration/auth/auth-integration-06.md). Üretim Hardware tüketici istemcisi bu görevde geliştirilmedi.
 
 ### PERFORMANCE — Oyun performans referansı (Recommendation, PERF-21)
 
-Durum: IMPLEMENTED (sözleşme) — gerçek servis kimliği ile uçtan uca BLOCKED (REQ-04-A)
+Durum: IMPLEMENTED — REQ-04-A Auth izni tanımlı; üretim Recommendation tüketicisi ayrı iş
 Sorumlu: Alper
 Tüketici servisler: Recommendation (planlı)
 
@@ -10103,7 +10107,7 @@ Diğer mikroservisler:
 Recommendation → Performance (RestClient; servis token'ı Auth'tan alınır, REQ-04-A)
 
 #### Test Durumu
-INTEGRATION (yerel imzalı sözleşme token'ı; gerçek Auth/Recommendation entegrasyonu BLOCKED)
+INTEGRATION + izole gerçek Auth HTTP kabulü PASS: Recommendation istemci token'ıyla referans 200; başka hesap veya Hardware kimliğiyle 403. Olumlu veri hesaplama testleri gerçek Auth `ServiceClientTokenIssuer` çıktısını kullanır; bozuk kapsam/konu testleri yerel imzalıdır. [Kanıt](../docs-performance/integration/auth/auth-integration-06.md). Üretim Recommendation tüketici istemcisi bu görevde geliştirilmedi.
 
 ## NOTIFICATION
 

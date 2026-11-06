@@ -1,12 +1,16 @@
 # Auth talepleri 04
 
+> **2026-11-06 güncel durum — KAPANDI (Auth izinleri):** Kullanıcının bildirdiği Kerem onayıyla REQ-04-A uygulandı. `summary:read` ve `reference:read`, Auth bilinen/hedef hesaba bağlı kapsamlar listelerine ve ilgili istemci hedeflerine eklendi. Hardware token'ı `devices:verify summary:read`, Recommendation token'ı `reference:read` taşır; `accountId` zorunlu, hesap ACTIVE olmalıdır. Auth 537 + Performance 138 test ve 15 gerçek HTTP kontrolü PASS. [Güncel kabul ve kalite kanıtı](../auth/auth-integration-06.md). Aşağıdaki ilk talep tarihçedir; eski REQUESTED/BLOCKED satırları güncel değildir.
+>
+> **Düzeltme:** Aşağıdaki ilk analiz Auth'un kendi çıkış `ServiceTokenIssuer` sınıfını istemci üretimiyle karıştırmıştır. Gerçek `/internal/v1/service-tokens` yolu `ServiceClientTokenIssuer` ile `sub=svc:<istemci>` üretir. REQ-01-C (`devices:verify`) eklendi ve gerçek HTTP kabulünde PASS; REQ-04-A'nın kök nedeni eksik kapsam/izin çiftleridir. A/B/C/D için eski tablo tarihçedir. [Güncel durum](../auth/auth-integration-04.md).
+
 Tarih: 2026-10-31 · Kapsam: Faz 4 (PERF-14/15/16/19/21)
 
 Auth Service kaynak koduna dokunulmadı. Aşağıdaki talep Auth sahibine (Kerem) iletilmek üzere yazıldı; Auth kodu yalnız okunarak doğrulandı.
 
 ## Yeni talep
 
-### REQ-04-A — Hardware ve Recommendation için Performance servis token'ları (YÜKSEK) — `REQUESTED` / `BLOCKED`
+### REQ-04-A — Hardware ve Recommendation için Performance servis token'ları — ilk talep (2026-10-31)
 
 **Gerekçe.** Performance iki salt okunur servis ucu sunar (bkz. `docs/api.md` → PERFORMANCE):
 

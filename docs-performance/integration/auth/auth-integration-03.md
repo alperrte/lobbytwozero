@@ -1,13 +1,13 @@
 # Auth entegrasyonu 03 — Ölçüm örnekleri
 
-Tarih: 2026-10-31 · Kapsam: PERF-05..PERF-12 · Faz 1 bağımlılıkları ([auth-integration-01.md](auth-integration-01.md)) geçerlidir.
+Güncelleme: 2026-11-06 · Kapsam: PERF-05..PERF-12 · Güncel Auth durumu: [auth-integration-01.md](auth-integration-01.md).
 
 ## 1. Durum özeti
 
 | Konu | Durum |
 | --- | --- |
 | Örnek yazımı (`POST /sync/batches`, v2) cihaz token'ıyla çalışır | Kod + test hazır |
-| Cihaz token'ı doğrulaması (typ/iss/aud/scope/ömür/jti) | **Yerel imzalı sözleşme token'ı ile test edildi**; gerçek Auth cihaz token'ı ile E2E **BLOCKED** (REQ-01-A: Auth bugün yalnız `aud=hardware-service` üretir) |
+| Cihaz token'ı doğrulaması (typ/iss/aud/scope/ömür/jti) | Olumlu testler artık Auth'un gerçek `DeviceTokenIssuer` çıktısını kullanır (`target=performance` sözleşmesi). Bozuk claim testleri yerel imzalıdır. Kaynak sözleşme testi çalışan Auth E2E'sinden ayrıdır |
 | Örnek silme (`DELETE /sessions/{id}/samples`) kullanıcı token'ıyla | Kod + test hazır; Auth kaynak kodundan derlenen JWKS ile (kaynak sözleşme testi), çalışan Auth ile E2E **NOT RUN** |
 | Yeni Auth talebi | **Yok** ([auth-requests-03.md](../auth-service-talepleri/auth-requests-03.md)) |
 
@@ -23,4 +23,5 @@ Auth Service kaynak koduna dokunulmadı. Sahte JWT, `permitAll` veya varsayılan
 ## 3. Kabul edilen sınırlamalar
 
 - Gerçek masaüstü istemcisi ve istemci sözleşmesi yoktur; ölçüm aralıkları geçicidir.
-- Cihaz iptali sonrası yazma penceresi: ≤ 60 sn token ömrü; `device_links` kaldırılınca bağ anında reddedilir (testli). REQ-01-B bildirimi gelmedi (kabul edilen risk).
+- REQ-01-B kararı kesinleşti: Auth iptal bildirimi/introspection sağlamaz. Cihaz token'ı `exp` anında reddedilir; kullanıcı token'larının 30 sn toleransı cihazın yazma süresini uzatmaz (sabit saatli test). Bağ kaldırıldığında veya kullanıcı cihaz listesini Auth'tan yenilediğinde iptal tespit edilirse mevcut token da reddedilir.
+- Gerçek HTTP kabul testi v1 zarfını kullanır; v2 sensör örneklerinin çalışan Game/Hardware ve gerçek masaüstü istemcisiyle E2E kabulü yapılmadı. Ayrıntı: [auth-integration-05.md](auth-integration-05.md).

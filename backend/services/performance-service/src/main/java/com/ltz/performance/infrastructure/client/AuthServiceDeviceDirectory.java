@@ -5,7 +5,9 @@ import com.ltz.performance.domain.exception.AuthServiceUnavailableException;
 import com.ltz.performance.infrastructure.security.PerformanceAuthProperties;
 import java.io.IOException;
 import java.net.http.HttpClient;
-import java.util.Optional;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -41,7 +43,7 @@ public class AuthServiceDeviceDirectory implements AuthDeviceDirectory {
     }
 
     @Override
-    public Optional<AuthDevice> findUsableDevice(String authorization, UUID deviceId) {
+    public List<AuthDevice> listUsableDevices(String authorization) {
         if (authorization == null || !authorization.startsWith(BEARER_PREFIX) || authorization.length() <= BEARER_PREFIX.length()) {
             throw new AuthServiceUnavailableException();
         }
@@ -54,21 +56,26 @@ public class AuthServiceDeviceDirectory implements AuthDeviceDirectory {
                         if (bytes.length > MAX_BODY_BYTES) throw new IOException("Auth devices response exceeds limit");
                         return bytes;
                     });
-            return find(mapper.readTree(body), deviceId);
+            return devices(mapper.readTree(body));
         } catch (RestClientException | JacksonException | IllegalArgumentException _) {
             throw new AuthServiceUnavailableException();
         }
     }
 
-    private static Optional<AuthDevice> find(JsonNode root, UUID deviceId) {
+    private static List<AuthDevice> devices(JsonNode root) {
         if (root == null || !root.isArray()) throw new AuthServiceUnavailableException();
+        var devices = new ArrayList<AuthDevice>();
+        var ids = new HashSet<UUID>();
         for (JsonNode node : root) {
             JsonNode id = node.get("deviceId");
-            if (id != null && id.isString() && deviceId.equals(UUID.fromString(id.asString()))) {
-                JsonNode label = node.get("label");
-                return Optional.of(new AuthDevice(deviceId, label != null && label.isString() ? label.asString() : null));
+            if (id == null || !id.isString()) throw new AuthServiceUnavailableException();
+            UUID deviceId = UUID.fromString(id.asString());
+            if (!deviceId.toString().equalsIgnoreCase(id.asString()) || !ids.add(deviceId)) {
+                throw new AuthServiceUnavailableException();
             }
+            JsonNode label = node.get("label");
+            devices.add(new AuthDevice(deviceId, label != null && label.isString() ? label.asString() : null));
         }
-        return Optional.empty();
+        return List.copyOf(devices);
     }
 }

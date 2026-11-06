@@ -1,5 +1,7 @@
 # Faz 04 test raporu — LTZ-ALP-PERF-04
 
+> **2026-11-06 güncellemesi:** Aşağıdaki test/engel tablosu 2026-10-31 koşusuna aittir. Sonradan REQ-04-A Auth izinleri eklendi, olumlu okuma testleri gerçek Auth istemci üreticisini kullanacak şekilde güncellendi. En güncel tam koşu ve gerçek Auth HTTP kabulü: [auth-integration-06.md](../integration/auth/auth-integration-06.md).
+
 Tarih: 2026-10-31 · Ortam: JDK 25.0.4.1, Windows 11, PostgreSQL 17 (Testcontainers). Sonuçlar gerçek çalıştırmalardan alınmıştır.
 Durum değerleri: PASS · FAIL · BLOCKED · NOT RUN.
 
