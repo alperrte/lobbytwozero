@@ -1503,7 +1503,7 @@ UNIT + INTEGRATION (`PlayerSearchTest` 9 test: önek, Türkçe katlama, durum/en
 
 ### USER — Gizlilik kararı (Internal, Social/Hardware/Library → User)
 
-Durum: IMPLEMENTED (çağıran tüketiciler ve Auth kapsamı **PENDING**: T3, T6, T7, T8)
+Durum: IMPLEMENTED (Auth kapsamı ve çağıran→hedef çiftleri hazır, T3 kapandı; tüketicilerle uçtan uca **PENDING**: T6, T7, T8)
 Sorumlu: Kerem
 Tüketici servisler: social-service (SOC-12), hardware-service (HW-08 `HardwareVisibilityPolicy`), library-service (LIB-11)
 
@@ -1511,7 +1511,7 @@ Tüketici servisler: social-service (SOC-12), hardware-service (HW-08 `HardwareV
 POST /internal/v1/privacy/decisions
 
 #### Yetkilendirme
-Internal. Gateway'de route edilmez. `typ=svc+jwt`, `aud=user-service`, `scope` ⊇ `privacy:read` (yoksa `403`); çağıran (`sub`) yalnız `svc:social-service`, `svc:hardware-service`, `svc:library-service` olabilir (aksi halde `403`). Kullanıcı token'ı `401`. **Auth'ta bu kapsam ve çağıran→hedef çiftleri henüz tanımlı değildir (talep T3).**
+Internal. Gateway'de route edilmez. `typ=svc+jwt`, `aud=user-service`, `scope` ⊇ `privacy:read` (yoksa `403`); çağıran (`sub`) yalnız `svc:social-service`, `svc:hardware-service`, `svc:library-service` olabilir (aksi halde `403`). Kullanıcı token'ı `401`. Auth'ta bu kapsam ve üç çağıran→hedef çifti tanımlıdır (`social-service`, `library-service`, `hardware-service` → `user-service`, `privacy:read`); kapsam hesaba bağlı değildir, token isteğinde `accountId` gönderilmez.
 
 #### Request Body
 ```json
@@ -1541,7 +1541,7 @@ Frontend:
 -
 
 Diğer mikroservisler:
-social-service, hardware-service ve library-service Auth'tan `aud=user-service`, `scope=privacy:read` servis token'ı alıp bu ucu `${USER_SERVICE_URL}` üzerinden çağırır (Auth T3 sonrası). Gerçek tüketicilerle uçtan uca: **NOT VERIFIED**.
+social-service, hardware-service ve library-service Auth'tan `aud=user-service`, `scope=privacy:read` servis token'ı alıp bu ucu `${USER_SERVICE_URL}` üzerinden çağırır (Auth çiftleri hazır). Gerçek tüketicilerle uçtan uca: **NOT VERIFIED**.
 
 #### Test Durumu
 UNIT + INTEGRATION (`PrivacyDecisionTest` 8, `SocialProjectionTrustedTest` 3, `PrivacyRulesTest` 21).
