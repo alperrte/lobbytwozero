@@ -1,19 +1,15 @@
 "use client";
 
-import { useEffect, type CSSProperties } from "react";
+import { useEffect, type ComponentType, type CSSProperties } from "react";
 import { useThemeTransition } from "@/shared/hooks/use-theme-transition";
-import {
-  finishThemeTransition,
-  TRANSITION_TOTAL_MS
-} from "@/shared/lib/theme/theme-transition";
-import {
-  BoltScene,
-  CityScene,
-  CloudScene,
-  RainScene,
-  RidgeScene
-} from "./scenes";
+import { finishThemeTransition, type ThemeScene } from "@/shared/lib/theme/theme-transition";
+import { StormScene, SunriseScene } from "./legacy/v1/classic-scenes";
+import { BlackoutScene, DaybreakScene } from "./legacy/v2/tactical-scenes";
+import { BlackoutV3Scene, DaybreakV3Scene, type V3SceneProps } from "./v3/v3-scenes";
 import "./theme-transition.css";
+import "./legacy/v1/classic.css";
+import "./legacy/v2/tactical.css";
+import "./v3/v3.css";
 
 /**
  * Örtü üst katmana (top layer) alınır; böylece açık bir <dialog> (ayarlar çekmecesi) üzerinde de
@@ -28,8 +24,22 @@ function showOnTop(element: HTMLDivElement | null) {
 }
 
 /**
+ * Yeni sahne eklemek: ThemeScene'e adı yaz (transition-scenes.ts), buraya bileşenini kaydet.
+ * Sahneler `compact` (dar ekran çizelgesi) ve `startedAt` (denetleyici saati) alır; legacy sahneler yok sayar.
+ */
+const sceneContent: Record<ThemeScene, ComponentType<V3SceneProps>> = {
+  sunrise: SunriseScene,
+  storm: StormScene,
+  daybreak: DaybreakScene,
+  blackout: BlackoutScene,
+  "v3-daybreak": DaybreakV3Scene,
+  "v3-blackout": BlackoutV3Scene
+};
+
+/**
  * Tema geçişi örtüsü. Yalnız bir geçiş sürerken DOM'dadır; dekoratiftir (aria-hidden),
  * tıklamaları engellemez ve süre bitince kaldırılır. Sunucuda ve ilk istemci çiziminde null döner.
+ * Hangi sahnenin çalacağını paylaşılan denetleyici (theme-transition.ts) seçer; burada yalnız çizilir.
  */
 export function ThemeTransitionLayer() {
   const transition = useThemeTransition();
@@ -41,28 +51,8 @@ export function ThemeTransitionLayer() {
     return null;
   }
 
-  const style = { "--fx-dur": `${TRANSITION_TOTAL_MS}ms` } as CSSProperties;
-
-  if (transition.scene === "sunrise") {
-    return (
-      <div
-        key={transition.id}
-        ref={showOnTop}
-        popover="manual"
-        aria-hidden="true"
-        data-testid="theme-transition"
-        data-scene="sunrise"
-        className="ltz-fx ltz-fx--sunrise"
-        style={style}
-      >
-        <div className="fx-sky-night" />
-        <div className="fx-sky-dawn" />
-        <div className="fx-glow" />
-        <div className="fx-sun" />
-        <RidgeScene />
-      </div>
-    );
-  }
+  const Scene = sceneContent[transition.scene];
+  const style = { "--fx-dur": `${transition.totalMs}ms` } as CSSProperties;
 
   return (
     <div
@@ -71,19 +61,11 @@ export function ThemeTransitionLayer() {
       popover="manual"
       aria-hidden="true"
       data-testid="theme-transition"
-      data-scene="storm"
-      className="ltz-fx ltz-fx--storm"
+      data-scene={transition.scene}
+      className={`ltz-fx ltz-fx--${transition.scene}`}
       style={style}
     >
-      <div className="fx-sky-day" />
-      <div className="fx-sky-storm" />
-      <div className="fx-sky-night" />
-      <div className="fx-moon" />
-      <CloudScene />
-      <RainScene />
-      <div className="fx-flash" />
-      <BoltScene />
-      <CityScene />
+      <Scene compact={transition.compact} startedAt={transition.startedAt} />
     </div>
   );
 }

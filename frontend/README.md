@@ -44,17 +44,19 @@ src/
     components/
       layout/               AppShell, Navbar, Sidebar, Footer, Settings/Search dialogları,
                             Language/Notification/Profile menüleri, LegalPage
-      theme-transition/     Gün doğumu / Fırtınalı gece sahneleri (CSS + SVG)
+      theme-transition/     tema geçiş örtüsü (theme-transition-layer.tsx) + paketler:
+                            v3/ taktik V3 (varsayılan, piksel-art operatör), legacy/v2/ taktik V2,
+                            legacy/v1/ klasik (gün doğumu, fırtına)
       ui/                   küçük, genel parçalar (ikonlar, bayraklar, ModalDialog, OptionGroup, Notice)
     config/                 site, pages (sayfa kataloğu), navigation, public-routes
     hooks/                  tercih ve kabuk hook'ları
     lib/
       api/client.ts         apiRequest (gateway çağrıları)
       i18n/                 config, request, actions, messages/{tr,en}.json
-      preferences/          tema/kenar çubuğu/navbar tercihi + ilk boyama betiği
+      preferences/          tema/kenar çubuğu/navbar/geçiş paketi tercihi + ilk boyama betiği
       search/               arama çekirdeği ve sayfa sağlayıcısı
       seo/                  sayfa başı metadata
-      theme/                tema geçişi durum makinesi
+      theme/                tema geçişi durum makinesi + sahne/süre kaydı (transition-scenes.ts)
 e2e/                        Playwright testleri
 test/setup.ts               Vitest kurulumu (<dialog> polyfill'i dahil)
 public/                     llms.txt ve marka görselleri
@@ -69,15 +71,72 @@ Yeni dosya, [../docs/folder-structure.md](../docs/folder-structure.md) dışınd
 - **Arama** `Ctrl+K` / `Cmd+K` ile açılır. Şimdilik yalnız var olan sayfaları arar. Yeni kaynak (oyun, oyuncu, donanım) eklemek için `SearchProvider` yaz ve `searchProviders` dizisine ekle ([pages-provider.ts](src/shared/lib/search/pages-provider.ts)); arayüz değişmez.
 - **Bildirimler** servis bağlanana kadar dürüst boş durum gösterir. Sahte sayaç/liste yoktur. Gerçek veri `useShellNotifications` içinden verilir.
 - **Profil menüsü** misafir durumunu gösterir. Henüz var olmayan rotalar bağlantı yapılmaz, "Yakında" işaretlenir. "Çıkış yap" yalnız oturum varken görünür.
-- **Ayarlar** (kenar çubuğundan): Görünüm (Sistem/Açık/Koyu), Üst çubuk (Otomatik/Sabit), Kenar çubuğu (Geniş/Daraltılmış), Dil (TR/EN). Hesap/güvenlik ayarı yoktur. Değişiklik anında uygulanır ve bu cihazda saklanır.
+- **Ayarlar** (kenar çubuğundan): Görünüm (Sistem/Açık/Koyu), Dil (TR/EN), Üst çubuk (Otomatik/Sabit), Kenar çubuğu (Geniş/Daraltılmış), Tema geçişi (Taktik V3/Taktik V2 — Eski sürüm/Klasik V1/Sade). Hesap/güvenlik ayarı yoktur. Değişiklik anında uygulanır ve bu cihazda saklanır.
 
 ### Tercihler ve ilk boyama
 
-Tercihlerin tek doğruluk kaynağı `<html>` niteliğidir: `data-theme`, `data-theme-pref`, `data-sidebar`, `data-navbar`. Satır içi betik ([init-script.ts](src/shared/lib/preferences/init-script.ts)) bunları ilk boyamadan önce `localStorage` (`ltz-theme`, `ltz-sidebar`, `ltz-navbar`) veya sistem tercihinden ayarlar; böylece tema yanıp sönmez ve hydration uyuşmazlığı oluşmaz. Hook'lar `useSyncExternalStore` ile bu niteliği okur. Tema ve dil birbirinden bağımsızdır.
+Tercihlerin tek doğruluk kaynağı `<html>` niteliğidir: `data-theme`, `data-theme-pref`, `data-sidebar`, `data-navbar`, `data-transition`. Satır içi betik ([init-script.ts](src/shared/lib/preferences/init-script.ts)) bunları ilk boyamadan önce `localStorage` (`ltz-theme`, `ltz-sidebar`, `ltz-navbar`, `ltz-transition`) veya sistem tercihinden ayarlar; böylece tema yanıp sönmez ve hydration uyuşmazlığı oluşmaz. Hook'lar `useSyncExternalStore` ile bu niteliği okur. Tema ve dil birbirinden bağımsızdır.
 
 ### Tema geçişleri
 
-Dark → Light **Gün doğumu**, Light → Dark **Fırtınalı gece**. Sahneler yalnız CSS/SVG (`transform`/`opacity`) ile çizilen, `pointer-events: none` bir örtüdür; açık bir `<dialog>` üstünde kalması için `popover="manual"` üst katmanında gösterilir. Gerçek tema, örtü ekranı kapladığında (≈560 ms) uygulanır, geçiş ≈1400 ms'de biter ve örtü DOM'dan kaldırılır. Art arda tıklamada son istek kazanır. `prefers-reduced-motion` açıksa tema anında değişir. Durum makinesi: [theme-transition.ts](src/shared/lib/theme/theme-transition.ts).
+**Mimari.** Tema (`data-theme`) ile geçiş paketi (`data-transition`) birbirinden bağımsızdır. Paket dört değerden biridir: `v3` (varsayılan), `v2`, `v1`, `minimal`. Varsayılan paket (`v3`) için `data-transition` niteliği ve `ltz-transition` kaydı yoktur; yalnız `v2`/`v1`/`minimal` yazılır. Geçersiz kayıt (ör. elle bozulmuş değer) güvenli biçimde `v3`'e düşer. Böylece sunucu ve ilk istemci çıktısı aynı kalır (hydration uyuşmazlığı yok).
+
+| Paket | Light → Dark | Dark → Light | Süre (tema uygulanma anı) |
+| --- | --- | --- | --- |
+| `v3` Taktik V3 (varsayılan) | `v3-blackout` (Operasyon Karartma) | `v3-daybreak` (Operasyon Gün Doğumu) | 2600 ms (1560 / 1770); dar ekran 2200 ms (1140 / 1500) |
+| `v2` Taktik V2 — eski sürüm | `blackout` | `daybreak` | 2200 ms; dar ekran 1700 ms |
+| `v1` Klasik | `storm` (yağmur, şimşek, gece) | `sunrise` (gün doğumu, dağlar) | 1400 ms (560) |
+| `minimal` | sahne yok, tema anında değişir | sahne yok | 0 |
+
+Dar ekran: `max-width: 767px`.
+
+**V3 nasıl çalışır?** Özgün, olgun oranlı bir piksel-art LTZ operatörü: kenarlı (boonie) şapka, kızıl sakal, yeşil kamuflaj, plaka taşıyıcı, eldiven, ten rengi bacak kılıfı, dizlik ve bot; ekipman olarak NVG, stilize tüfek ve işaret fişeği tabancası. Küçük kırmızı LTZ vurgusu taşır. Var olan bir oyun karakterinin kopyası değildir.
+
+- **Çizim kaynağı:** [art/operator-art.ts](src/shared/components/theme-transition/v3/art/operator-art.ts) içindeki palet ve poz tanımlarıdır (64×64 hücre, 28 kare, sabit pivot: ayaklar y = 63, kalça x = 35). [art/pixel-canvas.ts](src/shared/components/theme-transition/v3/art/pixel-canvas.ts) ve [art/sprite-sheet.ts](src/shared/components/theme-transition/v3/art/sprite-sheet.ts) kareleri çizer, [art/png-codec.ts](src/shared/components/theme-transition/v3/art/png-codec.ts) PNG'ye yazar.
+- **Üretilmiş çıktılar:** [assets/operator-sprites.png](src/shared/components/theme-transition/v3/assets/operator-sprites.png) şeffaf zeminli yatay sprite sayfasıdır. [assets/operator-character-sheet.png](src/shared/components/theme-transition/v3/assets/operator-character-sheet.png) inceleme için kare tablosudur. [operator-frames.ts](src/shared/components/theme-transition/v3/operator-frames.ts) kare indeksleri, namlu, NVG ve el bağlantı noktalarını içerir; elle düzenlenmez.
+- **Yeniden üretme:** `LTZ_WRITE_SPRITES=1 npx vitest run src/shared/components/theme-transition/v3/art/sprite-sheet.test.ts`. Normal test koşusu, depodaki PNG'nin kaynakla piksel piksel aynı olduğunu doğrular.
+- **Ölçek:** sprite `image-rendering: pixelated` ile tam sayı ölçekte çizilir. Masaüstünde 2× (128 px), dar ekranda 1.5× (96 px). PNG yalnız örtü çizildiğinde istenir; ilk sayfa yüklemesine eklenmez.
+- **Zaman ve konum:** [timeline.ts](src/shared/components/theme-transition/v3/timeline.ts) her iki sahnenin saf zaman çizelgesidir (kare ipuçları, atış/isabet/sönme anları, fişek yayı). [stage.ts](src/shared/components/theme-transition/v3/stage.ts) operatörü ve lambaları ekran boyutuna yerleştirir: masaüstünde 3, dar ekranda 2 lamba olur ve her biri nişan ışınının üstündedir. [scenery.ts](src/shared/components/theme-transition/v3/scenery.ts) deterministik piksel sırtları ve güneş diskini SVG yolu olarak üretir.
+- **Oynatma:** [scene-player.ts](src/shared/components/theme-transition/v3/scene-player.ts) bu izleri Web Animations API ile oynatır. Animasyonlar denetleyicinin `startedAt` saatine göre hizalanır. Sahne bileşenleri [v3-scenes.tsx](src/shared/components/theme-transition/v3/v3-scenes.tsx) içinde, durağan görünüm [v3.css](src/shared/components/theme-transition/v3/v3.css) içindedir. Yalnız `transform`, `opacity`, `clip-path` ve `background-position` anime edilir.
+
+- **Blackout (Light → Dark):**
+  1. Tavandan sarkan ince konili lambalar yanar.
+  2. Operatör sağ alttan gizli yürüyüşle girer ve çöker.
+  3. Telsiz levhası operatörün yanında "LTZ BİRİMİ // KARARTMA BAŞLIYOR" ve "OPERASYON KARARTMA" yazar.
+  4. Her lamba için nişan, namlu parlaması ve iz mermisi gelir; isabette kıvılcım çıkar, lamba kısa titreyip söner. Patlama ve ekran sarsıntısı yoktur.
+  5. Son lamba söndüğünde Dark tema uygulanır.
+  6. Operatör NVG'yi eliyle indirir. Yeşil ışık yalnız gözlükte yanar.
+  7. Operatör gölgeye karışır ve örtü kalkar.
+- **Daybreak (Dark → Light):**
+  1. Operatör NVG'yi kaldırır ve ışık söner.
+  2. Fişek tabancasını çeker ve geri tepmeyle ateşler. Fişek sıcak bir izle yükselir.
+  3. Levha "OPERASYON GÜN DOĞUMU" ve "IŞIKLAR AÇIK" yazar.
+  4. Katmanlı piksel sırtların arkasından güneş doğar. Sıcak kehribar ışık yayıldığında Light tema uygulanır.
+  5. Operatör şapkasını düzeltir, yürüyerek çıkar ve örtü kalkar.
+
+**Eski paketler (legacy).** V1 ve V2 silinmedi. Seçilebilir ve aynen çalışır. V3 bunların varlıklarını kullanmaz.
+
+- **V2:** [legacy/v2/tactical-scenes.tsx](src/shared/components/theme-transition/legacy/v2/tactical-scenes.tsx), [legacy/v2/operator-sprite.tsx](src/shared/components/theme-transition/legacy/v2/operator-sprite.tsx), [legacy/v2/sprite-data.ts](src/shared/components/theme-transition/legacy/v2/sprite-data.ts) ve [legacy/v2/tactical.css](src/shared/components/theme-transition/legacy/v2/tactical.css).
+- **V1:** [legacy/v1/classic-scenes.tsx](src/shared/components/theme-transition/legacy/v1/classic-scenes.tsx), [legacy/v1/scenes.tsx](src/shared/components/theme-transition/legacy/v1/scenes.tsx) ve [legacy/v1/classic.css](src/shared/components/theme-transition/legacy/v1/classic.css).
+
+**Ortak denetleyici.** Durum makinesi [theme-transition.ts](src/shared/lib/theme/theme-transition.ts) içindedir: hangi sahnenin oynayacağını paketten seçer, temayı doğru anda uygular, art arda tıklamada son isteği kazandırır ve zamanlayıcıları temizler. Sahne adları ve süreler [transition-scenes.ts](src/shared/lib/theme/transition-scenes.ts) kaydındadır. Örtü bileşeni [theme-transition-layer.tsx](src/shared/components/theme-transition/theme-transition-layer.tsx) `popover="manual"` üst katmanında, `pointer-events: none`, `aria-hidden` ve `contain: strict` ile çizilir; tema durumu ile animasyon durumu ayrıdır. Ortak taban stil [theme-transition.css](src/shared/components/theme-transition/theme-transition.css) içindedir. Ses, WebGL ve animasyon kütüphanesi yoktur. V1/V2 CSS + SVG, V3 WAAPI + PNG sprite + SVG kullanır.
+
+**Ayarlarla bağlantı.** Ayarlar sayfasındaki "Tema geçişi" kartı ([settings-form.tsx](src/shared/components/layout/settings-form.tsx)) `useTransitionPack` hook'unu ([use-transition-pack.ts](src/shared/hooks/use-transition-pack.ts)) kullanır. Seçim `localStorage` + `data-transition` ile saklanır ve tema seçiminden bağımsızdır. Durum sahipliği: tercih `preferences.ts` ve `<html>` niteliğinde, animasyon durumu `theme-transition.ts` deposunda, çizim `theme-transition-layer.tsx` içindedir.
+
+**Reduced motion.** `prefers-reduced-motion: reduce` açıksa sahne hiç oynamaz ve tema anında değişir; CSS'te de `.ltz-fx` gizlenir (ek güvenlik ağı). `minimal` paketi de aynı sonucu verir. V1, V2 ve V3 aynı davranışı izler.
+
+**Yeni geçiş nasıl eklenir?**
+1. `transition-scenes.ts` içinde `ThemeScene` birleşimine yeni sahne adını, `sceneTimings` kaydına süreleri (toplam + tema uygulanma anı, gerekiyorsa dar ekran) ekle; `sceneFor` paket + hedef temayı yeni sahneye eşlesin.
+2. Sahne bileşenini ve stilini yeni bir paket klasöründe (`v3/` gibi) yaz; renkleri yerel değişkenlerle tanımla, yalnız `transform`/`opacity`/`clip-path` (sprite için `background-position`) anime et. Eskiyen paketi silmek yerine `legacy/` altına taşı.
+3. `theme-transition-layer.tsx` içindeki `sceneContent` eşlemesine sahneyi, CSS'i de aynı dosyadaki import listesine ekle.
+4. Yeni paket gerekiyorsa `preferences.ts` içindeki paket tipine/ayrıştırıcısına, `init-script.ts`'e, Ayarlar kartındaki seçeneklere ve TR/EN `Settings.transition` metinlerine ekle.
+5. Test ekle: denetleyici için `theme-transition.test.ts`, örtü için `theme-transition-layer.test.tsx`, sahneye özel saf mantık için `v3/` altındaki gibi ayrı testler.
+
+**Test.**
+- `npm run test -- theme-transition`: denetleyici, örtü ve tüm V3 testleri (`timeline.test.ts`, `stage.test.ts`, `scenery.test.ts`, `v3-scenes.test.tsx`, `art/sprite-sheet.test.ts`).
+- `npm run test -- sprite-data`: V2 sprite verisi (`legacy/v2/sprite-data.test.ts`).
+- `npm run test -- preferences settings-form`: tercih ve ayar kartı.
+- Tüm paket: `npm run test`.
 
 ## 5. Tasarım sistemi kuralları
 

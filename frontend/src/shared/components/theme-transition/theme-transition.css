@@ -1,34 +1,12 @@
 /*
- * Tema geçiş sahneleri (Sunrise / Storm). Yalnız transform ve opacity animasyonu kullanılır;
- * katman pointer-events almaz, düzeni etkilemez ve süre bitince DOM'dan kaldırılır.
- * Sahne renkleri aşağıdaki yerel --fx-* değişkenlerindedir (illüstrasyon rengi; UI token'ı değildir).
- * Hareket azaltma istendiğinde katman hiç oluşturulmaz (bkz. shared/lib/theme/theme-transition.ts).
+ * Tema geçişi örtüsü: V1, V2 ve V3 sahnelerinin ortak tam ekran kabuğu.
+ * Katman pointer-events almaz, düzeni etkilemez (fixed + contain) ve süre bitince DOM'dan kaldırılır.
+ * Hareket azaltma istendiğinde katman hiç oluşturulmaz (bkz. shared/lib/theme/theme-transition.ts);
+ * aşağıdaki medya kuralı yalnız ek güvencedir.
+ * Sahne stilleri: v3/v3.css (taktik V3, varsayılan), legacy/v2/tactical.css (taktik V2),
+ * legacy/v1/classic.css (klasik).
  */
 .ltz-fx {
-  --fx-dur: 1400ms;
-  --fx-night: #0b0b0f;
-  --fx-night-2: #1b1a2e;
-  --fx-dawn-1: #3b2a52;
-  --fx-dawn-2: #e8604c;
-  --fx-dawn-3: #f6b26b;
-  --fx-day: #f5f5f7;
-  --fx-sun: #ffb347;
-  --fx-sun-core: #ffe2a8;
-  --fx-ridge-1: #1c1722;
-  --fx-ridge-2: #2b2230;
-  --fx-ridge-3: #3d2f38;
-  --fx-storm-top: #14161d;
-  --fx-storm-mid: #2a2f3b;
-  --fx-storm-low: #3a4150;
-  --fx-cloud: #1d2029;
-  --fx-cloud-2: #272b36;
-  --fx-rain: #aab4c8;
-  --fx-bolt: #e8f0ff;
-  --fx-city: #07080c;
-  --fx-city-2: #0e1016;
-  --fx-window: #f6b26b;
-  --fx-moon: #d8dde8;
-
   position: fixed;
   inset: 0;
   z-index: 70;
@@ -44,16 +22,6 @@
   overflow: hidden;
   pointer-events: none;
   contain: strict;
-  opacity: 0;
-  animation: ltz-fx-veil var(--fx-dur) linear both;
-}
-
-/* Örtü: hızlı belirir, tema değişirken tam kaplar, sonda yumuşakça çözülür. */
-@keyframes ltz-fx-veil {
-  0% { opacity: 0; }
-  26% { opacity: 1; }
-  58% { opacity: 1; }
-  100% { opacity: 0; }
 }
 
 .ltz-fx > * {
@@ -67,190 +35,8 @@
   height: 100%;
 }
 
-/* ---------- Sunrise: Dark → Light ---------- */
-.ltz-fx--sunrise .fx-sky-night {
-  background: linear-gradient(180deg, var(--fx-night) 0%, var(--fx-night-2) 70%, var(--fx-dawn-1) 100%);
-}
-.ltz-fx--sunrise .fx-sky-dawn {
-  background: linear-gradient(
-    180deg,
-    var(--fx-day) 0%,
-    var(--fx-dawn-3) 55%,
-    var(--fx-dawn-2) 100%
-  );
-  opacity: 0;
-  animation: ltz-fx-fade-in calc(var(--fx-dur) * 0.55) ease-in-out 0.1s both;
-}
-@keyframes ltz-fx-fade-in {
-  to { opacity: 1; }
-}
-
-.ltz-fx--sunrise .fx-sun {
-  inset: auto;
-  left: 50%;
-  bottom: 18%;
-  width: min(34vmin, 18rem);
-  aspect-ratio: 1;
-  margin-left: calc(min(34vmin, 18rem) / -2);
-  border-radius: 50%;
-  background: radial-gradient(circle, var(--fx-sun-core) 0 38%, var(--fx-sun) 62%, transparent 72%);
-  transform: translateY(70%) scale(0.8);
-  animation: ltz-fx-sun-rise calc(var(--fx-dur) * 0.8) cubic-bezier(0.2, 0.7, 0.2, 1) 0.05s both;
-}
-@keyframes ltz-fx-sun-rise {
-  to { transform: translateY(-30%) scale(1); }
-}
-
-.ltz-fx--sunrise .fx-glow {
-  background: radial-gradient(ellipse 70% 55% at 50% 78%, var(--fx-dawn-3), transparent 70%);
-  opacity: 0;
-  animation: ltz-fx-glow var(--fx-dur) ease-in-out both;
-}
-@keyframes ltz-fx-glow {
-  0% { opacity: 0; }
-  50% { opacity: 0.7; }
-  100% { opacity: 0.2; }
-}
-
-.ltz-fx--sunrise .fx-ridges {
-  top: auto;
-  height: 46%;
-  transform: translateY(14%);
-  animation: ltz-fx-ridge-rise calc(var(--fx-dur) * 0.7) ease-out both;
-}
-@keyframes ltz-fx-ridge-rise {
-  to { transform: translateY(0); }
-}
-
-.ltz-fx .fx-ridge-1 { fill: var(--fx-ridge-1); }
-.ltz-fx .fx-ridge-2 { fill: var(--fx-ridge-2); }
-.ltz-fx .fx-ridge-3 { fill: var(--fx-ridge-3); }
-.ltz-fx .fx-cloud-a { fill: var(--fx-cloud); }
-.ltz-fx .fx-cloud-b { fill: var(--fx-cloud-2); }
-.ltz-fx .fx-city-far { fill: var(--fx-city-2); }
-.ltz-fx .fx-city-near { fill: var(--fx-city); }
-
-/* ---------- Storm: Light → Dark ---------- */
-.ltz-fx--storm .fx-sky-day {
-  background: linear-gradient(180deg, var(--fx-day), var(--fx-storm-low));
-}
-.ltz-fx--storm .fx-sky-storm {
-  background: linear-gradient(
-    180deg,
-    var(--fx-storm-top) 0%,
-    var(--fx-storm-mid) 60%,
-    var(--fx-storm-low) 100%
-  );
-  opacity: 0;
-  animation: ltz-fx-fade-in calc(var(--fx-dur) * 0.35) ease-in 0.04s both;
-}
-.ltz-fx--storm .fx-sky-night {
-  background: linear-gradient(180deg, var(--fx-night), var(--fx-storm-top));
-  opacity: 0;
-  animation: ltz-fx-fade-in calc(var(--fx-dur) * 0.4) ease-in-out calc(var(--fx-dur) * 0.4) both;
-}
-
-.ltz-fx--storm .fx-clouds {
-  height: 55%;
-  inset: 0 0 auto 0;
-  transform: translateX(-4%);
-  animation: ltz-fx-drift var(--fx-dur) linear both;
-}
-@keyframes ltz-fx-drift {
-  to { transform: translateX(4%); }
-}
-
-.ltz-fx--storm .fx-moon {
-  inset: auto;
-  top: 11%;
-  right: 16%;
-  width: min(14vmin, 7rem);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: radial-gradient(circle at 38% 36%, var(--fx-bolt), var(--fx-moon) 55%, transparent 70%);
-  opacity: 0;
-  transform: translateY(1.5rem);
-  animation: ltz-fx-moon calc(var(--fx-dur) * 0.5) ease-out calc(var(--fx-dur) * 0.4) both;
-}
-@keyframes ltz-fx-moon {
-  to { opacity: 0.95; transform: translateY(0); }
-}
-
-/* Yağmur: kısa ve hafif; yalnız geçiş süresince oynar. */
-.ltz-fx--storm .fx-rain {
-  opacity: 0;
-  animation: ltz-fx-rain-fade var(--fx-dur) linear both;
-}
-@keyframes ltz-fx-rain-fade {
-  0% { opacity: 0; }
-  20% { opacity: 0.55; }
-  62% { opacity: 0.55; }
-  100% { opacity: 0; }
-}
-.ltz-fx--storm .fx-rain line {
-  stroke: var(--fx-rain);
-  stroke-width: 1.2;
-  stroke-linecap: round;
-  transform-box: fill-box;
-  animation: ltz-fx-rain-fall 520ms linear infinite;
-}
-@keyframes ltz-fx-rain-fall {
-  from { transform: translate(0, -30vh); }
-  to { transform: translate(-6vh, 110vh); }
-}
-
-/* Tek, kısa şimşek: zirvesi düşük, yanıp sönme yok (saniyede 3'ten az parlama). */
-.ltz-fx--storm .fx-flash {
-  background: var(--fx-bolt);
-  opacity: 0;
-  animation: ltz-fx-flash 220ms ease-out calc(var(--fx-dur) * 0.3) both;
-}
-@keyframes ltz-fx-flash {
-  0% { opacity: 0; }
-  30% { opacity: 0.22; }
-  100% { opacity: 0; }
-}
-.ltz-fx--storm .fx-bolt {
-  opacity: 0;
-  animation: ltz-fx-bolt 240ms ease-out calc(var(--fx-dur) * 0.3) both;
-}
-.ltz-fx--storm .fx-bolt polyline {
-  fill: none;
-  stroke: var(--fx-bolt);
-  stroke-width: 2.2;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-}
-@keyframes ltz-fx-bolt {
-  0% { opacity: 0; }
-  25% { opacity: 0.95; }
-  100% { opacity: 0; }
-}
-
-.ltz-fx--storm .fx-city {
-  top: auto;
-  height: 40%;
-  transform: translateY(8%);
-  animation: ltz-fx-ridge-rise calc(var(--fx-dur) * 0.6) ease-out both;
-}
-.ltz-fx--storm .fx-window {
-  fill: var(--fx-window);
-  opacity: 0;
-  animation: ltz-fx-window calc(var(--fx-dur) * 0.35) ease-out calc(var(--fx-dur) * 0.45) both;
-}
-@keyframes ltz-fx-window {
-  to { opacity: 0.8; }
-}
-
-/* Mobil: yağmur çizgilerinin yarısı ve şimşek çizimi kapatılır; sahne sadeleşir. */
-@media (max-width: 767px) {
-  .ltz-fx--storm .fx-rain line:nth-child(n + 11) {
-    display: none;
-  }
-  .ltz-fx--storm .fx-bolt {
-    display: none;
-  }
-  .ltz-fx--sunrise .fx-glow {
+@media (prefers-reduced-motion: reduce) {
+  .ltz-fx {
     display: none;
   }
 }

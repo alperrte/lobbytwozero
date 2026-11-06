@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/shared/components/theme-transition/v2/tactical.css"
+        ],
+        "createdAt": "2026-11-06T13:46:41.210Z",
+        "reason": "assistant: 3px red bar is the left marker of the transient (~2s) cinematic title-card caption in the V2 tactical transition overlay (spec: short cinematic text), not a card accent; not user confirmed"
+      }
+    ]
+  }
+}

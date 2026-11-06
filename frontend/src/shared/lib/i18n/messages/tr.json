@@ -115,7 +115,39 @@
       "title": "Dil",
       "info": "Arayüzün dilini değiştirir. Seçimin bu cihazda hatırlanır."
     },
+    "transition": {
+      "title": "Tema geçişi",
+      "info": "Açık ve koyu tema arasında geçerken oynayan animasyonu seçer. Tema seçiminden bağımsızdır. Sistem hareketi azalt dediyse animasyon hiç oynamaz.",
+      "v3": "Taktik V3",
+      "v3Hint": "Piksel-art LTZ operatörü lambaları vurup gece görüşüne geçer; işaret fişeğiyle güneşi doğurur.",
+      "v2": "Taktik V2 — Eski sürüm",
+      "v2Hint": "Önceki taktik geçiş; arşivden korunur.",
+      "v1": "Klasik V1",
+      "v1Hint": "Gün doğumu ve fırtına sahneleri.",
+      "minimal": "Sade",
+      "minimalHint": "Animasyon yok, tema anında değişir."
+    },
     "deviceNote": "Tercihlerin yalnızca bu cihazda saklanır ve seçtiğin anda uygulanır."
+  },
+  "ThemeTransition": {
+    "blackout": {
+      "title": "OPERASYON KARARTMA",
+      "status": "LTZ BİRİMİ // IŞIKLAR SÖNÜYOR"
+    },
+    "daybreak": {
+      "title": "OPERASYON GÜN DOĞUMU",
+      "status": "LTZ MODU // GÜNDÜZ"
+    },
+    "v3": {
+      "blackout": {
+        "status": "LTZ BİRİMİ // KARARTMA BAŞLIYOR",
+        "title": "OPERASYON KARARTMA"
+      },
+      "daybreak": {
+        "title": "OPERASYON GÜN DOĞUMU",
+        "status": "IŞIKLAR AÇIK"
+      }
+    }
   },
   "Pages": {
     "home": {

@@ -9,6 +9,7 @@ import { OptionGroup } from "@/shared/components/ui/option-group";
 import { useNavbarMode } from "@/shared/hooks/use-navbar-mode";
 import { useSidebarCollapsed } from "@/shared/hooks/use-sidebar-collapsed";
 import { useThemePreference } from "@/shared/hooks/use-theme-preference";
+import { useTransitionPack } from "@/shared/hooks/use-transition-pack";
 import { locales, type Locale } from "@/shared/lib/i18n/config";
 import { usePathname, useRouter } from "@/shared/lib/i18n/navigation";
 import type { AppPathname } from "@/shared/lib/i18n/routing";
@@ -55,6 +56,7 @@ export function SettingsForm() {
   const [theme, setTheme] = useThemePreference();
   const [navbar, setNavbar] = useNavbarMode();
   const [collapsed, setCollapsed] = useSidebarCollapsed();
+  const [transitionPack, setTransitionPack] = useTransitionPack();
   const [pending, startTransition] = useTransition();
 
   function changeLocale(locale: Locale) {
@@ -171,6 +173,46 @@ export function SettingsForm() {
             />
           )}
         </SettingCard>
+
+        <div className="lg:col-span-2">
+          <SettingCard title={t("transition.title")} info={t("transition.info")}>
+            {() => (
+              <OptionGroup
+                hideLegend
+                legend={t("transition.title")}
+                name="settings-transition"
+                value={transitionPack}
+                onChange={setTransitionPack}
+                options={[
+                  {
+                    value: "v3",
+                    label: t("transition.v3"),
+                    hint: t("transition.v3Hint"),
+                    leading: <Icon name="crosshair" className="size-[18px]" />
+                  },
+                  {
+                    value: "v2",
+                    label: t("transition.v2"),
+                    hint: t("transition.v2Hint"),
+                    leading: <Icon name="sparkles" className="size-[18px]" />
+                  },
+                  {
+                    value: "v1",
+                    label: t("transition.v1"),
+                    hint: t("transition.v1Hint"),
+                    leading: <Icon name="sun" className="size-[18px]" />
+                  },
+                  {
+                    value: "minimal",
+                    label: t("transition.minimal"),
+                    hint: t("transition.minimalHint"),
+                    leading: <Icon name="contrast" className="size-[18px]" />
+                  }
+                ]}
+              />
+            )}
+          </SettingCard>
+        </div>
       </div>
       <p className="text-xs leading-relaxed text-text-secondary">{t("deviceNote")}</p>
     </div>

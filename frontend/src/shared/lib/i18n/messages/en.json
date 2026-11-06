@@ -115,7 +115,39 @@
       "title": "Language",
       "info": "Changes the language of the interface. Your choice is remembered on this device."
     },
+    "transition": {
+      "title": "Theme transition",
+      "info": "Chooses the animation that plays when switching between light and dark. It is independent of the theme itself. If your system asks for reduced motion, no animation plays.",
+      "v3": "Tactical V3",
+      "v3Hint": "A pixel-art LTZ operator shoots out the lamps and switches to night vision, then fires a flare to raise the sun.",
+      "v2": "Tactical V2 — Legacy",
+      "v2Hint": "The previous tactical transition, kept from the archive.",
+      "v1": "Classic V1",
+      "v1Hint": "Sunrise and storm scenes.",
+      "minimal": "Minimal",
+      "minimalHint": "No animation, the theme changes instantly."
+    },
     "deviceNote": "Your preferences are stored only on this device and apply as soon as you choose them."
+  },
+  "ThemeTransition": {
+    "blackout": {
+      "title": "OPERATION BLACKOUT",
+      "status": "LTZ UNIT // GOING DARK"
+    },
+    "daybreak": {
+      "title": "OPERATION DAYBREAK",
+      "status": "LTZ MODE // DAYLIGHT"
+    },
+    "v3": {
+      "blackout": {
+        "status": "LTZ UNIT // GOING DARK",
+        "title": "OPERATION BLACKOUT"
+      },
+      "daybreak": {
+        "title": "OPERATION DAYBREAK",
+        "status": "LIGHTS ON"
+      }
+    }
   },
   "Pages": {
     "home": {
