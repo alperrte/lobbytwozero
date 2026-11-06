@@ -1,5 +1,13 @@
 export const SITE_NAME = "LobbyTwoZero";
 
+/** Sekme başlıklarındaki kısa önek: "LTZ | Anasayfa". */
+export const SITE_SHORT_NAME = "LTZ";
+
+/** Sayfa başlığını sekme biçimine getirir: `LTZ | <başlık>`. */
+export function formatPageTitle(title: string): string {
+  return `${SITE_SHORT_NAME} | ${title}`;
+}
+
 /**
  * Meta theme-color değerleri globals.css içindeki `--ltz-surface` tokenlarını yansıtır
  * (Dark ve Light). site.test.ts iki dosyanın eşitliğini doğrular.

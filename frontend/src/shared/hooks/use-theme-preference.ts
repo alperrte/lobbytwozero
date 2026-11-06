@@ -2,11 +2,12 @@
 
 import { useSyncExternalStore } from "react";
 import {
-  applyThemePreference,
   parseThemePreference,
   subscribePreferences,
+  type ResolvedTheme,
   type ThemePreference
 } from "@/shared/lib/preferences/preferences";
+import { changeTheme } from "@/shared/lib/theme/theme-transition";
 
 function getSnapshot(): ThemePreference {
   return parseThemePreference(document.documentElement.dataset.themePref);
@@ -23,5 +24,23 @@ export function useThemePreference() {
     getServerSnapshot
   );
 
-  return [preference, applyThemePreference] as const;
+  // Tercih değişimi tema geçiş sahnesi üzerinden uygulanır (hareket azaltma istenirse anında).
+  return [preference, changeTheme] as const;
+}
+
+function getResolvedSnapshot(): ResolvedTheme {
+  return document.documentElement.dataset.theme === "light" ? "light" : "dark";
+}
+
+function getResolvedServerSnapshot(): ResolvedTheme {
+  return "dark";
+}
+
+/** Ekranda görünen tema (data-theme). "Sistem" tercihinde işletim sistemi seçimini yansıtır. */
+export function useResolvedTheme(): ResolvedTheme {
+  return useSyncExternalStore(
+    subscribePreferences,
+    getResolvedSnapshot,
+    getResolvedServerSnapshot
+  );
 }

@@ -1,15 +1,21 @@
 # LobbyTwoZero
 
-> LobbyTwoZero, oyun topluluğunun donanım ve oyun odaklı buluşma noktasıdır. / LobbyTwoZero is the gaming community's meeting place for hardware and games.
+> LobbyTwoZero, oyun keşfi, oyuncu topluluğu, sosyal etkileşim ile donanım ve oyun performansı deneyimleri için geliştirilen oyun odaklı bir sosyal platformdur. Proje geliştirme aşamasındadır. / LobbyTwoZero is a game-focused social platform being built for game discovery, the player community, social interaction, and hardware and game performance experiences. The project is under development.
 
 Bu dosya yalnız herkese açık içeriği tanımlar. Giriş gerektiren, kişisel veya yönetim alanları (hesap, profil, panel, yönetim) dizinlenmemelidir.
 This file describes public content only. Authenticated, personal or admin areas (account, profile, dashboard, admin) must not be indexed.
 
 ## Herkese açık sayfalar / Public pages
 
-- Ana sayfa / Home: /
+- Ana sayfa / Home: /tr (Türkçe), /en (English)
+- Hakkımızda / About Us: /tr/hakkimizda, /en/about
+- SSS / FAQ: /tr/sss, /en/faq
+
+## Henüz içeriği olmayan sayfalar / Pages without final content
+
+- İletişim / Contact (/tr/iletisim, /en/contact) ve yasal metinler / legal pages (/tr/yasal/kvkk, /tr/yasal/gizlilik, /tr/yasal/kullanim-kosullari, /tr/yasal/cerezler; /en/legal/kvkk, /en/legal/privacy, /en/legal/terms, /en/legal/cookies) henüz yayınlanmış bir içerik taşımaz; dizinlenmez. / They carry no published content yet and are not indexed.
 
 ## Notlar / Notes
 
-- Diller / Languages: Türkçe (varsayılan / default), English. Dil çerez ile seçilir; ayrı dil URL'si yoktur. / Language is chosen by cookie; there are no per-language URLs.
+- Diller / Languages: Türkçe (varsayılan / default), English. Dil URL önekindedir (/tr, /en) ve adresler dile göre çevrilir. / The language is part of the URL (/tr, /en) and page addresses are translated per language.
 - Site kökü (domain) henüz yayınlanmadı; mutlak URL'ler yayın sırasında eklenecek. / The production domain is not published yet; absolute URLs will be added at launch.

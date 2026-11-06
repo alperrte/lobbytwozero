@@ -29,7 +29,23 @@ describe("robots ve sitemap", () => {
       sitemap: "https://ltz.example/sitemap.xml"
     });
     expect(sitemap().map((entry) => entry.url)).toEqual([
-      "https://ltz.example/"
+      "https://ltz.example/tr",
+      "https://ltz.example/en",
+      "https://ltz.example/tr/hakkimizda",
+      "https://ltz.example/en/about",
+      "https://ltz.example/tr/sss",
+      "https://ltz.example/en/faq"
     ]);
+  });
+
+  it("her sitemap kaydı karşılıklı hreflang alternatifleri ve x-default taşır", () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://ltz.example");
+    vi.stubEnv("NODE_ENV", "production");
+    const about = sitemap().find((entry) => entry.url === "https://ltz.example/tr/hakkimizda");
+    expect(about?.alternates?.languages).toEqual({
+      tr: "https://ltz.example/tr/hakkimizda",
+      en: "https://ltz.example/en/about",
+      "x-default": "https://ltz.example/tr/hakkimizda"
+    });
   });
 });
