@@ -2,9 +2,7 @@
 
 **Sahip:** Kerem (auth-service) · **Güncelleme:** 2026-11-06 · **Durum:** güncel; çelişen eski belgede bu sayfa kazanır
 
-Bu sayfa, Auth'a bağlanacak her servis sahibi (ve yapay zekâ asistanı) için **tek giriş noktasıdır**. Önce burayı oku. Ayrıntı gereken yerde ilgili belgeye bağlantı var. Kod örnekleri gerçek servislerden (Game, Review, Library, User) sadeleştirilerek alındı.
-
-> Bir yapay zekâya "`docs-auth/AUTH_REHBERI.md` dosyasını oku, benim servisim için gereken adımları söyle" demen yeterli.
+Bu sayfa, Auth'a bağlanacak her servis sahibi için **tek giriş noktasıdır**. Önce burayı oku. Ayrıntı gereken yerde ilgili belgeye bağlantı var. Kod örnekleri gerçek servislerden (Game, Review, Library, User) sadeleştirilerek alındı.
 
 ---
 
