@@ -1,16 +1,21 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import tr from "@/shared/lib/i18n/messages/tr.json";
 import { SettingsForm } from "./settings-form";
 
+const replaceMock = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/settings",
-  useRouter: () => ({ refresh: vi.fn() })
+  // next-intl/navigation bu dışa aktarımlara ihtiyaç duyar; test yalnız yönlendirmeyi gözler.
+  usePathname: () => "/tr/ayarlar",
+  useRouter: () => ({ replace: replaceMock, push: vi.fn(), prefetch: vi.fn(), refresh: vi.fn() }),
+  redirect: vi.fn(),
+  permanentRedirect: vi.fn()
 }));
-vi.mock("@/shared/lib/i18n/actions", () => ({ setLocale: vi.fn() }));
 
 beforeEach(() => {
+  replaceMock.mockReset();
+  window.localStorage.clear();
   vi.stubGlobal("matchMedia", (query: string) => ({
     matches: false,
     media: query,
@@ -32,11 +37,17 @@ function renderForm() {
 }
 
 describe("SettingsForm", () => {
-  it("dört ayar grubunu kartlar halinde sunar; hesap ve güvenlik ayarı yoktur", () => {
+  it("dört ayar grubunu Görünüm, Dil, Üst çubuk, Kenar çubuğu sırasıyla sunar; hesap ve güvenlik ayarı yoktur", () => {
     renderForm();
-    for (const name of ["Görünüm", "Üst çubuk", "Kenar çubuğu", "Dil"]) {
-      expect(screen.getByRole("region", { name })).toBeInTheDocument();
-    }
+    const names = ["Görünüm", "Dil", "Üst çubuk", "Kenar çubuğu"];
+    const regions = names.map((name) => screen.getByRole("region", { name }));
+    regions.forEach((region, index) => {
+      if (index > 0) {
+        expect(
+          regions[index - 1].compareDocumentPosition(region) & Node.DOCUMENT_POSITION_FOLLOWING
+        ).toBeTruthy();
+      }
+    });
     expect(screen.queryByText(/güvenlik|parola|şifre/i)).not.toBeInTheDocument();
   });
 
@@ -62,5 +73,45 @@ describe("SettingsForm", () => {
 
     fireEvent.click(screen.getByRole("radio", { name: /^Daraltılmış/ }));
     expect(root.dataset.sidebar).toBe("collapsed");
+  });
+
+  it("masaüstünde iki sütun, dar ekranda tek sütun ızgarası kullanır", () => {
+    const { container } = renderForm();
+    const grid = container.querySelector("section")?.parentElement as HTMLElement;
+    expect(grid.className).toContain("lg:grid-cols-2");
+    expect(grid.className).not.toMatch(/(^|\s)(sm:|md:)?grid-cols-2/);
+  });
+
+  it("seçenekler seçili durumu işaretler ve Kaydet düğmesi yoktur", () => {
+    renderForm();
+    expect(screen.getByRole("radio", { name: /^Sistem/ })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /^Otomatik gizle/ })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /^Geniş/ })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /^Türkçe/ })).toBeChecked();
+    expect(screen.queryByRole("button", { name: /kaydet/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/yalnızca bu cihazda saklanır/)).toBeInTheDocument();
+  });
+
+  it("dil seçimi eşdeğer sayfaya yönlendirir; mevcut dil yeniden seçilince yönlendirmez", async () => {
+    renderForm();
+    fireEvent.click(screen.getByRole("radio", { name: /^Türkçe/ }));
+    expect(replaceMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("radio", { name: /^English/ }));
+    // /tr/ayarlar → /en/settings: aynı sayfanın İngilizce karşılığına geçilir.
+    await waitFor(() => expect(replaceMock).toHaveBeenCalledTimes(1));
+    expect(replaceMock.mock.calls[0][0]).toBe("/en/settings");
+  });
+
+  it("tema, üst çubuk ve kenar çubuğu tercihleri bu cihazda kalıcı saklanır", () => {
+    renderForm();
+
+    fireEvent.click(screen.getByRole("radio", { name: /^Açık/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /^Sabit/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /^Daraltılmış/ }));
+
+    expect(window.localStorage.getItem("ltz-theme")).toBe("light");
+    expect(window.localStorage.getItem("ltz-navbar")).toBe("fixed");
+    expect(window.localStorage.getItem("ltz-sidebar")).toBe("collapsed");
   });
 });

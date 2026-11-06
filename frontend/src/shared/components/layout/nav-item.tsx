@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState, type SyntheticEvent } from "react";
 import { createPortal } from "react-dom";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Icon, type IconName } from "@/shared/components/ui/icons";
 import {
@@ -10,6 +9,7 @@ import {
   isNavItemAvailable,
   type NavItem as NavItemModel
 } from "@/shared/config/navigation";
+import { Link } from "@/shared/lib/i18n/navigation";
 import { cn } from "@/shared/utils/cn";
 
 /** Panelin dışında, tooltip ile panel kenarı arasındaki boşluk (px). */

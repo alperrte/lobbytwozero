@@ -1,4 +1,5 @@
 import type { IconName } from "@/shared/components/ui/icons";
+import type { AppPathname } from "@/shared/lib/i18n/routing";
 
 /**
  * Global kenar çubuğu navigasyonu: 13 öğe, 3 grup (Genel, Sosyal, Donanım & Performans).
@@ -36,8 +37,8 @@ export type NavItem = {
   id: string;
   labelKey: NavLabelKey;
   icon: IconName;
-  /** Yalnız gerçekten var olan rota. Yoksa öğe "Yakında" durumundadır. */
-  href?: string;
+  /** Yalnız gerçekten var olan rota (dahili yol, `routing.ts` anahtarı). Yoksa öğe "Yakında" durumundadır. */
+  href?: AppPathname;
   /** Öğeyi ileride besleyecek backend servisi (belgeleme amaçlıdır; arayüzde gösterilmez). */
   service?: string;
 };
@@ -111,7 +112,7 @@ export const settingsNavigation: NavItem = {
 };
 
 /** Öğe yalnız gerçek bir rotaya sahipse kullanılabilir; aksi hâlde "Yakında" gösterilir. */
-export function isNavItemAvailable(item: NavItem): item is NavItem & { href: string } {
+export function isNavItemAvailable(item: NavItem): item is NavItem & { href: AppPathname } {
   return item.href !== undefined;
 }
 

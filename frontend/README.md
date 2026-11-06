@@ -10,7 +10,7 @@ Bağlayıcı belgeler: [../AGENTS.md](../AGENTS.md), [../docs/web-rules.md](../d
 | --- | --- |
 | Çatı | Next.js 16.4 (App Router, Turbopack), React 19.3, TypeScript 5 |
 | Stil | Tailwind CSS 4 (`@theme inline`, `@tailwindcss/turbopack`) |
-| Dil | next-intl 4 (`tr` varsayılan, `en`; çerez ile, URL öneki yok) |
+| Dil | next-intl 4 (`tr` varsayılan, `en`; dil URL önekindedir: `/tr/...`, `/en/...`; Türkçe sitede Türkçe slug) |
 | Derleyici | React Compiler (`babel-plugin-react-compiler`); lint kuralları buna göre sıkıdır |
 | Test | Vitest 5 + Testing Library + jsdom; Playwright (Chromium) |
 | Gerçek bağımlılıklar | Yalnız `next`, `next-intl`, `react`, `react-dom`. Animasyon, ikon, UI veya state kütüphanesi **yoktur**; yenisini eklemeden önce gerekçe ve onay gerekir. |
@@ -94,13 +94,17 @@ Dark → Light **Gün doğumu**, Light → Dark **Fırtınalı gece**. Sahneler 
 - Mesajlar: [tr.json](src/shared/lib/i18n/messages/tr.json) ve [en.json](src/shared/lib/i18n/messages/en.json). **İki dosyanın anahtarları aynı olmalıdır** (`messages.test.ts` doğrular).
 - Sunucu bileşeninde `getTranslations("Bolum")`, istemcide `useTranslations("Bolum")`.
 - Yeni metin: iki dosyaya aynı anahtarı ekle, bileşende anahtarı kullan. Metni koda gömme.
-- Dil değişimi `setLocale` server action'ı ve `router.refresh()` ile yapılır; çerez adı `locale`.
-- Çerez tabanlı olduğundan dil başına ayrı URL yoktur; bu yüzden `hreflang` alternatifleri üretilmez.
+- **Dil URL önekindedir** (`localePrefix: "always"`): `/tr/hakkimizda`, `/en/about`. Önek yoksa `proxy.ts` çerez (`locale`), `Accept-Language` ve varsayılan (`tr`) ile yönlendirir.
+- **Slug'lar dile göre çevrilir.** Tek kaynak [routing.ts](src/shared/lib/i18n/routing.ts) içindeki `pathnames` tablosudur; klasör adları (`app/[locale]/(public)/about`) dahili anahtardır, görünen adres tablodan gelir. Yeni sayfa: klasörü aç, `pathnames`'e TR ve EN slug'ı ekle, `pages.ts`'e kaydet.
+- Bağlantı ve yönlendirme için `next/link` / `next/navigation` değil, [navigation.ts](src/shared/lib/i18n/navigation.ts) içindeki `Link`, `usePathname`, `useRouter`, `getPathname` kullanılır; `href` olarak dahili anahtar (`"/about"`) verilir.
+- Dil değişimi `router.replace(pathname, { locale })` ile yapılır; açık sayfanın eşdeğerine geçer (`/tr/hakkimizda` → `/en/about`). Seçim `locale` çerezine yazılır.
+- Aynı sayfanın ikinci adresleri (`/tr/about`, `/en/hakkimizda`, öneksiz `/about`) 308 ile kanonik adrese yönlendirilir ([canonical-path.ts](src/shared/lib/i18n/canonical-path.ts)); böylece Türkçe sitede İngilizce slug yaşamaz ve yinelenen içerik oluşmaz.
+- `hreflang` alternatifleri (`tr`, `en`, `x-default`) ve sitemap'teki dil çiftleri aynı `pathnames` tablosundan üretilir.
 
 ## 7. SEO
 
 - Site adı her yerde **LobbyTwoZero**; `shared/config/site.ts` ve `Metadata.*` mesajlarından gelir.
-- `robots.ts`, `sitemap.ts` ve `public/llms.txt` herkese açık sayfa kataloğundan ([pages.ts](src/shared/config/pages.ts)) beslenir. `indexable: false` sayfalar (iletişim, yasal) sitemap dışıdır ve `noindex` yayınlar.
+- `robots.ts`, `sitemap.ts` ve `public/llms.txt` herkese açık sayfa kataloğundan ([pages.ts](src/shared/config/pages.ts)) beslenir. Sitemap her sayfayı her dil için ayrı adres olarak (karşılıklı `hreflang` ile) listeler. `indexable: false` sayfalar (iletişim, yasal) sitemap dışıdır ve `noindex` yayınlar.
 - Site kökü bilinmiyorsa (`NEXT_PUBLIC_SITE_URL` boş/geçersiz) canonical yazılmaz, sitemap boş döner, `robots.txt` her şeyi kapatır. Domain veya `localhost` uydurulmaz.
 - Özel alanlar (`(auth)`, `(dashboard)`, `(admin)`) indekslenmez.
 - Sayfa başı metadata için `buildPageMetadata("<id>")` kullan ([page-metadata.ts](src/shared/lib/seo/page-metadata.ts)).

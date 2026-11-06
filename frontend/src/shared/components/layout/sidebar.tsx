@@ -1,11 +1,10 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Icon } from "@/shared/components/ui/icons";
 import { navigationGroups, settingsNavigation } from "@/shared/config/navigation";
 import { useSidebarCollapsed } from "@/shared/hooks/use-sidebar-collapsed";
+import { Link, usePathname } from "@/shared/lib/i18n/navigation";
 import { cn } from "@/shared/utils/cn";
 import { BrandLogo } from "./brand-logo";
 import { NavButton, NavItem } from "./nav-item";

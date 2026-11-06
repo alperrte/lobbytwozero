@@ -43,7 +43,7 @@ describe("footerGroups", () => {
         expect(entry.href).toBeUndefined();
       }
     }
-    const known = new Set(pages.map((page) => page.href));
+    const known = new Set<string>(pages.map((page) => page.href));
     for (const entry of footerGroups[3].entries) {
       expect(known.has(entry.href as string)).toBe(true);
     }

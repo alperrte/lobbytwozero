@@ -1,3 +1,5 @@
+import type { AppPathname } from "@/shared/lib/i18n/routing";
+
 /**
  * Global arama çekirdeği (istemci tarafı, saf fonksiyonlar).
  * Şimdilik yalnız var olan sayfalar aranır (bkz. pages-provider.ts). Oyun/oyuncu/donanım
@@ -10,7 +12,7 @@ export type SearchEntry = {
   group: SearchGroup;
   title: string;
   description?: string;
-  href: string;
+  href: AppPathname;
   keywords?: readonly string[];
 };
 

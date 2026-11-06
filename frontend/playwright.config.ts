@@ -11,6 +11,8 @@ export default defineConfig({
   outputDir: "test-results/playwright",
   use: {
     baseURL,
+    // Dil URL önekindedir; Accept-Language Türkçe olmazsa "/" İngilizce sayfaya yönlenir.
+    locale: "tr-TR",
     trace: "retain-on-failure",
     screenshot: "only-on-failure"
   },

@@ -1,3 +1,4 @@
+import type { AppPathname } from "@/shared/lib/i18n/routing";
 import { primaryNavigation, type NavLabelKey } from "./navigation";
 import { findPageById, type PageId } from "./pages";
 
@@ -15,8 +16,8 @@ import { findPageById, type PageId } from "./pages";
 export type FooterGroupId = "discover" | "community" | "performance" | "support";
 
 export type FooterEntry =
-  | { source: "navigation"; id: NavLabelKey; href?: string }
-  | { source: "page"; id: PageId; href: string };
+  | { source: "navigation"; id: NavLabelKey; href?: AppPathname }
+  | { source: "page"; id: PageId; href: AppPathname };
 
 export type FooterGroup = {
   id: FooterGroupId;

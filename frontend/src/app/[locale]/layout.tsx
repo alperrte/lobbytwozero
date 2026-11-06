@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Chakra_Petch, IBM_Plex_Sans } from "next/font/google";
-import { NextIntlClientProvider } from "next-intl";
-import { getLocale, getMessages, getTranslations } from "next-intl/server";
+import { notFound } from "next/navigation";
+import { hasLocale, NextIntlClientProvider } from "next-intl";
+import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
+import { routing } from "@/shared/lib/i18n/routing";
 import { preferencesInitScript } from "@/shared/lib/preferences/init-script";
 import {
   getSiteUrl,
@@ -11,7 +13,7 @@ import {
   SITE_SHORT_NAME,
   THEME_COLORS
 } from "@/shared/config/site";
-import "./globals.css";
+import "../globals.css";
 
 const displayFont = Chakra_Petch({
   subsets: ["latin", "latin-ext"],
@@ -27,14 +29,16 @@ const bodyFont = IBM_Plex_Sans({
   display: "swap"
 });
 
-// Dil çerezle seçilir (URL'de dil yok); bu yüzden hreflang alternatifleri yayınlanmaz.
+// Dil URL önekindedir (/tr, /en); hreflang ve canonical sayfa bazında buildPageMetadata ile yazılır.
 const OG_LOCALES: Record<string, string> = { tr: "tr_TR", en: "en_US" };
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("Metadata");
+type LocaleParams = { params: Promise<{ locale: string }> };
+
+export async function generateMetadata({ params }: LocaleParams): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "Metadata" });
   const siteUrl = getSiteUrl();
   const description = t("description");
-  const locale = await getLocale();
 
   return {
     ...(siteUrl ? { metadataBase: siteUrl } : {}),
@@ -70,9 +74,14 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({
-  children
-}: Readonly<{ children: ReactNode }>) {
-  const locale = await getLocale();
+  children,
+  params
+}: Readonly<{ children: ReactNode } & LocaleParams>) {
+  const { locale } = await params;
+  if (!hasLocale(routing.locales, locale)) {
+    notFound();
+  }
+  setRequestLocale(locale);
   const messages = await getMessages();
 
   return (

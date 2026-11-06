@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Notice } from "@/shared/components/ui/notice";
 import type { PageId } from "@/shared/config/pages";
+import { Link } from "@/shared/lib/i18n/navigation";
 
 /**
  * Yasal sayfa iskeleti. Hukuki metin uydurulmaz: belge yayınlanana kadar dürüstçe

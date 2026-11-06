@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { AppPathname } from "@/shared/lib/i18n/routing";
 import {
   findActiveItem,
   isActivePath,
@@ -130,7 +131,7 @@ describe("isActivePath / findActiveItem", () => {
   it("href verilen bir Yakında öğesi otomatik olarak aktif olur (bileşen değişmeden)", () => {
     const enabled = [
       ...primaryNavigation,
-      { id: "games-live", labelKey: "games" as const, icon: "gamepad" as const, href: "/games" }
+      { id: "games-live", labelKey: "games" as const, icon: "gamepad" as const, href: "/games" as AppPathname }
     ];
     expect(findActiveItem("/games/42", enabled)?.id).toBe("games-live");
   });

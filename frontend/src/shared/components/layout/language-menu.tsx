@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Flag } from "@/shared/components/ui/flags";
 import { Icon } from "@/shared/components/ui/icons";
@@ -15,8 +14,9 @@ import {
   onMenuKeyDown,
   usePopover
 } from "@/shared/hooks/use-popover";
-import { setLocale } from "@/shared/lib/i18n/actions";
 import { locales, type Locale } from "@/shared/lib/i18n/config";
+import { usePathname, useRouter } from "@/shared/lib/i18n/navigation";
+import type { AppPathname } from "@/shared/lib/i18n/routing";
 import { cn } from "@/shared/utils/cn";
 
 /** Dil adları her zaman kendi dilinde yazılır (Türkçe / English). */
@@ -24,11 +24,12 @@ const nativeNames: Record<Locale, string> = { tr: "Türkçe", en: "English" };
 
 /**
  * TR/EN açılır menüsü. Kapalıyken bayrak + kod + ok; açıkken "Türkçe" ve "English" seçenekleri.
- * Dil next-intl çerezinde saklanır, rota değişmez (router.refresh).
+ * Dil URL önekindedir: seçim, açık sayfanın eşdeğerine geçer (ör. /tr/hakkimizda → /en/about).
  */
 export function LanguageMenu() {
   const t = useTranslations("Locale");
   const router = useRouter();
+  const pathname = usePathname();
   const active = useLocale() as Locale;
   const { open, setOpen, close, rootRef, triggerRef } = usePopover();
   const menuRef = useRef<HTMLDivElement>(null);
@@ -45,9 +46,8 @@ export function LanguageMenu() {
     if (locale === active) {
       return;
     }
-    startTransition(async () => {
-      await setLocale(locale);
-      router.refresh();
+    startTransition(() => {
+      router.replace(pathname as AppPathname, { locale });
     });
   }
 

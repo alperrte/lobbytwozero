@@ -1,3 +1,5 @@
+import type { AppPathname } from "@/shared/lib/i18n/routing";
+
 /**
  * Gerçekten var olan, herkese açık sayfalar — tek kaynak.
  * Footer, global arama, sitemap ve robots bu listeden beslenir.
@@ -21,7 +23,8 @@ export type PageSection = "platform" | "support" | "legal";
 
 export type PageEntry = {
   id: PageId;
-  href: string;
+  /** Dahili yol (`routing.ts` anahtarı); görünen adres dile göre `pathnames` ile üretilir. */
+  href: AppPathname;
   section?: PageSection;
   indexable: boolean;
   /** Aramada eşleşecek ek sözcükler (TR ve EN karışık olabilir). */
@@ -98,7 +101,7 @@ export const platformPages = pages.filter((page) => page.section === "platform")
 export const supportPages = pages.filter((page) => page.section === "support");
 export const legalPages = pages.filter((page) => page.section === "legal");
 
-export function findPage(pathname: string): PageEntry | undefined {
+export function findPage(pathname: AppPathname): PageEntry | undefined {
   return pages.find((page) => page.href === pathname);
 }
 

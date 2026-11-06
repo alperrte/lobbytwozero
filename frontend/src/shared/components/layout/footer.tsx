@@ -1,10 +1,10 @@
 import Image from "next/image";
-import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { SocialIcon } from "@/shared/components/ui/social-icons";
 import { footerGroups, type FooterEntry } from "@/shared/config/footer-navigation";
 import { legalPages } from "@/shared/config/pages";
 import { isLiveSocialLink, socialLinks } from "@/shared/config/social";
+import { Link } from "@/shared/lib/i18n/navigation";
 import { cn } from "@/shared/utils/cn";
 
 const linkClass =

@@ -106,7 +106,7 @@ test("arama: Ctrl+K açar, yalnız sayfaları arar, Enter gider, Escape kapatır
 
   await input.fill("sss");
   await input.press("Enter");
-  await expect(page).toHaveURL(/\/faq$/);
+  await expect(page).toHaveURL(/\/tr\/sss$/);
   await expect(dialog).toBeHidden();
 
   await page.keyboard.press("Control+K");
@@ -209,13 +209,13 @@ test("footer: gerçek rotalara bağlanır, '#' bağlantı yoktur, yıl dinamikti
   const footer = page.getByRole("contentinfo");
   await expect(footer.locator('a[href="#"]')).toHaveCount(0);
   for (const [name, href] of [
-    ["Hakkımızda", "/about"],
-    ["SSS", "/faq"],
-    ["İletişim", "/contact"],
-    ["KVKK Aydınlatma Metni", "/legal/kvkk"],
-    ["Gizlilik Politikası", "/legal/privacy"],
-    ["Kullanım Koşulları", "/legal/terms"],
-    ["Çerez Politikası", "/legal/cookies"]
+    ["Hakkımızda", "/tr/hakkimizda"],
+    ["SSS", "/tr/sss"],
+    ["İletişim", "/tr/iletisim"],
+    ["KVKK Aydınlatma Metni", "/tr/yasal/kvkk"],
+    ["Gizlilik Politikası", "/tr/yasal/gizlilik"],
+    ["Kullanım Koşulları", "/tr/yasal/kullanim-kosullari"],
+    ["Çerez Politikası", "/tr/yasal/cerezler"]
   ] as const) {
     await expect(footer.getByRole("link", { name })).toHaveAttribute("href", href);
   }
@@ -228,11 +228,11 @@ test("iletişim ve yasal sayfalar açılır, noindex yayınlar, mailto taşımaz
   page
 }) => {
   for (const path of [
-    "/contact",
-    "/legal/kvkk",
-    "/legal/privacy",
-    "/legal/terms",
-    "/legal/cookies"
+    "/tr/iletisim",
+    "/tr/yasal/kvkk",
+    "/tr/yasal/gizlilik",
+    "/tr/yasal/kullanim-kosullari",
+    "/tr/yasal/cerezler"
   ]) {
     const response = await page.goto(path);
     expect(response?.status()).toBe(200);
@@ -246,7 +246,7 @@ test("iletişim ve yasal sayfalar açılır, noindex yayınlar, mailto taşımaz
 });
 
 test("hakkımızda ve SSS açılır", async ({ page }) => {
-  for (const path of ["/about", "/faq"]) {
+  for (const path of ["/tr/hakkimizda", "/tr/sss"]) {
     const response = await page.goto(path);
     expect(response?.status()).toBe(200);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();

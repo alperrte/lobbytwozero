@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { usePathname } from "@/shared/lib/i18n/navigation";
 import { ThemeTransitionLayer } from "@/shared/components/theme-transition/theme-transition-layer";
 import { Navbar } from "./navbar";
 import { Sidebar } from "./sidebar";

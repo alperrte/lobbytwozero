@@ -82,7 +82,7 @@
   },
   "Settings": {
     "title": "Ayarlar",
-    "description": "Görünüm ve gezinme tercihlerin anında uygulanır ve bu cihazda saklanır.",
+    "description": "Görünümünü ve gezinme deneyimini kendine göre düzenle.",
     "infoLabel": "{subject} hakkında bilgi",
     "appearance": {
       "title": "Görünüm",
@@ -114,27 +114,65 @@
     "language": {
       "title": "Dil",
       "info": "Arayüzün dilini değiştirir. Seçimin bu cihazda hatırlanır."
-    }
+    },
+    "deviceNote": "Tercihlerin yalnızca bu cihazda saklanır ve seçtiğin anda uygulanır."
   },
   "Pages": {
-    "home": { "title": "Anasayfa", "description": "LobbyTwoZero başlangıç sayfası" },
-    "about": { "title": "Hakkımızda", "description": "LobbyTwoZero nedir ve neyi hedefler" },
-    "faq": { "title": "SSS", "description": "Sıkça sorulan sorular" },
-    "contact": { "title": "İletişim", "description": "Bize nasıl ulaşabileceğin" },
-    "kvkk": { "title": "KVKK Aydınlatma Metni", "description": "Kişisel verilerin işlenmesine ilişkin aydınlatma" },
-    "privacy": { "title": "Gizlilik Politikası", "description": "Verilerinin nasıl ele alındığı" },
-    "terms": { "title": "Kullanım Koşulları", "description": "Platformu kullanma kuralları" },
-    "cookies": { "title": "Çerez Politikası", "description": "Çerezlerin ve yerel depolamanın kullanımı" },
-    "settings": { "title": "Ayarlar", "description": "Görünüm, üst çubuk, kenar çubuğu ve dil tercihlerin" }
+    "home": {
+      "title": "Anasayfa",
+      "description": "LobbyTwoZero başlangıç sayfası"
+    },
+    "about": {
+      "title": "Hakkımızda",
+      "description": "LobbyTwoZero nedir ve neyi hedefler"
+    },
+    "faq": {
+      "title": "SSS",
+      "description": "Sıkça sorulan sorular"
+    },
+    "contact": {
+      "title": "İletişim",
+      "description": "Bize nasıl ulaşabileceğin"
+    },
+    "kvkk": {
+      "title": "KVKK Aydınlatma Metni",
+      "description": "Kişisel verilerin işlenmesine ilişkin aydınlatma"
+    },
+    "privacy": {
+      "title": "Gizlilik Politikası",
+      "description": "Verilerinin nasıl ele alındığı"
+    },
+    "terms": {
+      "title": "Kullanım Koşulları",
+      "description": "Platformu kullanma kuralları"
+    },
+    "cookies": {
+      "title": "Çerez Politikası",
+      "description": "Çerezlerin ve yerel depolamanın kullanımı"
+    },
+    "settings": {
+      "title": "Ayarlar",
+      "description": "Görünüm, üst çubuk, kenar çubuğu ve dil tercihlerin"
+    }
   },
   "Footer": {
     "label": "Alt bilgi",
     "tagline": "Oyunları keşfet, oyuncularla bağlantı kur, deneyimlerini paylaş. LobbyTwoZero, oyun dünyasını tek bir toplulukta buluşturur.",
-    "groups": { "discover": "Keşfet", "community": "Topluluk", "performance": "LTZ Performance", "support": "Destek" },
+    "groups": {
+      "discover": "Keşfet",
+      "community": "Topluluk",
+      "performance": "LTZ Performance",
+      "support": "Destek"
+    },
     "socialLabel": "Sosyal medya",
     "socialSoon": "{name} (bağlantı yakında)",
     "legalNav": "Yasal bağlantılar",
-    "social": { "x": "X", "instagram": "Instagram", "linkedin": "LinkedIn", "github": "GitHub" },
+    "social": {
+      "x": "X",
+      "instagram": "Instagram",
+      "linkedin": "LinkedIn",
+      "github": "LobbyTwoZero GitHub deposu"
+    },
     "legal": "Yasal",
     "copyright": "© {year} LobbyTwoZero. Tüm hakları saklıdır.",
     "links": {
@@ -156,42 +194,239 @@
     "statusBody": "Ortak kabuk, tema ve dil altyapısı çalışıyor. Donanım ve diğer sayfalar sonraki adımlarda eklenecek."
   },
   "About": {
-    "intro": "LobbyTwoZero (LTZ), oyun odaklı bir sosyal platform olarak geliştiriliyor. Oyuncuların oyun keşfettiği, tartıştığı, arkadaş edindiği ve birlikte oynayacak takım bulduğu bir merkez olmayı hedefliyor.",
-    "statusTitle": "Proje geliştirme aşamasında",
-    "statusBody": "Bu sayfa projenin hedeflerini anlatır; aşağıdaki özelliklerin tamamı henüz yayında değildir. Hazır olan bölümler yayınlandıkça duyurulacaktır.",
-    "aimsTitle": "Hedeflenen deneyim",
-    "aims": {
-      "discover": { "title": "Oyun keşfi", "body": "Oyunları katalogda gezmek, puanlamak ve inceleme yazmak." },
-      "social": { "title": "Sosyal etkileşim", "body": "Arkadaş edinmek, mesajlaşmak ve birlikte oynayacak oyuncu bulmak." },
-      "community": { "title": "Topluluk", "body": "Gönderiler ve etkinliklerle oyuncu topluluğuyla bir araya gelmek." },
-      "performance": { "title": "Donanım ve performans", "body": "Bilgisayar donanımını tanıtmak, oyunlardaki performans deneyimlerini görmek ve öneri almak." }
+    "hero": {
+      "title": "Beş oyuncu. Tek bir lobi.",
+      "description": "LobbyTwoZero, oyun oynamayı seven beş geliştiricinin ortak tutkusundan doğdu. Oyun keşfini, oyuncu topluluklarını, arkadaşlıkları ve donanım deneyimlerini tek bir yerde buluşturmak için yola çıktık."
+    },
+    "story": {
+      "title": "Nasıl Başladık?",
+      "paragraphs": {
+        "one": "Oyunla ilgili her şey çoğu zaman farklı yerlerde yaşanıyor: oyun keşfi bir yerde, arkadaşlar ve takım arayışı başka bir yerde, donanımın oyunu kaldırıp kaldırmadığı ise ayrı bir merak konusu.",
+        "two": "Biz bu parçaları tek bir lobide toplamak istedik. Her birimiz farklı bir alanı üstlenerek ortak bir ürün geliştiriyoruz.",
+        "three": "LobbyTwoZero şu anda geliştirme aşamasındadır. Burada anlattıklarımız hedeflerimizdir ve hepsi henüz yayında değildir."
+      }
+    },
+    "vision": {
+      "title": "Neyi Hedefliyoruz?",
+      "intro": "Bunlar bugün yayında olan özellikler değil, birlikte inşa ettiğimiz ürünün hedefidir.",
+      "pillars": {
+        "discover": {
+          "title": "Oyun Keşfi",
+          "body": "Oyunları katalogda gezmek, puanlamak ve inceleme yazmak."
+        },
+        "social": {
+          "title": "Sosyal Bağlantılar",
+          "body": "Arkadaş edinmek, mesajlaşmak ve birlikte oynayacak oyuncu bulmak."
+        },
+        "community": {
+          "title": "Oyuncu Topluluğu",
+          "body": "Gönderiler ve etkinliklerle oyuncu topluluğuyla bir araya gelmek."
+        },
+        "hardware": {
+          "title": "Donanım ve Performans",
+          "body": "Bilgisayar donanımını tanıtmak, oyunlardaki performans deneyimlerini görmek ve öneri almak."
+        }
+      }
+    },
+    "team": {
+      "title": "Bu Lobinin Arkasındaki Ekip",
+      "subtitle": "Farklı alanlarda çalışan, aynı oyun tutkusunu paylaşan beş geliştirici.",
+      "github": "{name} — GitHub",
+      "linkedin": "{name} — LinkedIn",
+      "cv": "{name} — CV",
+      "cvMissingLabel": "{name} — CV (henüz eklenmedi)",
+      "cvMissingTooltip": "CV henüz eklenmedi",
+      "members": {
+        "alper": {
+          "role": "Donanım profilleri, oyun önerileri ve performans deneyimleri üzerinde çalışıyor."
+        },
+        "nisa": {
+          "role": "Topluluk alanları, içerikler ve etkinlikler üzerinde çalışıyor."
+        },
+        "umut": {
+          "role": "Sosyal bağlantılar, mesajlaşma ve takım arama üzerinde çalışıyor."
+        },
+        "hamza": {
+          "role": "Oyun kataloğu, kütüphane ve incelemeler üzerinde çalışıyor."
+        },
+        "kerem": {
+          "role": "Kimlik doğrulama, kullanıcı profili ve e-posta altyapısı üzerinde çalışıyor."
+        }
+      }
+    },
+    "closing": {
+      "title": "Aynı Oyunda, Aynı Lobide.",
+      "body": "LobbyTwoZero'yu oyuncular için, oyuncularla birlikte büyütmeyi hedefliyoruz."
     }
   },
   "Faq": {
-    "intro": "Projeyle ilgili en temel soruların kısa yanıtları. Proje geliştirme aşamasındadır; yanıtlar ilerledikçe güncellenecektir.",
+    "heading": "Sıkça Sorulan Sorular",
+    "description": "LobbyTwoZero hakkında merak ettiğin soruların cevaplarını burada bulabilirsin.",
+    "categoriesLabel": "Kategoriler",
+    "categories": {
+      "general": "Genel",
+      "account": "Hesap ve Profil",
+      "games": "Oyunlar ve Kütüphane",
+      "social": "Sosyal ve Topluluk",
+      "hardware": "Donanım ve Performans",
+      "security": "Güvenlik ve Gizlilik"
+    },
     "items": {
-      "what": {
-        "q": "LobbyTwoZero nedir?",
-        "a": "Oyun keşfi, oyuncu topluluğu ve sosyal etkileşim ile donanım ve oyun performansı deneyimlerini bir araya getirmeyi hedefleyen, oyun odaklı bir sosyal platformdur."
+      "whatIs": {
+        "title": "LobbyTwoZero nedir?",
+        "answer": "LobbyTwoZero (LTZ), oyuncular için geliştirilen sosyal bir oyun platformudur. Oyun keşfini, oyuncu topluluklarını, arkadaşlıkları ve donanım deneyimlerini tek bir yerde buluşturmayı hedefler. Proje geliştirme aşamasındadır ve özellikler aşamalı olarak eklenir."
       },
-      "ready": {
-        "q": "Şu an neler kullanılabilir?",
-        "a": "Şu an yalnızca temel arayüz (tema, dil, gezinme) hazırdır. Hesap, oyun kataloğu, sosyal özellikler ve donanım bölümleri henüz yayında değildir."
+      "purpose": {
+        "title": "LTZ hangi amaçla geliştiriliyor?",
+        "answer": "LTZ; oynayacak oyunu, birlikte oynayacak kişileri ve bilgisayarının bir oyunu nasıl çalıştırabileceğini aynı yerde bulmanı kolaylaştırmak için geliştiriliyor. Amaç, bu ihtiyaçları farklı sitelere dağıtmadan tek bir lobide toplamaktır."
       },
-      "hardware": {
-        "q": "Donanım ve performans özelliği ne yapacak?",
-        "a": "Hedef, oyuncuların bilgisayar donanımlarını tanıtabilmesi, oyunlardaki performans deneyimlerini görebilmesi ve kendilerine uygun öneriler alabilmesidir. Bu bölüm henüz hazır değildir."
+      "availability": {
+        "title": "Platform şu anda kullanılabilir mi?",
+        "answer": "Platform henüz tam olarak yayında değil. Şu an uygulamanın genel arayüzü ve bilgi sayfaları hazır; oyunlar, sosyal özellikler ve donanım araçları gibi modüller geliştirilmeye devam ediyor. Menüde “Yakında” işaretli öğeler henüz kullanıma açılmamış özelliklerdir."
       },
-      "data": {
-        "q": "Kişisel verilerim nasıl ele alınacak?",
-        "a": "Aydınlatma metni, gizlilik ve çerez politikaları henüz yayınlanmadı. Hesap ve veri toplama özellikleri açılmadan önce bu metinler hazırlanacaktır."
+      "accountRequired": {
+        "title": "LTZ'yi kullanmak için hesap oluşturmam gerekiyor mu?",
+        "answer": "Hakkımızda ve SSS gibi genel sayfaları gezmek için hesap gerekmiyor. Profil, kütüphane ve mesajlaşma gibi sana özel özelliklerin hesap gerektirmesi planlanıyor. Hesap sistemi henüz yayında olmadığından şu an giriş yapman gerekmiyor."
+      },
+      "createAccount": {
+        "title": "Nasıl hesap oluşturabilirim?",
+        "answer": "Hesap oluşturma özelliği geliştirme aşamasında ve henüz kullanıma açık değil. Kayıt ve giriş adımları hazır olduğunda bu sayfada duyurulacak. O zamana kadar sahte kayıt sayfalarına veya LTZ adına hesap isteyen mesajlara güvenme."
+      },
+      "steamGoogle": {
+        "title": "Steam veya Google ile giriş yapabilir miyim?",
+        "answer": "Steam ve Google ile giriş seçenekleri hedefleniyor, ancak henüz kullanılamıyor. Hesap bağlama özelliği geldiğinde, bir hesabın bağlanması yalnızca senin onayınla yapılacak şekilde tasarlanıyor."
+      },
+      "editProfile": {
+        "title": "Profilimi ve oyuncu tercihlerimi nasıl düzenleyebilirim?",
+        "answer": "Profil ve oyuncu tercihlerini düzenleme, hesap sistemiyle birlikte planlanan özellikler arasında. Henüz yayında olmadığı için şu an düzenleyebileceğin bir profil yok. Şimdilik değiştirebildiğin tek şey Ayarlar sayfasındaki görünüm, dil ve gezinme tercihleridir; bunlar yalnızca bu cihazda saklanır."
+      },
+      "deleteAccount": {
+        "title": "Hesabımı ve kişisel verilerimi silebilir miyim?",
+        "answer": "Hesap ve kişisel veri silme, hesap sistemiyle birlikte sunulması planlanan bir haktır. Silme işleminin kimlik doğrulaması ve açık bir onay gerektirmesi hedefleniyor. Verilerin ne kadar süreyle tutulacağı gibi ayrıntılar KVKK ve Gizlilik metinlerinde yer alacak."
+      },
+      "discoverGames": {
+        "title": "LTZ'de hangi oyunları keşfedebilirim?",
+        "answer": "Oyun keşfi, LTZ'nin temel hedeflerinden biri. Oyunları tür, platform ve topluluk değerlendirmelerine göre incelemeyi hedefliyoruz. Bu bölüm henüz yayında olmadığından şu an bir oyun kataloğu bulunmuyor."
+      },
+      "libraryFavorites": {
+        "title": "Favori oyunlarımı ve kütüphanemi nasıl yönetebilirim?",
+        "answer": "Beğendiğin oyunları favorilere ve kişisel kütüphanene eklemek planlanan özellikler arasında. Kütüphanem, oyun ve hesap sistemleri hazır olduğunda açılacak; şimdilik menüde “Yakında” olarak görünür."
+      },
+      "ratingsReviews": {
+        "title": "Oyunlara puan verip inceleme yazabilir miyim?",
+        "answer": "Oyunlara puan verme ve inceleme yazma planlanıyor. Henüz yayında olmadığı için şu an puan veya inceleme gösterilmiyor. İleride görülecek puanların gerçek kullanıcı katkılarına dayanması hedefleniyor."
+      },
+      "filterGames": {
+        "title": "Oyunları tür ve platforma göre filtreleyebilir miyim?",
+        "answer": "Tür ve platforma göre filtreleme, oyun kataloğuyla birlikte sunulması hedeflenen bir özellik. Katalog henüz yayında olmadığı için filtreler de şu an kullanılamıyor."
+      },
+      "friends": {
+        "title": "LTZ'de nasıl arkadaş edinebilirim?",
+        "answer": "Arkadaş ekleme ve arkadaş listesi planlanıyor. Bu özellikler hesap sistemine bağlı olduğundan henüz kullanılamıyor; hazır olduğunda menüdeki Arkadaşlar bölümünden erişilecek."
+      },
+      "messaging": {
+        "title": "Diğer oyuncularla mesajlaşabilir miyim?",
+        "answer": "Arkadaşlarınla mesajlaşma hedeflenen özellikler arasında. Mesajlaşma henüz yayında değil; hayata geçtiğinde gizlilik ve güvenlik ayarlarıyla birlikte sunulması planlanıyor."
+      },
+      "findTeam": {
+        "title": "Takım Bul özelliği nedir?",
+        "answer": "Takım Bul, birlikte oynayacak oyuncuları bulmana yardım etmek için tasarlanan bir özellik. Oyuna göre ilan açıp başkalarının ilanlarına katılabilmen hedefleniyor. Henüz yayında değil."
+      },
+      "communityPosts": {
+        "title": "Topluluk gönderileri nasıl çalışacak?",
+        "answer": "Topluluk bölümünde oyuncuların gönderi paylaşıp birbirleriyle etkileşim kurması planlanıyor. Henüz yayında olmadığı için şu an görüntülenecek bir topluluk gönderisi yok."
+      },
+      "eventsTournaments": {
+        "title": "Etkinliklere ve turnuvalara katılabilir miyim?",
+        "answer": "Etkinliklerin ve turnuvaların listelenmesi hedefleniyor. Bu bölüm henüz kullanıma açılmadı; yayına alındığında katılım seçenekleri hakkındaki ayrıntılar bu sayfada güncellenecek."
+      },
+      "addHardware": {
+        "title": "Donanım bilgilerimi nasıl ekleyebilirim?",
+        "answer": "Donanım bilgilerini elle girmek üzere tasarlanıyor: işlemci, ekran kartı, bellek gibi bileşenleri sen seçip ekleyeceksin ve marka bilgisi zorunlu olmayacak. Bilgisayarının otomatik taranması ilk sürümün kapsamında değil. Bu özellik henüz yayında değil."
+      },
+      "multipleProfiles": {
+        "title": "Birden fazla bilgisayar profili oluşturabilir miyim?",
+        "answer": "Masaüstü ve dizüstü gibi farklı sistemlerini ayrı bilgisayar profilleri olarak kaydedebilmen hedefleniyor. Bu özellik henüz yayında değil."
+      },
+      "fpsCompatibility": {
+        "title": "Tahmini FPS ve uyumluluk bilgisi nasıl çalışıyor?",
+        "answer": "Girdiğin donanıma göre bir oyunun nasıl çalışabileceğine dair tahmini FPS ve uyumluluk bilgisi sunulması hedefleniyor. Bu değerler ölçüm değil tahmindir ve öyle etiketlenecek. Özellik henüz yayında değil, şu an gösterilen bir FPS değeri yok."
+      },
+      "ltzPerformance": {
+        "title": "LTZ Performance nedir?",
+        "answer": "LTZ Performance, donanım ve oyun performansı deneyimlerine ayrılan modülün adıdır ve henüz yayında değil. Tarayıcı; işlemci veya ekran kartı sıcaklığını ya da FPS'i ölçemez. Bu tür ölçümler yalnızca ileride planlanan bir masaüstü uygulamasıyla mümkün olabilir ve ilk sürümün parçası değildir."
+      },
+      "recommendations": {
+        "title": "Kişisel öneriler nasıl hazırlanacak?",
+        "answer": "Kişisel öneriler, donanım bilgin ve oyun tercihlerinle uyumlu oyunları göstermeyi hedefler. Öneriler bir sohbet botuyla değil, kurallara ve verilere dayalı bir algoritmayla üretilmek üzere tasarlanıyor. Özellik henüz yayında değil."
+      },
+      "accountSecurity": {
+        "title": "Hesabımın güvenliği nasıl sağlanacak?",
+        "answer": "Güvenlik, tasarımın temel bir parçası. Hangi işlemi yapabileceğine sunucu tarafında karar verilmesi hedefleniyor; yani bir ekranı görmek tek başına yetki anlamına gelmez. Ayrıntılar, hesap sistemi yayına alındığında Gizlilik Politikası'nda yer alacak."
+      },
+      "twoFactor": {
+        "title": "İki faktörlü doğrulama olacak mı?",
+        "answer": "İki faktörlü doğrulama hedefleniyor ancak henüz kullanılamıyor. Hesap sistemi hazır olduğunda desteklenen yöntemler ve kurulum adımları bu sayfada duyurulacak."
+      },
+      "visibility": {
+        "title": "Profilimi ve donanım bilgilerimi kimler görebilecek?",
+        "answer": "Profilinin ve donanım bilgilerinin kimlere görüneceğini sen seçebileceksin; alan bazında görünürlük ayarları planlanıyor. Henüz yayında olmadığı için bu ayarlar şu an mevcut değil."
+      },
+      "reporting": {
+        "title": "Uygunsuz içerik veya kullanıcıları nasıl bildirebilirim?",
+        "answer": "Uygunsuz içerik ve kullanıcıları bildirme ile içerik moderasyonu planlanıyor. Bu mekanizma henüz yayında değil; hayata geçtiğinde nasıl işleyeceği Kullanım Koşulları'nda açıklanacak."
       }
     }
   },
   "Contact": {
-    "intro": "Şu an yayında bir iletişim kanalı yok.",
-    "bodyTitle": "Resmî destek adresi henüz belirlenmedi",
-    "body": "Geri bildirim ve destek için kullanılacak resmî e-posta adresi ile iletişim formu belirlendiğinde bu sayfada yayınlanacaktır. Bu sayfada gösterilen hiçbir adres, doğrulanmadığı sürece resmî iletişim kanalı sayılmamalıdır."
+    "title": "İletişim",
+    "description": "Bir fikrin, sorun veya önerin mi var? Seninle iletişim kurmak isteriz.",
+    "formLabel": "İletişim formu",
+    "demoNotice": "Bu iletişim formu şu anda demo aşamasındadır. Gönderilen bilgiler herhangi bir sunucuya iletilmez.",
+    "fields": {
+      "name": "Ad Soyad",
+      "email": "E-posta",
+      "subject": "Konu",
+      "message": "Mesaj"
+    },
+    "subjectPlaceholder": "Bir konu seç",
+    "subjects": {
+      "general": "Genel Soru",
+      "feedback": "Geri Bildirim",
+      "bug": "Hata Bildirimi",
+      "collaboration": "İş Birliği",
+      "other": "Diğer"
+    },
+    "messageHint": "En az {min} karakter yaz.",
+    "counter": "{count} / {max}",
+    "requiredHint": "* ile işaretli alanlar zorunludur.",
+    "submit": "Formu Kontrol Et",
+    "errorSummary": "Formda düzeltmen gereken {count} alan var.",
+    "validated": "Form doğrulaması başarılı. Bu bir demo olduğu için mesajınız gönderilmedi.",
+    "errors": {
+      "name": {
+        "required": "Ad soyadını yaz.",
+        "tooLong": "Ad soyad en fazla {max} karakter olabilir."
+      },
+      "email": {
+        "required": "E-posta adresini yaz.",
+        "invalid": "Geçerli bir e-posta adresi yaz, örneğin ad@ornek.com.",
+        "tooLong": "E-posta adresi en fazla {max} karakter olabilir."
+      },
+      "subject": {
+        "required": "Bir konu seç.",
+        "invalid": "Listeden geçerli bir konu seç."
+      },
+      "message": {
+        "required": "Mesajını yaz.",
+        "tooShort": "Mesajın en az {min} karakter olmalı.",
+        "tooLong": "Mesaj en fazla {max} karakter olabilir."
+      }
+    },
+    "side": {
+      "title": "Geri Bildirimlerin Önemli",
+      "body": "Fikirlerin ve önerilerin LobbyTwoZero'yu şekillendirmemize yardımcı olur. Form şu anda demo aşamasında olduğu için yazdıkların herhangi bir yere iletilmez."
+    }
   },
   "Legal": {
     "statusTitle": "Bu metin henüz yayınlanmadı",

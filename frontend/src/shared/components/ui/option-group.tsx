@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Icon } from "@/shared/components/ui/icons";
 
 export type Option<T extends string> = {
   value: T;
@@ -20,8 +21,12 @@ type OptionGroupProps<T extends string> = {
 };
 
 /**
- * Yerel radyo düğmeleriyle ayar seçimi (klavye okları, grup adı ve seçili durum tarayıcıdan gelir).
- * Seçim anında `onChange` ile uygulanır; "Kaydet" adımı yoktur.
+ * Tam genişlikli seçim satırlarıyla ayar seçimi: solda simge, ortada başlık ve kısa açıklama,
+ * sağda seçili durum işareti. Altta yerel radyo düğmeleri durur (klavye okları, grup adı ve
+ * seçili durum tarayıcıdan gelir); girdi görsel olarak gizlidir ama odaklanabilir.
+ *
+ * Seçili satır kontrollü bir kırmızı vurgu alır (ince kenar, hafif yüzey, dolu işaret); kenarlıkların
+ * hepsi kırmızı değildir. Seçim anında `onChange` ile uygulanır; "Kaydet" adımı yoktur.
  */
 export function OptionGroup<T extends string>({
   legend,
@@ -44,7 +49,7 @@ export function OptionGroup<T extends string>({
         {options.map((option) => (
           <label
             key={option.value}
-            className="flex cursor-pointer items-start gap-3 rounded-control border border-border bg-surface px-3 py-2.5 transition-colors hover:bg-surface-elevated has-[:checked]:border-primary has-[:checked]:bg-surface-elevated has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus"
+            className="group flex cursor-pointer items-center gap-3 rounded-control border border-border bg-surface px-3 py-3 transition-colors duration-150 hover:bg-surface-elevated has-[:checked]:border-primary/60 has-[:checked]:bg-primary/5 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus"
           >
             <input
               type="radio"
@@ -52,21 +57,37 @@ export function OptionGroup<T extends string>({
               value={option.value}
               checked={value === option.value}
               onChange={() => onChange(option.value)}
-              className="mt-1 size-4 shrink-0 accent-primary"
+              className="peer sr-only"
             />
             {option.leading ? (
-              <span className="mt-0.5 shrink-0">{option.leading}</span>
+              <span
+                aria-hidden="true"
+                className="flex size-9 shrink-0 items-center justify-center rounded-control bg-surface-elevated text-text-secondary transition-colors duration-150 group-has-[:checked]:text-brand-text"
+              >
+                {option.leading}
+              </span>
             ) : null}
-            <span className="min-w-0">
-              <span className="block text-sm font-medium">{option.label}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium text-text-primary">{option.label}</span>
               {option.hint ? (
-                <span className="block text-xs text-text-secondary">{option.hint}</span>
+                <span className="mt-0.5 block text-xs leading-snug text-text-secondary">
+                  {option.hint}
+                </span>
               ) : null}
+            </span>
+            <span
+              aria-hidden="true"
+              className="flex size-5 shrink-0 items-center justify-center rounded-full border border-control-border text-primary-foreground transition-colors duration-150 group-has-[:checked]:border-primary group-has-[:checked]:bg-primary"
+            >
+              <Icon
+                name="check"
+                className="size-3 opacity-0 transition-opacity duration-150 group-has-[:checked]:opacity-100"
+              />
             </span>
           </label>
         ))}
       </div>
-      {note ? <p className="mt-2 text-xs text-text-secondary">{note}</p> : null}
+      {note ? <p className="mt-3 text-xs leading-relaxed text-text-secondary">{note}</p> : null}
     </fieldset>
   );
 }

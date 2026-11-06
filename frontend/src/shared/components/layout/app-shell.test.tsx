@@ -5,10 +5,11 @@ import tr from "@/shared/lib/i18n/messages/tr.json";
 import { AppShell } from "./app-shell";
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/",
-  useRouter: () => ({ refresh: vi.fn() })
+  usePathname: () => "/tr",
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn(), prefetch: vi.fn(), refresh: vi.fn() }),
+  redirect: vi.fn(),
+  permanentRedirect: vi.fn()
 }));
-vi.mock("@/shared/lib/i18n/actions", () => ({ setLocale: vi.fn() }));
 
 function renderShell() {
   return render(
@@ -104,7 +105,7 @@ describe("AppShell", () => {
 
     const links = nav.querySelectorAll("a");
     expect(links).toHaveLength(1);
-    expect(links[0]).toHaveAttribute("href", "/");
+    expect(links[0]).toHaveAttribute("href", "/tr");
     expect(links[0]).toHaveAttribute("aria-current", "page");
     expect(nav.querySelectorAll('a[href="#"]')).toHaveLength(0);
     expect(nav).toHaveTextContent("Ana Sayfa");
@@ -191,7 +192,7 @@ describe("AppShell", () => {
   it("logo alanında marka görselinden başka yazı yoktur", () => {
     renderShell();
     const brand = screen.getByRole("link", { name: "LobbyTwoZero" });
-    expect(brand).toHaveAttribute("href", "/");
+    expect(brand).toHaveAttribute("href", "/tr");
     expect(brand.textContent).toBe("");
     expect(brand.querySelectorAll("img")).toHaveLength(2);
   });
@@ -274,10 +275,10 @@ describe("AppShell", () => {
     expect(screen.getByRole("menu")).toBeInTheDocument();
   });
 
-  it("Ayarlar, kenar çubuğunda diyalog değil gerçek /settings sayfasına giden bağlantıdır", () => {
+  it("Ayarlar, kenar çubuğunda diyalog değil gerçek /tr/ayarlar sayfasına giden bağlantıdır", () => {
     renderShell();
     const link = screen.getByRole("link", { name: "Ayarlar" });
-    expect(link).toHaveAttribute("href", "/settings");
+    expect(link).toHaveAttribute("href", "/tr/ayarlar");
     expect(screen.queryByRole("dialog", { hidden: true })).not.toBeInTheDocument();
   });
 

@@ -1,4 +1,6 @@
 import { getTranslations } from "next-intl/server";
+import { PageContainer } from "@/shared/components/layout/page-container";
+import { PageHeader } from "@/shared/components/layout/page-header";
 import { SettingsForm } from "@/shared/components/layout/settings-form";
 import { buildPageMetadata } from "@/shared/lib/seo/page-metadata";
 
@@ -12,15 +14,9 @@ export default async function SettingsPage() {
   const t = await getTranslations("Settings");
 
   return (
-    <div className="w-full">
-      <h1 className="font-display text-3xl font-bold tracking-tight text-text-primary sm:text-4xl">
-        {t("title")}
-      </h1>
-      <p className="mt-3 max-w-prose text-lg text-text-secondary">{t("description")}</p>
-
-      <div className="mt-8">
-        <SettingsForm />
-      </div>
-    </div>
+    <PageContainer>
+      <PageHeader title={t("title")} description={t("description")} />
+      <SettingsForm />
+    </PageContainer>
   );
 }

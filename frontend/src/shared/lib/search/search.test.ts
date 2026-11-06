@@ -34,8 +34,8 @@ describe("searchEntries", () => {
 
   it("başlık başlangıcı, başlıkta geçen eşleşmeden önce gelir", () => {
     const list: SearchEntry[] = [
-      { id: "b", group: "pages", title: "Kenar Sayfa", href: "/b" },
-      { id: "a", group: "pages", title: "Sayfa Listesi", href: "/a" }
+      { id: "b", group: "pages", title: "Kenar Sayfa", href: "/faq" },
+      { id: "a", group: "pages", title: "Sayfa Listesi", href: "/about" }
     ];
     expect(searchEntries(list, "sayfa").map((e) => e.id)).toEqual(["a", "b"]);
   });
@@ -44,7 +44,7 @@ describe("searchEntries", () => {
 describe("collectEntries", () => {
   it("tüm sağlayıcıların kayıtlarını birleştirir ve çeviri fonksiyonunu geçirir", () => {
     const providers: SearchProvider[] = [
-      { id: "one", getEntries: (t) => [{ id: "1", group: "pages", title: t("x"), href: "/1" }] },
+      { id: "one", getEntries: (t) => [{ id: "1", group: "pages", title: t("x"), href: "/contact" }] },
       { id: "two", getEntries: () => [entries[0]] }
     ];
     const result = collectEntries(providers, (key) => key.toUpperCase());

@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Icon } from "@/shared/components/ui/icons";
 import { iconButtonClass } from "@/shared/components/ui/styles";
+import { useRouter } from "@/shared/lib/i18n/navigation";
 import { searchProviders } from "@/shared/lib/search/pages-provider";
 import {
   collectEntries,

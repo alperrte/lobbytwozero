@@ -1,9 +1,16 @@
 import { render, screen, within } from "@testing-library/react";
-import { createTranslator } from "next-intl";
+import { NextIntlClientProvider, createTranslator } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 import en from "@/shared/lib/i18n/messages/en.json";
 import tr from "@/shared/lib/i18n/messages/tr.json";
 import { Footer } from "./footer";
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/",
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn(), prefetch: vi.fn() }),
+  redirect: vi.fn(),
+  permanentRedirect: vi.fn()
+}));
 
 let activeMessages: typeof tr | typeof en = tr;
 
@@ -18,7 +25,12 @@ vi.mock("next-intl/server", () => ({
 
 async function renderFooter(messages: typeof tr | typeof en = tr) {
   activeMessages = messages;
-  render(await Footer());
+  // Footer sunucu bileşenidir; next-intl Link'i bağlam için sağlayıcı ister.
+  render(
+    <NextIntlClientProvider locale={activeMessages === tr ? "tr" : "en"} messages={activeMessages}>
+      {await Footer()}
+    </NextIntlClientProvider>
+  );
   return screen.getByRole("contentinfo");
 }
 
@@ -90,7 +102,7 @@ describe("Footer", () => {
     const support = within(footer).getByRole("navigation", { name: "Destek" });
     expect(
       within(support).getAllByRole("link").map((link) => link.getAttribute("href"))
-    ).toEqual(["/about", "/faq", "/contact"]);
+    ).toEqual(["/tr/hakkimizda", "/tr/sss", "/tr/iletisim"]);
     expect(within(footer).queryByRole("link", { name: "Ana Sayfa" })).toBeNull();
     expect(within(footer).queryByRole("link", { name: "Ayarlar" })).toBeNull();
   });
@@ -132,7 +144,12 @@ describe("Footer", () => {
     const legal = within(footer).getByRole("navigation", { name: "Yasal bağlantılar" });
     expect(
       within(legal).getAllByRole("link").map((link) => link.getAttribute("href"))
-    ).toEqual(["/legal/kvkk", "/legal/privacy", "/legal/terms", "/legal/cookies"]);
+    ).toEqual([
+      "/tr/yasal/kvkk",
+      "/tr/yasal/gizlilik",
+      "/tr/yasal/kullanim-kosullari",
+      "/tr/yasal/cerezler"
+    ]);
   });
 
   it("gerçek logoyu kullanır ve yanına ikinci bir başlık eklemez", async () => {
@@ -158,12 +175,28 @@ describe("Footer", () => {
     expect(footer.className).toContain("relative");
   });
 
-  it("sosyal ikonlar bağlantı yokken uydurma href üretmez ve erişilebilir ad taşır", async () => {
+  it("yalnız GitHub gerçek bağlantıdır; diğer sosyal ikonlar uydurma href üretmez", async () => {
     const footer = await renderFooter();
 
     const social = within(footer).getByRole("list", { name: "Sosyal medya" });
-    expect(social.querySelectorAll("a")).toHaveLength(0);
-    expect(within(social).getAllByRole("img")).toHaveLength(4);
+    const links = within(social).getAllByRole("link");
+    expect(links).toHaveLength(1);
+    expect(social.querySelectorAll("a")).toHaveLength(1);
+
+    const github = within(social).getByRole("link", { name: "LobbyTwoZero GitHub deposu" });
+    expect(github).toBe(links[0]);
+    expect(github).toHaveAttribute("href", "https://github.com/alperrte/lobbytwozero");
+    expect(github).toHaveAttribute("target", "_blank");
+    expect(github.getAttribute("rel")).toContain("noopener");
+    expect(github.getAttribute("rel")).toContain("noreferrer");
+
+    expect(within(social).getAllByRole("img")).toHaveLength(3);
     expect(within(social).getByRole("img", { name: "X (bağlantı yakında)" })).toBeInTheDocument();
+    expect(
+      within(social).getByRole("img", { name: "Instagram (bağlantı yakında)" })
+    ).toBeInTheDocument();
+    expect(
+      within(social).getByRole("img", { name: "LinkedIn (bağlantı yakında)" })
+    ).toBeInTheDocument();
   });
 });

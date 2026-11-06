@@ -117,7 +117,16 @@ const paths = {
   calendar: <path d="M4 5h16v15H4zM4 10h16M8 3v4M16 3v4M8 14h1M12 14h1M16 14h1" />,
   chart: <path d="M3 15l5.5-5.5 4 4L21 5M4 18v3M8 14v7M12 17v4M16 14v7M20 10v11" />,
   panelLeftClose: <path d="M3 4h18v16H3zM9 4v16M16 15l-3-3 3-3" />,
-  panelLeftOpen: <path d="M3 4h18v16H3zM9 4v16M14 9l3 3-3 3" />
+  panelLeftOpen: <path d="M3 4h18v16H3zM9 4v16M14 9l3 3-3 3" />,
+  pin: <path d="M9 4h6v5l3 4H6l3-4zM12 13v7" />,
+  eyeOff: (
+    <>
+      <path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z" />
+      <circle cx="12" cy="12" r="2.5" />
+      <path d="M4 4l16 16" />
+    </>
+  ),
+  fileText: <path d="M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6" />
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof paths;
