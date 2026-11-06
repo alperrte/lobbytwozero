@@ -133,11 +133,20 @@ describe("LoginForm", () => {
     fireEvent.click(submit());
 
     expect(await screen.findByRole("alert")).toHaveTextContent("1 saniye sonra tekrar dene");
-    expect(screen.getByRole("button", { name: "1 sn sonra tekrar dene" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "1 saniye sonra tekrar dene" })).toBeDisabled();
 
     await waitFor(() => expect(screen.getByRole("button", { name: /Giriş yap/ })).toBeEnabled(), {
       timeout: 3000
     });
+  });
+
+  it("uzun bekleme süresini dakika olarak gösterir", async () => {
+    renderForm(vi.fn().mockRejectedValue(new AuthApiError(429, "TOO_MANY_ATTEMPTS", [], 900)));
+    fill();
+    fireEvent.click(submit());
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("15 dakika sonra tekrar dene");
+    expect(screen.getByRole("button", { name: "15 dakika sonra tekrar dene" })).toBeDisabled();
   });
 
   it("gönderim sürerken çift gönderimi engeller", async () => {

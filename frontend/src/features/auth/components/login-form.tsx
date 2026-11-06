@@ -109,6 +109,11 @@ export function LoginForm({ next = null, api }: LoginFormProps) {
   }
 
   const messageKey = problem ? (messageKeys[problem.code] ?? "UNKNOWN") : null;
+  /** 60 sn ve üstü dakikaya yuvarlanır (ör. 900 sn → "15 dakika"); altı saniye olarak gösterilir. */
+  const formatWait = (seconds: number) =>
+    seconds >= 60
+      ? t("time.minutes", { count: Math.ceil(seconds / 60) })
+      : t("time.seconds", { count: seconds });
   const blocked = pending || cooldown > 0;
 
   return (
@@ -119,7 +124,7 @@ export function LoginForm({ next = null, api }: LoginFormProps) {
           className="flex items-start gap-2.5 rounded-control border border-primary/60 bg-primary/10 px-4 py-3 text-sm font-medium text-text-primary"
         >
           <Icon name="info" className="mt-0.5 size-4 shrink-0 text-brand-text" />
-          <span>{t(`errors.${messageKey}`, { seconds: problem?.retryAfterSeconds ?? 0 })}</span>
+          <span>{t(`errors.${messageKey}`, { time: formatWait(problem?.retryAfterSeconds ?? 0) })}</span>
         </p>
       ) : null}
 
@@ -185,7 +190,7 @@ export function LoginForm({ next = null, api }: LoginFormProps) {
         {pending ? (
           t("login.submitting")
         ) : cooldown > 0 ? (
-          t("login.retryIn", { seconds: cooldown })
+          t("login.retryIn", { time: formatWait(cooldown) })
         ) : (
           <>
             {t("login.submit")}

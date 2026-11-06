@@ -512,7 +512,11 @@
       "hide": "Şifreyi gizle",
       "submit": "Giriş yap",
       "submitting": "Giriş yapılıyor…",
-      "retryIn": "{seconds} sn sonra tekrar dene"
+      "retryIn": "{time} sonra tekrar dene"
+    },
+    "time": {
+      "seconds": "{count} saniye",
+      "minutes": "{count} dakika"
     },
     "fields": {
       "identifier": {
@@ -534,7 +538,7 @@
       "TWO_FACTOR_ENROLLMENT_REQUIRED": "Bu hesap için iki aşamalı doğrulama kurulumu gerekiyor. Bu adım henüz bu ekranda desteklenmiyor.",
       "MFA_NOT_SUPPORTED": "Bu hesap iki aşamalı doğrulama istiyor. Bu adım henüz bu ekranda desteklenmiyor.",
       "CSRF_TOKEN_INVALID": "Güvenlik doğrulaması başarısız oldu. Sayfayı yenileyip tekrar dene.",
-      "TOO_MANY_ATTEMPTS": "Çok fazla deneme yaptın. {seconds} saniye sonra tekrar dene.",
+      "TOO_MANY_ATTEMPTS": "Çok fazla deneme yaptın. {time} sonra tekrar dene.",
       "SERVICE_BUSY": "Servis şu anda yoğun. Biraz sonra tekrar dene.",
       "NETWORK": "Sunucuya ulaşılamadı. Bağlantını kontrol edip tekrar dene.",
       "UNKNOWN": "Bir şeyler ters gitti. Lütfen tekrar dene."

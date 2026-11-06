@@ -512,7 +512,11 @@
       "hide": "Hide password",
       "submit": "Sign in",
       "submitting": "Signing in…",
-      "retryIn": "Try again in {seconds} s"
+      "retryIn": "Try again in {time}"
+    },
+    "time": {
+      "seconds": "{count} seconds",
+      "minutes": "{count} minutes"
     },
     "fields": {
       "identifier": {
@@ -534,7 +538,7 @@
       "TWO_FACTOR_ENROLLMENT_REQUIRED": "This account must set up two-step verification. This step is not supported on this screen yet.",
       "MFA_NOT_SUPPORTED": "This account requires two-step verification. This step is not supported on this screen yet.",
       "CSRF_TOKEN_INVALID": "The security check failed. Refresh the page and try again.",
-      "TOO_MANY_ATTEMPTS": "Too many attempts. Try again in {seconds} seconds.",
+      "TOO_MANY_ATTEMPTS": "Too many attempts. Try again in {time}.",
       "SERVICE_BUSY": "The service is busy right now. Try again shortly.",
       "NETWORK": "Could not reach the server. Check your connection and try again.",
       "UNKNOWN": "Something went wrong. Please try again."
