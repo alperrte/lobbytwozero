@@ -2,10 +2,10 @@ package com.ltz.hardware.infrastructure.security;
 
 import com.ltz.hardware.application.port.HardwareReviewAudiencePolicy;
 import java.util.UUID;
-import org.springframework.stereotype.Component;
+import java.util.Set;
 
-@Component
+/** Açıkça seçilen kapalı fallback; üretimde UserServiceReviewAudiencePolicy kullanılır. */
 public class UnavailableHardwareReviewAudiencePolicy implements HardwareReviewAudiencePolicy {
     @Override
-    public Decision evaluate(UUID viewerId) { return Decision.denyOthers(); }
+    public Decision evaluate(UUID viewerId, Set<UUID> authors) { return Decision.denyOthers(); }
 }

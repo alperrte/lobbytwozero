@@ -6966,7 +6966,9 @@ Silinen hesap fence'i etkinse kullanıcı ve cihaz işlemleri 401 ile reddedilir
 Kullanıcı token ömrü en çok 60 sn, tolerans 30 sn'dir; 15 dakikalık token artık reddedilir.
 Cihaz kimliği ayrı `dev+jwt` doğrulayıcısıyla yalnız snapshot POST'unda kabul edilir;
 2026-11-06 itibarıyla User gizlilik ve Performance aktif cihaz tüketici adapter'ları uygulanmıştır.
-User güvenilir Social yansıması yokken non-owner paylaşımı reddeder; yorum UGC sözleşmesi açık kalır.
+User güvenilir Social yansıması yokken non-owner paylaşımı reddeder.
+PR #67 REVIEW_AUTHOR sözleşmesiyle yorum UGC tüketicisi uygulanmıştır;
+[güncel yorum bağlantısı ve sınırlar](../docs-hardware/integration/user-review-integration.md).
 [Güncel tüketici bağlantıları ve doğrulama](../docs-hardware/integration/hardware-user-performance.md).
 [Güncel kapsam](../docs-hardware/integration/auth/auth-integration-05.md),
 [güncel test/kalite kanıtı](../docs-hardware/integration/auth/auth-integration-06.md).
@@ -8266,8 +8268,17 @@ Normal yazmalar actor başına 20/dakika, socket peer başına 120/dakika; hash 
 iki dakikayı aşınca dakikalık job ile temizlenir. X-Forwarded-For kimlik/IP kaynağı değildir.
 Sayaçlar başarılı iş transaction'ına katılır; rollback olmuş denemeler kotayı tüketmez.
 Bu, proxy zincirindeki gerçek son kullanıcı IP doğrulaması değildir (NOT_VERIFIED).
-Kullanıcı JWT entegrasyonu uygulanmıştır; User/Social UGC kararı DEFERRED_CONTRACT / NOT_VERIFIED,
-üretim adapter'ı deny. İzin veren policy yalnız testlerde; yeni public/anonim uç yok.
+Kullanıcı JWT entegrasyonu uygulanmıştır. Üretim UserServiceReviewAudiencePolicy,
+Auth privacy:read servis token'ıyla User'a REVIEW_AUTHOR kararı sorar. Yorumlar
+profil HARDWARE ayarından bağımsızdır; hesap durumu/çift yönlü engel kararı geçerlidir.
+User yansıması güvenilir değilse dış izin kapanır. Liste aynı REPEATABLE_READ
+snapshot'ında VISIBLE yorumların distinct yazarlarını sayfa öncesinde çıkarır;
+adaylar 100'lük gruplarla sorulur. Eksik/bozuk tek grup bütün dış izni kapatır.
+blockedAuthors üst sınırı korunur; tam karar için aday sayısı da en fazla 1000'dir.
+Bu sınır aşılırsa yalnız owner yorumları kalır; kısmi izin yok.
+Detay ve mevcut rapor erişimi yalnız hedef yazarı sorar. SQL audience filtresi
+sayfa/toplam/ortalama için ortaktır; sonradan eleme yapılmaz. Yeni public/anonim uç yok.
+[Uygulama, sözleşme farkı ve test kaydı](../docs-hardware/integration/user-review-integration.md).
 
 ### HARDWARE — HW-12 Yorum oluşturma
 
@@ -8314,7 +8325,9 @@ GET /api/v1/hardware/catalog/products/{productId}/reviews
 
 #### Yetkilendirme
 Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
-Typed actor; aktif ürün. VISIBLE yorumlar, owner veya güvenilir global UGC/iki yönlü engel kararıyla filtrelenir. Production policy başkalarını deny eder. Ortak HW-12 güvenlik sözleşmesi geçerlidir.
+Typed actor; aktif ürün. VISIBLE yorumlar, owner veya User REVIEW_AUTHOR
+hesap/iki yönlü engel kararıyla filtrelenir. Güvenilir yansıma yoksa yalnız owner
+yorumları kalır. Ortak HW-12 güvenlik sözleşmesi geçerlidir.
 
 #### Path/Query Parameters
 productId UUID; page 0..10000 varsayılan 0; size 1..100 varsayılan 20. createdAt,id ASC.
@@ -8330,12 +8343,17 @@ Yok.
 
 #### Bağlantı
 HardwareReviewService; V5__create_hardware_reviews.sql.
-Başka servise/DB'ye çağrı yok; gerçek Auth ve User/Social E2E NOT_VERIFIED.
+UserServiceReviewAudiencePolicy, Auth privacy:read token ile User REVIEW_AUTHOR kararını tüketir.
+Karar aynı SQL filtrelerine uygulanır; başka servisin DB'sine erişilmez.
 
 #### Test Durumu
 UNIT + INTEGRATION — HardwareReviewControllerTest + HardwareReviewTextTest;
 2026-10-21 18:40:14 +03 verify exit 0: 206 PASS, 0 failure/error/skipped;
 JaCoCo 1044/1060=%98,49; gerçek PostgreSQL 17/Flyway V1–V8/JPA/MockMvc.
+
+2026-11-06 güncel kabul: Hardware 503 test PASS (29 yeni), coverage %98,98;
+REVIEW_AUTHOR 100'lük batch, eksik/bozuk grup, SQL sayfa/toplam/puan filtresi testli.
+Gerçek User runtime sonucu [güncel kayıtta](../docs-hardware/integration/user-review-integration.md) izlenir.
 
 ### HARDWARE — HW-12 Kendi yorumlarını listeleme
 
@@ -8398,12 +8416,17 @@ Yok.
 
 #### Bağlantı
 HardwareReviewService; V5__create_hardware_reviews.sql.
-Başka servise/DB'ye çağrı yok; gerçek Auth ve User/Social E2E NOT_VERIFIED.
+UserServiceReviewAudiencePolicy, Auth privacy:read token ile User REVIEW_AUTHOR kararını tüketir.
+Karar aynı SQL filtrelerine uygulanır; başka servisin DB'sine erişilmez.
 
 #### Test Durumu
 UNIT + INTEGRATION — HardwareReviewControllerTest + HardwareReviewTextTest;
 2026-10-21 18:40:14 +03 verify exit 0: 206 PASS, 0 failure/error/skipped;
 JaCoCo 1044/1060=%98,49; gerçek PostgreSQL 17/Flyway V1–V8/JPA/MockMvc.
+
+2026-11-06 güncel kabul: Hardware 503 test PASS (29 yeni), coverage %98,98;
+REVIEW_AUTHOR 100'lük batch, eksik/bozuk grup, SQL sayfa/toplam/puan filtresi testli.
+Gerçek User runtime sonucu [güncel kayıtta](../docs-hardware/integration/user-review-integration.md) izlenir.
 
 ### HARDWARE — HW-12 Kendi yorumunu düzenleme
 
@@ -8515,7 +8538,7 @@ CreateHardwareReviewReportRequest: reason zorunlu SPAM/HARASSMENT/HATE_SPEECH/SE
 
 #### Bağlantı
 HardwareReviewReportService / HardwareReviewModerationService;
-V6__create_hardware_review_reports_and_outbox.sql. Gerçek servis/DB çağrısı yok;
+V6__create_hardware_review_reports_and_outbox.sql. Hedef yazara erişim User REVIEW_AUTHOR ile doğrulanır;
 Admin ve Notification teslimi doğrulanmadı. Yerel PENDING kayıt teslim kanıtı değildir.
 
 #### Test Durumu
@@ -8524,6 +8547,10 @@ SecurityContextHardwareReviewModerationAccessTest. PostgreSQL 17/Flyway V1–V9/
 239 PASS / exit 0, 2026-10-21 18:56:40 +03; JaCoCo 1176/1192=%98,66.
 Permission/IDOR, rollback, doğal tekillik, global kapasite yarışı, orphan/purge,
 stale/concurrent edit ve yalnız PENDING notice testli. Gerçek consumer E2E NOT_VERIFIED.
+
+2026-11-06 güncel kabul: Hardware 503 test PASS (29 yeni), coverage %98,98;
+REVIEW_AUTHOR 100'lük batch, eksik/bozuk grup, SQL sayfa/toplam/puan filtresi testli.
+Gerçek User runtime sonucu [güncel kayıtta](../docs-hardware/integration/user-review-integration.md) izlenir.
 
 ### HARDWARE — HW-13 Kendi raporunun yerel durumunu okuma
 

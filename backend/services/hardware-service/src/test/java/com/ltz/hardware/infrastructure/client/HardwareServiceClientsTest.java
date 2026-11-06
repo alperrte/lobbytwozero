@@ -16,6 +16,11 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -50,6 +55,11 @@ class HardwareServiceClientsTest {
     private HardwareServiceTokenClient tokens;
     private UserServiceHardwareVisibilityPolicy visibility;
     private PerformanceServiceHardwareSyncDevicePolicy devices;
+    private UserServiceReviewAudiencePolicy reviewAudience;
+    private final List<List<UUID>> authorBatches = new CopyOnWriteArrayList<>();
+    private final Set<UUID> deniedAuthors = new HashSet<>();
+    private boolean reviewReplies;
+    private boolean incompleteSecondBatch;
     private volatile JsonNode tokenRequest;
     private volatile JsonNode privacyRequest;
     private volatile String targetAuthorization;
@@ -76,7 +86,16 @@ class HardwareServiceClientsTest {
             userCalls.incrementAndGet();
             targetAuthorization = exchange.getRequestHeaders().getFirst("Authorization");
             privacyRequest = mapper.readTree(exchange.getRequestBody().readAllBytes());
-            respond(exchange, userStatus, userBody);
+            if (reviewReplies) {
+                var authors = new ArrayList<UUID>();
+                privacyRequest.get("ownerIds").forEach(id -> authors.add(UUID.fromString(id.asString())));
+                authorBatches.add(List.copyOf(authors));
+                if (incompleteSecondBatch && authorBatches.size() == 2) authors.removeLast();
+                var decisions = authors.stream().map(id -> Map.of("ownerId", id,
+                        "setting", deniedAuthors.contains(id) ? "PRIVATE" : "PUBLIC",
+                        "allowed", !deniedAuthors.contains(id), "friends", false)).toList();
+                respond(exchange, userStatus, mapper.writeValueAsString(Map.of("decisions", decisions)));
+            } else respond(exchange, userStatus, userBody);
         });
         server.createContext("/internal/v1/accounts/", exchange -> {
             performanceCalls.incrementAndGet();
@@ -97,6 +116,7 @@ class HardwareServiceClientsTest {
         tokens = new HardwareServiceTokenClient(properties, auth, http, mapper);
         visibility = new UserServiceHardwareVisibilityPolicy(properties, tokens, http, mapper);
         devices = new PerformanceServiceHardwareSyncDevicePolicy(properties, tokens, http);
+        reviewAudience = new UserServiceReviewAudiencePolicy(properties, tokens, http, mapper);
     }
 
     private void respond(HttpExchange exchange, int status, String body) throws IOException {
@@ -308,5 +328,92 @@ class HardwareServiceClientsTest {
             client.setLevel(originalClient);
             converter.setLevel(originalConverter);
         }
+    }
+
+    @Test void reviewAuthorsAreBatchedBeforePaginationAndUseAnIndependentField() {
+        reviewReplies = true;
+        var authors = new HashSet<UUID>();
+        for (int index = 0; index < 205; index++) authors.add(UUID.randomUUID());
+        deniedAuthors.addAll(authors.stream().limit(104).toList());
+        var result = reviewAudience.evaluate(viewer, authors);
+        assertThat(result.allowOthers()).isTrue();
+        assertThat(result.blockedAuthors()).isEqualTo(deniedAuthors);
+        assertThat(authorBatches).extracting(List::size).containsExactly(100, 100, 5);
+        assertThat(authorBatches.stream().flatMap(List::stream).collect(java.util.stream.Collectors.toSet())).isEqualTo(authors);
+        assertThat(privacyRequest.get("field").asString()).isEqualTo("REVIEW_AUTHOR");
+        assertThat(privacyRequest.get("viewerId").asString()).isEqualTo(viewer.toString());
+        assertThat(authCalls.get()).isEqualTo(3);
+    }
+
+    @Test void anIncompleteLaterBatchDiscardsAllEarlierPermissions() {
+        reviewReplies = true;
+        incompleteSecondBatch = true;
+        var authors = new HashSet<UUID>();
+        for (int index = 0; index < 101; index++) authors.add(UUID.randomUUID());
+        assertThat(reviewAudience.evaluate(viewer, authors).allowOthers()).isFalse();
+        assertThat(authorBatches).hasSize(2);
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"null", "{}", "[]", "not-json", "missing", "duplicate", "foreign",
+            "allowed", "friends", "owner", "setting", "privateAllow", "noSetting", "noOwner"})
+    void malformedOrIncompleteReviewDecisionsDenyEverything(String scenario) {
+        userBody = switch (scenario) {
+            case "missing" -> "{\"decisions\":[]}";
+            case "duplicate" -> "{\"decisions\":[{},{}]}";
+            case "foreign" -> decision(UUID.randomUUID(), "PUBLIC", true, false);
+            case "allowed" -> userBody.replace("\"allowed\":true", "\"allowed\":\"true\"");
+            case "friends" -> userBody.replace("\"friends\":false", "\"friends\":1");
+            case "owner" -> userBody.replace(owner.toString(), "invalid-uuid");
+            case "setting" -> decision(owner, "FRIENDS", true, true);
+            case "privateAllow" -> decision(owner, "PRIVATE", true, false);
+            case "noSetting" -> userBody.replace("\"setting\":\"PUBLIC\",", "");
+            case "noOwner" -> userBody.replace("\"ownerId\":\"" + owner + "\",", "");
+            default -> scenario;
+        };
+        assertThat(reviewAudience.evaluate(viewer, Set.of(owner)).allowOthers()).isFalse();
+    }
+
+    @ParameterizedTest @ValueSource(ints = {204, 301, 302, 401, 403, 404, 429, 500, 503})
+    void reviewDecisionHttpFailuresKeepOnlyOwnerAccess(int status) {
+        userStatus = status;
+        var result = reviewAudience.evaluate(viewer, Set.of(owner));
+        assertThat(result.allowOthers()).isFalse();
+        assertThat(result.permits(viewer, owner)).isFalse();
+        assertThat(result.permits(viewer, viewer)).isTrue();
+    }
+
+    @Test void authorLimitsNullAndEmptyCandidatesDenyWithoutPartialRequests() {
+        var authors = new HashSet<UUID>();
+        for (int index = 0; index < 1001; index++) authors.add(UUID.randomUUID());
+        assertThat(reviewAudience.evaluate(viewer, authors).allowOthers()).isFalse();
+        assertThat(reviewAudience.evaluate(viewer, Set.of()).allowOthers()).isFalse();
+        assertThat(reviewAudience.evaluate(null, Set.of(owner)).allowOthers()).isFalse();
+        assertThat(reviewAudience.evaluate(viewer, null).allowOthers()).isFalse();
+        authors.clear();
+        authors.add(null);
+        assertThat(reviewAudience.evaluate(viewer, authors).allowOthers()).isFalse();
+        assertThat(authCalls.get()).isZero();
+    }
+
+    @Test void aWellFormedSingleReviewDecisionAndPrivateDenyAreAccepted() {
+        assertThat(reviewAudience.evaluate(viewer, Set.of(owner)).permits(viewer, owner)).isTrue();
+        userBody = decision(owner, "PRIVATE", false, false);
+        assertThat(reviewAudience.evaluate(viewer, Set.of(owner)).permits(viewer, owner)).isFalse();
+    }
+
+    @Test void reviewTransportTimeoutAndMissingCredentialFailClosed() {
+        slowPath = "/internal/v1/privacy/decisions";
+        assertThat(reviewAudience.evaluate(viewer, Set.of(owner)).allowOthers()).isFalse();
+        release.countDown();
+        configure("");
+        assertThat(reviewAudience.evaluate(viewer, Set.of(owner)).allowOthers()).isFalse();
+    }
+
+    @Test void duplicateAndNonCanonicalOwnersCannotSubstituteForMissingDecisions() {
+        String item = decision(owner, "PUBLIC", true, false);
+        userBody = item.replace("]}", "," + item.substring("{\"decisions\":[".length()));
+        assertThat(reviewAudience.evaluate(viewer, Set.of(owner, device)).allowOthers()).isFalse();
+        userBody = decision(owner, "PUBLIC", true, false).replace(owner.toString(), "1-1-1-1-1");
+        assertThat(reviewAudience.evaluate(viewer, Set.of(owner)).allowOthers()).isFalse();
     }
 }

@@ -57,7 +57,7 @@ class HardwareReviewModerationControllerTest extends PostgresIntegrationSupport 
         jdbc.update("DELETE FROM hardware_product_brands");
         jdbc.update("DELETE FROM hardware_products");
         product = product();
-        when(audience.evaluate(any())).thenReturn(new HardwareReviewAudiencePolicy.Decision(true, Set.of()));
+        when(audience.evaluate(any(), anySet())).thenReturn(new HardwareReviewAudiencePolicy.Decision(true, Set.of()));
         review = createReview(product, "Review private text");
     }
 
@@ -154,13 +154,13 @@ class HardwareReviewModerationControllerTest extends PostgresIntegrationSupport 
 
     @Test
     void audienceFailureAndBlocksDenyReportsWithoutPartialRows() throws Exception {
-        when(audience.evaluate(reporter)).thenReturn(null);
+        when(audience.evaluate(eq(reporter), anySet())).thenReturn(null);
         mvc.perform(post(reports(review)).with(actor(reporter)).with(csrf()).contentType("application/json")
                 .content("{\"reason\":\"SPAM\"}")).andExpect(status().isNotFound());
-        doThrow(new IllegalStateException("synthetic unavailable")).when(audience).evaluate(reporter);
+        doThrow(new IllegalStateException("synthetic unavailable")).when(audience).evaluate(eq(reporter), anySet());
         mvc.perform(post(reports(review)).with(actor(reporter)).with(csrf()).contentType("application/json")
                 .content("{\"reason\":\"SPAM\"}")).andExpect(status().isNotFound());
-        doReturn(new HardwareReviewAudiencePolicy.Decision(true, Set.of(owner))).when(audience).evaluate(reporter);
+        doReturn(new HardwareReviewAudiencePolicy.Decision(true, Set.of(owner))).when(audience).evaluate(eq(reporter), anySet());
         mvc.perform(post(reports(review)).with(actor(reporter)).with(csrf()).contentType("application/json")
                 .content("{\"reason\":\"SPAM\"}")).andExpect(status().isNotFound());
         assertThat(jdbc.queryForObject("SELECT count(*) FROM hardware_review_reports", Long.class)).isZero();
