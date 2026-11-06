@@ -2,27 +2,31 @@ import { describe, expect, it } from "vitest";
 import {
   findActiveItem,
   isActivePath,
-  primaryNavigation,
-  type NavItem
+  primaryNavigation
 } from "./navigation";
 
-function flatten(items: readonly NavItem[]): NavItem[] {
-  return items.flatMap((item) => [item, ...flatten(item.children ?? [])]);
-}
-
 describe("primaryNavigation", () => {
-  const all = flatten(primaryNavigation);
+  it("yalnız Ana Sayfa ve Donanımlar öğelerini içerir", () => {
+    expect(primaryNavigation.map((item) => item.labelKey)).toEqual([
+      "home",
+      "hardware"
+    ]);
+  });
 
-  it("Profil (Bilgisayarlarım dahil), Donanımlar ve Kampanyalar öğelerini içerir", () => {
-    const profile = primaryNavigation.find((item) => item.id === "profile");
-    expect(profile?.children?.map((c) => c.labelKey)).toEqual(["myComputers"]);
-    expect(all.map((item) => item.labelKey)).toEqual(
-      expect.arrayContaining(["profile", "myComputers", "hardware", "campaigns"])
-    );
+  it("Profil, Bilgisayarlarım ve Kampanyalar menüde yer almaz", () => {
+    const ids = primaryNavigation.map((item) => item.id);
+    for (const removed of ["profile", "myComputers", "campaigns"]) {
+      expect(ids).not.toContain(removed);
+    }
+  });
+
+  it("Donanımlar rotası hazır olmadığı için href taşımaz (kırık link yok)", () => {
+    const hardware = primaryNavigation.find((item) => item.id === "hardware");
+    expect(hardware?.href).toBeUndefined();
   });
 
   it("kırık bağlantı üretmez: href varsa gerçek bir yoldur, '#' değildir", () => {
-    for (const item of all) {
+    for (const item of primaryNavigation) {
       if (item.href !== undefined) {
         expect(item.href).toMatch(/^\/($|[a-z0-9-/]+$)/);
         expect(item.href).not.toContain("#");
@@ -31,7 +35,7 @@ describe("primaryNavigation", () => {
   });
 
   it("Donanım Detayı menü öğesi değildir", () => {
-    expect(all.some((item) => /detail/i.test(item.id))).toBe(false);
+    expect(primaryNavigation.some((item) => /detail/i.test(item.id))).toBe(false);
   });
 });
 

@@ -25,7 +25,9 @@ test("gezinme yalnız gerçek rotaya bağlanır, hazır olmayanlar 'Yakında' i�
   const nav = page.getByRole("navigation", { name: "Ana gezinme" });
   await expect(nav.getByRole("link")).toHaveCount(1);
   await expect(nav.locator('a[href="#"]')).toHaveCount(0);
-  await expect(nav.getByText("Yakında", { exact: true })).toHaveCount(3);
+  await expect(nav.getByText("Yakında", { exact: true })).toHaveCount(1);
+  await expect(nav).not.toContainText("Profil");
+  await expect(nav).not.toContainText("Kampanyalar");
 });
 
 test("mobil çekmece: odak taşınır, Escape kapatır ve odağı geri verir", async ({
@@ -57,15 +59,18 @@ test("masaüstünde kenar çubuğu daralır ve yeniden yüklemede korunur", asyn
   const sidebar = page.locator("#app-sidebar");
   const before = (await sidebar.boundingBox())?.width ?? 0;
 
-  await page.getByRole("button", { name: "Kenar çubuğunu daralt" }).click();
+  await page
+    .getByRole("banner")
+    .getByRole("button", { name: "Kenar çubuğunu daralt" })
+    .click();
   await expect
     .poll(async () => (await sidebar.boundingBox())?.width ?? 0)
     .toBeLessThan(before);
 
   await page.reload();
   await expect(
-    page.getByRole("button", { name: "Kenar çubuğunu genişlet" })
-  ).toBeVisible();
+    page.getByRole("banner").getByRole("button", { name: "Kenar çubuğunu genişlet" })
+  ).toBeAttached();
 });
 
 test("tema seçimi yeniden yüklemede korunur ve dilden bağımsızdır", async ({
@@ -77,7 +82,8 @@ test("tema seçimi yeniden yüklemede korunur ve dilden bağımsızdır", async 
   await page.getByRole("button", { name: "Açık tema" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 
-  await page.getByRole("button", { name: "İngilizce (EN)" }).click();
+  await page.getByRole("button", { name: "Dil: Türkçe" }).click();
+  await page.getByRole("menuitemradio", { name: "English" }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 

@@ -32,6 +32,8 @@ describe("TR / EN mesajları", () => {
   it("dile özgü metinler gerçekten çevrilmiştir", () => {
     expect(tr.Navigation.hardware).toBe("Donanımlar");
     expect(en.Navigation.hardware).toBe("Hardware");
-    expect(tr.Navigation.campaigns).not.toBe(en.Navigation.campaigns);
+    expect(tr.Navigation.settings).toBe("Ayarlar");
+    expect(en.Navigation.settings).toBe("Settings");
+    expect(tr.Footer.copyright).not.toBe(en.Footer.copyright);
   });
 });

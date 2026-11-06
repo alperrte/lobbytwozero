@@ -1,39 +1,25 @@
 import type { IconName } from "@/shared/components/ui/icons";
 
 /**
- * Global kenar çubuğu navigasyonu.
+ * Global kenar çubuğu navigasyonu (yalnız ana menü; Ayarlar ve daralt/genişlet alt bölümdedir).
  * - `href` yalnız gerçekten var olan rotalar için yazılır. `href` olmayan öğe henüz
  *   yayınlanmamıştır; "Yakında" olarak, tıklanamaz biçimde gösterilir (kırık link üretilmez).
  * - Donanım Detayı katalogdan açılır; ayrı menü öğesi değildir.
  * - Rota hazır olduğunda yalnız ilgili öğeye `href` eklenir.
+ * - Profil, Bilgisayarlarım ve Kampanyalar menüden çıkarıldı; rota/bileşen silinmedi (henüz yoktu).
  */
-export type NavLabelKey =
-  | "home"
-  | "profile"
-  | "myComputers"
-  | "hardware"
-  | "campaigns";
+export type NavLabelKey = "home" | "hardware";
 
 export type NavItem = {
   id: string;
   labelKey: NavLabelKey;
   icon: IconName;
   href?: string;
-  children?: readonly NavItem[];
 };
 
 export const primaryNavigation: readonly NavItem[] = [
   { id: "home", labelKey: "home", icon: "home", href: "/" },
-  {
-    id: "profile",
-    labelKey: "profile",
-    icon: "user",
-    children: [
-      { id: "my-computers", labelKey: "myComputers", icon: "desktop" }
-    ]
-  },
-  { id: "hardware", labelKey: "hardware", icon: "cpu" },
-  { id: "campaigns", labelKey: "campaigns", icon: "tag" }
+  { id: "hardware", labelKey: "hardware", icon: "cpu" }
 ];
 
 export function isActivePath(pathname: string, href: string): boolean {
@@ -47,14 +33,5 @@ export function findActiveItem(
   pathname: string,
   items: readonly NavItem[] = primaryNavigation
 ): NavItem | undefined {
-  for (const item of items) {
-    if (item.href && isActivePath(pathname, item.href)) {
-      return item;
-    }
-    const child = item.children && findActiveItem(pathname, item.children);
-    if (child) {
-      return child;
-    }
-  }
-  return undefined;
+  return items.find((item) => item.href && isActivePath(pathname, item.href));
 }

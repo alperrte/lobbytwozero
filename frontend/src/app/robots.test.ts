@@ -29,7 +29,9 @@ describe("robots ve sitemap", () => {
       sitemap: "https://ltz.example/sitemap.xml"
     });
     expect(sitemap().map((entry) => entry.url)).toEqual([
-      "https://ltz.example/"
+      "https://ltz.example/",
+      "https://ltz.example/about",
+      "https://ltz.example/faq"
     ]);
   });
 });

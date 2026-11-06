@@ -21,10 +21,14 @@ const bodyFont = IBM_Plex_Sans({
   display: "swap"
 });
 
+// Dil çerezle seçilir (URL'de dil yok); bu yüzden hreflang alternatifleri yayınlanmaz.
+const OG_LOCALES: Record<string, string> = { tr: "tr_TR", en: "en_US" };
+
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Metadata");
   const siteUrl = getSiteUrl();
   const description = t("description");
+  const locale = await getLocale();
 
   return {
     ...(siteUrl ? { metadataBase: siteUrl } : {}),
@@ -35,8 +39,14 @@ export async function generateMetadata(): Promise<Metadata> {
       type: "website",
       siteName: SITE_NAME,
       title: SITE_NAME,
-      description
+      description,
+      locale: OG_LOCALES[locale] ?? OG_LOCALES.tr,
+      alternateLocale: Object.entries(OG_LOCALES)
+        .filter(([code]) => code !== locale)
+        .map(([, value]) => value)
     },
+    // Görsel hazır olana kadar görselsiz özet kartı; sahte önizleme görseli üretilmez.
+    twitter: { card: "summary", title: SITE_NAME, description },
     // Üretim ve doğrulanmış site kökü yoksa hiçbir sayfa indekslenmez.
     robots: isIndexable(siteUrl)
       ? { index: true, follow: true }

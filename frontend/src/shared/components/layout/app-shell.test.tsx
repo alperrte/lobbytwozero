@@ -64,11 +64,14 @@ describe("AppShell", () => {
     expect(links[0]).toHaveAttribute("href", "/");
     expect(links[0]).toHaveAttribute("aria-current", "page");
     expect(nav.querySelectorAll('a[href="#"]')).toHaveLength(0);
-    expect(nav).toHaveTextContent("Bilgisayarlarım");
+    expect(nav).toHaveTextContent("Ana Sayfa");
     expect(nav).toHaveTextContent("Donanımlar");
-    expect(nav).toHaveTextContent("Kampanyalar");
+    // Profil, Bilgisayarlarım ve Kampanyalar kenar çubuğunda yer almaz.
+    expect(nav).not.toHaveTextContent("Profil");
+    expect(nav).not.toHaveTextContent("Bilgisayarlarım");
+    expect(nav).not.toHaveTextContent("Kampanyalar");
     // Tam eşleşme yalnız rozetleri sayar (tooltip metni "Etiket · Yakında" biçimindedir).
-    expect(screen.getAllByText("Yakında")).toHaveLength(3);
+    expect(screen.getAllByText("Yakında")).toHaveLength(1);
   });
 
   it("menü düğmesi çekmeceyi açar, Escape kapatır ve odağı geri verir", () => {
@@ -97,12 +100,75 @@ describe("AppShell", () => {
   it("tema ve dil kontrolleri erişilebilir adlara sahiptir", () => {
     renderShell();
     expect(screen.getByRole("group", { name: "Tema" })).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Dil" })).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Türkçe (TR)" })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "İngilizce (EN)" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Açık tema" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Koyu tema" })).toBeInTheDocument();
+    const language = screen.getByRole("button", { name: "Dil: Türkçe" });
+    expect(language).toHaveAttribute("aria-haspopup", "menu");
+    expect(language).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("dil menüsü açılır, iki dili sunar ve Escape ile kapanır", () => {
+    renderShell();
+    const trigger = screen.getByRole("button", { name: "Dil: Türkçe" });
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("menuitemradio", { name: "Türkçe" })).toHaveAttribute(
+      "aria-checked",
+      "true"
+    );
+    expect(screen.getByRole("menuitemradio", { name: "English" })).toHaveAttribute(
+      "aria-checked",
+      "false"
+    );
+
+    act(() => {
+      fireEvent.keyDown(document, { key: "Escape" });
+    });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("bildirim paneli sahte veri göstermez; dürüst boş durum sunar", () => {
+    renderShell();
+    const bell = screen.getByRole("button", { name: "Bildirimler" });
+    fireEvent.click(bell);
+    expect(screen.getByText("Henüz bildirim yok")).toBeInTheDocument();
+    const panel = screen.getByRole("region", { name: "Bildirimler" });
+    expect(panel.querySelectorAll("li")).toHaveLength(0);
+  });
+
+  it("profil menüsü misafir durumunu dürüstçe gösterir ve sahte rota üretmez", () => {
+    renderShell();
+    fireEvent.click(screen.getByRole("button", { name: /Misafir/ }));
+    const menu = screen.getByRole("menu");
+    expect(menu).toHaveTextContent("Giriş yapılmadı");
+    expect(menu.querySelectorAll("a")).toHaveLength(0);
+    expect(menu).toHaveTextContent("Profilim");
+    expect(menu).toHaveTextContent("Hesap ayarları");
+    expect(menu).not.toHaveTextContent("Çıkış yap");
+  });
+
+  it("Ayarlar paneli kenar çubuğundan açılır ve tercihleri sunar", () => {
+    renderShell();
+    fireEvent.click(screen.getByRole("button", { name: /^Ayarlar/ }));
+    const dialog = screen.getByRole("dialog", { name: "Ayarlar", hidden: true });
+    expect(dialog).toHaveAttribute("open");
+    for (const legend of ["Görünüm", "Üst çubuk", "Kenar çubuğu", "Dil"]) {
+      expect(dialog).toHaveTextContent(legend);
+    }
+    expect(dialog).not.toHaveTextContent("Güvenlik");
+  });
+
+  it("arama iletişim kutusu Ctrl+K ile açılır ve yalnız mevcut sayfaları arar", () => {
+    renderShell();
+    act(() => {
+      fireEvent.keyDown(document, { key: "k", ctrlKey: true });
+    });
+    const dialog = screen.getByRole("dialog", { name: "Genel arama", hidden: true });
+    expect(dialog).toHaveAttribute("open");
+    const input = screen.getByRole("combobox");
+    fireEvent.change(input, { target: { value: "sss" } });
+    expect(dialog).toHaveTextContent("SSS");
+    fireEvent.change(input, { target: { value: "zzzzzz" } });
+    expect(dialog).toHaveTextContent("Sonuç bulunamadı");
   });
 });

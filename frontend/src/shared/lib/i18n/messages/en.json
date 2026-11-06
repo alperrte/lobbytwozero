@@ -1,11 +1,13 @@
 {
   "Metadata": {
     "siteName": "LobbyTwoZero",
-    "description": "LobbyTwoZero is the gaming community's meeting place for hardware and games."
+    "description": "LobbyTwoZero is a game-focused social platform being built for game discovery, the player community, social interaction, and hardware and game performance experiences."
   },
   "Shell": {
     "brand": "LobbyTwoZero",
     "skipToContent": "Skip to main content",
+    "navbarLabel": "Top bar",
+    "breadcrumb": "Page location",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "collapseSidebar": "Collapse sidebar",
@@ -14,10 +16,8 @@
   },
   "Navigation": {
     "home": "Home",
-    "profile": "Profile",
-    "myComputers": "My computers",
     "hardware": "Hardware",
-    "campaigns": "Campaigns",
+    "settings": "Settings",
     "soon": "Soon"
   },
   "Theme": {
@@ -31,15 +31,150 @@
     "tr": "Turkish",
     "en": "English"
   },
+  "Navbar": {
+    "search": {
+      "placeholder": "Search pages",
+      "open": "Search",
+      "title": "Global search",
+      "inputLabel": "Search pages",
+      "close": "Close",
+      "groupPages": "Pages",
+      "emptyTitle": "No results found",
+      "emptyBody": "Try a different word.",
+      "resultCount": "{count, plural, =0 {No results} one {# result} other {# results}}",
+      "hintNavigate": "↑ ↓ navigate",
+      "hintOpen": "Enter open",
+      "hintClose": "Esc close",
+      "scope": "Only pages are searchable for now"
+    },
+    "notifications": {
+      "label": "Notifications",
+      "labelWithCount": "Notifications, {count} unread",
+      "title": "Notifications",
+      "emptyTitle": "No notifications yet",
+      "emptyBody": "New notifications will appear here once the notification service is connected."
+    },
+    "profile": {
+      "label": "Profile menu",
+      "guestName": "Guest",
+      "guestState": "Not signed in",
+      "signedIn": "Your account",
+      "guestNote": "Account features are not ready yet; sign-in and profile pages will be added in later steps.",
+      "soon": "Soon",
+      "items": {
+        "info": "Profile info",
+        "profile": "My profile",
+        "account": "Account settings",
+        "logout": "Log out"
+      }
+    }
+  },
+  "Settings": {
+    "title": "Settings",
+    "description": "Your appearance and navigation choices apply instantly and are saved on this device.",
+    "close": "Close settings",
+    "appearance": {
+      "title": "Appearance",
+      "system": "System",
+      "systemHint": "Follows your device's theme setting.",
+      "light": "Light",
+      "lightHint": "Light colors for bright surroundings.",
+      "dark": "Dark",
+      "darkHint": "Dark colors that are easy on the eyes in low light."
+    },
+    "navbar": {
+      "title": "Top bar",
+      "auto": "Auto-hide",
+      "autoHint": "Hides when you scroll down and returns when you scroll up.",
+      "fixed": "Fixed",
+      "fixedHint": "Always stays visible."
+    },
+    "sidebar": {
+      "title": "Sidebar",
+      "wide": "Wide",
+      "wideHint": "Icons and names are shown together.",
+      "collapsed": "Collapsed",
+      "collapsedHint": "Only icons are shown.",
+      "note": "On small screens the sidebar always works as a slide-in menu."
+    },
+    "language": {
+      "title": "Language"
+    }
+  },
+  "Pages": {
+    "home": { "title": "Home", "description": "LobbyTwoZero start page" },
+    "about": { "title": "About Us", "description": "What LobbyTwoZero is and what it aims for" },
+    "faq": { "title": "FAQ", "description": "Frequently asked questions" },
+    "contact": { "title": "Contact", "description": "How to reach us" },
+    "kvkk": { "title": "KVKK Privacy Notice", "description": "Notice on the processing of personal data" },
+    "privacy": { "title": "Privacy Policy", "description": "How your data is handled" },
+    "terms": { "title": "Terms of Use", "description": "Rules for using the platform" },
+    "cookies": { "title": "Cookie Policy", "description": "How cookies and local storage are used" }
+  },
   "Footer": {
-    "tagline": "The gaming community's meeting place for hardware and games.",
-    "copyright": "© {year} {brand}"
+    "label": "Footer",
+    "tagline": "A game-focused social platform for game discovery, the player community, and hardware and game performance.",
+    "platform": "Platform",
+    "legal": "Legal",
+    "copyright": "© {year} LobbyTwoZero. All rights reserved.",
+    "links": {
+      "about": "About Us",
+      "faq": "FAQ",
+      "contact": "Contact",
+      "kvkk": "KVKK Privacy Notice",
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Use",
+      "cookies": "Cookie Policy"
+    }
   },
   "Home": {
     "title": "LobbyTwoZero",
-    "description": "A new meeting place for the gaming community.",
+    "description": "A game-focused social platform where players discover, talk and play together.",
     "statusTitle": "Foundation is ready",
-    "statusBody": "The shared shell, theme and language support are working. Profile, hardware and campaign pages will follow in later steps."
+    "statusBody": "The shared shell, theme and language support are working. Hardware and other pages will follow in later steps."
+  },
+  "About": {
+    "intro": "LobbyTwoZero (LTZ) is being built as a game-focused social platform. It aims to be a hub where players discover and discuss games, make friends and find teammates to play with.",
+    "statusTitle": "The project is under development",
+    "statusBody": "This page describes the project's goals; not all of the features below are live yet. Ready sections will be announced as they are published.",
+    "aimsTitle": "Targeted experience",
+    "aims": {
+      "discover": { "title": "Game discovery", "body": "Browse the game catalog, rate games and write reviews." },
+      "social": { "title": "Social interaction", "body": "Make friends, send messages and find players to play with." },
+      "community": { "title": "Community", "body": "Come together with the player community through posts and events." },
+      "performance": { "title": "Hardware and performance", "body": "Describe your PC hardware, see game performance experiences and get recommendations." }
+    }
+  },
+  "Faq": {
+    "intro": "Short answers to the most basic questions about the project. The project is under development; answers will be updated as it progresses.",
+    "items": {
+      "what": {
+        "q": "What is LobbyTwoZero?",
+        "a": "A game-focused social platform that aims to bring together game discovery, the player community and social interaction with hardware and game performance experiences."
+      },
+      "ready": {
+        "q": "What can I use right now?",
+        "a": "Right now only the basic interface (theme, language, navigation) is ready. Accounts, the game catalog, social features and hardware sections are not live yet."
+      },
+      "hardware": {
+        "q": "What will the hardware and performance feature do?",
+        "a": "The goal is for players to describe their PC hardware, see game performance experiences and get suitable recommendations. This section is not ready yet."
+      },
+      "data": {
+        "q": "How will my personal data be handled?",
+        "a": "The privacy notice, privacy policy and cookie policy have not been published yet. They will be prepared before account and data collection features are opened."
+      }
+    }
+  },
+  "Contact": {
+    "intro": "There is no published contact channel right now.",
+    "bodyTitle": "The official support address has not been decided yet",
+    "body": "The official email address and contact form for feedback and support will be published on this page once they are decided. No address shown on this page should be treated as an official contact channel unless it has been verified."
+  },
+  "Legal": {
+    "statusTitle": "This text has not been published yet",
+    "statusBody": "This document will be published after legal review. There is currently no binding text here.",
+    "backHome": "Back to home"
   },
   "Errors": {
     "title": "Something went wrong",

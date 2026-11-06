@@ -35,6 +35,35 @@ const paths = {
     </>
   ),
   moon: <path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z" />,
+  search: (
+    <>
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="m15.5 15.5 5.5 5.5" />
+    </>
+  ),
+  bell: (
+    <>
+      <path d="M6 17v-6a6 6 0 0 1 12 0v6l2 2H4z" />
+      <path d="M10 21.5h4" />
+    </>
+  ),
+  chevron: <path d="m6 9 6 6 6-6" />,
+  settings: (
+    <>
+      <path d="M4 7h9M19 7h1M4 17h1M11 17h9" />
+      <circle cx="16" cy="7" r="2.25" />
+      <circle cx="8" cy="17" r="2.25" />
+    </>
+  ),
+  logout: <path d="M10 4H4v16h6M14 8l4 4-4 4M18 12H9" />,
+  check: <path d="m5 12.5 5 5L19 7" />,
+  info: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5.5M12 7.5v.5" />
+    </>
+  ),
+  arrowRight: <path d="M4 12h16M14 6l6 6-6 6" />,
   contrast: (
     <>
       <circle cx="12" cy="12" r="8" />

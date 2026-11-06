@@ -1,11 +1,13 @@
 {
   "Metadata": {
     "siteName": "LobbyTwoZero",
-    "description": "LobbyTwoZero, oyun topluluğunun donanım ve oyun odaklı buluşma noktasıdır."
+    "description": "LobbyTwoZero; oyun keşfi, oyuncu topluluğu, sosyal etkileşim ile donanım ve oyun performansı deneyimleri için geliştirilen oyun odaklı sosyal platformdur."
   },
   "Shell": {
     "brand": "LobbyTwoZero",
     "skipToContent": "Ana içeriğe geç",
+    "navbarLabel": "Üst çubuk",
+    "breadcrumb": "Sayfa konumu",
     "openMenu": "Menüyü aç",
     "closeMenu": "Menüyü kapat",
     "collapseSidebar": "Kenar çubuğunu daralt",
@@ -13,11 +15,9 @@
     "sidebarLabel": "Ana gezinme"
   },
   "Navigation": {
-    "home": "Ana sayfa",
-    "profile": "Profil",
-    "myComputers": "Bilgisayarlarım",
+    "home": "Ana Sayfa",
     "hardware": "Donanımlar",
-    "campaigns": "Kampanyalar",
+    "settings": "Ayarlar",
     "soon": "Yakında"
   },
   "Theme": {
@@ -31,15 +31,150 @@
     "tr": "Türkçe",
     "en": "İngilizce"
   },
+  "Navbar": {
+    "search": {
+      "placeholder": "Sayfalarda ara",
+      "open": "Ara",
+      "title": "Genel arama",
+      "inputLabel": "Sayfalarda ara",
+      "close": "Kapat",
+      "groupPages": "Sayfalar",
+      "emptyTitle": "Sonuç bulunamadı",
+      "emptyBody": "Başka bir sözcükle yeniden dene.",
+      "resultCount": "{count, plural, =0 {Sonuç yok} other {# sonuç}}",
+      "hintNavigate": "↑ ↓ gezin",
+      "hintOpen": "Enter aç",
+      "hintClose": "Esc kapat",
+      "scope": "Şimdilik yalnız sayfalar aranır"
+    },
+    "notifications": {
+      "label": "Bildirimler",
+      "labelWithCount": "Bildirimler, {count} okunmamış",
+      "title": "Bildirimler",
+      "emptyTitle": "Henüz bildirim yok",
+      "emptyBody": "Bildirim servisi bağlandığında yeni bildirimlerin burada görünecek."
+    },
+    "profile": {
+      "label": "Profil menüsü",
+      "guestName": "Misafir",
+      "guestState": "Giriş yapılmadı",
+      "signedIn": "Hesabın",
+      "guestNote": "Hesap özellikleri henüz hazır değil; giriş ve profil sayfaları sonraki adımlarda eklenecek.",
+      "soon": "Yakında",
+      "items": {
+        "info": "Profil bilgisi",
+        "profile": "Profilim",
+        "account": "Hesap ayarları",
+        "logout": "Çıkış yap"
+      }
+    }
+  },
+  "Settings": {
+    "title": "Ayarlar",
+    "description": "Görünüm ve gezinme tercihlerin anında uygulanır ve bu cihazda saklanır.",
+    "close": "Ayarları kapat",
+    "appearance": {
+      "title": "Görünüm",
+      "system": "Sistem",
+      "systemHint": "Cihazının tema ayarını izler.",
+      "light": "Açık",
+      "lightHint": "Aydınlık ortamlar için açık renkler.",
+      "dark": "Koyu",
+      "darkHint": "Düşük ışıkta göz yormayan koyu renkler."
+    },
+    "navbar": {
+      "title": "Üst çubuk",
+      "auto": "Otomatik gizle",
+      "autoHint": "Aşağı kaydırınca gizlenir, yukarı kaydırınca geri gelir.",
+      "fixed": "Sabit",
+      "fixedHint": "Her zaman görünür kalır."
+    },
+    "sidebar": {
+      "title": "Kenar çubuğu",
+      "wide": "Geniş",
+      "wideHint": "Simgeler ve adlar birlikte görünür.",
+      "collapsed": "Daraltılmış",
+      "collapsedHint": "Yalnız simgeler görünür.",
+      "note": "Küçük ekranlarda kenar çubuğu her zaman açılır menü olarak çalışır."
+    },
+    "language": {
+      "title": "Dil"
+    }
+  },
+  "Pages": {
+    "home": { "title": "Ana Sayfa", "description": "LobbyTwoZero başlangıç sayfası" },
+    "about": { "title": "Hakkımızda", "description": "LobbyTwoZero nedir ve neyi hedefler" },
+    "faq": { "title": "SSS", "description": "Sıkça sorulan sorular" },
+    "contact": { "title": "İletişim", "description": "Bize nasıl ulaşabileceğin" },
+    "kvkk": { "title": "KVKK Aydınlatma Metni", "description": "Kişisel verilerin işlenmesine ilişkin aydınlatma" },
+    "privacy": { "title": "Gizlilik Politikası", "description": "Verilerinin nasıl ele alındığı" },
+    "terms": { "title": "Kullanım Koşulları", "description": "Platformu kullanma kuralları" },
+    "cookies": { "title": "Çerez Politikası", "description": "Çerezlerin ve yerel depolamanın kullanımı" }
+  },
   "Footer": {
-    "tagline": "Oyun topluluğunun donanım ve oyun odaklı buluşma noktası.",
-    "copyright": "© {year} {brand}"
+    "label": "Alt bilgi",
+    "tagline": "Oyun keşfi, oyuncu topluluğu ile donanım ve oyun performansı için oyun odaklı sosyal platform.",
+    "platform": "Platform",
+    "legal": "Yasal",
+    "copyright": "© {year} LobbyTwoZero. Tüm hakları saklıdır.",
+    "links": {
+      "about": "Hakkımızda",
+      "faq": "SSS",
+      "contact": "İletişim",
+      "kvkk": "KVKK Aydınlatma Metni",
+      "privacy": "Gizlilik Politikası",
+      "terms": "Kullanım Koşulları",
+      "cookies": "Çerez Politikası"
+    }
   },
   "Home": {
     "title": "LobbyTwoZero",
-    "description": "Oyun topluluğunun yeni buluşma noktası.",
+    "description": "Oyuncuların keşfettiği, konuştuğu ve birlikte oynadığı oyun odaklı sosyal platform.",
     "statusTitle": "Temel kurulum hazır",
-    "statusBody": "Ortak kabuk, tema ve dil altyapısı çalışıyor. Profil, donanım ve kampanya sayfaları sonraki adımlarda eklenecek."
+    "statusBody": "Ortak kabuk, tema ve dil altyapısı çalışıyor. Donanım ve diğer sayfalar sonraki adımlarda eklenecek."
+  },
+  "About": {
+    "intro": "LobbyTwoZero (LTZ), oyun odaklı bir sosyal platform olarak geliştiriliyor. Oyuncuların oyun keşfettiği, tartıştığı, arkadaş edindiği ve birlikte oynayacak takım bulduğu bir merkez olmayı hedefliyor.",
+    "statusTitle": "Proje geliştirme aşamasında",
+    "statusBody": "Bu sayfa projenin hedeflerini anlatır; aşağıdaki özelliklerin tamamı henüz yayında değildir. Hazır olan bölümler yayınlandıkça duyurulacaktır.",
+    "aimsTitle": "Hedeflenen deneyim",
+    "aims": {
+      "discover": { "title": "Oyun keşfi", "body": "Oyunları katalogda gezmek, puanlamak ve inceleme yazmak." },
+      "social": { "title": "Sosyal etkileşim", "body": "Arkadaş edinmek, mesajlaşmak ve birlikte oynayacak oyuncu bulmak." },
+      "community": { "title": "Topluluk", "body": "Gönderiler ve etkinliklerle oyuncu topluluğuyla bir araya gelmek." },
+      "performance": { "title": "Donanım ve performans", "body": "Bilgisayar donanımını tanıtmak, oyunlardaki performans deneyimlerini görmek ve öneri almak." }
+    }
+  },
+  "Faq": {
+    "intro": "Projeyle ilgili en temel soruların kısa yanıtları. Proje geliştirme aşamasındadır; yanıtlar ilerledikçe güncellenecektir.",
+    "items": {
+      "what": {
+        "q": "LobbyTwoZero nedir?",
+        "a": "Oyun keşfi, oyuncu topluluğu ve sosyal etkileşim ile donanım ve oyun performansı deneyimlerini bir araya getirmeyi hedefleyen, oyun odaklı bir sosyal platformdur."
+      },
+      "ready": {
+        "q": "Şu an neler kullanılabilir?",
+        "a": "Şu an yalnızca temel arayüz (tema, dil, gezinme) hazırdır. Hesap, oyun kataloğu, sosyal özellikler ve donanım bölümleri henüz yayında değildir."
+      },
+      "hardware": {
+        "q": "Donanım ve performans özelliği ne yapacak?",
+        "a": "Hedef, oyuncuların bilgisayar donanımlarını tanıtabilmesi, oyunlardaki performans deneyimlerini görebilmesi ve kendilerine uygun öneriler alabilmesidir. Bu bölüm henüz hazır değildir."
+      },
+      "data": {
+        "q": "Kişisel verilerim nasıl ele alınacak?",
+        "a": "Aydınlatma metni, gizlilik ve çerez politikaları henüz yayınlanmadı. Hesap ve veri toplama özellikleri açılmadan önce bu metinler hazırlanacaktır."
+      }
+    }
+  },
+  "Contact": {
+    "intro": "Şu an yayında bir iletişim kanalı yok.",
+    "bodyTitle": "Resmî destek adresi henüz belirlenmedi",
+    "body": "Geri bildirim ve destek için kullanılacak resmî e-posta adresi ile iletişim formu belirlendiğinde bu sayfada yayınlanacaktır. Bu sayfada gösterilen hiçbir adres, doğrulanmadığı sürece resmî iletişim kanalı sayılmamalıdır."
+  },
+  "Legal": {
+    "statusTitle": "Bu metin henüz yayınlanmadı",
+    "statusBody": "Bu belge hukuki incelemeden geçtikten sonra yayınlanacaktır. Şu an burada bağlayıcı bir metin yoktur.",
+    "backHome": "Ana sayfaya dön"
   },
   "Errors": {
     "title": "Beklenmeyen bir hata oluştu",
