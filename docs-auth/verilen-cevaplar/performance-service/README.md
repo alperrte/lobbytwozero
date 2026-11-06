@@ -15,9 +15,7 @@
 
 ## BU BRANCH İÇİN AUTH'TAN GELEN TALEP VE CEVAPLAR
 
-| # | Konu | Cevap | Durum |
-|---|---|---|---|
-| [01](talep-01-cihaz-token-hedefi-iptal-ve-cihaz-dogrulama.md) | Cihaz token hedefi, iptal yayılımı, Hardware → Performance cihaz doğrulama | Cihaz token'ında `target=performance`; `devices:verify` hesaba bağlı token; iptal bildirimi yapılmıyor (60 sn) | AUTH HAZIR (A, C), B KARAR: kabul |
+Bu branch için açık talep yok. Kapanan talepler temizlendi; gerekirse git geçmişinden okunur (`git log --follow -- docs-auth/verilen-cevaplar/<servis>/`).
 
 Önceki bağlam: masaüstü cihaz kimliği [hardware talep 02](../hardware-service/talep-02-masaustu-cihaz-kimligi.md) (Auth cihaz kimliği verir, aktif cihaz kararı Performance'ta kalır).
 
@@ -32,4 +30,3 @@
 
 Talebin ya da sorun varsa bu klasöre yeni bir `talep-NN-...md` olarak yazılır, cevap aynı şablonla verilir.
 
-> **Yeni (2026-11-05):** [bilgilendirme-2026-11-05.md](bilgilendirme-2026-11-05.md) — Auth değişiklikleri ve bu servisten beklenenler. Durum: KAPANDI
