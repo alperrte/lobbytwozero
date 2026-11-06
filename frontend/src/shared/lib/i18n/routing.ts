@@ -17,6 +17,7 @@ export const pathnames = {
   "/faq": { tr: "/sss", en: "/faq" },
   "/contact": { tr: "/iletisim", en: "/contact" },
   "/settings": { tr: "/ayarlar", en: "/settings" },
+  "/login": { tr: "/giris", en: "/login" },
   "/legal/kvkk": { tr: "/yasal/kvkk", en: "/legal/kvkk" },
   "/legal/privacy": { tr: "/yasal/gizlilik", en: "/legal/privacy" },
   "/legal/terms": { tr: "/yasal/kullanim-kosullari", en: "/legal/terms" },

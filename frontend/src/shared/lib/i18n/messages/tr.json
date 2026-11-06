@@ -477,5 +477,67 @@
   },
   "Loading": {
     "label": "Yükleniyor"
+  },
+  "Auth": {
+    "shell": {
+      "brand": "LTZ ana sayfa",
+      "back": "Ana sayfaya dön",
+      "legalNav": "Yasal bağlantılar",
+      "privacy": "Gizlilik",
+      "terms": "Kullanım koşulları",
+      "copyright": "© LobbyTwoZero",
+      "login": {
+        "eyebrow": "Lobine hoş geldin",
+        "headlineStart": "Oyun kaldığı yerden",
+        "headlineAccent": "devam etsin.",
+        "subline": "Oyunlarını keşfet, profilini yönet ve topluluğunla yeniden buluş."
+      },
+      "register": {
+        "eyebrow": "Yeni lobin seni bekliyor",
+        "headlineStart": "Oyun dünyana",
+        "headlineAccent": "yeni bir kapı aç.",
+        "subline": "Profilini oluştur, yeni oyunlar keşfet ve seninle aynı tutkuyu paylaşan oyuncularla buluş."
+      }
+    },
+    "login": {
+      "metaTitle": "Giriş yap",
+      "title": "Giriş yap",
+      "description": "LTZ hesabına giriş yap, lobine katıl.",
+      "formLabel": "Giriş formu",
+      "identifier": "E-posta veya kullanıcı adı",
+      "identifierPlaceholder": "E-posta adresin veya kullanıcı adın",
+      "password": "Şifre",
+      "passwordPlaceholder": "Şifren",
+      "show": "Şifreyi göster",
+      "hide": "Şifreyi gizle",
+      "submit": "Giriş yap",
+      "submitting": "Giriş yapılıyor…",
+      "retryIn": "{seconds} sn sonra tekrar dene"
+    },
+    "fields": {
+      "identifier": {
+        "required": "E-posta adresini veya kullanıcı adını gir.",
+        "tooLong": "En fazla {max} karakter olabilir."
+      },
+      "password": {
+        "required": "Şifreni gir.",
+        "tooLong": "En fazla {max} karakter olabilir."
+      }
+    },
+    "errors": {
+      "INVALID_CREDENTIALS": "E-posta, kullanıcı adı veya şifre hatalı.",
+      "EMAIL_NOT_VERIFIED": "E-posta adresin henüz doğrulanmadı. Kayıt sırasında gönderilen kodla doğrulamayı tamamla.",
+      "ACCOUNT_SUSPENDED": "Hesabın geçici olarak askıya alındı.",
+      "ACCOUNT_BANNED": "Hesabın yasaklandı.",
+      "ACCOUNT_UNAVAILABLE": "Bu hesap şu anda kullanılamıyor.",
+      "ACCOUNT_DELETION_PENDING": "Hesabının silinme süreci başladı. Geri alma işlemi şu an bu ekrandan yapılamıyor.",
+      "TWO_FACTOR_ENROLLMENT_REQUIRED": "Bu hesap için iki aşamalı doğrulama kurulumu gerekiyor. Bu adım henüz bu ekranda desteklenmiyor.",
+      "MFA_NOT_SUPPORTED": "Bu hesap iki aşamalı doğrulama istiyor. Bu adım henüz bu ekranda desteklenmiyor.",
+      "CSRF_TOKEN_INVALID": "Güvenlik doğrulaması başarısız oldu. Sayfayı yenileyip tekrar dene.",
+      "TOO_MANY_ATTEMPTS": "Çok fazla deneme yaptın. {seconds} saniye sonra tekrar dene.",
+      "SERVICE_BUSY": "Servis şu anda yoğun. Biraz sonra tekrar dene.",
+      "NETWORK": "Sunucuya ulaşılamadı. Bağlantını kontrol edip tekrar dene.",
+      "UNKNOWN": "Bir şeyler ters gitti. Lütfen tekrar dene."
+    }
   }
 }

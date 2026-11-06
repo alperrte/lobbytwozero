@@ -477,5 +477,67 @@
   },
   "Loading": {
     "label": "Loading"
+  },
+  "Auth": {
+    "shell": {
+      "brand": "LTZ home",
+      "back": "Back to home",
+      "legalNav": "Legal links",
+      "privacy": "Privacy",
+      "terms": "Terms of use",
+      "copyright": "© LobbyTwoZero",
+      "login": {
+        "eyebrow": "Welcome to the lobby",
+        "headlineStart": "Pick up the game",
+        "headlineAccent": "where you left off.",
+        "subline": "Discover games, manage your profile and meet your community again."
+      },
+      "register": {
+        "eyebrow": "Your new lobby is waiting",
+        "headlineStart": "Open a new door",
+        "headlineAccent": "to your game world.",
+        "subline": "Create your profile, discover new games and meet players who share your passion."
+      }
+    },
+    "login": {
+      "metaTitle": "Sign in",
+      "title": "Sign in",
+      "description": "Sign in to your LTZ account and join the lobby.",
+      "formLabel": "Sign-in form",
+      "identifier": "Email or username",
+      "identifierPlaceholder": "Your email address or username",
+      "password": "Password",
+      "passwordPlaceholder": "Your password",
+      "show": "Show password",
+      "hide": "Hide password",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "retryIn": "Try again in {seconds} s"
+    },
+    "fields": {
+      "identifier": {
+        "required": "Enter your email address or username.",
+        "tooLong": "Must be at most {max} characters."
+      },
+      "password": {
+        "required": "Enter your password.",
+        "tooLong": "Must be at most {max} characters."
+      }
+    },
+    "errors": {
+      "INVALID_CREDENTIALS": "The email, username or password is incorrect.",
+      "EMAIL_NOT_VERIFIED": "Your email address is not verified yet. Finish verification with the code sent when you registered.",
+      "ACCOUNT_SUSPENDED": "Your account is temporarily suspended.",
+      "ACCOUNT_BANNED": "Your account has been banned.",
+      "ACCOUNT_UNAVAILABLE": "This account is not available right now.",
+      "ACCOUNT_DELETION_PENDING": "Your account deletion has started. Cancelling it is not available on this screen yet.",
+      "TWO_FACTOR_ENROLLMENT_REQUIRED": "This account must set up two-step verification. This step is not supported on this screen yet.",
+      "MFA_NOT_SUPPORTED": "This account requires two-step verification. This step is not supported on this screen yet.",
+      "CSRF_TOKEN_INVALID": "The security check failed. Refresh the page and try again.",
+      "TOO_MANY_ATTEMPTS": "Too many attempts. Try again in {seconds} seconds.",
+      "SERVICE_BUSY": "The service is busy right now. Try again shortly.",
+      "NETWORK": "Could not reach the server. Check your connection and try again.",
+      "UNKNOWN": "Something went wrong. Please try again."
+    }
   }
 }
