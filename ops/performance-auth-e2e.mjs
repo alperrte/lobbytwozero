@@ -1,4 +1,4 @@
-// Gerçek Auth + Performance + Gateway HTTP kabulü. Yalnız bu koşunun geçici kaynakları kullanılır.
+// Gerçek Auth + Hardware + Performance + Gateway HTTP kabulü. Yalnız geçici kaynaklar kullanılır.
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto';
@@ -26,7 +26,7 @@ async function unusedPort() {
 }
 
 export async function runPerformanceAuthE2e(root, log = console.log) {
-  const services = ['auth-service', 'performance-service', 'api-gateway'];
+  const services = ['auth-service', 'hardware-service', 'performance-service', 'api-gateway'];
   for (const service of services) requireFreshJar(root, service);
   const children = [], containers = [], listeners = [], secrets = [];
   const label = `performance-auth-e2e-${randomUUID()}`;
@@ -102,12 +102,15 @@ export async function runPerformanceAuthE2e(root, log = console.log) {
     const dbEnv = { POSTGRES_USER: 'fixture', POSTGRES_DB: 'fixture', POSTGRES_PASSWORD: dbPassword };
     const authDb = await container('postgres:17-alpine', [5432], dbEnv);
     const performanceDb = await container('postgres:17-alpine', [5432], dbEnv);
+    const hardwareDb = await container('postgres:17-alpine', [5432], dbEnv);
     const mail = await container('axllent/mailpit:v1.31.0', [1025, 8025]);
-    for (const db of [authDb, performanceDb]) await until(async () => {
+    for (const db of [authDb, performanceDb, hardwareDb]) await until(async () => {
       try { return await sql(db, 'SELECT 1') === '1'; } catch { return false; }
     }, 'PostgreSQL readiness');
     const authPort = await unusedPort(), perfPort = await unusedPort(), gatewayPort = await unusedPort();
+    const hardwarePort = await unusedPort();
     const auth = `http://127.0.0.1:${authPort}`, perf = `http://127.0.0.1:${perfPort}`, gateway = `http://127.0.0.1:${gatewayPort}`;
+    const hardware = `http://127.0.0.1:${hardwarePort}`;
     let erasureToken;
     const relay = await listen(async (incoming, outgoing) => {
       try {
@@ -120,7 +123,8 @@ export async function runPerformanceAuthE2e(root, log = console.log) {
     const unavailable = await listen((_, response) => { response.writeHead(503); response.end(); });
     listeners.push(relay.server, unavailable.server);
     const dbProperties = db => ({ POSTGRES_HOST: '127.0.0.1', POSTGRES_PORT: String(db.ports[5432]),
-      POSTGRES_USER: 'fixture', POSTGRES_PASSWORD: dbPassword, DB_AUTH_NAME: 'fixture', DB_PERFORMANCE_NAME: 'fixture' });
+      POSTGRES_USER: 'fixture', POSTGRES_PASSWORD: dbPassword, DB_AUTH_NAME: 'fixture', DB_PERFORMANCE_NAME: 'fixture',
+      DB_HARDWARE_NAME: 'fixture' });
     const authEnv = { ...dbProperties(authDb), SPRING_PROFILES_ACTIVE: 'dev', AUTH_JWT_PRIVATE_KEY: privateKey,
       AUTH_OTP_HMAC_KEY: hmac, AUTH_TOTP_ENCRYPTION_KEY: totp, AUTH_PUBLIC_BASE_URL: gateway,
       FRONTEND_PUBLIC_URL: gateway, JWT_ACCESS_TTL_SECONDS: '60', AUTH_DELETION_GRACE_PERIOD: 'PT0S',
@@ -133,8 +137,11 @@ export async function runPerformanceAuthE2e(root, log = console.log) {
     }
     await launch('auth-service', authPort, authEnv);
     await launch('performance-service', perfPort, { ...dbProperties(performanceDb), AUTH_SERVICE_URL: auth,
-      GAME_SERVICE_URL: unavailable.origin, HARDWARE_SERVICE_URL: unavailable.origin });
-    await launch('api-gateway', gatewayPort, { AUTH_SERVICE_URL: auth, PERFORMANCE_SERVICE_URL: perf, CORS_ALLOWED_ORIGINS: gateway });
+      GAME_SERVICE_URL: unavailable.origin, HARDWARE_SERVICE_URL: hardware });
+    await launch('hardware-service', hardwarePort, { ...dbProperties(hardwareDb), AUTH_SERVICE_URL: auth,
+      USER_SERVICE_URL: unavailable.origin, PERFORMANCE_SERVICE_URL: perf, AUTH_HARDWARE_SERVICE_CLIENT_SECRET: clientSecret });
+    await launch('api-gateway', gatewayPort, { AUTH_SERVICE_URL: auth, PERFORMANCE_SERVICE_URL: perf,
+      HARDWARE_SERVICE_URL: hardware, CORS_ALLOWED_ORIGINS: gateway });
     check(await sql(performanceDb, 'SELECT count(*) FROM flyway_schema_history WHERE success') === '3', 'Performance Flyway V21-V23 and JPA validation');
     const mailOrigin = `http://127.0.0.1:${mail.ports[8025]}`;
     const message = (email, pattern) => until(async () => {
@@ -169,9 +176,19 @@ export async function runPerformanceAuthE2e(root, log = console.log) {
     const device = await request(gateway, authDevices, 201, { jar: owner.jar, method: 'POST', body: { label: 'Performance fixture', password } });
     secrets.push(device.deviceSecret);
     const credentials = { deviceId: device.deviceId, deviceSecret: device.deviceSecret };
+    const profile = await request(gateway, '/api/v1/hardware/profiles', 201,
+      { jar: owner.jar, method: 'POST', body: { name: 'Hardware integration fixture', deviceType: 'DESKTOP' } });
+    const hardwareConsent = `/api/v1/hardware/profiles/${profile.id}/sync-consent`;
+    const grant = { profileVersion: profile.version, deviceId: device.deviceId, accepted: true };
+    await request(gateway, hardwareConsent, 404, { jar: owner.jar, method: 'PUT', body: grant });
+    check(await sql(hardwareDb, 'SELECT count(*) FROM hardware_sync_consents') === '0',
+      'Hardware obtains an account-bound Auth token and denies a device not linked in Performance');
     const link = await request(gateway, devices, 200, { jar: owner.jar, method: 'POST', body: { deviceId: device.deviceId } });
     await request(gateway, devices, 404, { jar: other.jar, method: 'POST', body: { deviceId: device.deviceId } });
     check(link.status === 'ACTIVE', 'Explicit link checks actual Auth device ownership; foreign account gets 404');
+    const granted = await request(gateway, hardwareConsent, 200, { jar: owner.jar, method: 'PUT', body: grant });
+    await request(gateway, hardwareConsent, 404, { jar: other.jar, method: 'PUT', body: grant });
+    check(granted.status === 'GRANTED', 'Real Hardware consumer accepts the Performance active-device decision for its owner');
     const issued = await request(gateway, authDevices + '/token', 200, { method: 'POST', body: { ...credentials, target: 'performance' } });
     secrets.push(issued.accessToken);
     check(issued.scope === 'performance:sync:write' && issued.expiresIn === 60, 'Auth target=performance issues the agreed device token');
@@ -182,6 +199,17 @@ export async function runPerformanceAuthE2e(root, log = console.log) {
     check(!first.replayed && replay.replayed && first.batchId === replay.batchId, 'Actual device token accepts sync and idempotent replay');
     const hardwareToken = await request(gateway, authDevices + '/token', 200, { method: 'POST', body: credentials });
     secrets.push(hardwareToken.accessToken);
+    const snapshots = `/api/v1/hardware/profiles/${profile.id}/sync/snapshots`;
+    const snapshotHeaders = { Authorization: `Bearer ${hardwareToken.accessToken}`, 'Idempotency-Key': randomUUID() };
+    const snapshot = { profileVersion: granted.profileVersion, consentGeneration: granted.generation, sequence: 1,
+      scan: { schemaVersion: 1, capturedAt: new Date().toISOString(),
+        components: [{ componentKey: randomUUID(), category: 'CPU', modelName: 'Integration CPU', quantity: 1 }] } };
+    const applied = await request(gateway, snapshots, 200, { method: 'POST', headers: snapshotHeaders, body: snapshot });
+    const repeated = await request(gateway, snapshots, 200, { method: 'POST', headers: snapshotHeaders, body: snapshot });
+    await request(gateway, snapshots, 403, { jar: owner.jar, method: 'POST', body: snapshot,
+      headers: { 'Idempotency-Key': randomUUID() } });
+    check(applied.created === 1 && applied.sequence === 1 && repeated.profileVersion === applied.profileVersion,
+      'Real Auth device identity and Hardware-to-Performance checks enable consent, snapshot and idempotent retry');
     await request(gateway, batches, 401, { method: 'POST', body: batch, headers: { ...tokenHeaders, Authorization: `Bearer ${hardwareToken.accessToken}` } });
     await request(gateway, devices, 401, { headers: { Authorization: `Bearer ${issued.accessToken}` } });
     check(true, 'Hardware device audience and device identity on user routes are rejected');
@@ -219,6 +247,8 @@ export async function runPerformanceAuthE2e(root, log = console.log) {
     await request(gateway, batches, 403, { method: 'POST', headers: { ...tokenHeaders, 'Idempotency-Key': randomUUID() }, body: batch });
     await request(perf, verifyPath, 404, { headers: serviceHeaders });
     check(reconciled[0].status === 'DISABLED', 'Auth revocation prevents issuance; list refresh disables link and blocks an unexpired token');
+    await request(gateway, snapshots, 404, { method: 'POST', headers: snapshotHeaders, body: snapshot });
+    check(true, 'Hardware rechecks Performance before replay and rejects the now-disabled device without a cached allow');
     await request(gateway, '/api/v1/auth/account/deletion/request', 202, { jar: owner.jar, method: 'POST', body: { password } });
     const deletionToken = await message(owner.email, /#token=([A-Za-z0-9_-]+)/);
     await request(gateway, '/api/v1/auth/account/deletion/confirm', 202, { jar: owner.jar, method: 'POST', body: { token: deletionToken, username: owner.username } });
@@ -232,7 +262,8 @@ export async function runPerformanceAuthE2e(root, log = console.log) {
     await request(gateway, consent, 401, { method: 'PUT', headers: { Authorization: `Bearer ${owner.token}` } });
     check(true, 'Actual worker D4 is idempotent, account-bound, preserves another account and blocks resurrection');
     check(await sql(authDb, "SELECT count(*) FROM account_deletion_tasks WHERE status='PENDING'") === '15', 'Other 15 deletion targets stay pending without fake ACKs');
-    log(`PERFORMANCE AUTH RUNTIME E2E PASS: ${checks} checks; global Saga NOT_VERIFIED; Game/Hardware consumers NOT_TESTED`);
+    // Bu fixture D4 için yalnız Performance'ı hedefler; Auth'un Hardware silme adresi unavailable kalır.
+    log(`PERFORMANCE AUTH RUNTIME E2E PASS: ${checks} checks; Hardware sync consumer VERIFIED; global Saga/User/Game NOT_VERIFIED`);
     return { checks, status: 'PASS' };
   } catch (error) { throw new Error(scrub(error.message, secrets)); }
   finally {

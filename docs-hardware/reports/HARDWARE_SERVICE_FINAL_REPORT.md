@@ -1,5 +1,12 @@
 # LTZ Hardware Service — Final Servis Raporu
 
+**2026-11-06 tüketici entegrasyonu:** User global gizlilik ve Performance aktif
+cihaz istemcileri uygulandı. Son Hardware 474/Performance 138 test ve gerçek
+Auth/Hardware/Performance/Gateway senkronizasyon kabulü 19/19 PASS.
+[Güncel kapsam ve sınırlar](../integration/hardware-user-performance.md).
+User güvenilir Social yansıması ve yorum UGC kararı açık; moderasyon/bildirim
+teslimi ertelenmiştir. Aşağıdaki eski adapter yok/deny ifadeleri tarihçedir.
+
 **2026-10-29 ikinci aşama:** Auth'un dört cevabı kaynakla karşılaştırıldı; ayrı cihaz JWT
 tüketicisi ve 60 sn kullanıcı TTL sınırı eklendi. [Güncel sonuçlar](../integration/auth/auth-integration-06.md):
 405 Hardware testi, 46 seçili Auth DEBUG testi, 155 Node testi ve 20 gerçek HTTP kontrolü PASS.

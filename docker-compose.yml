@@ -420,6 +420,7 @@ services:
     environment:
       <<: *ltz-db-env
       DB_HARDWARE_NAME: ${DB_HARDWARE_NAME:?}
+      AUTH_HARDWARE_SERVICE_CLIENT_SECRET: ${AUTH_HARDWARE_SERVICE_CLIENT_SECRET:-}
     depends_on:
       postgres:
         condition: service_healthy

@@ -1,5 +1,10 @@
 # Hardware–Auth entegrasyonu
 
+**2026-11-06 güncellemesi:** User gizlilik ve Performance aktif cihaz tüketici
+istemcileri eklendi; gerçek dört servisli grant/apply/iptal kabulü 19/19 PASS.
+[Güncel bağlantı ve kalite kaydı](../hardware-user-performance.md).
+Aşağıdaki Performance deny/erteleme ifadeleri 2026-10-29 aşamasının tarihçesidir.
+
 Sorumlu: Alper. Güncelleme: 2026-10-29. Kapsam: ikinci entegrasyon aşaması, HW-06/HW-07 ve mevcut Auth/D4 sınırı.
 
 - [05 — Talep karşılaştırması ve Hardware uygulaması](auth-integration-05.md)
