@@ -29,4 +29,3 @@
 
 Talebin ya da sorun varsa bu klasöre yeni bir `talep-NN-...md` olarak yazılır, cevap aynı şablonla verilir.
 
-> **Yeni (2026-11-05):** [bilgilendirme-2026-11-05.md](bilgilendirme-2026-11-05.md) — Auth değişiklikleri ve bu servisten beklenenler. Durum: KAPANDI

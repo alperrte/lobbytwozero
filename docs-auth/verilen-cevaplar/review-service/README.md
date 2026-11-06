@@ -14,9 +14,7 @@
 
 ## BU BRANCH İÇİN AUTH'TAN GELEN TALEP VE CEVAPLAR
 
-| # | Konu | Cevap | Durum |
-|---|---|---|---|
-| [01](talep-01-servis-kimligi-ciftleri-ve-moderasyon-yetkisi.md) | Servis kimliği çiftleri (Game/Admin/Notification) ve insan moderatör yetkisi | Game → Review `rating-summaries:read` hazır; Review ↔ Admin ve Review → Notification alıcı yokken açılmaz; yetki servis kimliğinden, insan Admin'de doğrulanır | AUTH HAZIR (Game), ALICILAR BEKLİYOR |
+Bu branch için açık talep yok. Kapanan talepler temizlendi; gerekirse git geçmişinden okunur (`git log --follow -- docs-auth/verilen-cevaplar/<servis>/`).
 
 ## BİLMEN GEREKENLER
 
@@ -29,4 +27,3 @@
 
 Talebin ya da sorun varsa bu klasöre yeni bir `talep-NN-...md` olarak yazılır, cevap aynı şablonla verilir.
 
-> **Yeni (2026-11-05):** [bilgilendirme-2026-11-05.md](bilgilendirme-2026-11-05.md) — Auth değişiklikleri ve bu servisten beklenenler. Durum: KAPANDI

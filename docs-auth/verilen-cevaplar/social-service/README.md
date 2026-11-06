@@ -25,4 +25,3 @@
 - Messaging ve lfp için Social'ın `JwtConfig` yapısı örnek alınabilir
 - Token ömrü 60 saniye, banlı kullanıcı en fazla 90 saniye görünür
 
-> **Yeni (2026-11-05):** [bilgilendirme-2026-11-05.md](bilgilendirme-2026-11-05.md) — Auth değişiklikleri ve bu servisten beklenenler. Durum: KAPANDI
