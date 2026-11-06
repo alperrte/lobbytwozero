@@ -79,6 +79,7 @@
 - Kullanıcılar içeriği ön onay olmadan yayımlayabilir; moderatör yayından kaldırabilir. Raporlar (REV-07, COM-16, HW-13) tekrar raporlamaya karşı `(reporterId, targetType, targetId)` tekilliğiyle korunur.
 - Repost orijinal yazara atfı korur; orijinal kaldırılınca repost içeriği sızdırmaz.
 - Spam/kötüye kullanım (REV-13): kullanıcı + IP bazlı oran sınırı, aynı içeriğin tekrar gönderimi ve beğeni/oy manipülasyonu kontrolleri. Beğeni `(userId, targetId)` UNIQUE.
+- `[KARAR]` **Content Service (CONT-04/10/17, LTZ-NIS-CONT-03):** moderasyon kaynaklı kaldırma/geri alma **yalnız admin-service'in `ModerationActionTaken` olayıyla** uygulanır; moderatör için doğrudan yazma ucu yoktur (geçmiş okuma ucu salt okunur ve yalnız `MODERATOR`/`ADMIN`). Her karar (gerekçe, karar veren ve admin-service'in doğruladığı rolü, zaman, olay) değişmez kayda yazılır. Karar yetkisi içerik türüne göre content-service'te ayrıca denetlenir: resmî duyuru (`ANNOUNCEMENT`) için kaldırma ve geri alma yalnız `ADMIN` kararıyla uygulanır, yetersiz karar reddedilir ve olay işlenmiş sayılmaz. Resmî duyuru oluşturma/yayın/değiştirme/silme de yalnız `ADMIN`'dir; rolü sonradan alınan yazar kendi duyurusunu da değiştiremez. `CONTENT_CREATOR` rolü yalnız yüksek kota verir, yetki genişletmez. Admin-service kararı `POST /internal/events` ile gelir: yalnız Auth servis token'ı (`svc+jwt`, `aud=content-service`, `events:ingest`, `sub=svc:admin-service`), kullanıcı token'ı bu yolda geçmez, servis token'ı kullanıcı uçlarında geçmez; olay inbox ile tekilleştirilir.
 - Moderasyon sonucu (gizleme/kaldırma/askıya alma) sahibine bildirilir, audit log'a yazılır; kaldırılan içerik ortalama puan ve sayaçlardan tutarlı çıkarılır.
 
 ## 6. Mesajlaşma ve gerçek zamanlı iletişim
@@ -149,6 +150,7 @@
   - Kullanıcı dosya adı depolama anahtarı olarak kullanılmaz; sunucu rastgele anahtar üretir. EXIF/konum metadata'sı temizlenir.
   - Özel içerik (mesaj medyası) yalnız yetkili kullanıcıya, imzalı/süreli URL veya yetki kontrollü endpoint ile sunulur. `nosniff`, güvenli `Content-Disposition`.
 - Ayrı bir medya servisi yoktur; depolama çözümü karar aşamasındadır (`[KARAR BEKLİYOR]`).
+- `[KARAR]` **Content Service (CONT-14, LTZ-NIS-CONT-01):** görsel baytları `content_db` içinde `bytea` olarak saklanır (community-service COM-10 ile aynı yaklaşım; `storage_key` ve dış depolama yoktur). Yükleme sunucuda doğrulanır: yalnız JPEG/PNG (içeriğin gerçek biçimine göre; SVG/HTML/GIF reddedilir), görsel başına en çok 2 MiB ve 6000 px / 12 milyon piksel, içerik başına en çok 6 görsel; görsel yeniden kodlanır (EXIF/konum atılır). Taslak görseline yalnız sahibi erişir (başkası için 404); **yayımlanmış** içeriğin görseli (LTZ-NIS-CONT-02) herkese açıktır. Tüm görsel yanıtları `Cache-Control: no-store` ile döner (paylaşımlı önbellek ya da tarayıcı, silinen/kaldırılan içeriğin görselini sunmaz; her istekte içeriğin görünürlüğü yeniden denetlenir), `nosniff` ve sandbox CSP vardır. İçerik silindiğinde görsel baytları aynı transaction'da kalıcı olarak silinir. Bu karar yalnız Content Service içindir; diğer servislerin depolama kararları ayrıdır.
 
 ## 14. Performans, donanım ve masaüstü istemcisi
 

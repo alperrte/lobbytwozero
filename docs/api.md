@@ -6947,7 +6947,906 @@ UNIT + INTEGRATION: gerçek RS256 imzalı token'lar ve yerel JWKS sunucusuyla g�
 
 Sorumlu: Nisa · Gateway: `/api/v1/content/**` · Görevler: CONT-
 
-_Kayıt yok._
+> **Kapsam (LTZ-NIS-CONT-01 + LTZ-NIS-CONT-02):** taslak oluşturma, düzenleme, silme, görsel yönetimi (CONT-01) ve yayınlama, herkese açık akış, arama, filtre, kategori, kaynak, oyun ilişkisi, öne çıkarma ve çoklu dil (CONT-02). Moderasyon (yayından kaldırma) ve resmî duyuru yayın akışının yönetici ekranı sonraki fazlardadır.
+>
+> **Ortak kurallar.**
+> - **Kimlik:** yazar yalnız doğrulanmış JWT'nin `sub` claim'inden alınır (gövde/sorgu/başlıktaki kimlik güven kaynağı değildir). Token Auth Service'in JWKS anahtarıyla bu serviste doğrulanır (yalnız RS256, `typ=at+jwt`, `iss=ltz-auth`, `aud=ltz-api`, `exp`/`nbf`/`iat`/`sub` zorunlu); servis token'ı (`svc+jwt`) kabul edilmez; `/internal/**` altında uç yoktur ve tamamı reddedilir.
+> - **Herkese açık okuma (ürün kararı, CONT-02):** yalnız şu `GET` uçları kimliksiz (misafir) çağrılabilir: akış (`/contents`), detay (`/contents/{id}`), görsel (`/contents/{id}/images/{imageId}`) ve kategori listesi (`/categories`). Hepsi yalnız **yayımlanmış ve silinmemiş** içeriği döndürür; taslak, kaldırılmış ve silinmiş içerik başkası için `404`'tür. Geçersiz/bozuk bir `Authorization: Bearer` başlığı bu uçlarda da `401` döndürür (misafir olarak devam edilmez). Diğer tüm uçlar kimlik ister.
+> - Bilinmeyen istek alanları reddedilir (400). Hatalar `ProblemDetail` (RFC 9457). Başkasının **taslağı** hiçbir uçta varlığı sızdırılmadan `404` döner; başkasının yayımlanmış içeriği üzerinde yazma girişimi `403`'tür.
+> - **Yayımlanmış içerik düzenlenebilir** (yazarı tarafından): metin, kategori, kaynak, oyun, çeviri ve görseller değişebilir; metin değişikliklerinde yayın kuralları yeniden denetlenir. Moderatörce kaldırılmış (`REMOVED`) ve arşivlenmiş içerik düzenlenemez (`409`).
+> - **Önizleme/ön moderasyon yoktur:** yazar yayınla der demez içerik yayındadır (yayın sonrası moderasyon).
+> - **Moderasyon (CONT-10):** content-service moderasyon kaynaklı durum değişikliğini **yalnız admin-service'in `ModerationActionTaken` olayıyla** uygular (`POST /internal/events`, docs/architecture.md moderasyon akışı); moderatör için doğrudan yazma ucu **yoktur**. Karar yayımlanmış içeriği yayından kaldırır (`REMOVED`) ya da geri alır. Karar, gerekçe, karar veren yetkili ve rolü, zaman ve olay değişmez kayda yazılır. Kaldırılmış içerik başkası için `404`'tür, yazarı görür (gerekçeyle) ama düzenleyemez; yazar normal haberini mevcut silme ucuyla silebilmeye devam eder. Salt okunur moderasyon geçmişi `GET /moderation/contents/{id}/actions` ile yalnız `MODERATOR`/`ADMIN`'e açıktır.
+> - **Resmî duyuru (CONT-04):** `type=ANNOUNCEMENT` yalnız `ADMIN` tarafından oluşturulur, yayımlanır, düzenlenir, silinir, çevrilir, görsel/kategori/kaynak/oyun değişir; moderasyon kararıyla kaldırma **ve geri alma** da yalnız `ADMIN` kararıyla uygulanır (olay yükündeki doğrulanmış karar rolü `ADMIN` olmalıdır; `MODERATOR` kararı reddedilir). Yazarın `ADMIN` rolü sonradan alınmışsa kendi duyurusunu da değiştiremez (`403`). Duyuru ayrımı `type` alanıyla yapılır ve akışta `type=ANNOUNCEMENT` filtresiyle ayrı listelenir.
+> - **İçerik Üreticisi rolü (CONT-17):** `CONTENT_CREATOR` rolü yalnız yüksek MVP kotalarını açar (saatte 30 yeni içerik, 20 yerine 50 etkin taslak). Normal kayıtlı kullanıcının haber/içerik yayımlama hakkı aynen korunur; öne çıkarma ve duyuru yine yalnız `ADMIN`'dir.
+>
+> **İçerik gövdesi (`ContentResponse`)** — oluşturma, detay, düzenleme, yayın, öne çıkarma, çeviri, kategori, kaynak ve oyun uçları aynı gövdeyi döndürür:
+> ```json
+> {
+>   "id": "UUID",
+>   "authorId": "UUID",
+>   "type": "NEWS | ANNOUNCEMENT | USER_CONTENT",
+>   "status": "DRAFT | PUBLISHED | REMOVED | ARCHIVED (REMOVED: moderatörce kaldırıldı)",
+>   "locale": "tr | en (metnin dili: istenen dilde çeviri varsa o, yoksa içeriğin ilk dili)",
+>   "title": "string",
+>   "summary": "string | null",
+>   "body": "string | null",
+>   "images": [ { "id": "UUID", "contentId": "UUID", "mimeType": "image/jpeg | image/png", "sizeBytes": 0, "width": 0, "height": 0, "sortOrder": "0-5", "contentUrl": "/api/v1/content/contents/{contentId}/images/{imageId}", "createdAt": "ISO-8601 UTC" } ],
+>   "createdAt": "ISO-8601 UTC",
+>   "updatedAt": "ISO-8601 UTC",
+>   "gameId": "UUID | null (ilişkili LTZ oyunu)",
+>   "categories": ["PC", "UPDATE"],
+>   "sources": [ { "title": "string", "url": "https://...", "date": "YYYY-MM-DD | null" } ],
+>   "featured": false,
+>   "publishedAt": "ISO-8601 UTC | null (taslakta null)",
+>   "availableLocales": ["tr", "en"],
+>   "removedAt": "ISO-8601 UTC | null (yalnız moderatörce kaldırılmış içerikte, yalnız yazara)",
+>   "removalReason": "string | null (kaldırma gerekçesi; karar veren yetkili dönmez)"
+> }
+> ```
+
+### CONTENT — İçerik Taslağı Oluştur
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/content/contents
+
+#### Yetkilendirme
+Authenticated (kayıtlı her kullanıcı). `type=ANNOUNCEMENT` (resmî LTZ duyurusu) oluşturma ve yayımlama yalnız `ADMIN` rolüyle yapılabilir (`roles` claim'i); normal kullanıcı için `403`. `MODERATOR` duyuru oluşturamaz. `NEWS` ve `USER_CONTENT` ek rol gerektirmez; kayıtlı kullanıcı kendi içeriğini yayımlayabilir. Yazar (`authorId`) ve durum (`status`) istemciden alınmaz: yazar oturumdan, durum her zaman `DRAFT`'tır.
+
+#### Request Body
+```json
+{
+  "type": "NEWS | ANNOUNCEMENT | USER_CONTENT, zorunlu, yalnız büyük harfli ad",
+  "locale": "tr | en, opsiyonel (varsayılan tr; içeriğin ilk dili)",
+  "title": "string, zorunlu, boşluk dışında en az 1, en çok 150 karakter, tek satır (kontrol karakteri yok)",
+  "summary": "string, opsiyonel, en çok 500 karakter; boş/boşluk metin 'yok' sayılır",
+  "body": "string, opsiyonel, en çok 20000 karakter, satır sonu ve sekme dışında kontrol karakteri yok; boş/boşluk metin 'yok' sayılır (düz metin; HTML/Markdown yorumlanmaz)"
+}
+```
+Taslak doğrulaması yayın doğrulamasından ayrıdır: taslak yalnız başlık ister; özet/gövde boş olabilir. Yayın için gereken asgari uzunluklar (MVP kuralı: başlık en az 5, gövde en az 30 karakter; baştaki ve sondaki boşluklar sayılmaz; özet için asgari yok) **yalnız yayın sırasında** (ve yayımlanmış içeriğin metni değişirken) uygulanır ve taslak kaydetmeyi engellemez.
+
+#### Response — 201
+`ContentResponse` (yukarıdaki ortak gövde); `status=DRAFT`, `publishedAt=null`, `images=[]`, `categories=[]`, `sources=[]`, `featured=false`, `availableLocales=[<ilk dil>]`.
+
+#### Hata Durumları
+- 400: Doğrulama hatası (eksik/boş `title`, geçersiz `type`/`locale`, uzunluk, kontrol karakteri, bilinmeyen alan örn. `authorId`/`status`/`featured`, bozuk JSON); gövde `violations[]` içinde alan adı ve mesaj döner, girdi değeri döndürülmez
+- 401: Kimlik yok, token geçersiz/süresi dolmuş ya da servis token'ı
+- 403: Normal kullanıcı `ANNOUNCEMENT` oluşturmaya çalıştı
+- 409: Aynı yazarın aynı türde aynı metne (büyük/küçük harf ve boşluk farkı yok sayılır) sahip etkin içeriği zaten var (mükerrer); ya da etkin taslak sınırı doldu (MVP kuralı: aynı anda en çok 20 etkin taslak; `CONTENT_CREATOR` için 50)
+- 429: Saatlik oluşturma sınırı aşıldı (MVP kuralı: kullanıcı başına saatte en çok 10 yeni içerik, `CONTENT_CREATOR` için 30; silinen içerikler de sayılır, **silme kotayı sıfırlamaz**); `Retry-After: 3600`
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/content/contents
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (MockMvc güvenlik zinciri gerçek RS256 token + yerel JWKS ile; servis kuralları; gerçek PostgreSQL entegrasyonu). **İzole PostgreSQL ile çalıştırıldı ve geçti (2026-11-06).** Gateway ve gerçek auth-service ile uçtan uca doğrulama: NOT VERIFIED.
+
+### CONTENT — İçerik Akışı (Liste, Arama, Filtre)
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/content/contents
+
+#### Yetkilendirme
+Public (misafir dahil). Yalnız yayımlanmış ve silinmemiş içerik listelenir; taslak/kaldırılmış/silinmiş içerik hiçbir koşulda görünmez. Sahibinin kendi taslak listesi bu fazda yoktur (taslak kimliğiyle `GET /contents/{id}` kullanılır).
+
+#### Query Parameters
+- q: string, opsiyonel, 2–100 karakter, kontrol karakteri yok. Arama (CONT-12): başlık, özet ve gövdede büyük/küçük harf duyarsız **"içerir"** eşleşmesi (V105 `pg_trgm` GIN indeksleriyle desteklenir); içeriğin **tüm dillerindeki** metinlerine bakar. `%`, `_` ve `!` karakterleri düz metin olarak aranır (joker değildir); tek karakter `400`, boşluk/boş metin "arama yok" sayılır. Harf katlamasını sütun ve desen için aynı veritabanı `lower()` fonksiyonu yapar. Gözlenen davranış (PostgreSQL 17, `en_US.utf8`): `İ`→`i` ve `I`→`i` olduğundan `istanbul`, `İstanbul` ve `ISTANBUL` aynı içeriği bulur; **noktasız `ı` büyük `I` ile eşleşmez** (`ışık` araması `Işık` başlığını bulmaz, `Işık` araması bulur).
+- category: string, opsiyonel, kategori kodu (`GET /categories`; ör. `PC`, `UPDATE`)
+- gameId: UUID, opsiyonel, ilişkili oyun
+- type: `NEWS | ANNOUNCEMENT | USER_CONTENT`, opsiyonel
+- featured: boolean, opsiyonel (`true` yalnız öne çıkanlar, `false` öne çıkmayanlar)
+- from: ISO-8601 an, opsiyonel, yayınlanma zamanı alt sınırı (dahil)
+- to: ISO-8601 an, opsiyonel, yayınlanma zamanı üst sınırı (hariç); `from` < `to` olmalı
+- locale: `tr | en`, opsiyonel, varsayılan `tr`. İstenen dilde çeviri varsa o dilin başlık/özeti, yoksa içeriğin ilk dili gösterilir.
+- limit: tamsayı, opsiyonel, 1–50, varsayılan 20
+- cursor: string, opsiyonel, önceki yanıttaki `nextCursor` (opak, en çok 200 karakter); aynı filtrelerle gönderilmelidir
+
+Sıralama sabittir: yayınlanma zamanına göre yeniden eskiye (eşitlikte `id` azalan). Sayfalama keyset'tir (sayfa numarası/toplam sayı yoktur); yeni içerik eklenirken sayfalar kaymaz.
+
+#### Response — 200
+```json
+{
+  "items": [
+    {
+      "id": "UUID",
+      "authorId": "UUID",
+      "type": "NEWS | ANNOUNCEMENT | USER_CONTENT",
+      "locale": "tr | en (gösterilen dil)",
+      "title": "string",
+      "summary": "string | null",
+      "gameId": "UUID | null",
+      "categories": ["PC", "UPDATE"],
+      "coverImageUrl": "/api/v1/content/contents/{contentId}/images/{imageId} | null",
+      "featured": false,
+      "publishedAt": "ISO-8601 UTC"
+    }
+  ],
+  "nextCursor": "string | null (null ise son sayfa)"
+}
+```
+Kart gövde (`body`) taşımaz; kapak görseli ilk (en düşük `sortOrder`) görseldir.
+
+#### Hata Durumları
+- 400: Geçersiz sorgu parametresi (limit 1–50 dışı, `locale` tr/en dışı, küçük harfli/bozuk `category`, `q` çok uzun/kontrol karakteri içeriyor ya da 1 karakter, geçersiz `type`/`gameId`/`featured`/tarih, `from` ≥ `to`, bozuk/başka akışa ait `cursor`)
+- 401: Gönderilen `Authorization` başlığı geçersiz (başlıksız misafir isteği 401 değildir)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/content/contents
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL: yalnız yayımlanmış içerik, filtreler, tarih aralığı, keyset sayfalama ve eşit zaman damgası, dil seçimi, arama kaçışları, SQL enjeksiyon denemesi; izole PostgreSQL ile çalıştırıldı ve geçti). Gateway ile uçtan uca doğrulama: NOT VERIFIED.
+
+### CONTENT — Kategori Listesi
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/content/categories
+
+#### Yetkilendirme
+Public (misafir dahil). Kategoriler **sabit listedir** (migration ile eklenir); kategori yönetim ucu yoktur (ürün kararı). Liste: platform (`PC`, `PLAYSTATION`, `XBOX`, `NINTENDO_SWITCH`, `MOBILE`, `VR`) ve konu (`INDUSTRY`, `RELEASE`, `UPDATE`, `ESPORTS`, `GUIDE`, `HARDWARE`, `COMMUNITY`, `EVENT`) olmak üzere 14 kayıt.
+
+#### Response — 200
+```json
+[
+  { "code": "PC", "kind": "PLATFORM | TOPIC", "nameTr": "string", "nameEn": "string" }
+]
+```
+Sabit sıraya göre döner.
+
+#### Hata Durumları
+- 401: Gönderilen `Authorization` başlığı geçersiz
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/content/categories
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT (MockMvc) + INTEGRATION (14 sabit kategori, kısıtlar; izole PostgreSQL ile çalıştırıldı ve geçti). Gateway ile uçtan uca doğrulama: NOT VERIFIED.
+
+### CONTENT — İçerik Getir
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/content/contents/{contentId}
+
+#### Yetkilendirme
+Public (misafir dahil) — yalnız **yayımlanmış ve silinmemiş** içerik için. Sahibi kendi içeriğini her durumda (silinmemişse; taslak dahil) görür; başka kullanıcı ve misafir taslağı/kaldırılmış içeriği göremez (`404`).
+
+#### Path Parameters
+- contentId: UUID, zorunlu
+
+#### Query Parameters
+- locale: `tr | en`, opsiyonel. İstenen dilde çeviri varsa o, yoksa içeriğin ilk dili döner; `availableLocales` mevcut çevirileri listeler.
+
+#### Response — 200
+`ContentResponse` (yukarıdaki ortak gövde).
+
+#### Hata Durumları
+- 400: Geçersiz UUID ya da `locale` tr/en dışı
+- 401: Gönderilen `Authorization` başlığı geçersiz
+- 404: İçerik yok, silinmiş ya da çağıran için görünmez (başkasının taslağı)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/content/contents/{contentId}
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (izole PostgreSQL ile çalıştırıldı ve geçti; 2026-11-06). Gateway ve auth-service ile uçtan uca doğrulama: NOT VERIFIED.
+
+### CONTENT — İçerik Düzenle
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+PATCH /api/v1/content/contents/{contentId}
+
+#### Yetkilendirme
+Owner (yalnız içeriğin yazarı; sahiplik servis içinde doğrulanır). **Taslak ve yayımlanmış** içerik düzenlenebilir; yayımlanmış içerikte sonuç yayın kurallarını sağlamalıdır. Yazar, tür, dil, durum, öne çıkarma ve yayın zamanı bu uçla değiştirilemez (bu alanlar istekte kabul edilmez, 400). Bu uç içeriğin **ilk dilindeki** metni değiştirir; diğer dil için `PUT .../translations/{locale}` kullanılır.
+
+#### Path Parameters
+- contentId: UUID, zorunlu
+
+#### Request Body
+Kısmi güncelleme: verilen alan değişir, verilmeyen (null) alan olduğu gibi kalır; en az bir alan zorunludur.
+```json
+{
+  "title": "string, opsiyonel, en çok 150 karakter, tek satır; boş olamaz",
+  "summary": "string, opsiyonel, en çok 500 karakter; boş/boşluk metin alanı temizler",
+  "body": "string, opsiyonel, en çok 20000 karakter; boş/boşluk metin alanı temizler"
+}
+```
+Hiçbir şeyi değiştirmeyen istek `200` döner ve `updatedAt` değişmez.
+
+#### Response — 200
+`ContentResponse`.
+
+#### Hata Durumları
+- 400: Doğrulama hatası, hiçbir alan verilmedi, başlık boş, bilinmeyen alan (örn. `type`, `status`, `authorId`, `featured`)
+- 401: Kimlik yok ya da token geçersiz
+- 403: Başkasının **yayımlanmış** içeriğini düzenleme girişimi; ya da `ADMIN` rolü olmayan birinin resmî duyuruyu düzenlemesi (yazarı olsa bile)
+- 404: İçerik yok/silinmiş ya da başkasının taslağı (varlığı sızdırılmaz)
+- 409: İçerik düzenlenemez durumda (moderatörce kaldırılmış `REMOVED` ya da `ARCHIVED`); yeni metin yazarın başka bir etkin içeriğiyle aynı (mükerrer); eşzamanlı değişiklik (`@Version`)
+- 422: Yayımlanmış içeriğin yeni metni yayın kurallarını sağlamıyor (başlık en az 5, gövde en az 30 karakter); `issues[]` (örn. `tr:BODY_TOO_SHORT`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/content/contents/{contentId}
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (izole PostgreSQL ile çalıştırıldı ve geçti). Gateway ve auth-service ile uçtan uca doğrulama: NOT VERIFIED.
+
+### CONTENT — İçerik Yayınla
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/content/contents/{contentId}/publish
+
+#### Yetkilendirme
+Owner. Yalnız `DRAFT` içerik yayımlanır; **ön moderatör onayı yoktur** (yayın sonrası moderasyon). `ANNOUNCEMENT` yalnız `ADMIN` yayımlayabilir. Yayın kuralları (CONT-18, MVP: başlık en az 5, gövde en az 30 karakter) içeriğin **tüm dillerdeki** çevirileri için denetlenir.
+
+#### Path Parameters
+- contentId: UUID, zorunlu
+
+#### Response — 200
+`ContentResponse`; `status=PUBLISHED`, `publishedAt` yayın anı. İçerik aynı andan itibaren herkese açık akışta ve detayda görünür.
+
+#### Hata Durumları
+- 401: Kimlik yok ya da token geçersiz
+- 403: Normal kullanıcı `ANNOUNCEMENT` yayımlamaya çalıştı; ya da başkasının yayımlanmış içeriği
+- 404: İçerik yok/silinmiş ya da başkasının taslağı
+- 409: İçerik zaten yayımlanmış; ya da taslak olmayan (`REMOVED`/`ARCHIVED`) içerik
+- 422: Yayın kuralları sağlanmıyor; `issues[]` eksikleri `<dil>:<kod>` olarak listeler (`TITLE_TOO_SHORT`, `BODY_TOO_SHORT`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/content/contents/{contentId}/publish
+
+Diğer mikroservisler:
+- Yok. (Yayın olayı/bildirim bu fazda üretilmez: broker kararı bekliyor; notification-service entegrasyonu yok.)
+
+#### Test Durumu
+UNIT + INTEGRATION (yayın kuralları, duyuru yetkisi, taslak→yayın→akış→silme tutarlılığı; izole PostgreSQL ile çalıştırıldı ve geçti). Gateway ile uçtan uca doğrulama: NOT VERIFIED.
+
+### CONTENT — İçeriği Öne Çıkar
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+PUT /api/v1/content/contents/{contentId}/featured
+
+#### Yetkilendirme
+Admin (yalnız `ADMIN` rolü; ürün kararı). Yalnız yayımlanmış içerik öne çıkarılabilir. İşlem idempotenttir; işlemi yapan yönetici ve zaman kaydedilir.
+
+#### Path Parameters
+- contentId: UUID, zorunlu
+
+#### Response — 200
+`ContentResponse`; `featured=true`.
+
+#### Hata Durumları
+- 401: Kimlik yok ya da token geçersiz
+- 403: `ADMIN` rolü yok
+- 404: İçerik yok ya da silinmiş
+- 409: İçerik yayımlanmış değil
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/content/contents/{contentId}/featured
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (izole PostgreSQL ile çalıştırıldı ve geçti). Gateway ve auth-service ile uçtan uca doğrulama: NOT VERIFIED.
+
+### CONTENT — Öne Çıkarmayı Kaldır
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+DELETE /api/v1/content/contents/{contentId}/featured
+
+#### Yetkilendirme
+Admin (yalnız `ADMIN` rolü). İdempotenttir: zaten öne çıkarılmamış içerikte de `200` döner.
+
+#### Path Parameters
+- contentId: UUID, zorunlu
+
+#### Response — 200
+`ContentResponse`; `featured=false`.
+
+#### Hata Durumları
+- 401: Kimlik yok ya da token geçersiz
+- 403: `ADMIN` rolü yok
+- 404: İçerik yok ya da silinmiş
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/content/contents/{contentId}/featured
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (izole PostgreSQL ile çalıştırıldı ve geçti). Gateway ve auth-service ile uçtan uca doğrulama: NOT VERIFIED.
+
+### CONTENT — Çeviri Ekle / Değiştir
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+PUT /api/v1/content/contents/{contentId}/translations/{locale}
+
+#### Yetkilendirme
+Owner. Desteklenen diller `tr` ve `en`'dir. İçeriğin **ilk dili** bu uçla değiştirilemez (onun için `PATCH`); yalnız diğer dil eklenir/tam değiştirilir. Taslak ve yayımlanmış içerik için çalışır; yayımlanmış içerikte çeviri yayın kurallarını sağlamalıdır.
+
+#### Path Parameters
+- contentId: UUID, zorunlu
+- locale: `tr | en`, zorunlu
+
+#### Request Body
+Tam değiştirme: gönderilmeyen özet/gövde temizlenir.
+```json
+{
+  "title": "string, zorunlu, boşluk dışında 1–150 karakter, tek satır",
+  "summary": "string, opsiyonel, en çok 500 karakter; boş metin alanı temizler",
+  "body": "string, opsiyonel, en çok 20000 karakter; boş metin alanı temizler"
+}
+```
+
+#### Response — 200
+`ContentResponse` (eklenen/değiştirilen dilde: `locale` = `{locale}`).
+
+#### Hata Durumları
+- 400: Geçersiz `locale` (tr/en dışı), ilk dil için çağrı, doğrulama hatası, bilinmeyen alan
+- 401: Kimlik yok ya da token geçersiz
+- 403: Başkasının yayımlanmış içeriği
+- 404: İçerik yok/silinmiş ya da başkasının taslağı
+- 409: İçerik düzenlenemez durumda (`REMOVED`/`ARCHIVED`); eşzamanlı değişiklik
+- 422: Yayımlanmış içeriğin çevirisi yayın kurallarını sağlamıyor; `issues[]` (örn. `en:BODY_TOO_SHORT`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/content/contents/{contentId}/translations/{locale}
+
+Diğer mikroservisler:
+- Yok. (Otomatik çeviri sağlayıcısı kullanılmaz; çeviriyi yazar girer.)
+
+#### Test Durumu
+UNIT + INTEGRATION (izole PostgreSQL ile çalıştırıldı ve geçti). Gateway ile uçtan uca doğrulama: NOT VERIFIED.
+
+### CONTENT — Çeviri Sil
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+DELETE /api/v1/content/contents/{contentId}/translations/{locale}
+
+#### Yetkilendirme
+Owner. İçeriğin ilk dilindeki metin silinemez. Çeviri fiziksel olarak silinir (saklama süresi 0 gün).
+
+#### Path Parameters
+- contentId: UUID, zorunlu
+- locale: `tr | en`, zorunlu
+
+#### Response — 200
+`ContentResponse` (içeriğin ilk dilinde).
+
+#### Hata Durumları
+- 400: Geçersiz `locale` ya da ilk dil silinmeye çalışıldı
+- 401: Kimlik yok ya da token geçersiz
+- 403: Başkasının yayımlanmış içeriği
+- 404: İçerik yok/başkasının taslağı ya da o dilde çeviri yok
+- 409: İçerik düzenlenemez durumda
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/content/contents/{contentId}/translations/{locale}
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (izole PostgreSQL ile çalıştırıldı ve geçti). Gateway ile uçtan uca doğrulama: NOT VERIFIED.
+
+### CONTENT — Kategorileri Değiştir
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+PUT /api/v1/content/contents/{contentId}/categories
+
+#### Yetkilendirme
+Owner (taslak ve yayımlanmış içerik). Kategoriler sabit listeden seçilir (`GET /categories`); yeni kategori eklenemez.
+
+#### Path Parameters
+- contentId: UUID, zorunlu
+
+#### Request Body
+Tam değiştirme; boş liste tüm kategorileri kaldırır, tekrar eden kodlar tek sayılır.
+```json
+{ "categories": ["PC", "UPDATE"] }
+```
+En çok 5 kod, her kod en çok 32 karakter.
+
+#### Response — 200
+`ContentResponse`.
+
+#### Hata Durumları
+- 400: Liste yok/5'ten fazla, boş kod, bilinmeyen kategori kodu, bilinmeyen alan
+- 401: Kimlik yok ya da token geçersiz
+- 403: Başkasının yayımlanmış içeriği
+- 404: İçerik yok/başkasının taslağı
+- 409: İçerik düzenlenemez durumda
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/content/contents/{contentId}/categories
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (izole PostgreSQL ile çalıştırıldı ve geçti). Gateway ile uçtan uca doğrulama: NOT VERIFIED.
+
+### CONTENT — Kaynakları Değiştir
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+PUT /api/v1/content/contents/{contentId}/sources
+
+#### Yetkilendirme
+Owner (taslak ve yayımlanmış içerik). Kaynak bağlantısı yalnız saklanır ve gösterilir; **sunucu bu adrese hiçbir zaman istek atmaz** (SSRF yüzeyi yoktur).
+
+#### Path Parameters
+- contentId: UUID, zorunlu
+
+#### Request Body
+Tam değiştirme; boş liste tüm kaynakları kaldırır. En çok 3 kaynak; sıra korunur.
+```json
+{
+  "sources": [
+    { "title": "string, zorunlu, en çok 150 karakter", "url": "https://... zorunlu, yalnız https, boşluksuz, en çok 500 karakter, kullanıcı bilgisi (user:pass@) yok", "date": "YYYY-MM-DD, opsiyonel, bugün ya da geçmiş" }
+  ]
+}
+```
+
+#### Response — 200
+`ContentResponse`.
+
+#### Hata Durumları
+- 400: Liste yok/3'ten fazla, boş ad, `http://`, `javascript:`, `data:` ve diğer https dışı bağlantılar, boşluklu/çok uzun bağlantı, gelecek tarih, bilinmeyen alan
+- 401: Kimlik yok ya da token geçersiz
+- 403: Başkasının yayımlanmış içeriği
+- 404: İçerik yok/başkasının taslağı
+- 409: İçerik düzenlenemez durumda
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/content/contents/{contentId}/sources
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (güvensiz bağlantı senaryoları dahil; izole PostgreSQL ile çalıştırıldı ve geçti). Gateway ile uçtan uca doğrulama: NOT VERIFIED.
+
+### CONTENT — Oyun Bağla
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+PUT /api/v1/content/contents/{contentId}/game
+
+#### Yetkilendirme
+Owner (taslak ve yayımlanmış içerik). Oyun, game-service'in oyun kataloğunda doğrulanır (aşağıda); doğrulanamazsa ilişki yazılmaz.
+
+#### Path Parameters
+- contentId: UUID, zorunlu
+
+#### Request Body
+```json
+{ "gameId": "UUID, zorunlu" }
+```
+
+#### Response — 200
+`ContentResponse`; `gameId` dolu.
+
+#### Hata Durumları
+- 400: `gameId` yok/geçersiz UUID, bilinmeyen alan
+- 401: Kimlik yok ya da token geçersiz
+- 403: Başkasının yayımlanmış içeriği
+- 404: İçerik yok/başkasının taslağı
+- 409: İçerik düzenlenemez durumda
+- 422: Oyun katalogda yok ya da yayında değil
+- 503: game-service yanıt vermedi (zaman aşımı/bağlantı/beklenmeyen yanıt); ilişki yazılmaz, iç hata ayrıntısı döndürülmez
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/content/contents/{contentId}/game
+
+Diğer mikroservisler:
+RestClient ile game-service `POST /api/v1/game/games/batch` (gövde `{ "gameIds": ["UUID"] }`; yanıttaki `items[]` içinde bulunan oyun geçerlidir, `unavailable[]` içindeki geçersizdir). Doğrulama veritabanı transaction'ı dışında yapılır; adres `ltz.clients.game-service.url` (`GAME_SERVICE_URL`) ile ayarlanır. Çağrı Gateway'e uğramaz; servisler arası çağrı sözleşmesi docs/api.md GAME bölümündedir.
+
+#### Test Durumu
+UNIT (RestClient `MockRestServiceServer` ile; hata/boş yanıt senaryoları dahil) + INTEGRATION (izole PostgreSQL ile çalıştırıldı ve geçti). Gerçek game-service ile uçtan uca doğrulama: NOT VERIFIED.
+
+### CONTENT — Oyun Bağını Kaldır
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+DELETE /api/v1/content/contents/{contentId}/game
+
+#### Yetkilendirme
+Owner (taslak ve yayımlanmış içerik). İdempotenttir.
+
+#### Path Parameters
+- contentId: UUID, zorunlu
+
+#### Response — 200
+`ContentResponse`; `gameId=null`.
+
+#### Hata Durumları
+- 401: Kimlik yok ya da token geçersiz
+- 403: Başkasının yayımlanmış içeriği
+- 404: İçerik yok/başkasının taslağı
+- 409: İçerik düzenlenemez durumda
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/content/contents/{contentId}/game
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (izole PostgreSQL ile çalıştırıldı ve geçti). Gateway ile uçtan uca doğrulama: NOT VERIFIED.
+
+### CONTENT — Moderasyon Geçmişi
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend (moderasyon ekranı)
+
+#### Endpoint
+GET /api/v1/content/moderation/contents/{contentId}/actions
+
+#### Yetkilendirme
+Moderator / Admin (`MODERATOR` ya da `ADMIN`, yalnız doğrulanmış JWT'nin `roles` claim'i). **Salt okunurdur**; bu yolda yazma yöntemi yoktur (`POST`/`PUT`/`PATCH`/`DELETE` → `405`): yayından kaldırma ve geri alma yalnız admin-service olayıyla yapılır ("İç Olay Girişi"). Rol, içerik aranmadan önce denetlenir (rolsüz kullanıcı için `403`, içeriğin varlığı sızdırılmaz). Karar veren yetkilinin kimliği ve rolü yalnız bu uçta döner; içeriğin yazarına gösterilmez.
+
+#### Path Parameters
+- contentId: UUID, zorunlu
+
+#### Response — 200
+En yeni karar önce (boş olabilir):
+```json
+[
+  {
+    "id": "UUID (moderasyon kaydı)",
+    "contentId": "UUID",
+    "action": "REMOVE | RESTORE",
+    "resultingStatus": "REMOVED | PUBLISHED",
+    "actorId": "UUID (kararı veren moderatör/yönetici)",
+    "actorRole": "MODERATOR | ADMIN (admin-service'in doğruladığı rol)",
+    "source": "ADMIN_SERVICE",
+    "reason": "string",
+    "reportId": "UUID | null (bağlı rapor)",
+    "createdAt": "ISO-8601 UTC"
+  }
+]
+```
+
+#### Hata Durumları
+- 400: Geçersiz UUID
+- 401: Kimlik yok ya da token geçersiz (servis token'ı kullanıcı uçlarında geçmez)
+- 403: `MODERATOR`/`ADMIN` rolü yok
+- 404: İçerik yok ya da silinmiş
+- 405: Yazma yöntemi denendi (doğrudan karar ucu yoktur)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/content/moderation/contents/{contentId}/actions
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (rol denetimi, yazma yöntemlerinin 405'i, geçmiş sırası ve alanları; izole PostgreSQL ile çalıştırıldı ve geçti). Gateway ile uçtan uca doğrulama: NOT VERIFIED.
+
+### CONTENT — İç Olay Girişi (admin-service kararı)
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Admin Service (üretici). Admin Service henüz sahipsiz ve alıcı/üretici sözleşmesi yoktur: teslim NOT VERIFIED.
+
+#### Endpoint
+POST /internal/events
+
+#### Yetkilendirme
+Internal. Gateway'de **route edilmez** (`/api/v1/...` altında değildir). Auth'un servis token'ı sözleşmesine (D4: `typ=svc+jwt`, RS256/JWKS, `iss=ltz-auth`, `aud=content-service`, `jti`, ömür ≤ 60 sn) uyan token ve `SCOPE_events:ingest` kapsamı gerekir; token'ın `sub` değeri zarftaki `producer` ile **tam olarak `svc:<producer>`** olmalıdır (bir servis başkası adına olay yayınlayamaz). Kimlik yoksa/geçersizse 401 (kullanıcı token'ı dahil), kapsam ya da çağıran uyuşmazsa 403. **Auth tarafında `admin-service → content-service` çifti için `events:ingest` kapsamının tanımlanması gerekir** (Auth sahibine iletilecek; şu an yalnız bu serviste test edilmiştir). **Karar yetkisi iki katmanda denetlenir:** admin-service kararı veren kullanıcının rolünü doğrular ve yüke `moderatorRole` olarak yazar; servis token'ı çağrıyı yapan servisin admin-service olduğunu kanıtlar, bu yüzden content-service yükteki doğrulanmış role güvenir. Content-service ayrıca içerik türünü **kendi veritabanından** okuyup yetkiyi içerik türüne göre denetler (aşağıdaki tablo). İstemci/kullanıcı hiçbir şekilde karar veremez.
+
+#### Request Body (olay zarfı, docs/architecture.md §6.2)
+```json
+{
+  "eventId": "UUID (tekilleştirme anahtarı)",
+  "eventType": "ModerationActionTaken",
+  "eventVersion": 1,
+  "occurredAt": "ISO-8601 UTC",
+  "producer": "admin-service",
+  "aggregateId": "UUID",
+  "payload": {
+    "targetType": "CONTENT",
+    "targetId": "UUID (içerik)",
+    "action": "REMOVE | RESTORE | DISMISS",
+    "moderatorId": "UUID (REMOVE/RESTORE için zorunlu: kararı veren yetkili)",
+    "moderatorRole": "MODERATOR | ADMIN (REMOVE/RESTORE için zorunlu: kararı veren kullanıcının admin-service tarafından doğrulanmış rolü)",
+    "reason": "string (REMOVE/RESTORE için zorunlu, 1-500 karakter)",
+    "reportId": "UUID (opsiyonel; bağlı rapor)"
+  }
+}
+```
+Zarfta tanımsız alan reddedilir. `ModerationActionTaken` yalnız `admin-service` üreticisinden kabul edilir. Diğer olay türleri başarıyla yok sayılır (`IGNORED`). `DISMISS` içeriği değiştirmez (yalnız olay kaydedilir). `HIDE` gibi tanınmayan eylem `400`'dür. Karar uygulandığında içerik durumu ve değişmez moderasyon kaydı (karar veren, rolü, gerekçe, `eventId`, `reportId`, zaman; `source=ADMIN_SERVICE`) aynı transaction'da yazılır. `REMOVE` yalnız yayımlanmış içeriği kaldırır ve öne çıkarmayı sona erdirir; `RESTORE` yalnız kaldırılmış içeriği yayına alır.
+
+**Karar yetkisi matrisi** (içerik türü content-service veritabanından okunur):
+
+| İçerik türü | `moderatorRole=MODERATOR` | `moderatorRole=ADMIN` |
+| --- | --- | --- |
+| `NEWS`, `USER_CONTENT` | `REMOVE` ve `RESTORE` uygulanır | `REMOVE` ve `RESTORE` uygulanır |
+| `ANNOUNCEMENT` (resmî duyuru) | **reddedilir (403)** | `REMOVE` ve `RESTORE` uygulanır |
+
+Yetersiz yetki **reddedilir**: içerik durumu ve moderasyon geçmişi değişmez, olay işlenmiş olarak **kaydedilmez** (aynı `eventId` daha yetkili bir kararla yeniden gönderilebilir). Rol eksik ya da `MODERATOR`/`ADMIN` dışındaysa yük geçersizdir (400). Başarılı bir olay yeniden teslim edilirse `DUPLICATE` döner; ikinci bir durum değişikliği ya da denetim kaydı oluşmaz. Aynı karar yeni bir `eventId` ile gelip durum zaten uygunsa (ör. kaldırılmış içeriğe ikinci `REMOVE`) etkisizdir ve ikinci denetim kaydı yazılmaz; ancak yetki içerik varsa her zaman önce denetlenir.
+
+#### Response — 200
+```json
+{ "eventId": "UUID", "outcome": "PROCESSED | DUPLICATE | IGNORED" }
+```
+`PROCESSED`: olay işlendi (içerik yoksa ya da durum karara zaten uygunsa etkisiz; üretici yeniden denemesin diye başarı döner). `DUPLICATE`: aynı `eventId` daha önce işlendi (inbox), hiçbir şey yapılmadı. Olay etkisiyle aynı transaction'da tekilleştirilir; geçersiz olay "işlendi" diye kaydedilmez.
+
+#### Hata Durumları
+- 400: Geçersiz zarf/yük, üretici–tür uyuşmazlığı, `targetType` `CONTENT` değil, eksik `moderatorId`/`moderatorRole`/`reason`, `moderatorRole` `MODERATOR`/`ADMIN` değil, gerekçe 1-500 karakter dışı, tanınmayan `action`
+- 401: Servis token'ı yok/geçersiz (süre, audience, issuer, `typ`, ömür > 60 sn, `jti`, `sub` biçimi), kullanıcı token'ı
+- 403: `events:ingest` kapsamı yok, `sub` ile `producer` uyuşmuyor, tanımsız iç yol; karar yetkisi içerik için yetersiz (`ANNOUNCEMENT` için `MODERATOR` kararı); olay kaydedilmez
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Admin Service → Content Service (`POST /internal/events`, Auth servis token'ı). Admin-service'in kendi sözleşmesi docs/api.md ADMIN bölümünde henüz yoktur; yük biçimi buradaki gibi ortaklaştırılmalıdır (docs/api.md COMMUNITY'deki `ModerationActionTaken` yükünden farkı: hedef `CONTENT`; `moderatorId`, **`moderatorRole`** ve `reason` zorunlu). **Admin-service'te gerekenler:** (1) kararı veren kullanıcının rolünü kendi yetkilendirmesinde doğrulayıp `moderatorRole` olarak yazmak; (2) `ANNOUNCEMENT` kararını yalnız `ADMIN` rolüyle vermek (content bunu ayrıca zorlar, 403 döner); (3) 403/400'ü kalıcı red saymak (yeniden denememek; durumu `PENDING_APPLY` yerine `REJECTED` benzeri bir durumla izlemek); (4) `DUPLICATE`/`PROCESSED` ve etkisiz sonuçları başarı saymak; (5) Auth'ta `admin-service → content-service` çifti için `events:ingest` servis token'ını almak.
+
+#### Test Durumu
+UNIT (gerçek RS256 servis token'ı ve yerel JWKS ile güvenlik zinciri, yük ve rol doğrulaması, yetki matrisi) + INTEGRATION (gerçek PostgreSQL: kaldırma/geri alma, duyuru yetkisi, reddedilen kararın içerik/geçmiş/inbox'ta iz bırakmaması ve aynı `eventId`'nin yetkili kararla işlenebilmesi, yeniden teslimde `DUPLICATE` ve ikinci kayıt oluşmaması). Gerçek admin-service ve Auth'tan token alımı ile uçtan uca doğrulama: NOT VERIFIED.
+
+### CONTENT — İçerik Sil
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+DELETE /api/v1/content/contents/{contentId}
+
+#### Yetkilendirme
+Owner. Silme politikası (LTZ-NIS-CONT-01 kararı): tek transaction'da (1) `contents` satırına **silme işareti** (`deleted_at`) konur, satır kalır ve hiçbir okuma yolunda (akış, detay, arama, görsel) görünmez; öne çıkarma kaldırılır; (2) metin ve çeviriler (`content_translations`), (3) görsel baytları (`content_images`), (4) kategori bağlantıları ve (5) kaynaklar **kalıcı olarak silinir**; silinen metin için saklama süresi **0 gün**, metinden türeyen parmak izi de nötr değerle değiştirilir. Silinmiş içeriğin görsel adresleri `404` döner. Silme saatlik oluşturma kotasını sıfırlamaz (silinen satırlar sayılmaya devam eder). Yayımlanmış içerik de sahibi tarafından silinebilir. Moderatörce kaldırılmış (`REMOVED`) içerik moderasyon kaydı olarak korunur ve sahibi tarafından silinemez. Hesap silindiğinde kullanıcının tüm içerik kayıtları kalıcı olarak silinir: ayrı görev, bkz. `docs-content/LTZ-NIS-CONT-AUTH-01-Hesap-Silme-Gorevi.md`.
+
+#### Path Parameters
+- contentId: UUID, zorunlu
+
+#### Response — 204
+Gövde yok. Aynı içeriği ikinci kez silmek `404` döner.
+
+#### Hata Durumları
+- 400: Geçersiz UUID
+- 401: Kimlik yok ya da token geçersiz
+- 403: Başkasının yayımlanmış içeriğini silme girişimi; ya da `ADMIN` rolü olmayan birinin resmî duyuruyu silmesi
+- 404: İçerik yok, zaten silinmiş ya da başkasının taslağı
+- 409: Moderatörce kaldırılmış (`REMOVED`) içerik sahibi tarafından silinemez (moderasyon kaydı olarak korunur)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/content/contents/{contentId}
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL: soft delete, metin/görsel/kategori/kaynak silinmesi, silme sonrası akış/detay/görsel erişiminin 404 olması; izole PostgreSQL ile çalıştırıldı ve geçti). Gateway ve auth-service ile uçtan uca doğrulama: NOT VERIFIED.
+
+### CONTENT — Görsel Ekle
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/content/contents/{contentId}/images
+
+#### Yetkilendirme
+Owner; taslak ve yayımlanmış içeriğe eklenir (`REMOVED`/`ARCHIVED` içeriğe eklenmez). Ayrı media-service yoktur: görsel baytları `content_db` içinde saklanır (community-service ile aynı depolama kararı).
+
+#### Path Parameters
+- contentId: UUID, zorunlu
+
+#### Request Body
+`multipart/form-data`, tek parça `file`. Sunucu tarafında doğrulanır: dosya adı ve istemcinin bildirdiği `Content-Type` güvenilmez, **içeriğin gerçek biçimine** bakılır; yalnız JPEG ve PNG kabul edilir (SVG, HTML, GIF ve diğer her şey reddedilir); en çok 2 MiB, kenar başına 6000 piksel, toplam 12 milyon piksel (çözmeden önce kontrol edilir); görsel yeniden kodlanır (EXIF/konum ve gömülü yükler atılır); içerik başına en çok 6 görsel; dosya adı saklanmaz.
+
+#### Response — 201
+```json
+{
+  "id": "UUID",
+  "contentId": "UUID",
+  "mimeType": "image/jpeg | image/png (sunucunun doğruladığı gerçek tür)",
+  "sizeBytes": 0,
+  "width": 0,
+  "height": 0,
+  "sortOrder": "0-5 (ilk boş yuva)",
+  "contentUrl": "/api/v1/content/contents/{contentId}/images/{imageId}",
+  "createdAt": "ISO-8601 UTC"
+}
+```
+
+#### Hata Durumları
+- 400: `file` parçası yok ya da dosya boş
+- 401: Kimlik yok ya da token geçersiz
+- 403: Başkasının yayımlanmış içeriğine ekleme girişimi
+- 404: İçerik yok/silinmiş ya da başkasının taslağı
+- 409: İçerik düzenlenemez durumda; ya da görsel sınırı (6) doldu
+- 413: Dosya 2 MiB'tan büyük
+- 415: Desteklenmeyen biçim (SVG, HTML, GIF, JPEG/PNG olmayan her şey)
+- 422: Bozuk görsel ya da piksel sınırı aşıldı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/content/contents/{contentId}/images
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (geçersiz/zararlı görsel senaryoları dahil; izole PostgreSQL ile çalıştırıldı ve geçti; 2026-11-06). Gateway ve auth-service ile uçtan uca doğrulama: NOT VERIFIED.
+
+### CONTENT — Görsel Getir
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/content/contents/{contentId}/images/{imageId}
+
+#### Yetkilendirme
+Public (misafir dahil) — yalnız **yayımlanmış** içeriğin görseli için. Taslak görseline yalnız sahibi erişir (başkası ve misafir için `404`); silinmiş/kaldırılmış içeriğin görseli kimseye verilmez.
+
+#### Path Parameters
+- contentId: UUID, zorunlu
+- imageId: UUID, zorunlu
+
+#### Response — 200
+Görsel baytları (`image/jpeg` ya da `image/png`). Başlıklar: `X-Content-Type-Options: nosniff`, `Content-Disposition: inline`, `Content-Security-Policy: default-src 'none'; sandbox`. Önbellek: tüm görsel yanıtları `Cache-Control: no-store` ile döner (yayımlanmış ve taslak); her istekte bağlı içeriğin hâlâ yayımlanmış ve silinmemiş olduğu yeniden denetlenir, bu yüzden silinen, kaldırılan ya da yayından çekilen içeriğin görseli aynı URL'de hemen `404` döner.
+
+#### Hata Durumları
+- 400: Geçersiz UUID
+- 401: Gönderilen `Authorization` başlığı geçersiz
+- 404: İçerik, görsel ya da erişim yok (silinmiş içeriğin görseli dahil)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/content/contents/{contentId}/images/{imageId}. Gateway bu GET'i `Authorization` başlığı olmadan geçirir (2026-11-06'da doğrulandı). Yayımlanmış içeriğin görseli `<img>` etiketiyle doğrudan yüklenebilir (kimlik gerekmez); sahibinin taslak görseli için `Authorization: Bearer` gerekir ve tarayıcı `<img>` başlık gönderemediğinden çerezden Bearer'a çeviren Gateway akışı (docs/EKIP_AUTH_GATEWAY_ENTEGRASYON_NOTLARI.md) kullanılır.
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (izole PostgreSQL ile çalıştırıldı ve geçti). Gateway çerez→Bearer akışıyla uçtan uca doğrulama: NOT VERIFIED.
+
+### CONTENT — Görsel Sil
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+DELETE /api/v1/content/contents/{contentId}/images/{imageId}
+
+#### Yetkilendirme
+Owner; taslak ve yayımlanmış içeriğin görseli silinir. Görsel baytları fiziksel olarak silinir; boşalan sıra numarası sonraki yüklemede yeniden kullanılır.
+
+#### Path Parameters
+- contentId: UUID, zorunlu
+- imageId: UUID, zorunlu
+
+#### Response — 204
+Gövde yok.
+
+#### Hata Durumları
+- 400: Geçersiz UUID
+- 401: Kimlik yok ya da token geçersiz
+- 403: Başkasının yayımlanmış içeriğinin görselini silme girişimi
+- 404: İçerik/görsel yok ya da başkasının taslağı
+- 409: İçerik düzenlenemez durumda
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/content/contents/{contentId}/images/{imageId}
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (izole PostgreSQL ile çalıştırıldı ve geçti; 2026-11-06). Gateway ve auth-service ile uçtan uca doğrulama: NOT VERIFIED.
 
 ## EVENT
 
