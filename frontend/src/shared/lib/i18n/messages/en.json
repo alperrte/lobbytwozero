@@ -127,6 +127,15 @@
       "minimal": "Minimal",
       "minimalHint": "No animation, the theme changes instantly."
     },
+    "sound": {
+      "title": "Transition sound",
+      "info": "Turns the Tactical V3 transition sound on or off. Switching to dark plays rifle shots and breaking lamp glass, switching to light plays a flare launch and burst. Sound only plays when you press the theme button.",
+      "on": "Sound on",
+      "onHint": "Plays shots, breaking glass and the flare burst.",
+      "off": "Muted",
+      "offHint": "The transition animation plays silently.",
+      "note": "Sound only plays with the Tactical V3 pack."
+    },
     "deviceNote": "Your preferences are stored only on this device and apply as soon as you choose them."
   },
   "ThemeTransition": {

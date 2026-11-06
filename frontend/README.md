@@ -103,13 +103,13 @@ Dar ekran: `max-width: 767px`.
   1. Tavandan sarkan ince konili lambalar yanar.
   2. Operatör sağ alttan gizli yürüyüşle girer ve çöker.
   3. Telsiz levhası operatörün yanında "LTZ BİRİMİ // KARARTMA BAŞLIYOR" ve "OPERASYON KARARTMA" yazar.
-  4. Her lamba için nişan, namlu parlaması ve iz mermisi gelir; isabette kıvılcım çıkar, lamba kısa titreyip söner. Patlama ve ekran sarsıntısı yoktur.
+  4. Her lamba için nişan, namlu parlaması ve iz mermisi gelir; isabette kıvılcım çıkar, lamba kısa titreyip söner. Patlama ve ekran sarsıntısı yoktur. Ses açıksa atış anında tüfek sesi, isabette kırılan lamba camı duyulur.
   5. Son lamba söndüğünde Dark tema uygulanır.
   6. Operatör NVG'yi eliyle indirir. Yeşil ışık yalnız gözlükte yanar.
   7. Operatör gölgeye karışır ve örtü kalkar.
 - **Daybreak (Dark → Light):**
   1. Operatör NVG'yi kaldırır ve ışık söner.
-  2. Fişek tabancasını çeker ve geri tepmeyle ateşler. Fişek sıcak bir izle yükselir.
+  2. Fişek tabancasını çeker ve geri tepmeyle ateşler. Fişek sıcak bir izle yükselir. Ses açıksa ateşlemede boğuk atış ve yükselen ıslık, tepe noktasında patlama ve çıtırtı duyulur.
   3. Levha Blackout ile aynı kalıpta "LTZ BİRİMİ // GÜN DOĞUYOR" ve "OPERASYON GÜN DOĞUMU" yazar. Uzun metinde yazma, levha sönmeden en az 400 ms okunacak kadar hızlanır.
   4. Katmanlı piksel sırtların arkasından güneş doğar. Sıcak kehribar ışık yayıldığında Light tema uygulanır.
   5. Operatör şapkasını düzeltir, yürüyerek çıkar ve örtü kalkar.
@@ -119,7 +119,9 @@ Dar ekran: `max-width: 767px`.
 - **V2:** [legacy/v2/tactical-scenes.tsx](src/shared/components/theme-transition/legacy/v2/tactical-scenes.tsx), [legacy/v2/operator-sprite.tsx](src/shared/components/theme-transition/legacy/v2/operator-sprite.tsx), [legacy/v2/sprite-data.ts](src/shared/components/theme-transition/legacy/v2/sprite-data.ts) ve [legacy/v2/tactical.css](src/shared/components/theme-transition/legacy/v2/tactical.css).
 - **V1:** [legacy/v1/classic-scenes.tsx](src/shared/components/theme-transition/legacy/v1/classic-scenes.tsx), [legacy/v1/scenes.tsx](src/shared/components/theme-transition/legacy/v1/scenes.tsx) ve [legacy/v1/classic.css](src/shared/components/theme-transition/legacy/v1/classic.css).
 
-**Ortak denetleyici.** Durum makinesi [theme-transition.ts](src/shared/lib/theme/theme-transition.ts) içindedir: hangi sahnenin oynayacağını paketten seçer, temayı doğru anda uygular, art arda tıklamada son isteği kazandırır ve zamanlayıcıları temizler. Sahne adları ve süreler [transition-scenes.ts](src/shared/lib/theme/transition-scenes.ts) kaydındadır. Örtü bileşeni [theme-transition-layer.tsx](src/shared/components/theme-transition/theme-transition-layer.tsx) `popover="manual"` üst katmanında, `pointer-events: none`, `aria-hidden` ve `contain: strict` ile çizilir; tema durumu ile animasyon durumu ayrıdır. Ortak taban stil [theme-transition.css](src/shared/components/theme-transition/theme-transition.css) içindedir. Ses, WebGL ve animasyon kütüphanesi yoktur. V1/V2 CSS + SVG, V3 WAAPI + PNG sprite + SVG kullanır.
+**Ortak denetleyici.** Durum makinesi [theme-transition.ts](src/shared/lib/theme/theme-transition.ts) içindedir: hangi sahnenin oynayacağını paketten seçer, temayı doğru anda uygular, art arda tıklamada son isteği kazandırır ve zamanlayıcıları temizler. Sahne adları ve süreler [transition-scenes.ts](src/shared/lib/theme/transition-scenes.ts) kaydındadır. Örtü bileşeni [theme-transition-layer.tsx](src/shared/components/theme-transition/theme-transition-layer.tsx) `popover="manual"` üst katmanında, `pointer-events: none`, `aria-hidden` ve `contain: strict` ile çizilir; tema durumu ile animasyon durumu ayrıdır. Ortak taban stil [theme-transition.css](src/shared/components/theme-transition/theme-transition.css) içindedir. WebGL, ses dosyası ve animasyon kütüphanesi yoktur. V1/V2 CSS + SVG, V3 WAAPI + PNG sprite + SVG kullanır.
+
+**V3 sesi.** [scene-sound.ts](src/shared/components/theme-transition/v3/scene-sound.ts) atış, cam kırılması, fişek atışı ve fişek patlamasını Web Audio API ile anlık sentezler (gürültü + filtre + osilatör). Ses dosyası, lisans veya ağ isteği yoktur. İpucu anları `timeline.ts` çizelgesinden gelir (`fireAt`, `hitAt`, `flareApexAt`) ve `startedAt` saatine hizalanır. AudioContext yalnız sahne açılınca, yani kullanıcı tema düğmesine bastıktan sonra oluşturulur; sayfa açılışında ses çalmaz. Sahne kalkınca ana ses kısılıp bağlantı kesilir. Web Audio yoksa veya tarayıcı reddederse sahne sessiz oynar. Ses varsayılan olarak açıktır ve Ayarlar sayfasındaki Geçiş sesi kartından kapatılır (`ltz-transition-sound` + `data-transition-sound="off"`). V1, V2 ve Sade paketlerinde ses yoktur.
 
 **Ayarlarla bağlantı.** Ayarlar sayfasındaki "Tema geçişi" kartı ([settings-form.tsx](src/shared/components/layout/settings-form.tsx)) `useTransitionPack` hook'unu ([use-transition-pack.ts](src/shared/hooks/use-transition-pack.ts)) kullanır. Seçim `localStorage` + `data-transition` ile saklanır ve tema seçiminden bağımsızdır. Durum sahipliği: tercih `preferences.ts` ve `<html>` niteliğinde, animasyon durumu `theme-transition.ts` deposunda, çizim `theme-transition-layer.tsx` içindedir.
 

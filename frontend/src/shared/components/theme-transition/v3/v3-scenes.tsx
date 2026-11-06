@@ -12,6 +12,7 @@ import {
   type OperatorFrame
 } from "./operator-frames";
 import { createScenePlayer, HOLD, readViewport, type ScenePlayer, type TrackPoint } from "./scene-player";
+import { blackoutCues, daybreakCues, playSceneSound } from "./scene-sound";
 import { pixelDiscPath, RIDGE_VIEW, RIDGES, ridgePath, ridgeRimPath } from "./scenery";
 import { anchorOnScreen, layoutLamps, operatorBox, OPERATOR_SCALE, type OperatorBox } from "./stage";
 import { blackoutPlan, daybreakPlan, flareArc, type BlackoutPlan, type DaybreakPlan, type FrameCue } from "./timeline";
@@ -318,10 +319,15 @@ export function BlackoutV3Scene({ compact, startedAt }: V3SceneProps) {
     }
     const plan = blackoutPlan(compact);
     const player = createScenePlayer(element, plan.totalMs, startedAt);
+    let stopSound: (() => void) | undefined;
     if (player.live) {
       runBlackout(element, plan, compact, player);
+      stopSound = playSceneSound(blackoutCues(plan), startedAt);
     }
-    return () => player.cancel();
+    return () => {
+      player.cancel();
+      stopSound?.();
+    };
   }, [compact, startedAt]);
 
   return (
@@ -541,10 +547,15 @@ export function DaybreakV3Scene({ compact, startedAt }: V3SceneProps) {
     }
     const plan = daybreakPlan(compact);
     const player = createScenePlayer(element, plan.totalMs, startedAt);
+    let stopSound: (() => void) | undefined;
     if (player.live) {
       runDaybreak(element, plan, compact, player);
+      stopSound = playSceneSound(daybreakCues(plan), startedAt);
     }
-    return () => player.cancel();
+    return () => {
+      player.cancel();
+      stopSound?.();
+    };
   }, [compact, startedAt]);
 
   return (
