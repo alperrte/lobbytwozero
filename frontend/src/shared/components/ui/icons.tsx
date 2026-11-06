@@ -126,7 +126,13 @@ const paths = {
       <path d="M4 4l16 16" />
     </>
   ),
-  fileText: <path d="M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6" />
+  fileText: <path d="M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6" />,
+  crosshair: (
+    <>
+      <circle cx="12" cy="12" r="7" />
+      <path d="M12 2v6M12 16v6M2 12h6M16 12h6" />
+    </>
+  )
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof paths;
