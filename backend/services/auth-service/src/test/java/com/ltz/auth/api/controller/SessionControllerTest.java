@@ -1,7 +1,9 @@
 package com.ltz.auth.api.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -91,6 +93,34 @@ class SessionControllerTest extends IntegrationTestSupport {
         mockMvc.perform(post(AuthApiPaths.TOTP_SETUP).with(xsrf()).cookie(session.access()))
                 .andExpect(status().isUnauthorized());
         assertThat(securityEventCount(accountId(email), "LOGOUT")).isEqualTo(1);
+    }
+
+    @Test
+    void meGirisliKullanicininKimliginiVeRolleriniDonerHassasAlanDonmez() throws Exception {
+        String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
+        SessionCookiePair session = loginSession(email);
+
+        String body = mockMvc.perform(get(AuthApiPaths.ME).cookie(session.access()))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("no-store")))
+                .andExpect(jsonPath("$.accountId").value(accountId(email).toString()))
+                .andExpect(jsonPath("$.roles[0]").value("PLAYER"))
+                .andExpect(jsonPath("$.authMethods[0]").value("pwd"))
+                .andExpect(jsonPath("$.accessTokenExpiresAt").exists())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(body).doesNotContain(email).doesNotContain("sid").doesNotContain("ver");
+    }
+
+    @Test
+    void meMisafireVeGecersizOturumaUnauthorizedDoner() throws Exception {
+        mockMvc.perform(get(AuthApiPaths.ME)).andExpect(status().isUnauthorized());
+
+        String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
+        SessionCookiePair session = loginSession(email);
+        jdbc.update("update accounts set status = 'SUSPENDED' where email_normalized = lower(?)", email);
+
+        mockMvc.perform(get(AuthApiPaths.ME).cookie(session.access())).andExpect(status().isUnauthorized());
     }
 
     @Test

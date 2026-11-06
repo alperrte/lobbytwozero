@@ -89,6 +89,7 @@ public class SecurityConfig {
 
     /** Geçerli access token isteyen uçlar. */
     static final RequestMatcher AUTHENTICATED_ENDPOINTS = new OrRequestMatcher(
+            PATHS.matcher(HttpMethod.GET, AuthApiPaths.ME),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.SESSION_LOGOUT_ALL),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_CHANGE),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_SET_REQUEST),

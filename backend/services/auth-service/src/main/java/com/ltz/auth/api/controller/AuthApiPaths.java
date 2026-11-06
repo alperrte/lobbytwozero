@@ -17,6 +17,7 @@ public final class AuthApiPaths {
     public static final String LOGIN_TWO_FACTOR_ENROLLMENT_START = LOGIN_TWO_FACTOR + "/enrollment/start";
     public static final String LOGIN_TWO_FACTOR_ENROLLMENT_COMPLETE = LOGIN_TWO_FACTOR + "/enrollment/complete";
     public static final String CSRF = BASE + "/csrf";
+    public static final String ME = BASE + "/me";
     public static final String JWKS = BASE + "/.well-known/jwks.json";
 
     /** Refresh cookie'si yalnız bu yolun altına gönderilir. */

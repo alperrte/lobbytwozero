@@ -379,22 +379,25 @@ Tüketici servisler: Frontend
 - POST /api/v1/auth/session/logout — bu cihazdaki oturumu kapatır, cookie'leri siler (idempotent)
 - POST /api/v1/auth/session/logout-all — tüm oturumları kapatır, eski access token'ları geçersiz kılar
 - GET /api/v1/auth/csrf — CSRF cookie'sini üretir (`204`)
+- GET /api/v1/auth/me — girişli kullanıcının kim olduğunu döner (SPA oturum yoklaması)
 
 #### Yetkilendirme
-refresh/logout: Public (refresh cookie + CSRF) · logout-all: Authenticated (+ CSRF) · csrf: Public
+refresh/logout: Public (refresh cookie + CSRF) · logout-all: Authenticated (+ CSRF) · csrf: Public · me: Authenticated (access cookie veya Bearer; GET olduğu için CSRF istemez)
 
 #### Response
 - refresh — 200: `{ "status": "AUTHENTICATED", "accessTokenExpiresAt": "ISO-8601" }`
 - logout, logout-all — 204
+- me — 200: `{ "accountId": "UUID", "roles": ["PLAYER", ...], "authMethods": ["pwd", ...], "accessTokenExpiresAt": "ISO-8601" }`. `Cache-Control: no-store`. E-posta, kullanıcı adı, hesap durumu, `sid` ve `ver` **dönmez** (profil User Service'tedir). `roles` yalnız arayüzü (menü vb.) şekillendirmek içindir; yetki kararı her serviste token'dan yeniden verilir.
 
 #### Hata Durumları
+- 401 (`me`): Token yok (misafir), süresi dolmuş, oturum iptal edilmiş ya da hesap aktif değil. İstemci `POST /session/refresh` dener; o da 401 verirse kullanıcı misafirdir.
 - 401: Refresh token yok, geçersiz, süresi dolmuş, oturum iptal edilmiş veya hesap aktif değil (`SESSION_INVALID`; cookie'ler silinir). Daha önce döndürülmüş token 10 sn'den sonra yeniden gelirse oturum ailesi tümüyle iptal edilir.
 - 403: CSRF
 - 409: Aynı refresh token ile eşzamanlı yenileme (`REFRESH_CONFLICT`); oturum korunur, istemci tek refresh isteği yürütüp isteği tekrarlar.
 
 #### Bağlantı
 Frontend:
-API Gateway üzerinden /api/v1/auth/session/** ve /api/v1/auth/csrf
+API Gateway üzerinden /api/v1/auth/session/**, /api/v1/auth/csrf ve /api/v1/auth/me
 
 Diğer mikroservisler:
 -
@@ -1503,7 +1506,7 @@ UNIT + INTEGRATION (`PlayerSearchTest` 9 test: önek, Türkçe katlama, durum/en
 
 ### USER — Gizlilik kararı (Internal, Social/Hardware/Library → User)
 
-Durum: IMPLEMENTED (çağıran tüketiciler ve Auth kapsamı **PENDING**: T3, T6, T7, T8)
+Durum: IMPLEMENTED (Auth kapsamı ve çağıran→hedef çiftleri hazır, T3 kapandı; tüketicilerle uçtan uca **PENDING**: T6, T7, T8)
 Sorumlu: Kerem
 Tüketici servisler: social-service (SOC-12), hardware-service (HW-08 `HardwareVisibilityPolicy`), library-service (LIB-11)
 
@@ -1511,7 +1514,7 @@ Tüketici servisler: social-service (SOC-12), hardware-service (HW-08 `HardwareV
 POST /internal/v1/privacy/decisions
 
 #### Yetkilendirme
-Internal. Gateway'de route edilmez. `typ=svc+jwt`, `aud=user-service`, `scope` ⊇ `privacy:read` (yoksa `403`); çağıran (`sub`) yalnız `svc:social-service`, `svc:hardware-service`, `svc:library-service` olabilir (aksi halde `403`). Kullanıcı token'ı `401`. **Auth'ta bu kapsam ve çağıran→hedef çiftleri henüz tanımlı değildir (talep T3).**
+Internal. Gateway'de route edilmez. `typ=svc+jwt`, `aud=user-service`, `scope` ⊇ `privacy:read` (yoksa `403`); çağıran (`sub`) yalnız `svc:social-service`, `svc:hardware-service`, `svc:library-service` olabilir (aksi halde `403`). Kullanıcı token'ı `401`. Auth'ta bu kapsam ve üç çağıran→hedef çifti tanımlıdır (`social-service`, `library-service`, `hardware-service` → `user-service`, `privacy:read`); kapsam hesaba bağlı değildir, token isteğinde `accountId` gönderilmez.
 
 #### Request Body
 ```json
@@ -1543,7 +1546,7 @@ Frontend:
 -
 
 Diğer mikroservisler:
-social-service, hardware-service ve library-service Auth'tan `aud=user-service`, `scope=privacy:read` servis token'ı alıp bu ucu `${USER_SERVICE_URL}` üzerinden çağırır (Auth T3 sonrası). Gerçek tüketicilerle uçtan uca: **NOT VERIFIED**.
+social-service, hardware-service ve library-service Auth'tan `aud=user-service`, `scope=privacy:read` servis token'ı alıp bu ucu `${USER_SERVICE_URL}` üzerinden çağırır (Auth çiftleri hazır). Gerçek tüketicilerle uçtan uca: **NOT VERIFIED**.
 
 #### Test Durumu
 UNIT + INTEGRATION (`PrivacyDecisionTest` 8, `SocialProjectionTrustedTest` 3, `PrivacyRulesTest` 21).
