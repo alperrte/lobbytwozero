@@ -425,4 +425,68 @@ class ContentRepositoryIntegrationTest extends PostgreSqlIntegrationTest {
 
 		assertThat(jdbcTemplate.queryForObject("select game_id from contents where id = ?", UUID.class, id)).isEqualTo(game);
 	}
+	// ------------------------------------------------------------------ V106 (CONT-10)
+
+	@Test
+	void removalDetailsAndTheRemovedStatusGoTogether() {
+		UUID id = saveDraft(UUID.randomUUID(), ContentType.NEWS, hash('g')).getId();
+		jdbcTemplate.update("update contents set status = 'PUBLISHED', published_at = now() where id = ?", id);
+		UUID moderator = UUID.randomUUID();
+
+		assertRejected("ck_contents_removal", "update contents set status = 'REMOVED' where id = ?", id);
+		assertRejected("ck_contents_removal",
+				"update contents set status = 'REMOVED', removed_at = now(), removed_by = ? where id = ?", moderator, id);
+		assertRejected("ck_contents_removal",
+				"update contents set status = 'PUBLISHED', removed_at = now(), removed_by = ?, removed_reason = 'x' where id = ?", moderator, id);
+		assertRejected("ck_contents_removal",
+				"update contents set status = 'REMOVED', removed_at = now(), removed_by = ?, removed_reason = '   ' where id = ?", moderator, id);
+		// 500 karakteri aşan gerekçe sütun uzunluğuyla (varchar(500)) reddedilir.
+		assertRejected("(500)",
+				"update contents set status = 'REMOVED', removed_at = now(), removed_by = ?, removed_reason = ? where id = ?", moderator,
+				"a".repeat(501), id);
+
+		jdbcTemplate.update(
+				"update contents set status = 'REMOVED', removed_at = now(), removed_by = ?, removed_reason = 'Spam' where id = ?", moderator, id);
+		assertThat(jdbcTemplate.queryForObject("select removed_reason from contents where id = ?", String.class, id)).isEqualTo("Spam");
+		// Kaldırılmış içerik öne çıkarılamaz (ck_contents_featured: yalnız PUBLISHED).
+		assertRejected("ck_contents_featured",
+				"update contents set featured = true, featured_at = now(), featured_by = ? where id = ?", moderator, id);
+	}
+
+	@Test
+	void moderationActionsAreValidatedAndFollowTheContentOnDelete() {
+		UUID id = saveDraft(UUID.randomUUID(), ContentType.NEWS, hash('h')).getId();
+		String insert = "insert into content_moderation_actions (id, content_id, action, actor_id, actor_role, source, reason, created_at) "
+				+ "values (?, ?, ?, ?, ?, ?, ?, now())";
+		UUID actor = UUID.randomUUID();
+		jdbcTemplate.update(insert, UUID.randomUUID(), id, "REMOVE", actor, "MODERATOR", "ADMIN_SERVICE", "Spam");
+		jdbcTemplate.update(insert, UUID.randomUUID(), id, "RESTORE", actor, "ADMIN", "ADMIN_SERVICE", "Düzeltildi");
+
+		assertRejected("ck_content_moderation_actions_action", insert, UUID.randomUUID(), id, "HIDE", actor, "MODERATOR",
+				"ADMIN_SERVICE", "Spam");
+		assertRejected("ck_content_moderation_actions_actor_role", insert, UUID.randomUUID(), id, "REMOVE", actor, "PLAYER",
+				"ADMIN_SERVICE", "Spam");
+		// Doğrudan moderatör yolu kaldırıldı: karar yolu yalnız ADMIN_SERVICE olabilir.
+		assertRejected("ck_content_moderation_actions_source", insert, UUID.randomUUID(), id, "REMOVE", actor, "MODERATOR",
+				"MODERATOR_API", "Spam");
+		assertRejected("ck_content_moderation_actions_source", insert, UUID.randomUUID(), id, "REMOVE", actor, "MODERATOR",
+				"CLIENT", "Spam");
+		assertRejected("ck_content_moderation_actions_reason", insert, UUID.randomUUID(), id, "REMOVE", actor, "MODERATOR",
+				"ADMIN_SERVICE", "  ");
+		assertRejected("fk_content_moderation_actions_content", insert, UUID.randomUUID(), UUID.randomUUID(), "REMOVE", actor,
+				"MODERATOR", "ADMIN_SERVICE", "Spam");
+
+		jdbcTemplate.update("delete from contents where id = ?", id);
+		assertThat(jdbcTemplate.queryForObject("select count(*) from content_moderation_actions where content_id = ?", Integer.class, id))
+				.isZero();
+	}
+
+	@Test
+	void theInboxRejectsTheSameEventTwice() {
+		UUID eventId = UUID.randomUUID();
+		String insert = "insert into inbox_events (event_id, event_type, producer, processed_at) values (?, 'ModerationActionTaken', 'admin-service', now())";
+		jdbcTemplate.update(insert, eventId);
+
+		assertRejected("pk_inbox_events", insert, eventId);
+	}
 }

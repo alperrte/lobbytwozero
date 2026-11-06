@@ -871,6 +871,7 @@ erDiagram
   contents ||--o{ content_translations : "translated as"
   contents ||--o{ content_images : has
   contents ||--o{ content_sources : cites
+  contents ||--o{ content_moderation_actions : "moderated by"
 
   content_categories {
     uuid id PK
@@ -898,6 +899,9 @@ erDiagram
     boolean featured "V104, yalnız PUBLISHED"
     timestamptz featured_at "V104"
     uuid featured_by "REF, ADMIN (V104)"
+    timestamptz removed_at "V106, yalnız REMOVED"
+    uuid removed_by "REF, moderatör (V106)"
+    varchar removed_reason "V106"
   }
   content_translations {
     uuid content_id PK,FK
@@ -920,6 +924,24 @@ erDiagram
     varchar url "yalnız https (V103)"
     date source_date
     int sort_order "0-2, UQ (content_id, sort_order)"
+  }
+  content_moderation_actions {
+    uuid id PK
+    uuid content_id FK
+    varchar action "REMOVE|RESTORE"
+    uuid actor_id "REF, moderatör (V106)"
+    varchar actor_role "MODERATOR|ADMIN, admin-service doğrulaması (V107)"
+    varchar source "ADMIN_SERVICE (V107)"
+    varchar reason
+    uuid report_id "REF"
+    uuid event_id
+    timestamptz created_at
+  }
+  inbox_events {
+    uuid event_id PK "V106, olay tekilleştirme"
+    varchar event_type
+    varchar producer
+    timestamptz processed_at
   }
 ```
 

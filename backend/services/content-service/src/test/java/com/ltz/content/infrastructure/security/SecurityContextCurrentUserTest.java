@@ -118,4 +118,32 @@ class SecurityContextCurrentUserTest {
 	void noAuthenticationIsNeverAdmin() {
 		assertThat(currentUser.hasAdminRole()).isFalse();
 	}
+	@Test
+	void moderatorAndContentCreatorRolesAreReadFromTheRolesClaimOnly() {
+		authenticate(USER_ID.toString(), List.of("PLAYER", "MODERATOR"));
+		assertThat(currentUser.hasModeratorRole()).isTrue();
+		assertThat(currentUser.hasContentCreatorRole()).isFalse();
+		assertThat(currentUser.hasAdminRole()).isFalse();
+
+		authenticate(USER_ID.toString(), List.of("CONTENT_CREATOR"));
+		assertThat(currentUser.hasContentCreatorRole()).isTrue();
+		assertThat(currentUser.hasModeratorRole()).isFalse();
+	}
+
+	@Test
+	void lookalikeAndMissingRolesGrantNothing() {
+		authenticate(USER_ID.toString(), List.of("moderator", "ROLE_MODERATOR", "content_creator", "ROLE_CONTENT_CREATOR"));
+		assertThat(currentUser.hasModeratorRole()).isFalse();
+		assertThat(currentUser.hasContentCreatorRole()).isFalse();
+
+		authenticate(USER_ID.toString(), null);
+		assertThat(currentUser.hasModeratorRole()).isFalse();
+		assertThat(currentUser.hasContentCreatorRole()).isFalse();
+	}
+
+	@Test
+	void noAuthenticationHasNoRoles() {
+		assertThat(currentUser.hasModeratorRole()).isFalse();
+		assertThat(currentUser.hasContentCreatorRole()).isFalse();
+	}
 }

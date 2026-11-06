@@ -47,6 +47,12 @@ public class ContentService {
 	/** MVP kuralı: bir kullanıcının aynı anda en çok bu kadar etkin taslağı olabilir (sınırsız depolama büyümesini engeller). */
 	static final int MAX_ACTIVE_DRAFTS = 20;
 
+	/** İçerik Üreticisi rolü (CONT-17) için yüksek kotalar; normal kullanıcının yayımlama hakkı aynen korunur. */
+	static final int CREATOR_MAX_CREATIONS_PER_HOUR = 30;
+
+	/** İçerik Üreticisi rolü için etkin taslak sınırı. */
+	static final int CREATOR_MAX_ACTIVE_DRAFTS = 50;
+
 	/** Desteklenen diller (CONT-15). */
 	static final Set<String> SUPPORTED_LOCALES = Set.of("tr", "en");
 
@@ -108,6 +114,7 @@ public class ContentService {
 	@Transactional
 	public ContentResponse updateContent(UUID contentId, UpdateContentRequest request) {
 		Content content = contentAccess.loadOwned(contentId, currentUser.requireUserId());
+		ContentAccess.requireOfficialRights(content, currentUser.hasAdminRole());
 		if (!content.isEditableByOwner()) {
 			throw new ContentNotEditableException();
 		}
@@ -133,6 +140,7 @@ public class ContentService {
 	@Transactional
 	public void deleteContent(UUID contentId) {
 		Content content = contentAccess.loadOwnedForUpdate(contentId, currentUser.requireUserId());
+		ContentAccess.requireOfficialRights(content, currentUser.hasAdminRole());
 		if (!content.isDeletableByOwner()) {
 			throw new ContentNotEditableException();
 		}
@@ -158,13 +166,14 @@ public class ContentService {
 	}
 
 	private void requireWithinQuotas(UUID authorId, Instant now) {
-		if (contentRepository.countByAuthorIdAndCreatedAtAfter(authorId,
-				now.minus(Duration.ofHours(1))) >= MAX_CREATIONS_PER_HOUR) {
+		boolean creator = currentUser.hasContentCreatorRole();
+		int hourlyLimit = creator ? CREATOR_MAX_CREATIONS_PER_HOUR : MAX_CREATIONS_PER_HOUR;
+		int draftLimit = creator ? CREATOR_MAX_ACTIVE_DRAFTS : MAX_ACTIVE_DRAFTS;
+		if (contentRepository.countByAuthorIdAndCreatedAtAfter(authorId, now.minus(Duration.ofHours(1))) >= hourlyLimit) {
 			throw new TooManyContentsException();
 		}
-		if (contentRepository.countByAuthorIdAndStatusAndDeletedAtIsNull(authorId,
-				ContentStatus.DRAFT) >= MAX_ACTIVE_DRAFTS) {
-			throw new DraftLimitExceededException(MAX_ACTIVE_DRAFTS);
+		if (contentRepository.countByAuthorIdAndStatusAndDeletedAtIsNull(authorId, ContentStatus.DRAFT) >= draftLimit) {
+			throw new DraftLimitExceededException(draftLimit);
 		}
 	}
 

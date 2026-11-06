@@ -35,6 +35,8 @@ import com.ltz.content.AuthTestSupport;
 import com.ltz.content.api.controller.CategoryController;
 import com.ltz.content.api.controller.ContentController;
 import com.ltz.content.api.controller.ContentMetadataController;
+import com.ltz.content.api.controller.ContentModerationController;
+import com.ltz.content.api.controller.InternalEventController;
 import com.ltz.content.api.controller.ContentPublicationController;
 import com.ltz.content.api.controller.ContentTranslationController;
 import com.ltz.content.api.controller.ContentImageController;
@@ -42,6 +44,8 @@ import com.ltz.content.api.dto.response.ContentImageContent;
 import com.ltz.content.api.dto.response.ContentResponse;
 import com.ltz.content.application.service.ContentImageService;
 import com.ltz.content.application.service.ContentMetadataService;
+import com.ltz.content.application.service.ContentModerationService;
+import com.ltz.content.application.service.InboundEventService;
 import com.ltz.content.application.service.ContentPublishingService;
 import com.ltz.content.application.service.ContentTranslationService;
 import com.ltz.content.application.service.ContentFeedService;
@@ -55,7 +59,8 @@ import com.nimbusds.jwt.JWTClaimsSet;
  * zinciri. Oturumsuz ve geçersiz token'lı her istek servise ulaşmadan 401 alır; servis token'ı kullanıcı uçlarında geçmez.
  */
 @WebMvcTest(controllers = { ContentController.class, ContentImageController.class, ContentPublicationController.class,
-		ContentTranslationController.class, ContentMetadataController.class, CategoryController.class })
+		ContentTranslationController.class, ContentMetadataController.class, CategoryController.class,
+		ContentModerationController.class, InternalEventController.class })
 @Import({ SecurityConfig.class, ProblemDetailSecurityHandler.class })
 class ContentSecurityTest {
 
@@ -91,6 +96,12 @@ class ContentSecurityTest {
 	@MockitoBean
 	private ContentMetadataService metadataService;
 
+	@MockitoBean
+	private ContentModerationService moderationService;
+
+	@MockitoBean
+	private InboundEventService inboundEventService;
+
 	private static RequestPostProcessor bearer(String token) {
 		return request -> {
 			request.addHeader(HttpHeaders.AUTHORIZATION, "Bearer " + token);
@@ -101,7 +112,7 @@ class ContentSecurityTest {
 	private static ContentResponse response() {
 		return new ContentResponse(CONTENT_ID, USER_ID, ContentType.NEWS, ContentStatus.DRAFT, "tr", "Başlık", null, null,
 				List.of(), Instant.parse("2026-11-06T10:00:00Z"), Instant.parse("2026-11-06T10:00:00Z"), null,
-				List.of(), List.of(), false, null, List.of("tr"));
+				List.of(), List.of(), false, null, List.of("tr"), null, null);
 	}
 
 	private ResultActions getWithToken(String token) throws Exception {
@@ -199,12 +210,31 @@ class ContentSecurityTest {
 
 	@Test
 	void internalPathsAreClosedToEveryone() throws Exception {
+		// Tek açık iç uç POST /internal/events (events:ingest kapsamlı servis token'ı); gerisi herkese kapalıdır.
 		mockMvc.perform(get("/internal/events")).andExpect(status().isUnauthorized());
+		// Kullanıcı token'ı iç yollarda geçmez (yola göre doğrulayıcı seçilir), rolü ne olursa olsun.
 		mockMvc.perform(get("/internal/v1/accounts/" + USER_ID).with(bearer(AuthTestSupport.userToken(USER_ID, "ADMIN"))))
-				.andExpect(status().isForbidden());
+				.andExpect(status().isUnauthorized());
+		// Hesap silme ucu henüz yok: geçerli bir servis token'ı bile tanımsız iç yolda 403 alır.
 		mockMvc.perform(delete("/internal/v1/accounts/" + USER_ID)
 				.with(bearer(AuthTestSupport.serviceToken("svc:auth-service", "account:erase"))))
-				.andExpect(status().isUnauthorized());
+				.andExpect(status().isForbidden());
+		verifyNoInteractions(inboundEventService);
+	}
+
+	@Test
+	void moderationEndpointsNeedATokenAndRejectServiceTokens() throws Exception {
+		String url = "/api/v1/content/moderation/contents/" + CONTENT_ID + "/actions";
+		String body = "{\"action\":\"REMOVE\",\"reason\":\"Spam\"}";
+		mockMvc.perform(post(url).contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isUnauthorized());
+		mockMvc.perform(get(url)).andExpect(status().isUnauthorized());
+		mockMvc.perform(post(url).with(bearer(AuthTestSupport.serviceToken("svc:admin-service", "events:ingest")))
+				.contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isUnauthorized());
+		// Doğrudan yazma ucu yoktur: oturumlu moderatör/yönetici bile POST ile karar veremez (yalnız admin-service olayı).
+		mockMvc.perform(post(url).with(bearer(AuthTestSupport.userToken(USER_ID, "MODERATOR", "ADMIN")))
+				.contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isMethodNotAllowed());
+
+		verifyNoInteractions(moderationService);
 	}
 
 	// ------------------------------------------------------------------ herkese açık okuma (CONT-02)

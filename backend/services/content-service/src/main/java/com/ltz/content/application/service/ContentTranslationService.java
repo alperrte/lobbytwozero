@@ -95,6 +95,7 @@ public class ContentTranslationService {
 			throw new InvalidContentRequestException("The locale must be one of: tr, en.");
 		}
 		Content content = contentAccess.loadOwnedForUpdate(contentId, currentUser.requireUserId());
+		ContentAccess.requireOfficialRights(content, currentUser.hasAdminRole());
 		if (!content.isEditableByOwner()) {
 			throw new ContentNotEditableException();
 		}

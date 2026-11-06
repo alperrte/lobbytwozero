@@ -41,7 +41,9 @@ public class ContentMapper {
 						source.getSourceDate())).toList(),
 				content.isFeatured(),
 				content.getPublishedAt(),
-				availableLocales);
+				availableLocales,
+				content.getRemovedAt(),
+				content.getRemovedReason());
 	}
 
 	public ContentCardResponse toCard(Card card, List<String> categories, UUID coverImageId) {

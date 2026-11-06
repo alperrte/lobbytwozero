@@ -296,7 +296,8 @@ class ContentPublicationLifecycleIntegrationTest extends PostgreSqlIntegrationTe
 		assertThat(imageService.getImage(id, imageId).content()).isNotEmpty();
 
 		// Moderatörce kaldırma (sonraki faz) şimdilik doğrudan durum değişikliğiyle benzetilir.
-		jdbc.update("update contents set status = 'REMOVED' where id = ?", id);
+		jdbc.update("update contents set status = 'REMOVED', removed_at = now(), removed_by = ?, removed_reason = 'Test' where id = ?",
+				USER, id);
 		entityManager.clear();
 
 		assertThatThrownBy(() -> imageService.getImage(id, imageId)).isInstanceOf(ContentNotFoundException.class);

@@ -31,6 +31,16 @@
 - **Silme** artık kategori bağlantılarını ve kaynakları da kalıcı siler, öne çıkarmayı kaldırır.
 - **Görsel önbelleği:** tüm görsel yanıtları `Cache-Control: no-store` (önceki `public, max-age=300` kararı geri alındı). Her istekte içeriğin yayımlanmış ve silinmemiş olduğu yeniden denetlenir; silinen/kaldırılan içeriğin görseli aynı URL'de hemen 404 verir (Gateway üzerinden de doğrulandı).
 
+## Kesinleşen kararlar (LTZ-NIS-CONT-03)
+
+- **Durum (2026-11-07, moderasyon akışı düzeltmesi sonrası):** `mvn test` 365 test ile geçti; `mvn verify`, Checkstyle/PMD ve SonarQube bu düzeltmeden sonra yeniden çalıştırılmadı (sahibi çalıştıracak). Önceki sürümün sonuçları (364 test, Sonar) bu sürümün doğrulaması değildir. V107 henüz dev veritabanına uygulanmadı. Ayrıntı: `docs-content/LTZ-NIS-CONT-03-Rapor.md`.
+
+- **Moderasyon (düzeltildi):** doğrudan moderatör yazma ucu kaldırıldı; kaldırma/geri alma yalnız admin-service'in `ModerationActionTaken` olayıyla (`POST /internal/events`) uygulanır. Olay yükü kararı veren kullanıcının admin-service'ce doğrulanmış rolünü (`moderatorRole`) taşır. Her karar `content_moderation_actions`'a (gerekçe, karar veren, rolü, zaman, olay) yazılır; geçerli durum `contents.removed_*` kolonlarındadır. Geçmiş okuma (`GET`) salt okunurdur ve yalnız `MODERATOR`/`ADMIN`'e açıktır.
+- **Resmî duyuru:** oluşturma/yayın/değiştirme/silme yalnız `ADMIN`; rolü sonradan alınan yazar da değiştiremez. Moderasyon olayında da content-service içerik türünü kendi DB'sinden okuyup zorlar: `ANNOUNCEMENT` için `REMOVE` ve `RESTORE` yalnız `moderatorRole=ADMIN` ile uygulanır; `MODERATOR` kararı 403 ile reddedilir (içerik, geçmiş ve inbox değişmez).
+- **İçerik Üreticisi:** yalnız yüksek kotalar (30/saat, 50 taslak); yetki genişlemez.
+- **Servis token'ı:** `/internal/events` için `svc+jwt`, `aud=content-service`, `scope=events:ingest`, `sub=svc:admin-service` (community deseni). Auth'ta bu çiftin tanımlanması ve admin-service'in alıcı/üretici sözleşmesi **NOT VERIFIED**.
+- **Olay çıkışı yok:** outbox, `ContentPublished`/`ContentRemoved`/`ContentReported` broker kararına bırakıldı; kaldırılan içeriğin sahibi bildirim almaz.
+
 ## Açık noktalar
 
 - **Rate limit:** kullanıcı bazlı sınır servis içinde (oluşturma); IP bazlı ve dosya yükleme sınırı Gateway/edge'e aittir (Alper), burada uygulanmadı.

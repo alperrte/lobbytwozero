@@ -73,6 +73,16 @@ public class Content {
 	@Column(name = "featured_by")
 	private UUID featuredBy;
 
+	/** Moderatörce yayından kaldırma (CONT-10): yalnız {@code REMOVED} iken dolu; geri alınınca temizlenir (geçmiş ayrı tabloda). */
+	@Column(name = "removed_at")
+	private Instant removedAt;
+
+	@Column(name = "removed_by")
+	private UUID removedBy;
+
+	@Column(name = "removed_reason", length = 500)
+	private String removedReason;
+
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;
 
@@ -112,6 +122,11 @@ public class Content {
 
 	public boolean isDeleted() {
 		return deletedAt != null;
+	}
+
+	/** Moderatörce kaldırılmış ve silinmemiş içerik. */
+	public boolean isRemoved() {
+		return status == ContentStatus.REMOVED && !isDeleted();
 	}
 
 	/** Sahibi taslağını ve yayımlanmış içeriğini düzenleyebilir; kaldırılmış (REMOVED) ve arşivlenmiş içerik düzenlenemez. */
@@ -166,6 +181,30 @@ public class Content {
 		this.featuredBy = null;
 		this.updatedAt = now;
 		return true;
+	}
+
+	/**
+	 * Yayımlanmış içeriği moderatör kararıyla yayından kaldırır: durum {@code REMOVED}, gerekçe/karar veren/zaman kaydedilir,
+	 * öne çıkarma sona erer. Durum denetimi servis katmanındadır.
+	 */
+	public void remove(UUID moderatorId, String reason, Instant now) {
+		this.status = ContentStatus.REMOVED;
+		this.removedAt = now;
+		this.removedBy = moderatorId;
+		this.removedReason = reason;
+		this.featured = false;
+		this.featuredAt = null;
+		this.featuredBy = null;
+		this.updatedAt = now;
+	}
+
+	/** Kaldırılmış içeriği yayına geri alır; yayın zamanı değişmez, öne çıkarma geri gelmez. */
+	public void restore(Instant now) {
+		this.status = ContentStatus.PUBLISHED;
+		this.removedAt = null;
+		this.removedBy = null;
+		this.removedReason = null;
+		this.updatedAt = now;
 	}
 
 	public boolean linkGame(UUID newGameId, Instant now) {

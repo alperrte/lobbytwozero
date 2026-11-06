@@ -50,6 +50,7 @@ public class ContentImageService {
 	@Transactional
 	public ContentImageResponse addImage(UUID contentId, byte[] upload) {
 		Content content = contentAccess.loadOwnedForUpdate(contentId, currentUser.requireUserId());
+		ContentAccess.requireOfficialRights(content, currentUser.hasAdminRole());
 		if (!content.isEditableByOwner()) {
 			throw new ContentNotEditableException();
 		}
@@ -74,6 +75,7 @@ public class ContentImageService {
 	@Transactional
 	public void deleteImage(UUID contentId, UUID imageId) {
 		Content content = contentAccess.loadOwnedForUpdate(contentId, currentUser.requireUserId());
+		ContentAccess.requireOfficialRights(content, currentUser.hasAdminRole());
 		if (!content.isEditableByOwner()) {
 			throw new ContentNotEditableException();
 		}

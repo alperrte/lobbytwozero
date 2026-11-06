@@ -128,7 +128,8 @@ public class ContentMetadataService {
 		return requireEditable(contentAccess.loadOwnedForUpdate(contentId, currentUser.requireUserId()));
 	}
 
-	private static Content requireEditable(Content content) {
+	private Content requireEditable(Content content) {
+		ContentAccess.requireOfficialRights(content, currentUser.hasAdminRole());
 		if (!content.isEditableByOwner()) {
 			throw new ContentNotEditableException();
 		}

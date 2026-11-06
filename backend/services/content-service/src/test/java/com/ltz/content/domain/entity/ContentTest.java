@@ -114,4 +114,57 @@ class ContentTest {
 		assertThat(image.getMimeType()).isEqualTo("image/png");
 		assertThat(image.getCreatedAt()).isEqualTo(NOW);
 	}
+	@Test
+	void removeMovesPublishedContentToRemovedAndKeepsTheDecisionDetails() {
+		UUID moderator = UUID.randomUUID();
+		Content content = draft();
+		content.publish(NOW);
+		content.feature(UUID.randomUUID(), NOW);
+		Instant removedAt = NOW.plusSeconds(60);
+
+		content.remove(moderator, "Kurallara aykırı", removedAt);
+
+		assertThat(content.getStatus()).isEqualTo(ContentStatus.REMOVED);
+		assertThat(content.isRemoved()).isTrue();
+		assertThat(content.isPublished()).isFalse();
+		assertThat(content.getRemovedAt()).isEqualTo(removedAt);
+		assertThat(content.getRemovedBy()).isEqualTo(moderator);
+		assertThat(content.getRemovedReason()).isEqualTo("Kurallara aykırı");
+		assertThat(content.getUpdatedAt()).isEqualTo(removedAt);
+		assertThat(content.isFeatured()).isFalse();
+		assertThat(content.getFeaturedAt()).isNull();
+		assertThat(content.getFeaturedBy()).isNull();
+		assertThat(content.getPublishedAt()).isEqualTo(NOW);
+		assertThat(content.isEditableByOwner()).isFalse();
+		assertThat(content.isDeletableByOwner()).isFalse();
+	}
+
+	@Test
+	void restoreBringsRemovedContentBackWithoutChangingThePublishTime() {
+		Content content = draft();
+		content.publish(NOW);
+		content.remove(UUID.randomUUID(), "Neden", NOW.plusSeconds(60));
+		Instant restoredAt = NOW.plusSeconds(120);
+
+		content.restore(restoredAt);
+
+		assertThat(content.getStatus()).isEqualTo(ContentStatus.PUBLISHED);
+		assertThat(content.isRemoved()).isFalse();
+		assertThat(content.isPublished()).isTrue();
+		assertThat(content.getRemovedAt()).isNull();
+		assertThat(content.getRemovedBy()).isNull();
+		assertThat(content.getRemovedReason()).isNull();
+		assertThat(content.getPublishedAt()).isEqualTo(NOW);
+		assertThat(content.getUpdatedAt()).isEqualTo(restoredAt);
+		assertThat(content.isFeatured()).isFalse();
+	}
+
+	@Test
+	void draftsAndPublishedContentAreNotRemoved() {
+		Content content = draft();
+		assertThat(content.isRemoved()).isFalse();
+
+		content.publish(NOW);
+		assertThat(content.isRemoved()).isFalse();
+	}
 }

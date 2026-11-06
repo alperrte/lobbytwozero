@@ -83,7 +83,7 @@ class ContentWorkflowControllerTest {
 		return new ContentResponse(CONTENT_ID, USER_ID, ContentType.NEWS, ContentStatus.PUBLISHED, "tr", "Yeni Güncelleme",
 				"Kısa özet", "Gövde", List.of(), NOW, NOW, GAME_ID, List.of("PC"),
 				List.of(new ContentSourceResponse("IGN", "https://www.ign.com/a", LocalDate.parse("2026-11-01"))), true, NOW,
-				List.of("tr", "en"));
+				List.of("tr", "en"), null, null);
 	}
 
 	private ResultActions putJson(String path, String json) throws Exception {

@@ -6948,6 +6948,9 @@ Sorumlu: Nisa · Gateway: `/api/v1/content/**` · Görevler: CONT-
 > - Bilinmeyen istek alanları reddedilir (400). Hatalar `ProblemDetail` (RFC 9457). Başkasının **taslağı** hiçbir uçta varlığı sızdırılmadan `404` döner; başkasının yayımlanmış içeriği üzerinde yazma girişimi `403`'tür.
 > - **Yayımlanmış içerik düzenlenebilir** (yazarı tarafından): metin, kategori, kaynak, oyun, çeviri ve görseller değişebilir; metin değişikliklerinde yayın kuralları yeniden denetlenir. Moderatörce kaldırılmış (`REMOVED`) ve arşivlenmiş içerik düzenlenemez (`409`).
 > - **Önizleme/ön moderasyon yoktur:** yazar yayınla der demez içerik yayındadır (yayın sonrası moderasyon).
+> - **Moderasyon (CONT-10):** content-service moderasyon kaynaklı durum değişikliğini **yalnız admin-service'in `ModerationActionTaken` olayıyla** uygular (`POST /internal/events`, docs/architecture.md moderasyon akışı); moderatör için doğrudan yazma ucu **yoktur**. Karar yayımlanmış içeriği yayından kaldırır (`REMOVED`) ya da geri alır. Karar, gerekçe, karar veren yetkili ve rolü, zaman ve olay değişmez kayda yazılır. Kaldırılmış içerik başkası için `404`'tür, yazarı görür (gerekçeyle) ama düzenleyemez; yazar normal haberini mevcut silme ucuyla silebilmeye devam eder. Salt okunur moderasyon geçmişi `GET /moderation/contents/{id}/actions` ile yalnız `MODERATOR`/`ADMIN`'e açıktır.
+> - **Resmî duyuru (CONT-04):** `type=ANNOUNCEMENT` yalnız `ADMIN` tarafından oluşturulur, yayımlanır, düzenlenir, silinir, çevrilir, görsel/kategori/kaynak/oyun değişir; moderasyon kararıyla kaldırma **ve geri alma** da yalnız `ADMIN` kararıyla uygulanır (olay yükündeki doğrulanmış karar rolü `ADMIN` olmalıdır; `MODERATOR` kararı reddedilir). Yazarın `ADMIN` rolü sonradan alınmışsa kendi duyurusunu da değiştiremez (`403`). Duyuru ayrımı `type` alanıyla yapılır ve akışta `type=ANNOUNCEMENT` filtresiyle ayrı listelenir.
+> - **İçerik Üreticisi rolü (CONT-17):** `CONTENT_CREATOR` rolü yalnız yüksek MVP kotalarını açar (saatte 30 yeni içerik, 20 yerine 50 etkin taslak). Normal kayıtlı kullanıcının haber/içerik yayımlama hakkı aynen korunur; öne çıkarma ve duyuru yine yalnız `ADMIN`'dir.
 >
 > **İçerik gövdesi (`ContentResponse`)** — oluşturma, detay, düzenleme, yayın, öne çıkarma, çeviri, kategori, kaynak ve oyun uçları aynı gövdeyi döndürür:
 > ```json
@@ -6955,7 +6958,7 @@ Sorumlu: Nisa · Gateway: `/api/v1/content/**` · Görevler: CONT-
 >   "id": "UUID",
 >   "authorId": "UUID",
 >   "type": "NEWS | ANNOUNCEMENT | USER_CONTENT",
->   "status": "DRAFT | PUBLISHED | REMOVED | ARCHIVED",
+>   "status": "DRAFT | PUBLISHED | REMOVED | ARCHIVED (REMOVED: moderatörce kaldırıldı)",
 >   "locale": "tr | en (metnin dili: istenen dilde çeviri varsa o, yoksa içeriğin ilk dili)",
 >   "title": "string",
 >   "summary": "string | null",
@@ -6968,7 +6971,9 @@ Sorumlu: Nisa · Gateway: `/api/v1/content/**` · Görevler: CONT-
 >   "sources": [ { "title": "string", "url": "https://...", "date": "YYYY-MM-DD | null" } ],
 >   "featured": false,
 >   "publishedAt": "ISO-8601 UTC | null (taslakta null)",
->   "availableLocales": ["tr", "en"]
+>   "availableLocales": ["tr", "en"],
+>   "removedAt": "ISO-8601 UTC | null (yalnız moderatörce kaldırılmış içerikte, yalnız yazara)",
+>   "removalReason": "string | null (kaldırma gerekçesi; karar veren yetkili dönmez)"
 > }
 > ```
 
@@ -7003,8 +7008,8 @@ Taslak doğrulaması yayın doğrulamasından ayrıdır: taslak yalnız başlık
 - 400: Doğrulama hatası (eksik/boş `title`, geçersiz `type`/`locale`, uzunluk, kontrol karakteri, bilinmeyen alan örn. `authorId`/`status`/`featured`, bozuk JSON); gövde `violations[]` içinde alan adı ve mesaj döner, girdi değeri döndürülmez
 - 401: Kimlik yok, token geçersiz/süresi dolmuş ya da servis token'ı
 - 403: Normal kullanıcı `ANNOUNCEMENT` oluşturmaya çalıştı
-- 409: Aynı yazarın aynı türde aynı metne (büyük/küçük harf ve boşluk farkı yok sayılır) sahip etkin içeriği zaten var (mükerrer); ya da etkin taslak sınırı doldu (MVP kuralı: aynı anda en çok 20 etkin taslak)
-- 429: Saatlik oluşturma sınırı aşıldı (MVP kuralı: kullanıcı başına saatte en çok 10 yeni içerik; silinen içerikler de sayılır, **silme kotayı sıfırlamaz**); `Retry-After: 3600`
+- 409: Aynı yazarın aynı türde aynı metne (büyük/küçük harf ve boşluk farkı yok sayılır) sahip etkin içeriği zaten var (mükerrer); ya da etkin taslak sınırı doldu (MVP kuralı: aynı anda en çok 20 etkin taslak; `CONTENT_CREATOR` için 50)
+- 429: Saatlik oluşturma sınırı aşıldı (MVP kuralı: kullanıcı başına saatte en çok 10 yeni içerik, `CONTENT_CREATOR` için 30; silinen içerikler de sayılır, **silme kotayı sıfırlamaz**); `Retry-After: 3600`
 - 500: Beklenmeyen sunucu hatası
 
 #### Bağlantı
@@ -7184,9 +7189,9 @@ Hiçbir şeyi değiştirmeyen istek `200` döner ve `updatedAt` değişmez.
 #### Hata Durumları
 - 400: Doğrulama hatası, hiçbir alan verilmedi, başlık boş, bilinmeyen alan (örn. `type`, `status`, `authorId`, `featured`)
 - 401: Kimlik yok ya da token geçersiz
-- 403: Başkasının **yayımlanmış** içeriğini düzenleme girişimi
+- 403: Başkasının **yayımlanmış** içeriğini düzenleme girişimi; ya da `ADMIN` rolü olmayan birinin resmî duyuruyu düzenlemesi (yazarı olsa bile)
 - 404: İçerik yok/silinmiş ya da başkasının taslağı (varlığı sızdırılmaz)
-- 409: İçerik düzenlenemez durumda (`REMOVED`/`ARCHIVED`); yeni metin yazarın başka bir etkin içeriğiyle aynı (mükerrer); eşzamanlı değişiklik (`@Version`)
+- 409: İçerik düzenlenemez durumda (moderatörce kaldırılmış `REMOVED` ya da `ARCHIVED`); yeni metin yazarın başka bir etkin içeriğiyle aynı (mükerrer); eşzamanlı değişiklik (`@Version`)
 - 422: Yayımlanmış içeriğin yeni metni yayın kurallarını sağlamıyor (başlık en az 5, gövde en az 30 karakter); `issues[]` (örn. `tr:BODY_TOO_SHORT`)
 - 500: Beklenmeyen sunucu hatası
 
@@ -7557,6 +7562,123 @@ Diğer mikroservisler:
 #### Test Durumu
 UNIT + INTEGRATION (izole PostgreSQL ile çalıştırıldı ve geçti). Gateway ile uçtan uca doğrulama: NOT VERIFIED.
 
+### CONTENT — Moderasyon Geçmişi
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend (moderasyon ekranı)
+
+#### Endpoint
+GET /api/v1/content/moderation/contents/{contentId}/actions
+
+#### Yetkilendirme
+Moderator / Admin (`MODERATOR` ya da `ADMIN`, yalnız doğrulanmış JWT'nin `roles` claim'i). **Salt okunurdur**; bu yolda yazma yöntemi yoktur (`POST`/`PUT`/`PATCH`/`DELETE` → `405`): yayından kaldırma ve geri alma yalnız admin-service olayıyla yapılır ("İç Olay Girişi"). Rol, içerik aranmadan önce denetlenir (rolsüz kullanıcı için `403`, içeriğin varlığı sızdırılmaz). Karar veren yetkilinin kimliği ve rolü yalnız bu uçta döner; içeriğin yazarına gösterilmez.
+
+#### Path Parameters
+- contentId: UUID, zorunlu
+
+#### Response — 200
+En yeni karar önce (boş olabilir):
+```json
+[
+  {
+    "id": "UUID (moderasyon kaydı)",
+    "contentId": "UUID",
+    "action": "REMOVE | RESTORE",
+    "resultingStatus": "REMOVED | PUBLISHED",
+    "actorId": "UUID (kararı veren moderatör/yönetici)",
+    "actorRole": "MODERATOR | ADMIN (admin-service'in doğruladığı rol)",
+    "source": "ADMIN_SERVICE",
+    "reason": "string",
+    "reportId": "UUID | null (bağlı rapor)",
+    "createdAt": "ISO-8601 UTC"
+  }
+]
+```
+
+#### Hata Durumları
+- 400: Geçersiz UUID
+- 401: Kimlik yok ya da token geçersiz (servis token'ı kullanıcı uçlarında geçmez)
+- 403: `MODERATOR`/`ADMIN` rolü yok
+- 404: İçerik yok ya da silinmiş
+- 405: Yazma yöntemi denendi (doğrudan karar ucu yoktur)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/content/moderation/contents/{contentId}/actions
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (rol denetimi, yazma yöntemlerinin 405'i, geçmiş sırası ve alanları; izole PostgreSQL ile çalıştırıldı ve geçti). Gateway ile uçtan uca doğrulama: NOT VERIFIED.
+
+### CONTENT — İç Olay Girişi (admin-service kararı)
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Admin Service (üretici). Admin Service henüz sahipsiz ve alıcı/üretici sözleşmesi yoktur: teslim NOT VERIFIED.
+
+#### Endpoint
+POST /internal/events
+
+#### Yetkilendirme
+Internal. Gateway'de **route edilmez** (`/api/v1/...` altında değildir). Auth'un servis token'ı sözleşmesine (D4: `typ=svc+jwt`, RS256/JWKS, `iss=ltz-auth`, `aud=content-service`, `jti`, ömür ≤ 60 sn) uyan token ve `SCOPE_events:ingest` kapsamı gerekir; token'ın `sub` değeri zarftaki `producer` ile **tam olarak `svc:<producer>`** olmalıdır (bir servis başkası adına olay yayınlayamaz). Kimlik yoksa/geçersizse 401 (kullanıcı token'ı dahil), kapsam ya da çağıran uyuşmazsa 403. **Auth tarafında `admin-service → content-service` çifti için `events:ingest` kapsamının tanımlanması gerekir** (Auth sahibine iletilecek; şu an yalnız bu serviste test edilmiştir). **Karar yetkisi iki katmanda denetlenir:** admin-service kararı veren kullanıcının rolünü doğrular ve yüke `moderatorRole` olarak yazar; servis token'ı çağrıyı yapan servisin admin-service olduğunu kanıtlar, bu yüzden content-service yükteki doğrulanmış role güvenir. Content-service ayrıca içerik türünü **kendi veritabanından** okuyup yetkiyi içerik türüne göre denetler (aşağıdaki tablo). İstemci/kullanıcı hiçbir şekilde karar veremez.
+
+#### Request Body (olay zarfı, docs/architecture.md §6.2)
+```json
+{
+  "eventId": "UUID (tekilleştirme anahtarı)",
+  "eventType": "ModerationActionTaken",
+  "eventVersion": 1,
+  "occurredAt": "ISO-8601 UTC",
+  "producer": "admin-service",
+  "aggregateId": "UUID",
+  "payload": {
+    "targetType": "CONTENT",
+    "targetId": "UUID (içerik)",
+    "action": "REMOVE | RESTORE | DISMISS",
+    "moderatorId": "UUID (REMOVE/RESTORE için zorunlu: kararı veren yetkili)",
+    "moderatorRole": "MODERATOR | ADMIN (REMOVE/RESTORE için zorunlu: kararı veren kullanıcının admin-service tarafından doğrulanmış rolü)",
+    "reason": "string (REMOVE/RESTORE için zorunlu, 1-500 karakter)",
+    "reportId": "UUID (opsiyonel; bağlı rapor)"
+  }
+}
+```
+Zarfta tanımsız alan reddedilir. `ModerationActionTaken` yalnız `admin-service` üreticisinden kabul edilir. Diğer olay türleri başarıyla yok sayılır (`IGNORED`). `DISMISS` içeriği değiştirmez (yalnız olay kaydedilir). `HIDE` gibi tanınmayan eylem `400`'dür. Karar uygulandığında içerik durumu ve değişmez moderasyon kaydı (karar veren, rolü, gerekçe, `eventId`, `reportId`, zaman; `source=ADMIN_SERVICE`) aynı transaction'da yazılır. `REMOVE` yalnız yayımlanmış içeriği kaldırır ve öne çıkarmayı sona erdirir; `RESTORE` yalnız kaldırılmış içeriği yayına alır.
+
+**Karar yetkisi matrisi** (içerik türü content-service veritabanından okunur):
+
+| İçerik türü | `moderatorRole=MODERATOR` | `moderatorRole=ADMIN` |
+| --- | --- | --- |
+| `NEWS`, `USER_CONTENT` | `REMOVE` ve `RESTORE` uygulanır | `REMOVE` ve `RESTORE` uygulanır |
+| `ANNOUNCEMENT` (resmî duyuru) | **reddedilir (403)** | `REMOVE` ve `RESTORE` uygulanır |
+
+Yetersiz yetki **reddedilir**: içerik durumu ve moderasyon geçmişi değişmez, olay işlenmiş olarak **kaydedilmez** (aynı `eventId` daha yetkili bir kararla yeniden gönderilebilir). Rol eksik ya da `MODERATOR`/`ADMIN` dışındaysa yük geçersizdir (400). Başarılı bir olay yeniden teslim edilirse `DUPLICATE` döner; ikinci bir durum değişikliği ya da denetim kaydı oluşmaz. Aynı karar yeni bir `eventId` ile gelip durum zaten uygunsa (ör. kaldırılmış içeriğe ikinci `REMOVE`) etkisizdir ve ikinci denetim kaydı yazılmaz; ancak yetki içerik varsa her zaman önce denetlenir.
+
+#### Response — 200
+```json
+{ "eventId": "UUID", "outcome": "PROCESSED | DUPLICATE | IGNORED" }
+```
+`PROCESSED`: olay işlendi (içerik yoksa ya da durum karara zaten uygunsa etkisiz; üretici yeniden denemesin diye başarı döner). `DUPLICATE`: aynı `eventId` daha önce işlendi (inbox), hiçbir şey yapılmadı. Olay etkisiyle aynı transaction'da tekilleştirilir; geçersiz olay "işlendi" diye kaydedilmez.
+
+#### Hata Durumları
+- 400: Geçersiz zarf/yük, üretici–tür uyuşmazlığı, `targetType` `CONTENT` değil, eksik `moderatorId`/`moderatorRole`/`reason`, `moderatorRole` `MODERATOR`/`ADMIN` değil, gerekçe 1-500 karakter dışı, tanınmayan `action`
+- 401: Servis token'ı yok/geçersiz (süre, audience, issuer, `typ`, ömür > 60 sn, `jti`, `sub` biçimi), kullanıcı token'ı
+- 403: `events:ingest` kapsamı yok, `sub` ile `producer` uyuşmuyor, tanımsız iç yol; karar yetkisi içerik için yetersiz (`ANNOUNCEMENT` için `MODERATOR` kararı); olay kaydedilmez
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Admin Service → Content Service (`POST /internal/events`, Auth servis token'ı). Admin-service'in kendi sözleşmesi docs/api.md ADMIN bölümünde henüz yoktur; yük biçimi buradaki gibi ortaklaştırılmalıdır (docs/api.md COMMUNITY'deki `ModerationActionTaken` yükünden farkı: hedef `CONTENT`; `moderatorId`, **`moderatorRole`** ve `reason` zorunlu). **Admin-service'te gerekenler:** (1) kararı veren kullanıcının rolünü kendi yetkilendirmesinde doğrulayıp `moderatorRole` olarak yazmak; (2) `ANNOUNCEMENT` kararını yalnız `ADMIN` rolüyle vermek (content bunu ayrıca zorlar, 403 döner); (3) 403/400'ü kalıcı red saymak (yeniden denememek; durumu `PENDING_APPLY` yerine `REJECTED` benzeri bir durumla izlemek); (4) `DUPLICATE`/`PROCESSED` ve etkisiz sonuçları başarı saymak; (5) Auth'ta `admin-service → content-service` çifti için `events:ingest` servis token'ını almak.
+
+#### Test Durumu
+UNIT (gerçek RS256 servis token'ı ve yerel JWKS ile güvenlik zinciri, yük ve rol doğrulaması, yetki matrisi) + INTEGRATION (gerçek PostgreSQL: kaldırma/geri alma, duyuru yetkisi, reddedilen kararın içerik/geçmiş/inbox'ta iz bırakmaması ve aynı `eventId`'nin yetkili kararla işlenebilmesi, yeniden teslimde `DUPLICATE` ve ikinci kayıt oluşmaması). Gerçek admin-service ve Auth'tan token alımı ile uçtan uca doğrulama: NOT VERIFIED.
+
 ### CONTENT — İçerik Sil
 
 Durum: IMPLEMENTED
@@ -7578,9 +7700,9 @@ Gövde yok. Aynı içeriği ikinci kez silmek `404` döner.
 #### Hata Durumları
 - 400: Geçersiz UUID
 - 401: Kimlik yok ya da token geçersiz
-- 403: Başkasının yayımlanmış içeriğini silme girişimi
+- 403: Başkasının yayımlanmış içeriğini silme girişimi; ya da `ADMIN` rolü olmayan birinin resmî duyuruyu silmesi
 - 404: İçerik yok, zaten silinmiş ya da başkasının taslağı
-- 409: `REMOVED` içerik sahibi tarafından silinemez
+- 409: Moderatörce kaldırılmış (`REMOVED`) içerik sahibi tarafından silinemez (moderasyon kaydı olarak korunur)
 - 500: Beklenmeyen sunucu hatası
 
 #### Bağlantı

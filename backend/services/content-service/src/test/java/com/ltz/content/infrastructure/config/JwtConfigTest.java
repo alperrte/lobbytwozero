@@ -28,6 +28,9 @@ class JwtConfigTest {
 	private final JwtDecoder users = new JwtConfig().userTokenDecoder(AuthTestSupport.jwksUri(), AuthTestSupport.ISSUER,
 			AuthTestSupport.USER_AUDIENCE);
 
+	private final JwtDecoder services = new JwtConfig().serviceTokenDecoder(AuthTestSupport.jwksUri(), AuthTestSupport.ISSUER,
+			AuthTestSupport.SERVICE_AUDIENCE);
+
 	private static void assertRejected(JwtDecoder decoder, String token) {
 		assertThatThrownBy(() -> decoder.decode(token)).isInstanceOf(JwtException.class);
 	}
@@ -89,5 +92,29 @@ class JwtConfigTest {
 				.hasErrors()).isFalse();
 		assertThat(JwtConfig.accessTokenValidator("ltz-auth", "baska-api", java.time.Clock.systemUTC()).validate(token)
 				.hasErrors()).isTrue();
+	}
+	// ------------------------------------------------------------------ servis token'ı (svc+jwt), yalnız /internal/** için
+
+	@Test
+	void validServiceTokenIsAcceptedAndExposesSubjectAndScope() {
+		Jwt jwt = services.decode(AuthTestSupport.serviceToken("svc:admin-service", "events:ingest"));
+
+		assertThat(jwt.getSubject()).isEqualTo("svc:admin-service");
+		assertThat(jwt.<String>getClaim("scope")).isEqualTo("events:ingest");
+	}
+
+	@Test
+	void userTokensAreNotServiceTokensAndServiceTokensAreNotUserTokens() {
+		assertRejected(services, AuthTestSupport.userToken(USER_ID, "ADMIN"));
+		assertRejected(users, AuthTestSupport.serviceToken("svc:admin-service", "events:ingest"));
+	}
+
+	@Test
+	void serviceTokensWithWrongSubjectOrAudienceAreRejected() {
+		assertRejected(services, AuthTestSupport.serviceToken(USER_ID.toString(), "events:ingest"));
+		assertRejected(services, AuthTestSupport.serviceToken("admin-service", "events:ingest"));
+		JwtDecoder otherAudience = new JwtConfig().serviceTokenDecoder(AuthTestSupport.jwksUri(), AuthTestSupport.ISSUER,
+				"community-service");
+		assertRejected(otherAudience, AuthTestSupport.serviceToken("svc:admin-service", "events:ingest"));
 	}
 }

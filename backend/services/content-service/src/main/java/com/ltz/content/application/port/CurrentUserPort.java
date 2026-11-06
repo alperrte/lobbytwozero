@@ -20,4 +20,10 @@ public interface CurrentUserPort {
 	 * JWT'nin {@code roles} claim'inden okunur (auth-service sözleşmesi).
 	 */
 	boolean hasAdminRole();
+
+	/** Doğrulanmış kimlik moderatör ({@code MODERATOR}) rolündeyse true (fail-closed). Yönetici bu rolü ayrıca taşımaz. */
+	boolean hasModeratorRole();
+
+	/** Doğrulanmış kimlik İçerik Üreticisi ({@code CONTENT_CREATOR}) rolündeyse true (CONT-17; fail-closed). */
+	boolean hasContentCreatorRole();
 }

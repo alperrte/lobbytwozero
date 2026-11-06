@@ -10,7 +10,8 @@ import com.ltz.content.domain.enums.ContentType;
 /**
  * İçerik görünümü. Metin ({@code title}, {@code summary}, {@code body}) {@code locale} alanındaki dildedir: istenen dilde
  * çeviri varsa o, yoksa içeriğin ilk dilindeki çeviri sunulur; {@code availableLocales} mevcut çevirileri listeler.
- * {@code publishedAt} taslakta null'dır.
+ * {@code publishedAt} taslakta null'dır. {@code removedAt}/{@code removalReason} yalnız moderatörce kaldırılmış (REMOVED)
+ * içerikte dolu olur ve yalnız içeriğin yazarına gösterilir (başkası kaldırılmış içeriği göremez); karar veren yetkili dönmez.
  */
 public record ContentResponse(
 		UUID id,
@@ -29,5 +30,7 @@ public record ContentResponse(
 		List<ContentSourceResponse> sources,
 		boolean featured,
 		Instant publishedAt,
-		List<String> availableLocales) {
+		List<String> availableLocales,
+		Instant removedAt,
+		String removalReason) {
 }

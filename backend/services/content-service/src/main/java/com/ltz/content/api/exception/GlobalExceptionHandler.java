@@ -31,9 +31,12 @@ import com.ltz.content.domain.exception.DraftLimitExceededException;
 import com.ltz.content.domain.exception.DuplicateContentException;
 import com.ltz.content.domain.exception.GameCatalogUnavailableException;
 import com.ltz.content.domain.exception.GameNotAvailableException;
+import com.ltz.content.domain.exception.InsufficientModerationAuthorityException;
 import com.ltz.content.domain.exception.InvalidContentQueryException;
 import com.ltz.content.domain.exception.InvalidContentRequestException;
 import com.ltz.content.domain.exception.InvalidImageException;
+import com.ltz.content.domain.exception.InvalidInboundEventException;
+import com.ltz.content.domain.exception.ModeratorRequiredException;
 import com.ltz.content.domain.exception.OfficialAnnouncementForbiddenException;
 import com.ltz.content.domain.exception.PublishRequirementsNotMetException;
 import com.ltz.content.domain.exception.TooManyContentsException;
@@ -68,7 +71,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	}
 
 	@ExceptionHandler({ ContentAccessDeniedException.class, OfficialAnnouncementForbiddenException.class,
-			AdministratorRequiredException.class })
+			AdministratorRequiredException.class, ModeratorRequiredException.class,
+			InsufficientModerationAuthorityException.class })
 	public ProblemDetail handleForbidden(RuntimeException exception) {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, exception.getMessage());
 	}
@@ -80,7 +84,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
 	}
 
-	@ExceptionHandler({ InvalidContentRequestException.class, InvalidContentQueryException.class })
+	@ExceptionHandler({ InvalidContentRequestException.class, InvalidContentQueryException.class,
+			InvalidInboundEventException.class })
 	public ProblemDetail handleBadRequest(RuntimeException exception) {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
 	}

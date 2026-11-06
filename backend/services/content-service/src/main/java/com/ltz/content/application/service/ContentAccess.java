@@ -8,7 +8,9 @@ import org.springframework.stereotype.Component;
 import com.ltz.content.domain.entity.Content;
 import com.ltz.content.domain.enums.ContentStatus;
 import com.ltz.content.domain.exception.ContentAccessDeniedException;
+import com.ltz.content.domain.enums.ContentType;
 import com.ltz.content.domain.exception.ContentNotFoundException;
+import com.ltz.content.domain.exception.OfficialAnnouncementForbiddenException;
 import com.ltz.content.infrastructure.persistence.repository.ContentRepository;
 
 /**
@@ -50,6 +52,16 @@ public class ContentAccess {
 	/** Silinmemiş içeriği sahiplik aramadan yükler (yönetici işlemleri için); yoksa 404. */
 	public Content loadActiveForUpdate(UUID contentId) {
 		return contentRepository.findActiveByIdForUpdate(contentId).orElseThrow(ContentNotFoundException::new);
+	}
+
+	/**
+	 * Resmî duyuruyu (CONT-04) yalnız {@code ADMIN} değiştirebilir, silebilir ya da yönetebilir; yazarı olsa bile rolü
+	 * sonradan alınmış biri için 403. Diğer türlerde etkisizdir.
+	 */
+	public static void requireOfficialRights(Content content, boolean admin) {
+		if (content.getType() == ContentType.ANNOUNCEMENT && !admin) {
+			throw OfficialAnnouncementForbiddenException.forManagement();
+		}
 	}
 
 	private Content requireOwned(Optional<Content> found, UUID userId) {

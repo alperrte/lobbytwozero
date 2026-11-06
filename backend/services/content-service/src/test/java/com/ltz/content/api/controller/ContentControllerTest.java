@@ -72,7 +72,7 @@ class ContentControllerTest {
 
 	private static ContentResponse response() {
 		return new ContentResponse(CONTENT_ID, USER_ID, ContentType.NEWS, ContentStatus.DRAFT, "tr", "Yeni Güncelleme",
-				"Kısa özet", null, List.of(), NOW, NOW, null, List.of(), List.of(), false, null, List.of("tr"));
+				"Kısa özet", null, List.of(), NOW, NOW, null, List.of(), List.of(), false, null, List.of("tr"), null, null);
 	}
 
 	private org.springframework.test.web.servlet.ResultActions create(String json) throws Exception {

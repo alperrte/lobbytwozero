@@ -204,6 +204,69 @@ class ContentServiceTest {
 	}
 
 	@Test
+	void contentCreatorsGetHigherQuotasButStillHaveLimits() {
+		when(currentUser.hasContentCreatorRole()).thenReturn(true);
+		when(contentRepository.countByAuthorIdAndCreatedAtAfter(eq(USER), any(Instant.class)))
+				.thenReturn((long) ContentService.MAX_CREATIONS_PER_HOUR);
+		CreateContentRequest request = create(ContentType.NEWS, "Haber", null, null);
+
+		// Normal kullanıcının sınırına (10) ulaşmış üretici hâlâ içerik oluşturabilir.
+		assertThat(service.createDraft(request).status()).isEqualTo(ContentStatus.DRAFT);
+
+		when(contentRepository.countByAuthorIdAndCreatedAtAfter(eq(USER), any(Instant.class)))
+				.thenReturn((long) ContentService.CREATOR_MAX_CREATIONS_PER_HOUR);
+		assertThatThrownBy(() -> service.createDraft(request)).isInstanceOf(TooManyContentsException.class);
+	}
+
+	@Test
+	void contentCreatorsHaveAHigherActiveDraftLimit() {
+		when(currentUser.hasContentCreatorRole()).thenReturn(true);
+		when(contentRepository.countByAuthorIdAndStatusAndDeletedAtIsNull(USER, ContentStatus.DRAFT))
+				.thenReturn((long) ContentService.MAX_ACTIVE_DRAFTS);
+		CreateContentRequest request = create(ContentType.NEWS, "Haber", null, null);
+
+		assertThat(service.createDraft(request).status()).isEqualTo(ContentStatus.DRAFT);
+
+		when(contentRepository.countByAuthorIdAndStatusAndDeletedAtIsNull(USER, ContentStatus.DRAFT))
+				.thenReturn((long) ContentService.CREATOR_MAX_ACTIVE_DRAFTS);
+		assertThatThrownBy(() -> service.createDraft(request)).isInstanceOf(DraftLimitExceededException.class)
+				.hasMessageContaining(String.valueOf(ContentService.CREATOR_MAX_ACTIVE_DRAFTS));
+	}
+
+	@Test
+	void ordinaryUsersKeepTheNormalLimitsAndTheRightToPublishNews() {
+		when(currentUser.hasContentCreatorRole()).thenReturn(false);
+		when(contentRepository.countByAuthorIdAndCreatedAtAfter(eq(USER), any(Instant.class)))
+				.thenReturn((long) ContentService.MAX_CREATIONS_PER_HOUR - 1);
+
+		assertThat(service.createDraft(create(ContentType.NEWS, "Haber", null, null)).type()).isEqualTo(ContentType.NEWS);
+	}
+
+	@Test
+	void anAuthorWhoLostTheAdminRoleCannotEditOrDeleteTheirOfficialAnnouncement() {
+		Content announcement = existing(USER, ContentStatus.PUBLISHED);
+		ReflectionTestUtils.setField(announcement, "type", ContentType.ANNOUNCEMENT);
+		when(currentUser.hasAdminRole()).thenReturn(false);
+		UpdateContentRequest update = new UpdateContentRequest("Yeni başlık", null, null);
+
+		assertThatThrownBy(() -> service.updateContent(CONTENT_ID, update)).isInstanceOf(OfficialAnnouncementForbiddenException.class);
+		assertThatThrownBy(() -> service.deleteContent(CONTENT_ID)).isInstanceOf(OfficialAnnouncementForbiddenException.class);
+
+		assertThat(announcement.getDeletedAt()).isNull();
+	}
+
+	@Test
+	void anAdministratorAuthorCanStillDeleteTheirAnnouncement() {
+		Content announcement = existing(USER, ContentStatus.PUBLISHED);
+		ReflectionTestUtils.setField(announcement, "type", ContentType.ANNOUNCEMENT);
+		when(currentUser.hasAdminRole()).thenReturn(true);
+
+		service.deleteContent(CONTENT_ID);
+
+		assertThat(announcement.getDeletedAt()).isNotNull();
+	}
+
+	@Test
 	void activeDraftLimitIsEnforcedPerAuthor() {
 		when(contentRepository.countByAuthorIdAndStatusAndDeletedAtIsNull(USER, ContentStatus.DRAFT))
 				.thenReturn((long) ContentService.MAX_ACTIVE_DRAFTS);

@@ -43,11 +43,25 @@ public class SecurityContextCurrentUser implements CurrentUserPort {
 
 	@Override
 	public boolean hasAdminRole() {
+		return hasRole(TokenClaims.ADMIN_ROLE);
+	}
+
+	@Override
+	public boolean hasModeratorRole() {
+		return hasRole(TokenClaims.MODERATOR_ROLE);
+	}
+
+	@Override
+	public boolean hasContentCreatorRole() {
+		return hasRole(TokenClaims.CONTENT_CREATOR_ROLE);
+	}
+
+	private static boolean hasRole(String role) {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		if (!(authentication instanceof JwtAuthenticationToken jwtAuthentication) || !authentication.isAuthenticated()) {
 			return false;
 		}
 		List<String> roles = jwtAuthentication.getToken().getClaimAsStringList(TokenClaims.ROLES);
-		return roles != null && roles.contains(TokenClaims.ADMIN_ROLE);
+		return roles != null && roles.contains(role);
 	}
 }
