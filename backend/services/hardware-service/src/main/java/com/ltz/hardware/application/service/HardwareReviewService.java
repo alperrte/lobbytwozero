@@ -10,6 +10,7 @@ import com.ltz.hardware.domain.enums.*;
 import com.ltz.hardware.domain.exception.HardwareNotFoundException;
 import com.ltz.hardware.infrastructure.persistence.repository.*;
 import java.util.UUID;
+import java.util.Set;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -78,7 +79,8 @@ public class HardwareReviewService {
         var review = reviews.findById(id).filter(r -> r.getStatus() != HardwareReviewStatus.DELETED)
                 .orElseThrow(HardwareNotFoundException::new);
         if (!viewer.equals(review.getUserId())) {
-            if (review.getStatus() != HardwareReviewStatus.VISIBLE || !decision(viewer).permits(viewer, review.getUserId())) {
+            if (review.getStatus() != HardwareReviewStatus.VISIBLE
+                    || !decision(viewer, Set.of(review.getUserId())).permits(viewer, review.getUserId())) {
                 throw new HardwareNotFoundException();
             }
             requireActiveProduct(review.getProductId());
@@ -90,7 +92,7 @@ public class HardwareReviewService {
     public HardwareReviewPageResponse list(UUID productId, int page, int size) {
         var viewer = actor.requireUserId();
         requireActiveProduct(productId);
-        var access = decision(viewer);
+        var access = decision(viewer, search.authors(productId));
         var result = reviews.findAll(search.visible(productId, viewer, access), pageable(page, size));
         return new HardwareReviewPageResponse(result.stream().map(r -> mapper.toResponse(r, viewer)).toList(),
                 page, size, result.getTotalElements(), result.getTotalPages(), search.summary(productId, viewer, access));
@@ -110,9 +112,9 @@ public class HardwareReviewService {
 
     private PageRequest pageable(int page, int size) { return PageRequest.of(page, size, Sort.by("createdAt", "id")); }
 
-    public HardwareReviewAudiencePolicy.Decision decision(UUID viewer) {
+    public HardwareReviewAudiencePolicy.Decision decision(UUID viewer, Set<UUID> authors) {
         try {
-            var result = audience.evaluate(viewer);
+            var result = audience.evaluate(viewer, authors);
             return result == null ? HardwareReviewAudiencePolicy.Decision.denyOthers() : result;
         } catch (RuntimeException _) {
             return HardwareReviewAudiencePolicy.Decision.denyOthers();

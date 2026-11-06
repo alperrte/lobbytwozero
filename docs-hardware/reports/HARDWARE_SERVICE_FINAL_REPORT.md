@@ -1,5 +1,11 @@
 # LTZ Hardware Service — Final Servis Raporu
 
+**2026-11-06, PR #67 sonrası:** REVIEW_AUTHOR tüketicisi ve gerçek User dahil
+25 HTTP kontrolü tamamlandı. Hardware 503 test / %98,98 coverage PASS.
+[Güncel yorum uygulaması ve sınırlar](../integration/user-review-integration.md).
+Yorum UGC sözleşmesi artık açık değildir; User/Social güvenilir yansıma ilanı
+operasyonel olarak bekler. Aşağıdaki eski UGC açık/deny ifadeleri tarihçedir.
+
 **2026-11-06 tüketici entegrasyonu:** User global gizlilik ve Performance aktif
 cihaz istemcileri uygulandı. Son Hardware 474/Performance 138 test ve gerçek
 Auth/Hardware/Performance/Gateway senkronizasyon kabulü 19/19 PASS.

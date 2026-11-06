@@ -6,7 +6,16 @@ const withNextIntl = createNextIntlPlugin(
 );
 
 const nextConfig: NextConfig = {
-  reactStrictMode: true
+  reactStrictMode: true,
+  // Tailwind CSS v4: Turbopack loader (PostCSS gerekmez). Renk/ölçü tokenları src/app/globals.css içindedir.
+  turbopack: {
+    rules: {
+      "*.css": {
+        loaders: ["@tailwindcss/turbopack"],
+        as: "*.css"
+      }
+    }
+  }
 };
 
 export default withNextIntl(nextConfig);

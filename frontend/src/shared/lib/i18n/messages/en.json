@@ -1,6 +1,449 @@
 {
+  "Metadata": {
+    "siteName": "LobbyTwoZero",
+    "description": "LobbyTwoZero is a game-focused social platform being built for game discovery, the player community, social interaction, and hardware and game performance experiences."
+  },
+  "Shell": {
+    "brand": "LobbyTwoZero",
+    "skipToContent": "Skip to main content",
+    "navbarLabel": "Top bar",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "collapseSidebar": "Collapse sidebar",
+    "expandSidebar": "Expand sidebar",
+    "sidebarLabel": "Main navigation"
+  },
+  "Navigation": {
+    "home": "Home",
+    "games": "Games",
+    "library": "My Library",
+    "reviews": "Reviews",
+    "news": "News",
+    "forYou": "For You",
+    "community": "Community",
+    "friends": "Friends",
+    "messages": "Messages",
+    "findTeam": "Find a Team",
+    "events": "Events",
+    "hardware": "Hardware",
+    "performance": "Performance",
+    "settings": "Settings",
+    "soon": "Soon",
+    "soonTooltip": "{label} — Soon",
+    "groups": {
+      "general": "General",
+      "social": "Social",
+      "hardware": "Hardware & Performance"
+    }
+  },
+  "Theme": {
+    "label": "Theme",
+    "system": "System theme",
+    "light": "Light theme",
+    "dark": "Dark theme"
+  },
+  "Locale": {
+    "label": "Language",
+    "tr": "Turkish",
+    "en": "English"
+  },
+  "Navbar": {
+    "search": {
+      "placeholder": "Search pages...",
+      "open": "Search",
+      "inputLabel": "Search pages",
+      "close": "Close",
+      "groupPages": "Pages",
+      "emptyTitle": "No results found",
+      "emptyBody": "Try a different word.",
+      "resultCount": "{count, plural, =0 {No results} one {# result} other {# results}}"
+    },
+    "notifications": {
+      "label": "Notifications",
+      "labelWithCount": "Notifications, {count} unread",
+      "title": "Notifications",
+      "emptyTitle": "No notifications yet",
+      "emptyBody": "New notifications will appear here once the notification service is connected."
+    },
+    "profile": {
+      "label": "Profile menu",
+      "guestName": "Guest",
+      "guestState": "Not signed in",
+      "signedIn": "Your account",
+      "guestNote": "Account features are not ready yet; sign-in and profile pages will be added in later steps.",
+      "soon": "Soon",
+      "items": {
+        "info": "Profile info",
+        "profile": "My profile",
+        "account": "Account settings",
+        "logout": "Log out"
+      }
+    }
+  },
+  "Settings": {
+    "title": "Settings",
+    "description": "Tailor the look and navigation to the way you like to play.",
+    "infoLabel": "About {subject}",
+    "appearance": {
+      "title": "Appearance",
+      "info": "Chooses whether the app looks light, dark, or follows your device theme. Your choice is saved on this device.",
+      "system": "System",
+      "systemHint": "Follows your device's theme setting.",
+      "light": "Light",
+      "lightHint": "Light colors for bright surroundings.",
+      "dark": "Dark",
+      "darkHint": "Dark colors that are easy on the eyes in low light."
+    },
+    "navbar": {
+      "title": "Top bar",
+      "info": "Controls how the top bar behaves while you scroll: it either hides automatically or always stays visible.",
+      "auto": "Auto-hide",
+      "autoHint": "Hides when you scroll down and returns when you scroll up.",
+      "fixed": "Fixed",
+      "fixedHint": "Always stays visible."
+    },
+    "sidebar": {
+      "title": "Sidebar",
+      "info": "Controls whether the menu on the left shows full names or only icons.",
+      "wide": "Wide",
+      "wideHint": "Icons and names are shown together.",
+      "collapsed": "Collapsed",
+      "collapsedHint": "Only icons are shown.",
+      "note": "On small screens the sidebar always works as a slide-in menu."
+    },
+    "language": {
+      "title": "Language",
+      "info": "Changes the language of the interface. Your choice is remembered on this device."
+    },
+    "deviceNote": "Your preferences are stored only on this device and apply as soon as you choose them."
+  },
+  "Pages": {
+    "home": {
+      "title": "Home",
+      "description": "LobbyTwoZero start page"
+    },
+    "about": {
+      "title": "About Us",
+      "description": "What LobbyTwoZero is and what it aims for"
+    },
+    "faq": {
+      "title": "FAQ",
+      "description": "Frequently asked questions"
+    },
+    "contact": {
+      "title": "Contact",
+      "description": "How to reach us"
+    },
+    "kvkk": {
+      "title": "KVKK Privacy Notice",
+      "description": "Notice on the processing of personal data"
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "description": "How your data is handled"
+    },
+    "terms": {
+      "title": "Terms of Use",
+      "description": "Rules for using the platform"
+    },
+    "cookies": {
+      "title": "Cookie Policy",
+      "description": "How cookies and local storage are used"
+    },
+    "settings": {
+      "title": "Settings",
+      "description": "Your appearance, top bar, sidebar and language preferences"
+    }
+  },
+  "Footer": {
+    "label": "Footer",
+    "tagline": "Discover games, connect with players, and share your experiences. LobbyTwoZero brings the gaming world together in one community.",
+    "groups": {
+      "discover": "Discover",
+      "community": "Community",
+      "performance": "LTZ Performance",
+      "support": "Support"
+    },
+    "socialLabel": "Social media",
+    "socialSoon": "{name} (link coming soon)",
+    "legalNav": "Legal links",
+    "social": {
+      "x": "X",
+      "instagram": "Instagram",
+      "linkedin": "LinkedIn",
+      "github": "LobbyTwoZero GitHub repository"
+    },
+    "legal": "Legal",
+    "copyright": "© {year} LobbyTwoZero. All rights reserved.",
+    "links": {
+      "home": "Home",
+      "about": "About Us",
+      "faq": "FAQ",
+      "contact": "Contact",
+      "kvkk": "KVKK Privacy Notice",
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Use",
+      "cookies": "Cookie Policy",
+      "settings": "Settings"
+    }
+  },
   "Home": {
     "title": "LobbyTwoZero",
-    "description": "A new meeting place for the gaming community."
+    "description": "A game-focused social platform where players discover, talk and play together.",
+    "statusTitle": "Foundation is ready",
+    "statusBody": "The shared shell, theme and language support are working. Hardware and other pages will follow in later steps."
+  },
+  "About": {
+    "hero": {
+      "title": "Five players. One lobby.",
+      "description": "LobbyTwoZero was born from the shared passion of five developers who love playing games. We set out to bring game discovery, player communities, friendships and hardware experiences together in one place."
+    },
+    "story": {
+      "title": "How Did We Start?",
+      "paragraphs": {
+        "one": "Everything about gaming usually lives in different places: discovering games in one, finding friends and teammates in another, and wondering whether your hardware can run a game somewhere else entirely.",
+        "two": "We wanted to bring these pieces together in a single lobby. Each of us takes on a different area while building one shared product.",
+        "three": "LobbyTwoZero is currently in development. What we describe here are our goals, and not all of it is live yet."
+      }
+    },
+    "vision": {
+      "title": "What Are We Aiming For?",
+      "intro": "These are not features that are live today. They are the goals of the product we are building together.",
+      "pillars": {
+        "discover": {
+          "title": "Game Discovery",
+          "body": "Browse games in the catalog, rate them and write reviews."
+        },
+        "social": {
+          "title": "Social Connections",
+          "body": "Make friends, send messages and find players to play with."
+        },
+        "community": {
+          "title": "Player Community",
+          "body": "Come together with the player community through posts and events."
+        },
+        "hardware": {
+          "title": "Hardware and Performance",
+          "body": "Describe your PC hardware, see performance experiences in games and get recommendations."
+        }
+      }
+    },
+    "team": {
+      "title": "The Team Behind This Lobby",
+      "subtitle": "Five developers who work in different areas and share the same passion for games.",
+      "github": "{name} — GitHub",
+      "linkedin": "{name} — LinkedIn",
+      "cv": "{name} — CV",
+      "cvMissingLabel": "{name} — CV (not added yet)",
+      "cvMissingTooltip": "CV not added yet",
+      "members": {
+        "alper": {
+          "role": "Works on hardware profiles, game recommendations and performance experiences."
+        },
+        "nisa": {
+          "role": "Works on community spaces, content and events."
+        },
+        "umut": {
+          "role": "Works on social connections, messaging and team finding."
+        },
+        "hamza": {
+          "role": "Works on the game catalog, library and reviews."
+        },
+        "kerem": {
+          "role": "Works on authentication, user profiles and the e-mail infrastructure."
+        }
+      }
+    },
+    "closing": {
+      "title": "Same Game, Same Lobby.",
+      "body": "We aim to grow LobbyTwoZero for players, together with players."
+    }
+  },
+  "Faq": {
+    "heading": "Frequently Asked Questions",
+    "description": "Find answers to your questions about LobbyTwoZero here.",
+    "categoriesLabel": "Categories",
+    "categories": {
+      "general": "General",
+      "account": "Account and Profile",
+      "games": "Games and Library",
+      "social": "Social and Community",
+      "hardware": "Hardware and Performance",
+      "security": "Security and Privacy"
+    },
+    "items": {
+      "whatIs": {
+        "title": "What is LobbyTwoZero?",
+        "answer": "LobbyTwoZero (LTZ) is a social gaming platform being built for players. It aims to bring game discovery, player communities, friendships and hardware experiences together in one place. The project is in development and features are added step by step."
+      },
+      "purpose": {
+        "title": "Why is LTZ being built?",
+        "answer": "LTZ is being built to make it easier to find what to play, who to play with and how your computer might run a game, all in one place. The goal is to gather these needs in a single lobby instead of spreading them across different sites."
+      },
+      "availability": {
+        "title": "Is the platform available right now?",
+        "answer": "The platform is not fully live yet. The general interface and information pages are ready, while modules such as games, social features and hardware tools are still in development. Items marked “Soon” in the menu are features that are not open yet."
+      },
+      "accountRequired": {
+        "title": "Do I need an account to use LTZ?",
+        "answer": "You do not need an account to browse general pages such as About and FAQ. Personal features such as profile, library and messaging are planned to require an account. The account system is not live yet, so you do not need to sign in right now."
+      },
+      "createAccount": {
+        "title": "How can I create an account?",
+        "answer": "Account creation is in development and not available yet. Sign-up and sign-in steps will be announced on this page when they are ready. Until then, do not trust fake sign-up pages or messages that ask for an account in LTZ's name."
+      },
+      "steamGoogle": {
+        "title": "Can I sign in with Steam or Google?",
+        "answer": "Sign-in with Steam and Google is planned, but it is not available yet. When account linking arrives, it is designed so that an account is only linked with your consent."
+      },
+      "editProfile": {
+        "title": "How can I edit my profile and player preferences?",
+        "answer": "Editing your profile and player preferences is planned together with the account system. It is not live yet, so there is no profile to edit right now. For now, the only things you can change are the appearance, language and navigation preferences on the Settings page, which are stored on this device only."
+      },
+      "deleteAccount": {
+        "title": "Can I delete my account and personal data?",
+        "answer": "Deleting your account and personal data is a right planned to be offered with the account system. The deletion is intended to require identity verification and explicit confirmation. Details such as how long data is kept will be set out in the privacy notices."
+      },
+      "discoverGames": {
+        "title": "Which games can I discover on LTZ?",
+        "answer": "Game discovery is one of LTZ's core goals. We aim to let you browse games by genre, platform and community feedback. This section is not live yet, so there is no game catalog at the moment."
+      },
+      "libraryFavorites": {
+        "title": "How can I manage my favorite games and my library?",
+        "answer": "Adding games you like to your favorites and personal library is among the planned features. My Library will open once the game and account systems are ready; for now it appears as “Soon” in the menu."
+      },
+      "ratingsReviews": {
+        "title": "Can I rate games and write reviews?",
+        "answer": "Rating games and writing reviews is planned. It is not live yet, so no ratings or reviews are shown at the moment. Any ratings shown in the future are intended to be based on real user contributions."
+      },
+      "filterGames": {
+        "title": "Can I filter games by genre and platform?",
+        "answer": "Filtering by genre and platform is a feature intended to arrive with the game catalog. Since the catalog is not live yet, filters are not available at the moment."
+      },
+      "friends": {
+        "title": "How can I make friends on LTZ?",
+        "answer": "Adding friends and a friends list are planned. These features depend on the account system, so they are not available yet; when ready, they will be reachable from the Friends item in the menu."
+      },
+      "messaging": {
+        "title": "Can I message other players?",
+        "answer": "Messaging your friends is among the targeted features. Messaging is not live yet; when it arrives, it is planned to ship together with privacy and safety settings."
+      },
+      "findTeam": {
+        "title": "What is the Find a Team feature?",
+        "answer": "Find a Team is a feature designed to help you find players to play with. The aim is for you to post a listing for a game and join other people's listings. It is not live yet."
+      },
+      "communityPosts": {
+        "title": "How will community posts work?",
+        "answer": "The Community section is planned to let players share posts and interact with each other. It is not live yet, so there are no community posts to view at the moment."
+      },
+      "eventsTournaments": {
+        "title": "Can I join events and tournaments?",
+        "answer": "Listing events and tournaments is a goal. This section is not open yet; when it goes live, details about how to take part will be updated on this page."
+      },
+      "addHardware": {
+        "title": "How can I add my hardware details?",
+        "answer": "Hardware details are designed to be entered manually: you will pick and add components such as the processor, graphics card and memory, and the brand will not be mandatory. Automatically scanning your computer is not part of the first release. This feature is not live yet."
+      },
+      "multipleProfiles": {
+        "title": "Can I create more than one computer profile?",
+        "answer": "The aim is for you to save different systems, such as a desktop and a laptop, as separate computer profiles. This feature is not live yet."
+      },
+      "fpsCompatibility": {
+        "title": "How do estimated FPS and compatibility work?",
+        "answer": "The aim is to offer an estimated FPS and compatibility indication of how a game might run on the hardware you enter. These values are estimates, not measurements, and will be labeled as such. The feature is not live yet, and no FPS value is shown at the moment."
+      },
+      "ltzPerformance": {
+        "title": "What is LTZ Performance?",
+        "answer": "LTZ Performance is the name of the module set aside for hardware and game performance experiences, and it is not live yet. A browser cannot measure processor or graphics card temperature or FPS. Such measurements could only be possible with a desktop app planned for later, which is not part of the first release."
+      },
+      "recommendations": {
+        "title": "How will personal recommendations work?",
+        "answer": "Personal recommendations aim to show games that fit your hardware and gaming preferences. They are designed to be produced by a rule and data based algorithm, not a chatbot. The feature is not live yet."
+      },
+      "accountSecurity": {
+        "title": "How will my account be kept secure?",
+        "answer": "Security is a core part of the design. What you are allowed to do is intended to be decided on the server side, so seeing a screen alone never means you have permission. Details will appear in the Privacy Policy once the account system goes live."
+      },
+      "twoFactor": {
+        "title": "Will there be two-factor authentication?",
+        "answer": "Two-factor authentication is planned, but it is not available yet. Supported methods and setup steps will be announced on this page once the account system is ready."
+      },
+      "visibility": {
+        "title": "Who will be able to see my profile and hardware details?",
+        "answer": "You will be able to choose who sees your profile and hardware details; per-field visibility settings are planned. They are not live yet, so these settings are not available at the moment."
+      },
+      "reporting": {
+        "title": "How can I report inappropriate content or users?",
+        "answer": "Reporting inappropriate content and users, along with content moderation, is planned. This mechanism is not live yet; once it is, how it works will be explained in the Terms of Use."
+      }
+    }
+  },
+  "Contact": {
+    "title": "Contact",
+    "description": "Have an idea, a problem or a suggestion? We would love to hear from you.",
+    "formLabel": "Contact form",
+    "demoNotice": "This contact form is currently in demo. The information you enter is not sent to any server.",
+    "fields": {
+      "name": "Full name",
+      "email": "E-mail",
+      "subject": "Subject",
+      "message": "Message"
+    },
+    "subjectPlaceholder": "Choose a subject",
+    "subjects": {
+      "general": "General question",
+      "feedback": "Feedback",
+      "bug": "Bug report",
+      "collaboration": "Collaboration",
+      "other": "Other"
+    },
+    "messageHint": "Write at least {min} characters.",
+    "counter": "{count} / {max}",
+    "requiredHint": "Fields marked with * are required.",
+    "submit": "Check the form",
+    "errorSummary": "{count, plural, one {# field needs your attention.} other {# fields need your attention.}}",
+    "validated": "Form validation succeeded. Because this is a demo, your message was not sent.",
+    "errors": {
+      "name": {
+        "required": "Enter your full name.",
+        "tooLong": "Full name can be at most {max} characters."
+      },
+      "email": {
+        "required": "Enter your e-mail address.",
+        "invalid": "Enter a valid e-mail address, for example name@example.com.",
+        "tooLong": "E-mail address can be at most {max} characters."
+      },
+      "subject": {
+        "required": "Choose a subject.",
+        "invalid": "Choose a valid subject from the list."
+      },
+      "message": {
+        "required": "Write your message.",
+        "tooShort": "Your message must be at least {min} characters.",
+        "tooLong": "Message can be at most {max} characters."
+      }
+    },
+    "side": {
+      "title": "Your Feedback Matters",
+      "body": "Your ideas and suggestions help us shape LobbyTwoZero. Because the form is currently in demo, what you write is not sent anywhere."
+    }
+  },
+  "Legal": {
+    "statusTitle": "This text has not been published yet",
+    "statusBody": "This document will be published after legal review. There is currently no binding text here.",
+    "backHome": "Back to home"
+  },
+  "Errors": {
+    "title": "Something went wrong",
+    "description": "The page hit a problem while loading. You can try again.",
+    "retry": "Try again"
+  },
+  "NotFound": {
+    "title": "Page not found",
+    "description": "The page you are looking for may have moved or never existed.",
+    "backHome": "Back to home"
+  },
+  "Loading": {
+    "label": "Loading"
   }
 }

@@ -5,6 +5,13 @@
 
 ## Bilinen durumlar
 
+- 2026-11-06, PR #67 sonrası: `UserServiceReviewAudiencePolicy`, REVIEW_AUTHOR ile
+  profil HARDWARE gizliliğinden bağımsız hesap/engel kararı alır. Adaylar sayfa
+  öncesinde aynı snapshot'ta çıkarılır; eksik/hatalı tek batch bütün dış izni kapatır.
+  503 Hardware testi, %98,98 coverage ve gerçek User dahil 25 HTTP kontrolü PASS.
+  Gerçek User projection=false kalır; güvenilir Social başlangıç aktarımı ayrı kabul.
+  [Güncel kanıt ve sınırlar](../../docs-hardware/integration/user-review-integration.md).
+
 - 2026-11-06: Üretim policy'leri artık `UserServiceHardwareVisibilityPolicy` ve
   `PerformanceServiceHardwareSyncDevicePolicy` istemcileridir. Her dış karar için
   yeni Auth servis token'ı alınır; bilinmeyen/erişilemeyen karar reddedilir.

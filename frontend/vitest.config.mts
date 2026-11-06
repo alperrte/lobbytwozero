@@ -11,6 +11,8 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
+    // next-intl (ESM) içe aktardığı "next/navigation" yolunu uzantısız yazar; Vite ile işlenmesi gerekir.
+    server: { deps: { inline: ["next-intl"] } },
     setupFiles: ["./test/setup.ts"],
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
     passWithNoTests: false,

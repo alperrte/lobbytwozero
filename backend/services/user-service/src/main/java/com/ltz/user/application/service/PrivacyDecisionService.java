@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.ltz.user.domain.entity.PrivacySettings;
 import com.ltz.user.domain.entity.UserProfile;
+import com.ltz.user.domain.enums.DecisionField;
 import com.ltz.user.domain.enums.PrivacyField;
 import com.ltz.user.domain.enums.ViewerRelation;
 import com.ltz.user.domain.enums.Visibility;
@@ -34,6 +35,9 @@ import lombok.RequiredArgsConstructor;
  *       arkadaşlık bilinmez; sahibi olmayan izleyiciye <b>hiç</b> izin verilmez (Hardware sözleşmesi: bilinmeyen karar
  *       reddedilir). {@code setting} yine döner; engel/arkadaşlığı kendisi bilen Social yalnız onu kullanır.</li>
  *   <li>Yasaklı/devre dışı/silinmekte olan hesap için ayar {@code PRIVATE} sayılır.</li>
+ *   <li>{@link DecisionField#REVIEW_AUTHOR}: içerik herkese açıktır ({@code setting=PUBLIC}); profil ayarı ve misafir
+ *       erişimi uygulanmaz, yalnız hesap durumu ile çift yönlü engel belirler. Yansıma güvenilir değilse yazar dışında
+ *       kimseye izin verilmez.</li>
  * </ul>
  */
 @Service
@@ -50,7 +54,7 @@ public class PrivacyDecisionService {
     }
 
     @Transactional(readOnly = true)
-    public List<Decision> decide(Optional<UUID> viewer, PrivacyField field, List<UUID> owners) {
+    public List<Decision> decide(Optional<UUID> viewer, DecisionField field, List<UUID> owners) {
         Set<UUID> ids = new LinkedHashSet<>(owners);
         Map<UUID, UserProfile> found = profiles.findAllById(ids).stream()
                 .collect(Collectors.toMap(UserProfile::getUserId, Function.identity()));
@@ -66,12 +70,15 @@ public class PrivacyDecisionService {
             UserProfile profile = found.get(owner);
             PrivacySettings privacy = stored.getOrDefault(owner, PrivacySettings.defaults(owner));
             boolean visibleAccount = profile == null || profile.isPubliclyVisible();
-            Visibility setting = visibleAccount ? privacy.visibilityOf(field) : Visibility.PRIVATE;
+            Optional<PrivacyField> section = field.profileField();
+            Visibility setting = !visibleAccount ? Visibility.PRIVATE
+                    : section.map(privacy::visibilityOf).orElse(Visibility.PUBLIC);
             boolean isFriend = friends.contains(owner);
             ViewerRelation relation = relation(viewer, owner, isFriend);
             boolean allowed = relation == ViewerRelation.OWNER
                     || (trusted && visibleAccount && !blocked.contains(owner)
-                        && PrivacyRules.allows(relation, setting, privacy.getGuestAccess()));
+                        && (section.isEmpty()
+                            || PrivacyRules.allows(relation, setting, privacy.getGuestAccess())));
             return new Decision(owner, setting, allowed, isFriend);
         }).toList();
     }

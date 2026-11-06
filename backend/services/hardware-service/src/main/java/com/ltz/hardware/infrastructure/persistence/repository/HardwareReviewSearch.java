@@ -9,6 +9,9 @@ import jakarta.persistence.criteria.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.UUID;
+import java.util.HashSet;
+import java.util.Set;
+import com.ltz.hardware.application.port.HardwareReviewAudiencePolicy;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
 
@@ -16,6 +19,15 @@ import org.springframework.stereotype.Repository;
 public class HardwareReviewSearch {
     private final EntityManager entityManager;
     public HardwareReviewSearch(EntityManager entityManager) { this.entityManager = entityManager; }
+
+    /** REPEATABLE_READ liste transaction'ının aynı snapshot'ındaki tüm adaylar; yorum gövdesi yüklenmez. */
+    public Set<UUID> authors(UUID productId) {
+        return new HashSet<>(entityManager.createQuery("""
+                select distinct r.userId from HardwareReview r
+                where r.productId = :productId and r.status = 'VISIBLE' order by r.userId
+                """, UUID.class).setParameter("productId", productId)
+                .setMaxResults(HardwareReviewAudiencePolicy.MAX_AUTHORS + 1).getResultList());
+    }
 
     public Specification<HardwareReview> visible(UUID productId, UUID viewer, Decision decision) {
         return (root, query, cb) -> filter(root, cb, productId, viewer, decision);

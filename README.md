@@ -193,35 +193,35 @@ LTZ'nin dünyası **mikroservislerden** oluşur. Web istemcisi tüm isteklerini 
       <a href="https://github.com/alperrte"><img src="docs/assets/readme/btn-github.svg" width="140" alt="Alper Temiz GitHub"></a><br>
       <a href="https://www.linkedin.com/in/alpertemizz/"><img src="docs/assets/readme/btn-linkedin.svg" width="140" alt="Alper Temiz LinkedIn"></a><br>
       <a href="mailto:alpertemiz15@gmail.com"><img src="docs/assets/readme/btn-mail.svg" width="140" alt="Alper Temiz e-posta"></a><br>
-      <a href="docs/assets/cv/alper-temiz-cv.pdf"><img src="docs/assets/readme/btn-cv.svg" width="140" alt="Alper Temiz CV"></a>
+      <a href="docs/assets/cv/Alper_Temiz_CV.pdf"><img src="docs/assets/readme/btn-cv.svg" width="140" alt="Alper Temiz CV"></a>
     </td>
     <td align="center">
       <img src="docs/assets/readme/player-nisa.svg" width="140" alt="P2 Nisa Camcı — Guild Master"><br>
       <a href="https://github.com/Camcinisa"><img src="docs/assets/readme/btn-github.svg" width="140" alt="Nisa Camcı GitHub"></a><br>
       <a href="https://www.linkedin.com/in/nisa-camci/"><img src="docs/assets/readme/btn-linkedin.svg" width="140" alt="Nisa Camcı LinkedIn"></a><br>
       <a href="mailto:nscmc34@gmail.com"><img src="docs/assets/readme/btn-mail.svg" width="140" alt="Nisa Camcı e-posta"></a><br>
-      <a href="docs/assets/cv/nisa-camci-cv.pdf"><img src="docs/assets/readme/btn-cv.svg" width="140" alt="Nisa Camcı CV"></a>
+      <a href="docs/assets/cv/Nisa%20Camc%C4%B1%20CV%20T%C3%BCrk%C3%A7e.pdf"><img src="docs/assets/readme/btn-cv.svg" width="140" alt="Nisa Camcı CV"></a>
     </td>
     <td align="center">
       <img src="docs/assets/readme/player-umut.svg" width="140" alt="P3 Umut Yeşilyurt — Party Summoner"><br>
       <a href="https://github.com/Umutys61"><img src="docs/assets/readme/btn-github.svg" width="140" alt="Umut Yeşilyurt GitHub"></a><br>
       <a href="https://www.linkedin.com/in/umut-ye%C5%9Filyurt"><img src="docs/assets/readme/btn-linkedin.svg" width="140" alt="Umut Yeşilyurt LinkedIn"></a><br>
       <a href="mailto:umutyesilyurt6134@gmail.com"><img src="docs/assets/readme/btn-mail.svg" width="140" alt="Umut Yeşilyurt e-posta"></a><br>
-      <a href="docs/assets/cv/umut-yesilyurt-cv.pdf"><img src="docs/assets/readme/btn-cv.svg" width="140" alt="Umut Yeşilyurt CV"></a>
+      <a href="docs/assets/cv/Umut%20Ye%C5%9Filyurt%20CV.pdf"><img src="docs/assets/readme/btn-cv.svg" width="140" alt="Umut Yeşilyurt CV"></a>
     </td>
     <td align="center">
       <img src="docs/assets/readme/player-hamza.svg" width="140" alt="P4 Hamza Taşbay — Lore Keeper"><br>
       <a href="https://github.com/HmzT270"><img src="docs/assets/readme/btn-github.svg" width="140" alt="Hamza Taşbay GitHub"></a><br>
       <a href="https://www.linkedin.com/in/hamza-tasbay/"><img src="docs/assets/readme/btn-linkedin.svg" width="140" alt="Hamza Taşbay LinkedIn"></a><br>
       <a href="mailto:tasbayh@gmail.com"><img src="docs/assets/readme/btn-mail.svg" width="140" alt="Hamza Taşbay e-posta"></a><br>
-      <a href="docs/assets/cv/hamza-tasbay-cv.pdf"><img src="docs/assets/readme/btn-cv.svg" width="140" alt="Hamza Taşbay CV"></a>
+      <a href="docs/assets/cv/Hamza_Tasbay_CV_English.pdf"><img src="docs/assets/readme/btn-cv.svg" width="140" alt="Hamza Taşbay CV"></a>
     </td>
     <td align="center">
       <img src="docs/assets/readme/player-kerem.svg" width="140" alt="P5 Kerem Kalyoncu — Gate Paladin"><br>
       <a href="https://github.com/KeremKalyoncu"><img src="docs/assets/readme/btn-github.svg" width="140" alt="Kerem Kalyoncu GitHub"></a><br>
       <a href="https://www.linkedin.com/in/kerem-kalyoncu/"><img src="docs/assets/readme/btn-linkedin.svg" width="140" alt="Kerem Kalyoncu LinkedIn"></a><br>
       <a href="mailto:keremkalyoncu.dev@gmail.com"><img src="docs/assets/readme/btn-mail.svg" width="140" alt="Kerem Kalyoncu e-posta"></a><br>
-      <a href="docs/assets/cv/kerem-kalyoncu-cv.pdf"><img src="docs/assets/readme/btn-cv.svg" width="140" alt="Kerem Kalyoncu CV"></a>
+      <a href="docs/assets/cv/Kerem%20Kalyoncu%20CV.pdf"><img src="docs/assets/readme/btn-cv.svg" width="140" alt="Kerem Kalyoncu CV"></a>
     </td>
   </tr>
 </table>

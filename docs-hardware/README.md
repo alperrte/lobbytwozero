@@ -1,6 +1,11 @@
 # Hardware Service çalışma kayıtları
 
-Güncel iş: **HW-08 / HW-07 User ve Performance tüketici bağlantıları (2026-11-06)**.
+Güncel iş: **HW-12 REVIEW_AUTHOR tüketicisi (2026-11-06, PR #67 cevabı)**.
+[Güncel uygulama ve doğrulama](integration/user-review-integration.md).
+Yorumlar HARDWARE profil ayarından bağımsız User kararıyla SQL sorgusunda filtrelenir.
+User'ın güvenilir Social yansıması ilanı halen Kerem/Umut'ta bekler.
+
+Önceki iş: **HW-08 / HW-07 User ve Performance tüketici bağlantıları (2026-11-06)**.
 [Uygulama, frontend akışı ve doğrulama](integration/hardware-user-performance.md).
 Hardware artık User gizlilik ve Performance aktif cihaz endpoint'lerini Auth servis
 token'ıyla tüketir. User'ın güvenilir Social yansıması ve yorum UGC sözleşmesi açık
