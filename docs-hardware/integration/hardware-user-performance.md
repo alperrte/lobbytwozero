@@ -1,5 +1,10 @@
 # HW-08 / HW-07 — User ve Performance tüketici bağlantıları
 
+**Sonraki çalışma:** PR #67 cevabına göre REVIEW_AUTHOR tüketicisi tamamlandı;
+503 Hardware testi ve gerçek User dahil 25 HTTP kontrolü PASS.
+[Güncel yorum entegrasyonu](user-review-integration.md). Aşağıdaki yorum UGC
+sözleşmesi açık ifadeleri ilk bağlantı aşamasının tarihçesidir.
+
 Tarih: 2026-11-06. Sorumlu: Alper. Amaç: mevcut Hardware API'lerini frontend
 kullanımına hazırlamak. Moderasyon ve bildirim teslimi kapsam dışıdır.
 

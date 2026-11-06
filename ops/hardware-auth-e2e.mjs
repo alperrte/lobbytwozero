@@ -61,7 +61,7 @@ export function deletionFixtureEnvironment() {
 }
 
 export function deletionFixturePending(total, confirmed, pending) {
-  // Repo genelinde 5 uç hazır, 11 uç eksik. Bu fixture yalnız Hardware'ı başlatır.
+  // Bu fixture D4 için yalnız Hardware'a yönlendirir; diğer hedeflerin ACK'i atlanmaz.
   return total === 16 && confirmed === 1 && pending === 15;
 }
 
@@ -98,11 +98,13 @@ async function unusedPort() {
   return listener.port;
 }
 
-export async function runHardwareAuthE2e(root, log = console.log) {
+export async function runHardwareAuthE2e(root, log = console.log, { withUser = false } = {}) {
   // Kaynak eskiyse geçici kaynak oluşturmadan açık hata ver.
   for (const service of ['auth-service', 'hardware-service', 'api-gateway']) requireFreshJar(root, service);
+  if (withUser) requireFreshJar(root, 'user-service');
   const containers = [], children = [], listeners = [], secrets = [];
   const label = `hardware-auth-e2e-${randomUUID()}`;
+  let userMediaRoot;
   let checks = 0;
   const check = (condition, name) => {
     if (!condition) throw new Error(`FAIL: ${name}`);
@@ -133,10 +135,10 @@ export async function runHardwareAuthE2e(root, log = console.log) {
     if (!/^SELECT\s/i.test(query)) throw new Error('Only read-only fixture assertions are allowed');
     return docker(['exec', db.id, 'psql', '-U', 'fixture', '-d', 'fixture', '-tAc', query]);
   };
-  const launch = async (service, port, extra) => {
+  const launch = async (service, port, extra, args = []) => {
     const jar = requireFreshJar(root, service);
     const java = process.env.JAVA_HOME ? path.join(process.env.JAVA_HOME, 'bin', process.platform === 'win32' ? 'java.exe' : 'java') : 'java';
-    const child = spawn(java, ['-jar', jar, '--server.address=127.0.0.1', `--server.port=${port}`], {
+    const child = spawn(java, ['-jar', jar, '--server.address=127.0.0.1', `--server.port=${port}`, ...args], {
       cwd: root, env: isolatedEnvironment({ LOG_LEVEL: 'INFO', ...extra }), windowsHide: true,
     });
     const running = { child, output: '', service };
@@ -173,13 +175,18 @@ export async function runHardwareAuthE2e(root, log = console.log) {
     const dbEnvironment = { POSTGRES_USER: 'fixture', POSTGRES_DB: 'fixture', POSTGRES_PASSWORD: dbPassword };
     const authDb = await container('postgres:17-alpine', [5432], dbEnvironment);
     const hardwareDb = await container('postgres:17-alpine', [5432], dbEnvironment);
+    const userDb = withUser ? await container('postgres:17-alpine', [5432], dbEnvironment) : undefined;
     const mail = await container('axllent/mailpit:v1.31.0', [1025, 8025]);
-    for (const db of [authDb, hardwareDb]) await until(async () => {
+    for (const db of [authDb, hardwareDb, ...(userDb ? [userDb] : [])]) await until(async () => {
       try { return await sql(db, 'SELECT 1') === '1'; } catch { return false; }
     }, 'disposable PostgreSQL');
     const authPort = await unusedPort(), hardwarePort = await unusedPort(), gatewayPort = await unusedPort();
     const authOrigin = `http://127.0.0.1:${authPort}`, hardwareOrigin = `http://127.0.0.1:${hardwarePort}`;
     const gatewayOrigin = `http://127.0.0.1:${gatewayPort}`;
+    const userPort = withUser ? await unusedPort() : undefined;
+    const userOrigin = withUser ? `http://127.0.0.1:${userPort}` : undefined;
+    const hardwareSecret = randomBytes(32).toString('base64url'), socialSecret = randomBytes(32).toString('base64url');
+    secrets.push(hardwareSecret, socialSecret);
     let erasureToken;
     const erasureResponses = [];
     const relay = await listen(async (incoming, outgoing) => {
@@ -195,7 +202,8 @@ export async function runHardwareAuthE2e(root, log = console.log) {
     const unavailable = await listen((_, response) => { response.writeHead(503); response.end(); });
     listeners.push(relay.server, unavailable.server);
     const dbProperties = db => ({ POSTGRES_HOST: '127.0.0.1', POSTGRES_PORT: String(db.ports[5432]),
-      POSTGRES_USER: 'fixture', POSTGRES_PASSWORD: dbPassword, DB_AUTH_NAME: 'fixture', DB_HARDWARE_NAME: 'fixture' });
+      POSTGRES_USER: 'fixture', POSTGRES_PASSWORD: dbPassword, DB_AUTH_NAME: 'fixture', DB_HARDWARE_NAME: 'fixture',
+      DB_USER_NAME: 'fixture' });
     const authEnvironment = { ...dbProperties(authDb), ...deletionFixtureEnvironment(),
       SPRING_PROFILES_ACTIVE: 'dev', AUTH_JWT_PRIVATE_KEY: privateKey,
       AUTH_OTP_HMAC_KEY: hmac, AUTH_TOTP_ENCRYPTION_KEY: totp, AUTH_PUBLIC_BASE_URL: gatewayOrigin,
@@ -203,12 +211,23 @@ export async function runHardwareAuthE2e(root, log = console.log) {
       AUTH_DELETION_MAX_BACKOFF: 'PT2S', AUTH_DELETION_HTTP_TIMEOUT: 'PT1S',
       LTZ_AUTH_MAIL_DEVSMTP_HOST: '127.0.0.1', LTZ_AUTH_MAIL_DEVSMTP_PORT: String(mail.ports[1025]),
       HARDWARE_SERVICE_URL: relay.origin };
+    if (withUser) Object.assign(authEnvironment, {
+      AUTH_HARDWARE_SERVICE_CLIENT_SECRET: hardwareSecret, AUTH_SOCIAL_SERVICE_CLIENT_SECRET: socialSecret,
+    });
     for (const service of ['USER', 'MAIL', 'GAME', 'LIBRARY', 'REVIEW', 'SOCIAL', 'MESSAGING', 'LFP', 'COMMUNITY', 'CONTENT', 'EVENT', 'RECOMMENDATION', 'PERFORMANCE', 'ADMIN', 'NOTIFICATION']) {
       authEnvironment[`${service}_SERVICE_URL`] = unavailable.origin;
     }
     await launch('auth-service', authPort, authEnvironment);
-    await launch('hardware-service', hardwarePort, { ...dbProperties(hardwareDb), AUTH_SERVICE_URL: authOrigin });
+    const launchUser = async trusted => {
+      userMediaRoot ??= path.resolve(root, '.cache', `hardware-user-media-${randomUUID()}`);
+      await launch('user-service', userPort, { ...dbProperties(userDb), AUTH_SERVICE_URL: authOrigin },
+        [`--ltz.user.social.projection-enabled=${trusted}`, `--ltz.user.media.root=${userMediaRoot}`]);
+    };
+    if (withUser) await launchUser(false);
+    await launch('hardware-service', hardwarePort, { ...dbProperties(hardwareDb), AUTH_SERVICE_URL: authOrigin,
+      ...(withUser ? { USER_SERVICE_URL: userOrigin, AUTH_HARDWARE_SERVICE_CLIENT_SECRET: hardwareSecret } : {}) });
     await launch('api-gateway', gatewayPort, { AUTH_SERVICE_URL: authOrigin, HARDWARE_SERVICE_URL: hardwareOrigin,
+      ...(withUser ? { USER_SERVICE_URL: userOrigin } : {}),
       CORS_ALLOWED_ORIGINS: gatewayOrigin });
     check(await sql(hardwareDb, 'SELECT count(*) FROM flyway_schema_history WHERE success') === '8', 'Real Hardware Flyway V1-V8 and ddl-auto validation');
     const mailOrigin = `http://127.0.0.1:${mail.ports[8025]}`;
@@ -246,6 +265,55 @@ export async function runHardwareAuthE2e(root, log = console.log) {
       method: 'POST', csrf: true, headers: { Origin: gatewayOrigin }, body });
     const first = (await create(owner, { name: 'Runtime owner fixture', deviceType: 'DESKTOP' })).body;
     const second = (await create(other, { name: 'Runtime other fixture', deviceType: 'LAPTOP' })).body;
+    if (withUser) {
+      const ownerId = JSON.parse(Buffer.from(owner.token.split('.')[1], 'base64url')).sub;
+      const otherId = JSON.parse(Buffer.from(other.token.split('.')[1], 'base64url')).sub;
+      const productId = randomUUID();
+      // Yalnız bu koşunun etiketli, yeni Hardware DB'sinde sentetik katalog fixture'ı.
+      const fixtureLabel = await docker(['inspect', '--format', '{{ index .Config.Labels "ltz.hardware-auth-e2e" }}', hardwareDb.id]);
+      if (fixtureLabel !== label) throw new Error('Refusing catalog seed outside this fixture');
+      await docker(['exec', hardwareDb.id, 'psql', '-U', 'fixture', '-d', 'fixture', '-v', 'ON_ERROR_STOP=1', '-c',
+        `INSERT INTO hardware_products(id,category,model,normalized_model) VALUES ('${productId}','CPU','User review fixture','user review fixture')`]);
+      const reviewRoute = `/api/v1/hardware/catalog/products/${productId}/reviews`;
+      const ownerReview = (await request(gatewayOrigin, reviewRoute, 201, { jar: owner.jar, method: 'POST', csrf: true,
+        headers: { Origin: gatewayOrigin }, body: { body: 'Owner runtime review', rating: 1 } })).body;
+      await request(gatewayOrigin, reviewRoute, 201, { jar: other.jar, method: 'POST', csrf: true,
+        headers: { Origin: gatewayOrigin }, body: { body: 'Viewer runtime review', rating: 5 } });
+      const closed = (await request(gatewayOrigin, reviewRoute + '?size=1', 200, { jar: other.jar })).body;
+      check(closed.totalElements === 1 && closed.summary.averageRating === 5,
+        'Actual User untrusted projection keeps only own review, count and rating');
+      await request(gatewayOrigin, '/api/v1/user/me/privacy', 200, { jar: owner.jar, method: 'PUT', csrf: true,
+        headers: { Origin: gatewayOrigin }, body: { version: 0, friendsList: 'PRIVATE', library: 'PRIVATE',
+          hardware: 'PRIVATE', performance: 'PRIVATE', guestProfileAccess: 'BASIC' } });
+      const initialUser = children.find(running => running.service === 'user-service').child;
+      initialUser.kill();
+      await until(async () => initialUser.exitCode !== null || initialUser.signalCode !== null,
+        'fixture User shutdown', 15000);
+      // Yalnız sentetik fixture: gerçek User/Social yapılandırması değişmez.
+      await launchUser(true);
+      const open = (await request(gatewayOrigin, reviewRoute + '?size=1', 200, { jar: other.jar })).body;
+      check(open.items.length === 1 && open.totalElements === 2 && open.totalPages === 2 && open.summary.averageRating === 3,
+        'Actual REVIEW_AUTHOR ignores PRIVATE Hardware setting and filters before page/count/rating');
+      await request(gatewayOrigin, `/api/v1/hardware/reviews/${ownerReview.id}`, 200, { jar: other.jar });
+      const social = (await request(authOrigin, '/internal/v1/service-tokens', 200, { method: 'POST',
+        body: { clientId: 'social-service', clientSecret: socialSecret, audience: 'user-service' } })).body;
+      secrets.push(social.accessToken);
+      const block = async (eventType, blockerId, blockedId) => request(userOrigin, '/internal/events', 200,
+        { method: 'POST', headers: { Authorization: `Bearer ${social.accessToken}` }, body: { eventId: randomUUID(),
+          eventType, eventVersion: 1, occurredAt: new Date().toISOString(), producer: 'social-service',
+          aggregateId: randomUUID(), payload: { blockerId, blockedId } } });
+      for (const [blockerId, blockedId] of [[ownerId, otherId], [otherId, ownerId]]) {
+        await block('UserBlocked', blockerId, blockedId);
+        const blocked = (await request(gatewayOrigin, reviewRoute + '?size=1', 200, { jar: other.jar })).body;
+        await request(gatewayOrigin, `/api/v1/hardware/reviews/${ownerReview.id}`, 404, { jar: other.jar });
+        check(blocked.totalElements === 1 && blocked.summary.averageRating === 5,
+          'Actual User block event excludes author before Hardware pagination and summary in either direction');
+        await block('UserUnblocked', blockerId, blockedId);
+      }
+      const restored = (await request(gatewayOrigin, reviewRoute, 200, { jar: other.jar })).body;
+      check(restored.totalElements === 2 && restored.summary.averageRating === 3,
+        'User unblock is observed immediately without caching an earlier audience decision');
+    }
     check(Boolean(first.id) && Boolean(second.id), 'Real Gateway cookie-to-Bearer conversion creates owner profiles');
     await request(gatewayOrigin, `${profiles}/${first.id}`, 404, { jar: other.jar });
     await create(owner, { name: 'Rejected impersonation', deviceType: 'DESKTOP', userId: randomUUID() }, 400);
@@ -279,7 +347,7 @@ export async function runHardwareAuthE2e(root, log = console.log) {
       headers: { ...deviceHeaders, 'Idempotency-Key': randomUUID() }, body: snapshot });
     await request(gatewayOrigin, profiles, 401, { headers: deviceHeaders });
     await request(hardwareOrigin, `/internal/v1/accounts/${accountId}`, 401, { method: 'DELETE', headers: deviceHeaders });
-    check(true, 'Real device identity reaches snapshot policy; missing Performance contract denies apply and user/internal access');
+    check(true, 'Real device identity reaches snapshot policy; unavailable Performance fixture denies apply and user/internal access');
     await request(gatewayOrigin, `${deviceRoute}/${device.deviceId}`, 204, { jar: owner.jar, method: 'DELETE', csrf: true,
       headers: { Origin: gatewayOrigin } });
     await request(gatewayOrigin, deviceRoute + '/token', 401, { method: 'POST', body: deviceCredentials });
@@ -305,7 +373,7 @@ export async function runHardwareAuthE2e(root, log = console.log) {
       Number(await sql(authDb, "SELECT count(*) FROM account_deletion_tasks WHERE status='CONFIRMED'")),
       Number(await sql(authDb, "SELECT count(*) FROM account_deletion_tasks WHERE status='PENDING'")))
       && await sql(authDb, "SELECT count(*) FROM accounts WHERE status='DELETION_REQUESTED'") === '1',
-    'All 16 Auth targets remain configured; fixture leaves 15 ACKs pending (11 endpoints missing repo-wide, 4 ready services not started)');
+    'All 16 Auth targets remain configured; only Hardware D4 is routed, leaving 15 ACKs pending');
     log(`HARDWARE AUTH RUNTIME E2E PASS: ${checks} checks; other-service Saga completion NOT_VERIFIED`);
     return { checks, status: 'PASS', globalSaga: 'NOT_VERIFIED' };
   } catch (error) {
@@ -324,12 +392,20 @@ export async function runHardwareAuthE2e(root, log = console.log) {
       if (resourceLabel !== label) throw new Error('Refusing cleanup of a resource outside this fixture');
       await docker(['rm', '-f', '-v', id]);
     }
+    if (userMediaRoot && fs.existsSync(userMediaRoot)) {
+      const expectedParent = path.resolve(root, '.cache');
+      if (path.dirname(userMediaRoot) !== expectedParent || !path.basename(userMediaRoot).startsWith('hardware-user-media-')) {
+        throw new Error('Refusing fixture media cleanup outside the assigned directory');
+      }
+      fs.rmSync(userMediaRoot, { recursive: true });
+    }
     log(`[CLEANUP] ${children.length} fixture processes and ${containers.length} owned containers removed`);
   }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  runHardwareAuthE2e(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')).catch(error => {
+  runHardwareAuthE2e(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'), console.log,
+    { withUser: process.argv.includes('--with-user') }).catch(error => {
     console.error(error.message); process.exitCode = 1;
   });
 }

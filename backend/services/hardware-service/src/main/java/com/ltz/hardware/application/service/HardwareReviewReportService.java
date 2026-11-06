@@ -43,7 +43,8 @@ public class HardwareReviewReportService {
         writes.limit(viewer, peer, false);
         var review = reviews.findForUpdate(reviewId).orElseThrow(HardwareNotFoundException::new);
         if (viewer.equals(review.getUserId())) throw new IllegalArgumentException("Kendi yorumunuzu raporlayamazsınız");
-        if (review.getStatus() != HardwareReviewStatus.VISIBLE || !reviewService.decision(viewer).permits(viewer, review.getUserId())) {
+        if (review.getStatus() != HardwareReviewStatus.VISIBLE
+                || !reviewService.decision(viewer, Set.of(review.getUserId())).permits(viewer, review.getUserId())) {
             throw new HardwareNotFoundException();
         }
         products.findActiveForSelection(review.getProductId()).orElseThrow(HardwareNotFoundException::new);

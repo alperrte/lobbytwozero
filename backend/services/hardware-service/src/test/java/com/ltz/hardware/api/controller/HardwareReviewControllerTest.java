@@ -50,7 +50,7 @@ class HardwareReviewControllerTest extends PostgresIntegrationSupport {
         jdbc.update("DELETE FROM hardware_products");
         product = product();
         second = product();
-        when(audience.evaluate(any())).thenReturn(new HardwareReviewAudiencePolicy.Decision(true, Set.of()));
+        when(audience.evaluate(any(), anySet())).thenReturn(new HardwareReviewAudiencePolicy.Decision(true, Set.of()));
     }
 
     private UUID product() {
@@ -165,8 +165,10 @@ class HardwareReviewControllerTest extends PostgresIntegrationSupport {
         var b = create(other, product, "Three star text", 3);
         var blocked = UUID.randomUUID();
         create(blocked, product, "Blocked text", 1);
-        var unknown = create(UUID.randomUUID(), product, "Unrated text", null);
-        var hidden = create(UUID.randomUUID(), product, "Hidden rating", 2);
+        var unknownAuthor = UUID.randomUUID();
+        var unknown = create(unknownAuthor, product, "Unrated text", null);
+        var hiddenAuthor = UUID.randomUUID();
+        var hidden = create(hiddenAuthor, product, "Hidden rating", 2);
         var deletedAuthor = UUID.randomUUID();
         var deleted = create(deletedAuthor, product, "Deleted rating", 1);
         jdbc.update("UPDATE hardware_reviews SET status='HIDDEN' WHERE id=?", hidden);
@@ -177,11 +179,12 @@ class HardwareReviewControllerTest extends PostgresIntegrationSupport {
         // PostgreSQL UUID ordering compares unsigned bytes; obtain its canonical expected order.
         var order = jdbc.queryForList("SELECT id FROM hardware_reviews WHERE id IN (?,?,?) ORDER BY created_at,id", UUID.class,
                 visible.get(0), visible.get(1), visible.get(2));
-        when(audience.evaluate(viewer)).thenReturn(new HardwareReviewAudiencePolicy.Decision(true, Set.of(blocked)));
+        when(audience.evaluate(eq(viewer), anySet())).thenReturn(new HardwareReviewAudiencePolicy.Decision(true, Set.of(blocked)));
         mvc.perform(get(collection(product)).with(actor(viewer)).param("size", "1"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(3))
                 .andExpect(jsonPath("$.totalPages").value(3)).andExpect(jsonPath("$.items[0].id").value(order.getFirst().toString()))
                 .andExpect(jsonPath("$.summary.ratedReviews").value(2)).andExpect(jsonPath("$.summary.averageRating").value(4.0));
+        verify(audience).evaluate(eq(viewer), eq(Set.of(owner, other, blocked, unknownAuthor)));
         mvc.perform(get(collection(product)).with(actor(viewer)).param("size", "1").param("page", "3"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.items").isEmpty()).andExpect(jsonPath("$.totalElements").value(3));
         var blockedId = jdbc.queryForObject("SELECT id FROM hardware_reviews WHERE user_id=?", UUID.class, blocked);
@@ -192,14 +195,14 @@ class HardwareReviewControllerTest extends PostgresIntegrationSupport {
     void unavailableAudienceNullFailureAndGlobalDenyKeepOnlyOwnerData() throws Exception {
         var own = create(viewer, product, "Own public text", 5);
         var foreign = create(owner, product, "Other public text", 1);
-        when(audience.evaluate(viewer)).thenReturn(null);
+        when(audience.evaluate(eq(viewer), anySet())).thenReturn(null);
         mvc.perform(get(collection(product)).with(actor(viewer))).andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1)).andExpect(jsonPath("$.items[0].id").value(own.toString()));
-        when(audience.evaluate(viewer)).thenThrow(new IllegalStateException("synthetic unavailable"));
+        when(audience.evaluate(eq(viewer), anySet())).thenThrow(new IllegalStateException("synthetic unavailable"));
         mvc.perform(get(item(foreign)).with(actor(viewer))).andExpect(status().isNotFound());
-        doReturn(HardwareReviewAudiencePolicy.Decision.denyOthers()).when(audience).evaluate(viewer);
+        doReturn(HardwareReviewAudiencePolicy.Decision.denyOthers()).when(audience).evaluate(eq(viewer), anySet());
         mvc.perform(get(collection(product)).with(actor(viewer))).andExpect(jsonPath("$.summary.averageRating").value(5.0));
-        assertThat(new UnavailableHardwareReviewAudiencePolicy().evaluate(viewer).allowOthers()).isFalse();
+        assertThat(new UnavailableHardwareReviewAudiencePolicy().evaluate(viewer, Set.of()).allowOthers()).isFalse();
         var oversized = new HashSet<UUID>();
         for (int i = 0; i < 1001; i++) oversized.add(UUID.randomUUID());
         assertThatIllegalArgumentException().isThrownBy(() -> new HardwareReviewAudiencePolicy.Decision(true, oversized));

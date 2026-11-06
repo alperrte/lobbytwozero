@@ -1,7 +1,20 @@
 # HW-USER-REQ-01 — Yorum görünürlüğü ve Social yansıması
 
 Tarih: 2026-11-06. Gönderen: Alper / Hardware. Sorumlu: Kerem / User.
-Durum: OPEN — sözleşme mutabakatı; aşağıdaki öneriler uygulanmış endpoint değildir.
+Durum: REQ-02 DONE — tüketici + izole gerçek User kabulü VERIFIED;
+REQ-01 operasyonel OPEN (Kerem/Umut).
+
+## Güncel cevap ve Hardware karşılığı
+
+PR #67 (`0199494`) ile Kerem'in REVIEW_AUTHOR sözleşmesi yerel koda geldi.
+[Kerem'in cevabı](../../../docs-user/integration/services/hardware-service-talepleri/hardware-cevap-01.md),
+[Hardware uygulaması ve güncel doğrulama](../user-review-integration.md).
+Profil paylaşımı için yeni User geliştirmesi yoktur. Ürün yorumları HARDWARE
+profil ayarından bağımsızdır; REVIEW_AUTHOR kararı SQL sayfalama/toplam/puan
+hesabından önce uygulanır. User/Social yansımasının güvenilir ilan edilmesi
+Kerem/Umut'ta bekler; gerçek ayar bu görevde değiştirilmez.
+
+Aşağıdaki REQ-02 soruları ilk talebin tarihçesidir; güncel cevap yukarıdadır.
 
 ## Tamamlanan Hardware tüketicisi
 
