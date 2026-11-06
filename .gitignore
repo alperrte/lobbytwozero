@@ -22,3 +22,6 @@ test-results/
 .aws/
 .cache/
 megalinter-reports/
+
+# Playwright MCP oturum ciktilari
+.playwright-mcp/

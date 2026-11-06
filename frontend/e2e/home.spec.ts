@@ -12,14 +12,16 @@ test("Ana sayfa acilir ve varsayilan dil Turkcedir", async ({
   ).toBeVisible();
 });
 
-test("Dil Ingilizceye degistirilebilir", async ({ page }) => {
+test("Dil Ingilizceye degistirilebilir ve ayni rotada kalir", async ({
+  page
+}) => {
   await page.goto("/");
 
-  await page.getByRole("button", { name: "EN" }).click();
+  await page.getByRole("button", { name: "İngilizce (EN)" }).click();
 
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
-
   await expect(
     page.getByText("A new meeting place for the gaming community.")
   ).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
 });
