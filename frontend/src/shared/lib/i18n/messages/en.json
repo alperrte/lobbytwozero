@@ -15,9 +15,26 @@
   },
   "Navigation": {
     "home": "Home",
+    "games": "Games",
+    "library": "My Library",
+    "reviews": "Reviews",
+    "news": "News",
+    "forYou": "For You",
+    "community": "Community",
+    "friends": "Friends",
+    "messages": "Messages",
+    "findTeam": "Find a Team",
+    "events": "Events",
     "hardware": "Hardware",
+    "performance": "Performance",
     "settings": "Settings",
-    "soon": "Soon"
+    "soon": "Soon",
+    "soonTooltip": "{label} — Soon",
+    "groups": {
+      "general": "General",
+      "social": "Social",
+      "hardware": "Hardware & Performance"
+    }
   },
   "Theme": {
     "label": "Theme",

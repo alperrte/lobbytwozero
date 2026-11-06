@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import tr from "@/shared/lib/i18n/messages/tr.json";
@@ -70,8 +70,87 @@ describe("AppShell", () => {
     expect(nav).not.toHaveTextContent("Profil");
     expect(nav).not.toHaveTextContent("Bilgisayarlarım");
     expect(nav).not.toHaveTextContent("Kampanyalar");
-    // Tam eşleşme yalnız rozetleri sayar (tooltip metni "Etiket · Yakında" biçimindedir).
-    expect(screen.getAllByText("Yakında")).toHaveLength(1);
+    // Tam eşleşme yalnız rozetleri sayar: Ana Sayfa dışındaki 12 öğe.
+    expect(screen.getAllByText("Yakında")).toHaveLength(12);
+  });
+
+  it("13 öğeyi üç grupta, belirlenen sırayla sunar", () => {
+    renderShell();
+    const nav = screen.getByRole("navigation", { name: "Ana gezinme" });
+
+    const groups = within(nav).getAllByRole("list");
+    expect(groups).toHaveLength(3);
+    expect(
+      groups.map((list) => within(list).getAllByRole("listitem").length)
+    ).toEqual([6, 5, 2]);
+    expect(nav).toHaveTextContent(/Genel/i);
+    expect(nav).toHaveTextContent(/Sosyal/i);
+    expect(nav).toHaveTextContent(/Donanım & Performans/i);
+
+    const labels = within(nav)
+      .getAllByRole("listitem")
+      .map((item) => item.querySelector("span.truncate")?.textContent);
+    expect(labels).toEqual([
+      "Ana Sayfa",
+      "Oyunlar",
+      "Kütüphanem",
+      "İncelemeler",
+      "Haberler",
+      "Sana Özel",
+      "Topluluk",
+      "Arkadaşlar",
+      "Mesajlar",
+      "Takım Bul",
+      "Etkinlikler",
+      "Donanımlar",
+      "Performans"
+    ]);
+  });
+
+  it("'Yakında' öğeleri tıklanamaz: bağlantı değil, aria-disabled düğmedir", () => {
+    renderShell();
+    const games = screen.getByRole("button", { name: "Oyunlar — Yakında" });
+    expect(games).toHaveAttribute("aria-disabled", "true");
+    expect(games.closest("a")).toBeNull();
+    // Ana Sayfa dışında etkin öğe yoktur: Ayarlar ve daralt düğmesi dışında başka bağlantı çıkmaz.
+    expect(
+      screen.getAllByRole("button", { name: /— Yakında$/ })
+    ).toHaveLength(12);
+  });
+
+  it("'Yakında' öğesine odaklanınca tooltip çıkar, Escape ile kapanır", () => {
+    renderShell();
+    const games = screen.getByRole("button", { name: "Oyunlar — Yakında" });
+    fireEvent.focus(games);
+    const tooltip = document.body.querySelector("span[aria-hidden='true'].fixed");
+    expect(tooltip).toHaveTextContent("Oyunlar — Yakında");
+
+    act(() => {
+      fireEvent.keyDown(document, { key: "Escape" });
+    });
+    expect(document.body.querySelector("span[aria-hidden='true'].fixed")).toBeNull();
+  });
+
+  it("daralt düğmesi durumu ve adını günceller, tercihi html'e yazar", () => {
+    renderShell();
+    const collapse = screen.getByRole("button", { name: "Kenar çubuğunu daralt" });
+    expect(collapse).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.click(collapse);
+    const expand = screen.getByRole("button", { name: "Kenar çubuğunu genişlet" });
+    expect(expand).toHaveAttribute("aria-expanded", "false");
+    expect(document.documentElement.dataset.sidebar).toBe("collapsed");
+
+    fireEvent.click(expand);
+    expect(document.documentElement.dataset.sidebar).toBeUndefined();
+  });
+
+  it("logo alanında marka görselinden başka yazı yoktur", () => {
+    renderShell();
+    const brand = screen.getByRole("link", { name: "LobbyTwoZero" });
+    expect(brand).toHaveAttribute("href", "/");
+    expect(brand.textContent).toBe("");
+    expect(brand.querySelectorAll("img")).toHaveLength(2);
   });
 
   it("menü düğmesi çekmeceyi açar, Escape kapatır ve odağı geri verir", () => {

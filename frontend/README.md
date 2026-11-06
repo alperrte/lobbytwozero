@@ -136,8 +136,8 @@ Araç adresi doğrular (http/https ayrımı, production'da yalnız https ve yere
 3. Özelliğe ait bileşen `shared/` içine konmaz; birden fazla özellik kullanıyorsa `shared`'a taşı.
 
 **Kenar çubuğuna bağlantı**
-1. Rota gerçekten varsa `shared/config/navigation.ts` içindeki `primaryNavigation` dizisine ekle; ikon `IconName` olmalı. Rota yoksa `href` yazma: öğe "Yakında" olarak, tıklanamaz gösterilir (kırık bağlantı üretilmez).
-2. Etiketi `Navigation.*` mesajlarına (TR ve EN) ekle.
+1. Menü verisi `shared/config/navigation.ts` içindeki `navigationGroups` (Genel, Sosyal, Donanım & Performans) dizisindedir; `primaryNavigation` bundan türetilir. Öğe zaten listelidir: rota yayınlandığında yalnız o öğeye `href` yazmak yeterlidir, bileşen değişmeden etkinleşir. Rota yoksa `href` yazma: öğe "Yakında" rozetiyle, tıklanamaz gösterilir (kırık bağlantı üretilmez). İkon `IconName` olmalıdır.
+2. Yeni öğe/grup eklenirse etiketi `Navigation.*` (ve grup için `Navigation.groups.*`) mesajlarına, TR ve EN birlikte ekle.
 
 **Navbar eylemi**
 - `navbar.tsx` içine ekle; açılır panel için `usePopover` + `popoverPanelClass` kullan. Kaydırma/modal davranışını bozmamak için panel açıkken `aria-expanded="true"` ver (navbar bu durumda görünür kalır).

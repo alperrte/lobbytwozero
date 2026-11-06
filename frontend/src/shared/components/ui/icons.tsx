@@ -69,7 +69,55 @@ const paths = {
       <circle cx="12" cy="12" r="8" />
       <path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" />
     </>
-  )
+  ),
+  // Kenar çubuğu ikonları (aynı 24px ızgara ve çizgi dili).
+  gamepad: (
+    <>
+      <path d="M7 7h10l4 5v4l-2 2h-2l-2-3H9l-2 3H5l-2-2v-4z" />
+      <path d="M8 10v3M6.5 11.5h3M15.5 10.5h.5M17.5 12.5h.5" />
+    </>
+  ),
+  library: <path d="M4 4v16M8 4v16M12 6v14M16 6l4 14" />,
+  star: <path d="m12 3 2.7 5.8 6.3.8-4.6 4.4 1.2 6.3-5.6-3.1-5.6 3.1 1.2-6.3L3 9.6l6.3-.8z" />,
+  newspaper: <path d="M4 4h13v16H4zM17 9h3v11h-3M7 8h7M7 12h7M7 16h4" />,
+  sparkles: (
+    <>
+      <path d="m10 4 1.8 4.7 4.7 1.8-4.7 1.8L10 17l-1.8-4.7-4.7-1.8 4.7-1.8z" />
+      <path d="M18 3v4M16 5h4M18 16v4M16 18h4" />
+    </>
+  ),
+  users: (
+    <>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 20v-1.5A4.5 4.5 0 0 1 7 14h4a4.5 4.5 0 0 1 4.5 4.5V20" />
+      <path d="M16 4.7a3.5 3.5 0 0 1 0 6.6M18 14.3a4.5 4.5 0 0 1 3.5 4.2V20" />
+    </>
+  ),
+  userCheck: (
+    <>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 20v-1.5A4.5 4.5 0 0 1 7 14h4a4.5 4.5 0 0 1 4.5 4.5V20" />
+      <path d="m16 11 2.5 2.5L22 9" />
+    </>
+  ),
+  usersRound: (
+    <>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 21a6.5 6.5 0 0 1 13 0" />
+      <circle cx="17.5" cy="9" r="2.5" />
+      <path d="M17.5 14a4.5 4.5 0 0 1 4.5 4.5" />
+    </>
+  ),
+  messages: (
+    <>
+      <path d="M3 4h13v9H9l-3 3v-3H3z" />
+      <path d="M16 8h5v10h-2v3l-3-3h-6v-3" />
+    </>
+  ),
+  calendar: <path d="M4 5h16v15H4zM4 10h16M8 3v4M16 3v4M8 14h1M12 14h1M16 14h1" />,
+  chart: <path d="M3 15l5.5-5.5 4 4L21 5M4 18v3M8 14v7M12 17v4M16 14v7M20 10v11" />,
+  panelLeftClose: <path d="M3 4h18v16H3zM9 4v16M16 15l-3-3 3-3" />,
+  panelLeftOpen: <path d="M3 4h18v16H3zM9 4v16M14 9l3 3-3 3" />
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof paths;

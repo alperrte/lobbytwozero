@@ -15,9 +15,26 @@
   },
   "Navigation": {
     "home": "Ana Sayfa",
+    "games": "Oyunlar",
+    "library": "Kütüphanem",
+    "reviews": "İncelemeler",
+    "news": "Haberler",
+    "forYou": "Sana Özel",
+    "community": "Topluluk",
+    "friends": "Arkadaşlar",
+    "messages": "Mesajlar",
+    "findTeam": "Takım Bul",
+    "events": "Etkinlikler",
     "hardware": "Donanımlar",
+    "performance": "Performans",
     "settings": "Ayarlar",
-    "soon": "Yakında"
+    "soon": "Yakında",
+    "soonTooltip": "{label} — Yakında",
+    "groups": {
+      "general": "Genel",
+      "social": "Sosyal",
+      "hardware": "Donanım & Performans"
+    }
   },
   "Theme": {
     "label": "Tema",

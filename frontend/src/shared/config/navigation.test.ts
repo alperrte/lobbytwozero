@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   findActiveItem,
   isActivePath,
+  isNavItemAvailable,
+  navigationGroups,
   primaryNavigation,
   settingsNavigation
 } from "./navigation";
@@ -13,12 +15,79 @@ describe("settingsNavigation", () => {
   });
 });
 
-describe("primaryNavigation", () => {
-  it("yalnız Ana Sayfa ve Donanımlar öğelerini içerir", () => {
-    expect(primaryNavigation.map((item) => item.labelKey)).toEqual([
-      "home",
+describe("navigationGroups", () => {
+  it("üç grubu belirlenen sırayla sunar", () => {
+    expect(navigationGroups.map((group) => group.id)).toEqual([
+      "general",
+      "social",
       "hardware"
     ]);
+  });
+
+  it("öğeleri gruplara belirlenen sırayla dağıtır (toplam 13)", () => {
+    expect(
+      navigationGroups.map((group) => group.items.map((item) => item.labelKey))
+    ).toEqual([
+      ["home", "games", "library", "reviews", "news", "forYou"],
+      ["community", "friends", "messages", "findTeam", "events"],
+      ["hardware", "performance"]
+    ]);
+    expect(primaryNavigation).toHaveLength(13);
+  });
+
+  it("öğe kimlikleri tekildir", () => {
+    const ids = primaryNavigation.map((item) => item.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("her öğe backend servisine eşlenir (Ana Sayfa hariç)", () => {
+    const services = Object.fromEntries(
+      primaryNavigation.map((item) => [item.id, item.service])
+    );
+    expect(services).toEqual({
+      home: undefined,
+      games: "game-service",
+      library: "library-service",
+      reviews: "review-service",
+      news: "content-service",
+      forYou: "recommendation-service",
+      community: "community-service",
+      friends: "social-service",
+      messages: "messaging-service",
+      findTeam: "lfp-service",
+      events: "event-service",
+      hardware: "hardware-service",
+      performance: "performance-service"
+    });
+  });
+
+  it("auth, user, mail, notification ve admin menüde yer almaz", () => {
+    const services = primaryNavigation.map((item) => item.service ?? "");
+    for (const excluded of [
+      "auth-service",
+      "user-service",
+      "mail-service",
+      "notification-service",
+      "admin-service"
+    ]) {
+      expect(services).not.toContain(excluded);
+    }
+  });
+});
+
+describe("primaryNavigation", () => {
+  it("yalnız Ana Sayfa kullanılabilir, kalan 12 öğe 'Yakında' durumundadır", () => {
+    const available = primaryNavigation.filter(isNavItemAvailable);
+    expect(available.map((item) => item.id)).toEqual(["home"]);
+    expect(primaryNavigation.filter((item) => !isNavItemAvailable(item))).toHaveLength(12);
+  });
+
+  it("Yakında öğeleri href taşımaz (kırık link ve sahte rota yok)", () => {
+    for (const item of primaryNavigation) {
+      if (item.id !== "home") {
+        expect(item.href).toBeUndefined();
+      }
+    }
   });
 
   it("Profil, Bilgisayarlarım ve Kampanyalar menüde yer almaz", () => {
@@ -26,11 +95,6 @@ describe("primaryNavigation", () => {
     for (const removed of ["profile", "myComputers", "campaigns"]) {
       expect(ids).not.toContain(removed);
     }
-  });
-
-  it("Donanımlar rotası hazır olmadığı için href taşımaz (kırık link yok)", () => {
-    const hardware = primaryNavigation.find((item) => item.id === "hardware");
-    expect(hardware?.href).toBeUndefined();
   });
 
   it("kırık bağlantı üretmez: href varsa gerçek bir yoldur, '#' değildir", () => {
@@ -61,5 +125,13 @@ describe("isActivePath / findActiveItem", () => {
   it("aktif öğeyi bulur, yoksa undefined döner", () => {
     expect(findActiveItem("/")?.id).toBe("home");
     expect(findActiveItem("/bilinmeyen")).toBeUndefined();
+  });
+
+  it("href verilen bir Yakında öğesi otomatik olarak aktif olur (bileşen değişmeden)", () => {
+    const enabled = [
+      ...primaryNavigation,
+      { id: "games-live", labelKey: "games" as const, icon: "gamepad" as const, href: "/games" }
+    ];
+    expect(findActiveItem("/games/42", enabled)?.id).toBe("games-live");
   });
 });
