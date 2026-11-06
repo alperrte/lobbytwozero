@@ -132,7 +132,9 @@ const paths = {
       <circle cx="12" cy="12" r="7" />
       <path d="M12 2v6M12 16v6M2 12h6M16 12h6" />
     </>
-  )
+  ),
+  volume: <path d="M4 9h4l5-4v14l-5-4H4zM16.5 9.5a3.5 3.5 0 0 1 0 5M19 7a7 7 0 0 1 0 10" />,
+  volumeOff: <path d="M4 9h4l5-4v14l-5-4H4zM16 9.5l5 5M21 9.5l-5 5" />
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof paths;

@@ -2,13 +2,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { preferencesInitScript } from "./init-script";
 import {
   applyTransitionPack,
+  applyTransitionSound,
   defaultTransitionPack,
   parseThemePreference,
   parseTransitionPack,
+  parseTransitionSound,
   readStored,
   resolveTheme,
   SIDEBAR_STORAGE_KEY,
   THEME_STORAGE_KEY,
+  TRANSITION_SOUND_STORAGE_KEY,
   TRANSITION_STORAGE_KEY,
   writeStored
 } from "./preferences";
@@ -21,6 +24,7 @@ afterEach(() => {
   delete document.documentElement.dataset.themePref;
   delete document.documentElement.dataset.sidebar;
   delete document.documentElement.dataset.transition;
+  delete document.documentElement.dataset.transitionSound;
 });
 
 describe("tema tercihi", () => {
@@ -66,6 +70,25 @@ describe("tema geçişi paketi", () => {
     applyTransitionPack("v3");
     expect(document.documentElement.dataset.transition).toBeUndefined();
     expect(readStored(TRANSITION_STORAGE_KEY)).toBeNull();
+  });
+});
+
+describe("geçiş sesi", () => {
+  it("varsayılan açıktır; yalnız 'off' kapatır, bilinmeyen değer açığa düşer", () => {
+    expect(parseTransitionSound("off")).toBe("off");
+    expect(parseTransitionSound("on")).toBe("on");
+    expect(parseTransitionSound("yüksek")).toBe("on");
+    expect(parseTransitionSound(undefined)).toBe("on");
+  });
+
+  it("kapatınca işaret ve depolama yazar; açınca ikisini de temizler", () => {
+    applyTransitionSound("off");
+    expect(document.documentElement.dataset.transitionSound).toBe("off");
+    expect(readStored(TRANSITION_SOUND_STORAGE_KEY)).toBe("off");
+
+    applyTransitionSound("on");
+    expect(document.documentElement.dataset.transitionSound).toBeUndefined();
+    expect(readStored(TRANSITION_SOUND_STORAGE_KEY)).toBeNull();
   });
 });
 
@@ -132,6 +155,15 @@ describe("init betiği", () => {
     window.localStorage.setItem(TRANSITION_STORAGE_KEY, "v1");
     run(false);
     expect(document.documentElement.dataset.transition).toBe("v1");
+  });
+
+  it("kapatılmış geçiş sesini ilk boyamadan önce uygular; açık ses işaret bırakmaz", () => {
+    run(false);
+    expect(document.documentElement.dataset.transitionSound).toBeUndefined();
+
+    window.localStorage.setItem(TRANSITION_SOUND_STORAGE_KEY, "off");
+    run(false);
+    expect(document.documentElement.dataset.transitionSound).toBe("off");
   });
 
   it("depolama kapalıysa hata fırlatmaz", () => {

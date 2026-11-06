@@ -7,6 +7,7 @@ export const THEME_STORAGE_KEY = "ltz-theme";
 export const SIDEBAR_STORAGE_KEY = "ltz-sidebar";
 export const NAVBAR_STORAGE_KEY = "ltz-navbar";
 export const TRANSITION_STORAGE_KEY = "ltz-transition";
+export const TRANSITION_SOUND_STORAGE_KEY = "ltz-transition-sound";
 export const PREFERENCES_EVENT = "ltz:preferences";
 
 export const themePreferences = ["system", "light", "dark"] as const;
@@ -28,6 +29,17 @@ export const defaultTransitionPack: TransitionPack = "v3";
 
 export function parseTransitionPack(value: unknown): TransitionPack {
   return (transitionPacks as readonly unknown[]).includes(value) ? (value as TransitionPack) : defaultTransitionPack;
+}
+
+/**
+ * V3 geçiş sesi. `on` (varsayılan): atış, cam kırılması ve fişek sesleri yalnız kullanıcı tema düğmesine
+ * bastığında çalar. `off`: sahne sessiz oynar. Tanınmayan saklı değer varsayılana düşer.
+ */
+export const transitionSounds = ["on", "off"] as const;
+export type TransitionSound = (typeof transitionSounds)[number];
+
+export function parseTransitionSound(value: unknown): TransitionSound {
+  return value === "off" ? "off" : "on";
 }
 
 export function parseNavbarMode(value: unknown): NavbarMode {
@@ -139,6 +151,18 @@ export function applyTransitionPack(pack: TransitionPack): void {
     root.dataset.transition = pack;
   }
   writeStored(TRANSITION_STORAGE_KEY, pack === defaultTransitionPack ? null : pack);
+  notifyPreferencesChanged();
+}
+
+/** Ses açıkken (varsayılan) nitelik yoktur; kapatılınca `data-transition-sound="off"` yazılır. */
+export function applyTransitionSound(sound: TransitionSound): void {
+  const root = document.documentElement;
+  if (sound === "off") {
+    root.dataset.transitionSound = "off";
+  } else {
+    delete root.dataset.transitionSound;
+  }
+  writeStored(TRANSITION_SOUND_STORAGE_KEY, sound === "off" ? "off" : null);
   notifyPreferencesChanged();
 }
 
