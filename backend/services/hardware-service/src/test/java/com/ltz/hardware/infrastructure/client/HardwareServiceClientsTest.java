@@ -1,0 +1,312 @@
+package com.ltz.hardware.infrastructure.client;
+
+import com.ltz.hardware.infrastructure.security.HardwareAuthProperties;
+import com.ltz.hardware.infrastructure.client.dto.request.HardwareServiceTokenRequest;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.List;
+import java.util.Properties;
+import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.slf4j.LoggerFactory;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+class HardwareServiceClientsTest {
+    private static final String SECRET = "synthetic-hardware-client-credential";
+    private static final String TOKEN = "synthetic-service-token";
+    private final JsonMapper mapper = JsonMapper.builder().build();
+    private final UUID viewer = UUID.randomUUID();
+    private final UUID owner = UUID.randomUUID();
+    private final UUID device = UUID.randomUUID();
+    private final AtomicInteger authCalls = new AtomicInteger();
+    private final AtomicInteger userCalls = new AtomicInteger();
+    private final AtomicInteger performanceCalls = new AtomicInteger();
+    private final CountDownLatch release = new CountDownLatch(1);
+    private HttpServer server;
+    private ExecutorService executor;
+    private URI origin;
+    private HardwareClientProperties properties;
+    private HardwareServiceTokenClient tokens;
+    private UserServiceHardwareVisibilityPolicy visibility;
+    private PerformanceServiceHardwareSyncDevicePolicy devices;
+    private volatile JsonNode tokenRequest;
+    private volatile JsonNode privacyRequest;
+    private volatile String targetAuthorization;
+    private volatile String targetPath;
+    private int authStatus = 200;
+    private int userStatus = 200;
+    private int deviceStatus = 204;
+    private String authBody = "{\"accessToken\":\"" + TOKEN
+            + "\",\"tokenType\":\"Bearer\",\"expiresIn\":60,\"scope\":\"privacy:read devices:verify summary:read\"}";
+    private String userBody;
+    private String contentType = "application/json";
+    private String slowPath;
+
+    @BeforeEach void start() throws IOException {
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        executor = Executors.newVirtualThreadPerTaskExecutor();
+        server.setExecutor(executor);
+        server.createContext("/internal/v1/service-tokens", exchange -> {
+            authCalls.incrementAndGet();
+            tokenRequest = mapper.readTree(exchange.getRequestBody().readAllBytes());
+            respond(exchange, authStatus, authBody);
+        });
+        server.createContext("/internal/v1/privacy/decisions", exchange -> {
+            userCalls.incrementAndGet();
+            targetAuthorization = exchange.getRequestHeaders().getFirst("Authorization");
+            privacyRequest = mapper.readTree(exchange.getRequestBody().readAllBytes());
+            respond(exchange, userStatus, userBody);
+        });
+        server.createContext("/internal/v1/accounts/", exchange -> {
+            performanceCalls.incrementAndGet();
+            targetAuthorization = exchange.getRequestHeaders().getFirst("Authorization");
+            targetPath = exchange.getRequestURI().getPath();
+            respond(exchange, deviceStatus, "");
+        });
+        server.start();
+        origin = URI.create("http://127.0.0.1:" + server.getAddress().getPort());
+        userBody = decision(owner, "PUBLIC", true, false);
+        configure(SECRET);
+    }
+
+    private void configure(String secret) {
+        properties = new HardwareClientProperties(origin, origin, secret);
+        var auth = new HardwareAuthProperties(origin, "ltz-auth", "ltz-api", Duration.ofMillis(250), Duration.ofMillis(300));
+        var http = new HardwareHttpClient(auth);
+        tokens = new HardwareServiceTokenClient(properties, auth, http, mapper);
+        visibility = new UserServiceHardwareVisibilityPolicy(properties, tokens, http, mapper);
+        devices = new PerformanceServiceHardwareSyncDevicePolicy(properties, tokens, http);
+    }
+
+    private void respond(HttpExchange exchange, int status, String body) throws IOException {
+        try (exchange) {
+            exchange.getResponseHeaders().set("Content-Type", contentType);
+            exchange.getResponseHeaders().set("Location", origin + "/must-not-follow");
+            if (status == 204) { exchange.sendResponseHeaders(status, -1); return; }
+            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(status, bytes.length);
+            if (exchange.getRequestURI().getPath().equals(slowPath)) {
+                exchange.getResponseBody().write(bytes, 0, 1);
+                exchange.getResponseBody().flush();
+                try { release.await(3, TimeUnit.SECONDS); }
+                catch (InterruptedException _) { Thread.currentThread().interrupt(); }
+                exchange.getResponseBody().write(bytes, 1, bytes.length - 1);
+            } else exchange.getResponseBody().write(bytes);
+        }
+    }
+
+    @AfterEach void stop() {
+        release.countDown();
+        server.stop(0);
+        executor.close();
+    }
+
+    private static String decision(UUID ownerId, String setting, boolean allowed, boolean friends) {
+        return "{\"decisions\":[{\"ownerId\":\"" + ownerId + "\",\"setting\":\"" + setting
+                + "\",\"allowed\":" + allowed + ",\"friends\":" + friends + "}]}";
+    }
+
+    @Test void privacyUsesVerifiedViewerAndHardwareFieldWithItsOwnServiceCredential() {
+        userBody = decision(owner, "FRIENDS", true, true);
+        var result = visibility.evaluate(viewer, owner);
+        assertThat(result.allowed()).isTrue();
+        assertThat(result.friends()).isTrue();
+        assertThat(tokenRequest.get("clientId").asString()).isEqualTo("hardware-service");
+        assertThat(tokenRequest.get("clientSecret").asString()).isEqualTo(SECRET);
+        assertThat(tokenRequest.get("audience").asString()).isEqualTo("user-service");
+        assertThat(tokenRequest.has("accountId")).isFalse();
+        assertThat(privacyRequest.get("viewerId").asString()).isEqualTo(viewer.toString());
+        assertThat(privacyRequest.get("field").asString()).isEqualTo("HARDWARE");
+        assertThat(privacyRequest.get("ownerIds").size()).isEqualTo(1);
+        assertThat(privacyRequest.get("ownerIds").get(0).asString()).isEqualTo(owner.toString());
+        assertThat(targetAuthorization).isEqualTo("Bearer " + TOKEN);
+    }
+
+    @Test void decisionsAreNotCachedAndPrivateOrUntrustedProjectionDeniesSharing() {
+        assertThat(visibility.evaluate(viewer, owner).allowed()).isTrue();
+        userBody = decision(owner, "PRIVATE", false, false);
+        assertThat(visibility.evaluate(viewer, owner).allowed()).isFalse();
+        userBody = decision(owner, "PUBLIC", false, false);
+        assertThat(visibility.evaluate(viewer, owner).allowed()).isFalse();
+        assertThat(authCalls.get()).isEqualTo(3);
+    }
+
+    @Test void deviceChecksBindEveryFreshTokenToTheAccountAndNeverCacheActiveState() {
+        assertThat(devices.isActiveOwnedDevice(owner, device)).isTrue();
+        assertThat(tokenRequest.get("audience").asString()).isEqualTo("performance-service");
+        assertThat(tokenRequest.get("accountId").asString()).isEqualTo(owner.toString());
+        assertThat(targetPath).isEqualTo("/internal/v1/accounts/" + owner + "/devices/" + device);
+        assertThat(targetAuthorization).isEqualTo("Bearer " + TOKEN);
+        deviceStatus = 404;
+        assertThat(devices.isActiveOwnedDevice(owner, device)).isFalse();
+        assertThat(authCalls.get()).isEqualTo(2);
+    }
+
+    @ParameterizedTest @ValueSource(ints = {200, 202, 301, 302, 401, 403, 404, 429, 500, 503})
+    void onlyPerformance204AllowsSync(int status) {
+        deviceStatus = status;
+        assertThat(devices.isActiveOwnedDevice(owner, device)).isFalse();
+        assertThat(performanceCalls.get()).isEqualTo(1);
+    }
+
+    @ParameterizedTest @ValueSource(ints = {204, 301, 302, 401, 403, 404, 429, 500, 503})
+    void failedAuthNeverCallsUserOrPerformance(int status) {
+        authStatus = status;
+        assertThat(visibility.evaluate(viewer, owner).allowed()).isFalse();
+        assertThat(devices.isActiveOwnedDevice(owner, device)).isFalse();
+        assertThat(userCalls.get() + performanceCalls.get()).isZero();
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"null", "{}", "[]", "not-json",
+            "{\"decisions\":[]}", "{\"decisions\":[null]}", "{\"decisions\":[{},{}]}",
+            "{\"decisions\":[{}]}"})
+    void malformedPrivacyRepliesDeny(String body) {
+        userBody = body;
+        assertThat(visibility.evaluate(viewer, owner).allowed()).isFalse();
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"owner", "setting", "allowed", "friends", "missingAllowed", "missingFriends"})
+    void privacyReplyMustHaveExactOwnerAndTypedDecisions(String scenario) {
+        userBody = switch (scenario) {
+            case "owner" -> decision(UUID.randomUUID(), "PUBLIC", true, false);
+            case "setting" -> decision(owner, "UNKNOWN", true, true);
+            case "allowed" -> userBody.replace("\"allowed\":true", "\"allowed\":\"true\"");
+            case "friends" -> userBody.replace("\"friends\":false", "\"friends\":1");
+            case "missingAllowed" -> userBody.replace("\"allowed\":true,", "");
+            default -> userBody.replace(",\"friends\":false", "");
+        };
+        assertThat(visibility.evaluate(viewer, owner).allowed()).isFalse();
+    }
+
+    @ParameterizedTest @ValueSource(ints = {204, 301, 302, 401, 403, 404, 429, 500, 503})
+    void unavailableUserDeniesAndDoesNotFollowRedirects(int status) {
+        userStatus = status;
+        assertThat(visibility.evaluate(viewer, owner).allowed()).isFalse();
+        assertThat(userCalls.get()).isEqualTo(1);
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"null", "{}", "not-json", "tokenType", "accessToken", "expiresIn",
+            "scope", "longLifetime", "shortLifetime", "stringLifetime", "whitespace"})
+    void malformedAuthRepliesNeverGrantAccess(String scenario) {
+        authBody = switch (scenario) {
+            case "tokenType" -> authBody.replace("Bearer", "Basic");
+            case "accessToken" -> authBody.replace(TOKEN, "");
+            case "expiresIn" -> authBody.replace("\"expiresIn\":60,", "");
+            case "scope" -> authBody.replace("privacy:read devices:verify", "other:read");
+            case "longLifetime" -> authBody.replace(":60", ":61");
+            case "shortLifetime" -> authBody.replace(":60", ":0");
+            case "stringLifetime" -> authBody.replace(":60", ":\"60\"");
+            case "whitespace" -> authBody.replace(TOKEN, "invalid token");
+            default -> scenario;
+        };
+        assertThat(visibility.evaluate(viewer, owner).allowed()).isFalse();
+        assertThat(devices.isActiveOwnedDevice(owner, device)).isFalse();
+        assertThat(userCalls.get() + performanceCalls.get()).isZero();
+    }
+
+    @Test void missingCredentialAndMissingIdentitiesDenyWithoutMakingRequests() {
+        configure("");
+        assertThat(visibility.evaluate(viewer, owner).allowed()).isFalse();
+        assertThat(devices.isActiveOwnedDevice(owner, device)).isFalse();
+        assertThat(visibility.evaluate(null, owner).allowed()).isFalse();
+        assertThat(visibility.evaluate(viewer, null).allowed()).isFalse();
+        assertThat(devices.isActiveOwnedDevice(null, device)).isFalse();
+        assertThat(devices.isActiveOwnedDevice(owner, null)).isFalse();
+        assertThat(authCalls.get()).isZero();
+        assertThatThrownBy(() -> tokens.deviceVerificationToken(null)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test void oversizedRepliesAndWrongMediaTypesDeny() {
+        authBody = "x".repeat(65537);
+        assertThat(devices.isActiveOwnedDevice(owner, device)).isFalse();
+        configure(SECRET);
+        contentType = "text/html";
+        assertThat(visibility.evaluate(viewer, owner).allowed()).isFalse();
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"/internal/v1/service-tokens", "/internal/v1/privacy/decisions"})
+    void stalledResponseBodiesAreBoundedByReadTimeout(String path) {
+        slowPath = path;
+        try (var caller = Executors.newVirtualThreadPerTaskExecutor()) {
+            var result = caller.submit(() -> visibility.evaluate(viewer, owner));
+            try { assertThat(result.get(2, TimeUnit.SECONDS).allowed()).isFalse(); }
+            catch (Exception exception) { throw new AssertionError("HTTP read must time out", exception); }
+            finally { release.countDown(); }
+        }
+    }
+
+    @Test void refusedConnectionsDenyWithoutExposingTransportFailures() {
+        server.stop(0);
+        assertThat(visibility.evaluate(viewer, owner).allowed()).isFalse();
+        assertThat(devices.isActiveOwnedDevice(owner, device)).isFalse();
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"ftp://user-service", "http:invalid", "https://u:p@user-service",
+            "https://user-service/path", "https://user-service?x=1", "https://user-service#fragment"})
+    void configuredTargetsMustBeOrigins(String value) {
+        URI invalid = URI.create(value);
+        assertThatThrownBy(() -> new HardwareClientProperties(invalid, origin, SECRET)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new HardwareClientProperties(origin, invalid, SECRET)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test void credentialsAreRedactedAndConfigurationBoundsAreEnforced() {
+        assertThat(properties.toString()).doesNotContain(SECRET);
+        assertThat(new HardwareServiceTokenRequest("hardware-service", SECRET, "user-service", null).toString())
+                .doesNotContain(SECRET);
+        assertThat(new HardwareClientProperties(origin, origin, null).configured()).isFalse();
+        assertThatThrownBy(() -> new HardwareClientProperties(null, origin, SECRET)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new HardwareClientProperties(origin, null, SECRET)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new HardwareClientProperties(origin, origin, "x".repeat(257)))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(List.of(properties.userServiceUrl(), properties.performanceServiceUrl())).containsOnly(origin);
+    }
+
+    @Test void debugLoggingDoesNotExposeServiceCredentialOrReturnedToken() throws IOException {
+        var config = new Properties();
+        try (var resource = getClass().getResourceAsStream("/application.properties")) { config.load(resource); }
+        Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
+        Logger client = (Logger) LoggerFactory.getLogger("org.springframework.web.client");
+        Logger converter = (Logger) LoggerFactory.getLogger("org.springframework.http.converter");
+        var originalRoot = root.getLevel();
+        var originalClient = client.getLevel();
+        var originalConverter = converter.getLevel();
+        var captured = new ListAppender<ILoggingEvent>();
+        captured.start();
+        root.addAppender(captured);
+        try {
+            root.setLevel(Level.TRACE);
+            client.setLevel(Level.valueOf(config.getProperty("logging.level.org.springframework.web.client")));
+            converter.setLevel(Level.valueOf(config.getProperty("logging.level.org.springframework.http.converter")));
+            assertThat(visibility.evaluate(viewer, owner).allowed()).isTrue();
+            assertThat(captured.list).allSatisfy(event ->
+                    assertThat(event.getFormattedMessage()).doesNotContain(SECRET, TOKEN));
+        } finally {
+            root.detachAppender(captured);
+            captured.stop();
+            root.setLevel(originalRoot);
+            client.setLevel(originalClient);
+            converter.setLevel(originalConverter);
+        }
+    }
+}

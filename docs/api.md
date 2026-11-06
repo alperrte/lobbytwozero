@@ -6963,7 +6963,9 @@ davranışı uygulanır. D4'te Bearer taşımayan CSRF reddi controller'a ulaşm
 Silinen hesap fence'i etkinse kullanıcı ve cihaz işlemleri 401 ile reddedilir.
 Kullanıcı token ömrü en çok 60 sn, tolerans 30 sn'dir; 15 dakikalık token artık reddedilir.
 Cihaz kimliği ayrı `dev+jwt` doğrulayıcısıyla yalnız snapshot POST'unda kabul edilir;
-aktif cihaz için Performance ve User/Social policy bağımlılıkları çözülmüş sayılmaz.
+2026-11-06 itibarıyla User gizlilik ve Performance aktif cihaz tüketici adapter'ları uygulanmıştır.
+User güvenilir Social yansıması yokken non-owner paylaşımı reddeder; yorum UGC sözleşmesi açık kalır.
+[Güncel tüketici bağlantıları ve doğrulama](../docs-hardware/integration/hardware-user-performance.md).
 [Güncel kapsam](../docs-hardware/integration/auth/auth-integration-05.md),
 [güncel test/kalite kanıtı](../docs-hardware/integration/auth/auth-integration-06.md).
 Önceki paketli Auth/Gateway/Hardware izole HTTP kabulü 16 kontrol PASS: kayıt/giriş,
@@ -6998,8 +7000,8 @@ karşılaştırmalar ve Performance/Recommendation için owner batch DTO sözle�
 Yerel testler 174 PASS / JaCoCo %98,44; full dev 192 backend testi + 18 HTTP PASS /
 SAFE TO COMMIT; Sonar A/A/A + Quality Gate PASS, açık issue/hotspot 0.
 Final kanıt [HW-03 kalite kaydında](../docs-hardware/testing/LTZ-ALP-HW-03-quality.md).
-User/Social gerçek policy ve consumer E2E açık kullanıcı onayıyla
-DEFERRED_CONTRACT / NOT_VERIFIED. Üretimde non-owner paylaşım deny edilir.
+Bu teslimde User/Social policy ertelenmişti. 2026-11-06 User tüketici adapter'ı
+uygulanmıştır; gerçek User/Social paylaşım E2E'si NOT_VERIFIED, aşağıdaki güncel HW-08 kaydı geçerlidir.
 
 LTZ-ALP-HW-04: 10 yeni yorum/rapor/kaynak moderasyon endpoint'i; toplam 41 iş ucu.
 Hardware 239 PASS (65 yeni), JaCoCo %98,66; nihai full dev 257 backend testi,
@@ -8021,7 +8023,7 @@ replace/default semantics, version conflict ve rollback. Gerçek Auth NOT_VERIFI
 
 ### HARDWARE — HW-08 Filtrelenmiş profil paylaşımı
 
-Durum: IMPLEMENTED — yerel kurallar; gerçek paylaşım DEFERRED_CONTRACT
+Durum: IMPLEMENTED — yerel kurallar ve User tüketicisi; gerçek User/Social E2E NOT_VERIFIED
 Sorumlu: Alper
 Tüketici servisler: Frontend
 
@@ -8035,8 +8037,10 @@ Non-owner için profile visibility, alan ve kategori kurallarının hepsi izin
 vermelidir. PUBLIC yalnız doğrulanmış kullanıcı; FRIENDS güvenilir arkadaşlık kararı
 gerektirir. HardwareVisibilityPolicy ayrıca global User görünürlüğü ve Social
 ilişki/engel kararını onaylamalıdır. Engelli, bilinmeyen, null veya erişilemeyen
-dış karar 404. Üretim UnavailableHardwareVisibilityPolicy daima deny döndürür.
-Test mock'u gerçek entegrasyon değildir. Owner detail/mutation uçları owner-only kalır.
+dış karar 404. Üretim UserServiceHardwareVisibilityPolicy, Auth'tan privacy:read
+servis token'ı alıp User kararını çağırır. User güvenilir Social yansıması yokken
+allowed=false verir. Eksik credential veya kesintide kapalı kalır.
+Owner detail/mutation uçları owner-only kalır.
 
 #### Path/Query Parameters
 profileId UUID; page 0..10000 varsayılan 0; size 1..100 varsayılan 20.
@@ -8059,13 +8063,17 @@ no-store, private.
 404 HARDWARE_NOT_FOUND (gizli/olmayan profil aynı), 500 INTERNAL_ERROR.
 
 #### Bağlantı
-V1; HardwareVisibilityPolicy portu. User/Social gerçek adapter ve E2E
-DEFERRED_CONTRACT / NOT_VERIFIED, kullanıcı tarafından açıkça ertelendi.
+V1; HardwareVisibilityPolicy → UserServiceHardwareVisibilityPolicy → Auth
+POST /internal/v1/service-tokens (aud=user-service, accountId yok) → User
+POST /internal/v1/privacy/decisions (field=HARDWARE, doğrulanmış viewer, tek owner).
+64 KiB yanıt sınırı; yönlendirme/retry/cache yok. User/Social kaynakları değiştirilmez.
 
 #### Test Durumu
 INTEGRATION — HardwarePrivacyControllerTest: PRIVATE/FRIENDS/PUBLIC, non-owner
 IDOR, dış deny/null/error, filtrelenmiş sayfa/sayaç, alan/ID sızıntısı, owner önizleme.
 İlk verify 150 PASS; gerçek User/Social ve Auth E2E NOT_VERIFIED.
+2026-11-06 HardwareServiceClientsTest: 69 PASS (User/Performance istemci negatifleri dahil).
+Gerçek User/Social ortak ortam kabulü NOT_VERIFIED.
 
 ### HARDWARE — HW-09 Bilgisayar profillerini karşılaştırma
 
@@ -8684,9 +8692,12 @@ Kullanıcı JWT doğrulaması uygulanır. Auth cihaz token'ı için ayrı RS256/
 tam typ=dev+jwt, issuer, aud içinde hardware-service, UUID sub=deviceId ve account_id,
 scope içinde tam hardware:sync:write, dolu jti ve ham exp/nbf/iat kontrolü uygulanır.
 Ömür en çok 60 sn, tolerans 30 sn'dir. Principal kullanıcıya veya yöneticiye dönüşmez.
-PERF cihaz sahipliği/iptal sözleşmesi ve masaüstü başarı E2E'si kullanıcı kararıyla
-DEFERRED_CONTRACT / NOT_VERIFIED kalır. Gerçek dış URL/JSON veya credential uydurulmaz.
-Production aktif cihaz policy'si deny eder; grant ve geçerli cihazla apply 404 alır.
+Üretim PerformanceServiceHardwareSyncDevicePolicy, Auth'tan audience=performance-service
+ve accountId=doğrulanmış owner ile devices:verify servis token'ı alır. Performance
+GET /internal/v1/accounts/{accountId}/devices/{deviceId} yanıtı yalnız 204 ise izin verir.
+Her grant/apply/receipt retry'da güncel karar alınır; token veya izin cache'lenmez.
+Eksik credential, 404, 401/403/429/5xx, timeout veya başka yanıt grant/apply için 404 olur.
+Gerçek masaüstü istemcisi MVP sonrası; test/kabul kapsamı güncel entegrasyon kaydındadır.
 Parent profil kilidi tüm owner/consent/apply yarışlarını ve profileVersion'ı korur.
 Yeni sıra kesin artar; eski capturedAt reddedilir. Aynı key/normalize hash 24 saat
 önceki yanıtı döndürür; güncel cihaz ve izin her retry'da yeniden doğrulanır.
@@ -8726,8 +8737,9 @@ Yok.
 
 #### Bağlantı
 HardwareSyncController, HardwareSyncConsentService/HardwareSyncService;
-V7__create_hardware_desktop_sync.sql. Başka servis/DB çağrısı yok; gerçek Auth/PERF
-cihaz/desktop bağlantısı NOT_VERIFIED. Yerel sözleşme gerçek cihaz kanıtı değildir.
+V7__create_hardware_desktop_sync.sql. İzin okuma ve iptal yereldir. Güncel grant/apply,
+PerformanceServiceHardwareSyncDevicePolicy üzerinden Auth ve Performance API'lerini
+tüketir; yalnız kendi DB'sine erişir. Gerçek masaüstü uygulaması MVP sonrası kalır.
 
 #### Test Durumu
 UNIT + INTEGRATION — HardwareSyncControllerTest (21), HardwareSyncDomainTest (2),
@@ -8747,7 +8759,8 @@ PUT /api/v1/hardware/profiles/{profileId}/sync-consent
 
 #### Yetkilendirme
 Güncel kimlik: Auth RS256 at+jwt → doğrulanmış typed actor; üstteki ortak JWT/RBAC kuralı geçerlidir.
-Owner + CSRF; dış policy cihazın aktif ve owner'a bağlı olduğunu doğrulamalıdır. Client deviceId yalnız seçimdir. Production policy deny.
+Owner + CSRF; Performance policy cihazın aktif ve owner'a bağlı olduğunu 204 yanıtıyla
+doğrular. Client deviceId yalnız seçimdir (Auth deviceId). Bilinmeyen/erişilemeyen karar reddedilir.
 
 #### Path/Query Parameters
 profileId UUID; query yok.
@@ -8763,8 +8776,9 @@ GrantHardwareSyncRequest: profileVersion >=0, deviceId UUID, accepted=true; heps
 
 #### Bağlantı
 HardwareSyncController, HardwareSyncConsentService/HardwareSyncService;
-V7__create_hardware_desktop_sync.sql. Başka servis/DB çağrısı yok; gerçek Auth/PERF
-cihaz/desktop bağlantısı NOT_VERIFIED. Yerel sözleşme gerçek cihaz kanıtı değildir.
+V7__create_hardware_desktop_sync.sql. İzin okuma ve iptal yereldir. Güncel grant/apply,
+PerformanceServiceHardwareSyncDevicePolicy üzerinden Auth ve Performance API'lerini
+tüketir; yalnız kendi DB'sine erişir. Gerçek masaüstü uygulaması MVP sonrası kalır.
 
 #### Test Durumu
 UNIT + INTEGRATION — HardwareSyncControllerTest (21), HardwareSyncDomainTest (2),
@@ -8800,8 +8814,9 @@ Yok.
 
 #### Bağlantı
 HardwareSyncController, HardwareSyncConsentService/HardwareSyncService;
-V7__create_hardware_desktop_sync.sql. Başka servis/DB çağrısı yok; gerçek Auth/PERF
-cihaz/desktop bağlantısı NOT_VERIFIED. Yerel sözleşme gerçek cihaz kanıtı değildir.
+V7__create_hardware_desktop_sync.sql. İzin okuma ve iptal yereldir. Güncel grant/apply,
+PerformanceServiceHardwareSyncDevicePolicy üzerinden Auth ve Performance API'lerini
+tüketir; yalnız kendi DB'sine erişir. Gerçek masaüstü uygulaması MVP sonrası kalır.
 
 #### Test Durumu
 UNIT + INTEGRATION — HardwareSyncControllerTest (21), HardwareSyncDomainTest (2),
@@ -8824,7 +8839,8 @@ Auth RS256/JWKS doğrulanmış dev+jwt → AuthenticatedHardwareDevice(account_i
 hardware:sync:write, aktif cihaz sahipliği policy'si ve aynı owner/device/generation için
 GRANTED yerel izin. Kullanıcı/ADMIN token'ı 403; geçersiz cihaz veya svc+jwt 401 alır.
 Cihaz token'ı kullanıcı ve D4 uçlarında kabul edilmez. CSRF korunur; üretimde Performance
-policy'si deny eder. Geçerli cihaz kimliği tek başına apply yetkisi sağlamaz.
+policy'si her çağrıda aktif sahipli cihazı doğrular; yalnız 204 izin verir.
+Geçerli cihaz kimliği tek başına apply yetkisi sağlamaz.
 
 #### Path/Query Parameters
 profileId UUID; zorunlu Idempotency-Key UUID header; query yok.
@@ -8840,16 +8856,19 @@ ApplyHardwareSyncRequest: profileVersion >=0, consentGeneration UUID, sequence >
 
 #### Bağlantı
 HardwareSyncController, HardwareSyncConsentService/HardwareSyncService;
-V7__create_hardware_desktop_sync.sql. Başka servis/DB çağrısı yok; gerçek Auth/PERF
-cihaz/desktop bağlantısı NOT_VERIFIED. Yerel sözleşme gerçek cihaz kanıtı değildir.
+V7__create_hardware_desktop_sync.sql. İzin okuma ve iptal yereldir. Güncel grant/apply,
+PerformanceServiceHardwareSyncDevicePolicy üzerinden Auth ve Performance API'lerini
+tüketir; yalnız kendi DB'sine erişir. Gerçek masaüstü uygulaması MVP sonrası kalır.
 
 #### Test Durumu
 UNIT + INTEGRATION — 2026-10-29 Hardware Maven verify: 405 PASS, hata/atlama 0,
 JaCoCo %98,90. HardwareDeviceJwtValidatorTest ve gerçek Auth üreticili
 HardwareAuthIntegrationTest cihaz türü/claim/scope/zaman/hesap fence ve policy sınırını doğrular.
 E2E — gerçek Auth/Gateway/Hardware izole HTTP kabulü 20/20 PASS; cihaz kimliğinin
-policy'ye ulaşması ve Performance yokken 404 ile reddi dahil. Gerçek consent→apply
-başarı E2E'si DEFERRED_CONTRACT / NOT_VERIFIED.
+policy'ye ulaşması ve Performance yokken 404 ile reddi dahil; bu tarihsel testtir.
+2026-11-06 aktif Performance tüketicisi ve 69 istemci testi eklendi.
+Gerçek dört servisli consent→apply→retry→iptal kabulünün sonucu
+[güncel entegrasyon kaydında](../docs-hardware/integration/hardware-user-performance.md) izlenir.
 [Güncel kanıt](../docs-hardware/integration/auth/auth-integration-06.md).
 
 ### HARDWARE — HW-AUTH D4 yerel hesap temizliği
@@ -9312,9 +9331,9 @@ INTEGRATION + izole gerçek Auth işçisi HTTP kabulü PASS (2026-11-06): Perfor
 
 ### PERFORMANCE — Aktif sahipli cihaz doğrulama (Hardware)
 
-Durum: IMPLEMENTED (alıcı); Hardware tüketici istemcisi ayrı iş
+Durum: IMPLEMENTED (alıcı ve Hardware tüketici istemcisi)
 Sorumlu: Alper
-Tüketici servisler: Hardware Service (istemci henüz yok — öneri)
+Tüketici servisler: Hardware Service (`PerformanceServiceHardwareSyncDevicePolicy`)
 
 #### Endpoint
 GET /internal/v1/accounts/{accountId}/devices/{deviceId}
@@ -9341,10 +9360,15 @@ Frontend:
 -
 
 Diğer mikroservisler:
-Hardware `HardwareSyncDevicePolicy` için RestClient istemcisi **öneridir**; Hardware kodu değiştirilmemiştir (Hardware sahibine ayrıca bildirilmelidir).
+Hardware `PerformanceServiceHardwareSyncDevicePolicy`, Auth'tan hesaba bağlı
+servis token'ı alarak bu ucu her grant/apply/receipt retry'da çağırır. Yalnız 204
+izin verir; kesinti veya diğer durumlarda erişim kapalı kalır. İzin/token cache'i yoktur.
 
 #### Test Durumu
-INTEGRATION + izole gerçek Auth client-credentials HTTP kabulü PASS (2026-11-06): hesaba bağlı Hardware token'ı 204, başka hesap 403, iptal sonrası yenilenen bağ 404. Hardware üretim tüketici istemcisi bu görevde eklenmedi.
+INTEGRATION + izole gerçek Auth client-credentials HTTP kabulü PASS (2026-11-06): hesaba bağlı Hardware token'ı 204, başka hesap 403, iptal sonrası yenilenen bağ 404.
+Hardware üretim tüketici istemcisi 2026-11-06 tarihinde eklendi; 69 istemci testi PASS.
+Gerçek dört servisli grant/apply/iptal kabulü
+[güncel kayıtta](../docs-hardware/integration/hardware-user-performance.md) izlenir.
 
 > **Faz 2 (LTZ-ALP-PERF-02) notu — manuel oturum ve rapor (PERF-03/04/13/20).** Aşağıdaki uçlar yalnız **kullanıcı token'ıyla** (`at+jwt`, `aud=ltz-api`) çalışır; cihaz ve servis token'ı geçmez (401). Her uçta sahiplik sorgusu `user_id = token.sub` ile yapılır; başkasının veya olmayan kaynak **aynı** `404 PERFORMANCE_NOT_FOUND` döner (IDOR bilgi sızdırmaz). Zaman her zaman sunucu saatindendir; istemci `startedAt`/`endedAt`/`status`/`userId` gönderirse 400 (bilinmeyen alan). Bu fazda oturum yalnız `MANUAL`'dır; cihaz kaynaklı (`DEVICE`) oturum yoktur.
 > Oyun ve donanım profili doğrulaması **servis sözleşmeleriyle** yapılır: Game `POST /api/v1/game/games/batch` (GAME-15) ve Hardware `POST /api/v1/hardware/profiles/batch` (HW-17, çağıranın kendi Bearer'ı iletilir). Bu çağrılar **gerçek Game/Hardware ile uçtan uca doğrulanmadı**; testler yerel sapma (mock) kullanır (`DEFERRED_CONTRACT` / `NOT_VERIFIED`). Bağımlı servis yanıt vermezse veya sözleşme dışı gövde dönerse kayıt **açılmaz**; `503` + `Retry-After: 30` (kapalı başarısızlık).
