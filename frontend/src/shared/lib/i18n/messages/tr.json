@@ -69,6 +69,7 @@
       "label": "Profil menüsü",
       "guestName": "Misafir",
       "guestState": "Giriş yapılmadı",
+      "signIn": "Giriş yap",
       "signedIn": "Hesabın",
       "guestNote": "Hesap özellikleri henüz hazır değil; giriş ve profil sayfaları sonraki adımlarda eklenecek.",
       "soon": "Yakında",
@@ -522,6 +523,9 @@
       "submit": "Giriş yap",
       "submitting": "Giriş yapılıyor…",
       "retryIn": "{time} sonra tekrar dene"
+    },
+    "session": {
+      "account": "Hesabım"
     },
     "time": {
       "seconds": "{count} saniye",

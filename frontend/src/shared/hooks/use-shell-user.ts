@@ -1,16 +1,33 @@
 "use client";
 
+import { createContext, useContext } from "react";
+
 /**
- * Kabuğun (navbar profil menüsü) kullanıcı sınırı.
- * Kimlik doğrulama henüz yok; bu yüzden her zaman `null` (misafir) döner ve sahte ad/fotoğraf üretilmez.
- * Auth (Kerem'in auth/user servisleri) bağlandığında yalnız bu hook gerçek oturum verisini okuyacak
- * şekilde değişir; ProfileMenu ve Navbar aynı kalır.
+ * Kabuğun (navbar profil menüsü) kullanıcı sınırı. Kabuk `features/*` içeriğini import edemez; oturum katmanı
+ * (`features/auth` SessionProvider) bu bağlamı doldurur, kabuk yalnız buradan okur. Sağlayıcı yoksa (testler,
+ * oturum katmanı olmayan sayfalar) kullanıcı `null` (misafir) kalır ve sahte ad/fotoğraf üretilmez.
  */
 export type ShellUser = {
   displayName: string;
   avatarUrl?: string;
+  /** `true` ise ad baş harfleri avatarda gösterilmez (ad henüz gerçek profilden gelmiyorsa anlamsız harf çıkmasın). */
+  hideInitials?: boolean;
 };
 
+export type ShellSession = {
+  user: ShellUser | null;
+  /** Oturum durumu henüz bilinmiyor (ilk yükleme); menü giriş/çıkış eylemi göstermez. */
+  loading?: boolean;
+  /** Tanımlıysa oturum katmanı bağlıdır: menü giriş bağlantısı ve çalışan çıkış eylemi gösterir. */
+  logout?: () => Promise<void>;
+};
+
+export const ShellSessionContext = createContext<ShellSession>({ user: null });
+
+export function useShellSession(): ShellSession {
+  return useContext(ShellSessionContext);
+}
+
 export function useShellUser(): ShellUser | null {
-  return null;
+  return useShellSession().user;
 }

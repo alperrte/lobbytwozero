@@ -69,6 +69,7 @@
       "label": "Profile menu",
       "guestName": "Guest",
       "guestState": "Not signed in",
+      "signIn": "Sign in",
       "signedIn": "Your account",
       "guestNote": "Account features are not ready yet; sign-in and profile pages will be added in later steps.",
       "soon": "Soon",
@@ -522,6 +523,9 @@
       "submit": "Sign in",
       "submitting": "Signing in…",
       "retryIn": "Try again in {time}"
+    },
+    "session": {
+      "account": "My account"
     },
     "time": {
       "seconds": "{count} seconds",
