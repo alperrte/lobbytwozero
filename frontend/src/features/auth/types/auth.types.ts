@@ -48,9 +48,6 @@ export const knownAuthErrorCodes: readonly AuthErrorCode[] = [
   "UNKNOWN"
 ];
 
-/** Doğrulama hatasında alan eşlemesi (`errors[]`). */
-export type FieldProblem = { field: string; code: string };
-
 /** `POST /login` yanıtı. Çerez yalnız `AUTHENTICATED` durumunda yazılır. */
 export type LoginResult =
   | { status: "AUTHENTICATED"; accessTokenExpiresAt: string }

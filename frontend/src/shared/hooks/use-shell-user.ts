@@ -1,29 +1,15 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import { useContext } from "react";
+import {
+  ShellSessionContext,
+  type ShellSession,
+  type ShellUser
+} from "@/shared/providers/shell-session-context";
 
-/**
- * Kabuğun (navbar profil menüsü) kullanıcı sınırı. Kabuk `features/*` içeriğini import edemez; oturum katmanı
- * (`features/auth` SessionProvider) bu bağlamı doldurur, kabuk yalnız buradan okur. Sağlayıcı yoksa (testler,
- * oturum katmanı olmayan sayfalar) kullanıcı `null` (misafir) kalır ve sahte ad/fotoğraf üretilmez.
- */
-export type ShellUser = {
-  displayName: string;
-  avatarUrl?: string;
-  /** `true` ise ad baş harfleri avatarda gösterilmez (ad henüz gerçek profilden gelmiyorsa anlamsız harf çıkmasın). */
-  hideInitials?: boolean;
-};
+export type { ShellSession, ShellUser };
 
-export type ShellSession = {
-  user: ShellUser | null;
-  /** Oturum durumu henüz bilinmiyor (ilk yükleme); menü giriş/çıkış eylemi göstermez. */
-  loading?: boolean;
-  /** Tanımlıysa oturum katmanı bağlıdır: menü giriş bağlantısı ve çalışan çıkış eylemi gösterir. */
-  logout?: () => Promise<void>;
-};
-
-export const ShellSessionContext = createContext<ShellSession>({ user: null });
-
+/** Kabuğun oturum durumu (kullanıcı, yükleniyor, çıkış). Bağlam `shared/providers/shell-session-context` içindedir. */
 export function useShellSession(): ShellSession {
   return useContext(ShellSessionContext);
 }

@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import en from "@/shared/lib/i18n/messages/en.json";
 import tr from "@/shared/lib/i18n/messages/tr.json";
 import type { LoginApi } from "../services/auth-api";
-import { AuthApiError } from "../services/auth-http";
+import { ApiHttpError } from "@/shared/lib/api/client";
 import type { LoginResult } from "../types/auth.types";
 import { LoginForm } from "./login-form";
 
@@ -88,7 +88,7 @@ describe("LoginForm", () => {
   });
 
   it("hatalı kimlikte tek ve ayrım yapmayan mesaj gösterir; parola alanı temizlenir", async () => {
-    renderForm(vi.fn().mockRejectedValue(new AuthApiError(401, "INVALID_CREDENTIALS")));
+    renderForm(vi.fn().mockRejectedValue(new ApiHttpError(401, { code: "INVALID_CREDENTIALS" })));
     fill();
     fireEvent.click(submit());
 
@@ -108,7 +108,7 @@ describe("LoginForm", () => {
     ["NETWORK", /Sunucuya ulaşılamadı/],
     ["UNKNOWN", /ters gitti/]
   ] as const)("%s için ayrı mesaj gösterir", async (code, pattern) => {
-    renderForm(vi.fn().mockRejectedValue(new AuthApiError(403, code)));
+    renderForm(vi.fn().mockRejectedValue(new ApiHttpError(403, { code })));
     fill();
     fireEvent.click(submit());
 
@@ -128,7 +128,7 @@ describe("LoginForm", () => {
   });
 
   it("429'da düğmeyi geri sayım boyunca pasif yapar, süre dolunca açar", async () => {
-    renderForm(vi.fn().mockRejectedValue(new AuthApiError(429, "TOO_MANY_ATTEMPTS", [], 1)));
+    renderForm(vi.fn().mockRejectedValue(new ApiHttpError(429, { code: "TOO_MANY_ATTEMPTS", retryAfterSeconds: 1 })));
     fill();
     fireEvent.click(submit());
 
@@ -141,7 +141,7 @@ describe("LoginForm", () => {
   });
 
   it("uzun bekleme süresini dakika olarak gösterir", async () => {
-    renderForm(vi.fn().mockRejectedValue(new AuthApiError(429, "TOO_MANY_ATTEMPTS", [], 900)));
+    renderForm(vi.fn().mockRejectedValue(new ApiHttpError(429, { code: "TOO_MANY_ATTEMPTS", retryAfterSeconds: 900 })));
     fill();
     fireEvent.click(submit());
 
@@ -183,7 +183,7 @@ describe("LoginForm", () => {
   });
 
   it("İngilizce arayüzde İngilizce hata gösterir", async () => {
-    renderForm(vi.fn().mockRejectedValue(new AuthApiError(401, "INVALID_CREDENTIALS")), { locale: "en" });
+    renderForm(vi.fn().mockRejectedValue(new ApiHttpError(401, { code: "INVALID_CREDENTIALS" })), { locale: "en" });
     fireEvent.change(screen.getByLabelText("Email or username"), { target: { value: "ada" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "x" } });
     fireEvent.click(screen.getByRole("button", { name: /Sign in/ }));

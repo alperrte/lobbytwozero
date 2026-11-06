@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { SessionProvider } from "@/features/auth/components/session-provider";
+import { SessionProvider } from "@/features/auth";
 import { AppShell } from "@/shared/components/layout/app-shell";
 import { Footer } from "@/shared/components/layout/footer";
 

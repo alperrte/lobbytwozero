@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ApiHttpError } from "@/shared/lib/api/client";
 import { authApi, type LoginApi } from "../services/auth-api";
-import { AuthApiError } from "../services/auth-http";
+import { authErrorCode } from "../services/auth-http";
 import type { AuthErrorCode } from "../types/auth.types";
 
 export type LoginProblem = { code: AuthErrorCode; retryAfterSeconds?: number };
@@ -44,9 +45,10 @@ export function useLogin(api: LoginApi = authApi) {
       setProblem({ code: "MFA_NOT_SUPPORTED" });
       return "failed";
     } catch (error) {
-      if (error instanceof AuthApiError) {
-        setProblem({ code: error.code, retryAfterSeconds: error.retryAfterSeconds });
-        if (error.code === "TOO_MANY_ATTEMPTS" && error.retryAfterSeconds) {
+      if (error instanceof ApiHttpError) {
+        const code = authErrorCode(error);
+        setProblem({ code, retryAfterSeconds: error.retryAfterSeconds });
+        if (code === "TOO_MANY_ATTEMPTS" && error.retryAfterSeconds) {
           setCooldown(error.retryAfterSeconds);
         }
       } else {

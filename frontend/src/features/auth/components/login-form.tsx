@@ -16,7 +16,7 @@ import {
 } from "../schemas/login.schema";
 import type { LoginApi } from "../services/auth-api";
 import type { AuthErrorCode } from "../types/auth.types";
-import { safeNextPath } from "../utils/safe-next-path";
+import { safeNextPath } from "../schemas/safe-next-path";
 import { AuthIcon } from "./auth-icons";
 import { authControlClass, FormField } from "./form-field";
 

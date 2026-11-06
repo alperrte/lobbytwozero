@@ -1,7 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
-import { ShellSessionContext, type ShellSession } from "@/shared/hooks/use-shell-user";
+import {
+  ShellSessionContext,
+  type ShellSession
+} from "@/shared/providers/shell-session-context";
 import tr from "@/shared/lib/i18n/messages/tr.json";
 import { ProfileMenu } from "./profile-menu";
 

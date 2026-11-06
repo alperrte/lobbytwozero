@@ -1,23 +1,16 @@
-import {
-  knownAuthErrorCodes,
-  type AuthErrorCode,
-  type FieldProblem
-} from "../types/auth.types";
+import { ApiHttpError, apiRequest } from "@/shared/lib/api/client";
+import { knownAuthErrorCodes, type AuthErrorCode } from "../types/auth.types";
 
 /**
- * Auth uçları için HTTP katmanı (`apiRequest`'in auth'a özel, CSRF ve oturum yenilemeli karşılığı).
+ * Auth uçları için ince sarmalayıcı. HTTP'nin kendisi ortak `apiRequest` üzerinden gider (taban adres, çerezler,
+ * `ApiHttpError`); burada yalnız Auth'a özgü oturum politikası bulunur:
  *
  * - Durum değiştiren her istekte CSRF başlığı (`X-XSRF-TOKEN`, çerez yoksa önce `GET /csrf`).
  * - Korumalı uçta 401 gelirse `POST /session/refresh` ve isteğin BİR kez tekrarı; eşzamanlı 401'lerde tek yenileme.
  * - `CSRF_TOKEN_INVALID` gelirse çerez yenilenir ve istek BİR kez tekrarlanır.
- * - Hata gövdesinden yalnız `code`, `errors[]` ve `Retry-After` okunur; sunucu metni ya da gönderilen değerler
- *   hataya taşınmaz. Parola/token hiçbir yerde loglanmaz ve saklanmaz.
- * - Ağ hatasında mutasyon otomatik tekrarlanmaz.
+ * - Ağ hatası `NETWORK` koduyla `ApiHttpError(0)` olur ve mutasyon otomatik tekrarlanmaz; kullanıcı iptali
+ *   (`AbortError`) olduğu gibi bırakılır. Parola/token hiçbir yerde loglanmaz ve saklanmaz.
  */
-const API_BASE_URL = (
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5080"
-).replace(/\/$/, "");
-
 export type AuthPath = `/api/v1/auth/${string}`;
 
 const CSRF_PATH = "/api/v1/auth/csrf";
@@ -38,19 +31,6 @@ const NO_REFRESH_PATHS: ReadonlySet<string> = new Set([
 ]);
 
 const REFRESH_CONFLICT_WAIT_MS = 250;
-const MAX_RETRY_AFTER_SECONDS = 3600;
-
-export class AuthApiError extends Error {
-  constructor(
-    public readonly status: number,
-    public readonly code: AuthErrorCode,
-    public readonly fieldErrors: readonly FieldProblem[] = [],
-    public readonly retryAfterSeconds?: number
-  ) {
-    super(`Auth isteği başarısız: ${status} ${code}`);
-    this.name = "AuthApiError";
-  }
-}
 
 export type AuthRequestOptions = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -69,61 +49,70 @@ export async function authRequest<T>(
   let refreshed = false;
 
   for (;;) {
-    const response = await rawFetch(path, options);
-    if (response.ok) {
-      return parseSuccess<T>(response);
-    }
+    try {
+      return await send<T>(path, options);
+    } catch (error) {
+      const failure = toApiError(error);
 
-    const error = await toError(response);
-
-    if (error.code === "CSRF_TOKEN_INVALID" && mutation && !csrfRetried) {
-      csrfRetried = true;
-      await fetchCsrf();
-      continue;
-    }
-
-    if (response.status === 401 && !refreshed && !NO_REFRESH_PATHS.has(path)) {
-      refreshed = true;
-      if (await refreshSession()) {
+      if (failure.code === "CSRF_TOKEN_INVALID" && mutation && !csrfRetried) {
+        csrfRetried = true;
+        await fetchCsrf();
         continue;
       }
-    }
 
-    throw error;
+      if (failure.status === 401 && !refreshed && !NO_REFRESH_PATHS.has(path)) {
+        refreshed = true;
+        if (await refreshSession()) {
+          continue;
+        }
+      }
+
+      throw failure;
+    }
   }
 }
 
-async function rawFetch(path: AuthPath, options: AuthRequestOptions): Promise<Response> {
+/** Sunucu kodunu Auth hata koduna çevirir; bilinmeyen kod ve ApiHttpError olmayan hata `UNKNOWN` olur. */
+export function authErrorCode(error: unknown): AuthErrorCode {
+  if (error instanceof ApiHttpError && error.code !== undefined) {
+    return (knownAuthErrorCodes as readonly string[]).includes(error.code)
+      ? (error.code as AuthErrorCode)
+      : "UNKNOWN";
+  }
+  return "UNKNOWN";
+}
+
+async function send<T>(path: AuthPath, options: AuthRequestOptions): Promise<T> {
   const method = options.method ?? "GET";
-  const headers = new Headers({ Accept: "application/json" });
+  const headers: Record<string, string> = { Accept: "application/json" };
   if (options.body !== undefined) {
-    headers.set("Content-Type", "application/json");
+    headers["Content-Type"] = "application/json";
   }
   if (method !== "GET") {
     const token = await ensureCsrfToken();
     if (token) {
-      headers.set(CSRF_HEADER, token);
+      headers[CSRF_HEADER] = token;
     }
   }
-  return safeFetch(`${API_BASE_URL}${path}`, {
+  return apiRequest<T>(path, {
     method,
     headers,
-    credentials: "include",
     signal: options.signal,
     body: options.body === undefined ? undefined : JSON.stringify(options.body)
   });
 }
 
-/** Ağ hatasını `NETWORK`'e çevirir; kullanıcı iptalini (AbortError) olduğu gibi bırakır. */
-async function safeFetch(url: string, init: RequestInit): Promise<Response> {
-  try {
-    return await fetch(url, init);
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") {
-      throw error;
-    }
-    throw new AuthApiError(0, "NETWORK");
+/** ApiHttpError'ı olduğu gibi verir; ağ hatasını `NETWORK`, bozuk gövdeyi `UNKNOWN` yapar; iptali yeniden fırlatır. */
+function toApiError(error: unknown): ApiHttpError {
+  if (error instanceof ApiHttpError) {
+    return error;
   }
+  if (error instanceof DOMException && error.name === "AbortError") {
+    throw error;
+  }
+  return error instanceof TypeError
+    ? new ApiHttpError(0, { code: "NETWORK" })
+    : new ApiHttpError(200, { code: "UNKNOWN" });
 }
 
 function readCsrfCookie(): string | null {
@@ -151,13 +140,10 @@ async function ensureCsrfToken(): Promise<string | null> {
 }
 
 async function fetchCsrf(): Promise<void> {
-  const response = await safeFetch(`${API_BASE_URL}${CSRF_PATH}`, {
-    method: "GET",
-    credentials: "include",
-    headers: { Accept: "application/json" }
-  });
-  if (!response.ok) {
-    throw await toError(response);
+  try {
+    await apiRequest<void>(CSRF_PATH, { headers: { Accept: "application/json" } });
+  } catch (error) {
+    throw toApiError(error);
   }
 }
 
@@ -174,68 +160,11 @@ async function doRefresh(): Promise<boolean> {
     await authRequest<unknown>(REFRESH_PATH, { method: "POST" });
     return true;
   } catch (error) {
-    if (error instanceof AuthApiError && error.code === "REFRESH_CONFLICT") {
+    if (error instanceof ApiHttpError && error.code === "REFRESH_CONFLICT") {
       // Başka bir yenileme (ör. başka sekme) yürüyor; çerezlerin yazılmasına izin ver, isteği bir kez tekrarla.
       await new Promise((resolve) => setTimeout(resolve, REFRESH_CONFLICT_WAIT_MS));
       return true;
     }
     return false;
   }
-}
-
-async function parseSuccess<T>(response: Response): Promise<T> {
-  if (response.status === 204) {
-    return undefined as T;
-  }
-  try {
-    return (await response.json()) as T;
-  } catch {
-    throw new AuthApiError(response.status, "UNKNOWN");
-  }
-}
-
-async function toError(response: Response): Promise<AuthApiError> {
-  let body: unknown = null;
-  try {
-    body = await response.json();
-  } catch {
-    body = null;
-  }
-  const record =
-    typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
-  return new AuthApiError(
-    response.status,
-    toErrorCode(record.code),
-    toFieldProblems(record.errors),
-    toRetryAfter(response.headers.get("Retry-After"))
-  );
-}
-
-function toErrorCode(value: unknown): AuthErrorCode {
-  return typeof value === "string" && (knownAuthErrorCodes as readonly string[]).includes(value)
-    ? (value as AuthErrorCode)
-    : "UNKNOWN";
-}
-
-function toFieldProblems(value: unknown): FieldProblem[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value.flatMap((item) => {
-    if (typeof item !== "object" || item === null) {
-      return [];
-    }
-    const { field, code } = item as Record<string, unknown>;
-    return typeof field === "string" && typeof code === "string" ? [{ field, code }] : [];
-  });
-}
-
-function toRetryAfter(header: string | null): number | undefined {
-  if (header === null) {
-    return undefined;
-  }
-  const seconds = Number.parseInt(header, 10);
-  return Number.isFinite(seconds) && seconds > 0
-    ? Math.min(seconds, MAX_RETRY_AFTER_SECONDS)
-    : undefined;
 }

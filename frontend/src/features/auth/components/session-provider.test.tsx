@@ -4,9 +4,10 @@ import { describe, expect, it, vi } from "vitest";
 import en from "@/shared/lib/i18n/messages/en.json";
 import tr from "@/shared/lib/i18n/messages/tr.json";
 import { useShellSession } from "@/shared/hooks/use-shell-user";
-import { AuthApiError } from "../services/auth-http";
+import { ApiHttpError } from "@/shared/lib/api/client";
 import type { AuthMe } from "../types/auth.types";
-import { SessionProvider, useSession } from "./session-provider";
+import { useSession } from "../hooks/use-session";
+import { SessionProvider } from "./session-provider";
 
 const ME: AuthMe = {
   accountId: "a1",
@@ -60,14 +61,14 @@ describe("SessionProvider", () => {
   });
 
   it("401'de misafir olur; kabuğa kullanıcı verilmez", async () => {
-    renderSession({ getMe: vi.fn().mockRejectedValue(new AuthApiError(401, "SESSION_INVALID")), logout: vi.fn() });
+    renderSession({ getMe: vi.fn().mockRejectedValue(new ApiHttpError(401, { code: "SESSION_INVALID" })), logout: vi.fn() });
 
     await waitFor(() => expect(status()).toBe("guest"));
     expect(screen.getByTestId("shell-user")).toHaveTextContent("yok");
   });
 
   it("ağ hatasında kimlik varsaymaz (misafir)", async () => {
-    renderSession({ getMe: vi.fn().mockRejectedValue(new AuthApiError(0, "NETWORK")), logout: vi.fn() });
+    renderSession({ getMe: vi.fn().mockRejectedValue(new ApiHttpError(0, { code: "NETWORK" })), logout: vi.fn() });
 
     await waitFor(() => expect(status()).toBe("guest"));
   });
@@ -85,7 +86,7 @@ describe("SessionProvider", () => {
   });
 
   it("çıkış isteği başarısız olsa da yerel durum misafire döner", async () => {
-    const logout = vi.fn().mockRejectedValue(new AuthApiError(0, "NETWORK"));
+    const logout = vi.fn().mockRejectedValue(new ApiHttpError(0, { code: "NETWORK" }));
     renderSession({ getMe: vi.fn().mockResolvedValue(ME), logout });
     await waitFor(() => expect(status()).toBe("authenticated"));
 

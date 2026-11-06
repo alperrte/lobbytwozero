@@ -1,9 +1,16 @@
+import { ApiHttpError } from "@/shared/lib/api/client";
 import type { AuthMe, LoginResult } from "../types/auth.types";
-import { AuthApiError, authRequest } from "./auth-http";
+import { authRequest } from "./auth-http";
 
 /** Giriş uçlarının arayüzü; hook bunu enjekte alır (test için sahte adaptör verilebilir). */
 export type LoginApi = {
   login(identifier: string, password: string, signal?: AbortSignal): Promise<LoginResult>;
+};
+
+/** Oturum uçlarının arayüzü (yükleme ve çıkış); test için sahte adaptör verilebilir. */
+export type SessionApi = {
+  getMe(signal?: AbortSignal): Promise<AuthMe>;
+  logout(): Promise<void>;
 };
 
 export const authApi = {
@@ -47,5 +54,5 @@ export function toLoginResult(value: unknown): LoginResult {
       };
     }
   }
-  throw new AuthApiError(200, "UNKNOWN");
+  throw new ApiHttpError(200, { code: "UNKNOWN" });
 }

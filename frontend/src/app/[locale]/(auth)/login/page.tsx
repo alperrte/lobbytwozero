@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { AuthShell } from "@/features/auth/components/auth-shell";
-import { LoginForm } from "@/features/auth/components/login-form";
+import { AuthShell, LoginForm } from "@/features/auth";
 
 /** Sekme başlığı kök şablondan ("LTZ | %s") gelir; `(auth)` grubu zaten `noindex` yayınlar. */
 export async function generateMetadata(): Promise<Metadata> {

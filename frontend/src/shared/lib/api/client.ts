@@ -2,10 +2,34 @@ const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5080"
 ).replace(/\/$/, "");
 
+const MAX_RETRY_AFTER_SECONDS = 3600;
+
+/** Sunucunun doğrulama hatasında alan eşlemesi (`ProblemDetail.errors[]`). */
+export type ApiFieldError = { field: string; code: string };
+
+/** Hata gövdesinden okunan güvenli ayrıntılar. Sunucu metni (`detail`, `title`) ve gönderilen değerler taşınmaz. */
+export type ApiErrorDetails = {
+  /** `ProblemDetail.code` (ör. `INVALID_CREDENTIALS`); gövde yoksa ya da okunamıyorsa tanımsız. */
+  code?: string;
+  fieldErrors?: readonly ApiFieldError[];
+  /** `Retry-After` başlığı (saniye, en çok 1 saat); geçersizse tanımsız. */
+  retryAfterSeconds?: number;
+};
+
 export class ApiHttpError extends Error {
-  constructor(public readonly status: number) {
+  public readonly code?: string;
+  public readonly fieldErrors: readonly ApiFieldError[];
+  public readonly retryAfterSeconds?: number;
+
+  constructor(
+    public readonly status: number,
+    details: ApiErrorDetails = {}
+  ) {
     super(`API isteği başarısız: ${status}`);
     this.name = "ApiHttpError";
+    this.code = details.code;
+    this.fieldErrors = details.fieldErrors ?? [];
+    this.retryAfterSeconds = details.retryAfterSeconds;
   }
 }
 
@@ -19,7 +43,7 @@ export async function apiRequest<T>(
   });
 
   if (!response.ok) {
-    throw new ApiHttpError(response.status);
+    throw new ApiHttpError(response.status, await readErrorDetails(response));
   }
 
   if (response.status === 204) {
@@ -27,4 +51,45 @@ export async function apiRequest<T>(
   }
 
   return (await response.json()) as T;
+}
+
+/** Hata gövdesini ve `Retry-After`'ı güvenle okur; gövde yoksa ya da JSON değilse boş ayrıntı döner. */
+async function readErrorDetails(response: Response): Promise<ApiErrorDetails> {
+  let body: unknown = null;
+  try {
+    body = typeof response.json === "function" ? await response.json() : null;
+  } catch {
+    body = null;
+  }
+  const record =
+    typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+
+  return {
+    code: typeof record.code === "string" ? record.code : undefined,
+    fieldErrors: toFieldErrors(record.errors),
+    retryAfterSeconds: toRetryAfterSeconds(response.headers?.get?.("Retry-After") ?? null)
+  };
+}
+
+function toFieldErrors(value: unknown): ApiFieldError[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((item) => {
+    if (typeof item !== "object" || item === null) {
+      return [];
+    }
+    const { field, code } = item as Record<string, unknown>;
+    return typeof field === "string" && typeof code === "string" ? [{ field, code }] : [];
+  });
+}
+
+function toRetryAfterSeconds(header: string | null): number | undefined {
+  if (header === null) {
+    return undefined;
+  }
+  const seconds = Number.parseInt(header, 10);
+  return Number.isFinite(seconds) && seconds > 0
+    ? Math.min(seconds, MAX_RETRY_AFTER_SECONDS)
+    : undefined;
 }

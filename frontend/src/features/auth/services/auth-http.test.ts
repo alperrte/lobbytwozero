@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AuthApiError, authRequest } from "./auth-http";
+import { ApiHttpError } from "@/shared/lib/api/client";
+import { authErrorCode, authRequest } from "./auth-http";
 
 const BASE = "http://localhost:5080";
 
@@ -173,7 +174,7 @@ describe("authRequest: hata gövdesi", () => {
     );
 
     const error = await authRequest("/api/v1/auth/login", { method: "POST", body: {} }).catch((e: unknown) => e);
-    expect(error).toBeInstanceOf(AuthApiError);
+    expect(error).toBeInstanceOf(ApiHttpError);
     expect(error).toMatchObject({
       status: 429,
       code: "TOO_MANY_ATTEMPTS",
@@ -182,12 +183,17 @@ describe("authRequest: hata gövdesi", () => {
     });
   });
 
-  it("bilinmeyen kod UNKNOWN olur; bozuk Retry-After yok sayılır; gövde JSON değilse de çalışır", async () => {
+  it("bilinmeyen kod UNKNOWN koduna eşlenir; bozuk Retry-After yok sayılır; gövde JSON değilse de çalışır", async () => {
     document.cookie = "XSRF-TOKEN=tok; path=/";
     mockFetch(() => new Response("<html>", { status: 500, headers: { "Retry-After": "abc" } }));
 
     const error = await authRequest("/api/v1/auth/login", { method: "POST", body: {} }).catch((e: unknown) => e);
-    expect(error).toMatchObject({ status: 500, code: "UNKNOWN", retryAfterSeconds: undefined });
+    expect(error).toMatchObject({ status: 500, retryAfterSeconds: undefined });
+    expect(authErrorCode(error)).toBe("UNKNOWN");
+
+    expect(authErrorCode(new ApiHttpError(400, { code: "FOO_BAR" }))).toBe("UNKNOWN");
+    expect(authErrorCode(new ApiHttpError(401, { code: "INVALID_CREDENTIALS" }))).toBe("INVALID_CREDENTIALS");
+    expect(authErrorCode(new Error("x"))).toBe("UNKNOWN");
   });
 
   it("parola hata mesajına ya da alanlarına sızmaz", async () => {
@@ -197,7 +203,7 @@ describe("authRequest: hata gövdesi", () => {
     const error = (await authRequest("/api/v1/auth/login", {
       method: "POST",
       body: { identifier: "ada", password: "Gizli-Parola-123" }
-    }).catch((e: unknown) => e)) as AuthApiError;
+    }).catch((e: unknown) => e)) as ApiHttpError;
     expect(JSON.stringify({ m: error.message, f: error.fieldErrors, c: error.code })).not.toContain("Gizli-Parola-123");
   });
 

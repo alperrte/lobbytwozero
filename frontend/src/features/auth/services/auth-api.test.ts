@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { authApi, toLoginResult } from "./auth-api";
-import { AuthApiError } from "./auth-http";
+import { ApiHttpError } from "@/shared/lib/api/client";
 
 beforeEach(() => {
   document.cookie = "XSRF-TOKEN=tok; path=/";
@@ -44,7 +44,7 @@ describe("toLoginResult", () => {
     ["challenge'sız MFA", { status: "MFA_REQUIRED" }],
     ["metin", "AUTHENTICATED"]
   ])("%s oturum açılmış sayılmaz", (_ad, value) => {
-    expect(() => toLoginResult(value)).toThrow(AuthApiError);
+    expect(() => toLoginResult(value)).toThrow(ApiHttpError);
   });
 });
 
