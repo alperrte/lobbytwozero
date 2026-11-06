@@ -1,36 +1,38 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LTZ Frontend
 
-## Getting Started
+LobbyTwoZero (LTZ) web arayüzü. Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4 ve next-intl (TR varsayılan, EN) kullanır.
 
-First, run the development server:
+Kurallar ve tasarım sözleşmesi: [CLAUDE.md](CLAUDE.md), [../docs/web-rules.md](../docs/web-rules.md), [../docs/ltz-palette-and-tokens.md](../docs/ltz-palette-and-tokens.md).
+
+## Komutlar
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run dev         # geliştirme sunucusu
+npm run lint        # ESLint
+npm run typecheck   # TypeScript
+npm run test        # Vitest birim testleri
+npm run test:e2e    # Playwright (kendi sunucusunu 5101 portunda başlatır)
+npm run build       # üretim derlemesi
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`test:e2e` çalışırken aynı klasörde başka bir `next dev` açık olmamalıdır.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Yapı (özet)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `src/app`: rotalar ve layout'lar. `(public)`, `(auth)`, `(dashboard)`, `(admin)` route group'ları.
+- `src/shared/components/layout`: ortak kabuk (AppShell, header, sidebar, footer).
+- `src/shared/config`: site, public rota ve gezinme tanımları.
+- `src/shared/lib/i18n`: dil altyapısı ve `messages/tr.json`, `messages/en.json`.
+- `src/app/globals.css`: tek renk kaynağı (CSS değişkenleri ve `@theme inline`).
 
-## Learn More
+## Tema ve dil
 
-To learn more about Next.js, take a look at the following resources:
+Tema (Light / Dark / sistem) `<html data-theme>` ile seçilir ve ilk boyamadan önce satır içi bir betikle ayarlanır. Dil çerez ile tutulur; URL'de dil öneki yoktur. İkisi birbirinden bağımsızdır.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Ortam değişkeni
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Değişken | Zorunlu | Açıklama |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SITE_URL` | Hayır | Yayındaki doğrulanmış `https` site kökü. Tanımsızsa `robots.txt` her şeyi kapatır, `sitemap.xml` boş döner ve canonical yazılmaz. |
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Gerçek değerler `.env.local` gibi dosyalara yazılır ve repoya eklenmez.

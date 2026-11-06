@@ -1,6 +1,57 @@
 {
+  "Metadata": {
+    "siteName": "LobbyTwoZero",
+    "description": "LobbyTwoZero is the gaming community's meeting place for hardware and games."
+  },
+  "Shell": {
+    "brand": "LobbyTwoZero",
+    "skipToContent": "Skip to main content",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "collapseSidebar": "Collapse sidebar",
+    "expandSidebar": "Expand sidebar",
+    "sidebarLabel": "Main navigation"
+  },
+  "Navigation": {
+    "home": "Home",
+    "profile": "Profile",
+    "myComputers": "My computers",
+    "hardware": "Hardware",
+    "campaigns": "Campaigns",
+    "soon": "Soon"
+  },
+  "Theme": {
+    "label": "Theme",
+    "system": "System theme",
+    "light": "Light theme",
+    "dark": "Dark theme"
+  },
+  "Locale": {
+    "label": "Language",
+    "tr": "Turkish",
+    "en": "English"
+  },
+  "Footer": {
+    "tagline": "The gaming community's meeting place for hardware and games.",
+    "copyright": "© {year} {brand}"
+  },
   "Home": {
     "title": "LobbyTwoZero",
-    "description": "A new meeting place for the gaming community."
+    "description": "A new meeting place for the gaming community.",
+    "statusTitle": "Foundation is ready",
+    "statusBody": "The shared shell, theme and language support are working. Profile, hardware and campaign pages will follow in later steps."
+  },
+  "Errors": {
+    "title": "Something went wrong",
+    "description": "The page hit a problem while loading. You can try again.",
+    "retry": "Try again"
+  },
+  "NotFound": {
+    "title": "Page not found",
+    "description": "The page you are looking for may have moved or never existed.",
+    "backHome": "Back to home"
+  },
+  "Loading": {
+    "label": "Loading"
   }
 }

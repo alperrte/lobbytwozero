@@ -1,6 +1,57 @@
 {
+  "Metadata": {
+    "siteName": "LobbyTwoZero",
+    "description": "LobbyTwoZero, oyun topluluğunun donanım ve oyun odaklı buluşma noktasıdır."
+  },
+  "Shell": {
+    "brand": "LobbyTwoZero",
+    "skipToContent": "Ana içeriğe geç",
+    "openMenu": "Menüyü aç",
+    "closeMenu": "Menüyü kapat",
+    "collapseSidebar": "Kenar çubuğunu daralt",
+    "expandSidebar": "Kenar çubuğunu genişlet",
+    "sidebarLabel": "Ana gezinme"
+  },
+  "Navigation": {
+    "home": "Ana sayfa",
+    "profile": "Profil",
+    "myComputers": "Bilgisayarlarım",
+    "hardware": "Donanımlar",
+    "campaigns": "Kampanyalar",
+    "soon": "Yakında"
+  },
+  "Theme": {
+    "label": "Tema",
+    "system": "Sistem teması",
+    "light": "Açık tema",
+    "dark": "Koyu tema"
+  },
+  "Locale": {
+    "label": "Dil",
+    "tr": "Türkçe",
+    "en": "İngilizce"
+  },
+  "Footer": {
+    "tagline": "Oyun topluluğunun donanım ve oyun odaklı buluşma noktası.",
+    "copyright": "© {year} {brand}"
+  },
   "Home": {
     "title": "LobbyTwoZero",
-    "description": "Oyun topluluğunun yeni buluşma noktası."
+    "description": "Oyun topluluğunun yeni buluşma noktası.",
+    "statusTitle": "Temel kurulum hazır",
+    "statusBody": "Ortak kabuk, tema ve dil altyapısı çalışıyor. Profil, donanım ve kampanya sayfaları sonraki adımlarda eklenecek."
+  },
+  "Errors": {
+    "title": "Beklenmeyen bir hata oluştu",
+    "description": "Sayfa yüklenirken bir sorun çıktı. Yeniden deneyebilirsin.",
+    "retry": "Tekrar dene"
+  },
+  "NotFound": {
+    "title": "Sayfa bulunamadı",
+    "description": "Aradığın sayfa taşınmış ya da hiç var olmamış olabilir.",
+    "backHome": "Ana sayfaya dön"
+  },
+  "Loading": {
+    "label": "Yükleniyor"
   }
 }
