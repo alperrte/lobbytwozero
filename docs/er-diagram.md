@@ -879,21 +879,27 @@ erDiagram
     uuid id PK
     uuid author_id "REF"
     varchar type "NEWS|ANNOUNCEMENT|USER_CONTENT"
-    uuid category_id FK
-    varchar slug UK
+    uuid category_id FK "sonraki faz"
+    varchar slug UK "sonraki faz"
     varchar status "DRAFT|PUBLISHED|REMOVED|ARCHIVED"
-    boolean featured
+    varchar default_locale "tr|en (V101)"
+    varchar content_hash "mükerrer içerik, kısmi UQ (V101)"
+    timestamptz deleted_at "soft delete (V101)"
+    boolean featured "sonraki faz"
   }
   content_translations {
     uuid content_id PK,FK
     varchar locale PK
     varchar title
+    varchar summary
     text body
   }
   content_images {
     uuid id PK
     uuid content_id FK
-    varchar storage_key
+    bytea content "V102, storage_key yok"
+    varchar mime_type "image/jpeg|image/png"
+    int sort_order "0-5"
   }
   content_sources {
     uuid id PK

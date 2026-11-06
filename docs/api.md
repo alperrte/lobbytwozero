@@ -6940,7 +6940,322 @@ UNIT + INTEGRATION: gerçek RS256 imzalı token'lar ve yerel JWKS sunucusuyla g�
 
 Sorumlu: Nisa · Gateway: `/api/v1/content/**` · Görevler: CONT-
 
-_Kayıt yok._
+> **Faz 1 (LTZ-NIS-CONT-01) kapsamı:** taslak oluşturma, düzenleme, silme ve görsel yönetimi. Yayınlama, genel haber akışı, arama, filtre, moderasyon ve resmî duyuru yayını sonraki fazlardadır; bu fazda **herkese açık (anonim) okuma ucu yoktur**, tüm uçlar kimlik ister. Ortak kurallar: yazar yalnız doğrulanmış JWT'nin `sub` claim'inden alınır (gövde/sorgu/başlıktaki kimlik güven kaynağı değildir); token Auth Service'in JWKS anahtarıyla bu serviste doğrulanır (yalnız RS256, `typ=at+jwt`, `iss=ltz-auth`, `aud=ltz-api`, `exp`/`nbf`/`iat`/`sub` zorunlu); servis token'ı (`svc+jwt`) kabul edilmez; `/internal/**` altında uç yoktur ve tamamı reddedilir. Bilinmeyen istek alanları reddedilir (400). Hatalar `ProblemDetail` (RFC 9457). Başkasının **taslağı** hiçbir uçta varlığı sızdırılmadan `404` döner; başkasının yayımlanmış içeriği üzerinde yazma girişimi `403`'tür.
+
+### CONTENT — İçerik Taslağı Oluştur
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/content/contents
+
+#### Yetkilendirme
+Authenticated (kayıtlı her kullanıcı). `type=ANNOUNCEMENT` (resmî LTZ duyurusu) oluşturma ve yayımlama yalnız `ADMIN` rolüyle yapılabilir (`roles` claim'i); normal kullanıcı için `403`. Karar: `MODERATOR` yetkisi kapsamında yayımlanmış içeriği yayından kaldırabilir (sonraki faz), duyuru oluşturamaz; kayıtlı kullanıcı kendi `NEWS` içeriğini yayımlayabilir (sonraki faz). `NEWS` ve `USER_CONTENT` ek rol gerektirmez. Yazar (`authorId`) ve durum (`status`) istemciden alınmaz: yazar oturumdan, durum her zaman `DRAFT`'tır.
+
+#### Request Body
+```json
+{
+  "type": "NEWS | ANNOUNCEMENT | USER_CONTENT, zorunlu, yalnız büyük harfli ad",
+  "locale": "tr | en, opsiyonel (varsayılan tr)",
+  "title": "string, zorunlu, boşluk dışında en az 1, en çok 150 karakter, tek satır (kontrol karakteri yok)",
+  "summary": "string, opsiyonel, en çok 500 karakter; boş/boşluk metin 'yok' sayılır",
+  "body": "string, opsiyonel, en çok 20000 karakter, satır sonu ve sekme dışında kontrol karakteri yok; boş/boşluk metin 'yok' sayılır (düz metin; HTML/Markdown yorumlanmaz)"
+}
+```
+Taslak doğrulaması yayın doğrulamasından ayrıdır: taslak yalnız başlık ister; özet/gövde boş olabilir. Yayın için gereken asgari uzunluklar (MVP kuralı: başlık en az 5, gövde en az 30 karakter; baştaki ve sondaki boşluklar sayılmaz; özet için asgari yok) **yalnız yayın sırasında** uygulanır (`ContentPublishRules`, yayınlama sonraki fazdadır) ve taslak kaydetmeyi engellemez.
+
+#### Response — 201
+```json
+{
+  "id": "UUID",
+  "authorId": "UUID (oturumdaki kullanıcı)",
+  "type": "NEWS | ANNOUNCEMENT | USER_CONTENT",
+  "status": "DRAFT",
+  "locale": "tr | en",
+  "title": "string (baştaki/sondaki boşluklar kırpılmış)",
+  "summary": "string | null",
+  "body": "string | null",
+  "images": [],
+  "createdAt": "ISO-8601 UTC",
+  "updatedAt": "ISO-8601 UTC"
+}
+```
+
+#### Hata Durumları
+- 400: Doğrulama hatası (eksik/boş `title`, geçersiz `type`/`locale`, uzunluk, kontrol karakteri, bilinmeyen alan örn. `authorId`/`status`, bozuk JSON); gövde `violations[]` içinde alan adı ve mesaj döner, girdi değeri döndürülmez
+- 401: Kimlik yok, token geçersiz/süresi dolmuş ya da servis token'ı
+- 403: Normal kullanıcı `ANNOUNCEMENT` oluşturmaya çalıştı
+- 409: Aynı yazarın aynı türde aynı metne (büyük/küçük harf ve boşluk farkı yok sayılır) sahip etkin içeriği zaten var (mükerrer); ya da etkin taslak sınırı doldu (MVP kuralı: aynı anda en çok 20 etkin taslak)
+- 429: Saatlik oluşturma sınırı aşıldı (MVP kuralı: kullanıcı başına saatte en çok 10 yeni içerik; silinen içerikler de sayılır, **silme kotayı sıfırlamaz**); `Retry-After: 3600`
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/content/contents
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (MockMvc güvenlik zinciri gerçek RS256 token + yerel JWKS ile; servis kuralları; gerçek PostgreSQL entegrasyonu). **İzole PostgreSQL ile çalıştırıldı ve geçti (2026-11-06).** Gateway ve gerçek auth-service ile uçtan uca doğrulama: NOT VERIFIED.
+
+### CONTENT — İçerik Getir (Sahibi)
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/content/contents/{contentId}
+
+#### Yetkilendirme
+Authenticated. Sahibi kendi içeriğini her durumda (silinmemişse) görür; başka kullanıcı yalnız `PUBLISHED` içeriği görebilir (yayınlama sonraki fazdadır, bu fazda tüm içerik taslaktır) — başkasının taslağı için `404`.
+
+#### Path Parameters
+- contentId: UUID, zorunlu
+
+#### Response — 200
+"İçerik Taslağı Oluştur" yanıtıyla aynı gövde; `images[]` görsel bilgisini (baytlar olmadan) sıra numarasına göre içerir:
+```json
+{
+  "id": "UUID",
+  "contentId": "UUID",
+  "mimeType": "image/jpeg | image/png",
+  "sizeBytes": 0,
+  "width": 0,
+  "height": 0,
+  "sortOrder": "0-5",
+  "contentUrl": "/api/v1/content/contents/{contentId}/images/{imageId}",
+  "createdAt": "ISO-8601 UTC"
+}
+```
+
+#### Hata Durumları
+- 400: Geçersiz UUID
+- 401: Kimlik yok ya da token geçersiz
+- 404: İçerik yok, silinmiş ya da çağıran için görünmez (başkasının taslağı)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/content/contents/{contentId}
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (izole PostgreSQL ile çalıştırıldı ve geçti; 2026-11-06). Gateway ve auth-service ile uçtan uca doğrulama: NOT VERIFIED.
+
+### CONTENT — Taslak Düzenle
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+PATCH /api/v1/content/contents/{contentId}
+
+#### Yetkilendirme
+Owner (yalnız taslağın yazarı; sahiplik servis içinde doğrulanır). Yazar, tür, dil ve durum bu uçla değiştirilemez (bu alanlar istekte kabul edilmez, 400).
+
+#### Path Parameters
+- contentId: UUID, zorunlu
+
+#### Request Body
+Kısmi güncelleme: verilen alan değişir, verilmeyen (null) alan olduğu gibi kalır; en az bir alan zorunludur.
+```json
+{
+  "title": "string, opsiyonel, en çok 150 karakter, tek satır; boş olamaz",
+  "summary": "string, opsiyonel, en çok 500 karakter; boş/boşluk metin alanı temizler",
+  "body": "string, opsiyonel, en çok 20000 karakter; boş/boşluk metin alanı temizler"
+}
+```
+Hiçbir şeyi değiştirmeyen istek `200` döner ve `updatedAt` değişmez.
+
+#### Response — 200
+"İçerik Getir (Sahibi)" ile aynı gövde.
+
+#### Hata Durumları
+- 400: Doğrulama hatası, hiçbir alan verilmedi, başlık boş, bilinmeyen alan (örn. `type`, `status`, `authorId`)
+- 401: Kimlik yok ya da token geçersiz
+- 403: Başkasının **yayımlanmış** içeriğini düzenleme girişimi
+- 404: İçerik yok/silinmiş ya da başkasının taslağı (varlığı sızdırılmaz)
+- 409: Taslak olmayan içerik düzenlenemez; yeni metin yazarın başka bir etkin içeriğiyle aynı (mükerrer); eşzamanlı değişiklik (`@Version`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/content/contents/{contentId}
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (izole PostgreSQL ile çalıştırıldı ve geçti; 2026-11-06). Gateway ve auth-service ile uçtan uca doğrulama: NOT VERIFIED.
+
+### CONTENT — İçerik Sil
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+DELETE /api/v1/content/contents/{contentId}
+
+#### Yetkilendirme
+Owner. Silme politikası (LTZ-NIS-CONT-01 kararı): tek transaction'da (1) `contents` satırına **silme işareti** (`deleted_at`) konur, satır kalır ve hiçbir okuma yolunda görünmez; (2) metin (`content_translations`) ve (3) görsel baytları (`content_images`) **kalıcı olarak silinir**; silinen metin için saklama süresi **0 gün**, metinden türeyen parmak izi de nötr değerle değiştirilir. Silinmiş içeriğin görsel adresleri `404` döner. Silme saatlik oluşturma kotasını sıfırlamaz (silinen satırlar sayılmaya devam eder). Moderatörce kaldırılmış (`REMOVED`) içerik moderasyon kaydı olarak korunur ve sahibi tarafından silinemez. Hesap silindiğinde kullanıcının tüm içerik kayıtları (taslak, yayımlanmış, önceden silinmiş) kalıcı olarak silinir: ayrı görev, bkz. `docs-content/LTZ-NIS-CONT-AUTH-01-Hesap-Silme-Gorevi.md`.
+
+#### Path Parameters
+- contentId: UUID, zorunlu
+
+#### Response — 204
+Gövde yok. Aynı içeriği ikinci kez silmek `404` döner.
+
+#### Hata Durumları
+- 400: Geçersiz UUID
+- 401: Kimlik yok ya da token geçersiz
+- 403: Başkasının yayımlanmış içeriğini silme girişimi
+- 404: İçerik yok, zaten silinmiş ya da başkasının taslağı
+- 409: `REMOVED` içerik sahibi tarafından silinemez
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/content/contents/{contentId}
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL: soft delete, görsel baytlarının silinmesi, silme sonrası okuma/görsel erişiminin 404 olması; izole PostgreSQL ile çalıştırıldı ve geçti; 2026-11-06). Gateway ve auth-service ile uçtan uca doğrulama: NOT VERIFIED.
+
+### CONTENT — Görsel Ekle
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/content/contents/{contentId}/images
+
+#### Yetkilendirme
+Owner; yalnız `DRAFT` içeriğe eklenir. Ayrı media-service yoktur: görsel baytları `content_db` içinde saklanır (community-service ile aynı depolama kararı).
+
+#### Path Parameters
+- contentId: UUID, zorunlu
+
+#### Request Body
+`multipart/form-data`, tek parça `file`. Sunucu tarafında doğrulanır: dosya adı ve istemcinin bildirdiği `Content-Type` güvenilmez, **içeriğin gerçek biçimine** bakılır; yalnız JPEG ve PNG kabul edilir (SVG, HTML, GIF ve diğer her şey reddedilir); en çok 2 MiB, kenar başına 6000 piksel, toplam 12 milyon piksel (çözmeden önce kontrol edilir); görsel yeniden kodlanır (EXIF/konum ve gömülü yükler atılır); içerik başına en çok 6 görsel; dosya adı saklanmaz.
+
+#### Response — 201
+```json
+{
+  "id": "UUID",
+  "contentId": "UUID",
+  "mimeType": "image/jpeg | image/png (sunucunun doğruladığı gerçek tür)",
+  "sizeBytes": 0,
+  "width": 0,
+  "height": 0,
+  "sortOrder": "0-5 (ilk boş yuva)",
+  "contentUrl": "/api/v1/content/contents/{contentId}/images/{imageId}",
+  "createdAt": "ISO-8601 UTC"
+}
+```
+
+#### Hata Durumları
+- 400: `file` parçası yok ya da dosya boş
+- 401: Kimlik yok ya da token geçersiz
+- 403: Başkasının yayımlanmış içeriğine ekleme girişimi
+- 404: İçerik yok/silinmiş ya da başkasının taslağı
+- 409: İçerik taslak değil; ya da görsel sınırı (6) doldu
+- 413: Dosya 2 MiB'tan büyük
+- 415: Desteklenmeyen biçim (SVG, HTML, GIF, JPEG/PNG olmayan her şey)
+- 422: Bozuk görsel ya da piksel sınırı aşıldı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/content/contents/{contentId}/images
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (geçersiz/zararlı görsel senaryoları dahil; izole PostgreSQL ile çalıştırıldı ve geçti; 2026-11-06). Gateway ve auth-service ile uçtan uca doğrulama: NOT VERIFIED.
+
+### CONTENT — Görsel Getir
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/content/contents/{contentId}/images/{imageId}
+
+#### Yetkilendirme
+Authenticated + sahiplik: taslak görseline yalnız sahibi erişir (başkası için `404`); başka kullanıcı yalnız `PUBLISHED` içeriğin görselini görebilir (yayınlama sonraki fazdadır). Bu fazda anonim erişim yoktur.
+
+#### Path Parameters
+- contentId: UUID, zorunlu
+- imageId: UUID, zorunlu
+
+#### Response — 200
+Görsel baytları (`image/jpeg` ya da `image/png`). Başlıklar: `Cache-Control: no-store, private`, `X-Content-Type-Options: nosniff`, `Content-Disposition: inline`, `Content-Security-Policy: default-src 'none'; sandbox`.
+
+#### Hata Durumları
+- 400: Geçersiz UUID
+- 401: Kimlik yok ya da token geçersiz
+- 404: İçerik, görsel ya da erişim yok (silinmiş içeriğin görseli dahil)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/content/contents/{contentId}/images/{imageId}. Bu uç `Authorization: Bearer` ister; tarayıcı `<img>` etiketi başlık gönderemediği için çerezden Bearer'a çeviren Gateway akışı (docs/EKIP_AUTH_GATEWAY_ENTEGRASYON_NOTLARI.md) kullanılır.
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (izole PostgreSQL ile çalıştırıldı ve geçti; 2026-11-06). Gateway çerez→Bearer akışıyla uçtan uca doğrulama: NOT VERIFIED.
+
+### CONTENT — Görsel Sil
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+DELETE /api/v1/content/contents/{contentId}/images/{imageId}
+
+#### Yetkilendirme
+Owner; yalnız `DRAFT` içeriğin görseli silinir. Görsel baytları fiziksel olarak silinir; boşalan sıra numarası sonraki yüklemede yeniden kullanılır.
+
+#### Path Parameters
+- contentId: UUID, zorunlu
+- imageId: UUID, zorunlu
+
+#### Response — 204
+Gövde yok.
+
+#### Hata Durumları
+- 400: Geçersiz UUID
+- 401: Kimlik yok ya da token geçersiz
+- 403: Başkasının yayımlanmış içeriğinin görselini silme girişimi
+- 404: İçerik/görsel yok ya da başkasının taslağı
+- 409: İçerik taslak değil
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/content/contents/{contentId}/images/{imageId}
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (izole PostgreSQL ile çalıştırıldı ve geçti; 2026-11-06). Gateway ve auth-service ile uçtan uca doğrulama: NOT VERIFIED.
 
 ## EVENT
 

@@ -322,12 +322,12 @@ Game Service GAME-04/05/15 LTZ puan projeksiyonu (aktif V172, 2026-11-05; V171�
 
 | Tablo | Önemli sütunlar | Kısıtlar / not |
 | --- | --- | --- |
-| `content_categories` | id, code, name_tr, name_en | UQ code |
-| `contents` | id, author_id REF, type (NEWS, ANNOUNCEMENT, USER_CONTENT), category_id FK, slug, status (DRAFT, PUBLISHED, REMOVED, ARCHIVED), featured, published_at, removed_by REF, removed_reason, created_at, updated_at, version | UQ slug; ANNOUNCEMENT yalnız admin (uygulama kuralı) |
-| `content_translations` | content_id FK, locale, title, summary, body | PK (content_id, locale) |
-| `content_images` | id, content_id FK, storage_key, alt_tr, alt_en, sort_order | |
-| `content_sources` | id, content_id FK, title, url | CONT-16 |
-| `outbox_events`, `inbox_events` | §2.4 | |
+| `content_categories` | id, code, name_tr, name_en | UQ code. **Henüz uygulanmadı** (CONT-03, sonraki faz) |
+| `contents` | id, author_id REF, type (NEWS, ANNOUNCEMENT, USER_CONTENT), status (DRAFT, PUBLISHED, REMOVED, ARCHIVED), default_locale, content_hash, created_at, updated_at, deleted_at, version | **V101 ile uygulandı** (CONT-05/06/07/08/18). CHECK: type, status, default_locale (`tr`/`en`), `char_length(content_hash)=64`. ANNOUNCEMENT yalnız admin (uygulama kuralı). **Silme (LTZ-NIS-CONT-01 kararı):** `deleted_at` silme işareti konur (ayrı DELETED durumu yok; durum makinesi değişmedi), **aynı transaction'da** `content_translations` ve `content_images` satırları kalıcı olarak silinir ve `content_hash` nötr değerle (64 sıfır) değiştirilir; silinen metin için saklama süresi 0 gün. Silinmiş satırlar saatlik oluşturma kotasına sayılmaya devam eder (silme kotayı sıfırlamaz). **Hesap silmede** kullanıcının tüm `contents` satırları (taslak, yayımlanmış, önceden silinmiş) kalıcı silinir (cascade ile çeviri/görseller de): ayrı görev. `content_hash` (SHA-256, büyük/küçük harf ve boşluk farkı yok sayılır): kısmi UQ `(author_id, type, content_hash) WHERE deleted_at IS NULL` mükerrer içeriği yarışta bile engeller; silinen içerik aynı metni engellemez. IX `(author_id, created_at desc)` (saatlik oluşturma sınırı, silinenler dahil). **Sonraki fazlarda eklenecek kolonlar:** category_id FK, slug (UQ), featured, published_at, removed_by, removed_reason |
+| `content_translations` | content_id FK (ON DELETE CASCADE), locale, title, summary, body | **V101 ile uygulandı.** PK (content_id, locale). CHECK: locale, title 1–150, summary null ya da 1–500, body null ya da 1–20000 (btrim sonrası). Taslakta özet/gövde null olabilir. Faz 1'de içerik başına tek çeviri (`contents.default_locale`); CONT-15 ek dil ekler |
+| `content_images` | id, content_id FK (ON DELETE CASCADE), content bytea, mime_type, size_bytes, width, height, sort_order, created_at | **V102 ile uygulandı** (depolama kararı: content_db/bytea, community-service ile aynı; `storage_key`/`alt_tr`/`alt_en` yok — alt metin CONT-15 fazına bırakıldı). CHECK: mime_type `image/jpeg`/`image/png`, size 1–2 MiB, boyutlar > 0, sort_order 0–5; UQ (content_id, sort_order). İçerik silinince baytlar uygulamada fiziksel silinir |
+| `content_sources` | id, content_id FK, title, url | CONT-16. **Henüz uygulanmadı** |
+| `outbox_events`, `inbox_events` | §2.4 | **Henüz uygulanmadı** (yayın/moderasyon olayları sonraki fazlarda) |
 
 ### 3.12 event_db — event-service (Nisa)
 
