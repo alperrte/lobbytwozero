@@ -46,4 +46,3 @@ Hepsi yazılı ve uygulanmış durumda. Hardware kendi doğrulayıcısını yazm
 ## BİR UYARI: SENİN TESTLERİN AUTH KAYNAĞINA BAĞLI
 
 `ProductionAuthSupport` Auth kaynak dosyalarını derleyip yansımayla çağırıyor. Yani Auth'ta bir imza değişirse senin testin sessizce kırılır. Ben bunu fark ettim ve önledim. Auth tarafında bu imzaları kilitleyen bir test ekledim. Hangi imzalara bağlı olduğunuz `docs-auth/README.md` içinde "Başkalarının bağlı olduğu Auth imzaları" başlığında yazılı.
-

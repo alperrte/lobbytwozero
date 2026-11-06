@@ -26,4 +26,3 @@ Bu branch için açık talep yok. Kapanan talepler temizlendi; gerekirse git ge�
 - Auth kaynağını derleyen testin varsa (ProductionAuthSupport gibi) `docs-auth/README.md` içindeki "Başkalarının bağlı olduğu Auth imzaları" bölümüne bak
 
 Talebin ya da sorun varsa bu klasöre yeni bir `talep-NN-...md` olarak yazılır, cevap aynı şablonla verilir.
-

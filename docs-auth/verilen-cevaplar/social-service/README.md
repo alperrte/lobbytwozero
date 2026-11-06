@@ -24,4 +24,3 @@
 - Doğrulayıcı rehberi: `docs/AUTH_SERVICE_ENTEGRASYON_REHBERI.md`
 - Messaging ve lfp için Social'ın `JwtConfig` yapısı örnek alınabilir
 - Token ömrü 60 saniye, banlı kullanıcı en fazla 90 saniye görünür
-

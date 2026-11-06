@@ -24,4 +24,3 @@
 - Kişisel ekip notun: `docs-auth/d4-ekip-notlari/04_NISA_community_content_event.md`
 - Silme ucu rehberi: `docs-auth/d4-ekip-notlari/01_ORTAK_SILME_UCU_UYGULAMA_REHBERI.md`
 - Token ömrü 60 saniye, banlı kullanıcı en fazla 90 saniye görünür
-

@@ -23,4 +23,3 @@
 - Kişisel ekip notun: `docs-auth/d4-ekip-notlari/03_HAMZA_game_library_review.md`
 - Testlerinin Auth kaynağına bağlı olması: `docs-auth/README.md` içindeki "Başkalarının bağlı olduğu Auth imzaları" bölümü
 - Token ömrü 60 saniye, banlı kullanıcı en fazla 90 saniye görünür
-

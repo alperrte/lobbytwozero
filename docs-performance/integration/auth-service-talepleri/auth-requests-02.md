@@ -1,5 +1,7 @@
 # Auth talepleri 02
 
+> **2026-11-06:** A/C hazır ve gerçek HTTP kabulü PASS; B kararı uygulandı; D izole gerçek Auth işçisiyle PASS. Aşağıdaki faz tarihçesi güncel engel listesi değildir. [Güncel kanıt](../auth/auth-integration-05.md). Game/Hardware oturum E2E'si hâlâ ayrı iştir.
+
 Tarih: 2026-10-31 · Kapsam: Faz 2 (PERF-03/04/13/20)
 
 ## Yeni talep: YOK

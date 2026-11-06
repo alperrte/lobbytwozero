@@ -59,6 +59,10 @@ public final class TokenClaims {
      * token {@link #ACCOUNT_ID} taşır, Performance bunu istek yolundaki hesapla karşılaştırır.
      */
     public static final String DEVICES_VERIFY_SCOPE = "devices:verify";
+    /** Hardware, tek hesabın Performance metrik özetini okur; hesaba bağlı kapsamdır. */
+    public static final String PERFORMANCE_SUMMARY_READ_SCOPE = "summary:read";
+    /** Recommendation, tek hesabın oyun performans referansını okur; hesaba bağlı kapsamdır. */
+    public static final String PERFORMANCE_REFERENCE_READ_SCOPE = "reference:read";
     /** Masaüstü cihaz token'ı türü; kullanıcı ({@link #ACCESS_TOKEN_TYPE}) ve servis token'ının yerine geçemez, tersi de geçemez. */
     public static final String DEVICE_TOKEN_TYPE = "dev+jwt";
     /** Cihaz token'ının tek hedefi ve tek kapsamı (Hardware'in masaüstü senkronu). */

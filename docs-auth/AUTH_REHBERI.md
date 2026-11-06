@@ -131,7 +131,7 @@ Optional<String> tokenFor(String audience, String requiredScope) {
 - Gizli anahtar **yalnız ortam değişkeninden** gelir: `AUTH_<SERVİS>_SERVICE_CLIENT_SECRET` (en az 32 karakter; **boşsa o istemci kapalıdır**). Üretici: `node ops/generate-auth-dev-keys.mjs`.
 - Token hedef (`audience`) başına ayrı alınır; süresi dolmadan ~10 sn önce yenilenir. Kullanıcı token'ına **geri düşülmez**: token alınamazsa çağrı yapılmaz (**fail-closed**).
 - Hata kodları: yanlış sır `401 INVALID_CLIENT`; çift tanımlı değil `403 SERVICE_AUDIENCE_FORBIDDEN`.
-- **Hesaba bağlı kapsam** (`signals:read`, `devices:verify`): istekte `accountId` zorunlu, token `account_id` taşır; hesap `ACTIVE` değilse `403 SERVICE_TARGET_ACCOUNT_UNAVAILABLE`. Bağsız kapsamda `accountId` verilmez (`400 SERVICE_ACCOUNT_BINDING_INVALID`). Aynı hedefte kapsamlar ya hep bağlı ya hiç.
+- **Hesaba bağlı kapsam** (`signals:read`, `devices:verify`, `summary:read`, `reference:read`): istekte `accountId` zorunlu, token `account_id` taşır; hesap `ACTIVE` değilse `403 SERVICE_TARGET_ACCOUNT_UNAVAILABLE`. Bağsız kapsamda `accountId` verilmez (`400 SERVICE_ACCOUNT_BINDING_INVALID`). Aynı hedefte kapsamlar ya hep bağlı ya hiç.
 - Kullanıcı adına çağrıda Auth "delegasyon token'ı" üretmez; servis, kullanıcının kendi `at+jwt`'sini iletir, hedef `viewer`'ı `sub`'dan okur (saklanmaz, loglanmaz, arka planda kullanılmaz).
 
 ### 4.2 Alıcı taraf: servis token'ı kabul et
@@ -178,7 +178,8 @@ Listede olmayan çift `403`. Yeni çift = Auth'ta kod + test + bu tablo; istek `
 | messaging, lfp | social | `blocks:check` | Mesaj/eşleşme öncesi engel sorgusu |
 | library | user | `privacy:read`, `events:ingest` | Koleksiyon gizliliği; `LibrarySummaryChanged` |
 | hardware | user | `privacy:read` | Donanım görünürlük politikası |
-| hardware | performance | `devices:verify` (hesaba bağlı) | Cihaz hesaba ait ve aktif mi |
+| hardware | performance | `devices:verify summary:read` (hesaba bağlı) | Cihaz hesaba ait/aktif mi; donanım profili performans özeti |
+| recommendation | performance | `reference:read` (hesaba bağlı) | Hesabın oyun performans referansı |
 | review | user | `events:ingest` | `ReviewSummaryChanged` |
 | recommendation | library | `signals:read` (hesaba bağlı) | Tek hesabın öneri sinyali |
 | game | review | `rating-summaries:read`, `game-references:read` | Puan özeti; referans sayısı |

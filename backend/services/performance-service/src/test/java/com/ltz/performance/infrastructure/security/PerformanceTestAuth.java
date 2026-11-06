@@ -85,11 +85,12 @@ public final class PerformanceTestAuth {
         FORCED_BODY.remove(account);
     }
 
-    /** Performance hedefli cihaz token'ı (REQ-01-A sonrası gerçek Auth'un üreteceği sözleşme biçimi; yerel imza). */
+    /** Performance hedefli cihaz token'ı doğrudan Auth üretim kaynağından gelir. */
     public static String performanceDeviceToken(UUID deviceId, UUID account) throws Exception {
-        return performanceDeviceToken(deviceId, account, _ -> { });
+        return AUTH.performanceDeviceToken(deviceId, account);
     }
 
+    /** Yalnız olumsuz testlerde bozuk claim üretmek için yerel imza. */
     public static String performanceDeviceToken(UUID deviceId, UUID account, Consumer<Map<String, Object>> mutate)
             throws Exception {
         Instant now = Instant.now();

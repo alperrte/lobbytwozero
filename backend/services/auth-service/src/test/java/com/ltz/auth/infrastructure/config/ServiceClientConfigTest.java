@@ -92,6 +92,19 @@ class ServiceClientConfigTest {
                 targets(Map.of("library-service", Set.of("game-references:read", "signals:read"))), "must not mix");
     }
 
+    /** Performance okuma izinleri, cihaz doğrulama gibi tek hesaba bağlı kalır. */
+    @Test
+    void performanceOkumaKapsamlariHesabaBagliKalir() {
+        assertAccepted("hardware-service", targets(Map.of("performance-service", Set.of("devices:verify", "summary:read"))));
+        assertAccepted("recommendation-service", targets(Map.of("performance-service", Set.of("reference:read"))));
+        for (String scope : Set.of("summary:read", "reference:read")) {
+            assertRejected("hardware-service", targets(Map.of("performance-service", Set.of(scope, "events:ingest"))),
+                    "must not mix");
+            assertRejected("hardware-service", targets(Map.of("performance-service", Set.of(scope, "account:erase"))),
+                    "targets.performance-service");
+        }
+    }
+
     /** Yalnız hedef kapsamlı istemci (Auth'a kapsamı yok). */
     private static ServiceClientProperties.Client targets(Map<String, Set<String>> targets) {
         return new ServiceClientProperties.Client(STRONG_SECRET, Set.of(), targets);

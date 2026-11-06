@@ -33,8 +33,8 @@ public class DeviceLinkController {
 
     @GetMapping
     @Operation(summary = "PERF-01: Çağıranın Performance'a bağladığı cihazlar")
-    public ResponseEntity<List<DeviceLinkResponse>> list() {
-        return PerformanceControllerSupport.privateResponse(devices.list(actor.requireUserId()));
+    public ResponseEntity<List<DeviceLinkResponse>> list(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
+        return PerformanceControllerSupport.privateResponse(devices.list(actor.requireUserId(), authorization));
     }
 
     @PostMapping

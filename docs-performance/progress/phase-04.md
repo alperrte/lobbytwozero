@@ -1,5 +1,7 @@
 # Faz 04 ilerleme raporu — LTZ-ALP-PERF-04
 
+> **2026-11-06 güncellemesi:** REQ-04-A Auth izinleri kullanıcının bildirdiği Kerem onayıyla eklendi. Güncel gerçek token/HTTP kabulü ve kalite sonucu [auth-integration-06.md](../integration/auth/auth-integration-06.md) içindedir. Aşağıdaki 2026-10-31 kaydında geçen Auth engelleri tarihçedir; üretim Hardware/Recommendation tüketicileri ayrıca bekler.
+
 Tarih: 2026-10-31 · Durum: **KOD/TEST/DOKÜMAN TAMAM — gerçek Auth servis kimliği ve gerçek Hardware/Recommendation tüketimi bekliyor.**
 
 ## Kapsam

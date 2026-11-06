@@ -36,7 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Gerçek Auth issuer/JWKS (üretim kaynaklarından derlenmiş), Performance HTTP güvenliği, servisler ve geçici
  * PostgreSQL. Cihaz listesi ({@code GET /api/v1/auth/devices}) YEREL SAPMADIR; performance-service hedefli cihaz
- * token'ı yerel imzalıdır (Auth bugün yalnız aud=hardware-service üretir, REQ-01-A). Bu test, dağıtılmış Auth ile
+ * token'ı Auth'un gerçek üreticisinden gelir. Bu test, dağıtılmış Auth ile
  * uçtan uca entegrasyon DEĞİLDİR.
  */
 @SpringBootTest(properties = {"logging.level.root=INFO", "debug=false"})
@@ -101,7 +101,7 @@ class PerformanceSyncIntegrationTest extends PostgresIntegrationSupport {
         UUID account = UUID.randomUUID();
         UUID device = UUID.randomUUID();
         prepare(account, device);
-        // Gerçek Auth cihaz token'ı bugün aud=hardware-service: Performance bunu REDDETMELİ (REQ-01-A sonuna kadar).
+        // Auth'un varsayılan Hardware hedefi Performance'ta kabul edilmez.
         String hardwareAudienceToken = PerformanceTestAuth.AUTH.deviceToken(device, account);
         mvc.perform(sync(hardwareAudienceToken, UUID.randomUUID(), batchBody(Instant.now(), 1)))
                 .andExpect(status().isUnauthorized());
@@ -248,6 +248,52 @@ class PerformanceSyncIntegrationTest extends PostgresIntegrationSupport {
                     .andExpect(jsonPath("$.code").value("AUTH_UNAVAILABLE"));
         }
         assertThat(jdbc.queryForObject("SELECT count(*) FROM device_links", Integer.class)).isZero();
+    }
+
+    @Test
+    void listingReconcilesAuthRevocationWithoutReactivatingLocalDisabledLinks() throws Exception {
+        UUID account = UUID.randomUUID();
+        UUID revoked = UUID.randomUUID();
+        UUID locallyDisabled = UUID.randomUUID();
+        UUID revokedLink = prepare(account, revoked);
+        UUID localLink = prepare(account, locallyDisabled);
+        UUID other = UUID.randomUUID();
+        prepare(other, UUID.randomUUID());
+        mvc.perform(delete(DEVICES + "/" + localLink).header("Authorization", bearer(user(account))))
+                .andExpect(status().isOk());
+        PerformanceTestAuth.reset(account);
+        PerformanceTestAuth.authDevices(account, locallyDisabled, "Yerelde kapalı");
+        for (int i = 0; i < 2; i++) {
+            mvc.perform(get(DEVICES).header("Authorization", bearer(user(account))))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2))
+                    .andExpect(jsonPath("$[0].status").value("DISABLED"))
+                    .andExpect(jsonPath("$[1].status").value("DISABLED"));
+        }
+        assertThat(jdbc.queryForObject("SELECT status FROM device_links WHERE id=?", String.class, revokedLink))
+                .isEqualTo("DISABLED");
+        assertThat(jdbc.queryForObject("SELECT status FROM device_links WHERE user_id=?", String.class, other))
+                .isEqualTo("ACTIVE");
+        mvc.perform(sync(PerformanceTestAuth.performanceDeviceToken(revoked, account), UUID.randomUUID(),
+                batchBody(Instant.now(), 1))).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void failedOrIncompleteAuthListCannotPartiallyDisableLinks() throws Exception {
+        UUID account = UUID.randomUUID();
+        UUID device = UUID.randomUUID();
+        prepare(account, device);
+        String duplicate = "[{\"deviceId\":\"" + device + "\"},{\"deviceId\":\"" + device + "\"}]";
+        for (var forced : List.<Object[]>of(new Object[]{503, null}, new Object[]{401, null},
+                new Object[]{200, "{}"}, new Object[]{200, "[{}]"}, new Object[]{200, duplicate},
+                new Object[]{200, "[{\"deviceId\":\"invalid\"}]"})) {
+            PerformanceTestAuth.forceDeviceListStatus(account, (Integer) forced[0], (String) forced[1]);
+            mvc.perform(get(DEVICES).header("Authorization", bearer(user(account))))
+                    .andExpect(status().isServiceUnavailable()).andExpect(header().string("Retry-After", "30"))
+                    .andExpect(jsonPath("$.code").value("AUTH_UNAVAILABLE"));
+            assertThat(jdbc.queryForObject("SELECT status FROM device_links WHERE auth_device_id=?", String.class, device))
+                    .isEqualTo("ACTIVE");
+        }
+        PerformanceTestAuth.reset(account);
     }
 
     // ---------- senkronizasyon ----------
@@ -454,25 +500,19 @@ class PerformanceSyncIntegrationTest extends PostgresIntegrationSupport {
         UUID device = UUID.randomUUID();
         UUID linkId = prepare(account, device);
         String path = "/internal/v1/accounts/" + account + "/devices/" + device;
-        // Gerçek Auth servis token'ı yalnız sub=svc:auth-service üretir → Hardware'e özel uç reddedilir (REQ-01-C)
+        // Auth'un kendi çıkış token'ı Hardware istemci kimliği yerine kullanılamaz.
         String authSubject = PerformanceTestAuth.AUTH.serviceToken("performance-service", "devices:verify", account);
         mvc.perform(get(path).header("Authorization", bearer(authSubject))).andExpect(status().isForbidden());
-        // Sözleşme biçimi (yerel imza, sub=svc:hardware-service)
-        String hardware = serviceToken("svc:hardware-service", "devices:verify", account);
+        String hardware = PerformanceTestAuth.AUTH.performanceClientToken("hardware-service", account);
         mvc.perform(get(path).header("Authorization", bearer(hardware))).andExpect(status().isNoContent());
+        mvc.perform(get("/internal/v1/accounts/" + UUID.randomUUID() + "/devices/" + device)
+                .header("Authorization", bearer(hardware))).andExpect(status().isForbidden());
+        mvc.perform(delete("/internal/v1/accounts/" + account).header("Authorization", bearer(hardware)))
+                .andExpect(status().isForbidden());
         mvc.perform(get("/internal/v1/accounts/" + account + "/devices/" + UUID.randomUUID())
                 .header("Authorization", bearer(hardware))).andExpect(status().isNotFound());
         mvc.perform(delete(DEVICES + "/" + linkId).header("Authorization", bearer(user(account)))).andExpect(status().isOk());
         mvc.perform(get(path).header("Authorization", bearer(hardware))).andExpect(status().isNotFound());
-    }
-
-    private static String serviceToken(String subject, String scope, UUID account) throws Exception {
-        Instant now = Instant.now();
-        return PerformanceTestAuth.sign(PerformanceTestAuth.AUTH.key(), new JWSHeader.Builder(JWSAlgorithm.RS256)
-                .keyID(PerformanceTestAuth.AUTH.key().getKeyID()).type(new JOSEObjectType("svc+jwt")).build(),
-                java.util.Map.of("iss", "ltz-auth", "sub", subject, "aud", List.of("performance-service"),
-                        "scope", scope, "account_id", account.toString(), "jti", UUID.randomUUID().toString(),
-                        "iat", now.getEpochSecond(), "nbf", now.getEpochSecond(), "exp", now.plusSeconds(30).getEpochSecond()));
     }
 
     @Test

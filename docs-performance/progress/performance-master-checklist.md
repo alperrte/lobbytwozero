@@ -7,7 +7,7 @@ Görev adları ve açıklamaları PDA kaynağından aynen alınmıştır; kod at
 İşaretleme: `[ ]` başlamadı veya tamamlanmadı · `[x]` kod + gerçek test + güvenlik kontrolü + dokümantasyon tamam.
 Kısmi işler `[ ]` kalır, yanında `DURUM`, neden ve test bağlantısı yazılır. Ana task; alt tasklar ve faz kalite kapısı doğrulanmadan tamamlanmış sayılmaz.
 
-Son güncelleme: 2026-10-31 · Genel durum: Faz 1 IN_PROGRESS (Auth bağımlılığı nedeniyle kısmen BLOCKED), Faz 2 kod/test/doküman tamam (gerçek Game/Hardware E2E bekliyor), Faz 3–4 PLANNED.
+Son güncelleme: 2026-11-06 · Faz 1 Auth kabulü PASS; REQ-04-A okuma izinleri de kullanıcının bildirdiği Kerem onayıyla eklendi. [Güncel kanıt](../integration/auth/auth-integration-06.md). Game/Hardware/Recommendation üretim tüketicileri, masaüstü ve ortak DEV kabulü ayrı bekler. Sonar bu değişiklikte NOT RUN. Faz kapanış işaretleri bütün ürünün production kabulü yerine geçmez.
 
 ## Karar özeti (Faz 1)
 
@@ -21,29 +21,29 @@ Auth talebi: [auth-requests-01.md](../integration/auth-service-talepleri/auth-re
 
 **Ana task açıklaması:** Gelecekteki masaüstü istemcisine yönelik izinli cihaz eşleştirme, tekrarsız veri kabulü ve erişim altyapısı kurulur.
 **PDA gereksinimleri:** PERF-01, PERF-02, PERF-17, PERF-18, PERF-22
-**Durum:** IN_PROGRESS — gerçek Auth cihaz token'ıyla uçtan uca doğrulama BLOCKED (bkz. auth-requests-01)
+**Durum:** BACKEND AUTH KABULÜ PASS — gerçek Auth cihaz/istemci token'ları ve D4 işçisi izole HTTP ortamında doğrulandı. Ortak DEV, masaüstü ve Hardware üretim tüketicisi ayrıca bekler.
 
 - [ ] **PERF-01 — Cihaz bağlantısı:** İleride masaüstü uygulamasından gelecek cihazların LTZ hesabıyla eşleştirilmesi için backend desteği.
   - Kabul: kanonik cihaz kimliği Auth'tadır; Performance cihaz referansını yalnız doğrulanmış Auth cihaz token'ıyla ve kullanıcının açık izniyle oluşturur; Hardware'in beklediği aktif cihaz kararı verilir.
   - Entegrasyon bağımlılığı: Auth `aud=performance-service` / `scope=performance:sync:write` (REQ-01-A), Hardware→Performance servis token'ı (REQ-01-C).
-  - Durum: **PARTIAL / BLOCKED** — Performance tarafı ve sözleşme testleri hazır; gerçek Auth cihaz token'ıyla E2E yapılamadı.
+  - Durum: **AUTH ENTEGRASYONU PASS** — gerçek cihaz token'ı ve hesaba bağlı Hardware servis token'ı HTTP kabulünde doğrulandı; Hardware üretim istemcisi ayrı iş.
 - [ ] **PERF-02 — Cihaz yönetimi:** Kullanıcının bağlantılı cihazları listeleyebilmesi ve bağlantılarını kaldırabilmesi için API desteği.
   - Kabul: kullanıcı yalnız kendi cihaz referanslarını listeler/kaldırır (IDOR → 404); kaldırılan cihaz yeni senkronizasyon yapamaz.
-  - Entegrasyon bağımlılığı: Auth'ta gerçek iptal kullanıcı tarafından `DELETE /api/v1/auth/devices/{id}` ile yapılır; anında yayılım için REQ-01-B.
-  - Durum: **PARTIAL / BLOCKED** — Performance tarafı hazır; Auth iptal olayı ve gerçek cihaz token'ı doğrulanmadı.
+  - Entegrasyon kararı: Auth iptal olayı sağlamaz (REQ-01-B kararı). Yazma süresi ≤60 sn; cihaz listesi yenilendiğinde Auth'ta bulunmayan bağ DISABLED olur.
+  - Durum: **AUTH ENTEGRASYONU PASS** — gerçek iptal ve liste yenilemesiyle mevcut token'ın reddi doğrulandı; yerel DISABLED kendiliğinden açılmaz.
 - [ ] **PERF-17 — Veri senkronizasyonu:** Gelecekteki masaüstü istemcisinden izinli veri kabulü için backend sözleşmesi ve işleme altyapısı.
   - Kabul: yalnız geçerli cihaz token'ı + açık kullanıcı izni + aktif cihaz referansı ile kabul; zarf (envelope) sözleşmesi v1; örnek (sample) kaydı Faz 3'tedir.
-  - Durum: **PARTIAL / BLOCKED** — gerçek cihaz token'ı yok.
+  - Durum: **AUTH ENTEGRASYONU PASS** — v1 gerçek Auth HTTP kabulü PASS; v2 testleri gerçek Auth üreticisini kullanır. Masaüstü E2E ayrı kapsam.
 - [ ] **PERF-18 — Tekrar gönderim koruması:** Tekrarlanan ölçüm isteklerinin mükerrer kayda yol açmaması.
   - Kabul: `UNIQUE(device_link_id, idempotency_key)` + istek özeti; aynı içerik tekrarı aynı yanıt, farklı içerik 409; eşzamanlı gönderim tek kayıt.
   - Durum: Performance tarafı hazır; PostgreSQL testleri kanıtı için bkz. [phase-01-tests.md](../testings/phase-01-tests.md).
 - [ ] **PERF-22 — Veri erişim ve gizlilik:** Ölçüm ve performans kayıtlarına yalnızca yetkili kişilerin erişebilmesi.
   - Kabul: varsayılan reddet; kullanıcı yalnız kendi verisine erişir; cihaz token'ı kullanıcı uçlarında geçmez; hesap silme ucu (D4) ve silme sonrası yazma engeli.
-  - Entegrasyon bağımlılığı: Auth silme işçisi → `DELETE /internal/v1/accounts/{id}` gerçek ortak ortam doğrulaması yapılmadı.
-  - Durum: Performance tarafı hazır; ortak DEV doğrulaması NOT VERIFIED.
+  - Entegrasyon kanıtı: gerçek Auth silme işçisi → Performance 204, görev CONFIRMED, tekrar/hesap bağı/yazma çiti PASS.
+  - Durum: **AUTH ENTEGRASYONU PASS** — izole kabul doğrulandı; ortak DEV ve tüm servis Saga doğrulaması ayrı bekler.
 
 **Ana task kapanış koşulu:** Üstteki bütün alt tasklar, API/veri sahipliği kuralları, ilgili testler, dokümantasyon ve faz kalite kapısı tamamlanmalı; özellik commit metni hazırlanıp kullanıcıya sunulmalıdır.
-**Faz 1 kapanış durumu:** AÇIK — Auth değişikliği (REQ-01-A) gelmeden kapatılamaz.
+**Faz 1 kapanış durumu:** Auth kod/entegrasyon engelleri kapandı. İzole kabul ve merkezi kalite kapıları PASS; ortak DEV/production ve gerçek masaüstü kabulü bu kanıtın kapsamında değildir. Önceki faz kapanış işaretleri bu görevde topluca değiştirilmedi.
 
 ---
 
@@ -55,7 +55,7 @@ Auth talebi: [auth-requests-01.md](../integration/auth-service-talepleri/auth-re
 
 - [ ] **PERF-03 — Performans oturumu oluşturma:** Kullanıcının performans oturumu kaydı oluşturabilmesi.
   - Durum: **PARTIAL** — `POST/GET /sessions`, `GET /sessions/active|{id}`; tek aktif oturum, terk edilmiş oturum, sunucu zamanı, 1000 sınırı PostgreSQL'de kanıtlandı.
-  - Bekleyen: Game GAME-15 / Hardware HW-17 gerçek servis E2E (yalnız yerel mock); cihaz kaynaklı oturum Faz 3 (REQ-01-A).
+  - Bekleyen: Game GAME-15 / Hardware HW-17 gerçek servis E2E (yalnız yerel mock). Auth cihaz token'ı hazır; cihaz örneklerinin `source=DEVICE` olması oturumun `MANUAL` kaynağını değiştirmez.
 - [x] **PERF-04 — Performans oturumu sonlandırma:** Kaydedilmiş performans oturumunun tamamlanması.
   - Durum: **DONE (servis içi)** — idempotent bitirme, çelişkili bitirme 409, eşzamanlı bitirme/silme, iyimser kilit, IDOR.
 - [ ] **PERF-13 — Oyun performans raporu:** Oyun, donanım, çözünürlük ve grafik ayarlarıyla ilişkili performans raporlarının oluşturulması.
@@ -109,10 +109,10 @@ Auth talebi: [auth-requests-01.md](../integration/auth-service-talepleri/auth-re
 
 **Ana task açıklaması:** Gerçek kayıtlardan sayfalı/filtreli ölçüm geçmişi, özet değerler ve grafik zaman serileri sunulur.
 **PDA gereksinimleri:** PERF-14, PERF-15, PERF-16, PERF-19, PERF-21
-**Durum:** PARTIAL — kod/test/belge tamam; gerçek Auth/Hardware/Recommendation entegrasyonu BLOCKED
+**Durum:** PARTIAL — Auth okuma izinleri uygulandı; Hardware/Recommendation üretim tüketici istemcileri ayrı iş
 
 - [ ] **PERF-14 — Ölçüm geçmişi:** Kullanıcının geçmiş performans kayıtlarının listelenmesi.
-  - Durum: **PARTIAL** — `GET /sessions` filtre/sayfa/`totalElements`, `GET /sessions/{id}/samples`; sabit sıra, IDOR ve sınırlar PostgreSQL ile kanıtlı. Bekleyen: gerçek cihaz verisi/Auth E2E (REQ-01-A).
+  - Durum: **PARTIAL** — `GET /sessions` filtre/sayfa/`totalElements`, `GET /sessions/{id}/samples`; sabit sıra, IDOR ve sınırlar PostgreSQL ile kanıtlı. Auth cihaz token engeli kapandı; gerçek masaüstü verisiyle E2E ayrıca bekler.
 - [ ] **PERF-15 — Performans istatistikleri:** Ortalama, minimum ve maksimum değerlerin hesaplanması.
   - Durum: **PARTIAL** — oturum ve hesap istatistikleri (gerçek örneklerden avg/min/max/count, örnek ağırlıklı, sıfır doldurma yok) PostgreSQL ile kanıtlı. Bekleyen: büyük hesap maliyeti (I-27).
 - [ ] **PERF-16 — Performans grafikleri API'si:** Web modülü için zaman serisi verilerinin sunulması.
@@ -120,10 +120,10 @@ Auth talebi: [auth-requests-01.md](../integration/auth-service-talepleri/auth-re
 - [ ] **PERF-19 — Ölçüm filtreleme:** Cihaz, oyun, tarih ve ölçüm türüne göre filtreleme.
   - Durum: **PARTIAL** — oyun, donanım profili, cihaz, durum, tarih ve metrik filtreleri birleşimli test edildi. Bekleyen: yok (servis içi); web tüketimi PWEB.
 - [ ] **PERF-21 — Servis entegrasyonu:** Hardware ve Recommendation servislerine gerekli verilerin API sözleşmeleriyle sunulması.
-  - Durum: **PARTIAL** — Hardware özeti ve Recommendation FPS referansı uçları, en az ayrıcalık ve servis kimliği doğrulamasıyla yerel sözleşme token'ıyla test edildi. **BLOCKED:** gerçek Auth servis token'ı (REQ-04-A) ve gerçek Hardware/Recommendation tüketimi yok (I-28).
+  - Durum: **PARTIAL (tüketiciler)** — Hardware özeti ve Recommendation FPS referansı için Auth izinleri eklendi; olumlu sözleşme testleri gerçek Auth istemci üreticisini kullanır. [Güncel HTTP kabulü](../integration/auth/auth-integration-06.md). Hardware/Recommendation üretim tüketici istemcileri ayrı iş; eksik Auth izni engeli kalmadı.
 
 **Ana task kapanış koşulu:** Üstteki bütün alt tasklar, API/veri sahipliği kuralları, ilgili testler, dokümantasyon ve faz kalite kapısı tamamlanmalı; özellik commit metni hazırlanıp kullanıcıya sunulmalıdır.
-**Faz 4 kapanış durumu:** Commit metni hazırlanacak; PERF-21 gerçek servis kimliği olmadan tam kapatılmadı, PERF-14/15/16/19 servis içi tamam ancak gerçek cihaz verisiyle E2E yok.
+**Faz 4 kapanış durumu:** PERF-21 Auth izin işi tamam; tüketici istemcileri ayrıca bekler. PERF-14/15/16/19 servis içi tamam, gerçek masaüstü verisi ve web tüketimi ayrı kapsamdadır.
 
 ---
 
