@@ -64,7 +64,10 @@ describe("V3 sahneleri · durağan çizim (WAAPI yok)", () => {
     expect(container.querySelector("[data-part='sun']")).not.toBeNull();
     expect(container.querySelectorAll("[data-part='trail']")).toHaveLength(5);
     expect(container).toHaveTextContent("OPERATION DAYBREAK");
-    expect(container).toHaveTextContent("LIGHTS ON");
+    expect(container).toHaveTextContent("LTZ UNIT // FIRST LIGHT");
+    // Gece ve gündüz levhası aynı kalıpta: üstte birim satırı, altta operasyon adı.
+    const lines = Array.from(container.querySelectorAll("[data-part='caption-line']"), (line) => line.textContent);
+    expect(lines).toEqual(["LTZ UNIT // FIRST LIGHT", "OPERATION DAYBREAK"]);
   });
 
   it("sprite sayfası sahne değişkeninde yüklenir, operatör 128 px kare olur", () => {

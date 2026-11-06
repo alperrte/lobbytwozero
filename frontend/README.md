@@ -110,7 +110,7 @@ Dar ekran: `max-width: 767px`.
 - **Daybreak (Dark → Light):**
   1. Operatör NVG'yi kaldırır ve ışık söner.
   2. Fişek tabancasını çeker ve geri tepmeyle ateşler. Fişek sıcak bir izle yükselir.
-  3. Levha "OPERASYON GÜN DOĞUMU" ve "IŞIKLAR AÇIK" yazar.
+  3. Levha Blackout ile aynı kalıpta "LTZ BİRİMİ // GÜN DOĞUYOR" ve "OPERASYON GÜN DOĞUMU" yazar. Uzun metinde yazma, levha sönmeden en az 400 ms okunacak kadar hızlanır.
   4. Katmanlı piksel sırtların arkasından güneş doğar. Sıcak kehribar ışık yayıldığında Light tema uygulanır.
   5. Operatör şapkasını düzeltir, yürüyerek çıkar ve örtü kalkar.
 
