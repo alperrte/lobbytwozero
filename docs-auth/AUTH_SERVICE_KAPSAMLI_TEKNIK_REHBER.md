@@ -1,5 +1,7 @@
 # LTZ Auth Service — Kapsamlı Teknik Rehber
 
+> **Tarihî belge (21 Ekim 2026).** Güncel ve kısa rehber: [`AUTH_REHBERI.md`](AUTH_REHBERI.md). Bu dosya Auth'un iç tasarımını öğrenmek içindir; değerler (ör. anahtar rotasyonu, Mail, olaylar) eskimiş olabilir.
+
 > **Tarih:** 2026-10-21 · **Dal / commit:** `feature/auth-service` @ `a2d659d` · **Kapsam:** `backend/services/auth-service` (+ `docs/api.md` AUTH bölümü, `docs-auth/`, `docker-compose.yml`, `.env.example`)
 > **Nitelik:** Salt-okunur teknik inceleme ve eğitim belgesi. Bu belge dışında hiçbir dosya değiştirilmedi; test ve tarama yeniden çalıştırılmadı.
 
@@ -200,7 +202,7 @@ flowchart TB
   APP -. İHLAL: 3 dosya .-> API
 ```
 
-**İdeal kural [Y]:** bağımlılık yönü içe doğrudur (`api → application → domain`; `infrastructure → application(port) + domain`). Bu projede ports (`application/port`) mail/Google/Steam/silme için kullanılmış; fakat veri erişimi ve güvenlik yardımcıları için kullanılmamıştır (bilinçli, `faz-1-kapanis-raporu.md` §10'da kayıtlı). Ayrıntı §8.1.
+**İdeal kural [Y]:** bağımlılık yönü içe doğrudur (`api → application → domain`; `infrastructure → application(port) + domain`). Bu projede ports (`application/port`) mail/Google/Steam/silme için kullanılmış; fakat veri erişimi ve güvenlik yardımcıları için kullanılmamıştır (bilinçli, faz-1-kapanis-raporu (silindi, git geçmişinde) §10'da kayıtlı). Ayrıntı §8.1.
 
 ### 3.3 `api` katmanı
 
@@ -267,7 +269,7 @@ flowchart LR
   C --> EH[GlobalExceptionHandler → ProblemDetail]
 ```
 
-Kritik tasarım: `AccessTokenResolver` cookie **okumaz**, çünkü Spring Security, Bearer token bulan resolver'ın istekleri CSRF'den muaf tutar. Cookie, CSRF filtresinden **sonra** `AccessTokenCookieFilter` ile başlığa çevrilir; bu sayede cookie ile kimlik doğrulayan her istek CSRF denetiminden geçer [K: `AccessTokenResolver.java`, `faz-2-kapanis-raporu.md` §2].
+Kritik tasarım: `AccessTokenResolver` cookie **okumaz**, çünkü Spring Security, Bearer token bulan resolver'ın istekleri CSRF'den muaf tutar. Cookie, CSRF filtresinden **sonra** `AccessTokenCookieFilter` ile başlığa çevrilir; bu sayede cookie ile kimlik doğrulayan her istek CSRF denetiminden geçer [K: `AccessTokenResolver.java`, faz-2-kapanis-raporu (silindi, git geçmişinde) §2].
 
 ### 3.7 Test yapısı (gruplanmış) [K]
 
@@ -858,4 +860,4 @@ Kişisel veri birden çok serviste; Auth yalnız kendi verisini tüm hedef servi
 11. OWASP Cheat Sheet Series (Session Management, Authentication, Forgot Password) — <https://cheatsheetseries.owasp.org/>
 12. Spring Security reference, Spring Boot reference, Flyway documentation — <https://docs.spring.io/> · <https://documentation.red-gate.com/flyway>
 
-**Proje içi kaynaklar:** `docs-auth/faz-1…6-kapanis-raporu.md`, `docs-auth/sec-01-kapanis-raporu.md`, `docs-auth/acik-guvenlik-borclari.md`, `docs-auth/servis-sozlesmeleri.md`, `docs/api.md` (AUTH bölümü), `AGENTS.md`.
+**Proje içi kaynaklar:** faz kapanış raporları (silindi, git geçmişinde), `docs-auth/acik-guvenlik-borclari.md`, `docs-auth/servis-sozlesmeleri.md`, `docs/api.md` (AUTH bölümü), `AGENTS.md`.

@@ -20,7 +20,7 @@ veritabanına dokunmaz.
 
 | # | Sözleşme | Yön | Durum |
 | --- | --- | --- | --- |
-| 1 | JWT doğrulama: JWKS `GET /api/v1/auth/.well-known/jwks.json`; `iss`, `aud=ltz-api`, `typ=at+jwt`, RS256, `exp` | diğer servisler → Auth | Auth tarafı **IMPLEMENTED**; tüketici durumu (2026-10-24): **Game, Social ve Hardware uygun**, Hardware uygun (2026-10-26), Community geçici (her token reddedilir), diğerleri iskelet (bkz. `ekip-uyum-denetimi-2026-10-24.md`) |
+| 1 | JWT doğrulama: JWKS `GET /api/v1/auth/.well-known/jwks.json`; `iss`, `aud=ltz-api`, `typ=at+jwt`, RS256, `exp` | diğer servisler → Auth | Auth tarafı **IMPLEMENTED**; tüketici durumu (2026-10-24): **Game, Social ve Hardware uygun**, Hardware uygun (2026-10-26), Community geçici (her token reddedilir), diğerleri iskelet (bkz. ekip-uyum-denetimi-2026-10-24 (silindi, git geçmişinde)) |
 | 2 | Doğrulama kodu e-postası (`VerificationCodeMailPort`) | Auth → Mail | Port + dev (Mailpit) **IMPLEMENTED**; Mail Service ucu **PENDING** |
 | 3 | Parola sıfırlama e-postası (`PasswordResetMailPort`) | Auth → Mail | Aynı: port + dev **IMPLEMENTED**; Mail Service **PENDING** |
 | 4 | Hesap silme onayı e-postası (`AccountDeletionMailPort`) | Auth → Mail | Aynı: port + dev **IMPLEMENTED**; Mail Service **PENDING** |

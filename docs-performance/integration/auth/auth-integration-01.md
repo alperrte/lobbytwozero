@@ -26,7 +26,7 @@ Kaynak sözleşme testleri tek başına çalışan Auth entegrasyonu kanıtı de
 
 ## 3. Kerem'in yanıtı ve uygulanan kararlar
 
-Kaynak: [Auth talep 01 yanıtı](../../../docs-auth/verilen-cevaplar/performance-service/talep-01-cihaz-token-hedefi-iptal-ve-cihaz-dogrulama.md). 2026-11-05 bilgilendirmesi bu token sözleşmelerini değiştirmiyor.
+Kaynak: [Auth talep 01 yanıtının git geçmişindeki sürümü](https://github.com/alperrte/lobbytwozero/blob/f59565b54f03cc8f422dd8cf50a1da9baa1c1b43/docs-auth/verilen-cevaplar/performance-service/talep-01-cihaz-token-hedefi-iptal-ve-cihaz-dogrulama.md). Kapanmış eski cevap ve 2026-11-05 bilgilendirmesi `main` dalındaki belge temizliğinde kaldırıldı; yanıtın tarihçesi korunur. Güncel Auth giriş noktası [AUTH_REHBERI.md](../../../docs-auth/AUTH_REHBERI.md), Performance kabul kanıtı [auth-integration-06.md](auth-integration-06.md) içindedir.
 
 | Talep | Durum | Etki |
 | --- | --- | --- |

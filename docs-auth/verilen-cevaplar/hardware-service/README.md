@@ -12,8 +12,6 @@ Alper'in Auth'tan istediği 4 talebe ve ek sorularına cevaplar burada. Her tale
 |---|---|---|---|
 | [01](talep-01-token-iptali-ve-hesap-durumu.md) | Banlanan veya çıkış yapan kullanıcının eski token'ı | En fazla 90 sn (60 sn token + 30 sn tolerans). Olay ya da sorgu ucu yok | KAPANDI |
 | [02](talep-02-masaustu-cihaz-kimligi.md) | Masaüstü cihaz kimliği | B yolu: kimliği Auth verecek. **Auth tarafı uygulandı (2026-10-29)**: bağlama, listeleme, iptal ve `dev+jwt` token ucu hazır, gerçek yığında denendi. Sözleşme: `docs/api.md` "Masaüstü cihaz kimliği" | AUTH HAZIR, HARDWARE DOĞRULAYICI BEKLİYOR |
-| [03](talep-03-gercek-dev-silme-kabulu.md) | Gerçek DEV'de silme kabulü | Evet yapalım. Ama bizim 14 gün bekleme eklememiz E2E betiğini etkiliyor, tek satır ayar lazım | CEVAPLANDI, DENEME BEKLİYOR |
-| [04](talep-04-debug-loglarinda-oauth-formlari.md) | DEBUG açıkken OAuth formları loglanıyor | Haklısın, ve sorun daha genişti (Hibernate varlık dökümü, SQL parametreleri). Düzelttim, 3 modda 22/22 | KAPANDI (main'de etkin) |
 
 ## ALPER'İN YAPMASI GEREKENLER (KISA LİSTE)
 
@@ -48,5 +46,3 @@ Hepsi yazılı ve uygulanmış durumda. Hardware kendi doğrulayıcısını yazm
 ## BİR UYARI: SENİN TESTLERİN AUTH KAYNAĞINA BAĞLI
 
 `ProductionAuthSupport` Auth kaynak dosyalarını derleyip yansımayla çağırıyor. Yani Auth'ta bir imza değişirse senin testin sessizce kırılır. Ben bunu fark ettim ve önledim. Auth tarafında bu imzaları kilitleyen bir test ekledim. Hangi imzalara bağlı olduğunuz `docs-auth/README.md` içinde "Başkalarının bağlı olduğu Auth imzaları" başlığında yazılı.
-
-> **Yeni (2026-11-05):** [bilgilendirme-2026-11-05.md](bilgilendirme-2026-11-05.md) — Auth değişiklikleri ve bu servisten beklenenler. Durum: BİLGİ

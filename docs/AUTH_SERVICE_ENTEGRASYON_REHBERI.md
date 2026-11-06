@@ -1,5 +1,7 @@
 # Auth Service Entegrasyon Rehberi (servis sahipleri için)
 
+> **Güncel rehber: [`docs-auth/AUTH_REHBERI.md`](../docs-auth/AUTH_REHBERI.md).** Bu belge 21 Ekim tarihlidir; "anahtar rotasyonu yok", "Mail Service yok", "`AccountStatusChanged` yok" gibi ifadeler artık geçerli değildir (anahtar rotasyonu, Mail ve Auth olayları uygulandı).
+
 > Tarih: 2026-10-21 · Kapsam: Game, Library, Review, User, Mail, Admin, Gateway ve Auth'u tüketen diğer servisler.
 > Bu belge **yeni bir standart tanımlamaz**; `docs/SECURITY.md`, `docs-auth/servis-sozlesmeleri.md` ve gerçek Auth koduyla
 > uyumlu, servis sahipleri için kısa bir uygulama rehberidir. Çelişki olursa sıra: **Auth kodu > servis-sozlesmeleri.md > SECURITY.md > bu belge.**
