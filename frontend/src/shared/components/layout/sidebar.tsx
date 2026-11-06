@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Icon } from "@/shared/components/ui/icons";
-import { primaryNavigation } from "@/shared/config/navigation";
+import { primaryNavigation, settingsNavigation } from "@/shared/config/navigation";
 import { useSidebarCollapsed } from "@/shared/hooks/use-sidebar-collapsed";
 import { BrandLogo } from "./brand-logo";
 import { NavButton, NavItem } from "./nav-item";
@@ -15,25 +15,22 @@ type SidebarProps = {
   open: boolean;
   onClose: () => void;
   onNavigate: () => void;
-  onOpenSettings: () => void;
   closeButtonRef: React.Ref<HTMLButtonElement>;
 };
 
 /**
  * Tek kenar çubuğu: üstte ortalanmış LTZ logosu, ortada ana menü (Ana Sayfa, Donanımlar),
- * altta sabit kontrol bölümü (Ayarlar, daralt/genişlet). Masaüstünde sticky ve daraltılabilir,
+ * altta sabit bölüm (Ayarlar sayfasına bağlantı, daralt/genişlet). Masaüstünde sticky ve daraltılabilir,
  * küçük ekranda aynı bileşen drawer olarak açılır; ikinci bir mobil menü yoktur.
- * Logo satırı navbar ile aynı yatay eksene oturur (h-20: 12px boşluk + 56px navbar'ın ortası).
+ * Logo satırı navbar ile aynı yatay eksene oturur (4.5rem: 12px boşluk + 48px navbar'ın ortası).
  */
 export function Sidebar({
   open,
   onClose,
   onNavigate,
-  onOpenSettings,
   closeButtonRef
 }: SidebarProps) {
   const t = useTranslations("Shell");
-  const nav = useTranslations("Navigation");
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useSidebarCollapsed();
 
@@ -41,9 +38,9 @@ export function Sidebar({
     <aside
       id={SIDEBAR_ID}
       data-open={open}
-      className="invisible fixed inset-y-0 start-0 z-50 flex overscroll-contain w-72 max-w-[86vw] -translate-x-full flex-col border-e border-border bg-surface shadow-drawer transition-[translate,visibility] duration-200 ease-out delay-[0s,200ms] data-[open=true]:visible data-[open=true]:translate-x-0 data-[open=true]:transition-[translate] data-[open=true]:duration-200 lg:visible lg:sticky lg:top-0 lg:z-20 lg:h-dvh lg:w-72 lg:max-w-none lg:shrink-0 lg:translate-x-0 lg:shadow-none lg:transition-[width] lg:in-data-[sidebar=collapsed]:w-[4.5rem]"
+      className="invisible fixed inset-y-0 start-0 z-50 flex overscroll-contain w-72 max-w-[86vw] -translate-x-full flex-col border-e border-border bg-surface shadow-drawer transition-[translate,visibility] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] delay-[0s,300ms] data-[open=true]:visible data-[open=true]:translate-x-0 data-[open=true]:transition-[translate] data-[open=true]:duration-300 data-[open=true]:delay-0 motion-reduce:duration-0 lg:visible lg:sticky lg:top-0 lg:z-20 lg:h-dvh lg:w-72 lg:max-w-none lg:shrink-0 lg:translate-x-0 lg:shadow-none lg:transition-[width] lg:in-data-[sidebar=collapsed]:w-[4.5rem]"
     >
-      <div className="relative flex h-20 shrink-0 items-center justify-center border-b border-border px-14 lg:px-4 lg:in-data-[sidebar=collapsed]:px-0">
+      <div className="relative flex h-[4.5rem] shrink-0 items-center justify-center border-b border-border px-14 lg:px-4 lg:in-data-[sidebar=collapsed]:px-0">
         <Link
           href="/"
           aria-label={t("brand")}
@@ -84,12 +81,7 @@ export function Sidebar({
 
       <div className="shrink-0 border-t border-border px-3 py-3 lg:in-data-[sidebar=collapsed]:px-2">
         <ul className="space-y-1">
-          <NavButton
-            icon="settings"
-            label={nav("settings")}
-            onClick={onOpenSettings}
-            aria-haspopup="dialog"
-          />
+          <NavItem item={settingsNavigation} pathname={pathname} onNavigate={onNavigate} />
           <NavButton
             icon="panel"
             label={collapsed ? t("expandSidebar") : t("collapseSidebar")}

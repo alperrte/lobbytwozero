@@ -107,10 +107,12 @@
   --shadow-popover: var(--ltz-shadow-popover);
 
   --radius-float: 0.875rem;
+  /* Navbar kartı (EdgeSnake çerçeve yarıçapını bu değerden okur). */
+  --radius-navbar: 1.125rem;
 
   /* Yüzen navbar: yükseklik + üst boşluk; ana içerik üst dolgusu ve scroll-padding buna bağlıdır. */
-  --spacing-header: 3.5rem;
-  --spacing-header-offset: 4.75rem;
+  --spacing-header: 4rem;
+  --spacing-header-offset: 5.5rem;
 }
 
 @layer base {
@@ -169,24 +171,53 @@
 
 /*
  * LTZ imzası: logodaki pahlı kenarlardan gelen ince "kenar ışığı".
- * Yalnız kabuğun iki kenarında (navbar alt çizgisi, aktif menü göstergesi) kullanılır.
+ * Kartın alt kenarı boyunca uçtan uca uzanan kırmızı → pembe → kırmızı çizgi.
+ * Çizgi, kartın yuvarlak köşelerini izleyen 2px'lik bir halkanın alt kısmıdır; böylece
+ * köşelerde taşmaz. Navbar ve footer kartında kullanılır (`relative` gerektirir).
  */
 @utility edge-light {
   &::after {
     content: "";
     position: absolute;
-    inset-inline-start: var(--radius-float);
-    bottom: -1px;
-    width: 7.5rem;
-    height: 2px;
+    inset: -1px;
+    border: 2px solid transparent;
+    border-radius: inherit;
     background: linear-gradient(
       90deg,
       var(--ltz-primary),
-      var(--ltz-accent) 65%,
-      transparent
-    );
+      var(--ltz-accent) 50%,
+      var(--ltz-primary)
+    ) border-box;
+    -webkit-mask:
+      linear-gradient(#000 0 0) padding-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) padding-box exclude,
+      linear-gradient(#000 0 0);
+    clip-path: inset(calc(100% - var(--radius-float)) 0 0 0);
     pointer-events: none;
   }
+}
+
+/*
+ * Navbar çerçevesinde dönen ışık izi (bkz. EdgeSnake).
+ * Her katman çevre uzunluğuna (--edge-p, px; bileşen ölçer) eşit periyotlu tek bir çizgi parçasıdır:
+ * --len parçanın uzunluğu, --tail ise ışık merkezinin ne kadar gerisinde başladığı. Tüm katmanlar
+ * aynı merkezi paylaşır; ofset 0'dan -çevre'ye gidince bir tam tur olur ve döngü kesintisizdir.
+ */
+@keyframes ltz-edge-trail {
+  from {
+    stroke-dashoffset: var(--tail);
+  }
+  to {
+    stroke-dashoffset: calc(var(--tail) - var(--edge-p, 1000px));
+  }
+}
+
+@utility edge-trail {
+  stroke-dasharray: var(--len) calc(var(--edge-p, 1000px) - var(--len));
+  animation: ltz-edge-trail 7s linear infinite;
 }
 
 /* Açılır panel ve modal girişleri: yalnız opacity/transform; hareket azaltmada global kural süreyi sıfırlar. */
@@ -197,19 +228,8 @@
   }
 }
 
-@keyframes ltz-drawer-in {
-  from {
-    opacity: 0.4;
-    translate: 1.5rem 0;
-  }
-}
-
 @utility animate-pop-in {
   animation: ltz-pop-in 140ms ease-out both;
-}
-
-@utility animate-drawer-in {
-  animation: ltz-drawer-in 200ms ease-out both;
 }
 
 @utility nav-indicator {

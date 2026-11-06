@@ -10,7 +10,7 @@ export default async function FaqPage() {
   const t = await getTranslations("Faq");
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
+    <div className="w-full">
       <h1 className="font-display text-3xl font-bold tracking-tight text-text-primary sm:text-4xl">
         {pages("faq.title")}
       </h1>

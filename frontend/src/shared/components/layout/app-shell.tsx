@@ -5,8 +5,6 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { ThemeTransitionLayer } from "@/shared/components/theme-transition/theme-transition-layer";
 import { Navbar } from "./navbar";
-import { SearchDialog } from "./search-dialog";
-import { SettingsDialog } from "./settings-dialog";
 import { Sidebar } from "./sidebar";
 
 type AppShellProps = {
@@ -20,7 +18,8 @@ const DESKTOP_QUERY = "(min-width: 1024px)";
  * Tek ortak uygulama kabuğu: skip link, kenar çubuğu (masaüstünde daraltılabilir,
  * küçük ekranda drawer), yüzen navbar, ana içerik ve footer. Sayfa içeriği ve footer
  * Server Component olarak dışarıdan gelir; yalnız etkileşim burada Client'tır.
- * Arama ve ayarlar diyalogları da burada durur; Ctrl/Cmd+K genel kısayoldur.
+ * Arama navbar'a gömülüdür; Ayarlar ayrı bir sayfadır (diyalog yok). İçerik, navbar ile aynı
+ * yan boşluklara hizalıdır ve ortalanmış dar bir sütuna sıkıştırılmaz.
  */
 export function AppShell({ children, footer }: AppShellProps) {
   const t = useTranslations("Shell");
@@ -28,36 +27,16 @@ export function AppShell({ children, footer }: AppShellProps) {
   // Drawer hangi rotada açıldıysa o rotada açık sayılır; rota değişince kendiliğinden kapanır.
   const [openedAt, setOpenedAt] = useState<string | null>(null);
   const menuOpen = openedAt === pathname;
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   // Odak, ana alandan `inert` kalktıktan sonra (efekt temizliğinde) menü düğmesine döner;
   // kapanış anında düğme hâlâ inert olduğundan doğrudan focus() çağrısı sessizce başarısız olur.
   const restoreFocusRef = useRef(false);
-  const focusMenuButtonOnSettingsCloseRef = useRef(false);
 
   function closeMenu(restoreFocus: boolean) {
     restoreFocusRef.current = restoreFocus;
     setOpenedAt(null);
-  }
-
-  function openSettings() {
-    // Mobilde drawer ayarlar açılırken kapanır; odak ayarlar kapanınca menü düğmesine döner.
-    focusMenuButtonOnSettingsCloseRef.current = menuOpen;
-    if (menuOpen) {
-      closeMenu(false);
-    }
-    setSettingsOpen(true);
-  }
-
-  function closeSettings() {
-    setSettingsOpen(false);
-    if (focusMenuButtonOnSettingsCloseRef.current) {
-      focusMenuButtonOnSettingsCloseRef.current = false;
-      window.requestAnimationFrame(() => menuButtonRef.current?.focus());
-    }
   }
 
   useEffect(() => {
@@ -99,23 +78,6 @@ export function AppShell({ children, footer }: AppShellProps) {
     };
   }, [menuOpen]);
 
-  // Ctrl/Cmd+K: aramayı aç/kapat. Ayarlar ya da mobil menü açıkken arka plana karışmaz.
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key.toLowerCase() !== "k" || !(event.ctrlKey || event.metaKey)) {
-        return;
-      }
-      if (event.altKey || event.shiftKey || settingsOpen || menuOpen) {
-        return;
-      }
-      event.preventDefault();
-      setSearchOpen((open) => !open);
-    }
-
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [settingsOpen, menuOpen]);
-
   return (
     <>
       <a
@@ -130,7 +92,6 @@ export function AppShell({ children, footer }: AppShellProps) {
           open={menuOpen}
           onClose={() => closeMenu(true)}
           onNavigate={() => closeMenu(false)}
-          onOpenSettings={openSettings}
           closeButtonRef={closeButtonRef}
         />
 
@@ -138,20 +99,19 @@ export function AppShell({ children, footer }: AppShellProps) {
           aria-hidden="true"
           data-open={menuOpen}
           onClick={() => closeMenu(true)}
-          className="pointer-events-none fixed inset-0 z-40 bg-scrim opacity-0 transition-opacity duration-200 data-[open=true]:pointer-events-auto data-[open=true]:opacity-100 lg:hidden"
+          className="pointer-events-none fixed inset-0 z-40 bg-scrim opacity-0 transition-opacity duration-300 ease-out motion-reduce:duration-0 data-[open=true]:pointer-events-auto data-[open=true]:opacity-100 lg:hidden"
         />
 
         <div inert={menuOpen} className="flex min-w-0 flex-1 flex-col">
           <Navbar
             menuOpen={menuOpen}
             onOpenMenu={() => setOpenedAt(pathname)}
-            onOpenSearch={() => setSearchOpen(true)}
             menuButtonRef={menuButtonRef}
           />
           <main
             id="main-content"
             tabIndex={-1}
-            className="flex-1 px-4 pb-8 pt-6 focus:outline-none sm:px-6 sm:pb-10 lg:px-10"
+            className="flex-1 px-3 pb-8 pt-6 focus:outline-none sm:px-5 sm:pb-10"
           >
             {children}
           </main>
@@ -159,8 +119,6 @@ export function AppShell({ children, footer }: AppShellProps) {
         </div>
       </div>
 
-      <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
-      <SettingsDialog open={settingsOpen} onClose={closeSettings} />
       <ThemeTransitionLayer />
     </>
   );

@@ -2,8 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
   findActiveItem,
   isActivePath,
-  primaryNavigation
+  primaryNavigation,
+  settingsNavigation
 } from "./navigation";
+
+describe("settingsNavigation", () => {
+  it("Ayarlar diyalog değil gerçek /settings sayfasına bağlanır ve ana listede yer almaz", () => {
+    expect(settingsNavigation.href).toBe("/settings");
+    expect(primaryNavigation.some((item) => item.id === "settings")).toBe(false);
+  });
+});
 
 describe("primaryNavigation", () => {
   it("yalnız Ana Sayfa ve Donanımlar öğelerini içerir", () => {

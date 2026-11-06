@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Icon, type IconName } from "@/shared/components/ui/icons";
 import {
+  dangerMenuItemClass,
   iconButtonClass,
   menuItemClass,
   popoverPanelClass
@@ -27,15 +28,55 @@ const items: ReadonlyArray<{ id: string; icon: IconName }> = [
   { id: "account", icon: "settings" }
 ];
 
-function Avatar({ user }: { user: ShellUser | null }) {
+/** Ad ve soyaddan en çok iki baş harf ("Ada Lovelace" → "AL"). */
+function getInitials(displayName: string): string {
+  const parts = displayName.trim().split(/\s+/).filter(Boolean);
+  const letters = [parts[0], parts.length > 1 ? parts[parts.length - 1] : undefined]
+    .map((part) => (part ? Array.from(part)[0] : ""))
+    .join("");
+  return letters.toLocaleUpperCase();
+}
+
+/**
+ * Yuvarlak avatar. Öncelik sırası: kullanıcının yüklediği fotoğraf → ad baş harfleri (giriş
+ * yapmış, fotoğrafsız kullanıcı) → kullanıcı simgesi (misafir). Çerçeve nötrdür.
+ */
+function Avatar({
+  user,
+  className
+}: {
+  user: ShellUser | null;
+  className?: string;
+}) {
+  const initials = user ? getInitials(user.displayName) : "";
+
   return (
-    <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-surface-elevated text-text-secondary">
+    <span
+      className={cn(
+        "flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-elevated text-text-secondary ring-1 ring-inset ring-border",
+        className
+      )}
+    >
       {user?.avatarUrl ? (
         // Gerçek avatar URL'si auth ile gelir; harici alan adı yapılandırması o zaman eklenir.
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={user.avatarUrl} alt="" className="size-full object-cover" />
+        <img
+          src={user.avatarUrl}
+          alt=""
+          width={44}
+          height={44}
+          referrerPolicy="no-referrer"
+          className="size-full object-cover"
+        />
+      ) : initials ? (
+        <span
+          aria-hidden="true"
+          className="font-display text-sm font-semibold text-text-primary"
+        >
+          {initials}
+        </span>
       ) : (
-        <Icon name="user" className="size-[18px]" />
+        <Icon name="user" className="size-5" />
       )}
     </span>
   );
@@ -43,7 +84,7 @@ function Avatar({ user }: { user: ShellUser | null }) {
 
 /**
  * Profil avatarı + ad + menü. Misafir durumunda ad "Misafir"dir; henüz var olmayan profil/hesap
- * sayfaları tıklanamaz ve "Yakında" olarak işaretlidir (sahte rota yok). Çıkış yalnız oturum varken görünür.
+ * sayfaları tıklanamaz ve "Yakında" olarak işaretlidir (sahte rota yok). Çıkış satırı kırmızı vurgulu görünür ama auth bağlanana kadar eylem taşımaz.
  */
 export function ProfileMenu({ user }: ProfileMenuProps) {
   const t = useTranslations("Navbar.profile");
@@ -71,16 +112,19 @@ export function ProfileMenu({ user }: ProfileMenuProps) {
             setOpen(true);
           }
         }}
-        className={cn(iconButtonClass, "w-auto gap-2 ps-1 pe-2")}
+        className={cn(
+          iconButtonClass,
+          "h-10 w-10 p-0.5 sm:h-12 sm:w-auto sm:gap-2.5 sm:ps-1.5 sm:pe-3"
+        )}
       >
-        <Avatar user={user} />
-        <span className="max-w-28 truncate font-display text-sm font-medium text-text-primary max-md:sr-only">
+        <Avatar user={user} className="size-9" />
+        <span className="max-w-36 truncate font-display text-sm font-semibold text-text-primary max-sm:sr-only">
           {name}
         </span>
         <Icon
           name="chevron"
           className={cn(
-            "size-4 transition-transform max-sm:hidden",
+            "size-3.5 transition-transform duration-150 max-sm:hidden",
             open && "rotate-180"
           )}
         />
@@ -95,7 +139,7 @@ export function ProfileMenu({ user }: ProfileMenuProps) {
           className={cn(popoverPanelClass, "sm:w-72")}
         >
           <div className="flex items-center gap-3 px-3 py-2.5">
-            <Avatar user={user} />
+            <Avatar user={user} className="size-11 text-base" />
             <div className="min-w-0">
               <p className="truncate font-display text-sm font-semibold">{name}</p>
               <p className="text-xs text-text-secondary">
@@ -122,25 +166,22 @@ export function ProfileMenu({ user }: ProfileMenuProps) {
             </button>
           ))}
 
-          {user ? (
-            <>
-              <div role="separator" className="my-1 h-px bg-border" />
-              <button
-                type="button"
-                role="menuitem"
-                aria-disabled="true"
-                onClick={(event) => event.preventDefault()}
-                className={menuItemClass}
-              >
-                <Icon name="logout" className="size-[18px] shrink-0" />
-                <span className="flex-1">{t("items.logout")}</span>
-                <span className="rounded-control border border-border px-1.5 py-0.5 text-xs font-medium leading-none text-text-secondary">
-                  {t("soon")}
-                </span>
-              </button>
-            </>
-          ) : (
-            <p className="px-3 pb-2 pt-1 text-xs text-text-secondary">
+          <div role="separator" className="my-1 h-px bg-border" />
+          <button
+            type="button"
+            role="menuitem"
+            aria-disabled="true"
+            onClick={(event) => event.preventDefault()}
+            className={dangerMenuItemClass}
+          >
+            <Icon name="logout" className="size-[18px] shrink-0" />
+            <span className="flex-1">{t("items.logout")}</span>
+            <span className="rounded-control border border-primary/40 px-1.5 py-0.5 text-xs font-medium leading-none">
+              {t("soon")}
+            </span>
+          </button>
+          {user ? null : (
+            <p className="px-3 pb-2 pt-2 text-xs text-text-secondary">
               {t("guestNote")}
             </p>
           )}

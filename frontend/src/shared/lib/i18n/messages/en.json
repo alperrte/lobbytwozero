@@ -7,7 +7,6 @@
     "brand": "LobbyTwoZero",
     "skipToContent": "Skip to main content",
     "navbarLabel": "Top bar",
-    "breadcrumb": "Page location",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "collapseSidebar": "Collapse sidebar",
@@ -33,19 +32,14 @@
   },
   "Navbar": {
     "search": {
-      "placeholder": "Search pages",
+      "placeholder": "Search pages...",
       "open": "Search",
-      "title": "Global search",
       "inputLabel": "Search pages",
       "close": "Close",
       "groupPages": "Pages",
       "emptyTitle": "No results found",
       "emptyBody": "Try a different word.",
-      "resultCount": "{count, plural, =0 {No results} one {# result} other {# results}}",
-      "hintNavigate": "↑ ↓ navigate",
-      "hintOpen": "Enter open",
-      "hintClose": "Esc close",
-      "scope": "Only pages are searchable for now"
+      "resultCount": "{count, plural, =0 {No results} one {# result} other {# results}}"
     },
     "notifications": {
       "label": "Notifications",
@@ -72,9 +66,10 @@
   "Settings": {
     "title": "Settings",
     "description": "Your appearance and navigation choices apply instantly and are saved on this device.",
-    "close": "Close settings",
+    "infoLabel": "About {subject}",
     "appearance": {
       "title": "Appearance",
+      "info": "Chooses whether the app looks light, dark, or follows your device theme. Your choice is saved on this device.",
       "system": "System",
       "systemHint": "Follows your device's theme setting.",
       "light": "Light",
@@ -84,6 +79,7 @@
     },
     "navbar": {
       "title": "Top bar",
+      "info": "Controls how the top bar behaves while you scroll: it either hides automatically or always stays visible.",
       "auto": "Auto-hide",
       "autoHint": "Hides when you scroll down and returns when you scroll up.",
       "fixed": "Fixed",
@@ -91,6 +87,7 @@
     },
     "sidebar": {
       "title": "Sidebar",
+      "info": "Controls whether the menu on the left shows full names or only icons.",
       "wide": "Wide",
       "wideHint": "Icons and names are shown together.",
       "collapsed": "Collapsed",
@@ -98,7 +95,8 @@
       "note": "On small screens the sidebar always works as a slide-in menu."
     },
     "language": {
-      "title": "Language"
+      "title": "Language",
+      "info": "Changes the language of the interface. Your choice is remembered on this device."
     }
   },
   "Pages": {
@@ -109,22 +107,31 @@
     "kvkk": { "title": "KVKK Privacy Notice", "description": "Notice on the processing of personal data" },
     "privacy": { "title": "Privacy Policy", "description": "How your data is handled" },
     "terms": { "title": "Terms of Use", "description": "Rules for using the platform" },
-    "cookies": { "title": "Cookie Policy", "description": "How cookies and local storage are used" }
+    "cookies": { "title": "Cookie Policy", "description": "How cookies and local storage are used" },
+    "settings": { "title": "Settings", "description": "Your appearance, top bar, sidebar and language preferences" }
   },
   "Footer": {
     "label": "Footer",
     "tagline": "A game-focused social platform for game discovery, the player community, and hardware and game performance.",
     "platform": "Platform",
+    "support": "Support",
+    "soon": "Soon",
+    "socialLabel": "Social media",
+    "socialSoon": "{name} (link coming soon)",
+    "legalNav": "Legal links",
+    "social": { "x": "X", "instagram": "Instagram", "linkedin": "LinkedIn", "github": "GitHub" },
     "legal": "Legal",
     "copyright": "© {year} LobbyTwoZero. All rights reserved.",
     "links": {
+      "home": "Home",
       "about": "About Us",
       "faq": "FAQ",
       "contact": "Contact",
       "kvkk": "KVKK Privacy Notice",
       "privacy": "Privacy Policy",
       "terms": "Terms of Use",
-      "cookies": "Cookie Policy"
+      "cookies": "Cookie Policy",
+      "settings": "Settings"
     }
   },
   "Home": {

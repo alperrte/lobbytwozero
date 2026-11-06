@@ -12,7 +12,7 @@ export async function LegalPage({ id }: { id: Extract<PageId, "kvkk" | "privacy"
   const legal = await getTranslations("Legal");
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
+    <div className="w-full">
       <h1 className="font-display text-3xl font-bold tracking-tight text-text-primary sm:text-4xl">
         {pages(`${id}.title`)}
       </h1>

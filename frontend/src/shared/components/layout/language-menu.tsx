@@ -69,17 +69,14 @@ export function LanguageMenu() {
         }}
         className={cn(
           iconButtonClass,
-          "w-auto gap-1.5 px-2 font-display text-xs font-semibold tracking-wide text-text-primary disabled:cursor-wait"
+          "w-auto gap-1 px-2.5 font-display text-xs font-semibold tracking-wide text-text-primary disabled:cursor-wait sm:w-auto"
         )}
       >
-        <Flag locale={active} />
-        <span aria-hidden="true" className="max-sm:hidden">
-          {active.toUpperCase()}
-        </span>
+        <span aria-hidden="true">{active.toUpperCase()}</span>
         <Icon
           name="chevron"
           className={cn(
-            "size-4 text-text-secondary transition-transform",
+            "size-3.5 text-text-secondary transition-transform duration-150",
             open && "rotate-180"
           )}
         />

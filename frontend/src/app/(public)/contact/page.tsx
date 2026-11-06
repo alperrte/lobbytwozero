@@ -13,7 +13,7 @@ export default async function ContactPage() {
   const t = await getTranslations("Contact");
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
+    <div className="w-full">
       <h1 className="font-display text-3xl font-bold tracking-tight text-text-primary sm:text-4xl">
         {pages("contact.title")}
       </h1>

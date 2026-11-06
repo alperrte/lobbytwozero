@@ -11,7 +11,7 @@ export default async function AboutPage() {
   const t = await getTranslations("About");
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
+    <div className="w-full">
       <h1 className="font-display text-3xl font-bold tracking-tight text-text-primary sm:text-4xl">
         {pages("about.title")}
       </h1>

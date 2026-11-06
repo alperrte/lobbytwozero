@@ -1,6 +1,6 @@
 /**
  * Gerçekten var olan, herkese açık sayfalar — tek kaynak.
- * Footer, global arama, navbar sayfa adı, sitemap ve robots bu listeden beslenir.
+ * Footer, global arama, sitemap ve robots bu listeden beslenir.
  * - Başlıklar `Pages.<id>.title` mesajındadır (TR/EN).
  * - Yeni sayfa eklerken önce rotayı yaz, sonra buraya ekle; olmayan rota buraya yazılmaz.
  * - `indexable: false` sayfalar sitemap'e girmez ve `noindex` yayınlanır.
@@ -13,9 +13,11 @@ export type PageId =
   | "kvkk"
   | "privacy"
   | "terms"
-  | "cookies";
+  | "cookies"
+  | "settings";
 
-export type PageSection = "platform" | "legal";
+/** Footer sütunları: platform, destek ve alt satırdaki yasal bağlantılar. */
+export type PageSection = "platform" | "support" | "legal";
 
 export type PageEntry = {
   id: PageId;
@@ -27,7 +29,13 @@ export type PageEntry = {
 };
 
 export const pages: readonly PageEntry[] = [
-  { id: "home", href: "/", indexable: true, keywords: ["home", "anasayfa", "başlangıç"] },
+  {
+    id: "home",
+    href: "/",
+    section: "platform",
+    indexable: true,
+    keywords: ["home", "anasayfa", "başlangıç"]
+  },
   {
     id: "about",
     href: "/about",
@@ -38,14 +46,14 @@ export const pages: readonly PageEntry[] = [
   {
     id: "faq",
     href: "/faq",
-    section: "platform",
+    section: "support",
     indexable: true,
     keywords: ["faq", "sss", "sıkça sorulan sorular", "yardım", "help"]
   },
   {
     id: "contact",
     href: "/contact",
-    section: "platform",
+    section: "support",
     indexable: false,
     keywords: ["contact", "iletişim", "destek", "support"]
   },
@@ -76,10 +84,18 @@ export const pages: readonly PageEntry[] = [
     section: "legal",
     indexable: false,
     keywords: ["çerez", "cookie", "cookies", "legal", "yasal"]
+  },
+  {
+    id: "settings",
+    href: "/settings",
+    section: "platform",
+    indexable: false,
+    keywords: ["settings", "ayarlar", "tema", "theme", "dil", "language", "görünüm", "appearance"]
   }
 ];
 
 export const platformPages = pages.filter((page) => page.section === "platform");
+export const supportPages = pages.filter((page) => page.section === "support");
 export const legalPages = pages.filter((page) => page.section === "legal");
 
 export function findPage(pathname: string): PageEntry | undefined {

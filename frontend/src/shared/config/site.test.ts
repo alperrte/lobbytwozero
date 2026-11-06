@@ -1,7 +1,23 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { getSiteUrl, isIndexable, THEME_COLORS } from "./site";
+import {
+  formatPageTitle,
+  getSiteUrl,
+  isIndexable,
+  SITE_NAME,
+  SITE_SHORT_NAME,
+  THEME_COLORS
+} from "./site";
+
+describe("sayfa başlığı biçimi", () => {
+  it("varsayılan ad LobbyTwoZero, sayfalar 'LTZ | Başlık' biçimindedir", () => {
+    expect(SITE_NAME).toBe("LobbyTwoZero");
+    expect(SITE_SHORT_NAME).toBe("LTZ");
+    expect(formatPageTitle("Anasayfa")).toBe("LTZ | Anasayfa");
+    expect(formatPageTitle("Profil")).toBe("LTZ | Profil");
+  });
+});
 
 describe("getSiteUrl", () => {
   it("tanımsız veya boş değerde domain uydurmaz", () => {

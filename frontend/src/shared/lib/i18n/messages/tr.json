@@ -7,7 +7,6 @@
     "brand": "LobbyTwoZero",
     "skipToContent": "Ana içeriğe geç",
     "navbarLabel": "Üst çubuk",
-    "breadcrumb": "Sayfa konumu",
     "openMenu": "Menüyü aç",
     "closeMenu": "Menüyü kapat",
     "collapseSidebar": "Kenar çubuğunu daralt",
@@ -33,19 +32,14 @@
   },
   "Navbar": {
     "search": {
-      "placeholder": "Sayfalarda ara",
+      "placeholder": "Sayfalarda ara...",
       "open": "Ara",
-      "title": "Genel arama",
       "inputLabel": "Sayfalarda ara",
       "close": "Kapat",
       "groupPages": "Sayfalar",
       "emptyTitle": "Sonuç bulunamadı",
       "emptyBody": "Başka bir sözcükle yeniden dene.",
-      "resultCount": "{count, plural, =0 {Sonuç yok} other {# sonuç}}",
-      "hintNavigate": "↑ ↓ gezin",
-      "hintOpen": "Enter aç",
-      "hintClose": "Esc kapat",
-      "scope": "Şimdilik yalnız sayfalar aranır"
+      "resultCount": "{count, plural, =0 {Sonuç yok} other {# sonuç}}"
     },
     "notifications": {
       "label": "Bildirimler",
@@ -72,9 +66,10 @@
   "Settings": {
     "title": "Ayarlar",
     "description": "Görünüm ve gezinme tercihlerin anında uygulanır ve bu cihazda saklanır.",
-    "close": "Ayarları kapat",
+    "infoLabel": "{subject} hakkında bilgi",
     "appearance": {
       "title": "Görünüm",
+      "info": "Uygulamanın açık, koyu ya da cihazının temasına göre görünmesini seçer. Seçimin bu cihazda saklanır.",
       "system": "Sistem",
       "systemHint": "Cihazının tema ayarını izler.",
       "light": "Açık",
@@ -84,6 +79,7 @@
     },
     "navbar": {
       "title": "Üst çubuk",
+      "info": "Üst çubuğun sayfayı kaydırırken nasıl davranacağını belirler: ya otomatik gizlenir ya da hep görünür kalır.",
       "auto": "Otomatik gizle",
       "autoHint": "Aşağı kaydırınca gizlenir, yukarı kaydırınca geri gelir.",
       "fixed": "Sabit",
@@ -91,6 +87,7 @@
     },
     "sidebar": {
       "title": "Kenar çubuğu",
+      "info": "Soldaki menünün tam genişlikte mi yoksa yalnız simgelerle mi görüneceğini belirler.",
       "wide": "Geniş",
       "wideHint": "Simgeler ve adlar birlikte görünür.",
       "collapsed": "Daraltılmış",
@@ -98,33 +95,43 @@
       "note": "Küçük ekranlarda kenar çubuğu her zaman açılır menü olarak çalışır."
     },
     "language": {
-      "title": "Dil"
+      "title": "Dil",
+      "info": "Arayüzün dilini değiştirir. Seçimin bu cihazda hatırlanır."
     }
   },
   "Pages": {
-    "home": { "title": "Ana Sayfa", "description": "LobbyTwoZero başlangıç sayfası" },
+    "home": { "title": "Anasayfa", "description": "LobbyTwoZero başlangıç sayfası" },
     "about": { "title": "Hakkımızda", "description": "LobbyTwoZero nedir ve neyi hedefler" },
     "faq": { "title": "SSS", "description": "Sıkça sorulan sorular" },
     "contact": { "title": "İletişim", "description": "Bize nasıl ulaşabileceğin" },
     "kvkk": { "title": "KVKK Aydınlatma Metni", "description": "Kişisel verilerin işlenmesine ilişkin aydınlatma" },
     "privacy": { "title": "Gizlilik Politikası", "description": "Verilerinin nasıl ele alındığı" },
     "terms": { "title": "Kullanım Koşulları", "description": "Platformu kullanma kuralları" },
-    "cookies": { "title": "Çerez Politikası", "description": "Çerezlerin ve yerel depolamanın kullanımı" }
+    "cookies": { "title": "Çerez Politikası", "description": "Çerezlerin ve yerel depolamanın kullanımı" },
+    "settings": { "title": "Ayarlar", "description": "Görünüm, üst çubuk, kenar çubuğu ve dil tercihlerin" }
   },
   "Footer": {
     "label": "Alt bilgi",
     "tagline": "Oyun keşfi, oyuncu topluluğu ile donanım ve oyun performansı için oyun odaklı sosyal platform.",
     "platform": "Platform",
+    "support": "Destek",
+    "soon": "Yakında",
+    "socialLabel": "Sosyal medya",
+    "socialSoon": "{name} (bağlantı yakında)",
+    "legalNav": "Yasal bağlantılar",
+    "social": { "x": "X", "instagram": "Instagram", "linkedin": "LinkedIn", "github": "GitHub" },
     "legal": "Yasal",
     "copyright": "© {year} LobbyTwoZero. Tüm hakları saklıdır.",
     "links": {
+      "home": "Ana Sayfa",
       "about": "Hakkımızda",
       "faq": "SSS",
       "contact": "İletişim",
       "kvkk": "KVKK Aydınlatma Metni",
       "privacy": "Gizlilik Politikası",
       "terms": "Kullanım Koşulları",
-      "cookies": "Çerez Politikası"
+      "cookies": "Çerez Politikası",
+      "settings": "Ayarlar"
     }
   },
   "Home": {

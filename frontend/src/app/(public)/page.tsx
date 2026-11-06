@@ -1,17 +1,13 @@
-import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { getSiteUrl } from "@/shared/config/site";
+import { buildPageMetadata } from "@/shared/lib/seo/page-metadata";
 
-export async function generateMetadata(): Promise<Metadata> {
-  // Canonical yalnız doğrulanmış bir site kökü varsa yazılır; domain uydurulmaz.
-  return getSiteUrl() ? { alternates: { canonical: "/" } } : {};
-}
+export const generateMetadata = () => buildPageMetadata("home");
 
 export default async function HomePage() {
   const t = await getTranslations("Home");
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
+    <div className="w-full">
       <h1 className="font-display text-4xl font-bold tracking-tight text-text-primary sm:text-5xl">
         {t("title")}
       </h1>

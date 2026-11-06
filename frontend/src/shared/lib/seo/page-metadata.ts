@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { findPageById, type PageId } from "@/shared/config/pages";
-import { getSiteUrl } from "@/shared/config/site";
+import { formatPageTitle, getSiteUrl } from "@/shared/config/site";
 
 /**
  * Sayfa başına metadata. Başlık/açıklama `Pages.<id>.*` mesajlarından gelir.
@@ -19,7 +19,8 @@ export async function buildPageMetadata(id: PageId): Promise<Metadata> {
     description,
     ...(getSiteUrl() ? { alternates: { canonical: page.href } } : {}),
     ...(page.indexable ? {} : { robots: { index: false, follow: true } }),
-    openGraph: { title, description },
-    twitter: { title, description }
+    // Sekme başlığı kök layout şablonundan ("LTZ | %s") gelir; paylaşım kartları aynı biçimi kullanır.
+    openGraph: { title: formatPageTitle(title), description },
+    twitter: { title: formatPageTitle(title), description }
   };
 }

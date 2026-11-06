@@ -38,12 +38,11 @@ export function NotificationMenu({ notifications }: NotificationMenuProps) {
       >
         <Icon name="bell" />
         {unread > 0 ? (
+          // Sayı aria-label'dadır; görsel gösterge yalnız küçük bir kırmızı noktadır.
           <span
             aria-hidden="true"
-            className="absolute end-1.5 top-1.5 min-w-4 rounded-full bg-primary px-1 text-center font-display text-[0.625rem] font-semibold leading-4 text-primary-foreground"
-          >
-            {unread > 9 ? "9+" : unread}
-          </span>
+            className="absolute end-2 top-2 size-2 rounded-full bg-primary ring-2 ring-surface"
+          />
         ) : null}
       </button>
 

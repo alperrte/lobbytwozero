@@ -99,9 +99,9 @@ describe("AppShell", () => {
 
   it("tema ve dil kontrolleri erişilebilir adlara sahiptir", () => {
     renderShell();
-    expect(screen.getByRole("group", { name: "Tema" })).toBeInTheDocument();
+    // Tek düğmeli tema kontrolü: adı, tıklayınca geçilecek temayı söyler (varsayılan Dark → Açık).
     expect(screen.getByRole("button", { name: "Açık tema" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Koyu tema" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Koyu tema" })).not.toBeInTheDocument();
     const language = screen.getByRole("button", { name: "Dil: Türkçe" });
     expect(language).toHaveAttribute("aria-haspopup", "menu");
     expect(language).toHaveAttribute("aria-expanded", "false");
@@ -136,7 +136,7 @@ describe("AppShell", () => {
     expect(panel.querySelectorAll("li")).toHaveLength(0);
   });
 
-  it("profil menüsü misafir durumunu dürüstçe gösterir ve sahte rota üretmez", () => {
+  it("profil menüsü misafir durumunu dürüstçe gösterir; Çıkış yap kırmızı vurgulu ama henüz etkin değildir", () => {
     renderShell();
     fireEvent.click(screen.getByRole("button", { name: /Misafir/ }));
     const menu = screen.getByRole("menu");
@@ -144,31 +144,73 @@ describe("AppShell", () => {
     expect(menu.querySelectorAll("a")).toHaveLength(0);
     expect(menu).toHaveTextContent("Profilim");
     expect(menu).toHaveTextContent("Hesap ayarları");
-    expect(menu).not.toHaveTextContent("Çıkış yap");
+    const logout = screen.getByRole("menuitem", { name: /Çıkış yap/ });
+    expect(logout).toHaveAttribute("aria-disabled", "true");
+    expect(logout.className).toContain("text-brand-text");
+    // Oturum olmadığı için tıklamak hiçbir şey yapmaz (sahte çıkış akışı yok).
+    fireEvent.click(logout);
+    expect(screen.getByRole("menu")).toBeInTheDocument();
   });
 
-  it("Ayarlar paneli kenar çubuğundan açılır ve tercihleri sunar", () => {
+  it("Ayarlar, kenar çubuğunda diyalog değil gerçek /settings sayfasına giden bağlantıdır", () => {
     renderShell();
-    fireEvent.click(screen.getByRole("button", { name: /^Ayarlar/ }));
-    const dialog = screen.getByRole("dialog", { name: "Ayarlar", hidden: true });
-    expect(dialog).toHaveAttribute("open");
-    for (const legend of ["Görünüm", "Üst çubuk", "Kenar çubuğu", "Dil"]) {
-      expect(dialog).toHaveTextContent(legend);
-    }
-    expect(dialog).not.toHaveTextContent("Güvenlik");
+    const link = screen.getByRole("link", { name: "Ayarlar" });
+    expect(link).toHaveAttribute("href", "/settings");
+    expect(screen.queryByRole("dialog", { hidden: true })).not.toBeInTheDocument();
   });
 
-  it("arama iletişim kutusu Ctrl+K ile açılır ve yalnız mevcut sayfaları arar", () => {
+  it("navbar sayfa adını tekrar etmez; yalnız arama, bildirim, dil, tema ve profil vardır", () => {
     renderShell();
+    const banner = screen.getByRole("banner");
+    expect(banner).not.toHaveTextContent("Ana Sayfa");
+    // Ctrl K ipucu yalnız görsel göstergedir; erişilebilirlik ağacında aria-keyshortcuts taşır.
+    expect(banner.querySelector("kbd")).toHaveTextContent("Ctrl K");
+    expect(banner.querySelector("kbd")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByRole("combobox", { name: "Sayfalarda ara" })).toHaveAttribute(
+      "placeholder",
+      "Sayfalarda ara..."
+    );
+    expect(screen.queryByRole("navigation", { name: "Sayfa konumu" })).not.toBeInTheDocument();
+  });
+
+  it("arama navbar'a gömülüdür: boşken hiçbir şey listelemez, yazınca yalnız eşleşenleri gösterir", () => {
+    renderShell();
+    const input = screen.getByRole("combobox", { name: "Sayfalarda ara" });
+    expect(screen.queryByRole("dialog", { hidden: true })).not.toBeInTheDocument();
+
+    fireEvent.focus(input);
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: "ana" } });
+    const options = screen.getAllByRole("option");
+    expect(options[0]).toHaveTextContent("Anasayfa");
+    expect(options.length).toBeLessThan(8);
+
+    fireEvent.change(input, { target: { value: "zzzzzz" } });
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(screen.getByText("Sonuç bulunamadı")).toBeInTheDocument();
+  });
+
+  it("Ctrl+K arama kutusuna odaklanır ve Escape sorguyu temizler", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn().mockImplementation(() => ({
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn()
+      }))
+    );
+    renderShell();
+    const input = screen.getByRole("combobox", { name: "Sayfalarda ara" });
+
     act(() => {
       fireEvent.keyDown(document, { key: "k", ctrlKey: true });
     });
-    const dialog = screen.getByRole("dialog", { name: "Genel arama", hidden: true });
-    expect(dialog).toHaveAttribute("open");
-    const input = screen.getByRole("combobox");
+    expect(input).toHaveFocus();
+
     fireEvent.change(input, { target: { value: "sss" } });
-    expect(dialog).toHaveTextContent("SSS");
-    fireEvent.change(input, { target: { value: "zzzzzz" } });
-    expect(dialog).toHaveTextContent("Sonuç bulunamadı");
+    expect(input).toHaveValue("sss");
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(input).toHaveValue("");
   });
 });

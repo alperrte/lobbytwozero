@@ -4,7 +4,13 @@ import { Chakra_Petch, IBM_Plex_Sans } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { preferencesInitScript } from "@/shared/lib/preferences/init-script";
-import { getSiteUrl, isIndexable, SITE_NAME, THEME_COLORS } from "@/shared/config/site";
+import {
+  getSiteUrl,
+  isIndexable,
+  SITE_NAME,
+  SITE_SHORT_NAME,
+  THEME_COLORS
+} from "@/shared/config/site";
 import "./globals.css";
 
 const displayFont = Chakra_Petch({
@@ -32,7 +38,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     ...(siteUrl ? { metadataBase: siteUrl } : {}),
-    title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
+    // Varsayılan sekme başlığı "LobbyTwoZero"; sayfalar "LTZ | Anasayfa" biçimini kullanır.
+    title: { default: SITE_NAME, template: `${SITE_SHORT_NAME} | %s` },
     description,
     applicationName: SITE_NAME,
     openGraph: {

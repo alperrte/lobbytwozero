@@ -15,6 +15,8 @@ type OptionGroupProps<T extends string> = {
   onChange: (value: T) => void;
   disabled?: boolean;
   note?: string;
+  /** Başlık sayfada başka yerde gösteriliyorsa görsel olarak gizler (ekran okuyucu için kalır). */
+  hideLegend?: boolean;
 };
 
 /**
@@ -28,11 +30,16 @@ export function OptionGroup<T extends string>({
   options,
   onChange,
   disabled,
-  note
+  note,
+  hideLegend
 }: OptionGroupProps<T>) {
   return (
     <fieldset disabled={disabled} className="min-w-0">
-      <legend className="mb-2 font-display text-sm font-semibold">{legend}</legend>
+      <legend
+        className={hideLegend ? "sr-only" : "mb-2 font-display text-sm font-semibold"}
+      >
+        {legend}
+      </legend>
       <div className="space-y-2">
         {options.map((option) => (
           <label
