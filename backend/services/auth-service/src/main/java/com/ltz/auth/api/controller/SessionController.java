@@ -1,9 +1,12 @@
 package com.ltz.auth.api.controller;
 
 import java.time.Clock;
+import java.util.List;
 import java.util.UUID;
 
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.web.csrf.CsrfToken;
@@ -12,11 +15,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ltz.auth.api.dto.response.CurrentAccountResponse;
 import com.ltz.auth.api.dto.response.SessionStatusResponse;
 import com.ltz.auth.application.service.IssuedSession;
 import com.ltz.auth.application.service.SessionService;
 import com.ltz.auth.domain.exception.AuthErrorCode;
 import com.ltz.auth.domain.exception.AuthException;
+import com.ltz.auth.infrastructure.security.TokenClaims;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -35,6 +40,23 @@ public class SessionController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void csrf(CsrfToken csrfToken) {
         csrfToken.getToken();
+    }
+
+    /**
+     * Girişli kullanıcının kim olduğunu söyler (SPA oturum yoklaması). Sayfa yenilenince çerez JS tarafından okunamadığı
+     * için arayüz kimlik ve rolü buradan öğrenir. 401 = misafir ya da oturum geçersiz (yenileme denenir). Oturumun
+     * canlılığı (iptal, askı, parola sonrası) diğer kimlikli uçlarla aynı denetimden geçer; yanıt önbelleğe alınmaz.
+     */
+    @GetMapping(AuthApiPaths.ME)
+    public ResponseEntity<CurrentAccountResponse> me(@AuthenticationPrincipal Jwt jwt) {
+        CurrentAccountResponse body = new CurrentAccountResponse(UUID.fromString(jwt.getSubject()),
+                claimList(jwt, TokenClaims.ROLES), claimList(jwt, TokenClaims.AUTH_METHODS), jwt.getExpiresAt());
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(body);
+    }
+
+    private static List<String> claimList(Jwt jwt, String name) {
+        List<String> values = jwt.getClaimAsStringList(name);
+        return values == null ? List.of() : List.copyOf(values);
     }
 
     @PostMapping(AuthApiPaths.SESSION_REFRESH)

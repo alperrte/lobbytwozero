@@ -379,22 +379,25 @@ Tüketici servisler: Frontend
 - POST /api/v1/auth/session/logout — bu cihazdaki oturumu kapatır, cookie'leri siler (idempotent)
 - POST /api/v1/auth/session/logout-all — tüm oturumları kapatır, eski access token'ları geçersiz kılar
 - GET /api/v1/auth/csrf — CSRF cookie'sini üretir (`204`)
+- GET /api/v1/auth/me — girişli kullanıcının kim olduğunu döner (SPA oturum yoklaması)
 
 #### Yetkilendirme
-refresh/logout: Public (refresh cookie + CSRF) · logout-all: Authenticated (+ CSRF) · csrf: Public
+refresh/logout: Public (refresh cookie + CSRF) · logout-all: Authenticated (+ CSRF) · csrf: Public · me: Authenticated (access cookie veya Bearer; GET olduğu için CSRF istemez)
 
 #### Response
 - refresh — 200: `{ "status": "AUTHENTICATED", "accessTokenExpiresAt": "ISO-8601" }`
 - logout, logout-all — 204
+- me — 200: `{ "accountId": "UUID", "roles": ["PLAYER", ...], "authMethods": ["pwd", ...], "accessTokenExpiresAt": "ISO-8601" }`. `Cache-Control: no-store`. E-posta, kullanıcı adı, hesap durumu, `sid` ve `ver` **dönmez** (profil User Service'tedir). `roles` yalnız arayüzü (menü vb.) şekillendirmek içindir; yetki kararı her serviste token'dan yeniden verilir.
 
 #### Hata Durumları
+- 401 (`me`): Token yok (misafir), süresi dolmuş, oturum iptal edilmiş ya da hesap aktif değil. İstemci `POST /session/refresh` dener; o da 401 verirse kullanıcı misafirdir.
 - 401: Refresh token yok, geçersiz, süresi dolmuş, oturum iptal edilmiş veya hesap aktif değil (`SESSION_INVALID`; cookie'ler silinir). Daha önce döndürülmüş token 10 sn'den sonra yeniden gelirse oturum ailesi tümüyle iptal edilir.
 - 403: CSRF
 - 409: Aynı refresh token ile eşzamanlı yenileme (`REFRESH_CONFLICT`); oturum korunur, istemci tek refresh isteği yürütüp isteği tekrarlar.
 
 #### Bağlantı
 Frontend:
-API Gateway üzerinden /api/v1/auth/session/** ve /api/v1/auth/csrf
+API Gateway üzerinden /api/v1/auth/session/**, /api/v1/auth/csrf ve /api/v1/auth/me
 
 Diğer mikroservisler:
 -

@@ -265,9 +265,10 @@ Dev'de Mailpit kullanılır (`http://127.0.0.1:8025`, gerçek e-posta gitmez).
 - Çerezle gelen durum değiştiren isteklerde `X-XSRF-TOKEN` = `XSRF-TOKEN` çerezi olmalı, aksi halde `403 CSRF_TOKEN_INVALID`. `Origin` izinli listede olmalı. CORS tam eşleşme (`*` yasak).
 - Gateway `X-User-*`, `X-Account-*`, `X-Auth-*`, `X-Internal-*`, `X-Role(s)` başlıklarını **her zaman siler**. Yine de kimliği kendin doğrula.
 - `/api/v1/auth/**` IP başına dakikada 120 istekle sınırlıdır (`429` + `Retry-After`; sayaç örnek belleğindedir).
+- **"Ben kimim":** `GET /api/v1/auth/me` → `{accountId, roles, authMethods, accessTokenExpiresAt}` (`no-store`; e-posta ve profil yok, o User'da). `401` = misafir ya da oturum geçersiz: önce `POST /session/refresh` dene, o da `401` verirse misafirdir. Sayfa yenilenince arayüz kimlik ve rolü buradan öğrenir (HttpOnly çerez JS'ten okunamaz). `roles` yalnız menü gibi arayüz içindir; yetki kararı servislerde token'dan verilir.
 - Uçların tamamı: `docs/api.md` → `## AUTH`. Frontend akışları (cookie, CSRF, giriş): `docs/EKIP_AUTH_GATEWAY_ENTEGRASYON_NOTLARI.md`, `entegrasyon/gateway-ve-frontend.md`.
 
-Auth uç aileleri (`/api/v1/auth`): `register`, `email-verification`, `login` (+ `login/2fa`, `enrollment`), `session` (`refresh`, `logout`, `logout-all`), `2fa/totp` (`setup`, `activate`, `disable`), `oauth` (Google/Steam giriş ve bağlama), `password` (`change`, `set`, `forgot`, `reset`), `email/change`, `account/deletion` (`request`, `cancel`), `devices`, `admin/**` (yalnız ADMIN). İç uçlar `/internal/v1`: `service-tokens`, `accounts/{id}` (+ `status`, `roles/grant`, `roles/revoke`).
+Auth uç aileleri (`/api/v1/auth`): `register`, `email-verification`, `login` (+ `login/2fa`, `enrollment`), `me`, `csrf`, `session` (`refresh`, `logout`, `logout-all`), `2fa/totp` (`setup`, `activate`, `disable`), `oauth` (Google/Steam giriş ve bağlama), `password` (`change`, `set`, `forgot`, `reset`), `email/change`, `account/deletion` (`request`, `cancel`), `devices`, `admin/**` (yalnız ADMIN). İç uçlar `/internal/v1`: `service-tokens`, `accounts/{id}` (+ `status`, `roles/grant`, `roles/revoke`).
 
 ---
 
