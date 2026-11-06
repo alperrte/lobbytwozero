@@ -1517,7 +1517,7 @@ Internal. Gateway'de route edilmez. `typ=svc+jwt`, `aud=user-service`, `scope` �
 ```json
 {
   "viewerId": "UUID | null (çağıranın doğruladığı kullanıcı; misafir için null)",
-  "field": "FRIENDS_LIST | LIBRARY | HARDWARE | PERFORMANCE",
+  "field": "FRIENDS_LIST | LIBRARY | HARDWARE | PERFORMANCE | REVIEW_AUTHOR",
   "ownerIds": ["UUID (1-100; yinelenenler tek)"]
 }
 ```
@@ -1527,6 +1527,8 @@ Internal. Gateway'de route edilmez. `typ=svc+jwt`, `aud=user-service`, `scope` �
 { "decisions": [ { "ownerId": "UUID", "setting": "PUBLIC | FRIENDS | PRIVATE", "allowed": false, "friends": false } ] }
 ```
 İstek sırasıyla. `setting`: sahibin ayarı (kayıt yoksa varsayılan; yasaklı/devre dışı hesapta `PRIVATE`). `allowed`: izleyici görebilir mi (görünürlük kuralı + engel + hesap durumu). `friends`: izleyici ile sahip arkadaş mı. En çok dört sorgu (N+1 yok).
+
+**`REVIEW_AUTHOR` (HW-USER-REQ-02, yorum/UGC kararı):** profil bölümü değildir; ürün yorumu gibi herkese açık yazar içeriği için kullanılır. Profil gizlilik ayarı (HARDWARE dahil) ve misafir erişimi **uygulanmaz**; `setting` her zaman `PUBLIC`. `allowed` yalnız hesap durumu (yasaklı/devre dışı/silinmekte → `false`, `setting=PRIVATE`) ve çift yönlü engele bağlıdır. Yansıma güvenilir değilken yazar dışında kimseye `allowed=true` dönmez. Toplu kullanım: sayfadaki tüm yazarlar tek istekte (en çok 100) sorulur; çağıran yalnız `allowed=true` yazarların yorumlarını sorgusunun içinde filtreler (sayfa aldıktan sonra eleme yapmaz). Yanıtta eksik kalan sahip, hata, 401/403/429/5xx ve timeout çağıranda ret sayılır.
 
 **Fail-closed:** Social yansıması güvenilir ilan edilene kadar (`ltz.user.social.projection-enabled=false`, varsayılan) engel ve arkadaşlık bilinmez; bu yüzden **sahibi olmayan izleyiciye `allowed` her zaman `false`** döner (Hardware sözleşmesi: bilinmeyen karar reddedilir). `setting` yine döner: engel ve arkadaşlığı kendisi bilen Social yalnız `setting`'i kullanabilir. Sahip kendi bölümü için her zaman `allowed=true` alır.
 

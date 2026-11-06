@@ -11,7 +11,7 @@ User **kimseyi çağırmaz**; dış veri yalnız olayla gelir, karar ucu yalnız
 | Auth (Kerem) | REQ-01..04: olay hedefi, eski hesaplar, silme durumu, token çiftleri | Yüksek | **Auth hazır** (REQ-02 karar B) | [01](auth/auth-service-talepleri/auth-requests-01.md) · [02](auth/auth-service-talepleri/auth-requests-02.md) · [03](auth/auth-service-talepleri/auth-requests-03.md) · [04](auth/auth-service-talepleri/auth-requests-04.md) |
 | Umut (social) | Arkadaşlık/engel olaylarını `user`'a göndermek, başlangıç aktarımı, `FRIENDS_LIST` karar adaptörü | Yüksek | OPEN | [social-requests-01](services/social-service-talepleri/social-requests-01.md) |
 | Hamza (library + review) | `LibrarySummaryChanged` / `ReviewSummaryChanged` olayları, LIB-11 için `LIBRARY` karar adaptörü | Orta | OPEN | [library-review-requests-01](services/library-review-talepleri/library-review-requests-01.md) |
-| Alper (hardware) | `HARDWARE` / `PERFORMANCE` karar adaptörü | Orta | OPEN | [hardware-requests-01](services/hardware-service-talepleri/hardware-requests-01.md) |
+| Alper (hardware) | `HARDWARE` adaptörü (Alper yaptı) + yorum yazarı kararı `REVIEW_AUTHOR` (User yaptı) | Orta | **Hazır**; REQ-01 yansıma açılışı Social'a bağlı | [hardware-requests-01](services/hardware-service-talepleri/hardware-requests-01.md) · [cevap](services/hardware-service-talepleri/hardware-cevap-01.md) |
 | Gateway / Frontend | Gateway'de `/api/v1/user/**` rotası zaten var; şimdilik istek yok | — | — | — |
 
 Ortak sözleşme: [docs/api.md](../../docs/api.md) → `## USER`. Auth cevapları: `docs-auth/verilen-cevaplar/user-service/`.
