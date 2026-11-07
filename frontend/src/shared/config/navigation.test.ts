@@ -77,15 +77,15 @@ describe("navigationGroups", () => {
 });
 
 describe("primaryNavigation", () => {
-  it("yalnız Ana Sayfa kullanılabilir, kalan 12 öğe 'Yakında' durumundadır", () => {
+  it("Ana Sayfa ve oyun kataloğu kullanılabilir, kalan 11 öğe 'Yakında' durumundadır", () => {
     const available = primaryNavigation.filter(isNavItemAvailable);
-    expect(available.map((item) => item.id)).toEqual(["home"]);
-    expect(primaryNavigation.filter((item) => !isNavItemAvailable(item))).toHaveLength(12);
+    expect(available.map((item) => item.id)).toEqual(["home", "games"]);
+    expect(primaryNavigation.filter((item) => !isNavItemAvailable(item))).toHaveLength(11);
   });
 
   it("Yakında öğeleri href taşımaz (kırık link ve sahte rota yok)", () => {
     for (const item of primaryNavigation) {
-      if (item.id !== "home") {
+      if (item.id !== "home" && item.id !== "games") {
         expect(item.href).toBeUndefined();
       }
     }
@@ -131,8 +131,8 @@ describe("isActivePath / findActiveItem", () => {
   it("href verilen bir Yakında öğesi otomatik olarak aktif olur (bileşen değişmeden)", () => {
     const enabled = [
       ...primaryNavigation,
-      { id: "games-live", labelKey: "games" as const, icon: "gamepad" as const, href: "/games" as AppPathname }
+      { id: "library-live", labelKey: "library" as const, icon: "library" as const, href: "/library" as AppPathname }
     ];
-    expect(findActiveItem("/games/42", enabled)?.id).toBe("games-live");
+    expect(findActiveItem("/library/42", enabled)?.id).toBe("library-live");
   });
 });

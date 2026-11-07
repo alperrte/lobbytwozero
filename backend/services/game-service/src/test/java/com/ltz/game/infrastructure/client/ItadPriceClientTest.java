@@ -27,6 +27,9 @@ import static org.mockito.Mockito.when;
 
 class ItadPriceClientTest {
     static final UUID GAME=UUID.randomUUID(), ITAD=UUID.randomUUID();
+    static final Set<UUID> REQUESTED=Set.of(GAME);
+    static final Duration VALID_TTL=Duration.ofMinutes(15);
+    static final Duration INVALID_TTL=Duration.ofHours(2);
     static final Instant NOW=Instant.parse("2026-11-05T12:00:00Z");
     static final Market MARKET=new Market("TR","USD");
     static final String LINK="https://isthereanydeal.com/go/fixture?affiliate=keep-me";
@@ -57,7 +60,8 @@ class ItadPriceClientTest {
             assertEquals(NOW.plusSeconds(300),quote.expiresAt());assertEquals(NOW,quote.fetchedAt());
             assertEquals(2,server.received().size());
             assertEquals("fixture-key",server.received().getFirst().apiKey());
-            assertEquals("/lookup/shop/61/id/v1",server.received().getFirst().pathAndQuery());
+            assertEquals("/lookup/id/shop/61/v1",server.received().getFirst().pathAndQuery());
+            assertEquals("LTZ-Game-Service/1.0",server.received().getFirst().userAgent());
             assertEquals("[\"app/570\"]",server.received().getFirst().body());
             assertTrue(server.received().getLast().pathAndQuery().contains("country=TR"));
             assertFalse(server.received().stream().anyMatch(request -> request.pathAndQuery().contains("fixture-key")));
@@ -67,9 +71,22 @@ class ItadPriceClientTest {
         try(var server=new FakeServer()) {
             var client=client(server,"");assertFalse(client.isConfigured());
             assertEquals(List.of(),client.prices(Set.of(),MARKET));
-            assertEquals("PRICE_NOT_CONFIGURED",assertThrows(ProviderException.class,()->client.prices(Set.of(GAME),MARKET)).code());
+            assertEquals("PRICE_NOT_CONFIGURED",assertThrows(ProviderException.class,()->client.prices(REQUESTED,MARKET)).code());
             assertTrue(server.received().isEmpty());
             assertFalse(new GamePriceProperties("never-print-me","https://api.isthereanydeal.com","TR","USD",Duration.ofMinutes(15)).toString().contains("never-print-me"));
+        }
+    }
+    @Test void officialShortLinksArePreservedButLookalikesAndCredentialsAreRejected() throws Exception {
+        try(var server=new FakeServer()) {
+            String url="https://itad.link/018d9386-b9c8-71ea-8724-47f829db21bd/?affiliate=keep-me";
+            server.enqueue(Reply.json(200,mapping()),Reply.json(200,prices("USD",url,"null")));
+            assertEquals(url,client(server,"fixture").prices(Set.of(GAME),MARKET).getFirst().url());
+            for(String invalid:List.of("https://itad.link.evil.invalid/offer","https://itad.link@evil.invalid/offer","http://itad.link/offer")) {
+                server.enqueue(Reply.json(200,mapping()),Reply.json(200,prices("USD",invalid,"null")));
+                var failingClient1=client(server,"fixture");
+                assertEquals("INVALID_PRICE_RESPONSE",assertThrows(ProviderException.class,
+                        ()->failingClient1.prices(REQUESTED,MARKET)).code());
+            }
         }
     }
     @Test void explicitUnmappedGameAndEmptyOffersAreDifferentFromMalformedResponses() throws Exception {
@@ -80,7 +97,8 @@ class ItadPriceClientTest {
             assertTrue(client(server,"fixture").prices(Set.of(GAME),MARKET).isEmpty());
             for(String body:List.of("{}","[]","{\"app/570\":false}")) {
                 server.enqueue(Reply.json(200,body));
-                assertEquals("INVALID_PRICE_RESPONSE",assertThrows(ProviderException.class,()->client(server,"fixture").prices(Set.of(GAME),MARKET)).code());
+                var failingClient2=client(server,"fixture");
+                assertEquals("INVALID_PRICE_RESPONSE",assertThrows(ProviderException.class,()->failingClient2.prices(REQUESTED,MARKET)).code());
             }
         }
     }
@@ -89,7 +107,8 @@ class ItadPriceClientTest {
             for(String body:List.of(prices("EUR",LINK,"null"),prices("USD","http://127.0.0.1/private","null"),
                     prices("USD",LINK,"\"2026-11-05T11:00:00Z\""),"[]","{}","null","[null]")) {
                 server.enqueue(Reply.json(200,mapping()),Reply.json(200,body));
-                assertThrows(ProviderException.class,()->client(server,"fixture").prices(Set.of(GAME),MARKET));
+                var failingClient3=client(server,"fixture");
+                assertThrows(ProviderException.class,()->failingClient3.prices(REQUESTED,MARKET));
             }
         }
     }
@@ -97,27 +116,31 @@ class ItadPriceClientTest {
         try(var server=new FakeServer()) {
             for(int status:new int[]{401,403,429,500}) {
                 int before=server.received().size();server.enqueue(Reply.json(status,"{\"secret\":\"fixture-key\"}"));
-                var error=assertThrows(ProviderException.class,()->client(server,"fixture-key").prices(Set.of(GAME),MARKET));
+                var failingClient4=client(server,"fixture-key");
+                var error=assertThrows(ProviderException.class,()->failingClient4.prices(REQUESTED,MARKET));
                 assertFalse(error.getMessage().contains("fixture-key"));assertEquals(before+1,server.received().size());
             }
             server.enqueue(Reply.json(200,"not-json"));
-            assertThrows(ProviderException.class,()->client(server,"fixture").prices(Set.of(GAME),MARKET));
+            var failingClient5=client(server,"fixture");
+            assertThrows(ProviderException.class,()->failingClient5.prices(REQUESTED,MARKET));
             Set<UUID> many=new java.util.HashSet<>();for(int i=0;i<51;i++) many.add(UUID.randomUUID());
-            assertThrows(IllegalArgumentException.class,()->client(server,"fixture").prices(many,MARKET));
+            var failingClient6=client(server,"fixture");
+            assertThrows(IllegalArgumentException.class,()->failingClient6.prices(many,MARKET));
         }
     }
     @Test void providerRetryAfterAndStartupValidationAreExplicit() throws Exception {
         try(var server=new FakeServer()) {
             for(String value:List.of("3600","Thu, 5 Nov 2026 14:00:00 GMT","invalid")) {
                 server.retryAfter(value).enqueue(Reply.json(429,"{}"));
-                var error=assertThrows(ProviderException.class,()->client(server,"fixture").prices(Set.of(GAME),MARKET));
+                var failingClient7=client(server,"fixture");
+                var error=assertThrows(ProviderException.class,()->failingClient7.prices(REQUESTED,MARKET));
                 assertEquals(value.equals("3600")?Duration.ofHours(1):value.startsWith("Thu")?Duration.ofHours(2):Duration.ofMinutes(15),error.retryAfter());
             }
         }
-        assertThrows(IllegalArgumentException.class,()->new GamePriceProperties("key","http://insecure.invalid","TR","USD",Duration.ofMinutes(15)));
-        assertThrows(IllegalArgumentException.class,()->new GamePriceProperties("key","https://user@api.example.invalid","TR","USD",Duration.ofMinutes(15)));
+        assertThrows(IllegalArgumentException.class,()->new GamePriceProperties("key","http://insecure.invalid","TR","USD",VALID_TTL));
+        assertThrows(IllegalArgumentException.class,()->new GamePriceProperties("key","https://user@api.example.invalid","TR","USD",VALID_TTL));
         assertThrows(IllegalArgumentException.class,()->new GamePriceProperties("key","https://api.example.invalid","TR","USD",Duration.ZERO));
-        assertThrows(IllegalArgumentException.class,()->new GamePriceProperties("key","https://api.example.invalid","TR","USD",Duration.ofHours(2)));
+        assertThrows(IllegalArgumentException.class,()->new GamePriceProperties("key","https://api.example.invalid","TR","USD",INVALID_TTL));
     }
     @Test void verifiedSteamAliasesAreDeduplicatedButAmbiguousEditionPricesAreRejected() throws Exception {
         var refs=mock(GameExternalReferenceRepository.class);var game=new Game();game.setId(GAME);
@@ -130,13 +153,15 @@ class ItadPriceClientTest {
             server.enqueue(Reply.json(200,"{\"app/570\":\""+ITAD+"\",\"app/571\":\""+ITAD+"\"}"),Reply.json(200,prices("USD",LINK,"null")));
             assertEquals(1,client(server,"fixture",refs).prices(Set.of(GAME),MARKET).size());
             server.enqueue(Reply.json(200,"{\"app/570\":\""+ITAD+"\",\"app/571\":\""+UUID.randomUUID()+"\"}"));
-            assertEquals("AMBIGUOUS_PRICE_MAPPING",assertThrows(ProviderException.class,()->client(server,"fixture",refs).prices(Set.of(GAME),MARKET)).code());
+            var failingClient8=client(server,"fixture",refs);
+            assertEquals("AMBIGUOUS_PRICE_MAPPING",assertThrows(ProviderException.class,()->failingClient8.prices(REQUESTED,MARKET)).code());
         }
     }
     @Test void transportTimeoutIsControlledWithoutRetry() throws Exception {
         try(var server=new FakeServer()) {
             server.enqueue(Reply.slow(1500));
-            assertEquals("PRICE_UNAVAILABLE",assertThrows(ProviderException.class,()->client(server,"fixture").prices(Set.of(GAME),MARKET)).code());
+            var failingClient9=client(server,"fixture");
+            assertEquals("PRICE_UNAVAILABLE",assertThrows(ProviderException.class,()->failingClient9.prices(REQUESTED,MARKET)).code());
             assertEquals(1,server.received().size());
         }
     }

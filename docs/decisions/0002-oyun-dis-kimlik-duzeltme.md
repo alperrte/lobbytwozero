@@ -1,8 +1,21 @@
 # 0002 — Harici oyun kimliği düzeltme protokolü
 
-Durum: TASLAK — ekip onayı ve tüketici sözleşmeleri bekleniyor.  
+Durum: TASLAK — gerçek kimlik taşıma/ayırma ek kapsamının teknik sözleşmesi; asıl GAME-26 kabul kapanışı geçerlidir.
+
 Tarih: 5 Kasım 2026  
 Hazırlayan alan: Hamza / Game, Library, Review.
+
+## 7 Kasım 2026 durum açıklaması
+
+5 Kasım 2026 tarihli `6578e3e` kaydı GAME-26'yı, gerçek dış kimlik mutasyonlarının
+bilerek kapalı bırakıldığı kabul kapsamıyla kapatmıştır. Bu kapanış geçerlidir.
+Bu taslak protokol, o kabulün yapılmamış zorunlu işi olarak değerlendirilmez.
+
+7 Kasım'da kullanıcı yalnız referanssız oyunlar için gerçek taşıma/ayırma ek yeteneğini
+istedi ve şimdilik servis sahiplerine sözleşme hazırlanmasını talep etti. İş kuralı
+onaylı; teknik uygulama/ortak kabul beklemededir. Güncel teslim belgesi:
+`docs-Game Service/GAME-26-Servis-Sahipleri-Entegrasyon-Sozlesmesi.md`.
+Mevcut `game-references:read` okuma izni ile yeni koordinasyon yetkileri farklıdır.
 
 ## Problem ve mevcut davranış
 
@@ -17,15 +30,17 @@ kilit, arşivleme ve audit kabulü tamamlanmış olsa da bu ilave yetenek açık
 
 ## Önerilen karar
 
-İlk güvenli sürüm yalnız **hiçbir tüketicide referansı olmayan** kaynaklarda
-taşıma/ayırmayı açsın. Referanslı kayıtların yeniden atanması ayrı bir ürün/veri
+Kullanıcının 7 Kasım iş kuralı: ilk güvenli sürüm yalnız **hiçbir tüketicide referansı olmayan** kaynaklarda
+taşıma/ayırmayı açacak. Referanslı kayıtların yeniden atanması ayrı bir ürün/veri
 taşıma kararı olsun. Otomatik veri taşıma, fiziksel silme veya ada göre birleştirme
 yapılmasın.
 
 1. Game, kaynak/hedef UUID ve dış referans için kalıcı operasyon kimliği oluşturur;
    ilgili katalog kaydını yeni referans edinimine kapatır.
-2. Tüketici envanteri eksiksiz olmalıdır: Library, Review, Community, Event, LFP,
-   Hardware/Performance/Recommendation ve gerçekten gameId saklayan diğer akışlar.
+2. Tüketici envanteri eksiksiz olmalıdır. 7 Kasım kaynak taramasındaki katılımcılar:
+   Library, Review, Community, Content ve Performance. Game kendi yerel ilişkilerini
+   kontrol eder; Auth yalnız yetkilendirme sağlar. Diğer servisler kalıcı gameId
+   ilişkisi eklediğinde envanter genişletilir; sahipler listeyi doğrulamalıdır.
    Eksik servis başarılı/boş kabul edilmez. Game geliştirici içeriği, başarım ve
    feedback referansları da kontrol edilir.
 3. Her tüketici operasyon kimliğiyle idempotent prepare isteğini işler. Yeni gameId
@@ -61,8 +76,9 @@ Sadece mutlu yol veya sıfır referans döndüren sahte sunucu yeterli değildir
 
 HTTP koruması sürer; bu taslak gerçek koordinasyonun uygulandığı anlamına gelmez.
 Alınacak kararlar: tam tüketici listesi ve sahipleri, referansın anlamı, yeni Auth
-kapsamları, kalıcı operasyon/telafi protokolü ve teslim sırası. Bu kararlar verilmeden
-korumayı kaldırmak GAME-26'yı tamamlamak sayılmaz.
+kapsamları, kalıcı operasyon/telafi protokolü ve teslim sırası. Bu kararlar ve uygulama tamamlanmadan
+korumayı kaldırmak yeni kimlik mutasyonu kapsamını tamamlamak sayılmaz; asıl
+GAME-26'nın 5 Kasım kabul kapanışı bu taslak nedeniyle yeniden açılmaz.
 
 İlgili kaynaklar: `docs/api.md` → GAME / Yönetici: dış kimliği yeniden eşleme ve
 ayırma; `docs-Game Service/Game-Service-Bekleyen-Tasklar.md`; AGENTS.md §1/§8.

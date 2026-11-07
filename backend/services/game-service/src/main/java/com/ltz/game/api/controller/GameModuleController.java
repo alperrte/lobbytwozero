@@ -14,7 +14,8 @@ public class GameModuleController {
     private final GameModuleService modules;
     @GetMapping("/{gameId}/modules/{type}")
     public GameModuleResponse read(@PathVariable UUID gameId,@PathVariable GameModuleType type,
-            @RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="20") int size) {
-        return modules.read(gameId,type,page,size);
+            @RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="20") int size,
+            @RequestParam(defaultValue="1") int contractVersion) {
+        return modules.read(gameId,type,page,size,contractVersion);
     }
 }

@@ -76,7 +76,7 @@ class RatingSyncEndToEndTest extends PostgresTestSupport {
         var authClient = new AuthServiceTokenClient(GameRatingConfiguration.restClient(RestClient.builder(), auth.baseUrl(),
                 properties.connectTimeout(), properties.readTimeout()), Clock.systemUTC(), properties);
         var reviewClient = new ReviewRatingClient(GameRatingConfiguration.restClient(RestClient.builder(), review.baseUrl(),
-                properties.connectTimeout(), properties.readTimeout()), authClient, "review-service", Duration.ZERO);
+                properties.connectTimeout(), properties.readTimeout()), authClient, "review-service", Duration.ZERO, "/internal/v1/games/rating-summaries");
         return new GameRatingSyncService(reviewClient, authClient, repository, properties, Clock.systemUTC());
     }
 

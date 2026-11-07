@@ -51,7 +51,7 @@ class GameRatingSyncServiceTest extends PostgresTestSupport {
         boolean configured = true;
         @Override public boolean isConfigured() { return configured; }
         @Override public String tokenFor(String audience) { return "fake"; }
-        @Override public void invalidate(String audience) { }
+        @Override public void invalidate(String audience) { /* Bu sahte sağlayıcı token önbelleği tutmaz. */ }
     }
 
     static final class FakeReview implements ReviewRatingPort {

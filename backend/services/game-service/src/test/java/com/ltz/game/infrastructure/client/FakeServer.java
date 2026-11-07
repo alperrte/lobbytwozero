@@ -30,7 +30,7 @@ final class FakeServer implements AutoCloseable {
         }
     }
 
-    record Received(String method, String pathAndQuery, String authorization, String body, String apiKey) { }
+    record Received(String method, String pathAndQuery, String authorization, String body, String apiKey, String userAgent) { }
 
     private final HttpServer server;
     private final ExecutorService executor = Executors.newCachedThreadPool();
@@ -47,15 +47,16 @@ final class FakeServer implements AutoCloseable {
             String query = exchange.getRequestURI().getRawQuery();
             received.add(new Received(exchange.getRequestMethod(),
                     exchange.getRequestURI().getRawPath() + (query == null ? "" : "?" + query),
-                    exchange.getRequestHeaders().getFirst("Authorization"), body,exchange.getRequestHeaders().getFirst("ITAD-API-Key")));
+                    exchange.getRequestHeaders().getFirst("Authorization"), body,exchange.getRequestHeaders().getFirst("ITAD-API-Key"),
+                    exchange.getRequestHeaders().getFirst("User-Agent")));
             Reply reply;
             synchronized (replies) {
                 reply = replies.isEmpty() ? fallback : replies.poll();
             }
             if (reply.delayMillis() > 0) {
                 try {
-                    Thread.sleep(reply.delayMillis());
-                } catch (InterruptedException interrupted) {
+                    new java.util.concurrent.CountDownLatch(1).await(reply.delayMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
+                } catch (InterruptedException _) {
                     Thread.currentThread().interrupt();
                 }
             }
@@ -70,7 +71,7 @@ final class FakeServer implements AutoCloseable {
                 if (bytes.length > 0) {
                     exchange.getResponseBody().write(bytes);
                 }
-            } catch (IOException clientGone) {
+            } catch (IOException _) {
                 // İstemci zaman aşımına uğrayıp bağlantıyı kapattı; test bunu beklenen davranış olarak sınar.
                 abandoned.incrementAndGet();
             } finally {

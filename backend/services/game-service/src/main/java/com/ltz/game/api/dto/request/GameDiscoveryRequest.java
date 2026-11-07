@@ -21,7 +21,7 @@ public class GameDiscoveryRequest {
     private java.math.BigDecimal minRating;
     private boolean discountedOnly;
     private String country="TR";
-    private String currency="USD";
+    private String currency="TRY";
     private com.ltz.game.domain.enums.CatalogSort sort=com.ltz.game.domain.enums.CatalogSort.TITLE;
     private com.ltz.game.domain.enums.CatalogDirection direction=com.ltz.game.domain.enums.CatalogDirection.ASC;
     public DiscoveryQuery toQuery() {

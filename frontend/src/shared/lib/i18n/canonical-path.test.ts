@@ -43,7 +43,8 @@ describe("pathnames", () => {
   it("her dahili anahtar için gerçek bir sayfa klasörü vardır ve slug'lar benzersizdir", () => {
     for (const internal of Object.keys(pathnames)) {
       const folder = internal === "/" ? appDir : join(appDir, internal);
-      expect(existsSync(join(folder, "page.tsx")), internal).toBe(true);
+      const groupFolders = [folder, join(process.cwd(), "src/app/[locale]/(dashboard)", internal)];
+      expect(groupFolders.some((target) => existsSync(join(target, "page.tsx"))), internal).toBe(true);
     }
     for (const locale of locales) {
       const slugs = Object.values(pathnames).map((value) =>

@@ -8,6 +8,7 @@ const replaceMock = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({
   // next-intl/navigation bu dışa aktarımlara ihtiyaç duyar; test yalnız yönlendirmeyi gözler.
   usePathname: () => "/tr/ayarlar",
+  useParams: () => ({}),
   useRouter: () => ({ replace: replaceMock, push: vi.fn(), prefetch: vi.fn(), refresh: vi.fn() }),
   redirect: vi.fn(),
   permanentRedirect: vi.fn()

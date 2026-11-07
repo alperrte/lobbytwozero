@@ -46,11 +46,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(properties={"ltz.game.pricing.sync.enabled=false","ltz.game.rating.sync.enabled=false"})
 @Import(ItadPriceIntegrationTest.Fixture.class)
 class ItadPriceIntegrationTest extends PostgresTestSupport {
-    static final Market MARKET=new Market("TR","USD");
+    static final Market MARKET=new Market("TR","TRY");
     @TestConfiguration static class Fixture {
         @Bean(destroyMethod="close") FakeServer priceFixture() throws IOException { return new FakeServer(); }
         @Bean @Primary GamePriceProvider prices(FakeServer server,GameExternalReferenceRepository refs,Clock clock) {
-            var properties=new GamePriceProperties("fixture-key","https://api.isthereanydeal.com","TR","USD",Duration.ofMinutes(15));
+            var properties=new GamePriceProperties("fixture-key","https://api.isthereanydeal.com","TR","TRY",Duration.ofMinutes(15));
             return new ItadPriceClient(GameRatingConfiguration.restClient(RestClient.builder(),server.baseUrl(),Duration.ofSeconds(1),Duration.ofSeconds(2)),properties,refs,clock);
         }
     }
@@ -80,13 +80,13 @@ class ItadPriceIntegrationTest extends PostgresTestSupport {
     }
     String row(UUID id,int price,int regular) {
         return """
-                {"id":"%s","deals":[{"shop":{"name":"Steam"},"price":{"amount":%d,"currency":"USD"},
-                "regular":{"amount":%d,"currency":"USD"},"cut":%d,"timestamp":"%s","expiry":null,"url":"https://isthereanydeal.com/go/fixture?affiliate=keep"}]}
+                {"id":"%s","deals":[{"shop":{"name":"Steam"},"price":{"amount":%d,"currency":"TRY"},
+                "regular":{"amount":%d,"currency":"TRY"},"cut":%d,"timestamp":"%s","expiry":null,"url":"https://isthereanydeal.com/go/fixture?affiliate=keep"}]}
                 """.formatted(id,price,regular,price<regular?50:0,Instant.now().minusSeconds(10));
     }
     @Test void refreshPersistsAndPublicBatchAndDiscountFilterReadOnlyTheLocalMarket() throws Exception {
         offers();int calls=server.received().size();
-        mvc.perform(get("/api/v1/game/games/prices").param("gameIds",first.toString(),second.toString(),third.toString()).param("country","TR").param("currency","USD"))
+        mvc.perform(get("/api/v1/game/games/prices").param("gameIds",first.toString(),second.toString(),third.toString()).param("country","TR").param("currency","TRY"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].status").value("AVAILABLE"))
                 .andExpect(jsonPath("$.items[0].offers[0].currentPrice").value(5))
                 .andExpect(jsonPath("$.items[0].offers[0].url").value("https://isthereanydeal.com/go/fixture?affiliate=keep"))
@@ -130,14 +130,15 @@ class ItadPriceIntegrationTest extends PostgresTestSupport {
         Quote incomplete=new Quote(first,"Steam",MARKET,BigDecimal.TEN,BigDecimal.ONE,"ITAD",Instant.now(),Instant.now().plusSeconds(60));
         assertThrows(org.springframework.dao.InvalidDataAccessApiUsageException.class,()->repository.publish(owner,Set.of(first),MARKET,List.of(incomplete),Instant.now()));
         assertEquals(1,repository.quotes(Set.of(first),MARKET).size());repository.release(owner);
-        for(String[] market:List.of(new String[]{"tr","USD"},new String[]{"XX","USD"},new String[]{"TR","INVALID"}))
+        for(String[] market:List.of(new String[]{"tr","TRY"},new String[]{"XX","TRY"},new String[]{"TR","INVALID"}))
             mvc.perform(get("/api/v1/game/games/prices").param("gameIds",first.toString()).param("country",market[0]).param("currency",market[1])).andExpect(status().isBadRequest());
-        mvc.perform(get("/api/v1/game/games/prices").param("gameIds","bad").param("country","TR").param("currency","USD")).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/v1/game/games/prices").param("gameIds","bad").param("country","TR").param("currency","TRY")).andExpect(status().isBadRequest());
         mvc.perform(post("/api/v1/game/games/prices")).andExpect(status().isForbidden());
         assertThrows(IllegalArgumentException.class,()->service.read(null,MARKET));
         var many=new java.util.ArrayList<UUID>();for(int i=0;i<51;i++) many.add(UUID.randomUUID());
         assertThrows(IllegalArgumentException.class,()->service.read(many,MARKET));
-        assertThrows(IllegalArgumentException.class,()->service.read(java.util.Arrays.asList(first,null),MARKET));
+        var invalidIds=java.util.Arrays.asList(first,null);
+        assertThrows(IllegalArgumentException.class,()->service.read(invalidIds,MARKET));
     }
     @Test void providerBackoffIsPersistentAndInvalidQuoteCannotEscapeItsRequestedGameSet() {
         offers();UUID owner=UUID.randomUUID();repository.claim(owner,Instant.now());

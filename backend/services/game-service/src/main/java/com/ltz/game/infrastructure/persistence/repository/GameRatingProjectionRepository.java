@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Repository @RequiredArgsConstructor
 public class GameRatingProjectionRepository {
+    private static final String OWNER = "owner";
     private static final UUID STATE_ID = UUID.fromString("00000000-0000-0000-0000-000000000002");
 
     private static final String START = """
@@ -67,7 +68,7 @@ public class GameRatingProjectionRepository {
     /** Kiralamayı alırsa yeni tarama sayacını döndürür; başka bir tarama sürüyorsa boş döner. */
     @Transactional
     public OptionalLong startScan(UUID owner, Duration leaseTtl) {
-        List<Long> scans = jdbc.query(START, new MapSqlParameterSource("id", STATE_ID).addValue("owner", owner)
+        List<Long> scans = jdbc.query(START, new MapSqlParameterSource("id", STATE_ID).addValue(OWNER, owner)
                 .addValue("ttl", seconds(leaseTtl)), (rs, row) -> rs.getLong(1));
         return scans.isEmpty() ? OptionalLong.empty() : OptionalLong.of(scans.getFirst());
     }
@@ -75,7 +76,7 @@ public class GameRatingProjectionRepository {
     /** Kiralama hâlâ bu taramadaysa uzatır; kaybedildiyse false döner ve tarama bırakılmalıdır. */
     @Transactional
     public boolean extendLease(UUID owner, long scan, Duration leaseTtl) {
-        return jdbc.update(EXTEND, new MapSqlParameterSource("id", STATE_ID).addValue("owner", owner)
+        return jdbc.update(EXTEND, new MapSqlParameterSource("id", STATE_ID).addValue(OWNER, owner)
                 .addValue("scan", scan).addValue("ttl", seconds(leaseTtl))) == 1;
     }
 
@@ -103,7 +104,7 @@ public class GameRatingProjectionRepository {
      */
     @Transactional
     public boolean complete(UUID owner, long scan) {
-        int updated = jdbc.update(COMPLETE, new MapSqlParameterSource("id", STATE_ID).addValue("owner", owner)
+        int updated = jdbc.update(COMPLETE, new MapSqlParameterSource("id", STATE_ID).addValue(OWNER, owner)
                 .addValue("scan", scan));
         if (updated != 1) {
             return false;
@@ -115,7 +116,7 @@ public class GameRatingProjectionRepository {
     /** Yarıda kesilen taramayı kaydeder; hiçbir projeksiyon satırı sıfırlanmaz, kiralama bırakılır. */
     @Transactional
     public void fail(UUID owner, long scan, String code) {
-        jdbc.update(FAIL, new MapSqlParameterSource("id", STATE_ID).addValue("owner", owner)
+        jdbc.update(FAIL, new MapSqlParameterSource("id", STATE_ID).addValue(OWNER, owner)
                 .addValue("scan", scan).addValue("code", code));
     }
 

@@ -45,7 +45,7 @@ class ReviewRatingClientTest {
 
     private static ReviewRatingClient client(FakeServer review, FakeTokens tokens, Duration read) {
         RestClient http = GameRatingConfiguration.restClient(RestClient.builder(), review.baseUrl(), Duration.ofSeconds(1), read);
-        return new ReviewRatingClient(http, tokens, "review-service", Duration.ZERO);
+        return new ReviewRatingClient(http, tokens, "review-service", Duration.ZERO, "/internal/v1/games/rating-summaries");
     }
 
     private static ReviewRatingClient client(FakeServer review, FakeTokens tokens) {
@@ -62,6 +62,20 @@ class ReviewRatingClientTest {
 
     private static ReviewRatingUnavailableException failure(ReviewRatingClient client, UUID after, int limit) {
         return assertThrows(ReviewRatingUnavailableException.class, () -> client.fetchPage(after, limit));
+    }
+
+    @Test void usesConfiguredSummaryPathWithoutChangingAuthenticationOrQuery() throws IOException {
+        try (FakeServer review = new FakeServer()) {
+            review.enqueue(Reply.json(200, page(null)));
+            RestClient http = GameRatingConfiguration.restClient(RestClient.builder(), review.baseUrl(),
+                    Duration.ofSeconds(1), Duration.ofSeconds(2));
+            var configured = new ReviewRatingClient(http, new FakeTokens(), "review-service", Duration.ZERO,
+                    "/fixture/rating-summaries");
+            assertTrue(configured.fetchPage(null, 25).items().isEmpty());
+            var request = review.received().getFirst();
+            assertEquals("/fixture/rating-summaries?limit=25", request.pathAndQuery());
+            assertEquals("Bearer " + TOKEN, request.authorization());
+        }
     }
 
     @Test void fetchesAPageWithBearerTokenAndExclusiveCursor() throws IOException {
