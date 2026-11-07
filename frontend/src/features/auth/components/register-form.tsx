@@ -19,6 +19,7 @@ import { rememberPendingEmail } from "../services/pending-verification";
 import { AuthIcon } from "./auth-icons";
 import { authControlClass, FormField } from "./form-field";
 import { PasswordToggle } from "./password-toggle";
+import { SocialButtons } from "./social-buttons";
 import { ProblemNotice, useWaitFormatter } from "./problem-notice";
 
 type RegisterFormProps = {
@@ -102,6 +103,7 @@ export function RegisterForm({ api }: RegisterFormProps) {
 
   return (
     <form noValidate onSubmit={onSubmit} aria-label={t("register.formLabel")} className="space-y-5">
+      <SocialButtons mode="register" />
       <ProblemNotice code={problem} retryAfterSeconds={retryAfter} />
 
       <FormField

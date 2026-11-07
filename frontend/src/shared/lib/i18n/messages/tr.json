@@ -661,6 +661,45 @@
       "submitting": "Güncelleniyor…",
       "tokenInvalid": "Bu bağlantı geçersiz ya da süresi dolmuş. Yeni bir şifre sıfırlama bağlantısı isteyebilirsin.",
       "requestNew": "Yeni bağlantı iste"
+    },
+    "social": {
+      "or": "veya",
+      "login": {
+        "google": "Google ile giriş",
+        "steam": "Steam ile giriş"
+      },
+      "register": {
+        "google": "Google ile kayıt",
+        "steam": "Steam ile kayıt"
+      }
+    },
+    "callback": {
+      "metaTitle": "Giriş sonucu",
+      "title": "Hesabına bağlanıyoruz",
+      "processing": "İşlemin tamamlanıyor…",
+      "empty": "Bu sayfa yalnız Google veya Steam ile giriş dönüşü içindir. Giriş sayfasından yeniden başlayabilirsin.",
+      "mfa": "Bu hesap iki aşamalı doğrulama istiyor. Bu adım henüz bu ekranda desteklenmiyor.",
+      "linked": "Hesabın bağlandı.",
+      "backToLogin": "Giriş sayfasına dön",
+      "toHome": "Ana sayfaya git",
+      "steam": {
+        "formLabel": "Steam hesabı kayıt formu",
+        "description": "Steam hesabınla ilk kez geliyorsun. Hesabını tamamlamak için bir kullanıcı adı ve e-posta adresi gir.",
+        "submit": "Hesabı oluştur",
+        "tokenInvalid": "Kayıt bağlantısı geçersiz ya da süresi dolmuş. Steam ile girişi yeniden başlat."
+      },
+      "errors": {
+        "EXTERNAL_AUTH_FAILED": "Giriş doğrulanamadı. Lütfen tekrar dene.",
+        "EXTERNAL_EMAIL_UNVERIFIED": "Sağlayıcıdaki e-posta adresin doğrulanmamış. Önce sağlayıcıda doğrula, sonra tekrar dene.",
+        "ACCOUNT_LINK_REQUIRED": "Bu e-posta adresiyle zaten bir hesap var. Önce e-posta ve şifrenle giriş yap, sonra bu hesabı bağla.",
+        "EMAIL_NOT_VERIFIED": "E-posta adresin henüz doğrulanmadı. Kayıt sırasında gönderilen kodla doğrulamayı tamamla.",
+        "ACCOUNT_SUSPENDED": "Hesabın geçici olarak askıya alındı.",
+        "ACCOUNT_BANNED": "Hesabın yasaklandı.",
+        "ACCOUNT_UNAVAILABLE": "Bu hesap şu anda kullanılamıyor.",
+        "TWO_FACTOR_ENROLLMENT_REQUIRED": "Bu hesap için iki aşamalı doğrulama kurulumu gerekiyor. Bu adım henüz bu ekranda desteklenmiyor.",
+        "PROVIDER_NOT_CONFIGURED": "Bu giriş yöntemi şu anda kullanılamıyor.",
+        "UNKNOWN": "Bir şeyler ters gitti. Lütfen tekrar dene."
+      }
     }
   }
 }

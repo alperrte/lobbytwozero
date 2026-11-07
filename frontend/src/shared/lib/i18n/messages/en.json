@@ -661,6 +661,45 @@
       "submitting": "Updating…",
       "tokenInvalid": "This link is invalid or has expired. You can request a new password reset link.",
       "requestNew": "Request a new link"
+    },
+    "social": {
+      "or": "or",
+      "login": {
+        "google": "Sign in with Google",
+        "steam": "Sign in with Steam"
+      },
+      "register": {
+        "google": "Sign up with Google",
+        "steam": "Sign up with Steam"
+      }
+    },
+    "callback": {
+      "metaTitle": "Sign-in result",
+      "title": "Connecting your account",
+      "processing": "Finishing up…",
+      "empty": "This page is only for returning from Google or Steam sign-in. You can start again from the sign-in page.",
+      "mfa": "This account requires two-step verification. This step is not supported on this screen yet.",
+      "linked": "Your account is connected.",
+      "backToLogin": "Back to sign in",
+      "toHome": "Go to home",
+      "steam": {
+        "formLabel": "Steam account sign-up form",
+        "description": "This is your first time with your Steam account. Enter a username and an email address to finish your account.",
+        "submit": "Create account",
+        "tokenInvalid": "The sign-up link is invalid or has expired. Start Steam sign-in again."
+      },
+      "errors": {
+        "EXTERNAL_AUTH_FAILED": "Sign-in could not be verified. Please try again.",
+        "EXTERNAL_EMAIL_UNVERIFIED": "Your email address at the provider is not verified. Verify it there first, then try again.",
+        "ACCOUNT_LINK_REQUIRED": "An account with this email address already exists. Sign in with your email and password first, then link this account.",
+        "EMAIL_NOT_VERIFIED": "Your email address is not verified yet. Finish verification with the code sent when you registered.",
+        "ACCOUNT_SUSPENDED": "Your account is temporarily suspended.",
+        "ACCOUNT_BANNED": "Your account has been banned.",
+        "ACCOUNT_UNAVAILABLE": "This account is not available right now.",
+        "TWO_FACTOR_ENROLLMENT_REQUIRED": "This account must set up two-step verification. This step is not supported on this screen yet.",
+        "PROVIDER_NOT_CONFIGURED": "This sign-in method is not available right now.",
+        "UNKNOWN": "Something went wrong. Please try again."
+      }
     }
   }
 }

@@ -2,6 +2,7 @@
  * `features/auth` açık export'u. Sayfalar (`src/app`) ve başka katmanlar özelliğe yalnız buradan erişir;
  * iç dosyalar (`services`, `hooks/use-login` vb.) doğrudan import edilmez.
  */
+export { AuthCallback } from "./components/auth-callback";
 export { AuthShell } from "./components/auth-shell";
 export { ForgotPasswordForm } from "./components/forgot-password-form";
 export { LoginForm } from "./components/login-form";

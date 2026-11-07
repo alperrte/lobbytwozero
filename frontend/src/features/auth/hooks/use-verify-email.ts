@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { ApiHttpError } from "@/shared/lib/api/client";
 import type { VerifyValues } from "../schemas/verify-email.schema";
-import { authApi, type RegistrationApi } from "../services/auth-api";
+import { authApi, type RegistrationApi, type SteamApi } from "../services/auth-api";
 import { authErrorCode } from "../services/auth-http";
 import type { AuthErrorCode } from "../types/auth.types";
 import { useCooldown } from "./use-cooldown";
@@ -20,7 +20,7 @@ export const RESEND_WAIT_SECONDS = 60;
  * E-posta doğrulama: kodu gönderme (çift gönderim engeli, `VERIFICATION_FAILED` alana bağlanır, 429 geri sayımı) ve
  * kodu yeniden gönderme (her durumda aynı yanıt; 60 sn bekleme sayacı). Parola yalnız `submit` parametresidir.
  */
-export function useVerifyEmail(api: RegistrationApi = authApi) {
+export function useVerifyEmail(api: RegistrationApi & Partial<SteamApi> = authApi) {
   const [pending, setPending] = useState(false);
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
@@ -31,7 +31,8 @@ export function useVerifyEmail(api: RegistrationApi = authApi) {
   const { remaining: resendCooldown, start: startResendCooldown } = useCooldown();
   const busy = useRef(false);
 
-  async function submit(values: VerifyValues): Promise<VerifyOutcome> {
+  /** `proof` verilirse (Steam hesabı) parola yerine tek kullanımlık doğrulama kanıtı gönderilir. */
+  async function submit(values: VerifyValues, proof?: string | null): Promise<VerifyOutcome> {
     if (busy.current || cooldown > 0) {
       return "failed";
     }
@@ -41,7 +42,14 @@ export function useVerifyEmail(api: RegistrationApi = authApi) {
     setServerErrors({});
     setResent(false);
     try {
-      await api.confirmEmail(values.email.trim(), values.code, values.password);
+      if (proof) {
+        if (!api.confirmEmailWithProof) {
+          throw new TypeError("confirmEmailWithProof desteklenmiyor");
+        }
+        await api.confirmEmailWithProof(values.email.trim(), values.code, proof);
+      } else {
+        await api.confirmEmail(values.email.trim(), values.code, values.password);
+      }
       return "verified";
     } catch (error) {
       if (!(error instanceof ApiHttpError)) {

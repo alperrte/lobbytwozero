@@ -34,7 +34,9 @@ function validateEmail(value: string): VerifyErrors["email"] | undefined {
   return emailPattern.test(email) ? undefined : "invalid";
 }
 
-export function validateVerifyEmail(values: VerifyValues): VerifyErrors {
+/** `requirePassword=false`: Steam hesabı (parola yerine doğrulama kanıtı kullanılır). */
+export function validateVerifyEmail(values: VerifyValues, options: { requirePassword?: boolean } = {}): VerifyErrors {
+  const requirePassword = options.requirePassword ?? true;
   const errors: VerifyErrors = {};
 
   const email = validateEmail(values.email);
@@ -48,10 +50,12 @@ export function validateVerifyEmail(values: VerifyValues): VerifyErrors {
     errors.code = "pattern";
   }
 
-  if (values.password === "") {
-    errors.password = "required";
-  } else if (values.password.length > registerLimits.passwordMax) {
-    errors.password = "tooLong";
+  if (requirePassword) {
+    if (values.password === "") {
+      errors.password = "required";
+    } else if (values.password.length > registerLimits.passwordMax) {
+      errors.password = "tooLong";
+    }
   }
 
   return errors;

@@ -20,6 +20,32 @@ export function clearPendingEmail(): void {
   notify();
 }
 
+/**
+ * Steam hesabı için tek kullanımlık doğrulama kanıtı (parola yerine). Aynı kurallar: yalnız bellekte, URL/depoya yazılmaz.
+ */
+let pendingProof: string | null = null;
+
+export function rememberPendingProof(proof: string): void {
+  pendingProof = proof;
+  notify();
+}
+
+export function clearPendingProof(): void {
+  pendingProof = null;
+  notify();
+}
+
+export const pendingProofStore = {
+  subscribe(listener: () => void) {
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
+  },
+  getSnapshot: (): string | null => pendingProof,
+  getServerSnapshot: (): string | null => null
+};
+
 /** `useSyncExternalStore` için: sunucu görüntüsü her zaman `null`'dır (hidrasyon uyuşmazlığı olmaz). */
 export const pendingEmailStore = {
   subscribe(listener: () => void) {

@@ -4,6 +4,14 @@ const API_BASE_URL = (
 
 const MAX_RETRY_AFTER_SECONDS = 3600;
 
+/**
+ * Gateway'e giden tam adres (fetch DEĞİL, tarayıcı gezinmesi içindir: ör. `<a href>` ile OAuth başlatma). Taban adres
+ * `NEXT_PUBLIC_API_BASE_URL`'dir; boşsa göreli yol döner (frontend ve `/api/v1` aynı host altındaysa).
+ */
+export function apiUrl(path: `/${string}`): string {
+  return `${API_BASE_URL}${path}`;
+}
+
 /** Sunucunun doğrulama hatasında alan eşlemesi (`ProblemDetail.errors[]`). */
 export type ApiFieldError = { field: string; code: string };
 

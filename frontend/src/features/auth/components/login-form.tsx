@@ -19,6 +19,7 @@ import type { LoginApi } from "../services/auth-api";
 import { AuthIcon } from "./auth-icons";
 import { authControlClass, FormField } from "./form-field";
 import { PasswordToggle } from "./password-toggle";
+import { SocialButtons } from "./social-buttons";
 import { ProblemNotice, useWaitFormatter } from "./problem-notice";
 
 type LoginFormProps = {
@@ -111,6 +112,7 @@ export function LoginForm({ next = null, verified = false, passwordReset = false
           <span>{passwordReset ? t("login.resetNotice") : t("login.verifiedNotice")}</span>
         </p>
       ) : null}
+      <SocialButtons mode="login" />
       <ProblemNotice code={problem?.code ?? null} retryAfterSeconds={problem?.retryAfterSeconds} />
 
       <FormField

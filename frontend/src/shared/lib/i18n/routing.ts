@@ -23,6 +23,7 @@ export const pathnames = {
   "/forgot-password": { tr: "/sifremi-unuttum", en: "/forgot-password" },
   // Auth e-postalarındaki bağlantı yolu (dil öneksiz, token URL parçasında); docs-auth/AUTH_REHBERI.md §8.
   "/auth/reset-password": { tr: "/auth/sifre-sifirla", en: "/auth/reset-password" },
+  "/auth/callback": { tr: "/auth/geri-donus", en: "/auth/callback" },
   "/legal/kvkk": { tr: "/yasal/kvkk", en: "/legal/kvkk" },
   "/legal/privacy": { tr: "/yasal/gizlilik", en: "/legal/privacy" },
   "/legal/terms": { tr: "/yasal/kullanim-kosullari", en: "/legal/terms" },

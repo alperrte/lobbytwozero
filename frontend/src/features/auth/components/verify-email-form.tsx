@@ -16,8 +16,13 @@ import {
   type VerifyField,
   type VerifyValues
 } from "../schemas/verify-email.schema";
-import type { RegistrationApi } from "../services/auth-api";
-import { clearPendingEmail, pendingEmailStore } from "../services/pending-verification";
+import type { RegistrationApi, SteamApi } from "../services/auth-api";
+import {
+  clearPendingEmail,
+  clearPendingProof,
+  pendingEmailStore,
+  pendingProofStore
+} from "../services/pending-verification";
 import { AuthIcon } from "./auth-icons";
 import { authControlClass, FormField } from "./form-field";
 import { PasswordToggle } from "./password-toggle";
@@ -25,7 +30,7 @@ import { ProblemNotice, useWaitFormatter } from "./problem-notice";
 
 type VerifyEmailFormProps = {
   /** Test için sahte API adaptörü. */
-  api?: RegistrationApi;
+  api?: RegistrationApi & Partial<SteamApi>;
 };
 
 /**
@@ -42,6 +47,12 @@ export function VerifyEmailForm({ api }: VerifyEmailFormProps) {
     pendingEmailStore.subscribe,
     pendingEmailStore.getSnapshot,
     pendingEmailStore.getServerSnapshot
+  );
+  // Steam ile gelen hesapta parola yoktur: tek kullanımlık doğrulama kanıtı (bellekte) parolanın yerini alır.
+  const proof = useSyncExternalStore(
+    pendingProofStore.subscribe,
+    pendingProofStore.getSnapshot,
+    pendingProofStore.getServerSnapshot
   );
   const {
     pending,
@@ -79,7 +90,7 @@ export function VerifyEmailForm({ api }: VerifyEmailFormProps) {
 
   function revalidate(next: VerifyValues) {
     if (attempted) {
-      setErrors(validateVerifyEmail(next));
+      setErrors(validateVerifyEmail(next, { requirePassword: !proof }));
     }
   }
 
@@ -102,7 +113,7 @@ export function VerifyEmailForm({ api }: VerifyEmailFormProps) {
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
-    const found = validateVerifyEmail(values);
+    const found = validateVerifyEmail(values, { requirePassword: !proof });
     setAttempted(true);
     setErrors(found);
 
@@ -115,11 +126,12 @@ export function VerifyEmailForm({ api }: VerifyEmailFormProps) {
       return;
     }
 
-    const outcome = await submit(values);
+    const outcome = await submit(values, proof);
     // Parola, sonuç ne olursa olsun alandan silinir (başarıda sayfa değişir, hatada yeniden yazılır).
     setPassword("");
     if (outcome === "verified") {
       clearPendingEmail();
+      clearPendingProof();
       router.replace({ pathname: "/login", query: { verified: "1" } });
     }
   }
@@ -184,26 +196,28 @@ export function VerifyEmailForm({ api }: VerifyEmailFormProps) {
         )}
       </FormField>
 
-      <FormField
-        id={fieldId("password")}
-        label={t("verify.password")}
-        icon="lock"
-        error={errorText("password")}
-        hint={t("verify.passwordHint")}
-        trailing={<PasswordToggle visible={showPassword} onToggle={() => setShowPassword((value) => !value)} />}
-      >
-        {(aria) => (
-          <input
-            {...aria}
-            name="password"
-            type={showPassword ? "text" : "password"}
-            autoComplete="current-password"
-            value={password}
-            onChange={onPassword}
-            className={`${authControlClass} pe-12`}
-          />
-        )}
-      </FormField>
+      {proof ? null : (
+        <FormField
+          id={fieldId("password")}
+          label={t("verify.password")}
+          icon="lock"
+          error={errorText("password")}
+          hint={t("verify.passwordHint")}
+          trailing={<PasswordToggle visible={showPassword} onToggle={() => setShowPassword((value) => !value)} />}
+        >
+          {(aria) => (
+            <input
+              {...aria}
+              name="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              value={password}
+              onChange={onPassword}
+              className={`${authControlClass} pe-12`}
+            />
+          )}
+        </FormField>
+      )}
 
       <button
         type="submit"

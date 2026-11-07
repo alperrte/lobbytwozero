@@ -522,3 +522,86 @@ test.describe("şifremi unuttum ve şifre sıfırlama", () => {
     await expect(page.getByRole("link", { name: "Yeni bağlantı iste" })).toBeVisible();
   });
 });
+
+test.describe("Google/Steam dönüşü", () => {
+  const TOKEN = "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789-_AbCdEf";
+
+  test("giriş sayfasındaki Google ve Steam bağlantıları Gateway start adresine gider", async ({ page }) => {
+    await mockGateway(page, {});
+    await page.goto("/tr/giris");
+    await expect(page.getByRole("link", { name: /Google ile giriş/ })).toHaveAttribute(
+      "href",
+      `${GATEWAY}/api/v1/auth/oauth/google/start`
+    );
+    await expect(page.getByRole("link", { name: /Steam ile giriş/ })).toHaveAttribute(
+      "href",
+      `${GATEWAY}/api/v1/auth/oauth/steam/start`
+    );
+  });
+
+  test("ÖNEKSİZ dönüş bağlantısı: #status=authenticated dil önekli sayfaya yönlenir ve ana sayfaya geçer", async ({ page }) => {
+    await mockGateway(page, { "GET /api/v1/auth/me": { status: 200, body: ME } });
+    await page.goto("/auth/callback#status=authenticated");
+    await waitForHydration(page);
+
+    await expect(page).toHaveURL(/\/tr$|\/tr\/?$/);
+  });
+
+  test("#error=… çevrilmiş hata ve giriş bağlantısı gösterir; parça adresten silinir", async ({ page }) => {
+    await mockGateway(page, {});
+    await page.goto("/auth/callback#error=ACCOUNT_LINK_REQUIRED");
+    await waitForHydration(page);
+
+    await expect(page).toHaveURL(/\/tr\/auth\/geri-donus$/);
+    await expect(page.locator('main [role="alert"]')).toContainText("zaten bir hesap var");
+    await expect(page.getByRole("link", { name: "Giriş sayfasına dön" })).toHaveAttribute("href", "/tr/giris");
+  });
+
+  test("Steam yeni kullanıcı: form → kayıt tamamla → doğrulama kanıtıyla şifresiz doğrulama", async ({ page }) => {
+    const completeBodies: unknown[] = [];
+    const confirmBodies: unknown[] = [];
+    await mockGateway(page, {
+      "GET /api/v1/auth/csrf": { status: 204 },
+      "POST /api/v1/auth/oauth/steam/complete": async (route) => {
+        completeBodies.push(route.request().postDataJSON());
+        return route.fulfill({
+          status: 202,
+          headers: { ...corsFor(route), "content-type": "application/json" },
+          body: JSON.stringify({ nextStep: "VERIFY_EMAIL", verificationProof: "kanit-xyz" })
+        });
+      },
+      "POST /api/v1/auth/email-verification/confirm": async (route) => {
+        confirmBodies.push(route.request().postDataJSON());
+        return route.fulfill({ status: 204, headers: corsFor(route) });
+      }
+    });
+
+    await page.goto(`/auth/callback#status=registration_required&token=${TOKEN}`);
+    await waitForHydration(page);
+    expect(page.url()).not.toContain(TOKEN);
+
+    await page.getByLabel("Kullanıcı adı").fill("steam_ada");
+    await page.getByLabel("E-posta").fill("ada@example.com");
+    await page.getByRole("button", { name: /Hesabı oluştur/ }).click();
+
+    await expect(page).toHaveURL(/\/tr\/eposta-dogrulama$/);
+    expect(page.url()).not.toContain("kanit-xyz");
+    await expect(page.getByLabel("Kayıt olurken belirlediğin şifre")).toHaveCount(0);
+
+    await page.getByLabel("Doğrulama kodu").fill("123456");
+    await page.getByRole("button", { name: "E-postayı doğrula" }).click();
+
+    await expect(page).toHaveURL(/\/tr\/giris/);
+    expect(completeBodies).toEqual([{ registrationToken: TOKEN, email: "ada@example.com", username: "steam_ada" }]);
+    expect(confirmBodies).toEqual([{ email: "ada@example.com", code: "123456", verificationProof: "kanit-xyz" }]);
+  });
+
+  test("#status=email_verification_required&proof=… doğrulama ekranına geçer; kanıt adreste kalmaz", async ({ page }) => {
+    await mockGateway(page, {});
+    await page.goto("/auth/callback#status=email_verification_required&proof=kanit-abc");
+    await waitForHydration(page);
+
+    await expect(page).toHaveURL(/\/tr\/eposta-dogrulama$/);
+    expect(page.url()).not.toContain("kanit-abc");
+  });
+});

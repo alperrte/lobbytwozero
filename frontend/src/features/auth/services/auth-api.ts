@@ -14,6 +14,12 @@ export type RegistrationApi = {
   resendEmailCode(email: string, signal?: AbortSignal): Promise<void>;
 };
 
+/** Steam ile yeni hesap akışının uçları: kayıt tamamlama ve kanıtla (parolasız) e-posta doğrulama. */
+export type SteamApi = {
+  completeSteamRegistration(registrationToken: string, email: string, username: string, signal?: AbortSignal): Promise<{ verificationProof: string }>;
+  confirmEmailWithProof(email: string, code: string, verificationProof: string, signal?: AbortSignal): Promise<void>;
+};
+
 /** Şifremi unuttum ve sıfırlama uçlarının arayüzü (test için sahte adaptör verilebilir). */
 export type PasswordResetApi = {
   forgotPassword(email: string, signal?: AbortSignal): Promise<void>;
@@ -51,6 +57,34 @@ export const authApi = {
     return authRequest<void>("/api/v1/auth/email-verification/confirm", {
       method: "POST",
       body: { email, code, password },
+      signal
+    });
+  },
+
+  /** Steam ile yeni hesap: kayıt token'ı + e-posta + kullanıcı adı. Yanıttaki tek kullanımlık kanıt doğrulama adımında parola yerine gider. */
+  async completeSteamRegistration(
+    registrationToken: string,
+    email: string,
+    username: string,
+    signal?: AbortSignal
+  ): Promise<{ verificationProof: string }> {
+    const result = await authRequest<unknown>("/api/v1/auth/oauth/steam/complete", {
+      method: "POST",
+      body: { registrationToken, email, username },
+      signal
+    });
+    const proof = typeof result === "object" && result !== null ? (result as Record<string, unknown>).verificationProof : undefined;
+    if (typeof proof !== "string" || proof === "") {
+      throw new ApiHttpError(200, { code: "UNKNOWN" });
+    }
+    return { verificationProof: proof };
+  },
+
+  /** Steam hesabında e-posta doğrulaması: parola yerine `verificationProof` gönderilir (`204`, oturum AÇMAZ). */
+  confirmEmailWithProof(email: string, code: string, verificationProof: string, signal?: AbortSignal): Promise<void> {
+    return authRequest<void>("/api/v1/auth/email-verification/confirm", {
+      method: "POST",
+      body: { email, code, verificationProof },
       signal
     });
   },
