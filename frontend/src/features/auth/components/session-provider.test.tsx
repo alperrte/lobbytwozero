@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import en from "@/shared/lib/i18n/messages/en.json";
 import tr from "@/shared/lib/i18n/messages/tr.json";
 import { useShellSession } from "@/shared/hooks/use-shell-user";
@@ -42,6 +42,15 @@ function renderSession(api: Parameters<typeof SessionProvider>[0]["api"], locale
 
 const status = () => screen.getByTestId("status").textContent;
 
+function setHint(present: boolean) {
+  document.cookie = present
+    ? "ltz_session=1; path=/"
+    : "ltz_session=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
+}
+
+beforeEach(() => setHint(true));
+afterEach(() => setHint(false));
+
 describe("SessionProvider", () => {
   it("yüklenirken 'loading', sonra /me başarılıysa 'authenticated' olur ve kabuğa genel etiket verir", async () => {
     let resolve!: (me: AuthMe) => void;
@@ -58,6 +67,27 @@ describe("SessionProvider", () => {
     expect(screen.getByTestId("roles")).toHaveTextContent("PLAYER");
     expect(screen.getByTestId("shell-user")).toHaveTextContent("Hesabım");
     expect(screen.getByTestId("shell-loading")).toHaveTextContent("false");
+  });
+
+  it("oturum ipucu çerezi yoksa hiç istek atmadan misafir olur", async () => {
+    setHint(false);
+    const getMe = vi.fn();
+    renderSession({ getMe, logout: vi.fn() });
+
+    await waitFor(() => expect(status()).toBe("guest"));
+    expect(getMe).not.toHaveBeenCalled();
+    expect(screen.getByTestId("shell-user")).toHaveTextContent("yok");
+  });
+
+  it("__Host- önekli ipucu çerezi de oturum ihtimali sayılır (öneksiz çerez yokken de)", async () => {
+    setHint(false);
+    const getMe = vi.fn().mockResolvedValue(ME);
+    // jsdom http://localhost üzerinde Secure çerez yazmaz; bu yüzden yalnız öneksiz ad ile yazılır ve öncelik denenir.
+    document.cookie = "ltz_session=1; path=/";
+    renderSession({ getMe, logout: vi.fn() });
+
+    await waitFor(() => expect(status()).toBe("authenticated"));
+    expect(getMe).toHaveBeenCalledTimes(1);
   });
 
   it("401'de misafir olur; kabuğa kullanıcı verilmez", async () => {

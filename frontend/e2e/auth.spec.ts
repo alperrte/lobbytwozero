@@ -61,6 +61,11 @@ async function fillLogin(page: Page, identifier: string, password: string) {
   await page.getByLabel("Şifre", { exact: true }).fill(password);
 }
 
+/** Auth'ın girişte yazdığı oturum ipucu çerezini taklit eder (sahte Gateway çerez yazamadığı için). */
+async function setSessionHint(page: Page, baseURL: string | undefined) {
+  await page.context().addCookies([{ name: "ltz_session", value: "1", url: baseURL ?? "http://localhost:5101" }]);
+}
+
 const formAlert = (page: Page) => page.locator('form [role="alert"]');
 const profileButton = (page: Page, name: RegExp) =>
   page.locator('header button[aria-haspopup="menu"]').filter({ hasText: name });
@@ -151,12 +156,13 @@ test.describe("giriş sayfası", () => {
     await expect(page).toHaveURL(/\/tr\/giris$/);
   });
 
-  test("başarılı girişte ana sayfaya gider; kabuk giriş yapmış kullanıcıyı gösterir", async ({ page }) => {
+  test("başarılı girişte ana sayfaya gider; kabuk giriş yapmış kullanıcıyı gösterir", async ({ page, baseURL }) => {
     let signedIn = false;
     await mockGateway(page, {
       "GET /api/v1/auth/csrf": { status: 204 },
-      "POST /api/v1/auth/login": (route) => {
+      "POST /api/v1/auth/login": async (route) => {
         signedIn = true;
+        await setSessionHint(page, baseURL);
         return route.fulfill({
           status: 200,
           headers: { ...corsFor(route), "content-type": "application/json" },
@@ -219,7 +225,23 @@ test.describe("oturum ve kabuk", () => {
     await expect(page.getByRole("menuitem", { name: /Çıkış yap/ })).toHaveCount(0);
   });
 
-  test("access token süresi dolunca /me 401 → yenile → tekrar; kullanıcı atılmaz", async ({ page }) => {
+  test("oturum ipucu çerezi yoksa Gateway'e hiç istek atılmaz (misafir)", async ({ page }) => {
+    const calls: string[] = [];
+    await page.route(`${GATEWAY}/**`, (route) => {
+      calls.push(route.request().url());
+      return route.fulfill({ status: 500 });
+    });
+
+    await page.goto("/tr");
+    await waitForHydration(page);
+    await expect(profileButton(page, /Misafir/)).toBeVisible();
+    await page.waitForTimeout(500);
+
+    expect(calls).toEqual([]);
+  });
+
+  test("access token süresi dolunca /me 401 → yenile → tekrar; kullanıcı atılmaz", async ({ page, baseURL }) => {
+    await setSessionHint(page, baseURL);
     let refreshed = false;
     const sequence: string[] = [];
     await mockGateway(page, {
@@ -253,7 +275,8 @@ test.describe("oturum ve kabuk", () => {
     expect(sequence.indexOf("refresh")).toBeLessThan(sequence.length - 1);
   });
 
-  test("çıkış kabuğu anında misafire çevirir", async ({ page }) => {
+  test("çıkış kabuğu anında misafire çevirir", async ({ page, baseURL }) => {
+    await setSessionHint(page, baseURL);
     let loggedOut = false;
     await mockGateway(page, {
       "GET /api/v1/auth/csrf": { status: 204 },
@@ -263,8 +286,9 @@ test.describe("oturum ve kabuk", () => {
           headers: { ...corsFor(route), "content-type": "application/json" },
           body: JSON.stringify(loggedOut ? { code: "SESSION_INVALID" } : ME)
         }),
-      "POST /api/v1/auth/session/logout": (route) => {
+      "POST /api/v1/auth/session/logout": async (route) => {
         loggedOut = true;
+        await page.context().clearCookies({ name: "ltz_session" });
         return route.fulfill({ status: 204, headers: corsFor(route) });
       },
       "POST /api/v1/auth/session/refresh": { status: 401, body: { code: "SESSION_INVALID" } }
@@ -276,5 +300,18 @@ test.describe("oturum ve kabuk", () => {
     await page.getByRole("menuitem", { name: /Çıkış yap/ }).click();
 
     await expect(profileButton(page, /Misafir/)).toBeVisible();
+  });
+});
+
+test.describe("güvenlik başlıkları", () => {
+  test("giriş sayfası iframe'e konamaz ve temel güvenlik başlıklarını gönderir", async ({ request }) => {
+    const response = await request.get("/tr/giris");
+    const headers = response.headers();
+
+    expect(headers["content-security-policy"]).toContain("frame-ancestors 'none'");
+    expect(headers["x-frame-options"]).toBe("DENY");
+    expect(headers["x-content-type-options"]).toBe("nosniff");
+    expect(headers["referrer-policy"]).toBe("strict-origin-when-cross-origin");
+    expect(headers["permissions-policy"]).toContain("camera=()");
   });
 });

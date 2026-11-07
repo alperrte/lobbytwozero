@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { authApi, type SessionApi } from "../services/auth-api";
+import { hasSessionHint } from "../services/session-hint";
 import type { AuthMe } from "../types/auth.types";
 
 export type SessionState =
@@ -27,7 +28,8 @@ export function useSession(): SessionValue {
 
 /**
  * Oturumu açılışta bir kez `GET /auth/me` ile yükler (HTTP katmanı 401'de önce yenilemeyi dener; o da 401 ise misafir)
- * ve çıkış eylemini sağlar. Token hiçbir yerde saklanmaz: bellekte yalnız hesap kimliği, roller ve bitiş zamanı durur.
+ * ve çıkış eylemini sağlar. Oturum ipucu çerezi yoksa hiç istek atılmaz ve doğrudan misafir sayılır.
+ * Token hiçbir yerde saklanmaz: bellekte yalnız hesap kimliği, roller ve bitiş zamanı durur.
  * `roles` yalnız arayüz içindir; yetki kararı sunucudadır. Ağ/sunucu hatasında da kimlik varsayılmaz (misafir).
  */
 export function useSessionState(api: SessionApi = authApi): SessionValue {
@@ -35,9 +37,11 @@ export function useSessionState(api: SessionApi = authApi): SessionValue {
 
   useEffect(() => {
     const controller = new AbortController();
-    api
-      .getMe(controller.signal)
-      .then((me) => setState({ status: "authenticated", me }))
+    const load: Promise<AuthMe | null> = hasSessionHint()
+      ? api.getMe(controller.signal)
+      : Promise.resolve(null);
+    load
+      .then((me) => setState(me ? { status: "authenticated", me } : { status: "guest", me: null }))
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
