@@ -168,6 +168,11 @@ export function ProfileMenu({ user }: ProfileMenuProps) {
           </div>
           <div role="separator" className="my-1 h-px bg-border" />
 
+          <Link href="/profile/computers" role="menuitem" className={menuItemClass} onClick={() => setOpen(false)}>
+            <Icon name="desktop" className="size-[18px] shrink-0" />
+            <span className="flex-1">{t("items.computers")}</span>
+          </Link>
+
           {items.map(({ id, icon }) => (
             <button
               key={id}

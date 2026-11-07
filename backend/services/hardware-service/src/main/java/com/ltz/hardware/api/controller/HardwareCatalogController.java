@@ -90,8 +90,9 @@ public class HardwareCatalogController {
     public ResponseEntity<HardwareCatalogPageResponse<HardwareProductResponse>> products(
             @Valid @ModelAttribute HardwareCatalogFilter filter,
             @RequestParam(defaultValue = "0") @Min(0) @Max(10000) int page,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return ok(products.list(filter, page, size));
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
+            @RequestParam(defaultValue = "false") boolean discovery) {
+        return ok(products.list(filter, page, size, discovery));
     }
 
     private static <T> ResponseEntity<T> ok(T value) {
