@@ -20,6 +20,8 @@ export const pathnames = {
   "/faq": { tr: "/sss", en: "/faq" },
   "/contact": { tr: "/iletisim", en: "/contact" },
   "/settings": { tr: "/ayarlar", en: "/settings" },
+  "/profile": { tr: "/profil", en: "/profile" },
+  "/profile/edit": { tr: "/profil/duzenle", en: "/profile/edit" },
   "/login": { tr: "/giris", en: "/login" },
   "/register": { tr: "/kayit", en: "/register" },
   "/verify-email": { tr: "/eposta-dogrulama", en: "/verify-email" },
