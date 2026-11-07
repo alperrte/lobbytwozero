@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import en from "@/shared/lib/i18n/messages/en.json";
 import tr from "@/shared/lib/i18n/messages/tr.json";
 import type { LoginApi } from "../services/auth-api";
+import { clearPendingEmail, pendingEmailStore } from "../services/pending-verification";
 import { ApiHttpError } from "@/shared/lib/api/client";
 import type { LoginResult } from "../types/auth.types";
 import { LoginForm } from "./login-form";
@@ -118,6 +119,27 @@ describe("LoginForm", () => {
     fireEvent.click(submit());
 
     expect(await screen.findByRole("alert")).toHaveTextContent(pattern);
+  });
+
+  it("silinme sürecindeki hesapta 'silme talebinden vazgeç' bağlantısı çıkar", async () => {
+    renderForm(vi.fn().mockRejectedValue(new ApiHttpError(403, { code: "ACCOUNT_DELETION_PENDING" })));
+    fill();
+    fireEvent.click(submit());
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/vazgeçebilirsin/);
+    expect(screen.getByRole("link", { name: "Silme talebinden vazgeç" })).toHaveAttribute("href", "/account/cancel-deletion");
+  });
+
+  it("e-postası doğrulanmamış hesapta doğrulama bağlantısı çıkar ve e-posta bellekte taşınır", async () => {
+    renderForm(vi.fn().mockRejectedValue(new ApiHttpError(403, { code: "EMAIL_NOT_VERIFIED" })));
+    fill("ada@example.com");
+    fireEvent.click(submit());
+
+    const link = await screen.findByRole("link", { name: "E-postamı doğrula" });
+    expect(link).toHaveAttribute("href", "/verify-email");
+    fireEvent.click(link);
+    expect(pendingEmailStore.getSnapshot()).toBe("ada@example.com");
+    clearPendingEmail();
   });
 
   it("MFA gerektiren yanıtta oturum açılmış saymaz; ikinci adım formunu gösterir, doğrulanınca yönlendirir", async () => {

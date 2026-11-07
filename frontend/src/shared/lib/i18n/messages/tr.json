@@ -527,7 +527,8 @@
       "toRegister": "Kayıt ol",
       "verifiedNotice": "E-posta adresin doğrulandı. Şimdi giriş yapabilirsin.",
       "forgot": "Şifremi unuttum",
-      "resetNotice": "Şifren güncellendi. Yeni şifrenle giriş yapabilirsin."
+      "resetNotice": "Şifren güncellendi. Yeni şifrenle giriş yapabilirsin.",
+      "verifyLink": "E-postamı doğrula"
     },
     "session": {
       "account": "Hesabım"
@@ -590,7 +591,7 @@
       "ACCOUNT_SUSPENDED": "Hesabın geçici olarak askıya alındı.",
       "ACCOUNT_BANNED": "Hesabın yasaklandı.",
       "ACCOUNT_UNAVAILABLE": "Bu hesap şu anda kullanılamıyor.",
-      "ACCOUNT_DELETION_PENDING": "Hesabının silinme süreci başladı. Geri alma işlemi şu an bu ekrandan yapılamıyor.",
+      "ACCOUNT_DELETION_PENDING": "Hesabının silinme süreci başladı. Geri alma süresi dolmadan vazgeçebilirsin.",
       "TWO_FACTOR_ENROLLMENT_REQUIRED": "Bu hesap için iki aşamalı doğrulama kurulumu gerekiyor. Bu adım henüz bu ekranda desteklenmiyor.",
       "MFA_NOT_SUPPORTED": "Bu hesap iki aşamalı doğrulama istiyor. Bu adım henüz bu ekranda desteklenmiyor.",
       "CSRF_TOKEN_INVALID": "Güvenlik doğrulaması başarısız oldu. Sayfayı yenileyip tekrar dene.",
@@ -752,6 +753,25 @@
       "doneDetail": "14 gün içinde e-posta ya da kullanıcı adın ve parolanla giriş yapmadan önce vazgeçebilirsin; süre dolunca kişisel verilerin kalıcı olarak silinir.",
       "toHome": "Ana sayfaya git",
       "toLogin": "Giriş yap"
+    },
+    "cancelDeletion": {
+      "metaTitle": "Silme talebinden vazgeç",
+      "title": "Silme talebinden vazgeç",
+      "description": "Hesabın silinme sürecinde. Geri alma süresi dolmadan vazgeçebilirsin; hesabın yeniden kullanıma açılır.",
+      "formLabel": "Silme talebinden vazgeçme formu",
+      "code": "2FA kodu (varsa)",
+      "codeHint": "İki aşamalı doğrulaman açıksa uygulamadaki 6 haneli kodu ya da bir kurtarma kodunu gir.",
+      "codeInvalid": "6 haneli bir kod ya da XXXXX-XXXXX biçiminde kurtarma kodu gir.",
+      "submit": "Silmeyi iptal et",
+      "submitting": "Gönderiliyor…",
+      "done": "Silme talebin iptal edildi. Hesabın yeniden kullanıma açık.",
+      "toLogin": "Giriş yap",
+      "notPending": "Bu hesapta bekleyen bir silme talebi yok.",
+      "windowClosed": "Geri alma süresi doldu; hesap artık kurtarılamıyor.",
+      "invalidCode": "İki aşamalı doğrulama kodu yanlış. Tekrar dene.",
+      "noPassword": "Yalnız Google veya Steam ile açtığın hesaplarda bu ekran çalışmaz; destek ekibiyle iletişime geç.",
+      "fromLogin": "Silme talebinden vazgeç",
+      "back": "Giriş sayfasına dön"
     }
   }
 }

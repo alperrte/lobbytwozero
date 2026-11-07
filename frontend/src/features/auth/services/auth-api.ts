@@ -38,6 +38,16 @@ export type AccountDeletionApi = {
   confirmAccountDeletion(token: string, username: string, signal?: AbortSignal): Promise<void>;
 };
 
+/** Silme talebinden vazgeçme (public: oturum açmaz, kimlik gövdedeki parolayla doğrulanır; TOTP etkinse kod gerekir). */
+export type DeletionCancelApi = {
+  cancelAccountDeletion(
+    identifier: string,
+    password: string,
+    factor?: { code: string } | { recoveryCode: string },
+    signal?: AbortSignal
+  ): Promise<void>;
+};
+
 /** Oturum uçlarının arayüzü (yükleme ve çıkış); test için sahte adaptör verilebilir. */
 export type SessionApi = {
   getMe(signal?: AbortSignal): Promise<AuthMe>;
@@ -90,6 +100,20 @@ export const authApi = {
     await authRequest<unknown>("/api/v1/auth/account/deletion/confirm", {
       method: "POST",
       body: { token, username },
+      signal
+    });
+  },
+
+  /** Bekleme süresi içinde silme talebinden vazgeçer (`200`): hesap `ACTIVE` olur; oturum AÇILMAZ, kullanıcı normal girişle devam eder. */
+  async cancelAccountDeletion(
+    identifier: string,
+    password: string,
+    factor?: { code: string } | { recoveryCode: string },
+    signal?: AbortSignal
+  ): Promise<void> {
+    await authRequest<unknown>("/api/v1/auth/account/deletion/cancel", {
+      method: "POST",
+      body: { identifier, password, ...factor },
       signal
     });
   },

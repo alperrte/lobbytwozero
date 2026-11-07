@@ -720,3 +720,67 @@ test.describe("hesap silme onayı", () => {
     await expect(page.getByLabel("Kullanıcı adın")).toHaveCount(0);
   });
 });
+
+test.describe("silme talebinden vazgeç ve doğrulanmamış e-posta", () => {
+  test("silinme sürecindeki hesap girişte vazgeç bağlantısı görür; vazgeçince giriş sayfasına yönlendirir", async ({ page }) => {
+    const bodies: unknown[] = [];
+    await mockGateway(page, {
+      "GET /api/v1/auth/csrf": { status: 204 },
+      "POST /api/v1/auth/login": { status: 403, body: { code: "ACCOUNT_DELETION_PENDING" } },
+      "POST /api/v1/auth/account/deletion/cancel": async (route) => {
+        bodies.push(route.request().postDataJSON());
+        return route.fulfill({
+          status: 200,
+          headers: { ...corsFor(route), "content-type": "application/json" },
+          body: JSON.stringify({ nextStep: "DELETION_CANCELLED" })
+        });
+      }
+    });
+    await page.goto("/tr/giris");
+    await waitForHydration(page);
+    await fillLogin(page, "ada", "dogru-parola-123456");
+    await page.getByRole("button", { name: /Giriş yap/ }).click();
+
+    await page.getByRole("link", { name: "Silme talebinden vazgeç" }).click();
+    await expect(page).toHaveURL(/\/tr\/hesap\/silmeyi-iptal-et$/);
+    await waitForHydration(page);
+
+    await page.getByLabel("E-posta veya kullanıcı adı").fill("ada");
+    await page.getByLabel("Şifre", { exact: true }).fill("dogru-parola-123456");
+    await page.getByRole("button", { name: /Silmeyi iptal et/ }).click();
+
+    await expect(page.getByRole("status")).toContainText("Silme talebin iptal edildi");
+    expect(bodies).toEqual([{ identifier: "ada", password: "dogru-parola-123456" }]);
+    await expect(page.getByRole("link", { name: "Giriş yap" })).toHaveAttribute("href", "/tr/giris");
+  });
+
+  test("geri alma süresi dolmuşsa açıklayıcı mesaj gösterir", async ({ page }) => {
+    await mockGateway(page, {
+      "GET /api/v1/auth/csrf": { status: 204 },
+      "POST /api/v1/auth/account/deletion/cancel": { status: 409, body: { code: "DELETION_CANCEL_WINDOW_CLOSED" } }
+    });
+    await page.goto("/en/account/cancel-deletion");
+    await waitForHydration(page);
+    await page.getByLabel("Email or username").fill("ada");
+    await page.getByLabel("Password", { exact: true }).fill("dogru-parola-123456");
+    await page.getByRole("button", { name: /Cancel deletion/ }).click();
+
+    await expect(formAlert(page)).toContainText("grace period has ended");
+  });
+
+  test("e-postası doğrulanmamış girişte doğrulama bağlantısı e-postayı taşır; URL'de görünmez", async ({ page }) => {
+    await mockGateway(page, {
+      "GET /api/v1/auth/csrf": { status: 204 },
+      "POST /api/v1/auth/login": { status: 403, body: { code: "EMAIL_NOT_VERIFIED" } }
+    });
+    await page.goto("/tr/giris");
+    await waitForHydration(page);
+    await fillLogin(page, "ada@example.com", "dogru-parola-123456");
+    await page.getByRole("button", { name: /Giriş yap/ }).click();
+
+    await page.getByRole("link", { name: "E-postamı doğrula" }).click();
+    await expect(page).toHaveURL(/\/tr\/eposta-dogrulama$/);
+    expect(page.url()).not.toContain("ada");
+    await expect(page.getByLabel("E-posta", { exact: true })).toHaveValue("ada@example.com");
+  });
+});

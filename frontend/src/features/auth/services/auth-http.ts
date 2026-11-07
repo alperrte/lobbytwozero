@@ -30,7 +30,8 @@ const NO_REFRESH_PATHS: ReadonlySet<string> = new Set([
   "/api/v1/auth/register",
   "/api/v1/auth/email-verification/confirm",
   "/api/v1/auth/email-verification/resend",
-  "/api/v1/auth/session/logout"
+  "/api/v1/auth/session/logout",
+  "/api/v1/auth/account/deletion/cancel"
 ]);
 
 const REFRESH_CONFLICT_WAIT_MS = 250;

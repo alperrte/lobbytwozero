@@ -293,6 +293,23 @@ Auth bağlantıları DİL ÖNEKSİZ üretir (e-posta dil bilmez). Frontend önek
 
 Token'lar parçadadır: sunucuya, günlüğe ve `Referer`'a gitmez. Frontend token'ı okur okumaz adres çubuğundan siler, yalnız bellekte tutar ve istek gövdesinde gönderir.
 
+### Diğer servislerin sayfaları için: "giriş şart" yardımcısı
+
+Giriş gerektiren bir sayfa yazan her servis ekibi (ve yapay zekâ asistanı) bunu kullanır; kendi yönlendirmesini yazmaz:
+
+```tsx
+import { useRequireSession } from "@/features/auth";
+
+const session = useRequireSession();
+if (session.status !== "authenticated") return null; // loading ve guest iken içerik çizme
+// session.me.roles: yalnız arayüz içindir
+```
+
+- Oturumsuz ziyaretçiyi `/login?next=<bu sayfa>` adresine yönlendirir; giriş sonrası kullanıcı bu sayfaya döner. `next` yalnız uygulama içi güvenli yollar için eklenir (açık yönlendirme engellenir).
+- Bu **yalnız kullanıcı deneyimidir, güvenlik sınırı değildir.** Yetki kararı her zaman ilgili servisin sunucu tarafındadır; rol bilgisi arayüzde yalnız neyi göstereceğini seçmek içindir.
+- Sayfa `SessionProvider` içinde olmalıdır (`app/[locale]/(public)/layout.tsx` zaten sarar). Auth dışı bir servisin API'sini çağırırken oturum yenileme (401 → yenile → tekrar) için `features/auth/services/auth-http.ts` kullanılır; yeni bir uç gerekiyorsa `SessionBoundPath` listesine eklenir.
+- Silinme sürecindeki hesabın geri alma ekranı: `/account/cancel-deletion` (giriş hatasından otomatik bağlanır).
+
 ### Oturum ipucu çerezi ve hesap bazlı kilit
 
 - Girişte `__Host-ltz_session=1` (HttpOnly değil, değer taşımaz) yazılır, yenilemede sürer, çıkışta silinir. Frontend bu çerez yokken `/me` ve `/session/refresh` isteklerini hiç atmaz (misafire gereksiz 401 yok).

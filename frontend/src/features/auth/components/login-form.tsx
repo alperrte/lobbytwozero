@@ -16,6 +16,7 @@ import {
 } from "../schemas/login.schema";
 import { safeNextPath } from "../schemas/safe-next-path";
 import type { LoginApi, TwoFactorApi } from "../services/auth-api";
+import { rememberPendingEmail } from "../services/pending-verification";
 import { AuthIcon } from "./auth-icons";
 import { authControlClass, FormField } from "./form-field";
 import { PasswordToggle } from "./password-toggle";
@@ -125,6 +126,24 @@ export function LoginForm({ next = null, verified = false, passwordReset = false
       ) : null}
       <SocialButtons mode="login" />
       <ProblemNotice code={problem?.code ?? null} retryAfterSeconds={problem?.retryAfterSeconds} />
+      {problem?.code === "ACCOUNT_DELETION_PENDING" ? (
+        <Link href="/account/cancel-deletion" className="inline-flex text-sm font-medium text-brand-text underline underline-offset-2">
+          {t("cancelDeletion.fromLogin")}
+        </Link>
+      ) : null}
+      {problem?.code === "EMAIL_NOT_VERIFIED" ? (
+        <Link
+          href="/verify-email"
+          onClick={() => {
+            // Girilen değer e-postaysa doğrulama ekranında hazır gelir (bellekte taşınır, adrese yazılmaz).
+            const typed = values.identifier.trim();
+            if (typed.includes("@")) rememberPendingEmail(typed);
+          }}
+          className="inline-flex text-sm font-medium text-brand-text underline underline-offset-2"
+        >
+          {t("login.verifyLink")}
+        </Link>
+      ) : null}
 
       <FormField
         id={fieldId("identifier")}

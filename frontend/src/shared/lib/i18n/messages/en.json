@@ -527,7 +527,8 @@
       "toRegister": "Sign up",
       "verifiedNotice": "Your email address is verified. You can sign in now.",
       "forgot": "Forgot password",
-      "resetNotice": "Your password was updated. You can sign in with your new password."
+      "resetNotice": "Your password was updated. You can sign in with your new password.",
+      "verifyLink": "Verify my email"
     },
     "session": {
       "account": "My account"
@@ -590,7 +591,7 @@
       "ACCOUNT_SUSPENDED": "Your account is temporarily suspended.",
       "ACCOUNT_BANNED": "Your account has been banned.",
       "ACCOUNT_UNAVAILABLE": "This account is not available right now.",
-      "ACCOUNT_DELETION_PENDING": "Your account deletion has started. Cancelling it is not available on this screen yet.",
+      "ACCOUNT_DELETION_PENDING": "Your account deletion has started. You can cancel before the grace period ends.",
       "TWO_FACTOR_ENROLLMENT_REQUIRED": "This account must set up two-step verification. This step is not supported on this screen yet.",
       "MFA_NOT_SUPPORTED": "This account requires two-step verification. This step is not supported on this screen yet.",
       "CSRF_TOKEN_INVALID": "The security check failed. Refresh the page and try again.",
@@ -752,6 +753,25 @@
       "doneDetail": "Within 14 days you can cancel by signing in with your email or username and password; after that your personal data is permanently deleted.",
       "toHome": "Go to home page",
       "toLogin": "Sign in"
+    },
+    "cancelDeletion": {
+      "metaTitle": "Cancel account deletion",
+      "title": "Cancel account deletion",
+      "description": "Your account is being deleted. You can cancel before the grace period ends and your account will be usable again.",
+      "formLabel": "Cancel account deletion form",
+      "code": "2FA code (if enabled)",
+      "codeHint": "If two-step verification is on, enter the 6-digit code from your app or a recovery code.",
+      "codeInvalid": "Enter a 6-digit code or a recovery code like XXXXX-XXXXX.",
+      "submit": "Cancel deletion",
+      "submitting": "Submitting…",
+      "done": "Your deletion request was cancelled. Your account is usable again.",
+      "toLogin": "Sign in",
+      "notPending": "This account has no pending deletion request.",
+      "windowClosed": "The grace period has ended; the account can no longer be recovered.",
+      "invalidCode": "The two-step verification code is wrong. Try again.",
+      "noPassword": "This screen does not work for accounts created only with Google or Steam; contact support.",
+      "fromLogin": "Cancel the deletion request",
+      "back": "Back to sign in"
     }
   }
 }

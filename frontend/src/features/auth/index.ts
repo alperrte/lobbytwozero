@@ -9,6 +9,8 @@ export { LoginForm } from "./components/login-form";
 export { RegisterForm } from "./components/register-form";
 export { ResetPasswordForm } from "./components/reset-password-form";
 export { DeleteAccountForm } from "./components/delete-account-form";
+export { CancelDeletionForm } from "./components/cancel-deletion-form";
+export { useRequireSession } from "./hooks/use-require-session";
 export { SessionProvider } from "./components/session-provider";
 export { VerifyEmailForm } from "./components/verify-email-form";
 export { useSession } from "./hooks/use-session";
