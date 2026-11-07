@@ -17,11 +17,11 @@ class HardwareSchemaMigrationTest extends PostgresIntegrationSupport {
     @Autowired javax.sql.DataSource dataSource;
 
     @Test
-    void initializesAllHardwareTablesWithEightOrderedMigrations() {
+    void initializesAllHardwareTablesWithElevenOrderedMigrations() {
         flyway.validate();
         assertThat(Arrays.stream(flyway.info().applied())
                 .map(migration -> migration.getVersion().getVersion()))
-                .containsExactly("1", "2", "3", "4", "5", "6", "7", "8");
+                .containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "191");
         assertThat(jdbc.queryForList("""
                 SELECT tablename FROM pg_tables
                 WHERE schemaname='public' AND tablename <> 'flyway_schema_history'
@@ -31,13 +31,42 @@ class HardwareSchemaMigrationTest extends PostgresIntegrationSupport {
                 "hardware_product_brands", "hardware_catalog_audit", "hardware_profile_components",
                 "hardware_campaigns", "hardware_reviews", "hardware_review_audit", "hardware_write_limits",
                 "outbox_events", "hardware_review_reports", "hardware_sync_consents", "hardware_sync_receipts",
-                "hardware_account_erasure_fences");
+                "hardware_account_erasure_fences", "hardware_product_sources", "hardware_product_media",
+                "hardware_catalog_import_runs", "hardware_catalog_sync_state", "hardware_dataset_import_runs");
     }
 
     @Test
     void repeatedStartupValidatesChecksumsWithoutExecutingAnotherMigration() {
         assertThat(flyway.migrate().migrationsExecuted).isZero();
         flyway.validate();
+    }
+
+    @Test
+    void upgradesV10SourcesPreservingExistingProductUuidAndTechnicalContent() throws Exception {
+        String schema = "hw_gpu_" + java.util.UUID.randomUUID().toString().replace("-", "");
+        var previous = Flyway.configure().dataSource(dataSource).schemas(schema).defaultSchema(schema).target("10").load();
+        previous.migrate();
+        var product = java.util.UUID.randomUUID();
+        try (var connection = dataSource.getConnection()) {
+            var isolated = new JdbcTemplate(new org.springframework.jdbc.datasource.SingleConnectionDataSource(connection, true));
+            isolated.execute("SET search_path TO " + schema);
+            try {
+                isolated.update("INSERT INTO hardware_products(id,category,model,normalized_model) VALUES (?,'CPU','Existing','existing')", product);
+                isolated.update("""
+                    INSERT INTO hardware_product_sources(id,product_id,source_provider,external_product_id,category,brand,
+                        locale,synced_at,quality,content_hash,typed_specs)
+                    VALUES (?,?,'PC_PART_DATASET','existing','CPU','AMD','und',now(),'VERIFIED','existing','{}')
+                    """, java.util.UUID.randomUUID(), product);
+                var before = isolated.queryForList("SELECT to_jsonb(s)::text FROM hardware_product_sources s", String.class);
+                var upgrade = Flyway.configure().dataSource(dataSource).schemas(schema).defaultSchema(schema).load();
+                assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(1);
+                upgrade.validate();
+                assertThat(isolated.queryForList("SELECT to_jsonb(s)::text FROM hardware_product_sources s", String.class)).isEqualTo(before);
+                assertThat(isolated.queryForObject("SELECT id FROM hardware_products", java.util.UUID.class)).isEqualTo(product);
+                isolated.update("UPDATE hardware_product_sources SET category='GPU'");
+                assertThat(isolated.queryForObject("SELECT category FROM hardware_product_sources", String.class)).isEqualTo("GPU");
+            } finally { isolated.execute("SET search_path TO public"); }
+        } finally { jdbc.execute("DROP SCHEMA " + schema + " CASCADE"); }
     }
 
     @Test
@@ -59,7 +88,7 @@ class HardwareSchemaMigrationTest extends PostgresIntegrationSupport {
                     VALUES (?,?,'CREATE_PRODUCT',?,'Existing immutable audit')
                     """,java.util.UUID.randomUUID(),owner,java.util.UUID.randomUUID());
                 var upgrade=Flyway.configure().dataSource(dataSource).schemas(schema).defaultSchema(schema).load();
-                assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(1);
+                assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(4);
                 upgrade.validate();
                 assertThat(isolated.queryForObject("SELECT count(*) FROM hardware_profiles",Integer.class)).isEqualTo(1);
                 assertThat(isolated.queryForObject("SELECT count(*) FROM hardware_catalog_audit",Integer.class)).isEqualTo(1);

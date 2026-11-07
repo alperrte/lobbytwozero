@@ -43,12 +43,12 @@ token sınırını kapsar. Yeni migration, dependency, ENV dosyası veya public 
 
 ## Deneme ve kurulum
 
-- Ortak yerel Auth kurulumu için kullanıcı bir kez `node ops/generate-auth-dev-keys.mjs`
+- Ortak yerel Auth kurulumu için kullanıcı bir kez `node ops/dev.mjs keys`
   çalıştırır. Bu komut gerçek yerel ENV dosyasına yazabildiğinden bu görevde ajan tarafından
   çalıştırılmadı. İzole E2E anahtarlarını bellekte üretir ve bu adıma ihtiyaç duymaz.
 - Auth/Gateway/Hardware JAR'ları güncel kaynaktan paketlenmelidir. Fixture başlamadan üçü de
   freshness kontrolünden geçer; eski/eksik JAR ile gerçek entegrasyon PASS verilmez.
-- `node ops/hardware-auth-e2e.mjs`: kayıt/giriş, kullanıcı kimliği, gerçek cihaz bağlama/token/iptal,
+- `node ops/dev.mjs e2e hardware`: kayıt/giriş, kullanıcı kimliği, gerçek cihaz bağlama/token/iptal,
   Hardware'da Performance yokken apply reddi ve gerçek Auth worker → Hardware D4 kontrolü.
   Kullanılan cihaz iptal edilir, yeni test hesabı üretilir; 5/10 limitleri aşılmaya çalışılmaz.
 - Cihaz iptalinden sonra yeni token alınamaz. Önceden üretilen token 60 sn + 30 sn tolerans

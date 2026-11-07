@@ -181,8 +181,8 @@ Dar ekran: `max-width: 767px`.
 - Değeri doğrulayıp yazdırmak için (dosya değiştirmez):
 
 ```bash
-node ../ops/frontend/site-url.mjs https://alanadi.com --production
-node ../ops/frontend/site-url.mjs --help
+node ../ops/dev.mjs site-url https://alanadi.com --production
+node ../ops/dev.mjs site-url --help
 ```
 
 Araç adresi doğrular (http/https ayrımı, production'da yalnız https ve yerel olmayan alan adı), kök adrese indirger ve eklenecek `NEXT_PUBLIC_SITE_URL=...` satırını **ekrana yazar**; hiçbir ENV dosyasını okumaz veya değiştirmez. Testleri: `node --test ../ops/frontend/site-url.test.mjs`.
@@ -301,7 +301,7 @@ Yeni backend endpoint'i veya migration eklenmedi; `docs/api.md` sözleşmeleri d
 | --- | --- |
 | Vitest | kabuk bileşenleri, navbar gizleme kararı, arama çekirdeği, tema geçiş durum makinesi, tercih deposu, sayfa/gezinme kataloğu, i18n anahtar eşitliği, site URL doğrulama, robots/sitemap |
 | Playwright | navbar (otomatik/sabit, kalıcılık), arama, bildirim, dil, profil, ayarlar, tema geçişi, footer ve yasal sayfalar, SEO dosyaları, yatay taşma, ekran görüntüleri |
-| Node test | `ops/frontend/site-url.test.mjs` |
+| Node test | `ops/dev.test.mjs` (site-url bölümü) |
 
 Teslimden önce: `npm run lint`, `npm run typecheck`, `npm run test`, `npm run build`, `npm run test:e2e`. Çalıştırılamayan adım "geçti" sayılmaz.
 

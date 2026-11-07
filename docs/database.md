@@ -346,6 +346,20 @@ Game Service GAME-04/05/15 LTZ puan projeksiyonu (aktif V172, 2026-11-05; V171�
 
 ### 3.13 hardware_db — hardware-service (Alper)
 
+**2026-11-08 GPU eklemesi:** Kullanıcının açık V191 tahsisiyle
+`V191__allow_gpu_catalog_sources.sql` kaynak kategorisi CHECK'ine GPU ekler.
+Yeni tablo/kolon yoktur; V1–V10 korunur. [GPU aktarımı](../docs-hardware/reports/pc-part-gpu-import.md).
+
+**2026-11-07 PC Part Dataset:** Aktif zincir V1–V10'dur. V9 kaynak/medya ve
+`(category,normalized_model,catalog_variant)` tekilliğini ekler; V10 kaynak sağlayıcı
+CHECK'ini `PC_PART_DATASET` ile genişletir, nullable `source_revision varchar(40)`
+ve `hardware_dataset_import_runs(id,source_revision,files jsonb,summary jsonb,
+status,started_at,finished_at,version)` ekler. Status SUCCEEDED/PARTIAL, zamanlar
+UTC timestamptz; files/summary yalnız hash/sayım/teknik hata kodlarıdır.
+Fiyat/ham kaynak JSON'u kaydedilmez. Manuel ürünler ve tüm profil/yorum UUID/FK'leri
+korunur. Ayrıntı ve model: [PC Part Dataset kararı](../docs-hardware/decisions/pc-part-dataset-import.md).
+Alttaki V9–V10 boşluk ifadeleri önceki tarihlerin envanteridir.
+
 **Auth entegrasyonu — 2026-10-24:** V1–V7 checksum'ları korunarak
 `V8__add_hardware_account_erasure.sql` eklenir; toplam 17 tablo. V9–V10 boştur.
 Yeni `hardware_account_erasure_fences(account_hash varchar(64) PK, expires_at timestamptz)`

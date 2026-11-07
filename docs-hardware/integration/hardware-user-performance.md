@@ -77,7 +77,7 @@ User/Social kodu veya yansıma ayarı bu görevde değiştirilmez.
   keşfedilemedi (`unknown flag: --env-file`); bu da PASS değildir. Yalnız yerel
   görev wrapper'ı kurulu `docker-compose.exe` dosyasını aynı argümanlarla çağırdı.
   Ortak CI runner/kalite kodu değiştirilmedi. Gerçek ENV kullanılmadı.
-- `ops/performance-auth-e2e.mjs` artık gerçek Auth/Hardware/Performance/Gateway ve
+- `ops/dev.mjs e2e performance` artık gerçek Auth/Hardware/Performance/Gateway ve
   ayrı geçici PostgreSQL'lerle Hardware grant→apply→replay→Performance iptalini içerir.
   User/Game servisleri bu fixture'da başlatılmaz. D4 takibi yalnız Performance'a
   yönlendirilir; kalan 15 hedef için sahte ACK verilmez.
@@ -89,9 +89,9 @@ User/Social kodu veya yansıma ayarı bu görevde değiştirilmez.
 | Performance JDK25 `clean verify`, 2026-11-06 07:26:25 +03 | **138 PASS**, failure/error/skipped 0; coverage 1239/1276 = **%97,10** |
 | Checkstyle/PMD ratchet | **PASS**, Hardware 213 mevcut borç aynı; Performance 0; yeni ihlal 0 |
 | İki modülün taze runtime bağımlılık taraması | **PASS**, HIGH/CRITICAL 0; son Hardware JAR ayrıca yeniden tarandı |
-| `node ops/performance-auth-e2e.mjs` | **19/19 PASS**; gerçek 4 JAR, 3 PostgreSQL 17 ve Mailpit; 4 süreç/4 container temizlendi |
+| `node ops/dev.mjs e2e performance` | **19/19 PASS**; gerçek 4 JAR, 3 PostgreSQL 17 ve Mailpit; 4 süreç/4 container temizlendi |
 | `node --test ops/hardware-auth-e2e.test.mjs` | **9/9 PASS**; fixture izolasyon/redaksiyon/freshness regresyonları |
-| `node --check ops/performance-auth-e2e.mjs`, `git diff --check` | **PASS** |
+| `node --check ops/dev.mjs e2e performance`, `git diff --check` | **PASS** |
 
 Windows/Türkçe repo yolu için mevcut Mockito agent'ı yalnız geçici ASCII dosyadan
 test JVM başlangıcına verildi. JaCoCo, testler veya kapılar kapatılmadı. ENV okumayan

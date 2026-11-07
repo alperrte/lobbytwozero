@@ -3,6 +3,7 @@
 
 ## ALPER
 - V1–V10       → HARDWARE-SERVICE
+- V191        → HARDWARE-SERVICE (2026-11-07 açık kullanıcı onayı; GPU kaynak kategorisi için kullanıldı)
 - V11–V20      → RECOMMENDATION-SERVICE
 - V21–V30      → PERFORMANCE-SERVICE
 
@@ -38,6 +39,26 @@ geliştirmeye başlanmadan önce belirlenmelidir.
 ---
 
 ## Migration Kuralları
+
+### Hardware Service V191 — GPU kaynak kategorisi, 2026-11-07
+
+- V1–V10 dolu olduğundan kullanıcı açıkça “191'i al migrations.md'yi güncelle” dedi.
+  Yalnız V191 Hardware Service'e tahsis edildi; V192 ve sonrası için tahsis verilmedi.
+- `V191__allow_gpu_catalog_sources.sql`, kaynak tablosunun kategori CHECK'ine GPU ekler.
+  V1–V10 değiştirilmez; mevcut ürün UUID'leri ve tüm referanslar korunur.
+- Bu karar Game V171–V180 ve Community V181–V190 tahsislerini değiştirmez.
+- [GPU aktarım kanıtı](../../docs-hardware/reports/pc-part-gpu-import.md).
+
+### Hardware Service V10 — PC Part Dataset, 2026-11-07
+
+- Gerçek aktif klasör ve yerel hardware_db history V1–V9 olarak doğrulandı.
+  Son boş V10, `V10__add_pc_part_dataset_import.sql` için kullanıldı.
+- V1–V9 değişmedi. V10 kaynak provider CHECK'ini genişletir, kaynak commit'ini
+  ve teknik import sonuç tablosunu ekler. Ürün/yorum/profil verisi silinmez.
+- V1–V10 artık doludur. Sonraki şema değişikliği için ekipçe ek aralık gerekir;
+  başka servisin numarası kullanılmaz. Eski V10 forum rezervasyonu bu açık
+  kullanıcı veri aktarımı talimatıyla geçersizdir.
+- [Karar ve komutlar](../../docs-hardware/decisions/pc-part-dataset-import.md).
 
 ### Community Service ek tahsisi — 2026-11-07
 
