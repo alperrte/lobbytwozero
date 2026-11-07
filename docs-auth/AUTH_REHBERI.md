@@ -289,7 +289,7 @@ Auth bağlantıları DİL ÖNEKSİZ üretir (e-posta dil bilmez). Frontend önek
 |---|---|---|
 | `${FRONTEND_PUBLIC_URL}/auth/reset-password#token=…` | `/tr/auth/sifre-sifirla`, `/en/auth/reset-password` | **Hazır** |
 | `${FRONTEND_PUBLIC_URL}/auth/callback#status=…` (Google/Steam dönüşü) | `/auth/callback` | Hazır (`features/auth`, e2e ile doğrulandı; canlı Google/Steam testi gerçek kimlik bilgisi ister) |
-| `${FRONTEND_PUBLIC_URL}/account/delete#token=…` (silme onayı) | `/account/delete` | Henüz yok |
+| `${FRONTEND_PUBLIC_URL}/account/delete#token=…` (silme onayı) | `/account/delete` | Hazır (`features/auth`, e2e ile doğrulandı; onay oturum ister) |
 
 Token'lar parçadadır: sunucuya, günlüğe ve `Referer`'a gitmez. Frontend token'ı okur okumaz adres çubuğundan siler, yalnız bellekte tutar ve istek gövdesinde gönderir.
 

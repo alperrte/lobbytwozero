@@ -681,3 +681,42 @@ test.describe("Google/Steam dönüşü", () => {
     expect(page.url()).not.toContain("kanit-abc");
   });
 });
+
+test.describe("hesap silme onayı", () => {
+  const TOKEN = "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789-_AbCdEf";
+
+  test("ÖNEKSİZ e-posta bağlantısı dil önekli sayfaya yönlenir, token adresten silinir, onay gövdede gider", async ({ page }) => {
+    const bodies: unknown[] = [];
+    await mockGateway(page, {
+      "GET /api/v1/auth/csrf": { status: 204 },
+      "POST /api/v1/auth/account/deletion/confirm": async (route) => {
+        bodies.push(route.request().postDataJSON());
+        return route.fulfill({
+          status: 202,
+          headers: { ...corsFor(route), "content-type": "application/json" },
+          body: JSON.stringify({ nextStep: "DELETION_IN_PROGRESS" })
+        });
+      }
+    });
+    await page.goto(`/account/delete#token=${TOKEN}`);
+    await waitForHydration(page);
+
+    await expect(page.getByLabel("Kullanıcı adın")).toBeVisible();
+    await expect(page).toHaveURL(/\/tr\/hesap\/sil$/);
+    expect(page.url()).not.toContain(TOKEN);
+
+    await page.getByLabel("Kullanıcı adın").fill("ada");
+    await page.getByRole("button", { name: /Hesabımı sil/ }).click();
+
+    await expect(page.getByRole("status")).toContainText("Silme talebin alındı");
+    expect(bodies).toEqual([{ token: TOKEN, username: "ada" }]);
+  });
+
+  test("token'sız ziyarette form çıkmaz", async ({ page }) => {
+    await mockGateway(page, {});
+    await page.goto("/tr/hesap/sil");
+    await waitForHydration(page);
+    await expect(page.locator('main [role="alert"]')).toContainText("geçersiz ya da süresi dolmuş");
+    await expect(page.getByLabel("Kullanıcı adın")).toHaveCount(0);
+  });
+});

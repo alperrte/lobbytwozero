@@ -33,6 +33,11 @@ export type PasswordResetApi = {
   resetPassword(token: string, newPassword: string, confirmation: string, signal?: AbortSignal): Promise<void>;
 };
 
+/** Hesap silme onayı (oturum + CSRF ister): e-postadaki token ve açık onay olarak kullanıcı adı. */
+export type AccountDeletionApi = {
+  confirmAccountDeletion(token: string, username: string, signal?: AbortSignal): Promise<void>;
+};
+
 /** Oturum uçlarının arayüzü (yükleme ve çıkış); test için sahte adaptör verilebilir. */
 export type SessionApi = {
   getMe(signal?: AbortSignal): Promise<AuthMe>;
@@ -78,6 +83,15 @@ export const authApi = {
     });
     const codes = typeof result === "object" && result !== null ? (result as Record<string, unknown>).recoveryCodes : undefined;
     return { recoveryCodes: Array.isArray(codes) ? codes.filter((item): item is string => typeof item === "string") : [] };
+  },
+
+  /** Silme onayı: `202`; hesap `DELETION_REQUESTED` olur, tüm oturumlar sunucuda iptal edilir, 14 gün geri alma süresi başlar. */
+  async confirmAccountDeletion(token: string, username: string, signal?: AbortSignal): Promise<void> {
+    await authRequest<unknown>("/api/v1/auth/account/deletion/confirm", {
+      method: "POST",
+      body: { token, username },
+      signal
+    });
   },
 
   /** Kayıt: her durumda `202` (e-posta kayıtlı olsa da aynı yanıt; hesap varlığı sızmaz) ve doğrulama kodu gönderilir. */

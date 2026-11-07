@@ -733,6 +733,25 @@
         "saved": "Kurtarma kodlarını güvenli bir yere kaydettim.",
         "continue": "Devam et"
       }
+    },
+    "deleteAccount": {
+      "metaTitle": "Hesabı sil",
+      "title": "Hesabını silmeyi onayla",
+      "description": "Bu işlem hesabını silme sürecini başlatır. Onaylamak için kullanıcı adını yaz.",
+      "formLabel": "Hesap silme onay formu",
+      "username": "Kullanıcı adın",
+      "usernameHint": "Onay için hesabının kullanıcı adını aynen yaz.",
+      "submit": "Hesabımı sil",
+      "submitting": "Gönderiliyor…",
+      "warning": "Onayladığında tüm oturumların kapanır. Hesabın 14 gün içinde geri alınabilir; sonrasında kişisel verilerin kalıcı olarak silinir.",
+      "tokenInvalid": "Bu bağlantı geçersiz ya da süresi dolmuş. Hesap ayarlarından yeni bir silme isteği başlat.",
+      "confirmationInvalid": "Kullanıcı adı eşleşmedi ya da bağlantının süresi doldu. Kullanıcı adını kontrol et; sorun sürerse yeni bir silme isteği başlat.",
+      "needLogin": "Bu işlem için giriş yapmış olmalısın. Giriş yapıp e-postadaki bağlantıyı yeniden aç.",
+      "adminForbidden": "Yönetici hesabı silinemez. Önce yönetici rolünün kaldırılması gerekir.",
+      "done": "Silme talebin alındı. Oturumların kapatıldı.",
+      "doneDetail": "14 gün içinde e-posta ya da kullanıcı adın ve parolanla giriş yapmadan önce vazgeçebilirsin; süre dolunca kişisel verilerin kalıcı olarak silinir.",
+      "toHome": "Ana sayfaya git",
+      "toLogin": "Giriş yap"
     }
   }
 }

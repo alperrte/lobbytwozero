@@ -733,6 +733,25 @@
         "saved": "I saved my recovery codes somewhere safe.",
         "continue": "Continue"
       }
+    },
+    "deleteAccount": {
+      "metaTitle": "Delete account",
+      "title": "Confirm account deletion",
+      "description": "This starts the process of deleting your account. Type your username to confirm.",
+      "formLabel": "Account deletion confirmation form",
+      "username": "Your username",
+      "usernameHint": "Type your account username exactly to confirm.",
+      "submit": "Delete my account",
+      "submitting": "Submitting…",
+      "warning": "When you confirm, all your sessions are closed. You can undo this within 14 days; after that your personal data is permanently deleted.",
+      "tokenInvalid": "This link is invalid or has expired. Start a new deletion request from your account settings.",
+      "confirmationInvalid": "The username did not match or the link has expired. Check the username; if it keeps failing, start a new deletion request.",
+      "needLogin": "You need to be signed in for this. Sign in, then open the link from the email again.",
+      "adminForbidden": "An administrator account cannot be deleted. The administrator role must be removed first.",
+      "done": "Your deletion request was received. Your sessions were closed.",
+      "doneDetail": "Within 14 days you can cancel by signing in with your email or username and password; after that your personal data is permanently deleted.",
+      "toHome": "Go to home page",
+      "toLogin": "Sign in"
     }
   }
 }
