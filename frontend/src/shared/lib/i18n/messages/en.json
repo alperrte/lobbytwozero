@@ -522,7 +522,10 @@
       "hide": "Hide password",
       "submit": "Sign in",
       "submitting": "Signing in…",
-      "retryIn": "Try again in {time}"
+      "retryIn": "Try again in {time}",
+      "noAccount": "Don't have an account yet?",
+      "toRegister": "Sign up",
+      "verifiedNotice": "Your email address is verified. You can sign in now."
     },
     "session": {
       "account": "My account"
@@ -538,6 +541,32 @@
       },
       "password": {
         "required": "Enter your password.",
+        "tooLong": "Must be at most {max} characters.",
+        "tooShort": "Must be at least {min} characters.",
+        "weak": "This password is easy to guess. Choose a longer, unique password.",
+        "invalid": "The password is not valid."
+      },
+      "username": {
+        "required": "Choose a username.",
+        "pattern": "3–20 characters; letters, digits and underscore only.",
+        "taken": "This username is already taken.",
+        "invalid": "The username is not valid."
+      },
+      "email": {
+        "required": "Enter your email address.",
+        "invalid": "Enter a valid email address.",
+        "tooLong": "Must be at most {max} characters."
+      },
+      "acceptTerms": {
+        "required": "You must accept the terms to continue."
+      },
+      "code": {
+        "required": "Enter the verification code.",
+        "pattern": "The code must be 6 digits.",
+        "failed": "The code is invalid, expired or out of attempts. You can request a new one."
+      },
+      "verifyPassword": {
+        "required": "Enter the password you chose when signing up.",
         "tooLong": "Must be at most {max} characters."
       }
     },
@@ -554,7 +583,45 @@
       "TOO_MANY_ATTEMPTS": "Too many attempts. Try again in {time}.",
       "SERVICE_BUSY": "The service is busy right now. Try again shortly.",
       "NETWORK": "Could not reach the server. Check your connection and try again.",
-      "UNKNOWN": "Something went wrong. Please try again."
+      "UNKNOWN": "Something went wrong. Please try again.",
+      "VALIDATION_FAILED": "Some details are not valid. Check the fields and try again."
+    },
+    "register": {
+      "metaTitle": "Sign up",
+      "title": "Sign up",
+      "description": "Create your LTZ account and join the community.",
+      "formLabel": "Sign-up form",
+      "username": "Username",
+      "usernamePlaceholder": "Choose a username",
+      "usernameHint": "3–20 characters; letters, digits and underscore.",
+      "email": "Email",
+      "emailPlaceholder": "Enter your email address",
+      "password": "Password",
+      "passwordPlaceholder": "Choose a password",
+      "passwordHint": "At least {min} characters. Use a strong, unique password.",
+      "terms": "I accept the <terms>Terms of use</terms>. See the <privacy>Privacy policy</privacy> for how personal data is handled.",
+      "submit": "Create account",
+      "submitting": "Creating account…",
+      "nextStep": "Next step: verify your email address.",
+      "haveAccount": "Already have an account?",
+      "toLogin": "Sign in"
+    },
+    "verify": {
+      "metaTitle": "Email verification",
+      "title": "Verify your email",
+      "description": "Enter the 6-digit code we sent to your address.",
+      "formLabel": "Email verification form",
+      "email": "Email",
+      "code": "Verification code",
+      "codeHint": "{length}-digit code. You can copy it from the email and paste it here.",
+      "password": "The password you chose when signing up",
+      "passwordHint": "Needed to confirm the account is yours. It is not stored.",
+      "submit": "Verify email",
+      "submitting": "Verifying…",
+      "resend": "Resend code",
+      "resendIn": "Wait {time} to resend",
+      "resent": "A new code was sent (if the address is registered). Check your inbox.",
+      "backToLogin": "Back to sign in"
     }
   }
 }

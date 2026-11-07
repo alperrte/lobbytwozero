@@ -11,9 +11,14 @@ import { LoginForm } from "./login-form";
 const intlReplace = vi.fn();
 const nextReplace = vi.fn();
 
-vi.mock("@/shared/lib/i18n/navigation", () => ({
-  useRouter: () => ({ replace: intlReplace })
-}));
+vi.mock("@/shared/lib/i18n/navigation", async () => {
+  const { createElement } = await import("react");
+  return {
+    useRouter: () => ({ replace: intlReplace }),
+    Link: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) =>
+      createElement("a", { href, ...rest }, children)
+  };
+});
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: nextReplace })
 }));
@@ -174,6 +179,20 @@ describe("LoginForm", () => {
 
     expect(password()).toHaveAttribute("type", "text");
     expect(screen.getByRole("button", { name: "Şifreyi gizle" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("kayıt sayfasına giden bağlantı vardır; doğrulama sonrası bilgi kutusu yalnız verified ile görünür", () => {
+    const { unmount } = renderForm(vi.fn());
+    expect(screen.getByRole("link", { name: "Kayıt ol" })).toHaveAttribute("href", "/register");
+    expect(screen.queryByText("E-posta adresin doğrulandı. Şimdi giriş yapabilirsin.")).toBeNull();
+    unmount();
+
+    render(
+      <NextIntlClientProvider locale="tr" messages={tr} timeZone="Europe/Istanbul">
+        <LoginForm api={{ login: vi.fn() }} verified />
+      </NextIntlClientProvider>
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("E-posta adresin doğrulandı. Şimdi giriş yapabilirsin.");
   });
 
   it("alanlar doğru autocomplete değerlerini taşır", () => {

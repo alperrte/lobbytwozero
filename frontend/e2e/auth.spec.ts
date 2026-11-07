@@ -315,3 +315,119 @@ test.describe("güvenlik başlıkları", () => {
     expect(headers["permissions-policy"]).toContain("camera=()");
   });
 });
+
+test.describe("kayıt ve e-posta doğrulama", () => {
+  const registerFill = async (page: Page, overrides: { username?: string } = {}) => {
+    await page.getByLabel("Kullanıcı adı").fill(overrides.username ?? "ada_01");
+    await page.getByLabel("E-posta", { exact: true }).fill("ada@example.com");
+    await page.getByLabel("Şifre", { exact: true }).fill("dogru-parola-123456");
+    await page.getByRole("checkbox").check();
+  };
+
+  test("TR ve EN adreslerinde açılır; yanlış dildeki adres doğru adrese yönlenir", async ({ page }) => {
+    await mockGateway(page, {});
+    await page.goto("/tr/kayit");
+    await expect(page.getByRole("heading", { level: 1, name: "Kayıt ol" })).toBeVisible();
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+    await page.goto("/en/register");
+    await expect(page.getByRole("heading", { level: 1, name: "Sign up" })).toBeVisible();
+    await page.goto("/tr/register");
+    await expect(page).toHaveURL(/\/tr\/kayit$/);
+    await page.goto("/tr/verify-email");
+    await expect(page).toHaveURL(/\/tr\/eposta-dogrulama$/);
+  });
+
+  test("giriş sayfasından kayıt sayfasına bağlantı vardır", async ({ page }) => {
+    await mockGateway(page, {});
+    await page.goto("/tr/giris");
+    await expect(page.getByRole("link", { name: "Kayıt ol" })).toHaveAttribute("href", "/tr/kayit");
+  });
+
+  test("boş gönderimde hatalar gösterilir ve istek atılmaz", async ({ page }) => {
+    let calls = 0;
+    await mockGateway(page, { "POST /api/v1/auth/register": () => void calls++ });
+    await page.goto("/tr/kayit");
+    await waitForHydration(page);
+
+    await page.getByRole("button", { name: /Hesap oluştur/ }).click();
+
+    await expect(page.getByText("Bir kullanıcı adı belirle.")).toBeVisible();
+    await expect(page.getByText("Devam etmek için koşulları kabul etmelisin.")).toBeVisible();
+    await expect(page.getByLabel("Kullanıcı adı")).toBeFocused();
+    expect(calls).toBe(0);
+  });
+
+  test("USERNAME_TAKEN kullanıcı adı alanında gösterilir", async ({ page }) => {
+    await mockGateway(page, {
+      "GET /api/v1/auth/csrf": { status: 204 },
+      "POST /api/v1/auth/register": { status: 409, body: { code: "USERNAME_TAKEN" } }
+    });
+    await page.goto("/tr/kayit");
+    await waitForHydration(page);
+    await registerFill(page);
+
+    await page.getByRole("button", { name: /Hesap oluştur/ }).click();
+
+    await expect(page.getByText("Bu kullanıcı adı kullanılıyor.")).toBeVisible();
+    await expect(page).toHaveURL(/\/tr\/kayit$/);
+  });
+
+  test("kayıt → doğrulama → giriş: e-posta URL'de taşınmaz, bellekten dolar, doğrulama sonrası bilgi kutusu görünür", async ({ page }) => {
+    const bodies: Record<string, unknown> = {};
+    await mockGateway(page, {
+      "GET /api/v1/auth/csrf": { status: 204 },
+      "POST /api/v1/auth/register": async (route) => {
+        bodies.register = route.request().postDataJSON();
+        return route.fulfill({
+          status: 202,
+          headers: { ...corsFor(route), "content-type": "application/json" },
+          body: JSON.stringify({ nextStep: "VERIFY_EMAIL" })
+        });
+      },
+      "POST /api/v1/auth/email-verification/confirm": async (route) => {
+        bodies.confirm = route.request().postDataJSON();
+        return route.fulfill({ status: 204, headers: corsFor(route) });
+      }
+    });
+    await page.goto("/tr/kayit");
+    await waitForHydration(page);
+    await registerFill(page);
+
+    await page.getByRole("button", { name: /Hesap oluştur/ }).click();
+
+    await expect(page).toHaveURL(/\/tr\/eposta-dogrulama$/);
+    expect(page.url()).not.toContain("example.com");
+    await expect(page.getByLabel("E-posta", { exact: true })).toHaveValue("ada@example.com");
+    expect(bodies.register).toEqual({ email: "ada@example.com", username: "ada_01", password: "dogru-parola-123456" });
+
+    await page.getByLabel("Doğrulama kodu").fill("012 345");
+    await expect(page.getByLabel("Doğrulama kodu")).toHaveValue("012345");
+    await page.getByLabel("Kayıt olurken belirlediğin şifre").fill("dogru-parola-123456");
+    await page.getByRole("button", { name: /E-postayı doğrula/ }).click();
+
+    await expect(page).toHaveURL(/\/tr\/giris\?verified=1$/);
+    await expect(page.getByRole("status")).toContainText("E-posta adresin doğrulandı");
+    expect(bodies.confirm).toEqual({ email: "ada@example.com", code: "012345", password: "dogru-parola-123456" });
+  });
+
+  test("yanlış kodda tek ve ayrım yapmayan mesaj; yeniden gönderme bilgi ve bekleme gösterir", async ({ page }) => {
+    await mockGateway(page, {
+      "GET /api/v1/auth/csrf": { status: 204 },
+      "POST /api/v1/auth/email-verification/confirm": { status: 400, body: { code: "VERIFICATION_FAILED" } },
+      "POST /api/v1/auth/email-verification/resend": { status: 202, body: { nextStep: "VERIFY_EMAIL" } }
+    });
+    await page.goto("/tr/eposta-dogrulama");
+    await waitForHydration(page);
+    await page.getByLabel("E-posta", { exact: true }).fill("ada@example.com");
+    await page.getByLabel("Doğrulama kodu").fill("999999");
+    await page.getByLabel("Kayıt olurken belirlediğin şifre").fill("dogru-parola-123456");
+
+    await page.getByRole("button", { name: /E-postayı doğrula/ }).click();
+    await expect(page.getByText(/Kod geçersiz, süresi dolmuş ya da deneme hakkı bitmiş/)).toBeVisible();
+    await expect(page.getByLabel("Kayıt olurken belirlediğin şifre")).toHaveValue("");
+
+    await page.getByRole("button", { name: "Kodu yeniden gönder" }).click();
+    await expect(page.getByText(/Yeni kod gönderildi/)).toBeVisible();
+    await expect(page.getByRole("button", { name: /Yeniden göndermek için 1 dakika bekle/ })).toBeDisabled();
+  });
+});

@@ -30,6 +30,12 @@ const paths = {
       <path d="M9.9 10a3 3 0 0 0 4.1 4.1" />
     </>
   ),
+  key: (
+    <>
+      <circle cx="8" cy="15" r="4" />
+      <path d="m11 12 8-8m-3 3 3 3" />
+    </>
+  ),
   arrow: <path d="M5 12h14m-6-6 6 6-6 6" />,
   back: <path d="M19 12H5m6-6-6 6 6 6" />,
   user: (

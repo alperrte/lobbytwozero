@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { ApiHttpError } from "@/shared/lib/api/client";
 import { authApi, type LoginApi } from "../services/auth-api";
 import { authErrorCode } from "../services/auth-http";
 import type { AuthErrorCode } from "../types/auth.types";
+import { useCooldown } from "./use-cooldown";
 
 export type LoginProblem = { code: AuthErrorCode; retryAfterSeconds?: number };
 export type LoginOutcome = "authenticated" | "failed";
@@ -19,16 +20,8 @@ export type LoginOutcome = "authenticated" | "failed";
 export function useLogin(api: LoginApi = authApi) {
   const [pending, setPending] = useState(false);
   const [problem, setProblem] = useState<LoginProblem | null>(null);
-  const [cooldown, setCooldown] = useState(0);
+  const { remaining: cooldown, start: startCooldown } = useCooldown();
   const busy = useRef(false);
-
-  useEffect(() => {
-    if (cooldown <= 0) {
-      return;
-    }
-    const timer = setTimeout(() => setCooldown((value) => value - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [cooldown]);
 
   async function submit(identifier: string, password: string): Promise<LoginOutcome> {
     if (busy.current || cooldown > 0) {
@@ -49,7 +42,7 @@ export function useLogin(api: LoginApi = authApi) {
         const code = authErrorCode(error);
         setProblem({ code, retryAfterSeconds: error.retryAfterSeconds });
         if (code === "TOO_MANY_ATTEMPTS" && error.retryAfterSeconds) {
-          setCooldown(error.retryAfterSeconds);
+          startCooldown(error.retryAfterSeconds);
         }
       } else {
         setProblem({ code: "UNKNOWN" });

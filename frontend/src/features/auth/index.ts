@@ -4,7 +4,9 @@
  */
 export { AuthShell } from "./components/auth-shell";
 export { LoginForm } from "./components/login-form";
+export { RegisterForm } from "./components/register-form";
 export { SessionProvider } from "./components/session-provider";
+export { VerifyEmailForm } from "./components/verify-email-form";
 export { useSession } from "./hooks/use-session";
 export type { SessionValue } from "./hooks/use-session";
 export type { AuthMe } from "./types/auth.types";

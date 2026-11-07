@@ -7,6 +7,13 @@ export type LoginApi = {
   login(identifier: string, password: string, signal?: AbortSignal): Promise<LoginResult>;
 };
 
+/** Kayıt ve e-posta doğrulama uçlarının arayüzü; hook'lar bunu enjekte alır (test için sahte adaptör verilebilir). */
+export type RegistrationApi = {
+  register(email: string, username: string, password: string, signal?: AbortSignal): Promise<void>;
+  confirmEmail(email: string, code: string, password: string, signal?: AbortSignal): Promise<void>;
+  resendEmailCode(email: string, signal?: AbortSignal): Promise<void>;
+};
+
 /** Oturum uçlarının arayüzü (yükleme ve çıkış); test için sahte adaptör verilebilir. */
 export type SessionApi = {
   getMe(signal?: AbortSignal): Promise<AuthMe>;
@@ -22,6 +29,33 @@ export const authApi = {
       signal
     });
     return toLoginResult(result);
+  },
+
+  /** Kayıt: her durumda `202` (e-posta kayıtlı olsa da aynı yanıt; hesap varlığı sızmaz) ve doğrulama kodu gönderilir. */
+  async register(email: string, username: string, password: string, signal?: AbortSignal): Promise<void> {
+    await authRequest<unknown>("/api/v1/auth/register", {
+      method: "POST",
+      body: { email, username, password },
+      signal
+    });
+  },
+
+  /** E-posta doğrulaması: `204`, oturum AÇMAZ (kullanıcı giriş sayfasına yönlendirilir). */
+  confirmEmail(email: string, code: string, password: string, signal?: AbortSignal): Promise<void> {
+    return authRequest<void>("/api/v1/auth/email-verification/confirm", {
+      method: "POST",
+      body: { email, code, password },
+      signal
+    });
+  },
+
+  /** Kodu yeniden gönderir: her durumda `202` (hesap varlığı sızmaz); sunucuda 60 sn bekleme ve günlük sınır vardır. */
+  async resendEmailCode(email: string, signal?: AbortSignal): Promise<void> {
+    await authRequest<unknown>("/api/v1/auth/email-verification/resend", {
+      method: "POST",
+      body: { email },
+      signal
+    });
   },
 
   /** Oturum yoklaması. 401 = misafir ya da oturum geçersiz (HTTP katmanı önce yenilemeyi dener). */

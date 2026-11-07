@@ -18,6 +18,8 @@ export const pathnames = {
   "/contact": { tr: "/iletisim", en: "/contact" },
   "/settings": { tr: "/ayarlar", en: "/settings" },
   "/login": { tr: "/giris", en: "/login" },
+  "/register": { tr: "/kayit", en: "/register" },
+  "/verify-email": { tr: "/eposta-dogrulama", en: "/verify-email" },
   "/legal/kvkk": { tr: "/yasal/kvkk", en: "/legal/kvkk" },
   "/legal/privacy": { tr: "/yasal/gizlilik", en: "/legal/privacy" },
   "/legal/terms": { tr: "/yasal/kullanim-kosullari", en: "/legal/terms" },
