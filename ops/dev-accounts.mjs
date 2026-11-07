@@ -23,6 +23,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   DEV_ACCOUNTS,
+  assertDevProfile,
   assertDevTarget,
   emailFor,
   extractCode,
@@ -44,6 +45,7 @@ const config = {
   mailpitUrl: process.env.DEV_MAILPIT_URL ?? "http://localhost:8025",
   origin: process.env.DEV_FRONTEND_ORIGIN ?? "http://localhost:5001",
   container: process.env.DEV_POSTGRES_CONTAINER ?? "ltz-dev-postgres-1",
+  authContainer: process.env.DEV_AUTH_CONTAINER ?? "ltz-dev-auth-service-1",
   nodeEnv: process.env.NODE_ENV
 };
 
@@ -288,8 +290,15 @@ function showTotp(name) {
   console.log(`${totp(entry.totpSecret)}  (${secondsLeftInStep()} sn geçerli)`);
 }
 
+/** Auth konteynerinin gerçek profilini okur (yalnız bu tek değişken; başka ortam değeri okunmaz/basılmaz). */
+function readAuthProfile() {
+  const result = spawnSync("docker", ["exec", config.authContainer, "printenv", "SPRING_PROFILES_ACTIVE"], { encoding: "utf8" });
+  return result.status === 0 ? result.stdout.trim() : "";
+}
+
 try {
   assertDevTarget(config);
+  assertDevProfile(readAuthProfile());
 } catch (error) {
   fail(error.message);
 }

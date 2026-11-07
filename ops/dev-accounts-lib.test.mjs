@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   DEV_ACCOUNTS,
+  assertDevProfile,
   assertDevTarget,
   base32Decode,
   emailFor,
@@ -42,6 +43,17 @@ test("güvenlik kapısı: uzak adres, yanlış kapsayıcı ve production reddedi
   assert.throws(() => assertDevTarget({ ...okTarget, nodeEnv: "production" }), /production/);
   assert.throws(() => assertDevTarget({ ...okTarget, gatewayUrl: "bozuk" }), /geçerli bir adres değil/);
   assert.throws(() => assertDevTarget({ ...okTarget, gatewayUrl: "http://localhost.evil.example" }), /yerel olmalı/);
+});
+
+test("profil kapısı: yalnız dev/test; prod, karışık ve okunamayan profil reddedilir", () => {
+  assert.doesNotThrow(() => assertDevProfile("dev"));
+  assert.doesNotThrow(() => assertDevProfile("dev,test"));
+  assert.doesNotThrow(() => assertDevProfile(" DEV "));
+  assert.throws(() => assertDevProfile("prod"), /dev\/test değil/);
+  assert.throws(() => assertDevProfile("dev,prod"), /prod/);
+  assert.throws(() => assertDevProfile("staging"), /staging/);
+  assert.throws(() => assertDevProfile(""), /okunamadı/);
+  assert.throws(() => assertDevProfile(undefined), /okunamadı/);
 });
 
 test("yapılandırma: parola zorunlu, alan adı geçerli olmalı", () => {

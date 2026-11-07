@@ -31,6 +31,17 @@ export function assertDevTarget({ gatewayUrl, mailpitUrl, container, nodeEnv }) 
   if (problems.length > 0) throw new Error(`Güvenlik kapısı: ${problems.join("; ")}`);
 }
 
+/**
+ * Auth'un çalıştığı Spring profili kapısı. Auth zaten gevşek ayarları yalnız dev/test profilinde kabul eder; aynı beyaz liste
+ * burada da uygulanır. Profil okunamazsa (boş/bilinmeyen) KAPALI davranılır: emin olunamayan ortamda zayıf parola yazılmaz.
+ */
+export function assertDevProfile(profile) {
+  const active = String(profile ?? "").split(",").map((item) => item.trim().toLowerCase()).filter(Boolean);
+  if (active.length === 0) throw new Error("Güvenlik kapısı: Auth profili okunamadı (SPRING_PROFILES_ACTIVE); dev olduğundan emin olunamıyor.");
+  const outsiders = active.filter((item) => item !== "dev" && item !== "test");
+  if (outsiders.length > 0) throw new Error(`Güvenlik kapısı: Auth profili dev/test değil (${outsiders.join(",")}); zayıf parola yazılmaz.`);
+}
+
 export function validateConfig({ password, domain }) {
   if (typeof password !== "string" || password.length === 0) {
     throw new Error("DEV_ACCOUNTS_PASSWORD tanımlı değil (parola depoya yazılmaz; .env.dev'e ekle ya da ortamdan ver).");
