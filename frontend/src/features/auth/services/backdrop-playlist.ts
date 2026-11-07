@@ -9,8 +9,12 @@
  */
 export const AUTH_BACKDROP = {
   poster: "/auth-videos/poster.jpg",
-  /** Daha önce oynayan videonun şansı bu çarpanla azalır (0.15 = %15); tüm videolar oynayınca herkes normale döner. */
-  playedWeightFactor: 0.15,
+  /**
+   * Bu turda oynamış videonun şansı bu çarpanla çarpılır. 0 = karıştırılmış deste: her video turda tam BİR kez oynar, hepsi
+   * oynamadan hiçbiri tekrar gelmez; hepsi oynayınca tur başa döner (yeni tur sırası yine rastgele). 0'dan büyük bir değer
+   * (örn. 0.15) oynamışları tamamen dışlamaz, yalnız seyrekleştirir.
+   */
+  playedWeightFactor: 0,
   /** İki video arasındaki çapraz solma süresi (sn). CSS geçişi (`duration-700`) ile aynı tutulur. */
   crossfadeSeconds: 0.7,
   videos: [

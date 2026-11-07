@@ -88,6 +88,42 @@ describe("chooseNext", () => {
   });
 });
 
+describe("gerçek ayarla (karıştırılmış deste)", () => {
+  const weights = AUTH_BACKDROP.videos.map((video) => video.weight);
+  const factor = AUTH_BACKDROP.playedWeightFactor;
+
+  it("her turda (6 video) hepsi tam bir kez oynar; hepsi oynamadan hiçbiri tekrar gelmez", () => {
+    for (let seed = 1; seed <= 200; seed++) {
+      const order = run(weights, 6 * 20, seeded(seed), factor);
+      for (let round = 0; round < 20; round++) {
+        const slice = order.slice(round * 6, round * 6 + 6);
+        expect([...slice].sort()).toEqual([0, 1, 2, 3, 4, 5]);
+      }
+    }
+  });
+
+  it("tur sınırında da aynı video arka arkaya gelmez (önceki turun sonuncusu yeni turun ilki olmaz)", () => {
+    for (let seed = 1; seed <= 200; seed++) {
+      const order = run(weights, 6 * 20, seeded(seed), factor);
+      for (let i = 1; i < order.length; i++) expect(order[i]).not.toBe(order[i - 1]);
+    }
+  });
+
+  it("yeni turun sırası öncekinden bağımsız rastgeledir (her tur aynı sıra tekrarlanmaz)", () => {
+    const orders = new Set<string>();
+    const order = run(weights, 6 * 40, seeded(5), factor);
+    for (let round = 0; round < 40; round++) orders.add(order.slice(round * 6, round * 6 + 6).join(","));
+    expect(orders.size).toBeGreaterThan(20);
+  });
+
+  it("ilk video rastgele seçilir (hepsi ilk sırada görülebilir)", () => {
+    const firsts = new Set<number>();
+    // Gerçek Math.random: 600 denemede bir videonun hiç ilk gelmemesi olasılığı ~1e-47.
+    for (let trial = 0; trial < 600; trial++) firsts.add(run(weights, 1, Math.random, factor)[0] as number);
+    expect(firsts.size).toBe(6);
+  });
+});
+
 describe("AUTH_BACKDROP", () => {
   it("6 video tanımlı, hepsi /auth-videos/ altında ve oranları pozitif", () => {
     expect(AUTH_BACKDROP.videos).toHaveLength(6);
