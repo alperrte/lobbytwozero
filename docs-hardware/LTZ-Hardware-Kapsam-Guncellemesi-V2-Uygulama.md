@@ -28,6 +28,10 @@
 
 ## C. Katalog backend: Open Icecat ingestion
 
+> 2026-11-07 kullanıcı talimatıyla bu bölümün Icecat kaynak/import işi iptal edildi.
+> Güncel aktarım kararı: [PC Part Dataset](decisions/pc-part-dataset-import.md).
+> Mevcut görev frontend/forum tasarımı veya Icecat entegrasyonu içermez.
+
 ### C1. Veri sözleşmesi
 
 Mevcut `hardware_products` modeli ve dış sistemlere açık `/api/v1/hardware/catalog/products` sözleşmesi mümkün olduğunca **geriye uyumlu** kalacak.

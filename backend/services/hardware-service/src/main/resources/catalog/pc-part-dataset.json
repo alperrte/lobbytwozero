@@ -1,0 +1,11 @@
+{
+  "repository": "https://github.com/docyx/pc-part-dataset",
+  "revision": "c52a04ca9465c83997ed335f7767b09a2005dd26",
+  "files": [
+    {"file": "cpu.json", "category": "CPU", "count": 1413, "sha256": "1e3fd9ba6bf11fca4217675d67ed5edd0d60cc6cb2604418c443cf474fe58c1c"},
+    {"file": "motherboard.json", "category": "MOTHERBOARD", "count": 4973, "sha256": "7bf4ecb66756c40234ccc1f6e2e43ca477dea7ef3f6e5c92d9b432d5776c6a1b"},
+    {"file": "memory.json", "category": "RAM", "count": 13553, "sha256": "2c70f628bebd31bb47ef5b46b39de52c41a417b17dfcc0c63991b2d27310de63"},
+    {"file": "internal-hard-drive.json", "category": "STORAGE", "count": 6461, "sha256": "0634f9c8157d649cf4e6a67ffcaa69ae22695f7a0befb1c60fdfffe921845d3b"},
+    {"file": "video-card.json", "category": "GPU", "count": 6636, "sha256": "bb0d199e880d02d512f312132d68dbe70b4bf7079bbc18b850b1f40513874575"}
+  ]
+}

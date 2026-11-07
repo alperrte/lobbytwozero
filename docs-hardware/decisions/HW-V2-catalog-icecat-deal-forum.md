@@ -1,5 +1,9 @@
 # HW V2 — dört kategori, Icecat ve bağımsız fırsat forumu
 
+> 2026-11-07: Katalog veri aktarımı için Open Icecat kararı kullanıcı tarafından iptal edildi.
+> Güncel kaynak [PC Part Dataset](pc-part-dataset-import.md); bu belgenin Icecat ve
+> V10 forum rezervasyonu ifadeleri tarihçedir. Yeni görev yalnız yerel veri aktarımıdır.
+
 Tarih: 7 Kasım 2026. Kaynak: Alper'in açık uygulama talimatı ve `LTZ-Hardware-Kapsam-Guncellemesi-V2-Uygulama.md`.
 
 Bu karar HW02-catalog-campaign-proposal.md belgesinin yeni kullanıcı forumuyla çelişen iş kapsamının yerine geçer. Eski belgenin güvenlik, audit, yetkili katalog yönetimi ve veri uydurmama kuralları sürer. Eski yönetici `/campaigns` API'si geriye uyumluluk için korunur ve yeni forum tarafından kullanılmaz.

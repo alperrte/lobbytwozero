@@ -31,10 +31,11 @@ public class HardwareCatalogService {
     private final CurrentActor actor;
     private final HardwareCatalogMapper mapper;
     private final HardwareComponentMapper componentMapper;
+    private final HardwareCatalogSourceRepository sources;
 
     public HardwareCatalogService(HardwareProductRepository products, HardwareBrandRepository brands,
             HardwareCatalogAuditRepository audit, CatalogWriteAccess access, CurrentActor actor,
-            HardwareCatalogMapper mapper, HardwareComponentMapper componentMapper) {
+            HardwareCatalogMapper mapper, HardwareComponentMapper componentMapper, HardwareCatalogSourceRepository sources) {
         this.products = products;
         this.brands = brands;
         this.audit = audit;
@@ -42,6 +43,7 @@ public class HardwareCatalogService {
         this.actor = actor;
         this.mapper = mapper;
         this.componentMapper = componentMapper;
+        this.sources = sources;
     }
 
     @Transactional
@@ -80,7 +82,7 @@ public class HardwareCatalogService {
     public HardwareProductResponse detail(UUID id) {
         actor.requireUserId();
         return mapper.product(products.findByIdAndStatus(id, CatalogStatus.ACTIVE)
-                .orElseThrow(HardwareNotFoundException::new));
+                .orElseThrow(HardwareNotFoundException::new)).withSource(sources.load(Set.of(id)).get(id));
     }
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
@@ -105,14 +107,16 @@ public class HardwareCatalogService {
                         new HardwareCatalogSearch.TextValue("formFactor", filter.formFactor())));
         if (discovery) criteria = criteria.and((root, query, cb) -> root.get("category").in(
                 com.ltz.hardware.domain.enums.ComponentCategory.CPU, com.ltz.hardware.domain.enums.ComponentCategory.MOTHERBOARD,
-                com.ltz.hardware.domain.enums.ComponentCategory.RAM, com.ltz.hardware.domain.enums.ComponentCategory.STORAGE));
+                com.ltz.hardware.domain.enums.ComponentCategory.RAM, com.ltz.hardware.domain.enums.ComponentCategory.STORAGE,
+                com.ltz.hardware.domain.enums.ComponentCategory.GPU));
         var result = products.findAll(criteria,
                 PageRequest.of(page, size, Sort.by("normalizedModel", "id")));
         if (result.isEmpty()) return new HardwareCatalogPageResponse<>(java.util.List.of(), page, size,
                 result.getTotalElements(), result.getTotalPages());
         var hydrated = products.findWithBrands(result.stream().map(HardwareProduct::getId).toList()).stream()
                 .collect(Collectors.toMap(HardwareProduct::getId, Function.identity()));
-        var items = result.stream().map(p -> mapper.product(hydrated.get(p.getId()))).toList();
+        var content = sources.load(hydrated.keySet());
+        var items = result.stream().map(p -> mapper.product(hydrated.get(p.getId())).withSource(content.get(p.getId()))).toList();
         return new HardwareCatalogPageResponse<>(items, page, size, result.getTotalElements(), result.getTotalPages());
     }
 

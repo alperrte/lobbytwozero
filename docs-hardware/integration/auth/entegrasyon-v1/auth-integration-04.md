@@ -35,7 +35,7 @@ Hesaplar Auth API'siyle kaydedilir ve e-posta koduyla etkinleşir; Auth DB'sine 
 ## 7. Çalıştırma
 ```powershell
 node --test ops/hardware-auth-e2e.test.mjs
-node ops/hardware-auth-e2e.mjs
+node ops/dev.mjs e2e hardware
 ```
 Betik gerçek ENV dosyalarını okumaz ve hiçbir ENV dosyası üretmez/değiştirmez.
 Geçici şifre ve 3072 bit RSA anahtarı bellekte üretilir; mevcut konfigürasyon anahtarları

@@ -102,7 +102,7 @@ public class HardwareCatalogSourceRepository {
             Map<String, Value> typed = mapper.readValue(rs.getString("typed_specs"),
                     mapper.getTypeFactory().constructMapType(Map.class, String.class, Value.class));
             var updated = rs.getTimestamp("source_updated_at");
-            result.put(id, new HardwareCatalogSourceResponse("OPEN_ICECAT", rs.getString("external_product_id"),
+            result.put(id, new HardwareCatalogSourceResponse(rs.getString("source_provider"), rs.getString("external_product_id"),
                     rs.getString("brand"), rs.getString("mpn"), gtins, rs.getString("locale"),
                     updated == null ? null : updated.toInstant(), rs.getTimestamp("synced_at").toInstant(),
                     "VERIFIED", typed, groups, List.copyOf(images.getOrDefault(id, List.of()))));

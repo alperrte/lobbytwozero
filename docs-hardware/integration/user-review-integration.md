@@ -44,7 +44,7 @@ REQ-02 sözleşmesi karşılanmıştır. REQ-01 operasyonel olarak açıktır: U
 `projection-enabled=false` ayarı değişmez. Umut'un başlangıç aktarımı doğrulanıp
 Kerem yansımayı güvenilir ilan edene kadar başkasının yorumları görünmez.
 
-`node ops/hardware-auth-e2e.mjs --with-user` gerçek Auth/Hardware/User/Gateway
+`node ops/dev.mjs e2e hardware --with-user` gerçek Auth/Hardware/User/Gateway
 JAR'ları, ayrı geçici DB'ler ve sentetik hesaplar kullanır. Yalnız bu testte User
 önce false, sonra yeni fixture sürecinde true ile başlatılır. PRIVATE Hardware
 ayarından bağımsız yorum görünürlüğü, iki yönlü engelleme, sayfa/toplam/ortalama ve
@@ -63,9 +63,9 @@ yönlendirilir; 16 hedef korunur ve diğer 15 ACK beklemede kalır.
 | Merkezi coverage | **PASS**, 1752/1770 = **%98,98**; değişen executable satırlar 157/157 = **%100** |
 | Checkstyle/PMD ratchet | **PASS**, mevcut 213 borç aynı; yeni ihlal 0 |
 | Taze runtime JAR bağımlılık taraması | **PASS**, HIGH/CRITICAL 0 |
-| `node ops/hardware-auth-e2e.mjs --with-user` | **25/25 PASS**; gerçek 4 JAR, 3 PostgreSQL 17 ve Mailpit; 5 süreç (User iki başlangıç) / 4 container temizlendi |
+| `node ops/dev.mjs e2e hardware --with-user` | **25/25 PASS**; gerçek 4 JAR, 3 PostgreSQL 17 ve Mailpit; 5 süreç (User iki başlangıç) / 4 container temizlendi |
 | `node --test ops/hardware-auth-e2e.test.mjs` | **9/9 PASS** |
-| `node --check ops/hardware-auth-e2e.mjs`, `git diff --check` | **PASS** |
+| `node --check ops/dev.mjs e2e hardware`, `git diff --check` | **PASS** |
 
 İlk gerçek User fixture koşusu, projection=false ret kabulünü geçti; yeniden
 başlatma adımında Windows'ta sinyalle kapanan sürecin exitCode'u null kaldığı için

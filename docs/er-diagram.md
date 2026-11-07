@@ -1015,6 +1015,38 @@ erDiagram
 
 ## 14. hardware_db
 
+**2026-11-08:** Onaylı V191, `hardware_product_sources.category` CHECK'ini GPU ile
+genişletir; ilişkiler ve UUID'ler değişmez. GPU typed_specs: chipset, capacityGb
+(VRAM GB), clockMhz, boostClockMhz, lengthMm, color; fiyat yoktur.
+
+**2026-11-07 katalog aktarımı, V9/V10:** Kaynak tekilliği `(source_provider,external_product_id)`;
+ürün varyantı `(category,normalized_model,catalog_variant)`. Eski profil/yorum
+ilişkileri korunur. `hardware_product_sources.source_revision` sabit commit'i taşır.
+
+```mermaid
+erDiagram
+  hardware_products ||--o| hardware_product_sources : "product_id unique FK CASCADE"
+  hardware_product_sources ||--o{ hardware_product_media : "source_id FK CASCADE"
+  hardware_product_sources {
+    uuid id PK
+    uuid product_id FK,UK
+    varchar source_provider "OPEN_ICECAT veya PC_PART_DATASET"
+    varchar external_product_id "teknik fingerprint"
+    varchar source_revision "40 haneli commit"
+    jsonb typed_specs "yalnız whitelist teknik alanlar"
+  }
+  hardware_dataset_import_runs {
+    uuid id PK
+    varchar source_revision
+    jsonb files "SHA-256 ve kategori sayımları"
+    jsonb summary "sonuç sayımları ve hata kodları"
+    varchar status "SUCCEEDED veya PARTIAL"
+    timestamptz started_at
+    timestamptz finished_at
+    bigint version
+  }
+```
+
 **2026-10-24 Auth/D4 eklemesi:** V1–V7 korunur, V8 ile 17. tablo eklenir.
 Bu teknik fence'in profil/hesap UUID FK'si yoktur; SHA-256 özeti ve expiry dışında
 kişisel veri tutmaz. Kullanıcı yazması ve temizleme hesap bazlı transaction kilidi paylaşır.
