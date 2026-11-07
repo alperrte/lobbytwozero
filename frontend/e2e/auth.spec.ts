@@ -138,13 +138,23 @@ test.describe("giriş sayfası", () => {
     await expect(page.getByRole("button", { name: "15 dakika sonra tekrar dene" })).toBeDisabled();
   });
 
-  test("iki aşamalı doğrulama yanıtında oturum açılmış sayılmaz", async ({ page }) => {
+  test("iki aşamalı doğrulama: önce kod ekranı (oturum yok), doğru kodla ana sayfa; challenge URL'de görünmez", async ({ page }) => {
+    const bodies: unknown[] = [];
     await mockGateway(page, {
       "GET /api/v1/auth/csrf": { status: 204 },
       "POST /api/v1/auth/login": {
         status: 200,
         body: { status: "MFA_REQUIRED", challengeId: "c1", challengeExpiresAt: "2030-01-01T00:00:00Z" }
-      }
+      },
+      "POST /api/v1/auth/login/2fa": async (route) => {
+        bodies.push(route.request().postDataJSON());
+        return route.fulfill({
+          status: 200,
+          headers: { ...corsFor(route), "content-type": "application/json" },
+          body: JSON.stringify(AUTHENTICATED)
+        });
+      },
+      "GET /api/v1/auth/me": { status: 200, body: ME }
     });
     await page.goto("/tr/giris");
     await waitForHydration(page);
@@ -152,8 +162,50 @@ test.describe("giriş sayfası", () => {
     await fillLogin(page, "ada", "dogru-parola-123456");
     await page.getByRole("button", { name: /Giriş yap/ }).click();
 
-    await expect(formAlert(page)).toContainText("iki aşamalı doğrulama istiyor");
+    await expect(page.getByLabel("Doğrulama kodu")).toBeVisible();
     await expect(page).toHaveURL(/\/tr\/giris$/);
+    expect(page.url()).not.toContain("c1");
+
+    await page.getByLabel("Doğrulama kodu").fill("123456");
+    await page.getByRole("button", { name: /^Doğrula/ }).click();
+
+    await expect(page).toHaveURL(/\/tr$/);
+    expect(bodies).toEqual([{ challengeId: "c1", code: "123456" }]);
+  });
+
+  test("zorunlu kurulum: anahtar → kod → kurtarma kodları kaydedilince ana sayfa", async ({ page }) => {
+    await mockGateway(page, {
+      "GET /api/v1/auth/csrf": { status: 204 },
+      "POST /api/v1/auth/login": {
+        status: 200,
+        body: { status: "MFA_ENROLLMENT_REQUIRED", challengeId: "e1", challengeExpiresAt: "2030-01-01T00:00:00Z" }
+      },
+      "POST /api/v1/auth/login/2fa/enrollment/start": {
+        status: 200,
+        body: { secret: "JBSWY3DPEHPK3PXP", otpauthUri: "otpauth://totp/LTZ:ada?secret=JBSWY3DPEHPK3PXP" }
+      },
+      "POST /api/v1/auth/login/2fa/enrollment/complete": {
+        status: 200,
+        body: { ...AUTHENTICATED, recoveryCodes: ["AAAAA-BBBBB", "CCCCC-DDDDD"] }
+      },
+      "GET /api/v1/auth/me": { status: 200, body: ME }
+    });
+    await page.goto("/tr/giris");
+    await waitForHydration(page);
+
+    await fillLogin(page, "ada", "dogru-parola-123456");
+    await page.getByRole("button", { name: /Giriş yap/ }).click();
+    await page.getByRole("button", { name: "Kurulumu başlat" }).click();
+    await expect(page.getByTestId("totp-secret")).toHaveText("JBSWY3DPEHPK3PXP");
+
+    await page.getByLabel("Doğrulama kodu").fill("123456");
+    await page.getByRole("button", { name: /Etkinleştir ve giriş yap/ }).click();
+    await expect(page.getByRole("list", { name: "Kurtarma kodları" })).toContainText("AAAAA-BBBBB");
+
+    await expect(page.getByRole("button", { name: /Devam et/ })).toBeDisabled();
+    await page.getByRole("checkbox").check();
+    await page.getByRole("button", { name: /Devam et/ }).click();
+    await expect(page).toHaveURL(/\/tr$/);
   });
 
   test("başarılı girişte ana sayfaya gider; kabuk giriş yapmış kullanıcıyı gösterir", async ({ page, baseURL }) => {
@@ -578,6 +630,8 @@ test.describe("Google/Steam dönüşü", () => {
 
     await page.goto(`/auth/callback#status=registration_required&token=${TOKEN}`);
     await waitForHydration(page);
+    await expect(page.getByLabel("Kullanıcı adı")).toBeVisible();
+    await expect(page).toHaveURL(/\/tr\/auth\/geri-donus$/); // parça silindi
     expect(page.url()).not.toContain(TOKEN);
 
     await page.getByLabel("Kullanıcı adı").fill("steam_ada");

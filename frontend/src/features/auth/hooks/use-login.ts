@@ -4,22 +4,23 @@ import { useRef, useState } from "react";
 import { ApiHttpError } from "@/shared/lib/api/client";
 import { authApi, type LoginApi } from "../services/auth-api";
 import { authErrorCode } from "../services/auth-http";
-import type { AuthErrorCode } from "../types/auth.types";
+import type { AuthErrorCode, MfaChallenge } from "../types/auth.types";
 import { useCooldown } from "./use-cooldown";
 
 export type LoginProblem = { code: AuthErrorCode; retryAfterSeconds?: number };
-export type LoginOutcome = "authenticated" | "failed";
+export type LoginOutcome = "authenticated" | "mfa" | "failed";
 
 /**
  * Giriş gönderimi: çift gönderim engeli, hata kodu, 429 geri sayımı. Parola yalnız `submit` çağrısının
  * parametresidir; durumda, günlükte ya da depoda tutulmaz.
  *
- * İki aşamalı doğrulama (MFA) bu sürümde desteklenmez: sunucu çerez yazmadığı için oturum açılmış SAYILMAZ,
- * kullanıcıya `MFA_NOT_SUPPORTED` gösterilir.
+ * İki aşamalı doğrulama gerekiyorsa sunucu çerez yazmaz; oturum açılmış SAYILMAZ, sonuç `"mfa"` olur ve
+ * tek kullanımlık `challenge` bellekte tutulur (ikinci adım ekranı onu kullanır).
  */
 export function useLogin(api: LoginApi = authApi) {
   const [pending, setPending] = useState(false);
   const [problem, setProblem] = useState<LoginProblem | null>(null);
+  const [challenge, setChallenge] = useState<MfaChallenge | null>(null);
   const { remaining: cooldown, start: startCooldown } = useCooldown();
   const busy = useRef(false);
 
@@ -35,8 +36,8 @@ export function useLogin(api: LoginApi = authApi) {
       if (result.status === "AUTHENTICATED") {
         return "authenticated";
       }
-      setProblem({ code: "MFA_NOT_SUPPORTED" });
-      return "failed";
+      setChallenge({ kind: result.status === "MFA_REQUIRED" ? "verify" : "enroll", id: result.challengeId });
+      return "mfa";
     } catch (error) {
       if (error instanceof ApiHttpError) {
         const code = authErrorCode(error);
@@ -54,5 +55,5 @@ export function useLogin(api: LoginApi = authApi) {
     }
   }
 
-  return { pending, problem, cooldown, submit, clearProblem: () => setProblem(null) };
+  return { pending, problem, challenge, cooldown, submit, clearProblem: () => setProblem(null), clearChallenge: () => setChallenge(null) };
 }

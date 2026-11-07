@@ -15,12 +15,13 @@ import {
   type LoginValues
 } from "../schemas/login.schema";
 import { safeNextPath } from "../schemas/safe-next-path";
-import type { LoginApi } from "../services/auth-api";
+import type { LoginApi, TwoFactorApi } from "../services/auth-api";
 import { AuthIcon } from "./auth-icons";
 import { authControlClass, FormField } from "./form-field";
 import { PasswordToggle } from "./password-toggle";
 import { SocialButtons } from "./social-buttons";
 import { ProblemNotice, useWaitFormatter } from "./problem-notice";
+import { TwoFactor } from "./two-factor";
 
 type LoginFormProps = {
   /** Giriş sonrası dönülecek dahili yol (`?next=`); güvenli değilse yok sayılır. */
@@ -31,6 +32,8 @@ type LoginFormProps = {
   passwordReset?: boolean;
   /** Test için sahte API adaptörü. */
   api?: LoginApi;
+  /** Test için sahte ikinci faktör adaptörü. */
+  twoFactorApi?: TwoFactorApi;
 };
 
 /**
@@ -38,12 +41,12 @@ type LoginFormProps = {
  * Hesap var/yok ayrımı yapılmaz (`INVALID_CREDENTIALS` tek mesaj). Parola yalnız alan durumunda durur,
  * depoya yazılmaz. Erişilebilirlik: `aria-invalid`/`aria-describedby`, ilk hatalı alana odak, `role="alert"`.
  */
-export function LoginForm({ next = null, verified = false, passwordReset = false, api }: LoginFormProps) {
+export function LoginForm({ next = null, verified = false, passwordReset = false, api, twoFactorApi }: LoginFormProps) {
   const t = useTranslations("Auth");
   const baseId = useId();
   const intlRouter = useRouter();
   const nextRouter = useNextRouter();
-  const { pending, problem, cooldown, submit } = useLogin(api);
+  const { pending, problem, challenge, cooldown, submit, clearChallenge } = useLogin(api);
   const formatWait = useWaitFormatter();
   const [values, setValues] = useState<LoginValues>(emptyLoginValues);
   const [errors, setErrors] = useState<LoginErrors>({});
@@ -90,16 +93,24 @@ export function LoginForm({ next = null, verified = false, passwordReset = false
     // Parola, sonuç ne olursa olsun alandan silinir (başarıda sayfa değişir, hatada yeniden yazılır).
     setValues((current) => ({ ...current, password: "" }));
     if (outcome === "authenticated") {
-      const target = safeNextPath(next);
-      if (target) {
-        nextRouter.replace(target);
-      } else {
-        intlRouter.replace("/");
-      }
+      finish();
+    }
+  }
+
+  function finish() {
+    const target = safeNextPath(next);
+    if (target) {
+      nextRouter.replace(target);
+    } else {
+      intlRouter.replace("/");
     }
   }
 
   const blocked = pending || cooldown > 0;
+
+  if (challenge !== null) {
+    return <TwoFactor challenge={challenge} onAuthenticated={finish} onCancel={clearChallenge} api={twoFactorApi} />;
+  }
 
   return (
     <form noValidate onSubmit={onSubmit} aria-label={t("login.formLabel")} className="space-y-5">

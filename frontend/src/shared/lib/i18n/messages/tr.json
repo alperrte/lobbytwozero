@@ -598,7 +598,9 @@
       "SERVICE_BUSY": "Servis şu anda yoğun. Biraz sonra tekrar dene.",
       "NETWORK": "Sunucuya ulaşılamadı. Bağlantını kontrol edip tekrar dene.",
       "UNKNOWN": "Bir şeyler ters gitti. Lütfen tekrar dene.",
-      "VALIDATION_FAILED": "Bazı bilgiler geçersiz. Alanları kontrol edip tekrar dene."
+      "VALIDATION_FAILED": "Bazı bilgiler geçersiz. Alanları kontrol edip tekrar dene.",
+      "MFA_FAILED": "Kod geçersiz ya da doğrulama oturumunun süresi doldu. Yeniden dene ya da girişe dön.",
+      "INVALID_TWO_FACTOR_CODE": "Kod yanlış. Tekrar dene."
     },
     "register": {
       "metaTitle": "Kayıt ol",
@@ -699,6 +701,37 @@
         "TWO_FACTOR_ENROLLMENT_REQUIRED": "Bu hesap için iki aşamalı doğrulama kurulumu gerekiyor. Bu adım henüz bu ekranda desteklenmiyor.",
         "PROVIDER_NOT_CONFIGURED": "Bu giriş yöntemi şu anda kullanılamıyor.",
         "UNKNOWN": "Bir şeyler ters gitti. Lütfen tekrar dene."
+      }
+    },
+    "mfa": {
+      "submitting": "Gönderiliyor…",
+      "verify": {
+        "formLabel": "İki aşamalı doğrulama formu",
+        "description": "Doğrulama uygulamandaki 6 haneli kodu gir.",
+        "recoveryDescription": "Doğrulama uygulamana erişemiyorsan kurtarma kodlarından birini gir. Her kod yalnız bir kez geçerlidir.",
+        "code": "Doğrulama kodu",
+        "recoveryCode": "Kurtarma kodu",
+        "codeInvalid": "6 haneli bir kod gir.",
+        "recoveryInvalid": "Kurtarma kodu XXXXX-XXXXX biçimindedir.",
+        "submit": "Doğrula",
+        "useRecovery": "Kurtarma kodu kullan",
+        "useCode": "Uygulama kodu kullan",
+        "cancel": "Vazgeç",
+        "restart": "Girişe dön"
+      },
+      "enroll": {
+        "intro": "Bu hesap için iki aşamalı doğrulamayı kurman gerekiyor. Başlayınca bir anahtar göstereceğiz; doğrulama uygulamana ekle.",
+        "start": "Kurulumu başlat",
+        "formLabel": "İki aşamalı doğrulama kurulum formu",
+        "scan": "Doğrulama uygulamanda (ör. Google Authenticator) yeni hesap ekle ve aşağıdaki anahtarı gir, sonra uygulamanın gösterdiği kodu yaz.",
+        "secret": "Kurulum anahtarı (yalnız şimdi gösterilir)",
+        "openApp": "Uygulamada aç",
+        "activate": "Etkinleştir ve giriş yap",
+        "done": "İki aşamalı doğrulama etkinleştirildi, giriş yaptın.",
+        "recoveryDescription": "Kurtarma kodlarını güvenli bir yere kaydet. Bir daha gösterilmeyecek; telefonuna erişemezsen bu kodlarla girebilirsin.",
+        "recoveryList": "Kurtarma kodları",
+        "saved": "Kurtarma kodlarını güvenli bir yere kaydettim.",
+        "continue": "Devam et"
       }
     }
   }

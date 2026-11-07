@@ -24,6 +24,8 @@ export type AuthErrorCode =
   | "SESSION_INVALID"
   | "REFRESH_CONFLICT"
   | "MFA_NOT_SUPPORTED"
+  | "MFA_FAILED"
+  | "INVALID_TWO_FACTOR_CODE"
   | "NETWORK"
   | "UNKNOWN";
 
@@ -50,6 +52,8 @@ export const knownAuthErrorCodes: readonly AuthErrorCode[] = [
   "SESSION_INVALID",
   "REFRESH_CONFLICT",
   "MFA_NOT_SUPPORTED",
+  "MFA_FAILED",
+  "INVALID_TWO_FACTOR_CODE",
   "NETWORK",
   "UNKNOWN"
 ];
@@ -70,3 +74,9 @@ export type AuthMe = {
   authMethods: string[];
   accessTokenExpiresAt: string;
 };
+
+/** Tek kullanımlık MFA challenge'ı (bellekte tutulur; URL'ye, depoya ya da günlüğe yazılmaz). */
+export type MfaChallenge = { kind: "verify" | "enroll"; id: string };
+
+/** Kurulum başlangıcı: TOTP gizli anahtarı yalnız bu yanıtta görünür. */
+export type TotpEnrollment = { secret: string; otpauthUri: string };

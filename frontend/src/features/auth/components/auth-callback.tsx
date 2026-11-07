@@ -6,16 +6,19 @@ import { Icon } from "@/shared/components/ui/icons";
 import { Link, useRouter } from "@/shared/lib/i18n/navigation";
 import { useSteamRegistration } from "../hooks/use-steam-registration";
 import { emailPattern, registerLimits, usernamePattern } from "../schemas/register.schema";
-import type { SteamApi } from "../services/auth-api";
+import type { SteamApi, TwoFactorApi } from "../services/auth-api";
 import { callbackResultStore, forgetCallbackResult } from "../services/callback-params";
 import { rememberPendingEmail, rememberPendingProof } from "../services/pending-verification";
 import { authControlClass, FormField } from "./form-field";
 import { ProblemNotice } from "./problem-notice";
 import { AuthIcon } from "./auth-icons";
+import { TwoFactor } from "./two-factor";
 
 type AuthCallbackProps = {
   /** Test için sahte API adaptörü. */
   api?: Pick<SteamApi, "completeSteamRegistration">;
+  /** Test için sahte ikinci faktör adaptörü. */
+  twoFactorApi?: TwoFactorApi;
 };
 
 /** `Auth.callback.errors.<kod>` anahtarı olan dönüş hataları; diğerleri genel hataya düşer. */
@@ -161,7 +164,7 @@ function SteamCompleteForm({ token, api }: { token: string; api: AuthCallbackPro
  * doğrulaması gerekiyorsa doğrulama ekranına (kanıt bellekte taşınır); yeni Steam kullanıcısı için kayıt formu; hata ve
  * henüz desteklenmeyen iki aşamalı doğrulama için açıklayıcı mesaj. Sonuç dışarıdan gelen adrese yönlendirme yapmaz.
  */
-export function AuthCallback({ api }: AuthCallbackProps) {
+export function AuthCallback({ api, twoFactorApi }: AuthCallbackProps) {
   const t = useTranslations("Auth");
   const router = useRouter();
   const result = useSyncExternalStore(
@@ -231,6 +234,22 @@ export function AuthCallback({ api }: AuthCallbackProps) {
       );
     case "mfa_required":
     case "mfa_enrollment_required":
+      if (result.challenge) {
+        return (
+          <TwoFactor
+            challenge={{ kind: result.status === "mfa_required" ? "verify" : "enroll", id: result.challenge }}
+            onAuthenticated={() => {
+              forgetCallbackResult();
+              router.replace("/");
+            }}
+            onCancel={() => {
+              forgetCallbackResult();
+              router.replace("/login");
+            }}
+            api={twoFactorApi}
+          />
+        );
+      }
       return (
         <div className="space-y-4">
           <Notice tone="error">{t("callback.mfa")}</Notice>

@@ -120,16 +120,30 @@ describe("LoginForm", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(pattern);
   });
 
-  it("MFA gerektiren yanıtta oturum açılmış saymaz ve yönlendirmez", async () => {
-    renderForm(
-      vi.fn().mockResolvedValue({ status: "MFA_REQUIRED", challengeId: "c1", challengeExpiresAt: "x" } satisfies LoginResult)
+  it("MFA gerektiren yanıtta oturum açılmış saymaz; ikinci adım formunu gösterir, doğrulanınca yönlendirir", async () => {
+    const verifyTwoFactor = vi.fn().mockResolvedValue(undefined);
+    render(
+      <NextIntlClientProvider locale="tr" messages={tr} timeZone="Europe/Istanbul">
+        <LoginForm
+          api={{
+            login: vi.fn().mockResolvedValue({ status: "MFA_REQUIRED", challengeId: "c1", challengeExpiresAt: "x" } satisfies LoginResult)
+          }}
+          twoFactorApi={{ verifyTwoFactor, startTwoFactorEnrollment: vi.fn(), completeTwoFactorEnrollment: vi.fn() }}
+        />
+      </NextIntlClientProvider>
     );
     fill();
     fireEvent.click(submit());
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(/iki aşamalı doğrulama istiyor/);
+    const code = await screen.findByLabelText("Doğrulama kodu");
     expect(intlReplace).not.toHaveBeenCalled();
     expect(nextReplace).not.toHaveBeenCalled();
+
+    fireEvent.change(code, { target: { value: "123456" } });
+    fireEvent.click(screen.getByRole("button", { name: /Doğrula/ }));
+
+    await waitFor(() => expect(intlReplace).toHaveBeenCalledWith("/"));
+    expect(verifyTwoFactor).toHaveBeenCalledWith("c1", { code: "123456" });
   });
 
   it("429'da düğmeyi geri sayım boyunca pasif yapar, süre dolunca açar", async () => {

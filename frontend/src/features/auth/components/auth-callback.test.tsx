@@ -84,8 +84,26 @@ describe("AuthCallback", () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
-  it("mfa durumlarında oturum açılmış saymaz ve açıklayıcı mesaj verir", async () => {
+  it("mfa_required + challenge: ikinci adım formunu gösterir; doğrulanınca ana sayfaya gider", async () => {
     open("#status=mfa_required&challenge=abc");
+    const verifyTwoFactor = vi.fn().mockResolvedValue(undefined);
+    wrap(
+      <AuthCallback twoFactorApi={{ verifyTwoFactor, startTwoFactorEnrollment: vi.fn(), completeTwoFactorEnrollment: vi.fn() }} />
+    );
+
+    const code = await screen.findByLabelText("Doğrulama kodu");
+    expect(replace).not.toHaveBeenCalled();
+    expect(window.location.hash).toBe("");
+
+    fireEvent.change(code, { target: { value: "654321" } });
+    fireEvent.click(screen.getByRole("button", { name: /Doğrula/ }));
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    expect(verifyTwoFactor).toHaveBeenCalledWith("abc", { code: "654321" });
+  });
+
+  it("mfa durumu challenge'sız gelirse oturum açılmış saymaz ve açıklayıcı mesaj verir", async () => {
+    open("#status=mfa_required");
     wrap(<AuthCallback />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("iki aşamalı doğrulama istiyor");

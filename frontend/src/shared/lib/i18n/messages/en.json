@@ -598,7 +598,9 @@
       "SERVICE_BUSY": "The service is busy right now. Try again shortly.",
       "NETWORK": "Could not reach the server. Check your connection and try again.",
       "UNKNOWN": "Something went wrong. Please try again.",
-      "VALIDATION_FAILED": "Some details are not valid. Check the fields and try again."
+      "VALIDATION_FAILED": "Some details are not valid. Check the fields and try again.",
+      "MFA_FAILED": "The code is invalid or the verification session has expired. Try again or go back to sign in.",
+      "INVALID_TWO_FACTOR_CODE": "The code is wrong. Try again."
     },
     "register": {
       "metaTitle": "Sign up",
@@ -699,6 +701,37 @@
         "TWO_FACTOR_ENROLLMENT_REQUIRED": "This account must set up two-step verification. This step is not supported on this screen yet.",
         "PROVIDER_NOT_CONFIGURED": "This sign-in method is not available right now.",
         "UNKNOWN": "Something went wrong. Please try again."
+      }
+    },
+    "mfa": {
+      "submitting": "Submitting…",
+      "verify": {
+        "formLabel": "Two-step verification form",
+        "description": "Enter the 6-digit code from your authenticator app.",
+        "recoveryDescription": "If you cannot reach your authenticator app, enter one of your recovery codes. Each code works only once.",
+        "code": "Verification code",
+        "recoveryCode": "Recovery code",
+        "codeInvalid": "Enter a 6-digit code.",
+        "recoveryInvalid": "A recovery code looks like XXXXX-XXXXX.",
+        "submit": "Verify",
+        "useRecovery": "Use a recovery code",
+        "useCode": "Use an app code",
+        "cancel": "Cancel",
+        "restart": "Back to sign in"
+      },
+      "enroll": {
+        "intro": "You need to set up two-step verification for this account. We will show a key; add it to your authenticator app.",
+        "start": "Start setup",
+        "formLabel": "Two-step verification setup form",
+        "scan": "Add a new account in your authenticator app (for example Google Authenticator), enter the key below, then type the code the app shows.",
+        "secret": "Setup key (shown only now)",
+        "openApp": "Open in app",
+        "activate": "Activate and sign in",
+        "done": "Two-step verification is on and you are signed in.",
+        "recoveryDescription": "Save your recovery codes somewhere safe. They will not be shown again; use them if you lose access to your phone.",
+        "recoveryList": "Recovery codes",
+        "saved": "I saved my recovery codes somewhere safe.",
+        "continue": "Continue"
       }
     }
   }

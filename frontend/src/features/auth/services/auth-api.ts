@@ -1,10 +1,17 @@
 import { ApiHttpError } from "@/shared/lib/api/client";
-import type { AuthMe, LoginResult } from "../types/auth.types";
+import type { AuthMe, LoginResult, TotpEnrollment } from "../types/auth.types";
 import { authRequest } from "./auth-http";
 
 /** Giriş uçlarının arayüzü; hook bunu enjekte alır (test için sahte adaptör verilebilir). */
 export type LoginApi = {
   login(identifier: string, password: string, signal?: AbortSignal): Promise<LoginResult>;
+};
+
+/** İki aşamalı doğrulama uçlarının arayüzü: giriş ikinci adımı ve zorunlu TOTP kurulumu. */
+export type TwoFactorApi = {
+  verifyTwoFactor(challengeId: string, factor: { code: string } | { recoveryCode: string }, signal?: AbortSignal): Promise<void>;
+  startTwoFactorEnrollment(challengeId: string, signal?: AbortSignal): Promise<TotpEnrollment>;
+  completeTwoFactorEnrollment(challengeId: string, code: string, signal?: AbortSignal): Promise<{ recoveryCodes: string[] }>;
 };
 
 /** Kayıt ve e-posta doğrulama uçlarının arayüzü; hook'lar bunu enjekte alır (test için sahte adaptör verilebilir). */
@@ -41,6 +48,36 @@ export const authApi = {
       signal
     });
     return toLoginResult(result);
+  },
+
+  /** Giriş ikinci adımı: TOTP kodu ya da tek kullanımlık kurtarma kodu. Başarıda oturum çerezleri yazılır (`200`). */
+  async verifyTwoFactor(challengeId: string, factor: { code: string } | { recoveryCode: string }, signal?: AbortSignal): Promise<void> {
+    await authRequest<unknown>("/api/v1/auth/login/2fa", { method: "POST", body: { challengeId, ...factor }, signal });
+  },
+
+  /** Zorunlu kurulum 1/2: TOTP gizli anahtarı ve `otpauth` adresi (yalnız bu yanıtta; yeniden çağrı anahtarı yeniler). */
+  async startTwoFactorEnrollment(challengeId: string, signal?: AbortSignal): Promise<TotpEnrollment> {
+    const result = await authRequest<unknown>("/api/v1/auth/login/2fa/enrollment/start", {
+      method: "POST",
+      body: { challengeId },
+      signal
+    });
+    const record = typeof result === "object" && result !== null ? (result as Record<string, unknown>) : {};
+    if (typeof record.secret !== "string" || typeof record.otpauthUri !== "string") {
+      throw new ApiHttpError(200, { code: "UNKNOWN" });
+    }
+    return { secret: record.secret, otpauthUri: record.otpauthUri };
+  },
+
+  /** Zorunlu kurulum 2/2: kod doğruysa oturum açılır; kurtarma kodları YALNIZ bu yanıtta döner. */
+  async completeTwoFactorEnrollment(challengeId: string, code: string, signal?: AbortSignal): Promise<{ recoveryCodes: string[] }> {
+    const result = await authRequest<unknown>("/api/v1/auth/login/2fa/enrollment/complete", {
+      method: "POST",
+      body: { challengeId, code },
+      signal
+    });
+    const codes = typeof result === "object" && result !== null ? (result as Record<string, unknown>).recoveryCodes : undefined;
+    return { recoveryCodes: Array.isArray(codes) ? codes.filter((item): item is string => typeof item === "string") : [] };
   },
 
   /** Kayıt: her durumda `202` (e-posta kayıtlı olsa da aynı yanıt; hesap varlığı sızmaz) ve doğrulama kodu gönderilir. */
