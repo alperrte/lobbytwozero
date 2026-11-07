@@ -26,6 +26,8 @@ type LoginFormProps = {
   next?: string | null;
   /** E-posta doğrulaması yeni tamamlandıysa (`?verified=1`) bilgi kutusu gösterilir. */
   verified?: boolean;
+  /** Şifre yeni sıfırlandıysa (`?reset=1`) bilgi kutusu gösterilir. */
+  passwordReset?: boolean;
   /** Test için sahte API adaptörü. */
   api?: LoginApi;
 };
@@ -35,7 +37,7 @@ type LoginFormProps = {
  * Hesap var/yok ayrımı yapılmaz (`INVALID_CREDENTIALS` tek mesaj). Parola yalnız alan durumunda durur,
  * depoya yazılmaz. Erişilebilirlik: `aria-invalid`/`aria-describedby`, ilk hatalı alana odak, `role="alert"`.
  */
-export function LoginForm({ next = null, verified = false, api }: LoginFormProps) {
+export function LoginForm({ next = null, verified = false, passwordReset = false, api }: LoginFormProps) {
   const t = useTranslations("Auth");
   const baseId = useId();
   const intlRouter = useRouter();
@@ -100,13 +102,13 @@ export function LoginForm({ next = null, verified = false, api }: LoginFormProps
 
   return (
     <form noValidate onSubmit={onSubmit} aria-label={t("login.formLabel")} className="space-y-5">
-      {verified ? (
+      {verified || passwordReset ? (
         <p
           role="status"
           className="flex items-start gap-2.5 rounded-control border border-border bg-surface-elevated px-4 py-3 text-sm font-medium text-text-primary"
         >
           <Icon name="check" className="mt-0.5 size-4 shrink-0 text-brand-text" />
-          <span>{t("login.verifiedNotice")}</span>
+          <span>{passwordReset ? t("login.resetNotice") : t("login.verifiedNotice")}</span>
         </p>
       ) : null}
       <ProblemNotice code={problem?.code ?? null} retryAfterSeconds={problem?.retryAfterSeconds} />
@@ -153,6 +155,12 @@ export function LoginForm({ next = null, verified = false, api }: LoginFormProps
           />
         )}
       </FormField>
+
+      <p className="-mt-2 text-end text-sm">
+        <Link href="/forgot-password" className="font-medium text-text-secondary underline underline-offset-2 hover:text-text-primary">
+          {t("login.forgot")}
+        </Link>
+      </p>
 
       <button
         type="submit"

@@ -20,6 +20,9 @@ export const pathnames = {
   "/login": { tr: "/giris", en: "/login" },
   "/register": { tr: "/kayit", en: "/register" },
   "/verify-email": { tr: "/eposta-dogrulama", en: "/verify-email" },
+  "/forgot-password": { tr: "/sifremi-unuttum", en: "/forgot-password" },
+  // Auth e-postalarındaki bağlantı yolu (dil öneksiz, token URL parçasında); docs-auth/AUTH_REHBERI.md §8.
+  "/auth/reset-password": { tr: "/auth/sifre-sifirla", en: "/auth/reset-password" },
   "/legal/kvkk": { tr: "/yasal/kvkk", en: "/legal/kvkk" },
   "/legal/privacy": { tr: "/yasal/gizlilik", en: "/legal/privacy" },
   "/legal/terms": { tr: "/yasal/kullanim-kosullari", en: "/legal/terms" },

@@ -431,3 +431,94 @@ test.describe("kayıt ve e-posta doğrulama", () => {
     await expect(page.getByRole("button", { name: /Yeniden göndermek için 1 dakika bekle/ })).toBeDisabled();
   });
 });
+
+test.describe("şifremi unuttum ve şifre sıfırlama", () => {
+  const TOKEN = "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789-_AbCdEf";
+
+  test("giriş sayfasında 'Şifremi unuttum' bağlantısı sayfaya gider; TR ve EN adresleri açılır", async ({ page }) => {
+    await mockGateway(page, {});
+    await page.goto("/tr/giris");
+    await expect(page.getByRole("link", { name: "Şifremi unuttum" })).toHaveAttribute("href", "/tr/sifremi-unuttum");
+    await page.goto("/en/forgot-password");
+    await expect(page.getByRole("heading", { level: 1, name: "Forgot your password?" })).toBeVisible();
+    await page.goto("/tr/forgot-password");
+    await expect(page).toHaveURL(/\/tr\/sifremi-unuttum$/);
+  });
+
+  test("şifremi unuttum: hesap varlığını söylemeden tek bilgi mesajı gösterir", async ({ page }) => {
+    const bodies: unknown[] = [];
+    await mockGateway(page, {
+      "GET /api/v1/auth/csrf": { status: 204 },
+      "POST /api/v1/auth/password/forgot": async (route) => {
+        bodies.push(route.request().postDataJSON());
+        return route.fulfill({
+          status: 202,
+          headers: { ...corsFor(route), "content-type": "application/json" },
+          body: JSON.stringify({ nextStep: "CHECK_EMAIL" })
+        });
+      }
+    });
+    await page.goto("/tr/sifremi-unuttum");
+    await waitForHydration(page);
+
+    await page.getByLabel("E-posta").fill("ada@example.com");
+    await page.getByRole("button", { name: "Bağlantı gönder" }).click();
+
+    await expect(page.getByText(/Bu adres kayıtlıysa bir şifre sıfırlama bağlantısı gönderdik/)).toBeVisible();
+    expect(bodies).toEqual([{ email: "ada@example.com" }]);
+  });
+
+  test("e-postadaki ÖNEKSİZ bağlantı dil önekli sayfaya yönlenir, token URL parçasında korunur ve adresten silinir", async ({ page }) => {
+    const bodies: unknown[] = [];
+    await mockGateway(page, {
+      "GET /api/v1/auth/csrf": { status: 204 },
+      "POST /api/v1/auth/password/reset": async (route) => {
+        bodies.push(route.request().postDataJSON());
+        return route.fulfill({ status: 204, headers: corsFor(route) });
+      }
+    });
+
+    // Auth'ın e-postada ürettiği bağlantı biçimi: dil öneksiz yol + #token=...
+    await page.goto(`/auth/reset-password#token=${TOKEN}`);
+    await waitForHydration(page);
+
+    await expect(page).toHaveURL(/\/tr\/auth\/sifre-sifirla$/); // önek eklendi, slug yerelleşti, parça silindi
+    expect(page.url()).not.toContain(TOKEN);
+    await expect(page.getByLabel("Yeni şifre", { exact: true })).toBeVisible();
+
+    await page.getByLabel("Yeni şifre", { exact: true }).fill("yeni-dogru-parola-123");
+    await page.getByLabel("Yeni şifre (tekrar)").fill("yeni-dogru-parola-123");
+    await page.getByRole("button", { name: "Şifreyi güncelle" }).click();
+
+    await expect(page).toHaveURL(/\/tr\/giris\?reset=1$/);
+    await expect(page.getByRole("status")).toContainText("Şifren güncellendi");
+    expect(bodies).toEqual([
+      { token: TOKEN, newPassword: "yeni-dogru-parola-123", newPasswordConfirmation: "yeni-dogru-parola-123" }
+    ]);
+  });
+
+  test("token'sız ya da bozuk bağlantıda form yerine yeni bağlantı isteme yönlendirmesi çıkar", async ({ page }) => {
+    await mockGateway(page, {});
+    await page.goto("/tr/auth/sifre-sifirla");
+    await waitForHydration(page);
+
+    await expect(page.locator('[role="alert"]').filter({ hasText: "geçersiz ya da süresi dolmuş" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Yeni bağlantı iste" })).toHaveAttribute("href", "/tr/sifremi-unuttum");
+    await expect(page.getByLabel("Yeni şifre", { exact: true })).toHaveCount(0);
+  });
+
+  test("süresi dolmuş token (sunucu reddi) yeni bağlantı yönlendirmesi gösterir", async ({ page }) => {
+    await mockGateway(page, {
+      "GET /api/v1/auth/csrf": { status: 204 },
+      "POST /api/v1/auth/password/reset": { status: 400, body: { code: "PASSWORD_RESET_TOKEN_INVALID" } }
+    });
+    await page.goto(`/tr/auth/sifre-sifirla#token=${TOKEN}`);
+    await waitForHydration(page);
+    await page.getByLabel("Yeni şifre", { exact: true }).fill("yeni-dogru-parola-123");
+    await page.getByLabel("Yeni şifre (tekrar)").fill("yeni-dogru-parola-123");
+
+    await page.getByRole("button", { name: "Şifreyi güncelle" }).click();
+
+    await expect(page.getByRole("link", { name: "Yeni bağlantı iste" })).toBeVisible();
+  });
+});

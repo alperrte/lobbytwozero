@@ -14,6 +14,12 @@ export type RegistrationApi = {
   resendEmailCode(email: string, signal?: AbortSignal): Promise<void>;
 };
 
+/** Şifremi unuttum ve sıfırlama uçlarının arayüzü (test için sahte adaptör verilebilir). */
+export type PasswordResetApi = {
+  forgotPassword(email: string, signal?: AbortSignal): Promise<void>;
+  resetPassword(token: string, newPassword: string, confirmation: string, signal?: AbortSignal): Promise<void>;
+};
+
 /** Oturum uçlarının arayüzü (yükleme ve çıkış); test için sahte adaptör verilebilir. */
 export type SessionApi = {
   getMe(signal?: AbortSignal): Promise<AuthMe>;
@@ -54,6 +60,20 @@ export const authApi = {
     await authRequest<unknown>("/api/v1/auth/email-verification/resend", {
       method: "POST",
       body: { email },
+      signal
+    });
+  },
+
+  /** Şifre sıfırlama bağlantısı ister: her durumda `202` (hesap varlığı sızmaz; e-posta yalnız uygun hesaba gider). */
+  async forgotPassword(email: string, signal?: AbortSignal): Promise<void> {
+    await authRequest<unknown>("/api/v1/auth/password/forgot", { method: "POST", body: { email }, signal });
+  },
+
+  /** Yeni parola belirler (`204`); tüm oturumlar iptal edilir, kullanıcı giriş sayfasına yönlendirilir. */
+  resetPassword(token: string, newPassword: string, confirmation: string, signal?: AbortSignal): Promise<void> {
+    return authRequest<void>("/api/v1/auth/password/reset", {
+      method: "POST",
+      body: { token, newPassword, newPasswordConfirmation: confirmation },
       signal
     });
   },

@@ -525,7 +525,9 @@
       "retryIn": "Try again in {time}",
       "noAccount": "Don't have an account yet?",
       "toRegister": "Sign up",
-      "verifiedNotice": "Your email address is verified. You can sign in now."
+      "verifiedNotice": "Your email address is verified. You can sign in now.",
+      "forgot": "Forgot password",
+      "resetNotice": "Your password was updated. You can sign in with your new password."
     },
     "session": {
       "account": "My account"
@@ -568,6 +570,18 @@
       "verifyPassword": {
         "required": "Enter the password you chose when signing up.",
         "tooLong": "Must be at most {max} characters."
+      },
+      "newPassword": {
+        "required": "Enter your new password.",
+        "tooShort": "Must be at least {min} characters.",
+        "tooLong": "Must be at most {max} characters.",
+        "weak": "This password is easy to guess. Choose a longer, unique password.",
+        "same": "The new password must differ from your current one.",
+        "invalid": "The password is not valid."
+      },
+      "confirmation": {
+        "required": "Enter your password again.",
+        "mismatch": "The passwords do not match."
       }
     },
     "errors": {
@@ -622,6 +636,31 @@
       "resendIn": "Wait {time} to resend",
       "resent": "A new code was sent (if the address is registered). Check your inbox.",
       "backToLogin": "Back to sign in"
+    },
+    "forgot": {
+      "metaTitle": "Forgot password",
+      "title": "Forgot your password?",
+      "description": "Enter your email address and, if it is registered, we will send you a reset link.",
+      "formLabel": "Password reset request form",
+      "email": "Email",
+      "emailPlaceholder": "Enter your email address",
+      "submit": "Send link",
+      "resend": "Send again",
+      "submitting": "Sending…",
+      "sent": "If this address is registered, we sent a password reset link. Check your inbox and spam folder.",
+      "backToLogin": "Back to sign in"
+    },
+    "reset": {
+      "metaTitle": "Password reset",
+      "title": "Set a new password",
+      "description": "You came from the link in your email. Set your new password.",
+      "formLabel": "Password reset form",
+      "newPassword": "New password",
+      "confirmation": "New password (again)",
+      "submit": "Update password",
+      "submitting": "Updating…",
+      "tokenInvalid": "This link is invalid or has expired. You can request a new password reset link.",
+      "requestNew": "Request a new link"
     }
   }
 }

@@ -525,7 +525,9 @@
       "retryIn": "{time} sonra tekrar dene",
       "noAccount": "Henüz hesabın yok mu?",
       "toRegister": "Kayıt ol",
-      "verifiedNotice": "E-posta adresin doğrulandı. Şimdi giriş yapabilirsin."
+      "verifiedNotice": "E-posta adresin doğrulandı. Şimdi giriş yapabilirsin.",
+      "forgot": "Şifremi unuttum",
+      "resetNotice": "Şifren güncellendi. Yeni şifrenle giriş yapabilirsin."
     },
     "session": {
       "account": "Hesabım"
@@ -568,6 +570,18 @@
       "verifyPassword": {
         "required": "Kayıt olurken belirlediğin şifreyi gir.",
         "tooLong": "En fazla {max} karakter olabilir."
+      },
+      "newPassword": {
+        "required": "Yeni şifreni gir.",
+        "tooShort": "En az {min} karakter olmalı.",
+        "tooLong": "En fazla {max} karakter olabilir.",
+        "weak": "Bu şifre tahmin edilmesi kolay. Daha uzun ve benzersiz bir şifre seç.",
+        "same": "Yeni şifre mevcut şifrenden farklı olmalı.",
+        "invalid": "Şifre geçersiz."
+      },
+      "confirmation": {
+        "required": "Şifreni tekrar gir.",
+        "mismatch": "Şifreler eşleşmiyor."
       }
     },
     "errors": {
@@ -622,6 +636,31 @@
       "resendIn": "Yeniden göndermek için {time} bekle",
       "resent": "Yeni kod gönderildi (adres kayıtlıysa). Gelen kutunu kontrol et.",
       "backToLogin": "Giriş sayfasına dön"
+    },
+    "forgot": {
+      "metaTitle": "Şifremi unuttum",
+      "title": "Şifreni mi unuttun?",
+      "description": "E-posta adresini gir, kayıtlıysa sana bir sıfırlama bağlantısı gönderelim.",
+      "formLabel": "Şifre sıfırlama isteği formu",
+      "email": "E-posta",
+      "emailPlaceholder": "E-posta adresini gir",
+      "submit": "Bağlantı gönder",
+      "resend": "Yeniden gönder",
+      "submitting": "Gönderiliyor…",
+      "sent": "Bu adres kayıtlıysa bir şifre sıfırlama bağlantısı gönderdik. Gelen kutunu ve gereksiz klasörünü kontrol et.",
+      "backToLogin": "Giriş sayfasına dön"
+    },
+    "reset": {
+      "metaTitle": "Şifre sıfırlama",
+      "title": "Yeni şifre belirle",
+      "description": "E-postandaki bağlantıyla geldin. Yeni şifreni belirle.",
+      "formLabel": "Şifre sıfırlama formu",
+      "newPassword": "Yeni şifre",
+      "confirmation": "Yeni şifre (tekrar)",
+      "submit": "Şifreyi güncelle",
+      "submitting": "Güncelleniyor…",
+      "tokenInvalid": "Bu bağlantı geçersiz ya da süresi dolmuş. Yeni bir şifre sıfırlama bağlantısı isteyebilirsin.",
+      "requestNew": "Yeni bağlantı iste"
     }
   }
 }
