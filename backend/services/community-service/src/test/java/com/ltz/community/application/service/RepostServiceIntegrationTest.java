@@ -42,6 +42,7 @@ import com.ltz.community.domain.exception.PostNotEditableException;
 import com.ltz.community.domain.exception.PostNotFoundException;
 import com.ltz.community.infrastructure.config.ClockConfig;
 import com.ltz.community.infrastructure.persistence.PostgreSqlIntegrationTest;
+import com.ltz.community.infrastructure.persistence.GameContentQuotaAdapter;
 import com.ltz.community.infrastructure.persistence.repository.PostImageRepository;
 import com.ltz.community.infrastructure.persistence.repository.PostRepository;
 
@@ -51,7 +52,7 @@ import jakarta.persistence.EntityManager;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({ EventTestConfig.class, RepostService.class, PostService.class, PostFeedService.class, PostAccess.class, PostViewAssembler.class,
-		PostMapper.class, ForumService.class, ForumMapper.class, ClockConfig.class })
+		PostMapper.class, ForumService.class, ForumMapper.class, ClockConfig.class, GameContentQuotaAdapter.class })
 class RepostServiceIntegrationTest extends PostgreSqlIntegrationTest {
 
 	private static final Instant NOW = Instant.parse("2026-10-21T10:00:00Z");
@@ -215,7 +216,7 @@ class RepostServiceIntegrationTest extends PostgreSqlIntegrationTest {
 		when(currentUser.hasModeratorRole()).thenReturn(true);
 		ForumResponse forum = forums.createForum(new CreateForumRequest("repost-forumu", "Forum", null, null));
 		when(currentUser.hasModeratorRole()).thenReturn(false);
-		PostViewResponse inForum = feed.getPost(posts.createPost(new CreatePostRequest("konu", null, null, forum.id())).id());
+		PostViewResponse inForum = feed.getPost(posts.createPost(new CreatePostRequest("konu", null, null, forum.id(), null, null)).id());
 		Post source = original("forumsuz");
 		reposts.repost(source.getId(), null);
 		UUID threadId = inForum.id();
@@ -258,7 +259,7 @@ class RepostServiceIntegrationTest extends PostgreSqlIntegrationTest {
 		when(currentUser.hasModeratorRole()).thenReturn(true);
 		ForumResponse forum = forums.createForum(new CreateForumRequest("kaynak-forum", "Forum", null, null));
 		when(currentUser.hasModeratorRole()).thenReturn(false);
-		UUID threadId = posts.createPost(new CreatePostRequest("forum konusu", null, null, forum.id())).id();
+		UUID threadId = posts.createPost(new CreatePostRequest("forum konusu", null, null, forum.id(), null, null)).id();
 		// Repost oluşturulduktan sonra forum gizlenir; kaynak içerik repost üzerinden de görünmemelidir.
 		UUID repostId = postRepository.saveAndFlush(Post.repost(reposter, threadId, null, NOW)).getId();
 		when(currentUser.hasModeratorRole()).thenReturn(true);
@@ -291,7 +292,7 @@ class RepostServiceIntegrationTest extends PostgreSqlIntegrationTest {
 		PostViewResponse repost = reposts.repost(source.getId(), comment("not"));
 		UUID repostId = repost.id();
 
-		UpdatePostRequest edit = new UpdatePostRequest("değiştir", null);
+		UpdatePostRequest edit = new UpdatePostRequest("değiştir", null, null);
 		assertThatThrownBy(() -> posts.updatePost(repostId, edit))
 				.isInstanceOf(PostNotEditableException.class);
 

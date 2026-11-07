@@ -58,7 +58,7 @@ class RepostControllerTest {
 		RepostSourceResponse source = new RepostSourceResponse(POST_ID, true, AUTHOR_ID, null, PostCategory.GENERAL,
 				"özgün", at, List.of());
 		return new PostViewResponse(REPOST_ID, USER_ID, null, null, PostCategory.GENERAL, comment, PostStatus.VISIBLE, at,
-				at, 0, 0, false, List.of(), source);
+				at, 0, 0, false, List.of(), source, null, null);
 	}
 
 	@Test

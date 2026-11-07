@@ -27,7 +27,7 @@ import com.ltz.community.application.port.AccountErasurePort;
  *   <li><b>Forumlar</b>: forumu oluşturan referansı anonimleşir (forum içeriği kişisel değildir).</li>
  *   <li><b>Outbox</b>: hesabın kimliğini taşıyan tüm olaylar (bekleyen, başarısız ve teslim edilmiş) silinir.</li>
  * </ul>
- * Şema değişikliği gerekmez (community migration aralığı dolu): yer tutucu metin mevcut CHECK kısıtlarını sağlar.
+ * Yer tutucu metin mevcut CHECK kısıtlarını sağlar (türlü içeriğin başlığı da aynı yer tutucuyla değiştirilir).
  */
 @Component
 public class AccountDataEraser implements AccountErasurePort {
@@ -87,6 +87,7 @@ public class AccountDataEraser implements AccountErasurePort {
 		jdbc.sql("""
 				update posts set author_id = :anonymous,
 				    body = case when repost_of_id is null then :removed else null end,
+				    title = case when content_type is null then null else :removed end,
 				    status = 'DELETED', deleted_at = coalesce(deleted_at, :at), updated_at = :at, version = version + 1
 				where author_id = :account
 				""")

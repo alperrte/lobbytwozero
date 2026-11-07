@@ -2773,9 +2773,13 @@ Authenticated. Gönderi sahibi (`authorId`) yalnız doğrulanmış JWT'nin `sub`
   "body": "string, zorunlu, boşluk dışında en az 1 karakter, en çok 5000 karakter, kontrol karakteri içermez (düz metin)",
   "gameId": "UUID, opsiyonel; verilirse LTZ oyun kataloğunda (game-service) doğrulanır",
   "category": "opsiyonel; GENERAL | GUIDE | QUESTION | SCREENSHOT (varsayılan GENERAL); yalnız büyük harfli ad kabul edilir",
-  "forumId": "UUID, opsiyonel (COM-19); verilirse gönderi o forumda konu olarak açılır. Forum VISIBLE olmalıdır. Forum bir oyuna bağlıysa konu o oyuna bağlanır (gameId verilmezse forumun oyunu atanır; farklı bir gameId 422 döner)"
+  "forumId": "UUID, opsiyonel (COM-19); verilirse gönderi o forumda konu olarak açılır. Forum VISIBLE olmalıdır. Forum bir oyuna bağlıysa konu o oyuna bağlanır (gameId verilmezse forumun oyunu atanır; farklı bir gameId 422 döner)",
+  "contentType": "opsiyonel (GAME-11); GUIDES | EASTER_EGGS | EXPERIENCES; yalnız büyük harfli ad. Verilirse gönderi oyuna bağlı türlü içerik olur (aşağıdaki kurallar). Oluşturulduktan sonra DEĞİŞTİRİLEMEZ; eski gönderilere sonradan tür atanamaz",
+  "title": "string, contentType verilirse zorunlu, contentType yoksa verilemez; baştaki/sondaki boşluk kırpılır, 1-120 karakter, kontrol karakteri (satır sonu dahil) içermez (düz metin)"
 }
 ```
+**Türlü içerik kuralları (GAME-11):** `contentType` verilirse `title` ve `gameId` zorunludur ve `forumId` verilemez (türlü içerik forum konusu olamaz); `gameId` mevcut COM-14 doğrulamasıyla game-service'te aranır. Tür, `category`'den bağımsız bir alandır: `category=GUIDE` olan eski ya da yeni bir gönderi `GUIDES` sayılmaz; `GUIDES` içeriğin kategorisi varsayılan olarak `GENERAL`'dır. Gövde (`body`) ve `title` **düz metindir**: HTML/Markdown yorumlanmaz, sanitizasyon yoktur, istemci metin olarak göstermelidir (`dangerouslySetInnerHTML` yasak). Zengin metin bu sürümde yoktur. Dış bağlantı ayrıştırılmaz; dosya yalnız mevcut görsel yükleme ucuyla (COM-10: JPEG/PNG, doğrulanır) eklenir. Kullanıcı başına saatlik en çok 10 türlü içerik oluşturulabilir (silinenler sayılır); kota denetimi ve kayıt aynı veritabanı işleminde kullanıcı bazında kilitlenir, eşzamanlı istekler sınırı aşamaz.
+
 Bilinmeyen alanlar (ör. `authorId`) reddedilir (400). `gameId` verilmezse (ve forumdan miras alınmıyorsa) game-service çağrılmaz. Geçersiz `category` (bilinmeyen ad, küçük harf, sayı, boş metin) 400 döner.
 
 #### Response — 201
@@ -2789,7 +2793,9 @@ Bilinmeyen alanlar (ör. `authorId`) reddedilir (400). `gameId` verilmezse (ve f
   "body": "string (baştaki/sondaki boşluklar kırpılmış)",
   "status": "VISIBLE",
   "createdAt": "ISO-8601 UTC",
-  "updatedAt": "ISO-8601 UTC"
+  "updatedAt": "ISO-8601 UTC",
+  "contentType": "GUIDES | EASTER_EGGS | EXPERIENCES | null (türsüz gönderide null)",
+  "title": "string | null (yalnız türlü içerikte dolu)"
 }
 ```
 
@@ -2797,8 +2803,9 @@ Bilinmeyen alanlar (ör. `authorId`) reddedilir (400). `gameId` verilmezse (ve f
 - 400: Doğrulama hatası (boş/çok uzun/kontrol karakterli `body`, bilinmeyen alan, bozuk JSON); gövde `violations[]` içinde alan adı ve mesaj döner, girdi değeri döndürülmez
 - 401: Kimlik yok, token geçersiz ya da `sub` UUID değil
 - 404: `forumId` verildi ama forum yok ya da gizli
-- 422: `gameId` LTZ oyun kataloğunda yok ya da yayında değil (arşivlenmiş/birleştirilmiş); ya da `gameId`, forumun oyunuyla çelişiyor
-- 503: `gameId` verildi ama game-service doğrulanamadı (zaman aşımı/bağlantı/429/beklenmeyen yanıt); gönderi oyun bağlantısı doğrulanmadan yazılmaz
+- 422: `gameId` LTZ oyun kataloğunda yok ya da yayında değil (arşivlenmiş/birleştirilmiş); `gameId`, forumun oyunuyla çelişiyor; ya da türlü içerik kuralı ihlali (GAME-11): `contentType` var ama `title`/`gameId` yok ya da `title` boş, `contentType` ile birlikte `forumId` verilmiş, `title` var ama `contentType` yok
+- 429: Saatlik türlü içerik kotası (10) doldu; `Retry-After: 3600` (üst sınır, saniye) döner; game-service çağrılmaz
+- 503: `gameId` verildi ama game-service doğrulanamadı (zaman aşımı/bağlantı/429/beklenmeyen yanıt); gönderi oyun bağlantısı doğrulanmadan yazılmaz. Veritabanı geçici erişilemezse de 503 döner
 - 500: Beklenmeyen sunucu hatası
 
 #### Bağlantı
@@ -2834,7 +2841,7 @@ Public (misafir dahil; kullanıcı kararı). Yalnız `VISIBLE` gönderiler liste
 - limit: int, opsiyonel, varsayılan 20, 1–50
 - cursor: string, opsiyonel, en çok 200 karakter; önceki yanıttaki `nextCursor` (opak, keyset imleci). Sonraki sayfa istenirken aynı `q`, filtreler ve **aynı `sort`** verilmelidir; imleç bunları taşımaz. Başka bir `sort` için üretilmiş imleç 400 döner.
 
-Filtreler ve `q` birlikte (AND) uygulanır.
+Filtreler ve `q` birlikte (AND) uygulanır. Oyuna bağlı türlü içerik (GAME-11) de sıradan bir gönderidir ve akışta `contentType`/`title` alanlarıyla görünür; oyuna göre tür bazlı sayfalı okuma için bkz. 'Oyuna Bağlı İçerik Listesi'.
 
 Yeni gönderiler gelse bile verilmiş bir imleç sayfaları kaydırmaz (keyset sayfalama, COUNT yok). `POPULAR`'da sayfalar arasında bir gönderinin sayaçları değişirse o gönderi sayfa sınırında atlanabilir/tekrarlanabilir; bu, değişken anahtarlı keyset sayfalamanın bilinen sınırıdır.
 
@@ -2856,7 +2863,9 @@ Yeni gönderiler gelse bile verilmiş bir imleç sayfaları kaydırmaz (keyset s
       "commentCount": 0,
       "likedByMe": "boolean (kimlik yoksa her zaman false)",
       "images": [ { "id": "UUID", "postId": "UUID", "mimeType": "image/jpeg | image/png", "sizeBytes": 0, "width": 0, "height": 0, "sortOrder": 0, "contentUrl": "/api/v1/community/posts/{postId}/images/{id}", "createdAt": "ISO-8601 UTC" } ],
-      "repostOf": "null | { postId: UUID, available: boolean, authorId: UUID | null, gameId: UUID | null, category, body: string | null, createdAt, images[] } (bkz. 'Repost' kaydı)"
+      "repostOf": "null | { postId: UUID, available: boolean, authorId: UUID | null, gameId: UUID | null, category, body: string | null, createdAt, images[] } (bkz. 'Repost' kaydı)",
+      "contentType": "GUIDES | EASTER_EGGS | EXPERIENCES | null (GAME-11; türsüz gönderide null)",
+      "title": "string | null (yalnız türlü içerikte dolu)"
     }
   ],
   "nextCursor": "string | null (son sayfada null)"
@@ -2930,7 +2939,7 @@ Public (misafir dahil). Misafir ve diğer kullanıcılar yalnız `VISIBLE` gönd
 - postId: UUID, zorunlu
 
 #### Response — 200
-Akıştaki bir öğe ile aynı alanlar (`PostViewResponse`): `id`, `authorId`, `gameId`, `forumId`, `category`, `body`, `status`, `createdAt`, `updatedAt`, `likeCount`, `commentCount`, `likedByMe`, `images[]`, `repostOf`. Gönderinin sahibi, tarihi, içeriği, görselleri ve etkileşim sayaçları bu uçtan döner. Gönderinin yorumları ayrı uçtan okunur (bkz. 'Gönderi Yorumlarını Listele'). Gizli (`HIDDEN`) bir forumun konusu sahibine bile 404 döner. Çağıranla yazar arasında (iki yönde) engelleme (COM-21) varsa içerik hiç yokmuş gibi davranılır (404). Yazarın görünen adı/avatarı user-service sözleşmesi netleşince eklenir.
+Akıştaki bir öğe ile aynı alanlar (`PostViewResponse`): `id`, `authorId`, `gameId`, `forumId`, `category`, `body`, `status`, `createdAt`, `updatedAt`, `likeCount`, `commentCount`, `likedByMe`, `images[]`, `repostOf`, `contentType`, `title` (son ikisi yalnız türlü içerikte dolu). Gönderinin sahibi, tarihi, içeriği, görselleri ve etkileşim sayaçları bu uçtan döner. Gönderinin yorumları ayrı uçtan okunur (bkz. 'Gönderi Yorumlarını Listele'). Gizli (`HIDDEN`) bir forumun konusu sahibine bile 404 döner. Çağıranla yazar arasında (iki yönde) engelleme (COM-21) varsa içerik hiç yokmuş gibi davranılır (404). Yazarın görünen adı/avatarı user-service sözleşmesi netleşince eklenir.
 
 #### Hata Durumları
 - 400: UUID olmayan `postId`
@@ -2946,6 +2955,122 @@ Diğer mikroservisler:
 
 #### Test Durumu
 UNIT + INTEGRATION (MockMvc; gerçek PostgreSQL üzerinde görünürlük kuralları, `likedByMe`, gizli forum konusu, repost kaynağı). Gateway ile uçtan uca doğrulama: NOT VERIFIED.
+
+### COMMUNITY — Oyuna Bağlı İçerik Listesi (GAME-11)
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend (oyun detayı: rehberler, easter egg'ler, oyuncu deneyimleri). Game Service adaptörü: PLANNED (Hamza ile onaylanmadı; bkz. `docs/community/game/game-01-cevap.md`)
+
+#### Endpoint
+GET /api/v1/community/games/{gameId}/content
+
+#### Yetkilendirme
+Public (misafir dahil). Çağıranın kimliği (varsa) yalnız görünürlük ve `likedByMe` için kullanılır: kimlik, Gateway'in çerezden ürettiği `Authorization: Bearer` access token'ıyla gelir ve bu serviste JWKS ile doğrulanır; geçersiz/süresi dolmuş token misafire düşürülmez, `401` alır. Servis token'ı (`svc+jwt`) bu uçta `401` alır. Yanıt çağırana göre değiştiği için paylaşımlı (public) cache'e konmaz; Spring Security varsayılanı `Cache-Control: no-cache, no-store` gönderir.
+
+**Görünürlük (liste, toplam ve detayda aynı koşul):** yalnız yayımlanmış (`VISIBLE`) türlü içerik; moderasyonla gizlenmiş (`HIDDEN`), silinmiş (`DELETED`) ve gizli forumdaki içerik hiç listelenmez (içerik sahibine bile; sahibi kendi gizli içeriğini `GET /users/{userId}/posts` ile görür). Çağıranla yazarı arasında iki yönlü engelleme (COM-21) varsa o yazarın içeriği listelenmez ve `totalElements`'a girmez. Taslak durumu yoktur (içerik oluşturulunca yayımlanır). Böylece gizli/silinmiş/engelli kayıtların varlığı toplam sayıdan sızmaz.
+
+#### Path/Query Parameters
+- gameId: UUID, zorunlu (path). **Game Service'te doğrulanmaz** (okumada dış çağrı yoktur); eşleşen içerik yoksa 200 + boş liste döner. Kanonik oyun doğrulaması çağıranın (Game/frontend) sorumluluğundadır.
+- type: `GUIDES | EASTER_EGGS | EXPERIENCES`, opsiyonel; yalnız büyük harfli ad (Game'in modül türleriyle aynı adlar). Verilmezse üç türün tümü; türsüz gönderiler (eski `category=GUIDE` gönderileri dahil) hiçbir zaman listelenmez.
+- page: int, opsiyonel, 0 tabanlı, varsayılan 0, 0-10000 (Game modül ucuyla aynı)
+- size: int, opsiyonel, varsayılan 20, 1-50
+
+**Sıralama:** `publishedAt` (= oluşturulma anı) azalan; eşit tarihlerde içerik UUID'si azalan (kararlı). **`totalElements`:** `gameId` ve `type` filtresiyle birlikte, çağıranın görünürlük kuralları uygulandıktan sonraki toplam kayıt sayısıdır (sayfa dışı kayıtlar dahil); `items` ile aynı koşuldan hesaplanır.
+
+#### Response — 200
+```json
+{
+  "gameId": "0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66",
+  "type": "GUIDES | EASTER_EGGS | EXPERIENCES | null (type filtresi verilmediyse null)",
+  "items": [
+    {
+      "id": "0198a3c2-9999-7d44-9a55-3f1c2b4d5e66",
+      "gameId": "0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66",
+      "type": "GUIDES",
+      "title": "Başlangıç rehberi",
+      "excerpt": "düz metin; boşlukları tek boşluğa indirilmiş ilk 200 karakter, kesildiyse … ile biter",
+      "authorId": "0198a3c2-7b1e-7d44-9a55-3f1c2b4d5e66",
+      "publishedAt": "2026-11-05T10:00:00Z",
+      "updatedAt": "2026-11-05T10:00:00Z",
+      "detailPath": "/api/v1/community/games/0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66/content/0198a3c2-9999-7d44-9a55-3f1c2b4d5e66"
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "totalElements": 1
+}
+```
+Başarılı boş sonuç (içerik yok, sayfa sonrası, bilinmeyen `gameId`) `200` + `"items": []` döner. `excerpt` ve `title` düz metindir; istemci metin olarak göstermelidir. **Spoiler alanı yoktur**: repoda ve gereksinimlerde spoiler ihtiyacı bulunmadı; ihtiyaç doğarsa ayrı bir alan sözleşmeye eklenir (ürün kararı bekliyor). Yazar yalnız `authorId` olarak döner (görünen ad/avatar user-service sözleşmesi netleşince).
+
+#### Hata Durumları
+- 400: `gameId` UUID değil; `type` bilinmeyen/küçük harfli; `page` 0-10000 dışında/sayı değil; `size` 1-50 dışında/sayı değil
+- 401: Geçersiz, süresi dolmuş ya da yanlış türde (servis) Bearer token. Token hiç gönderilmezse misafir olarak okunur (401 değil)
+- 503: Veritabanı geçici erişilemez (bağlantı/zaman aşımı); liste boş döndürülmez. Gateway'in kendi 502/503/504 yanıtları ayrıdır
+- 500: Beklenmeyen sunucu hatası
+- 403, 404, 429: Bu uçta üretilmez (okuma herkese açıktır; olmayan oyun 404 değil boş listedir; okumada oran sınırı yoktur — Gateway'de okuma oran sınırı da yoktur, sahibi Gateway ekibi, durum: yok)
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/community/games/{gameId}/content (Gateway'de `/api/v1/community/**` → community-service rotası `application.properties`'te tanımlıdır; çalışan Gateway üzerinden erişim doğrulanmadı)
+
+Diğer mikroservisler:
+Çağrı yapmaz (Game, Content veya başka servise bağımlılığı yoktur; yalnız kendi `community_db`'si).
+
+#### Test Durumu
+UNIT + INTEGRATION (MockMvc: şekil, varsayılanlar, sınırlar, 503 eşlemesi; gerçek PostgreSQL: tür/oyun filtresi, eski `category=GUIDE` gönderisinin sayılmaması, sıralama ve UUID eşitlik kuralı, sayfa çakışmaması, sayfa sonrası boş liste, gizli/silinmiş/moderasyonla gizlenmiş içerik ve `totalElements`, iki yönlü engelleme, gizli forum, sahibin kendi gizli içeriği; `InternalEndpointSecurityTest`: misafir 200, geçerli token 200, sahte/süresi dolmuş/servis token'ı 401). Gateway, gerçek Auth ve gerçek Game ile uçtan uca doğrulama: NOT VERIFIED.
+
+### COMMUNITY — Oyuna Bağlı İçerik Detayı (GAME-11)
+
+Durum: IMPLEMENTED
+Sorumlu: Nisa
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/community/games/{gameId}/content/{contentId}
+
+#### Yetkilendirme
+Public (misafir dahil); token kuralları "Oyuna Bağlı İçerik Listesi" ile aynıdır. Görünürlük listeyle birebir aynıdır: yalnız `VISIBLE` içerik (sahibine bile gizli içerik 404), gizli forumdaki içerik ve çağıranla yazarı arasında (iki yönde) engelleme bulunan içerik 404'tür. `/posts/{postId}` ucundan farkı: `gameId` ve türlü içerik eşleşmesi zorunludur ve sahibi gizli içeriğini de görmez.
+
+#### Path Parameters
+- gameId: UUID, zorunlu; içeriğin `gameId`'siyle eşleşmezse 404
+- contentId: UUID, zorunlu; türlü içeriğin (GAME-11) kimliği; türsüz gönderi 404
+
+#### Response — 200
+```json
+{
+  "id": "0198a3c2-9999-7d44-9a55-3f1c2b4d5e66",
+  "gameId": "0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66",
+  "type": "GUIDES | EASTER_EGGS | EXPERIENCES",
+  "title": "Başlangıç rehberi",
+  "body": "düz metin, en çok 5000 karakter",
+  "authorId": "0198a3c2-7b1e-7d44-9a55-3f1c2b4d5e66",
+  "publishedAt": "2026-11-05T10:00:00Z",
+  "updatedAt": "2026-11-05T10:00:00Z",
+  "likeCount": 0,
+  "commentCount": 0,
+  "likedByMe": "boolean (kimlik yoksa false)",
+  "images": [ { "id": "UUID", "postId": "UUID", "mimeType": "image/jpeg | image/png", "sizeBytes": 0, "width": 0, "height": 0, "sortOrder": 0, "contentUrl": "/api/v1/community/posts/{postId}/images/{id}", "createdAt": "ISO-8601 UTC" } ]
+}
+```
+`body` düz metindir; istemci metin olarak göstermelidir. Beğeni, yorum, raporlama ve görsel işlemleri mevcut gönderi uçlarıyla yapılır (içerik kimliği gönderi kimliğidir).
+
+#### Hata Durumları
+- 400: `gameId` ya da `contentId` UUID değil
+- 401: Geçersiz, süresi dolmuş ya da yanlış türde Bearer token
+- 404: İçerik yok, silinmiş, gizlenmiş, başka oyuna/türsüz, gizli forumda ya da çağıranla yazar arasında engelleme var (varlığı sızdırılmaz)
+- 503: Veritabanı geçici erişilemez
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/community/games/{gameId}/content/{contentId}
+
+Diğer mikroservisler:
+Çağrı yapmaz.
+
+#### Test Durumu
+UNIT + INTEGRATION (MockMvc; gerçek PostgreSQL: görünür detay, `likedByMe`, yanlış oyun/türsüz gönderi/bilinmeyen kimlik/silinmiş/sahibin gizli içeriği/engelli yazar/gizli forum için 404). Gateway ile uçtan uca doğrulama: NOT VERIFIED.
 
 ### COMMUNITY — Gönderi Düzenle
 
@@ -2966,7 +3091,8 @@ Owner. Yalnız gönderinin sahibi (JWT `sub` = `authorId`) düzenleyebilir. Sili
 ```json
 {
   "body": "string, zorunlu, boşluk dışında en az 1 karakter, en çok 5000 karakter, kontrol karakteri içermez (düz metin)",
-  "category": "opsiyonel; verilirse kategori değişir, verilmezse mevcut kategori korunur"
+  "category": "opsiyonel; verilirse kategori değişir, verilmezse mevcut kategori korunur",
+  "title": "opsiyonel (GAME-11); yalnız türlü içerikte verilebilir, 1-120 karakter, kontrol karakteri içermez; verilmezse mevcut başlık korunur. contentType değiştirilemez"
 }
 ```
 Bilinmeyen alanlar (ör. `authorId`) reddedilir (400). İçerik ve kategori değişmediyse `updatedAt` değişmez.
@@ -2982,7 +3108,9 @@ Bilinmeyen alanlar (ör. `authorId`) reddedilir (400). İçerik ve kategori değ
   "body": "string (baştaki/sondaki boşluklar kırpılmış)",
   "status": "VISIBLE",
   "createdAt": "ISO-8601 UTC",
-  "updatedAt": "ISO-8601 UTC"
+  "updatedAt": "ISO-8601 UTC",
+  "contentType": "GUIDES | EASTER_EGGS | EXPERIENCES | null (türsüz gönderide null)",
+  "title": "string | null (yalnız türlü içerikte dolu)"
 }
 ```
 
@@ -2992,6 +3120,7 @@ Bilinmeyen alanlar (ör. `authorId`) reddedilir (400). İçerik ve kategori değ
 - 403: Gönderi başkasına ait
 - 404: Gönderi yok, silinmiş ya da çağıran için görünmez
 - 409: Gönderi sahibi için düzenlenemez durumda (ör. HIDDEN; **repost düzenlenemez**, yalnız silinebilir) ya da eşzamanlı değişiklik (optimistic lock)
+- 422: `title` türsüz gönderide verilmiş ya da türlü içerikte boş verilmiş (GAME-11)
 - 500: Beklenmeyen sunucu hatası
 
 #### Bağlantı
@@ -3073,7 +3202,7 @@ Gövde yok.
 - 403: Gönderi başkasına ait
 - 404: Gönderi yok, silinmiş ya da çağıran için görünmez
 - 409: Gönderi düzenlenemez durumda (ör. HIDDEN, repost) ya da eşzamanlı değişiklik
-- 422: Gönderi oyuna bağlı bir forumun konusu; oyun bağlantısı kaldırılamaz
+- 422: Gönderi oyuna bağlı bir forumun konusu ya da oyuna bağlı türlü içerik (GAME-11); oyun bağlantısı kaldırılamaz. (Türlü içeriğin oyunu `PUT /posts/{postId}/game` ile başka bir oyunla değiştirilebilir; kaldırılamaz.)
 - 500: Beklenmeyen sunucu hatası
 
 #### Bağlantı
@@ -3586,7 +3715,9 @@ Bilinmeyen alanlar reddedilir (400).
   "description": "string | null",
   "status": "VISIBLE",
   "createdAt": "ISO-8601 UTC",
-  "updatedAt": "ISO-8601 UTC"
+  "updatedAt": "ISO-8601 UTC",
+  "contentType": "GUIDES | EASTER_EGGS | EXPERIENCES | null (türsüz gönderide null)",
+  "title": "string | null (yalnız türlü içerikte dolu)"
 }
 ```
 

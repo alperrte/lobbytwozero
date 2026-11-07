@@ -41,6 +41,7 @@ import com.ltz.community.domain.exception.ForumNotFoundException;
 import com.ltz.community.domain.exception.PostNotFoundException;
 import com.ltz.community.infrastructure.config.ClockConfig;
 import com.ltz.community.infrastructure.persistence.PostgreSqlIntegrationTest;
+import com.ltz.community.infrastructure.persistence.GameContentQuotaAdapter;
 
 import jakarta.persistence.EntityManager;
 
@@ -49,7 +50,7 @@ import jakarta.persistence.EntityManager;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({ EventTestConfig.class, ForumService.class, ForumMapper.class, PostService.class, PostFeedService.class, PostAccess.class,
 		PostViewAssembler.class, PostMapper.class, CommentService.class, CommentMapper.class, PostLikeService.class,
-		ClockConfig.class })
+		ClockConfig.class, GameContentQuotaAdapter.class })
 class ForumPostIntegrationTest extends PostgreSqlIntegrationTest {
 
 	private static final UUID GAME_ID = UUID.randomUUID();
@@ -116,7 +117,7 @@ class ForumPostIntegrationTest extends PostgreSqlIntegrationTest {
 	}
 
 	private PostResponse thread(UUID forumId, String body, UUID gameId) {
-		return posts.createPost(new CreatePostRequest(body, gameId, null, forumId));
+		return posts.createPost(new CreatePostRequest(body, gameId, null, forumId, null, null));
 	}
 
 	private static PostFeedRequest forumFeed(UUID forumId) {
@@ -200,7 +201,7 @@ class ForumPostIntegrationTest extends PostgreSqlIntegrationTest {
 		ForumResponse second = openForum("forum-iki", null);
 		PostResponse inFirst = thread(first.id(), "birinci", null);
 		thread(second.id(), "ikinci", null);
-		posts.createPost(new CreatePostRequest("forum dışı", null, null, null));
+		posts.createPost(new CreatePostRequest("forum dışı", null, null, null, null, null));
 		entityManager.flush();
 		entityManager.clear();
 
@@ -215,7 +216,7 @@ class ForumPostIntegrationTest extends PostgreSqlIntegrationTest {
 	void hiddenForumHidesItsThreadsEverywhereAndShowsThemAgainWhenReopened() {
 		ForumResponse forum = openForum("gizlenecek-forum", null);
 		PostResponse inForum = thread(forum.id(), "gizlenecek konu", null);
-		PostResponse outside = posts.createPost(new CreatePostRequest("dışarıdaki", null, null, null));
+		PostResponse outside = posts.createPost(new CreatePostRequest("dışarıdaki", null, null, null, null, null));
 		CreateCommentRequest comment = new CreateCommentRequest("yorum", null);
 		comments.createComment(inForum.id(), comment);
 		entityManager.flush();
