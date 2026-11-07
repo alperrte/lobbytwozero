@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useTransition } from "react";
+import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Flag } from "@/shared/components/ui/flags";
 import { Icon } from "@/shared/components/ui/icons";
@@ -30,6 +31,7 @@ export function LanguageMenu() {
   const t = useTranslations("Locale");
   const router = useRouter();
   const pathname = usePathname();
+  const params = useParams();
   const active = useLocale() as Locale;
   const { open, setOpen, close, rootRef, triggerRef } = usePopover();
   const menuRef = useRef<HTMLDivElement>(null);
@@ -47,7 +49,11 @@ export function LanguageMenu() {
       return;
     }
     startTransition(() => {
-      router.replace(pathname as AppPathname, { locale });
+      if (pathname === "/games/[gameId]" && typeof params.gameId === "string") {
+        router.replace({ pathname: "/games/[gameId]", params: { gameId: params.gameId } }, { locale });
+      } else {
+        router.replace(pathname as AppPathname, { locale });
+      }
     });
   }
 

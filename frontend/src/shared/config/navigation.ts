@@ -55,7 +55,7 @@ export const navigationGroups: readonly NavGroup[] = [
     labelKey: "general",
     items: [
       { id: "home", labelKey: "home", icon: "home", href: "/" },
-      { id: "games", labelKey: "games", icon: "gamepad", service: "game-service" },
+      { id: "games", labelKey: "games", icon: "gamepad", service: "game-service", href: "/games" },
       { id: "library", labelKey: "library", icon: "library", service: "library-service" },
       { id: "reviews", labelKey: "reviews", icon: "star", service: "review-service" },
       { id: "news", labelKey: "news", icon: "newspaper", service: "content-service" },

@@ -13,6 +13,9 @@ import { defaultLocale, localeCookieName, locales } from "./config";
  */
 export const pathnames = {
   "/": "/",
+  "/games": { tr: "/oyunlar", en: "/games" },
+  "/games/manage": { tr: "/oyunlar/yonetim", en: "/games/manage" },
+  "/games/[gameId]": { tr: "/oyunlar/[gameId]", en: "/games/[gameId]" },
   "/about": { tr: "/hakkimizda", en: "/about" },
   "/faq": { tr: "/sss", en: "/faq" },
   "/contact": { tr: "/iletisim", en: "/contact" },
@@ -33,7 +36,7 @@ export const pathnames = {
 } as const;
 
 /** Uygulamadaki dahili sayfa yolu (ör. "/about"); görünen adres dile göre değişir. */
-export type AppPathname = keyof typeof pathnames;
+export type AppPathname = Exclude<keyof typeof pathnames, `${string}[${string}`>;
 
 export const routing = defineRouting({
   locales,

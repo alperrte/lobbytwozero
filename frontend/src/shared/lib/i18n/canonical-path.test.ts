@@ -28,8 +28,8 @@ describe("canonicalPathFor", () => {
 });
 
 describe("pathnames", () => {
-  // Sayfalar herkese açık (`(public)`) ya da giriş/kayıt (`(auth)`) rota grubunda olabilir.
-  const appDirs = ["(public)", "(auth)"].map((group) => join(process.cwd(), "src/app/[locale]", group));
+  // Sayfalar herkese açık (`(public)`) giriş/kayıt (`(auth)`) ya da panel (`(dashboard)`) rota grubunda olabilir.
+  const appDirs = ["(public)", "(auth)", "(dashboard)"].map((group) => join(process.cwd(), "src/app/[locale]", group));
 
   it("Türkçe slug'lar Türkçe, İngilizce slug'lar dahili anahtarla aynıdır", () => {
     for (const [internal, value] of Object.entries(pathnames)) {

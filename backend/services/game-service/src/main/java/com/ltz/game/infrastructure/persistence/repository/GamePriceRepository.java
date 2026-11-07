@@ -17,12 +17,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Repository @RequiredArgsConstructor
 public class GamePriceRepository {
+    private static final String OWNER = "owner";
+    private static final String COUNTRY = "country";
+    private static final String CURRENCY = "currency";
     private final NamedParameterJdbcTemplate jdbc;
     public boolean claim(UUID owner,Instant now) {
         return jdbc.update("update game_price_sync_lock set owner=:owner,expires_at=:until,version=version+1 where expires_at is null or expires_at < :now",
-                Map.of("owner",owner,"until",java.sql.Timestamp.from(now.plusSeconds(120)),"now",java.sql.Timestamp.from(now)))==1;
+                Map.of(OWNER,owner,"until",java.sql.Timestamp.from(now.plusSeconds(120)),"now",java.sql.Timestamp.from(now)))==1;
     }
-    public void release(UUID owner) { jdbc.update("update game_price_sync_lock set owner=null,expires_at=null,version=version+1 where owner=:owner",Map.of("owner",owner)); }
+    public void release(UUID owner) { jdbc.update("update game_price_sync_lock set owner=null,expires_at=null,version=version+1 where owner=:owner",Map.of(OWNER,owner)); }
     public List<UUID> candidates(Market market,Instant now,Duration ttl) {
         return jdbc.query("""
                 select g.id from games g left join game_price_refresh_state s on s.game_id=g.id and s.country=:country and s.currency=:currency
@@ -30,7 +33,7 @@ public class GamePriceRepository {
                 and (s.checked_at is null or s.checked_at < :before)
                 and (s.next_attempt_at is null or s.next_attempt_at <= current_timestamp)
                 order by s.checked_at asc nulls first,g.id limit 50
-                """,Map.of("country",market.country(),"currency",market.currency(),"before",java.sql.Timestamp.from(now.minus(ttl))),
+                """,Map.of(COUNTRY,market.country(),CURRENCY,market.currency(),"before",java.sql.Timestamp.from(now.minus(ttl))),
                 (rs,index) -> rs.getObject("id",UUID.class));
     }
     /** Ağ beklerken transaction yoktur. Kiralama kaybında eski worker hiçbir snapshot yayımlayamaz. */
@@ -61,12 +64,12 @@ public class GamePriceRepository {
         if(owns(owner,now)) for(UUID id:ids) {
             state(id,market,"FAILED",now,code);
             if(retryAfter!=null) jdbc.update("update game_price_refresh_state set next_attempt_at=:next where game_id=:id and country=:country and currency=:currency",
-                    Map.of("id",id,"country",market.country(),"currency",market.currency(),"next",java.sql.Timestamp.from(now.plus(retryAfter))));
+                    Map.of("id",id,COUNTRY,market.country(),CURRENCY,market.currency(),"next",java.sql.Timestamp.from(now.plus(retryAfter))));
         }
     }
     private boolean owns(UUID owner,Instant now) {
         return !jdbc.query("select owner from game_price_sync_lock where owner=:owner and expires_at>:now for update",
-                Map.of("owner",owner,"now",java.sql.Timestamp.from(now)),(rs,index)->rs.getObject("owner",UUID.class)).isEmpty();
+                Map.of(OWNER,owner,"now",java.sql.Timestamp.from(now)),(rs,index)->rs.getObject(OWNER,UUID.class)).isEmpty();
     }
     private void state(UUID id,Market market,String status,Instant now,String code) {
         jdbc.getJdbcTemplate().update("""
@@ -76,18 +79,18 @@ public class GamePriceRepository {
     }
     public List<Quote> quotes(Set<UUID> ids,Market market) {
         if(ids.isEmpty()) return List.of();
-        return jdbc.query("select * from game_price_quotes where game_id in (:ids) and country=:country and currency=:currency order by current_price,store",Map.of("ids",ids,"country",market.country(),"currency",market.currency()),
+        return jdbc.query("select * from game_price_quotes where game_id in (:ids) and country=:country and currency=:currency order by current_price,store",Map.of("ids",ids,COUNTRY,market.country(),CURRENCY,market.currency()),
                 (rs,index) -> new Quote(rs.getObject("game_id",UUID.class),rs.getString("store"),market,rs.getBigDecimal("regular_price"),rs.getBigDecimal("current_price"),
                         rs.getString("source"),instant(rs,"fetched_at"),instant(rs,"expires_at"),rs.getString("url"),rs.getInt("discount_percent"),instant(rs,"source_updated_at")));
     }
     public Set<UUID> noOffers(Set<UUID> ids,Market market,Instant now,Duration ttl) {
         if(ids.isEmpty()) return Set.of();
         return Set.copyOf(jdbc.query("select game_id from game_price_refresh_state where game_id in (:ids) and country=:country and currency=:currency and status='NO_OFFER' and checked_at>:before",
-                Map.of("ids",ids,"country",market.country(),"currency",market.currency(),"before",java.sql.Timestamp.from(now.minus(ttl))),
+                Map.of("ids",ids,COUNTRY,market.country(),CURRENCY,market.currency(),"before",java.sql.Timestamp.from(now.minus(ttl))),
                 (rs,index)->rs.getObject("game_id",UUID.class)));
     }
     private static Map<String,Object> parameters(UUID id,Market market) {
-        Map<String,Object> params=new java.util.HashMap<>();params.put("id",id);params.put("country",market.country());params.put("currency",market.currency());return params;
+        Map<String,Object> params=new java.util.HashMap<>();params.put("id",id);params.put(COUNTRY,market.country());params.put(CURRENCY,market.currency());return params;
     }
     private static Instant instant(ResultSet rs,String column) throws SQLException { return rs.getTimestamp(column).toInstant(); }
 }

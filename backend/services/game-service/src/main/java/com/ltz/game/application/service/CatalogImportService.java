@@ -136,8 +136,12 @@ public class CatalogImportService {
     /** Admin tarafından manuel düzeltilmiş alanlar (GAME-07); sayfa için tek sorguyla okunur. */
     private Map<String, Set<OverridableField>> lockedFields(List<GameProvider.CatalogItem> items) {
         if (items.isEmpty()) return Map.of();
+        var externalIds = items.stream().map(GameProvider.CatalogItem::externalId).toList();
+        // Alan kilitleri okunmadan önce admin ile aynı oyun satırlarını kilitle.
+        // Böylece eski override bilgisi, daha yeni entity sürümüyle birlikte yazılamaz.
+        games.lockCatalogGames(PROVIDER_CODE, externalIds);
         Map<String, Set<OverridableField>> locked = new HashMap<>();
-        overrides.lockedFields(PROVIDER_CODE, items.stream().map(GameProvider.CatalogItem::externalId).toList())
+        overrides.lockedFields(PROVIDER_CODE, externalIds)
                 .forEach(row -> locked.computeIfAbsent(row.getExternalId(), key -> EnumSet.noneOf(OverridableField.class)).add(row.getField()));
         return locked;
     }

@@ -40,7 +40,8 @@ describe("footerGroups", () => {
   it("hazır olmayan ürün öğeleri href taşımaz, destek öğeleri gerçek sayfalara gider", () => {
     for (const group of footerGroups.slice(0, 3)) {
       for (const entry of group.entries) {
-        expect(entry.href).toBeUndefined();
+        if (entry.id === "games") expect(entry.href).toBe("/games");
+        else expect(entry.href).toBeUndefined();
       }
     }
     const known = new Set<string>(pages.map((page) => page.href));

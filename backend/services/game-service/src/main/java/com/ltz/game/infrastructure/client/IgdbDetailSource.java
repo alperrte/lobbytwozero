@@ -65,7 +65,7 @@ public class IgdbDetailSource implements GameDetailSource {
 
     @Override
     public synchronized GameProvider.Details details(String steamAppId) {
-        if (steamAppId == null || !steamAppId.matches("[1-9][0-9]{0,9}")) {
+        if (steamAppId == null || !steamAppId.matches("[1-9]\\d{0,9}")) {
             throw new ProviderException("INVALID_PROVIDER_REQUEST");
         }
         long gameId = mappedGame(steamAppId);
@@ -166,7 +166,7 @@ public class IgdbDetailSource implements GameDetailSource {
     }
 
     private static Duration seconds(String value) {
-        if (value == null || !value.matches("[0-9]{1,7}")) {
+        if (value == null || !value.matches("\\d{1,7}")) {
             return null;
         }
         return Duration.ofSeconds(Long.parseLong(value));

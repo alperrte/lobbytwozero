@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.Instant;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,6 +27,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.CannotCreateTransactionException;
+import org.springframework.transaction.TransactionSystemException;
+import org.springframework.orm.jpa.JpaSystemException;
+import org.hibernate.TransactionException;
 
 import com.ltz.community.api.dto.request.GameContentListRequest;
 import com.ltz.community.api.dto.response.GameContentDetailResponse;
@@ -175,6 +179,58 @@ class GameContentControllerTest {
 					.andExpect(jsonPath("$.status").value(503))
 					.andExpect(jsonPath("$.detail").value("The service is temporarily unavailable. Try again later."))
 					.andExpect(jsonPath("$.items").doesNotExist());
+		}
+	}
+
+	@Test
+	void rollbackWrappingAConnectionFailureIsUnavailableForListAndDetail() throws Exception {
+		TransactionSystemException failure = new TransactionSystemException("rollback failed",
+				new SQLException("internal connection details"));
+		failure.initApplicationException(new IllegalStateException("query failed",
+				new SQLException("jdbc:postgresql://private-host/private-db", "08006")));
+		when(gameContentService.list(eq(GAME_ID), any(GameContentListRequest.class))).thenThrow(failure);
+		when(gameContentService.detail(GAME_ID, CONTENT_ID)).thenThrow(failure);
+		for (String path : List.of(LIST_URL, LIST_URL + "/" + CONTENT_ID)) {
+			String body = mockMvc.perform(get(path)).andExpect(status().isServiceUnavailable())
+					.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+					.andExpect(jsonPath("$.status").value(503)).andExpect(jsonPath("$.items").doesNotExist())
+					.andReturn().getResponse().getContentAsString();
+			assertThat(body).doesNotContain("jdbc:", "private-host", "SQLException", "rollback", "query failed");
+		}
+	}
+
+	@Test
+	void unrelatedTransactionFailuresAreNotMisreportedAsTemporaryOutages() throws Exception {
+		when(gameContentService.list(eq(GAME_ID), any(GameContentListRequest.class)))
+				.thenThrow(new TransactionSystemException("integrity failure", new SQLException("constraint", "23505")))
+				.thenThrow(new TransactionSystemException("programming error", new IllegalStateException("invalid state")));
+		for (int attempt = 0; attempt < 2; attempt++) {
+			mockMvc.perform(get(LIST_URL)).andExpect(status().isInternalServerError())
+					.andExpect(jsonPath("$.detail").value("An unexpected error occurred."));
+		}
+	}
+
+	@Test
+	void hikariClosedConnectionRollbackIsUnavailableEvenWithoutSqlState() throws Exception {
+		JpaSystemException failure = new JpaSystemException(
+				new TransactionException("rollback failed", new SQLException("Connection is closed")));
+		when(gameContentService.list(eq(GAME_ID), any(GameContentListRequest.class))).thenThrow(failure);
+		when(gameContentService.detail(GAME_ID, CONTENT_ID)).thenThrow(failure);
+		for (String path : List.of(LIST_URL, LIST_URL + "/" + CONTENT_ID)) {
+			mockMvc.perform(get(path)).andExpect(status().isServiceUnavailable())
+					.andExpect(jsonPath("$.detail").value("The service is temporarily unavailable. Try again later."));
+		}
+	}
+
+	@Test
+	void unrelatedJpaFailuresKeepTheirServerErrorStatus() throws Exception {
+		when(gameContentService.list(eq(GAME_ID), any(GameContentListRequest.class)))
+				.thenThrow(new JpaSystemException(new TransactionException("constraint", new SQLException("Connection is closed", "23505"))))
+				.thenThrow(new JpaSystemException(new IllegalStateException("mapping failure")))
+				.thenThrow(new JpaSystemException(new TransactionException("rollback failed", new SQLException("other failure"))));
+		for (int attempt = 0; attempt < 3; attempt++) {
+			mockMvc.perform(get(LIST_URL)).andExpect(status().isInternalServerError())
+					.andExpect(jsonPath("$.detail").value("An unexpected error occurred."));
 		}
 	}
 }

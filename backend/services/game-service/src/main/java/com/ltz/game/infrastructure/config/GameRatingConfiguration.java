@@ -29,9 +29,10 @@ public class GameRatingConfiguration {
     }
 
     @Bean
-    ReviewRatingPort reviewRatingClient(RestClient.Builder builder, ServiceTokenPort tokens, GameRatingProperties properties) {
+    ReviewRatingPort reviewRatingClient(RestClient.Builder builder, ServiceTokenPort tokens, GameRatingProperties properties,
+            @org.springframework.beans.factory.annotation.Value("${ltz.game.rating.summary-path:/internal/v1/games/rating-summaries}") String summaryPath) {
         return new ReviewRatingClient(restClient(builder, properties.reviewServiceUrl(), properties.connectTimeout(), properties.readTimeout()), tokens,
-                properties.audience(), RETRY_DELAY);
+                properties.audience(), RETRY_DELAY, summaryPath);
     }
 
     /** Bounded bağlantı/okuma zaman aşımı olan, yönlendirmeleri izlemeyen RestClient. */

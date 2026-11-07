@@ -9,7 +9,7 @@ public record DiscoveryQuery(int page, int size, String q, String genre, String 
     public DiscoveryQuery(int page,int size,String q,String genre,String platform,String language,Boolean earlyAccess,
             java.time.LocalDate releasedAfter,java.time.LocalDate releasedBefore,boolean popularOnly,java.math.BigDecimal minRating,
             com.ltz.game.domain.enums.CatalogSort sort,com.ltz.game.domain.enums.CatalogDirection direction) {
-        this(page,size,q,genre,platform,language,earlyAccess,releasedAfter,releasedBefore,popularOnly,minRating,sort,direction,false,"TR","USD");
+        this(page,size,q,genre,platform,language,earlyAccess,releasedAfter,releasedBefore,popularOnly,minRating,sort,direction,false,"TR","TRY");
     }
     public DiscoveryQuery(int page, int size) { this(page,size,null); }
     public DiscoveryQuery(int page,int size,String q) { this(page,size,q,null,null,null,null,null,null,false,null,

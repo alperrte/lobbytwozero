@@ -86,11 +86,13 @@ describe("Footer", () => {
   it("henüz yayınlanmamış öğeler bağlantı değil düz metindir, sahte rota üretilmez", async () => {
     const footer = await renderFooter();
 
-    for (const group of ["Keşfet", "Topluluk", "LTZ Performance"]) {
+    const discover = within(footer).getByRole("navigation", { name: "Keşfet" });
+    expect(within(discover).getByRole("link", { name: "Oyunlar" })).toHaveAttribute("href", "/tr/oyunlar");
+    for (const group of ["Topluluk", "LTZ Performance"]) {
       const nav = within(footer).getByRole("navigation", { name: group });
       expect(within(nav).queryAllByRole("link")).toHaveLength(0);
     }
-    for (const name of ["Oyunlar", "Takım Bul", "Donanımlar", "Sana Özel"]) {
+    for (const name of ["Haberler", "Takım Bul", "Donanımlar", "Sana Özel"]) {
       expect(within(footer).queryByRole("link", { name })).toBeNull();
       expect(within(footer).getByText(name).closest("a")).toBeNull();
     }

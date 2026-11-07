@@ -9,6 +9,7 @@ import type { AppPathname } from "@/shared/lib/i18n/routing";
  */
 export type PageId =
   | "home"
+  | "games"
   | "about"
   | "faq"
   | "contact"
@@ -32,6 +33,7 @@ export type PageEntry = {
 };
 
 export const pages: readonly PageEntry[] = [
+  { id: "games", href: "/games", indexable: false, keywords: ["oyun", "games", "katalog", "catalogue"] },
   {
     id: "home",
     href: "/",

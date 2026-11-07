@@ -2150,7 +2150,7 @@ Public. Kullanıcı onayıyla yalnız GET. Yalnız ACTIVE + MAIN_GAME kayıtlar�
 - sort: TITLE (varsayılan), RELEASE_DATE veya POPULARITY. direction: ASC (varsayılan) veya DESC. Alan/yön allowlist ile sınırlıdır.
 - minRating: opsiyonel ondalık, 1–10 aralığında ve en çok iki ondalık (ör. `7`, `7.5`, `7.25`); sınır dahildir (`average >= minRating`). Aralık/ondalık dışı değer 400 verir, boş sonuç üretmez.
 - sort=RATING: LTZ puan ortalamasına göredir (ASC düşükten, DESC yüksekten). direction ile birlikte kullanılır.
-- discountedOnly: varsayılan false; true ise yalnız ülke/para birimine uygun, süresi dolmamış yerel ITAD teklifinde currentPrice < regularPrice olan oyunlar. country/currency varsayılan TR/USD, ISO büyük harf; kur dönüşümü yok. Eksik/eski fiyat eşleşmez. Toplam sonuç tüm katalogdaki **bilinen güncel teklifleri** kapsar; bütün mağaza/oyunların fiyatının indekslendiği garantisi yoktur. Aynı SQL filtresi count ve sayfaya uygulanır.
+- discountedOnly: varsayılan false; true ise yalnız ülke/para birimine uygun, süresi dolmamış yerel ITAD teklifinde currentPrice < regularPrice olan oyunlar. country/currency varsayılan TR/TRY, ISO büyük harf; kur dönüşümü yok. Eksik/eski fiyat eşleşmez. Toplam sonuç tüm katalogdaki **bilinen güncel teklifleri** kapsar; bütün mağaza/oyunların fiyatının indekslendiği garantisi yoktur. Aynı SQL filtresi count ve sayfaya uygulanır.
 
 Filtreler AND ile birleşir. İlgili metadata bilinmiyorsa o filtreye eşleşmez; filtresiz listede kayıt kalır. Fiyat/indirim filtresi uygulanmadı. Her sıralamada gameId ASC bağlayıcıdır. Null tarih ve editör sırası her iki yönde sonda. POPULARITY DESC küçük editör sırasını önce getirir; ölçülmüş kullanıcı etkileşimi puanı değildir.
 
@@ -2311,7 +2311,7 @@ Sorumlu: Hamza
 Tüketici servisler: Frontend oyun kartları/detayı; diğer servisler için herkese açık katalog verisi.
 
 #### Endpoint
-GET /api/v1/game/games/prices?gameIds={uuid}&gameIds={uuid}&country=TR&currency=USD
+GET /api/v1/game/games/prices?gameIds={uuid}&gameIds={uuid}&country=TR&currency=TRY
 
 #### Yetkilendirme
 Public, salt okunur. Kullanıcı isteği ITAD çağırmaz. GET'e toplu kartla aynı istemci IP kovası uygulanır: kapasite 100, sürekli 20 istek/sn; süreç içi, trusted-proxies politikasına bağlı. Diğer HTTP metotları kapalıdır.
@@ -2334,22 +2334,24 @@ Listeleme, aktif oyun kimlikleri + fiyatlar + boş teklif durumu için sabit say
 Frontend → Gateway → GamePriceController → GamePriceService → GamePriceRepository. V173 fiyat/state/kiralama tabloları; kişisel veri yok. Eski endpoint/DTO alanları korunur. `/games` ve `/games/search` yeni `discountedOnly`, `country`, `currency` filtrelerini aynı yerel veriden kullanır.
 
 #### Test Durumu
-UNIT + INTEGRATION — ItadPriceClientTest / ItadPriceIntegrationTest: toplu kimlik eşleme/fiyat, gerçek HTTP adaptörü ve PostgreSQL, TTL, NO_OFFER/UNAVAILABLE ayrımı, manuel snapshot koruma, ülke/para birimi, indirim, lease kaybı, rollback, SQL CHECK, validation ve kimliksiz GET. Canlı ITAD ve frontend gösterimi NOT VERIFIED.
+UNIT + INTEGRATION — ItadPriceClientTest / ItadPriceIntegrationTest: toplu kimlik eşleme/fiyat, gerçek HTTP adaptörü ve PostgreSQL, TTL, NO_OFFER/UNAVAILABLE ayrımı, manuel snapshot koruma, ülke/para birimi, indirim, lease kaybı, rollback, SQL CHECK, validation ve kimliksiz GET. Canlı ITAD adaptör → geçici PostgreSQL → güvenlik filtreleri etkin public API pilotu PASS (7 Kasım 2026); TR/TRY ve TTL tekrar turu doğrulandı. Frontend fiyat/atıf durumları birim testleriyle doğrulandı; DEV/prod dağıtımı yapılmadı.
+
+7 Kasım 2026 düzeltmesi: `currency` belirtilmeyen keşif isteklerinde ve ilk web/worker pazarında varsayılan TR/TRY'dir. **DEPRECATED:** önceki TR/USD varsayılanı. Açıkça currency gönderen istek değiştirilmez; yanlış para birimine kur dönüşümü yapılmaz. Bilinen tüketici Game web modülü aynı varsayılana uyarlandı.
 
 ### GAME — Giden sözleşme: IsThereAnyDeal fiyat sağlayıcısı (GAME-24)
 
-Durum: IMPLEMENTED — anahtar boşsa kapalı; canlı ITAD NOT VERIFIED.
+Durum: IMPLEMENTED — anahtar boşsa kapalı; canlı ITAD yerel pilotu PASS (7 Kasım 2026).
 Sorumlu: Hamza
 Tüketici servisler: Game iç kullanımı; sağlayıcı frontend'e doğrudan açılmaz.
 
 #### Endpoint
-Game'in çağırdığı resmî uçlar: POST https://api.isthereanydeal.com/lookup/shop/61/id/v1 (Steam `app/{AppID}` → ITAD UUID), POST https://api.isthereanydeal.com/games/prices/v3?country={country}&capacity=5&vouchers=false (toplu ITAD UUID). İsimle otomatik eşleme yoktur; Steam AppID veya LTZ gameId değiştirilmez. Her tur en çok 50 oyun, toplam en çok iki HTTP çağrısı; oyun başına çağrı yoktur.
+Game'in çağırdığı resmî uçlar: POST https://api.isthereanydeal.com/lookup/id/shop/61/v1 (Steam `app/{AppID}` → ITAD UUID), POST https://api.isthereanydeal.com/games/prices/v3?country={country}&capacity=5&vouchers=false (toplu ITAD UUID). İsimle otomatik eşleme yoktur; Steam AppID veya LTZ gameId değiştirilmez. Her tur en çok 50 oyun, toplam en çok iki HTTP çağrısı; oyun başına çağrı yoktur.
 
 #### Yetkilendirme
-Yalnız backend `ITAD-API-Key` başlığı. Anahtar URL/gövde/log/DTO'ya yazılmaz. `ITAD_API_KEY` boşsa ağ isteği yok. Kullanıcı bu oturumda yalnız .env.example boş satırını ve game-service Compose aktarımını onayladı; gerçek .env dosyaları okunmadı/değiştirilmedi.
+Yalnız backend `ITAD-API-Key` başlığı. Anahtar URL/gövde/log/DTO'ya yazılmaz. `ITAD_API_KEY` boşsa ağ isteği yok. Kullanıcı boş .env.example satırını ve game-service Compose aktarımını onayladı. Kullanıcı daha sonra anahtarı sağladı ve yazmayı açıkça istedi; yalnız .env.dev dosyasına ITAD_API_KEY eklendi. OAuth bilgileri kullanılmadı. Anahtar veya gerçek ENV içeriği belgeye/teste/loga kopyalanmaz.
 
 #### Path/Query Parameters ve Request Body
-Steam mağazası kimliği 61; eşlemede `["app/570",…]`, fiyat sorgusunda `["<itad UUID>",…]`. İlk otomatik pazar `ltz.game.pricing.country=TR`, `currency=USD`. Sağlayıcı başka para birimi döndürürse sessiz dönüşüm yerine başarısız kontrol olarak kaydedilir. En fazla 5 teklif/oyun; kupon gerektiren fiyatlar kapalıdır.
+Steam mağazası kimliği 61; eşlemede `["app/570",…]`, fiyat sorgusunda `["<itad UUID>",…]`. İlk otomatik pazar `ltz.game.pricing.country=TR`, `currency=TRY`. Sağlayıcı başka para birimi döndürürse sessiz dönüşüm yerine başarısız kontrol olarak kaydedilir. En fazla 5 teklif/oyun; kupon gerektiren fiyatlar kapalıdır. Resmî HTTPS itad.link ve isthereanydeal.com bağlantıları değiştirilmeden korunur; benzer görünen başka hostlar kabul edilmez. İstek User-Agent değeri LTZ-Game-Service/1.0'dır.
 
 #### Response / Yenileme
 Başlangıç 30 sn, tur aralığı 60 sn; en eski kontrol edilen 50 aktif MAIN_GAME/Steam oyun seçilir. Varsayılan TTL 15 dk (yapılandırılabilir 1–60 dk). Uygulama süreci/örneği çoğalsa da DB kiralaması tek fiyat worker'ı sağlar. Ağ çağrısı transaction dışında; yalnız lease sahibi atomik snapshot yayımlar. Başarılı boş yanıtta teklif silinir ve NO_OFFER kaydedilir; yarım/geçersiz yanıtta eski snapshot korunur. Fiyat TTL veya provider expiry'den erken olan zamanda eskir; provider timestamp ayrıca korunur.
@@ -2362,11 +2364,13 @@ GamePriceSchedulingConfiguration → GamePriceService → GamePriceProvider / It
 Resmî kaynaklar: https://docs.isthereanydeal.com/ ; https://github.com/IsThereAnyDeal/API/blob/master/docs/routes/lookup/gid-by-shopid.v1.yaml ; https://github.com/IsThereAnyDeal/API/blob/master/docs/routes/games/prices.v3.yaml .
 
 #### Test Durumu
-UNIT + INTEGRATION — sahte ITAD HTTP sunucusu + gerçek adaptör, PostgreSQL ve HTTP API. Gerçek anahtar/kota/lisans teyidi ve frontend atıf/gösterimi NOT VERIFIED. `ltz.game.pricing.sync.enabled=false` zamanlamayı kapatır.
+UNIT + INTEGRATION — sahte ITAD HTTP sunucusu + gerçek adaptör, PostgreSQL ve HTTP API. Frontend fiyat/atıf, bölgesel seçim, affiliate URL ve ekrandayken TTL dolması testleri eklendi. Gerçek anahtarla `node ops/game-provider-pilot.mjs --allow-env-files --itad` PASS: gerçek eşleme/fiyat → geçici PostgreSQL → public API, TR/TRY ve TTL ikinci turu doğrulandı. Anahtar yalnız seçili test sürecinin ortamına aktarılır; normal CI dış ağa bağımlı değildir. Ticari kullanım uygunluğu, yüksek hacim kotası ve DEV/prod dağıtımı bu pilotla onaylanmış sayılmaz. `ltz.game.pricing.sync.enabled=false` zamanlamayı kapatır.
+
+Son doğrulama: Game 428/428, LINE %97,96 / değişen %94,12, merkezi kalite ve Trivy kapıları PASS; BACKEND TEST CHECK PASSED. Frontend lint/typecheck ve 395 test PASS (1 mevcut SKIP); çalıştırıcı 3/3 PASS. `logs/game-itad-verify.log`.
 
 ### GAME — Giden sözleşme: IGDB detay kaynağı (GAME-17, GAME-23)
 
-Durum: IMPLEMENTED — kod ve sahte sunucu testleri hazır; kimlik bilgisi yoksa **KAPALI** (hiçbir bean kurulmaz, IGDB'ye istek atılmaz). 5 Kasım 2026'da gerçek Twitch/IGDB anahtarlarıyla salt okunur canlı doğrulama yapıldı (Steam AppID 570): Twitch token isteği form gövdesiyle 200; `external_game_sources` adıyla Steam (id 1); `external_games` eşlemesi tek oyun; `games` alanları (`summary`, `first_release_date`, `involved_companies.company.name`, `language_supports` ve tür adları `Interface`/`Audio`/`Subtitles`) adaptörün beklediği biçimde. Adaptörün kendisi dağıtılmış bir Game konteynerinde henüz çalıştırılmadı (imaj derlemesi bekliyor).
+Durum: IMPLEMENTED — kod ve sahte sunucu testleri hazır; kimlik bilgisi yoksa **KAPALI** (hiçbir bean kurulmaz, IGDB'ye istek atılmaz). 5 Kasım 2026'da gerçek Twitch/IGDB anahtarlarıyla salt okunur canlı doğrulama yapıldı (Steam AppID 570): Twitch token isteği form gövdesiyle 200; `external_game_sources` adıyla Steam (id 1); `external_games` eşlemesi tek oyun; `games` alanları (`summary`, `first_release_date`, `involved_companies.company.name`, `language_supports` ve tür adları `Interface`/`Audio`/`Subtitles`) adaptörün beklediği biçimde. 7 Kasım 2026'da gerçek sağlayıcı → Game servisi → geçici PostgreSQL → güvenlik filtreleri etkin public API pilotu da geçti; DEV/prod dağıtımı yapılmadı.
 Sorumlu: Hamza
 Tüketici servisler: - (iç kullanım; sonucu `GET /api/v1/game/games/{gameId}` ve `/{gameId}/metadata` yanıtlarında Frontend görür)
 
@@ -2391,7 +2395,7 @@ Frontend: -
 Diğer mikroservisler: Game, katalog sağlayıcısını (Steam) değiştirmez; yalnız detay yeteneği ve provenance kaynağı eklenir. Yeni ENV adları: `IGDB_CLIENT_ID`, `IGDB_CLIENT_SECRET` (`.env.example` ve compose'a eklendi). **Ticari kullanım:** IGDB belgesi API'nin Twitch Developer Service Agreement şartlarıyla yalnızca ticari olmayan kullanım için ücretsiz olduğunu söyler; ticari çıkışta Twitch ile ayrıca anlaşma gerekir, canlıya çıkmadan önce karar verilmelidir. Şema değişikliği yoktur (provenance kaynağı serbest metindir).
 
 #### Test Durumu
-UNIT + INTEGRATION — `IgdbDetailSourceTest` (belgelenmiş istek biçimi ve başlıklar, gizli anahtarın URL'de olmaması, token/kaynak kimliği önbelleği ve süre dolunca yenileme, sıfır/belirsiz eşleme, enjeksiyon denemeleri, 401/403/429/5xx/ulaşılamaz, Twitch hataları, bozuk yanıt, hız aralığı), `IgdbConfigurationTest` (kimlik yokken hiçbir değişiklik, kısmi kimlik kapalı, iki kimlikle yalnız detay yeteneği eklenir, https zorunlu), `PhaseTwoCatalogTest` (dil desteği + provenance kaynağı, manuel kilit, boş yanıt veriyi silmez, düz liste yalnız boşken). Canlı IGDB: yukarıdaki salt okunur doğrulama PASS; dağıtılmış konteynerde adaptörün uçtan uca çalışması NOT VERIFIED.
+UNIT + INTEGRATION — `IgdbDetailSourceTest` (belgelenmiş istek biçimi ve başlıklar, gizli anahtarın URL'de olmaması, token/kaynak kimliği önbelleği ve süre dolunca yenileme, sıfır/belirsiz eşleme, enjeksiyon denemeleri, 401/403/429/5xx/ulaşılamaz, Twitch hataları, bozuk yanıt, hız aralığı), `IgdbConfigurationTest` (kimlik yokken hiçbir değişiklik, kısmi kimlik kapalı, iki kimlikle yalnız detay yeteneği eklenir, https zorunlu), `PhaseTwoCatalogTest` (dil desteği + provenance kaynağı, manuel kilit, boş yanıt veriyi silmez, düz liste yalnız boşken). Canlı IGDB: `ITGameProviderLivePilot` / `node ops/game-provider-pilot.mjs --allow-env-files` ile gerçek sağlayıcı, geçici PostgreSQL, public HTTP controller ve TTL tekrar okuması PASS (7 Kasım 2026). Normal CI dış ağa bağımlı değildir. DEV/prod dağıtımı NOT VERIFIED.
 
 ### GAME — Herkese açık geliştirici içeriği (GAME-13)
 
@@ -2563,7 +2567,13 @@ INTEGRATION — gizlenme, veri korunması, idempotency, geri alma, MERGED reddi,
 
 ### GAME — Yönetici: dış kimliği yeniden eşleme ve ayırma (GAME-26)
 
-Durum: IMPLEMENTED — korumalı giriş ve güvenlik engeli. Gerçek dış kimlik taşıma/ayırma **bilerek kapalıdır** (GAME-26 kabulle kapatıldı, 5 Kasım 2026): Library/Review referans kontrol protokolü yapılmadı; Auth'ta gerekli servis kimliği çiftleri (`game-references:read`) hazırdır, ihtiyaç doğarsa protokol ayrıca açılır.
+Durum: IMPLEMENTED — mevcut korumalı giriş/no-op ve güvenlik engeli. **5 Kasım 2026 kabul kapanışı geçerlidir** (`6578e3e`): gerçek dış kimlik taşıma/ayırma bilerek kapalı bırakılmıştır; koordinasyonun uygulanması o kapanışın parçası değildir.
+
+**7 Kasım 2026 yeni kapsam: PLANNED.** Kullanıcı yalnız referanssız oyunlarda gerçek taşıma/ayırma için ayrı bir kapsam genişletmesi istedi; şimdiki teslim servis sahiplerine sözleşme taslağıdır. Bu talep asıl GAME-26'nın yarım kaldığı veya mevcut protokolün zaten uygulanmış olduğu anlamına gelmez. Yeni koordinasyon ve ortak kabul tamamlanana kadar HTTP koruması değişmez.
+
+Auth'ta Game → Library/Review için `game-references:read` hedef/kapsam izinleri tanımlıdır. Bu yalnız okuma yetkisidir; çalışan referans kontrol uçlarının, atomik dondurmanın veya prepare/finalize yetkilerinin hazır olduğunu kanıtlamaz. Yeni `game-identity:*` kapsamları taslaktır, Auth'a uygulanmış değildir.
+
+Güncel genişletme taslağı: `docs-Game Service/GAME-26-Servis-Sahipleri-Entegrasyon-Sozlesmesi.md`.
 Sorumlu: Hamza
 Tüketici servisler: Frontend (yönetim paneli)
 
@@ -2869,22 +2879,56 @@ Public. Yalnız aktif kanonik oyun ve görünür tanımlar.
 #### Path/Query Parameters
 gameId UUID; type ACHIEVEMENTS/GUIDES/EASTER_EGGS/EXPERIENCES.
 page=0 (0–10000), size=20 (1–50); sıralama code ASC, id ASC.
+contractVersion=1 (varsayılan, eski sözleşme) veya 2 (Community kaynak yönlendirmesi).
 
 #### Response — 200
 `{gameId,type,state,items,page,size,totalElements}`. ACHIEVEMENTS için state
 AVAILABLE/EMPTY; items `{id,code,title,description,visible,version,source,updatedAt}`.
-source yalnız ADMIN; bu veri kişisel başarım ilerlemesi değildir. Diğer üç tip
-INTEGRATION_PENDING, items=[], totalElements=null döner. Başarılı dış veri alımı değildir;
-bu içeriklerin sahibi ve gerçek entegrasyon sözleşmesi beklenmektedir.
+source yalnız ADMIN; bu veri kişisel başarım ilerlemesi değildir. Başarım yanıtı iki
+sürümde de aynıdır ve `contentSource` alanı bulunmaz.
+
+GUIDES/EASTER_EGGS/EXPERIENCES için `contractVersion=2` yanıtı:
+`{gameId,type,state:"EXTERNAL",items:[],page,size,totalElements:null,contentSource:{service:"COMMUNITY",listPath:"/api/v1/community/games/{gameId}/content?type=GUIDES&page=0&size=20"}}`.
+Yol istenen tür ve sayfalama değerleriyle üretilir; yalnız aktif oyun için verilir.
+EXTERNAL, sağlayıcının o anda erişilebilir veya içeriğin dolu olduğu iddiası değildir.
+İçerik ve gerçek toplam, istemcinin kendi kullanıcı oturumu ile bu Gateway yolundan
+alınır. Game servis token'ı kullanmaz, UGC saklamaz ve kullanıcıya özel sonuç cache'lemez.
+
+`contractVersion=1` dış modülleri **DEPRECATED**: eski istemcileri korumak için
+INTEGRATION_PENDING, items=[], totalElements=null yanıtı ve eski JSON şekli korunur.
+Bu eski durum sağlayıcının güncel geliştirme durumunu anlatmaz. Yeni Game ekranı v2
+kullanır; eski tüketiciler Frontend oyun detay istemcileridir ve v2'ye geçmelidir.
 
 #### Hata Durumları
-400 geçersiz tip/UUID/sayfalama; 404 olmayan veya aktif olmayan oyun.
+400 geçersiz tip/UUID/sayfalama veya contractVersion (kod: INVALID_MODULE_CONTRACT_VERSION);
+404 olmayan veya aktif olmayan oyun. Community'nin 401/404/429/503 hataları Game
+yanıtına çevrilmez; doğrudan yapılan ikinci okumada kendi HTTP durumlarıyla ele alınır.
 
 #### Bağlantı
-Gateway üzerinden aynı path. Dış servis çağrısı veya verisi yoktur.
+Gateway üzerinden aynı path. Game backend'inden dış servis çağrısı veya içerik aktarımı yoktur.
+Game web modülü: `features/game/services/game-api.ts`, component → hook → service →
+ortak apiRequest akışı. Seçilen dış modül için bir Game kaynak sorgusu ve bir
+Community liste sorgusu; içerik başına çağrı yok. Detay yalnız kullanıcı seçince okunur.
+TR `/tr/oyunlar`, `/tr/oyunlar/{gameId}`; EN `/en/games`, `/en/games/{gameId}`.
+Kişiye özel yanıtlar `cache:no-store` ve mevcut Gateway çereziyle alınır; hata halinde
+eski veya boş içerik başarı gibi gösterilmez. UGC düz metindir, HTML yorumlanmaz.
 
 #### Test Durumu
-INTEGRATION — GameModuleTest; boş/bekleyen ayrımı, görünürlük, sıralama, sayfalama, eski metadata.
+INTEGRATION — GameModuleTest: eski JSON/sürüm uyumu, v2 üç kaynak yolu, başarımlar,
+aktif oyun sınırı, geçersiz sürüm ve sayfalama. Frontend: game-api.test.ts,
+game-modules.test.tsx (sınırlı çağrı, kaynak doğrulama, düz metin, hata/boş sonuç,
+sayfalama ve odakta görünürlük yenileme). Gerçek Game/Community/Gateway kabul
+komutu: `node ops/game-community-e2e.mjs`; yalnız geçici PostgreSQL ve fixture JWKS
+kullanır; gerçek Auth login'i ve Social/Admin olay teslimi kapsam dışıdır.
+7 Kasım 2026: Game clean verify 427/427 PASS; frontend Vitest 343 PASS/1 mevcut SKIP,
+lint ve izole TypeScript PASS; fixture API'li masaüstü/mobil Playwright 2/2 PASS.
+İlk ortak koşudaki Community DB kesintisi 500/503 farkı, kullanıcının açık talimatıyla
+Community'de dar hata eşlemesi ve gerçek PostgreSQL kesinti testiyle düzeltildi.
+Son gerçek Game/Community/Gateway kabulü **17/17 PASS**; ilk doğrudan kesinti yanıtı
+ve Gateway üzerinden 503 dahil. Community clean verify **501/501 PASS**, merkezi
+kapsam, yeni ihlal ve Trivy kapıları PASS. Önceki Game Trivy engeli de mevcut
+doğrulanmış JAR yeniden taranarak giderildi (runtime envanteri tam, HIGH/CRITICAL 0).
+Gerçek Auth login'i, Social/Admin olay teslimi ve üretim dağıtımı bu fixture kabulünün dışındadır.
 
 ### GAME — ADMIN başarım tanımı yönetimi (GAME-11)
 
@@ -3078,6 +3122,24 @@ RealAuthIntegrationTest gerçek Auth ServiceTokenIssuer/JWKS uyumluluğunu sına
 AccountErasureMigrationTest gerçek PostgreSQL'de silme/anonimleştirme, V40 yükseltmesi,
 çapraz hesap izolasyonu, normal audit değişmezliği, DB yetkisi, rollback ve kilit tekrarını sınar.
 DEV Auth görevinin CONFIRMED olması NOT VERIFIED.
+
+### GAME — Web tüketici doğrulaması (7 Kasım 2026)
+
+Yeni backend endpoint veya sözleşme değişikliği yoktur. Yukarıdaki Game yönetim,
+geliştirici, moderasyon, başarım, feedback, katalog ve fiyat uçları `features/game`
+üzerinden tüketilir. TR/EN yönetim rotası `/games/manage` iç yoludur; TR adresi
+`/tr/oyunlar/yonetim`, EN adresi `/en/games/manage`. Rol görünürlüğü `/api/v1/auth/me`
+ile alınır; sunucu izinleri her istekte ayrıca uygular. Çerezli yazmalardan önce
+mevcut `/api/v1/auth/csrf` kullanılır. Diğer servis kodu/API kaydı değiştirilmedi.
+
+`ops/game-auth-e2e.mjs`: gerçek Auth kayıt/doğrulama/login → Gateway → Game **8/8 PASS**;
+kişisel feedback izolasyonu, CSRF ve PLAYER rol sınırı dahil. İki geçici DB ve
+Mailpit temizlenir. HTTP CookieJar kabulüdür; tarayıcı HTTPS deploy kabulü değildir.
+Birim/tarayıcı fixture testleri gerçek ITAD, gerçek Admin/Notification olay akışı
+veya kimlik mutasyonu protokolünün yerine geçmez.
+Web birim testleri 395 PASS / 1 mevcut SKIP; Game Chromium 5/5 PASS, lint/typecheck
+PASS. Game merkezi kontrolü 427 test ve kapsam/kalite/Trivy kapılarıyla
+BACKEND TEST CHECK PASSED verdi.
 
 ## LIBRARY
 
@@ -5979,7 +6041,11 @@ Diğer mikroservisler:
 Çağrı yapmaz (Game, Content veya başka servise bağımlılığı yoktur; yalnız kendi `community_db`'si).
 
 #### Test Durumu
-UNIT + INTEGRATION (MockMvc: şekil, varsayılanlar, sınırlar, 503 eşlemesi; gerçek PostgreSQL: tür/oyun filtresi, eski `category=GUIDE` gönderisinin sayılmaması, sıralama ve UUID eşitlik kuralı, sayfa çakışmaması, sayfa sonrası boş liste, gizli/silinmiş/moderasyonla gizlenmiş içerik ve `totalElements`, iki yönlü engelleme, gizli forum, sahibin kendi gizli içeriği; `InternalEndpointSecurityTest`: misafir 200, geçerli token 200, sahte/süresi dolmuş/servis token'ı 401). Gateway, gerçek Auth ve gerçek Game ile uçtan uca doğrulama: NOT VERIFIED.
+UNIT + INTEGRATION (MockMvc: şekil, varsayılanlar, sınırlar, 503 eşlemesi; gerçek PostgreSQL: tür/oyun filtresi, eski `category=GUIDE` gönderisinin sayılmaması, sıralama ve UUID eşitlik kuralı, sayfa çakışmaması, sayfa sonrası boş liste, gizli/silinmiş/moderasyonla gizlenmiş içerik ve `totalElements`, iki yönlü engelleme, gizli forum, sahibin kendi gizli içeriği; `InternalEndpointSecurityTest`: misafir 200, geçerli token 200, sahte/süresi dolmuş/servis token'ı 401). Gerçek Game/Community/Gateway ve fixture JWKS ile ortak kabul 17/17 PASS (7 Kasım 2026). Gerçek Auth login’i ve Social/Admin olay teslimi: NOT VERIFIED.
+7 Kasım 2026 düzeltmesi: `GameContentDatabaseOutageIntegrationTest`, ayrı PostgreSQL'i
+durdurarak ilk liste/detay HTTP yanıtının 503 ProblemDetail olduğunu doğrular.
+`GameContentControllerTest`, kapalı bağlantı rollback sarmalayıcılarını, yanıttan
+SQL ayrıntısı sızmamasını ve ilgisiz transaction/JPA hatalarının 500 kalmasını sınar.
 
 ### COMMUNITY — Oyuna Bağlı İçerik Detayı (GAME-11)
 
@@ -6031,7 +6097,9 @@ Diğer mikroservisler:
 Çağrı yapmaz.
 
 #### Test Durumu
-UNIT + INTEGRATION (MockMvc; gerçek PostgreSQL: görünür detay, `likedByMe`, yanlış oyun/türsüz gönderi/bilinmeyen kimlik/silinmiş/sahibin gizli içeriği/engelli yazar/gizli forum için 404). Gateway ile uçtan uca doğrulama: NOT VERIFIED.
+UNIT + INTEGRATION (MockMvc; gerçek PostgreSQL: görünür detay, `likedByMe`, yanlış oyun/türsüz gönderi/bilinmeyen kimlik/silinmiş/sahibin gizli içeriği/engelli yazar/gizli forum için 404). Gerçek Game/Community/Gateway ortak kabulü 17/17 PASS; gerçek Auth login’i kapsam dışıdır.
+İlk gerçek DB kesintisi yanıtı ayrıca `GameContentDatabaseOutageIntegrationTest`
+ile sınanır; controller testleri bağlantı kaybı ve ilgisiz JPA hatalarını ayırır.
 
 ### COMMUNITY — Gönderi Düzenle
 

@@ -141,4 +141,10 @@ describe("Ortak API client", () => {
       })
     );
   });
+
+  it("ProblemDetail içinden yalnız güvenli kodu ve alan adlarını taşır", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 400, json: async () => ({ code: "INVALID_FEEDBACK", detail: "private internal trace", rejectedValue: "private input", violations: [{ field: "title" }, { field: "items[0].body" }, { field: "<script>" }] }) }));
+    await expect(apiRequest("/api/v1/game/feedback")).rejects.toMatchObject({ status: 400, problem: { code: "INVALID_FEEDBACK", fields: ["title", "items[0].body"] } });
+    try { await apiRequest("/api/v1/game/feedback"); } catch (error) { expect(JSON.stringify(error)).not.toContain("private"); }
+  });
 });

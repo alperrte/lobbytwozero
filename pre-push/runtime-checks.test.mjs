@@ -12,14 +12,26 @@ function databaseModel() {
 }
 
 test('host Maven uses selected database credentials and published port without changing the Docker environment', () => {
-  const ambient = { POSTGRES_HOST: 'postgres', POSTGRES_PORT: '5432', POSTGRES_PASSWORD: 'other-profile', KEEP: 'value' };
+  const ambient = { POSTGRES_HOST: 'postgres', POSTGRES_PORT: '5432', POSTGRES_PASSWORD: 'other-profile', PATH: 'tools',
+    KEEP: 'value', IGDB_CLIENT_ID: 'fixture-id', IGDB_CLIENT_SECRET: 'fixture-secret', ITAD_API_KEY: 'fixture-key',
+    STEAM_CATALOG_ENABLED: 'true', GAME_CATALOG_SYNC_ENABLED: 'true', SPRING_PROFILES_ACTIVE: 'prod',
+    AUTH_EVENT_TARGETS: 'community', AUTH_SERVICE_URL: 'https://runtime-auth.example.invalid',
+    JAVA_TOOL_OPTIONS: '-Dltz.game.igdb.client-id=fixture',
+    MAVEN_OPTS: '-Dgame.catalog.sync.enabled=true' };
   const env = backendTestEnvironment(databaseModel(), ambient);
   assert.equal(env.POSTGRES_HOST, '127.0.0.1');
   assert.equal(env.POSTGRES_PORT, '5542');
   assert.equal(env.POSTGRES_PASSWORD, 'fixture-db-pass');
   assert.equal(env.DB_GAME_NAME, 'game_db');
   assert.equal(env.STEAM_WEB_API_KEY, undefined);
-  assert.equal(env.KEEP, 'value');
+  assert.equal(env.PATH, 'tools');
+  assert.equal(env.MAVEN_SKIP_RC, 'true');
+  assert.equal(env.AUTH_SERVICE_URL, 'http://127.0.0.1:1');
+  assert.equal(ambient.AUTH_SERVICE_URL, 'https://runtime-auth.example.invalid');
+  for (const name of ['KEEP', 'IGDB_CLIENT_ID', 'IGDB_CLIENT_SECRET', 'ITAD_API_KEY', 'STEAM_CATALOG_ENABLED',
+    'GAME_CATALOG_SYNC_ENABLED', 'SPRING_PROFILES_ACTIVE', 'AUTH_EVENT_TARGETS', 'JAVA_TOOL_OPTIONS', 'MAVEN_OPTS']) {
+    assert.equal(env[name], undefined, name + ' must not reach Maven test JVMs');
+  }
   assert.equal(ambient.POSTGRES_PORT, '5432');
   assert.equal(ambient.POSTGRES_PASSWORD, 'other-profile');
 });

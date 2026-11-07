@@ -40,7 +40,7 @@ public class ItadPriceClient implements GamePriceProvider {
                 .forEach(ref -> steam.put("app/"+ref.getExternalId(),ref.getGame().getId()));
         if(steam.isEmpty()) return List.of();
         if(steam.size()>200) throw new ProviderException("PRICE_MAPPING_LIMIT");
-        var matched=mapGames(post("/lookup/shop/61/id/v1",new ArrayList<>(steam.keySet())),steam);
+        var matched=mapGames(post("/lookup/id/shop/61/v1",new ArrayList<>(steam.keySet())),steam);
         if(matched.isEmpty()) return List.of();
         var rows=post("/games/prices/v3?country="+market.country()+"&capacity=5&vouchers=false",new ArrayList<>(matched.keySet()));
         return ItadPriceMapper.quotes(rows,matched,market,clock.instant(),properties.ttl());
@@ -64,7 +64,8 @@ public class ItadPriceClient implements GamePriceProvider {
     }
     private JsonNode post(String path,Object body) {
         try {
-            return http.post().uri(path).header("ITAD-API-Key",properties.apiKey()).contentType(MediaType.APPLICATION_JSON)
+            return http.post().uri(path).header("ITAD-API-Key",properties.apiKey())
+                    .header("User-Agent","LTZ-Game-Service/1.0").contentType(MediaType.APPLICATION_JSON)
                     .body(body).exchange((request,response) -> {
                         int status=response.getStatusCode().value();
                         if(status!=200) throw failure(status,response.getHeaders().getFirst("Retry-After"));
@@ -80,7 +81,7 @@ public class ItadPriceClient implements GamePriceProvider {
     }
     private Duration retryAfter(String value) {
         if(value==null) return Duration.ofMinutes(15);
-        if(value.matches("[0-9]{1,9}")) return Duration.ofSeconds(Math.max(1,Long.parseLong(value)));
+        if(value.matches("\\d{1,9}")) return Duration.ofSeconds(Math.max(1,Long.parseLong(value)));
         try {
             var end=java.time.ZonedDateTime.parse(value,java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME).toInstant();
             return Duration.ofSeconds(Math.max(1,Duration.between(clock.instant(),end).getSeconds()));

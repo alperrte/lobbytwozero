@@ -51,8 +51,8 @@ class IgdbDetailSourceTest {
 
     /** İki sahte sunucu + kaynak; kapatma try-with-resources ile yapılır. */
     private static final class Rig implements AutoCloseable {
-        final FakeServer api = new FakeServer();
-        final FakeServer token = new FakeServer();
+        final FakeServer api;
+        final FakeServer token;
         final MutableClock clock = new MutableClock();
         final IgdbDetailSource source;
 
@@ -62,6 +62,8 @@ class IgdbDetailSourceTest {
 
         /** {@code happy}: kaynak kimliği, eşleme ve oyun yanıtları sıraya konur. */
         Rig(Duration interval, boolean happy) throws IOException {
+            api = new FakeServer();
+            token = new FakeServer();
             RestClient http = GameRatingConfiguration.restClient(RestClient.builder(), api.baseUrl(), Duration.ofSeconds(1), Duration.ofSeconds(2));
             source = new IgdbDetailSource(http, clock, "test-client", SECRET, api.baseUrl() + "/v4", token.baseUrl() + "/oauth2/token", interval);
             token.enqueue(Reply.json(200, TOKEN));
