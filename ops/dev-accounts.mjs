@@ -13,14 +13,23 @@
 // Hesaplar: user (PLAYER), creator (CONTENT_CREATOR), developer (GAME_DEVELOPER), moderator (MODERATOR), admin (ADMIN);
 // e-posta `<ad>@${DEV_ACCOUNTS_DOMAIN:-ltz.com}`.
 //
-// Neden doğrudan veritabanı? Auth parola alt sınırı 15 karakterdir; kısa bir geliştirme parolası API'den geçmez. Betik hesabı
-// GERÇEK akışla açar (kayıt → Mailpit kodu → doğrulama → giriş; olay ve rol kayıtları Auth'un kendi kodundan çıkar), sonra
-// yalnız parola özetini yazar ve gerekli rolü ekler. ADMIN/MODERATOR için Auth TOTP zorunlu kıldığından, rol verilmeden ÖNCE
-// TOTP API ile kurulur; sır ve kurtarma kodları makine düzeyindeki `~/.ltz/dev-accounts.json` dosyasına yazılır (depoya girmez;
-// aynı bilgisayardaki tüm klasörler aynı veritabanını paylaştığı için aynı dosyayı kullanır).
+// !!! BİLİNÇLİ KURAL İHLALİ — YALNIZ YEREL GELİŞTİRME !!!
+// Hesaplar kayıt akışından (e-posta doğrulaması, parola kuralları) GEÇİRİLMEDEN doğrudan VERİTABANINA yazılır:
+//   - auth_db:  `accounts` (ACTIVE, e-posta doğrulanmış, kısa parolanın Argon2 özeti; Auth alt sınırı 15 karakterdir),
+//               PLAYER rolü ve durum geçmişi; ADMIN/MODERATOR/CONTENT_CREATOR/GAME_DEVELOPER rolü `account_roles`'a doğrudan
+//               eklenir (normal yolda ADMIN/MODERATOR yalnız TOTP'si etkin hesaba verilir; bu kural dev için atlanır).
+//   - user_db:  her hesap için `user_profiles` satırı (kullanıcı adı kopyasıyla), User servisinin olay almasını beklemeden.
+// Bu yüzden e-posta, SMTP, Mailpit ya da Mail Service ÇALIŞMAK ZORUNDA DEĞİLDİR; gerçek SMTP açıkken de çalışır ve hiçbir yere
+// e-posta göndermez. 2FA: Auth ADMIN/MODERATOR'a giriş sırasında TOTP ister (AUTH_2FA_REQUIRED_ROLES). EN KOLAY DEV YOLU: .env.dev'e
+// `AUTH_2FA_REQUIRED_ROLES=` (boş; Auth bunu yalnız dev/test profilinde kabul eder) ekleyip Auth'u yeniden başlatmak: betik o zaman
+// hiç TOTP kurmaz, admin/moderator yalnız parolayla girer ve hiçbir e-posta çıkmaz. Boş değilse betik hesabı önce rolsüz açar, API ile
+// giriş yapıp TOTP'yi kurar (Auth "2FA etkinleştirildi" bildirimi e-postası gönderir; gerçek SMTP + gerçek alan adı varsa betik
+// BUNU YAPMAZ ve durur), SONRA rolü doğrudan verir. Sır ve kurtarma kodları makine düzeyindeki `~/.ltz/dev-accounts.json`
+// dosyasındadır (depoya girmez; aynı bilgisayardaki tüm klasörler aynı veritabanını paylaştığı için aynı dosyayı kullanır).
 //
-// Güvenlik: yalnız localhost'a ve `ltz-dev-*` Postgres kapsayıcısına çalışır, NODE_ENV=production iken reddeder. Parola
-// depoya yazılmaz (DEV_ACCOUNTS_PASSWORD zorunlu, varsayılanı yok) ve ekrana basılmaz. Tekrar çalıştırmak güvenlidir.
+// Güvenlik: yalnız localhost'a, `ltz-dev-*` Postgres kapsayıcısına ve dev/test profilindeki Auth'a çalışır, NODE_ENV=production
+// iken reddeder. Parola depoya yazılmaz (DEV_ACCOUNTS_PASSWORD zorunlu, varsayılanı yok) ve ekrana basılmaz. Tekrar
+// çalıştırmak güvenlidir.
 
 import { spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -31,13 +40,14 @@ import {
   DEV_ACCOUNTS,
   assertDevProfile,
   assertDevTarget,
+  assertUuid,
   emailFor,
-  extractCode,
   hashPassword,
+  isUndeliverableDomain,
   parseDevEnv,
+  parseRequiredRoles,
   secondsLeftInStep,
   sqlLiteral,
-  temporaryPassword,
   totp,
   validateConfig
 } from "./dev-accounts-lib.mjs";
@@ -66,10 +76,10 @@ const config = {
   password: process.env.DEV_ACCOUNTS_PASSWORD ?? fromFile.DEV_ACCOUNTS_PASSWORD,
   domain: process.env.DEV_ACCOUNTS_DOMAIN ?? fromFile.DEV_ACCOUNTS_DOMAIN ?? "ltz.com",
   gatewayUrl: process.env.DEV_GATEWAY_URL ?? "http://localhost:5080",
-  mailpitUrl: process.env.DEV_MAILPIT_URL ?? "http://localhost:8025",
   origin: process.env.DEV_FRONTEND_ORIGIN ?? "http://localhost:5001",
   container: process.env.DEV_POSTGRES_CONTAINER ?? "ltz-dev-postgres-1",
   authContainer: process.env.DEV_AUTH_CONTAINER ?? "ltz-dev-auth-service-1",
+  mailContainer: process.env.DEV_MAIL_CONTAINER ?? "ltz-dev-mail-service-1",
   nodeEnv: process.env.NODE_ENV
 };
 
@@ -112,10 +122,10 @@ function writeState(state) {
 
 // ---------- veritabanı ----------
 
-function psql(sql) {
+function psql(sql, database = "auth_db") {
   const result = spawnSync(
     "docker",
-    ["exec", "-i", config.container, "sh", "-c", 'psql -U "$POSTGRES_USER" -d auth_db -v ON_ERROR_STOP=1 -tA'],
+    ["exec", "-i", config.container, "sh", "-c", `psql -U "$POSTGRES_USER" -d ${database} -v ON_ERROR_STOP=1 -tA`],
     { input: sql, encoding: "utf8" }
   );
   if (result.status !== 0) {
@@ -168,56 +178,113 @@ function describe(response) {
   return `HTTP ${response.status}${response.json?.code ? ` ${response.json.code}` : ""}`;
 }
 
-// ---------- Mailpit ----------
-
-async function mailIds(email) {
-  const response = await fetch(`${config.mailpitUrl}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`);
-  if (!response.ok) fail(`Mailpit'e ulaşılamadı (${config.mailpitUrl}): HTTP ${response.status}`);
-  const body = await response.json();
-  return (body.messages ?? []).map((message) => message.ID);
-}
-
-async function waitForCode(email, knownIds) {
-  const deadline = Date.now() + 30_000;
-  while (Date.now() < deadline) {
-    const fresh = (await mailIds(email)).filter((id) => !knownIds.has(id));
-    for (const id of fresh) {
-      const response = await fetch(`${config.mailpitUrl}/api/v1/message/${id}`);
-      const message = await response.json();
-      const code = extractCode(message.Text);
-      if (code) return code;
-    }
-    await new Promise((done) => setTimeout(done, 1000));
-  }
-  fail(`${email} için doğrulama e-postası 30 sn içinde gelmedi (Mail Service/Mailpit çalışıyor mu?).`);
-}
-
 // ---------- akışlar ----------
 
 async function waitForFreshTotpStep() {
   if (secondsLeftInStep() < 4) await new Promise((done) => setTimeout(done, 5000));
 }
 
-async function createViaApi(account, email, temp, state) {
+/** Hesabı rolsüz (yalnız PLAYER) ve doğrulanmış olarak doğrudan veritabanına yazar; kayıt akışı ve e-posta kullanılmaz. */
+function createInDatabase(account, email, passwordHash) {
+  const e = sqlLiteral(email.toLowerCase());
+  const u = sqlLiteral(account.local);
+  psql(`
+    begin;
+    insert into accounts (id, email, email_normalized, username, username_normalized, password_hash, status,
+                          email_verified_at, token_version, created_at, updated_at, version)
+    values (gen_random_uuid(), ${sqlLiteral(email)}, ${e}, ${u}, ${u}, ${sqlLiteral(passwordHash)}, 'ACTIVE',
+            now(), 0, now(), now(), 0);
+    insert into account_roles (account_id, role_id)
+      select a.id, r.id from accounts a, roles r where a.email_normalized = ${e} and r.code = 'PLAYER';
+    insert into account_role_history (id, account_id, role_code, action, reason, actor_id, created_at)
+      select gen_random_uuid(), a.id, 'PLAYER', 'GRANT', 'dev-accounts seed', a.id, now()
+        from accounts a where a.email_normalized = ${e};
+    insert into account_status_history (id, account_id, from_status, to_status, reason, actor_id, created_at)
+      select gen_random_uuid(), a.id, 'PENDING_VERIFICATION', 'ACTIVE', 'dev-accounts seed', a.id, now()
+        from accounts a where a.email_normalized = ${e};
+    commit;
+  `);
+}
+
+/**
+ * User servisinde profil satırını doğrudan yazar (olayı beklemeden). Satır varsa kullanıcı adı kopyası ve durum güncellenir.
+ * Hesap kimliği Auth veritabanından okunur ve SQL'e gömülmeden önce UUID olduğu doğrulanır.
+ */
+function ensureUserProfile(account, email) {
+  const id = psql(`select id from accounts where email_normalized = ${sqlLiteral(email.toLowerCase())};`);
+  try {
+    assertUuid(id);
+  } catch {
+    fail(`${email} için hesap kimliği okunamadı`);
+  }
+  const u = sqlLiteral(account.local);
+  psql(
+    `
+    insert into user_profiles (user_id, username_snapshot, username_normalized, account_status, created_at, updated_at, version)
+    values ('${id}', ${u}, ${u}, 'ACTIVE', now(), now(), 0)
+    on conflict (user_id) do update
+      set username_snapshot = excluded.username_snapshot, username_normalized = excluded.username_normalized,
+          account_status = 'ACTIVE', updated_at = now();
+  `,
+    "user_db"
+  );
+}
+
+/** Auth konteynerindeki 2FA zorunlu rol listesi (yalnız bu değişken okunur). Tanımsızsa Auth varsayılanı geçerlidir. */
+function requiredTwoFactorRoles() {
+  const result = spawnSync("docker", ["exec", config.authContainer, "printenv", "AUTH_2FA_REQUIRED_ROLES"], { encoding: "utf8" });
+  return parseRequiredRoles(result.status === 0 ? result.stdout : undefined);
+}
+
+/** Mail Service'in SMTP sunucusu (yalnız host; boş = Mailpit/geliştirme gönderimi). Konteyner yoksa boş sayılır: mail gitmez. */
+function smtpHost() {
+  const result = spawnSync("docker", ["exec", config.mailContainer, "printenv", "MAIL_SMTP_HOST"], { encoding: "utf8" });
+  return result.status === 0 ? result.stdout.trim() : "";
+}
+
+/**
+ * TOTP'yi API ile kurmak Auth'a "iki aşamalı doğrulama etkinleştirildi" bildirim e-postası gönderttirir. Gerçek SMTP açıkken ve
+ * adres teslim edilebilir bir alan adındaysa (ör. ltz.com) bu e-posta GERÇEK bir adrese gider; bu yüzden o durumda durulur.
+ */
+function assertMailSafe(email) {
+  const host = smtpHost();
+  const domain = email.split("@")[1] ?? "";
+  if (host !== "" && !isUndeliverableDomain(domain)) {
+    fail(
+      `${email} için 2FA kurulumu bildirim e-postası gönderir, ama gerçek SMTP açık (${host}) ve ${domain} gerçek bir alan adı: ` +
+        "e-posta başkasına gider. Çözüm (biri yeter): .env.dev'e AUTH_2FA_REQUIRED_ROLES= (boş, yalnız dev) ekleyip Auth'u yeniden " +
+        "başlat (admin/moderator 2FA'sız girer, hiç mail çıkmaz); ya da DEV_ACCOUNTS_DOMAIN=ltz.test kullan; ya da geçici olarak " +
+        "MAIL_SMTP_HOST'u boşaltıp mail-service'i yeniden başlat."
+    );
+  }
+}
+
+/** 2FA zorunlu değilken kalmış TOTP kaydını siler (yerel sır eşleşmiyorsa girişi tıkamasın). Rol ve hesap korunur. */
+function disableTotp(email, state) {
+  const owner = `(select id from accounts where email_normalized = ${sqlLiteral(email.toLowerCase())})`;
+  psql(`
+    begin;
+    delete from recovery_codes where account_id = ${owner};
+    delete from totp_credentials where account_id = ${owner};
+    update accounts set token_version = token_version + 1 where id = ${owner};
+    commit;
+  `);
+  delete state[email];
+  writeState(state);
+}
+
+/** Yeni (henüz rolsüz) 2FA'lı hesap: parolayla giriş yapıp TOTP kurulur; rol `finalizeInDatabase` ile sonra verilir. */
+async function enrollNewAccount(email, state) {
   const session = new Session();
   await session.csrf();
-  const known = new Set(await mailIds(email));
-
-  let response = await session.request("POST", "/api/v1/auth/register", { email, username: account.local, password: temp });
-  if (response.status !== 202) fail(`${email} kayıt başarısız: ${describe(response)}`);
-  const code = await waitForCode(email, known);
-
-  response = await session.request("POST", "/api/v1/auth/email-verification/confirm", { email, code, password: temp });
-  if (response.status !== 204) fail(`${email} e-posta doğrulaması başarısız: ${describe(response)}`);
-
-  response = await session.request("POST", "/api/v1/auth/login", { identifier: email, password: temp });
+  const response = await session.request("POST", "/api/v1/auth/login", { identifier: email, password: config.password });
   if (response.json?.status !== "AUTHENTICATED") fail(`${email} ilk giriş başarısız: ${describe(response)}`);
-
-  if (account.mfa) await enrollTotp(session, email, state);
+  await enrollTotp(session, email, state);
 }
 
 /** Giriş yapmış oturumda TOTP kurar ve etkinleştirir; sır ve kurtarma kodları makine dosyasına yazılır. */
 async function enrollTotp(session, email, state) {
+  assertMailSafe(email);
   let response = await session.request("POST", "/api/v1/auth/2fa/totp/setup", {});
   const secret = response.json?.secret;
   if (response.status !== 200 || !secret) fail(`${email} TOTP kurulumu başarısız: ${describe(response)}`);
@@ -233,10 +300,11 @@ async function enrollTotp(session, email, state) {
  * 2FA sıfırlanıp yeniden kurulur. Auth 2FA'sız ADMIN/MODERATOR'a oturum vermediğinden, kurulum süresince rol geçici alınır ve
  * `finalizeInDatabase` ile geri verilir.
  */
-async function repairTotp(account, email, state) {
+async function repairTotp(account, email, state, reason = "2FA sırrı yok") {
+  assertMailSafe(email); // veritabanına dokunmadan ÖNCE: yarım kalmış (rolsüz/2FA'sız) hesap bırakılmasın
   const e = sqlLiteral(email.toLowerCase());
   const owner = `(select id from accounts where email_normalized = ${e})`;
-  process.stdout.write("2FA sırrı yok, yeniden kuruluyor … ");
+  process.stdout.write(`${reason}, yeniden kuruluyor … `);
   psql(`
     begin;
     update accounts
@@ -296,7 +364,7 @@ function finalizeInDatabase(account, email, passwordHash) {
  */
 async function verifyLogin(account, email, state) {
   const first = await verifyLoginOnce(account, email, state);
-  if (first === null || !account.mfa || !first.includes("401")) return first;
+  if (first === null || !first.includes("MFA_FAILED")) return first;
   await new Promise((done) => setTimeout(done, (secondsLeftInStep() + 1) * 1000));
   return verifyLoginOnce(account, email, state);
 }
@@ -305,10 +373,9 @@ async function verifyLoginOnce(account, email, state) {
   const session = new Session();
   await session.csrf();
   let response = await session.request("POST", "/api/v1/auth/login", { identifier: email, password: config.password });
-  if (account.mfa) {
-    if (response.json?.status !== "MFA_REQUIRED") return `beklenen MFA_REQUIRED, gelen ${describe(response)}`;
+  if (response.json?.status === "MFA_REQUIRED") {
     const secret = state[email]?.totpSecret;
-    if (!secret) return "TOTP sırrı yerel dosyada yok (hesap önceden TOTP ile açılmış olabilir)";
+    if (!secret) return "TOTP sırrı bu makinede yok (2FA bu hesapta etkin)";
     await waitForFreshTotpStep();
     response = await session.request("POST", "/api/v1/auth/login/2fa", {
       challengeId: response.json.challengeId,
@@ -319,6 +386,9 @@ async function verifyLoginOnce(account, email, state) {
   const me = await session.request("GET", "/api/v1/auth/me");
   const roles = me.json?.roles ?? [];
   if (!roles.includes(account.role)) return `rol eksik: beklenen ${account.role}, gelen [${roles.join(",")}]`;
+  const profile = await session.request("GET", "/api/v1/user/me");
+  if (profile.status !== 200) return `profil okunamadı: ${describe(profile)}`;
+  if (String(profile.json?.username ?? "").toLowerCase() !== account.local) return "profildeki kullanıcı adı beklenenle uyuşmuyor";
   return null;
 }
 
@@ -329,17 +399,38 @@ async function seed() {
     fail(error.message);
   }
   const state = readState();
+  const requiredRoles = requiredTwoFactorRoles();
+  if (requiredRoles.length === 0) console.log("(AUTH_2FA_REQUIRED_ROLES boş: admin/moderator 2FA'sız girer, TOTP kurulmaz, e-posta gitmez)");
   const results = [];
   for (const account of DEV_ACCOUNTS) {
     const email = emailFor(account, config.domain);
+    const needsTotp = requiredRoles.includes(account.role);
     process.stdout.write(`• ${email} (${account.role}) … `);
     const existing = psql(`select id from accounts where email_normalized = ${sqlLiteral(email.toLowerCase())};`);
-    if (!existing) await createViaApi(account, email, temporaryPassword(), state);
-    else if (account.mfa && !state[email]?.totpSecret) await repairTotp(account, email, state);
-    finalizeInDatabase(account, email, hashPassword(config.password));
-    const problem = await verifyLogin(account, email, state);
+    const passwordHash = hashPassword(config.password);
+    if (needsTotp && (!existing || !state[email]?.totpSecret)) assertMailSafe(email); // 2FA kurulacaksa mail güvenliği önce
+    if (!existing) {
+      createInDatabase(account, email, passwordHash);
+      if (needsTotp) await enrollNewAccount(email, state);
+    } else if (needsTotp && !state[email]?.totpSecret) {
+      await repairTotp(account, email, state);
+    }
+    finalizeInDatabase(account, email, passwordHash);
+    ensureUserProfile(account, email);
+    let problem = await verifyLogin(account, email, state);
+    // Aynı veritabanını başka bir klasör/makine yeniden kurmuş olabilir: yerel sır artık eşleşmiyor. Dev hesabı olduğundan
+    // 2FA bir kez sıfırlanıp (zorunluysa yeniden kurulup) tekrar denenir; aynı 30 sn dilimi tekrarı verifyLogin içinde zaten denendi.
+    if (problem && existing && (problem.includes("MFA_FAILED") || problem.includes("TOTP sırrı"))) {
+      if (needsTotp) {
+        await repairTotp(account, email, state, "2FA sırrı eşleşmiyor");
+        finalizeInDatabase(account, email, passwordHash);
+      } else {
+        disableTotp(email, state);
+      }
+      problem = await verifyLogin(account, email, state);
+    }
     console.log(problem ? `✗ ${problem}` : "✓ giriş doğrulandı");
-    results.push({ email, role: account.role, mfa: account.mfa, ok: !problem });
+    results.push({ email, role: account.role, mfa: needsTotp, ok: !problem });
   }
   console.log("\nHesaplar (parola: DEV_ACCOUNTS_PASSWORD):");
   for (const r of results) console.log(`  ${r.ok ? "✓" : "✗"} ${r.email.padEnd(22)} ${r.role}${r.mfa ? "  (2FA: node ops/dev-accounts.mjs totp " + r.email.split("@")[0] + ")" : ""}`);
@@ -388,8 +479,8 @@ function guardRunningStack() {
 
 const PROJECT = "ltz-dev";
 const DEFAULT_SERVICES = ["postgres", "mailpit", "mail-service", "auth-service", "user-service", "api-gateway"];
-/** Hesap oluşturmanın dayandığı servisler: bunlar sağlıklı olmadan kayıt akışı çalışmaz. */
-const MUST_BE_HEALTHY = ["auth-service", "api-gateway", "mailpit"];
+/** Hesap doğrulamasının dayandığı servisler (giriş Auth'tan, profil User'dan, ikisi de Gateway üzerinden). Mail gerekmez. */
+const MUST_BE_HEALTHY = ["auth-service", "api-gateway", "user-service"];
 const UP_FLAGS = new Set(["--no-seed", "--no-build", "--dry-run"]);
 
 function containerHealth(service) {
@@ -401,6 +492,18 @@ function containerHealth(service) {
   return result.status === 0 ? result.stdout.trim() : "yok";
 }
 
+/**
+ * Servis hazır mı? Sağlık kontrolü tanımlıysa `healthy` beklenir. Tanımsızsa (ör. user-service) kapsayıcının çalışıyor olması ve
+ * Spring'in "Started ...Application" satırını yazmış olması beklenir; aksi halde bu servisler hiç "healthy" olmaz ve kurulum takılır.
+ */
+function containerReady(service) {
+  const state = containerHealth(service);
+  if (state === "healthy") return true;
+  if (state !== "running") return false;
+  const logs = spawnSync("docker", ["logs", "--tail", "200", `${PROJECT}-${service}-1`], { encoding: "utf8" });
+  return /Started \w+Application/.test(`${logs.stdout ?? ""}${logs.stderr ?? ""}`);
+}
+
 async function up(args) {
   const flags = new Set(args.filter((arg) => arg.startsWith("--")));
   for (const flag of flags) if (!UP_FLAGS.has(flag)) fail(`Bilinmeyen seçenek: ${flag}`);
@@ -408,7 +511,7 @@ async function up(args) {
   const targets = named.length > 0 ? named : DEFAULT_SERVICES;
   const composeArgs = ["compose", "-p", PROJECT, "--env-file", ".env.dev", "--profile", "dev-mail", "up", "-d", ...(flags.has("--no-build") ? [] : ["--build"]), ...targets];
   const waitFor = MUST_BE_HEALTHY.filter((name) => targets.includes(name));
-  const seeding = !flags.has("--no-seed") && waitFor.includes("auth-service") && waitFor.includes("api-gateway");
+  const seeding = !flags.has("--no-seed") && MUST_BE_HEALTHY.every((name) => waitFor.includes(name));
 
   if (flags.has("--dry-run")) {
     console.log(`docker ${composeArgs.join(" ")}`);
@@ -426,7 +529,7 @@ async function up(args) {
   console.log("\n▶ Sağlık bekleniyor");
   const deadline = Date.now() + 240_000;
   for (const service of waitFor) {
-    while (containerHealth(service) !== "healthy") {
+    while (!containerReady(service)) {
       if (Date.now() > deadline) fail(`${service} 4 dakikada sağlıklı olmadı. İncele: docker compose -p ${PROJECT} logs ${service} --tail 50`);
       await new Promise((done) => setTimeout(done, 2000));
     }

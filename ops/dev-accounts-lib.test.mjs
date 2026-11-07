@@ -4,13 +4,14 @@ import {
   DEV_ACCOUNTS,
   assertDevProfile,
   assertDevTarget,
+  assertUuid,
   base32Decode,
   emailFor,
-  extractCode,
   hashPassword,
+  isUndeliverableDomain,
   parseDevEnv,
+  parseRequiredRoles,
   sqlLiteral,
-  temporaryPassword,
   totp,
   validateConfig
 } from "./dev-accounts-lib.mjs";
@@ -85,20 +86,8 @@ test("parola özeti: Spring biçimi, her seferinde farklı tuz, düz parola içe
   assert.ok(!first.includes("ornek-parola"));
 });
 
-test("geçici parola: en az 15 karakter ve her seferinde farklı", () => {
-  const a = temporaryPassword();
-  assert.ok(a.length >= 15);
-  assert.notEqual(a, temporaryPassword());
-});
-
 test("SQL değeri tek tırnağı kaçırır", () => {
   assert.equal(sqlLiteral("o'brien"), "'o''brien'");
-});
-
-test("doğrulama kodu çıkarımı", () => {
-  assert.equal(extractCode("Kodun: 483920 (10 dk)"), "483920");
-  assert.equal(extractCode("sipariş 12345678 numarası"), null);
-  assert.equal(extractCode(undefined), null);
 });
 
 test("dev env ayrıştırıcı: yalnız DEV_ACCOUNTS_* okunur, sırlar döndürülmez", () => {
@@ -114,4 +103,29 @@ test("dev env ayrıştırıcı: yalnız DEV_ACCOUNTS_* okunur, sırlar döndür�
   assert.deepEqual(parseDevEnv(text), { DEV_ACCOUNTS_PASSWORD: "parola-1", DEV_ACCOUNTS_DOMAIN: "ltz.test" });
   assert.deepEqual(parseDevEnv("DEV_ACCOUNTS_PASSWORD="), {});
   assert.deepEqual(parseDevEnv(undefined), {});
+});
+
+test("UUID doğrulaması: geçerli biçim geçer, SQL enjeksiyonu ve boş değer reddedilir", () => {
+  assert.equal(assertUuid("6ed1a2d9-dc5d-4c22-bd20-4ef821264d9b"), "6ed1a2d9-dc5d-4c22-bd20-4ef821264d9b");
+  assert.throws(() => assertUuid("'; drop table accounts; --"), /UUID/);
+  assert.throws(() => assertUuid(""), /UUID/);
+  assert.throws(() => assertUuid(undefined), /UUID/);
+  assert.throws(() => assertUuid("6ED1A2D9-DC5D-4C22-BD20-4EF821264D9B"), /UUID/);
+});
+
+test("teslim edilemeyen alan adı: ayrılmış uzantılar ve example.* evet, gerçek alan adı hayır", () => {
+  for (const domain of ["ltz.test", "x.example", "a.invalid", "b.localhost", "c.local", "example.com", "EXAMPLE.org", " ltz.TEST "]) {
+    assert.equal(isUndeliverableDomain(domain), true, domain);
+  }
+  for (const domain of ["ltz.com", "gmail.com", "testltz.com", "ltz.test.com", "", undefined]) {
+    assert.equal(isUndeliverableDomain(domain), false, String(domain));
+  }
+});
+
+test("2FA zorunlu roller: tanımsız = varsayılan, boş = hiçbiri, liste ayrıştırılır", () => {
+  assert.deepEqual(parseRequiredRoles(undefined), ["ADMIN", "MODERATOR"]);
+  assert.deepEqual(parseRequiredRoles(""), []);
+  assert.deepEqual(parseRequiredRoles("\n"), []);
+  assert.deepEqual(parseRequiredRoles(" admin , moderator\n"), ["ADMIN", "MODERATOR"]);
+  assert.deepEqual(parseRequiredRoles("ADMIN"), ["ADMIN"]);
 });

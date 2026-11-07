@@ -16,7 +16,7 @@ const DOMAIN_PATTERN = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z
 /** Yalnız yerel geliştirme: hedef adresler yerel olmalı, kapsayıcı `ltz-dev-` ile başlamalı, ortam production olmamalı. */
 export function assertDevTarget({ gatewayUrl, mailpitUrl, container, nodeEnv }) {
   const problems = [];
-  for (const [label, value] of [["GATEWAY_URL", gatewayUrl], ["MAILPIT_URL", mailpitUrl]]) {
+  for (const [label, value] of [["GATEWAY_URL", gatewayUrl], ["MAILPIT_URL", mailpitUrl]].filter(([, value]) => value !== undefined)) {
     let host = "";
     try {
       host = new URL(value).hostname;
@@ -65,11 +65,6 @@ export function hashPassword(password) {
   return `{argon2}$argon2id$v=19$m=${memory},t=${passes},p=${parallelism}$${b64(nonce)}$${b64(tag)}`;
 }
 
-/** Geçici (yalnız kayıt sırasında kullanılan) politika uyumlu parola; ilk hash'ten hemen sonra değiştirilir. */
-export function temporaryPassword() {
-  return `Tmp-${randomBytes(18).toString("base64url")}`;
-}
-
 const BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
 export function base32Decode(text) {
@@ -110,12 +105,6 @@ export function sqlLiteral(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
 }
 
-/** Mailpit ileti metninden 6 haneli doğrulama kodunu çıkarır. */
-export function extractCode(text) {
-  const match = /(?<![0-9])([0-9]{6})(?![0-9])/.exec(text ?? "");
-  return match ? match[1] : null;
-}
-
 const DEV_ENV_KEYS = new Set(["DEV_ACCOUNTS_PASSWORD", "DEV_ACCOUNTS_DOMAIN"]);
 
 /**
@@ -136,4 +125,30 @@ export function parseDevEnv(text) {
     if (value !== "") found[key] = value;
   }
   return found;
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/** SQL'e gömülecek kimlik değerinin UUID olduğunu doğrular (başka bir veritabanından okunan değer SQL'e karışmasın). */
+export function assertUuid(value) {
+  if (typeof value !== "string" || !UUID.test(value)) throw new Error("Beklenen UUID biçiminde değil");
+  return value;
+}
+
+const RESERVED_SUFFIX = /\.(test|example|invalid|localhost|local)$/;
+const EXAMPLE_DOMAINS = new Set(["example.com", "example.net", "example.org"]);
+
+/** E-posta teslim edilemeyen (ayrılmış) alan adı mı? `.test`, `.example`, `.invalid`, `.localhost`, `.local`, example.* */
+export function isUndeliverableDomain(domain) {
+  const value = String(domain ?? "").trim().toLowerCase();
+  return value !== "" && (RESERVED_SUFFIX.test(value) || EXAMPLE_DOMAINS.has(value));
+}
+
+/**
+ * `AUTH_2FA_REQUIRED_ROLES` ham değerinden 2FA zorunlu roller. Tanımsız (undefined) = Auth varsayılanı ADMIN,MODERATOR;
+ * boş değer = hiçbir rol zorunlu değil (Auth bunu yalnız dev/test profilinde kabul eder).
+ */
+export function parseRequiredRoles(raw) {
+  if (raw === undefined) return ["ADMIN", "MODERATOR"];
+  return String(raw).split(",").map((role) => role.trim().toUpperCase()).filter(Boolean);
 }

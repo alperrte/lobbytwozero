@@ -29,6 +29,8 @@ Sonra: `.\ops\env.cmd use dev` (Linux/macOS: `sh ./ops/env.sh use dev`) ve Compo
 
 ## 1.0 Her role bir test hesabı (yalnız yerel dev)
 
+> **Bu bölüm bilerek kural dışıdır ve yalnız yerel geliştirme içindir.** Hesaplar kayıt akışından (e-posta doğrulaması, parola kuralları) geçirilmeden **doğrudan veritabanına yazılır** (`auth_db` ve `user_db`). Staging/production'da bu yol yoktur.
+
 `node ops/dev-accounts.mjs up` yığını kaldırır (Postgres, Mailpit, Mail, Auth, User, Gateway), sağlığı bekler ve hesapları açar. Hesap istemezsen `--no-seed`, yeniden derlemeden kaldırmak için `--no-build`.
 
 | E-posta | Rol | Giriş |
@@ -40,9 +42,10 @@ Sonra: `.\ops\env.cmd use dev` (Linux/macOS: `sh ./ops/env.sh use dev`) ve Compo
 | `admin@ltz.com` | ADMIN | parola + 2FA kodu |
 
 - Parola ve alan adı `.env.dev`'deki `DEV_ACCOUNTS_PASSWORD` / `DEV_ACCOUNTS_DOMAIN` satırlarındadır. Satırlar yoksa `node ops/generate-auth-dev-keys.mjs` ekler (örnek dosyadan gelir). Parola depodaki koda gömülü değildir.
-- `moderator` ve `admin` için Auth 2FA'yı zorunlu tutar. Kodu şu komut verir: `node ops/dev-accounts.mjs totp admin` (kod 30 sn geçerlidir, aynı kod ikinci kez kabul edilmez). 2FA sırrı **makine düzeyinde** `~/.ltz/dev-accounts.json` dosyasındadır (depoya girmez): aynı bilgisayardaki tüm klasörler (git worktree'leri dahil) aynı Docker veritabanını paylaştığı için aynı dosyayı görür. Başka makineye taşınmaz; sırrı olmayan bir 2FA hesabıyla karşılaşırsa betik o dev hesabının 2FA'sını sıfırlayıp yeniden kurar.
+- **En kolay dev yolu:** `.env.dev`'e `AUTH_2FA_REQUIRED_ROLES=` (boş değer, Auth bunu **yalnız dev/test profilinde** kabul eder) ekleyip Auth'u yeniden başlat. O zaman `moderator` ve `admin` yalnız parolayla girer, betik hiç 2FA kurmaz ve hiçbir e-posta çıkmaz. Satır yoksa Auth varsayılanı geçerlidir: `moderator` ve `admin` için 2FA zorunlu, kod şu komutla alınır: `node ops/dev-accounts.mjs totp admin` (kod 30 sn geçerlidir, aynı kod ikinci kez kabul edilmez). 2FA sırrı **makine düzeyinde** `~/.ltz/dev-accounts.json` dosyasındadır (depoya girmez): aynı bilgisayardaki tüm klasörler (git worktree'leri dahil) aynı Docker veritabanını paylaştığı için aynı dosyayı görür. Başka makineye taşınmaz; sırrı olmayan bir 2FA hesabıyla karşılaşırsa betik o dev hesabının 2FA'sını sıfırlayıp yeniden kurar.
 - Hesapları elle yenilemek ya da listelemek: `node ops/dev-accounts.mjs` / `node ops/dev-accounts.mjs list` (parolayı `.env.dev`'den kendisi okur; o dosyadan yalnız `DEV_ACCOUNTS_*` iki satırını okur). Tekrar çalıştırmak güvenlidir.
-- **Neden kısa parola?** Auth parola alt sınırı 15 karakterdir; kısa parola API'den geçmez. Betik hesabı gerçek akışla açar, sonra yalnız parola özetini yazar ve rolü ekler.
+- **Neden doğrudan veritabanı?** Auth parola alt sınırı 15 karakterdir; kısa `ltz1234` gibi bir parola API'den geçmez, ADMIN/MODERATOR rolü de normalde yalnız TOTP'si etkin hesaba verilir. Betik bu kuralları dev için atlayarak şunları doğrudan yazar: `auth_db`: hesap (doğrulanmış, parola özeti), PLAYER rolü, durum geçmişi, gerekirse CONTENT_CREATOR / GAME_DEVELOPER / MODERATOR / ADMIN rolü; `user_db`: her hesap için `user_profiles` satırı (kullanıcı adı kopyasıyla). Bu yüzden **e-posta, SMTP, Mailpit ya da Mail Service gerekmez**; gerçek SMTP açıkken de hesaplar açılır. Hesaplar açıldıktan sonra betik gerçek giriş yapıp `/auth/me` ve `/user/me` ile doğrular.
+- **Tek istisna, gerçek SMTP açıkken:** `AUTH_2FA_REQUIRED_ROLES` boş değilse ve admin/moderator için 2FA kurulması gerekiyorsa, Auth "2FA etkinleştirildi" bildirim e-postası gönderir. Gerçek SMTP ve gerçek alan adı (ör. `ltz.com`) varsa bu mail başkasına gider; betik bunu algılayıp **hiçbir şeye dokunmadan durur** ve çözümü yazar (yukarıdaki boş `AUTH_2FA_REQUIRED_ROLES=` satırı, ya da `DEV_ACCOUNTS_DOMAIN=ltz.test`).
 - **Güvenlik kapıları:** betik yalnız `localhost` adreslerine ve `ltz-dev-*` Postgres kapsayıcısına çalışır, Auth'un profili `dev`/`test` değilse ya da okunamıyorsa durur, `NODE_ENV=production` iken reddeder. **Bu parola ve hesaplar staging/production'a asla taşınmaz;** `.env.prod`'a `DEV_ACCOUNTS_*` satırı eklenmez.
 
 ## 1.1 Mail Service'i yerelde ayağa kaldır (adım adım)
