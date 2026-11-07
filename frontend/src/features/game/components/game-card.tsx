@@ -18,7 +18,7 @@ export function GameCard({ item, view, rank }: { item: DiscoveryItem; view: Cata
   const date = formatReleaseDate(item.releaseDate, locale);
   const coverage = ["INDEX_ONLY", "PARTIAL", "FULL"].includes(game.metadataCompleteness) ? game.metadataCompleteness : "UNKNOWN";
   const list = view === "list";
-  return <li className={cn("group relative overflow-hidden rounded-panel border border-border bg-surface transition-[border-color,transform,box-shadow] motion-safe:duration-200 hover:border-control-border focus-within:border-primary motion-safe:hover:-translate-y-0.5", list ? "flex flex-col sm:flex-row" : "flex flex-col")}>
+  return <li className={cn("group relative overflow-hidden rounded-panel border border-border bg-surface transition-[border-color,transform,box-shadow] motion-safe:duration-200 hover:border-control-border focus-within:border-primary has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-focus motion-safe:hover:-translate-y-0.5", list ? "flex flex-col sm:flex-row" : "flex flex-col")}>
     <GameCover url={game.coverUrl} title={game.title} className={list ? "sm:w-56 sm:shrink-0" : ""} />
     <div className="flex min-w-0 flex-1 flex-col gap-3 p-4">
       <div className="flex flex-wrap items-center gap-2">

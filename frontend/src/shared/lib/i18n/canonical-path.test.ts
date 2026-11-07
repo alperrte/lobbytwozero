@@ -28,7 +28,8 @@ describe("canonicalPathFor", () => {
 });
 
 describe("pathnames", () => {
-  const appDir = join(process.cwd(), "src/app/[locale]/(public)");
+  // Sayfalar herkese açık (`(public)`) giriş/kayıt (`(auth)`) ya da panel (`(dashboard)`) rota grubunda olabilir.
+  const appDirs = ["(public)", "(auth)", "(dashboard)"].map((group) => join(process.cwd(), "src/app/[locale]", group));
 
   it("Türkçe slug'lar Türkçe, İngilizce slug'lar dahili anahtarla aynıdır", () => {
     for (const [internal, value] of Object.entries(pathnames)) {
@@ -42,9 +43,10 @@ describe("pathnames", () => {
 
   it("her dahili anahtar için gerçek bir sayfa klasörü vardır ve slug'lar benzersizdir", () => {
     for (const internal of Object.keys(pathnames)) {
-      const folder = internal === "/" ? appDir : join(appDir, internal);
-      const groupFolders = [folder, join(process.cwd(), "src/app/[locale]/(dashboard)", internal)];
-      expect(groupFolders.some((target) => existsSync(join(target, "page.tsx"))), internal).toBe(true);
+      const found = appDirs.some((dir) =>
+        existsSync(join(internal === "/" ? dir : join(dir, internal), "page.tsx"))
+      );
+      expect(found, internal).toBe(true);
     }
     for (const locale of locales) {
       const slugs = Object.values(pathnames).map((value) =>

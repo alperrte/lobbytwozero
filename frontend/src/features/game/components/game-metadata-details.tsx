@@ -3,7 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/shared/lib/i18n/navigation";
 import { safeExternalUrl } from "../services/discovery-query";
-import { formatMegabytes } from "../services/format";
+import { formatMegabytes, termLabel } from "../services/format";
 import type { GameDetail, Term } from "../types/game";
 import { GameGallery } from "./game-gallery";
 import { Badge } from "./game-ui";
@@ -14,16 +14,18 @@ export function GameMetadataDetails({ game }: { game: GameDetail }) {
   const t = useTranslations("Game");
   const locale = useLocale();
   const metadata = game.metadata;
-  const termName = (value: Term) => locale === "tr" ? value.nameTr : value.nameEn;
+  const termName = (value: Term) => termLabel(value, locale);
   const support = (value: string) => ["SUPPORTED", "UNSUPPORTED"].includes(value) ? value as "SUPPORTED" | "UNSUPPORTED" : "UNKNOWN";
   const fieldName = (value: string) => {
     const key = value.toLowerCase().replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());
     return t.has(`fields.${key}`) ? t(`fields.${key}`) : value === "LOCALIZATION" ? t("languageSupport") : t("gameInformation");
   };
+  const coverUrl = safeExternalUrl(game.game.coverUrl);
+  // API, kapağı `media[]` içinde ayrıca COVER türüyle de döndürür; aynı adres galeride tek kez gösterilir.
   const images = [
-    ...(safeExternalUrl(game.game.coverUrl) ? [{ url: game.game.coverUrl!, alt: `${game.game.title} — ${t("cover")}` }] : []),
+    ...(coverUrl ? [{ url: coverUrl, alt: `${game.game.title} — ${t("cover")}` }] : []),
     ...(metadata.media ?? []).filter((value) => value.type !== "TRAILER").map((value) => ({ url: value.url, alt: `${game.game.title} — ${t("media")}` }))
-  ];
+  ].filter((image, index, all) => all.findIndex((other) => other.url === image.url) === index);
   const trailers = (metadata.media ?? []).filter((value) => value.type === "TRAILER").map((value) => ({ url: value.url, label: t("openVideo") }));
   const terms = (label: string, values: Term[] | undefined, link?: "genre" | "platform") => <div key={label} className="min-w-0">
     <dt className="text-sm text-text-secondary">{label}</dt>

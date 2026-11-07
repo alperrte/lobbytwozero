@@ -127,4 +127,14 @@ describe("Oyun detayı", () => {
     expect(await screen.findByText(tr.Game.errors["404"])).toBeVisible();
     expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
   });
+  it("gerçek API'de ad alanları null iken terimleri kod olarak gösterir; kapak galeride tekrarlanmaz", async () => {
+    const realShape: Detail = { ...base, metadata: { ...base.metadata, genres: [{ id: "g", code: "rpg", nameTr: null, nameEn: null }], platforms: [{ id: "p", code: "pc", nameTr: null, nameEn: null }], languageSupport: [], systemRequirements: [],
+      media: [{ type: "COVER", url: "https://images.example/cover.jpg", provider: "ADMIN", sortOrder: 0 }] } };
+    serve(realShape); mount(); await screen.findByRole("heading", { level: 1 });
+    expect(screen.getByRole("link", { name: "rpg" })).toHaveAttribute("href", "/games?genre=rpg");
+    expect(screen.getByRole("link", { name: "pc" })).toHaveAttribute("href", "/games?platform=pc");
+    expect(screen.getAllByText("pc").length).toBeGreaterThan(0);
+    expect(within(screen.getByRole("group", { name: tr.Game.gallery })).getAllByRole("img")).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: tr.Game.galleryNext })).toBeNull();
+  });
 });

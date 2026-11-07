@@ -78,9 +78,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONTENT_TOO_LARGE).body(payloadTooLarge());
     }
 
+    /** Kimlik gerektiren uçta token yok/geçersiz: RFC 6750 gereği {@code WWW-Authenticate: Bearer} (hata ayrıntısı verilmez). */
     @ExceptionHandler(AuthenticationException.class)
-    ProblemDetail handleAuthentication() {
-        return problem(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", "Authentication is required.");
+    ResponseEntity<ProblemDetail> handleAuthentication() {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .header(HttpHeaders.WWW_AUTHENTICATE, "Bearer")
+                .body(problem(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", "Authentication is required."));
     }
 
     @ExceptionHandler(AccessDeniedException.class)

@@ -14,7 +14,7 @@ export type GalleryLink = { url: string; label: string };
  * Görsel galerisi: büyük görünüm + küçük resimler. Ok tuşları, ileri/geri düğmeleri ve dokunmatik kaydırma desteklenir.
  * Yalnız güvenli HTTPS adresleri gösterilir; video/demo yalnız harici bağlantıdır (gömülü oynatıcı yok).
  */
-export function GameGallery({ images, links = [] }: { images: GalleryImage[]; links?: GalleryLink[] }) {
+export function GameGallery({ images, links = [], label }: { images: GalleryImage[]; links?: GalleryLink[]; label?: string }) {
   const t = useTranslations("Game");
   const safeImages = images.flatMap((image) => { const url = safeExternalUrl(image.url); return url ? [{ ...image, url }] : []; });
   const safeLinks = links.flatMap((link) => { const url = safeExternalUrl(link.url); return url ? [{ ...link, url }] : []; });
@@ -30,7 +30,7 @@ export function GameGallery({ images, links = [] }: { images: GalleryImage[]; li
   };
   const current = safeImages[index];
   return <div className="space-y-4">
-    {current && <div role="group" aria-roledescription="carousel" aria-label={t("gallery")} tabIndex={0} onKeyDown={key} className="space-y-3 rounded-panel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus">
+    {current && <div role="group" aria-roledescription="carousel" aria-label={label ?? t("gallery")} tabIndex={0} onKeyDown={key} className="space-y-3 rounded-panel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus">
       <div className="relative aspect-video touch-pan-y overflow-hidden rounded-panel bg-surface-elevated" onPointerDown={(event) => { start.current = event.clientX; }} onPointerUp={up} onPointerCancel={() => { start.current = null; }}>
         <Image unoptimized key={current.url} src={current.url} alt={current.alt} fill sizes="(min-width: 1024px) 60vw, 100vw" referrerPolicy="no-referrer" className="object-contain" priority={index === 0} />
       </div>

@@ -22,9 +22,10 @@ export function moveItem<T>(items: readonly T[], index: number, delta: -1 | 1): 
   return next;
 }
 
-function Editor({ initial, onSaved }: { initial: PickedGame[]; onSaved: () => void }) {
+function Editor({ initial, onSaved, onEdited }: { initial: PickedGame[]; onSaved: () => void; onEdited: () => void }) {
   const t = useTranslations("Game");
-  const [list, setList] = useState(initial);
+  const [list, update] = useState(initial);
+  const setList = (next: PickedGame[]) => { update(next); onEdited(); };
   const changed = list.length !== initial.length || list.some((game, index) => game.gameId !== initial[index]?.gameId);
   return <div className="space-y-6">
     <div role="note" className={`${panelClass} space-y-2 text-sm`}>
@@ -57,11 +58,14 @@ function Editor({ initial, onSaved }: { initial: PickedGame[]; onSaved: () => vo
 export function GamePopularEditor() {
   const t = useTranslations("Game");
   const [revision, setRevision] = useState(0);
+  // Kayıttan sonra liste yeniden yüklenip düzenleyici yeniden oluşur; başarı bildirimi bu yüzden burada tutulur.
+  const [saved, setSaved] = useState(false);
   const result = useGameResource<DiscoveryPage>({ kind: "popular", page: 0, size: maxPopularGames }, { refreshOnFocus: false });
   return <section aria-label={t("popularSelection")} className="space-y-4">
     <h2 className="font-display text-2xl font-semibold">{t("popularSelection")}</h2>
     {result.loading && <Skeleton className="h-40" />}
     <GameStatus error={result.error} loading={false} onRetry={result.reload} />
-    {result.data && <Editor key={`${revision}/${result.data.items.map((item) => item.game.gameId).join(",")}`} initial={result.data.items.map((item) => ({ gameId: item.game.gameId, title: item.game.title, coverUrl: item.game.coverUrl }))} onSaved={() => { setRevision(revision + 1); result.reload(); }} />}
+    {result.data && <Editor key={`${revision}/${result.data.items.map((item) => item.game.gameId).join(",")}`} initial={result.data.items.map((item) => ({ gameId: item.game.gameId, title: item.game.title, coverUrl: item.game.coverUrl }))} onSaved={() => { setSaved(true); setRevision(revision + 1); result.reload(); }} onEdited={() => setSaved(false)} />}
+    {saved && <p role="status" className="text-sm font-medium text-success">{t("saved")}</p>}
   </section>;
 }

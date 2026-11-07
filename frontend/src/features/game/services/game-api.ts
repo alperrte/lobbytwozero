@@ -6,17 +6,31 @@ export function isGameId(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
 
+let sessionInFlight: Promise<GameSession | null> | null = null;
+
+/**
+ * Oturum bilgisi (`/auth/me`). Auth bu uca hız sınırı uygular; aynı anda birden çok bileşen (katalog, geri bildirim, çalışma alanı,
+ * odak yenilemesi) istediğinde tek istek paylaşılır. Önbellek YOKTUR: istek bitince sonraki çağrı yeniden sorar, böylece rol
+ * değişimi gecikmez. Paylaşılan istek tek bir çağıranın iptaline bağlı değildir; kendi zaman aşımı vardır.
+ */
+function sharedSession(): Promise<GameSession | null> {
+  sessionInFlight ??= (async () => {
+    try {
+      const session = await apiRequest<GameSession>("/api/v1/auth/me", { cache: "no-store", signal: AbortSignal.timeout(12000) });
+      if (!isGameId(session.accountId) || !Array.isArray(session.roles) || !session.roles.every((role) => typeof role === "string")) throw new Error("INVALID_SESSION_RESPONSE");
+      return session;
+    } catch (error) {
+      if (error instanceof ApiHttpError && error.status === 401) return null;
+      throw error;
+    }
+  })().finally(() => { sessionInFlight = null; });
+  return sessionInFlight;
+}
+
 /** Yalnız Game ekranının sözleşmeli yolları; sağlayıcıdan gelen URL'ye körlemesine istek atılmaz. */
 export async function loadGameResource(resource: GameResource, signal: AbortSignal): Promise<unknown> {
   const options: RequestInit = { signal, cache: "no-store" };
-  if (resource.kind === "session") {
-    try {
-      const session = await apiRequest<GameSession>("/api/v1/auth/me", options);
-      if (!isGameId(session.accountId) || !Array.isArray(session.roles) || !session.roles.every((role) => typeof role === "string")) throw new Error("INVALID_SESSION_RESPONSE");
-      return session;
-    }
-    catch (error) { if (error instanceof ApiHttpError && error.status === 401) return null; throw error; }
-  }
+  if (resource.kind === "session") return sharedSession();
   if (resource.kind === "managed") return apiRequest("/api/v1/game/developer/games", options);
   if (resource.kind === "prices") {
     if (!resource.gameIds.length || resource.gameIds.length > 50 || !resource.gameIds.every(isGameId)) throw new Error("INVALID_GAME_ID");
@@ -32,7 +46,8 @@ export async function loadGameResource(resource: GameResource, signal: AbortSign
     const ids = [...new Set(resource.gameIds)];
     if (!ids.length || ids.length > 50 || !ids.every(isGameId)) throw new Error("INVALID_GAME_ID");
     // Herkese açık toplu kart: sayfa başına tek istek, oyun başına çağrı yok.
-    return apiRequest("/api/v1/game/games/batch", { ...options, method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ gameIds: ids }) });
+    // Uç herkese açık ve çerez kullanmaz; çerez gönderilirse Gateway durum değiştiren istek sayıp CSRF ister (403).
+    return apiRequest("/api/v1/game/games/batch", { ...options, credentials: "omit", method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ gameIds: ids }) });
   }
   if (resource.kind === "feedbackItem") {
     if (!isGameId(resource.id)) throw new Error("INVALID_TARGET_ID");

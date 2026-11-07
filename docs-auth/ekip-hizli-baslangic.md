@@ -6,6 +6,28 @@ Bu sayfa, Auth'u yerelde hızlı ve güvenli çalıştırmak isteyen herkes (ve 
 
 ---
 
+## 0. Sıfırdan çalıştır (yeni klon: TEK KOMUT)
+
+Gerekenler: Git, Docker Desktop ve **Node 24.7+** (betikler yerleşik `crypto.argon2` kullanır; eski Node'da betik anlaşılır bir mesajla durur).
+
+```text
+node ops/dev.mjs
+```
+
+Bu komut sırayla şunları yapar (her adım tekrar çalıştırmaya güvenlidir):
+
+1. **Ön koşullar:** Node sürümü ve Docker'ın çalıştığı denetlenir.
+2. **Anahtarlar:** `.env.dev` yoksa oluşturulur, JWT/OTP/TOTP/servis anahtarları üretilir, dolu satıra dokunulmaz.
+3. **E-posta:** YALNIZ Google **uygulama şifresini** sorar (şifre yazarken görünmez; Gmail adresi ekibin ortak test hesabı olarak hazırdır). Boş bırakırsan e-postalar **Mailpit**'e düşer (`http://localhost:8025`, gerçek mail gitmez) ve kurulum devam eder. Şifre depoda/betikte **yoktur**; ekipte güvenli kanaldan (şifre yöneticisi) paylaşılır ve yalnız kendi `.env.dev`'ine yazılır. Etkileşimsiz kurulum için `DEV_MAIL_PASSWORD` ortam değişkeni (başka bir Gmail hesabı için `DEV_MAIL_USER`).
+4. **Servisler ve hesaplar:** Postgres, Mailpit, Mail, Auth, User ve Gateway derlenip kaldırılır, sağlık beklenir, her role bir test hesabı açılır (bkz. §1.0). İlk seferde imajlar derlendiği için birkaç dakika sürer.
+5. **Frontend:** `node_modules` eksik ya da eskiyse `npm ci`, sonra `http://localhost:5001` (**port 5001 şarttır**: Gateway CORS varsayılanı yalnız onu kabul eder; README'deki `npm run dev` 3000 açar ve girişte CORS hatası verir). Zaten çalışıyorsa dokunulmaz.
+
+Sonra `http://localhost:5001/tr/giris` adresinde `user@ltz.com` (ya da §1.0'daki diğer hesaplar) ile gir. Parola `.env.dev`'deki `DEV_ACCOUNTS_PASSWORD`'dür.
+
+Diğer komutlar: `node ops/dev.mjs stop` (servisleri durdurur, veri kalır), `node ops/dev.mjs reset` (servisleri **ve tüm yerel veriyi** siler, onay ister), `node ops/dev.mjs status`, `node ops/dev.mjs mail on|off|status` (gerçek e-postayı sonradan aç/kapat). Seçenekler: `--no-frontend`, `--no-mail`, `--no-build`, `--no-services` (yalnız ayarlar), `--skip-keys`, `--dry-run` (ne yapacağını yazar, çalıştırmaz).
+
+> `ops/dev.mjs` mevcut betikleri sırayla çağırır (`generate-auth-dev-keys.mjs`, `dev-accounts.mjs`, `dev-mail.mjs`); onları tek tek de çalıştırabilirsin, aşağıdaki bölümler her birini anlatır.
+
 ## 1. Auth'u yerelde ayağa kaldır (tek komut)
 
 ```text
@@ -26,6 +48,27 @@ Sonra: `.\ops\env.cmd use dev` (Linux/macOS: `sh ./ops/env.sh use dev`) ve Compo
 - Raporda `[FAIL]` varsa Auth açılmaz (komut çıkış kodu 1 verir); yanındaki `->` satırı çözümü söyler. `[WARN]` açılışı durdurmaz ama bir kolaylığı kaçırırsın. Dosyaya dokunmadan yalnız raporu görmek istersen: `node ops/auth-env-check.mjs`.
 - `COMPOSE_PROFILES=dev-mail` olmalı (örnek dosyada hazır gelir): doğrulama ve parola kodları **Mailpit**'e düşer (arayüz: `http://127.0.0.1:8025`). Gerçek e-posta gitmez.
 - V61–V65'i zaten uygulamış yerel veritabanı yeni sürümlerle **kendiliğinden ileri taşınır** (V66–V69 yeni dosyalardır, eskilere dokunulmadı); sıfırlamana gerek yok. Eski bir yerel veritabanında "checksum mismatch" görürsen aşağıdaki tabloya bak.
+
+## 1.0 Her role bir test hesabı (yalnız yerel dev)
+
+> **Bu bölüm bilerek kural dışıdır ve yalnız yerel geliştirme içindir.** Hesaplar kayıt akışından (e-posta doğrulaması, parola kuralları) geçirilmeden **doğrudan veritabanına yazılır** (`auth_db` ve `user_db`). Staging/production'da bu yol yoktur.
+
+`node ops/dev-accounts.mjs up` yığını kaldırır (Postgres, Mailpit, Mail, Auth, User, Gateway), sağlığı bekler ve hesapları açar. Hesap istemezsen `--no-seed`, yeniden derlemeden kaldırmak için `--no-build`.
+
+| E-posta | Rol | Giriş |
+| --- | --- | --- |
+| `user@ltz.com` | PLAYER | parola |
+| `creator@ltz.com` | CONTENT_CREATOR | parola |
+| `developer@ltz.com` | GAME_DEVELOPER | parola |
+| `moderator@ltz.com` | MODERATOR | parola + 2FA kodu |
+| `admin@ltz.com` | ADMIN | parola + 2FA kodu |
+
+- Parola ve alan adı `.env.dev`'deki `DEV_ACCOUNTS_PASSWORD` / `DEV_ACCOUNTS_DOMAIN` satırlarındadır. Satırlar yoksa `node ops/generate-auth-dev-keys.mjs` ekler (örnek dosyadan gelir). Parola depodaki koda gömülü değildir.
+- **En kolay dev yolu:** `.env.dev`'e `AUTH_2FA_REQUIRED_ROLES=` (boş değer, Auth bunu **yalnız dev/test profilinde** kabul eder) ekleyip Auth'u yeniden başlat. O zaman `moderator` ve `admin` yalnız parolayla girer, betik hiç 2FA kurmaz ve hiçbir e-posta çıkmaz. Satır yoksa Auth varsayılanı geçerlidir: `moderator` ve `admin` için 2FA zorunlu, kod şu komutla alınır: `node ops/dev-accounts.mjs totp admin` (kod 30 sn geçerlidir, aynı kod ikinci kez kabul edilmez). 2FA sırrı **makine düzeyinde** `~/.ltz/dev-accounts.json` dosyasındadır (depoya girmez): aynı bilgisayardaki tüm klasörler (git worktree'leri dahil) aynı Docker veritabanını paylaştığı için aynı dosyayı görür. Başka makineye taşınmaz; sırrı olmayan bir 2FA hesabıyla karşılaşırsa betik o dev hesabının 2FA'sını sıfırlayıp yeniden kurar.
+- Hesapları elle yenilemek ya da listelemek: `node ops/dev-accounts.mjs` / `node ops/dev-accounts.mjs list` (parolayı `.env.dev`'den kendisi okur; o dosyadan yalnız `DEV_ACCOUNTS_*` iki satırını okur). Tekrar çalıştırmak güvenlidir.
+- **Neden doğrudan veritabanı?** Auth parola alt sınırı 15 karakterdir; kısa `ltz1234` gibi bir parola API'den geçmez, ADMIN/MODERATOR rolü de normalde yalnız TOTP'si etkin hesaba verilir. Betik bu kuralları dev için atlayarak şunları doğrudan yazar: `auth_db`: hesap (doğrulanmış, parola özeti), PLAYER rolü, durum geçmişi, gerekirse CONTENT_CREATOR / GAME_DEVELOPER / MODERATOR / ADMIN rolü; `user_db`: her hesap için `user_profiles` satırı (kullanıcı adı kopyasıyla). Bu yüzden **e-posta, SMTP, Mailpit ya da Mail Service gerekmez**; gerçek SMTP açıkken de hesaplar açılır. Hesaplar açıldıktan sonra betik gerçek giriş yapıp `/auth/me` ve `/user/me` ile doğrular.
+- **Tek istisna, gerçek SMTP açıkken:** `AUTH_2FA_REQUIRED_ROLES` boş değilse ve admin/moderator için 2FA kurulması gerekiyorsa, Auth "2FA etkinleştirildi" bildirim e-postası gönderir. Gerçek SMTP ve gerçek alan adı (ör. `ltz.com`) varsa bu mail başkasına gider; betik bunu algılayıp **hiçbir şeye dokunmadan durur** ve çözümü yazar (yukarıdaki boş `AUTH_2FA_REQUIRED_ROLES=` satırı, ya da `DEV_ACCOUNTS_DOMAIN=ltz.test`).
+- **Güvenlik kapıları:** betik yalnız `localhost` adreslerine ve `ltz-dev-*` Postgres kapsayıcısına çalışır, Auth'un profili `dev`/`test` değilse ya da okunamıyorsa durur, `NODE_ENV=production` iken reddeder. **Bu parola ve hesaplar staging/production'a asla taşınmaz;** `.env.prod`'a `DEV_ACCOUNTS_*` satırı eklenmez.
 
 ## 1.1 Mail Service'i yerelde ayağa kaldır (adım adım)
 

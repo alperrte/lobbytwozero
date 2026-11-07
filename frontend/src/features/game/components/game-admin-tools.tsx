@@ -37,7 +37,10 @@ function DeveloperGrants({ gameId }: { gameId: string }) {
 function GameRecord({ gameId }: { gameId: string }) {
   const t = useTranslations("Game");
   const [section, setSection] = useState("edit");
+  // Başarılı kayıttan sonra kayıt yeniden yüklenir ve form sürüme göre yeniden oluşur; bildirim bu yüzden kayıt düzeyinde tutulur.
+  const [notice, setNotice] = useState(false);
   const result = useGameResource<AdminGame>({ kind: "admin", gameId }, { refreshOnFocus: false });
+  const saved = () => { setNotice(true); result.reload(); };
   const record = result.data;
   const items = [{ id: "edit", label: t("editGame") }, { id: "lifecycle", label: t("lifecycle") }, { id: "developers", label: t("developerGrants") }, ...(record?.status === "ACTIVE" ? [{ id: "achievements", label: t("manageAchievements") }] : [])];
   const active = items.some((item) => item.id === section) ? section : "edit";
@@ -50,19 +53,20 @@ function GameRecord({ gameId }: { gameId: string }) {
           <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-text-secondary"><Badge tone={record.status === "ACTIVE" ? "success" : "warning"}>{t.has(`choices.${record.status}`) ? t(`choices.${record.status}`) : t("unknown")}</Badge>{t("recordVersion", { version: record.version })}</p></div>
         <button type="button" className={controlClass} onClick={result.reload}>{t("reload")}</button>
       </div>
-      <Tabs items={items} value={active} onChange={setSection} label={t("selectedGame")} base={`admin-${gameId}`} />
+      <Tabs items={items} value={active} onChange={(id) => { setSection(id); setNotice(false); }} label={t("selectedGame")} base={`admin-${gameId}`} />
+      {notice && <p role="status" className="text-sm font-medium text-success">{t("saved")}</p>}
       <div role="tabpanel" id={`admin-${gameId}-panel-${active}`} aria-labelledby={`admin-${gameId}-tab-${active}`}>
         {active === "edit" && <>
           <p className="text-sm text-text-secondary">{t("listHelp")}</p>
-          <GameActionForm key={record.version} title={t("editGame")} fields={gameFields} initial={gameDefaults(record.game)} build={(values) => ({ operation: "update", gameId, body: gameEdit(values, record) })} onSaved={result.reload} />
+          <GameActionForm key={record.version} title={t("editGame")} fields={gameFields} initial={gameDefaults(record.game)} build={(values) => ({ operation: "update", gameId, body: gameEdit(values, record) })} onSaved={saved} />
           <section aria-label={t("manualOverrides")} className="mt-6"><h3 className="font-display text-xl font-semibold">{t("manualOverrides")}</h3>
             <p className="mt-1 max-w-prose text-sm text-text-secondary">{t("manualOverridesHelp")}</p>
             {!record.manualOverrides.length && <p className="py-4 text-text-secondary">{t("noOverrides")}</p>}
-            {record.manualOverrides.map((override) => <GameActionForm key={override.field} title={`${t("releaseOverride")}: ${t.has(`overrideFields.${override.field}`) ? t(`overrideFields.${override.field}`) : override.field}`} description={t("overrideLockedAt", { date: new Date(override.markedAt).toLocaleString() })} fields={[reasonField]} destructive build={(body) => ({ operation: "release", gameId, field: override.field, body })} onSaved={result.reload} />)}
+            {record.manualOverrides.map((override) => <GameActionForm key={override.field} title={`${t("releaseOverride")}: ${t.has(`overrideFields.${override.field}`) ? t(`overrideFields.${override.field}`) : override.field}`} description={t("overrideLockedAt", { date: new Date(override.markedAt).toLocaleString() })} fields={[reasonField]} destructive build={(body) => ({ operation: "release", gameId, field: override.field, body })} onSaved={saved} />)}
           </section>
         </>}
         {active === "lifecycle" && (["ACTIVE", "ARCHIVED"].includes(record.status)
-          ? <GameActionForm title={t(record.status === "ACTIVE" ? "archiveGame" : "restoreGame")} description={t(record.status === "ACTIVE" ? "archiveHelp" : "restoreHelp")} fields={[reasonField]} destructive build={(body) => ({ operation: record.status === "ACTIVE" ? "archive" : "restore", gameId, body })} onSaved={result.reload} />
+          ? <GameActionForm title={t(record.status === "ACTIVE" ? "archiveGame" : "restoreGame")} description={t(record.status === "ACTIVE" ? "archiveHelp" : "restoreHelp")} fields={[reasonField]} destructive build={(body) => ({ operation: record.status === "ACTIVE" ? "archive" : "restore", gameId, body })} onSaved={saved} />
           : <p className="py-4 text-text-secondary">{t("lifecycleUnavailable")}</p>)}
         {active === "developers" && <DeveloperGrants gameId={gameId} />}
         {active === "achievements" && <GameAchievementEditor gameId={gameId} />}
@@ -76,7 +80,7 @@ function GamesSection({ initialGameId }: { initialGameId: string }) {
   const [selected, select] = useState(isGameId(initialGameId) ? initialGameId : "");
   return <div className="space-y-6">
     <details open={!selected} className={panelClass}><summary className="cursor-pointer py-2 font-semibold">{t("createGame")}</summary>
-      <GameActionForm title={t("createGame")} fields={gameFields} build={(values) => ({ operation: "create", body: gameEdit(values) })} onSaved={(value) => { if (value && typeof value === "object" && "gameId" in value && typeof value.gameId === "string") select(value.gameId); }} resetOnSuccess /></details>
+      <GameActionForm title={t("createGame")} headingLevel="h2" fields={gameFields} build={(values) => ({ operation: "create", body: gameEdit(values) })} onSaved={(value) => { if (value && typeof value === "object" && "gameId" in value && typeof value.gameId === "string") select(value.gameId); }} resetOnSuccess /></details>
     <section aria-label={t("findGame")} className={panelClass}>
       <GamePicker label={t("findGame")} onPick={(game) => select(game.gameId)} />
       <details className="mt-4"><summary className="cursor-pointer py-2 text-sm text-text-secondary">{t("loadById")}</summary>

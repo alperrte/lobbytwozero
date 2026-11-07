@@ -23,7 +23,7 @@ export function GameDeveloperPublic({ gameId }: { gameId: string }) {
     {data && <>
       {empty && <p className="text-text-secondary">{t("emptyDeveloperContent")}</p>}
       {data.description && <div><h3 className="font-semibold">{t("developerDescription")}</h3><p className="mt-2 max-w-prose whitespace-pre-wrap break-words leading-relaxed text-text-secondary">{data.description.text}</p>{data.description.updatedAt && <p className="mt-2 text-xs text-text-secondary">{t("updatedOn", { date: new Date(data.description.updatedAt).toLocaleDateString(locale) })}</p>}</div>}
-      <GameGallery images={images} links={links} />
+      <GameGallery images={images} links={links} label={t("developerGallery")} />
       {data.updateNotes.length > 0 && <div><h3 className="font-semibold">{t("updateNotes")}</h3><ol className="mt-3 space-y-4 border-s border-border ps-5">{data.updateNotes.map((note) => <li key={note.id} className="relative">
         <span aria-hidden="true" className="absolute -start-[1.6rem] top-2 size-2 rounded-full bg-primary" />
         <article className="rounded-panel border border-border bg-surface p-4">

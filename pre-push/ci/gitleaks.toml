@@ -1,3 +1,19 @@
 title = "LTZ upstream Gitleaks rules — no blanket suppressions"
 [extend]
 useDefault = true
+
+# Dar istisna (toptan bastırma DEĞİL): Auth frontend/ops testlerindeki UYDURMA token değerleri ve RFC 6238 TOTP test vektörü
+# `generic-api-key` kuralını tetikler; bunlar gerçek sır değildir. Kural yalnız aşağıdaki dosyalarda ve yalnız bu kural için
+# bastırılır; bu dosyalarda diğer tüm kurallar (özel anahtar, bulut anahtarları, token kalıpları) AÇIK kalır. Dosya listesine
+# yenisi eklenecekse sahte değer olduğu gerekçesiyle gözden geçirilmelidir.
+[[allowlists]]
+description = "Auth test dosyalarındaki sahte token ve test vektörleri (yalnız generic-api-key)"
+targetRules = ["generic-api-key"]
+paths = [
+  '''^frontend/e2e/auth\.spec\.ts$''',
+  '''^frontend/src/features/auth/components/password-reset-forms\.test\.tsx$''',
+  '''^frontend/src/features/auth/components/register-form\.test\.tsx$''',
+  '''^frontend/src/features/auth/components/verify-email-form\.test\.tsx$''',
+  '''^frontend/src/features/auth/schemas/verify-email\.schema\.test\.ts$''',
+  '''^ops/dev-accounts-lib\.test\.mjs$'''
+]

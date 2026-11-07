@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { apiRequest } from "@/shared/lib/api/client";
+import { ApiHttpError, apiRequest } from "@/shared/lib/api/client";
 import { loadGameResource } from "./game-api";
 
-vi.mock("@/shared/lib/api/client", () => ({ apiRequest: vi.fn() }));
+vi.mock("@/shared/lib/api/client", async (original) => ({ ...await original<typeof import("@/shared/lib/api/client")>(), apiRequest: vi.fn() }));
 const gameId = "0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66";
 const signal = new AbortController().signal;
 const request = vi.mocked(apiRequest);
@@ -40,5 +40,34 @@ describe("Game ekranının Community entegrasyonu", () => {
     expect(request).toHaveBeenCalledWith(`/api/v1/community/games/${gameId}/content/${gameId}`, { signal, cache: "no-store" });
     await expect(loadGameResource({ kind: "content", gameId, contentId: "../private" }, signal)).rejects.toThrow("INVALID_CONTENT_ID");
     expect(request).toHaveBeenCalledTimes(1);
+  });
+  it("toplu kart isteği çerezsiz ve tekilleştirilmiş gider (çerezli POST Gateway'de CSRF ister)", async () => {
+    request.mockResolvedValueOnce({ items: [], unavailable: [] });
+    await loadGameResource({ kind: "cards", gameIds: [gameId, gameId] }, new AbortController().signal);
+    expect(request).toHaveBeenCalledWith("/api/v1/game/games/batch", expect.objectContaining({ method: "POST", credentials: "omit", body: JSON.stringify({ gameIds: [gameId] }), headers: { "Content-Type": "application/json" } }));
+  });
+  it("toplu kartta boş, 50'den fazla veya geçersiz kimlikleri istek atmadan reddeder", async () => {
+    const signal = new AbortController().signal;
+    await expect(loadGameResource({ kind: "cards", gameIds: [] }, signal)).rejects.toThrow("INVALID_GAME_ID");
+    await expect(loadGameResource({ kind: "cards", gameIds: ["x"] }, signal)).rejects.toThrow("INVALID_GAME_ID");
+    await expect(loadGameResource({ kind: "cards", gameIds: Array.from({ length: 51 }, (_, n) => `0198a3c2-0000-7d44-9a55-${String(n).padStart(12, "0")}`) }, signal)).rejects.toThrow("INVALID_GAME_ID");
+    expect(request).not.toHaveBeenCalled();
+  });
+  it("eşzamanlı oturum istekleri tek /auth/me çağrısını paylaşır; bitince sonraki çağrı yeniden sorar (önbellek yok)", async () => {
+    const accountId = "0198a3c2-aaaa-7d44-9a55-3f1c2b4d5e66";
+    request.mockResolvedValue({ accountId, roles: ["PLAYER"] });
+    const signal = new AbortController().signal;
+    const [first, second] = await Promise.all([loadGameResource({ kind: "session" }, signal), loadGameResource({ kind: "session" }, signal)]);
+    expect(first).toEqual(second);
+    expect(request).toHaveBeenCalledTimes(1);
+    await loadGameResource({ kind: "session" }, signal);
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+  it("oturum yoksa (401) null döner; geçersiz yanıtı reddeder", async () => {
+    const signal = new AbortController().signal;
+    request.mockRejectedValueOnce(new ApiHttpError(401));
+    await expect(loadGameResource({ kind: "session" }, signal)).resolves.toBeNull();
+    request.mockResolvedValueOnce({ accountId: "x", roles: [] });
+    await expect(loadGameResource({ kind: "session" }, signal)).rejects.toThrow("INVALID_SESSION_RESPONSE");
   });
 });

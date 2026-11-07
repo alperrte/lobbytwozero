@@ -33,6 +33,8 @@ public class SessionCookies {
     static final String REFRESH_COOKIE = "ltz_refresh";
     static final String CSRF_COOKIE = "XSRF-TOKEN";
     static final String OAUTH_COOKIE = "ltz_oauth";
+    /** HttpOnly OLMAYAN, değer taşımayan oturum ipucu: arayüz oturum yokken `/me` ve yenileme isteklerini hiç atmaz. */
+    static final String SESSION_HINT_COOKIE = "ltz_session";
     private static final String HOST_PREFIX = "__Host-";
     private static final String SECURE_PREFIX = "__Secure-";
     private static final String ROOT_PATH = "/";
@@ -44,6 +46,7 @@ public class SessionCookies {
     private final String refreshCookieName;
     private final String csrfCookieName;
     private final String oauthCookieName;
+    private final String sessionHintCookieName;
 
     public SessionCookies(SessionProperties properties, Environment environment) {
         if (!properties.secureCookies() && !SecurityProfiles.relaxedSecurityAllowed(environment)) {
@@ -54,6 +57,7 @@ public class SessionCookies {
         this.refreshCookieName = secure ? SECURE_PREFIX + REFRESH_COOKIE : REFRESH_COOKIE;
         this.csrfCookieName = secure ? HOST_PREFIX + CSRF_COOKIE : CSRF_COOKIE;
         this.oauthCookieName = secure ? HOST_PREFIX + OAUTH_COOKIE : OAUTH_COOKIE;
+        this.sessionHintCookieName = secure ? HOST_PREFIX + SESSION_HINT_COOKIE : SESSION_HINT_COOKIE;
     }
 
     public String accessCookieName() {
@@ -64,14 +68,20 @@ public class SessionCookies {
         return csrfCookieName;
     }
 
+    public String sessionHintCookieName() {
+        return sessionHintCookieName;
+    }
+
     public void write(HttpServletResponse response, IssuedSession session, Instant now) {
         add(response, accessCookie(session.accessToken(), Duration.between(now, session.accessTokenExpiresAt())));
         add(response, refreshCookie(session.refreshToken(), Duration.between(now, session.refreshTokenExpiresAt())));
+        add(response, sessionHintCookie("1", Duration.between(now, session.refreshTokenExpiresAt())));
     }
 
     public void clear(HttpServletResponse response) {
         add(response, accessCookie("", Duration.ZERO));
         add(response, refreshCookie("", Duration.ZERO));
+        add(response, sessionHintCookie("", Duration.ZERO));
     }
 
     /**
@@ -112,6 +122,16 @@ public class SessionCookies {
         return ResponseCookie.from(refreshCookieName, value)
                 .httpOnly(true).secure(secure).sameSite(SAME_SITE_STRICT).path(AuthApiPaths.SESSION).maxAge(maxAge)
                 .build();
+    }
+
+    /**
+     * Oturum ipucu: yenileme çerezinin ömrünce yaşar, her yenilemede yeniden yazılır, çıkışta silinir. Kimlik, token ya da
+     * yetki taşımaz (yalnız "bu tarayıcıda oturum olabilir"); JS okuyabilsin diye HttpOnly değildir. Yetki kararı yine
+     * yalnız sunucudadır. {@code __Host-} önekiyle uyumlu: Secure, Path=/, Domain yok.
+     */
+    private ResponseCookie sessionHintCookie(String value, Duration maxAge) {
+        return ResponseCookie.from(sessionHintCookieName, value)
+                .httpOnly(false).secure(secure).sameSite(SAME_SITE_LAX).path(ROOT_PATH).maxAge(maxAge).build();
     }
 
     private static void add(HttpServletResponse response, ResponseCookie cookie) {

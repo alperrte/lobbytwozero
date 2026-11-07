@@ -24,7 +24,10 @@ function DeveloperEditor({ gameId }: { gameId: string }) {
   const locale = useLocale();
   const [section, setSection] = useState("description");
   const [editing, setEditing] = useState<string>();
+  // Kayıttan sonra içerik yeniden yüklenir ve formlar sürüme göre yeniden oluşur; bildirim bu yüzden burada tutulur.
+  const [notice, setNotice] = useState(false);
   const result = useGameResource<DeveloperContent>({ kind: "developer", gameId }, { refreshOnFocus: false });
+  const saved = () => { setNotice(true); result.reload(); };
   const content = result.data;
   const note = content?.updateNotes.find((value) => value.id === editing);
   const items = [{ id: "description", label: t("tabs.description") }, { id: "media", label: t("tabs.media") }, { id: "notes", label: t("tabs.notes") }, { id: "feedback", label: t("receivedFeedback") }];
@@ -33,22 +36,23 @@ function DeveloperEditor({ gameId }: { gameId: string }) {
     {result.loading && <Skeleton className="h-32" />}
     <GameStatus error={result.error} loading={false} onRetry={result.reload} />
     {content && <>
-      <Tabs items={items} value={section} onChange={setSection} label={t("developerContent")} base={`dev-${gameId}`} />
+      <Tabs items={items} value={section} onChange={(id) => { setSection(id); setNotice(false); }} label={t("developerContent")} base={`dev-${gameId}`} />
+      {notice && <p role="status" className="text-sm font-medium text-success">{t("saved")}</p>}
       <div role="tabpanel" id={`dev-${gameId}-panel-${section}`} aria-labelledby={`dev-${gameId}-tab-${section}`}>
         {section === "description" && <>
           {content.description && <Moderation status={content.description.status} reason={content.description.moderationReason} />}
           {content.description?.status === "HIDDEN" && <p className="mt-2 text-sm text-text-secondary">{t("hiddenEditBlocked")}</p>}
-          <GameActionForm key={`description/${content.description?.version ?? "new"}`} title={t("editDeveloperDescription")} disabled={content.description?.status === "HIDDEN"} fields={[{ name: "description", kind: "textarea", required: true, max: 8000 }]} initial={{ description: content.description?.text ?? "" }} build={(values) => ({ operation: "description", gameId, body: { description: values.description, ...(content.description ? { version: content.description.version } : {}) } })} onSaved={result.reload} />
+          <GameActionForm key={`description/${content.description?.version ?? "new"}`} title={t("editDeveloperDescription")} disabled={content.description?.status === "HIDDEN"} fields={[{ name: "description", kind: "textarea", required: true, max: 8000 }]} initial={{ description: content.description?.text ?? "" }} build={(values) => ({ operation: "description", gameId, body: { description: values.description, ...(content.description ? { version: content.description.version } : {}) } })} onSaved={saved} />
         </>}
         {section === "media" && <>
-          <GameActionForm title={t("addMedia")} description={t("mediaUrlOnly")} fields={[{ name: "type", required: true, options: ["IMAGE", "VIDEO", "DEMO"] }, { name: "url", kind: "url", required: true, max: 1024 }, { name: "altText", max: 200 }]} build={(body) => ({ operation: "addMedia", gameId, body })} onSaved={result.reload} resetOnSuccess />
+          <GameActionForm title={t("addMedia")} description={t("mediaUrlOnly")} fields={[{ name: "type", required: true, options: ["IMAGE", "VIDEO", "DEMO"] }, { name: "url", kind: "url", required: true, max: 1024, helpKey: "mediaSources.all" }, { name: "altText", max: 200 }]} build={(body) => ({ operation: "addMedia", gameId, body })} onSaved={saved} resetOnSuccess />
           {!content.media.length ? <EmptyState title={t("noMedia")} /> : <ul className="grid gap-4 sm:grid-cols-2">{content.media.map((value) => <li key={value.id} className="overflow-hidden rounded-panel border border-border bg-surface">
             {value.type === "IMAGE" ? <GameCover url={value.url} title={value.altText ?? ""} /> : null}
             <div className="break-words p-4">
               <p className="flex flex-wrap items-center gap-2"><Badge>{t.has(`choices.${value.type}`) ? t(`choices.${value.type}`) : value.type}</Badge><span className="[overflow-wrap:anywhere]">{value.altText || value.url}</span></p>
               {value.type !== "IMAGE" && safeExternalUrl(value.url) && <a href={safeExternalUrl(value.url)} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block min-h-11 py-2 text-brand-text underline">{t(value.type === "DEMO" ? "openDemo" : "openVideo")}</a>}
               <Moderation status={value.status} reason={value.moderationReason} />
-              <GameActionForm title={t("deleteMedia")} fields={[]} destructive build={() => ({ operation: "deleteMedia", gameId, targetId: value.id })} onSaved={result.reload} />
+              <GameActionForm title={t("deleteMedia")} fields={[]} destructive build={() => ({ operation: "deleteMedia", gameId, targetId: value.id })} onSaved={saved} />
             </div></li>)}</ul>}
         </>}
         {section === "notes" && <>
@@ -58,10 +62,10 @@ function DeveloperEditor({ gameId }: { gameId: string }) {
             <p className="mt-3 whitespace-pre-wrap break-words text-text-secondary">{value.body}</p>
             <Moderation status={value.status} reason={value.moderationReason} />
             <button type="button" className={`${controlClass} mt-4`} onClick={() => setEditing(value.id)}>{t("edit")}</button>
-            <GameActionForm title={t("deleteNote")} fields={[]} destructive build={() => ({ operation: "deleteNote", gameId, targetId: value.id })} onSaved={() => { setEditing(undefined); result.reload(); }} />
+            <GameActionForm title={t("deleteNote")} fields={[]} destructive build={() => ({ operation: "deleteNote", gameId, targetId: value.id })} onSaved={() => { setEditing(undefined); saved(); }} />
           </li>)}</ul>}
           {editing && <button type="button" className={`${controlClass} mt-4`} onClick={() => setEditing(undefined)}>{t("cancelEdit")}</button>}
-          <GameActionForm key={note ? `${note.id}/${note.version}` : "new-note"} title={t(note ? "editNote" : "addNote")} disabled={note?.status === "HIDDEN"} fields={[{ name: "title", required: true, max: 120 }, { name: "body", kind: "textarea", required: true, max: 4000 }]} initial={note ? { title: note.title, body: note.body } : {}} build={(values) => ({ operation: note ? "updateNote" : "addNote", gameId, targetId: note?.id, body: { title: values.title, body: values.body, ...(note ? { version: note.version } : {}) } })} onSaved={() => { setEditing(undefined); result.reload(); }} resetOnSuccess={!note} />
+          <GameActionForm key={note ? `${note.id}/${note.version}` : "new-note"} title={t(note ? "editNote" : "addNote")} disabled={note?.status === "HIDDEN"} fields={[{ name: "title", required: true, max: 120 }, { name: "body", kind: "textarea", required: true, max: 4000 }]} initial={note ? { title: note.title, body: note.body } : {}} build={(values) => ({ operation: note ? "updateNote" : "addNote", gameId, targetId: note?.id, body: { title: values.title, body: values.body, ...(note ? { version: note.version } : {}) } })} onSaved={() => { setEditing(undefined); saved(); }} resetOnSuccess={!note} />
         </>}
         {section === "feedback" && <GameFeedback gameId={gameId} developer />}
       </div>

@@ -116,7 +116,8 @@ export type GameResource =
   | { kind: "module"; gameId: string; type: ModuleType; page: number }
   | { kind: "content"; gameId: string; contentId: string };
 
-export type Term = { id: string; code?: string; nameTr: string; nameEn: string };
+/** Gerçek API: yönetici/IGDB terimlerinde yalnız `code` dolu, `nameTr`/`nameEn` null olabilir. */
+export type Term = { id: string; code?: string | null; nameTr?: string | null; nameEn?: string | null };
 export type LanguageSupport = { languageCode: string; interfaceSupport: string; audioSupport: string; subtitleSupport: string };
 export type GameSession = { accountId: string; roles: string[] };
 export type PriceOffer = { store: string; regularPrice: number; currentPrice: number; discountPercent: number; source: string; fetchedAt: string; expiresAt: string; sourceUpdatedAt: string; url: string };

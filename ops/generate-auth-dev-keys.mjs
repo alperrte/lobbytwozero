@@ -50,6 +50,8 @@ const generators = {
   AUTH_REVIEW_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
   AUTH_GAME_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
   AUTH_RECOMMENDATION_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
+  AUTH_CONTENT_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
+  AUTH_PERFORMANCE_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
   // Sır değil, dev varsayılanı: Auth olaylarının (UserRegistered, AccountStatusChanged, AccountEmailChanged) gideceği servisler.
   // Satır yoksa veya boşsa "user" yazılır; dolu listeye dokunulmaz (aşağıdaki uyarı yalnız hatırlatır). Hedef erken açılırsa
   // Auth üstel geri çekilmeyle yeniden dener, olay kaybolmaz; User ayağa kalkınca birikenler teslim edilir.

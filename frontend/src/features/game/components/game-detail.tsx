@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Icon } from "@/shared/components/ui/icons";
 import { Link } from "@/shared/lib/i18n/navigation";
 import { useGameResource } from "../hooks/use-game-resource";
+import { termLabel } from "../services/format";
 import type { GameDetail as Detail } from "../types/game";
 import { GameCover } from "./game-cover";
 import { GameDeveloperPublic } from "./game-developer-public";
@@ -41,7 +42,7 @@ export function GameDetail({ gameId }: { gameId: string }) {
   const detail = result.data;
   const coverage = detail && ["INDEX_ONLY", "PARTIAL", "FULL"].includes(detail.game.metadataCompleteness) ? detail.game.metadataCompleteness : "UNKNOWN";
   const date = formatReleaseDate(detail?.releaseDate, locale);
-  const platforms = detail?.metadata.platforms.map((term) => locale === "tr" ? term.nameTr : term.nameEn).join(", ");
+  const platforms = detail?.metadata.platforms.map((term) => termLabel(term, locale)).filter(Boolean).join(", ");
   return <div className="space-y-10">
     <Link href="/games" className="inline-flex min-h-11 items-center gap-2 text-brand-text underline-offset-4 hover:underline"><Icon name="arrowRight" width={16} height={16} className="rotate-180" />{t("backToGames")}</Link>
     {result.loading && <DetailSkeleton />}
