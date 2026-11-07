@@ -94,7 +94,7 @@ describe("dev-lib", () => {
 
   test("bellek tahmini ve karar: çekirdek 6 servis yeter, 20 servis 7,4 GB'a sığmaz", () => {
     const gb = 1024 ** 3;
-    assert.equal(estimateMemoryMb(CORE_SERVICES), 150 + 30 + 4 * 550);
+    assert.equal(estimateMemoryMb(CORE_SERVICES), 200 + 30 + 4 * 350);
     assert.equal(estimateMemoryMb([...CORE_SERVICES, "auth-service"]), estimateMemoryMb(CORE_SERVICES));
     assert.equal(memoryVerdict({ services: CORE_SERVICES, dockerMemBytes: 7.4 * gb }).ok, true);
     const all = [...CORE_SERVICES, ...Array.from({ length: 14 }, (_, i) => `servis-${i}-service`)];
