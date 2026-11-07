@@ -784,3 +784,46 @@ test.describe("silme talebinden vazgeç ve doğrulanmamış e-posta", () => {
     await expect(page.getByLabel("E-posta", { exact: true })).toHaveValue("ada@example.com");
   });
 });
+
+test.describe("sol panel arka plan videosu", () => {
+  test("geniş ekranda iki video etiketi vardır; sayfa geçişinde AYNI etiketler kalır (video kesilmez)", async ({ page }) => {
+    await mockGateway(page, {});
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/tr/giris");
+    await waitForHydration(page);
+    const videos = page.locator('[data-testid="auth-backdrop"] video');
+    await expect(videos).toHaveCount(2);
+
+    // Etikete işaret koy; istemci tarafı geçişten sonra işaret durursa layout ve video yeniden kurulmamıştır.
+    await page.evaluate(() => {
+      (document.querySelector('[data-testid="auth-backdrop"] video') as HTMLVideoElement & { __kept?: boolean }).__kept = true;
+    });
+    await page.getByRole("link", { name: "Kayıt ol" }).first().click();
+    await expect(page).toHaveURL(/\/tr\/kayit$/);
+    const kept = await page.evaluate(
+      () => (document.querySelector('[data-testid="auth-backdrop"] video') as HTMLVideoElement & { __kept?: boolean }).__kept === true
+    );
+    expect(kept).toBe(true);
+    await expect(videos).toHaveCount(2);
+  });
+
+  test("telefon genişliğinde video hiç yüklenmez", async ({ page }) => {
+    await mockGateway(page, {});
+    const requested: string[] = [];
+    page.on("request", (request) => request.url().includes("/auth-videos/") && requested.push(request.url()));
+    await page.setViewportSize({ width: 390, height: 800 });
+    await page.goto("/tr/giris");
+    await waitForHydration(page);
+    await expect(page.locator('[data-testid="auth-backdrop"] video')).toHaveCount(0);
+    expect(requested).toEqual([]);
+  });
+
+  test("'hareketi azalt' açıkken video yüklenmez", async ({ page }) => {
+    await mockGateway(page, {});
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/tr/giris");
+    await waitForHydration(page);
+    await expect(page.locator('[data-testid="auth-backdrop"] video')).toHaveCount(0);
+  });
+});

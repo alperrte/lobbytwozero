@@ -9,6 +9,7 @@ export { LoginForm } from "./components/login-form";
 export { RegisterForm } from "./components/register-form";
 export { ResetPasswordForm } from "./components/reset-password-form";
 export { DeleteAccountForm } from "./components/delete-account-form";
+export { AuthBackdrop } from "./components/auth-backdrop";
 export { CancelDeletionForm } from "./components/cancel-deletion-form";
 export { useRequireSession } from "./hooks/use-require-session";
 export { SessionProvider } from "./components/session-provider";
