@@ -45,7 +45,7 @@ test("güvenlik kapısı: uzak adres, yanlış kapsayıcı ve production reddedi
 });
 
 test("yapılandırma: parola zorunlu, alan adı geçerli olmalı", () => {
-  assert.doesNotThrow(() => validateConfig({ password: "ltz1234", domain: "ltz.com" }));
+  assert.doesNotThrow(() => validateConfig({ password: "ornek-parola", domain: "ltz.com" }));
   assert.throws(() => validateConfig({ password: "", domain: "ltz.com" }), /DEV_ACCOUNTS_PASSWORD/);
   assert.throws(() => validateConfig({ password: undefined, domain: "ltz.com" }), /DEV_ACCOUNTS_PASSWORD/);
   assert.throws(() => validateConfig({ password: "x", domain: "ltz.com'; drop table" }), /alan adı/);
@@ -65,11 +65,11 @@ test("Base32 çözümü ve geçersiz karakter", () => {
 });
 
 test("parola özeti: Spring biçimi, her seferinde farklı tuz, düz parola içermez", () => {
-  const first = hashPassword("ltz1234");
-  const second = hashPassword("ltz1234");
+  const first = hashPassword("ornek-parola");
+  const second = hashPassword("ornek-parola");
   assert.match(first, /^\{argon2\}\$argon2id\$v=19\$m=19456,t=2,p=1\$[A-Za-z0-9+/]{22}\$[A-Za-z0-9+/]{43}$/);
   assert.notEqual(first, second);
-  assert.ok(!first.includes("ltz1234"));
+  assert.ok(!first.includes("ornek-parola"));
 });
 
 test("geçici parola: en az 15 karakter ve her seferinde farklı", () => {
