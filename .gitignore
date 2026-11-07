@@ -25,3 +25,6 @@ megalinter-reports/
 
 # Playwright MCP oturum ciktilari
 .playwright-mcp/
+
+# Yerel geliştirme test hesapları: TOTP sırları (ops/dev-accounts.mjs)
+.dev-accounts.local.json
