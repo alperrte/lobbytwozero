@@ -9,7 +9,7 @@ import {
 } from "@/shared/providers/shell-session-context";
 import { SessionContext, useSessionState } from "../hooks/use-session";
 import type { SessionApi } from "../services/auth-api";
-import { authRequest } from "../services/auth-http";
+import { apiRequest } from "@/shared/lib/api/client";
 
 type SessionProviderProps = {
   children: ReactNode;
@@ -19,13 +19,13 @@ type SessionProviderProps = {
   profileRequest?: UserRequest;
 };
 
-/** Profil isteği de oturum politikasından geçer (access token kısa ömürlü: 401 → yenile → tekrar). */
-const defaultProfileRequest: UserRequest = (path, signal) => authRequest<unknown>(path, { signal });
+/** Profil isteği ortak `apiRequest`'ten geçer; access token kısa ömürlüdür, 401'de oturum otomatik yenilenir. */
+const defaultProfileRequest: UserRequest = (path, signal) => apiRequest<unknown>(path, { signal });
 
 /**
  * Oturum bağlamlarını kurar: `SessionContext` (auth sayfaları için) ve kabuğun `ShellSessionContext`'i. Yükleme ve
  * çıkış mantığı `useSessionState` hook'tadır; bileşen yalnız bağlar. Kabuğa yalnız genel bir etiket verilir: `/me` ad
- * döndürmez, ad döndürmez; oturum açılınca ad ve küçük avatar User servisinden (`GET /user/me`) alınır. Profil gelene kadar ya da
+ * döndürmez; oturum açılınca ad ve küçük avatar User servisinden (`GET /user/me`) alınır. Profil gelene kadar ya da
  * alınamazsa genel etiket kalır; sahte ad üretilmez ve profil hatası oturumu etkilemez.
  */
 export function SessionProvider({ children, api, profileRequest = defaultProfileRequest }: SessionProviderProps) {

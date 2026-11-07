@@ -1,5 +1,17 @@
 // dev-accounts.mjs için saf yardımcılar (ağ/veritabanı yok; test edilebilir).
-import { argon2Sync, createHmac, randomBytes } from "node:crypto";
+// `argon2Sync` Node 24.7'de eklendi. Adlandırılmış içe aktarma eski Node'da modül yüklenirken anlaşılmaz bir hata verirdi; bu yüzden
+// ad alanı ile içe aktarılır ve sürüm `assertNodeSupported` ile önceden, anlaşılır bir mesajla denetlenir.
+import * as nodeCrypto from "node:crypto";
+
+const { createHmac, randomBytes } = nodeCrypto;
+
+/** Betik Node 24.7+ ister (parola özeti için `crypto.argon2Sync`). Eski sürümde açık bir mesajla durur. */
+export function assertNodeSupported(version = process.versions.node) {
+  const [major = 0, minor = 0] = String(version).split(".").map(Number);
+  if (major < 24 || (major === 24 && minor < 7)) {
+    throw new Error(`Node 24.7 veya üstü gerekli (bu makinede ${version}): parola özeti için crypto.argon2Sync kullanılır. https://nodejs.org`);
+  }
+}
 
 /** Rol → hesap eşlemesi. Kullanıcı adı = e-postanın yerel kısmı (Auth: 3-20, yalnız a-z0-9_). `mfa`: Auth bu roller için TOTP ister. */
 export const DEV_ACCOUNTS = Object.freeze([
@@ -60,7 +72,7 @@ export function hashPassword(password) {
   const passes = 2;
   const parallelism = 1;
   const nonce = randomBytes(16);
-  const tag = argon2Sync("argon2id", { message: password, nonce, parallelism, tagLength: 32, memory, passes });
+  const tag = nodeCrypto.argon2Sync("argon2id", { message: password, nonce, parallelism, tagLength: 32, memory, passes });
   const b64 = (buffer) => buffer.toString("base64").replace(/=+$/, "");
   return `{argon2}$argon2id$v=19$m=${memory},t=${passes},p=${parallelism}$${b64(nonce)}$${b64(tag)}`;
 }

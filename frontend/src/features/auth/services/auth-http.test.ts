@@ -82,6 +82,11 @@ describe("authRequest: CSRF", () => {
 });
 
 describe("authRequest: 401 → yenile → tek tekrar", () => {
+  // Yenileme ortak katmandadır ve yalnız tarayıcıda oturum ipucu çerezi varsa denenir (misafire gereksiz istek yok).
+  beforeEach(() => {
+    document.cookie = "ltz_session=1; path=/";
+  });
+
   it("korumalı uçta 401 gelince yeniler ve isteği bir kez tekrarlar", async () => {
     document.cookie = "XSRF-TOKEN=tok; path=/";
     let meCalls = 0;

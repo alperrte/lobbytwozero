@@ -6,6 +6,28 @@ Bu sayfa, Auth'u yerelde hızlı ve güvenli çalıştırmak isteyen herkes (ve 
 
 ---
 
+## 0. Sıfırdan çalıştır (yeni klon: TEK KOMUT)
+
+Gerekenler: Git, Docker Desktop ve **Node 24.7+** (betikler yerleşik `crypto.argon2` kullanır; eski Node'da betik anlaşılır bir mesajla durur).
+
+```text
+node ops/dev.mjs
+```
+
+Bu komut sırayla şunları yapar (her adım tekrar çalıştırmaya güvenlidir):
+
+1. **Ön koşullar:** Node sürümü ve Docker'ın çalıştığı denetlenir.
+2. **Anahtarlar:** `.env.dev` yoksa oluşturulur, JWT/OTP/TOTP/servis anahtarları üretilir, dolu satıra dokunulmaz.
+3. **E-posta:** YALNIZ Google **uygulama şifresini** sorar (şifre yazarken görünmez; Gmail adresi ekibin ortak test hesabı olarak hazırdır). Boş bırakırsan e-postalar **Mailpit**'e düşer (`http://localhost:8025`, gerçek mail gitmez) ve kurulum devam eder. Şifre depoda/betikte **yoktur**; ekipte güvenli kanaldan (şifre yöneticisi) paylaşılır ve yalnız kendi `.env.dev`'ine yazılır. Etkileşimsiz kurulum için `DEV_MAIL_PASSWORD` ortam değişkeni (başka bir Gmail hesabı için `DEV_MAIL_USER`).
+4. **Servisler ve hesaplar:** Postgres, Mailpit, Mail, Auth, User ve Gateway derlenip kaldırılır, sağlık beklenir, her role bir test hesabı açılır (bkz. §1.0). İlk seferde imajlar derlendiği için birkaç dakika sürer.
+5. **Frontend:** `node_modules` eksik ya da eskiyse `npm ci`, sonra `http://localhost:5001` (**port 5001 şarttır**: Gateway CORS varsayılanı yalnız onu kabul eder; README'deki `npm run dev` 3000 açar ve girişte CORS hatası verir). Zaten çalışıyorsa dokunulmaz.
+
+Sonra `http://localhost:5001/tr/giris` adresinde `user@ltz.com` (ya da §1.0'daki diğer hesaplar) ile gir. Parola `.env.dev`'deki `DEV_ACCOUNTS_PASSWORD`'dür.
+
+Diğer komutlar: `node ops/dev.mjs stop` (servisleri durdurur, veri kalır), `node ops/dev.mjs reset` (servisleri **ve tüm yerel veriyi** siler, onay ister), `node ops/dev.mjs status`, `node ops/dev.mjs mail on|off|status` (gerçek e-postayı sonradan aç/kapat). Seçenekler: `--no-frontend`, `--no-mail`, `--no-build`, `--no-services` (yalnız ayarlar), `--skip-keys`, `--dry-run` (ne yapacağını yazar, çalıştırmaz).
+
+> `ops/dev.mjs` mevcut betikleri sırayla çağırır (`generate-auth-dev-keys.mjs`, `dev-accounts.mjs`, `dev-mail.mjs`); onları tek tek de çalıştırabilirsin, aşağıdaki bölümler her birini anlatır.
+
 ## 1. Auth'u yerelde ayağa kaldır (tek komut)
 
 ```text

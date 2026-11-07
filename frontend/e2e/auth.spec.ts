@@ -827,3 +827,75 @@ test.describe("sol panel arka plan videosu", () => {
     await expect(page.locator('[data-testid="auth-backdrop"] video')).toHaveCount(0);
   });
 });
+
+test.describe("diğer servislerin sayfaları: oturum katmanı ve otomatik yenileme", () => {
+  const GAME_ID = "00000000-0000-4000-8000-000000000001";
+
+  test("(dashboard) grubunda da kabuk giriş yapmış kullanıcıyı gösterir (Game yönetim sayfası)", async ({ page, baseURL }) => {
+    await setSessionHint(page, baseURL);
+    await mockGateway(page, {
+      "GET /api/v1/auth/me": { status: 200, body: { ...ME, accountId: GAME_ID, roles: ["GAME_DEVELOPER"] } },
+      "GET /api/v1/user/me": { status: 200, body: { displayName: "Ada Lovelace", username: "ada", avatar: null } },
+      "GET /api/v1/game/developer/games": { status: 200, body: [] }
+    });
+
+    await page.goto("/tr/oyunlar/yonetim");
+    await waitForHydration(page);
+
+    await expect(profileButton(page, /Ada Lovelace/)).toBeVisible();
+    await expect(profileButton(page, /Misafir/)).toHaveCount(0);
+  });
+
+  test("Game'in oturum yoklaması access token süresi dolunca otomatik yenilenir; 'giriş yapmalısın' çıkmaz", async ({ page, baseURL }) => {
+    await setSessionHint(page, baseURL);
+    let meCalls = 0;
+    let refreshCalls = 0;
+    await mockGateway(page, {
+      "GET /api/v1/auth/csrf": { status: 204 },
+      // Game ve kabuk /auth/me'yi ayrı ayrı çağırır: ilk çağrı süresi dolmuş token (401), yenilemeden sonrakiler 200.
+      "GET /api/v1/auth/me": async (route) => {
+        meCalls += 1;
+        if (refreshCalls === 0) {
+          return route.fulfill({ status: 401, headers: { ...corsFor(route), "content-type": "application/json" }, body: JSON.stringify({ code: "UNAUTHENTICATED" }) });
+        }
+        return route.fulfill({
+          status: 200,
+          headers: { ...corsFor(route), "content-type": "application/json" },
+          body: JSON.stringify({ ...ME, accountId: GAME_ID, roles: ["GAME_DEVELOPER"] })
+        });
+      },
+      "POST /api/v1/auth/session/refresh": async (route) => {
+        refreshCalls += 1;
+        return route.fulfill({ status: 200, headers: { ...corsFor(route), "content-type": "application/json" }, body: JSON.stringify(AUTHENTICATED) });
+      },
+      "GET /api/v1/user/me": { status: 200, body: { displayName: "Ada", username: "ada", avatar: null } },
+      "GET /api/v1/game/developer/games": { status: 200, body: [] }
+    });
+
+    await page.goto("/tr/oyunlar/yonetim");
+    await waitForHydration(page);
+
+    await expect(page.getByText("Oyun yönetimine erişmek için giriş yapmalısın")).toHaveCount(0);
+    await expect(profileButton(page, /Ada/)).toBeVisible();
+    expect(refreshCalls).toBeGreaterThanOrEqual(1);
+    expect(refreshCalls).toBeLessThanOrEqual(2); // eşzamanlı 401'ler tek yenilemeye iner (StrictMode geliştirmede ikiye çıkabilir)
+    expect(meCalls).toBeGreaterThan(1);
+  });
+
+  test("misafir (ipucu çerezi yok) Game sayfasında yenileme denemez ve 'giriş yapmalısın' görür", async ({ page }) => {
+    let refreshCalls = 0;
+    await mockGateway(page, {
+      "GET /api/v1/auth/me": { status: 401, body: { code: "UNAUTHENTICATED" } },
+      "POST /api/v1/auth/session/refresh": async (route) => {
+        refreshCalls += 1;
+        return route.fulfill({ status: 401, headers: corsFor(route) });
+      }
+    });
+
+    await page.goto("/tr/oyunlar/yonetim");
+    await waitForHydration(page);
+
+    await expect(page.getByText("Oyun yönetimine erişmek için giriş yapmalısın")).toBeVisible();
+    expect(refreshCalls).toBe(0);
+  });
+});

@@ -39,6 +39,7 @@ import { fileURLToPath } from "node:url";
 import {
   DEV_ACCOUNTS,
   assertDevProfile,
+  assertNodeSupported,
   assertDevTarget,
   assertUuid,
   emailFor,
@@ -53,6 +54,13 @@ import {
 } from "./dev-accounts-lib.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+try {
+  assertNodeSupported();
+} catch (error) {
+  console.error(`✗ ${error.message}`);
+  process.exit(1);
+}
 /**
  * 2FA sırları MAKİNE düzeyinde tutulur: aynı bilgisayardaki tüm klasörler (ör. farklı git worktree'leri) aynı Docker
  * veritabanını (`ltz-dev`) paylaşır, dolayısıyla aynı sırrı görmelidir. Depoya girmez (home dizini). `DEV_ACCOUNTS_STATE` ile

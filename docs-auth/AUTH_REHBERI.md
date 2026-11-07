@@ -293,9 +293,13 @@ Auth bağlantıları DİL ÖNEKSİZ üretir (e-posta dil bilmez). Frontend önek
 
 Token'lar parçadadır: sunucuya, günlüğe ve `Referer`'a gitmez. Frontend token'ı okur okumaz adres çubuğundan siler, yalnız bellekte tutar ve istek gövdesinde gönderir.
 
-### Diğer servislerin sayfaları için: "giriş şart" yardımcısı
+### Diğer servislerin sayfaları için: oturum nasıl çalışır (Hardware, Social, Library, Game…)
 
-Giriş gerektiren bir sayfa yazan her servis ekibi (ve yapay zekâ asistanı) bunu kullanır; kendi yönlendirmesini yazmaz:
+Auth'a özel bir şey yazmana gerek yoktur; aşağıdakiler hazırdır:
+
+1. **Oturum katmanı her rota grubunda kurulu** (`(public)`, `(dashboard)`, `(admin)`). Sayfan hangi grupta olursa olsun kabuktaki profil menüsü giriş yapmış kullanıcıyı gösterir (ad ve avatar User servisinden) ve `useSession` / `useRequireSession` çalışır. Yeni bir rota grubu açarsan layout'una `<SessionProvider>` ekle (`@/features/auth`); aksi halde o grupta navbar giriş yapmış kullanıcıya bile "Giriş yap" gösterir.
+2. **API isteklerini `apiRequest` ile at** (`@/shared/lib/api/client`). Access token 60 sn ömürlüdür; `apiRequest` 401 alınca (tarayıcıda oturum ipucu çerezi varsa) `POST /session/refresh` çağırıp isteği **bir kez** otomatik tekrarlar, eşzamanlı 401'lerde tek yenileme yapar. Kendi yenileme kodunu yazma ve `/auth/me`'yi kendin yoklama; yenileme gerekmeyen özel durum için `skipSessionRefresh: true`. Misafir (ipucu çerezi yok) ve Auth'un kimlik uçlarında (login, kayıt, çıkış) yenileme denenmez. Durum değiştiren isteklerde CSRF başlığını (`X-XSRF-TOKEN`) sen eklersin (çerezi `readCsrfCookie`, `@/shared/lib/session/csrf`; çerez yoksa önce `GET /api/v1/auth/csrf`).
+3. **Giriş şart olan sayfa:** `useRequireSession()`:
 
 ```tsx
 import { useRequireSession } from "@/features/auth";
@@ -307,8 +311,9 @@ if (session.status !== "authenticated") return null; // loading ve guest iken i�
 
 - Oturumsuz ziyaretçiyi `/login?next=<bu sayfa>` adresine yönlendirir; giriş sonrası kullanıcı bu sayfaya döner. `next` yalnız uygulama içi güvenli yollar için eklenir (açık yönlendirme engellenir).
 - Bu **yalnız kullanıcı deneyimidir, güvenlik sınırı değildir.** Yetki kararı her zaman ilgili servisin sunucu tarafındadır; rol bilgisi arayüzde yalnız neyi göstereceğini seçmek içindir.
-- Sayfa `SessionProvider` içinde olmalıdır (`app/[locale]/(public)/layout.tsx` zaten sarar). Auth dışı bir servisin API'sini çağırırken oturum yenileme (401 → yenile → tekrar) için `features/auth/services/auth-http.ts` kullanılır; yeni bir uç gerekiyorsa `SessionBoundPath` listesine eklenir.
+- Rol bazlı menü/sayfa içeriği Auth'un işi değildir: roller `session.me.roles` ile gelir, her servis kendi sayfasında kullanır.
 - Silinme sürecindeki hesabın geri alma ekranı: `/account/cancel-deletion` (giriş hatasından otomatik bağlanır).
+- Yerelde çalıştırma: frontend `http://localhost:5001` (Gateway CORS varsayılanı yalnız bunu kabul eder). Test hesapları: `docs-auth/ekip-hizli-baslangic.md` §1.0.
 
 ### Oturum ipucu çerezi ve hesap bazlı kilit
 

@@ -1,40 +1,18 @@
 import { ApiHttpError, apiRequest } from "@/shared/lib/api/client";
+import { CSRF_HEADER, CSRF_PATH, readCsrfCookie } from "@/shared/lib/session/csrf";
 import { knownAuthErrorCodes, type AuthErrorCode } from "../types/auth.types";
 
 /**
  * Auth uçları için ince sarmalayıcı. HTTP'nin kendisi ortak `apiRequest` üzerinden gider (taban adres, çerezler,
- * `ApiHttpError`); burada yalnız Auth'a özgü oturum politikası bulunur:
+ * `ApiHttpError` ve OTURUM YENİLEMESİ: 401 → `POST /session/refresh` → bir kez tekrar, ortak katmanda ve tüm servisler için
+ * aynıdır); burada yalnız Auth'a özgü olanlar bulunur:
  *
  * - Durum değiştiren her istekte CSRF başlığı (`X-XSRF-TOKEN`, çerez yoksa önce `GET /csrf`).
- * - Korumalı uçta 401 gelirse `POST /session/refresh` ve isteğin BİR kez tekrarı; eşzamanlı 401'lerde tek yenileme.
  * - `CSRF_TOKEN_INVALID` gelirse çerez yenilenir ve istek BİR kez tekrarlanır.
  * - Ağ hatası `NETWORK` koduyla `ApiHttpError(0)` olur ve mutasyon otomatik tekrarlanmaz; kullanıcı iptali
  *   (`AbortError`) olduğu gibi bırakılır. Parola/token hiçbir yerde loglanmaz ve saklanmaz.
  */
-export type AuthPath = `/api/v1/auth/${string}` | SessionBoundPath;
-
-/** Auth dışı ama aynı oturum politikasını (401 → yenile → tekrar) isteyen uçlar: yalnız profil özeti. */
-export type SessionBoundPath = "/api/v1/user/me";
-
-const CSRF_PATH = "/api/v1/auth/csrf";
-const REFRESH_PATH = "/api/v1/auth/session/refresh";
-/** Güvenli bağlamda `__Host-` önekli, yerel http'de öneksiz; ikisi de okunabilir CSRF çerezidir. */
-const CSRF_COOKIE_NAMES = ["__Host-XSRF-TOKEN", "XSRF-TOKEN"] as const;
-const CSRF_HEADER = "X-XSRF-TOKEN";
-
-/** Bu uçlarda 401 "oturum süresi doldu" değil "kimlik doğrulanamadı" demektir: yenileme denenmez. */
-const NO_REFRESH_PATHS: ReadonlySet<string> = new Set([
-  CSRF_PATH,
-  REFRESH_PATH,
-  "/api/v1/auth/login",
-  "/api/v1/auth/register",
-  "/api/v1/auth/email-verification/confirm",
-  "/api/v1/auth/email-verification/resend",
-  "/api/v1/auth/session/logout",
-  "/api/v1/auth/account/deletion/cancel"
-]);
-
-const REFRESH_CONFLICT_WAIT_MS = 250;
+export type AuthPath = `/api/v1/auth/${string}`;
 
 export type AuthRequestOptions = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -42,15 +20,12 @@ export type AuthRequestOptions = {
   signal?: AbortSignal;
 };
 
-let refreshInFlight: Promise<boolean> | null = null;
-
 export async function authRequest<T>(
   path: AuthPath,
   options: AuthRequestOptions = {}
 ): Promise<T> {
   const mutation = (options.method ?? "GET") !== "GET";
   let csrfRetried = false;
-  let refreshed = false;
 
   for (;;) {
     try {
@@ -62,13 +37,6 @@ export async function authRequest<T>(
         csrfRetried = true;
         await fetchCsrf();
         continue;
-      }
-
-      if (failure.status === 401 && !refreshed && !NO_REFRESH_PATHS.has(path)) {
-        refreshed = true;
-        if (await refreshSession()) {
-          continue;
-        }
       }
 
       throw failure;
@@ -119,21 +87,6 @@ function toApiError(error: unknown): ApiHttpError {
     : new ApiHttpError(200, { code: "UNKNOWN" });
 }
 
-function readCsrfCookie(): string | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-  for (const name of CSRF_COOKIE_NAMES) {
-    for (const part of document.cookie.split(";")) {
-      const [key, ...rest] = part.trim().split("=");
-      if (key === name && rest.length > 0) {
-        return decodeURIComponent(rest.join("="));
-      }
-    }
-  }
-  return null;
-}
-
 async function ensureCsrfToken(): Promise<string | null> {
   const existing = readCsrfCookie();
   if (existing) {
@@ -148,27 +101,5 @@ async function fetchCsrf(): Promise<void> {
     await apiRequest<void>(CSRF_PATH, { headers: { Accept: "application/json" } });
   } catch (error) {
     throw toApiError(error);
-  }
-}
-
-/** Tek uçuşlu yenileme: eşzamanlı 401'ler aynı sözü bekler (aksi halde `REFRESH_CONFLICT` doğar). */
-function refreshSession(): Promise<boolean> {
-  refreshInFlight ??= doRefresh().finally(() => {
-    refreshInFlight = null;
-  });
-  return refreshInFlight;
-}
-
-async function doRefresh(): Promise<boolean> {
-  try {
-    await authRequest<unknown>(REFRESH_PATH, { method: "POST" });
-    return true;
-  } catch (error) {
-    if (error instanceof ApiHttpError && error.code === "REFRESH_CONFLICT") {
-      // Başka bir yenileme (ör. başka sekme) yürüyor; çerezlerin yazılmasına izin ver, isteği bir kez tekrarla.
-      await new Promise((resolve) => setTimeout(resolve, REFRESH_CONFLICT_WAIT_MS));
-      return true;
-    }
-    return false;
   }
 }

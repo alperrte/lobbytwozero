@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   DEV_ACCOUNTS,
   assertDevProfile,
+  assertNodeSupported,
   assertDevTarget,
   assertUuid,
   base32Decode,
@@ -128,4 +129,9 @@ test("2FA zorunlu roller: tanımsız = varsayılan, boş = hiçbiri, liste ayrı
   assert.deepEqual(parseRequiredRoles("\n"), []);
   assert.deepEqual(parseRequiredRoles(" admin , moderator\n"), ["ADMIN", "MODERATOR"]);
   assert.deepEqual(parseRequiredRoles("ADMIN"), ["ADMIN"]);
+});
+
+test("Node sürüm kapısı: 24.7 ve üstü geçer, eskisi anlaşılır mesajla reddedilir", () => {
+  for (const ok of ["24.7.0", "24.22.2", "26.13.0", "25.0.0"]) assert.doesNotThrow(() => assertNodeSupported(ok), ok);
+  for (const bad of ["24.6.9", "22.12.0", "20.0.0", "18.19.1"]) assert.throws(() => assertNodeSupported(bad), /Node 24\.7 veya üstü/, bad);
 });
