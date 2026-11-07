@@ -111,7 +111,7 @@ class ServiceAudienceTokenTest extends IntegrationTestSupport {
     @Test
     void gameYalnizReviewIcinPuanOzetiOkumaTokeniAlirKullaniciBagiTasimaz() throws Exception {
         String body = tokenRequest("game-service", GAME_CLIENT_SECRET, "review-service")
-                .andExpect(status().isOk()).andExpect(jsonPath("$.scope").value("game-references:read rating-summaries:read"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.scope").value("game-identity:finalize game-identity:prepare game-identity:read game-references:read rating-summaries:read"))
                 .andReturn().getResponse().getContentAsString();
         JWTClaimsSet claims = SignedJWT.parse(JsonPath.<String>read(body, "$.accessToken")).getJWTClaimsSet();
         assertThat(claims.getAudience()).containsExactly("review-service");
@@ -129,7 +129,7 @@ class ServiceAudienceTokenTest extends IntegrationTestSupport {
     @Test
     void gameLibraryIcinYalnizReferansKontroluTokeniAlirDigerIstemcilerAlamaz() throws Exception {
         String body = tokenRequest("game-service", GAME_CLIENT_SECRET, "library-service")
-                .andExpect(status().isOk()).andExpect(jsonPath("$.scope").value("game-references:read"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.scope").value("game-identity:finalize game-identity:prepare game-identity:read game-references:read"))
                 .andReturn().getResponse().getContentAsString();
         JWTClaimsSet claims = SignedJWT.parse(JsonPath.<String>read(body, "$.accessToken")).getJWTClaimsSet();
         assertThat(claims.getAudience()).containsExactly("library-service");
@@ -167,7 +167,9 @@ class ServiceAudienceTokenTest extends IntegrationTestSupport {
         tokenRequest("hardware-service", HARDWARE_CLIENT_SECRET, "user-service").andExpect(status().isOk());
         // Başka istemciler Performance'a cihaz doğrulama için token alamaz.
         tokenRequest("library-service", LIBRARY_CLIENT_SECRET, "performance-service").andExpect(status().isForbidden());
-        tokenRequest("game-service", GAME_CLIENT_SECRET, "performance-service").andExpect(status().isForbidden());
+        // GAME-26: Game beş katılımcının hepsini çağırır; Performance'a yalnız kimlik kapsamlarıyla token alır, cihaz/özet kapsamıyla alamaz.
+        tokenRequest("game-service", GAME_CLIENT_SECRET, "performance-service")
+                .andExpect(status().isOk()).andExpect(jsonPath("$.scope").value("game-identity:finalize game-identity:prepare game-identity:read"));
     }
 
     @Test
@@ -239,8 +241,9 @@ class ServiceAudienceTokenTest extends IntegrationTestSupport {
         UUID account = accountId(registerActiveAccount(uniqueEmail(), uniqueUsername()));
         performanceTokenRequest("library-service", LIBRARY_CLIENT_SECRET, account.toString())
                 .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("SERVICE_AUDIENCE_FORBIDDEN"));
+        // Game'in performance hedefi hesaba bağlı değildir; hesap bağlamak (accountId) reddedilir.
         performanceTokenRequest("game-service", GAME_CLIENT_SECRET, account.toString())
-                .andExpect(status().isForbidden());
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("SERVICE_ACCOUNT_BINDING_INVALID"));
         performanceTokenRequest("hardware-service", RECOMMENDATION_CLIENT_SECRET, account.toString())
                 .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value("INVALID_CLIENT"));
         performanceTokenRequest("recommendation-service", HARDWARE_CLIENT_SECRET, account.toString())

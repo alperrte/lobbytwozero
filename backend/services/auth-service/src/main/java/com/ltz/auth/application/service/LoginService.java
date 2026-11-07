@@ -32,6 +32,8 @@ import com.ltz.auth.infrastructure.security.VerificationCodeHasher;
 public class LoginService {
 
     static final String LOGIN_THROTTLE_DOMAIN = "LOGIN_IDENTIFIER";
+    /** Hesap kimliğine bağlı ikinci kilit: e-posta, kullanıcı adı gibi farklı kimlik biçimleri aynı sayacı paylaşır. */
+    static final String LOGIN_ACCOUNT_THROTTLE_DOMAIN = "LOGIN_ACCOUNT";
     private static final char EMAIL_MARKER = '@';
 
     private final AccountRepository accountRepository;
@@ -66,6 +68,12 @@ public class LoginService {
         attemptThrottle.reserve(throttleKey);
         Optional<Candidate> candidate = Optional.ofNullable(
                 transactionTemplate.execute(status -> findCandidate(normalizedIdentifier)));
+        // Hesap bulunduysa kilit hesap kimliğine de bağlanır: aynı hesaba farklı kimlik biçimiyle (e-posta, kullanıcı
+        // adı) gelen denemeler tek sayacı tüketir. Bilinmeyen kimlikte yalnız kimlik anahtarı vardır; ikisi de aynı
+        // eşikte aynı 429'u verir, hesap varlığı sızmaz.
+        Optional<String> accountThrottleKey = candidate.map(found ->
+                hasher.hash(LOGIN_ACCOUNT_THROTTLE_DOMAIN, found.accountId().toString()));
+        accountThrottleKey.ifPresent(attemptThrottle::reserve);
         String passwordHash = candidate.map(Candidate::passwordHash).orElse(null);
         boolean matches = passwordEncoder.matches(password, passwordHash == null ? dummyPasswordHash : passwordHash)
                 && passwordHash != null;
@@ -74,6 +82,7 @@ public class LoginService {
             throw new AuthException(AuthErrorCode.INVALID_CREDENTIALS);
         }
         attemptThrottle.clear(throttleKey);
+        accountThrottleKey.ifPresent(attemptThrottle::clear);
         // matches yalnız parola özeti varsa true olabilir; özet de yalnız aday varken vardır.
         return complete(candidate.orElseThrow(), AuthMethod.PWD);
     }
