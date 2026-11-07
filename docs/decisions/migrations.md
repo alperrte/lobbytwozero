@@ -19,7 +19,7 @@
 
 ## NISA
 - V91–V100     → COMMUNITY-SERVICE
-- V181–V190   → COMMUNITY-SERVICE (2026-11-07 açık kullanıcı onayı; V181 kullanıldı, V182–V190 boş)
+- V181–V190   → COMMUNITY-SERVICE (2026-11-07 açık kullanıcı onayı; V181 ve V182 kullanıldı, V183–V190 boş)
 - V101–V110    → CONTENT-SERVICE
 - V111–V120    → EVENT-SERVICE
 
@@ -43,7 +43,8 @@ geliştirmeye başlanmadan önce belirlenmelidir.
 
 - Community Service'in V91–V100 aralığındaki 10 numaranın tamamı kullanılmıştır.
   Kullanıcının açık onayıyla **V181–V190 Community Service'e tahsis edildi**.
-  İlk boş numara `V181__add_game_content_types.sql` için kullanıldı; V182–V190 boştur.
+  İlk boş numara `V181__add_game_content_types.sql` için kullanıldı. `V182__create_user_block_markers.sql`
+  (COM-21, social engelleme olaylarının sırasını koruyan yerel işaret tablosu) ikinci numaradır; V183–V190 boştur.
 - V181, GAME-11 kapsamında `posts` tablosuna `content_type` ve `title` ekler.
   Eski gönderilere geriye dönük tür atanmaz; uygulanmış V91–V100 dosyaları değiştirilmez.
 - Bu tahsis Game Service'in V171–V180 ek aralığını veya V1–V170 içindeki diğer

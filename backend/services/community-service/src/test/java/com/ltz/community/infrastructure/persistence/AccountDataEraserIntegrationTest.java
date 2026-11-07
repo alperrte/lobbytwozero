@@ -131,6 +131,9 @@ class AccountDataEraserIntegrationTest extends PostgreSqlIntegrationTest {
 		userBlockRepository.insertIfAbsent(account, other, NOW);
 		userBlockRepository.insertIfAbsent(third, account, NOW);
 		userBlockRepository.insertIfAbsent(other, third, NOW);
+		userBlockRepository.advanceMarker(account, other, NOW);
+		userBlockRepository.advanceMarker(third, account, NOW);
+		userBlockRepository.advanceMarker(other, third, NOW);
 		forumRepository.saveAndFlush(Forum.open(account, null, "hesabin-forumu", "Forum", null, NOW));
 
 		outbox("PostLiked", "{\"actorId\": \"" + account + "\", \"recipientId\": \"" + other + "\"}");
@@ -244,6 +247,10 @@ class AccountDataEraserIntegrationTest extends PostgreSqlIntegrationTest {
 
 		assertThat(count("select count(*) from user_blocks where blocker_id = ? or blocked_id = ?", account, account)).isZero();
 		assertThat(userBlockRepository.existsBetween(other, third)).as("ilgisiz engelleme durur").isTrue();
+		assertThat(count("select count(*) from user_block_markers where blocker_id = ? or blocked_id = ?", account, account))
+				.as("olay sırası işaretleri de silinir").isZero();
+		assertThat(count("select count(*) from user_block_markers where blocker_id = ?", other))
+				.as("ilgisiz işaret durur").isEqualTo(1);
 		assertThat(count("select count(*) from forums where created_by = ?", account)).isZero();
 		assertThat(forumRepository.findAll()).anySatisfy(forum -> assertThat(forum.getCreatedBy()).isEqualTo(ANONYMOUS));
 		// Hesabın kimliğini taşıyan her olay silinir; ilgisiz olay durur.

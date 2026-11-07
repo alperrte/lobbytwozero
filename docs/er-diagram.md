@@ -849,6 +849,11 @@ erDiagram
     uuid blocked_id PK "REF"
     timestamptz created_at
   }
+  user_block_markers {
+    uuid blocker_id PK "REF"
+    uuid blocked_id PK "REF"
+    timestamptz last_event_at
+  }
   outbox_events {
     uuid id PK
     varchar event_type
