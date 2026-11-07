@@ -11,7 +11,10 @@ import { knownAuthErrorCodes, type AuthErrorCode } from "../types/auth.types";
  * - Ağ hatası `NETWORK` koduyla `ApiHttpError(0)` olur ve mutasyon otomatik tekrarlanmaz; kullanıcı iptali
  *   (`AbortError`) olduğu gibi bırakılır. Parola/token hiçbir yerde loglanmaz ve saklanmaz.
  */
-export type AuthPath = `/api/v1/auth/${string}`;
+export type AuthPath = `/api/v1/auth/${string}` | SessionBoundPath;
+
+/** Auth dışı ama aynı oturum politikasını (401 → yenile → tekrar) isteyen uçlar: yalnız profil özeti. */
+export type SessionBoundPath = "/api/v1/user/me";
 
 const CSRF_PATH = "/api/v1/auth/csrf";
 const REFRESH_PATH = "/api/v1/auth/session/refresh";

@@ -355,6 +355,28 @@ test.describe("oturum ve kabuk", () => {
   });
 });
 
+test.describe("profil özeti", () => {
+  test("User profilinden gelen ad kabukta görünür; /user/me hata verirse genel etiket kalır", async ({ page, baseURL }) => {
+    await setSessionHint(page, baseURL);
+    await mockGateway(page, {
+      "GET /api/v1/auth/me": { status: 200, body: ME },
+      "GET /api/v1/user/me": { status: 200, body: { displayName: "Ada Lovelace", username: "ada", avatar: null } }
+    });
+    await page.goto("/tr");
+    await waitForHydration(page);
+    await expect(profileButton(page, /Ada Lovelace/)).toBeVisible();
+
+    const second = await page.context().newPage();
+    await mockGateway(second, {
+      "GET /api/v1/auth/me": { status: 200, body: ME },
+      "GET /api/v1/user/me": { status: 500, body: { code: "UNKNOWN" } }
+    });
+    await second.goto("/tr");
+    await waitForHydration(second);
+    await expect(profileButton(second, /Hesabım/)).toBeVisible();
+  });
+});
+
 test.describe("güvenlik başlıkları", () => {
   test("giriş sayfası iframe'e konamaz ve temel güvenlik başlıklarını gönderir", async ({ request }) => {
     const response = await request.get("/tr/giris");

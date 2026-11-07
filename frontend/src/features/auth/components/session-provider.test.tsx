@@ -30,10 +30,16 @@ function Probe() {
   );
 }
 
-function renderSession(api: Parameters<typeof SessionProvider>[0]["api"], locale: "tr" | "en" = "tr") {
+const noProfile = () => vi.fn().mockRejectedValue(new Error("profil yok"));
+
+function renderSession(
+  api: Parameters<typeof SessionProvider>[0]["api"],
+  locale: "tr" | "en" = "tr",
+  profileRequest: Parameters<typeof SessionProvider>[0]["profileRequest"] = noProfile()
+) {
   return render(
     <NextIntlClientProvider locale={locale} messages={locale === "tr" ? tr : en} timeZone="Europe/Istanbul">
-      <SessionProvider api={api}>
+      <SessionProvider api={api} profileRequest={profileRequest}>
         <Probe />
       </SessionProvider>
     </NextIntlClientProvider>
@@ -50,6 +56,34 @@ function setHint(present: boolean) {
 
 beforeEach(() => setHint(true));
 afterEach(() => setHint(false));
+
+describe("SessionProvider: profil özeti", () => {
+  const authed = { getMe: vi.fn().mockResolvedValue(ME), logout: vi.fn() };
+
+  it("oturum açılınca User profilinden ad gelir; kabuk gerçek adı gösterir", async () => {
+    const request = vi.fn().mockResolvedValue({ displayName: "Ada", avatar: { small: "/api/v1/user/media/k-s.jpg" } });
+    renderSession(authed, "tr", request);
+
+    await waitFor(() => expect(screen.getByTestId("shell-user").textContent).toBe("Ada"));
+    expect(request).toHaveBeenCalledWith("/api/v1/user/me", expect.any(AbortSignal));
+  });
+
+  it("profil alınamazsa oturum bozulmaz; genel etiket kalır", async () => {
+    renderSession(authed, "tr", vi.fn().mockRejectedValue(new ApiHttpError(500, { code: "UNKNOWN" })));
+
+    await waitFor(() => expect(status()).toBe("authenticated"));
+    expect(screen.getByTestId("shell-user").textContent).toBe("Hesabım");
+  });
+
+  it("misafirde profil isteği atılmaz", async () => {
+    setHint(false);
+    const request = vi.fn();
+    renderSession({ getMe: vi.fn(), logout: vi.fn() }, "tr", request);
+
+    await waitFor(() => expect(status()).toBe("guest"));
+    expect(request).not.toHaveBeenCalled();
+  });
+});
 
 describe("SessionProvider", () => {
   it("yüklenirken 'loading', sonra /me başarılıysa 'authenticated' olur ve kabuğa genel etiket verir", async () => {
