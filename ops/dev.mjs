@@ -30,7 +30,7 @@
 //      Şifre depoda/betikte YOKTUR; yalnız kendi .env.dev dosyana yazılır.
 //   4. Servisler ve hesaplar: `accounts up` (Postgres, Mailpit, Mail, Auth, User, Gateway + her role test hesabı).
 //      `--with=` / `--all` ile istediğin diğer servisler de eklenir; hepsi ayağa kalkana kadar beklenir ve her biri ✓/✗ raporlanır.
-//      Her Spring servisi ~550 MB tutar; Docker belleği (varsayılan RAM'in yarısı) yetmezse betik başlamadan durur.
+//      Her Spring servisi boştayken ~350 MB tutar; Docker belleği (varsayılan RAM'in yarısı) yetmezse betik başlamadan durur.
 //   5. Frontend: node_modules eksik/eskiyse `npm ci`, sonra http://localhost:5001 (port 5001 şart: Gateway CORS varsayılanı).
 // Yalnız yerel geliştirme içindir; production dağıtımı bu betiği kullanmaz. Hardware kataloğu içe aktarma ayrı kalır:
 // ops/hardware-catalog-import.mjs.
@@ -386,9 +386,9 @@ const devLib = (() => {
   /** Varsayılan (çekirdek) servisler: giriş, kayıt, profil ve e-posta için yeterli olan en küçük küme. */
   const CORE_SERVICES = ["postgres", "mailpit", "mail-service", "auth-service", "user-service", "api-gateway"];
   /** Java olmayan servisler (bellek tahmininde ayrı sayılır). */
-  const LIGHT_MB = { postgres: 150, mailpit: 30 };
-  /** Bir Spring Boot servisi boştayken yaklaşık bu kadar bellek tutar (ölçüm: 6 servis ≈ 1,9 GB). */
-  const MB_PER_JVM_SERVICE = 550;
+  const LIGHT_MB = { postgres: 200, mailpit: 30 };
+  /** Bir Spring Boot servisi boştayken yaklaşık bu kadar bellek tutar (ölçüm, 2026-11-08: 18 Java servisi ortalama ≈ 335 MiB; 20 konteyner toplam ≈ 6,1 GiB). Yük altında artar; %15 pay memoryVerdict'te ayrıca bırakılır. */
+  const MB_PER_JVM_SERVICE = 350;
   const COMMANDS = new Set(["start", "stop", "reset", "status", "mail"]);
   /** Ayrı alt komutlar (ana akıştan önce yönlendirilir): hata iletisinde birlikte gösterilir. */
   const SUBCOMMANDS = ["accounts", "keys", "env-check", "site-url", "e2e", "help"];
