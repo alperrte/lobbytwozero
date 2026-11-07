@@ -1,10 +1,14 @@
 #!/usr/bin/env node
-// Yerel geliştirme için her role bir test hesabı oluşturur/günceller (yalnız ltz-dev yığını, yalnız yerel adresler).
+// Yerel geliştirme yığınını kaldırır ve her role bir test hesabı oluşturur/günceller (yalnız ltz-dev yığını, yalnız yerel adresler).
 //
-//   DEV_ACCOUNTS_PASSWORD=...  node ops/dev-accounts.mjs            # hesapları oluştur/güncelle ve girişi doğrula
-//   node --env-file=.env.dev ops/dev-accounts.mjs                   # parola .env.dev'deki DEV_ACCOUNTS_PASSWORD'dan
-//   node ops/dev-accounts.mjs list                                  # hesapları ve rollerini göster
-//   node ops/dev-accounts.mjs totp admin                            # admin/moderator için anlık 2FA kodu
+//   node ops/dev-accounts.mjs up                 # derle + başlat + sağlığı bekle + hesapları oluştur (ekibin tek komutu)
+//   node ops/dev-accounts.mjs up --no-seed       # yalnız yığını kaldır      (ayrıca: --no-build, --dry-run, servis adları)
+//   node ops/dev-accounts.mjs                    # (seed) yığın zaten ayaktaysa hesapları oluştur/güncelle ve girişi doğrula
+//   node ops/dev-accounts.mjs list               # hesapları ve rollerini göster
+//   node ops/dev-accounts.mjs totp admin         # admin/moderator için anlık 2FA kodu
+//
+// Parola ve alan adı: ortamdan (DEV_ACCOUNTS_PASSWORD / DEV_ACCOUNTS_DOMAIN) ya da .env.dev'den. .env.dev'den YALNIZ bu iki
+// anahtar okunur (ops/dev-accounts-lib.mjs parseDevEnv); satırlar yoksa `node ops/generate-auth-dev-keys.mjs` ekler.
 //
 // Hesaplar: user (PLAYER), creator (CONTENT_CREATOR), developer (GAME_DEVELOPER), moderator (MODERATOR), admin (ADMIN);
 // e-posta `<ad>@${DEV_ACCOUNTS_DOMAIN:-ltz.com}`.
@@ -28,6 +32,7 @@ import {
   emailFor,
   extractCode,
   hashPassword,
+  parseDevEnv,
   secondsLeftInStep,
   sqlLiteral,
   temporaryPassword,
@@ -38,9 +43,20 @@ import {
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const STATE_FILE = resolve(root, ".dev-accounts.local.json");
 
+/** Ortam değişkeni önceliklidir; yoksa .env.dev'deki DEV_ACCOUNTS_* satırları kullanılır (başka hiçbir satır okunmaz). */
+function devEnv() {
+  const file = resolve(root, ".env.dev");
+  try {
+    return existsSync(file) ? parseDevEnv(readFileSync(file, "utf8")) : {};
+  } catch {
+    return {};
+  }
+}
+const fromFile = devEnv();
+
 const config = {
-  password: process.env.DEV_ACCOUNTS_PASSWORD,
-  domain: process.env.DEV_ACCOUNTS_DOMAIN ?? "ltz.com",
+  password: process.env.DEV_ACCOUNTS_PASSWORD ?? fromFile.DEV_ACCOUNTS_PASSWORD,
+  domain: process.env.DEV_ACCOUNTS_DOMAIN ?? fromFile.DEV_ACCOUNTS_DOMAIN ?? "ltz.com",
   gatewayUrl: process.env.DEV_GATEWAY_URL ?? "http://localhost:5080",
   mailpitUrl: process.env.DEV_MAILPIT_URL ?? "http://localhost:8025",
   origin: process.env.DEV_FRONTEND_ORIGIN ?? "http://localhost:5001",
@@ -296,15 +312,92 @@ function readAuthProfile() {
   return result.status === 0 ? result.stdout.trim() : "";
 }
 
-try {
-  assertDevTarget(config);
-  assertDevProfile(readAuthProfile());
-} catch (error) {
-  fail(error.message);
+function guardTarget() {
+  try {
+    assertDevTarget(config);
+  } catch (error) {
+    fail(error.message);
+  }
 }
 
-const [command = "seed", argument] = process.argv.slice(2);
-if (command === "seed") await seed();
-else if (command === "list") list();
-else if (command === "totp") showTotp(argument);
-else fail(`Bilinmeyen komut: ${command} (seed | list | totp <ad>)`);
+/** Yığın ayaktayken: hedef + Auth profili kapıları. */
+function guardRunningStack() {
+  guardTarget();
+  try {
+    assertDevProfile(readAuthProfile());
+  } catch (error) {
+    fail(error.message);
+  }
+}
+
+const PROJECT = "ltz-dev";
+const DEFAULT_SERVICES = ["postgres", "mailpit", "mail-service", "auth-service", "user-service", "api-gateway"];
+/** Hesap oluşturmanın dayandığı servisler: bunlar sağlıklı olmadan kayıt akışı çalışmaz. */
+const MUST_BE_HEALTHY = ["auth-service", "api-gateway", "mailpit"];
+const UP_FLAGS = new Set(["--no-seed", "--no-build", "--dry-run"]);
+
+function containerHealth(service) {
+  const result = spawnSync(
+    "docker",
+    ["inspect", "-f", "{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}", `${PROJECT}-${service}-1`],
+    { encoding: "utf8" }
+  );
+  return result.status === 0 ? result.stdout.trim() : "yok";
+}
+
+async function up(args) {
+  const flags = new Set(args.filter((arg) => arg.startsWith("--")));
+  for (const flag of flags) if (!UP_FLAGS.has(flag)) fail(`Bilinmeyen seçenek: ${flag}`);
+  const named = args.filter((arg) => !arg.startsWith("--"));
+  const targets = named.length > 0 ? named : DEFAULT_SERVICES;
+  const composeArgs = ["compose", "-p", PROJECT, "--env-file", ".env.dev", "--profile", "dev-mail", "up", "-d", ...(flags.has("--no-build") ? [] : ["--build"]), ...targets];
+  const waitFor = MUST_BE_HEALTHY.filter((name) => targets.includes(name));
+  const seeding = !flags.has("--no-seed") && waitFor.includes("auth-service") && waitFor.includes("api-gateway");
+
+  if (flags.has("--dry-run")) {
+    console.log(`docker ${composeArgs.join(" ")}`);
+    console.log(`sağlık beklenir: ${waitFor.join(", ") || "(yok)"}`);
+    console.log(seeding ? "ardından: hesap oluşturma (seed)" : "hesap oluşturma: atlanır");
+    return;
+  }
+  if (!existsSync(resolve(root, ".env.dev"))) fail(".env.dev yok. Önce şunu çalıştır: node ops/generate-auth-dev-keys.mjs");
+  guardTarget();
+
+  console.log("\n▶ Servisler başlatılıyor");
+  const compose = spawnSync("docker", composeArgs, { cwd: root, stdio: "inherit" });
+  if (compose.status !== 0) fail("docker compose başarısız oldu (yukarıdaki çıktıya bak).");
+
+  console.log("\n▶ Sağlık bekleniyor");
+  const deadline = Date.now() + 240_000;
+  for (const service of waitFor) {
+    while (containerHealth(service) !== "healthy") {
+      if (Date.now() > deadline) fail(`${service} 4 dakikada sağlıklı olmadı. İncele: docker compose -p ${PROJECT} logs ${service} --tail 50`);
+      await new Promise((done) => setTimeout(done, 2000));
+    }
+    console.log(`  ✓ ${service}`);
+  }
+
+  if (!seeding) {
+    console.log("\nHesap oluşturma atlandı.");
+    return;
+  }
+  console.log("\n▶ Test hesapları");
+  guardRunningStack();
+  await seed();
+}
+
+const [command = "seed", ...rest] = process.argv.slice(2);
+if (command === "up") {
+  await up(rest);
+} else if (command === "seed") {
+  guardRunningStack();
+  await seed();
+} else if (command === "list") {
+  guardRunningStack();
+  list();
+} else if (command === "totp") {
+  guardRunningStack();
+  showTotp(rest[0]);
+} else {
+  fail(`Bilinmeyen komut: ${command} (up | seed | list | totp <ad>)`);
+}

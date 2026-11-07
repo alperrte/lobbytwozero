@@ -8,6 +8,7 @@ import {
   emailFor,
   extractCode,
   hashPassword,
+  parseDevEnv,
   sqlLiteral,
   temporaryPassword,
   totp,
@@ -98,4 +99,19 @@ test("doğrulama kodu çıkarımı", () => {
   assert.equal(extractCode("Kodun: 483920 (10 dk)"), "483920");
   assert.equal(extractCode("sipariş 12345678 numarası"), null);
   assert.equal(extractCode(undefined), null);
+});
+
+test("dev env ayrıştırıcı: yalnız DEV_ACCOUNTS_* okunur, sırlar döndürülmez", () => {
+  const text = [
+    "# yorum",
+    "AUTH_JWT_PRIVATE_KEY=cok-gizli",
+    "DEV_ACCOUNTS_PASSWORD=parola-1",
+    'DEV_ACCOUNTS_DOMAIN="ltz.test"',
+    "DEV_ACCOUNTS_OTHER=yok-sayilir",
+    "#DEV_ACCOUNTS_PASSWORD=yorumda",
+    "BOS="
+  ].join("\r\n");
+  assert.deepEqual(parseDevEnv(text), { DEV_ACCOUNTS_PASSWORD: "parola-1", DEV_ACCOUNTS_DOMAIN: "ltz.test" });
+  assert.deepEqual(parseDevEnv("DEV_ACCOUNTS_PASSWORD="), {});
+  assert.deepEqual(parseDevEnv(undefined), {});
 });

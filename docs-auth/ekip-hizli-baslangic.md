@@ -29,7 +29,7 @@ Sonra: `.\ops\env.cmd use dev` (Linux/macOS: `sh ./ops/env.sh use dev`) ve Compo
 
 ## 1.0 Her role bir test hesabı (yalnız yerel dev)
 
-`node ops/dev-up.mjs` yığını kaldırır (Postgres, Mailpit, Mail, Auth, User, Gateway), sağlığı bekler ve hesapları açar. Hesap istemezsen `--no-seed`.
+`node ops/dev-accounts.mjs up` yığını kaldırır (Postgres, Mailpit, Mail, Auth, User, Gateway), sağlığı bekler ve hesapları açar. Hesap istemezsen `--no-seed`, yeniden derlemeden kaldırmak için `--no-build`.
 
 | E-posta | Rol | Giriş |
 | --- | --- | --- |
@@ -41,7 +41,7 @@ Sonra: `.\ops\env.cmd use dev` (Linux/macOS: `sh ./ops/env.sh use dev`) ve Compo
 
 - Parola ve alan adı `.env.dev`'deki `DEV_ACCOUNTS_PASSWORD` / `DEV_ACCOUNTS_DOMAIN` satırlarındadır. Satırlar yoksa `node ops/generate-auth-dev-keys.mjs` ekler (örnek dosyadan gelir). Parola depodaki koda gömülü değildir.
 - `moderator` ve `admin` için Auth 2FA'yı zorunlu tutar. Kodu şu komut verir: `node ops/dev-accounts.mjs totp admin` (kod 30 sn geçerlidir, aynı kod ikinci kez kabul edilmez). 2FA sırrı **senin makinendeki** `.dev-accounts.local.json` dosyasındadır (git'e girmez); başka makineye taşınmaz.
-- Hesapları elle yenilemek ya da listelemek: `node --env-file=.env.dev ops/dev-accounts.mjs` / `node ops/dev-accounts.mjs list`. Tekrar çalıştırmak güvenlidir.
+- Hesapları elle yenilemek ya da listelemek: `node ops/dev-accounts.mjs` / `node ops/dev-accounts.mjs list` (parolayı `.env.dev`'den kendisi okur; o dosyadan yalnız `DEV_ACCOUNTS_*` iki satırını okur). Tekrar çalıştırmak güvenlidir.
 - **Neden kısa parola?** Auth parola alt sınırı 15 karakterdir; kısa parola API'den geçmez. Betik hesabı gerçek akışla açar, sonra yalnız parola özetini yazar ve rolü ekler.
 - **Güvenlik kapıları:** betik yalnız `localhost` adreslerine ve `ltz-dev-*` Postgres kapsayıcısına çalışır, Auth'un profili `dev`/`test` değilse ya da okunamıyorsa durur, `NODE_ENV=production` iken reddeder. **Bu parola ve hesaplar staging/production'a asla taşınmaz;** `.env.prod`'a `DEV_ACCOUNTS_*` satırı eklenmez.
 

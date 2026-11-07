@@ -115,3 +115,25 @@ export function extractCode(text) {
   const match = /(?<![0-9])([0-9]{6})(?![0-9])/.exec(text ?? "");
   return match ? match[1] : null;
 }
+
+const DEV_ENV_KEYS = new Set(["DEV_ACCOUNTS_PASSWORD", "DEV_ACCOUNTS_DOMAIN"]);
+
+/**
+ * `.env.dev` metninden YALNIZ DEV_ACCOUNTS_* anahtarlarını okur; diğer satırlar (anahtarlar, sırlar) hiç işlenmez ya da
+ * döndürülmez. Yorum satırları ve tırnaklı değerler desteklenir.
+ */
+export function parseDevEnv(text) {
+  const found = {};
+  for (const rawLine of String(text ?? "").split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (line === "" || line.startsWith("#")) continue;
+    const index = line.indexOf("=");
+    if (index < 0) continue;
+    const key = line.slice(0, index).trim();
+    if (!DEV_ENV_KEYS.has(key)) continue;
+    let value = line.slice(index + 1).trim();
+    if (/^(".*"|'.*')$/.test(value)) value = value.slice(1, -1);
+    if (value !== "") found[key] = value;
+  }
+  return found;
+}
