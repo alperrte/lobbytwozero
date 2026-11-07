@@ -21,6 +21,14 @@ export default function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const [, first, ...tail] = pathname.split("/");
 
+  // Next can run the proxy again after next-intl rewrites an external slug to
+  // its internal route. Reprocessing that route would redirect back forever.
+  // This header only controls localization; API authentication remains at Gateway.
+  const rewrittenLocale = request.headers.get("x-next-intl-locale");
+  if (isLocale(first) && rewrittenLocale === first) {
+    return NextResponse.next();
+  }
+
   let locale: Locale;
   let rest: string;
   if (isLocale(first)) {

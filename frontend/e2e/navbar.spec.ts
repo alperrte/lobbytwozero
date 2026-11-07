@@ -27,6 +27,7 @@ async function waitForHydration(page: Page) {
 
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ colorScheme: "dark" });
   await page.goto("/");
   await page.evaluate(() => localStorage.clear());
   await page.reload();
@@ -77,7 +78,7 @@ test("klavye odağı gizli navbar'ı geri getirir", async ({ page }) => {
 test("sabit mod: kaydırınca gizlenmez ve yeniden yüklemede korunur", async ({
   page
 }) => {
-  await page.getByRole("button", { name: /^Ayarlar/ }).click();
+  await page.getByRole("link", { name: /^Ayarlar/ }).click();
   await page.getByLabel(/^Sabit/).check({ force: true });
   await expect(page.locator("html")).toHaveAttribute("data-navbar", "fixed");
   await page.keyboard.press("Escape");
@@ -96,23 +97,21 @@ test("arama: Ctrl+K açar, yalnız sayfaları arar, Enter gider, Escape kapatır
   page
 }) => {
   await page.keyboard.press("Control+K");
-  const dialog = page.getByRole("dialog", { name: "Genel arama" });
-  await expect(dialog).toBeVisible();
-
-  const input = dialog.getByRole("combobox");
+  const input = page.getByRole("combobox", { name: "Sayfalarda ara" });
   await expect(input).toBeFocused();
   await input.fill("zzzzzz");
-  await expect(dialog.getByText("Sonuç bulunamadı")).toBeVisible();
+  await expect(page.getByText("Sonuç bulunamadı")).toBeVisible();
 
   await input.fill("sss");
+  await expect(page.getByRole("option").first()).toBeVisible();
   await input.press("Enter");
   await expect(page).toHaveURL(/\/tr\/sss$/);
-  await expect(dialog).toBeHidden();
+  await expect(page.getByRole("listbox")).toBeHidden();
 
   await page.keyboard.press("Control+K");
-  await expect(dialog).toBeVisible();
+  await expect(input).toBeFocused();
   await page.keyboard.press("Escape");
-  await expect(dialog).toBeHidden();
+  await expect(input).toHaveValue("");
 });
 
 test("bildirim paneli dürüst boş durum gösterir", async ({ page }) => {
@@ -141,28 +140,24 @@ test("profil menüsü misafir durumunu dürüstçe gösterir", async ({ page }) 
   await page.getByRole("button", { name: /Misafir/ }).click();
   const menu = page.getByRole("menu");
   await expect(menu).toContainText("Giriş yapılmadı");
-  await expect(menu.getByRole("link")).toHaveCount(0);
-  await expect(menu).not.toContainText("Çıkış yap");
+  await expect(menu.getByRole("menuitem", { name: "Bilgisayarlarım" })).toHaveAttribute("href", "/tr/profil/bilgisayarlarim");
+  await expect(menu.getByRole("menuitem", { name: /Çıkış yap/ })).toHaveAttribute("aria-disabled", "true");
   await page.keyboard.press("Escape");
   await expect(menu).toBeHidden();
 });
 
-test("Ayarlar paneli: tema ve kenar çubuğu anında uygulanır, kalıcıdır, Escape kapatır", async ({
+test("Ayarlar sayfası: tema ve kenar çubuğu anında uygulanır ve kalıcıdır", async ({
   page
 }) => {
-  await page.getByRole("button", { name: /^Ayarlar/ }).click();
-  const dialog = page.getByRole("dialog", { name: "Ayarlar" });
-  await expect(dialog).toBeVisible();
+  await page.getByRole("link", { name: /^Ayarlar/ }).click();
+  await expect(page).toHaveURL(/\/tr\/ayarlar$/);
+  const settings = page.getByRole("main");
 
-  await dialog.getByLabel(/^Açık/).check({ force: true });
+  await settings.getByLabel(/^Açık/).check({ force: true });
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 
-  await dialog.getByLabel(/^Daraltılmış/).check({ force: true });
+  await settings.getByLabel(/^Daraltılmış/).check({ force: true });
   await expect(page.locator("html")).toHaveAttribute("data-sidebar", "collapsed");
-
-  await page.keyboard.press("Escape");
-  await expect(dialog).toBeHidden();
-  await expect(page.getByRole("button", { name: /^Ayarlar/ })).toBeFocused();
 
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");

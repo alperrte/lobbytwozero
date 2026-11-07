@@ -18,6 +18,7 @@ for (const width of widths) {
           localStorage.setItem("ltz-theme", value);
         }, theme);
         await page.goto("/");
+        await page.waitForFunction(() => Object.keys(document.querySelector("button") ?? {}).some((key) => key.startsWith("__reactProps")));
         await page.screenshot({
           path: `test-results/screens/${width}-${theme}-${language}.png`
         });

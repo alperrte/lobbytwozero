@@ -25,6 +25,12 @@ public class HardwareProduct {
     private String model;
     @Column(name = "normalized_model", nullable = false, length = 160)
     private String normalizedModel;
+    @Column(name = "catalog_variant", nullable = false, length = 128)
+    private String catalogVariant = "";
+    @Column(name = "catalog_published", nullable = false)
+    private boolean catalogPublished = true;
+
+    public void publishImported() { catalogPublished = true; }
     @Embedded private HardwareSpecifications specifications;
     @Version private Long version;
     @Enumerated(EnumType.STRING)
@@ -50,6 +56,13 @@ public class HardwareProduct {
     }
 
     public Set<HardwareBrand> getBrands() { return Collections.unmodifiableSet(brands); }
+
+    public static HardwareProduct imported(ComponentCategory category, String model, HardwareSpecifications specifications,
+            Set<HardwareBrand> brands, String externalId) {
+        var product = new HardwareProduct(category, model, specifications, brands);
+        product.catalogVariant = "OPEN_ICECAT:" + CatalogText.clean(externalId, 64);
+        return product;
+    }
 
     public void requireVersion(long expected) {
         if (version == null || version != expected) throw new HardwareConflictException();

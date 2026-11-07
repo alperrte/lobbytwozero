@@ -85,6 +85,11 @@ public class HardwareCatalogService {
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public HardwareCatalogPageResponse<HardwareProductResponse> list(HardwareCatalogFilter filter, int page, int size) {
+        return list(filter, page, size, false);
+    }
+
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public HardwareCatalogPageResponse<HardwareProductResponse> list(HardwareCatalogFilter filter, int page, int size, boolean discovery) {
         actor.requireUserId();
         if (!filter.isRangesValid()) throw new IllegalArgumentException("Geçersiz teknik aralık");
         var criteria = HardwareCatalogSearch.matching(filter.q(), CatalogStatus.ACTIVE, filter.category(),
@@ -98,6 +103,9 @@ public class HardwareCatalogService {
                         new HardwareCatalogSearch.TextValue("socket", filter.socket()),
                         new HardwareCatalogSearch.TextValue("interfaceType", filter.interfaceType()),
                         new HardwareCatalogSearch.TextValue("formFactor", filter.formFactor())));
+        if (discovery) criteria = criteria.and((root, query, cb) -> root.get("category").in(
+                com.ltz.hardware.domain.enums.ComponentCategory.CPU, com.ltz.hardware.domain.enums.ComponentCategory.MOTHERBOARD,
+                com.ltz.hardware.domain.enums.ComponentCategory.RAM, com.ltz.hardware.domain.enums.ComponentCategory.STORAGE));
         var result = products.findAll(criteria,
                 PageRequest.of(page, size, Sort.by("normalizedModel", "id")));
         if (result.isEmpty()) return new HardwareCatalogPageResponse<>(java.util.List.of(), page, size,

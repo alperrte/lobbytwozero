@@ -34,7 +34,8 @@
       "general": "Genel",
       "social": "Sosyal",
       "hardware": "Donanım & Performans"
-    }
+    },
+    "campaigns": "Kampanyalar"
   },
   "Theme": {
     "label": "Tema",
@@ -77,7 +78,8 @@
         "info": "Profil bilgisi",
         "profile": "Profilim",
         "account": "Hesap ayarları",
-        "logout": "Çıkış yap"
+        "logout": "Çıkış yap",
+        "computers": "Bilgisayarlarım"
       }
     }
   },
@@ -199,6 +201,18 @@
     "settings": {
       "title": "Ayarlar",
       "description": "Görünüm, üst çubuk, kenar çubuğu ve dil tercihlerin"
+    },
+    "hardware": {
+      "title": "Donanımlar",
+      "description": "Bileşenleri keşfet, teknik özelliklerini incele ve bilgisayarın için karşılaştır."
+    },
+    "campaigns": {
+      "title": "Kampanyalar",
+      "description": "Donanım ürünleri için kaynağı ve geçerlilik zamanı belirtilmiş kampanya kayıtları."
+    },
+    "computers": {
+      "title": "Bilgisayarlarım",
+      "description": "Bilgisayarlarını ve bileşenlerini tek yerden yönet. Paylaşılacak bilgileri kendin belirle."
     }
   },
   "Footer": {
@@ -531,13 +545,13 @@
       "403": "Bu işlemi yapmak için yetkin bulunmuyor.",
       "404": "Bu oyun veya içerik artık erişilebilir değil.",
       "409": "Kayıt değişmiş olabilir. Yeniden dene.",
+      "422": "İçerik bu oyun veya işlem için uygun değil. Alanları ve oyun durumunu kontrol et.",
       "429": "Çok fazla istek gönderdin. Bir süre bekleyip tekrar dene.",
       "500": "İşlem tamamlanamadı. Tekrar deneyebilirsin.",
       "502": "Servise ulaşılamıyor. Biraz sonra tekrar dene.",
       "503": "Servis geçici olarak kullanılamıyor. Biraz sonra tekrar dene.",
       "504": "Yanıt zamanında alınamadı. Tekrar deneyebilirsin.",
-      "network": "Veri alınamadı. Bağlantını kontrol edip tekrar dene.",
-      "422": "İçerik bu oyun veya işlem için uygun değil. Alanları ve oyun durumunu kontrol et."
+      "network": "Veri alınamadı. Bağlantını kontrol edip tekrar dene."
     },
     "coverage": {
       "INDEX_ONLY": "Temel katalog bilgileri",
@@ -1006,6 +1020,297 @@
       "noPassword": "Yalnız Google veya Steam ile açtığın hesaplarda bu ekran çalışmaz; destek ekibiyle iletişime geç.",
       "fromLogin": "Silme talebinden vazgeç",
       "back": "Giriş sayfasına dön"
+    }
+  },
+  "Hardware": {
+    "common": {
+      "loading": "Donanım bilgileri yükleniyor…",
+      "reload": "Yeniden yükle",
+      "unknown": "Bilinmiyor",
+      "noImage": "Görsel mevcut değil",
+      "clear": "Temizle",
+      "previous": "Önceki",
+      "next": "Sonraki",
+      "page": "{page} / {total}",
+      "pagination": "Sayfalama",
+      "close": "Kapat",
+      "cancel": "Vazgeç",
+      "save": "Kaydet",
+      "saving": "Kaydediliyor…",
+      "saved": "Değişiklik kaydedildi.",
+      "edit": "Düzenle",
+      "delete": "Sil",
+      "confirmDelete": "Silmeyi onayla",
+      "search": "Ara",
+      "breadcrumb": "İçerik yolu",
+      "required": "Bu alan boş bırakılamaz."
+    },
+    "categories": {
+      "CPU": "İşlemci",
+      "GPU": "Ekran kartı",
+      "RAM": "Bellek",
+      "MOTHERBOARD": "Anakart",
+      "STORAGE": "Depolama",
+      "COOLING": "Soğutma",
+      "PSU": "Güç kaynağı",
+      "MONITOR": "Monitör",
+      "KEYBOARD": "Klavye",
+      "MOUSE": "Fare",
+      "HEADSET": "Kulaklık",
+      "OTHER": "Diğer"
+    },
+    "devices": {
+      "DESKTOP": "Masaüstü",
+      "LAPTOP": "Dizüstü",
+      "OTHER": "Diğer"
+    },
+    "specs": {
+      "capacityGb": "Kapasite (GB)",
+      "clockMhz": "Frekans (MHz)",
+      "coreCount": "Çekirdek sayısı",
+      "powerWatts": "Güç (W)",
+      "memoryType": "Bellek türü",
+      "socket": "Soket",
+      "interfaceType": "Arayüz",
+      "formFactor": "Form faktörü"
+    },
+    "catalog": {
+      "title": "Donanımlar",
+      "description": "Bileşenleri keşfet, teknik özelliklerini incele ve bilgisayarın için karşılaştır.",
+      "categories": "Donanım kategorileri",
+      "all": "Tümü",
+      "allCategories": "Tüm kategoriler",
+      "filters": "Filtreler",
+      "brand": "Üretici adı",
+      "brandSelect": "Katalog üreticisi",
+      "brandOptional": "Üretici seçimi isteğe bağlıdır.",
+      "allBrands": "Tüm üreticiler",
+      "selectedBrand": "Seçili üretici",
+      "brandIndependent": "Markadan bağımsız model",
+      "min": "En az",
+      "max": "En fazla",
+      "apply": "Filtreleri uygula",
+      "rangeInvalid": "Üst sınır, alt sınırdan küçük olamaz.",
+      "search": "Model ara",
+      "view": "Görünüm",
+      "grid": "Izgara",
+      "list": "Liste",
+      "results": "{count, number} ürün",
+      "emptyTitle": "Bu seçimde donanım bulunamadı",
+      "emptyDescription": "Aramayı veya filtreleri değiştirebilirsin. Katalogda kayıt olmadığında burada örnek ürün gösterilmez."
+    },
+    "comparison": {
+      "title": "Donanım karşılaştırma",
+      "selected": "{count} / 2 ürün seçildi",
+      "compare": "Karşılaştır",
+      "add": "Karşılaştırmaya ekle",
+      "remove": "Karşılaştırmadan çıkar",
+      "limit": "Aynı kategoriden en fazla iki farklı ürün seçebilirsin. Yeni bir seçim için mevcut ürünleri çıkar.",
+      "facts": "Yalnızca kayıtlı teknik bilgiler karşılaştırılır. Bu tablo performans, uyumluluk veya kazanan değerlendirmesi içermez.",
+      "property": "Özellik",
+      "components": "Bileşenleri karşılaştır",
+      "componentHint": "Bu sayfadaki aynı kategoriden iki bileşenini seç. Diğer kayıtlar için bileşen sayfasını değiştir.",
+      "left": "Birinci bileşen",
+      "right": "İkinci bileşen",
+      "select": "Bileşen seç"
+    },
+    "detail": {
+      "title": "Donanım detayı",
+      "specifications": "Teknik özellikler",
+      "related": "Aynı kategorideki modeller",
+      "dataNotice": "Teknik bilgiler katalog kaydından gelir. Ürün görseli, canlı fiyat, stok ve fiyat geçmişi henüz sunulmuyor."
+    },
+    "reviews": {
+      "title": "Kullanıcı değerlendirmeleri",
+      "write": "Deneyimini paylaş",
+      "edit": "Değerlendirmeyi düzenle",
+      "rating": "Puan (isteğe bağlı)",
+      "noRating": "Puan verilmedi",
+      "ratingValue": "{rating} / 5",
+      "body": "Deneyimin",
+      "bodyHint": "En fazla 5.000 karakter. Kişisel bilgi veya uygunsuz içerik paylaşma.",
+      "report": "Raporla",
+      "reason": "Rapor nedeni",
+      "details": "Açıklama (isteğe bağlı)",
+      "reportSaved": "Rapor kaydedildi. Moderasyon sistemine teslimi henüz doğrulanmadı.",
+      "yours": "Senin değerlendirmen",
+      "member": "Kullanıcı deneyimi",
+      "unrated": "Henüz puan verilmedi.",
+      "summary": "{average} / 5 · {count, number} puanlı değerlendirme",
+      "emptyTitle": "Henüz görünür değerlendirme yok",
+      "emptyDescription": "Bu ürünle deneyimini paylaşarak ilk değerlendirmeyi ekleyebilirsin.",
+      "mine": "Değerlendirmelerim",
+      "mineHint": "Kendi değerlendirmelerinin sayfaları arasından bu ürüne ait kayıtlar gösterilir. Gizlenmiş değerlendirmeler düzenlenemez.",
+      "mineEmpty": "Bu sayfada bu ürüne ait değerlendirmen yok.",
+      "hidden": "Moderasyon nedeniyle gizlendi",
+      "deleteTitle": "Değerlendirme silinsin mi?",
+      "deleteDescription": "Değerlendirme metni ve puanı kaldırılır. Bu işlem geri alınamaz."
+    },
+    "reportReasons": {
+      "SPAM": "Spam",
+      "HARASSMENT": "Taciz",
+      "HATE_SPEECH": "Nefret söylemi",
+      "SEXUAL_CONTENT": "Cinsel içerik",
+      "PERSONAL_DATA": "Kişisel veri",
+      "OTHER": "Diğer"
+    },
+    "profiles": {
+      "title": "Bilgisayarlarım",
+      "description": "Bilgisayarlarını ve bileşenlerini tek yerden yönet. Paylaşılacak bilgileri kendin belirle.",
+      "create": "Bilgisayar ekle",
+      "edit": "Bilgisayarı düzenle",
+      "name": "Bilgisayar adı",
+      "deviceType": "Cihaz türü",
+      "nextStep": "Önce bilgisayar kaydedilir; ardından açılan detay alanından istediğin kadar bileşen ekleyebilirsin. Her bileşen ayrı kaydedilir.",
+      "emptyTitle": "Bilgisayarını buraya ekle",
+      "emptyDescription": "Bir bilgisayar profili oluştur; bileşenlerini katalogdan seç veya kendin gir. Yeni profiller varsayılan olarak özeldir.",
+      "workspace": "Seçili bilgisayar",
+      "deleteTitle": "Silme işlemini onayla",
+      "deleteDescription": "Bilgisayar ve tüm bileşenleri kalıcı olarak silinir. Bu işlem geri alınamaz.",
+      "syncTitle": "Masaüstü senkronizasyonu",
+      "syncDescription": "Otomatik donanım taraması masaüstü istemcisi yayımlandığında sunulacak. Şimdilik bileşenlerini manuel yönetebilirsin."
+    },
+    "components": {
+      "title": "Bileşenler · {count}",
+      "add": "Bileşen ekle",
+      "edit": "Bileşeni düzenle",
+      "category": "Bileşen türü",
+      "entryMode": "Ekleme yöntemi",
+      "manual": "Manuel giriş",
+      "catalog": "Katalogdan seç",
+      "synced": "Masaüstünden aktarıldı",
+      "selectModel": "Genel model",
+      "noModels": "Katalogda model bulunamadı. Manuel giriş yöntemini kullanabilirsin.",
+      "selected": "Seçilen model: {model}",
+      "model": "Model adı",
+      "brand": "Üretici (isteğe bağlı)",
+      "quantity": "Adet",
+      "specsHint": "Teknik alanlar isteğe bağlıdır. Katalog seçiminde boş alanlar modelin kayıtlı değerlerini kullanır. Katalogda olmayan özellikler türetilmez.",
+      "units": "{count} adet",
+      "emptyTitle": "Bileşenlerin için hazır",
+      "emptyDescription": "İşlemci, ekran kartı, bellek ve diğer bileşenlerini ekleyerek bu bilgisayarı tamamla.",
+      "deleteDescription": "Bu bileşen bilgisayarından kaldırılır. Katalogdaki ürün kaydı korunur."
+    },
+    "privacy": {
+      "title": "Gizlilik",
+      "description": "Profil, alan ve kategori kuralları birlikte uygulanır. Paylaşım ayrıca hesabının genel donanım görünürlüğüne ve erişim izinlerine bağlıdır.",
+      "profileVisibility": "Bilgisayarın görünürlüğü",
+      "fields": "Alan görünürlüğü",
+      "categories": "Kategori görünürlüğü",
+      "inherit": "Varsayılan: yalnız ben"
+    },
+    "privacyFields": {
+      "PROFILE_NAME": "Bilgisayar adı",
+      "DEVICE_TYPE": "Cihaz türü",
+      "COMPONENT_MODEL": "Bileşen modeli",
+      "COMPONENT_BRAND": "Bileşen üreticisi",
+      "COMPONENT_QUANTITY": "Bileşen adedi",
+      "TECHNICAL_SPECIFICATIONS": "Teknik özellikler"
+    },
+    "visibility": {
+      "PRIVATE": "Yalnız ben",
+      "FRIENDS": "Arkadaşlar",
+      "PUBLIC": "Herkes"
+    },
+    "stats": {
+      "title": "Donanım özeti",
+      "profiles": "Bilgisayar",
+      "entries": "Bileşen kaydı",
+      "units": "Toplam parça",
+      "ram": "Kayıtlı bellek",
+      "storage": "Kayıtlı depolama",
+      "capacity": "{value, number} GB",
+      "unknownUnits": "Kapasitesi bilinmeyen: {count} adet"
+    },
+    "campaigns": {
+      "title": "Kampanyalar",
+      "description": "Donanım ürünleri için kaynağı ve geçerlilik zamanı belirtilmiş kampanya kayıtları.",
+      "detail": "Kampanya detayı",
+      "discount": "%{value} indirim",
+      "source": "Kaynak",
+      "observed": "Gözlem zamanı",
+      "validity": "Geçerlilik",
+      "product": "Ürünü incele",
+      "visitSource": "Kaynağa git",
+      "unsafeUrl": "Kaynak bağlantısı güvenle açılamıyor.",
+      "clearProduct": "Ürün filtresini kaldır",
+      "results": "{count, number} geçerli kampanya",
+      "emptyTitle": "Şu an geçerli kampanya yok",
+      "emptyDescription": "Geçerlilik süresi içindeki kampanyalar burada listelenir. Yeni bir kayıt geldiğinde yeniden yükleyebilirsin.",
+      "editorRecord": "Editör kampanyası",
+      "aboutTitle": "Kaynağı kontrol et",
+      "priceNotice": "Fiyatlar belirtilen kaynağın gözlem anındaki kayıtlarıdır. Satın almadan önce mağazadaki fiyatı ve koşulları kontrol et.",
+      "communityTitle": "Topluluk paylaşımları",
+      "communityUnavailable": "Kullanıcıların kampanya paylaşması ve yorumlaşması henüz kullanıma açık değil. Burada yalnızca yetkili editörlerin kayıtları yer alır."
+    },
+    "errors": {
+      "400": {
+        "title": "Bilgileri kontrol et",
+        "description": "İstek doğrulanamadı. Alanların biçimini ve aralıklarını kontrol et."
+      },
+      "401": {
+        "title": "Oturum gerekli",
+        "description": "Bu donanım alanı doğrulanmış oturum gerektirir. Giriş akışı bu arayüze henüz bağlanmadı. Mevcut oturumun varsa yeniden yükleyebilirsin."
+      },
+      "403": {
+        "title": "İşleme izin verilmedi",
+        "description": "Erişim iznin veya oturum doğrulaman bu işlem için yeterli değil. Güncel durumu yeniden yükle."
+      },
+      "404": {
+        "title": "Donanım kaydı bulunamadı",
+        "description": "Kayıt kaldırılmış olabilir veya bu kayda erişimin olmayabilir."
+      },
+      "409": {
+        "title": "Kayıt değişti veya işlem çakıştı",
+        "description": "Güncel kaydı yeniden yükle ve değişiklikleri kontrol et. Açık formu kapatıp tekrar açman gerekebilir; aynı ürün için mevcut değerlendirmeni de kontrol et."
+      },
+      "413": {
+        "title": "İstek çok büyük",
+        "description": "Gönderdiğin metni veya alanları kısaltıp tekrar dene."
+      },
+      "422": {
+        "title": "Alanları gözden geçir",
+        "description": "Gönderilen bilgiler kabul edilmedi. Alanların uzunluğunu ve geçerli değerlerini kontrol et."
+      },
+      "429": {
+        "title": "İşlem sınırına ulaşıldı",
+        "description": "Bir süre bekledikten sonra güncel durumu yeniden yükle."
+      },
+      "500": {
+        "title": "İşlem tamamlanamadı",
+        "description": "Sunucuda bir sorun oluştu. Yeniden kaydetmeden önce güncel durumu kontrol et."
+      },
+      "503": {
+        "title": "Servis geçici olarak kullanılamıyor",
+        "description": "Gerekli servis veya işlem kuyruğu şu anda hazır değil. Bir süre sonra yeniden yükle."
+      },
+      "network": {
+        "title": "Bağlantı kurulamadı",
+        "description": "Donanım servisine ulaşılamadı veya yanıt alınamadı. Kaydetme yaptıysan sonucu yeniden yükleyerek kontrol et."
+      }
+    },
+    "visual": {
+      "selectProduct": "Karşılaştırmak için {model} seç",
+      "categoryDrawing": "Kategori çizimi · ürün fotoğrafı değil",
+      "noSpecs": "Teknik özellik henüz kaydedilmedi.",
+      "details": "Detay",
+      "removeShort": "Çıkar",
+      "compareShort": "Karşılaştır",
+      "clearFilters": "Tümünü temizle",
+      "brandsUnavailable": "Üretici listesi yüklenemedi; adla arayabilirsin.",
+      "recordedFilters": "Yalnız kayıtlı teknik bilgilerle filtrelenir. Üretici seçimi isteğe bağlıdır.",
+      "chooseCategory": "Teknik filtreler için bir kategori seç. Üretici seçimi isteğe bağlıdır.",
+      "discover": "KEŞFET.",
+      "compareMotto": "KARŞILAŞTIR.",
+      "buildMotto": "SİSTEMİNİ KUR.",
+      "moreCategories": "Diğer donanım kategorileri",
+      "more": "Diğer",
+      "results": "Ürün sonuçları",
+      "productsFound": "ürün bulundu",
+      "comparisonList": "Karşılaştırma listesi",
+      "removeProduct": "{model} ürününü karşılaştırmadan çıkar",
+      "openComparison": "Karşılaştırmayı aç",
+      "brandMissing": "Üretici bilgisi belirtilmemiş"
     }
   }
 }

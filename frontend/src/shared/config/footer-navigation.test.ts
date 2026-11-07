@@ -41,6 +41,7 @@ describe("footerGroups", () => {
     for (const group of footerGroups.slice(0, 3)) {
       for (const entry of group.entries) {
         if (entry.id === "games") expect(entry.href).toBe("/games");
+        else if (entry.id === "hardware") expect(entry.href).toBe("/hardware");
         else expect(entry.href).toBeUndefined();
       }
     }

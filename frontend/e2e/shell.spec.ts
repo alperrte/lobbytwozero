@@ -23,11 +23,11 @@ test("gezinme yalnız gerçek rotaya bağlanır, hazır olmayanlar 'Yakında' i�
   await page.goto("/");
 
   const nav = page.getByRole("navigation", { name: "Ana gezinme" });
-  await expect(nav.getByRole("link")).toHaveCount(1);
+  await expect(nav.getByRole("link")).toHaveCount(3);
   await expect(nav.locator('a[href="#"]')).toHaveCount(0);
-  await expect(nav.getByText("Yakında", { exact: true })).toHaveCount(1);
+  await expect(nav.getByText("Yakında", { exact: true })).toHaveCount(11);
   await expect(nav).not.toContainText("Profil");
-  await expect(nav).not.toContainText("Kampanyalar");
+  await expect(nav).toContainText("Kampanyalar");
 });
 
 test("mobil çekmece: odak taşınır, Escape kapatır ve odağı geri verir", async ({
@@ -59,17 +59,14 @@ test("masaüstünde kenar çubuğu daralır ve yeniden yüklemede korunur", asyn
   const sidebar = page.locator("#app-sidebar");
   const before = (await sidebar.boundingBox())?.width ?? 0;
 
-  await page
-    .getByRole("banner")
-    .getByRole("button", { name: "Kenar çubuğunu daralt" })
-    .click();
+  await sidebar.getByRole("button", { name: "Kenar çubuğunu daralt" }).click();
   await expect
     .poll(async () => (await sidebar.boundingBox())?.width ?? 0)
     .toBeLessThan(before);
 
   await page.reload();
   await expect(
-    page.getByRole("banner").getByRole("button", { name: "Kenar çubuğunu genişlet" })
+    sidebar.getByRole("button", { name: "Kenar çubuğunu genişlet" })
   ).toBeAttached();
 });
 
@@ -77,6 +74,7 @@ test("tema seçimi yeniden yüklemede korunur ve dilden bağımsızdır", async 
   page
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ colorScheme: "dark" });
   await page.goto("/");
 
   await page.getByRole("button", { name: "Açık tema" }).click();

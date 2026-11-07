@@ -16,7 +16,7 @@ import {
   usePopover
 } from "@/shared/hooks/use-popover";
 import { locales, type Locale } from "@/shared/lib/i18n/config";
-import { usePathname, useRouter } from "@/shared/lib/i18n/navigation";
+import { getPathname, usePathname } from "@/shared/lib/i18n/navigation";
 import type { AppPathname } from "@/shared/lib/i18n/routing";
 import { cn } from "@/shared/utils/cn";
 
@@ -29,7 +29,6 @@ const nativeNames: Record<Locale, string> = { tr: "Türkçe", en: "English" };
  */
 export function LanguageMenu() {
   const t = useTranslations("Locale");
-  const router = useRouter();
   const pathname = usePathname();
   const params = useParams();
   const active = useLocale() as Locale;
@@ -49,10 +48,15 @@ export function LanguageMenu() {
       return;
     }
     startTransition(() => {
-      if (pathname === "/games/[gameId]" && typeof params.gameId === "string") {
-        router.replace({ pathname: "/games/[gameId]", params: { gameId: params.gameId } }, { locale });
+      const search = new URLSearchParams(window.location.search);
+      // Locale changes replace the root html layout. A document navigation runs
+      // the existing pre-paint preference script and clears private client state.
+      if (pathname === "/hardware/[productId]" && typeof params.productId === "string") {
+        window.location.assign(getPathname({ href: { pathname: "/hardware/[productId]", params: { productId: params.productId }, query: Object.fromEntries(search) }, locale }) + window.location.hash);
+      } else if (pathname === "/games/[gameId]" && typeof params.gameId === "string") {
+        window.location.assign(getPathname({ href: { pathname: "/games/[gameId]", params: { gameId: params.gameId }, query: Object.fromEntries(search) }, locale }) + window.location.hash);
       } else {
-        router.replace(pathname as AppPathname, { locale });
+        window.location.assign(getPathname({ href: { pathname: pathname as AppPathname, query: Object.fromEntries(search) }, locale }) + window.location.hash);
       }
     });
   }
