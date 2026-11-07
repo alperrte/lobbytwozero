@@ -106,6 +106,52 @@ class LoginControllerTest extends IntegrationTestSupport {
     }
 
     @Test
+    void kilitHesapBazlidirFarkliKimlikBicimiYeniHakVermez() throws Exception {
+        String username = uniqueUsername();
+        String email = registerActiveAccount(uniqueEmail(), username);
+        for (int attempt = 0; attempt < MAX_FAILURES; attempt++) {
+            login(email, WRONG_PASSWORD).andExpect(status().isUnauthorized());
+        }
+
+        // Aynı hesaba kullanıcı adı, büyük harfli e-posta ve doğru parola: hepsi kilitli hesabın sayacına takılır.
+        login(username, WRONG_PASSWORD).andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("TOO_MANY_ATTEMPTS"));
+        login(email.toUpperCase(), WRONG_PASSWORD).andExpect(status().isTooManyRequests());
+        login(username, VALID_PASSWORD).andExpect(status().isTooManyRequests())
+                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
+    }
+
+    @Test
+    void karisikKimlikBicimleriToplamdaYalnizBesHataHakkiVerir() throws Exception {
+        String username = uniqueUsername();
+        String email = registerActiveAccount(uniqueEmail(), username);
+
+        login(email, WRONG_PASSWORD).andExpect(status().isUnauthorized());
+        login(username, WRONG_PASSWORD).andExpect(status().isUnauthorized());
+        login(email, WRONG_PASSWORD).andExpect(status().isUnauthorized());
+        login(username, WRONG_PASSWORD).andExpect(status().isUnauthorized());
+        login(email, WRONG_PASSWORD).andExpect(status().isUnauthorized());
+
+        login(username, WRONG_PASSWORD).andExpect(status().isTooManyRequests());
+    }
+
+    @Test
+    void basariliGirisFarkliKimlikBicimindeDeHesapSayacinaSifirlar() throws Exception {
+        String username = uniqueUsername();
+        String email = registerActiveAccount(uniqueEmail(), username);
+        for (int attempt = 0; attempt < MAX_FAILURES - 1; attempt++) {
+            login(email, WRONG_PASSWORD).andExpect(status().isUnauthorized());
+        }
+        login(username, VALID_PASSWORD).andExpect(status().isOk());
+
+        // Hesap sayacı sıfırlandı: kullanıcı adıyla yeniden tam beş hata hakkı vardır (sıfırlanmasaydı ikinci denemede 429 olurdu).
+        for (int attempt = 0; attempt < MAX_FAILURES; attempt++) {
+            login(username, WRONG_PASSWORD).andExpect(status().isUnauthorized());
+        }
+        login(username, WRONG_PASSWORD).andExpect(status().isTooManyRequests());
+    }
+
+    @Test
     void bilinmeyenKimlikDeAyniSekildeKilitlenirVarlikSizmaz() throws Exception {
         String unknown = uniqueEmail();
         for (int attempt = 0; attempt < MAX_FAILURES; attempt++) {

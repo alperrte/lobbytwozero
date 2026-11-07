@@ -113,8 +113,37 @@ class SessionControllerTest extends IntegrationTestSupport {
     }
 
     @Test
+    void oturumIpucuCerezigiristeYazilirYenilemedeSurerCikistaSilinir() throws Exception {
+        String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
+
+        MvcResult login = login(email, VALID_PASSWORD).andExpect(status().isOk()).andReturn();
+        String hint = hintCookie(login);
+        assertThat(hint).contains("=1").contains("Path=/").contains("Max-Age=").doesNotContain("HttpOnly");
+        assertThat(hint).doesNotContain("Max-Age=0");
+        // Değer taşımaz: kimlik, token ya da hesap bilgisi yok.
+        assertThat(hint.substring(0, hint.indexOf(';'))).endsWith("ltz_session=1");
+
+        SessionCookiePair session = SessionCookiePair.from(login);
+        MvcResult refreshed = refresh(session.refresh()).andExpect(status().isOk()).andReturn();
+        assertThat(hintCookie(refreshed)).doesNotContain("Max-Age=0").contains("=1");
+
+        SessionCookiePair rotated = SessionCookiePair.from(refreshed);
+        MvcResult loggedOut = mockMvc.perform(post(AuthApiPaths.SESSION_LOGOUT).with(xsrf()).cookie(rotated.refresh()))
+                .andExpect(status().isNoContent()).andReturn();
+        assertThat(hintCookie(loggedOut)).contains("Max-Age=0");
+    }
+
+    private static String hintCookie(MvcResult result) {
+        return result.getResponse().getHeaders("Set-Cookie").stream()
+                .filter(header -> header.contains("ltz_session="))
+                .findFirst().orElseThrow(() -> new AssertionError("oturum ipucu çerezi yazılmadı"));
+    }
+
+    @Test
     void meMisafireVeGecersizOturumaUnauthorizedDoner() throws Exception {
-        mockMvc.perform(get(AuthApiPaths.ME)).andExpect(status().isUnauthorized());
+        mockMvc.perform(get(AuthApiPaths.ME)).andExpect(status().isUnauthorized())
+                .andExpect(header().string("WWW-Authenticate", "Bearer"))
+                .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
 
         String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
         SessionCookiePair session = loginSession(email);
