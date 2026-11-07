@@ -942,7 +942,8 @@ Bu uçlar **Gateway'e açılmaz** (Gateway yalnız `/api/v1/<servis>/**` yönlen
 
 #### Yetkilendirme
 - `service-tokens`: Public (cookie okunmaz, CSRF gerekmez); kimlik gövdedeki `clientId` + `clientSecret`.
-- Diğer uçlar: `Authorization: Bearer <svc+jwt>`. Kullanıcı token'ı (`at+jwt`), cookie ve Auth'un başka servislere yolladığı token'lar kabul edilmez.
+- Diğer uçlar: `Authorization: Bearer <svc+jwt>`.
+- **GAME-26 kimlik düzeltme kapsamları (planlı sözleşme, Game ↔ katılımcılar):** `game-identity:prepare`, `game-identity:finalize`, `game-identity:read` (Game → beş katılımcı, her token yalnız çağrılan servisin `aud` değeriyle); `game-identity:decision:read` (katılımcı → `game-service`, yalnız kurtarma sorgusu). Hesaba bağlı değildir; kullanıcı token'ı ve `ADMIN` rolü bu uçlara yetki vermez. İstemciler: `game-service` (hedef), `content-service` ve `performance-service` (yeni kayıt, gizli anahtar `AUTH_*_SERVICE_CLIENT_SECRET` boşsa devre dışı). Kullanıcı token'ı (`at+jwt`), cookie ve Auth'un başka servislere yolladığı token'lar kabul edilmez.
 
 #### Request Body (`service-tokens`)
 ```json

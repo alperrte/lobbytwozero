@@ -105,6 +105,21 @@ class ServiceClientConfigTest {
         }
     }
 
+    /** GAME-26: kimlik düzeltme kapsamları hesaba bağlı değildir ve yalnız tanımlı hedeflere açılır. */
+    @Test
+    void oyunKimlikDuzeltmeKapsamlariKatilimcilarlaAcilir() {
+        Set<String> game = Set.of("game-identity:prepare", "game-identity:finalize", "game-identity:read");
+        assertAccepted("game-service", targets(Map.of("community-service", game, "content-service", game,
+                "library-service", Set.of("game-references:read", "game-identity:prepare", "game-identity:finalize",
+                        "game-identity:read"))));
+        assertAccepted("content-service", targets(Map.of("game-service", Set.of("game-identity:decision:read"))));
+        // Silme kapsamı hiçbir hedefte verilemez; bilinmeyen kimlik kapsamı açılmaz.
+        assertRejected("content-service", targets(Map.of("game-service", Set.of("game-identity:decision:read", "account:erase"))),
+                "targets.game-service");
+        assertRejected("game-service", targets(Map.of("library-service", Set.of("game-identity:admin"))),
+                "targets.library-service");
+    }
+
     /** Yalnız hedef kapsamlı istemci (Auth'a kapsamı yok). */
     private static ServiceClientProperties.Client targets(Map<String, Set<String>> targets) {
         return new ServiceClientProperties.Client(STRONG_SECRET, Set.of(), targets);
