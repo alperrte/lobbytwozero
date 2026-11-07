@@ -27,6 +27,24 @@ Sonra: `.\ops\env.cmd use dev` (Linux/macOS: `sh ./ops/env.sh use dev`) ve Compo
 - `COMPOSE_PROFILES=dev-mail` olmalı (örnek dosyada hazır gelir): doğrulama ve parola kodları **Mailpit**'e düşer (arayüz: `http://127.0.0.1:8025`). Gerçek e-posta gitmez.
 - V61–V65'i zaten uygulamış yerel veritabanı yeni sürümlerle **kendiliğinden ileri taşınır** (V66–V69 yeni dosyalardır, eskilere dokunulmadı); sıfırlamana gerek yok. Eski bir yerel veritabanında "checksum mismatch" görürsen aşağıdaki tabloya bak.
 
+## 1.0 Her role bir test hesabı (yalnız yerel dev)
+
+`node ops/dev-accounts.mjs up` yığını kaldırır (Postgres, Mailpit, Mail, Auth, User, Gateway), sağlığı bekler ve hesapları açar. Hesap istemezsen `--no-seed`, yeniden derlemeden kaldırmak için `--no-build`.
+
+| E-posta | Rol | Giriş |
+| --- | --- | --- |
+| `user@ltz.com` | PLAYER | parola |
+| `creator@ltz.com` | CONTENT_CREATOR | parola |
+| `developer@ltz.com` | GAME_DEVELOPER | parola |
+| `moderator@ltz.com` | MODERATOR | parola + 2FA kodu |
+| `admin@ltz.com` | ADMIN | parola + 2FA kodu |
+
+- Parola ve alan adı `.env.dev`'deki `DEV_ACCOUNTS_PASSWORD` / `DEV_ACCOUNTS_DOMAIN` satırlarındadır. Satırlar yoksa `node ops/generate-auth-dev-keys.mjs` ekler (örnek dosyadan gelir). Parola depodaki koda gömülü değildir.
+- `moderator` ve `admin` için Auth 2FA'yı zorunlu tutar. Kodu şu komut verir: `node ops/dev-accounts.mjs totp admin` (kod 30 sn geçerlidir, aynı kod ikinci kez kabul edilmez). 2FA sırrı **makine düzeyinde** `~/.ltz/dev-accounts.json` dosyasındadır (depoya girmez): aynı bilgisayardaki tüm klasörler (git worktree'leri dahil) aynı Docker veritabanını paylaştığı için aynı dosyayı görür. Başka makineye taşınmaz; sırrı olmayan bir 2FA hesabıyla karşılaşırsa betik o dev hesabının 2FA'sını sıfırlayıp yeniden kurar.
+- Hesapları elle yenilemek ya da listelemek: `node ops/dev-accounts.mjs` / `node ops/dev-accounts.mjs list` (parolayı `.env.dev`'den kendisi okur; o dosyadan yalnız `DEV_ACCOUNTS_*` iki satırını okur). Tekrar çalıştırmak güvenlidir.
+- **Neden kısa parola?** Auth parola alt sınırı 15 karakterdir; kısa parola API'den geçmez. Betik hesabı gerçek akışla açar, sonra yalnız parola özetini yazar ve rolü ekler.
+- **Güvenlik kapıları:** betik yalnız `localhost` adreslerine ve `ltz-dev-*` Postgres kapsayıcısına çalışır, Auth'un profili `dev`/`test` değilse ya da okunamıyorsa durur, `NODE_ENV=production` iken reddeder. **Bu parola ve hesaplar staging/production'a asla taşınmaz;** `.env.prod`'a `DEV_ACCOUNTS_*` satırı eklenmez.
+
 ## 1.1 Mail Service'i yerelde ayağa kaldır (adım adım)
 
 **Önce şunu bil:** Mail Service'i yalnız Auth çağırır; tarayıcıdan ya da başka servisten erişilmez. Varsayılan dev ayarında Auth e-postayı Mail Service'e **hiç göndermez**, doğrudan Mailpit'e yazar (`AUTH_MAIL_ADAPTER=dev-smtp`). Mail Service'i denemek istemiyorsan aşağıdakilere gerek yok.

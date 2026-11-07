@@ -279,7 +279,8 @@ UNIT + INTEGRATION
 - Token'lar yalnız HttpOnly cookie'dedir, gövdede dönmez: `__Host-ltz_access` (Secure, SameSite=Lax, Path=/), `__Secure-ltz_refresh` (Secure, SameSite=Strict, Path=/api/v1/auth/session). Production'da Secure kapatılamaz.
 - **CSRF:** Aşağıdaki POST uçları `X-XSRF-TOKEN` başlığı ister; değer `__Host-XSRF-TOKEN` cookie'sinden okunur (`GET /api/v1/auth/csrf` ile üretilir). `Authorization: Bearer` başlığı taşıyan istekler (tarayıcı dışı istemci) muaftır. Eksik/yanlış token: `403 CSRF_TOKEN_INVALID`.
 - **Access token (JWT, RS256):** `iss`, `sub` (hesap UUID), `aud=ltz-api`, `iat`, `nbf`, `exp` (varsayılan 60 sn; `JWT_ACCESS_TTL_SECONDS`, 1–15 dk), `jti`, `sid` (oturum), `ver` (token sürümü), `roles`, `amr`; başlık `typ=at+jwt`, `kid`. Diğer servisler imzayı JWKS ile doğrular. Auth uçlarında oturum/hesap durumu her istekte denetlenir (anında iptal); diğer servislerde iptal gecikmesi D3 kararına bağlıdır.
-- Kimliksiz istek `401 UNAUTHENTICATED`, izinsiz `403 FORBIDDEN`. Parola/2FA denemeleri: 15 dakikada 5 hata → `429 TOO_MANY_ATTEMPTS` + `Retry-After`.
+- Kimliksiz istek `401 UNAUTHENTICATED` (+ `WWW-Authenticate: Bearer`), izinsiz `403 FORBIDDEN`. Parola/2FA denemeleri: 15 dakikada 5 hata → `429 TOO_MANY_ATTEMPTS` + `Retry-After`. **Giriş kilidi hesap bazlıdır:** e-posta, kullanıcı adı ve büyük/küçük harf farkı aynı hesap sayacını paylaşır (5 hata toplam); bilinmeyen kimlikte yalnız kimlik anahtarı sayılır ve aynı eşikte aynı `429` döner (hesap varlığı sızmaz). Başarılı giriş sayacı sıfırlar.
+- **Oturum ipucu çerezi:** `__Host-ltz_session=1` (Secure, SameSite=Lax, Path=/, **HttpOnly değil**; yerel http'de öneksiz `ltz_session`). Değer taşımaz (kimlik/token yok), yenileme çerezi ömründe yaşar, her yenilemede yeniden yazılır, çıkışta silinir. Arayüz bu çerez yokken `/me` ve `/session/refresh` isteklerini hiç atmaz; yetki kararı yine yalnız sunucudadır.
 
 ### AUTH — Giriş
 

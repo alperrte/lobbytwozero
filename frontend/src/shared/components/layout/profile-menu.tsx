@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Icon, type IconName } from "@/shared/components/ui/icons";
 import {
@@ -14,11 +14,12 @@ import {
   onMenuKeyDown,
   usePopover
 } from "@/shared/hooks/use-popover";
-import type { ShellUser } from "@/shared/hooks/use-shell-user";
+import { useShellSession, type ShellUser } from "@/shared/hooks/use-shell-user";
+import { Link } from "@/shared/lib/i18n/navigation";
 import { cn } from "@/shared/utils/cn";
 
 type ProfileMenuProps = {
-  /** Oturum açmış kullanıcı; `null` misafir demektir (auth bağlanana kadar hep null). */
+  /** Oturum açmış kullanıcı; `null` misafir demektir. */
   user: ShellUser | null;
 };
 
@@ -48,7 +49,7 @@ function Avatar({
   user: ShellUser | null;
   className?: string;
 }) {
-  const initials = user ? getInitials(user.displayName) : "";
+  const initials = user && !user.hideInitials ? getInitials(user.displayName) : "";
 
   return (
     <span
@@ -84,13 +85,31 @@ function Avatar({
 
 /**
  * Profil avatarı + ad + menü. Misafir durumunda ad "Misafir"dir; henüz var olmayan profil/hesap
- * sayfaları tıklanamaz ve "Yakında" olarak işaretlidir (sahte rota yok). Çıkış satırı kırmızı vurgulu görünür ama auth bağlanana kadar eylem taşımaz.
+ * sayfaları tıklanamaz ve "Yakında" olarak işaretlidir (sahte rota yok). Oturum katmanı bağlıysa (`useShellSession().logout`):
+ * misafire "Giriş yap" bağlantısı, giriş yapmış kullanıcıya çalışan "Çıkış yap" eylemi gösterilir. Bağlı değilse çıkış satırı eski,
+ * eylemsiz ("Yakında") halini korur.
  */
 export function ProfileMenu({ user }: ProfileMenuProps) {
   const t = useTranslations("Navbar.profile");
   const { open, setOpen, rootRef, triggerRef } = usePopover();
   const menuRef = useRef<HTMLDivElement>(null);
   const name = user?.displayName ?? t("guestName");
+  const { logout, loading } = useShellSession();
+  const sessionAware = logout !== undefined;
+  const [signingOut, setSigningOut] = useState(false);
+
+  async function onLogout() {
+    if (!logout || signingOut) {
+      return;
+    }
+    setSigningOut(true);
+    try {
+      await logout();
+    } finally {
+      setSigningOut(false);
+      setOpen(false);
+    }
+  }
 
   useEffect(() => {
     if (open) {
@@ -167,23 +186,50 @@ export function ProfileMenu({ user }: ProfileMenuProps) {
           ))}
 
           <div role="separator" className="my-1 h-px bg-border" />
-          <button
-            type="button"
-            role="menuitem"
-            aria-disabled="true"
-            onClick={(event) => event.preventDefault()}
-            className={dangerMenuItemClass}
-          >
-            <Icon name="logout" className="size-[18px] shrink-0" />
-            <span className="flex-1">{t("items.logout")}</span>
-            <span className="rounded-control border border-primary/40 px-1.5 py-0.5 text-xs font-medium leading-none">
-              {t("soon")}
-            </span>
-          </button>
-          {user ? null : (
-            <p className="px-3 pb-2 pt-2 text-xs text-text-secondary">
-              {t("guestNote")}
-            </p>
+          {sessionAware && user ? (
+            <button
+              type="button"
+              role="menuitem"
+              aria-disabled={signingOut}
+              onClick={onLogout}
+              className={dangerMenuItemClass}
+            >
+              <Icon name="logout" className="size-[18px] shrink-0" />
+              <span className="flex-1">{t("items.logout")}</span>
+            </button>
+          ) : sessionAware ? (
+            loading ? null : (
+              <Link
+                href="/login"
+                role="menuitem"
+                onClick={() => setOpen(false)}
+                className={menuItemClass}
+              >
+                <Icon name="user" className="size-[18px] shrink-0" />
+                <span className="flex-1">{t("signIn")}</span>
+              </Link>
+            )
+          ) : (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                aria-disabled="true"
+                onClick={(event) => event.preventDefault()}
+                className={dangerMenuItemClass}
+              >
+                <Icon name="logout" className="size-[18px] shrink-0" />
+                <span className="flex-1">{t("items.logout")}</span>
+                <span className="rounded-control border border-primary/40 px-1.5 py-0.5 text-xs font-medium leading-none">
+                  {t("soon")}
+                </span>
+              </button>
+              {user ? null : (
+                <p className="px-3 pb-2 pt-2 text-xs text-text-secondary">
+                  {t("guestNote")}
+                </p>
+              )}
+            </>
           )}
         </div>
       ) : null}

@@ -69,6 +69,7 @@
       "label": "Profile menu",
       "guestName": "Guest",
       "guestState": "Not signed in",
+      "signIn": "Sign in",
       "signedIn": "Your account",
       "guestNote": "Account features are not ready yet; sign-in and profile pages will be added in later steps.",
       "soon": "Soon",
@@ -486,5 +487,291 @@
   },
   "Loading": {
     "label": "Loading"
+  },
+  "Auth": {
+    "shell": {
+      "brand": "LTZ home",
+      "back": "Back to home",
+      "legalNav": "Legal links",
+      "privacy": "Privacy",
+      "terms": "Terms of use",
+      "copyright": "© LobbyTwoZero",
+      "login": {
+        "eyebrow": "Welcome to the lobby",
+        "headlineStart": "Pick up the game",
+        "headlineAccent": "where you left off.",
+        "subline": "Discover games, manage your profile and meet your community again."
+      },
+      "register": {
+        "eyebrow": "Your new lobby is waiting",
+        "headlineStart": "Open a new door",
+        "headlineAccent": "to your game world.",
+        "subline": "Create your profile, discover new games and meet players who share your passion."
+      }
+    },
+    "login": {
+      "metaTitle": "Sign in",
+      "title": "Sign in",
+      "description": "Sign in to your LTZ account and join the lobby.",
+      "formLabel": "Sign-in form",
+      "identifier": "Email or username",
+      "identifierPlaceholder": "Your email address or username",
+      "password": "Password",
+      "passwordPlaceholder": "Your password",
+      "show": "Show password",
+      "hide": "Hide password",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "retryIn": "Try again in {time}",
+      "noAccount": "Don't have an account yet?",
+      "toRegister": "Sign up",
+      "verifiedNotice": "Your email address is verified. You can sign in now.",
+      "forgot": "Forgot password",
+      "resetNotice": "Your password was updated. You can sign in with your new password.",
+      "verifyLink": "Verify my email"
+    },
+    "session": {
+      "account": "My account"
+    },
+    "time": {
+      "seconds": "{count} seconds",
+      "minutes": "{count} minutes"
+    },
+    "fields": {
+      "identifier": {
+        "required": "Enter your email address or username.",
+        "tooLong": "Must be at most {max} characters."
+      },
+      "password": {
+        "required": "Enter your password.",
+        "tooLong": "Must be at most {max} characters.",
+        "tooShort": "Must be at least {min} characters.",
+        "weak": "This password is easy to guess. Choose a longer, unique password.",
+        "invalid": "The password is not valid."
+      },
+      "username": {
+        "required": "Choose a username.",
+        "pattern": "3–20 characters; letters, digits and underscore only.",
+        "taken": "This username is already taken.",
+        "invalid": "The username is not valid."
+      },
+      "email": {
+        "required": "Enter your email address.",
+        "invalid": "Enter a valid email address.",
+        "tooLong": "Must be at most {max} characters."
+      },
+      "acceptTerms": {
+        "required": "You must accept the terms to continue."
+      },
+      "code": {
+        "required": "Enter the verification code.",
+        "pattern": "The code must be 6 digits.",
+        "failed": "The code is invalid, expired or out of attempts. You can request a new one."
+      },
+      "verifyPassword": {
+        "required": "Enter the password you chose when signing up.",
+        "tooLong": "Must be at most {max} characters."
+      },
+      "newPassword": {
+        "required": "Enter your new password.",
+        "tooShort": "Must be at least {min} characters.",
+        "tooLong": "Must be at most {max} characters.",
+        "weak": "This password is easy to guess. Choose a longer, unique password.",
+        "same": "The new password must differ from your current one.",
+        "invalid": "The password is not valid."
+      },
+      "confirmation": {
+        "required": "Enter your password again.",
+        "mismatch": "The passwords do not match."
+      }
+    },
+    "errors": {
+      "INVALID_CREDENTIALS": "The email, username or password is incorrect.",
+      "EMAIL_NOT_VERIFIED": "Your email address is not verified yet. Finish verification with the code sent when you registered.",
+      "ACCOUNT_SUSPENDED": "Your account is temporarily suspended.",
+      "ACCOUNT_BANNED": "Your account has been banned.",
+      "ACCOUNT_UNAVAILABLE": "This account is not available right now.",
+      "ACCOUNT_DELETION_PENDING": "Your account deletion has started. You can cancel before the grace period ends.",
+      "TWO_FACTOR_ENROLLMENT_REQUIRED": "This account must set up two-step verification. This step is not supported on this screen yet.",
+      "MFA_NOT_SUPPORTED": "This account requires two-step verification. This step is not supported on this screen yet.",
+      "CSRF_TOKEN_INVALID": "The security check failed. Refresh the page and try again.",
+      "TOO_MANY_ATTEMPTS": "Too many attempts. Try again in {time}.",
+      "SERVICE_BUSY": "The service is busy right now. Try again shortly.",
+      "NETWORK": "Could not reach the server. Check your connection and try again.",
+      "UNKNOWN": "Something went wrong. Please try again.",
+      "VALIDATION_FAILED": "Some details are not valid. Check the fields and try again.",
+      "MFA_FAILED": "The code is invalid or the verification session has expired. Try again or go back to sign in.",
+      "INVALID_TWO_FACTOR_CODE": "The code is wrong. Try again."
+    },
+    "register": {
+      "metaTitle": "Sign up",
+      "title": "Sign up",
+      "description": "Create your LTZ account and join the community.",
+      "formLabel": "Sign-up form",
+      "username": "Username",
+      "usernamePlaceholder": "Choose a username",
+      "usernameHint": "3–20 characters; letters, digits and underscore.",
+      "email": "Email",
+      "emailPlaceholder": "Enter your email address",
+      "password": "Password",
+      "passwordPlaceholder": "Choose a password",
+      "passwordHint": "At least {min} characters. Use a strong, unique password.",
+      "terms": "I accept the <terms>Terms of use</terms>. See the <privacy>Privacy policy</privacy> for how personal data is handled.",
+      "submit": "Create account",
+      "submitting": "Creating account…",
+      "nextStep": "Next step: verify your email address.",
+      "haveAccount": "Already have an account?",
+      "toLogin": "Sign in"
+    },
+    "verify": {
+      "metaTitle": "Email verification",
+      "title": "Verify your email",
+      "description": "Enter the 6-digit code we sent to your address.",
+      "formLabel": "Email verification form",
+      "email": "Email",
+      "code": "Verification code",
+      "codeHint": "{length}-digit code. You can copy it from the email and paste it here.",
+      "password": "The password you chose when signing up",
+      "passwordHint": "Needed to confirm the account is yours. It is not stored.",
+      "submit": "Verify email",
+      "submitting": "Verifying…",
+      "resend": "Resend code",
+      "resendIn": "Wait {time} to resend",
+      "resent": "A new code was sent (if the address is registered). Check your inbox.",
+      "backToLogin": "Back to sign in"
+    },
+    "forgot": {
+      "metaTitle": "Forgot password",
+      "title": "Forgot your password?",
+      "description": "Enter your email address and, if it is registered, we will send you a reset link.",
+      "formLabel": "Password reset request form",
+      "email": "Email",
+      "emailPlaceholder": "Enter your email address",
+      "submit": "Send link",
+      "resend": "Send again",
+      "submitting": "Sending…",
+      "sent": "If this address is registered, we sent a password reset link. Check your inbox and spam folder.",
+      "backToLogin": "Back to sign in"
+    },
+    "reset": {
+      "metaTitle": "Password reset",
+      "title": "Set a new password",
+      "description": "You came from the link in your email. Set your new password.",
+      "formLabel": "Password reset form",
+      "newPassword": "New password",
+      "confirmation": "New password (again)",
+      "submit": "Update password",
+      "submitting": "Updating…",
+      "tokenInvalid": "This link is invalid or has expired. You can request a new password reset link.",
+      "requestNew": "Request a new link"
+    },
+    "social": {
+      "or": "or",
+      "login": {
+        "google": "Sign in with Google",
+        "steam": "Sign in with Steam"
+      },
+      "register": {
+        "google": "Sign up with Google",
+        "steam": "Sign up with Steam"
+      }
+    },
+    "callback": {
+      "metaTitle": "Sign-in result",
+      "title": "Connecting your account",
+      "processing": "Finishing up…",
+      "empty": "This page is only for returning from Google or Steam sign-in. You can start again from the sign-in page.",
+      "mfa": "This account requires two-step verification. This step is not supported on this screen yet.",
+      "linked": "Your account is connected.",
+      "backToLogin": "Back to sign in",
+      "toHome": "Go to home",
+      "steam": {
+        "formLabel": "Steam account sign-up form",
+        "description": "This is your first time with your Steam account. Enter a username and an email address to finish your account.",
+        "submit": "Create account",
+        "tokenInvalid": "The sign-up link is invalid or has expired. Start Steam sign-in again."
+      },
+      "errors": {
+        "EXTERNAL_AUTH_FAILED": "Sign-in could not be verified. Please try again.",
+        "EXTERNAL_EMAIL_UNVERIFIED": "Your email address at the provider is not verified. Verify it there first, then try again.",
+        "ACCOUNT_LINK_REQUIRED": "An account with this email address already exists. Sign in with your email and password first, then link this account.",
+        "EMAIL_NOT_VERIFIED": "Your email address is not verified yet. Finish verification with the code sent when you registered.",
+        "ACCOUNT_SUSPENDED": "Your account is temporarily suspended.",
+        "ACCOUNT_BANNED": "Your account has been banned.",
+        "ACCOUNT_UNAVAILABLE": "This account is not available right now.",
+        "TWO_FACTOR_ENROLLMENT_REQUIRED": "This account must set up two-step verification. This step is not supported on this screen yet.",
+        "PROVIDER_NOT_CONFIGURED": "This sign-in method is not available right now.",
+        "UNKNOWN": "Something went wrong. Please try again."
+      }
+    },
+    "mfa": {
+      "submitting": "Submitting…",
+      "verify": {
+        "formLabel": "Two-step verification form",
+        "description": "Enter the 6-digit code from your authenticator app.",
+        "recoveryDescription": "If you cannot reach your authenticator app, enter one of your recovery codes. Each code works only once.",
+        "code": "Verification code",
+        "recoveryCode": "Recovery code",
+        "codeInvalid": "Enter a 6-digit code.",
+        "recoveryInvalid": "A recovery code looks like XXXXX-XXXXX.",
+        "submit": "Verify",
+        "useRecovery": "Use a recovery code",
+        "useCode": "Use an app code",
+        "cancel": "Cancel",
+        "restart": "Back to sign in"
+      },
+      "enroll": {
+        "intro": "You need to set up two-step verification for this account. We will show a key; add it to your authenticator app.",
+        "start": "Start setup",
+        "formLabel": "Two-step verification setup form",
+        "scan": "Add a new account in your authenticator app (for example Google Authenticator), enter the key below, then type the code the app shows.",
+        "secret": "Setup key (shown only now)",
+        "openApp": "Open in app",
+        "activate": "Activate and sign in",
+        "done": "Two-step verification is on and you are signed in.",
+        "recoveryDescription": "Save your recovery codes somewhere safe. They will not be shown again; use them if you lose access to your phone.",
+        "recoveryList": "Recovery codes",
+        "saved": "I saved my recovery codes somewhere safe.",
+        "continue": "Continue"
+      }
+    },
+    "deleteAccount": {
+      "metaTitle": "Delete account",
+      "title": "Confirm account deletion",
+      "description": "This starts the process of deleting your account. Type your username to confirm.",
+      "formLabel": "Account deletion confirmation form",
+      "username": "Your username",
+      "usernameHint": "Type your account username exactly to confirm.",
+      "submit": "Delete my account",
+      "submitting": "Submitting…",
+      "warning": "When you confirm, all your sessions are closed. You can undo this within 14 days; after that your personal data is permanently deleted.",
+      "tokenInvalid": "This link is invalid or has expired. Start a new deletion request from your account settings.",
+      "confirmationInvalid": "The username did not match or the link has expired. Check the username; if it keeps failing, start a new deletion request.",
+      "needLogin": "You need to be signed in for this. Sign in, then open the link from the email again.",
+      "adminForbidden": "An administrator account cannot be deleted. The administrator role must be removed first.",
+      "done": "Your deletion request was received. Your sessions were closed.",
+      "doneDetail": "Within 14 days you can cancel by signing in with your email or username and password; after that your personal data is permanently deleted.",
+      "toHome": "Go to home page",
+      "toLogin": "Sign in"
+    },
+    "cancelDeletion": {
+      "metaTitle": "Cancel account deletion",
+      "title": "Cancel account deletion",
+      "description": "Your account is being deleted. You can cancel before the grace period ends and your account will be usable again.",
+      "formLabel": "Cancel account deletion form",
+      "code": "2FA code (if enabled)",
+      "codeHint": "If two-step verification is on, enter the 6-digit code from your app or a recovery code.",
+      "codeInvalid": "Enter a 6-digit code or a recovery code like XXXXX-XXXXX.",
+      "submit": "Cancel deletion",
+      "submitting": "Submitting…",
+      "done": "Your deletion request was cancelled. Your account is usable again.",
+      "toLogin": "Sign in",
+      "notPending": "This account has no pending deletion request.",
+      "windowClosed": "The grace period has ended; the account can no longer be recovered.",
+      "invalidCode": "The two-step verification code is wrong. Try again.",
+      "noPassword": "This screen does not work for accounts created only with Google or Steam; contact support.",
+      "fromLogin": "Cancel the deletion request",
+      "back": "Back to sign in"
+    }
   }
 }

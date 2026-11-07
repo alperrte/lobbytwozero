@@ -69,6 +69,7 @@
       "label": "Profil menüsü",
       "guestName": "Misafir",
       "guestState": "Giriş yapılmadı",
+      "signIn": "Giriş yap",
       "signedIn": "Hesabın",
       "guestNote": "Hesap özellikleri henüz hazır değil; giriş ve profil sayfaları sonraki adımlarda eklenecek.",
       "soon": "Yakında",
@@ -486,5 +487,291 @@
   },
   "Loading": {
     "label": "Yükleniyor"
+  },
+  "Auth": {
+    "shell": {
+      "brand": "LTZ ana sayfa",
+      "back": "Ana sayfaya dön",
+      "legalNav": "Yasal bağlantılar",
+      "privacy": "Gizlilik",
+      "terms": "Kullanım koşulları",
+      "copyright": "© LobbyTwoZero",
+      "login": {
+        "eyebrow": "Lobine hoş geldin",
+        "headlineStart": "Oyun kaldığı yerden",
+        "headlineAccent": "devam etsin.",
+        "subline": "Oyunlarını keşfet, profilini yönet ve topluluğunla yeniden buluş."
+      },
+      "register": {
+        "eyebrow": "Yeni lobin seni bekliyor",
+        "headlineStart": "Oyun dünyana",
+        "headlineAccent": "yeni bir kapı aç.",
+        "subline": "Profilini oluştur, yeni oyunlar keşfet ve seninle aynı tutkuyu paylaşan oyuncularla buluş."
+      }
+    },
+    "login": {
+      "metaTitle": "Giriş yap",
+      "title": "Giriş yap",
+      "description": "LTZ hesabına giriş yap, lobine katıl.",
+      "formLabel": "Giriş formu",
+      "identifier": "E-posta veya kullanıcı adı",
+      "identifierPlaceholder": "E-posta adresin veya kullanıcı adın",
+      "password": "Şifre",
+      "passwordPlaceholder": "Şifren",
+      "show": "Şifreyi göster",
+      "hide": "Şifreyi gizle",
+      "submit": "Giriş yap",
+      "submitting": "Giriş yapılıyor…",
+      "retryIn": "{time} sonra tekrar dene",
+      "noAccount": "Henüz hesabın yok mu?",
+      "toRegister": "Kayıt ol",
+      "verifiedNotice": "E-posta adresin doğrulandı. Şimdi giriş yapabilirsin.",
+      "forgot": "Şifremi unuttum",
+      "resetNotice": "Şifren güncellendi. Yeni şifrenle giriş yapabilirsin.",
+      "verifyLink": "E-postamı doğrula"
+    },
+    "session": {
+      "account": "Hesabım"
+    },
+    "time": {
+      "seconds": "{count} saniye",
+      "minutes": "{count} dakika"
+    },
+    "fields": {
+      "identifier": {
+        "required": "E-posta adresini veya kullanıcı adını gir.",
+        "tooLong": "En fazla {max} karakter olabilir."
+      },
+      "password": {
+        "required": "Şifreni gir.",
+        "tooLong": "En fazla {max} karakter olabilir.",
+        "tooShort": "En az {min} karakter olmalı.",
+        "weak": "Bu şifre tahmin edilmesi kolay. Daha uzun ve benzersiz bir şifre seç.",
+        "invalid": "Şifre geçersiz."
+      },
+      "username": {
+        "required": "Bir kullanıcı adı belirle.",
+        "pattern": "3–20 karakter; yalnız harf, rakam ve alt çizgi.",
+        "taken": "Bu kullanıcı adı kullanılıyor.",
+        "invalid": "Kullanıcı adı geçersiz."
+      },
+      "email": {
+        "required": "E-posta adresini gir.",
+        "invalid": "Geçerli bir e-posta adresi gir.",
+        "tooLong": "En fazla {max} karakter olabilir."
+      },
+      "acceptTerms": {
+        "required": "Devam etmek için koşulları kabul etmelisin."
+      },
+      "code": {
+        "required": "Doğrulama kodunu gir.",
+        "pattern": "Kod 6 haneli olmalı.",
+        "failed": "Kod geçersiz, süresi dolmuş ya da deneme hakkı bitmiş. Yeni bir kod isteyebilirsin."
+      },
+      "verifyPassword": {
+        "required": "Kayıt olurken belirlediğin şifreyi gir.",
+        "tooLong": "En fazla {max} karakter olabilir."
+      },
+      "newPassword": {
+        "required": "Yeni şifreni gir.",
+        "tooShort": "En az {min} karakter olmalı.",
+        "tooLong": "En fazla {max} karakter olabilir.",
+        "weak": "Bu şifre tahmin edilmesi kolay. Daha uzun ve benzersiz bir şifre seç.",
+        "same": "Yeni şifre mevcut şifrenden farklı olmalı.",
+        "invalid": "Şifre geçersiz."
+      },
+      "confirmation": {
+        "required": "Şifreni tekrar gir.",
+        "mismatch": "Şifreler eşleşmiyor."
+      }
+    },
+    "errors": {
+      "INVALID_CREDENTIALS": "E-posta, kullanıcı adı veya şifre hatalı.",
+      "EMAIL_NOT_VERIFIED": "E-posta adresin henüz doğrulanmadı. Kayıt sırasında gönderilen kodla doğrulamayı tamamla.",
+      "ACCOUNT_SUSPENDED": "Hesabın geçici olarak askıya alındı.",
+      "ACCOUNT_BANNED": "Hesabın yasaklandı.",
+      "ACCOUNT_UNAVAILABLE": "Bu hesap şu anda kullanılamıyor.",
+      "ACCOUNT_DELETION_PENDING": "Hesabının silinme süreci başladı. Geri alma süresi dolmadan vazgeçebilirsin.",
+      "TWO_FACTOR_ENROLLMENT_REQUIRED": "Bu hesap için iki aşamalı doğrulama kurulumu gerekiyor. Bu adım henüz bu ekranda desteklenmiyor.",
+      "MFA_NOT_SUPPORTED": "Bu hesap iki aşamalı doğrulama istiyor. Bu adım henüz bu ekranda desteklenmiyor.",
+      "CSRF_TOKEN_INVALID": "Güvenlik doğrulaması başarısız oldu. Sayfayı yenileyip tekrar dene.",
+      "TOO_MANY_ATTEMPTS": "Çok fazla deneme yaptın. {time} sonra tekrar dene.",
+      "SERVICE_BUSY": "Servis şu anda yoğun. Biraz sonra tekrar dene.",
+      "NETWORK": "Sunucuya ulaşılamadı. Bağlantını kontrol edip tekrar dene.",
+      "UNKNOWN": "Bir şeyler ters gitti. Lütfen tekrar dene.",
+      "VALIDATION_FAILED": "Bazı bilgiler geçersiz. Alanları kontrol edip tekrar dene.",
+      "MFA_FAILED": "Kod geçersiz ya da doğrulama oturumunun süresi doldu. Yeniden dene ya da girişe dön.",
+      "INVALID_TWO_FACTOR_CODE": "Kod yanlış. Tekrar dene."
+    },
+    "register": {
+      "metaTitle": "Kayıt ol",
+      "title": "Kayıt ol",
+      "description": "LTZ hesabını oluştur, topluluğa katıl.",
+      "formLabel": "Kayıt formu",
+      "username": "Kullanıcı adı",
+      "usernamePlaceholder": "Kullanıcı adını belirle",
+      "usernameHint": "3–20 karakter; harf, rakam ve alt çizgi.",
+      "email": "E-posta",
+      "emailPlaceholder": "E-posta adresini gir",
+      "password": "Şifre",
+      "passwordPlaceholder": "Şifreni belirle",
+      "passwordHint": "En az {min} karakter. Güçlü ve benzersiz bir şifre kullan.",
+      "terms": "<terms>Kullanım koşullarını</terms> kabul ediyorum. Kişisel veriler için <privacy>Gizlilik politikasını</privacy> incele.",
+      "submit": "Hesap oluştur",
+      "submitting": "Hesap oluşturuluyor…",
+      "nextStep": "Sonraki adım: e-posta adresini doğrula.",
+      "haveAccount": "Zaten hesabın var mı?",
+      "toLogin": "Giriş yap"
+    },
+    "verify": {
+      "metaTitle": "E-posta doğrulama",
+      "title": "E-postanı doğrula",
+      "description": "Adresine gönderdiğimiz 6 haneli kodu gir.",
+      "formLabel": "E-posta doğrulama formu",
+      "email": "E-posta",
+      "code": "Doğrulama kodu",
+      "codeHint": "{length} haneli kod. E-postadan kopyalayıp yapıştırabilirsin.",
+      "password": "Kayıt olurken belirlediğin şifre",
+      "passwordHint": "Hesabın sana ait olduğunu doğrulamak için gerekli. Saklanmaz.",
+      "submit": "E-postayı doğrula",
+      "submitting": "Doğrulanıyor…",
+      "resend": "Kodu yeniden gönder",
+      "resendIn": "Yeniden göndermek için {time} bekle",
+      "resent": "Yeni kod gönderildi (adres kayıtlıysa). Gelen kutunu kontrol et.",
+      "backToLogin": "Giriş sayfasına dön"
+    },
+    "forgot": {
+      "metaTitle": "Şifremi unuttum",
+      "title": "Şifreni mi unuttun?",
+      "description": "E-posta adresini gir, kayıtlıysa sana bir sıfırlama bağlantısı gönderelim.",
+      "formLabel": "Şifre sıfırlama isteği formu",
+      "email": "E-posta",
+      "emailPlaceholder": "E-posta adresini gir",
+      "submit": "Bağlantı gönder",
+      "resend": "Yeniden gönder",
+      "submitting": "Gönderiliyor…",
+      "sent": "Bu adres kayıtlıysa bir şifre sıfırlama bağlantısı gönderdik. Gelen kutunu ve gereksiz klasörünü kontrol et.",
+      "backToLogin": "Giriş sayfasına dön"
+    },
+    "reset": {
+      "metaTitle": "Şifre sıfırlama",
+      "title": "Yeni şifre belirle",
+      "description": "E-postandaki bağlantıyla geldin. Yeni şifreni belirle.",
+      "formLabel": "Şifre sıfırlama formu",
+      "newPassword": "Yeni şifre",
+      "confirmation": "Yeni şifre (tekrar)",
+      "submit": "Şifreyi güncelle",
+      "submitting": "Güncelleniyor…",
+      "tokenInvalid": "Bu bağlantı geçersiz ya da süresi dolmuş. Yeni bir şifre sıfırlama bağlantısı isteyebilirsin.",
+      "requestNew": "Yeni bağlantı iste"
+    },
+    "social": {
+      "or": "veya",
+      "login": {
+        "google": "Google ile giriş",
+        "steam": "Steam ile giriş"
+      },
+      "register": {
+        "google": "Google ile kayıt",
+        "steam": "Steam ile kayıt"
+      }
+    },
+    "callback": {
+      "metaTitle": "Giriş sonucu",
+      "title": "Hesabına bağlanıyoruz",
+      "processing": "İşlemin tamamlanıyor…",
+      "empty": "Bu sayfa yalnız Google veya Steam ile giriş dönüşü içindir. Giriş sayfasından yeniden başlayabilirsin.",
+      "mfa": "Bu hesap iki aşamalı doğrulama istiyor. Bu adım henüz bu ekranda desteklenmiyor.",
+      "linked": "Hesabın bağlandı.",
+      "backToLogin": "Giriş sayfasına dön",
+      "toHome": "Ana sayfaya git",
+      "steam": {
+        "formLabel": "Steam hesabı kayıt formu",
+        "description": "Steam hesabınla ilk kez geliyorsun. Hesabını tamamlamak için bir kullanıcı adı ve e-posta adresi gir.",
+        "submit": "Hesabı oluştur",
+        "tokenInvalid": "Kayıt bağlantısı geçersiz ya da süresi dolmuş. Steam ile girişi yeniden başlat."
+      },
+      "errors": {
+        "EXTERNAL_AUTH_FAILED": "Giriş doğrulanamadı. Lütfen tekrar dene.",
+        "EXTERNAL_EMAIL_UNVERIFIED": "Sağlayıcıdaki e-posta adresin doğrulanmamış. Önce sağlayıcıda doğrula, sonra tekrar dene.",
+        "ACCOUNT_LINK_REQUIRED": "Bu e-posta adresiyle zaten bir hesap var. Önce e-posta ve şifrenle giriş yap, sonra bu hesabı bağla.",
+        "EMAIL_NOT_VERIFIED": "E-posta adresin henüz doğrulanmadı. Kayıt sırasında gönderilen kodla doğrulamayı tamamla.",
+        "ACCOUNT_SUSPENDED": "Hesabın geçici olarak askıya alındı.",
+        "ACCOUNT_BANNED": "Hesabın yasaklandı.",
+        "ACCOUNT_UNAVAILABLE": "Bu hesap şu anda kullanılamıyor.",
+        "TWO_FACTOR_ENROLLMENT_REQUIRED": "Bu hesap için iki aşamalı doğrulama kurulumu gerekiyor. Bu adım henüz bu ekranda desteklenmiyor.",
+        "PROVIDER_NOT_CONFIGURED": "Bu giriş yöntemi şu anda kullanılamıyor.",
+        "UNKNOWN": "Bir şeyler ters gitti. Lütfen tekrar dene."
+      }
+    },
+    "mfa": {
+      "submitting": "Gönderiliyor…",
+      "verify": {
+        "formLabel": "İki aşamalı doğrulama formu",
+        "description": "Doğrulama uygulamandaki 6 haneli kodu gir.",
+        "recoveryDescription": "Doğrulama uygulamana erişemiyorsan kurtarma kodlarından birini gir. Her kod yalnız bir kez geçerlidir.",
+        "code": "Doğrulama kodu",
+        "recoveryCode": "Kurtarma kodu",
+        "codeInvalid": "6 haneli bir kod gir.",
+        "recoveryInvalid": "Kurtarma kodu XXXXX-XXXXX biçimindedir.",
+        "submit": "Doğrula",
+        "useRecovery": "Kurtarma kodu kullan",
+        "useCode": "Uygulama kodu kullan",
+        "cancel": "Vazgeç",
+        "restart": "Girişe dön"
+      },
+      "enroll": {
+        "intro": "Bu hesap için iki aşamalı doğrulamayı kurman gerekiyor. Başlayınca bir anahtar göstereceğiz; doğrulama uygulamana ekle.",
+        "start": "Kurulumu başlat",
+        "formLabel": "İki aşamalı doğrulama kurulum formu",
+        "scan": "Doğrulama uygulamanda (ör. Google Authenticator) yeni hesap ekle ve aşağıdaki anahtarı gir, sonra uygulamanın gösterdiği kodu yaz.",
+        "secret": "Kurulum anahtarı (yalnız şimdi gösterilir)",
+        "openApp": "Uygulamada aç",
+        "activate": "Etkinleştir ve giriş yap",
+        "done": "İki aşamalı doğrulama etkinleştirildi, giriş yaptın.",
+        "recoveryDescription": "Kurtarma kodlarını güvenli bir yere kaydet. Bir daha gösterilmeyecek; telefonuna erişemezsen bu kodlarla girebilirsin.",
+        "recoveryList": "Kurtarma kodları",
+        "saved": "Kurtarma kodlarını güvenli bir yere kaydettim.",
+        "continue": "Devam et"
+      }
+    },
+    "deleteAccount": {
+      "metaTitle": "Hesabı sil",
+      "title": "Hesabını silmeyi onayla",
+      "description": "Bu işlem hesabını silme sürecini başlatır. Onaylamak için kullanıcı adını yaz.",
+      "formLabel": "Hesap silme onay formu",
+      "username": "Kullanıcı adın",
+      "usernameHint": "Onay için hesabının kullanıcı adını aynen yaz.",
+      "submit": "Hesabımı sil",
+      "submitting": "Gönderiliyor…",
+      "warning": "Onayladığında tüm oturumların kapanır. Hesabın 14 gün içinde geri alınabilir; sonrasında kişisel verilerin kalıcı olarak silinir.",
+      "tokenInvalid": "Bu bağlantı geçersiz ya da süresi dolmuş. Hesap ayarlarından yeni bir silme isteği başlat.",
+      "confirmationInvalid": "Kullanıcı adı eşleşmedi ya da bağlantının süresi doldu. Kullanıcı adını kontrol et; sorun sürerse yeni bir silme isteği başlat.",
+      "needLogin": "Bu işlem için giriş yapmış olmalısın. Giriş yapıp e-postadaki bağlantıyı yeniden aç.",
+      "adminForbidden": "Yönetici hesabı silinemez. Önce yönetici rolünün kaldırılması gerekir.",
+      "done": "Silme talebin alındı. Oturumların kapatıldı.",
+      "doneDetail": "14 gün içinde e-posta ya da kullanıcı adın ve parolanla giriş yapmadan önce vazgeçebilirsin; süre dolunca kişisel verilerin kalıcı olarak silinir.",
+      "toHome": "Ana sayfaya git",
+      "toLogin": "Giriş yap"
+    },
+    "cancelDeletion": {
+      "metaTitle": "Silme talebinden vazgeç",
+      "title": "Silme talebinden vazgeç",
+      "description": "Hesabın silinme sürecinde. Geri alma süresi dolmadan vazgeçebilirsin; hesabın yeniden kullanıma açılır.",
+      "formLabel": "Silme talebinden vazgeçme formu",
+      "code": "2FA kodu (varsa)",
+      "codeHint": "İki aşamalı doğrulaman açıksa uygulamadaki 6 haneli kodu ya da bir kurtarma kodunu gir.",
+      "codeInvalid": "6 haneli bir kod ya da XXXXX-XXXXX biçiminde kurtarma kodu gir.",
+      "submit": "Silmeyi iptal et",
+      "submitting": "Gönderiliyor…",
+      "done": "Silme talebin iptal edildi. Hesabın yeniden kullanıma açık.",
+      "toLogin": "Giriş yap",
+      "notPending": "Bu hesapta bekleyen bir silme talebi yok.",
+      "windowClosed": "Geri alma süresi doldu; hesap artık kurtarılamıyor.",
+      "invalidCode": "İki aşamalı doğrulama kodu yanlış. Tekrar dene.",
+      "noPassword": "Yalnız Google veya Steam ile açtığın hesaplarda bu ekran çalışmaz; destek ekibiyle iletişime geç.",
+      "fromLogin": "Silme talebinden vazgeç",
+      "back": "Giriş sayfasına dön"
+    }
   }
 }

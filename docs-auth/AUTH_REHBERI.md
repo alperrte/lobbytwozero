@@ -272,6 +272,50 @@ Auth uç aileleri (`/api/v1/auth`): `register`, `email-verification`, `login` (+
 
 ---
 
+### Üretim topolojisi (karar 2026-11-07): frontend ve `/api/v1` AYNI HOST altında
+
+Auth'ın CSRF çerezi (`__Host-XSRF-TOKEN`) ve oturum ipucu çerezi (`__Host-ltz_session`) `Domain` taşıyamaz (host-only) ve JS'in okuyabilmesi için frontend ile **aynı host**ta olmalıdır. Gerçek Chromium'da denendi: `app.…` ve `api.…` ayrı yerleşirse frontend `X-XSRF-TOKEN` başlığını koyamaz, giriş/yenileme/çıkış `403` verir.
+
+- **Yapılacak:** tek alan adı; ters vekil (TLS'i de burada sonlandır, HSTS orada) `/` → frontend, `/api/v1/**` → Gateway yönlendirsin.
+- **Frontend:** `NEXT_PUBLIC_API_BASE_URL` BOŞ bırakılır (göreli yol). Üretim derlemesinde yerel olmayan `http` adresi derlemeyi durdurur (`shared/config/security-headers.ts`).
+- **Dev'de** aynı kural doğal olarak sağlanır: `localhost:5001` ve `localhost:5080` aynı host sayılır (çerezler portu görmez).
+- Alt alan adı zorunluysa Auth'ta CSRF değerini gövdede dönmek gerekir (`GET /csrf` → `{token}`); bu, çift gönderim güvenliğini azaltır, önerilmez.
+
+### E-posta ve OAuth bağlantı yolları (Auth sabit, frontend bu yollarda sayfa açar)
+
+Auth bağlantıları DİL ÖNEKSİZ üretir (e-posta dil bilmez). Frontend öneksiz adresi 308 ile dil önekli (varsayılan `tr`, çerez varsa o dil) adrese yönlendirir; **URL parçası (`#…`) tarayıcıda korunur** (e2e ile doğrulandı).
+
+| Auth'ın ürettiği bağlantı | Frontend sayfası | Durum |
+|---|---|---|
+| `${FRONTEND_PUBLIC_URL}/auth/reset-password#token=…` | `/tr/auth/sifre-sifirla`, `/en/auth/reset-password` | **Hazır** |
+| `${FRONTEND_PUBLIC_URL}/auth/callback#status=…` (Google/Steam dönüşü) | `/auth/callback` | Hazır (`features/auth`, e2e ile doğrulandı; canlı Google/Steam testi gerçek kimlik bilgisi ister) |
+| `${FRONTEND_PUBLIC_URL}/account/delete#token=…` (silme onayı) | `/account/delete` | Hazır (`features/auth`, e2e ile doğrulandı; onay oturum ister) |
+
+Token'lar parçadadır: sunucuya, günlüğe ve `Referer`'a gitmez. Frontend token'ı okur okumaz adres çubuğundan siler, yalnız bellekte tutar ve istek gövdesinde gönderir.
+
+### Diğer servislerin sayfaları için: "giriş şart" yardımcısı
+
+Giriş gerektiren bir sayfa yazan her servis ekibi (ve yapay zekâ asistanı) bunu kullanır; kendi yönlendirmesini yazmaz:
+
+```tsx
+import { useRequireSession } from "@/features/auth";
+
+const session = useRequireSession();
+if (session.status !== "authenticated") return null; // loading ve guest iken içerik çizme
+// session.me.roles: yalnız arayüz içindir
+```
+
+- Oturumsuz ziyaretçiyi `/login?next=<bu sayfa>` adresine yönlendirir; giriş sonrası kullanıcı bu sayfaya döner. `next` yalnız uygulama içi güvenli yollar için eklenir (açık yönlendirme engellenir).
+- Bu **yalnız kullanıcı deneyimidir, güvenlik sınırı değildir.** Yetki kararı her zaman ilgili servisin sunucu tarafındadır; rol bilgisi arayüzde yalnız neyi göstereceğini seçmek içindir.
+- Sayfa `SessionProvider` içinde olmalıdır (`app/[locale]/(public)/layout.tsx` zaten sarar). Auth dışı bir servisin API'sini çağırırken oturum yenileme (401 → yenile → tekrar) için `features/auth/services/auth-http.ts` kullanılır; yeni bir uç gerekiyorsa `SessionBoundPath` listesine eklenir.
+- Silinme sürecindeki hesabın geri alma ekranı: `/account/cancel-deletion` (giriş hatasından otomatik bağlanır).
+
+### Oturum ipucu çerezi ve hesap bazlı kilit
+
+- Girişte `__Host-ltz_session=1` (HttpOnly değil, değer taşımaz) yazılır, yenilemede sürer, çıkışta silinir. Frontend bu çerez yokken `/me` ve `/session/refresh` isteklerini hiç atmaz (misafire gereksiz 401 yok).
+- Giriş kilidi hesap bazlıdır: e-posta, kullanıcı adı ve büyük/küçük harf aynı sayacı paylaşır (toplam 5 hata). Kilit sırasında doğru parola da `429` alır (bilinen ödünleşme: bilinen bir hesaba 5 yanlış denemeyle 15 dk giriş yasağı konabilir).
+- Frontend güvenlik başlıkları: `frame-ancestors 'none'`, `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, HSTS (üretim). Tam CSP ayrı iş.
+
 ## 9. Yerelde çalıştırma
 
 ```text

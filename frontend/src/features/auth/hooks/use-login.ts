@@ -1,0 +1,59 @@
+"use client";
+
+import { useRef, useState } from "react";
+import { ApiHttpError } from "@/shared/lib/api/client";
+import { authApi, type LoginApi } from "../services/auth-api";
+import { authErrorCode } from "../services/auth-http";
+import type { AuthErrorCode, MfaChallenge } from "../types/auth.types";
+import { useCooldown } from "./use-cooldown";
+
+export type LoginProblem = { code: AuthErrorCode; retryAfterSeconds?: number };
+export type LoginOutcome = "authenticated" | "mfa" | "failed";
+
+/**
+ * Giriş gönderimi: çift gönderim engeli, hata kodu, 429 geri sayımı. Parola yalnız `submit` çağrısının
+ * parametresidir; durumda, günlükte ya da depoda tutulmaz.
+ *
+ * İki aşamalı doğrulama gerekiyorsa sunucu çerez yazmaz; oturum açılmış SAYILMAZ, sonuç `"mfa"` olur ve
+ * tek kullanımlık `challenge` bellekte tutulur (ikinci adım ekranı onu kullanır).
+ */
+export function useLogin(api: LoginApi = authApi) {
+  const [pending, setPending] = useState(false);
+  const [problem, setProblem] = useState<LoginProblem | null>(null);
+  const [challenge, setChallenge] = useState<MfaChallenge | null>(null);
+  const { remaining: cooldown, start: startCooldown } = useCooldown();
+  const busy = useRef(false);
+
+  async function submit(identifier: string, password: string): Promise<LoginOutcome> {
+    if (busy.current || cooldown > 0) {
+      return "failed";
+    }
+    busy.current = true;
+    setPending(true);
+    setProblem(null);
+    try {
+      const result = await api.login(identifier.trim(), password);
+      if (result.status === "AUTHENTICATED") {
+        return "authenticated";
+      }
+      setChallenge({ kind: result.status === "MFA_REQUIRED" ? "verify" : "enroll", id: result.challengeId });
+      return "mfa";
+    } catch (error) {
+      if (error instanceof ApiHttpError) {
+        const code = authErrorCode(error);
+        setProblem({ code, retryAfterSeconds: error.retryAfterSeconds });
+        if (code === "TOO_MANY_ATTEMPTS" && error.retryAfterSeconds) {
+          startCooldown(error.retryAfterSeconds);
+        }
+      } else {
+        setProblem({ code: "UNKNOWN" });
+      }
+      return "failed";
+    } finally {
+      busy.current = false;
+      setPending(false);
+    }
+  }
+
+  return { pending, problem, challenge, cooldown, submit, clearProblem: () => setProblem(null), clearChallenge: () => setChallenge(null) };
+}
