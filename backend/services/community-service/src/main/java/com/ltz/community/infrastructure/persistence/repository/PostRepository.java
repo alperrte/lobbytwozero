@@ -1,5 +1,6 @@
 package com.ltz.community.infrastructure.persistence.repository;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -50,6 +51,9 @@ public interface PostRepository extends JpaRepository<Post, UUID>, JpaSpecificat
 
 	/** Kullanıcının bu orijinali silinmemiş bir repost ile zaten paylaşıp paylaşmadığı. */
 	boolean existsByAuthorIdAndRepostOfIdAndStatusNot(UUID authorId, UUID repostOfId, PostStatus status);
+
+	/** Kullanıcının verilen andan sonra oluşturduğu türlü içerik sayısı (silinenler dahil; GAME-11 kotası). */
+	long countByAuthorIdAndContentTypeIsNotNullAndCreatedAtAfter(UUID authorId, Instant since);
 
 	@Query("select p.likeCount from Post p where p.id = :id")
 	Optional<Integer> findLikeCountById(@Param("id") UUID id);

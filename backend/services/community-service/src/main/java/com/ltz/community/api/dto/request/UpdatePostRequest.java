@@ -7,11 +7,17 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-/** {@code category} verilmezse mevcut kategori korunur. */
+/**
+ * {@code category} verilmezse mevcut kategori korunur. {@code title} yalnız türlü içerikte (GAME-11) verilebilir;
+ * verilmezse mevcut başlık korunur.
+ */
 public record UpdatePostRequest(
 		@NotBlank
 		@Size(max = Post.BODY_MAX_LENGTH)
 		@Pattern(regexp = Post.BODY_ALLOWED_CHARACTERS, message = "must not contain control characters")
 		String body,
-		PostCategory category) {
+		PostCategory category,
+		@Size(max = Post.TITLE_MAX_LENGTH)
+		@Pattern(regexp = Post.TITLE_ALLOWED_CHARACTERS, message = "must not contain control characters")
+		String title) {
 }

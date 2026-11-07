@@ -69,13 +69,21 @@ public class PostAccess {
 		}
 	}
 
-	/** Etkileşim (beğeni, yorum) yalnız herkese açık gönderiye yapılır; gizli içerik sahibine bile etkileşime kapalıdır. */
-	public Post loadInteractable(UUID postId, UUID userId) {
+	/**
+	 * Yalnız herkese açık (VISIBLE) gönderi: gizli içerik sahibine bile görünmez; diğer kurallar {@link #loadViewable}
+	 * ile aynıdır (silinmiş, gizli forum, engelleme).
+	 */
+	public Post loadPublished(UUID postId, UUID userId) {
 		Post post = loadViewable(postId, userId);
 		if (post.getStatus() != PostStatus.VISIBLE) {
 			throw new PostNotFoundException();
 		}
 		return post;
+	}
+
+	/** Etkileşim (beğeni, yorum) yalnız herkese açık gönderiye yapılır; gizli içerik sahibine bile etkileşime kapalıdır. */
+	public Post loadInteractable(UUID postId, UUID userId) {
+		return loadPublished(postId, userId);
 	}
 
 	private Post requireOwned(Optional<Post> found, UUID userId) {
