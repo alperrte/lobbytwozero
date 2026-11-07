@@ -16,13 +16,15 @@
 // Neden doğrudan veritabanı? Auth parola alt sınırı 15 karakterdir; kısa bir geliştirme parolası API'den geçmez. Betik hesabı
 // GERÇEK akışla açar (kayıt → Mailpit kodu → doğrulama → giriş; olay ve rol kayıtları Auth'un kendi kodundan çıkar), sonra
 // yalnız parola özetini yazar ve gerekli rolü ekler. ADMIN/MODERATOR için Auth TOTP zorunlu kıldığından, rol verilmeden ÖNCE
-// TOTP API ile kurulur; sır ve kurtarma kodları gitignore'daki `.dev-accounts.local.json` dosyasına yazılır.
+// TOTP API ile kurulur; sır ve kurtarma kodları makine düzeyindeki `~/.ltz/dev-accounts.json` dosyasına yazılır (depoya girmez;
+// aynı bilgisayardaki tüm klasörler aynı veritabanını paylaştığı için aynı dosyayı kullanır).
 //
 // Güvenlik: yalnız localhost'a ve `ltz-dev-*` Postgres kapsayıcısına çalışır, NODE_ENV=production iken reddeder. Parola
 // depoya yazılmaz (DEV_ACCOUNTS_PASSWORD zorunlu, varsayılanı yok) ve ekrana basılmaz. Tekrar çalıştırmak güvenlidir.
 
 import { spawnSync } from "node:child_process";
-import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -41,7 +43,13 @@ import {
 } from "./dev-accounts-lib.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const STATE_FILE = resolve(root, ".dev-accounts.local.json");
+/**
+ * 2FA sırları MAKİNE düzeyinde tutulur: aynı bilgisayardaki tüm klasörler (ör. farklı git worktree'leri) aynı Docker
+ * veritabanını (`ltz-dev`) paylaşır, dolayısıyla aynı sırrı görmelidir. Depoya girmez (home dizini). `DEV_ACCOUNTS_STATE` ile
+ * değiştirilebilir. Eski klasör içi dosya (`.dev-accounts.local.json`) bulunursa içeriği buraya taşınır.
+ */
+const STATE_FILE = process.env.DEV_ACCOUNTS_STATE ?? resolve(homedir(), ".ltz", "dev-accounts.json");
+const LEGACY_STATE_FILE = resolve(root, ".dev-accounts.local.json");
 
 /** Ortam değişkeni önceliklidir; yoksa .env.dev'deki DEV_ACCOUNTS_* satırları kullanılır (başka hiçbir satır okunmaz). */
 function devEnv() {
@@ -72,16 +80,28 @@ function fail(message) {
 
 // ---------- yerel durum (TOTP sırları) ----------
 
-function readState() {
-  if (!existsSync(STATE_FILE)) return {};
+function readJson(file) {
   try {
-    return JSON.parse(readFileSync(STATE_FILE, "utf8"));
+    return JSON.parse(readFileSync(file, "utf8"));
   } catch {
-    fail(`${STATE_FILE} okunamadı (bozuk JSON). Silip yeniden çalıştırabilirsin; mevcut 2FA hesapları için DB'de TOTP'yi sıfırlaman gerekir.`);
+    fail(`${file} okunamadı (bozuk JSON). Silip yeniden çalıştırabilirsin; betik eksik 2FA sırlarını yeniden kurar.`);
   }
 }
 
+function readState() {
+  const machine = existsSync(STATE_FILE) ? readJson(STATE_FILE) : {};
+  if (!existsSync(LEGACY_STATE_FILE)) return machine;
+  // Eski klasör içi dosyadaki kayıtlardan makine dosyasında olmayanlar taşınır (makine dosyası önceliklidir).
+  const merged = { ...readJson(LEGACY_STATE_FILE), ...machine };
+  if (Object.keys(merged).length !== Object.keys(machine).length) {
+    writeState(merged);
+    console.log(`(2FA sırları ${STATE_FILE} dosyasına taşındı)`);
+  }
+  return merged;
+}
+
 function writeState(state) {
+  mkdirSync(dirname(STATE_FILE), { recursive: true, mode: 0o700 });
   writeFileSync(STATE_FILE, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600 });
   try {
     chmodSync(STATE_FILE, 0o600);
@@ -193,16 +213,51 @@ async function createViaApi(account, email, temp, state) {
   response = await session.request("POST", "/api/v1/auth/login", { identifier: email, password: temp });
   if (response.json?.status !== "AUTHENTICATED") fail(`${email} ilk giriş başarısız: ${describe(response)}`);
 
-  if (account.mfa) {
-    response = await session.request("POST", "/api/v1/auth/2fa/totp/setup", {});
-    const secret = response.json?.secret;
-    if (response.status !== 200 || !secret) fail(`${email} TOTP kurulumu başarısız: ${describe(response)}`);
-    await waitForFreshTotpStep();
-    response = await session.request("POST", "/api/v1/auth/2fa/totp/activate", { code: totp(secret) });
-    if (response.status !== 200) fail(`${email} TOTP etkinleştirme başarısız: ${describe(response)}`);
-    state[email] = { totpSecret: secret, recoveryCodes: response.json?.recoveryCodes ?? [] };
-    writeState(state);
-  }
+  if (account.mfa) await enrollTotp(session, email, state);
+}
+
+/** Giriş yapmış oturumda TOTP kurar ve etkinleştirir; sır ve kurtarma kodları makine dosyasına yazılır. */
+async function enrollTotp(session, email, state) {
+  let response = await session.request("POST", "/api/v1/auth/2fa/totp/setup", {});
+  const secret = response.json?.secret;
+  if (response.status !== 200 || !secret) fail(`${email} TOTP kurulumu başarısız: ${describe(response)}`);
+  await waitForFreshTotpStep();
+  response = await session.request("POST", "/api/v1/auth/2fa/totp/activate", { code: totp(secret) });
+  if (response.status !== 200) fail(`${email} TOTP etkinleştirme başarısız: ${describe(response)}`);
+  state[email] = { totpSecret: secret, recoveryCodes: response.json?.recoveryCodes ?? [] };
+  writeState(state);
+}
+
+/**
+ * Hesabın TOTP'si var ama sırrı bu makinede yok (veritabanı başka makineden gelmiş, dosya silinmiş): yalnız DEV hesabı için
+ * 2FA sıfırlanıp yeniden kurulur. Auth 2FA'sız ADMIN/MODERATOR'a oturum vermediğinden, kurulum süresince rol geçici alınır ve
+ * `finalizeInDatabase` ile geri verilir.
+ */
+async function repairTotp(account, email, state) {
+  const e = sqlLiteral(email.toLowerCase());
+  const owner = `(select id from accounts where email_normalized = ${e})`;
+  process.stdout.write("2FA sırrı yok, yeniden kuruluyor … ");
+  psql(`
+    begin;
+    update accounts
+       set password_hash = ${sqlLiteral(hashPassword(config.password))}, status = 'ACTIVE',
+           email_verified_at = coalesce(email_verified_at, now()), token_version = token_version + 1,
+           updated_at = now(), version = version + 1
+     where email_normalized = ${e};
+    insert into account_role_history (id, account_id, role_code, action, reason, actor_id, created_at)
+      select gen_random_uuid(), a.id, ${sqlLiteral(account.role)}, 'REVOKE', 'dev-accounts 2fa repair', a.id, now()
+        from accounts a join account_roles ar on ar.account_id = a.id join roles r on r.id = ar.role_id
+       where a.email_normalized = ${e} and r.code = ${sqlLiteral(account.role)};
+    delete from account_roles where account_id = ${owner} and role_id = (select id from roles where code = ${sqlLiteral(account.role)});
+    delete from recovery_codes where account_id = ${owner};
+    delete from totp_credentials where account_id = ${owner};
+    commit;
+  `);
+  const session = new Session();
+  await session.csrf();
+  const response = await session.request("POST", "/api/v1/auth/login", { identifier: email, password: config.password });
+  if (response.json?.status !== "AUTHENTICATED") fail(`${email} 2FA onarımı sırasında giriş başarısız: ${describe(response)}`);
+  await enrollTotp(session, email, state);
 }
 
 function finalizeInDatabase(account, email, passwordHash) {
@@ -280,6 +335,7 @@ async function seed() {
     process.stdout.write(`• ${email} (${account.role}) … `);
     const existing = psql(`select id from accounts where email_normalized = ${sqlLiteral(email.toLowerCase())};`);
     if (!existing) await createViaApi(account, email, temporaryPassword(), state);
+    else if (account.mfa && !state[email]?.totpSecret) await repairTotp(account, email, state);
     finalizeInDatabase(account, email, hashPassword(config.password));
     const problem = await verifyLogin(account, email, state);
     console.log(problem ? `✗ ${problem}` : "✓ giriş doğrulandı");
@@ -302,7 +358,7 @@ function showTotp(name) {
   const account = DEV_ACCOUNTS.find((item) => item.local === name);
   if (!account?.mfa) fail(`2FA yalnız şu hesaplarda var: ${DEV_ACCOUNTS.filter((a) => a.mfa).map((a) => a.local).join(", ")}`);
   const entry = readState()[emailFor(account, config.domain)];
-  if (!entry?.totpSecret) fail("Bu hesap için yerel TOTP sırrı yok. Önce `node ops/dev-accounts.mjs` çalıştır.");
+  if (!entry?.totpSecret) fail("Bu hesap için bu makinede TOTP sırrı yok. `node ops/dev-accounts.mjs` çalıştır: sırrı olmayan 2FA hesabını yeniden kurar.");
   console.log(`${totp(entry.totpSecret)}  (${secondsLeftInStep()} sn geçerli)`);
 }
 
