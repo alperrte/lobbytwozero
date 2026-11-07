@@ -177,6 +177,27 @@ class AccountDataEraserIntegrationTest extends PostgreSqlIntegrationTest {
 	}
 
 	@Test
+	void gameContentTitleAndBodyOfTheAccountAreErasedWhileOthersContentIsKept() {
+		UUID game = UUID.randomUUID();
+		Post accountGuide = postRepository.saveAndFlush(Post.publishGameContent(account, game,
+				com.ltz.community.domain.enums.GameContentType.GUIDES, "hesabın gizli başlığı", "hesabın rehberi", NOW));
+		Post othersGuide = postRepository.saveAndFlush(Post.publishGameContent(other, game,
+				com.ltz.community.domain.enums.GameContentType.GUIDES, "başkasının başlığı", "başkasının rehberi", NOW));
+		entityManager.clear();
+
+		erasure.erase(account);
+
+		Map<String, Object> erased = row("posts", accountGuide.getId());
+		assertThat(erased).containsEntry("author_id", ANONYMOUS).containsEntry("status", "DELETED")
+				.containsEntry("body", AccountErasurePort.REMOVED_CONTENT)
+				.containsEntry("title", AccountErasurePort.REMOVED_CONTENT)
+				.containsEntry("content_type", "GUIDES").containsEntry("game_id", game);
+		assertThat(row("posts", othersGuide.getId())).containsEntry("author_id", other).containsEntry("status", "VISIBLE")
+				.containsEntry("title", "başkasının başlığı");
+		assertThat(count("select count(*) from posts where title like '%hesabın%'")).isZero();
+	}
+
+	@Test
 	void othersDataAroundTheAccountIsLeftIntact() {
 		erasure.erase(account);
 

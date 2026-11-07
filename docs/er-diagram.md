@@ -866,39 +866,82 @@ erDiagram
 
 ```mermaid
 erDiagram
-  content_categories ||--o{ contents : categorizes
+  content_categories ||--o{ content_category_assignments : classifies
+  contents ||--o{ content_category_assignments : "categorized as"
   contents ||--o{ content_translations : "translated as"
   contents ||--o{ content_images : has
   contents ||--o{ content_sources : cites
+  contents ||--o{ content_moderation_actions : "moderated by"
 
   content_categories {
     uuid id PK
-    varchar code UK
+    varchar code UK "sabit liste, 14 kayıt (V103)"
+    varchar kind "PLATFORM|TOPIC"
+    varchar name_tr
+    varchar name_en
+    int sort_order
+  }
+  content_category_assignments {
+    uuid content_id PK,FK
+    uuid category_id PK,FK
   }
   contents {
     uuid id PK
     uuid author_id "REF"
     varchar type "NEWS|ANNOUNCEMENT|USER_CONTENT"
-    uuid category_id FK
-    varchar slug UK
+    uuid game_id "REF game-service (V104)"
+    timestamptz published_at "V104"
+    varchar slug UK "sonraki faz"
     varchar status "DRAFT|PUBLISHED|REMOVED|ARCHIVED"
-    boolean featured
+    varchar default_locale "tr|en (V101)"
+    varchar content_hash "mükerrer içerik, kısmi UQ (V101)"
+    timestamptz deleted_at "soft delete (V101)"
+    boolean featured "V104, yalnız PUBLISHED"
+    timestamptz featured_at "V104"
+    uuid featured_by "REF, ADMIN (V104)"
+    timestamptz removed_at "V106, yalnız REMOVED"
+    uuid removed_by "REF, moderatör (V106)"
+    varchar removed_reason "V106"
   }
   content_translations {
     uuid content_id PK,FK
     varchar locale PK
     varchar title
+    varchar summary
     text body
   }
   content_images {
     uuid id PK
     uuid content_id FK
-    varchar storage_key
+    bytea content "V102, storage_key yok"
+    varchar mime_type "image/jpeg|image/png"
+    int sort_order "0-5"
   }
   content_sources {
     uuid id PK
     uuid content_id FK
-    varchar url
+    varchar title
+    varchar url "yalnız https (V103)"
+    date source_date
+    int sort_order "0-2, UQ (content_id, sort_order)"
+  }
+  content_moderation_actions {
+    uuid id PK
+    uuid content_id FK
+    varchar action "REMOVE|RESTORE"
+    uuid actor_id "REF, moderatör (V106)"
+    varchar actor_role "MODERATOR|ADMIN, admin-service doğrulaması (V107)"
+    varchar source "ADMIN_SERVICE (V107)"
+    varchar reason
+    uuid report_id "REF"
+    uuid event_id
+    timestamptz created_at
+  }
+  inbox_events {
+    uuid event_id PK "V106, olay tekilleştirme"
+    varchar event_type
+    varchar producer
+    timestamptz processed_at
   }
 ```
 

@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.data.domain.Sort;
@@ -14,7 +15,9 @@ import com.ltz.community.application.port.PostSearchCriteria.FeedPosition;
 import com.ltz.community.domain.entity.Forum;
 import com.ltz.community.domain.entity.Post;
 import com.ltz.community.domain.enums.ForumStatus;
+import com.ltz.community.domain.enums.GameContentType;
 import com.ltz.community.domain.enums.PostSort;
+import com.ltz.community.domain.enums.PostStatus;
 
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Predicate;
@@ -59,6 +62,25 @@ public final class PostSpecifications {
 			addCreatedBetween(predicates, root, cb, criteria.createdFrom(), criteria.createdTo());
 			if (criteria.after() != null) {
 				predicates.add(after(cb, root, criteria.sort(), criteria.after()));
+			}
+			return cb.and(predicates.toArray(Predicate[]::new));
+		};
+	}
+
+	/**
+	 * Oyuna bağlı türlü içerik listesi (GAME-11). Görünürlük kuralları akışla aynıdır ve liste ile toplam sayı aynı
+	 * koşuldan hesaplanır: yalnız VISIBLE, gizli forumda olmayan, yazarı çağıranla engelleme ilişkisinde olmayan içerik.
+	 * {@code type} null ise üç türün tümü (türsüz gönderiler asla) listelenir.
+	 */
+	public static Specification<Post> gameContent(UUID gameId, GameContentType type, Set<UUID> excludedAuthorIds) {
+		return (root, query, cb) -> {
+			List<Predicate> predicates = new ArrayList<>();
+			predicates.add(cb.equal(root.get("status"), PostStatus.VISIBLE));
+			predicates.add(inVisibleForumOrNone(root, query.subquery(Integer.class), cb));
+			predicates.add(cb.equal(root.<UUID>get("gameId"), gameId));
+			predicates.add(type == null ? cb.isNotNull(root.get("contentType")) : cb.equal(root.get("contentType"), type));
+			if (!excludedAuthorIds.isEmpty()) {
+				predicates.add(cb.not(root.get("authorId").in(excludedAuthorIds)));
 			}
 			return cb.and(predicates.toArray(Predicate[]::new));
 		};

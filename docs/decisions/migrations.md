@@ -19,6 +19,7 @@
 
 ## NISA
 - V91–V100     → COMMUNITY-SERVICE
+- V181–V190   → COMMUNITY-SERVICE (2026-11-07 açık kullanıcı onayı; V181 kullanıldı, V182–V190 boş)
 - V101–V110    → CONTENT-SERVICE
 - V111–V120    → EVENT-SERVICE
 
@@ -38,6 +39,21 @@ geliştirmeye başlanmadan önce belirlenmelidir.
 
 ## Migration Kuralları
 
+### Community Service ek tahsisi — 2026-11-07
+
+- Community Service'in V91–V100 aralığındaki 10 numaranın tamamı kullanılmıştır.
+  Kullanıcının açık onayıyla **V181–V190 Community Service'e tahsis edildi**.
+  İlk boş numara `V181__add_game_content_types.sql` için kullanıldı; V182–V190 boştur.
+- V181, GAME-11 kapsamında `posts` tablosuna `content_type` ve `title` ekler.
+  Eski gönderilere geriye dönük tür atanmaz; uygulanmış V91–V100 dosyaları değiştirilmez.
+- Bu tahsis Game Service'in V171–V180 ek aralığını veya V1–V170 içindeki diğer
+  servis tahsislerini değiştirmez. Aşağıdaki 2026-10-24 ve 2026-10-21 tarihli
+  “V181–V190 tahsis edilmemiştir” ifadeleri kendi tarihlerindeki durumu anlatır;
+  **güncel tahsis bu bölümdür**.
+- V181'in izole PostgreSQL testinde V100 sonrası yükseltme ve eski gönderilerin
+  korunması doğrulandı. Bu onay gerçek DEV/production veritabanına migration
+  uygulama, Flyway `repair`/`baseline` veya veri sıfırlama izni değildir.
+
 ### Güncel Game Service ek tahsisi ve hesap silme hazırlığı — 2026-10-24
 
 - **V173 kullanıldı (2026-11-05, GAME-24 / GAME-04 indirim filtresi):**
@@ -52,7 +68,8 @@ geliştirmeye başlanmadan önce belirlenmelidir.
 
 - Kullanıcının açık talimatıyla **V171–V180 Game Service'e yeniden tahsis edildi**.
   Aşağıdaki 2026-10-21 tarihli ek aralık iptali kayıtları tarihseldir; güncel tahsis bu bölümdür.
-  V181–V190 tahsis edilmemiştir. V1–V170 içindeki diğer servis aralıkları değişmez.
+  O tarihte V181–V190 tahsis edilmemişti; 2026-11-07 Community tahsisi için yukarıya bakın.
+  V1–V170 içindeki diğer servis aralıkları değişmez.
 - Tahsis öncesi aktif klasör kontrol edildi: yalnız V31–V40 vardı. İlk boş numara
   V171 seçildi: `V171__enable_controlled_account_erasure.sql`. Aktif zincir artık
   V31–V40 + V171'dir. Tarihsel fixture V171–V173 bu zincire dahil değildir.
@@ -113,7 +130,7 @@ bu çalışma için verilen istisnadır; diğer servisleri kapsamaz.
   numara yoktur: Game Service'in yeni migration'a ihtiyacı olursa ekipçe yeni bir numara
   aralığı belirlenmelidir; numara uydurulmaz.
 - V171–V173 yalnızca eski (tarihsel) 13 dosyalı zincirde kullanılmış Game Service sürümleridir;
-  aktif migration değildir. V171–V190 şu an hiçbir servise tahsisli değildir; yeniden tahsis ekip
+  aktif migration değildir. V171–V190 o tarihte hiçbir servise tahsisli değildi; yeniden tahsis ekip
   kararı gerektirir. V41–V170 diğer servislerin tahsisidir ve değişmez.
 - Ayrıntılar ve onay öncesi geçiş planı:
   [Game Service yeniden yapılandırma raporu](../../docs-Game%20Service/LTZ-HAM-GAME-Migration-Yeniden-Yapilandirma.md).

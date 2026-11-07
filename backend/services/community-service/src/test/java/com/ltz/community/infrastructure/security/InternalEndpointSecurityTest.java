@@ -32,14 +32,17 @@ import org.springframework.test.web.servlet.ResultActions;
 
 import com.ltz.community.AuthTestSupport;
 import com.ltz.community.api.controller.AccountErasureController;
+import com.ltz.community.api.controller.GameContentController;
 import com.ltz.community.api.controller.InternalEventController;
 import com.ltz.community.api.controller.PostLikeController;
 import com.ltz.community.api.controller.UserPostController;
+import com.ltz.community.api.dto.response.GameContentPageResponse;
 import com.ltz.community.api.dto.response.InboundEventResult;
 import com.ltz.community.api.dto.response.InboundEventResult.Outcome;
 import com.ltz.community.api.dto.response.LikeStateResponse;
 import com.ltz.community.api.dto.response.PostPageResponse;
 import com.ltz.community.application.service.AccountErasureService;
+import com.ltz.community.application.service.GameContentService;
 import com.ltz.community.application.service.InboundEventService;
 import com.ltz.community.application.service.PostFeedService;
 import com.ltz.community.application.service.PostLikeService;
@@ -51,7 +54,7 @@ import com.nimbusds.jwt.JWTClaimsSet;
  * community karşılığıdır (token türü yola göre seçilir; kullanıcı token'ı iç uçta, servis token'ı kullanıcı uçlarında geçmez).
  */
 @WebMvcTest(controllers = { AccountErasureController.class, InternalEventController.class, PostLikeController.class,
-		UserPostController.class })
+		UserPostController.class, GameContentController.class })
 @Import({ SecurityConfig.class, ProblemDetailSecurityHandler.class })
 class InternalEndpointSecurityTest {
 
@@ -86,6 +89,9 @@ class InternalEndpointSecurityTest {
 
 	@MockitoBean
 	private PostFeedService postFeedService;
+
+	@MockitoBean
+	private GameContentService gameContentService;
 
 	private ResultActions erase(String token) throws Exception {
 		return mockMvc.perform(delete(ERASE_URL).header(HttpHeaders.AUTHORIZATION, "Bearer " + token));
@@ -250,5 +256,24 @@ class InternalEndpointSecurityTest {
 		mockMvc.perform(get(url).header(HttpHeaders.AUTHORIZATION, "Bearer " + AuthTestSupport.userToken(USER_ID, "PLAYER")))
 				.andExpect(status().isOk());
 		mockMvc.perform(get(url).header(HttpHeaders.AUTHORIZATION, "Bearer sahte")).andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void gameContentReadsStayOpenToGuestsButRejectInvalidAndServiceTokens() throws Exception {
+		UUID gameId = UUID.fromString("0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66");
+		when(gameContentService.list(any(), any()))
+				.thenReturn(new GameContentPageResponse(gameId, null, java.util.List.of(), 0, 20, 0));
+		String url = "/api/v1/community/games/" + gameId + "/content";
+
+		mockMvc.perform(get(url)).andExpect(status().isOk());
+		mockMvc.perform(get(url).header(HttpHeaders.AUTHORIZATION, "Bearer " + AuthTestSupport.userToken(USER_ID, "PLAYER")))
+				.andExpect(status().isOk());
+		mockMvc.perform(get(url).header(HttpHeaders.AUTHORIZATION, "Bearer sahte")).andExpect(status().isUnauthorized());
+		mockMvc.perform(get(url).header(HttpHeaders.AUTHORIZATION, "Bearer " + AuthTestSupport.eraseToken(ACCOUNT_ID)))
+				.andExpect(status().isUnauthorized());
+		// Kullanıcı token'ının süresi dolmuşsa misafire düşürülmez, 401 döner.
+		mockMvc.perform(get(url).header(HttpHeaders.AUTHORIZATION, "Bearer " + AuthTestSupport.userToken(USER_ID,
+				claims -> claims.expirationTime(java.util.Date.from(Instant.now().minusSeconds(3600))))))
+				.andExpect(status().isUnauthorized());
 	}
 }

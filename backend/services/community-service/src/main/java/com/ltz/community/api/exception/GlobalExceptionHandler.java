@@ -4,6 +4,8 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -11,6 +13,7 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -25,6 +28,7 @@ import com.ltz.community.domain.exception.CommentNotFoundException;
 import com.ltz.community.domain.exception.ForumGameMismatchException;
 import com.ltz.community.domain.exception.ForumNotFoundException;
 import com.ltz.community.domain.exception.ForumSlugTakenException;
+import com.ltz.community.domain.exception.GameContentRuleException;
 import com.ltz.community.domain.exception.GameCatalogUnavailableException;
 import com.ltz.community.domain.exception.GameNotAvailableException;
 import com.ltz.community.domain.exception.InvalidImageException;
@@ -37,6 +41,7 @@ import com.ltz.community.domain.exception.PostImageNotFoundException;
 import com.ltz.community.domain.exception.PostNotEditableException;
 import com.ltz.community.domain.exception.PostNotFoundException;
 import com.ltz.community.domain.exception.ReportingOwnContentException;
+import com.ltz.community.domain.exception.TooManyGameContentException;
 import com.ltz.community.domain.exception.TooManyReportsException;
 
 /** Tüm hatalar ProblemDetail (RFC 9457) döner; stack trace, SQL veya kullanıcı girdisi yanıta yazılmaz. */
@@ -91,6 +96,29 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	public ResponseEntity<ProblemDetail> handleTooManyReports(TooManyReportsException exception) {
 		return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).header(HttpHeaders.RETRY_AFTER, "3600")
 				.body(ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS, exception.getMessage()));
+	}
+
+	@ExceptionHandler(TooManyGameContentException.class)
+	public ResponseEntity<ProblemDetail> handleTooManyGameContent(TooManyGameContentException exception) {
+		return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).header(HttpHeaders.RETRY_AFTER, "3600")
+				.body(ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS, exception.getMessage()));
+	}
+
+	@ExceptionHandler(GameContentRuleException.class)
+	public ProblemDetail handleGameContentRule(GameContentRuleException exception) {
+		return ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, exception.getMessage());
+	}
+
+	/**
+	 * Veritabanı geçici olarak erişilemezse (bağlantı havuzu/zaman aşımı) 503 döner; hata boş sonuca ya da 500'e
+	 * çevrilmez. Ayrıntı (SQL, bağlantı bilgisi) yanıta yazılmaz, yalnız istisna türü loglanır.
+	 */
+	@ExceptionHandler({ DataAccessResourceFailureException.class, CannotCreateTransactionException.class,
+			QueryTimeoutException.class })
+	public ProblemDetail handleDatabaseUnavailable(Exception exception) {
+		log.warn("Database is temporarily unavailable: {}", exception.getClass().getSimpleName());
+		return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE,
+				"The service is temporarily unavailable. Try again later.");
 	}
 
 	@ExceptionHandler(InvalidInboundEventException.class)
