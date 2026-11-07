@@ -30,7 +30,11 @@ final class ItadPriceValues {
         return cut.intValue();
     }
     static UUID uuid(String value) {
-        try { UUID id=UUID.fromString(value);if(!id.toString().equals(value)) throw invalid();return id; }
+        try {
+            UUID id=UUID.fromString(value);
+            if(!id.toString().equals(value)) throw invalid();
+            return id;
+        }
         catch(IllegalArgumentException _) { throw invalid(); }
     }
     static Instant instant(String value) {
@@ -41,7 +45,8 @@ final class ItadPriceValues {
         try {
             var uri=URI.create(value);
             if(!"https".equals(uri.getScheme()) || uri.getHost()==null || uri.getUserInfo()!=null
-                    || !uri.getHost().equals("isthereanydeal.com") && !uri.getHost().endsWith(".isthereanydeal.com")) throw invalid();
+                    || !uri.getHost().equals("itad.link") && !uri.getHost().equals("isthereanydeal.com")
+                    && !uri.getHost().endsWith(".isthereanydeal.com")) throw invalid();
             return value;
         } catch(IllegalArgumentException _) { throw invalid(); }
     }

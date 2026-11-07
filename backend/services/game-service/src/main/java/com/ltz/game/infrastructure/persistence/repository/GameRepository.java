@@ -3,6 +3,15 @@ import com.ltz.game.domain.entity.Game;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.UUID;
 public interface GameRepository extends JpaRepository<Game, UUID> {
+    /** Oyunları sabit sırayla kilitler; entity yüklemeden güncel override okumasını korur. */
+    @org.springframework.data.jpa.repository.Query(value = """
+        select g.id from games g where exists (
+            select 1 from game_external_refs r
+            where r.game_id = g.id and r.provider = :provider and r.external_id in (:externalIds)
+        ) order by g.id for update
+        """, nativeQuery = true)
+    java.util.List<UUID> lockCatalogGames(@org.springframework.data.repository.query.Param("provider") String provider,
+            @org.springframework.data.repository.query.Param("externalIds") java.util.Collection<String> externalIds);
     @org.springframework.data.jpa.repository.Modifying(clearAutomatically=true,flushAutomatically=true)
     @org.springframework.data.jpa.repository.Query("""
         update Game g set g.editorRank=null,g.popularityUpdatedAt=null,g.editorActorId=null,g.editorEvidence=null,g.version=g.version+1

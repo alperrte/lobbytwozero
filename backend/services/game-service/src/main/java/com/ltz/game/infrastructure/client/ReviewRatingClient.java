@@ -24,7 +24,7 @@ import org.springframework.web.client.RestClientResponseException;
  */
 public class ReviewRatingClient implements ReviewRatingPort {
 
-    static final String PATH = "/internal/v1/games/rating-summaries";
+    private final String path;
     private static final BigDecimal MIN_AVERAGE = BigDecimal.ONE;
     private static final BigDecimal MAX_AVERAGE = BigDecimal.TEN;
     private static final int MAX_SCALE = 2;
@@ -35,7 +35,8 @@ public class ReviewRatingClient implements ReviewRatingPort {
     private final String audience;
     private final Duration retryDelay;
 
-    public ReviewRatingClient(RestClient restClient, ServiceTokenPort tokens, String audience, Duration retryDelay) {
+    public ReviewRatingClient(RestClient restClient, ServiceTokenPort tokens, String audience, Duration retryDelay, String path) {
+        this.path = path;
         this.restClient = restClient;
         this.tokens = tokens;
         this.audience = audience;
@@ -61,7 +62,7 @@ public class ReviewRatingClient implements ReviewRatingPort {
         try {
             return restClient.get()
                     .uri(builder -> {
-                        builder.path(PATH).queryParam("limit", limit);
+                        builder.path(path).queryParam("limit", limit);
                         if (after != null) {
                             builder.queryParam("after", after);
                         }

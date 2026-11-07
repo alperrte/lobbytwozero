@@ -6,6 +6,7 @@ import { AppShell } from "./app-shell";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/tr",
+  useParams: () => ({}),
   useRouter: () => ({ replace: vi.fn(), push: vi.fn(), prefetch: vi.fn(), refresh: vi.fn() }),
   redirect: vi.fn(),
   permanentRedirect: vi.fn()
@@ -104,7 +105,8 @@ describe("AppShell", () => {
     const nav = screen.getByRole("navigation", { name: "Ana gezinme" });
 
     const links = nav.querySelectorAll("a");
-    expect(links).toHaveLength(1);
+    expect(links).toHaveLength(2);
+    expect(links[1]).toHaveAttribute("href", "/tr/oyunlar");
     expect(links[0]).toHaveAttribute("href", "/tr");
     expect(links[0]).toHaveAttribute("aria-current", "page");
     expect(nav.querySelectorAll('a[href="#"]')).toHaveLength(0);
@@ -114,8 +116,8 @@ describe("AppShell", () => {
     expect(nav).not.toHaveTextContent("Profil");
     expect(nav).not.toHaveTextContent("Bilgisayarlarım");
     expect(nav).not.toHaveTextContent("Kampanyalar");
-    // Tam eşleşme yalnız rozetleri sayar: Ana Sayfa dışındaki 12 öğe.
-    expect(screen.getAllByText("Yakında")).toHaveLength(12);
+    // Ana Sayfa ve Oyunlar dışındaki 11 öğe.
+    expect(screen.getAllByText("Yakında")).toHaveLength(11);
   });
 
   it("13 öğeyi üç grupta, belirlenen sırayla sunar", () => {
@@ -153,21 +155,21 @@ describe("AppShell", () => {
 
   it("'Yakında' öğeleri tıklanamaz: bağlantı değil, aria-disabled düğmedir", () => {
     renderShell();
-    const games = screen.getByRole("button", { name: "Oyunlar — Yakında" });
+    const games = screen.getByRole("button", { name: "Kütüphanem — Yakında" });
     expect(games).toHaveAttribute("aria-disabled", "true");
     expect(games.closest("a")).toBeNull();
-    // Ana Sayfa dışında etkin öğe yoktur: Ayarlar ve daralt düğmesi dışında başka bağlantı çıkmaz.
+    // Oyunlar kullanıma açıktır; kütüphane ve diğer bekleyen öğeler pasiftir.
     expect(
       screen.getAllByRole("button", { name: /— Yakında$/ })
-    ).toHaveLength(12);
+    ).toHaveLength(11);
   });
 
   it("'Yakında' öğesine odaklanınca tooltip çıkar, Escape ile kapanır", () => {
     renderShell();
-    const games = screen.getByRole("button", { name: "Oyunlar — Yakında" });
+    const games = screen.getByRole("button", { name: "Kütüphanem — Yakında" });
     fireEvent.focus(games);
     const tooltip = document.body.querySelector("span[aria-hidden='true'].fixed");
-    expect(tooltip).toHaveTextContent("Oyunlar — Yakında");
+    expect(tooltip).toHaveTextContent("Kütüphanem — Yakında");
 
     act(() => {
       fireEvent.keyDown(document, { key: "Escape" });

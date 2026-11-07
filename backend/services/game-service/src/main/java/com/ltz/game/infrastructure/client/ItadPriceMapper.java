@@ -44,11 +44,13 @@ final class ItadPriceMapper {
         return deals;
     }
     private static Quote quote(UUID id,String store,JsonNode deal,Market market,Instant now,Duration ttl) {
-        JsonNode price=deal.get("price"),regular=deal.get("regular");
+        JsonNode price=deal.get("price");
+        JsonNode regular=deal.get("regular");
         String currency=text(price,"currency");
         if(!currency.equals(text(regular,"currency"))) throw invalid();
         if(!market.currency().equals(currency)) throw new ProviderException("PRICE_CURRENCY_UNAVAILABLE");
-        var current=ItadPriceValues.amount(price);var normal=ItadPriceValues.amount(regular);
+        var current=ItadPriceValues.amount(price);
+        var normal=ItadPriceValues.amount(regular);
         if(current.compareTo(normal)>0) throw invalid();
         Instant updated=ItadPriceValues.instant(text(deal,"timestamp"));
         if(updated.isAfter(now.plusSeconds(30))) throw invalid();

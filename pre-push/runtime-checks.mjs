@@ -1,5 +1,6 @@
 import http from 'node:http';
 import { setTimeout as delay } from 'node:timers/promises';
+import { backendToolEnvironment } from '../lib/profile-env.mjs';
 
 // Maven runs on the host; Compose services use the container network and port.
 // Only database settings are copied, never arbitrary service secrets.
@@ -15,7 +16,7 @@ export function backendTestEnvironment(model, ambient = {}) {
   if (typeof username !== 'string' || !username || typeof password !== 'string' || !password) {
     throw new Error('Selected Compose profile is missing PostgreSQL credentials.');
   }
-  const env = { ...ambient, POSTGRES_HOST: '127.0.0.1', POSTGRES_PORT: String(port.published),
+  const env = { ...backendToolEnvironment(ambient), POSTGRES_HOST: '127.0.0.1', POSTGRES_PORT: String(port.published),
     POSTGRES_USER: username, POSTGRES_PASSWORD: password };
   const databases = new Map();
   for (const service of Object.values(model.services)) {

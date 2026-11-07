@@ -8,6 +8,30 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 class GameModuleTest extends AuthenticatedApiTest {
+    @Test void versionTwoDelegatesCommunityContentWithoutInventingAvailabilityOrCounts() throws Exception {
+        UUID id=active();
+        for(String type:new String[]{"GUIDES","EASTER_EGGS","EXPERIENCES"}) {
+            send(get(publicPath(id,type)+"?contractVersion=2&page=3&size=7"),null,null)
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.state").value("EXTERNAL"))
+                    .andExpect(jsonPath("$.items").isEmpty()).andExpect(jsonPath("$.totalElements").isEmpty())
+                    .andExpect(jsonPath("$.contentSource.service").value("COMMUNITY"))
+                    .andExpect(jsonPath("$.contentSource.listPath").value("/api/v1/community/games/"+id+"/content?type="+type+"&page=3&size=7"));
+            send(get(publicPath(id,type)),null,null).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.state").value("INTEGRATION_PENDING"))
+                    .andExpect(jsonPath("$.contentSource").doesNotExist());
+        }
+        send(get(publicPath(id,"ACHIEVEMENTS")+"?contractVersion=2"),null,null)
+                .andExpect(status().isOk()).andExpect(jsonPath("$.state").value("EMPTY"))
+                .andExpect(jsonPath("$.contentSource").doesNotExist());
+    }
+    @Test void versionTwoPreservesGameVisibilityAndValidatesTheContract() throws Exception {
+        UUID id=active();
+        for(String version:new String[]{"0","3","-1","invalid"})
+            send(get(publicPath(id,"GUIDES")+"?contractVersion="+version),null,null).andExpect(status().isBadRequest());
+        for(UUID absent:new UUID[]{UUID.randomUUID(),game("Archived modules","INTERNAL","MAIN_GAME","ARCHIVED")})
+            send(get(publicPath(absent,"GUIDES")+"?contractVersion=2"),null,null).andExpect(status().isNotFound());
+        send(get(publicPath(id,"GUIDES")+"?contractVersion=2&size=51"),null,null).andExpect(status().isBadRequest());
+    }
     private static final String TITLE="Original achievement";
     private String root(UUID id) { return "/api/v1/game/admin/games/"+id+"/achievements"; }
     private String publicPath(UUID id,String type) { return "/api/v1/game/games/"+id+"/modules/"+type; }

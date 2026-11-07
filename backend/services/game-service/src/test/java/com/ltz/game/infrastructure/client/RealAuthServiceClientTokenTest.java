@@ -92,7 +92,7 @@ class RealAuthServiceClientTokenTest {
             var tokens = new AuthServiceTokenClient(GameRatingConfiguration.restClient(RestClient.builder(), authServer.baseUrl(),
                     props.connectTimeout(), props.readTimeout()), Clock.systemUTC(), props);
             var client = new ReviewRatingClient(GameRatingConfiguration.restClient(RestClient.builder(), review.baseUrl(),
-                    props.connectTimeout(), props.readTimeout()), tokens, TARGET, Duration.ZERO);
+                    props.connectTimeout(), props.readTimeout()), tokens, TARGET, Duration.ZERO, "/internal/v1/games/rating-summaries");
 
             var page = client.fetchPage(null, 500);
             assertEquals(1, page.items().size());

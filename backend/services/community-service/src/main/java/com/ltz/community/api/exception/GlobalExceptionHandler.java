@@ -1,5 +1,6 @@
 package com.ltz.community.api.exception;
 
+import java.sql.SQLException;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -12,8 +13,11 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.orm.jpa.JpaSystemException;
+import org.hibernate.TransactionException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.CannotCreateTransactionException;
+import org.springframework.transaction.TransactionSystemException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -119,6 +123,47 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		log.warn("Database is temporarily unavailable: {}", exception.getClass().getSimpleName());
 		return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE,
 				"The service is temporarily unavailable. Try again later.");
+	}
+
+	/** Rollback hatası ilk bağlantı hatasını sarmalayabilir; başka transaction hataları 500 kalır. */
+	@ExceptionHandler(TransactionSystemException.class)
+	public ProblemDetail handleTransactionFailure(TransactionSystemException exception) {
+		if (isConnectionFailure(exception) || isConnectionFailure(exception.getOriginalException())) {
+			return handleDatabaseUnavailable(exception);
+		}
+		return handleUnexpected(exception);
+	}
+
+	@ExceptionHandler(JpaSystemException.class)
+	public ProblemDetail handleJpaFailure(JpaSystemException exception) {
+		if (isConnectionFailure(exception) || isClosedConnectionRollback(exception)) {
+			return handleDatabaseUnavailable(exception);
+		}
+		return handleUnexpected(exception);
+	}
+
+	private static boolean isClosedConnectionRollback(JpaSystemException exception) {
+		// Hikari'nin kapalı bağlantı vekili SQLException'a SQLState eklemez. Yalnız Hibernate
+		// rollback sarmalayıcısındaki bu sabit hata kabul edilir; başka SQL hataları 500 kalır.
+		return exception.getCause() instanceof TransactionException rollback
+				&& rollback.getCause() instanceof SQLException sql
+				&& sql.getSQLState() == null && "Connection is closed".equals(sql.getMessage());
+	}
+
+	private static boolean isConnectionFailure(Throwable failure) {
+		Throwable current = failure;
+		// Bozuk/döngülü cause zinciri hata yanıtını kilitlememeli.
+		for (int depth = 0; current != null && depth < 32; depth++) {
+			if (current instanceof DataAccessResourceFailureException
+					|| current instanceof CannotCreateTransactionException || current instanceof QueryTimeoutException) {
+				return true;
+			}
+			if (current instanceof SQLException sql && sql.getSQLState() != null && sql.getSQLState().startsWith("08")) {
+				return true;
+			}
+			current = current.getCause();
+		}
+		return false;
 	}
 
 	@ExceptionHandler(InvalidInboundEventException.class)

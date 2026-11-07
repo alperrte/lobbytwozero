@@ -110,7 +110,7 @@ async function backendFixture(options, action) {
       }
       return {code:options.buildFail?1:0,output:''};
     };
-    const result = await runBackendChecks({root,service:options.service??'auth-service',profile:options.profile??'dev',ambient:{SONAR_TOKEN:'do-not-forward',DEBUG:'tool-namespace'},runCommand,
+    const result = await runBackendChecks({root,service:options.service??'auth-service',profile:options.profile??'dev',ambient:{SONAR_TOKEN:'do-not-forward',DEBUG:'tool-namespace',IGDB_CLIENT_ID:'fixture-id',IGDB_CLIENT_SECRET:'fixture-secret',GAME_CATALOG_SYNC_ENABLED:'true',SPRING_APPLICATION_JSON:'{"game":{"catalog":{"sync":{"enabled":true}}}}'},runCommand,
       prepare:async()=> 'synthetic-context',coverageCheck:(_root,selected)=>{
         if(options.lowCoverage)throw new Error('Central policy rejected synthetic report');
         return selected.map(module=>({module}));
@@ -140,6 +140,11 @@ test('single service Maven run gets profile DB settings without Sonar values', a
     assert.equal(verify.env.POSTGRES_PORT,'5542');
     assert.equal(verify.env.SONAR_TOKEN,undefined);
     assert.equal(verify.env.DEBUG,undefined);
+    assert.equal(verify.env.IGDB_CLIENT_ID,undefined);
+    assert.equal(verify.env.IGDB_CLIENT_SECRET,undefined);
+    assert.equal(verify.env.GAME_CATALOG_SYNC_ENABLED,undefined);
+    assert.equal(verify.env.SPRING_APPLICATION_JSON,undefined);
+    assert.equal(verify.env.AUTH_SERVICE_URL,'http://127.0.0.1:1');
   });
 });
 

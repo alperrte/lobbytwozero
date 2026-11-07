@@ -49,8 +49,10 @@ class RatingProjectionMigrationTest {
     }
 
     @Test void stateTableIsASingletonWithAConsistentLease() {
-        assertThrows(DataAccessException.class, () -> jdbc.update("insert into game_rating_sync_state(id) values (?)", UUID.randomUUID()));
-        assertThrows(DataAccessException.class, () -> jdbc.update("update game_rating_sync_state set lease_owner = ?", UUID.randomUUID()));
+        var invalidValue1 = UUID.randomUUID();
+        assertThrows(DataAccessException.class, () -> jdbc.update("insert into game_rating_sync_state(id) values (?)", invalidValue1));
+        var invalidValue2 = UUID.randomUUID();
+        assertThrows(DataAccessException.class, () -> jdbc.update("update game_rating_sync_state set lease_owner = ?", invalidValue2));
         assertThrows(DataAccessException.class, () -> jdbc.update("update game_rating_sync_state set lease_until = now()"));
         assertThrows(DataAccessException.class, () -> jdbc.update("update game_rating_sync_state set scan_generation = -1"));
     }
@@ -58,15 +60,22 @@ class RatingProjectionMigrationTest {
     @Test void projectionRowsAreConsistentBoundedAndCascadeWithTheGame() {
         String insert = "insert into game_rating_projection(game_id,average_rating,rating_count,last_seen_scan,synced_at) values (?,?,?,?,now())";
         jdbc.update(insert, game, new java.math.BigDecimal("10.00"), 4L, 1L);
-        assertThrows(DataAccessException.class, () -> jdbc.update(insert, game, new java.math.BigDecimal("5.00"), 1L, 1L), "tekrarlı oyun");
-        assertThrows(DataAccessException.class, () -> jdbc.update(insert, UUID.randomUUID(), new java.math.BigDecimal("5.00"), 1L, 1L), "olmayan oyun");
+        var invalidValue3 = new java.math.BigDecimal("5.00");
+        assertThrows(DataAccessException.class, () -> jdbc.update(insert, game, invalidValue3, 1L, 1L), "tekrarlı oyun");
+        var invalidValue4 = new java.math.BigDecimal("5.00");
+        var invalidValue5 = UUID.randomUUID();
+        assertThrows(DataAccessException.class, () -> jdbc.update(insert, invalidValue5, invalidValue4, 1L, 1L), "olmayan oyun");
         UUID other = UUID.randomUUID();
         jdbc.update("insert into games(id,title,normalized_title,created_at,updated_at) values (?,'Other','other',now(),now())", other);
-        assertThrows(DataAccessException.class, () -> jdbc.update(insert, other, new java.math.BigDecimal("0.99"), 1L, 1L));
-        assertThrows(DataAccessException.class, () -> jdbc.update(insert, other, new java.math.BigDecimal("10.01"), 1L, 1L));
-        assertThrows(DataAccessException.class, () -> jdbc.update(insert, other, new java.math.BigDecimal("5.00"), 0L, 1L), "puanlı ama sayı 0");
+        var invalidValue6 = new java.math.BigDecimal("0.99");
+        assertThrows(DataAccessException.class, () -> jdbc.update(insert, other, invalidValue6, 1L, 1L));
+        var invalidValue7 = new java.math.BigDecimal("10.01");
+        assertThrows(DataAccessException.class, () -> jdbc.update(insert, other, invalidValue7, 1L, 1L));
+        var invalidValue8 = new java.math.BigDecimal("5.00");
+        assertThrows(DataAccessException.class, () -> jdbc.update(insert, other, invalidValue8, 0L, 1L), "puanlı ama sayı 0");
         assertThrows(DataAccessException.class, () -> jdbc.update(insert, other, null, 2L, 1L), "sayı var ama ortalama yok");
-        assertThrows(DataAccessException.class, () -> jdbc.update(insert, other, new java.math.BigDecimal("5.00"), 1L, 0L), "tarama sayacı pozitif");
+        var invalidValue9 = new java.math.BigDecimal("5.00");
+        assertThrows(DataAccessException.class, () -> jdbc.update(insert, other, invalidValue9, 1L, 0L), "tarama sayacı pozitif");
         jdbc.update(insert, other, null, 0L, 1L);
         assertNotNull(jdbc.queryForObject("select synced_at from game_rating_projection where game_id=?", Object.class, other));
         jdbc.update("delete from games where id=?", game);

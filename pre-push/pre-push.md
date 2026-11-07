@@ -73,6 +73,17 @@ Backend-only komutları profili değiştirmez veya profil dosyasını uygulamaya
 yüklemez; testlerin kendi Spring test yapılandırmasını kullanır. `prod` seçimi
 deploy yapmaz.
 
+Backend test alt süreçleri yalnız araç ortamını ve mevcut veritabanı ayarlarını
+devralır. Terminale yüklenmiş sağlayıcı anahtarları, `SPRING_*`, `AUTH_EVENT_TARGETS`,
+katalog/senkronizasyon bayrakları ve `JAVA_TOOL_OPTIONS` / `MAVEN_OPTS` gibi JVM
+ayarları testlere taşınmaz; Maven kullanıcı başlangıç betikleri de kapatılır.
+Bu yalıtım hem tek servis/backend hem full modunda geçerlidir. Gerçek çalışan
+servislerin veya ENV dosyalarının ayarları değiştirilmez.
+Review gibi bağlam açılışında Auth URL'sini zorunlu tutan modüller için, CI profiliyle
+aynı sabit `AUTH_SERVICE_URL=http://127.0.0.1:1` test adresi verilir. Gerçek Auth
+adresi devralınmaz; JWT doğrulaması kapatılmaz, ilgili testler kendi imza/JWKS
+kaynaklarını kurar.
+
 Her çalışma `logs/pre-push-*.log` dosyasına kaydedilir. Aynı anda test ve Sonar
 raporlarının silinmesini önlemek için `test-results/quality.lock` kullanılır.
 İşlem zorla sonlandırıldıysa, hiçbir test/analiz çalışmadığını doğruladıktan
