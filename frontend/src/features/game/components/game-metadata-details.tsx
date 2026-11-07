@@ -1,39 +1,76 @@
 "use client";
 
-import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
+import { Link } from "@/shared/lib/i18n/navigation";
 import { safeExternalUrl } from "../services/discovery-query";
+import { formatMegabytes } from "../services/format";
 import type { GameDetail, Term } from "../types/game";
+import { GameGallery } from "./game-gallery";
+import { Badge } from "./game-ui";
+
+const supportTone = { SUPPORTED: "success", UNSUPPORTED: "neutral", UNKNOWN: "neutral" } as const;
 
 export function GameMetadataDetails({ game }: { game: GameDetail }) {
   const t = useTranslations("Game");
   const locale = useLocale();
   const metadata = game.metadata;
-  const terms = (values: Term[] | undefined) => values?.map((value) => locale === "tr" ? value.nameTr : value.nameEn).join(", ") || t("unknown");
-  const support = (value: string) => t(`support.${["SUPPORTED", "UNSUPPORTED"].includes(value) ? value : "UNKNOWN"}`);
+  const termName = (value: Term) => locale === "tr" ? value.nameTr : value.nameEn;
+  const support = (value: string) => ["SUPPORTED", "UNSUPPORTED"].includes(value) ? value as "SUPPORTED" | "UNSUPPORTED" : "UNKNOWN";
   const fieldName = (value: string) => {
     const key = value.toLowerCase().replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());
     return t.has(`fields.${key}`) ? t(`fields.${key}`) : value === "LOCALIZATION" ? t("languageSupport") : t("gameInformation");
   };
-  const media = [...(safeExternalUrl(game.game.coverUrl) ? [{ type: "COVER", url: game.game.coverUrl!, provider: "", sortOrder: -1 }] : []), ...(metadata.media ?? [])];
-  return <section aria-labelledby="game-metadata" className="mt-10 border-t border-border pt-8">
-    <h2 id="game-metadata" className="font-display text-2xl font-semibold">{t("gameInformation")}</h2>
-    <dl className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-      {[["genres", terms(metadata.genres)], ["categories", terms(metadata.categories)], ["tags", terms(metadata.tags)], ["publishers", metadata.publishers.join(", ") || t("unknown")], ["languages", metadata.languages.join(", ") || t("unknown")], ["earlyAccess", metadata.earlyAccess == null ? t("unknown") : t(metadata.earlyAccess ? "yes" : "no")]].map(([key, value]) => <div key={key}><dt className="text-sm text-text-secondary">{t(`fields.${key}`)}</dt><dd className="mt-1 break-words">{value}</dd></div>)}
-    </dl>
-    {!!metadata.languageSupport?.length && <div className="mt-8">
+  const images = [
+    ...(safeExternalUrl(game.game.coverUrl) ? [{ url: game.game.coverUrl!, alt: `${game.game.title} — ${t("cover")}` }] : []),
+    ...(metadata.media ?? []).filter((value) => value.type !== "TRAILER").map((value) => ({ url: value.url, alt: `${game.game.title} — ${t("media")}` }))
+  ];
+  const trailers = (metadata.media ?? []).filter((value) => value.type === "TRAILER").map((value) => ({ url: value.url, label: t("openVideo") }));
+  const terms = (label: string, values: Term[] | undefined, link?: "genre" | "platform") => <div key={label} className="min-w-0">
+    <dt className="text-sm text-text-secondary">{label}</dt>
+    <dd className="mt-2 flex flex-wrap gap-2">{values?.length ? values.map((term) => link && term.code
+      ? <Link key={term.id} href={{ pathname: "/games", query: { [link]: term.code } }} className="inline-flex min-h-9 items-center rounded-full border border-control-border px-3 text-sm hover:border-primary hover:text-brand-text">{termName(term)}</Link>
+      : <Badge key={term.id}>{termName(term)}</Badge>) : <span>{t("unknown")}</span>}</dd>
+  </div>;
+  const requirementsByPlatform = new Map<string, NonNullable<GameDetail["metadata"]["systemRequirements"]>>();
+  for (const value of metadata.systemRequirements ?? []) requirementsByPlatform.set(value.platform, [...(requirementsByPlatform.get(value.platform) ?? []), value]);
+  const freshness = ["LOCAL", "UNSUPPORTED", "MISSING", "FRESH", "STALE"].includes(game.freshness?.status) ? game.freshness.status : "MISSING";
+  return <section aria-labelledby="game-metadata" className="space-y-10">
+    {(images.length > 0 || trailers.length > 0) && <div><h2 className="mb-4 font-display text-2xl font-semibold">{t("media")}</h2><GameGallery images={images} links={trailers} /></div>}
+    <div>
+      <h2 id="game-metadata" className="font-display text-2xl font-semibold">{t("gameInformation")}</h2>
+      <dl className="mt-6 grid gap-6 sm:grid-cols-2">
+        {terms(t("fields.genres"), metadata.genres, "genre")}
+        {terms(t("fields.platforms"), metadata.platforms, "platform")}
+        {terms(t("fields.categories"), metadata.categories)}
+        {terms(t("fields.tags"), metadata.tags)}
+        {[["publishers", metadata.publishers.join(", ") || t("unknown")], ["languages", metadata.languages.join(", ") || t("unknown")], ["earlyAccess", metadata.earlyAccess == null ? t("unknown") : t(metadata.earlyAccess ? "yes" : "no")]].map(([key, value]) => <div key={key} className="min-w-0"><dt className="text-sm text-text-secondary">{t(`fields.${key}`)}</dt><dd className="mt-1 break-words">{value}</dd></div>)}
+        <div className="min-w-0"><dt className="text-sm text-text-secondary">{t("freshnessLabel")}</dt><dd className="mt-1">{t(`freshness.${freshness}`)}{game.freshness?.fetchedAt && <> · <time dateTime={game.freshness.fetchedAt}>{new Date(game.freshness.fetchedAt).toLocaleString(locale)}</time></>}</dd></div>
+      </dl>
+    </div>
+    {!!metadata.languageSupport?.length && <div>
       <h3 className="font-display text-xl font-semibold">{t("languageSupport")}</h3>
-      <ul className="mt-3 divide-y divide-border">{metadata.languageSupport.map((value) => <li key={value.languageCode} className="flex flex-wrap gap-x-6 gap-y-2 py-4 text-sm"><strong>{value.languageCode}</strong><span>{t("interface")}: {support(value.interfaceSupport)}</span><span>{t("audio")}: {support(value.audioSupport)}</span><span>{t("subtitles")}: {support(value.subtitleSupport)}</span></li>)}</ul>
+      <div className="mt-4 overflow-x-auto rounded-panel border border-border">
+        <table className="w-full min-w-[28rem] text-left text-sm">
+          <thead className="bg-surface-elevated text-text-secondary"><tr><th scope="col" className="px-4 py-3 font-medium">{t("fields.language")}</th><th scope="col" className="px-4 py-3 font-medium">{t("interface")}</th><th scope="col" className="px-4 py-3 font-medium">{t("audio")}</th><th scope="col" className="px-4 py-3 font-medium">{t("subtitles")}</th></tr></thead>
+          <tbody className="divide-y divide-border">{metadata.languageSupport.map((value) => <tr key={value.languageCode}>
+            <th scope="row" className="px-4 py-3 font-semibold">{value.languageCode}</th>
+            {[value.interfaceSupport, value.audioSupport, value.subtitleSupport].map((state, column) => <td key={column} className="px-4 py-3"><Badge tone={supportTone[support(state)]}>{t(`support.${support(state)}`)}</Badge></td>)}
+          </tr>)}</tbody>
+        </table>
+      </div>
+      <p className="mt-2 text-xs text-text-secondary">{t("unknownSupportNote")}</p>
     </div>}
-    {!!metadata.systemRequirements?.length && <div className="mt-8">
+    {!!metadata.systemRequirements?.length && <div>
       <h3 className="font-display text-xl font-semibold">{t("requirements")}</h3>
-      <div className="mt-4 grid gap-6 lg:grid-cols-2">{metadata.systemRequirements.map((value, index) => <section key={`${value.platform}/${value.level}/${index}`} className="rounded-panel border border-border p-5">
-        <h4 className="font-semibold">{value.platform} · {t(value.level === "RECOMMENDED" ? "recommended" : "minimum")}</h4>
-        <dl className="mt-4 space-y-2 text-sm">{[["os", value.os], ["cpu", value.cpu], ["gpu", value.gpu], ["ram", value.ramMb == null ? null : `${value.ramMb} MB`], ["storage", value.storageMb == null ? null : `${value.storageMb} MB`]].filter((entry) => entry[1]).map(([key, text]) => <div key={key}><dt className="inline text-text-secondary">{t(`fields.${key}`)}: </dt><dd className="inline">{text}</dd></div>)}</dl>
-        {value.rawText && <p className="mt-4 whitespace-pre-wrap break-words text-sm text-text-secondary">{value.rawText}</p>}
-      </section>)}</div>
+      {[...requirementsByPlatform].map(([platform, levels]) => <div key={platform} className="mt-5">
+        <h4 className="font-semibold">{platform}</h4>
+        <div className="mt-3 grid gap-4 lg:grid-cols-2">{levels.map((value, index) => <section key={`${value.level}/${index}`} aria-label={`${platform} — ${t(value.level === "RECOMMENDED" ? "recommended" : "minimum")}`} className="rounded-panel border border-border bg-surface p-5">
+          <h5 className="font-semibold text-brand-text">{t(value.level === "RECOMMENDED" ? "recommended" : "minimum")}</h5>
+          <dl className="mt-4 space-y-2 text-sm">{[["os", value.os], ["cpu", value.cpu], ["gpu", value.gpu], ["ram", formatMegabytes(value.ramMb, locale)], ["storage", formatMegabytes(value.storageMb, locale)]].filter((entry) => entry[1]).map(([key, text]) => <div key={key} className="flex flex-wrap gap-x-2"><dt className="text-text-secondary">{t(`fields.${key}`)}:</dt><dd className="break-words">{text}</dd></div>)}</dl>
+          {value.rawText && <p className="mt-4 whitespace-pre-wrap break-words text-sm text-text-secondary">{value.rawText}</p>}
+        </section>)}</div>
+      </div>)}
     </div>}
-    {!!media.length && <div className="mt-8"><h3 className="font-display text-xl font-semibold">{t("media")}</h3><ul className="mt-4 grid gap-5 sm:grid-cols-2">{media.filter((value) => safeExternalUrl(value.url)).map((value, index) => <li key={`${value.url}/${index}`}>{value.type === "TRAILER" ? <a href={safeExternalUrl(value.url)} target="_blank" rel="noopener noreferrer" className="inline-block py-3 text-brand-text underline">{t("openVideo")}</a> : <Image unoptimized src={safeExternalUrl(value.url)!} alt={`${game.game.title} — ${t("media")}`} width={800} height={450} referrerPolicy="no-referrer" className="h-auto max-h-96 w-full rounded-panel object-contain" />}</li>)}</ul></div>}
-    {!!metadata.provenance?.length && <div className="mt-8 text-sm text-text-secondary"><h3 className="font-semibold text-text-primary">{t("dataSources")}</h3><ul className="mt-3 space-y-2">{metadata.provenance.map((value, index) => <li key={`${value.field}/${index}`}>{fieldName(value.field)} · {value.source} · {t("verifiedAt", { date: value.verifiedAt ? new Date(value.verifiedAt).toLocaleString(locale) : t("notVerified") })}</li>)}</ul>{metadata.provenance.some((value) => value.source === "IGDB") && <a href="https://www.igdb.com/" target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-brand-text underline">{t("igdbAttribution")}</a>}</div>}
+    {!!metadata.provenance?.length && <div className="text-sm text-text-secondary"><h3 className="font-semibold text-text-primary">{t("dataSources")}</h3><ul className="mt-3 space-y-2">{metadata.provenance.map((value, index) => <li key={`${value.field}/${index}`}>{fieldName(value.field)} · {value.source} · {t("verifiedAt", { date: value.verifiedAt ? new Date(value.verifiedAt).toLocaleString(locale) : t("notVerified") })}</li>)}</ul>{metadata.provenance.some((value) => value.source === "IGDB") && <a href="https://www.igdb.com/" target="_blank" rel="noopener noreferrer" className="mt-3 inline-block py-2 text-brand-text underline">{t("igdbAttribution")}</a>}</div>}
   </section>;
 }

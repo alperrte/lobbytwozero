@@ -1,11 +1,11 @@
 import type { AdminGame, GameDetail } from "../types/game";
 
-export type FormField = { name: string; kind?: "textarea" | "number" | "date" | "url" | "checkbox"; required?: boolean; minLength?: number; max?: number; pattern?: string; options?: readonly string[] };
+export type FormField = { name: string; kind?: "textarea" | "number" | "date" | "url" | "checkbox" | "list"; required?: boolean; minLength?: number; max?: number; pattern?: string; options?: readonly string[] };
 export const gameFields: readonly FormField[] = [
   { name: "title", required: true, max: 256 }, { name: "description", kind: "textarea", max: 16000 },
   { name: "releaseDate", kind: "date" }, { name: "earlyAccess", options: ["", "true", "false"] },
   { name: "gameType", required: true, options: ["MAIN_GAME", "DLC", "DEMO", "SOUNDTRACK", "SOFTWARE", "VIDEO", "PACKAGE", "HARDWARE", "UNKNOWN"] },
-  ...["developers", "publishers", "languages", "genres", "categories", "tags", "platforms"].map((name) => ({ name, max: 2000 })),
+  ...["developers", "publishers", "languages", "genres", "categories", "tags", "platforms"].map((name) => ({ name, kind: "list" as const, max: 2000 })),
   { name: "coverUrl", kind: "url", max: 1024 }
 ];
 export const reasonField: FormField = { name: "reason", kind: "textarea", required: true, minLength: 8, max: 1000 };

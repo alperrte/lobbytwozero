@@ -1,5 +1,5 @@
 import { ApiHttpError, apiRequest } from "@/shared/lib/api/client";
-import type { CommunityDetail, CommunityPage, DiscoveryPage, GameDetail, GameModule, GameResource } from "../types/game";
+import type { CatalogStatus, CommunityDetail, CommunityPage, DiscoveryPage, GameDetail, GameModule, GameResource } from "../types/game";
 import type { GameMutation, GameSession } from "../types/game";
 
 export function isGameId(value: string): boolean {
@@ -25,6 +25,29 @@ export async function loadGameResource(resource: GameResource, signal: AbortSign
   }
   if (resource.kind === "discovery") {
     return apiRequest<DiscoveryPage>(`/api/v1/game/games?${resource.query}`, options);
+  }
+  if (resource.kind === "popular") return apiRequest<DiscoveryPage>(`/api/v1/game/games/popular?page=${resource.page}&size=${resource.size ?? 20}`, options);
+  if (resource.kind === "catalogStatus") return apiRequest<CatalogStatus>("/api/v1/game/catalog/status", options);
+  if (resource.kind === "cards") {
+    const ids = [...new Set(resource.gameIds)];
+    if (!ids.length || ids.length > 50 || !ids.every(isGameId)) throw new Error("INVALID_GAME_ID");
+    // Herkese açık toplu kart: sayfa başına tek istek, oyun başına çağrı yok.
+    return apiRequest("/api/v1/game/games/batch", { ...options, method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ gameIds: ids }) });
+  }
+  if (resource.kind === "feedbackItem") {
+    if (!isGameId(resource.id)) throw new Error("INVALID_TARGET_ID");
+    if (resource.developer) {
+      if (!resource.gameId || !isGameId(resource.gameId)) throw new Error("INVALID_GAME_ID");
+      return apiRequest(`/api/v1/game/developer/games/${resource.gameId}/feedback/${resource.id}`, options);
+    }
+    return apiRequest(`/api/v1/game/feedback/${resource.id}`, options);
+  }
+  if (resource.kind === "myFeedback") {
+    const query = new URLSearchParams({ page: String(resource.page), size: "20" });
+    if (resource.gameId) { if (!isGameId(resource.gameId)) throw new Error("INVALID_GAME_ID"); query.set("gameId", resource.gameId); }
+    if (resource.status) query.set("status", resource.status);
+    if (resource.type) query.set("type", resource.type);
+    return apiRequest(`/api/v1/game/feedback?${query}`, options);
   }
   if (!isGameId(resource.gameId)) throw new Error("INVALID_GAME_ID");
   const gamePath = `/api/v1/game/games/${resource.gameId}` as const;
