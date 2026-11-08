@@ -19,6 +19,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -113,7 +114,8 @@ public class LocalizedDescriptionService {
             return -1;
         }
         List<String> ids = rows.stream().map(row -> row.getExternalId()).toList();
-        Map<String, String> english, localized;
+        Map<String, String> english;
+        Map<String, String> localized;
         try {
             english = provider.shortDescriptions(ids, DEFAULT_LANGUAGE);
             localized = provider.shortDescriptions(ids, language);
@@ -122,8 +124,7 @@ public class LocalizedDescriptionService {
             return -1;
         }
         consecutiveFailures = 0;
-        Integer processed = transaction.execute(status -> apply(rows, language, english, localized, now));
-        return processed == null ? -1 : processed;
+        return Objects.requireNonNullElse(transaction.execute(status -> apply(rows, language, english, localized, now)), -1);
     }
 
     private int apply(List<GameExternalReferenceRepository.ClassificationRow> rows, String language, Map<String, String> english,

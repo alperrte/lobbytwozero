@@ -54,7 +54,7 @@ class GamePriceMarketsTest {
         var service = new GamePriceService(provider, repository, mock(GameRepository.class), properties("US:USD,GB:GBP,DE:EUR"), CLOCK);
         service.refresh();
         for (Market market : List.of(new Market("US", "USD"), new Market("GB", "GBP"), new Market("DE", "EUR"))) {
-            verify(provider).prices(eq(Set.of(game)), eq(market));
+            verify(provider).prices(Set.of(game), market);
             verify(repository).publish(any(), eq(Set.of(game)), eq(market), any(), any());
         }
         verify(repository, times(3)).release(any());

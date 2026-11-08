@@ -106,14 +106,20 @@ public class SteamStoreClient implements StoreDetailSource {
         if (!entry.get("success").asBoolean(false)) return Optional.empty();
         JsonNode data = entry.get("data");
         if (data == null || !data.isObject()) throw new ProviderException("INVALID_PROVIDER_RESPONSE");
-        String fullGame = null;
+        return Optional.of(new StoreDetails(text(data, "type"), ProviderCoverPolicy.steamHeader(text(data, "header_image")),
+                names(data.get("developers")), names(data.get("publishers")), languages(text(data, "supported_languages")), fullGameAppId(data)));
+    }
+
+    private static String text(JsonNode node, String field) {
+        return node.hasNonNull(field) ? node.get(field).asString() : null;
+    }
+
+    /** DLC'nin ana oyun AppID'si; yoksa veya biçimi geçersizse null. */
+    private static String fullGameAppId(JsonNode data) {
         JsonNode full = data.get("fullgame");
-        if (full != null && full.isObject() && full.hasNonNull("appid") && APP_ID.matcher(full.get("appid").asString()).matches()) {
-            fullGame = full.get("appid").asString();
-        }
-        return Optional.of(new StoreDetails(data.hasNonNull("type") ? data.get("type").asString() : null,
-                ProviderCoverPolicy.steamHeader(data.hasNonNull("header_image") ? data.get("header_image").asString() : null),
-                names(data.get("developers")), names(data.get("publishers")), languages(data.hasNonNull("supported_languages") ? data.get("supported_languages").asString() : null), fullGame));
+        if (full == null || !full.isObject() || !full.hasNonNull("appid")) return null;
+        String appId = full.get("appid").asString();
+        return APP_ID.matcher(appId).matches() ? appId : null;
     }
 
     private static Set<String> names(JsonNode array) {

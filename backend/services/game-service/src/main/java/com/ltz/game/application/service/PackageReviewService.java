@@ -20,6 +20,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -124,8 +125,7 @@ public class PackageReviewService {
             return -1;
         }
         consecutiveFailures = 0;
-        Integer reviewed = transaction.execute(status -> apply(rows, dlc, evidence, now));
-        return reviewed == null ? -1 : reviewed;
+        return Objects.requireNonNullElse(transaction.execute(status -> apply(rows, dlc, evidence, now)), -1);
     }
 
     private Set<String> steamDlcIds(Instant now) {

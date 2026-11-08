@@ -58,18 +58,23 @@ public class GamePriceService {
         if(!repository.claim(owner,clock.instant())) return;
         Set<UUID> ids=Set.of();
         try {
-            for(int batch=0;batch<MAX_BATCHES_PER_RUN;batch++) {
+            boolean more=true;
+            for(int batch=0;more && batch<MAX_BATCHES_PER_RUN;batch++) {
                 var candidates=repository.candidates(market,clock.instant(),properties.ttl(),properties.warmTtl(),properties.coldTtl());
                 ids=candidates.stream().map(GamePriceRepository.Candidate::id).collect(java.util.stream.Collectors.toUnmodifiableSet());
-                if(ids.isEmpty()) break;
-                Instant now=clock.instant();
-                java.util.Map<UUID,java.time.Duration> tier=candidates.stream().collect(java.util.stream.Collectors.toMap(GamePriceRepository.Candidate::id,GamePriceRepository.Candidate::ttl));
-                // Sağlayıcı en uzun tazeliği verir; her oyunun teklifi kendi kademesinin süresine kısaltılır (bir sonraki planlı yenilemeye kadar taze).
-                var quotes=provider.prices(ids,market).stream().map(quote -> quote.withExpiresAtMost(now.plus(tier.getOrDefault(quote.gameId(),properties.ttl())))).toList();
-                if(!repository.publish(owner,ids,market,quotes,now) || candidates.size()<BATCH_SIZE) break;
+                more=!ids.isEmpty() && refreshBatch(owner,market,candidates,ids);
             }
         } catch(ProviderException error) {
             repository.failed(owner,ids,market,clock.instant(),error.code(),error.retryAfter());
         } finally { repository.release(owner); }
+    }
+
+    /** Bir toplu yenileme; sıradaki grubu da çekmek gerekiyorsa true döner. */
+    private boolean refreshBatch(UUID owner,Market market,java.util.List<GamePriceRepository.Candidate> candidates,Set<UUID> ids) {
+        Instant now=clock.instant();
+        java.util.Map<UUID,java.time.Duration> tier=candidates.stream().collect(java.util.stream.Collectors.toMap(GamePriceRepository.Candidate::id,GamePriceRepository.Candidate::ttl));
+        // Sağlayıcı en uzun tazeliği verir; her oyunun teklifi kendi kademesinin süresine kısaltılır (bir sonraki planlı yenilemeye kadar taze).
+        var quotes=provider.prices(ids,market).stream().map(quote -> quote.withExpiresAtMost(now.plus(tier.getOrDefault(quote.gameId(),properties.ttl())))).toList();
+        return repository.publish(owner,ids,market,quotes,now) && candidates.size()>=BATCH_SIZE;
     }
 }

@@ -141,7 +141,9 @@ public class CatalogClassificationService {
         if (pausedUntil != null && now.isBefore(pausedUntil)) return -1;
         // Kimlik eşleme ve katalog aktarımıyla aynı kilit sırası: önce senkron durumu, sonra oyun satırları.
         states.lockProvider(PROVIDER_CODE).orElseThrow();
-        Instant recentSince = now.minus(RECENT_WINDOW), cutoffRecent = now.minus(RECHECK_RECENT), cutoffOld = now.minus(RECHECK_AFTER);
+        Instant recentSince = now.minus(RECENT_WINDOW);
+        Instant cutoffRecent = now.minus(RECHECK_RECENT);
+        Instant cutoffOld = now.minus(RECHECK_AFTER);
         if (!passActive) {
             long candidates = references.countClassificationCandidates(recentSince, cutoffRecent, cutoffOld);
             passGated = candidates > autoLimit && !backlogEnabled;

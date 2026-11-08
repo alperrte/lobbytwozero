@@ -155,22 +155,22 @@ public class DlcParentService {
 
     private int steamStep(Instant now) {
         List<Decision> decisions = new ArrayList<>();
-        for (int count = 0; count < FALLBACK_PER_STEP && !pending.isEmpty(); count++) {
+        boolean stopped = false;
+        for (int count = 0; count < FALLBACK_PER_STEP && !stopped && !pending.isEmpty(); count++) {
             Pending item = pending.peekFirst();
-            Optional<StoreDetailSource.StoreDetails> details;
             try {
-                details = store.details(item.row().getExternalId());
+                Optional<StoreDetailSource.StoreDetails> details = store.details(item.row().getExternalId());
+                pending.pollFirst();
+                consecutiveFailures = 0;
+                decisions.add(new Decision(item.row(), item.igdbParent(), details.map(StoreDetailSource.StoreDetails::fullGameAppId).orElse(null)));
             } catch (ProviderException error) {
                 if ("INVALID_PROVIDER_REQUEST".equals(error.code())) {
                     pending.pollFirst();
-                    continue;
+                } else {
+                    pause(error, now);
+                    stopped = true;
                 }
-                pause(error, now);
-                break;
             }
-            pending.pollFirst();
-            consecutiveFailures = 0;
-            decisions.add(new Decision(item.row(), item.igdbParent(), details.map(StoreDetailSource.StoreDetails::fullGameAppId).orElse(null)));
         }
         if (decisions.isEmpty()) return -1;
         transaction.executeWithoutResult(status -> apply(decisions, now));
@@ -179,33 +179,53 @@ public class DlcParentService {
 
     private void apply(List<Decision> decisions, Instant now) {
         states.lockProvider(PROVIDER_CODE).orElseThrow();
-        List<String> childIds = decisions.stream().map(decision -> decision.row().getExternalId()).toList();
-        games.lockCatalogGames(PROVIDER_CODE, childIds);
+        games.lockCatalogGames(PROVIDER_CODE, decisions.stream().map(decision -> decision.row().getExternalId()).toList());
         Map<UUID, Game> loaded = games.findAllById(decisions.stream().map(decision -> decision.row().getGameId()).toList()).stream()
                 .collect(Collectors.toMap(Game::getId, Function.identity()));
-        List<String> parentAppIds = decisions.stream().flatMap(decision -> java.util.stream.Stream.of(decision.igdbParent(), decision.steamParent()))
-                .filter(java.util.Objects::nonNull).distinct().toList();
-        Map<String, DlcParentRepository.ParentRow> parentRows = parentAppIds.isEmpty() ? Map.of()
-                : parents.parentsByAppId(parentAppIds).stream().collect(Collectors.toMap(DlcParentRepository.ParentRow::getAppId, Function.identity(), (a, b) -> a));
+        Map<String, DlcParentRepository.ParentRow> parentRows = parentRows(decisions);
         Map<Outcome, Integer> batch = new EnumMap<>(Outcome.class);
         for (Decision decision : decisions) {
             Game game = loaded.get(decision.row().getGameId());
-            if (game == null || game.getStatus() != GameStatus.ACTIVE || game.getOrigin() != GameOrigin.EXTERNAL
-                    || game.getGameType() != GameType.DLC || game.getParentGameId() != null) continue;
+            if (!reviewable(game)) continue;
             Outcome outcome = decide(game, decision, parentRows);
-            String source = decision.igdbParent() != null ? provider.detailSource() : store.source();
-            if (outcome == Outcome.LINKED || outcome == Outcome.LINKED_VIA_STEAM) {
-                String parentAppId = decision.igdbParent() != null ? decision.igdbParent() : decision.steamParent();
-                game.setParentGameId(parentRows.get(parentAppId).getGameId());
-                game.setUpdatedAt(now);
-            }
-            provenance.recordObservation(game, MARKER, source,
-                    outcome == Outcome.LINKED || outcome == Outcome.LINKED_VIA_STEAM ? MetadataDataState.AVAILABLE
-                            : outcome == Outcome.CONFLICT ? MetadataDataState.INVALID : MetadataDataState.UNKNOWN, false);
+            record(game, decision, outcome, parentRows, now);
             batch.merge(outcome, 1, Integer::sum);
             totals.merge(outcome, 1L, Long::sum);
         }
         LOG.info("DLC ana oyun incelemesi: sonuçlar={}", batch);
+    }
+
+    /** Hâlâ incelenebilir mi: aktif, harici, DLC ve henüz bağlı değil (kilit altında yeniden denetim). */
+    private static boolean reviewable(Game game) {
+        return game != null && game.getStatus() == GameStatus.ACTIVE && game.getOrigin() == GameOrigin.EXTERNAL
+                && game.getGameType() == GameType.DLC && game.getParentGameId() == null;
+    }
+
+    /** Kararlarda geçen ana oyun AppID'lerinin katalogdaki oyunları. */
+    private Map<String, DlcParentRepository.ParentRow> parentRows(List<Decision> decisions) {
+        List<String> parentAppIds = decisions.stream().flatMap(decision -> java.util.stream.Stream.of(decision.igdbParent(), decision.steamParent()))
+                .filter(java.util.Objects::nonNull).distinct().toList();
+        if (parentAppIds.isEmpty()) return Map.of();
+        return parents.parentsByAppId(parentAppIds).stream()
+                .collect(Collectors.toMap(DlcParentRepository.ParentRow::getAppId, Function.identity(), (first, second) -> first));
+    }
+
+    /** Sonucu uygular: bağlanabilirse ana oyunu yazar; her durumda DLC_PARENT gözlemini (kaynak ve durum) kaydeder. */
+    private void record(Game game, Decision decision, Outcome outcome, Map<String, DlcParentRepository.ParentRow> parentRows, Instant now) {
+        boolean linked = outcome == Outcome.LINKED || outcome == Outcome.LINKED_VIA_STEAM;
+        if (linked) {
+            String parentAppId = decision.igdbParent() != null ? decision.igdbParent() : decision.steamParent();
+            game.setParentGameId(parentRows.get(parentAppId).getGameId());
+            game.setUpdatedAt(now);
+        }
+        String source = decision.igdbParent() != null ? provider.detailSource() : store.source();
+        MetadataDataState state = observationState(linked, outcome);
+        provenance.recordObservation(game, MARKER, source, state, false);
+    }
+
+    private static MetadataDataState observationState(boolean linked, Outcome outcome) {
+        if (linked) return MetadataDataState.AVAILABLE;
+        return outcome == Outcome.CONFLICT ? MetadataDataState.INVALID : MetadataDataState.UNKNOWN;
     }
 
     /** Saf kanıt kuralları: ad, popülerlik veya AppID sırası kullanılmaz; çelişkide ilişki boş kalır. */

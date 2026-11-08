@@ -14,6 +14,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -94,8 +95,7 @@ public class GameDetailBulkService {
             return -1;
         }
         consecutiveFailures = 0;
-        Integer processed = transaction.execute(status -> apply(rows, found));
-        return processed == null ? -1 : processed;
+        return Objects.requireNonNullElse(transaction.execute(status -> apply(rows, found)), -1);
     }
 
     private int apply(List<GameExternalReferenceRepository.ClassificationRow> rows, Map<String, GameProvider.Details> found) {

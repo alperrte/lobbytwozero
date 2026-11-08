@@ -84,15 +84,11 @@ final class IgdbDetailMapper {
     static List<GameProvider.TermEvidence> termEvidence(List<IgdbResponses.Term> terms) {
         Map<String, GameProvider.TermEvidence> byCode = new LinkedHashMap<>();
         for (IgdbResponses.Term term : orEmpty(terms)) {
-            if (term == null || term.slug() == null) {
-                continue;
+            String code = term == null || term.slug() == null ? null : term.slug().strip().toLowerCase(Locale.ROOT);
+            if (code != null && TERM_CODE.matcher(code).matches() && !byCode.containsKey(code) && byCode.size() < MAX_TERMS) {
+                String name = term.name() == null ? null : term.name().strip();
+                byCode.put(code, new GameProvider.TermEvidence(code, name == null || name.isEmpty() || name.length() > 128 ? null : name));
             }
-            String code = term.slug().strip().toLowerCase(Locale.ROOT);
-            if (!TERM_CODE.matcher(code).matches() || byCode.containsKey(code) || byCode.size() >= MAX_TERMS) {
-                continue;
-            }
-            String name = term.name() == null ? null : term.name().strip();
-            byCode.put(code, new GameProvider.TermEvidence(code, name == null || name.isEmpty() || name.length() > 128 ? null : name));
         }
         return List.copyOf(byCode.values());
     }

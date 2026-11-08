@@ -20,6 +20,7 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -105,8 +106,7 @@ public class SteamStoreItemService {
             return -1;
         }
         consecutiveFailures = 0;
-        Integer processed = transaction.execute(status -> apply(rows, found));
-        return processed == null ? -1 : processed;
+        return Objects.requireNonNullElse(transaction.execute(status -> apply(rows, found)), -1);
     }
 
     private int apply(List<GameExternalReferenceRepository.ClassificationRow> rows, Map<String, GameProvider.StoreItem> found) {
@@ -178,7 +178,8 @@ public class SteamStoreItemService {
     private void pause(ProviderException error, Instant now) {
         consecutiveFailures = Math.min(consecutiveFailures + 1, 6);
         Duration delay = retries.delay(error, Math.min(consecutiveFailures, 5));
-        Duration pause = delay == null ? MAX_PAUSE : delay.multipliedBy(consecutiveFailures >= 2 ? 4L : 1L);
+        long factor = consecutiveFailures >= 2 ? 4L : 1L;
+        Duration pause = delay == null ? MAX_PAUSE : delay.multipliedBy(factor);
         if (pause.compareTo(Duration.ofMinutes(1)) < 0) pause = Duration.ofMinutes(1);
         if (pause.compareTo(MAX_PAUSE) > 0) pause = MAX_PAUSE;
         pausedUntil = now.plus(pause);

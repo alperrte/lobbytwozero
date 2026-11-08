@@ -46,7 +46,9 @@ public final class DescriptionLanguage {
      */
     public static boolean looksEnglish(String text) {
         if (text == null || text.isBlank()) return false;
-        int letters = 0, ascii = 0, english = 0;
+        int letters = 0;
+        int ascii = 0;
+        int english = 0;
         for (int index = 0; index < text.length(); index++) {
             char c = text.charAt(index);
             if (Character.isLetter(c)) {

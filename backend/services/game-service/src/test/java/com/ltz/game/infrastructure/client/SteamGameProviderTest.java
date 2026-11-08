@@ -1,6 +1,7 @@
 package com.ltz.game.infrastructure.client;
 
 import com.ltz.game.application.port.GameProvider.Capability;
+import com.ltz.game.application.port.GameProvider.CatalogItem;
 import com.ltz.game.application.port.GameProvider.CatalogQuery;
 import com.ltz.game.domain.exception.ProviderException;
 import java.io.IOException;
@@ -264,7 +265,7 @@ class SteamGameProviderTest {
         server.expect(anything()).andRespond(withSuccess(envelope(
                 app(396419, "Before", "10") + "," + app(396420, "", "10") + "," + app(396421, "After", "10"), 396421L, true), MediaType.APPLICATION_JSON));
         var page = provider.catalog(new CatalogQuery(396000, null, 1000));
-        assertEquals(java.util.List.of("396419", "396421"), page.items().stream().map(item -> item.externalId()).toList());
+        assertEquals(java.util.List.of("396419", "396421"), page.items().stream().map(CatalogItem::externalId).toList());
         assertEquals(1, page.skippedRecords()); assertEquals(396421L, page.nextAppId()); assertTrue(page.hasMore());
     }
     @Test void trailingInvalidRecordStillAdvancesTheCursorSoTheNextPageDoesNotRepeatIt() {
@@ -289,7 +290,7 @@ class SteamGameProviderTest {
         };
         server.expect(anything()).andRespond(withSuccess(envelope(app(1, "Good", "1") + "," + bad + "," + app(3, "Good too", "1"), 3L, false), MediaType.APPLICATION_JSON));
         var page = provider.catalog(new CatalogQuery(0, null, 10));
-        assertEquals(java.util.List.of("1", "3"), page.items().stream().map(item -> item.externalId()).toList());
+        assertEquals(java.util.List.of("1", "3"), page.items().stream().map(CatalogItem::externalId).toList());
         assertEquals(1, page.skippedRecords()); assertEquals(3L, page.nextAppId());
     }
     @Test void nullRecordAndUnreadableAppIdAreSkippedAndCursorFollowsTheProviderReportedLastAppId() {

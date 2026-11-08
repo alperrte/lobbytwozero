@@ -11,6 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -70,20 +72,20 @@ class CatalogSchedulingConfigurationTest {
         when(classification.classifyNextBatch()).thenReturn(3);
         var configuration = new CatalogSchedulingConfiguration(mock(CatalogImportService.class), mock(GameDetailRefreshService.class), classification, mock(com.ltz.game.application.service.PackageReviewService.class));
         configuration.synchronize();
-        verify(classification, org.mockito.Mockito.times(CatalogSchedulingConfiguration.CLASSIFICATION_STEPS)).classifyNextBatch();
+        verify(classification, times(CatalogSchedulingConfiguration.CLASSIFICATION_STEPS)).classifyNextBatch();
         var idle = mock(com.ltz.game.application.service.CatalogClassificationService.class);
         when(idle.enrichNextBatch()).thenReturn(-1);
         when(idle.classifyNextBatch()).thenReturn(-1);
         new CatalogSchedulingConfiguration(mock(CatalogImportService.class), mock(GameDetailRefreshService.class), idle, mock(com.ltz.game.application.service.PackageReviewService.class)).synchronize();
-        verify(idle, org.mockito.Mockito.times(1)).classifyNextBatch();
+        verify(idle, times(1)).classifyNextBatch();
     }
 
     @Test void metadataEnrichmentRunsFirstAndClassificationWaitsUntilEnrichmentIsIdle() {
         var classification = mock(com.ltz.game.application.service.CatalogClassificationService.class);
         when(classification.enrichNextBatch()).thenReturn(5, 5, -1);
         new CatalogSchedulingConfiguration(mock(CatalogImportService.class), mock(GameDetailRefreshService.class), classification, mock(com.ltz.game.application.service.PackageReviewService.class)).synchronize();
-        verify(classification, org.mockito.Mockito.times(CatalogSchedulingConfiguration.ENRICHMENT_STEPS)).enrichNextBatch();
-        verify(classification, org.mockito.Mockito.never()).classifyNextBatch();
+        verify(classification, times(CatalogSchedulingConfiguration.ENRICHMENT_STEPS)).enrichNextBatch();
+        verify(classification, never()).classifyNextBatch();
         // Sonraki tur: zenginleştirme bitti (-1), sınıflandırma başlar.
         when(classification.classifyNextBatch()).thenReturn(-1);
         new CatalogSchedulingConfiguration(mock(CatalogImportService.class), mock(GameDetailRefreshService.class), classification, mock(com.ltz.game.application.service.PackageReviewService.class)).synchronize();
@@ -97,14 +99,14 @@ class CatalogSchedulingConfigurationTest {
         when(running.syncStatus()).thenReturn(com.ltz.game.domain.enums.CatalogSyncStatus.RUNNING);
         when(imports.synchronizeNextPage()).thenReturn(running);
         new CatalogSchedulingConfiguration(imports, mock(GameDetailRefreshService.class), classification, mock(com.ltz.game.application.service.PackageReviewService.class)).synchronize();
-        verify(classification, org.mockito.Mockito.never()).enrichNextBatch();
-        verify(classification, org.mockito.Mockito.never()).classifyNextBatch();
+        verify(classification, never()).enrichNextBatch();
+        verify(classification, never()).classifyNextBatch();
         var complete = mock(com.ltz.game.api.dto.response.CatalogStatusResponse.class);
         when(complete.syncStatus()).thenReturn(com.ltz.game.domain.enums.CatalogSyncStatus.COMPLETE);
         when(imports.synchronizeNextPage()).thenReturn(complete);
         when(classification.enrichNextBatch()).thenReturn(-1);
         new CatalogSchedulingConfiguration(imports, mock(GameDetailRefreshService.class), classification, mock(com.ltz.game.application.service.PackageReviewService.class)).synchronize();
         verify(classification).enrichNextBatch();
-        verify(classification, org.mockito.Mockito.times(CatalogSchedulingConfiguration.CLASSIFICATION_STEPS)).classifyNextBatch();
+        verify(classification, times(CatalogSchedulingConfiguration.CLASSIFICATION_STEPS)).classifyNextBatch();
     }
 }

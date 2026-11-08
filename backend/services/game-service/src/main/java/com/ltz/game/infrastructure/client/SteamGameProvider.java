@@ -2,10 +2,8 @@ package com.ltz.game.infrastructure.client;
 
 import com.ltz.game.application.port.GameProvider;
 import com.ltz.game.domain.exception.ProviderException;
-import com.ltz.game.application.service.ProviderCoverPolicy;
 import com.ltz.game.infrastructure.client.dto.response.SteamCatalogEnvelope;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import org.springframework.web.client.RestClient;
@@ -18,7 +16,6 @@ import org.springframework.web.client.RestClientException;
  * indekslenir ve tür yalnız IGDB kanıtıyla belirlenir.
  */
 public class SteamGameProvider implements GameProvider {
-    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(SteamGameProvider.class);
     private static final long MAX_UINT32 = 4294967295L;
     /** Bir sayfada bu sayıdan az atlama her zaman kayıt düzeyi kabul edilir (sayfanın %10'u aşılmadıkça). */
     private static final int MIN_SYSTEMIC_SKIPS = 5;
@@ -78,24 +75,7 @@ public class SteamGameProvider implements GameProvider {
     }
 
     private static final long PAGE_PACE_MILLIS = 1100;
-
     private static final String BROWSE_ENDPOINT = "https://api.steampowered.com/IStoreBrowseService/GetItems/v1/";
-    private static final String ASSET_BASE = "https://shared.fastly.steamstatic.com/store_item_assets/";
-    /** Bir istekte en çok bu kadar AppID (adres uzunluğu sınırı için). */
-    static final int MAX_STORE_BATCH = 100;
-    /**
-     * Steam {@code ELanguage} numarası → katalog dil kodu. Eşleme, aynı oyunların mağaza sayfasındaki dil adlarıyla çapraz doğrulanarak
-     * çıkarılmıştır (resmî sıralamadan farklı olabilir). Ayırt edilemeyen (20, 23) ve bilinmeyen numaralar bilerek ATLANIR: yanlış dil
-     * etiketi yazmaktansa dil eksik kalır.
-     */
-    private static final java.util.Map<Integer, String> LANGUAGE_CODES = java.util.Map.ofEntries(
-            java.util.Map.entry(0, "en-us"), java.util.Map.entry(1, "de-de"), java.util.Map.entry(2, "fr-fr"), java.util.Map.entry(3, "it-it"),
-            java.util.Map.entry(4, "ko-kr"), java.util.Map.entry(5, "es-es"), java.util.Map.entry(6, "zh-cn"), java.util.Map.entry(7, "zh-tw"),
-            java.util.Map.entry(8, "ru-ru"), java.util.Map.entry(9, "th-th"), java.util.Map.entry(10, "ja-jp"), java.util.Map.entry(11, "pt-pt"),
-            java.util.Map.entry(12, "pl-pl"), java.util.Map.entry(13, "da-dk"), java.util.Map.entry(14, "nl-nl"), java.util.Map.entry(15, "fi-fi"),
-            java.util.Map.entry(16, "nb-no"), java.util.Map.entry(17, "sv-se"), java.util.Map.entry(18, "hu-hu"), java.util.Map.entry(19, "cs-cz"),
-            java.util.Map.entry(21, "tr-tr"), java.util.Map.entry(22, "pt-br"), java.util.Map.entry(24, "el-gr"), java.util.Map.entry(25, "ar"),
-            java.util.Map.entry(26, "uk-ua"), java.util.Map.entry(27, "es-mx"), java.util.Map.entry(28, "vi-vn"), java.util.Map.entry(30, "id-id"));
 
     /**
      * Resmî {@code IStoreBrowseService/GetItems} (aynı API anahtarı, aynı istek bütçesi): oyun başına 16:9 başlık görseli, geliştirici, yayıncı ve
@@ -103,166 +83,65 @@ public class SteamGameProvider implements GameProvider {
      * kurulur, uydurulmaz. Hiçbir alanı olmayan veya erişilemeyen uygulama sonuçta yer almaz.
      */
     @Override public java.util.Map<String, StoreItem> storeItems(java.util.Collection<String> externalIds) {
-        if (!enabled || key == null || key.isBlank()) throw new ProviderException("PROVIDER_NOT_CONFIGURED");
-        List<String> ids = externalIds == null ? List.of() : externalIds.stream().distinct().toList();
+        requireConfigured();
+        List<String> ids = SteamStoreBrowse.validIds(externalIds);
         if (ids.isEmpty()) return java.util.Map.of();
-        if (ids.size() > MAX_STORE_BATCH || ids.stream().anyMatch(id -> id == null || !id.matches("[1-9]\\d{0,9}"))) throw new ProviderException("INVALID_PROVIDER_REQUEST");
-        // JSON yalnız doğrulanmış sayılardan kurulur.
-        String input = "{\"ids\":[" + ids.stream().map(id -> "{\"appid\":" + id + "}").collect(java.util.stream.Collectors.joining(","))
-                + "],\"context\":{\"language\":\"english\",\"country_code\":\"US\"},\"data_request\":{\"include_assets\":true,"
-                + "\"include_basic_info\":true,\"include_supported_languages\":true}}";
-        acquireWithinBudget();
-        byte[] body;
-        try {
-            body = client.get().uri(BROWSE_ENDPOINT + "?input_json={input}", input).header("x-webapi-key", key).exchange((request, response) -> {
-                validateStatus(response.getStatusCode().value(), response.getHeaders().getFirst("Retry-After"));
-                byte[] bytes = response.getBody().readNBytes(8_388_609);
-                if (bytes.length > 8_388_608) throw new ProviderException("INVALID_PROVIDER_RESPONSE");
-                return bytes;
-            });
-        } catch (RestClientException _) {
-            throw new ProviderException("PROVIDER_TRANSPORT_ERROR");
-        }
-        return parseStoreItems(ids, body);
+        return SteamStoreBrowse.parseStoreItems(ids, browse(SteamStoreBrowse.storeItemsInput(ids)));
     }
-
-    /** Katalog dil kodu → Steam dil adı (yalnız ihtiyaç duyulan diller; diğerleri için gereksiz istek atılmaz). */
-    private static final java.util.Map<String, String> STEAM_LANGUAGE_NAMES = java.util.Map.of("en", "english", "tr", "turkish");
 
     /**
-     * Resmî {@code IStoreBrowseService/GetItems} {@code basic_info.short_description}, {@code context.language} ile istenen dilde. Steam o dilde
-     * mağaza metni yoksa İngilizceye düşer; ayrımı çağıran yapar (aynı oyun {@code en} ile de sorulur).
+     * {@code basic_info.short_description}, {@code context.language} ile istenen dilde. Steam o dilde mağaza metni yoksa İngilizceye düşer;
+     * ayrımı çağıran yapar (aynı oyun {@code en} ile de sorulur). Yapılandırılmamış dil için istek atılmaz.
      */
     @Override public java.util.Map<String, String> shortDescriptions(java.util.Collection<String> externalIds, String language) {
-        String steamLanguage = language == null ? null : STEAM_LANGUAGE_NAMES.get(language);
-        if (steamLanguage == null) throw new ProviderException("INVALID_PROVIDER_REQUEST");
-        if (!enabled || key == null || key.isBlank()) throw new ProviderException("PROVIDER_NOT_CONFIGURED");
-        List<String> ids = externalIds == null ? List.of() : externalIds.stream().distinct().toList();
+        String steamLanguage = SteamStoreBrowse.steamLanguage(language);
+        requireConfigured();
+        List<String> ids = SteamStoreBrowse.validIds(externalIds);
         if (ids.isEmpty()) return java.util.Map.of();
-        if (ids.size() > MAX_STORE_BATCH || ids.stream().anyMatch(id -> id == null || !id.matches("[1-9]\\d{0,9}"))) throw new ProviderException("INVALID_PROVIDER_REQUEST");
-        String input = "{\"ids\":[" + ids.stream().map(id -> "{\"appid\":" + id + "}").collect(java.util.stream.Collectors.joining(","))
-                + "],\"context\":{\"language\":\"" + steamLanguage + "\",\"country_code\":\"US\"},\"data_request\":{\"include_basic_info\":true}}";
-        acquireWithinBudget();
-        byte[] body;
+        return SteamStoreBrowse.parseShortDescriptions(ids, browse(SteamStoreBrowse.shortDescriptionInput(ids, steamLanguage)));
+    }
+
+    private void requireConfigured() {
+        if (!enabled || key == null || key.isBlank()) throw new ProviderException("PROVIDER_NOT_CONFIGURED");
+    }
+
+    /** Toplu mağaza isteği: bütçe beklemesi, durum doğrulaması ve gövde sınırı; ağ ayrıntıları dışarı taşınmaz. */
+    private byte[] browse(String input) {
+        retrying(() -> {
+            budget.acquire();
+            return Boolean.TRUE;
+        });
         try {
-            body = client.get().uri(BROWSE_ENDPOINT + "?input_json={input}", input).header("x-webapi-key", key).exchange((request, response) -> {
+            return client.get().uri(BROWSE_ENDPOINT + "?input_json={input}", input).header("x-webapi-key", key).exchange((request, response) -> {
                 validateStatus(response.getStatusCode().value(), response.getHeaders().getFirst("Retry-After"));
-                byte[] bytes = response.getBody().readNBytes(8_388_609);
-                if (bytes.length > 8_388_608) throw new ProviderException("INVALID_PROVIDER_RESPONSE");
+                byte[] bytes = response.getBody().readNBytes(SteamStoreBrowse.MAX_BODY + 1);
+                if (bytes.length > SteamStoreBrowse.MAX_BODY) throw new ProviderException("INVALID_PROVIDER_RESPONSE");
                 return bytes;
             });
         } catch (RestClientException _) {
             throw new ProviderException("PROVIDER_TRANSPORT_ERROR");
         }
-        return parseShortDescriptions(ids, body);
     }
 
-    static java.util.Map<String, String> parseShortDescriptions(List<String> requested, byte[] body) {
-        tools.jackson.databind.JsonNode items;
-        try {
-            var root = tools.jackson.databind.json.JsonMapper.builder().build().readTree(body);
-            items = root == null ? null : root.path("response").path("store_items");
-        } catch (tools.jackson.core.JacksonException _) {
-            throw new ProviderException("INVALID_PROVIDER_RESPONSE");
-        }
-        if (items == null || !items.isArray()) throw new ProviderException("INVALID_PROVIDER_RESPONSE");
-        java.util.Map<String, String> result = new java.util.LinkedHashMap<>();
-        for (var item : items) {
-            String appId = item.hasNonNull("appid") ? item.get("appid").asString() : null;
-            var description = item.path("basic_info").path("short_description");
-            if (appId == null || !requested.contains(appId) || !description.isString()) continue;
-            String text = description.asString().strip();
-            if (!text.isEmpty() && text.length() <= 16000) result.put(appId, text);
-        }
-        return result;
-    }
-
-    static java.util.Map<String, StoreItem> parseStoreItems(List<String> requested, byte[] body) {
-        tools.jackson.databind.JsonNode items;
-        try {
-            var root = tools.jackson.databind.json.JsonMapper.builder().build().readTree(body);
-            items = root == null ? null : root.path("response").path("store_items");
-        } catch (tools.jackson.core.JacksonException _) {
-            throw new ProviderException("INVALID_PROVIDER_RESPONSE");
-        }
-        if (items == null || !items.isArray()) throw new ProviderException("INVALID_PROVIDER_RESPONSE");
-        java.util.Map<String, StoreItem> result = new java.util.LinkedHashMap<>();
-        for (var item : items) {
-            String appId = item.hasNonNull("appid") ? item.get("appid").asString() : null;
-            if (appId == null || !requested.contains(appId)) continue;
-            String header = headerUrl(appId, item.path("assets"));
-            var basic = item.path("basic_info");
-            var developers = names(basic.path("developers"));
-            var publishers = names(basic.path("publishers"));
-            var languages = languages(item.path("supported_languages"));
-            if (header != null || !developers.isEmpty() || !publishers.isEmpty() || !languages.isEmpty()) {
-                result.put(appId, new StoreItem(header, developers, publishers, languages));
-            }
-        }
-        return result;
-    }
-
-    private static String headerUrl(String appId, tools.jackson.databind.JsonNode assets) {
-        if (!assets.hasNonNull("asset_url_format") || !assets.hasNonNull("header")) return null;
-        String format = assets.get("asset_url_format").asString();
-        String header = assets.get("header").asString();
-        if (!format.contains("${FILENAME}") || header.contains("/..") || header.startsWith("/")) return null;
-        String url = ProviderCoverPolicy.steamHeader(ASSET_BASE + format.replace("${FILENAME}", header));
-        // Adres başka bir uygulamaya ait olamaz.
-        return url != null && url.contains("/apps/" + appId + "/") ? url : null;
-    }
-
-    private static java.util.Set<String> names(tools.jackson.databind.JsonNode array) {
-        java.util.Set<String> result = new java.util.LinkedHashSet<>();
-        if (array.isArray()) {
-            for (var item : array) {
-                String name = item.hasNonNull("name") ? item.get("name").asString().strip() : "";
-                if (!name.isEmpty() && name.length() <= 256 && result.size() < 50) result.add(name);
-            }
-        }
-        return result;
-    }
-
-    /** Arayüz desteği listelenen her dil için SUPPORTED; ses yalnız {@code full_audio}, altyazı yalnız {@code subtitles} true ise SUPPORTED, aksi UNKNOWN. */
-    private static List<LanguageSupport> languages(tools.jackson.databind.JsonNode array) {
-        java.util.Map<String, LanguageSupport> byCode = new java.util.LinkedHashMap<>();
-        if (array.isArray()) {
-            for (var entry : array) {
-                if (!entry.path("supported").asBoolean(false) || !entry.hasNonNull("elanguage")) continue;
-                String code = LANGUAGE_CODES.get(entry.get("elanguage").asInt(-1));
-                if (code == null || byCode.containsKey(code)) continue;
-                byCode.put(code, new LanguageSupport(code, com.ltz.game.domain.enums.LanguageSupportStatus.SUPPORTED,
-                        entry.path("full_audio").asBoolean(false) ? com.ltz.game.domain.enums.LanguageSupportStatus.SUPPORTED : com.ltz.game.domain.enums.LanguageSupportStatus.UNKNOWN,
-                        entry.path("subtitles").asBoolean(false) ? com.ltz.game.domain.enums.LanguageSupportStatus.SUPPORTED : com.ltz.game.domain.enums.LanguageSupportStatus.UNKNOWN));
-            }
-        }
-        return new java.util.ArrayList<>(byCode.values());
-    }
-
-    /** İstek bütçesi saniyede 1 çağrıya izin verir; kısa süre doluysa bekleyip yeniden dener. */
-    private void acquireWithinBudget() {
+    /** İstek bütçesi saniyede 1 çağrıya izin verir: kısa bir hız sınırı beklemesi (en çok 2 sn) birkaç kez beklenip yeniden denenir. */
+    private <T> T retrying(java.util.function.Supplier<T> action) {
         for (int attempt = 0; ; attempt++) {
             try {
-                budget.acquire();
-                return;
+                return action.get();
             } catch (ProviderException error) {
-                java.time.Duration wait = error.retryAfter();
-                if (!"RATE_LIMITED".equals(error.code()) || wait == null || wait.compareTo(java.time.Duration.ofSeconds(2)) > 0 || attempt >= 3) throw error;
-                sleeper.accept(wait.toMillis() + 50);
+                if (!shortRateLimit(error) || attempt >= 3) throw error;
+                sleeper.accept(error.retryAfter().toMillis() + 50);
             }
         }
+    }
+
+    private static boolean shortRateLimit(ProviderException error) {
+        java.time.Duration wait = error.retryAfter();
+        return "RATE_LIMITED".equals(error.code()) && wait != null && wait.compareTo(java.time.Duration.ofSeconds(2)) <= 0;
     }
 
     private CatalogPage pageWithinBudget(CatalogQuery query) {
-        for (int attempt = 0; ; attempt++) {
-            try {
-                return page(query, false);
-            } catch (ProviderException error) {
-                java.time.Duration wait = error.retryAfter();
-                if (!"RATE_LIMITED".equals(error.code()) || wait == null || wait.compareTo(java.time.Duration.ofSeconds(2)) > 0 || attempt >= 3) throw error;
-                sleeper.accept(wait.toMillis() + 50);
-            }
-        }
+        return retrying(() -> page(query, false));
     }
 
     private CatalogPage page(CatalogQuery query, boolean includeGames) {
@@ -287,7 +166,7 @@ public class SteamGameProvider implements GameProvider {
                             throw new ProviderException("INVALID_PROVIDER_RESPONSE");
                         }
                     });
-            return normalize(query, envelope);
+            return SteamCatalogNormalizer.normalize(query, envelope);
         } catch (RestClientException _) {
             // Ağ istisnasının ayrıntıları ve cause dışarı taşınmaz.
             throw new ProviderException("PROVIDER_TRANSPORT_ERROR");
@@ -313,86 +192,5 @@ public class SteamGameProvider implements GameProvider {
     private java.time.Duration retryAfterSeconds(String value) {
         try { return java.time.Duration.ofSeconds(Long.parseLong(value)); }
         catch (NumberFormatException _) { return java.time.Duration.ofDays(2); }
-    }
-    /**
-     * Kayıt düzeyi hata (boş/aşırı uzun ad, eksik veya geçersiz last_modified, boş kayıt) yalnız o kaydı atlar; cursor
-     * atlanan geçerli appid'nin ilerisine taşınır. Sıralama bozukluğu, zarf hatası ve aşırı yüksek geçersiz oranı
-     * sağlayıcı düzeyi hatadır ve tüm sayfayı reddeder (INVALID_PROVIDER_RESPONSE).
-     */
-    private CatalogPage normalize(CatalogQuery query, SteamCatalogEnvelope envelope) {
-        var response = checkedResponse(query, envelope);
-        List<SteamCatalogEnvelope.App> apps = response.apps() == null ? List.of() : response.apps();
-        List<CatalogItem> items = new ArrayList<>();
-        long previous = query.afterAppId();
-        int skipped = 0;
-        int unreadable = 0;
-        for (var app : apps) {
-            if (app == null || app.appid() == null || app.appid() > MAX_UINT32) {
-                skipped++;
-                unreadable++;
-                LOG.warn("Steam kaydı atlandı: appid okunamadı veya aralık dışı.");
-                continue;
-            }
-            // Artmayan appid cursor semantiğini bozar; tek kayıt değil tüm yanıt güvenilmezdir.
-            if (app.appid() <= previous) throw new ProviderException("INVALID_PROVIDER_RESPONSE");
-            previous = app.appid();
-            String reason = invalidReason(app);
-            if (reason != null) {
-                skipped++;
-                LOG.warn("Steam kaydı atlandı: appid={} neden={}", app.appid(), reason);
-                continue;
-            }
-            items.add(new CatalogItem(Long.toString(app.appid()), app.name().strip(), Instant.ofEpochSecond(app.lastModified())));
-        }
-        if (skipped > MIN_SYSTEMIC_SKIPS && skipped * 10 > apps.size()) {
-            // Sayfanın önemli bir kısmı geçersizse bu bir kayıt sorunu değil sağlayıcı sözleşme/format sorunudur.
-            LOG.error("Steam sayfasında {}/{} kayıt geçersiz; sayfa sağlayıcı hatası sayıldı.", skipped, apps.size());
-            throw new ProviderException("INVALID_PROVIDER_RESPONSE");
-        }
-        // Sayfa sonundaki okunamayan kayıtlar cursor'ı geçemez; sağlayıcının bildirdiği son appid'ye geçilir (döngü olmaz).
-        if (unreadable > 0 && response.lastAppId() != null && response.lastAppId() > previous
-                && response.lastAppId() <= MAX_UINT32) previous = response.lastAppId();
-        boolean hasMore = hasMore(query, response, apps.size());
-        validateContinuation(response, previous, apps.isEmpty(), hasMore);
-        return new CatalogPage(items, previous, hasMore, skipped);
-    }
-
-    /**
-     * Zarf doğrulaması. Steam'in belgelenmiş (ve gerçek yanıtlarla doğrulanmış) iki davranışı kabul edilir: sonuç yoksa
-     * yanıt tamamen boştur ({@code {"response":{}}}); son sayfada {@code have_more_results} ve {@code last_appid} gönderilmez.
-     * {@code apps} yokken başka bir alan varsa yanıt bozuktur.
-     */
-    private SteamCatalogEnvelope.Response checkedResponse(CatalogQuery query, SteamCatalogEnvelope envelope) {
-        if (envelope == null || envelope.response() == null) throw new ProviderException("INVALID_PROVIDER_RESPONSE");
-        var response = envelope.response();
-        boolean emptyResponse = response.apps() == null && response.haveMoreResults() == null && response.lastAppId() == null;
-        if ((response.apps() == null && !emptyResponse) || (response.apps() != null && response.apps().size() > query.size())) {
-            throw new ProviderException("INVALID_PROVIDER_RESPONSE");
-        }
-        return response;
-    }
-
-    /**
-     * Devam bilgisi. {@code have_more_results} varsa o geçerlidir. Yoksa Steam son sayfadadır: tam dolu bir sayfa son olamaz
-     * (devam edilir, bir sonraki boş yanıt bitirir); kısa veya boş sayfa sondur. Kayıtsız başlangıç (cursor 0, artımsız
-     * ilk aktarım) boş gelirse bozuk sayılır; böylece eksik/bozuk bir yanıt senkronu yanlışlıkla COMPLETE yapamaz.
-     */
-    private boolean hasMore(CatalogQuery query, SteamCatalogEnvelope.Response response, int count) {
-        if (response.haveMoreResults() != null) return response.haveMoreResults();
-        if (count == 0 && query.afterAppId() == 0 && query.modifiedSince() == null) throw new ProviderException("INVALID_PROVIDER_RESPONSE");
-        return count >= query.size();
-    }
-
-    /** Kayıt geçerliyse null; aksi halde loglanabilir (kullanıcı verisi içermeyen) neden kodu. */
-    private String invalidReason(SteamCatalogEnvelope.App app) {
-        if (app.name() == null || app.name().isBlank()) return "BLANK_NAME";
-        if (app.name().length() > 256) return "NAME_TOO_LONG";
-        if (app.lastModified() == null || app.lastModified() < 0 || app.lastModified() > MAX_UINT32) return "INVALID_LAST_MODIFIED";
-        return null;
-    }
-
-    private void validateContinuation(SteamCatalogEnvelope.Response response, long previous, boolean empty, boolean hasMore) {
-        if (response.lastAppId() != null && response.lastAppId() != previous) throw new ProviderException("INVALID_PROVIDER_RESPONSE");
-        if (hasMore && empty) throw new ProviderException("INVALID_PROVIDER_RESPONSE");
     }
 }

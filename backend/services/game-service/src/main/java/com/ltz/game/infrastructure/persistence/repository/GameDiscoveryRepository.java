@@ -52,17 +52,19 @@ public class GameDiscoveryRepository {
                 r.average_rating as rating_average, r.rating_count as rating_count
             """ + FILTERED;
     private static final String LIMIT = " limit :limit offset :offset";
-    private static final String TITLE_ASC = PAGE + " order by g.normalized_title asc,g.id asc" + LIMIT;
-    private static final String TITLE_DESC = PAGE + " order by g.normalized_title desc,g.id asc" + LIMIT;
-    private static final String RELEASE_ASC = PAGE + " order by g.release_date asc nulls last,g.id asc" + LIMIT;
+    /** Sayfa sorgusu: ortak seçim ve süzgeç + verilen sıralama + sayfalama; sorgu metni her sıralama için tek yerde kurulur. */
+    private static String page(String orderBy) { return PAGE + " order by " + orderBy + LIMIT; }
+    private static final String TITLE_ASC = page("g.normalized_title asc,g.id asc");
+    private static final String TITLE_DESC = page("g.normalized_title desc,g.id asc");
+    private static final String RELEASE_ASC = page("g.release_date asc nulls last,g.id asc");
     /** En yeni önce: çıkmış oyunlar yeniden eskiye; henüz çıkmamış (gelecek tarihli, ör. IGDB yer tutucu 2040) ve tarihsiz oyunlar sona. */
-    private static final String RELEASE_DESC = PAGE + " order by (g.release_date is null or g.release_date > current_date),g.release_date desc nulls last,g.id asc" + LIMIT;
+    private static final String RELEASE_DESC = page("(g.release_date is null or g.release_date > current_date),g.release_date desc nulls last,g.id asc");
     // Küçük editör sırası daha popülerdir; DESC en popülerden başlar.
-    private static final String POPULARITY_ASC = PAGE + " order by g.editor_rank desc nulls last,g.id asc" + LIMIT;
-    private static final String POPULARITY_DESC = PAGE + " order by g.editor_rank asc nulls last,g.id asc" + LIMIT;
+    private static final String POPULARITY_ASC = page("g.editor_rank desc nulls last,g.id asc");
+    private static final String POPULARITY_DESC = page("g.editor_rank asc nulls last,g.id asc");
     // Puansız oyunlar (projeksiyonda satır yok veya ortalama null) her iki yönde sona gider; eşitlikte gameId bağlar.
-    private static final String RATING_ASC = PAGE + " order by r.average_rating asc nulls last,g.id asc" + LIMIT;
-    private static final String RATING_DESC = PAGE + " order by r.average_rating desc nulls last,g.id asc" + LIMIT;
+    private static final String RATING_ASC = page("r.average_rating asc nulls last,g.id asc");
+    private static final String RATING_DESC = page("r.average_rating desc nulls last,g.id asc");
 
     /** @param syncedAt puan projeksiyonunun son hatasız tarama zamanı; null ise puan durumu UNAVAILABLE'dır. */
     public GameDiscoveryResponse discover(DiscoveryQuery query, Instant syncedAt) {
