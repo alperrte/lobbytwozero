@@ -1,6 +1,6 @@
 # LobbyTwoZero ops araçları
 
-`ops/` klasörü altı Node dosyası, bir manifest ve ENV profil geçiş betiklerinden oluşur:
+`ops/` klasörü Node dosyaları, bir manifest, rehber belgeler ve ENV profil geçiş betiklerinden oluşur:
 
 | Dosya | Görev |
 | --- | --- |
@@ -10,6 +10,7 @@
 | `hardware-catalog-import.test.mjs` | Katalog içe aktarma betiğinin testi |
 | `game-catalog-import.mjs` | Game oyun kataloğunu (tüm `game_db`) hazır dökümden dışa/içe aktarır; API anahtarı gerekmez |
 | `game-catalog-import.test.mjs` | Game katalog betiğinin testi |
+| `game-catalog.md` | Game katalog yükleme rehberi (ekip ve yapay zekâ ajanları için) |
 | `game-catalog.manifest.json` | Dökümün SHA-256, boyut, Flyway sürümü, tablo satır sayıları ve (varsa) indirme adresi |
 | `env.cmd` / `env.ps1` / `env.sh` | `dev` ve `prod` ENV profilleri arasında geçiş |
 
@@ -87,6 +88,7 @@ node ops/game-catalog-import.mjs import [klasör] --replace  # dolu game_db'nin 
 - Klasör verilmezse `game-catalog-dump/` (depo kökü) kullanılır; `*.dump` Git'e girmez. Alıcı dosyayı bu klasöre kopyalar (dosya adı değişmez).
 - Paylaşım: döküm (~180 MB) Git'e girmez. Üreten kişi dosyayı GitHub Release varlığı olarak yükler ve `ops/game-catalog.manifest.json` içindeki `url` alanına adresi yazar; `download` yalnız `github.com` ve GitHub varlık sunucularından, SHA-256 doğrulamasıyla indirir. Veri IGDB ve Steam kaynaklıdır; herkese açık paylaşmadan önce sağlayıcı kullanım şartlarını kontrol edin.
 - Test: `node --test ops/game-catalog-import.test.mjs`.
+- Ekip arkadaşları ve yapay zekâ ajanları için adım adım rehber: [game-catalog.md](game-catalog.md).
 
 ## ENV profilleri (env.cmd / env.ps1 / env.sh)
 
