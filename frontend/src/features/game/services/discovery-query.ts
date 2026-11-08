@@ -1,3 +1,4 @@
+import { marketForCurrency } from "./price-markets";
 const filterKeys = ["q", "genre", "platform", "language", "earlyAccess", "releasedAfter", "releasedBefore", "popularOnly", "minRating", "discountedOnly"] as const;
 
 /** Boş filtreler gönderilmez: q= ve boş tür/dil backend'de geçerli bir filtre değildir. */
@@ -9,8 +10,10 @@ export function discoveryQuery(input: URLSearchParams): URLSearchParams {
   }
   result.set("sort", ["TITLE", "RELEASE_DATE", "POPULARITY", "RATING"].includes(input.get("sort") ?? "") ? input.get("sort")! : "TITLE");
   result.set("direction", input.get("direction") === "DESC" ? "DESC" : "ASC");
-  result.set("country", input.get("country") || "TR");
-  result.set("currency", input.get("currency") || "TRY");
+  // Ülke ve para birimi birlikte seçilir (USD→US, EUR→DE, GBP→GB); desteklenmeyen değer (ör. eski TRY) varsayılana düşer.
+  const market = marketForCurrency(input.get("currency"));
+  result.set("country", market.country);
+  result.set("currency", market.currency);
   return result;
 }
 

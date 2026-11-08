@@ -1,18 +1,48 @@
 "use client";
 
-import { useId, useRef, type KeyboardEvent, type ReactNode } from "react";
+import { useId, useRef, type ComponentProps, type KeyboardEvent, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
+import { Icon } from "@/shared/components/ui/icons";
 import { cn } from "@/shared/utils/cn";
 import { controlClass } from "./game-status";
 
 export const primaryButtonClass = "inline-flex min-h-11 items-center justify-center gap-2 rounded-control border border-primary bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-secondary hover:border-secondary disabled:cursor-not-allowed disabled:opacity-50";
+/**
+ * Onay kutusu: yerel input korunur (klavye, odak, ekran okuyucu, form davranışı aynı), görünüm özelleştirilir.
+ * İşaret CSS ile çizilir; renkler tema belirteçlerindendir.
+ */
+export const checkboxClass = "grid size-5 shrink-0 cursor-pointer appearance-none place-content-center rounded-md border border-control-border bg-surface transition-colors "
+  + "hover:border-primary checked:border-primary checked:bg-primary disabled:cursor-not-allowed disabled:opacity-50 "
+  + "before:size-3 before:scale-0 before:bg-primary-foreground before:transition-transform before:[clip-path:polygon(14%_44%,0_65%,50%_100%,100%_16%,80%_0%,43%_62%)] "
+  + "checked:before:scale-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:before:transition-none";
 export const panelClass = "rounded-panel border border-border bg-surface p-5";
+
+/**
+ * Game sayfalarının kök sınıfı: tıklanabilir her öğede (düğme, sekme, seçim, onay kutusu, özet) tıklanabilir imleç; devre dışı
+ * öğede "yasak" imleci. Yalnız Game ekranları için geçerlidir; ortak stillere dokunmaz.
+ */
+export const gameScopeClass = "[&_button:enabled]:cursor-pointer [&_button:disabled]:cursor-not-allowed [&_select:enabled]:cursor-pointer "
+  + "[&_summary]:cursor-pointer [&_[role=tab]]:cursor-pointer [&_[role=button]]:cursor-pointer [&_input[type=checkbox]]:cursor-pointer "
+  + "[&_input[type=radio]]:cursor-pointer [&_input[type=date]]:cursor-pointer [&_label:has(input[type=checkbox]:enabled)]:cursor-pointer "
+  + "[&_[aria-disabled=true]]:cursor-not-allowed";
+
+/**
+ * Açılır liste: yerel select (klavye ve ekran okuyucu davranışı korunur), özel ok simgesi, tutarlı yükseklik ve odak halkası.
+ * Seçenek listesinin kendisini tarayıcı çizer; renkleri tema belirteçlerinden alır.
+ */
+export function GameSelect({ className, children, ...props }: ComponentProps<"select">) {
+  return <span className="relative block">
+    <select {...props} className={cn("w-full min-w-0 cursor-pointer appearance-none pe-10 transition-colors hover:border-primary/60 focus-visible:border-primary disabled:cursor-not-allowed [&>option]:bg-surface [&>option]:text-text-primary", className)}>{children}</select>
+    <Icon name="chevron" width={16} height={16} aria-hidden="true" className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-text-secondary" />
+  </span>;
+}
 
 type BadgeTone = "neutral" | "brand" | "success" | "warning";
 const tones: Record<BadgeTone, string> = {
   neutral: "border-border bg-surface-elevated text-text-secondary",
   brand: "border-primary/50 bg-primary/10 text-brand-text",
-  success: "border-success/50 bg-success/10 text-success",
+  // Metin rengi yeşil değil birincil metindir: tonlu zeminde iki temada da WCAG AA kontrastı sağlar; yeşil vurgu kenarlık ve zeminde kalır.
+  success: "border-success/50 bg-success/10 text-text-primary",
   warning: "border-warning/50 bg-warning/10 text-warning"
 };
 

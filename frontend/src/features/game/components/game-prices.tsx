@@ -5,14 +5,16 @@ import { useLocale, useTranslations } from "next-intl";
 import { useGameResource } from "../hooks/use-game-resource";
 import { safeExternalUrl } from "../services/discovery-query";
 import type { GamePricesResponse } from "../types/game";
+import { marketForCurrency, priceMarkets } from "../services/price-markets";
 import { controlClass, GameStatus } from "./game-status";
-import { Badge } from "./game-ui";
+import { Badge, GameSelect } from "./game-ui";
 
 export function GamePrices({ gameId }: { gameId: string }) {
   const t = useTranslations("Game");
   const locale = useLocale();
-  const [country, setCountry] = useState("TR");
-  const [currency, setCurrency] = useState("TRY");
+  // Para birimi seçilir; ülke ITAD sözleşmesi gereği birlikte belirlenir (USD→ABD, EUR→Almanya, GBP→Birleşik Krallık). TRY sunulmaz.
+  const [currency, setCurrency] = useState<string>(priceMarkets[0].currency);
+  const { country } = marketForCurrency(currency);
   const [clock, setClock] = useState<{ source: GamePricesResponse["items"][number] | undefined; now: number }>();
   const result = useGameResource<GamePricesResponse>({ kind: "prices", gameIds: [gameId], country, currency });
   const item = result.data?.market.country === country && result.data.market.currency === currency ? result.data.items.find((value) => value.gameId === gameId) : undefined;
@@ -32,9 +34,9 @@ export function GamePrices({ gameId }: { gameId: string }) {
   const state = item?.status === "AVAILABLE" && !offers.length ? "STALE" : item?.status ?? "UNAVAILABLE";
   return <section aria-labelledby="game-prices" className="border-t border-border pt-8">
     <h2 id="game-prices" className="font-display text-2xl font-semibold">{t("prices")}</h2>
-    <div className="my-5 flex flex-wrap gap-4">
-      <label className="flex flex-col gap-2 text-sm">{t("fields.country")}<select value={country} onChange={(event) => setCountry(event.target.value)} className={controlClass}>{["TR", "US", "GB", "DE"].map((value) => <option key={value}>{value}</option>)}</select></label>
-      <label className="flex flex-col gap-2 text-sm">{t("fields.currency")}<select value={currency} onChange={(event) => setCurrency(event.target.value)} className={controlClass}>{["USD", "EUR", "GBP", "TRY"].map((value) => <option key={value}>{value}</option>)}</select></label>
+    <div className="my-5 flex flex-wrap items-end gap-4">
+      <label className="flex flex-col gap-2 text-sm">{t("fields.currency")}<GameSelect value={currency} onChange={(event) => setCurrency(event.target.value)} className={controlClass}>{priceMarkets.map((market) => <option key={market.currency} value={market.currency}>{market.currency}</option>)}</GameSelect></label>
+      <p className="pb-3 text-sm text-text-secondary">{t("fields.country")}: {new Intl.DisplayNames([locale], { type: "region" }).of(country)}</p>
     </div>
     <GameStatus {...result} onRetry={result.reload} />
     {result.data && (offers.length ? <ul className="space-y-3">{offers.map((offer) => <li key={offer.store} className="flex flex-wrap items-center justify-between gap-4 rounded-panel border border-border bg-surface p-4">

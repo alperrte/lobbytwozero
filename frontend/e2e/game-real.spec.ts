@@ -244,9 +244,9 @@ test.describe("3 · Admin oyun oluşturma ve herkese açık detay (gerçek Game 
     await page.goto("/tr/oyunlar?genre=rpg&platform=pc&earlyAccess=true&releasedAfter=2026-01-01&releasedBefore=2026-12-31");
     await expect(page.getByRole("link", { name: game.title, exact: true })).toBeVisible();
     await page.goto("/tr/oyunlar?genre=rpg&releasedBefore=2025-01-01");
-    await expect(page.getByText(t.emptyCatalogue)).toBeVisible();
+    await expect(page.getByText(t.emptyFilters)).toBeVisible();
     await page.goto("/tr/oyunlar?genre=rpg&earlyAccess=false");
-    await expect(page.getByText(t.emptyCatalogue)).toBeVisible();
+    await expect(page.getByText(t.emptyFilters)).toBeVisible();
     await page.goto("/tr/oyunlar?sort=RELEASE_DATE&direction=DESC");
     await expect(page.locator("main ul li h2").first()).toHaveText(game.title);
   });
@@ -405,7 +405,7 @@ test.describe("5 · Admin yönetimi (gerçek Auth + Game; izole geçici veri)", 
     await archive.getByRole("button", { name: t.save, exact: true }).click();
     await expect(admin.getByText(t.choices.ARCHIVED, { exact: true })).toBeVisible();
     await page.goto(`/tr/oyunlar?q=${encodeURIComponent(game.title)}`);
-    await expect(page.getByText(t.emptyCatalogue)).toBeVisible();
+    await expect(page.getByText(t.emptySearch.replace("{query}", game.title))).toBeVisible();
     await page.goto(`/tr/oyunlar/${game.id}`);
     await expect(page.getByText(t.errors["404"])).toBeVisible();
     const restore = admin.getByRole("form", { name: t.restoreGame, exact: true });
@@ -768,7 +768,7 @@ function hierarchyProblems(levels: number[]) {
 const surfaces: { name: string; role: Role | null; open: (page: Page) => Promise<void> }[] = [
   { name: "katalog (kart)", role: null, open: async (page) => { await page.goto("/tr/oyunlar"); await expect(page.getByRole("link", { name: "Seed Oyun 01", exact: true })).toBeVisible(); } },
   { name: "katalog (liste + filtre paneli)", role: null, open: async (page) => { await page.goto("/tr/oyunlar?view=list&genre=rpg"); await page.getByRole("button", { name: new RegExp(String.raw`^${t.filters}\s*\d*$`) }).click(); await expect(page.getByRole("form", { name: t.filters })).toBeVisible(); } },
-  { name: "oyun detayı", role: null, open: async (page) => { await page.goto(`/tr/oyunlar/${game.id}`); await expect(page.getByRole("heading", { level: 1, name: game.title })).toBeVisible(); await expect(page.getByRole("group", { name: t.gallery })).toBeVisible(); } },
+  { name: "oyun detayı", role: null, open: async (page) => { await page.goto(`/tr/oyunlar/${game.id}`); await expect(page.getByRole("heading", { level: 1, name: game.title })).toBeVisible(); await expect(page.locator("#game-information")).toBeVisible(); } },
   { name: "geri bildirimlerim", role: "player", open: async (page) => { await page.goto("/tr/oyunlar?tab=feedback"); await expect(page.getByRole("heading", { name: "Başlangıçta çöküyor", exact: true })).toBeVisible(); } },
   { name: "admin: oyun düzenleme", role: "admin", open: async (page) => { await page.goto(`/tr/oyunlar/yonetim?gameId=${game.id}`); await expect(page.getByRole("form", { name: t.editGame, exact: true })).toBeVisible(); } },
   { name: "admin: editör listesi", role: "admin", open: async (page) => { await page.goto("/tr/oyunlar/yonetim"); await page.getByRole("tab", { name: t.popularSelection, exact: true }).click(); await expect(page.getByText(t.popularEmptyList)).toBeVisible(); } },
@@ -841,20 +841,22 @@ test.describe("10 · Responsive, erişilebilirlik, klavye ve reduced-motion (ger
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/\/oyunlar\/[0-9a-f-]{36}$/);
     await page.goto("/tr/oyunlar");
-    const tab = page.getByRole("tab", { name: t.allGames, exact: true });
-    await tab.focus();
-    await page.keyboard.press("ArrowRight");
-    await expect(page.getByRole("tab", { name: t.editorsPicks, exact: true })).toHaveAttribute("aria-selected", "true");
-    await page.keyboard.press("End");
-    await expect(page.getByRole("tab", { name: t.myFeedback, exact: true })).toHaveAttribute("aria-selected", "true");
-    await page.keyboard.press("Home");
-    await expect(page.getByRole("tab", { name: t.allGames, exact: true })).toHaveAttribute("aria-selected", "true");
+    // Bölüm gezintisi: bağlantılar klavyeyle etkinleştirilir; etkin bölüm aria-current ile işaretlenir; geri tuşu önceki bölüme döner.
+    const nav = page.getByRole("navigation", { name: t.catalogue, exact: true });
+    await expect(nav.getByRole("link", { name: t.allGames, exact: true })).toHaveAttribute("aria-current", "page");
+    await nav.getByRole("link", { name: t.editorsPicks, exact: true }).focus();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/tab=picks/);
+    await expect(nav.getByRole("link", { name: t.editorsPicks, exact: true })).toHaveAttribute("aria-current", "page");
+    await page.goBack();
+    await expect(nav.getByRole("link", { name: t.allGames, exact: true })).toHaveAttribute("aria-current", "page");
   });
 
   test("klavye: detayda bölüm bağlantıları ve galeri ok tuşlarıyla kullanılır", async ({ page }) => {
     await page.goto(`/tr/oyunlar/${game.id}`);
+    // Kapak sayfanın üstündedir ve galeride tekrarlanmaz: galeri yalnız ek görsel (ekran görüntüsü) varsa bulunur.
     const gallery = page.getByRole("group", { name: t.gallery });
-    await gallery.focus();
+    if (await gallery.count()) await gallery.focus();
     const position = gallery.getByText(/^\d+ \/ \d+$/);
     if (await position.count()) {
       const before = await position.textContent();
@@ -890,5 +892,118 @@ test.describe("10 · Responsive, erişilebilirlik, klavye ve reduced-motion (ger
       else expect(transform, "kart hover kayması").not.toBe("none");
       await context.close();
     }
+  });
+});
+
+test.describe("11 · Sayfa envanteri ve rol bazlı erişim (gezinti → sayfa; gerçek Auth rolleri)", () => {
+  const publicLinks = [t.allGames, t.editorsPicks];
+  const matrix: { role: Role | null; visible: string[]; hidden: string[] }[] = [
+    { role: null, visible: publicLinks, hidden: [t.myFeedback, t.workspace.developer, t.workspace.admin, t.workspace.moderation] },
+    { role: "player", visible: [...publicLinks, t.myFeedback], hidden: [t.workspace.developer, t.workspace.admin, t.workspace.moderation] },
+    { role: "developer", visible: [...publicLinks, t.myFeedback, t.workspace.developer], hidden: [t.workspace.admin, t.workspace.moderation] },
+    { role: "admin", visible: [...publicLinks, t.myFeedback, t.workspace.admin, t.workspace.moderation], hidden: [t.workspace.developer] },
+    { role: "moderator", visible: [...publicLinks, t.myFeedback, t.workspace.moderation], hidden: [t.workspace.developer, t.workspace.admin] }
+  ];
+  const destination = (label: string, page: Page) => {
+    if (label === t.allGames) return expect(page).toHaveURL(/\/tr\/oyunlar$/);
+    if (label === t.editorsPicks) return expect(page.getByRole("heading", { level: 2, name: t.editorsPicks, exact: true })).toBeVisible();
+    if (label === t.myFeedback) return expect(page.getByRole("heading", { level: 2, name: t.myFeedback, exact: true })).toBeVisible();
+    return expect(page.getByRole("heading", { level: 1, name: label, exact: true })).toBeVisible();
+  };
+
+  for (const row of matrix) {
+    test(`gezinti görünürlüğü ve her bağlantının açtığı sayfa: ${row.role ?? "misafir"}`, async ({ browser, page: guest }) => {
+      const session = row.role ? await openAs(browser, row.role, { width: 1280, height: 900 }) : { context: null, page: guest };
+      const page = session.page;
+      await page.goto("/tr/oyunlar");
+      const nav = page.getByRole("navigation", { name: t.catalogue, exact: true });
+      for (const label of row.visible) await expect(nav.getByRole("link", { name: label, exact: true })).toBeVisible();
+      for (const label of row.hidden) await expect(nav.getByRole("link", { name: label, exact: true })).toHaveCount(0);
+      for (const label of row.visible) {
+        await page.goto("/tr/oyunlar");
+        await nav.getByRole("link", { name: label, exact: true }).click();
+        await destination(label, page);
+        await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+        await noOverflow(page);
+      }
+      if (session.context) await session.page.close();
+    });
+  }
+
+  test("oyun detayı: bölüm gezintisi görünür; ADMIN detaydan yönetime geçebilir", async ({ browser, page }) => {
+    await page.goto(`/tr/oyunlar/${game.id}`);
+    await expect(page.getByRole("navigation", { name: t.catalogue, exact: true }).getByRole("link", { name: t.allGames, exact: true })).toBeVisible();
+    const admin = await openAs(browser, "admin");
+    await admin.page.goto(`/tr/oyunlar/${game.id}`);
+    await admin.page.getByRole("navigation", { name: t.catalogue, exact: true }).getByRole("link", { name: t.workspace.admin, exact: true }).click();
+    await expect(admin.page.getByRole("heading", { level: 1, name: t.workspace.admin, exact: true })).toBeVisible();
+    await keep(admin.context);
+  });
+
+  test("doğrudan URL yetki denetimi: yetkisiz bölüm istenirse ilk yetkili bölüme düşer; yetkisiz kullanıcı hiçbir yönetim formu görmez", async ({ browser, page: guest }) => {
+    const player = await openAs(browser, "player");
+    await player.page.goto("/tr/oyunlar/yonetim?section=admin");
+    await expect(player.page.getByText(t.noWorkspaceAccess)).toBeVisible();
+    await expect(player.page.getByRole("form")).toHaveCount(0);
+    await keep(player.context);
+    const developer = await openAs(browser, "developer");
+    await developer.page.goto("/tr/oyunlar/yonetim?section=admin");
+    await expect(developer.page.getByRole("heading", { level: 1, name: t.workspace.developer, exact: true })).toBeVisible();
+    await expect(developer.page.getByRole("form", { name: t.createGame })).toHaveCount(0);
+    await keep(developer.context);
+    const moderator = await openAs(browser, "moderator");
+    await moderator.page.goto("/tr/oyunlar/yonetim?section=developer");
+    await expect(moderator.page.getByRole("heading", { level: 1, name: t.workspace.moderation, exact: true })).toBeVisible();
+    await keep(moderator.context);
+    await guest.goto("/tr/oyunlar/yonetim?section=admin");
+    await expect(guest.getByText(t.signInRequired)).toBeVisible();
+    await expect(guest.getByRole("form")).toHaveCount(0);
+  });
+});
+
+test.describe("12 · Steam indeks araması (GET /api/v1/game/catalog, gerçek Game API)", () => {
+  test("ADMIN katalog sekmesinde indeks arar: gerçek istek parametreleri ve dürüst boş sonuç (test DB'sinde Steam referanslı kayıt yok)", async ({ browser }) => {
+    const { context, page } = await openAs(browser, "admin");
+    await page.goto("/tr/oyunlar/yonetim");
+    await page.getByRole("tab", { name: t.catalogStatus, exact: true }).click();
+    const requests: URL[] = [];
+    page.on("request", (request) => { const url = new URL(request.url()); if (url.pathname === "/api/v1/game/catalog") requests.push(url); });
+    const form = page.getByRole("form", { name: t.indexSearch, exact: true });
+    await expect(form.getByRole("button", { name: t.indexSearchButton, exact: true })).toBeDisabled();
+    await form.getByRole("searchbox", { name: t.search, exact: true }).fill("Seed");
+    await form.getByRole("checkbox", { name: t.includeUnclassified }).check();
+    const response = page.waitForResponse((value) => new URL(value.url()).pathname === "/api/v1/game/catalog");
+    await form.getByRole("button", { name: t.indexSearchButton, exact: true }).click();
+    expect((await response).status()).toBe(200);
+    expect(requests[0].searchParams.get("q")).toBe("Seed");
+    expect(requests[0].searchParams.get("includeUnclassified")).toBe("true");
+    await expect(page.getByText(t.indexNoResults)).toBeVisible();
+    await keep(context);
+  });
+  test("PLAYER bu uca arayüzden ulaşamaz (yönetim bölümü yok); uç herkese açık okunur ama sahte sonuç üretilmez", async ({ browser }) => {
+    const { context, page } = await openAs(browser, "player");
+    await page.goto("/tr/oyunlar/yonetim");
+    await expect(page.getByText(t.noWorkspaceAccess)).toBeVisible();
+    await expect(page.getByRole("form", { name: t.indexSearch })).toHaveCount(0);
+    await keep(context);
+  });
+});
+
+test.describe("13 · Herkese açık Steam indeksi (GET /api/v1/game/catalog; gerçek Game API)", () => {
+  test("herkese açık indeks sekmesi yoktur; ?tab=index adresi yalnız Tüm oyunlar görünümüne düşer ve ana katalog sınıflandırılmamış kayıtları listelemez", async ({ page }) => {
+    await page.goto("/tr/oyunlar");
+    await expect(page.getByRole("navigation", { name: t.catalogue, exact: true }).getByRole("link", { name: t.indexSearch, exact: true })).toHaveCount(0);
+    await page.goto("/tr/oyunlar?tab=index");
+    await expect(page.getByRole("form", { name: t.indexSearch })).toHaveCount(0);
+    await page.goto("/tr/oyunlar?q=Dead%20Index");
+    await expect(page.getByText(t.emptySearch.replace("{query}", "Dead Index"))).toBeVisible();
+    await expect(page.getByRole("link", { name: /Dead Index/ })).toHaveCount(0);
+  });
+
+  test("boş arama ve boş filtre sonucu ayrı mesajlarla gösterilir", async ({ page }) => {
+    await page.goto("/tr/oyunlar?q=zzzz-yok");
+    await expect(page.getByText(t.emptySearch.replace("{query}", "zzzz-yok"))).toBeVisible();
+    await page.goto("/tr/oyunlar?genre=yok-boyle-bir-tur");
+    await expect(page.getByRole("button", { name: t.clearFilters }).first()).toBeVisible();
   });
 });

@@ -1,11 +1,13 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/shared/lib/i18n/navigation";
 import { safeExternalUrl } from "../services/discovery-query";
 import { formatMegabytes, termLabel } from "../services/format";
 import type { GameDetail, Term } from "../types/game";
 import { GameGallery } from "./game-gallery";
+import { GameLanguage, GameLanguageList } from "./game-language";
 import { Badge } from "./game-ui";
 
 const supportTone = { SUPPORTED: "success", UNSUPPORTED: "neutral", UNKNOWN: "neutral" } as const;
@@ -21,11 +23,12 @@ export function GameMetadataDetails({ game }: { game: GameDetail }) {
     return t.has(`fields.${key}`) ? t(`fields.${key}`) : value === "LOCALIZATION" ? t("languageSupport") : t("gameInformation");
   };
   const coverUrl = safeExternalUrl(game.game.coverUrl);
-  // API, kapağı `media[]` içinde ayrıca COVER türüyle de döndürür; aynı adres galeride tek kez gösterilir.
-  const images = [
-    ...(coverUrl ? [{ url: coverUrl, alt: `${game.game.title} — ${t("cover")}` }] : []),
-    ...(metadata.media ?? []).filter((value) => value.type !== "TRAILER").map((value) => ({ url: value.url, alt: `${game.game.title} — ${t("media")}` }))
-  ].filter((image, index, all) => all.findIndex((other) => other.url === image.url) === index);
+  // Kapak sayfanın üstünde zaten gösterilir; galeri yalnız ek görselleri (ekran görüntüsü vb.) içerir. API kapağı `media[]` içinde de COVER
+  // türüyle döndürür; aynı görselin galeride yinelenmesi engellenir.
+  const images = (metadata.media ?? [])
+    .filter((value) => value.type !== "TRAILER" && value.type !== "COVER" && safeExternalUrl(value.url) !== coverUrl)
+    .map((value) => ({ url: value.url, alt: `${game.game.title} — ${t("media")}` }))
+    .filter((image, index, all) => all.findIndex((other) => other.url === image.url) === index);
   const trailers = (metadata.media ?? []).filter((value) => value.type === "TRAILER").map((value) => ({ url: value.url, label: t("openVideo") }));
   const terms = (label: string, values: Term[] | undefined, link?: "genre" | "platform") => <div key={label} className="min-w-0">
     <dt className="text-sm text-text-secondary">{label}</dt>
@@ -45,17 +48,17 @@ export function GameMetadataDetails({ game }: { game: GameDetail }) {
         {terms(t("fields.platforms"), metadata.platforms, "platform")}
         {terms(t("fields.categories"), metadata.categories)}
         {terms(t("fields.tags"), metadata.tags)}
-        {[["publishers", metadata.publishers.join(", ") || t("unknown")], ["languages", metadata.languages.join(", ") || t("unknown")], ["earlyAccess", metadata.earlyAccess == null ? t("unknown") : t(metadata.earlyAccess ? "yes" : "no")]].map(([key, value]) => <div key={key} className="min-w-0"><dt className="text-sm text-text-secondary">{t(`fields.${key}`)}</dt><dd className="mt-1 break-words">{value}</dd></div>)}
+        {([["publishers", metadata.publishers.join(", ") || t("unknown")], ["languages", metadata.languages.length ? <GameLanguageList key="languages-list" codes={metadata.languages} /> : t("unknown")], ["earlyAccess", metadata.earlyAccess == null ? t("unknown") : t(metadata.earlyAccess ? "yes" : "no")]] as [string, ReactNode][]).map(([key, value]) => <div key={key} className="min-w-0"><dt className="text-sm text-text-secondary">{t(`fields.${key}`)}</dt><dd className="mt-1 break-words">{value}</dd></div>)}
         <div className="min-w-0"><dt className="text-sm text-text-secondary">{t("freshnessLabel")}</dt><dd className="mt-1">{t(`freshness.${freshness}`)}{game.freshness?.fetchedAt && <> · <time dateTime={game.freshness.fetchedAt}>{new Date(game.freshness.fetchedAt).toLocaleString(locale)}</time></>}</dd></div>
       </dl>
     </div>
     {!!metadata.languageSupport?.length && <div>
       <h3 className="font-display text-xl font-semibold">{t("languageSupport")}</h3>
-      <div className="mt-4 overflow-x-auto rounded-panel border border-border">
+      <div role="region" tabIndex={0} aria-label={t("languageSupport")} className="mt-4 overflow-x-auto rounded-panel border border-border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
         <table className="w-full min-w-[28rem] text-left text-sm">
           <thead className="bg-surface-elevated text-text-secondary"><tr><th scope="col" className="px-4 py-3 font-medium">{t("fields.language")}</th><th scope="col" className="px-4 py-3 font-medium">{t("interface")}</th><th scope="col" className="px-4 py-3 font-medium">{t("audio")}</th><th scope="col" className="px-4 py-3 font-medium">{t("subtitles")}</th></tr></thead>
           <tbody className="divide-y divide-border">{metadata.languageSupport.map((value) => <tr key={value.languageCode}>
-            <th scope="row" className="px-4 py-3 font-semibold">{value.languageCode}</th>
+            <th scope="row" className="px-4 py-3 font-semibold"><GameLanguage code={value.languageCode} /></th>
             {[value.interfaceSupport, value.audioSupport, value.subtitleSupport].map((state, column) => <td key={column} className="px-4 py-3"><Badge tone={supportTone[support(state)]}>{t(`support.${support(state)}`)}</Badge></td>)}
           </tr>)}</tbody>
         </table>
@@ -73,6 +76,6 @@ export function GameMetadataDetails({ game }: { game: GameDetail }) {
         </section>)}</div>
       </div>)}
     </div>}
-    {!!metadata.provenance?.length && <div className="text-sm text-text-secondary"><h3 className="font-semibold text-text-primary">{t("dataSources")}</h3><ul className="mt-3 space-y-2">{metadata.provenance.map((value, index) => <li key={`${value.field}/${index}`}>{fieldName(value.field)} · {value.source} · {t("verifiedAt", { date: value.verifiedAt ? new Date(value.verifiedAt).toLocaleString(locale) : t("notVerified") })}</li>)}</ul>{metadata.provenance.some((value) => value.source === "IGDB") && <a href="https://www.igdb.com/" target="_blank" rel="noopener noreferrer" className="mt-3 inline-block py-2 text-brand-text underline">{t("igdbAttribution")}</a>}</div>}
+    {!!metadata.provenance?.length && <div className="text-sm text-text-secondary"><h3 className="font-semibold text-text-primary">{t("dataSources")}</h3><ul className="mt-3 space-y-2">{metadata.provenance.map((value, index) => <li key={`${value.field}/${index}`}>{fieldName(value.field)} · {value.source} · {value.verifiedAt ? t("verifiedAt", { date: new Date(value.verifiedAt).toLocaleString(locale) }) : value.recordedAt ? t("recordedAt", { date: new Date(value.recordedAt).toLocaleString(locale) }) : t("notVerified")}</li>)}</ul>{metadata.provenance.some((value) => value.source === "IGDB") && <a href="https://www.igdb.com/" target="_blank" rel="noopener noreferrer" className="mt-3 inline-block py-2 text-brand-text underline">{t("igdbAttribution")}</a>}</div>}
   </section>;
 }

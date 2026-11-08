@@ -45,7 +45,6 @@ export function GameModeration({ initialGameId = "" }: { initialGameId?: string 
   const t = useTranslations("Game");
   const [game, setGame] = useState<PickedGame | undefined>(initialGameId ? { gameId: initialGameId, title: initialGameId } : undefined);
   return <section aria-label={t("workspace.moderation")} className="space-y-4">
-    <h2 className="font-display text-2xl font-semibold">{t("workspace.moderation")}</h2>
     <p className="max-w-prose text-sm text-text-secondary">{t("moderationScope")}</p>
     <div className={panelClass}>{game ? <ModerationForm key={game.gameId} game={game} onClear={() => setGame(undefined)} /> : <GamePicker onPick={setGame} />}</div>
   </section>;

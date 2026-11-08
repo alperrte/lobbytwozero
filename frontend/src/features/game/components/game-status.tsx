@@ -5,6 +5,7 @@ import { ApiHttpError } from "@/shared/lib/api/client";
 
 export const controlClass = "min-h-11 rounded-control border border-control-border bg-surface px-4 py-2 text-sm text-text-primary hover:bg-surface-elevated disabled:cursor-not-allowed disabled:opacity-50";
 
+
 export function GameStatus({ error, loading, onRetry }: { error?: unknown; loading: boolean; onRetry: () => void }) {
   const t = useTranslations("Game");
   if (loading) return <p role="status" className="py-8 text-text-secondary">{t("loading")}</p>;

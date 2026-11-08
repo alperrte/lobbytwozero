@@ -26,6 +26,10 @@ try {
     await stack.sql(stack.gameDb, `INSERT INTO games(id,title,normalized_title,origin,game_type,metadata_completeness,created_at,updated_at) VALUES (gen_random_uuid(),'${title}','${title.toLowerCase()}','INTERNAL','MAIN_GAME','PARTIAL',now(),now())`);
   }
   // Manuel alan kilidi yalnız EXTERNAL kökenli oyunlarda oluşur (Game kuralı): geçici DB'ye harici kökenli bir kayıt eklenir.
+  // Steam indeksi (GAME-16/21): Steam referanslı, türü belirsiz (UNKNOWN) ve yalnız indeks kapsamlı kayıtlar. Herkese açık katalog (MAIN_GAME) bunları listelemez; /catalog uçları includeUnclassified ile döndürür.
+  for (const [index, title] of ["Dead Index Alpha", "Dead Index Beta", "Dead Index Gamma"].entries()) {
+    await stack.sql(stack.gameDb, `WITH g AS (INSERT INTO games(id,title,normalized_title,origin,game_type,metadata_completeness,created_at,updated_at) VALUES (gen_random_uuid(),'${title}','${title.toLowerCase()}','EXTERNAL','UNKNOWN','INDEX_ONLY',now(),now()) RETURNING id) INSERT INTO game_external_refs(id,game_id,provider,external_id,last_synced_at) SELECT gen_random_uuid(), id, 'STEAM', '${900001 + index}', now() FROM g`);
+  }
   const externalGameId = (await stack.sql(stack.gameDb, "INSERT INTO games(id,title,normalized_title,origin,game_type,metadata_completeness,created_at,updated_at) VALUES (gen_random_uuid(),'Dış Kaynaklı Oyun','dış kaynaklı oyun','EXTERNAL','MAIN_GAME','PARTIAL',now(),now()) RETURNING id")).split(/\s+/)[0].trim();
   const state = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "ltz-game-real-")), "state.json");
   fs.writeFileSync(state, JSON.stringify({ gateway: stack.gatewayOrigin, frontend: stack.frontendOrigin, users, seeded: 24, externalGameId }), { mode: 0o600 });

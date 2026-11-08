@@ -86,7 +86,7 @@ for (const width of [1440, 390]) {
       const url = new URL(route.request().url());
       const reply = (json: unknown, status = 200) => route.fulfill({ json, status, headers: cors });
       if (url.pathname === "/api/v1/auth/me") return reply({ status: 401 }, 401);
-      if (url.pathname === "/api/v1/game/games/prices") return reply({ market: { country: "TR", currency: "TRY" }, items: [{ gameId: ids[0], status: "STALE", offers: [] }] });
+      if (url.pathname === "/api/v1/game/games/prices") return reply({ market: { country: "US", currency: "USD" }, items: [{ gameId: ids[0], status: "STALE", offers: [] }] });
       if (url.pathname.endsWith("/developer-content")) return reply({ gameId: ids[0], description: null, media: [], updateNotes: [] });
       if (url.pathname.includes("/modules/")) return reply({ gameId: ids[0], type: "ACHIEVEMENTS", state: "EMPTY", items: [], page: 0, size: 20, totalElements: 0 });
       if (url.pathname === `/api/v1/game/games/${ids[0]}`) return reply({
@@ -112,7 +112,7 @@ for (const width of [1440, 390]) {
 }
 
 test("Admin editör listesi: sırala, çıkar, gerekçe + onayla kaydet (CSRF'li PUT)", async ({ page }) => {
-  await page.context().addCookies([{ name: "XSRF-TOKEN", value: "fixture-csrf", domain: "localhost", path: "/" }]);
+  await page.context().addCookies([{ name: "XSRF-TOKEN", value: "fixture-csrf", domain: "localhost", path: "/" }, { name: "ltz_session", value: "1", domain: "localhost", path: "/" }]);
   const writes: { method: string; csrf: string | undefined; body: Record<string, unknown> }[] = [];
   await page.route("http://localhost:5080/api/v1/**", async (route) => {
     const request = route.request(), url = new URL(request.url());
@@ -139,24 +139,31 @@ test("Admin editör listesi: sırala, çıkar, gerekçe + onayla kaydet (CSRF'li
   await overflowFree(page);
 });
 
-test("Çalışma alanı sekmeleri klavyeyle gezilir; yetkisiz rol yönetim formu görmez", async ({ page }) => {
+test("Yönetim bölümleri ortak Game gezintisinden bulunur ve ?section ile bağlantılanır; yetkisiz rol alan görmez", async ({ page }) => {
+  // Oturum ipucu çerezi (Auth `ltz_session`) varken arayüz /auth/me sorar; yoksa kullanıcı misafir sayılır.
+  await page.context().addCookies([{ name: "ltz_session", value: "1", domain: "localhost", path: "/" }]);
   await page.route("http://localhost:5080/api/v1/**", async (route) => {
     const url = new URL(route.request().url());
     const reply = (json: unknown, status = 200) => route.fulfill({ json, status, headers: cors });
     if (url.pathname === "/api/v1/auth/me") return reply({ accountId, roles: ["ADMIN", "MODERATOR"] });
     return reply({ status: 404 }, 404);
   });
-  await page.goto("/tr/oyunlar/yonetim");
-  const tab = page.getByRole("tab", { name: t.workspace.admin, exact: true });
-  await expect(tab).toHaveAttribute("aria-selected", "true");
-  await tab.focus();
-  await page.keyboard.press("ArrowRight");
-  await expect(page.getByRole("tab", { name: t.workspace.moderation, exact: true })).toHaveAttribute("aria-selected", "true");
+  await page.goto("/tr/oyunlar");
+  const nav = page.getByRole("navigation", { name: t.catalogue, exact: true });
+  await expect(nav.getByRole("link", { name: t.workspace.admin, exact: true })).toBeVisible();
+  await expect(nav.getByRole("link", { name: t.workspace.developer, exact: true })).toHaveCount(0);
+  await nav.getByRole("link", { name: t.workspace.moderation, exact: true }).click();
+  await expect(page).toHaveURL(/yonetim\?section=moderation/);
+  await expect(page.getByRole("heading", { level: 1, name: t.workspace.moderation })).toBeVisible();
   await expect(page.getByRole("form", { name: t.createGame })).toHaveCount(0);
+  await page.goto("/tr/oyunlar/yonetim?section=admin");
+  await expect(page.getByRole("heading", { level: 1, name: t.workspace.admin })).toBeVisible();
+  await expect(page.getByRole("tab", { name: t.adminGames, exact: true })).toBeVisible();
 
   const player = await page.context().newPage();
   await player.route("http://localhost:5080/api/v1/**", (route) => route.fulfill({ json: { accountId, roles: ["PLAYER"] }, headers: cors }));
-  await player.goto("/tr/oyunlar/yonetim");
+  await player.goto("/tr/oyunlar/yonetim?section=admin");
   await expect(player.getByText(t.noWorkspaceAccess)).toBeVisible();
   await expect(player.getByRole("form")).toHaveCount(0);
+  await expect(player.getByRole("navigation", { name: t.catalogue, exact: true }).getByRole("link", { name: t.workspace.admin })).toHaveCount(0);
 });

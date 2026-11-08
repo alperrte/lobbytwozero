@@ -9,7 +9,7 @@ const detail = { game: { gameId, title: "Fixture game", gameType: "MAIN_GAME", o
 for (const width of [1440, 390]) {
   test(`Game filtre ve admin yazma sözleşmesi (${width})`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
-    await page.context().addCookies([{ name: "XSRF-TOKEN", value: "fixture-csrf", domain: "localhost", path: "/" }]);
+    await page.context().addCookies([{ name: "XSRF-TOKEN", value: "fixture-csrf", domain: "localhost", path: "/" }, { name: "ltz_session", value: "1", domain: "localhost", path: "/" }]);
     const writes: { method: string; path: string; csrf: string | undefined; body: Record<string, unknown> }[] = [];
     const queries: string[] = [];
     let conflict = true;
@@ -64,7 +64,7 @@ for (const width of [1440, 390]) {
 }
 
 test("Game geliştirici sürümü ve yetki sınırı", async ({ page }) => {
-  await page.context().addCookies([{ name: "XSRF-TOKEN", value: "fixture-csrf", domain: "localhost", path: "/" }]);
+  await page.context().addCookies([{ name: "XSRF-TOKEN", value: "fixture-csrf", domain: "localhost", path: "/" }, { name: "ltz_session", value: "1", domain: "localhost", path: "/" }]);
   const writes: Record<string, unknown>[] = [];
   let forbidden = false;
   await page.route("http://localhost:5080/api/v1/**", async (route) => {

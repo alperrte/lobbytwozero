@@ -1,5 +1,7 @@
 import { ApiHttpError, apiRequest } from "@/shared/lib/api/client";
-import type { CatalogStatus, CommunityDetail, CommunityPage, DiscoveryPage, GameDetail, GameModule, GameResource } from "../types/game";
+import { hasSessionHint } from "@/shared/lib/session/session-hint";
+import { DLC_PAGE_SIZE } from "./dlc";
+import type { DlcPage, CatalogSearchPage, CatalogStatus, CommunityDetail, TermList, CommunityPage, DiscoveryPage, GameDetail, GameModule, GameResource } from "../types/game";
 import type { GameMutation, GameSession } from "../types/game";
 
 export function isGameId(value: string): boolean {
@@ -14,6 +16,8 @@ let sessionInFlight: Promise<GameSession | null> | null = null;
  * değişimi gecikmez. Paylaşılan istek tek bir çağıranın iptaline bağlı değildir; kendi zaman aşımı vardır.
  */
 function sharedSession(): Promise<GameSession | null> {
+  // Oturum ipucu çerezi yoksa (misafir) /auth/me hiç sorulmaz: gereksiz 401 ve hız sınırı yükü yok (ortak oturum katmanı kuralı).
+  if (!hasSessionHint()) return Promise.resolve(null);
   sessionInFlight ??= (async () => {
     try {
       const session = await apiRequest<GameSession>("/api/v1/auth/me", { cache: "no-store", signal: AbortSignal.timeout(12000) });
@@ -41,7 +45,18 @@ export async function loadGameResource(resource: GameResource, signal: AbortSign
     return apiRequest<DiscoveryPage>(`/api/v1/game/games?${resource.query}`, options);
   }
   if (resource.kind === "popular") return apiRequest<DiscoveryPage>(`/api/v1/game/games/popular?page=${resource.page}&size=${resource.size ?? 20}`, options);
+  if (resource.kind === "terms") {
+    if (resource.termKind !== "GENRE" && resource.termKind !== "PLATFORM") throw new Error("INVALID_TERM_KIND");
+    return apiRequest<TermList>(`/api/v1/game/terms?kind=${resource.termKind}`, options);
+  }
   if (resource.kind === "catalogStatus") return apiRequest<CatalogStatus>("/api/v1/game/catalog/status", options);
+  if (resource.kind === "catalogSearch") {
+    const q = resource.q.trim();
+    if (!q || q.length > 128) throw new Error("INVALID_QUERY");
+    const query = new URLSearchParams({ q, page: String(resource.page), size: "20" });
+    if (resource.includeUnclassified) query.set("includeUnclassified", "true");
+    return apiRequest<CatalogSearchPage>(`/api/v1/game/catalog?${query}`, options);
+  }
   if (resource.kind === "cards") {
     const ids = [...new Set(resource.gameIds)];
     if (!ids.length || ids.length > 50 || !ids.every(isGameId)) throw new Error("INVALID_GAME_ID");
@@ -79,7 +94,14 @@ export async function loadGameResource(resource: GameResource, signal: AbortSign
     const path: `/api/v1/game/${string}` = resource.developer ? `/api/v1/game/developer/games/${resource.gameId}/feedback` : "/api/v1/game/feedback";
     return apiRequest(`${path}?${query}`, options);
   }
-  if (resource.kind === "detail") return apiRequest<GameDetail>(gamePath, options);
+  if (resource.kind === "detail") {
+    if (resource.lang !== undefined && !/^[a-z]{2,3}$/.test(resource.lang)) throw new Error("INVALID_LANGUAGE");
+    return apiRequest<GameDetail>(resource.lang ? `${gamePath}?lang=${resource.lang}` : gamePath, options);
+  }
+  if (resource.kind === "dlc") {
+    if (!Number.isInteger(resource.page) || resource.page < 0 || resource.page > 10000) throw new Error("INVALID_PAGE");
+    return apiRequest<DlcPage>(`${gamePath}/dlc?page=${resource.page}&size=${DLC_PAGE_SIZE}`, options);
+  }
   if (resource.kind === "content") {
     if (!isGameId(resource.contentId)) throw new Error("INVALID_CONTENT_ID");
     return apiRequest<CommunityDetail>(`/api/v1/community/games/${resource.gameId}/content/${resource.contentId}`, options);

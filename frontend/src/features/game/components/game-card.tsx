@@ -4,7 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/shared/lib/i18n/navigation";
 import { cn } from "@/shared/utils/cn";
 import type { DiscoveryItem } from "../types/game";
-import { GameCover } from "./game-cover";
+import { coverOf, GameCover } from "./game-cover";
 import { formatReleaseDate, GameRatingText } from "./game-rating";
 import { Badge } from "./game-ui";
 
@@ -19,7 +19,7 @@ export function GameCard({ item, view, rank }: { item: DiscoveryItem; view: Cata
   const coverage = ["INDEX_ONLY", "PARTIAL", "FULL"].includes(game.metadataCompleteness) ? game.metadataCompleteness : "UNKNOWN";
   const list = view === "list";
   return <li className={cn("group relative overflow-hidden rounded-panel border border-border bg-surface transition-[border-color,transform,box-shadow] motion-safe:duration-200 hover:border-control-border focus-within:border-primary has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-focus motion-safe:hover:-translate-y-0.5", list ? "flex flex-col sm:flex-row" : "flex flex-col")}>
-    <GameCover url={game.coverUrl} title={game.title} className={list ? "sm:w-56 sm:shrink-0" : ""} />
+    <GameCover url={coverOf(game)} title={game.title} className={list ? "sm:w-56 sm:shrink-0" : ""} />
     <div className="flex min-w-0 flex-1 flex-col gap-3 p-4">
       <div className="flex flex-wrap items-center gap-2">
         {rank != null && <Badge tone="brand">{t("editorRank", { rank })}</Badge>}

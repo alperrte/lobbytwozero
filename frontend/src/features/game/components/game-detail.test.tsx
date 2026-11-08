@@ -29,7 +29,7 @@ function serve(detail: Detail | Error = base) {
   load.mockImplementation(async (resource: GameResource) => {
     if (resource.kind === "detail") { if (detail instanceof Error) throw detail; return detail; }
     if (resource.kind === "session") return null;
-    if (resource.kind === "prices") return { market: { country: "TR", currency: "TRY" }, items: [{ gameId, status: "NO_OFFER", offers: [] }] };
+    if (resource.kind === "prices") return { market: { country: "US", currency: "USD" }, items: [{ gameId, status: "NO_OFFER", offers: [] }] };
     if (resource.kind === "publicDeveloper") return { gameId, description: { text: "Geliştirici notu", updatedAt: "2026-02-01T00:00:00Z" }, media: [{ id: "m1", type: "VIDEO", url: "https://video.example/dev", altText: null, createdAt: "2026-02-01T00:00:00Z" }], updateNotes: [{ id: "n1", title: "1.1 yaması", body: "Hata düzeltmeleri", createdAt: "2026-03-01T00:00:00Z", updatedAt: "2026-03-01T00:00:00Z" }] };
     if (resource.kind === "module") return { kind: "achievements", items: [], totalElements: 0, page: 0, size: 20 };
     return undefined;
@@ -72,7 +72,7 @@ describe("Oyun detayı", () => {
   });
   it("bilinmeyen dil desteğini desteklenmiyor olarak göstermez", async () => {
     serve(); mount(); await screen.findByRole("heading", { level: 1 });
-    const row = within(screen.getByRole("row", { name: /^tr/ }));
+    const row = within(screen.getByRole("row", { name: /^Türkçe/ }));
     expect(row.getAllByRole("cell").map((cell) => cell.textContent)).toEqual([tr.Game.support.SUPPORTED, tr.Game.support.UNKNOWN, tr.Game.support.UNSUPPORTED]);
   });
   it("veri güncelliğini ve STALE durumunu belirtir", async () => {
@@ -134,7 +134,63 @@ describe("Oyun detayı", () => {
     expect(screen.getByRole("link", { name: "rpg" })).toHaveAttribute("href", "/games?genre=rpg");
     expect(screen.getByRole("link", { name: "pc" })).toHaveAttribute("href", "/games?platform=pc");
     expect(screen.getAllByText("pc").length).toBeGreaterThan(0);
-    expect(within(screen.getByRole("group", { name: tr.Game.gallery })).getAllByRole("img")).toHaveLength(1);
-    expect(screen.queryByRole("button", { name: tr.Game.galleryNext })).toBeNull();
+    // Kapak sayfanın üstünde gösterilir; yalnız kapaktan ibaret medya galeri bölümü açmaz.
+    expect(screen.queryByRole("group", { name: tr.Game.gallery })).toBeNull();
+    expect(screen.queryByRole("heading", { name: tr.Game.media })).toBeNull();
+  });
+
+  it("galeri yalnız ek görselleri içerir; kapak ve aynı adresli görsel yinelenmez", async () => {
+    const withShot: Detail = { ...base, game: { ...base.game, coverUrl: "https://images.example/cover.jpg" }, metadata: { ...base.metadata, languageSupport: [], systemRequirements: [],
+      media: [{ type: "COVER", url: "https://images.example/cover.jpg", provider: "STEAM", sortOrder: 0 },
+        { type: "SCREENSHOT", url: "https://images.example/cover.jpg", provider: "STEAM", sortOrder: 1 },
+        { type: "SCREENSHOT", url: "https://images.example/shot.jpg", provider: "STEAM", sortOrder: 2 }] } };
+    serve(withShot); mount(); await screen.findByRole("heading", { level: 1 });
+    const gallery = within(screen.getByRole("group", { name: tr.Game.gallery }));
+    expect(gallery.getAllByRole("img")).toHaveLength(1);
+    expect(gallery.getByRole("img").getAttribute("src")).toContain("shot.jpg");
+  });
+
+  it("açıklama dili arayüz dilinden farklıysa bunu belirtir ve metnin dilini işaretler; aynı dilde not göstermez", async () => {
+    serve({ ...base, description: "An English summary.", descriptionLanguage: "en" }); const first = mount("tr"); await screen.findByRole("heading", { level: 1 });
+    expect(screen.getByText(/yalnızca İngilizce olarak sağlanmıştır/)).toBeVisible();
+    expect(screen.getByText("An English summary.").getAttribute("lang")).toBe("en");
+    first.unmount();
+    serve({ ...base, description: "An English summary.", descriptionLanguage: "en" }); mount("en"); await screen.findByRole("heading", { level: 1 });
+    expect(screen.queryByText(/has not been translated/)).toBeNull();
+    expect(screen.getByText("An English summary.").getAttribute("lang")).toBe("en");
+  });
+
+  it("açıklama dili bilinmiyorsa not göstermez ve dil uydurmaz", async () => {
+    serve({ ...base, descriptionLanguage: null }); mount("tr"); await screen.findByRole("heading", { level: 1 });
+    expect(screen.queryByText(/yalnızca .* olarak sağlanmıştır/)).toBeNull();
+    expect(screen.getByText("Katalogdan alınan açıklama.").hasAttribute("lang")).toBe(false);
+  });
+
+  it("TR/EN geçişinde arayüz diline uygun açıklamayı ister ve gösterir; Türkçe varsa not yok, yoksa İngilizce ve not", async () => {
+    const byLang = (resource: GameResource): Detail => {
+      const lang = resource.kind === "detail" ? resource.lang : undefined;
+      return lang === "tr" ? { ...base, description: "Türkçe mağaza açıklaması.", descriptionLanguage: "tr" } : { ...base, description: "English store description.", descriptionLanguage: "en" };
+    };
+    load.mockImplementation(async (resource: GameResource) => {
+      if (resource.kind === "detail") return byLang(resource);
+      if (resource.kind === "session") return null;
+      if (resource.kind === "prices") return { market: { country: "US", currency: "USD" }, items: [{ gameId, status: "NO_OFFER", offers: [] }] };
+      if (resource.kind === "module") return { kind: "achievements", items: [], totalElements: 0, page: 0, size: 20 };
+      return undefined;
+    });
+    const turkish = mount("tr"); await screen.findByRole("heading", { level: 1 });
+    expect(load.mock.calls.some(([resource]) => resource.kind === "detail" && resource.lang === "tr")).toBe(true);
+    expect(screen.getByText("Türkçe mağaza açıklaması.").getAttribute("lang")).toBe("tr");
+    expect(screen.queryByText(/yalnızca .* olarak sağlanmıştır/)).toBeNull();
+    turkish.unmount();
+    mount("en"); await screen.findByRole("heading", { level: 1 });
+    expect(load.mock.calls.some(([resource]) => resource.kind === "detail" && resource.lang === "en")).toBe(true);
+    expect(screen.getByText("English store description.").getAttribute("lang")).toBe("en");
+  });
+
+  it("Türkçe açıklama yokken TR arayüzde İngilizce yedek ve bilgilendirme gösterilir (İngilizce metin Türkçe diye işaretlenmez)", async () => {
+    serve({ ...base, description: "English fallback text.", descriptionLanguage: "en" }); mount("tr"); await screen.findByRole("heading", { level: 1 });
+    expect(screen.getByText(/yalnızca İngilizce olarak sağlanmıştır/)).toBeVisible();
+    expect(screen.getByText("English fallback text.").getAttribute("lang")).toBe("en");
   });
 });

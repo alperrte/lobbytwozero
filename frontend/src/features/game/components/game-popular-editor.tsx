@@ -6,7 +6,7 @@ import { useGameResource } from "../hooks/use-game-resource";
 import { reasonField } from "../schemas/game-forms";
 import type { DiscoveryPage } from "../types/game";
 import { GameActionForm } from "./game-action-form";
-import { GameCover } from "./game-cover";
+import { coverOf, GameCover } from "./game-cover";
 import { GamePicker, type PickedGame } from "./game-picker";
 import { controlClass, GameStatus } from "./game-status";
 import { Badge, EmptyState, panelClass, Skeleton } from "./game-ui";
@@ -38,7 +38,7 @@ function Editor({ initial, onSaved, onEdited }: { initial: PickedGame[]; onSaved
         ? <EmptyState title={t("popularEmptyList")}>{t("popularEmptyHelp")}</EmptyState>
         : <ol className="space-y-2">{list.map((game, index) => <li key={game.gameId} className="flex items-center gap-3 rounded-panel border border-border bg-surface p-2">
           <span className="w-8 shrink-0 text-center text-sm font-semibold tabular-nums text-text-secondary">{index + 1}</span>
-          <GameCover url={game.coverUrl} title={game.title} className="w-20 shrink-0 rounded-control" />
+          <GameCover url={coverOf(game)} title={game.title} className="w-20 shrink-0 rounded-control" />
           <span className="min-w-0 flex-1 font-medium [overflow-wrap:anywhere]">{game.title}</span>
           <div className="flex shrink-0 flex-wrap justify-end gap-1">
             <button type="button" className={controlClass} disabled={index === 0} aria-label={t("moveUp", { title: game.title })} onClick={() => setList(moveItem(list, index, -1))}>↑</button>

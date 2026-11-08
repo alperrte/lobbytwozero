@@ -8,7 +8,8 @@ import type { FormField } from "../schemas/game-forms";
 import type { GameMutation } from "../types/game";
 import { GameListInput } from "./game-list-input";
 import { controlClass } from "./game-status";
-import { primaryButtonClass } from "./game-ui";
+import { GameDatePicker } from "./game-date-picker";
+import { checkboxClass, GameSelect, primaryButtonClass } from "./game-ui";
 
 const knownStatuses = ["400", "401", "403", "404", "409", "422", "429", "500", "502", "503", "504"];
 
@@ -55,15 +56,16 @@ export function GameActionForm({ title, fields, initial = {}, build, onSaved, de
           <label htmlFor={fieldId} className={field.required ? "after:ms-1 after:text-brand-text after:content-['*'_/_'']" : undefined}>{t(`fields.${field.name}`)}</label>
           {field.kind === "list"
             ? <GameListInput id={fieldId} name={field.name} label={t(`fields.${field.name}`)} initial={initial[field.name] ?? ""} max={field.max} required={field.required} describedBy={describedBy} invalid={invalid} />
-            : field.options ? <select {...common}>{field.options.map((value) => <option key={value} value={value}>{value ? t.has(`choices.${value}`) ? t(`choices.${value}`) : value : t("unknown")}</option>)}</select>
+            : field.options ? <GameSelect {...common}>{field.options.map((value) => <option key={value} value={value}>{value ? t.has(`choices.${value}`) ? t(`choices.${value}`) : value : t("unknown")}</option>)}</GameSelect>
             : field.kind === "textarea" ? <textarea {...common} rows={5} onChange={(event) => setLengths((previous) => ({ ...previous, [field.name]: event.target.value.length }))} />
+            : field.kind === "date" ? <GameDatePicker id={fieldId} name={field.name} defaultValue={initial[field.name] ?? ""} min="0001-01-01" max="9999-12-31" invalid={Boolean(invalid)} describedBy={describedBy} onValueChange={() => setDirty(true)} />
             : <input {...common} type={field.kind ?? "text"} pattern={field.pattern} />}
           {hasHelp && <span id={`${fieldId}-help`} className="text-xs text-text-secondary">{t(helpKey)}</span>}
           {field.kind === "textarea" && field.max && <span className="text-xs text-text-secondary">{t("characters", { count: lengths[field.name] ?? initial[field.name]?.length ?? 0, max: field.max })}</span>}
         </div>;
       })}
     </fieldset>
-    {destructive && <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="size-5 accent-primary" checked={confirmed} disabled={mutation.pending} onChange={(event) => setConfirmed(event.target.checked)} required />{t("confirmAction")}</label>}
+    {destructive && <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className={checkboxClass} checked={confirmed} disabled={mutation.pending} onChange={(event) => setConfirmed(event.target.checked)} required />{t("confirmAction")}</label>}
     {Boolean(error) && <div id={`${id}-error`} role="alert" className="space-y-1 text-sm text-text-primary">
       <p>{code === "FOREIGN_REFERENCE_SAFETY_UNVERIFIED" ? t("foreignReferenceBlocked") : code === "INVALID_MEDIA_URL" ? t("invalidMediaUrl") : known ? t(`errors.${status}`) : t("mutationUnknown")}</p>
       {status === "409" && code !== "FOREIGN_REFERENCE_SAFETY_UNVERIFIED" && <p className="text-text-secondary">{t("conflictDraftKept")}</p>}

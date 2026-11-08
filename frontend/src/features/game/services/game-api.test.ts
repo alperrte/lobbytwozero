@@ -53,7 +53,13 @@ describe("Game ekranının Community entegrasyonu", () => {
     await expect(loadGameResource({ kind: "cards", gameIds: Array.from({ length: 51 }, (_, n) => `0198a3c2-0000-7d44-9a55-${String(n).padStart(12, "0")}`) }, signal)).rejects.toThrow("INVALID_GAME_ID");
     expect(request).not.toHaveBeenCalled();
   });
+  it("oturum ipucu çerezi yoksa (misafir) /auth/me hiç istenmez", async () => {
+    document.cookie = "ltz_session=; Max-Age=0; Path=/";
+    await expect(loadGameResource({ kind: "session" }, new AbortController().signal)).resolves.toBeNull();
+    expect(request).not.toHaveBeenCalled();
+  });
   it("eşzamanlı oturum istekleri tek /auth/me çağrısını paylaşır; bitince sonraki çağrı yeniden sorar (önbellek yok)", async () => {
+    document.cookie = "ltz_session=1; Path=/";
     const accountId = "0198a3c2-aaaa-7d44-9a55-3f1c2b4d5e66";
     request.mockResolvedValue({ accountId, roles: ["PLAYER"] });
     const signal = new AbortController().signal;
@@ -64,10 +70,32 @@ describe("Game ekranının Community entegrasyonu", () => {
     expect(request).toHaveBeenCalledTimes(2);
   });
   it("oturum yoksa (401) null döner; geçersiz yanıtı reddeder", async () => {
+    document.cookie = "ltz_session=1; Path=/";
     const signal = new AbortController().signal;
     request.mockRejectedValueOnce(new ApiHttpError(401));
     await expect(loadGameResource({ kind: "session" }, signal)).resolves.toBeNull();
     request.mockResolvedValueOnce({ accountId: "x", roles: [] });
     await expect(loadGameResource({ kind: "session" }, signal)).rejects.toThrow("INVALID_SESSION_RESPONSE");
+  });
+  it("Steam indeks araması q, sayfa ve sınıflandırılmamış seçeneğini sözleşmeli yola taşır; boş veya uzun q'yu reddeder", async () => {
+    request.mockResolvedValue({ items: [], page: 0, size: 20, totalElements: 0, lastSuccessfulAt: null, providerTotal: null });
+    const signal = new AbortController().signal;
+    await loadGameResource({ kind: "catalogSearch", q: " dota 2 ", page: 1, includeUnclassified: true }, signal);
+    expect(request).toHaveBeenCalledWith("/api/v1/game/catalog?q=dota+2&page=1&size=20&includeUnclassified=true", expect.objectContaining({ cache: "no-store" }));
+    await loadGameResource({ kind: "catalogSearch", q: "x", page: 0, includeUnclassified: false }, signal);
+    expect(request).toHaveBeenLastCalledWith("/api/v1/game/catalog?q=x&page=0&size=20", expect.anything());
+    await expect(loadGameResource({ kind: "catalogSearch", q: "   ", page: 0, includeUnclassified: false }, signal)).rejects.toThrow("INVALID_QUERY");
+    await expect(loadGameResource({ kind: "catalogSearch", q: "a".repeat(129), page: 0, includeUnclassified: false }, signal)).rejects.toThrow("INVALID_QUERY");
+  });
+
+  it("detay isteği arayüz dilini sorguya ekler ve geçersiz dili reddeder", async () => {
+    const id = "0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66";
+    request.mockResolvedValue({});
+    await loadGameResource({ kind: "detail", gameId: id, lang: "tr" }, new AbortController().signal);
+    expect(request.mock.calls.at(-1)?.[0]).toBe(`/api/v1/game/games/${id}?lang=tr`);
+    await loadGameResource({ kind: "detail", gameId: id }, new AbortController().signal);
+    expect(request.mock.calls.at(-1)?.[0]).toBe(`/api/v1/game/games/${id}`);
+    await expect(loadGameResource({ kind: "detail", gameId: id, lang: "turkish" }, new AbortController().signal)).rejects.toThrow("INVALID_LANGUAGE");
+    await expect(loadGameResource({ kind: "detail", gameId: id, lang: "tr&x=1" }, new AbortController().signal)).rejects.toThrow("INVALID_LANGUAGE");
   });
 });

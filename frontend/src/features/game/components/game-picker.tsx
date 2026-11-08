@@ -4,7 +4,7 @@ import { useEffect, useId, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useGameResource } from "../hooks/use-game-resource";
 import type { DiscoveryPage, ManagedGame } from "../types/game";
-import { GameCover } from "./game-cover";
+import { coverOf, GameCover } from "./game-cover";
 import { controlClass, GameStatus } from "./game-status";
 
 export type PickedGame = ManagedGame & { coverUrl?: string | null };
@@ -19,7 +19,7 @@ function Results({ query, onPick, excluded }: { query: string; onPick: (game: Pi
       ? <p className="py-3 text-sm text-text-secondary">{t("pickerEmpty")}</p>
       : <ul className="divide-y divide-border rounded-panel border border-border">{items.map(({ game }) => <li key={game.gameId}>
         <button type="button" onClick={() => onPick({ gameId: game.gameId, title: game.title, coverUrl: game.coverUrl })} className="flex min-h-14 w-full items-center gap-3 p-2 text-left hover:bg-surface-elevated focus-visible:bg-surface-elevated">
-          <GameCover url={game.coverUrl} title={game.title} className="w-20 shrink-0 rounded-control" />
+          <GameCover url={coverOf(game)} title={game.title} className="w-20 shrink-0 rounded-control" />
           <span className="min-w-0 flex-1 font-medium [overflow-wrap:anywhere]">{game.title}</span>
           <span className="shrink-0 pe-2 text-sm text-brand-text">{t("pickerSelect")}</span>
         </button></li>)}</ul>)}

@@ -9,7 +9,7 @@ import { GameActionForm } from "./game-action-form";
 import { GameCover } from "./game-cover";
 import { GameFeedback } from "./game-feedback";
 import { controlClass, GameStatus } from "./game-status";
-import { Badge, EmptyState, Skeleton, Tabs } from "./game-ui";
+import { Badge, EmptyState, GameSelect, Skeleton, Tabs } from "./game-ui";
 
 function Moderation({ status, reason }: { status?: string; reason?: string | null }) {
   const t = useTranslations("Game");
@@ -79,10 +79,9 @@ export function GameDeveloperTools({ initialGameId = "" }: { initialGameId?: str
   const result = useGameResource<ManagedGame[]>({ kind: "managed" }, { retainWhileRefreshing: true });
   const selected = result.data?.some((game) => game.gameId === chosen) ? chosen : result.data?.[0]?.gameId;
   return <div className="space-y-6">
-    <h2 className="font-display text-2xl font-semibold">{t("workspace.developer")}</h2>
     <GameStatus error={result.error} loading={false} onRetry={result.reload} />
     {result.loading && !result.data && <Skeleton className="h-16" />}
-    {result.data && (!result.data.length ? <EmptyState title={t("noManagedGames")}>{t("noManagedGamesHelp")}</EmptyState> : <label className="flex max-w-md flex-col gap-2 text-sm">{t("yourGames")}<select className={controlClass} value={selected} onChange={(event) => choose(event.target.value)}>{result.data.map((game) => <option key={game.gameId} value={game.gameId}>{game.title}</option>)}</select></label>)}
+    {result.data && (!result.data.length ? <EmptyState title={t("noManagedGames")}>{t("noManagedGamesHelp")}</EmptyState> : <label className="flex max-w-md flex-col gap-2 text-sm">{t("yourGames")}<GameSelect className={controlClass} value={selected} onChange={(event) => choose(event.target.value)}>{result.data.map((game) => <option key={game.gameId} value={game.gameId}>{game.title}</option>)}</GameSelect></label>)}
     {selected && <DeveloperEditor key={selected} gameId={selected} />}
   </div>;
 }

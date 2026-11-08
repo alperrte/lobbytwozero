@@ -11,7 +11,8 @@ import { CookieJar, captureCommand, isolatedEnvironment, requireFreshJar, scrub 
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 export const frontendPort = 5102;
-export const frontendOrigin = `http://localhost:${frontendPort}`;
+// Arayüz kaynağı Auth bağlantıları ve Gateway CORS için kullanılır; çalışan bir `next dev` (3000) için GAME_REAL_FRONTEND_ORIGIN verilir.
+export const frontendOrigin = process.env.GAME_REAL_FRONTEND_ORIGIN ?? `http://localhost:${frontendPort}`;
 
 async function until(action, name, timeout = 90000) {
   const deadline = Date.now() + timeout;

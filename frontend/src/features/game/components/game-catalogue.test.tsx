@@ -11,7 +11,7 @@ const replace = vi.fn();
 const push = vi.fn();
 let search = "";
 vi.mock("@/shared/lib/i18n/navigation", () => ({
-  Link: ({ href, children, className }: { href: { params?: { gameId: string } } | string; children: React.ReactNode; className?: string }) => <a className={className} href={typeof href === "string" ? href : `/games/${href.params?.gameId}`}>{children}</a>,
+  Link: ({ href, children, ...rest }: { href: { pathname?: string; params?: { gameId: string }; query?: Record<string, string> } | string; children: React.ReactNode } & Record<string, unknown>) => <a {...rest} href={typeof href === "string" ? href : href.params ? `/games/${href.params.gameId}` : `${href.pathname}${href.query ? "?" + new URLSearchParams(href.query).toString() : ""}`}>{children}</a>,
   useRouter: () => ({ replace, push })
 }));
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(search), usePathname: () => "/tr/oyunlar", useParams: () => ({}), useRouter: () => ({ replace, push }) }));
@@ -127,13 +127,51 @@ describe("Oyun kataloğu", () => {
     expect(discoveryCalls()[0].get("direction")).toBe("DESC");
     expect(screen.getByLabelText(messages.Game.sort)).toHaveValue("RATING");
   });
-  it("sonuç yoksa boş durum ve filtre temizleme sunar", async () => {
+  it("filtre sonucu boşsa filtre mesajı ve temizleme sunar; katalog durumu sorulmaz", async () => {
     search = "genre=none";
     serve({ discovery: () => page([]) });
     mount();
-    await screen.findByText(messages.Game.emptyCatalogue);
+    await screen.findByText(messages.Game.emptyFilters);
     fireEvent.click(screen.getAllByRole("button", { name: messages.Game.clearFilters }).at(-1)!);
     expect(push).toHaveBeenCalled();
+  });
+  it("yalnız arama boşsa aranan ifadeyle arama mesajı ve filtre temizleme gösterir; herkese açık indeks bağlantısı yoktur", async () => {
+    search = "q=zzz";
+    serve({ discovery: () => page([]) });
+    mount();
+    await screen.findByText(messages.Game.emptySearch.replace("{query}", "zzz"));
+    expect(screen.queryByRole("button", { name: messages.Game.indexSearch })).toBeNull();
+    expect(screen.queryByRole("link", { name: messages.Game.indexSearch })).toBeNull();
+    fireEvent.click(screen.getAllByRole("button", { name: messages.Game.clearFilters }).at(-1)!);
+    expect(push).toHaveBeenCalled();
+  });
+  const status = (extra: object) => () => ({ provider: "STEAM", runMode: "INITIAL", syncStatus: "COMPLETE", cursor: 1, processedCount: 0, indexedEntries: 0, mainGameEntries: 0, unclassifiedEntries: 0, providerTotal: null, runStartedAt: null, lastSuccessfulAt: null, lastErrorCode: null, failureCount: 0, nextAttemptAt: null, ...extra });
+  it("filtresiz boş katalog + senkron sürüyor: sürüyor ipucu ve sayılar", async () => {
+    serve({ discovery: () => page([]), catalogStatus: status({ syncStatus: "RUNNING", indexedEntries: 1200, mainGameEntries: 3 }) });
+    mount();
+    await screen.findByText(/Steam kataloğu şu an senkronize ediliyor/);
+    expect(screen.getByText(/1\.200 kayıt indekslendi, 3 oyun/)).toBeVisible();
+  });
+  it("filtresiz boş katalog + indeks dolu ama sınıflandırılmamış: sınıflandırma bekleniyor mesajı", async () => {
+    serve({ discovery: () => page([]), catalogStatus: status({ indexedEntries: 50, unclassifiedEntries: 50 }) });
+    mount();
+    await screen.findByText(messages.Game.emptyUnclassifiedHint.replace("{indexed}", "50"));
+  });
+  it("filtresiz boş katalog + indeks de boş: katalog tamamen boş mesajı", async () => {
+    serve({ discovery: () => page([]), catalogStatus: status({}) });
+    mount();
+    await screen.findByText(messages.Game.emptyCatalogueAll);
+  });
+  it("katalog durumu alınamazsa genel boş mesajına düşer (uydurma durum yok)", async () => {
+    serve({ discovery: () => page([]), catalogStatus: () => { throw new ApiHttpError(503); } });
+    mount();
+    await screen.findByText(messages.Game.emptyCatalogue);
+  });
+  it("keşif API'si hata verirse boş durum değil hata gösterilir", async () => {
+    serve({ discovery: () => { throw new ApiHttpError(503); } });
+    mount();
+    await screen.findByRole("alert");
+    expect(screen.queryByText(messages.Game.emptyCatalogueAll)).toBeNull();
   });
   it("son sayfanın ötesindeki sayfada boş ekran yerine son sayfaya götürür", async () => {
     search = "page=9";
@@ -181,10 +219,18 @@ describe("Oyun kataloğu", () => {
     expect(await screen.findByText(messages.Game.feedbackSignIn)).toBeVisible();
     expect(load.mock.calls.some(([resource]) => resource.kind === "myFeedback")).toBe(false);
   });
-  it("sekme klavyeyle değişir", async () => {
+  it("bölüm gezintisi: Tüm oyunlar etkin; Editörün Seçtikleri bağlantısı; misafire kişisel/yönetim bölümü gösterilmez", async () => {
     mount(); await screen.findByRole("link", { name: "Fixture game 0" });
-    fireEvent.keyDown(screen.getByRole("tab", { name: messages.Game.allGames }), { key: "ArrowRight" });
-    expect(push).toHaveBeenCalledWith({ pathname: "/games", query: { tab: "picks" } }, { scroll: false });
+    const nav = within(screen.getByRole("navigation", { name: messages.Game.catalogue }));
+    expect(nav.getByRole("link", { name: messages.Game.allGames })).toHaveAttribute("aria-current", "page");
+    expect(nav.getByRole("link", { name: messages.Game.editorsPicks })).toHaveAttribute("href", "/games?tab=picks");
+    expect(nav.queryByRole("link", { name: messages.Game.myFeedback })).toBeNull();
+    expect(nav.queryByRole("link", { name: messages.Game.workspace.admin })).toBeNull();
+  });
+  it("Editörün Seçtikleri sekmesinde bölüm gezintisinde o bağlantı etkindir", async () => {
+    search = "tab=picks";
+    mount(); await screen.findByRole("link", { name: "Fixture game 0" });
+    expect(within(screen.getByRole("navigation", { name: messages.Game.catalogue })).getByRole("link", { name: messages.Game.editorsPicks })).toHaveAttribute("aria-current", "page");
   });
   it("katalog durumunu yalnız açıldığında ister; providerTotal null iken yüzde göstermez", async () => {
     serve({ catalogStatus: () => ({ provider: "STEAM", runMode: "INITIAL", syncStatus: "FAILED", cursor: 440, processedCount: 10, indexedEntries: 10, mainGameEntries: 0, unclassifiedEntries: 10, providerTotal: null, runStartedAt: null, lastSuccessfulAt: null, lastErrorCode: "SYNC_ERROR", failureCount: 3, nextAttemptAt: null }) });

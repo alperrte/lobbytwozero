@@ -10,6 +10,7 @@ import { GameAchievementEditor } from "./game-achievement-editor";
 import { GameActionForm } from "./game-action-form";
 import { GameCatalogStatus } from "./game-catalog-status";
 import { GameIdentityNotice } from "./game-identity-notice";
+import { GameIndexSearch } from "./game-index-search";
 import { GamePicker } from "./game-picker";
 import { GamePopularEditor } from "./game-popular-editor";
 import { controlClass, GameStatus } from "./game-status";
@@ -103,7 +104,7 @@ export function GameAdminTools({ initialGameId = "" }: { initialGameId?: string 
     <div role="tabpanel" id={`admin-panel-${section}`} aria-labelledby={`admin-tab-${section}`}>
       {section === "games" && <GamesSection initialGameId={initialGameId} />}
       {section === "popular" && <GamePopularEditor />}
-      {section === "catalog" && <GameCatalogStatus defaultOpen />}
+      {section === "catalog" && <div className="space-y-6"><GameCatalogStatus defaultOpen /><GameIndexSearch /></div>}
       {section === "identity" && <GameIdentityNotice />}
     </div>
   </div>;
