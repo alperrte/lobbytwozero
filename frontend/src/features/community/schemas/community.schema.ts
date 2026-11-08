@@ -1,10 +1,12 @@
-import type { GameContentType } from "../types/community.types";
-
-/** Sınırlar Community API doğrulamasıyla birebir aynıdır (docs/api.md → COMMUNITY). */
+/**
+ * Arayüz sınırları. Gönderi (2000) ve yorum/yanıt (1000) sınırları sunucunun kabul ettiği üst sınırlardan (gönderi 5000, yorum 2000)
+ * daha SIKIDIR; oluşturma, hızlı paylaşım, düzenleme, yorum ve yanıt aynı ortak sabitleri kullanır. Eski uzun içerik okunur; düzenlenip kaydedilirken
+ * yeni sınır uygulanır. Diğer sınırlar Community API doğrulamasıyla birebir aynıdır (docs/api.md → COMMUNITY).
+ */
 export const LIMITS = {
-  postBody: 5000,
+  postBody: 2000,
   title: 120,
-  comment: 2000,
+  comment: 1000,
   repostNote: 500,
   reportDetail: 500,
   forumTitle: 120,
@@ -54,9 +56,4 @@ export function validateImage(file: File, existingCount: number): ImageIssue | n
   if (file.size === 0) return "empty";
   if (!(ACCEPTED_IMAGE_TYPES as readonly string[]).includes(file.type)) return "type";
   return file.size > LIMITS.imageBytes ? "size" : null;
-}
-
-/** Türlü içerik (GAME-11) başlık ve oyun ister; forumla birlikte kullanılamaz. */
-export function contentTypeNeeds(contentType: GameContentType | ""): { title: boolean; game: boolean } {
-  return contentType === "" ? { title: false, game: false } : { title: true, game: true };
 }

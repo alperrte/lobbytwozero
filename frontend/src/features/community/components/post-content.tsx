@@ -7,6 +7,7 @@ import { cn } from "@/shared/utils/cn";
 import type { GameContentType, PostCategory, RepostSource } from "../types/community.types";
 import { CommunityIcon } from "./community-icons";
 import { chipClass } from "./community-ui";
+import { ExpandableText } from "./expandable-text";
 import { AuthorLine, GameChip, RepostBlock, type Lookups } from "./post-parts";
 
 type DetailHref = { pathname: "/community/posts/[postId]"; params: { postId: string } };
@@ -28,10 +29,10 @@ export function PostContent({
   title,
   titleHref,
   body,
-  clampBody = false,
-  readMoreHref,
+  clamp = false,
   repostOf,
-  media
+  media,
+  actions
 }: {
   headingId: string;
   lookups: Lookups;
@@ -46,11 +47,13 @@ export function PostContent({
   /** Verilirse başlık bağlantıdır (akış kartı). */
   titleHref?: DetailHref;
   body: string | null;
-  clampBody?: boolean;
-  readMoreHref?: DetailHref;
+  /** Liste kartı: uzun metin satır sınırıyla kesilir ("Devamını gör"); detay ve önizleme tam metni gösterir. */
+  clamp?: boolean;
   repostOf?: RepostSource | null;
   /** Ortak medya (carousel). */
   media?: ReactNode;
+  /** Başlık satırının sağ ucundaki işlem menüsü (üç nokta). */
+  actions?: ReactNode;
 }) {
   const t = useTranslations("Community");
   const showCategory = category !== "GENERAL" && !contentType;
@@ -58,19 +61,22 @@ export function PostContent({
 
   return (
     <>
-      <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-        <AuthorLine
-          authorId={authorId}
-          lookups={lookups}
-          createdAt={createdAt}
-          trailing={edited ? <span className="text-xs text-text-secondary">· {t("post.edited")}</span> : null}
-        />
-        <div className="flex flex-wrap items-center gap-2">
-          <GameChip gameId={gameId} lookups={lookups} />
-          {contentType ? <span className={chipClass}>{t(`post.contentType.${contentType}`)}</span> : null}
-          {showCategory ? <span className={chipClass}>{t(`category.${category}`)}</span> : null}
-          {hidden ? <span className={cn(chipClass, "border-warning/60 text-text-primary")}>{t("post.hidden")}</span> : null}
+      <header className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-2">
+          <AuthorLine
+            authorId={authorId}
+            lookups={lookups}
+            createdAt={createdAt}
+            trailing={edited ? <span className="text-xs text-text-secondary">· {t("post.edited")}</span> : null}
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <GameChip gameId={gameId} lookups={lookups} />
+            {contentType ? <span className={chipClass}>{t(`post.contentType.${contentType}`)}</span> : null}
+            {showCategory ? <span className={chipClass}>{t(`category.${category}`)}</span> : null}
+            {hidden ? <span className={cn(chipClass, "border-warning/60 text-text-primary")}>{t("post.hidden")}</span> : null}
+          </div>
         </div>
+        {actions}
       </header>
 
       {repostOf !== undefined && repostOf !== null ? (
@@ -81,7 +87,7 @@ export function PostContent({
       ) : null}
 
       {title ? (
-        <h2 id={headingId} className="mt-3 break-words font-display text-xl font-semibold leading-snug text-text-primary">
+        <h2 id={headingId} className={cn("mt-4 break-words font-display text-xl font-semibold leading-snug text-text-primary", clamp && "line-clamp-2")}>
           {titleHref ? (
             <Link href={titleHref} className="hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus">
               {title}
@@ -97,19 +103,14 @@ export function PostContent({
       )}
 
       {text ? (
-        <p className={cn("mt-3 whitespace-pre-wrap break-words text-[0.9375rem] leading-7 text-text-primary", clampBody && "line-clamp-6")}>
-          {text}
-        </p>
+        clamp ? (
+          <div className="mt-4">
+            <ExpandableText text={text} />
+          </div>
+        ) : (
+          <p className="mt-4 whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-[0.9375rem] leading-7 text-text-primary">{text}</p>
+        )
       ) : null}
-      {clampBody && readMoreHref ? (
-        <Link
-          href={readMoreHref}
-          className="mt-1 inline-flex min-h-11 items-center text-sm font-medium text-brand-text underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-        >
-          {t("post.readMore")}
-        </Link>
-      ) : null}
-
       {repostOf ? <RepostBlock source={repostOf} lookups={lookups} /> : null}
       {media}
     </>

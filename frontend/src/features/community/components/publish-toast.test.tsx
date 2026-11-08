@@ -1,20 +1,14 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
-import { createElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import tr from "@/shared/lib/i18n/messages/tr.json";
-import { FADE_MS, FLASH_DELAY_MS, FLASH_MS, MIN_OVERLAY_MS, completePublish, finishPublish, getPublishState, resetPublishFlow, startPublish } from "../services/publish-flow";
-import { PublishNotice } from "./publish-notice";
-
-vi.mock("@/shared/lib/i18n/navigation", () => ({
-  Link: ({ href, children, ...rest }: { href: unknown; children: ReactNode }) =>
-    createElement("a", { href: typeof href === "string" ? href : JSON.stringify(href), ...rest }, children)
-}));
+import { FADE_MS, FLASH_DELAY_MS, FLASH_MS, MIN_OVERLAY_MS, completePublish, failPublish, finishPublish, getPublishState, resetPublishFlow, startPublish } from "../services/publish-flow";
+import { PublishToast } from "./publish-toast";
 
 function mount() {
   return render(
     <NextIntlClientProvider locale="tr" messages={tr}>
-      <PublishNotice />
+      <PublishToast />
     </NextIntlClientProvider>
   );
 }
@@ -39,8 +33,8 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("PublishNotice (2 saniyelik başarı bildirimi)", () => {
-  it("paylaşım yokken hiçbir şey göstermez; tamamlanınca önce animasyon, ardından bildirim gelir", () => {
+describe("PublishToast (sağ alt başarı bildirimi)", () => {
+  it("paylaşım yokken hiçbir şey göstermez; yalnız backend onayından sonra gelir", () => {
     mount();
     expect(screen.queryByRole("status")).toBeNull();
     act(() => {
@@ -52,16 +46,21 @@ describe("PublishNotice (2 saniyelik başarı bildirimi)", () => {
     advance(MIN_OVERLAY_MS);
     expect(screen.queryByRole("status")).toBeNull();
     advance(FLASH_DELAY_MS);
-    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Gönderin paylaşıldı.");
   });
 
-  it("görünür, 'Gönderiyi aç' ve 'Kapat' kullanılabilir; 2 sn sonra yumuşak geçişle kaybolur", () => {
+  it("ekranın sağ altına sabitlenir", () => {
     mount();
     publish("p1");
-    expect(screen.getByRole("status")).toHaveTextContent("Gönderin paylaşıldı.");
-    expect(screen.getByRole("link", { name: "Gönderiyi aç" })).toHaveAttribute("href", expect.stringContaining("p1"));
-    expect(screen.getByRole("button", { name: "Kapat" })).toBeInTheDocument();
+    const wrapper = screen.getByRole("status").parentElement as HTMLElement;
+    expect(wrapper.className).toContain("fixed");
+    expect(wrapper.className).toContain("bottom-");
+    expect(wrapper.className).toContain("sm:end-6");
+  });
 
+  it("2 sn sonra yumuşak geçişle kaybolur ve depodaki kayıt silinir", () => {
+    mount();
+    publish("p1");
     advance(FLASH_MS - 100);
     expect(screen.getByRole("status").className).not.toContain("opacity-0");
     advance(150);
@@ -72,30 +71,16 @@ describe("PublishNotice (2 saniyelik başarı bildirimi)", () => {
     expect(getPublishState().flash).toBeNull();
   });
 
-  it("'Kapat' bildirimi geçişle hemen kaldırır", () => {
+  it("kapat düğmesi bildirimi geçişle hemen kaldırır", () => {
     mount();
     publish("p1");
-    fireEvent.click(screen.getByRole("button", { name: "Kapat" }));
-    expect(screen.getByRole("status").className).toContain("opacity-0");
-    advance(300);
-    expect(screen.queryByRole("status")).toBeNull();
-  });
-
-  it("her yeni başarılı paylaşım süreyi baştan başlatır", () => {
-    mount();
-    publish("p1");
-    advance(1500);
-    publish("p2");
-    expect(screen.getByRole("link", { name: "Gönderiyi aç" })).toHaveAttribute("href", expect.stringContaining("p2"));
-    advance(FLASH_MS - 100);
-    expect(screen.getByRole("status").className).not.toContain("opacity-0");
-    advance(150);
+    fireEvent.click(screen.getByRole("button", { name: "Bildirimi kapat" }));
     expect(screen.getByRole("status").className).toContain("opacity-0");
     advance(FADE_MS);
     expect(screen.queryByRole("status")).toBeNull();
   });
 
-  it("fare bildirimin üzerindeyken de süre dolunca kaybolur (kalıcı kalmaz)", () => {
+  it("fare üzerindeyken de süre dolunca kaybolur (kalıcı kalmaz)", () => {
     mount();
     publish("p1");
     fireEvent.mouseEnter(screen.getByRole("status"));
@@ -105,7 +90,17 @@ describe("PublishNotice (2 saniyelik başarı bildirimi)", () => {
     expect(getPublishState().flash).toBeNull();
   });
 
-  it("bileşen kapanınca zamanlayıcılar temizlenir (kaldırma sonrası güncelleme yok)", () => {
+  it("başarısız paylaşımda bildirim kurulmaz", () => {
+    mount();
+    act(() => {
+      startPublish();
+      failPublish();
+    });
+    advance(MIN_OVERLAY_MS + FLASH_DELAY_MS + FLASH_MS);
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("bileşen kapanınca zamanlayıcılar temizlenir", () => {
     const view = mount();
     publish("p1");
     view.unmount();

@@ -2023,7 +2023,7 @@
     "nav": {
       "label": "Topluluk bölümleri",
       "feed": "Akış",
-      "forums": "Oyun forumları",
+      "forums": "Topluluk",
       "mine": "Gönderilerim",
       "newPost": "Gönderi oluştur"
     },
@@ -2059,14 +2059,10 @@
       "mineReposts": {
         "title": "Yeniden paylaşımlarım",
         "description": "Yeniden paylaştığın gönderiler."
-      },
-      "mineWords": {
-        "title": "Sözlerim",
-        "description": "Paylaştığın metin gönderileri."
       }
     },
     "feed": {
-      "title": "Topluluk",
+      "title": "Topluluk Akış",
       "description": "Oyunları, deneyimlerini ve fikirlerini paylaş; diğer oyuncuların gönderilerini oku.",
       "prompt": "Toplulukta neler paylaşmak istersin?",
       "promptGuest": "Paylaşmak için giriş yap",
@@ -2084,8 +2080,10 @@
       "sortLabel": "Sıralama",
       "sort": {
         "NEWEST": "En yeni",
-        "POPULAR": "Popüler",
-        "OLDEST": "En eski"
+        "POPULAR": "Popüler (beğeni + yorum)",
+        "OLDEST": "En eski",
+        "MOST_LIKED": "En fazla beğeni alan",
+        "MOST_REPOSTED": "En fazla yeniden paylaşılan"
       },
       "search": "Gönderilerde ara",
       "searchPlaceholder": "Gönderi metninde ara…",
@@ -2098,7 +2096,15 @@
       "to": "Bitiş tarihi",
       "invalidRange": "Başlangıç tarihi bitiş tarihinden sonra olamaz.",
       "clear": "Filtreleri temizle",
-      "more": "Daha fazla filtre"
+      "more": "Daha fazla filtre",
+      "sortFilter": "Filtrele",
+      "criteriaOrder": "{number}. sıra",
+      "criteriaCount": "{count} ölçüt seçili",
+      "criteriaOpposite": "En yeni ve En eski zıt yönlerdir: önce seçtiğin (“{first}”) uygulanır, diğeri sonucu değiştirmez.",
+      "ineffective": "Etkisiz (zıt yön)",
+      "applyCriteria": "Uygula",
+      "clearCriteria": "Temizle",
+      "criteriaUnsupported": "Uygulanamadı: “{list}” sıralaması API tarafında henüz desteklenmiyor. Seçimini koruyabilir ya da kaldırıp tekrar uygulayabilirsin."
     },
     "category": {
       "GENERAL": "Genel",
@@ -2126,7 +2132,7 @@
       "hidden": "Gizlendi",
       "repostedBy": "Yeniden paylaşım",
       "srTitle": "Gönderi",
-      "readMore": "Devamını oku",
+      "readMore": "Devamını gör",
       "likeAria": "Beğen, şu an {count} beğeni",
       "unlikeAria": "Beğeniyi geri al, şu an {count} beğeni",
       "commentsLabel": "Yorum sayısı",
@@ -2149,7 +2155,12 @@
         "GUIDES": "Rehber",
         "EASTER_EGGS": "Easter egg",
         "EXPERIENCES": "Oyuncu deneyimi"
-      }
+      },
+      "readLess": "Daha az göster",
+      "commentsOpen": "Yorumları göster",
+      "commentsClose": "Yorumları gizle",
+      "actions": "Gönderi işlemleri",
+      "reportMenu": "Şikayet et"
     },
     "images": {
       "alt": "Gönderi görseli {number}",
@@ -2211,12 +2222,10 @@
       "forumContext": "Forum:",
       "type": "Gönderi türü",
       "titleLabel": "Başlık",
-      "titlePlaceholder": "İçeriğin başlığı",
       "bodyLabel": "Metin",
       "bodyPlaceholder": "Düşüncelerini, deneyimlerini veya sorularını paylaş…",
       "gameRequired": "Oyun ara (zorunlu)",
       "gameOptional": "Oyun ara",
-      "category": "Kategori",
       "images": "Görseller",
       "optional": "isteğe bağlı",
       "partial": "Gönderi yayınlandı ancak {count} görsel yüklenemedi. Görselleri yeniden deneyebilir ya da gönderiye gidebilirsin.",
@@ -2226,7 +2235,7 @@
       "submit": "Paylaş",
       "previewLabel": "Gönderi önizlemesi",
       "preview": "Önizleme",
-      "previewHelp": "Yayınlandığında akışta bu şekilde görünür.",
+      "previewHelp": "Yayınlandığında akışta bu şekilde görünecektir.",
       "previewNow": "Şimdi",
       "previewEmpty": "Gönderi metni burada görünecek.",
       "error": {
@@ -2238,17 +2247,9 @@
         "gameRequired": "Oyuna bağlı içerik için bir oyun seç."
       },
       "sectionKind": "Ne paylaşıyorsun?",
-      "sectionKindHint": "Gönderi topluluk akışında görünür. Oyun içeriği ayrıca oyunun sayfasında listelenir.",
+      "sectionKindHint": "Gönderi topluluk akışında görünecektir.",
       "modePost": "Gönderi",
-      "modePostHelp": "Toplulukla serbestçe paylaş; istersen bir oyuna bağla.",
       "modeGame": "Oyun içeriği",
-      "modeGameHelp": "Başlık ve oyun zorunlu. Oyunun sayfasında listelenir; türü sonradan değiştirilemez.",
-      "contentTypeLabel": "İçerik türü",
-      "contentTypeHelp": {
-        "GUIDES": "Oyunu adım adım anlatan rehber.",
-        "EASTER_EGGS": "Oyunda saklı detaylar ve sürprizler.",
-        "EXPERIENCES": "Kendi oynayış deneyimin."
-      },
       "sectionContent": "İçerik",
       "plainText": "Düz metin: biçimlendirme ve bağlantılar yorumlanmaz.",
       "sectionGame": "Oyun bağlantısı",
@@ -2261,7 +2262,11 @@
       "publishingImage": "Görsel {current}/{total} yükleniyor…",
       "retry": "Tekrar dene",
       "publishingOverlay": "Gönderin paylaşılıyor…",
-      "publishingList": "Akış güncelleniyor…"
+      "publishingList": "Akış güncelleniyor…",
+      "sectionDescription": "Açıklama",
+      "confirmTitle": "Gönderiyi paylaşmak istiyor musun?",
+      "confirmBody": "Onaylarsan gönderi paylaşılır.",
+      "category": "Kategori"
     },
     "edit": {
       "title": "Gönderiyi düzenle",
@@ -2291,11 +2296,7 @@
       "hideReplies": "Yanıtları gizle",
       "deleteTitle": "Yorum silinsin mi?",
       "deleteBody": "Yorum kaldırılır. Yanıtları varsa yerinde \"silindi\" notu kalır. Bu işlem geri alınamaz.",
-      "save": "Kaydet",
-      "paneTitle": "Yorumlar",
-      "paneEmpty": "Henüz yorum yok.",
-      "paneLoading": "Yorumlar yükleniyor…",
-      "paneListLabel": "Yorum listesi"
+      "save": "Kaydet"
     },
     "detail": {
       "title": "Gönderi",
@@ -2391,12 +2392,11 @@
         "noText": "Metinsiz gönderi",
         "originalBy": "Orijinal yazar"
       },
-      "wordsLink": "Sözlerim",
-      "wordsTitle": "Sözlerim",
-      "wordsDescription": "Paylaştığın metin gönderileri. Görselli gönderiler ve yeniden paylaşımlar burada görünmez.",
-      "wordsEmptyTitle": "Henüz bir söz paylaşmadın.",
-      "wordsEmptyBody": "Akıştaki hızlı paylaşım alanından kısa bir söz paylaşabilirsin; burada listelenir.",
-      "wordsEmptyCta": "Akışa git"
+      "priority": "Öncelik",
+      "priorityOptions": {
+        "OLDEST": "Eskiden yeniye",
+        "NEWEST": "Yeniden eskiye"
+      }
     },
     "user": {
       "title": "Oyuncunun gönderileri",
@@ -2441,6 +2441,9 @@
       "open": "{number}. görseli tam boyutta aç",
       "broken": "Görsel yüklenemedi",
       "viewer": "Görsel görüntüleyici"
+    },
+    "toast": {
+      "close": "Bildirimi kapat"
     }
   }
 }
