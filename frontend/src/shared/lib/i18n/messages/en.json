@@ -1537,6 +1537,7 @@
     "editProfile": "Edit profile",
     "noName": "Unnamed player",
     "usernamePending": "Username is being prepared",
+    "memberSince": "Member since {date}",
     "emptyBio": "You haven't added a bio yet.",
     "preferences": "Player preferences",
     "country": "Country",
@@ -1559,20 +1560,39 @@
       "friends": "Friends",
       "library": "Game collection",
       "reviews": "Reviews",
-      "messages": "Messages",
       "hidden": "Hidden",
       "unavailable": "Not yet",
-      "unknown": "Unavailable"
+      "unknown": "Unavailable",
+      "computers": "Computers",
+      "plus": "{count}+"
     },
     "hardware": {
       "title": "My computers",
-      "body": "Your saved computers and hardware details live in the Hardware section.",
-      "open": "Go to my computers"
-    },
-    "tabPreview": {
-      "activity": "Posts, reviews and comments will appear here as a feed. It will be connected once the related service is ready.",
-      "games": "Your collection, completed and favorite games will be listed here. It will be connected once the Library service is ready.",
-      "friends": "Your friends list will appear here. It will be connected once the Social service is ready."
+      "open": "Go to my computers",
+      "computers": "Computers",
+      "components": "Components",
+      "ram": "Recorded RAM",
+      "storage": "Recorded storage",
+      "gb": "{value} GB",
+      "noValue": "—",
+      "capacityNote": "Some components have no recorded capacity; totals include recorded values only.",
+      "empty": "You have not added a computer yet.",
+      "add": "Add a computer",
+      "typeCount": "{type}: {count}",
+      "types": {
+        "DESKTOP": "Desktop",
+        "LAPTOP": "Laptop",
+        "OTHER": "Other"
+      },
+      "performance": {
+        "title": "My game performance",
+        "empty": "You have no performance sessions yet.",
+        "totals": "{sessions} sessions, {samples} samples",
+        "average": "Average",
+        "min": "Lowest",
+        "max": "Highest",
+        "sessions": "Measured in {count, plural, one {# session} other {# sessions}}"
+      }
     },
     "preview": {
       "mark": "Preview",
@@ -1580,7 +1600,6 @@
       "rank": {
         "veteran": "Veteran Player"
       },
-      "memberSince": "Member since {date}",
       "status": "Playing something tonight.",
       "signatureLabel": "Signature",
       "signature": "Every game is a story; just finish it.",
@@ -1790,6 +1809,42 @@
       "invalid": "One of the values is invalid. Check the fields.",
       "network": "Couldn't connect. Check your internet and try again.",
       "generic": "Something went wrong. Try again."
+    },
+    "remote": {
+      "loading": "Loading",
+      "error": "This section could not be loaded right now.",
+      "retry": "Try again"
+    },
+    "activity": {
+      "title": "Recent posts",
+      "all": "All my posts",
+      "empty": "You have no posts yet.",
+      "write": "Write a post",
+      "untitled": "Post without text",
+      "repost": "Repost",
+      "hidden": "Hidden (only you can see it)",
+      "likes": "{count, plural, one {# like} other {# likes}}",
+      "comments": "{count, plural, one {# comment} other {# comments}}"
+    },
+    "games": {
+      "title": "My game collection",
+      "total": "Total games",
+      "favorite": "Favorites",
+      "completed": "Completed",
+      "completion": "Completion rate: {percent}",
+      "empty": "Your collection is empty for now.",
+      "browse": "Browse games"
+    },
+    "friendsTab": {
+      "title": "My friends",
+      "empty": "You have no friends yet.",
+      "count": "{count, plural, one {# friend} other {# friends}}",
+      "countMore": "{count}+ friends",
+      "noneVisible": "Your friends cannot be shown right now.",
+      "unnamed": "Player",
+      "since": "Friends since {date}",
+      "open": "Open posts by {name}",
+      "someHidden": "Some accounts cannot be shown"
     }
   },
   "Community": {

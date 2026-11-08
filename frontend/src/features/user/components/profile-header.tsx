@@ -11,8 +11,8 @@ const primaryLinkClass =
   "inline-flex min-h-10 items-center justify-center rounded-control bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors duration-150 hover:bg-secondary";
 
 /**
- * Profil başlığı: kapak, avatar, ad, @kullanıcı adı. Rütbe, üyelik tarihi ve durum mesajı henüz backend'de olmadığından
- * tek satırda ve "Önizleme" işaretiyle gösterilir.
+ * Profil başlığı: kapak, avatar, ad, @kullanıcı adı ve (backend gönderdiyse) gerçek üyelik tarihi. Rütbe ve durum mesajı
+ * henüz backend'de olmadığından alttaki satırda "Önizleme" işaretiyle gösterilir.
  */
 export function ProfileHeader({ profile }: { profile: MyProfile }) {
   const t = useTranslations("Profile");
@@ -40,6 +40,14 @@ export function ProfileHeader({ profile }: { profile: MyProfile }) {
           </h1>
           <p className="text-sm text-text-secondary">
             {profile.username ? `@${profile.username}` : t("usernamePending")}
+            {profile.memberSince ? (
+              <>
+                <span aria-hidden="true"> · </span>
+                <time dateTime={profile.memberSince}>
+                  {t("memberSince", { date: format.dateTime(new Date(profile.memberSince), { dateStyle: "long" }) })}
+                </time>
+              </>
+            ) : null}
           </p>
         </div>
         <Link href="/profile/edit" className={primaryLinkClass}>
@@ -49,11 +57,6 @@ export function ProfileHeader({ profile }: { profile: MyProfile }) {
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border px-5 py-3 text-sm sm:px-6">
         <span className="inline-flex items-center rounded-full border border-border bg-surface-elevated px-3 py-1 text-xs font-semibold text-text-primary">
           {t(`preview.rank.${previewProfile.rank}`)}
-        </span>
-        <span className="text-text-secondary">
-          {t("preview.memberSince", {
-            date: format.dateTime(new Date(previewProfile.memberSince), { dateStyle: "long", timeZone: "UTC" })
-          })}
         </span>
         <span className="min-w-0 truncate italic text-text-secondary">“{t("preview.status")}”</span>
         <PreviewMark className="ms-auto" />

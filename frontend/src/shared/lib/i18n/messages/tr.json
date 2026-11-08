@@ -1537,6 +1537,7 @@
     "editProfile": "Profili düzenle",
     "noName": "Adsız oyuncu",
     "usernamePending": "Kullanıcı adı hazırlanıyor",
+    "memberSince": "Üyelik: {date}",
     "emptyBio": "Henüz biyografi eklemedin.",
     "preferences": "Oyuncu tercihleri",
     "country": "Ülke",
@@ -1559,20 +1560,39 @@
       "friends": "Arkadaş",
       "library": "Oyun koleksiyonu",
       "reviews": "İnceleme",
-      "messages": "Mesaj",
       "hidden": "Gizli",
       "unavailable": "Henüz yok",
-      "unknown": "Alınamadı"
+      "unknown": "Alınamadı",
+      "computers": "Bilgisayar",
+      "plus": "{count}+"
     },
     "hardware": {
       "title": "Bilgisayarlarım",
-      "body": "Kayıtlı bilgisayarların ve donanım bilgilerin Donanım bölümünde tutulur.",
-      "open": "Bilgisayarlarıma git"
-    },
-    "tabPreview": {
-      "activity": "Gönderiler, incelemeler ve yorumlar burada akış olarak görünecek. İlgili servis hazır olunca bağlanacak.",
-      "games": "Koleksiyonun, tamamladıkların ve favori oyunların burada listelenecek. Kütüphane servisi hazır olunca bağlanacak.",
-      "friends": "Arkadaş listen burada görünecek. Sosyal servis hazır olunca bağlanacak."
+      "open": "Bilgisayarlarıma git",
+      "computers": "Bilgisayar",
+      "components": "Parça",
+      "ram": "Kayıtlı RAM",
+      "storage": "Kayıtlı depolama",
+      "gb": "{value} GB",
+      "noValue": "—",
+      "capacityNote": "Bazı parçaların kapasitesi kayıtlı değil; toplamlar yalnız kayıtlı değerleri içerir.",
+      "empty": "Henüz bilgisayar eklemedin.",
+      "add": "Bilgisayar ekle",
+      "typeCount": "{type}: {count}",
+      "types": {
+        "DESKTOP": "Masaüstü",
+        "LAPTOP": "Dizüstü",
+        "OTHER": "Diğer"
+      },
+      "performance": {
+        "title": "Oyun performansım",
+        "empty": "Henüz performans oturumun yok.",
+        "totals": "{sessions} oturum, {samples} ölçüm",
+        "average": "Ortalama",
+        "min": "En düşük",
+        "max": "En yüksek",
+        "sessions": "{count, plural, other {# oturumda}} ölçüldü"
+      }
     },
     "preview": {
       "mark": "Önizleme",
@@ -1580,7 +1600,6 @@
       "rank": {
         "veteran": "Kıdemli Oyuncu"
       },
-      "memberSince": "Üyelik: {date}",
       "status": "Bu akşam bir şeyler oynuyorum.",
       "signatureLabel": "İmza",
       "signature": "Her oyun bir hikâyedir; sen yeter ki bitir.",
@@ -1790,6 +1809,42 @@
       "invalid": "Girdiğin bilgilerden biri geçersiz. Alanları kontrol et.",
       "network": "Bağlantı kurulamadı. İnternetini kontrol edip tekrar dene.",
       "generic": "Bir sorun oluştu. Tekrar dene."
+    },
+    "remote": {
+      "loading": "Yükleniyor",
+      "error": "Bu bölüm şu an alınamadı.",
+      "retry": "Tekrar dene"
+    },
+    "activity": {
+      "title": "Son gönderiler",
+      "all": "Tüm gönderilerim",
+      "empty": "Henüz gönderin yok.",
+      "write": "Gönderi yaz",
+      "untitled": "Metinsiz gönderi",
+      "repost": "Yeniden paylaşım",
+      "hidden": "Gizlendi (yalnız sen görürsün)",
+      "likes": "{count, plural, other {# beğeni}}",
+      "comments": "{count, plural, other {# yorum}}"
+    },
+    "games": {
+      "title": "Oyun koleksiyonum",
+      "total": "Toplam oyun",
+      "favorite": "Favori",
+      "completed": "Tamamlanan",
+      "completion": "Tamamlama oranı: {percent}",
+      "empty": "Koleksiyonun henüz boş.",
+      "browse": "Oyunlara göz at"
+    },
+    "friendsTab": {
+      "title": "Arkadaşlarım",
+      "empty": "Henüz arkadaşın yok.",
+      "count": "{count} arkadaş",
+      "countMore": "{count}+ arkadaş",
+      "noneVisible": "Arkadaşların şu an gösterilemiyor.",
+      "unnamed": "Oyuncu",
+      "since": "Arkadaşlık: {date}",
+      "open": "{name} oyuncusunun gönderilerini aç",
+      "someHidden": "Bazı hesaplar gösterilemiyor"
     }
   },
   "Community": {

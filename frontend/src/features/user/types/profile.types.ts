@@ -36,6 +36,8 @@ export type MyProfile = {
   favoritePlatforms: string[];
   avatar: ProfileImage | null;
   cover: ProfileImage | null;
+  /** Üyelik tarihi (ISO-8601); sunucu göndermediyse ya da okunamadıysa `null`, tarih uydurulmaz. */
+  memberSince: string | null;
   /** Kaydederken sunucuya aynen geri gönderilir (iyimser kilit). */
   version: number;
 };

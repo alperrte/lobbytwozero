@@ -86,6 +86,7 @@ public class EventIngestService {
         profiles.insertIfAbsent(accountId, AccountStatus.ACTIVE.name(), null, now);
         UserProfile profile = profiles.findById(accountId).orElseThrow();
         profile.applyUsername(username, now);
+        profile.applyMemberSince(event.occurredAt(), now);
     }
 
     /**
