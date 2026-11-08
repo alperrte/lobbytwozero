@@ -1,3 +1,6 @@
 export { getMyProfileSummary } from "./services/user-api";
 export type { UserRequest } from "./services/user-api";
 export type { ProfileSummary } from "./types/profile.types";
+export { emitProfileChanged, onProfileChanged } from "./services/profile-events";
+export { ProfileView } from "./components/profile-view";
+export { ProfileEditForm } from "./components/profile-edit-form";

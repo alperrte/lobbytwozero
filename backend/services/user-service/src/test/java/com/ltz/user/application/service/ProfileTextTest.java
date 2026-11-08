@@ -97,6 +97,15 @@ class ProfileTextTest {
     }
 
     @Test
+    void oyuncuTurleriGenisletilmisDegerleriKabulEder() {
+        assertThat(ProfileText.playerTypes(List.of("team_player", "SPEEDRUNNER")))
+                .containsExactly("TEAM_PLAYER", "SPEEDRUNNER");
+        for (String type : List.of("EXPLORER", "COMPLETIONIST", "STRATEGIST", "CREATIVE", "HARDCORE")) {
+            assertThat(ProfileText.playerTypes(List.of(type))).containsExactly(type);
+        }
+    }
+
+    @Test
     void oyuncuTurleriIkidenFazlaVeBilinmeyenReddedilir() {
         assertThatCode("3", UserErrorCode.INVALID_PLAYER_TYPES,
                 () -> ProfileText.playerTypes(List.of("CASUAL", "STORY", "SOCIAL")));

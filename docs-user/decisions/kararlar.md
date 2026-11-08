@@ -15,7 +15,7 @@ ADR'lerin yerine geçmez; User'a özgü kararların kaydıdır.
 | K6 | `SUSPENDED` hesap: profil görünür, aramada çıkmaz. `BANNED`/`DISABLED`: 404 | |
 | K7 | Şimdilik yalnız backend; frontend profil sayfaları sonra | |
 | K8 | Steam önce; **Discord kapsam dışı** | Discord'a Türkiye'de erişim engeli bildirildi (doğrulanmadı); resmi/güvenli bağlama yolu garanti değil. Tablo ve API Discord'a açık tasarlanır, ekip kararıyla sonra eklenebilir |
-| K9 | `player_type` değerleri: `CASUAL`, `COMPETITIVE`, `STORY`, `SOCIAL`, `COLLECTOR` (en çok 2); favori tür/platform kodları biçimce doğrulanır (en çok 10), Game'e senkron çağrı yok | |
+| K9 | `player_type` değerleri: `CASUAL`, `COMPETITIVE`, `STORY`, `SOCIAL`, `COLLECTOR`, `EXPLORER`, `COMPLETIONIST`, `STRATEGIST`, `TEAM_PLAYER`, `CREATIVE`, `SPEEDRUNNER`, `HARDCORE` (en çok 2; 2026-11-08 genişletildi); favori tür/platform kodları biçimce doğrulanır (en çok 10), Game'e senkron çağrı yok | |
 | K10 | `country` dışında kişisel bilgi alanı yok (KVKK yükü, gereksinimde tanımlı değil) | |
 | K11 | Düz string listeleri `jsonb` yerine `text[]` | Hibernate JSON eşlemesine bağımlılık yok; CHECK ile kardinalite sınırı |
 

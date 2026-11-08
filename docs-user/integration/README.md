@@ -12,7 +12,8 @@ User **kimseyi çağırmaz**; dış veri yalnız olayla gelir, karar ucu yalnız
 | Umut (social) | Arkadaşlık/engel olaylarını `user`'a göndermek, başlangıç aktarımı, `FRIENDS_LIST` karar adaptörü | Yüksek | OPEN | [social-requests-01](services/social-service-talepleri/social-requests-01.md) |
 | Hamza (library + review) | `LibrarySummaryChanged` / `ReviewSummaryChanged` olayları, LIB-11 için `LIBRARY` karar adaptörü | Orta | OPEN | [library-review-requests-01](services/library-review-talepleri/library-review-requests-01.md) |
 | Alper (hardware) | `HARDWARE` adaptörü (Alper yaptı) + yorum yazarı kararı `REVIEW_AUTHOR` (User yaptı) | Orta | **Hazır**; REQ-01 yansıma açılışı Social'a bağlı | [hardware-requests-01](services/hardware-service-talepleri/hardware-requests-01.md) · [cevap](services/hardware-service-talepleri/hardware-cevap-01.md) |
-| Gateway / Frontend | Gateway'de `/api/v1/user/**` rotası zaten var; şimdilik istek yok | — | — | — |
+| Alper (frontend) | `features/user` başlamadan önce ortak sözleşme: uç özeti, `apiRequest` genişletmesi, tercih kaynağı, settings grubu, auth feature sırası | Yüksek | OPEN | [frontend-requests-01](frontend/frontend-requests-01.md) |
+| Gateway | `/api/v1/user/**` rotası zaten var; ek istek yok | — | — | — |
 
 Ortak sözleşme: [docs/api.md](../../docs/api.md) → `## USER`. Auth cevapları: `docs-auth/verilen-cevaplar/user-service/`.
 
@@ -58,4 +59,14 @@ Açık soru: HardwareReviewAudiencePolicy engel listesi istiyor, User dökmüyor
 Auth: REQ-01..04 için teşekkürler, User tarafında hepsi işlendi ve gerçek Auth ile uçtan uca denendi (kayıt -> UserRegistered ->
 username dolu). Kalan tek istek Steam: docs-user/integration/auth/auth-service-talepleri/auth-requests-05.md (oturumlu hesaba
 bağlama/kaldırma + ExternalIdentityLinked/Unlinked olayları). User alıcısı hazır.
+```
+
+**Alper (frontend):**
+```text
+Alper, frontend iskeletini inceledim, user tarafı için başlamadan önce ortak bir çerçeve çıkardım: docs-user/integration/frontend/frontend-requests-01.md
+İçinde: user uçlarının özeti, UI'yı etkileyen sözleşme noktaları (görsel yükleme multipart değil ham gövde, version/409 kilidi, summary HIDDEN/UNAVAILABLE),
+önerilen route ve klasör yerleşimi. Senden 5 yanıt lazım (§5): 1) apiRequest'e ProblemDetail.code, CSRF, 401'de refresh+tek tekrar, ham gövde
+eklenmesi: sen mi yaparsın ben mi PR atayım? 2) tema/dil için yerel değer önce, girişli kullanıcıda sunucuya eşitleme: uygun mu? (tema animasyonuna
+sen bitirmeden dokunmuyorum) 3) web-rules §14/§10 URL önekli rotaya göre eski kaldı 4) settings sayfası (public) altında, kullanıcıya özel
+bölümleri (dashboard)'a alalım mı? features/auth ve features/user bende (auth+user benim servislerim). Sen yanıtlayana kadar frontend koduna dokunmuyorum.
 ```
