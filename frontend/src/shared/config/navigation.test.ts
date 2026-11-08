@@ -77,15 +77,15 @@ describe("navigationGroups", () => {
 });
 
 describe("primaryNavigation", () => {
-  it("Ana Sayfa ve oyun kataloğu kullanılabilir, kalan 11 öğe 'Yakında' durumundadır", () => {
+  it("Ana Sayfa, oyun kataloğu ve Arkadaşlar kullanılabilir, kalan 10 öğe 'Yakında' durumundadır", () => {
     const available = primaryNavigation.filter(isNavItemAvailable);
-    expect(available.map((item) => item.id)).toEqual(["home", "games"]);
-    expect(primaryNavigation.filter((item) => !isNavItemAvailable(item))).toHaveLength(11);
+    expect(available.map((item) => item.id)).toEqual(["home", "games", "friends"]);
+    expect(primaryNavigation.filter((item) => !isNavItemAvailable(item))).toHaveLength(10);
   });
 
   it("Yakında öğeleri href taşımaz (kırık link ve sahte rota yok)", () => {
     for (const item of primaryNavigation) {
-      if (item.id !== "home" && item.id !== "games") {
+      if (!["home", "games", "friends"].includes(item.id)) {
         expect(item.href).toBeUndefined();
       }
     }

@@ -1007,5 +1007,215 @@
       "fromLogin": "Cancel the deletion request",
       "back": "Back to sign in"
     }
+  },
+  "Social": {
+    "meta": {
+      "friends": "My Friends",
+      "requests": "Friend Requests",
+      "sent": "Sent Requests",
+      "blocked": "Blocked Users"
+    },
+    "hero": {
+      "friendsTitle": "My Friends",
+      "friendsSubtitle": "Your squad is here. Jump into the next match together.",
+      "requestsTitle": "Friend Requests",
+      "requestsSubtitle": "Manage new connections and grow your squad.",
+      "sentTitle": "Sent Requests",
+      "sentSubtitle": "Keep track of invites waiting for an answer.",
+      "blockedTitle": "Blocked Users",
+      "blockedSubtitle": "You stay in control of your social experience.",
+      "addFriend": "Add Friend"
+    },
+    "preview": {
+      "badge": "Preview data",
+      "description": "Status, current game and mutual friend details are still sample data; your friends, requests, blocks and invite code are real."
+    },
+    "tabs": {
+      "label": "Friend sections",
+      "friends": "Friends",
+      "incoming": "Incoming",
+      "sent": "Sent",
+      "blocked": "Blocked"
+    },
+    "friends": {
+      "listLabel": "Friend list",
+      "searchLabel": "Search your friends",
+      "searchPlaceholder": "Search your friends…",
+      "filterLabel": "Filter by status",
+      "filterAll": "All",
+      "filterOnline": "Online",
+      "filterInGame": "In game",
+      "showing": "Showing {shown} of {total} friends",
+      "loadMore": "Load more",
+      "loadingMore": "Loading…",
+      "emptyTitle": "No friends yet",
+      "emptyBody": "Share your invite code or enter a friend's code to send your first request.",
+      "noMatchTitle": "No matching friends",
+      "noMatchBody": "Try a different search or filter.",
+      "partialResults": "Search and filters only cover the {loaded} friends loaded so far. Load more below to widen them."
+    },
+    "presence": {
+      "online": "Online",
+      "inGame": "In game",
+      "offline": "Offline",
+      "lastSeen": "Last seen {time}"
+    },
+    "activity": {
+      "ranked": "Playing ranked",
+      "competitive": "Playing competitive",
+      "story": "In story mode",
+      "exploring": "Out exploring",
+      "coop": "Playing co-op",
+      "casual": "Playing casually"
+    },
+    "game": {
+      "playing": "Playing this game",
+      "lastPlayed": "Last played",
+      "none": "Not in a game right now"
+    },
+    "card": {
+      "message": "Send Message",
+      "messageSoon": "Messaging is coming soon",
+      "moreActions": "More actions for {name}",
+      "viewProfile": "View Profile",
+      "soon": "Soon",
+      "removeFriend": "Remove Friend",
+      "block": "Block",
+      "mutual": "{count, plural, =0 {No mutual friends} one {# mutual friend} other {# mutual friends}}"
+    },
+    "requests": {
+      "incomingTitle": "Incoming Requests",
+      "incomingListLabel": "Incoming friend requests",
+      "sentTitle": "Sent Requests",
+      "sentListLabel": "Sent friend requests",
+      "accept": "Accept",
+      "reject": "Decline",
+      "cancel": "Cancel Request",
+      "acceptAria": "Accept {name}'s request",
+      "rejectAria": "Decline {name}'s request",
+      "cancelAria": "Cancel request to {name}",
+      "pending": "Pending",
+      "seeAll": "See all",
+      "incomingEmptyTitle": "No pending requests",
+      "incomingEmptyBody": "New friend requests will show up here.",
+      "sentEmptyTitle": "No sent requests",
+      "sentEmptyBody": "Enter a friend's invite code to send them a request.",
+      "loadMore": "Load more"
+    },
+    "blocked": {
+      "listLabel": "Blocked users",
+      "blockedOn": "Blocked · {date}",
+      "unblock": "Unblock",
+      "unblockAria": "Unblock {name}",
+      "emptyTitle": "You haven't blocked anyone",
+      "emptyBody": "Players you block are listed here, and you can unblock them at any time.",
+      "loadMore": "Load more"
+    },
+    "howBlocking": {
+      "title": "How does blocking work?",
+      "intro": "Limit interactions with people you don't want to hear from for a safer, more enjoyable social experience.",
+      "requestsTitle": "Friend requests are stopped",
+      "requestsBody": "A blocked user can't send you friend requests; your friendship and any pending requests end.",
+      "messagesTitle": "Direct messages are restricted",
+      "messagesBody": "A blocked user can't send you messages.",
+      "lfpTitle": "Block rules apply to listings",
+      "lfpBody": "Block rules also apply to looking-for-party listings.",
+      "privacyTitle": "Profile privacy settings",
+      "privacyBody": "You'll be able to control in more detail who can reach you."
+    },
+    "invite": {
+      "title": "Your Invite Code",
+      "codeLabel": "Your invite code",
+      "copy": "Copy",
+      "copyAria": "Copy invite code",
+      "copied": "Copied",
+      "copyFailed": "Couldn't copy; select the code and copy it manually.",
+      "hint": "Share your code so friends can find you.",
+      "usage": "{used} / {max} uses",
+      "expires": "Valid until {date}",
+      "regenerate": "Generate new code",
+      "regenerateTitle": "Regenerate your invite code?",
+      "regenerateBody": "Your old code stops working immediately. Anyone you shared it with will need the new one.",
+      "regenerating": "Generating…",
+      "create": "Create invite code",
+      "creating": "Creating…",
+      "none": "You don't have an active invite code yet."
+    },
+    "addByCode": {
+      "title": "Add by invite code",
+      "panelTitle": "Add Friend",
+      "label": "Your friend's invite code",
+      "placeholder": "e.g. ABCDE-12345",
+      "hint": "10 characters; dashes and spaces don't matter.",
+      "submit": "Send Request",
+      "submitting": "Sending…",
+      "issues": {
+        "empty": "Enter an invite code.",
+        "length": "Invite codes are 10 characters long.",
+        "characters": "Codes use letters and digits only (no I, L, O or U)."
+      }
+    },
+    "privacy": {
+      "title": "Social privacy settings",
+      "body": "Control who can send you requests and see your profile.",
+      "soon": "Soon"
+    },
+    "dialogs": {
+      "close": "Close",
+      "cancel": "Cancel",
+      "removeTitle": "Remove this friend?",
+      "removeBody": "{name} will be removed from your friends. You'll need a new request to be friends again.",
+      "removeConfirm": "Remove Friend",
+      "removing": "Removing…",
+      "blockTitle": "Block this user?",
+      "blockBody": "{name} won't be able to send you requests or messages; your friendship and pending requests end.",
+      "blockConfirm": "Block",
+      "blocking": "Blocking…",
+      "unblockTitle": "Unblock this user?",
+      "unblockBody": "This user will be able to contact you again. Your friendship is not restored automatically.",
+      "unblockConfirm": "Unblock",
+      "unblocking": "Unblocking…"
+    },
+    "announce": {
+      "accepted": "{name} is now your friend.",
+      "rejected": "Declined {name}'s request.",
+      "cancelled": "Cancelled your request to {name}.",
+      "removed": "{name} was removed from your friends.",
+      "blocked": "{name} has been blocked.",
+      "unblocked": "{name} has been unblocked.",
+      "sent": "Friend request sent. Track it in the Sent tab.",
+      "regenerated": "Your new invite code is ready."
+    },
+    "states": {
+      "loading": "Loading…",
+      "errorTitle": "Couldn't load the list",
+      "retry": "Try again",
+      "loadMoreFailed": "Couldn't load more."
+    },
+    "errors": {
+      "alreadyFriends": "You're already friends with this user.",
+      "alreadyPending": "You already have a pending request to this user.",
+      "incomingPending": "This user already sent you a request; answer it under Incoming.",
+      "userBlocked": "You've blocked this user. Unblock them first.",
+      "inviteNotFound": "This invite code wasn't found or can no longer be used.",
+      "requestSelf": "You can't do this to your own account.",
+      "notAllowed": "This user can't receive a friend request from you.",
+      "notPending": "This request was already answered or cancelled.",
+      "tooManyPending": "You have too many pending requests. Wait for answers or cancel some.",
+      "notFound": "That record no longer exists; the list was refreshed.",
+      "conflict": "The record changed in the meantime. Try again.",
+      "unauthenticated": "Your session expired. Sign in to continue.",
+      "forbidden": "You don't have permission to do that.",
+      "rateLimited": "You're going too fast. Wait a moment and try again.",
+      "unavailable": "The social service isn't responding right now. Try again shortly.",
+      "csrf": "Couldn't refresh the security check. Reload the page and try again.",
+      "timeout": "The server didn't respond in time. The action may have completed; refresh the list to check.",
+      "network": "Couldn't connect. Check your connection and try again.",
+      "generic": "Something went wrong. Try again."
+    },
+    "person": {
+      "unknownPlayer": "Unknown player",
+      "blockedPlayer": "Blocked player"
+    }
   }
 }
