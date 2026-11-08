@@ -13,6 +13,15 @@ describe("Hardware HTTP sözleşmeleri", () => {
     expect(options).toMatchObject({ cache: "no-store", credentials: "include" });
     controller.abort(); expect(options.signal.aborted).toBe(true);
   });
+  it("facet seçeneklerini kategoriyle ister; kategori yoksa yalnız üretici listesini döndürür", async () => {
+    const fetch = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ category: "RAM", facets: { casLatency: [{ value: "30", label: "30", count: 2 }] } })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ items: [{ id: "b1", name: "Maker", status: "ACTIVE", version: 0 }], page: 0, size: 100, totalElements: 1, totalPages: 1 })));
+    vi.stubGlobal("fetch", fetch);
+    expect(await hardwareApi.filterOptions("RAM")).toEqual({ casLatency: [{ value: "30", label: "30", count: 2 }] });
+    expect(fetch.mock.calls[0][0]).toContain("/api/v1/hardware/catalog/facets?category=RAM");
+    expect(await hardwareApi.filterOptions(undefined)).toEqual({ brandId: [{ value: "b1", label: "Maker", count: 0 }] });
+    expect(fetch.mock.calls[1][0]).toContain("/api/v1/hardware/catalog/brands?page=0&size=100");
+  });
   it.each([
     ["createProfile", () => hardwareApi.createProfile({ name: "Test PC", deviceType: "DESKTOP" }), "/profiles", "POST", { name: "Test PC", deviceType: "DESKTOP" }],
     ["updateProfile", () => hardwareApi.updateProfile("pc", { name: "New", deviceType: "LAPTOP", profileVersion: 7 }), "/profiles/pc", "PUT", { name: "New", deviceType: "LAPTOP", profileVersion: 7 }],
@@ -42,5 +51,23 @@ describe("Hardware HTTP sözleşmeleri", () => {
   it("hata statüsü ve güvenli ProblemDetail code korunur, iç hata metni gösterilmez", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ code: "DATA_CONFLICT", detail: "Internal SQL text" }), { status: 409 })));
     await expect(hardwareApi.profile("pc", 0)).rejects.toMatchObject({ status: 409, problem: { code: "DATA_CONFLICT" } });
+  });
+});
+
+describe("allBrands", () => {
+  it("tüm marka sayfalarını birleştirir ve sayfa sayısını beşle sınırlar", async () => {
+    const page = (index: number, totalPages: number) => new Response(JSON.stringify({ items: [{ id: `b${index}`, name: `Marka ${index}`, status: "ACTIVE", version: 0 }], page: index, size: 100, totalPages, totalElements: totalPages }));
+    const fetch = vi.fn().mockImplementation((url: string) => Promise.resolve(page(Number(new URL(url, "http://x").searchParams.get("page")), 9)));
+    vi.stubGlobal("fetch", fetch);
+    const brands = await hardwareApi.allBrands();
+    expect(brands.map((brand) => brand.id)).toEqual(["b0", "b1", "b2", "b3", "b4"]);
+    expect(fetch).toHaveBeenCalledTimes(5);
+    expect(fetch.mock.calls[0][0]).toContain("/catalog/brands?page=0&size=100");
+  });
+  it("tek sayfada ek istek atmaz", async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ items: [], page: 0, size: 100, totalPages: 1, totalElements: 0 })));
+    vi.stubGlobal("fetch", fetch);
+    await hardwareApi.allBrands();
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 });

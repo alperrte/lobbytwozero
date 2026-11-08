@@ -22,6 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class HardwareCatalogSearchTest extends PostgresIntegrationSupport {
     static final String PATH = "/api/v1/hardware/catalog/products";
+    static final String FACETS = "/api/v1/hardware/catalog/facets";
     final UUID userId = UUID.randomUUID();
     final UUID maker = UUID.randomUUID();
     final UUID secondMaker = UUID.randomUUID();
@@ -120,6 +121,40 @@ class HardwareCatalogSearchTest extends PostgresIntegrationSupport {
     }
 
     @Test
+    void searchMatchesWordPrefixesAcrossTokensAndBrandNames() throws Exception {
+        UUID amd = UUID.randomUUID();
+        jdbc.update("INSERT INTO hardware_brands(id,name,normalized_name) VALUES (?, 'AMD','amd')", amd);
+        UUID x3d = product("Ryzen 7 9800X3D", "CPU", null, null, 8, 120, null, "AM5", null, null);
+        UUID plain = product("Ryzen 5 7600", "CPU", null, null, 6, 65, null, "AM5", null, null);
+        UUID core = product("Core i7-14700K", "CPU", null, null, 20, 125, null, "LGA1700", null, null);
+        for (UUID id : List.of(x3d, plain)) {
+            jdbc.update("INSERT INTO hardware_product_brands(product_id,brand_id) VALUES (?,?)", id, amd);
+        }
+        assertThat(search("r")).containsExactlyInAnyOrder(x3d, plain);
+        assertThat(search("ry")).containsExactlyInAnyOrder(x3d, plain);
+        assertThat(search("Ryzen")).containsExactlyInAnyOrder(x3d, plain);
+        assertThat(search("ryzen 98")).containsExactly(x3d);
+        assertThat(search("RYZEN   9800")).containsExactly(x3d);
+        assertThat(search("ryzen 7")).containsExactlyInAnyOrder(x3d, plain);
+        assertThat(search("amd ryzen")).containsExactlyInAnyOrder(x3d, plain);
+        assertThat(search("amd 98")).containsExactly(x3d);
+        assertThat(search("x3d")).containsExactly(x3d);
+        assertThat(search("i7")).containsExactly(core);
+        assertThat(search("14700")).containsExactly(core);
+        assertThat(search("intel ryzen")).isEmpty();
+        // A short token only matches the start of a word, so "9" does not hit the middle of 9800X3D or 7600.
+        assertThat(search("ryzen 8")).isEmpty();
+        jdbc.update("UPDATE hardware_brands SET status='ARCHIVED' WHERE id=?", amd);
+        assertThat(search("amd")).isEmpty();
+    }
+
+    List<UUID> search(String q) throws Exception {
+        String body = mvc.perform(get(PATH).with(actor(userId)).param("q", q).param("category", "CPU").param("size", "50"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        return com.jayway.jsonpath.JsonPath.<List<String>>read(body, "$.items[*].id").stream().map(UUID::fromString).toList();
+    }
+
+    @Test
     void blankQueryPreservesUnbrandedModelsAndArchivedBrandsCannotMatch() throws Exception {
         mvc.perform(get(PATH).with(actor(userId)).param("q", " ").param("brand", " "))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(4));
@@ -145,6 +180,122 @@ class HardwareCatalogSearchTest extends PostgresIntegrationSupport {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.items").isEmpty())
                 .andExpect(jsonPath("$.totalElements").value(3));
         mvc.perform(get(PATH).param("q", "alpha")).andExpect(status().isUnauthorized());
+    }
+
+    void source(UUID productId, String category, String typedSpecs) {
+        String key = UUID.randomUUID().toString();
+        String hash = (key + key).replace("-", "").substring(0, 64);
+        jdbc.update("""
+                INSERT INTO hardware_product_sources(id,product_id,source_provider,external_product_id,category,brand,
+                    locale,synced_at,quality,content_hash,typed_specs)
+                VALUES (?,?,'PC_PART_DATASET',?,?,'Maker One','en',now(),'VERIFIED',?,CAST(? AS jsonb))
+                """, UUID.randomUUID(), productId, key, category, hash, typedSpecs);
+    }
+
+    @Test
+    void filtersOnTypedSourceSpecificationsExactlyAndCombinesThemWithOtherFilters() throws Exception {
+        UUID card = product("Typed Card", "GPU", 24, null, null, null, null, null, null, null);
+        source(card, "GPU", "{\"chipset\":{\"text\":\"Radeon RX 7900 XTX\",\"number\":null,\"unit\":\"\"}}");
+        UUID board = product("Typed Board", "MOTHERBOARD", null, null, null, null, null, "AM5", null, "ATX");
+        source(board, "MOTHERBOARD", "{\"maximumMemoryGb\":{\"number\":192.0,\"unit\":\"GB\"},\"memorySlots\":{\"number\":4}}");
+        UUID memory = product("Typed Memory", "RAM", 32, 6000, null, null, "DDR5", null, null, null);
+        source(memory, "RAM", "{\"casLatency\":{\"number\":30}}");
+        UUID drive = product("Typed Drive", "STORAGE", 1000, null, null, null, null, null, "M.2 PCIe 4.0 X4", "M.2-2280");
+        source(drive, "STORAGE", "{\"storageType\":{\"text\":\"SSD\"}}");
+        // Quarantined source rows never match: only VERIFIED content is searchable.
+        UUID hidden = product("Typed Hidden", "STORAGE", 1000, null, null, null, null, null, null, null);
+        source(hidden, "STORAGE", "{\"storageType\":{\"text\":\"SSD\"}}");
+        jdbc.update("UPDATE hardware_product_sources SET quality='QUARANTINED' WHERE product_id=?", hidden);
+
+        assertTyped(card, "chipset", "radeon rx 7900 xtx");
+        assertTyped(board, "maximumMemoryGb", "192");
+        assertTyped(board, "memorySlots", "4");
+        assertTyped(memory, "casLatency", "30");
+        assertTyped(drive, "storageType", "ssd");
+        mvc.perform(get(PATH).with(actor(userId)).param("category", "RAM").param("casLatency", "30")
+                .param("memoryType", "DDR5").param("minCapacityGb", "32").param("maxCapacityGb", "32"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1));
+        mvc.perform(get(PATH).with(actor(userId)).param("category", "RAM").param("casLatency", "31"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
+        mvc.perform(get(PATH).with(actor(userId)).param("chipset", "Radeon").param("category", "GPU"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test
+    void integratedGraphicsFilterReturnsOnlyCpusWithRecordedGraphics() throws Exception {
+        UUID withGraphics = product("Igpu Yes", "CPU", null, null, 8, null, null, null, null, null);
+        source(withGraphics, "CPU", "{\"integratedGraphics\":{\"text\":\"Radeon Graphics\",\"number\":null,\"unit\":\"\"}}");
+        UUID blank = product("Igpu Blank", "CPU", null, null, 8, null, null, null, null, null);
+        source(blank, "CPU", "{\"integratedGraphics\":{\"text\":\"  \",\"number\":null,\"unit\":\"\"}}");
+        UUID falseText = product("Igpu False", "CPU", null, null, 8, null, null, null, null, null);
+        source(falseText, "CPU", "{\"integratedGraphics\":{\"text\":\"false\"}}");
+        UUID missing = product("Igpu Missing", "CPU", null, null, 8, null, null, null, null, null);
+        source(missing, "CPU", "{\"microarchitecture\":{\"text\":\"Zen 4\"}}");
+        UUID quarantined = product("Igpu Quarantined", "CPU", null, null, 8, null, null, null, null, null);
+        source(quarantined, "CPU", "{\"integratedGraphics\":{\"text\":\"Radeon Graphics\"}}");
+        jdbc.update("UPDATE hardware_product_sources SET quality='QUARANTINED' WHERE product_id=?", quarantined);
+
+        mvc.perform(get(PATH).with(actor(userId)).param("category", "CPU").param("integratedGraphics", "true"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(withGraphics.toString()));
+        mvc.perform(get(PATH).with(actor(userId)).param("category", "CPU").param("integratedGraphics", "true")
+                .param("minCoreCount", "9")).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
+        // Unchecked box sends nothing; an explicit false is not a filter either.
+        mvc.perform(get(PATH).with(actor(userId)).param("category", "CPU").param("integratedGraphics", "false"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(5));
+        mvc.perform(get(PATH).with(actor(userId)).param("category", "CPU"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(5));
+        mvc.perform(get(PATH).with(actor(userId)).param("integratedGraphics", "maybe")).andExpect(status().isBadRequest());
+    }
+
+    void assertTyped(UUID expected, String key, String value) throws Exception {
+        mvc.perform(get(PATH).with(actor(userId)).param(key, value)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(expected.toString()));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"casLatency,0", "casLatency,201", "memorySlots,0", "memorySlots,1025", "maximumMemoryGb,0",
+            "chipset,<b>x</b>", "storageType,<i>"})
+    void rejectsInvalidTypedSourceFilters(String key, String value) throws Exception {
+        mvc.perform(get(PATH).with(actor(userId)).param(key, value)).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
+
+    @Test
+    void facetsListOnlyRecordedActiveValuesPerCategory() throws Exception {
+        UUID card = product("Facet Card", "GPU", 12, null, null, null, null, null, null, null);
+        source(card, "GPU", "{\"chipset\":{\"text\":\"GeForce RTX 4070\"}}");
+        UUID twin = product("Facet Twin", "GPU", 12, null, null, null, null, null, null, null);
+        source(twin, "GPU", "{\"chipset\":{\"text\":\"geforce rtx 4070\"}}");
+        UUID board = product("Facet Board", "MOTHERBOARD", null, null, null, null, null, "AM5", null, "ATX");
+        source(board, "MOTHERBOARD", "{\"maximumMemoryGb\":{\"number\":192.0},\"memorySlots\":{\"number\":4}}");
+        UUID board2 = product("Facet Board 2", "MOTHERBOARD", null, null, null, null, null, "AM5", null, "Mini ITX");
+        source(board2, "MOTHERBOARD", "{\"maximumMemoryGb\":{\"number\":96},\"memorySlots\":{\"number\":2}}");
+        jdbc.update("INSERT INTO hardware_product_brands(product_id,brand_id) VALUES (?,?)", card, maker);
+
+        mvc.perform(get(FACETS).with(actor(userId)).param("category", "GPU"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.category").value("GPU"))
+                .andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("private")))
+                .andExpect(jsonPath("$.facets.capacityGb.length()").value(3))
+                .andExpect(jsonPath("$.facets.capacityGb[0].value").value("8"))
+                .andExpect(jsonPath("$.facets.capacityGb[2].value").value("16"))
+                .andExpect(jsonPath("$.facets.chipset.length()").value(1))
+                .andExpect(jsonPath("$.facets.chipset[0].count").value(2))
+                .andExpect(jsonPath("$.facets.brandId[0].value").value(maker.toString()))
+                .andExpect(jsonPath("$.facets.brandId[0].label").value("Maker One"));
+        mvc.perform(get(FACETS).with(actor(userId)).param("category", "MOTHERBOARD"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.facets.maximumMemoryGb[0].value").value("96"))
+                .andExpect(jsonPath("$.facets.maximumMemoryGb[1].value").value("192"))
+                .andExpect(jsonPath("$.facets.memorySlots.length()").value(2))
+                .andExpect(jsonPath("$.facets.socket[0].value").value("AM5"))
+                .andExpect(jsonPath("$.facets.formFactor.length()").value(2));
+        mvc.perform(get(FACETS).with(actor(userId)).param("category", "COOLING"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.facets").isEmpty());
+        mvc.perform(get(FACETS).with(actor(userId)).param("category", "BAD")).andExpect(status().isBadRequest());
+        mvc.perform(get(FACETS).with(actor(userId))).andExpect(status().isBadRequest());
+        mvc.perform(get(FACETS).param("category", "GPU")).andExpect(status().isUnauthorized());
     }
 
     @Test

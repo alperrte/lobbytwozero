@@ -61,7 +61,7 @@ export function HardwarePagination({ page, totalPages, onPage }: { page: number;
     <button type="button" className={button} disabled={page + 1 >= totalPages} onClick={() => onPage(page + 1)}>{t("next")}</button>
   </nav>;
 }
-export function HardwareDialog({ title, children, onClose, busy = false }: { title: string; children: ReactNode; onClose: () => void; busy?: boolean }) {
+export function HardwareDialog({ title, children, onClose, busy = false, wide = false }: { title: string; children: ReactNode; onClose: () => void; busy?: boolean; wide?: boolean }) {
   const t = useTranslations("Hardware.common");
   const titleId = useId();
   const ref = useRef<HTMLDialogElement>(null);
@@ -75,7 +75,7 @@ export function HardwareDialog({ title, children, onClose, busy = false }: { tit
     document.documentElement.style.overflow = "hidden";
     return () => { dialog?.close(); document.documentElement.style.overflow = overflow; previous?.focus(); };
   }, []);
-  return <dialog ref={ref} aria-labelledby={titleId} aria-busy={busy} onCancel={(event) => { event.preventDefault(); if (!busy) closeRef.current(); }} className="fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto overscroll-contain rounded-panel border border-border bg-surface p-0 text-text-primary shadow-popover backdrop:bg-scrim">
+  return <dialog ref={ref} aria-labelledby={titleId} aria-busy={busy} onCancel={(event) => { event.preventDefault(); if (!busy) closeRef.current(); }} className={`fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-2rem)] ${wide ? "max-w-5xl" : "max-w-2xl"} overflow-y-auto overscroll-contain rounded-panel border border-border bg-surface p-0 text-text-primary shadow-popover backdrop:bg-scrim`}>
     <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
       <h2 id={titleId} className="font-display text-xl font-semibold">{title}</h2>
       <button type="button" disabled={busy} className={`${button} -me-2 -mt-1 size-11 p-2`} aria-label={t("close")} onClick={onClose}>

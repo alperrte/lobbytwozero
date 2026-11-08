@@ -1,5 +1,5 @@
 import { apiRequest } from "@/shared/lib/api/client";
-import type { Brand, Campaign, Comparison, ComponentInput, Component, DeviceType, Page, Privacy, Product, Profile, ProfileComparisonItem, ProfileDetail, Review, ReviewPage, Statistics } from "../types/hardware";
+import type { Brand, Campaign, CatalogFacets, FilterOptions, Comparison, ComponentInput, Component, DeviceType, Page, Privacy, Product, Profile, ProfileComparisonItem, ProfileDetail, Review, ReviewPage, Statistics } from "../types/hardware";
 
 const base = "/api/v1/hardware";
 const id = encodeURIComponent;
@@ -31,7 +31,27 @@ function write<T>(path: string, method: string, body?: unknown) {
     ...(body === undefined ? {} : { body: JSON.stringify(body) })
   });
 }
+/** Marka listesi sayfalı gelir; filtre önerileri için tüm sayfalar (en çok 5) birleştirilir. */
+async function allBrands(signal?: AbortSignal): Promise<Brand[]> {
+  const first = await read<Page<Brand>>("/catalog/brands?page=0&size=100", signal);
+  const items = [...first.items];
+  for (let page = 1; page < Math.min(first.totalPages, 5); page++) {
+    items.push(...(await read<Page<Brand>>(`/catalog/brands?page=${page}&size=100`, signal)).items);
+  }
+  return items;
+}
+/**
+ * Filtre açılır listelerinin kaynağı. Kategori seçiliyse yalnız o kategoride kayıtlı gerçek değerler gelir;
+ * kategori yoksa yalnız üretici listesi sunulur.
+ */
+async function filterOptions(category: string | undefined, signal?: AbortSignal): Promise<FilterOptions> {
+  if (category) return (await read<CatalogFacets>(`/catalog/facets${queryString({ category })}`, signal)).facets;
+  return { brandId: (await allBrands(signal)).map((brand) => ({ value: brand.id, label: brand.name, count: 0 })) };
+}
 export const hardwareApi = {
+  allBrands,
+  filterOptions,
+  facets: (category: string, signal?: AbortSignal) => read<CatalogFacets>(`/catalog/facets${queryString({ category })}`, signal),
   products: (query: string, signal?: AbortSignal) => read<Page<Product>>(`/catalog/products${query}`, signal),
   product: (productId: string, signal?: AbortSignal) => read<Product>(`/catalog/products/${id(productId)}`, signal),
   brands: (page: number, signal?: AbortSignal) => read<Page<Brand>>(`/catalog/brands?page=${page}&size=100`, signal),

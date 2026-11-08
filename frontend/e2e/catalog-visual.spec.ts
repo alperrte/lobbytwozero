@@ -9,7 +9,6 @@ const catalog = [
   { id: uid(3), category: "STORAGE", model: "Samsung 990 PRO 2TB", specifications: { ...specifications, capacityGb: 2000, interfaceType: "PCIe 4.0", formFactor: "M.2 2280" } },
   { id: uid(4), category: "RAM", model: "Corsair Vengeance RGB 32GB", specifications: { ...specifications, capacityGb: 32, clockMhz: 6000, memoryType: "DDR5", formFactor: "DIMM" } },
   { id: uid(5), category: "MOTHERBOARD", model: "MSI MPG B650 TOMAHAWK WIFI", specifications: { ...specifications, socket: "AM5", memoryType: "DDR5", formFactor: "ATX" } },
-  { id: uid(6), category: "COOLING", model: "NZXT Kraken Elite 360 RGB", specifications: { ...specifications, formFactor: "360 mm", socket: "AM5" } },
   { id: uid(7), category: "GPU", model: "NVIDIA GeForce RTX 4070 SUPER", specifications: { ...specifications, capacityGb: 12, memoryType: "GDDR6X", powerWatts: 220 } },
   { id: uid(8), category: "CPU", model: "AMD Ryzen 9 9900X", specifications: { ...specifications, coreCount: 12, socket: "AM5", powerWatts: 120 } }
 ].map((product) => ({ ...product, brands: [], status: "ACTIVE", version: 0 }));
@@ -22,6 +21,7 @@ async function fixture(page: Page, failure?: number | "network") {
     if (failure === "network") return route.abort();
     if (failure) return route.fulfill({ status: failure, json: { code: "TEST_ERROR" } });
     if (url.pathname.endsWith("/catalog/brands")) return route.fulfill({ json: { items: [], page: 0, size: 100, totalElements: 0, totalPages: 0 } });
+    if (url.pathname.endsWith("/catalog/facets")) return route.fulfill({ json: { category: url.searchParams.get("category"), facets: { brandId: [], coreCount: [4, 8, 12, 16].map((value) => ({ value: String(value), label: String(value), count: 1 })) } } });
     if (url.pathname.endsWith("/catalog/products")) {
       const items = catalog.filter((item) => !url.searchParams.get("category") || item.category === url.searchParams.get("category"));
       return route.fulfill({ json: { items, page: 0, size: 12, totalElements: items.length, totalPages: 1 } });
@@ -54,9 +54,25 @@ for (const viewport of viewports) for (const theme of ["dark", "light"]) for (co
     expect(card!.height).toBeLessThanOrEqual(360);
     expect(card!.height).toBeGreaterThan(280);
     if (viewport.width >= 1440) {
-      await expect(page.getByRole("button", { name: locale === "tr" ? "Filtreler" : "Filters", exact: true })).toBeHidden();
-      const banner = await page.locator("main header").boundingBox();
-      expect(banner!.height).toBe(100);
+      // Geniş ekranda filtre paneli varsayılan kapalıdır ve düğme paneli açıp kapatır (diyalog düğmesi gizlidir).
+      const toggle = page.getByRole("button", { name: locale === "tr" ? "Filtreler" : "Filters", exact: true });
+      await expect(toggle).toHaveAttribute("aria-expanded", "false");
+      // Araç çubuğu denetimleri navbar arama kutusu gibi yuvarlaktır (12px).
+      for (const control of [toggle, page.locator("main input[type=search]"), page.getByRole("group").filter({ has: page.getByRole("button", { name: locale === "tr" ? "Izgara" : "Grid" }) })]) {
+        expect(await control.evaluate((element) => parseFloat(getComputedStyle(element).borderTopLeftRadius))).toBeGreaterThanOrEqual(12);
+      }
+      await expect(page.locator("main aside")).toBeHidden();
+      await toggle.click();
+      await expect(toggle).toHaveAttribute("aria-expanded", "true");
+      await expect(page.locator("main aside")).toBeVisible();
+      await toggle.click();
+      await expect(toggle).toHaveAttribute("aria-expanded", "false");
+      await expect(page.locator("main aside")).toBeHidden();
+      await toggle.click();
+      await expect(page.locator("main aside")).toBeVisible();
+      // Banner kartı kaldırıldı; sayfa başlığı yalnız ekran okuyucu için kalır.
+      await expect(page.locator("main header")).toHaveCount(0);
+      await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
     await page.screenshot({ path: `test-results/catalog-visual/catalog-${viewport.width}-${theme}-${locale}.png` });
@@ -86,11 +102,11 @@ for (const width of [1672, 375]) for (const theme of ["dark", "light"]) {
     await first.check();
     const bar = page.getByRole("region", { name: "Donanım karşılaştırma" });
     await expect(bar.getByRole("button", { name: "Karşılaştırmayı aç" })).toBeDisabled();
-    await page.getByRole("checkbox", { name: `Karşılaştırmak için ${catalog[7].model} seç`, exact: true }).check();
+    await page.getByRole("checkbox", { name: `Karşılaştırmak için ${catalog[6].model} seç`, exact: true }).check();
     await page.evaluate(() => window.scrollTo(0, 0));
     await expect(bar).toBeInViewport();
     await expect(bar).toContainText(catalog[0].model);
-    await expect(bar).toContainText(catalog[7].model);
+    await expect(bar).toContainText(catalog[6].model);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
     await page.screenshot({ path: `test-results/catalog-visual/comparison-${width}-${theme}.png` });
     await bar.getByRole("button", { name: "Karşılaştırmayı aç" }).click();
@@ -108,18 +124,22 @@ test("catalog category overflow and mobile technical filters preserve the API co
   const calls = await fixture(page);
   await page.setViewportSize({ width: 375, height: 900 });
   await page.goto("/tr/donanimlar?q=Ryzen");
-  await page.getByRole("combobox", { name: "Diğer donanım kategorileri" }).selectOption("PSU");
-  await expect(page).toHaveURL(/category=PSU/);
-  await expect(page.getByRole("heading", { name: "Bu seçimde donanım bulunamadı" })).toBeVisible();
+  const categories = page.getByRole("navigation", { name: "Donanım kategorileri" });
+  await expect(categories.getByRole("button")).toHaveCount(5);
+  await expect(page.getByRole("combobox", { name: "Diğer donanım kategorileri" })).toHaveCount(0);
+  await categories.getByRole("button", { name: "Depolama" }).click();
+  await expect(page).toHaveURL(/category=STORAGE/);
+  await expect(page.getByRole("heading", { name: "Samsung 990 PRO 2TB", exact: true })).toBeVisible();
+  await categories.getByRole("button", { name: "İşlemci" }).click();
+  await expect(page).toHaveURL(/category=CPU/);
   await page.getByRole("button", { name: "Filtreler", exact: true }).click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByRole("combobox", { name: "Donanım kategorileri" }).selectOption("CPU");
-  await dialog.locator('[name="minCoreCount"]').fill("4");
-  await dialog.locator('[name="maxCoreCount"]').fill("16");
+  await dialog.getByRole("combobox", { name: "Çekirdek sayısı", exact: true }).click();
+  await dialog.getByRole("option", { name: "8", exact: true }).click();
   await dialog.getByRole("button", { name: "Filtreleri uygula" }).click();
   await expect(dialog).not.toBeVisible();
-  await expect(page).toHaveURL(/minCoreCount=4/);
-  await expect.poll(() => calls.some((call) => call.path.endsWith("/catalog/products") && call.query.includes("category=CPU") && call.query.includes("minCoreCount=4") && call.query.includes("q=Ryzen"))).toBe(true);
+  await expect(page).toHaveURL(/minCoreCount=8/);
+  await expect.poll(() => calls.some((call) => call.path.endsWith("/catalog/products") && call.query.includes("category=CPU") && call.query.includes("minCoreCount=8") && call.query.includes("maxCoreCount=8") && call.query.includes("q=Ryzen"))).toBe(true);
   await page.getByRole("button", { name: "Liste", exact: true }).click();
   await expect(page.getByRole("button", { name: "Liste", exact: true })).toHaveAttribute("aria-pressed", "true");
   await page.screenshot({ path: "test-results/catalog-visual/list-375.png" });
@@ -134,7 +154,8 @@ test("catalog main error retries without duplicating the manufacturer failure", 
   await error.getByRole("button", { name: "Yeniden yükle" }).click();
   await expect(page.getByRole("heading", { name: catalog[0].model, exact: true })).toBeVisible();
   await expect(error).toHaveCount(0);
-  await expect(page.getByText("Üretici listesi yüklenemedi; adla arayabilirsin.")).toBeVisible();
+  await page.getByRole("button", { name: "Filtreler", exact: true }).click();
+  await expect(page.getByText("Seçenekler yüklenemedi; filtreler şimdilik kullanılamıyor.")).toBeVisible();
   await page.locator("main aside").getByRole("button", { name: "Yeniden yükle" }).click();
-  await expect(page.locator("main aside select[name=brandId]")).toBeEnabled();
+  await expect(page.locator("main aside").getByRole("combobox", { name: "Üretici adı", exact: true })).toBeEnabled();
 });

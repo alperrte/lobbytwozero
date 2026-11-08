@@ -3,11 +3,6 @@ import "./catalog.css";
 // Local class registry: the project-wide Tailwind loader handles plain CSS.
 const styles = {
   catalog: "ltzCatalog_catalog",
-  banner: "ltzCatalog_banner",
-  bannerIcon: "ltzCatalog_bannerIcon",
-  bannerCopy: "ltzCatalog_bannerCopy",
-  bannerArt: "ltzCatalog_bannerArt",
-  motto: "ltzCatalog_motto",
   categories: "ltzCatalog_categories",
   category: "ltzCatalog_category",
   moreCategories: "ltzCatalog_moreCategories",
@@ -19,6 +14,7 @@ const styles = {
   field: "ltzCatalog_field",
   range: "ltzCatalog_range",
   rangeFields: "ltzCatalog_rangeFields",
+  filterGroup: "ltzCatalog_filterGroup",
   filterHint: "ltzCatalog_filterHint",
   brandNotice: "ltzCatalog_brandNotice",
   apply: "ltzCatalog_apply",
@@ -29,6 +25,8 @@ const styles = {
   views: "ltzCatalog_views",
   viewButton: "ltzCatalog_viewButton",
   mobileFilters: "ltzCatalog_mobileFilters",
+  filterToggle: "ltzCatalog_filterToggle",
+  filterCount: "ltzCatalog_filterCount",
   grid: "ltzCatalog_grid",
   list: "ltzCatalog_list",
   card: "ltzCatalog_card",

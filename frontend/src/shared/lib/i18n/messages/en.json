@@ -1097,7 +1097,19 @@
       "list": "List",
       "results": "{count, number} products",
       "emptyTitle": "No hardware matches this selection",
-      "emptyDescription": "Try changing your search or filters. Example products are never shown when the catalog is empty."
+      "emptyDescription": "Try changing your search or filters. Example products are never shown when the catalog is empty.",
+      "brandPlaceholder": "Type a manufacturer or pick from the list",
+      "brandHint": "Catalog manufacturers are suggested; the text you type is matched against manufacturer names.",
+      "technical": "Specifications",
+      "anyValue": "Any",
+      "gpuModel": "Model",
+      "optionsUnavailable": "Options could not load; filters are unavailable for now.",
+      "showFilters": "Show filters",
+      "hideFilters": "Hide filters",
+      "searchPlaceholder": "Search model or manufacturer",
+      "categoryHint": "Filters use recorded technical values of the selected category only.",
+      "resultsPage": "{from, number}–{to, number} of {total, number}",
+      "tabsHint": "Select the category again to list all hardware."
     },
     "comparison": {
       "title": "Hardware comparison",
@@ -1112,13 +1124,32 @@
       "componentHint": "Choose two components in the same category on this page. Change component pages to view other entries.",
       "left": "First component",
       "right": "Second component",
-      "select": "Select a component"
+      "select": "Select a component",
+      "similar": "Same",
+      "different": "Different",
+      "missing": "Not recorded",
+      "onlyDifferences": "Show differences only",
+      "showAll": "Show all fields",
+      "summary": "{different, number} different, {same, number} same, {missing, number} unrecorded fields",
+      "legend": "Legend",
+      "selectTwo": "Select two products from the same category to compare.",
+      "product": "Product",
+      "category": "Category",
+      "noDifferences": "The recorded values of the selected products are identical.",
+      "viewDetails": "Open product page"
     },
     "detail": {
       "title": "Hardware details",
       "specifications": "Technical specifications",
       "related": "Models in the same category",
-      "dataNotice": "Specifications come from the catalog record. Product images, live prices, stock and price history are not available yet."
+      "dataNotice": "Specifications come from the catalog record. Product images, live prices, stock and price history are not available yet.",
+      "keyFeatures": "Key specifications",
+      "backToCatalog": "Back to catalog",
+      "source": "Data source",
+      "sourceNote": "Technical data is imported from the PC part dataset; a missing value shows '—' and is never estimated.",
+      "overview": "Overview",
+      "reviewsLink": "Go to reviews",
+      "unavailable": "This product cannot be shown right now."
     },
     "reviews": {
       "title": "User reviews",
@@ -1287,6 +1318,10 @@
       "network": {
         "title": "Could not connect",
         "description": "The hardware service could not be reached or did not respond. If you were saving, reload to check the result."
+      },
+      "shape": {
+        "title": "Unexpected response",
+        "description": "The service did not answer in the expected format. Try again in a moment."
       }
     },
     "visual": {
@@ -1310,7 +1345,55 @@
       "comparisonList": "Comparison list",
       "removeProduct": "Remove {model} from comparison",
       "openComparison": "Open comparison",
-      "brandMissing": "Manufacturer not specified"
+      "brandMissing": "Manufacturer not specified",
+      "yes": "Yes",
+      "no": "No",
+      "notRecorded": "Not recorded",
+      "brandUnknown": "Manufacturer not specified"
+    },
+    "fields": {
+      "CPU": {
+        "coreCount": "Core count",
+        "clockMhz": "Base clock",
+        "boostClockMhz": "Boost clock",
+        "powerWatts": "TDP",
+        "microarchitecture": "Microarchitecture",
+        "integratedGraphics": "Integrated graphics",
+        "smt": "Simultaneous multithreading (SMT)"
+      },
+      "GPU": {
+        "chipset": "Graphics chip",
+        "capacityGb": "Video memory",
+        "clockMhz": "Core clock",
+        "boostClockMhz": "Boost clock",
+        "lengthMm": "Card length",
+        "color": "Color"
+      },
+      "MOTHERBOARD": {
+        "socket": "CPU socket",
+        "formFactor": "Form factor",
+        "maximumMemoryGb": "Maximum memory",
+        "memorySlots": "Memory slots",
+        "color": "Color"
+      },
+      "RAM": {
+        "memoryType": "Memory type",
+        "capacityGb": "Total capacity",
+        "moduleCount": "Module count",
+        "moduleCapacityGb": "Capacity per module",
+        "clockMhz": "Speed",
+        "casLatency": "CAS latency",
+        "firstWordLatencyNs": "First word latency",
+        "color": "Color"
+      },
+      "STORAGE": {
+        "storageType": "Storage type",
+        "capacityGb": "Capacity",
+        "interfaceType": "Interface",
+        "formFactor": "Form factor",
+        "cacheMb": "Cache",
+        "rotationRpm": "Rotation speed"
+      }
     }
   }
 }

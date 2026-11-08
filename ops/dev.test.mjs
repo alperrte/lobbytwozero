@@ -639,6 +639,20 @@ describe("keys", () => {
     }
   });
 
+  test("JWT_ACCESS_TTL_SECONDS=900 değeri de 60'a çekilir (Hardware 60 sn'den uzun token'ı reddeder)", () => {
+    const dir = mkdtempSync(join(tmpdir(), "ltz-ttl900-"));
+    try {
+      const file = join(dir, "long.env");
+      writeFileSync(file, "JWT_ACCESS_TTL_SECONDS=900\r\nJWT_ISSUER=ltz-auth\r\n");
+      const run = spawnSync(process.execPath, [script, "keys", file], { encoding: "utf8" });
+      assert.equal(run.status, 0, run.stderr);
+      assert.ok(readFileSync(file, "utf8").startsWith("JWT_ACCESS_TTL_SECONDS=60\r\nJWT_ISSUER=ltz-auth\r\n"));
+      assert.match(run.stdout, /güncellendi -> JWT_ACCESS_TTL_SECONDS \(900 -> 60\)/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   // ---- Anahtar rotasyonu (S9) ----
 
   const getLine = (body, name) => body.match(new RegExp(`^${name}=(.*?)\r?$`, "m"))?.[1];

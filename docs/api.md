@@ -8825,7 +8825,10 @@ Public iş endpoint'i yok. Tüm yanıtlar private/no-store.
 #### Query Parameters
 - page: 0..10000, varsayılan 0.
 - size: 1..100, varsayılan 20.
-- q: opsiyonel 0..160; model içinde NFKC/Locale.ROOT normalizasyonuyla literal alt metin araması.
+- q: opsiyonel 0..160; NFKC/Locale.ROOT normalizasyonundan sonra boşluklarla jetonlara bölünür (en çok 8) ve her jeton
+model adında ya da ürünün aktif üretici adında bulunmalıdır (AND). 3 karakterden kısa jeton yalnız kelime başında eşleşir
+(`r` → Ryzen, `ryzen 98` → Ryzen 7 9800X3D; kelime başı boşluk ya da `-` sonrasıdır); 3+ karakterli jeton kelime içinde de eşleşir
+(`x3d`, `14700`); `amd ryzen` üretici adıyla da eşleşir. Harf/rakamla başlamayan jeton düz alt metin aranır.
 - category: mevcut 12 ComponentCategory değerinden biri.
 - brandId: opsiyonel UUID; aktif modele bağlı aktif üretici.
 - brand: opsiyonel 0..100; aynı aktif üreticinin adı içinde literal arama.
@@ -8834,6 +8837,12 @@ Public iş endpoint'i yok. Tüm yanıtlar private/no-store.
 - minCoreCount/maxCoreCount: 1..1024.
 - minPowerWatts/maxPowerWatts: 1..10000.
 - memoryType/socket/interfaceType/formFactor: opsiyonel 1..32, büyük/küçük harf duyarsız tam eşleşme.
+chipset: opsiyonel 1..100 (GPU modeli); storageType: opsiyonel 1..32 — ikisi de kaynak (VERIFIED) typedSpecs üzerinde
+büyük/küçük harf duyarsız tam eşleşme. `<`, `>` ve kontrol karakterleri 400.
+maximumMemoryGb: 1..1048576; memorySlots: 1..1024; casLatency: 1..200 — kaynak typedSpecs sayısal değerinde tam eşleşme.
+integratedGraphics: opsiyonel boolean (CPU onay kutusu). Yalnız `true` filtreler: VERIFIED kaynağın typedSpecs.integratedGraphics.text
+değeri dolu ve `false` değildir. `false`/boş filtre uygulamaz; boolean olmayan değer 400.
+QUARANTINED kaynak kayıtları bu filtrelerle hiçbir zaman eşleşmez.
 Tüm verilen filtreler AND ile birleşir; aynı üretici brandId + brand koşullarını sağlamalıdır.
 Alt sınır üst sınırı geçerse 400. Teknik alan null ise filtreyi sağlamaz.
 Boş q/brand filtresizdir; marka filtresi yokken markasız genel modeller listelenir.
@@ -8870,6 +8879,56 @@ INTEGRATION — HardwareCatalogControllerTest: 32 yeni senaryo PASS; modül 90 P
 2026-11-08: PcPartImportIntegrationTest beş kategori (GPU dahil), discovery, kapasite filtresi,
 source.typedSpecifications ve anonim 401 senaryoları PASS. Import için yeni HTTP
 endpoint'i yoktur; yalnız dev CLI vardır. [Güncel kanıt](../docs-hardware/reports/pc-part-dataset-import.md).
+2026-11-08: chipset, storageType, maximumMemoryGb, memorySlots ve casLatency filtreleri
+HardwareCatalogSearchTest içinde (toplam 36 senaryo) PASS; PostgreSQL 17/Testcontainers.
+2026-11-08: integratedGraphics filtresi (dolu / boş / "false" / eksik / QUARANTINED kaynak, aralık filtresiyle birleşim,
+false ve geçersiz değer) HardwareCatalogSearchTest içinde (toplam 37 senaryo) PASS; PostgreSQL 17/Testcontainers.
+2026-11-08: q jetonlu kelime-öneki araması (r / ryzen / ryzen 98 / amd ryzen / x3d / arşivli üretici / kısa jeton orta eşleşmez)
+HardwareCatalogSearchTest içinde (toplam 38 senaryo) PASS; PostgreSQL 17/Testcontainers.
+
+
+### HARDWARE — HW-11 Katalog filtre seçenekleri (facets)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (katalog filtre paneli açılır listeleri)
+
+#### Endpoint
+GET /api/v1/hardware/catalog/facets
+
+#### Yetkilendirme
+Authenticated — doğrulanmış typed AuthenticatedActor; üstteki ortak JWT/RBAC kuralı geçerlidir.
+Public iş endpoint'i yoktur.
+
+#### Query Parameters
+- category: zorunlu; ComponentCategory değerlerinden biri.
+
+#### Response — 200
+HardwareCatalogFacetsResponse: { category, facets: { <anahtar>: [ { value, label, count } ] } }.
+Değerler yalnız aktif ürünlerde kayıtlı gerçek değerlerdir; uydurma/varsayılan seçenek yoktur.
+Aynı değerin büyük/küçük harf farkları tek seçenekte toplanır; sayısal değerler artan sıralıdır.
+Kategori başına anahtarlar:
+- CPU: brandId, coreCount
+- GPU: brandId, chipset, capacityGb
+- MOTHERBOARD: brandId, socket, formFactor, maximumMemoryGb, memorySlots
+- RAM: brandId, memoryType, capacityGb, clockMhz, casLatency
+- STORAGE: brandId, storageType, capacityGb, interfaceType
+Diğer kategorilerde facets boş nesnedir. brandId seçeneklerinde value marka UUID'si, label marka adıdır.
+Cache-Control: private, max-age=300.
+
+#### Hata Durumları
+400 INVALID_REQUEST (category eksik/geçersiz); 401 AUTHENTICATION_REQUIRED;
+500 INTERNAL_ERROR. İç hata/SQL dönmez.
+
+#### Bağlantı
+Frontend: `features/hardware/services/hardware-api.ts` → `filterOptions`. Seçilen değerler
+GET /api/v1/hardware/catalog/products filtre parametreleri olarak gönderilir. Diğer
+mikroservislerden çağrı yoktur. Yeni migration gerekmez (mevcut hardware_product_sources.typed_specs).
+
+#### Test Durumu
+INTEGRATION — HardwareCatalogSearchTest.facetsListOnlyRecordedActiveValuesPerCategory PASS
+(modül testi 36 PASS, PostgreSQL 17). Frontend: hardware-api.test.ts, catalog-filters.test.tsx ve
+Playwright e2e (hardware, catalog-visual, catalog-categories: 77 PASS).
 
 
 ### HARDWARE — HW-14 Ortak kampanya veri sözleşmesi

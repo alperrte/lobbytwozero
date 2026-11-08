@@ -20,7 +20,14 @@ public record HardwareCatalogFilter(
         @Size(max = 32) @Pattern(regexp = "[^\\p{Cntrl}<>]+") String memoryType,
         @Size(max = 32) @Pattern(regexp = "[^\\p{Cntrl}<>]+") String socket,
         @Size(max = 32) @Pattern(regexp = "[^\\p{Cntrl}<>]+") String interfaceType,
-        @Size(max = 32) @Pattern(regexp = "[^\\p{Cntrl}<>]+") String formFactor) {
+        @Size(max = 32) @Pattern(regexp = "[^\\p{Cntrl}<>]+") String formFactor,
+        @Size(max = 100) @Pattern(regexp = "[^\\p{Cntrl}<>]+") String chipset,
+        @Size(max = 32) @Pattern(regexp = "[^\\p{Cntrl}<>]+") String storageType,
+        @Min(1) @Max(1048576) Integer maximumMemoryGb,
+        @Min(1) @Max(1024) Integer memorySlots,
+        @Min(1) @Max(200) Integer casLatency,
+        /** Yalnız {@code true} filtreler: kayıtlı tümleşik grafiği olan işlemciler. {@code false}/boş filtre uygulamaz. */
+        Boolean integratedGraphics) {
 
     @AssertTrue
     public boolean isRangesValid() {

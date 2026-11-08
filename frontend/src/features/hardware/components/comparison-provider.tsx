@@ -6,7 +6,8 @@ import { usePathname } from "@/shared/lib/i18n/navigation";
 import { CatalogComparisonBar } from "./catalog-comparison-bar";
 import { useHardwareMutation } from "../hooks/use-hardware-query";
 import { hardwareApi } from "../services/hardware-api";
-import { specKeys, type Comparison, type Product } from "../types/hardware";
+import type { Comparison, Product } from "../types/hardware";
+import { ComparisonView } from "./comparison-view";
 import { button, primaryButton, HardwareDialog, HardwareError } from "./hardware-ui";
 
 type Selection = { products: Product[]; toggle: (product: Product) => void; clear: () => void };
@@ -52,25 +53,17 @@ export function ComparisonProvider({ children }: { children: ReactNode }) {
       </div>
       {selectionError ? <p role="status" className="mt-3 text-sm text-warning">{t("comparison.limit")}</p> : null}
     </section> : null}
-    {open ? <HardwareDialog title={t("comparison.title")} onClose={() => setOpen(false)} busy={mutation.pending}>
+    {open ? <HardwareDialog wide title={t("comparison.title")} onClose={() => setOpen(false)} busy={mutation.pending}>
       <p className="text-sm text-text-secondary">{t("comparison.facts")}</p>
       <HardwareError error={mutation.error} />
       {mutation.pending ? <p role="status">{t("common.loading")}</p> : null}
-      {result ? <div className="overflow-x-auto">
-        <table className="w-full text-start text-sm">
-          <thead>
-            <tr>
-              <th className="p-2 text-start">{t("comparison.property")}</th>
-              {[result.left, result.right].map((item) => <th key={item.id} className="min-w-36 p-2 text-start font-display">{item.modelName}</th>)}
-            </tr>
-          </thead>
-          <tbody>{specKeys.map((key) => <tr key={key} className="border-t border-border">
-            <th className="p-2 text-start font-normal text-text-secondary">{t(`specs.${key}`)}</th>
-            <td className="p-2">{result.left.specifications[key] ?? t("common.unknown")}</td>
-            <td className="p-2">{result.right.specifications[key] ?? t("common.unknown")}</td>
-          </tr>)}</tbody>
-        </table>
-      </div> : null}
+      {result ? <ComparisonView left={withApiSpecs(products, result.left)} right={withApiSpecs(products, result.right)} /> : null}
     </HardwareDialog> : null}
   </Context>;
+}
+
+/** Seçilen ürünün teknik değerleri listeden gelir; sekiz temel alan karşılaştırma API'sinin döndürdüğü kayıtla güncellenir. */
+function withApiSpecs(selected: Product[], item: Comparison["left"]): Product {
+  const base = selected.find((product) => product.id === item.id);
+  return { ...(base ?? { id: item.id, category: item.category, model: item.modelName, brands: [], status: "ACTIVE", version: 0 }), specifications: item.specifications } as Product;
 }

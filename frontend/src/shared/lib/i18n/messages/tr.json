@@ -1097,7 +1097,19 @@
       "list": "Liste",
       "results": "{count, number} ürün",
       "emptyTitle": "Bu seçimde donanım bulunamadı",
-      "emptyDescription": "Aramayı veya filtreleri değiştirebilirsin. Katalogda kayıt olmadığında burada örnek ürün gösterilmez."
+      "emptyDescription": "Aramayı veya filtreleri değiştirebilirsin. Katalogda kayıt olmadığında burada örnek ürün gösterilmez.",
+      "brandPlaceholder": "Üretici adı yaz veya listeden seç",
+      "brandHint": "Katalogdaki üreticiler önerilir; yazdığın metin üretici adında aranır.",
+      "technical": "Teknik özellikler",
+      "anyValue": "Tümü",
+      "gpuModel": "Model",
+      "optionsUnavailable": "Seçenekler yüklenemedi; filtreler şimdilik kullanılamıyor.",
+      "showFilters": "Filtreleri göster",
+      "hideFilters": "Filtreleri gizle",
+      "searchPlaceholder": "Model veya üretici ara",
+      "categoryHint": "Seçili kategoride yalnız kayıtlı teknik değerlerle filtrelenir.",
+      "resultsPage": "{from, number}–{to, number} / {total, number}",
+      "tabsHint": "Kategoriyi tekrar seçersen tüm donanımlar listelenir."
     },
     "comparison": {
       "title": "Donanım karşılaştırma",
@@ -1112,13 +1124,32 @@
       "componentHint": "Bu sayfadaki aynı kategoriden iki bileşenini seç. Diğer kayıtlar için bileşen sayfasını değiştir.",
       "left": "Birinci bileşen",
       "right": "İkinci bileşen",
-      "select": "Bileşen seç"
+      "select": "Bileşen seç",
+      "similar": "Aynı",
+      "different": "Farklı",
+      "missing": "Kayıt yok",
+      "onlyDifferences": "Yalnız farklıları göster",
+      "showAll": "Tüm alanları göster",
+      "summary": "{different, number} farklı, {same, number} aynı, {missing, number} kayıtsız alan",
+      "legend": "Gösterim",
+      "selectTwo": "Karşılaştırmak için aynı kategoriden iki ürün seç.",
+      "product": "Ürün",
+      "category": "Kategori",
+      "noDifferences": "Seçili ürünlerin kayıtlı değerleri aynı.",
+      "viewDetails": "Ürün sayfasını aç"
     },
     "detail": {
       "title": "Donanım detayı",
       "specifications": "Teknik özellikler",
       "related": "Aynı kategorideki modeller",
-      "dataNotice": "Teknik bilgiler katalog kaydından gelir. Ürün görseli, canlı fiyat, stok ve fiyat geçmişi henüz sunulmuyor."
+      "dataNotice": "Teknik bilgiler katalog kaydından gelir. Ürün görseli, canlı fiyat, stok ve fiyat geçmişi henüz sunulmuyor.",
+      "keyFeatures": "Öne çıkan özellikler",
+      "backToCatalog": "Kataloğa dön",
+      "source": "Veri kaynağı",
+      "sourceNote": "Teknik bilgiler PC parça veri setinden içe aktarıldı; değer yoksa '—' gösterilir ve tahmin edilmez.",
+      "overview": "Genel bakış",
+      "reviewsLink": "Değerlendirmelere git",
+      "unavailable": "Bu ürün şu anda gösterilemiyor."
     },
     "reviews": {
       "title": "Kullanıcı değerlendirmeleri",
@@ -1287,6 +1318,10 @@
       "network": {
         "title": "Bağlantı kurulamadı",
         "description": "Donanım servisine ulaşılamadı veya yanıt alınamadı. Kaydetme yaptıysan sonucu yeniden yükleyerek kontrol et."
+      },
+      "shape": {
+        "title": "Beklenmeyen yanıt",
+        "description": "Servis beklenen biçimde yanıt vermedi. Biraz sonra yeniden dene."
       }
     },
     "visual": {
@@ -1310,7 +1345,55 @@
       "comparisonList": "Karşılaştırma listesi",
       "removeProduct": "{model} ürününü karşılaştırmadan çıkar",
       "openComparison": "Karşılaştırmayı aç",
-      "brandMissing": "Üretici bilgisi belirtilmemiş"
+      "brandMissing": "Üretici bilgisi belirtilmemiş",
+      "yes": "Evet",
+      "no": "Hayır",
+      "notRecorded": "Kayıtlı değil",
+      "brandUnknown": "Üretici belirtilmemiş"
+    },
+    "fields": {
+      "CPU": {
+        "coreCount": "Çekirdek sayısı",
+        "clockMhz": "Taban hızı",
+        "boostClockMhz": "Boost hızı",
+        "powerWatts": "TDP",
+        "microarchitecture": "Mimari",
+        "integratedGraphics": "Tümleşik grafik",
+        "smt": "Eş zamanlı çoklu iş parçacığı (SMT)"
+      },
+      "GPU": {
+        "chipset": "Grafik işlemci",
+        "capacityGb": "Video belleği",
+        "clockMhz": "Çekirdek hızı",
+        "boostClockMhz": "Boost hızı",
+        "lengthMm": "Kart uzunluğu",
+        "color": "Renk"
+      },
+      "MOTHERBOARD": {
+        "socket": "İşlemci soketi",
+        "formFactor": "Form faktörü",
+        "maximumMemoryGb": "Azami bellek",
+        "memorySlots": "Bellek yuvası",
+        "color": "Renk"
+      },
+      "RAM": {
+        "memoryType": "Bellek türü",
+        "capacityGb": "Toplam kapasite",
+        "moduleCount": "Modül sayısı",
+        "moduleCapacityGb": "Modül kapasitesi",
+        "clockMhz": "Hız",
+        "casLatency": "CAS gecikmesi",
+        "firstWordLatencyNs": "İlk kelime gecikmesi",
+        "color": "Renk"
+      },
+      "STORAGE": {
+        "storageType": "Depolama türü",
+        "capacityGb": "Kapasite",
+        "interfaceType": "Arayüz",
+        "formFactor": "Form faktörü",
+        "cacheMb": "Önbellek",
+        "rotationRpm": "Dönüş hızı"
+      }
     }
   }
 }
