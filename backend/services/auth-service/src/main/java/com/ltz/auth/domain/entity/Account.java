@@ -52,10 +52,11 @@ public class Account {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(nullable = false, length = EMAIL_MAX_LENGTH)
+    /** Boş olabilir: yalnız SteamID ile açılan hesabın e-postası yoktur (sahte adres üretilmez). */
+    @Column(length = EMAIL_MAX_LENGTH)
     private String email;
 
-    @Column(name = "email_normalized", nullable = false, length = EMAIL_MAX_LENGTH)
+    @Column(name = "email_normalized", length = EMAIL_MAX_LENGTH)
     private String emailNormalized;
 
     @Column(nullable = false, length = USERNAME_MAX_LENGTH)
@@ -74,6 +75,10 @@ public class Account {
 
     @Column(name = "email_verified_at")
     private Instant emailVerifiedAt;
+
+    /** Süreli askının bitişi; yalnız SUSPENDED hesapta dolu olabilir (veritabanı kısıtı da zorlar). Null: süresiz. */
+    @Column(name = "suspended_until")
+    private Instant suspendedUntil;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -120,6 +125,25 @@ public class Account {
     }
 
     /**
+     * Doğrulanmış SteamID64 ile açılan, e-postasız, parolasız ve doğrudan ACTIVE hesap. E-posta gerektiren işlemler
+     * (parola sıfırlama, bildirim, silme onayı) bu hesapta yoktur; e-posta sonradan eklenip doğrulatılabilir.
+     */
+    public static Account registerSteam(String username, Role initialRole, Instant now) {
+        Account account = new Account();
+        account.username = username;
+        account.usernameNormalized = normalizeUsername(username);
+        account.status = AccountStatus.ACTIVE;
+        account.createdAt = now;
+        account.updatedAt = now;
+        account.roles.add(initialRole);
+        return account;
+    }
+
+    public boolean hasEmail() {
+        return email != null;
+    }
+
+    /**
      * Fiili silme aşaması: kişisel alanlar geri döndürülemez biçimde anonimleştirilir. Hesap iskeleti (kimlik) diğer
      * servislerin REF bütünlüğü ve denetim kayıtları için kalır.
      */
@@ -145,7 +169,7 @@ public class Account {
     }
 
     public boolean isIdentityAnonymized() {
-        return email.endsWith(DELETED_EMAIL_DOMAIN);
+        return email != null && email.endsWith(DELETED_EMAIL_DOMAIN);
     }
 
     /** Silme onaylandı: hesap kapanır, önceki tüm token'lar düşer; bekleme süresi bitince kimlik anonimleştirilir. */
@@ -177,9 +201,21 @@ public class Account {
 
     /** Durum geçerliliği çağıranda (AccountStatus.canTransitionTo) denetlenir; ACTIVE'den çıkış eski token'ları düşürür. */
     public void changeStatus(AccountStatus target, Instant now) {
+        changeStatus(target, now, null);
+    }
+
+    /**
+     * Durum değiştirir. {@code suspendedUntil} yalnız SUSPENDED hedefinde anlamlıdır (null: süresiz askı); başka hedefte
+     * önceki askı bitişi temizlenir.
+     */
+    public void changeStatus(AccountStatus target, Instant now, Instant suspendedUntil) {
         if (!status.canTransitionTo(target)) {
             throw new IllegalStateException("Status transition is not allowed");
         }
+        if (suspendedUntil != null && target != AccountStatus.SUSPENDED) {
+            throw new IllegalArgumentException("A suspension end is only valid for SUSPENDED");
+        }
+        this.suspendedUntil = target == AccountStatus.SUSPENDED ? suspendedUntil : null;
         status = target;
         updatedAt = now;
         if (target != AccountStatus.ACTIVE) {

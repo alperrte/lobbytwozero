@@ -31,7 +31,6 @@ Her servisin Auth'a sorduklarına verilmiş cevaplar ayrıca `docs-auth/verilen-
 
 Diğer dosyalar:
 
-- [bosluk-raporu-2026-10-29.md](bosluk-raporu-2026-10-29.md): Boş bıraktığımız her şey, kimde, ne zaman kapanır
 - [cihaz-kimligi-tasarimi.md](cihaz-kimligi-tasarimi.md): Masaüstü cihaz kimliği (B yolu) tasarım kaydı, uygulandı
 
 ---

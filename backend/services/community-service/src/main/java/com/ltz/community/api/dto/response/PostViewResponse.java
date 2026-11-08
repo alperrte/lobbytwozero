@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import com.ltz.community.domain.enums.GameContentType;
 import com.ltz.community.domain.enums.PostCategory;
 import com.ltz.community.domain.enums.PostStatus;
 
@@ -12,6 +13,7 @@ import com.ltz.community.domain.enums.PostStatus;
  * bilgileri ile. {@code likedByMe} çağıranın beğenisini gösterir (misafir için her zaman false); yorumlar ayrı uçtan
  * (COM-07) sunulur. Repost ise ({@code repostOf} dolu) kaynak gönderi ve sahibi açık atıf olarak gömülüdür; bu durumda
  * {@code body} reposter'ın isteğe bağlı kısa yorumudur (null olabilir) ve {@code authorId} reposter'dır (COM-20).
+ * {@code contentType} ve {@code title} yalnız oyuna bağlı türlü içerikte (GAME-11) doludur, diğer gönderilerde null'dır.
  */
 public record PostViewResponse(
 		UUID id,
@@ -27,5 +29,7 @@ public record PostViewResponse(
 		int commentCount,
 		boolean likedByMe,
 		List<PostImageResponse> images,
-		RepostSourceResponse repostOf) {
+		RepostSourceResponse repostOf,
+		GameContentType contentType,
+		String title) {
 }

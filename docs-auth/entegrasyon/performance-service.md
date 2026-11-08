@@ -14,7 +14,7 @@ Henüz kod yok. Performance'ın Auth ile iki bağı olacak: kullanıcı token'ı
 
 ## SENİN YAPACAKLARIN
 
-- [ ] JWT doğrulayıcı (JWKS) ve `DELETE /internal/v1/accounts/{accountId}` ucu. Silme ucu yazılmadıkça Auth'ta Performance görevi `PENDING` kalır ve hesap silme tamamlanmaz
+- [x] (silme ucu main'de, kod doğrulandı 2026-11-05) JWT doğrulayıcı (JWKS) ve `DELETE /internal/v1/accounts/{accountId}` ucu. Silme ucu yazılmadıkça Auth'ta Performance görevi `PENDING` kalır ve hesap silme tamamlanmaz
 - [ ] PERF-01: aktif cihaz API'si. Önerilen sorumluluk bölümü: **Auth cihazın kimliğini ve hangi hesaba bağlı olduğunu söyler, Performance cihazın aktif ve çalışıyor olduğunu söyler.** Ayrıntı: `cihaz-kimligi-tasarimi.md`
 - [ ] Hardware ile aktif cihaz politikası: Hardware bu kararı Performance'a soruyor, uç adı ve yanıt biçimi yazılı değil
 

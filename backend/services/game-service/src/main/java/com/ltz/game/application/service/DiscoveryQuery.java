@@ -4,7 +4,13 @@ package com.ltz.game.application.service;
 public record DiscoveryQuery(int page, int size, String q, String genre, String platform, String language,
         Boolean earlyAccess, java.time.LocalDate releasedAfter, java.time.LocalDate releasedBefore,
         boolean popularOnly, java.math.BigDecimal minRating,
-        com.ltz.game.domain.enums.CatalogSort sort, com.ltz.game.domain.enums.CatalogDirection direction) {
+        com.ltz.game.domain.enums.CatalogSort sort, com.ltz.game.domain.enums.CatalogDirection direction,
+        boolean discountedOnly,String country,String currency) {
+    public DiscoveryQuery(int page,int size,String q,String genre,String platform,String language,Boolean earlyAccess,
+            java.time.LocalDate releasedAfter,java.time.LocalDate releasedBefore,boolean popularOnly,java.math.BigDecimal minRating,
+            com.ltz.game.domain.enums.CatalogSort sort,com.ltz.game.domain.enums.CatalogDirection direction) {
+        this(page,size,q,genre,platform,language,earlyAccess,releasedAfter,releasedBefore,popularOnly,minRating,sort,direction,false,"US","USD");
+    }
     public DiscoveryQuery(int page, int size) { this(page,size,null); }
     public DiscoveryQuery(int page,int size,String q) { this(page,size,q,null,null,null,null,null,null,false,null,
             com.ltz.game.domain.enums.CatalogSort.TITLE,com.ltz.game.domain.enums.CatalogDirection.ASC); }
@@ -24,9 +30,16 @@ public record DiscoveryQuery(int page, int size, String q, String genre, String 
             throw new IllegalArgumentException("Geçersiz tarih aralığı.");
         if (sort==null || direction==null) throw new IllegalArgumentException("Geçersiz sıralama.");
         validateDate(releasedAfter); validateDate(releasedBefore);
-        if (minRating!=null || sort==com.ltz.game.domain.enums.CatalogSort.RATING)
-            throw new com.ltz.game.domain.exception.CatalogRatingUnavailableException();
+        validateMinRating(minRating);
+        new com.ltz.game.application.port.GamePriceProvider.Market(country,currency);
     }
+    /** Review ölçeği 1–10, en çok iki ondalıktır; ölçek dışı değer boş sonuç değil 400 üretir. */
+    private static void validateMinRating(java.math.BigDecimal value) {
+        if (value!=null && (value.compareTo(java.math.BigDecimal.ONE)<0 || value.compareTo(java.math.BigDecimal.TEN)>0
+                || value.stripTrailingZeros().scale()>2)) throw new IllegalArgumentException("Geçersiz puan filtresi.");
+    }
+    /** minRating veya sort=RATING, hazır bir puan projeksiyonu gerektirir. */
+    public boolean ratingBased() { return minRating!=null || sort==com.ltz.game.domain.enums.CatalogSort.RATING; }
     private static void validateTerm(String value) {
         if (value!=null && (value.isBlank() || value.length()>64 || value.indexOf(0)>=0)) throw new IllegalArgumentException("Geçersiz filtre.");
     }

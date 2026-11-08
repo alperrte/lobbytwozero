@@ -1,166 +1,311 @@
-# Game Service — bekleyen tasklar ve diğer servislerden beklenenler
+# Game Service — güncel kalan işler
 
-**Tarih:** 21 Ekim 2026 · **Sahibi:** Hamza · **Servis:** `game-service` (Faz 1–6 yerel geliştirmeleri; DEV `game_db` 2026-10-21'de sıfırlanıp yeni V31–V40 zinciriyle kuruldu; dış entegrasyonlar bekliyor)
+Tarih: 5 Kasım 2026 · GAME-11 güncellemesi: 7 Kasım 2026 · Sahibi: Hamza. Bu belge mevcut kodu esas alır; eski faz
+raporlarındaki bekleme ifadeleri tarihsel olabilir. API kaydı: `docs/api.md` → GAME.
 
-Bu belge, Game Service'te **yapılamayan veya yarım kalan** işleri ve bunların **hangi servise/kişiye/karara** bağlı olduğunu söyler. Kendi servisini ilgilendiren bölümü (§3) oku; yapman gereken bir şey varsa orada yazar. Ayrıntılı API sözleşmesi: `docs/api.md` → `## GAME`.
+## 1. GAME-04 / GAME-05 / GAME-15 — Review puanları
 
-> AI asistanlar için: Bu belgede yazmayan bir Game Service davranışını varsayma. Game Service'in veritabanına (`game_db`) asla erişme; yalnız HTTP API kullan. Bir uç noktanın kaydı `docs/api.md` içinde yoksa mevcut değildir.
+Kod hazır: AuthServiceTokenClient, ReviewRatingClient, V172 puan projeksiyonu,
+kalıcı tarama/kiralama, minRating, RATING sıralaması ve rating durumları mevcut.
+Game toplu POST çağırmaz; imleçli GET dışa aktarmayı tarar. Görünüm, filtre ve
+sıralama aynı yerel projeksiyondan gelir. İlk başarılı taramadan önce puan
+UNAVAILABLE; puan filtresi/sıralaması RATING_INTEGRATION_PENDING verir.
 
-## 1. Özet: neyi, neden yapamadık, neyi bekliyor
+Auth'un mevcut çiftinde `rating-summaries:read,game-references:read` vardır;
+ikincisi tek başına puan okuma yetkisi değildir. Game'in gerçek-Auth testindeki
+tek kapsam varsayımı kaldırıldı. Alıcı sözleşmesinin uyumu Game kabul betiğinde
+sınanır; Review test dosyalarında bu göreve ait değişiklik bırakılmadı.
 
-| Task | Durum | Neden | Bekleyen |
-| --- | --- | --- | --- |
-| **GAME-07 / 12 / 13** (admin yönetimi, geliştirici yetkisi, geliştirici içeriği) | Kod ve testler hazır; **Auth ile doğrulanmadı** | Auth Service henüz JWT üretmiyor. Geçici, fail-closed bir doğrulama kuruldu: yapılandırma yokken **tüm yönetim uçları 401 döner**, yani şu an gerçek kullanımda çalışmaz | **auth-service (Kerem)**: JWT sözleşmesi (§3.1) · ENV onayı |
-| **GAME-04 / 05** (LTZ puanına göre filtre ve sıralama) | Puan dışındaki filtre/sıralamalar çalışıyor | LTZ puanı Review Service'e ait ve toplu puan API'si yok. `minRating` ve `sort=RATING` şimdilik **400 `RATING_INTEGRATION_PENDING`** döner | **review-service**: toplu puan özeti (REV-12) |
-| **GAME-15** (servis sınırları) | Yarım: herkese açık toplu kart ucu hazır | Review'dan puan özeti alınamıyor (sözleşme yok); diğer servisler henüz batch ucunu kullanmıyor | **review-service** (REV-12) · **tüketici servisler** (§3.3) |
-| **GAME-17** (oyun detayı zenginleştirme) | Altyapı hazır, **gerçek sağlayıcı bağlı değil** | Steam resmî API'leri kapsamlı detay vermiyor; kaynak (öneri: IGDB) ve lisans/atıf koşulları kararlaştırılmadı | **Ekip kararı** (§4) |
-| **Toplu uç istek sınırı (istemci başına)** | Game Service tarafı hazır (429), ama Gateway trafiği tek kovayı paylaşıyor | Gateway istemci IP'sini Game Service'e iletmiyor | **api-gateway (ortak yapılandırma, onay)**: §3.5 |
-| **GAME-04 indirim filtresi, GAME-24** (fiyat/indirim) | Bölgesel fiyat portu ve testleri hazır; gerçek veri bekliyor | İzinli sağlayıcı/erişim ve kullanım-saklama koşulları kesinleşmedi | Sağlayıcı ve ENV onayı (§4) |
-| **GAME-23** | Yerel/admin kapsamı tamamlandı; V171 | Gerçek dış dil/detail verisi GAME-17 sağlayıcısını bekliyor | Gerçek detay sağlayıcısı |
-| **GAME-26** | Arşivleme/kilit/audit korunuyor; ADMIN girişleri hazır | Gerçek eşleme/ayırma dış referans güvenliği doğrulanana kadar 409 ile engellenir | Library/Review referans koordinasyon sözleşmesi |
-| **GAME-11** | KISMEN TAMAMLANDI: başarım tanımları ve sayfalı modül okuma hazır | GUIDES/EASTER_EGGS/EXPERIENCES sahibinin gerçek API'si yok; INTEGRATION_PENDING döner | UGC servis sahipliği kararı ve gerçek sözleşme |
-| **GAME-14** | Game Service yerel iş akışı hazır; gerçek Auth ile doğrulanmadı | Özel geri bildirim/rol/oyun grant'i test JWT'leriyle doğrulandı; gerçek JWT yok | Gerçek Auth entegrasyonu |
+Gerçek servis kabulü için `node ops/game-review-e2e.mjs` eklendi. Üç ayrı geçici
+PostgreSQL ve gerçek Auth/Game/Review jar'ları kullanır; DEV veya ENV dosyası
+okumaz. Kullanıcı/admin ve D4 kimlikleri yalnız fixture anahtarıyla imzalanır;
+Game → Review servis token'ı gerçek Auth HTTP üreticisinden gelir. Bu test gerçek
+kullanıcı login'i veya Auth silme worker'ının tüm orkestrasyonunu kanıtlamaz.
+İlk gerçek servis koşusunda 11 kabul kontrolü geçti; Windows süreç ağacı temizliği düzeltildi. Çalıştırma sınırları api.md GAME puan projeksiyonu kaydındadır.
 
-### 1.1 Faz 5: hazır olanlar ve entegrasyon bekleyen parçalar
+## 2. GAME-17 / GAME-23 — IGDB detay ve dil
 
-**GAME-23 — Yerel/admin işlevi tamamlandı; dış veri entegrasyonu bekliyor.**
-Mevcut admin oluşturma/güncelleme uçları metadata dili, bağımsız arayüz/ses/altyazı
-desteği ve kaynak/doğrulama izini kaydeder. UNKNOWN bilgisi desteklenmiyor sayılmaz;
-manuel kilit ve audit kullanılır. Yapılmayan: gerçek dış sağlayıcıdan dil bilgisi
-alma/ayrıştırma ve dış kaynak doğrulaması. GAME-17 için izinli gerçek detay sağlayıcısı
-seçilip erişim/lisans koşulları onaylanmadan bu veri üretilemez. Mevcut sağlayıcı
-portu ve kayıt modeli hazırdır; gerçek sağlayıcıya uygun adaptör/eşleme ve testler
-entegrasyon sırasında tamamlanacaktır. Admin'in doğrulama beyanı dış doğrulama değildir.
+Adaptör, Steam AppID eşlemesi, dil türleri, provenance ve manuel kilit koruması
+mevcut. Kimlik bilgilerinin ikisi de yoksa IGDB kurulmaz. Yeni
+IgdbEnrichmentIntegrationTest gerçek adaptör → yenileme → PostgreSQL → public API
+zincirini, UNKNOWN dil semantiğini, TTL'yi, manuel kilidi ve kesintiyi sınar;
+yalnız dış IGDB/Twitch sunucusu sahtedir.
 
-**GAME-24 — Yalnız fiyat sözleşmesi ve testleri hazır; gerçek fiyat özelliği bekliyor.**
-GamePriceProvider; oyun/mağaza, ülke, para birimi, normal/güncel fiyat, kaynak ve
-geçerlilik zamanlarını tanımlar. Yapılmayan: gerçek sağlayıcı adaptörü, veri çekme,
-fiyat saklama/sunma ve GAME-04 indirim filtresi. İzinli sağlayıcı, LTZ kullanımına
-uygun lisans/saklama koşulları, erişim ve gerekiyorsa ENV onayı beklenir. Fiyat
-tablosu veya HTTP fiyat endpoint'i eklenmedi; uçtan uca çalışan fiyat sistemi değildir.
-Bağlama sırasında sağlayıcıya uygun adaptör, güncellik/kota yönetimi ve gereken
-saklama/API kararları ayrıca uygulanıp test edilmelidir. Sahte fiyat yoktur.
+7 Kasım 2026'da kullanıcı `.env` ve `.env.dev` okumasına açıkça izin verdi.
+Yalnız gerekli IGDB kimlikleri süreç ortamına aktarılarak **gerçek IGDB → Game
+zenginleştirme servisi → geçici PostgreSQL → güvenlik filtreleri etkin public API**
+pilotu geçti. Steam AppID 570 sentetik katalog referansı kullanıldı; açıklama,
+IGDB provenance ve dil desteği doğrulandı. İkinci okuma TTL nedeniyle FRESH döndü.
+DEV/prod DB'ye yazılmadı; anahtarlar çıktı veya dosyaya kopyalanmadı.
+Yeniden üretme: `node ops/game-provider-pilot.mjs --allow-env-files`.
+Bu komut ENV okuması için her oturumda açık izin gerektirir; normal CI'ya dahil değildir.
+Dağıtım ve ticari kullanım uygunluğu bu yerel pilotla onaylanmış sayılmaz.
 
-**GAME-26 — Manuel düzeltme/arşivleme hazır; gerçek HTTP kimlik mutasyonu bekliyor.**
-Faz 4'teki archive/restore, manuel kilit ve audit yeniden kullanılır. ADMIN korumalı
-POST /api/v1/game/admin/identity/reassign ve /split girişleri eklendi. Yapılmayan:
-HTTP üzerinden gerçek dış kimlik taşıma/ayırma. Library/Review ve diğer gameId
-tüketicilerindeki referansların anlamı ve yeni yazma yarışları güvenle korunmadan
-bu işlem açılamaz. Koordinasyon sözleşmesi beklenir; yalnız referans sayısının sıfır
-olması veya operatör gerekçesi yeterli değildir. Gerçek mutasyon 409
-FOREIGN_REFERENCE_SAFETY_UNVERIFIED ile engellenir; reassign yalnız kesin no-op
-durumunda 200 döner. Mevcut iç GameIdentityService ve başarı audit'i korunur;
-güvenlik engeli entegrasyon tamamlanmadan kaldırılmamalıdır.
+## 3. GAME-11 — Game tüketicisi uygulandı (7 Kasım 2026)
 
-**Ortak Auth bağımlılığı:** GAME-23 admin yazmaları ve GAME-26 yönetim uçları,
-GAME-07/12/13 ile aynı JWT doğrulama altyapısını kullanır. Gerçek Auth token'ıyla
-entegrasyon henüz doğrulanmadı; Auth sözleşmesi/erişim yapılandırması ve onayları
-beklenir. İzole testlerde 401/403 ve ADMIN 409 doğrulandı; bunlar canlı Auth
-entegrasyonu yerine geçmez. Ayrıntı: [Auth entegrasyon notu](LTZ-HAM-GAME-04-Auth-Entegrasyonu.md).
+Kullanıcı talimatıyla Nisa'nın mevcut Community API'si tüketilir. Başarımlar Game'de;
+diğer üç tür Community'de kalır. Game modül ucu `contractVersion=2` ile EXTERNAL ve
+güvenli Gateway liste yolu verir. Varsayılan eski JSON korunur; dış modüllerde v1
+deprecated'dır. Başarım yanıtı değişmez. Yeni `features/game` web modülü katalogdan
+oyun detayına, modül listesine ve Community detayına erişir; kullanıcının çereziyle,
+no-store ve düz metin gösterimiyle çalışır. İlk tüketici aşamasından sonra bulunan
+Community bağlantı kesintisi hatası kullanıcının açık talimatıyla dar kapsamda düzeltildi.
 
-V171 (tarihsel eski numara; şema artık aktif V38'dedir) DEV'de başarıyla uygulanmıştı ve
-DEV sonradan sıfırlanıp yeni V31–V40 zinciriyle kuruldu; migration veya dağıtım onayı artık bekleyen iş
-değildir. DEV kataloğu boş olduğundan dolu GAME-23 yanıtı ve geçerli DEV JWT'leri
-olmadığından canlı rol senaryoları doğrulanamadı; bu senaryolar izole ortamda geçti.
-Faz 5'in tamamı entegrasyonlarıyla bitmiş sayılmaz. Ayrıntılı kabul kriterleri ve
-test/DEV kanıtları: [Faz 5 raporu](LTZ-HAM-GAME-05-Rapor.md).
+GameModuleTest 8/8 geçti. Gerçek Game/Community/Gateway ve iki geçici PostgreSQL
+ile ilk koşuda 15 ortak kontrol geçti; DB kesintisindeki 500/503 farkı giderildikten
+sonra **17/17 ortak kabul PASS** oldu. Community tam doğrulaması **501/501 PASS**,
+merkezi kapsam, yeni ihlal ve Trivy kapıları PASS. Game istemcisi hatayı boş listeye
+çevirmiyor. Gerçek Auth login'i ve Social/Admin
+olay teslimi bu fixture testinin kapsamında değildir. Detay ve yeniden üretme:
+[GAME-11-Nisa-Karar-ve-Entegrasyon.md](GAME-11-Nisa-Karar-ve-Entegrasyon.md).
 
-## 2. Game Service şu an ne sunuyor (tüketiciler için)
+## 4. GAME-24 / GAME-04 indirim filtresi — IsThereAnyDeal seçildi
 
-Hepsi Gateway üzerinden `/api/v1/game/...`; **kimlik gerektirmez** (Public):
+Kullanıcı bu oturumda ITAD'ı seçti; eski erteleme kararı bu seçimle değişti.
+ItadPriceClient resmî toplu Steam kimliği eşleme ve fiyat uçlarını kullanır.
+V173 fiyat snapshot, pazar yenileme durumu ve kalıcı tek worker kiralaması ekler.
+Yeni public GET /api/v1/game/games/prices en çok 50 oyun için yerel fiyat sunar;
+keşif/arama discountedOnly filtresini aynı SQL'de ve yalnız güncel tekliflerle uygular.
+Ülke/para birimi açıkça belirlenir; ilk arka plan pazarı TR/TRY, dönüşüm yoktur.
+NO_OFFER, UNAVAILABLE ve STALE fiyat=0 veya ücretsiz oyun anlamına gelmez.
 
-| İhtiyaç | Uç nokta |
-| --- | --- |
-| Birden çok oyun kartı (tercih edilen) | `POST /api/v1/game/games/batch` — gövde `{"gameIds":[…]}`, **en fazla 50**, tekrarlar tek sayılır. Yanıt: `items` (istek sırasıyla kartlar) ve `unavailable` (bulunamayan, **arşivlenmiş** veya birleştirilmiş kimlikler; nedenler ayırt edilmez) |
-| Tek oyun kartı / doğrulama | `GET /api/v1/game/{gameId}/card` → 200 veya 404 |
-| Ayrıntı, alt veri | `GET /api/v1/game/games/{gameId}` ve `GET /api/v1/game/{gameId}/metadata` (tür, platform, geliştirici, sistem gereksinimi vb.) |
-| Liste, arama, popüler | `GET /api/v1/game/games`, `/games/search`, `/games/popular` |
-| Geliştirici içeriği | `GET /api/v1/game/games/{gameId}/developer-content` |
+Anahtar boşken dış fiyat çağrısı yoktur. Kullanıcı gerçek anahtarı daha sonra
+sağladı ve kaydetmeyi istedi; yalnız `.env.dev` içine ITAD_API_KEY eklendi.
+OAuth client bilgileri kullanılmadı. Gerçek anahtar belge, test veya loga yazılmadı.
+Ülke/para birimi seçimi, atıf, mağaza bağlantısı ve ekrandayken TTL dolması web'de
+mevcut; NO_OFFER/UNAVAILABLE/STALE ücretsiz fiyat gibi sunulmaz.
 
-Kurallar: Her oyunun tek `gameId`'si vardır (Steam AppID bunun dış referansıdır). Oyun başına ayrı çağrı yapma, toplu uç kullan (N+1 yasak). Toplu uç **LTZ puanı döndürmez**. Game Service henüz olay (outbox/event) yayınlamıyor; arşiv/değişiklikleri öğrenmek için `unavailable` sonucuna bak.
+7 Kasım canlı pilotu **PASS**: Game gerçek ITAD adaptörü → geçici PostgreSQL →
+güvenlik filtreleri etkin fiyat API'si; ikinci tur TTL nedeniyle yeniden çekmedi.
+Steam→ITAD eşleme yönü düzeltildi, resmî itad.link bağlantısı doğrulamaya eklendi.
+ITAD TR ülkesinde TRY döndürdüğünden worker/keşif/web ilk pazarı TR/TRY oldu;
+kur dönüşümü yapılmadı. `node ops/game-provider-pilot.mjs --allow-env-files --itad`.
+LTZ ticari kullanım uygunluğu, hacim kotası ve DEV/prod dağıtımı ayrı konulardır.
 
-## 3. Servis sahibine göre yapılacaklar
+## 5. GAME-26 kapalı kabulü ve ayrı kimlik mutasyonu kapsamı
 
-### 3.1 auth-service — Kerem (bloklayıcı)
-Game Service tokenı kendisi doğrular. Aşağıdakileri yayınla veya teyit et; farklıysa yalnız Game Service yapılandırması/tek bir dönüştürücü sınıfı güncellenir:
+**5 Kasım 2026 kabul kapanışı geçerlidir** (`6578e3e`). Asıl GAME-26 yarım iş
+olarak raporlanmaz. 7 Kasım kullanıcı isteğiyle gündeme gelen gerçek taşıma/ayırma,
+ayrı bir kapsam genişletmesidir; şimdilik servis sahiplerine sözleşme taslağı teslim edilmiştir.
 
-1. `sub` = kullanıcı UUID'si mi?
-2. `iss` ve `aud` değerleri (Game Service için hedef kitle adı).
-3. İmza algoritması (RS256 varsayıldı) ve anahtar dağıtımı (JWKS adresi?).
-4. Rol claim'i adı/biçimi (`roles` dizisi varsayıldı); rol kodları birebir **`ADMIN`, `MODERATOR`, `GAME_DEVELOPER`** mi?
-5. Token yalnız `Authorization: Bearer` ile mi taşınacak? (Çereze geçilirse Game Service'te CSRF tasarımı yeniden yapılmalı.)
-6. Askıya alma/yasaklamanın token'a yansıma süresi (Game Service hesap durumu sorgulamaz, yalnız kısa token ömrüne güvenir).
-7. `GAME_DEVELOPER` rolünü kimin, nasıl verdiği. Game Service kullanıcının bu role sahip olduğunu doğrulayamaz; token rolü ayrıca zorunludur.
+Manuel düzeltme kilitleri, audit ve arşivleme/geri alma mevcut kabul kapsamını
+karşılar. HTTP reassign yalnız no-op durumda 200; gerçek reassign/split
+409 FOREIGN_REFERENCE_SAFETY_UNVERIFIED verir. Auth'un okuma kapsamı mevcut olsa
+da tüketicilerde eşzamanlı yazmaları durduracak protokol hazır değildir.
 
-Game Service'e eklenecek ENV anahtarları için **önerim** (henüz hiçbir `.env*` değiştirilmedi, onay bekliyor): `JWT_AUDIENCE`, `JWT_JWK_SET_URI` (+ mevcut `JWT_ISSUER`). Ayrıntı: `docs-Game Service/LTZ-HAM-GAME-04-Auth-Entegrasyonu.md`.
+Tam tüketici envanteri, prepare/commit/telafi ve Auth mutasyon kapsamlarını içeren
+[karar taslağı](../docs/decisions/0002-oyun-dis-kimlik-duzeltme.md) hazırlandı.
+Bu protokol yalnız Library/Review sayımı eklenerek güvenli hale gelmez; başka
+sahiplerin servisleri de gameId saklar. Koruma kaldırılmadı ve gerçek taşıma
+uygulanmış sayılmadı. Kimlik mutasyonu için migration eklenmedi; fiyat V173 sonrası boş Game aralığı V174–V180.
 
-**Bağlama günü Game Service'te ne değişir:** Yalnız yapılandırma değerleri (`ltz.security.jwt.*`) ve gerekirse tek bir claim dönüştürücü sınıf (`LtzJwtAuthenticationConverter`). Controller, servis, DTO ve veritabanı şeması aynı kalır; yeniden geliştirme gerekmez.
+## 6. Diğer sınırlar
 
-**Bağlama günü yapılacak test:** Mevcut testler yerel üretilmiş token'larla koşuyor ve yalnız Game Service'in kendi davranışını doğruluyor. Auth hazır olunca **gerçek Auth token'ıyla bir entegrasyon testi** yazılmalı (kimlik, rol ve `iss`/`aud` doğrulaması, askıya alınmış hesap davranışı); bu yapılmadan yönetim uçları "Auth ile doğrulandı" sayılmaz.
+- GAME-07/12/13/14 yerel iş akışları ve önceki canlı Bearer kontrolleri raporlarda
+  mevcut. Bu çalışma tüm Gateway çerez yolculuklarını yeniden doğrulamadı.
+- Game'in trusted-proxies listesi boş; Gateway'den gerçek istemci IP aktarımı ve
+  Game tarafındaki güvenilir proxy ayarı birlikte doğrulanmalı. Gateway'de güncel
+  CORS/çerez→Bearer/kimlik başlığı temizliği kodu var; eski “hiç uygulanmadı”
+  ifadeleri geçerli değildir. Ortak Gateway kodu bu çalışmada değiştirilmedi.
+- Game web yönetim/geliştirici/moderasyon ve oyuncu geri bildirim ekranları eklendi;
+  Game'in mevcut API'lerini kullanır. Ayrı bir frontend sahibi beklenmiyor. Ortak
+  Admin/Notification servislerinin ilave iş akışları bu göreve dahil edilmedi.
+- Toplu kart en fazla 50 kimlik alır; LTZ puanı taşımaz. Puan keşif listelerindedir.
+- GAME-25 büyük katalog ve puan performans testleri mevcut; üretim garantisi yok.
 
-### 3.2 review-service — Hamza
-`POST`/toplu bir uç sağla: çoklu `gameId` için ortalama LTZ puanı ve puan sayısı (REV-12), puanı olmayan oyunlar için açık boş değer. Gelince Game Service'e bir RestClient adaptörü eklenecek; o zamana kadar puan filtresi/sıralaması kapalıdır. Review'ın oyun doğrulaması için Game Service'in `card`/`batch` ucunu kullan.
+## 7. Güvenli doğrulama
 
-### 3.3 Oyun kimliği kullanan servisler — library (Hamza), lfp (Umut), event (Nisa), community (Nisa), performance ve recommendation (Alper)
+Game kalite komutu: `node pre-push/ci/backend.mjs --modules services/game-service`.
+Windows'ta daraltılmış ortam Docker Compose eklentisini bulamıyorsa yerel çalıştırma
+uyarlaması gerekir. Maven Central 429 bu oturumda yerel Maven önbelleğiyle aşıldı;
+bağımlılık sürümü değiştirilmedi. Başarısız/atlanmış test PASS sayılmaz.
 
-- `gameId`'yi doğrularken ve adı/kapağı gösterirken **`POST /games/batch`** kullan; bir sayfa için tek çağrı. Çağrı başına en çok 50 kimlik.
-- `unavailable` içindeki kimlik **hata değildir**: oyun arşivlenmiş veya kaldırılmış olabilir. Kendi kaydını silme; elindeki başlık/kapak anlık görüntüsünü göster (library: LIB-17; lfp/performance: `*_title_snapshot`).
-- Timeout/erişilemezlik durumunda kısmi veriyle devam et; Game Service'e senkron bağımlı kalıp kendi sayfanı kırma.
-- **429 (istek sınırı):** `POST /games/batch` istemci başına sınırlıdır (ani yük 100, sürekli 20 istek/sn). 429 alırsan `Retry-After` kadar bekle; sıkı döngüyle yeniden deneme. Normal sayfa başı çağrı bu sınırın çok altındadır.
-- **Alper (recommendation):** sistem gereksinimi ve tür/platform için yalnız tek oyunluk `GET /{gameId}/metadata` var; **toplu metadata ucu yok**. Toplu ihtiyacın varsa Hamza'ya söyle, uç tasarlanacak (N+1 yapma).
+Gerçek servis kabulü: güncel Auth/Game/Review jar'ları hazırken
+`node ops/game-review-e2e.mjs`. Yalnız kendisinin etiketlediği geçici konteynerler
+silinir; DEV/prod veritabanları ve çalışan servisler değiştirilmez.
 
-### 3.4 Ortak servisler — admin-service, notification-service
+## 8. Son doğrulama — 5 Kasım 2026
 
-- Game Service içerik moderasyonunu kendi `ADMIN`/`MODERATOR` uçlarıyla yapıyor ve kendi denetim kaydını tutuyor. **Admin Service iş akışı ve sahibe bildirim yok.** Admin Service'in Game Service'i çağırması gerekecekse servisler arası kimlik modeli önce kararlaştırılmalı (SECURITY.md'de "karar bekliyor"); şimdilik böyle bir yol yoktur.
-- Notification: "içeriğin gizlendi" bildirimi için olay/sözleşme tanımlı değil.
+- Game: **425 test**, failure/error/skipped 0/0/0; Maven clean verify PASS.
+  JaCoCo LINE **%98,00**, değişen executable satırlar **%98,04**; merkezi coverage
+  ve Checkstyle/PMD yeni ihlal kapısı PASS. Günlük: logs/game-final-verify.log.
+- Review belgeleri, testi ve api.md REVIEW bölümüne bu oturumda yapılan kapsam
+  dışı değişiklikler kullanıcı uyarısıyla geri alındı. Review için bu görevde
+  geliştirme veya güncel test sayısı iddiası tutulmaz.
+- Gerçek Auth/Game/Review uygulamaları + ayrı geçici PostgreSQL: **11/11** kabul
+  kontrolü PASS. Son koşuda 3 test süreç ağacı ve 3 konteyner temizlendi.
+  Kullanıcı/admin/D4 fixture token'ı ile gerçek Auth'tan alınan servis token'ı
+  ayrımı yukarıda belirtilmiştir; gerçek login veya tam hesap silme Saga'sı değildir.
+- Node fixture kontrolleri: **10/10 PASS**. Secretsiz Compose şablonu, yalnız
+  komuta verilen sahte Auth yer tutucularıyla config --quiet doğrulamasını geçti.
+- 100.000 oyun: liste p95 43,30 ms, arama 11,55 ms, birleşik filtre 142,70 ms,
+  eşzamanlı arama 17,72 ms; puanlı sorgularda en yüksek p95 137,84 ms. Test
+  ortamı önceki GAME-25 ile aynı; üretim garantisi ve yeni fiyatlar için hacim SLO'su değildir.
+- **Tam CI kapısı PASS değildir:** Trivy bağımlılık taraması `Trivy execution failed;
+  raw output withheld` hatasıyla tamamlanamadı. Uygulama testlerinin başarılı olması
+  HIGH/CRITICAL bağımlılık taramasını geçmiş sayılmaz; scanner/registry erişimi ayrıca çözülmelidir.
+- Auth kaynağı değiştirilmedi. İmaj hazırlamak için yapılan ilk koşuda bir Mailpit
+  testi 15 sn timeout verdi; tekrarında **533/533 test PASS** oldu. O tekrarın
+  coverage adımı çalışma sürerken değişen global Git bağlamını reddetti; bu koşu
+  tam Auth verify PASS olarak raporlanmaz. Game ve Review'ın son kapsamları ayrı doğrulandı.
 
-### 3.5 api-gateway
-Game Service'e `Authorization` başlığının değiştirilmeden iletildiğini doğrula; istemciden gelen `X-User-Id`/`X-Role` gibi iç kimlik başlıklarının temizlenmesi (architecture.md §4 önerisi) ve CORS henüz yapılmadı. Game Service bu başlıklara **güvenmez**.
+## 9. GAME-11 son doğrulama — 7 Kasım 2026
 
-**Rate limit için ek istek (ortak yapılandırma, onay gerekli):** Spring Cloud Gateway MVC, `X-Forwarded-For`'u yalnız `spring.cloud.gateway.server.webmvc.trusted-proxies` ayarlıysa ekler; şu an ayarlı değil. Bu yüzden internetten gelen tüm istemciler Game Service'e Gateway'in IP'siyle görünür ve toplu uçtaki istek sınırı bu trafik için tek kovadır. Gateway bu ayarla istemci IP'sini iletirse, doğrulandıktan sonra Game Service'te `ltz.rate-limit.trusted-proxies=<gateway CIDR>` tanımlanacak. Hamza onaylamadan Gateway'e dokunma; ayrıca Gateway'in gelen `X-Forwarded-For`'u temizlediği doğrulanmalı (aksi halde sahte başlıkla sınır atlatılır).
+- Game backend: **427 test**, failure/error/skipped 0/0/0; Maven clean verify PASS.
+  Toplam LINE kapsamı **%97,96**; değişen executable satırlar **%90 (9/10)**;
+  merkezi kapsam/baseline kapısı PASS. Checkstyle/PMD mevcut ve yeni ihlal **0**.
+  `logs/game-community-verify.log`. Windows Compose yolu ve Maven'in mevcut yerel
+  önbelleği geçici çalıştırma uyarlamasıyla kullanıldı; ortak CI kodu değiştirilmedi.
+- Frontend lint PASS; Vitest **343 PASS, 1 mevcut SKIP**. Game testlerinde atlama yok.
+  TypeScript PASS; Next tipleri ve Chromium, gerçek ENV dosyaları alınmadan hazırlanan
+  izole frontend kopyasında çalıştırıldı. TR/EN mesajları, kaynak yolları, düz metin,
+  401/404/429/500/503 ayrımı, yeniden deneme ve odakta eski veriyi kaldırma doğrulandı.
+- Playwright Game senaryoları **2/2 PASS** (1440 px ve 390 px); katalog → oyun detayı
+  → rehber listesi → detay, kesinti/yeniden deneme, yatay taşma, HTML'in metin olarak
+  kalması ve aynı oyun kimliğiyle TR→EN geçişi. API yanıtları bu tarayıcı testinde
+  fixture'dır; gerçek servis kabulünden ayrı tutulur. Günlük: `logs/game-browser-e2e.log`.
+- Gerçek Game/Community/Gateway: **15 kabul kontrolü PASS, ilk DB kesinti yanıtı FAIL**.
+  Community doğrudan ilk okumada **500** döndürüyor; sözleşme **503** istiyor.
+  Sonraki okumada 503 alınabilmesi ilk hatayı geçerli kılmaz. Bağlantı kaybından
+  sonraki Hibernate rollback hatası Nisa'nın servisinde incelenmeli. Detay önceki
+  karar belgesine işlendi. İki geçici PostgreSQL ve test JVM süreç ağaçları temizlendi.
+- **Tam CI PASS değil:** Trivy bağımlılık taraması `Trivy execution failed; raw output withheld`
+  ile tamamlanamadı. Yerel tarama çalıştırıcısında bekleme 60 saniyeyle sınırlandı;
+  tarama atlanmadı veya PASS sayılmadı. `BACKEND TEST CHECK PASSED` / `SAFE TO COMMIT`
+  iddiası yoktur.
+- Community, Gateway, Auth, Library ve Review kaynakları değiştirilmedi. `docs/api.md`
+  içinde yalnız GAME bölümü değişti. Yeni ENV, migration veya gerçek DB/deploy işlemi yok.
 
-### 3.6 Frontend
-Yapılmadı: yönetim paneli, geliştirici alanı, moderasyon ekranı. Geliştirici içeriği `contributor=DEVELOPER` ile gelir (yayın öncesi onaysız kullanıcı içeriği); metinler **düz metindir, kaçışlı göstermelisin** (`dangerouslySetInnerHTML` yok). Medya bağlantıları yalnız izinli hostlardan gelir.
+## 10. GAME-11 kesinti düzeltmesi ve ortak kabul — 7 Kasım 2026
 
-## 4. Ekipçe verilmesi gereken kararlar
+Kullanıcının açık talimatıyla önceki yalnız-Game sınırına bu hata için istisna verildi.
+Community'de yalnız GlobalExceptionHandler, controller testleri ve yeni gerçek
+PostgreSQL kesinti testi değişti. Auth, Gateway, Library ve Review kodu değiştirilmedi.
+Yeni ENV veya migration yoktur. API kataloğunun bu düzeltmeye ait COMMUNITY liste/detay
+test kanıtları ve GAME ortak kabul kaydı güncellendi.
 
-Son kalite ve yarış düzeltmeleri: [Faz 5 öncesi rapor](LTZ-HAM-GAME-Faz5-Oncesi-Kalite-Raporu.md).
-Yetki iptali/yazma ve rate limit anahtar kabulü yarışları bu turda düzeltildi;
-Auth, Review ve Gateway entegrasyonlarının bekleme durumu değişmedi.
+- Community: **501 test**, failure/error/skipped 0/0/0; clean verify PASS.
+  LINE **%99,13**; değişen executable satırlar **%94,12 (16/17)**; baseline PASS.
+  Checkstyle 0, PMD mevcut 6, yeni ihlal 0. Günlük: `logs/community-outage-verify.log`.
+- Community Trivy: paketlenmiş runtime envanteri tam, HIGH/CRITICAL **0**, PASS.
+  Merkezi servis kontrolü **BACKEND TEST CHECK PASSED** verdi.
+- Önceki Game bağımlılık taraması mevcut doğrulanmış JAR üzerinde yeniden çalıştırıldı:
+  runtime envanteri tam, HIGH/CRITICAL **0**, PASS. `logs/game-dependency-recheck.log`.
+  Yukarıdaki eski Trivy başarısızlığı tarihsel sonuçtur; açık tarama engeli giderildi.
+- Gerçek Game/Community/Gateway: **17/17 PASS**, ilk doğrudan DB kesintisi yanıtı ve
+  Gateway üzerinden 503 dahil. Geçici kaynaklar temizlendi. `logs/game-community-e2e.log`.
+- Bu sonuç GAME-11'in yerel Game tüketici entegrasyonunu doğrular; gerçek Auth login'i,
+  Social/Admin olay teslimi ve DEV/prod dağıtımı için doğrulama iddiası değildir.
 
-1. **GAME-17 kaynağı:** Öneri — Steam indeksini koru, **IGDB**'yi yalnız detay zenginleştirme için değerlendir. Önce projenin ticari kullanım durumu, lisans/atıf koşulları ve Steam AppID eşleme yöntemi netleşmeli; sonra küçük bir pilot. (Kaynak API anahtarı yeni ENV gerektirir → onay.) Ayrıntı: `docs-Game Service/LTZ-HAM-GAME-02-Saglayici-Arastirmasi.md`.
-2. **Fiyat/indirim (GAME-24):** İzinli veri kaynağı var mı? Yoksa görev ertelenir; fiyat bilgisi uydurulmaz.
-3. **Game Service migration aralığı:** Aktif zincir kesintisiz V31–V40 (10 migration) ve aralık doldu. Ek V171–V190 aralığı 2026-10-21 tarihinde onaylanmış, sonra kaldırılmıştır (`docs/decisions/migrations.md`); eski zincirde kullanılan V171–V173 tarihsel kayıttır. Ek V171–V190 aralığı ve V174–V190 rezervasyonu sonradan kaldırıldı; Game Service yeni migration gerektirirse numara aralığı ekipçe belirlenmelidir. Tahsis ortak branch'e aktarılmalıdır.
-4. **Servisler arası kimlik modeli** (servis JWT'si mi, başka mı?) — korumalı toplu/servisler arası uçlar bunu bekliyor.
+## 11. Kalan Game web işleri ve canlı pilot — 7 Kasım 2026
 
-## 5. Yapma listesi
+- Katalog: birleşik filtreler, puan sıralaması, sıralama yönü ve URL'de saklanan
+  seçimler eklendi. Boş `q` gönderiminin 400 üretmesi giderildi.
+- Detay: kategori/etiket, dil desteği (UNKNOWN korunur), gereksinimler, güvenli medya,
+  kaynak/doğrulama bilgisi, geliştirici içeriği ve ITAD fiyat durumları eklendi.
+- `/tr/oyunlar/yonetim` / `/en/games/manage`: rol bazlı Game yönetimi;
+  oyun oluşturma/düzenleme, arşivleme/geri alma, manuel kilit kaldırma, geliştirici
+  yetkisi, popüler seçim, başarım yönetimi ve içerik gizleme/geri alma eklendi.
+- Geliştirici: yalnız yetkili oyunlar, açıklama/medya/not yönetimi ve sürümlü geri
+  bildirim durum geçişi. Oyuncu: kendi geri bildirimini oluşturma ve filtreli liste.
+  Formlar normal alan kullanır; CSRF alınır, bekleyen istek tekrar gönderilmez,
+  409'da taslak korunur, silme/gizleme/arşivleme için açık onay gerekir.
+- Auth/Gateway/Game gerçek HTTP kabulü: **8/8 PASS**. İki sentetik hesap, gerçek
+  SMTP doğrulaması/login, `/auth/me`, CSRF'siz yazmanın reddi, doğru CSRF ile
+  feedback yazması, kullanıcılar arası görünürlük ve PLAYER rol sınırı sınandı.
+  `node ops/game-auth-e2e.mjs`; yalnız iki geçici PostgreSQL ve Mailpit kullanır,
+  kaynakları temizler. HTTP CookieJar kabulüdür; tarayıcı HTTPS deploy kabulü değildir.
+- IGDB canlı uygulama/DB/API pilotu PASS; `logs/game-igdb-live-pilot.log`.
+- ITAD canlı kabulü **NOT VERIFIED**: her iki izin verilen ENV dosyasında anahtar
+  yok. Kimlik taşıma/ayırma koruması da ekip protokolü kararı olmadan kaldırılmadı
+  (bölüm 5). Bu iki konu açıkken “her şey eksiksiz bitti” denmez.
 
-- `game_db`'ye veya `review_db`/`library_db` gibi başka servis DB'lerine erişme.
-- Game Service yönetim uçlarını (`/admin`, `/developer`, `/moderation`) token olmadan veya sahte başlıkla çağırmaya çalışma; şu an hepsi 401.
-- Toplu karttan LTZ puanı bekleme; puan alanı yok ve uydurulmayacak.
-- Oyun başına döngüyle `GET /card` çağırma.
+Yeni çalışma Game alanıyla sınırlıdır. Auth ve Gateway'in mevcut kaynakları yalnız
+kabul testi için yeniden paketlendi; test atlanarak üretilen bu JAR'lar o servislerin
+kalite kapısını geçmiş sayılmaz. Gerçek ENV, başka servis kodu veya migration değişmedi.
 
-Faz 5 güncel kapsam ve kanıtlar: [Faz 5 raporu](LTZ-HAM-GAME-05-Rapor.md).
+### Bölüm 11 doğrulama sonucu
 
-## 6. Faz 6 entegrasyonları ve DEV durumu
+- Game merkezi kontrolü: **BACKEND TEST CHECK PASSED**; **427/427** standart test,
+  failure/error/skipped **0/0/0**, clean verify PASS. LINE **%97,96**,
+  değişen executable satırlar **%90 (9/10)**; merkezi kapsam/baseline PASS.
+  Checkstyle/PMD yeni ve mevcut ihlal **0**. Runtime Trivy HIGH/CRITICAL **0**.
+  `logs/game-remaining-verify.log`. Windows Compose yolu ve mevcut Maven önbelleği
+  yerel çalıştırıcıda uyarlandı; merkezi politika veya kaynak kodu değiştirilmedi.
+- Frontend: lint PASS, typecheck PASS; **395 PASS, 1 mevcut SKIP**, Game testlerinde
+  atlama yok. Next tipleri gerçek ENV alınmayan izole kopyada doğrulandı.
+  `logs/game-remaining-lint.log`, `logs/game-remaining-types.log`,
+  `logs/game-remaining-unit.log`. Pencere odağında taslak kaybı önce kırmızı
+  testle yeniden üretildi; yetki listesi yenilenirken mevcut taslak korunarak düzeltildi.
+- Playwright: **5/5 PASS**; 1440/390 px katalog→Community yolculuğu, birleşik filtre
+  ve sıralama, admin sürümlü PATCH/CSRF/409 taslak koruma, arşivleme onayı,
+  geliştirici sürümü ve yetki kaybı. Yanıtlar browser fixture'ıdır.
+  `logs/game-remaining-browser-final.log`. Masaüstü/mobil görsel kontrol ve taşma kontrolü yapıldı.
+- Frontend bağımlılık taraması: tam npm paket envanteri, HIGH/CRITICAL **0**, PASS;
+  `logs/game-web-dependencies.log`. Sağlayıcı çalıştırıcı testleri **2/2 PASS**.
+- Tüm depo için `SAFE TO COMMIT` iddiası yoktur: yukarıdaki doğrulama Game ve
+  frontend kapsamıdır. ITAD anahtarı/kullanım uygunluğu ve kimlik mutasyonu ekip
+  protokolü halen açık dış bağımlılıklardır; normal uygulama/fixture testleri bunların
+  canlı kabulü yerine geçmez.
 
-Faz 6 geliştirme onayı alındı. GAME-11'de Game Service yalnız başarım tanımlarını
-yönetir; kişisel ilerleme yoktur. GUIDES/EASTER_EGGS/EXPERIENCES için veri sahipliği
-kararı ve veri sahibinin görünürlük/moderasyon/sayfalama/erişim sözleşmesi gerekir.
-Eski docx rehberleri Content'e bağlasa da güncel Nisa görevleri Content'i haber/duyuruyla
-sınırlar; Content veya Community'ye yeni sahiplik atanmadı. Bu modüller için tablo,
-gerçek adaptör veya sahte veri oluşturulmadı. INTEGRATION_PENDING boş/başarılı veri değildir.
+## 12. ITAD anahtarı ve gerçek fiyat kabulü — 7 Kasım 2026
 
-GAME-14'te GENERAL/BUG_REPORT/EARLY_ACCESS özel iş akışı Game Service'tedir;
-Review incelemesi veya kullanıcılar arası mesajlaşma değildir. Yazar yalnız kendi
-kaydını, aktif oyun grant'i ve GAME_DEVELOPER rolü olan geliştirici yalnız ilgili
-oyunun kayıtlarını okur. ADMIN/MODERATOR tek başına özel içeriği açamaz.
-OPEN -> IN_PROGRESS -> RESOLVED akışı hazırdır; yeniden açma/yorum/dosya/bildirim yoktur.
-Bildirim bu fazın kapsamı değildir; bildirim işlevi tamamlandı sayılmamalıdır.
+Bölüm 11'deki “anahtar eksik / canlı ITAD NOT VERIFIED” sonucu tarihsel kaldı.
+Kullanıcının açık talimatıyla yalnız .env.dev güncellendi; dosya Git ignore kontrolü
+geçti. Diğer gerçek ENV dosyaları ve OAuth client bilgileri değiştirilmedi.
+Gerçek ITAD → uygulama adaptörü → PostgreSQL → HTTP controller pilotu PASS;
+`logs/game-itad-live-pilot.log`. DEV DB ve kalıcı katalog verisine dokunulmadı.
+Fiyat kimliği eşleme yönü, resmî kısa URL alanı ve TR/TRY varsayılanları düzeltildi;
+mock testleri de gerçek sözleşmeyle uyumlu hale getirildi. Normal testler sağlayıcıya
+çıkmaz. Bu kabul GAME-26 koordinasyon sözleşmesinin uygulandığı anlamına gelmez.
 
-Gerçek Auth token'ıyla uçtan uca erişim doğrulaması bekler. Rate limit kullanıcıya
-ve IP'ye uygulanır; süreç içidir, Gateway'de gerçek IP/dağıtık koordinasyon eksikleri
-önceki fazlardan devam eder. V172/V173 DEV'e uygulandı; yalnız Game Service imajı güncellendi;
-dağıtım için ayrı kullanıcı onayı alındı. **Güncel (2026-10-21):** `ltz-dev` ortamı
-sıfırlanıp yeni V31–V40 zinciriyle yeniden kuruldu (V171–V173 artık yok; ayrıntı:
-[yedek/restore raporu §10](LTZ-HAM-GAME-DEV-Yedek-Restore-Hazirlik.md)). Gerçek Auth entegrasyonu bekler. Ayrıntılar: [Faz 6 raporu](LTZ-HAM-GAME-06-Rapor.md).
+### Bölüm 12 son doğrulaması
+
+- Game: **428/428**, failure/error/skipped 0/0/0; merkezi kontrol
+  **BACKEND TEST CHECK PASSED**. LINE %97,96; değişen satırlar %94,12 (16/17),
+  baseline ve yeni ihlal kapısı PASS; Trivy HIGH/CRITICAL 0.
+  `logs/game-itad-verify.log`. İlk koşuda yalnız anotasyon değişikliği nedeniyle
+  ölçülebilir satır kontrolü durdu; TR/TRY pazar ayarı application.properties'e
+  taşındı. Kalite politikası değiştirilmeden son tam koşu geçti.
+- Gerçek ITAD pilotu son yapılandırmayla PASS: `logs/game-itad-live-pilot.log`.
+- Frontend lint/typecheck PASS; **395 PASS, 1 mevcut SKIP**. ITAD çalıştırıcı
+  testleri **3/3 PASS**; seçili sağlayıcının dışındaki anahtarlar aktarılmaz.
+- Yeni migration veya başka servis kodu değişikliği yok. Yeni ayarın çalışan Game
+  sürecine alınması yeniden başlatma gerektirir; kalıcı DEV/prod dağıtımı yapılmadı.
+
+## 13. Gerçek DEV açılışı — 7 Kasım 2026
+
+Kullanıcı Game yeniden başlatmasını, ardından tüm LTZ proje konteynerlerinin
+başlatılmasını açıkça istedi. `.env.dev` profili ve dev-mail profiliyle mevcut
+volume'lar korunarak 20 konteyner başlatıldı. Güncel olmayan 12 servis JAR'ı
+kaynak değiştirilmeden, testler tekrarlanmadan paketlendi; 18 runtime imajı güncel
+JAR'lardan, mevcut Dockerfile'ın root olmayan runtime düzeniyle üretildi.
+Bu paketleme diğer servislerin tam kalite kapısını geçmiş sayılmaz.
+
+- **18/18 Java servis** actuator health HTTP 200 / UP; PostgreSQL ve Mailpit healthy.
+- Çalışan Game paketinin SHA-256 değeri güncel JAR ile eşleşti; runtime kullanıcı
+  ltz, ITAD anahtarı .env.dev ile eşleşti. Gizli değerler çıktıya yazılmadı.
+- Gerçek Gateway üzerinden Game katalog ve katalog durum uçları HTTP 200.
+- DEV kataloğunda 2 aktif oyun var; Steam bağlantılı MAIN_GAME adayı 0, güncel
+  TR/TRY teklifi 0. Bu nedenle mevcut oyun için fiyat ucu UNAVAILABLE dönüyor;
+  fiyat veya uygun oyun uydurulmadı, kalıcı test verisi eklenmedi.
+- ITAD'ın gerçek fiyat getirdiği zincir bölüm 12'deki geçici DB pilotuyla zaten
+  doğrulandığından dış sağlayıcı kabulü gereksiz yere tekrarlanmadı.
+- Sadece LTZ Compose projesi başlatıldı. Kaynak kodu, gerçek ENV dosyaları,
+  geçmiş migration'lar veya volume'lar bu açılışta değiştirilmedi/sıfırlanmadı.
+
+Secretsiz kanıtlar: `logs/ltz-dev-start.log`, `logs/ltz-dev-runtime-health.json`,
+`logs/ltz-game-dev-check.log`. Başlatma profili: `docker compose --env-file .env.dev
+--profile dev-mail up -d --no-build`. Frontend Compose içinde yer almıyor.
+GAME-24'ün yerel geliştirme/canlı sağlayıcı kabulü tamamdır; bu sonuç tüm oyunların
+fiyatının indekslendiğini, production çıkışını veya GAME-26 protokolünün uygulandığını göstermez.
+
+## 14. GAME-26 durum/kapsam düzeltmesi — 7 Kasım 2026
+
+Önceki sohbetlerde gerçek kimlik mutasyonunun “GAME-26'nın kalan işi” olarak
+sunulması doğru değildi. 5 Kasım kapanışı, güvenli HTTP engeliyle yapılan kabul
+kapsamı için geçerlidir. Yeni kullanıcı talebi ayrı kapsam genişletmesidir;
+asıl taşınacağına ilişkin iş kuralı onaylı, teknik protokol PLANNED/TASLAK'tır.
+API kataloğu, karar taslağı ve servis sahipleri sözleşmesi bu ayrımı açıklar.
+Auth'taki okuma izni çalışan referans/dondurma protokolü veya yeni yetkiler demek değildir.
+Bu düzeltmede kod/izin/migration/servis çalışma davranışı değiştirilmedi.

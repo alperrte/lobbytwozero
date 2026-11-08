@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Mevcut V40 verisinden yükseltme, gerçek veri temizliği ve DB yetki sınırı. */
+/** Mevcut V40 verisinden V171 yükseltmesi (sonraki sürümler RatingProjectionMigrationTest'te), gerçek veri temizliği ve DB yetki sınırı. */
 class AccountErasureMigrationTest {
     static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine");
     static final UUID NIL = new UUID(0, 0);
@@ -37,7 +37,7 @@ class AccountErasureMigrationTest {
         jdbc = new JdbcTemplate(source);
         jdbc.update("insert into games(id,title,normalized_title,created_at,updated_at,editor_actor_id,editor_evidence) values (?,'Preserved game','preserved game',now(),now(),?,'private editorial evidence')", game, account);
         jdbc.update("insert into game_admin_audits(id,game_id,actor_id,actor_role,action,reason,details,created_at) values (?,?,?,'ADMIN','UPDATE_GAME','private audit reason','private details',now())", UUID.randomUUID(), game, account);
-        assertEquals(1, Flyway.configure().dataSource(source).locations("classpath:db/migration").load().migrate().migrationsExecuted);
+        assertEquals(1, Flyway.configure().dataSource(source).locations("classpath:db/migration").target("171").load().migrate().migrationsExecuted);
     }
 
     void erase() { jdbc.queryForObject("select public.erase_game_account_data(?)", String.class, account); }
@@ -47,7 +47,7 @@ class AccountErasureMigrationTest {
         assertEquals(account, jdbc.queryForObject("select actor_id from game_admin_audits", UUID.class));
         assertEquals("171", jdbc.queryForObject("select version from flyway_schema_history order by installed_rank desc limit 1", String.class));
         assertEquals(0, count("game_account_erasure_context"));
-        Flyway.configure().dataSource(source).locations("classpath:db/migration").load().validate();
+        Flyway.configure().dataSource(source).locations("classpath:db/migration").target("171").load().validate();
     }
 
     @Test void erasureDeletesOwnedRowsButPreservesCatalogOtherUsersAndRevocation() {

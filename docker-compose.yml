@@ -95,6 +95,7 @@ services:
       <<: *ltz-db-env
       DB_AUTH_NAME: ${DB_AUTH_NAME:?}
       AUTH_OTP_HMAC_KEY: ${AUTH_OTP_HMAC_KEY:?}
+      AUTH_OTP_HMAC_PREVIOUS_KEY: ${AUTH_OTP_HMAC_PREVIOUS_KEY:-}
       AUTH_JWT_PRIVATE_KEY: ${AUTH_JWT_PRIVATE_KEY:?}
       AUTH_JWT_ADDITIONAL_PUBLIC_KEYS: ${AUTH_JWT_ADDITIONAL_PUBLIC_KEYS:-}
       AUTH_ADMIN_SERVICE_CLIENT_SECRET: ${AUTH_ADMIN_SERVICE_CLIENT_SECRET:-}
@@ -109,6 +110,8 @@ services:
       AUTH_RECOMMENDATION_SERVICE_CLIENT_SECRET: ${AUTH_RECOMMENDATION_SERVICE_CLIENT_SECRET:-}
       AUTH_EVENT_TARGETS: ${AUTH_EVENT_TARGETS:-}
       AUTH_TOTP_ENCRYPTION_KEY: ${AUTH_TOTP_ENCRYPTION_KEY:?}
+      AUTH_TOTP_ENCRYPTION_KEY_VERSION: ${AUTH_TOTP_ENCRYPTION_KEY_VERSION:-1}
+      AUTH_TOTP_ENCRYPTION_PREVIOUS_KEYS: ${AUTH_TOTP_ENCRYPTION_PREVIOUS_KEYS:-}
       AUTH_SESSION_ABSOLUTE_TTL: ${AUTH_SESSION_ABSOLUTE_TTL:-P30D}
       AUTH_OTP_TTL: ${AUTH_OTP_TTL:-PT10M}
       AUTH_OTP_MAX_ATTEMPTS: ${AUTH_OTP_MAX_ATTEMPTS:-5}
@@ -202,7 +205,7 @@ services:
       <<: *ltz-db-env
       DB_MAIL_NAME: ${DB_MAIL_NAME:?}
       # Mail Service ayarlari. SMTP degerleri saglayici secilene kadar bos kalir; bos iken dev'de Mailpit varsayilanlari gecerlidir.
-      # Sifreleme anahtari bos ise mail-service bilerek acilmaz (fail-fast); node ops/generate-auth-dev-keys.mjs uretir.
+      # Sifreleme anahtari bos ise mail-service bilerek acilmaz (fail-fast); node ops/dev.mjs keys uretir.
       MAIL_PAYLOAD_ENCRYPTION_KEY: ${MAIL_PAYLOAD_ENCRYPTION_KEY:-}
       MAIL_SMTP_HOST: ${MAIL_SMTP_HOST:-}
       MAIL_SMTP_PORT: ${MAIL_SMTP_PORT:-}
@@ -230,8 +233,13 @@ services:
     environment:
       <<: *ltz-db-env
       DB_GAME_NAME: ${DB_GAME_NAME:?}
+      AUTH_GAME_SERVICE_CLIENT_SECRET: ${AUTH_GAME_SERVICE_CLIENT_SECRET:-}
       STEAM_WEB_API_KEY: ${STEAM_WEB_API_KEY:-}
       STEAM_CATALOG_ENABLED: ${STEAM_CATALOG_ENABLED:-false}
+      GAME_CATALOG_SYNC_ENABLED: ${GAME_CATALOG_SYNC_ENABLED:-false}
+      IGDB_CLIENT_ID: ${IGDB_CLIENT_ID:-}
+      IGDB_CLIENT_SECRET: ${IGDB_CLIENT_SECRET:-}
+      ITAD_API_KEY: ${ITAD_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -289,9 +297,10 @@ services:
     environment:
       <<: *ltz-db-env
       DB_SOCIAL_NAME: ${DB_SOCIAL_NAME:?}
-      # Auth'tan giden olay çağrısı (community) için servis token'ı alma gizli anahtarı; boşsa relay olay denemez.
+      # Auth'tan servis token'ı alma gizli anahtarı: olay teslimi (community, user) ve gizlilik kararı (user, SOC-12).
+      # Boşsa hiçbir giden çağrı denenmez: olaylar outbox'ta bekler, başkasının arkadaş listesi gizli kalır.
       AUTH_SOCIAL_SERVICE_CLIENT_SECRET: ${AUTH_SOCIAL_SERVICE_CLIENT_SECRET:-}
-      # Olay teslimi varsayılan olarak kapalı; community alıcı ucu doğrulanınca true yapılır.
+      # Olay teslimi varsayılan olarak kapalı; community ve user alıcı uçları doğrulandı (TASK-06), açmak ekip kararı.
       SOCIAL_OUTBOX_RELAY_ENABLED: ${SOCIAL_OUTBOX_RELAY_ENABLED:-false}
     depends_on:
       postgres:
@@ -412,6 +421,7 @@ services:
     environment:
       <<: *ltz-db-env
       DB_HARDWARE_NAME: ${DB_HARDWARE_NAME:?}
+      AUTH_HARDWARE_SERVICE_CLIENT_SECRET: ${AUTH_HARDWARE_SERVICE_CLIENT_SECRET:-}
     depends_on:
       postgres:
         condition: service_healthy

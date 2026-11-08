@@ -22,6 +22,7 @@ import com.ltz.auth.domain.enums.SecurityEventType;
 import com.ltz.auth.domain.enums.SessionRevokeReason;
 import com.ltz.auth.domain.exception.AuthErrorCode;
 import com.ltz.auth.domain.exception.AuthException;
+import com.ltz.auth.infrastructure.config.SuspensionProperties;
 import com.ltz.auth.infrastructure.persistence.repository.AccountRepository;
 import com.ltz.auth.infrastructure.persistence.repository.AccountRoleHistoryRepository;
 import com.ltz.auth.infrastructure.persistence.repository.AccountStatusHistoryRepository;
@@ -51,6 +52,7 @@ public class AccountAdministrationService {
     private final AccountStatusHistoryRepository statusHistoryRepository;
     private final AccountRoleHistoryRepository roleHistoryRepository;
     private final TwoFactorService twoFactorService;
+    private final SuspensionProperties suspensionProperties;
     private final SecurityEventRecorder securityEventRecorder;
     private final AuthEventPublisher eventPublisher;
     private final SecurityNotificationDispatcher notifier;
@@ -60,13 +62,26 @@ public class AccountAdministrationService {
     public AccountAdminView get(UUID accountId) {
         Account account = accountRepository.findWithRolesById(accountId)
                 .orElseThrow(() -> new AuthException(AuthErrorCode.ACCOUNT_NOT_FOUND));
-        return new AccountAdminView(account.getId(), account.getUsername(), account.getStatus(),
-                account.roleCodes().stream().map(Enum::name).sorted().toList(),
-                twoFactorService.isEnabled(accountId), account.getCreatedAt());
+        return AccountAdminView.of(account, twoFactorService.isEnabled(accountId));
     }
 
     @Transactional
     public void changeStatus(UUID actorId, UUID accountId, AccountStatus target, String reason) {
+        applyStatusChange(actorId, accountId, target, reason, null);
+    }
+
+    /**
+     * Durum değiştirir. {@code suspendedUntil} yalnız SUSPENDED hedefinde ve {@code [şimdi + minDuration, şimdi +
+     * maxDuration]} aralığında verilebilir; süre dolunca {@link SuspensionExpiryService} hesabı ACTIVE yapar. Verilmezse
+     * askı süresizdir (yalnız elle açılır).
+     */
+    @Transactional
+    public void changeStatus(UUID actorId, UUID accountId, AccountStatus target, String reason, Instant suspendedUntil) {
+        applyStatusChange(actorId, accountId, target, reason, suspendedUntil);
+    }
+
+    private void applyStatusChange(UUID actorId, UUID accountId, AccountStatus target, String reason,
+                                   Instant suspendedUntil) {
         forbidSelfModification(actorId, accountId);
         Account account = lock(accountId);
         AccountStatus from = account.getStatus();
@@ -74,7 +89,8 @@ public class AccountAdministrationService {
             throw new AuthException(AuthErrorCode.INVALID_STATUS_TRANSITION);
         }
         Instant now = clock.instant();
-        account.changeStatus(target, now);
+        requireValidSuspensionEnd(target, suspendedUntil, now);
+        account.changeStatus(target, now, suspendedUntil);
         statusHistoryRepository.save(AccountStatusHistory.of(accountId, from, target, reason, actorId, now));
         // Toplu güncelleme persistence context'i temizler; bekleyen değişiklikler önce flush edilir.
         if (target != AccountStatus.ACTIVE) {
@@ -84,6 +100,18 @@ public class AccountAdministrationService {
         securityEventRecorder.recordEvent(SecurityEventType.ACCOUNT_STATUS_CHANGED, accountId);
         eventPublisher.publish(AuthEventType.ACCOUNT_STATUS_CHANGED, accountId, target.name());
         notificationFor(target).ifPresent(type -> notifier.notifyAfterCommit(accountId, account.getEmail(), type));
+    }
+
+    private void requireValidSuspensionEnd(AccountStatus target, Instant suspendedUntil, Instant now) {
+        if (suspendedUntil == null) {
+            return;
+        }
+        boolean valid = target == AccountStatus.SUSPENDED
+                && !suspendedUntil.isBefore(now.plus(suspensionProperties.minDuration()))
+                && !suspendedUntil.isAfter(now.plus(suspensionProperties.maxDuration()));
+        if (!valid) {
+            throw new AuthException(AuthErrorCode.INVALID_SUSPENSION_END);
+        }
     }
 
     /** Kullanıcıya bildirilen durum geçişleri (MAIL-04); diğer hedefler yönetici uçlarından zaten ulaşılamaz. */

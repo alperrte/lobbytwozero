@@ -49,4 +49,11 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select a from Account a where a.id = :id")
     Optional<Account> findByIdForUpdate(UUID id);
+
+    /** Askı süresi dolan hesaplar; SKIP LOCKED ile eşzamanlı örnekler aynı hesabı iki kez açmaz. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "-2"))
+    @Query("select a from Account a where a.status = com.ltz.auth.domain.enums.AccountStatus.SUSPENDED "
+            + "and a.suspendedUntil is not null and a.suspendedUntil <= :now order by a.suspendedUntil")
+    List<Account> findSuspensionsDueForUpdate(Instant now, Pageable page);
 }

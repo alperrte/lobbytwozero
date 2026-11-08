@@ -1,5 +1,7 @@
 # Faz 04 kararları — LTZ-ALP-PERF-04
 
+> **2026-11-06 düzeltmesi:** Auth'un kendi çıkış `ServiceTokenIssuer` sınıfı ile istemci `ServiceClientTokenIssuer` sınıfı bu ilk analizde karıştırılmıştır; istemci konusu zaten `svc:<istemci>` biçimindedir. Eksik `summary:read` / `reference:read` izinleri de kullanıcının bildirdiği Kerem onayıyla sonradan eklendi. Tek audience/hesap bağı korunur; Hardware'in güncel token'ı `devices:verify summary:read` taşır. [Güncel uygulama ve kanıt](../integration/auth/auth-integration-06.md). Aşağıdaki eski engel gerekçeleri tarihçedir.
+
 Tarih: 2026-10-31 · Kapsam: PERF-14 (geçmiş), PERF-15 (istatistik), PERF-16 (grafik API'si), PERF-19 (filtreleme), PERF-21 (Hardware/Recommendation sözleşmeleri) · Migration: **yok** (V24 kullanılmadı; mevcut `uq_performance_samples_point (session_id, metric, captured_at)` ve oturum indeksleri yeterli).
 
 Faz 1 kararları (A + C) geçerlidir. Bu fazın tüm uçları salt okunurdur; başka servisin veritabanına sorgu yoktur.

@@ -16,8 +16,6 @@
 
 | Talep | Konu | Durum |
 |---|---|---|
-| [01](talep-01-hesap-durumu-ve-gorsel-erisimi.md) | Gerçek JWT, banlı hesap, görsel erişimi | CEVAPLANDI, Community'de iş var |
-| [02](talep-02-servis-token-silme-ve-jwks-sorulari.md) | Servis token'ı, silme, durum olayı, JWKS | CEVAPLANDI, saklama süresi Alper'de, imtiyaz tanımı Auth'ta planlı |
 | [05](talep-05-accountstatuschanged-alicisi-ve-uc-teyit.md) | `AccountStatusChanged` alıcısı, `community` hedefi, çift ve istemci teyidi | CEVAPLANDI; hedef ekleme "alıcı yayında" haberini bekliyor, gerçek uçtan uca deneme yapılmadı |
 
 ## BİLMEN GEREKENLER

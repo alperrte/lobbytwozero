@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.hibernate.annotations.UuidGenerator;
 
+import com.ltz.community.domain.enums.GameContentType;
 import com.ltz.community.domain.enums.PostCategory;
 import com.ltz.community.domain.enums.PostStatus;
 
@@ -30,6 +31,11 @@ public class Post {
 	/** Satır sonu ve sekme dışındaki kontrol karakterlerini reddeder. */
 	public static final String BODY_ALLOWED_CHARACTERS = "[^\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]*";
 
+	public static final int TITLE_MAX_LENGTH = 120;
+
+	/** Başlıkta kontrol karakteri (satır sonu dahil) bulunamaz; başlık tek satırlık düz metindir. */
+	public static final String TITLE_ALLOWED_CHARACTERS = "[^\\x00-\\x1F\\x7F]*";
+
 	@Id
 	@UuidGenerator(style = UuidGenerator.Style.VERSION_7)
 	private UUID id;
@@ -47,6 +53,18 @@ public class Post {
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 32)
 	private PostCategory category;
+
+	/**
+	 * Oyuna bağlı içerik türü (GAME-11); null ise sıradan topluluk gönderisidir. {@code category}'den bağımsızdır ve
+	 * oluşturulduktan sonra değişmez; eski gönderilere sonradan tür atanmaz.
+	 */
+	@Enumerated(EnumType.STRING)
+	@Column(name = "content_type", updatable = false, length = 32)
+	private GameContentType contentType;
+
+	/** Yalnız türlü içerikte dolu (1-120 karakter); aksi halde null. */
+	@Column(length = TITLE_MAX_LENGTH)
+	private String title;
 
 	/** Repost'ta isteğe bağlı kısa yorumdur (null olabilir); repost olmayan gönderide her zaman doludur. */
 	@Column
@@ -117,6 +135,18 @@ public class Post {
 	}
 
 	/**
+	 * Oyuna bağlı türlü içerik (rehber, easter egg, oyuncu deneyimi) yayımlar. {@code gameId} game-service
+	 * doğrulamasından sonra verilmelidir; türlü içerik forum konusu ya da repost olamaz (servis doğrular).
+	 */
+	public static Post publishGameContent(UUID authorId, UUID gameId, GameContentType contentType, String title,
+			String body, Instant now) {
+		Post post = publish(authorId, body, gameId, null, now);
+		post.contentType = contentType;
+		post.title = title;
+		return post;
+	}
+
+	/**
 	 * Orijinal gönderiyi kaynağa atıfla yeniden paylaşır. İçerik kopyalanmaz, yalnız {@code originalId} saklanır;
 	 * {@code comment} (null olabilir) reposter'ın kısa notudur. {@code originalId} repost olmayan gönderiyi göstermelidir
 	 * (servis doğrular).
@@ -131,6 +161,10 @@ public class Post {
 		post.createdAt = now;
 		post.updatedAt = now;
 		return post;
+	}
+
+	public boolean isGameContent() {
+		return contentType != null;
 	}
 
 	public boolean isRepost() {
@@ -192,6 +226,15 @@ public class Post {
 			return;
 		}
 		this.gameId = null;
+		this.updatedAt = now;
+	}
+
+	/** Yalnız türlü içeriğin başlığı vardır; çağıran {@link #isGameContent()} olduğunu doğrular. */
+	public void editTitle(String newTitle, Instant now) {
+		if (newTitle.equals(title)) {
+			return;
+		}
+		this.title = newTitle;
 		this.updatedAt = now;
 	}
 

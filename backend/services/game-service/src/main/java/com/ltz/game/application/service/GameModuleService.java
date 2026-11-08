@@ -31,8 +31,21 @@ public class GameModuleService {
 
     @Transactional(readOnly=true)
     public GameModuleResponse read(UUID gameId,GameModuleType type,int page,int size) {
+        return readModule(gameId,type,page,size,1);
+    }
+    @Transactional(readOnly=true)
+    public GameModuleResponse read(UUID gameId,GameModuleType type,int page,int size,int contractVersion) {
+        return readModule(gameId,type,page,size,contractVersion);
+    }
+    private GameModuleResponse readModule(UUID gameId,GameModuleType type,int page,int size,int contractVersion) {
+        if(contractVersion!=1 && contractVersion!=2) throw new InvalidGameRequestException("INVALID_MODULE_CONTRACT_VERSION");
         var paging=paging(page,size);
         games.findById(gameId).filter(com.ltz.game.domain.entity.Game::isActive).orElseThrow(GameNotFoundException::new);
+        if(type!=GameModuleType.ACHIEVEMENTS && contractVersion==2) {
+            String path="/api/v1/community/games/"+gameId+"/content?type="+type+"&page="+page+"&size="+size;
+            return new GameModuleResponse(gameId,type,GameModuleResponse.State.EXTERNAL,List.of(),page,size,null,
+                    new GameModuleResponse.ContentSource("COMMUNITY",path));
+        }
         if(type!=GameModuleType.ACHIEVEMENTS)
             return new GameModuleResponse(gameId,type,GameModuleResponse.State.INTEGRATION_PENDING,List.of(),page,size,null);
         return response(gameId,achievements.findByGameIdAndVisibleTrue(gameId,paging),page,size);

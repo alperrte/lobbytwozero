@@ -3,12 +3,15 @@
 
 ## ALPER
 - V1–V10       → HARDWARE-SERVICE
+- V191        → HARDWARE-SERVICE (2026-11-07 açık kullanıcı onayı; GPU kaynak kategorisi için kullanıldı)
+- V192        → HARDWARE-SERVICE (2026-11-08 açık kullanıcı onayı; yarım yıldız değerlendirme puanı için kullanıldı)
+- V193        → HARDWARE-SERVICE (2026-11-08 açık kullanıcı onayı; bilgisayar profili kasa rengi için kullanıldı)
 - V11–V20      → RECOMMENDATION-SERVICE
 - V21–V30      → PERFORMANCE-SERVICE
 
 ## HAMZA
 - V31–V40      → GAME-SERVICE (aktif başlangıç zinciri, 10 migration; tamamı kullanıldı)
-- V171–V180    → GAME-SERVICE (2026-10-24 açık kullanıcı onayı; V171 kullanıldı, V172–V180 boş)
+- V171–V180    → GAME-SERVICE (2026-10-24 açık kullanıcı onayı; V171–V173 kullanıldı, V174–V180 boş)
 - V41–V50      → LIBRARY-SERVICE
 - V51–V60      → REVIEW-SERVICE
 
@@ -19,6 +22,7 @@
 
 ## NISA
 - V91–V100     → COMMUNITY-SERVICE
+- V181–V190   → COMMUNITY-SERVICE (2026-11-07 açık kullanıcı onayı; V181 ve V182 kullanıldı, V183–V190 boş)
 - V101–V110    → CONTENT-SERVICE
 - V111–V120    → EVENT-SERVICE
 
@@ -38,11 +42,89 @@ geliştirmeye başlanmadan önce belirlenmelidir.
 
 ## Migration Kuralları
 
+### Game Service V174–V175 kullanımı — 2026-11-08
+
+- Game'in V171–V180 aralığından sıradaki boş numaralar kullanıldı (V173'ten sonra V174, V175). V41 başka servise (Library) aittir ve DEV `game_db`
+  zaten V173'te olduğundan Flyway daha düşük numarayı reddederdi; bu yüzden V41 kullanılmadı.
+- **V174** `V174__add_game_parent_relation.sql`: `games.parent_game_id` (self-FK `ON DELETE SET NULL`), kendine bağlanma ve DLC dışı kayıt kısıtları,
+  ana oyunun MAIN_GAME olmasını zorlayan tetikleyici, MAIN_GAME'liğini kaybeden ana oyunun DLC bağını koparan tetikleyici ve kısmi indeks.
+  Kullanıcı onayıyla 2026-11-08'de DEV'e uygulandı (önce yedek alındı).
+- **V175** `V175__create_game_localized_descriptions.sql`: yeni `game_localized_descriptions` tablosu (dile göre açıklama; (oyun, dil) tekil, oyun
+  silinince cascade). Mevcut tablolara dokunmaz. İzole PostgreSQL testleri (dolu V174 → V175 yükseltme, kısıtlar, tekillik, cascade) geçti;
+  kullanıcı onayıyla 2026-11-08'de DEV'e uygulandı (önce yedek alındı, eski imajın V175'li şemayla uyumu izole PostgreSQL'de doğrulandı).
+- Her iki migration yeni bir şema yükseltmesidir; "başlangıç zincirinde ALTER yok" kuralı V31–V40 ve V171–V173 için aynen sürer
+  (`MigrationArchitectureTest` yalnız V174'ü ALTER için muaf tutar). Uygulanmış migration dosyaları değiştirilmedi.
+
+### Hardware Service V193 — Bilgisayar profili kasa rengi, 2026-11-08
+
+- LTZ Atölyesi (Bilgisayarlarım) kasa rengini profile kaydetmek için kullanıcı açıkça V193'ün alınmasını onayladı
+  ("v193 ü al konteynırı yenile ve migrations.md'yi güncelle"). Yalnız V193 Hardware Service'e tahsis edildi;
+  V194 ve sonrası için tahsis verilmedi.
+- `V193__add_hardware_profile_case_color.sql`, `hardware_profiles` tablosuna `case_color varchar(16) NOT NULL DEFAULT 'BLACK'`
+  kolonunu ve `ck_hardware_profiles_case_color` CHECK'ini (`BLACK`, `WHITE`, `GRAPHITE`, `RED`) ekler. Mevcut profiller
+  `BLACK` alır; V1–V10, V191 ve V192 değiştirilmez.
+- Bu karar diğer servislerin tahsislerini değiştirmez; numaralandırma sahibi ekip bilgilendirilmelidir.
+
+### Hardware Service V192 — Yarım yıldız değerlendirme puanı, 2026-11-08
+
+- V1–V10 dolu olduğundan kullanıcı açıkça V192'nin alınmasını onayladı ("Evet, V192'yi al").
+  Yalnız V192 Hardware Service'e tahsis edildi; V193 o tarihte tahsisli değildi (aynı gün ayrıca onaylandı, yukarıya bakın).
+- `V192__allow_half_star_review_ratings.sql`, `hardware_reviews.rating` kolonunu `integer`'dan `numeric(2,1)`'e çevirir ve
+  CHECK'i "1–5 arası, 0,5 adımlı" olarak yeniden tanımlar. Mevcut tam sayı puanlar kayıpsız dönüşür; V1–V10 değiştirilmez.
+- Bu karar diğer servislerin tahsislerini değiştirmez; numaralandırma sahibi ekip bilgilendirilmelidir.
+
+### Hardware Service V191 — GPU kaynak kategorisi, 2026-11-07
+
+- V1–V10 dolu olduğundan kullanıcı açıkça “191'i al migrations.md'yi güncelle” dedi.
+  Yalnız V191 Hardware Service'e tahsis edildi (V192 daha sonra, 2026-11-08'de ayrıca onaylandı).
+- `V191__allow_gpu_catalog_sources.sql`, kaynak tablosunun kategori CHECK'ine GPU ekler.
+  V1–V10 değiştirilmez; mevcut ürün UUID'leri ve tüm referanslar korunur.
+- Bu karar Game V171–V180 ve Community V181–V190 tahsislerini değiştirmez.
+- [GPU aktarım kanıtı](../../docs-hardware/reports/pc-part-gpu-import.md).
+
+### Hardware Service V10 — PC Part Dataset, 2026-11-07
+
+- Gerçek aktif klasör ve yerel hardware_db history V1–V9 olarak doğrulandı.
+  Son boş V10, `V10__add_pc_part_dataset_import.sql` için kullanıldı.
+- V1–V9 değişmedi. V10 kaynak provider CHECK'ini genişletir, kaynak commit'ini
+  ve teknik import sonuç tablosunu ekler. Ürün/yorum/profil verisi silinmez.
+- V1–V10 artık doludur. Sonraki şema değişikliği için ekipçe ek aralık gerekir;
+  başka servisin numarası kullanılmaz. Eski V10 forum rezervasyonu bu açık
+  kullanıcı veri aktarımı talimatıyla geçersizdir.
+- [Karar ve komutlar](../../docs-hardware/decisions/pc-part-dataset-import.md).
+
+### Community Service ek tahsisi — 2026-11-07
+
+- Community Service'in V91–V100 aralığındaki 10 numaranın tamamı kullanılmıştır.
+  Kullanıcının açık onayıyla **V181–V190 Community Service'e tahsis edildi**.
+  İlk boş numara `V181__add_game_content_types.sql` için kullanıldı. `V182__create_user_block_markers.sql`
+  (COM-21, social engelleme olaylarının sırasını koruyan yerel işaret tablosu) ikinci numaradır; V183–V190 boştur.
+- V181, GAME-11 kapsamında `posts` tablosuna `content_type` ve `title` ekler.
+  Eski gönderilere geriye dönük tür atanmaz; uygulanmış V91–V100 dosyaları değiştirilmez.
+- Bu tahsis Game Service'in V171–V180 ek aralığını veya V1–V170 içindeki diğer
+  servis tahsislerini değiştirmez. Aşağıdaki 2026-10-24 ve 2026-10-21 tarihli
+  “V181–V190 tahsis edilmemiştir” ifadeleri kendi tarihlerindeki durumu anlatır;
+  **güncel tahsis bu bölümdür**.
+- V181'in izole PostgreSQL testinde V100 sonrası yükseltme ve eski gönderilerin
+  korunması doğrulandı. Bu onay gerçek DEV/production veritabanına migration
+  uygulama, Flyway `repair`/`baseline` veya veri sıfırlama izni değildir.
+
 ### Güncel Game Service ek tahsisi ve hesap silme hazırlığı — 2026-10-24
+
+- **V173 kullanıldı (2026-11-05, GAME-24 / GAME-04 indirim filtresi):**
+  `V173__create_game_price_cache.sql`, ITAD fiyat snapshot'larını, pazar bazlı
+  yenileme durumunu ve tek worker kiralamasını ekler. Kullanıcının ITAD seçimi ve
+  şablon/Compose için `ITAD_API_KEY` onayı bu oturumda alındı. Aktif klasör V31–V40,
+  V171, V172 kontrol edilerek ilk boş V173 seçildi. Mevcut migration değiştirilmedi;
+  gerçek DEV'e migration/deploy uygulanmadı. Kalan numaralar V174–V180'dir.
+  Tarihsel fixture'daki V173 özel feedback'tir ve aktif V173 fiyat migration'ı ile
+  karıştırılmamalıdır. Tarihsel eşdeğerlik testleri V40'ta, V172 puan yükseltmesi
+  target=172'de kalır; fiyat tabloları yeni ITAD/PostgreSQL testlerinde doğrulanır.
 
 - Kullanıcının açık talimatıyla **V171–V180 Game Service'e yeniden tahsis edildi**.
   Aşağıdaki 2026-10-21 tarihli ek aralık iptali kayıtları tarihseldir; güncel tahsis bu bölümdür.
-  V181–V190 tahsis edilmemiştir. V1–V170 içindeki diğer servis aralıkları değişmez.
+  O tarihte V181–V190 tahsis edilmemişti; 2026-11-07 Community tahsisi için yukarıya bakın.
+  V1–V170 içindeki diğer servis aralıkları değişmez.
 - Tahsis öncesi aktif klasör kontrol edildi: yalnız V31–V40 vardı. İlk boş numara
   V171 seçildi: `V171__enable_controlled_account_erasure.sql`. Aktif zincir artık
   V31–V40 + V171'dir. Tarihsel fixture V171–V173 bu zincire dahil değildir.
@@ -68,6 +150,13 @@ geliştirmeye başlanmadan önce belirlenmelidir.
   Library/Review henüz kişisel veri tablosu taşımadığı için kendi güvenli uçlarında `204` döner.
 - Bu çalışma gerçek DEV'e migration/deploy uygulamadı. Tarihsel şema eşdeğerliği testleri
   V40 sınırında tutulur; V171 yükseltmesi ve veri güvenliği ayrı PostgreSQL testleriyle doğrulanır.
+- **V172 kullanıldı (2026-11-05, GAME-04/05/15):** `V172__create_game_rating_projection.sql` Review'ın
+  imleçli dışa aktarma ucundan beslenen LTZ puan projeksiyonunu (`game_rating_projection`) ve tek satırlı
+  tarama durumunu (`game_rating_sync_state`) ekler. Numara, yukarıdaki V171–V180 tahsisinin bir sonraki boş
+  numarasıdır (aralık uydurulmadı; kullanıcı onayı oturumda alındı). Kalan boş numaralar V173–V180'dir.
+  Devir notundaki (`docs-review/REVIEW_GAME_SERVICE_DEVIR.md`) "V31–V40 doldu, numara ekip kararı" ifadesi bu
+  güncel tahsisten önceki durumu anlatır. V172 yalnız ekleme yapar (ALTER yok), veri silmez veya anonimleştirmez;
+  `AccountErasureMigrationTest` V171 yükseltmesini `target=171` ile, V172'yi `RatingProjectionMigrationTest` ayrı doğrular.
 - Tablo ilişkileri, kısıtlar ve karar bekleyen öneriler:
   [Game Auth entegrasyon belgesi §13](../../docs-Game%20Service/LTZ-HAM-GAME-04-Auth-Entegrasyonu.md#13-hesap-silme-veri-envanteri-ve-karar-raporu--2026-10-24).
 
@@ -96,7 +185,7 @@ bu çalışma için verilen istisnadır; diğer servisleri kapsamaz.
   numara yoktur: Game Service'in yeni migration'a ihtiyacı olursa ekipçe yeni bir numara
   aralığı belirlenmelidir; numara uydurulmaz.
 - V171–V173 yalnızca eski (tarihsel) 13 dosyalı zincirde kullanılmış Game Service sürümleridir;
-  aktif migration değildir. V171–V190 şu an hiçbir servise tahsisli değildir; yeniden tahsis ekip
+  aktif migration değildir. V171–V190 o tarihte hiçbir servise tahsisli değildi; yeniden tahsis ekip
   kararı gerektirir. V41–V170 diğer servislerin tahsisidir ve değişmez.
 - Ayrıntılar ve onay öncesi geçiş planı:
   [Game Service yeniden yapılandırma raporu](../../docs-Game%20Service/LTZ-HAM-GAME-Migration-Yeniden-Yapilandirma.md).

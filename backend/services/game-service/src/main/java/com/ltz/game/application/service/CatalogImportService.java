@@ -20,6 +20,9 @@ import java.text.Normalizer;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -33,7 +36,11 @@ import org.springframework.transaction.annotation.Transactional;
 /** Her çağrıda tek sayfa; checkpoint ve retry durumu aynı transaction'da saklanır. */
 @Service @RequiredArgsConstructor
 public class CatalogImportService {
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(CatalogImportService.class);
     private static final String PROVIDER_CODE = "STEAM";
+    /** Günlük artımlı Steam turu: her gün 03:00 Europe/Istanbul (yaz saati uygulaması yok; yine de dilimle hesaplanır). */
+    static final ZoneId SYNC_ZONE = ZoneId.of("Europe/Istanbul");
+    static final LocalTime SYNC_TIME = LocalTime.of(3, 0);
     private final GameProvider provider;
     private final GameTypeClassifier types;
     private final GameProviderSyncStateRepository states;
@@ -80,20 +87,55 @@ public class CatalogImportService {
         return response(state);
     }
 
+    /**
+     * Süreç (yeniden) başlarken çağrılır: otomatik tekrar hakkı biten veya kalıcı sayılan hata nedeniyle FAILED kalmış
+     * aktarımı cursor'ı koruyarak sürdürür. Dağıtım/yeniden başlatma operatör müdahalesidir; süreç başına en çok bir kez.
+     */
+    @Transactional
+    public boolean resumeAfterRestart() {
+        var state = lockedState();
+        if (state.getSyncStatus() != CatalogSyncStatus.FAILED) return false;
+        LOG.info("Başarısız katalog aktarımı yeniden başlatmada sürdürülüyor: cursor={} sonSonuç={}", state.getCursor(), state.getLastErrorCode());
+        resumeFailed();
+        return true;
+    }
+
     @Transactional
     public CatalogStatusResponse synchronizeNextPage() {
         var state = lockedState();
         Instant now = clock.instant();
         if (state.getSyncStatus() == CatalogSyncStatus.FAILED) {
-            if (state.getNextAttemptAt() == null || now.isBefore(state.getNextAttemptAt())) return response(state);
-            state.setSyncStatus(CatalogSyncStatus.RUNNING);
+            if (state.getNextAttemptAt() == null) {
+                // Otomatik tekrar bütçesi bitti. Artımlı tur bir sonraki günlük pencerede, önceki başarılı checkpoint'ten yeniden
+                // başlar (kaçırılan güncellemeler alınır); ilk aktarım yalnız açık devam (yeniden başlatma) ile sürer.
+                if (!incrementalRetryDue(state, now)) return response(state);
+                LOG.warn("Başarısız günlük artımlı tur yeni günlük pencerede yeniden başlatılıyor: önceki kod={}", state.getLastErrorCode());
+                start(CatalogRunMode.INCREMENTAL);
+            } else {
+                if (now.isBefore(state.getNextAttemptAt())) return response(state);
+                state.setSyncStatus(CatalogSyncStatus.RUNNING);
+            }
         } else if (state.getSyncStatus() == CatalogSyncStatus.IDLE) {
             start(CatalogRunMode.INITIAL);
         } else if (state.getSyncStatus() == CatalogSyncStatus.COMPLETE) {
-            if (now.isBefore(state.getLastSuccessfulAt().plus(Duration.ofHours(6)))) return response(state);
+            // Günde bir kez: son başarılı tur son günlük pencereden (03:00 Europe/Istanbul) önce başladıysa yeni tur başlar.
+            if (!state.getLastSuccessfulAt().isBefore(latestSyncWindow(now))) return response(state);
             start(CatalogRunMode.INCREMENTAL);
         }
         return importPage(1000);
+    }
+
+
+    /** Verilen ana kadar başlamış en son günlük pencere (03:00 Europe/Istanbul). */
+    static Instant latestSyncWindow(Instant now) {
+        ZonedDateTime zoned = now.atZone(SYNC_ZONE);
+        ZonedDateTime today = zoned.toLocalDate().atTime(SYNC_TIME).atZone(SYNC_ZONE);
+        return (zoned.isBefore(today) ? zoned.toLocalDate().minusDays(1).atTime(SYNC_TIME).atZone(SYNC_ZONE) : today).toInstant();
+    }
+
+    private boolean incrementalRetryDue(GameProviderSyncState state, Instant now) {
+        return state.getRunMode() == CatalogRunMode.INCREMENTAL && state.getLastSuccessfulAt() != null && state.getRunStartedAt() != null
+                && state.getRunStartedAt().isBefore(latestSyncWindow(now));
     }
 
     /** Bir HTTP sayfası ve yerel checkpoint aynı DB transaction'ında işlenir. */
@@ -115,10 +157,15 @@ public class CatalogImportService {
             state.setFailureCount(Math.min(6, state.getFailureCount() + 1));
             Duration delay = retries.delay(exception, state.getFailureCount());
             state.setNextAttemptAt(delay == null ? null : clock.instant().plus(delay));
+            // Sağlayıcı hatası sessiz kalmaz: durum yanıtındaki lastErrorCode ile aynı kod ve cursor loglanır.
+            LOG.error("Steam katalog aktarımı başarısız: kod={} cursor={} ardışıkHata={} sonrakiDeneme={}",
+                    exception.code(), state.getCursor(), state.getFailureCount(), state.getNextAttemptAt());
             return response(state);
         }
         Map<String, Set<OverridableField>> locked = lockedFields(page.items());
         for (var item : page.items()) importItem(item, locked.getOrDefault(item.externalId(), Set.of()));
+        if (page.skippedRecords() > 0)
+            LOG.warn("Steam sayfası tamamlandı: işlenen={} atlanan={} cursor={}", page.items().size(), page.skippedRecords(), page.nextAppId());
         state.setCursor(page.nextAppId());
         state.setProcessedCount(state.getProcessedCount() + page.items().size());
         state.setFailureCount(0);
@@ -136,46 +183,68 @@ public class CatalogImportService {
     /** Admin tarafından manuel düzeltilmiş alanlar (GAME-07); sayfa için tek sorguyla okunur. */
     private Map<String, Set<OverridableField>> lockedFields(List<GameProvider.CatalogItem> items) {
         if (items.isEmpty()) return Map.of();
+        var externalIds = items.stream().map(GameProvider.CatalogItem::externalId).toList();
+        // Alan kilitleri okunmadan önce admin ile aynı oyun satırlarını kilitle.
+        // Böylece eski override bilgisi, daha yeni entity sürümüyle birlikte yazılamaz.
+        games.lockCatalogGames(PROVIDER_CODE, externalIds);
         Map<String, Set<OverridableField>> locked = new HashMap<>();
-        overrides.lockedFields(PROVIDER_CODE, items.stream().map(GameProvider.CatalogItem::externalId).toList())
+        overrides.lockedFields(PROVIDER_CODE, externalIds)
                 .forEach(row -> locked.computeIfAbsent(row.getExternalId(), key -> EnumSet.noneOf(OverridableField.class)).add(row.getField()));
         return locked;
     }
 
+    /**
+     * Steam'in {@code last_modified} değeri, kaydın son doğrulanan senkron zamanından (lastSyncedAt) sonra değilse kayıt
+     * değişmemiştir ve hiçbir yazma yapılmaz. Yeni kayıt oluşturulur; değişen kayıtta yalnız farklı başlık güncellenir
+     * (manuel başlık kilidi ve INTERNAL başlık korunur), IGDB'nin "kanıt yok" gözlemi silinir ve kayıt yeniden sınıflandırmaya uygun olur.
+     */
     private void importItem(GameProvider.CatalogItem item, Set<OverridableField> locked) {
-            var reference = references.findByProviderAndExternalId(PROVIDER_CODE, item.externalId()).orElse(null);
-            Game game;
-            if (reference == null) {
-                game = new Game();
-                game.setOrigin(GameOrigin.EXTERNAL);
-                game.setTitle(item.title());
-                game.setNormalizedTitle(normalize(item.title()));
-                provenance.recordObservation(game,"TITLE",PROVIDER_CODE,MetadataDataState.AVAILABLE,false);
-                game = games.save(game);
-                reference = new GameExternalReference();
-                reference.setGame(game);
-                reference.setProvider(PROVIDER_CODE);
-                reference.setExternalId(item.externalId());
-            } else {
-                game = reference.getGame();
-                // Eşlenmiş INTERNAL kayıtların birincil LTZ başlığı sağlayıcı tarafından ezilmez.
-                if (game.getOrigin() == GameOrigin.EXTERNAL && !locked.contains(OverridableField.TITLE)) {
-                    game.setTitle(item.title());
-                    game.setNormalizedTitle(normalize(item.title()));
-                    game.setUpdatedAt(Instant.now());
-                    provenance.recordObservation(game,"TITLE",PROVIDER_CODE,MetadataDataState.AVAILABLE,false);
-                }
-            }
-            if (game.getOrigin() == GameOrigin.EXTERNAL && !locked.contains(OverridableField.GAME_TYPE)
-                    && provider.capabilities().contains(GameProvider.Capability.ITEM_TYPE)) {
-                GameType observed=types.classify(item.providerType(), true);
-                if (observed != GameType.UNKNOWN) {
-                    game.setGameType(observed);
-                    provenance.recordObservation(game,"GAME_TYPE",PROVIDER_CODE,MetadataDataState.AVAILABLE,false);
-                }
-            }
-            reference.setLastSyncedAt(Instant.now());
+        var reference = references.findByProviderAndExternalId(PROVIDER_CODE, item.externalId()).orElse(null);
+        Instant now = clock.instant();
+        if (reference == null) {
+            Game game = new Game();
+            game.setOrigin(GameOrigin.EXTERNAL);
+            game.setTitle(item.title());
+            game.setNormalizedTitle(normalize(item.title()));
+            provenance.recordObservation(game, "TITLE", PROVIDER_CODE, MetadataDataState.AVAILABLE, false);
+            game = games.save(game);
+            reference = new GameExternalReference();
+            reference.setGame(game);
+            reference.setProvider(PROVIDER_CODE);
+            reference.setExternalId(item.externalId());
+            applyObservedType(game, item, locked);
+            reference.setLastSyncedAt(now);
             references.save(reference);
+            return;
+        }
+        Instant synced = reference.getLastSyncedAt();
+        if (synced != null && item.lastModified() != null && !item.lastModified().isAfter(synced)) return;
+        Game game = reference.getGame();
+        // Eşlenmiş INTERNAL kayıtların birincil LTZ başlığı sağlayıcı tarafından ezilmez.
+        if (game.getOrigin() == GameOrigin.EXTERNAL && !locked.contains(OverridableField.TITLE) && !item.title().equals(game.getTitle())) {
+            game.setTitle(item.title());
+            game.setNormalizedTitle(normalize(item.title()));
+            game.setUpdatedAt(now);
+            provenance.recordObservation(game, "TITLE", PROVIDER_CODE, MetadataDataState.AVAILABLE, false);
+        }
+        applyObservedType(game, item, locked);
+        var observed = game.getMetadataProvenance().get("GAME_TYPE");
+        if (game.getGameType() == GameType.UNKNOWN && observed != null && observed.getDataState() == MetadataDataState.UNKNOWN) {
+            game.getMetadataProvenance().remove("GAME_TYPE");
+        }
+        reference.setLastSyncedAt(now);
+        references.save(reference);
+    }
+
+    private void applyObservedType(Game game, GameProvider.CatalogItem item, Set<OverridableField> locked) {
+        if (game.getOrigin() == GameOrigin.EXTERNAL && !locked.contains(OverridableField.GAME_TYPE)
+                && provider.capabilities().contains(GameProvider.Capability.ITEM_TYPE)) {
+            GameType observed = types.classify(item.providerType(), true);
+            if (observed != GameType.UNKNOWN) {
+                game.setGameType(observed);
+                provenance.recordObservation(game, "GAME_TYPE", PROVIDER_CODE, MetadataDataState.AVAILABLE, false);
+            }
+        }
     }
 
     @Transactional(readOnly=true)

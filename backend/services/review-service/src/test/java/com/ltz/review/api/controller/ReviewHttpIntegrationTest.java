@@ -116,6 +116,91 @@ class ReviewHttpIntegrationTest {
         }
     }
 
+    @Test void signedHttpGameServiceReadsSummariesOnlyWithItsOwnIdentityAndScope() throws Exception {
+        UUID rated = UUID.randomUUID();
+        UUID unrated = UUID.randomUUID();
+        for (int rating : new int[]{8, 6})
+            jdbc.sql("INSERT INTO game_ratings (id,user_id,game_id,rating,created_at,updated_at) VALUES (?,?,?,?,now(),now())")
+                    .params(UUID.randomUUID(), UUID.randomUUID(), rated, rating).update();
+        String path = "/internal/v1/games/rating-summaries";
+        String body = "{\"gameIds\":[\"" + unrated + "\",\"" + rated + "\",\"" + unrated + "\"]}";
+        try (var client = HttpClient.newHttpClient()) {
+            var ok = send(client, "POST", path, body, serviceToken("svc:game-service", "rating-summaries:read"));
+            assertEquals(200, ok.statusCode());
+            assertEquals("private, no-store", ok.headers().firstValue("Cache-Control").orElseThrow());
+            var items = json.readTree(ok.body()).get("items");
+            assertEquals(2, items.size());
+            assertEquals(unrated.toString(), items.get(0).get("gameId").asText());
+            assertTrue(items.get(0).get("averageRating").isNull());
+            assertEquals(0, items.get(0).get("ratingCount").asInt());
+            assertEquals(rated.toString(), items.get(1).get("gameId").asText());
+            assertEquals(0, new java.math.BigDecimal("7.00").compareTo(items.get(1).get("averageRating").decimalValue()));
+            assertEquals(2, items.get(1).get("ratingCount").asInt());
+            assertEquals(403, send(client, "POST", path, body, serviceToken("svc:auth-service", "rating-summaries:read")).statusCode());
+            assertEquals(403, send(client, "POST", path, body, serviceToken("svc:game-service", "account:erase")).statusCode());
+            assertEquals(403, send(client, "POST", path, body, token(true, USER)).statusCode());
+            assertEquals(401, send(client, "POST", path, body, token(false, USER)).statusCode());
+            assertEquals(401, client.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path))
+                    .header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(body)).build(),
+                    HttpResponse.BodyHandlers.ofString()).statusCode());
+            assertEquals(400, send(client, "POST", path, "{\"gameIds\":[null]}", serviceToken("svc:game-service", "rating-summaries:read")).statusCode());
+            assertEquals(401, send(client, "POST", "/api/v1/review/games/rating-summaries", body,
+                    serviceToken("svc:game-service", "rating-summaries:read")).statusCode());
+        }
+    }
+
+    @Test void signedHttpGameServiceExportsRatedGamesInStableCursorPages() throws Exception {
+        List<UUID> seeded = new java.util.ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            UUID game = UUID.randomUUID();
+            seeded.add(game);
+            for (int rating : new int[]{3 + i, 10})
+                jdbc.sql("INSERT INTO game_ratings (id,user_id,game_id,rating,created_at,updated_at) VALUES (?,?,?,?,now(),now())")
+                        .params(UUID.randomUUID(), UUID.randomUUID(), game, rating).update();
+        }
+        String path = "/internal/v1/games/rating-summaries";
+        String service = serviceToken("svc:game-service", "rating-summaries:read");
+        try (var client = HttpClient.newHttpClient()) {
+            List<String> seen = new java.util.ArrayList<>();
+            java.util.Map<String, tools.jackson.databind.JsonNode> byGame = new java.util.HashMap<>();
+            String cursor = null;
+            int pages = 0;
+            do {
+                var response = send(client, "GET", path + "?limit=2" + (cursor == null ? "" : "&after=" + cursor), null, service);
+                assertEquals(200, response.statusCode());
+                assertEquals("private, no-store", response.headers().firstValue("Cache-Control").orElseThrow());
+                var page = json.readTree(response.body());
+                assertTrue(page.get("items").size() <= 2);
+                for (var item : page.get("items")) {
+                    seen.add(item.get("gameId").asText());
+                    byGame.put(item.get("gameId").asText(), item);
+                }
+                cursor = page.get("nextAfter").isNull() ? null : page.get("nextAfter").asText();
+                if (cursor != null) assertEquals(2, page.get("items").size());
+                pages++;
+            } while (cursor != null && pages < 10_000);
+            assertTrue(pages >= 3);
+            assertEquals(seen.stream().distinct().count(), seen.size());
+            assertEquals(seen.stream().sorted().toList(), seen);
+            for (int i = 0; i < 5; i++) {
+                var item = byGame.get(seeded.get(i).toString());
+                assertEquals(2, item.get("ratingCount").asInt());
+                assertEquals(0, new java.math.BigDecimal(3 + i + 10).divide(new java.math.BigDecimal(2)).setScale(2)
+                        .compareTo(item.get("averageRating").decimalValue()));
+            }
+            var sample = send(client, "POST", path, "{\"gameIds\":[\"" + seeded.getFirst() + "\"]}", service);
+            assertEquals(json.readTree(sample.body()).get("items").get(0), byGame.get(seeded.getFirst().toString()));
+            var beyond = send(client, "GET", path + "?limit=500&after=ffffffff-ffff-ffff-ffff-ffffffffffff", null, service);
+            assertEquals(200, beyond.statusCode());
+            assertTrue(beyond.body().contains("\"items\":[]"));
+            assertEquals(400, send(client, "GET", path + "?limit=501", null, service).statusCode());
+            assertEquals(400, send(client, "GET", path + "?after=x", null, service).statusCode());
+            assertEquals(403, send(client, "GET", path, null, serviceToken("svc:auth-service", "rating-summaries:read")).statusCode());
+            assertEquals(403, send(client, "GET", path, null, serviceToken("svc:game-service", "account:erase")).statusCode());
+            assertEquals(401, send(client, "GET", path, null, token(false, USER)).statusCode());
+        }
+    }
+
     @Test void actualGameHttpFailureIsControlledAndDoesNotLeakAddressOrAcceptGame() throws Exception {
         GAME_AVAILABLE.set(false);
         try (var client = HttpClient.newHttpClient()) {
@@ -206,6 +291,7 @@ class ReviewHttpIntegrationTest {
     }
 
     @Autowired JdbcClient jdbc;
+    @Autowired JsonMapper json;
 
     void jdbcInsertRatingAndRecommendation(UUID game) {
         jdbc.sql("INSERT INTO game_ratings (id,user_id,game_id,rating,created_at,updated_at) VALUES (?,?,?,8,now(),now())")
@@ -258,6 +344,16 @@ class ReviewHttpIntegrationTest {
                 .claim("roles", List.of("PLAYER")).claim("scope", "account:erase").claim("account_id", account.toString()).build();
         var jwt = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).type(new JOSEObjectType(service ? "svc+jwt" : "at+jwt"))
                 .keyID("http-test").build(), claims);
+        jwt.sign(new RSASSASigner(KEYS.getPrivate()));
+        return jwt.serialize();
+    }
+
+    static String serviceToken(String subject, String scope) throws Exception {
+        Instant now = Instant.now();
+        var claims = new JWTClaimsSet.Builder().issuer("ltz-auth").audience("review-service").subject(subject)
+                .jwtID(UUID.randomUUID().toString()).issueTime(Date.from(now)).notBeforeTime(Date.from(now))
+                .expirationTime(Date.from(now.plusSeconds(30))).claim("scope", scope).build();
+        var jwt = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).type(new JOSEObjectType("svc+jwt")).keyID("http-test").build(), claims);
         jwt.sign(new RSASSASigner(KEYS.getPrivate()));
         return jwt.serialize();
     }

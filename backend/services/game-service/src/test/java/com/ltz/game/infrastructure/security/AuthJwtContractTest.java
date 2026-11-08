@@ -229,7 +229,8 @@ class AuthJwtContractTest {
         assertEquals(Duration.ofSeconds(30), properties.clockSkew());
         JwtDecoder decoder = timedDecoder(null);
         assertEquals(SUBJECT.toString(), decoder.decode(sign(timedClaims("iat", 30))).getSubject());
-        assertThrows(JwtException.class, () -> decoder.decode(sign(timedClaims("iat", 31))));
+        String futureToken=sign(timedClaims("iat", 31));
+        assertThrows(JwtException.class, () -> decoder.decode(futureToken));
     }
 
     @ParameterizedTest @ValueSource(ints = {0, 30})

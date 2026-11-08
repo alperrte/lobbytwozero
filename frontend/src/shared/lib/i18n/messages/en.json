@@ -1,6 +1,2714 @@
 {
+  "Metadata": {
+    "siteName": "LobbyTwoZero",
+    "description": "LobbyTwoZero is a game-focused social platform being built for game discovery, the player community, social interaction, and hardware and game performance experiences."
+  },
+  "Shell": {
+    "brand": "LobbyTwoZero",
+    "skipToContent": "Skip to main content",
+    "navbarLabel": "Top bar",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "collapseSidebar": "Collapse sidebar",
+    "expandSidebar": "Expand sidebar",
+    "sidebarLabel": "Main navigation"
+  },
+  "Navigation": {
+    "home": "Home",
+    "games": "Games",
+    "library": "My Library",
+    "reviews": "Reviews",
+    "news": "News",
+    "forYou": "For You",
+    "community": "Community",
+    "friends": "Friends",
+    "messages": "Messages",
+    "findTeam": "Find a Team",
+    "events": "Events",
+    "hardware": "Hardware",
+    "performance": "Performance",
+    "settings": "Settings",
+    "soon": "Soon",
+    "soonTooltip": "{label} — Soon",
+    "groups": {
+      "general": "General",
+      "social": "Social",
+      "hardware": "Hardware & Performance"
+    },
+    "campaigns": "Campaigns"
+  },
+  "Theme": {
+    "label": "Theme",
+    "system": "System theme",
+    "light": "Light theme",
+    "dark": "Dark theme"
+  },
+  "Locale": {
+    "label": "Language",
+    "tr": "Turkish",
+    "en": "English"
+  },
+  "Navbar": {
+    "search": {
+      "placeholder": "Search pages...",
+      "open": "Search",
+      "inputLabel": "Search pages",
+      "close": "Close",
+      "groupPages": "Pages",
+      "emptyTitle": "No results found",
+      "emptyBody": "Try a different word.",
+      "resultCount": "{count, plural, =0 {No results} one {# result} other {# results}}"
+    },
+    "notifications": {
+      "label": "Notifications",
+      "labelWithCount": "Notifications, {count} unread",
+      "title": "Notifications",
+      "emptyTitle": "No notifications yet",
+      "emptyBody": "New notifications will appear here once the notification service is connected."
+    },
+    "profile": {
+      "label": "Profile menu",
+      "guestName": "Guest",
+      "guestState": "Not signed in",
+      "signIn": "Sign in",
+      "signedIn": "Your account",
+      "guestNote": "Account features are not ready yet; sign-in and profile pages will be added in later steps.",
+      "soon": "Soon",
+      "items": {
+        "info": "Profile info",
+        "profile": "My profile",
+        "account": "Account settings",
+        "logout": "Log out",
+        "computers": "My computers"
+      }
+    }
+  },
+  "Settings": {
+    "title": "Settings",
+    "description": "Tailor the look and navigation to the way you like to play.",
+    "infoLabel": "About {subject}",
+    "appearance": {
+      "title": "Appearance",
+      "info": "Chooses whether the app looks light, dark, or follows your device theme. Your choice is saved on this device.",
+      "system": "System",
+      "systemHint": "Follows your device's theme setting.",
+      "light": "Light",
+      "lightHint": "Light colors for bright surroundings.",
+      "dark": "Dark",
+      "darkHint": "Dark colors that are easy on the eyes in low light."
+    },
+    "navbar": {
+      "title": "Top bar",
+      "info": "Controls how the top bar behaves while you scroll: it either hides automatically or always stays visible.",
+      "auto": "Auto-hide",
+      "autoHint": "Hides when you scroll down and returns when you scroll up.",
+      "fixed": "Fixed",
+      "fixedHint": "Always stays visible."
+    },
+    "sidebar": {
+      "title": "Sidebar",
+      "info": "Controls whether the menu on the left shows full names or only icons.",
+      "wide": "Wide",
+      "wideHint": "Icons and names are shown together.",
+      "collapsed": "Collapsed",
+      "collapsedHint": "Only icons are shown.",
+      "note": "On small screens the sidebar always works as a slide-in menu."
+    },
+    "language": {
+      "title": "Language",
+      "info": "Changes the language of the interface. Your choice is remembered on this device."
+    },
+    "transition": {
+      "title": "Theme transition",
+      "info": "Chooses the animation that plays when switching between light and dark. It is independent of the theme itself. If your system asks for reduced motion, no animation plays.",
+      "v3": "Tactical V3",
+      "v3Hint": "A pixel-art LTZ operator shoots out the lamps and switches to night vision, then fires a flare to raise the sun.",
+      "v2": "Tactical V2 — Legacy",
+      "v2Hint": "The previous tactical transition, kept from the archive.",
+      "v1": "Classic V1",
+      "v1Hint": "Sunrise and storm scenes.",
+      "minimal": "Minimal",
+      "minimalHint": "No animation, the theme changes instantly."
+    },
+    "sound": {
+      "title": "Transition sound",
+      "info": "Turns the Tactical V3 transition sound on or off. Switching to dark plays rifle shots and breaking lamp glass, switching to light plays a flare launch and burst. Sound only plays when you press the theme button.",
+      "on": "Sound on",
+      "onHint": "Plays shots, breaking glass and the flare burst.",
+      "off": "Muted",
+      "offHint": "The transition animation plays silently.",
+      "note": "Sound only plays with the Tactical V3 pack."
+    },
+    "deviceNote": "Your preferences are stored only on this device and apply as soon as you choose them."
+  },
+  "ThemeTransition": {
+    "blackout": {
+      "title": "OPERATION BLACKOUT",
+      "status": "LTZ UNIT // GOING DARK"
+    },
+    "daybreak": {
+      "title": "OPERATION DAYBREAK",
+      "status": "LTZ MODE // DAYLIGHT"
+    },
+    "v3": {
+      "blackout": {
+        "status": "LTZ UNIT // GOING DARK",
+        "title": "OPERATION BLACKOUT"
+      },
+      "daybreak": {
+        "title": "OPERATION DAYBREAK",
+        "status": "LTZ UNIT // FIRST LIGHT"
+      }
+    }
+  },
+  "Pages": {
+    "games": {
+      "title": "Games",
+      "description": "Find a game and explore its details and community contributions."
+    },
+    "home": {
+      "title": "Home",
+      "description": "LobbyTwoZero start page"
+    },
+    "about": {
+      "title": "About Us",
+      "description": "What LobbyTwoZero is and what it aims for"
+    },
+    "faq": {
+      "title": "FAQ",
+      "description": "Frequently asked questions"
+    },
+    "contact": {
+      "title": "Contact",
+      "description": "How to reach us"
+    },
+    "kvkk": {
+      "title": "KVKK Privacy Notice",
+      "description": "Notice on the processing of personal data"
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "description": "How your data is handled"
+    },
+    "terms": {
+      "title": "Terms of Use",
+      "description": "Rules for using the platform"
+    },
+    "cookies": {
+      "title": "Cookie Policy",
+      "description": "How cookies and local storage are used"
+    },
+    "settings": {
+      "title": "Settings",
+      "description": "Your appearance, top bar, sidebar and language preferences"
+    },
+    "hardware": {
+      "title": "Hardware",
+      "description": "Explore components, inspect their specifications and compare options for your computer."
+    },
+    "campaigns": {
+      "title": "Campaigns",
+      "description": "Hardware offers with a recorded source and validity window."
+    },
+    "computers": {
+      "title": "My computers",
+      "description": "Manage your computers and components in one place. Choose which information to share."
+    }
+  },
+  "Footer": {
+    "label": "Footer",
+    "tagline": "Discover games, connect with players, and share your experiences. LobbyTwoZero brings the gaming world together in one community.",
+    "groups": {
+      "discover": "Discover",
+      "community": "Community",
+      "performance": "LTZ Performance",
+      "support": "Support"
+    },
+    "socialLabel": "Social media",
+    "socialSoon": "{name} (link coming soon)",
+    "legalNav": "Legal links",
+    "social": {
+      "x": "X",
+      "instagram": "Instagram",
+      "linkedin": "LinkedIn",
+      "github": "LobbyTwoZero GitHub repository"
+    },
+    "legal": "Legal",
+    "copyright": "© {year} LobbyTwoZero. All rights reserved.",
+    "links": {
+      "home": "Home",
+      "about": "About Us",
+      "faq": "FAQ",
+      "contact": "Contact",
+      "kvkk": "KVKK Privacy Notice",
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Use",
+      "cookies": "Cookie Policy",
+      "settings": "Settings"
+    }
+  },
   "Home": {
     "title": "LobbyTwoZero",
-    "description": "A new meeting place for the gaming community."
+    "description": "A game-focused social platform where players discover, talk and play together.",
+    "statusTitle": "Foundation is ready",
+    "statusBody": "The shared shell, theme and language support are working. Hardware and other pages will follow in later steps."
+  },
+  "About": {
+    "hero": {
+      "title": "Five players. One lobby.",
+      "description": "LobbyTwoZero was born from the shared passion of five developers who love playing games. We set out to bring game discovery, player communities, friendships and hardware experiences together in one place."
+    },
+    "story": {
+      "title": "How Did We Start?",
+      "paragraphs": {
+        "one": "Everything about gaming usually lives in different places: discovering games in one, finding friends and teammates in another, and wondering whether your hardware can run a game somewhere else entirely.",
+        "two": "We wanted to bring these pieces together in a single lobby. Each of us takes on a different area while building one shared product.",
+        "three": "LobbyTwoZero is currently in development. What we describe here are our goals, and not all of it is live yet."
+      }
+    },
+    "vision": {
+      "title": "What Are We Aiming For?",
+      "intro": "These are not features that are live today. They are the goals of the product we are building together.",
+      "pillars": {
+        "discover": {
+          "title": "Game Discovery",
+          "body": "Browse games in the catalog, rate them and write reviews."
+        },
+        "social": {
+          "title": "Social Connections",
+          "body": "Make friends, send messages and find players to play with."
+        },
+        "community": {
+          "title": "Player Community",
+          "body": "Come together with the player community through posts and events."
+        },
+        "hardware": {
+          "title": "Hardware and Performance",
+          "body": "Describe your PC hardware, see performance experiences in games and get recommendations."
+        }
+      }
+    },
+    "team": {
+      "title": "The Team Behind This Lobby",
+      "subtitle": "Five developers who work in different areas and share the same passion for games.",
+      "github": "{name} — GitHub",
+      "linkedin": "{name} — LinkedIn",
+      "cv": "{name} — CV",
+      "cvMissingLabel": "{name} — CV (not added yet)",
+      "cvMissingTooltip": "CV not added yet",
+      "members": {
+        "alper": {
+          "role": "Works on hardware profiles, game recommendations and performance experiences."
+        },
+        "nisa": {
+          "role": "Works on community spaces, content and events."
+        },
+        "umut": {
+          "role": "Works on social connections, messaging and team finding."
+        },
+        "hamza": {
+          "role": "Works on the game catalog, library and reviews."
+        },
+        "kerem": {
+          "role": "Works on authentication, user profiles and the e-mail infrastructure."
+        }
+      }
+    },
+    "closing": {
+      "title": "Same Game, Same Lobby.",
+      "body": "We aim to grow LobbyTwoZero for players, together with players."
+    }
+  },
+  "Faq": {
+    "heading": "Frequently Asked Questions",
+    "description": "Find answers to your questions about LobbyTwoZero here.",
+    "categoriesLabel": "Categories",
+    "categories": {
+      "general": "General",
+      "account": "Account and Profile",
+      "games": "Games and Library",
+      "social": "Social and Community",
+      "hardware": "Hardware and Performance",
+      "security": "Security and Privacy"
+    },
+    "items": {
+      "whatIs": {
+        "title": "What is LobbyTwoZero?",
+        "answer": "LobbyTwoZero (LTZ) is a social gaming platform being built for players. It aims to bring game discovery, player communities, friendships and hardware experiences together in one place. The project is in development and features are added step by step."
+      },
+      "purpose": {
+        "title": "Why is LTZ being built?",
+        "answer": "LTZ is being built to make it easier to find what to play, who to play with and how your computer might run a game, all in one place. The goal is to gather these needs in a single lobby instead of spreading them across different sites."
+      },
+      "availability": {
+        "title": "Is the platform available right now?",
+        "answer": "The platform is not fully live yet. The general interface and information pages are ready, while modules such as games, social features and hardware tools are still in development. Items marked “Soon” in the menu are features that are not open yet."
+      },
+      "accountRequired": {
+        "title": "Do I need an account to use LTZ?",
+        "answer": "You do not need an account to browse general pages such as About and FAQ. Personal features such as profile, library and messaging are planned to require an account. The account system is not live yet, so you do not need to sign in right now."
+      },
+      "createAccount": {
+        "title": "How can I create an account?",
+        "answer": "Account creation is in development and not available yet. Sign-up and sign-in steps will be announced on this page when they are ready. Until then, do not trust fake sign-up pages or messages that ask for an account in LTZ's name."
+      },
+      "steamGoogle": {
+        "title": "Can I sign in with Steam or Google?",
+        "answer": "Sign-in with Steam and Google is planned, but it is not available yet. When account linking arrives, it is designed so that an account is only linked with your consent."
+      },
+      "editProfile": {
+        "title": "How can I edit my profile and player preferences?",
+        "answer": "Editing your profile and player preferences is planned together with the account system. It is not live yet, so there is no profile to edit right now. For now, the only things you can change are the appearance, language and navigation preferences on the Settings page, which are stored on this device only."
+      },
+      "deleteAccount": {
+        "title": "Can I delete my account and personal data?",
+        "answer": "Deleting your account and personal data is a right planned to be offered with the account system. The deletion is intended to require identity verification and explicit confirmation. Details such as how long data is kept will be set out in the privacy notices."
+      },
+      "discoverGames": {
+        "title": "Which games can I discover on LTZ?",
+        "answer": "Game discovery is one of LTZ's core goals. We aim to let you browse games by genre, platform and community feedback. This section is not live yet, so there is no game catalog at the moment."
+      },
+      "libraryFavorites": {
+        "title": "How can I manage my favorite games and my library?",
+        "answer": "Adding games you like to your favorites and personal library is among the planned features. My Library will open once the game and account systems are ready; for now it appears as “Soon” in the menu."
+      },
+      "ratingsReviews": {
+        "title": "Can I rate games and write reviews?",
+        "answer": "Rating games and writing reviews is planned. It is not live yet, so no ratings or reviews are shown at the moment. Any ratings shown in the future are intended to be based on real user contributions."
+      },
+      "filterGames": {
+        "title": "Can I filter games by genre and platform?",
+        "answer": "Filtering by genre and platform is a feature intended to arrive with the game catalog. Since the catalog is not live yet, filters are not available at the moment."
+      },
+      "friends": {
+        "title": "How can I make friends on LTZ?",
+        "answer": "Adding friends and a friends list are planned. These features depend on the account system, so they are not available yet; when ready, they will be reachable from the Friends item in the menu."
+      },
+      "messaging": {
+        "title": "Can I message other players?",
+        "answer": "Messaging your friends is among the targeted features. Messaging is not live yet; when it arrives, it is planned to ship together with privacy and safety settings."
+      },
+      "findTeam": {
+        "title": "What is the Find a Team feature?",
+        "answer": "Find a Team is a feature designed to help you find players to play with. The aim is for you to post a listing for a game and join other people's listings. It is not live yet."
+      },
+      "communityPosts": {
+        "title": "How will community posts work?",
+        "answer": "The Community section is planned to let players share posts and interact with each other. It is not live yet, so there are no community posts to view at the moment."
+      },
+      "eventsTournaments": {
+        "title": "Can I join events and tournaments?",
+        "answer": "Listing events and tournaments is a goal. This section is not open yet; when it goes live, details about how to take part will be updated on this page."
+      },
+      "addHardware": {
+        "title": "How can I add my hardware details?",
+        "answer": "Hardware details are designed to be entered manually: you will pick and add components such as the processor, graphics card and memory, and the brand will not be mandatory. Automatically scanning your computer is not part of the first release. This feature is not live yet."
+      },
+      "multipleProfiles": {
+        "title": "Can I create more than one computer profile?",
+        "answer": "The aim is for you to save different systems, such as a desktop and a laptop, as separate computer profiles. This feature is not live yet."
+      },
+      "fpsCompatibility": {
+        "title": "How do estimated FPS and compatibility work?",
+        "answer": "The aim is to offer an estimated FPS and compatibility indication of how a game might run on the hardware you enter. These values are estimates, not measurements, and will be labeled as such. The feature is not live yet, and no FPS value is shown at the moment."
+      },
+      "ltzPerformance": {
+        "title": "What is LTZ Performance?",
+        "answer": "LTZ Performance is the name of the module set aside for hardware and game performance experiences, and it is not live yet. A browser cannot measure processor or graphics card temperature or FPS. Such measurements could only be possible with a desktop app planned for later, which is not part of the first release."
+      },
+      "recommendations": {
+        "title": "How will personal recommendations work?",
+        "answer": "Personal recommendations aim to show games that fit your hardware and gaming preferences. They are designed to be produced by a rule and data based algorithm, not a chatbot. The feature is not live yet."
+      },
+      "accountSecurity": {
+        "title": "How will my account be kept secure?",
+        "answer": "Security is a core part of the design. What you are allowed to do is intended to be decided on the server side, so seeing a screen alone never means you have permission. Details will appear in the Privacy Policy once the account system goes live."
+      },
+      "twoFactor": {
+        "title": "Will there be two-factor authentication?",
+        "answer": "Two-factor authentication is planned, but it is not available yet. Supported methods and setup steps will be announced on this page once the account system is ready."
+      },
+      "visibility": {
+        "title": "Who will be able to see my profile and hardware details?",
+        "answer": "You will be able to choose who sees your profile and hardware details; per-field visibility settings are planned. They are not live yet, so these settings are not available at the moment."
+      },
+      "reporting": {
+        "title": "How can I report inappropriate content or users?",
+        "answer": "Reporting inappropriate content and users, along with content moderation, is planned. This mechanism is not live yet; once it is, how it works will be explained in the Terms of Use."
+      }
+    }
+  },
+  "Contact": {
+    "title": "Contact",
+    "description": "Have an idea, a problem or a suggestion? We would love to hear from you.",
+    "formLabel": "Contact form",
+    "demoNotice": "This contact form is currently in demo. The information you enter is not sent to any server.",
+    "fields": {
+      "name": "Full name",
+      "email": "E-mail",
+      "subject": "Subject",
+      "message": "Message"
+    },
+    "subjectPlaceholder": "Choose a subject",
+    "subjects": {
+      "general": "General question",
+      "feedback": "Feedback",
+      "bug": "Bug report",
+      "collaboration": "Collaboration",
+      "other": "Other"
+    },
+    "messageHint": "Write at least {min} characters.",
+    "counter": "{count} / {max}",
+    "requiredHint": "Fields marked with * are required.",
+    "submit": "Check the form",
+    "errorSummary": "{count, plural, one {# field needs your attention.} other {# fields need your attention.}}",
+    "validated": "Form validation succeeded. Because this is a demo, your message was not sent.",
+    "errors": {
+      "name": {
+        "required": "Enter your full name.",
+        "tooLong": "Full name can be at most {max} characters."
+      },
+      "email": {
+        "required": "Enter your e-mail address.",
+        "invalid": "Enter a valid e-mail address, for example name@example.com.",
+        "tooLong": "E-mail address can be at most {max} characters."
+      },
+      "subject": {
+        "required": "Choose a subject.",
+        "invalid": "Choose a valid subject from the list."
+      },
+      "message": {
+        "required": "Write your message.",
+        "tooShort": "Your message must be at least {min} characters.",
+        "tooLong": "Message can be at most {max} characters."
+      }
+    },
+    "side": {
+      "title": "Your Feedback Matters",
+      "body": "Your ideas and suggestions help us shape LobbyTwoZero. Because the form is currently in demo, what you write is not sent anywhere."
+    }
+  },
+  "Legal": {
+    "statusTitle": "This text has not been published yet",
+    "statusBody": "This document will be published after legal review. There is currently no binding text here.",
+    "backHome": "Back to home"
+  },
+  "Errors": {
+    "title": "Something went wrong",
+    "description": "The page hit a problem while loading. You can try again.",
+    "retry": "Try again"
+  },
+  "NotFound": {
+    "title": "Page not found",
+    "description": "The page you are looking for may have moved or never existed.",
+    "backHome": "Back to home"
+  },
+  "Loading": {
+    "label": "Loading"
+  },
+  "Game": {
+    "catalogue": "Games",
+    "catalogueDescription": "Find a game and explore its details and community contributions.",
+    "detail": "Game details",
+    "search": "Search games",
+    "sort": "Sort by",
+    "sortTitle": "Game title",
+    "sortPopularity": "Popularity",
+    "loading": "Loading…",
+    "retry": "Try again",
+    "unknown": "Not available",
+    "missingDescription": "A description is not available for this game yet.",
+    "metadataStatus": "Detail coverage: {status}",
+    "releaseDate": "Release date",
+    "developers": "Developer",
+    "platforms": "Platforms",
+    "modules": "Explore this game",
+    "total": "{count} results",
+    "emptyModule": "There is no visible content in this section yet.",
+    "emptyCatalogue": "No games match this search. Try a different search.",
+    "emptySearch": "No games match “{query}”. Change the spelling or search the Steam index.",
+    "emptyFilters": "No games match the selected filters. Try removing some filters.",
+    "emptyCatalogueAll": "There are no games in the catalogue yet. The Steam catalogue may not have been fetched yet.",
+    "syncRunningHint": "The Steam catalogue is being synchronised: {indexed} entries indexed, {main} games classified. Games appear here as they are classified; you can search the index meanwhile.",
+    "emptyUnclassifiedHint": "{indexed} Steam entries are indexed but none is classified as a main game yet. You can search the index.",
+    "datePickerOpen": "Open calendar",
+    "datePickerDialog": "Choose date",
+    "datePickerPlaceholder": "mm/dd/yyyy",
+    "datePickerToday": "Today",
+    "datePickerClear": "Clear",
+    "datePickerPrevMonth": "Previous month",
+    "datePickerNextMonth": "Next month",
+    "datePickerMonth": "Month",
+    "datePickerYear": "Year",
+    "datePickerInvalid": "Enter a valid date (e.g. {example}).",
+    "comboboxShowOptions": "Show suggestions",
+    "comboboxNoOptions": "No matching suggestions. You can type the code.",
+    "languagePlaceholder": "Choose or type a code",
+    "genrePlaceholder": "Choose or type a genre",
+    "platformPlaceholder": "Choose or type a platform",
+    "backToGames": "Back to games",
+    "backToContent": "Back to list",
+    "previous": "Previous",
+    "next": "Next",
+    "page": "Page {page}",
+    "pagination": "Pagination",
+    "interactions": "{likes} likes · {comments} comments",
+    "types": {
+      "ACHIEVEMENTS": "Achievements",
+      "GUIDES": "Guides",
+      "EASTER_EGGS": "Easter eggs",
+      "EXPERIENCES": "Player experiences"
+    },
+    "errors": {
+      "400": "This request is invalid. Check your search or selection.",
+      "401": "Your session is invalid or has expired. Sign in again and retry.",
+      "403": "You do not have permission to do this.",
+      "404": "This game or content is no longer available.",
+      "409": "The record may have changed. Try again.",
+      "422": "This content is not valid for the game or action. Check the fields and game status.",
+      "429": "Too many requests. Wait a while before trying again.",
+      "500": "The request could not be completed. Try again.",
+      "502": "The service could not be reached. Try again later.",
+      "503": "The service is temporarily unavailable. Try again later.",
+      "504": "The response took too long. Try again.",
+      "network": "Could not load the data. Check your connection and try again."
+    },
+    "coverage": {
+      "INDEX_ONLY": "Basic catalogue information",
+      "PARTIAL": "Partial details",
+      "FULL": "Detailed information",
+      "UNKNOWN": "Not verified yet"
+    },
+    "filters": "Filters",
+    "all": "All",
+    "yes": "Yes",
+    "no": "No",
+    "clearFilters": "Clear filters",
+    "filterHelp": "Pick a genre and platform from the list or type a catalogue code. For language use the full language code such as tr-tr or en-us (you can also pick it from the list). Missing data does not match an active filter. Prices belong to the selected market.",
+    "rating": "LTZ rating",
+    "ratingValue": "{rating}/10 · {count} ratings",
+    "unrated": "Not rated yet",
+    "ratingUnavailable": "Rating unavailable",
+    "ratingPending": "Rating data is not ready yet. Remove the rating filter and choose another sort.",
+    "direction": "Sort direction",
+    "ascending": "Ascending",
+    "descending": "Descending",
+    "prices": "Store prices",
+    "checkedAt": "Checked: {date}",
+    "verifiedAt": "Verified: {date}",
+    "notVerified": "Not verified yet",
+    "parentGame": "Base game",
+    "dlcTitle": "DLC ({count})",
+    "descriptionLanguageNote": "This description is only available in {language}; it has not been translated.",
+    "recordedAt": "Retrieved from source: {date}",
+    "openStore": "Visit store",
+    "priceDisclaimer": "Store prices may change. Links may be affiliate links. No currency conversion is applied. Source:",
+    "gameInformation": "Game information",
+    "languageSupport": "Language support",
+    "interface": "Interface",
+    "audio": "Audio",
+    "subtitles": "Subtitles",
+    "requirements": "System requirements",
+    "minimum": "Minimum",
+    "recommended": "Recommended",
+    "media": "Images and videos",
+    "openVideo": "Open video",
+    "openDemo": "Open demo",
+    "dataSources": "Data sources and freshness",
+    "igdbAttribution": "Game details provided by IGDB.",
+    "developerContent": "From the developer",
+    "developerContentNotice": "This section is published by the authorised game developer and is separate from catalogue data.",
+    "manageGames": "Game management",
+    "myFeedback": "My feedback",
+    "receivedFeedback": "Received feedback",
+    "sendFeedback": "Send feedback",
+    "feedbackSignIn": "Sign in to send feedback and view your own submissions.",
+    "startFeedback": "Start working on this",
+    "resolveFeedback": "Mark as resolved",
+    "reload": "Reload current record",
+    "signInRequired": "Sign in to access game management. The server checks permissions for every action.",
+    "createGame": "Create game",
+    "editGame": "Edit game",
+    "loadGame": "Open game",
+    "archiveGame": "Archive game",
+    "restoreGame": "Restore game",
+    "gameStatus": "Status: {status}",
+    "listHelp": "Separate multiple values with commas. Genre, category, tag and platform fields use catalogue codes. Only changed fields are saved.",
+    "manualOverrides": "Manually protected fields",
+    "noOverrides": "No manual overrides.",
+    "releaseOverride": "Allow provider updates again",
+    "developerGrants": "Developer permissions",
+    "grantDeveloper": "Grant developer access",
+    "revokeDeveloper": "Revoke developer access",
+    "popularSelection": "Update featured game selection",
+    "manageAchievements": "Achievement definitions",
+    "addAchievement": "Add achievement",
+    "editAchievement": "Edit achievement",
+    "visible": "Visible",
+    "hidden": "Hidden",
+    "edit": "Edit",
+    "cancelEdit": "Cancel editing",
+    "editDeveloperDescription": "Edit developer description",
+    "addMedia": "Add an image, video or demo",
+    "deleteMedia": "Delete media",
+    "addNote": "Add update note",
+    "editNote": "Edit update note",
+    "deleteNote": "Delete update note",
+    "moderationReason": "Moderation reason",
+    "noManagedGames": "You have no games assigned to you.",
+    "moderateContent": "Moderate developer content",
+    "confirmAction": "I confirm this action.",
+    "save": "Save",
+    "saved": "Action completed.",
+    "saving": "Saving…",
+    "characters": "{count}/{max} characters",
+    "mutationUnknown": "The result could not be confirmed. Reload the current record before submitting again.",
+    "fields": {
+      "genre": "Genre",
+      "platform": "Platform",
+      "language": "Language code",
+      "releasedAfter": "Released on or after",
+      "releasedBefore": "Released on or before",
+      "minRating": "Minimum LTZ rating (1–10)",
+      "popularOnly": "Featured games only",
+      "discountedOnly": "Current discounts only",
+      "country": "Country",
+      "currency": "Currency",
+      "title": "Title",
+      "description": "Description",
+      "releaseDate": "Release date",
+      "earlyAccess": "Early access",
+      "gameType": "Entry type",
+      "developers": "Developers",
+      "publishers": "Publishers",
+      "languages": "Languages",
+      "genres": "Genres",
+      "categories": "Categories",
+      "tags": "Tags",
+      "platforms": "Platforms",
+      "coverUrl": "Cover URL",
+      "os": "Operating system",
+      "cpu": "Processor",
+      "gpu": "Graphics card",
+      "ram": "Memory",
+      "storage": "Storage",
+      "gameId": "Game ID",
+      "developerUserId": "Developer user ID",
+      "reason": "Reason (at least 8 characters)",
+      "gameIds": "Ordered game IDs",
+      "type": "Type",
+      "status": "Status",
+      "body": "Body",
+      "url": "HTTPS URL",
+      "altText": "Image description",
+      "target": "Content type",
+      "targetId": "Content ID (leave empty for description)",
+      "action": "Action",
+      "code": "Achievement code",
+      "visible": "Visibility",
+      "syncStatus": "Sync status"
+    },
+    "choices": {
+      "MAIN_GAME": "Main game",
+      "DLC": "DLC",
+      "DEMO": "Demo",
+      "SOUNDTRACK": "Soundtrack",
+      "SOFTWARE": "Software",
+      "VIDEO": "Video",
+      "PACKAGE": "Package",
+      "HARDWARE": "Hardware",
+      "UNKNOWN": "Unknown",
+      "true": "Yes",
+      "false": "No",
+      "GENERAL": "General feedback",
+      "BUG_REPORT": "Bug report",
+      "EARLY_ACCESS": "Early access feedback",
+      "OPEN": "Open",
+      "IN_PROGRESS": "In progress",
+      "RESOLVED": "Resolved",
+      "IMAGE": "Image",
+      "DESCRIPTION": "Description",
+      "MEDIA": "Media",
+      "UPDATE_NOTE": "Update note",
+      "HIDE": "Hide",
+      "RESTORE": "Restore",
+      "ACTIVE": "Active",
+      "ARCHIVED": "Archived",
+      "MERGED": "Merged"
+    },
+    "support": {
+      "SUPPORTED": "Supported",
+      "UNSUPPORTED": "Not supported",
+      "UNKNOWN": "Unknown"
+    },
+    "priceStates": {
+      "STALE": "The stored price has expired and is not shown as a current offer.",
+      "NO_OFFER": "No offers were found for this market at the last check.",
+      "UNAVAILABLE": "Verified price information is not available for this market."
+    },
+    "workspace": {
+      "admin": "Games and permissions",
+      "developer": "Developer area",
+      "moderation": "Content moderation"
+    },
+    "overrideFields": {
+      "TITLE": "Title",
+      "DESCRIPTION": "Description",
+      "RELEASE_DATE": "Release date",
+      "GAME_TYPE": "Entry type",
+      "DEVELOPERS": "Developers",
+      "PUBLISHERS": "Publishers",
+      "LOCALIZATION": "Localisation"
+    },
+    "activeFilters": "Active filters",
+    "activeGrants": "Active grants",
+    "addValue": "Add",
+    "adminGames": "Games",
+    "allGames": "All games",
+    "applyFilters": "Apply filters",
+    "autoRetryStopped": "Automatic retries stopped; the run must be resumed manually from the application service.",
+    "catalogStatus": "Catalogue index status",
+    "catalogStatusHelp": "Latest state of the Steam index import. Sync cannot be started or stopped from this screen.",
+    "catalogueSections": "Catalogue sections",
+    "changeGame": "Change game",
+    "conflictDraftKept": "Your changes were not discarded. Load the latest record, review your changes and save again.",
+    "cover": "Cover",
+    "coverageLabel": "Detail coverage",
+    "createdAt": "Created",
+    "createdOn": "Created: {date}",
+    "descriptionSource": "This description comes from the catalogue source. The developer's own description is in the \"From the developer\" section.",
+    "developerDescription": "Developer description",
+    "discountPercent": "{percent}% off",
+    "earlyAccessBadge": "Early access",
+    "editorRank": "Editor rank #{rank}",
+    "editorsPicks": "Editor's Picks",
+    "editorsPicksHelp": "This list is hand-picked by editors. It is not a trend or popularity measure based on player activity.",
+    "emptyDeveloperContent": "The developer has not published any content yet.",
+    "emptyPicks": "No editor's picks yet",
+    "emptyPicksHelp": "The editor list is currently empty. You can browse all games instead.",
+    "feedbackDistinct": "This feedback goes privately to the game's developer. It is not a game review or rating; reviews are written in the Review service.",
+    "feedbackFor": "Selected game:",
+    "feedbackPickGame": "Search for the game you want to send feedback about",
+    "feedbackPrivacy": "Your feedback is not public; only you and the game's authorised developers can see it.",
+    "filterErrors": {
+      "dateRange": "The earliest release date cannot be after the latest release date.",
+      "minRating": "The minimum rating must be between 1 and 10 with at most two decimals."
+    },
+    "filterNotSent": "The invalid filter was not sent.",
+    "findGame": "Find a game",
+    "foreignReferenceBlocked": "A safety guard stopped this action: game references in other services cannot be verified, so external identity reassign and split cannot be applied right now.",
+    "freshness": {
+      "LOCAL": "Local record",
+      "UNSUPPORTED": "Provider refresh is not supported for this record",
+      "MISSING": "Provider data has not been fetched yet",
+      "FRESH": "Up to date",
+      "STALE": "Out of date"
+    },
+    "freshnessLabel": "Data freshness",
+    "gallery": "Image gallery",
+    "galleryNext": "Next image",
+    "galleryPosition": "{index} / {count}",
+    "galleryPrevious": "Previous image",
+    "galleryShow": "Show image {index}",
+    "grantScopeHelp": "This grant applies to this game only. The user's GAME_DEVELOPER role is managed separately in the Auth service and cannot be changed here.",
+    "grantedAt": "Granted: {date}",
+    "grantedUser": "User ID",
+    "help": {
+      "developers": "Add values one by one; Enter or a comma starts a new value.",
+      "publishers": "Add values one by one; Enter or a comma starts a new value.",
+      "languages": "Add language codes (e.g. tr, en).",
+      "genres": "Add catalogue codes (e.g. rpg).",
+      "categories": "Add catalogue codes.",
+      "tags": "Add catalogue codes.",
+      "platforms": "Add catalogue codes (e.g. pc).",
+      "coverUrl": "Only https:// links are accepted.",
+      "url": "Only https:// links are accepted.",
+      "reason": "This reason is written to the audit log.",
+      "developerUserId": "User ID from the Auth service (UUID).",
+      "targetId": "Required for media and update notes; leave empty for the description.",
+      "code": "Lowercase letters, digits and hyphens (e.g. first-win)."
+    },
+    "hiddenEditBlocked": "This content was hidden by moderation and cannot be edited while hidden.",
+    "identityBlockedBody": "Moving an external identity to another game or splitting it off also affects game references in other services such as Library and Review. Until a safe coordination protocol with those services is in place, the server rejects these actions with the FOREIGN_REFERENCE_SAFETY_UNVERIFIED code.",
+    "identityBlockedTitle": "Reassign and split are currently disabled",
+    "identityPoint1": "There is no form or button on this screen that starts these actions.",
+    "identityPoint2": "An operator statement or reason does not bypass the server-side safety guard.",
+    "identityPoint3": "If you notice a wrong mapping, report it to the service owner; records are not edited by hand.",
+    "identityTitle": "External game identity corrections",
+    "lastPage": "Go to the last page",
+    "lifecycle": "Status management",
+    "lifecycleUnavailable": "A record in this state cannot be archived or restored.",
+    "loadById": "Advanced: load by ID",
+    "loadByIdHelp": "Archived games do not appear in public search; you can open such records by ID.",
+    "manualOverridesHelp": "Manually edited fields are protected from provider updates. If you release the protection, provider data may update that field again.",
+    "mediaUrlOnly": "Files are not uploaded; only a secure HTTPS link is added.",
+    "moderationGame": "Game",
+    "moderationScope": "Only the description, media and update notes published by the developer can be hidden or restored. General moderation processes live in the Admin service.",
+    "moderationVisibleHelp": "Public (visible) content is listed below. To restore hidden content, enter the content ID yourself.",
+    "moveDown": "Move {title} down",
+    "moveUp": "Move {title} up",
+    "noGrants": "There is no active developer grant for this game.",
+    "noManagedGamesHelp": "Access is granted per game by an administrator.",
+    "noMedia": "No media added yet",
+    "noNotes": "No update notes yet",
+    "noWorkspaceAccess": "This area requires an administrator, moderator or game developer permission.",
+    "none": "None",
+    "notRecorded": "Not recorded",
+    "opensExternal": "opens in a new tab",
+    "overrideLockedAt": "Locked at: {date}",
+    "pageOf": "Page {page} of {pages}",
+    "pageOutOfRange": "This page no longer exists",
+    "pageSections": "Page sections",
+    "pickerEmpty": "No matching game found.",
+    "pickerHelp": "Search matches the start of the game title. Only public main games are listed.",
+    "pickerLabel": "Search games",
+    "pickerSelect": "Select",
+    "popularAdd": "Add a game to the list",
+    "popularClearWarning": "The list is empty: saving will clear the current editor selection completely.",
+    "popularEligibility": "Only active main games can be selected. The current list is read from the public endpoint; because it shows eligible games only, older ineligible entries may not appear here.",
+    "popularEmptyHelp": "Add games to build an ordered editor list.",
+    "popularEmptyList": "No games in the list",
+    "popularLimit": "At most {max} games can be selected.",
+    "popularReplaceWarning": "Saving replaces the current editor list. Saving an empty list clears the selection completely.",
+    "popularSave": "Save editor list",
+    "popularSelected": "Selected games (ordered)",
+    "providedByDeveloper": "Provided by the developer",
+    "providerTotal": "Provider total: {count}",
+    "providerTotalUnknown": "The provider's total record count is unknown, so no completion percentage is calculated.",
+    "ratingCount": "{count} ratings",
+    "recordVersion": "Version {version}",
+    "refreshStatus": "Refresh status",
+    "releaseUnknown": "Release date unknown",
+    "remove": "Remove",
+    "removeFilter": "Remove filter {filter}",
+    "removeFromList": "Remove {title} from the list",
+    "removeValue": "Remove {value}",
+    "runModes": {
+      "INITIAL": "Initial import",
+      "INCREMENTAL": "Incremental import"
+    },
+    "sections": {
+      "overview": "Overview",
+      "information": "Details",
+      "dlc": "DLC",
+      "prices": "Prices",
+      "developer": "From the developer",
+      "community": "Community",
+      "feedback": "Feedback"
+    },
+    "selectedGame": "Selected game",
+    "statusFields": {
+      "provider": "Provider",
+      "runMode": "Run mode",
+      "cursor": "Cursor (last applied AppID)",
+      "processedCount": "Processed entries",
+      "indexedEntries": "Indexed entries",
+      "mainGameEntries": "Main game entries",
+      "unclassifiedEntries": "Unclassified entries",
+      "lastSuccessfulAt": "Last successful import",
+      "failureCount": "Consecutive failed pages",
+      "lastErrorCode": "Last error code",
+      "nextAttemptAt": "Next attempt"
+    },
+    "syncStatuses": {
+      "IDLE": "Idle",
+      "RUNNING": "Running",
+      "COMPLETE": "Complete",
+      "FAILED": "Failed"
+    },
+    "tabs": {
+      "description": "Description",
+      "media": "Media",
+      "notes": "Update notes"
+    },
+    "unknownSupportNote": "“Unknown” does not mean unsupported; the source did not provide this information.",
+    "unsavedChanges": "You have unsaved changes.",
+    "updateNotes": "Update notes",
+    "updatedAt": "Updated",
+    "updatedOn": "Updated: {date}",
+    "viewGrid": "Cards",
+    "viewList": "List",
+    "viewMode": "View",
+    "yourGames": "Games you can manage",
+    "archiveHelp": "An archived game is removed from the public catalogue. The record is not deleted; you can restore it later.",
+    "restoreHelp": "A restored game appears in the public catalogue again.",
+    "emptyFeedback": "You have not sent any feedback yet",
+    "emptyFeedbackDeveloper": "There is no feedback for this game",
+    "hideDetail": "Hide details",
+    "showDetail": "Show details",
+    "showLess": "Show less",
+    "showMore": "Show more",
+    "invalidMediaUrl": "The link was not accepted. Images may only come from Steam image addresses (https, .jpg/.png/.webp/.gif), videos from YouTube or Vimeo, and demos from a Steam store page.",
+    "mediaSources": {
+      "cover": "Only Steam image addresses (shared.akamai.steamstatic.com, shared.fastly.steamstatic.com, cdn.akamai.steamstatic.com) with a .jpg/.png/.webp/.gif extension are accepted.",
+      "all": "Image: Steam image addresses (.jpg/.png/.webp/.gif). Video: YouTube or Vimeo. Demo: Steam store page. https only."
+    },
+    "developerGallery": "Developer images",
+    "indexSearch": "Search the Steam index",
+    "indexSearchHelp": "Only the local Steam index is searched (matches the start of the title); no request goes to the provider. Unclassified entries do not appear in the public catalogue.",
+    "indexSearchButton": "Search",
+    "includeUnclassified": "Include unclassified entries",
+    "indexNoResults": "No index entries match this search.",
+    "openInAdmin": "Open in management"
+  },
+  "Auth": {
+    "shell": {
+      "brand": "LTZ home",
+      "back": "Back to home",
+      "legalNav": "Legal links",
+      "privacy": "Privacy",
+      "terms": "Terms of use",
+      "copyright": "© LobbyTwoZero",
+      "login": {
+        "eyebrow": "Welcome to the lobby",
+        "headlineStart": "Pick up the game",
+        "headlineAccent": "where you left off.",
+        "subline": "Discover games, manage your profile and meet your community again."
+      },
+      "register": {
+        "eyebrow": "Your new lobby is waiting",
+        "headlineStart": "Open a new door",
+        "headlineAccent": "to your game world.",
+        "subline": "Create your profile, discover new games and meet players who share your passion."
+      },
+      "navLabel": "Navigation",
+      "navLogin": "Sign in",
+      "navRegister": "Sign up",
+      "welcomeLabel": "Welcome"
+    },
+    "login": {
+      "metaTitle": "Sign in",
+      "title": "Sign in",
+      "formLabel": "Sign-in form",
+      "identifier": "Email or username",
+      "identifierPlaceholder": "Your email address or username",
+      "password": "Password",
+      "passwordPlaceholder": "Your password",
+      "show": "Show password",
+      "hide": "Hide password",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "retryIn": "Try again in {time}",
+      "noAccount": "Don't have an account yet?",
+      "toRegister": "Sign up",
+      "verifiedNotice": "Your email address is verified. You can sign in now.",
+      "forgot": "Forgot password",
+      "resetNotice": "Your password was updated. You can sign in with your new password.",
+      "verifyLink": "Verify my email"
+    },
+    "session": {
+      "account": "My account"
+    },
+    "time": {
+      "seconds": "{count} seconds",
+      "minutes": "{count} minutes"
+    },
+    "fields": {
+      "identifier": {
+        "required": "Enter your email address or username.",
+        "tooLong": "Must be at most {max} characters."
+      },
+      "password": {
+        "required": "Enter your password.",
+        "tooLong": "Must be at most {max} characters.",
+        "tooShort": "Must be at least {min} characters.",
+        "weak": "This password is easy to guess. Choose a longer, unique password.",
+        "invalid": "The password is not valid."
+      },
+      "username": {
+        "required": "Choose a username.",
+        "pattern": "3–20 characters; letters, digits and underscore only.",
+        "taken": "This username is already taken.",
+        "invalid": "The username is not valid."
+      },
+      "email": {
+        "required": "Enter your email address.",
+        "invalid": "Enter a valid email address.",
+        "tooLong": "Must be at most {max} characters."
+      },
+      "acceptTerms": {
+        "required": "You must accept the terms to continue."
+      },
+      "code": {
+        "required": "Enter the verification code.",
+        "pattern": "The code must be 6 digits.",
+        "failed": "The code is invalid, expired or out of attempts. You can request a new one."
+      },
+      "verifyPassword": {
+        "required": "Enter the password you chose when signing up.",
+        "tooLong": "Must be at most {max} characters."
+      },
+      "newPassword": {
+        "required": "Enter your new password.",
+        "tooShort": "Must be at least {min} characters.",
+        "tooLong": "Must be at most {max} characters.",
+        "weak": "This password is easy to guess. Choose a longer, unique password.",
+        "same": "The new password must differ from your current one.",
+        "invalid": "The password is not valid."
+      },
+      "confirmation": {
+        "required": "Enter your password again.",
+        "mismatch": "The passwords do not match."
+      }
+    },
+    "errors": {
+      "INVALID_CREDENTIALS": "The email, username or password is incorrect.",
+      "EMAIL_NOT_VERIFIED": "Your email address is not verified yet. Finish verification with the code sent when you registered.",
+      "ACCOUNT_SUSPENDED": "Your account is temporarily suspended.",
+      "ACCOUNT_BANNED": "Your account has been banned.",
+      "ACCOUNT_UNAVAILABLE": "This account is not available right now.",
+      "ACCOUNT_DELETION_PENDING": "Your account deletion has started. You can cancel before the grace period ends.",
+      "TWO_FACTOR_ENROLLMENT_REQUIRED": "This account must set up two-step verification. This step is not supported on this screen yet.",
+      "MFA_NOT_SUPPORTED": "This account requires two-step verification. This step is not supported on this screen yet.",
+      "CSRF_TOKEN_INVALID": "The security check failed. Refresh the page and try again.",
+      "TOO_MANY_ATTEMPTS": "Too many attempts. Try again in {time}.",
+      "SERVICE_BUSY": "The service is busy right now. Try again shortly.",
+      "NETWORK": "Could not reach the server. Check your connection and try again.",
+      "UNKNOWN": "Something went wrong. Please try again.",
+      "VALIDATION_FAILED": "Some details are not valid. Check the fields and try again.",
+      "MFA_FAILED": "The code is invalid or the verification session has expired. Try again or go back to sign in.",
+      "INVALID_TWO_FACTOR_CODE": "The code is wrong. Try again.",
+      "ACCOUNT_LINK_REQUIRED": "An account with this email address already exists. Sign in with your email and password first, then link this account.",
+      "ACCOUNT_EMAIL_REQUIRED": "This action needs a verified email address on your account. Add and verify an email first."
+    },
+    "register": {
+      "metaTitle": "Sign up",
+      "title": "Sign up",
+      "description": "Create your LTZ account and join the community.",
+      "formLabel": "Sign-up form",
+      "username": "Username",
+      "usernamePlaceholder": "Choose a username",
+      "usernameHint": "3–20 characters; letters, digits and underscore.",
+      "email": "Email",
+      "emailPlaceholder": "Enter your email address",
+      "password": "Password",
+      "passwordPlaceholder": "Choose a password",
+      "passwordHint": "At least {min} characters. Use a strong, unique password.",
+      "terms": "I accept the <terms>Terms of use</terms>. See the <privacy>Privacy policy</privacy> for how personal data is handled.",
+      "submit": "Create account",
+      "submitting": "Creating account…",
+      "nextStep": "Next step: verify your email address.",
+      "haveAccount": "Already have an account?",
+      "toLogin": "Sign in"
+    },
+    "verify": {
+      "metaTitle": "Email verification",
+      "title": "Verify your email",
+      "description": "Enter the 6-digit code we sent to your address.",
+      "formLabel": "Email verification form",
+      "email": "Email",
+      "code": "Verification code",
+      "codeHint": "{length}-digit code. You can copy it from the email and paste it here.",
+      "password": "The password you chose when signing up",
+      "passwordHint": "Needed to confirm the account is yours. It is not stored.",
+      "submit": "Verify email",
+      "submitting": "Verifying…",
+      "resend": "Resend code",
+      "resendIn": "Wait {time} to resend",
+      "resent": "A new code was sent (if the address is registered). Check your inbox.",
+      "backToLogin": "Back to sign in"
+    },
+    "forgot": {
+      "metaTitle": "Forgot password",
+      "title": "Forgot your password?",
+      "description": "Enter your email address and, if it is registered, we will send you a reset link.",
+      "formLabel": "Password reset request form",
+      "email": "Email",
+      "emailPlaceholder": "Enter your email address",
+      "submit": "Send link",
+      "resend": "Send again",
+      "submitting": "Sending…",
+      "sent": "If this address is registered, we sent a password reset link. Check your inbox and spam folder.",
+      "backToLogin": "Back to sign in"
+    },
+    "reset": {
+      "metaTitle": "Password reset",
+      "title": "Set a new password",
+      "description": "You came from the link in your email. Set your new password.",
+      "formLabel": "Password reset form",
+      "newPassword": "New password",
+      "confirmation": "New password (again)",
+      "submit": "Update password",
+      "submitting": "Updating…",
+      "tokenInvalid": "This link is invalid or has expired. You can request a new password reset link.",
+      "requestNew": "Request a new link"
+    },
+    "social": {
+      "or": "or",
+      "login": {
+        "google": "Sign in with Google",
+        "steam": "Sign in with Steam"
+      },
+      "register": {
+        "google": "Sign up with Google",
+        "steam": "Sign up with Steam"
+      }
+    },
+    "callback": {
+      "metaTitle": "Sign-in result",
+      "title": "Connecting your account",
+      "processing": "Finishing up…",
+      "empty": "This page is only for returning from Google or Steam sign-in. You can start again from the sign-in page.",
+      "mfa": "This account requires two-step verification. This step is not supported on this screen yet.",
+      "linked": "Your account is connected.",
+      "backToLogin": "Back to sign in",
+      "toHome": "Go to home",
+      "errors": {
+        "EXTERNAL_AUTH_FAILED": "Sign-in could not be verified. Please try again.",
+        "EXTERNAL_EMAIL_UNVERIFIED": "Your email address at the provider is not verified. Verify it there first, then try again.",
+        "ACCOUNT_LINK_REQUIRED": "An account with this email address already exists. Sign in with your email and password first, then link this account.",
+        "EMAIL_NOT_VERIFIED": "Your email address is not verified yet. Finish verification with the code sent when you registered.",
+        "ACCOUNT_SUSPENDED": "Your account is temporarily suspended.",
+        "ACCOUNT_BANNED": "Your account has been banned.",
+        "ACCOUNT_UNAVAILABLE": "This account is not available right now.",
+        "TWO_FACTOR_ENROLLMENT_REQUIRED": "This account must set up two-step verification. This step is not supported on this screen yet.",
+        "PROVIDER_NOT_CONFIGURED": "This sign-in method is not available right now.",
+        "UNKNOWN": "Something went wrong. Please try again."
+      },
+      "username": {
+        "formLabel": "Finish account form",
+        "submit": "Continue",
+        "submitting": "Creating your account…"
+      },
+      "google": {
+        "description": "You're new here with your Google account. Pick a username to continue; it is how others see you on LTZ.",
+        "tokenInvalid": "The sign-up link is invalid or has expired. Start signing in with Google again."
+      },
+      "steam": {
+        "description": "You're new here with your Steam account. Pick a username to continue. Steam does not share an email address, so none is asked for.",
+        "tokenInvalid": "The sign-up link is invalid or has expired. Start signing in with Steam again."
+      }
+    },
+    "mfa": {
+      "submitting": "Submitting…",
+      "verify": {
+        "formLabel": "Two-step verification form",
+        "description": "Enter the 6-digit code from your authenticator app.",
+        "recoveryDescription": "If you cannot reach your authenticator app, enter one of your recovery codes. Each code works only once.",
+        "code": "Verification code",
+        "recoveryCode": "Recovery code",
+        "codeInvalid": "Enter a 6-digit code.",
+        "recoveryInvalid": "A recovery code looks like XXXXX-XXXXX.",
+        "submit": "Verify",
+        "useRecovery": "Use a recovery code",
+        "useCode": "Use an app code",
+        "cancel": "Cancel",
+        "restart": "Back to sign in"
+      },
+      "enroll": {
+        "intro": "You need to set up two-step verification for this account. We will show a key; add it to your authenticator app.",
+        "start": "Start setup",
+        "formLabel": "Two-step verification setup form",
+        "scan": "Add a new account in your authenticator app (for example Google Authenticator), enter the key below, then type the code the app shows.",
+        "secret": "Setup key (shown only now)",
+        "openApp": "Open in app",
+        "activate": "Activate and sign in",
+        "done": "Two-step verification is on and you are signed in.",
+        "recoveryDescription": "Save your recovery codes somewhere safe. They will not be shown again; use them if you lose access to your phone.",
+        "recoveryList": "Recovery codes",
+        "saved": "I saved my recovery codes somewhere safe.",
+        "continue": "Continue"
+      }
+    },
+    "deleteAccount": {
+      "metaTitle": "Delete account",
+      "title": "Confirm account deletion",
+      "description": "This starts the process of deleting your account. Type your username to confirm.",
+      "formLabel": "Account deletion confirmation form",
+      "username": "Your username",
+      "usernameHint": "Type your account username exactly to confirm.",
+      "submit": "Delete my account",
+      "submitting": "Submitting…",
+      "warning": "When you confirm, all your sessions are closed. You can undo this within 14 days; after that your personal data is permanently deleted.",
+      "tokenInvalid": "This link is invalid or has expired. Start a new deletion request from your account settings.",
+      "confirmationInvalid": "The username did not match or the link has expired. Check the username; if it keeps failing, start a new deletion request.",
+      "needLogin": "You need to be signed in for this. Sign in, then open the link from the email again.",
+      "adminForbidden": "An administrator account cannot be deleted. The administrator role must be removed first.",
+      "done": "Your deletion request was received. Your sessions were closed.",
+      "doneDetail": "Within 14 days you can cancel by signing in with your email or username and password; after that your personal data is permanently deleted.",
+      "toHome": "Go to home page",
+      "toLogin": "Sign in"
+    },
+    "cancelDeletion": {
+      "metaTitle": "Cancel account deletion",
+      "title": "Cancel account deletion",
+      "description": "Your account is being deleted. You can cancel before the grace period ends and your account will be usable again.",
+      "formLabel": "Cancel account deletion form",
+      "code": "2FA code (if enabled)",
+      "codeHint": "If two-step verification is on, enter the 6-digit code from your app or a recovery code.",
+      "codeInvalid": "Enter a 6-digit code or a recovery code like XXXXX-XXXXX.",
+      "submit": "Cancel deletion",
+      "submitting": "Submitting…",
+      "done": "Your deletion request was cancelled. Your account is usable again.",
+      "toLogin": "Sign in",
+      "notPending": "This account has no pending deletion request.",
+      "windowClosed": "The grace period has ended; the account can no longer be recovered.",
+      "invalidCode": "The two-step verification code is wrong. Try again.",
+      "noPassword": "This screen does not work for accounts created only with Google or Steam; contact support.",
+      "fromLogin": "Cancel the deletion request",
+      "back": "Back to sign in"
+    }
+  },
+  "Hardware": {
+    "common": {
+      "loading": "Loading hardware…",
+      "reload": "Reload",
+      "unknown": "Unknown",
+      "noImage": "Image unavailable",
+      "clear": "Clear",
+      "previous": "Previous",
+      "next": "Next",
+      "page": "{page} / {total}",
+      "pagination": "Pagination",
+      "close": "Close",
+      "cancel": "Cancel",
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Changes saved.",
+      "edit": "Edit",
+      "delete": "Delete",
+      "confirmDelete": "Confirm deletion",
+      "deleting": "Deleting…",
+      "search": "Search",
+      "breadcrumb": "Breadcrumb",
+      "required": "This field is required."
+    },
+    "categories": {
+      "CPU": "Processor",
+      "GPU": "Graphics card",
+      "RAM": "Memory",
+      "MOTHERBOARD": "Motherboard",
+      "STORAGE": "Storage",
+      "COOLING": "Cooling",
+      "PSU": "Power supply",
+      "MONITOR": "Monitor",
+      "KEYBOARD": "Keyboard",
+      "MOUSE": "Mouse",
+      "HEADSET": "Headset",
+      "OTHER": "Other"
+    },
+    "devices": {
+      "DESKTOP": "Desktop",
+      "LAPTOP": "Laptop",
+      "OTHER": "Other"
+    },
+    "specs": {
+      "capacityGb": "Capacity (GB)",
+      "clockMhz": "Clock (MHz)",
+      "coreCount": "Core count",
+      "powerWatts": "Power (W)",
+      "memoryType": "Memory type",
+      "socket": "Socket",
+      "interfaceType": "Interface",
+      "formFactor": "Form factor"
+    },
+    "catalog": {
+      "title": "Hardware",
+      "description": "Explore components, inspect their specifications and compare options for your computer.",
+      "categories": "Hardware categories",
+      "all": "All",
+      "allCategories": "All categories",
+      "filters": "Filters",
+      "brand": "Brand",
+      "brandSelect": "Catalog manufacturer",
+      "brandOptional": "Manufacturer selection is optional.",
+      "allBrands": "All manufacturers",
+      "selectedBrand": "Selected manufacturer",
+      "brandIndependent": "Manufacturer-independent model",
+      "min": "Minimum",
+      "max": "Maximum",
+      "apply": "Apply filters",
+      "rangeInvalid": "The maximum must not be lower than the minimum.",
+      "search": "Search models",
+      "view": "View",
+      "grid": "Grid",
+      "list": "List",
+      "results": "{count, number} products",
+      "emptyTitle": "No hardware matches this selection",
+      "emptyDescription": "Try changing your search or filters. Example products are never shown when the catalog is empty.",
+      "brandPlaceholder": "Type a manufacturer or pick from the list",
+      "brandHint": "Catalog manufacturers are suggested; the text you type is matched against manufacturer names.",
+      "technical": "Specifications",
+      "anyValue": "Any",
+      "gpuModel": "Model",
+      "optionsUnavailable": "Options could not load; filters are unavailable for now.",
+      "showFilters": "Show filters",
+      "hideFilters": "Hide filters",
+      "searchPlaceholder": "Search model or manufacturer",
+      "resultsPage": "{from, number}–{to, number} of {total, number}",
+      "tabsHint": "Select the category again to list all hardware."
+    },
+    "comparison": {
+      "title": "Hardware comparison",
+      "selected": "{count} / {max} products selected",
+      "compare": "Compare",
+      "add": "Add to comparison",
+      "remove": "Remove from comparison",
+      "limit": "Select up to {max} different products in the same category. Remove an existing selection to choose another.",
+      "needTwoTitle": "Select products to compare",
+      "needTwo": "The comparison page needs at least two and at most four products. Pick products from the same category in the catalog.",
+      "mixedTitle": "Products are in different categories",
+      "mixed": "Only products in the same category can be compared. Remove one of the products or choose again from the catalog.",
+      "facts": "Only recorded specifications are compared. This table does not infer performance, compatibility or a winner.",
+      "property": "Specification",
+      "components": "Compare components",
+      "componentHint": "Choose two components in the same category on this page. Change component pages to view other entries.",
+      "left": "First component",
+      "right": "Second component",
+      "select": "Select a component",
+      "similar": "Same",
+      "different": "Different",
+      "missing": "Not recorded",
+      "onlyDifferences": "Show differences only",
+      "showAll": "Show all fields",
+      "summary": "{different, number} different, {same, number} same, {missing, number} unrecorded fields",
+      "legend": "Legend",
+      "selectTwo": "Select two to four products from the same category to compare.",
+      "product": "Product",
+      "category": "Category",
+      "noDifferences": "The recorded values of the selected products are identical.",
+      "viewDetails": "Open product page"
+    },
+    "detail": {
+      "title": "Hardware details",
+      "specifications": "Technical specifications",
+      "related": "Models in the same category",
+      "keyFeatures": "Key specifications",
+      "backToCatalog": "Back to catalog",
+      "source": "Data source",
+      "overview": "Overview",
+      "reviewsLink": "Go to reviews",
+      "unavailable": "This product cannot be shown right now."
+    },
+    "reviews": {
+      "title": "User reviews",
+      "write": "Share your experience",
+      "edit": "Edit review",
+      "rating": "Rating (optional)",
+      "noRating": "Not rated",
+      "ratingValue": "{rating, number} / 5",
+      "ratingLabel": "Rating",
+      "clearRating": "Remove rating",
+      "body": "Your experience",
+      "bodyHint": "Up to 5,000 characters. Do not share personal information or inappropriate content.",
+      "report": "Report",
+      "reason": "Report reason",
+      "details": "Details (optional)",
+      "reportSaved": "Report saved. Delivery to the moderation system has not been confirmed.",
+      "yours": "Your review",
+      "member": "User experience",
+      "unrated": "No ratings yet.",
+      "summary": "{average} / 5 · {count, number} rated reviews",
+      "emptyTitle": "No visible reviews yet",
+      "emptyDescription": "Share your experience with this product to add the first review.",
+      "mine": "My reviews",
+      "mineHint": "Your review pages show entries for this product. Hidden reviews cannot be edited.",
+      "mineEmpty": "No review for this product on this page.",
+      "hidden": "Hidden by moderation",
+      "deleteTitle": "Delete this review?",
+      "deleteDescription": "The review text and rating will be removed. This cannot be undone.",
+      "confirmTitle": "Are you sure?",
+      "confirmCreate": "Your review will be published publicly on this product page.",
+      "confirmUpdate": "The updated version of your review will be published on this product page.",
+      "confirmSave": "Yes, save",
+      "confirmBack": "Cancel",
+      "averageAria": "Average rating {rating} / 5",
+      "ratedBy": "Rated by {count, plural, one {# person} other {# people}}",
+      "editMine": "Edit your review",
+      "duplicateTitle": "This review could not be saved",
+      "duplicateDescription": "You already have a review for this product, or you used the same text in another review. Edit your existing review or write a different text."
+    },
+    "reportReasons": {
+      "SPAM": "Spam",
+      "HARASSMENT": "Harassment",
+      "HATE_SPEECH": "Hate speech",
+      "SEXUAL_CONTENT": "Sexual content",
+      "PERSONAL_DATA": "Personal data",
+      "OTHER": "Other"
+    },
+    "profiles": {
+      "title": "My computers",
+      "description": "Manage your computers and components in one place. Choose which information to share.",
+      "create": "Add computer",
+      "edit": "Edit computer",
+      "name": "Computer name",
+      "deviceType": "Device type",
+      "nextStep": "The computer is saved first. You can then add components in its detail panel. Each component is saved separately.",
+      "emptyTitle": "Build your first computer",
+      "emptyDescription": "Name it, pick a case color and the five parts, then select Save computer. Your build stays on this page; new computers are private by default.",
+      "workspace": "Selected computer",
+      "deleteTitle": "Confirm deletion",
+      "deleteDescription": "This computer and all its components will be permanently deleted. This cannot be undone.",
+      "syncTitle": "Desktop synchronization",
+      "syncDescription": "Automatic hardware scanning will be available after the desktop client is released. For now, manage your components manually."
+    },
+    "workshop": {
+      "concept": "Build your computer part by part in the LTZ Workshop. You pick the CPU, motherboard, memory, graphics card and SSD from the catalog; the workshop adds liquid cooling, fans, RGB, the power supply and cabling. Your saved build is here every time you open this page.",
+      "firstRunAction": "Start building",
+      "switcher": "My computers",
+      "newComputer": "New computer",
+      "caseColor": "Case color",
+      "vendor": "{category}: {vendor}",
+      "stepsTitle": "Assembly order",
+      "advanced": {
+        "title": "Advanced management",
+        "description": "Device type, privacy, every component entry, comparison and statistics."
+      },
+      "stage": {
+        "title": "Assembly stage",
+        "incomplete": "{count, plural, one {# part is missing for assembly.} other {# parts are missing for assembly.}}",
+        "loading": "Loading the 3D stage.",
+        "playing": "Installing: {step}",
+        "reduced": "Reduced motion is on; the build is shown without animation.",
+        "done": "Assembly complete.",
+        "ready": "Your build is ready. You can start the assembly.",
+        "imageAlt": "Completed LTZ Workshop build in a {color} case",
+        "dragHint": "Drag to rotate",
+        "skip": "Skip assembly",
+        "play": "Start assembly",
+        "replay": "Replay assembly",
+        "spinOn": "Spin fans",
+        "spinOff": "Stop fans",
+        "view3d": "3D view",
+        "viewImage": "Image view",
+        "imageNotice": "A lightweight view is shown on this device: the image is the fully equipped workshop case in your case color; your actual parts are listed in My computer details.",
+        "quality": "3D quality",
+        "qualityLevels": {
+          "auto": "Auto",
+          "high": "High",
+          "balanced": "Balanced",
+          "low": "Low"
+        },
+        "qualityAuto": "Auto: {level}"
+      },
+      "steps": {
+        "motherboard": "Motherboard",
+        "cpu": "CPU",
+        "ram": "Memory",
+        "ssd": "SSD",
+        "gpu": "Graphics card",
+        "aio": "Liquid cooling",
+        "fans": "Fans",
+        "rgb": "RGB lighting",
+        "power": "Power"
+      },
+      "stepState": {
+        "done": "done",
+        "current": "current step",
+        "pending": "pending",
+        "skipped": "skipped because no part is selected"
+      },
+      "colors": {
+        "BLACK": "Black",
+        "WHITE": "White",
+        "GRAPHITE": "Graphite",
+        "RED": "Red"
+      },
+      "missing": {
+        "title": "Pick your parts to start the assembly",
+        "description": "The workshop starts the assembly once a CPU, motherboard, memory, graphics card and SSD are selected. Liquid cooling, fans, RGB, the power supply and cabling are added for you.",
+        "pick": "Pick the missing part"
+      },
+      "picker": {
+        "title": "Select {category}",
+        "search": "Search models",
+        "empty": "No products match this search. Try a different model name.",
+        "selected": "Selected"
+      },
+      "builder": {
+        "createTitle": "Build a new computer",
+        "editTitle": "Edit build",
+        "description": "Pick parts from the catalog. Changes appear on the stage right away and are written to your profile when you save.",
+        "parts": "Parts",
+        "notSelected": "Not selected",
+        "manual": "Manual entry; shown as a generic part on the stage.",
+        "select": "Select",
+        "change": "Change",
+        "selectLabel": "Select {category}",
+        "changeLabel": "Change {category}",
+        "ramQuantity": "Memory modules",
+        "ramHint": "Up to 4 slots are shown on the motherboard.",
+        "saved": "Build saved.",
+        "dirty": "You have unsaved changes.",
+        "create": "Save computer",
+        "save": "Save changes",
+        "reset": "Discard changes"
+      },
+      "summary": {
+        "title": "My computer details",
+        "subtitle": "{name} / {color} case",
+        "deleteComputer": "Delete computer",
+        "missing": "Not selected yet.",
+        "remove": "Remove",
+        "removeLabel": "Remove {category}",
+        "removeTitle": "Remove part",
+        "removeDescription": "{model} will be removed from this computer.",
+        "extra": "{count, plural, one {This computer has # more entry that the workshop does not show; see Advanced management.} other {This computer has # more entries that the workshop does not show; see Advanced management.}}",
+        "autoTitle": "Added by the workshop",
+        "autoNote": "These parts are added visually on the assembly stage; they are not saved to your profile as components."
+      },
+      "auto": {
+        "aio": "360 mm liquid cooling",
+        "fans": "7 case fans",
+        "rgb": "RGB lighting",
+        "psu": "Power supply",
+        "cables": "Basic cabling"
+      }
+    },
+    "components": {
+      "title": "Components · {count}",
+      "add": "Add component",
+      "edit": "Edit component",
+      "category": "Component category",
+      "entryMode": "Entry method",
+      "manual": "Manual entry",
+      "catalog": "Choose from catalog",
+      "synced": "Imported from desktop",
+      "selectModel": "General model",
+      "noModels": "No catalog models found. You can use manual entry.",
+      "selected": "Selected model: {model}",
+      "model": "Model name",
+      "brand": "Manufacturer (optional)",
+      "quantity": "Quantity",
+      "specsHint": "Specifications are optional. Empty fields use the selected catalog model's recorded values. Missing specifications are never inferred.",
+      "units": "{count, plural, one {# unit} other {# units}}",
+      "emptyTitle": "Ready for your components",
+      "emptyDescription": "Add a processor, graphics card, memory and other components to complete this computer.",
+      "deleteDescription": "This component will be removed from your computer. The catalog product is kept."
+    },
+    "privacy": {
+      "title": "Privacy",
+      "description": "Profile, field and category rules apply together. Sharing also depends on your account's hardware visibility and access permissions.",
+      "profileVisibility": "Computer visibility",
+      "fields": "Field visibility",
+      "categories": "Category visibility",
+      "inherit": "Default: only me"
+    },
+    "privacyFields": {
+      "PROFILE_NAME": "Computer name",
+      "DEVICE_TYPE": "Device type",
+      "COMPONENT_MODEL": "Component model",
+      "COMPONENT_BRAND": "Component manufacturer",
+      "COMPONENT_QUANTITY": "Component quantity",
+      "TECHNICAL_SPECIFICATIONS": "Technical specifications"
+    },
+    "visibility": {
+      "PRIVATE": "Only me",
+      "FRIENDS": "Friends",
+      "PUBLIC": "Everyone"
+    },
+    "stats": {
+      "title": "Hardware overview",
+      "profiles": "Computers",
+      "entries": "Component entries",
+      "units": "Total units",
+      "ram": "Recorded memory",
+      "storage": "Recorded storage",
+      "capacity": "{value, number} GB",
+      "unknownUnits": "Units with unknown capacity: {count}"
+    },
+    "campaigns": {
+      "title": "Campaigns",
+      "description": "Hardware offers with a recorded source and validity window.",
+      "detail": "Campaign details",
+      "discount": "{value}% discount",
+      "source": "Source",
+      "observed": "Observed",
+      "validity": "Valid",
+      "product": "View product",
+      "visitSource": "Visit source",
+      "unsafeUrl": "The source link cannot be opened safely.",
+      "clearProduct": "Clear product filter",
+      "results": "{count, number} valid campaigns",
+      "emptyTitle": "No valid campaigns right now",
+      "emptyDescription": "Offers within their validity window appear here. Reload to check for new records.",
+      "editorRecord": "Editorial offer",
+      "aboutTitle": "Check the source",
+      "priceNotice": "Prices are source records at the stated observation time. Check the store's current price and terms before purchasing.",
+      "communityTitle": "Community offers",
+      "communityUnavailable": "User offer sharing and discussions are not available yet. Only authorized editorial records appear here."
+    },
+    "errors": {
+      "400": {
+        "title": "Check your information",
+        "description": "The request could not be validated. Check field formats and ranges."
+      },
+      "401": {
+        "title": "Sign-in required",
+        "description": "This hardware area requires a verified session. Sign-in is not connected to this interface yet. If you already have a session, try reloading."
+      },
+      "403": {
+        "title": "Action not permitted",
+        "description": "Your access or session verification is insufficient for this action. Reload to check the current state."
+      },
+      "404": {
+        "title": "Hardware record not found",
+        "description": "The record may have been removed or you may not have access to it."
+      },
+      "409": {
+        "title": "Record changed or action conflicts",
+        "description": "Reload and review the latest record. Close and reopen the form if needed. Check your existing review for this product."
+      },
+      "413": {
+        "title": "Request too large",
+        "description": "Shorten the submitted text or fields and try again."
+      },
+      "422": {
+        "title": "Review the fields",
+        "description": "The submitted information was not accepted. Check field lengths and allowed values."
+      },
+      "429": {
+        "title": "Action limit reached",
+        "description": "Wait before reloading the latest state."
+      },
+      "500": {
+        "title": "Action could not be completed",
+        "description": "The server encountered a problem. Check the latest state before saving again."
+      },
+      "503": {
+        "title": "Service temporarily unavailable",
+        "description": "A required service or processing queue is unavailable. Reload after a short wait."
+      },
+      "network": {
+        "title": "Could not connect",
+        "description": "The hardware service could not be reached or did not respond. If you were saving, reload to check the result."
+      },
+      "shape": {
+        "title": "Unexpected response",
+        "description": "The service did not answer in the expected format. Try again in a moment."
+      }
+    },
+    "productVisual": {
+      "representative": "Representative illustration",
+      "gpuVendor": "GPU manufacturer: {vendor}"
+    },
+    "visual": {
+      "selectProduct": "Select {model} for comparison",
+      "categoryDrawing": "Category illustration · not a product photo",
+      "noSpecs": "Specifications have not been recorded yet.",
+      "details": "Details",
+      "removeShort": "Remove",
+      "compareShort": "Compare",
+      "clearFilters": "Clear all",
+      "brandsUnavailable": "Brands could not load; you can search by name.",
+      "recordedFilters": "Filter by recorded specifications. Brand selection is optional.",
+      "chooseCategory": "Choose a category for technical filters. Brand selection is optional.",
+      "discover": "DISCOVER.",
+      "compareMotto": "COMPARE.",
+      "buildMotto": "BUILD YOUR SYSTEM.",
+      "moreCategories": "More hardware categories",
+      "more": "More",
+      "results": "Product results",
+      "productsFound": "products found",
+      "comparisonList": "Comparison list",
+      "removeProduct": "Remove {model} from comparison",
+      "openComparison": "Open comparison",
+      "brandMissing": "Manufacturer not specified",
+      "yes": "Yes",
+      "no": "No",
+      "notRecorded": "Not recorded",
+      "brandUnknown": "Manufacturer not specified"
+    },
+    "fields": {
+      "CPU": {
+        "coreCount": "Core count",
+        "clockMhz": "Base clock",
+        "boostClockMhz": "Boost clock",
+        "powerWatts": "TDP",
+        "microarchitecture": "Microarchitecture",
+        "integratedGraphics": "Integrated graphics",
+        "smt": "Simultaneous multithreading (SMT)"
+      },
+      "GPU": {
+        "gpuVendor": "Chip maker",
+        "chipset": "Graphics chip",
+        "capacityGb": "Video memory",
+        "clockMhz": "Core clock",
+        "boostClockMhz": "Boost clock",
+        "lengthMm": "Card length",
+        "color": "Color"
+      },
+      "MOTHERBOARD": {
+        "socket": "CPU socket",
+        "formFactor": "Form factor",
+        "maximumMemoryGb": "Maximum memory",
+        "memorySlots": "Memory slots",
+        "color": "Color"
+      },
+      "RAM": {
+        "memoryType": "Memory type",
+        "capacityGb": "Total capacity",
+        "moduleCount": "Module count",
+        "moduleCapacityGb": "Capacity per module",
+        "clockMhz": "Speed",
+        "casLatency": "CAS latency",
+        "firstWordLatencyNs": "First word latency",
+        "color": "Color"
+      },
+      "STORAGE": {
+        "storageType": "Storage type",
+        "capacityGb": "Capacity",
+        "interfaceType": "Interface",
+        "formFactor": "Form factor",
+        "cacheMb": "Cache",
+        "rotationRpm": "Rotation speed"
+      }
+    }
+  },
+  "Profile": {
+    "title": "My profile",
+    "loading": "Loading profile",
+    "errorTitle": "Couldn't load profile",
+    "errorBody": "Your profile couldn't be loaded right now. Check your connection and try again.",
+    "retry": "Try again",
+    "editProfile": "Edit profile",
+    "noName": "Unnamed player",
+    "usernamePending": "Username is being prepared",
+    "memberSince": "Member since {date}",
+    "emptyBio": "You haven't added a bio yet.",
+    "preferences": "Player preferences",
+    "country": "Country",
+    "playerTypes": "Player type",
+    "genres": "Favorite genres",
+    "platforms": "Favorite platforms",
+    "none": "Not set",
+    "linkedAccounts": "Linked accounts",
+    "about": "About",
+    "tabs": {
+      "label": "Profile sections",
+      "overview": "Overview",
+      "activity": "Activity",
+      "games": "Games",
+      "hardware": "Hardware",
+      "friends": "Friends"
+    },
+    "stats": {
+      "label": "Profile numbers",
+      "friends": "Friends",
+      "library": "Game collection",
+      "reviews": "Reviews",
+      "hidden": "Hidden",
+      "unavailable": "Not yet",
+      "unknown": "Unavailable",
+      "computers": "Computers",
+      "plus": "{count}+"
+    },
+    "hardware": {
+      "title": "My computers",
+      "open": "Go to my computers",
+      "computers": "Computers",
+      "components": "Components",
+      "ram": "Recorded RAM",
+      "storage": "Recorded storage",
+      "gb": "{value} GB",
+      "noValue": "—",
+      "capacityNote": "Some components have no recorded capacity; totals include recorded values only.",
+      "empty": "You have not added a computer yet.",
+      "add": "Add a computer",
+      "typeCount": "{type}: {count}",
+      "types": {
+        "DESKTOP": "Desktop",
+        "LAPTOP": "Laptop",
+        "OTHER": "Other"
+      },
+      "performance": {
+        "title": "My game performance",
+        "empty": "You have no performance sessions yet.",
+        "totals": "{sessions} sessions, {samples} samples",
+        "average": "Average",
+        "min": "Lowest",
+        "max": "Highest",
+        "sessions": "Measured in {count, plural, one {# session} other {# sessions}}"
+      }
+    },
+    "preview": {
+      "mark": "Preview",
+      "markHint": "Design preview: this information is a sample, not real.",
+      "rank": {
+        "veteran": "Veteran Player"
+      },
+      "status": "Playing something tonight.",
+      "signatureLabel": "Signature",
+      "signature": "Every game is a story; just finish it.",
+      "badgesTitle": "Badges",
+      "badge": {
+        "earlyBird": "Early bird",
+        "reviewer": "Reviewer",
+        "collector": "Collector",
+        "teamPlayer": "Team player",
+        "nightOwl": "Night owl",
+        "bugHunter": "Bug hunter"
+      }
+    },
+    "playerType": {
+      "CASUAL": "Casual",
+      "COMPETITIVE": "Competitive",
+      "STORY": "Story-driven",
+      "SOCIAL": "Social",
+      "COLLECTOR": "Collector",
+      "EXPLORER": "Explorer",
+      "COMPLETIONIST": "Completionist",
+      "STRATEGIST": "Strategist",
+      "TEAM_PLAYER": "Team player",
+      "CREATIVE": "Creative",
+      "SPEEDRUNNER": "Speedrunner",
+      "HARDCORE": "Hardcore"
+    },
+    "steam": {
+      "name": "Steam",
+      "linkedPublic": "Linked, visible on your profile",
+      "linkedPrivate": "Linked, only you can see it",
+      "notLinked": "Not linked",
+      "unknown": "Status unavailable"
+    },
+    "editTitle": "Edit profile",
+    "editDescription": "Shape your profile to reflect you.",
+    "back": "Back to profile",
+    "images": "Profile images",
+    "changeCover": "Change cover",
+    "changeAvatar": "Change photo",
+    "remove": "Remove",
+    "uploading": "Uploading…",
+    "imageHint": "JPEG, PNG or GIF. Photo up to 2 MB, cover up to 4 MB.",
+    "info": "Profile details",
+    "displayName": "Display name",
+    "displayNameHint": "Between 2 and 32 characters.",
+    "bio": "Bio",
+    "bioCount": "{count} / 500 characters. Plain text only.",
+    "countryHint": "Pick a country from the list; type a name or code to search.",
+    "playerTypesHint": "Up to 2 types that describe you best.",
+    "genresHint": "Pick the genres you love to play.",
+    "platformsHint": "Pick the stores, devices and services you play on.",
+    "countryPicker": {
+      "placeholder": "Select a country",
+      "search": "Search countries",
+      "list": "Countries",
+      "empty": "No matching country",
+      "clear": "Clear selection"
+    },
+    "picker": {
+      "count": "{count} / {max} selected",
+      "selected": "Selected",
+      "remove": "Remove {name}",
+      "search": "Search",
+      "empty": "No matching option"
+    },
+    "completion": {
+      "title": "Profile completion",
+      "done": "Done",
+      "action": "Complete the rest",
+      "steps": {
+        "avatar": "Add a profile photo",
+        "cover": "Add a cover image",
+        "bio": "Write a bio",
+        "country": "Select a country",
+        "playerTypes": "Choose a player type",
+        "genres": "Choose favorite genres",
+        "platforms": "Choose favorite platforms",
+        "steam": "Link your Steam account"
+      }
+    },
+    "playerTypeHint": {
+      "CASUAL": "I play relaxed and just have fun.",
+      "COMPETITIVE": "I love competition and rankings.",
+      "STORY": "Story and atmosphere come first for me.",
+      "SOCIAL": "I play while chatting with friends.",
+      "COLLECTOR": "I enjoy collecting games and items.",
+      "EXPLORER": "I explore every corner of the map.",
+      "COMPLETIONIST": "I don't stop before 100%.",
+      "STRATEGIST": "I like planning and thinking ahead.",
+      "TEAM_PLAYER": "I take a role in the squad and win together.",
+      "CREATIVE": "I build, mod and create content.",
+      "SPEEDRUNNER": "I try to finish games as fast as possible.",
+      "HARDCORE": "Hard games and long sessions draw me in."
+    },
+    "catalog": {
+      "genre": {
+        "action": "Action",
+        "adventure": "Adventure",
+        "rpg": "RPG",
+        "action-rpg": "Action RPG",
+        "jrpg": "JRPG",
+        "strategy": "Strategy",
+        "rts": "Real-time strategy",
+        "turn-based": "Turn-based",
+        "grand-strategy": "Grand strategy",
+        "4x": "4X",
+        "tower-defense": "Tower defense",
+        "auto-battler": "Auto battler",
+        "deck-builder": "Deck builder",
+        "simulation": "Simulation",
+        "city-builder": "City builder",
+        "farming": "Farming",
+        "management": "Management",
+        "racing": "Racing",
+        "sports": "Sports",
+        "fighting": "Fighting",
+        "shooter": "Shooter",
+        "fps": "FPS",
+        "tps": "TPS",
+        "battle-royale": "Battle royale",
+        "mmo": "MMO",
+        "moba": "MOBA",
+        "survival": "Survival",
+        "horror": "Horror",
+        "puzzle": "Puzzle",
+        "platformer": "Platformer",
+        "metroidvania": "Metroidvania",
+        "roguelike": "Roguelike",
+        "soulslike": "Soulslike",
+        "sandbox": "Sandbox",
+        "open-world": "Open world",
+        "stealth": "Stealth",
+        "hack-and-slash": "Hack and slash",
+        "arcade": "Arcade",
+        "rhythm": "Rhythm",
+        "card-game": "Card game",
+        "party": "Party",
+        "coop": "Co-op",
+        "narrative": "Narrative",
+        "visual-novel": "Visual novel",
+        "point-and-click": "Point and click",
+        "walking-sim": "Walking sim",
+        "idle": "Idle",
+        "casual": "Casual",
+        "indie": "Indie",
+        "retro": "Retro",
+        "fantasy": "Fantasy",
+        "sci-fi": "Sci-fi",
+        "space": "Space",
+        "vr": "Virtual reality",
+        "educational": "Educational"
+      },
+      "platform": {
+        "steam": "Steam",
+        "epic-games": "Epic Games Store",
+        "ea-app": "EA app (Origin)",
+        "gog": "GOG",
+        "ubisoft-connect": "Ubisoft Connect",
+        "battle-net": "Battle.net",
+        "riot-client": "Riot Client",
+        "xbox-app": "Xbox app (PC)",
+        "microsoft-store": "Microsoft Store",
+        "rockstar-launcher": "Rockstar Launcher",
+        "amazon-games": "Amazon Games",
+        "itch-io": "itch.io",
+        "pc": "PC",
+        "mac": "Mac",
+        "linux": "Linux",
+        "steam-deck": "Steam Deck",
+        "playstation-5": "PlayStation 5",
+        "playstation-4": "PlayStation 4",
+        "xbox-series": "Xbox Series X|S",
+        "xbox-one": "Xbox One",
+        "nintendo-switch": "Nintendo Switch",
+        "nintendo-switch-2": "Nintendo Switch 2",
+        "retro-console": "Retro consoles",
+        "android": "Android",
+        "ios": "iOS",
+        "meta-quest": "Meta Quest",
+        "pc-vr": "PC VR",
+        "geforce-now": "GeForce NOW",
+        "xbox-cloud": "Xbox Cloud Gaming"
+      },
+      "platformGroup": {
+        "store": "Stores and launchers",
+        "pc": "Computer",
+        "console": "Console",
+        "mobile": "Mobile",
+        "vr": "Virtual reality",
+        "cloud": "Cloud gaming"
+      }
+    },
+    "save": "Save changes",
+    "saving": "Saving…",
+    "saved": "Your profile was saved.",
+    "cancel": "Cancel",
+    "errors": {
+      "displayName": "Display name must be 2 to 32 characters.",
+      "country": "Country code must be two letters.",
+      "conflict": "Your profile changed elsewhere. Reload the page and try again; what you typed is still on this page.",
+      "tooLarge": "The file is too large.",
+      "unsupported": "You can only upload JPEG, PNG or GIF.",
+      "rateLimited": "You uploaded too often. Try again in an hour.",
+      "busy": "The service is busy right now, try again shortly.",
+      "invalidImage": "This image was not accepted. Try another file.",
+      "invalid": "One of the values is invalid. Check the fields.",
+      "network": "Couldn't connect. Check your internet and try again.",
+      "generic": "Something went wrong. Try again."
+    },
+    "remote": {
+      "loading": "Loading",
+      "error": "This section could not be loaded right now.",
+      "retry": "Try again"
+    },
+    "activity": {
+      "title": "Recent posts",
+      "all": "All my posts",
+      "empty": "You have no posts yet.",
+      "write": "Write a post",
+      "untitled": "Post without text",
+      "repost": "Repost",
+      "hidden": "Hidden (only you can see it)",
+      "likes": "{count, plural, one {# like} other {# likes}}",
+      "comments": "{count, plural, one {# comment} other {# comments}}"
+    },
+    "games": {
+      "title": "My game collection",
+      "total": "Total games",
+      "favorite": "Favorites",
+      "completed": "Completed",
+      "completion": "Completion rate: {percent}",
+      "empty": "Your collection is empty for now.",
+      "browse": "Browse games"
+    },
+    "friendsTab": {
+      "title": "My friends",
+      "empty": "You have no friends yet.",
+      "count": "{count, plural, one {# friend} other {# friends}}",
+      "countMore": "{count}+ friends",
+      "noneVisible": "Your friends cannot be shown right now.",
+      "unnamed": "Player",
+      "since": "Friends since {date}",
+      "open": "Open posts by {name}",
+      "someHidden": "Some accounts cannot be shown"
+    }
+  },
+  "Community": {
+    "nav": {
+      "label": "Community sections",
+      "feed": "Feed",
+      "forums": "Community",
+      "mine": "My posts",
+      "newPost": "Create post"
+    },
+    "meta": {
+      "feed": {
+        "title": "Community",
+        "description": "Read and discuss posts, experiences and questions from players."
+      },
+      "new": {
+        "title": "Create post",
+        "description": "Share a new post with the community."
+      },
+      "mine": {
+        "title": "My posts",
+        "description": "Browse, edit and manage the posts you shared."
+      },
+      "forums": {
+        "title": "Game forums",
+        "description": "Open topics and reply in the forums."
+      },
+      "forum": {
+        "title": "Forum",
+        "description": "Forum topics."
+      },
+      "post": {
+        "title": "Post",
+        "description": "Post and comments."
+      },
+      "user": {
+        "title": "Player posts",
+        "description": "A player's public posts."
+      },
+      "mineReposts": {
+        "title": "My reposts",
+        "description": "Posts you reposted."
+      }
+    },
+    "feed": {
+      "title": "Community Feed",
+      "description": "Share games, experiences and ideas, and read what other players post.",
+      "prompt": "What do you want to share with the community?",
+      "promptGuest": "Sign in to share",
+      "emptyTitle": "No posts yet",
+      "emptyBody": "You can share the first post.",
+      "emptyFilteredTitle": "No matching posts",
+      "emptyFilteredBody": "No posts match your search and filters. Try loosening the filters.",
+      "published": "Your post is published.",
+      "openPublished": "Open post",
+      "quickLabel": "Post text",
+      "quickSubmit": "Post"
+    },
+    "filters": {
+      "label": "Search and filters",
+      "sortLabel": "Sort order",
+      "sort": {
+        "NEWEST": "Newest",
+        "POPULAR": "Popular (likes + comments)",
+        "OLDEST": "Oldest",
+        "MOST_LIKED": "Most liked",
+        "MOST_REPOSTED": "Most reposted"
+      },
+      "search": "Search posts",
+      "searchPlaceholder": "Search post text…",
+      "searchMin": "Type at least 2 characters to search.",
+      "apply": "Search",
+      "game": "Game",
+      "category": "Category",
+      "allCategories": "All categories",
+      "from": "From date",
+      "to": "To date",
+      "invalidRange": "The start date cannot be after the end date.",
+      "clear": "Clear filters",
+      "more": "More filters",
+      "sortFilter": "Filter",
+      "criteriaOrder": "Priority {number}",
+      "criteriaCount": "{count} criteria selected",
+      "criteriaOpposite": "Newest and Oldest are opposite directions: the one you picked first (“{first}”) applies; the other does not change the result.",
+      "ineffective": "No effect (opposite direction)",
+      "applyCriteria": "Apply",
+      "clearCriteria": "Clear",
+      "criteriaUnsupported": "Not applied: sorting by “{list}” is not supported by the API yet. Keep the selection or remove it and apply again."
+    },
+    "category": {
+      "GENERAL": "General",
+      "GUIDE": "Guide",
+      "QUESTION": "Question",
+      "SCREENSHOT": "Screenshot"
+    },
+    "author": {
+      "unknown": "Player",
+      "deleted": "Deleted account",
+      "you": "You"
+    },
+    "game": {
+      "linked": "Linked game",
+      "selected": "Selected game",
+      "clear": "Remove",
+      "placeholder": "Search game title…",
+      "results": "Game results",
+      "searching": "Searching games…",
+      "failed": "The game catalogue is unavailable right now.",
+      "none": "No matching games found."
+    },
+    "post": {
+      "edited": "edited",
+      "hidden": "Hidden",
+      "repostedBy": "Repost",
+      "srTitle": "Post",
+      "readMore": "Read more",
+      "likeAria": "Like, currently {count, plural, one {# like} other {# likes}}",
+      "unlikeAria": "Remove like, currently {count, plural, one {# like} other {# likes}}",
+      "commentsLabel": "Comment count",
+      "commentsAria": "Comments, {count, plural, one {# comment} other {# comments}}",
+      "repost": "Repost",
+      "edit": "Edit",
+      "delete": "Delete",
+      "report": "Report",
+      "repostDone": "Post reposted.",
+      "deleteTitle": "Delete this post?",
+      "deleteBody": "The post and its images will be permanently removed. This cannot be undone.",
+      "repostTitle": "Repost",
+      "repostHelp": "The post is shared on your profile with clear credit to the original author. You can add a short note.",
+      "repostNote": "Your note",
+      "repostAlready": "You have already reposted this post.",
+      "repostSubmit": "Repost",
+      "repostUnavailable": "The original post can no longer be displayed.",
+      "openOriginal": "Open original post",
+      "contentType": {
+        "GUIDES": "Guide",
+        "EASTER_EGGS": "Easter egg",
+        "EXPERIENCES": "Player experience"
+      },
+      "readLess": "Show less",
+      "commentsOpen": "Show comments",
+      "commentsClose": "Hide comments",
+      "actions": "Post actions",
+      "reportMenu": "Report"
+    },
+    "images": {
+      "alt": "Post image {number}",
+      "broken": "Image could not be loaded",
+      "open": "Open image {number} full size",
+      "add": "Select images",
+      "hint": "images · JPEG or PNG, up to 2 MB each. Select several files at once or drop them here.",
+      "previewAlt": "Selected image {number}: {name}",
+      "remove": "Remove image {name}",
+      "addMore": "Add more",
+      "processing": "Preparing…",
+      "rejectedTitle": "{count, plural, one {# file was not added} other {# files were not added}}; your valid selections were kept.",
+      "dismiss": "Dismiss notice",
+      "reject": {
+        "type": "Only JPEG and PNG are accepted (WebP, GIF, HEIC are not supported).",
+        "size": "Exceeds the 2 MB limit.",
+        "empty": "The file is empty.",
+        "duplicate": "This file is already added.",
+        "count": "A post can have at most 4 images.",
+        "dimensions": "Too large: sides cannot exceed 6000 px and total pixels cannot exceed 12 million.",
+        "unreadable": "The image could not be read or is corrupt."
+      },
+      "orderHelp": "To reorder, drag an image or use the arrow buttons (Alt + ← / →). This is the published order.",
+      "listLabel": "Selected images (ordered)",
+      "select": "Image {number}: {name}. Show in preview",
+      "moveEarlier": "Move {name} earlier",
+      "moveLater": "Move {name} later",
+      "added": "{count, plural, one {# image added} other {# images added}}",
+      "moved": "{name} moved to position {position} of {total}",
+      "removedAnnounce": "{name} removed",
+      "galleryLabel": "Gallery with {count, plural, one {# image} other {# images}}"
+    },
+    "report": {
+      "titlePost": "Report post",
+      "titleComment": "Report comment",
+      "reason": "Reason for report",
+      "reasonRequired": "Select a reason.",
+      "reasons": {
+        "SPAM": "Spam",
+        "HARASSMENT": "Harassment",
+        "HATE_SPEECH": "Hate speech",
+        "SEXUAL_CONTENT": "Sexual content",
+        "VIOLENCE": "Violence",
+        "ILLEGAL_CONTENT": "Illegal content",
+        "MISINFORMATION": "Misinformation",
+        "OTHER": "Other"
+      },
+      "detail": "Additional details",
+      "submit": "Send report",
+      "done": "Your report was received. Moderators will review the content.",
+      "already": "You have already reported this content.",
+      "own": "You cannot report your own content."
+    },
+    "form": {
+      "titlePost": "Create post",
+      "titleTopic": "Open a topic",
+      "description": "Share your game experiences, questions and screenshots with the community.",
+      "descriptionTopic": "Start a new topic in the forum.",
+      "forumContext": "Forum:",
+      "type": "Post type",
+      "titleLabel": "Title",
+      "bodyLabel": "Text",
+      "bodyPlaceholder": "Share your thoughts, experiences or questions…",
+      "gameRequired": "Search for a game (required)",
+      "gameOptional": "Search for a game",
+      "images": "Images",
+      "optional": "optional",
+      "partial": "The post was published but {count, plural, one {# image} other {# images}} could not be uploaded. You can retry the images or go to the post.",
+      "openPost": "Open post",
+      "cancel": "Cancel",
+      "retryImages": "Retry images",
+      "submit": "Publish",
+      "previewLabel": "Post preview",
+      "preview": "Preview",
+      "previewHelp": "This is how it will appear in the feed once published.",
+      "previewNow": "Now",
+      "previewEmpty": "Your post text will appear here.",
+      "error": {
+        "required": "This field is required.",
+        "tooLong": "At most {max} characters.",
+        "invalidChars": "Contains an invalid control character.",
+        "tooShort": "At least {min} characters.",
+        "invalidSlug": "Use only lowercase letters, digits and single hyphens.",
+        "gameRequired": "Select a game for game-linked content."
+      },
+      "sectionKind": "What are you sharing?",
+      "sectionKindHint": "The post will appear in the community feed.",
+      "modePost": "Post",
+      "modeGame": "Game content",
+      "sectionContent": "Content",
+      "plainText": "Plain text: formatting and links are not interpreted.",
+      "sectionGame": "Game link",
+      "sectionGameHint": "Optional. The selected game is verified against the catalogue.",
+      "sectionGameRequiredHint": "Required for game content. The selected game is verified against the catalogue.",
+      "sectionMedia": "Images",
+      "sectionMediaHint": "Optional. Select several at once; the order in the preview is the published order.",
+      "publishing": "Publishing…",
+      "publishingPost": "Creating your post…",
+      "publishingImage": "Uploading image {current}/{total}…",
+      "retry": "Try again",
+      "publishingOverlay": "Publishing your post…",
+      "publishingList": "Updating the feed…",
+      "sectionDescription": "Description",
+      "confirmTitle": "Do you want to share this post?",
+      "confirmBody": "If you confirm, the post will be published.",
+      "category": "Category"
+    },
+    "edit": {
+      "title": "Edit post",
+      "save": "Save changes",
+      "removeImage": "Remove image {number}",
+      "partial": "Changes were saved but {count, plural, one {# image} other {# images}} could not be uploaded. You can retry.",
+      "orderLocked": "The order of published images cannot be changed; new images are added at the end."
+    },
+    "comments": {
+      "title": "Comments",
+      "write": "Write a comment",
+      "send": "Send",
+      "placeholder": "Write your comment…",
+      "emptyTitle": "No comments yet",
+      "emptyBody": "Be the first to comment.",
+      "loginPrompt": "Sign in to comment",
+      "deleted": "This comment was deleted.",
+      "edited": "edited",
+      "reply": "Reply",
+      "edit": "Edit",
+      "delete": "Delete",
+      "report": "Report",
+      "replyLabel": "Your reply",
+      "sendReply": "Send reply",
+      "replyPlaceholder": "Write your reply…",
+      "showReplies": "Show {count, plural, one {# reply} other {# replies}}",
+      "hideReplies": "Hide replies",
+      "deleteTitle": "Delete this comment?",
+      "deleteBody": "The comment is removed. If it has replies, a \"deleted\" note stays in its place. This cannot be undone.",
+      "save": "Save"
+    },
+    "detail": {
+      "title": "Post",
+      "description": "Read the post and comment.",
+      "notFoundTitle": "Post not found",
+      "notFoundBody": "This post does not exist, was deleted, or cannot be displayed to you.",
+      "backToFeed": "Back to feed",
+      "backToForum": "Back to forum"
+    },
+    "forums": {
+      "title": "Game forums",
+      "description": "Open topics, ask questions and share your experiences in the forums.",
+      "create": "Create forum",
+      "createTitle": "Create forum",
+      "emptyTitle": "No forums yet",
+      "emptyBody": "Forums are opened by moderators. They will appear here.",
+      "noDescription": "No description provided.",
+      "open": "Go to topics",
+      "fieldTitle": "Title",
+      "fieldSlug": "URL slug",
+      "slugHelp": "3-80 characters: lowercase letters, digits and single hyphens. It cannot be changed later.",
+      "fieldDescription": "Description",
+      "fieldGame": "Linked game (optional)",
+      "slugTaken": "A forum with this slug already exists.",
+      "createSubmit": "Create forum"
+    },
+    "forum": {
+      "newTopic": "Open a topic",
+      "notFoundTitle": "Forum not found",
+      "notFoundBody": "This forum does not exist or cannot be displayed to you.",
+      "back": "All forums",
+      "noDescription": "Topics in this forum.",
+      "emptyTitle": "No topics in this forum yet",
+      "emptyBody": "Open the first topic.",
+      "untitled": "Untitled topic",
+      "likes": "Likes",
+      "replies": "Replies",
+      "opened": "Opened"
+    },
+    "mine": {
+      "title": "My posts",
+      "description": "Browse, edit and manage the posts you shared.",
+      "repostsLink": "My reposts",
+      "repostsTitle": "My reposts",
+      "repostsDescription": "Posts you reposted from the feed. The original author is kept; you can undo a repost.",
+      "backToPosts": "Back to my posts",
+      "toolbarLabel": "Search, filter and sort",
+      "search": "Search my posts",
+      "searchPlaceholder": "Search my posts…",
+      "searchMin": "Type at least 2 characters to search.",
+      "filter": "Filter",
+      "filterCount": "{count, plural, one {# active filter} other {# active filters}}",
+      "sortLabel": "Sort order",
+      "sort": {
+        "NEWEST": "Newest",
+        "OLDEST": "Oldest"
+      },
+      "game": "Game",
+      "category": "Category",
+      "allCategories": "All categories",
+      "categories": {
+        "GENERAL": "General",
+        "GUIDE": "Guide",
+        "QUESTION": "Question",
+        "SCREENSHOT": "Screenshot"
+      },
+      "from": "From date",
+      "to": "To date",
+      "invalidRange": "The start date cannot be after the end date.",
+      "clear": "Clear filters",
+      "emptyTitle": "Share your first post",
+      "emptyBody": "Your images, questions and experiences are collected here as a gallery.",
+      "emptyCta": "Create your first post",
+      "emptyFilteredTitle": "No matching posts",
+      "emptyFilteredBody": "None of your posts match this search and these filters.",
+      "repostsEmptyTitle": "No reposts yet",
+      "repostsEmptyBody": "Repost posts you like from the feed; they are listed here.",
+      "repostsEmptyCta": "Browse the feed",
+      "searchingTitle": "Looking for results",
+      "searchingBody": "None of the records scanned so far belong to this view; the list continues.",
+      "continueSearch": "Keep searching",
+      "card": {
+        "menu": "Post actions",
+        "edit": "Edit",
+        "delete": "Delete",
+        "openOriginal": "Open original",
+        "undoRepost": "Undo repost",
+        "undoTitle": "Undo this repost?",
+        "undoBody": "The repost is removed; the original post is not affected. This cannot be undone.",
+        "undoConfirm": "Undo repost",
+        "likes": "Likes",
+        "comments": "Comments",
+        "noText": "Post without text",
+        "originalBy": "Original author"
+      },
+      "priority": "Priority",
+      "priorityOptions": {
+        "OLDEST": "Oldest to newest",
+        "NEWEST": "Newest to oldest"
+      }
+    },
+    "user": {
+      "title": "Player posts",
+      "description": "This player's public posts.",
+      "emptyTitle": "No posts to show",
+      "emptyBody": "This player has no posts you can view."
+    },
+    "state": {
+      "loading": "Loading…",
+      "errorTitle": "Could not load content",
+      "retry": "Try again",
+      "loadMore": "Load more",
+      "loadingMore": "Loading…",
+      "close": "Close",
+      "cancel": "Cancel",
+      "working": "Working…"
+    },
+    "errors": {
+      "network": "Could not reach the server. Check your connection and try again.",
+      "validation": "The request is invalid. Check the fields and try again.",
+      "unauthorized": "You need to sign in for this action. Your session may have expired.",
+      "forbidden": "You do not have permission for this action.",
+      "notFound": "Content not found. It may have been deleted or is not visible to you.",
+      "conflict": "The content changed elsewhere or the action was already done. Refresh and try again.",
+      "tooLarge": "The file is too large (up to 2 MB).",
+      "unsupportedMedia": "Unsupported file type. Only JPEG and PNG can be uploaded.",
+      "unprocessable": "The request breaks a rule. The selected game may not be in the catalogue or the image may be corrupt.",
+      "rateLimited": "You tried too many times.",
+      "retryAfter": "Try again in about {minutes} min.",
+      "unavailable": "The service is not responding right now. Try again shortly.",
+      "server": "An unexpected server error occurred. Try again shortly."
+    },
+    "carousel": {
+      "roleDescription": "gallery",
+      "scroller": "{count, plural, one {# image} other {# images}}; browse with arrow keys",
+      "slide": "image",
+      "slideLabel": "{current} of {total}",
+      "status": "Image {current} of {total}",
+      "previous": "Previous image",
+      "next": "Next image",
+      "goTo": "Go to image {number}",
+      "open": "Open image {number} full size",
+      "broken": "Image could not be loaded",
+      "viewer": "Image viewer"
+    },
+    "toast": {
+      "close": "Dismiss notification"
+    }
+  },
+  "Social": {
+    "meta": {
+      "friends": "My Friends",
+      "requests": "Friend Requests",
+      "sent": "Sent Requests",
+      "blocked": "Blocked Users"
+    },
+    "hero": {
+      "friendsTitle": "My Friends",
+      "friendsSubtitle": "Your squad is here. Jump into the next match together.",
+      "requestsTitle": "Friend Requests",
+      "requestsSubtitle": "Manage new connections and grow your squad.",
+      "sentTitle": "Sent Requests",
+      "sentSubtitle": "Keep track of invites waiting for an answer.",
+      "blockedTitle": "Blocked Users",
+      "blockedSubtitle": "You stay in control of your social experience.",
+      "addFriend": "Add Friend"
+    },
+    "preview": {
+      "badge": "Preview data",
+      "description": "Status, current game and mutual friend details are still sample data; your friends, requests, blocks and invite code are real."
+    },
+    "tabs": {
+      "label": "Friend sections",
+      "friends": "Friends",
+      "incoming": "Incoming",
+      "sent": "Sent",
+      "blocked": "Blocked"
+    },
+    "friends": {
+      "listLabel": "Friend list",
+      "searchLabel": "Search your friends",
+      "searchPlaceholder": "Search your friends…",
+      "filterLabel": "Filter by status",
+      "filterAll": "All",
+      "filterOnline": "Online",
+      "filterInGame": "In game",
+      "showing": "Showing {shown} of {total} friends",
+      "loadMore": "Load more",
+      "loadingMore": "Loading…",
+      "emptyTitle": "No friends yet",
+      "emptyBody": "Share your invite code or enter a friend's code to send your first request.",
+      "noMatchTitle": "No matching friends",
+      "noMatchBody": "Try a different search or filter.",
+      "partialResults": "Search and filters only cover the {loaded} friends loaded so far. Load more below to widen them."
+    },
+    "presence": {
+      "online": "Online",
+      "inGame": "In game",
+      "offline": "Offline",
+      "lastSeen": "Last seen {time}"
+    },
+    "activity": {
+      "ranked": "Playing ranked",
+      "competitive": "Playing competitive",
+      "story": "In story mode",
+      "exploring": "Out exploring",
+      "coop": "Playing co-op",
+      "casual": "Playing casually"
+    },
+    "game": {
+      "playing": "Playing this game",
+      "lastPlayed": "Last played",
+      "none": "Not in a game right now"
+    },
+    "card": {
+      "message": "Send Message",
+      "messageSoon": "Messaging is coming soon",
+      "moreActions": "More actions for {name}",
+      "viewProfile": "View Profile",
+      "soon": "Soon",
+      "removeFriend": "Remove Friend",
+      "block": "Block",
+      "mutual": "{count, plural, =0 {No mutual friends} one {# mutual friend} other {# mutual friends}}"
+    },
+    "requests": {
+      "incomingTitle": "Incoming Requests",
+      "incomingListLabel": "Incoming friend requests",
+      "sentTitle": "Sent Requests",
+      "sentListLabel": "Sent friend requests",
+      "accept": "Accept",
+      "reject": "Decline",
+      "cancel": "Cancel Request",
+      "acceptAria": "Accept {name}'s request",
+      "rejectAria": "Decline {name}'s request",
+      "cancelAria": "Cancel request to {name}",
+      "pending": "Pending",
+      "seeAll": "See all",
+      "incomingEmptyTitle": "No pending requests",
+      "incomingEmptyBody": "New friend requests will show up here.",
+      "sentEmptyTitle": "No sent requests",
+      "sentEmptyBody": "Enter a friend's invite code to send them a request.",
+      "loadMore": "Load more"
+    },
+    "blocked": {
+      "listLabel": "Blocked users",
+      "blockedOn": "Blocked · {date}",
+      "unblock": "Unblock",
+      "unblockAria": "Unblock {name}",
+      "emptyTitle": "You haven't blocked anyone",
+      "emptyBody": "Players you block are listed here, and you can unblock them at any time.",
+      "loadMore": "Load more"
+    },
+    "howBlocking": {
+      "title": "How does blocking work?",
+      "intro": "Limit interactions with people you don't want to hear from for a safer, more enjoyable social experience.",
+      "requestsTitle": "Friend requests are stopped",
+      "requestsBody": "A blocked user can't send you friend requests; your friendship and any pending requests end.",
+      "messagesTitle": "Direct messages are restricted",
+      "messagesBody": "A blocked user can't send you messages.",
+      "lfpTitle": "Block rules apply to listings",
+      "lfpBody": "Block rules also apply to looking-for-party listings.",
+      "privacyTitle": "Profile privacy settings",
+      "privacyBody": "You'll be able to control in more detail who can reach you."
+    },
+    "invite": {
+      "title": "Your Invite Code",
+      "codeLabel": "Your invite code",
+      "copy": "Copy",
+      "copyAria": "Copy invite code",
+      "copied": "Copied",
+      "copyFailed": "Couldn't copy; select the code and copy it manually.",
+      "hint": "Share your code so friends can find you.",
+      "usage": "{used} / {max} uses",
+      "expires": "Valid until {date}",
+      "regenerate": "Generate new code",
+      "regenerateTitle": "Regenerate your invite code?",
+      "regenerateBody": "Your old code stops working immediately. Anyone you shared it with will need the new one.",
+      "regenerating": "Generating…",
+      "create": "Create invite code",
+      "creating": "Creating…",
+      "none": "You don't have an active invite code yet."
+    },
+    "addByCode": {
+      "title": "Add by invite code",
+      "panelTitle": "Add Friend",
+      "label": "Your friend's invite code",
+      "placeholder": "e.g. ABCDE-12345",
+      "hint": "10 characters; dashes and spaces don't matter.",
+      "submit": "Send Request",
+      "submitting": "Sending…",
+      "issues": {
+        "empty": "Enter an invite code.",
+        "length": "Invite codes are 10 characters long.",
+        "characters": "Codes use letters and digits only (no I, L, O or U)."
+      }
+    },
+    "privacy": {
+      "title": "Social privacy settings",
+      "body": "Control who can send you requests and see your profile.",
+      "soon": "Soon"
+    },
+    "dialogs": {
+      "close": "Close",
+      "cancel": "Cancel",
+      "removeTitle": "Remove this friend?",
+      "removeBody": "{name} will be removed from your friends. You'll need a new request to be friends again.",
+      "removeConfirm": "Remove Friend",
+      "removing": "Removing…",
+      "blockTitle": "Block this user?",
+      "blockBody": "{name} won't be able to send you requests or messages; your friendship and pending requests end.",
+      "blockConfirm": "Block",
+      "blocking": "Blocking…",
+      "unblockTitle": "Unblock this user?",
+      "unblockBody": "This user will be able to contact you again. Your friendship is not restored automatically.",
+      "unblockConfirm": "Unblock",
+      "unblocking": "Unblocking…"
+    },
+    "announce": {
+      "accepted": "{name} is now your friend.",
+      "rejected": "Declined {name}'s request.",
+      "cancelled": "Cancelled your request to {name}.",
+      "removed": "{name} was removed from your friends.",
+      "blocked": "{name} has been blocked.",
+      "unblocked": "{name} has been unblocked.",
+      "sent": "Friend request sent. Track it in the Sent tab.",
+      "regenerated": "Your new invite code is ready."
+    },
+    "states": {
+      "loading": "Loading…",
+      "errorTitle": "Couldn't load the list",
+      "retry": "Try again",
+      "loadMoreFailed": "Couldn't load more."
+    },
+    "errors": {
+      "alreadyFriends": "You're already friends with this user.",
+      "alreadyPending": "You already have a pending request to this user.",
+      "incomingPending": "This user already sent you a request; answer it under Incoming.",
+      "userBlocked": "You've blocked this user. Unblock them first.",
+      "inviteNotFound": "This invite code wasn't found or can no longer be used.",
+      "requestSelf": "You can't do this to your own account.",
+      "notAllowed": "This user can't receive a friend request from you.",
+      "notPending": "This request was already answered or cancelled.",
+      "tooManyPending": "You have too many pending requests. Wait for answers or cancel some.",
+      "notFound": "That record no longer exists; the list was refreshed.",
+      "conflict": "The record changed in the meantime. Try again.",
+      "unauthenticated": "Your session expired. Sign in to continue.",
+      "forbidden": "You don't have permission to do that.",
+      "rateLimited": "You're going too fast. Wait a moment and try again.",
+      "unavailable": "The social service isn't responding right now. Try again shortly.",
+      "csrf": "Couldn't refresh the security check. Reload the page and try again.",
+      "timeout": "The server didn't respond in time. The action may have completed; refresh the list to check.",
+      "network": "Couldn't connect. Check your connection and try again.",
+      "generic": "Something went wrong. Try again."
+    },
+    "person": {
+      "unknownPlayer": "Unknown player",
+      "blockedPlayer": "Blocked player"
+    }
   }
 }

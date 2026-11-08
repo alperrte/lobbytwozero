@@ -46,6 +46,8 @@ public final class PerformanceDeviceJwtValidator {
                     && jti != null && !jti.isBlank()
                     && issued != null && expires != null && notBefore != null
                     && expires.isAfter(issued) && !notBefore.isAfter(expires)
+                    // İptal bildirimi yok: 30 sn saat toleransı cihazın 60 sn yazma penceresini uzatamaz.
+                    && expires.isAfter(clock.instant())
                     && !issued.isAfter(clock.instant().plus(PerformanceJwtValidators.CLOCK_SKEW))
                     && Duration.between(issued, expires).compareTo(PerformanceJwtValidators.MAX_LIFETIME) <= 0;
             return valid ? OAuth2TokenValidatorResult.success() : PerformanceJwtValidators.INVALID;

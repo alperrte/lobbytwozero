@@ -3,7 +3,9 @@ package com.ltz.hardware.api.controller;
 import com.ltz.hardware.api.dto.request.*;
 import com.ltz.hardware.api.dto.response.*;
 import com.ltz.hardware.application.service.HardwareBrandService;
+import com.ltz.hardware.application.service.HardwareCatalogFacetService;
 import com.ltz.hardware.application.service.HardwareCatalogService;
+import com.ltz.hardware.domain.enums.ComponentCategory;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -19,10 +21,13 @@ import org.springframework.web.bind.annotation.*;
 public class HardwareCatalogController {
     private final HardwareBrandService brands;
     private final HardwareCatalogService products;
+    private final HardwareCatalogFacetService facets;
 
-    public HardwareCatalogController(HardwareBrandService brands, HardwareCatalogService products) {
+    public HardwareCatalogController(HardwareBrandService brands, HardwareCatalogService products,
+            HardwareCatalogFacetService facets) {
         this.brands = brands;
         this.products = products;
+        this.facets = facets;
     }
 
     @PostMapping("/brands")
@@ -90,8 +95,26 @@ public class HardwareCatalogController {
     public ResponseEntity<HardwareCatalogPageResponse<HardwareProductResponse>> products(
             @Valid @ModelAttribute HardwareCatalogFilter filter,
             @RequestParam(defaultValue = "0") @Min(0) @Max(10000) int page,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return ok(products.list(filter, page, size));
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
+            @RequestParam(defaultValue = "false") boolean discovery) {
+        return ok(products.list(filter, page, size, discovery));
+    }
+
+    @GetMapping("/facets")
+    @Operation(summary = "HW-11: Kategorideki kayitli teknik degerleri filtre secenekleri olarak listeler")
+    public ResponseEntity<HardwareCatalogFacetsResponse> facets(@RequestParam ComponentCategory category) {
+        return ResponseEntity.ok().cacheControl(CacheControl.maxAge(java.time.Duration.ofMinutes(5)).cachePrivate())
+                .body(facets.facets(category));
+    }
+
+    /**
+     * Tekrarlanan parametreler liste olur; tek bir değer virgül içerse bile bölünmez
+     * (yonga adı gibi değerler virgül taşıyabilir).
+     */
+    @InitBinder
+    void keepCommasInsideListValues(org.springframework.web.bind.WebDataBinder binder) {
+        binder.registerCustomEditor(java.util.List.class,
+                new org.springframework.beans.propertyeditors.CustomCollectionEditor(java.util.ArrayList.class));
     }
 
     private static <T> ResponseEntity<T> ok(T value) {

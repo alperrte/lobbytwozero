@@ -276,6 +276,47 @@ erDiagram
 
 ## 5. game_db
 
+GAME-24 kaynak yükseltmesi (V173, 5 Kasım 2026); gerçek DEV dağıtımı yapılmadı:
+
+```mermaid
+erDiagram
+  games ||--o{ game_price_quotes : prices
+  games ||--o{ game_price_refresh_state : market_refresh
+  game_price_quotes {
+    uuid id PK
+    uuid game_id FK
+    varchar country
+    varchar currency
+    varchar store
+    numeric regular_price
+    numeric current_price
+    smallint discount_percent
+    varchar source
+    varchar url
+    timestamptz source_updated_at
+    timestamptz fetched_at
+    timestamptz expires_at
+    bigint version
+  }
+  game_price_refresh_state {
+    uuid id PK
+    uuid game_id FK
+    varchar country
+    varchar currency
+    varchar status
+    timestamptz checked_at
+    timestamptz next_attempt_at
+    varchar error_code
+    bigint version
+  }
+  game_price_sync_lock {
+    uuid id PK
+    uuid owner
+    timestamptz expires_at
+    bigint version
+  }
+```
+
 2026-10-24 kaynak yükseltmesi V171, hesap silme için aşağıdaki teknik bağlamı ekler.
 account_id Auth kimliğine REF'tir; başka servis DB'sine FK yoktur. Satır yalnız
 silme transaction'ında yaşar, başarıda silinir; hata olursa transaction ile geri alınır.
@@ -288,6 +329,32 @@ erDiagram
     bigint transaction_id UK
     uuid account_id "Auth REF; nil olamaz"
     timestamptz created_at
+    bigint version
+  }
+```
+
+GAME-04/05/15 LTZ puan projeksiyonu (aktif V172): Review'ın imleçli dışa aktarma ucundan periyodik beslenen toplam bilgi; kişisel veri yok, Review DB'sine FK/erişim yok.
+
+```mermaid
+erDiagram
+  games ||--o| game_rating_projection : rating
+  game_rating_projection {
+    uuid game_id PK,FK
+    numeric average_rating "nullable, 1-10, 2 ondalik"
+    bigint rating_count
+    bigint last_seen_scan
+    timestamptz synced_at
+    bigint version
+  }
+  game_rating_sync_state {
+    uuid id PK "tek satir"
+    bigint scan_generation
+    uuid lease_owner "nullable"
+    timestamptz lease_until "nullable"
+    timestamptz last_attempt_at
+    bigint last_completed_scan
+    timestamptz last_completed_at "bos ise projeksiyon hazir degil"
+    varchar last_error_code
     bigint version
   }
 ```
@@ -352,7 +419,7 @@ erDiagram
   }
 ```
 
-Ana Game Service şeması; henüz uygulanmayan fiyat bilgileri dahil edilmemiştir.
+Aşağıdaki başlangıç şema kaydı tarihseldir; fiyat tabloları güncel V173 diyagramında yukarıda gösterilmiştir.
 2026-10-21 tarihli son açık talimatla başlangıç kaynakları kesintisiz V31–V40 olarak
 10 dosyada yeniden numaralandırıldı. V35 admin yönetimi, V36 grant, V37 geliştirici
 içeriği, V38 yerelleştirme/provenance, V39 başarım, V40 feedback'tir. İlişkiler ve
@@ -785,6 +852,11 @@ erDiagram
     uuid blocked_id PK "REF"
     timestamptz created_at
   }
+  user_block_markers {
+    uuid blocker_id PK "REF"
+    uuid blocked_id PK "REF"
+    timestamptz last_event_at
+  }
   outbox_events {
     uuid id PK
     varchar event_type
@@ -802,39 +874,82 @@ erDiagram
 
 ```mermaid
 erDiagram
-  content_categories ||--o{ contents : categorizes
+  content_categories ||--o{ content_category_assignments : classifies
+  contents ||--o{ content_category_assignments : "categorized as"
   contents ||--o{ content_translations : "translated as"
   contents ||--o{ content_images : has
   contents ||--o{ content_sources : cites
+  contents ||--o{ content_moderation_actions : "moderated by"
 
   content_categories {
     uuid id PK
-    varchar code UK
+    varchar code UK "sabit liste, 14 kayıt (V103)"
+    varchar kind "PLATFORM|TOPIC"
+    varchar name_tr
+    varchar name_en
+    int sort_order
+  }
+  content_category_assignments {
+    uuid content_id PK,FK
+    uuid category_id PK,FK
   }
   contents {
     uuid id PK
     uuid author_id "REF"
     varchar type "NEWS|ANNOUNCEMENT|USER_CONTENT"
-    uuid category_id FK
-    varchar slug UK
+    uuid game_id "REF game-service (V104)"
+    timestamptz published_at "V104"
+    varchar slug UK "sonraki faz"
     varchar status "DRAFT|PUBLISHED|REMOVED|ARCHIVED"
-    boolean featured
+    varchar default_locale "tr|en (V101)"
+    varchar content_hash "mükerrer içerik, kısmi UQ (V101)"
+    timestamptz deleted_at "soft delete (V101)"
+    boolean featured "V104, yalnız PUBLISHED"
+    timestamptz featured_at "V104"
+    uuid featured_by "REF, ADMIN (V104)"
+    timestamptz removed_at "V106, yalnız REMOVED"
+    uuid removed_by "REF, moderatör (V106)"
+    varchar removed_reason "V106"
   }
   content_translations {
     uuid content_id PK,FK
     varchar locale PK
     varchar title
+    varchar summary
     text body
   }
   content_images {
     uuid id PK
     uuid content_id FK
-    varchar storage_key
+    bytea content "V102, storage_key yok"
+    varchar mime_type "image/jpeg|image/png"
+    int sort_order "0-5"
   }
   content_sources {
     uuid id PK
     uuid content_id FK
-    varchar url
+    varchar title
+    varchar url "yalnız https (V103)"
+    date source_date
+    int sort_order "0-2, UQ (content_id, sort_order)"
+  }
+  content_moderation_actions {
+    uuid id PK
+    uuid content_id FK
+    varchar action "REMOVE|RESTORE"
+    uuid actor_id "REF, moderatör (V106)"
+    varchar actor_role "MODERATOR|ADMIN, admin-service doğrulaması (V107)"
+    varchar source "ADMIN_SERVICE (V107)"
+    varchar reason
+    uuid report_id "REF"
+    uuid event_id
+    timestamptz created_at
+  }
+  inbox_events {
+    uuid event_id PK "V106, olay tekilleştirme"
+    varchar event_type
+    varchar producer
+    timestamptz processed_at
   }
 ```
 
@@ -902,6 +1017,38 @@ erDiagram
 ```
 
 ## 14. hardware_db
+
+**2026-11-08:** Onaylı V191, `hardware_product_sources.category` CHECK'ini GPU ile
+genişletir; ilişkiler ve UUID'ler değişmez. GPU typed_specs: chipset, capacityGb
+(VRAM GB), clockMhz, boostClockMhz, lengthMm, color; fiyat yoktur.
+
+**2026-11-07 katalog aktarımı, V9/V10:** Kaynak tekilliği `(source_provider,external_product_id)`;
+ürün varyantı `(category,normalized_model,catalog_variant)`. Eski profil/yorum
+ilişkileri korunur. `hardware_product_sources.source_revision` sabit commit'i taşır.
+
+```mermaid
+erDiagram
+  hardware_products ||--o| hardware_product_sources : "product_id unique FK CASCADE"
+  hardware_product_sources ||--o{ hardware_product_media : "source_id FK CASCADE"
+  hardware_product_sources {
+    uuid id PK
+    uuid product_id FK,UK
+    varchar source_provider "OPEN_ICECAT veya PC_PART_DATASET"
+    varchar external_product_id "teknik fingerprint"
+    varchar source_revision "40 haneli commit"
+    jsonb typed_specs "yalnız whitelist teknik alanlar"
+  }
+  hardware_dataset_import_runs {
+    uuid id PK
+    varchar source_revision
+    jsonb files "SHA-256 ve kategori sayımları"
+    jsonb summary "sonuç sayımları ve hata kodları"
+    varchar status "SUCCEEDED veya PARTIAL"
+    timestamptz started_at
+    timestamptz finished_at
+    bigint version
+  }
+```
 
 **2026-10-24 Auth/D4 eklemesi:** V1–V7 korunur, V8 ile 17. tablo eklenir.
 Bu teknik fence'in profil/hesap UUID FK'si yoktur; SHA-256 özeti ve expiry dışında

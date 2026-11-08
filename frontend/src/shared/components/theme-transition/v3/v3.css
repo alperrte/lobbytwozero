@@ -1,0 +1,410 @@
+/*
+ * V3 taktik tema geçişi (varsayılan paket). Hareket JS'te WAAPI izleriyle kurulur (v3-scenes.tsx);
+ * bu dosya yalnız durağan görünümü tanımlar. Geçiş iki tema arasında köprü olduğu için renkler
+ * tema token'larına bağlanmaz, sahnenin kendi paletiyle (aşağıdaki değişkenler) çizilir.
+ * Ortak kabuk: ../theme-transition.css (.ltz-fx > * mutlak + tam ekran, .ltz-fx svg tam boy).
+ */
+.ltz-fx .v3 {
+  --v3-ink: #0b0b0f;
+  --v3-plate: rgb(11 11 15 / 0.9);
+  --v3-plate-edge: rgb(241 241 241 / 0.12);
+  --v3-text: #f1f1f1;
+  --v3-muted: #a0a7b4;
+  --v3-red: #e11d2e;
+  --v3-warm: #ffd38a;
+  --v3-warm-soft: rgb(255 211 138 / 0.34);
+  --v3-amber: #ffb347;
+  --v3-dawn: #f5f5f7;
+  --v3-nvg: #7dffa0;
+  --v3-lamp: #24242b;
+
+  overflow: hidden;
+  font-family: var(--font-display);
+}
+
+.ltz-fx .v3 > * {
+  position: absolute;
+  inset: auto;
+}
+
+.ltz-fx .v3 svg {
+  display: block;
+}
+
+/* ---------------------------------------------------------------- Operatör */
+
+.ltz-fx .v3-op {
+  left: 0;
+  top: 0;
+  width: var(--v3-size);
+  height: var(--v3-size);
+  will-change: transform;
+}
+
+.v3-op__body {
+  position: absolute;
+  inset: 0;
+  background-image: var(--v3-sprite);
+  background-repeat: no-repeat;
+  background-size: var(--v3-sheet) var(--v3-size);
+  background-position: var(--v3-frame);
+  image-rendering: pixelated;
+}
+
+.v3-op__glow {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 3px;
+  height: 3px;
+  translate: -50% -50%;
+  border-radius: 1px;
+  background: var(--v3-nvg);
+  box-shadow:
+    0 0 4px 2px rgb(125 255 160 / 0.75),
+    0 0 14px 6px rgb(125 255 160 / 0.28);
+  opacity: 0;
+}
+
+.v3-flash {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 14px;
+  height: 14px;
+  translate: -50% -50%;
+  background: #fff3c4;
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+  filter: drop-shadow(0 0 4px rgb(255 211 138 / 0.9));
+  opacity: 0;
+}
+
+.v3--compact .v3-flash {
+  width: 10px;
+  height: 10px;
+}
+
+/* ---------------------------------------------------------------- Karartma */
+
+.ltz-fx .v3-scrim {
+  inset: 0;
+  background: var(--v3-ink);
+  opacity: 0;
+}
+
+/* Lamba kutusu ampul merkezindedir (0×0); kablo yukarıya, ışık konisi aşağıya taşar. */
+.ltz-fx .v3-lamp {
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  opacity: 0;
+}
+
+.v3-lamp > span {
+  position: absolute;
+}
+
+.v3-lamp__mount {
+  left: -1px;
+  bottom: 6px;
+  width: 2px;
+  height: calc(var(--v3-cable) - 6px);
+  background: var(--v3-lamp);
+}
+
+.v3-lamp[data-mount="wall"] .v3-lamp__mount {
+  left: auto;
+  right: 0;
+  bottom: auto;
+  top: -9px;
+  width: var(--v3-arm);
+  height: 2px;
+}
+
+.v3-lamp__shade {
+  left: -8px;
+  top: -8px;
+  width: 16px;
+  height: 7px;
+  background: var(--v3-lamp);
+  clip-path: polygon(28% 0, 72% 0, 100% 100%, 0 100%);
+}
+
+.v3-lamp__glass {
+  left: -3px;
+  top: -2px;
+  width: 6px;
+  height: 3px;
+  background: #4a4a52;
+}
+
+.v3-lamp__light {
+  inset: 0;
+}
+
+.v3-lamp__light > span {
+  position: absolute;
+}
+
+.v3-lamp__bulb {
+  left: -3px;
+  top: -2px;
+  width: 6px;
+  height: 3px;
+  background: #fff6d6;
+}
+
+.v3-lamp__halo {
+  left: -10px;
+  top: -9px;
+  width: 20px;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(255 230 170 / 0.85), rgb(255 211 138 / 0));
+}
+
+.v3-lamp__cone {
+  left: -56px;
+  top: 0;
+  width: 112px;
+  height: 170px;
+  background: linear-gradient(to bottom, var(--v3-warm-soft), rgb(255 211 138 / 0));
+  clip-path: polygon(46% 0, 54% 0, 100% 100%, 0 100%);
+}
+
+.v3--compact .v3-lamp__cone {
+  left: -40px;
+  width: 80px;
+  height: 120px;
+}
+
+.v3-spark {
+  left: -1px;
+  top: -1px;
+  width: 2px;
+  height: 2px;
+  background: var(--v3-warm);
+  opacity: 0;
+}
+
+.ltz-fx .v3-tracer {
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 2px;
+  margin-top: -1px;
+  transform-origin: 0 50%;
+  background: linear-gradient(to right, rgb(255 243 196 / 0), rgb(255 243 196 / 0.6) 70%, #fff6d6);
+  opacity: 0;
+}
+
+/* ---------------------------------------------------------------- Gün doğumu */
+
+.ltz-fx .v3-night {
+  inset: 0;
+  background: linear-gradient(to bottom, #07070b, #101018 62%, #17141c);
+  opacity: 0;
+}
+
+.ltz-fx .v3-wash {
+  inset: 0;
+  background:
+    radial-gradient(120% 70% at 34% 100%, rgb(255 179 71 / 0.95), rgb(255 211 138 / 0.9) 38%, rgb(245 245 247 / 0) 72%),
+    linear-gradient(to bottom, rgb(245 245 247 / 0.97), rgb(250 236 214 / 0.97));
+  opacity: 0;
+}
+
+.ltz-fx .v3-horizon {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: clamp(170px, 32vh, 360px);
+  opacity: 0;
+}
+
+.v3-sun {
+  position: absolute;
+  left: 34%;
+  bottom: 40%;
+  aspect-ratio: 1;
+  translate: -50% 0;
+}
+
+.ltz-fx .v3-sun svg {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.v3-sun__glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 420%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(255 211 138 / 0.75), rgb(255 179 71 / 0.25) 45%, rgb(255 179 71 / 0));
+  opacity: 0;
+}
+
+.v3-sun__rim {
+  fill: var(--v3-amber);
+}
+
+.v3-sun__core {
+  fill: #ffe9b0;
+}
+
+.ltz-fx .v3-ridge {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.ltz-fx .v3-ridge--far {
+  height: 100%;
+}
+
+.ltz-fx .v3-ridge--mid {
+  height: 86%;
+}
+
+.ltz-fx .v3-ridge--near {
+  height: 70%;
+}
+
+.v3-ridge__rim {
+  fill: var(--v3-warm);
+  opacity: 0;
+}
+
+.ltz-fx .v3-flare,
+.ltz-fx .v3-trail {
+  left: 0;
+  top: 0;
+  width: 6px;
+  height: 6px;
+  translate: -50% -50%;
+  background: #ffe3a3;
+  opacity: 0;
+}
+
+/* Fişek başı: beyaz-sıcak çekirdek + dört kollu piksel yıldız + sıcak hale (kırmızı kare değil). */
+.ltz-fx .v3-flare {
+  background: #fffbe8;
+  box-shadow:
+    6px 0 0 #ffd27a,
+    -6px 0 0 #ffd27a,
+    0 6px 0 #ffd27a,
+    0 -6px 0 #ffd27a,
+    0 0 14px 6px rgb(255 196 112 / 0.8),
+    0 0 36px 16px rgb(255 150 70 / 0.35);
+}
+
+.ltz-fx .v3-trail {
+  width: 4px;
+  height: 4px;
+  background: #ff8a4c;
+}
+
+.ltz-fx .v3-trail--4,
+.ltz-fx .v3-trail--5 {
+  width: 3px;
+  height: 3px;
+  background: var(--v3-red);
+}
+
+.ltz-fx .v3-burst {
+  left: 0;
+  top: 0;
+  width: 260px;
+  height: 260px;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(255 236 190 / 0.9), rgb(255 179 71 / 0.35) 45%, rgb(255 179 71 / 0));
+  opacity: 0;
+}
+
+/* ---------------------------------------------------------------- Telsiz levhası */
+
+.ltz-fx .v3-caption {
+  left: 32px;
+  bottom: 32px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 10px;
+  row-gap: 4px;
+  align-items: center;
+  max-width: min(440px, calc(100% - 64px));
+  padding: 10px 14px 10px 12px;
+  border: 1px solid var(--v3-plate-edge);
+  border-left: 3px solid var(--v3-red);
+  border-radius: 4px;
+  background: var(--v3-plate);
+  color: var(--v3-text);
+  opacity: 0;
+}
+
+.v3-caption__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  background: var(--v3-red);
+  animation: v3-blink 0.5s steps(2, jump-none) infinite;
+}
+
+.v3-caption__lead,
+.v3-caption__sub {
+  grid-column: 2;
+  margin: 0;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  clip-path: inset(0 100% 0 0);
+}
+
+.v3-caption__lead {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.v3-caption__sub {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--v3-muted);
+}
+
+.v3-caption__dot {
+  grid-row: 1;
+}
+
+.v3--compact .v3-caption {
+  left: 12px;
+  bottom: 16px;
+  max-width: calc(100% - 140px);
+  padding: 8px 10px 8px 9px;
+}
+
+.v3--compact .v3-caption__lead {
+  font-size: 12px;
+  white-space: normal;
+}
+
+.v3--compact .v3-caption__sub {
+  font-size: 10px;
+  white-space: normal;
+}
+
+@keyframes v3-blink {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.2;
+  }
+}

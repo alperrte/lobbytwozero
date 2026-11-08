@@ -16,7 +16,7 @@ Auth bugün doğrulama, sıfırlama ve silme e-postalarını **kendi içinde** y
 
 - [ ] Mail Service gövdesi: kuyruk, durumlar, tekrar deneme, idempotency (MAIL-11, 13, 14). Bunlar Mail'in kendi işi
 - [ ] Auth ile sözleşme: Auth ne gönderecek? Önerim (taslak, onay bekliyor): `POST /internal/v1/mail` gövdesi `{ type, to, locale, templateData, idempotencyKey }`, `aud=mail-service`, `scope=mail:send`, `sub=svc:auth-service`. Tür örnekleri: `EMAIL_VERIFICATION`, `PASSWORD_RESET`, `ACCOUNT_DELETION`, `EMAIL_CHANGE`, `PASSWORD_CHANGED`, `SUSPICIOUS_LOGIN`, `ACCOUNT_SUSPENDED`, `ACCOUNT_BANNED`, `WELCOME`
-- [ ] Silme ucu: `DELETE /internal/v1/accounts/{accountId}`. Mail gönderim geçmişi ve kuyruk kayıtları silinir. Yazılmadıkça Mail görevi `PENDING`
+- [x] Silme ucu (main'de, kod doğrulandı 2026-11-05): `DELETE /internal/v1/accounts/{accountId}`. Mail gönderim geçmişi ve kuyruk kayıtları silinir. Yazılmadıkça Mail görevi `PENDING`
 
 ## AUTH'TA BEKLEYEN
 

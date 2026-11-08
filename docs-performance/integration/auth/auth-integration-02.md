@@ -1,6 +1,6 @@
 # Auth entegrasyonu 02 — Oturum ve rapor uçları
 
-Tarih: 2026-10-31 · Kapsam: PERF-03/04/13/20 · Faz 1 bağımlılıkları ([auth-integration-01.md](auth-integration-01.md)) geçerlidir.
+Güncelleme: 2026-11-06 · Kapsam: PERF-03/04/13/20 · Güncel Auth durumu: [auth-integration-01.md](auth-integration-01.md).
 
 ## 1. Durum özeti
 
@@ -9,7 +9,7 @@ Tarih: 2026-10-31 · Kapsam: PERF-03/04/13/20 · Faz 1 bağımlılıkları ([aut
 | Faz 2 uçları (10 adet) kullanıcı token'ıyla çalışır | Kod + test hazır |
 | Kullanıcı token'ı doğrulaması gerçek Auth **kaynak kodundan** üretilen JWKS ile test edildi | **Kaynak sözleşme testi**; çalışan Auth ile E2E değildir |
 | Çalışan (DEV) Auth ile uçtan uca oturum/rapor akışı | **NOT RUN** — bu fazda yapılmadı |
-| Cihaz kaynaklı oturum (`DEVICE`) | Kapsam dışı (Faz 3); REQ-01-A bekliyor |
+| Cihaz kaynaklı örnekler | Faz 3'te uygulandı; REQ-01-A Auth'ta hazır, kaynak sözleşme testleri gerçek Auth üreticisini kullanır |
 | Yeni Auth talebi | **Yok** ([auth-requests-02.md](../auth-service-talepleri/auth-requests-02.md)) |
 
 Auth Service kaynak koduna dokunulmadı. Sahte JWT, `permitAll` veya varsayılan izin yoktur; `anyRequest().denyAll()` geçerlidir.
@@ -30,11 +30,11 @@ Olmayan ve başkasına ait kaynak **aynı** 404'ü döner (varlık sızmaz). `us
 
 ## 3. Cihaz kaynaklı ve manuel oturum farkları
 
-| Özellik | Manuel (Faz 2, uygulandı) | Cihaz kaynaklı (Faz 3, uygulanmadı) |
+| Özellik | Manuel oturum | Cihaz kaynaklı örnek (Faz 3, uygulandı) |
 | --- | --- | --- |
-| Kimlik | Kullanıcı token'ı (`aud=ltz-api`) | Cihaz token'ı (`aud=performance-service`, REQ-01-A bekliyor) |
-| Başlatan | Kullanıcı, web/uygulama üzerinden | Masaüstü istemci, izinli senkronizasyonla |
-| `source` | `MANUAL` (CHECK ile kilitli) | `DEVICE` (V22'de kasıtlı olarak yok; Faz 3 migration'ı gerekir) |
+| Kimlik | Kullanıcı token'ı (`aud=ltz-api`) | Cihaz token'ı (`aud=performance-service`, Auth `target=performance`) |
+| Başlatan | Kullanıcı, web/uygulama üzerinden | Kullanıcının açtığı oturuma cihaz örnek gönderir |
+| `source` | Oturumda `MANUAL` | Örneklerde `DEVICE`; oturum `MANUAL` kalır |
 | Zaman | Sunucu saati | Sunucu kabul zamanı + istemci örnek zamanı (Faz 3 kuralı) |
 | Ölçüm | Rapora kullanıcı elle yazar | Örnekler cihazdan gelir (PERF-05..12) |
 | İzin | Ek izin gerekmez | Açık `sync_consents` + aktif `device_link` |
@@ -56,5 +56,5 @@ Aşağıdakiler PASS (PostgreSQL Testcontainers + gerçek güvenlik filtre zinci
 ## 5. Dürüstlük notları
 
 - `PerformancePeerDoubles` Game GAME-15 ve Hardware HW-17 için **yerel mock**tur; gerçek servis entegrasyonu değildir. Hardware'in tüketici tarafı `DEFERRED_CONTRACT / NOT_VERIFIED`.
-- Bu testlerin geçmesi Faz 1'in Auth bağımlı işlerini (PERF-01/02/17 gerçek cihaz akışı) tamamlamaz.
-- Çalışan DEV Auth ile `POST /devices` akışının denenmesi hâlâ sunulmuş, yanıtlanmamış bir tekliftir.
+- Oturum/rapor testleri çalışan Game ve Hardware servisleriyle uçtan uca kabul anlamına gelmez.
+- Auth cihaz akışının ayrı gerçek HTTP kabul kanıtı [auth-integration-05.md](auth-integration-05.md) içinde tutulur; bu, Game/Hardware oturum entegrasyonunu doğrulamaz.

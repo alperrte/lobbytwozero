@@ -19,7 +19,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** İç uygulama komutu. Public GET yazma yapmaz; gerçek detay adaptörü henüz yoktur. */
+/** İç uygulama komutu. Public GET yazma yapmaz; yapılandırılmış detay sağlayıcısı arka planda yeniler. */
 @Service @RequiredArgsConstructor
 public class GameDetailRefreshService {
     private final GameProvider provider;
@@ -35,6 +35,17 @@ public class GameDetailRefreshService {
     public java.util.List<UUID> dueCandidates() {
         if (!provider.capabilities().contains(GameProvider.Capability.DETAILS)) return java.util.List.of();
         return games.detailRefreshCandidates(clock.instant(), org.springframework.data.domain.PageRequest.of(0, 1));
+    }
+
+    /**
+     * Detay bootstrap: toplu sınıflandırmanın ana oyun olarak işaretlediği ve detayı hiç denenmemiş Steam kayıtları
+     * (en yeni önce). Açıklama, çıkış tarihi, şirket ve dil verisi bu yoldan sağlayıcıdan alınır.
+     */
+    @Transactional(readOnly = true)
+    public java.util.List<UUID> detailBootstrapCandidates(int limit) {
+        var capabilities = provider.capabilities();
+        if (limit < 1 || !capabilities.contains(GameProvider.Capability.DETAILS)) return java.util.List.of();
+        return games.detailBootstrapCandidates(org.springframework.data.domain.PageRequest.of(0, limit));
     }
 
     @Transactional
@@ -53,16 +64,7 @@ public class GameDetailRefreshService {
         try {
             GameProvider.Details details = provider.details(reference.getExternalId());
             if (details == null) throw new ProviderException("INVALID_PROVIDER_RESPONSE");
-            applyDetails(game, details, lockedFields(game));
-            game.setDetailsFetchedAt(clock.instant());
-            game.setDetailsExpiresAt(clock.instant().plus(Duration.ofHours(24)));
-            game.setDetailsFailureCount(0);
-            game.setDetailsNextAttemptAt(null);
-            game.setDetailsLastErrorCode(null);
-            // Sınırlı alan kümesi hiçbir zaman COMPLETE metadata iddiası üretmez.
-            if (game.getMetadataCompleteness() == MetadataCompleteness.INDEX_ONLY)
-                game.setMetadataCompleteness(MetadataCompleteness.PARTIAL);
-            game.setUpdatedAt(clock.instant());
+            applyFetched(game, details);
             return "REFRESHED";
         } catch (ProviderException error) {
             game.setDetailsFailureCount(Math.min(6, game.getDetailsFailureCount() + 1));
@@ -71,6 +73,29 @@ public class GameDetailRefreshService {
             game.setDetailsNextAttemptAt(delay == null ? null : clock.instant().plus(delay));
             return "FAILED";
         }
+    }
+
+    /** Sağlayıcıdan alınmış detayı uygular (tek kayıt ve toplu yol ortak): kilitli alanlar ezilmez, tazelik ve hata durumu sıfırlanır. */
+    void applyFetched(Game game, GameProvider.Details details) {
+        applyDetails(game, details, lockedFields(game));
+        game.setDetailsFetchedAt(clock.instant());
+        game.setDetailsExpiresAt(clock.instant().plus(Duration.ofHours(24)));
+        game.setDetailsFailureCount(0);
+        game.setDetailsNextAttemptAt(null);
+        game.setDetailsLastErrorCode(null);
+        // Sınırlı alan kümesi hiçbir zaman COMPLETE metadata iddiası üretmez.
+        if (game.getMetadataCompleteness() == MetadataCompleteness.INDEX_ONLY)
+            game.setMetadataCompleteness(MetadataCompleteness.PARTIAL);
+        game.setUpdatedAt(clock.instant());
+    }
+
+    /** Toplu sorguda sağlayıcı bu oyun için kanıt vermedi: tek kayıt yolundaki "bulunamadı" hatasıyla aynı durum (yeniden deneme politikası geçerli). */
+    void markNotFound(Game game) {
+        var error = new ProviderException("PROVIDER_ITEM_NOT_FOUND");
+        game.setDetailsFailureCount(Math.min(6, game.getDetailsFailureCount() + 1));
+        game.setDetailsLastErrorCode(error.code());
+        Duration delay = retries.delay(error, game.getDetailsFailureCount());
+        game.setDetailsNextAttemptAt(delay == null ? null : clock.instant().plus(delay));
     }
 
     /** Admin tarafından manuel düzeltilmiş alanlar (GAME-07) sağlayıcı verisiyle ezilmez. */
@@ -88,10 +113,35 @@ public class GameDetailRefreshService {
             game.setReleaseDate(details.releaseDate()); observed(game,"RELEASE_DATE");
         }
         applyCompanies(game,details,locked);
+        applyLanguages(game,details,locked);
+        if (GameCoverWriter.apply(game, details.coverUrl(), provider.detailSource())) observed(game,"COVER_URL");
         if (!locked.contains(OverridableField.GAME_TYPE) && provider.capabilities().contains(GameProvider.Capability.ITEM_TYPE)) {
             GameType type = types.classify(details.providerType(), true);
             if (type != GameType.UNKNOWN) { game.setGameType(type); observed(game,"GAME_TYPE"); }
         }
+    }
+    /**
+     * GAME-23: sağlayıcının bildirdiği dil desteği. Yalnız veri varsa yazılır; boş yanıt mevcut dil verisini silmez
+     * ve "dil yok" anlamına gelmez. Manuel LOCALIZATION kilidi sağlayıcı verisiyle ezilmez. Sağlayıcının listelemediği
+     * ses/altyazı/arayüz türü UNKNOWN kalır. Düz dil listesi yalnız boşken doldurulur (yönetici verisi ezilmez).
+     */
+    private void applyLanguages(Game game, GameProvider.Details details, java.util.Set<OverridableField> locked) {
+        if (details.languages().isEmpty() || locked.contains(OverridableField.LOCALIZATION)) return;
+        java.util.Set<com.ltz.game.domain.entity.GameLanguageSupport> supports = new java.util.HashSet<>();
+        java.util.Set<String> supported = new java.util.TreeSet<>();
+        for (GameProvider.LanguageSupport language : details.languages()) {
+            var value = new com.ltz.game.domain.entity.GameLanguageSupport();
+            value.setLanguageCode(language.languageCode());
+            value.setInterfaceSupport(language.interfaceSupport());
+            value.setAudioSupport(language.audioSupport());
+            value.setSubtitleSupport(language.subtitleSupport());
+            supports.add(value);
+            supported.add(language.languageCode());
+        }
+        game.getLanguageSupport().clear(); game.getLanguageSupport().addAll(supports);
+        game.setLanguageDataState(MetadataDataState.AVAILABLE);
+        provenance.recordObservation(game,"LOCALIZATION",provider.detailSource(),MetadataDataState.AVAILABLE,false);
+        if (game.getLanguages().isEmpty()) { game.getLanguages().addAll(supported); observed(game,"LANGUAGES"); }
     }
     private void applyCompanies(Game game, GameProvider.Details details, java.util.Set<OverridableField> locked) {
         if (!details.developers().isEmpty() && !locked.contains(OverridableField.DEVELOPERS)) {
@@ -101,7 +151,7 @@ public class GameDetailRefreshService {
             game.getPublishers().clear(); game.getPublishers().addAll(details.publishers()); observed(game,"PUBLISHERS");
         }
     }
-    private void observed(Game game, String field) { provenance.recordObservation(game,field,provider.provider(),MetadataDataState.AVAILABLE,false); }
+    private void observed(Game game, String field) { provenance.recordObservation(game,field,provider.detailSource(),MetadataDataState.AVAILABLE,false); }
 
     /** Kalıcı hatada yalnız açık uygulama komutuyla yeniden denemeye izin verilir. */
     @Transactional

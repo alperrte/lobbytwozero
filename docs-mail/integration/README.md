@@ -20,16 +20,16 @@ Mail kimseyi çağırmaz. Tek yön: Auth → Mail.
 - Bu yüzden Mail `202` dönmeden önce kaydı **kalıcı** yazmalı; SMTP anında gitmek zorunda değil (kuyruk + retry).
 - Auth `recipientEmail`'i her çağrıda verir; kod/bağlantı yalnız Auth belleğinde, Mail'e giderken düz metin (iç ağ, `svc+jwt` korumalı).
 
-## Uçlar (taslak → onaydan sonra `docs/api.md` `## MAIL`)
+## Uçlar (`docs/api.md` `## MAIL` ile aynı; hepsi IMPLEMENTED)
 
-Hepsi `Internal`, `Authorization: Bearer <svc+jwt>` (`aud=mail-service`, `sub=svc:auth-service`, `scope=mail:send`). Yanıt `202`; hata: 400, 401, 403, 409 (aynı anahtar farklı içerik), 413, 429.
+Hepsi `Internal`, `Authorization: Bearer <svc+jwt>` (`aud=mail-service`, `sub=svc:auth-service`, `scope=mail:send`). Yanıt `202`; hata: 400, 401, 403, 409 (aynı anahtar farklı içerik), 413, 503 (kayıt yazılamadı, `TEMPORARILY_UNAVAILABLE`), 500.
 
 | Uç | Gövde (Auth portundan) | Kaynak port |
 | --- | --- | --- |
 | `POST /internal/v1/mail/verification-codes` | `idempotencyKey, accountId, recipientEmail, code (^[0-9]{6}$), validitySeconds, locale?` | `VerificationCodeMail` (e-posta değişikliği kodu da bunu kullanır) |
 | `POST /internal/v1/mail/password-resets` | `idempotencyKey, accountId, recipientEmail, resetLink, validitySeconds, locale?` | `PasswordResetMail` |
 | `POST /internal/v1/mail/account-deletions` | `idempotencyKey, accountId, recipientEmail, confirmationLink, validitySeconds, locale?` | `AccountDeletionMail` |
-| `POST /internal/v1/mail/security-notifications` | `idempotencyKey, accountId, recipientEmail, type, occurredAt, locale?`; `type`: `PASSWORD_CHANGED, PASSWORD_RESET, EMAIL_CHANGED, ACCOUNT_SUSPENDED, ACCOUNT_BANNED, ACCOUNT_DISABLED, ACCOUNT_REACTIVATED` | `SecurityNotificationMail` |
+| `POST /internal/v1/mail/security-notifications` | `idempotencyKey, accountId, recipientEmail, type, occurredAt, locale?`; `type`: `PASSWORD_CHANGED, PASSWORD_RESET, EMAIL_CHANGED, ACCOUNT_SUSPENDED, ACCOUNT_BANNED, ACCOUNT_DISABLED, ACCOUNT_REACTIVATED, TWO_FACTOR_ENABLED, TWO_FACTOR_DISABLED, RECOVERY_CODE_USED, EXTERNAL_IDENTITY_LINKED` | `SecurityNotificationMail` |
 | `DELETE /internal/v1/accounts/{accountId}` | — (`scope=account:erase`, `account_id`=yol) → `204` | `AccountDataEraserPort` |
 
 Bağlantılar (`resetLink`, `confirmationLink`): yalnız `https` (dev'de `http://localhost`), kimlik bilgisi içermez; allowlist host. Parola, token, kod hiçbir yanıtta ve loga yazılmaz.

@@ -11,6 +11,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 
 import com.ltz.mail.IntegrationTestSupport;
 import com.ltz.mail.application.service.MailRetentionService;
+import com.ltz.mail.domain.enums.MailType;
 
 class MailSchemaAndRetentionTest extends IntegrationTestSupport {
 
@@ -33,10 +34,13 @@ class MailSchemaAndRetentionTest extends IntegrationTestSupport {
 
     @Test
     void seedsActiveTemplatesForEveryTypeAndLanguage() {
-        assertThat(jdbc.queryForObject("select count(*) from mail_templates where active", Integer.class)).isEqualTo(20);
-        assertThat(jdbc.queryForObject("select count(distinct code) from mail_templates", Integer.class)).isEqualTo(10);
+        int types = MailType.values().length;
+        assertThat(jdbc.queryForObject("select count(*) from mail_templates where active", Integer.class))
+                .isEqualTo(types * 2);
+        assertThat(jdbc.queryForObject("select count(distinct code) from mail_templates", Integer.class))
+                .isEqualTo(types);
         assertThat(jdbc.queryForObject("select count(*) from mail_templates where locale = 'tr'", Integer.class))
-                .isEqualTo(10);
+                .isEqualTo(types);
     }
 
     @Test

@@ -1,7 +1,9 @@
 package com.ltz.auth.api.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -91,6 +93,63 @@ class SessionControllerTest extends IntegrationTestSupport {
         mockMvc.perform(post(AuthApiPaths.TOTP_SETUP).with(xsrf()).cookie(session.access()))
                 .andExpect(status().isUnauthorized());
         assertThat(securityEventCount(accountId(email), "LOGOUT")).isEqualTo(1);
+    }
+
+    @Test
+    void meGirisliKullanicininKimliginiVeRolleriniDonerHassasAlanDonmez() throws Exception {
+        String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
+        SessionCookiePair session = loginSession(email);
+
+        String body = mockMvc.perform(get(AuthApiPaths.ME).cookie(session.access()))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("no-store")))
+                .andExpect(jsonPath("$.accountId").value(accountId(email).toString()))
+                .andExpect(jsonPath("$.roles[0]").value("PLAYER"))
+                .andExpect(jsonPath("$.authMethods[0]").value("pwd"))
+                .andExpect(jsonPath("$.accessTokenExpiresAt").exists())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(body).doesNotContain(email).doesNotContain("sid").doesNotContain("ver");
+    }
+
+    @Test
+    void oturumIpucuCerezigiristeYazilirYenilemedeSurerCikistaSilinir() throws Exception {
+        String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
+
+        MvcResult login = login(email, VALID_PASSWORD).andExpect(status().isOk()).andReturn();
+        String hint = hintCookie(login);
+        assertThat(hint).contains("=1").contains("Path=/").contains("Max-Age=").doesNotContain("HttpOnly");
+        assertThat(hint).doesNotContain("Max-Age=0");
+        // Değer taşımaz: kimlik, token ya da hesap bilgisi yok.
+        assertThat(hint.substring(0, hint.indexOf(';'))).endsWith("ltz_session=1");
+
+        SessionCookiePair session = SessionCookiePair.from(login);
+        MvcResult refreshed = refresh(session.refresh()).andExpect(status().isOk()).andReturn();
+        assertThat(hintCookie(refreshed)).doesNotContain("Max-Age=0").contains("=1");
+
+        SessionCookiePair rotated = SessionCookiePair.from(refreshed);
+        MvcResult loggedOut = mockMvc.perform(post(AuthApiPaths.SESSION_LOGOUT).with(xsrf()).cookie(rotated.refresh()))
+                .andExpect(status().isNoContent()).andReturn();
+        assertThat(hintCookie(loggedOut)).contains("Max-Age=0");
+    }
+
+    private static String hintCookie(MvcResult result) {
+        return result.getResponse().getHeaders("Set-Cookie").stream()
+                .filter(header -> header.contains("ltz_session="))
+                .findFirst().orElseThrow(() -> new AssertionError("oturum ipucu çerezi yazılmadı"));
+    }
+
+    @Test
+    void meMisafireVeGecersizOturumaUnauthorizedDoner() throws Exception {
+        mockMvc.perform(get(AuthApiPaths.ME)).andExpect(status().isUnauthorized())
+                .andExpect(header().string("WWW-Authenticate", "Bearer"))
+                .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
+
+        String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
+        SessionCookiePair session = loginSession(email);
+        jdbc.update("update accounts set status = 'SUSPENDED' where email_normalized = lower(?)", email);
+
+        mockMvc.perform(get(AuthApiPaths.ME).cookie(session.access())).andExpect(status().isUnauthorized());
     }
 
     @Test

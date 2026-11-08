@@ -20,7 +20,7 @@ veritabanına dokunmaz.
 
 | # | Sözleşme | Yön | Durum |
 | --- | --- | --- | --- |
-| 1 | JWT doğrulama: JWKS `GET /api/v1/auth/.well-known/jwks.json`; `iss`, `aud=ltz-api`, `typ=at+jwt`, RS256, `exp` | diğer servisler → Auth | Auth tarafı **IMPLEMENTED**; tüketici durumu (2026-10-24): **Game, Social ve Hardware uygun**, Hardware uygun (2026-10-26), Community geçici (her token reddedilir), diğerleri iskelet (bkz. `ekip-uyum-denetimi-2026-10-24.md`) |
+| 1 | JWT doğrulama: JWKS `GET /api/v1/auth/.well-known/jwks.json`; `iss`, `aud=ltz-api`, `typ=at+jwt`, RS256, `exp` | diğer servisler → Auth | Auth tarafı **IMPLEMENTED**; tüketici durumu (2026-10-24): **Game, Social ve Hardware uygun**, Hardware uygun (2026-10-26), Community geçici (her token reddedilir), diğerleri iskelet (bkz. ekip-uyum-denetimi-2026-10-24 (silindi, git geçmişinde)) |
 | 2 | Doğrulama kodu e-postası (`VerificationCodeMailPort`) | Auth → Mail | Port + dev (Mailpit) **IMPLEMENTED**; Mail Service ucu **PENDING** |
 | 3 | Parola sıfırlama e-postası (`PasswordResetMailPort`) | Auth → Mail | Aynı: port + dev **IMPLEMENTED**; Mail Service **PENDING** |
 | 4 | Hesap silme onayı e-postası (`AccountDeletionMailPort`) | Auth → Mail | Aynı: port + dev **IMPLEMENTED**; Mail Service **PENDING** |
@@ -142,8 +142,10 @@ olur (kimlik doğrulaması önce yapılır; yanlış gizli anahtar yine `401 INV
 | 9 | `svc:hardware-service` | `user-service` | `privacy:read` | HW-08 `HardwareVisibilityPolicy` |
 | 10 | `svc:review-service` | `user-service` | `events:ingest` | `ReviewSummaryChanged` |
 | 11 | `svc:recommendation-service` | `library-service` | `signals:read` (**hesaba bağlı**) | Tek hesabın öneri sinyali (LIB-14) |
-| 12 | `svc:game-service` | `review-service` | `rating-summaries:read` | Toplu oyun puan özetini okuma (REV-08/12) |
-| 13 | `svc:hardware-service` | `performance-service` | `devices:verify` (**hesaba bağlı**) | Cihazın hesaba ait ve aktif olduğunu sorma (PERF-01) |
+| 12 | `svc:game-service` | `review-service` | `rating-summaries:read`, `game-references:read` | Toplu oyun puan özetini okuma (REV-08/12); GAME-26 referans kontrolü (yalnız sayı) |
+| 13 | `svc:hardware-service` | `performance-service` | `devices:verify`, `summary:read` (**ikisi de hesaba bağlı**) | Cihazın hesaba ait/aktif olduğunu sorma ve hesabın donanım profili performans özeti (PERF-01/21) |
+| 14 | `svc:game-service` | `library-service` | `game-references:read` | GAME-26: dış kimlik taşıma/ayırma öncesi oyun için referans var mı (yalnız sayı) |
+| 15 | `svc:recommendation-service` | `performance-service` | `reference:read` (**hesaba bağlı**) | Tek hesabın oyun performans referansını okuma (PERF-21) |
 
 Satır 5 ve 6 için gizli anahtarlar `AUTH_MESSAGING_SERVICE_CLIENT_SECRET` ve `AUTH_LFP_SERVICE_CLIENT_SECRET` (yeni, boşsa istemci kapalı).
 Satır 7–11 için (2026-10-30, boşsa kapalı): social satır 2'deki `AUTH_SOCIAL_SERVICE_CLIENT_SECRET`'i kullanır; ayrıca `AUTH_LIBRARY_SERVICE_CLIENT_SECRET`,
@@ -151,6 +153,7 @@ Satır 7–11 için (2026-10-30, boşsa kapalı): social satır 2'deki `AUTH_SOC
 **User Service istemci değildir:** kimseyi senkron çağırmaz, Social/Library/Review verisi olayla gelir. `privacy:read` kullanıcıya bağlı değildir;
 görüntüleyen ve sahip istek gövdesindedir, çağıranın kendi doğruladığı beyandır. Kararı User verir, Auth vermez.
 Satır 12–13 için (2026-10-31): `AUTH_GAME_SERVICE_CLIENT_SECRET` (yeni, boşsa kapalı) ve mevcut `AUTH_HARDWARE_SERVICE_CLIENT_SECRET`. Satır 13 `signals:read` gibi hesaba bağlıdır: istekte `accountId` zorunlu, token `account_id` taşır, Performance bunu yoldaki hesapla karşılaştırır.
+**REQ-04-A genişletmesi (2026-11-06):** Satır 13'e `summary:read`, satır 15'e `reference:read` eklendi. Auth seçilen hedefin yapılandırılmış bütün kapsamlarını verir: Hardware token'ı `devices:verify summary:read`, Recommendation token'ı `reference:read` taşır. Tek audience ve tek hesap bağı sürer. İki yeni kapsam hem bilinen hedef kapsamları hem hesaba bağlı kapsamlar listesinde yer alır; bağsız kapsamlarla karıştırılamaz. Mevcut Recommendation istemci sırrı kullanılır; yeni ENV veya DB değişikliği yoktur. Kullanıcının bildirdiği Kerem onayı kapsamında uygulanmıştır.
 **Henüz tanımlanmayan çiftler (bilinçli):** Review ↔ Admin `events:ingest` ve Review → Notification. Alıcı servisler (Admin, Notification) ve üretici kararı yokken çift açılmaz (alıcısı olmayan izin tanımlanmaz); alıcı sözleşmesi gelince tek satırlık yapılandırmadır. Admin → Review moderasyon komutunda yetki servis kimliğinden gelir (Admin insan moderatörü kendi doğrular, `actorId` yalnız denetim kaydıdır); Auth Review için "bu kullanıcı moderatör mü" diye cevaplayan yeni bir uç açmaz.
 
 **Hesaba bağlı kapsam (2026-10-30, `signals:read`):** İstek gövdesinde `accountId` zorunludur; token `account_id` claim'iyle o tek hesaba bağlanır.

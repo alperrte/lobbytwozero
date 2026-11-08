@@ -165,7 +165,7 @@ Gerçek paketli uygulamalarla izole HTTP kabulü artık VERIFIED: Auth kayıt/gi
 Mailpit doğrulama, Gateway reverse proxy/cookie/CSRF, Hardware sahiplik ve D4 worker ACK'i.
 2026-10-24 16:40:10 +03 biten `logs/hardware-auth-runtime-e2e-final.log`:
 **16 kontrol PASS / exit 0**, CLEANUP 3 Java süreci + 3 etiketli container/volume.
-`ops/hardware-auth-e2e.mjs` bu kabulü gerçek ENV okumadan tekrarlar; yedi güvenlik
+`ops/dev.mjs e2e hardware` bu kabulü gerçek ENV okumadan tekrarlar; yedi güvenlik
 yardımcı testi, mevcut runner regresyonlarıyla birlikte **72 PASS**.
 İlk CORS 403 yanıtını yanlış JSON parse eden betik hatası düzeltildi; ilk FAIL
 `logs/hardware-auth-runtime-e2e.log` içinde tutulur. Servis kodu değişmedi.

@@ -35,8 +35,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 /**
  * PERF-14/15/16/19/21: geçmiş, filtre, istatistik, grafik serisi ve Hardware/Recommendation sözleşme uçları.
  * Gerçek Auth issuer/JWKS (üretim kaynaklarından derlenmiş), Performance HTTP güvenliği ve geçici PostgreSQL kullanılır.
- * Hardware/Recommendation servis token'ları YEREL İMZALI SÖZLEŞME token'larıdır: gerçek Auth servis token'ı bugün yalnız
- * sub=svc:auth-service üretir (REQ-01-C). Bu test gerçek Hardware/Recommendation/Auth entegrasyonu DEĞİLDİR.
+ * Olumlu Hardware/Recommendation token'ları Auth'un gerçek ServiceClientTokenIssuer çıktısıdır. Geçersiz konu/kapsam
+ * testleri yerel imzalıdır. Kaynak sözleşme testi çalışan Auth veya üretim tüketici istemcisi E2E'si değildir.
  */
 @SpringBootTest(properties = {"logging.level.root=INFO", "debug=false"})
 @AutoConfigureMockMvc
@@ -143,8 +143,15 @@ class PerformanceHistoryIntegrationTest extends PostgresIntegrationSupport {
     }
 
     JsonNode internal(String path, String subject, String scope, UUID tokenAccount, int expected) throws Exception {
-        return send(get(path).header("Authorization", "Bearer "
-                + serviceToken(subject, scope, tokenAccount, "performance-service")), expected);
+        String token;
+        if (HARDWARE.equals(subject) && SUMMARY_SCOPE.equals(scope)) {
+            token = PerformanceTestAuth.AUTH.performanceClientToken("hardware-service", tokenAccount);
+        } else if (RECOMMENDATION.equals(subject) && REFERENCE_SCOPE.equals(scope)) {
+            token = PerformanceTestAuth.AUTH.performanceClientToken("recommendation-service", tokenAccount);
+        } else {
+            token = serviceToken(subject, scope, tokenAccount, "performance-service");
+        }
+        return send(get(path).header("Authorization", "Bearer " + token), expected);
     }
 
     static List<String> ids(JsonNode page) {
@@ -703,8 +710,8 @@ class PerformanceHistoryIntegrationTest extends PostgresIntegrationSupport {
         // Yanlış servis konusu (başka bir servisin token'ı diğerinin ucunu çağıramaz)
         internal(summary, RECOMMENDATION, SUMMARY_SCOPE, account.id(), 403);
         internal(reference, HARDWARE, REFERENCE_SCOPE, account.id(), 403);
-        // Gerçek Auth servis token'ı yalnız sub=svc:auth-service üretir → iki uç da reddeder (REQ-01-C)
-        String real = PerformanceTestAuth.AUTH.serviceToken("performance-service", "devices:verify", account.id());
+        // Yalnız cihaz doğrulama kapsamıyla imzalanmış dar token özet/referans okuma yetkisi vermez.
+        String real = PerformanceTestAuth.AUTH.hardwareDeviceVerificationToken(account.id());
         mvcStatus(get(summary).header("Authorization", "Bearer " + real), 403);
         mvcStatus(get(reference).header("Authorization", "Bearer " + real), 403);
         // Kapsam doğru olsa bile gerçek Auth token'ının konusu svc:auth-service'tir; Hardware/Recommendation değildir

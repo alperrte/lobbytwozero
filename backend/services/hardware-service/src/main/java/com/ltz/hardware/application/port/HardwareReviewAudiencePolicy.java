@@ -3,11 +3,12 @@ package com.ltz.hardware.application.port;
 import java.util.Set;
 import java.util.UUID;
 
-/** Trusted global UGC permission and complete two-way block snapshot, never client claims. */
+/** Karar yalnız verilen tam yazar kümesi içindir; adaylar sayfalama öncesinde alınır. */
 public interface HardwareReviewAudiencePolicy {
+    int MAX_AUTHORS = 1000;
     record Decision(boolean allowOthers, Set<UUID> blockedAuthors) {
         public Decision {
-            if (blockedAuthors == null || blockedAuthors.size() > 1000) {
+            if (blockedAuthors == null || blockedAuthors.size() > MAX_AUTHORS) {
                 throw new IllegalArgumentException("Geçersiz görünürlük kararı");
             }
             blockedAuthors = Set.copyOf(blockedAuthors);
@@ -17,5 +18,5 @@ public interface HardwareReviewAudiencePolicy {
         }
         public static Decision denyOthers() { return new Decision(false, Set.of()); }
     }
-    Decision evaluate(UUID viewerId);
+    Decision evaluate(UUID viewerId, Set<UUID> authors);
 }

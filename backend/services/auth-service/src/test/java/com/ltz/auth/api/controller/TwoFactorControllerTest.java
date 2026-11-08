@@ -26,6 +26,8 @@ import org.springframework.test.web.servlet.ResultActions;
 import com.jayway.jsonpath.JsonPath;
 import com.ltz.auth.IntegrationTestSupport;
 import com.ltz.auth.RecordingMailPortConfiguration;
+import com.ltz.auth.application.port.SecurityNotificationMail;
+import com.ltz.auth.application.port.SecurityNotificationType;
 import com.ltz.auth.infrastructure.security.SecretCipher;
 import com.ltz.auth.infrastructure.security.SecretCipher.EncryptedSecret;
 import com.ltz.auth.infrastructure.security.TotpCodes;
@@ -45,6 +47,9 @@ class TwoFactorControllerTest extends IntegrationTestSupport {
 
     @Autowired
     private TotpCodes totpCodes;
+
+    @Autowired
+    private RecordingMailPortConfiguration.RecordingMailPort mailPort;
 
     @Test
     void kurulumKimlikIsterEtkinlestirmeDogruKodlaKurtarmaKodlariDondurur() throws Exception {
@@ -66,6 +71,9 @@ class TwoFactorControllerTest extends IntegrationTestSupport {
         assertThat(jdbc.queryForObject("select count(*) from recovery_codes where account_id = ? and code_hash in (?)",
                 Integer.class, accountId, recoveryCodes.getFirst())).isZero();
         authenticated(AuthApiPaths.TOTP_SETUP, access, null).andExpect(status().isConflict());
+        mailPort.awaitNotification(email, SecurityNotificationType.TWO_FACTOR_ENABLED);
+        assertThat(mailPort.notificationsTo(email)).as("yanlış kodla bildirim üretilmez, yalnız etkinleşmede tek bildirim")
+                .extracting(SecurityNotificationMail::type).containsExactly(SecurityNotificationType.TWO_FACTOR_ENABLED);
     }
 
     @Test
@@ -95,6 +103,9 @@ class TwoFactorControllerTest extends IntegrationTestSupport {
 
         twoFactorStep(passwordStep(email), null, recoveryCode).andExpect(status().isUnauthorized());
         assertThat(securityEventCount(accountId, "RECOVERY_CODE_USED")).isEqualTo(1);
+        mailPort.awaitNotification(email, SecurityNotificationType.RECOVERY_CODE_USED);
+        assertThat(mailPort.notificationsTo(email)).filteredOn(mail -> mail.type() == SecurityNotificationType.RECOVERY_CODE_USED)
+                .as("tek kullanımlık kod yalnız bir kez bildirim üretir").hasSize(1);
     }
 
     @Test
@@ -146,6 +157,9 @@ class TwoFactorControllerTest extends IntegrationTestSupport {
 
         login(email, VALID_PASSWORD).andExpect(jsonPath("$.status").value("AUTHENTICATED"));
         assertThat(securityEventCount(accountId, "TWO_FACTOR_DISABLED")).isEqualTo(1);
+        mailPort.awaitNotification(email, SecurityNotificationType.TWO_FACTOR_DISABLED);
+        assertThat(mailPort.notificationsTo(email)).filteredOn(mail -> mail.type() == SecurityNotificationType.TWO_FACTOR_DISABLED)
+                .as("yanlış parolayla kapatma denemesi bildirim üretmez").hasSize(1);
     }
 
     @Test

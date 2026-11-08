@@ -15,7 +15,8 @@ public enum AccountStatus {
 
     /**
      * Yönetici (AUTH-12) geçişleri. PENDING_VERIFICATION AUTH-02, DELETION_REQUESTED/DELETED AUTH-16 ile yönetilir.
-     * Askı ve yasak yönetici kararıyla geri alınabilir (SUSPENDED/DISABLED/BANNED → ACTIVE); süreli otomatik açılma yoktur.
+     * Askı ve yasak yönetici kararıyla geri alınabilir (SUSPENDED/DISABLED/BANNED → ACTIVE). Yalnız SUSPENDED isteğe bağlı
+     * bitiş tarihiyle verilebilir; süre dolunca arka plan işi hesabı ACTIVE yapar. BANNED ve DISABLED süresizdir.
      */
     public boolean canTransitionTo(AccountStatus target) {
         return switch (this) {

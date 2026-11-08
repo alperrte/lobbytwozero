@@ -95,10 +95,10 @@ export async function checkRepositoryHygiene({ run, log, root }) {
   }
 
   // 5) Anahtar uretici scriptin guvenlik bekcisi testi.
-  if (fs.existsSync(path.join(root, 'ops/generate-auth-dev-keys.test.mjs'))) {
-    const tooling = await run(process.execPath, ['--test', 'ops/generate-auth-dev-keys.test.mjs'], root, true);
+  if (fs.existsSync(path.join(root, 'ops/dev.test.mjs'))) {
+    const tooling = await run(process.execPath, ['--test', 'ops/dev.test.mjs'], root, true);
     if (tooling.code !== 0) {
-      log('[TOOLING TEST] ops/generate-auth-dev-keys.test.mjs failed; the key generator guard was changed or broken.');
+      log('[TOOLING TEST] ops/dev.test.mjs failed; the key generator guard was changed or broken.');
       failures.push('key generator guard test failed');
     }
   }

@@ -1,6 +1,10 @@
 # Final rapor — Performance Service (4 faz)
 
+> **REQ-04-A son güncelleme (2026-11-06):** Kullanıcının bildirdiği Kerem onayıyla Hardware `summary:read` ve Recommendation `reference:read` Auth izinleri eklendi. [Güncel kabul ve kalite kaydı](../integration/auth/auth-integration-06.md). Aşağıdaki ilk ek teslimdeki "REQ-04-A açık" ifadesi artık tarihçedir; üretim tüketici istemcileri ayrı bekler.
+
 Tarih: 2026-10-31 · Sahip: Alper · Dal: `feature/performance-service`
+
+> **2026-11-06 ek teslimi:** REQ-01-A/C entegre edildi; B kararı (≤60 sn + Auth listesinden yenileme) uygulandı; D gerçek Auth silme işçisiyle izole kabulde PASS, E teyit edildi. 138 test / %97,10 kapsam / 13 gerçek HTTP kontrolü PASS. Yeni Checkstyle/PMD ihlali ve Trivy bulgusu 0. REQ-04-A (`summary:read`, `reference:read`) hâlâ açık; Game/Hardware/Recommendation tüketici entegrasyonları ayrı iş. [Güncel kanıt](../integration/auth/auth-integration-05.md). Aşağıdaki 2026-10-31 raporu tarihçedir; eski Auth BLOCKED ve test sayıları güncel değildir. Sonar bu ek teslimde NOT RUN.
 
 Bu rapor **kod teslimi** durumunu söyler. Flyway konsolidasyonu ayrı bir aşamadır ve henüz yapılmadı (aşağıda ayrı bölüm).
 

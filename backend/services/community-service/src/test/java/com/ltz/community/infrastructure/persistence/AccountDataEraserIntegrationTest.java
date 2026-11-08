@@ -131,6 +131,9 @@ class AccountDataEraserIntegrationTest extends PostgreSqlIntegrationTest {
 		userBlockRepository.insertIfAbsent(account, other, NOW);
 		userBlockRepository.insertIfAbsent(third, account, NOW);
 		userBlockRepository.insertIfAbsent(other, third, NOW);
+		userBlockRepository.advanceMarker(account, other, NOW);
+		userBlockRepository.advanceMarker(third, account, NOW);
+		userBlockRepository.advanceMarker(other, third, NOW);
 		forumRepository.saveAndFlush(Forum.open(account, null, "hesabin-forumu", "Forum", null, NOW));
 
 		outbox("PostLiked", "{\"actorId\": \"" + account + "\", \"recipientId\": \"" + other + "\"}");
@@ -174,6 +177,27 @@ class AccountDataEraserIntegrationTest extends PostgreSqlIntegrationTest {
 		assertThat(count("select count(*) from posts where body like '%hesabın%' or body like '%saklanan%'")).isZero();
 		assertThat(count("select count(*) from comments where body like '%hesabın%' or body like '%saklanan%'")).isZero();
 		assertThat(count("select count(*) from post_images where post_id = ?", accountPost.getId())).isZero();
+	}
+
+	@Test
+	void gameContentTitleAndBodyOfTheAccountAreErasedWhileOthersContentIsKept() {
+		UUID game = UUID.randomUUID();
+		Post accountGuide = postRepository.saveAndFlush(Post.publishGameContent(account, game,
+				com.ltz.community.domain.enums.GameContentType.GUIDES, "hesabın gizli başlığı", "hesabın rehberi", NOW));
+		Post othersGuide = postRepository.saveAndFlush(Post.publishGameContent(other, game,
+				com.ltz.community.domain.enums.GameContentType.GUIDES, "başkasının başlığı", "başkasının rehberi", NOW));
+		entityManager.clear();
+
+		erasure.erase(account);
+
+		Map<String, Object> erased = row("posts", accountGuide.getId());
+		assertThat(erased).containsEntry("author_id", ANONYMOUS).containsEntry("status", "DELETED")
+				.containsEntry("body", AccountErasurePort.REMOVED_CONTENT)
+				.containsEntry("title", AccountErasurePort.REMOVED_CONTENT)
+				.containsEntry("content_type", "GUIDES").containsEntry("game_id", game);
+		assertThat(row("posts", othersGuide.getId())).containsEntry("author_id", other).containsEntry("status", "VISIBLE")
+				.containsEntry("title", "başkasının başlığı");
+		assertThat(count("select count(*) from posts where title like '%hesabın%'")).isZero();
 	}
 
 	@Test
@@ -223,6 +247,10 @@ class AccountDataEraserIntegrationTest extends PostgreSqlIntegrationTest {
 
 		assertThat(count("select count(*) from user_blocks where blocker_id = ? or blocked_id = ?", account, account)).isZero();
 		assertThat(userBlockRepository.existsBetween(other, third)).as("ilgisiz engelleme durur").isTrue();
+		assertThat(count("select count(*) from user_block_markers where blocker_id = ? or blocked_id = ?", account, account))
+				.as("olay sırası işaretleri de silinir").isZero();
+		assertThat(count("select count(*) from user_block_markers where blocker_id = ?", other))
+				.as("ilgisiz işaret durur").isEqualTo(1);
 		assertThat(count("select count(*) from forums where created_by = ?", account)).isZero();
 		assertThat(forumRepository.findAll()).anySatisfy(forum -> assertThat(forum.getCreatedBy()).isEqualTo(ANONYMOUS));
 		// Hesabın kimliğini taşıyan her olay silinir; ilgisiz olay durur.

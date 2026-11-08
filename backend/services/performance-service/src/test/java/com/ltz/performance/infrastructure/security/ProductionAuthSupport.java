@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 import javax.tools.ToolProvider;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
@@ -28,6 +29,7 @@ public final class ProductionAuthSupport implements AutoCloseable {
     private final Object signingKey;
     private final Object issuer;
     private final Object serviceIssuer;
+    private final Object clientIssuer;
     private final Object deviceIssuer;
     private final RSAKey key;
 
@@ -43,6 +45,7 @@ public final class ProductionAuthSupport implements AutoCloseable {
                 "domain/enums/SessionRevokeReason", "infrastructure/config/JwtProperties",
                 "infrastructure/security/JwtSigningKey", "infrastructure/security/TokenClaims",
                 "infrastructure/security/AccessTokenIssuer", "infrastructure/security/ServiceTokenIssuer",
+                "infrastructure/security/ServiceClientTokenIssuer",
                 "infrastructure/security/DeviceTokenIssuer", "api/controller/JwksController",
                 "api/controller/AuthApiPaths")) {
             sources.add(services.resolve("auth-service/src/main/java/com/ltz/auth/" + name + ".java").toString());
@@ -71,16 +74,41 @@ public final class ProductionAuthSupport implements AutoCloseable {
         issuer = type("infrastructure.security.AccessTokenIssuer").getConstructors()[0].newInstance(encoder, signingKey, properties);
         serviceIssuer = type("infrastructure.security.ServiceTokenIssuer").getConstructors()[0]
                 .newInstance(encoder, signingKey, properties, java.time.Clock.systemUTC());
+        clientIssuer = type("infrastructure.security.ServiceClientTokenIssuer").getConstructors()[0]
+                .newInstance(encoder, signingKey, properties, java.time.Clock.systemUTC());
         deviceIssuer = type("infrastructure.security.DeviceTokenIssuer").getConstructors()[0]
                 .newInstance(encoder, signingKey, properties, java.time.Clock.systemUTC());
     }
 
     public RSAKey key() { return key; }
 
-    /** Gerçek Auth cihaz token'ı: bugün YALNIZ {@code aud=hardware-service} üretir (REQ-01-A). */
+    /** Auth'un geriye uyumlu varsayılan hedefi: Hardware. */
     public String deviceToken(UUID deviceId, UUID accountId) throws Exception {
         return (String) deviceIssuer.getClass().getMethod("issue", UUID.class, UUID.class)
                 .invoke(deviceIssuer, deviceId, accountId);
+    }
+
+    /** Auth'un Performance hedefli üreticisi; token biçimi test içinde yeniden kurulmaz. */
+    public String performanceDeviceToken(UUID deviceId, UUID accountId) throws Exception {
+        return (String) deviceIssuer.getClass().getMethod("issue", UUID.class, UUID.class, String.class, String.class)
+                .invoke(deviceIssuer, deviceId, accountId, "performance-service", "performance:sync:write");
+    }
+
+    /** Auth istemci üreticisi; izin listesi ve hesap ACTIVE denetimi HTTP kabul testinde ayrıca sınanır. */
+    public String hardwareDeviceVerificationToken(UUID accountId) throws Exception {
+        return (String) clientIssuer.getClass().getMethod("issue", String.class, String.class, Set.class, UUID.class)
+                .invoke(clientIssuer, "hardware-service", "performance-service", Set.of("devices:verify"), accountId);
+    }
+
+    /** REQ-04-A: yapılandırılmış istemci kapsamlarıyla gerçek Auth üreticisinin çıktısı. */
+    public String performanceClientToken(String clientId, UUID accountId) throws Exception {
+        Set<String> scopes = switch (clientId) {
+            case "hardware-service" -> Set.of("devices:verify", "summary:read");
+            case "recommendation-service" -> Set.of("reference:read");
+            default -> throw new IllegalArgumentException("Unknown Performance consumer");
+        };
+        return (String) clientIssuer.getClass().getMethod("issue", String.class, String.class, Set.class, UUID.class)
+                .invoke(clientIssuer, clientId, "performance-service", scopes, accountId);
     }
 
     /** Gerçek Auth D4 servis token'ı; {@code audience} hedef servis adıdır (ör. performance-service). */

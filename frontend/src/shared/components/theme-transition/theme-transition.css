@@ -1,0 +1,42 @@
+/*
+ * Tema geçişi örtüsü: V1, V2 ve V3 sahnelerinin ortak tam ekran kabuğu.
+ * Katman pointer-events almaz, düzeni etkilemez (fixed + contain) ve süre bitince DOM'dan kaldırılır.
+ * Hareket azaltma istendiğinde katman hiç oluşturulmaz (bkz. shared/lib/theme/theme-transition.ts);
+ * aşağıdaki medya kuralı yalnız ek güvencedir.
+ * Sahne stilleri: v3/v3.css (taktik V3, varsayılan), legacy/v2/tactical.css (taktik V2),
+ * legacy/v1/classic.css (klasik).
+ */
+.ltz-fx {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  /* popover="manual" tarayıcı varsayılanlarını sıfırla: tam ekran, şeffaf, çerçevesiz. */
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+}
+
+.ltz-fx > * {
+  position: absolute;
+  inset: 0;
+}
+
+.ltz-fx svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ltz-fx {
+    display: none;
+  }
+}

@@ -85,6 +85,39 @@ class ServiceClientConfigTest {
                 targets(Map.of("performance-service", Set.of("devices:verify", "events:ingest"))), "must not mix");
         // Puan özeti okuma kullanıcıya bağlı değildir; tek başına ya da başka bağsız kapsamla açılabilir.
         assertAccepted("game-service", targets(Map.of("review-service", Set.of("rating-summaries:read"))));
+        assertAccepted("game-service", targets(Map.of("review-service", Set.of("rating-summaries:read", "game-references:read"),
+                "library-service", Set.of("game-references:read"))));
+        // Referans kontrolü hesaba bağlı bir kapsamla karışamaz.
+        assertRejected("game-service",
+                targets(Map.of("library-service", Set.of("game-references:read", "signals:read"))), "must not mix");
+    }
+
+    /** Performance okuma izinleri, cihaz doğrulama gibi tek hesaba bağlı kalır. */
+    @Test
+    void performanceOkumaKapsamlariHesabaBagliKalir() {
+        assertAccepted("hardware-service", targets(Map.of("performance-service", Set.of("devices:verify", "summary:read"))));
+        assertAccepted("recommendation-service", targets(Map.of("performance-service", Set.of("reference:read"))));
+        for (String scope : Set.of("summary:read", "reference:read")) {
+            assertRejected("hardware-service", targets(Map.of("performance-service", Set.of(scope, "events:ingest"))),
+                    "must not mix");
+            assertRejected("hardware-service", targets(Map.of("performance-service", Set.of(scope, "account:erase"))),
+                    "targets.performance-service");
+        }
+    }
+
+    /** GAME-26: kimlik düzeltme kapsamları hesaba bağlı değildir ve yalnız tanımlı hedeflere açılır. */
+    @Test
+    void oyunKimlikDuzeltmeKapsamlariKatilimcilarlaAcilir() {
+        Set<String> game = Set.of("game-identity:prepare", "game-identity:finalize", "game-identity:read");
+        assertAccepted("game-service", targets(Map.of("community-service", game, "content-service", game,
+                "library-service", Set.of("game-references:read", "game-identity:prepare", "game-identity:finalize",
+                        "game-identity:read"))));
+        assertAccepted("content-service", targets(Map.of("game-service", Set.of("game-identity:decision:read"))));
+        // Silme kapsamı hiçbir hedefte verilemez; bilinmeyen kimlik kapsamı açılmaz.
+        assertRejected("content-service", targets(Map.of("game-service", Set.of("game-identity:decision:read", "account:erase"))),
+                "targets.game-service");
+        assertRejected("game-service", targets(Map.of("library-service", Set.of("game-identity:admin"))),
+                "targets.library-service");
     }
 
     /** Yalnız hedef kapsamlı istemci (Auth'a kapsamı yok). */

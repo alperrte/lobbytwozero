@@ -65,6 +65,8 @@ public class SecurityConfig {
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.EMAIL_VERIFICATION_RESEND),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.LOGIN),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.LOGIN_TWO_FACTOR),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.LOGIN_TWO_FACTOR_ENROLLMENT_START),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.LOGIN_TWO_FACTOR_ENROLLMENT_COMPLETE),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.SESSION_REFRESH),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.SESSION_LOGOUT),
             PATHS.matcher(HttpMethod.GET, AuthApiPaths.CSRF),
@@ -75,7 +77,9 @@ public class SecurityConfig {
             PATHS.matcher(HttpMethod.GET, AuthApiPaths.STEAM_CALLBACK),
             // Bağlama dönüşü: hesap akıştan gelir (state + çerez), oturum çerezi okunmaz.
             PATHS.matcher(HttpMethod.GET, AuthApiPaths.STEAM_LINK_CALLBACK),
+            PATHS.matcher(HttpMethod.GET, AuthApiPaths.GOOGLE_LINK_CALLBACK),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.STEAM_COMPLETE),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.GOOGLE_COMPLETE),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_FORGOT),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_RESET),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.ACCOUNT_DELETION_CANCEL),
@@ -86,8 +90,11 @@ public class SecurityConfig {
 
     /** Geçerli access token isteyen uçlar. */
     static final RequestMatcher AUTHENTICATED_ENDPOINTS = new OrRequestMatcher(
+            PATHS.matcher(HttpMethod.GET, AuthApiPaths.ME),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.SESSION_LOGOUT_ALL),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_CHANGE),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_SET_REQUEST),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_SET),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.EMAIL_CHANGE),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.EMAIL_CHANGE_CONFIRM),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.ACCOUNT_DELETION_REQUEST),
@@ -96,7 +103,7 @@ public class SecurityConfig {
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.TOTP_ACTIVATE),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.TOTP_DISABLE),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.STEAM_LINK_START),
-            PATHS.matcher(HttpMethod.POST, AuthApiPaths.STEAM_UNLINK),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.GOOGLE_LINK_START),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.DEVICES),
             PATHS.matcher(HttpMethod.GET, AuthApiPaths.DEVICES),
             PATHS.matcher(HttpMethod.DELETE, AuthApiPaths.DEVICE));
@@ -107,12 +114,14 @@ public class SecurityConfig {
     /** Servis token'ı isteyen iç uçlar (Gateway'e açılmaz): cookie okunmaz, kapsam yetkisi SCOPE_ ile denetlenir. */
     static final RequestMatcher INTERNAL_ENDPOINTS = PATHS.matcher(AuthApiPaths.INTERNAL + "/**");
 
-    /** Cookie okumayan ve oturum açmayan uçlar (yetki kaynağı gövdedeki tek kullanımlık değerdir). */
+    /**
+     * Cookie okumayan ve oturum açmayan uçlar (yetki kaynağı gövdedeki tek kullanımlık değerdir). CSRF bunlarda aranmaz.
+     * Google ve Steam kayıt tamamlama uçları (oauth complete) burada DEĞİLDİR: oturum açıp cookie yazdığı için CSRF korumalıdır.
+     */
     private static final RequestMatcher COOKIELESS_ENDPOINTS = new OrRequestMatcher(
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.REGISTER),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.EMAIL_VERIFICATION_CONFIRM),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.EMAIL_VERIFICATION_RESEND),
-            PATHS.matcher(HttpMethod.POST, AuthApiPaths.STEAM_COMPLETE),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_FORGOT),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_RESET),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.ACCOUNT_DELETION_CANCEL),

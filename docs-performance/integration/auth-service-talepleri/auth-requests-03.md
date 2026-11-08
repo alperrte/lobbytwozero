@@ -1,5 +1,7 @@
 # Auth talepleri 03
 
+> **2026-11-06:** REQ-01-A/C Auth'ta hazırdır; olumlu v2 testleri Auth'un gerçek cihaz token üreticisini kullanır. B kararı uygulandı; v1 gerçek Auth HTTP kabulü ve D4 işçisi PASS. Aşağıdaki faz tarihçesindeki BLOCKED kayıtları güncel değildir; v2 sensörlerin gerçek Game/Hardware/masaüstü E2E'si ayrıca bekler. [Güncel kanıt](../auth/auth-integration-05.md).
+
 Tarih: 2026-10-31 · Kapsam: Faz 3 (PERF-05..PERF-12)
 
 ## Yeni talep: YOK

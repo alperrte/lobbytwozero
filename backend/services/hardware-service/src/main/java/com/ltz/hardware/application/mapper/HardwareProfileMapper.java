@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 public class HardwareProfileMapper {
     public HardwareProfileResponse toResponse(HardwareProfile profile) {
         return new HardwareProfileResponse(profile.getId(), profile.getName(), profile.getDeviceType(),
-                profile.getSource(), profile.getVersion(), profile.getCreatedAt(), profile.getUpdatedAt());
+                profile.getCaseColor(), profile.getSource(), profile.getVersion(), profile.getCreatedAt(),
+                profile.getUpdatedAt());
     }
 }

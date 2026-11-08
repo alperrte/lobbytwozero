@@ -1,0 +1,666 @@
+[
+  {
+    "id": "a4a1c77d-d168-4365-b060-733fcff59211",
+    "model": "Ryzen 7 9800X3D",
+    "brands": [
+      {
+        "id": "b369a793-826f-4acd-ac7d-d6e85bce074e",
+        "name": "AMD",
+        "status": "ACTIVE",
+        "version": 0
+      }
+    ],
+    "source": {
+      "brand": "AMD",
+      "provider": "PC_PART_DATASET",
+      "typedSpecifications": {
+        "clockMhz": {
+          "text": null,
+          "unit": "MHz",
+          "number": 4700,
+          "featureId": "core_clock"
+        },
+        "coreCount": {
+          "text": null,
+          "unit": "",
+          "number": 8,
+          "featureId": "core_count"
+        },
+        "powerWatts": {
+          "text": null,
+          "unit": "W",
+          "number": 120,
+          "featureId": "tdp"
+        },
+        "boostClockMhz": {
+          "text": null,
+          "unit": "MHz",
+          "number": 5200,
+          "featureId": "boost_clock"
+        },
+        "microarchitecture": {
+          "text": "Zen 5",
+          "unit": "",
+          "number": null,
+          "featureId": "microarchitecture"
+        },
+        "integratedGraphics": {
+          "text": "Radeon",
+          "unit": "",
+          "number": null,
+          "featureId": "graphics"
+        }
+      }
+    },
+    "status": "ACTIVE",
+    "version": 0,
+    "category": "CPU",
+    "specifications": {
+      "socket": null,
+      "clockMhz": 4700,
+      "coreCount": 8,
+      "capacityGb": null,
+      "formFactor": null,
+      "memoryType": null,
+      "powerWatts": 120,
+      "interfaceType": null
+    }
+  },
+  {
+    "id": "80a888ce-68ef-4a13-a5b5-d7824b6258c4",
+    "model": "Core i7-14700K",
+    "brands": [
+      {
+        "id": "2d34b400-0be8-4925-a21b-65c4165442c2",
+        "name": "Intel",
+        "status": "ACTIVE",
+        "version": 0
+      }
+    ],
+    "source": {
+      "brand": "Intel",
+      "provider": "PC_PART_DATASET",
+      "typedSpecifications": {
+        "clockMhz": {
+          "text": null,
+          "unit": "MHz",
+          "number": 3400,
+          "featureId": "core_clock"
+        },
+        "coreCount": {
+          "text": null,
+          "unit": "",
+          "number": 20,
+          "featureId": "core_count"
+        },
+        "powerWatts": {
+          "text": null,
+          "unit": "W",
+          "number": 125,
+          "featureId": "tdp"
+        },
+        "boostClockMhz": {
+          "text": null,
+          "unit": "MHz",
+          "number": 5600,
+          "featureId": "boost_clock"
+        },
+        "microarchitecture": {
+          "text": "Raptor Lake Refresh",
+          "unit": "",
+          "number": null,
+          "featureId": "microarchitecture"
+        },
+        "integratedGraphics": {
+          "text": "Intel UHD Graphics 770",
+          "unit": "",
+          "number": null,
+          "featureId": "graphics"
+        }
+      }
+    },
+    "status": "ACTIVE",
+    "version": 0,
+    "category": "CPU",
+    "specifications": {
+      "socket": null,
+      "clockMhz": 3400,
+      "coreCount": 20,
+      "capacityGb": null,
+      "formFactor": null,
+      "memoryType": null,
+      "powerWatts": 125,
+      "interfaceType": null
+    }
+  },
+  {
+    "id": "21d42ff9-e656-458a-91d0-23ae80c70581",
+    "model": "VENTUS 2X",
+    "brands": [
+      {
+        "id": "7cb556ed-01d1-482e-aacb-eb1ca2b28c6d",
+        "name": "MSI",
+        "status": "ACTIVE",
+        "version": 0
+      }
+    ],
+    "source": {
+      "brand": "MSI",
+      "provider": "PC_PART_DATASET",
+      "typedSpecifications": {
+        "color": {
+          "text": "Gray / Black",
+          "unit": "",
+          "number": null,
+          "featureId": "color"
+        },
+        "chipset": {
+          "text": "GeForce RTX 5070",
+          "unit": "",
+          "number": null,
+          "featureId": "chipset"
+        },
+        "clockMhz": {
+          "text": null,
+          "unit": "MHz",
+          "number": 2160,
+          "featureId": "core_clock"
+        },
+        "lengthMm": {
+          "text": null,
+          "unit": "mm",
+          "number": 236,
+          "featureId": "length"
+        },
+        "capacityGb": {
+          "text": null,
+          "unit": "GB",
+          "number": 12,
+          "featureId": "memory"
+        },
+        "boostClockMhz": {
+          "text": null,
+          "unit": "MHz",
+          "number": 2527,
+          "featureId": "boost_clock"
+        }
+      }
+    },
+    "status": "ACTIVE",
+    "version": 0,
+    "category": "GPU",
+    "specifications": {
+      "socket": null,
+      "clockMhz": 2160,
+      "coreCount": null,
+      "capacityGb": 12,
+      "formFactor": null,
+      "memoryType": null,
+      "powerWatts": null,
+      "interfaceType": null
+    }
+  },
+  {
+    "id": "79b21ca8-3786-4ec7-a028-d57d2b908365",
+    "model": "PULSE",
+    "brands": [
+      {
+        "id": "36886733-13b6-4c88-991f-f61938b6186b",
+        "name": "Sapphire",
+        "status": "ACTIVE",
+        "version": 0
+      }
+    ],
+    "source": {
+      "brand": "Sapphire",
+      "provider": "PC_PART_DATASET",
+      "typedSpecifications": {
+        "color": {
+          "text": "Black / Red",
+          "unit": "",
+          "number": null,
+          "featureId": "color"
+        },
+        "chipset": {
+          "text": "Radeon RX 7800 XT",
+          "unit": "",
+          "number": null,
+          "featureId": "chipset"
+        },
+        "clockMhz": {
+          "text": null,
+          "unit": "MHz",
+          "number": 1295,
+          "featureId": "core_clock"
+        },
+        "lengthMm": {
+          "text": null,
+          "unit": "mm",
+          "number": 280,
+          "featureId": "length"
+        },
+        "capacityGb": {
+          "text": null,
+          "unit": "GB",
+          "number": 16,
+          "featureId": "memory"
+        },
+        "boostClockMhz": {
+          "text": null,
+          "unit": "MHz",
+          "number": null,
+          "featureId": "boost_clock"
+        }
+      }
+    },
+    "status": "ACTIVE",
+    "version": 0,
+    "category": "GPU",
+    "specifications": {
+      "socket": null,
+      "clockMhz": 1295,
+      "coreCount": null,
+      "capacityGb": 16,
+      "formFactor": null,
+      "memoryType": null,
+      "powerWatts": null,
+      "interfaceType": null
+    }
+  },
+  {
+    "id": "6c8d3a9b-f64c-483f-af17-a9715959f446",
+    "model": "Steel Legend OC",
+    "brands": [
+      {
+        "id": "232d8a99-2a1c-42d7-abb0-34095aa46228",
+        "name": "ASRock",
+        "status": "ACTIVE",
+        "version": 0
+      }
+    ],
+    "source": {
+      "brand": "ASRock",
+      "provider": "PC_PART_DATASET",
+      "typedSpecifications": {
+        "color": {
+          "text": "White / Gray",
+          "unit": "",
+          "number": null,
+          "featureId": "color"
+        },
+        "chipset": {
+          "text": "Arc B580",
+          "unit": "",
+          "number": null,
+          "featureId": "chipset"
+        },
+        "clockMhz": {
+          "text": null,
+          "unit": "MHz",
+          "number": 2670,
+          "featureId": "core_clock"
+        },
+        "lengthMm": {
+          "text": null,
+          "unit": "mm",
+          "number": 298,
+          "featureId": "length"
+        },
+        "capacityGb": {
+          "text": null,
+          "unit": "GB",
+          "number": 12,
+          "featureId": "memory"
+        },
+        "boostClockMhz": {
+          "text": null,
+          "unit": "MHz",
+          "number": 2800,
+          "featureId": "boost_clock"
+        }
+      }
+    },
+    "status": "ACTIVE",
+    "version": 0,
+    "category": "GPU",
+    "specifications": {
+      "socket": null,
+      "clockMhz": 2670,
+      "coreCount": null,
+      "capacityGb": 12,
+      "formFactor": null,
+      "memoryType": null,
+      "powerWatts": null,
+      "interfaceType": null
+    }
+  },
+  {
+    "id": "8b645c57-a7ad-4a73-9dab-8a01d9ceb9e0",
+    "model": "PRIME B650-PLUS WIFI",
+    "brands": [
+      {
+        "id": "efd2ed6a-a727-4948-9918-9835d69d29f7",
+        "name": "Asus",
+        "status": "ACTIVE",
+        "version": 0
+      }
+    ],
+    "source": {
+      "brand": "Asus",
+      "provider": "PC_PART_DATASET",
+      "typedSpecifications": {
+        "color": {
+          "text": "Black / Silver",
+          "unit": "",
+          "number": null,
+          "featureId": "color"
+        },
+        "socket": {
+          "text": "AM5",
+          "unit": "",
+          "number": null,
+          "featureId": "socket"
+        },
+        "formFactor": {
+          "text": "ATX",
+          "unit": "",
+          "number": null,
+          "featureId": "form_factor"
+        },
+        "memorySlots": {
+          "text": null,
+          "unit": "",
+          "number": 4,
+          "featureId": "memory_slots"
+        },
+        "maximumMemoryGb": {
+          "text": null,
+          "unit": "GB",
+          "number": 192,
+          "featureId": "max_memory"
+        }
+      }
+    },
+    "status": "ACTIVE",
+    "version": 0,
+    "category": "MOTHERBOARD",
+    "specifications": {
+      "socket": "AM5",
+      "clockMhz": null,
+      "coreCount": null,
+      "capacityGb": null,
+      "formFactor": "ATX",
+      "memoryType": null,
+      "powerWatts": null,
+      "interfaceType": null
+    }
+  },
+  {
+    "id": "2b1b85a3-27c6-4368-8500-b6ac7a1ce16f",
+    "model": "Vengeance 32 GB",
+    "brands": [
+      {
+        "id": "5bd60057-4dcd-479c-9b16-83df6ed7dd85",
+        "name": "Corsair",
+        "status": "ACTIVE",
+        "version": 0
+      }
+    ],
+    "source": {
+      "brand": "Corsair",
+      "provider": "PC_PART_DATASET",
+      "typedSpecifications": {
+        "color": {
+          "text": "Black",
+          "unit": "",
+          "number": null,
+          "featureId": "color"
+        },
+        "clockMhz": {
+          "text": null,
+          "unit": "MHz",
+          "number": 6000,
+          "featureId": "speed[1]"
+        },
+        "capacityGb": {
+          "text": null,
+          "unit": "GB",
+          "number": 32,
+          "featureId": "modules"
+        },
+        "casLatency": {
+          "text": null,
+          "unit": "",
+          "number": 28,
+          "featureId": "cas_latency"
+        },
+        "memoryType": {
+          "text": "DDR5",
+          "unit": "",
+          "number": null,
+          "featureId": "speed[0]"
+        },
+        "moduleCount": {
+          "text": null,
+          "unit": "",
+          "number": 2,
+          "featureId": "modules[0]"
+        },
+        "moduleCapacityGb": {
+          "text": null,
+          "unit": "GB",
+          "number": 16,
+          "featureId": "modules[1]"
+        },
+        "firstWordLatencyNs": {
+          "text": null,
+          "unit": "ns",
+          "number": 9.333,
+          "featureId": "first_word_latency"
+        }
+      }
+    },
+    "status": "ACTIVE",
+    "version": 0,
+    "category": "RAM",
+    "specifications": {
+      "socket": null,
+      "clockMhz": 6000,
+      "coreCount": null,
+      "capacityGb": 32,
+      "formFactor": null,
+      "memoryType": "DDR5",
+      "powerWatts": null,
+      "interfaceType": null
+    }
+  },
+  {
+    "id": "d71866fb-d436-4c10-bece-d9c40ba77ef6",
+    "model": "990 Pro",
+    "brands": [
+      {
+        "id": "4d97c4b5-d14e-43f1-b5ac-70c192b7c5c3",
+        "name": "Samsung",
+        "status": "ACTIVE",
+        "version": 0
+      }
+    ],
+    "source": {
+      "brand": "Samsung",
+      "provider": "PC_PART_DATASET",
+      "typedSpecifications": {
+        "cacheMb": {
+          "text": null,
+          "unit": "MB",
+          "number": 2048,
+          "featureId": "cache"
+        },
+        "capacityGb": {
+          "text": null,
+          "unit": "GB",
+          "number": 2000,
+          "featureId": "capacity"
+        },
+        "formFactor": {
+          "text": "M.2-2280",
+          "unit": "",
+          "number": null,
+          "featureId": "form_factor"
+        },
+        "storageType": {
+          "text": "SSD",
+          "unit": "",
+          "number": null,
+          "featureId": "type"
+        },
+        "interfaceType": {
+          "text": "M.2 PCIe 4.0 X4",
+          "unit": "",
+          "number": null,
+          "featureId": "interface"
+        }
+      }
+    },
+    "status": "ACTIVE",
+    "version": 0,
+    "category": "STORAGE",
+    "specifications": {
+      "socket": null,
+      "clockMhz": null,
+      "coreCount": null,
+      "capacityGb": 2000,
+      "formFactor": "M.2-2280",
+      "memoryType": null,
+      "powerWatts": null,
+      "interfaceType": "M.2 PCIe 4.0 X4"
+    }
+  },
+  {
+    "id": "4db3d6de-2a17-4886-9e0a-289c3dc83c13",
+    "model": "870 Evo",
+    "brands": [
+      {
+        "id": "4d97c4b5-d14e-43f1-b5ac-70c192b7c5c3",
+        "name": "Samsung",
+        "status": "ACTIVE",
+        "version": 0
+      }
+    ],
+    "source": {
+      "brand": "Samsung",
+      "provider": "PC_PART_DATASET",
+      "typedSpecifications": {
+        "cacheMb": {
+          "text": null,
+          "unit": "MB",
+          "number": 1024,
+          "featureId": "cache"
+        },
+        "capacityGb": {
+          "text": null,
+          "unit": "GB",
+          "number": 1000,
+          "featureId": "capacity"
+        },
+        "formFactor": {
+          "text": "2.5",
+          "unit": "in",
+          "number": 2.5,
+          "featureId": "form_factor"
+        },
+        "storageType": {
+          "text": "SSD",
+          "unit": "",
+          "number": null,
+          "featureId": "type"
+        },
+        "interfaceType": {
+          "text": "SATA 6.0 Gb/s",
+          "unit": "",
+          "number": null,
+          "featureId": "interface"
+        }
+      }
+    },
+    "status": "ACTIVE",
+    "version": 0,
+    "category": "STORAGE",
+    "specifications": {
+      "socket": null,
+      "clockMhz": null,
+      "coreCount": null,
+      "capacityGb": 1000,
+      "formFactor": "2.5",
+      "memoryType": null,
+      "powerWatts": null,
+      "interfaceType": "SATA 6.0 Gb/s"
+    }
+  },
+  {
+    "id": "191a8067-b1d4-4f18-8ed9-c5f005e50260",
+    "model": "Barracuda Compute",
+    "brands": [
+      {
+        "id": "ea066df3-e841-48ca-a125-d6ecf7307d90",
+        "name": "Seagate",
+        "status": "ACTIVE",
+        "version": 0
+      }
+    ],
+    "source": {
+      "brand": "Seagate",
+      "provider": "PC_PART_DATASET",
+      "typedSpecifications": {
+        "cacheMb": {
+          "text": null,
+          "unit": "MB",
+          "number": 128,
+          "featureId": "cache"
+        },
+        "capacityGb": {
+          "text": null,
+          "unit": "GB",
+          "number": 2000,
+          "featureId": "capacity"
+        },
+        "formFactor": {
+          "text": "2.5",
+          "unit": "in",
+          "number": 2.5,
+          "featureId": "form_factor"
+        },
+        "rotationRpm": {
+          "text": null,
+          "unit": "RPM",
+          "number": 5400,
+          "featureId": "type"
+        },
+        "storageType": {
+          "text": "HDD",
+          "unit": "",
+          "number": null,
+          "featureId": "type"
+        },
+        "interfaceType": {
+          "text": "SATA 6.0 Gb/s",
+          "unit": "",
+          "number": null,
+          "featureId": "interface"
+        }
+      }
+    },
+    "status": "ACTIVE",
+    "version": 0,
+    "category": "STORAGE",
+    "specifications": {
+      "socket": null,
+      "clockMhz": null,
+      "coreCount": null,
+      "capacityGb": 2000,
+      "formFactor": "2.5",
+      "memoryType": null,
+      "powerWatts": null,
+      "interfaceType": "SATA 6.0 Gb/s"
+    }
+  }
+]

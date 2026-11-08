@@ -21,6 +21,7 @@ import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.G
 import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.HISTORY;
 import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.Receipt;
 import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.database;
+import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.digests;
 import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.flyway;
 import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.populate;
 import static com.ltz.game.infrastructure.persistence.MigrationTransferSupport.requireReady;
@@ -42,8 +43,23 @@ class MigrationTransferApplicationTest {
             requireReady(source, target, receipt);
             // Önce eski fixture zinciriyle aynı güncel kod, sonra yeni zincir + taşınmış veri.
             Map<String, JsonNode> reference;
+            // Tarihsel fixture zinciri V172 (LTZ puan projeksiyonu) öncesidir; güncel kod bu tabloları okur. Eşdeğer tablolar
+            // yalnız bu izole test veritabanına elle eklenir; böylece iki uygulama aynı sözleşmeyi (puan henüz taranmadı) sunar.
+            new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
+                    new org.springframework.core.io.ClassPathResource("db/migration/V172__create_game_rating_projection.sql"),
+                    new org.springframework.core.io.ClassPathResource("db/migration/V173__create_game_price_cache.sql")).execute(source);
+        for (String script : new String[]{"V174__add_game_parent_relation.sql", "V175__create_game_localized_descriptions.sql"}) {
+            var latest = new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
+                    new org.springframework.core.io.ClassPathResource("db/migration/" + script));
+            latest.setSeparator(org.springframework.jdbc.datasource.init.ScriptUtils.EOF_STATEMENT_SEPARATOR);
+            latest.execute(source);
+        }
             try (var app = startApplication(source, HISTORY)) { reference = readPublicApis(app); }
+            // Hedefin V174 yükseltmesini uygulama başlangıcı yapar (games.parent_game_id eklenir); "HTTP okuması veriyi değiştirmedi"
+            // kanıtı, yükseltmeden sonra alınan özetle karşılaştırılır.
+            Receipt afterUpgrade;
             try (var app = startApplication(target, CURRENT)) {
+                afterUpgrade = new Receipt(digests(target));
                 assertEquals(reference, readPublicApis(app));
                 int port = ((WebServerApplicationContext) app).getWebServer().getPort();
                 for (String path : List.of("/api/v1/game/feedback",
@@ -52,7 +68,7 @@ class MigrationTransferApplicationTest {
                     assertEquals(401, request(port, path).statusCode());
                 }
             }
-            requireReady(source, target, receipt); // HTTP okumaları verileri değiştirmedi.
+            requireReady(source, target, afterUpgrade); // HTTP okumaları verileri değiştirmedi.
             MigrationSchemaSupport.validateHibernate(target);
             flyway(target, CURRENT).validate();
             assertEquals(0, flyway(target, CURRENT).migrate().migrationsExecuted);
@@ -67,7 +83,7 @@ class MigrationTransferApplicationTest {
                 "--spring.datasource.username=" + source.getUsername(),
                 "--spring.datasource.password=" + source.getPassword(),
                 "--spring.flyway.locations=" + location,
-                "--spring.flyway.target=" + (CURRENT.equals(location) ? "40" : "173"),
+                "--spring.flyway.target=" + (HISTORY.equals(location) ? "173" : "175"),
                 "--spring.jpa.hibernate.ddl-auto=validate",
                 "--ltz.security.jwt.jwk-set-uri=", "--ltz.security.jwt.public-key=",
                 "--game.catalog.sync.enabled=false", "--STEAM_CATALOG_ENABLED=false",

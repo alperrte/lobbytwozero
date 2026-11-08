@@ -50,7 +50,7 @@ class HardwareReviewControllerTest extends PostgresIntegrationSupport {
         jdbc.update("DELETE FROM hardware_products");
         product = product();
         second = product();
-        when(audience.evaluate(any())).thenReturn(new HardwareReviewAudiencePolicy.Decision(true, Set.of()));
+        when(audience.evaluate(any(), anySet())).thenReturn(new HardwareReviewAudiencePolicy.Decision(true, Set.of()));
     }
 
     private UUID product() {
@@ -61,13 +61,13 @@ class HardwareReviewControllerTest extends PostgresIntegrationSupport {
     }
     private String collection(UUID id) { return BASE + "/catalog/products/" + id + "/reviews"; }
     private String item(UUID id) { return BASE + "/reviews/" + id; }
-    private String content(String body, Integer rating) {
+    private String content(String body, Number rating) {
         var result = new HashMap<String, Object>();
         result.put("body", body);
         if (rating != null) result.put("rating", rating);
         return json.writeValueAsString(result);
     }
-    private UUID create(UUID author, UUID id, String body, Integer rating) throws Exception {
+    private UUID create(UUID author, UUID id, String body, Number rating) throws Exception {
         var result = mvc.perform(post(collection(id)).with(actor(author)).with(csrf()).contentType("application/json")
                 .content(content(body, rating))).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         return UUID.fromString(json.readTree(result).get("id").asText());
@@ -80,7 +80,7 @@ class HardwareReviewControllerTest extends PostgresIntegrationSupport {
                 .andExpect(status().isCreated()).andExpect(header().exists("Location"))
                 .andExpect(header().string("Cache-Control", "no-store, private"))
                 .andExpect(jsonPath("$.body").value("Useful\nreview\ttext"))
-                .andExpect(jsonPath("$.rating").value(5)).andExpect(jsonPath("$.version").value(0))
+                .andExpect(jsonPath("$.rating").value(5.0)).andExpect(jsonPath("$.version").value(0))
                 .andExpect(jsonPath("$.status").value("VISIBLE")).andExpect(jsonPath("$.ownedByActor").value(true))
                 .andExpect(jsonPath("$.userId").doesNotExist()).andExpect(jsonPath("$.bodyHash").doesNotExist())
                 .andExpect(jsonPath("$.reportCount").doesNotExist()).andReturn().getResponse().getContentAsString();
@@ -165,8 +165,10 @@ class HardwareReviewControllerTest extends PostgresIntegrationSupport {
         var b = create(other, product, "Three star text", 3);
         var blocked = UUID.randomUUID();
         create(blocked, product, "Blocked text", 1);
-        var unknown = create(UUID.randomUUID(), product, "Unrated text", null);
-        var hidden = create(UUID.randomUUID(), product, "Hidden rating", 2);
+        var unknownAuthor = UUID.randomUUID();
+        var unknown = create(unknownAuthor, product, "Unrated text", null);
+        var hiddenAuthor = UUID.randomUUID();
+        var hidden = create(hiddenAuthor, product, "Hidden rating", 2);
         var deletedAuthor = UUID.randomUUID();
         var deleted = create(deletedAuthor, product, "Deleted rating", 1);
         jdbc.update("UPDATE hardware_reviews SET status='HIDDEN' WHERE id=?", hidden);
@@ -177,11 +179,12 @@ class HardwareReviewControllerTest extends PostgresIntegrationSupport {
         // PostgreSQL UUID ordering compares unsigned bytes; obtain its canonical expected order.
         var order = jdbc.queryForList("SELECT id FROM hardware_reviews WHERE id IN (?,?,?) ORDER BY created_at,id", UUID.class,
                 visible.get(0), visible.get(1), visible.get(2));
-        when(audience.evaluate(viewer)).thenReturn(new HardwareReviewAudiencePolicy.Decision(true, Set.of(blocked)));
+        when(audience.evaluate(eq(viewer), anySet())).thenReturn(new HardwareReviewAudiencePolicy.Decision(true, Set.of(blocked)));
         mvc.perform(get(collection(product)).with(actor(viewer)).param("size", "1"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(3))
                 .andExpect(jsonPath("$.totalPages").value(3)).andExpect(jsonPath("$.items[0].id").value(order.getFirst().toString()))
                 .andExpect(jsonPath("$.summary.ratedReviews").value(2)).andExpect(jsonPath("$.summary.averageRating").value(4.0));
+        verify(audience).evaluate(eq(viewer), eq(Set.of(owner, other, blocked, unknownAuthor)));
         mvc.perform(get(collection(product)).with(actor(viewer)).param("size", "1").param("page", "3"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.items").isEmpty()).andExpect(jsonPath("$.totalElements").value(3));
         var blockedId = jdbc.queryForObject("SELECT id FROM hardware_reviews WHERE user_id=?", UUID.class, blocked);
@@ -192,14 +195,14 @@ class HardwareReviewControllerTest extends PostgresIntegrationSupport {
     void unavailableAudienceNullFailureAndGlobalDenyKeepOnlyOwnerData() throws Exception {
         var own = create(viewer, product, "Own public text", 5);
         var foreign = create(owner, product, "Other public text", 1);
-        when(audience.evaluate(viewer)).thenReturn(null);
+        when(audience.evaluate(eq(viewer), anySet())).thenReturn(null);
         mvc.perform(get(collection(product)).with(actor(viewer))).andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1)).andExpect(jsonPath("$.items[0].id").value(own.toString()));
-        when(audience.evaluate(viewer)).thenThrow(new IllegalStateException("synthetic unavailable"));
+        when(audience.evaluate(eq(viewer), anySet())).thenThrow(new IllegalStateException("synthetic unavailable"));
         mvc.perform(get(item(foreign)).with(actor(viewer))).andExpect(status().isNotFound());
-        doReturn(HardwareReviewAudiencePolicy.Decision.denyOthers()).when(audience).evaluate(viewer);
+        doReturn(HardwareReviewAudiencePolicy.Decision.denyOthers()).when(audience).evaluate(eq(viewer), anySet());
         mvc.perform(get(collection(product)).with(actor(viewer))).andExpect(jsonPath("$.summary.averageRating").value(5.0));
-        assertThat(new UnavailableHardwareReviewAudiencePolicy().evaluate(viewer).allowOthers()).isFalse();
+        assertThat(new UnavailableHardwareReviewAudiencePolicy().evaluate(viewer, Set.of()).allowOthers()).isFalse();
         var oversized = new HashSet<UUID>();
         for (int i = 0; i < 1001; i++) oversized.add(UUID.randomUUID());
         assertThatIllegalArgumentException().isThrownBy(() -> new HardwareReviewAudiencePolicy.Decision(true, oversized));
@@ -224,9 +227,29 @@ class HardwareReviewControllerTest extends PostgresIntegrationSupport {
         mvc.perform(get(item(UUID.randomUUID())).with(actor(owner))).andExpect(status().isNotFound());
     }
 
+    @Test
+    void acceptsHalfStarRatingsAndAveragesThemWithTwoDecimals() throws Exception {
+        var first = create(owner, product, "Half star review", 4.5);
+        mvc.perform(get(item(first)).with(actor(owner))).andExpect(status().isOk()).andExpect(jsonPath("$.rating").value(4.5));
+        assertThat(jdbc.queryForObject("SELECT rating FROM hardware_reviews WHERE id=?", java.math.BigDecimal.class, first))
+                .isEqualByComparingTo("4.5");
+        create(UUID.randomUUID(), product, "Whole star review", 4);
+        create(viewer, product, "Lowest half star", 1.5);
+        mvc.perform(get(collection(product)).with(actor(owner))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.ratedReviews").value(3)).andExpect(jsonPath("$.summary.averageRating").value(3.33));
+        var update = "{\"reviewVersion\":0,\"body\":\"Half star review\",\"rating\":2.5}";
+        mvc.perform(put(item(first)).with(actor(owner)).with(csrf()).contentType("application/json").content(update))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.rating").value(2.5));
+        mvc.perform(put(item(first)).with(actor(owner)).with(csrf()).contentType("application/json")
+                .content("{\"reviewVersion\":1,\"body\":\"Half star review\",\"rating\":2.7}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"{}", "{\"body\":\" \"}", "{\"body\":\"<script>\"}", "{\"body\":\"＜script＞\"}",
         "{\"body\":\"Good\",\"rating\":0}", "{\"body\":\"Good\",\"rating\":6}",
+        "{\"body\":\"Good\",\"rating\":0.5}", "{\"body\":\"Good\",\"rating\":5.5}",
+        "{\"body\":\"Good\",\"rating\":4.3}", "{\"body\":\"Good\",\"rating\":4.25}",
         "{\"body\":\"Good\",\"userId\":\"fake\"}", "{\"body\":\"Good\",\"status\":\"VISIBLE\"}"})
     void rejectsInvalidUgcRatingsAndMassAssignmentWithNoPartialMutation(String body) throws Exception {
         mvc.perform(post(collection(product)).with(actor(owner)).with(csrf()).contentType("application/json").content(body))
@@ -300,6 +323,10 @@ class HardwareReviewControllerTest extends PostgresIntegrationSupport {
         assertThatThrownBy(() -> jdbc.execute("TRUNCATE hardware_review_audit"))
                 .isInstanceOf(DataIntegrityViolationException.class);
         assertThatThrownBy(() -> jdbc.update("UPDATE hardware_reviews SET rating=6 WHERE id=?", id))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbc.update("UPDATE hardware_reviews SET rating=4.3 WHERE id=?", id))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbc.update("UPDATE hardware_reviews SET rating=0.5 WHERE id=?", id))
                 .isInstanceOf(DataIntegrityViolationException.class);
         assertThatThrownBy(() -> jdbc.update("UPDATE hardware_reviews SET status='INVALID' WHERE id=?", id))
                 .isInstanceOf(DataIntegrityViolationException.class);

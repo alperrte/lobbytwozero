@@ -50,10 +50,27 @@ public final class TokenClaims {
     /** Oyun puan özeti okuma: game, Review'ın toplu puan özetini yalnız okur; kullanıcıya bağlı değildir. */
     public static final String RATING_SUMMARIES_READ_SCOPE = "rating-summaries:read";
     /**
+     * Oyun referans kontrolü: game, bir oyunun dış kimliğini taşımadan/ayırmadan önce Library ve Review'da o {@code gameId} için
+     * kayıt olup olmadığını (yalnız sayı) sorar. Kullanıcıya bağlı değildir.
+     */
+    public static final String GAME_REFERENCES_READ_SCOPE = "game-references:read";
+    /**
      * Cihaz doğrulama: hardware, Performance'tan bir hesabın cihazının aktif olup olmadığını sorar. Hesaba bağlı kapsamdır:
      * token {@link #ACCOUNT_ID} taşır, Performance bunu istek yolundaki hesapla karşılaştırır.
      */
     public static final String DEVICES_VERIFY_SCOPE = "devices:verify";
+    /** Hardware, tek hesabın Performance metrik özetini okur; hesaba bağlı kapsamdır. */
+    public static final String PERFORMANCE_SUMMARY_READ_SCOPE = "summary:read";
+    /** Recommendation, tek hesabın oyun performans referansını okur; hesaba bağlı kapsamdır. */
+    public static final String PERFORMANCE_REFERENCE_READ_SCOPE = "reference:read";
+    /** Game, katılımcıya kimlik düzeltmesi için hazırlık (dondurma + referans sayımı) ister. Hesaba bağlı değildir; kullanıcı token'ı ya da ADMIN rolü bu uçlara yetki vermez. */
+    public static final String GAME_IDENTITY_PREPARE_SCOPE = "game-identity:prepare";
+    /** Game, katılımcıya kesin kararı (COMMITTED/ABORTED) iletir. Hesaba bağlı değildir; kullanıcı token'ı ya da ADMIN rolü bu uçlara yetki vermez. */
+    public static final String GAME_IDENTITY_FINALIZE_SCOPE = "game-identity:finalize";
+    /** Game, katılımcıdan operasyon durumunu sorgular. Hesaba bağlı değildir; kullanıcı token'ı ya da ADMIN rolü bu uçlara yetki vermez. */
+    public static final String GAME_IDENTITY_READ_SCOPE = "game-identity:read";
+    /** Katılımcı, Game'den kalıcı kesin kararı sorgular (kurtarma). Hesaba bağlı değildir; kullanıcı token'ı ya da ADMIN rolü bu uçlara yetki vermez. */
+    public static final String GAME_IDENTITY_DECISION_READ_SCOPE = "game-identity:decision:read";
     /** Masaüstü cihaz token'ı türü; kullanıcı ({@link #ACCESS_TOKEN_TYPE}) ve servis token'ının yerine geçemez, tersi de geçemez. */
     public static final String DEVICE_TOKEN_TYPE = "dev+jwt";
     /** Cihaz token'ının tek hedefi ve tek kapsamı (Hardware'in masaüstü senkronu). */

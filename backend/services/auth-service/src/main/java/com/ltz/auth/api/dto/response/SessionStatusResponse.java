@@ -14,7 +14,9 @@ public record SessionStatusResponse(Status status, Instant accessTokenExpiresAt,
 
     public enum Status {
         AUTHENTICATED,
-        MFA_REQUIRED
+        MFA_REQUIRED,
+        /** Hesap 2FA'ya zorunlu ve TOTP kurulu değil: challenge ile önce kurulum tamamlanır, sonra oturum açılır. */
+        MFA_ENROLLMENT_REQUIRED
     }
 
     public static SessionStatusResponse authenticated(Instant accessTokenExpiresAt) {
@@ -23,6 +25,10 @@ public record SessionStatusResponse(Status status, Instant accessTokenExpiresAt,
 
     public static SessionStatusResponse mfaRequired(String challengeId, Instant challengeExpiresAt) {
         return new SessionStatusResponse(Status.MFA_REQUIRED, null, challengeId, challengeExpiresAt);
+    }
+
+    public static SessionStatusResponse enrollmentRequired(String challengeId, Instant challengeExpiresAt) {
+        return new SessionStatusResponse(Status.MFA_ENROLLMENT_REQUIRED, null, challengeId, challengeExpiresAt);
     }
 
     @Override

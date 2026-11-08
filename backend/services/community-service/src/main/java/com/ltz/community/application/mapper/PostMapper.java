@@ -26,7 +26,9 @@ public class PostMapper {
 				post.getBody(),
 				post.getStatus(),
 				post.getCreatedAt(),
-				post.getUpdatedAt());
+				post.getUpdatedAt(),
+				post.getContentType(),
+				post.getTitle());
 	}
 
 	public PostImageResponse toResponse(PostImage image) {
@@ -58,7 +60,9 @@ public class PostMapper {
 				post.getCommentCount(),
 				likedByMe,
 				images.stream().map(this::toResponse).toList(),
-				repostOf);
+				repostOf,
+				post.getContentType(),
+				post.getTitle());
 	}
 
 	/** Orijinal gönderi erişilebilirse sahibi ve içeriğiyle, değilse içeriksiz iskelet olarak. */

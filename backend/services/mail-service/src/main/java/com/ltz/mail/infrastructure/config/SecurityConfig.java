@@ -44,9 +44,6 @@ public class SecurityConfig {
 
     private static final PathPatternRequestMatcher.Builder PATHS = PathPatternRequestMatcher.withDefaults();
 
-    /** Servis token'ıyla çağrılan iç uçlar; tarayıcı oturumu/çerezi yoktur, CSRF burada anlamsızdır. */
-    static final RequestMatcher INTERNAL_API = PATHS.matcher(InternalApiPaths.BASE + "/**");
-
     /** Kimlik gerektirmeyen uçlar. */
     static final RequestMatcher HEALTH_ENDPOINTS = new OrRequestMatcher(
             PATHS.matcher(HttpMethod.GET, HEALTH),
@@ -63,9 +60,9 @@ public class SecurityConfig {
         AuthenticationManager serviceTokens = jwtManager(serviceTokenDecoder, scopeConverter());
 
         http
-                // Cookie ile kimlik okunmaz (yalnız Bearer servis token'ı); CSRF koruması KAPATILMAZ, yalnız iç API
-                // yollarında muaftır. Diğer yollarda varsayılan koruma açık kalır (CodeQL: disabled CSRF protection).
-                .csrf(csrf -> csrf.ignoringRequestMatchers(INTERNAL_API))
+                // CSRF koruması varsayılan olarak AÇIK ve hiçbir yol için muaf tutulmaz. oauth2ResourceServer,
+                // Authorization: Bearer başlığı taşıyan isteklerde CSRF kontrolünü kendisi atlar; kimlik çerezden
+                // okunmadığı için başka bir istisna gerekmez. Başlıksız istek CSRF filtresinde 403 ile durur.
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)

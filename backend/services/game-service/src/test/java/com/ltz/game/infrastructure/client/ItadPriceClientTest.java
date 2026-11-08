@@ -1,0 +1,218 @@
+package com.ltz.game.infrastructure.client;
+
+import com.ltz.game.application.port.GamePriceProvider.Market;
+import com.ltz.game.domain.entity.Game;
+import com.ltz.game.domain.entity.GameExternalReference;
+import com.ltz.game.domain.exception.ProviderException;
+import com.ltz.game.infrastructure.client.FakeServer.Reply;
+import com.ltz.game.infrastructure.config.GamePriceProperties;
+import com.ltz.game.infrastructure.config.GameRatingConfiguration;
+import com.ltz.game.infrastructure.persistence.repository.GameExternalReferenceRepository;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+import org.springframework.web.client.RestClient;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+class ItadPriceClientTest {
+    static final UUID GAME=UUID.randomUUID(), ITAD=UUID.randomUUID();
+    static final Set<UUID> REQUESTED=Set.of(GAME);
+    static final Duration VALID_TTL=Duration.ofMinutes(15);
+    static final Duration INVALID_TTL=Duration.ofHours(3);
+    static final Instant NOW=Instant.parse("2026-11-05T12:00:00Z");
+    static final Market MARKET=new Market("TR","USD");
+    static final String LINK="https://isthereanydeal.com/go/fixture?affiliate=keep-me";
+    static String mapping() { return "{\"app/570\":\""+ITAD+"\"}"; }
+    static String prices(String currency,String url,String expiry) {
+        return """
+                [{"id":"%s","deals":[{"shop":{"name":"Steam"},"price":{"amount":5,"currency":"%s"},
+                "regular":{"amount":10,"currency":"%s"},"cut":50,"timestamp":"2026-11-05T11:59:00Z","expiry":%s,"url":"%s"}]}]
+                """.formatted(ITAD,currency,currency,expiry,url);
+    }
+    static ItadPriceClient client(FakeServer server,String key) {
+        var refs=mock(GameExternalReferenceRepository.class);
+        var game=new Game();game.setId(GAME);
+        var ref=new GameExternalReference();ref.setGame(game);ref.setProvider("STEAM");ref.setExternalId("570");
+        when(refs.findByGameIdIn(anyCollection())).thenReturn(List.of(ref));
+        return client(server,key,refs);
+    }
+    static ItadPriceClient client(FakeServer server,String key,GameExternalReferenceRepository refs) {
+        var props=new GamePriceProperties(key,"https://api.isthereanydeal.com","TR","USD",Duration.ofMinutes(15));
+        return new ItadPriceClient(GameRatingConfiguration.restClient(RestClient.builder(),server.baseUrl(),Duration.ofSeconds(1),Duration.ofSeconds(1)),
+                props,refs,Clock.fixed(NOW,ZoneOffset.UTC));
+    }
+    @Test void batchesMappingAndPricesPreservesCurrencyAffiliateLinkAndExpiry() throws Exception {
+        try(var server=new FakeServer()) {
+            server.enqueue(Reply.json(200,mapping()),Reply.json(200,prices("USD",LINK,"\"2026-11-05T12:05:00Z\"")));
+            var quote=client(server,"fixture-key").prices(Set.of(GAME),MARKET).getFirst();
+            assertEquals(LINK,quote.url());assertEquals(50,quote.discountPercent());assertEquals(MARKET,quote.market());
+            assertEquals(NOW.plusSeconds(300),quote.expiresAt());assertEquals(NOW,quote.fetchedAt());
+            assertEquals(2,server.received().size());
+            assertEquals("fixture-key",server.received().getFirst().apiKey());
+            assertEquals("/lookup/id/shop/61/v1",server.received().getFirst().pathAndQuery());
+            assertEquals("LTZ-Game-Service/1.0",server.received().getFirst().userAgent());
+            assertEquals("[\"app/570\"]",server.received().getFirst().body());
+            assertTrue(server.received().getLast().pathAndQuery().contains("country=TR"));
+            assertFalse(server.received().stream().anyMatch(request -> request.pathAndQuery().contains("fixture-key")));
+        }
+    }
+    @Test void disabledAndEmptyInputNeverCallTheProviderAndSecretIsRedacted() throws Exception {
+        try(var server=new FakeServer()) {
+            var client=client(server,"");assertFalse(client.isConfigured());
+            assertEquals(List.of(),client.prices(Set.of(),MARKET));
+            assertEquals("PRICE_NOT_CONFIGURED",assertThrows(ProviderException.class,()->client.prices(REQUESTED,MARKET)).code());
+            assertTrue(server.received().isEmpty());
+            assertFalse(new GamePriceProperties("never-print-me","https://api.isthereanydeal.com","TR","USD",Duration.ofMinutes(15)).toString().contains("never-print-me"));
+        }
+    }
+    @Test void officialShortLinksArePreservedButLookalikesAndCredentialsAreRejected() throws Exception {
+        try(var server=new FakeServer()) {
+            String url="https://itad.link/018d9386-b9c8-71ea-8724-47f829db21bd/?affiliate=keep-me";
+            server.enqueue(Reply.json(200,mapping()),Reply.json(200,prices("USD",url,"null")));
+            assertEquals(url,client(server,"fixture").prices(Set.of(GAME),MARKET).getFirst().url());
+            for(String invalid:List.of("https://itad.link.evil.invalid/offer","https://itad.link@evil.invalid/offer","http://itad.link/offer")) {
+                server.enqueue(Reply.json(200,mapping()),Reply.json(200,prices("USD",invalid,"null")));
+                var failingClient1=client(server,"fixture");
+                assertEquals("INVALID_PRICE_RESPONSE",assertThrows(ProviderException.class,
+                        ()->failingClient1.prices(REQUESTED,MARKET)).code());
+            }
+        }
+    }
+    @Test void explicitUnmappedGameAndEmptyOffersAreDifferentFromMalformedResponses() throws Exception {
+        try(var server=new FakeServer()) {
+            server.enqueue(Reply.json(200,"{\"app/570\":null}"));
+            assertTrue(client(server,"fixture").prices(Set.of(GAME),MARKET).isEmpty());
+            server.enqueue(Reply.json(200,mapping()),Reply.json(200,"[{\"id\":\""+ITAD+"\",\"deals\":[]}]"));
+            assertTrue(client(server,"fixture").prices(Set.of(GAME),MARKET).isEmpty());
+            for(String body:List.of("{}","[]","{\"app/570\":false}")) {
+                server.enqueue(Reply.json(200,body));
+                var failingClient2=client(server,"fixture");
+                assertEquals("INVALID_PRICE_RESPONSE",assertThrows(ProviderException.class,()->failingClient2.prices(REQUESTED,MARKET)).code());
+            }
+        }
+    }
+    @Test void wrongCurrencyUnsafeUrlExpiredAndMissingPriceRowsNeverBecomeValidPrices() throws Exception {
+        try(var server=new FakeServer()) {
+            for(String body:List.of(prices("EUR",LINK,"null"),prices("USD","http://127.0.0.1/private","null"),
+                    "{}","null","[null]")) {
+                server.enqueue(Reply.json(200,mapping()),Reply.json(200,body));
+                var failingClient3=client(server,"fixture");
+                assertThrows(ProviderException.class,()->failingClient3.prices(REQUESTED,MARKET));
+            }
+        }
+    }
+    @Test void gamesWithoutAnyPriceRowAreSimplyWithoutOffersAndNeverInvalidateTheRestOfTheBatch() throws Exception {
+        try(var server=new FakeServer()) {
+            // ITAD fiyatı olmayan oyun için satır döndürmez: boş yanıt geçerlidir ve teklif üretmez.
+            server.enqueue(Reply.json(200,mapping()),Reply.json(200,"[]"));
+            assertEquals(List.of(),client(server,"fixture").prices(REQUESTED,MARKET));
+        }
+    }
+    private static String deal(String store,int price,int regular,String expiry) {
+        return "{\"shop\":{\"name\":\""+store+"\"},\"price\":{\"amount\":"+price+",\"currency\":\"USD\"},\"regular\":{\"amount\":"+regular
+                +",\"currency\":\"USD\"},\"cut\":0,\"timestamp\":\"2026-11-05T11:59:00Z\",\"expiry\":"+expiry+",\"url\":\""+LINK+"\"}";
+    }
+    private static String row(UUID id,String... deals) { return "{\"id\":\""+id+"\",\"deals\":["+String.join(",",deals)+"]}"; }
+    @Test void twoDealsFromTheSameStoreKeepTheLowestPriceAndDoNotInvalidateTheGame() throws Exception {
+        try(var server=new FakeServer()) {
+            server.enqueue(Reply.json(200,mapping()),Reply.json(200,"["+row(ITAD,deal("Steam",15,15,"null"),deal("Humble Store",10,10,"null"),deal("Steam",7,8,"null"))+"]"));
+            var quotes=client(server,"fixture").prices(REQUESTED,MARKET);
+            assertEquals(2,quotes.size());
+            var steam=quotes.stream().filter(quote -> quote.store().equals("Steam")).findFirst().orElseThrow();
+            assertEquals(0,steam.currentPrice().compareTo(new java.math.BigDecimal("7")), "mağaza başına en düşük fiyat");
+            assertEquals(1,quotes.stream().filter(quote -> quote.store().equals("Steam")).count());
+        }
+    }
+    @Test void anExpiredDealIsSkippedWhileValidDealsOfTheSameGameAndOtherGamesSurvive() throws Exception {
+        UUID otherGame=UUID.randomUUID(),otherItad=UUID.randomUUID();
+        var refs=mock(GameExternalReferenceRepository.class);
+        var first=new Game();first.setId(GAME);var second=new Game();second.setId(otherGame);
+        var refOne=new GameExternalReference();refOne.setGame(first);refOne.setProvider("STEAM");refOne.setExternalId("570");
+        var refTwo=new GameExternalReference();refTwo.setGame(second);refTwo.setProvider("STEAM");refTwo.setExternalId("730");
+        when(refs.findByGameIdIn(anyCollection())).thenReturn(List.of(refOne,refTwo));
+        try(var server=new FakeServer()) {
+            server.enqueue(Reply.json(200,"{\"app/570\":\""+ITAD+"\",\"app/730\":\""+otherItad+"\"}"),
+                    Reply.json(200,"["+row(ITAD,deal("Steam",5,10,"\"2026-11-05T11:00:00Z\""),deal("GOG",6,10,"null"))+","+row(otherItad,deal("Steam",3,3,"null"))+"]"));
+            var quotes=client(server,"fixture",refs).prices(Set.of(GAME,otherGame),MARKET);
+            assertEquals(2,quotes.size(),"süresi geçmiş Steam teklifi atlanır, GOG ve diğer oyun kalır");
+            assertTrue(quotes.stream().noneMatch(quote -> quote.gameId().equals(GAME) && quote.store().equals("Steam")));
+            assertTrue(quotes.stream().anyMatch(quote -> quote.gameId().equals(otherGame)));
+        }
+    }
+    @Test void aSingleExpiredDealYieldsNoOfferInsteadOfAFailure() throws Exception {
+        try(var server=new FakeServer()) {
+            server.enqueue(Reply.json(200,mapping()),Reply.json(200,prices("USD",LINK,"\"2026-11-05T11:00:00Z\"")));
+            assertEquals(List.of(),client(server,"fixture").prices(REQUESTED,MARKET));
+        }
+    }
+    @Test void upToTwoHundredGamesAreAcceptedAndMoreAreRejected() throws Exception {
+        var many=new java.util.HashSet<UUID>();
+        for(int index=0;index<201;index++) many.add(UUID.randomUUID());
+        try(var server=new FakeServer()) {
+            var client=client(server,"fixture");
+            assertThrows(IllegalArgumentException.class,()->client.prices(many,MARKET));
+            assertTrue(server.received().isEmpty());
+        }
+    }
+    @Test void accessDeniedRateLimitServerErrorAndBadJsonAreBoundedAndNeverRetried() throws Exception {
+        try(var server=new FakeServer()) {
+            for(int status:new int[]{401,403,429,500}) {
+                int before=server.received().size();server.enqueue(Reply.json(status,"{\"secret\":\"fixture-key\"}"));
+                var failingClient4=client(server,"fixture-key");
+                var error=assertThrows(ProviderException.class,()->failingClient4.prices(REQUESTED,MARKET));
+                assertFalse(error.getMessage().contains("fixture-key"));assertEquals(before+1,server.received().size());
+            }
+            server.enqueue(Reply.json(200,"not-json"));
+            var failingClient5=client(server,"fixture");
+            assertThrows(ProviderException.class,()->failingClient5.prices(REQUESTED,MARKET));
+        }
+    }
+    @Test void providerRetryAfterAndStartupValidationAreExplicit() throws Exception {
+        try(var server=new FakeServer()) {
+            for(String value:List.of("3600","Thu, 5 Nov 2026 14:00:00 GMT","invalid")) {
+                server.retryAfter(value).enqueue(Reply.json(429,"{}"));
+                var failingClient7=client(server,"fixture");
+                var error=assertThrows(ProviderException.class,()->failingClient7.prices(REQUESTED,MARKET));
+                assertEquals(value.equals("3600")?Duration.ofHours(1):value.startsWith("Thu")?Duration.ofHours(2):Duration.ofMinutes(15),error.retryAfter());
+            }
+        }
+        assertThrows(IllegalArgumentException.class,()->new GamePriceProperties("key","http://insecure.invalid","TR","USD",VALID_TTL));
+        assertThrows(IllegalArgumentException.class,()->new GamePriceProperties("key","https://user@api.example.invalid","TR","USD",VALID_TTL));
+        assertThrows(IllegalArgumentException.class,()->new GamePriceProperties("key","https://api.example.invalid","TR","USD",Duration.ZERO));
+        assertThrows(IllegalArgumentException.class,()->new GamePriceProperties("key","https://api.example.invalid","TR","USD",INVALID_TTL));
+    }
+    @Test void verifiedSteamAliasesAreDeduplicatedButAmbiguousEditionPricesAreRejected() throws Exception {
+        var refs=mock(GameExternalReferenceRepository.class);var game=new Game();game.setId(GAME);
+        var aliases=new java.util.ArrayList<GameExternalReference>();
+        for(String app:List.of("570","571")) {
+            var ref=new GameExternalReference();ref.setProvider("STEAM");ref.setExternalId(app);ref.setGame(game);aliases.add(ref);
+        }
+        when(refs.findByGameIdIn(anyCollection())).thenReturn(aliases);
+        try(var server=new FakeServer()) {
+            server.enqueue(Reply.json(200,"{\"app/570\":\""+ITAD+"\",\"app/571\":\""+ITAD+"\"}"),Reply.json(200,prices("USD",LINK,"null")));
+            assertEquals(1,client(server,"fixture",refs).prices(Set.of(GAME),MARKET).size());
+            server.enqueue(Reply.json(200,"{\"app/570\":\""+ITAD+"\",\"app/571\":\""+UUID.randomUUID()+"\"}"));
+            var failingClient8=client(server,"fixture",refs);
+            assertEquals("AMBIGUOUS_PRICE_MAPPING",assertThrows(ProviderException.class,()->failingClient8.prices(REQUESTED,MARKET)).code());
+        }
+    }
+    @Test void transportTimeoutIsControlledWithoutRetry() throws Exception {
+        try(var server=new FakeServer()) {
+            server.enqueue(Reply.slow(1500));
+            var failingClient9=client(server,"fixture");
+            assertEquals("PRICE_UNAVAILABLE",assertThrows(ProviderException.class,()->failingClient9.prices(REQUESTED,MARKET)).code());
+            assertEquals(1,server.received().size());
+        }
+    }
+}

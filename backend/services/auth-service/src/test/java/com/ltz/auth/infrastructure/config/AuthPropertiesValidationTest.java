@@ -119,6 +119,22 @@ class AuthPropertiesValidationTest {
     }
 
     @Test
+    void steamHesaplarindaZorunluIkiFaktorYalnizDevVeTestProfilindeKaldirilabilirVarsayilanZorunludur() {
+        ApplicationContextRunner policy = runner.withUserConfiguration(TwoFactorPolicyConfig.class);
+        String off = "ltz.auth.two-factor.require-for-steam-accounts=false";
+
+        policy.withPropertyValues(off, "spring.profiles.active=dev").run(context -> assertThat(context).hasNotFailed());
+        policy.withPropertyValues(off, "spring.profiles.active=test").run(context -> assertThat(context).hasNotFailed());
+        policy.withPropertyValues(off, "spring.profiles.active=prod").run(context -> assertThat(context).hasFailed());
+        policy.withPropertyValues(off, "spring.profiles.active=dev,prod").run(context -> assertThat(context).hasFailed());
+        policy.withPropertyValues(off, "spring.profiles.active=").run(context -> assertThat(context).hasFailed());
+        // Açıkça true ya da hiç verilmemiş (varsayılan true) ayar her profilde geçerlidir.
+        policy.withPropertyValues("ltz.auth.two-factor.require-for-steam-accounts=true", "spring.profiles.active=prod")
+                .run(context -> assertThat(context).hasNotFailed());
+        policy.withPropertyValues("spring.profiles.active=prod").run(context -> assertThat(context).hasNotFailed());
+    }
+
+    @Test
     void taninmayanProfilAdiylaBaslamaz() {
         ApplicationContextRunner guard = new ApplicationContextRunner().withUserConfiguration(ProfileGuardConfig.class);
 

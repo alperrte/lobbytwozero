@@ -25,6 +25,7 @@ import tools.jackson.databind.json.JsonMapper;
  * {@code eventId} ile tekilleştirilir ve etkisiyle aynı transaction'da uygulanır; böylece en az bir kez teslim edilen
  * olay iş etkisini en fazla bir kez yaratır. Üretici, olay türüyle eşleşmiyorsa reddedilir (örn. engelleme olayını
  * yalnız social-service, moderasyon kararını yalnız admin-service, hesap durumunu yalnız auth-service yayınlayabilir).
+ * Engelleme olayları çift başına {@code occurredAt} sırasıyla uygulanır; eski olay yeni durumu ezmez.
  * {@code AccountStatusChanged} kabul edilir ve tekilleştirilir ama içeriğe etki etmez. Bilinmeyen olay türü başarıyla
  * yok sayılır; üretici sonsuz yeniden denemesin diye.
  */
@@ -73,7 +74,7 @@ public class InboundEventService {
 			case USER_BLOCKED -> block(event.payload(), event.occurredAt());
 			// Askıya alma/yasak içeriği gizlemez (ürün kararı, Auth zorunlu kılmıyor); olay yalnız kayda geçer.
 			case ACCOUNT_STATUS_CHANGED -> accountStatus(event.payload());
-			default -> unblock(event.payload());
+			default -> unblock(event.payload(), event.occurredAt());
 		};
 		if (!inbox.markProcessed(event.eventId(), event.eventType(), event.producer())) {
 			return new InboundEventResult(event.eventId(), Outcome.DUPLICATE);
@@ -90,16 +91,35 @@ public class InboundEventService {
 		return () -> moderationService.apply(parsed.targetType(), parsed.targetId(), parsed.action(), parsed.reportId());
 	}
 
+	/**
+	 * Engelleme olayları üretici tarafında üstel geri çekilmeyle yeniden denendiğinden sırayla gelmeyebilir. Çift için
+	 * uygulanmış en yeni olay işaretlenir ({@code user_block_markers}); işaretten daha eski bir olay inbox'a işlenmiş diye
+	 * yazılır ama etkisizdir. Böylece gecikmiş eski bir {@code UserBlocked}, sonradan işlenmiş {@code UserUnblocked}'ı geri
+	 * almaz (ya da tersi).
+	 */
 	private Runnable block(Map<String, Object> payload, Instant occurredAt) {
 		BlockPayload parsed = requireBlockPayload(parse(payload, BlockPayload.class));
-		// Yansıtma zamanı olayın gerçekleştiği andır (yeniden teslimde de aynı kalır).
-		Instant blockedAt = occurredAt == null ? Instant.now(clock) : occurredAt;
-		return () -> userBlockRepository.insertIfAbsent(parsed.blockerId(), parsed.blockedId(), blockedAt);
+		Instant blockedAt = eventTime(occurredAt);
+		return () -> {
+			if (userBlockRepository.advanceMarker(parsed.blockerId(), parsed.blockedId(), blockedAt) > 0) {
+				// Yansıtma zamanı olayın gerçekleştiği andır (yeniden teslimde de aynı kalır).
+				userBlockRepository.insertIfAbsent(parsed.blockerId(), parsed.blockedId(), blockedAt);
+			}
+		};
 	}
 
-	private Runnable unblock(Map<String, Object> payload) {
+	private Runnable unblock(Map<String, Object> payload, Instant occurredAt) {
 		BlockPayload parsed = requireBlockPayload(parse(payload, BlockPayload.class));
-		return () -> userBlockRepository.deleteBlock(parsed.blockerId(), parsed.blockedId());
+		Instant unblockedAt = eventTime(occurredAt);
+		return () -> {
+			if (userBlockRepository.advanceMarker(parsed.blockerId(), parsed.blockedId(), unblockedAt) > 0) {
+				userBlockRepository.deleteBlock(parsed.blockerId(), parsed.blockedId());
+			}
+		};
+	}
+
+	private Instant eventTime(Instant occurredAt) {
+		return occurredAt == null ? Instant.now(clock) : occurredAt;
 	}
 
 	/** Yük doğrulanır ama içeriğe etki edilmez: yeni durum community'de kayda geçer, gizleme kararı ürün tarafındadır. */

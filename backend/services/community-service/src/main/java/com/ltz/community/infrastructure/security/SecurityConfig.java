@@ -67,7 +67,8 @@ public class SecurityConfig {
 						.requestMatchers(HttpMethod.GET, "/api/v1/community/posts", "/api/v1/community/posts/*",
 								"/api/v1/community/posts/*/images/*", "/api/v1/community/users/*/posts",
 								"/api/v1/community/posts/*/comments", "/api/v1/community/comments/*/replies",
-								"/api/v1/community/forums", "/api/v1/community/forums/*").permitAll()
+								"/api/v1/community/forums", "/api/v1/community/forums/*",
+								"/api/v1/community/games/*/content", "/api/v1/community/games/*/content/*").permitAll()
 						.anyRequest().authenticated())
 				.exceptionHandling(handling -> handling
 						.authenticationEntryPoint(problemDetailHandler)

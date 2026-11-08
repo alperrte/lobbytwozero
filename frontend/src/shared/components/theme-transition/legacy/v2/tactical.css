@@ -1,0 +1,717 @@
+/*
+ * V2 (LTZ taktik) tema geçişi: Operation Blackout (Light → Dark) ve Operation Daybreak (Dark → Light).
+ * Yalnız transform, opacity ve clip-path animasyonu kullanılır. Tüm zaman çizelgesi --fx-dur
+ * (örtünün toplam süresi) üzerinden YÜZDE olarak yazılır; tema, controller'da (transition-scenes.ts)
+ * Blackout için %62, Daybreak için %66 noktasında değişir. Bu yüzdeleri değiştirirsen sceneTimings'i de güncelle.
+ * Sahne renkleri yerel --op-* / --v2-* değişkenleridir (illüstrasyon rengi; UI token'ı değildir).
+ * Ortak kabuk: ../theme-transition.css. Hareket azaltma: katman hiç oluşturulmaz.
+ */
+.ltz-fx--blackout,
+.ltz-fx--daybreak {
+  --fx-dur: 2200ms;
+
+  /* Operatör boyutu: 26 × 34 piksel ızgara, piksel başına ~6px. */
+  --op-width: clamp(124px, 12vw, 176px);
+  --op-height: calc(var(--op-width) * 34 / 26);
+  --op-rim: rgba(190, 215, 255, 0.4);
+
+  --op-h: #4a5a40;
+  --op-H: #6a7f5c;
+  --op-j: #2a3524;
+  --op-s: #e0a97c;
+  --op-S: #b9855c;
+  --op-e: #3a2c22;
+  --op-b: #4a392c;
+  --op-v: #3a4452;
+  --op-V: #566377;
+  --op-g: #8a94a6;
+  --op-r: #e11d2e;
+  --op-u: #4d5868;
+  --op-U: #657287;
+  --op-k: #1b1f27;
+  --op-G: #2c323d;
+  --op-n: #3a414d;
+  --op-l: #4dff9f;
+
+  --v2-night: #04060a;
+  --v2-amber: #f6b26b;
+  --v2-warm: #ffe2a8;
+  --v2-red: #e11d2e;
+  --v2-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+/* ---------- Sprite ---------- */
+.ltz-fx .v2-actor {
+  inset: auto;
+  top: var(--v2-floor);
+  right: var(--v2-right);
+  width: var(--op-width);
+  height: var(--op-height);
+  margin-top: calc(var(--op-height) * -1);
+}
+.ltz-fx .v2-actor-move {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+/* Ayak altı gölgesi: operatörü zemine oturtur. */
+.ltz-fx .v2-actor-move::after {
+  content: "";
+  position: absolute;
+  left: 4%;
+  right: 0;
+  bottom: -4px;
+  height: 8px;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0));
+}
+.ltz-fx .v2-op {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.ltz-fx .op-sprite {
+  position: absolute;
+  inset: 0;
+  filter: drop-shadow(1px 0 0 var(--op-rim)) drop-shadow(0 0 5px rgba(0, 0, 0, 0.45));
+}
+.ltz-fx .op-layer,
+.ltz-fx .op-legs-walk {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+/* Varsayılan: yalnız gövde ve duran bacaklar görünür; diğer katmanları zaman çizelgesi açar. */
+.ltz-fx .op-pose,
+.ltz-fx .op-goggles-up,
+.ltz-fx .op-goggles-down,
+.ltz-fx .op-legs-walk {
+  opacity: 0;
+}
+.ltz-fx .op-legs-a {
+  animation: v2-step-a 560ms steps(1, end) infinite;
+}
+.ltz-fx .op-legs-b {
+  opacity: 0;
+  animation: v2-step-b 560ms steps(1, end) infinite;
+}
+@keyframes v2-step-a {
+  0% { opacity: 1; }
+  50% { opacity: 0; }
+}
+@keyframes v2-step-b {
+  0% { opacity: 0; }
+  50% { opacity: 1; }
+}
+.ltz-fx .op-goggles-down {
+  filter: drop-shadow(0 0 2px var(--op-l));
+}
+.ltz-fx .c-h { fill: var(--op-h); }
+.ltz-fx .c-H { fill: var(--op-H); }
+.ltz-fx .c-j { fill: var(--op-j); }
+.ltz-fx .c-s { fill: var(--op-s); }
+.ltz-fx .c-S { fill: var(--op-S); }
+.ltz-fx .c-e { fill: var(--op-e); }
+.ltz-fx .c-b { fill: var(--op-b); }
+.ltz-fx .c-v { fill: var(--op-v); }
+.ltz-fx .c-V { fill: var(--op-V); }
+.ltz-fx .c-g { fill: var(--op-g); }
+.ltz-fx .c-r { fill: var(--op-r); }
+.ltz-fx .c-u { fill: var(--op-u); }
+.ltz-fx .c-U { fill: var(--op-U); }
+.ltz-fx .c-k { fill: var(--op-k); }
+.ltz-fx .c-G { fill: var(--op-G); }
+.ltz-fx .c-n { fill: var(--op-n); }
+.ltz-fx .c-l { fill: var(--op-l); }
+
+/* ---------- Ortak: karartma katmanı, gece görüş, altyazı ---------- */
+.ltz-fx .v2-dim {
+  background: var(--v2-night);
+  opacity: 0;
+}
+.ltz-fx .v2-nv {
+  opacity: 0;
+  background:
+    radial-gradient(ellipse at 50% 55%, rgba(77, 255, 159, 0) 38%, rgba(10, 110, 60, 0.3) 100%),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.16) 0 1px, rgba(0, 0, 0, 0) 1px 3px),
+    rgba(77, 255, 159, 0.05);
+}
+
+.ltz-fx .v2-caption {
+  inset: auto;
+  left: clamp(16px, 5vw, 72px);
+  top: var(--v2-cap-top);
+  max-width: calc(100% - 32px);
+  padding: 10px 28px 10px 14px;
+  border-left: 3px solid var(--v2-red);
+  background: linear-gradient(90deg, rgba(5, 6, 9, 0.86), rgba(5, 6, 9, 0.7) 78%, rgba(5, 6, 9, 0));
+  color: #f1f1f1;
+  font-family: var(--v2-mono);
+  opacity: 0;
+  animation: v2-caption var(--fx-dur) linear both;
+}
+.ltz-fx .v2-cap-title,
+.ltz-fx .v2-cap-sub {
+  margin: 0;
+  white-space: nowrap;
+  clip-path: inset(0 100% 0 0);
+}
+.ltz-fx .v2-cap-title {
+  font-size: clamp(13px, 1.5vw, 20px);
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  line-height: 1.35;
+  animation: v2-type calc(var(--fx-dur) * 0.09) steps(22, end) calc(var(--fx-dur) * 0.22) forwards;
+}
+.ltz-fx .v2-cap-sub {
+  margin-top: 4px;
+  color: var(--v2-amber);
+  font-size: clamp(10px, 1vw, 13px);
+  letter-spacing: 0.16em;
+  line-height: 1.4;
+  animation: v2-type calc(var(--fx-dur) * 0.08) steps(26, end) calc(var(--fx-dur) * 0.29) forwards;
+}
+@keyframes v2-caption {
+  0%, 17% { opacity: 0; }
+  21%, 54% { opacity: 1; }
+  61%, 100% { opacity: 0; }
+}
+@keyframes v2-type {
+  to { clip-path: inset(0 0 0 0); }
+}
+
+/* =====================================================================
+ * OPERATION BLACKOUT (Light → Dark)
+ * 0–10 spot ışıkları · 8–30 operatör sağdan girer · 22–32 altyazı
+ * 35–57 nişan, 38/43/48/53 atış ve lamba sönmesi · 56–64 gece görüş
+ * 62 tema değişir · 76–92 operatör gölgeye karışır · 78–100 örtü çözülür
+ * ===================================================================== */
+.ltz-fx--blackout {
+  --v2-floor: calc(var(--op-height) + clamp(40px, 7vh, 72px));
+  --v2-muzzle-y: calc(var(--v2-floor) - var(--op-height) * 0.574);
+  --v2-right: 5vw;
+  --v2-cap-top: calc(var(--v2-floor) + 10vh);
+  --lx0: 9%;
+  --lstep: 19%;
+  --cone-w: clamp(150px, 24vw, 360px);
+  animation: v2-root-blackout var(--fx-dur) linear both;
+}
+@keyframes v2-root-blackout {
+  0%, 78% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.ltz-fx--blackout .v2-dim {
+  animation: v2-b-dim var(--fx-dur) linear both;
+}
+@keyframes v2-b-dim {
+  0% { opacity: 0; }
+  10%, 37.9% { opacity: 0.34; }
+  41%, 42.9% { opacity: 0.46; }
+  46%, 47.9% { opacity: 0.58; }
+  51%, 52.9% { opacity: 0.7; }
+  56%, 57.9% { opacity: 0.84; }
+  61%, 100% { opacity: 1; }
+}
+
+/* Lambalar, kiriş ve ışık huzmeleri */
+.ltz-fx .v2-lamps {
+  opacity: 0;
+  animation: v2-b-lamps var(--fx-dur) linear both;
+}
+@keyframes v2-b-lamps {
+  0% { opacity: 0; }
+  8%, 58% { opacity: 1; }
+  64%, 100% { opacity: 0; }
+}
+.ltz-fx .v2-truss {
+  inset: auto;
+  left: 0;
+  right: 0;
+  top: calc(var(--v2-muzzle-y) - 26px);
+  height: 3px;
+  background: #1b1e27;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+.ltz-fx .v2-lamp {
+  position: absolute;
+  left: calc(var(--lx0) + var(--i) * var(--lstep));
+  top: var(--v2-muzzle-y);
+  width: 0;
+  height: 0;
+}
+.ltz-fx .v2-stem {
+  position: absolute;
+  left: -1px;
+  top: -24px;
+  width: 2px;
+  height: 16px;
+  background: #232733;
+}
+.ltz-fx .v2-lamp-body {
+  position: absolute;
+  left: -13px;
+  top: -9px;
+  width: 26px;
+  height: 12px;
+  border-radius: 3px 3px 6px 6px;
+  background: #1c2029;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.ltz-fx .v2-lens {
+  position: absolute;
+  left: -9px;
+  top: 1px;
+  width: 18px;
+  height: 5px;
+  border-radius: 0 0 8px 8px;
+  background: var(--v2-warm);
+  box-shadow: 0 0 10px 3px rgba(255, 226, 168, 0.8);
+  animation: v2-lens-out calc(var(--fx-dur) * 0.03) linear calc(var(--fx-dur) * var(--out)) both;
+}
+@keyframes v2-lens-out {
+  0% { opacity: 1; }
+  30% { opacity: 0.2; }
+  55% { opacity: 0.9; }
+  100% { opacity: 0; }
+}
+.ltz-fx .v2-cone {
+  position: absolute;
+  left: calc(var(--cone-w) / -2);
+  top: 4px;
+  width: var(--cone-w);
+  height: 66vh;
+  clip-path: polygon(44% 0, 56% 0, 100% 100%, 0 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 240, 205, 0.5),
+    rgba(255, 226, 168, 0.16) 42%,
+    rgba(255, 226, 168, 0)
+  );
+  animation: v2-cone-out calc(var(--fx-dur) * 0.05) linear calc(var(--fx-dur) * var(--out)) both;
+}
+@keyframes v2-cone-out {
+  0% { opacity: 1; }
+  25% { opacity: 0.25; }
+  45% { opacity: 0.8; }
+  100% { opacity: 0; }
+}
+.ltz-fx .v2-hit {
+  position: absolute;
+  left: -30px;
+  top: -24px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    #fff 0,
+    rgba(255, 226, 168, 0.9) 25%,
+    rgba(246, 178, 107, 0.35) 55%,
+    rgba(246, 178, 107, 0) 70%
+  );
+  opacity: 0;
+  animation: v2-hit calc(var(--fx-dur) * 0.05) ease-out calc(var(--fx-dur) * var(--out)) forwards;
+}
+@keyframes v2-hit {
+  0% { opacity: 1; transform: scale(0.3); }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+.ltz-fx .v2-spark {
+  position: absolute;
+  left: -1px;
+  top: 2px;
+  width: 3px;
+  height: 3px;
+  background: #ffd27a;
+  opacity: 0;
+  animation: v2-spark calc(var(--fx-dur) * 0.08) cubic-bezier(0.2, 0.7, 0.3, 1)
+    calc(var(--fx-dur) * var(--out)) forwards;
+}
+@keyframes v2-spark {
+  0% { opacity: 1; transform: translate(0, 0); }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)); }
+}
+.ltz-fx .v2-catwalk {
+  inset: auto;
+  left: 34%;
+  right: 0;
+  top: var(--v2-floor);
+  height: 2px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.32));
+  opacity: 0;
+  animation: v2-b-lamps var(--fx-dur) linear both;
+}
+
+/* Operatör: sağdan girer, nişan alır, gölgeye karışır */
+.ltz-fx--blackout .v2-actor-move {
+  animation: v2-b-move var(--fx-dur) linear both;
+}
+@keyframes v2-b-move {
+  0%, 8% { transform: translateX(64vw); opacity: 1; }
+  30%, 76% { transform: translateX(0); opacity: 1; }
+  92% { opacity: 0; }
+  94%, 100% { transform: translateX(-5vw); opacity: 0; }
+}
+.ltz-fx--blackout .op-legs-stand {
+  animation: v2-b-stand var(--fx-dur) linear both;
+}
+.ltz-fx--blackout .op-legs-walk {
+  animation: v2-b-walk var(--fx-dur) linear both;
+}
+@keyframes v2-b-stand {
+  0%, 7.9% { opacity: 1; }
+  8%, 29.9% { opacity: 0; }
+  30%, 75.9% { opacity: 1; }
+  76%, 91.9% { opacity: 0; }
+  92%, 100% { opacity: 1; }
+}
+@keyframes v2-b-walk {
+  0%, 7.9% { opacity: 0; }
+  8%, 29.9% { opacity: 1; }
+  30%, 75.9% { opacity: 0; }
+  76%, 91.9% { opacity: 1; }
+  92%, 100% { opacity: 0; }
+}
+.ltz-fx--blackout .op-carry {
+  animation: v2-b-carry var(--fx-dur) linear both;
+}
+.ltz-fx--blackout .op-aim {
+  animation: v2-b-aim var(--fx-dur) linear both;
+}
+@keyframes v2-b-carry {
+  0%, 34.9% { opacity: 1; }
+  35%, 56.9% { opacity: 0; }
+  57%, 100% { opacity: 1; }
+}
+@keyframes v2-b-aim {
+  0%, 34.9% { opacity: 0; }
+  35%, 56.9% { opacity: 1; }
+  57%, 100% { opacity: 0; }
+}
+.ltz-fx--blackout .op-goggles-up {
+  animation: v2-b-gup var(--fx-dur) linear both;
+}
+.ltz-fx--blackout .op-goggles-down {
+  animation: v2-b-gdown var(--fx-dur) linear both;
+}
+@keyframes v2-b-gup {
+  0%, 55.9% { opacity: 1; }
+  56%, 100% { opacity: 0; }
+}
+@keyframes v2-b-gdown {
+  0%, 55.9% { opacity: 0; }
+  56%, 100% { opacity: 1; }
+}
+
+/* Namlu ateşi: dört atış, dört lamba */
+.ltz-fx .v2-muzzle {
+  position: absolute;
+  left: 3.8%;
+  top: 42.6%;
+  width: 46%;
+  aspect-ratio: 1;
+  opacity: 0;
+  transform: translate(-92%, -50%) scale(0.3);
+  animation: v2-muzzle var(--fx-dur) linear both;
+}
+.ltz-fx .mz-outer { fill: #ffd27a; }
+.ltz-fx .mz-core { fill: #fff8dc; }
+@keyframes v2-muzzle {
+  0%, 37.9% { opacity: 0; transform: translate(-92%, -50%) scale(0.3); }
+  38.2% { opacity: 1; transform: translate(-92%, -50%) scale(1); }
+  39.6%, 42.9% { opacity: 0; transform: translate(-92%, -50%) scale(1.2); }
+  43.2% { opacity: 1; transform: translate(-92%, -50%) scale(1); }
+  44.6%, 47.9% { opacity: 0; transform: translate(-92%, -50%) scale(1.2); }
+  48.2% { opacity: 1; transform: translate(-92%, -50%) scale(1); }
+  49.6%, 52.9% { opacity: 0; transform: translate(-92%, -50%) scale(1.2); }
+  53.2% { opacity: 1; transform: translate(-92%, -50%) scale(1); }
+  54.6%, 100% { opacity: 0; transform: translate(-92%, -50%) scale(1.2); }
+}
+
+.ltz-fx--blackout .v2-nv {
+  animation: v2-b-nv var(--fx-dur) linear both;
+}
+@keyframes v2-b-nv {
+  0%, 57% { opacity: 0; }
+  63%, 86% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* =====================================================================
+ * OPERATION DAYBREAK (Dark → Light)
+ * 0–12 gece görüş açık, sonra kalkar · 14–50 fişek tabancası, 24'te atış
+ * 40–66 fişek patlar, ışık yayılır, şafak gökyüzü · 46–76 dağlar ve güneş yükselir
+ * 66 tema değişir · 58–78 selam · 80–96 operatör gölgeye çekilir · 70–100 örtü çözülür
+ * ===================================================================== */
+.ltz-fx--daybreak {
+  --v2-floor: calc(100% - clamp(16px, 3.2vh, 34px));
+  --v2-right: 9vw;
+  --v2-cap-top: 12vh;
+  animation: v2-root-daybreak var(--fx-dur) linear both;
+}
+@keyframes v2-root-daybreak {
+  0%, 70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.ltz-fx--daybreak .v2-dim {
+  animation: v2-d-dim var(--fx-dur) linear both;
+}
+@keyframes v2-d-dim {
+  0% { opacity: 0; }
+  7%, 100% { opacity: 0.5; }
+}
+
+.ltz-fx .v2-dawn-sky {
+  opacity: 0;
+  background: linear-gradient(180deg, #24204a 0%, #6b2e5a 34%, #e8604c 66%, #f6b26b 92%, #ffe2a8 100%);
+  animation: v2-d-sky var(--fx-dur) linear both;
+}
+@keyframes v2-d-sky {
+  0%, 40% { opacity: 0; }
+  64%, 100% { opacity: 1; }
+}
+
+.ltz-fx .v2-sun-box {
+  inset: auto;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: clamp(220px, 46vh, 520px);
+  opacity: 0;
+  animation: v2-d-sunbox var(--fx-dur) linear both;
+}
+@keyframes v2-d-sunbox {
+  0%, 44% { opacity: 0; }
+  56%, 100% { opacity: 1; }
+}
+.ltz-fx .v2-sun {
+  position: absolute;
+  left: 58%;
+  bottom: 40%;
+  width: clamp(96px, 13vw, 190px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff3cf 0 42%, #ffd27a 43% 62%, rgba(255, 179, 71, 0) 64%);
+  transform: translate(-50%, 95%);
+  animation: v2-d-sun var(--fx-dur) cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.ltz-fx .v2-sun::before {
+  content: "";
+  position: absolute;
+  inset: -90%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 214, 140, 0.55), rgba(255, 214, 140, 0) 62%);
+}
+@keyframes v2-d-sun {
+  0%, 46% { transform: translate(-50%, 95%); }
+  76%, 100% { transform: translate(-50%, 0); }
+}
+
+.ltz-fx .v2-mountains {
+  inset: auto;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: clamp(220px, 46vh, 520px);
+  opacity: 0;
+  transform: translateY(22%);
+  animation: v2-d-mountains var(--fx-dur) cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@keyframes v2-d-mountains {
+  0%, 46% { opacity: 0; transform: translateY(22%); }
+  68%, 100% { opacity: 1; transform: translateY(0); }
+}
+.ltz-fx .mt-far { fill: #4a2f4f; }
+.ltz-fx .mt-mid { fill: #2b1c35; }
+.ltz-fx .mt-near { fill: #140e1b; }
+.ltz-fx .mt-rim {
+  fill: none;
+  stroke: rgba(255, 214, 150, 0.85);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.ltz-fx .v2-ground {
+  inset: auto;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: clamp(22px, 4.2vh, 44px);
+  border-top: 1px solid rgba(255, 214, 150, 0.28);
+  background: linear-gradient(180deg, #0f0b15, #08060b);
+  opacity: 0;
+  animation: v2-d-ground var(--fx-dur) linear both;
+}
+@keyframes v2-d-ground {
+  0% { opacity: 0; }
+  8%, 100% { opacity: 1; }
+}
+
+/* Operatör: sahnede hazır bekler, fişek atar, selam verir, geri çekilir */
+.ltz-fx--daybreak .v2-actor-move {
+  animation: v2-d-move var(--fx-dur) linear both;
+}
+@keyframes v2-d-move {
+  0% { opacity: 0; transform: translateX(3vw); }
+  8%, 80% { opacity: 1; transform: translateX(0); }
+  96%, 100% { opacity: 0; transform: translateX(6vw); }
+}
+.ltz-fx--daybreak .op-carry {
+  animation: v2-d-carry var(--fx-dur) linear both;
+}
+.ltz-fx--daybreak .op-flare {
+  animation: v2-d-flare-pose var(--fx-dur) linear both;
+}
+.ltz-fx--daybreak .op-salute {
+  animation: v2-d-salute var(--fx-dur) linear both;
+}
+@keyframes v2-d-carry {
+  0%, 13.9% { opacity: 1; }
+  14%, 49.9% { opacity: 0; }
+  50%, 57.9% { opacity: 1; }
+  58%, 77.9% { opacity: 0; }
+  78%, 100% { opacity: 1; }
+}
+@keyframes v2-d-flare-pose {
+  0%, 13.9% { opacity: 0; }
+  14%, 49.9% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+@keyframes v2-d-salute {
+  0%, 57.9% { opacity: 0; }
+  58%, 77.9% { opacity: 1; }
+  78%, 100% { opacity: 0; }
+}
+.ltz-fx--daybreak .op-goggles-down {
+  animation: v2-d-gdown var(--fx-dur) linear both;
+}
+.ltz-fx--daybreak .op-goggles-up {
+  animation: v2-d-gup var(--fx-dur) linear both;
+}
+@keyframes v2-d-gdown {
+  0%, 11.9% { opacity: 1; }
+  12%, 100% { opacity: 0; }
+}
+@keyframes v2-d-gup {
+  0%, 11.9% { opacity: 0; }
+  12%, 100% { opacity: 1; }
+}
+.ltz-fx--daybreak .v2-nv {
+  animation: v2-d-nv var(--fx-dur) linear both;
+}
+@keyframes v2-d-nv {
+  0%, 8% { opacity: 1; }
+  14%, 100% { opacity: 0; }
+}
+
+/* Fişek: yukarı fırlar, tepede patlar ve ışığı yayar */
+.ltz-fx .v2-flare-path {
+  position: absolute;
+  left: 11.5%;
+  top: 20.6%;
+  width: 0;
+  height: 0;
+  animation: v2-flare-path var(--fx-dur) linear both;
+}
+@keyframes v2-flare-path {
+  0%, 24% { transform: translate(0, 0); }
+  30% { transform: translate(-1.2vw, -30vh); }
+  36% { transform: translate(-1.9vw, -42vh); }
+  41%, 100% { transform: translate(-2.2vw, -46vh); }
+}
+.ltz-fx .v2-flare-head {
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff3cf;
+  box-shadow: 0 0 10px 4px rgba(246, 178, 107, 0.9), 0 0 24px 8px rgba(225, 29, 46, 0.5);
+  opacity: 0;
+  animation: v2-flare-head var(--fx-dur) linear both;
+}
+@keyframes v2-flare-head {
+  0%, 23.9% { opacity: 0; }
+  24%, 40% { opacity: 1; }
+  41%, 100% { opacity: 0; }
+}
+.ltz-fx .v2-flare-trail {
+  position: absolute;
+  left: -1px;
+  top: 0;
+  width: 2px;
+  height: 34vh;
+  transform-origin: 50% 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 226, 168, 0.95),
+    rgba(246, 120, 70, 0.55) 40%,
+    rgba(225, 29, 46, 0)
+  );
+  opacity: 0;
+  animation: v2-flare-trail var(--fx-dur) linear both;
+}
+@keyframes v2-flare-trail {
+  0%, 23.9% { opacity: 0; transform: scaleY(0.05); }
+  24% { opacity: 1; transform: scaleY(0.05); }
+  34%, 40% { opacity: 1; transform: scaleY(1); }
+  46%, 100% { opacity: 0; transform: scaleY(1); }
+}
+.ltz-fx .v2-burst {
+  --burst: 150vmax;
+  position: absolute;
+  left: calc(var(--burst) / -2);
+  top: calc(var(--burst) / -2);
+  width: var(--burst);
+  height: var(--burst);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 247, 222, 0.98) 0,
+    rgba(255, 226, 168, 0.9) 12%,
+    rgba(246, 178, 107, 0.62) 30%,
+    rgba(225, 29, 46, 0.22) 50%,
+    rgba(225, 29, 46, 0) 66%
+  );
+  opacity: 0;
+  transform: scale(0.01);
+  animation: v2-burst var(--fx-dur) ease-out both;
+}
+@keyframes v2-burst {
+  0%, 40% { opacity: 0; transform: scale(0.01); }
+  41% { opacity: 1; transform: scale(0.01); }
+  62%, 100% { opacity: 1; transform: scale(1); }
+}
+
+/* ---------- Dar ekran: daha küçük operatör, 3 lamba payı, kısa huzmeler ---------- */
+@media (max-width: 767px) {
+  .ltz-fx--blackout,
+  .ltz-fx--daybreak {
+    --op-width: clamp(112px, 30vw, 132px);
+  }
+  .ltz-fx--blackout {
+    --v2-floor: calc(var(--op-height) + clamp(36px, 7vh, 56px));
+    --v2-right: 3vw;
+    --v2-cap-top: calc(var(--v2-floor) + 8vh);
+    --lx0: 8%;
+    --lstep: 16%;
+    --cone-w: 40vw;
+  }
+  .ltz-fx--daybreak {
+    --v2-right: 5vw;
+    --v2-cap-top: 14vh;
+  }
+  .ltz-fx .v2-cap-title {
+    letter-spacing: 0.12em;
+  }
+  .ltz-fx .v2-cap-sub {
+    letter-spacing: 0.1em;
+  }
+  .ltz-fx .v2-cone {
+    height: 54vh;
+  }
+}

@@ -23,11 +23,12 @@ import com.ltz.community.application.port.AccountErasurePort;
  *       çıkarılır.</li>
  *   <li><b>Raporlar</b>: hesabın yaptığı raporlar silinir; hesabın içeriği hakkındaki raporlarda yalnız içerik yazarı
  *       referansı anonimleşir (moderasyon kaydı kalır, kişi tanımlanmaz).</li>
- *   <li><b>Engellemeler</b> (social-service yansıması): hesabın taraf olduğu tüm satırlar silinir.</li>
+ *   <li><b>Engellemeler</b> (social-service yansıması): hesabın taraf olduğu tüm satırlar ve olay sırası işaretleri
+ *       ({@code user_block_markers}) silinir.</li>
  *   <li><b>Forumlar</b>: forumu oluşturan referansı anonimleşir (forum içeriği kişisel değildir).</li>
  *   <li><b>Outbox</b>: hesabın kimliğini taşıyan tüm olaylar (bekleyen, başarısız ve teslim edilmiş) silinir.</li>
  * </ul>
- * Şema değişikliği gerekmez (community migration aralığı dolu): yer tutucu metin mevcut CHECK kısıtlarını sağlar.
+ * Yer tutucu metin mevcut CHECK kısıtlarını sağlar (türlü içeriğin başlığı da aynı yer tutucuyla değiştirilir).
  */
 @Component
 public class AccountDataEraser implements AccountErasurePort {
@@ -87,6 +88,7 @@ public class AccountDataEraser implements AccountErasurePort {
 		jdbc.sql("""
 				update posts set author_id = :anonymous,
 				    body = case when repost_of_id is null then :removed else null end,
+				    title = case when content_type is null then null else :removed end,
 				    status = 'DELETED', deleted_at = coalesce(deleted_at, :at), updated_at = :at, version = version + 1
 				where author_id = :account
 				""")
@@ -104,6 +106,8 @@ public class AccountDataEraser implements AccountErasurePort {
 
 	private void eraseBlocks(UUID accountId) {
 		jdbc.sql("delete from user_blocks where blocker_id = :account or blocked_id = :account")
+				.param(ACCOUNT, accountId).update();
+		jdbc.sql("delete from user_block_markers where blocker_id = :account or blocked_id = :account")
 				.param(ACCOUNT, accountId).update();
 	}
 

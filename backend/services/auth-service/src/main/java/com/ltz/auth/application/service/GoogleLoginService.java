@@ -1,5 +1,6 @@
 package com.ltz.auth.application.service;
 
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -9,6 +10,7 @@ import java.util.Base64;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -20,6 +22,7 @@ import com.ltz.auth.application.port.GoogleOidcPort;
 import com.ltz.auth.application.port.GoogleOidcPort.GoogleIdentity;
 import com.ltz.auth.domain.entity.Account;
 import com.ltz.auth.domain.entity.ExternalIdentity;
+import com.ltz.auth.domain.entity.GoogleRegistration;
 import com.ltz.auth.domain.enums.AuthEventType;
 import com.ltz.auth.domain.enums.AuthMethod;
 import com.ltz.auth.domain.enums.ExternalProvider;
@@ -27,10 +30,14 @@ import com.ltz.auth.domain.enums.RoleCode;
 import com.ltz.auth.domain.enums.SecurityEventType;
 import com.ltz.auth.domain.exception.AuthErrorCode;
 import com.ltz.auth.domain.exception.AuthException;
+import com.ltz.auth.domain.exception.RedactedCause;
+import com.ltz.auth.domain.exception.UsernameAlreadyTakenException;
 import com.ltz.auth.infrastructure.config.OAuthProperties;
 import com.ltz.auth.infrastructure.persistence.repository.AccountRepository;
 import com.ltz.auth.infrastructure.persistence.repository.ExternalIdentityRepository;
+import com.ltz.auth.infrastructure.persistence.repository.GoogleRegistrationRepository;
 import com.ltz.auth.infrastructure.persistence.repository.RoleRepository;
+import com.ltz.auth.infrastructure.security.SecureTokens;
 
 import lombok.RequiredArgsConstructor;
 
@@ -38,7 +45,8 @@ import lombok.RequiredArgsConstructor;
  * AUTH-06: Google OIDC (Authorization Code + PKCE S256). Kimlik eşleştirmesi yalnız Google "sub" ile yapılır.
  * <ul>
  *   <li>Bağlı sub → hesap oturumu (durum, 2FA ve zorunlu rol kuralları parola girişiyle aynı).</li>
- *   <li>Bağsız sub + doğrulanmış e-posta + kayıtsız e-posta → yeni ACTIVE hesap (PLAYER, parolasız).</li>
+ *   <li>Bağsız sub + doğrulanmış e-posta + kayıtsız e-posta → hesap açılmaz; kullanıcı adı seçimi için kayıt token'ı
+ *       döner, hesap (PLAYER, parolasız, ACTIVE) kullanıcı adı seçilince açılır.</li>
  *   <li>E-posta zaten kayıtlıysa sessizce birleştirilmez; ACCOUNT_LINK_REQUIRED döner.</li>
  * </ul>
  */
@@ -47,9 +55,7 @@ import lombok.RequiredArgsConstructor;
 public class GoogleLoginService {
 
     private static final String SCOPE = "openid email";
-    private static final String USERNAME_PREFIX = "g_";
-    private static final int USERNAME_SUFFIX_LENGTH = 12;
-    private static final int USERNAME_ATTEMPTS = 5;
+    private static final String UNIQUE_USERNAME = "uq_accounts_username_normalized";
 
     private final OAuthProperties properties;
     private final OAuthFlowService flowService;
@@ -58,6 +64,8 @@ public class GoogleLoginService {
     private final AccountRepository accountRepository;
     private final ExternalIdentityRepository identityRepository;
     private final RoleRepository roleRepository;
+    private final GoogleRegistrationRepository registrationRepository;
+    private final SecureTokens secureTokens;
     private final LoginService loginService;
     private final SecurityEventRecorder securityEventRecorder;
     private final AuthEventPublisher eventPublisher;
@@ -67,11 +75,20 @@ public class GoogleLoginService {
     public StartedFlow start() {
         requireConfigured();
         String state = flowService.start(ExternalProvider.GOOGLE);
+        return new StartedFlow(authorizationUri(state, redirectUri()), state);
+    }
+
+    /**
+     * Verilen state için Google yetkilendirme adresi. Giriş ve bağlama akışları paylaşır; PKCE doğrulayıcısı ve nonce
+     * state'ten türetilir, saklanmaz.
+     */
+    URI authorizationUri(String state, String redirectUri) {
+        requireConfigured();
         var google = properties.google();
-        var redirect = UriComponentsBuilder.fromUri(google.authorizationUri())
+        return UriComponentsBuilder.fromUri(google.authorizationUri())
                 .queryParam("response_type", "code")
                 .queryParam("client_id", google.clientId())
-                .queryParam("redirect_uri", redirectUri())
+                .queryParam("redirect_uri", redirectUri)
                 .queryParam("scope", SCOPE)
                 .queryParam("state", state)
                 .queryParam("nonce", flowService.nonce(state))
@@ -79,31 +96,52 @@ public class GoogleLoginService {
                 .queryParam("code_challenge_method", "S256")
                 .queryParam("prompt", "select_account")
                 .build().encode().toUri();
-        return new StartedFlow(redirect, state);
     }
 
+    /** Kodu Google'da doğrular ve kimliği döner; hesap eşleştirmesi çağırana aittir. */
+    GoogleIdentity verifiedIdentity(String code, String state, String redirectUri) {
+        requireConfigured();
+        if (code == null || code.isBlank()) {
+            throw failed();
+        }
+        try {
+            return googleOidc.authenticate(code, flowService.codeVerifier(state), redirectUri, flowService.nonce(state));
+        } catch (ExternalAuthenticationException _) {
+            throw failed();
+        }
+    }
+
+    /**
+     * Bağlı kimlik: oturum akışı. Bağsız kimlik + doğrulanmış, kayıtsız e-posta: hesap AÇILMAZ; kullanıcı adı seçsin diye
+     * kısa ömürlü, tek kullanımlık kayıt token'ı döner ({@link #completeRegistration}). E-posta ve "sub" sunucuda kalır.
+     */
     public ExternalLoginResult callback(String code, String state, String stateFromCookie) {
         requireConfigured();
         if (code == null || code.isBlank() || !flowService.consume(ExternalProvider.GOOGLE, state, stateFromCookie)) {
             throw failed();
         }
-        GoogleIdentity identity;
-        try {
-            identity = googleOidc.authenticate(code, flowService.codeVerifier(state), redirectUri(),
-                    flowService.nonce(state));
-        } catch (ExternalAuthenticationException _) {
-            throw failed();
-        }
-        UUID accountId = resolveAccount(identity);
-        return ExternalLoginResult.from(loginService.loginVerifiedIdentity(accountId, AuthMethod.EXTERNAL));
-    }
-
-    private UUID resolveAccount(GoogleIdentity identity) {
+        GoogleIdentity identity = verifiedIdentity(code, state, redirectUri());
         Optional<ExternalIdentity> linked = identityRepository.findByProviderAndProviderSubject(
                 ExternalProvider.GOOGLE, identity.subject());
         if (linked.isPresent()) {
-            return linked.get().getAccountId();
+            return ExternalLoginResult.from(
+                    loginService.loginVerifiedIdentity(linked.get().getAccountId(), AuthMethod.EXTERNAL));
         }
+        requireRegistrable(identity);
+        return ExternalLoginResult.googleRegistrationRequired(issueRegistrationToken(identity));
+    }
+
+    /**
+     * Kullanıcı adıyla ilk Google kaydını tamamlar: token tek kullanımlık ve süreli; hesap doğrulanmış e-postayla ACTIVE
+     * açılır, "sub" bağlanır. Sonra parola girişiyle aynı kurallarla oturum/2FA akışı çalışır (MFA atlanmaz).
+     * Kullanıcı adı çakışmasında token tüketilmez (başka ad denenebilir). Eşzamanlı kullanımda ikincisi token'ı tüketilmiş görür.
+     */
+    public LoginResult completeRegistration(String registrationToken, String username) {
+        UUID accountId = createAccountFromRegistration(registrationToken, username);
+        return loginService.loginVerifiedIdentity(accountId, AuthMethod.EXTERNAL);
+    }
+
+    private void requireRegistrable(GoogleIdentity identity) {
         if (!identity.emailVerified() || identity.email() == null || identity.email().isBlank()) {
             securityEventRecorder.recordEvent(SecurityEventType.EXTERNAL_LOGIN_FAILED, null);
             throw new AuthException(AuthErrorCode.EXTERNAL_EMAIL_UNVERIFIED);
@@ -113,38 +151,67 @@ public class GoogleLoginService {
             securityEventRecorder.recordEvent(SecurityEventType.EXTERNAL_LINK_CONFLICT, sameEmail.get().getId());
             throw new AuthException(AuthErrorCode.ACCOUNT_LINK_REQUIRED);
         }
+    }
+
+    private String issueRegistrationToken(GoogleIdentity identity) {
+        String token = secureTokens.newOpaqueToken();
+        transactionTemplate.executeWithoutResult(status -> {
+            Instant now = clock.instant();
+            registrationRepository.save(GoogleRegistration.issue(secureTokens.sha256Hex(token), identity.subject(),
+                    identity.email().strip(), now, now.plus(properties.google().registrationTtl())));
+            securityEventRecorder.recordEvent(SecurityEventType.GOOGLE_REGISTRATION_STARTED, null);
+        });
+        return token;
+    }
+
+    private UUID createAccountFromRegistration(String registrationToken, String username) {
+        String tokenHash = secureTokens.sha256Hex(registrationToken);
         try {
-            return transactionTemplate.execute(status -> createAccount(identity));
-        } catch (DataIntegrityViolationException _) {
-            // Eşzamanlı ilk giriş veya aynı e-postayla eşzamanlı kayıt: ikisi de bağsız birleştirmeye izin vermez.
-            return identityRepository.findByProviderAndProviderSubject(ExternalProvider.GOOGLE, identity.subject())
-                    .map(ExternalIdentity::getAccountId)
-                    .orElseThrow(() -> new AuthException(AuthErrorCode.ACCOUNT_LINK_REQUIRED));
+            return transactionTemplate.execute(status -> {
+                Instant now = clock.instant();
+                GoogleRegistration registration = registrationRepository.findByTokenHashForUpdate(tokenHash)
+                        .filter(candidate -> candidate.isUsableAt(now))
+                        .orElseThrow(() -> new AuthException(AuthErrorCode.REGISTRATION_TOKEN_INVALID));
+                if (accountRepository.existsByUsernameNormalized(Account.normalizeUsername(username))) {
+                    throw new UsernameAlreadyTakenException();
+                }
+                Optional<ExternalIdentity> linked = identityRepository.findByProviderAndProviderSubject(
+                        ExternalProvider.GOOGLE, registration.getSubject());
+                if (linked.isPresent()) {
+                    // Aynı Google kimliği bu arada başka bir akışla kayıt oldu: ikinci hesap açılmaz, mevcut hesapla devam.
+                    registration.consume(now);
+                    return linked.get().getAccountId();
+                }
+                if (accountRepository.findByEmailNormalized(Account.normalizeEmail(registration.getEmail())).isPresent()) {
+                    throw new AuthException(AuthErrorCode.ACCOUNT_LINK_REQUIRED);
+                }
+                var role = roleRepository.findByCode(RoleCode.PLAYER)
+                        .orElseThrow(() -> new IllegalStateException("Initial role seed is missing: " + RoleCode.PLAYER));
+                Account account = accountRepository.saveAndFlush(
+                        Account.registerVerifiedExternal(registration.getEmail(), username, role, now));
+                identityRepository.saveAndFlush(ExternalIdentity.link(account.getId(), ExternalProvider.GOOGLE,
+                        registration.getSubject(), now));
+                registration.consume(now);
+                securityEventRecorder.recordEvent(SecurityEventType.EXTERNAL_ACCOUNT_CREATED, account.getId());
+                eventPublisher.publish(AuthEventType.USER_REGISTERED, account.getId(), account.getUsername());
+                return account.getId();
+            });
+        } catch (DataIntegrityViolationException exception) {
+            if (UNIQUE_USERNAME.equalsIgnoreCase(violatedConstraint(exception))) {
+                throw new UsernameAlreadyTakenException(RedactedCause.of(exception));
+            }
+            // E-posta ya da Google kimliği eşzamanlı olarak alındı: birleştirme yok, kullanıcı mevcut hesapla girmeli.
+            throw new AuthException(AuthErrorCode.ACCOUNT_LINK_REQUIRED);
         }
     }
 
-    private UUID createAccount(GoogleIdentity identity) {
-        Instant now = clock.instant();
-        var role = roleRepository.findByCode(RoleCode.PLAYER)
-                .orElseThrow(() -> new IllegalStateException("Initial role seed is missing: " + RoleCode.PLAYER));
-        Account account = accountRepository.saveAndFlush(
-                Account.registerVerifiedExternal(identity.email(), freeUsername(), role, now));
-        identityRepository.saveAndFlush(ExternalIdentity.link(account.getId(), ExternalProvider.GOOGLE,
-                identity.subject(), now));
-        securityEventRecorder.recordEvent(SecurityEventType.EXTERNAL_ACCOUNT_CREATED, account.getId());
-        eventPublisher.publish(AuthEventType.USER_REGISTERED, account.getId(), account.getUsername());
-        return account.getId();
-    }
-
-    private String freeUsername() {
-        for (int attempt = 0; attempt < USERNAME_ATTEMPTS; attempt++) {
-            String candidate = USERNAME_PREFIX + UUID.randomUUID().toString().replace("-", "")
-                    .substring(0, USERNAME_SUFFIX_LENGTH);
-            if (!accountRepository.existsByUsernameNormalized(Account.normalizeUsername(candidate))) {
-                return candidate;
+    private static String violatedConstraint(DataIntegrityViolationException exception) {
+        for (Throwable current = exception; current != null; current = current.getCause()) {
+            if (current instanceof ConstraintViolationException violation) {
+                return violation.getConstraintName();
             }
         }
-        throw new IllegalStateException("Could not allocate a username");
+        return null;
     }
 
     private AuthException failed() {

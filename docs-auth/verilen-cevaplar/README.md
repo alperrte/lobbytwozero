@@ -2,7 +2,13 @@
 
 Bir ekip arkadaşı Auth'tan bir şey istediyse, sorduysa ya da Auth hakkında bir sorun bildirdiyse cevabım burada. Her branch'in kendi klasörü var. Kendi branch'inin klasörüne gir, `README.md` önce durumu özetler, sonra talepler sırayla gelir.
 
-**Sahip:** Kerem (auth-service) · **Son güncelleme:** 2026-10-26
+**Sahip:** Kerem (auth-service) · **Son güncelleme:** 2026-11-06 · Kapanan talepler ve bilgilendirmeler temizlendi (git geçmişinde)
+
+---
+
+## HERKES İÇİN YENİ (2026-11-05)
+
+[bilgilendirme-2026-11-05-auth-degisiklikleri.md](bilgilendirme-2026-11-05-auth-degisiklikleri.md) — Google bağlama, Steam'de zorunlu 2FA, parola belirleme, kaldırılan `steam/unlink` ve kimden ne beklendiği. Her servis klasöründe kendi özel notu `bilgilendirme-2026-11-05.md` olarak durur.
 
 ---
 
@@ -28,17 +34,17 @@ Bir ekip arkadaşı Auth'tan bir şey istediyse, sorduysa ya da Auth hakkında b
 
 | Klasör | Sahip | Durum özeti | Açık iş var mı |
 |---|---|---|---|
-| [hardware-service](hardware-service/README.md) | Alper | 4 talep cevaplandı, 04 kapandı | Evet: talep 02 (cihaz kimliği, sıraya alındı), 03 (ortak deneme). Talep 04 kapandı |
+| [hardware-service](hardware-service/README.md) | Alper | Talep 01 kapandı, 02 Auth tarafında uygulandı | Hayır (Auth tarafı hazır; gerçek yığın denemesi Alper'de) |
 | [social-service](social-service/README.md) | Umut | Uyumlu, 2 sıkılaştırma açık | Evet: Social'da yapılacak |
 | [community-service](community-service/README.md) | Nisa | Gerçek JWT bekliyor | Evet: Community'de yapılacak |
-| [game-service](game-service/README.md) | Hamza | Eski talepler kapandı, yeni talep 02 cevaplandı | Evet: HttpClient düzeltmesi Hamza'da |
+| [game-service](game-service/README.md) | Hamza | Talep 03 kapandı, talep 04 (GAME-26) Auth tarafı hazır | Evet: Library ve Review alıcı uçları (Hamza) |
 | [library-service](library-service/README.md) | Hamza | İskelet + silme ucu var | Hayır |
 | [review-service](review-service/README.md) | Hamza | İskelet + silme ucu var | Hayır |
 | [messaging-service](messaging-service/README.md) | Umut | İskelet | Hayır |
 | [lfp-service](lfp-service/README.md) | Umut | İskelet | Hayır |
 | [content-service](content-service/README.md) | Nisa | İskelet | Hayır |
 | [event-service](event-service/README.md) | Nisa | İskelet | Hayır |
-| [performance-service](performance-service/README.md) | Alper | İskelet, cihaz kimliği ile ilgili | Bekliyor (talep 02) |
+| [performance-service](performance-service/README.md) | Alper | Silme ucu var, cihaz doğrulama hazır | Hayır |
 | [recommendation-service](recommendation-service/README.md) | Alper | İskelet | Hayır |
 | [user-service](user-service/README.md) | Kerem | İskelet | Hayır |
 | [mail-service](mail-service/README.md) | Kerem | İskelet | Hayır |

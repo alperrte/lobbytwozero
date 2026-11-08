@@ -23,14 +23,19 @@ public class ServiceClientConfig {
     /** Başka servislere ({@code aud=<servis>-service}) verilebilen kapsamlar; hedef servis token'ı kendi JWKS doğrulamasıyla kabul eder. */
     public static final Set<String> ALLOWED_TARGET_SCOPES = Set.of(
             TokenClaims.EVENTS_INGEST_SCOPE, TokenClaims.BLOCKS_CHECK_SCOPE, TokenClaims.PRIVACY_READ_SCOPE,
-            TokenClaims.SIGNALS_READ_SCOPE, TokenClaims.RATING_SUMMARIES_READ_SCOPE, TokenClaims.DEVICES_VERIFY_SCOPE);
+            TokenClaims.SIGNALS_READ_SCOPE, TokenClaims.RATING_SUMMARIES_READ_SCOPE, TokenClaims.DEVICES_VERIFY_SCOPE,
+            TokenClaims.GAME_REFERENCES_READ_SCOPE, TokenClaims.PERFORMANCE_SUMMARY_READ_SCOPE,
+            TokenClaims.PERFORMANCE_REFERENCE_READ_SCOPE,
+            TokenClaims.GAME_IDENTITY_PREPARE_SCOPE, TokenClaims.GAME_IDENTITY_FINALIZE_SCOPE,
+            TokenClaims.GAME_IDENTITY_READ_SCOPE, TokenClaims.GAME_IDENTITY_DECISION_READ_SCOPE);
     /**
      * Tek hesabı ilgilendiren kapsamlar (kişisel veri okuma, cihaz doğrulama): token yalnız istekte verilen tek hesap için
      * ({@code account_id}) ve o hesap ACTIVE ise verilir. Bir hedefin kapsamları ya hep hesaba bağlıdır ya hiç
      * (token'ın anlamı karışmasın).
      */
     public static final Set<String> ACCOUNT_BOUND_TARGET_SCOPES = Set.of(
-            TokenClaims.SIGNALS_READ_SCOPE, TokenClaims.DEVICES_VERIFY_SCOPE);
+            TokenClaims.SIGNALS_READ_SCOPE, TokenClaims.DEVICES_VERIFY_SCOPE,
+            TokenClaims.PERFORMANCE_SUMMARY_READ_SCOPE, TokenClaims.PERFORMANCE_REFERENCE_READ_SCOPE);
     static final int MIN_SECRET_LENGTH = 32;
     private static final Pattern CLIENT_ID = Pattern.compile("^[a-z0-9-]{1,32}$");
     private static final Pattern TARGET_AUDIENCE = Pattern.compile("^[a-z0-9-]{1,24}" + TokenClaims.SERVICE_AUDIENCE_SUFFIX + "$");

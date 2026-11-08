@@ -159,13 +159,25 @@ Gösterim: **PK** birincil anahtar, **FK** servis içi yabancı anahtar, **REF**
 | Tablo | Önemli sütunlar | Kısıtlar / not |
 | --- | --- | --- |
 | `mail_templates` | id, code, locale, subject, body_html, body_text, version, active | UQ (code, locale, version) |
-| `mail_messages` | id, idempotency_key, template_code, locale, recipient_email, recipient_user_id REF, variables_encrypted jsonb, status, attempts, next_attempt_at, last_error_code, sent_at, created_at | UQ idempotency_key; status ∈ PENDING, PROCESSING, SENT, FAILED |
-| `mail_delivery_attempts` | id, message_id FK, attempted_at, result, smtp_code | Hata metni kişisel veri içermez |
-| `inbox_events` | §2.4 | |
+| `mail_messages` | id, idempotency_key, request_hash, type, recipient_user_id REF, recipient_email (terminalde NULL), recipient_masked, locale (NULL = TR+EN), payload_encrypted bytea, payload_key_version, status, attempts, next_attempt_at, lease_until, expires_at, last_error_code, created_at, updated_at, sent_at, version | UQ idempotency_key; status ∈ PENDING, PROCESSING, SENT, FAILED; type CHECK |
+| `mail_delivery_attempts` | id, message_id FK (ON DELETE CASCADE), attempt_no, attempted_at, result, smtp_code, error_code, duration_ms | Hata metni ve adres saklanmaz |
 
-> Doğrulama kodu/sıfırlama linki gibi hassas değişkenler `variables_encrypted` içinde şifreli ve gönderimden sonra temizlenir.
+> Gerçek şema `V81__create_mail_tables.sql`. Mail olay tüketmediği için `inbox_events` bu serviste **yoktur**; ayrı `idempotency_records` da yoktur (tekillik `uq_mail_messages_idempotency_key`).
+
+> Doğrulama kodu/sıfırlama linki gibi hassas değişkenler `payload_encrypted` içinde AES-256-GCM ile şifreli tutulur; terminal durumda payload silinir, tam adres NULL olur ve yalnız maskeli kopya kalır.
 
 ### 3.4 game_db — game-service (Hamza)
+
+**5 Kasım 2026 kaynak güncellemesi — GAME-24:** V173, `game_price_quotes`
+(game_id FK, ülke, para birimi, mağaza, regular/current numeric(19,4), indirim,
+ITAD URL'si, sağlayıcı zamanı, çekim ve sona erme zamanı), `game_price_refresh_state`
+(oyun/pazar tekilliği, AVAILABLE/NO_OFFER/FAILED, checked_at, next_attempt_at,
+güvenli hata kodu) ve `game_price_sync_lock` (tek worker kiralaması) ekler.
+UUID PK, timestamptz, version bigint ve para/durum CHECK kuralları kullanılır.
+Fiyatlar kişisel veri değildir; başka DB'ye erişim yoktur. Süresi dolmuş fiyat
+indirim filtresine katılmaz; başarısız yenileme eski snapshot'ı silmez. Gerçek
+DEV'e bu çalışma kapsamında uygulanmadı. Aktif kaynak zinciri V31–V40 + V171–V173;
+aşağıdaki başlangıç şema/DEV bilgileri tarihsel kayıttır.
 
 **2026-10-24 ek yükseltme:** V171–V180 Game'e açıkça tahsis edildi; aktif kaynak
 zinciri V31–V40 + `V171__enable_controlled_account_erasure.sql` oldu. V171 yalnız
@@ -216,6 +228,8 @@ game_languages tablosu değiştirilmez. Eski verilere kaynak/doğrulama backfill
 yapılmaz. LOCALIZATION mevcut manuel kilit allowlist'ine eklenir. Fiyat tablosu
 oluşturulmadı; GAME-24 sağlayıcı izni/erişimi bekler.
 
+
+Game Service GAME-04/05/15 LTZ puan projeksiyonu (aktif V172, 2026-11-05; V171–V180 tahsisi içinde): `game_rating_projection` (game_id PK ve FK `games` CASCADE, nullable `average_rating numeric(4,2)` 1–10, `rating_count bigint`, `last_seen_scan`, UTC `synced_at`, `version`; CHECK: ortalama ile sayı birlikte boş/0 veya birlikte dolu/≥1) ve tek satırlı `game_rating_sync_state` (sabit UUID PK, `scan_generation`, `lease_owner`/`lease_until` tek tarayıcı kiralaması, `last_attempt_at`, `last_completed_scan`, `last_completed_at`, `last_error_code`, `version`). Review'ın imleçli dışa aktarma ucundan beslenir; Review DB'sine erişilmez ve kişisel veri tutulmaz. Satır yoksa oyun puansızdır; `last_completed_at` boşken projeksiyon "hazır değil" sayılır (boş tablo "kimsenin puanı yok" demek değildir). Hatasız biten tarama görülmeyen satırları puansız yapar, yarıda kesilen taramada hiçbir satır sıfırlanmaz. Ek indeks eklenmedi (PK dışında); sorgu planı ölçülmedi. Hesap silme fonksiyonu bu tabloları etkilemez. Sözleşme: api.md → GAME → "Giden sözleşme: Review puan projeksiyonu".
 
 **Tarihsel gelişim (eski numaralandırma — aktif zincir değildir):** GAME-08 V31, GAME-10 V32, GAME-16 V33, GAME-18 V34, GAME-21 V35, Faz 2 güncellik/retry V36, Faz 3 keşif V37, Faz 4 yönetim/geliştirici V38–V40, GAME-23 V171 ve Faz 6 V172–V173 eski 13 dosyalı zincirin numaralarıdır. "Tarihsel Vxx" bu eski zinciri; başlangıç "aktif Vxx" V31–V40 zincirini gösterir (özellikle tarihsel V40 geliştirici içeriği, aktif V40 özel feedback). Eski ek aralık 2026-10-21'de iptal edilmişti; 2026-10-24 açık talimatıyla **V171–V180 yeniden Game'e tahsis edildi**. Güncel aktif V171 hesap silmedir; tarihsel V171 dil/provenance ile karıştırılmamalıdır. V172–V180 güncel kaynakta boştur, V181–V190 tahsis edilmemiştir. Gerçek detay sağlayıcısı henüz entegre edilmedi.
 
@@ -302,18 +316,22 @@ oluşturulmadı; GAME-24 sağlayıcı izni/erişimi bekler.
 | `comments` | id, post_id FK, author_id REF, parent_comment_id FK nullable, body, status (VISIBLE, HIDDEN, DELETED), created_at, updated_at, deleted_at, version | **V95 ile uygulandı** (COM-07/08/09). CHECK: status, body 1–2000, `deleted_at` yalnız `DELETED`, `parent_comment_id <> id`; FK'ler `ON DELETE RESTRICT`. Sınırsız iç içe yanıt: yanıtlar üst yorum başına keyset okunur (özyinelemeli sorgu yok). Soft delete; yanıtı olan silinmiş yorum satır olarak kalır. İndeksler: `ix_comments_post_top_level`, `ix_comments_parent` (kısmi), `ix_comments_author_id`. `posts.comment_count` = VISIBLE yorum sayısı |
 | `community_reports` | id, target_type (POST, COMMENT), target_id, target_author_id REF, reporter_id REF, reason, detail, status (OPEN, RESOLVED, DISMISSED), created_at, updated_at, version | **V99 ile uygulandı** (COM-16). UQ (target_type, target_id, reporter_id); `target_id` polimorfik mantıksal referanstır (FK yok); CHECK: target_type, reason ∈ SPAM, HARASSMENT, HATE_SPEECH, SEXUAL_CONTENT, VIOLENCE, ILLEGAL_CONTENT, MISINFORMATION, OTHER, status, `reporter_id <> target_author_id`; indeksler: `ix_community_reports_reporter_created` (saatlik sınır), `ix_community_reports_target`, `ix_community_reports_open` (kısmi, `status='OPEN'`). Durum yalnız admin-service kararıyla (`ModerationActionTaken`) OPEN'dan çıkar |
 | `user_blocks` | blocker_id REF, blocked_id REF, created_at | **V100 ile uygulandı** (COM-21). PK (blocker_id, blocked_id); CHECK blocker ≠ blocked; `ix_user_blocks_blocked_id`. Veri sahibi social-service'tir; bu tablo `UserBlocked` / `UserUnblocked` olaylarının yerel okuma yansımasıdır (iki yönlü gizleme ve etkileşim engeli) |
+| `user_block_markers` | blocker_id REF, blocked_id REF, last_event_at | **V182 ile uygulandı** (COM-21). PK (blocker_id, blocked_id); CHECK blocker ≠ blocked; `ix_user_block_markers_blocked_id`. Çift için uygulanmış en yeni engelleme olayının `occurredAt` değeri (tombstone: engel kalkınca da kalır); geç gelen eski `UserBlocked` / `UserUnblocked` yeni durumu ezmesin diye kullanılır. Yalnız yerel projeksiyondur, hesap silmede silinir |
 | `outbox_events`, `inbox_events` | §2.4 | **V98 ile uygulandı** (§2.4 şeması + `ck_outbox_events_status/attempts`). Outbox: `ContentReported` (→ admin), `CommentCreated`, `PostLiked`, `PostReposted` (→ notification); olay iş verisiyle aynı transaction'da yazılır, relay kapalıyken `PENDING` bekler; `SENT` kayıtlar 14 gün sonra temizlenir. Inbox: `ModerationActionTaken`, `UserBlocked`, `UserUnblocked` için `event_id` tekilleştirmesi |
 
 ### 3.11 content_db — content-service (Nisa)
 
 | Tablo | Önemli sütunlar | Kısıtlar / not |
 | --- | --- | --- |
-| `content_categories` | id, code, name_tr, name_en | UQ code |
-| `contents` | id, author_id REF, type (NEWS, ANNOUNCEMENT, USER_CONTENT), category_id FK, slug, status (DRAFT, PUBLISHED, REMOVED, ARCHIVED), featured, published_at, removed_by REF, removed_reason, created_at, updated_at, version | UQ slug; ANNOUNCEMENT yalnız admin (uygulama kuralı) |
-| `content_translations` | content_id FK, locale, title, summary, body | PK (content_id, locale) |
-| `content_images` | id, content_id FK, storage_key, alt_tr, alt_en, sort_order | |
-| `content_sources` | id, content_id FK, title, url | CONT-16 |
-| `outbox_events`, `inbox_events` | §2.4 | |
+| `content_categories` | id, code, kind (PLATFORM, TOPIC), name_tr, name_en, sort_order | **V103 ile uygulandı** (CONT-03). **Sabit liste:** migration 14 kayıt tohumlar (platform: PC, PLAYSTATION, XBOX, NINTENDO_SWITCH, MOBILE, VR; konu: INDUSTRY, RELEASE, UPDATE, ESPORTS, GUIDE, HARDWARE, COMMUNITY, EVENT); sabit UUID'ler kullanılır, yönetim ucu yoktur (yeni kategori yeni migration ister). UQ code; CHECK kind, code `^[A-Z][A-Z0-9_]{1,31}$` |
+| `content_category_assignments` | content_id FK (ON DELETE CASCADE), category_id FK (ON DELETE RESTRICT) | **V103 ile uygulandı.** İçerik başına birden çok kategori (en çok 5, uygulama kuralı; önceki taslaktaki tekil `contents.category_id` yerine çoka-çok bağlantı seçildi: bir haber hem platform hem konu taşır). PK (content_id, category_id); IX (category_id, content_id) kategori filtresi için. İçerik silinince bağlantılar kalıcı silinir |
+| `contents` | id, author_id REF, type (NEWS, ANNOUNCEMENT, USER_CONTENT), status (DRAFT, PUBLISHED, REMOVED, ARCHIVED), default_locale, content_hash, created_at, updated_at, deleted_at, version | **V101 ile uygulandı** (CONT-05/06/07/08/18). CHECK: type, status, default_locale (`tr`/`en`), `char_length(content_hash)=64`. ANNOUNCEMENT yalnız admin (uygulama kuralı). **Silme (LTZ-NIS-CONT-01 kararı):** `deleted_at` silme işareti konur (ayrı DELETED durumu yok; durum makinesi değişmedi), **aynı transaction'da** `content_translations` ve `content_images` satırları kalıcı olarak silinir ve `content_hash` nötr değerle (64 sıfır) değiştirilir; silinen metin için saklama süresi 0 gün. Silinmiş satırlar saatlik oluşturma kotasına sayılmaya devam eder (silme kotayı sıfırlamaz). **Hesap silmede** kullanıcının tüm `contents` satırları (taslak, yayımlanmış, önceden silinmiş) kalıcı silinir (cascade ile çeviri/görseller de): ayrı görev. `content_hash` (SHA-256, büyük/küçük harf ve boşluk farkı yok sayılır): kısmi UQ `(author_id, type, content_hash) WHERE deleted_at IS NULL` mükerrer içeriği yarışta bile engeller; silinen içerik aynı metni engellemez. IX `(author_id, created_at desc)` (saatlik oluşturma sınırı, silinenler dahil). **V104 ile eklenen kolonlar (CONT-02):** `game_id` uuid null (REF, game-service oyun kataloğu; FK yok, oyun yazarken game-service'te doğrulanır), `published_at` timestamptz null (yayın anı), `featured` boolean not null default false, `featured_at`, `featured_by` (öne çıkaran ADMIN, REF). CHECK `ck_contents_published_at`: `(status = 'DRAFT') = (published_at IS NULL)`; CHECK `ck_contents_featured`: öne çıkarma yalnız `PUBLISHED` durumunda ve `featured_at`/`featured_by` doluyken. Kısmi indeksler (yalnız `status='PUBLISHED' AND deleted_at IS NULL` satırlarında): IX `(published_at desc, id desc)` akış ve keyset sayfalama için, IX featured için, IX `(game_id, published_at desc)` oyun filtresi için. Silmede `featured` temizlenir. **V106 ile eklenen kolonlar (CONT-10):** `removed_at`, `removed_by` (REF, moderatör/yönetici), `removed_reason` varchar(500) null; CHECK `ck_contents_removal`: `REMOVED` durumu ile üç kolon birlikte dolu/boştur, gerekçe btrim sonrası 1-500 karakter. Bu kolonlar yalnız **geçerli** kaldırmayı gösterir; geri alınınca temizlenir, geçmiş `content_moderation_actions` tablosundadır. **Henüz eklenmeyen:** slug (UQ) |
+| `content_translations` | content_id FK (ON DELETE CASCADE), locale, title, summary, body | **V101 ile uygulandı.** PK (content_id, locale). CHECK: locale, title 1–150, summary null ya da 1–500, body null ya da 1–20000 (btrim sonrası). Taslakta özet/gövde null olabilir. Her içerikte `contents.default_locale` dilindeki çeviri bulunur (silinemez); CONT-15 ile diğer dil (`tr`/`en`) uygulama uçlarıyla eklenir ve silinir (ek migration gerekmedi). Akış istenen dildeki çeviriyi, yoksa ilk dili gösterir; arama içeriğin tüm dillerinde yapılır. **V105 ile `pg_trgm` eklentisi ve GIN indeksleri:** `ix_content_translations_title_trgm`, `_summary_trgm`, `_body_trgm` (ifadeler `lower(title)`, `lower(summary)`, `lower(body)`, `gin_trgm_ops`); arama sorgusunun `lower(sütun) like lower(:q) escape '!'` ifadeleriyle birebir aynıdır (§4 metin arama kuralı) |
+| `content_images` | id, content_id FK (ON DELETE CASCADE), content bytea, mime_type, size_bytes, width, height, sort_order, created_at | **V102 ile uygulandı** (depolama kararı: content_db/bytea, community-service ile aynı; `storage_key`/`alt_tr`/`alt_en` yok — alt metin CONT-15 fazına bırakıldı). CHECK: mime_type `image/jpeg`/`image/png`, size 1–2 MiB, boyutlar > 0, sort_order 0–5; UQ (content_id, sort_order). İçerik silinince baytlar uygulamada fiziksel silinir |
+| `content_sources` | id, content_id FK (ON DELETE CASCADE), title, url, source_date, sort_order | **V103 ile uygulandı** (CONT-16). CHECK: title 1–150 (btrim), url `^https://[^[:space:]]+$` ve en çok 500, sort_order 0–2; UQ (content_id, sort_order) → içerik başına en çok 3 kaynak. URL yalnız saklanır/gösterilir, sunucu o adrese istek atmaz (SSRF yüzeyi yok) |
+| `content_moderation_actions` | id, content_id FK (ON DELETE CASCADE), action (REMOVE, RESTORE), actor_id REF, actor_role (MODERATOR, ADMIN; V107), source (yalnız ADMIN_SERVICE), reason varchar(500), report_id REF null, event_id null, created_at | **V106 ile uygulandı, V107 ile `actor_role` eklendi ve karar yolu yalnız `ADMIN_SERVICE` olarak kısıtlandı** (doğrudan moderatör ucu yoktur; `source` CHECK'i NOT VALID eklendi). `actor_role`: admin-service'in doğruladığı karar rolü (yeni kayıtlarda dolu). Değişmez moderasyon kaydı (yalnız eklenir). CHECK: action, source, reason btrim 1-500. IX `(content_id, created_at desc)`. İçerik kalıcı silinirse (hesap silme) geçmişi de cascade ile silinir; kalıcı denetim kaydı admin-service `audit_logs` içindedir |
+| `inbox_events` | §2.4 (event_id PK, event_type, producer, processed_at) | **V106 ile uygulandı.** admin-service `ModerationActionTaken` olaylarının tekilleştirilmesi; kayıt, olayın etkisiyle aynı transaction'da yazılır |
+| `outbox_events` | §2.4 | **Henüz uygulanmadı** (ContentPublished/ContentRemoved olayları: broker kararı bekliyor, bkz. NOTLAR.md) |
 
 ### 3.12 event_db — event-service (Nisa)
 
@@ -328,6 +346,20 @@ oluşturulmadı; GAME-24 sağlayıcı izni/erişimi bekler.
 | `outbox_events`, `inbox_events`, `idempotency_records` | §2.4 | |
 
 ### 3.13 hardware_db — hardware-service (Alper)
+
+**2026-11-08 GPU eklemesi:** Kullanıcının açık V191 tahsisiyle
+`V191__allow_gpu_catalog_sources.sql` kaynak kategorisi CHECK'ine GPU ekler.
+Yeni tablo/kolon yoktur; V1–V10 korunur. [GPU aktarımı](../docs-hardware/reports/pc-part-gpu-import.md).
+
+**2026-11-07 PC Part Dataset:** Aktif zincir V1–V10'dur. V9 kaynak/medya ve
+`(category,normalized_model,catalog_variant)` tekilliğini ekler; V10 kaynak sağlayıcı
+CHECK'ini `PC_PART_DATASET` ile genişletir, nullable `source_revision varchar(40)`
+ve `hardware_dataset_import_runs(id,source_revision,files jsonb,summary jsonb,
+status,started_at,finished_at,version)` ekler. Status SUCCEEDED/PARTIAL, zamanlar
+UTC timestamptz; files/summary yalnız hash/sayım/teknik hata kodlarıdır.
+Fiyat/ham kaynak JSON'u kaydedilmez. Manuel ürünler ve tüm profil/yorum UUID/FK'leri
+korunur. Ayrıntı ve model: [PC Part Dataset kararı](../docs-hardware/decisions/pc-part-dataset-import.md).
+Alttaki V9–V10 boşluk ifadeleri önceki tarihlerin envanteridir.
 
 **Auth entegrasyonu — 2026-10-24:** V1–V7 checksum'ları korunarak
 `V8__add_hardware_account_erasure.sql` eklenir; toplam 17 tablo. V9–V10 boştur.

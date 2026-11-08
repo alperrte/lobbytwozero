@@ -1,6 +1,28 @@
 # Hardware Service çalışma kayıtları
 
-Güncel iş: **Hardware–Auth ikinci entegrasyon aşaması (2026-10-29)**.
+Güncel frontend işi: **MVP ürün görsel sistemi (2026-11-08)**.
+Özgün SVG, ortak görsel bileşeni, marka kullanım incelemesi ve browser kanıtları:
+[Hardware Product Visual System](reports/HARDWARE_PRODUCT_VISUAL_SYSTEM.md).
+
+Güncel iş: **HW-10/HW-11 PC Part Dataset yerel katalog aktarımı (2026-11-07)**.
+Kullanıcının sonraki GPU talimatı ve V191 tahsisiyle beşinci kategori eklendi:
+[GPU ekleme kanıtı](reports/pc-part-gpu-import.md).
+[Karar ve tekrar çalıştırma](decisions/pc-part-dataset-import.md),
+[SQL/aktarım/test kanıtı](reports/pc-part-dataset-import.md).
+
+Önceki iş: **HW-12 REVIEW_AUTHOR tüketicisi (2026-11-06, PR #67 cevabı)**.
+[Güncel uygulama ve doğrulama](integration/user-review-integration.md).
+Yorumlar HARDWARE profil ayarından bağımsız User kararıyla SQL sorgusunda filtrelenir.
+User'ın güvenilir Social yansıması ilanı halen Kerem/Umut'ta bekler.
+
+Önceki iş: **HW-08 / HW-07 User ve Performance tüketici bağlantıları (2026-11-06)**.
+[Uygulama, frontend akışı ve doğrulama](integration/hardware-user-performance.md).
+Hardware artık User gizlilik ve Performance aktif cihaz endpoint'lerini Auth servis
+token'ıyla tüketir. User'ın güvenilir Social yansıması ve yorum UGC sözleşmesi açık
+kalmıştır; [Kerem'e talep](integration/user-service-talepleri/user-requests-01.md).
+Moderasyon/bildirim teslimi kapsam dışıdır; aşağıdaki kayıtlar tarihçedir.
+
+Önceki iş: **Hardware–Auth ikinci entegrasyon aşaması (2026-10-29)**.
 Auth'un dört cevabı kaynakla karşılaştırıldı; 60 sn kullanıcı TTL sınırı ve ayrı
 `dev+jwt` tüketicisi eklendi. Kullanıcı kararıyla Performance aktif cihaz/sahiplik
 bağımlılığı açık kaldı; grant/apply üretimde deny eder.

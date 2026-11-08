@@ -79,6 +79,9 @@ public class UserProfile {
     @Column(name = "onboarding_completed_at")
     private Instant onboardingCompletedAt;
 
+    @Column(name = "member_since")
+    private Instant memberSince;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -103,6 +106,27 @@ public class UserProfile {
         this.usernameNormalized = username.toLowerCase(Locale.ROOT);
         this.updatedAt = now;
         return true;
+    }
+
+    /**
+     * Üyelik tarihini Auth'un kayıt olayındaki zamanla yazar (hesabın ACTIVE olduğu an). Değer yalnız boşsa ya da daha
+     * erken bir zaman gelirse değişir; gelecekteki bir zaman (saat farkı) {@code now} ile sınırlanır.
+     *
+     * @return kayıt değiştiyse {@code true}
+     */
+    public boolean applyMemberSince(Instant registeredAt, Instant now) {
+        Instant effective = registeredAt.isAfter(now) ? now : registeredAt;
+        if (memberSince != null && !effective.isBefore(memberSince)) {
+            return false;
+        }
+        this.memberSince = effective;
+        this.updatedAt = now;
+        return true;
+    }
+
+    /** Gösterilecek üyelik tarihi: olaydan gelen değer, yoksa profilin açıldığı an. */
+    public Instant effectiveMemberSince() {
+        return memberSince != null ? memberSince : createdAt;
     }
 
     /**

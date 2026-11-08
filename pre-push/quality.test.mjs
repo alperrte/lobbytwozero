@@ -70,6 +70,7 @@ test('full check matches the current backend and postgres scope without inventin
     assert.equal(maven.env.POSTGRES_PORT, '5542');
     assert.equal(maven.env.POSTGRES_PASSWORD, 'fixture-db-pass');
     assert.equal(maven.env.DB_AUTH_NAME, 'auth_db');
+    assert.equal(maven.env.AUTH_SERVICE_URL, 'http://127.0.0.1:1');
     assert.ok(calls.filter(call => call.command === 'docker').every(call => call.env.POSTGRES_PASSWORD === undefined));
     assert.ok(lines.every(line => !line.includes('fixture-db-pass')));
   });

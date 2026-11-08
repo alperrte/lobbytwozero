@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 import com.ltz.auth.domain.enums.AuthMethod;
+import com.ltz.auth.domain.enums.MfaChallengePurpose;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -40,6 +41,11 @@ public class MfaChallenge {
     @Column(name = "first_factor", nullable = false, updatable = false, length = 16)
     private AuthMethod firstFactor;
 
+    /** LOGIN: TOTP ile giriş ikinci adımı; ENROLLMENT: zorunlu 2FA'nın ilk kurulumu (kurulum bitince oturum açılır). */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, updatable = false, length = 12)
+    private MfaChallengePurpose purpose = MfaChallengePurpose.LOGIN;
+
     @Column(nullable = false)
     private int attempts;
 
@@ -61,6 +67,23 @@ public class MfaChallenge {
         challenge.createdAt = now;
         challenge.expiresAt = expiresAt;
         return challenge;
+    }
+
+    /** Zorunlu 2FA'nın ilk kurulumu için challenge; TOTP kodu içermez, yalnız kurulum adımlarını açar. */
+    public static MfaChallenge issueEnrollment(UUID accountId, String challengeHash, AuthMethod firstFactor, Instant now,
+                                               Instant expiresAt) {
+        MfaChallenge challenge = issue(accountId, challengeHash, firstFactor, now, expiresAt);
+        challenge.purpose = MfaChallengePurpose.ENROLLMENT;
+        return challenge;
+    }
+
+    public boolean isEnrollment() {
+        return purpose == MfaChallengePurpose.ENROLLMENT;
+    }
+
+    /** Kullanılmamış ve süresi dolmamış (deneme sayısına bakmaz). */
+    public boolean isOpen(Instant now) {
+        return consumedAt == null && now.isBefore(expiresAt);
     }
 
     public boolean acceptsAttempt(Instant now, int maxAttempts) {

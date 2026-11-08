@@ -15,11 +15,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.ltz.auth.application.port.SecurityNotificationType;
 import com.ltz.auth.domain.entity.Account;
 import com.ltz.auth.domain.entity.MfaChallenge;
 import com.ltz.auth.domain.entity.RecoveryCode;
 import com.ltz.auth.domain.entity.TotpCredential;
 import com.ltz.auth.domain.enums.AuthMethod;
+import com.ltz.auth.domain.enums.ExternalProvider;
 import com.ltz.auth.domain.enums.RoleCode;
 import com.ltz.auth.domain.enums.SecurityEventType;
 import com.ltz.auth.domain.enums.TotpStatus;
@@ -27,6 +29,7 @@ import com.ltz.auth.domain.exception.AuthErrorCode;
 import com.ltz.auth.domain.exception.AuthException;
 import com.ltz.auth.infrastructure.config.TwoFactorProperties;
 import com.ltz.auth.infrastructure.persistence.repository.AccountRepository;
+import com.ltz.auth.infrastructure.persistence.repository.ExternalIdentityRepository;
 import com.ltz.auth.infrastructure.persistence.repository.MfaChallengeRepository;
 import com.ltz.auth.infrastructure.persistence.repository.RecoveryCodeRepository;
 import com.ltz.auth.infrastructure.persistence.repository.TotpCredentialRepository;
@@ -53,6 +56,7 @@ public class TwoFactorService {
     private final RecoveryCodeRepository recoveryCodeRepository;
     private final MfaChallengeRepository challengeRepository;
     private final AccountRepository accountRepository;
+    private final ExternalIdentityRepository externalIdentityRepository;
     private final TotpCodes totpCodes;
     private final SecretCipher secretCipher;
     private final SecureTokens secureTokens;
@@ -60,6 +64,7 @@ public class TwoFactorService {
     private final AttemptThrottleService attemptThrottle;
     private final SessionService sessionService;
     private final SecurityEventRecorder securityEventRecorder;
+    private final SecurityNotificationDispatcher notifier;
     private final PasswordEncoder passwordEncoder;
     private final TwoFactorProperties properties;
     private final TransactionTemplate transactionTemplate;
@@ -71,6 +76,68 @@ public class TwoFactorService {
 
     public boolean isRequiredFor(Set<RoleCode> roles) {
         return !Collections.disjoint(roles, properties.requiredRoles());
+    }
+
+    /** Steam kimliği bağlı hesap için 2FA zorunlu mu (ayar açıksa). */
+    public boolean isRequiredForSteamAccount(UUID accountId) {
+        return properties.requireForSteamAccounts()
+                && externalIdentityRepository.findByAccountIdAndProvider(accountId, ExternalProvider.STEAM).isPresent();
+    }
+
+    /**
+     * Zorunlu 2FA'da TOTP henüz kurulu değilse oturum verilmez; yalnız kurulumu tamamlamaya yarayan, kısa ömürlü ve
+     * tek kullanımlık bir challenge döner. Kurulum bitince oturum açılır ({@link #completeEnrollment}).
+     */
+    @Transactional
+    public LoginResult issueEnrollmentChallenge(UUID accountId, AuthMethod firstFactor) {
+        Instant now = clock.instant();
+        String challengeId = secureTokens.newOpaqueToken();
+        Instant expiresAt = now.plus(properties.challengeTtl());
+        challengeRepository.save(MfaChallenge.issueEnrollment(accountId, secureTokens.sha256Hex(challengeId), firstFactor,
+                now, expiresAt));
+        securityEventRecorder.recordEvent(SecurityEventType.MFA_CHALLENGE_ISSUED, accountId);
+        return LoginResult.enrollmentRequired(challengeId, expiresAt);
+    }
+
+    /** Kurulum adımı 1: kurulum challenge'ı geçerliyse yeni TOTP gizli anahtarını üretir. */
+    public TotpSetup startEnrollment(String challengeId) {
+        String challengeHash = secureTokens.sha256Hex(challengeId);
+        // İşlem sınırını burada açıyoruz; gövde anotasyonsuz yardımcıda, böylece this üzerinden işlemli çağrı yok.
+        return transactionTemplate.execute(status -> {
+            UUID accountId = challengeRepository.findByChallengeHash(challengeHash)
+                    .filter(candidate -> candidate.isEnrollment() && candidate.isOpen(clock.instant()))
+                    .map(MfaChallenge::getAccountId)
+                    .orElseThrow(() -> new AuthException(AuthErrorCode.MFA_FAILED));
+            return createPendingSetup(accountId);
+        });
+    }
+
+    /**
+     * Kurulum adımı 2: uygulamadaki ilk kodla TOTP etkinleşir, kurtarma kodları bir kez döner ve oturum açılır.
+     * Yanlış kod denemeleri hem challenge hem hesap bazında sınırlıdır.
+     */
+    public EnrollmentResult completeEnrollment(String challengeId, String code) {
+        String challengeHash = secureTokens.sha256Hex(challengeId);
+        // Deneme, sonuçtan bağımsız sayılır ve işlemle birlikte kalıcı olur.
+        UUID accountId = transactionTemplate.execute(status -> {
+            MfaChallenge challenge = challengeRepository.findByChallengeHashForUpdate(challengeHash)
+                    .filter(candidate -> candidate.isEnrollment()
+                            && candidate.acceptsAttempt(clock.instant(), properties.maxChallengeAttempts()))
+                    .orElseThrow(() -> new AuthException(AuthErrorCode.MFA_FAILED));
+            challenge.recordAttempt();
+            return challenge.getAccountId();
+        });
+        List<String> recoveryCodes = activate(accountId, code);
+        IssuedSession session = transactionTemplate.execute(status -> {
+            Instant now = clock.instant();
+            MfaChallenge challenge = challengeRepository.findByChallengeHashForUpdate(challengeHash)
+                    .filter(candidate -> candidate.isEnrollment() && candidate.isOpen(now))
+                    .orElseThrow(() -> new AuthException(AuthErrorCode.MFA_FAILED));
+            challenge.consume(now);
+            return sessionService.start(accountId, List.of(challenge.getFirstFactor(), AuthMethod.OTP));
+        });
+        securityEventRecorder.recordEvent(SecurityEventType.MFA_SUCCEEDED, accountId);
+        return new EnrollmentResult(session, recoveryCodes);
     }
 
     @Transactional
@@ -105,6 +172,10 @@ public class TwoFactorService {
     /** Yeni (PENDING) secret üretir; etkin TOTP varken çağrılamaz. Secret yalnız bu yanıtta görünür. */
     @Transactional
     public TotpSetup startSetup(UUID accountId) {
+        return createPendingSetup(accountId);
+    }
+
+    private TotpSetup createPendingSetup(UUID accountId) {
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new AuthException(AuthErrorCode.SESSION_INVALID));
         Instant now = clock.instant();
@@ -138,6 +209,7 @@ public class TwoFactorService {
             }
             credential.activate(step.getAsLong(), now);
             securityEventRecorder.recordEvent(SecurityEventType.TWO_FACTOR_ENABLED, accountId);
+            notifySecurity(accountId, SecurityNotificationType.TWO_FACTOR_ENABLED);
             return Optional.of(replaceRecoveryCodes(accountId, now));
         });
         if (activated.isEmpty()) {
@@ -154,7 +226,7 @@ public class TwoFactorService {
         attemptThrottle.reserve(throttleKey);
         Account account = transactionTemplate.execute(status -> accountRepository.findWithRolesById(accountId)
                 .orElseThrow(() -> new AuthException(AuthErrorCode.SESSION_INVALID)));
-        if (isRequiredFor(account.roleCodes())) {
+        if (isRequiredFor(account.roleCodes()) || isRequiredForSteamAccount(accountId)) {
             throw new AuthException(AuthErrorCode.TWO_FACTOR_REQUIRED_FOR_ROLE);
         }
         boolean passwordMatches = account.passwordHash()
@@ -175,6 +247,7 @@ public class TwoFactorService {
             credentialRepository.delete(credential);
             recoveryCodeRepository.deleteAllByAccountId(accountId);
             securityEventRecorder.recordEvent(SecurityEventType.TWO_FACTOR_DISABLED, accountId);
+            notifySecurity(accountId, SecurityNotificationType.TWO_FACTOR_DISABLED);
             return true;
         });
         if (!Boolean.TRUE.equals(disabled)) {
@@ -199,7 +272,8 @@ public class TwoFactorService {
     private IssuedSession verifyChallenge(String challengeHash, String code, String recoveryCode) {
         Instant now = clock.instant();
         MfaChallenge challenge = challengeRepository.findByChallengeHashForUpdate(challengeHash)
-                .filter(candidate -> candidate.acceptsAttempt(now, properties.maxChallengeAttempts()))
+                .filter(candidate -> !candidate.isEnrollment()
+                        && candidate.acceptsAttempt(now, properties.maxChallengeAttempts()))
                 .orElse(null);
         if (challenge == null) {
             return null;
@@ -229,17 +303,46 @@ public class TwoFactorService {
         }
         OptionalLong step = matchingUnusedStep(credential.get(), code, now);
         step.ifPresent(credential.get()::markStepUsed);
+        if (step.isPresent()) {
+            rewrapIfStale(credential.get());
+        }
         return step.isPresent();
     }
 
+    /** Anahtar rotasyonu (S9): eski anahtar sürümündeki gizli anahtar, başarılı doğrulamada güncel anahtarla yeniden şifrelenir. */
+    private void rewrapIfStale(TotpCredential credential) {
+        if (secretCipher.isCurrent(credential.getKeyVersion())) {
+            return;
+        }
+        UUID accountId = credential.getAccountId();
+        byte[] secret = secretCipher.decrypt(new EncryptedSecret(credential.getSecretCiphertext(),
+                credential.getSecretNonce(), credential.getKeyVersion()), accountId);
+        EncryptedSecret rewrapped = secretCipher.encrypt(secret, accountId);
+        credential.rewrapSecret(rewrapped.ciphertext(), rewrapped.nonce(), rewrapped.keyVersion());
+    }
+
     private boolean useRecoveryCode(UUID accountId, String recoveryCode, Instant now) {
-        Optional<RecoveryCode> unused = recoveryCodeRepository.findUnusedForUpdate(accountId,
-                recoveryCodeHash(accountId, recoveryCode));
+        // Anahtar rotasyonunda (S9) henüz kullanılmamış eski kodlar önceki anahtarın özetiyle kayıtlıdır; kod tek
+        // kullanımlık olduğundan eşleşince tüketilir, yeniden özetlemeye gerek kalmaz.
+        Optional<RecoveryCode> unused = Optional.empty();
+        for (String hash : recoveryCodeHashes(accountId, recoveryCode)) {
+            unused = recoveryCodeRepository.findUnusedForUpdate(accountId, hash);
+            if (unused.isPresent()) {
+                break;
+            }
+        }
         unused.ifPresent(code -> {
             code.markUsed(now);
             securityEventRecorder.recordEvent(SecurityEventType.RECOVERY_CODE_USED, accountId);
+            notifySecurity(accountId, SecurityNotificationType.RECOVERY_CODE_USED);
         });
         return unused.isPresent();
+    }
+
+    /** Hesap sahibine bildirim; işlem commit olduktan sonra, ayrı iş parçacığında ve en iyi çabayla gider. */
+    private void notifySecurity(UUID accountId, SecurityNotificationType type) {
+        accountRepository.findById(accountId)
+                .ifPresent(account -> notifier.notifyAfterCommit(accountId, account.getEmail(), type));
     }
 
     /** Saat penceresinde eşleşen ve daha önce kullanılmamış (replay değil) adım. */
@@ -263,6 +366,11 @@ public class TwoFactorService {
 
     private String recoveryCodeHash(UUID accountId, String code) {
         return hasher.hash(RECOVERY_CODE_DOMAIN, accountId + ":" + secureTokens.normalizeRecoveryCode(code));
+    }
+
+    /** Karşılaştırma özetleri: güncel anahtar, varsa önceki anahtar (rotasyon). */
+    private List<String> recoveryCodeHashes(UUID accountId, String code) {
+        return hasher.allHashes(RECOVERY_CODE_DOMAIN, accountId + ":" + secureTokens.normalizeRecoveryCode(code));
     }
 
     private String throttleKey(UUID accountId) {

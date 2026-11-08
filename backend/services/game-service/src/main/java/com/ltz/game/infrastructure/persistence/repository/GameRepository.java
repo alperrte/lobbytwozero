@@ -3,6 +3,15 @@ import com.ltz.game.domain.entity.Game;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.UUID;
 public interface GameRepository extends JpaRepository<Game, UUID> {
+    /** Oyunları sabit sırayla kilitler; entity yüklemeden güncel override okumasını korur. */
+    @org.springframework.data.jpa.repository.Query(value = """
+        select g.id from games g where exists (
+            select 1 from game_external_refs r
+            where r.game_id = g.id and r.provider = :provider and r.external_id in (:externalIds)
+        ) order by g.id for update
+        """, nativeQuery = true)
+    java.util.List<UUID> lockCatalogGames(@org.springframework.data.repository.query.Param("provider") String provider,
+            @org.springframework.data.repository.query.Param("externalIds") java.util.Collection<String> externalIds);
     @org.springframework.data.jpa.repository.Modifying(clearAutomatically=true,flushAutomatically=true)
     @org.springframework.data.jpa.repository.Query("""
         update Game g set g.editorRank=null,g.popularityUpdatedAt=null,g.editorActorId=null,g.editorEvidence=null,g.version=g.version+1
@@ -22,6 +31,31 @@ public interface GameRepository extends JpaRepository<Game, UUID> {
         order by g.editorRank asc nulls last, g.detailsFetchedAt asc nulls first, g.id asc
         """)
     java.util.List<UUID> detailRefreshCandidates(@org.springframework.data.repository.query.Param("now") java.time.Instant now,
+            org.springframework.data.domain.Pageable pageable);
+    /**
+     * Detay bootstrap adayları: kanıtla ana oyun olarak sınıflanmış, Steam referanslı, aktif ve detayı hiç denenmemiş
+     * harici kayıtlar. En yeni kayıt önce işlenir; denenen (başarılı veya hatalı) kayıt bu sorgudan çıkar, hata/tazeleme
+     * {@link #detailRefreshCandidates} yoluyla ve geri çekilmeyle yürür.
+     */
+    @org.springframework.data.jpa.repository.Query("""
+        select g.id from Game g where g.status = com.ltz.game.domain.enums.GameStatus.ACTIVE
+        and g.origin = com.ltz.game.domain.enums.GameOrigin.EXTERNAL
+        and g.gameType = com.ltz.game.domain.enums.GameType.MAIN_GAME
+        and g.detailsFetchedAt is null and g.detailsFailureCount = 0 and g.detailsLastErrorCode is null
+        and exists (select r.id from GameExternalReference r where r.game = g and r.provider = 'STEAM')
+        order by g.createdAt desc, g.id asc
+        """)
+    java.util.List<UUID> detailBootstrapCandidates(org.springframework.data.domain.Pageable pageable);
+    /** Ana oyunun aktif DLC'leri: çıkış tarihi yeni olan önce, tarihsizler sonda; kararlı sıra. */
+    @org.springframework.data.jpa.repository.Query(value = """
+        select g from Game g where g.parentGameId = :parent and g.status = com.ltz.game.domain.enums.GameStatus.ACTIVE
+        and g.gameType = com.ltz.game.domain.enums.GameType.DLC
+        order by g.releaseDate desc nulls last, g.title asc, g.id asc
+        """, countQuery = """
+        select count(g) from Game g where g.parentGameId = :parent and g.status = com.ltz.game.domain.enums.GameStatus.ACTIVE
+        and g.gameType = com.ltz.game.domain.enums.GameType.DLC
+        """)
+    org.springframework.data.domain.Page<Game> activeDlcOf(@org.springframework.data.repository.query.Param("parent") UUID parent,
             org.springframework.data.domain.Pageable pageable);
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @org.springframework.data.jpa.repository.Query("select g from Game g where g.id = :id")

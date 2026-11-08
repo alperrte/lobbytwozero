@@ -22,8 +22,8 @@ lobbytwozero/
 ├─ docs-hardware/             # Hardware görev ilerlemesi, kararlar ve kalite kanıtları
 ├─ docs-performance/          # Performance görev ilerlemesi, kararlar, Auth entegrasyonu ve kalite kanıtları
 ├─ postgres/init/             # 01-create-databases.sql (17 DB oluşturma)
-├─ ops/                       # env.cmd / env.ps1 / env.sh, env.test.mjs, ops.md
-│                             # hardware-auth-e2e.mjs / .test.mjs (izole gerçek HTTP kabulü)
+├─ ops/                       # env.cmd / env.ps1 / env.sh (dev/prod profil geçişi), ops.md
+│                             # dev.mjs / dev.test.mjs (tek araç: kurulum, keys, accounts, mail, site-url, e2e), hardware-catalog-import.mjs / .test.mjs
 ├─ pre-push/                  # Push öncesi kalite kapısı (pre-push.cmd / .sh)
 ├─ sonarqube/                 # Yerel SonarQube çalıştırma betikleri
 ├─ lib/                       # profile-env.mjs, quality-tools.mjs (ortak Node yardımcıları)
@@ -279,7 +279,7 @@ src/shared/
 
 | Klasör | İçerik | Kullanım |
 | --- | --- | --- |
-| `ops/` | `env.cmd`, `env.ps1`, `env.sh`, `env.test.mjs`, `ops.md` | Profil ortam değişkenlerini yükler; ajanlar bu betiklerin çıktısını okumaz/loglamaz |
+| `ops/` | `env.cmd`, `env.ps1`, `env.sh`, `dev.mjs`, `dev.test.mjs`, `hardware-catalog-import.mjs`, `hardware-catalog-import.test.mjs`, `ops.md` | Profil ortam değişkenlerini yükler; ajanlar bu betiklerin çıktısını okumaz/loglamaz |
 | `pre-push/` | `pre-push.cmd/.sh/.md`, `backend-check.mjs`, `menu.mjs`, `quality.mjs`, `runtime-checks.mjs` (+ testler) | `.\pre-push\pre-push.cmd service|backend|full dev|full prod` — başarı çıktısı `SAFE TO COMMIT` |
 | `sonarqube/` | `sonar.cmd/.mjs/.sh`, `sonar.test.mjs`, `sonarqube.md` | Yerel SonarQube analizi (port 5199) |
 | `lib/` | `profile-env.mjs`, `quality-tools.mjs` | Yukarıdaki betiklerin ortak kodu |

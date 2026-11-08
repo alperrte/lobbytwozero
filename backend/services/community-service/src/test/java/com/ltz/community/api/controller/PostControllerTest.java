@@ -3,6 +3,7 @@ package com.ltz.community.api.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -35,6 +36,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.ltz.community.application.mapper.PostMapper;
 import com.ltz.community.application.port.GameCatalogPort;
+import com.ltz.community.application.port.GameContentQuotaPort;
 import com.ltz.community.api.dto.request.PostFeedRequest;
 import com.ltz.community.api.dto.response.PostPageResponse;
 import com.ltz.community.application.service.PostAccess;
@@ -81,11 +83,19 @@ class PostControllerTest {
 	private GameCatalogPort gameCatalog;
 
 	@MockitoBean
+	private GameContentQuotaPort gameContentQuota;
+
+	@MockitoBean
 	private PostFeedService postFeedService;
 
 	@BeforeEach
 	void stubSave() {
 		when(postRepository.save(any(Post.class))).thenAnswer(invocation -> {
+			Post post = invocation.getArgument(0);
+			ReflectionTestUtils.setField(post, "id", POST_ID);
+			return post;
+		});
+		when(gameContentQuota.saveWithinQuota(any(Post.class), any(Instant.class), anyInt())).thenAnswer(invocation -> {
 			Post post = invocation.getArgument(0);
 			ReflectionTestUtils.setField(post, "id", POST_ID);
 			return post;
@@ -522,7 +532,7 @@ class PostControllerTest {
 
 	@Test
 	void anonymousVisitorCanReadPostDetail() throws Exception {
-		when(postFeedService.getPost(POST_ID)).thenReturn(new com.ltz.community.api.dto.response.PostViewResponse(POST_ID, USER_ID, GAME_ID, null, com.ltz.community.domain.enums.PostCategory.GUIDE, "ayrıntı", PostStatus.VISIBLE, Instant.parse("2026-10-21T08:00:00Z"), Instant.parse("2026-10-21T08:30:00Z"), 3, 2, true, java.util.List.of(), null));
+		when(postFeedService.getPost(POST_ID)).thenReturn(new com.ltz.community.api.dto.response.PostViewResponse(POST_ID, USER_ID, GAME_ID, null, com.ltz.community.domain.enums.PostCategory.GUIDE, "ayrıntı", PostStatus.VISIBLE, Instant.parse("2026-10-21T08:00:00Z"), Instant.parse("2026-10-21T08:30:00Z"), 3, 2, true, java.util.List.of(), null, null, null));
 
 		mockMvc.perform(get(URL + "/" + POST_ID))
 				.andExpect(status().isOk())
@@ -684,5 +694,102 @@ class PostControllerTest {
 		mockMvc.perform(patch(URL + "/not-a-uuid").with(jwt().jwt(token -> token.subject(USER_ID.toString())))
 				.contentType(MediaType.APPLICATION_JSON).content("{\"body\":\"Yeni\"}"))
 				.andExpect(status().isBadRequest());
+	}
+
+	// ------------------------------------------------------------------ GAME-11: oyuna bağlı türlü içerik
+
+	private org.springframework.test.web.servlet.ResultActions createGameContent(String json) throws Exception {
+		return mockMvc.perform(post(URL).with(jwt().jwt(token -> token.subject(USER_ID.toString())))
+				.contentType(MediaType.APPLICATION_JSON).content(json));
+	}
+
+	@Test
+	void authenticatedUserCreatesGameContentWithTypeAndTitle() throws Exception {
+		when(gameCatalog.isAvailable(GAME_ID)).thenReturn(true);
+
+		createGameContent("{\"body\":\"Adım adım rehber\",\"gameId\":\"" + GAME_ID
+				+ "\",\"contentType\":\"GUIDES\",\"title\":\"  Başlangıç rehberi \"}")
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.authorId").value(USER_ID.toString()))
+				.andExpect(jsonPath("$.gameId").value(GAME_ID.toString()))
+				.andExpect(jsonPath("$.contentType").value("GUIDES"))
+				.andExpect(jsonPath("$.title").value("Başlangıç rehberi"))
+				.andExpect(jsonPath("$.category").value("GENERAL"));
+
+		ArgumentCaptor<Post> saved = ArgumentCaptor.forClass(Post.class);
+		verify(gameContentQuota).saveWithinQuota(saved.capture(), any(Instant.class), anyInt());
+		assertThat(saved.getValue().getContentType()).isEqualTo(com.ltz.community.domain.enums.GameContentType.GUIDES);
+	}
+
+	@Test
+	void ordinaryPostResponsesKeepWorkingAndCarryNullTypeAndTitle() throws Exception {
+		createGameContent("{\"body\":\"düz gönderi\"}")
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.contentType").value((Object) null))
+				.andExpect(jsonPath("$.title").value((Object) null));
+	}
+
+	@Test
+	void unknownOrLowercaseContentTypeAndBadTitlesAreBadRequests() throws Exception {
+		String game = "\"gameId\":\"" + GAME_ID + "\"";
+		createGameContent("{\"body\":\"x\"," + game + ",\"contentType\":\"guides\",\"title\":\"t\"}")
+				.andExpect(status().isBadRequest());
+		createGameContent("{\"body\":\"x\"," + game + ",\"contentType\":\"NEWS\",\"title\":\"t\"}")
+				.andExpect(status().isBadRequest());
+		createGameContent("{\"body\":\"x\"," + game + ",\"contentType\":0,\"title\":\"t\"}")
+				.andExpect(status().isBadRequest());
+		createGameContent("{\"body\":\"x\"," + game + ",\"contentType\":\"GUIDES\",\"title\":\"iki\\nsatır\"}")
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.violations[0].field").value("title"));
+		createGameContent("{\"body\":\"x\"," + game + ",\"contentType\":\"GUIDES\",\"title\":\"" + "t".repeat(121) + "\"}")
+				.andExpect(status().isBadRequest());
+
+		verify(postRepository, never()).save(any(Post.class));
+	}
+
+	@Test
+	void gameContentRuleViolationsAreUnprocessable() throws Exception {
+		createGameContent("{\"body\":\"x\",\"contentType\":\"GUIDES\",\"title\":\"t\"}")
+				.andExpect(status().isUnprocessableContent())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+		createGameContent("{\"body\":\"x\",\"gameId\":\"" + GAME_ID + "\",\"contentType\":\"GUIDES\"}")
+				.andExpect(status().isUnprocessableContent());
+		createGameContent("{\"body\":\"x\",\"gameId\":\"" + GAME_ID + "\",\"title\":\"başlıksız tür\"}")
+				.andExpect(status().isUnprocessableContent());
+
+		verify(postRepository, never()).save(any(Post.class));
+	}
+
+	@Test
+	void gameContentQuotaIsTooManyRequestsWithRetryAfter() throws Exception {
+		when(postRepository.countByAuthorIdAndContentTypeIsNotNullAndCreatedAtAfter(any(), any())).thenReturn(10L);
+
+		createGameContent("{\"body\":\"x\",\"gameId\":\"" + GAME_ID + "\",\"contentType\":\"EXPERIENCES\",\"title\":\"t\"}")
+				.andExpect(status().isTooManyRequests())
+				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Retry-After", "3600"))
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+
+		verify(postRepository, never()).save(any(Post.class));
+		verify(gameCatalog, never()).isAvailable(any());
+	}
+
+	@Test
+	void gameContentCatalogOutageIsServiceUnavailableAndUnknownGameIsUnprocessable() throws Exception {
+		when(gameCatalog.isAvailable(GAME_ID)).thenThrow(new GameCatalogUnavailableException(new RuntimeException("down")));
+
+		createGameContent("{\"body\":\"x\",\"gameId\":\"" + GAME_ID + "\",\"contentType\":\"GUIDES\",\"title\":\"t\"}")
+				.andExpect(status().isServiceUnavailable());
+		org.mockito.Mockito.doReturn(false).when(gameCatalog).isAvailable(GAME_ID);
+		createGameContent("{\"body\":\"x\",\"gameId\":\"" + GAME_ID + "\",\"contentType\":\"GUIDES\",\"title\":\"t\"}")
+				.andExpect(status().isUnprocessableContent());
+
+		verify(postRepository, never()).save(any(Post.class));
+	}
+
+	@Test
+	void anonymousCannotCreateGameContent() throws Exception {
+		mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON)
+				.content("{\"body\":\"x\",\"gameId\":\"" + GAME_ID + "\",\"contentType\":\"GUIDES\",\"title\":\"t\"}"))
+				.andExpect(status().isUnauthorized());
 	}
 }
