@@ -14,7 +14,7 @@ test("Ana sayfa acilir ve varsayilan dil Turkcedir", async ({
 }) => {
   await page.goto("/");
 
-  await expect(page).toHaveTitle(/LobbyTwoZero/);
+  await expect(page).toHaveTitle("LTZ | Anasayfa");
   await expect(page.locator("html")).toHaveAttribute("lang", "tr");
   await expect(
     page.getByRole("heading", { name: "LobbyTwoZero" })
@@ -36,5 +36,5 @@ test("Dil Ingilizceye degistirilebilir ve ayni rotada kalir", async ({
       "A game-focused social platform where players discover, talk and play together."
     )
   ).toBeVisible();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/en\/?$/);
 });

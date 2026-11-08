@@ -1,5 +1,6 @@
 package com.ltz.hardware.domain.entity;
 
+import com.ltz.hardware.domain.enums.CaseColor;
 import com.ltz.hardware.domain.enums.DeviceType;
 import com.ltz.hardware.domain.enums.ComponentCategory;
 import com.ltz.hardware.domain.enums.HardwarePrivacyField;
@@ -24,6 +25,9 @@ public class HardwareProfile {
     @Enumerated(EnumType.STRING)
     @Column(name = "device_type", nullable = false, length = 32)
     private DeviceType deviceType;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "case_color", nullable = false, length = 16)
+    private CaseColor caseColor = CaseColor.BLACK;
     @Column(nullable = false, length = 32, updatable = false)
     private String source;
     @Enumerated(EnumType.STRING)
@@ -53,10 +57,15 @@ public class HardwareProfile {
     protected HardwareProfile() { }
 
     public HardwareProfile(UUID userId, String name, DeviceType deviceType) {
+        this(userId, name, deviceType, CaseColor.BLACK);
+    }
+
+    public HardwareProfile(UUID userId, String name, DeviceType deviceType, CaseColor caseColor) {
         this.id = UUID.randomUUID();
         this.userId = Objects.requireNonNull(userId);
         this.name = validName(name);
         this.deviceType = Objects.requireNonNull(deviceType);
+        this.caseColor = Objects.requireNonNull(caseColor);
         this.source = "MANUAL";
         this.createdAt = Instant.now();
         this.updatedAt = createdAt;
@@ -74,6 +83,7 @@ public class HardwareProfile {
     public UUID getUserId() { return userId; }
     public String getName() { return name; }
     public DeviceType getDeviceType() { return deviceType; }
+    public CaseColor getCaseColor() { return caseColor; }
     public String getSource() { return source; }
     public long getVersion() { return version; }
     public Instant getCreatedAt() { return createdAt; }
@@ -109,8 +119,13 @@ public class HardwareProfile {
     }
 
     public void update(String name, DeviceType deviceType) {
+        update(name, deviceType, caseColor);
+    }
+
+    public void update(String name, DeviceType deviceType, CaseColor caseColor) {
         this.name = validName(name);
         this.deviceType = Objects.requireNonNull(deviceType);
+        this.caseColor = Objects.requireNonNull(caseColor);
         touch();
     }
 }

@@ -205,7 +205,7 @@ services:
       <<: *ltz-db-env
       DB_MAIL_NAME: ${DB_MAIL_NAME:?}
       # Mail Service ayarlari. SMTP degerleri saglayici secilene kadar bos kalir; bos iken dev'de Mailpit varsayilanlari gecerlidir.
-      # Sifreleme anahtari bos ise mail-service bilerek acilmaz (fail-fast); node ops/generate-auth-dev-keys.mjs uretir.
+      # Sifreleme anahtari bos ise mail-service bilerek acilmaz (fail-fast); node ops/dev.mjs keys uretir.
       MAIL_PAYLOAD_ENCRYPTION_KEY: ${MAIL_PAYLOAD_ENCRYPTION_KEY:-}
       MAIL_SMTP_HOST: ${MAIL_SMTP_HOST:-}
       MAIL_SMTP_PORT: ${MAIL_SMTP_PORT:-}

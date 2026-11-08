@@ -34,7 +34,8 @@
       "general": "General",
       "social": "Social",
       "hardware": "Hardware & Performance"
-    }
+    },
+    "campaigns": "Campaigns"
   },
   "Theme": {
     "label": "Theme",
@@ -77,7 +78,8 @@
         "info": "Profile info",
         "profile": "My profile",
         "account": "Account settings",
-        "logout": "Log out"
+        "logout": "Log out",
+        "computers": "My computers"
       }
     }
   },
@@ -199,6 +201,18 @@
     "settings": {
       "title": "Settings",
       "description": "Your appearance, top bar, sidebar and language preferences"
+    },
+    "hardware": {
+      "title": "Hardware",
+      "description": "Explore components, inspect their specifications and compare options for your computer."
+    },
+    "campaigns": {
+      "title": "Campaigns",
+      "description": "Hardware offers with a recorded source and validity window."
+    },
+    "computers": {
+      "title": "My computers",
+      "description": "Manage your computers and components in one place. Choose which information to share."
     }
   },
   "Footer": {
@@ -551,13 +565,13 @@
       "403": "You do not have permission to do this.",
       "404": "This game or content is no longer available.",
       "409": "The record may have changed. Try again.",
+      "422": "This content is not valid for the game or action. Check the fields and game status.",
       "429": "Too many requests. Wait a while before trying again.",
       "500": "The request could not be completed. Try again.",
       "502": "The service could not be reached. Try again later.",
       "503": "The service is temporarily unavailable. Try again later.",
       "504": "The response took too long. Try again.",
-      "network": "Could not load the data. Check your connection and try again.",
-      "422": "This content is not valid for the game or action. Check the fields and game status."
+      "network": "Could not load the data. Check your connection and try again."
     },
     "coverage": {
       "INDEX_ONLY": "Basic catalogue information",
@@ -1221,6 +1235,512 @@
       "noPassword": "This screen does not work for accounts created only with Google or Steam; contact support.",
       "fromLogin": "Cancel the deletion request",
       "back": "Back to sign in"
+    }
+  },
+  "Hardware": {
+    "common": {
+      "loading": "Loading hardware…",
+      "reload": "Reload",
+      "unknown": "Unknown",
+      "noImage": "Image unavailable",
+      "clear": "Clear",
+      "previous": "Previous",
+      "next": "Next",
+      "page": "{page} / {total}",
+      "pagination": "Pagination",
+      "close": "Close",
+      "cancel": "Cancel",
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Changes saved.",
+      "edit": "Edit",
+      "delete": "Delete",
+      "confirmDelete": "Confirm deletion",
+      "deleting": "Deleting…",
+      "search": "Search",
+      "breadcrumb": "Breadcrumb",
+      "required": "This field is required."
+    },
+    "categories": {
+      "CPU": "Processor",
+      "GPU": "Graphics card",
+      "RAM": "Memory",
+      "MOTHERBOARD": "Motherboard",
+      "STORAGE": "Storage",
+      "COOLING": "Cooling",
+      "PSU": "Power supply",
+      "MONITOR": "Monitor",
+      "KEYBOARD": "Keyboard",
+      "MOUSE": "Mouse",
+      "HEADSET": "Headset",
+      "OTHER": "Other"
+    },
+    "devices": {
+      "DESKTOP": "Desktop",
+      "LAPTOP": "Laptop",
+      "OTHER": "Other"
+    },
+    "specs": {
+      "capacityGb": "Capacity (GB)",
+      "clockMhz": "Clock (MHz)",
+      "coreCount": "Core count",
+      "powerWatts": "Power (W)",
+      "memoryType": "Memory type",
+      "socket": "Socket",
+      "interfaceType": "Interface",
+      "formFactor": "Form factor"
+    },
+    "catalog": {
+      "title": "Hardware",
+      "description": "Explore components, inspect their specifications and compare options for your computer.",
+      "categories": "Hardware categories",
+      "all": "All",
+      "allCategories": "All categories",
+      "filters": "Filters",
+      "brand": "Brand",
+      "brandSelect": "Catalog manufacturer",
+      "brandOptional": "Manufacturer selection is optional.",
+      "allBrands": "All manufacturers",
+      "selectedBrand": "Selected manufacturer",
+      "brandIndependent": "Manufacturer-independent model",
+      "min": "Minimum",
+      "max": "Maximum",
+      "apply": "Apply filters",
+      "rangeInvalid": "The maximum must not be lower than the minimum.",
+      "search": "Search models",
+      "view": "View",
+      "grid": "Grid",
+      "list": "List",
+      "results": "{count, number} products",
+      "emptyTitle": "No hardware matches this selection",
+      "emptyDescription": "Try changing your search or filters. Example products are never shown when the catalog is empty.",
+      "brandPlaceholder": "Type a manufacturer or pick from the list",
+      "brandHint": "Catalog manufacturers are suggested; the text you type is matched against manufacturer names.",
+      "technical": "Specifications",
+      "anyValue": "Any",
+      "gpuModel": "Model",
+      "optionsUnavailable": "Options could not load; filters are unavailable for now.",
+      "showFilters": "Show filters",
+      "hideFilters": "Hide filters",
+      "searchPlaceholder": "Search model or manufacturer",
+      "resultsPage": "{from, number}–{to, number} of {total, number}",
+      "tabsHint": "Select the category again to list all hardware."
+    },
+    "comparison": {
+      "title": "Hardware comparison",
+      "selected": "{count} / {max} products selected",
+      "compare": "Compare",
+      "add": "Add to comparison",
+      "remove": "Remove from comparison",
+      "limit": "Select up to {max} different products in the same category. Remove an existing selection to choose another.",
+      "needTwoTitle": "Select products to compare",
+      "needTwo": "The comparison page needs at least two and at most four products. Pick products from the same category in the catalog.",
+      "mixedTitle": "Products are in different categories",
+      "mixed": "Only products in the same category can be compared. Remove one of the products or choose again from the catalog.",
+      "facts": "Only recorded specifications are compared. This table does not infer performance, compatibility or a winner.",
+      "property": "Specification",
+      "components": "Compare components",
+      "componentHint": "Choose two components in the same category on this page. Change component pages to view other entries.",
+      "left": "First component",
+      "right": "Second component",
+      "select": "Select a component",
+      "similar": "Same",
+      "different": "Different",
+      "missing": "Not recorded",
+      "onlyDifferences": "Show differences only",
+      "showAll": "Show all fields",
+      "summary": "{different, number} different, {same, number} same, {missing, number} unrecorded fields",
+      "legend": "Legend",
+      "selectTwo": "Select two to four products from the same category to compare.",
+      "product": "Product",
+      "category": "Category",
+      "noDifferences": "The recorded values of the selected products are identical.",
+      "viewDetails": "Open product page"
+    },
+    "detail": {
+      "title": "Hardware details",
+      "specifications": "Technical specifications",
+      "related": "Models in the same category",
+      "keyFeatures": "Key specifications",
+      "backToCatalog": "Back to catalog",
+      "source": "Data source",
+      "overview": "Overview",
+      "reviewsLink": "Go to reviews",
+      "unavailable": "This product cannot be shown right now."
+    },
+    "reviews": {
+      "title": "User reviews",
+      "write": "Share your experience",
+      "edit": "Edit review",
+      "rating": "Rating (optional)",
+      "noRating": "Not rated",
+      "ratingValue": "{rating, number} / 5",
+      "ratingLabel": "Rating",
+      "clearRating": "Remove rating",
+      "body": "Your experience",
+      "bodyHint": "Up to 5,000 characters. Do not share personal information or inappropriate content.",
+      "report": "Report",
+      "reason": "Report reason",
+      "details": "Details (optional)",
+      "reportSaved": "Report saved. Delivery to the moderation system has not been confirmed.",
+      "yours": "Your review",
+      "member": "User experience",
+      "unrated": "No ratings yet.",
+      "summary": "{average} / 5 · {count, number} rated reviews",
+      "emptyTitle": "No visible reviews yet",
+      "emptyDescription": "Share your experience with this product to add the first review.",
+      "mine": "My reviews",
+      "mineHint": "Your review pages show entries for this product. Hidden reviews cannot be edited.",
+      "mineEmpty": "No review for this product on this page.",
+      "hidden": "Hidden by moderation",
+      "deleteTitle": "Delete this review?",
+      "deleteDescription": "The review text and rating will be removed. This cannot be undone.",
+      "confirmTitle": "Are you sure?",
+      "confirmCreate": "Your review will be published publicly on this product page.",
+      "confirmUpdate": "The updated version of your review will be published on this product page.",
+      "confirmSave": "Yes, save",
+      "confirmBack": "Cancel",
+      "averageAria": "Average rating {rating} / 5",
+      "ratedBy": "Rated by {count, plural, one {# person} other {# people}}",
+      "editMine": "Edit your review",
+      "duplicateTitle": "This review could not be saved",
+      "duplicateDescription": "You already have a review for this product, or you used the same text in another review. Edit your existing review or write a different text."
+    },
+    "reportReasons": {
+      "SPAM": "Spam",
+      "HARASSMENT": "Harassment",
+      "HATE_SPEECH": "Hate speech",
+      "SEXUAL_CONTENT": "Sexual content",
+      "PERSONAL_DATA": "Personal data",
+      "OTHER": "Other"
+    },
+    "profiles": {
+      "title": "My computers",
+      "description": "Manage your computers and components in one place. Choose which information to share.",
+      "create": "Add computer",
+      "edit": "Edit computer",
+      "name": "Computer name",
+      "deviceType": "Device type",
+      "nextStep": "The computer is saved first. You can then add components in its detail panel. Each component is saved separately.",
+      "emptyTitle": "Build your first computer",
+      "emptyDescription": "Name it, pick a case color and the five parts, then select Save computer. Your build stays on this page; new computers are private by default.",
+      "workspace": "Selected computer",
+      "deleteTitle": "Confirm deletion",
+      "deleteDescription": "This computer and all its components will be permanently deleted. This cannot be undone.",
+      "syncTitle": "Desktop synchronization",
+      "syncDescription": "Automatic hardware scanning will be available after the desktop client is released. For now, manage your components manually."
+    },
+    "workshop": {
+      "concept": "Build your computer part by part in the LTZ Workshop. You pick the CPU, motherboard, memory, graphics card and SSD from the catalog; the workshop adds liquid cooling, fans, RGB, the power supply and cabling. Your saved build is here every time you open this page.",
+      "firstRunAction": "Start building",
+      "switcher": "My computers",
+      "newComputer": "New computer",
+      "caseColor": "Case color",
+      "vendor": "{category}: {vendor}",
+      "stepsTitle": "Assembly order",
+      "advanced": {
+        "title": "Advanced management",
+        "description": "Device type, privacy, every component entry, comparison and statistics."
+      },
+      "stage": {
+        "title": "Assembly stage",
+        "incomplete": "{count, plural, one {# part is missing for assembly.} other {# parts are missing for assembly.}}",
+        "loading": "Loading the 3D stage.",
+        "playing": "Installing: {step}",
+        "reduced": "Reduced motion is on; the build is shown without animation.",
+        "done": "Assembly complete.",
+        "ready": "Your build is ready. You can start the assembly.",
+        "imageAlt": "Completed LTZ Workshop build in a {color} case",
+        "dragHint": "Drag to rotate",
+        "skip": "Skip assembly",
+        "play": "Start assembly",
+        "replay": "Replay assembly",
+        "spinOn": "Spin fans",
+        "spinOff": "Stop fans",
+        "view3d": "3D view",
+        "viewImage": "Image view",
+        "imageNotice": "A lightweight view is shown on this device: the image is the fully equipped workshop case in your case color; your actual parts are listed in My computer details.",
+        "quality": "3D quality",
+        "qualityLevels": {
+          "auto": "Auto",
+          "high": "High",
+          "balanced": "Balanced",
+          "low": "Low"
+        },
+        "qualityAuto": "Auto: {level}"
+      },
+      "steps": {
+        "motherboard": "Motherboard",
+        "cpu": "CPU",
+        "ram": "Memory",
+        "ssd": "SSD",
+        "gpu": "Graphics card",
+        "aio": "Liquid cooling",
+        "fans": "Fans",
+        "rgb": "RGB lighting",
+        "power": "Power"
+      },
+      "stepState": {
+        "done": "done",
+        "current": "current step",
+        "pending": "pending",
+        "skipped": "skipped because no part is selected"
+      },
+      "colors": {
+        "BLACK": "Black",
+        "WHITE": "White",
+        "GRAPHITE": "Graphite",
+        "RED": "Red"
+      },
+      "missing": {
+        "title": "Pick your parts to start the assembly",
+        "description": "The workshop starts the assembly once a CPU, motherboard, memory, graphics card and SSD are selected. Liquid cooling, fans, RGB, the power supply and cabling are added for you.",
+        "pick": "Pick the missing part"
+      },
+      "picker": {
+        "title": "Select {category}",
+        "search": "Search models",
+        "empty": "No products match this search. Try a different model name.",
+        "selected": "Selected"
+      },
+      "builder": {
+        "createTitle": "Build a new computer",
+        "editTitle": "Edit build",
+        "description": "Pick parts from the catalog. Changes appear on the stage right away and are written to your profile when you save.",
+        "parts": "Parts",
+        "notSelected": "Not selected",
+        "manual": "Manual entry; shown as a generic part on the stage.",
+        "select": "Select",
+        "change": "Change",
+        "selectLabel": "Select {category}",
+        "changeLabel": "Change {category}",
+        "ramQuantity": "Memory modules",
+        "ramHint": "Up to 4 slots are shown on the motherboard.",
+        "saved": "Build saved.",
+        "dirty": "You have unsaved changes.",
+        "create": "Save computer",
+        "save": "Save changes",
+        "reset": "Discard changes"
+      },
+      "summary": {
+        "title": "My computer details",
+        "subtitle": "{name} / {color} case",
+        "deleteComputer": "Delete computer",
+        "missing": "Not selected yet.",
+        "remove": "Remove",
+        "removeLabel": "Remove {category}",
+        "removeTitle": "Remove part",
+        "removeDescription": "{model} will be removed from this computer.",
+        "extra": "{count, plural, one {This computer has # more entry that the workshop does not show; see Advanced management.} other {This computer has # more entries that the workshop does not show; see Advanced management.}}",
+        "autoTitle": "Added by the workshop",
+        "autoNote": "These parts are added visually on the assembly stage; they are not saved to your profile as components."
+      },
+      "auto": {
+        "aio": "360 mm liquid cooling",
+        "fans": "7 case fans",
+        "rgb": "RGB lighting",
+        "psu": "Power supply",
+        "cables": "Basic cabling"
+      }
+    },
+    "components": {
+      "title": "Components · {count}",
+      "add": "Add component",
+      "edit": "Edit component",
+      "category": "Component category",
+      "entryMode": "Entry method",
+      "manual": "Manual entry",
+      "catalog": "Choose from catalog",
+      "synced": "Imported from desktop",
+      "selectModel": "General model",
+      "noModels": "No catalog models found. You can use manual entry.",
+      "selected": "Selected model: {model}",
+      "model": "Model name",
+      "brand": "Manufacturer (optional)",
+      "quantity": "Quantity",
+      "specsHint": "Specifications are optional. Empty fields use the selected catalog model's recorded values. Missing specifications are never inferred.",
+      "units": "{count, plural, one {# unit} other {# units}}",
+      "emptyTitle": "Ready for your components",
+      "emptyDescription": "Add a processor, graphics card, memory and other components to complete this computer.",
+      "deleteDescription": "This component will be removed from your computer. The catalog product is kept."
+    },
+    "privacy": {
+      "title": "Privacy",
+      "description": "Profile, field and category rules apply together. Sharing also depends on your account's hardware visibility and access permissions.",
+      "profileVisibility": "Computer visibility",
+      "fields": "Field visibility",
+      "categories": "Category visibility",
+      "inherit": "Default: only me"
+    },
+    "privacyFields": {
+      "PROFILE_NAME": "Computer name",
+      "DEVICE_TYPE": "Device type",
+      "COMPONENT_MODEL": "Component model",
+      "COMPONENT_BRAND": "Component manufacturer",
+      "COMPONENT_QUANTITY": "Component quantity",
+      "TECHNICAL_SPECIFICATIONS": "Technical specifications"
+    },
+    "visibility": {
+      "PRIVATE": "Only me",
+      "FRIENDS": "Friends",
+      "PUBLIC": "Everyone"
+    },
+    "stats": {
+      "title": "Hardware overview",
+      "profiles": "Computers",
+      "entries": "Component entries",
+      "units": "Total units",
+      "ram": "Recorded memory",
+      "storage": "Recorded storage",
+      "capacity": "{value, number} GB",
+      "unknownUnits": "Units with unknown capacity: {count}"
+    },
+    "campaigns": {
+      "title": "Campaigns",
+      "description": "Hardware offers with a recorded source and validity window.",
+      "detail": "Campaign details",
+      "discount": "{value}% discount",
+      "source": "Source",
+      "observed": "Observed",
+      "validity": "Valid",
+      "product": "View product",
+      "visitSource": "Visit source",
+      "unsafeUrl": "The source link cannot be opened safely.",
+      "clearProduct": "Clear product filter",
+      "results": "{count, number} valid campaigns",
+      "emptyTitle": "No valid campaigns right now",
+      "emptyDescription": "Offers within their validity window appear here. Reload to check for new records.",
+      "editorRecord": "Editorial offer",
+      "aboutTitle": "Check the source",
+      "priceNotice": "Prices are source records at the stated observation time. Check the store's current price and terms before purchasing.",
+      "communityTitle": "Community offers",
+      "communityUnavailable": "User offer sharing and discussions are not available yet. Only authorized editorial records appear here."
+    },
+    "errors": {
+      "400": {
+        "title": "Check your information",
+        "description": "The request could not be validated. Check field formats and ranges."
+      },
+      "401": {
+        "title": "Sign-in required",
+        "description": "This hardware area requires a verified session. Sign-in is not connected to this interface yet. If you already have a session, try reloading."
+      },
+      "403": {
+        "title": "Action not permitted",
+        "description": "Your access or session verification is insufficient for this action. Reload to check the current state."
+      },
+      "404": {
+        "title": "Hardware record not found",
+        "description": "The record may have been removed or you may not have access to it."
+      },
+      "409": {
+        "title": "Record changed or action conflicts",
+        "description": "Reload and review the latest record. Close and reopen the form if needed. Check your existing review for this product."
+      },
+      "413": {
+        "title": "Request too large",
+        "description": "Shorten the submitted text or fields and try again."
+      },
+      "422": {
+        "title": "Review the fields",
+        "description": "The submitted information was not accepted. Check field lengths and allowed values."
+      },
+      "429": {
+        "title": "Action limit reached",
+        "description": "Wait before reloading the latest state."
+      },
+      "500": {
+        "title": "Action could not be completed",
+        "description": "The server encountered a problem. Check the latest state before saving again."
+      },
+      "503": {
+        "title": "Service temporarily unavailable",
+        "description": "A required service or processing queue is unavailable. Reload after a short wait."
+      },
+      "network": {
+        "title": "Could not connect",
+        "description": "The hardware service could not be reached or did not respond. If you were saving, reload to check the result."
+      },
+      "shape": {
+        "title": "Unexpected response",
+        "description": "The service did not answer in the expected format. Try again in a moment."
+      }
+    },
+    "productVisual": {
+      "representative": "Representative illustration",
+      "gpuVendor": "GPU manufacturer: {vendor}"
+    },
+    "visual": {
+      "selectProduct": "Select {model} for comparison",
+      "categoryDrawing": "Category illustration · not a product photo",
+      "noSpecs": "Specifications have not been recorded yet.",
+      "details": "Details",
+      "removeShort": "Remove",
+      "compareShort": "Compare",
+      "clearFilters": "Clear all",
+      "brandsUnavailable": "Brands could not load; you can search by name.",
+      "recordedFilters": "Filter by recorded specifications. Brand selection is optional.",
+      "chooseCategory": "Choose a category for technical filters. Brand selection is optional.",
+      "discover": "DISCOVER.",
+      "compareMotto": "COMPARE.",
+      "buildMotto": "BUILD YOUR SYSTEM.",
+      "moreCategories": "More hardware categories",
+      "more": "More",
+      "results": "Product results",
+      "productsFound": "products found",
+      "comparisonList": "Comparison list",
+      "removeProduct": "Remove {model} from comparison",
+      "openComparison": "Open comparison",
+      "brandMissing": "Manufacturer not specified",
+      "yes": "Yes",
+      "no": "No",
+      "notRecorded": "Not recorded",
+      "brandUnknown": "Manufacturer not specified"
+    },
+    "fields": {
+      "CPU": {
+        "coreCount": "Core count",
+        "clockMhz": "Base clock",
+        "boostClockMhz": "Boost clock",
+        "powerWatts": "TDP",
+        "microarchitecture": "Microarchitecture",
+        "integratedGraphics": "Integrated graphics",
+        "smt": "Simultaneous multithreading (SMT)"
+      },
+      "GPU": {
+        "gpuVendor": "Chip maker",
+        "chipset": "Graphics chip",
+        "capacityGb": "Video memory",
+        "clockMhz": "Core clock",
+        "boostClockMhz": "Boost clock",
+        "lengthMm": "Card length",
+        "color": "Color"
+      },
+      "MOTHERBOARD": {
+        "socket": "CPU socket",
+        "formFactor": "Form factor",
+        "maximumMemoryGb": "Maximum memory",
+        "memorySlots": "Memory slots",
+        "color": "Color"
+      },
+      "RAM": {
+        "memoryType": "Memory type",
+        "capacityGb": "Total capacity",
+        "moduleCount": "Module count",
+        "moduleCapacityGb": "Capacity per module",
+        "clockMhz": "Speed",
+        "casLatency": "CAS latency",
+        "firstWordLatencyNs": "First word latency",
+        "color": "Color"
+      },
+      "STORAGE": {
+        "storageType": "Storage type",
+        "capacityGb": "Capacity",
+        "interfaceType": "Interface",
+        "formFactor": "Form factor",
+        "cacheMb": "Cache",
+        "rotationRpm": "Rotation speed"
+      }
     }
   }
 }

@@ -3,6 +3,9 @@
 
 ## ALPER
 - V1–V10       → HARDWARE-SERVICE
+- V191        → HARDWARE-SERVICE (2026-11-07 açık kullanıcı onayı; GPU kaynak kategorisi için kullanıldı)
+- V192        → HARDWARE-SERVICE (2026-11-08 açık kullanıcı onayı; yarım yıldız değerlendirme puanı için kullanıldı)
+- V193        → HARDWARE-SERVICE (2026-11-08 açık kullanıcı onayı; bilgisayar profili kasa rengi için kullanıldı)
 - V11–V20      → RECOMMENDATION-SERVICE
 - V21–V30      → PERFORMANCE-SERVICE
 
@@ -19,7 +22,7 @@
 
 ## NISA
 - V91–V100     → COMMUNITY-SERVICE
-- V181–V190   → COMMUNITY-SERVICE (2026-11-07 açık kullanıcı onayı; V181 kullanıldı, V182–V190 boş)
+- V181–V190   → COMMUNITY-SERVICE (2026-11-07 açık kullanıcı onayı; V181 ve V182 kullanıldı, V183–V190 boş)
 - V101–V110    → CONTENT-SERVICE
 - V111–V120    → EVENT-SERVICE
 
@@ -48,15 +51,54 @@ geliştirmeye başlanmadan önce belirlenmelidir.
   Kullanıcı onayıyla 2026-11-08'de DEV'e uygulandı (önce yedek alındı).
 - **V175** `V175__create_game_localized_descriptions.sql`: yeni `game_localized_descriptions` tablosu (dile göre açıklama; (oyun, dil) tekil, oyun
   silinince cascade). Mevcut tablolara dokunmaz. İzole PostgreSQL testleri (dolu V174 → V175 yükseltme, kısıtlar, tekillik, cascade) geçti;
-  **gerçek DEV'e uygulama kullanıcı onayı bekliyor**.
+  kullanıcı onayıyla 2026-11-08'de DEV'e uygulandı (önce yedek alındı, eski imajın V175'li şemayla uyumu izole PostgreSQL'de doğrulandı).
 - Her iki migration yeni bir şema yükseltmesidir; "başlangıç zincirinde ALTER yok" kuralı V31–V40 ve V171–V173 için aynen sürer
   (`MigrationArchitectureTest` yalnız V174'ü ALTER için muaf tutar). Uygulanmış migration dosyaları değiştirilmedi.
+
+### Hardware Service V193 — Bilgisayar profili kasa rengi, 2026-11-08
+
+- LTZ Atölyesi (Bilgisayarlarım) kasa rengini profile kaydetmek için kullanıcı açıkça V193'ün alınmasını onayladı
+  ("v193 ü al konteynırı yenile ve migrations.md'yi güncelle"). Yalnız V193 Hardware Service'e tahsis edildi;
+  V194 ve sonrası için tahsis verilmedi.
+- `V193__add_hardware_profile_case_color.sql`, `hardware_profiles` tablosuna `case_color varchar(16) NOT NULL DEFAULT 'BLACK'`
+  kolonunu ve `ck_hardware_profiles_case_color` CHECK'ini (`BLACK`, `WHITE`, `GRAPHITE`, `RED`) ekler. Mevcut profiller
+  `BLACK` alır; V1–V10, V191 ve V192 değiştirilmez.
+- Bu karar diğer servislerin tahsislerini değiştirmez; numaralandırma sahibi ekip bilgilendirilmelidir.
+
+### Hardware Service V192 — Yarım yıldız değerlendirme puanı, 2026-11-08
+
+- V1–V10 dolu olduğundan kullanıcı açıkça V192'nin alınmasını onayladı ("Evet, V192'yi al").
+  Yalnız V192 Hardware Service'e tahsis edildi; V193 o tarihte tahsisli değildi (aynı gün ayrıca onaylandı, yukarıya bakın).
+- `V192__allow_half_star_review_ratings.sql`, `hardware_reviews.rating` kolonunu `integer`'dan `numeric(2,1)`'e çevirir ve
+  CHECK'i "1–5 arası, 0,5 adımlı" olarak yeniden tanımlar. Mevcut tam sayı puanlar kayıpsız dönüşür; V1–V10 değiştirilmez.
+- Bu karar diğer servislerin tahsislerini değiştirmez; numaralandırma sahibi ekip bilgilendirilmelidir.
+
+### Hardware Service V191 — GPU kaynak kategorisi, 2026-11-07
+
+- V1–V10 dolu olduğundan kullanıcı açıkça “191'i al migrations.md'yi güncelle” dedi.
+  Yalnız V191 Hardware Service'e tahsis edildi (V192 daha sonra, 2026-11-08'de ayrıca onaylandı).
+- `V191__allow_gpu_catalog_sources.sql`, kaynak tablosunun kategori CHECK'ine GPU ekler.
+  V1–V10 değiştirilmez; mevcut ürün UUID'leri ve tüm referanslar korunur.
+- Bu karar Game V171–V180 ve Community V181–V190 tahsislerini değiştirmez.
+- [GPU aktarım kanıtı](../../docs-hardware/reports/pc-part-gpu-import.md).
+
+### Hardware Service V10 — PC Part Dataset, 2026-11-07
+
+- Gerçek aktif klasör ve yerel hardware_db history V1–V9 olarak doğrulandı.
+  Son boş V10, `V10__add_pc_part_dataset_import.sql` için kullanıldı.
+- V1–V9 değişmedi. V10 kaynak provider CHECK'ini genişletir, kaynak commit'ini
+  ve teknik import sonuç tablosunu ekler. Ürün/yorum/profil verisi silinmez.
+- V1–V10 artık doludur. Sonraki şema değişikliği için ekipçe ek aralık gerekir;
+  başka servisin numarası kullanılmaz. Eski V10 forum rezervasyonu bu açık
+  kullanıcı veri aktarımı talimatıyla geçersizdir.
+- [Karar ve komutlar](../../docs-hardware/decisions/pc-part-dataset-import.md).
 
 ### Community Service ek tahsisi — 2026-11-07
 
 - Community Service'in V91–V100 aralığındaki 10 numaranın tamamı kullanılmıştır.
   Kullanıcının açık onayıyla **V181–V190 Community Service'e tahsis edildi**.
-  İlk boş numara `V181__add_game_content_types.sql` için kullanıldı; V182–V190 boştur.
+  İlk boş numara `V181__add_game_content_types.sql` için kullanıldı. `V182__create_user_block_markers.sql`
+  (COM-21, social engelleme olaylarının sırasını koruyan yerel işaret tablosu) ikinci numaradır; V183–V190 boştur.
 - V181, GAME-11 kapsamında `posts` tablosuna `content_type` ve `title` ekler.
   Eski gönderilere geriye dönük tür atanmaz; uygulanmış V91–V100 dosyaları değiştirilmez.
 - Bu tahsis Game Service'in V171–V180 ek aralığını veya V1–V170 içindeki diğer

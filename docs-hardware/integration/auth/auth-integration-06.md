@@ -34,7 +34,7 @@ ve coverage politikası kapatılmaz; gerçek ENV dosyası okunmaz/değiştirilme
 | Aynı DEBUG koşusunda Auth API DeviceCredentialTest | **15/15 PASS**; toplam Auth seçili test **46 PASS** |
 | `node pre-push/ci/node-tests.mjs` | **155/155 PASS**, fail/skipped 0; ops/kalite yardımcıları |
 | Auth/Gateway JAR paketleme | **PASS**; `-DskipTests package` yalnız E2E artefaktı hazırlığıdır, tam Auth/Gateway kalite kabulü değildir |
-| `node ops/hardware-auth-e2e.mjs` | **20/20 PASS**, gerçek üç JAR + iki geçici PostgreSQL 17 + Mailpit; 3 süreç ve 3 fixture container temizlendi |
+| `node ops/dev.mjs e2e hardware` | **20/20 PASS**, gerçek üç JAR + iki geçici PostgreSQL 17 + Mailpit; 3 süreç ve 3 fixture container temizlendi |
 | Taze Hardware runtime JAR Trivy taraması | **PASS**, tam BOOT-INF/lib envanteri; HIGH/CRITICAL bulgu 0 |
 | `git diff --check` | **PASS** |
 

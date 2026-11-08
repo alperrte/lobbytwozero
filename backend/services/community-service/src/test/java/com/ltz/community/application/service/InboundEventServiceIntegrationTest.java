@@ -71,7 +71,16 @@ class InboundEventServiceIntegrationTest extends PostgreSqlIntegrationTest {
 	private EntityManager entityManager;
 
 	private static InboundEventRequest event(String type, String producer, Map<String, Object> payload) {
-		return new InboundEventRequest(UUID.randomUUID(), type, 1, NOW, producer, UUID.randomUUID(), payload);
+		return event(type, producer, payload, NOW);
+	}
+
+	private static InboundEventRequest event(String type, String producer, Map<String, Object> payload,
+			Instant occurredAt) {
+		return new InboundEventRequest(UUID.randomUUID(), type, 1, occurredAt, producer, UUID.randomUUID(), payload);
+	}
+
+	private static InboundEventRequest blockEvent(String type, UUID blocker, UUID blocked, Instant occurredAt) {
+		return event(type, "social-service", Map.of("blockerId", blocker, "blockedId", blocked), occurredAt);
 	}
 
 	private static Map<String, Object> moderation(ReportTarget target, UUID id, String action) {
@@ -305,6 +314,64 @@ class InboundEventServiceIntegrationTest extends PostgreSqlIntegrationTest {
 		assertThat(userBlockRepository.existsBetween(blocker, blocked)).isFalse();
 		// Olmayan engellemeyi kaldırmak hata değildir.
 		assertThat(events.handle(event("UserUnblocked", "social-service", payload)).outcome()).isEqualTo(Outcome.PROCESSED);
+	}
+
+	@Test
+	void aLateBlockedEventDoesNotRevertAnUnblockThatHappenedAfterIt() {
+		UUID blocker = UUID.randomUUID();
+		UUID blocked = UUID.randomUUID();
+		InboundEventRequest lateBlock = blockEvent("UserBlocked", blocker, blocked, NOW);
+		InboundEventRequest unblock = blockEvent("UserUnblocked", blocker, blocked, NOW.plusSeconds(30));
+
+		// Unblock önce işlenir (block geri çekilmeyle gecikti), sonra eski block gelir.
+		assertThat(events.handle(unblock).outcome()).isEqualTo(Outcome.PROCESSED);
+		assertThat(events.handle(lateBlock).outcome()).isEqualTo(Outcome.PROCESSED);
+
+		assertThat(userBlockRepository.existsBetween(blocker, blocked)).as("eski olay engeli geri getirmez").isFalse();
+		assertThat(jdbcTemplate.queryForObject("select count(*) from inbox_events where event_id = ?", Integer.class,
+				lateBlock.eventId())).as("eski olay yine de işlenmiş kaydedilir").isEqualTo(1);
+		assertThat(events.handle(lateBlock).outcome()).isEqualTo(Outcome.DUPLICATE);
+	}
+
+	@Test
+	void aLateUnblockedEventDoesNotRemoveABlockThatHappenedAfterIt() {
+		UUID blocker = UUID.randomUUID();
+		UUID blocked = UUID.randomUUID();
+
+		events.handle(blockEvent("UserBlocked", blocker, blocked, NOW.plusSeconds(60)));
+		events.handle(blockEvent("UserUnblocked", blocker, blocked, NOW.plusSeconds(10)));
+
+		assertThat(userBlockRepository.existsBetween(blocker, blocked)).as("eski kaldırma yeni engeli silmez").isTrue();
+	}
+
+	@Test
+	void newerEventsStillWinAndEachPairIsOrderedIndependently() {
+		UUID blocker = UUID.randomUUID();
+		UUID blocked = UUID.randomUUID();
+		UUID other = UUID.randomUUID();
+
+		events.handle(blockEvent("UserBlocked", blocker, blocked, NOW));
+		events.handle(blockEvent("UserUnblocked", blocker, blocked, NOW.plusSeconds(5)));
+		events.handle(blockEvent("UserBlocked", blocker, blocked, NOW.plusSeconds(9)));
+		assertThat(userBlockRepository.existsBetween(blocker, blocked)).as("en yeni olay kazanır").isTrue();
+
+		// Aynı engelleyenin başka bir çifti, ilk çiftin işaretinden etkilenmez.
+		events.handle(blockEvent("UserBlocked", blocker, other, NOW));
+		assertThat(userBlockRepository.existsBetween(blocker, other)).isTrue();
+		// Yön de ayrı bir çifttir: karşı yöndeki eski olay bu yöndeki işarete takılmaz.
+		events.handle(blockEvent("UserBlocked", blocked, blocker, NOW));
+		assertThat(userBlockRepository.findBlockedIds(blocked)).containsExactly(blocker);
+	}
+
+	@Test
+	void eventsWithTheSameTimestampAreAppliedInArrivalOrder() {
+		UUID blocker = UUID.randomUUID();
+		UUID blocked = UUID.randomUUID();
+
+		events.handle(blockEvent("UserBlocked", blocker, blocked, NOW));
+		events.handle(blockEvent("UserUnblocked", blocker, blocked, NOW));
+
+		assertThat(userBlockRepository.existsBetween(blocker, blocked)).isFalse();
 	}
 
 	@Test

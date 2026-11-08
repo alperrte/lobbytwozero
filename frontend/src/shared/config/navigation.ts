@@ -2,7 +2,7 @@ import type { IconName } from "@/shared/components/ui/icons";
 import type { AppPathname } from "@/shared/lib/i18n/routing";
 
 /**
- * Global kenar çubuğu navigasyonu: 13 öğe, 3 grup (Genel, Sosyal, Donanım & Performans).
+ * Global kenar çubuğu navigasyonu: 14 öğe, 3 grup (Genel, Sosyal, Donanım & Performans).
  * Ayarlar bağlantısı ve daralt/genişlet alt bölümdedir; ana listede yer almaz.
  *
  * - Menü, backend servislerine değil kullanıcının göreceği işlevlere göre kurulur; `service`
@@ -28,6 +28,7 @@ export type NavLabelKey =
   | "findTeam"
   | "events"
   | "hardware"
+  | "campaigns"
   | "performance"
   | "settings";
 
@@ -87,7 +88,8 @@ export const navigationGroups: readonly NavGroup[] = [
     id: "hardware",
     labelKey: "hardware",
     items: [
-      { id: "hardware", labelKey: "hardware", icon: "cpu", service: "hardware-service" },
+      { id: "hardware", labelKey: "hardware", icon: "cpu", service: "hardware-service", href: "/hardware" },
+      { id: "campaigns", labelKey: "campaigns", icon: "tag", service: "hardware-service", href: "/hardware/campaigns" },
       {
         id: "performance",
         labelKey: "performance",
@@ -127,5 +129,6 @@ export function findActiveItem(
   pathname: string,
   items: readonly NavItem[] = primaryNavigation
 ): NavItem | undefined {
-  return items.find((item) => item.href && isActivePath(pathname, item.href));
+  return items.filter((item) => item.href && isActivePath(pathname, item.href))
+    .sort((left, right) => (right.href?.length ?? 0) - (left.href?.length ?? 0))[0];
 }

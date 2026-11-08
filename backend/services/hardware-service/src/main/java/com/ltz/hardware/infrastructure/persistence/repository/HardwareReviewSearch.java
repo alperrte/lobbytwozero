@@ -49,7 +49,7 @@ public class HardwareReviewSearch {
         var cb = entityManager.getCriteriaBuilder();
         var query = cb.createTupleQuery();
         var root = query.from(HardwareReview.class);
-        query.select(cb.tuple(cb.count(root.get("rating")), cb.avg(root.<Integer>get("rating"))))
+        query.select(cb.tuple(cb.count(root.get("rating")), cb.avg(root.<BigDecimal>get("rating"))))
                 .where(filter(root, cb, productId, viewer, decision));
         var result = entityManager.createQuery(query).getSingleResult();
         long count = ((Number) result.get(0)).longValue();

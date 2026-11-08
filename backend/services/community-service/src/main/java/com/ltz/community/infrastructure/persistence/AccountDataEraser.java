@@ -23,7 +23,8 @@ import com.ltz.community.application.port.AccountErasurePort;
  *       çıkarılır.</li>
  *   <li><b>Raporlar</b>: hesabın yaptığı raporlar silinir; hesabın içeriği hakkındaki raporlarda yalnız içerik yazarı
  *       referansı anonimleşir (moderasyon kaydı kalır, kişi tanımlanmaz).</li>
- *   <li><b>Engellemeler</b> (social-service yansıması): hesabın taraf olduğu tüm satırlar silinir.</li>
+ *   <li><b>Engellemeler</b> (social-service yansıması): hesabın taraf olduğu tüm satırlar ve olay sırası işaretleri
+ *       ({@code user_block_markers}) silinir.</li>
  *   <li><b>Forumlar</b>: forumu oluşturan referansı anonimleşir (forum içeriği kişisel değildir).</li>
  *   <li><b>Outbox</b>: hesabın kimliğini taşıyan tüm olaylar (bekleyen, başarısız ve teslim edilmiş) silinir.</li>
  * </ul>
@@ -105,6 +106,8 @@ public class AccountDataEraser implements AccountErasurePort {
 
 	private void eraseBlocks(UUID accountId) {
 		jdbc.sql("delete from user_blocks where blocker_id = :account or blocked_id = :account")
+				.param(ACCOUNT, accountId).update();
+		jdbc.sql("delete from user_block_markers where blocker_id = :account or blocked_id = :account")
 				.param(ACCOUNT, accountId).update();
 	}
 

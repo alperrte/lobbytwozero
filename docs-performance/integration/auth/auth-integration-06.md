@@ -50,11 +50,11 @@ Auth `ServiceAudienceTokenTest` 16 test, `ServiceClientConfigTest` 10 test içer
 
 ## Gerçek Auth + Performance + Gateway HTTP kabulü
 
-[ops/performance-auth-e2e.mjs](../../../ops/performance-auth-e2e.mjs) mevcut kabul betiği genişletildi. Auth/Performance güncel `clean verify` JAR'ları ve mevcut güncel Gateway JAR'ı kullanıldı; eski JAR denetimi korunur.
+[ops/dev.mjs e2e performance](../../../ops/dev.mjs e2e performance) mevcut kabul betiği genişletildi. Auth/Performance güncel `clean verify` JAR'ları ve mevcut güncel Gateway JAR'ı kullanıldı; eski JAR denetimi korunur.
 
 ```powershell
 $env:JAVA_HOME = 'C:/Users/alper/Tools/jdk-25.0.4.1+1'
-node ops/performance-auth-e2e.mjs
+node ops/dev.mjs e2e performance
 ```
 
 **15 kontrol PASS.** Önceki cihaz/izin/replay/iptal/D4 kontrolleri korundu; buna ek olarak gerçek client-credentials yoluyla:
