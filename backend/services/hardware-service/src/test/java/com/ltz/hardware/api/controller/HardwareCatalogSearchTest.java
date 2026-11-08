@@ -263,6 +263,75 @@ class HardwareCatalogSearchTest extends PostgresIntegrationSupport {
     }
 
     @Test
+    void repeatedParametersMatchAnyOfTheValuesAndCombineAcrossFieldsWithAnd() throws Exception {
+        UUID am5 = product("Multi Board A", "MOTHERBOARD", null, null, null, null, null, "AM5", null, "ATX");
+        UUID am4 = product("Multi Board B", "MOTHERBOARD", null, null, null, null, null, "AM4", null, "mATX");
+        product("Multi Board C", "MOTHERBOARD", null, null, null, null, null, "LGA1700", null, "ATX");
+        source(am5, "MOTHERBOARD", "{\"memorySlots\":{\"number\":4}}");
+        source(am4, "MOTHERBOARD", "{\"memorySlots\":{\"number\":2}}");
+        mvc.perform(get(PATH).with(actor(userId)).param("category", "MOTHERBOARD").param("socket", "AM5", "am4"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(2));
+        mvc.perform(get(PATH).with(actor(userId)).param("category", "MOTHERBOARD").param("socket", "AM5", "AM4")
+                .param("formFactor", "ATX")).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1));
+        mvc.perform(get(PATH).with(actor(userId)).param("category", "MOTHERBOARD").param("memorySlots", "2", "4"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(2));
+        mvc.perform(get(PATH).with(actor(userId)).param("category", "MOTHERBOARD").param("memorySlots", "2"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1));
+    }
+
+    @Test
+    void repeatedBrandsCapacitiesCoresAndClocksAreAlternatives() throws Exception {
+        mvc.perform(get(PATH).with(actor(userId)).param("category", "GPU")
+                .param("brandId", maker.toString(), secondMaker.toString()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(2));
+        mvc.perform(get(PATH).with(actor(userId)).param("category", "GPU").param("capacityGb", "8", "16"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(2));
+        mvc.perform(get(PATH).with(actor(userId)).param("category", "GPU").param("capacityGb", "8", "16")
+                .param("coreCount", "4"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1));
+        mvc.perform(get(PATH).with(actor(userId)).param("category", "RAM").param("clockMhz", "6000", "5600"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1));
+        mvc.perform(get(PATH).with(actor(userId)).param("category", "GPU").param("capacityGb", "0"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get(PATH).with(actor(userId)).param("brandId", maker.toString(), "not-a-uuid"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void chipsetValuesContainingCommasStayOneValue() throws Exception {
+        UUID card = product("Comma Card", "GPU", 8, null, null, null, null, null, null, null);
+        source(card, "GPU", "{\"chipset\":{\"text\":\"GeForce RTX 4060, Founders\"}}");
+        mvc.perform(get(PATH).with(actor(userId)).param("category", "GPU").param("chipset", "GeForce RTX 4060, Founders"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1));
+    }
+
+    @Test
+    void gpuVendorFiltersByChipsetPrefixAndCombinesAsAlternatives() throws Exception {
+        UUID nvidia = product("Vendor Nvidia", "GPU", 12, null, null, null, null, null, null, null);
+        source(nvidia, "GPU", "{\"chipset\":{\"text\":\"GeForce RTX 4070\"}}");
+        UUID amd = product("Vendor Amd", "GPU", 16, null, null, null, null, null, null, null);
+        source(amd, "GPU", "{\"chipset\":{\"text\":\"Radeon RX 7800 XT\"}}");
+        UUID intel = product("Vendor Intel", "GPU", 16, null, null, null, null, null, null, null);
+        source(intel, "GPU", "{\"chipset\":{\"text\":\"Arc A770\"}}");
+        mvc.perform(get(PATH).with(actor(userId)).param("category", "GPU").param("gpuVendor", "NVIDIA"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(nvidia.toString()));
+        mvc.perform(get(PATH).with(actor(userId)).param("category", "GPU").param("gpuVendor", "AMD", "INTEL"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(2));
+        mvc.perform(get(PATH).with(actor(userId)).param("category", "GPU").param("gpuVendor", "AMD", "INTEL")
+                .param("capacityGb", "16").param("chipset", "Arc A770"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(intel.toString()));
+        mvc.perform(get(PATH).with(actor(userId)).param("gpuVendor", "MATROX")).andExpect(status().isBadRequest());
+        mvc.perform(get(FACETS).with(actor(userId)).param("category", "GPU"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.facets.gpuVendor.length()").value(3))
+                .andExpect(jsonPath("$.facets.gpuVendor[0].value").value("NVIDIA"))
+                .andExpect(jsonPath("$.facets.gpuVendor[1].value").value("AMD"))
+                .andExpect(jsonPath("$.facets.gpuVendor[2].value").value("INTEL"));
+    }
+
+    @Test
     void facetsListOnlyRecordedActiveValuesPerCategory() throws Exception {
         UUID card = product("Facet Card", "GPU", 12, null, null, null, null, null, null, null);
         source(card, "GPU", "{\"chipset\":{\"text\":\"GeForce RTX 4070\"}}");

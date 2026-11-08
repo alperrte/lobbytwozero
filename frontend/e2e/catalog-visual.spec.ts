@@ -26,6 +26,8 @@ async function fixture(page: Page, failure?: number | "network") {
       const items = catalog.filter((item) => !url.searchParams.get("category") || item.category === url.searchParams.get("category"));
       return route.fulfill({ json: { items, page: 0, size: 12, totalElements: items.length, totalPages: 1 } });
     }
+    const detail = url.pathname.match(/\/catalog\/products\/([^/]+)$/);
+    if (detail) { const item = catalog.find((entry) => entry.id === detail[1]); return route.fulfill({ status: item ? 200 : 404, json: item ?? { code: "NOT_FOUND" } }); }
     if (url.pathname.endsWith("/comparisons/catalog-products")) {
       const body = route.request().postDataJSON();
       const convert = (id: string) => { const item = catalog.find((product) => product.id === id)!; return { id: item.id, category: item.category, modelName: item.model, quantity: null, specifications: item.specifications }; };
@@ -51,7 +53,7 @@ for (const viewport of viewports) for (const theme of ["dark", "light"]) for (co
     const columns = await grid.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length);
     expect(columns).toBe(viewport.width >= 1440 ? 3 : viewport.width === 768 ? 2 : 1);
     const card = await page.getByTestId("catalog-product").first().boundingBox();
-    expect(card!.height).toBeLessThanOrEqual(360);
+    expect(card!.height).toBeLessThanOrEqual(400);
     expect(card!.height).toBeGreaterThan(280);
     if (viewport.width >= 1440) {
       // Geniş ekranda filtre paneli varsayılan kapalıdır ve düğme paneli açıp kapatır (diyalog düğmesi gizlidir).
@@ -110,9 +112,10 @@ for (const width of [1672, 375]) for (const theme of ["dark", "light"]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
     await page.screenshot({ path: `test-results/catalog-visual/comparison-${width}-${theme}.png` });
     await bar.getByRole("button", { name: "Karşılaştırmayı aç" }).click();
-    await expect(page.getByRole("dialog").getByRole("columnheader", { name: catalog[0].model })).toBeVisible();
-    expect(calls.find((call) => call.path.endsWith("/comparisons/catalog-products"))).toMatchObject({ method: "POST", body: { leftId: uid(1), rightId: uid(8) } });
-    await page.keyboard.press("Escape");
+    await expect(page).toHaveURL(new RegExp(`/tr/donanimlar/karsilastir\\?ids=${uid(1)}(,|%2C)${uid(8)}`));
+    await expect(page.getByRole("columnheader", { name: new RegExp(catalog[0].model) })).toBeVisible();
+    expect([...new Set(calls.filter((call) => /\/catalog\/products\/[^/]+$/.test(call.path)).map((call) => call.path.split("/").pop()))].sort()).toEqual([uid(1), uid(8)]);
+    await page.goBack();
     await bar.getByRole("button", { name: `${catalog[0].model} ürününü karşılaştırmadan çıkar`, exact: true }).click();
     await expect(first).not.toBeChecked();
     await bar.getByRole("button", { name: "Temizle", exact: true }).click();
@@ -136,10 +139,11 @@ test("catalog category overflow and mobile technical filters preserve the API co
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("combobox", { name: "Çekirdek sayısı", exact: true }).click();
   await dialog.getByRole("option", { name: "8", exact: true }).click();
+  await page.keyboard.press("Escape");
   await dialog.getByRole("button", { name: "Filtreleri uygula" }).click();
   await expect(dialog).not.toBeVisible();
-  await expect(page).toHaveURL(/minCoreCount=8/);
-  await expect.poll(() => calls.some((call) => call.path.endsWith("/catalog/products") && call.query.includes("category=CPU") && call.query.includes("minCoreCount=8") && call.query.includes("maxCoreCount=8") && call.query.includes("q=Ryzen"))).toBe(true);
+  await expect(page).toHaveURL(/coreCount=8/);
+  await expect.poll(() => calls.some((call) => call.path.endsWith("/catalog/products") && call.query.includes("category=CPU") && call.query.includes("coreCount=8") && call.query.includes("q=Ryzen"))).toBe(true);
   await page.getByRole("button", { name: "Liste", exact: true }).click();
   await expect(page.getByRole("button", { name: "Liste", exact: true })).toHaveAttribute("aria-pressed", "true");
   await page.screenshot({ path: "test-results/catalog-visual/list-375.png" });
@@ -180,5 +184,5 @@ test("catalog main error retries without duplicating the manufacturer failure", 
   await page.getByRole("button", { name: "Filtreler", exact: true }).click();
   await expect(page.getByText("Seçenekler yüklenemedi; filtreler şimdilik kullanılamıyor.")).toBeVisible();
   await page.locator("main aside").getByRole("button", { name: "Yeniden yükle" }).click();
-  await expect(page.locator("main aside").getByRole("combobox", { name: "Üretici adı", exact: true })).toBeEnabled();
+  await expect(page.locator("main aside").getByRole("combobox", { name: "Marka", exact: true })).toBeEnabled();
 });

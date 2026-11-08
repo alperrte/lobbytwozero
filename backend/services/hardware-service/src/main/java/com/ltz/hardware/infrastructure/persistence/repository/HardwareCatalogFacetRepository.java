@@ -68,7 +68,18 @@ public class HardwareCatalogFacetRepository {
                 case TYPED_TEXT -> texts(counts(TYPED_SQL, facet.key(), "text", category.name()));
             });
         }
+        if (category == ComponentCategory.GPU) result.put("gpuVendor", vendors(result.getOrDefault("chipset", List.of())));
         return result;
+    }
+
+    /** Cip ureticisi yonga adindan turetilir; yalnizca katalogda gercekten bulunan ureticiler listelenir. */
+    static List<Option> vendors(List<Option> chipsets) {
+        var counts = new java.util.EnumMap<com.ltz.hardware.domain.enums.GpuVendor, Long>(com.ltz.hardware.domain.enums.GpuVendor.class);
+        for (Option chipset : chipsets) {
+            var vendor = com.ltz.hardware.domain.enums.GpuVendor.of(chipset.value());
+            if (vendor != null) counts.merge(vendor, chipset.count(), Long::sum);
+        }
+        return counts.entrySet().stream().map(e -> new Option(e.getKey().name(), e.getKey().name(), e.getValue())).toList();
     }
 
     /** {@code column} is always one of the constants in {@link #PLAN}. */

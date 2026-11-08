@@ -107,6 +107,16 @@ public class HardwareCatalogController {
                 .body(facets.facets(category));
     }
 
+    /**
+     * Tekrarlanan parametreler liste olur; tek bir değer virgül içerse bile bölünmez
+     * (yonga adı gibi değerler virgül taşıyabilir).
+     */
+    @InitBinder
+    void keepCommasInsideListValues(org.springframework.web.bind.WebDataBinder binder) {
+        binder.registerCustomEditor(java.util.List.class,
+                new org.springframework.beans.propertyeditors.CustomCollectionEditor(java.util.ArrayList.class));
+    }
+
     private static <T> ResponseEntity<T> ok(T value) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore().cachePrivate()).body(value);
     }

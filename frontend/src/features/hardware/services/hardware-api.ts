@@ -1,4 +1,5 @@
-import { apiRequest } from "@/shared/lib/api/client";
+import { ApiHttpError, apiRequest } from "@/shared/lib/api/client";
+import { CSRF_PATH } from "@/shared/lib/session/csrf";
 import type { Brand, Campaign, CatalogFacets, FilterOptions, Comparison, ComponentInput, Component, DeviceType, Page, Privacy, Product, Profile, ProfileComparisonItem, ProfileDetail, Review, ReviewPage, Statistics } from "../types/hardware";
 
 const base = "/api/v1/hardware";
@@ -24,12 +25,30 @@ function read<T>(path: string, signal?: AbortSignal) {
   const timeout = AbortSignal.timeout(20000);
   return apiRequest<T>(`${base}${path}`, { signal: signal ? AbortSignal.any([signal, timeout]) : timeout, cache: "no-store" });
 }
-function write<T>(path: string, method: string, body?: unknown) {
-  return apiRequest<T>(`${base}${path}`, {
-    method, cache: "no-store", signal: AbortSignal.timeout(20000),
-    headers: { "Content-Type": "application/json", ...csrfHeader(typeof document === "undefined" ? "" : document.cookie) },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) })
-  });
+const currentCsrf = () => csrfHeader(typeof document === "undefined" ? "" : document.cookie);
+/** Auth'un `GET /csrf` ucu CSRF cerezini yazar; basarisizlik burada yutulur, yazma istegi kendi hatasini doner. */
+async function primeCsrf() {
+  try { await apiRequest<void>(CSRF_PATH, { headers: { Accept: "application/json" }, cache: "no-store", signal: AbortSignal.timeout(10000) }); } catch { /* yazma istegi reddedilirse hata orada gorunur */ }
+}
+/**
+ * Yazma istegi: cerez yoksa once CSRF cifti alinir; Gateway `CSRF_TOKEN_INVALID` (403) donerse cerez yenilenir ve istek BIR kez
+ * tekrarlanir (Auth'taki akisla ayni). Aksi halde cerezsiz/eski belirteçle giden yorum, puan ve rapor yazmalari 403 alirdi.
+ */
+async function write<T>(path: string, method: string, body?: unknown) {
+  let retried = false;
+  for (;;) {
+    if (!currentCsrf()["X-XSRF-TOKEN"]) await primeCsrf();
+    try {
+      return await apiRequest<T>(`${base}${path}`, {
+        method, cache: "no-store", signal: AbortSignal.timeout(20000),
+        headers: { "Content-Type": "application/json", ...currentCsrf() },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) })
+      });
+    } catch (error) {
+      if (!retried && error instanceof ApiHttpError && error.status === 403 && error.code === "CSRF_TOKEN_INVALID") { retried = true; await primeCsrf(); continue; }
+      throw error;
+    }
+  }
 }
 /** Marka listesi sayfalı gelir; filtre önerileri için tüm sayfalar (en çok 5) birleştirilir. */
 async function allBrands(signal?: AbortSignal): Promise<Brand[]> {

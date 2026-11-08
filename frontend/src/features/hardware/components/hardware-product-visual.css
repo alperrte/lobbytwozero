@@ -6,16 +6,16 @@
 .hardwareVisual__image { width: 100%; height: 100%; object-fit: contain; padding: 20px 10px 24px; }
 .hardwareVisual__brand { position: absolute; z-index: 1; top: 12px; inset-inline-end: 12px; max-width: 42%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-family: var(--font-display-face); font-size: 12px; font-weight: 700; letter-spacing: .02em; line-height: 18px; }
 .hardwareVisual__brand::before { content: ""; display: inline-block; width: 3px; height: 9px; margin-inline-end: 6px; background: var(--ltz-primary); }
-.hardwareVisual__facts { position: absolute; inset-inline-start: 12px; bottom: 24px; display: flex; gap: 5px; max-width: 68%; min-width: 0; }
-.hardwareVisual__facts span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 2px 6px; border: 1px solid var(--ltz-border); border-radius: 4px; background: var(--ltz-surface); color: var(--ltz-text-secondary); font-size: 9px; line-height: 14px; }
-.hardwareVisual__vendor { position: absolute; bottom: 24px; inset-inline-end: 12px; display: flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 600; line-height: 18px; }
-.hardwareVisual__vendor > span { font-size: 8px; color: var(--ltz-text-secondary); font-weight: 400; }
-.hardwareVisual__notice { position: absolute; inset-inline-end: 12px; bottom: 6px; color: var(--ltz-text-secondary); font-size: 9px; line-height: 12px; }
+.hardwareVisual__facts { position: absolute; inset-inline-start: 12px; bottom: 24px; display: flex; gap: 6px; max-width: 72%; min-width: 0; }
+.hardwareVisual__facts span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 3px 9px; border: 1px solid var(--ltz-control-border); border-radius: 999px; background: var(--ltz-surface-elevated); color: var(--ltz-text-primary); font-size: 11.5px; font-weight: 600; line-height: 16px; }
+.hardwareVisual__vendor { position: absolute; bottom: 24px; inset-inline-end: 12px; display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; line-height: 18px; color: var(--ltz-text-primary); }
+.hardwareVisual__vendor > span { font-size: 10px; color: var(--ltz-text-secondary); font-weight: 400; }
+.hardwareVisual__notice { position: absolute; inset-inline-end: 12px; bottom: 6px; color: var(--ltz-text-secondary); font-size: 10px; line-height: 12px; }
 .hardwareVisual--detail { min-height: 310px; border: 1px solid var(--ltz-border); border-radius: 9px; background-color: var(--ltz-surface-elevated); }
 .hardwareVisual--detail .hardwareVisual__brand { font-size: 18px; top: 20px; inset-inline-end: 20px; }
 .hardwareVisual--detail .hardwareVisual__image { padding: 40px 18px; }
 .hardwareVisual--detail .hardwareVisual__facts { bottom: 36px; inset-inline-start: 20px; }
-.hardwareVisual--detail .hardwareVisual__facts span { font-size: 11px; padding: 4px 8px; }
+.hardwareVisual--detail .hardwareVisual__facts span { font-size: 13px; padding: 4px 12px; }
 .hardwareVisual--detail .hardwareVisual__vendor { bottom: 36px; inset-inline-end: 20px; font-size: 13px; }
 .hardwareVisual--detail .hardwareVisual__notice { bottom: 12px; inset-inline-end: 20px; font-size: 10px; }
 .hardwareVisual--compact .hardwareVisual__image, .hardwareVisual--category .hardwareVisual__image { padding: 0; }
@@ -25,7 +25,7 @@
 @media (prefers-reduced-motion: reduce) { .ltzCatalog_category .hardwareVisual--category { transition: none; } }
 .hardwareVisual--compact { width: 64px; height: 44px; flex: none; }
 .ltzCatalog_selectionArt.hardwareVisual--compact { width: 62px; height: 46px; }
-.ltzCatalog_media { height: 180px; }
-@media (min-width: 1750px) { .ltzCatalog_media { height: 180px; } }
+.ltzCatalog_media { height: 186px; }
+@media (min-width: 1750px) { .ltzCatalog_media { height: 186px; } }
 @media (max-width: 900px) { .hardwareVisual--category { width: 53px; height: 36px; } .ltzCatalog_selectionArt.hardwareVisual--compact { width: 44px; height: 32px; } }
-@media (max-width: 559px) { .ltzCatalog_media { height: 180px; } .hardwareVisual--detail { min-height: 260px; } .hardwareVisual--detail .hardwareVisual__facts { max-width: 65%; } .ltzCatalog_selectionArt.hardwareVisual--compact { width: 36px; height: 28px; } }
+@media (max-width: 559px) { .ltzCatalog_media { height: 186px; } .hardwareVisual--detail { min-height: 260px; } .hardwareVisual--detail .hardwareVisual__facts { max-width: 65%; } .ltzCatalog_selectionArt.hardwareVisual--compact { width: 36px; height: 28px; } }

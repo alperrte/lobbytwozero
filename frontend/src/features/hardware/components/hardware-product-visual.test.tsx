@@ -34,6 +34,18 @@ describe("HardwareProductVisual", () => {
     expect(JSON.stringify(products)).toBe(before);
   });
 
+  it("işlemci ve ekran kartı için üreticiye özel çizim seçer, üreticisi bilinmeyene genel çizim verir", () => {
+    expect(productVisual(products[0])).toMatchObject({ asset: "cpu-amd", cpuVendor: "AMD" });
+    expect(productVisual(products[1])).toMatchObject({ asset: "cpu-intel", cpuVendor: "Intel" });
+    expect(productVisual(products[2]).asset).toBe("gpu-nvidia");
+    expect(productVisual(products[3]).asset).toBe("gpu-amd");
+    expect(productVisual(products[4]).asset).toBe("gpu-intel");
+    const unknown: Product = { ...products[0], model: "Bilinmeyen İşlemci", source: null };
+    expect(productVisual(unknown)).toMatchObject({ asset: "cpu", cpuVendor: undefined });
+    expect(productVisual(products[5]).asset).toBe("motherboard");
+    expect(productVisual(undefined, "PSU").asset).toBeUndefined();
+  });
+
   it("RAM neslini yalnız kayıtlı değerden gösterir; bilinmeyen marka görünümü bozmaz", () => {
     wrap(<HardwareProductVisual product={products[6]} />);
     expect(screen.getByText("DDR5")).toBeVisible();
@@ -60,7 +72,7 @@ describe("HardwareProductVisual", () => {
     expect(new URL(image.getAttribute("src")!, "http://localhost").pathname).toBe(approvedImage.src);
     expect(screen.queryByText("Temsilî görsel")).toBeNull();
     fireEvent.error(image);
-    expect(new URL(container.querySelector("img")!.getAttribute("src")!, "http://localhost").pathname).toBe("/assets/hardware/illustrations/cpu.svg");
+    expect(new URL(container.querySelector("img")!.getAttribute("src")!, "http://localhost").pathname).toBe("/assets/hardware/illustrations/cpu-amd.svg");
     expect(screen.getByText("Temsilî görsel")).toBeVisible();
     expect(approvedImagePath({ src: "https://example.com/photo.jpg", alt: "external" })).toBeUndefined();
     expect(approvedImagePath({ src: "/assets/hardware/products/../private.png", alt: "traversal" })).toBeUndefined();

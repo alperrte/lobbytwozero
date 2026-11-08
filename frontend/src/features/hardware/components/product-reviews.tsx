@@ -1,10 +1,12 @@
 "use client";
 import { useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
+import { ConfirmDialog } from "@/shared/components/ui/confirm-dialog";
+import { StarRating } from "@/shared/components/ui/star-rating";
 import { useHardwareMutation, useHardwareQuery } from "../hooks/use-hardware-query";
 import { hardwareApi } from "../services/hardware-api";
 import type { Review } from "../types/hardware";
-import { button, primaryButton, panel, HardwareDialog, HardwareEmpty, HardwareError, HardwareLoading, HardwarePagination } from "./hardware-ui";
+import { ovalButton, ovalPrimaryButton, ovalPanel, HardwareEmpty, HardwareError, HardwareLoading, HardwarePagination } from "./hardware-ui";
 import { ReportReviewForm, ReviewForm } from "./review-form";
 
 export function ProductReviews({ productId }: { productId: string }) {
@@ -17,33 +19,41 @@ export function ProductReviews({ productId }: { productId: string }) {
   const [deleting, setDeleting] = useState<Review>();
   const [reporting, setReporting] = useState<string>();
   const reviews = useHardwareQuery(`reviews:${productId}:${page}`, (signal) => hardwareApi.reviews(productId, page, signal));
-  const mine = useHardwareQuery(`mine:${minePage}`, (signal) => hardwareApi.myReviews(minePage, signal), mineOpen);
+  const mine = useHardwareQuery(`mine:${minePage}`, (signal) => hardwareApi.myReviews(minePage, signal));
+  const ownReview = mine.data?.items.find((review) => review.productId === productId && review.status === "VISIBLE") ?? reviews.data?.items.find((review) => review.ownedByActor && review.status === "VISIBLE");
+  const average = reviews.data?.summary.averageRating ?? null;
   function refresh() { reviews.reload(); mine.reload(); }
   const mutation = useHardwareMutation(refresh);
   function reviewCard(review: Review) {
-    return <article key={review.id} className={`${panel} p-5`}>
+    return <article key={review.id} className={`${ovalPanel} p-5`}>
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-text-secondary">
         <span>
           {review.ownedByActor ? t("reviews.yours") : t("reviews.member")} · {format.dateTime(new Date(review.createdAt), { dateStyle: "medium" })}
         </span>
-        <span>{review.rating === null ? t("reviews.noRating") : t("reviews.ratingValue", { rating: review.rating })}</span>
+        <StarRating size="sm" value={review.rating} label={t("reviews.ratingLabel")} emptyText={t("reviews.noRating")} formatValue={(value) => t("reviews.ratingValue", { rating: value })} showText />
       </div>
       <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-7">{review.body}</p>
       <div className="mt-4 flex flex-wrap gap-2">{review.ownedByActor ? <>
-        {review.status === "VISIBLE" ? <button className={button} onClick={() => setEditor(review)}>{t("common.edit")}</button> : <span className="text-sm text-warning">{t("reviews.hidden")}</span>}
-        <button className={button} onClick={() => setDeleting(review)}>{t("common.delete")}</button>
-      </> : <button className={button} onClick={() => setReporting(review.id)}>{t("reviews.report")}</button>}</div>
+        {review.status === "VISIBLE" ? <button className={ovalButton} onClick={() => setEditor(review)}>{t("common.edit")}</button> : <span className="text-sm text-warning">{t("reviews.hidden")}</span>}
+        <button className={ovalButton} onClick={() => setDeleting(review)}>{t("common.delete")}</button>
+      </> : <button className={ovalButton} onClick={() => setReporting(review.id)}>{t("reviews.report")}</button>}</div>
     </article>;
   }
   return <section id="reviews" className="mt-8 space-y-5 border-t border-border pt-7">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
         <h2 className="font-display text-2xl font-semibold">{t("reviews.title")}</h2>
-        {reviews.data ? <p className="mt-1 text-sm text-text-secondary">{reviews.data.summary.averageRating === null ? t("reviews.unrated") : t("reviews.summary", { average: format.number(reviews.data.summary.averageRating, { maximumFractionDigits: 2 }), count: reviews.data.summary.ratedReviews })}</p> : null}
+        {reviews.data ? (average === null
+          ? <p className="mt-1 text-sm text-text-secondary">{t("reviews.unrated")}</p>
+          : <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <StarRating size="sm" value={average} label={t("reviews.ratingLabel")} emptyText={t("reviews.unrated")} formatValue={(value) => t("reviews.averageAria", { rating: format.number(value, { maximumFractionDigits: 1 }) })} />
+            <span className="text-sm font-semibold">{t("reviews.ratingValue", { rating: Number(average.toFixed(1)) })}</span>
+            <span className="text-sm text-text-secondary">{t("reviews.ratedBy", { count: reviews.data.summary.ratedReviews })}</span>
+          </div>) : null}
       </div>
       {reviews.data ? <div className="flex flex-wrap gap-2">
-        <button className={button} onClick={() => setMineOpen(!mineOpen)} aria-expanded={mineOpen}>{t("reviews.mine")}</button>
-        <button className={primaryButton} onClick={() => setEditor("new")}>{t("reviews.write")}</button>
+        <button className={ovalButton} onClick={() => setMineOpen(!mineOpen)} aria-expanded={mineOpen}>{t("reviews.mine")}</button>
+        <button className={ovalPrimaryButton} onClick={() => setEditor(ownReview ?? "new")}>{t(ownReview ? "reviews.editMine" : "reviews.write")}</button>
       </div> : null}
     </div>
     {reviews.loading ? <HardwareLoading /> : null}
@@ -51,7 +61,7 @@ export function ProductReviews({ productId }: { productId: string }) {
     {reviews.data?.items.length === 0 ? <HardwareEmpty title={t("reviews.emptyTitle")} description={t("reviews.emptyDescription")} /> : null}
     <div className="space-y-4">{reviews.data?.items.map(reviewCard)}</div>
     {reviews.data ? <HardwarePagination page={page} totalPages={reviews.data.totalPages} onPage={setPage} /> : null}
-    {mineOpen ? <section className={`${panel} space-y-4 p-5`}>
+    {mineOpen ? <section className={`${ovalPanel} space-y-4 p-5`}>
       <h3 className="font-display text-lg font-semibold">{t("reviews.mine")}</h3>
       <p className="text-sm text-text-secondary">{t("reviews.mineHint")}</p>
       {mine.loading ? <HardwareLoading /> : null}
@@ -62,10 +72,17 @@ export function ProductReviews({ productId }: { productId: string }) {
     </section> : null}
     {editor ? <ReviewForm productId={productId} review={editor === "new" ? undefined : editor} onClose={() => setEditor(undefined)} onSaved={refresh} /> : null}
     {reporting ? <ReportReviewForm reviewId={reporting} onClose={() => setReporting(undefined)} /> : null}
-    {deleting ? <HardwareDialog title={t("reviews.deleteTitle")} onClose={() => setDeleting(undefined)} busy={mutation.pending}>
-      <p className="text-sm text-text-secondary">{t("reviews.deleteDescription")}</p>
+    {deleting ? <ConfirmDialog
+      tone="danger"
+      title={t("reviews.deleteTitle")}
+      description={t("reviews.deleteDescription")}
+      confirmLabel={t(mutation.pending ? "common.deleting" : "common.confirmDelete")}
+      cancelLabel={t("reviews.confirmBack")}
+      busy={mutation.pending}
+      onConfirm={async () => { await mutation.run(async () => { await hardwareApi.deleteReview(deleting); setDeleting(undefined); }); }}
+      onCancel={() => setDeleting(undefined)}
+    >
       <HardwareError error={mutation.error} />
-      <button className={primaryButton} disabled={mutation.pending || mutation.requiresReview} onClick={async () => { await mutation.run(async () => { await hardwareApi.deleteReview(deleting); setDeleting(undefined); }); }}>{t("common.confirmDelete")}</button>
-    </HardwareDialog> : null}
+    </ConfirmDialog> : null}
   </section>;
 }

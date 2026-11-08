@@ -8,7 +8,7 @@ import { useCatalogLocation } from "../hooks/use-catalog-location";
 import { useHardwareQuery } from "../hooks/use-hardware-query";
 import { hardwareApi } from "../services/hardware-api";
 import { HardwareDialog, HardwareEmpty, HardwareError, HardwarePagination } from "./hardware-ui";
-import { CatalogFilters } from "./catalog-filters";
+import { CatalogFilters, type FilterValues } from "./catalog-filters";
 import { CatalogIcon } from "./catalog-icons";
 import { CatalogProductCard } from "./catalog-product-card";
 import { HardwareProductVisual } from "./hardware-product-visual";
@@ -39,7 +39,7 @@ export function CatalogScreen() {
   const filterOptions = useHardwareQuery(`filter-options:${category ?? "none"}`, (signal) => hardwareApi.filterOptions(category, signal));
   // Aynı alanın en az/en fazla çifti tek filtre sayılır.
   const activeFilters = new Set(["brand", "brandId", ...technicalQueryKeys].filter((key) => search.get(key)).map((key) => key.replace(/^(min|max)(?=[A-Z])/, "").replace(/^brand$/, "brandId"))).size;
-  const apply = (values: Record<string, string>) => { update({ q: search.get("q") ?? "", category: category ?? "", ...values }, true); setFilterOpen(false); };
+  const apply = (values: FilterValues) => { update({ q: search.get("q") ?? "", category: category ?? "", ...values }, true); setFilterOpen(false); };
   function chooseCategory(value: string) {
     // Üretici listesi kategoriye özgüdür; kategori değişince eski üretici ve teknik filtreler bırakılır.
     update({ q: search.get("q") ?? "", category: value }, true);

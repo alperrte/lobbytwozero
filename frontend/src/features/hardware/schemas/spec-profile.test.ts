@@ -17,7 +17,7 @@ describe("katalog kategorileri ve profilleri", () => {
     }
   });
   it("teknik filtre anahtarları yalnız API'nin bildiği parametrelerdir", () => {
-    const names = Object.values(categoryFilters).flat().map((field) => field!.kind === "select" || field!.kind === "toggle" ? [field!.key] : [`min${field!.key}`, `max${field!.key}`]).flat();
+    const names = Object.values(categoryFilters).flat().map((field) => field!.kind === "range" ? [`min${field!.key}`, `max${field!.key}`] : [field!.key]).flat();
     for (const name of names) expect(technicalQueryKeys as readonly string[]).toContain(name);
   });
 });
@@ -25,11 +25,11 @@ describe("katalog kategorileri ve profilleri", () => {
 describe("katalog filtre alanları", () => {
   const kinds = (category: (typeof catalogCategories)[number]) => categoryFilters[category]!.map((field) => `${field.kind}:${specName(field)}`);
   it("istenen alanlar kategori başına doğru türdedir", () => {
-    expect(kinds("CPU")).toEqual(["exact:coreCount", "range:clockMhz", "range:powerWatts", "toggle:integratedGraphics"]);
-    expect(kinds("GPU")).toEqual(["select:chipset", "exact:capacityGb"]);
-    expect(kinds("MOTHERBOARD")).toEqual(["select:socket", "select:formFactor", "select:maximumMemoryGb", "select:memorySlots"]);
-    expect(kinds("RAM")).toEqual(["select:memoryType", "exact:capacityGb", "exact:clockMhz", "select:casLatency"]);
-    expect(kinds("STORAGE")).toEqual(["select:storageType", "exact:capacityGb", "select:interfaceType"]);
+    expect(kinds("CPU")).toEqual(["multi:coreCount", "range:clockMhz", "range:powerWatts", "toggle:integratedGraphics"]);
+    expect(kinds("GPU")).toEqual(["multi:gpuVendor", "multi:chipset", "multi:capacityGb"]);
+    expect(kinds("MOTHERBOARD")).toEqual(["multi:socket", "multi:formFactor", "multi:maximumMemoryGb", "multi:memorySlots"]);
+    expect(kinds("RAM")).toEqual(["multi:memoryType", "multi:capacityGb", "multi:clockMhz", "multi:casLatency"]);
+    expect(kinds("STORAGE")).toEqual(["multi:storageType", "multi:capacityGb", "multi:interfaceType"]);
   });
   it("seçenek yazısına birim eklenir, değer değişmez", () => {
     const option = (value: string) => ({ value, label: value });
@@ -41,6 +41,8 @@ describe("katalog filtre alanları", () => {
     expect(filterOptionLabel("memorySlots", option("4"), "tr")).toBe("4");
     expect(filterOptionLabel("chipset", { value: "GeForce RTX 4070", label: "GeForce RTX 4070" }, "tr")).toBe("GeForce RTX 4070");
     expect(filterOptionLabel("socket", option("1700"), "tr")).toBe("1700");
+    expect(filterOptionLabel("gpuVendor", option("INTEL"), "tr")).toBe("Intel");
+    expect(filterOptionLabel("gpuVendor", option("NVIDIA"), "tr")).toBe("NVIDIA");
   });
 });
 

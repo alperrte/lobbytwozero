@@ -1,8 +1,10 @@
 # LTZ donanım görselleri
 
-`illustrations/` altındaki sekiz SVG bu proje için özgün vektör çizimleridir:
+`illustrations/` altındaki on üç SVG bu proje için özgün vektör çizimleridir:
 cpu, gpu, motherboard, ram, storage-nvme (M.2 biçimi), storage-sata (2.5 inç SSD),
 storage-hdd ve storage (türü bilinmeyen kayıt için genel çizim).
+Üretici/üretici-ailesi varyantları (cpu-intel, cpu-amd, gpu-nvidia, gpu-amd, gpu-intel) yalnız
+renk vurgusu ve düz yazı etiketi kullanır; logo veya wordmark çizilmez.
 Üretici fotoğrafı, logo, gerçek ürün modeli veya üçüncü taraf ikon kopyası içermez.
 640×360 viewBox, transparan zemin, aynı metal paleti ve LTZ kırmızısı kullanılır.
 Çizimler gerçek ürünün ölçüsü, fan/modül sayısı veya soğutucu tasarımına dair kanıt değildir.

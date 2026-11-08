@@ -8830,20 +8830,28 @@ model adında ya da ürünün aktif üretici adında bulunmalıdır (AND). 3 kar
 (`r` → Ryzen, `ryzen 98` → Ryzen 7 9800X3D; kelime başı boşluk ya da `-` sonrasıdır); 3+ karakterli jeton kelime içinde de eşleşir
 (`x3d`, `14700`); `amd ryzen` üretici adıyla da eşleşir. Harf/rakamla başlamayan jeton düz alt metin aranır.
 - category: mevcut 12 ComponentCategory değerinden biri.
-- brandId: opsiyonel UUID; aktif modele bağlı aktif üretici.
+- brandId: opsiyonel UUID, **çoklu** (`brandId=a&brandId=b`, en çok 50); modele bağlı aktif üreticilerden herhangi biri.
+Tek UUID eski sözleşmeyle aynı çalışır; geçersiz UUID 400.
 - brand: opsiyonel 0..100; aynı aktif üreticinin adı içinde literal arama.
 - minCapacityGb/maxCapacityGb: 1..1048576.
 - minClockMhz/maxClockMhz: 1..20000.
 - minCoreCount/maxCoreCount: 1..1024.
 - minPowerWatts/maxPowerWatts: 1..10000.
-- memoryType/socket/interfaceType/formFactor: opsiyonel 1..32, büyük/küçük harf duyarsız tam eşleşme.
-chipset: opsiyonel 1..100 (GPU modeli); storageType: opsiyonel 1..32 — ikisi de kaynak (VERIFIED) typedSpecs üzerinde
-büyük/küçük harf duyarsız tam eşleşme. `<`, `>` ve kontrol karakterleri 400.
-maximumMemoryGb: 1..1048576; memorySlots: 1..1024; casLatency: 1..200 — kaynak typedSpecs sayısal değerinde tam eşleşme.
+- memoryType/socket/interfaceType/formFactor: opsiyonel, **çoklu** (parametre tekrarlanır, en çok 50), her değer 1..32,
+büyük/küçük harf duyarsız tam eşleşme; değerler arası VEYA.
+chipset: çoklu, değer başına 1..100 (GPU modeli); storageType: çoklu, değer başına 1..32 — ikisi de kaynak (VERIFIED) typedSpecs
+üzerinde büyük/küçük harf duyarsız tam eşleşme. `<`, `>` ve kontrol karakterleri 400.
+Liste parametrelerinde tek bir değer virgül içerse bile bölünmez (yonga adı `GeForce RTX 4060, Founders` tek değerdir).
+maximumMemoryGb: 1..1048576; memorySlots: 1..1024; casLatency: 1..200 — çoklu, kaynak typedSpecs sayısal değerinde tam eşleşme.
+- capacityGb (1..1048576), clockMhz (1..20000), coreCount (1..1024): **çoklu** tam değer; ürün kolonunda değerlerden birine eşit olmalı.
+Mevcut min/max aralık parametreleri ile birlikte kullanılabilir (hepsi AND).
+- gpuVendor: çoklu, `NVIDIA` | `AMD` | `INTEL` (en çok 3; başka değer 400). Çip üreticisi kayıtlı `chipset` adının başından türetilir
+(NVIDIA: GeForce/NVIDIA/Quadro/Titan/Tesla/NVS/RTX/GTX/GT; AMD: Radeon/AMD/FirePro/RX; INTEL: Arc/Intel/Iris/UHD). Kart markası (ASUS, MSI)
+ile aynı şey değildir. Seçilen çip üreticilerinden herhangi biri yeterlidir; `chipset` ile birlikte verilirse ikisi de sağlanmalıdır.
 integratedGraphics: opsiyonel boolean (CPU onay kutusu). Yalnız `true` filtreler: VERIFIED kaynağın typedSpecs.integratedGraphics.text
 değeri dolu ve `false` değildir. `false`/boş filtre uygulamaz; boolean olmayan değer 400.
 QUARANTINED kaynak kayıtları bu filtrelerle hiçbir zaman eşleşmez.
-Tüm verilen filtreler AND ile birleşir; aynı üretici brandId + brand koşullarını sağlamalıdır.
+Farklı alanlar AND, aynı alandaki çoklu değerler VEYA ile birleşir; aynı üretici brandId + brand koşullarını sağlamalıdır.
 Alt sınır üst sınırı geçerse 400. Teknik alan null ise filtreyi sağlamaz.
 Boş q/brand filtresizdir; marka filtresi yokken markasız genel modeller listelenir.
 LIKE %, _ ve ! literal escape edilir; SQL parametreli Criteria ile üretilir.
@@ -8885,6 +8893,9 @@ HardwareCatalogSearchTest içinde (toplam 36 senaryo) PASS; PostgreSQL 17/Testco
 false ve geçersiz değer) HardwareCatalogSearchTest içinde (toplam 37 senaryo) PASS; PostgreSQL 17/Testcontainers.
 2026-11-08: q jetonlu kelime-öneki araması (r / ryzen / ryzen 98 / amd ryzen / x3d / arşivli üretici / kısa jeton orta eşleşmez)
 HardwareCatalogSearchTest içinde (toplam 38 senaryo) PASS; PostgreSQL 17/Testcontainers.
+2026-11-08: Çoklu seçim (tekrarlanan parametre: soket / form faktörü / bellek yuvası / marka / kapasite / çekirdek / frekans),
+virgül içeren tek değer, gpuVendor ve gpuVendor+chipset birleşimi, geçersiz değer 400 senaryoları
+HardwareCatalogSearchTest içinde (toplam 42 senaryo) PASS; PostgreSQL 17/Testcontainers.
 
 
 ### HARDWARE — HW-11 Katalog filtre seçenekleri (facets)
@@ -8909,7 +8920,7 @@ Değerler yalnız aktif ürünlerde kayıtlı gerçek değerlerdir; uydurma/vars
 Aynı değerin büyük/küçük harf farkları tek seçenekte toplanır; sayısal değerler artan sıralıdır.
 Kategori başına anahtarlar:
 - CPU: brandId, coreCount
-- GPU: brandId, chipset, capacityGb
+- GPU: brandId, chipset, capacityGb, gpuVendor (yonga adından türetilir; value/label `NVIDIA`|`AMD`|`INTEL`, count yonga sayılarının toplamı)
 - MOTHERBOARD: brandId, socket, formFactor, maximumMemoryGb, memorySlots
 - RAM: brandId, memoryType, capacityGb, clockMhz, casLatency
 - STORAGE: brandId, storageType, capacityGb, interfaceType

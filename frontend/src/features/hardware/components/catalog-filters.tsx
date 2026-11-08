@@ -1,35 +1,39 @@
 "use client";
 import { useLocale, useTranslations } from "next-intl";
 import type { Category, FilterOption, FilterOptions } from "../types/hardware";
-import { categoryFilters, exactFieldName, filterOptionLabel, specName, technicalQueryKeys, type FilterField } from "../schemas/spec-profile";
+import { categoryFilters, filterOptionLabel, multiQueryKeys, specName, technicalQueryKeys, type FilterField } from "../schemas/spec-profile";
 import { Checkbox } from "@/shared/components/ui/checkbox";
-import { Select, type SelectOption } from "@/shared/components/ui/select";
+import { MultiSelect } from "@/shared/components/ui/multi-select";
+import type { SelectOption } from "@/shared/components/ui/select";
 import { Field } from "./hardware-ui";
 import { CatalogIcon } from "./catalog-icons";
 import styles from "./catalog-styles";
 
-const maxValues: Record<string, number> = { CapacityGb: 1048576, ClockMhz: 20000, CoreCount: 1024, PowerWatts: 10000 };
-const unitSuffix: Record<string, string> = { CapacityGb: "GB", ClockMhz: "MHz", PowerWatts: "W" };
+const maxValues: Record<string, number> = { ClockMhz: 20000, PowerWatts: 10000 };
+const unitSuffix: Record<string, string> = { ClockMhz: "MHz", PowerWatts: "W" };
 
 export type FilterOptionsState = { data?: FilterOptions; loading: boolean; error?: unknown; reload: () => void };
+/** Dizi değer çoklu seçimdir (tekrarlanan parametre); boş dizi/metin parametreyi temizler. */
+export type FilterValues = Record<string, string | string[]>;
 
-/** "Tümü" her zaman başta; seçili değer seçenekler arasında yoksa (eski bağlantı) kaybolmasın diye ardına eklenir. */
-function selectOptions(name: string, options: FilterOption[], current: string, locale: string, anyLabel: string): SelectOption[] {
-  const legacy = current && !options.some((option) => option.value === current) && name !== "brandId" ? [{ value: current, label: current }] : [];
-  return [{ value: "", label: anyLabel }, ...legacy, ...options.map((option) => ({ value: option.value, label: filterOptionLabel(name, option, locale) }))];
+/** Seçili değer seçenekler arasında yoksa (eski bağlantı) kaybolmasın diye listenin başına eklenir; marka kimliği hariç. */
+function selectOptions(name: string, options: FilterOption[], current: string[], locale: string): SelectOption[] {
+  const legacy = name === "brandId" ? [] : current.filter((value) => !options.some((option) => option.value === value)).map((value) => ({ value, label: value }));
+  return [...legacy, ...options.map((option) => ({ value: option.value, label: filterOptionLabel(name, option, locale) }))];
 }
 
 /**
  * Yalnız API'nin gerçekten desteklediği ve seçili kategorinin verisinde dolu olan filtreler sunulur.
- * Açılır liste seçenekleri katalogdaki kayıtlı değerlerden gelir (`filterOptions`); kategori seçilmediyse
- * yalnız üretici seçilebilir. Kategori sekmeleri filtre formunun dışındadır.
+ * Liste seçenekleri katalogdaki kayıtlı değerlerden gelir (`filterOptions`) ve hepsi çoklu seçimdir;
+ * kategori seçilmediyse yalnız marka seçilebilir. Kategori sekmeleri filtre formunun dışındadır.
  */
-export function CatalogFilters({ category, search, filterOptions, onApply }: { category?: Category; search: URLSearchParams; filterOptions: FilterOptionsState; onApply: (values: Record<string, string>) => void }) {
+export function CatalogFilters({ category, search, filterOptions, onApply }: { category?: Category; search: URLSearchParams; filterOptions: FilterOptionsState; onApply: (values: FilterValues) => void }) {
   const t = useTranslations("Hardware");
   const locale = useLocale();
   const fields: FilterField[] = category ? categoryFilters[category] ?? [] : [];
   const rangeKeys = fields.flatMap((field) => field.kind === "range" ? [field.key] : []);
-  const clearValues = Object.fromEntries(["brand", "brandId", ...technicalQueryKeys].map((key) => [key, ""]));
+  const multiNames = ["brandId", ...fields.flatMap((field) => field.kind === "multi" ? [field.key] : [])];
+  const clearValues = Object.fromEntries(["brand", ...new Set<string>([...multiQueryKeys, ...technicalQueryKeys])].map((key) => [key, ""]));
   const options = filterOptions.data ?? {};
   const listLabel = (field: FilterField) => specName(field) === "chipset" ? t("catalog.gpuModel") : t(`fields.${category}.${specName(field)}`);
   const unavailable = !filterOptions.loading && Boolean(filterOptions.error);
@@ -46,12 +50,12 @@ export function CatalogFilters({ category, search, filterOptions, onApply }: { c
       if (low && high) high.setCustomValidity(low.value && high.value && Number(low.value) > Number(high.value) ? t("catalog.rangeInvalid") : "");
     }
     if (!form.reportValidity()) return;
-    // İşaretsiz onay kutusu forma girmez; eski değer URL'de kalmasın diye açıkça boşaltılır.
-    const values: Record<string, string> = { page: "0", ...Object.fromEntries(fields.flatMap((field) => field.kind === "toggle" ? [[field.key, ""]] : [])) };
-    for (const [name, value] of new FormData(form).entries()) {
-      if (typeof value !== "string") continue;
-      // Tam değer seçimi API'de en az = en fazla olarak uygulanır.
-      if (name.startsWith("exact")) { values[`min${name.slice(5)}`] = value; values[`max${name.slice(5)}`] = value; } else values[name] = value;
+    // İşaretsiz onay kutusu ve boş çoklu seçim forma girmez; eski değer URL'de kalmasın diye açıkça boşaltılır.
+    const data = new FormData(form);
+    const values: FilterValues = { page: "0", ...Object.fromEntries(fields.flatMap((field) => field.kind === "toggle" ? [[field.key, ""]] : [])) };
+    for (const name of multiNames) values[name] = data.getAll(name).filter((value): value is string => typeof value === "string" && value !== "");
+    for (const [name, value] of data.entries()) {
+      if (typeof value === "string" && !multiNames.includes(name)) values[name] = value;
     }
     onApply(values);
   }}>
@@ -60,8 +64,8 @@ export function CatalogFilters({ category, search, filterOptions, onApply }: { c
       <button type="button" className={styles.clear} onClick={() => onApply({ ...clearValues, page: "0" })}>{t("visual.clearFilters")}</button>
     </div>
     <Field label={t("catalog.brand")}>
-      <Select key={filterOptions.loading ? "loading" : "ready"} name="brandId" size="sm" defaultValue={search.get("brandId") ?? ""} disabled={filterOptions.loading}
-        options={selectOptions("brandId", options.brandId ?? [], search.get("brandId") ?? "", locale, t("catalog.anyValue"))} />
+      <MultiSelect key={filterOptions.loading ? "loading" : "ready"} name="brandId" variant="oval" defaultValue={search.getAll("brandId")} disabled={filterOptions.loading} placeholder={t("catalog.anyValue")}
+        options={selectOptions("brandId", options.brandId ?? [], search.getAll("brandId"), locale)} />
     </Field>
     {unavailable ? <p className={styles.brandNotice}>{t("catalog.optionsUnavailable")} <button type="button" onClick={filterOptions.reload}>{t("common.reload")}</button></p> : null}
     {fields.length ? <h3 className={styles.filterGroup}>{t("catalog.technical")}</h3> : null}
@@ -79,15 +83,13 @@ export function CatalogFilters({ category, search, filterOptions, onApply }: { c
         return <Checkbox key={field.key} name={field.key} value="true" defaultChecked={search.get(field.key) === "true"} label={t(`fields.${category}.${field.key}`)} />;
       }
       const name = specName(field);
-      const selectName = field.kind === "exact" ? exactFieldName(field.key) : field.key;
-      const low = field.kind === "exact" ? search.get(`min${field.key}`) : null;
-      const current = field.kind === "exact" ? (low !== null && low === search.get(`max${field.key}`) ? low : "") : search.get(field.key) ?? "";
-      return <Field key={selectName} label={listLabel(field)}>
-        <Select key={filterOptions.loading ? "loading" : "ready"} name={selectName} size="sm" defaultValue={current} disabled={filterOptions.loading}
-          options={selectOptions(name, options[name] ?? [], current, locale, t("catalog.anyValue"))} />
+      const current = search.getAll(field.key);
+      return <Field key={field.key} label={listLabel(field)}>
+        <MultiSelect key={filterOptions.loading ? "loading" : "ready"} name={field.key} variant="oval" defaultValue={current} disabled={filterOptions.loading} placeholder={t("catalog.anyValue")}
+          options={selectOptions(name, options[name] ?? [], current, locale)} />
       </Field>;
     })}
-    <p className={styles.filterHint}>{t(category ? "catalog.categoryHint" : "visual.chooseCategory")}</p>
+    {category ? null : <p className={styles.filterHint}>{t("visual.chooseCategory")}</p>}
     <button type="submit" className={styles.apply}>{t("catalog.apply")}</button>
   </form>;
 }

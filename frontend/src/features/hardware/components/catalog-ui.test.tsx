@@ -24,7 +24,7 @@ describe("ComparisonView", () => {
   const right = make("b", "STORAGE", "Beta", { storageType: { text: "SSD" }, capacityGb: { number: 2000, unit: "GB" }, interfaceType: { text: "M.2 PCIe 4.0 X4" } });
 
   it("aynı, farklı ve kayıtsız alanları işaretler; eksik değer tire olur, kazanan ilan edilmez", () => {
-    wrap(<ComparisonView left={left} right={right} />);
+    wrap(<ComparisonView products={[left, right]} />);
     const rows = screen.getAllByRole("row");
     const byState = (state: string) => rows.filter((row) => row.getAttribute("data-state") === state);
     expect(byState("similar")).toHaveLength(2);
@@ -37,14 +37,33 @@ describe("ComparisonView", () => {
     expect(screen.queryByText(/kazanan|daha iyi|winner|better/i, { selector: "td, th:not([scope=col])" })).not.toBeInTheDocument();
   });
   it("yalnız farklıları göster düğmesi benzer ve kayıtsız satırları gizler", () => {
-    wrap(<ComparisonView left={left} right={right} />);
+    wrap(<ComparisonView products={[left, right]} />);
     fireEvent.click(screen.getByRole("button", { name: "Yalnız farklıları göster" }));
     const rows = screen.getAllByRole("row").filter((row) => row.hasAttribute("data-state"));
     expect(rows).toHaveLength(1);
     expect(rows[0]).toHaveAttribute("data-state", "different");
   });
+  it("dört ürünü yan yana gösterir; bir ürün eksikse satır kayıtsız sayılır, hepsi aynıysa benzer olur", () => {
+    const third = make("c", "STORAGE", "Gama", { storageType: { text: "SSD" }, capacityGb: { number: 1000, unit: "GB" }, interfaceType: { text: "M.2 PCIe 4.0 X4" } });
+    const fourth = make("d", "STORAGE", "Delta", { storageType: { text: "SSD" }, capacityGb: { number: 500, unit: "GB" }, interfaceType: { text: "M.2 PCIe 4.0 X4" } });
+    wrap(<ComparisonView products={[left, right, third, fourth]} />);
+    expect(screen.getAllByRole("columnheader")).toHaveLength(5);
+    const rows = screen.getAllByRole("row").filter((row) => row.hasAttribute("data-state"));
+    const state = (name: string) => rows.filter((row) => row.getAttribute("data-state") === name);
+    expect(state("different")).toHaveLength(1);
+    expect(state("similar")).toHaveLength(2);
+    expect(state("missing")).toHaveLength(1);
+    expect(within(state("different")[0]).getAllByRole("cell")).toHaveLength(4);
+    expect(screen.getByRole("status")).toHaveTextContent("1 farklı, 2 aynı, 1 kayıtsız alan");
+  });
+  it("onRemove verilirse her ürün için çıkar düğmesi çıkar ve ilgili ürünü bildirir", () => {
+    const onRemove = vi.fn();
+    wrap(<ComparisonView products={[left, right]} onRemove={onRemove} />);
+    fireEvent.click(screen.getByRole("button", { name: /Beta .*karşılaştırmadan çıkar/ }));
+    expect(onRemove).toHaveBeenCalledWith(right);
+  });
   it("İngilizce arayüzde etiketler ve sayı biçimi yerelleşir", () => {
-    wrap(<ComparisonView left={left} right={right} />, "en");
+    wrap(<ComparisonView products={[left, right]} />, "en");
     expect(screen.getByRole("button", { name: "Show differences only" })).toBeInTheDocument();
     expect(screen.getByText("Capacity")).toBeInTheDocument();
   });

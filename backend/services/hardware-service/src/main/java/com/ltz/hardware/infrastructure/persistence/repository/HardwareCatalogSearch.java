@@ -18,64 +18,93 @@ public final class HardwareCatalogSearch {
     private HardwareCatalogSearch() { }
 
     public record NumericRange(String attribute, Integer min, Integer max) { }
-    public record TextValue(String attribute, String value) { }
-    /** Exact match on a key inside the source's typed_specs JSON; {@code key} always comes from a server-side allowlist. */
-    public record TypedSpec(String key, String text, Integer number) {
-        public boolean active() { return (text != null && !text.isBlank()) || number != null; }
+    /** Case-insensitive match against any of {@code values}; no values means no condition. */
+    public record TextValue(String attribute, List<String> values) { }
+    /** The column must equal any of {@code values}; no values means no condition. */
+    public record NumericIn(String attribute, List<Integer> values) { }
+    /**
+     * Exact match on a key inside the source's typed_specs JSON; {@code key} always comes from a server-side allowlist.
+     * Several values are alternatives (OR).
+     */
+    public record TypedSpec(String key, List<String> texts, List<Integer> numbers) {
+        public TypedSpec {
+            texts = texts == null ? List.of() : texts.stream().filter(t -> t != null && !t.isBlank()).toList();
+            numbers = numbers == null ? List.of() : numbers.stream().filter(java.util.Objects::nonNull).toList();
+        }
+        public boolean active() { return !texts.isEmpty() || !numbers.isEmpty(); }
     }
+    /** The text under {@code key} must start with any of {@code prefixes} (lower-case, from a server-side allowlist). */
+    public record TypedPrefix(String key, List<String> prefixes) { }
 
     public static Specification<HardwareProduct> matching(String model, CatalogStatus status,
-            com.ltz.hardware.domain.enums.ComponentCategory category, UUID brandId, String brand,
+            com.ltz.hardware.domain.enums.ComponentCategory category, List<UUID> brandIds, String brand,
             List<NumericRange> ranges, List<TextValue> texts) {
-        return matching(model, status, category, brandId, brand, ranges, texts, List.of());
+        return matching(model, status, category, brandIds, brand, ranges, texts, List.of());
     }
 
     /** The key must hold a non-blank value that is not the literal {@code false}; {@code required=false} adds no condition. */
     public record TypedPresence(String key, boolean required) { }
 
     public static Specification<HardwareProduct> matching(String model, CatalogStatus status,
-            com.ltz.hardware.domain.enums.ComponentCategory category, UUID brandId, String brand,
+            com.ltz.hardware.domain.enums.ComponentCategory category, List<UUID> brandIds, String brand,
             List<NumericRange> ranges, List<TextValue> texts, List<TypedSpec> typed) {
-        return matching(model, status, category, brandId, brand, ranges, texts, typed, List.of());
+        return matching(model, status, category, brandIds, brand, ranges, texts, typed, List.of());
     }
 
     public static Specification<HardwareProduct> matching(String model, CatalogStatus status,
-            com.ltz.hardware.domain.enums.ComponentCategory category, UUID brandId, String brand,
+            com.ltz.hardware.domain.enums.ComponentCategory category, List<UUID> brandIds, String brand,
             List<NumericRange> ranges, List<TextValue> texts, List<TypedSpec> typed, List<TypedPresence> present) {
+        return matching(model, status, category, brandIds, brand, ranges, List.of(), texts, typed, List.of(), present);
+    }
+
+    public static Specification<HardwareProduct> matching(String model, CatalogStatus status,
+            com.ltz.hardware.domain.enums.ComponentCategory category, List<UUID> brandIds, String brand,
+            List<NumericRange> ranges, List<NumericIn> numbers, List<TextValue> texts, List<TypedSpec> typed,
+            List<TypedPrefix> prefixes, List<TypedPresence> present) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("status"), status));
             if (category != null) predicates.add(cb.equal(root.get("category"), category));
             search(root, query, cb, model, predicates);
-            manufacturer(root, query, cb, brandId, brand, predicates);
+            manufacturer(root, query, cb, brandIds, brand, predicates);
             Path<Object> specs = root.get("specifications");
             ranges.forEach(range -> range(cb, specs.get(range.attribute()), range, predicates));
-            texts.forEach(text -> exact(cb, specs.get(text.attribute()), text.value(), predicates));
-            typedSpecs(root, query, cb, typed, present, predicates);
+            numbers.forEach(in -> numbersIn(specs.get(in.attribute()), in.values(), predicates));
+            texts.forEach(text -> exact(cb, specs.get(text.attribute()), text.values(), predicates));
+            typedSpecs(root, query, cb, typed, prefixes, present, predicates);
             return cb.and(predicates.toArray(Predicate[]::new));
         };
     }
 
     private static void typedSpecs(Root<HardwareProduct> root, CriteriaQuery<?> query, CriteriaBuilder cb,
-            List<TypedSpec> typed, List<TypedPresence> present, List<Predicate> predicates) {
+            List<TypedSpec> typed, List<TypedPrefix> prefixes, List<TypedPresence> present, List<Predicate> predicates) {
         List<TypedSpec> active = typed.stream().filter(TypedSpec::active).toList();
+        List<TypedPrefix> prefixed = prefixes.stream().filter(p -> !p.prefixes().isEmpty()).toList();
         List<TypedPresence> required = present.stream().filter(TypedPresence::required).toList();
-        if (active.isEmpty() && required.isEmpty()) return;
+        if (active.isEmpty() && prefixed.isEmpty() && required.isEmpty()) return;
         Subquery<UUID> sources = query.subquery(UUID.class);
         Root<HardwareProductSourceView> source = sources.from(HardwareProductSourceView.class);
         List<Predicate> inner = new ArrayList<>();
         inner.add(cb.equal(source.get("quality"), "VERIFIED"));
         for (TypedSpec spec : active) {
-            if (spec.number() != null) {
+            List<Predicate> alternatives = new ArrayList<>();
+            if (!spec.numbers().isEmpty()) {
                 Expression<String> value = cb.function("jsonb_extract_path_text", String.class,
                         source.get("typedSpecs"), cb.literal(spec.key()), cb.literal("number"));
-                inner.add(cb.equal(((org.hibernate.query.criteria.JpaExpression<String>) value).cast(BigDecimal.class),
-                        BigDecimal.valueOf(spec.number())));
-            } else {
+                alternatives.add(((org.hibernate.query.criteria.JpaExpression<String>) value).cast(BigDecimal.class)
+                        .in(spec.numbers().stream().map(BigDecimal::valueOf).toList()));
+            }
+            if (!spec.texts().isEmpty()) {
                 Expression<String> value = cb.function("jsonb_extract_path_text", String.class,
                         source.get("typedSpecs"), cb.literal(spec.key()), cb.literal("text"));
-                inner.add(cb.equal(cb.lower(value), spec.text().strip().toLowerCase(Locale.ROOT)));
+                alternatives.add(cb.lower(value).in(spec.texts().stream().map(t -> t.strip().toLowerCase(Locale.ROOT)).toList()));
             }
+            inner.add(cb.or(alternatives.toArray(Predicate[]::new)));
+        }
+        for (TypedPrefix spec : prefixed) {
+            Expression<String> value = cb.lower(cb.function("jsonb_extract_path_text", String.class,
+                    source.get("typedSpecs"), cb.literal(spec.key()), cb.literal("text")));
+            inner.add(cb.or(spec.prefixes().stream().map(p -> cb.like(value, p + "%")).toArray(Predicate[]::new)));
         }
         for (TypedPresence spec : required) {
             Expression<String> value = cb.function("jsonb_extract_path_text", String.class,
@@ -126,12 +155,12 @@ public final class HardwareCatalogSearch {
     }
 
     private static void manufacturer(Root<HardwareProduct> root, CriteriaQuery<?> query, CriteriaBuilder cb,
-            UUID brandId, String name, List<Predicate> predicates) {
-        if (brandId == null && (name == null || name.isBlank())) return;
+            List<UUID> brandIds, String name, List<Predicate> predicates) {
+        if (brandIds.isEmpty() && (name == null || name.isBlank())) return;
         Join<HardwareProduct, HardwareBrand> joined = root.join("brands");
         query.distinct(true);
         predicates.add(cb.equal(joined.get("status"), CatalogStatus.ACTIVE));
-        if (brandId != null) predicates.add(cb.equal(joined.get("id"), brandId));
+        if (!brandIds.isEmpty()) predicates.add(joined.get("id").in(brandIds));
         contains(cb, joined.get("normalizedName"), name, 100, predicates);
     }
 
@@ -148,7 +177,14 @@ public final class HardwareCatalogSearch {
         if (range.max() != null) predicates.add(cb.le(path, range.max()));
     }
 
-    private static void exact(CriteriaBuilder cb, Expression<String> path, String text, List<Predicate> predicates) {
-        if (text != null) predicates.add(cb.equal(cb.lower(path), text.strip().toLowerCase(Locale.ROOT)));
+    private static void numbersIn(Expression<Integer> path, List<Integer> values, List<Predicate> predicates) {
+        if (!values.isEmpty()) predicates.add(path.in(values));
+    }
+
+    private static void exact(CriteriaBuilder cb, Expression<String> path, List<String> values,
+            List<Predicate> predicates) {
+        List<String> lowered = values.stream().filter(v -> v != null && !v.isBlank())
+                .map(v -> v.strip().toLowerCase(Locale.ROOT)).toList();
+        if (!lowered.isEmpty()) predicates.add(cb.lower(path).in(lowered));
     }
 }

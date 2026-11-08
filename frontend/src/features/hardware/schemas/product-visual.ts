@@ -3,10 +3,14 @@ import type { Category, Product } from "../types/hardware";
 
 export type VisualKind = "CPU" | "GPU" | "MOTHERBOARD" | "RAM" | "STORAGE_M2" | "STORAGE_SATA" | "STORAGE_HDD" | "STORAGE" | "OTHER";
 export type GpuVendor = "NVIDIA" | "AMD" | "Intel";
+export type CpuVendor = "AMD" | "Intel";
 export const visualAssets: Record<Exclude<VisualKind, "OTHER">, string> = {
   CPU: "cpu", GPU: "gpu", MOTHERBOARD: "motherboard", RAM: "ram",
   STORAGE_M2: "storage-nvme", STORAGE_SATA: "storage-sata", STORAGE_HDD: "storage-hdd", STORAGE: "storage"
 };
+/** Üreticisi bilinen işlemci ve ekran kartları kendi çizimini kullanır; bilinmiyorsa genel çizim kalır. */
+const cpuAssets: Record<CpuVendor, string> = { Intel: "cpu-intel", AMD: "cpu-amd" };
+const gpuAssets: Record<GpuVendor, string> = { NVIDIA: "gpu-nvidia", AMD: "gpu-amd", Intel: "gpu-intel" };
 
 /** Görsel seçimidir; ürün kaydını veya teknik değerlerini değiştirmez. */
 export function productVisual(product?: Product, category: Category = "OTHER") {
@@ -29,11 +33,19 @@ export function productVisual(product?: Product, category: Category = "OTHER") {
     else if (/\b(AMD|ATI|Radeon|FirePro)\b/i.test(chipset)) vendor = "AMD";
     else if (/\bIntel\b|\bArc\s+[AB]\d/i.test(chipset)) vendor = "Intel";
   }
+  let cpuVendor: CpuVendor | undefined;
+  if (product && kind === "CPU") {
+    const identity = [product.model, product.source?.brand, text("microarchitecture")].join(" ");
+    if (/\b(Intel|Core\s*(?:i[3579]|Ultra)|Xeon|Pentium|Celeron|Atom)\b/i.test(identity)) cpuVendor = "Intel";
+    else if (/\b(AMD|Ryzen|Athlon|Threadripper|EPYC|Opteron|Sempron|Phenom|FX-?\d)/i.test(identity)) cpuVendor = "AMD";
+  }
   const brands = product?.brands.filter((brand) => brand.status === "ACTIVE") ?? [];
   const manufacturer = product?.source?.brand?.trim() || (brands.length === 1 ? brands[0].name : undefined);
   const badgeKeys = kind === "CPU" ? ["microarchitecture", "socket"] : kind === "GPU" ? ["capacityGb", "boostClockMhz"]
     : kind === "RAM" ? ["memoryType", "capacityGb"] : kind === "MOTHERBOARD" ? ["socket", "formFactor"] : ["capacityGb", "interfaceType"];
-  return { kind: visual, vendor, manufacturer, badgeKeys: product ? badgeKeys.filter((key) => readSpec(product, key)).slice(0, 2) : [] };
+  const asset = visual === "CPU" && cpuVendor ? cpuAssets[cpuVendor] : visual === "GPU" && vendor ? gpuAssets[vendor]
+    : visual === "OTHER" ? undefined : visualAssets[visual];
+  return { kind: visual, asset, vendor, cpuVendor, manufacturer, badgeKeys: product ? badgeKeys.filter((key) => readSpec(product, key)).slice(0, 2) : [] };
 }
 
 /** Gelecekte yalnız incelenip yerel varlık olarak eklenmiş ürün fotoğrafları alınır. */

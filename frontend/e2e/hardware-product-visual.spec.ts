@@ -53,6 +53,7 @@ for (const width of [1920, 1440, 768, 375]) for (const theme of ["dark", "light"
     const pair = theme === "dark" ? products.slice(2, 4) : products.slice(0, 2);
     for (const p of pair) await page.getByTestId("catalog-product").filter({ has: page.getByRole("heading", { name: productName(p), exact: true }) }).getByRole("checkbox").check();
     await page.getByRole("button", { name: locale === "tr" ? "Karşılaştırmayı aç" : "Open comparison", exact: true }).click();
+    await expect(page).toHaveURL(/karsilastir|compare/);
     await expect(page.getByTestId("comparison-view")).toBeVisible();
     await expect(page.getByTestId("comparison-view").locator('[data-testid="hardware-product-visual"]')).toHaveCount(2);
     for (const visual of await page.getByTestId("comparison-view").locator('.hardwareVisual--compact').all()) {

@@ -35,6 +35,8 @@ export type SelectProps = {
   disabled?: boolean;
   required?: boolean;
   size?: "sm" | "md";
+  /** `oval`: 12px yuvarlak, zemini yüzeyden bir ton açık, kenarlığı hover/odakta görünen modern görünüm. */
+  variant?: "default" | "oval";
   className?: string;
   "aria-label"?: string;
   "aria-labelledby"?: string;
@@ -48,6 +50,13 @@ const MAX_LIST_HEIGHT = 288;
 const TYPEAHEAD_RESET_MS = 600;
 
 const sizeClass = { sm: "h-[35px] text-xs", md: "h-10 text-sm" } as const;
+
+/** Tetikleyici sınıfları; `MultiSelect` ile ortak tutulur ki iki bileşen aynı görünsün. */
+export function selectTriggerClass(size: "sm" | "md", variant: "default" | "oval"): string {
+  return variant === "oval"
+    ? cn("h-10 rounded-xl border border-transparent bg-[var(--ltz-select-bg,var(--ltz-surface-elevated))] px-3.5 text-sm hover:border-control-border aria-expanded:border-primary")
+    : cn("rounded-control border border-control-border bg-[var(--ltz-select-bg,var(--ltz-surface))] px-3 hover:border-text-secondary aria-expanded:border-primary", sizeClass[size]);
+}
 
 /**
  * LTZ'ye özgü açılır liste (tarayıcının yerel `<select>` görünümü yerine). APG "select-only combobox"
@@ -74,6 +83,7 @@ export function Select({
   disabled = false,
   required = false,
   size = "md",
+  variant = "default",
   className,
   "aria-label": ariaLabel,
   "aria-labelledby": ariaLabelledBy,
@@ -266,8 +276,8 @@ export function Select({
           if (open) close(false);
         }}
         className={cn(
-          "flex w-full min-w-0 items-center justify-between gap-2 rounded-control border border-control-border bg-[var(--ltz-select-bg,var(--ltz-surface))] px-3 text-start text-text-primary transition-colors duration-150 hover:border-text-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus aria-expanded:border-primary disabled:cursor-not-allowed disabled:opacity-60",
-          sizeClass[size],
+          "flex w-full min-w-0 items-center justify-between gap-2 text-start text-text-primary transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-60",
+          selectTriggerClass(size, variant),
           className
         )}
       >
@@ -298,7 +308,7 @@ export function Select({
                 width: placement.width,
                 maxHeight: placement.maxHeight
               }}
-              className="z-[100] overflow-y-auto overscroll-contain rounded-panel border border-border bg-surface p-1 text-text-primary shadow-popover animate-pop-in"
+              className={cn("z-[100] overflow-y-auto overscroll-contain border border-border bg-surface p-1 text-text-primary shadow-popover animate-pop-in", variant === "oval" ? "rounded-xl" : "rounded-panel")}
             >
               {options.map((option, index) => (
                 <div
@@ -310,7 +320,7 @@ export function Select({
                   data-active={index === active || undefined}
                   onPointerMove={() => !option.disabled && active !== index && setActive(index)}
                   onClick={() => choose(index)}
-                  className="flex min-h-9 cursor-pointer items-center justify-between gap-3 rounded-control px-2.5 py-1.5 text-sm transition-colors duration-100 data-[active]:bg-surface-elevated aria-selected:font-semibold aria-selected:text-brand-text aria-selected:shadow-[inset_2px_0_0_var(--ltz-primary)] aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+                  className={cn("flex min-h-9 cursor-pointer items-center justify-between gap-3 px-2.5 py-1.5 text-sm transition-colors duration-100 data-[active]:bg-surface-elevated aria-selected:font-semibold aria-selected:text-brand-text aria-selected:shadow-[inset_2px_0_0_var(--ltz-primary)] aria-disabled:cursor-not-allowed aria-disabled:opacity-50", variant === "oval" ? "rounded-lg" : "rounded-control")}
                 >
                   <span className="min-w-0 flex-1 truncate">{option.label}</span>
                   {index === selectedIndex ? <Icon name="check" className="size-4 shrink-0 text-primary" /> : null}

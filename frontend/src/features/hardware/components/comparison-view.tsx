@@ -16,21 +16,23 @@ const stateStyle: Record<RowState, string> = {
 };
 
 /**
- * Yan yana teknik karşılaştırma. Yalnız kayıtlı değerler gösterilir; eksik değer "—" olur,
- * "kazanan" ilan edilmez ve eksik alan "aynı" sayılmaz.
+ * Yan yana teknik karşılaştırma (iki ile dört ürün). Yalnız kayıtlı değerler gösterilir; eksik değer "—" olur,
+ * "kazanan" ilan edilmez ve eksik alan "aynı" sayılmaz. Tüm ürünler aynı kategoriden olmalıdır.
  */
-export function ComparisonView({ left, right }: { left: Product; right: Product }) {
+export function ComparisonView({ products, onRemove }: { products: Product[]; onRemove?: (product: Product) => void }) {
   const t = useTranslations("Hardware");
   const locale = useLocale();
   const [onlyDifferences, setOnlyDifferences] = useState(false);
   const labels = { yes: t("visual.yes"), no: t("visual.no") };
-  const keys = specProfiles[left.category]?.detail ?? [];
+  const category = products[0]?.category;
+  const keys = (category ? specProfiles[category]?.detail : undefined) ?? [];
   const rows = keys.map((key) => {
-    const a = readSpec(left, key);
-    const b = readSpec(right, key);
-    const state: RowState = !a || !b ? "missing" : specSignature(a) === specSignature(b) ? "similar" : "different";
-    return { key, state, a: formatSpec(a, locale, labels), b: formatSpec(b, locale, labels) };
-  }).filter((row) => row.a !== undefined || row.b !== undefined);
+    const values = products.map((product) => readSpec(product, key));
+    const recorded = values.filter((value) => value !== undefined);
+    const state: RowState = recorded.length < values.length ? "missing"
+      : new Set(recorded.map((value) => specSignature(value))).size === 1 ? "similar" : "different";
+    return { key, state, cells: values.map((value) => formatSpec(value, locale, labels)) };
+  }).filter((row) => row.cells.some((cell) => cell !== undefined));
   const count = (state: RowState) => rows.filter((row) => row.state === state).length;
   const visible = onlyDifferences ? rows.filter((row) => row.state === "different") : rows;
   const states: RowState[] = ["different", "similar", "missing"];
@@ -38,7 +40,7 @@ export function ComparisonView({ left, right }: { left: Product; right: Product 
   return <div className="space-y-4" data-testid="comparison-view">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <p role="status" className="text-sm text-text-secondary">{t("comparison.summary", { different: count("different"), same: count("similar"), missing: count("missing") })}</p>
-      <button type="button" className={`${button} min-h-9 py-1`} aria-pressed={onlyDifferences} onClick={() => setOnlyDifferences(!onlyDifferences)}>
+      <button type="button" className={`${button} min-h-9 rounded-control py-1`} aria-pressed={onlyDifferences} onClick={() => setOnlyDifferences(!onlyDifferences)}>
         {t(onlyDifferences ? "comparison.showAll" : "comparison.onlyDifferences")}
       </button>
     </div>
@@ -50,18 +52,19 @@ export function ComparisonView({ left, right }: { left: Product; right: Product 
     </ul>
     <p className="text-xs text-text-secondary">{t("productVisual.representative")}</p>
     <div className="overflow-x-auto rounded-panel border border-border">
-      <table className="w-full min-w-[34rem] table-fixed border-collapse text-start text-sm">
+      <table className="w-full table-fixed border-collapse text-start text-sm" style={{ minWidth: `${8 + products.length * 13}rem` }}>
         <caption className="sr-only">{t("comparison.title")}</caption>
         <thead>
           <tr className="align-bottom">
-            <th scope="col" className="w-[28%] p-3 text-start text-xs font-medium text-text-secondary">{t("comparison.property")}</th>
-            {[left, right].map((item) => <th scope="col" key={item.id} className="p-3 text-start align-top">
-              <div className="flex items-center gap-3">
-                <HardwareProductVisual product={item} variant="compact" className="h-12 w-20 flex-none rounded-control bg-background" />
+            <th scope="col" className="w-[16%] p-3 text-start text-xs font-medium text-text-secondary">{t("comparison.property")}</th>
+            {products.map((item) => <th scope="col" key={item.id} className="p-3 text-start align-top">
+              <div className="flex flex-col gap-3">
+                <HardwareProductVisual product={item} variant="compact" className="h-12 w-20 rounded-control bg-background" />
                 <div className="min-w-0">
                   <Link href={{ pathname: "/hardware/[productId]", params: { productId: item.id } }} className="block break-words font-display text-sm font-semibold leading-5 hover:text-brand-text">{productName(item)}</Link>
                   <p className="mt-0.5 break-words text-xs font-normal text-text-secondary">{productSubtitle(item) ?? t(`categories.${item.category}`)}</p>
                 </div>
+                {onRemove ? <button type="button" className={`${button} min-h-9 w-fit rounded-control px-3 py-1 text-xs`} onClick={() => onRemove(item)} aria-label={t("visual.removeProduct", { model: productName(item) })}>{t("visual.removeShort")}</button> : null}
               </div>
             </th>)}
           </tr>
@@ -69,13 +72,12 @@ export function ComparisonView({ left, right }: { left: Product; right: Product 
         <tbody>
           {visible.map((row) => <tr key={row.key} data-state={row.state} className={`border-t border-border ${stateStyle[row.state]}`}>
             <th scope="row" className="p-3 text-start text-sm font-normal text-text-secondary">
-              {t(`fields.${left.category}.${row.key}`)}
+              {t(`fields.${category}.${row.key}`)}
               <span className="sr-only"> — {t(`comparison.${row.state}`)}</span>
             </th>
-            <td className="break-words p-3 font-medium">{row.a ?? <span className="text-text-secondary">—</span>}</td>
-            <td className="break-words p-3 font-medium">{row.b ?? <span className="text-text-secondary">—</span>}</td>
+            {row.cells.map((cell, index) => <td key={products[index].id} className="break-words p-3 font-medium">{cell ?? <span className="text-text-secondary">—</span>}</td>)}
           </tr>)}
-          {visible.length === 0 ? <tr className="border-t border-border"><td colSpan={3} className="p-4 text-sm text-text-secondary">{t(rows.length ? "comparison.noDifferences" : "visual.noSpecs")}</td></tr> : null}
+          {visible.length === 0 ? <tr className="border-t border-border"><td colSpan={products.length + 1} className="p-4 text-sm text-text-secondary">{t(rows.length ? "comparison.noDifferences" : "visual.noSpecs")}</td></tr> : null}
         </tbody>
       </table>
     </div>

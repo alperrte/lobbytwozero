@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import type { Category, Product } from "../types/hardware";
-import { approvedImagePath, productVisual, visualAssets, type ApprovedHardwareImage } from "../schemas/product-visual";
+import { approvedImagePath, productVisual, type ApprovedHardwareImage } from "../schemas/product-visual";
 import { formatSpec, readSpec } from "../schemas/spec-profile";
 import { CatalogProductArt } from "./catalog-product-art";
 import "./hardware-product-visual.css";
@@ -20,10 +20,10 @@ export function HardwareProductVisual({ product, category, variant = "card", cla
   const approved = approvedImagePath(approvedImage);
   const real = approved && approved !== failed ? approved : undefined;
   const compact = variant === "compact" || variant === "category";
-  const source = real ?? (selected.kind === "OTHER" ? undefined : `/assets/hardware/illustrations/${visualAssets[selected.kind]}.svg`);
+  const source = real ?? (selected.asset ? `/assets/hardware/illustrations/${selected.asset}.svg` : undefined);
   const notice = t("productVisual.representative");
   return <div className={`hardwareVisual hardwareVisual--${variant} ${className}`} data-testid="hardware-product-visual"
-    data-kind={selected.kind} data-gpu-vendor={selected.vendor} data-real-image={Boolean(real)} title={compact ? notice : undefined}>
+    data-kind={selected.kind} data-gpu-vendor={selected.vendor} data-cpu-vendor={selected.cpuVendor} data-real-image={Boolean(real)} title={compact ? notice : undefined}>
     {!compact ? <div className="hardwareVisual__brand" title={selected.manufacturer ?? t("catalog.brandIndependent")}>
       {selected.manufacturer ?? t("catalog.brandIndependent")}
     </div> : null}

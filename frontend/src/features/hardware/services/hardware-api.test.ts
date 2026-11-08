@@ -42,6 +42,36 @@ describe("Hardware HTTP sözleşmeleri", () => {
     expect(fetch.mock.calls[0][1]).toMatchObject({ method, headers: { "Content-Type": "application/json", "X-XSRF-TOKEN": "test-csrf" } });
     expect(fetch.mock.calls[0][1].body).toBe(body === undefined ? undefined : JSON.stringify(body));
   });
+  it("CSRF çerezi yoksa yazmadan önce /auth/csrf çağrılır ve yazma isteği belirteçle gider", async () => {
+    const fetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.endsWith("/api/v1/auth/csrf")) { document.cookie = "XSRF-TOKEN=fresh-csrf; path=/"; return new Response(null, { status: 204 }); }
+      return new Response(JSON.stringify({ id: "r1" }), { status: 201 });
+    });
+    vi.stubGlobal("fetch", fetch);
+    await hardwareApi.saveReview("p", { body: "Experience", rating: 4 });
+    expect(fetch.mock.calls.map(([url]) => String(url).replace(/^.*\/api\/v1/, ""))).toEqual(["/auth/csrf", "/hardware/catalog/products/p/reviews"]);
+    expect(fetch.mock.calls[1][1]).toMatchObject({ method: "POST", headers: { "X-XSRF-TOKEN": "fresh-csrf" } });
+  });
+  it("CSRF_TOKEN_INVALID (403) dönerse çerez yenilenir ve istek bir kez tekrarlanır", async () => {
+    document.cookie = "XSRF-TOKEN=stale; path=/";
+    let writes = 0;
+    const fetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.endsWith("/api/v1/auth/csrf")) { document.cookie = "XSRF-TOKEN=renewed; path=/"; return new Response(null, { status: 204 }); }
+      writes += 1;
+      return writes === 1 ? new Response(JSON.stringify({ code: "CSRF_TOKEN_INVALID" }), { status: 403 }) : new Response(JSON.stringify({ id: "r1" }), { status: 201 });
+    });
+    vi.stubGlobal("fetch", fetch);
+    await expect(hardwareApi.saveReview("p", { body: "Experience", rating: 5 })).resolves.toEqual({ id: "r1" });
+    expect(writes).toBe(2);
+    expect(fetch.mock.calls.at(-1)?.[1]).toMatchObject({ headers: { "X-XSRF-TOKEN": "renewed" } });
+  });
+  it("başka 403 nedenlerinde istek tekrarlanmaz ve hata olduğu gibi döner", async () => {
+    document.cookie = "XSRF-TOKEN=ok; path=/";
+    const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ code: "ACCESS_DENIED" }), { status: 403 }));
+    vi.stubGlobal("fetch", fetch);
+    await expect(hardwareApi.saveReview("p", { body: "Experience", rating: 5 })).rejects.toMatchObject({ status: 403, code: "ACCESS_DENIED" });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
   it("CSRF yalnız izinli çerez adlarından okunur; token yoksa uydurulmaz", () => {
     expect(csrfHeader("ltz_access=private; XSRF-TOKEN=hello%3Dworld")).toEqual({ "X-XSRF-TOKEN": "hello=world" });
     expect(csrfHeader("XSRF-TOKEN=%XX")).toEqual({});

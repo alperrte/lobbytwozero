@@ -16,4 +16,13 @@ describe("Hardware girdi sınırları", () => {
     for (const part of ["chipset=GeForce+RTX+4070", "storageType=SSD", "maximumMemoryGb=192", "memorySlots=4", "casLatency=30", "brandId=b1", "minClockMhz=6000", "maxClockMhz=6000", "integratedGraphics=true"]) expect(query).toContain(part);
     expect(readCatalogQuery(new URLSearchParams("integratedGraphics=maybe"))).not.toContain("integratedGraphics");
   });
+  it("çoklu seçimi tekrarlanan parametre olarak korur, yinelenenleri ve boşları atar", () => {
+    const query = new URLSearchParams(readCatalogQuery(new URLSearchParams("socket=AM5&socket=AM4&socket=AM5&socket=&gpuVendor=NVIDIA&gpuVendor=AMD&coreCount=6&coreCount=8")));
+    expect(query.getAll("socket")).toEqual(["AM5", "AM4"]);
+    expect(query.getAll("gpuVendor")).toEqual(["NVIDIA", "AMD"]);
+    expect(query.getAll("coreCount")).toEqual(["6", "8"]);
+  });
+  it("tek parametre gibi okunan alanlar yalnız ilk değeri taşır", () => {
+    expect(new URLSearchParams(readCatalogQuery(new URLSearchParams("q=a&q=b"))).getAll("q")).toEqual(["a"]);
+  });
 });

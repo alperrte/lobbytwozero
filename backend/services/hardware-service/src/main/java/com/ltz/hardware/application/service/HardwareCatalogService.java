@@ -101,6 +101,10 @@ public class HardwareCatalogService {
                         new HardwareCatalogSearch.NumericRange("coreCount", filter.minCoreCount(), filter.maxCoreCount()),
                         new HardwareCatalogSearch.NumericRange("powerWatts", filter.minPowerWatts(), filter.maxPowerWatts())),
                 java.util.List.of(
+                        new HardwareCatalogSearch.NumericIn("capacityGb", filter.capacityGb()),
+                        new HardwareCatalogSearch.NumericIn("clockMhz", filter.clockMhz()),
+                        new HardwareCatalogSearch.NumericIn("coreCount", filter.coreCount())),
+                java.util.List.of(
                         new HardwareCatalogSearch.TextValue("memoryType", filter.memoryType()),
                         new HardwareCatalogSearch.TextValue("socket", filter.socket()),
                         new HardwareCatalogSearch.TextValue("interfaceType", filter.interfaceType()),
@@ -111,6 +115,8 @@ public class HardwareCatalogService {
                         new HardwareCatalogSearch.TypedSpec("maximumMemoryGb", null, filter.maximumMemoryGb()),
                         new HardwareCatalogSearch.TypedSpec("memorySlots", null, filter.memorySlots()),
                         new HardwareCatalogSearch.TypedSpec("casLatency", null, filter.casLatency())),
+                java.util.List.of(new HardwareCatalogSearch.TypedPrefix("chipset",
+                        com.ltz.hardware.domain.enums.GpuVendor.prefixes(filter.gpuVendor()))),
                 java.util.List.of(new HardwareCatalogSearch.TypedPresence("integratedGraphics",
                         Boolean.TRUE.equals(filter.integratedGraphics()))));
         if (discovery) criteria = criteria.and((root, query, cb) -> root.get("category").in(

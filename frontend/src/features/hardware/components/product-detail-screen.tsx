@@ -67,13 +67,11 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
             <button type="button" className={selected ? button : primaryButton} onClick={() => comparison.toggle(product)} aria-pressed={selected}>{t(selected ? "comparison.remove" : "comparison.add")}</button>
             <a href="#reviews" className={button}>{t("detail.reviewsLink")}</a>
           </div>
-          <p className="border-s-2 border-border ps-4 text-sm leading-6 text-text-secondary">{t("detail.dataNotice")}</p>
         </div>
       </div>
       <section className={`${panel} mt-8 p-5 sm:p-7`} aria-labelledby="specs-title">
         <h2 id="specs-title" className="mb-3 font-display text-xl font-semibold">{t("detail.specifications")}</h2>
         <ProductSpecificationTable product={product} />
-        <p className="mt-4 text-xs leading-5 text-text-secondary">{t("detail.sourceNote")}</p>
       </section>
       <ProductReviews key={product.id} productId={product.id} />
       <RelatedProducts category={product.category} productId={product.id} />
