@@ -1034,7 +1034,7 @@ Profil yoksa varsayılan değerlerle **oluşturulur** (Auth'un `UserRegistered` 
   "username": "string | null (Auth'tan UserRegistered olayıyla gelen kopya; olay gelene kadar null)",
   "displayName": "string 2-32 | null",
   "bio": "string ≤500 | null",
-  "playerTypes": ["CASUAL | COMPETITIVE | STORY | SOCIAL | COLLECTOR (en çok 2)"],
+  "playerTypes": ["CASUAL | COMPETITIVE | STORY | SOCIAL | COLLECTOR | EXPLORER | COMPLETIONIST | STRATEGIST | TEAM_PLAYER | CREATIVE | SPEEDRUNNER | HARDCORE (en çok 2)"],
   "favoriteGenres": ["katalog kodu (en çok 10)"],
   "favoritePlatforms": ["katalog kodu (en çok 10)"],
   "country": "ISO 3166-1 alpha-2 | null",
@@ -1083,7 +1083,7 @@ Gönderilmeyen ya da `null` alan **değişmez**; metin alanında `""`, liste ala
   "displayName": "string 2-32 Unicode kod noktası",
   "bio": "string ≤500 kod noktası (düz metin; satır sonu \\n serbest)",
   "country": "ISO 3166-1 alpha-2 (küçük harf kabul, büyük harfe çevrilir)",
-  "playerTypes": ["CASUAL | COMPETITIVE | STORY | SOCIAL | COLLECTOR"],
+  "playerTypes": ["CASUAL | COMPETITIVE | STORY | SOCIAL | COLLECTOR | EXPLORER | COMPLETIONIST | STRATEGIST | TEAM_PLAYER | CREATIVE | SPEEDRUNNER | HARDCORE"],
   "favoriteGenres": ["^[a-z0-9][a-z0-9_-]{0,47}$, en çok 10"],
   "favoritePlatforms": ["^[a-z0-9][a-z0-9_-]{0,47}$, en çok 10"]
 }
@@ -1615,7 +1615,7 @@ Tanımsız alan `400`. Favori tür ve platform listeleri zorunludur ve **boş ol
 ```json
 {
   "version": "long ≥ 0, zorunlu: GET /me/onboarding yanıtındaki version",
-  "playerTypes": ["isteğe bağlı: CASUAL | COMPETITIVE | STORY | SOCIAL | COLLECTOR (en çok 2)"],
+  "playerTypes": ["isteğe bağlı: CASUAL | COMPETITIVE | STORY | SOCIAL | COLLECTOR | EXPLORER | COMPLETIONIST | STRATEGIST | TEAM_PLAYER | CREATIVE | SPEEDRUNNER | HARDCORE (en çok 2)"],
   "favoriteGenres": ["katalog kodu (en az 1, en çok 10)"],
   "favoritePlatforms": ["katalog kodu (en az 1, en çok 10)"],
   "locale": "isteğe bağlı: tr | en",

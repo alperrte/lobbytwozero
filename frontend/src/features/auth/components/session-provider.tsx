@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { getMyProfileSummary, type ProfileSummary, type UserRequest } from "@/features/user";
+import { getMyProfileSummary, onProfileChanged, type ProfileSummary, type UserRequest } from "@/features/user";
 import {
   ShellSessionContext,
   type ShellSession
@@ -33,6 +33,10 @@ export function SessionProvider({ children, api, profileRequest = defaultProfile
   const session = useSessionState(api);
   const accountId = session.status === "authenticated" ? session.me.accountId : null;
   const [loaded, setLoaded] = useState<{ accountId: string; summary: ProfileSummary } | null>(null);
+  const [profileRevision, setProfileRevision] = useState(0);
+
+  // Profil sayfasında ad/fotoğraf değişince kabuktaki ad ve avatar yeniden alınır.
+  useEffect(() => onProfileChanged(() => setProfileRevision((value) => value + 1)), []);
 
   useEffect(() => {
     if (accountId === null) {
@@ -43,7 +47,7 @@ export function SessionProvider({ children, api, profileRequest = defaultProfile
       .then((summary) => setLoaded({ accountId, summary }))
       .catch(() => undefined);
     return () => controller.abort();
-  }, [accountId, profileRequest]);
+  }, [accountId, profileRequest, profileRevision]);
 
   const profile = loaded !== null && loaded.accountId === accountId ? loaded.summary : null;
 
