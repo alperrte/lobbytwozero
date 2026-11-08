@@ -64,7 +64,7 @@ export function ForgotPasswordForm({ api }: ForgotPasswordFormProps) {
 
       <div role="status" aria-live="polite" className="empty:hidden">
         {sent ? (
-          <p className="flex items-start gap-2.5 rounded-control border border-border bg-surface-elevated px-4 py-3 text-sm font-medium text-text-primary">
+          <p className="flex items-start gap-2.5 rounded-xl border border-border bg-surface-elevated px-4 py-3 text-sm font-medium text-text-primary">
             <Icon name="check" className="mt-0.5 size-4 shrink-0 text-brand-text" />
             <span>{t("forgot.sent")}</span>
           </p>
@@ -93,7 +93,7 @@ export function ForgotPasswordForm({ api }: ForgotPasswordFormProps) {
         type="submit"
         disabled={blocked}
         aria-busy={pending}
-        className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-control bg-primary px-6 py-3 text-base font-semibold text-primary-foreground transition-colors duration-150 hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+        className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-base font-semibold text-primary-foreground transition-colors duration-150 hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
       >
         {pending ? (
           t("forgot.submitting")

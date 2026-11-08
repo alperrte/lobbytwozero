@@ -4,7 +4,7 @@ import { AuthIcon, type AuthIconName } from "./auth-icons";
 
 /** Giriş/kayıt alanları için ortak giriş sınıfı (yalnız semantik tokenlar). */
 export const authControlClass =
-  "block w-full min-h-12 rounded-control border border-control-border bg-surface-elevated/60 py-3 ps-11 pe-3.5 text-base text-text-primary transition-colors duration-150 placeholder:text-text-secondary hover:border-text-secondary aria-[invalid=true]:border-primary aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-primary motion-reduce:transition-none";
+  "block w-full min-h-12 rounded-xl border border-control-border bg-surface-elevated/60 py-3 ps-11 pe-3.5 text-base text-text-primary transition-colors duration-150 placeholder:text-text-secondary hover:border-text-secondary aria-[invalid=true]:border-primary aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-primary motion-reduce:transition-none";
 
 type AriaProps = {
   id: string;

@@ -17,20 +17,44 @@ function useMediaQuery(query: string): boolean {
 
 const noop = () => undefined;
 
+/** Tarayıcı "veri tasarrufu" istiyorsa (Network Information API) video indirilmez; yalnız poster görünür. */
+type ConnectionLike = EventTarget & { saveData?: boolean };
+
+function connectionOf(): ConnectionLike | undefined {
+  return (navigator as Navigator & { connection?: ConnectionLike }).connection;
+}
+
+function useSaveData(): boolean {
+  return useSyncExternalStore(
+    (notify) => {
+      const connection = connectionOf();
+      connection?.addEventListener("change", notify);
+      return () => connection?.removeEventListener("change", notify);
+    },
+    () => connectionOf()?.saveData === true,
+    () => false
+  );
+}
+
+/** Üst üste bu kadar yükleme hatasından sonra vazgeçilir (poster kalır); sınırsız yeniden deneme olmaz. */
+const MAX_LOAD_FAILURES = 6;
+
 /**
- * Giriş/kayıt sayfalarının SOL PANELİ için arka plan videosu. `(auth)/layout.tsx` içinde durur: sayfalar arası geçişte
- * layout yeniden kurulmadığı için video kesilmeden akmaya devam eder.
+ * Auth sayfalarının TAM EKRAN arka plan videosu. `(auth)/layout.tsx` içinde durur: sayfalar arası geçişte
+ * layout yeniden kurulmadığı için video kesilmeden akmaya devam eder. `object-cover` ile ekranı kaplar (en-boy oranı korunur).
  *
  * - Rastgele başlar; biri bitince bir sonraki, önceden yüklenmiş ikinci video etiketine çapraz solmayla geçilir
  *   (tek etiketin kaynağını değiştirmek geçişte donma/siyah kare yapardı). Seçim kuralı: `backdrop-playlist.ts`.
- * - Yalnız geniş ekranda (lg+) ve "hareketi azalt" kapalıyken yüklenir/oynar; aksi halde sabit poster görünür, video
- *   hiç indirilmez. Her an en fazla iki video (oynayan + sıradaki) yüklüdür.
- * - Sessiz, kontrolsüz, ekran okuyuculardan gizli (süs). Sekme gizlenince durur. Yüklenemeyen video atlanır.
+ * - Yalnız geniş ekranda (lg+), "hareketi azalt" ve veri tasarrufu kapalıyken yüklenir/oynar; aksi halde sabit poster
+ *   görünür, video hiç indirilmez. Her an en fazla iki video (oynayan + sıradaki) yüklüdür.
+ * - Sessiz, kontrolsüz, ekran okuyuculardan gizli (süs). Sekme gizlenince durur. Yüklenemeyen video atlanır; art arda
+ *   `MAX_LOAD_FAILURES` hatadan sonra yeniden deneme bırakılır ve poster kalır.
  */
 export function AuthBackdrop() {
   const wide = useMediaQuery("(min-width: 1024px)");
   const reduced = useMediaQuery("(prefers-reduced-motion: reduce)");
-  const enabled = wide && !reduced;
+  const saveData = useSaveData();
+  const enabled = wide && !reduced && !saveData;
   const firstRef = useRef<HTMLVideoElement>(null);
   const secondRef = useRef<HTMLVideoElement>(null);
   const [visible, setVisible] = useState<0 | 1 | null>(null);
@@ -50,6 +74,7 @@ export function AuthBackdrop() {
     let activeEnded = false;
     let disposed = false;
     let timer: number | undefined;
+    let failures = 0;
 
     function pick(): number {
       const result = chooseNext({ weights, state, factor: AUTH_BACKDROP.playedWeightFactor, rng: Math.random });
@@ -103,12 +128,23 @@ export function AuthBackdrop() {
         }
       };
       const onPlaying = () => {
+        failures = 0;
         if (index === active) {
           setVisible(active);
         }
       };
       const onError = () => {
         if (disposed) {
+          return;
+        }
+        failures += 1;
+        if (failures > MAX_LOAD_FAILURES) {
+          // Hiçbir video yüklenemiyor (ağ yok, dosya eksik): döngüye girmeden bırak, poster görünür kalsın.
+          for (const item of players) {
+            item.pause();
+            item.removeAttribute("src");
+          }
+          setVisible(null);
           return;
         }
         if (index !== active) {
@@ -169,7 +205,7 @@ export function AuthBackdrop() {
     <div
       aria-hidden="true"
       data-testid="auth-backdrop"
-      className="pointer-events-none fixed inset-y-0 start-0 z-0 hidden w-[53.49%] overflow-hidden bg-neutral-950 bg-cover bg-center lg:block"
+      className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-neutral-950 bg-cover bg-center"
       style={{ backgroundImage: `url(${AUTH_BACKDROP.poster})` }}
     >
       {enabled ? (
@@ -178,9 +214,10 @@ export function AuthBackdrop() {
           <video ref={secondRef} muted playsInline preload="auto" tabIndex={-1} disablePictureInPicture disableRemotePlayback className={videoClass(1)} />
         </>
       ) : null}
-      {/* Okunabilirlik: soldaki yazı için koyu perde; tema renginden bağımsızdır. */}
-      <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/45 to-black/20" />
-      <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent" />
+      {/* Okunabilirlik: genel koyu perde + soldaki yazı için yan gradyan; tema renginden bağımsızdır. */}
+      <div className="absolute inset-0 bg-black/45" />
+      <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/15 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/55 to-transparent" />
     </div>
   );
 }

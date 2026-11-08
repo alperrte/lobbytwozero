@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AUTH_BACKDROP } from "../services/backdrop-playlist";
 import { AuthBackdrop } from "./auth-backdrop";
@@ -75,5 +75,38 @@ describe("AuthBackdrop", () => {
     unmount();
     expect(HTMLMediaElement.prototype.pause).toHaveBeenCalled();
     for (const video of videos) expect(video.getAttribute("src")).toBeNull();
+  });
+
+  it("tam ekran kaplar (fixed inset-0) ve video object-cover ile oranı korur", () => {
+    mockMedia({ [WIDE]: true });
+    const { container } = render(<AuthBackdrop />);
+    const panel = screen.getByTestId("auth-backdrop");
+    expect(panel.className).toContain("inset-0");
+    expect(panel.className).toContain("fixed");
+    for (const video of container.querySelectorAll("video")) {
+      expect(video.className).toContain("object-cover");
+    }
+  });
+
+  it("tarayıcı veri tasarrufu istiyorsa video çizilmez (yalnız poster)", () => {
+    mockMedia({ [WIDE]: true });
+    vi.stubGlobal("navigator", { ...navigator, connection: Object.assign(new EventTarget(), { saveData: true }) });
+    const { container } = render(<AuthBackdrop />);
+    expect(container.querySelectorAll("video")).toHaveLength(0);
+    expect(screen.getByTestId("auth-backdrop").style.backgroundImage).toContain(AUTH_BACKDROP.poster);
+  });
+
+  it("yükleme hataları sınırsız yeniden denenmez: sınırdan sonra videolar bırakılır, poster kalır", () => {
+    mockMedia({ [WIDE]: true });
+    const { container } = render(<AuthBackdrop />);
+    const videos = [...container.querySelectorAll("video")];
+    const load = HTMLMediaElement.prototype.load as unknown as ReturnType<typeof vi.fn>;
+    const second = videos[1] as HTMLVideoElement;
+    for (let i = 0; i < 6; i++) fireEvent.error(second);
+    const loadsBeforeCap = load.mock.calls.length;
+    for (let i = 0; i < 10; i++) fireEvent.error(second);
+    expect(load.mock.calls.length).toBe(loadsBeforeCap); // sınırdan sonra yeniden yükleme yok
+    for (const video of videos) expect(video.getAttribute("src")).toBeNull();
+    expect(screen.getByTestId("auth-backdrop")).toBeInTheDocument();
   });
 });

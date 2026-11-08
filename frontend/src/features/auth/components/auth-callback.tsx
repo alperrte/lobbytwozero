@@ -40,8 +40,8 @@ function Notice({ tone, children }: { tone: "info" | "error"; children: React.Re
       role={tone === "error" ? "alert" : "status"}
       className={
         tone === "error"
-          ? "flex items-start gap-2.5 rounded-control border border-primary/60 bg-primary/10 px-4 py-3 text-sm font-medium text-text-primary"
-          : "flex items-start gap-2.5 rounded-control border border-border bg-surface-elevated px-4 py-3 text-sm font-medium text-text-primary"
+          ? "flex items-start gap-2.5 rounded-xl border border-primary/60 bg-primary/10 px-4 py-3 text-sm font-medium text-text-primary"
+          : "flex items-start gap-2.5 rounded-xl border border-border bg-surface-elevated px-4 py-3 text-sm font-medium text-text-primary"
       }
     >
       <Icon name={tone === "error" ? "info" : "check"} className="mt-0.5 size-4 shrink-0 text-brand-text" />
@@ -150,7 +150,7 @@ function SteamCompleteForm({ token, api }: { token: string; api: AuthCallbackPro
         type="submit"
         disabled={pending || cooldown > 0}
         aria-busy={pending}
-        className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-control bg-primary px-6 py-3 text-base font-semibold text-primary-foreground transition-colors duration-150 hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+        className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-base font-semibold text-primary-foreground transition-colors duration-150 hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
       >
         {pending ? t("register.submitting") : (<>{t("callback.steam.submit")}<AuthIcon name="arrow" /></>)}
       </button>

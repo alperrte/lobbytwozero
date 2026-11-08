@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { AuthShell, RegisterForm } from "@/features/auth";
+import { RegisterForm } from "@/features/auth";
 import { Link } from "@/shared/lib/i18n/navigation";
 
 /** Sekme başlığı kök şablondan ("LTZ | %s") gelir; `(auth)` grubu zaten `noindex` yayınlar. */
@@ -9,12 +9,12 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("register.metaTitle") };
 }
 
-/** Kayıt sayfası: yalnız çerçeve + form birleştirir; iş mantığı `features/auth` içindedir. */
+/** Kayıt sayfası: yalnız kart içeriğini (başlık + form) üretir; çerçeve `(auth)/layout.tsx` sahnesindedir; iş mantığı `features/auth` içindedir. */
 export default async function RegisterPage() {
   const t = await getTranslations("Auth");
 
   return (
-    <AuthShell variant="register">
+    <>
       <h1 className="font-display text-3xl font-bold text-text-primary">{t("register.title")}</h1>
       <p className="mt-2 mb-6 text-base text-text-secondary">{t("register.description")}</p>
       <RegisterForm />
@@ -24,6 +24,6 @@ export default async function RegisterPage() {
           {t("register.toLogin")}
         </Link>
       </p>
-    </AuthShell>
+    </>
   );
 }

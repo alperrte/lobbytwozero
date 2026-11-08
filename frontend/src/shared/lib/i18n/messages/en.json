@@ -755,7 +755,11 @@
         "headlineStart": "Open a new door",
         "headlineAccent": "to your game world.",
         "subline": "Create your profile, discover new games and meet players who share your passion."
-      }
+      },
+      "navLabel": "Navigation",
+      "navLogin": "Sign in",
+      "navRegister": "Sign up",
+      "welcomeLabel": "Welcome"
     },
     "login": {
       "metaTitle": "Sign in",

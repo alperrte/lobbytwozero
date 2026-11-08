@@ -53,7 +53,7 @@ export function ProblemNotice({ code, retryAfterSeconds }: ProblemNoticeProps) {
   return (
     <p
       role="alert"
-      className="flex items-start gap-2.5 rounded-control border border-primary/60 bg-primary/10 px-4 py-3 text-sm font-medium text-text-primary"
+      className="flex items-start gap-2.5 rounded-xl border border-primary/60 bg-primary/10 px-4 py-3 text-sm font-medium text-text-primary"
     >
       <Icon name="info" className="mt-0.5 size-4 shrink-0 text-brand-text" />
       <span>{t(`errors.${key}`, { time: formatWait(retryAfterSeconds ?? 0) })}</span>

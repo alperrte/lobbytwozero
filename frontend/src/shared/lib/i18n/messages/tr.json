@@ -755,7 +755,11 @@
         "headlineStart": "Oyun dünyana",
         "headlineAccent": "yeni bir kapı aç.",
         "subline": "Profilini oluştur, yeni oyunlar keşfet ve seninle aynı tutkuyu paylaşan oyuncularla buluş."
-      }
+      },
+      "navLabel": "Gezinme",
+      "navLogin": "Giriş yap",
+      "navRegister": "Kayıt ol",
+      "welcomeLabel": "Karşılama"
     },
     "login": {
       "metaTitle": "Giriş yap",

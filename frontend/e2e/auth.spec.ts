@@ -414,7 +414,9 @@ test.describe("kayıt ve e-posta doğrulama", () => {
   test("giriş sayfasından kayıt sayfasına bağlantı vardır", async ({ page }) => {
     await mockGateway(page, {});
     await page.goto("/tr/giris");
-    await expect(page.getByRole("link", { name: "Kayıt ol" })).toHaveAttribute("href", "/tr/kayit");
+    await expect(page.getByRole("main").getByRole("link", { name: "Kayıt ol" })).toHaveAttribute("href", "/tr/kayit");
+    // Üst çubukta da aynı gezinme vardır.
+    await expect(page.getByRole("banner").getByRole("link", { name: "Kayıt ol" })).toHaveAttribute("href", "/tr/kayit");
   });
 
   test("boş gönderimde hatalar gösterilir ve istek atılmaz", async ({ page }) => {
@@ -751,7 +753,7 @@ test.describe("silme talebinden vazgeç ve doğrulanmamış e-posta", () => {
 
     await expect(page.getByRole("status")).toContainText("Silme talebin iptal edildi");
     expect(bodies).toEqual([{ identifier: "ada", password: "dogru-parola-123456" }]);
-    await expect(page.getByRole("link", { name: "Giriş yap" })).toHaveAttribute("href", "/tr/giris");
+    await expect(page.getByRole("main").getByRole("link", { name: "Giriş yap" })).toHaveAttribute("href", "/tr/giris");
   });
 
   test("geri alma süresi dolmuşsa açıklayıcı mesaj gösterir", async ({ page }) => {
@@ -785,7 +787,7 @@ test.describe("silme talebinden vazgeç ve doğrulanmamış e-posta", () => {
   });
 });
 
-test.describe("sol panel arka plan videosu", () => {
+test.describe("tam ekran arka plan videosu", () => {
   test("geniş ekranda iki video etiketi vardır; sayfa geçişinde AYNI etiketler kalır (video kesilmez)", async ({ page }) => {
     await mockGateway(page, {});
     await page.setViewportSize({ width: 1440, height: 900 });
@@ -807,7 +809,7 @@ test.describe("sol panel arka plan videosu", () => {
     await expect(videos).toHaveCount(2);
   });
 
-  test("telefon genişliğinde video hiç yüklenmez", async ({ page }) => {
+  test("telefon genişliğinde video yüklenmez; yalnız poster görünür", async ({ page }) => {
     await mockGateway(page, {});
     const requested: string[] = [];
     page.on("request", (request) => request.url().includes("/auth-videos/") && requested.push(request.url()));
@@ -815,7 +817,9 @@ test.describe("sol panel arka plan videosu", () => {
     await page.goto("/tr/giris");
     await waitForHydration(page);
     await expect(page.locator('[data-testid="auth-backdrop"] video')).toHaveCount(0);
-    expect(requested).toEqual([]);
+    // Poster bilerek yüklenir (video yerine görünen sabit görsel); hiçbir mp4 istenmez.
+    expect(requested.filter((url) => url.endsWith(".mp4"))).toEqual([]);
+    expect(requested.every((url) => url.endsWith("/auth-videos/poster.jpg"))).toBe(true);
   });
 
   test("'hareketi azalt' açıkken video yüklenmez", async ({ page }) => {

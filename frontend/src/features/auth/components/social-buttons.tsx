@@ -8,7 +8,7 @@ type SocialButtonsProps = {
 };
 
 const linkClass =
-  "inline-flex min-h-12 items-center justify-center gap-2.5 rounded-control border border-control-border bg-transparent px-4 py-3 text-sm font-semibold text-text-primary transition-colors duration-150 hover:border-text-secondary hover:bg-surface-elevated/60 motion-reduce:transition-none";
+  "inline-flex min-h-12 items-center justify-center gap-2.5 rounded-xl border border-control-border bg-transparent px-4 py-3 text-sm font-semibold text-text-primary transition-colors duration-150 hover:border-text-secondary hover:bg-surface-elevated/60 motion-reduce:transition-none";
 
 /**
  * Google ve Steam ile giriş/kayıt düğmeleri. Bunlar API çağrısı değil TARAYICI GEZİNMESİDİR: Auth sağlayıcıya yönlendirir
