@@ -36,13 +36,13 @@ describe("Pazar ve güncellik bilgili fiyatlar", () => {
     mount(); await screen.findByText(messages.Game.priceStates.UNAVAILABLE);
     expect(screen.queryByText("wrong market")).toBeNull();
   });
-  it("ülke seçilir (para birimi otomatik gelir; USD, EUR, GBP, TRY yok) ve doğru pazarı ister", async () => {
+  it("ülke seçilir (para birimi otomatik gelir; doğrulanmış 12 pazar, TRY yok) ve doğru pazarı ister", async () => {
     load.mockResolvedValue({ market: { country: "US", currency: "USD" }, items: [{ gameId, status: "NO_OFFER", offers: [] }] });
     mount(); await screen.findByText(messages.Game.priceStates.NO_OFFER);
     expect(screen.queryByLabelText(messages.Game.fields.currency)).toBeNull();
     const select = screen.getByLabelText(messages.Game.fields.country) as HTMLSelectElement;
-    expect([...select.options].map((option) => option.value)).toEqual(["USD", "EUR", "GBP"]);
-    expect([...select.options].map((option) => option.textContent)).toEqual(["Amerika Birleşik Devletleri (USD)", "Almanya (EUR)", "Birleşik Krallık (GBP)"]);
+    expect([...select.options].map((option) => option.value)).toEqual(["USD", "EUR", "AUD", "GBP", "BRL", "CNY", "KRW", "INR", "JPY", "CAD", "PLN", "NZD"]);
+    expect([...select.options].map((option) => option.textContent)).toEqual(["Amerika Birleşik Devletleri (USD)", "Almanya (EUR)", "Avustralya (AUD)", "Birleşik Krallık (GBP)", "Brezilya (BRL)", "Çin (CNY)", "Güney Kore (KRW)", "Hindistan (INR)", "Japonya (JPY)", "Kanada (CAD)", "Polonya (PLN)", "Yeni Zelanda (NZD)"]);
     fireEvent.change(select, { target: { value: "EUR" } });
     await waitFor(() => expect(select.value).toBe("EUR"));
     expect(load.mock.calls.some(([resource]) => resource.kind === "prices" && resource.country === "DE" && resource.currency === "EUR")).toBe(true);

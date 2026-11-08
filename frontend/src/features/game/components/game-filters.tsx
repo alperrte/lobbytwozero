@@ -8,7 +8,7 @@ import { controlClass } from "./game-status";
 import { GameCombobox } from "./game-combobox";
 import { GameDatePicker } from "./game-date-picker";
 import { termLabel } from "../services/format";
-import { marketForCurrency, marketLabel, priceMarkets } from "../services/price-markets";
+import { marketForCurrency, marketLabel, marketOptions } from "../services/price-markets";
 import { languageOptions } from "../services/language-options";
 import { useGameResource } from "../hooks/use-game-resource";
 import type { TermList } from "../types/game";
@@ -70,7 +70,7 @@ export function GameFilters({ params, onApply }: { params: URLSearchParams; onAp
         <div className="flex flex-col gap-2 text-sm"><label htmlFor={`${id}-releasedAfter`}>{t("fields.releasedAfter")}</label><GameDatePicker id={`${id}-releasedAfter`} value={draft.releasedAfter} onValueChange={(next) => set("releasedAfter", next)} min="0001-01-01" max="9999-12-31" invalid={errors.includes("dateRange")} describedBy={errors.includes("dateRange") ? `${id}-date` : undefined} /></div>
         <div className="flex flex-col gap-2 text-sm"><label htmlFor={`${id}-releasedBefore`}>{t("fields.releasedBefore")}</label><GameDatePicker id={`${id}-releasedBefore`} value={draft.releasedBefore} onValueChange={(next) => set("releasedBefore", next)} min="0001-01-01" max="9999-12-31" invalid={errors.includes("dateRange")} describedBy={errors.includes("dateRange") ? `${id}-date` : undefined} /></div>
         <label className="flex flex-col gap-2 text-sm">{t("fields.minRating")}<input type="number" inputMode="decimal" min={1} max={10} step="0.01" value={draft.minRating} onChange={(event) => set("minRating", event.target.value)} className={controlClass} aria-invalid={errors.includes("minRating") || undefined} aria-describedby={errors.includes("minRating") ? `${id}-rating` : undefined} /></label>
-        <label className="flex flex-col gap-2 text-sm">{t("fields.country")}<GameSelect className={controlClass} value={marketForCurrency(draft.currency).currency} onChange={(event) => set("currency", event.target.value)}>{priceMarkets.map((market) => <option key={market.currency} value={market.currency}>{marketLabel(market, locale)}</option>)}</GameSelect></label>
+        <label className="flex flex-col gap-2 text-sm">{t("fields.country")}<GameSelect className={controlClass} value={marketForCurrency(draft.currency).currency} onChange={(event) => set("currency", event.target.value)}>{marketOptions(locale).map((market) => <option key={market.currency} value={market.currency}>{marketLabel(market, locale)}</option>)}</GameSelect></label>
         {["popularOnly", "discountedOnly"].map((key) => <label key={key} className="flex min-h-11 items-center gap-3 self-end text-sm"><input type="checkbox" className={checkboxClass} checked={draft[key] === "true"} onChange={(event) => set(key, event.target.checked ? "true" : "")} />{t(`fields.${key}`)}</label>)}
       </div>
       {errors.includes("dateRange") && <p id={`${id}-date`} role="alert" className="mt-4 text-sm text-brand-text">{t("filterErrors.dateRange")}</p>}

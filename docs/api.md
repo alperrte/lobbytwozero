@@ -2402,7 +2402,7 @@ Status: AVAILABLE (en az bir güncel teklif; yalnız güncel teklifler), STALE (
 Offer: gameId, store, market, regularPrice, currentPrice, source=ITAD, fetchedAt, expiresAt, url, discountPercent, sourceUpdatedAt. Ücretsiz gerçek teklif currentPrice=0 olabilir. Provider'ın tutar/para birimi, indirim ve affiliate URL'si korunur; linke backend istek atmaz.
 Listeleme, aktif oyun kimlikleri + fiyatlar + boş teklif durumu için sabit sayıda toplu SQL kullanır; HTTP/SQL N+1 yoktur. Aynı transaction görünümü kullanılır.
 
-- Yenilenen pazarlar (`ltz.game.pricing.markets`): `US/USD`, `GB/GBP`, `DE/EUR`; ITAD ülke başına tek para birimi döndürdüğünden ülke ve para birimi birlikte verilir. `TRY` ve diğer pazarlar yenilenmez (Steam Türkiye için TL ile satmaz); yenilenmeyen pazar `UNAVAILABLE` döner.
+- Yenilenen pazarlar (`ltz.game.pricing.markets`): `US/USD`, `GB/GBP`, `DE/EUR`, `CA/CAD`, `AU/AUD`, `NZ/NZD`, `PL/PLN`, `BR/BRL`, `JP/JPY`, `KR/KRW`, `IN/INR`, `CN/CNY`. ITAD ülke başına tek para birimi döndürdüğünden ülke ve para birimi birlikte verilir; çiftler canlı ITAD ile doğrulanmıştır (2026-11-09). `TRY` ve listede olmayan pazarlar yenilenmez (Steam Türkiye için TL ile satmaz; İsviçre, Norveç, Meksika gibi ülkelerde ITAD yerel para birimi döndürmez); yenilenmeyen pazar `UNAVAILABLE` döner.
 - ITAD fiyatı olmayan oyun için satır döndürmez: o oyun `NO_OFFER` olur ve aynı istekteki diğer oyunların fiyatını geçersiz kılmaz.
 
 #### Hata Durumları

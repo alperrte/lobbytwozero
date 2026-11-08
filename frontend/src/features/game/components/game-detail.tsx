@@ -78,7 +78,7 @@ export function GameDetail({ gameId }: { gameId: string }) {
           </dl>
         </div>
       </header>
-      <nav aria-label={t("pageSections")} className="sticky top-[var(--spacing-header)] z-10 -mx-1 flex gap-1 overflow-x-auto border-b border-border bg-background/95 px-1 backdrop-blur [scrollbar-width:thin]">
+      <nav aria-label={t("pageSections")} className="-mx-1 flex gap-1 overflow-x-auto border-b border-border px-1 [scrollbar-width:thin]">
         {sections.map((id) => <a key={id} href={`#game-${id}`} className="inline-flex min-h-11 shrink-0 items-center border-b-2 border-transparent px-4 text-sm font-semibold text-text-secondary hover:border-control-border hover:text-text-primary focus-visible:border-primary">{t(`sections.${id}`)}</a>)}
       </nav>
       <section id="game-overview" aria-labelledby="game-overview-title" className="scroll-mt-32 space-y-4">

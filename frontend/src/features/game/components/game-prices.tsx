@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useGameResource } from "../hooks/use-game-resource";
 import { safeExternalUrl } from "../services/discovery-query";
 import type { GamePricesResponse } from "../types/game";
-import { marketForCurrency, marketLabel, priceMarkets } from "../services/price-markets";
+import { marketForCurrency, marketLabel, marketOptions, priceMarkets } from "../services/price-markets";
 import { controlClass, GameStatus } from "./game-status";
 import { Badge, GameSelect } from "./game-ui";
 
@@ -35,7 +35,7 @@ export function GamePrices({ gameId }: { gameId: string }) {
   return <section aria-labelledby="game-prices" className="border-t border-border pt-8">
     <h2 id="game-prices" className="font-display text-2xl font-semibold">{t("prices")}</h2>
     <div className="my-5 flex flex-wrap items-end gap-4">
-      <label className="flex flex-col gap-2 text-sm">{t("fields.country")}<GameSelect value={currency} onChange={(event) => setCurrency(event.target.value)} className={controlClass}>{priceMarkets.map((market) => <option key={market.currency} value={market.currency}>{marketLabel(market, locale)}</option>)}</GameSelect></label>
+      <label className="flex flex-col gap-2 text-sm">{t("fields.country")}<GameSelect value={currency} onChange={(event) => setCurrency(event.target.value)} className={controlClass}>{marketOptions(locale).map((market) => <option key={market.currency} value={market.currency}>{marketLabel(market, locale)}</option>)}</GameSelect></label>
     </div>
     <GameStatus {...result} onRetry={result.reload} />
     {result.data && (offers.length ? <ul className="space-y-3">{offers.map((offer) => <li key={offer.store} className="flex flex-wrap items-center justify-between gap-4 rounded-panel border border-border bg-surface p-4">
