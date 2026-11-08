@@ -9,6 +9,7 @@
 //   node ops/dev.mjs --with=game-service,library-service   # çekirdeğe ek servisler (virgülle)
 //   node ops/dev.mjs --all           # compose'taki TÜM servisler (20): önce bellek denetlenir, yetmiyorsa durur (--force ile geçilir)
 //                                    # Hardware dahilse PC parça kataloğu, Hardware başlamadan önce içe aktarılır (--no-catalog ile atlanır)
+//                                    # Game dahilse oyun kataloğu (hazır döküm), Game başlamadan önce içe aktarılır (--no-catalog ile atlanır)
 //   node ops/dev.mjs stop            # servisleri durdur (veri kalır)
 //   node ops/dev.mjs reset           # servisleri VE tüm yerel veriyi sil (onay ister)
 //   node ops/dev.mjs status          # servis ve e-posta durumu
@@ -33,7 +34,7 @@
 //      Her Spring servisi boştayken ~350 MB tutar; Docker belleği (varsayılan RAM'in yarısı) yetmezse betik başlamadan durur.
 //   5. Frontend: node_modules eksik/eskiyse `npm ci`, sonra http://localhost:5001 (port 5001 şart: Gateway CORS varsayılanı).
 // Yalnız yerel geliştirme içindir; production dağıtımı bu betiği kullanmaz. Hardware kataloğu içe aktarma ayrı kalır:
-// ops/hardware-catalog-import.mjs.
+// ops/hardware-catalog-import.mjs; Game kataloğu: ops/game-catalog-import.mjs.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -3731,10 +3732,17 @@ async function devCommand(argv) {
     const targets = extraServices.length > 0 ? [...CORE_SERVICES, ...extraServices] : [];
     // Hardware seçiliyse katalog, Hardware servisi AYAĞA KALKMADAN önce içe aktarılır: önce diğer servisler (Postgres dahil), sonra katalog, en son Hardware.
     const catalogFirst = wantsHardware() && !flags.has("--no-catalog");
-    runNode("accounts", ["up", ...noBuild, ...(catalogFirst ? targets.filter((name) => name !== "hardware-service") : targets)]);
+    // Game seçiliyse oyun kataloğu (hazır veritabanı dökümü) da Game servisi AYAĞA KALKMADAN önce aktarılır.
+    const gameCatalogFirst = wantsGame() && !flags.has("--no-catalog");
+    const upFirst = (catalogFirst ? targets.filter((name) => name !== "hardware-service") : targets).filter((name) => !gameCatalogFirst || name !== "game-service");
+    runNode("accounts", ["up", ...noBuild, ...upFirst]);
     if (catalogFirst) {
       importHardwareCatalog();
       runNode("accounts", ["up", "--no-seed", ...noBuild, "hardware-service"]);
+    }
+    if (gameCatalogFirst) {
+      importGameCatalog();
+      runNode("accounts", ["up", "--no-seed", ...noBuild, "game-service"]);
     }
     if (extraServices.length > 0 && !dryRun) await reportServices(extraServices);
   }
@@ -3746,6 +3754,11 @@ async function devCommand(argv) {
   /** `--all` veya `--with=hardware-service` ile Hardware servisi isteniyor mu? (kuru çalıştırmada da doğru cevap verir) */
   function wantsHardware() {
     return flags.has("--all") || withServices.includes("hardware-service");
+  }
+
+  /** `--all` veya `--with=game-service` ile Game servisi isteniyor mu? */
+  function wantsGame() {
+    return flags.has("--all") || withServices.includes("game-service");
   }
 
   /**
@@ -3776,6 +3789,33 @@ async function devCommand(argv) {
       return;
     }
     console.log("  ✓ Hardware kataloğu hazır");
+  }
+
+  /**
+   * Game kataloğunu (oyunlar, terimler, açıklamalar, DLC ilişkisi, fiyatlar) hazır veritabanı dökümünden içe aktarır: ops/game-catalog-import.mjs.
+   * Böylece API anahtarı olmadan da oyun verisi gelir. game_db zaten doluysa dokunulmaz. Manifestte indirme adresi yoksa dökümü elle koymak gerekir.
+   * Hata kurulumu durdurmaz: uyarı yazılır, Game yine başlar.
+   */
+  function importGameCatalog() {
+    const importer = resolve(root, "ops", "game-catalog-import.mjs");
+    const dataset = resolve(root, "game-catalog-dump");
+    const manual = `node ops/game-catalog-import.mjs import "${dataset}"`;
+    console.log("  Game kataloğu, Game servisi başlamadan önce içe aktarılıyor …");
+    if (dryRun) {
+      console.log(`  (kuru çalıştırma) indir (yoksa) → ${manual}`);
+      return;
+    }
+    mkdirSync(dataset, { recursive: true });
+    const importerRun = (args) => spawnSync(process.execPath, [importer, ...args], { cwd: root, stdio: "inherit" });
+    if (!existsSync(resolve(dataset, "ltz-game-catalog.dump")) && importerRun(["download", dataset]).status !== 0) {
+      console.log(`  ⚠ Game kataloğu indirilemedi; atlandı. Dökümü ${dataset} klasörüne koyup dene: ${manual}`);
+      return;
+    }
+    if (importerRun(["import", dataset]).status !== 0) {
+      console.log(`  ⚠ Game kataloğu içe aktarılamadı (döküm eskiyse ${dataset} klasörünü silip tekrar dene). El ile: ${manual}`);
+      return;
+    }
+    console.log("  ✓ Game kataloğu hazır");
   }
 
   /** Compose'taki tüm servis adları (profil dahil). */

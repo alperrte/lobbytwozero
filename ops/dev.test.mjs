@@ -1251,5 +1251,27 @@ describe("birleşik dosya", () => {
     assert.ok(!run(["--with=game-service"]).stdout.includes("hardware-catalog-import"));
     assert.ok(run(["--with=hardware-service"]).stdout.includes("hardware-catalog-import.mjs import"));
   });
+
+  test("Game kataloğu: Game başlamadan önce içe aktarılır; --no-catalog ile atlanır; ENV okunmaz", () => {
+    const start = region("start");
+    assert.match(start, /wantsGame\(\) && !flags\.has\("--no-catalog"\)/);
+    const body = start.slice(start.indexOf("const gameCatalogFirst"));
+    const order = [body.indexOf("importGameCatalog();"), body.indexOf('"game-service"]);')];
+    assert.ok(order.every((index) => index >= 0) && order[0] < order[1], "sıra: Game kataloğu → game-service");
+    assert.match(start, /name !== "game-service"/);
+    assert.ok(!/\.env(?:\.dev)?"\)/.test(start.slice(start.indexOf("function importGameCatalog"))), "Game katalog adımı ENV dosyası okumaz");
+  });
+
+  test("dry-run: --with=game-service katalogu Game'den önce yazdırır; --no-catalog ve Game'siz akışta yazdırılmaz", () => {
+    const run = (args) => spawnSync(process.execPath, [devPath, "--dry-run", "--no-frontend", "--no-mail", "--skip-keys", ...args], { encoding: "utf8" });
+    const withGame = run(["--with=game-service"]);
+    assert.equal(withGame.status, 0, withGame.stderr);
+    const catalog = withGame.stdout.indexOf("game-catalog-import.mjs import");
+    const game = withGame.stdout.indexOf("accounts up --no-seed game-service");
+    assert.ok(catalog >= 0 && game > catalog, "sıra: katalog → game-service");
+    assert.ok(!run(["--with=game-service", "--no-catalog"]).stdout.includes("game-catalog-import"));
+    assert.ok(!run(["--with=hardware-service"]).stdout.includes("game-catalog-import"));
+    assert.ok(run(["--all"]).stdout.includes("game-catalog-import.mjs import"));
+  });
 });
 // #endregion birleşik-dosya
