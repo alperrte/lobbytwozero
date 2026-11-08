@@ -3798,13 +3798,14 @@ async function devCommand(argv) {
    */
   function importGameCatalog() {
     const importer = resolve(root, "ops", "game-catalog-import.mjs");
-    const dataset = resolve(tmpdir(), "ltz-game-catalog");
+    const dataset = resolve(root, "game-catalog-dump");
     const manual = `node ops/game-catalog-import.mjs import "${dataset}"`;
     console.log("  Game kataloğu, Game servisi başlamadan önce içe aktarılıyor …");
     if (dryRun) {
       console.log(`  (kuru çalıştırma) indir (yoksa) → ${manual}`);
       return;
     }
+    mkdirSync(dataset, { recursive: true });
     const importerRun = (args) => spawnSync(process.execPath, [importer, ...args], { cwd: root, stdio: "inherit" });
     if (!existsSync(resolve(dataset, "ltz-game-catalog.dump")) && importerRun(["download", dataset]).status !== 0) {
       console.log(`  ⚠ Game kataloğu indirilemedi; atlandı. Dökümü ${dataset} klasörüne koyup dene: ${manual}`);

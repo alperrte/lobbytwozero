@@ -30,7 +30,7 @@ node ops/dev.mjs help
 Başlatma bayrakları: `--no-frontend --no-mail --no-build --no-services --no-catalog --skip-keys --dry-run --with=a,b --all --force`.
 
 **Hardware kataloğu:** `--all` veya `--with=hardware-service` ile Hardware seçiliyse akış şöyledir: önce diğer servisler (Postgres dahil) kalkar → `hardware-catalog-import.mjs import <geçici-klasör> --standalone` çalışır → en son Hardware servisi başlar. Veri seti `%TEMP%/ltz-pc-part-dataset` klasörüne (yoksa) SHA-256 doğrulamalı indirilir. Katalog hatası kurulumu durdurmaz, uyarı yazılır. Atlamak için `--no-catalog`.
-**Game kataloğu:** `--all` veya `--with=game-service` ile Game seçiliyse aynı sırayla `game-catalog-import.mjs import <geçici-klasör>` Game servisi başlamadan önce çalışır (`%TEMP%/ltz-game-catalog`; döküm yoksa manifestteki adresten indirilir). `game_db` zaten doluysa dokunulmaz; hata kurulumu durdurmaz. Atlamak için `--no-catalog`.
+**Game kataloğu:** `--all` veya `--with=game-service` ile Game seçiliyse aynı sırayla `game-catalog-import.mjs import <geçici-klasör>` Game servisi başlamadan önce çalışır (depo kökündeki `game-catalog-dump/` klasörü; döküm yoksa manifestteki adresten indirilir). `game_db` zaten doluysa dokunulmaz; hata kurulumu durdurmaz. Atlamak için `--no-catalog`.
 Başlatma akışı Node 24.7+ ve Docker ister. `dev.mjs` içindeki bölümler `// #region` işaretleriyle ayrılır; testler bölüm bazlı çalışır.
 
 ### e2e (gerçek-HTTP kabul testleri)
@@ -75,15 +75,16 @@ node ops/hardware-catalog-import.mjs import <dataset-klasörü> --standalone   #
 Oyunlar, terimler, açıklamalar (dile göre), DLC ilişkisi, dil desteği, medya, fiyatlar ve sağlayıcı senkron durumu **tek veritabanı dökümü** olarak taşınır; Steam/IGDB/ITAD anahtarı ve yeniden çekme gerekmez. Döküm tüm `game_db` şemasını (Flyway geçmişi dahil) taşır, hesap kimliği içeren tablolar boştur.
 
 ```sh
-node ops/game-catalog-import.mjs export <klasör>            # (dökümü üreten kişi) ltz-dev Postgres'inden döküm + manifest yazar
-node ops/game-catalog-import.mjs download <klasör>          # manifestteki adresten indirir, SHA-256 doğrular
-node ops/game-catalog-import.mjs verify <klasör>            # dosya bütünlüğü ve şema uyumu (veritabanına dokunmaz)
-node ops/game-catalog-import.mjs import <klasör>            # boş game_db'ye yükler; doluysa atlar
-node ops/game-catalog-import.mjs import <klasör> --replace  # dolu game_db'nin ÜZERİNE yazar
+node ops/game-catalog-import.mjs export [klasör]            # (dökümü üreten kişi) ltz-dev Postgres'inden döküm + manifest yazar
+node ops/game-catalog-import.mjs download [klasör]          # manifestteki adresten indirir, SHA-256 doğrular
+node ops/game-catalog-import.mjs verify [klasör]            # dosya bütünlüğü ve şema uyumu (veritabanına dokunmaz)
+node ops/game-catalog-import.mjs import [klasör]            # boş game_db'ye yükler; doluysa atlar
+node ops/game-catalog-import.mjs import [klasör] --replace  # dolu game_db'nin ÜZERİNE yazar
 ```
 
 - `export`: hesap verisi içerebilecek tablo (geri bildirim, yetki, denetim kaydı vb.) doluysa reddedilir. Manifestteki `url` alanı korunur.
 - `import`: yalnız `ltz-dev` Postgres konteynerini kullanır, Game servisi çalışıyorsa durur, dökümün Flyway sürümü depodaki en yeni Game migration'ından yeniyse reddeder, yükleme tek işlemdir ve sonunda tablo satır sayıları manifestle karşılaştırılır. Gerçek ENV dosyası okunmaz.
+- Klasör verilmezse `game-catalog-dump/` (depo kökü) kullanılır; `*.dump` Git'e girmez. Alıcı dosyayı bu klasöre kopyalar (dosya adı değişmez).
 - Paylaşım: döküm (~180 MB) Git'e girmez. Üreten kişi dosyayı GitHub Release varlığı olarak yükler ve `ops/game-catalog.manifest.json` içindeki `url` alanına adresi yazar; `download` yalnız `github.com` ve GitHub varlık sunucularından, SHA-256 doğrulamasıyla indirir. Veri IGDB ve Steam kaynaklıdır; herkese açık paylaşmadan önce sağlayıcı kullanım şartlarını kontrol edin.
 - Test: `node --test ops/game-catalog-import.test.mjs`.
 

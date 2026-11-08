@@ -16,8 +16,10 @@ export const DATABASE = 'game_db';
 export const DUMP_FILE = 'ltz-game-catalog.dump';
 const remote = '/tmp/' + DUMP_FILE;
 export const MODES = ['export', 'download', 'verify', 'import'];
+/** Klasör verilmezse dump burada aranır/yazılır (depo kökü; *.dump Git'e girmez). */
+export const DEFAULT_DIRECTORY = path.join(root, 'game-catalog-dump');
 export const REPLACE = '--replace';
-export const USAGE = 'Kullanım: node ops/game-catalog-import.mjs export|download|verify|import <klasör> [--replace]';
+export const USAGE = 'Kullanım: node ops/game-catalog-import.mjs export|download|verify|import [klasör] [--replace]  (klasör verilmezse game-catalog-dump)';
 export const MAX_DOWNLOAD_BYTES = 4 * 1024 ** 3;
 export const ALLOWED_HOSTS = ['github.com', 'objects.githubusercontent.com', 'release-assets.githubusercontent.com'];
 /** Hesap kimliği taşıyabilecek tablolar: doluysa dışa aktarma reddedilir (katalog dışı, kişisel veri). */
@@ -44,12 +46,13 @@ function psql(sql, database = DATABASE) {
   return docker(['exec', '-i', POSTGRES_CONTAINER, 'sh', '-c', `psql -U "$POSTGRES_USER" -d ${database} -At -v ON_ERROR_STOP=1`], sql);
 }
 
-/** `<kip> <klasör> [--replace]` argümanlarını doğrular; `--replace` yalnız import ile geçerlidir. */
+/** `<kip> [klasör] [--replace]` argümanlarını doğrular; klasör verilmezse game-catalog-dump; `--replace` yalnız import ile geçerlidir. */
 export function parseArguments(argv) {
-  const [mode, input, ...extra] = argv;
-  const replace = extra.length === 1 && extra[0] === REPLACE && mode === 'import';
-  if (!MODES.includes(mode) || !input || (extra.length && !replace)) throw new Error(USAGE);
-  return { mode, directory: path.resolve(input), replace };
+  const rest = [...argv];
+  const mode = rest.shift();
+  const replace = rest.at(-1) === REPLACE && mode === 'import' ? Boolean(rest.pop()) : false;
+  if (!MODES.includes(mode) || rest.length > 1 || rest[0]?.startsWith('--')) throw new Error(USAGE);
+  return { mode, directory: rest.length ? path.resolve(rest[0]) : DEFAULT_DIRECTORY, replace };
 }
 
 export async function sha256File(file) {
@@ -93,7 +96,7 @@ export async function readManifest(file = manifestPath) {
 /** Dump dosyasının boyutunu ve SHA-256'sını manifestle karşılaştırır. */
 export async function verifyDumpFile(file, manifest) {
   let stat;
-  try { stat = await fs.stat(file); } catch { throw new Error('Dump dosyası bulunamadı: ' + path.basename(file)); }
+  try { stat = await fs.stat(file); } catch { throw new Error('Dump dosyası bulunamadı: ' + file + ' (dosyayı bu klasöre koyun veya manifesttaki adresten indirin)'); }
   if (stat.size !== manifest.bytes || await sha256File(file) !== manifest.sha256) throw new Error('Dump bütünlüğü doğrulanamadı: ' + path.basename(file));
 }
 

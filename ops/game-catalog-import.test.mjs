@@ -22,6 +22,7 @@ import {
   sha256File,
   USAGE,
   validateManifest,
+  DEFAULT_DIRECTORY,
   verifyDumpFile
 } from "./game-catalog-import.mjs";
 
@@ -34,10 +35,13 @@ const validManifest = () => ({
 });
 
 describe("game-catalog-import", () => {
-  test("argümanlar: kip ve klasör zorunlu, --replace yalnız import ile", () => {
+  test("argümanlar: kip zorunlu, klasör verilmezse game-catalog-dump, --replace yalnız import ile", () => {
     assert.deepEqual(parseArguments(["import", "veri"]), { mode: "import", directory: resolve("veri"), replace: false });
     assert.equal(parseArguments(["import", "veri", "--replace"]).replace, true);
-    for (const bad of [[], ["import"], ["sil", "veri"], ["export", "veri", "--replace"], ["import", "veri", "--baska"], ["import", "veri", "--replace", "fazla"]]) {
+    assert.deepEqual(parseArguments(["import"]), { mode: "import", directory: DEFAULT_DIRECTORY, replace: false });
+    assert.deepEqual(parseArguments(["import", "--replace"]), { mode: "import", directory: DEFAULT_DIRECTORY, replace: true });
+    assert.ok(DEFAULT_DIRECTORY.endsWith("game-catalog-dump"));
+    for (const bad of [[], ["sil", "veri"], ["export", "veri", "--replace"], ["import", "veri", "--baska"], ["import", "veri", "--replace", "fazla"], ["import", "--baska"]]) {
       assert.throws(() => parseArguments(bad), { message: USAGE }, bad.join(" "));
     }
   });
