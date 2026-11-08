@@ -174,7 +174,7 @@ Frontend `frontend/src/shared/lib/api/client.ts` içindeki `apiRequest` ile konu
 | 7. Çıkış | `POST /api/v1/auth/session/logout` (+ `X-XSRF-TOKEN`) | Çerezler silinir |
 
 Google/Steam girişi: tarayıcıyı `GET /api/v1/auth/oauth/google/start` (veya `steam/start`) adresine yönlendir. Sonuç **`FRONTEND_PUBLIC_URL/auth/callback`**
-adresine **URL fragment'i** ile döner: `#status=authenticated`, `#status=mfa_required&challenge=…`, `#status=registration_required&token=…` (yalnız Steam)
+adresine **URL fragment'i** ile döner: `#status=authenticated`, `#status=mfa_required&challenge=…`, `#status=registration_required&provider=google|steam&token=…` (ilk giriş: kullanıcı adı seçilip `…/oauth/<sağlayıcı>/complete` çağrılır)
 veya `#status=email_verification_required&proof=…` (yalnız Steam). Parola sıfırlama bağlantısı `#token=…` taşır; token'ı `reset` gövdesinde gönder. Tam sözleşme: `docs/api.md` → AUTH.
 
 Hata biçimi (`ProblemDetail`): `401 UNAUTHENTICATED`, `403 FORBIDDEN`, `429` (+ `Retry-After`). Gateway'in kendi hataları: `403 CSRF_TOKEN_INVALID`, `403 ORIGIN_NOT_ALLOWED`, `429 RATE_LIMITED`.

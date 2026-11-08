@@ -1,6 +1,7 @@
 package com.ltz.auth;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -16,14 +17,17 @@ import java.security.interfaces.RSAPublicKey;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import com.nimbusds.jose.JOSEObjectType;
@@ -84,6 +88,22 @@ public abstract class ExternalProviderTestSupport extends IntegrationTestSupport
     /** Callback yanıtının yönlendirdiği frontend fragment'i (ör. "status=authenticated" veya "error=KOD"). */
     protected static String fragment(MvcResult result) {
         return URI.create(result.getResponse().getHeader("Location")).getFragment();
+    }
+
+    /** Fragment'teki bir değer (ör. "token", "provider"). */
+    protected static String fragmentValue(MvcResult result, String name) {
+        return java.util.Arrays.stream(fragment(result).split("&")).filter(pair -> pair.startsWith(name + "="))
+                .map(pair -> pair.substring(name.length() + 1)).findFirst().orElseThrow();
+    }
+
+    /** Google/Steam kayıt tamamlama: gövdede token + kullanıcı adı; CSRF korumalıdır (double-submit). */
+    protected ResultActions completeExternal(String path, String token, String username) throws Exception {
+        return mockMvc.perform(post(path).with(xsrf()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"registrationToken\":\"%s\",\"username\":\"%s\"}".formatted(token, username)));
+    }
+
+    protected UUID accountIdByUsername(String username) {
+        return jdbc.queryForObject("select id from accounts where username_normalized = lower(?)", UUID.class, username);
     }
 
     protected static String googleIdToken(String subject, String email, boolean emailVerified, String nonce) throws Exception {

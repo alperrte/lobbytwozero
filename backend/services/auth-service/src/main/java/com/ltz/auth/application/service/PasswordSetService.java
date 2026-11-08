@@ -117,6 +117,9 @@ public class PasswordSetService {
         if (account.passwordHash().isPresent()) {
             throw new AuthException(AuthErrorCode.PASSWORD_ALREADY_SET);
         }
+        if (!account.hasEmail()) {
+            throw new AuthException(AuthErrorCode.ACCOUNT_EMAIL_REQUIRED); // kod e-postayla gider
+        }
         Instant now = clock.instant();
         if (isThrottled(accountId, now)) {
             return Optional.empty();

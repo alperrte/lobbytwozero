@@ -78,10 +78,16 @@ public class EmailChangeService {
         Optional<Account> activeAccount = transactionTemplate.execute(status -> accountRepository.findById(accountId)
                 .filter(Account::isActive));
         Account account = activeAccount.orElseThrow(() -> new AuthException(AuthErrorCode.SESSION_INVALID));
-        String passwordHash = account.passwordHash().orElseThrow(() -> new AuthException(AuthErrorCode.PASSWORD_REQUIRED));
-        if (password == null || !passwordEncoder.matches(password, passwordHash)) {
-            securityEventRecorder.recordEvent(SecurityEventType.EMAIL_CHANGE_REJECTED, accountId);
-            throw new AuthException(AuthErrorCode.CURRENT_PASSWORD_INVALID);
+        Optional<String> passwordHash = account.passwordHash();
+        if (passwordHash.isPresent()) {
+            if (password == null || !passwordEncoder.matches(password, passwordHash.get())) {
+                securityEventRecorder.recordEvent(SecurityEventType.EMAIL_CHANGE_REJECTED, accountId);
+                throw new AuthException(AuthErrorCode.CURRENT_PASSWORD_INVALID);
+            }
+        } else if (!twoFactorService.isEnabled(accountId)) {
+            // Parolasız hesap (Google/Steam) yalnız TOTP/kurtarma koduyla yeniden doğrulanabilir; e-postasız Steam hesabı
+            // adresini bu yoldan ekler. Hiçbir faktör yoksa yeniden doğrulama yapılamaz.
+            throw new AuthException(AuthErrorCode.PASSWORD_REQUIRED);
         }
         if (twoFactorService.isEnabled(accountId)
                 && !twoFactorService.verifySecondFactorForReauthentication(accountId, code, recoveryCode)) {

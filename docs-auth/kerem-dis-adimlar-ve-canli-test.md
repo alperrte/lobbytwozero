@@ -59,8 +59,8 @@ Sonuç: yalıtılmış düzenekle (geçici Postgres + Mailpit + ayrı Auth, zoru
 Steam, dönüşü tarayıcıya yaptırır ve doğrulamayı Auth'tan Steam'e giden sunucu isteğiyle yapar; `localhost` yeterlidir.
 
 1. Tarayıcıda `http://localhost:5080/api/v1/auth/oauth/steam/start` aç → Steam girişi.
-2. Dönüşte adres çubuğunda `…/auth/callback#status=registration_required&token=…` görürsün (Frontend çalışmıyorsa sayfa açılmaz, fragment yine de görünür). **Beklenen:** `registration_required`.
-3. `POST /api/v1/auth/oauth/steam/complete` `{ "registrationToken": "<token>", "email": "…", "username": "…" }` → Mailpit'te (`http://127.0.0.1:8025`) kodu al → `POST /api/v1/auth/email-verification/confirm`.
+2. Dönüşte adres çubuğunda `…/auth/callback#status=registration_required&provider=steam&token=…` görürsün (Frontend çalışmıyorsa sayfa açılmaz, fragment yine de görünür). **Beklenen:** `registration_required`. Frontend açıksa yalnız **kullanıcı adı** formu gelir.
+3. Kullanıcı adını yaz (ya da `POST /api/v1/auth/oauth/steam/complete` `{ "registrationToken": "<token>", "username": "…" }`, CSRF başlığıyla). **Beklenen:** oturum açılır (e-posta ve doğrulama adımı yoktur).
 4. Adım 1'i tekrarla. **Beklenen:** `#status=authenticated` (dev'de Steam 2FA zorunluluğu kapalı).
 5. Zorunlu 2FA'yı canlı görmek için geçici olarak `application-dev.properties` içinde `ltz.auth.two-factor.require-for-steam-accounts=true` yap (commit etme), Auth'u yeniden başlat, 1. adımı tekrarla. **Beklenen:** `#status=mfa_enrollment_required&challenge=…`; `/login/2fa/enrollment/start` → QR'ı authenticator'a okut → `/complete`.
 6. Doğrula: `select account_id, provider from external_identities where provider = 'STEAM';` bir satır.

@@ -970,12 +970,15 @@
         "headlineStart": "Oyun dünyana",
         "headlineAccent": "yeni bir kapı aç.",
         "subline": "Profilini oluştur, yeni oyunlar keşfet ve seninle aynı tutkuyu paylaşan oyuncularla buluş."
-      }
+      },
+      "navLabel": "Gezinme",
+      "navLogin": "Giriş yap",
+      "navRegister": "Kayıt ol",
+      "welcomeLabel": "Karşılama"
     },
     "login": {
       "metaTitle": "Giriş yap",
       "title": "Giriş yap",
-      "description": "LTZ hesabına giriş yap, lobine katıl.",
       "formLabel": "Giriş formu",
       "identifier": "E-posta veya kullanıcı adı",
       "identifierPlaceholder": "E-posta adresin veya kullanıcı adın",
@@ -1064,7 +1067,9 @@
       "UNKNOWN": "Bir şeyler ters gitti. Lütfen tekrar dene.",
       "VALIDATION_FAILED": "Bazı bilgiler geçersiz. Alanları kontrol edip tekrar dene.",
       "MFA_FAILED": "Kod geçersiz ya da doğrulama oturumunun süresi doldu. Yeniden dene ya da girişe dön.",
-      "INVALID_TWO_FACTOR_CODE": "Kod yanlış. Tekrar dene."
+      "INVALID_TWO_FACTOR_CODE": "Kod yanlış. Tekrar dene.",
+      "ACCOUNT_LINK_REQUIRED": "Bu e-posta adresiyle zaten bir hesap var. Önce e-posta ve şifrenle giriş yap, sonra bu hesabı bağla.",
+      "ACCOUNT_EMAIL_REQUIRED": "Bu işlem için hesabında doğrulanmış bir e-posta adresi olmalı. Önce e-posta ekleyip doğrula."
     },
     "register": {
       "metaTitle": "Kayıt ol",
@@ -1148,12 +1153,6 @@
       "linked": "Hesabın bağlandı.",
       "backToLogin": "Giriş sayfasına dön",
       "toHome": "Ana sayfaya git",
-      "steam": {
-        "formLabel": "Steam hesabı kayıt formu",
-        "description": "Steam hesabınla ilk kez geliyorsun. Hesabını tamamlamak için bir kullanıcı adı ve e-posta adresi gir.",
-        "submit": "Hesabı oluştur",
-        "tokenInvalid": "Kayıt bağlantısı geçersiz ya da süresi dolmuş. Steam ile girişi yeniden başlat."
-      },
       "errors": {
         "EXTERNAL_AUTH_FAILED": "Giriş doğrulanamadı. Lütfen tekrar dene.",
         "EXTERNAL_EMAIL_UNVERIFIED": "Sağlayıcıdaki e-posta adresin doğrulanmamış. Önce sağlayıcıda doğrula, sonra tekrar dene.",
@@ -1165,6 +1164,19 @@
         "TWO_FACTOR_ENROLLMENT_REQUIRED": "Bu hesap için iki aşamalı doğrulama kurulumu gerekiyor. Bu adım henüz bu ekranda desteklenmiyor.",
         "PROVIDER_NOT_CONFIGURED": "Bu giriş yöntemi şu anda kullanılamıyor.",
         "UNKNOWN": "Bir şeyler ters gitti. Lütfen tekrar dene."
+      },
+      "username": {
+        "formLabel": "Hesabı tamamlama formu",
+        "submit": "Devam et",
+        "submitting": "Hesap oluşturuluyor…"
+      },
+      "google": {
+        "description": "Google hesabınla ilk kez geliyorsun. Devam etmek için LTZ'de görünecek bir kullanıcı adı seç.",
+        "tokenInvalid": "Kayıt bağlantısı geçersiz ya da süresi dolmuş. Google ile girişi yeniden başlat."
+      },
+      "steam": {
+        "description": "Steam hesabınla ilk kez geliyorsun. Devam etmek için LTZ'de görünecek bir kullanıcı adı seç. Steam e-posta paylaşmadığı için e-posta istenmez.",
+        "tokenInvalid": "Kayıt bağlantısı geçersiz ya da süresi dolmuş. Steam ile girişi yeniden başlat."
       }
     },
     "mfa": {

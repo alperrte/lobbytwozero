@@ -20,7 +20,7 @@ type TwoFactorProps = {
 };
 
 const submitClass =
-  "inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-control bg-primary px-6 py-3 text-base font-semibold text-primary-foreground transition-colors duration-150 hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none";
+  "inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-base font-semibold text-primary-foreground transition-colors duration-150 hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none";
 const linkButtonClass = "text-sm font-medium text-brand-text underline underline-offset-2";
 
 const TOTP = /^[0-9]{6}$/;
@@ -130,7 +130,7 @@ function EnrollStep({ challenge, onAuthenticated, onCancel, api }: TwoFactorProp
         <p className="text-sm text-text-secondary">{t("enroll.recoveryDescription")}</p>
         <ul
           aria-label={t("enroll.recoveryList")}
-          className="grid grid-cols-2 gap-2 rounded-control border border-border bg-surface-elevated p-4 font-mono text-sm text-text-primary"
+          className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-surface-elevated p-4 font-mono text-sm text-text-primary"
         >
           {recoveryCodes.map((item) => (
             <li key={item}>{item}</li>
@@ -184,7 +184,7 @@ function EnrollStep({ challenge, onAuthenticated, onCancel, api }: TwoFactorProp
   return (
     <form noValidate onSubmit={onSubmit} aria-label={t("enroll.formLabel")} className="space-y-5">
       <p className="text-sm text-text-secondary">{t("enroll.scan")}</p>
-      <div className="space-y-2 rounded-control border border-border bg-surface-elevated p-4">
+      <div className="space-y-2 rounded-xl border border-border bg-surface-elevated p-4">
         <p className="text-xs text-text-secondary">{t("enroll.secret")}</p>
         <p data-testid="totp-secret" className="break-all font-mono text-sm text-text-primary">
           {enrollment.secret}

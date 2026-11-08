@@ -180,7 +180,7 @@ export function RegisterForm({ api }: RegisterFormProps) {
             onChange={(event) => update({ ...values, acceptTerms: event.target.checked })}
             aria-invalid={termsError !== undefined}
             aria-describedby={termsError ? `${termsId}-error` : undefined}
-            className="mt-1 size-5 shrink-0 rounded-control border border-control-border bg-surface-elevated/60 accent-primary"
+            className="mt-1 size-5 shrink-0 rounded-xl border border-control-border bg-surface-elevated/60 accent-primary"
           />
           <label htmlFor={termsId} className="text-sm leading-relaxed text-text-secondary">
             {t.rich("register.terms", {
@@ -209,7 +209,7 @@ export function RegisterForm({ api }: RegisterFormProps) {
         type="submit"
         disabled={blocked}
         aria-busy={pending}
-        className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-control bg-primary px-6 py-3 text-base font-semibold text-primary-foreground transition-colors duration-150 hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+        className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-base font-semibold text-primary-foreground transition-colors duration-150 hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
       >
         {pending ? (
           t("register.submitting")

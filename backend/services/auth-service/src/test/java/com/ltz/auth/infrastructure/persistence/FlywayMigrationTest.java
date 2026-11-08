@@ -19,7 +19,7 @@ class FlywayMigrationTest extends IntegrationTestSupport {
     void authMigrationlariKendiAraligindaBasariylaUygulanir() {
         List<String> versions = jdbc.queryForList(
                 "select version from flyway_schema_history where success order by installed_rank", String.class);
-        assertThat(versions).containsExactly("61", "62", "63", "64", "65", "66", "67", "68", "69");
+        assertThat(versions).containsExactly("61", "62", "63", "64", "65", "66", "67", "68", "69", "70");
     }
 
     @Test
@@ -74,6 +74,57 @@ class FlywayMigrationTest extends IntegrationTestSupport {
 
         assertThatThrownBy(() -> insertCode(accountId, "123456"))
                 .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void epostasizAktifHesapKabulEdilirVeBirdenFazlaBosEpostaCakismaz() {
+        String first = "s" + uniqueSuffix();
+        String second = "s" + uniqueSuffix();
+
+        insertAccountWithoutEmail(UUID.randomUUID(), first, "ACTIVE", false);
+        insertAccountWithoutEmail(UUID.randomUUID(), second, "ACTIVE", false);
+
+        assertThat(jdbc.queryForObject("select count(*) from accounts where email is null and username_normalized in (?, ?)",
+                Integer.class, first, second)).isEqualTo(2);
+    }
+
+    @Test
+    void epostaIleNormalizeEdilmisEpostaBirlikteDoluYaDaBirlikteBosOlmali() {
+        String suffix = uniqueSuffix();
+
+        assertThatThrownBy(() -> jdbc.update("""
+                insert into accounts (id, email, email_normalized, username, username_normalized, status, created_at, updated_at)
+                values (?, ?, null, ?, ?, 'ACTIVE', now(), now())
+                """, UUID.randomUUID(), suffix + "@example.test", "u" + suffix, "u" + suffix))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void epostasizHesapDogrulamaBeklemezVeDogrulanmisSayilmaz() {
+        assertThatThrownBy(() -> insertAccountWithoutEmail(UUID.randomUUID(), "p" + uniqueSuffix(), "PENDING_VERIFICATION", false))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> insertAccountWithoutEmail(UUID.randomUUID(), "v" + uniqueSuffix(), "ACTIVE", true))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void googleKayitTokeniYalnizOzetOlarakSaklanirSuresiGecerlidir() {
+        assertThatThrownBy(() -> jdbc.update("""
+                insert into google_registrations (token_hash, subject, email, created_at, expires_at)
+                values ('ham-token', 's', 'e@example.test', now(), now() + interval '5 minutes')
+                """)).isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbc.update("""
+                insert into google_registrations (token_hash, subject, email, created_at, expires_at)
+                values (?, 's', 'e@example.test', now(), now() - interval '1 minute')
+                """, HASH)).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    private void insertAccountWithoutEmail(UUID id, String username, String status, boolean verified) {
+        jdbc.update("""
+                insert into accounts (id, email, email_normalized, username, username_normalized, status,
+                                      email_verified_at, created_at, updated_at)
+                values (?, null, null, ?, ?, ?, ?, now(), now())
+                """, id, username, username, status, verified ? java.sql.Timestamp.from(java.time.Instant.now()) : null);
     }
 
     private void insertAccount(UUID id, String status) {

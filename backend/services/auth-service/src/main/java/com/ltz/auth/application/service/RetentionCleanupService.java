@@ -50,6 +50,7 @@ public class RetentionCleanupService {
                 + drain(() -> cleanupRepository.deleteExpiredOAuthLinkFlows(now.minus(properties.flowGrace()), batch))
                 + drain(() -> cleanupRepository.deleteOldOpenIdNonces(now.minus(properties.nonceRetention()), batch))
                 + drain(() -> cleanupRepository.deleteExpiredSteamProofs(now.minus(properties.flowGrace()), batch))
+                + drain(() -> cleanupRepository.deleteExpiredGoogleRegistrations(now.minus(properties.flowGrace()), batch))
                 + drain(() -> cleanupRepository.deleteStaleThrottles(now.minus(properties.throttleRetention()), batch))
                 + drain(() -> cleanupRepository.deleteExpiredVerificationCodes(now.minus(properties.tokenRetention()), batch))
                 + drain(() -> cleanupRepository.deleteExpiredPasswordResetTokens(now.minus(properties.tokenRetention()), batch))

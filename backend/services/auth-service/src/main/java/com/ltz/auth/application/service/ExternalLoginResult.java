@@ -1,6 +1,6 @@
 package com.ltz.auth.application.service;
 
-/** Harici girişin sonucu: oturum açıldı, 2FA bekleniyor veya (yalnız Steam) kayıt tamamlanmalı. */
+/** Harici girişin sonucu: oturum açıldı, 2FA bekleniyor veya ilk girişte (Google/Steam) kullanıcı adı seçilerek kayıt tamamlanmalı. */
 public record ExternalLoginResult(Outcome outcome, IssuedSession session, String challengeId, String token) {
 
     public enum Outcome {
@@ -8,6 +8,7 @@ public record ExternalLoginResult(Outcome outcome, IssuedSession session, String
         MFA_REQUIRED,
         MFA_ENROLLMENT_REQUIRED,
         REGISTRATION_REQUIRED,
+        GOOGLE_REGISTRATION_REQUIRED,
         EMAIL_VERIFICATION_REQUIRED
     }
 
@@ -22,6 +23,11 @@ public record ExternalLoginResult(Outcome outcome, IssuedSession session, String
 
     static ExternalLoginResult registrationRequired(String registrationToken) {
         return new ExternalLoginResult(Outcome.REGISTRATION_REQUIRED, null, null, registrationToken);
+    }
+
+    /** İlk kez Google ile gelen kişi: kullanıcı adı seçilene kadar hesap açılmaz; token yalnız kayıt tamamlamak içindir. */
+    static ExternalLoginResult googleRegistrationRequired(String registrationToken) {
+        return new ExternalLoginResult(Outcome.GOOGLE_REGISTRATION_REQUIRED, null, null, registrationToken);
     }
 
     static ExternalLoginResult emailVerificationRequired(String verificationProof) {

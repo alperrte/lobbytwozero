@@ -21,9 +21,13 @@ export type RegistrationApi = {
   resendEmailCode(email: string, signal?: AbortSignal): Promise<void>;
 };
 
-/** Steam ile yeni hesap akışının uçları: kayıt tamamlama ve kanıtla (parolasız) e-posta doğrulama. */
+/** İlk Google/Steam girişinde kullanıcı adı seçerek hesabı tamamlama (sonuç giriş yanıtıyla aynıdır: oturum ya da MFA). */
+export type ExternalRegistrationApi = {
+  completeExternalRegistration(provider: "google" | "steam", registrationToken: string, username: string, signal?: AbortSignal): Promise<LoginResult>;
+};
+
+/** Eski (e-postayla açılmış) Steam hesabının kanıtla, parolasız e-posta doğrulaması. */
 export type SteamApi = {
-  completeSteamRegistration(registrationToken: string, email: string, username: string, signal?: AbortSignal): Promise<{ verificationProof: string }>;
   confirmEmailWithProof(email: string, code: string, verificationProof: string, signal?: AbortSignal): Promise<void>;
 };
 
@@ -136,23 +140,23 @@ export const authApi = {
     });
   },
 
-  /** Steam ile yeni hesap: kayıt token'ı + e-posta + kullanıcı adı. Yanıttaki tek kullanımlık kanıt doğrulama adımında parola yerine gider. */
-  async completeSteamRegistration(
+  /**
+   * İlk Google/Steam girişi: sağlayıcıda doğrulanmış kimliğe bağlı tek kullanımlık kayıt token'ı + seçilen kullanıcı adı.
+   * E-posta gönderilmez (Google'dan sunucu alır, Steam e-posta vermez). Başarıda yanıt giriş yanıtıdır: oturum çerezleri
+   * yazılır ya da MFA gerekiyorsa challenge döner (MFA atlanmaz).
+   */
+  async completeExternalRegistration(
+    provider: "google" | "steam",
     registrationToken: string,
-    email: string,
     username: string,
     signal?: AbortSignal
-  ): Promise<{ verificationProof: string }> {
-    const result = await authRequest<unknown>("/api/v1/auth/oauth/steam/complete", {
+  ): Promise<LoginResult> {
+    const result = await authRequest<unknown>(`/api/v1/auth/oauth/${provider}/complete`, {
       method: "POST",
-      body: { registrationToken, email, username },
+      body: { registrationToken, username },
       signal
     });
-    const proof = typeof result === "object" && result !== null ? (result as Record<string, unknown>).verificationProof : undefined;
-    if (typeof proof !== "string" || proof === "") {
-      throw new ApiHttpError(200, { code: "UNKNOWN" });
-    }
-    return { verificationProof: proof };
+    return toLoginResult(result);
   },
 
   /** Steam hesabında e-posta doğrulaması: parola yerine `verificationProof` gönderilir (`204`, oturum AÇMAZ). */

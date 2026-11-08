@@ -4,12 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiHttpError } from "@/shared/lib/api/client";
 import tr from "@/shared/lib/i18n/messages/tr.json";
 import { forgetCallbackResult } from "../services/callback-params";
-import {
-  clearPendingEmail,
-  clearPendingProof,
-  pendingEmailStore,
-  pendingProofStore
-} from "../services/pending-verification";
+import { clearPendingEmail, clearPendingProof, pendingProofStore } from "../services/pending-verification";
 import { AuthCallback } from "./auth-callback";
 import { SocialButtons } from "./social-buttons";
 
@@ -128,33 +123,57 @@ describe("AuthCallback", () => {
   });
 });
 
-describe("AuthCallback: Steam ile yeni hesap", () => {
+describe("AuthCallback: ilk girişte kullanıcı adı (Google ve Steam)", () => {
   const username = () => screen.getByLabelText("Kullanıcı adı");
-  const email = () => screen.getByLabelText("E-posta");
-  const submit = () => screen.getByRole("button", { name: /Hesabı oluştur/ });
+  const submit = () => screen.getByRole("button", { name: /Devam et/ });
+  const AUTHENTICATED = { status: "AUTHENTICATED" as const, accessTokenExpiresAt: "2030-01-01T00:00:00Z" };
 
-  it("kayıt formunu gösterir; başarıda e-posta ve kanıtı bellekte bırakıp doğrulama ekranına geçer", async () => {
-    open(`#status=registration_required&token=${TOKEN}`);
-    const completeSteamRegistration = vi.fn().mockResolvedValue({ verificationProof: "kanit-123" });
-    wrap(<AuthCallback api={{ completeSteamRegistration }} />);
+  it.each([
+    ["google", /Google hesabınla ilk kez geliyorsun/],
+    ["steam", /Steam hesabınla ilk kez geliyorsun/]
+  ])("%s: yalnız kullanıcı adı sorulur (e-posta alanı yoktur); başarıda oturum açılır ve ana sayfaya gidilir", async (provider, text) => {
+    open(`#status=registration_required&provider=${provider}&token=${TOKEN}`);
+    const completeExternalRegistration = vi.fn().mockResolvedValue(AUTHENTICATED);
+    wrap(<AuthCallback api={{ completeExternalRegistration }} />);
     await waitFor(() => expect(username()).toBeInTheDocument());
     expect(window.location.hash).toBe("");
+    expect(screen.getByText(text)).toBeInTheDocument();
+    expect(screen.queryByLabelText("E-posta")).toBeNull();
+    expect(screen.queryByLabelText("Şifre")).toBeNull();
 
-    fireEvent.change(username(), { target: { value: "steam_ada" } });
-    fireEvent.change(email(), { target: { value: " ada@example.com " } });
+    fireEvent.change(username(), { target: { value: " ada_oyuncu " } });
     fireEvent.click(submit());
 
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/verify-email"));
-    expect(completeSteamRegistration).toHaveBeenCalledWith(TOKEN, "ada@example.com", "steam_ada");
-    expect(pendingEmailStore.getSnapshot()).toBe("ada@example.com");
-    expect(pendingProofStore.getSnapshot()).toBe("kanit-123");
-    expect(window.location.href).not.toContain("kanit-123");
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    expect(completeExternalRegistration).toHaveBeenCalledWith(provider, TOKEN, "ada_oyuncu");
+    expect(push).not.toHaveBeenCalled();
+    expect(window.location.href).not.toContain(TOKEN);
   });
 
-  it("boş ve geçersiz alanlarda hata gösterir; istek atmaz", async () => {
+  it("sağlayıcı bildirilmemişse (eski bağlantı) Steam kabul edilir", async () => {
     open(`#status=registration_required&token=${TOKEN}`);
-    const completeSteamRegistration = vi.fn();
-    wrap(<AuthCallback api={{ completeSteamRegistration }} />);
+    const completeExternalRegistration = vi.fn().mockResolvedValue(AUTHENTICATED);
+    wrap(<AuthCallback api={{ completeExternalRegistration }} />);
+    await waitFor(() => expect(username()).toBeInTheDocument());
+
+    fireEvent.change(username(), { target: { value: "steam_ada" } });
+    fireEvent.click(submit());
+
+    await waitFor(() => expect(completeExternalRegistration).toHaveBeenCalledWith("steam", TOKEN, "steam_ada"));
+  });
+
+  it("bilinmeyen sağlayıcı değeri geçersiz sayılır; form açılmaz", async () => {
+    open(`#status=registration_required&provider=evil&token=${TOKEN}`);
+    wrap(<AuthCallback api={{ completeExternalRegistration: vi.fn() }} />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("yalnız Google veya Steam ile giriş dönüşü içindir");
+    expect(screen.queryByLabelText("Kullanıcı adı")).toBeNull();
+  });
+
+  it("boş ve geçersiz kullanıcı adında hata gösterir; istek atmaz", async () => {
+    open(`#status=registration_required&provider=google&token=${TOKEN}`);
+    const completeExternalRegistration = vi.fn();
+    wrap(<AuthCallback api={{ completeExternalRegistration }} />);
     await waitFor(() => expect(username()).toBeInTheDocument());
 
     fireEvent.click(submit());
@@ -162,44 +181,124 @@ describe("AuthCallback: Steam ile yeni hesap", () => {
     expect(username()).toHaveFocus();
 
     fireEvent.change(username(), { target: { value: "ada-ada" } });
-    fireEvent.change(email(), { target: { value: "ada@example.com" } });
     fireEvent.click(submit());
     expect(await screen.findByText(/yalnız harf, rakam ve alt çizgi/)).toBeInTheDocument();
-    expect(completeSteamRegistration).not.toHaveBeenCalled();
+    expect(completeExternalRegistration).not.toHaveBeenCalled();
   });
 
-  it("USERNAME_TAKEN kullanıcı adı alanında gösterilir", async () => {
-    open(`#status=registration_required&token=${TOKEN}`);
-    wrap(
-      <AuthCallback
-        api={{ completeSteamRegistration: vi.fn().mockRejectedValue(new ApiHttpError(409, { code: "USERNAME_TAKEN" })) }}
-      />
-    );
+  it("USERNAME_TAKEN kullanıcı adı alanında gösterilir; form açık kalır ve yeniden denenebilir", async () => {
+    open(`#status=registration_required&provider=google&token=${TOKEN}`);
+    const completeExternalRegistration = vi
+      .fn()
+      .mockRejectedValueOnce(new ApiHttpError(409, { code: "USERNAME_TAKEN" }))
+      .mockResolvedValueOnce(AUTHENTICATED);
+    wrap(<AuthCallback api={{ completeExternalRegistration }} />);
     await waitFor(() => expect(username()).toBeInTheDocument());
-    fireEvent.change(username(), { target: { value: "steam_ada" } });
-    fireEvent.change(email(), { target: { value: "ada@example.com" } });
+    fireEvent.change(username(), { target: { value: "alinmis_ad" } });
 
     fireEvent.click(submit());
 
     expect(await screen.findByText("Bu kullanıcı adı kullanılıyor.")).toBeInTheDocument();
-    expect(push).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
+
+    fireEvent.change(username(), { target: { value: "bos_ad" } });
+    fireEvent.click(submit());
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    expect(completeExternalRegistration).toHaveBeenNthCalledWith(2, "google", TOKEN, "bos_ad");
   });
 
-  it("REGISTRATION_TOKEN_INVALID gelince form yerine yeniden başlatma yönlendirmesi gösterir", async () => {
-    open(`#status=registration_required&token=${TOKEN}`);
+  it("sunucu doğrulama hatası (VALIDATION_FAILED, username) alanda gösterilir", async () => {
+    open(`#status=registration_required&provider=steam&token=${TOKEN}`);
     wrap(
       <AuthCallback
-        api={{ completeSteamRegistration: vi.fn().mockRejectedValue(new ApiHttpError(400, { code: "REGISTRATION_TOKEN_INVALID" })) }}
+        api={{
+          completeExternalRegistration: vi
+            .fn()
+            .mockRejectedValue(new ApiHttpError(400, { code: "VALIDATION_FAILED", fieldErrors: [{ field: "username", code: "Pattern" }] }))
+        }}
       />
     );
     await waitFor(() => expect(username()).toBeInTheDocument());
     fireEvent.change(username(), { target: { value: "steam_ada" } });
-    fireEvent.change(email(), { target: { value: "ada@example.com" } });
 
     fireEvent.click(submit());
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Kayıt bağlantısı geçersiz ya da süresi dolmuş");
+    expect(await screen.findByText("Kullanıcı adı geçersiz.")).toBeInTheDocument();
+  });
+
+  it("REGISTRATION_TOKEN_INVALID gelince form yerine sağlayıcıya özgü yeniden başlatma yönlendirmesi gösterir", async () => {
+    open(`#status=registration_required&provider=google&token=${TOKEN}`);
+    wrap(
+      <AuthCallback
+        api={{ completeExternalRegistration: vi.fn().mockRejectedValue(new ApiHttpError(400, { code: "REGISTRATION_TOKEN_INVALID" })) }}
+      />
+    );
+    await waitFor(() => expect(username()).toBeInTheDocument());
+    fireEvent.change(username(), { target: { value: "google_ada" } });
+
+    fireEvent.click(submit());
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Google ile girişi yeniden başlat");
     expect(screen.queryByLabelText("Kullanıcı adı")).toBeNull();
+    expect(screen.getByRole("link", { name: "Giriş sayfasına dön" })).toHaveAttribute("href", "/login");
+  });
+
+  it("ACCOUNT_LINK_REQUIRED (e-posta bu arada alındı) birleştirme yapmaz, açıklayıp girişe yönlendirir", async () => {
+    open(`#status=registration_required&provider=google&token=${TOKEN}`);
+    wrap(
+      <AuthCallback
+        api={{ completeExternalRegistration: vi.fn().mockRejectedValue(new ApiHttpError(409, { code: "ACCOUNT_LINK_REQUIRED" })) }}
+      />
+    );
+    await waitFor(() => expect(username()).toBeInTheDocument());
+    fireEvent.change(username(), { target: { value: "google_ada" } });
+
+    fireEvent.click(submit());
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("zaten bir hesap var");
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("MFA gerekiyorsa oturum açılmış sayılmaz: ikinci adım (kurulum) gösterilir, ana sayfaya gidilmez", async () => {
+    open(`#status=registration_required&provider=steam&token=${TOKEN}`);
+    const completeExternalRegistration = vi
+      .fn()
+      .mockResolvedValue({ status: "MFA_ENROLLMENT_REQUIRED", challengeId: "kurulum-1", challengeExpiresAt: "2030-01-01T00:00:00Z" });
+    const startTwoFactorEnrollment = vi.fn().mockResolvedValue({ secret: "ABCDEFGHIJKLMNOP", otpauthUri: "otpauth://totp/LTZ:x?secret=ABC" });
+    wrap(
+      <AuthCallback
+        api={{ completeExternalRegistration }}
+        twoFactorApi={{ verifyTwoFactor: vi.fn(), startTwoFactorEnrollment, completeTwoFactorEnrollment: vi.fn() }}
+      />
+    );
+    await waitFor(() => expect(username()).toBeInTheDocument());
+    fireEvent.change(username(), { target: { value: "steam_ada" } });
+
+    fireEvent.click(submit());
+
+    const start = await screen.findByRole("button", { name: tr.Auth.mfa.enroll.start });
+    expect(screen.queryByLabelText("Kullanıcı adı")).toBeNull();
+    expect(replace).not.toHaveBeenCalled();
+    fireEvent.click(start);
+    await waitFor(() => expect(startTwoFactorEnrollment).toHaveBeenCalledWith("kurulum-1"));
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("çift tıklamada tek istek gider", async () => {
+    open(`#status=registration_required&provider=google&token=${TOKEN}`);
+    let release: (value: typeof AUTHENTICATED) => void = () => undefined;
+    const completeExternalRegistration = vi.fn().mockReturnValue(new Promise((resolve) => (release = resolve)));
+    wrap(<AuthCallback api={{ completeExternalRegistration }} />);
+    await waitFor(() => expect(username()).toBeInTheDocument());
+    fireEvent.change(username(), { target: { value: "google_ada" } });
+
+    const button = submit();
+    fireEvent.click(button);
+    fireEvent.click(button);
+    release(AUTHENTICATED);
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    expect(completeExternalRegistration).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -213,6 +312,27 @@ describe("SocialButtons", () => {
     expect(screen.getByRole("link", { name: /Steam ile giriş/ }).getAttribute("href")).toMatch(
       /\/api\/v1\/auth\/oauth\/steam\/start$/
     );
+  });
+
+  it("gerçek marka logoları çizilir; telefonda yalnız logo kalır ama erişilebilir ad korunur", () => {
+    wrap(<SocialButtons mode="login" />);
+    const google = screen.getByRole("link", { name: "Google ile giriş" });
+    const steam = screen.getByRole("link", { name: "Steam ile giriş" });
+    // Google: dört renkli resmî işaret; Steam: tek renkli logo (currentColor).
+    expect(google.querySelectorAll("svg path")).toHaveLength(4);
+    expect(Array.from(google.querySelectorAll("path")).map((node) => node.getAttribute("fill"))).toEqual([
+      "#EA4335",
+      "#4285F4",
+      "#FBBC05",
+      "#34A853"
+    ]);
+    expect(steam.querySelector("svg")).toHaveAttribute("fill", "currentColor");
+    // Metin yalnız telefonda gizlenir (max-sm:hidden); ad aria-label'dan gelir.
+    expect(google.querySelector("span")).toHaveClass("max-sm:hidden");
+    expect(steam.querySelector("span")).toHaveClass("max-sm:hidden");
+    expect(google).toHaveAttribute("aria-label", "Google ile giriş");
+    expect(steam).toHaveAttribute("aria-label", "Steam ile giriş");
+    expect(google.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
   });
 
   it("kayıt kipinde metinler 'kayıt' olur", () => {

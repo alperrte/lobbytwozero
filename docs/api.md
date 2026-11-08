@@ -504,29 +504,31 @@ Tüketici servisler: Frontend (tarayıcı gezinmesi)
 - GET /api/v1/auth/oauth/google/callback?code&state — Google dönüşü
 - GET /api/v1/auth/oauth/steam/start — Steam OpenID 2.0'a yönlendirir (`302`)
 - GET /api/v1/auth/oauth/steam/callback?state&openid.* — Steam dönüşü
-- POST /api/v1/auth/oauth/steam/complete — Steam ile yeni hesap: `{ "registrationToken", "email", "username" }` → `202 { "nextStep": "VERIFY_EMAIL", "verificationProof": "<tek kullanımlık>" }`. `verificationProof` her yanıtta döner (e-posta kayıtlı olsa bile; hesap varlığı sızdırılmaz) ve `email-verification/confirm` isteğinde gönderilir.
+- POST /api/v1/auth/oauth/google/complete — ilk Google girişinde kullanıcı adı seçerek hesabı tamamlar: `{ "registrationToken", "username" }` → `200` giriş yanıtı (`{ "status": "AUTHENTICATED" }` + oturum cookie'leri, ya da `MFA_REQUIRED` / `MFA_ENROLLMENT_REQUIRED` + `challengeId`). E-posta ve `sub` istemciden alınmaz; sunucudaki Google kaydından gelir. Bilinmeyen alan `400`.
+- POST /api/v1/auth/oauth/steam/complete — ilk Steam girişinde kullanıcı adı seçerek hesabı tamamlar: `{ "registrationToken", "username" }` → aynı giriş yanıtı. Hesap **e-postasız** ve `ACTIVE` açılır (Steam e-posta vermez, sahte adres üretilmez). MFA kuralları (Steam hesabı için zorunlu TOTP kurulumu dahil) parola girişiyle aynıdır.
 
 #### Yetkilendirme
-Public. Callback'ler, start'ın yazdığı HttpOnly `__Host-ltz_oauth` state cookie'si ile eşleşen, tek kullanımlık `state` ister (login CSRF koruması). `complete` yalnız tek kullanımlık kayıt token'ına dayanır (cookie/CSRF gerekmez).
+Public. Callback'ler, start'ın yazdığı HttpOnly `__Host-ltz_oauth` state cookie'si ile eşleşen, tek kullanımlık `state` ister (login CSRF koruması). `google/complete` ve `steam/complete` tek kullanımlık kayıt token'ına dayanır ama oturum açıp cookie yazdığı için **CSRF korumalıdır** (`X-XSRF-TOKEN`, double-submit).
 
 #### Sonuç iletimi
 Start ve callback `302` döner. Callback sonucu yapılandırmadaki SABİT frontend adresine (`FRONTEND_PUBLIC_URL/auth/callback`) URL **fragment**'i ile iletilir; istemciden yönlendirme adresi alınmaz.
 - `#status=authenticated` — oturum cookie'leri yazıldı
 - `#status=mfa_required&challenge=<id>` — TOTP etkin; `POST /login/2fa` ile tamamlanır, cookie yazılmaz
-- `#status=registration_required&token=<t>` — yalnız Steam, bağsız SteamID; `steam/complete` çağrılır
+- `#status=registration_required&provider=google|steam&token=<t>` — sağlayıcıda doğrulanmış ama LTZ'de kaydı olmayan kimlik; hesap AÇILMAMIŞTIR. Kullanıcı adı seçilip ilgili `…/complete` çağrılır. Token 15 dk geçerli, tek kullanımlıktır (yalnız özet saklanır).
 - `#status=email_verification_required&proof=<t>` — yalnız Steam, SteamID e-postası henüz doğrulanmamış hesaba bağlı; `proof` ile `email-verification/confirm` çağrılır (cookie yazılmaz)
 - `#error=<KOD>` — `EXTERNAL_AUTH_FAILED` (state/imza/nonce/aud/iss/replay/sağlayıcı hatası; ayrıntı verilmez), `EXTERNAL_EMAIL_UNVERIFIED`, `ACCOUNT_LINK_REQUIRED`, `EMAIL_NOT_VERIFIED`, `ACCOUNT_SUSPENDED`, `ACCOUNT_BANNED`, `ACCOUNT_UNAVAILABLE`, `TWO_FACTOR_ENROLLMENT_REQUIRED`, `PROVIDER_NOT_CONFIGURED`
 
 #### Güvenlik kuralları
 - **Eşleştirme:** yalnız sağlayıcının değişmez kimliğiyle (Steam: doğrulanmış SteamID64, Google: `sub`). E-posta eşleşmesiyle hesaplar **birleştirilmez**; kayıtlı e-postayla gelen yeni Google kimliği `ACCOUNT_LINK_REQUIRED` alır (bağlama ucu henüz yok).
-- **Google:** `id_token` Google JWKS ile RS256 doğrulanır; `iss`, `aud=client_id`, `exp/iat`, `nonce`, `sub` zorunlu. Yeni hesap yalnız `email_verified=true` ise açılır (ACTIVE, parolasız, `PLAYER`). PKCE verifier ve nonce state'ten sunucu anahtarıyla türetilir.
-- **Steam:** `ns`, `mode=id_res`, `op_endpoint`, `return_to` (state dahil birebir), `claimed_id` (steamcommunity.com + 17 haneli ID) = `identity`, `openid.signed` kapsamı, `response_nonce` zaman penceresi (5 dk) ve tek kullanım, ardından Steam'e `check_authentication`. Çoğaltılmış `openid.*` alanları reddedilir. Yeni Steam hesabı `PENDING_VERIFICATION` açılır; e-posta AUTH-02 koduyla doğrulanmadan oturum verilmez. Kayıtlı e-postada hesap açılmaz, yanıt değişmez.
+- **Google:** `id_token` Google JWKS ile RS256 doğrulanır; `iss`, `aud=client_id`, `exp/iat`, `nonce`, `sub` zorunlu. Yeni hesap yalnız `email_verified=true` ve e-posta kayıtsızsa, kullanıcı adı seçilince açılır (ACTIVE, parolasız, `PLAYER`; e-posta Google'dan, doğrulanmış). Seçim yapılana kadar hesap yoktur. Eski otomatik adlı (`g_…`) hesaplar etkilenmez. PKCE verifier ve nonce state'ten sunucu anahtarıyla türetilir.
+- **Steam:** `ns`, `mode=id_res`, `op_endpoint`, `return_to` (state dahil birebir), `claimed_id` (steamcommunity.com + 17 haneli ID) = `identity`, `openid.signed` kapsamı, `response_nonce` zaman penceresi (5 dk) ve tek kullanım, ardından Steam'e `check_authentication`. Çoğaltılmış `openid.*` alanları reddedilir. Yeni Steam hesabı kullanıcı adı seçilince, e-postasız ve `ACTIVE` açılır; e-posta alınmaz ve doğrulama beklenmez. E-posta gerektiren işlemler e-postasız hesapta `409 ACCOUNT_EMAIL_REQUIRED` döner (hesap silme onayı, parola belirleme kodu); bildirim gönderilmez. Kullanıcı sonradan e-posta ekleyebilir: `POST /email/change` parolasız hesapta yalnız TOTP/kurtarma koduyla yeniden doğrular, yeni adres koduyla doğrulanır. Eski (e-postayla açılmış, doğrulanmamış) Steam hesapları `email_verification_required` akışıyla çalışmaya devam eder.
 - Harici giriş 2FA'yı atlatmaz: TOTP etkinse challenge, `ADMIN`/`MODERATOR` için TOTP yoksa oturum verilmez. Oturumun `amr` değeri `fed` içerir.
 - `GOOGLE_CLIENT_ID/SECRET` boşsa Google girişi kapalıdır (`503 PROVIDER_NOT_CONFIGURED`). Production'da tüm adresler `https` olmalıdır (aksi halde servis başlamaz).
 
 #### Hata Durumları
-- 400: `steam/complete` doğrulama hatası veya `REGISTRATION_TOKEN_INVALID`
-- 409: `steam/complete` kullanıcı adı çakışması (`USERNAME_TAKEN`)
+- 400: `…/complete` doğrulama hatası (geçersiz kullanıcı adı, bilinmeyen alan) veya `REGISTRATION_TOKEN_INVALID`
+- 403: `…/complete` CSRF başlığı yok
+- 409: `…/complete` kullanıcı adı çakışması (`USERNAME_TAKEN`; token tüketilmez, başka adla devam edilir) veya e-posta bu arada kayıtlı hale geldi (`ACCOUNT_LINK_REQUIRED`)
 - 503: Google yapılandırılmamış (`start`)
 
 #### Bağlantı
