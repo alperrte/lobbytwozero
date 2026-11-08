@@ -61,13 +61,13 @@ class HardwareReviewControllerTest extends PostgresIntegrationSupport {
     }
     private String collection(UUID id) { return BASE + "/catalog/products/" + id + "/reviews"; }
     private String item(UUID id) { return BASE + "/reviews/" + id; }
-    private String content(String body, Integer rating) {
+    private String content(String body, Number rating) {
         var result = new HashMap<String, Object>();
         result.put("body", body);
         if (rating != null) result.put("rating", rating);
         return json.writeValueAsString(result);
     }
-    private UUID create(UUID author, UUID id, String body, Integer rating) throws Exception {
+    private UUID create(UUID author, UUID id, String body, Number rating) throws Exception {
         var result = mvc.perform(post(collection(id)).with(actor(author)).with(csrf()).contentType("application/json")
                 .content(content(body, rating))).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         return UUID.fromString(json.readTree(result).get("id").asText());
@@ -80,7 +80,7 @@ class HardwareReviewControllerTest extends PostgresIntegrationSupport {
                 .andExpect(status().isCreated()).andExpect(header().exists("Location"))
                 .andExpect(header().string("Cache-Control", "no-store, private"))
                 .andExpect(jsonPath("$.body").value("Useful\nreview\ttext"))
-                .andExpect(jsonPath("$.rating").value(5)).andExpect(jsonPath("$.version").value(0))
+                .andExpect(jsonPath("$.rating").value(5.0)).andExpect(jsonPath("$.version").value(0))
                 .andExpect(jsonPath("$.status").value("VISIBLE")).andExpect(jsonPath("$.ownedByActor").value(true))
                 .andExpect(jsonPath("$.userId").doesNotExist()).andExpect(jsonPath("$.bodyHash").doesNotExist())
                 .andExpect(jsonPath("$.reportCount").doesNotExist()).andReturn().getResponse().getContentAsString();
@@ -227,9 +227,29 @@ class HardwareReviewControllerTest extends PostgresIntegrationSupport {
         mvc.perform(get(item(UUID.randomUUID())).with(actor(owner))).andExpect(status().isNotFound());
     }
 
+    @Test
+    void acceptsHalfStarRatingsAndAveragesThemWithTwoDecimals() throws Exception {
+        var first = create(owner, product, "Half star review", 4.5);
+        mvc.perform(get(item(first)).with(actor(owner))).andExpect(status().isOk()).andExpect(jsonPath("$.rating").value(4.5));
+        assertThat(jdbc.queryForObject("SELECT rating FROM hardware_reviews WHERE id=?", java.math.BigDecimal.class, first))
+                .isEqualByComparingTo("4.5");
+        create(UUID.randomUUID(), product, "Whole star review", 4);
+        create(viewer, product, "Lowest half star", 1.5);
+        mvc.perform(get(collection(product)).with(actor(owner))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.ratedReviews").value(3)).andExpect(jsonPath("$.summary.averageRating").value(3.33));
+        var update = "{\"reviewVersion\":0,\"body\":\"Half star review\",\"rating\":2.5}";
+        mvc.perform(put(item(first)).with(actor(owner)).with(csrf()).contentType("application/json").content(update))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.rating").value(2.5));
+        mvc.perform(put(item(first)).with(actor(owner)).with(csrf()).contentType("application/json")
+                .content("{\"reviewVersion\":1,\"body\":\"Half star review\",\"rating\":2.7}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"{}", "{\"body\":\" \"}", "{\"body\":\"<script>\"}", "{\"body\":\"＜script＞\"}",
         "{\"body\":\"Good\",\"rating\":0}", "{\"body\":\"Good\",\"rating\":6}",
+        "{\"body\":\"Good\",\"rating\":0.5}", "{\"body\":\"Good\",\"rating\":5.5}",
+        "{\"body\":\"Good\",\"rating\":4.3}", "{\"body\":\"Good\",\"rating\":4.25}",
         "{\"body\":\"Good\",\"userId\":\"fake\"}", "{\"body\":\"Good\",\"status\":\"VISIBLE\"}"})
     void rejectsInvalidUgcRatingsAndMassAssignmentWithNoPartialMutation(String body) throws Exception {
         mvc.perform(post(collection(product)).with(actor(owner)).with(csrf()).contentType("application/json").content(body))
@@ -303,6 +323,10 @@ class HardwareReviewControllerTest extends PostgresIntegrationSupport {
         assertThatThrownBy(() -> jdbc.execute("TRUNCATE hardware_review_audit"))
                 .isInstanceOf(DataIntegrityViolationException.class);
         assertThatThrownBy(() -> jdbc.update("UPDATE hardware_reviews SET rating=6 WHERE id=?", id))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbc.update("UPDATE hardware_reviews SET rating=4.3 WHERE id=?", id))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbc.update("UPDATE hardware_reviews SET rating=0.5 WHERE id=?", id))
                 .isInstanceOf(DataIntegrityViolationException.class);
         assertThatThrownBy(() -> jdbc.update("UPDATE hardware_reviews SET status='INVALID' WHERE id=?", id))
                 .isInstanceOf(DataIntegrityViolationException.class);

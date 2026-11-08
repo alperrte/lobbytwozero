@@ -1,6 +1,6 @@
 "use client";
 import { useTranslations } from "next-intl";
-import { Icon } from "@/shared/components/ui/icons";
+import { HardwareProductVisual } from "./hardware-product-visual";
 import { Link } from "@/shared/lib/i18n/navigation";
 import type { Product } from "../types/hardware";
 import { useComparison } from "./comparison-provider";
@@ -12,10 +12,7 @@ export function ProductCard({ product, list = false }: { product: Product; list?
   const selected = selection.products.some((item) => item.id === product.id);
   return <article className={`${panel} overflow-hidden ${list ? "flex flex-wrap sm:flex-nowrap" : "flex flex-col"}`}>
     <div className={`flex items-center justify-center border-border bg-surface-elevated/40 ${list ? "w-full border-b p-6 sm:w-36 sm:shrink-0 sm:border-e sm:border-b-0" : "aspect-[5/3] border-b"}`}>
-      <div className="text-center">
-        <Icon name="cpu" className="mx-auto size-12 text-text-secondary/70" />
-        <span className="mt-3 block text-xs text-text-secondary">{t("common.noImage")}</span>
-      </div>
+      <HardwareProductVisual product={product} className="min-h-44" />
     </div>
     <div className="flex min-w-0 flex-1 flex-col p-5">
       <span className="text-xs font-semibold uppercase tracking-wider text-brand-text">{t(`categories.${product.category}`)}</span>

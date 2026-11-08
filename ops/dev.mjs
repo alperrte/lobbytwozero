@@ -3384,8 +3384,9 @@ async function keysCommand(argv) {
 
   // Eski varsayılanlar: değer TAM OLARAK eskiyse yeni varsayılana çekilir; özelleştirilmiş değere dokunulmaz.
   // JWT_ACCESS_TTL_SECONDS: access token ömrü 300 sn'den 60 sn'ye indi (askıya alınan hesabın diğer servislerde görünürlüğü).
+  // 900 da çekilir: Hardware kullanıcı token'ını en fazla 60 sn ömürlü kabul eder; 900 sn ile üretilen her token 401 alır.
   const staleDefaults = {
-    JWT_ACCESS_TTL_SECONDS: { from: "300", to: "60" },
+    JWT_ACCESS_TTL_SECONDS: { from: ["300", "900"], to: "60" },
   };
 
   const lineOf = (name) => new RegExp(`^${name}=(.*?)\\r?$`, "m");
@@ -3553,10 +3554,10 @@ async function keysCommand(argv) {
     const refreshed = [];
     for (const [name, change] of Object.entries(staleDefaults)) {
       const found = text.match(lineOf(name));
-      if (found && found[1].trim() === change.from) {
+      if (found && change.from.includes(found[1].trim())) {
         // Eşleşme satır sonundaki CR karakterini de kapsar; CRLF dosyalarda korunur.
         text = text.replace(lineOf(name), (line) => `${name}=${change.to}${line.endsWith("\r") ? "\r" : ""}`);
-        refreshed.push(`${name} (${change.from} -> ${change.to})`);
+        refreshed.push(`${name} (${found[1].trim()} -> ${change.to})`);
       }
     }
 

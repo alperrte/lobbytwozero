@@ -3,8 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { ApiHttpError } from "@/shared/lib/api/client";
 
-type Result<T> = { key: string; data?: T; error?: unknown; loading: boolean };
-export function useHardwareQuery<T>(key: string, loader: (signal: AbortSignal) => Promise<T>, enabled = true) {
+type Result<T> = { key: string; group?: string; data?: T; error?: unknown; loading: boolean };
+/**
+ * `keepPrevious` (bir grup adı): anahtar değişince, önceki başarılı veri aynı gruba aitse `loading: true` ile
+ * birlikte gösterilmeye devam eder; böylece arama/filtre değişiminde liste boşalıp sayfa zıplamaz. Grup değişirse
+ * (ör. başka kategori) eski veri gösterilmez.
+ */
+export function useHardwareQuery<T>(key: string, loader: (signal: AbortSignal) => Promise<T>, enabled = true, keepPrevious?: string) {
   const [result, setResult] = useState<Result<T>>({ key: "", loading: true });
   const [revision, setRevision] = useState(0);
   const loaderRef = useRef(loader);
@@ -14,13 +19,14 @@ export function useHardwareQuery<T>(key: string, loader: (signal: AbortSignal) =
     const controller = new AbortController();
     let active = true;
     loaderRef.current(controller.signal).then(
-      (data) => { if (active) setResult({ key, data, loading: false }); },
-      (error: unknown) => { if (active) setResult({ key, error, loading: false }); }
+      (data) => { if (active) setResult({ key, group: keepPrevious, data, loading: false }); },
+      (error: unknown) => { if (active) setResult({ key, group: keepPrevious, error, loading: false }); }
     );
     return () => { active = false; controller.abort(); };
-  }, [key, revision, enabled]);
+  }, [key, revision, enabled, keepPrevious]);
   const reload = () => { setResult({ key, loading: true }); setRevision((value) => value + 1); };
-  const current = result.key === key && enabled ? result : { key, loading: enabled };
+  const previous: Result<T> | undefined = enabled && keepPrevious !== undefined && result.group === keepPrevious && result.data !== undefined ? { key, data: result.data, loading: true } : undefined;
+  const current = result.key === key && enabled ? result : previous ?? { key, loading: enabled };
   return { ...current, reload };
 }
 

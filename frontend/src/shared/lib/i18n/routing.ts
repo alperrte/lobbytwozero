@@ -31,6 +31,7 @@ export const pathnames = {
   "/auth/callback": { tr: "/auth/geri-donus", en: "/auth/callback" },
   "/hardware": { tr: "/donanimlar", en: "/hardware" },
   "/hardware/campaigns": { tr: "/donanimlar/kampanyalar", en: "/hardware/campaigns" },
+  "/hardware/compare": { tr: "/donanimlar/karsilastir", en: "/hardware/compare" },
   "/hardware/[productId]": { tr: "/donanimlar/[productId]", en: "/hardware/[productId]" },
   "/profile/computers": { tr: "/profil/bilgisayarlarim", en: "/profile/computers" },
   "/legal/kvkk": { tr: "/yasal/kvkk", en: "/legal/kvkk" },

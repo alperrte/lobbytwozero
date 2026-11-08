@@ -1,4 +1,5 @@
 import { categories, type Category } from "../types/hardware";
+import { multiQueryKeys, technicalQueryKeys } from "./spec-profile";
 
 export const numericSpecs = { capacityGb: 1048576, clockMhz: 20000, coreCount: 1024, powerWatts: 10000 } as const;
 export const isCategory = (value: string | null): value is Category => categories.includes(value as Category);
@@ -13,9 +14,18 @@ export function safeExternalUrl(value: string): string | undefined {
 }
 export function readCatalogQuery(search: URLSearchParams): string {
   const query = new URLSearchParams();
-  for (const key of ["q", "brand", "brandId", "category", "minCapacityGb", "maxCapacityGb", "minClockMhz", "maxClockMhz", "minCoreCount", "maxCoreCount", "minPowerWatts", "maxPowerWatts", "memoryType", "socket", "interfaceType", "formFactor"]) {
+  const repeated = new Set<string>(multiQueryKeys);
+  for (const key of ["q", "brand", "brandId", "category", ...technicalQueryKeys]) {
+    if (repeated.has(key)) {
+      // Çoklu seçim: değerler tekrarlanan parametre olarak gider (VEYA); API en çok 50 değer kabul eder.
+      for (const item of new Set(search.getAll(key).filter(Boolean)).values()) {
+        if (query.getAll(key).length < 50) query.append(key, item);
+      }
+      continue;
+    }
     const value = search.get(key);
-    if (value) query.set(key, value);
+    // Onay kutusu filtresi yalnız "true" olabilir; başka değer API'ye gitmez.
+    if (value && (key !== "integratedGraphics" || value === "true")) query.set(key, value);
   }
   const page = Number(search.get("page"));
   query.set("page", String(Number.isInteger(page) && page >= 0 && page <= 10000 ? page : 0));

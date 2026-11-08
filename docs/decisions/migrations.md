@@ -4,6 +4,7 @@
 ## ALPER
 - V1–V10       → HARDWARE-SERVICE
 - V191        → HARDWARE-SERVICE (2026-11-07 açık kullanıcı onayı; GPU kaynak kategorisi için kullanıldı)
+- V192        → HARDWARE-SERVICE (2026-11-08 açık kullanıcı onayı; yarım yıldız değerlendirme puanı için kullanıldı)
 - V11–V20      → RECOMMENDATION-SERVICE
 - V21–V30      → PERFORMANCE-SERVICE
 
@@ -40,10 +41,18 @@ geliştirmeye başlanmadan önce belirlenmelidir.
 
 ## Migration Kuralları
 
+### Hardware Service V192 — Yarım yıldız değerlendirme puanı, 2026-11-08
+
+- V1–V10 dolu olduğundan kullanıcı açıkça V192'nin alınmasını onayladı ("Evet, V192'yi al").
+  Yalnız V192 Hardware Service'e tahsis edildi; V193 ve sonrası için tahsis verilmedi.
+- `V192__allow_half_star_review_ratings.sql`, `hardware_reviews.rating` kolonunu `integer`'dan `numeric(2,1)`'e çevirir ve
+  CHECK'i "1–5 arası, 0,5 adımlı" olarak yeniden tanımlar. Mevcut tam sayı puanlar kayıpsız dönüşür; V1–V10 değiştirilmez.
+- Bu karar diğer servislerin tahsislerini değiştirmez; numaralandırma sahibi ekip bilgilendirilmelidir.
+
 ### Hardware Service V191 — GPU kaynak kategorisi, 2026-11-07
 
 - V1–V10 dolu olduğundan kullanıcı açıkça “191'i al migrations.md'yi güncelle” dedi.
-  Yalnız V191 Hardware Service'e tahsis edildi; V192 ve sonrası için tahsis verilmedi.
+  Yalnız V191 Hardware Service'e tahsis edildi (V192 daha sonra, 2026-11-08'de ayrıca onaylandı).
 - `V191__allow_gpu_catalog_sources.sql`, kaynak tablosunun kategori CHECK'ine GPU ekler.
   V1–V10 değiştirilmez; mevcut ürün UUID'leri ve tüm referanslar korunur.
 - Bu karar Game V171–V180 ve Community V181–V190 tahsislerini değiştirmez.

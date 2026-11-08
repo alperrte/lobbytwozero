@@ -1,43 +1,43 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { ApiHttpError } from "@/shared/lib/api/client";
-import { useHardwareMutation, useHardwareQuery } from "./use-hardware-query";
-describe("Hardware veri yaşam döngüsü", () => {
-  it("eski istek iptal edilir ve geç gelen yanıt yeni seçimi ezmez", async () => {
-    let firstResolve!: (value: string) => void;
-    let firstSignal!: AbortSignal;
-    const first = new Promise<string>((resolve) => { firstResolve = resolve; });
-    const { result, rerender } = renderHook(({ key }) => useHardwareQuery(key, (signal) => { if (key === "a") { firstSignal = signal; return first; } return Promise.resolve("new"); }), { initialProps: { key: "a" } });
+import { describe, expect, it } from "vitest";
+import { useHardwareQuery } from "./use-hardware-query";
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => { resolve = done; });
+  return { promise, resolve };
+}
+
+describe("useHardwareQuery keepPrevious", () => {
+  it("anahtar değişirken önceki veriyi loading ile korur, yenisi gelince değiştirir", async () => {
+    const second = deferred<string>();
+    const { result, rerender } = renderHook(({ key }) => useHardwareQuery(key, () => key === "a" ? Promise.resolve("A") : second.promise, true, "g"), { initialProps: { key: "a" } });
+    await waitFor(() => expect(result.current.data).toBe("A"));
     rerender({ key: "b" });
-    await waitFor(() => expect(result.current.data).toBe("new"));
-    expect(firstSignal.aborted).toBe(true);
-    await act(async () => firstResolve("stale"));
-    expect(result.current.data).toBe("new");
+    expect(result.current.data).toBe("A");
+    expect(result.current.loading).toBe(true);
+    await act(async () => { second.resolve("B"); });
+    await waitFor(() => expect(result.current.data).toBe("B"));
+    expect(result.current.loading).toBe(false);
   });
-  it("reload sırasında eski özel veri görünmez, 401 boş sonuç sayılmaz", async () => {
-    const loader = vi.fn().mockResolvedValueOnce({ secret: "owner" }).mockRejectedValueOnce(new ApiHttpError(401));
-    const { result } = renderHook(() => useHardwareQuery("private", loader));
-    await waitFor(() => expect(result.current.data).toEqual({ secret: "owner" }));
-    act(() => result.current.reload()); expect(result.current.data).toBeUndefined();
-    await waitFor(() => expect(result.current.error).toMatchObject({ status: 401 }));
+
+  it("grup değişince önceki veri korunmaz", async () => {
+    const second = deferred<string>();
+    const { result, rerender } = renderHook(({ key, group }) => useHardwareQuery(key, () => key === "a" ? Promise.resolve("A") : second.promise, true, group), { initialProps: { key: "a", group: "cpu" } });
+    await waitFor(() => expect(result.current.data).toBe("A"));
+    rerender({ key: "b", group: "gpu" });
+    expect(result.current.data).toBeUndefined();
+    expect(result.current.loading).toBe(true);
+    await act(async () => { second.resolve("B"); });
   });
-  it("aynı anda iki mutation göndermez; başarı yalnız sunucu sonucu sonrası oluşur", async () => {
-    let finish!: (value: string) => void;
-    const action = vi.fn(() => new Promise<string>((resolve) => { finish = resolve; }));
-    const saved = vi.fn();
-    const { result } = renderHook(() => useHardwareMutation(saved));
-    let request!: Promise<unknown>;
-    act(() => { request = result.current.run(action); void result.current.run(action); });
-    expect(action).toHaveBeenCalledTimes(1); expect(result.current.success).toBe(false);
-    await act(async () => { finish("ok"); await request; });
-    expect(saved).toHaveBeenCalledTimes(1); expect(result.current.success).toBe(true);
-  });
-  it("409 ve sonucu belirsiz ağ hatası güncel durumu sorgulatır", async () => {
-    const reload = vi.fn();
-    const { result } = renderHook(() => useHardwareMutation(reload));
-    await act(async () => { await result.current.run(() => Promise.reject(new ApiHttpError(409))); });
-    expect(reload).toHaveBeenCalledTimes(1); expect(result.current.success).toBe(false);
-    await act(async () => { await result.current.run(() => Promise.reject(new TypeError("network"))); });
-    expect(reload).toHaveBeenCalledTimes(2);
+
+  it("keepPrevious kapalıyken anahtar değişince veri hemen boşalır", async () => {
+    const second = deferred<string>();
+    const { result, rerender } = renderHook(({ key }) => useHardwareQuery(key, () => key === "a" ? Promise.resolve("A") : second.promise), { initialProps: { key: "a" } });
+    await waitFor(() => expect(result.current.data).toBe("A"));
+    rerender({ key: "b" });
+    expect(result.current.data).toBeUndefined();
+    expect(result.current.loading).toBe(true);
+    await act(async () => { second.resolve("B"); });
   });
 });

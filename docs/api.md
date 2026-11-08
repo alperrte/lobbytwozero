@@ -8825,16 +8825,33 @@ Public iş endpoint'i yok. Tüm yanıtlar private/no-store.
 #### Query Parameters
 - page: 0..10000, varsayılan 0.
 - size: 1..100, varsayılan 20.
-- q: opsiyonel 0..160; model içinde NFKC/Locale.ROOT normalizasyonuyla literal alt metin araması.
+- q: opsiyonel 0..160; NFKC/Locale.ROOT normalizasyonundan sonra boşluklarla jetonlara bölünür (en çok 8) ve her jeton
+model adında ya da ürünün aktif üretici adında bulunmalıdır (AND). 3 karakterden kısa jeton yalnız kelime başında eşleşir
+(`r` → Ryzen, `ryzen 98` → Ryzen 7 9800X3D; kelime başı boşluk ya da `-` sonrasıdır); 3+ karakterli jeton kelime içinde de eşleşir
+(`x3d`, `14700`); `amd ryzen` üretici adıyla da eşleşir. Harf/rakamla başlamayan jeton düz alt metin aranır.
 - category: mevcut 12 ComponentCategory değerinden biri.
-- brandId: opsiyonel UUID; aktif modele bağlı aktif üretici.
+- brandId: opsiyonel UUID, **çoklu** (`brandId=a&brandId=b`, en çok 50); modele bağlı aktif üreticilerden herhangi biri.
+Tek UUID eski sözleşmeyle aynı çalışır; geçersiz UUID 400.
 - brand: opsiyonel 0..100; aynı aktif üreticinin adı içinde literal arama.
 - minCapacityGb/maxCapacityGb: 1..1048576.
 - minClockMhz/maxClockMhz: 1..20000.
 - minCoreCount/maxCoreCount: 1..1024.
 - minPowerWatts/maxPowerWatts: 1..10000.
-- memoryType/socket/interfaceType/formFactor: opsiyonel 1..32, büyük/küçük harf duyarsız tam eşleşme.
-Tüm verilen filtreler AND ile birleşir; aynı üretici brandId + brand koşullarını sağlamalıdır.
+- memoryType/socket/interfaceType/formFactor: opsiyonel, **çoklu** (parametre tekrarlanır, en çok 50), her değer 1..32,
+büyük/küçük harf duyarsız tam eşleşme; değerler arası VEYA.
+chipset: çoklu, değer başına 1..100 (GPU modeli); storageType: çoklu, değer başına 1..32 — ikisi de kaynak (VERIFIED) typedSpecs
+üzerinde büyük/küçük harf duyarsız tam eşleşme. `<`, `>` ve kontrol karakterleri 400.
+Liste parametrelerinde tek bir değer virgül içerse bile bölünmez (yonga adı `GeForce RTX 4060, Founders` tek değerdir).
+maximumMemoryGb: 1..1048576; memorySlots: 1..1024; casLatency: 1..200 — çoklu, kaynak typedSpecs sayısal değerinde tam eşleşme.
+- capacityGb (1..1048576), clockMhz (1..20000), coreCount (1..1024): **çoklu** tam değer; ürün kolonunda değerlerden birine eşit olmalı.
+Mevcut min/max aralık parametreleri ile birlikte kullanılabilir (hepsi AND).
+- gpuVendor: çoklu, `NVIDIA` | `AMD` | `INTEL` (en çok 3; başka değer 400). Çip üreticisi kayıtlı `chipset` adının başından türetilir
+(NVIDIA: GeForce/NVIDIA/Quadro/Titan/Tesla/NVS/RTX/GTX/GT; AMD: Radeon/AMD/FirePro/RX; INTEL: Arc/Intel/Iris/UHD). Kart markası (ASUS, MSI)
+ile aynı şey değildir. Seçilen çip üreticilerinden herhangi biri yeterlidir; `chipset` ile birlikte verilirse ikisi de sağlanmalıdır.
+integratedGraphics: opsiyonel boolean (CPU onay kutusu). Yalnız `true` filtreler: VERIFIED kaynağın typedSpecs.integratedGraphics.text
+değeri dolu ve `false` değildir. `false`/boş filtre uygulamaz; boolean olmayan değer 400.
+QUARANTINED kaynak kayıtları bu filtrelerle hiçbir zaman eşleşmez.
+Farklı alanlar AND, aynı alandaki çoklu değerler VEYA ile birleşir; aynı üretici brandId + brand koşullarını sağlamalıdır.
 Alt sınır üst sınırı geçerse 400. Teknik alan null ise filtreyi sağlamaz.
 Boş q/brand filtresizdir; marka filtresi yokken markasız genel modeller listelenir.
 LIKE %, _ ve ! literal escape edilir; SQL parametreli Criteria ile üretilir.
@@ -8870,6 +8887,59 @@ INTEGRATION — HardwareCatalogControllerTest: 32 yeni senaryo PASS; modül 90 P
 2026-11-08: PcPartImportIntegrationTest beş kategori (GPU dahil), discovery, kapasite filtresi,
 source.typedSpecifications ve anonim 401 senaryoları PASS. Import için yeni HTTP
 endpoint'i yoktur; yalnız dev CLI vardır. [Güncel kanıt](../docs-hardware/reports/pc-part-dataset-import.md).
+2026-11-08: chipset, storageType, maximumMemoryGb, memorySlots ve casLatency filtreleri
+HardwareCatalogSearchTest içinde (toplam 36 senaryo) PASS; PostgreSQL 17/Testcontainers.
+2026-11-08: integratedGraphics filtresi (dolu / boş / "false" / eksik / QUARANTINED kaynak, aralık filtresiyle birleşim,
+false ve geçersiz değer) HardwareCatalogSearchTest içinde (toplam 37 senaryo) PASS; PostgreSQL 17/Testcontainers.
+2026-11-08: q jetonlu kelime-öneki araması (r / ryzen / ryzen 98 / amd ryzen / x3d / arşivli üretici / kısa jeton orta eşleşmez)
+HardwareCatalogSearchTest içinde (toplam 38 senaryo) PASS; PostgreSQL 17/Testcontainers.
+2026-11-08: Çoklu seçim (tekrarlanan parametre: soket / form faktörü / bellek yuvası / marka / kapasite / çekirdek / frekans),
+virgül içeren tek değer, gpuVendor ve gpuVendor+chipset birleşimi, geçersiz değer 400 senaryoları
+HardwareCatalogSearchTest içinde (toplam 42 senaryo) PASS; PostgreSQL 17/Testcontainers.
+
+
+### HARDWARE — HW-11 Katalog filtre seçenekleri (facets)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (katalog filtre paneli açılır listeleri)
+
+#### Endpoint
+GET /api/v1/hardware/catalog/facets
+
+#### Yetkilendirme
+Authenticated — doğrulanmış typed AuthenticatedActor; üstteki ortak JWT/RBAC kuralı geçerlidir.
+Public iş endpoint'i yoktur.
+
+#### Query Parameters
+- category: zorunlu; ComponentCategory değerlerinden biri.
+
+#### Response — 200
+HardwareCatalogFacetsResponse: { category, facets: { <anahtar>: [ { value, label, count } ] } }.
+Değerler yalnız aktif ürünlerde kayıtlı gerçek değerlerdir; uydurma/varsayılan seçenek yoktur.
+Aynı değerin büyük/küçük harf farkları tek seçenekte toplanır; sayısal değerler artan sıralıdır.
+Kategori başına anahtarlar:
+- CPU: brandId, coreCount
+- GPU: brandId, chipset, capacityGb, gpuVendor (yonga adından türetilir; value/label `NVIDIA`|`AMD`|`INTEL`, count yonga sayılarının toplamı)
+- MOTHERBOARD: brandId, socket, formFactor, maximumMemoryGb, memorySlots
+- RAM: brandId, memoryType, capacityGb, clockMhz, casLatency
+- STORAGE: brandId, storageType, capacityGb, interfaceType
+Diğer kategorilerde facets boş nesnedir. brandId seçeneklerinde value marka UUID'si, label marka adıdır.
+Cache-Control: private, max-age=300.
+
+#### Hata Durumları
+400 INVALID_REQUEST (category eksik/geçersiz); 401 AUTHENTICATION_REQUIRED;
+500 INTERNAL_ERROR. İç hata/SQL dönmez.
+
+#### Bağlantı
+Frontend: `features/hardware/services/hardware-api.ts` → `filterOptions`. Seçilen değerler
+GET /api/v1/hardware/catalog/products filtre parametreleri olarak gönderilir. Diğer
+mikroservislerden çağrı yoktur. Yeni migration gerekmez (mevcut hardware_product_sources.typed_specs).
+
+#### Test Durumu
+INTEGRATION — HardwareCatalogSearchTest.facetsListOnlyRecordedActiveValuesPerCategory PASS
+(modül testi 36 PASS, PostgreSQL 17). Frontend: hardware-api.test.ts, catalog-filters.test.tsx ve
+Playwright e2e (hardware, catalog-visual, catalog-categories: 77 PASS).
 
 
 ### HARDWARE — HW-14 Ortak kampanya veri sözleşmesi
@@ -9429,7 +9499,7 @@ Typed actor; aktif genel ürün. Katalog yazma izni gerekmez; yazar UUID'si yaln
 productId zorunlu UUID; query yok.
 
 #### Request Body
-CreateHardwareReviewRequest: body zorunlu düz metin 1..5000; rating opsiyonel tam sayı 1..5. Bilinmeyen alan reddedilir. HTML açı ayraçları/kontrol karakterleri ham ve NFKC sonrası reddedilir; satır sonu/tab desteklenir.
+CreateHardwareReviewRequest: body zorunlu düz metin 1..5000; rating opsiyonel ondalık sayı: 1.0..5.0 aralığında 0,5 adımlı (1, 1.5, … 5; 0, 0.5, 5.5, 4.3 ve 4.25 400 INVALID_REQUEST). Kayıt `numeric(2,1)` saklanır ve yanıtta tek ondalıkla döner (ör. 4.0, 4.5). Bilinmeyen alan reddedilir. HTML açı ayraçları/kontrol karakterleri ham ve NFKC sonrası reddedilir; satır sonu/tab desteklenir.
 
 #### Response
 201 HardwareReviewResponse; Location /api/v1/hardware/reviews/{id}. Alanlar id,productId,body,rating,status,version,ownedByActor,createdAt,updatedAt. author/user UUID, hash, IP ve rapor sayısı dönmez. İlk status VISIBLE/version 0.
@@ -9442,6 +9512,7 @@ HardwareReviewService; V5__create_hardware_reviews.sql.
 Başka servise/DB'ye çağrı yok; gerçek Auth ve User/Social E2E NOT_VERIFIED.
 
 #### Test Durumu
+2026-11-08 (V192 yarım yıldız): HardwareReviewControllerTest 30 test PASS (4,5 kabul; 0,5/5,5/4,3/4,25 ve 2,7 güncellemesi 400; ortalama 3,33; CHECK 4,3 ve 0,5 reddeder) + HardwareReviewTextTest + PcPartImportIntegrationTest; pre-push/Sonar bu değişiklikte çalıştırılmadı.
 UNIT + INTEGRATION — HardwareReviewControllerTest + HardwareReviewTextTest;
 2026-10-21 18:40:14 +03 verify exit 0: 206 PASS, 0 failure/error/skipped;
 JaCoCo 1044/1060=%98,49; gerçek PostgreSQL 17/Flyway V1–V8/JPA/MockMvc.
@@ -9577,7 +9648,7 @@ Owner typed actor + CSRF; yalnız VISIBLE ve aktif ürüne bağlı yorum. HIDDEN
 reviewId UUID; query yok.
 
 #### Request Body
-UpdateHardwareReviewRequest: reviewVersion zorunlu >=0, body zorunlu 1..5000 düz metin, rating opsiyonel 1..5. Eksik rating puanı kaldırır; body/hash değişimi atomik tekillik kontrolüne katılır.
+UpdateHardwareReviewRequest: reviewVersion zorunlu >=0, body zorunlu 1..5000 düz metin, rating opsiyonel 1.0..5.0 aralığında 0,5 adımlı (oluşturma ile aynı kural). Eksik rating puanı kaldırır; body/hash değişimi atomik tekillik kontrolüne katılır.
 
 #### Response
 200 HardwareReviewResponse; artırılmış version. Pessimistic review kilidi + @Version. Gerekçesi sabit USER_REVIEW_UPDATED olan append-only audit aynı transaction'da.
@@ -9590,6 +9661,7 @@ HardwareReviewService; V5__create_hardware_reviews.sql.
 Başka servise/DB'ye çağrı yok; gerçek Auth ve User/Social E2E NOT_VERIFIED.
 
 #### Test Durumu
+2026-11-08 (V192 yarım yıldız): HardwareReviewControllerTest 30 test PASS (4,5 kabul; 0,5/5,5/4,3/4,25 ve 2,7 güncellemesi 400; ortalama 3,33; CHECK 4,3 ve 0,5 reddeder) + HardwareReviewTextTest + PcPartImportIntegrationTest; pre-push/Sonar bu değişiklikte çalıştırılmadı.
 UNIT + INTEGRATION — HardwareReviewControllerTest + HardwareReviewTextTest;
 2026-10-21 18:40:14 +03 verify exit 0: 206 PASS, 0 failure/error/skipped;
 JaCoCo 1044/1060=%98,49; gerçek PostgreSQL 17/Flyway V1–V8/JPA/MockMvc.

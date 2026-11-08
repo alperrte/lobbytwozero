@@ -1041,6 +1041,7 @@
       "edit": "Edit",
       "delete": "Delete",
       "confirmDelete": "Confirm deletion",
+      "deleting": "Deleting…",
       "search": "Search",
       "breadcrumb": "Breadcrumb",
       "required": "This field is required."
@@ -1081,7 +1082,7 @@
       "all": "All",
       "allCategories": "All categories",
       "filters": "Filters",
-      "brand": "Manufacturer name",
+      "brand": "Brand",
       "brandSelect": "Catalog manufacturer",
       "brandOptional": "Manufacturer selection is optional.",
       "allBrands": "All manufacturers",
@@ -1097,28 +1098,60 @@
       "list": "List",
       "results": "{count, number} products",
       "emptyTitle": "No hardware matches this selection",
-      "emptyDescription": "Try changing your search or filters. Example products are never shown when the catalog is empty."
+      "emptyDescription": "Try changing your search or filters. Example products are never shown when the catalog is empty.",
+      "brandPlaceholder": "Type a manufacturer or pick from the list",
+      "brandHint": "Catalog manufacturers are suggested; the text you type is matched against manufacturer names.",
+      "technical": "Specifications",
+      "anyValue": "Any",
+      "gpuModel": "Model",
+      "optionsUnavailable": "Options could not load; filters are unavailable for now.",
+      "showFilters": "Show filters",
+      "hideFilters": "Hide filters",
+      "searchPlaceholder": "Search model or manufacturer",
+      "resultsPage": "{from, number}–{to, number} of {total, number}",
+      "tabsHint": "Select the category again to list all hardware."
     },
     "comparison": {
       "title": "Hardware comparison",
-      "selected": "{count} / 2 products selected",
+      "selected": "{count} / {max} products selected",
       "compare": "Compare",
       "add": "Add to comparison",
       "remove": "Remove from comparison",
-      "limit": "Select up to two different products in the same category. Remove an existing selection to choose another.",
+      "limit": "Select up to {max} different products in the same category. Remove an existing selection to choose another.",
+      "needTwoTitle": "Select products to compare",
+      "needTwo": "The comparison page needs at least two and at most four products. Pick products from the same category in the catalog.",
+      "mixedTitle": "Products are in different categories",
+      "mixed": "Only products in the same category can be compared. Remove one of the products or choose again from the catalog.",
       "facts": "Only recorded specifications are compared. This table does not infer performance, compatibility or a winner.",
       "property": "Specification",
       "components": "Compare components",
       "componentHint": "Choose two components in the same category on this page. Change component pages to view other entries.",
       "left": "First component",
       "right": "Second component",
-      "select": "Select a component"
+      "select": "Select a component",
+      "similar": "Same",
+      "different": "Different",
+      "missing": "Not recorded",
+      "onlyDifferences": "Show differences only",
+      "showAll": "Show all fields",
+      "summary": "{different, number} different, {same, number} same, {missing, number} unrecorded fields",
+      "legend": "Legend",
+      "selectTwo": "Select two to four products from the same category to compare.",
+      "product": "Product",
+      "category": "Category",
+      "noDifferences": "The recorded values of the selected products are identical.",
+      "viewDetails": "Open product page"
     },
     "detail": {
       "title": "Hardware details",
       "specifications": "Technical specifications",
       "related": "Models in the same category",
-      "dataNotice": "Specifications come from the catalog record. Product images, live prices, stock and price history are not available yet."
+      "keyFeatures": "Key specifications",
+      "backToCatalog": "Back to catalog",
+      "source": "Data source",
+      "overview": "Overview",
+      "reviewsLink": "Go to reviews",
+      "unavailable": "This product cannot be shown right now."
     },
     "reviews": {
       "title": "User reviews",
@@ -1126,7 +1159,9 @@
       "edit": "Edit review",
       "rating": "Rating (optional)",
       "noRating": "Not rated",
-      "ratingValue": "{rating} / 5",
+      "ratingValue": "{rating, number} / 5",
+      "ratingLabel": "Rating",
+      "clearRating": "Remove rating",
       "body": "Your experience",
       "bodyHint": "Up to 5,000 characters. Do not share personal information or inappropriate content.",
       "report": "Report",
@@ -1144,7 +1179,17 @@
       "mineEmpty": "No review for this product on this page.",
       "hidden": "Hidden by moderation",
       "deleteTitle": "Delete this review?",
-      "deleteDescription": "The review text and rating will be removed. This cannot be undone."
+      "deleteDescription": "The review text and rating will be removed. This cannot be undone.",
+      "confirmTitle": "Are you sure?",
+      "confirmCreate": "Your review will be published publicly on this product page.",
+      "confirmUpdate": "The updated version of your review will be published on this product page.",
+      "confirmSave": "Yes, save",
+      "confirmBack": "Cancel",
+      "averageAria": "Average rating {rating} / 5",
+      "ratedBy": "Rated by {count, plural, one {# person} other {# people}}",
+      "editMine": "Edit your review",
+      "duplicateTitle": "This review could not be saved",
+      "duplicateDescription": "You already have a review for this product, or you used the same text in another review. Edit your existing review or write a different text."
     },
     "reportReasons": {
       "SPAM": "Spam",
@@ -1287,7 +1332,15 @@
       "network": {
         "title": "Could not connect",
         "description": "The hardware service could not be reached or did not respond. If you were saving, reload to check the result."
+      },
+      "shape": {
+        "title": "Unexpected response",
+        "description": "The service did not answer in the expected format. Try again in a moment."
       }
+    },
+    "productVisual": {
+      "representative": "Representative illustration",
+      "gpuVendor": "GPU manufacturer: {vendor}"
     },
     "visual": {
       "selectProduct": "Select {model} for comparison",
@@ -1310,7 +1363,56 @@
       "comparisonList": "Comparison list",
       "removeProduct": "Remove {model} from comparison",
       "openComparison": "Open comparison",
-      "brandMissing": "Manufacturer not specified"
+      "brandMissing": "Manufacturer not specified",
+      "yes": "Yes",
+      "no": "No",
+      "notRecorded": "Not recorded",
+      "brandUnknown": "Manufacturer not specified"
+    },
+    "fields": {
+      "CPU": {
+        "coreCount": "Core count",
+        "clockMhz": "Base clock",
+        "boostClockMhz": "Boost clock",
+        "powerWatts": "TDP",
+        "microarchitecture": "Microarchitecture",
+        "integratedGraphics": "Integrated graphics",
+        "smt": "Simultaneous multithreading (SMT)"
+      },
+      "GPU": {
+        "gpuVendor": "Chip maker",
+        "chipset": "Graphics chip",
+        "capacityGb": "Video memory",
+        "clockMhz": "Core clock",
+        "boostClockMhz": "Boost clock",
+        "lengthMm": "Card length",
+        "color": "Color"
+      },
+      "MOTHERBOARD": {
+        "socket": "CPU socket",
+        "formFactor": "Form factor",
+        "maximumMemoryGb": "Maximum memory",
+        "memorySlots": "Memory slots",
+        "color": "Color"
+      },
+      "RAM": {
+        "memoryType": "Memory type",
+        "capacityGb": "Total capacity",
+        "moduleCount": "Module count",
+        "moduleCapacityGb": "Capacity per module",
+        "clockMhz": "Speed",
+        "casLatency": "CAS latency",
+        "firstWordLatencyNs": "First word latency",
+        "color": "Color"
+      },
+      "STORAGE": {
+        "storageType": "Storage type",
+        "capacityGb": "Capacity",
+        "interfaceType": "Interface",
+        "formFactor": "Form factor",
+        "cacheMb": "Cache",
+        "rotationRpm": "Rotation speed"
+      }
     }
   }
 }
