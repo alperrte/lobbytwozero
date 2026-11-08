@@ -31,9 +31,9 @@ public class IgdbDetailSource implements GameDetailSource {
     static final String SOURCE = "IGDB";
     private static final long MAX_BODY = 1_048_576;
     private static final Duration TOKEN_MARGIN = Duration.ofMinutes(5);
-    private static final String GAME_FIELDS = "summary,first_release_date,involved_companies.developer,"
+    private static final String GAME_FIELDS = "game_type,summary,first_release_date,involved_companies.developer,"
             + "involved_companies.publisher,involved_companies.company.name,"
-            + "language_supports.language.locale,language_supports.language_support_type.name";
+            + "language_supports.language.locale,language_supports.language_support_type.name,cover.image_id";
     private static final JsonMapper JSON = JsonMapper.builder().build();
 
     private record CachedToken(String value, Instant refreshAt) { }
@@ -63,6 +63,9 @@ public class IgdbDetailSource implements GameDetailSource {
 
     @Override public String source() { return SOURCE; }
 
+    /** IGDB {@code game_type} kimliği istenir ve {@link IgdbDetailMapper#providerType} ile muhafazakâr eşlenir. */
+    @Override public boolean reportsItemType() { return true; }
+
     @Override
     public synchronized GameProvider.Details details(String steamAppId) {
         if (steamAppId == null || !steamAppId.matches("[1-9]\\d{0,9}")) {
@@ -75,6 +78,220 @@ public class IgdbDetailSource implements GameDetailSource {
             throw new ProviderException("PROVIDER_ITEM_NOT_FOUND");
         }
         return IgdbDetailMapper.toDetails(games.getFirst());
+    }
+
+
+    /** Toplu istek boyutu: external_games satırı sınırı (500) aşılmasın diye AppID başına en çok iki satıra yer bırakılır. */
+    static final int MAX_BATCH = 250;
+    private static final int IGDB_PAGE_LIMIT = 500;
+
+    /**
+     * Toplu kanıt: iki istekle (external_games, games) en çok {@link #MAX_BATCH} AppID. Eşleme yalnız tam uid eşitliği ve tek
+     * IGDB oyunu ile kabul edilir; yanıt sırası önemsizdir (oyun kimliğiyle eşlenir). Tür ve tarih bağımsızdır: geçersiz bir
+     * tarih yalnız o oyunun tarihini düşürür, sayfayı bozmaz.
+     */
+    @Override
+    public synchronized java.util.Map<String, GameProvider.ItemEvidence> itemEvidence(java.util.Collection<String> steamAppIds) {
+        List<String> ids = steamAppIds == null ? List.of() : steamAppIds.stream().distinct().toList();
+        if (ids.isEmpty()) {
+            return java.util.Map.of();
+        }
+        if (ids.size() > MAX_BATCH || ids.stream().anyMatch(id -> id == null || !id.matches("[1-9]\\d{0,9}"))) {
+            throw new ProviderException("INVALID_PROVIDER_REQUEST");
+        }
+        java.util.Map<String, Set<Long>> byUid = uidToGames(ids);
+        Set<Long> gameIds = new LinkedHashSet<>();
+        for (String id : ids) {
+            Set<Long> candidates = byUid.get(id);
+            if (candidates != null && candidates.size() == 1) {
+                gameIds.add(candidates.iterator().next());
+            }
+        }
+        if (gameIds.isEmpty()) {
+            return java.util.Map.of();
+        }
+        String list = gameIds.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
+        List<IgdbResponses.Game> games = query("/games",
+                "fields game_type,first_release_date,genres.slug,genres.name,platforms.slug,platforms.name,game_modes.slug,game_modes.name,themes.slug,themes.name; where id = (" + list + "); limit " + IGDB_PAGE_LIMIT + ";",
+                new TypeReference<List<IgdbResponses.Game>>() { });
+        java.util.Map<Long, GameProvider.ItemEvidence> evidenceByGame = new java.util.HashMap<>();
+        for (IgdbResponses.Game game : games) {
+            if (game == null || game.id() == null) {
+                continue;
+            }
+            String type = IgdbDetailMapper.providerType(game.gameType());
+            java.time.LocalDate date = IgdbDetailMapper.lenientReleaseDate(game.firstReleaseDate());
+            List<GameProvider.TermEvidence> genres = IgdbDetailMapper.termEvidence(game.genres());
+            List<GameProvider.TermEvidence> platforms = IgdbDetailMapper.termEvidence(game.platforms());
+            // Oyun modları → kategori (Tek oyunculu, Çok oyunculu, Co-op...), temalar → etiket. IGDB keywords kullanıcı etiketidir
+            // (binlerce, gürültülü) ve bilerek eşlenmez; tür (genre), kategori ve etiket kavramları ayrı tutulur.
+            List<GameProvider.TermEvidence> categories = IgdbDetailMapper.termEvidence(game.gameModes());
+            List<GameProvider.TermEvidence> tags = IgdbDetailMapper.termEvidence(game.themes());
+            if (type != null || date != null || !genres.isEmpty() || !platforms.isEmpty() || !categories.isEmpty() || !tags.isEmpty()) {
+                evidenceByGame.put(game.id(), new GameProvider.ItemEvidence(type, date, genres, platforms, categories, tags));
+            }
+        }
+        java.util.Map<String, GameProvider.ItemEvidence> result = new java.util.LinkedHashMap<>();
+        for (String id : ids) {
+            Set<Long> candidates = byUid.get(id);
+            if (candidates != null && candidates.size() == 1 && evidenceByGame.containsKey(candidates.iterator().next())) {
+                result.put(id, evidenceByGame.get(candidates.iterator().next()));
+            }
+        }
+        return result;
+    }
+
+    /** Toplu detay boyutu: dil/şirket genişletmeleri yanıtı büyütür; IGDB yanıt gövdesi sınırı (1 MB) aşılmasın diye 100. */
+    static final int MAX_BULK_DETAILS = 100;
+
+    /**
+     * Toplu detay: en çok {@link #MAX_BULK_DETAILS} AppID için iki istek (external_games, games). Eşleme tam uid eşitliği ve tek
+     * IGDB oyunu ile kabul edilir. Geçersiz/aralık dışı veri yalnız o oyunu düşürür (sonuçta yer almaz), sayfayı bozmaz.
+     */
+    @Override
+    public synchronized java.util.Map<String, GameProvider.Details> bulkDetails(java.util.Collection<String> steamAppIds) {
+        List<String> ids = steamAppIds == null ? List.of() : steamAppIds.stream().distinct().toList();
+        if (ids.isEmpty()) {
+            return java.util.Map.of();
+        }
+        if (ids.size() > MAX_BULK_DETAILS || ids.stream().anyMatch(id -> id == null || !id.matches("[1-9]\\d{0,9}"))) {
+            throw new ProviderException("INVALID_PROVIDER_REQUEST");
+        }
+        java.util.Map<String, Set<Long>> byUid = uidToGames(ids);
+        Set<Long> gameIds = new LinkedHashSet<>();
+        for (String id : ids) {
+            Set<Long> candidates = byUid.get(id);
+            if (candidates != null && candidates.size() == 1) {
+                gameIds.add(candidates.iterator().next());
+            }
+        }
+        if (gameIds.isEmpty()) {
+            return java.util.Map.of();
+        }
+        String list = gameIds.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
+        List<IgdbResponses.Game> games = query("/games", "fields " + GAME_FIELDS + "; where id = (" + list + "); limit " + IGDB_PAGE_LIMIT + ";",
+                new TypeReference<List<IgdbResponses.Game>>() { });
+        java.util.Map<Long, GameProvider.Details> detailsByGame = new java.util.HashMap<>();
+        for (IgdbResponses.Game game : games) {
+            if (game == null || game.id() == null) {
+                continue;
+            }
+            try {
+                detailsByGame.put(game.id(), IgdbDetailMapper.toDetails(game));
+            } catch (ProviderException _) {
+                // Bu oyunun verisi geçersiz: yalnız o oyun kanıtsız kalır.
+            }
+        }
+        java.util.Map<String, GameProvider.Details> result = new java.util.LinkedHashMap<>();
+        for (String id : ids) {
+            Set<Long> candidates = byUid.get(id);
+            if (candidates != null && candidates.size() == 1 && detailsByGame.containsKey(candidates.iterator().next())) {
+                result.put(id, detailsByGame.get(candidates.iterator().next()));
+            }
+        }
+        return result;
+    }
+
+    /** Steam AppID → IGDB oyun adayları (tam uid eşitliği). Kesilmiş olabilecek yanıt güvenilmez sayılır. */
+    private java.util.Map<String, Set<Long>> uidToGames(List<String> ids) {
+        String uids = ids.stream().map(id -> "\"" + id + "\"").collect(java.util.stream.Collectors.joining(","));
+        List<IgdbResponses.ExternalGame> rows = query("/external_games",
+                "fields game,uid; where external_game_source = " + steamSource() + " & uid = (" + uids + "); limit " + IGDB_PAGE_LIMIT + ";",
+                new TypeReference<List<IgdbResponses.ExternalGame>>() { });
+        if (rows.size() >= IGDB_PAGE_LIMIT) {
+            // Sınıra ulaşan yanıt kesilmiş olabilir; eksik satırla belirsizlik tespiti güvenilir olmaz.
+            throw new ProviderException("INVALID_PROVIDER_RESPONSE");
+        }
+        java.util.Map<String, Set<Long>> byUid = new java.util.HashMap<>();
+        Set<String> requested = Set.copyOf(ids);
+        for (IgdbResponses.ExternalGame row : rows) {
+            if (row != null && row.game() != null && row.uid() != null && requested.contains(row.uid())) {
+                byUid.computeIfAbsent(row.uid(), key -> new LinkedHashSet<>()).add(row.game());
+            }
+        }
+        return byUid;
+    }
+
+    /** Ana oyun aramasında bir istekte sorgulanan en çok IGDB oyunu. */
+    private static final int PARENT_CHUNK = 100;
+
+    /**
+     * DLC ilişki kanıtı: AppID → IGDB {@code game_type} kimliği ve {@code parent_game}. Üst oyun IGDB kimliği, yalnız IGDB'nin
+     * kendi Steam {@code external_games} kaydından Steam AppID'sine çevrilir (LTZ kimliğine eşit sayılmaz): tam bir Steam kaydı
+     * varsa LINKED, hiç yoksa UNMAPPED, birden çoksa AMBIGUOUS. Eşleşmeyen veya belirsiz AppID sonuçta yer almaz.
+     */
+    @Override
+    public synchronized java.util.Map<String, GameProvider.RelationEvidence> relationEvidence(java.util.Collection<String> steamAppIds) {
+        List<String> ids = steamAppIds == null ? List.of() : steamAppIds.stream().distinct().toList();
+        if (ids.isEmpty()) {
+            return java.util.Map.of();
+        }
+        if (ids.size() > MAX_BATCH || ids.stream().anyMatch(id -> id == null || !id.matches("[1-9]\\d{0,9}"))) {
+            throw new ProviderException("INVALID_PROVIDER_REQUEST");
+        }
+        java.util.Map<String, Set<Long>> byUid = uidToGames(ids);
+        Set<Long> gameIds = new LinkedHashSet<>();
+        for (String id : ids) {
+            Set<Long> candidates = byUid.get(id);
+            if (candidates != null && candidates.size() == 1) {
+                gameIds.add(candidates.iterator().next());
+            }
+        }
+        if (gameIds.isEmpty()) {
+            return java.util.Map.of();
+        }
+        String list = gameIds.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
+        List<IgdbResponses.Game> games = query("/games", "fields game_type,parent_game; where id = (" + list + "); limit " + IGDB_PAGE_LIMIT + ";",
+                new TypeReference<List<IgdbResponses.Game>>() { });
+        java.util.Map<Long, IgdbResponses.Game> byId = new java.util.HashMap<>();
+        Set<Long> parents = new LinkedHashSet<>();
+        for (IgdbResponses.Game game : games) {
+            if (game != null && game.id() != null) {
+                byId.put(game.id(), game);
+                if (game.parentGame() != null) parents.add(game.parentGame());
+            }
+        }
+        java.util.Map<Long, Set<String>> steamOfParent = steamUidsOf(parents);
+        java.util.Map<String, GameProvider.RelationEvidence> result = new java.util.LinkedHashMap<>();
+        for (String id : ids) {
+            Set<Long> candidates = byUid.get(id);
+            IgdbResponses.Game game = candidates != null && candidates.size() == 1 ? byId.get(candidates.iterator().next()) : null;
+            if (game == null) {
+                continue;
+            }
+            Integer type = game.gameType() != null && game.gameType().intValue() == game.gameType() ? game.gameType().intValue() : null;
+            if (game.parentGame() == null) {
+                result.put(id, new GameProvider.RelationEvidence(type, GameProvider.ParentState.NONE, null));
+                continue;
+            }
+            Set<String> uids = steamOfParent.getOrDefault(game.parentGame(), Set.of());
+            result.put(id, uids.size() == 1
+                    ? new GameProvider.RelationEvidence(type, GameProvider.ParentState.LINKED, uids.iterator().next())
+                    : new GameProvider.RelationEvidence(type, uids.isEmpty() ? GameProvider.ParentState.UNMAPPED : GameProvider.ParentState.AMBIGUOUS, null));
+        }
+        return result;
+    }
+
+    /** IGDB oyun kimliği → o oyunun IGDB'de kayıtlı Steam AppID'leri (parçalı sorgu; kesilen yanıt hata sayılır). */
+    private java.util.Map<Long, Set<String>> steamUidsOf(Set<Long> igdbGameIds) {
+        java.util.Map<Long, Set<String>> result = new java.util.HashMap<>();
+        List<Long> all = List.copyOf(igdbGameIds);
+        for (int from = 0; from < all.size(); from += PARENT_CHUNK) {
+            String list = all.subList(from, Math.min(all.size(), from + PARENT_CHUNK)).stream().map(String::valueOf)
+                    .collect(java.util.stream.Collectors.joining(","));
+            List<IgdbResponses.ExternalGame> rows = query("/external_games",
+                    "fields game,uid; where external_game_source = " + steamSource() + " & game = (" + list + "); limit " + IGDB_PAGE_LIMIT + ";",
+                    new TypeReference<List<IgdbResponses.ExternalGame>>() { });
+            if (rows.size() >= IGDB_PAGE_LIMIT) {
+                throw new ProviderException("INVALID_PROVIDER_RESPONSE");
+            }
+            for (IgdbResponses.ExternalGame row : rows) {
+                if (row != null && row.game() != null && row.uid() != null && row.uid().matches("[1-9]\\d{0,9}")) {
+                    result.computeIfAbsent(row.game(), key -> new LinkedHashSet<>()).add(row.uid());
+                }
+            }
+        }
+        return result;
     }
 
     // ---- Eşleme: Steam AppID -> IGDB oyunu (tam dış kimlik kanıtı)

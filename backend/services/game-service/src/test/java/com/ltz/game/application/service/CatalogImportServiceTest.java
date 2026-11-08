@@ -45,7 +45,9 @@ class CatalogImportServiceTest extends PostgresTestSupport {
         @Override public String provider() { return "STEAM"; }
         @Override public Set<Capability> capabilities() { return reliableTypes ? Set.of(Capability.CATALOG,Capability.INCREMENTAL_CATALOG,Capability.ITEM_TYPE) : Set.of(Capability.CATALOG,Capability.INCREMENTAL_CATALOG); }
         @Override public CatalogPage catalog(CatalogQuery query) { queries.add(query);return Objects.requireNonNull(pages.poll()).get(); }
-        void page(long id,String title,boolean more) { pages.add(()->new CatalogPage(List.of(new CatalogItem(Long.toString(id),title,Instant.ofEpochSecond(100))),id,more)); }
+        void page(long id,String title,boolean more) { pageAt(id,title,more,Instant.ofEpochSecond(100)); }
+        /** Steam last_modified verilir: kayıtın son doğrulanan senkronundan sonra ise "değişmiş" sayılır. */
+        void pageAt(long id,String title,boolean more,Instant lastModified) { pages.add(()->new CatalogPage(List.of(new CatalogItem(Long.toString(id),title,lastModified)),id,more)); }
     }
     @Autowired FakeProvider provider;
     @Autowired CatalogImportService imports;
@@ -67,7 +69,7 @@ class CatalogImportServiceTest extends PostgresTestSupport {
         assertEquals(0,search.search("Typed",0,20).totalElements());
         assertEquals(1,search.search("Typed",0,20,true).totalElements());
         provider.reliableTypes=true;imports.startIncremental();
-        provider.pages.add(()->new GameProvider.CatalogPage(List.of(new GameProvider.CatalogItem("10","Typed",Instant.ofEpochSecond(100),"game")),10,false));
+        provider.pages.add(()->new GameProvider.CatalogPage(List.of(new GameProvider.CatalogItem("10","Typed",Instant.now().plusSeconds(3600),"game")),10,false));
         imports.importNextPage(1);
         assertEquals(GameType.MAIN_GAME,games.findById(id).orElseThrow().getGameType());
         assertEquals(1,search.search("Typed",0,20).totalElements());
@@ -79,7 +81,7 @@ class CatalogImportServiceTest extends PostgresTestSupport {
         assertEquals(2,complete.indexedEntries());assertEquals(2,complete.processedCount());assertNull(complete.providerTotal());
         assertEquals(10,provider.queries.get(1).afterAppId());
         UUID firstId=refs.findByProviderAndExternalId("STEAM","10").orElseThrow().getGame().getId();
-        imports.startInitial();provider.page(10,"Renamed",true);provider.page(20,"Same name",false);
+        imports.startInitial();provider.pageAt(10,"Renamed",true,Instant.now().plusSeconds(3600));provider.page(20,"Same name",false);
         imports.importNextPage(1);imports.importNextPage(1);
         assertEquals(2,games.count());assertEquals(2,refs.count());
         assertEquals(firstId,refs.findByProviderAndExternalId("STEAM","10").orElseThrow().getGame().getId());

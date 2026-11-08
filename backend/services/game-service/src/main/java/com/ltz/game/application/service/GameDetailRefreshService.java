@@ -37,6 +37,17 @@ public class GameDetailRefreshService {
         return games.detailRefreshCandidates(clock.instant(), org.springframework.data.domain.PageRequest.of(0, 1));
     }
 
+    /**
+     * Detay bootstrap: toplu sınıflandırmanın ana oyun olarak işaretlediği ve detayı hiç denenmemiş Steam kayıtları
+     * (en yeni önce). Açıklama, çıkış tarihi, şirket ve dil verisi bu yoldan sağlayıcıdan alınır.
+     */
+    @Transactional(readOnly = true)
+    public java.util.List<UUID> detailBootstrapCandidates(int limit) {
+        var capabilities = provider.capabilities();
+        if (limit < 1 || !capabilities.contains(GameProvider.Capability.DETAILS)) return java.util.List.of();
+        return games.detailBootstrapCandidates(org.springframework.data.domain.PageRequest.of(0, limit));
+    }
+
     @Transactional
     public String refresh(UUID gameId) {
         // Kimlik eşleme ve katalog aktarımıyla aynı kilit sırası.
@@ -53,16 +64,7 @@ public class GameDetailRefreshService {
         try {
             GameProvider.Details details = provider.details(reference.getExternalId());
             if (details == null) throw new ProviderException("INVALID_PROVIDER_RESPONSE");
-            applyDetails(game, details, lockedFields(game));
-            game.setDetailsFetchedAt(clock.instant());
-            game.setDetailsExpiresAt(clock.instant().plus(Duration.ofHours(24)));
-            game.setDetailsFailureCount(0);
-            game.setDetailsNextAttemptAt(null);
-            game.setDetailsLastErrorCode(null);
-            // Sınırlı alan kümesi hiçbir zaman COMPLETE metadata iddiası üretmez.
-            if (game.getMetadataCompleteness() == MetadataCompleteness.INDEX_ONLY)
-                game.setMetadataCompleteness(MetadataCompleteness.PARTIAL);
-            game.setUpdatedAt(clock.instant());
+            applyFetched(game, details);
             return "REFRESHED";
         } catch (ProviderException error) {
             game.setDetailsFailureCount(Math.min(6, game.getDetailsFailureCount() + 1));
@@ -71,6 +73,29 @@ public class GameDetailRefreshService {
             game.setDetailsNextAttemptAt(delay == null ? null : clock.instant().plus(delay));
             return "FAILED";
         }
+    }
+
+    /** Sağlayıcıdan alınmış detayı uygular (tek kayıt ve toplu yol ortak): kilitli alanlar ezilmez, tazelik ve hata durumu sıfırlanır. */
+    void applyFetched(Game game, GameProvider.Details details) {
+        applyDetails(game, details, lockedFields(game));
+        game.setDetailsFetchedAt(clock.instant());
+        game.setDetailsExpiresAt(clock.instant().plus(Duration.ofHours(24)));
+        game.setDetailsFailureCount(0);
+        game.setDetailsNextAttemptAt(null);
+        game.setDetailsLastErrorCode(null);
+        // Sınırlı alan kümesi hiçbir zaman COMPLETE metadata iddiası üretmez.
+        if (game.getMetadataCompleteness() == MetadataCompleteness.INDEX_ONLY)
+            game.setMetadataCompleteness(MetadataCompleteness.PARTIAL);
+        game.setUpdatedAt(clock.instant());
+    }
+
+    /** Toplu sorguda sağlayıcı bu oyun için kanıt vermedi: tek kayıt yolundaki "bulunamadı" hatasıyla aynı durum (yeniden deneme politikası geçerli). */
+    void markNotFound(Game game) {
+        var error = new ProviderException("PROVIDER_ITEM_NOT_FOUND");
+        game.setDetailsFailureCount(Math.min(6, game.getDetailsFailureCount() + 1));
+        game.setDetailsLastErrorCode(error.code());
+        Duration delay = retries.delay(error, game.getDetailsFailureCount());
+        game.setDetailsNextAttemptAt(delay == null ? null : clock.instant().plus(delay));
     }
 
     /** Admin tarafından manuel düzeltilmiş alanlar (GAME-07) sağlayıcı verisiyle ezilmez. */
@@ -89,6 +114,7 @@ public class GameDetailRefreshService {
         }
         applyCompanies(game,details,locked);
         applyLanguages(game,details,locked);
+        if (GameCoverWriter.apply(game, details.coverUrl(), provider.detailSource())) observed(game,"COVER_URL");
         if (!locked.contains(OverridableField.GAME_TYPE) && provider.capabilities().contains(GameProvider.Capability.ITEM_TYPE)) {
             GameType type = types.classify(details.providerType(), true);
             if (type != GameType.UNKNOWN) { game.setGameType(type); observed(game,"GAME_TYPE"); }

@@ -71,6 +71,13 @@ public class Game {
     private Set<GameExternalReference> externalReferences = new HashSet<>();
     @Enumerated(EnumType.STRING) @Column(nullable=false, length=32)
     private GameType gameType = GameType.UNKNOWN;
+    /** DLC'nin ana oyunu (aynı tabloda MAIN_GAME); yalnız DLC için dolu olabilir. Veritabanı kısıtları kendine bağlanmayı ve DLC olmayan kayda bağlanmayı reddeder. */
+    @Column(name="parent_game_id") private UUID parentGameId;
+    /** DLC dışına geçen kayıt ana oyun ilişkisini taşıyamaz (games_parent_only_dlc). */
+    public void setGameType(GameType gameType) {
+        this.gameType = gameType;
+        if (gameType != GameType.DLC) this.parentGameId = null;
+    }
     public boolean isActive() { return status == GameStatus.ACTIVE; }
     @ManyToMany @JoinTable(name="game_terms", joinColumns=@JoinColumn(name="game_id"), inverseJoinColumns=@JoinColumn(name="term_id"))
     private Set<CatalogTerm> terms = new HashSet<>();

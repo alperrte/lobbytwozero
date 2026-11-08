@@ -55,7 +55,8 @@ public class GameDiscoveryRepository {
     private static final String TITLE_ASC = PAGE + " order by g.normalized_title asc,g.id asc" + LIMIT;
     private static final String TITLE_DESC = PAGE + " order by g.normalized_title desc,g.id asc" + LIMIT;
     private static final String RELEASE_ASC = PAGE + " order by g.release_date asc nulls last,g.id asc" + LIMIT;
-    private static final String RELEASE_DESC = PAGE + " order by g.release_date desc nulls last,g.id asc" + LIMIT;
+    /** En yeni önce: çıkmış oyunlar yeniden eskiye; henüz çıkmamış (gelecek tarihli, ör. IGDB yer tutucu 2040) ve tarihsiz oyunlar sona. */
+    private static final String RELEASE_DESC = PAGE + " order by (g.release_date is null or g.release_date > current_date),g.release_date desc nulls last,g.id asc" + LIMIT;
     // Küçük editör sırası daha popülerdir; DESC en popülerden başlar.
     private static final String POPULARITY_ASC = PAGE + " order by g.editor_rank desc nulls last,g.id asc" + LIMIT;
     private static final String POPULARITY_DESC = PAGE + " order by g.editor_rank asc nulls last,g.id asc" + LIMIT;

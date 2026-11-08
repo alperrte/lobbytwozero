@@ -41,6 +41,103 @@ class SteamGameProviderTest {
         provider = new SteamGameProvider(builder.build(), TEST_KEY, true,
                 new SteamRequestBudget(Clock.fixed(Instant.parse("2026-10-20T00:00:00Z"), ZoneOffset.UTC)));
     }
+    @Test void dlcOnlyListIsPagedPacedWithinTheRequestBudgetWithGamesExcludedAndReturnedAsAppIdSet() {
+        var clock = new Clock() {
+            Instant now = Instant.parse("2026-10-20T00:00:00Z");
+            @Override public ZoneOffset getZone() { return ZoneOffset.UTC; }
+            @Override public Clock withZone(java.time.ZoneId zone) { return this; }
+            @Override public Instant instant() { return now; }
+        };
+        RestClient.Builder builder = RestClient.builder();
+        var dlcServer = MockRestServiceServer.bindTo(builder).build();
+        var dlcProvider = new SteamGameProvider(builder.build(), TEST_KEY, true, new SteamRequestBudget(clock), millis -> clock.now = clock.now.plusMillis(millis));
+        dlcServer.expect(method(HttpMethod.GET)).andExpect(request -> {
+            String query = java.net.URLDecoder.decode(request.getURI().getRawQuery(), java.nio.charset.StandardCharsets.UTF_8);
+            assertTrue(query.contains("\"include_games\":false") && query.contains("\"include_dlc\":true"));
+            assertTrue(query.contains("\"last_appid\":0") && !query.contains("if_modified_since"));
+        }).andRespond(withSuccess("""
+                {"response":{"apps":[{"appid":20,"name":"D1","last_modified":1},{"appid":30,"name":"D2","last_modified":1}],
+                "last_appid":30,"have_more_results":true}}
+                """, MediaType.APPLICATION_JSON));
+        dlcServer.expect(method(HttpMethod.GET)).andExpect(request -> {
+            String query = java.net.URLDecoder.decode(request.getURI().getRawQuery(), java.nio.charset.StandardCharsets.UTF_8);
+            assertTrue(query.contains("\"last_appid\":30"));
+        }).andRespond(withSuccess("""
+                {"response":{"apps":[{"appid":40,"name":"D3","last_modified":1}]}}
+                """, MediaType.APPLICATION_JSON));
+        assertEquals(java.util.Set.of("20", "30", "40"), dlcProvider.catalogDlcIds());
+        dlcServer.verify();
+    }
+
+    @Test void storeItemsCarryHeaderDevelopersPublishersAndLanguagesFromSteamsOwnBulkResponse() {
+        server.expect(method(HttpMethod.GET)).andExpect(request -> {
+            assertEquals("api.steampowered.com", request.getURI().getHost());
+            assertEquals("/IStoreBrowseService/GetItems/v1/", request.getURI().getPath());
+            assertEquals(TEST_KEY, request.getHeaders().getFirst("x-webapi-key"));
+            String query = java.net.URLDecoder.decode(request.getURI().getRawQuery(), java.nio.charset.StandardCharsets.UTF_8);
+            assertTrue(query.contains("{\"appid\":3595230}") && query.contains("\"include_assets\":true") && query.contains("\"include_basic_info\":true")
+                    && query.contains("\"include_supported_languages\":true"));
+            assertFalse(request.getURI().toString().contains(TEST_KEY));
+        }).andRespond(withSuccess("""
+                {"response":{"store_items":[
+                 {"appid":3595230,"assets":{"asset_url_format":"steam/apps/3595230/${FILENAME}?t=1","header":"ce4d5e53b36cb9d3c4309d1df72bf8663bbbc7ef/header.jpg"},
+                  "basic_info":{"developers":[{"name":"Infinity Ward"},{"name":" Treyarch "},{"name":""}],"publishers":[{"name":"Activision"}]},
+                  "supported_languages":[{"elanguage":0,"supported":true,"full_audio":true,"subtitles":true},{"elanguage":22,"supported":true,"full_audio":false,"subtitles":true},
+                   {"elanguage":25,"supported":true,"full_audio":false,"subtitles":false},{"elanguage":20,"supported":true},{"elanguage":23,"supported":true},{"elanguage":99,"supported":true},
+                   {"elanguage":3,"supported":false}]},
+                 {"appid":570,"assets":{"asset_url_format":"steam/apps/570/${FILENAME}?t=2","header":"header.jpg"}},
+                 {"appid":1091500,"assets":{"asset_url_format":"steam/apps/1091500/${FILENAME}?t=3","header":"48a93d6445a67520ea49833c93dae8f2e68fc540/header_alt_assets_9.jpg"}},
+                 {"appid":42,"success":2},
+                 {"appid":43,"assets":{"asset_url_format":"steam/apps/999/${FILENAME}","header":"header.jpg"}},
+                 {"appid":44,"assets":{"asset_url_format":"steam/apps/44/${FILENAME}","header":"../evil.jpg"}},
+                 {"appid":777,"assets":{"asset_url_format":"steam/apps/777/${FILENAME}","header":"header.jpg"}}]}}
+                """, MediaType.APPLICATION_JSON));
+        var found = provider.storeItems(java.util.List.of("3595230", "570", "1091500", "42", "43", "44"));
+        var cod = found.get("3595230");
+        assertEquals("https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3595230/ce4d5e53b36cb9d3c4309d1df72bf8663bbbc7ef/header.jpg", cod.headerImageUrl());
+        assertEquals(java.util.Set.of("Infinity Ward", "Treyarch"), cod.developers());
+        assertEquals(java.util.Set.of("Activision"), cod.publishers());
+        assertEquals(java.util.List.of("en-us", "pt-br", "ar"), cod.languages().stream().map(l -> l.languageCode()).toList(),
+                "desteklenmeyen (3), ayırt edilemeyen (20, 23) ve bilinmeyen (99) dil numaraları atlanır; dil uydurulmaz");
+        assertEquals(com.ltz.game.domain.enums.LanguageSupportStatus.SUPPORTED, cod.languages().get(0).audioSupport());
+        assertEquals(com.ltz.game.domain.enums.LanguageSupportStatus.UNKNOWN, cod.languages().get(1).audioSupport(), "full_audio=false ses için UNKNOWN (UNSUPPORTED iddiası yok)");
+        assertEquals(com.ltz.game.domain.enums.LanguageSupportStatus.SUPPORTED, cod.languages().get(1).subtitleSupport());
+        assertEquals("https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/570/header.jpg", found.get("570").headerImageUrl());
+        assertEquals("https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1091500/48a93d6445a67520ea49833c93dae8f2e68fc540/header_alt_assets_9.jpg", found.get("1091500").headerImageUrl());
+        assertEquals(java.util.Set.of("3595230", "570", "1091500"), found.keySet(), "hiçbir alanı olmayan, başka uygulamaya ait adresli, geçersiz dosyalı ve istenmeyen kayıtlar atlanır");
+    }
+
+    @Test void storeItemsRejectInvalidIdsOversizedBatchesAndMalformedResponses() {
+        assertEquals(java.util.Map.of(), provider.storeItems(java.util.List.of()));
+        assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.storeItems(java.util.List.of("0; drop"))).code());
+        var many = new java.util.ArrayList<String>();
+        for (int index = 1; index <= 101; index++) many.add(Integer.toString(index));
+        assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.storeItems(many)).code());
+        server.expect(method(HttpMethod.GET)).andRespond(withSuccess("{\"response\":{}}", MediaType.APPLICATION_JSON));
+        assertEquals("INVALID_PROVIDER_RESPONSE", assertThrows(ProviderException.class, () -> provider.storeItems(java.util.List.of("1"))).code());
+    }
+
+    @Test void shortDescriptionsAskTheRequestedLanguageOnlyAndParseTheTextsAndRejectUnsupportedLanguages() {
+        server.expect(method(HttpMethod.GET)).andExpect(request -> {
+            String query = java.net.URLDecoder.decode(request.getURI().getRawQuery(), java.nio.charset.StandardCharsets.UTF_8);
+            assertTrue(query.contains("\"language\":\"turkish\"") && query.contains("\"include_basic_info\":true") && query.contains("{\"appid\":570}"));
+            assertFalse(query.contains("include_assets") || query.contains("include_supported_languages"), "yalnız gerekli veri istenir");
+            assertEquals(TEST_KEY, request.getHeaders().getFirst("x-webapi-key"));
+        }).andRespond(withSuccess("""
+                {"response":{"store_items":[
+                 {"appid":570,"basic_info":{"short_description":"  Her gün milyonlarca oyuncu.  "}},
+                 {"appid":730,"basic_info":{"short_description":""}},
+                 {"appid":731,"basic_info":{}},
+                 {"appid":999,"basic_info":{"short_description":"istenmedi"}}]}}
+                """, MediaType.APPLICATION_JSON));
+        var found = provider.shortDescriptions(java.util.List.of("570", "730", "731"), "tr");
+        assertEquals(java.util.Map.of("570", "Her gün milyonlarca oyuncu."), found, "boş, eksik ve istenmeyen kayıtlar atlanır; metin kırpılır");
+        assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.shortDescriptions(java.util.List.of("1"), "de")).code(),
+                "yapılandırılmamış dil için istek atılmaz");
+        assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.shortDescriptions(java.util.List.of("0; drop"), "tr")).code());
+        assertEquals(java.util.Map.of(), provider.shortDescriptions(java.util.List.of(), "tr"));
+    }
+
     @Test void capabilitiesAreExplicitAndUnavailableFeaturesFail() {
         assertEquals("STEAM", provider.provider());
         assertTrue(provider.capabilities().contains(Capability.CATALOG));
@@ -60,7 +157,12 @@ class SteamGameProviderTest {
             assertTrue(query.contains("\"last_appid\":10"));
             assertTrue(query.contains("\"max_results\":2"));
             assertTrue(query.contains("\"if_modified_since\":100"));
-            assertTrue(query.contains("\"include_dlc\":false"));
+            // Hedef kapsam: ana oyun + DLC; yazılım, video ve donanım kapalı.
+            assertTrue(query.contains("\"include_games\":true"));
+            assertTrue(query.contains("\"include_dlc\":true"));
+            assertTrue(query.contains("\"include_software\":false"));
+            assertTrue(query.contains("\"include_videos\":false"));
+            assertTrue(query.contains("\"include_hardware\":false"));
         }).andRespond(withSuccess("""
                 {"response":{"apps":[{"appid":20,"name":" Example ","last_modified":200,"unknown":true,"type":"game"}],
                 "last_appid":20,"have_more_results":true}}
@@ -112,14 +214,8 @@ class SteamGameProviderTest {
     }
     @ParameterizedTest @ValueSource(strings={
         "{}", "{\"response\":{}}", "{\"response\":{\"apps\":[],\"have_more_results\":true}}",
-        "{\"response\":{\"apps\":[{\"appid\":1,\"name\":\" \",\"last_modified\":1}],\"have_more_results\":false}}",
         "{\"response\":{\"apps\":[{\"appid\":0,\"name\":\"A\",\"last_modified\":1}],\"have_more_results\":false}}",
-        "{\"response\":{\"apps\":[{\"appid\":1,\"name\":\"A\"}],\"have_more_results\":false}}",
         "{\"response\":{\"apps\":[],\"last_appid\":3,\"have_more_results\":false}}",
-        "{\"response\":{\"apps\":[null],\"have_more_results\":false}}",
-        "{\"response\":{\"apps\":[{\"appid\":4294967296,\"name\":\"A\",\"last_modified\":1}],\"have_more_results\":false}}",
-        "{\"response\":{\"apps\":[{\"appid\":1,\"name\":\"A\",\"last_modified\":-1}],\"have_more_results\":false}}",
-        "{\"response\":{\"apps\":[{\"appid\":1,\"name\":\"A\",\"last_modified\":4294967296}],\"have_more_results\":false}}",
         "{\"response\":{\"apps\":[{\"appid\":1,\"name\":\"A\",\"last_modified\":1},{\"appid\":1,\"name\":\"B\",\"last_modified\":2}],\"have_more_results\":false}}"
     })
     void malformedAndNonProgressingResponsesAreRejected(String body) {
@@ -155,5 +251,127 @@ class SteamGameProviderTest {
         provider.catalog(new CatalogQuery(0,null,10));
         var query = new CatalogQuery(0,null,10);
         assertEquals("RATE_LIMITED",assertThrows(ProviderException.class,()->provider.catalog(query)).code());
+    }
+
+    // ---- Kayıt düzeyi hata yalnız o kaydı atlar; sağlayıcı düzeyi hata tüm sayfayı reddeder.
+    private static String app(long id, String name, String lastModified) {
+        return "{\"appid\":" + id + (name == null ? "" : ",\"name\":\"" + name + "\"") + (lastModified == null ? "" : ",\"last_modified\":" + lastModified) + "}";
+    }
+    private static String envelope(String apps, Long last, boolean more) {
+        return "{\"response\":{\"apps\":[" + apps + "]" + (last == null ? "" : ",\"last_appid\":" + last) + ",\"have_more_results\":" + more + "}}";
+    }
+    @Test void blankNameRecordIsSkippedAndTheCursorAdvancesPastIt() {
+        server.expect(anything()).andRespond(withSuccess(envelope(
+                app(396419, "Before", "10") + "," + app(396420, "", "10") + "," + app(396421, "After", "10"), 396421L, true), MediaType.APPLICATION_JSON));
+        var page = provider.catalog(new CatalogQuery(396000, null, 1000));
+        assertEquals(java.util.List.of("396419", "396421"), page.items().stream().map(item -> item.externalId()).toList());
+        assertEquals(1, page.skippedRecords()); assertEquals(396421L, page.nextAppId()); assertTrue(page.hasMore());
+    }
+    @Test void trailingInvalidRecordStillAdvancesTheCursorSoTheNextPageDoesNotRepeatIt() {
+        server.expect(anything()).andRespond(withSuccess(envelope(app(5, "Ok", "1") + "," + app(6, " ", "1"), 6L, true), MediaType.APPLICATION_JSON));
+        var page = provider.catalog(new CatalogQuery(0, null, 10));
+        assertEquals(1, page.items().size()); assertEquals(1, page.skippedRecords()); assertEquals(6L, page.nextAppId()); assertTrue(page.hasMore());
+    }
+    @Test void aPageWhoseOnlyRecordIsInvalidIsNotAnError() {
+        server.expect(anything()).andRespond(withSuccess(envelope(app(396420, "", "1"), 396420L, true), MediaType.APPLICATION_JSON));
+        var page = provider.catalog(new CatalogQuery(396419, null, 10));
+        assertTrue(page.items().isEmpty()); assertEquals(1, page.skippedRecords()); assertEquals(396420L, page.nextAppId()); assertTrue(page.hasMore());
+    }
+    @ParameterizedTest @ValueSource(strings = {"NAME_MISSING", "NAME_BLANK", "NAME_TOO_LONG", "MODIFIED_MISSING", "MODIFIED_NEGATIVE", "MODIFIED_TOO_BIG"})
+    void eachRecordLevelDefectSkipsOnlyThatRecord(String defect) {
+        String bad = switch (defect) {
+            case "NAME_MISSING" -> app(2, null, "1");
+            case "NAME_BLANK" -> app(2, "   ", "1");
+            case "NAME_TOO_LONG" -> app(2, "x".repeat(257), "1");
+            case "MODIFIED_MISSING" -> app(2, "Bad", null);
+            case "MODIFIED_NEGATIVE" -> app(2, "Bad", "-1");
+            default -> app(2, "Bad", "4294967296");
+        };
+        server.expect(anything()).andRespond(withSuccess(envelope(app(1, "Good", "1") + "," + bad + "," + app(3, "Good too", "1"), 3L, false), MediaType.APPLICATION_JSON));
+        var page = provider.catalog(new CatalogQuery(0, null, 10));
+        assertEquals(java.util.List.of("1", "3"), page.items().stream().map(item -> item.externalId()).toList());
+        assertEquals(1, page.skippedRecords()); assertEquals(3L, page.nextAppId());
+    }
+    @Test void nullRecordAndUnreadableAppIdAreSkippedAndCursorFollowsTheProviderReportedLastAppId() {
+        server.expect(anything()).andRespond(withSuccess(envelope(app(5, "Ok", "1") + ",null,{\"name\":\"No id\",\"last_modified\":1},"
+                + app(4294967296L, "Too big", "1"), 9L, true), MediaType.APPLICATION_JSON));
+        var page = provider.catalog(new CatalogQuery(0, null, 10));
+        assertEquals(1, page.items().size()); assertEquals(3, page.skippedRecords());
+        assertEquals(9L, page.nextAppId(), "sayfa sonundaki okunamayan kayıtlar döngü oluşturmamalı");
+    }
+    @Test void nonIncreasingOrderIsStillAProviderLevelFailureEvenWhenTheOtherFieldsAreValid() {
+        server.expect(anything()).andRespond(withSuccess(envelope(app(5, "A", "1") + "," + app(4, "B", "1"), 5L, false), MediaType.APPLICATION_JSON));
+        var query = new CatalogQuery(0, null, 10);
+        assertEquals("INVALID_PROVIDER_RESPONSE", assertThrows(ProviderException.class, () -> provider.catalog(query)).code());
+    }
+    @Test void aFewBadRecordsInAFullPageAreTolerated() {
+        var apps = new StringBuilder();
+        for (int id = 1; id <= 1000; id++) apps.append(id > 1 ? "," : "").append(app(id, id % 170 == 0 ? "" : "G" + id, "1"));
+        server.expect(anything()).andRespond(withSuccess(envelope(apps.toString(), 1000L, true), MediaType.APPLICATION_JSON));
+        var page = provider.catalog(new CatalogQuery(0, null, 1000));
+        assertEquals(5, page.skippedRecords()); assertEquals(995, page.items().size()); assertEquals(1000L, page.nextAppId());
+    }
+    @Test void aMostlyInvalidPageIsAProviderFormatProblemNotARecordProblem() {
+        var apps = new StringBuilder();
+        for (int id = 1; id <= 20; id++) apps.append(id > 1 ? "," : "").append(app(id, id <= 10 ? "" : "G" + id, "1"));
+        server.expect(anything()).andRespond(withSuccess(envelope(apps.toString(), 20L, true), MediaType.APPLICATION_JSON));
+        var query = new CatalogQuery(0, null, 100);
+        assertEquals("INVALID_PROVIDER_RESPONSE", assertThrows(ProviderException.class, () -> provider.catalog(query)).code());
+    }
+
+    // ---- Son sayfa / boş yanıt: Steam gerçek sözleşmesi (have_more_results ve last_appid yalnız devam varsa gelir)
+    @Test void shortPageWithoutHaveMoreResultsIsTheLastPageAndKeepsTheCursorOnTheLastApp() {
+        server.expect(anything()).andRespond(withSuccess("{\"response\":{\"apps\":[" + app(5, "A", "1") + "," + app(9, "B", "1") + "]}}", MediaType.APPLICATION_JSON));
+        var page = provider.catalog(new CatalogQuery(0, null, 10));
+        assertEquals(2, page.items().size()); assertFalse(page.hasMore()); assertEquals(9L, page.nextAppId()); assertEquals(0, page.skippedRecords());
+    }
+    @Test void fullPageWithoutHaveMoreResultsCannotBeFinalSoTheSyncContinues() {
+        server.expect(anything()).andRespond(withSuccess("{\"response\":{\"apps\":[" + app(5, "A", "1") + "," + app(9, "B", "1") + "]}}", MediaType.APPLICATION_JSON));
+        var page = provider.catalog(new CatalogQuery(0, null, 2));
+        assertTrue(page.hasMore()); assertEquals(9L, page.nextAppId());
+    }
+    @Test void emptyResponseAfterTheCursorIsTheFinalEmptyPage() {
+        server.expect(anything()).andRespond(withSuccess("{\"response\":{}}", MediaType.APPLICATION_JSON));
+        var page = provider.catalog(new CatalogQuery(5563880, null, 1000));
+        assertTrue(page.items().isEmpty()); assertFalse(page.hasMore()); assertEquals(5563880L, page.nextAppId());
+    }
+    @Test void emptyIncrementalResponseFromTheStartMeansNothingChanged() {
+        server.expect(anything()).andRespond(withSuccess("{\"response\":{}}", MediaType.APPLICATION_JSON));
+        var page = provider.catalog(new CatalogQuery(0, Instant.ofEpochSecond(1000), 1000));
+        assertTrue(page.items().isEmpty()); assertFalse(page.hasMore()); assertEquals(0L, page.nextAppId());
+    }
+    @ParameterizedTest @ValueSource(strings = {"{\"response\":{}}", "{\"response\":{\"apps\":[]}}"})
+    void anEmptyFirstPageOfAnInitialRunIsBrokenAndNeverCompletesTheSync(String body) {
+        server.expect(anything()).andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+        var query = new CatalogQuery(0, null, 1000);
+        assertEquals("INVALID_PROVIDER_RESPONSE", assertThrows(ProviderException.class, () -> provider.catalog(query)).code());
+    }
+    @ParameterizedTest @ValueSource(strings = {
+            "{\"response\":{\"have_more_results\":false}}", "{\"response\":{\"last_appid\":5}}", "{\"response\":{\"have_more_results\":true}}",
+            "{\"response\":null}", "{\"response\":[]}", "[]"})
+    void aResponseWithoutAppsButWithOtherFieldsOrAnInvalidEnvelopeIsRejected(String body) {
+        server.expect(anything()).andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+        var query = new CatalogQuery(10, null, 1000);
+        assertEquals("INVALID_PROVIDER_RESPONSE", assertThrows(ProviderException.class, () -> provider.catalog(query)).code());
+    }
+    @Test void aMissingFlagNeverHidesAnInconsistentCursorOrOrder() {
+        server.expect(anything()).andRespond(withSuccess("{\"response\":{\"apps\":[" + app(5, "A", "1") + "],\"last_appid\":9}}", MediaType.APPLICATION_JSON));
+        var query = new CatalogQuery(0, null, 10);
+        assertEquals("INVALID_PROVIDER_RESPONSE", assertThrows(ProviderException.class, () -> provider.catalog(query)).code());
+    }
+    @Test void aMissingFlagNeverHidesNonIncreasingIds() {
+        server.expect(anything()).andRespond(withSuccess("{\"response\":{\"apps\":[" + app(9, "A", "1") + "," + app(5, "B", "1") + "]}}", MediaType.APPLICATION_JSON));
+        var query = new CatalogQuery(0, null, 10);
+        assertEquals("INVALID_PROVIDER_RESPONSE", assertThrows(ProviderException.class, () -> provider.catalog(query)).code());
+    }
+    @Test void aFinalPageWhoseOnlyRecordIsInvalidStillEndsTheRunAndCountsTheSkip() {
+        server.expect(anything()).andRespond(withSuccess("{\"response\":{\"apps\":[" + app(7, " ", "1") + "]}}", MediaType.APPLICATION_JSON));
+        var page = provider.catalog(new CatalogQuery(5, null, 10));
+        assertTrue(page.items().isEmpty()); assertEquals(1, page.skippedRecords()); assertFalse(page.hasMore()); assertEquals(7L, page.nextAppId());
+    }
+    @Test void oversizedPageIsStillRejected() {
+        server.expect(anything()).andRespond(withSuccess("{\"response\":{\"apps\":[" + app(1, "A", "1") + "," + app(2, "B", "1") + "]}}", MediaType.APPLICATION_JSON));
+        var query = new CatalogQuery(0, null, 1);
+        assertEquals("INVALID_PROVIDER_RESPONSE", assertThrows(ProviderException.class, () -> provider.catalog(query)).code());
     }
 }
