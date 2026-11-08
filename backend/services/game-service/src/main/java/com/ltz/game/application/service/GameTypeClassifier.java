@@ -14,7 +14,7 @@ public class GameTypeClassifier {
             Map.entry("music", GameType.SOUNDTRACK), Map.entry("soundtrack", GameType.SOUNDTRACK),
             Map.entry("software", GameType.SOFTWARE), Map.entry("movie", GameType.VIDEO),
             Map.entry("video", GameType.VIDEO), Map.entry("series", GameType.VIDEO),
-            Map.entry("package", GameType.PACKAGE), Map.entry("bundle", GameType.PACKAGE),
+            Map.entry("package", GameType.PACKAGE), Map.entry("bundle", GameType.PACKAGE), Map.entry("pack", GameType.PACKAGE),
             Map.entry("hardware", GameType.HARDWARE));
 
     public GameType classify(String providerType, boolean supportedSignal) {

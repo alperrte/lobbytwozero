@@ -60,4 +60,15 @@ describe("Game mutasyon formu", () => {
     mount({ fields: [{ name: "description", kind: "textarea", max: 4000 }] });
     expect(screen.getByRole("textbox", { name: messages.Game.fields.description })).toBeVisible();
   });
+  it("INVALID_MEDIA_URL kodunu izin verilen kaynakları açıklayan mesajla gösterir", async () => {
+    mutate.mockRejectedValueOnce(new ApiHttpError(400, { code: "INVALID_MEDIA_URL" }));
+    mount(); fireEvent.submit(screen.getByRole("form", { name: "Fixture form" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(messages.Game.invalidMediaUrl);
+  });
+  it("alan açıklamasını (helpKey) forma ve alana bağlar; zorunlu işaret erişilebilir adı değiştirmez", () => {
+    mount({ fields: [{ name: "coverUrl", kind: "url", required: true, helpKey: "mediaSources.cover" }] });
+    const input = screen.getByRole("textbox", { name: messages.Game.fields.coverUrl });
+    expect(screen.getByText(messages.Game.mediaSources.cover)).toBeVisible();
+    expect(input).toHaveAttribute("aria-describedby", expect.stringContaining("coverUrl-help"));
+  });
 });

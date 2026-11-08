@@ -59,6 +59,13 @@ class MigrationTransferTest {
         assertThrows(DataAccessException.class, () -> jdbc.update("delete from game_identity_audits"));
         assertThrows(DataAccessException.class, () -> jdbc.update("delete from games where id=?", GAME));
         assertEquals(sourceDigests, digests(target));
+        // Entity eşlemesi son şemayı (V174) bekler; bu sınıf zinciri V40 sınırında karşılaştırır, yükseltme yalnız eşleme doğrulaması için eklenir.
+        for (String script : new String[]{"V174__add_game_parent_relation.sql", "V175__create_game_localized_descriptions.sql"}) {
+            var latest = new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
+                    new org.springframework.core.io.ClassPathResource("db/migration/" + script));
+            latest.setSeparator(org.springframework.jdbc.datasource.init.ScriptUtils.EOF_STATEMENT_SEPARATOR);
+            latest.execute(target);
+        }
         MigrationSchemaSupport.validateHibernate(target);
         assertEquals(0, flyway(target, CURRENT).migrate().migrationsExecuted);
         // Yalnız satır sayıları/hash'ler; özel kayıt içerikleri loglanmaz.

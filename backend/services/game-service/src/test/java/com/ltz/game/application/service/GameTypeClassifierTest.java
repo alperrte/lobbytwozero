@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class GameTypeClassifierTest {
     final GameTypeClassifier classifier=new GameTypeClassifier();
     @ParameterizedTest @CsvSource({"game,MAIN_GAME","main_game,MAIN_GAME","'  MAIN_GAME  ',MAIN_GAME","dlc,DLC","demo,DEMO","music,SOUNDTRACK","soundtrack,SOUNDTRACK",
-            "software,SOFTWARE","video,VIDEO","movie,VIDEO","series,VIDEO","package,PACKAGE","bundle,PACKAGE","hardware,HARDWARE","future-type,UNKNOWN"})
+            "software,SOFTWARE","video,VIDEO","movie,VIDEO","series,VIDEO","package,PACKAGE","bundle,PACKAGE","pack,PACKAGE","hardware,HARDWARE","future-type,UNKNOWN"})
     void onlyExplicitReliableTypesAreClassified(String raw,GameType expected) {
         assertEquals(expected,classifier.classify(raw,true));
         assertEquals(GameType.UNKNOWN,classifier.classify(raw,false));
@@ -18,5 +18,11 @@ class GameTypeClassifierTest {
         assertEquals(GameType.UNKNOWN,classifier.classify(null,true));
         assertEquals(GameType.UNKNOWN,classifier.classify("",true));
         assertEquals(GameType.UNKNOWN,classifier.classify("Game title Deluxe Demo",true));
+    }
+    @ParameterizedTest @CsvSource({"main_game,MAIN_GAME","dlc,DLC","bundle,PACKAGE"})
+    void igdbMappedKeysClassifyAndNamesNeverDo(String key,GameType expected) {
+        assertEquals(expected,classifier.classify(key,true));
+        // Başlık/ad sinyali olarak gelen ifadeler tür kanıtı değildir.
+        assertEquals(GameType.UNKNOWN,classifier.classify("Some Game - Soundtrack DLC Demo",true));
     }
 }
