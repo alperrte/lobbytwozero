@@ -20,7 +20,8 @@ public final class ProfileMapper {
                 profile.getBio(), List.copyOf(profile.getPlayerTypes()), List.copyOf(profile.getFavoriteGenres()),
                 List.copyOf(profile.getFavoritePlatforms()), profile.getCountry(),
                 mediaOf(currentMedia, MediaKind.AVATAR), mediaOf(currentMedia, MediaKind.COVER),
-                profile.getOnboardingCompletedAt(), profile.getUpdatedAt(), profile.getVersion());
+                profile.effectiveMemberSince(), profile.getOnboardingCompletedAt(), profile.getUpdatedAt(),
+                profile.getVersion());
     }
 
     /** Güncel görsellerden istenen türünkini görünüme çevirir; yoksa {@code null}. */

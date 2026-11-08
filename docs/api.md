@@ -1042,12 +1042,13 @@ Profil yoksa varsayılan değerlerle **oluşturulur** (Auth'un `UserRegistered` 
   "country": "ISO 3166-1 alpha-2 | null",
   "avatar": { "small": "/api/v1/user/media/<anahtar>-s.jpg", "large": "/api/v1/user/media/<anahtar>.jpg", "animated": false },
   "cover": { "small": "...", "large": "...", "animated": false },
+  "memberSince": "ISO-8601 (üyelik tarihi: Auth'un UserRegistered olayındaki occurredAt, yani hesabın ACTIVE olduğu an; olay gelene kadar profilin açıldığı an)",
   "onboardingCompletedAt": "ISO-8601 | null",
   "updatedAt": "ISO-8601",
   "version": 0
 }
 ```
-`avatar`/`cover` görsel yoksa `null`. Adresler **değişmezdir** (her yükleme yeni adres alır) ve herkese açıktır; ayrıntı: "Profil görseli yükle" kaydı. GIF'te `small` ve `large` aynı dosyadır.
+`avatar`/`cover` görsel yoksa `null`. `memberSince` her zaman doludur; `UserRegistered` olayı sonradan gelirse daha erken bir zamanla düzeltilir, ileri alınmaz (gelecekteki zaman şimdiyle sınırlanır). Adresler **değişmezdir** (her yükleme yeni adres alır) ve herkese açıktır; ayrıntı: "Profil görseli yükle" kaydı. GIF'te `small` ve `large` aynı dosyadır.
 
 Yanıt e-posta, hesap durumu veya kimlik bilgisi içermez.
 
@@ -1285,7 +1286,7 @@ Zarfta tanımsız alan reddedilir. Gövde en fazla 16 KB.
 }
 ```
 **Kabul edilen olaylar** (hepsi yalnız `producer=auth-service`; farklı üretici `400 EVENT_PRODUCER_MISMATCH`):
-- `UserRegistered`: `{ "accountId": "UUID = aggregateId", "username": "^[A-Za-z0-9_]{3,20}$" }`. Profili açar ya da var olan profile kullanıcı adı kopyasını yazar; **hesap durumunu değiştirmez**.
+- `UserRegistered`: `{ "accountId": "UUID = aggregateId", "username": "^[A-Za-z0-9_]{3,20}$" }`. Profili açar ya da var olan profile kullanıcı adı kopyasını yazar; **hesap durumunu değiştirmez**. Zarftaki `occurredAt` üyelik tarihi (`memberSince`) olarak saklanır: yalnız boşsa ya da daha erken bir zaman gelirse yazılır, gelecekteki zaman şimdiyle sınırlanır.
 - `AccountStatusChanged`: `{ "accountId": "UUID = aggregateId", "status": "ACTIVE | SUSPENDED | BANNED | DISABLED | ..." }`. Profil varsa durumu günceller; **eski olay yeni durumu ezemez** (`occurredAt` karşılaştırılır). Profil yoksa yalnız kısıtlayıcı durumlar (`SUSPENDED`, `BANNED`, `DISABLED`) kaydedilir (askıdaki hesap sonradan görünür hale gelmesin); `ACTIVE` için profil ilk kullanımda zaten `ACTIVE` açılır. Tanınmayan durum adı profili değiştirmez.
 - `AccountEmailChanged`: `{ "accountId": "UUID = aggregateId" }`. Yük doğrulanır, etkisi yoktur (User e-posta tutmaz; yeni adres olayda gelmez).
 - `FriendshipChanged` (yalnız `social-service`): `{ "userLowId": "UUID", "userHighId": "UUID", "change": "ADDED | REMOVED" }`. social-service'in mevcut olay kaydıyla aynıdır. Arkadaşlık yansımasını günceller.

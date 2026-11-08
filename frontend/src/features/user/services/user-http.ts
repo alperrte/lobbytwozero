@@ -9,7 +9,7 @@ import { CSRF_HEADER, CSRF_PATH, readCsrfCookie } from "@/shared/lib/session/csr
 export type UserPath = `/api/v1/user/${string}`;
 
 export type UserRequestOptions = {
-  method?: "GET" | "PUT" | "PATCH" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   json?: unknown;
   raw?: { data: Blob; type: string };
   signal?: AbortSignal;

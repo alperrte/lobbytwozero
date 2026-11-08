@@ -1,7 +1,18 @@
 import { cn } from "@/shared/utils/cn";
 
 /** Yuvarlak avatar: görsel varsa görsel, yoksa adın ilk harfi. Görsel dekoratiftir (ad zaten metinde yazar). */
-export function ProfileAvatar({ name, src, className }: { name: string; src: string | null; className?: string }) {
+export function ProfileAvatar({
+  name,
+  src,
+  className,
+  initialClassName = "text-3xl"
+}: {
+  name: string;
+  src: string | null;
+  className?: string;
+  /** Harfin boyutu; küçük avatarlarda küçültülür. */
+  initialClassName?: string;
+}) {
   const initial = Array.from(name.trim())[0]?.toLocaleUpperCase() ?? "";
   return (
     <span
@@ -14,7 +25,7 @@ export function ProfileAvatar({ name, src, className }: { name: string; src: str
         // eslint-disable-next-line @next/next/no-img-element
         <img src={src} alt="" className="size-full object-cover" referrerPolicy="no-referrer" />
       ) : (
-        <span aria-hidden="true" className="font-display text-3xl font-semibold text-text-primary">
+        <span aria-hidden="true" className={cn("font-display font-semibold text-text-primary", initialClassName)}>
           {initial}
         </span>
       )}
