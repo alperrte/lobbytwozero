@@ -6,7 +6,8 @@ vi.mock("./social-http", () => ({ socialRequest: (...args: unknown[]) => socialR
 
 const { fetchProfileCards, safeAvatarPath } = await import("./user-profiles");
 
-const KEY = "0123456789abcdef0123456789abcdef";
+// user-service medya dosya adı: 32 küçük hex (sır değil, test kimliği).
+const MEDIA_ID = "a".repeat(16) + "b".repeat(16);
 
 beforeEach(() => {
   socialRequest.mockReset();
@@ -25,7 +26,7 @@ describe("fetchProfileCards", () => {
         userId,
         username: `n-${userId}`,
         displayName: null,
-        avatar: { small: `/api/v1/user/media/${KEY}-s.jpg`, large: `/api/v1/user/media/${KEY}.jpg` }
+        avatar: { small: `/api/v1/user/media/${MEDIA_ID}-s.jpg`, large: `/api/v1/user/media/${MEDIA_ID}.jpg` }
       }))
     }));
     const cards = await fetchProfileCards([...ids, "u0", "u1"]);
@@ -37,7 +38,7 @@ describe("fetchProfileCards", () => {
       userId: "u59",
       username: "n-u59",
       displayName: null,
-      avatarPath: `/api/v1/user/media/${KEY}-s.jpg`
+      avatarPath: `/api/v1/user/media/${MEDIA_ID}-s.jpg`
     });
   });
 
@@ -54,10 +55,10 @@ describe("fetchProfileCards", () => {
 
 describe("safeAvatarPath", () => {
   it("yalnız user-service medya yolunu kabul eder", () => {
-    expect(safeAvatarPath(`/api/v1/user/media/${KEY}-s.png`)).toBe(`/api/v1/user/media/${KEY}-s.png`);
+    expect(safeAvatarPath(`/api/v1/user/media/${MEDIA_ID}-s.png`)).toBe(`/api/v1/user/media/${MEDIA_ID}-s.png`);
     expect(safeAvatarPath("https://evil.test/a.png")).toBeNull();
-    expect(safeAvatarPath(`/api/v1/user/media/${KEY}.svg`)).toBeNull();
-    expect(safeAvatarPath(`/api/v1/user/media/../${KEY}.jpg`)).toBeNull();
+    expect(safeAvatarPath(`/api/v1/user/media/${MEDIA_ID}.svg`)).toBeNull();
+    expect(safeAvatarPath(`/api/v1/user/media/../${MEDIA_ID}.jpg`)).toBeNull();
     expect(safeAvatarPath(null)).toBeNull();
   });
 });

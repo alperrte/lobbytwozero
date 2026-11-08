@@ -55,7 +55,8 @@ class CommunityEventPublisherTest {
         server = MockRestServiceServer.bindTo(builder).build();
         publisher = new CommunityEventPublisher(builder, tokens, objectMapper, new ServiceClientProperties(
                 "http://auth-service:8080", "/internal/v1/service-tokens", "social-service", "secret",
-                "http://community-service:8080"));
+                "http://community-service:8080",
+                "http://user-service:8080"));
     }
 
     private static EventEnvelope envelope(String type) {

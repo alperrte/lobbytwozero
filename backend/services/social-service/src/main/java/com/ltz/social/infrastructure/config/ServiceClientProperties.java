@@ -6,7 +6,8 @@ import org.springframework.validation.annotation.Validated;
 import jakarta.validation.constraints.NotBlank;
 
 /**
- * Giden servis çağrıları: Auth'tan servis token'ı almak ve community-service'e olay iletmek. Adresler ortak ENV
+ * Giden servis çağrıları: Auth'tan servis token'ı almak, community-service ve user-service'e olay iletmek, user-service'ten
+ * gizlilik kararı okumak. Adresler ortak ENV
  * değerlerinden gelir; gizli anahtar yalnız ortam değişkeninden ({@code AUTH_SOCIAL_SERVICE_CLIENT_SECRET}) gelir,
  * repoya yazılmaz. Gizli anahtar boşsa istemci kapalıdır ve giden olay denenmez.
  */
@@ -19,7 +20,8 @@ public record ServiceClientProperties(
         @NotBlank String clientId,
         /** İstemci gizli anahtarı; boş olabilir (istemci kapalı). */
         String clientSecret,
-        @NotBlank String communityServiceUrl) {
+        @NotBlank String communityServiceUrl,
+        @NotBlank String userServiceUrl) {
 
     @Override
     public String toString() {
