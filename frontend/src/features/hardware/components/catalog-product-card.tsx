@@ -4,7 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/shared/lib/i18n/navigation";
 import { useComparison } from "./comparison-provider";
 import { CatalogIcon } from "./catalog-icons";
-import { CatalogProductArt } from "./catalog-product-art";
+import { HardwareProductVisual } from "./hardware-product-visual";
 import { cardSpecKeys, formatSpec, productName, productSubtitle, readSpec } from "../schemas/spec-profile";
 import type { Product } from "../types/hardware";
 import styles from "./catalog-styles";
@@ -26,8 +26,7 @@ export function CatalogProductCard({ product }: { product: Product }) {
         <input type="checkbox" aria-label={t("visual.selectProduct", { model: name })} checked={selected} onChange={() => selection.toggle(product)} />
       </label>
       <span className={styles.badge}>{t(`categories.${product.category}`)}</span>
-      <CatalogProductArt category={product.category} className={styles.art} />
-      <span className={styles.artCaption}>{t("visual.categoryDrawing")}</span>
+      <HardwareProductVisual product={product} />
     </div>
     <div className={styles.cardBody}>
       <h2 className={styles.productName}><Link href={href} title={name}>{name}</Link></h2>

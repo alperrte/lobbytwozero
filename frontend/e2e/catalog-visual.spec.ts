@@ -145,6 +145,29 @@ test("catalog category overflow and mobile technical filters preserve the API co
   await page.screenshot({ path: "test-results/catalog-visual/list-375.png" });
 });
 
+test("catalog keeps the previous results visible while a search is loading", async ({ page }) => {
+  await fixture(page);
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  await page.route("**/api/v1/hardware/catalog/products?*q=*", async (route) => {
+    await gate;
+    const items = catalog.filter((item) => item.model.includes("Ryzen"));
+    await route.fulfill({ json: { items, page: 0, size: 12, totalElements: items.length, totalPages: 1 } });
+  });
+  await page.goto("/tr/donanimlar");
+  const cards = page.getByTestId("catalog-product");
+  await expect(cards).toHaveCount(catalog.length);
+  await page.locator("main input[type=search]").fill("ryzen");
+  const grid = page.getByTestId("catalog-grid");
+  await expect(grid).toHaveAttribute("data-stale", "true");
+  // Yanıt gelene kadar kartlar yerinde kalır; iskelet kartlar çıkmaz ve liste boşalmaz.
+  await expect(cards).toHaveCount(catalog.length);
+  await expect(page.getByRole("status", { name: "Yükleniyor" })).toHaveCount(0);
+  release();
+  await expect(cards).toHaveCount(2);
+  await expect(grid).toHaveAttribute("data-stale", "false");
+});
+
 test("catalog main error retries without duplicating the manufacturer failure", async ({ page }) => {
   await fixture(page, 503);
   await page.goto("/tr/donanimlar");

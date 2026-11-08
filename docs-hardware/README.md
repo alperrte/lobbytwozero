@@ -1,5 +1,9 @@
 # Hardware Service çalışma kayıtları
 
+Güncel frontend işi: **MVP ürün görsel sistemi (2026-11-08)**.
+Özgün SVG, ortak görsel bileşeni, marka kullanım incelemesi ve browser kanıtları:
+[Hardware Product Visual System](reports/HARDWARE_PRODUCT_VISUAL_SYSTEM.md).
+
 Güncel iş: **HW-10/HW-11 PC Part Dataset yerel katalog aktarımı (2026-11-07)**.
 Kullanıcının sonraki GPU talimatı ve V191 tahsisiyle beşinci kategori eklendi:
 [GPU ekleme kanıtı](reports/pc-part-gpu-import.md).

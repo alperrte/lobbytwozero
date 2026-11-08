@@ -1142,7 +1142,7 @@
       "title": "Donanım detayı",
       "specifications": "Teknik özellikler",
       "related": "Aynı kategorideki modeller",
-      "dataNotice": "Teknik bilgiler katalog kaydından gelir. Ürün görseli, canlı fiyat, stok ve fiyat geçmişi henüz sunulmuyor.",
+      "dataNotice": "Teknik bilgiler katalog kaydından gelir. Çizim donanım türünü temsil eder; ürünün gerçek fotoğrafı veya birebir tasarımı değildir.",
       "keyFeatures": "Öne çıkan özellikler",
       "backToCatalog": "Kataloğa dön",
       "source": "Veri kaynağı",
@@ -1323,6 +1323,10 @@
         "title": "Beklenmeyen yanıt",
         "description": "Servis beklenen biçimde yanıt vermedi. Biraz sonra yeniden dene."
       }
+    },
+    "productVisual": {
+      "representative": "Temsilî görsel",
+      "gpuVendor": "GPU üreticisi: {vendor}"
     },
     "visual": {
       "selectProduct": "Karşılaştırmak için {model} seç",

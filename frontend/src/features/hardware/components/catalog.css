@@ -78,6 +78,9 @@
 .ltzCatalog_filterPanel[hidden] { display: none; }
 .ltzCatalog_grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .ltzCatalog_list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+/* Yeni sonuç gelirken eski liste yerinde kalır ve soluklaşır; sayfa boşalıp zıplamaz. */
+.ltzCatalog_grid, .ltzCatalog_list { transition: opacity 160ms ease; }
+.ltzCatalog_grid[data-stale="true"], .ltzCatalog_list[data-stale="true"] { opacity: .55; pointer-events: none; }
 .ltzCatalog_card { position: relative; min-width: 0; overflow: hidden; border: 1px solid var(--catalog-edge); border-radius: 9px; background: var(--ltz-surface); transition: border-color 150ms; }
 .ltzCatalog_card:hover { border-color: var(--ltz-control-border); }
 .ltzCatalog_card[data-selected="true"] { border-color: var(--ltz-primary); }

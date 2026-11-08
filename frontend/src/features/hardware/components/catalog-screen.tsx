@@ -11,6 +11,7 @@ import { HardwareDialog, HardwareEmpty, HardwareError, HardwarePagination } from
 import { CatalogFilters } from "./catalog-filters";
 import { CatalogIcon } from "./catalog-icons";
 import { CatalogProductCard } from "./catalog-product-card";
+import { HardwareProductVisual } from "./hardware-product-visual";
 import styles from "./catalog-styles";
 
 const primaryCategories = catalogCategories;
@@ -31,7 +32,7 @@ export function CatalogScreen() {
   const discoveryQuery = new URLSearchParams(query);
   discoveryQuery.set("discovery", "true");
   if (!catalogCategories.includes(discoveryQuery.get("category") as Category)) discoveryQuery.delete("category");
-  const result = useHardwareQuery(`catalog:${discoveryQuery}`, (signal) => hardwareApi.products(`?${discoveryQuery}`, signal));
+  const result = useHardwareQuery(`catalog:${discoveryQuery}`, (signal) => hardwareApi.products(`?${discoveryQuery}`, signal), true, discoveryQuery.get("category") ?? "all");
   const rawCategory = search.get("category");
   const category = isCategory(rawCategory) && catalogCategories.includes(rawCategory) ? rawCategory : undefined;
   // Açılır liste seçenekleri kategori başına bir kez yüklenir; form her sorgu değişiminde yeniden kurulsa da tekrar istenmez.
@@ -47,7 +48,7 @@ export function CatalogScreen() {
   return <div className={styles.catalog}>
     <h1 className="sr-only">{t("catalog.title")}</h1>
     <nav aria-label={t("catalog.categories")} className={styles.categories}>
-      {primaryCategories.map((item) => <button type="button" className={styles.category} aria-pressed={category === item} key={item} onClick={() => chooseCategory(category === item ? "" : item)}><CatalogIcon name={item} /><span>{t(`categories.${item}`)}</span></button>)}
+      {primaryCategories.map((item) => <button type="button" className={styles.category} aria-pressed={category === item} key={item} onClick={() => chooseCategory(category === item ? "" : item)}><HardwareProductVisual category={item} variant="category" /><span>{t(`categories.${item}`)}</span></button>)}
     </nav>
     <div className={styles.body} data-filters={panelOpen ? "open" : "collapsed"}>
       <aside id="catalog-filter-panel" className={styles.filterPanel} hidden={!panelOpen}>{filters}</aside>
@@ -67,10 +68,10 @@ export function CatalogScreen() {
           </div>
           <p role="status" className={styles.resultCount}>{result.data ? <><strong>{format.number(result.data.totalElements)}</strong> {t("visual.productsFound")}</> : t("catalog.title")}</p>
         </div>
-        {result.loading ? <div className={styles.grid} role="status" aria-label={t("common.loading")}>{Array.from({ length: 6 }, (_, index) => <div className={styles.loadingCard} key={index}><div /><span /><span /><span /></div>)}</div> : null}
+        {result.loading && !result.data ? <div className={styles.grid} role="status" aria-label={t("common.loading")}>{Array.from({ length: 6 }, (_, index) => <div className={styles.loadingCard} key={index}><div /><span /><span /><span /></div>)}</div> : null}
         {result.error ? <div className={styles.errorState}><HardwareError error={result.error} retry={result.reload} /></div> : null}
-        {result.data?.items.length === 0 ? <div className={styles.emptyState}><HardwareEmpty title={t("catalog.emptyTitle")} description={t("catalog.emptyDescription")} /></div> : null}
-        <div className={list ? styles.list : styles.grid} data-testid="catalog-grid">{result.data?.items.map((product) => <CatalogProductCard key={product.id} product={product} />)}</div>
+        {result.data?.items.length === 0 && !result.loading ? <div className={styles.emptyState}><HardwareEmpty title={t("catalog.emptyTitle")} description={t("catalog.emptyDescription")} /></div> : null}
+        <div className={list ? styles.list : styles.grid} data-testid="catalog-grid" data-stale={result.loading && Boolean(result.data)} aria-busy={result.loading}>{result.data?.items.map((product) => <CatalogProductCard key={product.id} product={product} />)}</div>
         {result.data ? <HardwarePagination page={result.data.page} totalPages={result.data.totalPages} onPage={(page) => update({ page: String(page) })} /> : null}
       </section>
     </div>

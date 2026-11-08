@@ -1142,7 +1142,7 @@
       "title": "Hardware details",
       "specifications": "Technical specifications",
       "related": "Models in the same category",
-      "dataNotice": "Specifications come from the catalog record. Product images, live prices, stock and price history are not available yet.",
+      "dataNotice": "Specifications come from the catalog record. The illustration represents the hardware type, not an actual product photo or its exact design.",
       "keyFeatures": "Key specifications",
       "backToCatalog": "Back to catalog",
       "source": "Data source",
@@ -1323,6 +1323,10 @@
         "title": "Unexpected response",
         "description": "The service did not answer in the expected format. Try again in a moment."
       }
+    },
+    "productVisual": {
+      "representative": "Representative illustration",
+      "gpuVendor": "GPU manufacturer: {vendor}"
     },
     "visual": {
       "selectProduct": "Select {model} for comparison",

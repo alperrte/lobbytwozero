@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/shared/lib/i18n/navigation";
 import { formatSpec, productName, productSubtitle, readSpec, specProfiles, specSignature } from "../schemas/spec-profile";
 import type { Product } from "../types/hardware";
-import { CatalogProductArt } from "./catalog-product-art";
+import { HardwareProductVisual } from "./hardware-product-visual";
 import { button } from "./hardware-ui";
 
 type RowState = "similar" | "different" | "missing";
@@ -48,6 +48,7 @@ export function ComparisonView({ left, right }: { left: Product; right: Product 
         {t(`comparison.${state}`)}
       </li>)}
     </ul>
+    <p className="text-xs text-text-secondary">{t("productVisual.representative")}</p>
     <div className="overflow-x-auto rounded-panel border border-border">
       <table className="w-full min-w-[34rem] table-fixed border-collapse text-start text-sm">
         <caption className="sr-only">{t("comparison.title")}</caption>
@@ -56,7 +57,7 @@ export function ComparisonView({ left, right }: { left: Product; right: Product 
             <th scope="col" className="w-[28%] p-3 text-start text-xs font-medium text-text-secondary">{t("comparison.property")}</th>
             {[left, right].map((item) => <th scope="col" key={item.id} className="p-3 text-start align-top">
               <div className="flex items-center gap-3">
-                <CatalogProductArt category={item.category} className="h-12 w-16 flex-none rounded-control bg-background" />
+                <HardwareProductVisual product={item} variant="compact" className="h-12 w-20 flex-none rounded-control bg-background" />
                 <div className="min-w-0">
                   <Link href={{ pathname: "/hardware/[productId]", params: { productId: item.id } }} className="block break-words font-display text-sm font-semibold leading-5 hover:text-brand-text">{productName(item)}</Link>
                   <p className="mt-0.5 break-words text-xs font-normal text-text-secondary">{productSubtitle(item) ?? t(`categories.${item.category}`)}</p>

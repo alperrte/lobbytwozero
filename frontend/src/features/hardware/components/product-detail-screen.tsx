@@ -6,7 +6,7 @@ import { cardSpecKeys, formatSpec, productName, productSubtitle, readSpec } from
 import { useHardwareQuery } from "../hooks/use-hardware-query";
 import { hardwareApi } from "../services/hardware-api";
 import { useComparison } from "./comparison-provider";
-import { CatalogProductArt } from "./catalog-product-art";
+import { HardwareProductVisual } from "./hardware-product-visual";
 import { CatalogProductCard } from "./catalog-product-card";
 import { button, panel, primaryButton, HardwareEmpty, HardwareError, HardwareLoading } from "./hardware-ui";
 import { ProductSpecificationTable } from "./specification-table";
@@ -52,10 +52,7 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
     <HardwareError error={result.error} retry={result.reload} />
     {product ? <>
       <div className="grid items-stretch gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-        <div className={`${panel} relative flex min-h-64 items-center justify-center overflow-hidden bg-surface-elevated/40 p-6`}>
-          <CatalogProductArt category={product.category} className="w-full max-w-md" />
-          <span className="absolute bottom-3 end-4 text-xs text-text-secondary">{t("visual.categoryDrawing")}</span>
-        </div>
+        <HardwareProductVisual product={product} variant="detail" />
         <div className="min-w-0">
           <span className="inline-block rounded-full border border-primary/70 bg-primary/10 px-3 py-0.5 text-xs font-medium text-brand-text">{t(`categories.${product.category}`)}</span>
           <h1 className="mt-3 break-words font-display text-3xl font-bold leading-tight sm:text-4xl" data-testid="product-title">{name}</h1>
