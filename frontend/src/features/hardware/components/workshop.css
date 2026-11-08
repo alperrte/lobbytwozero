@@ -1,0 +1,187 @@
+/* LTZ Atölyesi. Renkler yalnız tema token'larıdır; sahne zemini --ltz-stage (Dark koyu vitrin, Light açık stüdyo). */
+
+.workshopStage {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  min-height: 16rem;
+  border: 1px solid var(--ltz-stage-border);
+  border-radius: var(--radius-panel);
+  background: var(--ltz-stage);
+  color: var(--ltz-on-stage);
+  isolation: isolate;
+}
+.workshopStage::after {
+  /* Vitrinin alt kenarında ince marka çizgisi: sahneyi sayfadan ayırır, hareket etmez. */
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--ltz-primary) 30%, var(--ltz-accent) 70%, transparent);
+  opacity: 0.7;
+  pointer-events: none;
+}
+.workshopStage__poster,
+.workshopStage__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.workshopStage__poster {
+  object-fit: cover;
+  transition: opacity 400ms ease;
+}
+.workshopStage__poster--hidden { opacity: 0; }
+.workshopStage__poster--dim { opacity: 0.35; }
+/* Sahne temizleme rengi bu arka plandan okunur (WorkshopScene.updateBackground); bu yüzden açıkça verilir. */
+.workshopStage__canvas { background: var(--ltz-stage); transition: opacity 400ms ease; touch-action: pan-y; }
+.workshopStage__canvas--hidden { opacity: 0; visibility: hidden; }
+
+.workshopStage__chips {
+  position: absolute;
+  inset: 0.75rem 0.75rem auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  pointer-events: none;
+}
+.workshopStage__chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0.125rem 0.625rem;
+  border: 1px solid var(--ltz-stage-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ltz-stage) 78%, transparent);
+  color: var(--ltz-on-stage);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.workshopStage__chip--missing { border-color: var(--ltz-primary); }
+
+.workshopStage__overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 3.5rem 1rem 1rem;
+  background: color-mix(in srgb, var(--ltz-stage) 45%, transparent);
+}
+.workshopStage__card {
+  width: min(26rem, 100%);
+  padding: 1.25rem;
+  border: 1px solid var(--ltz-stage-border);
+  border-radius: var(--radius-panel);
+  background: color-mix(in srgb, var(--ltz-stage) 92%, transparent);
+}
+.workshopStage__hint {
+  position: absolute;
+  inset: auto 0.75rem 0.75rem auto;
+  color: var(--ltz-on-stage-muted);
+  font-size: 0.75rem;
+  pointer-events: none;
+}
+.workshopStage__button {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.25rem;
+  border: 1px solid var(--ltz-primary);
+  border-radius: 0.75rem;
+  background: var(--ltz-primary);
+  color: var(--ltz-primary-foreground);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.workshopStage__button:hover { background: var(--ltz-secondary); }
+.workshopStage__button:focus-visible,
+.workshopStage__control:focus-visible,
+.workshopColor:has(input:focus-visible) {
+  outline: 2px solid var(--ltz-focus);
+  outline-offset: 2px;
+}
+
+.workshopStage__control {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--ltz-control-border);
+  border-radius: 0.75rem;
+  background: var(--ltz-surface);
+  color: var(--ltz-text-primary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: background-color 150ms ease;
+}
+.workshopStage__control:hover:not(:disabled) { background: var(--ltz-surface-elevated); }
+.workshopStage__control:disabled { cursor: not-allowed; opacity: 0.5; }
+.workshopStage__control--primary {
+  border-color: var(--ltz-primary);
+  background: var(--ltz-primary);
+  color: var(--ltz-primary-foreground);
+}
+.workshopStage__control--primary:hover:not(:disabled) { background: var(--ltz-secondary); }
+.workshopStage__control[aria-pressed="true"] { border-color: var(--ltz-primary); }
+
+/* Montaj sırası: gerçek bir dizi olduğu için sıralı liste; o anki adım kırmızı çizgiyle işaretlenir. */
+.workshopSteps {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 0.375rem;
+}
+.workshopSteps__item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.25rem;
+  padding: 0.25rem 0.625rem;
+  border-inline-start: 2px solid var(--ltz-border);
+  color: var(--ltz-text-secondary);
+  font-size: 0.8125rem;
+}
+.workshopSteps__dot {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  border: 1px solid var(--ltz-control-border);
+  border-radius: 999px;
+}
+.workshopSteps__item[data-state="current"] { border-color: var(--ltz-primary); color: var(--ltz-text-primary); font-weight: 600; }
+.workshopSteps__item[data-state="current"] .workshopSteps__dot { border-color: var(--ltz-primary); background: var(--ltz-primary); }
+.workshopSteps__item[data-state="done"] { border-color: var(--ltz-secondary); color: var(--ltz-text-primary); }
+.workshopSteps__item[data-state="done"] .workshopSteps__dot { border-color: var(--ltz-secondary); color: var(--ltz-brand-text); }
+.workshopSteps__item[data-state="skipped"] { opacity: 0.55; text-decoration: line-through; }
+
+/* Kasa rengi seçimi: örnek, Blender önizlemesinin kendisidir (renk kodu uydurulmaz). */
+.workshopColors { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.5rem; }
+.workshopColor {
+  position: relative;
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.25rem 0.25rem 0.5rem;
+  border: 1px solid var(--ltz-border);
+  border-radius: var(--radius-panel);
+  background: var(--ltz-surface);
+  cursor: pointer;
+  font-size: 0.75rem;
+  text-align: center;
+  transition: border-color 150ms ease;
+}
+.workshopColor:hover { border-color: var(--ltz-control-border); }
+.workshopColor:has(input:checked) { border-color: var(--ltz-primary); box-shadow: inset 0 0 0 1px var(--ltz-primary); font-weight: 600; }
+.workshopColor img { width: 100%; height: auto; aspect-ratio: 4 / 3; border-radius: var(--radius-control); background: var(--ltz-stage); object-fit: cover; }
+
+@media (prefers-reduced-motion: reduce) {
+  .workshopStage__poster,
+  .workshopStage__canvas,
+  .workshopStage__control,
+  .workshopColor { transition: none; }
+}

@@ -5,6 +5,7 @@
 - V1–V10       → HARDWARE-SERVICE
 - V191        → HARDWARE-SERVICE (2026-11-07 açık kullanıcı onayı; GPU kaynak kategorisi için kullanıldı)
 - V192        → HARDWARE-SERVICE (2026-11-08 açık kullanıcı onayı; yarım yıldız değerlendirme puanı için kullanıldı)
+- V193        → HARDWARE-SERVICE (2026-11-08 açık kullanıcı onayı; bilgisayar profili kasa rengi için kullanıldı)
 - V11–V20      → RECOMMENDATION-SERVICE
 - V21–V30      → PERFORMANCE-SERVICE
 
@@ -41,10 +42,20 @@ geliştirmeye başlanmadan önce belirlenmelidir.
 
 ## Migration Kuralları
 
+### Hardware Service V193 — Bilgisayar profili kasa rengi, 2026-11-08
+
+- LTZ Atölyesi (Bilgisayarlarım) kasa rengini profile kaydetmek için kullanıcı açıkça V193'ün alınmasını onayladı
+  ("v193 ü al konteynırı yenile ve migrations.md'yi güncelle"). Yalnız V193 Hardware Service'e tahsis edildi;
+  V194 ve sonrası için tahsis verilmedi.
+- `V193__add_hardware_profile_case_color.sql`, `hardware_profiles` tablosuna `case_color varchar(16) NOT NULL DEFAULT 'BLACK'`
+  kolonunu ve `ck_hardware_profiles_case_color` CHECK'ini (`BLACK`, `WHITE`, `GRAPHITE`, `RED`) ekler. Mevcut profiller
+  `BLACK` alır; V1–V10, V191 ve V192 değiştirilmez.
+- Bu karar diğer servislerin tahsislerini değiştirmez; numaralandırma sahibi ekip bilgilendirilmelidir.
+
 ### Hardware Service V192 — Yarım yıldız değerlendirme puanı, 2026-11-08
 
 - V1–V10 dolu olduğundan kullanıcı açıkça V192'nin alınmasını onayladı ("Evet, V192'yi al").
-  Yalnız V192 Hardware Service'e tahsis edildi; V193 ve sonrası için tahsis verilmedi.
+  Yalnız V192 Hardware Service'e tahsis edildi; V193 o tarihte tahsisli değildi (aynı gün ayrıca onaylandı, yukarıya bakın).
 - `V192__allow_half_star_review_ratings.sql`, `hardware_reviews.rating` kolonunu `integer`'dan `numeric(2,1)`'e çevirir ve
   CHECK'i "1–5 arası, 0,5 adımlı" olarak yeniden tanımlar. Mevcut tam sayı puanlar kayıpsız dönüşür; V1–V10 değiştirilmez.
 - Bu karar diğer servislerin tahsislerini değiştirmez; numaralandırma sahibi ekip bilgilendirilmelidir.

@@ -8154,18 +8154,19 @@ CSRF etkin; açık Bearer ve Gateway cookie/CSRF/Origin protokolü uygulanır. Y
 
 #### Request Body
 `CreateHardwareProfileRequest`: `name` zorunlu, 1..100 karakter, boş/kontrol/HTML ayraçları
-reddedilir; `deviceType` zorunlu DESKTOP/LAPTOP/OTHER. Bilinmeyen alanlar reddedilir.
+reddedilir; `deviceType` zorunlu DESKTOP/LAPTOP/OTHER. `caseColor` (2026-11-08, V193) opsiyonel
+BLACK/WHITE/GRAPHITE/RED; gönderilmezse BLACK. Geçersiz renk 400. Bilinmeyen alanlar reddedilir.
 
 ```json
-{"name":"Oyun PC","deviceType":"DESKTOP"}
+{"name":"Oyun PC","deviceType":"DESKTOP","caseColor":"WHITE"}
 ```
 
 #### Response — 201
-`HardwareProfileResponse`: id, name, deviceType, source (MANUAL), version, createdAt, updatedAt.
-Owner UUID dönmez. `Location: /api/v1/hardware/profiles/{id}`; `Cache-Control: no-store, private`.
+`HardwareProfileResponse`: id, name, deviceType, caseColor, source (MANUAL), version, createdAt, updatedAt.
+Owner UUID dönmez. `caseColor` geriye uyumlu ek alandır (LTZ Atölyesi kasa rengi). `Location: /api/v1/hardware/profiles/{id}`; `Cache-Control: no-store, private`.
 
 ```json
-{"id":"00000000-0000-0000-0000-000000000001","name":"Oyun PC","deviceType":"DESKTOP","source":"MANUAL","version":0,"createdAt":"2026-10-21T00:00:00Z","updatedAt":"2026-10-21T00:00:00Z"}
+{"id":"00000000-0000-0000-0000-000000000001","name":"Oyun PC","deviceType":"DESKTOP","caseColor":"WHITE","source":"MANUAL","version":0,"createdAt":"2026-10-21T00:00:00Z","updatedAt":"2026-10-21T00:00:00Z"}
 ```
 
 #### Hata Durumları
@@ -8179,12 +8180,13 @@ Owner UUID dönmez. `Location: /api/v1/hardware/profiles/{id}`; `Cache-Control: 
 Frontend: API Gateway üzerinden tam path; gateway değiştirilmedi.
 İş akışında başka servis çağrısı yok; Auth JWKS ortak doğrulama katmanında tüketilir.
 Canlı Auth/Gateway E2E NOT_VERIFIED.
-Flyway: V1__create_hardware_profiles_and_privacy.sql.
+Flyway: V1__create_hardware_profiles_and_privacy.sql; `case_color` V193__add_hardware_profile_case_color.sql.
 
 #### Test Durumu
 UNIT + INTEGRATION — HardwareProfileControllerTest + HardwareProfileTest;
 2026-10-21 modül testleri 19 PASS, exit 0. Gerçek PostgreSQL 17 + Flyway + JPA + MockMvc.
-Canlı Auth/E2E doğrulanmadı.
+2026-11-08 caseColor: varsayılan BLACK, açık renk, geçersiz renk 400, DB CHECK ve V7/V10 yükseltme testleri;
+hedefli 8 sınıf 127 test PASS. Canlı Auth/E2E doğrulanmadı.
 
 ### HARDWARE — HW-02 Bileşen ekleme
 
@@ -8258,17 +8260,23 @@ Owner; HW-01 ile aynı CSRF/JWT doğrulaması sınırı. Başka owner kaynağı 
 - profileId: UUID, zorunlu.
 #### Request Body
 `UpdateHardwareProfileRequest`: profileVersion >=0, name ve deviceType zorunlu;
-ad/tür kuralları HW-01 ile aynı. Owner/source değiştirilemez.
+ad/tür kuralları HW-01 ile aynı. `caseColor` (V193) opsiyonel BLACK/WHITE/GRAPHITE/RED;
+gönderilmezse kayıtlı renk korunur (eski istemciler etkilenmez). Owner/source değiştirilemez.
+
+```json
+{"profileVersion":0,"name":"Oyun PC","deviceType":"DESKTOP","caseColor":"RED"}
+```
 #### Response — 200
 `HardwareProfileResponse`; yeni version, private/no-store.
 #### Hata Durumları
 400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED;
 404 HARDWARE_NOT_FOUND; 409 DATA_CONFLICT (eski profil sürümü); 500 INTERNAL_ERROR.
 #### Bağlantı
-Frontend: Gateway tam path. Diğer mikroservisler: yok. Mevcut V1; yeni migration yok.
+Frontend: Gateway tam path. Diğer mikroservisler: yok. V1; `case_color` için V193.
 #### Test Durumu
 UNIT + INTEGRATION — HardwareProfileControllerTest güncelleme/owner/stale version PASS;
-modül toplamı 47 test PASS, exit 0 (2026-10-21).
+modül toplamı 47 test PASS, exit 0 (2026-10-21). 2026-11-08: renk korunması, renk değiştirme ve
+geçersiz renk 400 testleri PASS.
 
 ### HARDWARE — HW-03 Bileşen değiştirme
 
@@ -8348,7 +8356,7 @@ Owner; yalnız doğrulanmış aktörün profilleri. HW-01 güvenlik sınırı/JW
 - size: int 1..100, varsayılan 20.
 Sıralama sabit `createdAt ASC, id ASC`; istemci SQL/sort alanı gönderemez.
 #### Response — 200
-`HardwareProfilePageResponse`: items (`HardwareProfileResponse`), page, size,
+`HardwareProfilePageResponse`: items (`HardwareProfileResponse`, 2026-11-08'den beri `caseColor` dahil), page, size,
 totalElements, totalPages. Başka owner profilleri/sayaçları dahil edilmez. Cache private/no-store.
 #### Hata Durumları
 400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED; 500 INTERNAL_ERROR.
@@ -8376,7 +8384,7 @@ Owner; HW-01 güvenlik sınırı/JWT doğrulaması. Diğer kullanıcıların pro
 - size: int 1..100, varsayılan 20.
 #### Response — 200
 `HardwareProfileDetailResponse`: profile, components, page, size, totalComponents, totalPages.
-Profil HW-01 yanıtı, bileşenler HW-02 DTO'sudur. Eksik teknik alanlar null kalır;
+Profil HW-01 yanıtı (`caseColor` dahil), bileşenler HW-02 DTO'sudur. Eksik teknik alanlar null kalır;
 seri numarası, owner, FPS/sıcaklık/tahmin dönmez. Kayıtlı teknik değerler ve birimleri
 HW-02 sözleşmesindedir. Sabit createdAt/id sıralaması ve REPEATABLE_READ snapshot kullanılır.
 HW-07 sonrası components.source MANUAL veya DESKTOP_SYNC olabilir; profilin

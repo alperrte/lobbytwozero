@@ -11,11 +11,13 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -58,7 +60,9 @@ class HardwareProfileControllerTest extends PostgresIntegrationSupport {
             "{\"name\":\"PC\"}",
             "{\"name\":\"<script>\",\"deviceType\":\"DESKTOP\"}",
             "{\"name\":\"PC\",\"deviceType\":\"DESKTOP\",\"userId\":\"00000000-0000-0000-0000-000000000001\"}",
-            "{\"name\":\"PC\",\"deviceType\":\"DESKTOP\",\"source\":\"DESKTOP_SYNC\"}"})
+            "{\"name\":\"PC\",\"deviceType\":\"DESKTOP\",\"source\":\"DESKTOP_SYNC\"}",
+            "{\"name\":\"PC\",\"deviceType\":\"DESKTOP\",\"caseColor\":\"PURPLE\"}",
+            "{\"name\":\"PC\",\"deviceType\":\"DESKTOP\",\"caseColor\":7}"})
     void rejectsInvalidAndMassAssignmentBodies(String body) throws Exception {
         mvc.perform(post(BASE).with(actor(OWNER)).with(csrf()).contentType("application/json").content(body))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
@@ -98,6 +102,41 @@ class HardwareProfileControllerTest extends PostgresIntegrationSupport {
                 .andExpect(jsonPath("$.version").value(1));
         mvc.perform(put(BASE + "/" + id).with(actor(OWNER)).with(csrf()).contentType("application/json").content(body))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void storesCaseColorDefaultsToBlackAndKeepsItWhenUpdateOmitsIt() throws Exception {
+        mvc.perform(post(BASE).with(actor(OWNER)).with(csrf()).contentType("application/json")
+                        .content("{\"name\":\"Varsayılan\",\"deviceType\":\"DESKTOP\"}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.caseColor").value("BLACK"));
+        mvc.perform(post(BASE).with(actor(OWNER)).with(csrf()).contentType("application/json")
+                        .content("{\"name\":\"Beyaz\",\"deviceType\":\"DESKTOP\",\"caseColor\":\"WHITE\"}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.caseColor").value("WHITE"));
+        var id = jdbc.queryForObject("SELECT id FROM hardware_profiles WHERE name='Beyaz'", UUID.class);
+        mvc.perform(put(BASE + "/" + id).with(actor(OWNER)).with(csrf()).contentType("application/json")
+                        .content("{\"profileVersion\":0,\"name\":\"Beyaz 2\",\"deviceType\":\"DESKTOP\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.caseColor").value("WHITE"))
+                .andExpect(jsonPath("$.version").value(1));
+        mvc.perform(put(BASE + "/" + id).with(actor(OWNER)).with(csrf()).contentType("application/json")
+                        .content("{\"profileVersion\":1,\"name\":\"Kırmızı\",\"deviceType\":\"DESKTOP\",\"caseColor\":\"RED\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.caseColor").value("RED"));
+        mvc.perform(put(BASE + "/" + id).with(actor(OWNER)).with(csrf()).contentType("application/json")
+                        .content("{\"profileVersion\":2,\"name\":\"Kırmızı\",\"deviceType\":\"DESKTOP\",\"caseColor\":\"GOLD\"}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+        mvc.perform(get(BASE + "/" + id).with(actor(OWNER)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.profile.caseColor").value("RED"));
+        mvc.perform(get(BASE).with(actor(OWNER)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items[?(@.name=='Kırmızı')].caseColor").value("RED"));
+        assertThat(jdbc.queryForObject("SELECT case_color FROM hardware_profiles WHERE id=?", String.class, id))
+                .isEqualTo("RED");
+    }
+
+    @Test
+    void databaseRejectsUnknownCaseColor() {
+        assertThatThrownBy(() -> jdbc.update(
+                "INSERT INTO hardware_profiles(id,user_id,name,device_type,case_color,created_at,updated_at)"
+                        + " VALUES (?,?,'PC','DESKTOP','PURPLE',now(),now())", UUID.randomUUID(), OWNER))
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test

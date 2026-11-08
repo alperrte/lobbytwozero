@@ -3,6 +3,9 @@ export type Category = (typeof categories)[number];
 // Katalog vitrininde yalnız bu beş kategori ve bu sırayla gösterilir (backend diğer kategorileri korur).
 export const catalogCategories: Category[] = ["CPU", "GPU", "MOTHERBOARD", "RAM", "STORAGE"];
 export type DeviceType = "DESKTOP" | "LAPTOP" | "OTHER";
+/** Atölye sahnesindeki kasa rengi (V193). Eski kayıtlar sunucuda BLACK olarak gelir. */
+export const caseColors = ["BLACK", "WHITE", "GRAPHITE", "RED"] as const;
+export type CaseColor = (typeof caseColors)[number];
 export type Visibility = "PRIVATE" | "FRIENDS" | "PUBLIC";
 export const privacyFields = ["PROFILE_NAME", "DEVICE_TYPE", "COMPONENT_MODEL", "COMPONENT_BRAND", "COMPONENT_QUANTITY", "TECHNICAL_SPECIFICATIONS"] as const;
 export type PrivacyField = (typeof privacyFields)[number];
@@ -16,7 +19,7 @@ export type Brand = { id: string; name: string; status: "ACTIVE" | "ARCHIVED"; v
 export type TypedValue = { number: number | null; text: string | null; unit: string | null; featureId?: string | null };
 export type ProductSource = { provider?: string; brand?: string; typedSpecifications?: Record<string, TypedValue> | null } | null;
 export type Product = { id: string; category: Category; model: string; brands: Brand[]; specifications: Specifications; status: "ACTIVE" | "ARCHIVED"; version: number; source?: ProductSource };
-export type Profile = { id: string; name: string; deviceType: DeviceType; source: string; version: number; createdAt: string; updatedAt: string };
+export type Profile = { id: string; name: string; deviceType: DeviceType; caseColor: CaseColor; source: string; version: number; createdAt: string; updatedAt: string };
 export type Component = { id: string; category: Category; productId: string | null; brandId: string | null; modelName: string; brandName: string | null; quantity: number; source: string; version: number; specifications: Specifications };
 export type ProfileDetail = { profile: Profile; components: Component[]; page: number; size: number; totalComponents: number; totalPages: number };
 export type Privacy = { profileId: string; profileVersion: number; visibility: Visibility; fields: Partial<Record<PrivacyField, Visibility>>; categories: Partial<Record<Category, Visibility>> };

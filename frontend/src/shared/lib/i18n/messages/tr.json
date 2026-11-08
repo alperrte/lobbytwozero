@@ -1207,13 +1207,126 @@
       "name": "Bilgisayar adı",
       "deviceType": "Cihaz türü",
       "nextStep": "Önce bilgisayar kaydedilir; ardından açılan detay alanından istediğin kadar bileşen ekleyebilirsin. Her bileşen ayrı kaydedilir.",
-      "emptyTitle": "Bilgisayarını buraya ekle",
-      "emptyDescription": "Bir bilgisayar profili oluştur; bileşenlerini katalogdan seç veya kendin gir. Yeni profiller varsayılan olarak özeldir.",
+      "emptyTitle": "İlk bilgisayarını kur",
+      "emptyDescription": "Adını yaz, kasa rengini ve beş parçayı seç, sonra Bilgisayarı kaydet. Kaydettiğin kurulum bu sayfada kalır; yeni bilgisayarlar varsayılan olarak özeldir.",
       "workspace": "Seçili bilgisayar",
       "deleteTitle": "Silme işlemini onayla",
       "deleteDescription": "Bilgisayar ve tüm bileşenleri kalıcı olarak silinir. Bu işlem geri alınamaz.",
       "syncTitle": "Masaüstü senkronizasyonu",
       "syncDescription": "Otomatik donanım taraması masaüstü istemcisi yayımlandığında sunulacak. Şimdilik bileşenlerini manuel yönetebilirsin."
+    },
+    "workshop": {
+      "concept": "LTZ Atölyesi'nde bilgisayarını parça parça kur. İşlemci, anakart, bellek, ekran kartı ve SSD'yi katalogdan seçersin; sıvı soğutma, fanlar, RGB, güç kaynağı ve kablolamayı atölye tamamlar. Kaydettiğin kurulum sayfayı her açtığında burada olur.",
+      "firstRunAction": "Kuruluma başla",
+      "switcher": "Bilgisayarlarım",
+      "newComputer": "Yeni bilgisayar",
+      "caseColor": "Kasa rengi",
+      "vendor": "{category}: {vendor}",
+      "stepsTitle": "Montaj sırası",
+      "advanced": {
+        "title": "Gelişmiş yönetim",
+        "description": "Cihaz türü, gizlilik, tüm bileşen kayıtları, karşılaştırma ve istatistikler."
+      },
+      "stage": {
+        "title": "Montaj sahnesi",
+        "incomplete": "{count, plural, one {Montaj için # parça eksik.} other {Montaj için # parça eksik.}}",
+        "loading": "3B sahne yükleniyor.",
+        "playing": "Takılıyor: {step}",
+        "reduced": "Hareket azaltma açık; montaj animasyonsuz gösteriliyor.",
+        "done": "Montaj tamamlandı.",
+        "ready": "Kurulum hazır. Montajı başlatabilirsin.",
+        "imageAlt": "{color} kasa içinde tamamlanmış LTZ Atölyesi kurulumu",
+        "dragHint": "Sürükleyerek çevir",
+        "skip": "Montajı atla",
+        "play": "Montajı başlat",
+        "replay": "Montajı yeniden oynat",
+        "spinOn": "Fanları çalıştır",
+        "spinOff": "Fanları durdur",
+        "view3d": "3B görünüm",
+        "viewImage": "Görsel görünüm",
+        "imageNotice": "Bu cihazda hafif görünüm gösteriliyor: görsel, seçtiğin kasa renginde tam donanımlı atölye kasasıdır; parçaların kendisi Bilgisayar Bilgilerim bölümündedir.",
+        "quality": "3B kalite",
+        "qualityLevels": {
+          "auto": "Otomatik",
+          "high": "Yüksek",
+          "balanced": "Dengeli",
+          "low": "Düşük"
+        },
+        "qualityAuto": "Otomatik: {level}"
+      },
+      "steps": {
+        "motherboard": "Anakart",
+        "cpu": "İşlemci",
+        "ram": "Bellek",
+        "ssd": "SSD",
+        "gpu": "Ekran kartı",
+        "aio": "Sıvı soğutma",
+        "fans": "Fanlar",
+        "rgb": "RGB aydınlatma",
+        "power": "Güç"
+      },
+      "stepState": {
+        "done": "tamamlandı",
+        "current": "şu anki adım",
+        "pending": "bekliyor",
+        "skipped": "parça seçilmediği için atlandı"
+      },
+      "colors": {
+        "BLACK": "Siyah",
+        "WHITE": "Beyaz",
+        "GRAPHITE": "Grafit",
+        "RED": "Kırmızı"
+      },
+      "missing": {
+        "title": "Montaja başlamak için parçalarını seç",
+        "description": "Atölye; işlemci, anakart, bellek, ekran kartı ve SSD seçildiğinde montajı başlatır. Sıvı soğutma, fanlar, RGB, güç kaynağı ve kablolamayı sistem tamamlar.",
+        "pick": "Eksik parçayı seç"
+      },
+      "picker": {
+        "title": "{category} seç",
+        "search": "Modelde ara",
+        "empty": "Bu aramaya uyan ürün yok. Farklı bir model adı dene.",
+        "selected": "Seçili"
+      },
+      "builder": {
+        "createTitle": "Yeni bilgisayar kur",
+        "editTitle": "Kurulumu düzenle",
+        "description": "Parçaları katalogdan seç; değişiklikler sahnede hemen görünür, kaydettiğinde profiline yazılır.",
+        "parts": "Parçalar",
+        "notSelected": "Seçilmedi",
+        "manual": "Elle girilmiş kayıt; sahnede genel parça olarak gösterilir.",
+        "select": "Seç",
+        "change": "Değiştir",
+        "selectLabel": "{category} seç",
+        "changeLabel": "{category} değiştir",
+        "ramQuantity": "Bellek modülü sayısı",
+        "ramHint": "Anakartta en fazla 4 yuva gösterilir.",
+        "saved": "Kurulum kaydedildi.",
+        "dirty": "Kaydedilmemiş değişiklikler var.",
+        "create": "Bilgisayarı kaydet",
+        "save": "Değişiklikleri kaydet",
+        "reset": "Değişiklikleri geri al"
+      },
+      "summary": {
+        "title": "Bilgisayar Bilgilerim",
+        "subtitle": "{name} / {color} kasa",
+        "deleteComputer": "Bilgisayarı sil",
+        "missing": "Henüz seçilmedi.",
+        "remove": "Kaldır",
+        "removeLabel": "{category} kaldır",
+        "removeTitle": "Parçayı kaldır",
+        "removeDescription": "{model} bu bilgisayardan kaldırılacak.",
+        "extra": "{count, plural, one {Bu bilgisayarda atölyede gösterilmeyen # ek kayıt var; Gelişmiş yönetim bölümünden görebilirsin.} other {Bu bilgisayarda atölyede gösterilmeyen # ek kayıt var; Gelişmiş yönetim bölümünden görebilirsin.}}",
+        "autoTitle": "Atölyenin tamamladıkları",
+        "autoNote": "Bu parçalar montaj sahnesinde görsel olarak eklenir; profiline bileşen olarak kaydedilmez."
+      },
+      "auto": {
+        "aio": "360 mm sıvı soğutma",
+        "fans": "7 kasa fanı",
+        "rgb": "RGB aydınlatma",
+        "psu": "Güç kaynağı",
+        "cables": "Temel kablolama"
+      }
     },
     "components": {
       "title": "Bileşenler · {count}",
