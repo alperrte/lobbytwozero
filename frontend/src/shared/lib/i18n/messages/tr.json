@@ -2445,5 +2445,215 @@
     "toast": {
       "close": "Bildirimi kapat"
     }
+  },
+  "Social": {
+    "meta": {
+      "friends": "Arkadaşlarım",
+      "requests": "Arkadaşlık İstekleri",
+      "sent": "Gönderilen İstekler",
+      "blocked": "Engellenen Kullanıcılar"
+    },
+    "hero": {
+      "friendsTitle": "Arkadaşlarım",
+      "friendsSubtitle": "Ekibin burada. Bir sonraki oyuna birlikte girin.",
+      "requestsTitle": "Arkadaşlık İstekleri",
+      "requestsSubtitle": "Yeni bağlantıları yönet, ekibini büyüt.",
+      "sentTitle": "Gönderilen İstekler",
+      "sentSubtitle": "Yanıt bekleyen davetlerini takip et.",
+      "blockedTitle": "Engellenen Kullanıcılar",
+      "blockedSubtitle": "Sosyal deneyiminin kontrolü sende.",
+      "addFriend": "Arkadaş Ekle"
+    },
+    "preview": {
+      "badge": "Önizleme verisi",
+      "description": "Durum, oynanan oyun ve ortak arkadaş bilgileri henüz örnek veridir; arkadaşlık, istek, engel ve davet kodu kayıtların gerçektir."
+    },
+    "tabs": {
+      "label": "Arkadaşlık bölümleri",
+      "friends": "Arkadaşlar",
+      "incoming": "Gelen İstekler",
+      "sent": "Gönderilenler",
+      "blocked": "Engellenenler"
+    },
+    "friends": {
+      "listLabel": "Arkadaş listesi",
+      "searchLabel": "Arkadaşlarında ara",
+      "searchPlaceholder": "Arkadaşlarında ara…",
+      "filterLabel": "Duruma göre süz",
+      "filterAll": "Tümü",
+      "filterOnline": "Çevrimiçi",
+      "filterInGame": "Oyunda",
+      "showing": "{shown} / {total} arkadaş gösteriliyor",
+      "loadMore": "Daha fazla yükle",
+      "loadingMore": "Yükleniyor…",
+      "emptyTitle": "Henüz arkadaşın yok",
+      "emptyBody": "Davet kodunu paylaş ya da bir arkadaşının kodunu girerek ilk isteğini gönder.",
+      "noMatchTitle": "Eşleşen arkadaş yok",
+      "noMatchBody": "Aramayı ya da filtreyi değiştirmeyi dene.",
+      "partialResults": "Arama ve süzgeç yalnız şu ana kadar yüklenen {loaded} arkadaşına uygulanıyor. Aşağıdan daha fazlasını yükleyerek kapsamı genişletebilirsin."
+    },
+    "presence": {
+      "online": "Çevrimiçi",
+      "inGame": "Oyunda",
+      "offline": "Çevrimdışı",
+      "lastSeen": "Son görülme: {time}"
+    },
+    "activity": {
+      "ranked": "Dereceli oynuyor",
+      "competitive": "Rekabetçi oynuyor",
+      "story": "Hikâye modunda",
+      "exploring": "Keşfe çıkmış",
+      "coop": "Arkadaşıyla oynuyor",
+      "casual": "Gündelik oynuyor"
+    },
+    "game": {
+      "playing": "Bu oyunu oynuyor",
+      "lastPlayed": "En son oynadığı",
+      "none": "Şu an bir oyunda değil"
+    },
+    "card": {
+      "message": "Mesaj Gönder",
+      "messageSoon": "Mesajlaşma yakında açılacak",
+      "moreActions": "{name} için diğer işlemler",
+      "viewProfile": "Profili Gör",
+      "soon": "Yakında",
+      "removeFriend": "Arkadaşlıktan Çıkar",
+      "block": "Engelle",
+      "mutual": "{count, plural, =0 {Ortak arkadaş yok} other {# ortak arkadaş}}"
+    },
+    "requests": {
+      "incomingTitle": "Gelen İstekler",
+      "incomingListLabel": "Gelen arkadaşlık istekleri",
+      "sentTitle": "Gönderilen İstekler",
+      "sentListLabel": "Gönderilen arkadaşlık istekleri",
+      "accept": "Kabul Et",
+      "reject": "Reddet",
+      "cancel": "İsteği İptal Et",
+      "acceptAria": "{name} isteğini kabul et",
+      "rejectAria": "{name} isteğini reddet",
+      "cancelAria": "{name} kullanıcısına gönderdiğin isteği iptal et",
+      "pending": "Bekliyor",
+      "seeAll": "Tümünü Gör",
+      "incomingEmptyTitle": "Bekleyen istek yok",
+      "incomingEmptyBody": "Yeni bir arkadaşlık isteği geldiğinde burada göreceksin.",
+      "sentEmptyTitle": "Gönderilmiş istek yok",
+      "sentEmptyBody": "Bir arkadaşının davet kodunu girerek istek gönderebilirsin.",
+      "loadMore": "Daha fazla yükle"
+    },
+    "blocked": {
+      "listLabel": "Engellenen kullanıcılar",
+      "blockedOn": "Engellendi · {date}",
+      "unblock": "Engeli Kaldır",
+      "unblockAria": "Engeli kaldır: {name}",
+      "emptyTitle": "Engellediğin kimse yok",
+      "emptyBody": "Bir oyuncuyu engellediğinde burada listelenir; engeli istediğin zaman kaldırabilirsin.",
+      "loadMore": "Daha fazla yükle"
+    },
+    "howBlocking": {
+      "title": "Engelleme nasıl çalışır?",
+      "intro": "İstemediğin kullanıcılarla etkileşimleri sınırlayarak daha güvenli ve keyifli bir sosyal deneyim sağlarsın.",
+      "requestsTitle": "Arkadaşlık istekleri durdurulur",
+      "requestsBody": "Engellediğin kullanıcı sana arkadaşlık isteği gönderemez; arkadaşlığınız ve bekleyen istekler sona erer.",
+      "messagesTitle": "Birebir mesajlaşma kısıtlanır",
+      "messagesBody": "Engellediğin kullanıcı sana mesaj gönderemez.",
+      "lfpTitle": "İlan etkileşimlerinde engel kuralları uygulanır",
+      "lfpBody": "Oyun arkadaşı ilanlarında da engel kuralları geçerlidir.",
+      "privacyTitle": "Profil gizlilik ayarları",
+      "privacyBody": "Kimlerin sana ulaşabileceğini daha ayrıntılı yönetebileceksin."
+    },
+    "invite": {
+      "title": "Davet Kodun",
+      "codeLabel": "Davet kodun",
+      "copy": "Kopyala",
+      "copyAria": "Davet kodunu kopyala",
+      "copied": "Kopyalandı",
+      "copyFailed": "Kopyalanamadı; kodu seçip elle kopyala.",
+      "hint": "Kodunu paylaş, arkadaşların seni bulsun.",
+      "usage": "{used} / {max} kullanım",
+      "expires": "Son geçerlilik: {date}",
+      "regenerate": "Yeni kod oluştur",
+      "regenerateTitle": "Davet kodu yenilensin mi?",
+      "regenerateBody": "Eski kod hemen geçersiz olur. Kodu paylaştığın kişilerin yeni kodu kullanması gerekir.",
+      "regenerating": "Oluşturuluyor…",
+      "create": "Davet kodu oluştur",
+      "creating": "Oluşturuluyor…",
+      "none": "Henüz etkin bir davet kodun yok."
+    },
+    "addByCode": {
+      "title": "Davet koduyla ekle",
+      "panelTitle": "Arkadaş Ekle",
+      "label": "Arkadaşının davet kodu",
+      "placeholder": "ör. ABCDE-12345",
+      "hint": "10 karakter; tire ve boşluklar önemli değil.",
+      "submit": "İstek Gönder",
+      "submitting": "Gönderiliyor…",
+      "issues": {
+        "empty": "Davet kodunu yaz.",
+        "length": "Davet kodu 10 karakter olmalı.",
+        "characters": "Kod yalnız harf ve rakamlardan oluşur (I, L, O ve U kullanılmaz)."
+      }
+    },
+    "privacy": {
+      "title": "Sosyal gizlilik ayarları",
+      "body": "Kimlerin sana istek gönderebileceğini ve profilini görebileceğini yönet.",
+      "soon": "Yakında"
+    },
+    "dialogs": {
+      "close": "Kapat",
+      "cancel": "Vazgeç",
+      "removeTitle": "Arkadaşlıktan çıkarılsın mı?",
+      "removeBody": "{name} arkadaş listenden çıkar. Yeniden arkadaş olmak için yeni bir istek gerekir.",
+      "removeConfirm": "Arkadaşlıktan Çıkar",
+      "removing": "Çıkarılıyor…",
+      "blockTitle": "Engellensin mi?",
+      "blockBody": "{name} sana istek ve mesaj gönderemez; arkadaşlığınız ve bekleyen istekleriniz sona erer.",
+      "blockConfirm": "Engelle",
+      "blocking": "Engelleniyor…",
+      "unblockTitle": "Engeli kaldır?",
+      "unblockBody": "Bu kullanıcı seninle yeniden iletişim kurabilir. Arkadaşlık otomatik olarak geri yüklenmez.",
+      "unblockConfirm": "Engeli Kaldır",
+      "unblocking": "Kaldırılıyor…"
+    },
+    "announce": {
+      "accepted": "{name} artık arkadaşın.",
+      "rejected": "{name} kullanıcısının isteği reddedildi.",
+      "cancelled": "{name} kullanıcısına gönderilen istek iptal edildi.",
+      "removed": "{name} arkadaş listenden çıkarıldı.",
+      "blocked": "{name} engellendi.",
+      "unblocked": "{name} kullanıcısının engeli kaldırıldı.",
+      "sent": "Arkadaşlık isteği gönderildi. Gönderilenler sekmesinden takip edebilirsin.",
+      "regenerated": "Yeni davet kodun hazır."
+    },
+    "states": {
+      "loading": "Yükleniyor…",
+      "errorTitle": "Liste yüklenemedi",
+      "retry": "Tekrar dene",
+      "loadMoreFailed": "Daha fazlası yüklenemedi."
+    },
+    "errors": {
+      "alreadyFriends": "Bu kullanıcıyla zaten arkadaşsınız.",
+      "alreadyPending": "Bu kullanıcıya zaten bekleyen bir isteğin var.",
+      "incomingPending": "Bu kullanıcı sana zaten istek göndermiş; Gelen İstekler'den yanıtlayabilirsin.",
+      "userBlocked": "Bu kullanıcıyı engellemişsin. Önce engeli kaldır.",
+      "inviteNotFound": "Bu davet kodu bulunamadı ya da artık kullanılamıyor.",
+      "requestSelf": "Bu işlemi kendi hesabına uygulayamazsın.",
+      "notAllowed": "Bu kullanıcı senden arkadaşlık isteği alamıyor.",
+      "notPending": "Bu istek zaten yanıtlanmış ya da iptal edilmiş.",
+      "tooManyPending": "Çok fazla bekleyen isteğin var. Yanıt bekle ya da bazılarını iptal et.",
+      "notFound": "Kayıt bulunamadı; liste güncellendi.",
+      "conflict": "Kayıt bu arada değişti. Tekrar dene.",
+      "unauthenticated": "Oturumun sona erdi. Devam etmek için giriş yap.",
+      "forbidden": "Bu işlem için yetkin yok.",
+      "rateLimited": "Çok hızlı işlem yaptın. Biraz bekleyip tekrar dene.",
+      "unavailable": "Sosyal servis şu an yanıt vermiyor. Biraz sonra tekrar dene.",
+      "csrf": "Güvenlik doğrulaması yenilenemedi. Sayfayı yenileyip tekrar dene.",
+      "timeout": "Sunucu zamanında yanıt vermedi. İşlem tamamlanmış olabilir; listeyi yenileyip kontrol et.",
+      "network": "Bağlantı kurulamadı. İnternetini kontrol edip tekrar dene.",
+      "generic": "Bir şeyler ters gitti. Tekrar dene."
+    },
+    "person": {
+      "unknownPlayer": "Bilinmeyen oyuncu",
+      "blockedPlayer": "Engellenen oyuncu"
+    }
   }
 }

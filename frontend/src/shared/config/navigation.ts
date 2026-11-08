@@ -73,7 +73,7 @@ export const navigationGroups: readonly NavGroup[] = [
     labelKey: "social",
     items: [
       { id: "community", labelKey: "community", icon: "users", service: "community-service", href: "/community" },
-      { id: "friends", labelKey: "friends", icon: "userCheck", service: "social-service" },
+      { id: "friends", labelKey: "friends", icon: "userCheck", service: "social-service", href: "/friends" },
       {
         id: "messages",
         labelKey: "messages",

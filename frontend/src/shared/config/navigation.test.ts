@@ -78,15 +78,15 @@ describe("navigationGroups", () => {
 });
 
 describe("primaryNavigation", () => {
-  it("Ana Sayfa, Oyunlar, Topluluk, Donanımlar ve Kampanyalar gerçek rotalara bağlanır", () => {
+  it("Ana Sayfa, Oyunlar, Topluluk, Arkadaşlar, Donanımlar ve Kampanyalar gerçek rotalara bağlanır", () => {
     const available = primaryNavigation.filter(isNavItemAvailable);
-    expect(available.map((item) => item.id)).toEqual(["home", "games", "community", "hardware", "campaigns"]);
-    expect(primaryNavigation.filter((item) => !isNavItemAvailable(item))).toHaveLength(9);
+    expect(available.map((item) => item.id)).toEqual(["home", "games", "community", "friends", "hardware", "campaigns"]);
+    expect(primaryNavigation.filter((item) => !isNavItemAvailable(item))).toHaveLength(8);
   });
 
   it("Yakında öğeleri href taşımaz (kırık link ve sahte rota yok)", () => {
     for (const item of primaryNavigation) {
-      if (!["home", "games", "community", "hardware", "campaigns"].includes(item.id)) {
+      if (!["home", "games", "community", "friends", "hardware", "campaigns"].includes(item.id)) {
         expect(item.href).toBeUndefined();
       }
     }
