@@ -1207,13 +1207,126 @@
       "name": "Computer name",
       "deviceType": "Device type",
       "nextStep": "The computer is saved first. You can then add components in its detail panel. Each component is saved separately.",
-      "emptyTitle": "Make room for your computer",
-      "emptyDescription": "Create a computer profile, then select catalog components or enter them manually. New profiles are private by default.",
+      "emptyTitle": "Build your first computer",
+      "emptyDescription": "Name it, pick a case color and the five parts, then select Save computer. Your build stays on this page; new computers are private by default.",
       "workspace": "Selected computer",
       "deleteTitle": "Confirm deletion",
       "deleteDescription": "This computer and all its components will be permanently deleted. This cannot be undone.",
       "syncTitle": "Desktop synchronization",
       "syncDescription": "Automatic hardware scanning will be available after the desktop client is released. For now, manage your components manually."
+    },
+    "workshop": {
+      "concept": "Build your computer part by part in the LTZ Workshop. You pick the CPU, motherboard, memory, graphics card and SSD from the catalog; the workshop adds liquid cooling, fans, RGB, the power supply and cabling. Your saved build is here every time you open this page.",
+      "firstRunAction": "Start building",
+      "switcher": "My computers",
+      "newComputer": "New computer",
+      "caseColor": "Case color",
+      "vendor": "{category}: {vendor}",
+      "stepsTitle": "Assembly order",
+      "advanced": {
+        "title": "Advanced management",
+        "description": "Device type, privacy, every component entry, comparison and statistics."
+      },
+      "stage": {
+        "title": "Assembly stage",
+        "incomplete": "{count, plural, one {# part is missing for assembly.} other {# parts are missing for assembly.}}",
+        "loading": "Loading the 3D stage.",
+        "playing": "Installing: {step}",
+        "reduced": "Reduced motion is on; the build is shown without animation.",
+        "done": "Assembly complete.",
+        "ready": "Your build is ready. You can start the assembly.",
+        "imageAlt": "Completed LTZ Workshop build in a {color} case",
+        "dragHint": "Drag to rotate",
+        "skip": "Skip assembly",
+        "play": "Start assembly",
+        "replay": "Replay assembly",
+        "spinOn": "Spin fans",
+        "spinOff": "Stop fans",
+        "view3d": "3D view",
+        "viewImage": "Image view",
+        "imageNotice": "A lightweight view is shown on this device: the image is the fully equipped workshop case in your case color; your actual parts are listed in My computer details.",
+        "quality": "3D quality",
+        "qualityLevels": {
+          "auto": "Auto",
+          "high": "High",
+          "balanced": "Balanced",
+          "low": "Low"
+        },
+        "qualityAuto": "Auto: {level}"
+      },
+      "steps": {
+        "motherboard": "Motherboard",
+        "cpu": "CPU",
+        "ram": "Memory",
+        "ssd": "SSD",
+        "gpu": "Graphics card",
+        "aio": "Liquid cooling",
+        "fans": "Fans",
+        "rgb": "RGB lighting",
+        "power": "Power"
+      },
+      "stepState": {
+        "done": "done",
+        "current": "current step",
+        "pending": "pending",
+        "skipped": "skipped because no part is selected"
+      },
+      "colors": {
+        "BLACK": "Black",
+        "WHITE": "White",
+        "GRAPHITE": "Graphite",
+        "RED": "Red"
+      },
+      "missing": {
+        "title": "Pick your parts to start the assembly",
+        "description": "The workshop starts the assembly once a CPU, motherboard, memory, graphics card and SSD are selected. Liquid cooling, fans, RGB, the power supply and cabling are added for you.",
+        "pick": "Pick the missing part"
+      },
+      "picker": {
+        "title": "Select {category}",
+        "search": "Search models",
+        "empty": "No products match this search. Try a different model name.",
+        "selected": "Selected"
+      },
+      "builder": {
+        "createTitle": "Build a new computer",
+        "editTitle": "Edit build",
+        "description": "Pick parts from the catalog. Changes appear on the stage right away and are written to your profile when you save.",
+        "parts": "Parts",
+        "notSelected": "Not selected",
+        "manual": "Manual entry; shown as a generic part on the stage.",
+        "select": "Select",
+        "change": "Change",
+        "selectLabel": "Select {category}",
+        "changeLabel": "Change {category}",
+        "ramQuantity": "Memory modules",
+        "ramHint": "Up to 4 slots are shown on the motherboard.",
+        "saved": "Build saved.",
+        "dirty": "You have unsaved changes.",
+        "create": "Save computer",
+        "save": "Save changes",
+        "reset": "Discard changes"
+      },
+      "summary": {
+        "title": "My computer details",
+        "subtitle": "{name} / {color} case",
+        "deleteComputer": "Delete computer",
+        "missing": "Not selected yet.",
+        "remove": "Remove",
+        "removeLabel": "Remove {category}",
+        "removeTitle": "Remove part",
+        "removeDescription": "{model} will be removed from this computer.",
+        "extra": "{count, plural, one {This computer has # more entry that the workshop does not show; see Advanced management.} other {This computer has # more entries that the workshop does not show; see Advanced management.}}",
+        "autoTitle": "Added by the workshop",
+        "autoNote": "These parts are added visually on the assembly stage; they are not saved to your profile as components."
+      },
+      "auto": {
+        "aio": "360 mm liquid cooling",
+        "fans": "7 case fans",
+        "rgb": "RGB lighting",
+        "psu": "Power supply",
+        "cables": "Basic cabling"
+      }
     },
     "components": {
       "title": "Components · {count}",
@@ -1231,7 +1344,7 @@
       "brand": "Manufacturer (optional)",
       "quantity": "Quantity",
       "specsHint": "Specifications are optional. Empty fields use the selected catalog model's recorded values. Missing specifications are never inferred.",
-      "units": "{count} units",
+      "units": "{count, plural, one {# unit} other {# units}}",
       "emptyTitle": "Ready for your components",
       "emptyDescription": "Add a processor, graphics card, memory and other components to complete this computer.",
       "deleteDescription": "This component will be removed from your computer. The catalog product is kept."

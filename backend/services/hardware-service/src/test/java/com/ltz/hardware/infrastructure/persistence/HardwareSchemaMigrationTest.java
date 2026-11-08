@@ -21,7 +21,7 @@ class HardwareSchemaMigrationTest extends PostgresIntegrationSupport {
         flyway.validate();
         assertThat(Arrays.stream(flyway.info().applied())
                 .map(migration -> migration.getVersion().getVersion()))
-                .containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "191");
+                .containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "191", "192", "193");
         assertThat(jdbc.queryForList("""
                 SELECT tablename FROM pg_tables
                 WHERE schemaname='public' AND tablename <> 'flyway_schema_history'
@@ -59,7 +59,7 @@ class HardwareSchemaMigrationTest extends PostgresIntegrationSupport {
                     """, java.util.UUID.randomUUID(), product);
                 var before = isolated.queryForList("SELECT to_jsonb(s)::text FROM hardware_product_sources s", String.class);
                 var upgrade = Flyway.configure().dataSource(dataSource).schemas(schema).defaultSchema(schema).load();
-                assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(1);
+                assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(3); // V191, V192, V193
                 upgrade.validate();
                 assertThat(isolated.queryForList("SELECT to_jsonb(s)::text FROM hardware_product_sources s", String.class)).isEqualTo(before);
                 assertThat(isolated.queryForObject("SELECT id FROM hardware_products", java.util.UUID.class)).isEqualTo(product);
@@ -88,9 +88,10 @@ class HardwareSchemaMigrationTest extends PostgresIntegrationSupport {
                     VALUES (?,?,'CREATE_PRODUCT',?,'Existing immutable audit')
                     """,java.util.UUID.randomUUID(),owner,java.util.UUID.randomUUID());
                 var upgrade=Flyway.configure().dataSource(dataSource).schemas(schema).defaultSchema(schema).load();
-                assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(4);
+                assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(6); // V8-V10, V191-V193
                 upgrade.validate();
                 assertThat(isolated.queryForObject("SELECT count(*) FROM hardware_profiles",Integer.class)).isEqualTo(1);
+                assertThat(isolated.queryForObject("SELECT case_color FROM hardware_profiles",String.class)).isEqualTo("BLACK");
                 assertThat(isolated.queryForObject("SELECT count(*) FROM hardware_catalog_audit",Integer.class)).isEqualTo(1);
                 isolated.queryForList("SELECT erase_hardware_account(?)",owner);
                 assertThat(isolated.queryForObject("SELECT count(*) FROM hardware_profiles",Integer.class)).isZero();

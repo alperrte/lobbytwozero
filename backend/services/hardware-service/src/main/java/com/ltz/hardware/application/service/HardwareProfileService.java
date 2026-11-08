@@ -9,6 +9,7 @@ import com.ltz.hardware.application.mapper.HardwareProfileMapper;
 import com.ltz.hardware.application.mapper.HardwareComponentMapper;
 import com.ltz.hardware.application.port.CurrentActor;
 import com.ltz.hardware.domain.entity.HardwareProfile;
+import com.ltz.hardware.domain.enums.CaseColor;
 import com.ltz.hardware.domain.exception.HardwareNotFoundException;
 import java.util.UUID;
 import com.ltz.hardware.infrastructure.persistence.repository.HardwareProfileRepository;
@@ -39,7 +40,8 @@ public class HardwareProfileService {
 
     @Transactional
     public HardwareProfileResponse create(CreateHardwareProfileRequest request) {
-        var profile = new HardwareProfile(actor.requireUserId(), request.name(), request.deviceType());
+        var profile = new HardwareProfile(actor.requireUserId(), request.name(), request.deviceType(),
+                request.caseColor() == null ? CaseColor.BLACK : request.caseColor());
         return mapper.toResponse(profiles.saveAndFlush(profile));
     }
 
@@ -48,7 +50,8 @@ public class HardwareProfileService {
         var profile = profiles.findOwnedForUpdate(profileId, actor.requireUserId())
                 .orElseThrow(HardwareNotFoundException::new);
         profile.requireVersion(request.profileVersion());
-        profile.update(request.name(), request.deviceType());
+        profile.update(request.name(), request.deviceType(),
+                request.caseColor() == null ? profile.getCaseColor() : request.caseColor());
         profiles.flush();
         return mapper.toResponse(profile);
     }

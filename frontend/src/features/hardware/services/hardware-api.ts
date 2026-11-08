@@ -1,6 +1,6 @@
 import { ApiHttpError, apiRequest } from "@/shared/lib/api/client";
 import { CSRF_PATH } from "@/shared/lib/session/csrf";
-import type { Brand, Campaign, CatalogFacets, FilterOptions, Comparison, ComponentInput, Component, DeviceType, Page, Privacy, Product, Profile, ProfileComparisonItem, ProfileDetail, Review, ReviewPage, Statistics } from "../types/hardware";
+import type { Brand, Campaign, CaseColor, CatalogFacets, FilterOptions, Comparison, ComponentInput, Component, DeviceType, Page, Privacy, Product, Profile, ProfileComparisonItem, ProfileDetail, Review, ReviewPage, Statistics } from "../types/hardware";
 
 const base = "/api/v1/hardware";
 const id = encodeURIComponent;
@@ -77,8 +77,8 @@ export const hardwareApi = {
   profiles: (page: number, signal?: AbortSignal) => read<Page<Profile>>(`/profiles?page=${page}&size=12`, signal),
   profile: (profileId: string, page: number, signal?: AbortSignal) => read<ProfileDetail>(`/profiles/${id(profileId)}?page=${page}&size=20`, signal),
   statistics: (signal?: AbortSignal) => read<Statistics>("/profiles/statistics", signal),
-  createProfile: (body: { name: string; deviceType: DeviceType }) => write<Profile>("/profiles", "POST", body),
-  updateProfile: (profileId: string, body: { name: string; deviceType: DeviceType; profileVersion: number }) => write<Profile>(`/profiles/${id(profileId)}`, "PUT", body),
+  createProfile: (body: { name: string; deviceType: DeviceType; caseColor?: CaseColor }) => write<Profile>("/profiles", "POST", body),
+  updateProfile: (profileId: string, body: { name: string; deviceType: DeviceType; profileVersion: number; caseColor?: CaseColor }) => write<Profile>(`/profiles/${id(profileId)}`, "PUT", body),
   deleteProfile: (profile: Profile) => write<void>(`/profiles/${id(profile.id)}?profileVersion=${profile.version}`, "DELETE"),
   saveComponent: (profileId: string, body: ComponentInput, componentId?: string) => write<{ profileVersion: number; component: Component }>(`/profiles/${id(profileId)}/components${componentId ? `/${id(componentId)}` : ""}`, componentId ? "PUT" : "POST", body),
   deleteComponent: (profileId: string, componentId: string, version: number) => write<void>(`/profiles/${id(profileId)}/components/${id(componentId)}?profileVersion=${version}`, "DELETE"),
