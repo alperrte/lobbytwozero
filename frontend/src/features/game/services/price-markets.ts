@@ -11,6 +11,13 @@ export const priceMarkets = [
 
 export const defaultCurrency = "USD";
 
+/** Seçenek metni: ülke adı (arayüz dilinde) ve o ülkeyle birlikte gelen para birimi, örn. "Amerika Birleşik Devletleri (USD)". */
+export function marketLabel(market: { currency: string; country: string }, locale: string): string {
+  let region = market.country;
+  try { region = new Intl.DisplayNames([locale], { type: "region" }).of(market.country) ?? market.country; } catch { /* geçersiz kod: ham kod gösterilir */ }
+  return `${region} (${market.currency})`;
+}
+
 export function marketForCurrency(currency: string | null | undefined): { currency: string; country: string } {
   return priceMarkets.find((market) => market.currency === currency) ?? priceMarkets[0];
 }

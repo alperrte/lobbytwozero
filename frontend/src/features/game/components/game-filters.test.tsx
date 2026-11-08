@@ -94,8 +94,10 @@ describe("Filtre paneli: tür, platform ve dil açılır listeleri", () => {
     const onApply = vi.fn();
     render(<NextIntlClientProvider locale="tr" messages={messages}><GameFilters params={new URLSearchParams("currency=TRY&country=TR")} onApply={onApply} /></NextIntlClientProvider>);
     fireEvent.click(screen.getByRole("button", { name: t.filters }));
-    const select = screen.getByLabelText(t.fields.currency) as HTMLSelectElement;
+    expect(screen.queryByLabelText(t.fields.currency)).toBeNull();
+    const select = screen.getByLabelText(t.fields.country) as HTMLSelectElement;
     expect([...select.options].map((option) => option.value)).toEqual(["USD", "EUR", "GBP"]);
+    expect([...select.options].map((option) => option.textContent)).toEqual(["Amerika Birleşik Devletleri (USD)", "Almanya (EUR)", "Birleşik Krallık (GBP)"]);
     expect(select.value).toBe("USD");
     fireEvent.change(select, { target: { value: "GBP" } });
     fireEvent.click(screen.getByRole("button", { name: t.applyFilters }));

@@ -6,7 +6,7 @@ import { cn } from "@/shared/utils/cn";
 import { useGameResource } from "../hooks/use-game-resource";
 import type { GameSession } from "../types/game";
 
-export type GameSection = "all" | "picks" | "feedback" | "developer" | "admin" | "moderation";
+export type GameSection = "all" | "picks" | "developer" | "admin" | "moderation";
 
 const itemClass = "inline-flex min-h-11 shrink-0 items-center whitespace-nowrap border-b-2 px-4 text-sm font-semibold transition-colors";
 const activeClass = "border-primary text-brand-text";
@@ -19,7 +19,6 @@ export function staffSections(roles: readonly string[]): ("developer" | "admin" 
 
 function NavView({ current, session }: { current: GameSection | null; session: GameSession | null }) {
   const t = useTranslations("Game");
-  const signedIn = Boolean(session);
   const staff = session ? staffSections(session.roles) : [];
   const link = (key: GameSection, label: string, href: Parameters<typeof Link>[0]["href"]) => <li key={key}>
     <Link href={href} aria-current={current === key ? "page" : undefined} className={cn(itemClass, current === key ? activeClass : idleClass)}>{label}</Link>
@@ -28,7 +27,6 @@ function NavView({ current, session }: { current: GameSection | null; session: G
     <ul className="flex min-w-max items-stretch gap-1">
       {link("all", t("allGames"), { pathname: "/games" })}
       {link("picks", t("editorsPicks"), { pathname: "/games", query: { tab: "picks" } })}
-      {signedIn && link("feedback", t("myFeedback"), { pathname: "/games", query: { tab: "feedback" } })}
       {staff.length > 0 && <li aria-hidden="true" className="mx-2 my-2 w-px self-stretch bg-border" />}
       {staff.map((section) => link(section, t(`workspace.${section}`), { pathname: "/games/manage", query: { section } }))}
     </ul>
@@ -42,7 +40,7 @@ function NavWithSession({ current }: { current: GameSection | null }) {
 
 /**
  * Game bölümünün tek gezinti çubuğu (katalog, detay ve yönetim sayfalarında ortak). Herkese açık bölümler her zaman görünür;
- * "Geri bildirimlerim" oturum açıkken, geliştirici/yönetici/moderasyon alanları ilgili rollerde görünür. Ortak sidebar'a dokunmaz.
+ * geliştirici/yönetici/moderasyon alanları ilgili rollerde görünür. Ortak sidebar'a dokunmaz.
  * Sayfa oturumu zaten yüklediyse `session` verilir (ikinci istek atılmaz; `null` = misafir); verilmezse gezinti kendi oturumunu okur.
  */
 export function GameSectionNav({ current = null, session }: { current?: GameSection | null; session?: GameSession | null }) {

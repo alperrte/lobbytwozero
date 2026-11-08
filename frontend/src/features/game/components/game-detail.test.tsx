@@ -50,7 +50,7 @@ describe("Oyun detayı", () => {
   it("bölüm gezinmesi sayfa içi bağlantılar sunar", async () => {
     serve(); mount(); await screen.findByRole("heading", { level: 1 });
     const nav = within(screen.getByRole("navigation", { name: tr.Game.pageSections }));
-    expect(nav.getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual(["#game-overview", "#game-information", "#game-prices", "#game-developer", "#game-community", "#game-feedback"]);
+    expect(nav.getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual(["#game-overview", "#game-information", "#game-prices", "#game-developer", "#game-community"]);
   });
   it("tür ve platform terimlerini katalog süzgecine bağlar; kategori ve etiketi karıştırmaz", async () => {
     serve(); mount(); await screen.findByRole("heading", { level: 1 });
@@ -75,9 +75,13 @@ describe("Oyun detayı", () => {
     const row = within(screen.getByRole("row", { name: /^Türkçe/ }));
     expect(row.getAllByRole("cell").map((cell) => cell.textContent)).toEqual([tr.Game.support.SUPPORTED, tr.Game.support.UNKNOWN, tr.Game.support.UNSUPPORTED]);
   });
-  it("veri güncelliğini ve STALE durumunu belirtir", async () => {
+  it("oyun bilgilerinde veri güncelliği, erken erişim ve diller alanları yoktur", async () => {
     serve(); mount(); await screen.findByRole("heading", { level: 1 });
-    expect(screen.getByText(new RegExp(tr.Game.freshness.STALE))).toBeVisible();
+    expect(screen.queryByText(tr.Game.freshnessLabel)).toBeNull();
+    expect(screen.queryByText(new RegExp(tr.Game.freshness.STALE))).toBeNull();
+    // Başlıktaki "Erken erişim" rozeti kalır; yalnız bilgi satırı (dt) kalkmıştır.
+    expect(screen.queryAllByText(tr.Game.fields.earlyAccess).filter((element) => element.tagName === "DT")).toHaveLength(0);
+    expect(screen.queryAllByText(tr.Game.fields.languages).filter((element) => element.tagName === "DT")).toHaveLength(0);
   });
   it("galeriye kapak ve görselleri koyar; fragmanı harici bağlantı yapar", async () => {
     serve(); mount(); await screen.findByRole("heading", { level: 1 });
@@ -119,7 +123,7 @@ describe("Oyun detayı", () => {
     expect(await screen.findByRole("heading", { level: 1, name: "Fixture Quest" })).toBeVisible();
     expect(screen.getByRole("link", { name: "Role-playing" })).toBeVisible();
     expect(screen.getByRole("navigation", { name: en.Game.pageSections })).toBeVisible();
-    expect(screen.getByText(en.Game.freshness.STALE, { exact: false })).toBeVisible();
+    expect(screen.queryByText(en.Game.freshness.STALE, { exact: false })).toBeNull();
   });
   it("404'te anlaşılır hata ve yeniden deneme sunar", async () => {
     const { ApiHttpError } = await import("@/shared/lib/api/client");
