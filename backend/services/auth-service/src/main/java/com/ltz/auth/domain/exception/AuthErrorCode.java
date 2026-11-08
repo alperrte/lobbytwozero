@@ -22,6 +22,7 @@ public enum AuthErrorCode {
     ACCOUNT_LINK_REQUIRED(409, "An account with this email already exists. Sign in and link the provider."),
     PROVIDER_NOT_CONFIGURED(503, "This sign-in method is not available."),
     REGISTRATION_TOKEN_INVALID(400, "Registration token is invalid or has expired."),
+    ACCOUNT_EMAIL_REQUIRED(409, "This action needs an email address on the account. Add and verify an email first."),
     CURRENT_PASSWORD_INVALID(400, "Current password is incorrect."),
     NEW_PASSWORD_SAME_AS_CURRENT(400, "New password must differ from the current password."),
     WEAK_PASSWORD(400, "Password is too easy to guess. Choose a different one."),

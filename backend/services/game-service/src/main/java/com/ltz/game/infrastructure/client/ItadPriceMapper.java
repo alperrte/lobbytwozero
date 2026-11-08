@@ -15,7 +15,11 @@ import tools.jackson.databind.JsonNode;
 import static com.ltz.game.infrastructure.client.ItadPriceValues.invalid;
 import static com.ltz.game.infrastructure.client.ItadPriceValues.text;
 
-/** Tam ve tekil oyun/mağaza yanıtı gerekir; eksik yanıt önceki snapshot'ı silemez. */
+/**
+ * Yanıt tutarlı olmalıdır (tekil oyun/mağaza, geçerli para birimi, tarih, bağlantı). ITAD fiyatı olmayan oyun için satır
+ * döndürmez: istenen ama satırı olmayan oyun "teklif yok" demektir ve yalnız o oyun için teklif üretilmez; tek bir
+ * teklifsiz oyun, aynı istekteki diğer oyunların fiyatını geçersiz kılmaz.
+ */
 final class ItadPriceMapper {
     private ItadPriceMapper() { }
     static List<Quote> quotes(JsonNode rows,Map<UUID,List<UUID>> matched,Market market,Instant now,Duration ttl) {
@@ -27,16 +31,28 @@ final class ItadPriceMapper {
             if(!matched.containsKey(external) || !seen.add(external)) throw invalid();
             append(row,matched.get(external),market,now,ttl,quotes);
         }
-        if(!seen.equals(matched.keySet())) throw invalid();
         return List.copyOf(quotes);
     }
+    /**
+     * Bir oyunun tekliflerini mağaza başına tek teklife indirir. ITAD aynı mağaza için birden çok teklif döndürebilir (ör. iki
+     * Steam paketi/sürümü): en düşük güncel fiyat korunur, eşitlikte ilk teklif. Süresi (expiry) geçmiş teklif güncel fiyat
+     * değildir ve atlanır; tek bir bayat veya yinelenen teklif aynı istekteki diğer oyunların fiyatını geçersiz kılmaz.
+     */
     private static void append(JsonNode row,List<UUID> games,Market market,Instant now,Duration ttl,List<Quote> quotes) {
-        Set<String> shops=new HashSet<>();
+        java.util.Map<String,JsonNode> bestByStore=new java.util.LinkedHashMap<>();
         for(JsonNode deal:deals(row)) {
             String store=text(deal.get("shop"),"name");
-            if(store.length()>64 || !shops.add(store)) throw invalid();
-            for(UUID id:games) quotes.add(quote(id,store,deal,market,now,ttl));
+            if(store.length()>64) throw invalid();
+            if(expired(deal,now)) continue;
+            JsonNode known=bestByStore.get(store);
+            if(known==null || ItadPriceValues.amount(deal.get("price")).compareTo(ItadPriceValues.amount(known.get("price")))<0) bestByStore.put(store,deal);
         }
+        for(var entry:bestByStore.entrySet())
+            for(UUID id:games) quotes.add(quote(id,entry.getKey(),entry.getValue(),market,now,ttl));
+    }
+    private static boolean expired(JsonNode deal,Instant now) {
+        JsonNode expiry=deal.get("expiry");
+        return expiry!=null && !expiry.isNull() && !ItadPriceValues.instant(expiry.asText()).isAfter(now);
     }
     private static JsonNode deals(JsonNode row) {
         JsonNode deals=row.get("deals");

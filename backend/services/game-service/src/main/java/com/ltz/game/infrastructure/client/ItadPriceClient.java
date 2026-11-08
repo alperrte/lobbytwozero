@@ -33,7 +33,7 @@ public class ItadPriceClient implements GamePriceProvider {
 
     @Override public List<Quote> prices(Set<UUID> ids,Market market) {
         if(ids.isEmpty()) return List.of();
-        if(ids.size()>50) throw new IllegalArgumentException("En fazla 50 oyun.");
+        if(ids.size()>200) throw new IllegalArgumentException("En fazla 200 oyun.");
         if(!isConfigured()) throw new ProviderException("PRICE_NOT_CONFIGURED");
         Map<String,UUID> steam=new LinkedHashMap<>();
         references.findByGameIdIn(ids).stream().filter(ref -> "STEAM".equals(ref.getProvider()))
@@ -43,7 +43,7 @@ public class ItadPriceClient implements GamePriceProvider {
         var matched=mapGames(post("/lookup/id/shop/61/v1",new ArrayList<>(steam.keySet())),steam);
         if(matched.isEmpty()) return List.of();
         var rows=post("/games/prices/v3?country="+market.country()+"&capacity=5&vouchers=false",new ArrayList<>(matched.keySet()));
-        return ItadPriceMapper.quotes(rows,matched,market,clock.instant(),properties.ttl());
+        return ItadPriceMapper.quotes(rows,matched,market,clock.instant(),properties.coldTtl());
     }
     private static Map<UUID,List<UUID>> mapGames(JsonNode data,Map<String,UUID> steam) {
         if(data==null || !data.isObject()) throw ItadPriceValues.invalid();

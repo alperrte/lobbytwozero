@@ -25,6 +25,11 @@ public interface GamePriceProvider {
                      String source, Instant fetchedAt, Instant expiresAt) {
             this(gameId,store,market,regularPrice,currentPrice,source,fetchedAt,expiresAt,null,null,null);
         }
+        /** Aynı teklif, tazelik süresi bu oyunun kademesine göre kısaltılmış (yalnız kısaltır, uzatmaz). */
+        public Quote withExpiresAtMost(Instant limit) {
+            if (!limit.isAfter(fetchedAt) || !limit.isBefore(expiresAt)) return this;
+            return new Quote(gameId,store,market,regularPrice,currentPrice,source,fetchedAt,limit,url,discountPercent,sourceUpdatedAt);
+        }
         public Quote {
             if (gameId==null || market==null || store==null || store.isBlank() || store.length()>64
                     || source==null || !source.matches("[A-Z][A-Z0-9_]{0,31}") || regularPrice==null || currentPrice==null

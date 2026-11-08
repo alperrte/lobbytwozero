@@ -58,6 +58,24 @@ class SteamTwoFactorEnrollmentTest extends ExternalProviderTestSupport {
     }
 
     @Test
+    void ilkSteamKaydiKullaniciAdiSonrasiMfaAtlanmazKurulumChallengeiDonerOturumVerilmez() throws Exception {
+        String steamId = "7656119" + String.format("%010d", Math.abs(UUID.randomUUID().getMostSignificantBits()) % 10_000_000_000L);
+        String token = fragmentValue(steamLogin(steamId), "token");
+
+        MvcResult done = completeExternal(AuthApiPaths.STEAM_COMPLETE, token, uniqueUsername()).andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("MFA_ENROLLMENT_REQUIRED"))
+                .andExpect(jsonPath("$.challengeId").exists()).andReturn();
+
+        assertThat(done.getResponse().getCookie(ACCESS_COOKIE)).isNull();
+        assertThat(done.getResponse().getCookie(REFRESH_COOKIE)).isNull();
+        UUID account = jdbc.queryForObject("select account_id from external_identities where provider_subject = ?",
+                UUID.class, steamId);
+        assertThat(sessionCount(account)).isZero();
+        assertThat(jdbc.queryForObject("select purpose from mfa_challenges where account_id = ?", String.class, account))
+                .isEqualTo("ENROLLMENT");
+    }
+
+    @Test
     void parolaGirisiDeAyniKurulumKuraliniIzler() throws Exception {
         Linked linked = steamLinkedAccount();
 

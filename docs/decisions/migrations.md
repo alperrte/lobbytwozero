@@ -42,6 +42,19 @@ geliştirmeye başlanmadan önce belirlenmelidir.
 
 ## Migration Kuralları
 
+### Game Service V174–V175 kullanımı — 2026-11-08
+
+- Game'in V171–V180 aralığından sıradaki boş numaralar kullanıldı (V173'ten sonra V174, V175). V41 başka servise (Library) aittir ve DEV `game_db`
+  zaten V173'te olduğundan Flyway daha düşük numarayı reddederdi; bu yüzden V41 kullanılmadı.
+- **V174** `V174__add_game_parent_relation.sql`: `games.parent_game_id` (self-FK `ON DELETE SET NULL`), kendine bağlanma ve DLC dışı kayıt kısıtları,
+  ana oyunun MAIN_GAME olmasını zorlayan tetikleyici, MAIN_GAME'liğini kaybeden ana oyunun DLC bağını koparan tetikleyici ve kısmi indeks.
+  Kullanıcı onayıyla 2026-11-08'de DEV'e uygulandı (önce yedek alındı).
+- **V175** `V175__create_game_localized_descriptions.sql`: yeni `game_localized_descriptions` tablosu (dile göre açıklama; (oyun, dil) tekil, oyun
+  silinince cascade). Mevcut tablolara dokunmaz. İzole PostgreSQL testleri (dolu V174 → V175 yükseltme, kısıtlar, tekillik, cascade) geçti;
+  kullanıcı onayıyla 2026-11-08'de DEV'e uygulandı (önce yedek alındı, eski imajın V175'li şemayla uyumu izole PostgreSQL'de doğrulandı).
+- Her iki migration yeni bir şema yükseltmesidir; "başlangıç zincirinde ALTER yok" kuralı V31–V40 ve V171–V173 için aynen sürer
+  (`MigrationArchitectureTest` yalnız V174'ü ALTER için muaf tutar). Uygulanmış migration dosyaları değiştirilmedi.
+
 ### Hardware Service V193 — Bilgisayar profili kasa rengi, 2026-11-08
 
 - LTZ Atölyesi (Bilgisayarlarım) kasa rengini profile kaydetmek için kullanıcı açıkça V193'ün alınmasını onayladı

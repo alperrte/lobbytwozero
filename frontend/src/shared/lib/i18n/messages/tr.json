@@ -526,6 +526,26 @@
     "total": "{count} sonuç",
     "emptyModule": "Bu bölümde henüz görünür içerik bulunmuyor.",
     "emptyCatalogue": "Bu arama için oyun bulunamadı. Aramanı değiştirebilirsin.",
+    "emptySearch": "“{query}” için eşleşen oyun yok. Yazımı değiştirebilir veya Steam indeksinde arayabilirsin.",
+    "emptyFilters": "Seçili filtrelerle eşleşen oyun yok. Filtreleri kaldırmayı dene.",
+    "emptyCatalogueAll": "Katalogda henüz oyun yok. Steam kataloğu henüz alınmamış olabilir.",
+    "syncRunningHint": "Steam kataloğu şu an senkronize ediliyor: {indexed} kayıt indekslendi, {main} oyun sınıflandırıldı. Oyunlar sınıflandıkça listeye eklenir; bu sırada indekste arayabilirsin.",
+    "emptyUnclassifiedHint": "{indexed} Steam kaydı indekslendi ancak henüz ana oyun olarak sınıflandırılmış kayıt yok. İndekste arayabilirsin.",
+    "datePickerOpen": "Takvimi aç",
+    "datePickerDialog": "Tarih seç",
+    "datePickerPlaceholder": "gg.aa.yyyy",
+    "datePickerToday": "Bugün",
+    "datePickerClear": "Temizle",
+    "datePickerPrevMonth": "Önceki ay",
+    "datePickerNextMonth": "Sonraki ay",
+    "datePickerMonth": "Ay",
+    "datePickerYear": "Yıl",
+    "datePickerInvalid": "Geçerli bir tarih girin (örn. {example}).",
+    "comboboxShowOptions": "Önerileri göster",
+    "comboboxNoOptions": "Eşleşen öneri yok. Kodu elle yazabilirsin.",
+    "languagePlaceholder": "Dil seç veya kod yaz",
+    "genrePlaceholder": "Tür seç veya yaz",
+    "platformPlaceholder": "Platform seç veya yaz",
     "backToGames": "Oyunlara dön",
     "backToContent": "Listeye dön",
     "previous": "Önceki",
@@ -564,7 +584,7 @@
     "yes": "Evet",
     "no": "Hayır",
     "clearFilters": "Filtreleri temizle",
-    "filterHelp": "Tür ve platform için katalog kodunu, dil için tr veya en gibi dil kodunu kullan. Eksik veri, seçili filtreyi karşılamaz. Fiyatlar seçilen pazara aittir.",
+    "filterHelp": "Tür ve platformu listeden seçebilir veya katalog kodunu yazabilirsin. Dil için tr-tr veya en-us gibi tam dil kodunu kullan (listeden de seçebilirsin). Eksik veri, seçili filtreyi karşılamaz. Fiyatlar seçilen pazara aittir.",
     "rating": "LTZ puanı",
     "ratingValue": "{rating}/10 · {count} puan",
     "unrated": "Henüz puanlanmadı",
@@ -577,6 +597,10 @@
     "checkedAt": "Kontrol: {date}",
     "verifiedAt": "Doğrulama: {date}",
     "notVerified": "Henüz doğrulanmadı",
+    "parentGame": "Ana oyun",
+    "dlcTitle": "DLC'ler ({count})",
+    "descriptionLanguageNote": "Bu açıklama yalnızca {language} olarak sağlanmıştır; çevirisi yoktur.",
+    "recordedAt": "Kaynaktan alındı: {date}",
     "openStore": "Mağazaya git",
     "priceDisclaimer": "Fiyat mağazada değişebilir. Bağlantılar iş ortaklığı içerebilir. Kur dönüşümü yapılmaz. Kaynak:",
     "gameInformation": "Oyun bilgileri",
@@ -681,7 +705,8 @@
       "targetId": "İçerik kimliği (açıklama için boş)",
       "action": "İşlem",
       "code": "Başarım kodu",
-      "visible": "Görünürlük"
+      "visible": "Görünürlük",
+      "syncStatus": "Senkronizasyon durumu"
     },
     "choices": {
       "MAIN_GAME": "Ana oyun",
@@ -734,7 +759,197 @@
       "DEVELOPERS": "Geliştiriciler",
       "PUBLISHERS": "Yayıncılar",
       "LOCALIZATION": "Yerelleştirme"
-    }
+    },
+    "activeFilters": "Aktif filtreler",
+    "activeGrants": "Aktif yetkiler",
+    "addValue": "Ekle",
+    "adminGames": "Oyunlar",
+    "allGames": "Tüm oyunlar",
+    "applyFilters": "Filtreleri uygula",
+    "autoRetryStopped": "Otomatik yeniden deneme durdu; çalışmanın uygulama servisinden elle sürdürülmesi gerekir.",
+    "catalogStatus": "Katalog indeks durumu",
+    "catalogStatusHelp": "Steam indeksinin son aktarım durumu. Bu ekrandan senkronizasyon başlatılamaz veya durdurulamaz.",
+    "catalogueSections": "Katalog bölümleri",
+    "changeGame": "Oyunu değiştir",
+    "conflictDraftKept": "Yazdıklarını silmedik. Güncel kaydı yükleyip değişikliklerini kontrol ettikten sonra yeniden kaydet.",
+    "cover": "Kapak",
+    "coverageLabel": "Detay kapsamı",
+    "createdAt": "Oluşturulma",
+    "createdOn": "Oluşturuldu: {date}",
+    "descriptionSource": "Bu açıklama katalog kaynağından alınmıştır. Geliştiricinin kendi açıklaması \"Geliştiriciden\" bölümündedir.",
+    "developerDescription": "Geliştirici açıklaması",
+    "discountPercent": "%{percent} indirim",
+    "earlyAccessBadge": "Erken erişim",
+    "editorRank": "Editör sırası #{rank}",
+    "editorsPicks": "Editörün Seçtikleri",
+    "editorsPicksHelp": "Bu liste editörler tarafından elle seçilir. Oyuncu etkileşimine dayalı bir trend ya da popülerlik ölçümü değildir.",
+    "emptyDeveloperContent": "Geliştirici henüz içerik yayımlamadı.",
+    "emptyPicks": "Henüz editör seçimi yok",
+    "emptyPicksHelp": "Editör listesi şu an boş. Tüm oyunlara göz atabilirsin.",
+    "feedbackDistinct": "Bu geri bildirimler oyunun geliştiricisine özel olarak gider. Oyun incelemesi veya puanı değildir; incelemeler Review servisinde yazılır.",
+    "feedbackFor": "Seçilen oyun:",
+    "feedbackPickGame": "Geri bildirim göndereceğin oyunu ara",
+    "feedbackPrivacy": "Geri bildirimin herkese açık değildir; yalnız sen ve oyunun yetkili geliştiricileri görür.",
+    "filterErrors": {
+      "dateRange": "En erken çıkış tarihi, en geç çıkış tarihinden sonra olamaz.",
+      "minRating": "En düşük puan 1 ile 10 arasında olmalı ve en çok iki ondalık içermelidir."
+    },
+    "filterNotSent": "Geçersiz filtre isteğe eklenmedi.",
+    "findGame": "Oyun bul",
+    "foreignReferenceBlocked": "Güvenlik koruması işlemi durdurdu: diğer servislerdeki oyun referansları doğrulanamadığı için dış kimlik taşıma ve ayırma şu an uygulanamıyor.",
+    "freshness": {
+      "LOCAL": "Yerel kayıt",
+      "UNSUPPORTED": "Bu kayıt için sağlayıcı yenilemesi desteklenmiyor",
+      "MISSING": "Sağlayıcı verisi henüz alınmadı",
+      "FRESH": "Güncel",
+      "STALE": "Güncelliği doldu"
+    },
+    "freshnessLabel": "Veri güncelliği",
+    "gallery": "Görsel galerisi",
+    "galleryNext": "Sonraki görsel",
+    "galleryPosition": "{index} / {count}",
+    "galleryPrevious": "Önceki görsel",
+    "galleryShow": "{index}. görseli göster",
+    "grantScopeHelp": "Bu yetki yalnız bu oyun için geçerlidir. Kullanıcının GAME_DEVELOPER rolü Auth servisinde ayrıca yönetilir ve burada değiştirilemez.",
+    "grantedAt": "Verildi: {date}",
+    "grantedUser": "Kullanıcı kimliği",
+    "help": {
+      "developers": "Değerleri tek tek ekle; Enter veya virgül yeni değer başlatır.",
+      "publishers": "Değerleri tek tek ekle; Enter veya virgül yeni değer başlatır.",
+      "languages": "Dil kodlarını ekle (ör. tr, en).",
+      "genres": "Katalog kodunu ekle (ör. rpg).",
+      "categories": "Katalog kodunu ekle.",
+      "tags": "Katalog kodunu ekle.",
+      "platforms": "Katalog kodunu ekle (ör. pc).",
+      "coverUrl": "Yalnız https:// bağlantıları kabul edilir.",
+      "url": "Yalnız https:// bağlantıları kabul edilir.",
+      "reason": "Bu gerekçe denetim kaydına yazılır.",
+      "developerUserId": "Auth servisindeki kullanıcı kimliği (UUID).",
+      "targetId": "Medya ve güncelleme notu için zorunludur; açıklama için boş bırak.",
+      "code": "Küçük harf, rakam ve tire (ör. first-win)."
+    },
+    "hiddenEditBlocked": "Bu içerik moderasyonla gizlendi; gizliyken düzenlenemez.",
+    "identityBlockedBody": "Dış kimliklerin başka bir oyuna taşınması veya bir oyundan ayrılması, Library ve Review gibi diğer servislerin oyun referanslarını da etkiler. Bu servislerle güvenli bir koordinasyon protokolü uygulanana kadar sunucu bu işlemleri FOREIGN_REFERENCE_SAFETY_UNVERIFIED koduyla reddeder.",
+    "identityBlockedTitle": "Taşıma ve ayırma şu an kapalı",
+    "identityPoint1": "Bu ekranda bu işlemleri başlatan bir form veya düğme yoktur.",
+    "identityPoint2": "Operatör beyanı ya da gerekçe, sunucudaki güvenlik engelini aşmaz.",
+    "identityPoint3": "Hatalı bir eşleme fark edersen servis sahibine bildir; kayıtlar elle değiştirilmez.",
+    "identityTitle": "Dış oyun kimliği düzeltme",
+    "lastPage": "Son sayfaya git",
+    "lifecycle": "Durum yönetimi",
+    "lifecycleUnavailable": "Bu durumdaki kayıt arşivlenemez veya geri açılamaz.",
+    "loadById": "Gelişmiş: kimlikle yükle",
+    "loadByIdHelp": "Arşivlenmiş oyunlar herkese açık aramada çıkmaz; böyle kayıtları kimlikle açabilirsin.",
+    "manualOverridesHelp": "Elle düzenlenen alanlar sağlayıcı güncellemelerinden korunur. Korumayı kaldırırsan sağlayıcı verisi o alanı yeniden güncelleyebilir.",
+    "mediaUrlOnly": "Dosya yüklenmez; yalnız güvenli bir HTTPS bağlantısı eklenir.",
+    "moderationGame": "Oyun",
+    "moderationScope": "Yalnız geliştiricinin yayımladığı açıklama, medya ve güncelleme notları gizlenebilir veya yeniden yayımlanabilir. Genel moderasyon süreçleri Admin servisindedir.",
+    "moderationVisibleHelp": "Aşağıda herkese açık (görünür) içerikler listelenir. Gizli bir içeriği yeniden yayımlamak için içerik kimliğini kendin gir.",
+    "moveDown": "{title} sırasını aşağı al",
+    "moveUp": "{title} sırasını yukarı al",
+    "noGrants": "Bu oyun için aktif geliştirici yetkisi yok.",
+    "noManagedGamesHelp": "Yetki, bir yönetici tarafından oyun bazında verilir.",
+    "noMedia": "Henüz medya eklenmedi",
+    "noNotes": "Henüz güncelleme notu yok",
+    "noWorkspaceAccess": "Bu alan için yönetici, moderatör veya oyun geliştiricisi yetkisi gerekir.",
+    "none": "Yok",
+    "notRecorded": "Kaydedilmedi",
+    "opensExternal": "yeni sekmede açılır",
+    "overrideLockedAt": "Kilit tarihi: {date}",
+    "pageOf": "Sayfa {page} / {pages}",
+    "pageOutOfRange": "Bu sayfa artık mevcut değil",
+    "pageSections": "Sayfa bölümleri",
+    "pickerEmpty": "Eşleşen oyun bulunamadı.",
+    "pickerHelp": "Arama oyun adının başından eşleşir. Yalnız herkese açık ana oyunlar listelenir.",
+    "pickerLabel": "Oyun ara",
+    "pickerSelect": "Seç",
+    "popularAdd": "Listeye oyun ekle",
+    "popularClearWarning": "Liste boş: kaydedersen mevcut editör seçimi tamamen temizlenir.",
+    "popularEligibility": "Yalnız aktif ana oyunlar seçilebilir. Mevcut liste herkese açık uçtan okunur; bu uç yalnız uygun oyunları gösterdiği için uygun olmayan eski kayıtlar listede görünmeyebilir.",
+    "popularEmptyHelp": "Oyun ekleyerek sıralı bir editör listesi oluşturabilirsin.",
+    "popularEmptyList": "Listede oyun yok",
+    "popularLimit": "En fazla {max} oyun seçilebilir.",
+    "popularReplaceWarning": "Kaydetmek mevcut editör listesinin yerine geçer. Boş liste kaydedersen seçim tamamen temizlenir.",
+    "popularSave": "Editör listesini kaydet",
+    "popularSelected": "Seçilen oyunlar (sıralı)",
+    "providedByDeveloper": "Geliştirici tarafından sağlandı",
+    "providerTotal": "Sağlayıcı toplamı: {count}",
+    "providerTotalUnknown": "Sağlayıcının toplam kayıt sayısı bilinmiyor; bu yüzden tamamlanma yüzdesi hesaplanmaz.",
+    "ratingCount": "{count} puan",
+    "recordVersion": "Sürüm {version}",
+    "refreshStatus": "Durumu yenile",
+    "releaseUnknown": "Çıkış tarihi bilinmiyor",
+    "remove": "Çıkar",
+    "removeFilter": "{filter} filtresini kaldır",
+    "removeFromList": "{title} oyununu listeden çıkar",
+    "removeValue": "{value} değerini kaldır",
+    "runModes": {
+      "INITIAL": "İlk aktarım",
+      "INCREMENTAL": "Artımlı aktarım"
+    },
+    "sections": {
+      "overview": "Genel bakış",
+      "information": "Bilgiler",
+      "dlc": "DLC",
+      "prices": "Fiyatlar",
+      "developer": "Geliştiriciden",
+      "community": "Topluluk",
+      "feedback": "Geri bildirim"
+    },
+    "selectedGame": "Seçilen oyun",
+    "statusFields": {
+      "provider": "Sağlayıcı",
+      "runMode": "Çalışma modu",
+      "cursor": "İmleç (son uygulanan AppID)",
+      "processedCount": "İşlenen kayıt",
+      "indexedEntries": "İndekslenen kayıt",
+      "mainGameEntries": "Ana oyun kaydı",
+      "unclassifiedEntries": "Sınıflandırılmamış kayıt",
+      "lastSuccessfulAt": "Son başarılı aktarım",
+      "failureCount": "Art arda başarısız sayfa",
+      "lastErrorCode": "Son hata kodu",
+      "nextAttemptAt": "Sonraki deneme"
+    },
+    "syncStatuses": {
+      "IDLE": "Beklemede",
+      "RUNNING": "Çalışıyor",
+      "COMPLETE": "Tamamlandı",
+      "FAILED": "Başarısız"
+    },
+    "tabs": {
+      "description": "Açıklama",
+      "media": "Medya",
+      "notes": "Güncelleme notları"
+    },
+    "unknownSupportNote": "“Bilinmiyor”, desteklenmiyor demek değildir; kaynak bu bilgiyi vermemiştir.",
+    "unsavedChanges": "Kaydedilmemiş değişiklikler var.",
+    "updateNotes": "Güncelleme notları",
+    "updatedAt": "Güncellenme",
+    "updatedOn": "Güncellendi: {date}",
+    "viewGrid": "Kart",
+    "viewList": "Liste",
+    "viewMode": "Görünüm",
+    "yourGames": "Yetkili olduğun oyunlar",
+    "archiveHelp": "Arşivlenen oyun herkese açık katalogdan çıkar. Kayıt silinmez; sonradan geri açabilirsin.",
+    "restoreHelp": "Geri açılan oyun yeniden herkese açık katalogda görünür.",
+    "emptyFeedback": "Henüz geri bildirim göndermedin",
+    "emptyFeedbackDeveloper": "Bu oyun için gelen geri bildirim yok",
+    "hideDetail": "Ayrıntıyı gizle",
+    "showDetail": "Ayrıntıyı göster",
+    "showLess": "Daha az göster",
+    "showMore": "Devamını göster",
+    "invalidMediaUrl": "Bağlantı kabul edilmedi. Görseller yalnız Steam görsel adreslerinden (https, .jpg/.png/.webp/.gif), videolar YouTube veya Vimeo'dan, demolar Steam mağaza sayfasından gelebilir.",
+    "mediaSources": {
+      "cover": "Yalnız Steam görsel adresleri (shared.akamai.steamstatic.com, shared.fastly.steamstatic.com, cdn.akamai.steamstatic.com) ve .jpg/.png/.webp/.gif uzantısı kabul edilir.",
+      "all": "Görsel: Steam görsel adresleri (.jpg/.png/.webp/.gif). Video: YouTube veya Vimeo. Demo: Steam mağaza sayfası. Yalnız https."
+    },
+    "developerGallery": "Geliştirici görselleri",
+    "indexSearch": "Steam indeksinde ara",
+    "indexSearchHelp": "Yalnız yerel Steam indeksi aranır (başlığın başından eşleşir); sağlayıcıya istek atılmaz. Sınıflandırılmamış kayıtlar herkese açık katalogda görünmez.",
+    "indexSearchButton": "Ara",
+    "includeUnclassified": "Sınıflandırılmamış kayıtları da göster",
+    "indexNoResults": "Bu aramayla eşleşen indeks kaydı yok.",
+    "openInAdmin": "Yönetimde aç"
   },
   "Auth": {
     "shell": {
@@ -755,12 +970,15 @@
         "headlineStart": "Oyun dünyana",
         "headlineAccent": "yeni bir kapı aç.",
         "subline": "Profilini oluştur, yeni oyunlar keşfet ve seninle aynı tutkuyu paylaşan oyuncularla buluş."
-      }
+      },
+      "navLabel": "Gezinme",
+      "navLogin": "Giriş yap",
+      "navRegister": "Kayıt ol",
+      "welcomeLabel": "Karşılama"
     },
     "login": {
       "metaTitle": "Giriş yap",
       "title": "Giriş yap",
-      "description": "LTZ hesabına giriş yap, lobine katıl.",
       "formLabel": "Giriş formu",
       "identifier": "E-posta veya kullanıcı adı",
       "identifierPlaceholder": "E-posta adresin veya kullanıcı adın",
@@ -849,7 +1067,9 @@
       "UNKNOWN": "Bir şeyler ters gitti. Lütfen tekrar dene.",
       "VALIDATION_FAILED": "Bazı bilgiler geçersiz. Alanları kontrol edip tekrar dene.",
       "MFA_FAILED": "Kod geçersiz ya da doğrulama oturumunun süresi doldu. Yeniden dene ya da girişe dön.",
-      "INVALID_TWO_FACTOR_CODE": "Kod yanlış. Tekrar dene."
+      "INVALID_TWO_FACTOR_CODE": "Kod yanlış. Tekrar dene.",
+      "ACCOUNT_LINK_REQUIRED": "Bu e-posta adresiyle zaten bir hesap var. Önce e-posta ve şifrenle giriş yap, sonra bu hesabı bağla.",
+      "ACCOUNT_EMAIL_REQUIRED": "Bu işlem için hesabında doğrulanmış bir e-posta adresi olmalı. Önce e-posta ekleyip doğrula."
     },
     "register": {
       "metaTitle": "Kayıt ol",
@@ -933,12 +1153,6 @@
       "linked": "Hesabın bağlandı.",
       "backToLogin": "Giriş sayfasına dön",
       "toHome": "Ana sayfaya git",
-      "steam": {
-        "formLabel": "Steam hesabı kayıt formu",
-        "description": "Steam hesabınla ilk kez geliyorsun. Hesabını tamamlamak için bir kullanıcı adı ve e-posta adresi gir.",
-        "submit": "Hesabı oluştur",
-        "tokenInvalid": "Kayıt bağlantısı geçersiz ya da süresi dolmuş. Steam ile girişi yeniden başlat."
-      },
       "errors": {
         "EXTERNAL_AUTH_FAILED": "Giriş doğrulanamadı. Lütfen tekrar dene.",
         "EXTERNAL_EMAIL_UNVERIFIED": "Sağlayıcıdaki e-posta adresin doğrulanmamış. Önce sağlayıcıda doğrula, sonra tekrar dene.",
@@ -950,6 +1164,19 @@
         "TWO_FACTOR_ENROLLMENT_REQUIRED": "Bu hesap için iki aşamalı doğrulama kurulumu gerekiyor. Bu adım henüz bu ekranda desteklenmiyor.",
         "PROVIDER_NOT_CONFIGURED": "Bu giriş yöntemi şu anda kullanılamıyor.",
         "UNKNOWN": "Bir şeyler ters gitti. Lütfen tekrar dene."
+      },
+      "username": {
+        "formLabel": "Hesabı tamamlama formu",
+        "submit": "Devam et",
+        "submitting": "Hesap oluşturuluyor…"
+      },
+      "google": {
+        "description": "Google hesabınla ilk kez geliyorsun. Devam etmek için LTZ'de görünecek bir kullanıcı adı seç.",
+        "tokenInvalid": "Kayıt bağlantısı geçersiz ya da süresi dolmuş. Google ile girişi yeniden başlat."
+      },
+      "steam": {
+        "description": "Steam hesabınla ilk kez geliyorsun. Devam etmek için LTZ'de görünecek bir kullanıcı adı seç. Steam e-posta paylaşmadığı için e-posta istenmez.",
+        "tokenInvalid": "Kayıt bağlantısı geçersiz ya da süresi dolmuş. Steam ile girişi yeniden başlat."
       }
     },
     "mfa": {
@@ -1851,7 +2078,7 @@
     "nav": {
       "label": "Topluluk bölümleri",
       "feed": "Akış",
-      "forums": "Oyun forumları",
+      "forums": "Topluluk",
       "mine": "Gönderilerim",
       "newPost": "Gönderi oluştur"
     },
@@ -1887,14 +2114,10 @@
       "mineReposts": {
         "title": "Yeniden paylaşımlarım",
         "description": "Yeniden paylaştığın gönderiler."
-      },
-      "mineWords": {
-        "title": "Sözlerim",
-        "description": "Paylaştığın metin gönderileri."
       }
     },
     "feed": {
-      "title": "Topluluk",
+      "title": "Topluluk Akış",
       "description": "Oyunları, deneyimlerini ve fikirlerini paylaş; diğer oyuncuların gönderilerini oku.",
       "prompt": "Toplulukta neler paylaşmak istersin?",
       "promptGuest": "Paylaşmak için giriş yap",
@@ -1912,8 +2135,10 @@
       "sortLabel": "Sıralama",
       "sort": {
         "NEWEST": "En yeni",
-        "POPULAR": "Popüler",
-        "OLDEST": "En eski"
+        "POPULAR": "Popüler (beğeni + yorum)",
+        "OLDEST": "En eski",
+        "MOST_LIKED": "En fazla beğeni alan",
+        "MOST_REPOSTED": "En fazla yeniden paylaşılan"
       },
       "search": "Gönderilerde ara",
       "searchPlaceholder": "Gönderi metninde ara…",
@@ -1926,7 +2151,15 @@
       "to": "Bitiş tarihi",
       "invalidRange": "Başlangıç tarihi bitiş tarihinden sonra olamaz.",
       "clear": "Filtreleri temizle",
-      "more": "Daha fazla filtre"
+      "more": "Daha fazla filtre",
+      "sortFilter": "Filtrele",
+      "criteriaOrder": "{number}. sıra",
+      "criteriaCount": "{count} ölçüt seçili",
+      "criteriaOpposite": "En yeni ve En eski zıt yönlerdir: önce seçtiğin (“{first}”) uygulanır, diğeri sonucu değiştirmez.",
+      "ineffective": "Etkisiz (zıt yön)",
+      "applyCriteria": "Uygula",
+      "clearCriteria": "Temizle",
+      "criteriaUnsupported": "Uygulanamadı: “{list}” sıralaması API tarafında henüz desteklenmiyor. Seçimini koruyabilir ya da kaldırıp tekrar uygulayabilirsin."
     },
     "category": {
       "GENERAL": "Genel",
@@ -1954,7 +2187,7 @@
       "hidden": "Gizlendi",
       "repostedBy": "Yeniden paylaşım",
       "srTitle": "Gönderi",
-      "readMore": "Devamını oku",
+      "readMore": "Devamını gör",
       "likeAria": "Beğen, şu an {count} beğeni",
       "unlikeAria": "Beğeniyi geri al, şu an {count} beğeni",
       "commentsLabel": "Yorum sayısı",
@@ -1977,7 +2210,12 @@
         "GUIDES": "Rehber",
         "EASTER_EGGS": "Easter egg",
         "EXPERIENCES": "Oyuncu deneyimi"
-      }
+      },
+      "readLess": "Daha az göster",
+      "commentsOpen": "Yorumları göster",
+      "commentsClose": "Yorumları gizle",
+      "actions": "Gönderi işlemleri",
+      "reportMenu": "Şikayet et"
     },
     "images": {
       "alt": "Gönderi görseli {number}",
@@ -2039,12 +2277,10 @@
       "forumContext": "Forum:",
       "type": "Gönderi türü",
       "titleLabel": "Başlık",
-      "titlePlaceholder": "İçeriğin başlığı",
       "bodyLabel": "Metin",
       "bodyPlaceholder": "Düşüncelerini, deneyimlerini veya sorularını paylaş…",
       "gameRequired": "Oyun ara (zorunlu)",
       "gameOptional": "Oyun ara",
-      "category": "Kategori",
       "images": "Görseller",
       "optional": "isteğe bağlı",
       "partial": "Gönderi yayınlandı ancak {count} görsel yüklenemedi. Görselleri yeniden deneyebilir ya da gönderiye gidebilirsin.",
@@ -2054,7 +2290,7 @@
       "submit": "Paylaş",
       "previewLabel": "Gönderi önizlemesi",
       "preview": "Önizleme",
-      "previewHelp": "Yayınlandığında akışta bu şekilde görünür.",
+      "previewHelp": "Yayınlandığında akışta bu şekilde görünecektir.",
       "previewNow": "Şimdi",
       "previewEmpty": "Gönderi metni burada görünecek.",
       "error": {
@@ -2066,17 +2302,9 @@
         "gameRequired": "Oyuna bağlı içerik için bir oyun seç."
       },
       "sectionKind": "Ne paylaşıyorsun?",
-      "sectionKindHint": "Gönderi topluluk akışında görünür. Oyun içeriği ayrıca oyunun sayfasında listelenir.",
+      "sectionKindHint": "Gönderi topluluk akışında görünecektir.",
       "modePost": "Gönderi",
-      "modePostHelp": "Toplulukla serbestçe paylaş; istersen bir oyuna bağla.",
       "modeGame": "Oyun içeriği",
-      "modeGameHelp": "Başlık ve oyun zorunlu. Oyunun sayfasında listelenir; türü sonradan değiştirilemez.",
-      "contentTypeLabel": "İçerik türü",
-      "contentTypeHelp": {
-        "GUIDES": "Oyunu adım adım anlatan rehber.",
-        "EASTER_EGGS": "Oyunda saklı detaylar ve sürprizler.",
-        "EXPERIENCES": "Kendi oynayış deneyimin."
-      },
       "sectionContent": "İçerik",
       "plainText": "Düz metin: biçimlendirme ve bağlantılar yorumlanmaz.",
       "sectionGame": "Oyun bağlantısı",
@@ -2089,7 +2317,11 @@
       "publishingImage": "Görsel {current}/{total} yükleniyor…",
       "retry": "Tekrar dene",
       "publishingOverlay": "Gönderin paylaşılıyor…",
-      "publishingList": "Akış güncelleniyor…"
+      "publishingList": "Akış güncelleniyor…",
+      "sectionDescription": "Açıklama",
+      "confirmTitle": "Gönderiyi paylaşmak istiyor musun?",
+      "confirmBody": "Onaylarsan gönderi paylaşılır.",
+      "category": "Kategori"
     },
     "edit": {
       "title": "Gönderiyi düzenle",
@@ -2119,11 +2351,7 @@
       "hideReplies": "Yanıtları gizle",
       "deleteTitle": "Yorum silinsin mi?",
       "deleteBody": "Yorum kaldırılır. Yanıtları varsa yerinde \"silindi\" notu kalır. Bu işlem geri alınamaz.",
-      "save": "Kaydet",
-      "paneTitle": "Yorumlar",
-      "paneEmpty": "Henüz yorum yok.",
-      "paneLoading": "Yorumlar yükleniyor…",
-      "paneListLabel": "Yorum listesi"
+      "save": "Kaydet"
     },
     "detail": {
       "title": "Gönderi",
@@ -2219,12 +2447,11 @@
         "noText": "Metinsiz gönderi",
         "originalBy": "Orijinal yazar"
       },
-      "wordsLink": "Sözlerim",
-      "wordsTitle": "Sözlerim",
-      "wordsDescription": "Paylaştığın metin gönderileri. Görselli gönderiler ve yeniden paylaşımlar burada görünmez.",
-      "wordsEmptyTitle": "Henüz bir söz paylaşmadın.",
-      "wordsEmptyBody": "Akıştaki hızlı paylaşım alanından kısa bir söz paylaşabilirsin; burada listelenir.",
-      "wordsEmptyCta": "Akışa git"
+      "priority": "Öncelik",
+      "priorityOptions": {
+        "OLDEST": "Eskiden yeniye",
+        "NEWEST": "Yeniden eskiye"
+      }
     },
     "user": {
       "title": "Oyuncunun gönderileri",
@@ -2269,6 +2496,9 @@
       "open": "{number}. görseli tam boyutta aç",
       "broken": "Görsel yüklenemedi",
       "viewer": "Görsel görüntüleyici"
+    },
+    "toast": {
+      "close": "Bildirimi kapat"
     }
   }
 }

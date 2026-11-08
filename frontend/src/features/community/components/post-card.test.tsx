@@ -70,6 +70,8 @@ function mount(props: { post?: PostView; viewer?: Viewer } = {}) {
   return { onChange, onRemoved };
 }
 
+const openMenu = () => fireEvent.click(screen.getByRole("button", { name: "Gönderi işlemleri" }));
+
 beforeEach(() => {
   vi.resetAllMocks();
 });
@@ -133,28 +135,83 @@ describe("Community gönderi kartı", () => {
     expect(push).toHaveBeenCalledWith({ pathname: "/login", query: { next: "/tr/topluluk" } });
   });
 
-  it("sahip düzenle/sil görür, başkasının gönderisinde raporla görür", () => {
+  it("işlemler sağ üstteki 'Gönderi işlemleri' menüsündedir; alt satırda yalnız beğeni, yorum ve yeniden paylaşım kalır", () => {
     mount({ post: post({ authorId: ME }) });
-    expect(screen.getByRole("button", { name: "Sil" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Raporla" })).toBeNull();
+    const footer = document.querySelector("footer") as HTMLElement;
+    expect(within(footer).queryByRole("button", { name: /Düzenle|Sil|Raporla/ })).toBeNull();
+    expect(within(footer).queryByRole("link", { name: /Düzenle/ })).toBeNull();
+    const trigger = screen.getByRole("button", { name: "Gönderi işlemleri" });
+    const header = document.querySelector("article header") as HTMLElement;
+    expect(header.contains(trigger)).toBe(true);
+    expect(trigger).toHaveAttribute("aria-haspopup", "menu");
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    // Kullanıcı bilgisi ile aynı başlık satırında, en sağdadır.
+    expect(header.firstElementChild?.contains(screen.getByText("Yeni haritada orta kontrol çok iyi."))).toBe(false);
+    expect(within(footer).getByRole("button", { name: /Beğen/ })).toBeInTheDocument();
+    expect(within(footer).getByRole("button", { name: "Yeniden paylaş" })).toBeInTheDocument();
   });
 
-  it("başkasının gönderisinde sil/düzenle yok, raporla var", () => {
+  it("sahip: menüde Düzenle ve Sil görünür, Şikayet et görünmez; Düzenle gerçek düzenleme adresine gider", () => {
+    mount({ post: post({ authorId: ME }) });
+    openMenu();
+    const menu = screen.getByRole("menu", { name: "Gönderi işlemleri" });
+    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Düzenle", "Sil"]);
+    expect(within(menu).getByRole("menuitem", { name: "Düzenle" })).toHaveAttribute("href", expect.stringContaining("edit"));
+    expect(within(menu).queryByRole("menuitem", { name: "Şikayet et" })).toBeNull();
+  });
+
+  it("başkasının gönderisinde menüde yalnız tek bir 'Şikayet et' vardır (Düzenle/Sil yok)", () => {
     mount();
-    expect(screen.queryByRole("button", { name: "Sil" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Raporla" })).toBeInTheDocument();
+    openMenu();
+    const items = within(screen.getByRole("menu")).getAllByRole("menuitem");
+    expect(items.map((item) => item.textContent)).toEqual(["Şikayet et"]);
   });
 
-  it("silme onay ister; hata diyalogda kalır, başarıda liste bilgilendirilir", async () => {
+  it("yetkisi olmayan kullanıcıya işlem menüsü hiç gösterilmez (başkasının gizli gönderisi)", () => {
+    mount({ post: post({ status: "HIDDEN" }) });
+    expect(screen.queryByRole("button", { name: "Gönderi işlemleri" })).toBeNull();
+  });
+
+  it("menü Escape ve dışarı tıklamayla kapanır; Escape odağı tetikleyiciye döndürür", () => {
+    mount({ post: post({ authorId: ME }) });
+    const trigger = screen.getByRole("button", { name: "Gönderi işlemleri" });
+    openMenu();
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(trigger).toHaveFocus();
+    openMenu();
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("silme menüden açılır, ortak onay ister; hata diyalogda kalır, başarıda liste bilgilendirilir", async () => {
     vi.mocked(api.deletePost).mockRejectedValueOnce(new ApiHttpError(409)).mockResolvedValueOnce(undefined);
     const { onRemoved } = mount({ post: post({ authorId: ME }) });
-    fireEvent.click(screen.getByRole("button", { name: "Sil" }));
+    openMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Sil" }));
     const dialog = await screen.findByRole("dialog");
+    expect(screen.queryByRole("menu")).toBeNull();
     fireEvent.click(within(dialog).getByRole("button", { name: "Sil" }));
     expect(await within(dialog).findByRole("alert")).toHaveTextContent("başka bir yerden değişmiş");
     expect(onRemoved).not.toHaveBeenCalled();
     fireEvent.click(within(dialog).getByRole("button", { name: "Sil" }));
     await waitFor(() => expect(onRemoved).toHaveBeenCalledWith("33333333-3333-4333-8333-333333333333"));
+  });
+
+  it("sahibin yeniden paylaşımında menüdeki seçenek 'Yeniden paylaşımı geri al' olarak silme akışını kullanır", () => {
+    mount({ post: post({ authorId: ME, repostOf: { postId: "55555555-5555-4555-8555-555555555555", available: true, authorId: OTHER, body: "x" } }) });
+    openMenu();
+    const items = within(screen.getByRole("menu")).getAllByRole("menuitem").map((item) => item.textContent);
+    expect(items).toEqual(["Yeniden paylaşımı geri al"]);
+  });
+
+  it("kart ortak containerın tam genişliğidir (yatay margin yok) ve köşeleri sidebar ile aynı yumuşaklıktadır", () => {
+    mount();
+    const article = screen.getByRole("article");
+    expect(article.className).toContain("w-full");
+    expect(article.className).not.toMatch(/mx-auto|w-\[9\d%\]/);
+    expect(article.className).toContain("rounded-2xl");
   });
 
   it("yeniden paylaşım zaten paylaşılmışsa 409'u anlaşılır gösterir", async () => {
@@ -169,7 +226,8 @@ describe("Community gönderi kartı", () => {
   it("rapor: gerekçe seçilmeden gönderilmez; başarı yalnız sunucu kabulünden sonra yazılır", async () => {
     vi.mocked(api.reportPost).mockRejectedValueOnce(new ApiHttpError(409)).mockResolvedValueOnce({});
     mount();
-    fireEvent.click(screen.getByRole("button", { name: "Raporla" }));
+    openMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Şikayet et" }));
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: "Raporu gönder" }));
     expect(api.reportPost).not.toHaveBeenCalled();

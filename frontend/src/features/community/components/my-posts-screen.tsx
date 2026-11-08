@@ -14,13 +14,13 @@ import { isInvalidRange } from "../services/post-query";
 import { emptyFilters, type PostFilters } from "../types/community.types";
 import { CommunityFrame, NewPostLink } from "./community-frame";
 import { CommunityIcon } from "./community-icons";
-import { buttonClass, ErrorBlock, LoadMore, primaryButtonClass } from "./community-ui";
-import { PostGalleryCard } from "./gallery-card";
-import { PostMasonry } from "./post-masonry";
+import { buttonClass, ErrorBlock, LoadingBlock, LoadMore, primaryButtonClass } from "./community-ui";
 import { MyPostsToolbar } from "./my-posts-toolbar";
+import { PostCard } from "./post-card";
 
 /**
- * Gönderilerim (yalnız kendi oluşturduklarım) ve Yeniden paylaşımlarım alt görünümü. Süzgeç ve sıralama URL'dedir:
+ * Gönderilerim (kendi oluşturduğum tüm metin ve görselli gönderiler) ve Yeniden paylaşımlarım alt görünümü. Kartlar Akış ile
+ * AYNI `PostCard` bileşenidir; her satırda tek kart bulunur. Süzgeç ve sıralama URL'dedir:
  * detaydan/düzenlemeden dönünce ya da sayfa yenilenince korunur. Liste ve kaydırma konumu bellek içi anlık görüntüden gelir.
  */
 export function MyPostsScreen({ view }: { view: MyPostsView }) {
@@ -31,7 +31,7 @@ export function MyPostsScreen({ view }: { view: MyPostsView }) {
   const params = useSearchParams();
   const router = useRouter();
   const filters = useMemo(() => filtersFromParams((key) => params.get(key), view), [params, view]);
-  const pathname = view === "posts" ? "/community/mine" : view === "words" ? "/community/mine/words" : "/community/mine/reposts";
+  const pathname = view === "posts" ? "/community/mine" : "/community/mine/reposts";
 
   const list = useMyPosts({ userId: viewer.status === "authenticated" ? viewer.accountId : null, view, filters });
   const authors = useAuthors(
@@ -44,12 +44,12 @@ export function MyPostsScreen({ view }: { view: MyPostsView }) {
     router.replace({ pathname, query: paramsFromFilters(next) }, { scroll: false });
   }
 
-  /** Silinen kartın yerine odak komşu kartın menü düğmesine (yoksa arama alanına) taşınır; odak kaybolmaz. */
+  /** Silinen kartın yerine odak komşu kartın yorum düğmesine (yoksa arama alanına) taşınır; odak kaybolmaz. */
   function handleRemoved(id: string) {
     const index = list.items.findIndex((post) => post.id === id);
     list.remove(id);
     window.requestAnimationFrame(() => {
-      const triggers = document.querySelectorAll<HTMLElement>("[data-card-menu]");
+      const triggers = document.querySelectorAll<HTMLElement>("main article footer button[aria-controls]");
       const target = triggers[Math.min(index, triggers.length - 1)] ?? document.querySelector<HTMLElement>("main input[type=search], main a.bg-primary");
       target?.focus();
     });
@@ -60,8 +60,7 @@ export function MyPostsScreen({ view }: { view: MyPostsView }) {
   // Hiç kayıt yokken (ve süzgeç yokken) arama/filtre/sıralama anlamsızdır; araç çubuğu yalnız boş durumu kalabalıklaştırırdı.
   const trulyEmpty = session.status === "authenticated" && !list.loading && !list.error && list.items.length === 0 && !list.hasMore && !filtered;
 
-  const words = view === "words";
-  const action: ReactNode = reposts || words ? (
+  const action: ReactNode = reposts ? (
     <Link href="/community/mine" className={cn(buttonClass, "gap-2")}>
       <span aria-hidden="true">←</span>
       {tm("backToPosts")}
@@ -72,7 +71,7 @@ export function MyPostsScreen({ view }: { view: MyPostsView }) {
 
   let body: ReactNode;
   if (session.status !== "authenticated" || list.loading) {
-    body = <GallerySkeleton />;
+    body = <LoadingBlock rows={3} />;
   } else if (list.error) {
     body = <ErrorBlock error={list.error} retry={list.reload} />;
   } else if (list.items.length === 0 && list.hasMore) {
@@ -99,12 +98,6 @@ export function MyPostsScreen({ view }: { view: MyPostsView }) {
           {tm("repostsEmptyCta")}
         </Link>
       </MineEmpty>
-    ) : words ? (
-      <MineEmpty title={tm("wordsEmptyTitle")} description={tm("wordsEmptyBody")}>
-        <Link href="/community" className={primaryButtonClass}>
-          {tm("wordsEmptyCta")}
-        </Link>
-      </MineEmpty>
     ) : (
       <MineEmpty title={tm("emptyTitle")} description={tm("emptyBody")}>
         <Link href="/community/new" className={primaryButtonClass}>
@@ -116,10 +109,19 @@ export function MyPostsScreen({ view }: { view: MyPostsView }) {
   } else {
     body = (
       <>
-        <PostMasonry
-          items={list.items}
-          render={(post) => <PostGalleryCard post={post} view={view} lookups={{ author: authors, game: games }} onRemoved={handleRemoved} />}
-        />
+        <ul className="space-y-4">
+          {list.items.map((post) => (
+            <li key={post.id} className="min-w-0">
+              <PostCard
+                post={post}
+                viewer={viewer}
+                lookups={{ author: authors, game: games }}
+                onChange={(next) => list.update(post.id, () => next)}
+                onRemoved={handleRemoved}
+              />
+            </li>
+          ))}
+        </ul>
         <LoadMore hasMore={list.hasMore} loading={list.loadingMore} error={list.moreError} onMore={list.loadMore} />
       </>
     );
@@ -127,8 +129,8 @@ export function MyPostsScreen({ view }: { view: MyPostsView }) {
 
   return (
     <CommunityFrame
-      title={reposts ? tm("repostsTitle") : words ? tm("wordsTitle") : tm("title")}
-      description={reposts ? tm("repostsDescription") : words ? tm("wordsDescription") : tm("description")}
+      title={reposts ? tm("repostsTitle") : tm("title")}
+      description={reposts ? tm("repostsDescription") : tm("description")}
       action={action}
     >
       {trulyEmpty ? null : <MyPostsToolbar view={view} filters={filters} onChange={change} />}
@@ -137,39 +139,10 @@ export function MyPostsScreen({ view }: { view: MyPostsView }) {
   );
 }
 
-/** Galeri düzenine uygun yükleme iskeleti: gerçek kartlarla aynı sütun genişliği ve medya oranı. */
-function GallerySkeleton() {
-  const t = useTranslations("Community.state");
-  return (
-    <div role="status">
-      <p className="sr-only">{t("loading")}</p>
-      <ul aria-hidden="true" className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,20rem),1fr))]">
-        {Array.from({ length: 6 }, (_, index) => (
-          <li key={index} className="min-w-0">
-            <div className="rounded-panel border border-border bg-surface motion-safe:animate-pulse">
-              <div className="bg-surface-elevated" style={{ aspectRatio: "4 / 3" }} />
-              <div className="space-y-2.5 px-4 pb-4 pt-3.5">
-                <div className="h-3.5 w-11/12 rounded-control bg-surface-elevated" />
-                <div className="h-3.5 w-2/3 rounded-control bg-surface-elevated" />
-                <div className="flex items-center justify-between pt-3">
-                  <div className="h-3 w-20 rounded-control bg-surface-elevated" />
-                  <div className="size-8 rounded-control bg-surface-elevated" />
-                </div>
-              </div>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-/** Boş durum: galeri kartlarıyla aynı köşe çizgisi motifi; sahte kapak ya da büyük dekoratif ikon yok. */
+/** Boş durum: sade kenarlıklı kutu; sahte kapak ya da büyük dekoratif ikon yok. */
 function MineEmpty({ title, description, children }: { title: string; description: string; children?: ReactNode }) {
   return (
-    <div className="relative mx-auto max-w-xl rounded-panel border border-border bg-surface px-6 py-12 text-center sm:px-10">
-      <span aria-hidden="true" className="pointer-events-none absolute -start-px -top-px size-5 rounded-ss-panel border-s-2 border-t-2 border-primary" />
-      <span aria-hidden="true" className="pointer-events-none absolute -bottom-px -end-px size-5 rounded-ee-panel border-b-2 border-e-2 border-primary" />
+    <div className="mx-auto max-w-xl rounded-panel border border-border bg-surface px-6 py-12 text-center sm:px-10">
       <h2 className="font-display text-xl font-semibold text-text-primary">{title}</h2>
       <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-text-secondary">{description}</p>
       {children ? <div className="mt-6 flex justify-center">{children}</div> : null}

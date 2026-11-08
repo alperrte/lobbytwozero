@@ -111,7 +111,7 @@ public class AdminGameService {
         return response(game);
     }
 
-    /** Manuel kilidi kaldırır; sonraki senkronizasyon sağlayıcı değerini yeniden yazabilir. */
+    /** Manuel kilidi kaldırır; sağlayıcı kaydı sonraki gelişinde (tam tur veya Steam'de değişiklik) değeri yeniden yazabilir. */
     @Transactional
     public AdminGameResponse releaseOverride(Actor actor, UUID id, OverridableField field, String reason) {
         ActorRole role = actor.auditRole(ActorRole.ADMIN);
@@ -120,6 +120,9 @@ public class AdminGameService {
         GameFieldOverride override = overrides.findByGameIdAndField(id, field).orElseThrow(() -> new ContentNotFoundException("OVERRIDE_NOT_FOUND"));
         overrides.delete(override);
         overrides.flush();
+        // Değişmemiş kayıt senkronda atlandığından, kilit kaldırılan oyunun dış referansı "hiç doğrulanmadı" sayılır: sağlayıcı
+        // kaydı bir sonraki gelişinde (tam tur veya Steam'de değişiklik) değeri yeniden yazar.
+        game.getExternalReferences().forEach(reference -> reference.setLastSyncedAt(null));
         audit.append(actor, role, AdminAuditAction.RELEASE_OVERRIDE, id, text, "field=" + field);
         return response(game);
     }

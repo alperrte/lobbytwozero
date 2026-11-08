@@ -3,7 +3,7 @@
  * iç dosyalar (`services`, `hooks/use-login` vb.) doğrudan import edilmez.
  */
 export { AuthCallback } from "./components/auth-callback";
-export { AuthShell } from "./components/auth-shell";
+export { AuthStage } from "./components/auth-stage";
 export { ForgotPasswordForm } from "./components/forgot-password-form";
 export { LoginForm } from "./components/login-form";
 export { RegisterForm } from "./components/register-form";

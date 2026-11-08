@@ -13,6 +13,8 @@ const MESSAGE_CODES: ReadonlySet<AuthErrorCode> = new Set<AuthErrorCode>([
   "ACCOUNT_UNAVAILABLE",
   "ACCOUNT_DELETION_PENDING",
   "TWO_FACTOR_ENROLLMENT_REQUIRED",
+  "ACCOUNT_LINK_REQUIRED",
+  "ACCOUNT_EMAIL_REQUIRED",
   "MFA_NOT_SUPPORTED",
   "MFA_FAILED",
   "INVALID_TWO_FACTOR_CODE",
@@ -53,7 +55,7 @@ export function ProblemNotice({ code, retryAfterSeconds }: ProblemNoticeProps) {
   return (
     <p
       role="alert"
-      className="flex items-start gap-2.5 rounded-control border border-primary/60 bg-primary/10 px-4 py-3 text-sm font-medium text-text-primary"
+      className="flex items-start gap-2.5 rounded-xl border border-primary/60 bg-primary/10 px-4 py-3 text-sm font-medium text-text-primary"
     >
       <Icon name="info" className="mt-0.5 size-4 shrink-0 text-brand-text" />
       <span>{t(`errors.${key}`, { time: formatWait(retryAfterSeconds ?? 0) })}</span>

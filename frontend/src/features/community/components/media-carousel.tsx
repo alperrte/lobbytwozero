@@ -8,28 +8,19 @@ import { ModalDialog } from "./community-ui";
 
 export type MediaItem = { key: string; src: string; alt: string; width?: number; height?: number };
 
-/** Bağlama göre boyut: akış kartı, detay, oluşturma önizlemesi ve tam boy görüntüleyici. */
-export type CarouselVariant = "feed" | "detail" | "preview" | "card" | "viewer";
+/** Bağlama göre boyut: akış/Gönderilerim kartı, detay, oluşturma önizlemesi ve tam boy görüntüleyici. */
+export type CarouselVariant = "feed" | "detail" | "preview" | "viewer";
 
-const FRAME: Record<CarouselVariant, string> = {
-  feed: "max-w-[34rem] max-h-[24rem]",
-  detail: "max-w-[40rem] max-h-[28rem]",
-  preview: "max-w-full max-h-[18rem]",
-  /** Galeri kartı: sütun genişliğini doldurur, sabit oranlı (4:3) tek tip medya alanı. */
-  card: "w-full",
-  viewer: "h-[calc(100dvh-9rem)] max-h-[56rem] w-full"
-};
-
-const MIN_RATIO = 4 / 5;
-const MAX_RATIO = 16 / 9;
-const DEFAULT_RATIO = 4 / 3;
-
-/** Çerçeve oranı ilk görselden gelir ve [4:5, 16:9] aralığına sıkıştırılır; tüm sayfalar aynı çerçeveyi paylaşır (alan zıplamaz). */
-export function frameRatio(items: readonly MediaItem[]): number {
-  const first = items[0];
-  if (!first?.width || !first.height) return DEFAULT_RATIO;
-  return Math.min(MAX_RATIO, Math.max(MIN_RATIO, first.width / first.height));
-}
+/**
+ * Ortak medya alanı: TÜM gönderi fotoğrafları (yatay/dikey ayrımı olmadan; akış, Gönderilerim, detay, çoklu görsel slider'ı ve
+ * oluşturma önizlemesi) aynı 4:3 çerçevede gösterilir: masaüstünde en çok 640 × 480 px, mobilde genişliğe uyar (4:3 korunur),
+ * kartın ortasında. Çerçevenin kenarlığı, arka planı, köşe kırpması ve dış sarmalayıcı boşluğu yoktur. Fotoğraf HİÇBİR kenarından
+ * kesilmez: `object-fit: contain` + `object-position: center` ile orijinal oranında, esnetilmeden ve yakınlaştırılmadan tamamı
+ * sığar; oran farkından doğan boşluk kartın kendi arka planıdır. Slider'da çerçeve sabittir (fotoğraf değişince boyut değişmez),
+ * her fotoğraf kendi oranıyla bütünüyle görünür. Orijinal dosya değişmez; tıklanınca görüntüleyicide açılır.
+ */
+const MEDIA_FRAME = "relative mx-auto aspect-[4/3] w-full max-w-[40rem] overflow-hidden";
+const VIEWER_FRAME = "relative mx-auto h-[calc(100dvh-9rem)] max-h-[56rem] w-full overflow-hidden bg-background";
 
 const clamp = (value: number, length: number) => Math.min(Math.max(value, 0), Math.max(length - 1, 0));
 
@@ -40,7 +31,7 @@ const arrowClass =
  * Çoklu görsel galerisi (tek bileşen; akış, detay, önizleme ve görüntüleyici aynısını kullanır).
  * - Aynı anda tek görsel; yerel kaydırma yakalaması (scroll-snap) mobilde parmakla, masaüstünde oklarla ve klavyeyle gezinir.
  * - Oklar her zaman görünür (yalnız hover'a bağlı değil); uçlarda devre dışı kalır. Otomatik kaydırma yoktur.
- * - Görsel `object-contain` ile esnetilmeden ve kırpılmadan sığar; çerçeve sabittir.
+ * - Görsel her yerde `object-contain` + `object-center` ile tamamı görünür (kırpma yok); çerçeve sabittir.
  * - `index`/`onIndexChange` verilirse dışarıdan denetlenir (kaldırma/sıralamada aktif sayfa doğru kalır).
  */
 export function MediaCarousel({
@@ -48,8 +39,6 @@ export function MediaCarousel({
   variant,
   label,
   index,
-  ratio: fixedRatio,
-  bare = false,
   initialIndex = 0,
   onIndexChange,
   onOpen,
@@ -59,10 +48,6 @@ export function MediaCarousel({
   variant: CarouselVariant;
   label: string;
   index?: number;
-  /** Verilirse çerçeve oranı sabitlenir (galeri kartlarında tüm medya aynı oranı paylaşır). */
-  ratio?: number;
-  /** Kenarlık ve yarıçap yok (kart içine gömülü medya alanı). */
-  bare?: boolean;
   /** Denetimsiz kullanımda ilk sayfa (görüntüleyici tıklanan görselle açılır). */
   initialIndex?: number;
   onIndexChange?: (index: number) => void;
@@ -76,7 +61,6 @@ export function MediaCarousel({
   const [inner, setInner] = useState(initialIndex);
   const count = items.length;
   const active = clamp(index ?? inner, count);
-  const ratio = fixedRatio ?? frameRatio(items);
 
   function reducedMotion(): boolean {
     return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
@@ -146,8 +130,7 @@ export function MediaCarousel({
       role="region"
       aria-roledescription={t("roleDescription")}
       aria-label={label}
-      className={cn("relative w-full overflow-hidden bg-background", !bare && "rounded-control border border-border", FRAME[variant], variant === "viewer" && "mx-auto", className)}
-      style={variant === "viewer" ? undefined : { aspectRatio: String(ratio) }}
+      className={cn(variant === "viewer" ? VIEWER_FRAME : MEDIA_FRAME, className)}
     >
       <div
         ref={scroller}
@@ -239,7 +222,7 @@ function Slide({ item, position, onOpen, current }: { item: MediaItem; position:
       decoding="async"
       draggable={false}
       onError={() => setBroken(true)}
-      className="size-full object-contain"
+      className="size-full object-contain object-center"
     />
   );
   return onOpen ? (

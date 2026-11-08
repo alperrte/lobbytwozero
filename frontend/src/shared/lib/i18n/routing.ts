@@ -40,7 +40,6 @@ export const pathnames = {
   "/community/new": { tr: "/topluluk/yeni", en: "/community/new" },
   "/community/mine": { tr: "/topluluk/gonderilerim", en: "/community/mine" },
   "/community/mine/reposts": { tr: "/topluluk/gonderilerim/yeniden-paylasimlarim", en: "/community/mine/reposts" },
-  "/community/mine/words": { tr: "/topluluk/gonderilerim/sozlerim", en: "/community/mine/words" },
   "/community/forums": { tr: "/topluluk/forumlar", en: "/community/forums" },
   "/community/forums/[forumId]": { tr: "/topluluk/forumlar/[forumId]", en: "/community/forums/[forumId]" },
   "/community/posts/[postId]": { tr: "/topluluk/gonderi/[postId]", en: "/community/posts/[postId]" },

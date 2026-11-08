@@ -52,10 +52,11 @@ public class Account {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(nullable = false, length = EMAIL_MAX_LENGTH)
+    /** Boş olabilir: yalnız SteamID ile açılan hesabın e-postası yoktur (sahte adres üretilmez). */
+    @Column(length = EMAIL_MAX_LENGTH)
     private String email;
 
-    @Column(name = "email_normalized", nullable = false, length = EMAIL_MAX_LENGTH)
+    @Column(name = "email_normalized", length = EMAIL_MAX_LENGTH)
     private String emailNormalized;
 
     @Column(nullable = false, length = USERNAME_MAX_LENGTH)
@@ -124,6 +125,25 @@ public class Account {
     }
 
     /**
+     * Doğrulanmış SteamID64 ile açılan, e-postasız, parolasız ve doğrudan ACTIVE hesap. E-posta gerektiren işlemler
+     * (parola sıfırlama, bildirim, silme onayı) bu hesapta yoktur; e-posta sonradan eklenip doğrulatılabilir.
+     */
+    public static Account registerSteam(String username, Role initialRole, Instant now) {
+        Account account = new Account();
+        account.username = username;
+        account.usernameNormalized = normalizeUsername(username);
+        account.status = AccountStatus.ACTIVE;
+        account.createdAt = now;
+        account.updatedAt = now;
+        account.roles.add(initialRole);
+        return account;
+    }
+
+    public boolean hasEmail() {
+        return email != null;
+    }
+
+    /**
      * Fiili silme aşaması: kişisel alanlar geri döndürülemez biçimde anonimleştirilir. Hesap iskeleti (kimlik) diğer
      * servislerin REF bütünlüğü ve denetim kayıtları için kalır.
      */
@@ -149,7 +169,7 @@ public class Account {
     }
 
     public boolean isIdentityAnonymized() {
-        return email.endsWith(DELETED_EMAIL_DOMAIN);
+        return email != null && email.endsWith(DELETED_EMAIL_DOMAIN);
     }
 
     /** Silme onaylandı: hesap kapanır, önceki tüm token'lar düşer; bekleme süresi bitince kimlik anonimleştirilir. */

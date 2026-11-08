@@ -24,10 +24,26 @@ public final class IgdbResponses {
     public record ExternalGame(Long game, String uid) { }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Game(String summary,
+    public record Game(Long id,
+                       String summary,
+                       @JsonProperty("game_type") Long gameType,
                        @JsonProperty("first_release_date") Long firstReleaseDate,
                        @JsonProperty("involved_companies") List<InvolvedCompany> involvedCompanies,
-                       @JsonProperty("language_supports") List<LanguageSupport> languageSupports) { }
+                       @JsonProperty("language_supports") List<LanguageSupport> languageSupports,
+                       List<Term> genres,
+                       List<Term> platforms,
+                       @JsonProperty("game_modes") List<Term> gameModes,
+                       List<Term> themes,
+                       @JsonProperty("parent_game") Long parentGame,
+                       Cover cover) { }
+
+    /** IGDB kapak görseli: {@code image_id} görsel CDN'indeki dosya adıdır. */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record Cover(@JsonProperty("image_id") String imageId) { }
+
+    /** IGDB tür/platform kaydı (slug kararlı koddur, name İngilizce görünen addır). */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record Term(String slug, String name) { }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record InvolvedCompany(Boolean developer, Boolean publisher, Company company) { }

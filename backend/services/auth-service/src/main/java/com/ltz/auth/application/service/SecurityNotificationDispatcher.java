@@ -39,6 +39,9 @@ public class SecurityNotificationDispatcher {
 
     /** Açık bir işlem varsa commit sonrasında, yoksa hemen gönderir. */
     public void notifyAfterCommit(UUID accountId, String recipientEmail, SecurityNotificationType type) {
+        if (recipientEmail == null || recipientEmail.isBlank()) {
+            return; // E-postasız hesap (yalnız SteamID): bildirim kanalı yok, sahte adres üretilmez.
+        }
         SecurityNotificationMail mail = new SecurityNotificationMail(UUID.randomUUID(), accountId, recipientEmail, type,
                 clock.instant());
         if (TransactionSynchronizationManager.isSynchronizationActive()) {

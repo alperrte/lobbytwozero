@@ -21,7 +21,7 @@
 - [ ] Kayıt, e-posta doğrulama (6 haneli kod), giriş, 2FA, çıkış ekranları (`features/auth`)
 - [ ] `401` alınca `POST /api/v1/auth/session/refresh`, başarılıysa isteği **bir kez** tekrarla (access token 60 sn yaşar, bu akış şart)
 - [ ] Hata yanıtındaki `ProblemDetail.code` alanını taşı ve ekranda eşle (`ApiHttpError` şu an yalnız `status` tutuyor). Kod listesi: `docs/api.md` (her ucun "Hata Durumları" bölümü) ve `docs/EKIP_AUTH_GATEWAY_ENTEGRASYON_NOTLARI.md`
-- [ ] Google ve Steam girişi: Auth `FRONTEND_PUBLIC_URL/auth/callback` adresine sonucu **fragment** ile döner (`#status=...`). `/auth/callback` sayfası gerekir. Steam akışında `registration_required` ve `email_verification_required` durumları var
+- [ ] Google ve Steam girişi: Auth `FRONTEND_PUBLIC_URL/auth/callback` adresine sonucu **fragment** ile döner (`#status=...`). `/auth/callback` sayfası gerekir. `registration_required` (Google ve Steam, ilk giriş: yalnız kullanıcı adı sorulur; `provider` fragment'te gelir) ve eski Steam hesapları için `email_verification_required` durumları var
 - [ ] Parola sıfırlama, hesap silme (14 gün geri alma süresi: kullanıcı bu sürede giriş yapamaz ve vazgeçme ekranı gerekir: `POST /api/v1/auth/account/deletion/cancel`), e-posta değiştirme ekranları
 - [ ] Parola kuralı: en az 15 karakter. Sunucu `WEAK_PASSWORD` döner, ekranda göster
 

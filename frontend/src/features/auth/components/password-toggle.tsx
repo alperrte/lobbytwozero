@@ -17,7 +17,7 @@ export function PasswordToggle({ visible, onToggle }: PasswordToggleProps) {
       onClick={onToggle}
       aria-pressed={visible}
       aria-label={visible ? t("hide") : t("show")}
-      className="inline-flex size-10 items-center justify-center rounded-control text-text-secondary transition-colors duration-150 hover:text-text-primary motion-reduce:transition-none"
+      className="inline-flex size-10 items-center justify-center rounded-xl text-text-secondary transition-colors duration-150 hover:text-text-primary motion-reduce:transition-none"
     >
       <AuthIcon name={visible ? "eyeOff" : "eye"} />
     </button>

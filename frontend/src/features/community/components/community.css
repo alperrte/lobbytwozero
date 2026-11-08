@@ -140,3 +140,21 @@
     scrollbar-color: var(--ltz-border) transparent;
   }
 }
+
+/* Sağ alt başarı bildirimi: aşağıdan hafifçe yükselerek belirir (Tailwind `translate` özelliğiyle çakışmaması için `translate`). */
+@keyframes ltz-toast-in {
+  from {
+    opacity: 0;
+    translate: 0 0.75rem;
+  }
+}
+
+.ltz-toast-in {
+  animation: ltz-toast-in 260ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ltz-toast-in {
+    animation: none;
+  }
+}

@@ -1,7 +1,7 @@
 /**
  * Google/Steam dönüşü: Auth sonucu SABİT frontend adresine URL PARÇASIYLA iletir (`/auth/callback#status=…&token=…`);
  * parça sunucuya, günlüğe ve `Referer`'a gitmez. Burada yalnız bilinen anahtarlar ve güvenli değerler kabul edilir
- * (`status`, `error`, `token`, `proof`, `challenge`), değerler `[A-Za-z0-9_-]` ile sınırlıdır. Parça okunur okunmaz
+ * (`status`, `error`, `provider`, `token`, `proof`, `challenge`), değerler `[A-Za-z0-9_-]` ile sınırlıdır. Parça okunur okunmaz
  * adres çubuğundan SİLİNİR; sonuç yalnız bellekte tutulur, hiçbir yere yazılmaz ya da loglanmaz.
  */
 export type CallbackStatus =
@@ -23,8 +23,11 @@ const STATUSES: readonly string[] = [
   "steam_linked"
 ];
 
+/** İlk girişte kullanıcı adı seçilecek sağlayıcı (Auth `registration_required` ile bildirir). */
+export type CallbackProvider = "google" | "steam";
+
 export type CallbackResult =
-  | { kind: "status"; status: CallbackStatus; token?: string; proof?: string; challenge?: string }
+  | { kind: "status"; status: CallbackStatus; provider?: CallbackProvider; token?: string; proof?: string; challenge?: string }
   | { kind: "error"; code: string }
   | { kind: "empty" };
 
@@ -44,7 +47,7 @@ export function parseCallbackFragment(hash: string): CallbackResult {
     }
     const key = part.slice(0, index);
     const value = part.slice(index + 1);
-    if (params.has(key) || !["status", "error", "token", "proof", "challenge"].includes(key)) {
+    if (params.has(key) || !["status", "error", "provider", "token", "proof", "challenge"].includes(key)) {
       return { kind: "empty" };
     }
     params.set(key, value);
@@ -59,6 +62,10 @@ export function parseCallbackFragment(hash: string): CallbackResult {
   if (status === undefined || !STATUSES.includes(status)) {
     return { kind: "empty" };
   }
+  const provider = params.get("provider");
+  if (provider !== undefined && provider !== "google" && provider !== "steam") {
+    return { kind: "empty" };
+  }
   const secrets = { token: params.get("token"), proof: params.get("proof"), challenge: params.get("challenge") };
   for (const value of Object.values(secrets)) {
     if (value !== undefined && !VALUE_PATTERN.test(value)) {
@@ -68,6 +75,7 @@ export function parseCallbackFragment(hash: string): CallbackResult {
   return {
     kind: "status",
     status: status as CallbackStatus,
+    ...(provider !== undefined ? { provider: provider as CallbackProvider } : {}),
     ...(secrets.token !== undefined ? { token: secrets.token } : {}),
     ...(secrets.proof !== undefined ? { proof: secrets.proof } : {}),
     ...(secrets.challenge !== undefined ? { challenge: secrets.challenge } : {})

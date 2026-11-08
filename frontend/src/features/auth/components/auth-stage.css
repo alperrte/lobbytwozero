@@ -1,0 +1,213 @@
+/*
+ * Auth sahnesinin hareketleri. Yalnız transform ve opacity animasyonlanır; renkler LTZ tokenlarından gelir.
+ * "Hareketi azalt" açıkken tüm giriş hareketleri kapanır ve içerik doğrudan görünür.
+ */
+
+/* İlk açılış: soldan yazı, sağdan kart; ikisi aynı sürede tamamlanır. */
+@keyframes auth-from-left {
+  from {
+    opacity: 0;
+    transform: translate3d(-28px, 0, 0);
+  }
+}
+
+@keyframes auth-from-right {
+  from {
+    opacity: 0;
+    transform: translate3d(32px, 0, 0);
+  }
+}
+
+@keyframes auth-from-top {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -14px, 0);
+  }
+}
+
+.auth-intro-left {
+  animation: auth-from-left 560ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: var(--auth-delay, 0ms);
+}
+
+.auth-intro-right {
+  animation: auth-from-right 560ms cubic-bezier(0.2, 0.8, 0.2, 1) 60ms both;
+}
+
+.auth-intro-top {
+  animation: auth-from-top 420ms ease-out both;
+}
+
+/* Sayfalar arası geçiş: kart yüzeyi yerinde kalır, içerik yönüne göre girer. */
+@keyframes auth-enter-right {
+  from {
+    opacity: 0;
+    transform: translate3d(28px, 0, 0);
+  }
+}
+
+@keyframes auth-enter-left {
+  from {
+    opacity: 0;
+    transform: translate3d(-28px, 0, 0);
+  }
+}
+
+@keyframes auth-enter-unfold {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -14px, 0) scaleY(0.96);
+  }
+}
+
+@keyframes auth-enter-settle {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+}
+
+@keyframes auth-enter-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.auth-enter-from-right {
+  animation: auth-enter-right 480ms cubic-bezier(0.2, 0.8, 0.2, 1) 90ms both;
+}
+
+.auth-enter-from-left {
+  animation: auth-enter-left 480ms cubic-bezier(0.2, 0.8, 0.2, 1) 90ms both;
+}
+
+.auth-enter-unfold {
+  transform-origin: 50% 0;
+  animation: auth-enter-unfold 520ms cubic-bezier(0.25, 0.7, 0.25, 1) 100ms both;
+}
+
+.auth-enter-settle {
+  animation: auth-enter-settle 480ms ease-out 90ms both;
+}
+
+.auth-enter-fade {
+  animation: auth-enter-fade 320ms ease-out both;
+}
+
+/*
+ * Çıkış hareketleri: eski içerik DOM'da kısa süre (≈350 ms) kalır, etkileşime kapalıdır (`inert`) ve yeni içerik
+ * üstüne girerken soluklaşarak çıkar. `both`: bitince görünmez kalır (kaldırılana kadar). Yalnız transform/opacity.
+ */
+@keyframes auth-exit-left {
+  to {
+    opacity: 0;
+    transform: translate3d(-26px, 0, 0);
+  }
+}
+
+@keyframes auth-exit-right {
+  to {
+    opacity: 0;
+    transform: translate3d(26px, 0, 0);
+  }
+}
+
+@keyframes auth-exit-down {
+  to {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+}
+
+@keyframes auth-exit-fold {
+  to {
+    opacity: 0;
+    transform: translate3d(0, -10px, 0) scaleY(0.96);
+  }
+}
+
+@keyframes auth-exit-fade {
+  to {
+    opacity: 0;
+  }
+}
+
+.auth-leaving {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  pointer-events: none;
+  user-select: none;
+  animation-duration: 350ms;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.8, 0.6);
+  animation-fill-mode: both;
+}
+
+.auth-leaving--left {
+  animation-name: auth-exit-left;
+}
+
+.auth-leaving--right {
+  animation-name: auth-exit-right;
+}
+
+.auth-leaving--down {
+  animation-name: auth-exit-down;
+}
+
+.auth-leaving--fold {
+  transform-origin: 50% 0;
+  animation-name: auth-exit-fold;
+}
+
+.auth-leaving--fade {
+  animation-name: auth-exit-fade;
+}
+
+/*
+ * "Lobine hoş geldin": harfler küçük açı farklarıyla, hafif burgu (Y ekseninde dönüş) ile gelir, hizasına oturur,
+ * tam oturma anında kısa bir vurgu rengi alır ve sabitlenir. Süre toplam ≈ 1 sn; sonunda metin tamamen sabittir.
+ */
+@keyframes auth-twist-in {
+  0% {
+    opacity: 0;
+    transform: perspective(520px) translate3d(0, 0.5em, 0) rotate(calc(var(--r) * 1deg)) rotateY(-82deg) scale(0.8);
+  }
+
+  55% {
+    opacity: 1;
+    transform: perspective(520px) translate3d(0, -0.06em, 0) rotate(calc(var(--r) * -0.25deg)) rotateY(8deg) scale(1.04);
+    color: var(--ltz-accent);
+  }
+
+  100% {
+    transform: none;
+  }
+}
+
+.auth-twist-char {
+  display: inline-block;
+  transform-origin: 50% 85%;
+  animation: auth-twist-in 620ms cubic-bezier(0.2, 0.9, 0.25, 1) both;
+  animation-delay: calc(160ms + var(--i) * 32ms);
+  backface-visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-intro-left,
+  .auth-intro-right,
+  .auth-intro-top,
+  .auth-enter-from-right,
+  .auth-enter-from-left,
+  .auth-enter-unfold,
+  .auth-enter-settle,
+  .auth-enter-fade,
+  .auth-twist-char {
+    animation: none;
+  }
+
+  /* Hareketsiz tercihte eski içerik hiç gösterilmez; yeni içerik doğrudan görünür. */
+  .auth-leaving {
+    display: none;
+  }
+}

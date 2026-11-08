@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { AuthCallback, AuthShell } from "@/features/auth";
+import { AuthCallback } from "@/features/auth";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Auth");
@@ -15,11 +15,11 @@ export default async function AuthCallbackPage() {
   const t = await getTranslations("Auth");
 
   return (
-    <AuthShell variant="login">
+    <>
       <h1 className="font-display text-3xl font-bold text-text-primary">{t("callback.title")}</h1>
       <div className="mt-6">
         <AuthCallback />
       </div>
-    </AuthShell>
+    </>
   );
 }

@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { contentTypeNeeds, LIMITS, validateImage, validateSlug, validateText, validateTitle } from "./community.schema";
+import { LIMITS, validateImage, validateSlug, validateText, validateTitle } from "./community.schema";
 
 const file = (type: string, size: number) => new File([new Uint8Array(Math.max(size, 0))], "a", { type });
 
 describe("Community doğrulama kuralları (API sınırlarıyla aynı)", () => {
-  it("gönderi gövdesi: boşluk dışında en az 1, en çok 5000, satır sonu serbest", () => {
+  it("gönderi gövdesi: boşluk dışında en az 1, en çok 2000, satır sonu serbest", () => {
     expect(validateText("   ", LIMITS.postBody)).toBe("required");
-    expect(validateText("a".repeat(5000), LIMITS.postBody)).toBeNull();
-    expect(validateText("a".repeat(5001), LIMITS.postBody)).toBe("tooLong");
+    expect(validateText("a".repeat(2000), LIMITS.postBody)).toBeNull();
+    expect(validateText("a".repeat(2001), LIMITS.postBody)).toBe("tooLong");
     expect(validateText("satır\nsatır", LIMITS.postBody)).toBeNull();
     expect(validateText("a\u0000b", LIMITS.postBody)).toBe("invalidChars");
   });
@@ -42,10 +42,5 @@ describe("Community doğrulama kuralları (API sınırlarıyla aynı)", () => {
     expect(validateImage(file("image/png", LIMITS.imageBytes), 0)).toBeNull();
     expect(validateImage(file("image/png", 10), 4)).toBe("count");
     expect(validateImage(file("image/png", 0), 0)).toBe("empty");
-  });
-
-  it("türlü içerik başlık ve oyun ister", () => {
-    expect(contentTypeNeeds("")).toEqual({ title: false, game: false });
-    expect(contentTypeNeeds("GUIDES")).toEqual({ title: true, game: true });
   });
 });

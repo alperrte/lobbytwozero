@@ -30,7 +30,7 @@ type ResetPasswordFormProps = {
 function InvalidLink() {
   const t = useTranslations("Auth");
   return (
-    <div role="alert" className="space-y-4 rounded-control border border-primary/60 bg-primary/10 p-4 text-sm text-text-primary">
+    <div role="alert" className="space-y-4 rounded-xl border border-primary/60 bg-primary/10 p-4 text-sm text-text-primary">
       <p className="flex items-start gap-2.5 font-medium">
         <Icon name="info" className="mt-0.5 size-4 shrink-0 text-brand-text" />
         <span>{t("reset.tokenInvalid")}</span>
@@ -169,7 +169,7 @@ export function ResetPasswordForm({ api }: ResetPasswordFormProps) {
         type="submit"
         disabled={blocked}
         aria-busy={pending}
-        className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-control bg-primary px-6 py-3 text-base font-semibold text-primary-foreground transition-colors duration-150 hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+        className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-base font-semibold text-primary-foreground transition-colors duration-150 hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
       >
         {pending ? (
           t("reset.submitting")

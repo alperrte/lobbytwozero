@@ -60,14 +60,17 @@ class MigrationArchitectureTest {
         expected.add("171");
         expected.add("172");
         expected.add("173");
+        expected.add("174");
+        expected.add("175");
         try (var paths = Files.list(CURRENT)) {
             var files = paths.filter(p -> p.toString().endsWith(".sql")).toList();
-            assertEquals(13, files.size());
+            assertEquals(15, files.size());
             var versions = new ArrayList<String>();
             for (Path file : files) {
                 String sql = Files.readString(file);
-                assertFalse(ALTER_TABLE.matcher(sql).find(),
-                        file.toString());
+                // V174 (DLC ana oyun ilişkisi) gerçek bir şema yükseltmesidir: mevcut games tablosuna kolon ekler. Başlangıç zinciri
+                // (V31–V40, V171–V173) ALTER içermez; bu kural onlar için aynen sürer.
+                if (!file.getFileName().toString().startsWith("V174__")) assertFalse(ALTER_TABLE.matcher(sql).find(), file.toString());
                 versions.add(VERSION_SEPARATOR.split(file.getFileName().toString())[0].substring(1));
             }
             assertEquals(expected.stream().sorted().toList(), versions.stream().sorted().toList());
@@ -98,8 +101,9 @@ class MigrationArchitectureTest {
         assertEquals(21, new JdbcTemplate(current).queryForObject(
                 "select count(*) from information_schema.tables where table_schema='public' and table_name<>'flyway_schema_history'",
                 Integer.class));
-        validateHibernate(old);
-        validateHibernate(current);
+        // Entity eşlemesi son şemayı (V174 parent_game_id) bekler: doğrulama, zincirleri V174'e taşıyan ayrı veritabanlarında yapılır.
+        validateHibernate(upgradedToLatest(HISTORY, "old-latest"));
+        validateHibernate(upgradedToLatest(CURRENT, "new-latest"));
         assertEquals(0, flyway(current, CURRENT).migrate().migrationsExecuted);
         flyway(current, CURRENT).validate();
     }
@@ -141,12 +145,22 @@ class MigrationArchitectureTest {
         assertEquals(schema(old), schema(current));
     }
 
+    private DriverManagerDataSource upgradedToLatest(Path source, String name) throws Exception {
+        Path chain = copyChain(source, name);
+        Files.copy(CURRENT.resolve("V174__add_game_parent_relation.sql"), chain.resolve("V174__add_game_parent_relation.sql"));
+        Files.copy(CURRENT.resolve("V175__create_game_localized_descriptions.sql"), chain.resolve("V175__create_game_localized_descriptions.sql"));
+        var database = database();
+        assertEquals(source.equals(HISTORY) ? 15 : 12, flyway(database, chain).migrate().migrationsExecuted);
+        return database;
+    }
+
     private Path copyChain(Path source, String name) throws Exception {
         Path destination = Files.createDirectory(work.resolve(name));
         try (var files = Files.list(source)) {
             for (Path file : files.filter(p -> p.toString().endsWith(".sql")).toList()) {
                 String fileName = file.getFileName().toString();
-                if (source.equals(CURRENT) && (fileName.startsWith("V171__") || fileName.startsWith("V172__") || fileName.startsWith("V173__"))) continue;
+                if (source.equals(CURRENT) && (fileName.startsWith("V171__") || fileName.startsWith("V172__") || fileName.startsWith("V173__")
+                        || fileName.startsWith("V174__") || fileName.startsWith("V175__"))) continue;
                 Files.copy(file, destination.resolve(file.getFileName()));
             }
         }

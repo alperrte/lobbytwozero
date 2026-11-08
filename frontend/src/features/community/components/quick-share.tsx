@@ -11,10 +11,11 @@ import { createPost } from "../services/community-api";
 import { failPublish, startPublish } from "../services/publish-flow";
 import { LIMITS, validateText } from "../schemas/community.schema";
 import { CommunityIcon } from "./community-icons";
-import { ActionError, Avatar, authorLabel, FieldError, panel, primaryButtonClass } from "./community-ui";
+import { ActionError, Avatar, authorLabel, FieldError, panel } from "./community-ui";
 
-/** Sayaç yalnız sınıra yaklaşınca görünür. */
-const COUNTER_FROM = 4500;
+/** Yalnız ikonlu kompakt "Paylaş" (36 × 36 px). `cn` çakışan sınıfları ayıklamadığından sınıflar tek yerde, çakışmasız verilir. */
+const SUBMIT_CLASS =
+  "inline-flex size-9 shrink-0 items-center justify-center self-center rounded-control border border-primary bg-primary text-sm font-semibold text-primary-foreground transition-colors hover:border-secondary hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-50";
 
 /**
  * Akışta doğrudan metin paylaşımı (Twitter benzeri). Başlık, görsel ya da kategori sormaz: yalnız `body` ile
@@ -75,7 +76,7 @@ export function QuickShare({ viewer, onPublished }: { viewer: Viewer; onPublishe
     <form onSubmit={submit} noValidate className={cn(panel, "mb-5 flex items-start gap-3 p-3 sm:p-4")} aria-busy={send.pending}>
       <Avatar author={author} label={label} />
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-end gap-2 rounded-control border border-control-border bg-background p-1.5 transition-colors focus-within:border-primary focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-focus">
+        <div className="flex items-center gap-2 rounded-control border border-control-border bg-background p-1.5 transition-colors focus-within:border-primary focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-focus">
           <label htmlFor={`${id}-body`} className="sr-only">
             {t("feed.quickLabel")}
           </label>
@@ -83,24 +84,22 @@ export function QuickShare({ viewer, onPublished }: { viewer: Viewer; onPublishe
             id={`${id}-body`}
             rows={1}
             value={body}
+            maxLength={LIMITS.postBody}
             disabled={viewer.status !== "authenticated" || send.pending}
             onChange={(event) => setBody(event.target.value)}
             onKeyDown={onKeyDown}
             aria-invalid={issue ? true : undefined}
             aria-describedby={issue ? `${id}-error` : undefined}
             placeholder={t("feed.prompt")}
-            className="max-h-44 min-h-11 min-w-[min(100%,14rem)] flex-1 resize-none bg-transparent px-2 py-2.5 text-sm leading-6 text-text-primary [field-sizing:content] placeholder:text-text-secondary focus-visible:outline-none disabled:opacity-60"
+            className="max-h-44 min-h-11 min-w-0 flex-1 resize-none bg-transparent px-2 py-2.5 text-sm leading-6 text-text-primary [field-sizing:content] placeholder:text-text-secondary focus-visible:outline-none disabled:opacity-60"
           />
-          <button type="submit" className={cn(primaryButtonClass, "ms-auto shrink-0")} disabled={!canSubmit}>
-            <CommunityIcon name="send" className="size-4" />
-            {t("feed.quickSubmit")}
+          <button type="submit" className={SUBMIT_CLASS} disabled={!canSubmit} aria-label={t("feed.quickSubmit")} title={t("feed.quickSubmit")}>
+            <CommunityIcon name="send" className={cn("size-4", send.pending && "motion-safe:animate-pulse")} />
           </button>
         </div>
-        {body.trim().length >= COUNTER_FROM ? (
-          <p className={cn("mt-1.5 text-end text-xs tabular-nums text-text-secondary", issue && "font-semibold text-brand-text")}>
-            {body.trim().length}/{LIMITS.postBody}
-          </p>
-        ) : null}
+        <p className={cn("mt-1.5 text-start text-xs tabular-nums text-text-secondary", issue && "font-semibold text-brand-text")}>
+          {body.trim().length}/{LIMITS.postBody}
+        </p>
         {issue ? <FieldError id={`${id}-error`}>{t(`form.error.${issue}`, { max: LIMITS.postBody })}</FieldError> : null}
         {send.error ? (
           <div className="mt-2">

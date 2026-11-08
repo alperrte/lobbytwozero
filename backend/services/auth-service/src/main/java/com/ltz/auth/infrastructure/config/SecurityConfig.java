@@ -79,6 +79,7 @@ public class SecurityConfig {
             PATHS.matcher(HttpMethod.GET, AuthApiPaths.STEAM_LINK_CALLBACK),
             PATHS.matcher(HttpMethod.GET, AuthApiPaths.GOOGLE_LINK_CALLBACK),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.STEAM_COMPLETE),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.GOOGLE_COMPLETE),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_FORGOT),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_RESET),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.ACCOUNT_DELETION_CANCEL),
@@ -113,12 +114,14 @@ public class SecurityConfig {
     /** Servis token'ı isteyen iç uçlar (Gateway'e açılmaz): cookie okunmaz, kapsam yetkisi SCOPE_ ile denetlenir. */
     static final RequestMatcher INTERNAL_ENDPOINTS = PATHS.matcher(AuthApiPaths.INTERNAL + "/**");
 
-    /** Cookie okumayan ve oturum açmayan uçlar (yetki kaynağı gövdedeki tek kullanımlık değerdir). */
+    /**
+     * Cookie okumayan ve oturum açmayan uçlar (yetki kaynağı gövdedeki tek kullanımlık değerdir). CSRF bunlarda aranmaz.
+     * Google ve Steam kayıt tamamlama uçları (oauth complete) burada DEĞİLDİR: oturum açıp cookie yazdığı için CSRF korumalıdır.
+     */
     private static final RequestMatcher COOKIELESS_ENDPOINTS = new OrRequestMatcher(
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.REGISTER),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.EMAIL_VERIFICATION_CONFIRM),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.EMAIL_VERIFICATION_RESEND),
-            PATHS.matcher(HttpMethod.POST, AuthApiPaths.STEAM_COMPLETE),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_FORGOT),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_RESET),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.ACCOUNT_DELETION_CANCEL),

@@ -504,29 +504,31 @@ Tüketici servisler: Frontend (tarayıcı gezinmesi)
 - GET /api/v1/auth/oauth/google/callback?code&state — Google dönüşü
 - GET /api/v1/auth/oauth/steam/start — Steam OpenID 2.0'a yönlendirir (`302`)
 - GET /api/v1/auth/oauth/steam/callback?state&openid.* — Steam dönüşü
-- POST /api/v1/auth/oauth/steam/complete — Steam ile yeni hesap: `{ "registrationToken", "email", "username" }` → `202 { "nextStep": "VERIFY_EMAIL", "verificationProof": "<tek kullanımlık>" }`. `verificationProof` her yanıtta döner (e-posta kayıtlı olsa bile; hesap varlığı sızdırılmaz) ve `email-verification/confirm` isteğinde gönderilir.
+- POST /api/v1/auth/oauth/google/complete — ilk Google girişinde kullanıcı adı seçerek hesabı tamamlar: `{ "registrationToken", "username" }` → `200` giriş yanıtı (`{ "status": "AUTHENTICATED" }` + oturum cookie'leri, ya da `MFA_REQUIRED` / `MFA_ENROLLMENT_REQUIRED` + `challengeId`). E-posta ve `sub` istemciden alınmaz; sunucudaki Google kaydından gelir. Bilinmeyen alan `400`.
+- POST /api/v1/auth/oauth/steam/complete — ilk Steam girişinde kullanıcı adı seçerek hesabı tamamlar: `{ "registrationToken", "username" }` → aynı giriş yanıtı. Hesap **e-postasız** ve `ACTIVE` açılır (Steam e-posta vermez, sahte adres üretilmez). MFA kuralları (Steam hesabı için zorunlu TOTP kurulumu dahil) parola girişiyle aynıdır.
 
 #### Yetkilendirme
-Public. Callback'ler, start'ın yazdığı HttpOnly `__Host-ltz_oauth` state cookie'si ile eşleşen, tek kullanımlık `state` ister (login CSRF koruması). `complete` yalnız tek kullanımlık kayıt token'ına dayanır (cookie/CSRF gerekmez).
+Public. Callback'ler, start'ın yazdığı HttpOnly `__Host-ltz_oauth` state cookie'si ile eşleşen, tek kullanımlık `state` ister (login CSRF koruması). `google/complete` ve `steam/complete` tek kullanımlık kayıt token'ına dayanır ama oturum açıp cookie yazdığı için **CSRF korumalıdır** (`X-XSRF-TOKEN`, double-submit).
 
 #### Sonuç iletimi
 Start ve callback `302` döner. Callback sonucu yapılandırmadaki SABİT frontend adresine (`FRONTEND_PUBLIC_URL/auth/callback`) URL **fragment**'i ile iletilir; istemciden yönlendirme adresi alınmaz.
 - `#status=authenticated` — oturum cookie'leri yazıldı
 - `#status=mfa_required&challenge=<id>` — TOTP etkin; `POST /login/2fa` ile tamamlanır, cookie yazılmaz
-- `#status=registration_required&token=<t>` — yalnız Steam, bağsız SteamID; `steam/complete` çağrılır
+- `#status=registration_required&provider=google|steam&token=<t>` — sağlayıcıda doğrulanmış ama LTZ'de kaydı olmayan kimlik; hesap AÇILMAMIŞTIR. Kullanıcı adı seçilip ilgili `…/complete` çağrılır. Token 15 dk geçerli, tek kullanımlıktır (yalnız özet saklanır).
 - `#status=email_verification_required&proof=<t>` — yalnız Steam, SteamID e-postası henüz doğrulanmamış hesaba bağlı; `proof` ile `email-verification/confirm` çağrılır (cookie yazılmaz)
 - `#error=<KOD>` — `EXTERNAL_AUTH_FAILED` (state/imza/nonce/aud/iss/replay/sağlayıcı hatası; ayrıntı verilmez), `EXTERNAL_EMAIL_UNVERIFIED`, `ACCOUNT_LINK_REQUIRED`, `EMAIL_NOT_VERIFIED`, `ACCOUNT_SUSPENDED`, `ACCOUNT_BANNED`, `ACCOUNT_UNAVAILABLE`, `TWO_FACTOR_ENROLLMENT_REQUIRED`, `PROVIDER_NOT_CONFIGURED`
 
 #### Güvenlik kuralları
 - **Eşleştirme:** yalnız sağlayıcının değişmez kimliğiyle (Steam: doğrulanmış SteamID64, Google: `sub`). E-posta eşleşmesiyle hesaplar **birleştirilmez**; kayıtlı e-postayla gelen yeni Google kimliği `ACCOUNT_LINK_REQUIRED` alır (bağlama ucu henüz yok).
-- **Google:** `id_token` Google JWKS ile RS256 doğrulanır; `iss`, `aud=client_id`, `exp/iat`, `nonce`, `sub` zorunlu. Yeni hesap yalnız `email_verified=true` ise açılır (ACTIVE, parolasız, `PLAYER`). PKCE verifier ve nonce state'ten sunucu anahtarıyla türetilir.
-- **Steam:** `ns`, `mode=id_res`, `op_endpoint`, `return_to` (state dahil birebir), `claimed_id` (steamcommunity.com + 17 haneli ID) = `identity`, `openid.signed` kapsamı, `response_nonce` zaman penceresi (5 dk) ve tek kullanım, ardından Steam'e `check_authentication`. Çoğaltılmış `openid.*` alanları reddedilir. Yeni Steam hesabı `PENDING_VERIFICATION` açılır; e-posta AUTH-02 koduyla doğrulanmadan oturum verilmez. Kayıtlı e-postada hesap açılmaz, yanıt değişmez.
+- **Google:** `id_token` Google JWKS ile RS256 doğrulanır; `iss`, `aud=client_id`, `exp/iat`, `nonce`, `sub` zorunlu. Yeni hesap yalnız `email_verified=true` ve e-posta kayıtsızsa, kullanıcı adı seçilince açılır (ACTIVE, parolasız, `PLAYER`; e-posta Google'dan, doğrulanmış). Seçim yapılana kadar hesap yoktur. Eski otomatik adlı (`g_…`) hesaplar etkilenmez. PKCE verifier ve nonce state'ten sunucu anahtarıyla türetilir.
+- **Steam:** `ns`, `mode=id_res`, `op_endpoint`, `return_to` (state dahil birebir), `claimed_id` (steamcommunity.com + 17 haneli ID) = `identity`, `openid.signed` kapsamı, `response_nonce` zaman penceresi (5 dk) ve tek kullanım, ardından Steam'e `check_authentication`. Çoğaltılmış `openid.*` alanları reddedilir. Yeni Steam hesabı kullanıcı adı seçilince, e-postasız ve `ACTIVE` açılır; e-posta alınmaz ve doğrulama beklenmez. E-posta gerektiren işlemler e-postasız hesapta `409 ACCOUNT_EMAIL_REQUIRED` döner (hesap silme onayı, parola belirleme kodu); bildirim gönderilmez. Kullanıcı sonradan e-posta ekleyebilir: `POST /email/change` parolasız hesapta yalnız TOTP/kurtarma koduyla yeniden doğrular, yeni adres koduyla doğrulanır. Eski (e-postayla açılmış, doğrulanmamış) Steam hesapları `email_verification_required` akışıyla çalışmaya devam eder.
 - Harici giriş 2FA'yı atlatmaz: TOTP etkinse challenge, `ADMIN`/`MODERATOR` için TOTP yoksa oturum verilmez. Oturumun `amr` değeri `fed` içerir.
 - `GOOGLE_CLIENT_ID/SECRET` boşsa Google girişi kapalıdır (`503 PROVIDER_NOT_CONFIGURED`). Production'da tüm adresler `https` olmalıdır (aksi halde servis başlamaz).
 
 #### Hata Durumları
-- 400: `steam/complete` doğrulama hatası veya `REGISTRATION_TOKEN_INVALID`
-- 409: `steam/complete` kullanıcı adı çakışması (`USERNAME_TAKEN`)
+- 400: `…/complete` doğrulama hatası (geçersiz kullanıcı adı, bilinmeyen alan) veya `REGISTRATION_TOKEN_INVALID`
+- 403: `…/complete` CSRF başlığı yok
+- 409: `…/complete` kullanıcı adı çakışması (`USERNAME_TAKEN`; token tüketilmez, başka adla devam edilir) veya e-posta bu arada kayıtlı hale geldi (`ACCOUNT_LINK_REQUIRED`)
 - 503: Google yapılandırılmamış (`start`)
 
 #### Bağlantı
@@ -2033,14 +2035,18 @@ GET /api/v1/game/games/{gameId}
 #### Yetkilendirme
 Public. Yalnız ACTIVE oyunlar görünür.
 
-#### Path Parameters
+#### Path/Query Parameters
 - gameId: UUID, zorunlu.
+- lang: isteğe bağlı, 2–3 küçük/büyük harfli dil kodu (ör. `tr`, `en`); biçimi bozuksa 400. Sağlayıcının o dilde GERÇEKTEN verdiği açıklama varsa `description` o metin olur ve `descriptionLanguage` o dildir; yoksa varsayılan (İngilizce) açıklama ve gerçek dili (`en`) döner. **Çeviri yapılmaz, harici çeviri hizmeti kullanılmaz.** `lang` verilmezse varsayılan açıklama. Şimdilik yalnız `tr` doldurulur (Steam mağaza metni; İngilizceden farklı ve Türkçe kanıtlı olmalıdır, aksi halde saklanmaz). Açıklaması tamamen boş olan ana oyunlarda (IGDB özeti yok) Steam'in İngilizce kısa açıklaması yedek olarak `games.description`'a yazılır (yalnız boşsa, yönetici metni ve manuel `DESCRIPTION` kilidi ezilmez; metin gerçekten İngilizce görünmelidir, başka dildeki metin yazılmaz; provenance `DESCRIPTION/STEAM`, `descriptionLanguage="en"`). V175 uygulanmadan önce tablo yoktur; alan istemciler için geriye uyumludur.
 
 #### Response — 200
 - `game`: yukarıdaki ortak kart sözleşmesi.
 - `metadata`: GAME-08 alt veri sözleşmesi; aynı kanonik gameId.
 - `description`: nullable, en fazla 16000 karakter; düz metin olarak işlenir. `releaseDate`: nullable ISO tarih.
 - `freshness`: `status` (LOCAL/UNSUPPORTED/MISSING/FRESH/STALE), nullable `fetchedAt`, `expiresAt`, `nextAttemptAt`, `lastErrorCode`.
+- `relation` (**yeni, geriye uyumlu alan; V174 uygulandıktan sonra dolar**): DLC için `{parent: {gameId,title,coverUrl}|null, dlcCount: null}` — `parent` yalnız güvenilir (aktif MAIN_GAME) ana oyun varsa dolu, bilinmiyorsa null (uydurulmaz); ana oyun için `{parent: null, dlcCount: n}` (aktif DLC sayısı); diğer türlerde `null`. Eski istemciler alanı yok sayabilir.
+- `game.coverUrl`: kayıtlı kapak. Kapak kaynakları: yönetici (hiç ezilmez) > Steam başlık görseli (`shared.fastly.steamstatic.com/store_item_assets/steam/apps/{id}/{hash}/header.jpg`; yeni uygulamalarda yol içerik özeti taşır, eski `/apps/{id}/header.jpg` yolu 404 verir) > IGDB kapağı (`images.igdb.com`). Kayıtlı kapak yoksa istemci Steam'in eski başlık adresine düşer; görsel açılmazsa nötr yer tutucu gösterilir.
+- Detay alanlarının kaynağı: önce IGDB (toplu, 100 oyun/2 istek: açıklama, çıkış tarihi, `developer` işaretli şirket → geliştirici, `publisher` işaretli şirket → yayıncı, dil desteği); sonra Steam'in resmî toplu mağaza API'si (`IStoreBrowseService/GetItems`, 100 oyun/istek, aynı API anahtarı): 16:9 başlık görseli, geliştirici, yayıncı ve dil desteği (arayüz her listelenen dil için SUPPORTED; ses yalnız `full_audio`, altyazı yalnız `subtitles` ise SUPPORTED, aksi UNKNOWN; Steam dil numarası mağaza dil adlarıyla çapraz doğrulanmış tabloyla koda çevrilir, ayırt edilemeyen/bilinmeyen dil atlanır). Geliştirici, yayıncı ve dil yalnız BOŞKEN doldurulur; dolu veri, yönetici düzeltmesi ve manuel kilit ezilmez. Kapak: Steam 16:9 başlık görseli IGDB'nin dikey kapağının yerine geçer; yönetici kapağı hiç ezilmez. Detay galerisi kapağı tekrar göstermez (yalnız ek görseller). `metadata.provenance[].recordedAt` kaynaktan alınma zamanıdır; `verifiedAt` yalnız açık doğrulamada dolar.
 - `metadata.languages` ve `metadata.earlyAccess`: GAME-02 kapsamında yerelde bilinen dil ve erken erişim bilgisi; kaynak sağlamazsa boş/null.
 - Güncellik son başarılı detay yanıtına aittir; alan bazlı güncellik garantisi değildir. Fiyat verisi sunulmaz.
 - GET yalnız yerel okuma yapar; sağlayıcıya istek, yenileme tetikleme veya DB yazımı yapmaz. STALE veri korunur.
@@ -2057,6 +2063,38 @@ Diğer mikroservisler: RestClient ile Game Service.
 
 #### Test Durumu
 INTEGRATION — PostgreSQL/Flyway üzerinde ortak model, 200/400/404, kökenin korunması, salt okunur GET ve STALE yanıtı. IGDB adaptörü: sahte sunucuyla birim/entegrasyon testli; gerçek IGDB sözleşmesi canlı doğrulandı (bkz. "Giden sözleşme: IGDB detay kaynağı"); konteynerde uçtan uca NOT VERIFIED.
+
+### GAME — Ana oyunun DLC listesi
+
+Durum: IMPLEMENTED (kod ve izole testler hazır; **V174 migration'ının gerçek DEV'e uygulanması onay bekliyor**)
+Sorumlu: Hamza
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/game/games/{gameId}/dlc?page=0&size=12
+
+#### Yetkilendirme
+Public (salt okunur). Yalnız ACTIVE oyunlar görünür.
+
+#### Path/Query Parameters
+- gameId: UUID, zorunlu.
+- page: 0–10000, varsayılan 0. size: 1–50, varsayılan 12.
+
+#### Response — 200
+`{items: [{game: <ortak kart>, releaseDate: ISO tarih|null}], page, size, totalElements}`. Yalnız ana oyunun **aktif DLC**'leri; çıkış tarihi yeni olan önce, tarihsizler sonda, kararlı sıra. Ana oyun olmayan kayıt için boş sayfa (`totalElements=0`). DLC'ler genel katalog listesine (`GET /api/v1/game/games`) karışmaz.
+
+#### Hata Durumları
+- 400: Geçersiz UUID veya sayfa/boyut sınırı dışı.
+- 404: Oyun yok veya ACTIVE değil.
+
+#### Veri modeli (V174)
+`games.parent_game_id uuid` (self-FK, `ON DELETE SET NULL`), kısıtlar: kendine bağlanma yasak, yalnız `game_type='DLC'` ilişki taşır, ana oyun var olan bir MAIN_GAME olmalıdır (tetikleyici; DLC/UNKNOWN ana oyun reddedilir, döngü ve zincir oluşamaz); ana oyun MAIN_GAME'liğini kaybederse ilişki kopar, DLC ve Game kimliği korunur. İlişki kaynağı: IGDB `parent_game` (IGDB'nin Steam kaydı üzerinden AppID'ye çevrilir); Steam `fullgame` yalnız IGDB yokluğu, belirsiz/eşlenemeyen üst oyun ve ~%4 örneklem doğrulaması için; iki kaynak çelişirse ilişki boş kalır.
+
+#### Bağlantı
+Frontend: API Gateway üzerinden aynı path (`/api/v1/game/**`).
+
+#### Test Durumu
+INTEGRATION — GameDlcRelationTest (detay ilişkisi, sayfalama, sıralama, 400/404, katalogda DLC gizliliği), GameParentRelationMigrationTest (V173→V174 kayıpsız yükseltme, kısıtlar, silme/tür değişimi), DlcParentIntegrationTest (IGDB/Steam kaynak kuralları, çelişki, UNKNOWN ana oyun, gereksiz Steam isteği yok). Frontend: game-dlc.test.tsx.
 
 ### GAME — Yerel Steam indeks araması (GAME-16)
 
@@ -2113,8 +2151,11 @@ Public. Yalnız katalog kapsamı ve güvenli operasyon kodları; anahtar/ham sa�
 - `indexedEntries`: saklanan STEAM referans sayısı; `mainGameEntries` ve `unclassifiedEntries`: türlerine göre referans sayıları (aktif/arşivli tüm saklanan referanslar). `providerTotal`: null.
 - `runStartedAt`, `lastSuccessfulAt`: nullable UTC zamanlar; `lastErrorCode`: nullable güvenli kod.
 - `failureCount`: art arda başarısız sayfa sayısı; `nextAttemptAt`: nullable otomatik tekrar zamanı. FAILED ve null nextAttemptAt, otomatik denemenin durduğunu belirtir.
-- Aktarım her çağrıda tek sayfa işler. `game.catalog.sync.enabled=true` ile isteğe bağlı zamanlayıcı etkinleşir; varsayılan kapalıdır. İlk aktarım, altı saat aralıklı artımlı turlar ve kalıcı checkpoint üzerinden devam desteklenir.
-- Geçici hata en fazla beş otomatik tekrar alır; kalıcı hata veya bütçe aşımında uygulama servisinden açık resume gerekir. HTTP mutasyon endpoint'i yoktur.
+- Aktarım her çağrıda tek sayfa işler. `game.catalog.sync.enabled=true` ile isteğe bağlı zamanlayıcı etkinleşir; varsayılan kapalıdır. İlk aktarım, günde bir kez (her gün 03:00 Europe/Istanbul penceresinde; kesintide ilk fırsatta tek tur) çalışan artımlı turlar (`if_modified_since` = son başarılı turun başlangıcı − 1 sn) ve kalıcı checkpoint üzerinden devam desteklenir. Başarısız artımlı tur checkpoint'i ilerletmez; sonraki günlük pencerede aynı watermark'tan yeniden başlar.
+- Geçici hata en fazla beş otomatik tekrar alır; kalıcı hata veya bütçe aşımında aktarım FAILED kalır. Servis yeniden başlarken FAILED aktarım cursor korunarak sürdürülür. HTTP mutasyon endpoint'i yoktur.
+- Steam son sayfada `have_more_results` ve `last_appid` göndermez; kısa veya boş sayfa son sayfa sayılır (tam dolu sayfa devam eder). Kayıt düzeyi hatalı kayıt (boş ad, geçersiz `last_modified`) atlanır, loglanır ve cursor ilerler; sağlayıcı düzeyi hata FAILED yapar ve kodu `lastErrorCode` ile loglara yazılır.
+- Steam isteği `include_games=true`, `include_dlc=true`, `include_software/videos/hardware=false` gönderir; yanıt tür vermediğinden kayıtlar UNKNOWN indekslenir. Steam `last_modified` son doğrulanan senkrondan sonra değilse kayıt yazılmaz (değişmemiş kayıt yeniden işlenmez); değişen kayıtta yalnız farklı başlık güncellenir.
+- Türü belirsiz kayıtlar zamanlayıcıyla, IGDB `game_type` kanıtıyla toplu (250 AppID/istek) ve en yeni AppID önce sınıflandırılır; kanıt yoksa UNKNOWN kalır ve (son 30 günde ilk kez görülen kayıt için 1 gün, eski kayıt için 7 gün) yeniden sorulmaz (provenance `GAME_TYPE/UNKNOWN` gözlemi); sağlayıcı hatası gözlem yazmaz ve geçici hata olarak bekleyip yeniden dener. Adımlar en yeni ve en eski AppID uçlarından dönüşümlü ilerler; Steam taraması sürerken IGDB işleri beklemez. `game.catalog.classification.backlog-enabled` (varsayılan `true`) kapalıysa ve aday sayısı 2.000'i aşarsa sınıflandırma çalışmaz; yeniden başlatma kendiliğinden deneme grubu başlatmaz. Türü doğrulanmış (MAIN_GAME/DLC) kayıtların eksik metadata'sı bir kez zenginleştirilir (`IGDB_METADATA` gözlemi): çıkış tarihi, tür, platform, kategori (IGDB oyun modları) ve etiket (IGDB temaları; keywords eşlenmez), hepsi yalnızca boşsa. Sınıflanan kayıtlara, yalnız boşsa, IGDB `first_release_date` ile tür ve platform terimleri yazılır.
 
 #### Hata Durumları
 - 500: Beklenmeyen sunucu hatası.
@@ -2127,6 +2168,42 @@ Diğer mikroservisler: RestClient ile Game Service.
 INTEGRATION — kalıcı checkpoint, idempotent tekrar, ayrı incremental watermark, eşzamanlı sayfalar, kısmi hata, retry bütçesi, backoff ve açık resume. Scheduler opt-in koşulu test edildi; canlı tam katalog aktarımı yapılmadı.
 
 GAME-21 notu: Canlı GetAppList yanıtı kayıt başına kesin tür alanı sunmadığından Steam indeks girdileri UNKNOWN kalır. `include_games` filtresi tek başına demo/soundtrack ayrımı kanıtı kabul edilmez. Bu kayıtlar önek aramasında `includeUnclassified=true` ile bulunabilir; doğrulanmış MAIN_GAME sinyali olmadan varsayılan ana oyun sonuçlarına girmez. Gerçek detay zenginleştirme, Faz 2 sağlayıcı onayı beklemektedir.
+
+### GAME — Tür ve platform terim listesi (filtre önerileri)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/game/terms
+
+#### Yetkilendirme
+Public. Salt okunur; sağlayıcıya istek atmaz.
+
+#### Query Parameters
+- kind: `GENRE` veya `PLATFORM`, zorunlu (`CATEGORY`/`TAG` kabul edilmez)
+- limit: tamsayı, opsiyonel, varsayılan 200, 1–200
+
+#### Response — 200
+```json
+{ "kind": "GENRE", "items": [ { "code": "role-playing-rpg", "nameTr": null, "nameEn": "Role-playing (RPG)", "gameCount": 123 } ] }
+```
+- Yalnız public katalogdaki (ACTIVE + MAIN_GAME) oyunlara bağlı terimler; `gameCount` bu oyunların sayısıdır. Sıra: `gameCount` azalan, sonra `code`.
+- `code`, `GET /api/v1/game/games?genre=` ve `?platform=` filtrelerinin kabul ettiği değerdir. `nameTr`/`nameEn` boş olabilir (sağlayıcı vermediyse uydurulmaz). Terim yoksa `items` boş döner.
+- `Cache-Control: public, max-age=300`.
+
+#### Hata Durumları
+- 400: `kind` eksik/geçersiz/desteklenmeyen (`INVALID_TERM_KIND`) veya `limit` sınır dışı (`INVALID_LIMIT`)
+- 403: Yazma yöntemleri kapalıdır
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend: Gateway üzerinden aynı path.
+Diğer mikroservisler: -
+
+#### Test Durumu
+INTEGRATION — herkese açık erişim, yalnız ACTIVE + MAIN_GAME terimleri ve sayıları, sıralama, limit, boş liste, geçersiz kind/limit, önbellek başlığı ve IGDB'den gelen kodların `genre`/`platform` filtreleriyle eşleşmesi.
 
 ### GAME — Birleşik yerel katalog (GAME-01, GAME-04, GAME-05)
 
@@ -2328,6 +2405,9 @@ Status: AVAILABLE (en az bir güncel teklif; yalnız güncel teklifler), STALE (
 Offer: gameId, store, market, regularPrice, currentPrice, source=ITAD, fetchedAt, expiresAt, url, discountPercent, sourceUpdatedAt. Ücretsiz gerçek teklif currentPrice=0 olabilir. Provider'ın tutar/para birimi, indirim ve affiliate URL'si korunur; linke backend istek atmaz.
 Listeleme, aktif oyun kimlikleri + fiyatlar + boş teklif durumu için sabit sayıda toplu SQL kullanır; HTTP/SQL N+1 yoktur. Aynı transaction görünümü kullanılır.
 
+- Yenilenen pazarlar (`ltz.game.pricing.markets`): `US/USD`, `GB/GBP`, `DE/EUR`; ITAD ülke başına tek para birimi döndürdüğünden ülke ve para birimi birlikte verilir. `TRY` ve diğer pazarlar yenilenmez (Steam Türkiye için TL ile satmaz); yenilenmeyen pazar `UNAVAILABLE` döner.
+- ITAD fiyatı olmayan oyun için satır döndürmez: o oyun `NO_OFFER` olur ve aynı istekteki diğer oyunların fiyatını geçersiz kılmaz.
+
 #### Hata Durumları
 400 eksik/geçersiz UUID, 51+ kimlik, geçersiz ülke/para birimi; 401 public uçta bozuk Bearer; 429 IP kovası + Retry-After; 403 diğer metotlar; 500 beklenmeyen hata. Sağlayıcı kesintisi bu yerel okumayı durdurmaz.
 
@@ -2355,7 +2435,7 @@ Yalnız backend `ITAD-API-Key` başlığı. Anahtar URL/gövde/log/DTO'ya yazıl
 Steam mağazası kimliği 61; eşlemede `["app/570",…]`, fiyat sorgusunda `["<itad UUID>",…]`. İlk otomatik pazar `ltz.game.pricing.country=TR`, `currency=TRY`. Sağlayıcı başka para birimi döndürürse sessiz dönüşüm yerine başarısız kontrol olarak kaydedilir. En fazla 5 teklif/oyun; kupon gerektiren fiyatlar kapalıdır. Resmî HTTPS itad.link ve isthereanydeal.com bağlantıları değiştirilmeden korunur; benzer görünen başka hostlar kabul edilmez. İstek User-Agent değeri LTZ-Game-Service/1.0'dır.
 
 #### Response / Yenileme
-Başlangıç 30 sn, tur aralığı 60 sn; en eski kontrol edilen 50 aktif MAIN_GAME/Steam oyun seçilir. Varsayılan TTL 15 dk (yapılandırılabilir 1–60 dk). Uygulama süreci/örneği çoğalsa da DB kiralaması tek fiyat worker'ı sağlar. Ağ çağrısı transaction dışında; yalnız lease sahibi atomik snapshot yayımlar. Başarılı boş yanıtta teklif silinir ve NO_OFFER kaydedilir; yarım/geçersiz yanıtta eski snapshot korunur. Fiyat TTL veya provider expiry'den erken olan zamanda eskir; provider timestamp ayrıca korunur.
+Başlangıç 30 sn, tur aralığı 60 sn; her pazar (US/USD, GB/GBP, DE/EUR) için turda en çok 200 aktif MAIN_GAME/Steam oyun yenilenir (ITAD arama sınırı). Kademeli tazelik: SICAK (editör seçimi, son 90 günde çıkmış veya 30 gün içinde çıkacak oyun) `ltz.game.pricing.ttl` (varsayılan 2 sa, yapılandırılabilir 1 dk–2 sa), ILIK (son 2 yıl) 6×, SOĞUK (diğer, tarihsiz) 24× süreyle taze sayılır; teklif son kullanma zamanı bu kademeye ve sağlayıcının satış bitişine göre kısaltılır, uzatılmaz. Aday sırası: editör seçimi, sıcak→ılık→soğuk, en eski kontrol. Popülerlik/talep verisi güvenilir olmadığından kullanılmaz. Süresi geçen teklif güncel fiyat gibi gösterilmez (`STALE`). Uygulama süreci/örneği çoğalsa da DB kiralaması tek fiyat worker'ı sağlar. Ağ çağrısı transaction dışında; yalnız lease sahibi atomik snapshot yayımlar. Başarılı boş yanıtta teklif silinir ve NO_OFFER kaydedilir; yarım/geçersiz yanıtta eski snapshot korunur. Fiyat TTL veya provider expiry'den erken olan zamanda eskir; provider timestamp ayrıca korunur.
 
 #### Hata Durumları
 401/403 yeniden deneme yok; 429 Retry-After saniye/HTTP-date kalıcı next_attempt_at ile izlenir; başlık bozuksa 15 dk. 5xx/transport bir turu başarısız yapar, sıkı retry yoktur. Bağlantı/okuma 1/3 sn; redirect yok; yanıt en çok 4 MiB. Hatalar PRICE_ACCESS_DENIED, PRICE_RATE_LIMITED, PRICE_CURRENCY_UNAVAILABLE, PRICE_STALE_SOURCE, PRICE_MAPPING_LIMIT, AMBIGUOUS_PRICE_MAPPING, PRICE_UNAVAILABLE, INVALID_PRICE_RESPONSE gibi sabit kodlardır. Eksik/mükerrer/istenmeyen oyun satırı, bozuk sayı/UUID/URL fiyat olarak kabul edilmez.

@@ -43,14 +43,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** Gerçek ITAD adaptörü + PostgreSQL/Flyway + public HTTP; yalnız ITAD HTTP yanıtı sahtedir. */
-@SpringBootTest(properties={"ltz.game.pricing.sync.enabled=false","ltz.game.rating.sync.enabled=false"})
+@SpringBootTest(properties={"ltz.game.pricing.sync.enabled=false","ltz.game.rating.sync.enabled=false","ltz.game.pricing.markets="})
 @Import(ItadPriceIntegrationTest.Fixture.class)
 class ItadPriceIntegrationTest extends PostgresTestSupport {
-    static final Market MARKET=new Market("TR","TRY");
+    static final Market MARKET=new Market("US","USD");
     @TestConfiguration static class Fixture {
         @Bean(destroyMethod="close") FakeServer priceFixture() throws IOException { return new FakeServer(); }
         @Bean @Primary GamePriceProvider prices(FakeServer server,GameExternalReferenceRepository refs,Clock clock) {
-            var properties=new GamePriceProperties("fixture-key","https://api.isthereanydeal.com","TR","TRY",Duration.ofMinutes(15));
+            var properties=new GamePriceProperties("fixture-key","https://api.isthereanydeal.com","US","USD",Duration.ofMinutes(15));
             return new ItadPriceClient(GameRatingConfiguration.restClient(RestClient.builder(),server.baseUrl(),Duration.ofSeconds(1),Duration.ofSeconds(2)),properties,refs,clock);
         }
     }
@@ -80,20 +80,20 @@ class ItadPriceIntegrationTest extends PostgresTestSupport {
     }
     String row(UUID id,int price,int regular) {
         return """
-                {"id":"%s","deals":[{"shop":{"name":"Steam"},"price":{"amount":%d,"currency":"TRY"},
-                "regular":{"amount":%d,"currency":"TRY"},"cut":%d,"timestamp":"%s","expiry":null,"url":"https://isthereanydeal.com/go/fixture?affiliate=keep"}]}
+                {"id":"%s","deals":[{"shop":{"name":"Steam"},"price":{"amount":%d,"currency":"USD"},
+                "regular":{"amount":%d,"currency":"USD"},"cut":%d,"timestamp":"%s","expiry":null,"url":"https://isthereanydeal.com/go/fixture?affiliate=keep"}]}
                 """.formatted(id,price,regular,price<regular?50:0,Instant.now().minusSeconds(10));
     }
     @Test void refreshPersistsAndPublicBatchAndDiscountFilterReadOnlyTheLocalMarket() throws Exception {
         offers();int calls=server.received().size();
-        mvc.perform(get("/api/v1/game/games/prices").param("gameIds",first.toString(),second.toString(),third.toString()).param("country","TR").param("currency","TRY"))
+        mvc.perform(get("/api/v1/game/games/prices").param("gameIds",first.toString(),second.toString(),third.toString()).param("country","US").param("currency","USD"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].status").value("AVAILABLE"))
                 .andExpect(jsonPath("$.items[0].offers[0].currentPrice").value(5))
                 .andExpect(jsonPath("$.items[0].offers[0].url").value("https://isthereanydeal.com/go/fixture?affiliate=keep"))
                 .andExpect(jsonPath("$.items[2].status").value("NO_OFFER"));
         mvc.perform(get("/api/v1/game/games").param("discountedOnly","true"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1)).andExpect(jsonPath("$.items[0].game.gameId").value(first.toString()));
-        mvc.perform(get("/api/v1/game/games").param("discountedOnly","true").param("country","US"))
+        mvc.perform(get("/api/v1/game/games").param("discountedOnly","true").param("country","DE"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
         service.refresh();assertEquals(calls,server.received().size(),"TTL ve public GET sağlayıcı çağırmaz");
         assertEquals("UNAVAILABLE",service.read(List.of(UUID.randomUUID()),MARKET).items().getFirst().status());
@@ -104,7 +104,7 @@ class ItadPriceIntegrationTest extends PostgresTestSupport {
         jdbc.update("update game_price_quotes set fetched_at=now()-interval '1 hour',expires_at=now()-interval '1 minute'");
         assertEquals("STALE",service.read(List.of(first),MARKET).items().getFirst().status());
         mvc.perform(get("/api/v1/game/games").param("discountedOnly","true")).andExpect(jsonPath("$.totalElements").value(0));
-        jdbc.update("update game_price_refresh_state set checked_at=now()-interval '1 hour'");
+        jdbc.update("update game_price_refresh_state set checked_at=now()-interval '3 days'");
         server.enqueue(Reply.json(503,"{}"));service.refresh();
         assertEquals("STALE",service.read(List.of(first),MARKET).items().getFirst().status());
         assertEquals(2,jdbc.queryForObject("select count(*) from game_price_quotes",Integer.class));
@@ -130,9 +130,9 @@ class ItadPriceIntegrationTest extends PostgresTestSupport {
         Quote incomplete=new Quote(first,"Steam",MARKET,BigDecimal.TEN,BigDecimal.ONE,"ITAD",Instant.now(),Instant.now().plusSeconds(60));
         assertThrows(org.springframework.dao.InvalidDataAccessApiUsageException.class,()->repository.publish(owner,Set.of(first),MARKET,List.of(incomplete),Instant.now()));
         assertEquals(1,repository.quotes(Set.of(first),MARKET).size());repository.release(owner);
-        for(String[] market:List.of(new String[]{"tr","TRY"},new String[]{"XX","TRY"},new String[]{"TR","INVALID"}))
+        for(String[] market:List.of(new String[]{"us","USD"},new String[]{"XX","USD"},new String[]{"US","INVALID"}))
             mvc.perform(get("/api/v1/game/games/prices").param("gameIds",first.toString()).param("country",market[0]).param("currency",market[1])).andExpect(status().isBadRequest());
-        mvc.perform(get("/api/v1/game/games/prices").param("gameIds","bad").param("country","TR").param("currency","TRY")).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/v1/game/games/prices").param("gameIds","bad").param("country","US").param("currency","USD")).andExpect(status().isBadRequest());
         mvc.perform(post("/api/v1/game/games/prices")).andExpect(status().isForbidden());
         assertThrows(IllegalArgumentException.class,()->service.read(null,MARKET));
         var many=new java.util.ArrayList<UUID>();for(int i=0;i<51;i++) many.add(UUID.randomUUID());
@@ -144,7 +144,7 @@ class ItadPriceIntegrationTest extends PostgresTestSupport {
         offers();UUID owner=UUID.randomUUID();repository.claim(owner,Instant.now());
         repository.failed(owner,Set.of(first),MARKET,Instant.now(),"PRICE_RATE_LIMITED",Duration.ofHours(1));repository.release(owner);
         jdbc.update("update game_price_refresh_state set checked_at=now()-interval '1 hour'");
-        assertFalse(repository.candidates(MARKET,Instant.now(),Duration.ofMinutes(15)).contains(first));
+        assertFalse(repository.candidates(MARKET,Instant.now(),Duration.ofMinutes(15),Duration.ofHours(1),Duration.ofHours(6)).stream().anyMatch(candidate -> candidate.id().equals(first)));
         repository.claim(owner,Instant.now());
         Quote wrong=new Quote(UUID.randomUUID(),"Steam",MARKET,BigDecimal.TEN,BigDecimal.ONE,"ITAD",Instant.now(),Instant.now().plusSeconds(60));
         assertThrows(org.springframework.dao.InvalidDataAccessApiUsageException.class,()->repository.publish(owner,Set.of(first),MARKET,List.of(wrong),Instant.now()));

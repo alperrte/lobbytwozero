@@ -54,7 +54,7 @@ function ModuleContent({ gameId, type }: { gameId: string; type: ModuleType }) {
 export function GameModules({ gameId }: { gameId: string }) {
   const t = useTranslations("Game");
   const [type, setType] = useState<ModuleType>("ACHIEVEMENTS");
-  return <section aria-labelledby="game-modules" className="mt-12 border-t border-border pt-8">
+  return <section aria-labelledby="game-modules" className="border-t border-border pt-8">
     <h2 id="game-modules" className="font-display text-2xl font-semibold">{t("modules")}</h2>
     <div role="group" aria-label={t("modules")} className="my-6 flex flex-wrap gap-2">
       {moduleTypes.map((value) => <button key={value} type="button" aria-pressed={type === value} className={`${controlClass} aria-pressed:border-brand-text aria-pressed:bg-surface-elevated aria-pressed:text-brand-text`} onClick={() => setType(value)}>{t(`types.${value}`)}</button>)}

@@ -19,11 +19,14 @@ public class RatingSummaryRepository {
         return findAll(List.of(gameId)).getFirst();
     }
 
+    private static final String PAGE_SELECT = "SELECT game_id, round(avg(rating),2) AS average_rating, count(*) AS rating_count FROM game_ratings ";
+    private static final String PAGE_TAIL = "GROUP BY game_id ORDER BY game_id LIMIT :limit";
+    private static final String PAGE_FIRST = PAGE_SELECT + PAGE_TAIL;
+    private static final String PAGE_AFTER = PAGE_SELECT + "WHERE game_id > :after " + PAGE_TAIL;
+
     /** En az bir puanı olan oyunlar, game_id artan; after dışlayıcı imleçtir. Tek SQL, tek snapshot. */
     public List<GameRatingSummaryResponse> findPage(UUID after, int limit) {
-        String where = after == null ? "" : "WHERE game_id > :after ";
-        var statement = jdbc.sql("SELECT game_id, round(avg(rating),2) AS average_rating, count(*) AS rating_count "
-                + "FROM game_ratings " + where + "GROUP BY game_id ORDER BY game_id LIMIT :limit").param("limit", limit);
+        var statement = jdbc.sql(after == null ? PAGE_FIRST : PAGE_AFTER).param("limit", limit);
         if (after != null) statement = statement.param("after", after);
         return statement.query((rs, row) -> new GameRatingSummaryResponse(
                 rs.getObject("game_id", UUID.class), rs.getBigDecimal("average_rating"), rs.getLong("rating_count"))).list();

@@ -23,8 +23,7 @@ export function PostList({
   emptyAction,
   onReposted,
   visible,
-  revealId,
-  comments = false
+  revealId
 }: {
   list: PostListState;
   viewer: Viewer;
@@ -36,8 +35,6 @@ export function PostList({
   visible?: (post: PostView) => boolean;
   /** Paylaşım sonrası kısa giriş animasyonuyla belirecek gönderi. */
   revealId?: string | null;
-  /** Kartlarda yorum bölmesi (kartın sağ sütunu) gösterilsin mi. */
-  comments?: boolean;
 }) {
   const items = visible ? list.items.filter(visible) : list.items;
   const author = useAuthors(
@@ -66,7 +63,6 @@ export function PostList({
                 onChange={(next) => list.update(post.id, () => next)}
                 onRemoved={list.remove}
                 onReposted={onReposted}
-                comments={comments}
               />
             </li>
           ))}

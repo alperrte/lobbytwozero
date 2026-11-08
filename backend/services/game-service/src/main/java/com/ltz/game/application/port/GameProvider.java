@@ -14,16 +14,108 @@ public interface GameProvider {
         throw new com.ltz.game.domain.exception.ProviderException("UNSUPPORTED_CAPABILITY");
     }
     /**
+     * Mağaza öğesi (toplu): 16:9 başlık görseli, geliştirici, yayıncı ve dil desteği. Alanlar bağımsızdır; sağlayıcının vermediği alan boş/null kalır.
+     */
+    record StoreItem(String headerImageUrl, Set<String> developers, Set<String> publishers, List<LanguageSupport> languages) {
+        public StoreItem {
+            developers = developers == null ? Set.of() : Set.copyOf(developers);
+            publishers = publishers == null ? Set.of() : Set.copyOf(publishers);
+            languages = languages == null ? List.of() : List.copyOf(languages);
+        }
+    }
+    /**
+     * Toplu mağaza öğeleri: katalog kimliği → {@link StoreItem}. En çok 100 kimlik; yalnız sağlayıcının en az bir alan bildirdiği kimlikler döner.
+     * Sağlayıcı yeteneği yoksa UNSUPPORTED_CAPABILITY.
+     */
+    default java.util.Map<String, StoreItem> storeItems(java.util.Collection<String> externalIds) {
+        throw new com.ltz.game.domain.exception.ProviderException("UNSUPPORTED_CAPABILITY");
+    }
+    /**
+     * Toplu mağaza kısa açıklaması, istenen dilde: katalog kimliği → metin. {@code language} küçük harf dil kodudur (ör. {@code en}, {@code tr});
+     * desteklenmeyen kod INVALID_PROVIDER_REQUEST. Sağlayıcı o dilde metin yoksa genellikle İngilizce metne düşer: çağıran bunu İngilizce metinle
+     * karşılaştırarak ayırmalıdır. En çok 100 kimlik; yalnız metin dönen kimlikler yer alır.
+     */
+    default java.util.Map<String, String> shortDescriptions(java.util.Collection<String> externalIds, String language) {
+        throw new com.ltz.game.domain.exception.ProviderException("UNSUPPORTED_CAPABILITY");
+    }
+    /**
+     * Toplu detay: katalog kimliği → detay (açıklama, tarih, şirketler, diller, kapak). En çok 100 kimlik; yalnız eşlenebilen ve
+     * kanıtı olan kimlikler döner (yokluk ve belirsiz eşleme sonuçta yer almaz). {@link Capability#DETAILS} gerekir.
+     */
+    default java.util.Map<String, Details> bulkDetails(java.util.Collection<String> externalIds) {
+        throw new com.ltz.game.domain.exception.ProviderException("UNSUPPORTED_CAPABILITY");
+    }
+    /**
+     * Toplu kanıt: katalog kimliği → tür ve çıkış tarihi. Yalnız kanıt bulunan kimlikler döner; yokluk, belirsiz eşleme ve
+     * bilinmeyen tür sonuçta yer almaz (çağıran bunları UNKNOWN bırakır). {@link Capability#ITEM_TYPE} gerekir.
+     */
+    default java.util.Map<String, ItemEvidence> itemEvidence(java.util.Collection<String> externalIds) {
+        throw new com.ltz.game.domain.exception.ProviderException("UNSUPPORTED_CAPABILITY");
+    }
+    /**
+     * Sağlayıcının kendi kataloğunda DLC olarak listelediği kimlikler (ör. Steam GetAppList yalnız DLC). Tür kanıtı olarak
+     * tek başına yetmez; yalnız başka bir kaynağın tür kanıtını doğrulamak için kullanılır.
+     */
+    default Set<String> catalogDlcIds() {
+        throw new com.ltz.game.domain.exception.ProviderException("UNSUPPORTED_CAPABILITY");
+    }
+    /**
+     * Toplu ilişki kanıtı: katalog kimliği → sağlayıcı tür kimliği ve üst oyun durumu. Yalnız eşlenebilen kimlikler döner.
+     * {@link Capability#ITEM_TYPE} gerekir.
+     */
+    default java.util.Map<String, RelationEvidence> relationEvidence(java.util.Collection<String> externalIds) {
+        throw new com.ltz.game.domain.exception.ProviderException("UNSUPPORTED_CAPABILITY");
+    }
+    /** Üst oyun durumu: NONE sağlayıcıda üst oyun yok; UNMAPPED var ama katalogda karşılığı yok; AMBIGUOUS birden çok karşılık; LINKED tek karşılık. */
+    enum ParentState { NONE, UNMAPPED, AMBIGUOUS, LINKED }
+    /** @param providerGameType sağlayıcının sayısal tür kimliği (ör. IGDB game_type); @param parentExternalId yalnız LINKED iken katalog kimliği */
+    record RelationEvidence(Integer providerGameType, ParentState parentState, String parentExternalId) {
+        public RelationEvidence {
+            if (parentState == null || (parentState == ParentState.LINKED) != (parentExternalId != null)) {
+                throw new com.ltz.game.domain.exception.ProviderException("INVALID_PROVIDER_RESPONSE");
+            }
+        }
+    }
+    /**
+     * Bir katalog kaydı için sağlayıcının tür, çıkış tarihi, tür (genre), platform, kategori (oyun modu) ve etiket (tema) kanıtı. Alanlar bağımsızdır; yalnız biri
+     * dolu olabilir, hepsi boş olamaz. Tarih UTC gün olarak, doğrulanmış aralıkta olmalıdır.
+     */
+    record ItemEvidence(String providerType, java.time.LocalDate releaseDate, java.util.List<TermEvidence> genres, java.util.List<TermEvidence> platforms,
+                        java.util.List<TermEvidence> categories, java.util.List<TermEvidence> tags) {
+        public ItemEvidence(String providerType, java.time.LocalDate releaseDate) { this(providerType, releaseDate, java.util.List.of(), java.util.List.of()); }
+        public ItemEvidence(String providerType, java.time.LocalDate releaseDate, java.util.List<TermEvidence> genres, java.util.List<TermEvidence> platforms) {
+            this(providerType, releaseDate, genres, platforms, java.util.List.of(), java.util.List.of());
+        }
+        public ItemEvidence {
+            genres = genres == null ? java.util.List.of() : java.util.List.copyOf(genres);
+            platforms = platforms == null ? java.util.List.of() : java.util.List.copyOf(platforms);
+            categories = categories == null ? java.util.List.of() : java.util.List.copyOf(categories);
+            tags = tags == null ? java.util.List.of() : java.util.List.copyOf(tags);
+            if (providerType == null && releaseDate == null && genres.isEmpty() && platforms.isEmpty() && categories.isEmpty() && tags.isEmpty()) {
+                throw new com.ltz.game.domain.exception.ProviderException("INVALID_PROVIDER_RESPONSE");
+            }
+            if (providerType != null && (providerType.isBlank() || providerType.length() > 64)) {
+                throw new com.ltz.game.domain.exception.ProviderException("INVALID_PROVIDER_RESPONSE");
+            }
+        }
+    }
+    /** Sağlayıcının bildirdiği tür/platform: kod (küçük harf slug, TERM_CODE kuralına uyan) ve en çok 128 karakterlik İngilizce ad. */
+    record TermEvidence(String code, String name) { }
+    /**
      * Detayı hangi dış kaynağın verdiği (provenance ve atıf için). Katalog sağlayıcısından farklı olabilir
      * (ör. katalog STEAM, detay IGDB); varsayılan olarak katalog sağlayıcısıdır.
      */
     default String detailSource() { return provider(); }
     /** Yalnız sağlayıcının gerçekten sunduğu alanlar; null/boş veri mevcut alanları silmez. */
     record Details(String description, java.time.LocalDate releaseDate, Set<String> developers,
-                   Set<String> publishers, String providerType, List<LanguageSupport> languages) {
+                   Set<String> publishers, String providerType, List<LanguageSupport> languages, String coverUrl) {
         public Details(String description, java.time.LocalDate releaseDate, Set<String> developers,
                        Set<String> publishers, String providerType) {
-            this(description, releaseDate, developers, publishers, providerType, List.of());
+            this(description, releaseDate, developers, publishers, providerType, List.of(), null);
+        }
+        public Details(String description, java.time.LocalDate releaseDate, Set<String> developers,
+                       Set<String> publishers, String providerType, List<LanguageSupport> languages) {
+            this(description, releaseDate, developers, publishers, providerType, languages, null);
         }
         public Details {
             if (developers == null || publishers == null || languages == null
@@ -35,13 +127,14 @@ public interface GameProvider {
             publishers = Set.copyOf(publishers);
             languages = List.copyOf(languages);
             if ((description == null && releaseDate == null && developers.isEmpty() && publishers.isEmpty()
-                    && providerType == null && languages.isEmpty())
+                    && providerType == null && languages.isEmpty() && coverUrl == null)
                     || (description != null && (description.isBlank() || description.length() > 16000))
                     || developers.size() > 100 || publishers.size() > 100 || languages.size() > 100
                     || languages.stream().map(LanguageSupport::languageCode).distinct().count() != languages.size()
                     || java.util.stream.Stream.concat(developers.stream(), publishers.stream())
                     .anyMatch(name -> name.isBlank() || name.length() > 256)
-                    || (providerType != null && providerType.length() > 64)) {
+                    || (providerType != null && providerType.length() > 64)
+                    || (coverUrl != null && !com.ltz.game.application.service.ProviderCoverPolicy.accepts(coverUrl))) {
                 throw new com.ltz.game.domain.exception.ProviderException("INVALID_PROVIDER_RESPONSE");
             }
         }
@@ -76,7 +169,15 @@ public interface GameProvider {
     record CatalogItem(String externalId, String title, Instant lastModified, String providerType) {
         public CatalogItem(String externalId, String title, Instant lastModified) { this(externalId,title,lastModified,null); }
     }
-    record CatalogPage(List<CatalogItem> items, long nextAppId, boolean hasMore) {
-        public CatalogPage { items = List.copyOf(items); }
+    /**
+     * {@code skippedRecords}: sağlayıcının döndürdüğü ama kayıt düzeyinde geçersiz olduğu için güvenle atlanan
+     * kayıt sayısı (ör. boş ad). Cursor atlanan kayıtların da ilerisine taşınır; sayı sessizce yutulmaz, loglanır.
+     */
+    record CatalogPage(List<CatalogItem> items, long nextAppId, boolean hasMore, int skippedRecords) {
+        public CatalogPage {
+            items = List.copyOf(items);
+            if (skippedRecords < 0) throw new IllegalArgumentException("Geçersiz atlanan kayıt sayısı.");
+        }
+        public CatalogPage(List<CatalogItem> items, long nextAppId, boolean hasMore) { this(items, nextAppId, hasMore, 0); }
     }
 }

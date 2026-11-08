@@ -40,25 +40,16 @@ describe("Gönderilerim sorgu yardımcıları", () => {
     expect(activeFilterCount({ ...emptyFilters, q: "a ", category: "GUIDE", fromDate: "2026-10-01" })).toBe(3);
   });
 
-  it("karma listeyi üç görünüme böler: görselli özgün → gönderilerim, görselsiz özgün → sözlerim, yeniden paylaşım → yeniden paylaşımlarım", () => {
-    const original = post(null);
-    const word = post(null, []);
+  it("karma listeyi iki görünüme böler: gönderilerim tüm özgün gönderiler (metin ve görselli), diğeri yalnız yeniden paylaşımlar", () => {
+    const withImage = post(null);
+    const textOnly = post(null, []);
     const repost = post({ postId: "o", available: true }, []);
-    expect(belongsToView(original, "posts")).toBe(true);
-    expect(belongsToView(original, "words")).toBe(false);
-    expect(belongsToView(original, "reposts")).toBe(false);
-    expect(belongsToView(word, "words")).toBe(true);
-    expect(belongsToView(word, "posts")).toBe(false);
-    expect(belongsToView(word, "reposts")).toBe(false);
-    // Yeniden paylaşım görselsiz ve açıklamalı olsa bile söz değildir.
-    expect(belongsToView(repost, "words")).toBe(false);
+    expect(belongsToView(withImage, "posts")).toBe(true);
+    expect(belongsToView(textOnly, "posts")).toBe(true);
     expect(belongsToView(repost, "posts")).toBe(false);
     expect(belongsToView(repost, "reposts")).toBe(true);
-  });
-
-  it("sözlerim arama/oyun/kategori/tarih süzgeçlerini destekler (API özgün gönderilerde uygular)", () => {
-    expect(supportsFilters("words")).toBe(true);
-    expect(filtersFromParams(params({ q: "abc", sort: "oldest" }), "words")).toEqual({ ...emptyFilters, q: "abc", sort: "OLDEST" });
+    expect(belongsToView(textOnly, "reposts")).toBe(false);
+    expect(belongsToView(withImage, "reposts")).toBe(false);
   });
 });
 

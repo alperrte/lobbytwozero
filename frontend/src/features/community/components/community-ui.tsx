@@ -23,7 +23,7 @@ export const chipClass = "inline-flex max-w-full items-center gap-1.5 rounded-co
 /** Başlık sol çizgisi tüm LTZ ekranlarında aynıdır (Hardware ile aynı kimlik). */
 export function CommunityHeading({ title, description, children }: { title: string; description: string; children?: ReactNode }) {
   return (
-    <header className="mb-5 flex flex-wrap items-end justify-between gap-4">
+    <header className="mb-5 flex flex-wrap items-start justify-between gap-4">
       <div className="max-w-2xl">
         <div aria-hidden="true" className="mb-3 h-1 w-10 bg-primary" />
         <h1 className="font-display text-3xl font-bold tracking-tight text-text-primary sm:text-4xl">{title}</h1>
