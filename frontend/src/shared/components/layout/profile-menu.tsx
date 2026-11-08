@@ -173,7 +173,19 @@ export function ProfileMenu({ user }: ProfileMenuProps) {
             <span className="flex-1">{t("items.computers")}</span>
           </Link>
 
-          {items.map(({ id, icon }) => (
+          {items.map(({ id, icon }) =>
+            id === "profile" && user ? (
+              <Link
+                key={id}
+                href="/profile"
+                role="menuitem"
+                onClick={() => setOpen(false)}
+                className={menuItemClass}
+              >
+                <Icon name={icon} className="size-[18px] shrink-0" />
+                <span className="flex-1">{t(`items.${id}`)}</span>
+              </Link>
+            ) : (
             <button
               key={id}
               type="button"
@@ -188,7 +200,8 @@ export function ProfileMenu({ user }: ProfileMenuProps) {
                 {t("soon")}
               </span>
             </button>
-          ))}
+            )
+          )}
 
           <div role="separator" className="my-1 h-px bg-border" />
           {sessionAware && user ? (
