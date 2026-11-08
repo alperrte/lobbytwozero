@@ -19,8 +19,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   return (
     <>
-      <h1 className="font-display text-3xl font-bold text-text-primary">{t("login.title")}</h1>
-      <p className="mt-2 mb-6 text-base text-text-secondary">{t("login.description")}</p>
+      <h1 className="mb-6 font-display text-3xl font-bold text-text-primary">{t("login.title")}</h1>
       <LoginForm next={typeof next === "string" ? next : null} verified={verified === "1"} passwordReset={reset === "1"} />
     </>
   );

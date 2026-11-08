@@ -36,11 +36,11 @@ export function AuthNavbar() {
     <div className="auth-intro-top relative z-20 flex justify-center px-3 pt-3 sm:px-5">
       <header
         aria-label={shell("navbarLabel")}
-        className="relative flex h-header w-full max-w-[60rem] items-center gap-2 rounded-navbar border border-border bg-surface px-3 shadow-float sm:gap-3 sm:px-4"
+        className="relative flex h-14 w-full max-w-[60rem] items-center gap-2 rounded-navbar border border-border bg-surface px-3 shadow-float sm:h-header sm:gap-3 sm:px-4"
       >
         <EdgeSnake />
         <Link href="/" aria-label={t("brand")} className="rounded-xl">
-          <BrandLogo wordmarkClassName="h-auto w-24 object-contain sm:w-28" markClassName="hidden" />
+          <BrandLogo wordmarkClassName="h-auto w-[4.5rem] object-contain sm:w-[5.25rem]" markClassName="hidden" />
         </Link>
 
         <nav aria-label={t("navLabel")} className="ms-2 hidden items-center gap-0.5 md:flex">

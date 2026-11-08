@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { AuthBackdrop, AuthStage } from "@/features/auth";
+import { Footer } from "@/shared/components/layout/footer";
 
 // Kişisel / giriş gerektiren alan: arama motorlarına kapalı.
 export const metadata: Metadata = {
@@ -9,7 +10,7 @@ export const metadata: Metadata = {
 
 /**
  * `(auth)` grubunun kalıcı katmanı: tam ekran arka plan videosu ve üstündeki sahne (navbar, karşılama yazısı, kart
- * yüzeyi, footer). Sayfalar arası geçişte bu layout yeniden kurulmaz; video başa sarmaz, navbar ve footer yeniden
+ * yüzeyi) ve altında, ilk ekranın dışında kalan ana uygulama footer'ı. Sayfalar arası geçişte bu layout yeniden kurulmaz; video başa sarmaz, navbar ve footer yeniden
  * kurulmaz. Sayfalar yalnız kartın İÇERİĞİNİ (başlık + form) üretir.
  */
 export default function PrivateGroupLayout({
@@ -18,7 +19,7 @@ export default function PrivateGroupLayout({
   return (
     <>
       <AuthBackdrop />
-      <AuthStage>{children}</AuthStage>
+      <AuthStage footer={<Footer />}>{children}</AuthStage>
     </>
   );
 }

@@ -12,13 +12,12 @@ vi.mock("@/shared/lib/i18n/navigation", () => ({
   usePathname: () => currentPath
 }));
 vi.mock("./auth-navbar", () => ({ AuthNavbar: () => <header data-testid="navbar" /> }));
-vi.mock("./auth-footer", () => ({ AuthFooter: () => <footer data-testid="footer" /> }));
 vi.mock("./auth-card-snake", () => ({ AuthCardSnake: () => <svg data-testid="snake" /> }));
 
 function Stage({ locale = "tr", children }: { locale?: "tr" | "en"; children: React.ReactNode }) {
   return (
     <NextIntlClientProvider locale={locale} messages={locale === "tr" ? tr : en} timeZone="Europe/Istanbul">
-      <AuthStage>{children}</AuthStage>
+      <AuthStage footer={<footer data-testid="footer" />}>{children}</AuthStage>
     </NextIntlClientProvider>
   );
 }
@@ -61,6 +60,26 @@ describe("AuthStage", () => {
     expect(screen.getByTestId("footer")).toBeInTheDocument();
     expect(screen.getByTestId("snake")).toBeInTheDocument();
     expect(screen.getAllByRole("main")).toHaveLength(1);
+    expect(screen.getByRole("heading", { level: 1, name: "Giriş yap" })).toBeInTheDocument();
+  });
+
+  it("footer ilk ekranın DIŞINDADIR: navbar ve kart bir ekran yüksekliğindeki blokta, footer onun altında", () => {
+    const { container } = render(<Stage>{page("Giriş yap")}</Stage>);
+    const firstScreen = container.querySelector(".min-h-dvh")!;
+    expect(firstScreen).toContainElement(screen.getByTestId("navbar"));
+    expect(firstScreen).toContainElement(screen.getByRole("main"));
+    expect(firstScreen).not.toContainElement(screen.getByTestId("footer"));
+    // Footer, ilk ekran bloğundan SONRA gelir (kaydırınca görünür).
+    expect(firstScreen.compareDocumentPosition(screen.getByTestId("footer")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("footer verilmezse sahne yine çalışır", () => {
+    render(
+      <NextIntlClientProvider locale="tr" messages={tr} timeZone="Europe/Istanbul">
+        <AuthStage>{page("Giriş yap")}</AuthStage>
+      </NextIntlClientProvider>
+    );
+    expect(screen.queryByTestId("footer")).toBeNull();
     expect(screen.getByRole("heading", { level: 1, name: "Giriş yap" })).toBeInTheDocument();
   });
 
@@ -179,7 +198,7 @@ describe("AuthStage", () => {
       const view = render(<Stage>{page("Giriş yap")}</Stage>);
       fillAndNavigate(view, "/register", "Kayıt ol");
       expect(leavingEntries(view.container)).toHaveLength(1);
-      act(() => vi.advanceTimersByTime(400));
+      act(() => vi.advanceTimersByTime(500));
       expect(leavingEntries(view.container)).toHaveLength(0);
     });
 

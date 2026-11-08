@@ -6,7 +6,6 @@ import { ThemeTransitionLayer } from "@/shared/components/theme-transition/theme
 import { usePathname } from "@/shared/lib/i18n/navigation";
 import { exitFor, transitionBetween, welcomeVariantFor, type CardTransition } from "../services/auth-motion";
 import { AuthCardSnake } from "./auth-card-snake";
-import { AuthFooter } from "./auth-footer";
 import { AuthNavbar } from "./auth-navbar";
 import { TwistText } from "./twist-text";
 import "./auth-stage.css";
@@ -23,10 +22,10 @@ const TRANSITION_CLASS: Record<CardTransition, string> = {
   fade: "auth-enter-fade"
 };
 
-/** Çıkış animasyonu 240 ms sürer; eski içerik anlık görüntüsü bundan sonra (güvenlik payıyla) kaldırılır. */
-const LEAVE_REMOVE_MS = 320;
+/** Çıkış animasyonu 350 ms sürer; eski içerik anlık görüntüsü bundan sonra (güvenlik payıyla) kaldırılır. */
+const LEAVE_REMOVE_MS = 450;
 /** Kart yüksekliğinin yeni içeriğe yumuşakça uyum süresi. */
-const HEIGHT_MS = 340;
+const HEIGHT_MS = 480;
 const MAX_LEAVING = 2;
 
 function prefersReducedMotion(): boolean {
@@ -65,6 +64,8 @@ function snapshotOf(entry: HTMLElement): HTMLElement {
 
 type AuthStageProps = {
   children: ReactNode;
+  /** Ana uygulamadaki footer (sunucu bileşeni; layout verir). İlk ekranın ALTINDADIR: kaydırınca görünür. */
+  footer?: ReactNode;
 };
 
 /**
@@ -83,7 +84,7 @@ type AuthStageProps = {
  * katman hiç oluşturulmaz.
  * Sayfa değişiminde odak yeni sayfanın başlığına (`h1`) taşınır.
  */
-export function AuthStage({ children }: AuthStageProps) {
+export function AuthStage({ children, footer }: AuthStageProps) {
   const t = useTranslations("Auth.shell");
   const pathname = usePathname();
   const [nav, setNav] = useState<{ path: string; previous: string | null }>({ path: pathname, previous: null });
@@ -197,41 +198,44 @@ export function AuthStage({ children }: AuthStageProps) {
   }, [nav]);
 
   return (
-    <div className="relative z-10 flex min-h-dvh flex-col text-text-primary">
-      <AuthNavbar />
+    <div className="relative z-10 text-text-primary">
+      {/* İlk ekran: navbar + kart en az bir ekran yüksekliğidir; footer bunun altında kalır ve kaydırınca gelir. */}
+      <div className="flex min-h-dvh flex-col">
+        <AuthNavbar />
 
-      <main className="flex flex-1 items-center px-4 py-8 sm:px-8 lg:px-12">
-        <div className="mx-auto grid w-full max-w-[75rem] items-center gap-10 lg:grid-cols-[minmax(0,1fr)_28rem] xl:gap-20">
-          <section
-            key={variant}
-            aria-label={t("welcomeLabel")}
-            className="hidden text-white [text-shadow:0_2px_18px_rgb(0_0_0/0.5)] lg:block"
-          >
-            <p className="font-display text-5xl leading-[1.05] font-bold xl:text-6xl">
-              <TwistText text={t(`${variant}.eyebrow`)} animate={firstScreen} />
-            </p>
-            <div className={firstScreen ? "auth-intro-left" : "auth-enter-fade"} style={{ "--auth-delay": "240ms" } as React.CSSProperties}>
-              <p className="mt-6 font-display text-2xl leading-snug font-semibold text-white/95 xl:text-3xl">
-                {t(`${variant}.headlineStart`)} <span className="text-accent">{t(`${variant}.headlineAccent`)}</span>
+        <main className="flex flex-1 items-center px-4 py-8 sm:px-8 lg:px-12">
+          <div className="mx-auto grid w-full max-w-[75rem] items-center gap-10 lg:grid-cols-[minmax(0,1fr)_28rem] xl:gap-20">
+            <section
+              key={variant}
+              aria-label={t("welcomeLabel")}
+              className="hidden text-white [text-shadow:0_2px_18px_rgb(0_0_0/0.5)] lg:block"
+            >
+              <p className="font-display text-5xl leading-[1.05] font-bold xl:text-6xl">
+                <TwistText text={t(`${variant}.eyebrow`)} animate={firstScreen} />
               </p>
-              <p className="mt-5 max-w-md text-lg leading-relaxed text-white/85">{t(`${variant}.subline`)}</p>
-            </div>
-          </section>
+              <div className={firstScreen ? "auth-intro-left" : "auth-enter-fade"} style={{ "--auth-delay": "240ms" } as React.CSSProperties}>
+                <p className="mt-6 font-display text-2xl leading-snug font-semibold text-white/95 xl:text-3xl">
+                  {t(`${variant}.headlineStart`)} <span className="text-accent">{t(`${variant}.headlineAccent`)}</span>
+                </p>
+                <p className="mt-5 max-w-md text-lg leading-relaxed text-white/85">{t(`${variant}.subline`)}</p>
+              </div>
+            </section>
 
-          <div className="auth-intro-right relative w-full max-w-md justify-self-center rounded-3xl border border-border bg-surface shadow-popover lg:justify-self-end">
-            <AuthCardSnake initialDelayMs={FIRST_LAP_DELAY_MS} />
-            <div ref={contentRef} className="relative">
-              {/* Çıkan katmanlar yalnız burada, zorunlu olarak boş kalan bu kapta (React çocuk yönetmez) tutulur. */}
-              <div ref={ghostsRef} aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0" />
-              <div key={pathname} data-auth-entry="current" className={`p-6 sm:p-8 ${TRANSITION_CLASS[transition]}`}>
-                {children}
+            <div className="auth-intro-right relative w-full max-w-md justify-self-center rounded-3xl border border-border bg-surface shadow-popover lg:justify-self-end">
+              <AuthCardSnake initialDelayMs={FIRST_LAP_DELAY_MS} />
+              <div ref={contentRef} className="relative">
+                {/* Çıkan katmanlar yalnız burada, zorunlu olarak boş kalan bu kapta (React çocuk yönetmez) tutulur. */}
+                <div ref={ghostsRef} aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0" />
+                <div key={pathname} data-auth-entry="current" className={`p-6 sm:p-8 ${TRANSITION_CLASS[transition]}`}>
+                  {children}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </main>
+        </main>
+      </div>
 
-      <AuthFooter />
+      {footer ? <div className="relative">{footer}</div> : null}
       {/* Tema değişimi ana uygulamadaki sahneyle oynar (AppShell'deki katmanın aynısı). */}
       <ThemeTransitionLayer />
     </div>

@@ -314,6 +314,27 @@ describe("SocialButtons", () => {
     );
   });
 
+  it("gerçek marka logoları çizilir; telefonda yalnız logo kalır ama erişilebilir ad korunur", () => {
+    wrap(<SocialButtons mode="login" />);
+    const google = screen.getByRole("link", { name: "Google ile giriş" });
+    const steam = screen.getByRole("link", { name: "Steam ile giriş" });
+    // Google: dört renkli resmî işaret; Steam: tek renkli logo (currentColor).
+    expect(google.querySelectorAll("svg path")).toHaveLength(4);
+    expect(Array.from(google.querySelectorAll("path")).map((node) => node.getAttribute("fill"))).toEqual([
+      "#EA4335",
+      "#4285F4",
+      "#FBBC05",
+      "#34A853"
+    ]);
+    expect(steam.querySelector("svg")).toHaveAttribute("fill", "currentColor");
+    // Metin yalnız telefonda gizlenir (max-sm:hidden); ad aria-label'dan gelir.
+    expect(google.querySelector("span")).toHaveClass("max-sm:hidden");
+    expect(steam.querySelector("span")).toHaveClass("max-sm:hidden");
+    expect(google).toHaveAttribute("aria-label", "Google ile giriş");
+    expect(steam).toHaveAttribute("aria-label", "Steam ile giriş");
+    expect(google.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+  });
+
   it("kayıt kipinde metinler 'kayıt' olur", () => {
     wrap(<SocialButtons mode="register" />);
     expect(screen.getByRole("link", { name: /Google ile kayıt/ })).toBeInTheDocument();

@@ -134,10 +134,14 @@ class SteamLoginTest extends ExternalProviderTestSupport {
     void steamImzayiGecersizSayarsaGirisReddedilir() throws Exception {
         PROVIDERS.steamValid = false;
 
-        MvcResult result = steamCallback(newSteamId(), p -> { });
+        String steamId = newSteamId();
+
+        MvcResult result = steamCallback(steamId, p -> { });
 
         assertThat(fragment(result)).isEqualTo("error=EXTERNAL_AUTH_FAILED");
-        assertThat(jdbc.queryForObject("select count(*) from steam_registrations", Integer.class)).isZero();
+        // Diğer testlerin bıraktığı satırlardan bağımsız: yalnız bu SteamID için kayıt açılmamış olmalı.
+        assertThat(jdbc.queryForObject("select count(*) from steam_registrations where steam_id = ?", Integer.class,
+                steamId)).isZero();
     }
 
     @Test

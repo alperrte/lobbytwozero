@@ -764,7 +764,6 @@
     "login": {
       "metaTitle": "Sign in",
       "title": "Sign in",
-      "description": "Sign in to your LTZ account and join the lobby.",
       "formLabel": "Sign-in form",
       "identifier": "Email or username",
       "identifierPlaceholder": "Your email address or username",

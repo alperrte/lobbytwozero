@@ -55,12 +55,25 @@ test.describe("sahne: tam ekran video, yüzen navbar ve footer", () => {
     expect(Math.abs(barBox.x + barBox.width / 2 - viewport.width / 2)).toBeLessThan(2); // yatayda ortalı
     expect(barBox.width).toBeLessThanOrEqual(960);
 
+    // Footer (ana uygulamadaki) ilk ekranın DIŞINDADIR: açılışta görünmez, kaydırınca gelir.
     const footerBox = (await page.getByRole("contentinfo").boundingBox())!;
-    expect(footerBox.y + footerBox.height).toBeGreaterThan(viewport.height - 30); // içerik kısa: en altta
+    expect(footerBox.y).toBeGreaterThanOrEqual(viewport.height - 1);
+    expect(footerBox.width).toBeGreaterThan(viewport.width * 0.9); // tam genişlikte, yüzen kart değil
 
     const cardBox = (await page.getByRole("heading", { level: 1, name: "Giriş yap" }).locator("xpath=../..").boundingBox())!;
     expect(cardBox.x).toBeGreaterThan(viewport.width / 2);
     expect(await horizontalOverflow(page)).toBe(0);
+  });
+
+  test("giriş kartında açıklama satırı yoktur; navbar logosu küçültülmüştür", async ({ page }) => {
+    await mockGateway(page);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/tr/giris");
+    await waitForHydration(page);
+    await expect(page.getByRole("heading", { level: 1, name: "Giriş yap" })).toBeVisible();
+    await expect(page.getByText("LTZ hesabına giriş yap, lobine katıl.")).toHaveCount(0);
+    const logo = await page.getByRole("banner").getByRole("link", { name: "LTZ ana sayfa" }).locator("img").first().boundingBox();
+    expect(logo!.width).toBeLessThanOrEqual(86);
   });
 
   test("sol karşılama başlığı ekran okuyucuya bir kez okunur ve animasyondan sonra sabittir", async ({ page }) => {
@@ -234,7 +247,7 @@ test.describe("çıkış + giriş animasyonu", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Kayıt ol" })).toBeVisible();
     // Çıkan katman fare/odak almaz.
     expect(await ghost.evaluate((node) => getComputedStyle(node).pointerEvents)).toBe("none");
-    await expect(ghosts(page)).toHaveCount(0, { timeout: 1500 });
+    await expect(ghosts(page)).toHaveCount(0, { timeout: 2000 });
     await expect(page.getByLabel("E-posta", { exact: true })).toHaveValue("");
   });
 
@@ -247,7 +260,7 @@ test.describe("çıkış + giriş animasyonu", () => {
     const watch = async () => {
       await expect(ghosts(page)).toHaveCount(1);
       seen.push((await ghosts(page).first().getAttribute("class")) ?? "");
-      await expect(ghosts(page)).toHaveCount(0, { timeout: 1500 });
+      await expect(ghosts(page)).toHaveCount(0, { timeout: 2000 });
     };
 
     await page.getByRole("main").getByRole("link", { name: "Kayıt ol" }).click();
@@ -277,13 +290,13 @@ test.describe("çıkış + giriş animasyonu", () => {
       const start = performance.now();
       const tick = () => {
         samples.push(Math.round(container.getBoundingClientRect().height));
-        if (performance.now() - start < 900) requestAnimationFrame(tick);
+        if (performance.now() - start < 1800) requestAnimationFrame(tick);
       };
       requestAnimationFrame(tick);
     });
 
     await page.getByRole("main").getByRole("link", { name: "Kayıt ol" }).click();
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(1900);
 
     const heights = await page.evaluate(() => (window as unknown as { __h: number[] }).__h);
     const natural = await page.locator('[data-auth-entry="current"]').evaluate((node) => Math.round(node.getBoundingClientRect().height));
@@ -326,7 +339,7 @@ test.describe("çıkış + giriş animasyonu", () => {
 
     await expect(page).toHaveURL(/\/tr\/sifremi-unuttum$/);
     await expect(page.locator('[data-auth-entry="current"]')).toHaveCount(1);
-    await expect(ghosts(page)).toHaveCount(0, { timeout: 1500 });
+    await expect(ghosts(page)).toHaveCount(0, { timeout: 2000 });
     await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
     await expect(page.getByRole("heading", { level: 1 })).toBeFocused();
     expect(await horizontalOverflow(page)).toBe(0);
@@ -339,7 +352,7 @@ test.describe("çıkış + giriş animasyonu", () => {
     await waitForHydration(page);
     await page.getByRole("main").getByRole("link", { name: "Kayıt ol" }).click();
     await expect(page.getByRole("heading", { level: 1, name: "Kayıt ol" })).toBeVisible();
-    await expect(ghosts(page)).toHaveCount(0, { timeout: 1500 });
+    await expect(ghosts(page)).toHaveCount(0, { timeout: 2000 });
 
     await page.goBack();
 
@@ -347,7 +360,7 @@ test.describe("çıkış + giriş animasyonu", () => {
     await expect(ghosts(page)).toHaveCount(1);
     await expect(ghosts(page).first()).toHaveClass(/auth-leaving--right/);
     await expect(page.getByRole("heading", { level: 1, name: "Giriş yap" })).toBeVisible();
-    await expect(ghosts(page)).toHaveCount(0, { timeout: 1500 });
+    await expect(ghosts(page)).toHaveCount(0, { timeout: 2000 });
   });
 
   test("doğrudan adres açılışı çıkan katman üretmez; sayfa yenilemede doğru ekran gelir", async ({ page }) => {
@@ -371,6 +384,33 @@ test.describe("çıkış + giriş animasyonu", () => {
 
     await expect(page.getByRole("heading", { level: 1, name: "Kayıt ol" })).toBeVisible();
     await expect(ghosts(page)).toHaveCount(0);
+  });
+});
+
+test.describe("Google ve Steam düğmeleri", () => {
+  test("geniş ekranda logo + metin; telefon genişliğinde yalnız logo (ad erişilebilir kalır)", async ({ page }) => {
+    await mockGateway(page);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/tr/giris");
+    await waitForHydration(page);
+    const google = page.getByRole("link", { name: "Google ile giriş" });
+    const steam = page.getByRole("link", { name: "Steam ile giriş" });
+    await expect(google.locator("svg")).toBeVisible();
+    await expect(steam.locator("svg")).toBeVisible();
+    await expect(google.getByText("Google ile giriş")).toBeVisible();
+    await expect(steam.getByText("Steam ile giriş")).toBeVisible();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(google.getByText("Google ile giriş")).toBeHidden();
+    await expect(steam.getByText("Steam ile giriş")).toBeHidden();
+    await expect(google.locator("svg")).toBeVisible();
+    await expect(steam.locator("svg")).toBeVisible();
+    // Düğmeler yine tıklanabilir boyuttadır ve sağlayıcı adresine gider.
+    const box = (await google.boundingBox())!;
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    await expect(google).toHaveAttribute("href", /\/api\/v1\/auth\/oauth\/google\/start$/);
+    expect(await horizontalOverflow(page)).toBe(0);
   });
 });
 
@@ -442,13 +482,20 @@ test.describe("duyarlı yerleşim ve temalar", () => {
     await expect(bar.getByRole("link", { name: "Sign up" })).toBeVisible();
   });
 
-  test("kısa içerikte footer en altta; dar ekranda doğal akışta", async ({ page }) => {
+  test("footer ilk açılışta görünmez; kaydırınca ana uygulamadaki footer (marka, bağlantılar, yasal) gelir", async ({ page }) => {
     await mockGateway(page);
     await page.setViewportSize({ width: 1440, height: 1100 });
     await page.goto("/tr/sifremi-unuttum");
     await waitForHydration(page);
-    const footer = (await page.getByRole("contentinfo").boundingBox())!;
-    expect(footer.y + footer.height).toBeGreaterThan(1100 - 30);
+    const footer = page.getByRole("contentinfo");
+    expect((await footer.boundingBox())!.y).toBeGreaterThanOrEqual(1100 - 1);
+    await expect(footer).not.toBeInViewport();
+    expect(await page.evaluate(() => document.documentElement.scrollHeight > window.innerHeight)).toBe(true);
+
+    await footer.scrollIntoViewIfNeeded();
+    await expect(footer).toBeInViewport();
+    await expect(footer.getByRole("link", { name: "Gizlilik Politikası" }).first()).toBeVisible();
+    await expect(footer.getByAltText("LobbyTwoZero")).toBeVisible();
   });
 });
 

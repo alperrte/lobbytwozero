@@ -2,7 +2,6 @@ import { render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import tr from "@/shared/lib/i18n/messages/tr.json";
-import { AuthFooter } from "./auth-footer";
 import { AuthNavbar } from "./auth-navbar";
 
 let currentPath = "/login";
@@ -46,6 +45,13 @@ describe("AuthNavbar", () => {
     expect(within(bar).getByRole("link", { name: "Kayıt ol" })).toHaveAttribute("href", "/register");
   });
 
+  it("logo küçültülmüş boyuttadır (w-[4.5rem], geniş ekranda w-[5.25rem])", () => {
+    renderInIntl(<AuthNavbar />);
+    const logo = screen.getByRole("link", { name: "LTZ ana sayfa" }).querySelector("img")!;
+    expect(logo.className).toContain("w-[4.5rem]");
+    expect(logo.className).toContain("sm:w-[5.25rem]");
+  });
+
   it("geçerli ekranın bağlantısı aria-current alır ve mobilde gizlenir", () => {
     currentPath = "/register";
     renderInIntl(<AuthNavbar />);
@@ -53,18 +59,5 @@ describe("AuthNavbar", () => {
     expect(register).toHaveAttribute("aria-current", "page");
     expect(register.className).toContain("hidden");
     expect(screen.getByRole("link", { name: "Giriş yap" })).not.toHaveAttribute("aria-current");
-  });
-});
-
-describe("AuthFooter", () => {
-  it("telif ve yasal bağlantıları verir", () => {
-    renderInIntl(<AuthFooter />);
-    const footer = screen.getByRole("contentinfo");
-    expect(within(footer).getByText("© LobbyTwoZero")).toBeInTheDocument();
-    const legal = within(footer).getByRole("navigation", { name: "Yasal bağlantılar" });
-    expect(within(legal).getByRole("link", { name: "Gizlilik Politikası" })).toHaveAttribute("href", "/legal/privacy");
-    expect(within(legal).getByRole("link", { name: "Kullanım Koşulları" })).toHaveAttribute("href", "/legal/terms");
-    expect(within(legal).getByRole("link", { name: "Çerez Politikası" })).toHaveAttribute("href", "/legal/cookies");
-    expect(within(legal).getByRole("link", { name: "KVKK Aydınlatma Metni" })).toHaveAttribute("href", "/legal/kvkk");
   });
 });

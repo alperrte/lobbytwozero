@@ -74,28 +74,28 @@
 }
 
 .auth-enter-from-right {
-  animation: auth-enter-right 340ms cubic-bezier(0.2, 0.8, 0.2, 1) 70ms both;
+  animation: auth-enter-right 480ms cubic-bezier(0.2, 0.8, 0.2, 1) 90ms both;
 }
 
 .auth-enter-from-left {
-  animation: auth-enter-left 340ms cubic-bezier(0.2, 0.8, 0.2, 1) 70ms both;
+  animation: auth-enter-left 480ms cubic-bezier(0.2, 0.8, 0.2, 1) 90ms both;
 }
 
 .auth-enter-unfold {
   transform-origin: 50% 0;
-  animation: auth-enter-unfold 380ms cubic-bezier(0.25, 0.7, 0.25, 1) 80ms both;
+  animation: auth-enter-unfold 520ms cubic-bezier(0.25, 0.7, 0.25, 1) 100ms both;
 }
 
 .auth-enter-settle {
-  animation: auth-enter-settle 340ms ease-out 70ms both;
+  animation: auth-enter-settle 480ms ease-out 90ms both;
 }
 
 .auth-enter-fade {
-  animation: auth-enter-fade 240ms ease-out both;
+  animation: auth-enter-fade 320ms ease-out both;
 }
 
 /*
- * Çıkış hareketleri: eski içerik DOM'da kısa süre (≈240 ms) kalır, etkileşime kapalıdır (`inert`) ve yeni içerik
+ * Çıkış hareketleri: eski içerik DOM'da kısa süre (≈350 ms) kalır, etkileşime kapalıdır (`inert`) ve yeni içerik
  * üstüne girerken soluklaşarak çıkar. `both`: bitince görünmez kalır (kaldırılana kadar). Yalnız transform/opacity.
  */
 @keyframes auth-exit-left {
@@ -138,7 +138,7 @@
   top: 0;
   pointer-events: none;
   user-select: none;
-  animation-duration: 240ms;
+  animation-duration: 350ms;
   animation-timing-function: cubic-bezier(0.4, 0, 0.8, 0.6);
   animation-fill-mode: both;
 }

@@ -36,18 +36,6 @@ const paths = {
       <path d="m11 12 8-8m-3 3 3 3" />
     </>
   ),
-  google: (
-    <text x="12" y="18" fontSize="17" fontWeight="700" textAnchor="middle" fill="currentColor" stroke="none">
-      G
-    </text>
-  ),
-  steam: (
-    <>
-      <circle cx="9" cy="14.5" r="4.5" />
-      <circle cx="16" cy="8" r="3" />
-      <path d="m12.2 11.8-3 2.7" />
-    </>
-  ),
   arrow: <path d="M5 12h14m-6-6 6 6-6 6" />,
   back: <path d="M19 12H5m6-6-6 6 6 6" />,
   user: (
