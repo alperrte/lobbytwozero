@@ -57,6 +57,28 @@ export function transitionBetween(previous: string | null, next: string): CardTr
   return "fade";
 }
 
+/** Çıkan kartın hareketi (yeni ekranın giriş hareketine eşlenir). */
+export type CardExit = "left" | "right" | "down" | "fold" | "fade";
+
+/**
+ * Giriş hareketinin çıkış karşılığı: ileri giden akışta eski içerik sola, geri giderken sağa çıkar; şifremi unuttum'a
+ * giderken eski form hafifçe aşağı sönerek kaybolur, şifremi unuttum'dan dönerken kapanır (yukarı toplanır).
+ */
+export function exitFor(transition: CardTransition): CardExit {
+  switch (transition) {
+    case "from-right":
+      return "left";
+    case "from-left":
+      return "right";
+    case "unfold":
+      return "down";
+    case "settle":
+      return "fold";
+    default:
+      return "fade";
+  }
+}
+
 /** Harf başına küçük, belirleyici (rastgele olmayan) açı farkı: SSR ile istemci aynı çıktıyı üretir. */
 export function twistAngle(index: number): number {
   return ((index * 37) % 9) * 4 - 16;

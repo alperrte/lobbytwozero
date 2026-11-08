@@ -212,6 +212,168 @@ test.describe("ekranlar arası geçiş", () => {
   });
 });
 
+test.describe("çıkış + giriş animasyonu", () => {
+  const ghosts = (page: Page) => page.locator('[data-auth-entry="leaving"]');
+
+  test("giriş → kayıt: eski form çıkan, etkileşimsiz katman olarak kalır, yenisi gelir; süre dolunca katman kalkar", async ({ page }) => {
+    await mockGateway(page);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/tr/giris");
+    await waitForHydration(page);
+    await page.getByLabel("E-posta veya kullanıcı adı").fill("ada@example.com");
+
+    await page.getByRole("main").getByRole("link", { name: "Kayıt ol" }).click();
+
+    await expect(ghosts(page)).toHaveCount(1);
+    const ghost = ghosts(page).first();
+    await expect(ghost).toHaveAttribute("aria-hidden", "true");
+    await expect(ghost).toHaveAttribute("inert", "");
+    await expect(ghost).toHaveClass(/auth-leaving--left/);
+    // Çıkan katman eski formun görüntüsüdür (yazılan metin korunur), yeni form ise boştur.
+    await expect(ghost.locator("input").first()).toHaveValue("ada@example.com");
+    await expect(page.getByRole("heading", { level: 1, name: "Kayıt ol" })).toBeVisible();
+    // Çıkan katman fare/odak almaz.
+    expect(await ghost.evaluate((node) => getComputedStyle(node).pointerEvents)).toBe("none");
+    await expect(ghosts(page)).toHaveCount(0, { timeout: 1500 });
+    await expect(page.getByLabel("E-posta", { exact: true })).toHaveValue("");
+  });
+
+  test("dört yön de çıkış hareketi alır: giriş↔kayıt ve giriş↔şifremi unuttum", async ({ page }) => {
+    await mockGateway(page);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/tr/giris");
+    await waitForHydration(page);
+    const seen: string[] = [];
+    const watch = async () => {
+      await expect(ghosts(page)).toHaveCount(1);
+      seen.push((await ghosts(page).first().getAttribute("class")) ?? "");
+      await expect(ghosts(page)).toHaveCount(0, { timeout: 1500 });
+    };
+
+    await page.getByRole("main").getByRole("link", { name: "Kayıt ol" }).click();
+    await watch();
+    await page.getByRole("main").getByRole("link", { name: "Giriş yap" }).click();
+    await watch();
+    await page.getByRole("link", { name: "Şifremi unuttum" }).click();
+    await watch();
+    await page.getByRole("main").getByRole("link", { name: /Giriş sayfasına dön/ }).click();
+    await watch();
+
+    expect(seen[0]).toContain("auth-leaving--left"); // giriş → kayıt
+    expect(seen[1]).toContain("auth-leaving--right"); // kayıt → giriş
+    expect(seen[2]).toContain("auth-leaving--down"); // giriş → şifremi unuttum
+    expect(seen[3]).toContain("auth-leaving--fold"); // şifremi unuttum → giriş
+  });
+
+  test("kart yüksekliği geçişte sıçramaz: kare başına değişim sınırlıdır ve sonuç yeni içeriğin yüksekliğidir", async ({ page }) => {
+    await mockGateway(page);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/tr/giris");
+    await waitForHydration(page);
+    await page.evaluate(() => {
+      const container = document.querySelector('[data-auth-entry="current"]')!.parentElement!;
+      const samples: number[] = [];
+      (window as unknown as { __h: number[] }).__h = samples;
+      const start = performance.now();
+      const tick = () => {
+        samples.push(Math.round(container.getBoundingClientRect().height));
+        if (performance.now() - start < 900) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+
+    await page.getByRole("main").getByRole("link", { name: "Kayıt ol" }).click();
+    await page.waitForTimeout(1000);
+
+    const heights = await page.evaluate(() => (window as unknown as { __h: number[] }).__h);
+    const natural = await page.locator('[data-auth-entry="current"]').evaluate((node) => Math.round(node.getBoundingClientRect().height));
+    expect(Math.abs(heights[heights.length - 1]! - natural)).toBeLessThanOrEqual(1);
+    const distinct = new Set(heights.filter((value) => value > heights[0]! && value < natural));
+    expect(distinct.size, "ara yükseklikler görülmeli (animasyon)").toBeGreaterThanOrEqual(2);
+  });
+
+  test("çıkan formdan gönderim yapılamaz; yalnız yeni form etkileşim alır", async ({ page }) => {
+    let logins = 0;
+    await mockGateway(page, {
+      "GET /api/v1/auth/csrf": { status: 204 },
+      "POST /api/v1/auth/login": { status: 401, body: { code: "INVALID_CREDENTIALS" } }
+    });
+    page.on("request", (request) => request.url().endsWith("/api/v1/auth/login") && request.method() === "POST" && logins++);
+    await page.goto("/tr/giris");
+    await waitForHydration(page);
+    await page.getByRole("main").getByRole("link", { name: "Kayıt ol" }).click();
+    await expect(ghosts(page)).toHaveCount(1);
+
+    // Çıkan katmandaki düğme gerçek tıklamayla bile tetiklenemez (pointer-events: none + inert).
+    const ghostSubmit = ghosts(page).locator('button[type="submit"]').first();
+    await ghostSubmit.click({ force: true, trial: false }).catch(() => undefined);
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(600);
+
+    expect(logins).toBe(0);
+    await expect(page).toHaveURL(/\/tr\/kayit$/);
+  });
+
+  test("hızlı gezinme: giriş → kayıt → giriş → şifremi unuttum arka arkaya; sonunda tek içerik, doğru adres ve odak", async ({ page }) => {
+    await mockGateway(page);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/tr/giris");
+    await waitForHydration(page);
+
+    await page.getByRole("main").getByRole("link", { name: "Kayıt ol" }).click();
+    await page.getByRole("main").getByRole("link", { name: "Giriş yap" }).click();
+    await page.getByRole("link", { name: "Şifremi unuttum" }).click();
+
+    await expect(page).toHaveURL(/\/tr\/sifremi-unuttum$/);
+    await expect(page.locator('[data-auth-entry="current"]')).toHaveCount(1);
+    await expect(ghosts(page)).toHaveCount(0, { timeout: 1500 });
+    await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+    await expect(page.getByRole("heading", { level: 1 })).toBeFocused();
+    expect(await horizontalOverflow(page)).toBe(0);
+  });
+
+  test("tarayıcı geri/ileri tuşları da çıkış animasyonuyla çalışır", async ({ page }) => {
+    await mockGateway(page);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/tr/giris");
+    await waitForHydration(page);
+    await page.getByRole("main").getByRole("link", { name: "Kayıt ol" }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "Kayıt ol" })).toBeVisible();
+    await expect(ghosts(page)).toHaveCount(0, { timeout: 1500 });
+
+    await page.goBack();
+
+    await expect(page).toHaveURL(/\/tr\/giris$/);
+    await expect(ghosts(page)).toHaveCount(1);
+    await expect(ghosts(page).first()).toHaveClass(/auth-leaving--right/);
+    await expect(page.getByRole("heading", { level: 1, name: "Giriş yap" })).toBeVisible();
+    await expect(ghosts(page)).toHaveCount(0, { timeout: 1500 });
+  });
+
+  test("doğrudan adres açılışı çıkan katman üretmez; sayfa yenilemede doğru ekran gelir", async ({ page }) => {
+    await mockGateway(page);
+    await page.goto("/tr/sifremi-unuttum");
+    await waitForHydration(page);
+    await expect(ghosts(page)).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByRole("heading", { level: 1, name: "Şifreni mi unuttun?" })).toBeVisible();
+    await expect(ghosts(page)).toHaveCount(0);
+  });
+
+  test("'hareketi azalt': çıkan katman hiç oluşmaz, yeni form doğrudan görünür", async ({ page }) => {
+    await mockGateway(page);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/tr/giris");
+    await waitForHydration(page);
+
+    await page.getByRole("main").getByRole("link", { name: "Kayıt ol" }).click();
+
+    await expect(page.getByRole("heading", { level: 1, name: "Kayıt ol" })).toBeVisible();
+    await expect(ghosts(page)).toHaveCount(0);
+  });
+});
+
 test.describe("duyarlı yerleşim ve temalar", () => {
   for (const size of [
     { name: "390×844", width: 390, height: 844 },
@@ -258,7 +420,7 @@ test.describe("duyarlı yerleşim ve temalar", () => {
     await mockGateway(page);
     await page.goto("/tr/giris");
     await waitForHydration(page);
-    const card = page.getByRole("heading", { level: 1, name: "Giriş yap" }).locator("xpath=../..");
+    const card = page.getByRole("heading", { level: 1, name: "Giriş yap" }).locator("xpath=../../..");
     const before = await card.evaluate((node) => getComputedStyle(node).backgroundColor);
     const previous = await page.locator("html").getAttribute("data-theme");
     await page.getByRole("button", { name: /^(Açık|Koyu) tema$/ }).click();

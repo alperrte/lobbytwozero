@@ -5,6 +5,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -15,11 +16,11 @@ import org.springframework.web.util.UriComponentsBuilder;
 import com.ltz.auth.api.controller.AuthApiPaths;
 import com.ltz.auth.application.port.ExternalAuthenticationException;
 import com.ltz.auth.application.port.SteamAssertionVerifier;
-import com.ltz.auth.application.port.VerificationCodeMail;
 import com.ltz.auth.application.service.SteamAssertionValidator.ValidAssertion;
 import com.ltz.auth.domain.entity.Account;
 import com.ltz.auth.domain.entity.ExternalIdentity;
 import com.ltz.auth.domain.entity.SteamRegistration;
+import com.ltz.auth.domain.enums.AuthEventType;
 import com.ltz.auth.domain.enums.AuthMethod;
 import com.ltz.auth.domain.enums.ExternalProvider;
 import com.ltz.auth.domain.enums.RoleCode;
@@ -65,7 +66,7 @@ public class SteamLoginService {
     private final ExternalIdentityRepository identityRepository;
     private final SteamRegistrationRepository registrationRepository;
     private final RoleRepository roleRepository;
-    private final EmailVerificationService emailVerificationService;
+    private final AuthEventPublisher eventPublisher;
     private final LoginService loginService;
     private final SecureTokens secureTokens;
     private final SecurityEventRecorder securityEventRecorder;
@@ -132,21 +133,16 @@ public class SteamLoginService {
     }
 
     /**
-     * Steam ile yeni hesap: e-posta ve kullanıcı adı toplanır. Kayıtlı e-postada hesap açılmaz ve yanıt değişmez
-     * (numaralandırma yok); kayıt hakkı her iki durumda da tüketilir. Kullanıcı adı çakışması 409.
-     *
-     * @return e-posta doğrulamasında kayıt sahibini kanıtlayan tek kullanımlık Steam kanıtı (verificationProof).
-     *         Her durumda aynı biçimde bir kanıt döner (kayıtlı e-posta dahil); yanıt hesap varlığını sızdırmaz.
+     * Steam ile ilk kayıt: yalnız KULLANICI ADI sorulur. Hesap doğrulanmış SteamID64'e bağlı, e-postasız ve ACTIVE açılır
+     * (Steam e-posta vermez; sahte adres üretilmez). Sonra giriş kurallarıyla oturum/2FA akışı çalışır: Steam hesabı için
+     * TOTP zorunluysa kurulum challenge'ı döner, MFA atlanmaz. Kullanıcı adı çakışmasında token tüketilmez (başka ad denenir).
      */
-    public String completeRegistration(String registrationToken, String email, String username) {
-        Completion completion = createPending(registrationToken, email, username);
-        if (completion.mail() != null) {
-            emailVerificationService.dispatch(completion.mail());
-        }
-        return completion.proof();
+    public LoginResult completeRegistration(String registrationToken, String username) {
+        UUID accountId = createAccountFromRegistration(registrationToken, username);
+        return loginService.loginVerifiedIdentity(accountId, AuthMethod.EXTERNAL);
     }
 
-    private Completion createPending(String registrationToken, String email, String username) {
+    private UUID createAccountFromRegistration(String registrationToken, String username) {
         try {
             return transactionTemplate.execute(status -> {
                 Instant now = clock.instant();
@@ -157,33 +153,30 @@ public class SteamLoginService {
                 if (accountRepository.existsByUsernameNormalized(Account.normalizeUsername(username))) {
                     throw new UsernameAlreadyTakenException();
                 }
-                registration.consume(now);
-                registrationRepository.flush();
-                String proof = issueVerificationProof(registration.getSteamId(), now);
-                if (accountRepository.findByEmailNormalized(Account.normalizeEmail(email)).isPresent()) {
-                    securityEventRecorder.recordEvent(SecurityEventType.REGISTRATION_EMAIL_CONFLICT, null);
-                    return new Completion(null, proof);
+                Optional<ExternalIdentity> linked = identityRepository.findByProviderAndProviderSubject(
+                        ExternalProvider.STEAM, registration.getSteamId());
+                if (linked.isPresent()) {
+                    // Aynı SteamID bu arada başka bir akışla kayıt oldu: ikinci hesap açılmaz, mevcut hesapla devam.
+                    registration.consume(now);
+                    return linked.get().getAccountId();
                 }
                 var role = roleRepository.findByCode(RoleCode.PLAYER).orElseThrow(
                         () -> new IllegalStateException("Initial role seed is missing: " + RoleCode.PLAYER));
-                Account account = accountRepository.saveAndFlush(
-                        Account.registerPending(email, username, null, role, now));
+                Account account = accountRepository.saveAndFlush(Account.registerSteam(username, role, now));
                 identityRepository.saveAndFlush(
                         ExternalIdentity.link(account.getId(), ExternalProvider.STEAM, registration.getSteamId(), now));
+                registration.consume(now);
                 securityEventRecorder.recordEvent(SecurityEventType.ACCOUNT_REGISTERED, account.getId());
-                return new Completion(emailVerificationService.issueCode(account, now), proof);
+                eventPublisher.publish(AuthEventType.USER_REGISTERED, account.getId(), account.getUsername());
+                return account.getId();
             });
         } catch (DataIntegrityViolationException exception) {
-            String constraint = violatedConstraint(exception);
-            if (UNIQUE_USERNAME.equalsIgnoreCase(constraint)) {
+            if (UNIQUE_USERNAME.equalsIgnoreCase(violatedConstraint(exception))) {
                 throw new UsernameAlreadyTakenException(RedactedCause.of(exception));
             }
-            if (constraint != null) {
-                // E-posta veya SteamID eşzamanlı olarak alındı: nötr yanıt, hesap açılmaz; kanıt hiçbir kayda bağlı değildir.
-                securityEventRecorder.recordEvent(SecurityEventType.EXTERNAL_LINK_CONFLICT, null);
-                return new Completion(null, secureTokens.newOpaqueToken());
-            }
-            throw exception;
+            // SteamID eşzamanlı olarak başka bir kayıtla alındı: yeniden Steam ile giriş yapmak mevcut hesaba götürür.
+            securityEventRecorder.recordEvent(SecurityEventType.EXTERNAL_LINK_CONFLICT, null);
+            throw new AuthException(AuthErrorCode.REGISTRATION_TOKEN_INVALID);
         }
     }
 
@@ -208,14 +201,6 @@ public class SteamLoginService {
 
     private String issueVerificationProofInNewTransaction(String steamId) {
         return transactionTemplate.execute(status -> issueVerificationProof(steamId, clock.instant()));
-    }
-
-    private record Completion(VerificationCodeMail mail, String proof) {
-
-        @Override
-        public String toString() {
-            return "Completion[mail=***, proof=***]";
-        }
     }
 
     private String returnTo(String state) {

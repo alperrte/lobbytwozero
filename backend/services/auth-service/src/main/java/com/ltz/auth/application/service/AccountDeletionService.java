@@ -156,6 +156,10 @@ public class AccountDeletionService {
         Instant sessionStartedAt = sessionRepository.findById(sessionId)
                 .filter(session -> session.getAccountId().equals(accountId))
                 .orElseThrow(() -> new AuthException(AuthErrorCode.SESSION_INVALID)).getCreatedAt();
+        if (!account.hasEmail()) {
+            // Silme onayı e-postayla gider; e-postasız hesap önce adres ekleyip doğrulatmalıdır.
+            throw new AuthException(AuthErrorCode.ACCOUNT_EMAIL_REQUIRED);
+        }
         return new ReauthContext(account.getEmail(), account.passwordHash().orElse(null), account.roleCodes(),
                 sessionStartedAt);
     }

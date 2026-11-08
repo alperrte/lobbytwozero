@@ -9,15 +9,14 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import com.ltz.auth.api.dto.request.SteamRegistrationRequest;
-import com.ltz.auth.api.dto.response.SteamRegistrationResponse;
-import com.ltz.auth.api.dto.response.VerificationPendingResponse;
+import com.ltz.auth.api.dto.request.ExternalRegistrationRequest;
+import com.ltz.auth.api.dto.response.SessionStatusResponse;
 import com.ltz.auth.application.service.ExternalLoginResult;
 import com.ltz.auth.application.service.GoogleLoginService;
+import com.ltz.auth.application.service.LoginResult;
 import com.ltz.auth.application.service.StartedFlow;
 import com.ltz.auth.application.service.SteamLoginService;
 import com.ltz.auth.domain.exception.AuthException;
@@ -32,7 +31,7 @@ import lombok.RequiredArgsConstructor;
  * Tarayıcı gezinmesiyle çalışan harici giriş uçları. Sonuç, yapılandırmadaki SABİT frontend adresine URL fragment'i
  * ile iletilir (fragment sunucuya, log'lara ve Referer'a gitmez); token'lar yalnız HttpOnly cookie'dedir.
  * Fragment: status=authenticated | status=mfa_required&challenge=… | status=mfa_enrollment_required&challenge=… |
- * status=registration_required&token=… | error=KOD
+ * status=registration_required&provider=google|steam&token=… | error=KOD
  */
 @RestController
 @RequiredArgsConstructor
@@ -68,12 +67,32 @@ public class ExternalLoginController {
                 sessionCookies.oauthState(request).orElse(null)), response);
     }
 
-    /** Cookie okumaz ve oturum açmaz; yetki kaynağı gövdedeki tek kullanımlık kayıt token'ıdır. */
+    /**
+     * İlk Steam girişinde kullanıcı adını seçip hesabı tamamlar. Yetki kaynağı gövdedeki tek kullanımlık kayıt token'ıdır
+     * (e-posta alınmaz; Steam e-posta vermez). Yanıt giriş yanıtıyla aynıdır: oturum cookie'leri, MFA gerekiyorsa challenge.
+     */
     @PostMapping(AuthApiPaths.STEAM_COMPLETE)
-    @ResponseStatus(HttpStatus.ACCEPTED)
-    public SteamRegistrationResponse steamComplete(@Valid @RequestBody SteamRegistrationRequest request) {
-        return new SteamRegistrationResponse(VerificationPendingResponse.VERIFY_EMAIL.nextStep(),
-                steamLoginService.completeRegistration(request.registrationToken(), request.email(), request.username()));
+    public SessionStatusResponse steamComplete(@Valid @RequestBody ExternalRegistrationRequest request,
+                                               HttpServletResponse response) {
+        return establish(steamLoginService.completeRegistration(request.registrationToken(), request.username()), response);
+    }
+
+    /** İlk Google girişinde kullanıcı adını seçip hesabı tamamlar (e-posta Google'dan, sunucuda kayıtlıdır). */
+    @PostMapping(AuthApiPaths.GOOGLE_COMPLETE)
+    public SessionStatusResponse googleComplete(@Valid @RequestBody ExternalRegistrationRequest request,
+                                                HttpServletResponse response) {
+        return establish(googleLoginService.completeRegistration(request.registrationToken(), request.username()), response);
+    }
+
+    private SessionStatusResponse establish(LoginResult result, HttpServletResponse response) {
+        if (result.requiresEnrollment()) {
+            return SessionStatusResponse.enrollmentRequired(result.challengeId(), result.challengeExpiresAt());
+        }
+        if (result.requiresSecondFactor()) {
+            return SessionStatusResponse.mfaRequired(result.challengeId(), result.challengeExpiresAt());
+        }
+        sessionCookies.write(response, result.session(), clock.instant());
+        return SessionStatusResponse.authenticated(result.session().accessTokenExpiresAt());
     }
 
     private ResponseEntity<Void> redirectTo(StartedFlow flow, HttpServletResponse response) {
@@ -101,7 +120,8 @@ public class ExternalLoginController {
             case AUTHENTICATED -> "status=authenticated";
             case MFA_REQUIRED -> "status=mfa_required&challenge=" + result.challengeId();
             case MFA_ENROLLMENT_REQUIRED -> "status=mfa_enrollment_required&challenge=" + result.challengeId();
-            case REGISTRATION_REQUIRED -> "status=registration_required&token=" + result.token();
+            case REGISTRATION_REQUIRED -> "status=registration_required&provider=steam&token=" + result.token();
+            case GOOGLE_REGISTRATION_REQUIRED -> "status=registration_required&provider=google&token=" + result.token();
             case EMAIL_VERIFICATION_REQUIRED -> "status=email_verification_required&proof=" + result.token();
         };
     }

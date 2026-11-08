@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { ThemeTransitionLayer } from "@/shared/components/theme-transition/theme-transition-layer";
 import { usePathname } from "@/shared/lib/i18n/navigation";
-import { transitionBetween, welcomeVariantFor, type CardTransition } from "../services/auth-motion";
+import { exitFor, transitionBetween, welcomeVariantFor, type CardTransition } from "../services/auth-motion";
 import { AuthCardSnake } from "./auth-card-snake";
 import { AuthFooter } from "./auth-footer";
 import { AuthNavbar } from "./auth-navbar";
@@ -23,6 +23,46 @@ const TRANSITION_CLASS: Record<CardTransition, string> = {
   fade: "auth-enter-fade"
 };
 
+/** Çıkış animasyonu 240 ms sürer; eski içerik anlık görüntüsü bundan sonra (güvenlik payıyla) kaldırılır. */
+const LEAVE_REMOVE_MS = 320;
+/** Kart yüksekliğinin yeni içeriğe yumuşakça uyum süresi. */
+const HEIGHT_MS = 340;
+const MAX_LEAVING = 2;
+
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+/**
+ * Geçerli kart içeriğinin, çıkış animasyonu için kullanılacak etkileşimsiz DOM kopyası. Kimlik/ad/`for` nitelikleri
+ * silinir (kopya canlı formla aynı kimliği taşımasın), yazılmış metin korunur; PAROLA alanlarının değeri kopyalanmaz.
+ */
+function snapshotOf(entry: HTMLElement): HTMLElement {
+  const clone = entry.cloneNode(true) as HTMLElement;
+  const sources = entry.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>("input, textarea, select");
+  const copies = clone.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>("input, textarea, select");
+  sources.forEach((source, index) => {
+    const copy = copies[index];
+    if (copy) {
+      // cloneNode girdi değerini de taşıyabilir; parola açıkça temizlenir.
+      copy.value = source instanceof HTMLInputElement && source.type === "password" ? "" : source.value;
+    }
+  });
+  for (const node of clone.querySelectorAll("[id], [name], [for], [autofocus]")) {
+    node.removeAttribute("id");
+    node.removeAttribute("name");
+    node.removeAttribute("for");
+    node.removeAttribute("autofocus");
+  }
+  clone.removeAttribute("data-auth-entry");
+  clone.className = "";
+  return clone;
+}
+
 type AuthStageProps = {
   children: ReactNode;
 };
@@ -34,26 +74,122 @@ type AuthStageProps = {
  * yeni kurulur ve yönüne göre kısa bir giriş hareketi alır (`auth-motion.ts`). Form verisi anahtar sayesinde bir
  * ekrandan diğerine taşınmaz.
  *
- * Gezinme animasyonu beklenmez: yeni içerik hemen etkileşime açıktır, hareket yalnız görseldir. Sayfa değişiminde odak
- * yeni sayfanın başlığına (`h1`) taşınır; tıklanan bağlantı DOM'dan kalktığı için odak aksi halde kaybolurdu.
+ * Çıkış + giriş: App Router yeni içeriği hemen verir (ve `children` her zaman GEÇERLİ rotayı çizen bir router öğesidir,
+ * eski sayfayı yeniden çizmek mümkün değildir). Bu yüzden eski kartın DOM görüntüsü her etkileşimde ve her işlemede
+ * kopyalanır; sayfa değişince kopya "çıkan katman" olarak ≈240 ms eklenir: `inert` + `aria-hidden` (odak ve gönderim
+ * kabul etmez), mutlak konumlu (düzeni etkilemez), yönüne göre soluklaşarak kayar ve kaldırılır. Kart yüksekliği eski
+ * değerden yenisine Web Animations ile yumuşakça geçer; sıçrama olmaz. Gezinme animasyon beklenmeden yapılır (yeni
+ * içerik hemen etkileşime açıktır); hızlı gezinmede en fazla iki çıkan katman tutulur. "Hareketi azalt"ta çıkan
+ * katman hiç oluşturulmaz.
+ * Sayfa değişiminde odak yeni sayfanın başlığına (`h1`) taşınır.
  */
 export function AuthStage({ children }: AuthStageProps) {
   const t = useTranslations("Auth.shell");
   const pathname = usePathname();
   const [nav, setNav] = useState<{ path: string; previous: string | null }>({ path: pathname, previous: null });
+  const contentRef = useRef<HTMLDivElement>(null);
+  const ghostsRef = useRef<HTMLDivElement>(null);
+  const snapshotRef = useRef<HTMLElement | null>(null);
+  const heightRef = useRef(0);
+  const variant = welcomeVariantFor(pathname);
+  const transition = transitionBetween(nav.path === pathname ? nav.previous : nav.path, pathname);
+  const firstScreen = nav.previous === null && nav.path === pathname;
+
   if (nav.path !== pathname) {
     setNav({ path: pathname, previous: nav.path });
   }
-  const contentRef = useRef<HTMLDivElement>(null);
-  const variant = welcomeVariantFor(pathname);
-  const transition = transitionBetween(nav.previous, pathname);
-  const firstScreen = nav.previous === null;
+
+  /** Geçerli kart içeriğinin güncel kopyasını alır (etkileşimlerde ve her işlemden sonra). */
+  function capture() {
+    const entry = contentRef.current?.querySelector<HTMLElement>('[data-auth-entry="current"]');
+    if (entry) {
+      snapshotRef.current = snapshotOf(entry);
+    }
+  }
+
+  // Sayfa değişince: önceki kopya çıkan katman olarak eklenir (boyamadan önce; yeni içerikle aynı karede görünür).
+  useLayoutEffect(() => {
+    const layer = ghostsRef.current;
+    const snapshot = snapshotRef.current;
+    if (nav.previous === null || !layer || !snapshot || prefersReducedMotion()) {
+      return;
+    }
+    const ghost = document.createElement("div");
+    ghost.dataset.authEntry = "leaving";
+    ghost.setAttribute("aria-hidden", "true");
+    ghost.setAttribute("inert", "");
+    ghost.className = `auth-leaving auth-leaving--${exitFor(transitionBetween(nav.previous, nav.path))} p-6 sm:p-8`;
+    ghost.append(...Array.from(snapshot.childNodes));
+    layer.append(ghost);
+    while (layer.children.length > MAX_LEAVING) {
+      layer.firstElementChild?.remove();
+    }
+    window.setTimeout(() => ghost.remove(), LEAVE_REMOVE_MS);
+  }, [nav]);
+
+  // Kopya: ilk işlemede, her sahne işlemesinden sonra ve kullanıcı etkileşimlerinde (yazma, tıklama, odak) güncellenir.
+  useEffect(() => {
+    capture();
+  });
+
+  useEffect(() => {
+    const container = contentRef.current;
+    if (!container) {
+      return;
+    }
+    const events = ["pointerdown", "keydown", "input", "change", "focusin"] as const;
+    const onEvent = () => capture();
+    for (const name of events) {
+      container.addEventListener(name, onEvent, true);
+    }
+    return () => {
+      for (const name of events) {
+        container.removeEventListener(name, onEvent, true);
+      }
+    };
+  }, []);
+
+  // Kart yüksekliği: değişimi izler; sayfa değişince eski değerden yenisine animasyon verir.
+  useLayoutEffect(() => {
+    const container = contentRef.current;
+    if (!container) {
+      return;
+    }
+    const to = container.offsetHeight;
+    const from = heightRef.current;
+    heightRef.current = to;
+    if (nav.previous === null || from === 0 || Math.abs(from - to) < 2 || prefersReducedMotion()) {
+      return;
+    }
+    if (typeof container.animate !== "function") {
+      return;
+    }
+    container.animate(
+      [
+        { height: `${from}px`, overflow: "clip" },
+        { height: `${to}px`, overflow: "clip" }
+      ],
+      { duration: HEIGHT_MS, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" }
+    );
+  }, [nav]);
+
+  useEffect(() => {
+    const container = contentRef.current;
+    if (!container || typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const observer = new ResizeObserver(() => {
+      heightRef.current = container.offsetHeight;
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (nav.previous === null) {
       return;
     }
-    const heading = contentRef.current?.querySelector<HTMLElement>("h1");
+    const heading = contentRef.current?.querySelector<HTMLElement>('[data-auth-entry="current"] h1');
     if (heading) {
       heading.tabIndex = -1;
       heading.focus({ preventScroll: true });
@@ -84,8 +220,12 @@ export function AuthStage({ children }: AuthStageProps) {
 
           <div className="auth-intro-right relative w-full max-w-md justify-self-center rounded-3xl border border-border bg-surface shadow-popover lg:justify-self-end">
             <AuthCardSnake initialDelayMs={FIRST_LAP_DELAY_MS} />
-            <div ref={contentRef} key={pathname} className={`p-6 sm:p-8 ${TRANSITION_CLASS[transition]}`}>
-              {children}
+            <div ref={contentRef} className="relative">
+              {/* Çıkan katmanlar yalnız burada, zorunlu olarak boş kalan bu kapta (React çocuk yönetmez) tutulur. */}
+              <div ref={ghostsRef} aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0" />
+              <div key={pathname} data-auth-entry="current" className={`p-6 sm:p-8 ${TRANSITION_CLASS[transition]}`}>
+                {children}
+              </div>
             </div>
           </div>
         </div>

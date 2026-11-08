@@ -4,11 +4,11 @@ import { useEffect, useId, useRef, useState, useSyncExternalStore, type FormEven
 import { useTranslations } from "next-intl";
 import { Icon } from "@/shared/components/ui/icons";
 import { Link, useRouter } from "@/shared/lib/i18n/navigation";
-import { useSteamRegistration } from "../hooks/use-steam-registration";
-import { emailPattern, registerLimits, usernamePattern } from "../schemas/register.schema";
-import type { SteamApi, TwoFactorApi } from "../services/auth-api";
+import { useExternalRegistration, type ExternalProvider } from "../hooks/use-external-registration";
+import { registerLimits, usernamePattern } from "../schemas/register.schema";
+import type { ExternalRegistrationApi, TwoFactorApi } from "../services/auth-api";
 import { callbackResultStore, forgetCallbackResult } from "../services/callback-params";
-import { rememberPendingEmail, rememberPendingProof } from "../services/pending-verification";
+import { rememberPendingProof } from "../services/pending-verification";
 import { authControlClass, FormField } from "./form-field";
 import { ProblemNotice } from "./problem-notice";
 import { AuthIcon } from "./auth-icons";
@@ -16,7 +16,7 @@ import { TwoFactor } from "./two-factor";
 
 type AuthCallbackProps = {
   /** Test için sahte API adaptörü. */
-  api?: Pick<SteamApi, "completeSteamRegistration">;
+  api?: ExternalRegistrationApi;
   /** Test için sahte ikinci faktör adaptörü. */
   twoFactorApi?: TwoFactorApi;
 };
@@ -50,71 +50,102 @@ function Notice({ tone, children }: { tone: "info" | "error"; children: React.Re
   );
 }
 
-/** Steam'den dönen yeni kullanıcı: e-posta ve kullanıcı adı ister, kayıt token'ı bellekte kalır. */
-function SteamCompleteForm({ token, api }: { token: string; api: AuthCallbackProps["api"] }) {
+/**
+ * İlk kez Google/Steam ile gelen kullanıcı: YALNIZ kullanıcı adı sorulur (e-posta sorulmaz; Google'ınkini sunucu bilir,
+ * Steam e-posta vermez). Sağlayıcı tarafı Auth'ta doğrulanmıştır; bu form yalnız hesabı tamamlar. Başarıda oturum açılır
+ * ya da MFA gerekiyorsa ikinci adım gösterilir. Kayıt token'ı bellekte kalır.
+ */
+function UsernameForm({
+  provider,
+  token,
+  api,
+  twoFactorApi
+}: {
+  provider: ExternalProvider;
+  token: string;
+  api: AuthCallbackProps["api"];
+  twoFactorApi: AuthCallbackProps["twoFactorApi"];
+}) {
   const t = useTranslations("Auth");
   const baseId = useId();
   const router = useRouter();
-  const { pending, tokenInvalid, problem, serverErrors, retryAfter, cooldown, submit } = useSteamRegistration(api);
+  const { pending, tokenInvalid, linkRequired, problem, usernameError, retryAfter, cooldown, challenge, clearChallenge, submit } =
+    useExternalRegistration(api);
   const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [errors, setErrors] = useState<{ username?: "required" | "pattern"; email?: "required" | "invalid" | "tooLong" }>({});
+  const [error, setError] = useState<"required" | "pattern" | undefined>(undefined);
+
+  const backToLogin = (
+    <Link href="/login" className="inline-flex text-sm font-medium text-brand-text underline underline-offset-2">
+      {t("callback.backToLogin")}
+    </Link>
+  );
+
+  function finish() {
+    forgetCallbackResult();
+    router.replace("/");
+  }
+
+  if (challenge !== null) {
+    return (
+      <TwoFactor
+        challenge={challenge}
+        onAuthenticated={finish}
+        onCancel={() => {
+          clearChallenge();
+          forgetCallbackResult();
+          router.replace("/login");
+        }}
+        api={twoFactorApi}
+      />
+    );
+  }
 
   if (tokenInvalid) {
     return (
       <div className="space-y-4">
-        <Notice tone="error">{t("callback.steam.tokenInvalid")}</Notice>
-        <Link href="/login" className="inline-flex text-sm font-medium text-brand-text underline underline-offset-2">
-          {t("callback.backToLogin")}
-        </Link>
+        <Notice tone="error">{t(`callback.${provider}.tokenInvalid`)}</Notice>
+        {backToLogin}
       </div>
     );
   }
 
-  const usernameError = serverErrors.username
-    ? t(`fields.username.${serverErrors.username}`)
-    : errors.username
-      ? t(`fields.username.${errors.username}`)
-      : undefined;
-  const emailError = serverErrors.email
-    ? t(`fields.email.${serverErrors.email}`)
-    : errors.email
-      ? t(`fields.email.${errors.email}`, { max: registerLimits.emailMax })
+  if (linkRequired) {
+    return (
+      <div className="space-y-4">
+        <Notice tone="error">{t("callback.errors.ACCOUNT_LINK_REQUIRED")}</Notice>
+        {backToLogin}
+      </div>
+    );
+  }
+
+  const fieldError = usernameError
+    ? t(`fields.username.${usernameError}`)
+    : error
+      ? t(`fields.username.${error}`)
       : undefined;
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
-    const cleanUsername = username.trim();
-    const cleanEmail = email.trim();
-    const found: typeof errors = {};
-    if (cleanUsername === "") found.username = "required";
-    else if (!usernamePattern.test(cleanUsername)) found.username = "pattern";
-    if (cleanEmail === "") found.email = "required";
-    else if (cleanEmail.length > registerLimits.emailMax) found.email = "tooLong";
-    else if (!emailPattern.test(cleanEmail)) found.email = "invalid";
-    setErrors(found);
-    const firstInvalid = found.username ? "username" : found.email ? "email" : null;
-    if (firstInvalid) {
-      const element = form.elements.namedItem(firstInvalid);
+    const clean = username.trim();
+    const found = clean === "" ? "required" : usernamePattern.test(clean) ? undefined : "pattern";
+    setError(found);
+    if (found) {
+      const element = form.elements.namedItem("username");
       if (element instanceof HTMLElement) element.focus();
       return;
     }
-
-    const outcome = await submit(token, cleanEmail, cleanUsername);
-    if (outcome.status === "registered") {
-      rememberPendingEmail(cleanEmail);
-      rememberPendingProof(outcome.verificationProof);
-      forgetCallbackResult();
-      router.push("/verify-email");
+    const outcome = await submit(provider, token, clean);
+    if (outcome === "authenticated") {
+      finish();
     }
   }
 
   return (
-    <form noValidate onSubmit={onSubmit} aria-label={t("callback.steam.formLabel")} className="space-y-5">
-      <p className="text-sm text-text-secondary">{t("callback.steam.description")}</p>
+    <form noValidate onSubmit={onSubmit} aria-label={t("callback.username.formLabel")} className="space-y-5">
+      <p className="text-sm text-text-secondary">{t(`callback.${provider}.description`)}</p>
       <ProblemNotice code={problem} retryAfterSeconds={retryAfter} />
-      <FormField id={`${baseId}-username`} label={t("register.username")} icon="user" error={usernameError} hint={t("register.usernameHint")}>
+      <FormField id={`${baseId}-username`} label={t("register.username")} icon="user" error={fieldError} hint={t("register.usernameHint")}>
         {(aria) => (
           <input
             {...aria}
@@ -130,29 +161,13 @@ function SteamCompleteForm({ token, api }: { token: string; api: AuthCallbackPro
           />
         )}
       </FormField>
-      <FormField id={`${baseId}-email`} label={t("register.email")} icon="mail" error={emailError}>
-        {(aria) => (
-          <input
-            {...aria}
-            name="email"
-            type="email"
-            autoComplete="email"
-            inputMode="email"
-            spellCheck={false}
-            maxLength={registerLimits.emailMax}
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className={authControlClass}
-          />
-        )}
-      </FormField>
       <button
         type="submit"
         disabled={pending || cooldown > 0}
         aria-busy={pending}
         className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-base font-semibold text-primary-foreground transition-colors duration-150 hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
       >
-        {pending ? t("register.submitting") : (<>{t("callback.steam.submit")}<AuthIcon name="arrow" /></>)}
+        {pending ? t("callback.username.submitting") : (<>{t("callback.username.submit")}<AuthIcon name="arrow" /></>)}
       </button>
     </form>
   );
@@ -160,8 +175,9 @@ function SteamCompleteForm({ token, api }: { token: string; api: AuthCallbackPro
 
 /**
  * Google/Steam dönüş sayfasının içeriği. Auth sonucu URL PARÇASIYLA iletir (`#status=…`, `#error=…`); parça okunur okunmaz
- * adres çubuğundan silinir ve yalnız bellekte tutulur. Sonuca göre: oturum açıldıysa ana sayfaya; Steam'de e-posta
- * doğrulaması gerekiyorsa doğrulama ekranına (kanıt bellekte taşınır); yeni Steam kullanıcısı için kayıt formu; hata ve
+ * adres çubuğundan silinir ve yalnız bellekte tutulur. Sonuca göre: oturum açıldıysa ana sayfaya; eski Steam hesabında e-posta
+ * doğrulaması gerekiyorsa doğrulama ekranına (kanıt bellekte taşınır); ilk kez gelen Google/Steam kullanıcısı için YALNIZ kullanıcı
+ * adı formu (backend `registration_required` ile bildirir, frontend yeni/mevcut kullanıcıyı tahmin etmez); hata ve
  * henüz desteklenmeyen iki aşamalı doğrulama için açıklayıcı mesaj. Sonuç dışarıdan gelen adrese yönlendirme yapmaz.
  */
 export function AuthCallback({ api, twoFactorApi }: AuthCallbackProps) {
@@ -225,7 +241,8 @@ export function AuthCallback({ api, twoFactorApi }: AuthCallbackProps) {
       return <Notice tone="info">{t("callback.processing")}</Notice>;
     case "registration_required":
       return result.token ? (
-        <SteamCompleteForm token={result.token} api={api} />
+        // Sağlayıcıyı Auth bildirir (`provider`); eski bağlantılarda yoksa Steam kabul edilir.
+        <UsernameForm provider={result.provider ?? "steam"} token={result.token} api={api} twoFactorApi={twoFactorApi} />
       ) : (
         <div className="space-y-4">
           <Notice tone="error">{t("callback.empty")}</Notice>

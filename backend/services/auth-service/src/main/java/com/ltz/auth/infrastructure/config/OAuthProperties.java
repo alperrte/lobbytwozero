@@ -29,7 +29,8 @@ public record OAuthProperties(
         @NotNull @Valid Steam steam) {
 
     public record Google(String clientId, String clientSecret, @NotNull URI authorizationUri, @NotNull URI tokenUri,
-                         @NotNull URI jwksUri, @NotBlank String issuer) {
+                         @NotNull URI jwksUri, @NotBlank String issuer,
+                         @NotNull @DurationMin(minutes = 1) @DurationMax(minutes = 60) Duration registrationTtl) {
 
         public boolean isConfigured() {
             return clientId != null && !clientId.isBlank() && clientSecret != null && !clientSecret.isBlank();

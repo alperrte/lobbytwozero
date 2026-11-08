@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { screenForPath, transitionBetween, twistAngle, welcomeVariantFor } from "./auth-motion";
+import { exitFor, screenForPath, transitionBetween, twistAngle, welcomeVariantFor } from "./auth-motion";
 
 describe("auth-motion", () => {
   it("yolları ekrana çevirir", () => {
@@ -42,5 +42,14 @@ describe("auth-motion", () => {
       expect(twistAngle(index)).toBe(twistAngle(index));
       expect(Math.abs(twistAngle(index))).toBeLessThanOrEqual(16);
     }
+  });
+
+  it("çıkış hareketi giriş hareketinin karşılığıdır", () => {
+    expect(exitFor("from-right")).toBe("left");
+    expect(exitFor("from-left")).toBe("right");
+    expect(exitFor("unfold")).toBe("down");
+    expect(exitFor("settle")).toBe("fold");
+    expect(exitFor("fade")).toBe("fade");
+    expect(exitFor("none")).toBe("fade");
   });
 });

@@ -40,6 +40,12 @@ public class RetentionCleanupRepository {
                 Timestamp.from(cutoff), limit);
     }
 
+    public int deleteExpiredGoogleRegistrations(Instant cutoff, int limit) {
+        return jdbc.update("delete from google_registrations where token_hash in "
+                + "(select token_hash from google_registrations where expires_at < ? limit ?)",
+                Timestamp.from(cutoff), limit);
+    }
+
     /** Kilidi bitmiş ve uzun süredir güncellenmeyen sayaçlar. Aktif kilitler asla silinmez. */
     public int deleteStaleThrottles(Instant cutoff, int limit) {
         return jdbc.update("delete from attempt_throttles where key_hash in (select key_hash from attempt_throttles "

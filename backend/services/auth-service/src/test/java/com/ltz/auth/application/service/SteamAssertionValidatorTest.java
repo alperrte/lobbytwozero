@@ -25,7 +25,7 @@ class SteamAssertionValidatorTest {
     private final SteamAssertionValidator validator = new SteamAssertionValidator(new OAuthProperties(
             URI.create("https://ltz.example.test"), URI.create("https://ltz.example.test/cb"), Duration.ofMinutes(10),
             Duration.ofSeconds(5), new OAuthProperties.Google("id", "secret", URI.create("https://a.test"),
-            URI.create("https://b.test"), URI.create("https://c.test"), "https://accounts.google.com"),
+            URI.create("https://b.test"), URI.create("https://c.test"), "https://accounts.google.com", Duration.ofMinutes(15)),
             new OAuthProperties.Steam(URI.create(ENDPOINT), Duration.ofMinutes(5), Duration.ofMinutes(15), Duration.ofMinutes(30))));
 
     @Test

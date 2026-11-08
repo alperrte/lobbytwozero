@@ -2,6 +2,7 @@ package com.ltz.auth.api.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -10,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -21,8 +23,8 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.test.web.servlet.ResultActions;
 
+import com.ltz.auth.ConcurrentRequests;
 import com.ltz.auth.ExternalProviderTestSupport;
 import com.ltz.auth.RecordingMailPortConfiguration;
 import com.ltz.auth.RecordingMailPortConfiguration.RecordingMailPort;
@@ -55,44 +57,66 @@ class SteamLoginTest extends ExternalProviderTestSupport {
     }
 
     @Test
-    void yeniSteamHesabiEpostaDogrulamasindanSonraGirisYapabilir() throws Exception {
+    void ilkSteamGirisindaYalnizKullaniciAdiSorulurHesapEpostasizAcilirSonrakiGirisDogrudandir() throws Exception {
         String steamId = newSteamId();
-        String email = uniqueEmail();
         String username = uniqueUsername();
 
         MvcResult first = steamCallback(steamId, p -> { });
         String registrationToken = fragmentValue(first, "token");
-        assertThat(fragment(first)).startsWith("status=registration_required&token=");
+        assertThat(fragment(first)).startsWith("status=registration_required&provider=steam&token=");
         assertThat(first.getResponse().getCookie(ACCESS_COOKIE)).isNull();
         assertThat(PROVIDERS.steamVerifications).singleElement().satisfies(sent -> {
             assertThat(sent).containsEntry("openid.mode", "check_authentication").containsKey("openid.sig")
                     .containsEntry("openid.claimed_id", STEAM_ID_PREFIX + steamId);
         });
+        assertThat(jdbc.queryForObject("select count(*) from external_identities where provider_subject = ?",
+                Integer.class, steamId)).as("kullanıcı adı seçilene kadar hesap yok").isZero();
 
-        String completeProof = complete(registrationToken, email, username).andExpect(status().isAccepted())
-                .andExpect(jsonPath("$.nextStep").value("VERIFY_EMAIL"))
-                .andExpect(jsonPath("$.verificationProof").isNotEmpty()).andReturn().getResponse().getContentAsString();
-        assertThat(completeProof).doesNotContain(registrationToken);
+        MvcResult done = completeExternal(AuthApiPaths.STEAM_COMPLETE, registrationToken, username)
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("AUTHENTICATED")).andReturn();
 
-        UUID accountId = accountId(email);
-        assertThat(accountStatus(email)).isEqualTo("PENDING_VERIFICATION");
-        assertThat(jdbc.queryForObject("select password_hash is null from accounts where id = ?", Boolean.class, accountId))
-                .isTrue();
+        assertThat(done.getResponse().getContentAsString()).doesNotContain(registrationToken);
+        assertThat(done.getResponse().getCookie(ACCESS_COOKIE)).isNotNull();
+        assertThat(done.getResponse().getCookie(REFRESH_COOKIE)).isNotNull();
+        UUID accountId = accountIdByUsername(username);
+        var row = jdbc.queryForMap("select email, email_normalized, status, password_hash, email_verified_at "
+                + "from accounts where id = ?", accountId);
+        assertThat(row.get("email")).as("Steam e-posta vermez, sahte adres üretilmez").isNull();
+        assertThat(row.get("email_normalized")).isNull();
+        assertThat(row.get("status")).isEqualTo("ACTIVE");
+        assertThat(row.get("password_hash")).isNull();
+        assertThat(row.get("email_verified_at")).isNull();
         assertThat(jdbc.queryForObject("select provider_subject from external_identities where account_id = ? "
                 + "and provider = 'STEAM'", String.class, accountId)).isEqualTo(steamId);
-        MvcResult pendingLogin = steamCallback(steamId, p -> { });
-        assertThat(fragment(pendingLogin)).as("e-posta doğrulanmadan oturum yok")
-                .startsWith("status=email_verification_required&proof=");
-        assertThat(pendingLogin.getResponse().getCookie(ACCESS_COOKIE)).isNull();
-        String proof = fragmentValue(pendingLogin, "proof");
+        assertThat(jdbc.queryForList("select r.code from account_roles ar join roles r on r.id = ar.role_id "
+                + "where ar.account_id = ?", String.class, accountId)).containsExactly("PLAYER");
+        assertThat(SignedJWT.parse(done.getResponse().getCookie(ACCESS_COOKIE).getValue()).getJWTClaimsSet()
+                .getStringListClaim("amr")).containsExactly("fed");
 
-        confirmWithProof(email, mailPort.awaitLatestCode(email, 1), proof).andExpect(status().isNoContent());
+        // Sonraki giriş: kullanıcı adı yeniden sorulmaz, doğrudan oturum.
         MvcResult login = steamCallback(steamId, p -> { });
-
         assertThat(fragment(login)).isEqualTo("status=authenticated");
-        String access = login.getResponse().getCookie(ACCESS_COOKIE).getValue();
-        assertThat(SignedJWT.parse(access).getJWTClaimsSet().getStringListClaim("amr")).containsExactly("fed");
-        assertThat(accountCount(email)).isEqualTo(1);
+        assertThat(login.getResponse().getCookie(ACCESS_COOKIE)).isNotNull();
+        assertThat(jdbc.queryForObject("select count(*) from external_identities where provider_subject = ?",
+                Integer.class, steamId)).isEqualTo(1);
+    }
+
+    @Test
+    void istemciEpostaGonderemezBilinmeyenAlanReddedilirHesapEpostasizAcilir() throws Exception {
+        String token = fragmentValue(steamCallback(newSteamId(), p -> { }), "token");
+        String username = uniqueUsername();
+
+        mockMvc.perform(post(AuthApiPaths.STEAM_COMPLETE).with(xsrf())
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"registrationToken\":\"%s\",\"username\":\"%s\",\"email\":\"saldirgan@example.test\"}"
+                                .formatted(token, username)))
+                .andExpect(status().isBadRequest());
+        assertThat(jdbc.queryForObject("select count(*) from accounts where username_normalized = lower(?)",
+                Integer.class, username)).isZero();
+
+        completeExternal(AuthApiPaths.STEAM_COMPLETE, token, username).andExpect(status().isOk());
+        assertThat(jdbc.queryForObject("select email from accounts where id = ?", String.class,
+                accountIdByUsername(username))).isNull();
     }
 
     @Test
@@ -157,69 +181,142 @@ class SteamLoginTest extends ExternalProviderTestSupport {
     }
 
     @Test
-    void kayitliEpostaIcinHesapAcilmazYanitDegismezTokenTuketilir() throws Exception {
-        String existing = registerActiveAccount(uniqueEmail(), uniqueUsername());
-        String token = fragmentValue(steamCallback(newSteamId(), p -> { }), "token");
-
-        complete(token, existing.toUpperCase(), uniqueUsername()).andExpect(status().isAccepted())
-                .andExpect(jsonPath("$.nextStep").value("VERIFY_EMAIL"));
-
-        assertThat(accountCount(existing)).isEqualTo(1);
-        assertThat(jdbc.queryForObject("select count(*) from external_identities where provider = 'STEAM' "
-                + "and account_id = ?", Integer.class, accountId(existing))).isZero();
-        complete(token, uniqueEmail(), uniqueUsername()).andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("REGISTRATION_TOKEN_INVALID"));
-    }
-
-    @Test
-    void kullaniciAdiCakismasi409GecersizVeSuresiDolmusTokenReddedilir() throws Exception {
+    void kullaniciAdiCakismasi409GecersizVeSuresiDolmusTokenReddedilirCakismadaTokenTuketilmez() throws Exception {
         String taken = uniqueUsername();
         register(uniqueEmail(), taken, VALID_PASSWORD).andExpect(status().isAccepted());
         String token = fragmentValue(steamCallback(newSteamId(), p -> { }), "token");
 
-        complete(token, uniqueEmail(), taken.toUpperCase()).andExpect(status().isConflict())
+        completeExternal(AuthApiPaths.STEAM_COMPLETE, token, taken.toUpperCase()).andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("USERNAME_TAKEN"));
-        complete("forged-" + uniqueSuffix(), uniqueEmail(), uniqueUsername()).andExpect(status().isBadRequest())
+        completeExternal(AuthApiPaths.STEAM_COMPLETE, "forged-" + uniqueSuffix(), uniqueUsername())
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("REGISTRATION_TOKEN_INVALID"));
+        completeExternal(AuthApiPaths.STEAM_COMPLETE, token, "ab").andExpect(status().isBadRequest());
+
+        // Çakışma token'ı tüketmedi: başka adla devam edilebilir; ikinci kullanım reddedilir.
+        completeExternal(AuthApiPaths.STEAM_COMPLETE, token, uniqueUsername()).andExpect(status().isOk());
+        completeExternal(AuthApiPaths.STEAM_COMPLETE, token, uniqueUsername()).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("REGISTRATION_TOKEN_INVALID"));
 
+        String expiring = fragmentValue(steamCallback(newSteamId(), p -> { }), "token");
         jdbc.update("update steam_registrations set created_at = created_at - interval '1 hour', "
                 + "expires_at = expires_at - interval '1 hour'");
-        complete(token, uniqueEmail(), uniqueUsername()).andExpect(status().isBadRequest())
+        completeExternal(AuthApiPaths.STEAM_COMPLETE, expiring, uniqueUsername()).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("REGISTRATION_TOKEN_INVALID"));
+    }
+
+    @Test
+    void kayitTamamlamaCsrfKorumalidirVeAyniTokenlaEszamanliIstekteTekHesapOlusur() throws Exception {
+        String steamId = newSteamId();
+        String token = fragmentValue(steamCallback(steamId, p -> { }), "token");
+
+        postJson(AuthApiPaths.STEAM_COMPLETE, "{\"registrationToken\":\"%s\",\"username\":\"%s\"}"
+                .formatted(token, uniqueUsername())).andExpect(status().isForbidden());
+        assertThat(jdbc.queryForObject("select count(*) from external_identities where provider_subject = ?",
+                Integer.class, steamId)).isZero();
+
+        ConcurrentRequests.run(6, index -> (Callable<Integer>) () -> completeExternal(AuthApiPaths.STEAM_COMPLETE,
+                token, uniqueUsername()).andReturn().getResponse().getStatus());
+
+        assertThat(jdbc.queryForObject("select count(*) from external_identities where provider_subject = ?",
+                Integer.class, steamId)).isEqualTo(1);
     }
 
     @Test
     void baglantiliHesapZorunluRoldeTotpYoksaOturumAlamaz(CapturedOutput output) throws Exception {
         String steamId = newSteamId();
-        String email = uniqueEmail();
+        String username = uniqueUsername();
         String token = fragmentValue(steamCallback(steamId, p -> { }), "token");
-        complete(token, email, uniqueUsername()).andExpect(status().isAccepted());
-        jdbc.update("update accounts set status = 'ACTIVE', email_verified_at = now() where email_normalized = lower(?)",
-                email);
-        grantRole(accountId(email), "MODERATOR");
+        completeExternal(AuthApiPaths.STEAM_COMPLETE, token, username).andExpect(status().isOk());
+        grantRole(accountIdByUsername(username), "MODERATOR");
 
         MvcResult result = steamCallback(steamId, p -> { });
 
         assertThat(fragment(result)).isEqualTo("error=TWO_FACTOR_ENROLLMENT_REQUIRED");
         assertThat(result.getResponse().getCookie(ACCESS_COOKIE)).isNull();
-        assertThat(output.getAll()).doesNotContain(token).doesNotContain(steamId).doesNotContainIgnoringCase(email);
+        assertThat(output.getAll()).doesNotContain(token).doesNotContain(steamId);
     }
 
     @Test
-    void steamHesabiDogrulamasiSahipKanitiOlmadanYapilamazKanitTekKullanimlikVeSteamIdyeBagli() throws Exception {
+    void epostasizHesapEpostaGerektirenIslemlerdeAcikHataVerirSahteBasariVermez() throws Exception {
+        String username = uniqueUsername();
+        String token = fragmentValue(steamCallback(newSteamId(), p -> { }), "token");
+        completeExternal(AuthApiPaths.STEAM_COMPLETE, token, username).andExpect(status().isOk());
+        UUID accountId = accountIdByUsername(username);
+        enableTotp(accountId);
+
+        // Parola belirleme kodu e-postayla gider: e-postasız hesapta istenemez.
+        mockMvc.perform(post(AuthApiPaths.PASSWORD_SET_REQUEST).header("Authorization", bearerFor(accountId))
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"code\":\"%s\"}".formatted(currentTotpCode(accountId))))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("ACCOUNT_EMAIL_REQUIRED"));
+        // Hesap silme onayı da e-postayla gider: e-postasız hesapta istenemez, sahte başarı dönmez.
+        mockMvc.perform(post(AuthApiPaths.ACCOUNT_DELETION_REQUEST).header("Authorization", bearerFor(accountId))
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"code\":\"%s\"}".formatted(currentTotpCode(accountId))))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("ACCOUNT_EMAIL_REQUIRED"));
+        assertThat(jdbc.queryForObject("select count(*) from account_deletion_tokens where account_id = ?",
+                Integer.class, accountId)).isZero();
+        // Parola sıfırlama adresle bulunur; bu hesabın adresi olmadığı için erişilemez.
+        assertThat(mailPort).isNotNull();
+    }
+
+    @Test
+    void epostasizSteamHesabiTotpIleYenidenDogrulayipSonradanEpostaEkleyebilirAdresKodlaDogrulanir() throws Exception {
+        String username = uniqueUsername();
+        completeExternal(AuthApiPaths.STEAM_COMPLETE, fragmentValue(steamCallback(newSteamId(), p -> { }), "token"), username)
+                .andExpect(status().isOk());
+        UUID accountId = accountIdByUsername(username);
+        String newEmail = uniqueEmail();
+
+        // TOTP yoksa yeniden doğrulama yapılamaz.
+        mockMvc.perform(post(AuthApiPaths.EMAIL_CHANGE).header("Authorization", bearerFor(accountId))
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"newEmail\":\"%s\"}".formatted(newEmail)))
+                .andExpect(status().is4xxClientError());
+        assertThat(jdbc.queryForObject("select email from accounts where id = ?", String.class, accountId)).isNull();
+
+        enableTotp(accountId);
+        mockMvc.perform(post(AuthApiPaths.EMAIL_CHANGE).header("Authorization", bearerFor(accountId))
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"newEmail\":\"%s\",\"code\":\"%s\"}".formatted(newEmail, currentTotpCode(accountId))))
+                .andExpect(status().isAccepted());
+        String code = mailPort.awaitLatestCode(newEmail, 1);
+        assertThat(jdbc.queryForObject("select email from accounts where id = ?", String.class, accountId))
+                .as("onaydan önce adres eklenmez").isNull();
+
+        mockMvc.perform(post(AuthApiPaths.EMAIL_CHANGE_CONFIRM).header("Authorization", bearerFor(accountId))
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"code\":\"%s\"}".formatted(code)))
+                .andExpect(status().isNoContent());
+
+        assertThat(jdbc.queryForObject("select email from accounts where id = ?", String.class, accountId))
+                .isEqualToIgnoringCase(newEmail);
+        assertThat(jdbc.queryForObject("select email_verified_at is not null from accounts where id = ?", Boolean.class,
+                accountId)).isTrue();
+    }
+
+    @Test
+    void eskiBekleyenSteamHesabiOturumAlamazDogrulamaSahipKanitiIsterKanitTekKullanimlikVeSteamIdyeBagli() throws Exception {
         String steamId = newSteamId();
         String email = uniqueEmail();
-        String registrationToken = fragmentValue(steamCallback(steamId, p -> { }), "token");
-        String proof = proofOf(complete(registrationToken, email, uniqueUsername()).andExpect(status().isAccepted()));
+        legacyPendingSteamAccount(steamId, email);
         String code = mailPort.awaitLatestCode(email, 1);
-        String otherProof = proofOf(complete(fragmentValue(steamCallback(newSteamId(), p -> { }), "token"),
-                uniqueEmail(), uniqueUsername()).andExpect(status().isAccepted()));
-        String unusedRegistrationToken = fragmentValue(steamCallback(newSteamId(), p -> { }), "token");
+
+        MvcResult pending = steamCallback(steamId, p -> { });
+        assertThat(fragment(pending)).as("e-posta doğrulanmadan oturum yok")
+                .startsWith("status=email_verification_required&proof=");
+        assertThat(pending.getResponse().getCookie(ACCESS_COOKIE)).isNull();
+        String proof = fragmentValue(pending, "proof");
+
+        String otherSteamId = newSteamId();
+        legacyPendingSteamAccount(otherSteamId, uniqueEmail());
+        String otherProof = fragmentValue(steamCallback(otherSteamId, p -> { }), "proof");
+        String registrationToken = fragmentValue(steamCallback(newSteamId(), p -> { }), "token");
 
         confirmWithoutProof(email, code).andExpect(status().isBadRequest());
         confirmWithPassword(email, code, VALID_PASSWORD).andExpect(status().isBadRequest());
         confirmWithProof(email, code, otherProof).andExpect(status().isBadRequest());
-        confirmWithProof(email, code, unusedRegistrationToken).andExpect(status().isBadRequest());
+        confirmWithProof(email, code, registrationToken).andExpect(status().isBadRequest());
         assertThat(accountStatus(email)).isEqualTo("PENDING_VERIFICATION");
 
         confirmWithProof(email, code, proof).andExpect(status().isNoContent());
@@ -227,22 +324,20 @@ class SteamLoginTest extends ExternalProviderTestSupport {
         assertThat(jdbc.queryForObject("select count(*) from steam_registrations where steam_id = ? "
                 + "and purpose = 'EMAIL_VERIFICATION' and consumed_at is not null", Integer.class, steamId))
                 .isEqualTo(1);
+        assertThat(fragment(steamCallback(steamId, p -> { }))).isEqualTo("status=authenticated");
     }
 
-    @Test
-    void kayitliEpostaIcinDonenKanitDogrulamayaYaramaz() throws Exception {
-        String existing = registerActiveAccount(uniqueEmail(), uniqueUsername());
-        String token = fragmentValue(steamCallback(newSteamId(), p -> { }), "token");
-
-        String proof = proofOf(complete(token, existing, uniqueUsername()).andExpect(status().isAccepted()));
-
-        assertThat(proof).as("yanıt biçimi hesap varlığını sızdırmaz").isNotBlank();
-        confirmWithProof(existing, "000000", proof).andExpect(status().isBadRequest());
-    }
-
-    private static String proofOf(ResultActions result) throws Exception {
-        return com.jayway.jsonpath.JsonPath.read(result.andReturn().getResponse().getContentAsString(),
-                "$.verificationProof");
+    /** Eski akışla (e-posta + doğrulama) açılmış, henüz doğrulanmamış Steam hesabı; yeni hesaplar böyle açılmaz. */
+    private void legacyPendingSteamAccount(String steamId, String email) throws Exception {
+        UUID id = UUID.randomUUID();
+        String username = uniqueUsername();
+        jdbc.update("insert into accounts (id, email, email_normalized, username, username_normalized, status, "
+                + "created_at, updated_at) values (?, ?, lower(?), ?, lower(?), 'PENDING_VERIFICATION', now(), now())",
+                id, email, email, username, username);
+        jdbc.update("insert into account_roles (account_id, role_id) select ?, id from roles where code = 'PLAYER'", id);
+        jdbc.update("insert into external_identities (id, account_id, provider, provider_subject, linked_at) "
+                + "values (gen_random_uuid(), ?, 'STEAM', ?, now())", id, steamId);
+        resend(email).andExpect(status().isAccepted());
     }
 
     private MvcResult steamCallback(String steamId, Consumer<Map<String, String[]>> mutation) throws Exception {
@@ -270,18 +365,6 @@ class SteamLoginTest extends ExternalProviderTestSupport {
         MockHttpServletRequestBuilder request = get(AuthApiPaths.STEAM_CALLBACK);
         params.forEach(request::param);
         return request;
-    }
-
-    private ResultActions complete(String token, String email, String username)
-            throws Exception {
-        return postJson(AuthApiPaths.STEAM_COMPLETE, """
-                {"registrationToken":"%s","email":"%s","username":"%s"}
-                """.formatted(token, email, username));
-    }
-
-    private static String fragmentValue(MvcResult result, String name) {
-        return java.util.Arrays.stream(fragment(result).split("&")).filter(pair -> pair.startsWith(name + "="))
-                .map(pair -> pair.substring(name.length() + 1)).findFirst().orElseThrow();
     }
 
     private static String newSteamId() {

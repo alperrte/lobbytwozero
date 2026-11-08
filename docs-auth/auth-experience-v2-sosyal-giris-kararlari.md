@@ -1,51 +1,30 @@
-# Auth Experience V2: Google ve Steam ilk giriş kararları
+# Auth Experience V2: Google ve Steam ilk giriş (kullanıcı adı)
 
-Durum: **karar bekliyor.** Bu belge kodu değiştirmez; hangi isteğin yalnız arayüzle çözülemediğini ve neden olduğunu söyler.
-Kaynak: `GoogleLoginService`, `SteamLoginService`, `LoginService.complete`, `ExternalLoginController` (okundu, 2026-11-08).
+Durum: **uygulandı** (2026-11-08). Bu belge ne yapıldığını ve hâlâ açık olan ürün kararlarını söyler.
 
-## Bugünkü davranış (koddan doğrulandı)
+## Yeni davranış
 
 | Durum | Ne oluyor |
 |---|---|
-| Bağlı Google/Steam kullanıcısı | Parola girişiyle aynı kurallar: hesap durumu, 2FA ve zorunlu rol kuralı. Oturum açılır, ön yüz `/` sayfasına gider. |
-| İlk kez Google | Hesap **hemen** açılır: e-posta Google'dan (doğrulanmış), kullanıcı adı sunucuda üretilir (`g_` + 12 karakter), PLAYER rolü, parolasız. Kullanıcıya kullanıcı adı sorulmaz. |
-| İlk kez Steam | Oturum yok. Kısa ömürlü kayıt token'ı döner; ön yüz kullanıcı adı **ve e-posta** ister; hesap `PENDING_VERIFICATION` açılır, e-posta doğrulanınca ACTIVE olur. |
-| Google e-postası zaten kayıtlı | Sessiz birleştirme yok: `ACCOUNT_LINK_REQUIRED`. Doğru, korunuyor. |
+| Bağlı Google/Steam kullanıcısı | Parola girişiyle aynı kurallar (durum, 2FA, zorunlu rol). Oturum açılır, ön yüz `/` sayfasına gider. Kullanıcı adı sorulmaz. |
+| İlk kez Google | Hesap AÇILMAZ. Doğrulanmış `sub` ve Google'ın doğruladığı e-posta sunucuda `google_registrations` tablosunda bekler; ön yüze tek kullanımlık, 15 dk geçerli kayıt token'ı gider (`#status=registration_required&provider=google&token=…`). Kullanıcı **yalnız kullanıcı adı** seçer; `POST /oauth/google/complete` hesabı (ACTIVE, doğrulanmış e-posta, PLAYER) ve `sub` bağını tek işlemde açar, ardından oturum/2FA akışı çalışır. |
+| İlk kez Steam | Aynı biçim (`steam_registrations`, `provider=steam`). Hesap **e-postasız** ve ACTIVE açılır; e-posta sorulmaz, doğrulama beklenmez. Zorunlu 2FA ayarı açıksa (üretim) kurulum challenge'ı döner, MFA atlanmaz. |
+| Google e-postası zaten kayıtlı | Sessiz birleştirme yok: `ACCOUNT_LINK_REQUIRED` (callback'te ve tamamlamada). |
+| Eski `g_xxx` adlı Google hesapları, e-postayla açılmış bekleyen Steam hesapları | Dokunulmadı; çalışmaya devam eder. |
 
-## İstek 1: İlk Google girişinde kullanıcı adı sorulsun
+Güvenlik: kayıt token'ı yalnız özet olarak saklanır, tek kullanımlıktır, `FOR UPDATE` ile yarışa karşı kilitlenir; kullanıcı adı çakışmasında token tüketilmez; istemci e-posta ya da sağlayıcı kimliği gönderemez (bilinmeyen alan 400); tamamlama uçları CSRF korumalıdır (oturum cookie'si yazdığı için). Veritabanı: `V70` (`accounts.email` boş olabilir + tutarlılık kısıtları, `google_registrations`).
 
-Ön yüzle çözülemez. Hesap, kullanıcı adı sorulmadan önce sunucuda zaten oluşuyor. Sahte bir form, adı sonradan değiştirmek olurdu ve "oturum açık ama profil eksik" ara durumu yaratırdı.
+## E-postasız Steam hesabında neler çalışmaz (açıkça)
 
-Önerilen sözleşme (Steam akışının aynısı):
-1. Bağsız `sub` + doğrulanmış e-posta + kayıtsız e-posta: hesap **açılmaz**; `registration_required` ile tek kullanımlık, hash'li, kısa ömürlü kayıt token'ı döner (`provider=GOOGLE`).
-2. Yeni uç: `POST /api/v1/auth/oauth/google/complete` gövde `{ token, username }`. Hesap burada, tek işlemde açılır; e-posta ve `sub` token kaydından alınır (istemciden gelmez).
-3. Kullanıcı adı: mevcut `uq_accounts_username_normalized` kısıtı yarışı çözer; çakışmada 409 `USERNAME_TAKEN` (Steam'deki gibi).
-4. Veri: `steam_registrations` tablosu genelleştirilir (`provider`, `subject`, `email` sütunları) ya da ayrı tablo. Migration gerekir (Auth numara aralığında yalnız V70 boş).
-5. Ön yüz: `AuthCallback` içinde `registration_required` zaten var; Google için kullanıcı adı alanı (e-posta alanı yok) eklenir. Küçük iş.
+- **Hesap silme onayı** e-postayla gider: `409 ACCOUNT_EMAIL_REQUIRED`.
+- **Parola belirleme kodu** e-postayla gider: `409 ACCOUNT_EMAIL_REQUIRED`.
+- **Parola sıfırlama**: adres olmadığı için hesap bulunamaz (yanıt hesap varlığını sızdırmaz).
+- **Güvenlik bildirimleri** gönderilmez (alıcı yok, sahte adres üretilmez).
+- **Yeniden giriş**: Steam ile. Steam erişimi kaybedilirse e-posta kurtarma yolu yoktur.
+- **Sonradan e-posta ekleme**: çalışır. `POST /email/change` parolasız hesapta TOTP/kurtarma koduyla yeniden doğrular; yeni adres koduyla doğrulanır. TOTP olmayan e-postasız hesapta yeniden doğrulama yapılamaz (üretimde Steam hesapları için TOTP zorunludur).
 
-Eski davranış (`g_xxx`) kullanılan hesaplar etkilenmez. Test: yarış (iki eşzamanlı tamamlama), süresi dolmuş/tekrar kullanılan token, mevcut e-posta çakışması, rol/2FA kuralının tamamlama sonrası aynı uygulanması.
+## Hâlâ ürün/güvenlik kararı isteyenler
 
-Karar: **Kerem (Auth sahibi) onayı + migration.** Ürün açısından risk düşük.
-
-## İstek 2: Steam'de e-posta sorulmasın, SteamID esas alınsın
-
-**BLOCKED_BY_PRODUCT_DECISION.** Standart Steam OpenID e-posta vermez; yalnız SteamID64 doğrulanır (bu kısım bugün de böyle).
-E-postasız hesap şu bağımlılıkları kırar:
-
-- `accounts.email` zorunlu ve benzersiz; kayıt sonrası e-posta doğrulaması ACTIVE olmanın tek yolu.
-- Parola sıfırlama, hesap silme onayı, silme iptali, güvenlik bildirimleri e-postayla gider.
-- Hesap kurtarma: Steam erişimi kaybedilirse (hesap çalındı/kapandı) başka yol kalmaz.
-- Mevcut e-posta hesabıyla birleştirme politikası (doğrulanmamış e-posta bağlama yok) e-postasız hesapta dayanak kaybeder.
-- 2FA: Steam hesapları için `require-for-steam-accounts` (prod'da açık) e-postasız hesapta TOTP kurulumuna kadar oturum vermiyor; bu aynen kalabilir.
-
-Seçenekler:
-- **A (bugün):** E-posta zorunlu kalır. Ön yüzde yalnız kopya/açıklama iyileştirilebilir ("e-posta yalnız doğrulama ve kurtarma için"). Güvenlik değişmez. **Önerilen.**
-- **B:** SteamID-only hesap; `email` null olabilir, doğrulama atlanır. Gerekenler: `accounts.email` nullable + benzersizlik kısmi indeks, bildirim ve kurtarma kuralı (kurtarma kodları zorunlu?), silme onayı için alternatif kanal, mevcut hesaplar için migration ve geri alma planı, güvenlik onayı.
-- **C:** SteamID-only ile başla, e-postayı sonradan isteğe bağlı bağlat (bağlayınca doğrulanır). B'nin kapsamı + "e-postasız hesap sınırları" ürün kararı.
-
-Bu karar verilmeden e-posta zorunluluğu kaldırılmadı ve ön yüz Steam formundan e-posta alanı çıkarılmadı.
-
-## Bu işte yapılanlar / yapılmayanlar
-
-- Yapıldı (yalnız ön yüz): mevcut kullanıcı dönüşü `/` (ana uygulama) sayfasına gider, giriş formu yeniden gösterilmez; MFA dönüşü ikinci adım ekranını gösterir; hata kodları sınıflandırılır; Auth sahnesi (navbar/footer/video) dönüş sayfasında da aynıdır.
-- Yapılmadı: Google kullanıcı adı ekranı (backend gerekir), Steam e-postasız kayıt (ürün kararı).
+1. **Hesap kurtarma:** E-postasız Steam hesabı için kurtarma kodlarının zorunlu tutulması ve "e-posta ekle" çağrısının arayüzde gösterilmesi (ayarlar sayfası henüz yok).
+2. **Hesap silme:** E-postasız hesap kendini silemez. Alternatif onay kanalı (ör. TOTP ile onay) istenirse ayrı iş.
+3. **Mevcut e-posta hesabını sağlayıcıya bağlama** (ACCOUNT_LINK_REQUIRED sonrası) bağlama uçlarıyla ayrıca çalışır; değişmedi.

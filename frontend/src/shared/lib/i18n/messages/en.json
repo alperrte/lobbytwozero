@@ -853,7 +853,9 @@
       "UNKNOWN": "Something went wrong. Please try again.",
       "VALIDATION_FAILED": "Some details are not valid. Check the fields and try again.",
       "MFA_FAILED": "The code is invalid or the verification session has expired. Try again or go back to sign in.",
-      "INVALID_TWO_FACTOR_CODE": "The code is wrong. Try again."
+      "INVALID_TWO_FACTOR_CODE": "The code is wrong. Try again.",
+      "ACCOUNT_LINK_REQUIRED": "An account with this email address already exists. Sign in with your email and password first, then link this account.",
+      "ACCOUNT_EMAIL_REQUIRED": "This action needs a verified email address on your account. Add and verify an email first."
     },
     "register": {
       "metaTitle": "Sign up",
@@ -937,12 +939,6 @@
       "linked": "Your account is connected.",
       "backToLogin": "Back to sign in",
       "toHome": "Go to home",
-      "steam": {
-        "formLabel": "Steam account sign-up form",
-        "description": "This is your first time with your Steam account. Enter a username and an email address to finish your account.",
-        "submit": "Create account",
-        "tokenInvalid": "The sign-up link is invalid or has expired. Start Steam sign-in again."
-      },
       "errors": {
         "EXTERNAL_AUTH_FAILED": "Sign-in could not be verified. Please try again.",
         "EXTERNAL_EMAIL_UNVERIFIED": "Your email address at the provider is not verified. Verify it there first, then try again.",
@@ -954,6 +950,19 @@
         "TWO_FACTOR_ENROLLMENT_REQUIRED": "This account must set up two-step verification. This step is not supported on this screen yet.",
         "PROVIDER_NOT_CONFIGURED": "This sign-in method is not available right now.",
         "UNKNOWN": "Something went wrong. Please try again."
+      },
+      "username": {
+        "formLabel": "Finish account form",
+        "submit": "Continue",
+        "submitting": "Creating your account…"
+      },
+      "google": {
+        "description": "You're new here with your Google account. Pick a username to continue; it is how others see you on LTZ.",
+        "tokenInvalid": "The sign-up link is invalid or has expired. Start signing in with Google again."
+      },
+      "steam": {
+        "description": "You're new here with your Steam account. Pick a username to continue. Steam does not share an email address, so none is asked for.",
+        "tokenInvalid": "The sign-up link is invalid or has expired. Start signing in with Steam again."
       }
     },
     "mfa": {
