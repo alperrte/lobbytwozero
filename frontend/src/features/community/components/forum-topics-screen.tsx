@@ -17,7 +17,6 @@ import { CommunityFrame, NewPostLink } from "./community-frame";
 import { CommunityIcon } from "./community-icons";
 import { buttonClass, chipClass, EmptyBlock, ErrorBlock, LoadMore, LoadingBlock, panel, RelativeTime } from "./community-ui";
 import { PostFilterBar } from "./post-filters";
-import { PublishNotice } from "./publish-notice";
 import "./community.css";
 import { AuthorLine } from "./post-parts";
 
@@ -75,7 +74,6 @@ export function ForumTopicsScreen({ forumId }: { forumId: string }) {
 
       {forum.error && !forum.data ? <ErrorBlock error={forum.error} retry={forum.reload} /> : null}
 
-      <PublishNotice />
       <PostFilterBar filters={filters} onChange={setFilters} options={{ dates: true }} />
 
       {list.loading ? <LoadingBlock rows={3} /> : null}

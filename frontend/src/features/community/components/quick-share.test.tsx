@@ -47,6 +47,27 @@ describe("Akıştan hızlı paylaşım", () => {
     expect(screen.getByRole("link")).toHaveAttribute("href", "/login");
   });
 
+  it("gönder butonu yalnız ikondur: yazı yok, 36×36, erişilebilir adı ve ipucu 'Paylaş'; disabled durumda da aynı ölçü", () => {
+    mount(member);
+    const button = submit();
+    expect(button.textContent).toBe("");
+    expect(button.querySelector("svg")).not.toBeNull();
+    expect(button).toHaveAttribute("title", "Paylaş");
+    expect(button.className).toContain("size-9");
+    expect(button).toBeDisabled();
+    fireEvent.change(field(), { target: { value: "Selam" } });
+    expect(button).toBeEnabled();
+    expect(button.className).toContain("size-9");
+  });
+
+  it("sayaç her zaman görünür: boşken 0/2000, yazdıkça güncellenir; giriş 2000 karakterle sınırlıdır", () => {
+    mount(member);
+    expect(screen.getByText("0/2000")).toBeInTheDocument();
+    expect(field()).toHaveAttribute("maxLength", "2000");
+    fireEvent.change(field(), { target: { value: "Selam" } });
+    expect(screen.getByText("5/2000")).toBeInTheDocument();
+  });
+
   it("klavye kısayolu açıklaması gösterilmez; Ctrl+Enter yine paylaşır", async () => {
     vi.mocked(api.createPost).mockResolvedValueOnce({ id: "k1" } as PostView);
     const onPublished = mount(member);

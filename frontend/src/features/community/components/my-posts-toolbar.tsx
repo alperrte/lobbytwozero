@@ -11,9 +11,11 @@ import { emptyFilters, postCategories, type PostFilters } from "../types/communi
 import { CommunityIcon } from "./community-icons";
 import { buttonClass, FieldError, inputClass } from "./community-ui";
 import { GamePicker } from "./game-picker";
+import { PriorityMenu } from "./priority-menu";
 
 /**
- * Gönderilerim araç çubuğu. Yalnız API'nin desteklediği denetimler vardır: metin arama, yeni/eski sıralama ve (kompakt
+ * Gönderilerim araç çubuğu. Yalnız API'nin desteklediği denetimler vardır: metin arama, "Öncelik" (tarihe göre sıralama
+ * açılır listesi: eskiden yeniye / yeniden eskiye) ve (kompakt
  * "Filtrele" panelinde) oyun, kategori ve tarih aralığı. Yeniden paylaşımlarda yalnız sıralama sunulur: arama/oyun/kategori
  * süzgeçleri o kayıtların kendi alanlarına uygulandığından anlamlı sonuç vermez.
  */
@@ -41,8 +43,10 @@ export function MyPostsToolbar({
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         {filterable ? <SearchField key={filters.q} initial={filters.q} onSubmit={(q) => onChange({ ...filters, q })} /> : null}
 
-        {/* Sağ grup: Filtrele · Yeni/Eski · Sözlerim · Yeniden paylaşımlarım. Son kontrol içerik alanının sağ kenarına hizalanır. */}
+        {/* Arama solda. Sağ grup yan yana ve sağ kenara hizalı: Öncelik ⌄ → Filtrele → Yeniden paylaşımlarım (aynı yükseklik,
+            eşit aralık). "Öncelik" kapalıyken daima kendi adını taşır; seçili sıralama yalnız menüde işaretlenir. */}
         <div className="flex flex-wrap items-center gap-3 sm:ms-auto">
+          <PriorityMenu value={filters.sort} onChange={(sort) => onChange({ ...filters, sort })} />
           {filterable ? (
             <button
               type="button"
@@ -62,29 +66,6 @@ export function MyPostsToolbar({
             </button>
           ) : null}
 
-          <div role="group" aria-label={t("sortLabel")} className="flex h-11 items-stretch rounded-control border border-control-border p-0.5">
-            {(["NEWEST", "OLDEST"] as const).map((sort) => (
-              <button
-                key={sort}
-                type="button"
-                aria-pressed={filters.sort === sort}
-                onClick={() => onChange({ ...filters, sort })}
-                className={cn(
-                  "rounded-control px-3.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus",
-                  filters.sort === sort ? "bg-primary text-primary-foreground" : "text-text-secondary hover:bg-surface-elevated hover:text-text-primary"
-                )}
-              >
-                {t(`sort.${sort}`)}
-              </button>
-            ))}
-          </div>
-
-          {view !== "words" ? (
-            <Link href="/community/mine/words" className={cn(buttonClass, "gap-2")}>
-              <CommunityIcon name="pencil" className="size-4" />
-              {t("wordsLink")}
-            </Link>
-          ) : null}
           {view !== "reposts" ? (
             <Link href="/community/mine/reposts" className={cn(buttonClass, "gap-2")}>
               <CommunityIcon name="repost" className="size-4" />

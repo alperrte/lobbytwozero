@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Link } from "@/shared/lib/i18n/navigation";
+
 import { cn } from "@/shared/utils/cn";
 import { useAction } from "../hooks/use-action";
 import { useLoginRedirect } from "../hooks/use-login-redirect";
@@ -20,15 +20,14 @@ import {
   FieldError,
   inputClass,
   ModalDialog,
-  panel,
   primaryButtonClass
 } from "./community-ui";
-import { CommentsPane } from "./comments-pane";
+import { CommentsSection } from "./comments-section";
+import { PostActionsMenu, type PostAction } from "./post-actions-menu";
+import { PostCardShell } from "./post-card-shell";
 import { PostContent } from "./post-content";
 import { PostImages, type Lookups } from "./post-parts";
 import { ReportDialog, type ReportTarget } from "./report-dialog";
-
-const CLAMP_LENGTH = 420;
 
 export type PostCardProps = {
   post: PostView;
@@ -40,25 +39,28 @@ export type PostCardProps = {
   onRemoved: (postId: string) => void;
   /** Yeni repost oluştu. */
   onReposted?: (post: PostView) => void;
-  /** Detay sayfası: tam metin, görseller tam boyuta açılır. */
+  /** Detay sayfası: tam metin; yorumlar sayfanın kendi bölümündedir (kart içi yorum bölümü yoktur). */
   detail?: boolean;
   /** Verilirse "Düzenle" aynı sayfada düzenleyiciyi açar (aksi halde detay sayfasına `?edit=1` ile gider). */
   onEdit?: () => void;
-  /** Akış kartı: yorumlar kartın sağ sütununda (dar ekranda altında açılır bölümde) gösterilir. */
-  comments?: boolean;
 };
 
 /**
- * Gönderi kartı. Yetki kararı sunucudadır; "Düzenle/Sil" yalnız sahibe gösterilir (arayüz ipucu), sunucu 403/404 verir.
+ * Gönderi kartı: Akış, Gönderilerim, oyuncu gönderileri ve forum konuları AYNI bileşeni kullanır (ortak `PostCardShell`). Sıra:
+ * kullanıcı ve tarih → metin → görseller → etkileşim satırı. Yorum ikonu kartın altında yorum bölümünü açar/kapatır (kapalıyken
+ * yer kaplamaz, yorumlar yalnız açılınca yüklenir). Yetki kararı sunucudadır; "Düzenle/Sil" yalnız sahibe gösterilir (arayüz ipucu), sunucu 403/404 verir.
  * Sayaçlar yalnız sunucu yanıtıyla değişir: başarısız beğeni/repost sayaçları oynatmaz ve başarı mesajı göstermez.
  */
-export function PostCard({ post, viewer, lookups, onChange, onRemoved, onReposted, detail = false, onEdit, comments = false }: PostCardProps) {
+export function PostCard({ post, viewer, lookups, onChange, onRemoved, onReposted, detail = false, onEdit }: PostCardProps) {
   const t = useTranslations("Community");
   const headingId = useId();
   const goLogin = useLoginRedirect();
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   const [repostOpen, setRepostOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const commentsId = useId();
+  const tm = useTranslations("Community.mine.card");
   const [notice, setNotice] = useState<string | null>(null);
 
   const isOwner = viewer.accountId !== null && viewer.accountId === post.authorId;
@@ -76,16 +78,28 @@ export function PostCard({ post, viewer, lookups, onChange, onRemoved, onReposte
     onRemoved(post.id);
   });
 
-  const body = post.body ?? "";
-  const withPane = comments && !detail && post.status === "VISIBLE";
-  const long = !detail && (body.length > CLAMP_LENGTH || body.split("\n").length > 7);
+  const hasMedia = post.images.length > 0;
+  // Yeniden paylaşımı silmek, paylaşımı geri almaktır.
+  const undoRepost = isOwner && isRepost;
+
+  // Menüde yalnız kullanıcının yetkisi olan işlemler bulunur (sunucu yine 403/404 ile korur). Düzenle/Sil yalnız sahibe,
+  // Şikayet et başkasının görünür gönderisine gösterilir (rapor ve bildirim aynı işlemdir, tek seçenek).
+  const actions: PostAction[] = [];
+  if (isOwner && !isRepost && post.status === "VISIBLE") {
+    actions.push(
+      onEdit
+        ? { id: "edit", label: t("post.edit"), onSelect: onEdit }
+        : { id: "edit", label: t("post.edit"), href: { pathname: "/community/posts/[postId]", params: { postId: post.id }, query: { edit: "1" } } }
+    );
+  }
+  if (isOwner) {
+    actions.push({ id: "delete", label: undoRepost ? tm("undoRepost") : t("post.delete"), icon: undoRepost ? "repost" : "trash", onSelect: () => setDeleteOpen(true) });
+  } else if (post.status === "VISIBLE") {
+    actions.push({ id: "report", label: t("post.reportMenu"), onSelect: () => (guest ? goLogin() : setReportTarget({ kind: "post", id: post.id })) });
+  }
 
   return (
-    <article
-      aria-labelledby={headingId}
-      className={cn(panel, withPane ? "grid xl:min-h-[18rem] xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]" : "p-4 sm:p-5")}
-    >
-      <div className={cn("flex min-w-0 flex-col", withPane && "p-4 sm:p-5 xl:pe-3")}>
+    <PostCardShell labelledBy={headingId}>
       <PostContent
         headingId={headingId}
         lookups={lookups}
@@ -99,14 +113,13 @@ export function PostCard({ post, viewer, lookups, onChange, onRemoved, onReposte
         title={post.title}
         titleHref={detail ? undefined : detailHref}
         body={post.body}
-        clampBody={long}
-        readMoreHref={detailHref}
+        clamp={!detail}
         repostOf={post.repostOf}
-        media={<PostImages images={post.images} variant={detail ? "detail" : "feed"} />}
+        media={hasMedia ? <PostImages images={post.images} variant={detail ? "detail" : "feed"} /> : null}
+        actions={<PostActionsMenu actions={actions} />}
       />
 
-      <div className="mt-auto pt-3">
-      <footer className="flex flex-wrap items-center gap-1 border-t border-border pt-2">
+      <footer className="mt-4 flex flex-wrap items-center gap-1 border-t border-border pt-2">
         <button
           type="button"
           className={cn(actionClass, post.likedByMe && "text-brand-text")}
@@ -126,10 +139,17 @@ export function PostCard({ post, viewer, lookups, onChange, onRemoved, onReposte
             {post.commentCount}
           </span>
         ) : (
-          <Link href={detailHref} className={actionClass} aria-label={t("post.commentsAria", { count: post.commentCount })}>
+          <button
+            type="button"
+            className={cn(actionClass, commentsOpen && "text-brand-text")}
+            aria-expanded={commentsOpen}
+            aria-controls={commentsId}
+            aria-label={`${commentsOpen ? t("post.commentsClose") : t("post.commentsOpen")} (${t("post.commentsAria", { count: post.commentCount })})`}
+            onClick={() => setCommentsOpen((value) => !value)}
+          >
             <CommunityIcon name="comment" className="size-5" />
             <span aria-hidden="true">{post.commentCount}</span>
-          </Link>
+          </button>
         )}
 
         {post.status === "VISIBLE" ? (
@@ -139,37 +159,7 @@ export function PostCard({ post, viewer, lookups, onChange, onRemoved, onReposte
           </button>
         ) : null}
 
-        <span className="ms-auto flex flex-wrap items-center gap-1">
-          {isOwner && !isRepost && post.status === "VISIBLE" ? (
-            onEdit ? (
-              <button type="button" className={actionClass} onClick={onEdit}>
-                <CommunityIcon name="pencil" className="size-4" />
-                {t("post.edit")}
-              </button>
-            ) : (
-              <Link
-                href={{ pathname: "/community/posts/[postId]", params: { postId: post.id }, query: { edit: "1" } }}
-                className={actionClass}
-              >
-                <CommunityIcon name="pencil" className="size-4" />
-                {t("post.edit")}
-              </Link>
-            )
-          ) : null}
-          {isOwner ? (
-            <button type="button" className={actionClass} onClick={() => setDeleteOpen(true)}>
-              <CommunityIcon name="trash" className="size-4" />
-              {t("post.delete")}
-            </button>
-          ) : post.status === "VISIBLE" ? (
-            <button type="button" className={actionClass} onClick={() => (guest ? goLogin() : setReportTarget({ kind: "post", id: post.id }))}>
-              <CommunityIcon name="flag" className="size-4" />
-              {t("post.report")}
-            </button>
-          ) : null}
-        </span>
       </footer>
-      </div>
 
       {like.error ? (
         <div className="mt-2">
@@ -180,6 +170,17 @@ export function PostCard({ post, viewer, lookups, onChange, onRemoved, onReposte
         <p role="status" className="mt-2 text-sm text-text-primary">
           {notice}
         </p>
+      ) : null}
+
+      {commentsOpen && !detail ? (
+        <div id={commentsId}>
+          <CommentsSection
+            postId={post.id}
+            viewer={viewer}
+            embedded
+            onCountChange={(delta) => onChange({ ...post, commentCount: Math.max(0, post.commentCount + delta) })}
+          />
+        </div>
       ) : null}
 
       <RepostDialog
@@ -195,9 +196,9 @@ export function PostCard({ post, viewer, lookups, onChange, onRemoved, onReposte
       <ReportDialog target={reportTarget} onClose={() => setReportTarget(null)} />
       <ConfirmDialog
         open={deleteOpen}
-        title={t("post.deleteTitle")}
-        description={t("post.deleteBody")}
-        confirmLabel={t("post.delete")}
+        title={undoRepost ? tm("undoTitle") : t("post.deleteTitle")}
+        description={undoRepost ? tm("undoBody") : t("post.deleteBody")}
+        confirmLabel={undoRepost ? tm("undoConfirm") : t("post.delete")}
         pending={remove.pending}
         error={remove.error}
         onConfirm={() => void remove.run()}
@@ -206,23 +207,7 @@ export function PostCard({ post, viewer, lookups, onChange, onRemoved, onReposte
           setDeleteOpen(false);
         }}
       />
-      </div>
-
-      {withPane ? (
-        // Geniş ekranda sütun kartın yüksekliğini BELİRLEMEZ: iç kutu mutlak konumludur (kart yüksekliğini gönderi içeriği
-        // ve `min-h` belirler); yorum sayısı, yorum ekleme ya da yükleme kartı uzatmaz, yalnız liste kendi içinde kayar.
-        <div className="relative min-w-0">
-          <div className="flex min-h-0 flex-col px-4 pb-4 sm:px-5 sm:pb-5 xl:absolute xl:inset-0 xl:p-5 xl:ps-2">
-            <CommentsPane
-              postId={post.id}
-              commentCount={post.commentCount}
-              viewer={viewer}
-              onCountChange={(delta) => onChange({ ...post, commentCount: Math.max(0, post.commentCount + delta) })}
-            />
-          </div>
-        </div>
-      ) : null}
-    </article>
+    </PostCardShell>
   );
 }
 

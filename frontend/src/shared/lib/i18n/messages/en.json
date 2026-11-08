@@ -1796,7 +1796,7 @@
     "nav": {
       "label": "Community sections",
       "feed": "Feed",
-      "forums": "Game forums",
+      "forums": "Community",
       "mine": "My posts",
       "newPost": "Create post"
     },
@@ -1832,14 +1832,10 @@
       "mineReposts": {
         "title": "My reposts",
         "description": "Posts you reposted."
-      },
-      "mineWords": {
-        "title": "My words",
-        "description": "Your text-only posts."
       }
     },
     "feed": {
-      "title": "Community",
+      "title": "Community Feed",
       "description": "Share games, experiences and ideas, and read what other players post.",
       "prompt": "What do you want to share with the community?",
       "promptGuest": "Sign in to share",
@@ -1857,8 +1853,10 @@
       "sortLabel": "Sort order",
       "sort": {
         "NEWEST": "Newest",
-        "POPULAR": "Popular",
-        "OLDEST": "Oldest"
+        "POPULAR": "Popular (likes + comments)",
+        "OLDEST": "Oldest",
+        "MOST_LIKED": "Most liked",
+        "MOST_REPOSTED": "Most reposted"
       },
       "search": "Search posts",
       "searchPlaceholder": "Search post text…",
@@ -1871,7 +1869,15 @@
       "to": "To date",
       "invalidRange": "The start date cannot be after the end date.",
       "clear": "Clear filters",
-      "more": "More filters"
+      "more": "More filters",
+      "sortFilter": "Filter",
+      "criteriaOrder": "Priority {number}",
+      "criteriaCount": "{count} criteria selected",
+      "criteriaOpposite": "Newest and Oldest are opposite directions: the one you picked first (“{first}”) applies; the other does not change the result.",
+      "ineffective": "No effect (opposite direction)",
+      "applyCriteria": "Apply",
+      "clearCriteria": "Clear",
+      "criteriaUnsupported": "Not applied: sorting by “{list}” is not supported by the API yet. Keep the selection or remove it and apply again."
     },
     "category": {
       "GENERAL": "General",
@@ -1922,7 +1928,12 @@
         "GUIDES": "Guide",
         "EASTER_EGGS": "Easter egg",
         "EXPERIENCES": "Player experience"
-      }
+      },
+      "readLess": "Show less",
+      "commentsOpen": "Show comments",
+      "commentsClose": "Hide comments",
+      "actions": "Post actions",
+      "reportMenu": "Report"
     },
     "images": {
       "alt": "Post image {number}",
@@ -1984,12 +1995,10 @@
       "forumContext": "Forum:",
       "type": "Post type",
       "titleLabel": "Title",
-      "titlePlaceholder": "Title of your content",
       "bodyLabel": "Text",
       "bodyPlaceholder": "Share your thoughts, experiences or questions…",
       "gameRequired": "Search for a game (required)",
       "gameOptional": "Search for a game",
-      "category": "Category",
       "images": "Images",
       "optional": "optional",
       "partial": "The post was published but {count, plural, one {# image} other {# images}} could not be uploaded. You can retry the images or go to the post.",
@@ -1999,7 +2008,7 @@
       "submit": "Publish",
       "previewLabel": "Post preview",
       "preview": "Preview",
-      "previewHelp": "This is how it will look in the feed once published.",
+      "previewHelp": "This is how it will appear in the feed once published.",
       "previewNow": "Now",
       "previewEmpty": "Your post text will appear here.",
       "error": {
@@ -2011,17 +2020,9 @@
         "gameRequired": "Select a game for game-linked content."
       },
       "sectionKind": "What are you sharing?",
-      "sectionKindHint": "A post appears in the community feed. Game content is also listed on the game's page.",
+      "sectionKindHint": "The post will appear in the community feed.",
       "modePost": "Post",
-      "modePostHelp": "Share freely with the community; link a game if you like.",
       "modeGame": "Game content",
-      "modeGameHelp": "Title and game are required. Listed on the game's page; the type cannot be changed later.",
-      "contentTypeLabel": "Content type",
-      "contentTypeHelp": {
-        "GUIDES": "A step-by-step guide to the game.",
-        "EASTER_EGGS": "Hidden details and surprises in the game.",
-        "EXPERIENCES": "Your own play experience."
-      },
       "sectionContent": "Content",
       "plainText": "Plain text: formatting and links are not interpreted.",
       "sectionGame": "Game link",
@@ -2034,7 +2035,11 @@
       "publishingImage": "Uploading image {current}/{total}…",
       "retry": "Try again",
       "publishingOverlay": "Publishing your post…",
-      "publishingList": "Updating the feed…"
+      "publishingList": "Updating the feed…",
+      "sectionDescription": "Description",
+      "confirmTitle": "Do you want to share this post?",
+      "confirmBody": "If you confirm, the post will be published.",
+      "category": "Category"
     },
     "edit": {
       "title": "Edit post",
@@ -2064,11 +2069,7 @@
       "hideReplies": "Hide replies",
       "deleteTitle": "Delete this comment?",
       "deleteBody": "The comment is removed. If it has replies, a \"deleted\" note stays in its place. This cannot be undone.",
-      "save": "Save",
-      "paneTitle": "Comments",
-      "paneEmpty": "No comments yet.",
-      "paneLoading": "Loading comments…",
-      "paneListLabel": "Comment list"
+      "save": "Save"
     },
     "detail": {
       "title": "Post",
@@ -2164,12 +2165,11 @@
         "noText": "Post without text",
         "originalBy": "Original author"
       },
-      "wordsLink": "My words",
-      "wordsTitle": "My words",
-      "wordsDescription": "Your text-only posts. Posts with images and reposts are not listed here.",
-      "wordsEmptyTitle": "You haven't shared a word yet.",
-      "wordsEmptyBody": "Use the quick share box in the feed to post a short word; it will be listed here.",
-      "wordsEmptyCta": "Go to the feed"
+      "priority": "Priority",
+      "priorityOptions": {
+        "OLDEST": "Oldest to newest",
+        "NEWEST": "Newest to oldest"
+      }
     },
     "user": {
       "title": "Player posts",
@@ -2214,6 +2214,9 @@
       "open": "Open image {number} full size",
       "broken": "Image could not be loaded",
       "viewer": "Image viewer"
+    },
+    "toast": {
+      "close": "Dismiss notification"
     }
   }
 }

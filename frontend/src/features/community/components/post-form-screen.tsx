@@ -4,6 +4,7 @@ import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useRequireSession } from "@/features/auth";
+import { ConfirmDialog } from "@/shared/components/ui/confirm-dialog";
 import { Icon } from "@/shared/components/ui/icons";
 import { Link, useRouter } from "@/shared/lib/i18n/navigation";
 import { cn } from "@/shared/utils/cn";
@@ -13,8 +14,7 @@ import { useResource } from "../hooks/use-resource";
 import { createPost, fetchForum, uploadPostImage } from "../services/community-api";
 import { completePublish, failPublish, setPublishStage, startPublish } from "../services/publish-flow";
 import { isUuid } from "../services/post-query";
-import { contentTypeNeeds, LIMITS, validateText, validateTitle, type FieldError as FieldIssue } from "../schemas/community.schema";
-import { gameContentTypes, postCategories, type GameContentType, type PostCategory } from "../types/community.types";
+import { LIMITS, validateText, type FieldError as FieldIssue } from "../schemas/community.schema";
 import { CommunityFrame } from "./community-frame";
 import { CommunityIcon } from "./community-icons";
 import {
@@ -39,7 +39,8 @@ type Mode = "post" | "game";
  * Gönderi oluşturma. Sıra: önce gönderi (JSON), sonra her görsel ayrı `multipart` isteğiyle, ekrandaki sırayla (sunucu
  * `sortOrder`'ı yükleme sırasından verir). Gönderi oluştuktan sonra form kilitlenir (mükerrer gönderi olmaz); görsel
  * yükleme kısmen başarısız olursa yalnız eksik görseller yeniden denenir. Forum konusu (`?forum=<id>`) forumun oyununu
- * miras alır. Başarı yalnız sunucu onayından sonra gösterilir ve gönderi akışta sunucudan okunarak görünür.
+ * miras alır. Form sırası: tür, oyun bağlantısı, görseller, açıklama. "Paylaş" doğrulama geçince ortak onay modalını açar;
+ * istek yalnız onaydan sonra gider (vazgeçilirse form korunur). Başarı yalnız sunucu onayından sonra, sağ alt bildirimle gösterilir.
  */
 export function PostFormScreen() {
   const t = useTranslations("Community");
@@ -86,10 +87,13 @@ function FormSection({ title, hint, children }: { title: string; hint?: string; 
   );
 }
 
+/** Seçenek kartı: tamamı kırmızıya boyanmaz; yalnız seçili türün ikonu ve çerçevesi kırmızı vurgulanır. */
 const choiceClass =
-  "flex cursor-pointer items-start gap-3 rounded-control border border-control-border bg-background/60 p-3.5 transition-colors hover:border-text-secondary has-[:checked]:border-primary has-[:checked]:bg-primary/10 has-[:checked]:shadow-[inset_3px_0_0_var(--ltz-primary)] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60";
-const chipChoiceClass =
-  "inline-flex min-h-10 cursor-pointer items-center rounded-control border border-control-border px-3.5 text-sm font-medium transition-colors hover:border-text-secondary has-[:checked]:border-primary has-[:checked]:bg-primary/10 has-[:checked]:text-text-primary has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60";
+  "flex cursor-pointer items-center gap-3 rounded-control border border-control-border bg-background/60 p-3 transition-colors hover:border-text-secondary has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60";
+const choiceIconClass =
+  "flex size-10 shrink-0 items-center justify-center rounded-control border border-control-border text-text-secondary transition-colors peer-checked:border-primary peer-checked:text-brand-text";
+/** "Vazgeç" ve "Paylaş" aynı genişlik/yükseklikte (ikisi de bu sınıfla, iki eşit sütunlu ızgarada). */
+const actionButtonClass = "h-12 min-h-12 w-full justify-center px-6 text-base";
 
 function PostForm({ accountId, forumId, forumTitle }: { accountId: string; forumId: string | null; forumTitle: string | null }) {
   const t = useTranslations("Community");
@@ -97,26 +101,24 @@ function PostForm({ accountId, forumId, forumTitle }: { accountId: string; forum
   const router = useRouter();
 
   const [mode, setMode] = useState<Mode>("post");
-  const [contentType, setContentType] = useState<GameContentType>("GUIDES");
-  const [heading, setHeading] = useState("");
   const [body, setBody] = useState("");
-  const [category, setCategory] = useState<PostCategory>("GENERAL");
   const [gameId, setGameId] = useState("");
   const [images, setImages] = useState<LocalImage[]>([]);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
   const [created, setCreated] = useState<Created | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [now] = useState(() => new Date().toISOString());
 
   const author = useAuthors([accountId], true);
   const game = useGames([gameId || null]);
 
-  const typed: GameContentType | "" = !forumId && mode === "game" ? contentType : "";
-  const needs = contentTypeNeeds(typed);
-  const titleIssue: FieldIssue | null = needs.title ? validateTitle(heading) : null;
+  // "Oyun içeriği" seçilince oyun bağlantısı zorunludur (forum konusu oyunu forumdan miras alır). İçerik türü alanı yoktur: gönderi
+  // API'ye `contentType`/`title` olmadan gider (bkz. rapor: türsüz gönderi oyunun sayfasında "oyun içeriği" olarak listelenmez).
+  const gameRequired = !forumId && mode === "game";
   const bodyIssue = validateText(body, LIMITS.postBody);
-  const gameIssue = needs.game && !gameId ? "required" : null;
-  const invalid = titleIssue !== null || bodyIssue !== null || gameIssue !== null;
+  const gameIssue: FieldIssue | null = gameRequired && !gameId ? "required" : null;
+  const invalid = bodyIssue !== null || gameIssue !== null;
   const locked = created !== null;
   const bodyLength = body.trim().length;
 
@@ -128,9 +130,7 @@ function PostForm({ accountId, forumId, forumTitle }: { accountId: string; forum
       const post = await createPost({
         body: body.trim(),
         ...(forumId ? { forumId } : {}),
-        ...(!forumId && gameId ? { gameId } : {}),
-        ...(typed ? { contentType: typed, title: heading.trim() } : {}),
-        ...(!forumId && !typed && category !== "GENERAL" ? { category } : {})
+        ...(!forumId && gameId ? { gameId } : {})
       });
       postId = post.id;
       setCreated({ postId, pending });
@@ -162,12 +162,19 @@ function PostForm({ accountId, forumId, forumTitle }: { accountId: string; forum
     return postId;
   });
 
-  async function submit(event: FormEvent) {
+  /** Form gönderimi: doğrulama geçerse onay modalı açılır; paylaşım isteği yalnız onaydan sonra gönderilir. */
+  function submit(event: FormEvent) {
     event.preventDefault();
     if (publish.pending) return;
     setTouched(true);
     if (invalid && !locked) return;
-    // Doğrulamalar geçti: tam ekran yükleme katmanı açılır; zaten sürüyorsa ikinci paylaşım başlamaz.
+    // Gönderi zaten oluşmuşsa (yalnız görseller yeniden deneniyor) tekrar onay istenmez.
+    if (locked) void startPublishing();
+    else setConfirmOpen(true);
+  }
+
+  async function startPublishing() {
+    // Tam ekran yükleme katmanı açılır; zaten sürüyorsa ikinci paylaşım başlamaz.
     if (!startPublish()) return;
     const result = await publish.run();
     if (!result.ok && !result.skipped) failPublish();
@@ -215,74 +222,50 @@ function PostForm({ accountId, forumId, forumTitle }: { accountId: string; forum
                 <legend className="sr-only">{t("form.type")}</legend>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className={choiceClass}>
-                    <input type="radio" name={`${id}-mode`} className="sr-only" checked={mode === "post"} onChange={() => setMode("post")} />
-                    <Icon name="messages" className="mt-0.5 size-5 shrink-0 text-brand-text" />
-                    <span>
-                      <span className="block font-display text-sm font-semibold text-text-primary">{t("form.modePost")}</span>
-                      <span className="mt-0.5 block text-sm leading-5 text-text-secondary">{t("form.modePostHelp")}</span>
+                    <input type="radio" name={`${id}-mode`} className="peer sr-only" checked={mode === "post"} onChange={() => setMode("post")} />
+                    <span aria-hidden="true" className={choiceIconClass}>
+                      <Icon name="messages" className="size-5" />
                     </span>
+                    <span className="block font-display text-sm font-semibold text-text-primary">{t("form.modePost")}</span>
                   </label>
                   <label className={choiceClass}>
-                    <input type="radio" name={`${id}-mode`} className="sr-only" checked={mode === "game"} onChange={() => setMode("game")} />
-                    <Icon name="gamepad" className="mt-0.5 size-5 shrink-0 text-brand-text" />
-                    <span>
-                      <span className="block font-display text-sm font-semibold text-text-primary">{t("form.modeGame")}</span>
-                      <span className="mt-0.5 block text-sm leading-5 text-text-secondary">{t("form.modeGameHelp")}</span>
+                    <input type="radio" name={`${id}-mode`} className="peer sr-only" checked={mode === "game"} onChange={() => setMode("game")} />
+                    <span aria-hidden="true" className={choiceIconClass}>
+                      <Icon name="gamepad" className="size-5" />
                     </span>
+                    <span className="block font-display text-sm font-semibold text-text-primary">{t("form.modeGame")}</span>
                   </label>
                 </div>
 
-                {mode === "game" ? (
-                  <div className="mt-4">
-                    <p className="mb-2 text-sm font-medium text-text-primary">{t("form.contentTypeLabel")}</p>
-                    <div role="radiogroup" aria-label={t("form.contentTypeLabel")} className="flex flex-wrap gap-2">
-                      {gameContentTypes.map((value) => (
-                        <label key={value} className={chipChoiceClass}>
-                          <input type="radio" name={`${id}-ctype`} className="sr-only" checked={contentType === value} onChange={() => setContentType(value)} />
-                          {t(`post.contentType.${value}`)}
-                        </label>
-                      ))}
-                    </div>
-                    <p className="mt-2 text-sm text-text-secondary">{t(`form.contentTypeHelp.${contentType}`)}</p>
-                  </div>
-                ) : (
-                  <div className="mt-4">
-                    <p className="mb-2 text-sm font-medium text-text-primary">{t("form.category")}</p>
-                    <div role="radiogroup" aria-label={t("form.category")} className="flex flex-wrap gap-2">
-                      {postCategories.map((value) => (
-                        <label key={value} className={chipChoiceClass}>
-                          <input type="radio" name={`${id}-category`} className="sr-only" checked={category === value} onChange={() => setCategory(value)} />
-                          {t(`category.${value}`)}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </fieldset>
             </FormSection>
           ) : null}
 
-          <FormSection title={t("form.sectionContent")}>
-            {needs.title ? (
-              <div>
-                <label htmlFor={`${id}-title`} className="mb-1.5 block text-sm font-medium text-text-primary">
-                  {t("form.titleLabel")} <span aria-hidden="true" className="text-brand-text">*</span>
-                </label>
-                <input
-                  id={`${id}-title`}
-                  value={heading}
-                  disabled={locked}
-                  maxLength={LIMITS.title + 40}
-                  onChange={(event) => setHeading(event.target.value)}
-                  aria-required="true"
-                  aria-invalid={showError(titleIssue) ? true : undefined}
-                  aria-describedby={showError(titleIssue) ? `${id}-title-error` : undefined}
-                  placeholder={t("form.titlePlaceholder")}
-                  className={cn(inputClass, "font-display text-base font-semibold")}
-                />
-                {showError(titleIssue) ? <FieldError id={`${id}-title-error`}>{t(`form.error.${titleIssue}`, { max: LIMITS.title })}</FieldError> : null}
-              </div>
-            ) : null}
+          {!forumId ? (
+            <FormSection title={t("form.sectionGame")} hint={mode === "game" ? t("form.sectionGameRequiredHint") : t("form.sectionGameHint")}>
+              <GamePicker
+                id={`${id}-game`}
+                label={gameRequired ? t("form.gameRequired") : t("form.gameOptional")}
+                value={gameId}
+                onChange={setGameId}
+                disabled={locked}
+                describedBy={showError(gameIssue) ? `${id}-game-error` : undefined}
+              />
+              {showError(gameIssue) ? <FieldError id={`${id}-game-error`}>{t("form.error.gameRequired")}</FieldError> : null}
+            </FormSection>
+          ) : null}
+
+          <FormSection title={t("form.sectionMedia")} hint={t("form.sectionMediaHint")}>
+            <ImagePicker
+              items={images}
+              setItems={setImages}
+              addDisabled={locked}
+              activeKey={activeKey}
+              onActivate={setActiveKey}
+            />
+          </FormSection>
+
+          <FormSection title={t("form.sectionDescription")}>
             <div>
               <label htmlFor={`${id}-body`} className="mb-1.5 block text-sm font-medium text-text-primary">
                 {t("form.bodyLabel")} <span aria-hidden="true" className="text-brand-text">*</span>
@@ -290,6 +273,7 @@ function PostForm({ accountId, forumId, forumTitle }: { accountId: string; forum
               <textarea
                 id={`${id}-body`}
                 rows={8}
+                maxLength={LIMITS.postBody}
                 value={body}
                 disabled={locked}
                 onChange={(event) => setBody(event.target.value)}
@@ -312,29 +296,6 @@ function PostForm({ accountId, forumId, forumTitle }: { accountId: string; forum
             </div>
           </FormSection>
 
-          {!forumId ? (
-            <FormSection title={t("form.sectionGame")} hint={mode === "game" ? t("form.sectionGameRequiredHint") : t("form.sectionGameHint")}>
-              <GamePicker
-                id={`${id}-game`}
-                label={needs.game ? t("form.gameRequired") : t("form.gameOptional")}
-                value={gameId}
-                onChange={setGameId}
-                disabled={locked}
-                describedBy={showError(gameIssue) ? `${id}-game-error` : undefined}
-              />
-              {showError(gameIssue) ? <FieldError id={`${id}-game-error`}>{t("form.error.gameRequired")}</FieldError> : null}
-            </FormSection>
-          ) : null}
-
-          <FormSection title={t("form.sectionMedia")} hint={t("form.sectionMediaHint")}>
-            <ImagePicker
-              items={images}
-              setItems={setImages}
-              addDisabled={locked}
-              activeKey={activeKey}
-              onActivate={setActiveKey}
-            />
-          </FormSection>
         </fieldset>
 
         <div className="space-y-4 border-t border-border bg-surface-elevated/40 p-4 sm:px-6 max-lg:sticky max-lg:bottom-0 max-lg:z-10 max-lg:bg-surface">
@@ -352,17 +313,17 @@ function PostForm({ accountId, forumId, forumTitle }: { accountId: string; forum
           ) : (
             <ActionError error={busy ? undefined : publish.error} />
           )}
-          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-            <div className="flex flex-wrap items-center justify-end gap-3">
+          <div className="flex justify-end">
+            <div className="inline-grid w-full grid-cols-2 gap-3 sm:w-auto">
               <Link
                 href={forumId ? { pathname: "/community/forums/[forumId]", params: { forumId } } : "/community"}
                 aria-disabled={busy}
                 tabIndex={busy ? -1 : undefined}
-                className={cn(buttonClass, busy && "pointer-events-none opacity-50")}
+                className={cn(buttonClass, actionButtonClass, "sm:min-w-40", busy && "pointer-events-none opacity-50")}
               >
                 {t("form.cancel")}
               </Link>
-              <button type="submit" className={cn(primaryButtonClass, "min-h-12 px-7 text-base")} disabled={busy || done}>
+              <button type="submit" className={cn(primaryButtonClass, actionButtonClass, "sm:min-w-40")} disabled={busy || done}>
                 <CommunityIcon name="send" className="size-5" />
                 {submitLabel}
               </button>
@@ -370,6 +331,20 @@ function PostForm({ accountId, forumId, forumTitle }: { accountId: string; forum
           </div>
         </div>
       </form>
+
+      {confirmOpen ? (
+        <ConfirmDialog
+          title={t("form.confirmTitle")}
+          description={t("form.confirmBody")}
+          confirmLabel={t("form.submit")}
+          cancelLabel={t("form.cancel")}
+          onCancel={() => setConfirmOpen(false)}
+          onConfirm={() => {
+            setConfirmOpen(false);
+            void startPublishing();
+          }}
+        />
+      ) : null}
 
       <aside aria-label={t("form.previewLabel")} className="lg:sticky lg:top-24 lg:self-start">
         <div className="mb-3 flex items-center gap-2.5">
@@ -384,9 +359,9 @@ function PostForm({ accountId, forumId, forumTitle }: { accountId: string; forum
             authorId={accountId}
             createdAt={now}
             gameId={gameId || null}
-            contentType={typed || null}
-            category={!forumId && !typed ? category : "GENERAL"}
-            title={needs.title && heading.trim() ? heading.trim() : null}
+            contentType={null}
+            category="GENERAL"
+            title={null}
             body={body.trim() || null}
             media={
               mediaItems.length > 0 ? (

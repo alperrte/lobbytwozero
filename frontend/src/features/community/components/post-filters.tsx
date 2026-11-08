@@ -1,19 +1,22 @@
 "use client";
 
-import { useId, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { Icon } from "@/shared/components/ui/icons";
 import { cn } from "@/shared/utils/cn";
 import { isInvalidRange } from "../services/post-query";
-import { emptyFilters, postCategories, postSorts, type PostFilters } from "../types/community.types";
+import { emptyFilters, postCategories, type PostFilters } from "../types/community.types";
 import { buttonClass, FieldError, inputClass, panel } from "./community-ui";
 import { GamePicker } from "./game-picker";
+import { SortCriteriaMenu } from "./sort-criteria-menu";
 
 export type FilterOptions = { game?: boolean; category?: boolean; dates?: boolean };
 
 /**
  * Akış arama/filtre/sıralama çubuğu (yalnız API'nin desteklediği parametreler: q, gameId, category, from/to, sort).
- * Metin araması gönderimle uygulanır (her tuşta istek atılmaz); diğer seçimler hemen uygulanır.
+ * Arama yazarken kısa bir gecikmeyle (debounce) ya da Enter ile uygulanır; alan temizlenince hemen sıfırlanır. Sıralama "Filtrele"
+ * çoklu seçim menüsündedir (bkz. `SortCriteriaMenu`); YALNIZ sunucunun sıralayabildiği ölçütler seçilebilir (yüklenmiş kayıtlar
+ * istemcide sıralanmaz); sıralama ya da arama değişince liste ve sayfalama baştan yüklenir.
  */
 export function PostFilterBar({
   filters,
@@ -36,31 +39,16 @@ export function PostFilterBar({
 
   return (
     <section aria-label={t("filters.label")} className={cn(panel, "mb-5 px-4 py-3")}>
-      {/* Tek satır: sıralama solda; kompakt arama, Ara ve "Daha fazla filtre" sağda. Dar ekranda satırlar kendiliğinden sarar. */}
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-        <div role="group" aria-label={t("filters.sortLabel")} className="flex flex-wrap gap-1">
-          {postSorts.map((sort) => (
-            <button
-              key={sort}
-              type="button"
-              aria-pressed={filters.sort === sort}
-              onClick={() => onChange({ ...filters, sort })}
-              className={cn(
-                "h-11 rounded-control px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus",
-                filters.sort === sort ? "bg-primary text-primary-foreground" : "text-text-secondary hover:bg-surface-elevated hover:text-text-primary"
-              )}
-            >
-              {t(`filters.sort.${sort}`)}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex w-full flex-wrap items-center gap-3 sm:ms-auto sm:w-auto">
-          <SearchForm key={filters.q} id={id} initial={filters.q} onSubmit={(q) => onChange({ ...filters, q })} />
+      {/* Tek satır: arama solda; sağ grupta "Filtrele" açılır listesi (sıralama) ve hemen sağında "Daha fazla filtre". Dar ekranda
+          arama tam genişlikte ilk satırda kalır, sağ grup altına sarar (yatay taşma yok). */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-3">
+        <SearchForm id={id} value={filters.q} onApply={(q) => onChange({ ...filters, q })} />
+        <div className="flex w-full flex-wrap items-center gap-3 sm:ms-auto sm:w-auto sm:flex-nowrap">
+          <SortCriteriaMenu value={filters.sort} onApply={(sort) => onChange({ ...filters, sort })} />
           {hasExtra ? (
             <button
               type="button"
-              className={buttonClass}
+              className={cn(buttonClass, "shrink-0")}
               aria-expanded={showExtra}
               aria-controls={`${id}-extra`}
               onClick={() => setExpanded((value) => !value)}
@@ -130,40 +118,68 @@ export function PostFilterBar({
   );
 }
 
-/** Arama gönderimle uygulanır (her tuşta istek atılmaz); en az 2 karakter sunucu kuralıdır. `key` ile dışarıdan sıfırlanır. */
-function SearchForm({ id, initial, onSubmit }: { id: string; initial: string; onSubmit: (q: string) => void }) {
+const SEARCH_DEBOUNCE_MS = 400;
+/** Sunucu kuralı: arama en az 2 karakterdir; kısa metin aramayı sıfırlar. */
+const effectiveQuery = (draft: string) => (draft.trim().length >= 2 ? draft.trim() : "");
+
+/**
+ * Arama alanı: yazarken `SEARCH_DEBOUNCE_MS` sonra uygulanır (her tuşta istek atılmaz), Enter hemen uygular, alan boşalınca arama
+ * hemen sıfırlanır. En az 2 karakter sunucu kuralıdır. Dışarıdan değişen değer (filtreleri temizleme) alana yansır.
+ */
+function SearchForm({ id, value, onApply }: { id: string; value: string; onApply: (q: string) => void }) {
   const t = useTranslations("Community");
-  const [draft, setDraft] = useState(initial);
+  const [draft, setDraft] = useState(value);
+  const [synced, setSynced] = useState(value);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const short = draft.trim().length === 1;
+
+  // Dışarıdan gelen değer, yazılanın etkin karşılığından farklıysa (ör. filtreler temizlendi) alan güncellenir.
+  if (value !== synced) {
+    setSynced(value);
+    if (effectiveQuery(draft) !== value) setDraft(value);
+  }
+
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  function apply(next: string) {
+    clearTimeout(timer.current);
+    const q = effectiveQuery(next);
+    if (q !== value) onApply(q);
+  }
+
+  function onChange(event: ChangeEvent<HTMLInputElement>) {
+    const next = event.target.value;
+    setDraft(next);
+    clearTimeout(timer.current);
+    if (next === "") apply("");
+    else timer.current = setTimeout(() => apply(next), SEARCH_DEBOUNCE_MS);
+  }
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    onSubmit(draft.trim().length >= 2 ? draft.trim() : "");
+    apply(draft);
   }
 
   return (
-    <form onSubmit={submit} role="search" className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 sm:w-auto">
+    <form onSubmit={submit} role="search" className="w-full sm:w-72">
       <label htmlFor={`${id}-q`} className="sr-only">
         {t("filters.search")}
       </label>
-      <div className="relative min-w-0 flex-1 sm:w-64 sm:flex-none">
+      <div className="relative">
         <Icon name="search" className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-text-secondary" />
         <input
           id={`${id}-q`}
           type="search"
           value={draft}
           maxLength={100}
-          onChange={(event) => setDraft(event.target.value)}
+          onChange={onChange}
           aria-describedby={short ? `${id}-q-hint` : undefined}
           placeholder={t("filters.searchPlaceholder")}
           className={cn(inputClass, "ps-9")}
         />
       </div>
-      <button type="submit" className={cn(buttonClass, "shrink-0")}>
-        {t("filters.apply")}
-      </button>
       {short ? (
-        <p id={`${id}-q-hint`} className="w-full text-sm text-text-secondary">
+        <p id={`${id}-q-hint`} className="mt-1 text-sm text-text-secondary">
           {t("filters.searchMin")}
         </p>
       ) : null}

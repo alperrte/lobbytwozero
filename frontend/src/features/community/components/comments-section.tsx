@@ -39,12 +39,15 @@ const MAX_INDENT_DEPTH = 3;
 export function CommentsSection({
   postId,
   viewer,
-  onCountChange
+  onCountChange,
+  embedded = false
 }: {
   postId: string;
   viewer: Viewer;
   /** Gönderinin toplam yorum sayacına eklenecek fark (yeni yorum +1, silinen -1). */
   onCountChange: (delta: number) => void;
+  /** Kartın altında açılan yorum bölümü: ayırıcı çizgi, küçük başlık ve kendi içinde kayan liste (detay sayfasında kapalı). */
+  embedded?: boolean;
 }) {
   const t = useTranslations("Community.comments");
   const headingId = useId();
@@ -55,10 +58,16 @@ export function CommentsSection({
   );
 
   return (
-    <section aria-labelledby={headingId} className="mt-8">
-      <h2 id={headingId} className="mb-4 font-display text-xl font-semibold text-text-primary">
-        {t("title")}
-      </h2>
+    <section aria-labelledby={headingId} className={embedded ? "mt-4 border-t border-border pt-4" : "mt-8"}>
+      {embedded ? (
+        <h3 id={headingId} className="mb-3 font-display text-base font-semibold text-text-primary">
+          {t("title")}
+        </h3>
+      ) : (
+        <h2 id={headingId} className="mb-4 font-display text-xl font-semibold text-text-primary">
+          {t("title")}
+        </h2>
+      )}
 
       <CommentComposer
         viewer={viewer}
@@ -73,7 +82,7 @@ export function CommentsSection({
         }}
       />
 
-      <div className="mt-5">
+      <div className={embedded ? "ltz-thin-scroll mt-4 max-h-[32rem] overflow-y-auto overscroll-contain pe-1" : "mt-5"}>
         {list.loading ? <LoadingBlock rows={2} /> : null}
         {list.error ? <ErrorBlock error={list.error} retry={list.reload} /> : null}
         {!list.loading && !list.error ? (
@@ -101,12 +110,11 @@ export type ThreadProps = {
   /** Yanıt listesinin sahibi olan üst yorum: silinen yanıt üst yorumun sayacını düşürür. */
   onChildRemoved?: () => void;
   /** Kart içi yorum bölmesi: kutusuz, ince ayırıcılı düz görünüm (kart içinde kart oluşmasın). */
-  flat?: boolean;
 };
 
-export function CommentThread({ list, postId, viewer, resolveAuthor, onCountChange, depth, onChildRemoved, flat = false }: ThreadProps) {
+export function CommentThread({ list, postId, viewer, resolveAuthor, onCountChange, depth, onChildRemoved }: ThreadProps) {
   return (
-    <ul className={cn(flat ? "divide-y divide-border/60" : "space-y-3", depth > 0 && !flat && "mt-3")}>
+    <ul className={cn("space-y-3", depth > 0 && "mt-3")}>
       {list.items.map((comment) => (
         <li key={comment.id}>
           <CommentItem
@@ -115,7 +123,6 @@ export function CommentThread({ list, postId, viewer, resolveAuthor, onCountChan
             viewer={viewer}
             resolveAuthor={resolveAuthor}
             depth={depth}
-            flat={flat}
             onCountChange={onCountChange}
             onChange={(next) => list.update(comment.id, () => next)}
             onRemove={(placeholder) => {
@@ -136,7 +143,6 @@ function CommentItem({
   viewer,
   resolveAuthor,
   depth,
-  flat,
   onChange,
   onRemove,
   onCountChange
@@ -146,7 +152,6 @@ function CommentItem({
   viewer: Viewer;
   resolveAuthor: ReturnType<typeof useAuthors>;
   depth: number;
-  flat: boolean;
   onChange: (comment: CommentView) => void;
   onRemove: (placeholder: boolean) => void;
   onCountChange: (delta: number) => void;
@@ -182,7 +187,7 @@ function CommentItem({
 
   return (
     <div className={cn(depth > 0 && depth <= MAX_INDENT_DEPTH && "border-s-2 border-border ps-3 sm:ps-4")}>
-      <div className={flat ? "py-3" : "rounded-panel border border-border bg-surface p-3.5 sm:p-4"}>
+      <div className="rounded-panel border border-border bg-surface p-3.5 sm:p-4">
         {deleted ? (
           <p className="text-sm italic text-text-secondary">{t("deleted")}</p>
         ) : (
@@ -199,7 +204,7 @@ function CommentItem({
                 commentId={comment.id}
               />
             ) : (
-              <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-text-primary">{comment.body}</p>
+              <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-text-primary [overflow-wrap:anywhere]">{comment.body}</p>
             )}
           </>
         )}
@@ -277,8 +282,7 @@ function CommentItem({
                 resolveAuthor={replyAuthors}
                 onCountChange={onCountChange}
                 depth={depth + 1}
-                flat={flat}
-                onChildRemoved={() => onChange({ ...comment, replyCount: Math.max(0, comment.replyCount - 1) })}
+                    onChildRemoved={() => onChange({ ...comment, replyCount: Math.max(0, comment.replyCount - 1) })}
               />
               <LoadMore hasMore={replies.hasMore} loading={replies.loadingMore} error={replies.moreError} onMore={replies.loadMore} />
             </>
@@ -311,7 +315,6 @@ export function CommentComposer({
   submitLabel,
   placeholder,
   compact = false,
-  hideLabel = false,
   submit,
   onCreated,
   onCancel
@@ -321,8 +324,6 @@ export function CommentComposer({
   submitLabel: string;
   placeholder: string;
   compact?: boolean;
-  /** Etiket yalnız ekran okuyucuya görünür (dar yorum bölmesi). */
-  hideLabel?: boolean;
   submit: (body: string) => Promise<CommentView>;
   onCreated: (comment: CommentView) => void;
   onCancel?: () => void;
@@ -359,58 +360,36 @@ export function CommentComposer({
     }
   }
 
-  const submitButton = (
-    <button type="submit" className={cn(primaryButtonClass, hideLabel && "shrink-0")} disabled={send.pending}>
-      <CommunityIcon name="send" className="size-4" />
-      {send.pending ? t("state.working") : submitLabel}
-    </button>
-  );
-  const field = (
-    <textarea
-      id={`${id}-body`}
-      rows={hideLabel ? 1 : compact ? 2 : 3}
-      value={body}
-      onChange={(event) => setBody(event.target.value)}
-      placeholder={placeholder}
-      aria-invalid={touched && issue ? true : undefined}
-      aria-describedby={touched && issue ? `${id}-error` : undefined}
-      className={cn(inputClass, "resize-y", hideLabel && "max-h-32 min-h-11 flex-1 resize-none [field-sizing:content]")}
-    />
-  );
-
   return (
-    <form onSubmit={onSubmit} noValidate className={hideLabel ? "space-y-1" : "space-y-2"}>
-      <label htmlFor={`${id}-body`} className={hideLabel ? "sr-only" : "block text-sm font-medium text-text-primary"}>
+    <form onSubmit={onSubmit} noValidate className="space-y-2">
+      <label htmlFor={`${id}-body`} className="block text-sm font-medium text-text-primary">
         {label}
       </label>
-      {hideLabel ? (
-        <>
-          {/* Dar yorum bölmesi: tek satırlık alan + yanında gönder. Sayaç her zaman görünür ve yeri baştan ayrılıdır
-              (sabit yükseklik), böylece yazma/odak/temizleme formun ve kartın yüksekliğini değiştirmez. */}
-          <div className="flex items-end gap-2">
-            {field}
-            {submitButton}
-          </div>
-          <p className="h-5 text-start text-xs leading-5 tabular-nums text-text-secondary">
-            {body.trim().length}/{LIMITS.comment}
-          </p>
-        </>
-      ) : (
-        <>
-          {field}
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs text-text-secondary">{body.trim().length}/{LIMITS.comment}</p>
-            <div className="flex gap-2">
-              {onCancel ? (
-                <button type="button" className={buttonClass} onClick={onCancel} disabled={send.pending}>
-                  {t("state.cancel")}
-                </button>
-              ) : null}
-              {submitButton}
-            </div>
-          </div>
-        </>
-      )}
+      <textarea
+        id={`${id}-body`}
+        rows={compact ? 2 : 3}
+        value={body}
+        maxLength={LIMITS.comment}
+        onChange={(event) => setBody(event.target.value)}
+        placeholder={placeholder}
+        aria-invalid={touched && issue ? true : undefined}
+        aria-describedby={touched && issue ? `${id}-error` : undefined}
+        className={`${inputClass} resize-y`}
+      />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs tabular-nums text-text-secondary">{body.trim().length}/{LIMITS.comment}</p>
+        <div className="flex gap-2">
+          {onCancel ? (
+            <button type="button" className={buttonClass} onClick={onCancel} disabled={send.pending}>
+              {t("state.cancel")}
+            </button>
+          ) : null}
+          <button type="submit" className={primaryButtonClass} disabled={send.pending}>
+            <CommunityIcon name="send" className="size-4" />
+            {send.pending ? t("state.working") : submitLabel}
+          </button>
+        </div>
+      </div>
       {touched && issue ? <FieldError id={`${id}-error`}>{t(`form.error.${issue}`, { max: LIMITS.comment })}</FieldError> : null}
       <ActionError error={send.error} />
     </form>
@@ -436,7 +415,8 @@ function CommentEditor({ commentId, initial, onSaved, onCancel }: { commentId: s
       <label htmlFor={`${id}-body`} className="sr-only">
         {t("comments.edit")}
       </label>
-      <textarea id={`${id}-body`} rows={3} value={body} onChange={(event) => setBody(event.target.value)} aria-invalid={issue ? true : undefined} aria-describedby={issue ? `${id}-error` : undefined} className={`${inputClass} resize-y`} />
+      <textarea id={`${id}-body`} rows={3} value={body} maxLength={LIMITS.comment} onChange={(event) => setBody(event.target.value)} aria-invalid={issue ? true : undefined} aria-describedby={issue ? `${id}-error` : undefined} className={`${inputClass} resize-y`} />
+      <p className="text-xs tabular-nums text-text-secondary">{body.trim().length}/{LIMITS.comment}</p>
       {issue ? <FieldError id={`${id}-error`}>{t(`form.error.${issue}`, { max: LIMITS.comment })}</FieldError> : null}
       <ActionError error={save.error} />
       <div className="flex justify-end gap-2">

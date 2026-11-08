@@ -8,4 +8,5 @@ export { MyPostsScreen } from "./components/my-posts-screen";
 export { PostDetailScreen } from "./components/post-detail-screen";
 export { PostFormScreen } from "./components/post-form-screen";
 export { PublishOverlay } from "./components/publish-overlay";
+export { PublishToast } from "./components/publish-toast";
 export { UserPostsScreen } from "./components/user-posts-screen";

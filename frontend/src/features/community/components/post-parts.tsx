@@ -8,6 +8,7 @@ import { cn } from "@/shared/utils/cn";
 import { imageSrc } from "../services/community-api";
 import { DELETED_ACCOUNT_ID, type AuthorCard, type GameCard, type PostImage, type RepostSource } from "../types/community.types";
 import { Avatar, authorLabel, chipClass, RelativeTime } from "./community-ui";
+import { ExpandableText } from "./expandable-text";
 import { ImageViewer, MediaCarousel, type CarouselVariant, type MediaItem } from "./media-carousel";
 
 /** Liste/detay düzeyinde toplu çözümlenen yazar ve oyun kartları (kart başına ayrı istek atılmaz). */
@@ -65,15 +66,19 @@ export function AuthorLine({
   );
 }
 
+/** Gönderiye bağlı oyun rozeti; oyun kimliği (`gameId`) üzerinden oyunun sayfasına bağlantıdır. */
 export function GameChip({ gameId, lookups }: { gameId: string | null | undefined; lookups: Lookups }) {
   const t = useTranslations("Community.game");
   if (!gameId) return null;
   const game = lookups.game(gameId);
   return (
-    <span className={chipClass}>
+    <Link
+      href={{ pathname: "/games/[gameId]", params: { gameId } }}
+      className={cn(chipClass, "transition-colors hover:border-text-secondary hover:text-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus")}
+    >
       <Icon name="gamepad" className="size-3.5 shrink-0" />
       <span className="truncate">{game?.title ?? t("linked")}</span>
-    </span>
+    </Link>
   );
 }
 
@@ -113,7 +118,7 @@ export function toMediaItems(images: readonly PostImage[], alt: (number: number)
     .map((image, index) => ({ key: image.id, src: imageSrc(image), alt: alt(index + 1), width: image.width, height: image.height }));
 }
 
-/** Yayınlanmış gönderi görselleri: ortak carousel + tam boy görüntüleyici (tek görselde de aynı çerçeve). */
+/** Yayınlanmış gönderi görselleri: ortak carousel + tam boy görüntüleyici (tek görselde de aynı çerçeve), kartta yatay ortalı. */
 export function PostImages({ images, variant = "feed" }: { images: PostImage[]; variant?: CarouselVariant }) {
   const t = useTranslations("Community.images");
   const [viewer, setViewer] = useState<number | null>(null);
@@ -121,7 +126,7 @@ export function PostImages({ images, variant = "feed" }: { images: PostImage[]; 
   if (items.length === 0) return null;
   const label = t("galleryLabel", { count: items.length });
   return (
-    <div className="mt-3">
+    <div className="mt-4">
       <MediaCarousel items={items} variant={variant} label={label} onOpen={setViewer} />
       <ImageViewer items={items} startIndex={viewer} label={label} onClose={() => setViewer(null)} />
     </div>
@@ -141,7 +146,7 @@ export function RepostBlock({ source, lookups }: { source: RepostSource; lookups
   return (
     <div className="mt-3 rounded-control border border-border bg-surface-elevated/60 p-4">
       <AuthorLine authorId={source.authorId} lookups={lookups} createdAt={source.createdAt} size="sm" trailing={<GameChip gameId={source.gameId} lookups={lookups} />} />
-      {source.body ? <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-text-primary">{source.body}</p> : null}
+      {source.body ? <div className="mt-2"><ExpandableText text={source.body} lines={4} className="text-sm leading-6" /></div> : null}
       <PostImages images={source.images ?? []} variant="preview" />
       <Link
         href={{ pathname: "/community/posts/[postId]", params: { postId: source.postId } }}

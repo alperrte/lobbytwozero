@@ -150,9 +150,9 @@ export function ImagePicker({
         <label
           htmlFor={inputId}
           data-focus-id={`add-${inputId}`}
-          className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-control border border-primary bg-primary/10 px-4 text-sm font-semibold text-text-primary transition-colors hover:bg-primary/20 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-focus peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+          className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-control border border-control-border bg-surface px-4 text-sm font-semibold text-text-primary transition-colors hover:border-text-secondary hover:bg-surface-elevated peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-focus peer-disabled:cursor-not-allowed peer-disabled:border-border peer-disabled:bg-surface-elevated peer-disabled:text-text-secondary peer-disabled:[&_svg]:text-text-secondary"
         >
-          <CommunityIcon name="image" className="size-4" />
+          <CommunityIcon name="image" className="size-4 text-brand-text" />
           {processing ? t("processing") : t(total > 0 ? "addMore" : "add")}
         </label>
         <p id={hintId} className="min-w-0 flex-1 basis-56 text-sm leading-5 text-text-secondary">

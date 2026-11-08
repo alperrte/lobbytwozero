@@ -3,7 +3,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import tr from "@/shared/lib/i18n/messages/tr.json";
-import { frameRatio, MediaCarousel, type MediaItem } from "./media-carousel";
+import { MediaCarousel, type MediaItem } from "./media-carousel";
 
 const item = (n: number, width?: number, height?: number): MediaItem => ({ key: `k${n}`, src: `http://x.test/${n}.png`, alt: `Görsel ${n}`, width, height });
 const THREE = [item(1, 1200, 600), item(2, 600, 900), item(3, 500, 500)];
@@ -16,17 +16,61 @@ function mount(items: MediaItem[], extra: Partial<React.ComponentProps<typeof Me
   );
 }
 
-describe("frameRatio", () => {
-  it("ilk görselin oranını [4:5, 16:9] aralığına sıkıştırır; bilinmiyorsa 4:3", () => {
-    expect(frameRatio([item(1, 1200, 600)])).toBeCloseTo(16 / 9);
-    expect(frameRatio([item(1, 400, 1000)])).toBeCloseTo(4 / 5);
-    expect(frameRatio([item(1, 500, 500)])).toBe(1);
-    expect(frameRatio([item(1)])).toBeCloseTo(4 / 3);
-    expect(frameRatio([])).toBeCloseTo(4 / 3);
-  });
-});
-
 describe("MediaCarousel", () => {
+  it("bütün fotoğraflar (dikey/yatay/kare) aynı 4:3, en çok 640 px'lik, ortalı ve kenarlıksız medya alanını kullanır", () => {
+    for (const [width, height] of [
+      [600, 900],
+      [1600, 900],
+      [500, 500]
+    ] as const) {
+      const view = mount([item(1, width, height)]);
+      const frame = screen.getByRole("region", { name: "Test galerisi" });
+      expect(frame.className).toContain("aspect-[4/3]");
+      expect(frame.className).toContain("max-w-[40rem]");
+      expect(frame.className).toContain("mx-auto");
+      expect(frame.className).toContain("w-full");
+      expect(frame.className).not.toMatch(/\bborder\b|bg-background/);
+      expect(frame.getAttribute("style")).toBeNull();
+      view.unmount();
+    }
+  });
+
+  it("hiçbir fotoğrafın hiçbir kenarı kesilmez: object-contain + object-center, kırpma/yakınlaştırma/dönüşüm kuralı yok", () => {
+    for (const [width, height] of [
+      [600, 900],
+      [1600, 900],
+      [500, 500]
+    ] as const) {
+      const view = mount([item(1, width, height)]);
+      const img = screen.getByRole("img", { name: "Görsel 1", hidden: true });
+      expect(img.className).toContain("object-contain");
+      expect(img.className).toContain("object-center");
+      expect(img.className).not.toMatch(/object-cover|scale-|min-w-|min-h-|\bw-\[|\bh-\[|translate/);
+      // Boş kalan alan kartın kendi arka planıdır: çerçevede arka plan, kenarlık ve köşe kırpması yoktur.
+      const frame = screen.getByRole("region", { name: "Test galerisi" });
+      expect(frame.className).not.toMatch(/\bborder\b|bg-|rounded/);
+      view.unmount();
+    }
+  });
+
+  it("görüntüleyici (viewer) de fotoğrafın tamamını gösterir (object-contain)", () => {
+    mount([item(1, 600, 900)], { variant: "viewer" });
+    expect(screen.getByRole("img", { name: "Görsel 1", hidden: true }).className).toContain("object-contain");
+  });
+
+  it("slider'da fotoğraf değişince medya alanı değişmez: tüm slaytlar aynı sabit çerçevede, her biri kendi oranıyla contain ile görünür", () => {
+    mount(THREE);
+    const frame = screen.getByRole("region", { name: "Test galerisi" });
+    const before = frame.className;
+    const images = screen.getAllByRole("img", { hidden: true });
+    expect(images).toHaveLength(3);
+    images.forEach((img) => expect(img.className).toContain("object-contain"));
+    fireEvent.click(screen.getByRole("button", { name: "Sonraki görsel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sonraki görsel" }));
+    expect(frame.className).toBe(before);
+    expect(frame.className).toContain("aspect-[4/3]");
+  });
+
   it("tek görselde ok, sayaç ve nokta göstermez; çerçeve yine aynıdır", () => {
     mount([item(1, 800, 600)]);
     expect(screen.getByRole("region", { name: "Test galerisi" })).toBeInTheDocument();

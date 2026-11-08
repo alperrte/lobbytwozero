@@ -12,14 +12,8 @@ vi.mock("../services/community-api", () => ({ fetchPostPage: vi.fn() }));
 const fetchPage = vi.mocked(api.fetchPostPage);
 
 const ME = "11111111-1111-4111-8111-111111111111";
-const IMAGE = { id: "i1" };
-/** Görselli özgün gönderi (Gönderilerim). */
-const original = (n: number): PostView => ({ id: `p${n}`, authorId: ME, repostOf: null, images: [IMAGE] }) as unknown as PostView;
-/** Yalnız metinden oluşan özgün gönderi (Sözlerim). */
-const word = (n: number): PostView => ({ id: `w${n}`, authorId: ME, repostOf: null, images: [] }) as unknown as PostView;
-/** Yeniden paylaşım; eklediği açıklama (body) bağımsız söz sayılmaz. */
-const repost = (n: number): PostView =>
-  ({ id: `r${n}`, authorId: ME, body: "açıklama", repostOf: { postId: `o${n}`, available: true }, images: [] }) as unknown as PostView;
+const original = (n: number): PostView => ({ id: `p${n}`, authorId: ME, repostOf: null, images: [] }) as unknown as PostView;
+const repost = (n: number): PostView => ({ id: `r${n}`, authorId: ME, repostOf: { postId: `o${n}`, available: true }, images: [] }) as unknown as PostView;
 const range = (count: number, make: (n: number) => PostView, from = 1) => Array.from({ length: count }, (_, index) => make(from + index));
 
 const probe: { current: ReturnType<typeof useMyPosts> | null } = { current: null };
@@ -72,23 +66,6 @@ describe("useMyPosts (karma imleçli liste → görünüm)", () => {
     expect(latest.hasMore).toBe(true);
     act(() => latest.loadMore());
     await waitFor(() => expect(latest.items).toHaveLength(15));
-    expect(latest.hasMore).toBe(false);
-  });
-
-  it("sözlerim yalnız görselsiz özgün gönderileri toplar; görselli gönderi ve yeniden paylaşım (açıklamalı bile) girmez", async () => {
-    fetchPage.mockResolvedValueOnce({ items: [word(1), original(1), repost(1), word(2)], nextCursor: null });
-    render(<Harness view="words" />);
-    await waitFor(() => expect(ids()).toBe("w1,w2"));
-    expect(latest.hasMore).toBe(false);
-  });
-
-  it("sözlerim, ilk sayfalarda söz çıkmasa da imleç zincirini tarar (yüklenmiş sayfayı filtreleyip eksik sonuç göstermez)", async () => {
-    fetchPage
-      .mockResolvedValueOnce({ items: range(24, original), nextCursor: "c1" })
-      .mockResolvedValueOnce({ items: [word(5)], nextCursor: null });
-    render(<Harness view="words" />);
-    await waitFor(() => expect(ids()).toBe("w5"));
-    expect(fetchPage).toHaveBeenCalledTimes(2);
     expect(latest.hasMore).toBe(false);
   });
 
