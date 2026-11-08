@@ -15,5 +15,5 @@ paths = [
   '''^frontend/src/features/auth/components/register-form\.test\.tsx$''',
   '''^frontend/src/features/auth/components/verify-email-form\.test\.tsx$''',
   '''^frontend/src/features/auth/schemas/verify-email\.schema\.test\.ts$''',
-  '''^ops/dev-accounts-lib\.test\.mjs$'''
+  '''^ops/dev\.test\.mjs$'''
 ]

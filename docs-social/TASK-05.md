@@ -50,7 +50,7 @@ Sayfalama imleçlidir: taslaktaki "1 2 3 4" yerine "Daha fazla yükle" kullanıl
 | Dosya | Değişiklik |
 | --- | --- |
 | `shared/components/ui/avatar.tsx` | Yeni. Fotoğraf ya da deterministik SVG portre. |
-| `shared/components/ui/confirm-dialog.tsx` | Yeni. Yerel `<dialog>` onay penceresi: odak "Vazgeç"te başlar, Esc ile kapanır, işlem sürerken kapatılamaz. |
+| `shared/components/ui/confirm-dialog.tsx` | main ile birleştirmede (2026-11-09) projenin ortak onay penceresi (hardware/community) korundu; sosyalin ayrı sürümü kaldırıldı. Sosyal pencereler `tone="danger"` ile açılır (ilk odak "Vazgeç"), işlem sürerken `busy` kilitler, "Kaldırılıyor…" etiketi çağıran tarafta seçilir, hata `features/social/components/dialog-error.tsx` ile pencere içinde gösterilir. |
 | `shared/components/ui/button-styles.ts` | Yeni. `primary` / `secondary` / `ghost` düğme sınıfları. |
 | `shared/components/ui/icons.tsx` | Eklenen ikonlar: `userPlus`, `userMinus`, `send`, `ban`, `shield`, `copy`, `more`, `clock`, `share`, `refresh`, `message`. |
 | `app/globals.css` | Yeni token: `--ltz-scene-ink` (Dark `#0b0b0f`, Light `#17171b`; paletin içinde). |

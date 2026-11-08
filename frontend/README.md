@@ -1,6 +1,6 @@
 # LTZ Frontend
 
-LobbyTwoZero (LTZ) web arayüzü. Bu klasör paylaşılan **uygulama kabuğunu** (navbar, kenar çubuğu, footer, ayarlar, arama, tema/dil altyapısı) ve ilk herkese açık sayfaları içerir. Giriş/kayıt, Hardware paneli ve gerçek servis entegrasyonları henüz yoktur; bunlar kabukta dürüstçe "hazır değil" olarak gösterilir.
+LobbyTwoZero (LTZ) web arayüzü. Paylaşılan **uygulama kabuğunu**, herkese açık sayfaları ve gerçek Hardware API sözleşmelerine bağlı donanım ekranlarını içerir. Giriş/kayıt arayüzü henüz bağlı değildir; Hardware uçları doğrulanmış oturum ister. Tarayıcı fixture testleri canlı oturum/API kabulü anlamına gelmez.
 
 Bağlayıcı belgeler: [../AGENTS.md](../AGENTS.md), [../docs/web-rules.md](../docs/web-rules.md), [../docs/folder-structure.md](../docs/folder-structure.md), [../docs/SECURITY.md](../docs/SECURITY.md), [../docs/ltz-palette-and-tokens.md](../docs/ltz-palette-and-tokens.md).
 
@@ -181,8 +181,8 @@ Dar ekran: `max-width: 767px`.
 - Değeri doğrulayıp yazdırmak için (dosya değiştirmez):
 
 ```bash
-node ../ops/frontend/site-url.mjs https://alanadi.com --production
-node ../ops/frontend/site-url.mjs --help
+node ../ops/dev.mjs site-url https://alanadi.com --production
+node ../ops/dev.mjs site-url --help
 ```
 
 Araç adresi doğrular (http/https ayrımı, production'da yalnız https ve yerel olmayan alan adı), kök adrese indirger ve eklenecek `NEXT_PUBLIC_SITE_URL=...` satırını **ekrana yazar**; hiçbir ENV dosyasını okumaz veya değiştirmez. Testleri: `node --test ../ops/frontend/site-url.test.mjs`.
@@ -214,6 +214,85 @@ Araç adresi doğrular (http/https ayrımı, production'da yalnız https ve yere
 
 - Kabuk, kullanıcıyı yalnız [use-shell-user.ts](src/shared/hooks/use-shell-user.ts) üzerinden bilir; şimdilik her zaman `null` (misafir). Auth hazır olunca yalnız bu hook gerçek oturumu okuyacak şekilde değişir; `ProfileMenu` ve `Navbar` aynı kalır.
 - Bildirimler için karşılığı [use-shell-notifications.ts](src/shared/hooks/use-shell-notifications.ts).
+
+## Hardware Frontend Entegrasyon Rehberi
+
+Hardware ekranları `[locale]/(dashboard)` altındadır; `noindex` yayınlar ve sitemap'e girmez.
+Katalog dahil mevcut Hardware iş API'lerinin tamamı doğrulanmış oturum gerektirir.
+
+| Ekran | `src/app/[locale]/(dashboard)/` altındaki giriş | TR / EN URL |
+| --- | --- | --- |
+| Donanımlar | `hardware/page.tsx` | `/tr/donanimlar` / `/en/hardware` |
+| Donanım detayı | `hardware/[productId]/page.tsx` | `/tr/donanimlar/{UUID}` / `/en/hardware/{UUID}` |
+| Bilgisayarlarım | `profile/computers/page.tsx` | `/tr/profil/bilgisayarlarim` / `/en/profile/computers` |
+| Kampanyalar | `hardware/campaigns/page.tsx` | `/tr/donanimlar/kampanyalar` / `/en/hardware/campaigns` |
+
+**Feature haritası:** `src/features/hardware/components/` ekranlar, formlar, teknik tablolar ve karşılaştırma;
+`hooks/` iptal edilebilir sorgular, mutasyon kilidi ve URL filtre durumu;
+`services/hardware-api.ts` tek Gateway adaptörü; `types/hardware.ts` Java record'larıyla eşleşen DTO'lar;
+`schemas/hardware.ts` UUID/kategori/URL ve form sınırları. Mevcut bağımlılıklarda Zod olmadığı için yeni paket
+eklenmedi; formlar HTML constraint validation ve backend doğrulamasını kullanır.
+
+**Gerçek endpoint'ler** — aşağıdaki yolların tamamının öneki `/api/v1/hardware`:
+
+| Alan | Method ve yol | Tüketici |
+| --- | --- | --- |
+| Katalog | `GET /catalog/products`, `GET /catalog/products/{id}`, `GET /catalog/brands` | Filtreler, kartlar, detay, ilişkili modeller, bileşen seçici |
+| Bilgisayar | `GET/POST /profiles`, `GET/PUT/DELETE /profiles/{id}` | Liste, oluşturma, düzenleme, detay ve silme |
+| İstatistik | `GET /profiles/statistics` | Bilgisayarlarım yan paneli |
+| Bileşen | `POST /profiles/{id}/components`, `PUT/DELETE /profiles/{id}/components/{componentId}` | Manuel/katalog seçimli bileşen formu |
+| Gizlilik | `GET/PUT /profiles/{id}/privacy` | Profil, altı alan ve on iki kategori görünürlüğü |
+| Karşılaştırma | `POST /comparisons/catalog-products`, `POST /comparisons/profiles`, `POST /comparisons/components` | İki aynı kategori ürün/bileşen veya iki owner bilgisayar |
+| Yorum | `GET/POST /catalog/products/{productId}/reviews`, `GET /reviews/mine`, `PUT/DELETE /reviews/{reviewId}` | Gerçek puan özeti, görünür liste, owner işlemleri |
+| Rapor | `POST /reviews/{reviewId}/reports` | Yabancı yorum raporlama; kayıt, merkezi teslim başarısı sayılmaz |
+| Kampanya | `GET /campaigns`, `GET /campaigns/{id}` | Sayfalı geçerli kayıtlar ve ayrıntı diyaloğu |
+
+Katalog araması `q`, `category`, `brand`, `brandId` ve kategoriye uygun teknik aralıkları gerçek backend'e
+iletir. Query parametreleri URL'dedir; geri/ileri gezinme çalışır. Sıralama, stok ve fiyat filtresi API'de
+olmadığı için sunulmaz. Üretici kataloğu ayrıca sayfalanır; model seçimi üretici seçimini zorunlu tutmaz.
+Bilgisayar ve bileşen listeleri backend sayfalamasını kullanır. Bileşen karşılaştırması mevcut bileşen
+sayfasındaki iki kaydı kapsar. Bilgisayar karşılaştırması sayfalar arası seçimi korur.
+
+**Oturum sınırı:** `use-shell-user.ts` halen `null` döndürür; login ekranı veya token deposu eklenmedi.
+Korumalı okuma başarılı olmadan oluşturma/düzenleme eylemi açılmaz. `401` boş listeye çevrilmez.
+Canlı Gateway üzerinde anonim katalog/profil/kampanya GET çağrıları `401` döndürdü. Gerçek hesapla
+CRUD ve uçtan uca cookie oturumu henüz doğrulanmadı. Navbar gerçek oturumun varlığını henüz yansıtmaz.
+
+HTTP çağrıları `apiRequest` ve `credentials: include` kullanır; özel veriler `no-store`'dur.
+Hardware mutasyonları mevcut `X-XSRF-TOKEN` sözleşmesini kullanır; yalnız erişilebilir
+`__Host-XSRF-TOKEN` / `XSRF-TOKEN` çerezi okunur, HttpOnly oturum çerezleri okunmaz.
+İstekler 20 saniyede zaman aşımına uğrar; non-idempotent işlemler otomatik tekrarlanmaz.
+`profileVersion`/`reviewVersion` doğru gövde veya query alanında gönderilir. Çakışma veya belirsiz sunucu/ağ
+sonucunda durum yeniden sorgulanır; form kapatılıp kayıt kontrol edilmeden yeniden gönderim açılmaz.
+Backend'in mevcut `ProblemDetail` yanıtı alan bazlı hata listesi sunmaz; güvenli statü/kod korunur ve
+yerelleştirilmiş hata gösterilir. Gizlilikte belirtilmeyen alan/kategori **PRIVATE** olur; profil kuralını
+miras almaz. Genel User görünürlüğü de paylaşımı kısıtlayabilir.
+
+**Kabuk ve tasarım:** `shared/components/layout/{app-shell,navbar,sidebar,footer}.tsx` yeniden kullanıldı.
+Bilgisayarlarım profil menüsündedir; ana sidebar'da Donanımlar ve Kampanyalar vardır.
+Karşılaştırma ve yorumlar ayrı sidebar sayfası değildir. `globals.css` paleti değiştirilmedi;
+surface, border, text, primary, brand-text ve focus semantik tokenları kullanıldı. TR/EN metinleri
+`Hardware` namespace'indedir. Dil değişimi dinamik ürün kimliğini, query'yi ve temayı korur;
+root layout'un tercih betiğinin yeniden çalışması için belge gezinmesi kullanır.
+
+**Veri yokken:** Açıklamalı empty state; erişim yokken ayrı hata; beklerken yükleme yüzeyi vardır.
+Ürün fotoğrafı olmadığı için kategori ikonu ve “Görsel mevcut değil” gösterilir.
+Runtime mock/seed, sahte fiyat, kullanıcı adı, avatar, puan veya FPS yoktur. Test fixture'ları yalnız
+`*.test.ts(x)` ve `e2e/hardware.spec.ts` içindedir. Kampanya fiyatları gerçek yanıtın para birimi,
+gözlem zamanı, kaynak ve geçerlilik penceresiyle sunulur; dış bağlantılar HTTPS ile sınırlanır.
+
+**Doğrulama:** `npm run lint`, `npm run typecheck`, `npm run test`, `npm run build`,
+`npm run test:e2e -- e2e/hardware.spec.ts --workers=2`. Tam tarayıcı paketi `npm run test:e2e -- --workers=2`.
+Hardware görsel matrisi 375/768/1440 px × TR/EN × Light/Dark × dört ekran; çıktılar
+`test-results/screens/hardware-*.png`. Kaynak mockup görselleri erişilebilir dosyalarda bulunamadı;
+görsel karşılaştırma yapılmış sayılmaz. Son koşu sayıları ve gerçek engeller
+[teslim raporunda](../docs-hardware/reports/HARDWARE_FRONTEND_DELIVERY.md) tutulur.
+
+**Bilinen eksikler:** Frontend login/oturum ve admin yetki verisi, ürün görseli/stok/fiyat geçmişi,
+harici katalog temini, kampanya forumu gönderi/yorum/oy backend'i. Mevcut kampanya yönetim mutasyonları
+admin yetkisi ister; doğrulanmış rol bilgisi olmadığından bu arayüzde açılmaz.
+Otomatik masaüstü taraması, sync grant/cihaz seçimi ve shared profil vitrini bu ekranlarda sunulmaz.
+Yeni backend endpoint'i veya migration eklenmedi; `docs/api.md` sözleşmeleri değiştirilmedi.
 - **Token politikası:** token `localStorage`, `sessionStorage` veya IndexedDB'de tutulmaz; oturum HttpOnly cookie ile taşınır ([../docs/SECURITY.md](../docs/SECURITY.md)). Kabuk tercihleri (`ltz-theme` vb.) gizli veri değildir ve bu kurala girmez.
 
 ## 10. Test ve doğrulama
@@ -222,7 +301,7 @@ Araç adresi doğrular (http/https ayrımı, production'da yalnız https ve yere
 | --- | --- |
 | Vitest | kabuk bileşenleri, navbar gizleme kararı, arama çekirdeği, tema geçiş durum makinesi, tercih deposu, sayfa/gezinme kataloğu, i18n anahtar eşitliği, site URL doğrulama, robots/sitemap |
 | Playwright | navbar (otomatik/sabit, kalıcılık), arama, bildirim, dil, profil, ayarlar, tema geçişi, footer ve yasal sayfalar, SEO dosyaları, yatay taşma, ekran görüntüleri |
-| Node test | `ops/frontend/site-url.test.mjs` |
+| Node test | `ops/dev.test.mjs` (site-url bölümü) |
 
 Teslimden önce: `npm run lint`, `npm run typecheck`, `npm run test`, `npm run build`, `npm run test:e2e`. Çalıştırılamayan adım "geçti" sayılmaz.
 

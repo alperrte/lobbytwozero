@@ -31,10 +31,11 @@ public class HardwareCatalogService {
     private final CurrentActor actor;
     private final HardwareCatalogMapper mapper;
     private final HardwareComponentMapper componentMapper;
+    private final HardwareCatalogSourceRepository sources;
 
     public HardwareCatalogService(HardwareProductRepository products, HardwareBrandRepository brands,
             HardwareCatalogAuditRepository audit, CatalogWriteAccess access, CurrentActor actor,
-            HardwareCatalogMapper mapper, HardwareComponentMapper componentMapper) {
+            HardwareCatalogMapper mapper, HardwareComponentMapper componentMapper, HardwareCatalogSourceRepository sources) {
         this.products = products;
         this.brands = brands;
         this.audit = audit;
@@ -42,6 +43,7 @@ public class HardwareCatalogService {
         this.actor = actor;
         this.mapper = mapper;
         this.componentMapper = componentMapper;
+        this.sources = sources;
     }
 
     @Transactional
@@ -80,11 +82,16 @@ public class HardwareCatalogService {
     public HardwareProductResponse detail(UUID id) {
         actor.requireUserId();
         return mapper.product(products.findByIdAndStatus(id, CatalogStatus.ACTIVE)
-                .orElseThrow(HardwareNotFoundException::new));
+                .orElseThrow(HardwareNotFoundException::new)).withSource(sources.load(Set.of(id)).get(id));
     }
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public HardwareCatalogPageResponse<HardwareProductResponse> list(HardwareCatalogFilter filter, int page, int size) {
+        return list(filter, page, size, false);
+    }
+
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public HardwareCatalogPageResponse<HardwareProductResponse> list(HardwareCatalogFilter filter, int page, int size, boolean discovery) {
         actor.requireUserId();
         if (!filter.isRangesValid()) throw new IllegalArgumentException("Geçersiz teknik aralık");
         var criteria = HardwareCatalogSearch.matching(filter.q(), CatalogStatus.ACTIVE, filter.category(),
@@ -94,17 +101,36 @@ public class HardwareCatalogService {
                         new HardwareCatalogSearch.NumericRange("coreCount", filter.minCoreCount(), filter.maxCoreCount()),
                         new HardwareCatalogSearch.NumericRange("powerWatts", filter.minPowerWatts(), filter.maxPowerWatts())),
                 java.util.List.of(
+                        new HardwareCatalogSearch.NumericIn("capacityGb", filter.capacityGb()),
+                        new HardwareCatalogSearch.NumericIn("clockMhz", filter.clockMhz()),
+                        new HardwareCatalogSearch.NumericIn("coreCount", filter.coreCount())),
+                java.util.List.of(
                         new HardwareCatalogSearch.TextValue("memoryType", filter.memoryType()),
                         new HardwareCatalogSearch.TextValue("socket", filter.socket()),
                         new HardwareCatalogSearch.TextValue("interfaceType", filter.interfaceType()),
-                        new HardwareCatalogSearch.TextValue("formFactor", filter.formFactor())));
+                        new HardwareCatalogSearch.TextValue("formFactor", filter.formFactor())),
+                java.util.List.of(
+                        new HardwareCatalogSearch.TypedSpec("chipset", filter.chipset(), null),
+                        new HardwareCatalogSearch.TypedSpec("storageType", filter.storageType(), null),
+                        new HardwareCatalogSearch.TypedSpec("maximumMemoryGb", null, filter.maximumMemoryGb()),
+                        new HardwareCatalogSearch.TypedSpec("memorySlots", null, filter.memorySlots()),
+                        new HardwareCatalogSearch.TypedSpec("casLatency", null, filter.casLatency())),
+                java.util.List.of(new HardwareCatalogSearch.TypedPrefix("chipset",
+                        com.ltz.hardware.domain.enums.GpuVendor.prefixes(filter.gpuVendor()))),
+                java.util.List.of(new HardwareCatalogSearch.TypedPresence("integratedGraphics",
+                        Boolean.TRUE.equals(filter.integratedGraphics()))));
+        if (discovery) criteria = criteria.and((root, query, cb) -> root.get("category").in(
+                com.ltz.hardware.domain.enums.ComponentCategory.CPU, com.ltz.hardware.domain.enums.ComponentCategory.MOTHERBOARD,
+                com.ltz.hardware.domain.enums.ComponentCategory.RAM, com.ltz.hardware.domain.enums.ComponentCategory.STORAGE,
+                com.ltz.hardware.domain.enums.ComponentCategory.GPU));
         var result = products.findAll(criteria,
                 PageRequest.of(page, size, Sort.by("normalizedModel", "id")));
         if (result.isEmpty()) return new HardwareCatalogPageResponse<>(java.util.List.of(), page, size,
                 result.getTotalElements(), result.getTotalPages());
         var hydrated = products.findWithBrands(result.stream().map(HardwareProduct::getId).toList()).stream()
                 .collect(Collectors.toMap(HardwareProduct::getId, Function.identity()));
-        var items = result.stream().map(p -> mapper.product(hydrated.get(p.getId()))).toList();
+        var content = sources.load(hydrated.keySet());
+        var items = result.stream().map(p -> mapper.product(hydrated.get(p.getId())).withSource(content.get(p.getId()))).toList();
         return new HardwareCatalogPageResponse<>(items, page, size, result.getTotalElements(), result.getTotalPages());
     }
 

@@ -12,11 +12,11 @@ Auth ve Gateway kaynakları değiştirilmedi. Gerçek ENV dosyaları okunmadı/d
 
 ## Gerçek HTTP kabulü
 
-Betik: [ops/performance-auth-e2e.mjs](../../../ops/performance-auth-e2e.mjs).
+Betik: [ops/dev.mjs e2e performance](../../../ops/dev.mjs e2e performance).
 
 ```powershell
 $env:JAVA_HOME = 'C:/Users/alper/Tools/jdk-25.0.4.1+1'
-node ops/performance-auth-e2e.mjs
+node ops/dev.mjs e2e performance
 ```
 
 Önkoşul: güncel `auth-service`, `performance-service`, `api-gateway` çalıştırılabilir JAR'ları, JDK25 ve Docker. Betik eski JAR'ı reddeder. Auth/Gateway bu koşu için `clean package -DskipTests` ile paketlendi; bu paketleme onların JUnit paketinin geçtiği şeklinde raporlanmaz. Performance'ın tüm testleri ayrıca çalıştırıldı.

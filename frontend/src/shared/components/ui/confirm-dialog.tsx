@@ -1,129 +1,74 @@
 "use client";
 
 import { useEffect, useId, useRef, type ReactNode } from "react";
-import { Icon } from "./icons";
-import { buttonClass } from "./button-styles";
+import { Icon } from "@/shared/components/ui/icons";
+import { lockPageScroll } from "@/shared/lib/ui/scroll-lock";
+import { cn } from "@/shared/utils/cn";
 
-type ConfirmDialogProps = {
-  open: boolean;
+export type ConfirmDialogProps = {
   title: string;
-  description: string;
+  description?: ReactNode;
   confirmLabel: string;
   cancelLabel: string;
-  closeLabel: string;
-  /** İşlem sürerken düğme metni (ör. "Kaldırılıyor…"); verilmezse `confirmLabel` kalır. */
-  pendingLabel?: string;
-  pending?: boolean;
-  /** İşlem başarısız olursa pencerede kalır ve bu metni duyurur. */
-  error?: string | null;
   onConfirm: () => void;
-  onClose: () => void;
-  /** Başlıkla açıklama arasında gösterilen özet (ör. kullanıcı satırı). */
+  onCancel: () => void;
+  /** İşlem sürerken iki düğme de kilitlenir; Esc ve arka plana tıklama kapatmaz. */
+  busy?: boolean;
+  /** `danger`: geri alınamaz işlemler (silme). İlk odak "Vazgeç"te olur, onay düğmesi kırmızı çerçeveli görünür. */
+  tone?: "default" | "danger";
+  /** Açıklamanın altında gösterilir (ör. hata bildirimi). */
   children?: ReactNode;
 };
 
 /**
- * Açık onay penceresi (web-rules §4 Confirmation). Yerel `<dialog>` + `showModal()`: odak tuzağı, üst katman ve `Esc` tarayıcıdan
- * gelir. Açılınca odak güvenli seçenekte ("Vazgeç") olur; kapanınca tetikleyiciye döner. İşlem sürerken kapatılamaz.
+ * Projenin ortak onay penceresi ("Emin misiniz?"). Yerel `<dialog>` modalıdır: odak pencerenin içinde kalır, Esc ve arka
+ * plana tıklama vazgeçmedir, kapanınca odak önceki öğeye döner. Başka bir modalın içinden de açılabilir (üst katmanda durur).
+ * Metinler dışarıdan verilir; bileşen hiçbir çeviri alanına bağlı değildir.
  */
-export function ConfirmDialog({
-  open,
-  title,
-  description,
-  confirmLabel,
-  cancelLabel,
-  closeLabel,
-  pendingLabel,
-  pending = false,
-  error,
-  onConfirm,
-  onClose,
-  children
-}: ConfirmDialogProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const cancelRef = useRef<HTMLButtonElement>(null);
+export function ConfirmDialog({ title, description, confirmLabel, cancelLabel, onConfirm, onCancel, busy = false, tone = "default", children }: ConfirmDialogProps) {
   const titleId = useId();
   const descriptionId = useId();
-
+  const ref = useRef<HTMLDialogElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  const cancelHandler = useRef(onCancel);
+  useEffect(() => { cancelHandler.current = onCancel; });
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) {
-      return;
-    }
-    if (open && !dialog.open) {
-      dialog.showModal();
-      cancelRef.current?.focus();
-    } else if (!open && dialog.open) {
-      dialog.close();
-    }
-  }, [open]);
-
-  function requestClose() {
-    if (!pending) {
-      onClose();
-    }
-  }
-
+    const dialog = ref.current;
+    const previous = document.activeElement as HTMLElement | null;
+    dialog?.showModal();
+    const unlock = lockPageScroll();
+    (tone === "danger" ? cancelRef : confirmRef).current?.focus();
+    return () => { dialog?.close(); unlock(); previous?.focus(); };
+  }, [tone]);
+  const danger = tone === "danger";
   return (
     <dialog
-      ref={dialogRef}
+      ref={ref}
       aria-labelledby={titleId}
-      aria-describedby={descriptionId}
-      onCancel={(event) => {
-        event.preventDefault();
-        requestClose();
-      }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) {
-          requestClose();
-        }
-      }}
-      className="m-auto w-[min(28rem,calc(100vw-2rem))] rounded-panel border border-border bg-surface p-0 text-text-primary shadow-popover backdrop:bg-scrim open:animate-pop-in"
+      aria-describedby={description ? descriptionId : undefined}
+      aria-busy={busy}
+      onCancel={(event) => { event.preventDefault(); if (!busy) cancelHandler.current(); }}
+      onClick={(event) => { if (event.target === event.currentTarget && !busy) cancelHandler.current(); }}
+      className="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-md overflow-visible rounded-[22px] border border-border bg-surface p-0 text-text-primary shadow-popover backdrop:bg-scrim backdrop:backdrop-blur-[2px]"
     >
-      <div className="p-5 sm:p-6">
-        <div className="flex items-start justify-between gap-4">
-          <h2 id={titleId} className="font-display text-xl font-semibold">
-            {title}
-          </h2>
-          <button
-            type="button"
-            onClick={requestClose}
-            disabled={pending}
-            aria-label={closeLabel}
-            className="-me-2 -mt-1 inline-flex size-9 shrink-0 items-center justify-center rounded-control text-text-secondary transition-colors hover:bg-surface-elevated hover:text-text-primary disabled:opacity-50"
-          >
-            <Icon name="close" />
-          </button>
+      <div className="space-y-5 p-6">
+        <div className="flex items-start gap-4">
+          <span aria-hidden="true" className={cn("flex size-11 shrink-0 items-center justify-center rounded-full border", danger ? "border-primary/40 bg-primary/10 text-brand-text" : "border-control-border bg-surface-elevated text-text-primary")}>
+            <Icon name="info" className="size-5" />
+          </span>
+          <div className="min-w-0 space-y-1.5">
+            <h2 id={titleId} className="font-display text-lg font-semibold leading-6">{title}</h2>
+            {description ? <p id={descriptionId} className="text-sm leading-6 text-text-secondary">{description}</p> : null}
+          </div>
         </div>
-        <div className="mt-1 h-0.5 w-16 bg-gradient-to-r from-primary to-accent" aria-hidden="true" />
-        {children ? <div className="mt-5">{children}</div> : null}
-        <p id={descriptionId} className="mt-4 text-sm leading-relaxed text-text-secondary">
-          {description}
-        </p>
-        {error ? (
-          <p role="alert" className="mt-4 flex items-start gap-2 text-sm text-brand-text">
-            <Icon name="info" className="mt-0.5 size-4 shrink-0" />
-            {error}
-          </p>
-        ) : null}
-        <div className="mt-6 grid grid-cols-2 gap-3">
-          <button
-            ref={cancelRef}
-            type="button"
-            onClick={requestClose}
-            disabled={pending}
-            className={buttonClass("secondary")}
-          >
+        {children}
+        <div className="flex flex-wrap justify-end gap-2">
+          <button ref={cancelRef} type="button" disabled={busy} onClick={onCancel} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-control-border bg-surface px-5 text-sm font-medium text-text-primary transition-colors hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:opacity-60">
             {cancelLabel}
           </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={pending}
-            aria-busy={pending || undefined}
-            className={buttonClass("primary")}
-          >
-            {pending && pendingLabel ? pendingLabel : confirmLabel}
+          <button ref={confirmRef} type="button" disabled={busy} onClick={onConfirm} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-primary bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:opacity-60">
+            {confirmLabel}
           </button>
         </div>
       </div>

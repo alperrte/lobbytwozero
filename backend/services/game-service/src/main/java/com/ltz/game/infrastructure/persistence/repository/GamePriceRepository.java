@@ -26,15 +26,34 @@ public class GamePriceRepository {
                 Map.of(OWNER,owner,"until",java.sql.Timestamp.from(now.plusSeconds(120)),"now",java.sql.Timestamp.from(now)))==1;
     }
     public void release(UUID owner) { jdbc.update("update game_price_sync_lock set owner=null,expires_at=null,version=version+1 where owner=:owner",Map.of(OWNER,owner)); }
-    public List<UUID> candidates(Market market,Instant now,Duration ttl) {
+    /** Yenileme adayı ve kademesinin tazelik süresi (teklif bu süre boyunca taze sayılır). */
+    public record Candidate(UUID id, Duration ttl) { }
+
+    /**
+     * Yenileme adayları, en çok 200 (ITAD arama sınırı). Kademe: editör seçimi veya son 90 günde çıkmış / 30 gün içinde çıkacak oyun
+     * SICAK ({@code hot}); son 2 yılda çıkmış ILIK ({@code warm}); diğer (eski, tarihsiz, uzak gelecek) SOĞUK ({@code cold}). Bir oyun
+     * kademesinin süresi dolduğunda (veya hiç denenmediğinde) adaydır. Sıra: editör seçimi, sıcak→ılık→soğuk, sonra en eski kontrol.
+     * Gerçek popülerlik/talep verisi olmadığından popülerlik uydurulmaz; kademe yalnız çıkış tarihi ve editör seçiminden gelir.
+     */
+    public List<Candidate> candidates(Market market,Instant now,Duration hot,Duration warm,Duration cold) {
+        Map<String,Object> params=new java.util.HashMap<>();
+        params.put(COUNTRY,market.country());params.put(CURRENCY,market.currency());params.put("now",java.sql.Timestamp.from(now));
+        params.put("hot",hot.toSeconds());params.put("warm",warm.toSeconds());params.put("cold",cold.toSeconds());
         return jdbc.query("""
-                select g.id from games g left join game_price_refresh_state s on s.game_id=g.id and s.country=:country and s.currency=:currency
-                where g.status='ACTIVE' and g.game_type='MAIN_GAME' and exists(select 1 from game_external_refs r where r.game_id=g.id and r.provider='STEAM')
-                and (s.checked_at is null or s.checked_at < :before)
-                and (s.next_attempt_at is null or s.next_attempt_at <= current_timestamp)
-                order by s.checked_at asc nulls first,g.id limit 50
-                """,Map.of(COUNTRY,market.country(),CURRENCY,market.currency(),"before",java.sql.Timestamp.from(now.minus(ttl))),
-                (rs,index) -> rs.getObject("id",UUID.class));
+                select id, tier from (
+                    select g.id, g.editor_rank, s.checked_at, s.next_attempt_at,
+                        case when g.editor_rank is not null or g.release_date between current_date - 90 and current_date + 30 then :hot
+                             when g.release_date >= current_date - 730 and g.release_date < current_date - 90 then :warm
+                             else :cold end as tier
+                    from games g left join game_price_refresh_state s on s.game_id=g.id and s.country=:country and s.currency=:currency
+                    where g.status='ACTIVE' and g.game_type='MAIN_GAME'
+                      and exists(select 1 from game_external_refs r where r.game_id=g.id and r.provider='STEAM')
+                ) c
+                where (checked_at is null or checked_at < cast(:now as timestamptz) - make_interval(secs => tier))
+                  and (next_attempt_at is null or next_attempt_at <= cast(:now as timestamptz))
+                order by (editor_rank is null), tier asc, checked_at asc nulls first, id
+                limit 200
+                """,params,(rs,index) -> new Candidate(rs.getObject("id",UUID.class),Duration.ofSeconds(rs.getLong("tier"))));
     }
     /** Ağ beklerken transaction yoktur. Kiralama kaybında eski worker hiçbir snapshot yayımlayamaz. */
     @Transactional

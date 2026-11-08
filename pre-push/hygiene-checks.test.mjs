@@ -116,7 +116,7 @@ test('the key generator guard test failing fails hygiene', async () => {
 
   const root = fixtureRoot();
   fs.mkdirSync(path.join(root, 'ops'));
-  fs.writeFileSync(path.join(root, 'ops/generate-auth-dev-keys.test.mjs'), '');
+  fs.writeFileSync(path.join(root, 'ops/dev.test.mjs'), '');
   try {
     const { run } = runner({ tooling: 1 });
     await assert.rejects(checkRepositoryHygiene({ run, log: () => {}, root }), /key generator guard test failed/);

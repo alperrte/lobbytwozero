@@ -17,7 +17,10 @@ export type PageId =
   | "privacy"
   | "terms"
   | "cookies"
-  | "settings";
+  | "settings"
+  | "hardware"
+  | "campaigns"
+  | "computers";
 
 /** Footer sütunları: platform, destek ve alt satırdaki yasal bağlantılar. */
 export type PageSection = "platform" | "support" | "legal";
@@ -34,6 +37,9 @@ export type PageEntry = {
 
 export const pages: readonly PageEntry[] = [
   { id: "games", href: "/games", indexable: false, keywords: ["oyun", "games", "katalog", "catalogue"] },
+  { id: "hardware", href: "/hardware", indexable: false, keywords: ["donanım", "hardware", "cpu", "gpu", "katalog"] },
+  { id: "campaigns", href: "/hardware/campaigns", indexable: false, keywords: ["kampanya", "campaign", "indirim", "fırsat"] },
+  { id: "computers", href: "/profile/computers", indexable: false, keywords: ["bilgisayarlarım", "computers", "profil", "bileşen"] },
   {
     id: "home",
     href: "/",

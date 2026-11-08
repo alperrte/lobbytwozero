@@ -1034,7 +1034,7 @@ Profil yoksa varsayılan değerlerle **oluşturulur** (Auth'un `UserRegistered` 
   "username": "string | null (Auth'tan UserRegistered olayıyla gelen kopya; olay gelene kadar null)",
   "displayName": "string 2-32 | null",
   "bio": "string ≤500 | null",
-  "playerTypes": ["CASUAL | COMPETITIVE | STORY | SOCIAL | COLLECTOR (en çok 2)"],
+  "playerTypes": ["CASUAL | COMPETITIVE | STORY | SOCIAL | COLLECTOR | EXPLORER | COMPLETIONIST | STRATEGIST | TEAM_PLAYER | CREATIVE | SPEEDRUNNER | HARDCORE (en çok 2)"],
   "favoriteGenres": ["katalog kodu (en çok 10)"],
   "favoritePlatforms": ["katalog kodu (en çok 10)"],
   "country": "ISO 3166-1 alpha-2 | null",
@@ -1083,7 +1083,7 @@ Gönderilmeyen ya da `null` alan **değişmez**; metin alanında `""`, liste ala
   "displayName": "string 2-32 Unicode kod noktası",
   "bio": "string ≤500 kod noktası (düz metin; satır sonu \\n serbest)",
   "country": "ISO 3166-1 alpha-2 (küçük harf kabul, büyük harfe çevrilir)",
-  "playerTypes": ["CASUAL | COMPETITIVE | STORY | SOCIAL | COLLECTOR"],
+  "playerTypes": ["CASUAL | COMPETITIVE | STORY | SOCIAL | COLLECTOR | EXPLORER | COMPLETIONIST | STRATEGIST | TEAM_PLAYER | CREATIVE | SPEEDRUNNER | HARDCORE"],
   "favoriteGenres": ["^[a-z0-9][a-z0-9_-]{0,47}$, en çok 10"],
   "favoritePlatforms": ["^[a-z0-9][a-z0-9_-]{0,47}$, en çok 10"]
 }
@@ -1615,7 +1615,7 @@ Tanımsız alan `400`. Favori tür ve platform listeleri zorunludur ve **boş ol
 ```json
 {
   "version": "long ≥ 0, zorunlu: GET /me/onboarding yanıtındaki version",
-  "playerTypes": ["isteğe bağlı: CASUAL | COMPETITIVE | STORY | SOCIAL | COLLECTOR (en çok 2)"],
+  "playerTypes": ["isteğe bağlı: CASUAL | COMPETITIVE | STORY | SOCIAL | COLLECTOR | EXPLORER | COMPLETIONIST | STRATEGIST | TEAM_PLAYER | CREATIVE | SPEEDRUNNER | HARDCORE (en çok 2)"],
   "favoriteGenres": ["katalog kodu (en az 1, en çok 10)"],
   "favoritePlatforms": ["katalog kodu (en az 1, en çok 10)"],
   "locale": "isteğe bağlı: tr | en",
@@ -2032,14 +2032,18 @@ GET /api/v1/game/games/{gameId}
 #### Yetkilendirme
 Public. Yalnız ACTIVE oyunlar görünür.
 
-#### Path Parameters
+#### Path/Query Parameters
 - gameId: UUID, zorunlu.
+- lang: isteğe bağlı, 2–3 küçük/büyük harfli dil kodu (ör. `tr`, `en`); biçimi bozuksa 400. Sağlayıcının o dilde GERÇEKTEN verdiği açıklama varsa `description` o metin olur ve `descriptionLanguage` o dildir; yoksa varsayılan (İngilizce) açıklama ve gerçek dili (`en`) döner. **Çeviri yapılmaz, harici çeviri hizmeti kullanılmaz.** `lang` verilmezse varsayılan açıklama. Şimdilik yalnız `tr` doldurulur (Steam mağaza metni; İngilizceden farklı ve Türkçe kanıtlı olmalıdır, aksi halde saklanmaz). Açıklaması tamamen boş olan ana oyunlarda (IGDB özeti yok) Steam'in İngilizce kısa açıklaması yedek olarak `games.description`'a yazılır (yalnız boşsa, yönetici metni ve manuel `DESCRIPTION` kilidi ezilmez; metin gerçekten İngilizce görünmelidir, başka dildeki metin yazılmaz; provenance `DESCRIPTION/STEAM`, `descriptionLanguage="en"`). V175 uygulanmadan önce tablo yoktur; alan istemciler için geriye uyumludur.
 
 #### Response — 200
 - `game`: yukarıdaki ortak kart sözleşmesi.
 - `metadata`: GAME-08 alt veri sözleşmesi; aynı kanonik gameId.
 - `description`: nullable, en fazla 16000 karakter; düz metin olarak işlenir. `releaseDate`: nullable ISO tarih.
 - `freshness`: `status` (LOCAL/UNSUPPORTED/MISSING/FRESH/STALE), nullable `fetchedAt`, `expiresAt`, `nextAttemptAt`, `lastErrorCode`.
+- `relation` (**yeni, geriye uyumlu alan; V174 uygulandıktan sonra dolar**): DLC için `{parent: {gameId,title,coverUrl}|null, dlcCount: null}` — `parent` yalnız güvenilir (aktif MAIN_GAME) ana oyun varsa dolu, bilinmiyorsa null (uydurulmaz); ana oyun için `{parent: null, dlcCount: n}` (aktif DLC sayısı); diğer türlerde `null`. Eski istemciler alanı yok sayabilir.
+- `game.coverUrl`: kayıtlı kapak. Kapak kaynakları: yönetici (hiç ezilmez) > Steam başlık görseli (`shared.fastly.steamstatic.com/store_item_assets/steam/apps/{id}/{hash}/header.jpg`; yeni uygulamalarda yol içerik özeti taşır, eski `/apps/{id}/header.jpg` yolu 404 verir) > IGDB kapağı (`images.igdb.com`). Kayıtlı kapak yoksa istemci Steam'in eski başlık adresine düşer; görsel açılmazsa nötr yer tutucu gösterilir.
+- Detay alanlarının kaynağı: önce IGDB (toplu, 100 oyun/2 istek: açıklama, çıkış tarihi, `developer` işaretli şirket → geliştirici, `publisher` işaretli şirket → yayıncı, dil desteği); sonra Steam'in resmî toplu mağaza API'si (`IStoreBrowseService/GetItems`, 100 oyun/istek, aynı API anahtarı): 16:9 başlık görseli, geliştirici, yayıncı ve dil desteği (arayüz her listelenen dil için SUPPORTED; ses yalnız `full_audio`, altyazı yalnız `subtitles` ise SUPPORTED, aksi UNKNOWN; Steam dil numarası mağaza dil adlarıyla çapraz doğrulanmış tabloyla koda çevrilir, ayırt edilemeyen/bilinmeyen dil atlanır). Geliştirici, yayıncı ve dil yalnız BOŞKEN doldurulur; dolu veri, yönetici düzeltmesi ve manuel kilit ezilmez. Kapak: Steam 16:9 başlık görseli IGDB'nin dikey kapağının yerine geçer; yönetici kapağı hiç ezilmez. Detay galerisi kapağı tekrar göstermez (yalnız ek görseller). `metadata.provenance[].recordedAt` kaynaktan alınma zamanıdır; `verifiedAt` yalnız açık doğrulamada dolar.
 - `metadata.languages` ve `metadata.earlyAccess`: GAME-02 kapsamında yerelde bilinen dil ve erken erişim bilgisi; kaynak sağlamazsa boş/null.
 - Güncellik son başarılı detay yanıtına aittir; alan bazlı güncellik garantisi değildir. Fiyat verisi sunulmaz.
 - GET yalnız yerel okuma yapar; sağlayıcıya istek, yenileme tetikleme veya DB yazımı yapmaz. STALE veri korunur.
@@ -2056,6 +2060,38 @@ Diğer mikroservisler: RestClient ile Game Service.
 
 #### Test Durumu
 INTEGRATION — PostgreSQL/Flyway üzerinde ortak model, 200/400/404, kökenin korunması, salt okunur GET ve STALE yanıtı. IGDB adaptörü: sahte sunucuyla birim/entegrasyon testli; gerçek IGDB sözleşmesi canlı doğrulandı (bkz. "Giden sözleşme: IGDB detay kaynağı"); konteynerde uçtan uca NOT VERIFIED.
+
+### GAME — Ana oyunun DLC listesi
+
+Durum: IMPLEMENTED (kod ve izole testler hazır; **V174 migration'ının gerçek DEV'e uygulanması onay bekliyor**)
+Sorumlu: Hamza
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/game/games/{gameId}/dlc?page=0&size=12
+
+#### Yetkilendirme
+Public (salt okunur). Yalnız ACTIVE oyunlar görünür.
+
+#### Path/Query Parameters
+- gameId: UUID, zorunlu.
+- page: 0–10000, varsayılan 0. size: 1–50, varsayılan 12.
+
+#### Response — 200
+`{items: [{game: <ortak kart>, releaseDate: ISO tarih|null}], page, size, totalElements}`. Yalnız ana oyunun **aktif DLC**'leri; çıkış tarihi yeni olan önce, tarihsizler sonda, kararlı sıra. Ana oyun olmayan kayıt için boş sayfa (`totalElements=0`). DLC'ler genel katalog listesine (`GET /api/v1/game/games`) karışmaz.
+
+#### Hata Durumları
+- 400: Geçersiz UUID veya sayfa/boyut sınırı dışı.
+- 404: Oyun yok veya ACTIVE değil.
+
+#### Veri modeli (V174)
+`games.parent_game_id uuid` (self-FK, `ON DELETE SET NULL`), kısıtlar: kendine bağlanma yasak, yalnız `game_type='DLC'` ilişki taşır, ana oyun var olan bir MAIN_GAME olmalıdır (tetikleyici; DLC/UNKNOWN ana oyun reddedilir, döngü ve zincir oluşamaz); ana oyun MAIN_GAME'liğini kaybederse ilişki kopar, DLC ve Game kimliği korunur. İlişki kaynağı: IGDB `parent_game` (IGDB'nin Steam kaydı üzerinden AppID'ye çevrilir); Steam `fullgame` yalnız IGDB yokluğu, belirsiz/eşlenemeyen üst oyun ve ~%4 örneklem doğrulaması için; iki kaynak çelişirse ilişki boş kalır.
+
+#### Bağlantı
+Frontend: API Gateway üzerinden aynı path (`/api/v1/game/**`).
+
+#### Test Durumu
+INTEGRATION — GameDlcRelationTest (detay ilişkisi, sayfalama, sıralama, 400/404, katalogda DLC gizliliği), GameParentRelationMigrationTest (V173→V174 kayıpsız yükseltme, kısıtlar, silme/tür değişimi), DlcParentIntegrationTest (IGDB/Steam kaynak kuralları, çelişki, UNKNOWN ana oyun, gereksiz Steam isteği yok). Frontend: game-dlc.test.tsx.
 
 ### GAME — Yerel Steam indeks araması (GAME-16)
 
@@ -2112,8 +2148,11 @@ Public. Yalnız katalog kapsamı ve güvenli operasyon kodları; anahtar/ham sa�
 - `indexedEntries`: saklanan STEAM referans sayısı; `mainGameEntries` ve `unclassifiedEntries`: türlerine göre referans sayıları (aktif/arşivli tüm saklanan referanslar). `providerTotal`: null.
 - `runStartedAt`, `lastSuccessfulAt`: nullable UTC zamanlar; `lastErrorCode`: nullable güvenli kod.
 - `failureCount`: art arda başarısız sayfa sayısı; `nextAttemptAt`: nullable otomatik tekrar zamanı. FAILED ve null nextAttemptAt, otomatik denemenin durduğunu belirtir.
-- Aktarım her çağrıda tek sayfa işler. `game.catalog.sync.enabled=true` ile isteğe bağlı zamanlayıcı etkinleşir; varsayılan kapalıdır. İlk aktarım, altı saat aralıklı artımlı turlar ve kalıcı checkpoint üzerinden devam desteklenir.
-- Geçici hata en fazla beş otomatik tekrar alır; kalıcı hata veya bütçe aşımında uygulama servisinden açık resume gerekir. HTTP mutasyon endpoint'i yoktur.
+- Aktarım her çağrıda tek sayfa işler. `game.catalog.sync.enabled=true` ile isteğe bağlı zamanlayıcı etkinleşir; varsayılan kapalıdır. İlk aktarım, günde bir kez (her gün 03:00 Europe/Istanbul penceresinde; kesintide ilk fırsatta tek tur) çalışan artımlı turlar (`if_modified_since` = son başarılı turun başlangıcı − 1 sn) ve kalıcı checkpoint üzerinden devam desteklenir. Başarısız artımlı tur checkpoint'i ilerletmez; sonraki günlük pencerede aynı watermark'tan yeniden başlar.
+- Geçici hata en fazla beş otomatik tekrar alır; kalıcı hata veya bütçe aşımında aktarım FAILED kalır. Servis yeniden başlarken FAILED aktarım cursor korunarak sürdürülür. HTTP mutasyon endpoint'i yoktur.
+- Steam son sayfada `have_more_results` ve `last_appid` göndermez; kısa veya boş sayfa son sayfa sayılır (tam dolu sayfa devam eder). Kayıt düzeyi hatalı kayıt (boş ad, geçersiz `last_modified`) atlanır, loglanır ve cursor ilerler; sağlayıcı düzeyi hata FAILED yapar ve kodu `lastErrorCode` ile loglara yazılır.
+- Steam isteği `include_games=true`, `include_dlc=true`, `include_software/videos/hardware=false` gönderir; yanıt tür vermediğinden kayıtlar UNKNOWN indekslenir. Steam `last_modified` son doğrulanan senkrondan sonra değilse kayıt yazılmaz (değişmemiş kayıt yeniden işlenmez); değişen kayıtta yalnız farklı başlık güncellenir.
+- Türü belirsiz kayıtlar zamanlayıcıyla, IGDB `game_type` kanıtıyla toplu (250 AppID/istek) ve en yeni AppID önce sınıflandırılır; kanıt yoksa UNKNOWN kalır ve (son 30 günde ilk kez görülen kayıt için 1 gün, eski kayıt için 7 gün) yeniden sorulmaz (provenance `GAME_TYPE/UNKNOWN` gözlemi); sağlayıcı hatası gözlem yazmaz ve geçici hata olarak bekleyip yeniden dener. Adımlar en yeni ve en eski AppID uçlarından dönüşümlü ilerler; Steam taraması sürerken IGDB işleri beklemez. `game.catalog.classification.backlog-enabled` (varsayılan `true`) kapalıysa ve aday sayısı 2.000'i aşarsa sınıflandırma çalışmaz; yeniden başlatma kendiliğinden deneme grubu başlatmaz. Türü doğrulanmış (MAIN_GAME/DLC) kayıtların eksik metadata'sı bir kez zenginleştirilir (`IGDB_METADATA` gözlemi): çıkış tarihi, tür, platform, kategori (IGDB oyun modları) ve etiket (IGDB temaları; keywords eşlenmez), hepsi yalnızca boşsa. Sınıflanan kayıtlara, yalnız boşsa, IGDB `first_release_date` ile tür ve platform terimleri yazılır.
 
 #### Hata Durumları
 - 500: Beklenmeyen sunucu hatası.
@@ -2126,6 +2165,42 @@ Diğer mikroservisler: RestClient ile Game Service.
 INTEGRATION — kalıcı checkpoint, idempotent tekrar, ayrı incremental watermark, eşzamanlı sayfalar, kısmi hata, retry bütçesi, backoff ve açık resume. Scheduler opt-in koşulu test edildi; canlı tam katalog aktarımı yapılmadı.
 
 GAME-21 notu: Canlı GetAppList yanıtı kayıt başına kesin tür alanı sunmadığından Steam indeks girdileri UNKNOWN kalır. `include_games` filtresi tek başına demo/soundtrack ayrımı kanıtı kabul edilmez. Bu kayıtlar önek aramasında `includeUnclassified=true` ile bulunabilir; doğrulanmış MAIN_GAME sinyali olmadan varsayılan ana oyun sonuçlarına girmez. Gerçek detay zenginleştirme, Faz 2 sağlayıcı onayı beklemektedir.
+
+### GAME — Tür ve platform terim listesi (filtre önerileri)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/game/terms
+
+#### Yetkilendirme
+Public. Salt okunur; sağlayıcıya istek atmaz.
+
+#### Query Parameters
+- kind: `GENRE` veya `PLATFORM`, zorunlu (`CATEGORY`/`TAG` kabul edilmez)
+- limit: tamsayı, opsiyonel, varsayılan 200, 1–200
+
+#### Response — 200
+```json
+{ "kind": "GENRE", "items": [ { "code": "role-playing-rpg", "nameTr": null, "nameEn": "Role-playing (RPG)", "gameCount": 123 } ] }
+```
+- Yalnız public katalogdaki (ACTIVE + MAIN_GAME) oyunlara bağlı terimler; `gameCount` bu oyunların sayısıdır. Sıra: `gameCount` azalan, sonra `code`.
+- `code`, `GET /api/v1/game/games?genre=` ve `?platform=` filtrelerinin kabul ettiği değerdir. `nameTr`/`nameEn` boş olabilir (sağlayıcı vermediyse uydurulmaz). Terim yoksa `items` boş döner.
+- `Cache-Control: public, max-age=300`.
+
+#### Hata Durumları
+- 400: `kind` eksik/geçersiz/desteklenmeyen (`INVALID_TERM_KIND`) veya `limit` sınır dışı (`INVALID_LIMIT`)
+- 403: Yazma yöntemleri kapalıdır
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend: Gateway üzerinden aynı path.
+Diğer mikroservisler: -
+
+#### Test Durumu
+INTEGRATION — herkese açık erişim, yalnız ACTIVE + MAIN_GAME terimleri ve sayıları, sıralama, limit, boş liste, geçersiz kind/limit, önbellek başlığı ve IGDB'den gelen kodların `genre`/`platform` filtreleriyle eşleşmesi.
 
 ### GAME — Birleşik yerel katalog (GAME-01, GAME-04, GAME-05)
 
@@ -2175,7 +2250,7 @@ Filtreler AND ile birleşir. İlgili metadata bilinmiyorsa o filtreye eşleşmez
 Frontend: API Gateway üzerinden aynı path. Mikroservisler: sözleşmeli RestClient ile Game Service; başka DB erişimi yok. Puan projeksiyonunun Review'dan beslenmesi: "GAME — Giden sözleşme: Review puan projeksiyonu" kaydı.
 
 #### Test Durumu
-INTEGRATION — birleşik kökenler, görünürlük/tür temizliği, toplam/sayfa, boş sayfa, filtre bileşimi ve eksik veri, allowlist, null sırası, 400/403 ve 100.000 kayıtta eşzamanlı ölçüm. Puan: `GameRatingDiscoveryTest` (hazır olmayan projeksiyonda 400/UNAVAILABLE; RATED/UNRATED; `minRating` sınırı dahil ve puansız hariç; `sort=RATING` puansız her iki yönde sonda, eşitlikte gameId; sayfalar arası tekrar/atlama yok; geçersiz `minRating` 400; tür/durum/arama ile birleşim) ve `RatingSyncEndToEndTest` (gerçek token/Review istemcileri + sahte HTTP + PostgreSQL). Gerçek Auth servis token üretimi + gerçek Game/Review jar'ları + ayrı geçici PostgreSQL ile ops/game-review-e2e.mjs: 11 kontrol PASS. Kullanıcı/admin ve D4 token'ları fixture anahtarından; gerçek kullanıcı login'i ve Auth silme worker'ı kapsam dışıdır. Ölçüm (`CatalogRatingPerformanceTest`, 100.000 oyun, ~40.000 puanlı satır, geçici PostgreSQL 17 Testcontainers, geliştirici makinesi) p95: liste 65 ms, `minRating=7` 36 ms, `sort=RATING` DESC 49 / ASC 52 ms, tür filtresi + `minRating=5` + `sort=RATING` 132 ms, derin sayfa (page=2000) 105 ms; hedef 300 ms, hepsi altında. Üretim ölçümü değildir; `EXPLAIN` planı alınmadı.
+INTEGRATION — birleşik kökenler, görünürlük/tür temizliği, toplam/sayfa, boş sayfa, filtre bileşimi ve eksik veri, allowlist, null sırası, 400/403 ve 100.000 kayıtta eşzamanlı ölçüm. Puan: `GameRatingDiscoveryTest` (hazır olmayan projeksiyonda 400/UNAVAILABLE; RATED/UNRATED; `minRating` sınırı dahil ve puansız hariç; `sort=RATING` puansız her iki yönde sonda, eşitlikte gameId; sayfalar arası tekrar/atlama yok; geçersiz `minRating` 400; tür/durum/arama ile birleşim) ve `RatingSyncEndToEndTest` (gerçek token/Review istemcileri + sahte HTTP + PostgreSQL). Gerçek Auth servis token üretimi + gerçek Game/Review jar'ları + ayrı geçici PostgreSQL ile ops/dev.mjs e2e game-review: 11 kontrol PASS. Kullanıcı/admin ve D4 token'ları fixture anahtarından; gerçek kullanıcı login'i ve Auth silme worker'ı kapsam dışıdır. Ölçüm (`CatalogRatingPerformanceTest`, 100.000 oyun, ~40.000 puanlı satır, geçici PostgreSQL 17 Testcontainers, geliştirici makinesi) p95: liste 65 ms, `minRating=7` 36 ms, `sort=RATING` DESC 49 / ASC 52 ms, tür filtresi + `minRating=5` + `sort=RATING` 132 ms, derin sayfa (page=2000) 105 ms; hedef 300 ms, hepsi altında. Üretim ölçümü değildir; `EXPLAIN` planı alınmadı.
 
 ### GAME — Birleşik yerel oyun araması (GAME-03)
 
@@ -2277,7 +2352,7 @@ INTEGRATION — sıra, tekrar, 50/51 sınırı, geçersiz gövdeler, arşiv/MERG
 
 ### GAME — Giden sözleşme: Review puan projeksiyonu (GAME-04, GAME-05, GAME-15)
 
-Durum: IMPLEMENTED — DEV'de (2026-11-05; auth/game/review yeni imajla, temiz DB) Auth'tan token alma, Review'ın imleçli ucunu okuma ve ilk hatasız taramanın tamamlanması (`ratingsSyncedAt` doldu) doğrulandı. Ayrıca `node ops/game-review-e2e.mjs` ile gerçek Auth/Game/Review jar'ları ve üç ayrı geçici PostgreSQL üzerinde puanlı veriyle 11 kabul kontrolü geçti (RATED, minRating, iki yönlü sayfalama, güncelleme, Review silme etkisi ve Review kesintisi). Game servis token'ını gerçek Auth HTTP üreticisinden alır; kullanıcı/admin ve D4 kimlikleri yalnız geçici test anahtarıyla imzalanır. Gerçek kullanıcı login'i, Auth silme worker'ı ve canlı DEV fiyat/veri hazırlığı bu fixture'ın kapsamı dışındadır. Auth istemci gizli anahtarı (`AUTH_GAME_SERVICE_CLIENT_SECRET`) Game ortamında tanımlı değilse tarama çalışmaz.
+Durum: IMPLEMENTED — DEV'de (2026-11-05; auth/game/review yeni imajla, temiz DB) Auth'tan token alma, Review'ın imleçli ucunu okuma ve ilk hatasız taramanın tamamlanması (`ratingsSyncedAt` doldu) doğrulandı. Ayrıca `node ops/dev.mjs e2e game-review` ile gerçek Auth/Game/Review jar'ları ve üç ayrı geçici PostgreSQL üzerinde puanlı veriyle 11 kabul kontrolü geçti (RATED, minRating, iki yönlü sayfalama, güncelleme, Review silme etkisi ve Review kesintisi). Game servis token'ını gerçek Auth HTTP üreticisinden alır; kullanıcı/admin ve D4 kimlikleri yalnız geçici test anahtarıyla imzalanır. Gerçek kullanıcı login'i, Auth silme worker'ı ve canlı DEV fiyat/veri hazırlığı bu fixture'ın kapsamı dışındadır. Auth istemci gizli anahtarı (`AUTH_GAME_SERVICE_CLIENT_SECRET`) Game ortamında tanımlı değilse tarama çalışmaz.
 Sorumlu: Hamza
 Tüketici servisler: - (iç kullanım; sonucu `GET /api/v1/game/games` ve `/games/search` yanıtlarında Frontend görür)
 
@@ -2302,7 +2377,7 @@ Frontend: -
 Diğer mikroservisler: RestClient ile Auth (`/internal/v1/service-tokens`) ve Review (yukarıdaki uç). Auth çifti (`game-service → review-service / rating-summaries:read`) Auth `origin/main` bf473ed'de mevcuttur. Yeni ENV adı yalnız `AUTH_GAME_SERVICE_CLIENT_SECRET`'tır (adı `.env.example`'da zaten vardır; `docker-compose.yml`'de `game-service` ortamına geçirilir); `REVIEW_SERVICE_URL` ve `AUTH_SERVICE_URL` mevcuttur. Şema: `V172__create_game_rating_projection.sql` (`game_rating_projection`, `game_rating_sync_state`). Projeksiyon yalnız toplamları tutar, kişisel veri içermez; hesap silme bu tabloları etkilemez.
 
 #### Test Durumu
-UNIT + INTEGRATION — `ReviewRatingClientTest` (Bearer/imleç sorgusu, 401/403'te yeniden deneme yok ve token atma, 5xx'te tek yeniden deneme, sınırlı zaman aşımı, erişilemez Review, yönlendirme izlenmez, geçersiz/çelişkili yanıtlar, işaretli UUID sırası tuzağı), `AuthServiceTokenClientTest` (hedefe özgü token, önbellek ve 15 sn yenileme payı, invalidate, kapalı istemci, sızıntı yok), `GameRatingSyncServiceTest` (gerçek PostgreSQL: çok sayfalı tarama, bilinmeyen oyun, tamamlanan taramada puansızlaşma, yarıda kesilende sıfırlama yok, kiralama ve eski tarama koruması), `RatingSyncEndToEndTest` (gerçek istemciler + sahte Auth/Review HTTP), `RealAuthServiceClientTokenTest` (Auth'un **gerçek** `ServiceClientTokenIssuer`'ı geçici dizine derlenip `game-service → review-service` token'ı üretilir; token typ/iss/aud/sub/scope/≤60 sn, RS256 imzası ve Game istemcileriyle uyumu sınanır; Auth'un gerçek `application.properties`'indeki çift ve secret ENV adı sözleşme olarak denetlenir; Review'ın kendi güvenlik zinciri Review testlerindedir), `RatingProjectionMigrationTest`. Gerçek Review ve Game uygulamalarıyla ops/game-review-e2e.mjs otomatik kabulü eklendi ve 11 kontrol PASS; DEV'de önceki boş tarama doğrulaması ayrıca korunur. 100.000 oyunla süre ölçümü yapıldı (bkz. Birleşik yerel katalog, p95 ≤ 132 ms); `EXPLAIN` planı alınmadı.
+UNIT + INTEGRATION — `ReviewRatingClientTest` (Bearer/imleç sorgusu, 401/403'te yeniden deneme yok ve token atma, 5xx'te tek yeniden deneme, sınırlı zaman aşımı, erişilemez Review, yönlendirme izlenmez, geçersiz/çelişkili yanıtlar, işaretli UUID sırası tuzağı), `AuthServiceTokenClientTest` (hedefe özgü token, önbellek ve 15 sn yenileme payı, invalidate, kapalı istemci, sızıntı yok), `GameRatingSyncServiceTest` (gerçek PostgreSQL: çok sayfalı tarama, bilinmeyen oyun, tamamlanan taramada puansızlaşma, yarıda kesilende sıfırlama yok, kiralama ve eski tarama koruması), `RatingSyncEndToEndTest` (gerçek istemciler + sahte Auth/Review HTTP), `RealAuthServiceClientTokenTest` (Auth'un **gerçek** `ServiceClientTokenIssuer`'ı geçici dizine derlenip `game-service → review-service` token'ı üretilir; token typ/iss/aud/sub/scope/≤60 sn, RS256 imzası ve Game istemcileriyle uyumu sınanır; Auth'un gerçek `application.properties`'indeki çift ve secret ENV adı sözleşme olarak denetlenir; Review'ın kendi güvenlik zinciri Review testlerindedir), `RatingProjectionMigrationTest`. Gerçek Review ve Game uygulamalarıyla ops/dev.mjs e2e game-review otomatik kabulü eklendi ve 11 kontrol PASS; DEV'de önceki boş tarama doğrulaması ayrıca korunur. 100.000 oyunla süre ölçümü yapıldı (bkz. Birleşik yerel katalog, p95 ≤ 132 ms); `EXPLAIN` planı alınmadı.
 
 ### GAME — Bölgesel toplu fiyat okuma (GAME-24)
 
@@ -2326,6 +2401,9 @@ Public, salt okunur. Kullanıcı isteği ITAD çağırmaz. GET'e toplu kartla ay
 Status: AVAILABLE (en az bir güncel teklif; yalnız güncel teklifler), STALE (eski snapshot; güncel fiyat değildir), NO_OFFER (taze başarılı kontrolde eşleme/teklif yok), UNAVAILABLE (veri hiç alınmadı, yok/arşivli oyun veya kontrol eskidi). NO_OFFER/UNAVAILABLE ücretsiz oyun veya 0 fiyat anlamına gelmez.
 Offer: gameId, store, market, regularPrice, currentPrice, source=ITAD, fetchedAt, expiresAt, url, discountPercent, sourceUpdatedAt. Ücretsiz gerçek teklif currentPrice=0 olabilir. Provider'ın tutar/para birimi, indirim ve affiliate URL'si korunur; linke backend istek atmaz.
 Listeleme, aktif oyun kimlikleri + fiyatlar + boş teklif durumu için sabit sayıda toplu SQL kullanır; HTTP/SQL N+1 yoktur. Aynı transaction görünümü kullanılır.
+
+- Yenilenen pazarlar (`ltz.game.pricing.markets`): `US/USD`, `GB/GBP`, `DE/EUR`; ITAD ülke başına tek para birimi döndürdüğünden ülke ve para birimi birlikte verilir. `TRY` ve diğer pazarlar yenilenmez (Steam Türkiye için TL ile satmaz); yenilenmeyen pazar `UNAVAILABLE` döner.
+- ITAD fiyatı olmayan oyun için satır döndürmez: o oyun `NO_OFFER` olur ve aynı istekteki diğer oyunların fiyatını geçersiz kılmaz.
 
 #### Hata Durumları
 400 eksik/geçersiz UUID, 51+ kimlik, geçersiz ülke/para birimi; 401 public uçta bozuk Bearer; 429 IP kovası + Retry-After; 403 diğer metotlar; 500 beklenmeyen hata. Sağlayıcı kesintisi bu yerel okumayı durdurmaz.
@@ -2354,7 +2432,7 @@ Yalnız backend `ITAD-API-Key` başlığı. Anahtar URL/gövde/log/DTO'ya yazıl
 Steam mağazası kimliği 61; eşlemede `["app/570",…]`, fiyat sorgusunda `["<itad UUID>",…]`. İlk otomatik pazar `ltz.game.pricing.country=TR`, `currency=TRY`. Sağlayıcı başka para birimi döndürürse sessiz dönüşüm yerine başarısız kontrol olarak kaydedilir. En fazla 5 teklif/oyun; kupon gerektiren fiyatlar kapalıdır. Resmî HTTPS itad.link ve isthereanydeal.com bağlantıları değiştirilmeden korunur; benzer görünen başka hostlar kabul edilmez. İstek User-Agent değeri LTZ-Game-Service/1.0'dır.
 
 #### Response / Yenileme
-Başlangıç 30 sn, tur aralığı 60 sn; en eski kontrol edilen 50 aktif MAIN_GAME/Steam oyun seçilir. Varsayılan TTL 15 dk (yapılandırılabilir 1–60 dk). Uygulama süreci/örneği çoğalsa da DB kiralaması tek fiyat worker'ı sağlar. Ağ çağrısı transaction dışında; yalnız lease sahibi atomik snapshot yayımlar. Başarılı boş yanıtta teklif silinir ve NO_OFFER kaydedilir; yarım/geçersiz yanıtta eski snapshot korunur. Fiyat TTL veya provider expiry'den erken olan zamanda eskir; provider timestamp ayrıca korunur.
+Başlangıç 30 sn, tur aralığı 60 sn; her pazar (US/USD, GB/GBP, DE/EUR) için turda en çok 200 aktif MAIN_GAME/Steam oyun yenilenir (ITAD arama sınırı). Kademeli tazelik: SICAK (editör seçimi, son 90 günde çıkmış veya 30 gün içinde çıkacak oyun) `ltz.game.pricing.ttl` (varsayılan 2 sa, yapılandırılabilir 1 dk–2 sa), ILIK (son 2 yıl) 6×, SOĞUK (diğer, tarihsiz) 24× süreyle taze sayılır; teklif son kullanma zamanı bu kademeye ve sağlayıcının satış bitişine göre kısaltılır, uzatılmaz. Aday sırası: editör seçimi, sıcak→ılık→soğuk, en eski kontrol. Popülerlik/talep verisi güvenilir olmadığından kullanılmaz. Süresi geçen teklif güncel fiyat gibi gösterilmez (`STALE`). Uygulama süreci/örneği çoğalsa da DB kiralaması tek fiyat worker'ı sağlar. Ağ çağrısı transaction dışında; yalnız lease sahibi atomik snapshot yayımlar. Başarılı boş yanıtta teklif silinir ve NO_OFFER kaydedilir; yarım/geçersiz yanıtta eski snapshot korunur. Fiyat TTL veya provider expiry'den erken olan zamanda eskir; provider timestamp ayrıca korunur.
 
 #### Hata Durumları
 401/403 yeniden deneme yok; 429 Retry-After saniye/HTTP-date kalıcı next_attempt_at ile izlenir; başlık bozuksa 15 dk. 5xx/transport bir turu başarısız yapar, sıkı retry yoktur. Bağlantı/okuma 1/3 sn; redirect yok; yanıt en çok 4 MiB. Hatalar PRICE_ACCESS_DENIED, PRICE_RATE_LIMITED, PRICE_CURRENCY_UNAVAILABLE, PRICE_STALE_SOURCE, PRICE_MAPPING_LIMIT, AMBIGUOUS_PRICE_MAPPING, PRICE_UNAVAILABLE, INVALID_PRICE_RESPONSE gibi sabit kodlardır. Eksik/mükerrer/istenmeyen oyun satırı, bozuk sayı/UUID/URL fiyat olarak kabul edilmez.
@@ -2364,7 +2442,7 @@ GamePriceSchedulingConfiguration → GamePriceService → GamePriceProvider / It
 Resmî kaynaklar: https://docs.isthereanydeal.com/ ; https://github.com/IsThereAnyDeal/API/blob/master/docs/routes/lookup/gid-by-shopid.v1.yaml ; https://github.com/IsThereAnyDeal/API/blob/master/docs/routes/games/prices.v3.yaml .
 
 #### Test Durumu
-UNIT + INTEGRATION — sahte ITAD HTTP sunucusu + gerçek adaptör, PostgreSQL ve HTTP API. Frontend fiyat/atıf, bölgesel seçim, affiliate URL ve ekrandayken TTL dolması testleri eklendi. Gerçek anahtarla `node ops/game-provider-pilot.mjs --allow-env-files --itad` PASS: gerçek eşleme/fiyat → geçici PostgreSQL → public API, TR/TRY ve TTL ikinci turu doğrulandı. Anahtar yalnız seçili test sürecinin ortamına aktarılır; normal CI dış ağa bağımlı değildir. Ticari kullanım uygunluğu, yüksek hacim kotası ve DEV/prod dağıtımı bu pilotla onaylanmış sayılmaz. `ltz.game.pricing.sync.enabled=false` zamanlamayı kapatır.
+UNIT + INTEGRATION — sahte ITAD HTTP sunucusu + gerçek adaptör, PostgreSQL ve HTTP API. Frontend fiyat/atıf, bölgesel seçim, affiliate URL ve ekrandayken TTL dolması testleri eklendi. Gerçek anahtarla `node ops/dev.mjs e2e game-provider-pilot --allow-env-files --itad` PASS: gerçek eşleme/fiyat → geçici PostgreSQL → public API, TR/TRY ve TTL ikinci turu doğrulandı. Anahtar yalnız seçili test sürecinin ortamına aktarılır; normal CI dış ağa bağımlı değildir. Ticari kullanım uygunluğu, yüksek hacim kotası ve DEV/prod dağıtımı bu pilotla onaylanmış sayılmaz. `ltz.game.pricing.sync.enabled=false` zamanlamayı kapatır.
 
 Son doğrulama: Game 428/428, LINE %97,96 / değişen %94,12, merkezi kalite ve Trivy kapıları PASS; BACKEND TEST CHECK PASSED. Frontend lint/typecheck ve 395 test PASS (1 mevcut SKIP); çalıştırıcı 3/3 PASS. `logs/game-itad-verify.log`.
 
@@ -2395,7 +2473,7 @@ Frontend: -
 Diğer mikroservisler: Game, katalog sağlayıcısını (Steam) değiştirmez; yalnız detay yeteneği ve provenance kaynağı eklenir. Yeni ENV adları: `IGDB_CLIENT_ID`, `IGDB_CLIENT_SECRET` (`.env.example` ve compose'a eklendi). **Ticari kullanım:** IGDB belgesi API'nin Twitch Developer Service Agreement şartlarıyla yalnızca ticari olmayan kullanım için ücretsiz olduğunu söyler; ticari çıkışta Twitch ile ayrıca anlaşma gerekir, canlıya çıkmadan önce karar verilmelidir. Şema değişikliği yoktur (provenance kaynağı serbest metindir).
 
 #### Test Durumu
-UNIT + INTEGRATION — `IgdbDetailSourceTest` (belgelenmiş istek biçimi ve başlıklar, gizli anahtarın URL'de olmaması, token/kaynak kimliği önbelleği ve süre dolunca yenileme, sıfır/belirsiz eşleme, enjeksiyon denemeleri, 401/403/429/5xx/ulaşılamaz, Twitch hataları, bozuk yanıt, hız aralığı), `IgdbConfigurationTest` (kimlik yokken hiçbir değişiklik, kısmi kimlik kapalı, iki kimlikle yalnız detay yeteneği eklenir, https zorunlu), `PhaseTwoCatalogTest` (dil desteği + provenance kaynağı, manuel kilit, boş yanıt veriyi silmez, düz liste yalnız boşken). Canlı IGDB: `ITGameProviderLivePilot` / `node ops/game-provider-pilot.mjs --allow-env-files` ile gerçek sağlayıcı, geçici PostgreSQL, public HTTP controller ve TTL tekrar okuması PASS (7 Kasım 2026). Normal CI dış ağa bağımlı değildir. DEV/prod dağıtımı NOT VERIFIED.
+UNIT + INTEGRATION — `IgdbDetailSourceTest` (belgelenmiş istek biçimi ve başlıklar, gizli anahtarın URL'de olmaması, token/kaynak kimliği önbelleği ve süre dolunca yenileme, sıfır/belirsiz eşleme, enjeksiyon denemeleri, 401/403/429/5xx/ulaşılamaz, Twitch hataları, bozuk yanıt, hız aralığı), `IgdbConfigurationTest` (kimlik yokken hiçbir değişiklik, kısmi kimlik kapalı, iki kimlikle yalnız detay yeteneği eklenir, https zorunlu), `PhaseTwoCatalogTest` (dil desteği + provenance kaynağı, manuel kilit, boş yanıt veriyi silmez, düz liste yalnız boşken). Canlı IGDB: `ITGameProviderLivePilot` / `node ops/dev.mjs e2e game-provider-pilot --allow-env-files` ile gerçek sağlayıcı, geçici PostgreSQL, public HTTP controller ve TTL tekrar okuması PASS (7 Kasım 2026). Normal CI dış ağa bağımlı değildir. DEV/prod dağıtımı NOT VERIFIED.
 
 ### GAME — Herkese açık geliştirici içeriği (GAME-13)
 
@@ -2918,7 +2996,7 @@ INTEGRATION — GameModuleTest: eski JSON/sürüm uyumu, v2 üç kaynak yolu, ba
 aktif oyun sınırı, geçersiz sürüm ve sayfalama. Frontend: game-api.test.ts,
 game-modules.test.tsx (sınırlı çağrı, kaynak doğrulama, düz metin, hata/boş sonuç,
 sayfalama ve odakta görünürlük yenileme). Gerçek Game/Community/Gateway kabul
-komutu: `node ops/game-community-e2e.mjs`; yalnız geçici PostgreSQL ve fixture JWKS
+komutu: `node ops/dev.mjs e2e game-community`; yalnız geçici PostgreSQL ve fixture JWKS
 kullanır; gerçek Auth login'i ve Social/Admin olay teslimi kapsam dışıdır.
 7 Kasım 2026: Game clean verify 427/427 PASS; frontend Vitest 343 PASS/1 mevcut SKIP,
 lint ve izole TypeScript PASS; fixture API'li masaüstü/mobil Playwright 2/2 PASS.
@@ -3132,7 +3210,7 @@ geliştirici, moderasyon, başarım, feedback, katalog ve fiyat uçları `featur
 ile alınır; sunucu izinleri her istekte ayrıca uygular. Çerezli yazmalardan önce
 mevcut `/api/v1/auth/csrf` kullanılır. Diğer servis kodu/API kaydı değiştirilmedi.
 
-`ops/game-auth-e2e.mjs`: gerçek Auth kayıt/doğrulama/login → Gateway → Game **8/8 PASS**;
+`ops/dev.mjs e2e game-auth`: gerçek Auth kayıt/doğrulama/login → Gateway → Game **8/8 PASS**;
 kişisel feedback izolasyonu, CSRF ve PLAYER rol sınırı dahil. İki geçici DB ve
 Mailpit temizlenir. HTTP CookieJar kabulüdür; tarayıcı HTTPS deploy kabulü değildir.
 Birim/tarayıcı fixture testleri gerçek ITAD, gerçek Admin/Notification olay akışı
@@ -3514,7 +3592,7 @@ Gerçek Auth issuer/Gateway filtre sözleşmesi sınandı. 30 Ekim 2026 son kont
 iki sentetik hesabın gerçek kayıt/doğrulama/login oturumu ile Auth→Gateway→Library→Game→DB
 E2E akışı 62/62 PASS: ekleme/tekrar, iki kullanıcı izolasyonu, otomatik bayraklar,
 atomik silme, geçersiz oyun/JWT/CSRF ve gerçek Game kesintisinde 503/no-write.
-Kanıt: `docs-library/LTZ-HAM-LIB-01-E2E-Sonuc.md`; tekrar: `node ops/library-phase1-e2e.mjs`.
+Kanıt: `docs-library/LTZ-HAM-LIB-01-E2E-Sonuc.md`; tekrar: `node ops/dev.mjs e2e library`.
 Kullanıcı JWT doğrulayıcısı ayrıca UserTokenDecoderConfigurationTest ile gerçek RS256/JWKS üzerinde
 (bozuk imza, alg=none, HS256 karışıklığı, bilinmeyen/eksik kid, anahtar rotasyonu örtüşmesi, süre, issuer/audience, rol)
 sınanır. Auth→Library kullanıcı JWT entegrasyonunun canlı negatif/sahiplik doğrulaması:
@@ -7073,7 +7151,7 @@ Zarfta tanımsız alan reddedilir. `producer`, olay türüyle eşleşmelidir (`M
 
 **Kabul edilen olaylar ve yükleri**
 - `ModerationActionTaken` (admin-service): `{ "targetType": "POST | COMMENT", "targetId": "UUID", "action": "HIDE | RESTORE | REMOVE | DISMISS", "reportId": "UUID (opsiyonel; yalnız tek raporu hedeflemek için)" }`. `HIDE`: VISIBLE içeriği HIDDEN yapar (yorumsa gönderinin `commentCount`'u düşer); `RESTORE`: HIDDEN içeriği geri açar (sayaç geri artar); `REMOVE`: içeriği kalıcı kaldırır (soft delete, gönderi görselleri silinir; **geri alınamaz**, silinmiş içerik `RESTORE` ile geri gelmez); `DISMISS`: içeriği değiştirmez, raporu reddeder. `HIDE`/`REMOVE` içeriğin açık raporlarını `RESOLVED`, `DISMISS` ise `DISMISSED` yapar. Bulunamayan içerik için olay başarıyla işlenir (etkisiz).
-- `UserBlocked` / `UserUnblocked` (social-service): `{ "blockerId": "UUID", "blockedId": "UUID" }` (farklı olmalı). Community yerel `user_blocks` yansımasını günceller; engelleme iki yönlü uygulanır (akış/arama/profil/yorum listelerinden gizleme, beğeni/yorum/yanıt/repost/rapor engeli).
+- `UserBlocked` / `UserUnblocked` (social-service): `{ "blockerId": "UUID", "blockedId": "UUID" }` (farklı olmalı). Community yerel `user_blocks` yansımasını günceller; olaylar üretici tarafında yeniden denendiğinden sırayla gelmeyebilir, bu yüzden her (engelleyen, engellenen) çifti için uygulanmış en yeni olayın `occurredAt` değeri `user_block_markers` tablosunda tutulur ve işaretten **daha eski** bir olay `PROCESSED` döner ama etkisizdir (gecikmiş eski `UserBlocked`, sonradan işlenen `UserUnblocked`'ı geri almaz; eşit zamanlı olaylar geliş sırasıyla uygulanır); engelleme iki yönlü uygulanır (akış/arama/profil/yorum listelerinden gizleme, beğeni/yorum/yanıt/repost/rapor engeli).
 - `AccountStatusChanged` (auth-service): `{ "accountId": "UUID", "status": "ACTIVE | SUSPENDED | BANNED | DISABLED | ..." }` (Auth'un yayımladığı yük; ikisi de zorunlu, eksikse 400, bilinmeyen durum adları kabul edilir). Olay tekilleştirilir ve kaydedilir (`PROCESSED`/`DUPLICATE`) ama **içeriğe etki etmez**: askıya alınan/yasaklanan hesabın içeriği gizlenmez (Auth bunu zorunlu kılmıyor; ürün kararı bekleniyor).
 - Bilinmeyen `eventType` başarıyla yok sayılır (`IGNORED`), üretici yeniden denemesin diye.
 
@@ -7100,7 +7178,7 @@ Diğer mikroservisler:
 Admin Service, Social Service ve Auth Service bu ucu servis token'ıyla çağırır. **Community'nin yayınladığı olaylar** (outbox, aynı zarfla alıcıların `POST /internal/events` ucuna iletilir; her çağrı Auth'tan `POST /internal/v1/service-tokens` ile alınan, hedefe bağlı (`aud=admin-service` / `notification-service`) 60 sn'lik servis token'ıyla `Authorization: Bearer` başlığında yapılır; istemci kimliği `community-service`, gizli anahtar `AUTH_COMMUNITY_SERVICE_CLIENT_SECRET` ortam değişkeninden gelir ve boşsa relay hiçbir olay denemez): `ContentReported` → admin-service (`{reportId, targetType, targetId, targetAuthorId, reporterId, reason, detail, reportedAt}`); `CommentCreated` → notification-service (`{commentId, postId, parentCommentId, actorId, recipientIds[], isReply}`); `PostLiked` → notification-service (`{postId, actorId, recipientId}`); `PostReposted` → notification-service (`{postId, repostId, actorId, recipientId}`). Yükler yalnız kimlik içerir (gönderi/yorum/repost metni ve görünen ad taşınmaz); kişi kendi içeriğine yaptığı etkileşim için olay üretilmez. `PostReposted`, docs/architecture.md §6.3 olay kataloğunda henüz yoktur (kataloğa eklenmesi önerilir). Relay varsayılan KAPALIDIR; alıcı sözleşmeleri ve Auth'tan gerçek token alımı NOT VERIFIED.
 
 #### Test Durumu
-UNIT + INTEGRATION (MockMvc: yetki/doğrulama; gerçek PostgreSQL: moderasyon etkileri ve sayaçlar, tekilleştirme, üretici kontrolü, engelleme yansıması, `AccountStatusChanged` kaydı; giden çağrı: token istemcisi ve `Authorization` başlığı için MockRestServiceServer). Admin/Social/Auth Service ile uçtan uca doğrulama: NOT VERIFIED.
+UNIT + INTEGRATION (MockMvc: yetki/doğrulama; gerçek PostgreSQL: moderasyon etkileri ve sayaçlar, tekilleştirme, üretici kontrolü, engelleme yansıması ve olay sırası (geç gelen eski olay yeni durumu ezmez), `AccountStatusChanged` kaydı; giden çağrı: token istemcisi ve `Authorization` başlığı için MockRestServiceServer). Admin/Social/Auth Service ile uçtan uca doğrulama: NOT VERIFIED.
 
 ### COMMUNITY — Hesap Verisi Silme (İç Uç)
 
@@ -7124,7 +7202,7 @@ Gövde yok. Kişisel veri silindi/anonimleştirildi **ya da zaten yoktu** (idemp
 - **Gönderiler ve yorumlar** (yazarı bu hesap): metin sabit `[removed]` yer tutucusuyla değiştirilir (repost notu `null`), yazar referansı "silinmiş hesap" kimliğine (`00000000-0000-0000-0000-000000000000`) çevrilir, durum `DELETED` olur; gönderi görselleri silinir. Soft delete ile saklanan eski metinler de temizlenir. Satırlar silinmez, çünkü başkalarının yorumları, yanıtları ve repostları bu satırlara bağlıdır ve **başkalarının verisi silinmez**.
 - **Beğeniler**: hesabın beğenileri silinir, gönderilerin `likeCount` değeri düşer; silinen görünür yorumlar `commentCount`'tan çıkar.
 - **Raporlar**: hesabın yaptığı raporlar silinir; hesabın içeriği hakkındaki raporlarda yalnız içerik yazarı referansı anonimleşir.
-- **Engellemeler** (`user_blocks`): hesabın taraf olduğu satırlar silinir. **Forumlar**: oluşturan referansı anonimleşir.
+- **Engellemeler** (`user_blocks` ve olay sırası işareti `user_block_markers`): hesabın taraf olduğu satırlar silinir. **Forumlar**: oluşturan referansı anonimleşir.
 - **Outbox**: hesabın kimliğini taşıyan tüm olaylar (bekleyen, başarısız, teslim edilmiş) silinir.
 - Başka servise çağrı yapılmaz; yalnız `community_db`. Günlüğe yalnız `accountId` yazılır.
 
@@ -8154,18 +8232,19 @@ CSRF etkin; açık Bearer ve Gateway cookie/CSRF/Origin protokolü uygulanır. Y
 
 #### Request Body
 `CreateHardwareProfileRequest`: `name` zorunlu, 1..100 karakter, boş/kontrol/HTML ayraçları
-reddedilir; `deviceType` zorunlu DESKTOP/LAPTOP/OTHER. Bilinmeyen alanlar reddedilir.
+reddedilir; `deviceType` zorunlu DESKTOP/LAPTOP/OTHER. `caseColor` (2026-11-08, V193) opsiyonel
+BLACK/WHITE/GRAPHITE/RED; gönderilmezse BLACK. Geçersiz renk 400. Bilinmeyen alanlar reddedilir.
 
 ```json
-{"name":"Oyun PC","deviceType":"DESKTOP"}
+{"name":"Oyun PC","deviceType":"DESKTOP","caseColor":"WHITE"}
 ```
 
 #### Response — 201
-`HardwareProfileResponse`: id, name, deviceType, source (MANUAL), version, createdAt, updatedAt.
-Owner UUID dönmez. `Location: /api/v1/hardware/profiles/{id}`; `Cache-Control: no-store, private`.
+`HardwareProfileResponse`: id, name, deviceType, caseColor, source (MANUAL), version, createdAt, updatedAt.
+Owner UUID dönmez. `caseColor` geriye uyumlu ek alandır (LTZ Atölyesi kasa rengi). `Location: /api/v1/hardware/profiles/{id}`; `Cache-Control: no-store, private`.
 
 ```json
-{"id":"00000000-0000-0000-0000-000000000001","name":"Oyun PC","deviceType":"DESKTOP","source":"MANUAL","version":0,"createdAt":"2026-10-21T00:00:00Z","updatedAt":"2026-10-21T00:00:00Z"}
+{"id":"00000000-0000-0000-0000-000000000001","name":"Oyun PC","deviceType":"DESKTOP","caseColor":"WHITE","source":"MANUAL","version":0,"createdAt":"2026-10-21T00:00:00Z","updatedAt":"2026-10-21T00:00:00Z"}
 ```
 
 #### Hata Durumları
@@ -8179,12 +8258,13 @@ Owner UUID dönmez. `Location: /api/v1/hardware/profiles/{id}`; `Cache-Control: 
 Frontend: API Gateway üzerinden tam path; gateway değiştirilmedi.
 İş akışında başka servis çağrısı yok; Auth JWKS ortak doğrulama katmanında tüketilir.
 Canlı Auth/Gateway E2E NOT_VERIFIED.
-Flyway: V1__create_hardware_profiles_and_privacy.sql.
+Flyway: V1__create_hardware_profiles_and_privacy.sql; `case_color` V193__add_hardware_profile_case_color.sql.
 
 #### Test Durumu
 UNIT + INTEGRATION — HardwareProfileControllerTest + HardwareProfileTest;
 2026-10-21 modül testleri 19 PASS, exit 0. Gerçek PostgreSQL 17 + Flyway + JPA + MockMvc.
-Canlı Auth/E2E doğrulanmadı.
+2026-11-08 caseColor: varsayılan BLACK, açık renk, geçersiz renk 400, DB CHECK ve V7/V10 yükseltme testleri;
+hedefli 8 sınıf 127 test PASS. Canlı Auth/E2E doğrulanmadı.
 
 ### HARDWARE — HW-02 Bileşen ekleme
 
@@ -8258,17 +8338,23 @@ Owner; HW-01 ile aynı CSRF/JWT doğrulaması sınırı. Başka owner kaynağı 
 - profileId: UUID, zorunlu.
 #### Request Body
 `UpdateHardwareProfileRequest`: profileVersion >=0, name ve deviceType zorunlu;
-ad/tür kuralları HW-01 ile aynı. Owner/source değiştirilemez.
+ad/tür kuralları HW-01 ile aynı. `caseColor` (V193) opsiyonel BLACK/WHITE/GRAPHITE/RED;
+gönderilmezse kayıtlı renk korunur (eski istemciler etkilenmez). Owner/source değiştirilemez.
+
+```json
+{"profileVersion":0,"name":"Oyun PC","deviceType":"DESKTOP","caseColor":"RED"}
+```
 #### Response — 200
 `HardwareProfileResponse`; yeni version, private/no-store.
 #### Hata Durumları
 400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED;
 404 HARDWARE_NOT_FOUND; 409 DATA_CONFLICT (eski profil sürümü); 500 INTERNAL_ERROR.
 #### Bağlantı
-Frontend: Gateway tam path. Diğer mikroservisler: yok. Mevcut V1; yeni migration yok.
+Frontend: Gateway tam path. Diğer mikroservisler: yok. V1; `case_color` için V193.
 #### Test Durumu
 UNIT + INTEGRATION — HardwareProfileControllerTest güncelleme/owner/stale version PASS;
-modül toplamı 47 test PASS, exit 0 (2026-10-21).
+modül toplamı 47 test PASS, exit 0 (2026-10-21). 2026-11-08: renk korunması, renk değiştirme ve
+geçersiz renk 400 testleri PASS.
 
 ### HARDWARE — HW-03 Bileşen değiştirme
 
@@ -8348,7 +8434,7 @@ Owner; yalnız doğrulanmış aktörün profilleri. HW-01 güvenlik sınırı/JW
 - size: int 1..100, varsayılan 20.
 Sıralama sabit `createdAt ASC, id ASC`; istemci SQL/sort alanı gönderemez.
 #### Response — 200
-`HardwareProfilePageResponse`: items (`HardwareProfileResponse`), page, size,
+`HardwareProfilePageResponse`: items (`HardwareProfileResponse`, 2026-11-08'den beri `caseColor` dahil), page, size,
 totalElements, totalPages. Başka owner profilleri/sayaçları dahil edilmez. Cache private/no-store.
 #### Hata Durumları
 400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED; 500 INTERNAL_ERROR.
@@ -8376,7 +8462,7 @@ Owner; HW-01 güvenlik sınırı/JWT doğrulaması. Diğer kullanıcıların pro
 - size: int 1..100, varsayılan 20.
 #### Response — 200
 `HardwareProfileDetailResponse`: profile, components, page, size, totalComponents, totalPages.
-Profil HW-01 yanıtı, bileşenler HW-02 DTO'sudur. Eksik teknik alanlar null kalır;
+Profil HW-01 yanıtı (`caseColor` dahil), bileşenler HW-02 DTO'sudur. Eksik teknik alanlar null kalır;
 seri numarası, owner, FPS/sıcaklık/tahmin dönmez. Kayıtlı teknik değerler ve birimleri
 HW-02 sözleşmesindedir. Sabit createdAt/id sıralaması ve REPEATABLE_READ snapshot kullanılır.
 HW-07 sonrası components.source MANUAL veya DESKTOP_SYNC olabilir; profilin
@@ -8774,6 +8860,19 @@ Public iş endpoint'i yok. Tüm yanıtlar private/no-store.
 
 #### Response — 200
 HardwareProductResponse; yalnız ACTIVE model ve ACTIVE opsiyonel markalar.
+2026-11-07: Mevcut nullable `source` alanı doğrulanmış kaynak kaydıyla doldurulur.
+PC Part Dataset için provider=PC_PART_DATASET, externalProductId=teknik SHA-256,
+brand=kaynak adından ayrılmış marka, manufacturerPartNumber=null, gtins=[],
+locale=und, sourceUpdatedAt=null, lastSuccessfulSync=son aktarım zamanı,
+quality=VERIFIED (teknik doğrulama), typedSpecifications=Value(number,text,unit,featureId),
+featureGroups=[], images=[]. Fiyat/stok/mağaza/satın alma verisi yoktur.
+2026-11-08 GPU eklemesi: source.typedSpecifications içinde chipset, capacityGb
+(VRAM GB), clockMhz, boostClockMhz, lengthMm ve color bulunur; null değerler korunur.
+GPU bellek türü/güç değeri kaynakta yoksa doldurulmaz. GET sözleşmesi değişmez.
+Kaynağı olmayan manuel ürünlerde source=null kalır. Ortak specifications korunur;
+kesirli GB teknik JSON'da tam, integer ortak capacityGb alanında null'dır.
+V9 itibarıyla model tekilliği category/normalized_model/catalog_variant'tır;
+aşağıdaki V2 kaydı önceki sözleşmenin tarihçesidir.
 
 #### Hata Durumları
 400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 403 ACCESS_DENIED;
@@ -8788,6 +8887,11 @@ model tekilliği category/normalized_model olup marka bağımsızdır.
 
 #### Test Durumu
 INTEGRATION — HardwareCatalogControllerTest: 32 yeni senaryo PASS; modül 90 PASS, exit 0, 2026-10-21 01:44:06 +03:00. PostgreSQL 17/Flyway V1–V3/JPA validate; gerçek Auth DEFERRED_AUTH.
+2026-11-07: PcPartImportIntegrationTest PostgreSQL17/MockMvc yetkili test aktörüyle
+ürün detayı ve source/specification okuması PASS. Gerçek DEV HTTP/Auth sonucu
+[aktarım raporunda](../docs-hardware/reports/pc-part-dataset-import.md) ayrı tutulur.
+2026-11-08: GPU detayındaki VRAM/boost frekansı/uzunluk da PcPartImportIntegrationTest
+ile PASS; [GPU aktarım kanıtı](../docs-hardware/reports/pc-part-gpu-import.md).
 
 ### HARDWARE — HW-10/HW-11 Genel model listesi, arama ve filtreleme
 
@@ -8807,16 +8911,33 @@ Public iş endpoint'i yok. Tüm yanıtlar private/no-store.
 #### Query Parameters
 - page: 0..10000, varsayılan 0.
 - size: 1..100, varsayılan 20.
-- q: opsiyonel 0..160; model içinde NFKC/Locale.ROOT normalizasyonuyla literal alt metin araması.
+- q: opsiyonel 0..160; NFKC/Locale.ROOT normalizasyonundan sonra boşluklarla jetonlara bölünür (en çok 8) ve her jeton
+model adında ya da ürünün aktif üretici adında bulunmalıdır (AND). 3 karakterden kısa jeton yalnız kelime başında eşleşir
+(`r` → Ryzen, `ryzen 98` → Ryzen 7 9800X3D; kelime başı boşluk ya da `-` sonrasıdır); 3+ karakterli jeton kelime içinde de eşleşir
+(`x3d`, `14700`); `amd ryzen` üretici adıyla da eşleşir. Harf/rakamla başlamayan jeton düz alt metin aranır.
 - category: mevcut 12 ComponentCategory değerinden biri.
-- brandId: opsiyonel UUID; aktif modele bağlı aktif üretici.
+- brandId: opsiyonel UUID, **çoklu** (`brandId=a&brandId=b`, en çok 50); modele bağlı aktif üreticilerden herhangi biri.
+Tek UUID eski sözleşmeyle aynı çalışır; geçersiz UUID 400.
 - brand: opsiyonel 0..100; aynı aktif üreticinin adı içinde literal arama.
 - minCapacityGb/maxCapacityGb: 1..1048576.
 - minClockMhz/maxClockMhz: 1..20000.
 - minCoreCount/maxCoreCount: 1..1024.
 - minPowerWatts/maxPowerWatts: 1..10000.
-- memoryType/socket/interfaceType/formFactor: opsiyonel 1..32, büyük/küçük harf duyarsız tam eşleşme.
-Tüm verilen filtreler AND ile birleşir; aynı üretici brandId + brand koşullarını sağlamalıdır.
+- memoryType/socket/interfaceType/formFactor: opsiyonel, **çoklu** (parametre tekrarlanır, en çok 50), her değer 1..32,
+büyük/küçük harf duyarsız tam eşleşme; değerler arası VEYA.
+chipset: çoklu, değer başına 1..100 (GPU modeli); storageType: çoklu, değer başına 1..32 — ikisi de kaynak (VERIFIED) typedSpecs
+üzerinde büyük/küçük harf duyarsız tam eşleşme. `<`, `>` ve kontrol karakterleri 400.
+Liste parametrelerinde tek bir değer virgül içerse bile bölünmez (yonga adı `GeForce RTX 4060, Founders` tek değerdir).
+maximumMemoryGb: 1..1048576; memorySlots: 1..1024; casLatency: 1..200 — çoklu, kaynak typedSpecs sayısal değerinde tam eşleşme.
+- capacityGb (1..1048576), clockMhz (1..20000), coreCount (1..1024): **çoklu** tam değer; ürün kolonunda değerlerden birine eşit olmalı.
+Mevcut min/max aralık parametreleri ile birlikte kullanılabilir (hepsi AND).
+- gpuVendor: çoklu, `NVIDIA` | `AMD` | `INTEL` (en çok 3; başka değer 400). Çip üreticisi kayıtlı `chipset` adının başından türetilir
+(NVIDIA: GeForce/NVIDIA/Quadro/Titan/Tesla/NVS/RTX/GTX/GT; AMD: Radeon/AMD/FirePro/RX; INTEL: Arc/Intel/Iris/UHD). Kart markası (ASUS, MSI)
+ile aynı şey değildir. Seçilen çip üreticilerinden herhangi biri yeterlidir; `chipset` ile birlikte verilirse ikisi de sağlanmalıdır.
+integratedGraphics: opsiyonel boolean (CPU onay kutusu). Yalnız `true` filtreler: VERIFIED kaynağın typedSpecs.integratedGraphics.text
+değeri dolu ve `false` değildir. `false`/boş filtre uygulamaz; boolean olmayan değer 400.
+QUARANTINED kaynak kayıtları bu filtrelerle hiçbir zaman eşleşmez.
+Farklı alanlar AND, aynı alandaki çoklu değerler VEYA ile birleşir; aynı üretici brandId + brand koşullarını sağlamalıdır.
 Alt sınır üst sınırı geçerse 400. Teknik alan null ise filtreyi sağlamaz.
 Boş q/brand filtresizdir; marka filtresi yokken markasız genel modeller listelenir.
 LIKE %, _ ve ! literal escape edilir; SQL parametreli Criteria ile üretilir.
@@ -8824,6 +8945,14 @@ Sıralama sabit normalizedModel/id ASC; istemci sıralama veya SQL alanı seçem
 
 #### Response — 200
 HardwareCatalogPageResponse<HardwareProductResponse>; marka bilgileri sayfa başına toplu yüklenir, collection fetch ile sayfalama yapılmaz.
+2026-11-07: Kaynak bilgileri de sayfa başına toplu yüklenir; kaynak başına ek sorgu yoktur.
+Her ürünün nullable source sözleşmesi yukarıdaki ürün detayıyla aynıdır.
+PC Part Dataset CPU/GPU/MOTHERBOARD/RAM/STORAGE filtrelerini ve mevcut ortak teknik
+filtreleri kullanır. Varyantlar aynı model adını taşıyabilir, id/specifications/source
+ile ayrılır; tekillik V9'dan beri category/normalized_model/catalog_variant'tır.
+Aşağıdaki V2 tekillik açıklaması önceki sözleşmenin tarihçesidir.
+`discovery=true` artık beş kategoriyi (GPU dahil) kapsar. GPU `category`, marka,
+kapasite ve frekans filtreleri mevcut sözleşmeyle çalışır.
 Sayfa ve toplam sayaç aynı filtre/REPEATABLE_READ snapshot'ını kullanır.
 HW-11 filtreleri HardwareCatalogSearchTest içindeki 27 yeni senaryoda PASS;
 modül 117 PASS, exit 0, 2026-10-21 01:47:00 +03:00, PostgreSQL 17/Flyway V1–V4/JPA validate.
@@ -8841,6 +8970,62 @@ model tekilliği category/normalized_model olup marka bağımsızdır.
 
 #### Test Durumu
 INTEGRATION — HardwareCatalogControllerTest: 32 yeni senaryo PASS; modül 90 PASS, exit 0, 2026-10-21 01:44:06 +03:00. PostgreSQL 17/Flyway V1–V3/JPA validate; gerçek Auth DEFERRED_AUTH.
+2026-11-08: PcPartImportIntegrationTest beş kategori (GPU dahil), discovery, kapasite filtresi,
+source.typedSpecifications ve anonim 401 senaryoları PASS. Import için yeni HTTP
+endpoint'i yoktur; yalnız dev CLI vardır. [Güncel kanıt](../docs-hardware/reports/pc-part-dataset-import.md).
+2026-11-08: chipset, storageType, maximumMemoryGb, memorySlots ve casLatency filtreleri
+HardwareCatalogSearchTest içinde (toplam 36 senaryo) PASS; PostgreSQL 17/Testcontainers.
+2026-11-08: integratedGraphics filtresi (dolu / boş / "false" / eksik / QUARANTINED kaynak, aralık filtresiyle birleşim,
+false ve geçersiz değer) HardwareCatalogSearchTest içinde (toplam 37 senaryo) PASS; PostgreSQL 17/Testcontainers.
+2026-11-08: q jetonlu kelime-öneki araması (r / ryzen / ryzen 98 / amd ryzen / x3d / arşivli üretici / kısa jeton orta eşleşmez)
+HardwareCatalogSearchTest içinde (toplam 38 senaryo) PASS; PostgreSQL 17/Testcontainers.
+2026-11-08: Çoklu seçim (tekrarlanan parametre: soket / form faktörü / bellek yuvası / marka / kapasite / çekirdek / frekans),
+virgül içeren tek değer, gpuVendor ve gpuVendor+chipset birleşimi, geçersiz değer 400 senaryoları
+HardwareCatalogSearchTest içinde (toplam 42 senaryo) PASS; PostgreSQL 17/Testcontainers.
+
+
+### HARDWARE — HW-11 Katalog filtre seçenekleri (facets)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (katalog filtre paneli açılır listeleri)
+
+#### Endpoint
+GET /api/v1/hardware/catalog/facets
+
+#### Yetkilendirme
+Authenticated — doğrulanmış typed AuthenticatedActor; üstteki ortak JWT/RBAC kuralı geçerlidir.
+Public iş endpoint'i yoktur.
+
+#### Query Parameters
+- category: zorunlu; ComponentCategory değerlerinden biri.
+
+#### Response — 200
+HardwareCatalogFacetsResponse: { category, facets: { <anahtar>: [ { value, label, count } ] } }.
+Değerler yalnız aktif ürünlerde kayıtlı gerçek değerlerdir; uydurma/varsayılan seçenek yoktur.
+Aynı değerin büyük/küçük harf farkları tek seçenekte toplanır; sayısal değerler artan sıralıdır.
+Kategori başına anahtarlar:
+- CPU: brandId, coreCount
+- GPU: brandId, chipset, capacityGb, gpuVendor (yonga adından türetilir; value/label `NVIDIA`|`AMD`|`INTEL`, count yonga sayılarının toplamı)
+- MOTHERBOARD: brandId, socket, formFactor, maximumMemoryGb, memorySlots
+- RAM: brandId, memoryType, capacityGb, clockMhz, casLatency
+- STORAGE: brandId, storageType, capacityGb, interfaceType
+Diğer kategorilerde facets boş nesnedir. brandId seçeneklerinde value marka UUID'si, label marka adıdır.
+Cache-Control: private, max-age=300.
+
+#### Hata Durumları
+400 INVALID_REQUEST (category eksik/geçersiz); 401 AUTHENTICATION_REQUIRED;
+500 INTERNAL_ERROR. İç hata/SQL dönmez.
+
+#### Bağlantı
+Frontend: `features/hardware/services/hardware-api.ts` → `filterOptions`. Seçilen değerler
+GET /api/v1/hardware/catalog/products filtre parametreleri olarak gönderilir. Diğer
+mikroservislerden çağrı yoktur. Yeni migration gerekmez (mevcut hardware_product_sources.typed_specs).
+
+#### Test Durumu
+INTEGRATION — HardwareCatalogSearchTest.facetsListOnlyRecordedActiveValuesPerCategory PASS
+(modül testi 36 PASS, PostgreSQL 17). Frontend: hardware-api.test.ts, catalog-filters.test.tsx ve
+Playwright e2e (hardware, catalog-visual, catalog-categories: 77 PASS).
 
 
 ### HARDWARE — HW-14 Ortak kampanya veri sözleşmesi
@@ -9400,7 +9585,7 @@ Typed actor; aktif genel ürün. Katalog yazma izni gerekmez; yazar UUID'si yaln
 productId zorunlu UUID; query yok.
 
 #### Request Body
-CreateHardwareReviewRequest: body zorunlu düz metin 1..5000; rating opsiyonel tam sayı 1..5. Bilinmeyen alan reddedilir. HTML açı ayraçları/kontrol karakterleri ham ve NFKC sonrası reddedilir; satır sonu/tab desteklenir.
+CreateHardwareReviewRequest: body zorunlu düz metin 1..5000; rating opsiyonel ondalık sayı: 1.0..5.0 aralığında 0,5 adımlı (1, 1.5, … 5; 0, 0.5, 5.5, 4.3 ve 4.25 400 INVALID_REQUEST). Kayıt `numeric(2,1)` saklanır ve yanıtta tek ondalıkla döner (ör. 4.0, 4.5). Bilinmeyen alan reddedilir. HTML açı ayraçları/kontrol karakterleri ham ve NFKC sonrası reddedilir; satır sonu/tab desteklenir.
 
 #### Response
 201 HardwareReviewResponse; Location /api/v1/hardware/reviews/{id}. Alanlar id,productId,body,rating,status,version,ownedByActor,createdAt,updatedAt. author/user UUID, hash, IP ve rapor sayısı dönmez. İlk status VISIBLE/version 0.
@@ -9413,6 +9598,7 @@ HardwareReviewService; V5__create_hardware_reviews.sql.
 Başka servise/DB'ye çağrı yok; gerçek Auth ve User/Social E2E NOT_VERIFIED.
 
 #### Test Durumu
+2026-11-08 (V192 yarım yıldız): HardwareReviewControllerTest 30 test PASS (4,5 kabul; 0,5/5,5/4,3/4,25 ve 2,7 güncellemesi 400; ortalama 3,33; CHECK 4,3 ve 0,5 reddeder) + HardwareReviewTextTest + PcPartImportIntegrationTest; pre-push/Sonar bu değişiklikte çalıştırılmadı.
 UNIT + INTEGRATION — HardwareReviewControllerTest + HardwareReviewTextTest;
 2026-10-21 18:40:14 +03 verify exit 0: 206 PASS, 0 failure/error/skipped;
 JaCoCo 1044/1060=%98,49; gerçek PostgreSQL 17/Flyway V1–V8/JPA/MockMvc.
@@ -9548,7 +9734,7 @@ Owner typed actor + CSRF; yalnız VISIBLE ve aktif ürüne bağlı yorum. HIDDEN
 reviewId UUID; query yok.
 
 #### Request Body
-UpdateHardwareReviewRequest: reviewVersion zorunlu >=0, body zorunlu 1..5000 düz metin, rating opsiyonel 1..5. Eksik rating puanı kaldırır; body/hash değişimi atomik tekillik kontrolüne katılır.
+UpdateHardwareReviewRequest: reviewVersion zorunlu >=0, body zorunlu 1..5000 düz metin, rating opsiyonel 1.0..5.0 aralığında 0,5 adımlı (oluşturma ile aynı kural). Eksik rating puanı kaldırır; body/hash değişimi atomik tekillik kontrolüne katılır.
 
 #### Response
 200 HardwareReviewResponse; artırılmış version. Pessimistic review kilidi + @Version. Gerekçesi sabit USER_REVIEW_UPDATED olan append-only audit aynı transaction'da.
@@ -9561,6 +9747,7 @@ HardwareReviewService; V5__create_hardware_reviews.sql.
 Başka servise/DB'ye çağrı yok; gerçek Auth ve User/Social E2E NOT_VERIFIED.
 
 #### Test Durumu
+2026-11-08 (V192 yarım yıldız): HardwareReviewControllerTest 30 test PASS (4,5 kabul; 0,5/5,5/4,3/4,25 ve 2,7 güncellemesi 400; ortalama 3,33; CHECK 4,3 ve 0,5 reddeder) + HardwareReviewTextTest + PcPartImportIntegrationTest; pre-push/Sonar bu değişiklikte çalıştırılmadı.
 UNIT + INTEGRATION — HardwareReviewControllerTest + HardwareReviewTextTest;
 2026-10-21 18:40:14 +03 verify exit 0: 206 PASS, 0 failure/error/skipped;
 JaCoCo 1044/1060=%98,49; gerçek PostgreSQL 17/Flyway V1–V8/JPA/MockMvc.

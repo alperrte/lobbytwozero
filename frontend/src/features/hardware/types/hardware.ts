@@ -1,0 +1,34 @@
+export const categories = ["CPU", "GPU", "RAM", "MOTHERBOARD", "STORAGE", "COOLING", "PSU", "MONITOR", "KEYBOARD", "MOUSE", "HEADSET", "OTHER"] as const;
+export type Category = (typeof categories)[number];
+// Katalog vitrininde yalnız bu beş kategori ve bu sırayla gösterilir (backend diğer kategorileri korur).
+export const catalogCategories: Category[] = ["CPU", "GPU", "MOTHERBOARD", "RAM", "STORAGE"];
+export type DeviceType = "DESKTOP" | "LAPTOP" | "OTHER";
+/** Atölye sahnesindeki kasa rengi (V193). Eski kayıtlar sunucuda BLACK olarak gelir. */
+export const caseColors = ["BLACK", "WHITE", "GRAPHITE", "RED"] as const;
+export type CaseColor = (typeof caseColors)[number];
+export type Visibility = "PRIVATE" | "FRIENDS" | "PUBLIC";
+export const privacyFields = ["PROFILE_NAME", "DEVICE_TYPE", "COMPONENT_MODEL", "COMPONENT_BRAND", "COMPONENT_QUANTITY", "TECHNICAL_SPECIFICATIONS"] as const;
+export type PrivacyField = (typeof privacyFields)[number];
+export type Page<T> = { items: T[]; page: number; size: number; totalElements: number; totalPages: number };
+export const specKeys = ["capacityGb", "clockMhz", "coreCount", "powerWatts", "memoryType", "socket", "interfaceType", "formFactor"] as const;
+export type Specifications = { capacityGb: number | null; clockMhz: number | null; coreCount: number | null; powerWatts: number | null; memoryType: string | null; socket: string | null; interfaceType: string | null; formFactor: string | null };
+export type FilterOption = { value: string; label: string; count: number };
+export type FilterOptions = Record<string, FilterOption[]>;
+export type CatalogFacets = { category: Category; facets: FilterOptions };
+export type Brand = { id: string; name: string; status: "ACTIVE" | "ARCHIVED"; version: number };
+export type TypedValue = { number: number | null; text: string | null; unit: string | null; featureId?: string | null };
+export type ProductSource = { provider?: string; brand?: string; typedSpecifications?: Record<string, TypedValue> | null } | null;
+export type Product = { id: string; category: Category; model: string; brands: Brand[]; specifications: Specifications; status: "ACTIVE" | "ARCHIVED"; version: number; source?: ProductSource };
+export type Profile = { id: string; name: string; deviceType: DeviceType; caseColor: CaseColor; source: string; version: number; createdAt: string; updatedAt: string };
+export type Component = { id: string; category: Category; productId: string | null; brandId: string | null; modelName: string; brandName: string | null; quantity: number; source: string; version: number; specifications: Specifications };
+export type ProfileDetail = { profile: Profile; components: Component[]; page: number; size: number; totalComponents: number; totalPages: number };
+export type Privacy = { profileId: string; profileVersion: number; visibility: Visibility; fields: Partial<Record<PrivacyField, Visibility>>; categories: Partial<Record<Category, Visibility>> };
+export type Statistics = { totalProfiles: number; profilesByDeviceType: Partial<Record<DeviceType, number>>; totalComponentEntries: number; totalComponentUnits: number; componentsByCategory: Partial<Record<Category, { entries: number; units: number }>>; recordedRamCapacityGb: number; ramUnitsWithoutCapacity: number; recordedStorageCapacityGb: number; storageUnitsWithoutCapacity: number };
+export type Review = { id: string; productId: string; body: string; rating: number | null; status: "VISIBLE" | "HIDDEN" | "DELETED"; version: number; ownedByActor: boolean; createdAt: string; updatedAt: string };
+export type ReviewPage = Page<Review> & { summary: { ratedReviews: number; averageRating: number | null } };
+export type Campaign = { id: string; productId: string; title: string; sourceName: string; sourceUrl: string; originalPrice: number; salePrice: number; currency: string; discountPercent: number; startsAt: string; endsAt: string; observedAt: string; status: "ACTIVE" | "ARCHIVED"; version: number };
+export type TechnicalItem = { id: string; category: Category; modelName: string; quantity: number | null; specifications: Specifications };
+export type Comparison<T = TechnicalItem> = { left: T; right: T };
+export type ProfileComparisonItem = { profileId: string; deviceType: DeviceType; categories: Partial<Record<Category, { entries: number; units: number }>>; ram: { knownCapacityGb: number; unitsWithoutCapacity: number }; storage: { knownCapacityGb: number; unitsWithoutCapacity: number } };
+export type ComponentInput = { profileVersion: number; category: Category; quantity: number; productId?: string; brandId?: string; modelName?: string; brandName?: string; specifications?: Partial<Specifications> };
+export const reportReasons = ["SPAM", "HARASSMENT", "HATE_SPEECH", "SEXUAL_CONTENT", "PERSONAL_DATA", "OTHER"] as const;

@@ -105,9 +105,9 @@ describe("AppShell", () => {
     const nav = screen.getByRole("navigation", { name: "Ana gezinme" });
 
     const links = nav.querySelectorAll("a");
-    expect(links).toHaveLength(3);
+    expect(links).toHaveLength(6);
     expect(links[1]).toHaveAttribute("href", "/tr/oyunlar");
-    expect(links[2]).toHaveAttribute("href", "/tr/arkadaslar");
+    expect(nav.querySelector('a[href="/tr/arkadaslar"]')).not.toBeNull();
     expect(links[0]).toHaveAttribute("href", "/tr");
     expect(links[0]).toHaveAttribute("aria-current", "page");
     expect(nav.querySelectorAll('a[href="#"]')).toHaveLength(0);
@@ -116,12 +116,12 @@ describe("AppShell", () => {
     // Profil, Bilgisayarlarım ve Kampanyalar kenar çubuğunda yer almaz.
     expect(nav).not.toHaveTextContent("Profil");
     expect(nav).not.toHaveTextContent("Bilgisayarlarım");
-    expect(nav).not.toHaveTextContent("Kampanyalar");
-    // Ana Sayfa, Oyunlar ve Arkadaşlar dışındaki 10 öğe.
-    expect(screen.getAllByText("Yakında")).toHaveLength(10);
+    expect(nav).toHaveTextContent("Kampanyalar");
+    // Tam eşleşme yalnız rozetleri sayar: Ana Sayfa, Oyunlar, Topluluk, Arkadaşlar, Donanımlar ve Kampanyalar dışındaki 8 öğe.
+    expect(screen.getAllByText("Yakında")).toHaveLength(8);
   });
 
-  it("13 öğeyi üç grupta, belirlenen sırayla sunar", () => {
+  it("14 öğeyi üç grupta, belirlenen sırayla sunar", () => {
     renderShell();
     const nav = screen.getByRole("navigation", { name: "Ana gezinme" });
 
@@ -129,7 +129,7 @@ describe("AppShell", () => {
     expect(groups).toHaveLength(3);
     expect(
       groups.map((list) => within(list).getAllByRole("listitem").length)
-    ).toEqual([6, 5, 2]);
+    ).toEqual([6, 5, 3]);
     expect(nav).toHaveTextContent(/Genel/i);
     expect(nav).toHaveTextContent(/Sosyal/i);
     expect(nav).toHaveTextContent(/Donanım & Performans/i);
@@ -150,6 +150,7 @@ describe("AppShell", () => {
       "Takım Bul",
       "Etkinlikler",
       "Donanımlar",
+      "Kampanyalar",
       "Performans"
     ]);
   });
@@ -162,7 +163,7 @@ describe("AppShell", () => {
     // Oyunlar ve Arkadaşlar kullanıma açıktır; kütüphane ve diğer bekleyen öğeler pasiftir.
     expect(
       screen.getAllByRole("button", { name: /— Yakında$/ })
-    ).toHaveLength(10);
+    ).toHaveLength(8);
   });
 
   it("'Yakında' öğesine odaklanınca tooltip çıkar, Escape ile kapanır", () => {
@@ -267,7 +268,7 @@ describe("AppShell", () => {
     fireEvent.click(screen.getByRole("button", { name: /Misafir/ }));
     const menu = screen.getByRole("menu");
     expect(menu).toHaveTextContent("Giriş yapılmadı");
-    expect(menu.querySelectorAll("a")).toHaveLength(0);
+    expect(within(menu).getByRole("menuitem", { name: "Bilgisayarlarım" })).toHaveAttribute("href", "/tr/profil/bilgisayarlarim");
     expect(menu).toHaveTextContent("Profilim");
     expect(menu).toHaveTextContent("Hesap ayarları");
     const logout = screen.getByRole("menuitem", { name: /Çıkış yap/ });

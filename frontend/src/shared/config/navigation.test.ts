@@ -25,15 +25,15 @@ describe("navigationGroups", () => {
     ]);
   });
 
-  it("öğeleri gruplara belirlenen sırayla dağıtır (toplam 13)", () => {
+  it("öğeleri gruplara belirlenen sırayla dağıtır (toplam 14)", () => {
     expect(
       navigationGroups.map((group) => group.items.map((item) => item.labelKey))
     ).toEqual([
       ["home", "games", "library", "reviews", "news", "forYou"],
       ["community", "friends", "messages", "findTeam", "events"],
-      ["hardware", "performance"]
+      ["hardware", "campaigns", "performance"]
     ]);
-    expect(primaryNavigation).toHaveLength(13);
+    expect(primaryNavigation).toHaveLength(14);
   });
 
   it("öğe kimlikleri tekildir", () => {
@@ -58,6 +58,7 @@ describe("navigationGroups", () => {
       findTeam: "lfp-service",
       events: "event-service",
       hardware: "hardware-service",
+      campaigns: "hardware-service",
       performance: "performance-service"
     });
   });
@@ -77,23 +78,23 @@ describe("navigationGroups", () => {
 });
 
 describe("primaryNavigation", () => {
-  it("Ana Sayfa, oyun kataloğu ve Arkadaşlar kullanılabilir, kalan 10 öğe 'Yakında' durumundadır", () => {
+  it("Ana Sayfa, Oyunlar, Topluluk, Arkadaşlar, Donanımlar ve Kampanyalar gerçek rotalara bağlanır", () => {
     const available = primaryNavigation.filter(isNavItemAvailable);
-    expect(available.map((item) => item.id)).toEqual(["home", "games", "friends"]);
-    expect(primaryNavigation.filter((item) => !isNavItemAvailable(item))).toHaveLength(10);
+    expect(available.map((item) => item.id)).toEqual(["home", "games", "community", "friends", "hardware", "campaigns"]);
+    expect(primaryNavigation.filter((item) => !isNavItemAvailable(item))).toHaveLength(8);
   });
 
   it("Yakında öğeleri href taşımaz (kırık link ve sahte rota yok)", () => {
     for (const item of primaryNavigation) {
-      if (!["home", "games", "friends"].includes(item.id)) {
+      if (!["home", "games", "community", "friends", "hardware", "campaigns"].includes(item.id)) {
         expect(item.href).toBeUndefined();
       }
     }
   });
 
-  it("Profil, Bilgisayarlarım ve Kampanyalar menüde yer almaz", () => {
+  it("Profil ve Bilgisayarlarım ana menüde yer almaz", () => {
     const ids = primaryNavigation.map((item) => item.id);
-    for (const removed of ["profile", "myComputers", "campaigns"]) {
+    for (const removed of ["profile", "myComputers"]) {
       expect(ids).not.toContain(removed);
     }
   });
@@ -125,6 +126,8 @@ describe("isActivePath / findActiveItem", () => {
 
   it("aktif öğeyi bulur, yoksa undefined döner", () => {
     expect(findActiveItem("/")?.id).toBe("home");
+    expect(findActiveItem("/hardware/campaigns")?.id).toBe("campaigns");
+    expect(findActiveItem("/hardware/123")?.id).toBe("hardware");
     expect(findActiveItem("/bilinmeyen")).toBeUndefined();
   });
 

@@ -6,6 +6,7 @@ import { Avatar } from "@/shared/components/ui/avatar";
 import { ConfirmDialog } from "@/shared/components/ui/confirm-dialog";
 import { useSocialMutations } from "../hooks/use-social-mutations";
 import type { SocialPerson } from "../types/social.types";
+import { DialogError } from "./dialog-error";
 import { useAnnounce } from "./social-announcer";
 import { usePerson } from "./use-person";
 
@@ -21,38 +22,32 @@ const copy = {
  * Geri alınması zor kişi işlemleri için onay penceresi: arkadaşlıktan çıkarma, engelleme, engeli kaldırma (web-rules §4).
  * Başarıda pencere kapanır ve sonuç duyurulur; hata olursa pencere açık kalır ve nedeni içinde gösterilir.
  */
-export function PersonActionDialog({ action, onClose }: { action: PersonAction | null; onClose: () => void }) {
+export function PersonActionDialog({ action, onClose }: Readonly<{ action: PersonAction | null; onClose: () => void }>) {
   const t = useTranslations("Social");
   const announce = useAnnounce();
   const mutations = useSocialMutations();
   const describe = usePerson();
   const [error, setError] = useState<string | null>(null);
-  // Kapanış animasyonu sırasında içerik boşalmasın diye son eylem tutulur.
-  const [shown, setShown] = useState<PersonAction | null>(action);
-  if (action && action !== shown) {
-    setShown(action);
+  // Pencere başka bir kişi/eylem için açılınca önceki hata temizlenir.
+  const [errorFor, setErrorFor] = useState<PersonAction | null>(action);
+  if (action !== errorFor) {
+    setErrorFor(action);
     setError(null);
   }
 
-  const current = action ?? shown;
-  if (!current) {
+  if (!action) {
     return null;
   }
-  const text = copy[current.kind];
-  const { profile } = current.person;
-  const person = describe(profile, current.kind === "unblock" ? "blocked" : "default");
+  const text = copy[action.kind];
+  const { profile } = action.person;
+  const person = describe(profile, action.kind === "unblock" ? "blocked" : "default");
 
   async function confirm() {
     if (!action) {
       return;
     }
-    const userId = action.person.profile.userId;
-    const outcome =
-      action.kind === "remove"
-        ? await mutations.removeFriend(userId)
-        : action.kind === "block"
-          ? await mutations.block(userId)
-          : await mutations.unblock(userId);
+    const run = { remove: mutations.removeFriend, block: mutations.block, unblock: mutations.unblock }[action.kind];
+    const outcome = await run(action.person.profile.userId);
     if (outcome.ok) {
       announce(t(`announce.${text.done}`, { name: person.name }));
       onClose();
@@ -63,17 +58,16 @@ export function PersonActionDialog({ action, onClose }: { action: PersonAction |
 
   return (
     <ConfirmDialog
-      open={action !== null}
+      key={`${action.kind}:${profile.userId}`}
       title={t(`dialogs.${text.title}`)}
       description={t(`dialogs.${text.body}`, { name: person.name })}
-      confirmLabel={t(`dialogs.${text.confirm}`)}
-      pendingLabel={t(`dialogs.${text.pending}`)}
+      confirmLabel={mutations.busy ? t(`dialogs.${text.pending}`) : t(`dialogs.${text.confirm}`)}
       cancelLabel={t("dialogs.cancel")}
-      closeLabel={t("dialogs.close")}
-      pending={mutations.busy}
-      error={error}
+      busy={mutations.busy}
+      // Üçü de geri alınması zor: çıkarma/engelleme ilişkiyi bitirir, engeli kaldırma korumayı kaldırır. İlk odak "Vazgeç"te.
+      tone="danger"
       onConfirm={confirm}
-      onClose={onClose}
+      onCancel={onClose}
     >
       <div className="flex items-center gap-4">
         <Avatar seed={profile.avatarSeed} imageUrl={person.avatarUrl} size="md" ring />
@@ -82,6 +76,7 @@ export function PersonActionDialog({ action, onClose }: { action: PersonAction |
           {person.handle ? <p className="truncate text-sm text-text-secondary">{person.handle}</p> : null}
         </div>
       </div>
+      {error ? <DialogError message={error} /> : null}
     </ConfirmDialog>
   );
 }

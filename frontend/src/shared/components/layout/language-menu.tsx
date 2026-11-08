@@ -16,9 +16,16 @@ import {
   usePopover
 } from "@/shared/hooks/use-popover";
 import { locales, type Locale } from "@/shared/lib/i18n/config";
-import { usePathname, useRouter } from "@/shared/lib/i18n/navigation";
+import { getPathname, usePathname } from "@/shared/lib/i18n/navigation";
 import type { AppPathname } from "@/shared/lib/i18n/routing";
 import { cn } from "@/shared/utils/cn";
+
+/** Dinamik Community rotaları → URL parametresi adı (dil değişiminde eşdeğer sayfaya parametreyle geçmek için). */
+const COMMUNITY_PARAMS: Readonly<Record<string, string>> = {
+  "/community/posts/[postId]": "postId",
+  "/community/forums/[forumId]": "forumId",
+  "/community/users/[userId]": "userId"
+};
 
 /** Dil adları her zaman kendi dilinde yazılır (Türkçe / English). */
 const nativeNames: Record<Locale, string> = { tr: "Türkçe", en: "English" };
@@ -29,7 +36,6 @@ const nativeNames: Record<Locale, string> = { tr: "Türkçe", en: "English" };
  */
 export function LanguageMenu() {
   const t = useTranslations("Locale");
-  const router = useRouter();
   const pathname = usePathname();
   const params = useParams();
   const active = useLocale() as Locale;
@@ -49,10 +55,22 @@ export function LanguageMenu() {
       return;
     }
     startTransition(() => {
-      if (pathname === "/games/[gameId]" && typeof params.gameId === "string") {
-        router.replace({ pathname: "/games/[gameId]", params: { gameId: params.gameId } }, { locale });
+      const search = new URLSearchParams(window.location.search);
+      // Locale changes replace the root html layout. A document navigation runs
+      // the existing pre-paint preference script and clears private client state.
+      if (pathname === "/hardware/[productId]" && typeof params.productId === "string") {
+        window.location.assign(getPathname({ href: { pathname: "/hardware/[productId]", params: { productId: params.productId }, query: Object.fromEntries(search) }, locale }) + window.location.hash);
+      } else if (pathname === "/games/[gameId]" && typeof params.gameId === "string") {
+        window.location.assign(getPathname({ href: { pathname: "/games/[gameId]", params: { gameId: params.gameId }, query: Object.fromEntries(search) }, locale }) + window.location.hash);
+      } else if (pathname in COMMUNITY_PARAMS && typeof params[COMMUNITY_PARAMS[pathname]] === "string") {
+        // Community dinamik rotaları (gönderi, forum, oyuncu): kimlik parametresi dil değişiminde korunur.
+        const name = COMMUNITY_PARAMS[pathname];
+        const href = { pathname, params: { [name]: params[name] }, query: Object.fromEntries(search) } as unknown as Parameters<typeof getPathname>[0]["href"];
+        window.location.assign(getPathname({ href, locale }) + window.location.hash);
       } else {
-        router.replace(pathname as AppPathname, { locale });
+        // Statik rota birleşimi TS'in ayırıcı birleşim sınırını (25) aşar; yol zaten `AppPathname`'dir.
+        const href = { pathname: pathname as AppPathname, query: Object.fromEntries(search) } as unknown as Parameters<typeof getPathname>[0]["href"];
+        window.location.assign(getPathname({ href, locale }) + window.location.hash);
       }
     });
   }

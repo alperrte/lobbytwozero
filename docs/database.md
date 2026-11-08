@@ -316,6 +316,7 @@ Game Service GAME-04/05/15 LTZ puan projeksiyonu (aktif V172, 2026-11-05; V171�
 | `comments` | id, post_id FK, author_id REF, parent_comment_id FK nullable, body, status (VISIBLE, HIDDEN, DELETED), created_at, updated_at, deleted_at, version | **V95 ile uygulandı** (COM-07/08/09). CHECK: status, body 1–2000, `deleted_at` yalnız `DELETED`, `parent_comment_id <> id`; FK'ler `ON DELETE RESTRICT`. Sınırsız iç içe yanıt: yanıtlar üst yorum başına keyset okunur (özyinelemeli sorgu yok). Soft delete; yanıtı olan silinmiş yorum satır olarak kalır. İndeksler: `ix_comments_post_top_level`, `ix_comments_parent` (kısmi), `ix_comments_author_id`. `posts.comment_count` = VISIBLE yorum sayısı |
 | `community_reports` | id, target_type (POST, COMMENT), target_id, target_author_id REF, reporter_id REF, reason, detail, status (OPEN, RESOLVED, DISMISSED), created_at, updated_at, version | **V99 ile uygulandı** (COM-16). UQ (target_type, target_id, reporter_id); `target_id` polimorfik mantıksal referanstır (FK yok); CHECK: target_type, reason ∈ SPAM, HARASSMENT, HATE_SPEECH, SEXUAL_CONTENT, VIOLENCE, ILLEGAL_CONTENT, MISINFORMATION, OTHER, status, `reporter_id <> target_author_id`; indeksler: `ix_community_reports_reporter_created` (saatlik sınır), `ix_community_reports_target`, `ix_community_reports_open` (kısmi, `status='OPEN'`). Durum yalnız admin-service kararıyla (`ModerationActionTaken`) OPEN'dan çıkar |
 | `user_blocks` | blocker_id REF, blocked_id REF, created_at | **V100 ile uygulandı** (COM-21). PK (blocker_id, blocked_id); CHECK blocker ≠ blocked; `ix_user_blocks_blocked_id`. Veri sahibi social-service'tir; bu tablo `UserBlocked` / `UserUnblocked` olaylarının yerel okuma yansımasıdır (iki yönlü gizleme ve etkileşim engeli) |
+| `user_block_markers` | blocker_id REF, blocked_id REF, last_event_at | **V182 ile uygulandı** (COM-21). PK (blocker_id, blocked_id); CHECK blocker ≠ blocked; `ix_user_block_markers_blocked_id`. Çift için uygulanmış en yeni engelleme olayının `occurredAt` değeri (tombstone: engel kalkınca da kalır); geç gelen eski `UserBlocked` / `UserUnblocked` yeni durumu ezmesin diye kullanılır. Yalnız yerel projeksiyondur, hesap silmede silinir |
 | `outbox_events`, `inbox_events` | §2.4 | **V98 ile uygulandı** (§2.4 şeması + `ck_outbox_events_status/attempts`). Outbox: `ContentReported` (→ admin), `CommentCreated`, `PostLiked`, `PostReposted` (→ notification); olay iş verisiyle aynı transaction'da yazılır, relay kapalıyken `PENDING` bekler; `SENT` kayıtlar 14 gün sonra temizlenir. Inbox: `ModerationActionTaken`, `UserBlocked`, `UserUnblocked` için `event_id` tekilleştirmesi |
 
 ### 3.11 content_db — content-service (Nisa)
@@ -345,6 +346,20 @@ Game Service GAME-04/05/15 LTZ puan projeksiyonu (aktif V172, 2026-11-05; V171�
 | `outbox_events`, `inbox_events`, `idempotency_records` | §2.4 | |
 
 ### 3.13 hardware_db — hardware-service (Alper)
+
+**2026-11-08 GPU eklemesi:** Kullanıcının açık V191 tahsisiyle
+`V191__allow_gpu_catalog_sources.sql` kaynak kategorisi CHECK'ine GPU ekler.
+Yeni tablo/kolon yoktur; V1–V10 korunur. [GPU aktarımı](../docs-hardware/reports/pc-part-gpu-import.md).
+
+**2026-11-07 PC Part Dataset:** Aktif zincir V1–V10'dur. V9 kaynak/medya ve
+`(category,normalized_model,catalog_variant)` tekilliğini ekler; V10 kaynak sağlayıcı
+CHECK'ini `PC_PART_DATASET` ile genişletir, nullable `source_revision varchar(40)`
+ve `hardware_dataset_import_runs(id,source_revision,files jsonb,summary jsonb,
+status,started_at,finished_at,version)` ekler. Status SUCCEEDED/PARTIAL, zamanlar
+UTC timestamptz; files/summary yalnız hash/sayım/teknik hata kodlarıdır.
+Fiyat/ham kaynak JSON'u kaydedilmez. Manuel ürünler ve tüm profil/yorum UUID/FK'leri
+korunur. Ayrıntı ve model: [PC Part Dataset kararı](../docs-hardware/decisions/pc-part-dataset-import.md).
+Alttaki V9–V10 boşluk ifadeleri önceki tarihlerin envanteridir.
 
 **Auth entegrasyonu — 2026-10-24:** V1–V7 checksum'ları korunarak
 `V8__add_hardware_account_erasure.sql` eklenir; toplam 17 tablo. V9–V10 boştur.

@@ -50,6 +50,7 @@ describe("Game çerezli mutasyonları", () => {
     expect(request).toHaveBeenLastCalledWith(`/api/v1/game/admin/games/${gameId}/manual-overrides/TITLE/release`, expect.objectContaining({ method: "POST" }));
   });
   it("misafir oturumunu 401 ile tanır; Auth kesintisini misafir gibi göstermez", async () => {
+    document.cookie = "ltz_session=1; Path=/"; // oturum ipucu varken /auth/me sorulur
     const signal = new AbortController().signal;
     request.mockRejectedValueOnce(new ApiHttpError(401));
     expect(await loadGameResource({ kind: "session" }, signal)).toBeNull();

@@ -1,5 +1,6 @@
 package com.ltz.hardware.domain.entity;
 
+import com.ltz.hardware.domain.enums.CaseColor;
 import com.ltz.hardware.domain.enums.DeviceType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -41,5 +42,22 @@ class HardwareProfileTest {
                 () -> new HardwareProfile(null, "PC", DeviceType.OTHER));
         assertThatNullPointerException().isThrownBy(
                 () -> new HardwareProfile(owner, "PC", null));
+    }
+
+    @Test
+    void caseColorDefaultsToBlackAndChangesOnlyThroughExplicitUpdate() {
+        var owner = UUID.randomUUID();
+        var profile = new HardwareProfile(owner, "PC", DeviceType.DESKTOP);
+        assertThat(profile.getCaseColor()).isEqualTo(CaseColor.BLACK);
+        profile.update("PC", DeviceType.DESKTOP, CaseColor.GRAPHITE);
+        assertThat(profile.getCaseColor()).isEqualTo(CaseColor.GRAPHITE);
+        profile.update("PC 2", DeviceType.DESKTOP);
+        assertThat(profile.getCaseColor()).isEqualTo(CaseColor.GRAPHITE);
+        assertThat(new HardwareProfile(owner, "W", DeviceType.DESKTOP, CaseColor.WHITE).getCaseColor())
+                .isEqualTo(CaseColor.WHITE);
+        assertThatNullPointerException().isThrownBy(
+                () -> new HardwareProfile(owner, "PC", DeviceType.DESKTOP, null));
+        assertThatNullPointerException().isThrownBy(
+                () -> profile.update("PC", DeviceType.DESKTOP, null));
     }
 }

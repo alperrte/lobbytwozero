@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { Icon, type IconName } from "@/shared/components/ui/icons";
 import {
-  isActivePath,
+  findActiveItem,
   isNavItemAvailable,
   type NavItem as NavItemModel
 } from "@/shared/config/navigation";
@@ -155,7 +155,7 @@ export function NavItem({ item, pathname, onNavigate }: NavItemProps) {
     );
   }
 
-  const active = isActivePath(pathname, item.href);
+  const active = findActiveItem(pathname)?.id === item.id;
 
   return (
     <li>

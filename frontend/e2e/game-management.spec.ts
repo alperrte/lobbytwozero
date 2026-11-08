@@ -9,7 +9,7 @@ const detail = { game: { gameId, title: "Fixture game", gameType: "MAIN_GAME", o
 for (const width of [1440, 390]) {
   test(`Game filtre ve admin yazma sözleşmesi (${width})`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
-    await page.context().addCookies([{ name: "XSRF-TOKEN", value: "fixture-csrf", domain: "localhost", path: "/" }]);
+    await page.context().addCookies([{ name: "XSRF-TOKEN", value: "fixture-csrf", domain: "localhost", path: "/" }, { name: "ltz_session", value: "1", domain: "localhost", path: "/" }]);
     const writes: { method: string; path: string; csrf: string | undefined; body: Record<string, unknown> }[] = [];
     const queries: string[] = [];
     let conflict = true;
@@ -34,8 +34,9 @@ for (const width of [1440, 390]) {
     await page.goto("/tr/oyunlar");
     await expect(page.getByRole("link", { name: detail.game.title, exact: true })).toBeVisible();
     expect(new URLSearchParams(queries[0]).has("q")).toBe(false);
-    await page.getByText(t.filters, { exact: true }).click();
+    await page.getByRole("button", { name: t.filters, exact: true }).click();
     await page.getByLabel(t.fields.genre, { exact: true }).fill("rpg");
+    await page.getByRole("button", { name: t.applyFilters, exact: true }).click();
     await expect.poll(() => queries.some((query) => new URLSearchParams(query).get("genre") === "rpg")).toBe(true);
     await page.getByRole("combobox", { name: t.sort, exact: true }).selectOption("RATING");
     await expect.poll(() => queries.some((query) => new URLSearchParams(query).get("genre") === "rpg" && new URLSearchParams(query).get("sort") === "RATING")).toBe(true);
@@ -49,6 +50,7 @@ for (const width of [1440, 390]) {
     expect(writes[0]).toMatchObject({ method: "PATCH", csrf: "fixture-csrf", body: { title: "Retained draft", version: 4 } });
     expect(Object.keys(writes[0].body).sort()).toEqual(["title", "version"]);
     conflict = false;
+    await page.getByRole("tab", { name: t.lifecycle, exact: true }).click();
     const archive = page.getByRole("form", { name: t.archiveGame, exact: true });
     await archive.getByLabel(t.fields.reason, { exact: true }).fill("Fixture archive reason");
     await expect(archive.getByRole("button", { name: t.save, exact: true })).toBeDisabled();
@@ -62,7 +64,7 @@ for (const width of [1440, 390]) {
 }
 
 test("Game geliştirici sürümü ve yetki sınırı", async ({ page }) => {
-  await page.context().addCookies([{ name: "XSRF-TOKEN", value: "fixture-csrf", domain: "localhost", path: "/" }]);
+  await page.context().addCookies([{ name: "XSRF-TOKEN", value: "fixture-csrf", domain: "localhost", path: "/" }, { name: "ltz_session", value: "1", domain: "localhost", path: "/" }]);
   const writes: Record<string, unknown>[] = [];
   let forbidden = false;
   await page.route("http://localhost:5080/api/v1/**", async (route) => {

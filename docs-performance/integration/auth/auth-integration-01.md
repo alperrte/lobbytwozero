@@ -50,4 +50,4 @@ Auth listeleme hatası (401/5xx, bozuk veya eksik/tekrarlı UUID listesi) `503 A
 6. Auth'ta cihaz iptal → yeni token alınamaz; Performance'ta ≤ 60 sn içinde reddedilir.
 7. Auth silme işçisi → `DELETE /internal/v1/accounts/{id}` → 204; sonrasında veri yok.
 
-Çalıştırılabilir kabul betiği: `ops/performance-auth-e2e.mjs`. Kaynak testleri ile HTTP kanıtının ayrımı, gerçekten çalıştırılan adımlar ve kapsam dışında kalan gerçek masaüstü/Game/Hardware akışları [auth-integration-05.md](auth-integration-05.md) içindedir.
+Çalıştırılabilir kabul betiği: `ops/dev.mjs e2e performance`. Kaynak testleri ile HTTP kanıtının ayrımı, gerçekten çalıştırılan adımlar ve kapsam dışında kalan gerçek masaüstü/Game/Hardware akışları [auth-integration-05.md](auth-integration-05.md) içindedir.
