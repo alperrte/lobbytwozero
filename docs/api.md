@@ -9499,7 +9499,7 @@ Typed actor; aktif genel ürün. Katalog yazma izni gerekmez; yazar UUID'si yaln
 productId zorunlu UUID; query yok.
 
 #### Request Body
-CreateHardwareReviewRequest: body zorunlu düz metin 1..5000; rating opsiyonel tam sayı 1..5. Bilinmeyen alan reddedilir. HTML açı ayraçları/kontrol karakterleri ham ve NFKC sonrası reddedilir; satır sonu/tab desteklenir.
+CreateHardwareReviewRequest: body zorunlu düz metin 1..5000; rating opsiyonel ondalık sayı: 1.0..5.0 aralığında 0,5 adımlı (1, 1.5, … 5; 0, 0.5, 5.5, 4.3 ve 4.25 400 INVALID_REQUEST). Kayıt `numeric(2,1)` saklanır ve yanıtta tek ondalıkla döner (ör. 4.0, 4.5). Bilinmeyen alan reddedilir. HTML açı ayraçları/kontrol karakterleri ham ve NFKC sonrası reddedilir; satır sonu/tab desteklenir.
 
 #### Response
 201 HardwareReviewResponse; Location /api/v1/hardware/reviews/{id}. Alanlar id,productId,body,rating,status,version,ownedByActor,createdAt,updatedAt. author/user UUID, hash, IP ve rapor sayısı dönmez. İlk status VISIBLE/version 0.
@@ -9512,6 +9512,7 @@ HardwareReviewService; V5__create_hardware_reviews.sql.
 Başka servise/DB'ye çağrı yok; gerçek Auth ve User/Social E2E NOT_VERIFIED.
 
 #### Test Durumu
+2026-11-08 (V192 yarım yıldız): HardwareReviewControllerTest 30 test PASS (4,5 kabul; 0,5/5,5/4,3/4,25 ve 2,7 güncellemesi 400; ortalama 3,33; CHECK 4,3 ve 0,5 reddeder) + HardwareReviewTextTest + PcPartImportIntegrationTest; pre-push/Sonar bu değişiklikte çalıştırılmadı.
 UNIT + INTEGRATION — HardwareReviewControllerTest + HardwareReviewTextTest;
 2026-10-21 18:40:14 +03 verify exit 0: 206 PASS, 0 failure/error/skipped;
 JaCoCo 1044/1060=%98,49; gerçek PostgreSQL 17/Flyway V1–V8/JPA/MockMvc.
@@ -9647,7 +9648,7 @@ Owner typed actor + CSRF; yalnız VISIBLE ve aktif ürüne bağlı yorum. HIDDEN
 reviewId UUID; query yok.
 
 #### Request Body
-UpdateHardwareReviewRequest: reviewVersion zorunlu >=0, body zorunlu 1..5000 düz metin, rating opsiyonel 1..5. Eksik rating puanı kaldırır; body/hash değişimi atomik tekillik kontrolüne katılır.
+UpdateHardwareReviewRequest: reviewVersion zorunlu >=0, body zorunlu 1..5000 düz metin, rating opsiyonel 1.0..5.0 aralığında 0,5 adımlı (oluşturma ile aynı kural). Eksik rating puanı kaldırır; body/hash değişimi atomik tekillik kontrolüne katılır.
 
 #### Response
 200 HardwareReviewResponse; artırılmış version. Pessimistic review kilidi + @Version. Gerekçesi sabit USER_REVIEW_UPDATED olan append-only audit aynı transaction'da.
@@ -9660,6 +9661,7 @@ HardwareReviewService; V5__create_hardware_reviews.sql.
 Başka servise/DB'ye çağrı yok; gerçek Auth ve User/Social E2E NOT_VERIFIED.
 
 #### Test Durumu
+2026-11-08 (V192 yarım yıldız): HardwareReviewControllerTest 30 test PASS (4,5 kabul; 0,5/5,5/4,3/4,25 ve 2,7 güncellemesi 400; ortalama 3,33; CHECK 4,3 ve 0,5 reddeder) + HardwareReviewTextTest + PcPartImportIntegrationTest; pre-push/Sonar bu değişiklikte çalıştırılmadı.
 UNIT + INTEGRATION — HardwareReviewControllerTest + HardwareReviewTextTest;
 2026-10-21 18:40:14 +03 verify exit 0: 206 PASS, 0 failure/error/skipped;
 JaCoCo 1044/1060=%98,49; gerçek PostgreSQL 17/Flyway V1–V8/JPA/MockMvc.

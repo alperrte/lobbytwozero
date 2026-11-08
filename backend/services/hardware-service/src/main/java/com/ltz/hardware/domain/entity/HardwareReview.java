@@ -4,6 +4,7 @@ import com.ltz.hardware.domain.enums.HardwareReviewStatus;
 import com.ltz.hardware.domain.enums.HardwareReviewModerationAction;
 import com.ltz.hardware.domain.exception.HardwareConflictException;
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -17,7 +18,7 @@ public class HardwareReview {
     @Column(name = "product_id", nullable = false, updatable = false) private UUID productId;
     @Column(name = "user_id", nullable = false, updatable = false) private UUID userId;
     @Column(length = 5000) private String body;
-    private Integer rating;
+    @Column(precision = 2, scale = 1) private BigDecimal rating;
     @Column(name = "body_hash", length = 64) private String bodyHash;
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16) private HardwareReviewStatus status;
@@ -28,7 +29,7 @@ public class HardwareReview {
 
     protected HardwareReview() { }
 
-    public HardwareReview(UUID productId, UUID userId, String body, Integer rating) {
+    public HardwareReview(UUID productId, UUID userId, String body, BigDecimal rating) {
         id = UUID.randomUUID();
         this.productId = Objects.requireNonNull(productId);
         this.userId = Objects.requireNonNull(userId);
@@ -41,12 +42,11 @@ public class HardwareReview {
         if (version == null || version != expected) throw new HardwareConflictException();
     }
 
-    public void update(String body, Integer rating) {
+    public void update(String body, BigDecimal rating) {
         if (status != HardwareReviewStatus.VISIBLE) throw new HardwareConflictException();
-        if (rating != null && (rating < 1 || rating > 5)) throw new IllegalArgumentException("Geçersiz puan");
         this.body = HardwareReviewText.clean(body, 5000);
         bodyHash = HardwareReviewText.fingerprint(this.body);
-        this.rating = rating;
+        this.rating = HardwareReviewRating.normalize(rating);
         touch();
     }
 

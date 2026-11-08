@@ -215,8 +215,10 @@ test("yorum oluşturma, owner düzenleme/silme ve yabancı yorum raporu", async 
   await page.getByLabel("Deneyimin", { exact: true }).fill("My test experience");
   const stars = page.getByRole("slider", { name: "Puan" });
   await stars.focus();
-  for (let i = 0; i < 5; i++) await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("End");
   await expect(page.getByTestId("star-rating-text")).toHaveText("5 / 5");
+  await page.keyboard.press("ArrowLeft");
+  await expect(page.getByTestId("star-rating-text")).toHaveText("4,5 / 5");
   await page.getByRole("button", { name: "Kaydet", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Emin misiniz?" })).toBeVisible();
   await page.getByRole("button", { name: "Evet, kaydet" }).click();

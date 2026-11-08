@@ -8,13 +8,6 @@ import { hardwareApi } from "../services/hardware-api";
 import { reportReasons, type Review } from "../types/hardware";
 import { input, ovalButton as ovalSecondary, ovalPrimaryButton as ovalPrimary, Field, HardwareDialog, HardwareError, HardwareSuccess } from "./hardware-ui";
 
-/**
- * Yarim yildiz (0,5 adim) arayuzde hazirdir, ancak Hardware API'si ve `hardware_reviews.rating` kolonu simdilik yalniz
- * 1-5 tam sayi kabul eder (V5 CHECK + `@Min(1) @Max(5) Integer`). Yarim puan icin servis tarafinda yeni bir migration
- * (numara karari ekipte) ve sozlesme degisikligi gerekir; o zaman bu deger `true` yapilir.
- */
-export const REVIEW_HALF_STARS = false;
-
 const ovalInput = `${input} rounded-xl px-4 py-3`;
 
 export function ReviewForm({ productId, review, onClose, onSaved }: { productId: string; review?: Review; onClose: () => void; onSaved: () => void }) {
@@ -34,7 +27,7 @@ export function ReviewForm({ productId, review, onClose, onSaved }: { productId:
         <StarRating
           value={rating}
           onChange={setRating}
-          allowHalf={REVIEW_HALF_STARS}
+          allowHalf
           disabled={mutation.pending}
           label={t("reviews.ratingLabel")}
           emptyText={t("reviews.noRating")}

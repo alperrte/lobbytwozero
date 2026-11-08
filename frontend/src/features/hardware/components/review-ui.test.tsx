@@ -35,8 +35,19 @@ describe("Değerlendirme formu", () => {
     expect(screen.queryByRole("combobox")).toBeNull();
     expect(screen.getByTestId("star-rating-text")).toHaveTextContent("Puan verilmedi");
     rate(330);
-    expect(screen.getByTestId("star-rating-text")).toHaveTextContent("4 / 5");
-    expect(screen.getByRole("slider", { name: "Puan" })).toHaveAttribute("aria-valuenow", "4");
+    expect(screen.getByTestId("star-rating-text")).toHaveTextContent("3,5 / 5");
+    expect(screen.getByRole("slider", { name: "Puan" })).toHaveAttribute("aria-valuenow", "3.5");
+  });
+
+  it("yarım yıldız verilebilir: yıldızın sol yarısı .5, sağ yarısı tam puan; klavye 0,5 adımla ilerler", () => {
+    wrap(<ReviewForm productId="p1" onClose={() => undefined} onSaved={() => undefined} />);
+    rate(210);
+    expect(screen.getByRole("slider", { name: "Puan" })).toHaveAttribute("aria-valuenow", "2.5");
+    expect(screen.getByTestId("star-rating-text")).toHaveTextContent("2,5 / 5");
+    rate(280);
+    expect(screen.getByRole("slider", { name: "Puan" })).toHaveAttribute("aria-valuenow", "3");
+    fireEvent.keyDown(screen.getByRole("slider", { name: "Puan" }), { key: "ArrowRight" });
+    expect(screen.getByRole("slider", { name: "Puan" })).toHaveAttribute("aria-valuenow", "3.5");
   });
 
   it("Kaydet doğrudan göndermez; önce 'Emin misiniz?' penceresi açılır, vazgeçince form açık kalır", () => {
@@ -61,7 +72,7 @@ describe("Değerlendirme formu", () => {
     fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
     fireEvent.click(within(screen.getByRole("dialog", { name: "Emin misiniz?" })).getByRole("button", { name: "Evet, kaydet" }));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    expect(api.saveReview).toHaveBeenCalledWith("p1", { body: "Harika bir ürün", rating: 2 }, undefined);
+    expect(api.saveReview).toHaveBeenCalledWith("p1", { body: "Harika bir ürün", rating: 1.5 }, undefined);
     expect(onSaved).toHaveBeenCalled();
   });
 
