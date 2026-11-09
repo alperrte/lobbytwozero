@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.ltz.event.api.dto.request.CreateEventRequest;
+import com.ltz.event.api.dto.request.EventListRequest;
+import com.ltz.event.api.dto.response.EventPageResponse;
 import com.ltz.event.api.dto.response.EventResponse;
 import com.ltz.event.application.service.EventService;
 
@@ -34,6 +36,11 @@ public class EventController {
 	@ResponseStatus(HttpStatus.CREATED)
 	public EventResponse createEvent(@Valid @RequestBody CreateEventRequest request) {
 		return eventService.createEvent(request);
+	}
+
+	@GetMapping
+	public EventPageResponse listEvents(@Valid EventListRequest request) {
+		return eventService.listEvents(request);
 	}
 
 	@GetMapping("/{eventId}")

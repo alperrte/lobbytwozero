@@ -9,6 +9,7 @@ Event Service (Nisa) çalışma belgeleri. Kural belgelerinin (`docs/`) yerine g
 | [event-service/evt-01-kararlar-ve-varsayimlar.md](event-service/evt-01-kararlar-ve-varsayimlar.md) | EVT-01: gereksinimlerden gelenler, açık kararlar, geliştirici varsayımları, API/domain/DB tutarlılığı, doğrulanmamışlar |
 | [event-service/evt-02-etkinlik-turleri.md](event-service/evt-02-etkinlik-turleri.md) | EVT-02: etkinlik türleri (POLL eklendi, V112), varsayımlar, doğrulanmayanlar |
 | [event-service/evt-03-etkinlik-detayi.md](event-service/evt-03-etkinlik-detayi.md) | EVT-03 (KISMİ): gereksinim tablosu, eksik katılım bilgileri (EVT-13/EVT-08 bağımlılığı), KD-4 misafir erişimi, KD-3 null organizerId |
+| [event-service/evt-04-etkinlik-listeleme.md](event-service/evt-04-etkinlik-listeleme.md) | EVT-04: yaklaşan/mevcut etkinlik listesi, zaman tabanlı tanım (varsayım), V113 indeksi, test altyapısı (geçici PostgreSQL) |
 | [event-service/hesap-silme-entegrasyonu.md](event-service/hesap-silme-entegrasyonu.md) | Auth hesap silme akışının beklediği `DELETE /internal/v1/accounts/{accountId}` ucu: eksik, sözleşme, bağımlılık |
 
 ## Başka servislere talepler

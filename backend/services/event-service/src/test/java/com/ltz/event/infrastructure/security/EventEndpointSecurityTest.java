@@ -1,5 +1,8 @@
 package com.ltz.event.infrastructure.security;
 
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.PageImpl;
 import com.ltz.event.domain.enums.EventType;
 import java.util.Optional;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -328,5 +331,43 @@ class EventEndpointSecurityTest {
 		when(eventRepository.findById(eventId)).thenReturn(Optional.empty());
 
 		getWith(AuthTestSupport.userToken(USER_ID, "PLAYER"), eventId).andExpect(status().isNotFound());
+	}
+
+	// ------------------------------------------------------------------ liste (EVT-04)
+
+	@Test
+	void everyRegisteredRoleListsEventsWithAValidToken() throws Exception {
+		when(eventRepository.findByEndsAtAfterAndStatusInOrderByStartsAtAscIdAsc(any(Instant.class), any(),
+				any(Pageable.class))).thenReturn(new PageImpl<>(List.of(storedEvent()), PageRequest.of(0, 20), 1));
+
+		for (String role : new String[] { "PLAYER", "MODERATOR", "ADMIN", "CONTENT_CREATOR", "GAME_DEVELOPER" }) {
+			mockMvc.perform(get(URL).header(HttpHeaders.AUTHORIZATION,
+					"Bearer " + AuthTestSupport.userToken(USER_ID, role)))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.items[0].title").value("Bahar Turnuvası"))
+					.andExpect(jsonPath("$.items[0].type").value("TOURNAMENT"))
+					.andExpect(jsonPath("$.totalItems").value(1));
+		}
+	}
+
+	@Test
+	void listingRequiresAValidToken() throws Exception {
+		mockMvc.perform(get(URL)).andExpect(status().isUnauthorized());
+		mockMvc.perform(get(URL).header(HttpHeaders.AUTHORIZATION, "Bearer bu-bir-jwt-degil"))
+				.andExpect(status().isUnauthorized());
+		JWTClaimsSet claims = AuthTestSupport.validUserClaims(USER_ID).claim("roles", List.of("PLAYER")).build();
+		String serviceTyped = AuthTestSupport.sign(AuthTestSupport.SIGNING_KEY, AuthTestSupport.serviceType(), claims);
+		mockMvc.perform(get(URL).header(HttpHeaders.AUTHORIZATION, "Bearer " + serviceTyped))
+				.andExpect(status().isUnauthorized());
+		verifyNoInteractions(eventRepository);
+	}
+
+	@Test
+	void listingRejectsOutOfRangePagingWith400() throws Exception {
+		String token = AuthTestSupport.userToken(USER_ID, "PLAYER");
+
+		mockMvc.perform(get(URL).param("size", "1000").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(status().isBadRequest());
+		verifyNoInteractions(eventRepository);
 	}
 }

@@ -1,5 +1,13 @@
 package com.ltz.event.application.service;
 
+import com.ltz.event.api.dto.response.EventPageResponse;
+import com.ltz.event.api.dto.request.EventListRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Page;
+import java.util.List;
+import java.util.Collection;
 import com.ltz.event.domain.exception.EventNotFoundException;
 import static org.mockito.Mockito.never;
 import java.util.Optional;
@@ -182,6 +190,69 @@ class EventServiceTest {
 		when(currentUser.requireUserId()).thenThrow(new AuthenticationRequiredException("Authentication is required."));
 
 		assertThatThrownBy(() -> eventService.getEvent(UUID.randomUUID()))
+				.isInstanceOf(AuthenticationRequiredException.class);
+		verifyNoInteractions(eventRepository);
+	}
+
+	@Test
+	void listsOpenEventsWithTheClockAndAllowedStatuses() {
+		Event stored = Event.schedule(OTHER_ORGANIZER_ID, EventType.TOURNAMENT, "Turnuva", "Uzun açıklama",
+				NOW.plusSeconds(60), NOW.plusSeconds(120), NOW);
+		Page<Event> page = new PageImpl<>(List.of(stored), PageRequest.of(1, 5), 6);
+		when(currentUser.requireUserId()).thenReturn(USER_ID);
+		when(eventRepository.findByEndsAtAfterAndStatusInOrderByStartsAtAscIdAsc(any(Instant.class), any(),
+				any(Pageable.class))).thenReturn(page);
+
+		EventPageResponse response = eventService.listEvents(new EventListRequest(1, 5));
+
+		ArgumentCaptor<Instant> now = ArgumentCaptor.forClass(Instant.class);
+		@SuppressWarnings("unchecked")
+		ArgumentCaptor<Collection<EventStatus>> statuses = ArgumentCaptor.forClass(Collection.class);
+		ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+		verify(eventRepository).findByEndsAtAfterAndStatusInOrderByStartsAtAscIdAsc(now.capture(), statuses.capture(),
+				pageable.capture());
+		assertThat(now.getValue()).isEqualTo(NOW);
+		assertThat(statuses.getValue()).containsExactlyInAnyOrder(EventStatus.PLANNED, EventStatus.ACTIVE);
+		assertThat(pageable.getValue().getPageNumber()).isEqualTo(1);
+		assertThat(pageable.getValue().getPageSize()).isEqualTo(5);
+		assertThat(pageable.getValue().getSort().isUnsorted()).isTrue();
+
+		assertThat(response.page()).isEqualTo(1);
+		assertThat(response.size()).isEqualTo(5);
+		assertThat(response.totalItems()).isEqualTo(6);
+		assertThat(response.totalPages()).isEqualTo(2);
+		assertThat(response.hasNext()).isFalse();
+		assertThat(response.items()).hasSize(1);
+		assertThat(response.items().getFirst().title()).isEqualTo("Turnuva");
+		assertThat(response.items().getFirst().type()).isEqualTo(EventType.TOURNAMENT);
+		assertThat(response.items().getFirst().organizerId()).isEqualTo(OTHER_ORGANIZER_ID);
+		assertThat(response.items().getFirst().startsAt()).isEqualTo(NOW.plusSeconds(60));
+		assertThat(response.items().getFirst().endsAt()).isEqualTo(NOW.plusSeconds(120));
+		assertThat(response.items().getFirst().status()).isEqualTo(EventStatus.PLANNED);
+	}
+
+	@Test
+	void listUsesDefaultPagingWhenNothingIsGiven() {
+		when(currentUser.requireUserId()).thenReturn(USER_ID);
+		when(eventRepository.findByEndsAtAfterAndStatusInOrderByStartsAtAscIdAsc(any(Instant.class), any(),
+				any(Pageable.class))).thenReturn(Page.empty());
+
+		EventPageResponse response = eventService.listEvents(new EventListRequest(null, null));
+
+		ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+		verify(eventRepository).findByEndsAtAfterAndStatusInOrderByStartsAtAscIdAsc(any(Instant.class), any(),
+				pageable.capture());
+		assertThat(pageable.getValue().getPageNumber()).isZero();
+		assertThat(pageable.getValue().getPageSize()).isEqualTo(EventListRequest.DEFAULT_SIZE);
+		assertThat(response.items()).isEmpty();
+		assertThat(response.hasNext()).isFalse();
+	}
+
+	@Test
+	void unauthenticatedCallersCannotListEvents() {
+		when(currentUser.requireUserId()).thenThrow(new AuthenticationRequiredException("Authentication is required."));
+
+		assertThatThrownBy(() -> eventService.listEvents(new EventListRequest(null, null)))
 				.isInstanceOf(AuthenticationRequiredException.class);
 		verifyNoInteractions(eventRepository);
 	}

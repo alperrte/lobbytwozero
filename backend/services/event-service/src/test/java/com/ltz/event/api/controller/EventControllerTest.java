@@ -1,5 +1,9 @@
 package com.ltz.event.api.controller;
 
+import com.ltz.event.api.dto.response.EventSummaryResponse;
+import com.ltz.event.api.dto.response.EventPageResponse;
+import com.ltz.event.api.dto.request.EventListRequest;
+import java.util.List;
 import com.ltz.event.domain.exception.EventNotFoundException;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -269,6 +273,80 @@ class EventControllerTest {
 	@Test
 	void malformedEventIdIsMappedTo400() throws Exception {
 		mockMvc.perform(get(URL + "/not-a-uuid").with(as("PLAYER"))).andExpect(status().isBadRequest());
+		verifyNoInteractions(eventService);
+	}
+
+	private static EventPageResponse onePage() {
+		Instant at = Instant.parse("2099-12-05T18:00:00Z");
+		return new EventPageResponse(
+				List.of(new EventSummaryResponse(EVENT_ID, USER_ID, EventType.POLL, "Hangi oyun?", at,
+						at.plusSeconds(3600), EventStatus.PLANNED)),
+				0, 20, 1, 1, false);
+	}
+
+	@Test
+	void anyAuthenticatedUserListsEvents() throws Exception {
+		when(eventService.listEvents(any(EventListRequest.class))).thenReturn(onePage());
+
+		mockMvc.perform(get(URL).with(as("CONTENT_CREATOR")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.items.length()").value(1))
+				.andExpect(jsonPath("$.items[0].id").value(EVENT_ID.toString()))
+				.andExpect(jsonPath("$.items[0].organizerId").value(USER_ID.toString()))
+				.andExpect(jsonPath("$.items[0].type").value("POLL"))
+				.andExpect(jsonPath("$.items[0].title").value("Hangi oyun?"))
+				.andExpect(jsonPath("$.items[0].startsAt").value("2099-12-05T18:00:00Z"))
+				.andExpect(jsonPath("$.items[0].endsAt").value("2099-12-05T19:00:00Z"))
+				.andExpect(jsonPath("$.items[0].status").value("PLANNED"))
+				.andExpect(jsonPath("$.items[0].description").doesNotExist())
+				.andExpect(jsonPath("$.page").value(0))
+				.andExpect(jsonPath("$.size").value(20))
+				.andExpect(jsonPath("$.totalItems").value(1))
+				.andExpect(jsonPath("$.totalPages").value(1))
+				.andExpect(jsonPath("$.hasNext").value(false));
+	}
+
+	@Test
+	void listPassesPagingParametersToTheService() throws Exception {
+		when(eventService.listEvents(any(EventListRequest.class))).thenReturn(onePage());
+
+		mockMvc.perform(get(URL).param("page", "2").param("size", "50").with(as("PLAYER"))).andExpect(status().isOk());
+
+		ArgumentCaptor<EventListRequest> captured = ArgumentCaptor.forClass(EventListRequest.class);
+		verify(eventService).listEvents(captured.capture());
+		assertThat(captured.getValue().page()).isEqualTo(2);
+		assertThat(captured.getValue().size()).isEqualTo(50);
+	}
+
+	@Test
+	void listWithoutParametersUsesDefaults() throws Exception {
+		when(eventService.listEvents(any(EventListRequest.class))).thenReturn(onePage());
+
+		mockMvc.perform(get(URL).with(as("PLAYER"))).andExpect(status().isOk());
+
+		ArgumentCaptor<EventListRequest> captured = ArgumentCaptor.forClass(EventListRequest.class);
+		verify(eventService).listEvents(captured.capture());
+		assertThat(captured.getValue().pageOrDefault()).isZero();
+		assertThat(captured.getValue().sizeOrDefault()).isEqualTo(EventListRequest.DEFAULT_SIZE);
+	}
+
+	@Test
+	void invalidPagingParametersAreRejected() throws Exception {
+		String[][] invalid = { { "size", "0" }, { "size", "51" }, { "size", "-1" }, { "size", "abc" },
+				{ "page", "-1" }, { "page", "1001" }, { "page", "abc" } };
+		for (String[] parameter : invalid) {
+			mockMvc.perform(get(URL).param(parameter[0], parameter[1]).with(as("PLAYER")))
+					.andExpect(status().isBadRequest())
+					.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+		}
+		verifyNoInteractions(eventService);
+	}
+
+	@Test
+	void listingEventsRequiresAuthentication() throws Exception {
+		mockMvc.perform(get(URL))
+				.andExpect(status().isUnauthorized())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
 		verifyNoInteractions(eventService);
 	}
 }

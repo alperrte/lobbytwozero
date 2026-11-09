@@ -8262,6 +8262,68 @@ Auth Service JWKS ile token doğrulama. Organizatör adı için istemci, `organi
 #### Test Durumu
 UNIT — test sınıfları **yazıldı, EVT-03 testleri çalıştırılmadı** (`EventServiceTest`, `EventControllerTest`, `EventEndpointSecurityTest` [gerçek RS256 token + yerel JWKS, DB deposu taklit], `GlobalExceptionHandlerTest`). **NOT VERIFIED:** gerçek veritabanından okuma, Gateway üzerinden çağrı, gerçek Auth token'ı. Docker: event-service 2026-11-09 19:42 UTC'de yeniden build edildi; imajda bu uç (jar) ve V112 bulunuyor, token'sız çağrı 401; geçerli token'la davranış denenmedi.
 
+### EVENT — Etkinlik Listesi (EVT-04)
+
+Durum: IN PROGRESS
+Sorumlu: Nisa
+Tüketici servisler: Frontend (henüz yok)
+
+> `IN PROGRESS`: kod ve testler yazıldı, doğrulama bekliyor (testler ve V113 çalıştırılmadı). "Yaklaşan" ve "mevcut" tanımı geliştirici varsayımıdır (zamana göre); ayrıntı: [docs-event/event-service/evt-04-etkinlik-listeleme.md](../docs-event/event-service/evt-04-etkinlik-listeleme.md).
+
+#### Endpoint
+GET /api/v1/event/events
+
+#### Yetkilendirme
+Authenticated (KD-4: yalnız giriş yapan kullanıcılar; misafir 401). Oluşturma rolü aranmaz.
+
+#### Query Parameters
+- page: int, opsiyonel, varsayılan 0, 0–1000
+- size: int, opsiyonel, varsayılan 20, 1–50
+
+Arama, filtreleme ve sıralama seçenekleri yoktur (EVT-05/EVT-06). Sıralama sabit: başlangıç zamanı artan, eşitlikte kimlik.
+
+#### Davranış
+Bir etkinlik, **bitiş zamanı şimdiden sonra** (`endsAt > şimdi`) ve durumu `PLANNED` veya `ACTIVE` ise listelenir: başlamamış olanlar *yaklaşan*, başlamış ve sürenler *mevcut*dir. `CANCELLED` ve `COMPLETED` etkinlikler ve süresi geçmiş etkinlikler listelenmez.
+
+#### Response — 200
+```json
+{
+  "items": [
+    {
+      "id": "UUID",
+      "organizerId": "UUID",
+      "type": "TOURNAMENT | GAME_NIGHT | COMMUNITY | POLL | OTHER",
+      "title": "Cuma Oyun Gecesi",
+      "startsAt": "2026-12-05T18:00:00Z",
+      "endsAt": "2026-12-05T21:00:00Z",
+      "status": "PLANNED | ACTIVE"
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "totalItems": 1,
+  "totalPages": 1,
+  "hasNext": false
+}
+```
+Liste öğesinde açıklama yoktur (ayrıntı için `GET /api/v1/event/events/{eventId}`). Katılım bilgileri (kapasite, katılımcı sayısı) gerçek veri kaynağı olmadığından yoktur (EVT-13/EVT-08). `organizerId` KD-3 uygulanınca `null` olabilir.
+
+#### Hata Durumları
+- 400: `page` veya `size` sayı değil ya da sınır dışı
+- 401: Token yok/geçersiz/süresi dolmuş
+- 503: Veritabanı geçici olarak erişilemiyor
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/event/events
+
+Diğer mikroservisler:
+Auth Service JWKS ile token doğrulama. Başka servis çağrısı yoktur.
+
+#### Test Durumu
+UNIT + INTEGRATION — test sınıfları **yazıldı, çalıştırılmadı** (`EventServiceTest`, `EventControllerTest`, `EventEndpointSecurityTest`; gerçek PostgreSQL'de `EventRepositoryTest`, geçici veritabanı). **NOT VERIFIED:** V113 ve liste sorgusu hiçbir veritabanında çalıştırılmadı; Gateway üzerinden çağrı; gerçek Auth token'ı. Docker'daki event-service imajında bu uç yoktur (yeniden build edilmedi).
+
 ## HARDWARE
 
 **Güncel Auth sözleşmesi — 2026-10-29:** Kullanıcı uçları gerçek Auth JWKS'i ile
