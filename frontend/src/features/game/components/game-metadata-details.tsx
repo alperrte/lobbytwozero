@@ -69,6 +69,5 @@ export function GameMetadataDetails({ game }: { game: GameDetail }) {
         </section>)}</div>
       </div>)}
     </div>}
-    {metadata.provenance?.some((value) => value.source === "IGDB") && <a href="https://www.igdb.com/" target="_blank" rel="noopener noreferrer" className="inline-block py-2 text-sm text-brand-text underline">{t("igdbAttribution")}</a>}
   </section>;
 }

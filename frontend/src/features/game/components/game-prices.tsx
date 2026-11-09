@@ -43,6 +43,5 @@ export function GamePrices({ gameId }: { gameId: string }) {
       <span className="tabular-nums">{offer.currentPrice < offer.regularPrice && <><Badge tone="success" className="mr-3">{t("discountPercent", { percent: offer.discountPercent ?? Math.round((1 - offer.currentPrice / offer.regularPrice) * 100) })}</Badge><del className="mr-3 text-text-secondary">{new Intl.NumberFormat(locale, { style: "currency", currency }).format(offer.regularPrice)}</del></>}{new Intl.NumberFormat(locale, { style: "currency", currency }).format(offer.currentPrice)}</span>
       {safeExternalUrl(offer.url) && <a href={safeExternalUrl(offer.url)} target="_blank" rel="sponsored nofollow noopener noreferrer" className="py-2 text-brand-text underline-offset-4 hover:underline">{t("openStore")}</a>}
     </li>)}</ul> : <p className="py-4 text-text-secondary">{t(`priceStates.${["STALE", "NO_OFFER", "UNAVAILABLE"].includes(state) ? state : "UNAVAILABLE"}`)}</p>)}
-    <p className="mt-4 text-sm text-text-secondary">{t("priceDisclaimer")} <a href="https://isthereanydeal.com/" target="_blank" rel="noopener noreferrer" className="text-brand-text underline">IsThereAnyDeal</a></p>
   </section>;
 }
