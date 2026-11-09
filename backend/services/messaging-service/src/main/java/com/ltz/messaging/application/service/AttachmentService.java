@@ -14,11 +14,15 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.ltz.messaging.application.port.ImageInspectorPort;
 import com.ltz.messaging.application.port.ImageInspectorPort.ProcessedImage;
 import com.ltz.messaging.domain.entity.ConversationMember;
+import com.ltz.messaging.domain.entity.AttachmentBlob;
+import com.ltz.messaging.domain.entity.HiddenMessageId;
 import com.ltz.messaging.domain.entity.MessageAttachment;
 import com.ltz.messaging.domain.exception.MessagingErrorCode;
 import com.ltz.messaging.domain.exception.MessagingException;
 import com.ltz.messaging.infrastructure.config.AttachmentProperties;
 import com.ltz.messaging.infrastructure.persistence.repository.AttachmentMeta;
+import com.ltz.messaging.infrastructure.persistence.repository.AttachmentBlobRepository;
+import com.ltz.messaging.infrastructure.persistence.repository.HiddenMessageRepository;
 import com.ltz.messaging.infrastructure.persistence.repository.MessageAttachmentRepository;
 import com.ltz.messaging.infrastructure.persistence.repository.MessageRepository;
 
@@ -42,6 +46,8 @@ public class AttachmentService {
 
     private final ConversationAccessPolicy access;
     private final MessageAttachmentRepository attachments;
+    private final AttachmentBlobRepository blobs;
+    private final HiddenMessageRepository hidden;
     private final MessageRepository messages;
     private final ImageInspectorPort inspector;
     private final AttachmentProperties properties;
@@ -53,8 +59,10 @@ public class AttachmentService {
         ProcessedImage image = inspector.process(content, contentType);
         return Objects.requireNonNull(transactions.execute(status -> {
             requireCanUpload(uploader, conversationId);
+            Instant now = now();
+            AttachmentBlob blob = blobs.save(AttachmentBlob.store(image.content(), now));
             MessageAttachment saved = attachments.save(MessageAttachment.upload(conversationId, uploader,
-                    image.mimeType(), image.content(), image.width(), image.height(), image.frames(), now()));
+                    image.mimeType(), blob, image.width(), image.height(), image.frames(), now));
             return AttachmentView.of(saved.getId(), conversationId, saved.getMimeType(), saved.getSizeBytes(),
                     saved.getWidth(), saved.getHeight(), saved.getFrameCount());
         }));
@@ -71,10 +79,16 @@ public class AttachmentService {
         return new AttachmentContent(meta.mimeType(), content);
     }
 
-    /** Süresi dolmuş, mesaja bağlanmamış yüklemeleri siler ve silinen sayısını döner. */
+    /**
+     * Süresi dolmuş, mesaja bağlanmamış yüklemeleri ve artık hiçbir bağlantının göstermediği içerikleri siler; silinen
+     * bağlantı sayısını döner. İçerik için de aynı süre beklenir: yeni yüklenmiş ya da bağlanmakta olan içerik silinmez.
+     */
     @Transactional
     public int deleteExpiredUploads() {
-        return attachments.deleteUnlinkedBefore(now().minus(properties.pendingTtl()));
+        Instant cutoff = now().minus(properties.pendingTtl());
+        int deleted = attachments.deleteUnlinkedBefore(cutoff);
+        blobs.deleteOrphansBefore(cutoff);
+        return deleted;
     }
 
     private boolean canSee(ConversationMember member, AttachmentMeta meta) {
@@ -82,13 +96,14 @@ public class AttachmentService {
             return meta.uploaderId().equals(member.getUserId());
         }
         return messages.findById(meta.messageId())
-                .map(message -> member.canSee(message.getSeq()))
+                .map(message -> member.canSee(message.getSeq())
+                        && !hidden.existsById(new HiddenMessageId(member.getUserId(), message.getId())))
                 .orElse(false);
     }
 
     private void requireCanUpload(UUID uploader, UUID conversationId) {
         access.requireMember(conversationId, uploader);
-        if (attachments.countByUploaderIdAndCreatedAtAfter(uploader, now().minus(RATE_WINDOW))
+        if (attachments.countByUploaderIdAndForwardedFalseAndCreatedAtAfter(uploader, now().minus(RATE_WINDOW))
                 >= properties.maxPerMinute()) {
             throw new MessagingException(MessagingErrorCode.TOO_MANY_UPLOADS);
         }

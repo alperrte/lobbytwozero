@@ -154,9 +154,4 @@ class GifMessageTest extends IntegrationTestSupport {
     private ResultActions trending(UUID user) throws Exception {
         return mockMvc.perform(get(MessagingApiPaths.GIF_TRENDING).header(HttpHeaders.AUTHORIZATION, bearer(user)));
     }
-
-    private int messageCount(UUID conversationId) {
-        return jdbc.queryForObject("select count(*) from messages where conversation_id = ?", Integer.class,
-                conversationId);
-    }
 }

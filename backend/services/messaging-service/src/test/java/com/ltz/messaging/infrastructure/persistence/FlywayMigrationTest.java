@@ -134,6 +134,63 @@ class FlywayMigrationTest extends IntegrationTestSupport {
         assertThat(readRangeCount(group)).isZero();
     }
 
+    @Test
+    void v135EtkilesimTablolariVeKisitlarKurulur() {
+        List<String> tables = jdbc.queryForList(
+                "select table_name from information_schema.tables where table_schema = 'public'", String.class);
+        assertThat(tables).contains("attachment_blobs", "message_reactions", "message_hidden_for_users");
+
+        UUID group = insertConversation("GROUP", "Takım", null);
+        UUID sender = UUID.randomUUID();
+        UUID message = insertMessage(group, 1, sender, "c-1", "Merhaba");
+
+        assertThatThrownBy(() -> jdbc.update("update messages set deleted_at = now(), deleted_by = ? where id = ?",
+                sender, message))
+                .hasMessageContaining("ck_messages_deleted_content");
+        assertThatThrownBy(() -> jdbc.update("update messages set deleted_at = now(), body = null where id = ?",
+                message))
+                .hasMessageContaining("ck_messages_deleted_by");
+        assertThatCode(() -> jdbc.update(
+                "update messages set deleted_at = now(), deleted_by = ?, body = null where id = ?", sender, message))
+                .doesNotThrowAnyException();
+
+        UUID reactor = UUID.randomUUID();
+        insertReaction(message, reactor, "\u2764\uFE0F");
+        assertThatThrownBy(() -> insertReaction(message, reactor, "\uD83D\uDC4D"))
+                .hasMessageContaining("pk_message_reactions");
+        jdbc.update("insert into message_hidden_for_users (user_id, message_id, hidden_at) values (?, ?, now())",
+                reactor, message);
+
+        jdbc.update("delete from conversations where id = ?", group);
+        assertThat(jdbc.queryForObject("select count(*) from message_reactions where message_id = ?", Integer.class,
+                message)).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from message_hidden_for_users where message_id = ?",
+                Integer.class, message)).isZero();
+    }
+
+    @Test
+    void blobBaglantiVarkenSilinemezBoyutIcerikleTutarli() {
+        UUID group = insertConversation("GROUP", "Takım", null);
+        UUID blob = UUID.randomUUID();
+        jdbc.update("insert into attachment_blobs (id, size_bytes, content, created_at) values (?, 3, ?, now())", blob,
+                new byte[] {1, 2, 3});
+        assertThatThrownBy(() -> jdbc.update(
+                "insert into attachment_blobs (id, size_bytes, content, created_at) values (?, 5, ?, now())",
+                UUID.randomUUID(), new byte[] {1, 2, 3}))
+                .hasMessageContaining("ck_attachment_blobs_size");
+        jdbc.update("insert into message_attachments (id, conversation_id, uploader_id, blob_id, mime_type, size_bytes, "
+                + "width, height, frame_count, created_at) values (?, ?, ?, ?, 'image/png', 3, 1, 1, 1, now())",
+                UUID.randomUUID(), group, UUID.randomUUID(), blob);
+
+        assertThatThrownBy(() -> jdbc.update("delete from attachment_blobs where id = ?", blob))
+                .hasMessageContaining("fk_message_attachments_blob");
+    }
+
+    private void insertReaction(UUID messageId, UUID userId, String emoji) {
+        jdbc.update("insert into message_reactions (message_id, user_id, emoji, reacted_at) values (?, ?, ?, now())",
+                messageId, userId, emoji);
+    }
+
     private void insertReadRange(UUID conversationId, UUID userId, long fromSeq, long toSeq) {
         jdbc.update("insert into message_read_ranges (id, conversation_id, user_id, from_seq, to_seq, read_at) "
                 + "values (?, ?, ?, ?, ?, now())", UUID.randomUUID(), conversationId, userId, fromSeq, toSeq);
@@ -144,10 +201,12 @@ class FlywayMigrationTest extends IntegrationTestSupport {
                 Integer.class, conversationId);
     }
 
-    private void insertMessage(UUID conversationId, long seq, UUID sender, String clientMessageId, String body) {
+    private UUID insertMessage(UUID conversationId, long seq, UUID sender, String clientMessageId, String body) {
+        UUID id = UUID.randomUUID();
         jdbc.update("insert into messages (id, conversation_id, seq, sender_id, client_message_id, type, body, created_at) "
-                + "values (?, ?, ?, ?, ?, 'TEXT', ?, now())", UUID.randomUUID(), conversationId, seq, sender,
+                + "values (?, ?, ?, ?, ?, 'TEXT', ?, now())", id, conversationId, seq, sender,
                 clientMessageId, body);
+        return id;
     }
 
     private UUID insertConversation(String type, String title, String directKey) {

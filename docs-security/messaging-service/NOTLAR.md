@@ -53,6 +53,19 @@
   birden çok örnekte örnek başına uygulanır. GIF görüntüsü istemcide GIPHY sunucusundan yüklenir; bu, kullanıcının IP
   adresini GIPHY'ye açar (gizlilik politikasında belirtilmeli; vekil sunucu ayrı karar). Gerçek anahtarla: NOT VERIFIED.
 - **Emoji (MSG-18).** Gövde olduğu gibi saklanır; eşlenmemiş UTF-16 vekil reddedilir (bozuk emoji DB'ye girmez).
+- **Mesaj etkileşimleri (LTZ-UMT-MSG-05, MSG-19/20/23/25/26, V135).** Her işlemin ortak ön koşulu `VisibleMessages`:
+  mesaj bu sohbette, görünürlük sınırının içinde ve isteyen tarafından benden silinmemiş olmalı; aksi her durum aynı
+  `404 MESSAGE_NOT_FOUND` (başka sohbetin mesajının varlığı sızmaz). Alıntı önizlemesi okuyana göre hesaplanır:
+  göremediği hedef için yalnız `unavailable` ve kimlik döner, gönderen ve içerik dönmez (`MessageReplyTest`).
+  Herkesten silme yetkisi gönderen ya da grupta OWNER/ADMIN, 48 saat; içerik, GIF kaydı, görsel bağlantısı ve tepkiler
+  aynı transaction'da gerçekten silinir, hiçbir uçtan ya da olaydan dönmez (`MessageDeleteForEveryoneTest`). Tepki ve
+  iletme mesajı paylaşımlı kilitle, silme yazma kilidiyle okur: silme sonrası tepki/iletme `422`, silinmiş mesajda tepki
+  satırı kalmaz. İletme her hedefte yazma yetkisi ve engel kontrolünü uygular (engel atlatma yolu değildir), hepsi ya da
+  hiçbiri yazılır, gönderim oranına sayılır; orijinal gönderen kopyada tutulmaz. İletilen görsel baytları kopyalanmaz.
+  Tepki tek emoji (`ReactionEmoji`: tek grafem, harf/boşluk/kontrol/eşlenmemiş vekil yok), dakikada 60 değişiklik
+  (bellekte, örnek başına). Benden sil yalnız silenin görünümünü değiştirir; okundu bilgisini değiştirmez. Canlı
+  olaylar (`message_deleted`, `reaction`, `message_hidden`) commit sonrası, yalnız mesajı görebilen ve gizlememiş
+  üyelere; içerik taşımaz (tepki emojisi hariç). İçerik ve emoji loglanmaz.
 - **Okuma aralığı tablosu (`message_read_ranges`, V133).** Satır sayısı gerçek ilerleme sayısıyla büyür (mesaj sayısıyla
   değil; gönderim de bir ilerlemedir); ilerlemeyen çağrı satır yazmaz, böylece okuma çağrısı sınırsız satır üretemez. Eşzamanlı okumalar üye satırı
   kilidiyle sıralanır (çakışan ya da boşluklu aralık yok). Saklama/temizlik görevi yok; ayrılan üyenin satırları kalır

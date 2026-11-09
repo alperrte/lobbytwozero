@@ -86,7 +86,7 @@ node ops/game-catalog-import.mjs import [klasör] --replace  # dolu game_db'nin 
 - `export`: hesap verisi içerebilecek tablo (geri bildirim, yetki, denetim kaydı vb.) doluysa reddedilir. Manifestteki `url` alanı korunur.
 - `import`: yalnız `ltz-dev` Postgres konteynerini kullanır, Game servisi çalışıyorsa durur, dökümün Flyway sürümü depodaki en yeni Game migration'ından yeniyse reddeder, yükleme tek işlemdir ve sonunda tablo satır sayıları manifestle karşılaştırılır. Gerçek ENV dosyası okunmaz.
 - Klasör verilmezse `game-catalog-dump/` (depo kökü) kullanılır; `*.dump` Git'e girmez. Alıcı dosyayı bu klasöre kopyalar (dosya adı değişmez).
-- Paylaşım: döküm (~180 MB) Git'e girmez. Üreten kişi dosyayı GitHub Release varlığı olarak yükler ve `ops/game-catalog.manifest.json` içindeki `url` alanına adresi yazar; `download` yalnız `github.com` ve GitHub varlık sunucularından, SHA-256 doğrulamasıyla indirir. Veri IGDB ve Steam kaynaklıdır; herkese açık paylaşmadan önce sağlayıcı kullanım şartlarını kontrol edin.
+- Paylaşım: döküm (~340 MB) Git'e girmez. Üreten kişi dosyayı GitHub Release varlığı olarak yükler ve `ops/game-catalog.manifest.json` içindeki `url` alanına adresi yazar; `download` yalnız `github.com` ve GitHub varlık sunucularından, SHA-256 doğrulamasıyla indirir. Veri IGDB ve Steam kaynaklıdır; herkese açık paylaşmadan önce sağlayıcı kullanım şartlarını kontrol edin.
 - Test: `node --test ops/game-catalog-import.test.mjs`.
 - Ekip arkadaşları ve yapay zekâ ajanları için adım adım rehber: [game-catalog.md](game-catalog.md).
 

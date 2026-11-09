@@ -1,15 +1,14 @@
 package com.ltz.messaging.application.service;
 
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
@@ -21,8 +20,6 @@ import com.ltz.messaging.domain.entity.ConversationMember;
 import com.ltz.messaging.domain.entity.GifSnapshot;
 import com.ltz.messaging.domain.entity.Message;
 import com.ltz.messaging.domain.enums.MessageType;
-import com.ltz.messaging.domain.enums.ReadStatus;
-import com.ltz.messaging.domain.event.MessageSentEvent;
 import com.ltz.messaging.domain.exception.MessagingErrorCode;
 import com.ltz.messaging.domain.exception.MessagingException;
 import com.ltz.messaging.infrastructure.config.MessageProperties;
@@ -51,18 +48,16 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class MessageService {
 
-    private static final Duration RATE_WINDOW = Duration.ofMinutes(1);
-
     private final ConversationRepository conversations;
     private final ConversationMemberRepository members;
     private final MessageRepository messages;
     private final MessageAttachmentRepository attachments;
-    private final MessageAttachments messageAttachments;
+    private final VisibleMessages visible;
+    private final MessageViews views;
+    private final MessageAppender appender;
     private final GifService gifs;
     private final ConversationAccessPolicy access;
     private final ReadTracker tracker;
-    private final OutboxRecorder outbox;
-    private final ApplicationEventPublisher events;
     private final MessageProperties properties;
     private final TransactionTemplate transactions;
     private final Clock clock;
@@ -100,16 +95,16 @@ public class MessageService {
         long fromSeq = member.getVisibleFromSeq();
         List<Message> rows;
         if (after != null) {
-            rows = messages.findNewer(conversationId, after, fromSeq, fetch);
+            rows = messages.findNewer(conversationId, after, fromSeq, viewer, fetch);
         } else {
             long upperBound = before == null ? Long.MAX_VALUE : before;
-            rows = messages.findOlder(conversationId, upperBound, fromSeq, fetch);
+            rows = messages.findOlder(conversationId, upperBound, fromSeq, viewer, fetch);
         }
         List<Message> page = rows.stream().limit(size).toList();
         // Üye listesi yalnız sayfada isteyenin kendi mesajı varsa, bir kez çekilir.
         boolean hasOwn = page.stream().anyMatch(message -> message.getSenderId().equals(viewer));
         long watermark = hasOwn ? ReadWatermark.of(viewer, members.findActiveMembers(conversationId)) : 0L;
-        List<MessageView> items = messageAttachments.attachTo(page.stream()
+        List<MessageView> items = views.decorate(viewer, Map.of(conversationId, member), page.stream()
                 .map(message -> message.getSenderId().equals(viewer)
                         ? MessageView.of(message).withReadStatus(ReadWatermark.status(message.getSeq(), watermark))
                         : MessageView.of(message))
@@ -137,7 +132,7 @@ public class MessageService {
 
     private Optional<MessageView> findRetry(UUID sender, UUID conversationId, String clientMessageId,
                                             MessageDraft draft) {
-        access.requireMember(conversationId, sender);
+        ConversationMember member = access.requireMember(conversationId, sender);
         return messages.findBySenderIdAndClientMessageId(sender, clientMessageId)
                 .map(existing -> {
                     if (!isRetry(existing, conversationId, draft)) {
@@ -145,14 +140,15 @@ public class MessageService {
                     }
                     // Yeniden denemede durum, kayıttan sonra okunmuş olabilir: aynı transaction'da hesaplanır.
                     long watermark = ReadWatermark.of(sender, members.findActiveMembers(conversationId));
-                    return messageAttachments.attachTo(MessageView.of(existing)
+                    return views.decorate(sender, member, MessageView.of(existing)
                             .withReadStatus(ReadWatermark.status(existing.getSeq(), watermark)));
                 });
     }
 
     /** Aynı içerik mi? Görselde bağlı görselin aynı olması da gerekir. */
     private boolean isRetry(Message existing, UUID conversationId, MessageDraft draft) {
-        if (!existing.isRetryOf(conversationId, draft.type(), draft.body(), draft.gifProvider(), draft.gifId())) {
+        if (!existing.isRetryOf(conversationId, draft.type(), draft.body(), draft.replyToMessageId(),
+                draft.gifProvider(), draft.gifId())) {
             return false;
         }
         return draft.type() != MessageType.IMAGE
@@ -170,31 +166,25 @@ public class MessageService {
             return new SendMessageResult(retried.get(), false);
         }
         Instant now = now();
-        if (messages.countBySenderIdAndCreatedAtAfter(sender, now.minus(RATE_WINDOW)) >= properties.maxPerMinute()) {
-            throw new MessagingException(MessagingErrorCode.TOO_MANY_MESSAGES);
+        appender.requireWithinRate(sender, 1, now);
+        UUID replyTo = draft.replyToMessageId();
+        if (replyTo != null) {
+            VisibleMessages.requireNotDeleted(visible.require(senderMember, replyTo));
         }
-        long seq = conversation.appendMessage(now);
-        Message message = messages.saveAndFlush(switch (draft.type()) {
-            case TEXT -> Message.text(conversationId, seq, sender, clientMessageId, draft.body(), now);
-            case IMAGE -> Message.image(conversationId, seq, sender, clientMessageId, draft.body(), now);
-            case GIF -> Message.gif(conversationId, seq, sender, clientMessageId, draft.body(), gif, now);
+        MessageView view = appender.append(conversation, senderMember, now, seq -> switch (draft.type()) {
+            case TEXT -> Message.text(conversationId, seq, sender, clientMessageId, replyTo, draft.body(), now);
+            case IMAGE -> Message.image(conversationId, seq, sender, clientMessageId, replyTo, draft.body(), now);
+            case GIF -> Message.gif(conversationId, seq, sender, clientMessageId, replyTo, draft.body(), gif, now);
+        }, message -> {
+            // Bağlanamayan görsel transaction'ı geri alır: mesaj ve sıra da kaydedilmez.
+            if (draft.type() == MessageType.IMAGE
+                    && attachments.link(draft.attachmentId(), conversationId, sender, message.getId()) != 1) {
+                throw new MessagingException(MessagingErrorCode.ATTACHMENT_NOT_AVAILABLE);
+            }
         });
-        // Bağlanamayan görsel transaction'ı geri alır: mesaj ve sıra da kaydedilmez.
-        if (draft.type() == MessageType.IMAGE
-                && attachments.link(draft.attachmentId(), conversationId, sender, message.getId()) != 1) {
-            throw new MessagingException(MessagingErrorCode.ATTACHMENT_NOT_AVAILABLE);
-        }
-        tracker.advance(senderMember, seq, now);
-        List<UUID> recipients = members.findActiveMembers(conversationId).stream()
-                .map(ConversationMember::getUserId)
-                .toList();
-        MessageView view = messageAttachments.attachTo(MessageView.of(message));
-        outbox.messageSent(new MessageSentEvent(message.getId(), conversationId, conversation.getType(), seq, sender,
-                recipients.stream().filter(recipient -> !recipient.equals(sender)).toList()), now);
-        events.publishEvent(new MessageCreated(view, recipients));
-        // Yeni mesaj henüz kimse okumadı; akış olayı durumsuz kalır (gönderene hub SENT ekler).
-        return new SendMessageResult(view.withReadStatus(ReadStatus.SENT), true);
+        return new SendMessageResult(view, true);
     }
+
 
     private Instant now() {
         return Instant.now(clock).truncatedTo(ChronoUnit.MICROS);

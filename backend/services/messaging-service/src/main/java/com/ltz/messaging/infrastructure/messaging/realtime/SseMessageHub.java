@@ -17,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import com.ltz.messaging.api.dto.response.MessageResponse;
 import com.ltz.messaging.application.port.MessageStreamPort;
 import com.ltz.messaging.application.service.MessageView;
 import com.ltz.messaging.application.service.ReadReceiptView;
@@ -78,8 +79,23 @@ public class SseMessageHub implements MessageStreamPort {
     }
 
     @Override
-    public void publish(Collection<UUID> recipients, MessageView message) {
-        dispatch(recipients, () -> deliver(recipients, message));
+    public void publish(Map<UUID, MessageView> perRecipient) {
+        Map<UUID, MessageView> payloads = Map.copyOf(perRecipient);
+        dispatch(payloads.keySet(), () -> deliver(payloads));
+    }
+
+    @Override
+    public void publishEvent(String eventName, Map<UUID, ?> payloadByRecipient) {
+        Map<UUID, ?> payloads = Map.copyOf(payloadByRecipient);
+        dispatch(payloads.keySet(), () -> payloads.forEach((recipient, payload) -> {
+            Set<SseEmitter> open = streams.get(recipient);
+            if (open != null) {
+                for (SseEmitter emitter : open) {
+                    send(recipient, emitter, SseEmitter.event().name(eventName)
+                            .data(payload, MediaType.APPLICATION_JSON));
+                }
+            }
+        }));
     }
 
     @Override
@@ -110,15 +126,18 @@ public class SseMessageHub implements MessageStreamPort {
         }
     }
 
-    private void deliver(Collection<UUID> recipients, MessageView message) {
-        for (UUID recipient : recipients) {
+    private void deliver(Map<UUID, MessageView> payloads) {
+        for (Map.Entry<UUID, MessageView> entry : payloads.entrySet()) {
+            UUID recipient = entry.getKey();
+            MessageView message = entry.getValue();
             Set<SseEmitter> open = streams.get(recipient);
             if (open == null) {
                 continue;
             }
             // Okundu durumu yalnız göndericinin kendi akışlarına gider (MSG-11); diğerlerinde alan null kalır.
-            MessageView payload = recipient.equals(message.senderId())
-                    ? message.withReadStatus(ReadStatus.SENT) : message;
+            // Yük, geçmiş ve gönderim uçlarındaki MessageResponse ile aynı yapıdadır.
+            MessageResponse payload = MessageResponse.from(recipient.equals(message.senderId())
+                    ? message.withReadStatus(ReadStatus.SENT) : message);
             for (SseEmitter emitter : open) {
                 send(recipient, emitter, SseEmitter.event().name(MESSAGE_EVENT)
                         .id(message.conversationId() + ":" + message.seq())

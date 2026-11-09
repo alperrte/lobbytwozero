@@ -69,7 +69,8 @@ public final class AuthApiPaths {
     public static final String INTERNAL = "/internal/v1";
     public static final String SERVICE_TOKENS = INTERNAL + "/service-tokens";
     public static final String INTERNAL_ACCOUNT = INTERNAL + "/accounts/{accountId}";
-    public static final String INTERNAL_ACCOUNT_STATUS = INTERNAL_ACCOUNT + "/status";
+    public static final String INTERNAL_ACCOUNT_CONTACT = INTERNAL_ACCOUNT + "/contact";
+    public static final String INTERNAL_ACCOUNT_STATUS =INTERNAL_ACCOUNT + "/status";
     public static final String INTERNAL_ACCOUNT_ROLES_GRANT = INTERNAL_ACCOUNT + "/roles/grant";
     public static final String INTERNAL_ACCOUNT_ROLES_REVOKE = INTERNAL_ACCOUNT + "/roles/revoke";
     /** Yalnız ROLE_ADMIN erişir (SecurityConfig). */

@@ -71,6 +71,7 @@ public abstract class IntegrationTestSupport {
     protected static final String HARDWARE_CLIENT_SECRET = "test-hardware-client-secret-0123456789-abc";
     protected static final String REVIEW_CLIENT_SECRET = "test-review-client-secret-0123456789-abcde";
     protected static final String GAME_CLIENT_SECRET = "test-game-client-secret-0123456789-abcdefgh";
+    protected static final String MAIL_CLIENT_SECRET = "test-mail-client-secret-0123456789-abcdefgh";
     protected static final String RECOMMENDATION_CLIENT_SECRET = "test-recommendation-client-secret-012345678";
     private static final int TEST_RSA_BITS = 3072;
     /** Her test çalıştırmasında üretilen imza anahtarı; repoda veya çıktıda gerçek anahtar yoktur. */
@@ -127,6 +128,9 @@ public abstract class IntegrationTestSupport {
         registry.add("ltz.auth.deletion.grace-period", () -> "PT0S");
         // Servis -> Auth iç uçları testleri: admin istemcisi etkin (test gizli anahtarı sabit, yalnız test).
         registry.add("ltz.auth.service-clients.clients.admin-service.secret", () -> ADMIN_CLIENT_SECRET);
+        registry.add("ltz.auth.service-clients.clients.mail-service.secret", () -> MAIL_CLIENT_SECRET);
+        // Platform kapısı mekanizması: yalnız test istemcisine mail:notify hedefi (üretimde henüz hiçbir servise tanımlı değil).
+        registry.add("ltz.auth.service-clients.clients.social-service.targets.mail-service", () -> "mail:notify");
         registry.add("ltz.auth.service-clients.clients.social-service.secret", () -> SOCIAL_CLIENT_SECRET);
         registry.add("ltz.auth.service-clients.clients.community-service.secret", () -> COMMUNITY_CLIENT_SECRET);
         registry.add("ltz.auth.service-clients.clients.messaging-service.secret", () -> MESSAGING_CLIENT_SECRET);

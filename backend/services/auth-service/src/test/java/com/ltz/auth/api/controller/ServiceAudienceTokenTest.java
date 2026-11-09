@@ -109,6 +109,33 @@ class ServiceAudienceTokenTest extends IntegrationTestSupport {
     }
 
     @Test
+    void mailServiceYalnizAuthIcinIletisimOkumaTokeniAlirDigerHedeflerYasak() throws Exception {
+        String body = tokenRequest("mail-service", MAIL_CLIENT_SECRET, null).andExpect(status().isOk())
+                .andExpect(jsonPath("$.scope").value("account:contact:read")).andReturn().getResponse().getContentAsString();
+        JWTClaimsSet claims = SignedJWT.parse(JsonPath.<String>read(body, "$.accessToken")).getJWTClaimsSet();
+        assertThat(claims.getAudience()).containsExactly("auth-service");
+        assertThat(claims.getSubject()).isEqualTo("svc:mail-service");
+        assertThat(claims.getClaims()).doesNotContainKeys("roles", "sid", "ver", "amr", "account_id");
+        tokenRequest("mail-service", MAIL_CLIENT_SECRET, "user-service").andExpect(status().isForbidden());
+        tokenRequest("mail-service", MAIL_CLIENT_SECRET, "mail-service").andExpect(status().isForbidden());
+        // Başka istemci Auth kapsamında contact alamaz.
+        assertThat(JsonPath.<String>read(tokenRequest("admin-service", ADMIN_CLIENT_SECRET, null)
+                .andReturn().getResponse().getContentAsString(), "$.scope")).doesNotContain("contact");
+    }
+
+    @Test
+    void mailNotifyHedefiTanimliIstemciAudMailServiceTokeniAlirTanimsizIstemci403() throws Exception {
+        String body = tokenRequest("social-service", SOCIAL_CLIENT_SECRET, "mail-service").andExpect(status().isOk())
+                .andExpect(jsonPath("$.scope").value("mail:notify")).andReturn().getResponse().getContentAsString();
+        JWTClaimsSet claims = SignedJWT.parse(JsonPath.<String>read(body, "$.accessToken")).getJWTClaimsSet();
+        assertThat(claims.getAudience()).containsExactly("mail-service");
+        assertThat(claims.getSubject()).isEqualTo("svc:social-service");
+        assertThat(claims.getClaims()).doesNotContainKeys("roles", "sid", "ver", "amr", "account_id");
+        tokenRequest("library-service", LIBRARY_CLIENT_SECRET, "mail-service").andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("SERVICE_AUDIENCE_FORBIDDEN"));
+    }
+
+    @Test
     void gameYalnizReviewIcinPuanOzetiOkumaTokeniAlirKullaniciBagiTasimaz() throws Exception {
         String body = tokenRequest("game-service", GAME_CLIENT_SECRET, "review-service")
                 .andExpect(status().isOk()).andExpect(jsonPath("$.scope").value("game-identity:finalize game-identity:prepare game-identity:read game-references:read rating-summaries:read"))

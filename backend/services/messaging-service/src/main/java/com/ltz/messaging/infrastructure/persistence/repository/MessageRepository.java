@@ -8,10 +8,13 @@ import java.util.UUID;
 
 import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.ltz.messaging.domain.entity.Message;
+
+import jakarta.persistence.LockModeType;
 
 public interface MessageRepository extends JpaRepository<Message, UUID> {
 
@@ -20,27 +23,59 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
     /** Mesaj yalnız verilen sohbetteyse döner (başka sohbetin mesajı bulunmaz). */
     Optional<Message> findByIdAndConversationId(UUID id, UUID conversationId);
 
-    /** Geçmiş: {@code beforeSeq}'ten eski, {@code fromSeq} ve sonrası mesajlar, yeniden eskiye. */
+    /** Herkesten silme (MSG-26): satır kilidiyle; eşzamanlı tepki ve iletme silmeyi bekler. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select m from Message m where m.id = :id and m.conversationId = :conversationId")
+    Optional<Message> findByIdAndConversationIdForUpdate(@Param("id") UUID id,
+                                                         @Param("conversationId") UUID conversationId);
+
+    /** Tepki ve iletme (MSG-20/23): paylaşımlı kilit; mesaj işlem sürerken herkesten silinemez. */
+    @Lock(LockModeType.PESSIMISTIC_READ)
+    @Query("select m from Message m where m.id = :id and m.conversationId = :conversationId")
+    Optional<Message> findByIdAndConversationIdForShare(@Param("id") UUID id,
+                                                        @Param("conversationId") UUID conversationId);
+
+    /**
+     * Geçmiş: {@code beforeSeq}'ten eski, {@code fromSeq} ve sonrası mesajlar, yeniden eskiye; {@code viewer}'ın
+     * kendi görünümünden kaldırdıkları (MSG-25) hariç.
+     */
     @Query("""
             select m from Message m
             where m.conversationId = :conversationId and m.seq < :beforeSeq and m.seq >= :fromSeq
+              and not exists (select 1 from HiddenMessage h where h.id.userId = :viewer and h.id.messageId = m.id)
             order by m.seq desc""")
     List<Message> findOlder(@Param("conversationId") UUID conversationId, @Param("beforeSeq") long beforeSeq,
-                            @Param("fromSeq") long fromSeq, Limit limit);
+                            @Param("fromSeq") long fromSeq, @Param("viewer") UUID viewer, Limit limit);
 
-    /** Yeniden bağlanma: {@code afterSeq}'ten yeni mesajlar, eskiden yeniye (kayıpsız eşitleme). */
+    /**
+     * Yeniden bağlanma: {@code afterSeq}'ten yeni mesajlar, eskiden yeniye (kayıpsız eşitleme); {@code viewer}'ın
+     * gizledikleri hariç.
+     */
     @Query("""
             select m from Message m
             where m.conversationId = :conversationId and m.seq > :afterSeq and m.seq >= :fromSeq
+              and not exists (select 1 from HiddenMessage h where h.id.userId = :viewer and h.id.messageId = m.id)
             order by m.seq""")
     List<Message> findNewer(@Param("conversationId") UUID conversationId, @Param("afterSeq") long afterSeq,
-                            @Param("fromSeq") long fromSeq, Limit limit);
+                            @Param("fromSeq") long fromSeq, @Param("viewer") UUID viewer, Limit limit);
 
-    /** Sohbet listesi: her sohbetin son mesajı (tek sorgu). */
-    @Query("""
-            select m from Message m, Conversation c
-            where c.id in :conversationIds and m.conversationId = c.id and m.seq = c.lastMessageSeq""")
-    List<Message> findLastMessages(@Param("conversationIds") Collection<UUID> conversationIds);
+    /**
+     * Sohbet listesi (tek sorgu): kullanıcının her aktif sohbetinde görebildiği ve kendi görünümünden kaldırmadığı son
+     * mesaj (MSG-08/25). Sohbet başına tarama, sondan geriye kullanıcının gizlediği ardışık mesaj sayısı kadardır.
+     */
+    @Query(value = """
+            select m.* from conversation_members cm
+            cross join lateral (
+                select * from messages m2
+                where m2.conversation_id = cm.conversation_id and m2.seq >= cm.visible_from_seq
+                  and not exists (select 1 from message_hidden_for_users h
+                                  where h.user_id = cm.user_id and h.message_id = m2.id)
+                order by m2.seq desc
+                limit 1) m
+            where cm.user_id = :userId and cm.conversation_id in (:conversationIds) and cm.left_at is null""",
+            nativeQuery = true)
+    List<Message> findLastVisibleMessages(@Param("userId") UUID userId,
+                                          @Param("conversationIds") Collection<UUID> conversationIds);
 
     /**
      * Okundu bilgisinin alıcıları (MSG-11): {@code (fromExclusive, toInclusive]} aralığında mesajı olan göndericiler ve

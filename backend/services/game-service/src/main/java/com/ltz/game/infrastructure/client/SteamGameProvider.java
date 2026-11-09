@@ -89,6 +89,14 @@ public class SteamGameProvider implements GameProvider {
         return SteamStoreBrowse.parseStoreItems(ids, browse(SteamStoreBrowse.storeItemsInput(ids)));
     }
 
+    /** {@code release.is_early_access} (Steam toplu mağaza öğeleri); yalnız Steam'in tanıdığı uygulamalar sonuçta yer alır. */
+    @Override public java.util.Map<String, Boolean> earlyAccess(java.util.Collection<String> externalIds) {
+        requireConfigured();
+        List<String> ids = SteamStoreBrowse.validIds(externalIds);
+        if (ids.isEmpty()) return java.util.Map.of();
+        return SteamStoreBrowse.parseEarlyAccess(ids, browse(SteamStoreBrowse.earlyAccessInput(ids)));
+    }
+
     /**
      * {@code basic_info.short_description}, {@code context.language} ile istenen dilde. Steam o dilde mağaza metni yoksa İngilizceye düşer;
      * ayrımı çağıran yapar (aynı oyun {@code en} ile de sorulur). Yapılandırılmamış dil için istek atılmaz.

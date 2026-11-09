@@ -19,6 +19,7 @@ import jakarta.validation.constraints.Size;
  *       (JavaScript {@code string.length} ile aynı; çoğu emoji 2 birimdir). Sunucu HTML yorumlamaz.</li>
  *   <li>{@code attachmentId}: aynı sohbete daha önce yüklenmiş, henüz gönderilmemiş kendi görseliniz.</li>
  *   <li>{@code gif}: GIF platformundaki GIF; adresler sunucuda platformdan çözülür.</li>
+ *   <li>{@code replyToMessageId}: isteğe bağlı; aynı sohbette görebildiğiniz, silinmemiş bir mesaja yanıt (MSG-19).</li>
  * </ul>
  * {@code attachmentId} ile {@code gif} birlikte verilemez.
  */
@@ -26,7 +27,8 @@ public record SendMessageRequest(
         @NotBlank @Size(max = 64) @Pattern(regexp = "[A-Za-z0-9_-]+") String clientMessageId,
         @Size(max = 4000) @Pattern(regexp = SendMessageRequest.BODY_PATTERN) String body,
         UUID attachmentId,
-        @Valid GifReferenceRequest gif) {
+        @Valid GifReferenceRequest gif,
+        UUID replyToMessageId) {
 
     /**
      * En az bir boşluk dışı karakter; satır sonu ve sekme dışında C0 kontrol karakteri, DEL ve eşlenmemiş vekil yok. Java
@@ -40,8 +42,8 @@ public record SendMessageRequest(
      */
     public MessageDraft toDraft() {
         if (gif == null) {
-            return new MessageDraft(body, attachmentId, null, null);
+            return new MessageDraft(body, attachmentId, null, null, replyToMessageId);
         }
-        return new MessageDraft(body, attachmentId, gif.provider(), gif.id());
+        return new MessageDraft(body, attachmentId, gif.provider(), gif.id(), replyToMessageId);
     }
 }

@@ -7,7 +7,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
@@ -15,7 +15,9 @@ import java.util.concurrent.RejectedExecutionException;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import com.ltz.messaging.application.port.MessageStreamPort;
 import com.ltz.messaging.application.service.MessageView;
+import com.ltz.messaging.application.service.ReactionsView;
 import com.ltz.messaging.application.service.ReadReceiptView;
 import com.ltz.messaging.domain.enums.MessageType;
 import com.ltz.messaging.domain.exception.MessagingErrorCode;
@@ -66,7 +68,7 @@ class SseMessageHubTest {
         SseMessageHub hub = new SseMessageHub(PROPERTIES, full, CLOCK);
         hub.open(user, NOW.plusSeconds(60));
 
-        hub.publish(List.of(user), message());
+        hub.publish(Map.of(user, message()));
 
         assertThat(hub.openStreams(user)).isZero();
     }
@@ -81,7 +83,7 @@ class SseMessageHubTest {
         gone.complete();
 
         hub.heartbeat();
-        hub.publish(List.of(user, other), message());
+        hub.publish(Map.of(user, message(), other, message()));
 
         assertThat(hub.openStreams(user)).isZero();
         assertThat(hub.openStreams(other)).isEqualTo(1);
@@ -122,12 +124,37 @@ class SseMessageHubTest {
         assertThat(hub.openStreams(user)).isEqualTo(1);
     }
 
+    @Test
+    void degisiklikOlayiYazilamayanAkistaKayittanCikarirAkisiOlmayanAliciyiAtlar() {
+        SseMessageHub hub = new SseMessageHub(PROPERTIES, DIRECT, CLOCK);
+        SseEmitter gone = hub.open(user, NOW.plusSeconds(60));
+        hub.open(user, NOW.plusSeconds(60));
+        gone.complete();
+
+        hub.publishEvent(MessageStreamPort.DELETED_EVENT, Map.of(user, Map.of("seq", 1), UUID.randomUUID(), Map.of()));
+
+        assertThat(hub.openStreams(user)).isEqualTo(1);
+    }
+
+    @Test
+    void degisiklikOlayindaKuyrukDoluysaAlicininAkislariKapanir() {
+        Executor full = task -> {
+            throw new RejectedExecutionException("full");
+        };
+        SseMessageHub hub = new SseMessageHub(PROPERTIES, full, CLOCK);
+        hub.open(user, NOW.plusSeconds(60));
+
+        hub.publishEvent(MessageStreamPort.REACTION_EVENT, Map.of(user, Map.of()));
+
+        assertThat(hub.openStreams(user)).isZero();
+    }
+
     private static ReadReceiptView receipt() {
         return new ReadReceiptView(UUID.randomUUID(), UUID.randomUUID(), 3L, NOW, 3);
     }
 
     private static MessageView message() {
         return new MessageView(UUID.randomUUID(), UUID.randomUUID(), 1, UUID.randomUUID(), MessageType.TEXT, "x",
-                "c", NOW, null, null, null);
+                "c", NOW, null, null, null, null, null, 0, false, ReactionsView.EMPTY, null);
     }
 }

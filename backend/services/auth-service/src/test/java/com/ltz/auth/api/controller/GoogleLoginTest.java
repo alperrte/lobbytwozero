@@ -19,6 +19,7 @@ import java.util.concurrent.Callable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Import;
@@ -28,6 +29,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import com.ltz.auth.ConcurrentRequests;
 import com.ltz.auth.ExternalProviderTestSupport;
 import com.ltz.auth.RecordingMailPortConfiguration;
+import com.ltz.auth.application.port.SecurityNotificationType;
 import com.nimbusds.jwt.SignedJWT;
 
 import jakarta.servlet.http.Cookie;
@@ -35,6 +37,9 @@ import jakarta.servlet.http.Cookie;
 @Import(RecordingMailPortConfiguration.class)
 @ExtendWith(OutputCaptureExtension.class)
 class GoogleLoginTest extends ExternalProviderTestSupport {
+
+    @Autowired
+    private RecordingMailPortConfiguration.RecordingMailPort mailPort;
 
     @BeforeEach
     void resetProviders() {
@@ -111,6 +116,9 @@ class GoogleLoginTest extends ExternalProviderTestSupport {
         assertThat(SignedJWT.parse(access).getJWTClaimsSet().getStringListClaim("amr")).containsExactly("fed");
         assertThat(output.getAll()).doesNotContain(started.state()).doesNotContain(code).doesNotContain(subject)
                 .doesNotContain(token).doesNotContain(GOOGLE_CLIENT_SECRET).doesNotContainIgnoringCase(email);
+        // İlk kez doğrulanmış e-postayla açılan hesap bir kez WELCOME alır.
+        assertThat(mailPort.awaitNotification(email, SecurityNotificationType.WELCOME).accountId()).isEqualTo(accountId);
+        assertThat(mailPort.notificationsTo(email)).hasSize(1);
     }
 
     @Test

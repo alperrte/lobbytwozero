@@ -62,14 +62,16 @@ public interface ConversationMemberRepository extends JpaRepository<Conversation
     List<Object[]> countActive(@Param("conversationIds") Collection<UUID> conversationIds);
 
     /**
-     * Sohbet başına okunmamış mesaj sayısı (MSG-13): okuma işaretçisinden sonraki, üyenin görebildiği ve başkasının
-     * gönderdiği mesajlar. {@code [conversationId, count]}; okunmamışı olmayan sohbet listede yoktur.
+     * Sohbet başına okunmamış mesaj sayısı (MSG-13): okuma işaretçisinden sonraki, üyenin görebildiği, başkasının
+     * gönderdiği ve üyenin kendi görünümünden kaldırmadığı (MSG-25) mesajlar. {@code [conversationId, count]};
+     * okunmamışı olmayan sohbet listede yoktur.
      */
     @Query("""
             select m.id.conversationId, count(msg) from ConversationMember m, Message msg
             where m.id.userId = :userId and m.id.conversationId in :conversationIds and m.leftAt is null
               and msg.conversationId = m.id.conversationId and msg.seq > m.lastReadSeq
               and msg.seq >= m.visibleFromSeq and msg.senderId <> :userId
+              and not exists (select 1 from HiddenMessage h where h.id.userId = :userId and h.id.messageId = msg.id)
             group by m.id.conversationId""")
     List<Object[]> countUnread(@Param("userId") UUID userId,
                                @Param("conversationIds") Collection<UUID> conversationIds);

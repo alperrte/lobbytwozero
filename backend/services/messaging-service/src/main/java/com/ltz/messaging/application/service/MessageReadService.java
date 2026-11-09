@@ -18,7 +18,6 @@ import com.ltz.messaging.domain.exception.MessagingErrorCode;
 import com.ltz.messaging.domain.exception.MessagingException;
 import com.ltz.messaging.infrastructure.persistence.repository.ConversationMemberRepository;
 import com.ltz.messaging.infrastructure.persistence.repository.MessageReadRangeRepository;
-import com.ltz.messaging.infrastructure.persistence.repository.MessageRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -33,15 +32,13 @@ public class MessageReadService {
 
     private final ConversationAccessPolicy access;
     private final ConversationMemberRepository members;
-    private final MessageRepository messages;
+    private final VisibleMessages visible;
     private final MessageReadRangeRepository ranges;
 
     @Transactional(readOnly = true)
     public MessageReadsView reads(UUID viewer, UUID conversationId, UUID messageId) {
         ConversationMember member = access.requireMember(conversationId, viewer);
-        Message message = messages.findByIdAndConversationId(messageId, conversationId)
-                .filter(found -> member.canSee(found.getSeq()))
-                .orElseThrow(() -> new MessagingException(MessagingErrorCode.MESSAGE_NOT_FOUND));
+        Message message = visible.require(member, messageId);
         if (!message.getSenderId().equals(viewer)) {
             throw new MessagingException(MessagingErrorCode.NOT_MESSAGE_SENDER);
         }

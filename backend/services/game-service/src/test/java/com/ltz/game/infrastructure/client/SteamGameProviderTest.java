@@ -108,6 +108,33 @@ class SteamGameProviderTest {
         assertEquals(java.util.Set.of("3595230", "570", "1091500"), found.keySet(), "hiçbir alanı olmayan, başka uygulamaya ait adresli, geçersiz dosyalı ve istenmeyen kayıtlar atlanır");
     }
 
+    @Test void earlyAccessComesFromSteamsReleaseFlagAndOnlyForAppsSteamRecognises() {
+        server.expect(method(HttpMethod.GET)).andExpect(request -> {
+            assertEquals("/IStoreBrowseService/GetItems/v1/", request.getURI().getPath());
+            assertEquals(TEST_KEY, request.getHeaders().getFirst("x-webapi-key"));
+            String query = java.net.URLDecoder.decode(request.getURI().getRawQuery(), java.nio.charset.StandardCharsets.UTF_8);
+            assertTrue(query.contains("{\"appid\":1966720}") && query.contains("\"include_release\":true"));
+            assertFalse(query.contains("include_assets") || query.contains("include_basic_info"), "yalnız çıkış bilgisi istenir");
+            assertFalse(request.getURI().toString().contains(TEST_KEY));
+        }).andRespond(withSuccess("""
+                {"response":{"store_items":[
+                 {"appid":1966720,"release":{"steam_release_date":1698095392,"is_early_access":true}},
+                 {"appid":570,"release":{"steam_release_date":1373389200,"original_release_date":0}},
+                 {"appid":1623730,"release":{"steam_release_date":1783652772,"release_from_early_access_date":1783666800}},
+                 {"appid":42,"success":2},
+                 {"appid":777,"release":{"is_early_access":true}}]}}
+                """, MediaType.APPLICATION_JSON));
+        var found = provider.earlyAccess(java.util.List.of("1966720", "570", "1623730", "42"));
+        assertEquals(java.util.Map.of("1966720", true, "570", false, "1623730", false), found,
+                "bayrak yoksa false; tanınmayan uygulama (42) ve istenmeyen kimlik (777) sonuçta yok");
+        server.verify();
+    }
+
+    @Test void earlyAccessRejectsInvalidIdsAndMalformedResponses() {
+        assertEquals(java.util.Map.of(), provider.earlyAccess(java.util.List.of()));
+        assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.earlyAccess(java.util.List.of("0; drop"))).code());
+    }
+
     @Test void storeItemsRejectInvalidIdsOversizedBatchesAndMalformedResponses() {
         assertEquals(java.util.Map.of(), provider.storeItems(java.util.List.of()));
         assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.storeItems(java.util.List.of("0; drop"))).code());

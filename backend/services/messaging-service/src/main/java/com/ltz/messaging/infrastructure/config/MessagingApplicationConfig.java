@@ -28,6 +28,7 @@ import com.ltz.messaging.infrastructure.messaging.realtime.SseMessageHub;
         GifProperties.class,
         GroupProperties.class,
         MessageProperties.class,
+        ReactionProperties.class,
         RequestLimitProperties.class,
         ServiceClientProperties.class,
         StreamProperties.class

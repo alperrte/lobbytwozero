@@ -22,22 +22,22 @@ import lombok.NoArgsConstructor;
 public class GifSnapshot {
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "gif_provider", updatable = false, length = 16)
+    @Column(name = "gif_provider", length = 16)
     private GifProvider provider;
 
-    @Column(name = "gif_id", updatable = false, length = 64)
+    @Column(name = "gif_id", length = 64)
     private String gifId;
 
-    @Column(name = "gif_url", updatable = false, length = 512)
+    @Column(name = "gif_url", length = 512)
     private String url;
 
-    @Column(name = "gif_preview_url", updatable = false, length = 512)
+    @Column(name = "gif_preview_url", length = 512)
     private String previewUrl;
 
-    @Column(name = "gif_width", updatable = false)
+    @Column(name = "gif_width")
     private Integer width;
 
-    @Column(name = "gif_height", updatable = false)
+    @Column(name = "gif_height")
     private Integer height;
 
     public GifSnapshot(GifProvider provider, String gifId, String url, String previewUrl, int width, int height) {
@@ -47,6 +47,11 @@ public class GifSnapshot {
         this.previewUrl = Objects.requireNonNull(previewUrl);
         this.width = width;
         this.height = height;
+    }
+
+    /** İletilen mesaj için bağımsız kopya (MSG-20). */
+    public GifSnapshot copy() {
+        return new GifSnapshot(provider, gifId, url, previewUrl, width, height);
     }
 
     public boolean isSameGif(GifProvider otherProvider, String otherGifId) {

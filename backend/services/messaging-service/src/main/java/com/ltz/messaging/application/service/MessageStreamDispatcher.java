@@ -20,6 +20,6 @@ public class MessageStreamDispatcher {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onMessageCreated(MessageCreated event) {
-        streams.publish(event.recipients(), event.message());
+        streams.publish(event.perRecipient());
     }
 }

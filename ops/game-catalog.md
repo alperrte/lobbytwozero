@@ -8,6 +8,7 @@ Bu belge **hem ekip arkadaşları hem de onların yapay zekâ asistanları** iç
 |---|---|
 | İnsan, kendi başına kuracaksın | [Özet](#özet) → [Adım adım kurulum (insanlar için)](#adım-adım-kurulum-insanlar-için) |
 | Yapay zekâ asistanı, kullanıcı "Game kataloğunu kur" dedi | [Özet](#özet) → [Yapay zekâ için prosedür](#yapay-zekâ-için-prosedür) → [Yapay zekâ için kurallar](#yapay-zekâ-için-kurallar) |
+| Daha önce kurmuştun, ekip yeni dump verdi | [Daha önce kurduysan: yeni dump nasıl yüklenir?](#daha-önce-kurduysan-yeni-dump-nasıl-yüklenir) |
 | Bir şey ters gitti | [Sorun giderme](#sorun-giderme) |
 
 ## Özet
@@ -16,13 +17,13 @@ Her iki kitle için de aynı gerçekler:
 
 | Konu | Değer |
 |---|---|
-| Ne yüklenir | Tüm `game_db` (Flyway geçmişi dahil): oyunlar, terimler, dile göre açıklamalar, DLC ilişkisi, dil desteği, medya, fiyatlar |
-| Dump dosyası | `ltz-game-catalog.dump` (182.603.160 bayt, adı değişmez). Git'te **yoktur**; ekipten elden alınır |
+| Ne yüklenir | Tüm `game_db` (Flyway geçmişi dahil): oyunlar, terimler, dile göre açıklamalar, DLC ilişkisi, dil desteği, medya, 12 pazarın fiyatları |
+| Dump dosyası | `ltz-game-catalog.dump` (339.005.493 bayt, adı değişmez). Git'te **yoktur**; ekipten elden alınır |
 | Dump'ın konulacağı yer | Depo kökündeki **`game-catalog-dump/`** klasörü (`git pull` ile gelir; gelmezse komut açar) |
 | Kurulum komutu | `node ops/dev.mjs --all` (repo kökünden) |
 | Gereksinimler | Node 24.7+, Docker Desktop açık, Docker'a en az 12 GB bellek, Hardware kataloğu için internet |
 | Doğrulama | `node ops/game-catalog-import.mjs verify` (veritabanına dokunmaz) |
-| Başarı işareti | `GAME_CATALOG_IMPORT_RESULT {"games":263671,"flyway":175,...}` ve `✓ Game kataloğu hazır` |
+| Başarı işareti | `GAME_CATALOG_IMPORT_RESULT {"games":263762,"flyway":175,...}` ve `✓ Game kataloğu hazır` |
 
 `--all` tüm servisleri kaldırır. Game kataloğu Game servisi, Hardware kataloğu Hardware servisi başlamadan **önce** yüklenir. Bellek yetmiyorsa yalnız Game için `node ops/dev.mjs --with=game-service` kullanılabilir. `--no-catalog` katalog yüklemelerini atlar.
 
@@ -52,7 +53,7 @@ Terminalde yazacağın tek şey iki komuttur; dosyayı klasöre koymak sürükle
 5. **Bittiğini çıktıdan gör.** Şu satırlar çıkmalı:
 
    ```text
-   GAME_CATALOG_IMPORT_RESULT {"games":263671,"flyway":175,...}
+   GAME_CATALOG_IMPORT_RESULT {"games":263762,"flyway":175,...}
    ✓ Game kataloğu hazır
    ```
 
@@ -60,6 +61,51 @@ Terminalde yazacağın tek şey iki komuttur; dosyayı klasöre koymak sürükle
 6. **Siteyi aç.** Tarayıcıda `http://localhost:5001/tr/giris`. Test hesapları: `user@ltz.com`, `creator@ltz.com`, `developer@ltz.com`, `moderator@ltz.com`, `admin@ltz.com`; parola `.env.dev` içindeki `DEV_ACCOUNTS_PASSWORD` değeridir (dosyayı kimseyle paylaşma).
 
 Servisleri durdurmak için `node ops/dev.mjs stop` (veri kalır).
+
+## Daha önce kurduysan: yeni dump nasıl yüklenir?
+
+Ekip yeni bir dump dağıttığında (örneğin yeni fiyat pazarları eklendiğinde) **ne yapacağın daha önce kurup kurmadığına bağlıdır.** Aşağıdaki akış ikisi için de aynıdır; hangi yolda olduğunu komutun çıktısı söyler.
+
+**Neden ayrı bir adım var?** Dump dosyası yalnız kaynaktır. Veriler senin Docker'ındaki PostgreSQL'dedir. Eski dosyayı silip yenisini koymak veritabanını değiştirmez. Kurulum aracı, `game_db` zaten doluysa hiçbir şeye dokunmaz ve eski veriyle devam edersin.
+
+| Durum | Ne yaparsın |
+|---|---|
+| **Hiç kurmadın** (ilk kurulum) | Dump'ı `game-catalog-dump/` klasörüne koy, `node ops/dev.mjs --all` çalıştır. Başka adım yok. |
+| **Daha önce kurdun** (eski dump yüklü) | Yeni dump'ı klasöre koy, `node ops/dev.mjs --all` çalıştır; çıktı "zaten dolu" derse aşağıdaki 3 komutla değiştir. |
+
+**Adım adım (herkes için)**
+
+1. `git pull` yap. Güncel `ops/game-catalog.manifest.json` gelir.
+2. Elindeki eski `ltz-game-catalog.dump` dosyasını sil ve ekipten aldığın **yeni** dosyayı `game-catalog-dump/` klasörüne koy. Adını değiştirme.
+3. Kontrol et (veritabanına dokunmaz):
+
+   ```powershell
+   node ops/game-catalog-import.mjs verify
+   ```
+
+   `Dump bütünlüğü doğrulanamadı` çıkarsa elindeki dosya hâlâ eskidir ya da eksik inmiştir; yeni dosyayı yeniden al.
+4. Kurulumu çalıştır:
+
+   ```powershell
+   node ops/dev.mjs --all
+   ```
+
+5. Çıktıya bak:
+   - `GAME_CATALOG_IMPORT_RESULT {...}` ve `✓ Game kataloğu hazır` → **bitti**, ilk kurulumdu.
+   - `GAME_CATALOG_IMPORT_SKIPPED game_db zaten dolu` → eski katalog yüklüydü, yeni dump uygulanmadı. 6. adıma geç.
+6. Eski kataloğu yenisiyle değiştir. Üç komut sırayla çalışır:
+
+   ```powershell
+   docker stop ltz-dev-game-service-1
+   node ops/game-catalog-import.mjs import --replace
+   docker start ltz-dev-game-service-1
+   ```
+
+   Sonunda `GAME_CATALOG_IMPORT_RESULT {"games":263762,...,"replaced":true}` görünmelidir. Game servisi açılışta kendini hazırlar; birkaç dakika sonra `http://localhost:5001/tr/oyunlar` sayfasında 12 pazarın fiyatları görünür.
+
+**`--replace` ne siler?** Yalnız `game_db` veritabanının içeriğini: oyun kataloğunu ve senin yerel Game test kayıtlarını (geri bildirim, geliştirici yetkisi vb.). Hesapların, diğer servislerin veritabanları (Auth, Hardware, Community vb.) ve Hardware kataloğu **etkilenmez**. İşlem tek bir işlemde yapılır; hata olursa eski veri olduğu gibi kalır.
+
+**Bu adımlar işe yaramazsa:** Docker'da `ltz-dev-postgres-1` açık olmalıdır (`docker ps`). Kapalıysa 4. adımdaki komut onu açar; sonra 6. adımı uygula. Diğer hatalar için [Sorun giderme](#sorun-giderme).
 
 ## Yapay zekâ için prosedür
 
@@ -87,7 +133,7 @@ Servisleri durdurmak için `node ops/dev.mjs stop` (veri kalır).
 node ops/game-catalog-import.mjs verify
 ```
 
-- Beklenen: `GAME_CATALOG_VERIFY_RESULT {"games":263671,"flyway":175}`.
+- Beklenen: `GAME_CATALOG_VERIFY_RESULT {"games":263762,"flyway":175}`.
 - Hata verirse **dur**: [Sorun giderme](#sorun-giderme) tablosundan nedeni bul ve kullanıcıya söyle (dosyayı yeniden alması gerekebilir). Veritabanına henüz dokunulmadı.
 
 **4. Kur**
@@ -104,7 +150,8 @@ node ops/dev.mjs --all --no-mail --no-frontend
 
 **5. Başarıyı kontrol et**
 Katalog adımı hata verse bile `dev.mjs` kurulumu sürdürür ve çıkış kodu 0 olabilir; bu yüzden **çıktıyı oku**:
-- Başarı: `GAME_CATALOG_IMPORT_RESULT {"games":263671,"flyway":175,...}` ve `✓ Game kataloğu hazır`, **ya da** `GAME_CATALOG_IMPORT_SKIPPED game_db zaten dolu (...)` (veritabanı zaten doluydu, hiçbir şeye dokunulmadı; bu da başarıdır).
+- Başarı: `GAME_CATALOG_IMPORT_RESULT {"games":263762,"flyway":175,...}` ve `✓ Game kataloğu hazır`.
+- `GAME_CATALOG_IMPORT_SKIPPED game_db zaten dolu (...)`: veritabanında daha önce yüklenmiş bir katalog var, hiçbir şeye dokunulmadı. Kurulum bozulmadı, ama **yeni dump uygulanmadı**. Kullanıcıya şunu sor: "Game veritabanında zaten bir katalog var. Yeni dump ile değiştirmemi ister misin? Bu işlem `game_db` içeriğini siler (hesaplar ve diğer servisler etkilenmez)." Kullanıcı açıkça "evet" derse [Daha önce kurduysan](#daha-önce-kurduysan-yeni-dump-nasıl-yüklenir) bölümünün 6. adımını uygula. Cevap vermezse veya "hayır" derse dokunma.
 - Başarısızlık: `⚠ Game kataloğu ...` uyarısı varsa katalog yüklenmemiştir. Başarılı sayma; nedeni [Sorun giderme](#sorun-giderme) tablosundan bul.
 - Game servisi için ✓ (ya da "healthy") görünmeli.
 
@@ -115,7 +162,7 @@ Katalog adımı hata verse bile `dev.mjs` kurulumu sürdürür ve çıkış kodu
 
 Bu depoda çalışan ajanlar `AGENTS.md` kurallarına uyar. Bu belgeye özel olarak:
 
-- **Asla, kullanıcı açıkça istemeden:** `import --replace`, `node ops/dev.mjs reset`, `docker compose ... down -v`, dump'ı Git'e ekleme, `git commit/push`, `export`. `--replace` mevcut oyun verisini siler.
+- **Asla, kullanıcı açıkça istemeden:** `import --replace` (yalnız yukarıdaki SKIPPED sorusuna kullanıcı "evet" derse), `node ops/dev.mjs reset`, `docker compose ... down -v`, dump'ı Git'e ekleme, `git commit/push`, `export`. `--replace` mevcut oyun verisini siler.
 - `.env`, `.env.dev`, `frontend/.env.local` dosyalarını okuma, yazdırma veya kopyalama. Katalog araçları bunlara ihtiyaç duymaz.
 - `ltz-game-catalog.dump` dosyasını Git'e ekleme (`*.dump` zaten `.gitignore`'dadır), başka yere yükleme veya paylaşma. Dağıtım kullanıcının kararıdır.
 - `ops/game-catalog.manifest.json` içindeki `sha256`, `bytes` ve `tables` alanlarını elle değiştirme. Bu değerler dump'tan `export` ile üretilir; elle değişirse `verify` ve `import` dosyayı reddeder.
@@ -129,10 +176,11 @@ Beklenen içerik (doğrulama için):
 
 | Veri | Beklenen sayı |
 |---|---:|
-| Oyun (`games`) | 263.671 |
-| Terim bağlantısı (`game_terms`) | 997.454 |
-| Dile göre açıklama (`game_localized_descriptions`) | 19.226 |
-| Ana oyuna bağlı DLC (`parent_game_id` dolu) | 17.481 |
+| Oyun (`games`) | 263.762 |
+| Terim bağlantısı (`game_terms`) | 997.753 |
+| Dile göre açıklama (`game_localized_descriptions`) | 19.235 |
+| Ana oyuna bağlı DLC (`parent_game_id` dolu) | 17.489 |
+| Fiyat teklifi (`game_price_quotes`) | 1.808.662 (ABD, Birleşik Krallık, Almanya, Kanada, Avustralya, Yeni Zelanda, Polonya, Brezilya, Japonya, Güney Kore, Hindistan, Çin) |
 | Flyway sürümü | 175 |
 
 Katalog kullanıcı verisi taşımaz: hesap kimliği içerebilecek tablolar (geri bildirim, yetki, denetim kaydı vb.) boştur. Kendi test hesapların `node ops/dev.mjs` ile ayrıca oluşturulur.
@@ -157,7 +205,8 @@ Klasör verilmezse `game-catalog-dump/` kullanılır.
 | Belirti | Neden | Çözüm |
 |---|---|---|
 | `Dump dosyası bulunamadı: ...` ve `Game kataloğu indirilemedi; atlandı` (Game boş başladı) | Dosya `game-catalog-dump/` içinde değildi, manifestte `url` yok | Dosyayı `game-catalog-dump/` klasörüne koy, sonra `node ops/dev.mjs stop` ve `node ops/dev.mjs --all` çalıştır (Game boş olduğu için katalog bu sefer yüklenir) |
-| `Dump bütünlüğü doğrulanamadı` | Dosya eksik inmiş, bozulmuş veya sonradan değiştirilmiş | Dosyayı yeniden al; boyutu 182.603.160 bayt olmalı |
+| `Dump bütünlüğü doğrulanamadı` | Dosya eksik inmiş, bozulmuş, sonradan değiştirilmiş **ya da `git pull` ile yeni manifest geldi ama sende hâlâ eski dump var** | Ekipten güncel dosyayı al; boyutu `ops/game-catalog.manifest.json` içindeki `bytes` ile aynı olmalı (şu an 339.005.493). Eski dosyayı silip yenisini koy |
+| `GAME_CATALOG_IMPORT_SKIPPED game_db zaten dolu` | Daha önce katalog yüklenmişti; yeni dump uygulanmadı | [Daha önce kurduysan](#daha-önce-kurduysan-yeni-dump-nasıl-yüklenir) bölümünün 6. adımı |
 | `Dump V... şemasıyla alınmış, bu depodaki en yeni Game migration V...` | Depo dalın eskimiş | `git pull` |
 | `Game servisi çalışıyor; önce durdurun` | Game konteyneri açık (`import` elle çalıştırıldı) | `node ops/dev.mjs stop`, sonra `node ops/dev.mjs --all` ile yeniden başlat (katalog Game'den önce yüklenir) |
 | `Yalnız ltz-dev postgres konteyneri kullanılabilir` | Postgres başka bir Compose projesiyle açılmış | `node ops/dev.mjs` ile `ltz-dev` yığınını başlat |

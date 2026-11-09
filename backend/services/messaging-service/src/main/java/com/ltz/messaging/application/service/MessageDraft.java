@@ -10,8 +10,10 @@ import com.ltz.messaging.domain.exception.MessagingException;
 /**
  * Gönderilmek istenen mesajın içeriği: metin, görsel ({@code attachmentId}) ya da GIF ({@code gifProvider} +
  * {@code gifId}); görsel ve GIF'te {@code body} isteğe bağlı açıklamadır. Görsel ile GIF birlikte olamaz.
+ * {@code replyToMessageId} isteğe bağlı yanıt hedefidir (MSG-19).
  */
-public record MessageDraft(String body, UUID attachmentId, GifProvider gifProvider, String gifId) {
+public record MessageDraft(String body, UUID attachmentId, GifProvider gifProvider, String gifId,
+                           UUID replyToMessageId) {
 
     public MessageDraft {
         if (attachmentId != null && gifId != null) {
@@ -26,7 +28,7 @@ public record MessageDraft(String body, UUID attachmentId, GifProvider gifProvid
     }
 
     public static MessageDraft text(String body) {
-        return new MessageDraft(body, null, null, null);
+        return new MessageDraft(body, null, null, null, null);
     }
 
     public MessageType type() {

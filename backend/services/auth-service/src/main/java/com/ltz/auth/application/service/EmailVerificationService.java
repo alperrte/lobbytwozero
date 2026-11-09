@@ -8,6 +8,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.ltz.auth.application.port.SecurityNotificationType;
 import com.ltz.auth.application.port.VerificationCodeMail;
 import com.ltz.auth.domain.entity.Account;
 import com.ltz.auth.domain.entity.EmailVerificationCode;
@@ -40,6 +41,7 @@ public class EmailVerificationService {
     private final VerificationCodeDispatcher dispatcher;
     private final SecurityEventRecorder securityEventRecorder;
     private final AuthEventPublisher eventPublisher;
+    private final SecurityNotificationDispatcher notifier;
     private final VerificationProperties properties;
     private final RegistrantProofVerifier proofVerifier;
     private final TransactionTemplate transactionTemplate;
@@ -145,6 +147,8 @@ public class EmailVerificationService {
         account.markEmailVerified(now);
         securityEventRecorder.recordEvent(SecurityEventType.EMAIL_VERIFIED, account.getId());
         eventPublisher.publish(AuthEventType.USER_REGISTERED, account.getId(), account.getUsername());
+        // Commit sonrası, en iyi çaba; yalnız doğrulanmış adrese ve hesap başına bir kez.
+        notifier.notifyOnceAfterCommit(account.getId(), account.getEmail(), SecurityNotificationType.WELCOME);
         return true;
     }
 }

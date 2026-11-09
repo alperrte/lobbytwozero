@@ -1,10 +1,7 @@
 package com.ltz.messaging.application.service;
 
 import java.time.Clock;
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -19,42 +16,19 @@ import com.ltz.messaging.infrastructure.config.GifProperties;
 @Component
 public class GifSearchRateLimiter {
 
-    private static final long WINDOW_MILLIS = 60_000;
-
-    private record Window(long index, int count) {
-    }
-
-    private final Map<UUID, Window> windows = new ConcurrentHashMap<>();
-    private final GifProperties properties;
-    private final Clock clock;
+    private final FixedWindowRateLimiter limiter;
 
     public GifSearchRateLimiter(GifProperties properties, Clock clock) {
-        this.properties = properties;
-        this.clock = clock;
+        this.limiter = new FixedWindowRateLimiter(properties::searchesPerMinute, clock);
     }
 
     /** Bu dakikadaki aramayı sayar; sınır aşıldıysa {@code false} döner ve sayılmaz. */
     public boolean tryAcquire(UUID userId) {
-        long current = currentWindow();
-        AtomicBoolean allowed = new AtomicBoolean();
-        windows.compute(userId, (key, window) -> {
-            int used = window == null || window.index() != current ? 0 : window.count();
-            if (used >= properties.searchesPerMinute()) {
-                return window;
-            }
-            allowed.set(true);
-            return new Window(current, used + 1);
-        });
-        return allowed.get();
+        return limiter.tryAcquire(userId);
     }
 
-    @Scheduled(fixedDelay = WINDOW_MILLIS)
+    @Scheduled(fixedDelay = 60_000)
     public void evictExpired() {
-        long current = currentWindow();
-        windows.values().removeIf(window -> window.index() != current);
-    }
-
-    private long currentWindow() {
-        return clock.millis() / WINDOW_MILLIS;
+        limiter.evictExpired();
     }
 }

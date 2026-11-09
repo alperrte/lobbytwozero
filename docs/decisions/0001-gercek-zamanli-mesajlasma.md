@@ -44,6 +44,8 @@ data:{"conversationId":"…","readerId":"…","readUpToSeq":5,"readAt":"…","al
 
 `read` (MSG-11, LTZ-UMT-MSG-03) commit edilmiş okuma ilerlemesinde yalnız okunan aralıkta mesajı olan aktif göndericiye gider. Değerler alıcının kendi mesajlarıyla kırpılır; ham işaretçi, ham su seviyesi ve mesaj içeriği taşınmaz. `id` yoktur. Kaçan olay geçmişteki `readStatus` ile eşitlenir.
 
+**Mesaj değişiklik olayları (LTZ-UMT-MSG-05).** `message_deleted` (herkesten sil, MSG-26), `reaction` (tepki, MSG-23) ve `message_hidden` (benden sil, MSG-25; yalnız silenin kendi akışlarına) commit sonrası ve en iyi çabayla, yalnız mesajı görebilen ve benden silmemiş aktif üyelere gider. `id` taşımazlar. Bu olaylar eski mesajları değiştirdiği için `after=<son seq>` eşitlemesi onları kapsamaz: istemci yeniden bağlanınca açık sohbetin **son sayfasını yeniden çeker** (geçmiş ucu `deleted`, `reactions` ve gizleme durumunu her istekte yeniden hesaplar). Kalıcı bir değişiklik akışı (ör. sohbet başına değişiklik sırası) bu görevde yok; ihtiyaç olursa ayrı karar. `message` olayının yükü artık alıcı başına kurulur ve geçmiş ucundaki `Message` ile aynı yapıdadır (`replyTo` alıcının görünürlüğüne, `deletableForEveryoneUntil` alıcının rolüne göre).
+
 Bir üye gruptan ayrılınca ya da çıkarılınca kalan göndericilerin su seviyesi yükselebilir; durumu `SENT`'ten `READ`'e geçen göndericilere aynı `read` olayı gider (`readerId`, `readUpToSeq`, `readAt` `null`, yalnız `allReadUpToSeq` dolu). Ayrılan kişi olayı almaz. `read` olayı outbox'a yazılmaz ve notification-service'e gitmez.
 
 ## Değerlendirilen seçenekler

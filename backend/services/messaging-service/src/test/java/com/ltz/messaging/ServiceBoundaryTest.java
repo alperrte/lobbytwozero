@@ -65,7 +65,7 @@ class ServiceBoundaryTest {
                 Matcher references = reference.matcher(sql);
                 while (references.find()) {
                     assertThat(references.group(1)).as("FK yalnız messaging tablolarına")
-                            .isIn("conversations", "messages");
+                            .isIn("conversations", "messages", "attachment_blobs");
                 }
             }
         }

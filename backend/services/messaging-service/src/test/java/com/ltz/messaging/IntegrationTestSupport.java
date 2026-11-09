@@ -1,16 +1,21 @@
 package com.ltz.messaging;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Date;
@@ -34,6 +39,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -314,7 +320,80 @@ public abstract class IntegrationTestSupport {
                 .header(HttpHeaders.AUTHORIZATION, bearer(viewer)));
     }
 
+    /** Yeni istemci kimliğiyle metin mesajı gönderir (201 beklenir) ve mesajın kimliğini döner. */
+    protected UUID sendAndGetId(UUID sender, UUID conversationId, String body) throws Exception {
+        return idOf(sendMessage(sender, conversationId, UUID.randomUUID().toString(), body)
+                .andExpect(status().isCreated()));
+    }
+
+    /** MSG-19: {@code replyTo} mesajına yanıt. */
+    protected ResultActions sendReply(UUID sender, UUID conversationId, UUID replyTo, String body) throws Exception {
+        return sendReply(sender, conversationId, UUID.randomUUID().toString(), replyTo, body);
+    }
+
+    protected ResultActions sendReply(UUID sender, UUID conversationId, String clientMessageId, UUID replyTo,
+                                      String body) throws Exception {
+        return sendJson(sender, conversationId, JsonPath.parse(Map.of("clientMessageId", clientMessageId,
+                "body", body, "replyToMessageId", replyTo.toString())).jsonString());
+    }
+
+    /** MSG-25/26: {@code scope} {@code me} (benden sil) ya da {@code everyone} (herkesten sil). */
+    protected ResultActions deleteMessage(UUID actor, UUID conversationId, UUID messageId, String scope)
+            throws Exception {
+        return mockMvc.perform(delete(MessagingApiPaths.MESSAGES + "/{messageId}", conversationId, messageId)
+                .param("scope", scope)
+                .header(HttpHeaders.AUTHORIZATION, bearer(actor)));
+    }
+
+    /** MSG-23: tepki ver ya da değiştir. */
+    protected ResultActions react(UUID user, UUID conversationId, UUID messageId, String emoji) throws Exception {
+        return mockMvc.perform(put(MessagingApiPaths.MESSAGES + "/{messageId}/reaction", conversationId, messageId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(JsonPath.parse(Map.of("emoji", emoji)).jsonString()));
+    }
+
+    protected ResultActions unreact(UUID user, UUID conversationId, UUID messageId) throws Exception {
+        return mockMvc.perform(delete(MessagingApiPaths.MESSAGES + "/{messageId}/reaction", conversationId, messageId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(user)));
+    }
+
+    protected ResultActions reactions(UUID viewer, UUID conversationId, UUID messageId) throws Exception {
+        return mockMvc.perform(get(MessagingApiPaths.MESSAGES + "/{messageId}/reactions", conversationId, messageId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(viewer)));
+    }
+
+    /** MSG-20: mesajı hedef sohbetlere iletir. */
+    protected ResultActions forward(UUID user, UUID conversationId, UUID messageId, String clientMessageId,
+                                    UUID... targets) throws Exception {
+        return mockMvc.perform(post(MessagingApiPaths.MESSAGES + "/{messageId}/forward", conversationId, messageId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"clientMessageId\":\"%s\",\"targetConversationIds\":%s}"
+                        .formatted(clientMessageId, jsonArray(targets))));
+    }
+
+    /** SSE akışı açar ve {@code ready} olayını bekler. */
+    protected MvcResult openStreamFor(UUID user) throws Exception {
+        MvcResult result = mockMvc.perform(get(MessagingApiPaths.STREAM)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(user)))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+        await().atMost(Duration.ofSeconds(5))
+                .untilAsserted(() -> assertThat(streamContent(result)).contains("event:ready"));
+        return result;
+    }
+
+    protected static String streamContent(MvcResult result) throws Exception {
+        return result.getResponse().getContentAsString(StandardCharsets.UTF_8);
+    }
+
     // ------------------------------------------------------------ DB gözlemi
+
+    protected int messageCount(UUID conversationId) {
+        return jdbc.queryForObject("select count(*) from messages where conversation_id = ?", Integer.class,
+                conversationId);
+    }
 
     protected int conversationCount() {
         return jdbc.queryForObject("select count(*) from conversations", Integer.class);

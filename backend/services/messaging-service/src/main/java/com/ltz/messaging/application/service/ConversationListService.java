@@ -35,7 +35,7 @@ public class ConversationListService {
     private final ConversationRepository conversations;
     private final ConversationMemberRepository members;
     private final MessageRepository messages;
-    private final MessageAttachments messageAttachments;
+    private final MessageViews views;
     private final MessageProperties properties;
 
     @Transactional(readOnly = true)
@@ -57,7 +57,7 @@ public class ConversationListService {
         List<UUID> ids = page.stream().map(Conversation::getId).toList();
         Map<UUID, ConversationMember> memberships = members.findActiveOf(userId, ids).stream()
                 .collect(Collectors.toMap(member -> member.getId().getConversationId(), Function.identity()));
-        Map<UUID, Message> lastMessages = messages.findLastMessages(ids).stream()
+        Map<UUID, Message> lastMessages = messages.findLastVisibleMessages(userId, ids).stream()
                 .collect(Collectors.toMap(Message::getConversationId, Function.identity()));
         Map<UUID, Long> unread = counts(members.countUnread(userId, ids));
         Map<UUID, Long> memberCounts = counts(members.countActive(ids));
@@ -74,7 +74,7 @@ public class ConversationListService {
                 : members.findActiveMembersOf(ownLastIds).stream()
                         .collect(Collectors.groupingBy(member -> member.getId().getConversationId()));
 
-        Map<UUID, MessageView> visibleLasts = messageAttachments.attachTo(page.stream()
+        Map<UUID, MessageView> visibleLasts = views.decorate(userId, memberships, page.stream()
                         .filter(conversation -> memberships.containsKey(conversation.getId()))
                         .map(conversation -> visibleLast(lastMessages.get(conversation.getId()),
                                 memberships.get(conversation.getId()), userId,

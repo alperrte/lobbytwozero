@@ -233,11 +233,6 @@ class MessageSendTest extends IntegrationTestSupport {
                 .isEqualTo(senders.size());
     }
 
-    private int messageCount(UUID conversationId) {
-        return jdbc.queryForObject("select count(*) from messages where conversation_id = ?", Integer.class,
-                conversationId);
-    }
-
     private int outboxCount(UUID conversationId) {
         return jdbc.queryForObject("select count(*) from outbox_events where aggregate_id = ?", Integer.class,
                 conversationId);

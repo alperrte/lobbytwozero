@@ -20,6 +20,7 @@ import com.ltz.auth.api.controller.AuthApiPaths;
 import com.ltz.auth.application.port.ExternalAuthenticationException;
 import com.ltz.auth.application.port.GoogleOidcPort;
 import com.ltz.auth.application.port.GoogleOidcPort.GoogleIdentity;
+import com.ltz.auth.application.port.SecurityNotificationType;
 import com.ltz.auth.domain.entity.Account;
 import com.ltz.auth.domain.entity.ExternalIdentity;
 import com.ltz.auth.domain.entity.GoogleRegistration;
@@ -69,6 +70,7 @@ public class GoogleLoginService {
     private final LoginService loginService;
     private final SecurityEventRecorder securityEventRecorder;
     private final AuthEventPublisher eventPublisher;
+    private final SecurityNotificationDispatcher notifier;
     private final TransactionTemplate transactionTemplate;
     private final Clock clock;
 
@@ -194,6 +196,8 @@ public class GoogleLoginService {
                 registration.consume(now);
                 securityEventRecorder.recordEvent(SecurityEventType.EXTERNAL_ACCOUNT_CREATED, account.getId());
                 eventPublisher.publish(AuthEventType.USER_REGISTERED, account.getId(), account.getUsername());
+                // Hesap ilk kez Google'ın doğruladığı adresle açıldı: commit sonrası, en iyi çaba, bir kez.
+                notifier.notifyOnceAfterCommit(account.getId(), account.getEmail(), SecurityNotificationType.WELCOME);
                 return account.getId();
             });
         } catch (DataIntegrityViolationException exception) {

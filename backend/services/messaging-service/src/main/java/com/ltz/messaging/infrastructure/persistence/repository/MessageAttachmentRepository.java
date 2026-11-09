@@ -29,11 +29,23 @@ public interface MessageAttachmentRepository extends JpaRepository<MessageAttach
     @Query("select a.id from MessageAttachment a where a.messageId = :messageId")
     Optional<UUID> findIdByMessageId(@Param("messageId") UUID messageId);
 
-    @Query("select a.content from MessageAttachment a where a.id = :id")
+    Optional<MessageAttachment> findByMessageId(UUID messageId);
+
+    @Query("select a.blobId from MessageAttachment a where a.messageId = :messageId")
+    Optional<UUID> findBlobIdByMessageId(@Param("messageId") UUID messageId);
+
+    /** Herkesten silmede (MSG-26) mesajın görsel bağlantısını siler; içerik ayrıca, bağlantısı kalmadıysa silinir. */
+    @Modifying(flushAutomatically = true)
+    @Query(value = "delete from message_attachments where message_id = :messageId", nativeQuery = true)
+    int deleteByMessageId(@Param("messageId") UUID messageId);
+
+    @Query(value = """
+            select b.content from message_attachments a join attachment_blobs b on b.id = a.blob_id
+            where a.id = :id""", nativeQuery = true)
     Optional<byte[]> findContent(@Param("id") UUID id);
 
-    /** Kullanıcı başına yükleme oranı sınırı. */
-    long countByUploaderIdAndCreatedAtAfter(UUID uploaderId, Instant since);
+    /** Kullanıcı başına yükleme oranı sınırı; iletmeyle açılan bağlantılar sayılmaz. */
+    long countByUploaderIdAndForwardedFalseAndCreatedAtAfter(UUID uploaderId, Instant since);
 
     /** Kullanıcının henüz mesaja bağlanmamış yüklemeleri. */
     long countByUploaderIdAndMessageIdIsNull(UUID uploaderId);

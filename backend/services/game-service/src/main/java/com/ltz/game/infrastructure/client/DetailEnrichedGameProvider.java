@@ -43,6 +43,8 @@ public class DetailEnrichedGameProvider implements GameProvider {
 
     @Override public java.util.Map<String, StoreItem> storeItems(java.util.Collection<String> externalIds) { return catalog.storeItems(externalIds); }
 
+    @Override public java.util.Map<String, Boolean> earlyAccess(java.util.Collection<String> externalIds) { return catalog.earlyAccess(externalIds); }
+
     @Override public java.util.Map<String, String> shortDescriptions(java.util.Collection<String> externalIds, String language) { return catalog.shortDescriptions(externalIds, language); }
 
     @Override public Set<String> catalogDlcIds() { return catalog.catalogDlcIds(); }

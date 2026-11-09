@@ -235,20 +235,42 @@ class AttachmentUploadTest extends IntegrationTestSupport {
         assertThat(exists(expired)).isFalse();
         assertThat(exists(fresh)).isTrue();
         assertThat(exists(sent)).isTrue();
+        assertThat(jdbc.queryForObject("select count(*) from attachment_blobs where id = ?", Integer.class, expired))
+                .as("süresi dolan yüklemenin içeriği de silinir").isZero();
+    }
+
+    @Test
+    void yuklenenGorselIcerigiBlobTablosundaTekKezSaklanir() throws Exception {
+        UUID alice = newUser();
+        UUID direct = openDirectAndGetId(alice, newUser());
+        int before = blobCount();
+
+        UUID attachment = uploadAndGetId(alice, direct, TestImages.png(4, 4), MediaType.IMAGE_PNG_VALUE);
+
+        assertThat(blobCount()).isEqualTo(before + 1);
+        assertThat(jdbc.queryForObject("select count(*) from message_attachments a join attachment_blobs b "
+                + "on b.id = a.blob_id where a.id = ? and a.forwarded = false", Integer.class, attachment))
+                .isEqualTo(1);
     }
 
     private UUID insertAttachment(UUID conversationId, UUID uploader, Instant createdAt) {
         UUID id = UUID.randomUUID();
         byte[] content = TestImages.png(2, 2);
-        jdbc.update("insert into message_attachments (id, conversation_id, uploader_id, mime_type, size_bytes, width, "
-                + "height, frame_count, content, created_at) values (?, ?, ?, 'image/png', ?, 2, 2, 1, ?, ?)",
-                id, conversationId, uploader, content.length, content, Timestamp.from(createdAt));
+        jdbc.update("insert into attachment_blobs (id, size_bytes, content, created_at) values (?, ?, ?, ?)", id,
+                content.length, content, Timestamp.from(createdAt));
+        jdbc.update("insert into message_attachments (id, conversation_id, uploader_id, blob_id, mime_type, size_bytes, "
+                + "width, height, frame_count, created_at) values (?, ?, ?, ?, 'image/png', ?, 2, 2, 1, ?)",
+                id, conversationId, uploader, id, content.length, Timestamp.from(createdAt));
         return id;
     }
 
+    private int blobCount() {
+        return jdbc.queryForObject("select count(*) from attachment_blobs", Integer.class);
+    }
+
     private byte[] storedContent(UUID attachmentId) {
-        return jdbc.queryForObject("select content from message_attachments where id = ?", byte[].class,
-                attachmentId);
+        return jdbc.queryForObject("select b.content from message_attachments a join attachment_blobs b "
+                + "on b.id = a.blob_id where a.id = ?", byte[].class, attachmentId);
     }
 
     private boolean exists(UUID attachmentId) {

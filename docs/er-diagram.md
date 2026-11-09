@@ -705,9 +705,10 @@ erDiagram
   conversations ||--o{ message_read_ranges : "read ranges"
   conversations ||--o{ message_attachments : "uploads"
   messages |o--o| message_attachments : attaches
+  attachment_blobs ||--o{ message_attachments : "shared content"
   messages ||--o{ message_reactions : reacted
   messages ||--o{ message_hidden_for_users : "hidden for"
-  messages |o--o{ messages : "reply_to / forwarded_from"
+  messages |o--o{ messages : "reply_to"
 
   conversations {
     uuid id PK
@@ -745,24 +746,36 @@ erDiagram
     int gif_width
     int gif_height
     timestamptz created_at
+    uuid reply_to_message_id FK "SET NULL"
+    int forward_count "iletildi sayacı"
+    timestamptz deleted_at "herkesten silindi"
+    uuid deleted_by "REF"
   }
   message_attachments {
     uuid id PK
     uuid conversation_id FK "ON DELETE CASCADE"
     uuid uploader_id "REF"
     uuid message_id FK,UK "null: gönderilmedi"
+    uuid blob_id FK "RESTRICT"
+    boolean forwarded "iletme bağlantısı"
     varchar mime_type "png|jpeg|gif"
     int size_bytes "<= 1 MB"
     int width
     int height
     int frame_count
+    timestamptz created_at
+  }
+  attachment_blobs {
+    uuid id PK
+    int size_bytes "<= 1 MB"
     bytea content
     timestamptz created_at
   }
   message_reactions {
     uuid message_id PK,FK
-    uuid user_id PK "REF"
-    varchar emoji PK
+    uuid user_id PK "REF; kişi başına tek"
+    varchar emoji "1-32"
+    timestamptz reacted_at
   }
   message_read_ranges {
     uuid id PK
@@ -773,8 +786,9 @@ erDiagram
     timestamptz read_at "aralığın okunma saati"
   }
   message_hidden_for_users {
-    uuid message_id PK,FK
     uuid user_id PK "REF"
+    uuid message_id PK,FK
+    timestamptz hidden_at
   }
 ```
 

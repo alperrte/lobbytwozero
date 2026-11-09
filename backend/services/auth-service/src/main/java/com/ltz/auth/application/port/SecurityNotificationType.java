@@ -19,5 +19,7 @@ public enum SecurityNotificationType {
     /** Tek kullanımlık kurtarma kodu kullanıldı (giriş ya da hassas işlem). */
     RECOVERY_CODE_USED,
     /** Hesaba Google ya da Steam kimliği bağlandı. */
-    EXTERNAL_IDENTITY_LINKED
+    EXTERNAL_IDENTITY_LINKED,
+    /** Hesap ilk kez doğrulanmış e-postayla açıldı (tek seferlik; adı Mail ile birebir). */
+    WELCOME
 }
