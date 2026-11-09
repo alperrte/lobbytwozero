@@ -257,9 +257,10 @@ Game Service GAME-04/05/15 LTZ puan projeksiyonu (aktif V172, 2026-11-05; V171�
 | --- | --- | --- |
 | `library_entries` | id, user_id REF, game_id REF, in_collection, favorite, completed, completed_at, play_status, added_at, updated_at, version | **UQ (user_id, game_id)**; favori/bitirildi → in_collection=true (LIB-15) |
 | `game_snapshots` | game_id PK, title, cover_url, status, refreshed_at | Katalog değişikliklerine dayanıklılık (LIB-17) |
-| `idempotency_records`, `outbox_events`, `inbox_events` | §2.4 | |
+| `library_summary_outbox` | user_id PK (REF), change_seq, attempts, next_attempt_at | LIB-10 (V43): kullanıcı başına tek "özet değişti" işareti; `LibrarySummaryChanged` mutlak sayıları gönderim anında okunur. Standart `outbox_events` yerine bu tablo seçildi çünkü olay yükü yazma anında değil gönderimde hesaplanır (sıra bozulsa da son olay güncel toplamı taşır). V43 var olan sahipleri bir kez işaretler |
+| `idempotency_records`, `outbox_events`, `inbox_events` | §2.4 | Henüz kullanılmıyor |
 
-İndeks: `ix_library_entries_user_favorite`, `ix_library_entries_user_completed`.
+İndeks: `ix_library_entries_user_favorite`, `ix_library_entries_user_completed`, `ix_library_summary_outbox_next`.
 
 ### 3.6 review_db — review-service (Hamza)
 

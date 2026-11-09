@@ -1,4 +1,123 @@
 {
+  "Library": {
+  "cover": "{title} oyun kapağı",
+  "titles": {
+    "all": "Oyun Kütüphanem",
+    "favorites": "Favori Oyunlarım",
+    "completed": "Bitirdiğim Oyunlar",
+    "add": "Kütüphaneye Oyun Ekle",
+    "privacy": "Kütüphane Gizliliği",
+    "profile": "Oyuncunun Kütüphanesi"
+  },
+  "descriptions": {
+    "all": "Oyunlarını bir arada tut, favorilerini seç ve bitirdiğin oyunları takip et.",
+    "favorites": "Tekrar dönmek istediğin oyunlar. Favoriden çıkarmak koleksiyonunu etkilemez.",
+    "completed": "Tamamladığın oyunlar bir arada. Bitirildi işareti favorilerinden bağımsızdır.",
+    "add": "LTZ kataloğundan bir oyun seçerek kendi koleksiyonuna ekle.",
+    "privacy": "Kütüphaneni kimlerin görebileceğini belirle.",
+    "profile": "Yalnız erişimine izin verilen koleksiyon bilgileri gösterilir."
+  },
+  "tabs": {
+    "all": "Tüm oyunlar",
+    "favorites": "Favoriler",
+    "completed": "Bitirilenler",
+    "add": "Oyun ekle",
+    "privacy": "Gizlilik"
+  },
+  "navigation": "Kütüphane gezinmesi",
+  "addGame": "Oyun Ekle",
+  "loading": "Kütüphane yükleniyor",
+  "saving": "İşlem sürüyor…",
+  "saved": "Kütüphane güncellendi.",
+  "retry": "Tekrar dene",
+  "refresh": "Yenile",
+  "login": "Giriş yap",
+  "favorite": "Favori",
+  "completed": "Bitirildi",
+  "markFavorite": "Favoriye ekle",
+  "unfavorite": "Favoriden çıkar",
+  "markCompleted": "Bitirildi işaretle",
+  "uncomplete": "Bitirildi işaretini kaldır",
+  "remove": "Kütüphaneden kaldır",
+  "removeTitle": "Oyunu kütüphanenden kaldır?",
+  "removeHint": "“{title}” koleksiyonundan kaldırılacak. Favori ve bitirildi işaretleri de silinecek.",
+  "cancel": "Vazgeç",
+  "unknownTitle": "Oyun adı mevcut değil",
+  "unknownDate": "Tarih mevcut değil",
+  "addedAt": "Eklenme: {date}",
+  "observedAt": "Son gözlem: {date}",
+  "openGame": "{title} oyun detayını aç",
+  "stats": {
+    "totalGames": "Toplam oyun",
+    "favoriteGames": "Favori oyun",
+    "completedGames": "Bitirilen oyun"
+  },
+  "metadata": {
+    "UNAVAILABLE": "Oyun şu anda katalogda kullanılamıyor.",
+    "TEMPORARILY_UNAVAILABLE": "Oyun bilgileri geçici olarak doğrulanamıyor.",
+    "LAST_KNOWN": "Son bilinen bilgi",
+    "NONE": "Oyun bilgisi mevcut değil."
+  },
+  "metadataPartial": "Bazı oyun bilgileri eksik veya son bilinen bilgilerden gösteriliyor. Kütüphane kayıtların korunuyor.",
+  "filters": {
+    "all": "Tümü",
+    "yes": "İşaretli",
+    "no": "İşaretsiz"
+  },
+  "sort": "Sıralama",
+  "sorting": {
+    "ADDED_AT_DESC": "Yeni eklenenler",
+    "ADDED_AT_ASC": "Eski eklenenler",
+    "TITLE_ASC": "Oyun adı: A → Z",
+    "TITLE_DESC": "Oyun adı: Z → A"
+  },
+  "pageSize": "Sayfa boyutu",
+  "pagination": "Kütüphane sayfaları",
+  "page": "Sayfa {page, number} / {pages, number}",
+  "previous": "Önceki",
+  "next": "Sonraki",
+  "total": "{count, number} oyun",
+  "empty": "Henüz oyun yok",
+  "emptyHint": "Katalogdan ilk oyununu seçerek koleksiyonunu oluşturmaya başla.",
+  "emptyFiltered": "Bu filtrelerde oyun yok",
+  "emptyFilteredHint": "Başka filtreleri deneyebilir veya koleksiyonuna oyun ekleyebilirsin.",
+  "emptyProfile": "Bu oyuncunun görüntülenebilen koleksiyonunda oyun yok.",
+  "clearFilters": "Filtreleri temizle",
+  "pageEmpty": "Bu sayfada kayıt yok. Koleksiyonun değişmiş olabilir.",
+  "returnToResults": "Sonuçlara dön",
+  "chooseGame": "Katalogda oyun ara",
+  "collectionHint": "Kütüphaneye eklemek, oyunun satın alındığını veya oyun lisansına sahip olduğunu göstermez.",
+  "automaticCollection": "Favori veya bitirildi seçimi oyunu otomatik olarak koleksiyonuna da ekler. Aynı oyunu tekrar seçmek yeni kayıt oluşturmaz.",
+  "addFailureHint": "İşlemin bir bölümü kaydedilmiş olabilir. Yeniden göndermeden önce koleksiyonunu kontrol et.",
+  "checkCollection": "Kütüphanemi kontrol et",
+  "visibility": "Kütüphane görünürlüğü",
+  "save": "Kaydet",
+  "privacyHint": "Bu ayar User Service tarafından yönetilir. Diğer gizlilik tercihlerin korunur. Library görüntülemek için oturum gerekir; herkese açık seçimi anonim erişim sağlamaz.",
+  "privacyReloaded": "Güncel gizlilik ayarları yeniden yüklendi.",
+  "privacySaved": "Kütüphane gizliliğin kaydedildi.",
+  "privacy": {
+    "PUBLIC": "Herkese açık",
+    "FRIENDS": "Arkadaşlar",
+    "PRIVATE": "Yalnız ben",
+    "PUBLICHint": "Giriş yapmış oyuncular, backend erişim izni verdiğinde görüntüleyebilir.",
+    "FRIENDSHint": "Arkadaşların, arkadaşlık ve engel kontrolleri izin verdiğinde görüntüleyebilir.",
+    "PRIVATEHint": "Koleksiyonunu yalnız sen görüntüleyebilirsin."
+  },
+  "errors": {
+    "400": "İstek veya sayfa bilgisi geçersiz. Seçimlerini kontrol et.",
+    "401": "Oturumun sona erdi. Devam etmek için giriş yap.",
+    "403": "Bu işlem için erişim iznin yok.",
+    "404": "Oyun bulunamadı veya şu anda kullanılamıyor.",
+    "409": "Ayarlar başka bir yerde değişti. Güncel ayarlar yeniden yükleniyor; seçimini kontrol edip tekrar kaydet.",
+    "429": "Çok fazla istek gönderildi. Biraz bekleyip tekrar dene.",
+    "500": "Sunucu işlemi tamamlayamadı. Güncel durumu kontrol et.",
+    "503": "Servis geçici olarak kullanılamıyor. Biraz sonra tekrar dene.",
+    "csrf": "Güvenlik doğrulaması tamamlanamadı. Sayfayı yenileyerek tekrar dene.",
+    "private": "Bu kütüphaneyi görüntüleme iznin yok. Görünürlük veya ilişki ayarları erişimi sınırlıyor.",
+    "decision": "Kütüphane görünürlüğü şu anda doğrulanamıyor. Gizlilik için bilgiler gösterilmiyor.",
+    "network": "Bağlantı kurulamadı veya istek zaman aşımına uğradı. İşlem yaptıysan tekrar göndermeden önce güncel durumu kontrol et."
+  }
+},
   "Metadata": {
     "siteName": "LobbyTwoZero",
     "description": "LobbyTwoZero; oyun keşfi, oyuncu topluluğu, sosyal etkileşim ile donanım ve oyun performansı deneyimleri için geliştirilen oyun odaklı sosyal platformdur."
@@ -162,6 +281,26 @@
     }
   },
   "Pages": {
+  "library": {
+    "title": "Oyun Kütüphanem",
+    "description": "Oyunlarını bir arada tut, favorilerini seç ve bitirdiğin oyunları takip et."
+  },
+  "libraryFavorites": {
+    "title": "Favori Oyunlarım",
+    "description": "Tekrar dönmek istediğin oyunlar. Favoriden çıkarmak koleksiyonunu etkilemez."
+  },
+  "libraryCompleted": {
+    "title": "Bitirdiğim Oyunlar",
+    "description": "Tamamladığın oyunlar bir arada. Bitirildi işareti favorilerinden bağımsızdır."
+  },
+  "libraryAdd": {
+    "title": "Kütüphaneye Oyun Ekle",
+    "description": "LTZ kataloğundan bir oyun seçerek kendi koleksiyonuna ekle."
+  },
+  "libraryPrivacy": {
+    "title": "Kütüphane Gizliliği",
+    "description": "Kütüphaneni kimlerin görebileceğini belirle."
+  },
     "games": {
       "title": "Oyunlar",
       "description": "Katalogda oyun bul, detaylarını ve topluluğun paylaştıklarını keşfet."

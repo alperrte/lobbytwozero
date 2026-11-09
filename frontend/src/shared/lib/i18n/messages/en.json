@@ -1,4 +1,123 @@
 {
+  "Library": {
+  "cover": "Game cover for {title}",
+  "titles": {
+    "all": "My Game Library",
+    "favorites": "My Favorite Games",
+    "completed": "My Completed Games",
+    "add": "Add a Game to Your Library",
+    "privacy": "Library Privacy",
+    "profile": "Player Library"
+  },
+  "descriptions": {
+    "all": "Keep your games together, choose favorites and track the games you finish.",
+    "favorites": "Games you want to return to. Removing a favorite keeps it in your collection.",
+    "completed": "The games you have finished. Completion is independent of favorites.",
+    "add": "Choose a game from the LTZ catalogue for your collection.",
+    "privacy": "Choose who can see your library.",
+    "profile": "Only collection information you are allowed to access is displayed."
+  },
+  "tabs": {
+    "all": "All games",
+    "favorites": "Favorites",
+    "completed": "Completed",
+    "add": "Add game",
+    "privacy": "Privacy"
+  },
+  "navigation": "Library navigation",
+  "addGame": "Add Game",
+  "loading": "Loading library",
+  "saving": "Saving…",
+  "saved": "Library updated.",
+  "retry": "Try again",
+  "refresh": "Refresh",
+  "login": "Sign in",
+  "favorite": "Favorite",
+  "completed": "Completed",
+  "markFavorite": "Add favorite",
+  "unfavorite": "Remove favorite",
+  "markCompleted": "Mark completed",
+  "uncomplete": "Undo completion",
+  "remove": "Remove from library",
+  "removeTitle": "Remove this game from your library?",
+  "removeHint": "“{title}” will be removed from your collection. Its favorite and completed marks will also be deleted.",
+  "cancel": "Cancel",
+  "unknownTitle": "Game title unavailable",
+  "unknownDate": "Date unavailable",
+  "addedAt": "Added: {date}",
+  "observedAt": "Last observed: {date}",
+  "openGame": "Open game details for {title}",
+  "stats": {
+    "totalGames": "Total games",
+    "favoriteGames": "Favorite games",
+    "completedGames": "Completed games"
+  },
+  "metadata": {
+    "UNAVAILABLE": "This game is currently unavailable in the catalogue.",
+    "TEMPORARILY_UNAVAILABLE": "Game information cannot be verified right now.",
+    "LAST_KNOWN": "Last known information",
+    "NONE": "Game information unavailable"
+  },
+  "metadataPartial": "Some game information is missing or uses last known details. Your library entries are preserved.",
+  "filters": {
+    "all": "All",
+    "yes": "Marked",
+    "no": "Unmarked"
+  },
+  "sort": "Sort by",
+  "sorting": {
+    "ADDED_AT_DESC": "Recently added",
+    "ADDED_AT_ASC": "Oldest added",
+    "TITLE_ASC": "Game title: A → Z",
+    "TITLE_DESC": "Game title: Z → A"
+  },
+  "pageSize": "Page size",
+  "pagination": "Library pages",
+  "page": "Page {page, number} / {pages, number}",
+  "previous": "Previous",
+  "next": "Next",
+  "total": "{count, plural, one {# game} other {# games}}",
+  "empty": "No games yet",
+  "emptyHint": "Choose your first game from the catalogue to start your collection.",
+  "emptyFiltered": "No games match these filters",
+  "emptyFilteredHint": "Try other filters or add a game to your collection.",
+  "emptyProfile": "This player's accessible collection has no games.",
+  "clearFilters": "Clear filters",
+  "pageEmpty": "There are no entries on this page. The collection may have changed.",
+  "returnToResults": "Return to results",
+  "chooseGame": "Search the game catalogue",
+  "collectionHint": "Adding a game to your library does not prove a purchase or ownership of a game license.",
+  "automaticCollection": "Marking a game as favorite or completed also adds it to your collection. Selecting it again does not create a duplicate entry.",
+  "addFailureHint": "Part of the operation may have been saved. Check your collection before submitting again.",
+  "checkCollection": "Check my library",
+  "visibility": "Library visibility",
+  "save": "Save",
+  "privacyHint": "User Service manages this setting. Your other privacy preferences are preserved. Viewing a library requires a session; public visibility does not grant anonymous access.",
+  "privacyReloaded": "The latest privacy settings have been reloaded.",
+  "privacySaved": "Library privacy saved.",
+  "privacy": {
+    "PUBLIC": "Public",
+    "FRIENDS": "Friends",
+    "PRIVATE": "Only me",
+    "PUBLICHint": "Signed-in players can view your library when backend access checks allow it.",
+    "FRIENDSHint": "Friends can view your library when friendship and blocking checks allow it.",
+    "PRIVATEHint": "Only you can view your collection."
+  },
+  "errors": {
+    "400": "The request or page information is invalid. Check your selections.",
+    "401": "Your session has expired. Sign in to continue.",
+    "403": "You do not have permission for this action.",
+    "404": "The game was not found or is currently unavailable.",
+    "409": "Settings changed elsewhere. Reloading the latest settings; review your selection before saving again.",
+    "429": "Too many requests. Wait a little before trying again.",
+    "500": "The server could not complete the operation. Check the current state.",
+    "503": "The service is temporarily unavailable. Try again later.",
+    "csrf": "Security verification failed. Refresh the page before trying again.",
+    "private": "You cannot view this library. Visibility or relationship settings restrict access.",
+    "decision": "Library visibility cannot be verified right now. Information is hidden to protect privacy.",
+    "network": "Could not connect or the request timed out. If you made a change, check the current state before submitting again."
+  }
+},
   "Metadata": {
     "siteName": "LobbyTwoZero",
     "description": "LobbyTwoZero is a game-focused social platform being built for game discovery, the player community, social interaction, and hardware and game performance experiences."
@@ -162,6 +281,26 @@
     }
   },
   "Pages": {
+  "library": {
+    "title": "My Game Library",
+    "description": "Keep your games together, choose favorites and track the games you finish."
+  },
+  "libraryFavorites": {
+    "title": "My Favorite Games",
+    "description": "Games you want to return to. Removing a favorite keeps it in your collection."
+  },
+  "libraryCompleted": {
+    "title": "My Completed Games",
+    "description": "The games you have finished. Completion is independent of favorites."
+  },
+  "libraryAdd": {
+    "title": "Add a Game to Your Library",
+    "description": "Choose a game from the LTZ catalogue for your collection."
+  },
+  "libraryPrivacy": {
+    "title": "Library Privacy",
+    "description": "Choose who can see your library."
+  },
     "games": {
       "title": "Games",
       "description": "Find a game and explore its details and community contributions."
