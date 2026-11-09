@@ -22,6 +22,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 import com.ltz.event.domain.exception.AuthenticationRequiredException;
 import com.ltz.event.domain.exception.EventCreationForbiddenException;
+import com.ltz.event.domain.exception.EventNotFoundException;
 import com.ltz.event.domain.exception.InvalidEventScheduleException;
 
 /** Tüm hatalar ProblemDetail (RFC 9457) döner; stack trace, SQL veya kullanıcı girdisi yanıta yazılmaz. */
@@ -50,6 +51,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	@ExceptionHandler(EventCreationForbiddenException.class)
 	public ProblemDetail handleEventCreationForbidden(EventCreationForbiddenException exception) {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, exception.getMessage());
+	}
+
+	@ExceptionHandler(EventNotFoundException.class)
+	public ProblemDetail handleEventNotFound(EventNotFoundException exception) {
+		return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
 	}
 
 	@ExceptionHandler(InvalidEventScheduleException.class)

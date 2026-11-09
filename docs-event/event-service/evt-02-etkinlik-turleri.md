@@ -1,6 +1,6 @@
 # EVT-02 — Etkinlik türleri: kaynaklar, kararlar ve varsayımlar
 
-> Durum: **IN PROGRESS, doğrulama bekliyor.** Kod ve testler yazıldı; testler ve V112 migration'ı **çalıştırılmadı** (Docker dev veritabanında V112 henüz uygulanmadı).
+> Durum: **IN PROGRESS, doğrulama bekliyor.** Kod ve testler yazıldı; testler ve V112 migration'ı **çalıştırılmadı** (V112 dev veritabanına bir pre-push testiyle uygulandı, 19:09 UTC; Docker imajı 19:42 UTC'de yeniden build edildi).
 > Son güncelleme: 2026-11-09 · Sorumlu: Nisa · Önceki görev: [EVT-01](evt-01-kararlar-ve-varsayimlar.md)
 
 ## 1. Gereksinim ve kararlar
@@ -39,5 +39,5 @@
 
 - V112, hiçbir veritabanında uygulanmadı; `ddl-auto=validate` ve `ck_events_type`'ın yeni değeri DB'de denenmedi. `EventServiceApplicationTests.contextLoads` ve gerçek PostgreSQL bunu dener, **çalıştırılmadı**.
 - Hiçbir test çalıştırılmadı; yalnız derleme ve Checkstyle/PMD (`lint-ratchet`: 0 yeni ihlal) yerel olarak denendi.
-- Docker'daki çalışan event-service imajı EVT-02 öncesi koddadır; yeniden build gerekir.
+- Docker: imaj 19:42 UTC'de yeniden build edildi; jar'da `POLL` ve `V112__add_poll_event_type.sql` bulunuyor, şema 112 (jar ve veritabanı ayrı ayrı doğrulandı). `POLL` ile gerçek bir `POST` denenmedi (geçerli token yok).
 - DB seviyesinde `POLL` satırı yazılabildiği doğrulanmadı (DB testi altyapısı yok).

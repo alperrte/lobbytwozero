@@ -1,5 +1,8 @@
 package com.ltz.event.application.service;
 
+import com.ltz.event.domain.exception.EventNotFoundException;
+import static org.mockito.Mockito.never;
+import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -35,6 +38,7 @@ import com.ltz.event.infrastructure.persistence.repository.EventRepository;
 class EventServiceTest {
 
 	private static final UUID USER_ID = UUID.fromString("0198a3c2-7b1e-7d44-9a55-3f1c2b4d5e66");
+	private static final UUID OTHER_ORGANIZER_ID = UUID.fromString("0198a3c2-9999-7d44-9a55-3f1c2b4d5e66");
 	private static final Instant NOW = Instant.parse("2026-11-09T10:00:00Z");
 
 	@Mock
@@ -131,6 +135,54 @@ class EventServiceTest {
 		assertThatThrownBy(() -> eventService.createEvent(
 				request("Başlık", "Açıklama", NOW.plusSeconds(120), NOW.plusSeconds(60))))
 				.isInstanceOf(InvalidEventScheduleException.class);
+		verifyNoInteractions(eventRepository);
+	}
+
+	@Test
+	void authenticatedUserReadsAnyEventById() {
+		Event stored = Event.schedule(OTHER_ORGANIZER_ID, EventType.POLL, "Oylama", "Hangi oyun?", NOW.plusSeconds(60),
+				NOW.plusSeconds(120), NOW);
+		UUID eventId = UUID.fromString("0198a3c2-eeee-7d44-9a55-3f1c2b4d5e66");
+		when(currentUser.requireUserId()).thenReturn(USER_ID);
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(stored));
+
+		EventResponse response = eventService.getEvent(eventId);
+
+		assertThat(response.organizerId()).isEqualTo(OTHER_ORGANIZER_ID);
+		assertThat(response.type()).isEqualTo(EventType.POLL);
+		assertThat(response.title()).isEqualTo("Oylama");
+		assertThat(response.description()).isEqualTo("Hangi oyun?");
+		assertThat(response.startsAt()).isEqualTo(NOW.plusSeconds(60));
+		assertThat(response.endsAt()).isEqualTo(NOW.plusSeconds(120));
+		assertThat(response.status()).isEqualTo(EventStatus.PLANNED);
+	}
+
+	@Test
+	void readingDoesNotRequireTheCreatorRole() {
+		UUID eventId = UUID.fromString("0198a3c2-eeee-7d44-9a55-3f1c2b4d5e66");
+		when(currentUser.requireUserId()).thenReturn(USER_ID);
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(
+				Event.schedule(OTHER_ORGANIZER_ID, EventType.OTHER, "T", "D", NOW.plusSeconds(60), NOW.plusSeconds(120), NOW)));
+
+		assertThat(eventService.getEvent(eventId)).isNotNull();
+		verify(currentUser, never()).canCreateEvents();
+	}
+
+	@Test
+	void unknownEventIsReportedAsNotFound() {
+		UUID eventId = UUID.fromString("0198a3c2-eeee-7d44-9a55-3f1c2b4d5e66");
+		when(currentUser.requireUserId()).thenReturn(USER_ID);
+		when(eventRepository.findById(eventId)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> eventService.getEvent(eventId)).isInstanceOf(EventNotFoundException.class);
+	}
+
+	@Test
+	void unauthenticatedCallersCannotReadEvents() {
+		when(currentUser.requireUserId()).thenThrow(new AuthenticationRequiredException("Authentication is required."));
+
+		assertThatThrownBy(() -> eventService.getEvent(UUID.randomUUID()))
+				.isInstanceOf(AuthenticationRequiredException.class);
 		verifyNoInteractions(eventRepository);
 	}
 }

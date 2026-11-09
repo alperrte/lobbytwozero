@@ -1,5 +1,8 @@
 package com.ltz.event.infrastructure.security;
 
+import com.ltz.event.domain.enums.EventType;
+import java.util.Optional;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -277,5 +280,53 @@ class EventEndpointSecurityTest {
 	void unknownApiPathsRequireAuthentication() throws Exception {
 		mockMvc.perform(post("/api/v1/event/unknown").contentType(MediaType.APPLICATION_JSON).content("{}"))
 				.andExpect(status().isUnauthorized());
+	}
+
+	// ------------------------------------------------------------------ detay okuma (EVT-03)
+
+	private ResultActions getWith(String token, UUID eventId) throws Exception {
+		var request = get(URL + "/" + eventId);
+		if (token != null) {
+			request.header(HttpHeaders.AUTHORIZATION, "Bearer " + token);
+		}
+		return mockMvc.perform(request);
+	}
+
+	private static Event storedEvent() {
+		return Event.schedule(OTHER_ID, EventType.TOURNAMENT, "Bahar Turnuvası", "Eleme usulü.",
+				Instant.now().plusSeconds(86_400), Instant.now().plusSeconds(97_200), Instant.now());
+	}
+
+	@Test
+	void everyRegisteredRoleReadsEventDetailsWithAValidToken() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(storedEvent()));
+
+		for (String role : new String[] { "PLAYER", "MODERATOR", "ADMIN", "CONTENT_CREATOR", "GAME_DEVELOPER" }) {
+			getWith(AuthTestSupport.userToken(USER_ID, role), eventId)
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.title").value("Bahar Turnuvası"))
+					.andExpect(jsonPath("$.organizerId").value(OTHER_ID.toString()));
+		}
+	}
+
+	@Test
+	void eventDetailsRequireAValidToken() throws Exception {
+		UUID eventId = UUID.randomUUID();
+
+		getWith(null, eventId).andExpect(status().isUnauthorized());
+		getWith("bu-bir-jwt-degil", eventId).andExpect(status().isUnauthorized());
+		JWTClaimsSet claims = AuthTestSupport.validUserClaims(USER_ID).claim("roles", List.of("PLAYER")).build();
+		getWith(AuthTestSupport.sign(AuthTestSupport.SIGNING_KEY, AuthTestSupport.serviceType(), claims), eventId)
+				.andExpect(status().isUnauthorized());
+		verifyNoInteractions(eventRepository);
+	}
+
+	@Test
+	void unknownEventReturns404ForAnAuthenticatedUser() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		when(eventRepository.findById(eventId)).thenReturn(Optional.empty());
+
+		getWith(AuthTestSupport.userToken(USER_ID, "PLAYER"), eventId).andExpect(status().isNotFound());
 	}
 }

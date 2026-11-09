@@ -92,7 +92,7 @@ Notlar:
 
 **Doğrulanmadı (NOT VERIFIED):**
 - Hiçbir test çalıştırılmadı (JUnit, pre-push, `node pre-push/ci/backend.mjs`).
-- **KD-1 (PLAYER/MODERATOR/ADMIN) kodu Docker'da çalışan container'a henüz alınmadı**; çalışan imaj eski ADMIN/MODERATOR kuralını içerir. Yeniden build gerekir.
+- **KD-1 (PLAYER/MODERATOR/ADMIN):** çalışan imajda bulunuyor (jar'daki `EventRoles` incelendi, 2026-11-09 19:42 UTC build). Davranışı (PLAYER token'ıyla 201) geçerli token olmadığı için Docker'da **denenmedi**.
 - Geçerli bir Auth token'ıyla 201/403/400 yanıtları ve `events` tablosuna satır yazılması (hiç denenmedi); event-service'in Auth JWKS'ini container içinden çekebildiği.
 - DB seviyesinde CHECK testi yok (Testcontainers/izole PostgreSQL altyapısı bu serviste kurulmadı).
 - Gateway üzerinden çerez → Bearer + CSRF akışı.

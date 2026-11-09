@@ -13,6 +13,7 @@ import org.springframework.transaction.CannotCreateTransactionException;
 
 import com.ltz.event.domain.exception.AuthenticationRequiredException;
 import com.ltz.event.domain.exception.EventCreationForbiddenException;
+import com.ltz.event.domain.exception.EventNotFoundException;
 import com.ltz.event.domain.exception.InvalidEventScheduleException;
 import com.ltz.event.domain.exception.InvalidEventScheduleException.Reason;
 
@@ -80,5 +81,13 @@ class GlobalExceptionHandlerTest {
 
 		assertThat(problem.getStatus()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.value());
 		assertThat(problem.getDetail()).isEqualTo("An unexpected error occurred.");
+	}
+
+	@Test
+	void eventNotFoundIsMappedTo404() {
+		ProblemDetail problem = handler.handleEventNotFound(new EventNotFoundException());
+
+		assertThat(problem.getStatus()).isEqualTo(HttpStatus.NOT_FOUND.value());
+		assertThat(problem.getDetail()).isEqualTo("Event not found.");
 	}
 }

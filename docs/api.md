@@ -8207,6 +8207,61 @@ Auth Service JWKS (`GET /api/v1/auth/.well-known/jwks.json`) ile token doğrulam
 #### Test Durumu
 UNIT — test sınıfları **yazıldı, çalıştırılmadı** (`EventTest`, `EventServiceTest`, `EventControllerTest`, `EventEndpointSecurityTest` [gerçek RS256 token + yerel JWKS, DB deposu taklit], `SecurityContextCurrentUserTest`, `JwtConfigTest`). Kapsam dışı / **NOT VERIFIED**: Flyway migration V111 ve `ddl-auto=validate` (çalıştırılmadı), DB seviyesinde CHECK/entity eşlemesi testi (yok), gerçek Auth token'ıyla uçtan uca.
 
+### EVENT — Etkinlik Detayı (EVT-03)
+
+Durum: IN PROGRESS (KISMİ — EVT-03 tamamlanmadı)
+Sorumlu: Nisa
+Tüketici servisler: Frontend (henüz yok)
+
+> **Kısmi:** ad, açıklama, başlangıç/bitiş zamanı, tür ve durum döner. **"Katılım bilgileri" (kapasite, katılımcı sayısı, kalan kontenjan, kullanıcının katılım durumu) EKSİKTİR**: gerçek veri kaynağı yoktur ve sahte/varsayılan değer döndürülmez. EVT-13 ve EVT-08 tamamlandığında bu alanların detay yanıtına **eklenmesi gerekir** (takip listesi T-1..T-6); o zamana kadar EVT-03 tamamlanmış sayılmaz. Katılım cezası EVT-03'ün zorunlu kapsamında değildir (EVT-11). Gereksinim tablosu: [docs-event/event-service/evt-03-etkinlik-detayi.md](../docs-event/event-service/evt-03-etkinlik-detayi.md).
+
+#### Endpoint
+GET /api/v1/event/events/{eventId}
+
+#### Yetkilendirme
+Authenticated. Geçerli bir kullanıcı token'ı yeterlidir; oluşturma rolü (`PLAYER`/`MODERATOR`/`ADMIN`) aranmaz. Karar KD-4 (Nisa, 2026-11-09): etkinlik detayını şimdilik **yalnız giriş yapan kullanıcılar** görür; **misafir 401 alır**. Görünürlük alanı yoktur: kimliği doğrulanmış her kullanıcı her etkinliği görür.
+
+#### Path Parameters
+- eventId: UUID, zorunlu
+
+#### Response — 200
+```json
+{
+  "id": "UUID",
+  "organizerId": "UUID (etkinliği oluşturan hesap)",
+  "type": "TOURNAMENT | GAME_NIGHT | COMMUNITY | POLL | OTHER",
+  "title": "Cuma Oyun Gecesi",
+  "description": "Birlikte co-op oynuyoruz.",
+  "startsAt": "2026-12-05T18:00:00Z",
+  "endsAt": "2026-12-05T21:00:00Z",
+  "status": "PLANNED | ACTIVE | COMPLETED | CANCELLED",
+  "createdAt": "2026-11-09T10:00:00Z",
+  "updatedAt": "2026-11-09T10:00:00Z"
+}
+```
+İptal edilmiş (`CANCELLED`) ve tamamlanmış etkinlikler de döner; durum `status` alanındadır.
+
+`organizerId`: şu an her zaman doludur. Karar KD-3 (hesap silinince düzenleyici bağlantısının kaldırılması) uygulandığında **`null` olabilecektir** ("Silinmiş kullanıcı"); bu, `events.organizer_id`'yi nullable yapan migration ve Auth hesap silme ucuna bağlıdır. İstemci `null`'a dayanıklı olmalıdır.
+
+**Henüz bulunmayan alanlar** (gerçek veri kaynağı yok; EVT-13/EVT-08 sonrası geri uyumlu eklenecek): kapasite, katılımcı sayısı, kalan kontenjan, kullanıcının katılım durumu. Şema buna göre genişleyecektir.
+
+#### Hata Durumları
+- 400: `eventId` geçerli bir UUID değil
+- 401: Token yok/geçersiz/süresi dolmuş
+- 404: Bu kimlikle etkinlik yok
+- 503: Veritabanı geçici olarak erişilemiyor
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/event/events/{eventId}
+
+Diğer mikroservisler:
+Auth Service JWKS ile token doğrulama. Organizatör adı için istemci, `organizerId` ile User Service'ten profil bilgisi isteyebilir (bu serviste çağrı yoktur).
+
+#### Test Durumu
+UNIT — test sınıfları **yazıldı, EVT-03 testleri çalıştırılmadı** (`EventServiceTest`, `EventControllerTest`, `EventEndpointSecurityTest` [gerçek RS256 token + yerel JWKS, DB deposu taklit], `GlobalExceptionHandlerTest`). **NOT VERIFIED:** gerçek veritabanından okuma, Gateway üzerinden çağrı, gerçek Auth token'ı. Docker: event-service 2026-11-09 19:42 UTC'de yeniden build edildi; imajda bu uç (jar) ve V112 bulunuyor, token'sız çağrı 401; geçerli token'la davranış denenmedi.
+
 ## HARDWARE
 
 **Güncel Auth sözleşmesi — 2026-10-29:** Kullanıcı uçları gerçek Auth JWKS'i ile

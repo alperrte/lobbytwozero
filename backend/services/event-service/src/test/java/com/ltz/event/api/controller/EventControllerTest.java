@@ -1,5 +1,7 @@
 package com.ltz.event.api.controller;
 
+import com.ltz.event.domain.exception.EventNotFoundException;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
@@ -225,5 +227,48 @@ class EventControllerTest {
 		for (EventType type : EventType.values()) {
 			create("ADMIN", VALID.replace("GAME_NIGHT", type.name())).andExpect(status().isCreated());
 		}
+	}
+
+	@Test
+	void anyAuthenticatedUserReadsAnEventById() throws Exception {
+		when(eventService.getEvent(EVENT_ID)).thenReturn(created());
+
+		// Okuma, oluşturma rolü gerektirmez: yalnız geçerli kimlik yeterlidir.
+		mockMvc.perform(get(URL + "/" + EVENT_ID).with(as("CONTENT_CREATOR")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(EVENT_ID.toString()))
+				.andExpect(jsonPath("$.organizerId").value(USER_ID.toString()))
+				.andExpect(jsonPath("$.type").value("GAME_NIGHT"))
+				.andExpect(jsonPath("$.title").value("Cuma Oyun Gecesi"))
+				.andExpect(jsonPath("$.description").value("Birlikte oynuyoruz."))
+				.andExpect(jsonPath("$.startsAt").value("2099-12-05T18:00:00Z"))
+				.andExpect(jsonPath("$.endsAt").value("2099-12-05T21:00:00Z"))
+				.andExpect(jsonPath("$.status").value("PLANNED"))
+				.andExpect(jsonPath("$.createdAt").value("2026-11-09T10:00:00Z"))
+				.andExpect(jsonPath("$.updatedAt").value("2026-11-09T10:00:00Z"));
+	}
+
+	@Test
+	void readingAnEventRequiresAuthentication() throws Exception {
+		mockMvc.perform(get(URL + "/" + EVENT_ID))
+				.andExpect(status().isUnauthorized())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+		verifyNoInteractions(eventService);
+	}
+
+	@Test
+	void unknownEventIsMappedTo404() throws Exception {
+		when(eventService.getEvent(EVENT_ID)).thenThrow(new EventNotFoundException());
+
+		mockMvc.perform(get(URL + "/" + EVENT_ID).with(as("PLAYER")))
+				.andExpect(status().isNotFound())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+				.andExpect(jsonPath("$.status").value(404));
+	}
+
+	@Test
+	void malformedEventIdIsMappedTo400() throws Exception {
+		mockMvc.perform(get(URL + "/not-a-uuid").with(as("PLAYER"))).andExpect(status().isBadRequest());
+		verifyNoInteractions(eventService);
 	}
 }
