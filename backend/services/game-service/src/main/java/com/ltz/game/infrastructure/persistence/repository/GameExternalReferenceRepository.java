@@ -153,6 +153,20 @@ public interface GameExternalReferenceRepository extends JpaRepository<GameExter
     java.util.List<ClassificationRow> storeItemCandidates(@org.springframework.data.repository.query.Param("cutoff") java.time.Instant cutoff,
             @org.springframework.data.repository.query.Param("limit") int limit);
     /**
+     * Erken erişim adayları: aktif harici Steam ana oyunları; {@code EARLY_ACCESS} gözlemi {@code cutoff}'tan yeni olanlar çıkar (gözlem her
+     * incelemede yenilenir, böylece oyun ayda bir yeniden sorulur ve erken erişimden çıkış fark edilir). Sıra: editör seçimi, yayımlanmış oyunlar (yeni önce).
+     */
+    @org.springframework.data.jpa.repository.Query(value = """
+        select r.external_id as externalId, r.game_id as gameId
+        from game_external_refs r join games g on g.id = r.game_id
+        where r.provider = 'STEAM' and g.status = 'ACTIVE' and g.origin = 'EXTERNAL' and g.game_type = 'MAIN_GAME'
+        and not exists (select 1 from game_metadata_provenance v where v.game_id = g.id and v.field = 'EARLY_ACCESS' and v.recorded_at > :cutoff)
+        order by (g.editor_rank is null), (g.release_date is null or g.release_date > current_date), g.release_date desc nulls last, g.id
+        limit :limit
+        """, nativeQuery = true)
+    java.util.List<ClassificationRow> earlyAccessCandidates(@org.springframework.data.repository.query.Param("cutoff") java.time.Instant cutoff,
+            @org.springframework.data.repository.query.Param("limit") int limit);
+    /**
      * Yerelleştirilmiş açıklama adayları: aktif harici Steam ana oyunları; {@code marker} gözlemi {@code cutoff}'tan yeni olanlar çıkar. Sıra:
      * editör seçimi, yayımlanmış oyunlar (yeni önce).
      */

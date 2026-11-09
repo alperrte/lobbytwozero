@@ -73,6 +73,27 @@ final class SteamStoreBrowse {
         return input(ids, steamLanguage, "{\"include_basic_info\":true}");
     }
 
+    /** Yalnız çıkış bilgisi (erken erişim bayrağı) isteği. */
+    static String earlyAccessInput(List<String> ids) {
+        return input(ids, "english", "{\"include_release\":true}");
+    }
+
+    /**
+     * {@code release.is_early_access}: Steam yalnız erken erişimdeki oyunda {@code true} gönderir, diğerlerinde alanı hiç göndermez.
+     * Sonuçta yalnız {@code release} bilgisi dönen oyunlar yer alır (bayrak yoksa false); tanınmayan oyun için değer uydurulmaz.
+     */
+    static Map<String, Boolean> parseEarlyAccess(List<String> requested, byte[] body) {
+        Map<String, Boolean> result = new LinkedHashMap<>();
+        for (JsonNode item : storeItemNodes(body)) {
+            String appId = appId(item, requested);
+            JsonNode release = item.path("release");
+            if (appId != null && release.isObject()) {
+                result.put(appId, release.path("is_early_access").asBoolean(false));
+            }
+        }
+        return result;
+    }
+
     /** JSON yalnız doğrulanmış sayılardan ve sabit anahtarlardan kurulur. */
     private static String input(List<String> ids, String steamLanguage, String dataRequest) {
         String appIds = ids.stream().map(id -> "{\"appid\":" + id + "}").collect(Collectors.joining(","));

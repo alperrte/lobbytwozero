@@ -49,7 +49,12 @@ describe("Oyun kataloğu", () => {
     expect(within(list).getByText("8,5")).toBeVisible();
     expect(within(list).getByText(messages.Game.unrated)).toBeVisible();
     expect(within(list).getByText(messages.Game.ratingUnavailable)).toBeVisible();
-    expect(within(list).getByText(messages.Game.earlyAccessBadge)).toBeVisible();
+    const mark = within(list).getByTestId("early-access-mark");
+    expect(mark).toHaveTextContent(messages.Game.earlyAccessBadge);
+    expect(mark.parentElement).toContainElement(mark);
+    expect(mark.className).toMatch(/absolute/);
+    expect(mark.className).toMatch(/top-2/);
+    expect(within(list).getAllByTestId("early-access-mark")).toHaveLength(1);
     expect(within(list).getAllByText(messages.Game.releaseUnknown)).toHaveLength(1);
     expect(within(list).queryByText(/^0([,/]|$)/)).toBeNull();
     expect(screen.getByRole("link", { name: "Fixture game 1" })).toHaveAttribute("href", `/games/${ids[1]}`);
@@ -213,10 +218,11 @@ describe("Oyun kataloğu", () => {
     expect(await screen.findByText(messages.Game.emptyPicks)).toBeVisible();
     expect(screen.queryByRole("link", { name: /Fixture/ })).toBeNull();
   });
-  it("misafire geri bildirim sekmesinde giriş çağrısı gösterir", async () => {
+  it("kaldırılan geri bildirim sekmesi adresi tüm oyunlar listesine döner ve kişisel istek atmaz", async () => {
     search = "tab=feedback";
     mount();
-    expect(await screen.findByText(messages.Game.feedbackSignIn)).toBeVisible();
+    expect(await screen.findByRole("link", { name: "Fixture game 0" })).toBeVisible();
+    expect(within(screen.getByRole("navigation", { name: messages.Game.catalogue })).getByRole("link", { name: messages.Game.allGames })).toHaveAttribute("aria-current", "page");
     expect(load.mock.calls.some(([resource]) => resource.kind === "myFeedback")).toBe(false);
   });
   it("bölüm gezintisi: Tüm oyunlar etkin; Editörün Seçtikleri bağlantısı; misafire kişisel/yönetim bölümü gösterilmez", async () => {

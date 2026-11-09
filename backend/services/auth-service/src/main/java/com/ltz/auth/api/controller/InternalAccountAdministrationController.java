@@ -16,7 +16,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.ltz.auth.api.dto.request.InternalRoleChangeRequest;
 import com.ltz.auth.api.dto.request.InternalStatusChangeRequest;
+import com.ltz.auth.api.dto.response.AccountContactResponse;
 import com.ltz.auth.api.dto.response.AdminAccountResponse;
+import com.ltz.auth.application.service.AccountContactService;
 import com.ltz.auth.application.service.ServiceAccountAdministration;
 
 import jakarta.validation.Valid;
@@ -35,10 +37,17 @@ public class InternalAccountAdministrationController {
     private static final Logger log = LoggerFactory.getLogger(InternalAccountAdministrationController.class);
 
     private final ServiceAccountAdministration administration;
+    private final AccountContactService contactService;
 
     @GetMapping(AuthApiPaths.INTERNAL_ACCOUNT)
     public AdminAccountResponse account(@PathVariable UUID accountId) {
         return AdminAccountResponse.from(administration.get(accountId));
+    }
+
+    /** Mail Service adres çözümü ({@code account:contact:read}); yanıt ve adres loglanmaz. */
+    @GetMapping(AuthApiPaths.INTERNAL_ACCOUNT_CONTACT)
+    public AccountContactResponse contact(@PathVariable UUID accountId) {
+        return AccountContactResponse.from(contactService.get(accountId));
     }
 
     @PostMapping(AuthApiPaths.INTERNAL_ACCOUNT_STATUS)

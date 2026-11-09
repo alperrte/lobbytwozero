@@ -3,6 +3,7 @@ package com.ltz.game.infrastructure.config;
 import com.ltz.game.application.service.GameDetailBulkService;
 import com.ltz.game.application.service.EmptyDescriptionService;
 import com.ltz.game.application.service.LocalizedDescriptionService;
+import com.ltz.game.application.service.SteamEarlyAccessService;
 import com.ltz.game.application.service.SteamStoreItemService;
 import com.ltz.game.application.service.SteamStoreEnrichmentService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -32,14 +33,26 @@ public class CatalogEnrichmentSchedulingConfiguration {
     private final SteamStoreItemService headers;
     private final LocalizedDescriptionService localized;
     private final EmptyDescriptionService emptyDescriptions;
+    private final SteamEarlyAccessService earlyAccess;
 
     public CatalogEnrichmentSchedulingConfiguration(GameDetailBulkService bulk, SteamStoreEnrichmentService store, SteamStoreItemService headers,
-            LocalizedDescriptionService localized, EmptyDescriptionService emptyDescriptions) {
+            LocalizedDescriptionService localized, EmptyDescriptionService emptyDescriptions, SteamEarlyAccessService earlyAccess) {
         this.bulk = bulk;
         this.store = store;
         this.headers = headers;
         this.localized = localized;
         this.emptyDescriptions = emptyDescriptions;
+        this.earlyAccess = earlyAccess;
+    }
+
+    /** Steam erken erişim durumu: 100 oyun/istek; her oyun ayda bir yeniden sorulur, kararlı durumda boş turdur. */
+    @Scheduled(fixedDelay = 1500, initialDelay = 55000)
+    public void steamEarlyAccess() {
+        try {
+            earlyAccess.nextBatch();
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException _) {
+            LOG.warn("Erken erişim partisi eşzamanlı değişiklik nedeniyle geri alındı; sonraki turda yeniden denenecek.");
+        }
     }
 
     /** Açıklaması boş oyunlar için Steam İngilizce kısa açıklama yedeği; kararlı durumda boş tur. */

@@ -262,76 +262,51 @@ test.describe("3 · Admin oyun oluşturma ve herkese açık detay (gerçek Game 
   });
 });
 
-test.describe("4 · Oyuncu geri bildirimi (gerçek Auth + Game; IDOR ve EARLY_ACCESS kuralı)", () => {
-  test("PLAYER oyun detayından geri bildirim gönderir ve kendi listesinde görür", async ({ browser }) => {
+test.describe("4 · Oyuncu geri bildirimi API'si (arayüz kaldırıldı; sunucu sözleşmesi: IDOR ve EARLY_ACCESS kuralı)", () => {
+  test("PLAYER geri bildirimi API ile gönderir; oyun detayında geri bildirim formu ve gezinti öğesi yoktur", async ({ browser }) => {
     const { context, page } = await openAs(browser, "player");
     const admin = await openAs(browser, "admin");
     const created = await api(admin.context, "POST", "/api/v1/game/admin/games", { title: game2.title, gameType: "MAIN_GAME", earlyAccess: false });
     expect(created.status).toBe(201);
     game2.id = (created.body as { gameId: string }).gameId;
     await keep(admin.context);
+    const sent = await api(context, "POST", "/api/v1/game/feedback", { gameId: game.id, type: "BUG_REPORT", title: "Başlangıçta çöküyor", body: "Ana menüden oyuna girerken uygulama kapanıyor." });
+    expect(sent.status).toBe(201);
+    feedbackId = (sent.body as { id: string }).id;
     await page.goto(`/tr/oyunlar/${game.id}`);
-    const form = page.getByRole("form", { name: t.sendFeedback, exact: true });
-    await expect(form.getByRole("option", { name: t.choices.EARLY_ACCESS })).toBeAttached();
-    await form.getByLabel(t.fields.type, { exact: true }).selectOption("BUG_REPORT");
-    await form.getByRole("textbox", { name: t.fields.title, exact: true }).fill("Başlangıçta çöküyor");
-    await form.getByRole("textbox", { name: t.fields.body, exact: true }).fill("Ana menüden oyuna girerken uygulama kapanıyor.");
-    const post = page.waitForResponse((response) => response.url().endsWith("/api/v1/game/feedback") && response.request().method() === "POST");
-    await form.getByRole("button", { name: t.save, exact: true }).click();
-    const response = await post;
-    expect(response.status()).toBe(201);
-    expect(response.request().headers()["x-xsrf-token"]).toBeTruthy();
-    feedbackId = ((await response.json()) as { id: string }).id;
-    await expect(page.getByRole("heading", { name: "Başlangıçta çöküyor", exact: true })).toBeVisible();
-    await expect(page.getByText(t.choices.OPEN).first()).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.getByRole("form", { name: t.sendFeedback, exact: true })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: t.sections.feedback, exact: true })).toHaveCount(0);
     await keep(context);
   });
 
-  test("Geri bildirimlerim sekmesi: oyun adı, durum akışı, tekil detay ve tür/durum süzgeci", async ({ browser }) => {
+  test("Geri bildirimlerim sekmesi kaldırıldı: ?tab=feedback tüm oyunlara döner; kayıt sahibi API ile okur", async ({ browser }) => {
     const { context, page } = await openAs(browser, "player");
     const requests: URL[] = [];
     page.on("request", (request) => { const url = new URL(request.url()); if (url.pathname.startsWith("/api/v1/game/feedback")) requests.push(url); });
     await page.goto("/tr/oyunlar?tab=feedback");
-    await expect(page.getByRole("heading", { name: "Başlangıçta çöküyor", exact: true })).toBeVisible();
-    await expect(page.getByText(game.title).first()).toBeVisible();
-    await expect(page.getByRole("button", { name: t.startFeedback })).toHaveCount(0);
-    await expect(page.getByRole("list", { name: t.fields.status }).getByRole("listitem").filter({ hasText: t.choices.OPEN })).toHaveAttribute("aria-current", "step");
-    await page.getByRole("button", { name: t.showDetail }).click();
-    await expect(page.getByText("Ana menüden oyuna girerken uygulama kapanıyor.")).toBeVisible();
-    expect(requests.some((url) => url.pathname === `/api/v1/game/feedback/${feedbackId}`)).toBe(true);
-    await page.getByRole("combobox", { name: t.fields.type, exact: true }).selectOption("GENERAL");
-    await expect(page.getByText(t.emptyFeedback)).toBeVisible();
-    await page.getByRole("combobox", { name: t.fields.type, exact: true }).selectOption("BUG_REPORT");
-    await page.getByRole("combobox", { name: t.fields.status, exact: true }).selectOption("RESOLVED");
-    await expect(page.getByText(t.emptyFeedback)).toBeVisible();
-    await page.getByRole("combobox", { name: t.fields.status, exact: true }).selectOption("OPEN");
-    await expect(page.getByRole("heading", { name: "Başlangıçta çöküyor", exact: true })).toBeVisible();
-    expect(requests.some((url) => url.searchParams.get("type") === "BUG_REPORT" && url.searchParams.get("status") === "OPEN")).toBe(true);
+    const nav = page.getByRole("navigation", { name: t.catalogue });
+    await expect(nav.getByRole("link", { name: t.allGames, exact: true })).toHaveAttribute("aria-current", "page");
+    await expect(nav.getByRole("link", { name: t.myFeedback, exact: true })).toHaveCount(0);
+    expect(requests).toHaveLength(0);
+    const own = await api(context, "GET", `/api/v1/game/feedback/${feedbackId}`);
+    expect(own.status).toBe(200);
     await noOverflow(page);
     await keep(context);
   });
 
   test("başka oyuncu özel geri bildirimi göremez (IDOR): liste boş, tekil okuma 404, misafir 401", async ({ browser, page }) => {
     const other = await openAs(browser, "other");
-    await other.page.goto("/tr/oyunlar?tab=feedback");
-    await expect(other.page.getByText(t.emptyFeedback)).toBeVisible();
     expect((await api(other.context, "GET", `/api/v1/game/feedback/${feedbackId}`)).status).toBe(404);
     const list = await api(other.context, "GET", `/api/v1/game/feedback?gameId=${game.id}`);
     expect((list.body as { totalElements: number }).totalElements).toBe(0);
     await keep(other.context);
-    await page.goto("/tr/oyunlar?tab=feedback");
-    await expect(page.getByText(t.feedbackSignIn)).toBeVisible();
+    await page.goto("/tr/oyunlar");
     expect(await page.evaluate(async (base) => (await fetch(`${base}/api/v1/game/feedback`, { credentials: "include" })).status, gw)).toBe(401);
   });
 
-  test("EARLY_ACCESS yalnız erken erişimdeki oyunda: arayüz seçeneği sunmaz, sunucu GAME_NOT_EARLY_ACCESS ile reddeder", async ({ browser }) => {
-    const { context, page } = await openAs(browser, "player");
-    await page.goto("/tr/oyunlar?tab=feedback");
-    await page.getByRole("searchbox", { name: t.feedbackPickGame, exact: true }).fill(game2.title);
-    await page.getByRole("button", { name: new RegExp(game2.title) }).click();
-    const form = page.getByRole("form", { name: t.sendFeedback, exact: true });
-    await expect(form).toBeVisible();
-    await expect(form.getByRole("option", { name: t.choices.EARLY_ACCESS })).toHaveCount(0);
+  test("EARLY_ACCESS yalnız erken erişimdeki oyunda: sunucu GAME_NOT_EARLY_ACCESS ile reddeder", async ({ browser }) => {
+    const { context } = await openAs(browser, "player");
     const forced = await api(context, "POST", "/api/v1/game/feedback", { gameId: game2.id, type: "EARLY_ACCESS", title: "Zorla", body: "Erken erişim değil" });
     expect(forced.status).toBe(400);
     expect((forced.body as { code?: string }).code).toBe("GAME_NOT_EARLY_ACCESS");
@@ -608,8 +583,9 @@ test.describe("6 · Geliştirici yönetimi (gerçek GAME_DEVELOPER + oyun bazlı
     await expect(page.getByRole("button", { name: t.resolveFeedback })).toHaveCount(0);
     await keep(context);
     const player = await openAs(browser, "player");
-    await player.page.goto("/tr/oyunlar?tab=feedback");
-    await expect(player.page.getByRole("list", { name: t.fields.status }).getByRole("listitem").filter({ hasText: t.choices.RESOLVED })).toHaveAttribute("aria-current", "step");
+    const own = await api(player.context, "GET", `/api/v1/game/feedback/${feedbackId}`);
+    expect(own.status).toBe(200);
+    expect((own.body as { status: string }).status).toBe("RESOLVED");
     await keep(player.context);
   });
 
@@ -724,17 +700,16 @@ test.describe("9 · Oturum süresi (kısa ömürlü access token + otomatik yeni
   test("access token süresi dolunca 401 → /session/refresh → istek tekrarlanır; çıkıştan sonra oturum yok", async ({ browser }) => {
     test.setTimeout(180000);
     const { context, page } = await openAs(browser, "other");
-    await page.goto("/tr/oyunlar?tab=feedback");
-    await expect(page.getByText(t.emptyFeedback)).toBeVisible();
+    await page.goto("/tr/oyunlar");
+    await expect(page.getByRole("navigation", { name: t.catalogue })).toBeVisible();
     const calls: string[] = [];
-    page.on("response", (response) => { const path = new URL(response.url()).pathname; if (path.startsWith("/api/v1/auth/session") || path === "/api/v1/game/feedback") calls.push(`${response.request().method()} ${path} ${response.status()}`); });
+    page.on("response", (response) => { const path = new URL(response.url()).pathname; if (path.startsWith("/api/v1/auth/session") || path === "/api/v1/auth/me") calls.push(`${response.request().method()} ${path} ${response.status()}`); });
     await page.waitForTimeout(65000);
-    await page.getByRole("button", { name: t.reload, exact: true }).click();
-    await expect(page.getByText(t.emptyFeedback)).toBeVisible();
-    expect(calls).toEqual(expect.arrayContaining(["GET /api/v1/game/feedback 401", "POST /api/v1/auth/session/refresh 200", "GET /api/v1/game/feedback 200"]));
+    await page.reload();
+    await expect(page.getByRole("navigation", { name: t.catalogue })).toBeVisible();
+    await expect.poll(() => calls).toEqual(expect.arrayContaining(["GET /api/v1/auth/me 401", "POST /api/v1/auth/session/refresh 200", "GET /api/v1/auth/me 200"]));
     expect((await api(context, "POST", "/api/v1/auth/session/logout")).status).toBeLessThan(300);
-    await page.goto("/tr/oyunlar?tab=feedback");
-    await expect(page.getByText(t.feedbackSignIn)).toBeVisible();
+    expect((await api(context, "GET", "/api/v1/auth/me")).status).toBe(401);
     await keep(context);
   });
 });
@@ -769,7 +744,6 @@ const surfaces: { name: string; role: Role | null; open: (page: Page) => Promise
   { name: "katalog (kart)", role: null, open: async (page) => { await page.goto("/tr/oyunlar"); await expect(page.getByRole("link", { name: "Seed Oyun 01", exact: true })).toBeVisible(); } },
   { name: "katalog (liste + filtre paneli)", role: null, open: async (page) => { await page.goto("/tr/oyunlar?view=list&genre=rpg"); await page.getByRole("button", { name: new RegExp(String.raw`^${t.filters}\s*\d*$`) }).click(); await expect(page.getByRole("form", { name: t.filters })).toBeVisible(); } },
   { name: "oyun detayı", role: null, open: async (page) => { await page.goto(`/tr/oyunlar/${game.id}`); await expect(page.getByRole("heading", { level: 1, name: game.title })).toBeVisible(); await expect(page.locator("#game-information")).toBeVisible(); } },
-  { name: "geri bildirimlerim", role: "player", open: async (page) => { await page.goto("/tr/oyunlar?tab=feedback"); await expect(page.getByRole("heading", { name: "Başlangıçta çöküyor", exact: true })).toBeVisible(); } },
   { name: "admin: oyun düzenleme", role: "admin", open: async (page) => { await page.goto(`/tr/oyunlar/yonetim?gameId=${game.id}`); await expect(page.getByRole("form", { name: t.editGame, exact: true })).toBeVisible(); } },
   { name: "admin: editör listesi", role: "admin", open: async (page) => { await page.goto("/tr/oyunlar/yonetim"); await page.getByRole("tab", { name: t.popularSelection, exact: true }).click(); await expect(page.getByText(t.popularEmptyList)).toBeVisible(); } },
   { name: "admin: katalog durumu", role: "admin", open: async (page) => { await page.goto("/tr/oyunlar/yonetim"); await page.getByRole("tab", { name: t.catalogStatus, exact: true }).click(); await expect(page.getByText(t.statusFields.mainGameEntries)).toBeVisible(); } },

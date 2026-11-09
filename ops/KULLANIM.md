@@ -123,7 +123,7 @@ node ops/game-catalog-import.mjs import
 docker @C up -d game-service
 ```
 
-`node ops/dev.mjs --with=game-service` (veya `--all`) bunu Game'den önce kendisi yapar (`--no-catalog` ile atlanır). Klasör `game-catalog-dump` yoksa betik oluşturur; `*.dump` Git'e girmez.
+`node ops/dev.mjs --with=game-service` (veya `--all`) bunu Game'den önce kendisi yapar (`--no-catalog` ile atlanır). Klasör `game-catalog-dump` yoksa betik oluşturur; `*.dump` Git'e girmez. Daha önce kurduysan ve yeni dump aldıysan dosyayı değiştirmek yetmez; adımlar için [game-catalog.md](game-catalog.md) içindeki "Daha önce kurduysan" bölümüne bak.
 
 ---
 

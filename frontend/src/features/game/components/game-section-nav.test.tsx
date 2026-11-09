@@ -25,21 +25,21 @@ describe("Game bölüm gezintisi (rol duyarlı)", () => {
     mount(null);
     expect(hrefs()).toEqual([[t.allGames, "/games"], [t.editorsPicks, "/games?tab=picks"]]);
   });
-  it("PLAYER geri bildirimlerim bölümünü görür; yönetim bağlantısı görmez", () => {
+  it("PLAYER yalnız herkese açık bölümleri görür; yönetim bağlantısı görmez", () => {
     mount(["PLAYER"]);
-    expect(hrefs()).toEqual([[t.allGames, "/games"], [t.editorsPicks, "/games?tab=picks"], [t.myFeedback, "/games?tab=feedback"]]);
+    expect(hrefs()).toEqual([[t.allGames, "/games"], [t.editorsPicks, "/games?tab=picks"]]);
   });
   it("GAME_DEVELOPER yalnız geliştirici alanını görür (MODERATOR/ADMIN alanlarını görmez)", () => {
     mount(["PLAYER", "GAME_DEVELOPER"]);
-    expect(hrefs().slice(3)).toEqual([[t.workspace.developer, "/games/manage?section=developer"]]);
+    expect(hrefs().slice(2)).toEqual([[t.workspace.developer, "/games/manage?section=developer"]]);
   });
   it("MODERATOR yalnız moderasyonu görür; geliştirici ve admin yetkisi vermez", () => {
     mount(["MODERATOR"]);
-    expect(hrefs().slice(3)).toEqual([[t.workspace.moderation, "/games/manage?section=moderation"]]);
+    expect(hrefs().slice(2)).toEqual([[t.workspace.moderation, "/games/manage?section=moderation"]]);
   });
   it("ADMIN yönetim ve moderasyonu görür; geliştirici alanını rolü yoksa görmez", () => {
     mount(["ADMIN"]);
-    expect(hrefs().slice(3)).toEqual([[t.workspace.admin, "/games/manage?section=admin"], [t.workspace.moderation, "/games/manage?section=moderation"]]);
+    expect(hrefs().slice(2)).toEqual([[t.workspace.admin, "/games/manage?section=admin"], [t.workspace.moderation, "/games/manage?section=moderation"]]);
   });
   it("etkin bölüm aria-current=page taşır", () => {
     mount(["ADMIN"], "admin");

@@ -157,6 +157,8 @@ public class SecurityConfig {
                         .requestMatchers(ADMIN_ENDPOINTS).hasRole(RoleCode.ADMIN.name())
                         .requestMatchers(PATHS.matcher(HttpMethod.GET, AuthApiPaths.INTERNAL_ACCOUNT))
                                 .hasAuthority(SCOPE_PREFIX + TokenClaims.ACCOUNT_READ_SCOPE)
+                        .requestMatchers(PATHS.matcher(HttpMethod.GET, AuthApiPaths.INTERNAL_ACCOUNT_CONTACT))
+                                .hasAuthority(SCOPE_PREFIX + TokenClaims.ACCOUNT_CONTACT_READ_SCOPE)
                         .requestMatchers(PATHS.matcher(HttpMethod.POST, AuthApiPaths.INTERNAL_ACCOUNT_STATUS))
                                 .hasAuthority(SCOPE_PREFIX + TokenClaims.ACCOUNT_STATUS_WRITE_SCOPE)
                         .requestMatchers(PATHS.matcher(HttpMethod.POST, AuthApiPaths.INTERNAL_ACCOUNT_ROLES_GRANT),
