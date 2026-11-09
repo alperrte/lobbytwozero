@@ -148,7 +148,9 @@ class NoticeControllerTest extends IntegrationTestSupport {
 
         postNotice(UUID.randomUUID(), account, "Başlık\\nİkinci satır", "M")
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_CONTENT"));
-        postNotice(UUID.randomUUID(), account, "T", "Gizli \\u202E ters")
+        // Sağdan-sola geçersiz kılma karakteri (U+202E) kodla üretilir; kaynakta Unicode kaçışı bulunmaz.
+        String rightToLeftOverride = String.valueOf((char) 0x202E);
+        postNotice(UUID.randomUUID(), account, "T", "Gizli " + rightToLeftOverride + " ters")
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_CONTENT"));
         // Mesajda satır sonu serbesttir (paragraflar).
         postNotice(UUID.randomUUID(), account, "T", "Birinci\\n\\nİkinci").andExpect(status().isAccepted());

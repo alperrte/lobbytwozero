@@ -43,8 +43,10 @@ public class NoticeEnqueueService {
     private static final Duration RATE_WINDOW = Duration.ofHours(1);
     private static final char FIELD_SEPARATOR = '\0';
     /** Satır sonu dışında kontrol karakteri ve bidi geçersiz kılma karakterleri (görünür metni değiştirmek için kullanılır). */
-    private static final Pattern FORBIDDEN_IN_MESSAGE = Pattern.compile("(?![\\n\\r])\\p{Cntrl}|[\\u202A-\\u202E\\u2066-\\u2069]");
-    private static final Pattern FORBIDDEN_IN_SINGLE_LINE = Pattern.compile("[\\p{Cntrl}\\u202A-\\u202E\\u2066-\\u2069]");
+    // Kod noktaları \x{...} ile yazılır (kaynakta Unicode kaçışı bulunmaz; kalite kapısı bunu yasaklar).
+    private static final String BIDI_CONTROLS = "\\x{202A}-\\x{202E}\\x{2066}-\\x{2069}";
+    private static final Pattern FORBIDDEN_IN_MESSAGE = Pattern.compile("(?![\\n\\r])\\p{Cntrl}|[" + BIDI_CONTROLS + "]");
+    private static final Pattern FORBIDDEN_IN_SINGLE_LINE = Pattern.compile("[\\p{Cntrl}" + BIDI_CONTROLS + "]");
 
     private final MailMessageRepository messages;
     private final PayloadCipherPort cipher;

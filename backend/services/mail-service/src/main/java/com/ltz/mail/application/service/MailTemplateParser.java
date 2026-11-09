@@ -28,46 +28,31 @@ final class MailTemplateParser {
 
     /** @throws IllegalStateException biçim, anahtar, renk türü ya da değişken hatalıysa (mesaj dosya adını taşır) */
     static MailTemplateDefinition parse(String name, String source) {
-        String subject = null;
-        String kind = null;
-        String label = null;
-        String title = null;
-        String noteKind = DEFAULT_NOTE_KIND;
-        List<Block> blocks = new ArrayList<>();
+        Draft draft = new Draft();
         String[] lines = source.split("\\R");
         for (int index = 0; index < lines.length; index++) {
-            String line = lines[index].strip();
-            if (line.isEmpty() || line.startsWith("#")) {
-                continue;
-            }
-            int colon = line.indexOf(':');
-            if (colon <= 0) {
-                throw failure(name, index, "expected 'key: value'");
-            }
-            String key = line.substring(0, colon).strip();
-            String value = line.substring(colon + 1).strip();
-            if (value.isEmpty()) {
-                throw failure(name, index, "empty value for '" + key + "'");
-            }
-            requireKnownVariables(name, index, value);
-            switch (key) {
-                case "subject" -> subject = value;
-                case "kind" -> kind = value;
-                case "label" -> label = value;
-                case "title" -> title = value;
-                case "note-kind" -> noteKind = value;
-                default -> blocks.add(block(name, index, key, value));
-            }
+            readLine(name, index, lines[index].strip(), draft);
         }
-        requireKind(name, "kind", kind);
-        requireKind(name, "note-kind", noteKind);
-        if (subject == null || label == null || title == null) {
-            throw new IllegalStateException("Mail template " + name + " needs subject, kind, label and title");
+        return draft.build(name);
+    }
+
+    private static void readLine(String name, int index, String line, Draft draft) {
+        if (line.isEmpty() || line.startsWith("#")) {
+            return;
         }
-        if (blocks.isEmpty()) {
-            throw new IllegalStateException("Mail template " + name + " has no content blocks");
+        int colon = line.indexOf(':');
+        if (colon <= 0) {
+            throw failure(name, index, "expected 'key: value'");
         }
-        return new MailTemplateDefinition(subject, kind, label, title, noteKind, blocks);
+        String key = line.substring(0, colon).strip();
+        String value = line.substring(colon + 1).strip();
+        if (value.isEmpty()) {
+            throw failure(name, index, "empty value for '" + key + "'");
+        }
+        requireKnownVariables(name, index, value);
+        if (!draft.setHeader(key, value)) {
+            draft.blocks.add(block(name, index, key, value));
+        }
     }
 
     private static Block block(String name, int index, String key, String value) {
@@ -81,12 +66,6 @@ final class MailTemplateParser {
         return new Block(type, value);
     }
 
-    private static void requireKind(String name, String field, String kind) {
-        if (kind == null || !MailBlocks.isKind(kind)) {
-            throw new IllegalStateException("Mail template " + name + ": " + field + " must be accent, warn, danger or success");
-        }
-    }
-
     private static void requireKnownVariables(String name, int index, String value) {
         Matcher matcher = VARIABLE.matcher(value);
         while (matcher.find()) {
@@ -98,5 +77,54 @@ final class MailTemplateParser {
 
     private static IllegalStateException failure(String name, int index, String message) {
         return new IllegalStateException("Mail template " + name + " line " + (index + 1) + ": " + message);
+    }
+
+    /** Satır satır dolan taslak; zorunlu alan ve renk türü denetimi {@link #build} içindedir. */
+    private static final class Draft {
+
+        private String subject;
+        private String kind;
+        private String label;
+        private String title;
+        private String noteKind = DEFAULT_NOTE_KIND;
+        private final List<Block> blocks = new ArrayList<>();
+
+        /** @return anahtar bir başlık anahtarıysa {@code true} (içerik bloğu değil) */
+        boolean setHeader(String key, String value) {
+            switch (key) {
+                case "subject" -> subject = value;
+                case "kind" -> kind = value;
+                case "label" -> label = value;
+                case "title" -> title = value;
+                case "note-kind" -> noteKind = value;
+                default -> {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        MailTemplateDefinition build(String name) {
+            requireKind(name, "kind", kind);
+            requireKind(name, "note-kind", noteKind);
+            requirePresent(name);
+            return new MailTemplateDefinition(subject, kind, label, title, noteKind, blocks);
+        }
+
+        private void requirePresent(String name) {
+            if (subject == null || label == null || title == null) {
+                throw new IllegalStateException("Mail template " + name + " needs subject, kind, label and title");
+            }
+            if (blocks.isEmpty()) {
+                throw new IllegalStateException("Mail template " + name + " has no content blocks");
+            }
+        }
+
+        private static void requireKind(String name, String field, String value) {
+            if (value == null || !MailBlocks.isKind(value)) {
+                throw new IllegalStateException(
+                        "Mail template " + name + ": " + field + " must be accent, warn, danger or success");
+            }
+        }
     }
 }

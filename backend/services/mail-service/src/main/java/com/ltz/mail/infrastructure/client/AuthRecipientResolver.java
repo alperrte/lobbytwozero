@@ -75,22 +75,31 @@ public class AuthRecipientResolver implements RecipientResolverPort {
         if (!isConfigured()) {
             throw MailDeliveryException.transientFailure(TOKEN_UNAVAILABLE, null);
         }
-        ContactResponse response;
-        try {
-            String token = token();
-            response = restClient.get().uri(properties.contactPath(), accountId)
-                    .headers(headers -> headers.setBearerAuth(token))
-                    .retrieve().body(ContactResponse.class);
-        } catch (HttpClientErrorException exception) {
-            throw classify(exception.getStatusCode());
-        } catch (RestClientException exception) {
-            log.warn("Recipient resolution failed cause={}", exception.getClass().getSimpleName());
-            throw MailDeliveryException.transientFailure(RESOLVER_UNAVAILABLE, null);
-        }
+        ContactResponse response = fetchContact(accountId);
         if (response == null) {
             throw MailDeliveryException.transientFailure(RESOLVER_UNAVAILABLE, null);
         }
         return new AccountContact(response.email(), response.emailVerified(), response.status());
+    }
+
+    /**
+     * Auth'tan adres çağrısı. Hata sınıflaması {@code catch} içinde yapılır, fırlatma dışarıda: özgün istisna yanıt
+     * gövdesi taşıyabileceğinden zincire bilerek eklenmez (yalnız türü loglanır).
+     */
+    private ContactResponse fetchContact(UUID accountId) {
+        MailDeliveryException failure;
+        try {
+            String token = token();
+            return restClient.get().uri(properties.contactPath(), accountId)
+                    .headers(headers -> headers.setBearerAuth(token))
+                    .retrieve().body(ContactResponse.class);
+        } catch (HttpClientErrorException exception) {
+            failure = classify(exception.getStatusCode());
+        } catch (RestClientException exception) {
+            log.warn("Recipient resolution failed cause={}", exception.getClass().getSimpleName());
+            failure = MailDeliveryException.transientFailure(RESOLVER_UNAVAILABLE, null);
+        }
+        throw failure;
     }
 
     private MailDeliveryException classify(HttpStatusCode status) {
@@ -127,14 +136,16 @@ public class AuthRecipientResolver implements RecipientResolverPort {
     }
 
     private TokenResponse requestToken() {
+        MailDeliveryException failure;
         try {
             return restClient.post().uri(properties.tokenPath()).contentType(MediaType.APPLICATION_JSON)
                     .body(new TokenRequest(properties.clientId(), properties.clientSecret()))
                     .retrieve().body(TokenResponse.class);
         } catch (RestClientException exception) {
-            // Yalnız istisna türü loglanır; yanıt gövdesi ve gizli anahtar asla yazılmaz.
+            // Yalnız istisna türü loglanır; yanıt gövdesi ve gizli anahtar asla yazılmaz (zincire de eklenmez).
             log.warn("Auth refused or could not issue a service token cause={}", exception.getClass().getSimpleName());
-            throw MailDeliveryException.transientFailure(TOKEN_UNAVAILABLE, null);
+            failure = MailDeliveryException.transientFailure(TOKEN_UNAVAILABLE, null);
         }
+        throw failure;
     }
 }
