@@ -599,6 +599,7 @@ describe("keys", () => {
       for (const name of smtpKeys) {
         assert.equal(get(freshText, name), "", `${name} boş eklenmeli`);
       }
+      assert.equal(get(freshText, "GIPHY_API_KEY"), "", "dış sağlayıcı anahtarı üretilmez, boş eklenir");
       assert.equal(get(customText, "MAIL_SMTP_HOST"), "smtp.example.test", "dolu satır ezilmemeli");
       assert.equal(get(customText, "MAIL_SMTP_PORT"), "", "boş satır doldurulmamalı ve çoğaltmamalı");
       assert.equal(get(customText, "MAIL_PAYLOAD_ENCRYPTION_KEY"), "dolu-anahtar");

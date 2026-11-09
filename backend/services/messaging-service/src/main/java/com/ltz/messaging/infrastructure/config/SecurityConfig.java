@@ -18,6 +18,7 @@ import org.springframework.security.web.servlet.util.matcher.PathPatternRequestM
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 import com.ltz.messaging.api.controller.MessagingApiPaths;
+import com.ltz.messaging.domain.entity.MessageAttachment;
 import com.ltz.messaging.infrastructure.security.RequestBodySizeLimitFilter;
 import com.ltz.messaging.infrastructure.security.TokenClaims;
 
@@ -74,8 +75,11 @@ public class SecurityConfig {
     FilterRegistrationBean<RequestBodySizeLimitFilter> requestBodySizeLimitFilter(
             RequestLimitProperties properties,
             @Qualifier("handlerExceptionResolver") HandlerExceptionResolver resolver) {
+        // Görsel yükleme (MSG-17): gövde dosyanın kendisidir, sınırı 1 MB (MessageAttachment.MAX_SIZE_BYTES).
         FilterRegistrationBean<RequestBodySizeLimitFilter> registration = new FilterRegistrationBean<>(
-                new RequestBodySizeLimitFilter(properties.maxBodySize().toBytes(), resolver));
+                new RequestBodySizeLimitFilter(properties.maxBodySize().toBytes(),
+                        PATHS.matcher(HttpMethod.POST, MessagingApiPaths.ATTACHMENTS),
+                        MessageAttachment.MAX_SIZE_BYTES, resolver));
         registration.setOrder(SecurityFilterProperties.DEFAULT_FILTER_ORDER - 1);
         return registration;
     }

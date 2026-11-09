@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -93,6 +94,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         }
         return ResponseEntity.badRequest()
                 .body(problem(HttpStatus.BAD_REQUEST, MALFORMED_REQUEST, "Request body could not be read."));
+    }
+
+    /** Görsel yüklemede desteklenmeyen {@code Content-Type} (ör. SVG, HTML, WebP); gönderilen tür yansıtılmaz. */
+    @Override
+    protected ResponseEntity<Object> handleHttpMediaTypeNotSupported(HttpMediaTypeNotSupportedException exception,
+                                                                     HttpHeaders headers, HttpStatusCode status,
+                                                                     WebRequest request) {
+        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                .body(problem(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "UNSUPPORTED_MEDIA_TYPE",
+                        "The content type is not supported."));
     }
 
     /** Geçersiz path/query değeri (ör. UUID olmayan conversationId) geri yansıtılmadan 400 döner. */

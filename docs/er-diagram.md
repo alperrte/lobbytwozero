@@ -703,7 +703,8 @@ erDiagram
   conversations ||--o{ conversation_members : includes
   conversations ||--o{ messages : contains
   conversations ||--o{ message_read_ranges : "read ranges"
-  messages ||--o{ message_attachments : attaches
+  conversations ||--o{ message_attachments : "uploads"
+  messages |o--o| message_attachments : attaches
   messages ||--o{ message_reactions : reacted
   messages ||--o{ message_hidden_for_users : "hidden for"
   messages |o--o{ messages : "reply_to / forwarded_from"
@@ -735,15 +736,28 @@ erDiagram
     bigint seq "UK(conversation_id, seq)"
     uuid sender_id "REF"
     varchar client_message_id "UK(sender_id, client_message_id)"
-    varchar type "TEXT"
-    text body "1-4000"
+    varchar type "TEXT|IMAGE|GIF"
+    text body "1-4000; TEXT'te zorunlu"
+    varchar gif_provider "yalnız GIF: GIPHY"
+    varchar gif_id
+    varchar gif_url "https"
+    varchar gif_preview_url "https"
+    int gif_width
+    int gif_height
     timestamptz created_at
   }
   message_attachments {
     uuid id PK
-    uuid message_id FK
-    varchar storage_key
+    uuid conversation_id FK "ON DELETE CASCADE"
+    uuid uploader_id "REF"
+    uuid message_id FK,UK "null: gönderilmedi"
+    varchar mime_type "png|jpeg|gif"
     int size_bytes "<= 1 MB"
+    int width
+    int height
+    int frame_count
+    bytea content
+    timestamptz created_at
   }
   message_reactions {
     uuid message_id PK,FK

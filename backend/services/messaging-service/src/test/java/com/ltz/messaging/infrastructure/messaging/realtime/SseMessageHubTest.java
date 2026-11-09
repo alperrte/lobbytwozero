@@ -128,6 +128,6 @@ class SseMessageHubTest {
 
     private static MessageView message() {
         return new MessageView(UUID.randomUUID(), UUID.randomUUID(), 1, UUID.randomUUID(), MessageType.TEXT, "x",
-                "c", NOW, null);
+                "c", NOW, null, null, null);
     }
 }

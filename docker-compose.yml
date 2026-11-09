@@ -324,6 +324,8 @@ services:
       # Engel sorgusu (MSG-15) için Auth'tan social-service servis token'ı alma gizli anahtarı; boşsa sohbet açma ve
       # gruba ekleme fail-closed 503 döner.
       AUTH_MESSAGING_SERVICE_CLIENT_SECRET: ${AUTH_MESSAGING_SERVICE_CLIENT_SECRET:-}
+      # GIF platformu (MSG-22) anahtarı; boşsa GIF arama ve GIF gönderme 503 döner, diğer mesajlaşma çalışır.
+      GIPHY_API_KEY: ${GIPHY_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy

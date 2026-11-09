@@ -38,7 +38,7 @@ data:{"conversationId":"…","readerId":"…","readUpToSeq":5,"readAt":"…","al
 :hb
 ```
 
-`readStatus` gönderenin kendi akışlarında `"SENT"`, diğer üyelerin akışlarında `null` gider.
+`readStatus` gönderenin kendi akışlarında `"SENT"`, diğer üyelerin akışlarında `null` gider. Örnekte kısaltılan `attachment` ve `gif` alanları (LTZ-UMT-MSG-04) metin mesajında `null`'dır; görsel mesajında `attachment` indirme `url`'ini taşır, baytlar akışa girmez.
 
 `id`, `Last-Event-ID` için değil, istemcinin tekilleştirmesi içindir (sohbet + seq tekildir). Yeniden bağlanınca istemci önce sohbet listesini (okunmamış sayıları) yeniler, açık sohbet için `after=<son seq>` ile eşitlenir.
 

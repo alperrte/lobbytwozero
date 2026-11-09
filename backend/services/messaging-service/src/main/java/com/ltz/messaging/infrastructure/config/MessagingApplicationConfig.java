@@ -12,16 +12,20 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.web.client.RestClient;
 
 import com.ltz.messaging.application.port.BlockCheckPort;
+import com.ltz.messaging.application.port.GifProviderPort;
 import com.ltz.messaging.application.port.MessageStreamPort;
 import com.ltz.messaging.application.port.ServiceTokenPort;
 import com.ltz.messaging.infrastructure.client.AuthServiceTokenClient;
+import com.ltz.messaging.infrastructure.client.GiphyGifClient;
 import com.ltz.messaging.infrastructure.client.SocialBlockCheckClient;
 import com.ltz.messaging.infrastructure.messaging.realtime.SseMessageHub;
 
 @Configuration(proxyBeanMethods = false)
 @EnableScheduling
 @EnableConfigurationProperties({
+        AttachmentProperties.class,
         AuthProperties.class,
+        GifProperties.class,
         GroupProperties.class,
         MessageProperties.class,
         RequestLimitProperties.class,
@@ -51,6 +55,16 @@ public class MessagingApplicationConfig {
     BlockCheckPort socialBlockCheckClient(RestClient.Builder builder, ServiceTokenPort serviceTokens,
                                           ServiceClientProperties properties) {
         return new SocialBlockCheckClient(builder, serviceTokens, properties);
+    }
+
+    /**
+     * GIF platformu (MSG-22). Adaptör {@code ltz.messaging.gifs.adapter} ile seçilir; üretimde tek değer {@code giphy}'dir,
+     * testler kendi sahte adaptörünü bağlar. Anahtar yoksa adaptör kurulur ama her çağrı fail-closed reddedilir.
+     */
+    @Bean
+    @ConditionalOnProperty(name = "ltz.messaging.gifs.adapter", havingValue = "giphy", matchIfMissing = true)
+    GifProviderPort giphyGifClient(RestClient.Builder builder, GifProperties properties) {
+        return new GiphyGifClient(builder, properties);
     }
 
     /**

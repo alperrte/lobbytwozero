@@ -3371,8 +3371,9 @@ async function keysCommand(argv) {
     MAIL_PAYLOAD_ENCRYPTION_KEY: () => randomBytes(32).toString("base64"),
   };
 
-  // Mail Service SMTP ayarları: sır üretilmez. Satır yoksa dosyanın sonuna BOŞ eklenir; var olan satıra (dolu ya da boş)
-  // asla dokunulmaz. Sağlayıcı seçilince değerler elle doldurulur. Boşken dev'de Mailpit varsayılanları geçerlidir.
+  // Mail Service SMTP ayarları ve dış sağlayıcı anahtarları (GIPHY): sır üretilmez. Satır yoksa dosyanın sonuna BOŞ
+  // eklenir; var olan satıra (dolu ya da boş) asla dokunulmaz. Sağlayıcı seçilince değerler elle doldurulur. Boşken
+  // dev'de Mailpit varsayılanları geçerlidir; GIPHY boşsa messaging-service GIF arama/gönderme 503 döner.
   const blankDefaults = [
     "MAIL_SMTP_HOST",
     "MAIL_SMTP_PORT",
@@ -3381,6 +3382,7 @@ async function keysCommand(argv) {
     "MAIL_SMTP_SECURITY",
     "MAIL_FROM_ADDRESS",
     "MAIL_ALLOWED_LINK_HOSTS",
+    "GIPHY_API_KEY",
   ];
 
   // Eski varsayılanlar: değer TAM OLARAK eskiyse yeni varsayılana çekilir; özelleştirilmiş değere dokunulmaz.

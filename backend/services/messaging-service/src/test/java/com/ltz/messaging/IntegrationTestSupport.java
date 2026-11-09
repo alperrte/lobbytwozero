@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -57,15 +58,16 @@ import jakarta.servlet.Filter;
 /**
  * Gerçek PostgreSQL 17 (Compose ile aynı imaj) üzerinde Flyway migration'ları uygulanmış tam uygulama bağlamı ve Auth
  * Service yerine geçen yerel bir JWKS sunucusu. Token'lar her çalıştırmada üretilen RSA anahtarıyla gerçekten
- * imzalanır; JWT doğrulaması sahte yardımcılarla atlanmaz. Social'ın engel sorgusu {@link ScriptedBlockCheck} ile
- * taklit edilir (gerçek istemci {@code SocialBlockCheckClientTest}'te sınanır). Repoda gerçek anahtar yoktur.
+ * imzalanır; JWT doğrulaması sahte yardımcılarla atlanmaz. Social'ın engel sorgusu {@link ScriptedBlockCheck} ile,
+ * GIF platformu {@link ScriptedGifProvider} ile taklit edilir (gerçek istemciler {@code SocialBlockCheckClientTest} ve
+ * {@code GiphyGifClientTest}'te sınanır). Repoda gerçek anahtar yoktur.
  */
 // Geliştiricinin kabuğundaki SPRING_PROFILES_ACTIVE (ör. dev) testlere sızmasın.
 @ActiveProfiles("test")
 @SpringBootTest
-@Import(ScriptedBlockCheck.Configuration.class)
+@Import({ScriptedBlockCheck.Configuration.class, ScriptedGifProvider.Configuration.class})
 // Alt sınıf gerçek adaptörü (social) seçebilsin diye dinamik özellik değil, ezilebilir test özelliğidir.
-@TestPropertySource(properties = "ltz.messaging.blocks.adapter=scripted")
+@TestPropertySource(properties = {"ltz.messaging.blocks.adapter=scripted", "ltz.messaging.gifs.adapter=scripted"})
 public abstract class IntegrationTestSupport {
 
     protected static final String ISSUER = "ltz-auth";
@@ -94,6 +96,9 @@ public abstract class IntegrationTestSupport {
     @Autowired(required = false)
     protected ScriptedBlockCheck blocks;
 
+    @Autowired(required = false)
+    protected ScriptedGifProvider gifs;
+
     protected MockMvc mockMvc;
 
     @DynamicPropertySource
@@ -117,6 +122,9 @@ public abstract class IntegrationTestSupport {
                 .build();
         if (blocks != null) {
             blocks.reset();
+        }
+        if (gifs != null) {
+            gifs.reset();
         }
     }
 
@@ -234,6 +242,54 @@ public abstract class IntegrationTestSupport {
         String response = sendMessage(sender, conversationId, UUID.randomUUID().toString(), body)
                 .andReturn().getResponse().getContentAsString();
         return ((Number) JsonPath.read(response, "$.seq")).longValue();
+    }
+
+    /** Ham gövdeyle mesaj gönderir (görsel/GIF/emoji testleri). */
+    protected ResultActions sendJson(UUID sender, UUID conversationId, String json) throws Exception {
+        return mockMvc.perform(post(MessagingApiPaths.MESSAGES, conversationId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(sender))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json));
+    }
+
+    protected ResultActions sendImage(UUID sender, UUID conversationId, UUID attachmentId, String caption)
+            throws Exception {
+        Map<String, Object> body = new HashMap<>();
+        body.put("clientMessageId", UUID.randomUUID().toString());
+        body.put("attachmentId", attachmentId.toString());
+        if (caption != null) {
+            body.put("body", caption);
+        }
+        return sendJson(sender, conversationId, JsonPath.parse(body).jsonString());
+    }
+
+    protected ResultActions sendGif(UUID sender, UUID conversationId, String gifId, String caption) throws Exception {
+        Map<String, Object> body = new HashMap<>();
+        body.put("clientMessageId", UUID.randomUUID().toString());
+        body.put("gif", Map.of("provider", "GIPHY", "id", gifId));
+        if (caption != null) {
+            body.put("body", caption);
+        }
+        return sendJson(sender, conversationId, JsonPath.parse(body).jsonString());
+    }
+
+    protected ResultActions upload(UUID uploader, UUID conversationId, byte[] content, String contentType)
+            throws Exception {
+        return mockMvc.perform(post(MessagingApiPaths.ATTACHMENTS, conversationId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(uploader))
+                .contentType(contentType)
+                .content(content));
+    }
+
+    /** Görseli yükler (201 beklenir) ve kimliğini döner. */
+    protected UUID uploadAndGetId(UUID uploader, UUID conversationId, byte[] content, String contentType)
+            throws Exception {
+        return idOf(upload(uploader, conversationId, content, contentType));
+    }
+
+    protected ResultActions download(UUID viewer, UUID conversationId, UUID attachmentId) throws Exception {
+        return mockMvc.perform(get(MessagingApiPaths.ATTACHMENT, conversationId, attachmentId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(viewer)));
     }
 
     protected ResultActions history(UUID viewer, UUID conversationId, String query) throws Exception {

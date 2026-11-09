@@ -27,7 +27,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Metin mesajı gönderme (MSG-06), mesaj geçmişi (MSG-07/10), okuma işaretçisi (MSG-13) ve mesajı görenler (MSG-12).
+ * Mesaj gönderme (metin MSG-06, görsel MSG-17, emoji MSG-18, GIF MSG-22), mesaj geçmişi (MSG-07/10), okuma işaretçisi
+ * (MSG-13) ve mesajı görenler (MSG-12).
  * Tüm uçlar kimlik ister.
  */
 @RestController
@@ -42,7 +43,7 @@ public class MessageController {
     public ResponseEntity<MessageResponse> send(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID conversationId,
                                                 @Valid @RequestBody SendMessageRequest request) {
         SendMessageResult result = messages.send(AuthenticatedUser.id(jwt), conversationId, request.clientMessageId(),
-                request.body());
+                request.toDraft());
         return ResponseEntity.status(result.created() ? HttpStatus.CREATED : HttpStatus.OK)
                 .body(MessageResponse.from(result.message()));
     }

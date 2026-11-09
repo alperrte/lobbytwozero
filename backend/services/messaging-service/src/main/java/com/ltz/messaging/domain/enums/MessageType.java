@@ -1,6 +1,11 @@
 package com.ltz.messaging.domain.enums;
 
-/** Mesaj türü. Medya türleri (MSG-17/22) kendi görevlerinde eklenecek. */
+/**
+ * Mesaj türü. {@code IMAGE}: sohbete yüklenmiş görsel (PNG, JPEG ya da GIF dosyası, MSG-17). {@code GIF}: GIF
+ * platformundan seçilmiş GIF (MSG-22); dosyası saklanmaz, sağlayıcı adresiyle gösterilir.
+ */
 public enum MessageType {
-    TEXT
+    TEXT,
+    IMAGE,
+    GIF
 }

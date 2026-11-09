@@ -15,6 +15,11 @@ public final class MessagingApiPaths {
     public static final String MESSAGES = CONVERSATION + "/messages";
     public static final String MESSAGE_READS = MESSAGES + "/{messageId}/reads";
     public static final String READ = CONVERSATION + "/read";
+    public static final String ATTACHMENTS = CONVERSATION + "/attachments";
+    public static final String ATTACHMENT = ATTACHMENTS + "/{attachmentId}";
+    public static final String GIFS = BASE + "/gifs";
+    public static final String GIF_SEARCH = GIFS + "/search";
+    public static final String GIF_TRENDING = GIFS + "/trending";
     public static final String STREAM = BASE + "/stream";
 
     private MessagingApiPaths() {

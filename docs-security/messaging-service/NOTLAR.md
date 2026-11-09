@@ -39,6 +39,20 @@
   mesajlar için alıcıya olay gitmez). Kanıt: `ReadReceiptStreamTest` (A seq 5, B seq 9, R `(0, 9]` okur → A
   `readUpToSeq = 5`). Olay en iyi çabadır; eşzamanlı iki okumada canlı `allReadUpToSeq` eski kalabilir, geçmiş/liste
   çekimi `readStatus`'u yeniden hesaplar (ADR 0001).
+- **Mesaj görseli (LTZ-UMT-MSG-04, MSG-17, V134).** İçerik `messaging_db`'de `bytea` (SECURITY.md §13 Messaging kararı).
+  Doğrulama JDK `ImageIO` ile, yeni bağımlılık yok: biçim magic byte'tan, PNG/JPEG yeniden kodlanır (EXIF/konum atılır),
+  GIF bloklarına ayrılıp temizlenir (`GifCleaner`; yorum/uygulama blokları ve kapanış sonrası polyglot yük atılır).
+  Kenar/piksel sınırı çözmeden önce, eşzamanlı işleme 2 ile sınırlı (`MEDIA_BUSY`). Kanıt: `AttachmentUploadTest`,
+  `ImageIoInspectorTest`, `GifCleanerTest`, `JpegOrientationTest`. İndirme yetkisi mesaj görünürlüğüyle aynıdır;
+  gönderilmemiş görseli yalnız yükleyen görür, diğer her durum aynı `404 ATTACHMENT_NOT_FOUND`. Bağlanmayan yükleme
+  `AttachmentCleanupJob` ile 1 saat sonra silinir (yalnız sayı loglanır). Kötü amaçlı içerik/virüs taraması yok.
+- **GIF platformu (MSG-22, GIPHY).** `GIPHY_API_KEY` yalnız sunucuda (platform sorgu dizgesinde istiyor); istek adresi
+  hiçbir hata/log/kök hataya yazılmaz (`GiphyGifClientTest`). Anahtar boşsa arama ve GIF gönderme fail-closed `503`.
+  Gönderilen GIF'in adresi istemciden alınmaz, `GET /v1/gifs/{id}` ile çözülür; yalnız GIPHY medya sunucularının HTTPS
+  adresi, `pg-13` ve altı derece kabul edilir. Platforma kullanıcı kimliği gitmez. Arama sınırı (30/dk) bellektedir:
+  birden çok örnekte örnek başına uygulanır. GIF görüntüsü istemcide GIPHY sunucusundan yüklenir; bu, kullanıcının IP
+  adresini GIPHY'ye açar (gizlilik politikasında belirtilmeli; vekil sunucu ayrı karar). Gerçek anahtarla: NOT VERIFIED.
+- **Emoji (MSG-18).** Gövde olduğu gibi saklanır; eşlenmemiş UTF-16 vekil reddedilir (bozuk emoji DB'ye girmez).
 - **Okuma aralığı tablosu (`message_read_ranges`, V133).** Satır sayısı gerçek ilerleme sayısıyla büyür (mesaj sayısıyla
   değil; gönderim de bir ilerlemedir); ilerlemeyen çağrı satır yazmaz, böylece okuma çağrısı sınırsız satır üretemez. Eşzamanlı okumalar üye satırı
   kilidiyle sıralanır (çakışan ya da boşluklu aralık yok). Saklama/temizlik görevi yok; ayrılan üyenin satırları kalır

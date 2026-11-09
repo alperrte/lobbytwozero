@@ -18,7 +18,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import com.ltz.messaging.domain.entity.Conversation;
 import com.ltz.messaging.domain.entity.ConversationMember;
+import com.ltz.messaging.domain.entity.GifSnapshot;
 import com.ltz.messaging.domain.entity.Message;
+import com.ltz.messaging.domain.enums.MessageType;
 import com.ltz.messaging.domain.enums.ReadStatus;
 import com.ltz.messaging.domain.event.MessageSentEvent;
 import com.ltz.messaging.domain.exception.MessagingErrorCode;
@@ -26,12 +28,13 @@ import com.ltz.messaging.domain.exception.MessagingException;
 import com.ltz.messaging.infrastructure.config.MessageProperties;
 import com.ltz.messaging.infrastructure.persistence.repository.ConversationMemberRepository;
 import com.ltz.messaging.infrastructure.persistence.repository.ConversationRepository;
+import com.ltz.messaging.infrastructure.persistence.repository.MessageAttachmentRepository;
 import com.ltz.messaging.infrastructure.persistence.repository.MessageRepository;
 
 import lombok.RequiredArgsConstructor;
 
 /**
- * Metin mesajı gönderme (MSG-06), mesaj geçmişi (MSG-07, MSG-10), okuma işaretçisi (MSG-13) ve okuma saati (MSG-11).
+ * Mesaj gönderme (metin MSG-06, görsel MSG-17, emoji MSG-18, platform GIF'i MSG-22), mesaj geçmişi (MSG-07, MSG-10), okuma işaretçisi (MSG-13) ve okuma saati (MSG-11).
  * <p>
  * Gönderim sırası: aynı {@code clientMessageId} ile daha önce kaydedilmiş mesaj varsa o döner (yeniden deneme, yan etki
  * yok) → yazma yetkisi (aktif üye; birebirde engel yok, MSG-14/15; engel sorgusu transaction dışında) → sohbet satırı
@@ -39,6 +42,10 @@ import lombok.RequiredArgsConstructor;
  * {@code MessageSent} olayı aynı transaction'da outbox'a yazılır → commit sonrası açık akışlara iletilir (MSG-09).
  * İşaretçi her iki yolda da {@link ReadTracker} üzerinden ilerler; gerçek ilerleme bir okuma aralığı yazar. İsteyenin
  * kendi mesajlarına okundu durumu {@link ReadWatermark} ile eklenir (MSG-11): yeni mesaj {@code SENT} döner.
+ * <p>
+ * Görsel mesajında görsel, mesajla aynı transaction'da koşullu UPDATE ile bağlanır; bağlanamazsa (başkasının, başka
+ * sohbetin, süresi dolmuş ya da gönderilmiş görsel) mesaj da kaydedilmez. GIF mesajında GIF, engel sorgusundan sonra ve
+ * transaction dışında platformdan çözülür; adresler istemciden alınmaz.
  */
 @Service
 @RequiredArgsConstructor
@@ -49,6 +56,9 @@ public class MessageService {
     private final ConversationRepository conversations;
     private final ConversationMemberRepository members;
     private final MessageRepository messages;
+    private final MessageAttachmentRepository attachments;
+    private final MessageAttachments messageAttachments;
+    private final GifService gifs;
     private final ConversationAccessPolicy access;
     private final ReadTracker tracker;
     private final OutboxRecorder outbox;
@@ -57,16 +67,17 @@ public class MessageService {
     private final TransactionTemplate transactions;
     private final Clock clock;
 
-    public SendMessageResult send(UUID sender, UUID conversationId, String clientMessageId, String body) {
+    public SendMessageResult send(UUID sender, UUID conversationId, String clientMessageId, MessageDraft draft) {
         Optional<MessageView> replay = Objects.requireNonNull(
-                transactions.execute(status -> findRetry(sender, conversationId, clientMessageId, body)));
+                transactions.execute(status -> findRetry(sender, conversationId, clientMessageId, draft)));
         if (replay.isPresent()) {
             return new SendMessageResult(replay.get(), false);
         }
         access.requireCanWrite(conversationId, sender);
+        GifSnapshot gif = draft.type() == MessageType.GIF ? gifs.resolve(draft.gifProvider(), draft.gifId()) : null;
         try {
             return Objects.requireNonNull(
-                    transactions.execute(status -> insert(sender, conversationId, clientMessageId, body)));
+                    transactions.execute(status -> insert(sender, conversationId, clientMessageId, draft, gif)));
         } catch (DataIntegrityViolationException exception) {
             // Aynı clientMessageId başka bir sohbette eşzamanlı kullanıldı (tekil indeks kazananı seçti).
             throw new MessagingException(MessagingErrorCode.CLIENT_MESSAGE_ID_REUSED, exception);
@@ -98,11 +109,11 @@ public class MessageService {
         // Üye listesi yalnız sayfada isteyenin kendi mesajı varsa, bir kez çekilir.
         boolean hasOwn = page.stream().anyMatch(message -> message.getSenderId().equals(viewer));
         long watermark = hasOwn ? ReadWatermark.of(viewer, members.findActiveMembers(conversationId)) : 0L;
-        List<MessageView> items = page.stream()
+        List<MessageView> items = messageAttachments.attachTo(page.stream()
                 .map(message -> message.getSenderId().equals(viewer)
                         ? MessageView.of(message).withReadStatus(ReadWatermark.status(message.getSeq(), watermark))
                         : MessageView.of(message))
-                .toList();
+                .toList());
         return new MessagePageView(items, rows.size() > size);
     }
 
@@ -124,26 +135,37 @@ public class MessageService {
         return new ReadStateView(conversationId, member.getLastReadSeq(), unread);
     }
 
-    private Optional<MessageView> findRetry(UUID sender, UUID conversationId, String clientMessageId, String body) {
+    private Optional<MessageView> findRetry(UUID sender, UUID conversationId, String clientMessageId,
+                                            MessageDraft draft) {
         access.requireMember(conversationId, sender);
         return messages.findBySenderIdAndClientMessageId(sender, clientMessageId)
                 .map(existing -> {
-                    if (!existing.isRetryOf(conversationId, body)) {
+                    if (!isRetry(existing, conversationId, draft)) {
                         throw new MessagingException(MessagingErrorCode.CLIENT_MESSAGE_ID_REUSED);
                     }
                     // Yeniden denemede durum, kayıttan sonra okunmuş olabilir: aynı transaction'da hesaplanır.
                     long watermark = ReadWatermark.of(sender, members.findActiveMembers(conversationId));
-                    return MessageView.of(existing)
-                            .withReadStatus(ReadWatermark.status(existing.getSeq(), watermark));
+                    return messageAttachments.attachTo(MessageView.of(existing)
+                            .withReadStatus(ReadWatermark.status(existing.getSeq(), watermark)));
                 });
     }
 
-    private SendMessageResult insert(UUID sender, UUID conversationId, String clientMessageId, String body) {
+    /** Aynı içerik mi? Görselde bağlı görselin aynı olması da gerekir. */
+    private boolean isRetry(Message existing, UUID conversationId, MessageDraft draft) {
+        if (!existing.isRetryOf(conversationId, draft.type(), draft.body(), draft.gifProvider(), draft.gifId())) {
+            return false;
+        }
+        return draft.type() != MessageType.IMAGE
+                || attachments.findIdByMessageId(existing.getId()).map(draft.attachmentId()::equals).orElse(false);
+    }
+
+    private SendMessageResult insert(UUID sender, UUID conversationId, String clientMessageId, MessageDraft draft,
+                                     GifSnapshot gif) {
         Conversation conversation = conversations.findByIdForUpdate(conversationId)
                 .orElseThrow(() -> new MessagingException(MessagingErrorCode.CONVERSATION_NOT_FOUND));
         ConversationMember senderMember = access.requireMember(conversationId, sender);
         // Kilit beklenirken aynı istek (aynı sohbette) kaydedilmiş olabilir.
-        Optional<MessageView> retried = findRetry(sender, conversationId, clientMessageId, body);
+        Optional<MessageView> retried = findRetry(sender, conversationId, clientMessageId, draft);
         if (retried.isPresent()) {
             return new SendMessageResult(retried.get(), false);
         }
@@ -152,12 +174,21 @@ public class MessageService {
             throw new MessagingException(MessagingErrorCode.TOO_MANY_MESSAGES);
         }
         long seq = conversation.appendMessage(now);
-        Message message = messages.saveAndFlush(Message.text(conversationId, seq, sender, clientMessageId, body, now));
+        Message message = messages.saveAndFlush(switch (draft.type()) {
+            case TEXT -> Message.text(conversationId, seq, sender, clientMessageId, draft.body(), now);
+            case IMAGE -> Message.image(conversationId, seq, sender, clientMessageId, draft.body(), now);
+            case GIF -> Message.gif(conversationId, seq, sender, clientMessageId, draft.body(), gif, now);
+        });
+        // Bağlanamayan görsel transaction'ı geri alır: mesaj ve sıra da kaydedilmez.
+        if (draft.type() == MessageType.IMAGE
+                && attachments.link(draft.attachmentId(), conversationId, sender, message.getId()) != 1) {
+            throw new MessagingException(MessagingErrorCode.ATTACHMENT_NOT_AVAILABLE);
+        }
         tracker.advance(senderMember, seq, now);
         List<UUID> recipients = members.findActiveMembers(conversationId).stream()
                 .map(ConversationMember::getUserId)
                 .toList();
-        MessageView view = MessageView.of(message);
+        MessageView view = messageAttachments.attachTo(MessageView.of(message));
         outbox.messageSent(new MessageSentEvent(message.getId(), conversationId, conversation.getType(), seq, sender,
                 recipients.stream().filter(recipient -> !recipient.equals(sender)).toList()), now);
         events.publishEvent(new MessageCreated(view, recipients));
