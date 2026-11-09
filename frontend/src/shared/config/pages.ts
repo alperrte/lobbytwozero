@@ -8,6 +8,11 @@ import type { AppPathname } from "@/shared/lib/i18n/routing";
  * - `indexable: false` sayfalar sitemap'e girmez ve `noindex` yayınlanır.
  */
 export type PageId =
+  | "library"
+  | "libraryFavorites"
+  | "libraryCompleted"
+  | "libraryAdd"
+  | "libraryPrivacy"
   | "home"
   | "games"
   | "about"
@@ -36,6 +41,11 @@ export type PageEntry = {
 };
 
 export const pages: readonly PageEntry[] = [
+  { id: "library", href: "/library", indexable: false, keywords: ["kütüphane", "library", "koleksiyon"] },
+  { id: "libraryFavorites", href: "/library/favorites", indexable: false, keywords: ["favoriler", "favorites"] },
+  { id: "libraryCompleted", href: "/library/completed", indexable: false, keywords: ["bitirilenler", "completed"] },
+  { id: "libraryAdd", href: "/library/add", indexable: false, keywords: ["oyun ekle", "add game"] },
+  { id: "libraryPrivacy", href: "/library/privacy", indexable: false, keywords: ["kütüphane gizliliği", "library privacy"] },
   { id: "games", href: "/games", indexable: false, keywords: ["oyun", "games", "katalog", "catalogue"] },
   { id: "hardware", href: "/hardware", indexable: false, keywords: ["donanım", "hardware", "cpu", "gpu", "katalog"] },
   { id: "campaigns", href: "/hardware/campaigns", indexable: false, keywords: ["kampanya", "campaign", "indirim", "fırsat"] },
