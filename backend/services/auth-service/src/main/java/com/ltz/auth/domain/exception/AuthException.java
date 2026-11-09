@@ -13,7 +13,11 @@ public class AuthException extends RuntimeException {
     }
 
     public AuthException(AuthErrorCode errorCode, Duration retryAfter) {
-        super(errorCode.name());
+        this(errorCode, retryAfter, null);
+    }
+
+    public AuthException(AuthErrorCode errorCode, Duration retryAfter, RedactedCause cause) {
+        super(errorCode.name(), cause);
         this.errorCode = errorCode;
         this.retryAfter = retryAfter;
     }

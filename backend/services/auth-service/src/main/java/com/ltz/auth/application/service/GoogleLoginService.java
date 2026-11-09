@@ -201,7 +201,7 @@ public class GoogleLoginService {
                 throw new UsernameAlreadyTakenException(RedactedCause.of(exception));
             }
             // E-posta ya da Google kimliği eşzamanlı olarak alındı: birleştirme yok, kullanıcı mevcut hesapla girmeli.
-            throw new AuthException(AuthErrorCode.ACCOUNT_LINK_REQUIRED);
+            throw new AuthException(AuthErrorCode.ACCOUNT_LINK_REQUIRED, null, RedactedCause.of(exception));
         }
     }
 

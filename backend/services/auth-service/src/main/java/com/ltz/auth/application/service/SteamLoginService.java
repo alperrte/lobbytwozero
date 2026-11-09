@@ -176,7 +176,7 @@ public class SteamLoginService {
             }
             // SteamID eşzamanlı olarak başka bir kayıtla alındı: yeniden Steam ile giriş yapmak mevcut hesaba götürür.
             securityEventRecorder.recordEvent(SecurityEventType.EXTERNAL_LINK_CONFLICT, null);
-            throw new AuthException(AuthErrorCode.REGISTRATION_TOKEN_INVALID);
+            throw new AuthException(AuthErrorCode.REGISTRATION_TOKEN_INVALID, null, RedactedCause.of(exception));
         }
     }
 

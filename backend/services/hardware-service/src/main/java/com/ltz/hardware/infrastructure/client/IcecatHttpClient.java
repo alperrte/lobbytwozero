@@ -1,6 +1,7 @@
 package com.ltz.hardware.infrastructure.client;
 
 import com.ltz.hardware.infrastructure.config.IcecatProperties;
+import jakarta.annotation.PreDestroy;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -20,11 +21,12 @@ public class IcecatHttpClient {
     private static final Set<String> HOSTS = Set.of("data.icecat.biz", "live.icecat.biz", "images.icecat.biz",
             "images2.icecat.biz", "objects.icecat.biz");
     private final RestClient client;
+    private final HttpClient http;
     private final IcecatProperties properties;
     private long nextRequest;
     public IcecatHttpClient(IcecatProperties properties) {
         this.properties = properties;
-        var http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3))
+        http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3))
                 .followRedirects(HttpClient.Redirect.NEVER).build();
         var factory = new JdkClientHttpRequestFactory(http);
         factory.setReadTimeout(Duration.ofSeconds(60));
@@ -55,22 +57,35 @@ public class IcecatHttpClient {
     }
 
     public static void requireOfficial(URI uri) {
-        if (!"https".equals(uri.getScheme()) || !HOSTS.contains(uri.getHost()) || uri.getUserInfo() != null
-                || uri.getFragment() != null || (uri.getPort() != -1 && uri.getPort() != 443)) {
+        if (!officialAuthority(uri)) {
             throw new IllegalArgumentException("ICECAT_UNSAFE_URL");
         }
         try {
             for (var address : InetAddress.getAllByName(uri.getHost())) {
-                var bytes = address.getAddress();
-                if (address.isAnyLocalAddress() || address.isLoopbackAddress() || address.isSiteLocalAddress()
-                        || address.isLinkLocalAddress() || address.isMulticastAddress()
-                        || (bytes.length == 16 && (bytes[0] & 0xfe) == 0xfc)) {
+                if (privateAddress(address)) {
                     throw new IllegalArgumentException("ICECAT_UNSAFE_ADDRESS");
                 }
             }
         } catch (java.net.UnknownHostException exception) {
             throw new IllegalStateException("ICECAT_DNS_UNAVAILABLE", exception);
         }
+    }
+
+    private static boolean officialAuthority(URI uri) {
+        return "https".equals(uri.getScheme()) && HOSTS.contains(uri.getHost()) && uri.getUserInfo() == null
+                && uri.getFragment() == null && (uri.getPort() == -1 || uri.getPort() == 443);
+    }
+
+    private static boolean privateAddress(InetAddress address) {
+        var bytes = address.getAddress();
+        return address.isAnyLocalAddress() || address.isLoopbackAddress() || address.isSiteLocalAddress()
+                || address.isLinkLocalAddress() || address.isMulticastAddress()
+                || (bytes.length == 16 && (bytes[0] & 0xfe) == 0xfc);
+    }
+
+    @PreDestroy
+    public void close() {
+        http.close();
     }
 
     public static InputStream bounded(InputStream input, long maximum) {

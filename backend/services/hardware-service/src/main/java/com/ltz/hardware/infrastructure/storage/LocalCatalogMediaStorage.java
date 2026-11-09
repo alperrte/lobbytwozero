@@ -13,6 +13,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
 import org.springframework.stereotype.Component;
 
 /** Explicit local-development adapter. No production storage service is provisioned. */
@@ -29,31 +30,43 @@ public class LocalCatalogMediaStorage implements CatalogMediaStorage {
             var reader = readers.next();
             try {
                 reader.setInput(stream, true, true);
-                int width = reader.getWidth(0);
-                int height = reader.getHeight(0);
-                if (width < 1 || height < 1 || width > 4096 || height > 4096
-                        || (long) width * height > 4_000_000) throw new IllegalArgumentException("MEDIA_DIMENSIONS");
-                var pixels = reader.read(0);
-                var buffer = new ByteArrayOutputStream();
-                if (!ImageIO.write(pixels, "png", buffer)) throw new IOException("PNG encoder unavailable");
-                var output = buffer.toByteArray();
-                if (output.length > 5_000_000) throw new IllegalArgumentException("MEDIA_ENCODED_LIMIT");
-                String hash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(output));
-                String key = hash + ".png";
-                Path root = directory();
-                Path target = root.resolve(key).normalize();
-                if (!target.startsWith(root)) throw new IllegalArgumentException("MEDIA_PATH");
-                if (Files.isSymbolicLink(target)) throw new IllegalArgumentException("MEDIA_SYMLINK");
-                var temporary = Files.createTempFile(root, "icecat-", ".tmp");
-                try {
-                    Files.write(temporary, output);
-                    Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-                } finally { Files.deleteIfExists(temporary); }
-                return new Stored(key, hash, width, height);
+                return storeImage(reader);
             } finally { reader.dispose(); }
         } catch (IOException | NoSuchAlgorithmException exception) {
             throw new IllegalStateException("MEDIA_STORE_FAILED", exception);
         }
+    }
+
+    private Stored storeImage(ImageReader reader) throws IOException, NoSuchAlgorithmException {
+        int width = reader.getWidth(0);
+        int height = reader.getHeight(0);
+        requireDimensions(width, height);
+        var pixels = reader.read(0);
+        var buffer = new ByteArrayOutputStream();
+        if (!ImageIO.write(pixels, "png", buffer)) throw new IOException("PNG encoder unavailable");
+        var output = buffer.toByteArray();
+        if (output.length > 5_000_000) throw new IllegalArgumentException("MEDIA_ENCODED_LIMIT");
+        String hash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(output));
+        String key = hash + ".png";
+        persist(key, output);
+        return new Stored(key, hash, width, height);
+    }
+
+    private static void requireDimensions(int width, int height) {
+        if (width < 1 || height < 1 || width > 4096 || height > 4096
+                || (long) width * height > 4_000_000) throw new IllegalArgumentException("MEDIA_DIMENSIONS");
+    }
+
+    private void persist(String key, byte[] output) throws IOException {
+        Path root = directory();
+        Path target = root.resolve(key).normalize();
+        if (!target.startsWith(root)) throw new IllegalArgumentException("MEDIA_PATH");
+        if (Files.isSymbolicLink(target)) throw new IllegalArgumentException("MEDIA_SYMLINK");
+        var temporary = Files.createTempFile(root, "icecat-", ".tmp");
+        try {
+            Files.write(temporary, output);
+            Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } finally { Files.deleteIfExists(temporary); }
     }
     @Override public byte[] read(String key) {
         if (!available() || !key.matches("[a-f0-9]{64}\\.png")) throw new IllegalArgumentException("MEDIA_KEY");
