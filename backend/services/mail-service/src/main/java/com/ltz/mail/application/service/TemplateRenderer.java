@@ -17,10 +17,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StreamUtils;
 
 import com.ltz.mail.application.port.MailDeliveryException;
-import com.ltz.mail.domain.entity.MailTemplate;
+import com.ltz.mail.application.service.MailTemplateDefinition.Block;
+import com.ltz.mail.application.service.MailTemplateDefinition.BlockType;
 import com.ltz.mail.domain.enums.MailLocale;
 import com.ltz.mail.domain.enums.MailType;
-import com.ltz.mail.infrastructure.persistence.repository.MailTemplateRepository;
 
 /**
  * Şablon + yük → gönderime hazır e-posta (MAIL-08/09). Dil verilirse tek dil, verilmezse TR ve EN birlikte
@@ -62,10 +62,10 @@ public class TemplateRenderer {
     private record FooterCopy(String tagline, String reason, String legal, String copyright) {
     }
 
-    private final MailTemplateRepository templates;
+    private final MailTemplateCatalog templates;
     private final String layout;
 
-    public TemplateRenderer(MailTemplateRepository templates) {
+    public TemplateRenderer(MailTemplateCatalog templates) {
         this.templates = templates;
         try {
             this.layout = StreamUtils.copyToString(new ClassPathResource(LAYOUT_RESOURCE).getInputStream(),
@@ -85,13 +85,12 @@ public class TemplateRenderer {
         List<String> footerTexts = new ArrayList<>();
         try {
             for (MailLocale current : locales) {
-                MailTemplate template = templates
-                        .findFirstByCodeAndLocaleAndActiveTrueOrderByTemplateVersionDesc(type.name(), current.code())
-                        .orElseThrow(() -> new IllegalArgumentException("Template not found"));
+                MailTemplateDefinition template = templates.get(type, current);
                 Map<String, String> variables = variables(current, payload);
-                subjects.add(Placeholders.apply(template.getSubject(), variables, false));
-                htmlParts.add(Placeholders.apply(template.getBodyHtml(), variables, true));
-                textParts.add(Placeholders.apply(template.getBodyText(), variables, false));
+                subjects.add(Placeholders.apply(template.subject(), variables, false));
+                Body body = body(template, variables);
+                htmlParts.add(body.html());
+                textParts.add(body.text());
                 footers.add(footerHtml(current));
                 footerTexts.add(footerText(current));
             }
@@ -102,6 +101,68 @@ public class TemplateRenderer {
         String html = html(locales, subject, htmlParts, footers);
         String text = String.join(TEXT_SEPARATOR, textParts) + "\n\n-- \n" + String.join("\n\n", footerTexts);
         return new RenderedMail(subject, html, text);
+    }
+
+    /** Şablon bloklarını HTML ve düz metne çevirir; eksik değişken {@link IllegalArgumentException} fırlatır. */
+    private static Body body(MailTemplateDefinition template, Map<String, String> variables) {
+        StringBuilder html = new StringBuilder(MailBlocks.eyebrow(template.kind(), template.label()))
+                .append(MailBlocks.heading(template.title()));
+        List<String> text = new ArrayList<>(List.of(template.title()));
+        List<String[]> features = new ArrayList<>();
+        for (Block block : template.blocks()) {
+            if (block.type() == BlockType.FEATURE) {
+                String[] parts = Placeholders.apply(block.value(), variables, false).split(" \\| ", 2);
+                features.add(parts);
+                text.add(parts[0] + ": " + parts[1]);
+                continue;
+            }
+            flushFeatures(html, features);
+            appendBlock(html, text, template, block, variables);
+        }
+        flushFeatures(html, features);
+        return new Body(html.toString(), String.join("\n", text));
+    }
+
+    private static void flushFeatures(StringBuilder html, List<String[]> features) {
+        if (!features.isEmpty()) {
+            html.append(MailBlocks.features(features));
+            features.clear();
+        }
+    }
+
+    private static void appendBlock(StringBuilder html, List<String> text, MailTemplateDefinition template, Block block,
+                                    Map<String, String> variables) {
+        String value = Placeholders.apply(block.value(), variables, false);
+        switch (block.type()) {
+            case TEXT -> {
+                html.append(MailBlocks.paragraphs(value));
+                text.add(value);
+            }
+            case CODE -> {
+                String code = Placeholders.apply("{{code}}", variables, false);
+                html.append(MailBlocks.codeBox(value, code));
+                text.add(value + ": " + code);
+            }
+            case BUTTON -> {
+                String link = Placeholders.apply("{{link}}", variables, false);
+                html.append(MailBlocks.button(value, link));
+                text.add(value + ": " + link);
+            }
+            case LINK_FALLBACK -> html.append(MailBlocks.linkFallback(value, Placeholders.apply("{{link}}", variables, false)));
+            case DATE -> {
+                String date = Placeholders.apply("{{occurredAt}}", variables, false);
+                html.append(MailBlocks.info(value, date));
+                text.add(value + " " + date);
+            }
+            case NOTE -> {
+                html.append(MailBlocks.note(template.noteKind(), value));
+                text.add(value);
+            }
+            default -> throw new IllegalArgumentException("Unsupported block");
+        }
+    }
+
+    private record Body(String html, String text) {
     }
 
     private String html(List<MailLocale> locales, String subject, List<String> parts, List<String> footers) {

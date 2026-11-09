@@ -1,0 +1,8 @@
+# EXTERNAL_IDENTITY_LINKED (en). Biçim: docs-mail/sablon-rehberi.md. Düz metin sürümü bloklardan otomatik üretilir.
+subject: An external account was linked
+kind: warn
+label: SECURITY NOTICE
+title: An external account was linked
+text: A Google or Steam account was linked to your LTZ account.
+date: Date:
+note: If you did not do this, reset your password immediately and contact support.

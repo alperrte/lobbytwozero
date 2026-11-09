@@ -1,0 +1,9 @@
+# EMAIL_VERIFICATION (en). Biçim: docs-mail/sablon-rehberi.md. Düz metin sürümü bloklardan otomatik üretilir.
+subject: Your LTZ email verification code
+kind: accent
+label: EMAIL VERIFICATION
+title: Verify your email address
+note-kind: accent
+text: Enter the code below to verify your LTZ account. The code is valid for {{validityMinutes}} minutes.
+code: VERIFICATION CODE
+note: If you did not make this request you can ignore this email. Never share the code with anyone.

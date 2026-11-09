@@ -1,6 +1,6 @@
 package com.ltz.mail.domain.enums;
 
-/** E-posta türü; adı aynı zamanda {@code mail_templates.code} değeridir. */
+/** E-posta türü; adı aynı zamanda şablon dosyasının adıdır ({@code mail/templates/<TÜR>.<dil>.mail}). */
 public enum MailType {
     /** Kayıt ve e-posta değişikliği doğrulama kodu (MAIL-01). */
     EMAIL_VERIFICATION,

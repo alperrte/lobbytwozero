@@ -1,0 +1,8 @@
+# TWO_FACTOR_DISABLED (tr). Biçim: docs-mail/sablon-rehberi.md. Düz metin sürümü bloklardan otomatik üretilir.
+subject: LTZ iki adımlı doğrulama kapatıldı
+kind: warn
+label: GÜVENLİK BİLDİRİMİ
+title: İki adımlı doğrulama kapatıldı
+text: LTZ hesabında iki adımlı doğrulama kapatıldı.
+date: Tarih:
+note: Bu işlemi sen yapmadıysan hemen parolanı sıfırla ve destek ile iletişime geç.
