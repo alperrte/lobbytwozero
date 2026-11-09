@@ -20,5 +20,15 @@ public enum MailType {
     RECOVERY_CODE_USED,
     EXTERNAL_IDENTITY_LINKED,
     /** Hoş geldin e-postası; Auth e-posta doğrulaması tamamlanınca gönderir (MAIL-05). */
-    WELCOME
+    WELCOME,
+    /**
+     * Genel bilgilendirme (platform kapısı): içeriği (başlık, mesaj, düğme) çağıran servis verir, tasarım Mail'indir.
+     * Şablon dosyası yoktur; {@code TemplateRenderer} bileşenlerden kurar.
+     */
+    NOTICE;
+
+    /** İçeriği dosyadan değil istekten gelen tür: katalogda şablon dosyası aranmaz. */
+    public boolean isDynamic() {
+        return this == NOTICE;
+    }
 }

@@ -40,6 +40,8 @@ public class TemplateRenderer {
             DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm 'UTC'", Locale.ROOT).withZone(ZoneOffset.UTC);
     private static final DateTimeFormatter ENGLISH_TIME =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm 'UTC'", Locale.ROOT).withZone(ZoneOffset.UTC);
+    private static final String BUTTON_FALLBACK_TR = "Düğme çalışmazsa bu adresi tarayıcına yapıştır:";
+    private static final String BUTTON_FALLBACK_EN = "If the button does not work, paste this address into your browser:";
     private static final String BRAND = "LobbyTwoZero";
     private static final String FOOTER_DIVIDER =
             "<hr class=\"hr\" style=\"border:0;border-top:1px solid #34343c;margin:16px 0\">";
@@ -75,8 +77,11 @@ public class TemplateRenderer {
         }
     }
 
-    /** @param locale {@code null} ise iki dilli */
+    /** @param locale {@code null} ise iki dilli ({@code NOTICE} tek dillidir: {@code null} ise {@code tr}) */
     public RenderedMail render(MailType type, MailLocale locale, MailPayload payload) {
+        if (type.isDynamic()) {
+            return renderNotice(locale == null ? MailLocale.TR : locale, payload);
+        }
         List<MailLocale> locales = locale == null ? List.of(MailLocale.TR, MailLocale.EN) : List.of(locale);
         List<String> subjects = new ArrayList<>();
         List<String> htmlParts = new ArrayList<>();
@@ -101,6 +106,32 @@ public class TemplateRenderer {
         String html = html(locales, subject, htmlParts, footers);
         String text = String.join(TEXT_SEPARATOR, textParts) + "\n\n-- \n" + String.join("\n\n", footerTexts);
         return new RenderedMail(subject, html, text);
+    }
+
+    /**
+     * Genel bilgilendirme: içerik istekten gelir, görünüm {@link MailBlocks} bileşenlerinden kurulur (renk türü, başlık,
+     * paragraflar, isteğe bağlı düğme). Tek dillidir; çağıran içeriği kendi yerelleştirir.
+     */
+    private RenderedMail renderNotice(MailLocale locale, MailPayload payload) {
+        NoticeContent notice = payload.notice();
+        if (notice == null) {
+            throw MailDeliveryException.permanent(TEMPLATE_ERROR, null);
+        }
+        boolean turkish = locale == MailLocale.TR;
+        StringBuilder html = new StringBuilder(MailBlocks.eyebrow(notice.kind().color(), notice.kind().label(turkish)))
+                .append(MailBlocks.heading(notice.title()))
+                .append(MailBlocks.paragraphs(notice.message()));
+        List<String> text = new ArrayList<>(List.of(notice.title(), notice.message()));
+        if (notice.actionLink() != null) {
+            html.append(MailBlocks.button(notice.actionLabel(), notice.actionLink()))
+                    .append(MailBlocks.linkFallback(turkish ? BUTTON_FALLBACK_TR : BUTTON_FALLBACK_EN,
+                            notice.actionLink()));
+            text.add(notice.actionLabel() + ": " + notice.actionLink());
+        }
+        String subject = subject(List.of(notice.title()));
+        return new RenderedMail(subject,
+                html(List.of(locale), subject, List.of(html.toString()), List.of(footerHtml(locale))),
+                String.join("\n", text) + "\n\n-- \n" + footerText(locale));
     }
 
     /** Şablon bloklarını HTML ve düz metne çevirir; eksik değişken {@link IllegalArgumentException} fırlatır. */

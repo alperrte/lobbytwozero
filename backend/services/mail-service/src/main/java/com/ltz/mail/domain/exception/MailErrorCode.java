@@ -4,6 +4,9 @@ package com.ltz.mail.domain.exception;
 public enum MailErrorCode {
     INVALID_LINK(400, "The link is not allowed."),
     INVALID_OCCURRED_AT(400, "The occurredAt value is not acceptable."),
+    INVALID_CONTENT(400, "The notice content is not acceptable."),
+    RATE_LIMITED(429, "Too many notices for this caller or account. Retry later."),
+    PLATFORM_NOT_CONFIGURED(503, "The notice gateway is not configured."),
     IDEMPOTENCY_CONFLICT(409, "The idempotency key was already used with a different request."),
     TEMPORARILY_UNAVAILABLE(503, "The mail request could not be recorded. Retry shortly.");
 

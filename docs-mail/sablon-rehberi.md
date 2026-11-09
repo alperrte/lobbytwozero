@@ -14,6 +14,8 @@ Güncelleme: 2026-11-09. Sorumlu: Kerem. Bu belge **Mail Service'in kendi içind
 
 Altbilgi (marka, tagline, mailin nedeni, yasal not, telif) `TemplateRenderer` içindedir ve her dilde otomatik eklenir. Düz metin (text/plain) sürümü **bloklardan otomatik üretilir**; ayrıca yazılmaz. Görünümü değiştirmek için `MailBlocks` ya da `layout.html` düzenlenir, 30 şablona dokunulmaz.
 
+**İstisna: `NOTICE`.** Genel bilgilendirme (platform kapısı) için şablon dosyası yoktur: başlık, mesaj ve düğme çağıran servisten gelir, görünüm yine `MailBlocks` bileşenlerinden ve kabuktan kurulur (`TemplateRenderer.renderNotice`). Katalog dinamik türleri (`MailType.isDynamic()`) atlar.
+
 ## Dosya biçimi
 
 Satır tabanlı, `anahtar: değer`. Boş satırlar ve `#` ile başlayan satırlar yok sayılır. Değerler **düz metindir** (HTML yazılmaz; kaçışlama otomatiktir).

@@ -16,6 +16,7 @@ import com.ltz.mail.IntegrationTestSupport;
 import com.ltz.mail.application.port.MailDeliveryException;
 import com.ltz.mail.domain.enums.MailLocale;
 import com.ltz.mail.domain.enums.MailType;
+import com.ltz.mail.domain.enums.NoticeKind;
 
 class TemplateRendererTest extends IntegrationTestSupport {
 
@@ -28,6 +29,8 @@ class TemplateRendererTest extends IntegrationTestSupport {
         return switch (type) {
             case EMAIL_VERIFICATION -> new MailPayload("123456", null, 600, null);
             case PASSWORD_RESET_LINK, ACCOUNT_DELETION_CONFIRMATION -> new MailPayload(null, RESET_LINK, 900, null);
+            case NOTICE -> new MailPayload(null, null, null, null,
+                    new NoticeContent(NoticeKind.INFO, "Başlık", "Mesaj", null, null));
             default -> new MailPayload(null, null, null, OCCURRED_AT);
         };
     }
@@ -67,6 +70,36 @@ class TemplateRendererTest extends IntegrationTestSupport {
         assertThat(english.subject()).isEqualTo("Welcome to LTZ");
         assertThat(english.html()).contains("WELCOME", "DISCOVER", "COMMUNITY");
         assertThat(both.subject()).isEqualTo("LTZ'ye hoş geldin / Welcome to LTZ");
+    }
+
+    @Test
+    void noticeIsSingleLanguageAndEscapedWithLabelPerKindAndLanguage() {
+        NoticeContent content = new NoticeContent(NoticeKind.DANGER, "Dikkat <b>hesap</b>\r\nX",
+                "Birinci\n\nİkinci <script>", "Aç", "https://app.ltz.test/x?a=1&b=2");
+        MailPayload payload = new MailPayload(null, null, null, null, content);
+
+        RenderedMail turkish = renderer.render(MailType.NOTICE, null, payload);
+        RenderedMail english = renderer.render(MailType.NOTICE, MailLocale.EN, payload);
+
+        assertThat(turkish.subject()).isEqualTo("Dikkat <b>hesap</b> X");
+        assertThat(turkish.html()).contains("<html lang=\"tr\"", "ÖNEMLİ", "Dikkat &lt;b&gt;hesap&lt;/b&gt;",
+                "<p style=\"margin:0 0 18px 0\">Birinci</p>", "İkinci &lt;script&gt;", "Düğme çalışmazsa")
+                .contains("href=\"https://app.ltz.test/x?a=1&amp;b=2\"").doesNotContain("<script>", "All rights reserved");
+        assertThat(english.html()).contains("<html lang=\"en\"", "IMPORTANT", "If the button does not work", "All rights reserved")
+                .doesNotContain("Tüm hakları saklıdır");
+        assertThat(english.text()).contains("Aç: https://app.ltz.test/x?a=1&b=2", "Birinci", "<script>");
+    }
+
+    @Test
+    void noticeWithoutAButtonHasNoActionAndWithoutContentItIsATemplateError() {
+        NoticeContent content = new NoticeContent(NoticeKind.SUCCESS, "Tamam", "Hazır", null, null);
+
+        RenderedMail mail = renderer.render(MailType.NOTICE, MailLocale.TR, new MailPayload(null, null, null, null, content));
+
+        assertThat(mail.html()).contains("BAŞARILI", "Hazır").doesNotContain("Düğme çalışmazsa");
+        assertThatThrownBy(() -> renderer.render(MailType.NOTICE, MailLocale.TR, new MailPayload(null, null, null, null)))
+                .isInstanceOfSatisfying(MailDeliveryException.class,
+                        exception -> assertThat(exception.errorCode()).isEqualTo("TEMPLATE_ERROR"));
     }
 
     @Test

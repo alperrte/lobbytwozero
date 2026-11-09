@@ -31,9 +31,14 @@ class MailTemplateCatalogTest {
         return Set.of("occurredAt");
     }
 
+    /** İçeriği istekten gelen türlerin (NOTICE) şablon dosyası yoktur. */
+    private static List<MailType> fileBackedTypes() {
+        return java.util.Arrays.stream(MailType.values()).filter(type -> !type.isDynamic()).toList();
+    }
+
     @Test
     void everyTypeHasATemplateInEveryLanguage() {
-        for (MailType type : MailType.values()) {
+        for (MailType type : fileBackedTypes()) {
             for (MailLocale locale : MailLocale.values()) {
                 assertThat(catalog.get(type, locale)).as(type + "." + locale).isNotNull();
             }
@@ -42,7 +47,7 @@ class MailTemplateCatalogTest {
 
     @Test
     void templatesOnlyUseVariablesTheirTypeActuallyCarries() {
-        for (MailType type : MailType.values()) {
+        for (MailType type : fileBackedTypes()) {
             for (MailLocale locale : MailLocale.values()) {
                 MailTemplateDefinition template = catalog.get(type, locale);
                 StringBuilder all = new StringBuilder(template.subject());
@@ -58,7 +63,7 @@ class MailTemplateCatalogTest {
 
     @Test
     void blockKindsMatchWhatTheTypeCarries() {
-        for (MailType type : MailType.values()) {
+        for (MailType type : fileBackedTypes()) {
             for (MailLocale locale : MailLocale.values()) {
                 List<MailTemplateDefinition.BlockType> blocks = catalog.get(type, locale).blocks().stream()
                         .map(Block::type).toList();

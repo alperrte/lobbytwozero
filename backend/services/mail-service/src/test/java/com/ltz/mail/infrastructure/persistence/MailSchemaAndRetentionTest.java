@@ -51,6 +51,19 @@ class MailSchemaAndRetentionTest extends IntegrationTestSupport {
     }
 
     @Test
+    void pendingRowWithoutAnAddressIsOnlyAllowedForPlatformMessages() {
+        String insert = """
+                insert into mail_messages (id, idempotency_key, request_hash, type, recipient_user_id, recipient_email,
+                                           recipient_masked, caller, payload_encrypted, payload_key_version, status, attempts,
+                                           next_attempt_at, expires_at, created_at, updated_at, version)
+                values (?, ?, 'h', 'NOTICE', ?, null, '***', ?, '\\x00'::bytea, 1, 'PENDING', 0, now(), now(), now(), now(), 0)""";
+
+        assertThat(jdbc.update(insert, UUID.randomUUID(), UUID.randomUUID(), newAccount(), "social-service")).isEqualTo(1);
+        assertThatThrownBy(() -> jdbc.update(insert, UUID.randomUUID(), UUID.randomUUID(), newAccount(), null))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
     void terminalRowsCannotKeepSensitiveData() {
         assertThatThrownBy(() -> jdbc.update("""
                 insert into mail_messages (id, idempotency_key, request_hash, type, recipient_user_id, recipient_email,

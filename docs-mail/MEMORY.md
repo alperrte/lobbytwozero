@@ -22,7 +22,7 @@
 | Konu | Değer |
 | --- | --- |
 | Servis | `mail-service`, `backend/services/mail-service`, `com.ltz.mail`, `mail_db` (`DB_MAIL_NAME`) |
-| Migration | **V81–V90** (V81 şema, V82 şablon seed, V83 4 güvenlik türü, V84 koyu tasarım sürüm 2, V85 `WELCOME`, V86 `mail_templates` tablosu kaldırıldı (şablonlar dosyada); sonraki: V87) |
+| Migration | **V81–V90** (V81 şema, V82 şablon seed, V83 4 güvenlik türü, V84 koyu tasarım sürüm 2, V85 `WELCOME`, V86 `mail_templates` tablosu kaldırıldı (şablonlar dosyada), V87 platform kapısı (`NOTICE`, `caller`); sonraki: V88) |
 | Port / adres | host 5083, container 8080, `MAIL_SERVICE_URL`; Gateway `/api/v1/mail/**` (kullanıcı ucu yok) |
 | Görevler | LTZ-KER-MAIL-01 (MAIL-10..16), -02 (MAIL-01..05, 08, 09), -03 (MAIL-06, 07 ertelendi) |
 | Stack | Java 25, Spring Boot 4.1.1, JPA, Flyway, `spring-boot-starter-mail`, resource-server (pom'da hazır) |

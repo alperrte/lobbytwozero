@@ -27,6 +27,9 @@ public class MailTemplateCatalog {
 
     public MailTemplateCatalog() {
         for (MailType type : MailType.values()) {
+            if (type.isDynamic()) {
+                continue;
+            }
             Map<MailLocale, MailTemplateDefinition> byLocale = new EnumMap<>(MailLocale.class);
             for (MailLocale locale : MailLocale.values()) {
                 String name = type.name() + "." + locale.code() + ".mail";

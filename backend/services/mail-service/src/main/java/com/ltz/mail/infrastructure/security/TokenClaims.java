@@ -15,6 +15,9 @@ public final class TokenClaims {
     public static final Duration SERVICE_TOKEN_MAX_LIFETIME = Duration.ofSeconds(60);
     /** E-posta gönderim talebi kapsamı. */
     public static final String MAIL_SEND_SCOPE = "mail:send";
+    /** Bilgilendirme maili talebi kapsamı (platform kapısı: Auth dışındaki kayıtlı servisler). */
+    public static final String MAIL_NOTIFY_SCOPE = "mail:notify";
+
     /** Hesap verisi silme kapsamı. */
     public static final String ACCOUNT_ERASE_SCOPE = "account:erase";
     /** Token'ın bağlı olduğu tek hesap; istek gövdesi/yolu ile karşılaştırılır. */

@@ -240,7 +240,7 @@ class MailDeliveryControllerTest extends IntegrationTestSupport {
         UnaryOperator<JWTClaimsSet.Builder> tooLong = claims -> claims.expirationTime(farFuture);
         List<String> rejected = List.of(
                 serviceToken(account, MAIL_SEND_SCOPE, claims -> claims.audience("user-service")),
-                serviceToken(account, MAIL_SEND_SCOPE, claims -> claims.subject("svc:social-service")),
+                serviceToken(account, MAIL_SEND_SCOPE, claims -> claims.subject("svc:unknown-service")),
                 serviceToken(account, MAIL_SEND_SCOPE, claims -> claims.issuer("someone-else")),
                 serviceToken(account, MAIL_SEND_SCOPE, claims -> claims.issueTime(null)),
                 serviceToken(account, MAIL_SEND_SCOPE, claims -> claims.jwtID(null)),

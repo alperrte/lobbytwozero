@@ -1,11 +1,14 @@
 package com.ltz.mail.application.mapper;
 
 import com.ltz.mail.api.dto.request.AccountDeletionMailRequest;
+import com.ltz.mail.api.dto.request.NoticeMailRequest;
 import com.ltz.mail.api.dto.request.PasswordResetMailRequest;
 import com.ltz.mail.api.dto.request.SecurityNotificationMailRequest;
 import com.ltz.mail.api.dto.request.VerificationCodeMailRequest;
 import com.ltz.mail.application.service.MailCommand;
 import com.ltz.mail.application.service.MailPayload;
+import com.ltz.mail.application.service.NoticeCommand;
+import com.ltz.mail.application.service.NoticeContent;
 import com.ltz.mail.domain.enums.MailLocale;
 import com.ltz.mail.domain.enums.MailType;
 
@@ -31,6 +34,16 @@ public final class MailRequestMapper {
         return new MailCommand(request.idempotencyKey(), request.accountId(), MailType.ACCOUNT_DELETION_CONFIRMATION,
                 request.recipientEmail(), MailLocale.fromCode(request.locale()),
                 new MailPayload(null, request.confirmationLink(), request.validitySeconds(), null));
+    }
+
+    public static NoticeCommand toCommand(NoticeMailRequest request) {
+        return new NoticeCommand(request.idempotencyKey(), request.accountId(), MailLocale.fromCode(request.locale()),
+                new NoticeContent(request.kind(), request.title().strip(), request.message().strip(),
+                        blankToNull(request.actionLabel()), blankToNull(request.actionLink())));
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.strip();
     }
 
     public static MailCommand toCommand(SecurityNotificationMailRequest request) {

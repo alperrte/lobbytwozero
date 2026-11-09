@@ -6,12 +6,12 @@ Güncelleme: 2026-11-09. Sorumlu: Kerem. Mail Service ve Auth adaptörü yazıld
 
 | Servis | Mail'e çağrı | Kanıt |
 | --- | --- | --- |
-| **auth** | **Evet, tek çağıran.** 4 port: doğrulama kodu, parola sıfırlama, hesap silme onayı, güvenlik/durum bildirimi | `auth-service/.../application/port/*Mail*.java`, `*Dispatcher` sınıfları |
-| event, notification, admin | Hayır. Kod iskelet; Auth'ta (çağıran→mail) token çifti tanımsız | `docs-auth/servis-sozlesmeleri.md` §3.5 tablosunda yok |
+| **auth** | **Evet.** 4 port: doğrulama kodu, parola sıfırlama, hesap silme onayı, güvenlik/durum bildirimi | `auth-service/.../application/port/*Mail*.java`, `*Dispatcher` sınıfları |
+| event, notification, admin, social vb. | **Platform kapısı hazır (2026-11-09), henüz çağıran yok.** `POST /internal/v1/mail/notices` (`mail:notify`); servis Auth'ta `targets.mail-service=mail:notify` ve Mail'de `ltz.mail.platform.callers.<servis>` ile kayıtlı olmalı | [entegrasyon-rehberi.md](../entegrasyon-rehberi.md), `docs-auth/servis-sozlesmeleri.md` §3.5 |
 | user, social, community vb. | Hayır | Kodda `mail` çağrısı bulunamadı |
 | gateway | `/api/v1/mail/**` rotası var; **kullanıcıya açık uç yok** | — |
 
-Mail kimseyi çağırmaz. Tek yön: Auth → Mail.
+Mail, platform kapısında alıcı adresini çözmek için **yalnız Auth'ı** çağırır (`GET /internal/v1/accounts/{id}/contact`, `account:contact:read`, gönderim anında). Başka servisi çağırmaz.
 
 ## Auth'un Mail'den beklediği davranış (koddan)
 
