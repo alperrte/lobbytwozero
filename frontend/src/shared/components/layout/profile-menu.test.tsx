@@ -107,4 +107,3 @@ describe("ProfileMenu oturum katmanı", () => {
     expect(trigger.querySelector("svg")).not.toBeNull(); // kullanıcı simgesi var
   });
 });
-
