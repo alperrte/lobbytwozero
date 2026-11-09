@@ -43,6 +43,10 @@ node pre-push/ci/install-tool.mjs prek
 ```
 
 Kurulumun indirme/hash/extraction adımları başarılı olmadan devam edilmez. Binary yerel .cache/tools altında kalır.
+Resmî arşiv indirmesi geçici HTTP 408/429/5xx, doğrulanmış HTTP 403 kota yanıtı ve geçici ağ hatalarında en fazla
+üç kez denenir; her deneme en çok 60 saniye, denemeler arası bekleme en çok 5 saniyedir. Kalıcı HTTP hataları ve
+SHA-256 uyuşmazlığı yeniden denenmez. Tanı çıktısı yalnız deneme sayısı, izinli hata kodu ve HTTP durumunu taşır;
+yanıt gövdesi, ham hata mesajı veya yönlendirme URL'si yazılmaz. İndirme başarısızlığı tarama başarısı sayılmaz.
 PowerShell'de:
 
 ```powershell
