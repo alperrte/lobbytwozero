@@ -1046,12 +1046,13 @@ Profil yoksa varsayılan değerlerle **oluşturulur** (Auth'un `UserRegistered` 
   "country": "ISO 3166-1 alpha-2 | null",
   "avatar": { "small": "/api/v1/user/media/<anahtar>-s.jpg", "large": "/api/v1/user/media/<anahtar>.jpg", "animated": false },
   "cover": { "small": "...", "large": "...", "animated": false },
+  "memberSince": "ISO-8601 (üyelik tarihi: Auth'un UserRegistered olayındaki occurredAt, yani hesabın ACTIVE olduğu an; olay gelene kadar profilin açıldığı an)",
   "onboardingCompletedAt": "ISO-8601 | null",
   "updatedAt": "ISO-8601",
   "version": 0
 }
 ```
-`avatar`/`cover` görsel yoksa `null`. Adresler **değişmezdir** (her yükleme yeni adres alır) ve herkese açıktır; ayrıntı: "Profil görseli yükle" kaydı. GIF'te `small` ve `large` aynı dosyadır.
+`avatar`/`cover` görsel yoksa `null`. `memberSince` her zaman doludur; `UserRegistered` olayı sonradan gelirse daha erken bir zamanla düzeltilir, ileri alınmaz (gelecekteki zaman şimdiyle sınırlanır). Adresler **değişmezdir** (her yükleme yeni adres alır) ve herkese açıktır; ayrıntı: "Profil görseli yükle" kaydı. GIF'te `small` ve `large` aynı dosyadır.
 
 Yanıt e-posta, hesap durumu veya kimlik bilgisi içermez.
 
@@ -1289,7 +1290,7 @@ Zarfta tanımsız alan reddedilir. Gövde en fazla 16 KB.
 }
 ```
 **Kabul edilen olaylar** (hepsi yalnız `producer=auth-service`; farklı üretici `400 EVENT_PRODUCER_MISMATCH`):
-- `UserRegistered`: `{ "accountId": "UUID = aggregateId", "username": "^[A-Za-z0-9_]{3,20}$" }`. Profili açar ya da var olan profile kullanıcı adı kopyasını yazar; **hesap durumunu değiştirmez**.
+- `UserRegistered`: `{ "accountId": "UUID = aggregateId", "username": "^[A-Za-z0-9_]{3,20}$" }`. Profili açar ya da var olan profile kullanıcı adı kopyasını yazar; **hesap durumunu değiştirmez**. Zarftaki `occurredAt` üyelik tarihi (`memberSince`) olarak saklanır: yalnız boşsa ya da daha erken bir zaman gelirse yazılır, gelecekteki zaman şimdiyle sınırlanır.
 - `AccountStatusChanged`: `{ "accountId": "UUID = aggregateId", "status": "ACTIVE | SUSPENDED | BANNED | DISABLED | ..." }`. Profil varsa durumu günceller; **eski olay yeni durumu ezemez** (`occurredAt` karşılaştırılır). Profil yoksa yalnız kısıtlayıcı durumlar (`SUSPENDED`, `BANNED`, `DISABLED`) kaydedilir (askıdaki hesap sonradan görünür hale gelmesin); `ACTIVE` için profil ilk kullanımda zaten `ACTIVE` açılır. Tanınmayan durum adı profili değiştirmez.
 - `AccountEmailChanged`: `{ "accountId": "UUID = aggregateId" }`. Yük doğrulanır, etkisi yoktur (User e-posta tutmaz; yeni adres olayda gelmez).
 - `FriendshipChanged` (yalnız `social-service`): `{ "userLowId": "UUID", "userHighId": "UUID", "change": "ADDED | REMOVED" }`. social-service'in mevcut olay kaydıyla aynıdır. Arkadaşlık yansımasını günceller.
@@ -2038,14 +2039,18 @@ GET /api/v1/game/games/{gameId}
 #### Yetkilendirme
 Public. Yalnız ACTIVE oyunlar görünür.
 
-#### Path Parameters
+#### Path/Query Parameters
 - gameId: UUID, zorunlu.
+- lang: isteğe bağlı, 2–3 küçük/büyük harfli dil kodu (ör. `tr`, `en`); biçimi bozuksa 400. Sağlayıcının o dilde GERÇEKTEN verdiği açıklama varsa `description` o metin olur ve `descriptionLanguage` o dildir; yoksa varsayılan (İngilizce) açıklama ve gerçek dili (`en`) döner. **Çeviri yapılmaz, harici çeviri hizmeti kullanılmaz.** `lang` verilmezse varsayılan açıklama. Şimdilik yalnız `tr` doldurulur (Steam mağaza metni; İngilizceden farklı ve Türkçe kanıtlı olmalıdır, aksi halde saklanmaz). Açıklaması tamamen boş olan ana oyunlarda (IGDB özeti yok) Steam'in İngilizce kısa açıklaması yedek olarak `games.description`'a yazılır (yalnız boşsa, yönetici metni ve manuel `DESCRIPTION` kilidi ezilmez; metin gerçekten İngilizce görünmelidir, başka dildeki metin yazılmaz; provenance `DESCRIPTION/STEAM`, `descriptionLanguage="en"`). V175 uygulanmadan önce tablo yoktur; alan istemciler için geriye uyumludur.
 
 #### Response — 200
 - `game`: yukarıdaki ortak kart sözleşmesi.
 - `metadata`: GAME-08 alt veri sözleşmesi; aynı kanonik gameId.
 - `description`: nullable, en fazla 16000 karakter; düz metin olarak işlenir. `releaseDate`: nullable ISO tarih.
 - `freshness`: `status` (LOCAL/UNSUPPORTED/MISSING/FRESH/STALE), nullable `fetchedAt`, `expiresAt`, `nextAttemptAt`, `lastErrorCode`.
+- `relation` (**yeni, geriye uyumlu alan; V174 uygulandıktan sonra dolar**): DLC için `{parent: {gameId,title,coverUrl}|null, dlcCount: null}` — `parent` yalnız güvenilir (aktif MAIN_GAME) ana oyun varsa dolu, bilinmiyorsa null (uydurulmaz); ana oyun için `{parent: null, dlcCount: n}` (aktif DLC sayısı); diğer türlerde `null`. Eski istemciler alanı yok sayabilir.
+- `game.coverUrl`: kayıtlı kapak. Kapak kaynakları: yönetici (hiç ezilmez) > Steam başlık görseli (`shared.fastly.steamstatic.com/store_item_assets/steam/apps/{id}/{hash}/header.jpg`; yeni uygulamalarda yol içerik özeti taşır, eski `/apps/{id}/header.jpg` yolu 404 verir) > IGDB kapağı (`images.igdb.com`). Kayıtlı kapak yoksa istemci Steam'in eski başlık adresine düşer; görsel açılmazsa nötr yer tutucu gösterilir.
+- Detay alanlarının kaynağı: önce IGDB (toplu, 100 oyun/2 istek: açıklama, çıkış tarihi, `developer` işaretli şirket → geliştirici, `publisher` işaretli şirket → yayıncı, dil desteği); sonra Steam'in resmî toplu mağaza API'si (`IStoreBrowseService/GetItems`, 100 oyun/istek, aynı API anahtarı): 16:9 başlık görseli, geliştirici, yayıncı ve dil desteği (arayüz her listelenen dil için SUPPORTED; ses yalnız `full_audio`, altyazı yalnız `subtitles` ise SUPPORTED, aksi UNKNOWN; Steam dil numarası mağaza dil adlarıyla çapraz doğrulanmış tabloyla koda çevrilir, ayırt edilemeyen/bilinmeyen dil atlanır). Geliştirici, yayıncı ve dil yalnız BOŞKEN doldurulur; dolu veri, yönetici düzeltmesi ve manuel kilit ezilmez. Kapak: Steam 16:9 başlık görseli IGDB'nin dikey kapağının yerine geçer; yönetici kapağı hiç ezilmez. Detay galerisi kapağı tekrar göstermez (yalnız ek görseller). `metadata.provenance[].recordedAt` kaynaktan alınma zamanıdır; `verifiedAt` yalnız açık doğrulamada dolar.
 - `metadata.languages` ve `metadata.earlyAccess`: GAME-02 kapsamında yerelde bilinen dil ve erken erişim bilgisi; kaynak sağlamazsa boş/null.
 - Güncellik son başarılı detay yanıtına aittir; alan bazlı güncellik garantisi değildir. Fiyat verisi sunulmaz.
 - GET yalnız yerel okuma yapar; sağlayıcıya istek, yenileme tetikleme veya DB yazımı yapmaz. STALE veri korunur.
@@ -2062,6 +2067,38 @@ Diğer mikroservisler: RestClient ile Game Service.
 
 #### Test Durumu
 INTEGRATION — PostgreSQL/Flyway üzerinde ortak model, 200/400/404, kökenin korunması, salt okunur GET ve STALE yanıtı. IGDB adaptörü: sahte sunucuyla birim/entegrasyon testli; gerçek IGDB sözleşmesi canlı doğrulandı (bkz. "Giden sözleşme: IGDB detay kaynağı"); konteynerde uçtan uca NOT VERIFIED.
+
+### GAME — Ana oyunun DLC listesi
+
+Durum: IMPLEMENTED (kod ve izole testler hazır; **V174 migration'ının gerçek DEV'e uygulanması onay bekliyor**)
+Sorumlu: Hamza
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/game/games/{gameId}/dlc?page=0&size=12
+
+#### Yetkilendirme
+Public (salt okunur). Yalnız ACTIVE oyunlar görünür.
+
+#### Path/Query Parameters
+- gameId: UUID, zorunlu.
+- page: 0–10000, varsayılan 0. size: 1–50, varsayılan 12.
+
+#### Response — 200
+`{items: [{game: <ortak kart>, releaseDate: ISO tarih|null}], page, size, totalElements}`. Yalnız ana oyunun **aktif DLC**'leri; çıkış tarihi yeni olan önce, tarihsizler sonda, kararlı sıra. Ana oyun olmayan kayıt için boş sayfa (`totalElements=0`). DLC'ler genel katalog listesine (`GET /api/v1/game/games`) karışmaz.
+
+#### Hata Durumları
+- 400: Geçersiz UUID veya sayfa/boyut sınırı dışı.
+- 404: Oyun yok veya ACTIVE değil.
+
+#### Veri modeli (V174)
+`games.parent_game_id uuid` (self-FK, `ON DELETE SET NULL`), kısıtlar: kendine bağlanma yasak, yalnız `game_type='DLC'` ilişki taşır, ana oyun var olan bir MAIN_GAME olmalıdır (tetikleyici; DLC/UNKNOWN ana oyun reddedilir, döngü ve zincir oluşamaz); ana oyun MAIN_GAME'liğini kaybederse ilişki kopar, DLC ve Game kimliği korunur. İlişki kaynağı: IGDB `parent_game` (IGDB'nin Steam kaydı üzerinden AppID'ye çevrilir); Steam `fullgame` yalnız IGDB yokluğu, belirsiz/eşlenemeyen üst oyun ve ~%4 örneklem doğrulaması için; iki kaynak çelişirse ilişki boş kalır.
+
+#### Bağlantı
+Frontend: API Gateway üzerinden aynı path (`/api/v1/game/**`).
+
+#### Test Durumu
+INTEGRATION — GameDlcRelationTest (detay ilişkisi, sayfalama, sıralama, 400/404, katalogda DLC gizliliği), GameParentRelationMigrationTest (V173→V174 kayıpsız yükseltme, kısıtlar, silme/tür değişimi), DlcParentIntegrationTest (IGDB/Steam kaynak kuralları, çelişki, UNKNOWN ana oyun, gereksiz Steam isteği yok). Frontend: game-dlc.test.tsx.
 
 ### GAME — Yerel Steam indeks araması (GAME-16)
 
@@ -2118,8 +2155,11 @@ Public. Yalnız katalog kapsamı ve güvenli operasyon kodları; anahtar/ham sa�
 - `indexedEntries`: saklanan STEAM referans sayısı; `mainGameEntries` ve `unclassifiedEntries`: türlerine göre referans sayıları (aktif/arşivli tüm saklanan referanslar). `providerTotal`: null.
 - `runStartedAt`, `lastSuccessfulAt`: nullable UTC zamanlar; `lastErrorCode`: nullable güvenli kod.
 - `failureCount`: art arda başarısız sayfa sayısı; `nextAttemptAt`: nullable otomatik tekrar zamanı. FAILED ve null nextAttemptAt, otomatik denemenin durduğunu belirtir.
-- Aktarım her çağrıda tek sayfa işler. `game.catalog.sync.enabled=true` ile isteğe bağlı zamanlayıcı etkinleşir; varsayılan kapalıdır. İlk aktarım, altı saat aralıklı artımlı turlar ve kalıcı checkpoint üzerinden devam desteklenir.
-- Geçici hata en fazla beş otomatik tekrar alır; kalıcı hata veya bütçe aşımında uygulama servisinden açık resume gerekir. HTTP mutasyon endpoint'i yoktur.
+- Aktarım her çağrıda tek sayfa işler. `game.catalog.sync.enabled=true` ile isteğe bağlı zamanlayıcı etkinleşir; varsayılan kapalıdır. İlk aktarım, günde bir kez (her gün 03:00 Europe/Istanbul penceresinde; kesintide ilk fırsatta tek tur) çalışan artımlı turlar (`if_modified_since` = son başarılı turun başlangıcı − 1 sn) ve kalıcı checkpoint üzerinden devam desteklenir. Başarısız artımlı tur checkpoint'i ilerletmez; sonraki günlük pencerede aynı watermark'tan yeniden başlar.
+- Geçici hata en fazla beş otomatik tekrar alır; kalıcı hata veya bütçe aşımında aktarım FAILED kalır. Servis yeniden başlarken FAILED aktarım cursor korunarak sürdürülür. HTTP mutasyon endpoint'i yoktur.
+- Steam son sayfada `have_more_results` ve `last_appid` göndermez; kısa veya boş sayfa son sayfa sayılır (tam dolu sayfa devam eder). Kayıt düzeyi hatalı kayıt (boş ad, geçersiz `last_modified`) atlanır, loglanır ve cursor ilerler; sağlayıcı düzeyi hata FAILED yapar ve kodu `lastErrorCode` ile loglara yazılır.
+- Steam isteği `include_games=true`, `include_dlc=true`, `include_software/videos/hardware=false` gönderir; yanıt tür vermediğinden kayıtlar UNKNOWN indekslenir. Steam `last_modified` son doğrulanan senkrondan sonra değilse kayıt yazılmaz (değişmemiş kayıt yeniden işlenmez); değişen kayıtta yalnız farklı başlık güncellenir.
+- Türü belirsiz kayıtlar zamanlayıcıyla, IGDB `game_type` kanıtıyla toplu (250 AppID/istek) ve en yeni AppID önce sınıflandırılır; kanıt yoksa UNKNOWN kalır ve (son 30 günde ilk kez görülen kayıt için 1 gün, eski kayıt için 7 gün) yeniden sorulmaz (provenance `GAME_TYPE/UNKNOWN` gözlemi); sağlayıcı hatası gözlem yazmaz ve geçici hata olarak bekleyip yeniden dener. Adımlar en yeni ve en eski AppID uçlarından dönüşümlü ilerler; Steam taraması sürerken IGDB işleri beklemez. `game.catalog.classification.backlog-enabled` (varsayılan `true`) kapalıysa ve aday sayısı 2.000'i aşarsa sınıflandırma çalışmaz; yeniden başlatma kendiliğinden deneme grubu başlatmaz. Türü doğrulanmış (MAIN_GAME/DLC) kayıtların eksik metadata'sı bir kez zenginleştirilir (`IGDB_METADATA` gözlemi): çıkış tarihi, tür, platform, kategori (IGDB oyun modları) ve etiket (IGDB temaları; keywords eşlenmez), hepsi yalnızca boşsa. Sınıflanan kayıtlara, yalnız boşsa, IGDB `first_release_date` ile tür ve platform terimleri yazılır.
 
 #### Hata Durumları
 - 500: Beklenmeyen sunucu hatası.
@@ -2132,6 +2172,42 @@ Diğer mikroservisler: RestClient ile Game Service.
 INTEGRATION — kalıcı checkpoint, idempotent tekrar, ayrı incremental watermark, eşzamanlı sayfalar, kısmi hata, retry bütçesi, backoff ve açık resume. Scheduler opt-in koşulu test edildi; canlı tam katalog aktarımı yapılmadı.
 
 GAME-21 notu: Canlı GetAppList yanıtı kayıt başına kesin tür alanı sunmadığından Steam indeks girdileri UNKNOWN kalır. `include_games` filtresi tek başına demo/soundtrack ayrımı kanıtı kabul edilmez. Bu kayıtlar önek aramasında `includeUnclassified=true` ile bulunabilir; doğrulanmış MAIN_GAME sinyali olmadan varsayılan ana oyun sonuçlarına girmez. Gerçek detay zenginleştirme, Faz 2 sağlayıcı onayı beklemektedir.
+
+### GAME — Tür ve platform terim listesi (filtre önerileri)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/game/terms
+
+#### Yetkilendirme
+Public. Salt okunur; sağlayıcıya istek atmaz.
+
+#### Query Parameters
+- kind: `GENRE` veya `PLATFORM`, zorunlu (`CATEGORY`/`TAG` kabul edilmez)
+- limit: tamsayı, opsiyonel, varsayılan 200, 1–200
+
+#### Response — 200
+```json
+{ "kind": "GENRE", "items": [ { "code": "role-playing-rpg", "nameTr": null, "nameEn": "Role-playing (RPG)", "gameCount": 123 } ] }
+```
+- Yalnız public katalogdaki (ACTIVE + MAIN_GAME) oyunlara bağlı terimler; `gameCount` bu oyunların sayısıdır. Sıra: `gameCount` azalan, sonra `code`.
+- `code`, `GET /api/v1/game/games?genre=` ve `?platform=` filtrelerinin kabul ettiği değerdir. `nameTr`/`nameEn` boş olabilir (sağlayıcı vermediyse uydurulmaz). Terim yoksa `items` boş döner.
+- `Cache-Control: public, max-age=300`.
+
+#### Hata Durumları
+- 400: `kind` eksik/geçersiz/desteklenmeyen (`INVALID_TERM_KIND`) veya `limit` sınır dışı (`INVALID_LIMIT`)
+- 403: Yazma yöntemleri kapalıdır
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend: Gateway üzerinden aynı path.
+Diğer mikroservisler: -
+
+#### Test Durumu
+INTEGRATION — herkese açık erişim, yalnız ACTIVE + MAIN_GAME terimleri ve sayıları, sıralama, limit, boş liste, geçersiz kind/limit, önbellek başlığı ve IGDB'den gelen kodların `genre`/`platform` filtreleriyle eşleşmesi.
 
 ### GAME — Birleşik yerel katalog (GAME-01, GAME-04, GAME-05)
 
@@ -2333,6 +2409,9 @@ Status: AVAILABLE (en az bir güncel teklif; yalnız güncel teklifler), STALE (
 Offer: gameId, store, market, regularPrice, currentPrice, source=ITAD, fetchedAt, expiresAt, url, discountPercent, sourceUpdatedAt. Ücretsiz gerçek teklif currentPrice=0 olabilir. Provider'ın tutar/para birimi, indirim ve affiliate URL'si korunur; linke backend istek atmaz.
 Listeleme, aktif oyun kimlikleri + fiyatlar + boş teklif durumu için sabit sayıda toplu SQL kullanır; HTTP/SQL N+1 yoktur. Aynı transaction görünümü kullanılır.
 
+- Yenilenen pazarlar (`ltz.game.pricing.markets`): `US/USD`, `GB/GBP`, `DE/EUR`; ITAD ülke başına tek para birimi döndürdüğünden ülke ve para birimi birlikte verilir. `TRY` ve diğer pazarlar yenilenmez (Steam Türkiye için TL ile satmaz); yenilenmeyen pazar `UNAVAILABLE` döner.
+- ITAD fiyatı olmayan oyun için satır döndürmez: o oyun `NO_OFFER` olur ve aynı istekteki diğer oyunların fiyatını geçersiz kılmaz.
+
 #### Hata Durumları
 400 eksik/geçersiz UUID, 51+ kimlik, geçersiz ülke/para birimi; 401 public uçta bozuk Bearer; 429 IP kovası + Retry-After; 403 diğer metotlar; 500 beklenmeyen hata. Sağlayıcı kesintisi bu yerel okumayı durdurmaz.
 
@@ -2360,7 +2439,7 @@ Yalnız backend `ITAD-API-Key` başlığı. Anahtar URL/gövde/log/DTO'ya yazıl
 Steam mağazası kimliği 61; eşlemede `["app/570",…]`, fiyat sorgusunda `["<itad UUID>",…]`. İlk otomatik pazar `ltz.game.pricing.country=TR`, `currency=TRY`. Sağlayıcı başka para birimi döndürürse sessiz dönüşüm yerine başarısız kontrol olarak kaydedilir. En fazla 5 teklif/oyun; kupon gerektiren fiyatlar kapalıdır. Resmî HTTPS itad.link ve isthereanydeal.com bağlantıları değiştirilmeden korunur; benzer görünen başka hostlar kabul edilmez. İstek User-Agent değeri LTZ-Game-Service/1.0'dır.
 
 #### Response / Yenileme
-Başlangıç 30 sn, tur aralığı 60 sn; en eski kontrol edilen 50 aktif MAIN_GAME/Steam oyun seçilir. Varsayılan TTL 15 dk (yapılandırılabilir 1–60 dk). Uygulama süreci/örneği çoğalsa da DB kiralaması tek fiyat worker'ı sağlar. Ağ çağrısı transaction dışında; yalnız lease sahibi atomik snapshot yayımlar. Başarılı boş yanıtta teklif silinir ve NO_OFFER kaydedilir; yarım/geçersiz yanıtta eski snapshot korunur. Fiyat TTL veya provider expiry'den erken olan zamanda eskir; provider timestamp ayrıca korunur.
+Başlangıç 30 sn, tur aralığı 60 sn; her pazar (US/USD, GB/GBP, DE/EUR) için turda en çok 200 aktif MAIN_GAME/Steam oyun yenilenir (ITAD arama sınırı). Kademeli tazelik: SICAK (editör seçimi, son 90 günde çıkmış veya 30 gün içinde çıkacak oyun) `ltz.game.pricing.ttl` (varsayılan 2 sa, yapılandırılabilir 1 dk–2 sa), ILIK (son 2 yıl) 6×, SOĞUK (diğer, tarihsiz) 24× süreyle taze sayılır; teklif son kullanma zamanı bu kademeye ve sağlayıcının satış bitişine göre kısaltılır, uzatılmaz. Aday sırası: editör seçimi, sıcak→ılık→soğuk, en eski kontrol. Popülerlik/talep verisi güvenilir olmadığından kullanılmaz. Süresi geçen teklif güncel fiyat gibi gösterilmez (`STALE`). Uygulama süreci/örneği çoğalsa da DB kiralaması tek fiyat worker'ı sağlar. Ağ çağrısı transaction dışında; yalnız lease sahibi atomik snapshot yayımlar. Başarılı boş yanıtta teklif silinir ve NO_OFFER kaydedilir; yarım/geçersiz yanıtta eski snapshot korunur. Fiyat TTL veya provider expiry'den erken olan zamanda eskir; provider timestamp ayrıca korunur.
 
 #### Hata Durumları
 401/403 yeniden deneme yok; 429 Retry-After saniye/HTTP-date kalıcı next_attempt_at ile izlenir; başlık bozuksa 15 dk. 5xx/transport bir turu başarısız yapar, sıkı retry yoktur. Bağlantı/okuma 1/3 sn; redirect yok; yanıt en çok 4 MiB. Hatalar PRICE_ACCESS_DENIED, PRICE_RATE_LIMITED, PRICE_CURRENCY_UNAVAILABLE, PRICE_STALE_SOURCE, PRICE_MAPPING_LIMIT, AMBIGUOUS_PRICE_MAPPING, PRICE_UNAVAILABLE, INVALID_PRICE_RESPONSE gibi sabit kodlardır. Eksik/mükerrer/istenmeyen oyun satırı, bozuk sayı/UUID/URL fiyat olarak kabul edilmez.
@@ -4528,7 +4607,7 @@ Frontend:
 API Gateway üzerinden /api/v1/social/friend-requests/{requestId}/accept
 
 Diğer mikroservisler:
-`FriendshipChanged` olayı ve bildirim (SOC-13) — **PENDING**.
+`FriendshipChanged` (`change: ADDED`) olayı outbox'a yazılır ve user-service'e iletilir (bkz. "Giden olay sözleşmeleri"). Bildirim (SOC-13) — **PENDING** (notification-service alıcı ucu yok).
 
 #### Test Durumu
 UNIT + INTEGRATION (gerçek PostgreSQL ile; social-service 218 test PASS)
@@ -4744,7 +4823,7 @@ Frontend:
 API Gateway üzerinden /api/v1/social/friends/{friendId}
 
 Diğer mikroservisler:
-`FriendshipChanged` (`change: REMOVED`) olayı outbox'a yazılır — teslim **PENDING**, bkz. "Giden olay sözleşmeleri".
+`FriendshipChanged` (`change: REMOVED`) olayı outbox'a yazılır ve user-service'e iletilir, bkz. "Giden olay sözleşmeleri".
 
 #### Test Durumu
 UNIT + INTEGRATION (gerçek PostgreSQL; social-service 218 test PASS)
@@ -4937,7 +5016,7 @@ Frontend:
 API Gateway üzerinden /api/v1/social/blocks
 
 Diğer mikroservisler:
-`UserBlocked` olayı outbox'a yazılır (messaging, lfp, community, notification) — teslim **PENDING**. messaging/lfp'nin engel sorgusu için bkz. "Giden sözleşme taslağı: engel sorgusu".
+`UserBlocked` olayı outbox'a yazılır ve community-service ile user-service'e iletilir (bkz. "Giden olay sözleşmeleri"); notification teslimi **PENDING**. messaging/lfp engeli olayla değil sorguyla öğrenir: bkz. "Engel sorgusu".
 
 #### Test Durumu
 UNIT + INTEGRATION (gerçek PostgreSQL; social-service 218 test PASS)
@@ -4971,7 +5050,7 @@ Frontend:
 API Gateway üzerinden /api/v1/social/blocks/{blockedUserId}
 
 Diğer mikroservisler:
-`UserUnblocked` olayı outbox'a yazılır — teslim **PENDING**.
+`UserUnblocked` olayı outbox'a yazılır ve community-service ile user-service'e iletilir.
 
 #### Test Durumu
 UNIT + INTEGRATION (gerçek PostgreSQL; social-service 218 test PASS)
@@ -5018,7 +5097,7 @@ UNIT + INTEGRATION (gerçek PostgreSQL; social-service 218 test PASS)
 
 ### SOCIAL — Başka kullanıcının arkadaş listesi (SOC-12)
 
-Durum: IMPLEMENTED (gizlilik tercihi adaptörü **PENDING** — başkasının listesi şu an fail-closed gizli)
+Durum: IMPLEMENTED (gizlilik tercihi user-service'ten okunur; gerçek servislerle doğrulandı 2026-11-09)
 Sorumlu: Umut
 Tüketici servisler: Frontend
 
@@ -5055,10 +5134,10 @@ Frontend:
 API Gateway üzerinden /api/v1/social/users/{userId}/friends
 
 Diğer mikroservisler:
-user-service'ten görünürlük tercihi okunacak — **PENDING**: user-service henüz bir uç sunmuyor ve servisler arası kimlik (D4) hazır değil. Bu yüzden `ltz.social.privacy.adapter=unavailable` varsayılandır ve başkasının listesi görünmez. Gerçek adaptör (`FriendsVisibilityPort` uygulaması) eklenince kurallar aynen çalışır (kurallar sahte adaptörle testlidir).
+Tercih user-service'in iç gizlilik kararı ucundan okunur (`UserPrivacyClient`, `ltz.social.privacy.adapter=user`, varsayılan): `POST ${USER_SERVICE_URL}/internal/v1/privacy/decisions` gövdesi `{ "field": "FRIENDS_LIST", "ownerIds": [userId] }`, Auth'tan alınan `aud=user-service`, `scope=privacy:read` servis token'ıyla. Yalnız sahibin `setting` değeri kullanılır; `viewerId` gönderilmez, arkadaşlık ve engel kararı Social'ın kendi verisiyle verilir (user-service yansıması olay gecikmesiyle geride kalabilir). Servis kimliği yoksa (`AUTH_SOCIAL_SERVICE_CLIENT_SECRET` boş), token alınamazsa, hata yanıtında ya da karar eksik/tanımsızsa fail-closed `PRIVATE`. `unavailable` adaptörü (her zaman gizli) yapılandırmayla seçilebilir.
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; social-service 218 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; social-service 238 test PASS; `UserPrivacyClientTest` 11 test). Gerçek user-service ve Auth token'ıyla canlı: PUBLIC/PRIVATE/FRIENDS, arkadaş olunca ve arkadaşlık bitince görünürlük **PASS** (2026-11-09, `docs-social/TASK-06.md`).
 
 ### SOCIAL — Engel sorgusu (Internal, messaging/lfp → Social) (SOC-15)
 
@@ -5116,7 +5195,7 @@ Diğer mikroservisler:
 messaging-service ve lfp-service Auth'tan `POST /internal/v1/service-tokens` ile (`audience: "social-service"`) 60 sn'lik token alıp bu ucu `${SOCIAL_SERVICE_URL}/internal/v1/blocks/check` adresinde çağırır. messaging-service istemcisi (`SocialBlockCheckClient`, LTZ-UMT-MSG-01) yazıldı ve MockRestServiceServer ile testli; lfp-service tarafı iskelet. Gerçek Auth token'ıyla uçtan uca çağrı **NOT VERIFIED**.
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; `BlocksCheckTest` 13 test: iki yön, engel kaldırma, başkasının engeli, yinelenen kimlik, 100/101 sınırı, geçersiz gövde, kimlik/kapsam/çağıran/`aud`/`iss`/`typ` ihlalleri). Gerçek Auth token'ıyla uçtan uca: NOT VERIFIED.
+UNIT + INTEGRATION (gerçek PostgreSQL; `BlocksCheckTest` 13 test: iki yön, engel kaldırma, başkasının engeli, yinelenen kimlik, 100/101 sınırı, geçersiz gövde, kimlik/kapsam/çağıran/`aud`/`iss`/`typ` ihlalleri). Gerçek Auth token'ıyla messaging-service üzerinden uçtan uca: **PASS** (2026-11-09; engel varken iki yönde `403 MESSAGING_NOT_ALLOWED`, kalkınca sohbet açılır). lfp-service istemcisi yok.
 
 ### SOCIAL — Hesap verisi silme (Internal, Auth → Social)
 
@@ -5154,12 +5233,12 @@ Frontend:
 -
 
 Diğer mikroservisler:
-Auth, silme onaylandığında bu ucu `${SOCIAL_SERVICE_URL}/internal/v1/accounts/{accountId}` adresine RestClient ile çağırır. Auth tarafı (üretici ve adaptör) main'e alındı; gerçek Auth token'ıyla canlı silme **NOT VERIFIED**.
+Auth, silme onaylandığında bu ucu `${SOCIAL_SERVICE_URL}/internal/v1/accounts/{accountId}` adresine RestClient ile çağırır. Auth tarafı (üretici ve adaptör) main'e alındı; gerçek Auth token'ıyla canlı silme **PASS** (2026-11-09: bekleme süresi sonunda `social` görevi `CONFIRMED`, hesaba ait tüm Social satırları silindi).
 
 Not: Silme, "silinen hesaba sonradan istek gönderilmesi" ihtimalini ortadan kaldırmaz; kullanıcı varlık doğrulaması (user-service ucu) hâlâ **PENDING**. Social, silinen hesabın arkadaşlarına `FriendshipChanged REMOVED` olayı yazmaz (olay yükü silinen kimliği taşıyacağından); messaging gibi servisler kendi silme çağrısını Auth'tan alır.
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; `AccountErasureTest` 17 test, `sub` tam eşleşme ve `account_id` denetimi dahil). Gerçek Auth servis token'ıyla uçtan uca: NOT VERIFIED.
+UNIT + INTEGRATION (gerçek PostgreSQL; `AccountErasureTest` 17 test, `sub` tam eşleşme ve `account_id` denetimi dahil). Gerçek Auth servis token'ıyla uçtan uca: **PASS** (2026-11-09, `docs-social/TASK-06.md`).
 
 ### SOCIAL — Giden olay sözleşmeleri (SOC-13, teslim kısmen)
 
@@ -5182,14 +5261,14 @@ Zarf (docs/architecture.md §6.2): `eventId`, `eventType`, `eventVersion`, `occu
 Red ve iptal olay üretmez (reddedilen kişiye bildirim gitmez). Engellenen kullanıcıya hiçbir bildirim/olay gönderilmez; engel olayları yalnız etkileşimi durduracak servisler içindir.
 
 Teslim durumu:
-- **`UserBlocked`, `UserUnblocked` → community-service:** Gerçek adaptör `CommunityEventPublisher` (`ltz.social.outbox.adapter=community`, varsayılan). Her teslim, Auth'tan `POST /internal/v1/service-tokens` ile (`clientId: "social-service"`, `audience: "community-service"`) alınan 60 sn'lik token'la `POST {COMMUNITY_SERVICE_URL}/internal/events` ucuna yapılır (`scope=events:ingest`, `sub=svc:social-service`). Gizli anahtar `AUTH_SOCIAL_SERVICE_CLIENT_SECRET` ortam değişkeninden gelir; boşsa relay hiç olay denemez ve deneme hakkı yanmaz. 2xx dışındaki her yanıt (3xx dahil) teslim sayılmaz ve olay üstel geri çekilmeyle yeniden denenir.
-- **`FriendRequestSent`, `FriendRequestAccepted`, `FriendshipChanged`:** Auth'ta social → notification/messaging/recommendation çifti **tanımlı değil** ve alıcı uçlar yok; bu türler `No delivery target` ile teslim edilemez, relay açılırsa en fazla 10 denemeden sonra `FAILED` olur (el ile müdahale bekler). Hedef tanımlanınca `CommunityEventPublisher`'a yönlendirme eklenir.
-- Relay (`ltz.social.outbox.relay-enabled`, ENV `SOCIAL_OUTBOX_RELAY_ENABLED`) varsayılan **kapalı**; community alıcı ucu gerçek token'la doğrulanınca açılır. Relay mantığı (üstel geri çekilme, en fazla 10 deneme sonrası `FAILED`, `SKIP LOCKED` ile çift teslim önleme) testlidir.
+- **`UserBlocked`, `UserUnblocked` → community-service ve user-service; `FriendshipChanged` → user-service:** Gerçek adaptör `FanOutEventPublisher` (`ltz.social.outbox.adapter=services`, varsayılan; `community` yalnız community'ye iletir). Olay, türünü işleyen her hedefe Auth'tan `POST /internal/v1/service-tokens` ile (`clientId: "social-service"`, `audience: "<hedef>"`) alınan 60 sn'lik token'la `POST {COMMUNITY_SERVICE_URL|USER_SERVICE_URL}/internal/events` ucuna iletilir (`scope=events:ingest`, `sub=svc:social-service`). Hedeflerden biri alamazsa olay teslim edilmemiş sayılır ve tamamı yeniden denenir; alıcılar `eventId` ile tekilleştirdiğinden önceden alan hedef olayı ikinci kez uygulamaz. Gizli anahtar `AUTH_SOCIAL_SERVICE_CLIENT_SECRET` ortam değişkeninden gelir; boşsa relay hiç olay denemez ve deneme hakkı yanmaz. 2xx dışındaki her yanıt (3xx dahil) teslim sayılmaz ve olay üstel geri çekilmeyle yeniden denenir.
+- **`FriendRequestSent`, `FriendRequestAccepted`:** Auth'ta social → notification çifti **tanımlı değil** ve notification-service alıcı ucu yok; bu türler `No delivery target` ile teslim edilemez, relay açıkken en fazla 10 denemeden sonra `FAILED` olur (el ile müdahale bekler). Hedef tanımlanınca `FanOutEventPublisher`'a bir hedef eklenir.
+- Relay (`ltz.social.outbox.relay-enabled`, ENV `SOCIAL_OUTBOX_RELAY_ENABLED`) varsayılan **kapalı**. community ve user alıcı uçları gerçek token'la doğrulandı (2026-11-09); varsayılanın açılması ekip kararıdır (yerel dev'de `.env.dev` ile açılır). Relay mantığı (üstel geri çekilme, en fazla 10 deneme sonrası `FAILED`, `SKIP LOCKED` ile çift teslim önleme) testlidir.
 
 Not: Social bu olayları üretir; `notification-service`/`messaging-service` tarafında tüketici uç eklenmesi o servislerin sahiplerine bildirilmelidir (notification-service ortak/sahipsizdir).
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; social-service 218 test PASS; `CommunityEventPublisherTest` ve `AuthServiceTokenClientTest` giden çağrıyı MockRestServiceServer ile doğrular). Community ve Auth ile gerçek uçtan uca teslim: NOT VERIFIED.
+UNIT + INTEGRATION (gerçek PostgreSQL; social-service 238 test PASS; `FanOutEventPublisherTest`, `UserEventPublisherTest`, `CommunityEventPublisherTest` ve `AuthServiceTokenClientTest` giden çağrıyı MockRestServiceServer ile doğrular). Community ve user-service ile gerçek Auth token'ıyla canlı teslim: **PASS** (2026-11-09; `user_db.social_friendships/social_blocks` ve `community_db.user_blocks` güncellendi, outbox `SENT`, `docs-social/TASK-06.md`).
 
 ## MESSAGING
 

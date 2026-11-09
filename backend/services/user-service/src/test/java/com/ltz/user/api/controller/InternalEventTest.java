@@ -6,7 +6,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -74,6 +77,66 @@ class InternalEventTest extends IntegrationTestSupport {
         mockMvc.perform(get(UserApiPaths.ME).header(HttpHeaders.AUTHORIZATION, bearer(account)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username").value("gorunen"));
+    }
+
+    @Test
+    void userRegisteredUyelikTarihiniOlayZamanindanYazar() throws Exception {
+        UUID account = newUser();
+        Instant registeredAt = Instant.now().minus(Duration.ofDays(40)).truncatedTo(ChronoUnit.MILLIS);
+
+        send(registered(UUID.randomUUID(), account, "eskiuye", registeredAt), eventToken(account, UnaryOperator.identity()))
+                .andExpect(status().isOk());
+
+        assertThat(memberSinceOf(account)).isEqualTo(registeredAt);
+    }
+
+    @Test
+    void uyelikTarihiOlayGelmedenOnceProfilinAcildigiAniGosterir() throws Exception {
+        UUID account = newUser();
+
+        // Profil ilk /me isteğiyle tembel açılır; kayıt olayı henüz gelmedi.
+        mockMvc.perform(get(UserApiPaths.ME).header(HttpHeaders.AUTHORIZATION, bearer(account)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.memberSince").isNotEmpty());
+    }
+
+    @Test
+    void gecKalanKayitOlayiTembelAcilanProfildeUyelikTarihiniDuzeltir() throws Exception {
+        UUID account = newUser();
+        mockMvc.perform(get(UserApiPaths.ME).header(HttpHeaders.AUTHORIZATION, bearer(account)))
+                .andExpect(status().isOk());
+        Instant registeredAt = Instant.now().minus(Duration.ofDays(3)).truncatedTo(ChronoUnit.MILLIS);
+
+        send(registered(UUID.randomUUID(), account, "gecolay", registeredAt), eventToken(account, UnaryOperator.identity()))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get(UserApiPaths.ME).header(HttpHeaders.AUTHORIZATION, bearer(account)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.memberSince").value(registeredAt.toString()));
+    }
+
+    @Test
+    void ikinciKayitOlayiDahaGecZamanlaUyelikTarihiniIleriAlmaz() throws Exception {
+        UUID account = newUser();
+        Instant first = Instant.now().minus(Duration.ofDays(10)).truncatedTo(ChronoUnit.MILLIS);
+        send(registered(UUID.randomUUID(), account, "ilk", first), eventToken(account, UnaryOperator.identity()))
+                .andExpect(status().isOk());
+
+        send(registered(UUID.randomUUID(), account, "ilk", first.plus(Duration.ofDays(5))),
+                eventToken(account, UnaryOperator.identity())).andExpect(status().isOk());
+
+        assertThat(memberSinceOf(account)).isEqualTo(first);
+    }
+
+    @Test
+    void gelecekteBirKayitZamaniSimdiyleSinirlanir() throws Exception {
+        UUID account = newUser();
+        Instant before = Instant.now();
+
+        send(registered(UUID.randomUUID(), account, "gelecek", before.plus(Duration.ofDays(2))),
+                eventToken(account, UnaryOperator.identity())).andExpect(status().isOk());
+
+        assertThat(memberSinceOf(account)).isBetween(before.minusSeconds(1), Instant.now().plusSeconds(1));
     }
 
     @Test
@@ -382,9 +445,19 @@ class InternalEventTest extends IntegrationTestSupport {
         return jdbc.queryForObject("select account_status from user_profiles where user_id = ?", String.class, account);
     }
 
+    private Instant memberSinceOf(UUID account) {
+        return jdbc.queryForObject("select member_since from user_profiles where user_id = ?", OffsetDateTime.class,
+                account).toInstant();
+    }
+
     private static String registered(UUID eventId, UUID account, String username) {
         return envelope(eventId, USER_REGISTERED, "auth-service", account,
                 "{\"accountId\":\"%s\",\"username\":\"%s\"}".formatted(account, username), 1);
+    }
+
+    private static String registered(UUID eventId, UUID account, String username, Instant occurredAt) {
+        return envelope(eventId, USER_REGISTERED, "auth-service", account,
+                "{\"accountId\":\"%s\",\"username\":\"%s\"}".formatted(account, username), 1, occurredAt);
     }
 
     private static String statusChanged(UUID eventId, UUID account, String status, Instant occurredAt) {

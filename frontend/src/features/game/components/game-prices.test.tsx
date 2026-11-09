@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import messages from "@/shared/lib/i18n/messages/tr.json";
@@ -14,7 +14,7 @@ afterEach(() => { vi.resetAllMocks(); vi.useRealTimers(); });
 describe("Pazar ve güncellik bilgili fiyatlar", () => {
   it("teklif ekrandayken süresi dolarsa güncel fiyatı ve satın alma bağlantısını kaldırır", async () => {
     vi.useFakeTimers(); vi.setSystemTime(new Date("2026-11-07T10:00:00Z"));
-    load.mockResolvedValue({ market: { country: "TR", currency: "TRY" }, items: [{ gameId, status: "AVAILABLE", offers: [{ store: "Fixture store", currentPrice: 9, regularPrice: 10, url: "https://store.example/game?affiliate=fixture", fetchedAt: "2026-11-07T09:59:00Z", expiresAt: "2026-11-07T10:00:01Z" }] }] });
+    load.mockResolvedValue({ market: { country: "US", currency: "USD" }, items: [{ gameId, status: "AVAILABLE", offers: [{ store: "Fixture store", currentPrice: 9, regularPrice: 10, url: "https://store.example/game?affiliate=fixture", fetchedAt: "2026-11-07T09:59:00Z", expiresAt: "2026-11-07T10:00:01Z" }] }] });
     mount();
     await act(async () => { await Promise.resolve(); });
     await act(async () => { await vi.advanceTimersByTimeAsync(1); });
@@ -25,7 +25,7 @@ describe("Pazar ve güncellik bilgili fiyatlar", () => {
     expect(screen.getByText(messages.Game.priceStates.STALE)).toBeVisible();
   });
   it.each(["NO_OFFER", "UNAVAILABLE", "STALE"])("%s durumunu ücretsiz oyun olarak göstermez", async (status) => {
-    load.mockResolvedValue({ market: { country: "TR", currency: "TRY" }, items: [{ gameId, status, offers: [] }] });
+    load.mockResolvedValue({ market: { country: "US", currency: "USD" }, items: [{ gameId, status, offers: [] }] });
     mount();
     await screen.findByText(messages.Game.priceStates[status as keyof typeof messages.Game.priceStates]);
     expect(screen.queryByRole("link", { name: messages.Game.openStore })).toBeNull();
@@ -35,5 +35,18 @@ describe("Pazar ve güncellik bilgili fiyatlar", () => {
     load.mockResolvedValue({ market: { country: "US", currency: "EUR" }, items: [{ gameId, status: "AVAILABLE", offers: [{ store: "wrong market", currentPrice: 9, regularPrice: 10 }] }] });
     mount(); await screen.findByText(messages.Game.priceStates.UNAVAILABLE);
     expect(screen.queryByText("wrong market")).toBeNull();
+  });
+  it("para birimi USD, EUR ve GBP olarak sunulur (TRY yok); seçim ülkeyi birlikte belirler ve doğru pazarı ister", async () => {
+    load.mockResolvedValue({ market: { country: "US", currency: "USD" }, items: [{ gameId, status: "NO_OFFER", offers: [] }] });
+    mount(); await screen.findByText(messages.Game.priceStates.NO_OFFER);
+    const select = screen.getByLabelText(messages.Game.fields.currency) as HTMLSelectElement;
+    expect([...select.options].map((option) => option.value)).toEqual(["USD", "EUR", "GBP"]);
+    expect(screen.getByText(/Amerika Birleşik Devletleri/)).toBeVisible();
+    fireEvent.change(select, { target: { value: "EUR" } });
+    expect(await screen.findByText(/Almanya/)).toBeVisible();
+    expect(load.mock.calls.some(([resource]) => resource.kind === "prices" && resource.country === "DE" && resource.currency === "EUR")).toBe(true);
+    fireEvent.change(select, { target: { value: "GBP" } });
+    expect(await screen.findByText(/Birleşik Krallık/)).toBeVisible();
+    expect(load.mock.calls.some(([resource]) => resource.kind === "prices" && resource.country === "GB" && resource.currency === "GBP")).toBe(true);
   });
 });

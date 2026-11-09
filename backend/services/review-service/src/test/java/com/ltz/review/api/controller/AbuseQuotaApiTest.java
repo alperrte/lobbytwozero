@@ -54,7 +54,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /** REV-13: onaylı varsayılan politika (inceleme 5/60 sn, beğeni+kaldırma 60/60 sn) kontrollü saatle doğrulanır. */
 @SpringBootTest
 class AbuseQuotaApiTest {
-    static final Instant START = Instant.parse("2026-11-01T12:00:00Z"); // 60 sn pencere sınırı
+    /**
+     * Denetimli saatin başlangıcı: dakika sınırına hizalı (60 sn pencere sınırı) ve gerçek saatin bir gün ilerisinde. Zamanlanmış temizlik
+     * ({@code AbuseQuotaCleanup}) gerçek saate göre 5 dakikadan eski pencereleri siler; sabit geçmiş bir tarih kullanılırsa temizlik testin
+     * ortasında sayaç satırlarını silip kotayı kendiliğinden "yenilerdi" (gerçek tarih sabit tarihi geçince test kararsızlaşırdı).
+     */
+    static final Instant START = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MINUTES).plus(Duration.ofDays(1));
     @Autowired WebApplicationContext context;
     @Autowired JdbcClient jdbc;
     @Autowired JsonMapper json;

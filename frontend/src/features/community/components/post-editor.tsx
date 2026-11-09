@@ -103,8 +103,8 @@ export function PostEditor({ post, onDone, onCancel }: { post: PostView; onDone:
         <label htmlFor={`${id}-body`} className="mb-1.5 block text-sm font-medium text-text-primary">
           {t("form.bodyLabel")}
         </label>
-        <textarea id={`${id}-body`} rows={7} value={body} onChange={(event) => setBody(event.target.value)} aria-invalid={touched && bodyIssue ? true : undefined} aria-describedby={touched && bodyIssue ? `${id}-body-error` : undefined} className={`${inputClass} resize-y leading-6`} />
-        <p className="mt-1 text-xs text-text-secondary">{body.trim().length}/{LIMITS.postBody}</p>
+        <textarea id={`${id}-body`} rows={7} value={body} maxLength={LIMITS.postBody} onChange={(event) => setBody(event.target.value)} aria-invalid={touched && bodyIssue ? true : undefined} aria-describedby={touched && bodyIssue ? `${id}-body-error` : undefined} className={`${inputClass} resize-y leading-6`} />
+        <p className="mt-1 text-xs tabular-nums text-text-secondary">{body.trim().length}/{LIMITS.postBody}</p>
         {touched && bodyIssue ? <FieldError id={`${id}-body-error`}>{t(`form.error.${bodyIssue}`, { max: LIMITS.postBody })}</FieldError> : null}
       </div>
 

@@ -26,10 +26,24 @@ public class DetailEnrichedGameProvider implements GameProvider {
         Set<Capability> all = EnumSet.noneOf(Capability.class);
         all.addAll(catalog.capabilities());
         all.add(Capability.DETAILS);
+        // Tür kanıtı detay kaynağından gelir (ör. IGDB game_type); kaynak türü bildirmiyorsa sınıflandırma UNKNOWN kalır.
+        if (detail.reportsItemType()) all.add(Capability.ITEM_TYPE);
         return Set.copyOf(all);
     }
 
     @Override public CatalogPage catalog(CatalogQuery query) { return catalog.catalog(query); }
 
     @Override public Details details(String externalId) { return detail.details(externalId); }
+
+    @Override public java.util.Map<String, ItemEvidence> itemEvidence(java.util.Collection<String> externalIds) { return detail.itemEvidence(externalIds); }
+
+    @Override public java.util.Map<String, RelationEvidence> relationEvidence(java.util.Collection<String> externalIds) { return detail.relationEvidence(externalIds); }
+
+    @Override public java.util.Map<String, Details> bulkDetails(java.util.Collection<String> externalIds) { return detail.bulkDetails(externalIds); }
+
+    @Override public java.util.Map<String, StoreItem> storeItems(java.util.Collection<String> externalIds) { return catalog.storeItems(externalIds); }
+
+    @Override public java.util.Map<String, String> shortDescriptions(java.util.Collection<String> externalIds, String language) { return catalog.shortDescriptions(externalIds, language); }
+
+    @Override public Set<String> catalogDlcIds() { return catalog.catalogDlcIds(); }
 }

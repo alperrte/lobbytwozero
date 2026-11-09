@@ -46,6 +46,8 @@
   /* Kaydırma çubuğu izi; tutamaç marka gradyanıdır (bu ize karşı ≈4,1:1). */
   --ltz-scrollbar-track: #0b0b0f;
 
+  /* Sahne illüstrasyonları (ör. Sosyal başlık şehri): siluet mürekkebi. Gökyüzü yüzey rengidir. */
+  --ltz-scene-ink: #0b0b0f;
   /* LTZ Atölyesi 3D vitrini (Dark). Blender önizlemeleri saydam zeminlidir; vitrin rengi bu token'dan gelir. */
   --ltz-stage: #0b0b0f;
   --ltz-on-stage: #f1f1f1;
@@ -85,6 +87,7 @@
   /* Tutamaç marka gradyanıdır (bu ize karşı ≈4,4:1). */
   --ltz-scrollbar-track: #f5f5f7;
 
+  --ltz-scene-ink: #17171b;
   /* LTZ Atölyesi 3D vitrini. Dark: koyu vitrin; Light: açık gri stüdyo zemini (kasa rengi temadan bağımsızdır). */
   --ltz-stage: #dfe0e6;
   --ltz-on-stage: #17171b;
@@ -112,6 +115,7 @@
   --color-sun: var(--ltz-sun);
   --color-moon: var(--ltz-moon);
   --color-on-celestial: var(--ltz-on-celestial);
+  --color-scene-ink: var(--ltz-scene-ink);
   --color-stage: var(--ltz-stage);
   --color-on-stage: var(--ltz-on-stage);
   --color-on-stage-muted: var(--ltz-on-stage-muted);

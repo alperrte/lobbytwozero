@@ -105,7 +105,9 @@ describe("AppShell", () => {
     const nav = screen.getByRole("navigation", { name: "Ana gezinme" });
 
     const links = nav.querySelectorAll("a");
-    expect(links).toHaveLength(5);
+    expect(links).toHaveLength(6);
+    expect(links[1]).toHaveAttribute("href", "/tr/oyunlar");
+    expect(nav.querySelector('a[href="/tr/arkadaslar"]')).not.toBeNull();
     expect(links[0]).toHaveAttribute("href", "/tr");
     expect(links[0]).toHaveAttribute("aria-current", "page");
     expect(nav.querySelectorAll('a[href="#"]')).toHaveLength(0);
@@ -115,8 +117,8 @@ describe("AppShell", () => {
     expect(nav).not.toHaveTextContent("Profil");
     expect(nav).not.toHaveTextContent("Bilgisayarlarım");
     expect(nav).toHaveTextContent("Kampanyalar");
-    // Tam eşleşme yalnız rozetleri sayar: Ana Sayfa dışındaki 12 öğe.
-    expect(screen.getAllByText("Yakında")).toHaveLength(9);
+    // Tam eşleşme yalnız rozetleri sayar: Ana Sayfa, Oyunlar, Topluluk, Arkadaşlar, Donanımlar ve Kampanyalar dışındaki 8 öğe.
+    expect(screen.getAllByText("Yakında")).toHaveLength(8);
   });
 
   it("14 öğeyi üç grupta, belirlenen sırayla sunar", () => {
@@ -158,10 +160,10 @@ describe("AppShell", () => {
     const games = screen.getByRole("button", { name: "Kütüphanem — Yakında" });
     expect(games).toHaveAttribute("aria-disabled", "true");
     expect(games.closest("a")).toBeNull();
-    // Oyunlar kullanıma açıktır; kütüphane ve diğer bekleyen öğeler pasiftir.
+    // Oyunlar ve Arkadaşlar kullanıma açıktır; kütüphane ve diğer bekleyen öğeler pasiftir.
     expect(
       screen.getAllByRole("button", { name: /— Yakında$/ })
-    ).toHaveLength(9);
+    ).toHaveLength(8);
   });
 
   it("'Yakında' öğesine odaklanınca tooltip çıkar, Escape ile kapanır", () => {

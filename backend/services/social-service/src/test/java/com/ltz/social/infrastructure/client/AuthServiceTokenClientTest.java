@@ -46,7 +46,8 @@ class AuthServiceTokenClientTest {
     private AuthServiceTokenClient client(String secret) {
         return new AuthServiceTokenClient(builder, clock, new ServiceClientProperties(
                 "http://auth-service:8080", "/internal/v1/service-tokens", "social-service", secret,
-                "http://community-service:8080"));
+                "http://community-service:8080",
+                "http://user-service:8080"));
     }
 
     private static String tokenResponse(String token, int expiresIn) {
@@ -152,7 +153,8 @@ class AuthServiceTokenClientTest {
     @Test
     void ayarlarinToStringiGizliAnahtariYazmaz() {
         ServiceClientProperties properties = new ServiceClientProperties("http://auth-service:8080",
-                "/internal/v1/service-tokens", "social-service", SECRET, "http://community-service:8080");
+                "/internal/v1/service-tokens", "social-service", SECRET, "http://community-service:8080",
+                "http://user-service:8080");
 
         assertThat(properties.toString()).doesNotContain(SECRET);
     }

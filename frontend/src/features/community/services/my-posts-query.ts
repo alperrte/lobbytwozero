@@ -2,14 +2,14 @@ import { emptyFilters, postCategories, type PostCategory, type PostFilters, type
 import { isUuid } from "./post-query";
 
 /**
- * "Gönderilerim" üç görünümdür; hepsi aynı karma kayıt listesinden (`GET /users/{id}/posts`) türetilir:
- * `posts` = görselli özgün gönderiler, `words` = yalnız metinden oluşan özgün gönderiler (Sözlerim), `reposts` = yeniden paylaşımlar.
+ * "Gönderilerim" iki görünümdür; ikisi de aynı karma kayıt listesinden (`GET /users/{id}/posts`) türetilir:
+ * `posts` = kendi oluşturduğum tüm özgün gönderiler (metin ve görselli), `reposts` = yeniden paylaşımlarım.
  */
-export type MyPostsView = "posts" | "words" | "reposts";
+export type MyPostsView = "posts" | "reposts";
 
-/** Bu görünümde API'nin gerçekten desteklediği süzgeçler: kendi özgün gönderilerinde arama/oyun/kategori/tarih vardır. */
+/** Bu görünümde API'nin gerçekten desteklediği süzgeçler: yalnız Gönderilerim'de arama/oyun/kategori/tarih vardır. */
 export function supportsFilters(view: MyPostsView): boolean {
-  return view !== "reposts";
+  return view === "posts";
 }
 
 /** Yalnız yeni/eski sıralaması sunulur (Popüler bu sayfada yoktur). */
@@ -54,12 +54,7 @@ export function activeFilterCount(filters: PostFilters): number {
   return [filters.q.trim(), filters.gameId, filters.category, filters.fromDate, filters.toDate].filter(Boolean).length;
 }
 
-/**
- * Görünüme ait gönderi mi? Yeniden paylaşımlar (ve ekledikleri açıklama) hiçbir zaman söz sayılmaz; özgün gönderiler görselli
- * ise Gönderilerim'e, görselsiz (yalnız metin) ise Sözlerim'e girer. Kayıtlar kopyalanmaz, aynı liste süzülür.
- */
+/** Görünüme ait gönderi mi? Gönderilerim yalnız özgün gönderileri (metin ve görselli), diğeri yalnız yeniden paylaşımları içerir. */
 export function belongsToView(post: PostView, view: MyPostsView): boolean {
-  if (view === "reposts") return post.repostOf !== null;
-  if (post.repostOf !== null) return false;
-  return view === "words" ? post.images.length === 0 : post.images.length > 0;
+  return view === "reposts" ? post.repostOf !== null : post.repostOf === null;
 }

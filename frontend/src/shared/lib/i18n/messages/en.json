@@ -526,6 +526,26 @@
     "total": "{count} results",
     "emptyModule": "There is no visible content in this section yet.",
     "emptyCatalogue": "No games match this search. Try a different search.",
+    "emptySearch": "No games match “{query}”. Change the spelling or search the Steam index.",
+    "emptyFilters": "No games match the selected filters. Try removing some filters.",
+    "emptyCatalogueAll": "There are no games in the catalogue yet. The Steam catalogue may not have been fetched yet.",
+    "syncRunningHint": "The Steam catalogue is being synchronised: {indexed} entries indexed, {main} games classified. Games appear here as they are classified; you can search the index meanwhile.",
+    "emptyUnclassifiedHint": "{indexed} Steam entries are indexed but none is classified as a main game yet. You can search the index.",
+    "datePickerOpen": "Open calendar",
+    "datePickerDialog": "Choose date",
+    "datePickerPlaceholder": "mm/dd/yyyy",
+    "datePickerToday": "Today",
+    "datePickerClear": "Clear",
+    "datePickerPrevMonth": "Previous month",
+    "datePickerNextMonth": "Next month",
+    "datePickerMonth": "Month",
+    "datePickerYear": "Year",
+    "datePickerInvalid": "Enter a valid date (e.g. {example}).",
+    "comboboxShowOptions": "Show suggestions",
+    "comboboxNoOptions": "No matching suggestions. You can type the code.",
+    "languagePlaceholder": "Choose or type a code",
+    "genrePlaceholder": "Choose or type a genre",
+    "platformPlaceholder": "Choose or type a platform",
     "backToGames": "Back to games",
     "backToContent": "Back to list",
     "previous": "Previous",
@@ -564,7 +584,7 @@
     "yes": "Yes",
     "no": "No",
     "clearFilters": "Clear filters",
-    "filterHelp": "Use catalogue codes for genre/platform and language codes such as tr or en. Missing data does not match an active filter. Prices belong to the selected market.",
+    "filterHelp": "Pick a genre and platform from the list or type a catalogue code. For language use the full language code such as tr-tr or en-us (you can also pick it from the list). Missing data does not match an active filter. Prices belong to the selected market.",
     "rating": "LTZ rating",
     "ratingValue": "{rating}/10 · {count} ratings",
     "unrated": "Not rated yet",
@@ -577,6 +597,10 @@
     "checkedAt": "Checked: {date}",
     "verifiedAt": "Verified: {date}",
     "notVerified": "Not verified yet",
+    "parentGame": "Base game",
+    "dlcTitle": "DLC ({count})",
+    "descriptionLanguageNote": "This description is only available in {language}; it has not been translated.",
+    "recordedAt": "Retrieved from source: {date}",
     "openStore": "Visit store",
     "priceDisclaimer": "Store prices may change. Links may be affiliate links. No currency conversion is applied. Source:",
     "gameInformation": "Game information",
@@ -681,7 +705,8 @@
       "targetId": "Content ID (leave empty for description)",
       "action": "Action",
       "code": "Achievement code",
-      "visible": "Visibility"
+      "visible": "Visibility",
+      "syncStatus": "Sync status"
     },
     "choices": {
       "MAIN_GAME": "Main game",
@@ -734,7 +759,197 @@
       "DEVELOPERS": "Developers",
       "PUBLISHERS": "Publishers",
       "LOCALIZATION": "Localisation"
-    }
+    },
+    "activeFilters": "Active filters",
+    "activeGrants": "Active grants",
+    "addValue": "Add",
+    "adminGames": "Games",
+    "allGames": "All games",
+    "applyFilters": "Apply filters",
+    "autoRetryStopped": "Automatic retries stopped; the run must be resumed manually from the application service.",
+    "catalogStatus": "Catalogue index status",
+    "catalogStatusHelp": "Latest state of the Steam index import. Sync cannot be started or stopped from this screen.",
+    "catalogueSections": "Catalogue sections",
+    "changeGame": "Change game",
+    "conflictDraftKept": "Your changes were not discarded. Load the latest record, review your changes and save again.",
+    "cover": "Cover",
+    "coverageLabel": "Detail coverage",
+    "createdAt": "Created",
+    "createdOn": "Created: {date}",
+    "descriptionSource": "This description comes from the catalogue source. The developer's own description is in the \"From the developer\" section.",
+    "developerDescription": "Developer description",
+    "discountPercent": "{percent}% off",
+    "earlyAccessBadge": "Early access",
+    "editorRank": "Editor rank #{rank}",
+    "editorsPicks": "Editor's Picks",
+    "editorsPicksHelp": "This list is hand-picked by editors. It is not a trend or popularity measure based on player activity.",
+    "emptyDeveloperContent": "The developer has not published any content yet.",
+    "emptyPicks": "No editor's picks yet",
+    "emptyPicksHelp": "The editor list is currently empty. You can browse all games instead.",
+    "feedbackDistinct": "This feedback goes privately to the game's developer. It is not a game review or rating; reviews are written in the Review service.",
+    "feedbackFor": "Selected game:",
+    "feedbackPickGame": "Search for the game you want to send feedback about",
+    "feedbackPrivacy": "Your feedback is not public; only you and the game's authorised developers can see it.",
+    "filterErrors": {
+      "dateRange": "The earliest release date cannot be after the latest release date.",
+      "minRating": "The minimum rating must be between 1 and 10 with at most two decimals."
+    },
+    "filterNotSent": "The invalid filter was not sent.",
+    "findGame": "Find a game",
+    "foreignReferenceBlocked": "A safety guard stopped this action: game references in other services cannot be verified, so external identity reassign and split cannot be applied right now.",
+    "freshness": {
+      "LOCAL": "Local record",
+      "UNSUPPORTED": "Provider refresh is not supported for this record",
+      "MISSING": "Provider data has not been fetched yet",
+      "FRESH": "Up to date",
+      "STALE": "Out of date"
+    },
+    "freshnessLabel": "Data freshness",
+    "gallery": "Image gallery",
+    "galleryNext": "Next image",
+    "galleryPosition": "{index} / {count}",
+    "galleryPrevious": "Previous image",
+    "galleryShow": "Show image {index}",
+    "grantScopeHelp": "This grant applies to this game only. The user's GAME_DEVELOPER role is managed separately in the Auth service and cannot be changed here.",
+    "grantedAt": "Granted: {date}",
+    "grantedUser": "User ID",
+    "help": {
+      "developers": "Add values one by one; Enter or a comma starts a new value.",
+      "publishers": "Add values one by one; Enter or a comma starts a new value.",
+      "languages": "Add language codes (e.g. tr, en).",
+      "genres": "Add catalogue codes (e.g. rpg).",
+      "categories": "Add catalogue codes.",
+      "tags": "Add catalogue codes.",
+      "platforms": "Add catalogue codes (e.g. pc).",
+      "coverUrl": "Only https:// links are accepted.",
+      "url": "Only https:// links are accepted.",
+      "reason": "This reason is written to the audit log.",
+      "developerUserId": "User ID from the Auth service (UUID).",
+      "targetId": "Required for media and update notes; leave empty for the description.",
+      "code": "Lowercase letters, digits and hyphens (e.g. first-win)."
+    },
+    "hiddenEditBlocked": "This content was hidden by moderation and cannot be edited while hidden.",
+    "identityBlockedBody": "Moving an external identity to another game or splitting it off also affects game references in other services such as Library and Review. Until a safe coordination protocol with those services is in place, the server rejects these actions with the FOREIGN_REFERENCE_SAFETY_UNVERIFIED code.",
+    "identityBlockedTitle": "Reassign and split are currently disabled",
+    "identityPoint1": "There is no form or button on this screen that starts these actions.",
+    "identityPoint2": "An operator statement or reason does not bypass the server-side safety guard.",
+    "identityPoint3": "If you notice a wrong mapping, report it to the service owner; records are not edited by hand.",
+    "identityTitle": "External game identity corrections",
+    "lastPage": "Go to the last page",
+    "lifecycle": "Status management",
+    "lifecycleUnavailable": "A record in this state cannot be archived or restored.",
+    "loadById": "Advanced: load by ID",
+    "loadByIdHelp": "Archived games do not appear in public search; you can open such records by ID.",
+    "manualOverridesHelp": "Manually edited fields are protected from provider updates. If you release the protection, provider data may update that field again.",
+    "mediaUrlOnly": "Files are not uploaded; only a secure HTTPS link is added.",
+    "moderationGame": "Game",
+    "moderationScope": "Only the description, media and update notes published by the developer can be hidden or restored. General moderation processes live in the Admin service.",
+    "moderationVisibleHelp": "Public (visible) content is listed below. To restore hidden content, enter the content ID yourself.",
+    "moveDown": "Move {title} down",
+    "moveUp": "Move {title} up",
+    "noGrants": "There is no active developer grant for this game.",
+    "noManagedGamesHelp": "Access is granted per game by an administrator.",
+    "noMedia": "No media added yet",
+    "noNotes": "No update notes yet",
+    "noWorkspaceAccess": "This area requires an administrator, moderator or game developer permission.",
+    "none": "None",
+    "notRecorded": "Not recorded",
+    "opensExternal": "opens in a new tab",
+    "overrideLockedAt": "Locked at: {date}",
+    "pageOf": "Page {page} of {pages}",
+    "pageOutOfRange": "This page no longer exists",
+    "pageSections": "Page sections",
+    "pickerEmpty": "No matching game found.",
+    "pickerHelp": "Search matches the start of the game title. Only public main games are listed.",
+    "pickerLabel": "Search games",
+    "pickerSelect": "Select",
+    "popularAdd": "Add a game to the list",
+    "popularClearWarning": "The list is empty: saving will clear the current editor selection completely.",
+    "popularEligibility": "Only active main games can be selected. The current list is read from the public endpoint; because it shows eligible games only, older ineligible entries may not appear here.",
+    "popularEmptyHelp": "Add games to build an ordered editor list.",
+    "popularEmptyList": "No games in the list",
+    "popularLimit": "At most {max} games can be selected.",
+    "popularReplaceWarning": "Saving replaces the current editor list. Saving an empty list clears the selection completely.",
+    "popularSave": "Save editor list",
+    "popularSelected": "Selected games (ordered)",
+    "providedByDeveloper": "Provided by the developer",
+    "providerTotal": "Provider total: {count}",
+    "providerTotalUnknown": "The provider's total record count is unknown, so no completion percentage is calculated.",
+    "ratingCount": "{count} ratings",
+    "recordVersion": "Version {version}",
+    "refreshStatus": "Refresh status",
+    "releaseUnknown": "Release date unknown",
+    "remove": "Remove",
+    "removeFilter": "Remove filter {filter}",
+    "removeFromList": "Remove {title} from the list",
+    "removeValue": "Remove {value}",
+    "runModes": {
+      "INITIAL": "Initial import",
+      "INCREMENTAL": "Incremental import"
+    },
+    "sections": {
+      "overview": "Overview",
+      "information": "Details",
+      "dlc": "DLC",
+      "prices": "Prices",
+      "developer": "From the developer",
+      "community": "Community",
+      "feedback": "Feedback"
+    },
+    "selectedGame": "Selected game",
+    "statusFields": {
+      "provider": "Provider",
+      "runMode": "Run mode",
+      "cursor": "Cursor (last applied AppID)",
+      "processedCount": "Processed entries",
+      "indexedEntries": "Indexed entries",
+      "mainGameEntries": "Main game entries",
+      "unclassifiedEntries": "Unclassified entries",
+      "lastSuccessfulAt": "Last successful import",
+      "failureCount": "Consecutive failed pages",
+      "lastErrorCode": "Last error code",
+      "nextAttemptAt": "Next attempt"
+    },
+    "syncStatuses": {
+      "IDLE": "Idle",
+      "RUNNING": "Running",
+      "COMPLETE": "Complete",
+      "FAILED": "Failed"
+    },
+    "tabs": {
+      "description": "Description",
+      "media": "Media",
+      "notes": "Update notes"
+    },
+    "unknownSupportNote": "“Unknown” does not mean unsupported; the source did not provide this information.",
+    "unsavedChanges": "You have unsaved changes.",
+    "updateNotes": "Update notes",
+    "updatedAt": "Updated",
+    "updatedOn": "Updated: {date}",
+    "viewGrid": "Cards",
+    "viewList": "List",
+    "viewMode": "View",
+    "yourGames": "Games you can manage",
+    "archiveHelp": "An archived game is removed from the public catalogue. The record is not deleted; you can restore it later.",
+    "restoreHelp": "A restored game appears in the public catalogue again.",
+    "emptyFeedback": "You have not sent any feedback yet",
+    "emptyFeedbackDeveloper": "There is no feedback for this game",
+    "hideDetail": "Hide details",
+    "showDetail": "Show details",
+    "showLess": "Show less",
+    "showMore": "Show more",
+    "invalidMediaUrl": "The link was not accepted. Images may only come from Steam image addresses (https, .jpg/.png/.webp/.gif), videos from YouTube or Vimeo, and demos from a Steam store page.",
+    "mediaSources": {
+      "cover": "Only Steam image addresses (shared.akamai.steamstatic.com, shared.fastly.steamstatic.com, cdn.akamai.steamstatic.com) with a .jpg/.png/.webp/.gif extension are accepted.",
+      "all": "Image: Steam image addresses (.jpg/.png/.webp/.gif). Video: YouTube or Vimeo. Demo: Steam store page. https only."
+    },
+    "developerGallery": "Developer images",
+    "indexSearch": "Search the Steam index",
+    "indexSearchHelp": "Only the local Steam index is searched (matches the start of the title); no request goes to the provider. Unclassified entries do not appear in the public catalogue.",
+    "indexSearchButton": "Search",
+    "includeUnclassified": "Include unclassified entries",
+    "indexNoResults": "No index entries match this search.",
+    "openInAdmin": "Open in management"
   },
   "Auth": {
     "shell": {
@@ -1549,6 +1764,7 @@
     "editProfile": "Edit profile",
     "noName": "Unnamed player",
     "usernamePending": "Username is being prepared",
+    "memberSince": "Member since {date}",
     "emptyBio": "You haven't added a bio yet.",
     "preferences": "Player preferences",
     "country": "Country",
@@ -1571,20 +1787,39 @@
       "friends": "Friends",
       "library": "Game collection",
       "reviews": "Reviews",
-      "messages": "Messages",
       "hidden": "Hidden",
       "unavailable": "Not yet",
-      "unknown": "Unavailable"
+      "unknown": "Unavailable",
+      "computers": "Computers",
+      "plus": "{count}+"
     },
     "hardware": {
       "title": "My computers",
-      "body": "Your saved computers and hardware details live in the Hardware section.",
-      "open": "Go to my computers"
-    },
-    "tabPreview": {
-      "activity": "Posts, reviews and comments will appear here as a feed. It will be connected once the related service is ready.",
-      "games": "Your collection, completed and favorite games will be listed here. It will be connected once the Library service is ready.",
-      "friends": "Your friends list will appear here. It will be connected once the Social service is ready."
+      "open": "Go to my computers",
+      "computers": "Computers",
+      "components": "Components",
+      "ram": "Recorded RAM",
+      "storage": "Recorded storage",
+      "gb": "{value} GB",
+      "noValue": "—",
+      "capacityNote": "Some components have no recorded capacity; totals include recorded values only.",
+      "empty": "You have not added a computer yet.",
+      "add": "Add a computer",
+      "typeCount": "{type}: {count}",
+      "types": {
+        "DESKTOP": "Desktop",
+        "LAPTOP": "Laptop",
+        "OTHER": "Other"
+      },
+      "performance": {
+        "title": "My game performance",
+        "empty": "You have no performance sessions yet.",
+        "totals": "{sessions} sessions, {samples} samples",
+        "average": "Average",
+        "min": "Lowest",
+        "max": "Highest",
+        "sessions": "Measured in {count, plural, one {# session} other {# sessions}}"
+      }
     },
     "preview": {
       "mark": "Preview",
@@ -1592,7 +1827,6 @@
       "rank": {
         "veteran": "Veteran Player"
       },
-      "memberSince": "Member since {date}",
       "status": "Playing something tonight.",
       "signatureLabel": "Signature",
       "signature": "Every game is a story; just finish it.",
@@ -1802,13 +2036,49 @@
       "invalid": "One of the values is invalid. Check the fields.",
       "network": "Couldn't connect. Check your internet and try again.",
       "generic": "Something went wrong. Try again."
+    },
+    "remote": {
+      "loading": "Loading",
+      "error": "This section could not be loaded right now.",
+      "retry": "Try again"
+    },
+    "activity": {
+      "title": "Recent posts",
+      "all": "All my posts",
+      "empty": "You have no posts yet.",
+      "write": "Write a post",
+      "untitled": "Post without text",
+      "repost": "Repost",
+      "hidden": "Hidden (only you can see it)",
+      "likes": "{count, plural, one {# like} other {# likes}}",
+      "comments": "{count, plural, one {# comment} other {# comments}}"
+    },
+    "games": {
+      "title": "My game collection",
+      "total": "Total games",
+      "favorite": "Favorites",
+      "completed": "Completed",
+      "completion": "Completion rate: {percent}",
+      "empty": "Your collection is empty for now.",
+      "browse": "Browse games"
+    },
+    "friendsTab": {
+      "title": "My friends",
+      "empty": "You have no friends yet.",
+      "count": "{count, plural, one {# friend} other {# friends}}",
+      "countMore": "{count}+ friends",
+      "noneVisible": "Your friends cannot be shown right now.",
+      "unnamed": "Player",
+      "since": "Friends since {date}",
+      "open": "Open posts by {name}",
+      "someHidden": "Some accounts cannot be shown"
     }
   },
   "Community": {
     "nav": {
       "label": "Community sections",
       "feed": "Feed",
-      "forums": "Game forums",
+      "forums": "Community",
       "mine": "My posts",
       "newPost": "Create post"
     },
@@ -1844,14 +2114,10 @@
       "mineReposts": {
         "title": "My reposts",
         "description": "Posts you reposted."
-      },
-      "mineWords": {
-        "title": "My words",
-        "description": "Your text-only posts."
       }
     },
     "feed": {
-      "title": "Community",
+      "title": "Community Feed",
       "description": "Share games, experiences and ideas, and read what other players post.",
       "prompt": "What do you want to share with the community?",
       "promptGuest": "Sign in to share",
@@ -1869,8 +2135,10 @@
       "sortLabel": "Sort order",
       "sort": {
         "NEWEST": "Newest",
-        "POPULAR": "Popular",
-        "OLDEST": "Oldest"
+        "POPULAR": "Popular (likes + comments)",
+        "OLDEST": "Oldest",
+        "MOST_LIKED": "Most liked",
+        "MOST_REPOSTED": "Most reposted"
       },
       "search": "Search posts",
       "searchPlaceholder": "Search post text…",
@@ -1883,7 +2151,15 @@
       "to": "To date",
       "invalidRange": "The start date cannot be after the end date.",
       "clear": "Clear filters",
-      "more": "More filters"
+      "more": "More filters",
+      "sortFilter": "Filter",
+      "criteriaOrder": "Priority {number}",
+      "criteriaCount": "{count} criteria selected",
+      "criteriaOpposite": "Newest and Oldest are opposite directions: the one you picked first (“{first}”) applies; the other does not change the result.",
+      "ineffective": "No effect (opposite direction)",
+      "applyCriteria": "Apply",
+      "clearCriteria": "Clear",
+      "criteriaUnsupported": "Not applied: sorting by “{list}” is not supported by the API yet. Keep the selection or remove it and apply again."
     },
     "category": {
       "GENERAL": "General",
@@ -1934,7 +2210,12 @@
         "GUIDES": "Guide",
         "EASTER_EGGS": "Easter egg",
         "EXPERIENCES": "Player experience"
-      }
+      },
+      "readLess": "Show less",
+      "commentsOpen": "Show comments",
+      "commentsClose": "Hide comments",
+      "actions": "Post actions",
+      "reportMenu": "Report"
     },
     "images": {
       "alt": "Post image {number}",
@@ -1996,12 +2277,10 @@
       "forumContext": "Forum:",
       "type": "Post type",
       "titleLabel": "Title",
-      "titlePlaceholder": "Title of your content",
       "bodyLabel": "Text",
       "bodyPlaceholder": "Share your thoughts, experiences or questions…",
       "gameRequired": "Search for a game (required)",
       "gameOptional": "Search for a game",
-      "category": "Category",
       "images": "Images",
       "optional": "optional",
       "partial": "The post was published but {count, plural, one {# image} other {# images}} could not be uploaded. You can retry the images or go to the post.",
@@ -2011,7 +2290,7 @@
       "submit": "Publish",
       "previewLabel": "Post preview",
       "preview": "Preview",
-      "previewHelp": "This is how it will look in the feed once published.",
+      "previewHelp": "This is how it will appear in the feed once published.",
       "previewNow": "Now",
       "previewEmpty": "Your post text will appear here.",
       "error": {
@@ -2023,17 +2302,9 @@
         "gameRequired": "Select a game for game-linked content."
       },
       "sectionKind": "What are you sharing?",
-      "sectionKindHint": "A post appears in the community feed. Game content is also listed on the game's page.",
+      "sectionKindHint": "The post will appear in the community feed.",
       "modePost": "Post",
-      "modePostHelp": "Share freely with the community; link a game if you like.",
       "modeGame": "Game content",
-      "modeGameHelp": "Title and game are required. Listed on the game's page; the type cannot be changed later.",
-      "contentTypeLabel": "Content type",
-      "contentTypeHelp": {
-        "GUIDES": "A step-by-step guide to the game.",
-        "EASTER_EGGS": "Hidden details and surprises in the game.",
-        "EXPERIENCES": "Your own play experience."
-      },
       "sectionContent": "Content",
       "plainText": "Plain text: formatting and links are not interpreted.",
       "sectionGame": "Game link",
@@ -2046,7 +2317,11 @@
       "publishingImage": "Uploading image {current}/{total}…",
       "retry": "Try again",
       "publishingOverlay": "Publishing your post…",
-      "publishingList": "Updating the feed…"
+      "publishingList": "Updating the feed…",
+      "sectionDescription": "Description",
+      "confirmTitle": "Do you want to share this post?",
+      "confirmBody": "If you confirm, the post will be published.",
+      "category": "Category"
     },
     "edit": {
       "title": "Edit post",
@@ -2076,11 +2351,7 @@
       "hideReplies": "Hide replies",
       "deleteTitle": "Delete this comment?",
       "deleteBody": "The comment is removed. If it has replies, a \"deleted\" note stays in its place. This cannot be undone.",
-      "save": "Save",
-      "paneTitle": "Comments",
-      "paneEmpty": "No comments yet.",
-      "paneLoading": "Loading comments…",
-      "paneListLabel": "Comment list"
+      "save": "Save"
     },
     "detail": {
       "title": "Post",
@@ -2176,12 +2447,11 @@
         "noText": "Post without text",
         "originalBy": "Original author"
       },
-      "wordsLink": "My words",
-      "wordsTitle": "My words",
-      "wordsDescription": "Your text-only posts. Posts with images and reposts are not listed here.",
-      "wordsEmptyTitle": "You haven't shared a word yet.",
-      "wordsEmptyBody": "Use the quick share box in the feed to post a short word; it will be listed here.",
-      "wordsEmptyCta": "Go to the feed"
+      "priority": "Priority",
+      "priorityOptions": {
+        "OLDEST": "Oldest to newest",
+        "NEWEST": "Newest to oldest"
+      }
     },
     "user": {
       "title": "Player posts",
@@ -2226,6 +2496,219 @@
       "open": "Open image {number} full size",
       "broken": "Image could not be loaded",
       "viewer": "Image viewer"
+    },
+    "toast": {
+      "close": "Dismiss notification"
+    }
+  },
+  "Social": {
+    "meta": {
+      "friends": "My Friends",
+      "requests": "Friend Requests",
+      "sent": "Sent Requests",
+      "blocked": "Blocked Users"
+    },
+    "hero": {
+      "friendsTitle": "My Friends",
+      "friendsSubtitle": "Your squad is here. Jump into the next match together.",
+      "requestsTitle": "Friend Requests",
+      "requestsSubtitle": "Manage new connections and grow your squad.",
+      "sentTitle": "Sent Requests",
+      "sentSubtitle": "Keep track of invites waiting for an answer.",
+      "blockedTitle": "Blocked Users",
+      "blockedSubtitle": "You stay in control of your social experience.",
+      "addFriend": "Add Friend"
+    },
+    "preview": {
+      "badge": "Preview data",
+      "description": "Status, current game and mutual friend details are still sample data; your friends, requests, blocks and invite code are real."
+    },
+    "tabs": {
+      "label": "Friend sections",
+      "friends": "Friends",
+      "incoming": "Incoming",
+      "sent": "Sent",
+      "blocked": "Blocked"
+    },
+    "friends": {
+      "listLabel": "Friend list",
+      "searchLabel": "Search your friends",
+      "searchPlaceholder": "Search your friends…",
+      "filterLabel": "Filter by status",
+      "filterAll": "All",
+      "filterOnline": "Online",
+      "filterInGame": "In game",
+      "showing": "Showing {shown} of {total} friends",
+      "loadMore": "Load more",
+      "loadingMore": "Loading…",
+      "emptyTitle": "No friends yet",
+      "emptyBody": "Share your invite code or enter a friend's code to send your first request.",
+      "noMatchTitle": "No matching friends",
+      "noMatchBody": "Try a different search or filter.",
+      "partialResults": "Search and filters only cover the {loaded} friends loaded so far. Load more below to widen them."
+    },
+    "presence": {
+      "online": "Online",
+      "inGame": "In game",
+      "offline": "Offline",
+      "lastSeen": "Last seen {time}"
+    },
+    "activity": {
+      "ranked": "Playing ranked",
+      "competitive": "Playing competitive",
+      "story": "In story mode",
+      "exploring": "Out exploring",
+      "coop": "Playing co-op",
+      "casual": "Playing casually"
+    },
+    "game": {
+      "playing": "Playing this game",
+      "lastPlayed": "Last played",
+      "none": "Not in a game right now"
+    },
+    "card": {
+      "message": "Send Message",
+      "messageSoon": "Messaging is coming soon",
+      "moreActions": "More actions for {name}",
+      "viewProfile": "View Profile",
+      "soon": "Soon",
+      "removeFriend": "Remove Friend",
+      "block": "Block",
+      "mutual": "{count, plural, =0 {No mutual friends} one {# mutual friend} other {# mutual friends}}"
+    },
+    "requests": {
+      "incomingTitle": "Incoming Requests",
+      "incomingListLabel": "Incoming friend requests",
+      "sentTitle": "Sent Requests",
+      "sentListLabel": "Sent friend requests",
+      "accept": "Accept",
+      "reject": "Decline",
+      "cancel": "Cancel Request",
+      "acceptAria": "Accept {name}'s request",
+      "rejectAria": "Decline {name}'s request",
+      "cancelAria": "Cancel request to {name}",
+      "pending": "Pending",
+      "seeAll": "See all",
+      "incomingEmptyTitle": "No pending requests",
+      "incomingEmptyBody": "New friend requests will show up here.",
+      "sentEmptyTitle": "No sent requests",
+      "sentEmptyBody": "Enter a friend's invite code to send them a request.",
+      "loadMore": "Load more"
+    },
+    "blocked": {
+      "listLabel": "Blocked users",
+      "blockedOn": "Blocked · {date}",
+      "unblock": "Unblock",
+      "unblockAria": "Unblock {name}",
+      "emptyTitle": "You haven't blocked anyone",
+      "emptyBody": "Players you block are listed here, and you can unblock them at any time.",
+      "loadMore": "Load more"
+    },
+    "howBlocking": {
+      "title": "How does blocking work?",
+      "intro": "Limit interactions with people you don't want to hear from for a safer, more enjoyable social experience.",
+      "requestsTitle": "Friend requests are stopped",
+      "requestsBody": "A blocked user can't send you friend requests; your friendship and any pending requests end.",
+      "messagesTitle": "Direct messages are restricted",
+      "messagesBody": "A blocked user can't send you messages.",
+      "lfpTitle": "Block rules apply to listings",
+      "lfpBody": "Block rules also apply to looking-for-party listings.",
+      "privacyTitle": "Profile privacy settings",
+      "privacyBody": "You'll be able to control in more detail who can reach you."
+    },
+    "invite": {
+      "title": "Your Invite Code",
+      "codeLabel": "Your invite code",
+      "copy": "Copy",
+      "copyAria": "Copy invite code",
+      "copied": "Copied",
+      "copyFailed": "Couldn't copy; select the code and copy it manually.",
+      "hint": "Share your code so friends can find you.",
+      "usage": "{used} / {max} uses",
+      "expires": "Valid until {date}",
+      "regenerate": "Generate new code",
+      "regenerateTitle": "Regenerate your invite code?",
+      "regenerateBody": "Your old code stops working immediately. Anyone you shared it with will need the new one.",
+      "regenerating": "Generating…",
+      "create": "Create invite code",
+      "creating": "Creating…",
+      "none": "You don't have an active invite code yet."
+    },
+    "addByCode": {
+      "title": "Add by invite code",
+      "panelTitle": "Add Friend",
+      "label": "Your friend's invite code",
+      "placeholder": "e.g. ABCDE-12345",
+      "hint": "10 characters; dashes and spaces don't matter.",
+      "submit": "Send Request",
+      "submitting": "Sending…",
+      "issues": {
+        "empty": "Enter an invite code.",
+        "length": "Invite codes are 10 characters long.",
+        "characters": "Codes use letters and digits only (no I, L, O or U)."
+      }
+    },
+    "privacy": {
+      "title": "Social privacy settings",
+      "body": "Control who can send you requests and see your profile.",
+      "soon": "Soon"
+    },
+    "dialogs": {
+      "close": "Close",
+      "cancel": "Cancel",
+      "removeTitle": "Remove this friend?",
+      "removeBody": "{name} will be removed from your friends. You'll need a new request to be friends again.",
+      "removeConfirm": "Remove Friend",
+      "removing": "Removing…",
+      "blockTitle": "Block this user?",
+      "blockBody": "{name} won't be able to send you requests or messages; your friendship and pending requests end.",
+      "blockConfirm": "Block",
+      "blocking": "Blocking…",
+      "unblockTitle": "Unblock this user?",
+      "unblockBody": "This user will be able to contact you again. Your friendship is not restored automatically.",
+      "unblockConfirm": "Unblock",
+      "unblocking": "Unblocking…"
+    },
+    "announce": {
+      "accepted": "{name} is now your friend.",
+      "rejected": "Declined {name}'s request.",
+      "cancelled": "Cancelled your request to {name}.",
+      "removed": "{name} was removed from your friends.",
+      "blocked": "{name} has been blocked.",
+      "unblocked": "{name} has been unblocked.",
+      "sent": "Friend request sent. Track it in the Sent tab.",
+      "regenerated": "Your new invite code is ready."
+    },
+    "states": {
+      "loading": "Loading…",
+      "errorTitle": "Couldn't load the list",
+      "retry": "Try again",
+      "loadMoreFailed": "Couldn't load more."
+    },
+    "errors": {
+      "alreadyFriends": "You're already friends with this user.",
+      "alreadyPending": "You already have a pending request to this user.",
+      "incomingPending": "This user already sent you a request; answer it under Incoming.",
+      "userBlocked": "You've blocked this user. Unblock them first.",
+      "inviteNotFound": "This invite code wasn't found or can no longer be used.",
+      "requestSelf": "You can't do this to your own account.",
+      "notAllowed": "This user can't receive a friend request from you.",
+      "notPending": "This request was already answered or cancelled.",
+      "tooManyPending": "You have too many pending requests. Wait for answers or cancel some.",
+      "notFound": "That record no longer exists; the list was refreshed.",
+      "conflict": "The record changed in the meantime. Try again.",
+      "unauthenticated": "Your session expired. Sign in to continue.",
+      "forbidden": "You don't have permission to do that.",
+      "rateLimited": "You're going too fast. Wait a moment and try again.",
+      "unavailable": "The social service isn't responding right now. Try again shortly.",
+      "csrf": "Couldn't refresh the security check. Reload the page and try again.",
+      "timeout": "The server didn't respond in time. The action may have completed; refresh the list to check.",
+      "network": "Couldn't connect. Check your connection and try again.",
+      "generic": "Something went wrong. Try again."
+    },
+    "person": {
+      "unknownPlayer": "Unknown player",
+      "blockedPlayer": "Blocked player"
     }
   }
 }

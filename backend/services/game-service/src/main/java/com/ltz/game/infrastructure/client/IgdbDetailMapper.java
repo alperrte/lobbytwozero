@@ -37,8 +37,60 @@ final class IgdbDetailMapper {
             if (Boolean.TRUE.equals(involved.publisher())) publishers.add(name.strip());
         }
         String summary = game.summary() == null || game.summary().isBlank() ? null : game.summary().strip();
-        return new GameProvider.Details(summary, releaseDate(game.firstReleaseDate()), developers, publishers, null,
-                languages(orEmpty(game.languageSupports())));
+        String cover = game.cover() == null ? null : com.ltz.game.application.service.ProviderCoverPolicy.igdbCover(game.cover().imageId());
+        return new GameProvider.Details(summary, releaseDate(game.firstReleaseDate()), developers, publishers, providerType(game.gameType()),
+                languages(orEmpty(game.languageSupports())), cover);
+    }
+
+    /**
+     * IGDB {@code game_type} kimliği (api-docs.igdb.com/#game-type) → Game'in sağlayıcı tür anahtarı. Yalnız açık kanıt
+     * eşlenir: 0 Main Game, 8 Remake, 9 Remaster tam oyundur; 1 DLC/Addon, 2 Expansion ve 4 Standalone Expansion DLC (oyun genişletmesi), 3 Bundle ve 13 Pack/Addon paket
+     * sayılır (hedef kapsam dışı). Paket türleri ayrı tutulur: 3 "bundle", 13 "pack" (Steam DLC kanıtıyla birlikte
+     * DLC'ye yükseltilebilir; bundle asla). Diğer her değer (mod, episode, season, port, expanded game, update, fork, yeni
+     * veya bilinmeyen) null döner ve oyun UNKNOWN kalır; ad, popülerlik veya appid'den tür türetilmez.
+     */
+    static String providerType(Long gameType) {
+        if (gameType == null) {
+            return null;
+        }
+        return switch (gameType.intValue() == gameType ? gameType.intValue() : -1) {
+            case 0, 8, 9 -> "main_game";
+            case 1, 2, 4 -> "dlc";
+            case 3 -> "bundle";
+            case 13 -> "pack";
+            default -> null;
+        };
+    }
+
+    /**
+     * IGDB {@code first_release_date} Unix saniyesi (UTC) → gün. Toplu yolda geçersiz değer sayfayı düşürmez: aralık dışı
+     * (ör. milisaniye sanılan değer, yıl 9999 sonrası) null döner ve o oyunun tarihi yazılmaz. Negatif (1970 öncesi) geçerlidir.
+     */
+    static LocalDate lenientReleaseDate(Long epochSecond) {
+        if (epochSecond == null || Math.abs(epochSecond) > MAX_EPOCH_SECOND) {
+            return null;
+        }
+        return Instant.ofEpochSecond(epochSecond).atZone(ZoneOffset.UTC).toLocalDate();
+    }
+
+    private static final java.util.regex.Pattern TERM_CODE = java.util.regex.Pattern.compile("[a-z0-9][a-z0-9-]{0,63}");
+    private static final int MAX_TERMS = 50;
+
+    /**
+     * IGDB tür/platform kayıtları → terim kanıtı. Kod, IGDB slug'ının küçük harfli hâlidir ve katalog kod kuralına
+     * ({@code [a-z0-9][a-z0-9-]{0,63}}) uymalıdır; uymayan, eksik veya yinelenen kayıt atlanır (kod uydurulmaz, ad kırpılmaz).
+     * Ad yoksa veya 128 karakteri aşıyorsa ad boş bırakılır, kod yine geçerlidir.
+     */
+    static List<GameProvider.TermEvidence> termEvidence(List<IgdbResponses.Term> terms) {
+        Map<String, GameProvider.TermEvidence> byCode = new LinkedHashMap<>();
+        for (IgdbResponses.Term term : orEmpty(terms)) {
+            String code = term == null || term.slug() == null ? null : term.slug().strip().toLowerCase(Locale.ROOT);
+            if (code != null && TERM_CODE.matcher(code).matches() && !byCode.containsKey(code) && byCode.size() < MAX_TERMS) {
+                String name = term.name() == null ? null : term.name().strip();
+                byCode.put(code, new GameProvider.TermEvidence(code, name == null || name.isEmpty() || name.length() > 128 ? null : name));
+            }
+        }
+        return List.copyOf(byCode.values());
     }
 
     private static LocalDate releaseDate(Long epochSecond) {

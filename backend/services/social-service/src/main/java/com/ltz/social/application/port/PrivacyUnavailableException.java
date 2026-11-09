@@ -6,4 +6,8 @@ public class PrivacyUnavailableException extends RuntimeException {
     public PrivacyUnavailableException(String message) {
         super(message);
     }
+
+    public PrivacyUnavailableException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

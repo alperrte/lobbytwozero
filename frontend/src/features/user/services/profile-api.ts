@@ -11,6 +11,7 @@ import {
   type SectionStatus,
   type SteamLink
 } from "../types/profile.types";
+import type { PlayerCard } from "../types/activity.types";
 import { userRequest } from "./user-http";
 
 const MEDIA_PREFIX = "/api/v1/user/media/";
@@ -33,6 +34,11 @@ function image(value: unknown): ProfileImage | null {
   return small && large ? { small: apiUrl(small), large: apiUrl(large) } : null;
 }
 
+/** Okunabilir bir tarih dizesini aynen döner; aksi halde `null`. */
+function isoDate(value: unknown): string | null {
+  return typeof value === "string" && !Number.isNaN(Date.parse(value)) ? value : null;
+}
+
 function strings(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
@@ -52,6 +58,7 @@ export function toMyProfile(body: unknown): MyProfile {
     favoritePlatforms: strings(r.favoritePlatforms),
     avatar: image(r.avatar),
     cover: image(r.cover),
+    memberSince: isoDate(r.memberSince),
     version: typeof r.version === "number" ? r.version : 0
   };
 }
@@ -119,4 +126,31 @@ export async function getSteamLink(signal?: AbortSignal): Promise<SteamLink> {
       : [];
   const steam = accounts.find((account) => account?.provider === "STEAM");
   return { linked: steam?.linked === true, showOnProfile: steam?.showOnProfile === true };
+}
+
+/**
+ * Oyuncu kartları (`POST /profiles/batch`, en çok 50 kimlik). İstek sırası korunur; olmayan, devre dışı ya da engel ilişkisi
+ * olan hesaplar sunucuda sessizce atlanır, bu yüzden dönen liste girdiden kısa olabilir.
+ */
+export async function getProfileCards(userIds: readonly string[], signal?: AbortSignal): Promise<PlayerCard[]> {
+  const ids = [...new Set(userIds)].filter((id) => USER_ID.test(id)).slice(0, 50);
+  if (ids.length === 0) {
+    return [];
+  }
+  const body = await userRequest<unknown>("/api/v1/user/profiles/batch", { method: "POST", json: { userIds: ids }, signal });
+  const items = typeof body === "object" && body !== null && Array.isArray((body as { items?: unknown }).items)
+    ? ((body as { items: unknown[] }).items as Record<string, unknown>[])
+    : [];
+  return items.flatMap((item) =>
+    typeof item?.userId === "string" && USER_ID.test(item.userId)
+      ? [
+          {
+            userId: item.userId,
+            username: text(item.username),
+            displayName: text(item.displayName),
+            avatar: image(item.avatar)?.small ?? null
+          }
+        ]
+      : []
+  );
 }

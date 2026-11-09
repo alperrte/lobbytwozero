@@ -125,6 +125,22 @@ class GameDiscoveryControllerTest extends PostgresTestSupport {
         for(String value:List.of("RATING","title;drop table games","unknown"))
             mvc.perform(get("/api/v1/game/games").param("sort",value)).andExpect(status().isBadRequest());
     }
+    @Test void newestFirstListsReleasedGamesBeforeUpcomingPlaceholderDatesAndUndatedOnes() throws Exception {
+        UUID released=game("Released","INTERNAL","MAIN_GAME","ACTIVE");
+        UUID older=game("Older","INTERNAL","MAIN_GAME","ACTIVE");
+        UUID placeholder=game("Placeholder 2040","INTERNAL","MAIN_GAME","ACTIVE");
+        UUID undated=game("Undated","INTERNAL","MAIN_GAME","ACTIVE");
+        jdbc.update("update games set release_date='2024-05-05' where id=?",released);
+        jdbc.update("update games set release_date='2001-05-05' where id=?",older);
+        jdbc.update("update games set release_date='2040-12-31' where id=?",placeholder);
+        mvc.perform(get("/api/v1/game/games").param("sort","RELEASE_DATE").param("direction","DESC"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].game.gameId").value(released.toString()))
+                .andExpect(jsonPath("$.items[1].game.gameId").value(older.toString()))
+                .andExpect(jsonPath("$.items[2].game.gameId").value(placeholder.toString()))
+                .andExpect(jsonPath("$.items[3].game.gameId").value(undated.toString()));
+        mvc.perform(get("/api/v1/game/games").param("sort","RELEASE_DATE").param("direction","ASC"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].game.gameId").value(older.toString()));
+    }
     @Test void popularReadsPreparedEligibleCardsAndReportsEditorialBasis() throws Exception {
         UUID active=game("Prepared","EXTERNAL","MAIN_GAME","ACTIVE");
         UUID hidden=game("Hidden","INTERNAL","MAIN_GAME","ARCHIVED");

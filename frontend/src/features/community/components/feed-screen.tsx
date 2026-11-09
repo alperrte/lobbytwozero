@@ -12,7 +12,6 @@ import { emptyFilters, type PostFilters } from "../types/community.types";
 import { CommunityFrame, NewPostLink } from "./community-frame";
 import { PostFilterBar } from "./post-filters";
 import { PostList } from "./post-list";
-import { PublishNotice } from "./publish-notice";
 import { QuickShare } from "./quick-share";
 
 /** Topluluk akışı: herkese açık gönderiler (misafir dahil). Yeni/Popüler/En eski sıralama, arama ve filtreler API'dedir. */
@@ -29,7 +28,6 @@ export function FeedScreen() {
 
   return (
     <CommunityFrame title={t("feed.title")} description={t("feed.description")} action={<NewPostLink />}>
-      <PublishNotice />
       <QuickShare
         viewer={viewer}
         onPublished={(postId) => {
@@ -46,7 +44,6 @@ export function FeedScreen() {
         list={list}
         viewer={viewer}
         revealId={revealId}
-        comments
         emptyTitle={filtered ? t("feed.emptyFilteredTitle") : t("feed.emptyTitle")}
         emptyDescription={filtered ? (isInvalidRange(filters) ? t("filters.invalidRange") : t("feed.emptyFilteredBody")) : t("feed.emptyBody")}
         onReposted={(post) => {

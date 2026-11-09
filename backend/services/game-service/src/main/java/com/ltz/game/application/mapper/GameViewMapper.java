@@ -35,6 +35,17 @@ public class GameViewMapper {
         else status = game.getDetailsExpiresAt() != null && clock.instant().isBefore(game.getDetailsExpiresAt()) ? "FRESH" : "STALE";
         return new GameDetailResponse(card(game), metadata.toResponse(game), game.getDescription(), game.getReleaseDate(),
                 new DetailFreshnessResponse(status, game.getDetailsFetchedAt(), game.getDetailsExpiresAt(),
-                        game.getDetailsNextAttemptAt(), game.getDetailsLastErrorCode()));
+                        game.getDetailsNextAttemptAt(), game.getDetailsLastErrorCode()), null, descriptionLanguage(game));
+    }
+
+    /**
+     * Açıklamanın dili. Sağlayıcı açıklamaları (IGDB özeti, Steam mağaza metni) İngilizce istenir ve çevrilmez: kaynak IGDB/STEAM ise "en".
+     * Yönetici metni için yöneticinin bildirdiği {@code metadataLanguage} (yoksa bilinmiyor, null). Açıklama yoksa null.
+     */
+    static String descriptionLanguage(Game game) {
+        if (game.getDescription() == null) return null;
+        var source = game.getMetadataProvenance().get("DESCRIPTION");
+        if (source != null && ("IGDB".equals(source.getSource()) || "STEAM".equals(source.getSource()))) return "en";
+        return game.getMetadataLanguage() == null ? null : game.getMetadataLanguage().toLowerCase(java.util.Locale.ROOT);
     }
 }

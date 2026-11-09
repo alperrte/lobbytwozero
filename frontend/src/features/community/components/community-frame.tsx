@@ -1,11 +1,11 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/shared/lib/i18n/navigation";
 import { cn } from "@/shared/utils/cn";
 import { CommunityIcon } from "./community-icons";
-import { CommunityHeading, primaryButtonClass } from "./community-ui";
+import { CommunityHeading } from "./community-ui";
 
 const TABS = [
   { id: "feed", href: "/community" },
@@ -22,7 +22,8 @@ function activeTab(pathname: string): (typeof TABS)[number]["id"] | null {
 
 /**
  * Community sayfalarının ortak üst alanı: başlık, ana eylem ve sayfa içi sekmeler. Ortak kabuğun (navbar/sidebar)
- * yerine geçmez; yalnız Community'nin kendi bölümleri arasında gezinir.
+ * yerine geçmez; yalnız Community'nin kendi bölümleri arasında gezinir. Başlık, sekmeler, araç çubukları ve gönderi kartları
+ * AYNI içerik containerında durur (mobilde %96, sm ve üstünde %93, ortalı): sol ve sağ kenarlar hepsinde aynı hizadadır.
  */
 export function CommunityFrame({
   title,
@@ -42,7 +43,7 @@ export function CommunityFrame({
   const current = activeTab(pathname);
 
   return (
-    <div className="pb-10">
+    <div className="mx-auto w-[96%] pb-10 sm:w-[93%]">
       <CommunityHeading title={title} description={description}>
         {action}
       </CommunityHeading>
@@ -73,16 +74,48 @@ export function CommunityFrame({
   );
 }
 
-/** "Gönderi oluştur" ana eylemi (başlık yanında). */
+/**
+ * "Gönderi oluştur" ana eylemi: başlık satırının sağında 40 × 40 px, yalnız "+" ikonlu kompakt buton. Üzerine gelince/odaklanınca
+ * "Gönderi oluştur" ipucu görünür (Escape kapatır); erişilebilir ad aynıdır. Tıklanınca mevcut oluşturma sayfası açılır.
+ */
 export function NewPostLink({ forumId }: { forumId?: string }) {
   const t = useTranslations("Community");
+  const tipId = useId();
+  const [tip, setTip] = useState(false);
+  const label = forumId ? t("forum.newTopic") : t("nav.newPost");
+
+  useEffect(() => {
+    if (!tip) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setTip(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [tip]);
+
   return (
-    <Link
-      href={forumId ? { pathname: "/community/new", query: { forum: forumId } } : "/community/new"}
-      className={primaryButtonClass}
-    >
-      <CommunityIcon name="pencil" className="size-4" />
-      {forumId ? t("forum.newTopic") : t("nav.newPost")}
-    </Link>
+    <span className="relative ms-auto mt-4 inline-flex shrink-0">
+      <Link
+        href={forumId ? { pathname: "/community/new", query: { forum: forumId } } : "/community/new"}
+        aria-label={label}
+        aria-describedby={tip ? tipId : undefined}
+        onMouseEnter={() => setTip(true)}
+        onMouseLeave={() => setTip(false)}
+        onFocus={() => setTip(true)}
+        onBlur={() => setTip(false)}
+        className="inline-flex size-10 items-center justify-center rounded-xl border border-primary bg-primary text-primary-foreground transition-colors hover:border-secondary hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+      >
+        <CommunityIcon name="plus" className="size-5" />
+      </Link>
+      {tip ? (
+        <span
+          id={tipId}
+          role="tooltip"
+          className="pointer-events-none absolute end-0 top-full z-40 mt-2 w-max max-w-[calc(100vw-2rem)] rounded-control border border-border bg-surface-elevated px-3 py-1.5 text-sm text-text-primary shadow-popover animate-pop-in"
+        >
+          {label}
+        </span>
+      ) : null}
+    </span>
   );
 }

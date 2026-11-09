@@ -4,18 +4,26 @@ import { useId, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRequireSession } from "@/features/auth";
 import { PageContainer } from "@/shared/components/layout/page-container";
-import { Link } from "@/shared/lib/i18n/navigation";
 import { useMyProfile } from "../hooks/use-my-profile";
-import type { PreviewTabId } from "../preview/preview-data";
+import { useRemote, type Remote } from "../hooks/use-remote";
+import { getFriends, getHardwareSummary, getLibraryStats } from "../services/activity-api";
+import type { FriendsPage, HardwareSummary, LibraryStats } from "../types/activity.types";
 import type { MyProfile, ProfileStats, SteamLink } from "../types/profile.types";
+import { ProfileActivity } from "./profile-activity";
+import { ProfileFriends } from "./profile-friends";
+import { ProfileGames } from "./profile-games";
+import { ProfileHardware } from "./profile-hardware";
 import { ProfileHeader } from "./profile-header";
 import { ProfileOverview } from "./profile-overview";
 import { ProfileStateNotice } from "./profile-state-notice";
 import { ProfileStatsStrip } from "./profile-stats";
-import { ProfileTabPreview } from "./profile-tab-preview";
 import { panelId, ProfileTabs, profileTabs, tabId, type ProfileTabId } from "./profile-tabs";
 
-/** Kendi profilin: başlık, istatistik şeridi ve sekmeler. Veri `GET /api/v1/user/me` ve `GET /api/v1/user/profiles/{id}`'den gelir. */
+/**
+ * Kendi profilin: başlık, istatistik şeridi ve sekmeler. Profil `GET /user/me`'den gelir. Arkadaş, oyun ve bilgisayar sayıları
+ * ile sekme içerikleri Social, Library, Community, Hardware ve Performance servislerinden okunur; her bölüm kendi hatasını
+ * gösterir ve diğerlerini bozmaz. Yalnız rütbe, rozet, imza ve durum mesajı henüz önizlemedir.
+ */
 export function ProfileView() {
   const session = useRequireSession();
   const accountId = session.status === "authenticated" ? session.me.accountId : null;
@@ -44,27 +52,32 @@ export function ProfileView() {
 
   return (
     <PageContainer>
-      <ProfileContent profile={state.profile} steam={state.steam} stats={state.stats} />
+      <ProfileContent accountId={accountId} profile={state.profile} steam={state.steam} stats={state.stats} />
     </PageContainer>
   );
 }
 
 function ProfileContent({
+  accountId,
   profile,
   steam,
   stats
 }: {
+  accountId: string | null;
   profile: MyProfile;
   steam: SteamLink | null;
   stats: ProfileStats | null;
 }) {
   const prefix = useId();
   const [active, setActive] = useState<ProfileTabId>("overview");
+  const library = useRemote("library", getLibraryStats);
+  const friends = useRemote("friends", getFriends);
+  const hardware = useRemote("hardware", getHardwareSummary);
 
   return (
     <div className="flex flex-col gap-6">
       <ProfileHeader profile={profile} />
-      <ProfileStatsStrip stats={stats} />
+      <ProfileStatsStrip friends={friends} library={library} hardware={hardware} stats={stats} />
       <div className="flex flex-col gap-6">
         <ProfileTabs active={active} onChange={setActive} idPrefix={prefix} />
         {profileTabs.map((tab) => (
@@ -75,7 +88,17 @@ function ProfileContent({
             aria-labelledby={tabId(prefix, tab)}
             hidden={tab !== active}
           >
-            {tab === active ? <TabBody tab={tab} profile={profile} steam={steam} /> : null}
+            {tab === active ? (
+              <TabBody
+                tab={tab}
+                accountId={accountId}
+                profile={profile}
+                steam={steam}
+                library={library}
+                friends={friends}
+                hardware={hardware}
+              />
+            ) : null}
           </div>
         ))}
       </div>
@@ -83,31 +106,35 @@ function ProfileContent({
   );
 }
 
-function TabBody({ tab, profile, steam }: { tab: ProfileTabId; profile: MyProfile; steam: SteamLink | null }) {
-  if (tab === "overview") {
-    return <ProfileOverview profile={profile} steam={steam} />;
+function TabBody({
+  tab,
+  accountId,
+  profile,
+  steam,
+  library,
+  friends,
+  hardware
+}: {
+  tab: ProfileTabId;
+  accountId: string | null;
+  profile: MyProfile;
+  steam: SteamLink | null;
+  library: Remote<LibraryStats>;
+  friends: Remote<FriendsPage>;
+  hardware: Remote<HardwareSummary>;
+}) {
+  switch (tab) {
+    case "overview":
+      return <ProfileOverview profile={profile} steam={steam} />;
+    case "activity":
+      return accountId ? <ProfileActivity userId={accountId} /> : null;
+    case "games":
+      return <ProfileGames library={library} />;
+    case "friends":
+      return <ProfileFriends friends={friends} />;
+    case "hardware":
+      return <ProfileHardware hardware={hardware} />;
   }
-  if (tab === "hardware") {
-    return <HardwarePanel />;
-  }
-  return <ProfileTabPreview tab={tab as PreviewTabId} />;
-}
-
-/** Donanım gerçek bir sayfadır (Hardware servisi): sekme yalnız oraya yönlendirir. */
-function HardwarePanel() {
-  const t = useTranslations("Profile.hardware");
-  return (
-    <section className="rounded-panel border border-border bg-surface p-5 sm:p-6">
-      <h2 className="font-display text-base font-semibold">{t("title")}</h2>
-      <p className="mt-2 max-w-prose text-sm text-text-secondary">{t("body")}</p>
-      <Link
-        href="/profile/computers"
-        className="mt-4 inline-flex min-h-10 items-center justify-center rounded-control border border-control-border px-4 text-sm font-semibold transition-colors duration-150 hover:bg-surface-elevated"
-      >
-        {t("open")}
-      </Link>
-    </section>
-  );
 }
 
 function ProfileSkeleton({ label }: { label: string }) {

@@ -107,6 +107,26 @@ Hata alırsan: veri seti eskiyse `$env:TEMP\ltz-pc-part-dataset` klasörünü si
 
 ---
 
+## Aşama 4b — Game kataloğu içe aktarma (isteğe bağlı)
+
+Oyun verisi (oyunlar, terimler, açıklamalar, DLC ilişkisi) hazır dökümden yüklenir; Steam/IGDB anahtarı gerekmez. Postgres ayakta olmalı, Game servisi **başlamadan önce** yapılır.
+
+```powershell
+# 1) Ekipten aldığın ltz-game-catalog.dump dosyasını depo kökündeki game-catalog-dump klasörüne kopyala (adı değişmesin)
+# 2) İsteğe bağlı: bütünlük ve şema uyumu
+node ops/game-catalog-import.mjs verify
+
+# 3) Boş game_db'ye yükle (doluysa atlar; üzerine yazmak için --replace)
+node ops/game-catalog-import.mjs import
+
+# 4) Game'i başlat
+docker @C up -d game-service
+```
+
+`node ops/dev.mjs --with=game-service` (veya `--all`) bunu Game'den önce kendisi yapar (`--no-catalog` ile atlanır). Klasör `game-catalog-dump` yoksa betik oluşturur; `*.dump` Git'e girmez.
+
+---
+
 ## Aşama 5 — Frontend
 
 ```powershell
