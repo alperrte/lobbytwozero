@@ -8158,7 +8158,8 @@ Etkinlik sahibi (`organizerId`) yalnız doğrulanmış token'ın `sub` değerind
   "title": "metin, zorunlu, boş olamaz, en çok 120 karakter, kontrol karakteri içermez",
   "description": "metin, zorunlu, boş olamaz, en çok 4000 karakter, satır sonu/sekme dışında kontrol karakteri içermez",
   "startsAt": "UTC ISO-8601 zaman, zorunlu, şimdiden sonra olmalı (örn. 2026-12-05T18:00:00Z)",
-  "endsAt": "UTC ISO-8601 zaman, zorunlu, startsAt'ten sonra olmalı"
+  "endsAt": "UTC ISO-8601 zaman, zorunlu, startsAt'ten sonra olmalı",
+  "gameId": "UUID, opsiyonel (EVT-17); verilirse Game Service'te yayında (ACTIVE) bir oyun olmalı"
 }
 ```
 Bilinmeyen alanlar (ör. `organizerId`, `status`) 400 ile reddedilir. Tanımsız veya farklı yazılmış `type` (ör. `poll`, `VOTING`) 400 alır. Türe özel alan/kural henüz yoktur (EVT-02 yalnız türleri tanımlar; turnuva EVT-18, oyun gecesi EVT-19, oy verme EVT-20). 120 / 4000 sınırları ve "başlangıç gelecekte olmalı" şartı gereksinimlerden değil, geliştirici varsayımıdır (karar kaydı VR-1..VR-3).
@@ -8170,7 +8171,8 @@ Bilinmeyen alanlar (ör. `organizerId`, `status`) 400 ile reddedilir. Tanımsız
   "title": "Cuma Oyun Gecesi",
   "description": "Birlikte co-op oynuyoruz.",
   "startsAt": "2026-12-05T18:00:00Z",
-  "endsAt": "2026-12-05T21:00:00Z"
+  "endsAt": "2026-12-05T21:00:00Z",
+  "gameId": "0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66"
 }
 ```
 
@@ -8180,6 +8182,7 @@ Bilinmeyen alanlar (ör. `organizerId`, `status`) 400 ile reddedilir. Tanımsız
   "id": "UUID",
   "organizerId": "UUID (token sub)",
   "type": "GAME_NIGHT",
+  "gameId": "UUID | null (oyun adı döndürülmez/saklanmaz)",
   "title": "Cuma Oyun Gecesi",
   "description": "Birlikte co-op oynuyoruz.",
   "startsAt": "2026-12-05T18:00:00Z",
@@ -8194,7 +8197,8 @@ Bilinmeyen alanlar (ör. `organizerId`, `status`) 400 ile reddedilir. Tanımsız
 - 400: Zorunlu alan eksik/boş, uzunluk veya karakter kuralı ihlali, geçersiz `type`/tarih biçimi, bilinmeyen alan; `startsAt` geçmişte (`reason: STARTS_IN_THE_PAST`) veya `endsAt` ≤ `startsAt` (`reason: ENDS_NOT_AFTER_START`)
 - 401: Token yok/geçersiz/süresi dolmuş (imza, `iss`, `aud`, `typ=at+jwt` doğrulaması)
 - 403: Token'da `PLAYER`, `MODERATOR` veya `ADMIN` rolü yok
-- 503: Veritabanı geçici olarak erişilemiyor
+- 422: `gameId` Game Service'te yok veya yayında değil (EVT-17)
+- 503: Veritabanı veya (gameId verildiyse) Game Service geçici olarak erişilemiyor; etkinlik kaydedilmez, "oyun yok" gibi gösterilmez
 - 500: Beklenmeyen sunucu hatası
 
 #### Bağlantı
@@ -8202,7 +8206,7 @@ Frontend:
 API Gateway üzerinden /api/v1/event/events
 
 Diğer mikroservisler:
-Auth Service JWKS (`GET /api/v1/auth/.well-known/jwks.json`) ile token doğrulama (Spring `JwtDecoder`; mevcut `AUTH_SERVICE_URL`, `JWT_ISSUER`, `JWT_AUDIENCE`, yeni ENV yok). Başka servis çağrısı ve outbox olayı yoktur (EVT-01 kapsamı dışı). Tanımsız her yol (`/internal/**` dahil) kapalıdır.
+Auth Service JWKS (`GET /api/v1/auth/.well-known/jwks.json`) ile token doğrulama (Spring `JwtDecoder`; mevcut `AUTH_SERVICE_URL`, `JWT_ISSUER`, `JWT_AUDIENCE`, yeni ENV yok). `gameId` verilirse Game Service'in herkese açık `POST /api/v1/game/games/batch` ucu RestClient ile çağrılır (servis kimliği/secret gerekmez; `GAME_SERVICE_URL` mevcut). Outbox olayı yoktur. Tanımsız her yol (`/internal/**` dahil) kapalıdır.
 
 #### Test Durumu
 UNIT — test sınıfları **yazıldı, çalıştırılmadı** (`EventTest`, `EventServiceTest`, `EventControllerTest`, `EventEndpointSecurityTest` [gerçek RS256 token + yerel JWKS, DB deposu taklit], `SecurityContextCurrentUserTest`, `JwtConfigTest`). Kapsam dışı / **NOT VERIFIED**: Flyway migration V111 ve `ddl-auto=validate` (çalıştırılmadı), DB seviyesinde CHECK/entity eşlemesi testi (yok), gerçek Auth token'ıyla uçtan uca.
@@ -8230,6 +8234,7 @@ Authenticated. Geçerli bir kullanıcı token'ı yeterlidir; oluşturma rolü (`
   "id": "UUID",
   "organizerId": "UUID (etkinliği oluşturan hesap)",
   "type": "TOURNAMENT | GAME_NIGHT | COMMUNITY | POLL | OTHER",
+  "gameId": "UUID | null (oyun adı döndürülmez; ad için Game Service)",
   "title": "Cuma Oyun Gecesi",
   "description": "Birlikte co-op oynuyoruz.",
   "startsAt": "2026-12-05T18:00:00Z",
@@ -8280,7 +8285,9 @@ Authenticated (KD-4: yalnız giriş yapan kullanıcılar; misafir 401). Oluştur
 - page: int, opsiyonel, varsayılan 0, 0–1000
 - size: int, opsiyonel, varsayılan 20, 1–50
 
-Arama, filtreleme ve sıralama seçenekleri yoktur (EVT-05/EVT-06). Sıralama sabit: başlangıç zamanı artan, eşitlikte kimlik.
+- q: string, opsiyonel, en çok 100 karakter, kontrol karakteri yok — başlığa göre arama (EVT-05; ayrıntı aşağıdaki EVT-05 kaydında)
+
+Filtreleme ve sıralama seçenekleri yoktur (EVT-06). Sıralama sabit: başlangıç zamanı artan, eşitlikte kimlik.
 
 #### Davranış
 Bir etkinlik, **bitiş zamanı şimdiden sonra** (`endsAt > şimdi`) ve durumu `PLANNED` veya `ACTIVE` ise listelenir: başlamamış olanlar *yaklaşan*, başlamış ve sürenler *mevcut*dir. `CANCELLED` ve `COMPLETED` etkinlikler ve süresi geçmiş etkinlikler listelenmez.
@@ -8293,6 +8300,7 @@ Bir etkinlik, **bitiş zamanı şimdiden sonra** (`endsAt > şimdi`) ve durumu `
       "id": "UUID",
       "organizerId": "UUID",
       "type": "TOURNAMENT | GAME_NIGHT | COMMUNITY | POLL | OTHER",
+      "gameId": "UUID | null (oyun adı döndürülmez; ad için Game Service)",
       "title": "Cuma Oyun Gecesi",
       "startsAt": "2026-12-05T18:00:00Z",
       "endsAt": "2026-12-05T21:00:00Z",
@@ -8319,10 +8327,85 @@ Frontend:
 API Gateway üzerinden /api/v1/event/events
 
 Diğer mikroservisler:
-Auth Service JWKS ile token doğrulama. Başka servis çağrısı yoktur.
+Auth Service JWKS ile token doğrulama. `q` verilmezse başka servis çağrısı yoktur; `q` ile arama yapılırsa Game Service çağrısı için EVT-05 kaydına bakın.
 
 #### Test Durumu
 UNIT + INTEGRATION — test sınıfları **yazıldı, çalıştırılmadı** (`EventServiceTest`, `EventControllerTest`, `EventEndpointSecurityTest`; gerçek PostgreSQL'de `EventRepositoryTest`, geçici veritabanı). **NOT VERIFIED:** V113 ve liste sorgusu hiçbir veritabanında çalıştırılmadı; Gateway üzerinden çağrı; gerçek Auth token'ı. Docker'daki event-service imajında bu uç yoktur (yeniden build edilmedi).
+
+### EVENT — Etkinlik Arama (EVT-05)
+
+Durum: IN PROGRESS (KISMEN KARŞILANDI — EVT-05 tamamlanmadı)
+Sorumlu: Nisa
+Tüketici servisler: Frontend (henüz yok)
+
+> **Kısmen karşılandı:** etkinlik **adına** ve (KD-5/B) **ilişkili oyun adına** göre arama kodlandı; ancak Game Service'in mevcut arama sözleşmesi **önek** araması, yalnız **ana oyun** (MAIN_GAME) ve 1000+ eşleşmede eksiksiz sonuç alınamaması nedeniyle oyun tarafını tam karşılamıyor. Engel ve talep: [docs-event/game-service/talep/req-01.md](../docs-event/game-service/talep/req-01.md). Kod ve testler yazıldı; testler ve sorgular çalıştırılmadı. Ayrıntı: [docs-event/event-service/evt-05-etkinlik-arama.md](../docs-event/event-service/evt-05-etkinlik-arama.md).
+
+#### Endpoint
+GET /api/v1/event/events?q={metin}
+
+(EVT-04 liste ucunun isteğe bağlı parametresidir; ayrı bir arama ucu yoktur.)
+
+#### Yetkilendirme
+Authenticated (KD-4: yalnız giriş yapan kullanıcılar; misafir 401).
+
+#### Query Parameters
+- q: string, opsiyonel, en çok 100 karakter, kontrol karakteri (NUL dahil) içeremez; kırpılır, boşsa arama yapılmaz
+- page: int, opsiyonel, varsayılan 0, 0–1000
+- size: int, opsiyonel, varsayılan 20, 1–50
+
+#### Davranış
+Bir etkinlik, liste kapsamında (`endsAt > şimdi`, durum `PLANNED`/`ACTIVE`) ve şunlardan biri doğruysa döner: (a) **başlığı** `q`'yu büyük/küçük harf duyarsız **içeriyorsa** (Türkçe/Unicode dahil; `%`, `_`, `!` düz metin) **veya** (b) ilişkili oyunun **adı `q` ile başlıyorsa**: oyun adı Event DB'sinde saklanmaz; Game Service `GET /api/v1/game/games/search` ile (tüm sayfalar, sayfa başına 100) bulunan `gameId`'lerle `game_id` eşleştirilir. Her etkinlik **bir kez** döner. Açıklama aranmaz. Sıra ve sayfalama EVT-04 ile aynıdır. Listelenen kapsamda oyuna bağlı hiç etkinlik yoksa Game Service çağrılmaz.
+
+**Bilinen sınırlar (Game sözleşmesinden):** oyun adı eşleşmesi *önek* tabanlıdır (kelime ortası eşleşmez); yalnız **ana oyun** adları aranır (DLC'ye bağlı etkinlik oyun adıyla bulunamaz); `q` 1000'den fazla oyunla eşleşirse **422** döner (sonuç kırpılmaz).
+
+#### Response — 200
+EVT-04 liste yanıtıyla aynıdır (`items`, `page`, `size`, `totalItems`, `totalPages`, `hasNext`; öğeler özet, `gameId` dahil). Eşleşme yoksa `items` boş döner.
+
+#### Hata Durumları
+- 400: `q` 100 karakteri aşıyor veya kontrol karakteri içeriyor; `page`/`size` geçersiz
+- 401: Token yok/geçersiz/süresi dolmuş
+- 422: `q` Game Service'te 1000'den fazla oyunla eşleşiyor (`code: GAME_SEARCH_TOO_BROAD`); metni uzatın
+- 503: Veritabanı veya Game Service geçici olarak erişilemiyor / Game yanıtı geçersiz (sonuç kırpılmaz, "bulunamadı" gibi gösterilmez)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/event/events?q=
+
+Diğer mikroservisler:
+Game Service'in herkese açık `GET /api/v1/game/games/search` ucu RestClient ile (yalnızca oyuna bağlı açık etkinlik varken ve `q` verildiğinde; DB transaction'ı dışında). Servis kimliği/secret ve yeni ENV gerekmez (`GAME_SERVICE_URL` mevcut). Sınır `ltz.event.game-search.max-games` (varsayılan 1000).
+
+#### Test Durumu
+UNIT + INTEGRATION — test sınıfları **yazıldı, çalıştırılmadı** (`EventSearchTest`, `EventServiceTest`, `GameServiceClientTest` [MockRestServiceServer], `EventControllerTest`, `EventEndpointSecurityTest`; gerçek PostgreSQL'de `EventRepositoryTest`). **NOT VERIFIED:** JPQL sorgularının Hibernate'te çözümlenmesi, V113/V114, gerçek Game Service'e karşı uçtan uca arama, Gateway üzerinden çağrı, gerçek Auth token'ı. Docker'daki event-service imajı EVT-05/EVT-17 öncesidir (yeniden build edilmedi).
+
+### EVENT — Etkinlik–Oyun Bağlantısı (EVT-17)
+
+Durum: IN PROGRESS
+Sorumlu: Nisa
+Tüketici servisler: Frontend (henüz yok)
+
+> Ayrı bir endpoint yoktur: bağlantı `POST /api/v1/event/events` (EVT-01) gövdesindeki isteğe bağlı `gameId` ile **oluşturma anında** kurulur ve etkinlik yanıtlarında (`gameId`) döner. Oluşturulmuş etkinliğin bağlantısını değiştirme/kaldırma EVT-14'e bağlıdır (eksik). Ayrıntı: [docs-event/event-service/evt-17-oyun-baglantisi.md](../docs-event/event-service/evt-17-oyun-baglantisi.md).
+
+#### Endpoint
+POST /api/v1/event/events (alan: `gameId`)
+
+#### Yetkilendirme
+EVT-01 ile aynı (`PLAYER`, `MODERATOR` veya `ADMIN`).
+
+#### Davranış
+`gameId` verilirse Event Service, Game Service'in herkese açık `POST /api/v1/game/games/batch` ucuyla oyunun yayında (ACTIVE, ana oyun veya DLC) olduğunu doğrular; yoksa **422**, Game Service erişilemezse **503** (kayıt yapılmaz). Yalnız `gameId` saklanır (`events.game_id`, REF, FK yok); **oyun adı kopyalanmaz**. Zaman kuralları Game çağrısından önce denetlenir.
+
+#### Hata Durumları
+- 422: `gameId` Game Service'te yok veya yayında değil
+- 503: Game Service geçici olarak erişilemiyor veya geçersiz yanıt verdi
+- (diğerleri EVT-01 kaydında)
+
+#### Bağlantı
+Diğer mikroservisler:
+Game Service `POST /api/v1/game/games/batch` (RestClient, herkese açık). Servis kimliği/secret gerekmez.
+
+#### Test Durumu
+UNIT + INTEGRATION — test sınıfları **yazıldı, çalıştırılmadı** (`EventServiceTest`, `GameServiceClientTest`, `EventControllerTest`, `EventEndpointSecurityTest`, `EventRepositoryTest`). **NOT VERIFIED:** V114, gerçek Game Service'e karşı oluşturma.
 
 ## HARDWARE
 

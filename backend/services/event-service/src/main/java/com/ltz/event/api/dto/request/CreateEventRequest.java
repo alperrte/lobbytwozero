@@ -1,6 +1,7 @@
 package com.ltz.event.api.dto.request;
 
 import java.time.Instant;
+import java.util.UUID;
 
 import com.ltz.event.domain.entity.Event;
 import com.ltz.event.domain.enums.EventType;
@@ -13,7 +14,7 @@ import jakarta.validation.constraints.Size;
 /**
  * Etkinlik oluşturma isteği (EVT-01). Sahip bilgisi (organizerId) kasıtlı olarak yoktur: etkinlik sahibi yalnız
  * doğrulanmış token'dan alınır. Bilinmeyen alanlar (ör. organizerId, status) {@code fail-on-unknown-properties} ile
- * reddedilir. Zamanlar UTC ISO-8601 ({@code 2026-12-01T18:00:00Z}) olarak verilir.
+ * reddedilir. {@code gameId} isteğe bağlıdır (EVT-17); verilirse Game Service'te yayında bir oyun olmalıdır. Zamanlar UTC ISO-8601 ({@code 2026-12-01T18:00:00Z}) olarak verilir.
  */
 public record CreateEventRequest(
 		@NotNull
@@ -29,5 +30,6 @@ public record CreateEventRequest(
 		@NotNull
 		Instant startsAt,
 		@NotNull
-		Instant endsAt) {
+		Instant endsAt,
+		UUID gameId) {
 }

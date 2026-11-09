@@ -14,6 +14,7 @@ public record EventSummaryResponse(
 		UUID id,
 		UUID organizerId,
 		EventType type,
+		UUID gameId,
 		String title,
 		Instant startsAt,
 		Instant endsAt,

@@ -94,4 +94,19 @@ class EventTest {
 				.isInstanceOfSatisfying(InvalidEventScheduleException.class,
 						exception -> assertThat(exception.getReason()).isEqualTo(Reason.STARTS_IN_THE_PAST));
 	}
+
+	@Test
+	void gameIdIsCarriedWhenGiven() {
+		UUID gameId = UUID.fromString("0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66");
+
+		Event event = Event.schedule(ORGANIZER_ID, EventType.GAME_NIGHT, gameId, "Başlık", "Açıklama",
+				NOW.plusSeconds(3600), NOW.plusSeconds(7200), NOW);
+
+		assertThat(event.getGameId()).isEqualTo(gameId);
+	}
+
+	@Test
+	void eventWithoutGameHasNoGameId() {
+		assertThat(schedule(NOW.plusSeconds(3600), NOW.plusSeconds(7200)).getGameId()).isNull();
+	}
 }

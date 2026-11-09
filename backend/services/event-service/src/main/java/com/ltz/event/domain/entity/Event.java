@@ -52,6 +52,10 @@ public class Event {
 	@Column(nullable = false, length = 32)
 	private EventType type;
 
+	/** Game Service'teki oyunun kimliği (REF, FK yok); oyun adı saklanmaz. Oyunsuz etkinlikte null. */
+	@Column(name = "game_id")
+	private UUID gameId;
+
 	@Column(nullable = false, length = TITLE_MAX_LENGTH)
 	private String title;
 
@@ -86,6 +90,15 @@ public class Event {
 	 */
 	public static Event schedule(UUID organizerId, EventType type, String title, String description, Instant startsAt,
 			Instant endsAt, Instant now) {
+		return schedule(organizerId, type, null, title, description, startsAt, endsAt, now);
+	}
+
+	/**
+	 * Oyuna bağlı etkinlik oluşturur (EVT-17). {@code gameId} (varsa) çağıran tarafından Game Service'te doğrulanmış
+	 * olmalıdır; bu sınıf yalnız kimliği taşır.
+	 */
+	public static Event schedule(UUID organizerId, EventType type, UUID gameId, String title, String description,
+			Instant startsAt, Instant endsAt, Instant now) {
 		// Zamanlar milisaniyeye kırpılır: PostgreSQL timestamptz mikrosaniye saklar; kurallar kırpılmış değerlerle
 		// uygulanmazsa yalnız nanosaniyede farklı iki zaman domain kuralını geçip ck_events_schedule'ı ihlal eder (500).
 		Instant start = startsAt.truncatedTo(ChronoUnit.MILLIS);
@@ -100,6 +113,7 @@ public class Event {
 		Event event = new Event();
 		event.organizerId = organizerId;
 		event.type = type;
+		event.gameId = gameId;
 		event.title = title;
 		event.description = description;
 		event.startsAt = start;

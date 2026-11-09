@@ -1,5 +1,8 @@
 package com.ltz.event.api.exception;
 
+import com.ltz.event.domain.exception.GameSearchTooBroadException;
+import com.ltz.event.domain.exception.GameNotAvailableException;
+import com.ltz.event.domain.exception.GameCatalogUnavailableException;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
@@ -89,5 +92,29 @@ class GlobalExceptionHandlerTest {
 
 		assertThat(problem.getStatus()).isEqualTo(HttpStatus.NOT_FOUND.value());
 		assertThat(problem.getDetail()).isEqualTo("Event not found.");
+	}
+
+	@Test
+	void unavailableGameIsMappedTo422() {
+		ProblemDetail problem = handler.handleGameNotAvailable(new GameNotAvailableException());
+
+		assertThat(problem.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT.value());
+	}
+
+	@Test
+	void gameCatalogOutageIsMappedTo503WithoutTheCause() {
+		ProblemDetail problem = handler.handleGameCatalogUnavailable(
+				new GameCatalogUnavailableException(new IllegalStateException("http://game-service:8080")));
+
+		assertThat(problem.getStatus()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE.value());
+		assertThat(problem.getDetail()).doesNotContain("game-service:8080");
+	}
+
+	@Test
+	void tooBroadGameSearchIsMappedTo422WithACode() {
+		ProblemDetail problem = handler.handleGameSearchTooBroad(new GameSearchTooBroadException(1000));
+
+		assertThat(problem.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT.value());
+		assertThat(problem.getProperties()).containsEntry("code", "GAME_SEARCH_TOO_BROAD");
 	}
 }

@@ -10,6 +10,7 @@ public record EventResponse(
 		UUID id,
 		UUID organizerId,
 		EventType type,
+		UUID gameId,
 		String title,
 		String description,
 		Instant startsAt,

@@ -1,5 +1,8 @@
 package com.ltz.event.api.controller;
 
+import com.ltz.event.domain.exception.GameSearchTooBroadException;
+import com.ltz.event.domain.exception.GameNotAvailableException;
+import com.ltz.event.domain.exception.GameCatalogUnavailableException;
 import com.ltz.event.api.dto.response.EventSummaryResponse;
 import com.ltz.event.api.dto.response.EventPageResponse;
 import com.ltz.event.api.dto.request.EventListRequest;
@@ -49,6 +52,7 @@ import com.ltz.event.infrastructure.security.SecurityConfig;
 class EventControllerTest {
 
 	private static final UUID USER_ID = UUID.fromString("0198a3c2-7b1e-7d44-9a55-3f1c2b4d5e66");
+	private static final UUID GAME_ID = UUID.fromString("0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66");
 	private static final UUID EVENT_ID = UUID.fromString("0198a3c2-eeee-7d44-9a55-3f1c2b4d5e66");
 	private static final String URL = "/api/v1/event/events";
 	private static final String VALID = """
@@ -69,7 +73,7 @@ class EventControllerTest {
 
 	private static EventResponse created() {
 		Instant at = Instant.parse("2026-11-09T10:00:00Z");
-		return new EventResponse(EVENT_ID, USER_ID, EventType.GAME_NIGHT, "Cuma Oyun Gecesi", "Birlikte oynuyoruz.",
+		return new EventResponse(EVENT_ID, USER_ID, EventType.GAME_NIGHT, GAME_ID, "Cuma Oyun Gecesi", "Birlikte oynuyoruz.",
 				Instant.parse("2099-12-05T18:00:00Z"), Instant.parse("2099-12-05T21:00:00Z"), EventStatus.PLANNED, at,
 				at);
 	}
@@ -243,6 +247,7 @@ class EventControllerTest {
 				.andExpect(jsonPath("$.id").value(EVENT_ID.toString()))
 				.andExpect(jsonPath("$.organizerId").value(USER_ID.toString()))
 				.andExpect(jsonPath("$.type").value("GAME_NIGHT"))
+				.andExpect(jsonPath("$.gameId").value(GAME_ID.toString()))
 				.andExpect(jsonPath("$.title").value("Cuma Oyun Gecesi"))
 				.andExpect(jsonPath("$.description").value("Birlikte oynuyoruz."))
 				.andExpect(jsonPath("$.startsAt").value("2099-12-05T18:00:00Z"))
@@ -279,7 +284,7 @@ class EventControllerTest {
 	private static EventPageResponse onePage() {
 		Instant at = Instant.parse("2099-12-05T18:00:00Z");
 		return new EventPageResponse(
-				List.of(new EventSummaryResponse(EVENT_ID, USER_ID, EventType.POLL, "Hangi oyun?", at,
+				List.of(new EventSummaryResponse(EVENT_ID, USER_ID, EventType.POLL, GAME_ID, "Hangi oyun?", at,
 						at.plusSeconds(3600), EventStatus.PLANNED)),
 				0, 20, 1, 1, false);
 	}
@@ -294,6 +299,7 @@ class EventControllerTest {
 				.andExpect(jsonPath("$.items[0].id").value(EVENT_ID.toString()))
 				.andExpect(jsonPath("$.items[0].organizerId").value(USER_ID.toString()))
 				.andExpect(jsonPath("$.items[0].type").value("POLL"))
+				.andExpect(jsonPath("$.items[0].gameId").value(GAME_ID.toString()))
 				.andExpect(jsonPath("$.items[0].title").value("Hangi oyun?"))
 				.andExpect(jsonPath("$.items[0].startsAt").value("2099-12-05T18:00:00Z"))
 				.andExpect(jsonPath("$.items[0].endsAt").value("2099-12-05T19:00:00Z"))
@@ -348,5 +354,103 @@ class EventControllerTest {
 				.andExpect(status().isUnauthorized())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
 		verifyNoInteractions(eventService);
+	}
+
+	@Test
+	void searchTextIsPassedToTheService() throws Exception {
+		when(eventService.listEvents(any(EventListRequest.class))).thenReturn(onePage());
+
+		mockMvc.perform(get(URL).param("q", "Öğrenci").param("size", "5").with(as("PLAYER")))
+				.andExpect(status().isOk());
+
+		ArgumentCaptor<EventListRequest> captured = ArgumentCaptor.forClass(EventListRequest.class);
+		verify(eventService).listEvents(captured.capture());
+		assertThat(captured.getValue().q()).isEqualTo("Öğrenci");
+		assertThat(captured.getValue().searchTextOrNull()).isEqualTo("Öğrenci");
+		assertThat(captured.getValue().size()).isEqualTo(5);
+	}
+
+	@Test
+	void blankSearchTextMeansNoSearch() {
+		assertThat(new EventListRequest(null, null, null).searchTextOrNull()).isNull();
+		assertThat(new EventListRequest(null, null, "").searchTextOrNull()).isNull();
+		assertThat(new EventListRequest(null, null, "   ").searchTextOrNull()).isNull();
+		assertThat(new EventListRequest(null, null, "  a b  ").searchTextOrNull()).isEqualTo("a b");
+	}
+
+	@Test
+	void tooLongOrControlCharacterSearchTextIsRejected() throws Exception {
+		String[] invalid = { "a".repeat(101), "a\u0000b", "a\nb", "a\u0007b" };
+		for (String q : invalid) {
+			mockMvc.perform(get(URL).param("q", q).with(as("PLAYER")))
+					.andExpect(status().isBadRequest())
+					.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+		}
+		verifyNoInteractions(eventService);
+	}
+
+	@Test
+	void searchTextOfExactlyTheMaximumLengthIsAccepted() throws Exception {
+		when(eventService.listEvents(any(EventListRequest.class))).thenReturn(onePage());
+
+		mockMvc.perform(get(URL).param("q", "a".repeat(100)).with(as("PLAYER"))).andExpect(status().isOk());
+	}
+
+	// ------------------------------------------------------------------ EVT-17 / EVT-05 hata eşlemeleri
+
+	@Test
+	void gameIdInTheRequestIsPassedToTheService() throws Exception {
+		when(eventService.createEvent(any(CreateEventRequest.class))).thenReturn(created());
+
+		create("PLAYER", VALID.replace("\"endsAt\"", "\"gameId\":\"" + GAME_ID + "\",\"endsAt\"")).andExpect(status().isCreated())
+				.andExpect(jsonPath("$.gameId").value(GAME_ID.toString()));
+
+		ArgumentCaptor<CreateEventRequest> captured = ArgumentCaptor.forClass(CreateEventRequest.class);
+		verify(eventService).createEvent(captured.capture());
+		assertThat(captured.getValue().gameId()).isEqualTo(GAME_ID);
+	}
+
+	@Test
+	void malformedGameIdIsRejected() throws Exception {
+		create("PLAYER", VALID.replace("\"endsAt\"", "\"gameId\":\"oyun\",\"endsAt\"")).andExpect(status().isBadRequest());
+		verifyNoInteractions(eventService);
+	}
+
+	@Test
+	void unavailableGameIsMappedTo422() throws Exception {
+		when(eventService.createEvent(any(CreateEventRequest.class))).thenThrow(new GameNotAvailableException());
+
+		create("PLAYER", VALID)
+				.andExpect(status().isUnprocessableContent())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+	}
+
+	@Test
+	void gameCatalogOutageIsMappedTo503WithoutLeakingDetails() throws Exception {
+		when(eventService.createEvent(any(CreateEventRequest.class)))
+				.thenThrow(new GameCatalogUnavailableException(new IllegalStateException("http://game-service:8080/secret")));
+
+		create("PLAYER", VALID)
+				.andExpect(status().isServiceUnavailable())
+				.andExpect(jsonPath("$.detail").value("The game catalog is temporarily unavailable."));
+	}
+
+	@Test
+	void listSearchOutageIsMappedTo503NotToAnEmptyResult() throws Exception {
+		when(eventService.listEvents(any(EventListRequest.class)))
+				.thenThrow(new GameCatalogUnavailableException(new IllegalStateException()));
+
+		mockMvc.perform(get(URL).param("q", "elden").with(as("PLAYER")))
+				.andExpect(status().isServiceUnavailable())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+	}
+
+	@Test
+	void tooBroadSearchIsMappedTo422WithACode() throws Exception {
+		when(eventService.listEvents(any(EventListRequest.class))).thenThrow(new GameSearchTooBroadException(1000));
+
+		mockMvc.perform(get(URL).param("q", "a").with(as("PLAYER")))
+				.andExpect(status().isUnprocessableContent())
+				.andExpect(jsonPath("$.code").value("GAME_SEARCH_TOO_BROAD"));
 	}
 }

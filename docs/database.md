@@ -337,7 +337,7 @@ Game Service GAME-04/05/15 LTZ puan projeksiyonu (aktif V172, 2026-11-05; V171�
 
 | Tablo | Önemli sütunlar | Kısıtlar / not |
 | --- | --- | --- |
-| `events` | id, organizer_id REF, type (TOURNAMENT, GAME_NIGHT, COMMUNITY, POLL, OTHER; POLL V112 ile eklendi), game_id REF nullable, title, description, starts_at, ends_at, capacity, participant_count, status (PLANNED, ACTIVE, COMPLETED, CANCELLED), cancelled_reason, version | CHECK participant_count ≤ capacity; CHECK ends_at > starts_at; V113: kısmi indeks `ix_events_open_starts_at (starts_at, id) WHERE status IN ('PLANNED','ACTIVE')` (EVT-04 liste) |
+| `events` | id, organizer_id REF, type (TOURNAMENT, GAME_NIGHT, COMMUNITY, POLL, OTHER; POLL V112 ile eklendi), game_id REF nullable, title, description, starts_at, ends_at, capacity, participant_count, status (PLANNED, ACTIVE, COMPLETED, CANCELLED), cancelled_reason, version | CHECK participant_count ≤ capacity; CHECK ends_at > starts_at; V113: kısmi indeks `ix_events_open_starts_at (starts_at, id) WHERE status IN ('PLANNED','ACTIVE')` (EVT-04 liste); V114: `game_id uuid` (REF, FK yok; EVT-17) + kısmi indeks `ix_events_game_id` (EVT-05 oyun araması); oyun adı kopyalanmaz |
 | `event_participations` | id, event_id FK, user_id REF, status (ACTIVE, CANCELLED_BY_USER, CANCELLED_BY_EVENT, ATTENDED), joined_at, cancelled_at | Partial UQ (event_id, user_id) WHERE status='ACTIVE' |
 | `participation_penalties` | id, user_id REF, source_participation_id FK, status (ACTIVE, CONSUMED), created_at, consumed_at, consumed_event_id FK | Bir sonraki etkinliğe katılım engeli (EVT-10/11) |
 | `event_polls`, `event_poll_options`, `event_poll_votes` | poll: id, event_id FK, question, closes_at; vote: poll_id, user_id REF, option_id | PK vote (poll_id, user_id) |

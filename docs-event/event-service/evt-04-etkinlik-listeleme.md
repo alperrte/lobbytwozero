@@ -23,7 +23,7 @@
 | 4 | Sayfalama sunucuda sınırlı | **Karşılandı** (SECURITY.md §9) | `EventListRequest` (`size` 1–50, varsayılan 20; `page` 0–1000) | `EventControllerTest` yazıldı; çalıştırılmadı | Hayır |
 | 5 | Yalnız giriş yapan kullanıcı görür; misafir 401 | **Karşılandı** (KD-4) | `SecurityConfig` (`anyRequest().authenticated()`) | `EventEndpointSecurityTest` yazıldı; çalıştırılmadı | Hayır |
 | 6 | Liste öğesinde katılım bilgisi (kapasite, sayı) | **Kapsam dışı — EVT-04 metni istemiyor** | — | — | — |
-| 7 | Arama / filtreleme / sıralama seçenekleri | **Kapsam dışı** (EVT-05, EVT-06) | Sıralama sabit: başlangıç zamanı artan | — | — |
+| 7 | Arama / filtreleme / sıralama seçenekleri | **Kapsam dışı** (arama: [EVT-05](evt-05-etkinlik-arama.md) ile `q` parametresi eklendi; filtreleme/sıralama: EVT-06) | Sıralama sabit: başlangıç zamanı artan | — | — |
 | 8 | Takvim görünümü | **Kapsam dışı** (EVT-07) | — | — | — |
 
 EVT-04'ün kendi ifadesi ("yaklaşan ve mevcut etkinliklerin listelenebilmesi") bu sürümde karşılanmıştır; **doğrulama** (testlerin ve sorgunun çalıştırılması) senden beklenir. Liste öğelerinde katılım bilgisi EVT-04'ün metninde yoktur; ileride gerekirse EVT-13/EVT-08 sonrası eklenir (bkz. [EVT-03 takip listesi](evt-03-etkinlik-detayi.md) §3.1).

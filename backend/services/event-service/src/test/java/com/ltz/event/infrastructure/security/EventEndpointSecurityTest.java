@@ -1,5 +1,9 @@
 package com.ltz.event.infrastructure.security;
 
+import com.ltz.event.domain.exception.GameCatalogUnavailableException;
+import static org.mockito.ArgumentMatchers.eq;
+import java.util.Set;
+import com.ltz.event.application.port.GameCatalogPort;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.PageImpl;
@@ -72,6 +76,9 @@ class EventEndpointSecurityTest {
 
 	@MockitoBean
 	private EventRepository eventRepository;
+
+	@MockitoBean
+	private GameCatalogPort gameCatalog;
 
 	/** Şimdiden bir gün sonra başlayıp üç saat süren geçerli bir istek gövdesi. */
 	private static String validBody() {
@@ -369,5 +376,95 @@ class EventEndpointSecurityTest {
 		mockMvc.perform(get(URL).param("size", "1000").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
 				.andExpect(status().isBadRequest());
 		verifyNoInteractions(eventRepository);
+	}
+
+	// ------------------------------------------------------------------ arama (EVT-05)
+
+	@Test
+	void searchRequiresAValidTokenAndRunsTheTitleSearch() throws Exception {
+		when(eventRepository.searchByTitle(any(Instant.class), any(), any(String.class), any(Pageable.class)))
+				.thenReturn(new PageImpl<>(List.of(storedEvent()), PageRequest.of(0, 20), 1));
+
+		mockMvc.perform(get(URL).param("q", "bahar")).andExpect(status().isUnauthorized());
+		verifyNoInteractions(eventRepository);
+
+		mockMvc.perform(get(URL).param("q", "bahar").header(HttpHeaders.AUTHORIZATION,
+				"Bearer " + AuthTestSupport.userToken(USER_ID, "PLAYER")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.items[0].title").value("Bahar Turnuvası"));
+	}
+
+	@Test
+	void searchRejectsNulCharactersBeforeTheyReachTheDatabase() throws Exception {
+		mockMvc.perform(get(URL).param("q", "a\u0000b").header(HttpHeaders.AUTHORIZATION,
+				"Bearer " + AuthTestSupport.userToken(USER_ID, "PLAYER")))
+				.andExpect(status().isBadRequest());
+		verifyNoInteractions(eventRepository);
+	}
+
+	// ------------------------------------------------------------------ EVT-17 / EVT-05 (oyun)
+
+	@Test
+	void eventIsLinkedToAnAvailableGameOwnedByTheTokenSubject() throws Exception {
+		UUID gameId = UUID.fromString("0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66");
+		when(gameCatalog.isAvailable(gameId)).thenReturn(true);
+		saveEchoesEvent();
+		String body = validBody().replace("\"type\"", "\"gameId\":\"" + gameId + "\",\"type\"");
+
+		postWith(AuthTestSupport.userToken(USER_ID, "PLAYER"), body)
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.gameId").value(gameId.toString()))
+				.andExpect(jsonPath("$.organizerId").value(USER_ID.toString()));
+	}
+
+	@Test
+	void unavailableGameIsRejectedWith422AndNothingIsSaved() throws Exception {
+		UUID gameId = UUID.randomUUID();
+		when(gameCatalog.isAvailable(gameId)).thenReturn(false);
+		String body = validBody().replace("\"type\"", "\"gameId\":\"" + gameId + "\",\"type\"");
+
+		postWith(AuthTestSupport.userToken(USER_ID, "PLAYER"), body).andExpect(status().isUnprocessableContent());
+		verify(eventRepository, never()).save(any(Event.class));
+	}
+
+	@Test
+	void gameServiceOutageOnCreateIs503AndNothingIsSaved() throws Exception {
+		UUID gameId = UUID.randomUUID();
+		when(gameCatalog.isAvailable(gameId)).thenThrow(new GameCatalogUnavailableException(new IllegalStateException()));
+		String body = validBody().replace("\"type\"", "\"gameId\":\"" + gameId + "\",\"type\"");
+
+		postWith(AuthTestSupport.userToken(USER_ID, "PLAYER"), body).andExpect(status().isServiceUnavailable());
+		verify(eventRepository, never()).save(any(Event.class));
+	}
+
+	@Test
+	void searchByGameNameUsesTheGameIdsFromTheCatalogAndTheEventDatabase() throws Exception {
+		UUID gameId = UUID.fromString("0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66");
+		when(eventRepository.existsByEndsAtAfterAndStatusInAndGameIdIsNotNull(any(Instant.class), any())).thenReturn(true);
+		when(gameCatalog.findGameIdsByNamePrefix("elden")).thenReturn(Set.of(gameId));
+		when(eventRepository.searchByTitleOrGame(any(Instant.class), any(), any(String.class), any(), any(Pageable.class)))
+				.thenReturn(new PageImpl<>(List.of(storedEvent()), PageRequest.of(0, 20), 1));
+
+		mockMvc.perform(get(URL).param("q", "elden").header(HttpHeaders.AUTHORIZATION,
+				"Bearer " + AuthTestSupport.userToken(USER_ID, "PLAYER")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.items[0].title").value("Bahar Turnuvası"))
+				.andExpect(jsonPath("$.totalItems").value(1));
+
+		verify(eventRepository).searchByTitleOrGame(any(Instant.class), any(), eq("%elden%"), eq(Set.of(gameId)),
+				any(Pageable.class));
+	}
+
+	@Test
+	void searchReturns503WhenTheGameServiceIsDownAndNeverAPartialResult() throws Exception {
+		when(eventRepository.existsByEndsAtAfterAndStatusInAndGameIdIsNotNull(any(Instant.class), any())).thenReturn(true);
+		when(gameCatalog.findGameIdsByNamePrefix("elden"))
+				.thenThrow(new GameCatalogUnavailableException(new IllegalStateException()));
+
+		mockMvc.perform(get(URL).param("q", "elden").header(HttpHeaders.AUTHORIZATION,
+				"Bearer " + AuthTestSupport.userToken(USER_ID, "PLAYER")))
+				.andExpect(status().isServiceUnavailable());
+		verify(eventRepository, never()).searchByTitle(any(), any(), any(), any());
+		verify(eventRepository, never()).searchByTitleOrGame(any(), any(), any(), any(), any());
 	}
 }

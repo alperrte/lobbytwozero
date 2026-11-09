@@ -23,6 +23,9 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 import com.ltz.event.domain.exception.AuthenticationRequiredException;
 import com.ltz.event.domain.exception.EventCreationForbiddenException;
 import com.ltz.event.domain.exception.EventNotFoundException;
+import com.ltz.event.domain.exception.GameCatalogUnavailableException;
+import com.ltz.event.domain.exception.GameNotAvailableException;
+import com.ltz.event.domain.exception.GameSearchTooBroadException;
 import com.ltz.event.domain.exception.InvalidEventScheduleException;
 
 /** Tüm hatalar ProblemDetail (RFC 9457) döner; stack trace, SQL veya kullanıcı girdisi yanıta yazılmaz. */
@@ -56,6 +59,27 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	@ExceptionHandler(EventNotFoundException.class)
 	public ProblemDetail handleEventNotFound(EventNotFoundException exception) {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+	}
+
+	@ExceptionHandler(GameNotAvailableException.class)
+	public ProblemDetail handleGameNotAvailable(GameNotAvailableException exception) {
+		return ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, exception.getMessage());
+	}
+
+	/** Game Service doğrulanamadı/aranamadı: "oyun yok" değil, geçici hizmet dışı (503). Ayrıntı yanıta yazılmaz. */
+	@ExceptionHandler(GameCatalogUnavailableException.class)
+	public ProblemDetail handleGameCatalogUnavailable(GameCatalogUnavailableException exception) {
+		log.warn("Game catalog could not be reached or returned an invalid response: {}",
+				exception.getCause() == null ? "unknown" : exception.getCause().getClass().getSimpleName());
+		return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage());
+	}
+
+	@ExceptionHandler(GameSearchTooBroadException.class)
+	public ProblemDetail handleGameSearchTooBroad(GameSearchTooBroadException exception) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, exception.getMessage());
+		problem.setTitle("Search Too Broad");
+		problem.setProperty("code", GameSearchTooBroadException.CODE);
+		return problem;
 	}
 
 	@ExceptionHandler(InvalidEventScheduleException.class)
