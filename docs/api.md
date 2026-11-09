@@ -8154,14 +8154,14 @@ Etkinlik sahibi (`organizerId`) yalnız doğrulanmış token'ın `sub` değerind
 #### Request Body
 ```json
 {
-  "type": "TOURNAMENT | GAME_NIGHT | COMMUNITY | OTHER (zorunlu)",
+  "type": "TOURNAMENT | GAME_NIGHT | COMMUNITY | POLL | OTHER (zorunlu, büyük harf; POLL = oylama)",
   "title": "metin, zorunlu, boş olamaz, en çok 120 karakter, kontrol karakteri içermez",
   "description": "metin, zorunlu, boş olamaz, en çok 4000 karakter, satır sonu/sekme dışında kontrol karakteri içermez",
   "startsAt": "UTC ISO-8601 zaman, zorunlu, şimdiden sonra olmalı (örn. 2026-12-05T18:00:00Z)",
   "endsAt": "UTC ISO-8601 zaman, zorunlu, startsAt'ten sonra olmalı"
 }
 ```
-Bilinmeyen alanlar (ör. `organizerId`, `status`) 400 ile reddedilir. 120 / 4000 sınırları ve "başlangıç gelecekte olmalı" şartı gereksinimlerden değil, geliştirici varsayımıdır (karar kaydı VR-1..VR-3).
+Bilinmeyen alanlar (ör. `organizerId`, `status`) 400 ile reddedilir. Tanımsız veya farklı yazılmış `type` (ör. `poll`, `VOTING`) 400 alır. Türe özel alan/kural henüz yoktur (EVT-02 yalnız türleri tanımlar; turnuva EVT-18, oyun gecesi EVT-19, oy verme EVT-20). 120 / 4000 sınırları ve "başlangıç gelecekte olmalı" şartı gereksinimlerden değil, geliştirici varsayımıdır (karar kaydı VR-1..VR-3).
 
 Örnek:
 ```json

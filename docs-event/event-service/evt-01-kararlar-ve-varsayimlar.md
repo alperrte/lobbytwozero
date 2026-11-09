@@ -29,12 +29,11 @@
 - **Kapsam:** Yalnız **oluşturma**. Güncelleme/iptal (EVT-14, EVT-15) için "sahip veya yetkili kullanıcı" kuralı ayrıca karara bağlanır (öneri: sahip + `MODERATOR`/`ADMIN`); bu karar onlara otomatik uzanmaz.
 - **Risk notu:** Oluşturma herkese açıldığı için kötüye kullanım yüzeyi büyüdü (spam etkinlik, uygunsuz başlık/açıklama). EVT-01'de oran sınırı, mükerrer önlemi ve raporlama/moderasyon yoktur (bkz. VR-8).
 
-### KD-2 — "Oylama" modeli — **KARAR VERİLDİ, UYGULANMADI (EVT-02)**
+### KD-2 — "Oylama" modeli — **KARAR VERİLDİ, EVT-02'DE UYGULANDI (doğrulama bekliyor)**
 
-- **Karar:** Oylama, etkinliğe bağlı bir özellik değil **ayrı bir etkinlik türüdür**. Oy verme davranışı EVT-20'de geliştirilir.
-- **Şu anki durum:** `EventType` ve `ck_events_type` yalnız `TOURNAMENT, GAME_NIGHT, COMMUNITY, OTHER` içerir; oylama türü **henüz yoktur** (V111 uygulanmış migration'dır, değiştirilmez).
-- **EVT-02'de yapılacak:** `EventType`'a yeni değer (öneri adı `POLL`, `database.md`'deki `event_polls` ile uyumlu) + `ck_events_type`'ı güncelleyen yeni migration (V112+; V111 değiştirilmez) + `docs/database.md` güncellemesi + testler. Tür adı o görevde kesinleşir.
-- **EVT-20 ile ilişki:** `event_polls`/`event_poll_options`/`event_poll_votes` tabloları ve oy verme EVT-20'de; tür ile tablo ilişkisi (yalnız `POLL` etkinliğinde anket olabilir mi) orada netleştirilir.
+- **Karar:** Oylama, etkinliğe bağlı bir özellik değil **ayrı bir etkinlik türüdür** (`POLL`). Oy verme davranışı EVT-20'de geliştirilir.
+- **Uygulama:** `EventType.POLL` ve V112 migration'ı ile `ck_events_type`'a eklendi. Ayrıntı: [evt-02-etkinlik-turleri.md](evt-02-etkinlik-turleri.md). V111 değiştirilmedi.
+- **Not:** EVT-01 sırasında yazılan "yalnız dört değer" ifadeleri (G-3, VR-5, §4 tablosu) V111'in tarihsel halidir; güncel değer kümesi beş değerdir.
 
 ### KD-3 — Hesabı silinen düzenleyicinin etkinlikleri — **KARAR VERİLDİ, UYGULANMADI (hesap silme ucu)**
 

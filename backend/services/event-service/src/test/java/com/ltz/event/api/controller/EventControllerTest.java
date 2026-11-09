@@ -200,6 +200,25 @@ class EventControllerTest {
 	}
 
 	@Test
+	void pollIsAcceptedAsASeparateEventType() throws Exception {
+		when(eventService.createEvent(any(CreateEventRequest.class))).thenReturn(created());
+
+		create("PLAYER", VALID.replace("GAME_NIGHT", "POLL")).andExpect(status().isCreated());
+
+		ArgumentCaptor<CreateEventRequest> captured = ArgumentCaptor.forClass(CreateEventRequest.class);
+		verify(eventService).createEvent(captured.capture());
+		assertThat(captured.getValue().type()).isEqualTo(EventType.POLL);
+	}
+
+	@Test
+	void unknownOrDifferentlyCasedEventTypesAreRejected() throws Exception {
+		for (String type : new String[] { "poll", "Poll", "VOTING", "OYLAMA", "" }) {
+			create("PLAYER", VALID.replace("GAME_NIGHT", type)).andExpect(status().isBadRequest());
+		}
+		verifyNoInteractions(eventService);
+	}
+
+	@Test
 	void everyDocumentedEventTypeIsAccepted() throws Exception {
 		when(eventService.createEvent(any(CreateEventRequest.class))).thenReturn(created());
 
