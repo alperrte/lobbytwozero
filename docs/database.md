@@ -139,6 +139,8 @@ Gösterim: **PK** birincil anahtar, **FK** servis içi yabancı anahtar, **REF**
 
 **Uygulanan (2026-10-30, LTZ-KER-USER-03): `V74__create_linked_accounts.sql`** — `linked_accounts`: `id` PK, `user_id` FK (`ON DELETE CASCADE`), `provider` (CHECK `STEAM`), `external_id` (Steam için `^[0-9]{17}$`, kaldırılınca `NULL`), `active`, `show_on_profile` (varsayılan `false`; yalnız `active` iken `true` olabilir), `consent_at`, `linked_at`, `changed_at` (durumu belirleyen son olayın `occurredAt` değeri), `version`. `UQ(user_id, provider)`, `UQ(provider, external_id)`. Satır Auth olaylarıyla yazılır; kaldırılan bağlantı `active=false` olarak kalır ki gecikmiş eski bir "bağlandı" olayı onu geri getiremesin. Token ya da başka kimlik verisi saklanmaz.
 
+**Uygulanan (2026-11-09, LIB-14): `V76__create_user_consents.sql`** — `user_consents`: `user_id` PK/FK (`ON DELETE CASCADE`), `recommendation_granted` (kişiselleştirilmiş öneri için favori/bitirilen oyun verisinin işlenmesine açık rıza), `recommendation_changed_at` (son kararın zamanı), `updated_at`, `version`. Satır yoksa rıza yoktur (varsayılan izin yok). Geri çekilen rıza silinmez, `false` olur. Görünürlükten (`privacy_settings`) bilinçli olarak ayrıdır: işleme amacı ayrı rızaya bağlıdır.
+
 **Uygulanan (2026-10-30, LTZ-KER-USER-02): `V72__create_privacy_and_social_projection.sql`**
 
 - `user_profiles.display_name_normalized` (varchar 64): arama anahtarı; Java'da `UserProfile.normalize` ile üretilir (yerelden bağımsız küçük harf + Türkçe `ı`/`i̇` → `i`). Kısmi `text_pattern_ops` indeksleri: `username_normalized` ve `display_name_normalized`, yalnız `account_status='ACTIVE'`.
