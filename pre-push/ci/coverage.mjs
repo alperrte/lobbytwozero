@@ -55,6 +55,50 @@ export function withoutImports(tokens) {
   }
   return kept;
 }
+// javac, record bileşenlerini üretilen constructor'da bildirim satırına bağlar.
+// Başlık değiştiğinde bu gerçek executable satır da değişiklik kapsamına girer.
+export function recordConstructorChanges(before, after) {
+  const headers = text => {
+    javaTokens(text); // Unicode kaçışlarında mevcut muhafazakâr kontrol korunur.
+    const tokens = [], rows = [], found = new Map();
+    let previous = 0, row = 1;
+    for (const match of text.matchAll(/\/\*[\s\S]*?\*\/|\/\/[^\r\n]*|"""[\s\S]*?"""|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[A-Za-z_$][\w$]*|\d+(?:[.\w]*)|[^\s]/g)) {
+      row += (text.slice(previous, match.index).match(/\n/g) ?? []).length;
+      previous = match.index;
+      if (match[0].startsWith('//') || match[0].startsWith('/*')) continue;
+      tokens.push(match[0]); rows.push(row);
+    }
+    for (let i = 0; i < tokens.length; i++) {
+      if (tokens[i] !== 'record' || !/^[A-Za-z_$][\w$]*$/.test(tokens[i + 1] ?? '')) continue;
+      let start = i + 2;
+      if (tokens[start] === '<') {
+        let depth = 1;
+        while (depth && ++start < tokens.length) {
+          if (tokens[start] === '<') depth++;
+          if (tokens[start] === '>') depth--;
+        }
+        if (depth) continue;
+        start++;
+      }
+      if (tokens[start] !== '(') continue;
+      let end = start, depth = 1;
+      while (depth && ++end < tokens.length) {
+        if (tokens[end] === '(') depth++;
+        if (tokens[end] === ')') depth--;
+      }
+      if (depth) continue;
+      const name = tokens[i + 1];
+      // Aynı adlı iç record'larda yanlış constructor eşleştirmesi yapılmaz.
+      found.set(name, found.has(name) ? null : { signature: tokens.slice(i, end + 1), line: rows[i] });
+    }
+    return found;
+  };
+  const oldHeaders = headers(before), newHeaders = headers(after);
+  return [...newHeaders].flatMap(([name, current]) => {
+    const old = oldHeaders.get(name);
+    return old && current && !same(old.signature, current.signature) ? [current.line] : [];
+  });
+}
 function bootstrapExemptions(text, filename, measured) {
   const clean = text.replace(/\/\*[\s\S]*?\*\/|\/\/[^\r\n]*|"""[\s\S]*?"""|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/g,
     token => token.startsWith('//') || token.startsWith('/*') ? token.replace(/[^\r\n]/g, ' ') : token);
@@ -162,7 +206,8 @@ export function gitContext(root, { base = process.env.COVERAGE_BASE_SHA || 'orig
       const start = Number(match[1]), length = match[2] === undefined ? 1 : Number(match[2]);
       for (let i = start; i < start + length; i++) lines.add(i);
     }
-    changes[name] = { lines: [...lines], semantic: !same(withoutImports(javaTokens(old)), withoutImports(javaTokens(now))), deleted: now === '', sourceHash: sha(now) };
+    for (const nr of recordConstructorChanges(old, now)) lines.add(nr);
+    changes[name] = { lines: [...lines].sort((a, b) => a - b), semantic: !same(withoutImports(javaTokens(old)), withoutImports(javaTokens(now))), deleted: now === '', sourceHash: sha(now) };
   }
   const previous = git(['ls-tree', '--name-only', comparison, '--', policyPath]).trim()
     ? JSON.parse(git(['show', comparison + ':' + policyPath])) : null;

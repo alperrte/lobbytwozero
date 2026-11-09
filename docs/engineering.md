@@ -103,6 +103,10 @@ Game Service'te ek RestClient config testi vardır; production iş mantığı/co
 - Comment/whitespace-only fark veya Java kaynak değişikliği olmaması `NOT_APPLICABLE` ve null yüzde üretir; sahte%100 yoktur.
   Semantik değişiklikte ölçülebilir yeni satır bulunmazsa güvenli olarak FAIL/review gerekir. Salt deklarasyon/import veya
   satır azaltan refactor bu muhafazakâr kapıya takılabilir; boş suppression/bypass eklemeyin, politikayı ayrıca review edin.
+- Çok satırlı `record` bileşen başlığı değiştiğinde javac'ın ürettiği constructor'ın bildirim satırı da değişiklik
+  kapsamına eklenir. Başlık tokenları Git tabanıyla karşılaştırılır; salt yorum, import veya gövde değişikliği bu
+  eşleştirmeyi oluşturmaz. Bu bir coverage istisnası değildir: satırın gerçek JaCoCo ölçümü ve değişen satırlar için
+  aynı minimum zorunludur. Constructor satırı ölçülemiyorsa mevcut FAIL/review davranışı korunur.
 - Strict: toplam modül LINE coverage minimumu zorunlu; strict → bootstrap otomatik veya manifest düzenleyerek yasaktır.
   Bootstrap → strict açık manifest değişikliğidir; mevcut ölçüm minimuma ulaşmalı ve bağımsız politika review'ü alınmalıdır.
   Modülü yayınlama/hazır kabul hedefi toplam%80 olarak korunur. Toplam repository oranı düşük modülü gizleyemez.
