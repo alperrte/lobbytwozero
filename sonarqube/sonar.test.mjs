@@ -214,12 +214,14 @@ for (const option of [
         }
 
         assert.match(command, /^mvn(\.cmd)?$/);
-        assert.equal(settings.env.SONAR_HOST_URL, 'http://localhost:5199');
         assert.ok(!args.some(arg => arg.includes('local-token')));
         assert.ok(!args.some(arg => arg.includes('fixture-password')));
         assert.ok(!args.some(arg => arg.includes('fixture-db-pass')));
 
         if (args.includes('-version') || args.includes('verify')) {
+          for (const key of ['SONAR_HOST_URL', 'SONAR_TOKEN', 'SONAR_DB_PASSWORD']) {
+            assert.equal(Object.hasOwn(settings.env, key), false);
+          }
           assert.equal(settings.env.POSTGRES_HOST, '127.0.0.1');
           assert.equal(settings.env.DEBUG, undefined);
           assert.equal(settings.env.POSTGRES_PORT, '5542');
@@ -229,6 +231,8 @@ for (const option of [
 
           settings.log('database password: fixture-db-pass');
         } else {
+          assert.equal(settings.env.SONAR_HOST_URL, 'http://localhost:5199');
+          assert.equal(settings.env.SONAR_TOKEN, 'local-token');
           assert.equal(settings.env.POSTGRES_PASSWORD, undefined);
         }
 
