@@ -8134,7 +8134,78 @@ UNIT + INTEGRATION (izole PostgreSQL ile çalıştırıldı ve geçti; 2026-11-0
 
 Sorumlu: Nisa · Gateway: `/api/v1/event/**` · Görevler: EVT-
 
-_Kayıt yok._
+> **Kararlar (KD-1..3) ve varsayımlar:** [docs-event/event-service/evt-01-kararlar-ve-varsayimlar.md](../docs-event/event-service/evt-01-kararlar-ve-varsayimlar.md). **Hesap silme bağımlılığı (Auth'u bloklar):** [docs-event/event-service/hesap-silme-entegrasyonu.md](../docs-event/event-service/hesap-silme-entegrasyonu.md).
+
+### EVENT — Etkinlik Oluşturma (EVT-01)
+
+Durum: IN PROGRESS
+Sorumlu: Nisa
+Tüketici servisler: Frontend (henüz yok)
+
+> `IN PROGRESS`: kod ve testler yazıldı, doğrulama bekliyor (testler, migration ve `ddl-auto=validate` çalıştırılmadı). Sahibi doğruladıktan sonra `IMPLEMENTED` yapılır.
+
+#### Endpoint
+POST /api/v1/event/events
+
+#### Yetkilendirme
+Authenticated + rol: `PLAYER`, `MODERATOR` veya `ADMIN` (Auth `roles` claim'i). Karar KD-1 (Nisa, 2026-11-09): kayıtlı oyuncular, moderatörler ve yöneticiler etkinlik oluşturabilir. Auth'ta `PLAYER` temel roldür ve geri alınamaz; pratikte kimliği doğrulanmış her aktif hesap oluşturabilir. `PLAYER` taşımayan ve yalnız `CONTENT_CREATOR`/`GAME_DEVELOPER` gibi rollerle gelen token → 403. Kural tek yerde: `EventRoles`. Bu karar yalnız oluşturmayı kapsar; güncelleme/iptal (EVT-14/15) kuralı ayrıca belirlenecektir.
+Etkinlik sahibi (`organizerId`) yalnız doğrulanmış token'ın `sub` değerinden atanır; istekteki hiçbir kimlik alanı/başlığı (`X-User-Id`, `X-Role`) kullanılmaz.
+
+#### Request Body
+```json
+{
+  "type": "TOURNAMENT | GAME_NIGHT | COMMUNITY | OTHER (zorunlu)",
+  "title": "metin, zorunlu, boş olamaz, en çok 120 karakter, kontrol karakteri içermez",
+  "description": "metin, zorunlu, boş olamaz, en çok 4000 karakter, satır sonu/sekme dışında kontrol karakteri içermez",
+  "startsAt": "UTC ISO-8601 zaman, zorunlu, şimdiden sonra olmalı (örn. 2026-12-05T18:00:00Z)",
+  "endsAt": "UTC ISO-8601 zaman, zorunlu, startsAt'ten sonra olmalı"
+}
+```
+Bilinmeyen alanlar (ör. `organizerId`, `status`) 400 ile reddedilir. 120 / 4000 sınırları ve "başlangıç gelecekte olmalı" şartı gereksinimlerden değil, geliştirici varsayımıdır (karar kaydı VR-1..VR-3).
+
+Örnek:
+```json
+{
+  "type": "GAME_NIGHT",
+  "title": "Cuma Oyun Gecesi",
+  "description": "Birlikte co-op oynuyoruz.",
+  "startsAt": "2026-12-05T18:00:00Z",
+  "endsAt": "2026-12-05T21:00:00Z"
+}
+```
+
+#### Response — 201
+```json
+{
+  "id": "UUID",
+  "organizerId": "UUID (token sub)",
+  "type": "GAME_NIGHT",
+  "title": "Cuma Oyun Gecesi",
+  "description": "Birlikte co-op oynuyoruz.",
+  "startsAt": "2026-12-05T18:00:00Z",
+  "endsAt": "2026-12-05T21:00:00Z",
+  "status": "PLANNED",
+  "createdAt": "2026-11-09T10:00:00Z",
+  "updatedAt": "2026-11-09T10:00:00Z"
+}
+```
+
+#### Hata Durumları
+- 400: Zorunlu alan eksik/boş, uzunluk veya karakter kuralı ihlali, geçersiz `type`/tarih biçimi, bilinmeyen alan; `startsAt` geçmişte (`reason: STARTS_IN_THE_PAST`) veya `endsAt` ≤ `startsAt` (`reason: ENDS_NOT_AFTER_START`)
+- 401: Token yok/geçersiz/süresi dolmuş (imza, `iss`, `aud`, `typ=at+jwt` doğrulaması)
+- 403: Token'da `PLAYER`, `MODERATOR` veya `ADMIN` rolü yok
+- 503: Veritabanı geçici olarak erişilemiyor
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/event/events
+
+Diğer mikroservisler:
+Auth Service JWKS (`GET /api/v1/auth/.well-known/jwks.json`) ile token doğrulama (Spring `JwtDecoder`; mevcut `AUTH_SERVICE_URL`, `JWT_ISSUER`, `JWT_AUDIENCE`, yeni ENV yok). Başka servis çağrısı ve outbox olayı yoktur (EVT-01 kapsamı dışı). Tanımsız her yol (`/internal/**` dahil) kapalıdır.
+
+#### Test Durumu
+UNIT — test sınıfları **yazıldı, çalıştırılmadı** (`EventTest`, `EventServiceTest`, `EventControllerTest`, `EventEndpointSecurityTest` [gerçek RS256 token + yerel JWKS, DB deposu taklit], `SecurityContextCurrentUserTest`, `JwtConfigTest`). Kapsam dışı / **NOT VERIFIED**: Flyway migration V111 ve `ddl-auto=validate` (çalıştırılmadı), DB seviyesinde CHECK/entity eşlemesi testi (yok), gerçek Auth token'ıyla uçtan uca.
 
 ## HARDWARE
 
