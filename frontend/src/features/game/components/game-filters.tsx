@@ -8,11 +8,11 @@ import { controlClass } from "./game-status";
 import { GameCombobox } from "./game-combobox";
 import { GameDatePicker } from "./game-date-picker";
 import { termLabel } from "../services/format";
-import { marketForCurrency, priceMarkets } from "../services/price-markets";
+import { marketForCurrency, marketLabel, marketOptions } from "../services/price-markets";
 import { languageOptions } from "../services/language-options";
 import { useGameResource } from "../hooks/use-game-resource";
 import type { TermList } from "../types/game";
-import { Badge, checkboxClass, GameSelect, primaryButtonClass } from "./game-ui";
+import { checkboxClass, GameSelect, primaryButtonClass } from "./game-ui";
 
 const textKeys = ["genre", "platform", "language"] as const;
 const resetKeys = [...filterChipKeys, "country", "currency", "page"];
@@ -54,8 +54,9 @@ export function GameFilters({ params, onApply }: { params: URLSearchParams; onAp
   }
   const panel = `${id}-panel`;
   return <div>
-    <button type="button" aria-expanded={open} aria-controls={panel} onClick={() => setOpen(!open)} className={`${controlClass} inline-flex items-center gap-2`}>
-      <Icon name="settings" width={18} height={18} />{t("filters")}{count > 0 && <Badge tone="brand">{count}</Badge>}
+    <button type="button" aria-expanded={open} aria-controls={panel} onClick={() => setOpen(!open)} className="inline-flex h-[38px] items-center justify-center gap-1.5 rounded-xl border border-transparent bg-surface-elevated px-3.5 text-xs font-medium text-text-primary transition-colors hover:border-border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary aria-expanded:border-primary aria-expanded:text-brand-text">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="square" strokeLinejoin="miter" aria-hidden="true" focusable="false"><path d="M2 3h20l-8 9v8l-4 2V12L2 3Z" /></svg>
+      {t("filters")}{count > 0 && <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-primary px-[5px] text-[10px] font-bold text-primary-foreground">{count}</span>}
     </button>
     {open && <form id={panel} onSubmit={submit} aria-label={t("filters")} className="mt-4 rounded-panel border border-border bg-surface p-5">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -69,7 +70,7 @@ export function GameFilters({ params, onApply }: { params: URLSearchParams; onAp
         <div className="flex flex-col gap-2 text-sm"><label htmlFor={`${id}-releasedAfter`}>{t("fields.releasedAfter")}</label><GameDatePicker id={`${id}-releasedAfter`} value={draft.releasedAfter} onValueChange={(next) => set("releasedAfter", next)} min="0001-01-01" max="9999-12-31" invalid={errors.includes("dateRange")} describedBy={errors.includes("dateRange") ? `${id}-date` : undefined} /></div>
         <div className="flex flex-col gap-2 text-sm"><label htmlFor={`${id}-releasedBefore`}>{t("fields.releasedBefore")}</label><GameDatePicker id={`${id}-releasedBefore`} value={draft.releasedBefore} onValueChange={(next) => set("releasedBefore", next)} min="0001-01-01" max="9999-12-31" invalid={errors.includes("dateRange")} describedBy={errors.includes("dateRange") ? `${id}-date` : undefined} /></div>
         <label className="flex flex-col gap-2 text-sm">{t("fields.minRating")}<input type="number" inputMode="decimal" min={1} max={10} step="0.01" value={draft.minRating} onChange={(event) => set("minRating", event.target.value)} className={controlClass} aria-invalid={errors.includes("minRating") || undefined} aria-describedby={errors.includes("minRating") ? `${id}-rating` : undefined} /></label>
-        <label className="flex flex-col gap-2 text-sm">{t("fields.currency")}<GameSelect className={controlClass} value={marketForCurrency(draft.currency).currency} onChange={(event) => set("currency", event.target.value)}>{priceMarkets.map((market) => <option key={market.currency} value={market.currency}>{market.currency}</option>)}</GameSelect></label>
+        <label className="flex flex-col gap-2 text-sm">{t("fields.country")}<GameSelect className={controlClass} value={marketForCurrency(draft.currency).currency} onChange={(event) => set("currency", event.target.value)}>{marketOptions(locale).map((market) => <option key={market.currency} value={market.currency}>{marketLabel(market, locale)}</option>)}</GameSelect></label>
         {["popularOnly", "discountedOnly"].map((key) => <label key={key} className="flex min-h-11 items-center gap-3 self-end text-sm"><input type="checkbox" className={checkboxClass} checked={draft[key] === "true"} onChange={(event) => set(key, event.target.checked ? "true" : "")} />{t(`fields.${key}`)}</label>)}
       </div>
       {errors.includes("dateRange") && <p id={`${id}-date`} role="alert" className="mt-4 text-sm text-brand-text">{t("filterErrors.dateRange")}</p>}
@@ -86,9 +87,10 @@ export function GameFilters({ params, onApply }: { params: URLSearchParams; onAp
 /** Aktif filtreler: her biri tek tek kaldırılabilir; hepsi birlikte temizlenebilir. */
 export function GameActiveFilters({ params, onChange }: { params: URLSearchParams; onChange: (changes: Record<string, string>) => void }) {
   const t = useTranslations("Game");
+  const locale = useLocale();
   const chips = [
     ...activeFilters(params).map(({ key, value }) => ({ key, text: key === "popularOnly" || key === "discountedOnly" ? t(`fields.${key}`) : `${t(`fields.${key}`)}: ${key === "earlyAccess" ? t(value === "true" ? "yes" : "no") : value}` })),
-    ...(params.get("currency") && marketForCurrency(params.get("currency")).currency !== "USD" ? [{ key: "currency", text: `${t("fields.currency")}: ${marketForCurrency(params.get("currency")).currency}` }] : [])
+    ...(params.get("currency") && marketForCurrency(params.get("currency")).currency !== "USD" ? [{ key: "currency", text: `${t("fields.country")}: ${marketLabel(marketForCurrency(params.get("currency")), locale)}` }] : [])
   ];
   if (!chips.length) return null;
   return <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t("activeFilters")}>

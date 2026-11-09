@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import messages from "@/shared/lib/i18n/messages/tr.json";
@@ -36,17 +36,18 @@ describe("Pazar ve güncellik bilgili fiyatlar", () => {
     mount(); await screen.findByText(messages.Game.priceStates.UNAVAILABLE);
     expect(screen.queryByText("wrong market")).toBeNull();
   });
-  it("para birimi USD, EUR ve GBP olarak sunulur (TRY yok); seçim ülkeyi birlikte belirler ve doğru pazarı ister", async () => {
+  it("ülke seçilir (para birimi otomatik gelir; doğrulanmış 12 pazar, TRY yok) ve doğru pazarı ister", async () => {
     load.mockResolvedValue({ market: { country: "US", currency: "USD" }, items: [{ gameId, status: "NO_OFFER", offers: [] }] });
     mount(); await screen.findByText(messages.Game.priceStates.NO_OFFER);
-    const select = screen.getByLabelText(messages.Game.fields.currency) as HTMLSelectElement;
-    expect([...select.options].map((option) => option.value)).toEqual(["USD", "EUR", "GBP"]);
-    expect(screen.getByText(/Amerika Birleşik Devletleri/)).toBeVisible();
+    expect(screen.queryByLabelText(messages.Game.fields.currency)).toBeNull();
+    const select = screen.getByLabelText(messages.Game.fields.country) as HTMLSelectElement;
+    expect([...select.options].map((option) => option.value)).toEqual(["USD", "EUR", "AUD", "GBP", "BRL", "CNY", "KRW", "INR", "JPY", "CAD", "PLN", "NZD"]);
+    expect([...select.options].map((option) => option.textContent)).toEqual(["Amerika Birleşik Devletleri (USD)", "Almanya (EUR)", "Avustralya (AUD)", "Birleşik Krallık (GBP)", "Brezilya (BRL)", "Çin (CNY)", "Güney Kore (KRW)", "Hindistan (INR)", "Japonya (JPY)", "Kanada (CAD)", "Polonya (PLN)", "Yeni Zelanda (NZD)"]);
     fireEvent.change(select, { target: { value: "EUR" } });
-    expect(await screen.findByText(/Almanya/)).toBeVisible();
+    await waitFor(() => expect(select.value).toBe("EUR"));
     expect(load.mock.calls.some(([resource]) => resource.kind === "prices" && resource.country === "DE" && resource.currency === "EUR")).toBe(true);
     fireEvent.change(select, { target: { value: "GBP" } });
-    expect(await screen.findByText(/Birleşik Krallık/)).toBeVisible();
+    await waitFor(() => expect(select.value).toBe("GBP"));
     expect(load.mock.calls.some(([resource]) => resource.kind === "prices" && resource.country === "GB" && resource.currency === "GBP")).toBe(true);
   });
 });

@@ -31,6 +31,13 @@ public interface GameProvider {
         throw new com.ltz.game.domain.exception.ProviderException("UNSUPPORTED_CAPABILITY");
     }
     /**
+     * Toplu erken erişim durumu: katalog kimliği → erken erişimde mi. En çok 100 kimlik; yalnız sağlayıcının oyunu tanıdığı kimlikler döner
+     * (yokluk "erken erişim değil" demek değildir: çağıran bunları bilinmiyor bırakır). Sağlayıcı yeteneği yoksa UNSUPPORTED_CAPABILITY.
+     */
+    default java.util.Map<String, Boolean> earlyAccess(java.util.Collection<String> externalIds) {
+        throw new com.ltz.game.domain.exception.ProviderException("UNSUPPORTED_CAPABILITY");
+    }
+    /**
      * Toplu mağaza kısa açıklaması, istenen dilde: katalog kimliği → metin. {@code language} küçük harf dil kodudur (ör. {@code en}, {@code tr});
      * desteklenmeyen kod INVALID_PROVIDER_REQUEST. Sağlayıcı o dilde metin yoksa genellikle İngilizce metne düşer: çağıran bunu İngilizce metinle
      * karşılaştırarak ayırmalıdır. En çok 100 kimlik; yalnız metin dönen kimlikler yer alır.
