@@ -1,5 +1,6 @@
 package com.ltz.auth.application.service;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.UUID;
 
@@ -39,10 +40,24 @@ public class SecurityNotificationDispatcher {
 
     /** Açık bir işlem varsa commit sonrasında, yoksa hemen gönderir. */
     public void notifyAfterCommit(UUID accountId, String recipientEmail, SecurityNotificationType type) {
+        notifyAfterCommit(accountId, recipientEmail, type, UUID.randomUUID());
+    }
+
+    /**
+     * Tek seferlik bildirim ({@link SecurityNotificationType#WELCOME}): anahtar hesap başına sabittir, tekrar doğrulama
+     * ya da bağlama Mail'de ikinci e-posta üretmez.
+     */
+    public void notifyOnceAfterCommit(UUID accountId, String recipientEmail, SecurityNotificationType type) {
+        notifyAfterCommit(accountId, recipientEmail, type,
+                UUID.nameUUIDFromBytes((type.name() + ":" + accountId).getBytes(StandardCharsets.UTF_8)));
+    }
+
+    private void notifyAfterCommit(UUID accountId, String recipientEmail, SecurityNotificationType type,
+                                   UUID idempotencyKey) {
         if (recipientEmail == null || recipientEmail.isBlank()) {
             return; // E-postasız hesap (yalnız SteamID): bildirim kanalı yok, sahte adres üretilmez.
         }
-        SecurityNotificationMail mail = new SecurityNotificationMail(UUID.randomUUID(), accountId, recipientEmail, type,
+        SecurityNotificationMail mail = new SecurityNotificationMail(idempotencyKey, accountId, recipientEmail, type,
                 clock.instant());
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {

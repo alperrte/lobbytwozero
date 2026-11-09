@@ -33,6 +33,7 @@ import jakarta.servlet.http.Cookie;
  * B4 altyapısı: admin-service → Auth servis kimliği ({@code POST /internal/v1/service-tokens}) ve iç hesap yönetimi uçları.
  * Sertleştirme: yanlış tür/aud/sub/kapsam/ömür, kullanıcı token'ı ve cookie ile erişim, yönetici (actor) doğrulaması.
  */
+@org.junit.jupiter.api.extension.ExtendWith(org.springframework.boot.test.system.OutputCaptureExtension.class)
 class InternalAccountAdministrationTest extends IntegrationTestSupport {
 
     private static final String REASON = "Servis kimlikli yönetim (test)";
@@ -141,6 +142,52 @@ class InternalAccountAdministrationTest extends IntegrationTestSupport {
         assertThat(statusOf(target)).isEqualTo("ACTIVE");
     }
 
+    // ---- Mail adres çözme (/contact) ----
+
+    @Test
+    void contactYalnizMailServiceKapsamiylaAdresiDonerDigerleri403() throws Exception {
+        UUID target = newAccount();
+        String email = jdbc.queryForObject("select email from accounts where id = ?", String.class, target);
+        String path = "/internal/v1/accounts/" + target + "/contact";
+
+        mockMvc.perform(get(path).header(HttpHeaders.AUTHORIZATION, mailBearer())).andExpect(status().isOk())
+                .andExpect(jsonPath("$.accountId").value(target.toString())).andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.email").value(email)).andExpect(jsonPath("$.emailVerified").value(true))
+                .andExpect(jsonPath("$.roles").doesNotExist()).andExpect(jsonPath("$.username").doesNotExist());
+        // admin-service (account:read) adres göremez; kullanıcı token'ı ve anonim de.
+        mockMvc.perform(get(path).header(HttpHeaders.AUTHORIZATION, serviceBearer())).andExpect(status().isForbidden());
+        mockMvc.perform(get(path).header(HttpHeaders.AUTHORIZATION, "Bearer " + bearerFor(target)))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get(path)).andExpect(status().isUnauthorized());
+        // Yönetim ucu hâlâ adres döndürmez ve mail kapsamı o uca erişemez.
+        mockMvc.perform(get("/internal/v1/accounts/" + target).header(HttpHeaders.AUTHORIZATION, serviceBearer()))
+                .andExpect(jsonPath("$.email").doesNotExist());
+        mockMvc.perform(get("/internal/v1/accounts/" + target).header(HttpHeaders.AUTHORIZATION, mailBearer()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void contactOlmayanHesap404AdresiOlmayanHesapNullDoner() throws Exception {
+        String bearer = mailBearer();
+        mockMvc.perform(get("/internal/v1/accounts/" + UUID.randomUUID() + "/contact")
+                .header(HttpHeaders.AUTHORIZATION, bearer)).andExpect(status().isNotFound());
+
+        UUID steamOnly = newAccount();
+        jdbc.update("update accounts set email = null, email_normalized = null, email_verified_at = null where id = ?", steamOnly);
+        mockMvc.perform(get("/internal/v1/accounts/" + steamOnly + "/contact").header(HttpHeaders.AUTHORIZATION, bearer))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.email").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.emailVerified").value(false));
+    }
+
+    @Test
+    void contactAdresiVeGovdeyiLogaYazmaz(org.springframework.boot.test.system.CapturedOutput output) throws Exception {
+        UUID target = newAccount();
+        String email = jdbc.queryForObject("select email from accounts where id = ?", String.class, target);
+        mockMvc.perform(get("/internal/v1/accounts/" + target + "/contact").header(HttpHeaders.AUTHORIZATION, mailBearer()))
+                .andExpect(status().isOk());
+        assertThat(output.getAll()).doesNotContainIgnoringCase(email);
+    }
+
     // ---- İşlemler ----
 
     @Test
@@ -227,6 +274,12 @@ class InternalAccountAdministrationTest extends IntegrationTestSupport {
     /** Gerçek akış: token ucundan alınan servis token'ı. */
     private String serviceBearer() throws Exception {
         String body = tokenRequest("admin-service", ADMIN_CLIENT_SECRET).andExpect(status().isOk()).andReturn()
+                .getResponse().getContentAsString();
+        return "Bearer " + com.jayway.jsonpath.JsonPath.read(body, "$.accessToken");
+    }
+
+    private String mailBearer() throws Exception {
+        String body = tokenRequest("mail-service", MAIL_CLIENT_SECRET).andExpect(status().isOk()).andReturn()
                 .getResponse().getContentAsString();
         return "Bearer " + com.jayway.jsonpath.JsonPath.read(body, "$.accessToken");
     }

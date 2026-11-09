@@ -3348,6 +3348,8 @@ async function keysCommand(argv) {
     AUTH_TOTP_ENCRYPTION_KEY: () => randomBytes(32).toString("base64"),
     // Admin servisinin Auth'a servis kimligiyle (client credentials) baglanma gizli anahtari (B4): 256 bit, URL-guvenli.
     AUTH_ADMIN_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
+    // Mail Service -> Auth adres cozme (account:contact:read) istemcisi.
+    AUTH_MAIL_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
     // Servisler arası olay girişi (events:ingest) istemcileri: her biri ayrı 256 bit gizli anahtar.
     AUTH_SOCIAL_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
     AUTH_COMMUNITY_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),

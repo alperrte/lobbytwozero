@@ -936,6 +936,7 @@ Tüketici servisler: admin-service (yönetim uçları); hardware-service, recomm
 #### Endpoint
 - POST /internal/v1/service-tokens — servis kimlik bilgisiyle (client credentials) Auth'tan kısa ömürlü `svc+jwt` alır
 - GET /internal/v1/accounts/{accountId} — hesap özeti (kapsam `account:read`)
+- GET /internal/v1/accounts/{accountId}/contact — Mail Service adres çözümü (kapsam `account:contact:read`, **yalnız `mail-service` istemcisi**; 2026-11-09, MAIL-AUTH-REQ-01). Yanıt: `{ "accountId", "status", "email" (adresi olmayan/anonimleşmiş hesapta `null`), "emailVerified" }`; olmayan hesap `404`; başka kapsam/istemci `403`; parola, token, rol dönmez; adres ve yanıt gövdesi loglanmaz. Mail bunu gönderim anında (arka plan işçisi) çağırır. `AUTH_MAIL_SERVICE_CLIENT_SECRET` (≥32 karakter) boşsa `mail-service` istemcisi devre dışıdır.
 - POST /internal/v1/accounts/{accountId}/status — durum değişikliği (kapsam `account:status:write`)
 - POST /internal/v1/accounts/{accountId}/roles/grant — rol ver (kapsam `account:role:write`)
 - POST /internal/v1/accounts/{accountId}/roles/revoke — rol al (kapsam `account:role:write`)
@@ -1002,6 +1003,9 @@ UNIT + INTEGRATION (Auth tarafı; Admin tüketici testi yok). REQ-04-A hedef/hes
 ### AUTH — Giden sözleşmeler
 
 - **Auth → her veri sahibi servis, hesap verisi silme (AUTH-16/17) — Auth tarafı IMPLEMENTED (2026-10-23):** `DELETE /internal/v1/accounts/{accountId}`, Yetkilendirme: Internal. Servis JWT'si (D4, `ServiceTokenIssuer`): başlık `typ=svc+jwt`, RS256 (JWKS); `iss=ltz-auth`, tek `aud=<servis>-service` (ör. `social-service`), `sub=svc:auth-service`, `scope=account:erase`, `account_id=<silinecek hesap>`, ömür 30 sn, `jti`. Hedef servis tümünü bağımsız doğrular; `sub` tam eşleşme ve `account_id` = yoldaki `{accountId}` zorunludur (aksi halde `403`); kullanıcı cookie'sine dayanmaz. İdempotent: `200`/`204` = veri silindi/anonimleştirildi (zaten yoksa da `204`); `202` dahil başka her yanıt başarısızlık sayılır ve tekrarlanır; yönlendirme izlenmez. Hedefler (16): `user, mail, game, library, review, social, messaging, lfp, community, content, event, hardware, recommendation, performance, admin, notification`. Auth'ta onay alan bir iç uç **yoktur**. Test Durumu: UNIT + INTEGRATION (gerçek HTTP).
+
+- **Auth → Mail, `WELCOME` bildirimi — IMPLEMENTED (2026-11-09, MAIL-AUTH-REQ-01):** mevcut `POST /internal/v1/mail/security-notifications` (`scope=mail:send`) ucuna `type=WELCOME`; `locale` gönderilmez (iki dilli). Tetik: e-posta doğrulaması başarıyla tamamlanınca (`EmailVerificationService`, Steam+e-posta dahil) ve Google ile yeni hesap ilk kez doğrulanmış e-postayla açılınca; **commit sonrası, en iyi çaba** (Mail hata verse doğrulama/kayıt başarılı kalır). Doğrulanmamış adrese gönderilmez. Tek seferlik: `idempotencyKey = UUID.nameUUIDFromBytes("WELCOME:" + accountId)`; tekrar doğrulama/bağlama ikinci mail üretmez. Mevcut hesaba Google/Steam bağlama `WELCOME` üretmez (hesap yeni değil; bağlamada `EXTERNAL_IDENTITY_LINKED` gider).
+- **Platform kapısı mekanizması — IMPLEMENTED (2026-11-09):** servis istemcisine `ltz.auth.service-clients.clients.<servis>.targets.mail-service=mail:notify` satırı eklenince `audience=mail-service` token'ı alır (`aud=mail-service`, `sub=svc:<servis>`, `account_id` yok); tanımsız istemci `403 SERVICE_AUDIENCE_FORBIDDEN`. Şu an üretimde hiçbir servise satır tanımlı değildir; `mail:send` Auth'a özel kalır.
 
 Aşağıdakiler Auth'un çağıracağı/yayımlayacağı **PLANNED** sözleşmelerdir; karşı servisin kaydı o servis uygulanırken kendi başlığı altında açılır.
 
