@@ -39,8 +39,18 @@ class MailSchemaAndRetentionTest extends IntegrationTestSupport {
                 .isEqualTo(types * 2);
         assertThat(jdbc.queryForObject("select count(distinct code) from mail_templates", Integer.class))
                 .isEqualTo(types);
-        assertThat(jdbc.queryForObject("select count(*) from mail_templates where locale = 'tr'", Integer.class))
-                .isEqualTo(types);
+        assertThat(jdbc.queryForObject("select count(*) from mail_templates where locale = 'tr' and active",
+                Integer.class)).isEqualTo(types);
+    }
+
+    @Test
+    void onlyTheDarkRedesignVersionIsActiveAndOlderVersionsStayForRollback() {
+        assertThat(jdbc.queryForObject("select count(*) from mail_templates where active and version <> 2",
+                Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from mail_templates where active and version = 1",
+                Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from mail_templates where not active and version = 1",
+                Integer.class)).isPositive();
     }
 
     @Test

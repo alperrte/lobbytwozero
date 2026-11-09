@@ -38,7 +38,7 @@ SMTP ENV'leri boş olarak `ops` betiğine ve compose'a eklendi; şifreleme anaht
 3. **Auth'a bildirilecek değişiklikler** (Auth de senin; ayrı küçük görev):
    - `MailAdapter`'a `MAIL_SERVICE` değeri (`productionReady=true`) + RestClient adaptörü (`HttpAccountDataEraser` deseni, `mail:send` token, 202 dışını hata say) + `MAIL_SERVICE_URL`.
    - `api.md`'deki doğrulama kodu kaydına diğer 3 ucu ekleme; `locale` Auth'tan gelmeyecek (D5).
-   - **Sonra, Mail bittiğinde:** MAIL-05 için `WELCOME` (yeni `SecurityNotificationType`), MAIL-03 için "şüpheli giriş" Auth'ta henüz yok.
+   - **Sonra, Mail bittiğinde:** MAIL-05 `WELCOME`: Mail tarafı V85 ile yapıldı (2026-11-09), Auth tetiği bekliyor. MAIL-03 "şüpheli giriş" Auth'ta henüz yok.
 
 ## Sorulmayacaklar (kaldırıldı)
 Eski K2 (alıcı çözümü), K6 (notification tercihi), K7 (başka servis çiftleri), K12 (geçmiş uçları): çağıran olmadığı için gereksiz. Nisa/notification sahibine mesaj gerekmez; ihtiyaç doğarsa açılır.

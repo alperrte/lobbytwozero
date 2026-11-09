@@ -1,6 +1,6 @@
 # Mail Service — HAFIZA (oturum temizlense bile önce bunu oku)
 
-> `/clear` sonrası başlangıç noktası. Güncelleme: 2026-10-31. Sahip: Kerem (oturumda kullanıcı kimliği açıkça söylenmedi; Mail/Auth/User Kerem'in servisleri).
+> `/clear` sonrası başlangıç noktası. Güncelleme: 2026-11-09. Sahip: Kerem (oturumda kullanıcı kimliği açıkça söylenmedi; Mail/Auth/User Kerem'in servisleri).
 > Sıra: bu dosya → [SPEC.md](SPEC.md) (kesin teknik plan) → [decisions/kararlar.md](decisions/kararlar.md) → [integration/README.md](integration/README.md) → [progress/](progress/).
 > Kaynak önceliği: repo kodu > `servis-gereksinimleri` > docx.
 
@@ -22,7 +22,7 @@
 | Konu | Değer |
 | --- | --- |
 | Servis | `mail-service`, `backend/services/mail-service`, `com.ltz.mail`, `mail_db` (`DB_MAIL_NAME`) |
-| Migration | **V81–V90** (V81 şema, V82 şablon seed; başka numara yok) |
+| Migration | **V81–V90** (V81 şema, V82 şablon seed, V83 4 güvenlik türü, V84 koyu tasarım sürüm 2, V85 `WELCOME`; sonraki: V86) |
 | Port / adres | host 5083, container 8080, `MAIL_SERVICE_URL`; Gateway `/api/v1/mail/**` (kullanıcı ucu yok) |
 | Görevler | LTZ-KER-MAIL-01 (MAIL-10..16), -02 (MAIL-01..05, 08, 09), -03 (MAIL-06, 07 ertelendi) |
 | Stack | Java 25, Spring Boot 4.1.1, JPA, Flyway, `spring-boot-starter-mail`, resource-server (pom'da hazır) |
@@ -74,7 +74,7 @@
 ## 8. Fazlar (ayrıntı `progress/`)
 
 1. **MAIL-01 (altyapı):** KOD + TEST TAMAM (54 test PASS); resmi kapı PASS (%88,99). Mailpit ile uçtan uca doğrulandı (doğrulama kodu akışı).
-2. **MAIL-02 (hesap e-postaları):** KOD + TEST TAMAM (10 tür × TR/EN, V82 seed, `TemplateRendererTest`); `WELCOME` ve `SUSPICIOUS_LOGIN` şablonları yok (Auth tetikleyicisi yok).
+2. **MAIL-02 (hesap e-postaları):** KOD + TEST TAMAM (15 tür × TR/EN; V84 koyu tasarım, V85 `WELCOME`; bkz. [progress/LTZ-KER-MAIL-04.md](progress/LTZ-KER-MAIL-04.md)). `SUSPICIOUS_LOGIN` şablonu yok (Auth tetikleyicisi yok); `WELCOME` Mail tarafı hazır, Auth tetiği bekliyor.
 3. **Auth adaptör görevi:** KOD + TEST TAMAM (2026-10-31). `MAIL_SERVICE` adaptörü; prod artık bu adaptörle açılır (B5 kapandı, B12/B19 kısmen).
 4. **MAIL-03:** ertelendi; çağıran çıkınca.
 

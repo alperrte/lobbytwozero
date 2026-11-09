@@ -279,7 +279,7 @@ src/shared/
 
 | Klasör | İçerik | Kullanım |
 | --- | --- | --- |
-| `ops/` | `env.cmd`, `env.ps1`, `env.sh`, `dev.mjs`, `dev.test.mjs`, `hardware-catalog-import.mjs`, `hardware-catalog-import.test.mjs`, `ops.md` | Profil ortam değişkenlerini yükler; ajanlar bu betiklerin çıktısını okumaz/loglamaz |
+| `ops/` | `env.cmd`, `env.ps1`, `env.sh`, `dev.mjs`, `dev.test.mjs`, `hardware-catalog-import.mjs`, `hardware-catalog-import.test.mjs`, `mail-templates.mjs`, `mail-templates.test.mjs`, `ops.md` | Profil ortam değişkenlerini yükler; ajanlar bu betiklerin çıktısını okumaz/loglamaz |
 | `pre-push/` | `pre-push.cmd/.sh/.md`, `backend-check.mjs`, `menu.mjs`, `quality.mjs`, `runtime-checks.mjs` (+ testler) | `.\pre-push\pre-push.cmd service|backend|full dev|full prod` — başarı çıktısı `SAFE TO COMMIT` |
 | `sonarqube/` | `sonar.cmd/.mjs/.sh`, `sonar.test.mjs`, `sonarqube.md` | Yerel SonarQube analizi (port 5199) |
 | `lib/` | `profile-env.mjs`, `quality-tools.mjs` | Yukarıdaki betiklerin ortak kodu |

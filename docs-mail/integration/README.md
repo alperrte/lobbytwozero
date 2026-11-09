@@ -1,6 +1,6 @@
 # Mail Service — entegrasyon (Auth merkezli)
 
-Güncelleme: 2026-10-31. Sorumlu: Kerem. Mail Service ve Auth adaptörü yazıldı (2026-10-31); aşağıdakiler Auth'un **gerçek kodu** ve `docs/api.md` kaydıyla uyumludur.
+Güncelleme: 2026-11-09. Sorumlu: Kerem. Mail Service ve Auth adaptörü yazıldı (2026-10-31); aşağıdakiler Auth'un **gerçek kodu** ve `docs/api.md` kaydıyla uyumludur.
 
 ## Kim Mail'e istek atıyor?
 
@@ -41,7 +41,7 @@ Bağlantılar (`resetLink`, `confirmationLink`): yalnız `https` (dev'de `http:/
 1. `MailAdapter`'a `MAIL_SERVICE` (`productionReady=true`) ve RestClient adaptörü (`HttpAccountDataEraser` kopyası: yönlendirme yok, her çağrıda yeni token, 202 dışı = hata). `MAIL_SERVICE_URL` zaten Compose'ta tanımlı.
 2. `MailDeliveryConfig` fail-fast'i açılır: prod artık bu adaptörle başlar → **B5 kapanır**, B12/B19 (bildirim e-postaları) kısmen kapanır.
 3. `api.md` Auth "Giden sözleşmeler" kaydı 4 uca genişletilir.
-4. Mail bittikten sonra: `WELCOME` tipi (MAIL-05), "şüpheli giriş" (MAIL-03) Auth'ta eklenir.
+4. `WELCOME` tipi (MAIL-05): Mail tarafı V85 ile hazır (2026-11-09); Auth e-posta doğrulaması tamamlanınca `security-notifications` ucuna `type=WELCOME` gönderecek (Auth tarafı bekliyor). "Şüpheli giriş" (MAIL-03) Auth'ta henüz yok.
 
 ## Gerekirse ileride
 Başka bir servis Mail kullanmak isterse: Auth'ta (çağıran→`mail-service`) çifti + `mail:send` kapsamı, Mail'de `type`↔`sub` izin tablosuna satır. Bu bir istek geldiğinde yapılır; şimdi yapılmaz.

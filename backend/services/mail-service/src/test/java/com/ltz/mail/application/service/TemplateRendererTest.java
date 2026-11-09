@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
+import java.time.Year;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
 
@@ -44,6 +46,44 @@ class TemplateRendererTest extends IntegrationTestSupport {
     }
 
     @Test
+    void mailsUseTheDarkBrandDesignAndKeepTheLightSchemeAsAnEnhancement() {
+        RenderedMail mail = renderer.render(MailType.EMAIL_VERIFICATION, MailLocale.TR, payloadFor(MailType.EMAIL_VERIFICATION));
+
+        assertThat(mail.html()).contains("background:#141419", "#e11d2e", "prefers-color-scheme: light",
+                "E-POSTA DOĞRULAMA", "123456");
+        assertThat(mail.html()).doesNotContain("#6d28d9");
+    }
+
+    @Test
+    void welcomeMailGreetsInBothLanguagesWithoutNeedingAnyVariable() {
+        MailPayload payload = payloadFor(MailType.WELCOME);
+
+        RenderedMail turkish = renderer.render(MailType.WELCOME, MailLocale.TR, payload);
+        RenderedMail english = renderer.render(MailType.WELCOME, MailLocale.EN, payload);
+        RenderedMail both = renderer.render(MailType.WELCOME, null, payload);
+
+        assertThat(turkish.subject()).isEqualTo("LTZ'ye hoş geldin");
+        assertThat(turkish.html()).contains("HOŞ GELDİN", "KEŞFET", "TOPLULUK", "LTZ PERFORMANCE");
+        assertThat(english.subject()).isEqualTo("Welcome to LTZ");
+        assertThat(english.html()).contains("WELCOME", "DISCOVER", "COMMUNITY");
+        assertThat(both.subject()).isEqualTo("LTZ'ye hoş geldin / Welcome to LTZ");
+    }
+
+    @Test
+    void footerCarriesBrandReasonAndLegalNoticeInEachLanguage() {
+        RenderedMail turkish = renderer.render(MailType.PASSWORD_CHANGED, MailLocale.TR, payloadFor(MailType.PASSWORD_CHANGED));
+        RenderedMail english = renderer.render(MailType.PASSWORD_CHANGED, MailLocale.EN, payloadFor(MailType.PASSWORD_CHANGED));
+        RenderedMail both = renderer.render(MailType.PASSWORD_CHANGED, null, payloadFor(MailType.PASSWORD_CHANGED));
+        String year = String.valueOf(Year.now(ZoneOffset.UTC).getValue());
+
+        assertThat(turkish.html()).contains("LobbyTwoZero", "hesabınla ilgili bir işlem nedeniyle aldın",
+                "KVKK Aydınlatma Metni", "© " + year + " LobbyTwoZero. Tüm hakları saklıdır.");
+        assertThat(turkish.text()).contains("KVKK Aydınlatma Metni", "lütfen yanıtlama");
+        assertThat(english.html()).contains("because of an action on your LTZ account", "KVKK Privacy Notice");
+        assertThat(both.html()).contains("Tüm hakları saklıdır.", "All rights reserved.");
+    }
+
+    @Test
     void valuesAreHtmlEscapedButTextStaysPlain() {
         RenderedMail mail = renderer.render(MailType.EMAIL_VERIFICATION, MailLocale.EN,
                 new MailPayload("<script>x</script>", null, 600, null));
@@ -76,8 +116,8 @@ class TemplateRendererTest extends IntegrationTestSupport {
     void bilingualMailHasBothLanguagesAndLanguageAttributeOfTheFirst() {
         RenderedMail mail = renderer.render(MailType.ACCOUNT_BANNED, null, payloadFor(MailType.ACCOUNT_BANNED));
 
-        assertThat(mail.subject()).isEqualTo("LTZ hesabınız yasaklandı / Your LTZ account was banned");
-        assertThat(mail.html()).contains("<html lang=\"tr\"", "Hesabınız yasaklandı", "Your account was banned");
+        assertThat(mail.subject()).isEqualTo("LTZ hesabın yasaklandı / Your LTZ account was banned");
+        assertThat(mail.html()).contains("<html lang=\"tr\"", "Hesabın yasaklandı", "Your account was banned");
         assertThat(mail.text()).contains(List.of("Tarih:", "Date:").toArray(new String[0]));
     }
 
@@ -89,7 +129,7 @@ class TemplateRendererTest extends IntegrationTestSupport {
             RenderedMail english = renderer.render(type, MailLocale.EN, payloadFor(type));
 
             assertThat(turkish.text()).contains("Tarih: 31.10.2026 12:30 UTC",
-                    "Bu işlemi siz yapmadıysanız hemen parolanızı sıfırlayın ve destek ile iletişime geçin.");
+                    "Bu işlemi sen yapmadıysan hemen parolanı sıfırla ve destek ile iletişime geç.");
             assertThat(english.text()).contains("Date: 2026-10-31 12:30 UTC",
                     "reset your password immediately and contact support.");
             assertThat(turkish.html()).contains("31.10.2026 12:30 UTC").doesNotContain("{{");

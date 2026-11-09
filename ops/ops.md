@@ -8,6 +8,8 @@
 | `dev.test.mjs` | `dev.mjs` için tek ortak test dosyası (`node --test ops/dev.test.mjs`) |
 | `hardware-catalog-import.mjs` | Hardware PC parça kataloğunu indirir ve içe aktarır (ayrı kalır) |
 | `hardware-catalog-import.test.mjs` | Katalog içe aktarma betiğinin testi |
+| `mail-templates.mjs` | Mail Service e-posta şablonlarını (V84/V85) üretir, önizleme HTML'i yazar, yayınlanmış migration'ların üreticiyle aynı olduğunu doğrular (`check`) |
+| `mail-templates.test.mjs` | Şablon üreticisinin testi |
 | `game-catalog-import.mjs` | Game oyun kataloğunu (tüm `game_db`) hazır dökümden dışa/içe aktarır; API anahtarı gerekmez |
 | `game-catalog-import.test.mjs` | Game katalog betiğinin testi |
 | `game-catalog.md` | Game katalog yükleme rehberi (ekip ve yapay zekâ ajanları için) |

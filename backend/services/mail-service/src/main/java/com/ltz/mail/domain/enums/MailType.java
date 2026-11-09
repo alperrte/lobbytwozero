@@ -18,5 +18,7 @@ public enum MailType {
     TWO_FACTOR_ENABLED,
     TWO_FACTOR_DISABLED,
     RECOVERY_CODE_USED,
-    EXTERNAL_IDENTITY_LINKED
+    EXTERNAL_IDENTITY_LINKED,
+    /** Hoş geldin e-postası; Auth e-posta doğrulaması tamamlanınca gönderir (MAIL-05). */
+    WELCOME
 }
