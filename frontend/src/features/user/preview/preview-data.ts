@@ -10,4 +10,3 @@ export const previewProfile = {
 } as const;
 
 export type PreviewBadgeId = (typeof previewProfile.badges)[number];
-
