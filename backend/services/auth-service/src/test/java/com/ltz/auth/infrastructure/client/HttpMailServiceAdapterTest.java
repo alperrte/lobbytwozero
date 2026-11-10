@@ -8,6 +8,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -24,6 +25,7 @@ import com.ltz.auth.application.port.AccountDeletionMail;
 import com.ltz.auth.application.port.PasswordResetMail;
 import com.ltz.auth.application.port.SecurityNotificationMail;
 import com.ltz.auth.application.port.SecurityNotificationType;
+import com.ltz.auth.application.port.UserLocalePort;
 import com.ltz.auth.application.port.VerificationCodeDeliveryException;
 import com.ltz.auth.application.port.VerificationCodeMail;
 import com.ltz.auth.infrastructure.config.DeletionProperties;
@@ -39,12 +41,15 @@ class HttpMailServiceAdapterTest {
     private static final UUID ACCOUNT = UUID.randomUUID();
     private static final String EMAIL = "kullanici@example.test";
 
+    private static volatile UserLocalePort locales = account -> Optional.empty();
+
     private final HttpMailServiceAdapter adapter = adapter(Map.of("mail", URI.create(TARGET.baseUrl())));
 
     @BeforeEach
     void reset() {
         TARGET.reset();
         TARGET.respondWith(202);
+        locales = account -> Optional.empty();
     }
 
     @AfterAll
@@ -66,6 +71,65 @@ class HttpMailServiceAdapterTest {
                     TestServiceTokens.signingKey().publicKey(), TestServiceTokens.ISSUER, "mail-service",
                     TokenClaims.MAIL_SEND_SCOPE, ACCOUNT, CLOCK);
         });
+    }
+
+    @Test
+    void dilTercihiEnIkenDortUctaDaLocaleEnGider() {
+        locales = account -> Optional.of("en");
+
+        adapter.sendVerificationCode(new VerificationCodeMail(KEY, ACCOUNT, EMAIL, "123456", Duration.ofMinutes(10)));
+        adapter.sendPasswordReset(new PasswordResetMail(KEY, ACCOUNT, EMAIL, "https://ltz.example/r",
+                Duration.ofMinutes(5)));
+        adapter.sendAccountDeletionConfirmation(new AccountDeletionMail(KEY, ACCOUNT, EMAIL, "https://ltz.example/d",
+                Duration.ofMinutes(5)));
+        adapter.sendSecurityNotification(new SecurityNotificationMail(KEY, ACCOUNT, EMAIL,
+                SecurityNotificationType.PASSWORD_CHANGED, Instant.now()));
+
+        assertThat(TARGET.received()).hasSize(4).allSatisfy(request ->
+                assertThat(request.body()).contains("\"locale\":\"en\""));
+    }
+
+    @Test
+    void dilTercihiTrIkenLocaleTrGider() {
+        locales = account -> Optional.of("tr");
+
+        adapter.sendPasswordReset(new PasswordResetMail(KEY, ACCOUNT, EMAIL, "https://ltz.example/r",
+                Duration.ofMinutes(5)));
+
+        assertThat(TARGET.received()).singleElement().satisfies(request ->
+                assertThat(request.body()).contains("\"locale\":\"tr\""));
+    }
+
+    @Test
+    void dilBilinmiyorsaLocaleGonderilmezVeMailGider() {
+        adapter.sendPasswordReset(new PasswordResetMail(KEY, ACCOUNT, EMAIL, "https://ltz.example/r",
+                Duration.ofMinutes(5)));
+
+        assertThat(TARGET.received()).singleElement().satisfies(request ->
+                assertThat(request.body()).doesNotContain("locale"));
+    }
+
+    @Test
+    void gecersizDegerMaileGonderilmez() {
+        locales = account -> Optional.of("de");
+
+        adapter.sendSecurityNotification(new SecurityNotificationMail(KEY, ACCOUNT, EMAIL,
+                SecurityNotificationType.PASSWORD_CHANGED, Instant.now()));
+
+        assertThat(TARGET.received()).singleElement().satisfies(request ->
+                assertThat(request.body()).doesNotContain("locale", "\"de\""));
+    }
+
+    @Test
+    void dilOkumaPatlarsaMailYineGider() {
+        locales = account -> {
+            throw new IllegalStateException("boom");
+        };
+
+        adapter.sendVerificationCode(new VerificationCodeMail(KEY, ACCOUNT, EMAIL, "123456", Duration.ofMinutes(10)));
+
+        assertThat(TARGET.received()).singleElement().satisfies(request ->
+                assertThat(request.body()).doesNotContain("locale"));
     }
 
     @Test
@@ -175,6 +239,7 @@ class HttpMailServiceAdapterTest {
                 Duration.ofMinutes(30), Duration.ofSeconds(60), Duration.ofMinutes(10),
                 URI.create("http://localhost:5001/account/delete"), false, Duration.ofSeconds(30), 20,
                 Duration.ofMinutes(2), Duration.ofMinutes(1), Duration.ofHours(6), 10, Duration.ofDays(14));
-        return new HttpMailServiceAdapter(properties, TestServiceTokens.issuer(CLOCK));
+        return new HttpMailServiceAdapter(properties, TestServiceTokens.issuer(CLOCK),
+                account -> locales.localeOf(account));
     }
 }
