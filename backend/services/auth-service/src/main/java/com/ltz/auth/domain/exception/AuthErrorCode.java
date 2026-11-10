@@ -62,6 +62,8 @@ public enum AuthErrorCode {
     DELETION_SELF_SERVICE_AVAILABLE(409, "This account can delete itself directly; no administrator request is needed."),
     DELETION_SUPPORT_REQUEST_NOT_FOUND(404, "The deletion request was not found."),
     DELETION_SUPPORT_ALREADY_DECIDED(409, "The deletion request has already been decided."),
+    DELETION_REQUIRES_SECOND_FACTOR(403, "This account has no password. Enable two-factor authentication before requesting account deletion."),
+    DELETION_SUPPORT_COOLDOWN(429, "A new deletion request can be opened later; the previous one was rejected recently."),
     EMAIL_LOCKED_BY_PROVIDER(403, "The email address of this account is managed by its sign-in provider and cannot be changed."),
     STEP_UP_REQUIRED(403, "This action needs a stronger account. Enable two-factor authentication or link Google or Steam first.");
 

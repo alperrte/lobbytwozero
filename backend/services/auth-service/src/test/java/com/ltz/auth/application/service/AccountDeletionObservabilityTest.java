@@ -101,7 +101,8 @@ class AccountDeletionObservabilityTest extends AccountDeletionTestSupport {
         // Steam bağlı hesap B türüdür: silme yönetici onaylı destek talebiyle başlar.
         String userBearer = bearerFor(accountId);
         String requestBody = mockMvc.perform(post(AuthApiPaths.ACCOUNT_DELETION_SUPPORT_REQUEST)
-                .header(HttpHeaders.AUTHORIZATION, userBearer).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .header(HttpHeaders.AUTHORIZATION, userBearer).contentType(MediaType.APPLICATION_JSON)
+                .content(passwordJson()))
                 .andExpect(status().isAccepted()).andReturn().getResponse().getContentAsString();
         String requestId = com.fasterxml.jackson.databind.json.JsonMapper.builder().build().readTree(requestBody)
                 .get("id").asText();

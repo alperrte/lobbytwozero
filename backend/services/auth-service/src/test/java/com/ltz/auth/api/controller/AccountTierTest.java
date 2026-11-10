@@ -123,10 +123,9 @@ class AccountTierTest extends AccountDeletionTestSupport {
         String bearer = bearerFor(accountId);
         supportStatus(bearer).andExpect(status().isNoContent());
 
-        String first = supportRequest(bearer, "{\"message\":\"Hesabımı silmek istiyorum\"}")
-                .andExpect(status().isAccepted()).andExpect(jsonPath("$.status").value("PENDING"))
-                .andReturn().getResponse().getContentAsString();
-        String second = supportRequest(bearer, "{}").andExpect(status().isAccepted()).andReturn().getResponse()
+        String first = openSupport(accountId, "Hesabımı silmek istiyorum").andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.status").value("PENDING")).andReturn().getResponse().getContentAsString();
+        String second = openSupport(accountId, null).andExpect(status().isAccepted()).andReturn().getResponse()
                 .getContentAsString();
 
         assertThat(idOf(second)).isEqualTo(idOf(first));
@@ -158,8 +157,7 @@ class AccountTierTest extends AccountDeletionTestSupport {
     @Test
     void yoneticiOnayiStandartSilmeSurecini60BaslatirOturumlarKapanir() throws Exception {
         UUID accountId = newSecuredAccount();
-        String userBearer = bearerFor(accountId);
-        String requestId = idOf(supportRequest(userBearer, "{\"message\":\"silin\"}").andExpect(status().isAccepted())
+        String requestId = idOf(openSupport(accountId, "silin").andExpect(status().isAccepted())
                 .andReturn().getResponse().getContentAsString());
         String adminBearer = bearerFor(newAdmin());
 
@@ -187,7 +185,7 @@ class AccountTierTest extends AccountDeletionTestSupport {
     void yoneticiRedHesabiDegistirmezKullaniciYenidenTalepAcabilir() throws Exception {
         UUID accountId = newSecuredAccount();
         String userBearer = bearerFor(accountId);
-        String requestId = idOf(supportRequest(userBearer, "{}").andReturn().getResponse().getContentAsString());
+        String requestId = idOf(openSupport(accountId, null).andReturn().getResponse().getContentAsString());
         String adminBearer = bearerFor(newAdmin());
 
         decide(adminBearer, requestId, "reject", "{\"message\":\"şimdilik hayır\"}").andExpect(status().isOk())
@@ -197,7 +195,12 @@ class AccountTierTest extends AccountDeletionTestSupport {
                 .isEqualTo("ACTIVE");
         assertThat(pendingTasks(accountId)).isZero();
         supportStatus(userBearer).andExpect(jsonPath("$.status").value("REJECTED"));
-        String again = idOf(supportRequest(userBearer, "{}").andExpect(status().isAccepted())
+        // Reddedildikten hemen sonra yeni talep beklemeye takılır; süre dolunca açılabilir.
+        openSupport(accountId, null).andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("DELETION_SUPPORT_COOLDOWN"));
+        jdbc.update("update account_deletion_support_requests set decided_at = now() - interval '25 hours' "
+                + "where id = ?::uuid", requestId);
+        String again = idOf(openSupport(accountId, null).andExpect(status().isAccepted())
                 .andReturn().getResponse().getContentAsString());
         assertThat(again).isNotEqualTo(requestId);
     }
@@ -205,8 +208,7 @@ class AccountTierTest extends AccountDeletionTestSupport {
     @Test
     void artikAktifOlmayanHesabinTalebiOnaylanmazTalepBekleyenKalir() throws Exception {
         UUID accountId = newSecuredAccount();
-        String requestId = idOf(supportRequest(bearerFor(accountId), "{}").andReturn().getResponse()
-                .getContentAsString());
+        String requestId = idOf(openSupport(accountId, null).andReturn().getResponse().getContentAsString());
         jdbc.update("update accounts set status = 'BANNED' where id = ?", accountId);
 
         decide(bearerFor(newAdmin()), requestId, "approve", "{}").andExpect(status().isConflict())
@@ -332,6 +334,86 @@ class AccountTierTest extends AccountDeletionTestSupport {
         assertThat(result.session()).isNotNull();
     }
 
+    // ---- Talep açarken yeniden doğrulama ve geri alınabilirlik ----
+
+    @Test
+    void destekTalebiYenidenDogrulamaOlmadanAcilmaz() throws Exception {
+        UUID accountId = newSecuredAccount();
+
+        // Yalnız oturum yetmez: parola yok, ikinci faktör yok.
+        supportRequest(bearerFor(accountId), "{}").andExpect(status().is4xxClientError());
+        supportRequest(bearerFor(accountId), "{\"password\":\"%s\"}".formatted(VALID_PASSWORD))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_TWO_FACTOR_CODE"));
+        supportRequest(bearerFor(accountId), "{\"password\":\"wrong-password-value\",\"code\":\"%s\"}"
+                .formatted(freshCode(accountId))).andExpect(status().is4xxClientError());
+        assertThat(supportCount(accountId)).isZero();
+
+        openSupport(accountId, null).andExpect(status().isAccepted());
+        assertThat(supportCount(accountId)).isEqualTo(1);
+    }
+
+    @Test
+    void parolasizHesapTotpOlmadanDestekTalebiAcamaz() throws Exception {
+        UUID accountId = newPasswordAccount();
+        jdbc.update("update accounts set registration_method = 'GOOGLE', password_hash = null where id = ?", accountId);
+
+        supportRequest(bearerFor(accountId), "{}").andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("DELETION_REQUIRES_SECOND_FACTOR"));
+    }
+
+    @Test
+    void parolasizHesapTotpKoduylaTalepAcarVeOnaydanSonraYineKoduylaVazgecer() throws Exception {
+        UUID accountId = newPasswordAccount();
+        jdbc.update("update accounts set registration_method = 'STEAM', password_hash = null where id = ?", accountId);
+        enableTotp(accountId);
+        String requestId = idOf(openSupport(accountId, null).andExpect(status().isAccepted()).andReturn().getResponse()
+                .getContentAsString());
+        decide(bearerFor(newAdmin()), requestId, "approve", null).andExpect(status().isOk());
+        assertThat(jdbc.queryForObject("select status from accounts where id = ?", String.class, accountId))
+                .isEqualTo("DELETION_REQUESTED");
+
+        jdbc.update("update account_deletion_requests set scheduled_for = now() + interval '14 days' "
+                + "where account_id = ?", accountId);
+        // Parola yok: yanlış kodla vazgeçilemez, doğru kodla vazgeçilir.
+        cancelDeletion(usernameOf(accountId), "{\"code\":\"000000\"}").andExpect(status().isUnauthorized());
+        cancelDeletion(usernameOf(accountId), "{\"code\":\"%s\"}".formatted(freshCode(accountId)))
+                .andExpect(status().isOk());
+        assertThat(jdbc.queryForObject("select status from accounts where id = ?", String.class, accountId))
+                .isEqualTo("ACTIVE");
+    }
+
+    @Test
+    void parolasizHesapVazgecmeyiKodsuzDenerseReddedilir() throws Exception {
+        UUID accountId = newPasswordAccount();
+        jdbc.update("update accounts set registration_method = 'GOOGLE', password_hash = null where id = ?", accountId);
+
+        cancelDeletion(usernameOf(accountId), "{}").andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
+    }
+
+    @Test
+    void talepSonrasiGuvenceKalkarsaOnayReddedilirTalepBekler() throws Exception {
+        UUID accountId = newSecuredAccount();
+        String requestId = idOf(openSupport(accountId, null).andReturn().getResponse().getContentAsString());
+        jdbc.update("delete from totp_credentials where account_id = ?", accountId);
+
+        decide(bearerFor(newAdmin()), requestId, "approve", "{}").andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DELETION_SELF_SERVICE_AVAILABLE"));
+        assertThat(jdbc.queryForObject("select status from accounts where id = ?", String.class, accountId))
+                .isEqualTo("ACTIVE");
+        assertThat(jdbc.queryForObject("select status from account_deletion_support_requests where id = ?::uuid",
+                String.class, requestId)).isEqualTo("PENDING");
+    }
+
+    @Test
+    void govdesizIstekKabulEdilirYoneticiKararNotuIsteBaglidir() throws Exception {
+        UUID accountId = newSecuredAccount();
+        String requestId = idOf(openSupport(accountId, null).andReturn().getResponse().getContentAsString());
+
+        decide(bearerFor(newAdmin()), requestId, "reject", null).andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("REJECTED"));
+    }
+
     // ---- Yardımcılar ----
 
     private UUID newPasswordAccount() throws Exception {
@@ -379,14 +461,50 @@ class AccountTierTest extends AccountDeletionTestSupport {
                 .header(HttpHeaders.AUTHORIZATION, bearer).contentType(MediaType.APPLICATION_JSON).content(json));
     }
 
+    /** Parola ve (varsa) TOTP kodu ile doğrulanmış destek talebi açar. */
+    private ResultActions openSupport(UUID accountId, String message) throws Exception {
+        boolean hasPassword = Boolean.TRUE.equals(jdbc.queryForObject(
+                "select password_hash is not null from accounts where id = ?", Boolean.class, accountId));
+        boolean hasTotp = jdbc.queryForObject("select count(*) from totp_credentials where account_id = ?",
+                Integer.class, accountId) > 0;
+        StringBuilder json = new StringBuilder("{");
+        if (message != null) {
+            json.append("\"message\":\"").append(message).append("\",");
+        }
+        if (hasPassword) {
+            json.append("\"password\":\"").append(VALID_PASSWORD).append("\",");
+        }
+        if (hasTotp) {
+            json.append("\"code\":\"").append(freshCode(accountId)).append("\",");
+        }
+        if (json.charAt(json.length() - 1) == ',') {
+            json.setLength(json.length() - 1);
+        }
+        json.append('}');
+        return supportRequest(bearerFor(accountId), json.toString());
+    }
+
+    /** Aynı 30 sn'lik adımda tekrar kullanım (replay) engeline takılmamak için son kullanılan adım sıfırlanır. */
+    private String freshCode(UUID accountId) {
+        jdbc.update("update totp_credentials set last_used_step = null where account_id = ?", accountId);
+        return currentTotpCode(accountId);
+    }
+
+    private ResultActions cancelDeletion(String identifier, String partialJson) throws Exception {
+        String extra = partialJson.length() > 2 ? "," + partialJson.substring(1) : "}";
+        return mockMvc.perform(post(AuthApiPaths.ACCOUNT_DELETION_CANCEL).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"identifier\":\"" + identifier + "\"" + extra));
+    }
+
     private ResultActions supportStatus(String bearer) throws Exception {
         return mockMvc.perform(get(AuthApiPaths.ACCOUNT_DELETION_SUPPORT_REQUEST)
                 .header(HttpHeaders.AUTHORIZATION, bearer));
     }
 
     private ResultActions decide(String adminBearer, String requestId, String decision, String json) throws Exception {
-        return mockMvc.perform(post(AuthApiPaths.ADMIN_DELETION_REQUESTS + "/" + requestId + "/" + decision)
-                .header(HttpHeaders.AUTHORIZATION, adminBearer).contentType(MediaType.APPLICATION_JSON).content(json));
+        var builder = post(AuthApiPaths.ADMIN_DELETION_REQUESTS + "/" + requestId + "/" + decision)
+                .header(HttpHeaders.AUTHORIZATION, adminBearer);
+        return mockMvc.perform(json == null ? builder : builder.contentType(MediaType.APPLICATION_JSON).content(json));
     }
 
     private ResultActions changeEmail(String bearer, String json) throws Exception {

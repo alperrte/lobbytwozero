@@ -35,10 +35,10 @@ Etiketler: **Var / Yok / Değişti**. Ayrıntılı uç sözleşmesi: `docs/api.m
 | 2.2 | **Var** | B: `403 DELETION_REQUIRES_SUPPORT`. |
 | 2.3 | **Var** | C: aynı kod (parola/yakın giriş aranmadan önce türe bakılır). |
 | 2.4 | **Var** | Kod: `DELETION_REQUIRES_SUPPORT` (403). Yeni destek kodları: `DELETION_SELF_SERVICE_AVAILABLE` 409 (A talep açmaya çalışırsa), `DELETION_SUPPORT_REQUEST_NOT_FOUND` 404, `DELETION_SUPPORT_ALREADY_DECIDED` 409. |
-| 2.5 | **Var** | `POST /account/deletion/support-request` (`{message?}`, ≤500) → `202`; hesap başına tek bekleyen talep (ikinci istek aynısını döner). `GET` aynı yol: en son talep (`200`) ya da `204`. |
+| 2.5 | **Var** | `POST /account/deletion/support-request` (`{message?, password?, code? | recoveryCode?}`) → `202`. **Yeniden doğrulama ister**: parolalı hesapta parola; parolasızda yakın zamanlı giriş **ve zorunlu TOTP** (`403 DELETION_REQUIRES_SECOND_FACTOR`); TOTP açıksa kod. Hesap başına tek bekleyen talep; reddedilen talepten sonra 24 saat bekleme (`429 DELETION_SUPPORT_COOLDOWN`). `GET` aynı yol: en son talep (`200`) ya da `204`. |
 | 2.6 | **Var** | `GET /admin/account-deletion-requests?limit=` (bekleyenler, en eski önce; ROLE_ADMIN). Eski `account-deletions/pending` hâlâ takılı silme görevleridir, ayrı şeydir. |
 | 2.7 | **Kısmen** | `POST /admin/account-deletion-requests/{id}/approve` ve `/reject` (`{message?}`) var. Onaylanmış silmeyi yönetici iptal etme ucu **yok**; kullanıcı mevcut `deletion/cancel` ile (parola + TOTP) vazgeçer. |
-| 2.8 | Değişmedi | `deletion/cancel`: kimlik + parola (+ TOTP); parolasız hesap iptal edemez. |
+| 2.8 | **Değişti** | `deletion/cancel`: kimlik + parola (+ TOTP). **Parolasız hesap yalnız TOTP/kurtarma koduyla iptal eder** (`password` alanı artık isteğe bağlı). Bu yüzden parolasız hesap TOTP'siz silme talebi açamaz. |
 | 2.9 | Değişmedi | A için: parola; parolasızsa yakın giriş; TOTP açıksa kod/kurtarma kodu. |
 | 2.10 | Değişmedi | `DELETION_REQUESTED` hesap giriş yapamaz (`ACCOUNT_DELETION_PENDING`). Yönetici onayında oturumlar kapanır. |
 | 2.11–2.13 | Değişmedi | Outbox cascade, eraser çağrıları, üstel bekleme aynen. |

@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.ltz.auth.api.dto.request.CancelAccountDeletionRequest;
 import com.ltz.auth.api.dto.request.ConfirmAccountDeletionRequest;
-import com.ltz.auth.api.dto.request.DeletionSupportMessageRequest;
+import com.ltz.auth.api.dto.request.DeletionSupportOpenRequest;
 import com.ltz.auth.api.dto.request.RequestAccountDeletionRequest;
 import com.ltz.auth.api.dto.response.AccountDeletionResponse;
 import com.ltz.auth.api.dto.response.DeletionSupportResponse;
@@ -52,9 +52,13 @@ public class AccountDeletionController {
      */
     @PostMapping(AuthApiPaths.ACCOUNT_DELETION_SUPPORT_REQUEST)
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public DeletionSupportResponse openSupportRequest(@AuthenticationPrincipal Jwt jwt,
-                                                      @Valid @RequestBody DeletionSupportMessageRequest request) {
-        return DeletionSupportResponse.from(supportService.submit(UUID.fromString(jwt.getSubject()), request.message()));
+    public DeletionSupportResponse openSupportRequest(
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody(required = false) DeletionSupportOpenRequest body) {
+        DeletionSupportOpenRequest request = body == null ? DeletionSupportOpenRequest.EMPTY : body;
+        return DeletionSupportResponse.from(supportService.submit(UUID.fromString(jwt.getSubject()),
+                UUID.fromString(jwt.getClaimAsString(TokenClaims.SESSION_ID)), request.password(), request.code(),
+                request.recoveryCode(), request.message()));
     }
 
     /** Hesabın en son silme talebinin durumu; hiç talep yoksa 204. */
@@ -71,7 +75,8 @@ public class AccountDeletionController {
      */
     @PostMapping(AuthApiPaths.ACCOUNT_DELETION_CANCEL)
     public AccountDeletionResponse cancel(@Valid @RequestBody CancelAccountDeletionRequest request) {
-        deletionService.cancelDeletion(request.identifier(), request.password(), request.code(), request.recoveryCode());
+        deletionService.cancelDeletion(request.identifier(), request.passwordOrEmpty(), request.code(),
+                request.recoveryCode());
         return AccountDeletionResponse.DELETION_CANCELLED;
     }
 

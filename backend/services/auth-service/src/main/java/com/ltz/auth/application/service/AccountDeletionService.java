@@ -85,6 +85,22 @@ public class AccountDeletionService {
         attemptThrottle.clear(throttleKey);
     }
 
+    /**
+     * Yönetici onaylı silme talebi için yeniden doğrulama (parola; parolasızsa yakın zamanlı giriş; TOTP etkinse ikinci
+     * faktör). Silme isteğiyle aynı kurallar ve aynı hız sınırı; hesap türü ve e-posta denetlenmez.
+     */
+    void reauthenticate(UUID accountId, UUID sessionId, String password, String code, String recoveryCode) {
+        String throttleKey = hasher.hash(THROTTLE_DOMAIN, accountId.toString());
+        attemptThrottle.reserve(throttleKey);
+        ReauthContext context = transactionTemplate.execute(status -> {
+            Account account = accountRepository.findWithRolesById(accountId).filter(Account::isActive)
+                    .orElseThrow(() -> new AuthException(AuthErrorCode.SESSION_INVALID));
+            return reauthContext(account, sessionId);
+        });
+        verifyReauthentication(accountId, context, password, code, recoveryCode);
+        attemptThrottle.clear(throttleKey);
+    }
+
     public void confirmDeletion(UUID accountId, String rawToken, String username) {
         String tokenHash = secureTokens.sha256Hex(rawToken);
         boolean confirmed = Boolean.TRUE.equals(transactionTemplate.execute(
@@ -98,7 +114,7 @@ public class AccountDeletionService {
     /**
      * Bekleme süresi içinde vazgeçme. Oturum açılamadığı için (hesap DELETION_REQUESTED) kimlik doğrulama giriş gibidir:
      * e-posta/kullanıcı adı + parola (+ TOTP etkinse ikinci faktör), hesap bazında hız sınırlı; bilinmeyen hesapta da parola
-     * hash'i doğrulanır. Parolasız (yalnız sosyal girişli) hesap bu yoldan iptal edemez. Başarıda oturum AÇILMAZ; kullanıcı
+     * hash'i doğrulanır. Parolasız (yalnız sosyal girişli) hesap yalnız TOTP/kurtarma koduyla iptal eder. Başarıda oturum AÇILMAZ; kullanıcı
      * normal girişle devam eder.
      */
     public void cancelDeletion(String identifier, String password, String code, String recoveryCode) {
@@ -109,22 +125,37 @@ public class AccountDeletionService {
         Optional<Account> account = transactionTemplate.execute(status -> normalized.indexOf('@') >= 0
                 ? accountRepository.findWithRolesByEmailNormalized(normalized)
                 : accountRepository.findWithRolesByUsernameNormalized(normalized));
-        String passwordHash = account.flatMap(Account::passwordHash).orElse(null);
-        boolean matches = passwordEncoder.matches(password, passwordHash == null ? dummyPasswordHash : passwordHash)
-                && passwordHash != null;
-        if (!matches) {
-            securityEventRecorder.recordEvent(SecurityEventType.ACCOUNT_DELETION_REJECTED,
-                    account.map(Account::getId).orElse(null));
-            throw new AuthException(AuthErrorCode.INVALID_CREDENTIALS);
-        }
-        UUID accountId = account.orElseThrow().getId();
-        if (twoFactorService.isEnabled(accountId)
-                && !twoFactorService.verifySecondFactorForReauthentication(accountId, code, recoveryCode)) {
-            rejectReauthentication(accountId);
-            throw new AuthException(AuthErrorCode.INVALID_TWO_FACTOR_CODE);
-        }
+        UUID accountId = verifyCancellationIdentity(account, password, code, recoveryCode);
         transactionTemplate.executeWithoutResult(status -> applyCancellation(accountId));
         attemptThrottle.clear(throttleKey);
+    }
+
+    /**
+     * Vazgeçen kişinin kimliği: parolalı hesapta parola (+ TOTP etkinse ikinci faktör); parolasız hesapta yalnız
+     * TOTP/kurtarma kodu. Hesap yok, parola/kod yanlış ya da parolasız hesapta TOTP yoksa tek hata döner (hesabın var
+     * olup olmadığı belli olmaz); bilinmeyen hesapta da parola hash'i doğrulanır.
+     */
+    private UUID verifyCancellationIdentity(Optional<Account> account, String password, String code,
+                                            String recoveryCode) {
+        UUID accountId = account.map(Account::getId).orElse(null);
+        String passwordHash = account.flatMap(Account::passwordHash).orElse(null);
+        boolean passwordless = passwordHash == null;
+        boolean passwordMatches = passwordEncoder.matches(password == null ? "" : password,
+                passwordless ? dummyPasswordHash : passwordHash) && !passwordless;
+        boolean firstFactorOk = passwordless
+                ? accountId != null && twoFactorService.isEnabled(accountId) : passwordMatches;
+        if (!firstFactorOk) {
+            securityEventRecorder.recordEvent(SecurityEventType.ACCOUNT_DELETION_REJECTED, accountId);
+            throw new AuthException(AuthErrorCode.INVALID_CREDENTIALS);
+        }
+        // Parola doğrulandıktan sonra (ya da parolasız hesapta TOTP varken) ikinci faktör tek kullanımlık tüketilir.
+        if ((passwordless || twoFactorService.isEnabled(accountId))
+                && !twoFactorService.verifySecondFactorForReauthentication(accountId, code, recoveryCode)) {
+            securityEventRecorder.recordEvent(SecurityEventType.ACCOUNT_DELETION_REJECTED, accountId);
+            throw new AuthException(passwordless
+                    ? AuthErrorCode.INVALID_CREDENTIALS : AuthErrorCode.INVALID_TWO_FACTOR_CODE);
+        }
+        return accountId;
     }
 
     /** Tek işlemde: hesap ve talep kilitlenir, süre ve durum yeniden denetlenir; görevler silinir, hesap ACTIVE olur. */
@@ -155,9 +186,7 @@ public class AccountDeletionService {
     private ReauthContext loadContext(UUID accountId, UUID sessionId) {
         Account account = accountRepository.findWithRolesById(accountId).filter(Account::isActive)
                 .orElseThrow(() -> new AuthException(AuthErrorCode.SESSION_INVALID));
-        Instant sessionStartedAt = sessionRepository.findById(sessionId)
-                .filter(session -> session.getAccountId().equals(accountId))
-                .orElseThrow(() -> new AuthException(AuthErrorCode.SESSION_INVALID)).getCreatedAt();
+        ReauthContext context = reauthContext(account, sessionId);
         if (!account.roleCodes().contains(RoleCode.ADMIN) && tierService.tierOf(account) != AccountTier.A) {
             // B ve C türü hesap kendi başına silemez: yöneticiye talep açar (DeletionSupportService).
             throw new AuthException(AuthErrorCode.DELETION_REQUIRES_SUPPORT);
@@ -166,6 +195,13 @@ public class AccountDeletionService {
             // Silme onayı e-postayla gider; e-postasız hesap önce adres ekleyip doğrulatmalıdır.
             throw new AuthException(AuthErrorCode.ACCOUNT_EMAIL_REQUIRED);
         }
+        return context;
+    }
+
+    private ReauthContext reauthContext(Account account, UUID sessionId) {
+        Instant sessionStartedAt = sessionRepository.findById(sessionId)
+                .filter(session -> session.getAccountId().equals(account.getId()))
+                .orElseThrow(() -> new AuthException(AuthErrorCode.SESSION_INVALID)).getCreatedAt();
         return new ReauthContext(account.getEmail(), account.passwordHash().orElse(null), account.roleCodes(),
                 sessionStartedAt);
     }
@@ -231,7 +267,7 @@ public class AccountDeletionService {
         }
         if (!account.roleCodes().contains(RoleCode.ADMIN) && tierService.tierOf(account) != AccountTier.A) {
             // Token alındıktan sonra 2FA açıldı ya da sağlayıcı bağlandı: hesap artık B türü, silme yöneticiyle yürür.
-            return false;
+            throw new AuthException(AuthErrorCode.DELETION_REQUIRES_SUPPORT);
         }
         token.consume(now);
         beginDeletion(account, now);

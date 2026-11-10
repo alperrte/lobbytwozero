@@ -1,6 +1,7 @@
 package com.ltz.auth.application.service;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -39,18 +40,50 @@ public class DeletionSupportService {
     private final DeletionSupportRequestRepository requestRepository;
     private final AccountTierService tierService;
     private final AccountDeletionService deletionService;
+    private final TwoFactorService twoFactorService;
     private final SecurityEventRecorder securityEventRecorder;
     private final TransactionTemplate transactionTemplate;
     private final Clock clock;
 
-    public DeletionSupportRequest submit(UUID accountId, String message) {
+    /** Reddedilen talebin ardından yeni talep için bekleme (yönetici kuyruğunun doldurulmasını önler). */
+    static final Duration REJECTION_COOLDOWN = Duration.ofHours(24);
+
+    /**
+     * Geri alınamaz bir işlem olduğu için önce yeniden doğrulama ister (parola; parolasızsa yakın zamanlı giriş ve
+     * zorunlu TOTP; TOTP etkinse ikinci faktör). Parolasız hesap TOTP'siz talep açamaz: onaydan sonra vazgeçmenin tek
+     * yolu TOTP/kurtarma kodudur.
+     */
+    public DeletionSupportRequest submit(UUID accountId, UUID sessionId, String password, String code,
+                                         String recoveryCode, String message) {
+        boolean hasPassword = Boolean.TRUE.equals(transactionTemplate.execute(status -> eligiblePasswordSet(accountId)));
+        if (!hasPassword && !twoFactorService.isEnabled(accountId)) {
+            throw new AuthException(AuthErrorCode.DELETION_REQUIRES_SECOND_FACTOR);
+        }
+        deletionService.reauthenticate(accountId, sessionId, password, code, recoveryCode);
+        return submit(accountId, message);
+    }
+
+    private boolean eligiblePasswordSet(UUID accountId) {
+        Account account = accountRepository.findWithRolesById(accountId).filter(Account::isActive)
+                .orElseThrow(() -> new AuthException(AuthErrorCode.SESSION_INVALID));
+        if (account.roleCodes().contains(RoleCode.ADMIN)) {
+            throw new AuthException(AuthErrorCode.ADMIN_DELETION_FORBIDDEN);
+        }
+        if (tierService.tierOf(account) == AccountTier.A) {
+            throw new AuthException(AuthErrorCode.DELETION_SELF_SERVICE_AVAILABLE);
+        }
+        return account.passwordHash().isPresent();
+    }
+
+    private DeletionSupportRequest submit(UUID accountId, String message) {
         String text = normalize(message);
         try {
             return transactionTemplate.execute(status -> open(accountId, text));
         } catch (DataIntegrityViolationException exception) {
             // Eşzamanlı ikinci istek: tekil bekleyen talep indeksi çakıştı; kazanan talep döner.
             return requestRepository.findFirstByAccountIdAndStatus(accountId, DeletionSupportStatus.PENDING)
-                    .orElseThrow(() -> new AuthException(AuthErrorCode.SESSION_INVALID, RedactedCause.of(exception)));
+                    .orElseThrow(() -> new AuthException(AuthErrorCode.DELETION_SUPPORT_ALREADY_DECIDED,
+                            RedactedCause.of(exception)));
         }
     }
 
@@ -63,7 +96,16 @@ public class DeletionSupportService {
         if (tierService.tierOf(account) == AccountTier.A) {
             throw new AuthException(AuthErrorCode.DELETION_SELF_SERVICE_AVAILABLE);
         }
-        return requestRepository.findFirstByAccountIdAndStatus(accountId, DeletionSupportStatus.PENDING)
+        Instant now = clock.instant();
+        Optional<DeletionSupportRequest> pending = requestRepository
+                .findFirstByAccountIdAndStatus(accountId, DeletionSupportStatus.PENDING);
+        if (pending.isEmpty() && requestRepository.findFirstByAccountIdOrderByCreatedAtDesc(accountId)
+                .filter(last -> last.getStatus() == DeletionSupportStatus.REJECTED && last.getDecidedAt() != null
+                        && now.isBefore(last.getDecidedAt().plus(REJECTION_COOLDOWN)))
+                .isPresent()) {
+            throw new AuthException(AuthErrorCode.DELETION_SUPPORT_COOLDOWN);
+        }
+        return pending
                 .orElseGet(() -> {
                     DeletionSupportRequest created = requestRepository.saveAndFlush(
                             DeletionSupportRequest.open(accountId, message, clock.instant()));
@@ -92,6 +134,10 @@ public class DeletionSupportService {
                     .orElseThrow(() -> new AuthException(AuthErrorCode.TARGET_NOT_ACTIVE));
             if (account.roleCodes().contains(RoleCode.ADMIN)) {
                 throw new AuthException(AuthErrorCode.ADMIN_DELETION_FORBIDDEN);
+            }
+            if (tierService.tierOf(account) == AccountTier.A) {
+                // Talepten sonra güvence kalktı (2FA kapandı, sağlayıcı yok): A kendi silmeyi e-posta onayıyla yapar.
+                throw new AuthException(AuthErrorCode.DELETION_SELF_SERVICE_AVAILABLE);
             }
             request.approve(adminId, normalize(note), now);
             deletionService.beginDeletion(account, now);

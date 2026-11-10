@@ -86,8 +86,8 @@ class AccountDeletionTest extends AccountDeletionTestSupport {
 
         enableTotp(accountId);
 
-        confirmDeletion(bearerFor(accountId), token, usernameOf(accountId)).andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("DELETION_CONFIRMATION_INVALID"));
+        confirmDeletion(bearerFor(accountId), token, usernameOf(accountId)).andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("DELETION_REQUIRES_SUPPORT"));
         assertThat(accountStatus(email)).isEqualTo("ACTIVE");
     }
 

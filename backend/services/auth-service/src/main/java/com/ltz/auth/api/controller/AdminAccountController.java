@@ -67,17 +67,17 @@ public class AdminAccountController {
     @PostMapping(AuthApiPaths.ADMIN_DELETION_REQUEST_APPROVE)
     public AdminDeletionSupportResponse approveDeletionRequest(@AuthenticationPrincipal Jwt jwt,
                                                                @PathVariable UUID requestId,
-                                                               @Valid @RequestBody DeletionSupportMessageRequest request) {
+                                                               @Valid @RequestBody(required = false) DeletionSupportMessageRequest request) {
         return AdminDeletionSupportResponse.from(
-                deletionSupportService.approve(actorId(jwt), requestId, request.message()));
+                deletionSupportService.approve(actorId(jwt), requestId, request == null ? null : request.message()));
     }
 
     @PostMapping(AuthApiPaths.ADMIN_DELETION_REQUEST_REJECT)
     public AdminDeletionSupportResponse rejectDeletionRequest(@AuthenticationPrincipal Jwt jwt,
                                                               @PathVariable UUID requestId,
-                                                              @Valid @RequestBody DeletionSupportMessageRequest request) {
+                                                              @Valid @RequestBody(required = false) DeletionSupportMessageRequest request) {
         return AdminDeletionSupportResponse.from(
-                deletionSupportService.reject(actorId(jwt), requestId, request.message()));
+                deletionSupportService.reject(actorId(jwt), requestId, request == null ? null : request.message()));
     }
 
     @GetMapping(AuthApiPaths.ADMIN_ACCOUNT)
