@@ -116,4 +116,3 @@ export function InfoTip({ subject, children }: InfoTipProps) {
     </span>
   );
 }
-

@@ -5,3 +5,6 @@ export { emitProfileChanged, onProfileChanged } from "./services/profile-events"
 export { ProfileView } from "./components/profile-view";
 export { ProfileEditForm } from "./components/profile-edit-form";
 export { AccountSettings } from "./components/account-settings";
+export { PlayerProfile } from "./components/player-profile";
+export { PlayerSearch } from "./components/player-search";
+export { OnboardingFlow } from "./components/onboarding-flow";

@@ -1,23 +1,32 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Icon } from "@/shared/components/ui/icons";
 import { iconButtonClass } from "@/shared/components/ui/styles";
+import { useShellUser } from "@/shared/hooks/use-shell-user";
 import { useRouter } from "@/shared/lib/i18n/navigation";
+import { PlayerLookupContext, type PlayerLookupHit } from "@/shared/providers/player-lookup-context";
 import { searchProviders } from "@/shared/lib/search/pages-provider";
-import {
-  collectEntries,
-  searchEntries,
-  type SearchEntry
-} from "@/shared/lib/search/search";
+import { collectEntries, searchEntries } from "@/shared/lib/search/search";
 import { cn } from "@/shared/utils/cn";
 
 const MAX_RESULTS = 6;
 const DESKTOP_SEARCH_QUERY = "(min-width: 768px)";
+const PLAYER_DEBOUNCE_MS = 250;
 
-function optionId(listId: string, entry: SearchEntry): string {
-  return `${listId}-${entry.id}`;
+interface PlayerResult {
+  term: string;
+  hits: PlayerLookupHit[];
+  failed: boolean;
+}
+
+/** Listede gösterilen tek satır; sayfa ve oyuncu sonuçları aynı biçime çevrilir. */
+interface Row {
+  id: string;
+  title: string;
+  description?: string;
+  open: () => void;
 }
 
 /**
@@ -25,7 +34,9 @@ function optionId(listId: string, entry: SearchEntry): string {
  * alanın altında küçük bir liste olarak açılır; boş sorguda hiçbir şey listelenmez.
  * Ctrl/Cmd+K kutuya odaklanır. Mobilde büyüteç düğmesi alanı navbar'ın üstüne açar.
  * ARIA: combobox + listbox, aktif seçenek `aria-activedescendant` ile bildirilir.
- * Şimdilik yalnız var olan sayfalar aranır; sahte oyun/oyuncu sonucu yoktur.
+ * "@" ile başlayan metin oyuncu aramasına döner ("@ali"): kısa bir bekleyişten sonra sunucudan gerçek sonuçlar
+ * gelir, Enter seçili oyuncuya ya da seçim yoksa tüm sonuç sayfasına (/players?q=) götürür. Oturumsuzsa giriş istenir.
+ * Sahte oyun/oyuncu sonucu yoktur.
  */
 export function NavbarSearch() {
   const t = useTranslations("Navbar.search");
@@ -38,18 +49,62 @@ export function NavbarSearch() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [focused, setFocused] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [playerResult, setPlayerResult] = useState<PlayerResult | null>(null);
+  const lookup = useContext(PlayerLookupContext);
+  const signedIn = useShellUser() !== null;
 
   const entries = useMemo(
     () => collectEntries(searchProviders, (key) => pagesT(key as never)),
     [pagesT]
   );
   const hasQuery = query.trim().length > 0;
-  const results = useMemo(
-    () => (hasQuery ? searchEntries(entries, query).slice(0, MAX_RESULTS) : []),
-    [entries, hasQuery, query]
+  const playerMode = query.trimStart().startsWith("@");
+  const playerTerm = playerMode ? (lookup?.normalize(query.trimStart().slice(1)) ?? null) : null;
+  const playerReady = playerTerm !== null && lookup !== null && signedIn;
+  const pageResults = useMemo(
+    () => (hasQuery && !playerMode ? searchEntries(entries, query).slice(0, MAX_RESULTS) : []),
+    [entries, hasQuery, playerMode, query]
   );
+  const currentPlayers = playerReady && playerResult?.term === playerTerm ? playerResult : null;
+  const playersLoading = playerReady && currentPlayers === null;
+
+  const rows: Row[] = playerMode
+    ? (currentPlayers?.hits ?? []).map((hit) => ({
+        id: `player-${hit.userId}`,
+        title: hit.name || hit.username || "",
+        description: hit.username && hit.name ? `@${hit.username}` : undefined,
+        open: () => router.push({ pathname: "/players/[userId]", params: { userId: hit.userId } })
+      }))
+    : pageResults.map((entry) => ({
+        id: entry.id,
+        title: entry.title,
+        description: entry.description,
+        open: () => router.push(entry.href)
+      }));
   const panelOpen = focused && hasQuery;
-  const activeEntry = results[activeIndex];
+  const activeRow = rows[activeIndex];
+
+  // "@ad": kısa bekleyişten sonra oyuncuları sunucudan getirir; yazı değişince önceki istek iptal edilir.
+  useEffect(() => {
+    if (!playerReady || lookup === null || playerTerm === null) {
+      return;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      lookup
+        .search(playerTerm, controller.signal)
+        .then((hits) => setPlayerResult({ term: playerTerm, hits: hits.slice(0, MAX_RESULTS), failed: false }))
+        .catch(() => {
+          if (!controller.signal.aborted) {
+            setPlayerResult({ term: playerTerm, hits: [], failed: true });
+          }
+        });
+    }, PLAYER_DEBOUNCE_MS);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [lookup, playerReady, playerTerm]);
 
   // Mobilde alan açılınca odak kutuya geçer.
   useEffect(() => {
@@ -61,7 +116,8 @@ export function NavbarSearch() {
   // Ctrl/Cmd+K: arama kutusuna odaklanır (modal açmaz).
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key.toLowerCase() !== "k" || !(event.ctrlKey || event.metaKey)) {
+      // Tarayıcı otomatik doldurma `key` alanı olmayan keydown olayı üretebilir.
+      if (typeof event.key !== "string" || event.key.toLowerCase() !== "k" || !(event.ctrlKey || event.metaKey)) {
         return;
       }
       if (event.altKey || event.shiftKey) {
@@ -86,10 +142,16 @@ export function NavbarSearch() {
     setExpanded(false);
   }
 
-  function go(entry: SearchEntry) {
+  function go(row: Row) {
     reset();
     inputRef.current?.blur();
-    router.push(entry.href);
+    row.open();
+  }
+
+  function goToPlayerResults(term: string) {
+    reset();
+    inputRef.current?.blur();
+    router.push({ pathname: "/players", query: { q: term } });
   }
 
   function onKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
@@ -104,19 +166,36 @@ export function NavbarSearch() {
       }
       return;
     }
-    if (results.length === 0) {
+    if (event.key === "Enter" && playerMode) {
+      event.preventDefault();
+      if (activeRow) {
+        go(activeRow);
+      } else if (playerReady && playerTerm !== null) {
+        goToPlayerResults(playerTerm);
+      }
+      return;
+    }
+    if (rows.length === 0) {
       return;
     }
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      setActiveIndex((activeIndex + 1) % results.length);
+      setActiveIndex((activeIndex + 1) % rows.length);
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
-      setActiveIndex((activeIndex - 1 + results.length) % results.length);
+      setActiveIndex((activeIndex - 1 + rows.length) % rows.length);
     } else if (event.key === "Enter") {
       event.preventDefault();
-      go(activeEntry ?? results[0]);
+      go(activeRow ?? rows[0]);
     }
+  }
+
+  /** Oyuncu modunda sonuç listesi boşken gösterilecek mesajın anahtarı. */
+  function playerStatusKey() {
+    if (!signedIn) return "playersLogin" as const;
+    if (playerTerm === null) return "playersHint" as const;
+    if (playersLoading) return "playersLoading" as const;
+    return currentPlayers?.failed ? ("playersError" as const) : ("playersEmpty" as const);
   }
 
   return (
@@ -156,9 +235,9 @@ export function NavbarSearch() {
             type="text"
             role="combobox"
             aria-expanded={panelOpen}
-            aria-controls={panelOpen && results.length > 0 ? listId : undefined}
+            aria-controls={panelOpen && rows.length > 0 ? listId : undefined}
             aria-activedescendant={
-              panelOpen && activeEntry ? optionId(listId, activeEntry) : undefined
+              panelOpen && activeRow ? `${listId}-${activeRow.id}` : undefined
             }
             aria-autocomplete="list"
             aria-keyshortcuts="Control+K Meta+K"
@@ -186,13 +265,13 @@ export function NavbarSearch() {
 
           {panelOpen ? (
             <div className="absolute inset-x-0 top-full z-40 mt-2 overflow-hidden rounded-xl border border-border bg-surface shadow-popover animate-pop-in max-md:-inset-x-2">
-              {results.length > 0 ? (
+              {rows.length > 0 ? (
                 <>
                   <p
                     id={groupId}
                     className="px-4 pb-1 pt-3 font-display text-xs font-semibold text-text-secondary"
                   >
-                    {t("groupPages")}
+                    {playerMode ? t("groupPlayers") : t("groupPages")}
                   </p>
                   <ul
                     id={listId}
@@ -200,10 +279,10 @@ export function NavbarSearch() {
                     aria-labelledby={groupId}
                     className="max-h-80 space-y-0.5 overflow-y-auto overscroll-contain p-2 pt-1"
                   >
-                    {results.map((entry, index) => (
+                    {rows.map((entry, index) => (
                       <li
                         key={entry.id}
-                        id={optionId(listId, entry)}
+                        id={`${listId}-${entry.id}`}
                         role="option"
                         aria-selected={index === activeIndex}
                         // Tıklama sırasında kutunun odağı kaybedilmesin (liste kapanmasın).
@@ -238,6 +317,10 @@ export function NavbarSearch() {
                     ))}
                   </ul>
                 </>
+              ) : playerMode ? (
+                <div className="px-4 py-6 text-center">
+                  <p className="font-display text-sm font-semibold">{t(playerStatusKey())}</p>
+                </div>
               ) : (
                 <div className="px-4 py-6 text-center">
                   <p className="font-display text-sm font-semibold">{t("emptyTitle")}</p>
@@ -258,7 +341,7 @@ export function NavbarSearch() {
         </button>
 
         <p className="sr-only" role="status" aria-live="polite">
-          {panelOpen ? t("resultCount", { count: results.length }) : ""}
+          {panelOpen && !playersLoading ? t("resultCount", { count: rows.length }) : ""}
         </p>
       </div>
     </>

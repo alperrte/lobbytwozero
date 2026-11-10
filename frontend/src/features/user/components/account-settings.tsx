@@ -1,18 +1,19 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useRequireSession } from "@/features/auth";
+import { AccountDeletionSection, AccountSecuritySection, useRequireSession } from "@/features/auth";
 import { PageContainer } from "@/shared/components/layout/page-container";
 import { Link } from "@/shared/lib/i18n/navigation";
 import { useRemote } from "../hooks/use-remote";
-import { getConsents, getPreferences, getPrivacy } from "../services/settings-api";
+import { getConsents, getLinkedSteam, getPreferences, getPrivacy } from "../services/settings-api";
 import { ConsentsSection } from "./consents-section";
 import { PreferencesSection } from "./preferences-section";
 import { PrivacySection } from "./privacy-section";
 import { ProfileSection, RemoteBody } from "./remote-section";
+import { SteamSection } from "./steam-section";
 
 /**
- * Hesap ayarları: gizlilik, hesap tercihleri ve rızalar. Her bölüm kendi ucundan bağımsız okunur; birinin hatası diğerlerini
+ * Hesap ayarları: gizlilik, hesap tercihleri, bağlı hesap (Steam) izni ve rızalar. Her bölüm kendi ucundan bağımsız okunur; birinin hatası diğerlerini
  * bozmaz. Oturum doğrulanmadan hiçbir istek atılmaz (misafir girişe yönlendirilir).
  */
 export function AccountSettings() {
@@ -22,6 +23,7 @@ export function AccountSettings() {
   const privacy = useRemote(enabled ? "privacy" : null, getPrivacy);
   const preferences = useRemote(enabled ? "preferences" : null, getPreferences);
   const consents = useRemote(enabled ? "consents" : null, getConsents);
+  const steam = useRemote(enabled ? "steam" : null, getLinkedSteam);
 
   if (!enabled) {
     return (
@@ -56,10 +58,24 @@ export function AccountSettings() {
           </RemoteBody>
         </ProfileSection>
 
+        <ProfileSection title={t("steam.title")}>
+          <RemoteBody remote={steam}>
+            {(data) => <SteamSection initial={data} onRefresh={steam.retry} />}
+          </RemoteBody>
+        </ProfileSection>
+
         <ProfileSection title={t("consents.title")}>
           <RemoteBody remote={consents}>
             {(data) => <ConsentsSection initial={data} onRefresh={consents.retry} />}
           </RemoteBody>
+        </ProfileSection>
+
+        <ProfileSection title={t("security.title")}>
+          <AccountSecuritySection />
+        </ProfileSection>
+
+        <ProfileSection title={t("deletion.title")}>
+          <AccountDeletionSection />
         </ProfileSection>
       </div>
     </PageContainer>
