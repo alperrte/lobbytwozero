@@ -1,11 +1,11 @@
 {
   "format": 1,
-  "createdAt": "2026-11-09T17:46:00.198Z",
+  "createdAt": "2026-11-10T18:18:34.514Z",
   "flywayVersion": 175,
   "postgresMajor": 17,
   "file": "ltz-game-catalog.dump",
-  "bytes": 339005493,
-  "sha256": "7ca6a38ebb360b912b9f4bb8d3fc840a52defa6ee8693de52dbb887c2e103497",
+  "bytes": 190320977,
+  "sha256": "86ff9ffcf1454fc7dcf6c5d0cd746968ac39fcd568f65407f3f5995c7d9b0f61",
   "url": null,
   "tables": {
     "catalog_terms": 187,
@@ -17,25 +17,29 @@
     "game_developer_feedback": 0,
     "game_developer_grants": 0,
     "game_developer_media": 0,
-    "game_developers": 155064,
-    "game_external_refs": 263762,
+    "game_developers": 212300,
+    "game_external_refs": 264209,
     "game_field_overrides": 0,
     "game_identity_audits": 0,
-    "game_language_supports": 668265,
-    "game_languages": 668256,
-    "game_localized_descriptions": 19235,
-    "game_media": 144866,
-    "game_metadata_provenance": 2669293,
-    "game_price_quotes": 1808662,
-    "game_price_refresh_state": 1738681,
+    "game_language_supports": 923979,
+    "game_languages": 923453,
+    "game_localized_descriptions": 26359,
+    "game_media": 199139,
+    "game_metadata_provenance": 4320102,
+    "game_price_quotes": 0,
+    "game_price_refresh_state": 0,
     "game_price_sync_lock": 1,
     "game_provider_sync_state": 1,
-    "game_publishers": 154288,
+    "game_publishers": 210041,
     "game_rating_projection": 0,
     "game_rating_sync_state": 1,
     "game_system_requirements": 0,
-    "game_terms": 997753,
+    "game_terms": 1691433,
     "game_update_notes": 0,
-    "games": 263762
-  }
+    "games": 264209
+  },
+  "excludedDataTables": [
+    "game_price_quotes",
+    "game_price_refresh_state"
+  ]
 }

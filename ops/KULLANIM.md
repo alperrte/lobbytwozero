@@ -109,7 +109,7 @@ Hata alırsan: veri seti eskiyse `$env:TEMP\ltz-pc-part-dataset` klasörünü si
 
 ## Aşama 4b — Game kataloğu içe aktarma (isteğe bağlı)
 
-Oyun verisi (oyunlar, terimler, açıklamalar, DLC ilişkisi) hazır dökümden yüklenir; Steam/IGDB anahtarı gerekmez. Postgres ayakta olmalı, Game servisi **başlamadan önce** yapılır.
+Oyun verisi (oyunlar, terimler, açıklamalar, DLC ilişkisi) hazır dökümden yüklenir; Steam/IGDB anahtarı gerekmez. Dump'taki fiyatlar en geç 48 saat sonra "güncelliği doldu" olur; fiyatların güncel kalması için `.env.dev` içine `ITAD_API_KEY` yazılır (`ops/game-catalog.md` → "Fiyatlar güncel kalsın"). Postgres ayakta olmalı, Game servisi **başlamadan önce** yapılır.
 
 ```powershell
 # 1) Ekipten aldığın ltz-game-catalog.dump dosyasını depo kökündeki game-catalog-dump klasörüne kopyala (adı değişmesin)
