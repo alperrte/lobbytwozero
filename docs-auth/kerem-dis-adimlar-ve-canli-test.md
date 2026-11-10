@@ -30,7 +30,7 @@
 Merhaba, Auth tarafında yeni uçlar ve durumlar var; bağlamazsak prod'da bazı kullanıcılar girişte takılır.
 Ayrıntı: docs-auth/verilen-cevaplar/bilgilendirme-2026-11-05-auth-degisiklikleri.md ve docs/api.md.
 
-1) Steam bağlı hesaplarda giriş artık 2FA kurulumu isteyebilir (prod'da zorunlu):
+1) [KALDIRILDI 2026-11-10: Steam için zorunlu 2FA yok; Steam girişi doğrudan oturum açar. Aşağıdaki `MFA_ENROLLMENT_REQUIRED` yalnız 2FA zorunlu roller (ADMIN/MODERATOR) için geçerlidir.] Eski metin: Steam bağlı hesaplarda giriş 2FA kurulumu isteyebilir:
    - POST /api/v1/auth/login yanıtı { status: "MFA_ENROLLMENT_REQUIRED", challengeId, challengeExpiresAt } olabilir;
      Steam dönüşü #status=mfa_enrollment_required&challenge=<id>. Çerez YAZILMAZ.
    - POST /api/v1/auth/login/2fa/enrollment/start { challengeId } -> { secret, otpauthUri } (QR göster)
@@ -62,7 +62,7 @@ Steam, dönüşü tarayıcıya yaptırır ve doğrulamayı Auth'tan Steam'e gide
 2. Dönüşte adres çubuğunda `…/auth/callback#status=registration_required&provider=steam&token=…` görürsün (Frontend çalışmıyorsa sayfa açılmaz, fragment yine de görünür). **Beklenen:** `registration_required`. Frontend açıksa yalnız **kullanıcı adı** formu gelir.
 3. Kullanıcı adını yaz (ya da `POST /api/v1/auth/oauth/steam/complete` `{ "registrationToken": "<token>", "username": "…" }`, CSRF başlığıyla). **Beklenen:** oturum açılır (e-posta ve doğrulama adımı yoktur).
 4. Adım 1'i tekrarla. **Beklenen:** `#status=authenticated` (dev'de Steam 2FA zorunluluğu kapalı).
-5. Zorunlu 2FA'yı canlı görmek için geçici olarak `application-dev.properties` içinde `ltz.auth.two-factor.require-for-steam-accounts=true` yap (commit etme), Auth'u yeniden başlat, 1. adımı tekrarla. **Beklenen:** `#status=mfa_enrollment_required&challenge=…`; `/login/2fa/enrollment/start` → QR'ı authenticator'a okut → `/complete`.
+5. [KALDIRILDI 2026-11-10: `require-for-steam-accounts` ayarı yok.] Zorunlu 2FA akışını görmek için ADMIN/MODERATOR hesabıyla giriş dene; eski beklenti: **Beklenen:** `#status=mfa_enrollment_required&challenge=…`; `/login/2fa/enrollment/start` → QR'ı authenticator'a okut → `/complete`.
 6. Doğrula: `select account_id, provider from external_identities where provider = 'STEAM';` bir satır.
 
 ### 4.2 Google

@@ -7,8 +7,8 @@ import org.springframework.core.env.Environment;
 import com.ltz.auth.domain.enums.RoleCode;
 
 /**
- * ADMIN için 2FA zorunluluğu ve Steam bağlı hesaplarda zorunlu 2FA kurulumu yalnız dev/test profilinde kaldırılabilir;
- * aksi halde servis başlamaz. Steam ayarı verilmezse varsayılan zorunludur (güvenli yön).
+ * ADMIN için 2FA zorunluluğu yalnız dev/test profilinde kaldırılabilir; aksi halde servis başlamaz. (Steam hesapları için
+ * zorunlu 2FA 2026-11-10'da kaldırıldı: güvence artık hesap türünden gelir, bkz. AccountTier.)
  */
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(TwoFactorProperties.class)
@@ -19,10 +19,6 @@ public class TwoFactorPolicyConfig {
         if (!adminRequired && !SecurityProfiles.relaxedSecurityAllowed(environment)) {
             throw new IllegalStateException(
                     "ltz.auth.two-factor.required-roles must contain ADMIN unless the 'dev' or 'test' profile is active");
-        }
-        if (!properties.requireForSteamAccounts() && !SecurityProfiles.relaxedSecurityAllowed(environment)) {
-            throw new IllegalStateException("ltz.auth.two-factor.require-for-steam-accounts must be true unless the "
-                    + "'dev' or 'test' profile is active");
         }
     }
 }

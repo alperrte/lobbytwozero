@@ -361,7 +361,7 @@ Sorun giderme:
 - Test geçsin diye CSRF, token ömrü, parola kuralı, yetki kontrolü kapatma. İzinli dev gevşetmeleri yeter.
 - Gateway'e ya da `X-User-Id` gibi başlığa güvenme; JWKS ile kendin doğrula.
 - Auth DB'sine bağlanma; Auth'a yalnız bu sayfadaki sözleşmelerle konuş.
-- Uygulanmış migration'ı değiştirme. Auth'un son boş migration numarası **V70** (V61–V69 kullanımda); aralık için Kerem'e sor.
+- Uygulanmış migration'ı değiştirme. Auth'un migration'ları V61–V64 (donuk); **V65** hesap türleri için kullanıldı (donuk), **V66–V70 boş** (2026-11-10 birleştirmesi, bkz. `migration-yazim-kurallari.md`).
 - Auth'tan yeni uç/durum/hata kodu isteme, `verilen-cevaplar/<servis>/` altına talep yaz.
 - **Auth'un 15 dosyasının imzasına dokunma** (aşağıda §12).
 

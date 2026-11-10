@@ -17,10 +17,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.ltz.auth.api.dto.response.CurrentAccountResponse;
 import com.ltz.auth.api.dto.response.SessionStatusResponse;
+import com.ltz.auth.application.service.AccountProfile;
+import com.ltz.auth.application.service.AccountTierService;
 import com.ltz.auth.application.service.IssuedSession;
 import com.ltz.auth.application.service.SessionService;
 import com.ltz.auth.domain.exception.AuthErrorCode;
 import com.ltz.auth.domain.exception.AuthException;
+import com.ltz.auth.infrastructure.persistence.repository.AccountRepository;
 import com.ltz.auth.infrastructure.security.TokenClaims;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,6 +35,8 @@ import lombok.RequiredArgsConstructor;
 public class SessionController {
 
     private final SessionService sessionService;
+    private final AccountRepository accountRepository;
+    private final AccountTierService tierService;
     private final SessionCookies sessionCookies;
     private final Clock clock;
 
@@ -49,8 +54,13 @@ public class SessionController {
      */
     @GetMapping(AuthApiPaths.ME)
     public ResponseEntity<CurrentAccountResponse> me(@AuthenticationPrincipal Jwt jwt) {
-        CurrentAccountResponse body = new CurrentAccountResponse(UUID.fromString(jwt.getSubject()),
-                claimList(jwt, TokenClaims.ROLES), claimList(jwt, TokenClaims.AUTH_METHODS), jwt.getExpiresAt());
+        UUID accountId = UUID.fromString(jwt.getSubject());
+        AccountProfile profile = tierService.profileOf(accountRepository.findById(accountId)
+                .orElseThrow(() -> new AuthException(AuthErrorCode.SESSION_INVALID)));
+        CurrentAccountResponse body = new CurrentAccountResponse(accountId,
+                claimList(jwt, TokenClaims.ROLES), claimList(jwt, TokenClaims.AUTH_METHODS), jwt.getExpiresAt(),
+                profile.passwordSet(), profile.providers(), profile.totpEnabled(), profile.registrationMethod(),
+                profile.tier(), profile.tier().isTrusted());
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(body);
     }
 

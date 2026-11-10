@@ -21,7 +21,6 @@ import com.ltz.auth.domain.entity.MfaChallenge;
 import com.ltz.auth.domain.entity.RecoveryCode;
 import com.ltz.auth.domain.entity.TotpCredential;
 import com.ltz.auth.domain.enums.AuthMethod;
-import com.ltz.auth.domain.enums.ExternalProvider;
 import com.ltz.auth.domain.enums.RoleCode;
 import com.ltz.auth.domain.enums.SecurityEventType;
 import com.ltz.auth.domain.enums.TotpStatus;
@@ -29,7 +28,6 @@ import com.ltz.auth.domain.exception.AuthErrorCode;
 import com.ltz.auth.domain.exception.AuthException;
 import com.ltz.auth.infrastructure.config.TwoFactorProperties;
 import com.ltz.auth.infrastructure.persistence.repository.AccountRepository;
-import com.ltz.auth.infrastructure.persistence.repository.ExternalIdentityRepository;
 import com.ltz.auth.infrastructure.persistence.repository.MfaChallengeRepository;
 import com.ltz.auth.infrastructure.persistence.repository.RecoveryCodeRepository;
 import com.ltz.auth.infrastructure.persistence.repository.TotpCredentialRepository;
@@ -56,7 +54,6 @@ public class TwoFactorService {
     private final RecoveryCodeRepository recoveryCodeRepository;
     private final MfaChallengeRepository challengeRepository;
     private final AccountRepository accountRepository;
-    private final ExternalIdentityRepository externalIdentityRepository;
     private final TotpCodes totpCodes;
     private final SecretCipher secretCipher;
     private final SecureTokens secureTokens;
@@ -76,12 +73,6 @@ public class TwoFactorService {
 
     public boolean isRequiredFor(Set<RoleCode> roles) {
         return !Collections.disjoint(roles, properties.requiredRoles());
-    }
-
-    /** Steam kimliği bağlı hesap için 2FA zorunlu mu (ayar açıksa). */
-    public boolean isRequiredForSteamAccount(UUID accountId) {
-        return properties.requireForSteamAccounts()
-                && externalIdentityRepository.findByAccountIdAndProvider(accountId, ExternalProvider.STEAM).isPresent();
     }
 
     /**
@@ -220,18 +211,22 @@ public class TwoFactorService {
         return activated.get();
     }
 
-    /** Kapatma yeniden kimlik doğrulama ister: parola + TOTP veya kurtarma kodu. Zorunlu rollerde kapatılamaz. */
+    /**
+     * Kapatma yeniden kimlik doğrulama ister: parola + (TOTP veya kurtarma kodu). Parolası olmayan (Google/Steam ile
+     * açılmış) hesap parola yerine yalnız TOTP/kurtarma koduyla doğrulanır. Zorunlu rollerde kapatılamaz. Kapatınca hesap
+     * türü yeniden hesaplanır: başka güvencesi (bağlı sağlayıcı, sağlayıcıyla kayıt) yoksa hesap A türüne düşer.
+     */
     public void disable(UUID accountId, String password, String code, String recoveryCode) {
         String throttleKey = throttleKey(accountId);
         attemptThrottle.reserve(throttleKey);
         Account account = transactionTemplate.execute(status -> accountRepository.findWithRolesById(accountId)
                 .orElseThrow(() -> new AuthException(AuthErrorCode.SESSION_INVALID)));
-        if (isRequiredFor(account.roleCodes()) || isRequiredForSteamAccount(accountId)) {
+        if (isRequiredFor(account.roleCodes())) {
             throw new AuthException(AuthErrorCode.TWO_FACTOR_REQUIRED_FOR_ROLE);
         }
         boolean passwordMatches = account.passwordHash()
-                .map(hash -> passwordEncoder.matches(password, hash))
-                .orElse(false);
+                .map(hash -> password != null && passwordEncoder.matches(password, hash))
+                .orElse(true);
         if (!passwordMatches) {
             securityEventRecorder.recordEvent(SecurityEventType.MFA_FAILED, accountId);
             throw new AuthException(AuthErrorCode.INVALID_CREDENTIALS);

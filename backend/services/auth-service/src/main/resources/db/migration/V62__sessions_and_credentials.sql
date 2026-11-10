@@ -67,6 +67,8 @@ CREATE TABLE attempt_throttles (
 --   EMAIL_CHANGE       : e-posta değiştirme. Yeni adres yalnız bu bekleyen kod satırında tutulur; hesap satırı kod
 --                        doğrulanınca güncellenir. Süresi dolan kodlar (ve içindeki adres) RetentionCleanupService ile,
 --                        hesap silinirken AuthDataEraser ile silinir.
+--   PASSWORD_SET       : oturumlu, parolasız (Google/Steam) hesabın ilk parolasını belirlemesi; hesabın doğrulanmış
+--                        adresine gönderilen tek kullanımlık 6 haneli kod. new_email kullanmaz.
 CREATE TABLE email_verification_codes (
     id                   uuid         PRIMARY KEY,
     account_id           uuid         NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
@@ -80,7 +82,9 @@ CREATE TABLE email_verification_codes (
     invalidation_reason  varchar(32),
     new_email            varchar(254),
     new_email_normalized varchar(254),
-    CONSTRAINT ck_email_verification_codes_purpose CHECK (purpose IN ('EMAIL_VERIFICATION', 'EMAIL_CHANGE')),
+    CONSTRAINT ck_email_verification_codes_purpose CHECK (
+        purpose IN ('EMAIL_VERIFICATION', 'EMAIL_CHANGE', 'PASSWORD_SET')
+    ),
     CONSTRAINT ck_email_verification_codes_code_hash CHECK (code_hash ~ '^[0-9a-f]{64}$'),
     CONSTRAINT ck_email_verification_codes_attempts CHECK (attempts >= 0),
     CONSTRAINT ck_email_verification_codes_expiry CHECK (expires_at > created_at),
@@ -166,6 +170,9 @@ CREATE TABLE recovery_codes (
 CREATE INDEX ix_recovery_codes_account_unused ON recovery_codes (account_id) WHERE used_at IS NULL;
 
 -- first_factor: parola dışı ilk faktör (harici giriş) 2FA challenge'ında amr değerini doğru taşır.
+-- purpose: LOGIN: parola/harici giriş doğrulandı, TOTP etkin, ikinci faktör bekleniyor. ENROLLMENT: giriş doğrulandı ama
+--          hesap 2FA'ya zorunlu ve TOTP henüz etkin değil; challenge yalnız TOTP kurulumunu tamamlamaya yarar,
+--          kurulum bitince oturum açılır.
 CREATE TABLE mfa_challenges (
     id             uuid        PRIMARY KEY,
     account_id     uuid        NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
@@ -175,11 +182,13 @@ CREATE TABLE mfa_challenges (
     created_at     timestamptz NOT NULL,
     expires_at     timestamptz NOT NULL,
     consumed_at    timestamptz,
+    purpose        varchar(12) NOT NULL DEFAULT 'LOGIN',
     CONSTRAINT uq_mfa_challenges_challenge_hash UNIQUE (challenge_hash),
     CONSTRAINT ck_mfa_challenges_challenge_hash CHECK (challenge_hash ~ '^[0-9a-f]{64}$'),
     CONSTRAINT ck_mfa_challenges_first_factor CHECK (first_factor IN ('PWD', 'EXTERNAL')),
     CONSTRAINT ck_mfa_challenges_attempts CHECK (attempts >= 0),
-    CONSTRAINT ck_mfa_challenges_expiry CHECK (expires_at > created_at)
+    CONSTRAINT ck_mfa_challenges_expiry CHECK (expires_at > created_at),
+    CONSTRAINT ck_mfa_challenges_purpose CHECK (purpose IN ('LOGIN', 'ENROLLMENT'))
 );
 
 CREATE INDEX ix_mfa_challenges_account_id ON mfa_challenges (account_id);

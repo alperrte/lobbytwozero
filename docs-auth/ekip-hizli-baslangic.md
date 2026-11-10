@@ -47,7 +47,7 @@ Sonra: `.\ops\env.cmd use dev` (Linux/macOS: `sh ./ops/env.sh use dev`) ve Compo
 
 - Raporda `[FAIL]` varsa Auth açılmaz (komut çıkış kodu 1 verir); yanındaki `->` satırı çözümü söyler. `[WARN]` açılışı durdurmaz ama bir kolaylığı kaçırırsın. Dosyaya dokunmadan yalnız raporu görmek istersen: `node ops/auth-env-check.mjs`.
 - `COMPOSE_PROFILES=dev-mail` olmalı (örnek dosyada hazır gelir): doğrulama ve parola kodları **Mailpit**'e düşer (arayüz: `http://127.0.0.1:8025`). Gerçek e-posta gitmez.
-- V61–V65'i zaten uygulamış yerel veritabanı yeni sürümlerle **kendiliğinden ileri taşınır** (V66–V69 yeni dosyalardır, eskilere dokunulmadı); sıfırlamana gerek yok. Eski bir yerel veritabanında "checksum mismatch" görürsen aşağıdaki tabloya bak.
+- **2026-11-10: Auth migration'ları yeniden 4 dosyaya (V61–V64) birleştirildi.** V65–V70'i daha önce uygulamış yerel `auth_db` açılışta Flyway hatası verir ("Detected applied migration not resolved locally" / checksum mismatch). Yerel veri olduğu için şemayı bir kez sıfırla: `docs-auth/migration-yazim-kurallari.md` → "Yerel `auth_db`'nizi bir kez sıfırlayın". Eski bir yerel veritabanında "checksum mismatch" görürsen aşağıdaki tabloya da bak.
 
 ## 1.0 Her role bir test hesabı (yalnız yerel dev)
 
@@ -96,13 +96,13 @@ Sonra: `.\ops\env.cmd use dev` (Linux/macOS: `sh ./ops/env.sh use dev`) ve Compo
 | Konu | Yerel dev | Production |
 | --- | --- | --- |
 | E-posta | Mailpit (kodlar tarayıcıda görünür) | Yalnız `mail-service`; yoksa Auth **açılmaz** |
-| Steam bağlı hesapta 2FA kurulumu | **Kapalı** (hızlı deneme) | **Açık**; kapatılırsa Auth açılmaz |
+| Steam bağlı hesapta 2FA kurulumu | **Kaldırıldı (2026-11-10)**: Steam için zorunlu 2FA yok | aynı |
 | ADMIN için 2FA | `AUTH_2FA_REQUIRED_ROLES` ile gevşetilebilir (yalnız dev/test) | Zorunlu; gevşetilirse Auth açılmaz |
 | Anahtarlar | `generate-auth-dev-keys.mjs` ile yerel üretim | Ayrı üretilir, sır yöneticisinde; dev anahtarı **kullanılmaz** |
 | İç ağ adresleri | `http` olabilir | `https` zorunlu |
 | Parola kuralı, token ömrü (60 sn), CSRF, çerez öznitelikleri | Aynı | Aynı |
 
-Yani gevşetilebilenler sınırlı, adı konmuş ve yalnız dev/test profilinde: başka bir güvenlik ayarını "geçici" kapatma. Steam 2FA'sını dev'de denemek istersen: Auth'u `mvn`/IDE ile çalıştırıyorsan ortam değişkeni `LTZ_AUTH_TWOFACTOR_REQUIREFORSTEAMACCOUNTS=true` yeter. Compose ile çalıştırıyorsan Compose ana makine değişkenlerini konteynere geçirmez; `application-dev.properties` içindeki `ltz.auth.two-factor.require-for-steam-accounts` satırını **geçici olarak** `true` yap ve commit etme.
+Yani gevşetilebilenler sınırlı, adı konmuş ve yalnız dev/test profilinde: başka bir güvenlik ayarını "geçici" kapatma. Steam için zorunlu 2FA ayarı artık yoktur (2026-11-10).
 
 ## 3. "Auth açılmıyor" / "bir şey çalışmıyor" tablosu
 
@@ -116,7 +116,7 @@ Yani gevşetilebilenler sınırlı, adı konmuş ve yalnız dev/test profilinde:
 | Mail Service açık ama e-posta gitmiyor, logda SMTP bağlantı hatası | Mailpit kapalı (SMTP boşken dev'de `mailpit:1025` kullanılır) | `docker compose --profile dev-mail up -d mailpit`; mesajlar kuyrukta bekler ve yeniden denenir |
 | Mailpit'te e-posta yok, Mail Service'e istek de gitmiyor | `AUTH_MAIL_ADAPTER` `dev-smtp` (Auth Mailpit'e doğrudan yazıyordur) ya da Auth yeniden başlatılmadı | `.env.dev`'de `AUTH_MAIL_ADAPTER=mail-service`, sonra Auth'u yeniden başlat |
 | `409 PASSWORD_REQUIRED` | Hesap Google/Steam ile açılmış, parolası yok | `POST /api/v1/auth/password/set/request`, sonra `/password/set` |
-| Girişte `MFA_ENROLLMENT_REQUIRED` | Steam bağlı hesapta 2FA zorunlu ve henüz kurulu değil | `/login/2fa/enrollment/start`, sonra `/complete` |
+| Girişte `MFA_ENROLLMENT_REQUIRED` | 2FA zorunlu rol (ADMIN/MODERATOR) hesabında 2FA henüz kurulu değil (Steam için artık zorunlu değil) | `/login/2fa/enrollment/start`, sonra `/complete` |
 | `403` ve hesap durumu | Hesap askıda/yasaklı; süreli askı kendiliğinden açılır | Yönetici uçlarından durum; ayrıntı `docs/api.md` |
 | Veritabanı "checksum mismatch" | Uygulanmış bir migration dosyası değiştirilmiş | Yerel DB'yi sıfırla (`docs-auth/migration-yazim-kurallari.md`); uygulanmış migration'a asla dokunma |
 | Google ile bağlama çalışmıyor | Dönüş adresi Google Console'da yok | `…/api/v1/auth/oauth/google/link/callback` adresini ekle |
@@ -126,7 +126,7 @@ Yani gevşetilebilenler sınırlı, adı konmuş ve yalnız dev/test profilinde:
 - Anahtarı, parolayı, token'ı koda, commit'e, loga veya sohbete yazma. `.env*` Git'te değildir; öyle kalsın.
 - Production anahtarını yerele, yerel anahtarı production'a kopyalama.
 - Test geçsin diye CSRF, token ömrü, parola kuralı veya yetki kontrolünü kapatma. Hızlı denemek için yukarıdaki **izinli** dev gevşetmeleri yeter.
-- Uygulanmış migration dosyasını değiştirme; yeni sürüm yaz (Auth'ta sıradaki ve son boş sürüm V70; aralık için Kerem'e sor).
+- Uygulanmış migration dosyasını değiştirme; yeni sürüm yaz (Auth'ta sıradaki boş sürüm V66; aralık V70'te biter).
 - Auth'a yeni bir uç, durum veya hata kodu gerekiyorsa Auth'ta değişiklik isteme: `docs-auth/verilen-cevaplar/<servis>/` içine talep yaz.
 
 ## 5. Komut özeti

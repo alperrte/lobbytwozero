@@ -4,7 +4,6 @@ import com.ltz.auth.domain.entity.Account;
 
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
@@ -14,9 +13,14 @@ import jakarta.validation.constraints.Size;
  */
 public record CancelAccountDeletionRequest(
         @NotBlank @Size(max = Account.EMAIL_MAX_LENGTH) String identifier,
-        @NotNull @Size(max = Account.PASSWORD_MAX_LENGTH) String password,
+        @Size(max = Account.PASSWORD_MAX_LENGTH) String password,
         @Pattern(regexp = SecondFactor.TOTP_PATTERN) String code,
         @Size(max = SecondFactor.RECOVERY_CODE_MAX_LENGTH) String recoveryCode) {
+
+    /** Parolasız (Google/Steam) hesapta parola gönderilmez; boş dize ile aynı sayılır. */
+    public String passwordOrEmpty() {
+        return password == null ? "" : password;
+    }
 
     @AssertTrue
     public boolean isAtMostOneSecondFactor() {
