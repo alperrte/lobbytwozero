@@ -3,6 +3,7 @@ package com.ltz.user.application.service;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.dao.DataIntegrityViolationException;
@@ -30,6 +31,15 @@ public class PreferencesService {
     @Transactional(readOnly = true)
     public PreferencesView get(UUID userId) {
         return PreferencesView.of(preferences.findById(userId).orElseGet(() -> UserPreferences.defaults(userId)));
+    }
+
+    /**
+     * Yalnız kaydedilmiş dili döner; satır yoksa (hiç tercih yazılmadıysa) boş. Varsayılan dil uydurulmaz: servisler
+     * "kullanıcı seçmedi"yi "kullanıcı Türkçe seçti"den ayırt edebilmelidir.
+     */
+    @Transactional(readOnly = true)
+    public Optional<String> savedLocale(UUID userId) {
+        return preferences.findById(userId).map(UserPreferences::getLocale);
     }
 
     /**

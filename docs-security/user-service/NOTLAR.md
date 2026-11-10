@@ -100,3 +100,9 @@
 - **NOT VERIFIED:** Library'nin gerçek servis token'ıyla `RECOMMENDATION` kararı canlıda denenmedi (Library adaptörü
   henüz yazılmadı). Rıza ucu canlı yığında gerçek Auth token'ıyla denendi.
 
+## Dil okuma ucu (MAIL-AUTH-REQ-02, 2026-11-10)
+
+- **Uç:** `GET /internal/v1/users/{userId}/locale`, yalnız `svc:auth-service` servis token'ı (`preferences:locale:read`, `account_id` = yoldaki kullanıcı). Başka `sub`, kapsam ya da hesap `403`; tokensiz ve kullanıcı token'ı `401`. Desen hesap silme ucuyla aynıdır.
+- **En az veri:** yalnız `locale` döner; tema ve diğer tercihler dönmez. Dil ve yanıt loglanmaz, `no-store`.
+- **Varsayılan uydurulmaz:** tercih satırı yoksa `404` (Auth "dil bilinmiyor" sayar, iki dilli mail gider). "Seçmedi" ile "Türkçe seçti" ayırt edilebilir kalır.
+- **NOT VERIFIED:** Auth tarafında kapsamın tanımlanması ve gerçek Auth token'ıyla uçtan uca çağrı henüz yapılmadı.

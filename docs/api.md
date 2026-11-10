@@ -1374,7 +1374,7 @@ Aralarında herhangi bir yönde engel olan izleyici profili hiç göremez. Profi
 
 #### Bağlantı
 Frontend:
-API Gateway üzerinden /api/v1/user/me/privacy
+API Gateway üzerinden /api/v1/user/me/privacy. Hesap ayarları sayfası: `/profile/settings` (`/tr/profil/ayarlar`, `/en/profile/settings`), `features/user/components/account-settings.tsx`
 
 Diğer mikroservisler:
 Ayarlar diğer servislere "Gizlilik kararı" iç ucuyla verilir.
@@ -1600,13 +1600,48 @@ Aynı alanlar ve güncel `version`. Hiç kaydedilmemişse `GET` varsayılanları
 
 #### Bağlantı
 Frontend:
-API Gateway üzerinden /api/v1/user/me/preferences
+API Gateway üzerinden /api/v1/user/me/preferences. Hesap ayarları sayfası: `/profile/settings` (`/tr/profil/ayarlar`, `/en/profile/settings`), `features/user/components/account-settings.tsx`
 
 Diğer mikroservisler:
 -
 
 #### Test Durumu
 UNIT + INTEGRATION (`PreferenceOnboardingTest` 11).
+
+### USER — Kullanıcının dili (Internal, Auth → User)
+
+Durum: IMPLEMENTED (User tarafı). Auth'ta `preferences:locale:read` kapsamının tanımlanması ve Auth'un bu ucu çağırması **PENDING** (MAIL-AUTH-REQ-02, Auth işi)
+Sorumlu: Kerem
+Tüketici servisler: auth-service (e-posta dilini seçmek için; Mail kimseyi çağırmaz, dil Auth'tan `locale` olarak gider)
+
+#### Endpoint
+GET /internal/v1/users/{userId}/locale
+
+#### Yetkilendirme
+Internal. Gateway'de route edilmez. `typ=svc+jwt`, `aud=user-service`, `sub=svc:auth-service` (tam eşleşme), `scope` ⊇ `preferences:locale:read`, `account_id` claim'i yoldaki `userId` ile aynı olmalı. Başka `sub`, kapsam ya da `account_id` `403`; token yok, kullanıcı token'ı, yanlış `aud`/`typ` ya da süresi geçmiş token `401`. Doğrulama deseni hesap silme ve olay girişi uçlarıyla aynıdır.
+
+#### Response — 200
+```json
+{ "locale": "tr | en" }
+```
+**Yalnız dil döner.** Tema, hareket azaltma, sıkı yerleşim ve sürüm dönmez (en az veri). Değer `user_preferences.locale` kaydıdır; kullanıcı hiç tercih kaydetmediyse varsayılan dil uydurulmaz, `404` döner. `Cache-Control: no-store`. Dil ve yanıt loglanmaz.
+
+#### Hata Durumları
+- 400: `userId` UUID değil
+- 401: Token yok/geçersiz; kullanıcı token'ı; yanlış `aud`
+- 403: Çağıran `svc:auth-service` değil; `preferences:locale:read` kapsamı yok; `account_id` yoldaki kullanıcıyla uyuşmuyor ya da yok. Yanıt dil bilgisi içermez
+- 404: `PROFILE_NOT_FOUND`: profil ya da tercih satırı yok. Auth bunu "dil bilinmiyor" sayar ve iki dilli mail gönderir
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+auth-service, `${USER_SERVICE_URL}` üzerinden (hesap silme ucuyla aynı adres: `ltz.auth.deletion.service-urls.user`) çağırır. Auth'un çağrısı en iyi çabadır: ~2 sn zaman aşımı, hata/404/zaman aşımında `locale` göndermez. Gerçek Auth token'ıyla uçtan uca: **NOT VERIFIED**.
+
+#### Test Durumu
+UNIT + INTEGRATION (`InternalLocaleTest` 13).
 
 ### USER — Rızalarım (LIB-14)
 
@@ -1645,7 +1680,7 @@ Hiç kaydedilmemişse varsayılan: `recommendation=false`, `recommendationChange
 
 #### Bağlantı
 Frontend:
-API Gateway üzerinden /api/v1/user/me/consents (Hesap ayarları sayfası, henüz yazılmadı)
+API Gateway üzerinden /api/v1/user/me/consents. Hesap ayarları sayfası: `/profile/settings` (`/tr/profil/ayarlar`, `/en/profile/settings`), `features/user/components/account-settings.tsx`
 
 Diğer mikroservisler:
 library-service rızayı yalnız gizlilik kararı ucundan okur; bu uca erişmez.
