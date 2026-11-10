@@ -528,6 +528,14 @@ const envRules = (() => {
     else if (byteLength(mailKey) !== 32) add("FAIL", "MAIL_PAYLOAD_ENCRYPTION_KEY", "Base64 değil veya tam 32 bayt değil; Mail Service açılmaz", regenerate);
     else add("OK", "MAIL_PAYLOAD_ENCRYPTION_KEY", "geçerli");
 
+    // Mail Service -> Auth adres çözme istemcisinin gizli anahtarı (platform kapısı: diğer servislerin mail attırması).
+    // Boşsa Auth bu istemciyi kapalı tutar: yalnız o kapı çalışmaz, Auth -> Mail ve her iki servisin açılışı etkilenmez (hata değil bilgi).
+    // Doluysa Auth en az 32 karakter ister (ServiceClientConfig); kısaysa Auth AÇILMAZ.
+    const mailClient = (settings.AUTH_MAIL_SERVICE_CLIENT_SECRET ?? "").trim();
+    if (mailClient === "") add("INFO", "AUTH_MAIL_SERVICE_CLIENT_SECRET", "boş; Mail Service platform kapısı (diğer servislerin mail attırması) kapalı, Auth -> Mail etkilenmez", regenerate);
+    else if (mailClient.length < 32) add("FAIL", "AUTH_MAIL_SERVICE_CLIENT_SECRET", "32 karakterden kısa; Auth açılmaz", regenerate);
+    else add("OK", "AUTH_MAIL_SERVICE_CLIENT_SECRET", "geçerli");
+
     // Rotasyon (S9) — hepsi isteğe bağlı; ayarlıysa Auth açılışta biçimini doğrular.
     const versionText = settings.AUTH_TOTP_ENCRYPTION_KEY_VERSION ?? "";
     let version = 1;

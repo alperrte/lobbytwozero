@@ -1,0 +1,9 @@
+# EMAIL_VERIFICATION (tr). Biçim: docs-mail/sablon-rehberi.md. Düz metin sürümü bloklardan otomatik üretilir.
+subject: LTZ e-posta doğrulama kodun
+kind: accent
+label: E-POSTA DOĞRULAMA
+title: E-posta adresini doğrula
+note-kind: accent
+text: LTZ hesabını doğrulamak için aşağıdaki kodu gir. Kod {{validityMinutes}} dakika geçerli.
+code: DOĞRULAMA KODU
+note: Bu isteği sen yapmadıysan bu e-postayı yok sayabilirsin. Kodu kimseyle paylaşma.

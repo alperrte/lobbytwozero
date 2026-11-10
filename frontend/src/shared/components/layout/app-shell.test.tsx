@@ -2,19 +2,22 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import tr from "@/shared/lib/i18n/messages/tr.json";
+import en from "@/shared/lib/i18n/messages/en.json";
 import { AppShell } from "./app-shell";
 
+const location = vi.hoisted(() => ({ pathname: "/tr" }));
+
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/tr",
+  usePathname: () => location.pathname,
   useParams: () => ({}),
   useRouter: () => ({ replace: vi.fn(), push: vi.fn(), prefetch: vi.fn(), refresh: vi.fn() }),
   redirect: vi.fn(),
   permanentRedirect: vi.fn()
 }));
 
-function renderShell() {
+function renderShell(locale: "tr" | "en" = "tr") {
   return render(
-    <NextIntlClientProvider locale="tr" messages={tr} timeZone="Europe/Istanbul">
+    <NextIntlClientProvider locale={locale} messages={locale === "tr" ? tr : en} timeZone="Europe/Istanbul">
       <AppShell footer={<footer>alt bilgi</footer>}>
         <h1>İçerik</h1>
       </AppShell>
@@ -23,6 +26,7 @@ function renderShell() {
 }
 
 beforeEach(() => {
+  location.pathname = "/tr";
   vi.stubGlobal(
     "matchMedia",
     vi.fn().mockImplementation(() => ({
@@ -105,9 +109,11 @@ describe("AppShell", () => {
     const nav = screen.getByRole("navigation", { name: "Ana gezinme" });
 
     const links = nav.querySelectorAll("a");
-    expect(links).toHaveLength(6);
+    expect(links).toHaveLength(7);
     expect(links[1]).toHaveAttribute("href", "/tr/oyunlar");
     expect(nav.querySelector('a[href="/tr/arkadaslar"]')).not.toBeNull();
+    expect(within(nav).getByRole("link", { name: "Kütüphanem" })).toHaveAttribute("href", "/tr/kutuphane");
+    expect(within(nav).queryByRole("button", { name: "Kütüphanem — Yakında" })).not.toBeInTheDocument();
     expect(links[0]).toHaveAttribute("href", "/tr");
     expect(links[0]).toHaveAttribute("aria-current", "page");
     expect(nav.querySelectorAll('a[href="#"]')).toHaveLength(0);
@@ -117,8 +123,8 @@ describe("AppShell", () => {
     expect(nav).not.toHaveTextContent("Profil");
     expect(nav).not.toHaveTextContent("Bilgisayarlarım");
     expect(nav).toHaveTextContent("Kampanyalar");
-    // Tam eşleşme yalnız rozetleri sayar: Ana Sayfa, Oyunlar, Topluluk, Arkadaşlar, Donanımlar ve Kampanyalar dışındaki 8 öğe.
-    expect(screen.getAllByText("Yakında")).toHaveLength(8);
+    // Yalnız hazır olmayan yedi öğe Yakında rozeti taşır; Library gerçek bağlantıdır.
+    expect(screen.getAllByText("Yakında")).toHaveLength(7);
   });
 
   it("14 öğeyi üç grupta, belirlenen sırayla sunar", () => {
@@ -155,23 +161,38 @@ describe("AppShell", () => {
     ]);
   });
 
+  it.each([
+    ["tr", "/tr/kutuphane", "/tr/kutuphane", "Kütüphanem"],
+    ["tr", "/tr/kutuphane/favoriler", "/tr/kutuphane", "Kütüphanem"],
+    ["en", "/en/library", "/en/library", "My Library"],
+    ["en", "/en/library/completed", "/en/library", "My Library"]
+  ] as const)("Library bağlantısı ve aktif durum: %s %s", (locale, pathname, href, name) => {
+    location.pathname = pathname;
+    renderShell(locale);
+    const nav = screen.getByRole("navigation", { name: locale === "tr" ? "Ana gezinme" : "Main navigation" });
+    const library = within(nav).getByRole("link", { name });
+    expect(library).toHaveAttribute("href", href);
+    expect(library).toHaveAttribute("aria-current", "page");
+    expect(library).not.toHaveTextContent(locale === "tr" ? "Yakında" : "Soon");
+  });
+
   it("'Yakında' öğeleri tıklanamaz: bağlantı değil, aria-disabled düğmedir", () => {
     renderShell();
-    const games = screen.getByRole("button", { name: "Kütüphanem — Yakında" });
+    const games = screen.getByRole("button", { name: "İncelemeler — Yakında" });
     expect(games).toHaveAttribute("aria-disabled", "true");
     expect(games.closest("a")).toBeNull();
-    // Oyunlar ve Arkadaşlar kullanıma açıktır; kütüphane ve diğer bekleyen öğeler pasiftir.
+    // Library dahil yedi öğe kullanıma açıktır; diğer bekleyen öğeler pasiftir.
     expect(
       screen.getAllByRole("button", { name: /— Yakında$/ })
-    ).toHaveLength(8);
+    ).toHaveLength(7);
   });
 
   it("'Yakında' öğesine odaklanınca tooltip çıkar, Escape ile kapanır", () => {
     renderShell();
-    const games = screen.getByRole("button", { name: "Kütüphanem — Yakında" });
+    const games = screen.getByRole("button", { name: "İncelemeler — Yakında" });
     fireEvent.focus(games);
     const tooltip = document.body.querySelector("span[aria-hidden='true'].fixed");
-    expect(tooltip).toHaveTextContent("Kütüphanem — Yakında");
+    expect(tooltip).toHaveTextContent("İncelemeler — Yakında");
 
     act(() => {
       fireEvent.keyDown(document, { key: "Escape" });

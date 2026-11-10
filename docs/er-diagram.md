@@ -623,9 +623,16 @@ erDiagram
     varchar cover_url
     varchar status
   }
+  library_summary_outbox {
+    uuid user_id PK "REF"
+    bigint change_seq
+    int attempts
+    timestamptz next_attempt_at
+  }
 ```
 
 > `game_snapshots` → `library_entries` ilişkisi mantıksaldır (aynı DB, FK zorunlu değil); oyun snapshot'ı event ile gelir.
+> `library_summary_outbox` (V43, LIB-10) kullanıcı başına tek "özet değişti" işaretidir; `library_entries` ile FK yoktur (REF), `LibrarySummaryChanged` sayıları gönderimde okunur.
 
 ## 7. review_db
 

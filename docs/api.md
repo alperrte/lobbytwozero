@@ -1951,12 +1951,12 @@ Internal. Doğrulama kodu ucu ile aynı (`scope=mail:send`).
   "idempotencyKey": "UUID",
   "accountId": "UUID",
   "recipientEmail": "string ≤254, geçerli e-posta",
-  "type": "PASSWORD_CHANGED | PASSWORD_RESET | EMAIL_CHANGED | ACCOUNT_SUSPENDED | ACCOUNT_BANNED | ACCOUNT_DISABLED | ACCOUNT_REACTIVATED | TWO_FACTOR_ENABLED | TWO_FACTOR_DISABLED | RECOVERY_CODE_USED | EXTERNAL_IDENTITY_LINKED",
+  "type": "PASSWORD_CHANGED | PASSWORD_RESET | EMAIL_CHANGED | ACCOUNT_SUSPENDED | ACCOUNT_BANNED | ACCOUNT_DISABLED | ACCOUNT_REACTIVATED | TWO_FACTOR_ENABLED | TWO_FACTOR_DISABLED | RECOVERY_CODE_USED | EXTERNAL_IDENTITY_LINKED | WELCOME",
   "occurredAt": "ISO-8601 (gelecekte olamaz)",
   "locale": "tr | en (opsiyonel)"
 }
 ```
-Bildirim parola, kod, bağlantı veya gerekçe metni taşımaz; yalnız ne olduğunu ve ne zaman olduğunu söyler. `EMAIL_CHANGED` eski adrese gönderilir. `TWO_FACTOR_ENABLED`, `TWO_FACTOR_DISABLED`, `RECOVERY_CODE_USED` ve `EXTERNAL_IDENTITY_LINKED` hesap ele geçirme belirtisi olan olaylardır (Google ya da Steam bağlama dahil); yalnız `occurredAt` taşır, IP/cihaz bilgisi yoktur. Bilinmeyen `type` (`WELCOME`, `SUSPICIOUS_LOGIN` dahil) `400` döner. Süresi geçmiş (24 saatten eski) bildirim gönderilmez.
+Bildirim parola, kod, bağlantı veya gerekçe metni taşımaz; yalnız ne olduğunu ve ne zaman olduğunu söyler. `EMAIL_CHANGED` eski adrese gönderilir. `TWO_FACTOR_ENABLED`, `TWO_FACTOR_DISABLED`, `RECOVERY_CODE_USED` ve `EXTERNAL_IDENTITY_LINKED` hesap ele geçirme belirtisi olan olaylardır (Google ya da Steam bağlama dahil); yalnız `occurredAt` taşır, IP/cihaz bilgisi yoktur. `WELCOME` (V85, MAIL-05) güvenlik uyarısı değil karşılama bildirimidir; Auth e-posta doğrulaması tamamlanınca gönderir, yalnız `occurredAt` taşır. Bilinmeyen `type` (`SUSPICIOUS_LOGIN` dahil) `400` döner. Süresi geçmiş (24 saatten eski) bildirim gönderilmez.
 
 #### Response — 202
 Gövde yok.
@@ -1975,6 +1975,57 @@ Auth → Mail. Auth tarafı `HttpMailServiceAdapter` **IMPLEMENTED** (Mailpit il
 
 #### Test Durumu
 INTEGRATION (`MailDeliveryControllerTest`)
+
+### MAIL — Bilgilendirme e-postası (platform kapısı)
+
+Durum: IMPLEMENTED (Mail tarafı, testli). Gerçek uçtan uca (Auth ile) NOT VERIFIED: ilk çağıran servis Auth'ta `mail:notify` hedefi alınca denenecek.
+Sorumlu: Kerem
+Tüketici servisler: Auth dışındaki, Mail'in izin tablosuna eklenmiş servisler (social, event, notification vb.). Şu an hiçbiri tanımlı değil.
+Rehber: `docs-mail/entegrasyon-rehberi.md` (3 adımda entegrasyon, örnekler). **Notification Service ile ilgisi yoktur:** o servis kime ne bildirileceğine karar verir, bu uç yalnız e-postayı güvenle gönderir.
+
+#### Endpoint
+POST /internal/v1/mail/notices
+
+#### Yetkilendirme
+Internal. `svc+jwt`, `aud=mail-service`, `sub=svc:<servis>` (Mail'in izin tablosunda `ltz.mail.platform.callers.<servis>` ile kayıtlı), `scope=mail:notify`. Token Auth'tan `POST /internal/v1/service-tokens` ile `audience=mail-service` verilerek alınır (60 sn). İstemci-kimlikli token'da `account_id` claim'i yoktur; hesabı gövdedeki `accountId` belirler. `svc:auth-service` bu uçtan gönderemez; Auth kendi uçlarını (`mail:send`) kullanır.
+
+#### Request Body
+```json
+{
+  "idempotencyKey": "UUID",
+  "accountId": "UUID",
+  "kind": "INFO | SUCCESS | WARNING | DANGER",
+  "title": "string 1..80, tek satır, düz metin",
+  "message": "string 1..600, düz metin (boş satırla paragraf)",
+  "actionLabel": "string ≤30 (opsiyonel, actionLink ile birlikte)",
+  "actionLink": "https adres ≤2048, izinli host (opsiyonel, actionLabel ile birlikte)",
+  "locale": "tr | en (opsiyonel, varsayılan tr)"
+}
+```
+Servis alıcının e-posta adresini **vermez**: Mail adresi gönderim anında Auth'tan (`GET /internal/v1/accounts/{id}/contact`) çözer ve kalıcı yazmaz. Bilgilendirme tek dillidir; içeriği çağıran yerelleştirir. Bilinmeyen alan `400`. `kind` yalnız rengi ve etiketi belirler (INFO pembe "BİLGİLENDİRME", SUCCESS yeşil, WARNING turuncu, DANGER kırmızı "ÖNEMLİ").
+
+#### Response — 202
+Gövde yok. `202` isteğin kalıcı kuyruğa yazıldığı anlamına gelir; e-postanın gittiği anlamına gelmez. Adresi olmayan, doğrulanmamış ya da etkin olmayan (`ACTIVE` dışı) hesaba, ve silinmiş hesaba mail **gönderilmez** (çağırana ayrıca bildirilmez).
+
+#### Hata Durumları
+- 400: Doğrulama (`VALIDATION_FAILED`, `MALFORMED_REQUEST`); içerik kabul edilemez (`INVALID_CONTENT`: kontrol/yön değiştirme karakteri, boş ya da yalnız biri verilmiş düğme); bağlantı izinli değil ya da https değil (`INVALID_LINK`)
+- 401: Bearer başlığı var ama token geçersiz ya da çağıran izin tablosunda değil; başlık hiç yoksa `403` (CSRF filtresi)
+- 403: Kapsam `mail:notify` değil, çağıran `svc:auth-service`
+- 409: Aynı `idempotencyKey` farklı içerikle (`IDEMPOTENCY_CONFLICT`); aynı içerik `202` döner, yeni mail üretmez
+- 413: Gövde 16 KB'ı aşıyor
+- 429: Hız sınırı (`RATE_LIMITED`): çağıran başına ve hesap başına saatlik sınır (varsayılan hesap başına 5, çağıran başına 500; çağıran satırında değiştirilir)
+- 503: Platform kapısı yapılandırılmamış (`PLATFORM_NOT_CONFIGURED`, Mail'in Auth istemci anahtarı yok) ya da kayıt yazılamadı (`TEMPORARILY_UNAVAILABLE`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Çağıran servis → Mail. Mail → Auth (alıcı adresi çözme, `account:contact:read`). Hesap silme akışı bu kayıtları da siler (`recipient_user_id`).
+
+#### Test Durumu
+INTEGRATION (`NoticeControllerTest`, `NoticeDispatchTest`), UNIT (`AuthRecipientResolverTest`, `PlatformPropertiesTest`, `PayloadCodecTest`)
 
 ### MAIL — Hesap verisini sil (silme akışı)
 
@@ -3316,7 +3367,7 @@ Sorumlu: Hamza · Gateway: `/api/v1/library/**` · Görevler: LIB-
 
 ### LIBRARY — Profil koleksiyonunu listeleme (LIB-10, LIB-11)
 
-Durum: IMPLEMENTED (Library tarafı); User görünürlük adaptörü PENDING, dış erişim fail-closed.
+Durum: IMPLEMENTED (Library tarafı, User HTTP adaptörü ile); gerçek User ile uçtan uca NOT VERIFIED. User `ltz.user.social.projection-enabled=false` iken sahibi olmayan izleyiciye `allowed=false` döndürdüğü için başkasının koleksiyonu 403 olur; bayrak açılana kadar bu bilinçlidir.
 Sorumlu: Hamza
 Tüketici servisler: Frontend / User profil akışı
 
@@ -3327,7 +3378,10 @@ GET /api/v1/library/users/{userId}/entries
 Authenticated; kanonik kullanıcı rolü ve mevcut at+jwt doğrulaması.
 Görüntüleyen yalnız JWT sub'dır; viewerId/userId query veya kimlik başlığı yetki vermez.
 Owner kendi verisine erişir. Başka owner için LibraryVisibilityPort açık ALLOW vermelidir.
-Üretim adaptörü User API'si bulunmadığından UNAVAILABLE döner; dış veri açılmaz.
+Üretim adaptörü (`UserServiceLibraryVisibility`) her okumada User'a `POST /internal/v1/privacy/decisions`
+(`field=LIBRARY`, `viewerId` = doğrulanmış JWT sub, tek `ownerId`; token `aud=user-service`, `scope=privacy:read`)
+sorar ve yalnız `allowed` alanını okur: true → ALLOW, false → DENY (403). Adres/servis sırrı yoksa, token alınamazsa,
+HTTP hatası/yönlendirme/zaman aşımı, bozuk yanıt, eksik/yinelenen/yabancı sahip → UNAVAILABLE (503); retry ve cache yoktur.
 ADMIN rolü gizlilik denetimini atlamaz. Anonim profil koleksiyonu erişimi sunulmaz.
 User, kullanıcı isteğinde o kullanıcının kendi at+jwt'sini bu uca iletir (Auth karar K1); token
 saklanmaz ve arka planda kullanılmaz (User'ın sorumluluğu). Ayrı delegasyon token'ı yoktur.
@@ -3350,17 +3404,20 @@ Görünürlük denetimi DB sayımı/listeleme ve Game çağrısından önce yap�
 Olmayan/gizli kullanıcı için özel varlık sorgusu veya ayırt edici ret açıklaması üretilmez.
 
 #### Bağlantı
-Gateway üzerinden. Görünürlük User'ın sorumluluğundadır; henüz HTTP adaptörü yoktur.
+Gateway üzerinden. Görünürlük User'ın sorumluluğundadır; Library kararı `USER_SERVICE_URL` (`ltz.library.user.base-url`)
+üzerinden User'dan alır. Docker'da servis sırrı (`AUTH_LIBRARY_SERVICE_CLIENT_SECRET`) compose ile library-service konteynerine geçirilir;
+boşsa token alınamaz ve karar UNAVAILABLE olur.
 Karar cache'lenmez. ALLOW sonrası mevcut Library liste/Game batch akışı kullanılır.
 
 #### Test Durumu
-UNIT + INTEGRATION — LibraryApiTest.PrivacyTests ve LibraryAccessServiceTest.
-İzinli/ret/ulaşılamama/null/adaptör hatası, owner, ADMIN, kimlik sahteciliği ve sayaç sızıntısı.
-İzinli dış erişim yalnız test portuyla sınandı; gerçek User entegrasyonu NOT VERIFIED/PENDING.
+UNIT + INTEGRATION — LibraryApiTest.PrivacyTests, LibraryAccessServiceTest ve UserServiceLibraryVisibilityTest (9).
+İzinli/ret/ulaşılamama/null/adaptör hatası, owner, ADMIN, kimlik sahteciliği ve sayaç sızıntısı; adaptör sahte HTTP
+(MockRestServiceServer) ile sınandı: istek gövdesi, Bearer, allowed eşlemesi, 4xx/5xx/3xx/zaman aşımı, bozuk ve yabancı yanıt.
+Gerçek User ile uçtan uca NOT VERIFIED (Kerem'in dalı main'e alınınca denenecek).
 
 ### LIBRARY — Profil koleksiyon sayacı (LIB-10, LIB-11)
 
-Durum: IMPLEMENTED (Library tarafı); User görünürlük adaptörü PENDING.
+Durum: IMPLEMENTED (Library tarafı, User HTTP adaptörü ile); gerçek User ile uçtan uca NOT VERIFIED.
 Sorumlu: Hamza
 Tüketici servisler: Frontend / User profil akışı
 
@@ -3369,7 +3426,7 @@ GET /api/v1/library/users/{userId}/entries/statistics
 
 #### Yetkilendirme
 Profil koleksiyon listesiyle aynı at+jwt/rol/owner ve açık görünürlük izni denetimi.
-Sayaçlar gizli koleksiyonu açığa çıkaramaz; üretimde non-owner erişimi 503 ile kapanır.
+Sayaçlar gizli koleksiyonu açığa çıkaramaz; User `allowed=false` derse 403, karar alınamazsa 503, veri/sayaç dönmez.
 
 #### Path/Query Parameters
 userId: UUID. Query parametresi yok.
@@ -3389,7 +3446,51 @@ HTTP istekleridir; ikisi arasında ortak snapshot veya dağıtık gizlilik kilid
 
 #### Test Durumu
 INTEGRATION — PrivacyTests: owner sayacı, izinli hedef izolasyonu, ret/ulaşılamama,
-doğrulanmış viewer kullanımı. Gerçek User entegrasyonu PENDING.
+doğrulanmış viewer kullanımı; UserServiceLibraryVisibilityTest. Gerçek User entegrasyonu NOT VERIFIED.
+
+### LIBRARY — Profil özeti olayı LibrarySummaryChanged (LIB-10, giden olay)
+
+Durum: IMPLEMENTED (Library tarafı). DEV'de (2026-11-09) sentetik bir kullanıcı işaretiyle Auth token'ı + User `POST /internal/events`
+teslimi doğrulandı (2xx, işaret silindi); gerçek hesaplı profil `summary.library` doğrulaması NOT VERIFIED.
+Sorumlu: Hamza
+Tüketici servisler: user-service (profil özeti `summary.library`)
+
+#### Endpoint
+Yeni Library ucu yoktur. Library, User'ın `POST /internal/events` ucuna `LibrarySummaryChanged` olayı gönderir.
+
+#### Yetkilendirme
+Auth'tan `aud=user-service`, `scope=events:ingest` servis token'ı (`sub=svc:library-service`, 60 sn). Token günlüğe yazılmaz.
+
+#### Request Body
+```json
+{ "eventId": "UUID (her teslimde yeni)", "eventType": "LibrarySummaryChanged", "eventVersion": 1,
+  "occurredAt": "ISO-8601 UTC (gönderim anı, mikrosaniye)", "producer": "library-service", "aggregateId": "<userId>",
+  "payload": { "userId": "<userId = aggregateId>", "collectionCount": 0, "completedCount": 0, "favoriteCount": 0 } }
+```
+Sayılar **mutlak**dır ve gönderim anında okunur. Kullanıcı başına tek bekleyen işaret vardır (`library_summary_outbox`,
+V43): koleksiyon her değiştiğinde (ekle/sil/favori/bitirildi) veriyle aynı transaction'da işaretlenir; relay (varsayılan
+5 sn'de bir, 50'şerli) sayıları okur, gönderir ve yalnız gönderilen sürümü siler. Gönderim sürerken yeni değişiklik olursa
+işaret kalır ve hemen yeniden gönderilir. Hata: 5 sn × 2^n, en çok 300 sn geri çekilme; sınırsız yeniden deneme.
+V43 var olan koleksiyon sahiplerini bir kez işaretler (başlangıç aktarımı). Hesap silinince bekleyen işaret de silinir ve
+o hesap için olay gönderilmez. Adres veya servis sırrı yoksa relay hiçbir şey denemez ve deneme hakkı yanmaz.
+
+#### Response — 200
+Bu olay için Library'nin yanıtı yoktur; User `outcome` (`PROCESSED`/`DUPLICATE`) döner, 2xx dışı teslim sayılmaz.
+
+#### Hata Durumları
+User tarafı 400/401/403/429/5xx, yönlendirme ve zaman aşımı: teslim edilmedi sayılır, geri çekilmeyle yeniden denenir.
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+user-service (profil `summary.library`). Sözleşme User tarafında `docs/api.md` → USER → "Servisler arası olay girişi".
+
+#### Test Durumu
+UNIT + INTEGRATION — UserServiceSummaryPublisherTest (6) ve LibrarySummaryOutboxTest (13, gerçek PostgreSQL):
+işaretleme/coalescing, mutlak sayılar, sıfır sayı, geri çekilme, teslim sırasında değişiklik, kira, hesap silme, V43 aktarımı.
+DEV'de sentetik işaretle gerçek Auth + User teslimi 2xx (2026-11-09); gerçek hesaplı profil özeti NOT VERIFIED.
 
 ### LIBRARY — User servisinin profil okuması (LIB-10, LIB-11)
 
@@ -3439,7 +3540,7 @@ sub/scope/target/viewer pozitif-negatif sınanır. Gerçek token edinme ve User 
 
 ### LIBRARY — Recommendation girdileri (LIB-14)
 
-Durum: IMPLEMENTED (Library kabul sınırı, Auth signals:read sözleşmesine uyarlandı); User izin kararı ve Recommendation tüketicisi PENDING.
+Durum: IMPLEMENTED (Library kabul sınırı, Auth signals:read sözleşmesi ve User `RECOMMENDATION` rıza kararı); gerçek User ve Recommendation ile uçtan uca NOT VERIFIED. Recommendation Service henüz bir istemci içermiyor.
 Sorumlu: Hamza
 Tüketici servisler: recommendation-service
 
@@ -3455,7 +3556,9 @@ target_user_id artık kabul edilmez. Kullanıcı at+jwt'si, D4 account:erase tok
 servislerin token'ları kabul edilmez. Ardından RECOMMENDATION amacıyla User'dan ayrı açık izin
 gerekir: Auth hesabın ACTIVE olduğunu denetler, kullanıcı iznini kanıtlamaz. Owner eşitliği bu amacı
 atlatmaz; PUBLIC profil tercihi kendi başına öneri kullanım izni sayılmaz. Üretim görünürlük
-adaptörü User karar API'si olmadığı için 503 ile kapalıdır.
+adaptörü User'a `POST /internal/v1/privacy/decisions` ile `field=RECOMMENDATION`, `viewerId = ownerId` sorar;
+User `allowed=true` ancak sahip, profil görünür ve açık rıza verilmişse döner (sahiplik kısayolu yok). Rıza yoksa 403,
+karar alınamazsa 503; Library yalnız `allowed` alanını okur.
 
 #### Path/Query Parameters
 userId UUID. page>=0 varsayılan 0; size=1..50 varsayılan 20.
@@ -3478,8 +3581,8 @@ tarih/version veya Game metadata'sı yoktur. Liste/toplam REPEATABLE_READ; no-st
 #### Bağlantı
 Doğrudan Library iç ağı; Game/diğer DB çağrısı yoktur. Auth tarafı hazırdır (PR #36, origin/main):
 Recommendation, POST /internal/v1/service-tokens ile clientId=recommendation-service, audience=library-service,
-accountId=<hesap UUID> göndererek token alır. Recommendation istemcisi ve User izin kararı henüz yoktur;
-kullanılabilir üretim entegrasyonu olarak değerlendirilmez.
+accountId=<hesap UUID> göndererek token alır. Recommendation istemcisi henüz yoktur; kullanılabilir üretim entegrasyonu olarak değerlendirilmez.
+Recommendation 403'ü "kullanıcı izni yok, atla", 503'ü "geçici hata, sonra dene" diye ele almalıdır.
 
 #### Test Durumu
 INTEGRATION — LibraryApiTest.PrivacyTests: 3 sinyal/2 sayfa, her iki bayrak, işaretsiz kayıt ve başka
@@ -3487,7 +3590,8 @@ owner dışlama, alan azaltma, yüksek offset, parametre sınırları, ret/ulaş
 sınırları (yanlış sub/scope/account_id, eksik veya kanonik olmayan account_id, süresi dolmuş, yanlış aud/typ,
 eski taslak kapsamı, D4 ve sinyal token'ının çapraz kullanılamaması). AuthIssuedServiceTokenIntegrationTest:
 Auth'un gerçek ServiceClientTokenIssuer çıktısı Library'nin gerçek HTTP/PostgreSQL katmanına karşı
-(User kararı SAHTE). Gerçek Recommendation ve gerçek User izin kararı E2E'si PENDING.
+(User kararı SAHTE); UserServiceLibraryVisibilityTest (RECOMMENDATION alanı, rıza yok → DENY, farklı viewer → DENY).
+Gerçek Recommendation ve gerçek User izin kararı E2E'si NOT VERIFIED.
 
 ### LIBRARY — Kütüphane listeleme (LIB-05, LIB-06, LIB-07, LIB-08, LIB-16, LIB-17)
 

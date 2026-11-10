@@ -14,6 +14,7 @@ import com.ltz.mail.application.port.MailDeliveryException;
 import com.ltz.mail.application.port.MailSenderPort;
 import com.ltz.mail.application.port.OutgoingMail;
 import com.ltz.mail.application.port.PayloadCipherPort;
+import com.ltz.mail.application.port.RecipientResolverPort;
 import com.ltz.mail.domain.entity.MailDeliveryAttempt;
 import com.ltz.mail.domain.entity.MailMessage;
 import com.ltz.mail.domain.enums.AttemptResult;
@@ -39,12 +40,18 @@ public class MailDispatchService {
     static final String EXPIRED = "EXPIRED";
     static final String RETRIES_EXHAUSTED = "RETRIES_EXHAUSTED";
     static final String INTERNAL_ERROR = "INTERNAL_ERROR";
+    /** Platform kapısı: alıcı gönderime uygun değil (kalıcı atlanır; yeniden deneme anlamsız). */
+    static final String NO_EMAIL = "NO_EMAIL";
+    static final String EMAIL_NOT_VERIFIED = "EMAIL_NOT_VERIFIED";
+    static final String ACCOUNT_NOT_ACTIVE = "ACCOUNT_NOT_ACTIVE";
+    private static final String ACTIVE_STATUS = "ACTIVE";
 
     private final MailMessageRepository messages;
     private final MailDeliveryAttemptRepository attempts;
     private final PayloadCipherPort cipher;
     private final TemplateRenderer renderer;
     private final MailSenderPort sender;
+    private final RecipientResolverPort resolver;
     private final MailRetryPolicy retryPolicy;
     private final WorkerProperties worker;
     private final TransactionTemplate transaction;
@@ -52,13 +59,14 @@ public class MailDispatchService {
 
     public MailDispatchService(MailMessageRepository messages, MailDeliveryAttemptRepository attempts,
                                PayloadCipherPort cipher, TemplateRenderer renderer, MailSenderPort sender,
-                               MailRetryPolicy retryPolicy, WorkerProperties worker,
+                               RecipientResolverPort resolver, MailRetryPolicy retryPolicy, WorkerProperties worker,
                                TransactionTemplate transaction, Clock clock) {
         this.messages = messages;
         this.attempts = attempts;
         this.cipher = cipher;
         this.renderer = renderer;
         this.sender = sender;
+        this.resolver = resolver;
         this.retryPolicy = retryPolicy;
         this.worker = worker;
         this.transaction = transaction;
@@ -106,9 +114,11 @@ public class MailDispatchService {
     private Outcome send(MailMessage message, long startNanos) {
         try {
             MailPayload payload = readPayload(message);
+            // Platform kapısında adres kuyrukta yoktur; gönderim anında Auth'tan çözülür, bellekte kullanılır ve saklanmaz.
+            String recipient = recipient(message);
             RenderedMail rendered = renderer.render(message.getType(), locale(message), payload);
-            sender.send(new OutgoingMail(message.getId(), message.getRecipientEmail(), rendered.subject(),
-                    rendered.text(), rendered.html()));
+            sender.send(new OutgoingMail(message.getId(), recipient, rendered.subject(), rendered.text(),
+                    rendered.html()));
             return new Outcome(AttemptResult.SENT, null, null, elapsedMillis(startNanos));
         } catch (MailDeliveryException exception) {
             AttemptResult result = exception.isPermanent()
@@ -116,6 +126,27 @@ public class MailDispatchService {
                     : AttemptResult.TRANSIENT_FAILURE;
             return new Outcome(result, exception.errorCode(), exception.smtpCode(), elapsedMillis(startNanos));
         }
+    }
+
+    /**
+     * Alıcı adresi. Auth kapısında kayıtla birlikte gelir; platform kapısında Auth'tan çözülür. Adresi olmayan,
+     * doğrulanmamış ya da etkin olmayan hesaba gönderilmez (kalıcı atlanır); Auth erişilemezse kayıt kuyrukta kalır.
+     */
+    private String recipient(MailMessage message) {
+        if (!message.isPlatform()) {
+            return message.getRecipientEmail();
+        }
+        RecipientResolverPort.AccountContact contact = resolver.resolve(message.getRecipientUserId());
+        if (contact.email() == null || contact.email().isBlank()) {
+            throw MailDeliveryException.permanent(NO_EMAIL, null);
+        }
+        if (!contact.emailVerified()) {
+            throw MailDeliveryException.permanent(EMAIL_NOT_VERIFIED, null);
+        }
+        if (!ACTIVE_STATUS.equals(contact.status())) {
+            throw MailDeliveryException.permanent(ACCOUNT_NOT_ACTIVE, null);
+        }
+        return contact.email();
     }
 
     private MailPayload readPayload(MailMessage message) {

@@ -78,15 +78,16 @@ describe("navigationGroups", () => {
 });
 
 describe("primaryNavigation", () => {
-  it("Ana Sayfa, Oyunlar, Topluluk, Arkadaşlar, Donanımlar ve Kampanyalar gerçek rotalara bağlanır", () => {
+  it("Ana Sayfa, Oyunlar, Kütüphane, Topluluk, Arkadaşlar, Donanımlar ve Kampanyalar gerçek rotalara bağlanır", () => {
     const available = primaryNavigation.filter(isNavItemAvailable);
-    expect(available.map((item) => item.id)).toEqual(["home", "games", "community", "friends", "hardware", "campaigns"]);
-    expect(primaryNavigation.filter((item) => !isNavItemAvailable(item))).toHaveLength(8);
+    expect(available.map((item) => item.id)).toEqual(["home", "games", "library", "community", "friends", "hardware", "campaigns"]);
+    expect(available.find((item) => item.id === "library")?.href).toBe("/library");
+    expect(primaryNavigation.filter((item) => !isNavItemAvailable(item))).toHaveLength(7);
   });
 
   it("Yakında öğeleri href taşımaz (kırık link ve sahte rota yok)", () => {
     for (const item of primaryNavigation) {
-      if (!["home", "games", "community", "friends", "hardware", "campaigns"].includes(item.id)) {
+      if (!["home", "games", "library", "community", "friends", "hardware", "campaigns"].includes(item.id)) {
         expect(item.href).toBeUndefined();
       }
     }
@@ -132,10 +133,20 @@ describe("isActivePath / findActiveItem", () => {
   });
 
   it("href verilen bir Yakında öğesi otomatik olarak aktif olur (bileşen değişmeden)", () => {
+    const pending = { id: "library-live", labelKey: "library" as const, icon: "library" as const };
+    expect(isNavItemAvailable(pending)).toBe(false);
     const enabled = [
-      ...primaryNavigation,
-      { id: "library-live", labelKey: "library" as const, icon: "library" as const, href: "/library" as AppPathname }
+      ...primaryNavigation.filter((item) => item.id !== "library"),
+      { ...pending, href: "/library" as AppPathname }
     ];
     expect(findActiveItem("/library/42", enabled)?.id).toBe("library-live");
+  });
+
+  it.each(["/library", "/library/favorites", "/library/completed", "/library/add", "/library/privacy", "/library/users/0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66"])("Library rotasında aktif öğeyi korur: %s", (pathname) => {
+    expect(findActiveItem(pathname)?.id).toBe("library");
+  });
+
+  it("Library'ye benzeyen önekler aktif sayılmaz", () => {
+    expect(findActiveItem("/library-other")).toBeUndefined();
   });
 });

@@ -32,7 +32,7 @@ import jakarta.servlet.DispatcherType;
 /**
  * Fail-closed güvenlik zinciri: yalnız sağlık ucu herkese açıktır; Mail Service'in kullanıcıya açık hiçbir ucu yoktur.
  * İç uçlar ({@code /internal/**}) Auth'un imzaladığı geçerli servis token'ı ({@code svc+jwt}) ister ve uç başına kapsam
- * gerekir ({@code mail:send} gönderim, {@code account:erase} silme); geri kalan her şey reddedilir. Kimlik yalnız
+ * gerekir ({@code mail:send} Auth gönderimi, {@code mail:notify} platform bildirimi, {@code account:erase} silme); geri kalan her şey reddedilir. Kimlik yalnız
  * {@code Authorization: Bearer} başlığından okunur; servis çerez okumaz ve oturum açmaz, bu yüzden CSRF yüzeyi yoktur.
  * 401/403 yanıtları @RestControllerAdvice'a devredilir; ProblemDetail döner.
  */
@@ -79,6 +79,8 @@ public class SecurityConfig {
                                 .hasAuthority(SCOPE_PREFIX + TokenClaims.MAIL_SEND_SCOPE)
                         .requestMatchers(PATHS.matcher(HttpMethod.POST, InternalApiPaths.SECURITY_NOTIFICATIONS))
                                 .hasAuthority(SCOPE_PREFIX + TokenClaims.MAIL_SEND_SCOPE)
+                        .requestMatchers(PATHS.matcher(HttpMethod.POST, InternalApiPaths.NOTICES))
+                                .hasAuthority(SCOPE_PREFIX + TokenClaims.MAIL_NOTIFY_SCOPE)
                         .requestMatchers(PATHS.matcher(HttpMethod.DELETE, InternalApiPaths.ACCOUNT_ERASURE))
                                 .hasAuthority(SCOPE_PREFIX + TokenClaims.ACCOUNT_ERASE_SCOPE)
                         .anyRequest().denyAll())

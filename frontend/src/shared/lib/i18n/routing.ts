@@ -13,6 +13,12 @@ import { defaultLocale, localeCookieName, locales } from "./config";
  */
 export const pathnames = {
   "/": "/",
+  "/library": { tr: "/kutuphane", en: "/library" },
+  "/library/favorites": { tr: "/kutuphane/favoriler", en: "/library/favorites" },
+  "/library/completed": { tr: "/kutuphane/bitirilenler", en: "/library/completed" },
+  "/library/add": { tr: "/kutuphane/oyun-ekle", en: "/library/add" },
+  "/library/privacy": { tr: "/kutuphane/gizlilik", en: "/library/privacy" },
+  "/library/users/[userId]": { tr: "/kutuphane/oyuncu/[userId]", en: "/library/users/[userId]" },
   "/games": { tr: "/oyunlar", en: "/games" },
   "/games/manage": { tr: "/oyunlar/yonetim", en: "/games/manage" },
   "/games/[gameId]": { tr: "/oyunlar/[gameId]", en: "/games/[gameId]" },

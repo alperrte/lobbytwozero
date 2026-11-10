@@ -15,13 +15,13 @@ Auth'un yaptığı mantıklı; Mail'den gelen **tek** değişiklik isteği aşa�
 | D5 | Dil | `locale` isteğe bağlı (`tr`/`en`). Gelmezse **iki dilli** (TR + EN) gönderilir; bugünkü Auth/Mailpit davranışıyla aynı. Auth'ta değişiklik gerekmez | `DevSmtpVerificationMailAdapter` metinleri |
 | D6 | Idempotency | `idempotencyKey` (Auth'un kod/token kaydı kimliği) tekil. Aynı anahtar + aynı içerik → `202` (önceki kayıt); farklı içerik → `409`. Bunun için `mail_messages.request_hash` | `database.md` §2.4 |
 | D7 | Hassas içerik | Kod/bağlantı kuyrukta **şifreli** tutulur (SMTP kesintisinde retry için gerekli), gönderim sonrası silinir. Loga/geçmişe düz yazılmaz | `SECURITY.md` §15 |
-| D8 | Çağıran izin matrisi | `type`↔`sub` tablosu kodda: şimdilik yalnız `svc:auth-service`. İleride başka servis isterse tabloya satır eklenir | `servis-sozlesmeleri.md` §3.5 deseni |
+| D8 | Çağıran izin matrisi | Auth kapısı yalnız `svc:auth-service` (kodda sabit). **Platform kapısı (2026-11-09, V87):** diğer servisler `ltz.mail.platform.callers.<servis>` ile yapılandırılır (varsayılan boş = kapalı); `sub` Auth ya da bu listeden olmalı, kapsam uç başına denetlenir (`mail:send` Auth, `mail:notify` platform), çağıran Auth'un ucuna giremez, Auth da platform ucuna giremez | `servis-sozlesmeleri.md` §3.5 deseni |
 | D9 | Retry/kuyruk | DB kuyruğu, `FOR UPDATE SKIP LOCKED` kiralama (Auth silme işçisi gibi), üstel geri çekilme (1 dk → en çok 6 sa), en çok 8 deneme, sonra `FAILED`. SMTP 4xx geçici, 5xx kalıcı. Değerler kodda `ltz.mail.*` | `architecture.md` §8 |
 | D10 | Silme | `DELETE /internal/v1/accounts/{accountId}` (`scope=account:erase`, `sub=svc:auth-service`, `account_id`=yol), `204`, idempotent. **İlk iş** | `servis-sozlesmeleri.md` §3.1 |
 | D11 | Şablon | Yeni bağımlılık yok: DB'de `mail_templates` + Flyway seed, kendi küçük yer tutucu çözücüsü, HTML-escape zorunlu, başlıkta satır sonu temizliği | `SECURITY.md` §15 |
 | D12 | Test | Her fazda test; gerçek PostgreSQL (Auth'un yaklaşımı), SMTP için sahte gönderici (`spring-boot-starter-mail-test` zaten pom'da). Yeni bağımlılık yok | `AGENTS.md` §6 |
 | D13 | Geçmiş uçları | Kullanıcıya/yöneticiye uç yok. Gönderim geçmişi yalnız DB'dedir | Kapsam küçültme |
-| D14 | Event/Notification/Admin | **Ertelendi.** İstek atan olmadıkça MAIL-06/07 için uç açılmaz; olursa D2/D8 modeliyle (Auth'ta çift + tablo satırı) eklenir | Auth-merkezli ilke |
+| D14 | Event/Notification/Admin | MAIL-06/07: **genel platform ucu yapıldı (2026-11-09):** `POST /internal/v1/mail/notices` (başlık, mesaj, düğme; alıcı yalnız `accountId`, adres gönderim anında Auth'tan çözülür). Özel etkinlik/bildirim şablonları çağıran çıkınca `.mail` dosyası olarak eklenir. Kullanıcı e-posta tercihi Mail'de tutulmaz; çağıran servis ya da Notification denetler | Auth-merkezli ilke |
 
 **Güncelleme (2026-10-31):** tüm teknik ayrıntı [../SPEC.md](../SPEC.md)'de kesinleştirildi. Kod okumasından ek kesin kararlar: token `account_id` ile gövde `accountId` eşleşmeli; `expires_at` ile süresi dolan kod gönderilmez; terminal durumda tam adres NULL + maskeli kopya, payload silinir; SMTP gönderici elle kurulur (health göstergesi yok); `inbox_events`/outbox bu serviste yok.
 
@@ -38,7 +38,7 @@ SMTP ENV'leri boş olarak `ops` betiğine ve compose'a eklendi; şifreleme anaht
 3. **Auth'a bildirilecek değişiklikler** (Auth de senin; ayrı küçük görev):
    - `MailAdapter`'a `MAIL_SERVICE` değeri (`productionReady=true`) + RestClient adaptörü (`HttpAccountDataEraser` deseni, `mail:send` token, 202 dışını hata say) + `MAIL_SERVICE_URL`.
    - `api.md`'deki doğrulama kodu kaydına diğer 3 ucu ekleme; `locale` Auth'tan gelmeyecek (D5).
-   - **Sonra, Mail bittiğinde:** MAIL-05 için `WELCOME` (yeni `SecurityNotificationType`), MAIL-03 için "şüpheli giriş" Auth'ta henüz yok.
+   - **Sonra, Mail bittiğinde:** MAIL-05 `WELCOME`: Mail tarafı V85 ile yapıldı (2026-11-09), Auth tetiği bekliyor. MAIL-03 "şüpheli giriş" Auth'ta henüz yok.
 
 ## Sorulmayacaklar (kaldırıldı)
 Eski K2 (alıcı çözümü), K6 (notification tercihi), K7 (başka servis çiftleri), K12 (geçmiş uçları): çağıran olmadığı için gereksiz. Nisa/notification sahibine mesaj gerekmez; ihtiyaç doğarsa açılır.

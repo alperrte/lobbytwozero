@@ -1,0 +1,10 @@
+# ACCOUNT_DELETION_CONFIRMATION (en). Biçim: docs-mail/sablon-rehberi.md. Düz metin sürümü bloklardan otomatik üretilir.
+subject: LTZ account deletion confirmation
+kind: danger
+label: ACCOUNT DELETION
+title: Confirm your account deletion
+note-kind: danger
+text: To permanently delete your LTZ account open the link and confirm by typing your username. The link is valid for {{validityMinutes}} minutes, single use, and this cannot be undone.
+button: Confirm deletion
+link-fallback: If the button does not work, paste this address into your browser:
+note: If you did not make this request, ignore this email and change your password.

@@ -1,0 +1,10 @@
+# ACCOUNT_DELETION_CONFIRMATION (tr). Biçim: docs-mail/sablon-rehberi.md. Düz metin sürümü bloklardan otomatik üretilir.
+subject: LTZ hesap silme onayı
+kind: danger
+label: HESAP SİLME
+title: Hesabını silmeyi onayla
+note-kind: danger
+text: LTZ hesabını kalıcı olarak silmek için bağlantıyı aç ve kullanıcı adını yazarak onayla. Bağlantı {{validityMinutes}} dakika geçerli, tek kullanımlık ve bu işlem geri alınamaz.
+button: Silme işlemini onayla
+link-fallback: Düğme çalışmazsa bu adresi tarayıcına yapıştır:
+note: Bu isteği sen yapmadıysan bu e-postayı yok say ve parolanı değiştir.

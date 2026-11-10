@@ -1,0 +1,8 @@
+# TWO_FACTOR_DISABLED (en). Biçim: docs-mail/sablon-rehberi.md. Düz metin sürümü bloklardan otomatik üretilir.
+subject: Two-step verification was disabled
+kind: warn
+label: SECURITY NOTICE
+title: Two-step verification was disabled
+text: Two-step verification was disabled on your LTZ account.
+date: Date:
+note: If you did not do this, reset your password immediately and contact support.
