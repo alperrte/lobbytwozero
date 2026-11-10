@@ -1,0 +1,8 @@
+# TWO_FACTOR_ENABLED (tr). Biçim: docs-mail/sablon-rehberi.md. Düz metin sürümü bloklardan otomatik üretilir.
+subject: LTZ iki adımlı doğrulama açıldı
+kind: warn
+label: GÜVENLİK BİLDİRİMİ
+title: İki adımlı doğrulama açıldı
+text: LTZ hesabında iki adımlı doğrulama açıldı.
+date: Tarih:
+note: Bu işlemi sen yapmadıysan hemen parolanı sıfırla ve destek ile iletişime geç.

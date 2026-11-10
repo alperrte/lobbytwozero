@@ -1,0 +1,8 @@
+# EMAIL_CHANGED (en). Biçim: docs-mail/sablon-rehberi.md. Düz metin sürümü bloklardan otomatik üretilir.
+subject: The email address of your LTZ account changed
+kind: warn
+label: SECURITY NOTICE
+title: Your email address was changed
+text: The email address of your LTZ account was changed. This notice was sent to your previous address.
+date: Date:
+note: If you did not make this change your account may have been compromised; reset your password.

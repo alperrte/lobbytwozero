@@ -61,9 +61,9 @@ class MailDispatchServiceTest extends IntegrationTestSupport {
         assertThat(mailSender.sent()).hasSize(1);
         OutgoingMail mail = mailSender.sent().getFirst();
         assertThat(mail.to()).isEqualTo(EMAIL);
-        assertThat(mail.subject()).isEqualTo("LTZ e-posta doğrulama kodunuz / Your LTZ email verification code");
+        assertThat(mail.subject()).isEqualTo("LTZ e-posta doğrulama kodun / Your LTZ email verification code");
         assertThat(mail.html()).contains("123456", "cid:ltz-logo", "Verify your email address",
-                "E-posta adresinizi doğrulayın").doesNotContain("{{");
+                "E-posta adresini doğrula").doesNotContain("{{");
         assertThat(mail.text()).contains("123456").doesNotContain("{{");
 
         Map<String, Object> row = messageByKey(key);
@@ -85,7 +85,7 @@ class MailDispatchServiceTest extends IntegrationTestSupport {
         dispatch.dispatchDue();
 
         OutgoingMail mail = mailSender.sent().getFirst();
-        assertThat(mail.subject()).isEqualTo("LTZ e-posta doğrulama kodunuz");
+        assertThat(mail.subject()).isEqualTo("LTZ e-posta doğrulama kodun");
         assertThat(mail.html()).doesNotContain("Verify your email address");
     }
 

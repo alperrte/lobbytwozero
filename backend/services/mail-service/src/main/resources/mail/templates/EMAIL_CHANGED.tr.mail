@@ -1,0 +1,8 @@
+# EMAIL_CHANGED (tr). Biçim: docs-mail/sablon-rehberi.md. Düz metin sürümü bloklardan otomatik üretilir.
+subject: LTZ hesabının e-posta adresi değişti
+kind: warn
+label: GÜVENLİK BİLDİRİMİ
+title: E-posta adresin değiştirildi
+text: LTZ hesabının e-posta adresi değiştirildi. Bu bildirim önceki adresine gönderildi.
+date: Tarih:
+note: Bu değişikliği sen yapmadıysan hesabın ele geçirilmiş olabilir; parolanı sıfırla.

@@ -1867,12 +1867,12 @@ Internal. Doğrulama kodu ucu ile aynı (`scope=mail:send`).
   "idempotencyKey": "UUID",
   "accountId": "UUID",
   "recipientEmail": "string ≤254, geçerli e-posta",
-  "type": "PASSWORD_CHANGED | PASSWORD_RESET | EMAIL_CHANGED | ACCOUNT_SUSPENDED | ACCOUNT_BANNED | ACCOUNT_DISABLED | ACCOUNT_REACTIVATED | TWO_FACTOR_ENABLED | TWO_FACTOR_DISABLED | RECOVERY_CODE_USED | EXTERNAL_IDENTITY_LINKED",
+  "type": "PASSWORD_CHANGED | PASSWORD_RESET | EMAIL_CHANGED | ACCOUNT_SUSPENDED | ACCOUNT_BANNED | ACCOUNT_DISABLED | ACCOUNT_REACTIVATED | TWO_FACTOR_ENABLED | TWO_FACTOR_DISABLED | RECOVERY_CODE_USED | EXTERNAL_IDENTITY_LINKED | WELCOME",
   "occurredAt": "ISO-8601 (gelecekte olamaz)",
   "locale": "tr | en (opsiyonel)"
 }
 ```
-Bildirim parola, kod, bağlantı veya gerekçe metni taşımaz; yalnız ne olduğunu ve ne zaman olduğunu söyler. `EMAIL_CHANGED` eski adrese gönderilir. `TWO_FACTOR_ENABLED`, `TWO_FACTOR_DISABLED`, `RECOVERY_CODE_USED` ve `EXTERNAL_IDENTITY_LINKED` hesap ele geçirme belirtisi olan olaylardır (Google ya da Steam bağlama dahil); yalnız `occurredAt` taşır, IP/cihaz bilgisi yoktur. Bilinmeyen `type` (`WELCOME`, `SUSPICIOUS_LOGIN` dahil) `400` döner. Süresi geçmiş (24 saatten eski) bildirim gönderilmez.
+Bildirim parola, kod, bağlantı veya gerekçe metni taşımaz; yalnız ne olduğunu ve ne zaman olduğunu söyler. `EMAIL_CHANGED` eski adrese gönderilir. `TWO_FACTOR_ENABLED`, `TWO_FACTOR_DISABLED`, `RECOVERY_CODE_USED` ve `EXTERNAL_IDENTITY_LINKED` hesap ele geçirme belirtisi olan olaylardır (Google ya da Steam bağlama dahil); yalnız `occurredAt` taşır, IP/cihaz bilgisi yoktur. `WELCOME` (V85, MAIL-05) güvenlik uyarısı değil karşılama bildirimidir; Auth e-posta doğrulaması tamamlanınca gönderir, yalnız `occurredAt` taşır. Bilinmeyen `type` (`SUSPICIOUS_LOGIN` dahil) `400` döner. Süresi geçmiş (24 saatten eski) bildirim gönderilmez.
 
 #### Response — 202
 Gövde yok.
@@ -1891,6 +1891,57 @@ Auth → Mail. Auth tarafı `HttpMailServiceAdapter` **IMPLEMENTED** (Mailpit il
 
 #### Test Durumu
 INTEGRATION (`MailDeliveryControllerTest`)
+
+### MAIL — Bilgilendirme e-postası (platform kapısı)
+
+Durum: IMPLEMENTED (Mail tarafı, testli). Gerçek uçtan uca (Auth ile) NOT VERIFIED: ilk çağıran servis Auth'ta `mail:notify` hedefi alınca denenecek.
+Sorumlu: Kerem
+Tüketici servisler: Auth dışındaki, Mail'in izin tablosuna eklenmiş servisler (social, event, notification vb.). Şu an hiçbiri tanımlı değil.
+Rehber: `docs-mail/entegrasyon-rehberi.md` (3 adımda entegrasyon, örnekler). **Notification Service ile ilgisi yoktur:** o servis kime ne bildirileceğine karar verir, bu uç yalnız e-postayı güvenle gönderir.
+
+#### Endpoint
+POST /internal/v1/mail/notices
+
+#### Yetkilendirme
+Internal. `svc+jwt`, `aud=mail-service`, `sub=svc:<servis>` (Mail'in izin tablosunda `ltz.mail.platform.callers.<servis>` ile kayıtlı), `scope=mail:notify`. Token Auth'tan `POST /internal/v1/service-tokens` ile `audience=mail-service` verilerek alınır (60 sn). İstemci-kimlikli token'da `account_id` claim'i yoktur; hesabı gövdedeki `accountId` belirler. `svc:auth-service` bu uçtan gönderemez; Auth kendi uçlarını (`mail:send`) kullanır.
+
+#### Request Body
+```json
+{
+  "idempotencyKey": "UUID",
+  "accountId": "UUID",
+  "kind": "INFO | SUCCESS | WARNING | DANGER",
+  "title": "string 1..80, tek satır, düz metin",
+  "message": "string 1..600, düz metin (boş satırla paragraf)",
+  "actionLabel": "string ≤30 (opsiyonel, actionLink ile birlikte)",
+  "actionLink": "https adres ≤2048, izinli host (opsiyonel, actionLabel ile birlikte)",
+  "locale": "tr | en (opsiyonel, varsayılan tr)"
+}
+```
+Servis alıcının e-posta adresini **vermez**: Mail adresi gönderim anında Auth'tan (`GET /internal/v1/accounts/{id}/contact`) çözer ve kalıcı yazmaz. Bilgilendirme tek dillidir; içeriği çağıran yerelleştirir. Bilinmeyen alan `400`. `kind` yalnız rengi ve etiketi belirler (INFO pembe "BİLGİLENDİRME", SUCCESS yeşil, WARNING turuncu, DANGER kırmızı "ÖNEMLİ").
+
+#### Response — 202
+Gövde yok. `202` isteğin kalıcı kuyruğa yazıldığı anlamına gelir; e-postanın gittiği anlamına gelmez. Adresi olmayan, doğrulanmamış ya da etkin olmayan (`ACTIVE` dışı) hesaba, ve silinmiş hesaba mail **gönderilmez** (çağırana ayrıca bildirilmez).
+
+#### Hata Durumları
+- 400: Doğrulama (`VALIDATION_FAILED`, `MALFORMED_REQUEST`); içerik kabul edilemez (`INVALID_CONTENT`: kontrol/yön değiştirme karakteri, boş ya da yalnız biri verilmiş düğme); bağlantı izinli değil ya da https değil (`INVALID_LINK`)
+- 401: Bearer başlığı var ama token geçersiz ya da çağıran izin tablosunda değil; başlık hiç yoksa `403` (CSRF filtresi)
+- 403: Kapsam `mail:notify` değil, çağıran `svc:auth-service`
+- 409: Aynı `idempotencyKey` farklı içerikle (`IDEMPOTENCY_CONFLICT`); aynı içerik `202` döner, yeni mail üretmez
+- 413: Gövde 16 KB'ı aşıyor
+- 429: Hız sınırı (`RATE_LIMITED`): çağıran başına ve hesap başına saatlik sınır (varsayılan hesap başına 5, çağıran başına 500; çağıran satırında değiştirilir)
+- 503: Platform kapısı yapılandırılmamış (`PLATFORM_NOT_CONFIGURED`, Mail'in Auth istemci anahtarı yok) ya da kayıt yazılamadı (`TEMPORARILY_UNAVAILABLE`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Çağıran servis → Mail. Mail → Auth (alıcı adresi çözme, `account:contact:read`). Hesap silme akışı bu kayıtları da siler (`recipient_user_id`).
+
+#### Test Durumu
+INTEGRATION (`NoticeControllerTest`, `NoticeDispatchTest`), UNIT (`AuthRecipientResolverTest`, `PlatformPropertiesTest`, `PayloadCodecTest`)
 
 ### MAIL — Hesap verisini sil (silme akışı)
 

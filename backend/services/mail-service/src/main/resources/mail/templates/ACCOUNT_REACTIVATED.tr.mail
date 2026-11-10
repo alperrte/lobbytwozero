@@ -1,0 +1,7 @@
+# ACCOUNT_REACTIVATED (tr). Biçim: docs-mail/sablon-rehberi.md. Düz metin sürümü bloklardan otomatik üretilir.
+subject: LTZ hesabın yeniden etkinleştirildi
+kind: success
+label: HESAP DURUMU
+title: Hesabın yeniden etkin
+text: LTZ hesabın yeniden etkinleştirildi. Tekrar giriş yapabilirsin.
+date: Tarih:

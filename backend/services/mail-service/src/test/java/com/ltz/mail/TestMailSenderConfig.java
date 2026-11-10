@@ -13,4 +13,11 @@ public class TestMailSenderConfig {
     RecordingMailSender recordingMailSender() {
         return new RecordingMailSender();
     }
+
+    /** Gerçek Auth'a bağlanan çözücü yerine programlanabilir sahte çözücü. */
+    @Bean
+    @Primary
+    StubRecipientResolver stubRecipientResolver() {
+        return new StubRecipientResolver();
+    }
 }

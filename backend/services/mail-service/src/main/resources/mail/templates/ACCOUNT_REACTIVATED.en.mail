@@ -1,0 +1,7 @@
+# ACCOUNT_REACTIVATED (en). Biçim: docs-mail/sablon-rehberi.md. Düz metin sürümü bloklardan otomatik üretilir.
+subject: Your LTZ account was reactivated
+kind: success
+label: ACCOUNT STATUS
+title: Your account is active again
+text: Your LTZ account was reactivated. You can sign in again.
+date: Date:
