@@ -46,7 +46,7 @@ public class GamePriceRepository {
                              when g.release_date >= current_date - 730 and g.release_date < current_date - 90 then :warm
                              else :cold end as tier
                     from games g left join game_price_refresh_state s on s.game_id=g.id and s.country=:country and s.currency=:currency
-                    where g.status='ACTIVE' and g.game_type='MAIN_GAME'
+                    where g.status='ACTIVE' and g.game_type in ('MAIN_GAME','DLC') and g.delisted_at is null
                       and exists(select 1 from game_external_refs r where r.game_id=g.id and r.provider='STEAM')
                 ) c
                 where (checked_at is null or checked_at < cast(:now as timestamptz) - make_interval(secs => tier))
@@ -54,6 +54,34 @@ public class GamePriceRepository {
                 order by (editor_rank is null), tier asc, checked_at asc nulls first, id
                 limit 200
                 """,params,(rs,index) -> new Candidate(rs.getObject("id",UUID.class),Duration.ofSeconds(rs.getLong("tier"))));
+    }
+    /**
+     * Verilen oyunların kademesi ({@link #candidates} ile aynı kural): yalnız yenilenebilir (aktif ana oyun veya DLC, mağazadan kaldırılmamış, Steam referanslı) oyunlar döner.
+     * Sayfası açılan oyunların anlık yenilemesi, planlı turdaki kademe süresiyle aynı gizleme süresini kullanabilsin diye gerekir.
+     */
+    public Map<UUID,Duration> tiers(Set<UUID> ids,Duration hot,Duration warm,Duration cold) {
+        if(ids.isEmpty()) return Map.of();
+        Map<String,Object> params=new java.util.HashMap<>();
+        params.put("ids",ids);params.put("hot",hot.toSeconds());params.put("warm",warm.toSeconds());params.put("cold",cold.toSeconds());
+        Map<UUID,Duration> result=new java.util.HashMap<>();
+        jdbc.query("""
+                select g.id, case when g.editor_rank is not null or g.release_date between current_date - 90 and current_date + 30 then :hot
+                                  when g.release_date >= current_date - 730 and g.release_date < current_date - 90 then :warm
+                                  else :cold end as tier
+                from games g
+                where g.id in (:ids) and g.status='ACTIVE' and g.game_type in ('MAIN_GAME','DLC') and g.delisted_at is null
+                  and exists(select 1 from game_external_refs r where r.game_id=g.id and r.provider='STEAM')
+                """,params,(org.springframework.jdbc.core.RowCallbackHandler) rs -> result.put(rs.getObject("id",UUID.class),Duration.ofSeconds(rs.getLong("tier"))));
+        return Map.copyOf(result);
+    }
+    /**
+     * Steam'in "ücretsiz" veya "henüz çıkmamış" dediği oyunlar: bu oyunların satın alma fiyatı yoktur, bu yüzden ITAD boşluğu için Steam'den
+     * fiyat sorulmaz (gereksiz Steam çağrısı olmaz).
+     */
+    public Set<UUID> withoutSteamPrice(Set<UUID> ids) {
+        if(ids.isEmpty()) return Set.of();
+        return Set.copyOf(jdbc.query("select id from games where id in (:ids) and (free is true or coming_soon is true)",Map.of("ids",ids),
+                (rs,index) -> rs.getObject("id",UUID.class)));
     }
     /** Ağ beklerken transaction yoktur. Kiralama kaybında eski worker hiçbir snapshot yayımlayamaz. */
     @Transactional

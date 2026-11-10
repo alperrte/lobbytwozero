@@ -18,23 +18,37 @@ public interface GameExternalReferenceRepository extends JpaRepository<GameExter
     /** Toplu sınıflandırma satırı: Steam AppID ve oyun kimliği. */
     interface ClassificationRow { String getExternalId(); UUID getGameId(); }
 
-    /** Kademeli bekleme koşulu: yakın zamanda ilk kez görülen kayıt kısa, eski kayıt uzun süre yeniden sorulmaz. */
+    /**
+     * IGDB sınıflandırma uygunluğu (kademeli bekleme): (a) türü hâlâ UNKNOWN kayıt, IGDB'de kanıt bulunamadığı için yakın zamanda {@code GAME_TYPE/UNKNOWN}
+     * gözlemi yazılmadıysa; (b) türü Steam mağaza türünden (kaynak STEAM) verilmiş ve yönetici kilidi olmayan MAIN_GAME/DLC kayıt, yakın zamanda
+     * {@code IGDB_TYPE_CHECK} gözlemi yazılmadıysa (IGDB sonradan kanıt verirse tür, meta veri ve terimler IGDB'ye geçer). Yeni kayıt kısa, eski kayıt
+     * uzun süre yeniden sorulmaz.
+     */
     String COOLDOWN = """
-        and not exists (select 1 from game_metadata_provenance p where p.game_id = g.id and p.field = 'GAME_TYPE'
-                        and p.data_state = 'UNKNOWN'
-                        and p.recorded_at > case when g.created_at > cast(:recentSince as timestamptz) then cast(:cutoffRecent as timestamptz)
-                                                 else cast(:cutoffOld as timestamptz) end)
+        and (
+          (g.game_type = 'UNKNOWN'
+           and not exists (select 1 from game_metadata_provenance p where p.game_id = g.id and p.field = 'GAME_TYPE' and p.data_state = 'UNKNOWN'
+                           and p.recorded_at > case when g.created_at > cast(:recentSince as timestamptz) then cast(:cutoffRecent as timestamptz)
+                                                    else cast(:cutoffOld as timestamptz) end))
+          or
+          (g.game_type in ('MAIN_GAME', 'DLC')
+           and exists (select 1 from game_metadata_provenance s where s.game_id = g.id and s.field = 'GAME_TYPE' and s.source = 'STEAM')
+           and not exists (select 1 from game_field_overrides o where o.game_id = g.id and o.field = 'GAME_TYPE')
+           and not exists (select 1 from game_metadata_provenance c where c.game_id = g.id and c.field = 'IGDB_TYPE_CHECK'
+                           and c.recorded_at > case when g.created_at > cast(:recentSince as timestamptz) then cast(:cutoffRecent as timestamptz)
+                                                    else cast(:cutoffOld as timestamptz) end))
+        )
         """;
 
     /**
-     * Toplu sınıflandırma adayları, Steam AppID AZALAN sırada (en yeni önce) ve verilen AppID'den önce: aktif, harici ve türü
-     * hâlâ UNKNOWN Steam kayıtları. IGDB'de kanıt bulunamadığı için yakın zamanda UNKNOWN gözlemi kaydedilmiş kayıtlar atlanır
+     * Toplu sınıflandırma adayları, Steam AppID AZALAN sırada (en yeni önce) ve verilen AppID'den önce: aktif, harici Steam kayıtları (türü UNKNOWN
+     * olanlar ve Steam mağaza türüyle sınıflanmış olanlar; bkz. {@link #COOLDOWN}). IGDB'de kanıt bulunamadığı için yakın zamanda UNKNOWN gözlemi kaydedilmiş kayıtlar atlanır
      * (son 30 günde ilk kez görülen: 1 gün; eski: 7 gün). Sayfalama AppID imleciyle yapılır (OFFSET yok); migration gerekmez.
      */
     @org.springframework.data.jpa.repository.Query(value = """
         select r.external_id as externalId, r.game_id as gameId
         from game_external_refs r join games g on g.id = r.game_id
-        where r.provider = 'STEAM' and g.status = 'ACTIVE' and g.origin = 'EXTERNAL' and g.game_type = 'UNKNOWN'
+        where r.provider = 'STEAM' and g.status = 'ACTIVE' and g.origin = 'EXTERNAL'
         and cast(r.external_id as bigint) < :before
         """ + COOLDOWN + """
         order by cast(r.external_id as bigint) desc
@@ -50,7 +64,7 @@ public interface GameExternalReferenceRepository extends JpaRepository<GameExter
     @org.springframework.data.jpa.repository.Query(value = """
         select r.external_id as externalId, r.game_id as gameId
         from game_external_refs r join games g on g.id = r.game_id
-        where r.provider = 'STEAM' and g.status = 'ACTIVE' and g.origin = 'EXTERNAL' and g.game_type = 'UNKNOWN'
+        where r.provider = 'STEAM' and g.status = 'ACTIVE' and g.origin = 'EXTERNAL'
         and cast(r.external_id as bigint) > :after
         """ + COOLDOWN + """
         order by cast(r.external_id as bigint) asc
@@ -66,7 +80,7 @@ public interface GameExternalReferenceRepository extends JpaRepository<GameExter
     @org.springframework.data.jpa.repository.Query(value = """
         select count(*)
         from game_external_refs r join games g on g.id = r.game_id
-        where r.provider = 'STEAM' and g.status = 'ACTIVE' and g.origin = 'EXTERNAL' and g.game_type = 'UNKNOWN'
+        where r.provider = 'STEAM' and g.status = 'ACTIVE' and g.origin = 'EXTERNAL'
         """ + COOLDOWN, nativeQuery = true)
     long countClassificationCandidates(@org.springframework.data.repository.query.Param("recentSince") java.time.Instant recentSince,
             @org.springframework.data.repository.query.Param("cutoffRecent") java.time.Instant cutoffRecent,
@@ -153,18 +167,73 @@ public interface GameExternalReferenceRepository extends JpaRepository<GameExter
     java.util.List<ClassificationRow> storeItemCandidates(@org.springframework.data.repository.query.Param("cutoff") java.time.Instant cutoff,
             @org.springframework.data.repository.query.Param("limit") int limit);
     /**
-     * Erken erişim adayları: aktif harici Steam ana oyunları; {@code EARLY_ACCESS} gözlemi {@code cutoff}'tan yeni olanlar çıkar (gözlem her
-     * incelemede yenilenir, böylece oyun ayda bir yeniden sorulur ve erken erişimden çıkış fark edilir). Sıra: editör seçimi, yayımlanmış oyunlar (yeni önce).
+     * Steam tür yedeği adayları: aktif, harici, türü hâlâ UNKNOWN ve mağazadan kaldırılmamış Steam kayıtları; yönetici GAME_TYPE kilidi olanlar
+     * hariç. {@code STEAM_TYPE} gözlemi {@code cutoff}'tan yeni olanlar (tanınmayan/desteklenmeyen tür) beklemededir. Sıra: hiç gözlenmemiş
+     * (yeni) kayıtlar önce, en yeni eklenen önce. IGDB'yi beklemez.
+     */
+    @org.springframework.data.jpa.repository.Query(value = """
+        select r.external_id as externalId, r.game_id as gameId
+        from game_external_refs r join games g on g.id = r.game_id
+        left join game_metadata_provenance v on v.game_id = g.id and v.field = 'STEAM_TYPE'
+        where r.provider = 'STEAM' and g.status = 'ACTIVE' and g.origin = 'EXTERNAL' and g.game_type = 'UNKNOWN' and g.delisted_at is null
+        and (v.recorded_at is null or v.recorded_at <= cast(:cutoff as timestamptz))
+        and not exists (select 1 from game_field_overrides o where o.game_id = g.id and o.field = 'GAME_TYPE')
+        order by (v.recorded_at is not null), g.created_at desc, g.id
+        limit :limit
+        """, nativeQuery = true)
+    java.util.List<ClassificationRow> steamTypeCandidates(@org.springframework.data.repository.query.Param("cutoff") java.time.Instant cutoff,
+            @org.springframework.data.repository.query.Param("limit") int limit);
+    /**
+     * Çıkış durumu (erken erişim, ücretsiz, yakında) adayları: aktif harici Steam ana oyunları; {@code RELEASE_STATUS} gözlemi kademesinin kesim
+     * zamanından yeni olanlar çıkar (gözlem her incelemede yenilenir, böylece oyun yeniden sorulur ve değişiklik fark edilir). "Sıcak" oyun
+     * (editör seçimi, erken erişimde, yakında ya da çıkışı {@code pastDays} gün önce–{@code futureDays} gün sonra aralığında) {@code hotCutoff},
+     * diğerleri {@code coldCutoff} ile ölçülür. {@code hotOnly} true ise yalnız sıcak oyunlar (kota daraldığında). Sıra: sıcak önce, hiç gözlenmemiş ya da en eski gözlem, yayımlanmış oyunlar (yeni önce).
+     */
+    @org.springframework.data.jpa.repository.Query(value = """
+        select r.external_id as externalId, r.game_id as gameId
+        from game_external_refs r join games g on g.id = r.game_id
+        left join game_metadata_provenance v on v.game_id = g.id and v.field = 'RELEASE_STATUS'
+        where r.provider = 'STEAM' and g.status = 'ACTIVE' and g.origin = 'EXTERNAL' and g.game_type = 'MAIN_GAME'
+        and (v.recorded_at is null or v.recorded_at <= case
+            when (g.editor_rank is not null or g.early_access is true
+                  or g.release_date between current_date - cast(:pastDays as integer) and current_date + cast(:futureDays as integer))
+            then cast(:hotCutoff as timestamptz) else cast(:coldCutoff as timestamptz) end)
+        and (cast(:hotOnly as boolean) = false or g.editor_rank is not null or g.early_access is true
+             or g.release_date between current_date - cast(:pastDays as integer) and current_date + cast(:futureDays as integer))
+        order by (case when (g.editor_rank is not null or g.early_access is true
+                  or g.release_date between current_date - cast(:pastDays as integer) and current_date + cast(:futureDays as integer)) then 0 else 1 end),
+                 v.recorded_at asc nulls first,
+                 (g.release_date is null or g.release_date > current_date), g.release_date desc nulls last, g.id
+        limit :limit
+        """, nativeQuery = true)
+    java.util.List<ClassificationRow> releaseStatusCandidates(@org.springframework.data.repository.query.Param("hotCutoff") java.time.Instant hotCutoff,
+            @org.springframework.data.repository.query.Param("coldCutoff") java.time.Instant coldCutoff,
+            @org.springframework.data.repository.query.Param("pastDays") int pastDays,
+            @org.springframework.data.repository.query.Param("futureDays") int futureDays,
+            @org.springframework.data.repository.query.Param("hotOnly") boolean hotOnly,
+            @org.springframework.data.repository.query.Param("limit") int limit);
+    /**
+     * Toplu detay YENİLEME adayları: detayı daha önce başarıyla alınmış (hatasız) aktif harici Steam ana oyunları; son denemesi kademesinin kesim
+     * zamanından eski olanlar. Sıcak tanımı {@link #releaseStatusCandidates} ile aynıdır. Sıra: sıcak önce, en eski deneme.
      */
     @org.springframework.data.jpa.repository.Query(value = """
         select r.external_id as externalId, r.game_id as gameId
         from game_external_refs r join games g on g.id = r.game_id
         where r.provider = 'STEAM' and g.status = 'ACTIVE' and g.origin = 'EXTERNAL' and g.game_type = 'MAIN_GAME'
-        and not exists (select 1 from game_metadata_provenance v where v.game_id = g.id and v.field = 'EARLY_ACCESS' and v.recorded_at > :cutoff)
-        order by (g.editor_rank is null), (g.release_date is null or g.release_date > current_date), g.release_date desc nulls last, g.id
+        and g.details_fetched_at is not null and g.details_failure_count = 0 and g.details_last_error_code is null
+        and g.details_fetched_at <= case
+            when (g.editor_rank is not null or g.early_access is true
+                  or g.release_date between current_date - cast(:pastDays as integer) and current_date + cast(:futureDays as integer))
+            then cast(:hotCutoff as timestamptz) else cast(:coldCutoff as timestamptz) end
+        order by (case when (g.editor_rank is not null or g.early_access is true
+                  or g.release_date between current_date - cast(:pastDays as integer) and current_date + cast(:futureDays as integer)) then 0 else 1 end),
+                 g.details_fetched_at asc, g.id
         limit :limit
         """, nativeQuery = true)
-    java.util.List<ClassificationRow> earlyAccessCandidates(@org.springframework.data.repository.query.Param("cutoff") java.time.Instant cutoff,
+    java.util.List<ClassificationRow> detailRefreshBulkCandidates(@org.springframework.data.repository.query.Param("hotCutoff") java.time.Instant hotCutoff,
+            @org.springframework.data.repository.query.Param("coldCutoff") java.time.Instant coldCutoff,
+            @org.springframework.data.repository.query.Param("pastDays") int pastDays,
+            @org.springframework.data.repository.query.Param("futureDays") int futureDays,
             @org.springframework.data.repository.query.Param("limit") int limit);
     /**
      * Yerelleştirilmiş açıklama adayları: aktif harici Steam ana oyunları; {@code marker} gözlemi {@code cutoff}'tan yeni olanlar çıkar. Sıra:

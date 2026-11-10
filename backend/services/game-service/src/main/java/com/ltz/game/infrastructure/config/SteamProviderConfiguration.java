@@ -16,10 +16,12 @@ public class SteamProviderConfiguration {
     GameProvider steamGameProvider(
             RestClient.Builder builder,
             @Value("${STEAM_WEB_API_KEY:}") String key,
-            @Value("${STEAM_CATALOG_ENABLED:false}") boolean enabled) {
+            @Value("${STEAM_CATALOG_ENABLED:false}") boolean enabled,
+            @Value("${ltz.game.steam.min-interval-millis:1000}") long minIntervalMillis,
+            @Value("${ltz.game.steam.daily-budget:50000}") int dailyBudget) {
         if (enabled && key.isBlank()) {
             throw new IllegalStateException("Steam kataloğu etkin ancak API anahtarı yapılandırılmamış.");
         }
-        return new SteamGameProvider(builder.build(), key, enabled, new SteamRequestBudget(Clock.systemUTC()));
+        return new SteamGameProvider(builder.build(), key, enabled, new SteamRequestBudget(Clock.systemUTC(), minIntervalMillis, dailyBudget));
     }
 }

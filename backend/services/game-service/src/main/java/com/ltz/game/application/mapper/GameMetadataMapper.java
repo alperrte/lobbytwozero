@@ -9,7 +9,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class GameMetadataMapper {
     public GameMetadataResponse toResponse(Game game) {
-        return new GameMetadataResponse(game.getId(), terms(game, TermKind.GENRE), terms(game, TermKind.CATEGORY),
+        return new GameMetadataResponse(game.getId(), game.getEarlyAccess(), game.getFree(), game.getComingSoon(), game.getAdult(), game.isDelisted(),
+                terms(game, TermKind.GENRE), terms(game, TermKind.CATEGORY),
                 terms(game, TermKind.TAG), terms(game, TermKind.PLATFORM), game.getDevelopers().stream().sorted().toList(),
                 game.getPublishers().stream().sorted().toList(), game.getMedia().stream()
                 .sorted(Comparator.comparingInt(com.ltz.game.domain.entity.GameMedia::getSortOrder)
@@ -20,7 +21,8 @@ public class GameMetadataMapper {
                         .thenComparing(com.ltz.game.domain.entity.GameSystemRequirement::getLevel))
                 .map(r -> new GameMetadataResponse.Requirement(r.getLevel(), r.getPlatform(), r.getOs(), r.getCpu(),
                         r.getGpu(), r.getRamMb(), r.getStorageMb(), r.getRawText())).toList(),
-                game.getLanguages().stream().sorted().toList(), game.getEarlyAccess(), game.getMetadataLanguage(), game.getLanguageDataState(),
+                game.getLanguages().stream().sorted().toList(),
+                game.getMetadataLanguage(), game.getLanguageDataState(),
                 game.getLanguageSupport().stream().sorted(Comparator.comparing(com.ltz.game.domain.entity.GameLanguageSupport::getLanguageCode))
                         .map(s -> new GameMetadataResponse.LanguageSupport(s.getLanguageCode(),s.getInterfaceSupport(),s.getAudioSupport(),s.getSubtitleSupport())).toList(),
                 game.getMetadataProvenance().entrySet().stream().sorted(Map.Entry.comparingByKey())

@@ -24,7 +24,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** Fiyat yenileme: yapılandırılmış her pazar (US/USD, GB/GBP, DE/EUR) ayrı ayrı yenilenir; TRY sunulmaz. */
+/** Fiyat yenileme: yapılandırılmış her pazar (US/USD, GB/GBP, DE/EUR, TR/TRY ...) ayrı ayrı yenilenir. */
 class GamePriceMarketsTest {
     static final Clock CLOCK = Clock.fixed(Instant.parse("2026-11-08T10:00:00Z"), ZoneOffset.UTC);
     static final String API = "https://api.isthereanydeal.com";
@@ -41,6 +41,50 @@ class GamePriceMarketsTest {
         for (String bad : List.of("US", "US:USD:X", "XX:USD", "US:TRYY", "us:usd:", ":")) {
             assertThrows(IllegalArgumentException.class, () -> properties(bad).allMarkets(), bad);
         }
+    }
+
+    @Test void theDeliveredConfigurationHasThirteenMarketsIncludingTurkeyWithTurkishLira() throws Exception {
+        var file = java.nio.file.Path.of("src/main/resources/application.properties");
+        var props = new java.util.Properties();
+        try (var reader = java.nio.file.Files.newBufferedReader(file, java.nio.charset.StandardCharsets.UTF_8)) { props.load(reader); }
+        var markets = properties(props.getProperty("ltz.game.pricing.markets")).allMarkets();
+        assertEquals(13, markets.size());
+        assertEquals(new Market("TR", "TRY"), markets.getLast());
+        assertEquals(new Market("US", "USD"), markets.getFirst(), "birincil pazar ilk");
+        var steam = new com.ltz.game.infrastructure.config.GameRefreshProperties(null, null, 90, 30, null, null).steamMarkets();
+        assertEquals(12, steam.size(), "Steam doğrudan fiyat pazarları Türkiye'yi içermez (Steam Türkiye'de ABD doları ile satar)");
+        assertEquals(false, steam.contains(new Market("TR", "TRY")));
+    }
+
+    @Test void aViewedGameWaitsBrieflyForTheLeaseThatTheScheduledRunHoldsInsteadOfBeingDropped() {
+        var provider = mock(GamePriceProvider.class);
+        var repository = mock(GamePriceRepository.class);
+        UUID game = UUID.randomUUID();
+        when(provider.isConfigured()).thenReturn(true);
+        when(repository.tiers(any(), any(), any(), any())).thenReturn(java.util.Map.of(game, Duration.ofHours(8)));
+        when(repository.claim(any(), any())).thenReturn(false, false, true);
+        when(repository.publish(any(), any(), any(), any(), any())).thenReturn(true);
+        when(provider.prices(any(), any())).thenReturn(List.of());
+        var service = new GamePriceService(provider, repository, mock(GameRepository.class), properties("US:USD"), CLOCK);
+        var sleeps = new java.util.ArrayList<Long>();
+        service.sleeperForTests(sleeps::add);
+        assertEquals(1, service.refreshNow(Set.of(game), new Market("US", "USD")));
+        assertEquals(List.of(1000L, 1000L), sleeps, "kiralama iki kez dolu, üçüncüde alındı");
+    }
+
+    @Test void aViewedGameGivesUpWhenTheLeaseNeverFrees() {
+        var provider = mock(GamePriceProvider.class);
+        var repository = mock(GamePriceRepository.class);
+        UUID game = UUID.randomUUID();
+        when(provider.isConfigured()).thenReturn(true);
+        when(repository.tiers(any(), any(), any(), any())).thenReturn(java.util.Map.of(game, Duration.ofHours(8)));
+        when(repository.claim(any(), any())).thenReturn(false);
+        var service = new GamePriceService(provider, repository, mock(GameRepository.class), properties("US:USD"), CLOCK);
+        var sleeps = new java.util.ArrayList<Long>();
+        service.sleeperForTests(sleeps::add);
+        assertEquals(-1, service.refreshNow(Set.of(game), new Market("US", "USD")));
+        assertEquals(GamePriceService.CLAIM_ATTEMPTS - 1, sleeps.size());
+        verify(provider, never()).prices(any(), any());
     }
 
     @Test void everyMarketIsRefreshedWithItsOwnLeaseCandidatesAndPublish() {
@@ -96,7 +140,8 @@ class GamePriceMarketsTest {
         verify(repository, never()).claim(any(), any());
     }
 
-    @Test void eachGamesQuoteIsShortenedToItsTierFreshnessAndNeverExtended() {
+    /** Gizleme süresi, kademenin yenileme aralığının {@code displayGrace} (3) katıdır; kaynağın kendi bitişi (satış sonu) daha erkense o geçerlidir. */
+    @Test void eachGamesQuoteIsShortenedToItsTierDisplayTimeAndNeverExtended() {
         var provider = mock(GamePriceProvider.class);
         var repository = mock(GamePriceRepository.class);
         UUID hot = UUID.randomUUID(), cold = UUID.randomUUID();
@@ -117,8 +162,8 @@ class GamePriceMarketsTest {
         new GamePriceService(provider, repository, mock(GameRepository.class), properties, CLOCK).refresh();
         verify(repository).publish(any(), any(), eq(market), captured.capture(), any());
         @SuppressWarnings("unchecked") List<GamePriceProvider.Quote> published = captured.getValue();
-        assertEquals(fetched.plus(Duration.ofHours(2)), published.get(0).expiresAt(), "sıcak oyun: 2 saat");
-        assertEquals(fetched.plus(Duration.ofHours(48)), published.get(1).expiresAt(), "soğuk oyun: 48 saat");
+        assertEquals(fetched.plus(Duration.ofHours(6)), published.get(0).expiresAt(), "sıcak oyun: 2 saatlik aralığın 3 katı = 6 saat");
+        assertEquals(fetched.plus(Duration.ofHours(48)), published.get(1).expiresAt(), "soğuk oyun: 48 saatlik aralığın 3 katı kaynağın 48 saatlik üst sınırını aşar, uzatılmaz");
         assertEquals(fetched.plus(Duration.ofMinutes(30)), published.get(2).expiresAt(), "satış bitişi kademeden önceyse o geçerli (uzatılmaz)");
     }
 

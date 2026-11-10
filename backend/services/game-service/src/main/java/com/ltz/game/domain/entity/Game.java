@@ -41,6 +41,14 @@ public class Game {
     @Column(length=16000) private String description;
     private java.time.LocalDate releaseDate;
     private Boolean earlyAccess;
+    /** Steam mağaza bilgisinden: ücretsiz oyun. null = bilinmiyor (Steam oyunu tanımadı); false varsayılmaz. */
+    private Boolean free;
+    /** Steam mağaza bilgisinden: henüz çıkmamış ("yakında"). null = bilinmiyor. */
+    private Boolean comingSoon;
+    /** Steam içerik tanımlayıcıları 3 veya 4 (yetişkin içerik). null = bilinmiyor. Varsayılan listelerde gizlenir, "+18 oyunları göster" ile açılır. */
+    private Boolean adult;
+    /** Steam'in art arda tanımadığı (mağazadan kaldırılmış) oyun; kayıt silinmez, keşif listelerinden gizlenir. Steam tekrar tanırsa null olur. */
+    private Instant delistedAt;
     private Integer editorRank;
     private Instant popularityUpdatedAt;
     private UUID editorActorId;
@@ -73,6 +81,36 @@ public class Game {
     private GameType gameType = GameType.UNKNOWN;
     /** DLC'nin ana oyunu (aynı tabloda MAIN_GAME); yalnız DLC için dolu olabilir. Veritabanı kısıtları kendine bağlanmayı ve DLC olmayan kayda bağlanmayı reddeder. */
     @Column(name="parent_game_id") private UUID parentGameId;
+    /**
+     * Steam'in çıkış durumunu uygular: ücretsiz, "henüz çıkmamış" ve yetişkin içerik bilgisi Steam'e aittir ve tanınan oyunda her zaman Steam'in
+     * değeridir (oyun çıkınca {@code comingSoon} false olur).
+     *
+     * @return değerlerden biri değiştiyse (ya da ilk kez yazıldıysa) true
+     */
+    public boolean applySteamReleaseStatus(boolean freeValue, boolean comingSoonValue, boolean adultValue) {
+        boolean changed = !Boolean.valueOf(freeValue).equals(free) || !Boolean.valueOf(comingSoonValue).equals(comingSoon)
+                || !Boolean.valueOf(adultValue).equals(adult);
+        free = freeValue;
+        comingSoon = comingSoonValue;
+        adult = adultValue;
+        return changed;
+    }
+
+    /** Steam oyunu art arda tanımadı: ilk kez işaretlenirse true (zaten işaretliyse özgün zaman korunur). */
+    public boolean markDelisted(Instant at) {
+        if (delistedAt != null) return false;
+        delistedAt = at;
+        return true;
+    }
+
+    /** Steam oyunu yeniden tanıdı: işaret kalktıysa true. */
+    public boolean clearDelisted() {
+        boolean changed = delistedAt != null;
+        delistedAt = null;
+        return changed;
+    }
+
+    public boolean isDelisted() { return delistedAt != null; }
     /** DLC dışına geçen kayıt ana oyun ilişkisini taşıyamaz (games_parent_only_dlc). */
     public void setGameType(GameType gameType) {
         this.gameType = gameType;

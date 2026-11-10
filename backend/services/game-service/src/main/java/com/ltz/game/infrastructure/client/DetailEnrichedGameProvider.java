@@ -43,7 +43,17 @@ public class DetailEnrichedGameProvider implements GameProvider {
 
     @Override public java.util.Map<String, StoreItem> storeItems(java.util.Collection<String> externalIds) { return catalog.storeItems(externalIds); }
 
-    @Override public java.util.Map<String, Boolean> earlyAccess(java.util.Collection<String> externalIds) { return catalog.earlyAccess(externalIds); }
+    @Override public java.util.Map<String, ReleaseStatus> releaseStatus(java.util.Collection<String> externalIds) { return catalog.releaseStatus(externalIds); }
+
+    @Override public java.util.Map<String, StoreType> storeTypes(java.util.Collection<String> externalIds) { return catalog.storeTypes(externalIds); }
+
+    @Override public java.util.Map<Integer, String> storeTagNames() { return catalog.storeTagNames(); }
+
+    @Override public java.util.Map<String, StorePrice> storePrices(java.util.Collection<String> externalIds, String country) { return catalog.storePrices(externalIds, country); }
+
+    @Override public boolean storePricesEnabled() { return catalog.storePricesEnabled(); }
+
+    @Override public boolean backgroundWorkAllowed() { return catalog.backgroundWorkAllowed(); }
 
     @Override public java.util.Map<String, String> shortDescriptions(java.util.Collection<String> externalIds, String language) { return catalog.shortDescriptions(externalIds, language); }
 

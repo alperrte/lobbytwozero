@@ -75,7 +75,10 @@ public class SteamGameProvider implements GameProvider {
     }
 
     private static final long PAGE_PACE_MILLIS = 1100;
-    private static final String BROWSE_ENDPOINT = "https://api.steampowered.com/IStoreBrowseService/GetItems/v1/";
+    /** Servis içindeki birkaç tarama aynı saniyede-1-çağrı bütçesini paylaşır: kısa (≤2 sn) bekleme hatası tekrar denenir (en çok ≈40 sn), taramayı uzun duraklamaya sokmaz. */
+    private static final int MAX_SHORT_WAITS = 20;
+    private static final String TAG_ENDPOINT = "https://api.steampowered.com/IStoreService/GetTagList/v1/";
+    private static final String BROWSE_ENDPOINT ="https://api.steampowered.com/IStoreBrowseService/GetItems/v1/";
 
     /**
      * Resmî {@code IStoreBrowseService/GetItems} (aynı API anahtarı, aynı istek bütçesi): oyun başına 16:9 başlık görseli, geliştirici, yayıncı ve
@@ -89,12 +92,52 @@ public class SteamGameProvider implements GameProvider {
         return SteamStoreBrowse.parseStoreItems(ids, browse(SteamStoreBrowse.storeItemsInput(ids)));
     }
 
-    /** {@code release.is_early_access} (Steam toplu mağaza öğeleri); yalnız Steam'in tanıdığı uygulamalar sonuçta yer alır. */
-    @Override public java.util.Map<String, Boolean> earlyAccess(java.util.Collection<String> externalIds) {
+    /** {@code release.is_early_access}, {@code is_free}, {@code release.is_coming_soon} (Steam toplu mağaza öğeleri); yalnız Steam'in tanıdığı uygulamalar sonuçta yer alır. */
+    @Override public java.util.Map<String, ReleaseStatus> releaseStatus(java.util.Collection<String> externalIds) {
         requireConfigured();
         List<String> ids = SteamStoreBrowse.validIds(externalIds);
         if (ids.isEmpty()) return java.util.Map.of();
-        return SteamStoreBrowse.parseEarlyAccess(ids, browse(SteamStoreBrowse.earlyAccessInput(ids)));
+        return SteamStoreBrowse.parseReleaseStatus(ids, browse(SteamStoreBrowse.releaseStatusInput(ids)));
+    }
+
+    /**
+     * Mağaza türü (0 oyun, 4 DLC), görünürlük, çıkış günü, DLC ana oyunu, etiket/kategori kimlikleri ve platformlar; tek toplu çağrı. Yalnız
+     * Steam'in tanıdığı uygulamalar sonuçta yer alır.
+     */
+    @Override public java.util.Map<String, StoreType> storeTypes(java.util.Collection<String> externalIds) {
+        requireConfigured();
+        List<String> ids = SteamStoreBrowse.validIds(externalIds);
+        if (ids.isEmpty()) return java.util.Map.of();
+        return SteamStoreTypes.parse(ids, browse(SteamStoreTypes.input(ids)));
+    }
+
+    /** Mağaza etiketi kimliği → İngilizce ad ({@code IStoreService/GetTagList}); aynı anahtar ve istek bütçesi. */
+    @Override public java.util.Map<Integer, String> storeTagNames() {
+        requireConfigured();
+        retrying(() -> {
+            budget.acquire();
+            return Boolean.TRUE;
+        });
+        try {
+            byte[] body = client.get().uri(TAG_ENDPOINT + "?language=english").header("x-webapi-key", key).exchange((request, response) -> {
+                validateStatus(response.getStatusCode().value(), response.getHeaders().getFirst("Retry-After"));
+                byte[] bytes = response.getBody().readNBytes(SteamStoreBrowse.MAX_BODY + 1);
+                if (bytes.length > SteamStoreBrowse.MAX_BODY) throw new ProviderException("INVALID_PROVIDER_RESPONSE");
+                return bytes;
+            });
+            return SteamStoreTypes.parseTagNames(body);
+        } catch (RestClientException _) {
+            throw new ProviderException("PROVIDER_TRANSPORT_ERROR");
+        }
+    }
+
+    /** Steam'in kendi mağaza fiyatı (ülke bazlı); ücretsiz, çıkmamış veya o ülkede satılmayan uygulama sonuçta yer almaz. */
+    @Override public java.util.Map<String, StorePrice> storePrices(java.util.Collection<String> externalIds, String country) {
+        String countryCode = SteamStoreBrowse.countryCode(country);
+        requireConfigured();
+        List<String> ids = SteamStoreBrowse.validIds(externalIds);
+        if (ids.isEmpty()) return java.util.Map.of();
+        return SteamStorePrices.parse(ids, browse(SteamStoreBrowse.priceInput(ids, countryCode)));
     }
 
     /**
@@ -108,6 +151,10 @@ public class SteamGameProvider implements GameProvider {
         if (ids.isEmpty()) return java.util.Map.of();
         return SteamStoreBrowse.parseShortDescriptions(ids, browse(SteamStoreBrowse.shortDescriptionInput(ids, steamLanguage)));
     }
+
+    @Override public boolean backgroundWorkAllowed() { return budget.backgroundAllowed(); }
+
+    @Override public boolean storePricesEnabled() { return enabled && key != null && !key.isBlank(); }
 
     private void requireConfigured() {
         if (!enabled || key == null || key.isBlank()) throw new ProviderException("PROVIDER_NOT_CONFIGURED");
@@ -137,7 +184,7 @@ public class SteamGameProvider implements GameProvider {
             try {
                 return action.get();
             } catch (ProviderException error) {
-                if (!shortRateLimit(error) || attempt >= 3) throw error;
+                if (!shortRateLimit(error) || attempt >= MAX_SHORT_WAITS) throw error;
                 sleeper.accept(error.retryAfter().toMillis() + 50);
             }
         }

@@ -56,12 +56,14 @@ class ItadPriceIntegrationTest extends PostgresTestSupport {
     }
     @Autowired JdbcTemplate jdbc;
     @Autowired FakeServer server;
+    @Autowired GamePriceProvider priceProvider;
     @Autowired GamePriceService service;
     @Autowired GamePriceRepository repository;
     @Autowired WebApplicationContext context;
     MockMvc mvc;
     UUID first,second,third,external1,external2,external3;
     @BeforeEach void setup() {
+        ((ItadPriceClient)priceProvider).forgetMappingsForTests();
         jdbc.update("delete from game_external_refs");jdbc.update("delete from games");
         jdbc.update("update game_price_sync_lock set owner=null,expires_at=null");
         mvc=MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
@@ -98,6 +100,19 @@ class ItadPriceIntegrationTest extends PostgresTestSupport {
         service.refresh();assertEquals(calls,server.received().size(),"TTL ve public GET sağlayıcı çağırmaz");
         assertEquals("UNAVAILABLE",service.read(List.of(UUID.randomUUID()),MARKET).items().getFirst().status());
         assertTrue(service.read(List.of(),MARKET).items().isEmpty());
+    }
+    @Test void dlcGetsPricesToButUnclassifiedDemoAndDelistedGamesAreNotRefreshCandidates() {
+        UUID dlc=game("Delta DLC","580"),demo=game("Echo Demo","581"),unknown=game("Foxtrot","582"),delisted=game("Golf","583");
+        jdbc.update("update games set game_type='DLC' where id=?",dlc);
+        jdbc.update("update games set game_type='DEMO' where id=?",demo);
+        jdbc.update("update games set game_type='UNKNOWN' where id=?",unknown);
+        jdbc.update("update games set delisted_at=now() where id=?",delisted);
+        Set<UUID> candidates=new java.util.HashSet<>();
+        repository.candidates(MARKET,Instant.now(),Duration.ofMinutes(20),Duration.ofHours(2),Duration.ofHours(8)).forEach(candidate -> candidates.add(candidate.id()));
+        assertTrue(candidates.containsAll(Set.of(first,second,third,dlc)),"ana oyun ve DLC fiyat adayıdır");
+        assertFalse(candidates.contains(demo)||candidates.contains(unknown)||candidates.contains(delisted),"demo, sınıfsız ve mağazadan kaldırılmış oyun aday değildir");
+        assertEquals(Set.of(first,dlc),repository.tiers(Set.of(first,dlc,demo,unknown,delisted),Duration.ofMinutes(20),Duration.ofHours(2),Duration.ofHours(8)).keySet(),
+                "sayfası açılan oyunun kademesi de aynı kuralla");
     }
     @Test void outagePreservesPricesWhileExpiredOffersDoNotMatchTheDiscountFilter() throws Exception {
         offers();

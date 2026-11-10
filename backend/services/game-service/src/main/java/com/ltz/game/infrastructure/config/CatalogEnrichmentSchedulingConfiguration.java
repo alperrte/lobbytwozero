@@ -3,9 +3,10 @@ package com.ltz.game.infrastructure.config;
 import com.ltz.game.application.service.GameDetailBulkService;
 import com.ltz.game.application.service.EmptyDescriptionService;
 import com.ltz.game.application.service.LocalizedDescriptionService;
-import com.ltz.game.application.service.SteamEarlyAccessService;
+import com.ltz.game.application.service.SteamReleaseStatusService;
 import com.ltz.game.application.service.SteamStoreItemService;
 import com.ltz.game.application.service.SteamStoreEnrichmentService;
+import com.ltz.game.application.service.SteamTypeClassificationService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -33,25 +34,38 @@ public class CatalogEnrichmentSchedulingConfiguration {
     private final SteamStoreItemService headers;
     private final LocalizedDescriptionService localized;
     private final EmptyDescriptionService emptyDescriptions;
-    private final SteamEarlyAccessService earlyAccess;
+    private final SteamReleaseStatusService releaseStatus;
+    private final SteamTypeClassificationService steamTypes;
 
     public CatalogEnrichmentSchedulingConfiguration(GameDetailBulkService bulk, SteamStoreEnrichmentService store, SteamStoreItemService headers,
-            LocalizedDescriptionService localized, EmptyDescriptionService emptyDescriptions, SteamEarlyAccessService earlyAccess) {
+            LocalizedDescriptionService localized, EmptyDescriptionService emptyDescriptions, SteamReleaseStatusService releaseStatus,
+            SteamTypeClassificationService steamTypes) {
+        this.steamTypes = steamTypes;
         this.bulk = bulk;
         this.store = store;
         this.headers = headers;
         this.localized = localized;
         this.emptyDescriptions = emptyDescriptions;
-        this.earlyAccess = earlyAccess;
+        this.releaseStatus = releaseStatus;
     }
 
-    /** Steam erken erişim durumu: 100 oyun/istek; her oyun ayda bir yeniden sorulur, kararlı durumda boş turdur. */
+    /** Steam çıkış durumu (erken erişim, ücretsiz, yakında): 100 oyun/istek; her oyun kademesinin aralığında yeniden sorulur, kararlı durumda boş turdur. */
     @Scheduled(fixedDelay = 1500, initialDelay = 55000)
-    public void steamEarlyAccess() {
+    public void steamReleaseStatus() {
         try {
-            earlyAccess.nextBatch();
-        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException _) {
-            LOG.warn("Erken erişim partisi eşzamanlı değişiklik nedeniyle geri alındı; sonraki turda yeniden denenecek.");
+            releaseStatus.nextBatch();
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException | org.springframework.dao.CannotAcquireLockException _) {
+            LOG.warn("Çıkış durumu partisi eşzamanlı değişiklik nedeniyle geri alındı; sonraki turda yeniden denenecek.");
+        }
+    }
+
+    /** Steam tür yedeği (type=0 ana oyun, type=4 DLC): IGDB'yi beklemeden, 100 kayıt/istek; kararlı durumda boş tur. */
+    @Scheduled(fixedDelay = 1500, initialDelay = 52000)
+    public void steamTypeClassification() {
+        try {
+            steamTypes.nextBatch();
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException | org.springframework.dao.CannotAcquireLockException _) {
+            LOG.warn("Steam tür partisi eşzamanlı değişiklik nedeniyle geri alındı; sonraki turda yeniden denenecek.");
         }
     }
 
@@ -60,7 +74,7 @@ public class CatalogEnrichmentSchedulingConfiguration {
     public void emptyDescriptions() {
         try {
             emptyDescriptions.nextBatch();
-        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException _) {
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException | org.springframework.dao.CannotAcquireLockException _) {
             LOG.warn("Boş açıklama partisi eşzamanlı değişiklik nedeniyle geri alındı; sonraki turda yeniden denenecek.");
         }
     }
@@ -70,7 +84,7 @@ public class CatalogEnrichmentSchedulingConfiguration {
     public void localizedDescriptions() {
         try {
             localized.nextBatch();
-        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException _) {
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException | org.springframework.dao.CannotAcquireLockException _) {
             LOG.warn("Yerelleştirilmiş açıklama partisi eşzamanlı değişiklik nedeniyle geri alındı; sonraki turda yeniden denenecek.");
         }
     }
@@ -80,18 +94,22 @@ public class CatalogEnrichmentSchedulingConfiguration {
     public void steamStoreItems() {
         try {
             headers.nextBatch();
-        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException _) {
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException | org.springframework.dao.CannotAcquireLockException _) {
             LOG.warn("Mağaza öğesi partisi eşzamanlı değişiklik nedeniyle geri alındı; sonraki turda yeniden denenecek.");
         }
     }
 
+    /** Önce detayı hiç alınmamış oyunlar (ilk alım), sonra alınmış oyunların kademeli periyodik yenilemesi (sıcak oyunlar kısa aralıkla). */
     @Scheduled(fixedDelay = 4000, initialDelay = 40000)
     public void bulkDetails() {
         try {
             for (int step = 0; step < BULK_DETAIL_STEPS && bulk.bootstrapNextBatch() >= 0; step++) {
                 // -1: iş yok / duraklatıldı.
             }
-        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException _) {
+            for (int step = 0; step < BULK_DETAIL_STEPS && bulk.refreshNextBatch() >= 0; step++) {
+                // -1: yenilenecek oyun yok / duraklatıldı.
+            }
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException | org.springframework.dao.CannotAcquireLockException _) {
             LOG.warn("Toplu detay partisi eşzamanlı değişiklik nedeniyle geri alındı; sonraki turda yeniden denenecek.");
         }
     }
@@ -101,7 +119,7 @@ public class CatalogEnrichmentSchedulingConfiguration {
     public void storeEnrichment() {
         try {
             store.enrichNext();
-        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException _) {
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException | org.springframework.dao.CannotAcquireLockException _) {
             LOG.warn("Mağaza tamamlama kaydı eşzamanlı değişiklik nedeniyle atlandı; sonraki turda yeniden denenecek.");
         }
     }

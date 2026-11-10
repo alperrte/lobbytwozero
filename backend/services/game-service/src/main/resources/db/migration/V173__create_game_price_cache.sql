@@ -8,7 +8,7 @@ create table game_price_quotes (
     regular_price numeric(19,4) not null check(regular_price >= 0),
     current_price numeric(19,4) not null check(current_price >= 0 and current_price <= regular_price),
     discount_percent smallint not null check(discount_percent between 0 and 100),
-    source varchar(16) not null check(source = 'ITAD'),
+    source varchar(16) not null check(source in ('ITAD','STEAM')),
     url varchar(2048) not null,
     source_updated_at timestamptz not null,
     fetched_at timestamptz not null,

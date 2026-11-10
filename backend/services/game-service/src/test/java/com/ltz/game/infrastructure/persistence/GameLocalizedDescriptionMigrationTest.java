@@ -23,12 +23,13 @@ class GameLocalizedDescriptionMigrationTest {
             UUID game = UUID.randomUUID();
             jdbc.update("insert into games(id,title,normalized_title,origin,game_type,description,metadata_language,created_at,updated_at) values (?,'Existing','existing','EXTERNAL','MAIN_GAME','English description','en',now(),now())", game);
             jdbc.update("insert into game_external_refs(id,game_id,provider,external_id) values (?,?,'STEAM','10')", UUID.randomUUID(), game);
-            var before = jdbc.queryForList("select row_to_json(t)::text from games t", String.class);
+            String rows = "select to_jsonb(t)::text from games t";
+            var before = jdbc.queryForList(rows, String.class);
             assertNull(jdbc.queryForList("select to_regclass('public.game_localized_descriptions')::text", String.class).getFirst());
 
-            assertEquals(1, Flyway.configure().dataSource(ds).locations("classpath:db/migration").load().migrate().migrationsExecuted);
+            assertEquals(1, Flyway.configure().dataSource(ds).locations("classpath:db/migration").load().migrate().migrationsExecuted, "yalnız V175");
 
-            assertEquals(before, jdbc.queryForList("select row_to_json(t)::text from games t", String.class), "mevcut oyun satırları ve açıklamalar değişmez");
+            assertEquals(before, jdbc.queryForList(rows, String.class), "mevcut oyun satırları ve açıklamalar değişmez");
             assertEquals(0L, jdbc.queryForObject("select count(*) from game_localized_descriptions", Long.class), "tablo boş başlar; çeviri üretilmez");
             insert(jdbc, game, "tr", "Türkçe metin için açıklama.", "STEAM");
             insert(jdbc, game, "pt-br", "Descrição.", "STEAM");
