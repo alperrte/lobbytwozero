@@ -316,7 +316,7 @@ describe("AppShell", () => {
     expect(banner.querySelector("kbd")).toHaveAttribute("aria-hidden", "true");
     expect(screen.getByRole("combobox", { name: "Sayfalarda ara" })).toHaveAttribute(
       "placeholder",
-      "Sayfalarda ara..."
+      "Sayfalarda ara… (@ ile oyuncu)"
     );
     expect(screen.queryByRole("navigation", { name: "Sayfa konumu" })).not.toBeInTheDocument();
   });

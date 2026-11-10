@@ -1,123 +1,123 @@
 {
   "Library": {
-  "cover": "{title} oyun kapağı",
-  "titles": {
-    "all": "Oyun Kütüphanem",
-    "favorites": "Favori Oyunlarım",
-    "completed": "Bitirdiğim Oyunlar",
-    "add": "Kütüphaneye Oyun Ekle",
-    "privacy": "Kütüphane Gizliliği",
-    "profile": "Oyuncunun Kütüphanesi"
+    "cover": "{title} oyun kapağı",
+    "titles": {
+      "all": "Oyun Kütüphanem",
+      "favorites": "Favori Oyunlarım",
+      "completed": "Bitirdiğim Oyunlar",
+      "add": "Kütüphaneye Oyun Ekle",
+      "privacy": "Kütüphane Gizliliği",
+      "profile": "Oyuncunun Kütüphanesi"
+    },
+    "descriptions": {
+      "all": "Oyunlarını bir arada tut, favorilerini seç ve bitirdiğin oyunları takip et.",
+      "favorites": "Tekrar dönmek istediğin oyunlar. Favoriden çıkarmak koleksiyonunu etkilemez.",
+      "completed": "Tamamladığın oyunlar bir arada. Bitirildi işareti favorilerinden bağımsızdır.",
+      "add": "LTZ kataloğundan bir oyun seçerek kendi koleksiyonuna ekle.",
+      "privacy": "Kütüphaneni kimlerin görebileceğini belirle.",
+      "profile": "Yalnız erişimine izin verilen koleksiyon bilgileri gösterilir."
+    },
+    "tabs": {
+      "all": "Tüm oyunlar",
+      "favorites": "Favoriler",
+      "completed": "Bitirilenler",
+      "add": "Oyun ekle",
+      "privacy": "Gizlilik"
+    },
+    "navigation": "Kütüphane gezinmesi",
+    "addGame": "Oyun Ekle",
+    "loading": "Kütüphane yükleniyor",
+    "saving": "İşlem sürüyor…",
+    "saved": "Kütüphane güncellendi.",
+    "retry": "Tekrar dene",
+    "refresh": "Yenile",
+    "login": "Giriş yap",
+    "favorite": "Favori",
+    "completed": "Bitirildi",
+    "markFavorite": "Favoriye ekle",
+    "unfavorite": "Favoriden çıkar",
+    "markCompleted": "Bitirildi işaretle",
+    "uncomplete": "Bitirildi işaretini kaldır",
+    "remove": "Kütüphaneden kaldır",
+    "removeTitle": "Oyunu kütüphanenden kaldır?",
+    "removeHint": "“{title}” koleksiyonundan kaldırılacak. Favori ve bitirildi işaretleri de silinecek.",
+    "cancel": "Vazgeç",
+    "unknownTitle": "Oyun adı mevcut değil",
+    "unknownDate": "Tarih mevcut değil",
+    "addedAt": "Eklenme: {date}",
+    "observedAt": "Son gözlem: {date}",
+    "openGame": "{title} oyun detayını aç",
+    "stats": {
+      "totalGames": "Toplam oyun",
+      "favoriteGames": "Favori oyun",
+      "completedGames": "Bitirilen oyun"
+    },
+    "metadata": {
+      "UNAVAILABLE": "Oyun şu anda katalogda kullanılamıyor.",
+      "TEMPORARILY_UNAVAILABLE": "Oyun bilgileri geçici olarak doğrulanamıyor.",
+      "LAST_KNOWN": "Son bilinen bilgi",
+      "NONE": "Oyun bilgisi mevcut değil."
+    },
+    "metadataPartial": "Bazı oyun bilgileri eksik veya son bilinen bilgilerden gösteriliyor. Kütüphane kayıtların korunuyor.",
+    "filters": {
+      "all": "Tümü",
+      "yes": "İşaretli",
+      "no": "İşaretsiz"
+    },
+    "sort": "Sıralama",
+    "sorting": {
+      "ADDED_AT_DESC": "Yeni eklenenler",
+      "ADDED_AT_ASC": "Eski eklenenler",
+      "TITLE_ASC": "Oyun adı: A → Z",
+      "TITLE_DESC": "Oyun adı: Z → A"
+    },
+    "pageSize": "Sayfa boyutu",
+    "pagination": "Kütüphane sayfaları",
+    "page": "Sayfa {page, number} / {pages, number}",
+    "previous": "Önceki",
+    "next": "Sonraki",
+    "total": "{count, number} oyun",
+    "empty": "Henüz oyun yok",
+    "emptyHint": "Katalogdan ilk oyununu seçerek koleksiyonunu oluşturmaya başla.",
+    "emptyFiltered": "Bu filtrelerde oyun yok",
+    "emptyFilteredHint": "Başka filtreleri deneyebilir veya koleksiyonuna oyun ekleyebilirsin.",
+    "emptyProfile": "Bu oyuncunun görüntülenebilen koleksiyonunda oyun yok.",
+    "clearFilters": "Filtreleri temizle",
+    "pageEmpty": "Bu sayfada kayıt yok. Koleksiyonun değişmiş olabilir.",
+    "returnToResults": "Sonuçlara dön",
+    "chooseGame": "Katalogda oyun ara",
+    "collectionHint": "Kütüphaneye eklemek, oyunun satın alındığını veya oyun lisansına sahip olduğunu göstermez.",
+    "automaticCollection": "Favori veya bitirildi seçimi oyunu otomatik olarak koleksiyonuna da ekler. Aynı oyunu tekrar seçmek yeni kayıt oluşturmaz.",
+    "addFailureHint": "İşlemin bir bölümü kaydedilmiş olabilir. Yeniden göndermeden önce koleksiyonunu kontrol et.",
+    "checkCollection": "Kütüphanemi kontrol et",
+    "visibility": "Kütüphane görünürlüğü",
+    "save": "Kaydet",
+    "privacyHint": "Bu ayar User Service tarafından yönetilir. Diğer gizlilik tercihlerin korunur. Library görüntülemek için oturum gerekir; herkese açık seçimi anonim erişim sağlamaz.",
+    "privacyReloaded": "Güncel gizlilik ayarları yeniden yüklendi.",
+    "privacySaved": "Kütüphane gizliliğin kaydedildi.",
+    "privacy": {
+      "PUBLIC": "Herkese açık",
+      "FRIENDS": "Arkadaşlar",
+      "PRIVATE": "Yalnız ben",
+      "PUBLICHint": "Giriş yapmış oyuncular, backend erişim izni verdiğinde görüntüleyebilir.",
+      "FRIENDSHint": "Arkadaşların, arkadaşlık ve engel kontrolleri izin verdiğinde görüntüleyebilir.",
+      "PRIVATEHint": "Koleksiyonunu yalnız sen görüntüleyebilirsin."
+    },
+    "errors": {
+      "400": "İstek veya sayfa bilgisi geçersiz. Seçimlerini kontrol et.",
+      "401": "Oturumun sona erdi. Devam etmek için giriş yap.",
+      "403": "Bu işlem için erişim iznin yok.",
+      "404": "Oyun bulunamadı veya şu anda kullanılamıyor.",
+      "409": "Ayarlar başka bir yerde değişti. Güncel ayarlar yeniden yükleniyor; seçimini kontrol edip tekrar kaydet.",
+      "429": "Çok fazla istek gönderildi. Biraz bekleyip tekrar dene.",
+      "500": "Sunucu işlemi tamamlayamadı. Güncel durumu kontrol et.",
+      "503": "Servis geçici olarak kullanılamıyor. Biraz sonra tekrar dene.",
+      "csrf": "Güvenlik doğrulaması tamamlanamadı. Sayfayı yenileyerek tekrar dene.",
+      "private": "Bu kütüphaneyi görüntüleme iznin yok. Görünürlük veya ilişki ayarları erişimi sınırlıyor.",
+      "decision": "Kütüphane görünürlüğü şu anda doğrulanamıyor. Gizlilik için bilgiler gösterilmiyor.",
+      "network": "Bağlantı kurulamadı veya istek zaman aşımına uğradı. İşlem yaptıysan tekrar göndermeden önce güncel durumu kontrol et."
+    }
   },
-  "descriptions": {
-    "all": "Oyunlarını bir arada tut, favorilerini seç ve bitirdiğin oyunları takip et.",
-    "favorites": "Tekrar dönmek istediğin oyunlar. Favoriden çıkarmak koleksiyonunu etkilemez.",
-    "completed": "Tamamladığın oyunlar bir arada. Bitirildi işareti favorilerinden bağımsızdır.",
-    "add": "LTZ kataloğundan bir oyun seçerek kendi koleksiyonuna ekle.",
-    "privacy": "Kütüphaneni kimlerin görebileceğini belirle.",
-    "profile": "Yalnız erişimine izin verilen koleksiyon bilgileri gösterilir."
-  },
-  "tabs": {
-    "all": "Tüm oyunlar",
-    "favorites": "Favoriler",
-    "completed": "Bitirilenler",
-    "add": "Oyun ekle",
-    "privacy": "Gizlilik"
-  },
-  "navigation": "Kütüphane gezinmesi",
-  "addGame": "Oyun Ekle",
-  "loading": "Kütüphane yükleniyor",
-  "saving": "İşlem sürüyor…",
-  "saved": "Kütüphane güncellendi.",
-  "retry": "Tekrar dene",
-  "refresh": "Yenile",
-  "login": "Giriş yap",
-  "favorite": "Favori",
-  "completed": "Bitirildi",
-  "markFavorite": "Favoriye ekle",
-  "unfavorite": "Favoriden çıkar",
-  "markCompleted": "Bitirildi işaretle",
-  "uncomplete": "Bitirildi işaretini kaldır",
-  "remove": "Kütüphaneden kaldır",
-  "removeTitle": "Oyunu kütüphanenden kaldır?",
-  "removeHint": "“{title}” koleksiyonundan kaldırılacak. Favori ve bitirildi işaretleri de silinecek.",
-  "cancel": "Vazgeç",
-  "unknownTitle": "Oyun adı mevcut değil",
-  "unknownDate": "Tarih mevcut değil",
-  "addedAt": "Eklenme: {date}",
-  "observedAt": "Son gözlem: {date}",
-  "openGame": "{title} oyun detayını aç",
-  "stats": {
-    "totalGames": "Toplam oyun",
-    "favoriteGames": "Favori oyun",
-    "completedGames": "Bitirilen oyun"
-  },
-  "metadata": {
-    "UNAVAILABLE": "Oyun şu anda katalogda kullanılamıyor.",
-    "TEMPORARILY_UNAVAILABLE": "Oyun bilgileri geçici olarak doğrulanamıyor.",
-    "LAST_KNOWN": "Son bilinen bilgi",
-    "NONE": "Oyun bilgisi mevcut değil."
-  },
-  "metadataPartial": "Bazı oyun bilgileri eksik veya son bilinen bilgilerden gösteriliyor. Kütüphane kayıtların korunuyor.",
-  "filters": {
-    "all": "Tümü",
-    "yes": "İşaretli",
-    "no": "İşaretsiz"
-  },
-  "sort": "Sıralama",
-  "sorting": {
-    "ADDED_AT_DESC": "Yeni eklenenler",
-    "ADDED_AT_ASC": "Eski eklenenler",
-    "TITLE_ASC": "Oyun adı: A → Z",
-    "TITLE_DESC": "Oyun adı: Z → A"
-  },
-  "pageSize": "Sayfa boyutu",
-  "pagination": "Kütüphane sayfaları",
-  "page": "Sayfa {page, number} / {pages, number}",
-  "previous": "Önceki",
-  "next": "Sonraki",
-  "total": "{count, number} oyun",
-  "empty": "Henüz oyun yok",
-  "emptyHint": "Katalogdan ilk oyununu seçerek koleksiyonunu oluşturmaya başla.",
-  "emptyFiltered": "Bu filtrelerde oyun yok",
-  "emptyFilteredHint": "Başka filtreleri deneyebilir veya koleksiyonuna oyun ekleyebilirsin.",
-  "emptyProfile": "Bu oyuncunun görüntülenebilen koleksiyonunda oyun yok.",
-  "clearFilters": "Filtreleri temizle",
-  "pageEmpty": "Bu sayfada kayıt yok. Koleksiyonun değişmiş olabilir.",
-  "returnToResults": "Sonuçlara dön",
-  "chooseGame": "Katalogda oyun ara",
-  "collectionHint": "Kütüphaneye eklemek, oyunun satın alındığını veya oyun lisansına sahip olduğunu göstermez.",
-  "automaticCollection": "Favori veya bitirildi seçimi oyunu otomatik olarak koleksiyonuna da ekler. Aynı oyunu tekrar seçmek yeni kayıt oluşturmaz.",
-  "addFailureHint": "İşlemin bir bölümü kaydedilmiş olabilir. Yeniden göndermeden önce koleksiyonunu kontrol et.",
-  "checkCollection": "Kütüphanemi kontrol et",
-  "visibility": "Kütüphane görünürlüğü",
-  "save": "Kaydet",
-  "privacyHint": "Bu ayar User Service tarafından yönetilir. Diğer gizlilik tercihlerin korunur. Library görüntülemek için oturum gerekir; herkese açık seçimi anonim erişim sağlamaz.",
-  "privacyReloaded": "Güncel gizlilik ayarları yeniden yüklendi.",
-  "privacySaved": "Kütüphane gizliliğin kaydedildi.",
-  "privacy": {
-    "PUBLIC": "Herkese açık",
-    "FRIENDS": "Arkadaşlar",
-    "PRIVATE": "Yalnız ben",
-    "PUBLICHint": "Giriş yapmış oyuncular, backend erişim izni verdiğinde görüntüleyebilir.",
-    "FRIENDSHint": "Arkadaşların, arkadaşlık ve engel kontrolleri izin verdiğinde görüntüleyebilir.",
-    "PRIVATEHint": "Koleksiyonunu yalnız sen görüntüleyebilirsin."
-  },
-  "errors": {
-    "400": "İstek veya sayfa bilgisi geçersiz. Seçimlerini kontrol et.",
-    "401": "Oturumun sona erdi. Devam etmek için giriş yap.",
-    "403": "Bu işlem için erişim iznin yok.",
-    "404": "Oyun bulunamadı veya şu anda kullanılamıyor.",
-    "409": "Ayarlar başka bir yerde değişti. Güncel ayarlar yeniden yükleniyor; seçimini kontrol edip tekrar kaydet.",
-    "429": "Çok fazla istek gönderildi. Biraz bekleyip tekrar dene.",
-    "500": "Sunucu işlemi tamamlayamadı. Güncel durumu kontrol et.",
-    "503": "Servis geçici olarak kullanılamıyor. Biraz sonra tekrar dene.",
-    "csrf": "Güvenlik doğrulaması tamamlanamadı. Sayfayı yenileyerek tekrar dene.",
-    "private": "Bu kütüphaneyi görüntüleme iznin yok. Görünürlük veya ilişki ayarları erişimi sınırlıyor.",
-    "decision": "Kütüphane görünürlüğü şu anda doğrulanamıyor. Gizlilik için bilgiler gösterilmiyor.",
-    "network": "Bağlantı kurulamadı veya istek zaman aşımına uğradı. İşlem yaptıysan tekrar göndermeden önce güncel durumu kontrol et."
-  }
-},
   "Metadata": {
     "siteName": "LobbyTwoZero",
     "description": "LobbyTwoZero; oyun keşfi, oyuncu topluluğu, sosyal etkileşim ile donanım ve oyun performansı deneyimleri için geliştirilen oyun odaklı sosyal platformdur."
@@ -169,10 +169,16 @@
   },
   "Navbar": {
     "search": {
-      "placeholder": "Sayfalarda ara...",
+      "placeholder": "Sayfalarda ara… (@ ile oyuncu)",
       "open": "Ara",
       "inputLabel": "Sayfalarda ara",
       "close": "Kapat",
+      "groupPlayers": "Oyuncular",
+      "playersLogin": "Oyuncu aramak için giriş yapmalısın.",
+      "playersHint": "En az 2 karakter yaz, örn. @ali",
+      "playersLoading": "Oyuncular aranıyor…",
+      "playersError": "Oyuncular getirilemedi. Biraz sonra tekrar dene.",
+      "playersEmpty": "Bu adla oyuncu bulunamadı.",
       "groupPages": "Sayfalar",
       "emptyTitle": "Sonuç bulunamadı",
       "emptyBody": "Başka bir sözcükle yeniden dene.",
@@ -281,26 +287,26 @@
     }
   },
   "Pages": {
-  "library": {
-    "title": "Oyun Kütüphanem",
-    "description": "Oyunlarını bir arada tut, favorilerini seç ve bitirdiğin oyunları takip et."
-  },
-  "libraryFavorites": {
-    "title": "Favori Oyunlarım",
-    "description": "Tekrar dönmek istediğin oyunlar. Favoriden çıkarmak koleksiyonunu etkilemez."
-  },
-  "libraryCompleted": {
-    "title": "Bitirdiğim Oyunlar",
-    "description": "Tamamladığın oyunlar bir arada. Bitirildi işareti favorilerinden bağımsızdır."
-  },
-  "libraryAdd": {
-    "title": "Kütüphaneye Oyun Ekle",
-    "description": "LTZ kataloğundan bir oyun seçerek kendi koleksiyonuna ekle."
-  },
-  "libraryPrivacy": {
-    "title": "Kütüphane Gizliliği",
-    "description": "Kütüphaneni kimlerin görebileceğini belirle."
-  },
+    "library": {
+      "title": "Oyun Kütüphanem",
+      "description": "Oyunlarını bir arada tut, favorilerini seç ve bitirdiğin oyunları takip et."
+    },
+    "libraryFavorites": {
+      "title": "Favori Oyunlarım",
+      "description": "Tekrar dönmek istediğin oyunlar. Favoriden çıkarmak koleksiyonunu etkilemez."
+    },
+    "libraryCompleted": {
+      "title": "Bitirdiğim Oyunlar",
+      "description": "Tamamladığın oyunlar bir arada. Bitirildi işareti favorilerinden bağımsızdır."
+    },
+    "libraryAdd": {
+      "title": "Kütüphaneye Oyun Ekle",
+      "description": "LTZ kataloğundan bir oyun seçerek kendi koleksiyonuna ekle."
+    },
+    "libraryPrivacy": {
+      "title": "Kütüphane Gizliliği",
+      "description": "Kütüphaneni kimlerin görebileceğini belirle."
+    },
     "games": {
       "title": "Oyunlar",
       "description": "Katalogda oyun bul, detaylarını ve topluluğun paylaştıklarını keşfet."
@@ -1206,7 +1212,24 @@
       "MFA_FAILED": "Kod geçersiz ya da doğrulama oturumunun süresi doldu. Yeniden dene ya da girişe dön.",
       "INVALID_TWO_FACTOR_CODE": "Kod yanlış. Tekrar dene.",
       "ACCOUNT_LINK_REQUIRED": "Bu e-posta adresiyle zaten bir hesap var. Önce e-posta ve şifrenle giriş yap, sonra bu hesabı bağla.",
-      "ACCOUNT_EMAIL_REQUIRED": "Bu işlem için hesabında doğrulanmış bir e-posta adresi olmalı. Önce e-posta ekleyip doğrula."
+      "ACCOUNT_EMAIL_REQUIRED": "Bu işlem için hesabında doğrulanmış bir e-posta adresi olmalı. Önce e-posta ekleyip doğrula.",
+      "ADMIN_DELETION_FORBIDDEN": "Yönetici hesabı silinemez. Önce yönetici rolünün kaldırılması gerekir.",
+      "DELETION_REQUIRES_SUPPORT": "Bu hesap kendi başına silinemez. Yöneticiye silme talebi açman gerekir.",
+      "DELETION_REQUIRES_SECOND_FACTOR": "Talep açmak için önce iki adımlı doğrulamayı (TOTP) etkinleştirmelisin.",
+      "DELETION_SUPPORT_COOLDOWN": "Son talebin reddedildi. Yeni talep için 24 saat beklemelisin.",
+      "DELETION_SELF_SERVICE_AVAILABLE": "Bu hesabı kendin silebilirsin. Sayfayı yenileyip silme isteğini kullan.",
+      "REAUTHENTICATION_REQUIRED": "Bu işlem için yakın zamanda giriş yapmış olman gerekir. Çıkış yapıp yeniden giriş yap.",
+      "CURRENT_PASSWORD_INVALID": "Parola yanlış. Tekrar dene.",
+      "PASSWORD_REQUIRED": "Önce hesabına bir parola belirlemelisin.",
+      "PASSWORD_ALREADY_SET": "Bu hesapta zaten parola var.",
+      "PASSWORD_SET_INVALID": "Kod yanlış, süresi dolmuş ya da deneme hakkı bitti. Yeni kod iste.",
+      "EMAIL_CHANGE_INVALID": "Kod yanlış, süresi dolmuş ya da deneme hakkı bitti. İşlemi yeniden başlat.",
+      "EMAIL_LOCKED_BY_PROVIDER": "Google ile açılan hesabın e-postası değiştirilemez; adres Google hesabına bağlıdır.",
+      "EXTERNAL_IDENTITY_ALREADY_LINKED": "Bu hesapta bu sağlayıcıdan zaten bir kimlik bağlı.",
+      "TWO_FACTOR_ALREADY_ENABLED": "İki adımlı doğrulama zaten açık.",
+      "TWO_FACTOR_NOT_PENDING": "Bekleyen bir kurulum yok. Kurulumu baştan başlat.",
+      "TWO_FACTOR_NOT_ENABLED": "İki adımlı doğrulama açık değil.",
+      "TWO_FACTOR_REQUIRED_FOR_ROLE": "Yönetici ve moderatör hesaplarında iki adımlı doğrulama kapatılamaz."
     },
     "register": {
       "metaTitle": "Kayıt ol",
@@ -1958,25 +1981,6 @@
         "sessions": "{count, plural, other {# oturumda}} ölçüldü"
       }
     },
-    "preview": {
-      "mark": "Önizleme",
-      "markHint": "Tasarım önizlemesi: bu bilgi gerçek değil, örnektir.",
-      "rank": {
-        "veteran": "Kıdemli Oyuncu"
-      },
-      "status": "Bu akşam bir şeyler oynuyorum.",
-      "signatureLabel": "İmza",
-      "signature": "Her oyun bir hikâyedir; sen yeter ki bitir.",
-      "badgesTitle": "Rozetler",
-      "badge": {
-        "earlyBird": "Erken kuş",
-        "reviewer": "İnceleme yazarı",
-        "collector": "Koleksiyoncu",
-        "teamPlayer": "Takım oyuncusu",
-        "nightOwl": "Gece kuşu",
-        "bugHunter": "Hata avcısı"
-      }
-    },
     "playerType": {
       "CASUAL": "Rahat oyuncu",
       "COMPETITIVE": "Rekabetçi",
@@ -2208,13 +2212,121 @@
       "unnamed": "Oyuncu",
       "since": "Arkadaşlık: {date}",
       "open": "{name} oyuncusunun gönderilerini aç",
-      "someHidden": "Bazı hesaplar gösterilemiyor"
+      "someHidden": "Bazı hesaplar gösterilemiyor",
+      "find": "Oyuncu ara"
     }
   },
   "AccountSettings": {
     "title": "Hesap ayarları",
     "description": "Profilinin kimlere görüneceğini, hesap tercihlerini ve verilerinin nasıl kullanılacağını buradan yönetirsin.",
     "back": "← Profilime dön",
+    "security": {
+      "title": "Güvenlik",
+      "loading": "Güvenlik bilgisi yükleniyor…",
+      "loadFailed": "Güvenlik bilgisi alınamadı.",
+      "retry": "Tekrar dene",
+      "password": "Parolan",
+      "factor": "Doğrulama kodu (6 hane) ya da kurtarma kodu",
+      "code": "Kod",
+      "cancel": "Vazgeç",
+      "sending": "Gönderiliyor…",
+      "relogin": "Güvenliğin için tüm oturumların kapandı. Yeniden giriş yapman gerekiyor.",
+      "goLogin": "Girişe git",
+      "tier": {
+        "heading": "Hesap düzeyin",
+        "A": "Standart hesap (A)",
+        "B": "Korumalı hesap (B)",
+        "C": "Sağlayıcı hesabı (C)",
+        "descA": "İki adımlı doğrulama ya da Google/Steam bağlantısı yok; bu yüzden bazı özellikler kısıtlıdır. Birini etkinleştirirsen hesabın korumalı olur ve kısıtlar kalkar. Hesabını kendin silebilirsin.",
+        "descB": "İki adımlı doğrulama veya bağlı Google/Steam hesabıyla korunuyorsun. Bağlı kimlikler kaldırılamaz ve hesabı silmek için yöneticiye talep açarsın.",
+        "descC": "Hesabını Google veya Steam ile açtın; güvencen o hesaptır. E-posta adresi sağlayıcıya bağlıdır ve hesabı silmek için yöneticiye talep açarsın.",
+        "password": "Parola",
+        "passwordYes": "Belirlenmiş",
+        "passwordNo": "Yok",
+        "totp": "İki adımlı doğrulama",
+        "totpYes": "Açık",
+        "totpNo": "Kapalı",
+        "providers": "Bağlı hesaplar",
+        "providersNone": "Yok",
+        "registration": "Kayıt yöntemi",
+        "registrationPASSWORD": "E-posta ve parola",
+        "registrationGOOGLE": "Google",
+        "registrationSTEAM": "Steam"
+      },
+      "twoFactor": {
+        "title": "İki adımlı doğrulama (TOTP)",
+        "offIntro": "Bir doğrulayıcı uygulamayla (Google Authenticator, Authy vb.) girişini ve hesabını korursun. Açınca hesabın korumalı olur.",
+        "start": "Kurulumu başlat",
+        "secret": "Gizli anahtar (yalnız şimdi görünür)",
+        "openApp": "Doğrulayıcı uygulamada aç",
+        "enterCode": "Uygulamadaki 6 haneli kodu yaz",
+        "activate": "Etkinleştir",
+        "recoveryTitle": "Kurtarma kodların",
+        "recoveryWarn": "Bu kodlar yalnız bir kez gösterilir. Telefonunu kaybedersen hesaba bunlarla girersin. Güvenli bir yere kaydet.",
+        "recoverySaved": "Kodları kaydettim",
+        "onIntro": "İki adımlı doğrulama açık.",
+        "disableHint": "Kapatmak için kodunu gir. Bağlı Google/Steam hesabın yoksa hesabın standart (A) düzeye düşer.",
+        "disable": "Kapat"
+      },
+      "link": {
+        "title": "Google ve Steam bağlantıları",
+        "intro": "Bağladığın hesap girişini güçlendirir ve hesabını korumalı yapar. Bağlanan kimlik kendi başına kaldırılamaz; gerekirse yöneticiye başvur.",
+        "google": "Google",
+        "steam": "Steam",
+        "linked": "Bağlı",
+        "needPassword": "Bağlamak için önce parola belirlemelisin.",
+        "connect": "Bağla",
+        "confirm": "Doğrula ve bağla"
+      },
+      "passwordSet": {
+        "title": "Parola belirle",
+        "intro": "Hesabın parolasız. Parola belirleyince e-posta değiştirme ve hesap bağlama açılır. Doğrulanmış e-postana bir kod göndeririz.",
+        "sendCode": "Kod gönder",
+        "emailCode": "E-postana gelen kod",
+        "newPassword": "Yeni parola (en az 15 karakter)",
+        "confirmation": "Yeni parola (tekrar)",
+        "mismatch": "Parolalar aynı değil.",
+        "submit": "Parolayı belirle",
+        "done": "Parolan belirlendi."
+      },
+      "email": {
+        "title": "E-posta adresi",
+        "locked": "Hesabın Google ile açıldığı için e-posta adresi değiştirilemez.",
+        "needAuth": "E-posta değiştirmek için önce parola belirle ya da iki adımlı doğrulamayı aç.",
+        "newEmail": "Yeni e-posta adresi",
+        "send": "Kod gönder",
+        "codeSent": "Yeni adrese bir kod gönderdik. Kodu yaz; onaylayınca tüm oturumların kapanır.",
+        "confirm": "Adresi değiştir"
+      },
+      "logoutAll": {
+        "title": "Tüm oturumlar",
+        "intro": "Telefon, tarayıcı dahil her cihazdaki oturumlarını kapatır. Bu cihazdan da çıkarsın.",
+        "button": "Tüm cihazlardan çık",
+        "confirm": "Emin misin? Evet, hepsini kapat"
+      }
+    },
+    "deletion": {
+      "title": "Hesabı sil",
+      "loading": "Hesap bilgisi yükleniyor…",
+      "loadFailed": "Hesap bilgisi alınamadı.",
+      "retry": "Tekrar dene",
+      "selfIntro": "Hesabını silmek için parolanı doğrula. E-postana 30 dakika geçerli bir onay bağlantısı göndereceğiz. Onayladıktan sonra 14 gün içinde vazgeçebilirsin.",
+      "supportIntro": "Google/Steam ya da iki adımlı doğrulama ile korunan hesaplar kendi başına silinemez. Yöneticiye silme talebi açarsın; onaylanırsa silme süreci başlar.",
+      "needSecondFactor": "Bu hesapta parola yok. Talep açmak için önce yukarıdaki Güvenlik bölümünden iki adımlı doğrulamayı (TOTP) etkinleştirmelisin.",
+      "password": "Parolan",
+      "factor": "Doğrulama kodu (6 hane) ya da kurtarma kodu",
+      "note": "Yöneticiye not (isteğe bağlı)",
+      "submitDelete": "Silme isteği gönder",
+      "submitSupport": "Silme talebi aç",
+      "sending": "Gönderiliyor…",
+      "sentMail": "Onay bağlantısını e-postana gönderdik. 30 dakika içinde bağlantıyı açıp kullanıcı adını yazarak onayla.",
+      "request": {
+        "pending": "Silme talebin yöneticide bekliyor ({date}).",
+        "approved": "Talebin onaylandı; silme süreci başladı.",
+        "rejected": "Son talebin reddedildi. 24 saat sonra yeniden talep açabilirsin.",
+        "other": "Son talebinin durumu: {status}"
+      }
+    },
     "loading": "Yükleniyor…",
     "save": "Kaydet",
     "saving": "Kaydediliyor…",
@@ -2290,6 +2402,90 @@
         "off": "Kapalı",
         "since": "{date} tarihinden beri"
       }
+    },
+    "steam": {
+      "title": "Steam",
+      "description": "Steam hesabının bağlanması ve kaldırılması giriş güvenliğinin parçası olarak ayrıca yönetilir. Burada yalnız bağlantının açık profilinde görünüp görünmeyeceğini seçersin.",
+      "notLinked": "Bağlı bir Steam hesabın yok. Bağlayınca profilinde gösterip göstermeyeceğini buradan seçebilirsin.",
+      "show": {
+        "label": "Steam bağlantımı profilimde göster",
+        "hint": "Açıksa profilini görebilenler Steam profil bağlantını görür (Steam kimliği: {steamId}). Varsayılan olarak kapalıdır.",
+        "on": "Açık",
+        "off": "Kapalı"
+      }
+    }
+  },
+  "Players": {
+    "profile": {
+      "metaTitle": "Oyuncu profili",
+      "loading": "Profil yükleniyor…",
+      "notFoundTitle": "Oyuncu bulunamadı",
+      "notFoundBody": "Bu profil yok ya da senin için görüntülenemiyor.",
+      "search": "Oyuncu ara",
+      "errorTitle": "Profil yüklenemedi",
+      "errorBody": "Profil şu an alınamadı. Biraz sonra tekrar dene.",
+      "retry": "Tekrar dene",
+      "ownProfile": "Profilime git",
+      "posts": "Gönderileri",
+      "detailsTitle": "Ayrıntılar",
+      "detailsGuest": "Bu oyuncunun ayrıntılarını görmek için giriş yapmalısın.",
+      "detailsHidden": "Bu oyuncu ayrıntılarını paylaşmıyor.",
+      "signIn": "Giriş yap",
+      "summary": {
+        "title": "Özet",
+        "friends": "Arkadaş",
+        "library": "Oyun",
+        "reviews": "İnceleme",
+        "hidden": "Gizli",
+        "unavailable": "Henüz yok"
+      },
+      "steam": {
+        "title": "Steam",
+        "open": "Steam profilini aç",
+        "newTab": "(yeni sekmede açılır)"
+      }
+    },
+    "search": {
+      "title": "Oyuncu ara",
+      "description": "Kullanıcı adı ya da görünen adın ilk harflerini yazarak oyuncu bul.",
+      "loading": "Yükleniyor…",
+      "label": "Kullanıcı adı veya görünen ad",
+      "submit": "Ara",
+      "hint": "En az {min} karakter yaz. En fazla 20 sonuç gösterilir.",
+      "tooShort": "Arama metni {min} ile {max} karakter arasında olmalı.",
+      "results": "Arama sonuçları",
+      "empty": "Sonuç bulunamadı. Başka bir yazımı dene.",
+      "count": "{count} oyuncu bulundu.",
+      "unnamed": "İsimsiz oyuncu",
+      "open": "{name} profilini aç"
+    }
+  },
+  "Onboarding": {
+    "title": "Hoş geldin",
+    "description": "Sana uygun oyunları ve oyuncuları gösterebilmemiz için favori türlerini ve platformlarını seç. Sonradan profilinden değiştirebilirsin.",
+    "loading": "Yükleniyor…",
+    "saving": "Kaydediliyor…",
+    "finish": "Kurulumu tamamla",
+    "later": "Sonra yaparım",
+    "needGenre": "En az bir favori tür seç.",
+    "needPlatform": "En az bir platform seç.",
+    "doneTitle": "Kurulum tamamlandı",
+    "doneBody": "Favori tür ve platformların kayıtlı. Değiştirmek için profilini düzenleyebilirsin.",
+    "toProfile": "Profilime git",
+    "editProfile": "Profili düzenle",
+    "errors": {
+      "generic": "Bir sorun oluştu. Tekrar dene.",
+      "network": "Bağlantı kurulamadı. İnternetini kontrol edip tekrar dene.",
+      "conflict": "Profilin başka bir yerde değişti. Sayfayı yenileyip tekrar dene.",
+      "rateLimited": "Çok sık istek gönderdin. Biraz bekleyip tekrar dene.",
+      "busy": "Servis şu an meşgul, birazdan tekrar dene.",
+      "incomplete": "En az bir favori tür ve bir platform seçmelisin.",
+      "invalid": "Seçimlerden biri geçersiz. Kontrol edip tekrar dene."
+    },
+    "prompt": {
+      "title": "Kurulumu tamamla",
+      "body": "Favori tür ve platformlarını seç; sana uygun öneriler için gerekli.",
+      "action": "Kuruluma başla"
     }
   },
   "Community": {

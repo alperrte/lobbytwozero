@@ -27,7 +27,8 @@ const DYNAMIC_PARAMS: Readonly<Record<string, string>> = {
   "/library/users/[userId]": "userId",
   "/community/posts/[postId]": "postId",
   "/community/forums/[forumId]": "forumId",
-  "/community/users/[userId]": "userId"
+  "/community/users/[userId]": "userId",
+  "/players/[userId]": "userId"
 };
 
 /** Dil adları her zaman kendi dilinde yazılır (Türkçe / English). */

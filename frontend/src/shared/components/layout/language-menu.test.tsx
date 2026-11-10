@@ -23,7 +23,8 @@ const dynamicRoutes = [
   ["/hardware/[productId]", "productId", "/donanimlar", "/hardware"],
   ["/community/posts/[postId]", "postId", "/topluluk/gonderi", "/community/posts"],
   ["/community/forums/[forumId]", "forumId", "/topluluk/forumlar", "/community/forums"],
-  ["/community/users/[userId]", "userId", "/topluluk/oyuncu", "/community/users"]
+  ["/community/users/[userId]", "userId", "/topluluk/oyuncu", "/community/users"],
+  ["/players/[userId]", "userId", "/oyuncular", "/players"]
 ] as const;
 
 beforeEach(() => {

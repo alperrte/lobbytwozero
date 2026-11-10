@@ -1,123 +1,123 @@
 {
   "Library": {
-  "cover": "Game cover for {title}",
-  "titles": {
-    "all": "My Game Library",
-    "favorites": "My Favorite Games",
-    "completed": "My Completed Games",
-    "add": "Add a Game to Your Library",
-    "privacy": "Library Privacy",
-    "profile": "Player Library"
-  },
-  "descriptions": {
-    "all": "Keep your games together, choose favorites and track the games you finish.",
-    "favorites": "Games you want to return to. Removing a favorite keeps it in your collection.",
-    "completed": "The games you have finished. Completion is independent of favorites.",
-    "add": "Choose a game from the LTZ catalogue for your collection.",
-    "privacy": "Choose who can see your library.",
-    "profile": "Only collection information you are allowed to access is displayed."
-  },
-  "tabs": {
-    "all": "All games",
-    "favorites": "Favorites",
+    "cover": "Game cover for {title}",
+    "titles": {
+      "all": "My Game Library",
+      "favorites": "My Favorite Games",
+      "completed": "My Completed Games",
+      "add": "Add a Game to Your Library",
+      "privacy": "Library Privacy",
+      "profile": "Player Library"
+    },
+    "descriptions": {
+      "all": "Keep your games together, choose favorites and track the games you finish.",
+      "favorites": "Games you want to return to. Removing a favorite keeps it in your collection.",
+      "completed": "The games you have finished. Completion is independent of favorites.",
+      "add": "Choose a game from the LTZ catalogue for your collection.",
+      "privacy": "Choose who can see your library.",
+      "profile": "Only collection information you are allowed to access is displayed."
+    },
+    "tabs": {
+      "all": "All games",
+      "favorites": "Favorites",
+      "completed": "Completed",
+      "add": "Add game",
+      "privacy": "Privacy"
+    },
+    "navigation": "Library navigation",
+    "addGame": "Add Game",
+    "loading": "Loading library",
+    "saving": "Saving…",
+    "saved": "Library updated.",
+    "retry": "Try again",
+    "refresh": "Refresh",
+    "login": "Sign in",
+    "favorite": "Favorite",
     "completed": "Completed",
-    "add": "Add game",
-    "privacy": "Privacy"
+    "markFavorite": "Add favorite",
+    "unfavorite": "Remove favorite",
+    "markCompleted": "Mark completed",
+    "uncomplete": "Undo completion",
+    "remove": "Remove from library",
+    "removeTitle": "Remove this game from your library?",
+    "removeHint": "“{title}” will be removed from your collection. Its favorite and completed marks will also be deleted.",
+    "cancel": "Cancel",
+    "unknownTitle": "Game title unavailable",
+    "unknownDate": "Date unavailable",
+    "addedAt": "Added: {date}",
+    "observedAt": "Last observed: {date}",
+    "openGame": "Open game details for {title}",
+    "stats": {
+      "totalGames": "Total games",
+      "favoriteGames": "Favorite games",
+      "completedGames": "Completed games"
+    },
+    "metadata": {
+      "UNAVAILABLE": "This game is currently unavailable in the catalogue.",
+      "TEMPORARILY_UNAVAILABLE": "Game information cannot be verified right now.",
+      "LAST_KNOWN": "Last known information",
+      "NONE": "Game information unavailable"
+    },
+    "metadataPartial": "Some game information is missing or uses last known details. Your library entries are preserved.",
+    "filters": {
+      "all": "All",
+      "yes": "Marked",
+      "no": "Unmarked"
+    },
+    "sort": "Sort by",
+    "sorting": {
+      "ADDED_AT_DESC": "Recently added",
+      "ADDED_AT_ASC": "Oldest added",
+      "TITLE_ASC": "Game title: A → Z",
+      "TITLE_DESC": "Game title: Z → A"
+    },
+    "pageSize": "Page size",
+    "pagination": "Library pages",
+    "page": "Page {page, number} / {pages, number}",
+    "previous": "Previous",
+    "next": "Next",
+    "total": "{count, plural, one {# game} other {# games}}",
+    "empty": "No games yet",
+    "emptyHint": "Choose your first game from the catalogue to start your collection.",
+    "emptyFiltered": "No games match these filters",
+    "emptyFilteredHint": "Try other filters or add a game to your collection.",
+    "emptyProfile": "This player's accessible collection has no games.",
+    "clearFilters": "Clear filters",
+    "pageEmpty": "There are no entries on this page. The collection may have changed.",
+    "returnToResults": "Return to results",
+    "chooseGame": "Search the game catalogue",
+    "collectionHint": "Adding a game to your library does not prove a purchase or ownership of a game license.",
+    "automaticCollection": "Marking a game as favorite or completed also adds it to your collection. Selecting it again does not create a duplicate entry.",
+    "addFailureHint": "Part of the operation may have been saved. Check your collection before submitting again.",
+    "checkCollection": "Check my library",
+    "visibility": "Library visibility",
+    "save": "Save",
+    "privacyHint": "User Service manages this setting. Your other privacy preferences are preserved. Viewing a library requires a session; public visibility does not grant anonymous access.",
+    "privacyReloaded": "The latest privacy settings have been reloaded.",
+    "privacySaved": "Library privacy saved.",
+    "privacy": {
+      "PUBLIC": "Public",
+      "FRIENDS": "Friends",
+      "PRIVATE": "Only me",
+      "PUBLICHint": "Signed-in players can view your library when backend access checks allow it.",
+      "FRIENDSHint": "Friends can view your library when friendship and blocking checks allow it.",
+      "PRIVATEHint": "Only you can view your collection."
+    },
+    "errors": {
+      "400": "The request or page information is invalid. Check your selections.",
+      "401": "Your session has expired. Sign in to continue.",
+      "403": "You do not have permission for this action.",
+      "404": "The game was not found or is currently unavailable.",
+      "409": "Settings changed elsewhere. Reloading the latest settings; review your selection before saving again.",
+      "429": "Too many requests. Wait a little before trying again.",
+      "500": "The server could not complete the operation. Check the current state.",
+      "503": "The service is temporarily unavailable. Try again later.",
+      "csrf": "Security verification failed. Refresh the page before trying again.",
+      "private": "You cannot view this library. Visibility or relationship settings restrict access.",
+      "decision": "Library visibility cannot be verified right now. Information is hidden to protect privacy.",
+      "network": "Could not connect or the request timed out. If you made a change, check the current state before submitting again."
+    }
   },
-  "navigation": "Library navigation",
-  "addGame": "Add Game",
-  "loading": "Loading library",
-  "saving": "Saving…",
-  "saved": "Library updated.",
-  "retry": "Try again",
-  "refresh": "Refresh",
-  "login": "Sign in",
-  "favorite": "Favorite",
-  "completed": "Completed",
-  "markFavorite": "Add favorite",
-  "unfavorite": "Remove favorite",
-  "markCompleted": "Mark completed",
-  "uncomplete": "Undo completion",
-  "remove": "Remove from library",
-  "removeTitle": "Remove this game from your library?",
-  "removeHint": "“{title}” will be removed from your collection. Its favorite and completed marks will also be deleted.",
-  "cancel": "Cancel",
-  "unknownTitle": "Game title unavailable",
-  "unknownDate": "Date unavailable",
-  "addedAt": "Added: {date}",
-  "observedAt": "Last observed: {date}",
-  "openGame": "Open game details for {title}",
-  "stats": {
-    "totalGames": "Total games",
-    "favoriteGames": "Favorite games",
-    "completedGames": "Completed games"
-  },
-  "metadata": {
-    "UNAVAILABLE": "This game is currently unavailable in the catalogue.",
-    "TEMPORARILY_UNAVAILABLE": "Game information cannot be verified right now.",
-    "LAST_KNOWN": "Last known information",
-    "NONE": "Game information unavailable"
-  },
-  "metadataPartial": "Some game information is missing or uses last known details. Your library entries are preserved.",
-  "filters": {
-    "all": "All",
-    "yes": "Marked",
-    "no": "Unmarked"
-  },
-  "sort": "Sort by",
-  "sorting": {
-    "ADDED_AT_DESC": "Recently added",
-    "ADDED_AT_ASC": "Oldest added",
-    "TITLE_ASC": "Game title: A → Z",
-    "TITLE_DESC": "Game title: Z → A"
-  },
-  "pageSize": "Page size",
-  "pagination": "Library pages",
-  "page": "Page {page, number} / {pages, number}",
-  "previous": "Previous",
-  "next": "Next",
-  "total": "{count, plural, one {# game} other {# games}}",
-  "empty": "No games yet",
-  "emptyHint": "Choose your first game from the catalogue to start your collection.",
-  "emptyFiltered": "No games match these filters",
-  "emptyFilteredHint": "Try other filters or add a game to your collection.",
-  "emptyProfile": "This player's accessible collection has no games.",
-  "clearFilters": "Clear filters",
-  "pageEmpty": "There are no entries on this page. The collection may have changed.",
-  "returnToResults": "Return to results",
-  "chooseGame": "Search the game catalogue",
-  "collectionHint": "Adding a game to your library does not prove a purchase or ownership of a game license.",
-  "automaticCollection": "Marking a game as favorite or completed also adds it to your collection. Selecting it again does not create a duplicate entry.",
-  "addFailureHint": "Part of the operation may have been saved. Check your collection before submitting again.",
-  "checkCollection": "Check my library",
-  "visibility": "Library visibility",
-  "save": "Save",
-  "privacyHint": "User Service manages this setting. Your other privacy preferences are preserved. Viewing a library requires a session; public visibility does not grant anonymous access.",
-  "privacyReloaded": "The latest privacy settings have been reloaded.",
-  "privacySaved": "Library privacy saved.",
-  "privacy": {
-    "PUBLIC": "Public",
-    "FRIENDS": "Friends",
-    "PRIVATE": "Only me",
-    "PUBLICHint": "Signed-in players can view your library when backend access checks allow it.",
-    "FRIENDSHint": "Friends can view your library when friendship and blocking checks allow it.",
-    "PRIVATEHint": "Only you can view your collection."
-  },
-  "errors": {
-    "400": "The request or page information is invalid. Check your selections.",
-    "401": "Your session has expired. Sign in to continue.",
-    "403": "You do not have permission for this action.",
-    "404": "The game was not found or is currently unavailable.",
-    "409": "Settings changed elsewhere. Reloading the latest settings; review your selection before saving again.",
-    "429": "Too many requests. Wait a little before trying again.",
-    "500": "The server could not complete the operation. Check the current state.",
-    "503": "The service is temporarily unavailable. Try again later.",
-    "csrf": "Security verification failed. Refresh the page before trying again.",
-    "private": "You cannot view this library. Visibility or relationship settings restrict access.",
-    "decision": "Library visibility cannot be verified right now. Information is hidden to protect privacy.",
-    "network": "Could not connect or the request timed out. If you made a change, check the current state before submitting again."
-  }
-},
   "Metadata": {
     "siteName": "LobbyTwoZero",
     "description": "LobbyTwoZero is a game-focused social platform being built for game discovery, the player community, social interaction, and hardware and game performance experiences."
@@ -169,10 +169,16 @@
   },
   "Navbar": {
     "search": {
-      "placeholder": "Search pages...",
+      "placeholder": "Search pages… (@ for players)",
       "open": "Search",
       "inputLabel": "Search pages",
       "close": "Close",
+      "groupPlayers": "Players",
+      "playersLogin": "Sign in to search for players.",
+      "playersHint": "Type at least 2 characters, e.g. @ali",
+      "playersLoading": "Searching players…",
+      "playersError": "Could not load players. Try again shortly.",
+      "playersEmpty": "No player found with that name.",
       "groupPages": "Pages",
       "emptyTitle": "No results found",
       "emptyBody": "Try a different word.",
@@ -281,26 +287,26 @@
     }
   },
   "Pages": {
-  "library": {
-    "title": "My Game Library",
-    "description": "Keep your games together, choose favorites and track the games you finish."
-  },
-  "libraryFavorites": {
-    "title": "My Favorite Games",
-    "description": "Games you want to return to. Removing a favorite keeps it in your collection."
-  },
-  "libraryCompleted": {
-    "title": "My Completed Games",
-    "description": "The games you have finished. Completion is independent of favorites."
-  },
-  "libraryAdd": {
-    "title": "Add a Game to Your Library",
-    "description": "Choose a game from the LTZ catalogue for your collection."
-  },
-  "libraryPrivacy": {
-    "title": "Library Privacy",
-    "description": "Choose who can see your library."
-  },
+    "library": {
+      "title": "My Game Library",
+      "description": "Keep your games together, choose favorites and track the games you finish."
+    },
+    "libraryFavorites": {
+      "title": "My Favorite Games",
+      "description": "Games you want to return to. Removing a favorite keeps it in your collection."
+    },
+    "libraryCompleted": {
+      "title": "My Completed Games",
+      "description": "The games you have finished. Completion is independent of favorites."
+    },
+    "libraryAdd": {
+      "title": "Add a Game to Your Library",
+      "description": "Choose a game from the LTZ catalogue for your collection."
+    },
+    "libraryPrivacy": {
+      "title": "Library Privacy",
+      "description": "Choose who can see your library."
+    },
     "games": {
       "title": "Games",
       "description": "Find a game and explore its details and community contributions."
@@ -1206,7 +1212,24 @@
       "MFA_FAILED": "The code is invalid or the verification session has expired. Try again or go back to sign in.",
       "INVALID_TWO_FACTOR_CODE": "The code is wrong. Try again.",
       "ACCOUNT_LINK_REQUIRED": "An account with this email address already exists. Sign in with your email and password first, then link this account.",
-      "ACCOUNT_EMAIL_REQUIRED": "This action needs a verified email address on your account. Add and verify an email first."
+      "ACCOUNT_EMAIL_REQUIRED": "This action needs a verified email address on your account. Add and verify an email first.",
+      "ADMIN_DELETION_FORBIDDEN": "An administrator account cannot be deleted. The admin role must be removed first.",
+      "DELETION_REQUIRES_SUPPORT": "This account cannot be deleted on its own. You need to open a deletion request with an administrator.",
+      "DELETION_REQUIRES_SECOND_FACTOR": "Enable two-step verification (TOTP) before opening a request.",
+      "DELETION_SUPPORT_COOLDOWN": "Your last request was rejected. Wait 24 hours before opening a new one.",
+      "DELETION_SELF_SERVICE_AVAILABLE": "You can delete this account yourself. Refresh the page and use the delete request.",
+      "REAUTHENTICATION_REQUIRED": "You need to have signed in recently for this. Sign out and sign in again.",
+      "CURRENT_PASSWORD_INVALID": "The password is wrong. Try again.",
+      "PASSWORD_REQUIRED": "Set a password on your account first.",
+      "PASSWORD_ALREADY_SET": "This account already has a password.",
+      "PASSWORD_SET_INVALID": "The code is wrong, expired or out of attempts. Request a new one.",
+      "EMAIL_CHANGE_INVALID": "The code is wrong, expired or out of attempts. Start over.",
+      "EMAIL_LOCKED_BY_PROVIDER": "The email of an account created with Google cannot be changed; it is tied to the Google account.",
+      "EXTERNAL_IDENTITY_ALREADY_LINKED": "This account already has an identity linked from this provider.",
+      "TWO_FACTOR_ALREADY_ENABLED": "Two-step verification is already on.",
+      "TWO_FACTOR_NOT_PENDING": "There is no pending setup. Start the setup again.",
+      "TWO_FACTOR_NOT_ENABLED": "Two-step verification is not on.",
+      "TWO_FACTOR_REQUIRED_FOR_ROLE": "Two-step verification cannot be turned off for administrator and moderator accounts."
     },
     "register": {
       "metaTitle": "Sign up",
@@ -1958,25 +1981,6 @@
         "sessions": "Measured in {count, plural, one {# session} other {# sessions}}"
       }
     },
-    "preview": {
-      "mark": "Preview",
-      "markHint": "Design preview: this information is a sample, not real.",
-      "rank": {
-        "veteran": "Veteran Player"
-      },
-      "status": "Playing something tonight.",
-      "signatureLabel": "Signature",
-      "signature": "Every game is a story; just finish it.",
-      "badgesTitle": "Badges",
-      "badge": {
-        "earlyBird": "Early bird",
-        "reviewer": "Reviewer",
-        "collector": "Collector",
-        "teamPlayer": "Team player",
-        "nightOwl": "Night owl",
-        "bugHunter": "Bug hunter"
-      }
-    },
     "playerType": {
       "CASUAL": "Casual",
       "COMPETITIVE": "Competitive",
@@ -2208,13 +2212,121 @@
       "unnamed": "Player",
       "since": "Friends since {date}",
       "open": "Open posts by {name}",
-      "someHidden": "Some accounts cannot be shown"
+      "someHidden": "Some accounts cannot be shown",
+      "find": "Find players"
     }
   },
   "AccountSettings": {
     "title": "Account settings",
     "description": "Manage who can see your profile, your account preferences and how your data is used.",
     "back": "← Back to my profile",
+    "security": {
+      "title": "Security",
+      "loading": "Loading security information…",
+      "loadFailed": "Could not load security information.",
+      "retry": "Try again",
+      "password": "Your password",
+      "factor": "Verification code (6 digits) or recovery code",
+      "code": "Code",
+      "cancel": "Cancel",
+      "sending": "Sending…",
+      "relogin": "For your safety all your sessions were closed. You need to sign in again.",
+      "goLogin": "Go to sign in",
+      "tier": {
+        "heading": "Your account level",
+        "A": "Standard account (A)",
+        "B": "Protected account (B)",
+        "C": "Provider account (C)",
+        "descA": "You have no two-step verification or linked Google/Steam account, so some features are restricted. Turn on either one and your account becomes protected and the limits are lifted. You can delete the account yourself.",
+        "descB": "You are protected by two-step verification or a linked Google/Steam account. Linked identities cannot be removed, and you open a request with an administrator to delete the account.",
+        "descC": "You created your account with Google or Steam; that account is your assurance. The email address is tied to the provider and you open a request with an administrator to delete the account.",
+        "password": "Password",
+        "passwordYes": "Set",
+        "passwordNo": "None",
+        "totp": "Two-step verification",
+        "totpYes": "On",
+        "totpNo": "Off",
+        "providers": "Linked accounts",
+        "providersNone": "None",
+        "registration": "Sign-up method",
+        "registrationPASSWORD": "Email and password",
+        "registrationGOOGLE": "Google",
+        "registrationSTEAM": "Steam"
+      },
+      "twoFactor": {
+        "title": "Two-step verification (TOTP)",
+        "offIntro": "Protect your sign-in and account with an authenticator app (Google Authenticator, Authy, etc.). Turning it on makes your account protected.",
+        "start": "Start setup",
+        "secret": "Secret key (shown only now)",
+        "openApp": "Open in authenticator app",
+        "enterCode": "Type the 6-digit code from the app",
+        "activate": "Turn on",
+        "recoveryTitle": "Your recovery codes",
+        "recoveryWarn": "These codes are shown only once. If you lose your phone you sign in with them. Store them somewhere safe.",
+        "recoverySaved": "I saved the codes",
+        "onIntro": "Two-step verification is on.",
+        "disableHint": "Enter your code to turn it off. Without a linked Google/Steam account your account falls back to standard (A).",
+        "disable": "Turn off"
+      },
+      "link": {
+        "title": "Google and Steam links",
+        "intro": "A linked account strengthens your sign-in and makes your account protected. A linked identity cannot be removed on your own; contact an administrator if needed.",
+        "google": "Google",
+        "steam": "Steam",
+        "linked": "Linked",
+        "needPassword": "Set a password first to link an account.",
+        "connect": "Link",
+        "confirm": "Verify and link"
+      },
+      "passwordSet": {
+        "title": "Set a password",
+        "intro": "Your account has no password. Setting one unlocks email change and account linking. We email a code to your verified address.",
+        "sendCode": "Send code",
+        "emailCode": "Code from your email",
+        "newPassword": "New password (at least 15 characters)",
+        "confirmation": "New password (again)",
+        "mismatch": "The passwords do not match.",
+        "submit": "Set password",
+        "done": "Your password is set."
+      },
+      "email": {
+        "title": "Email address",
+        "locked": "Your account was created with Google, so the email address cannot be changed.",
+        "needAuth": "Set a password or turn on two-step verification before changing your email.",
+        "newEmail": "New email address",
+        "send": "Send code",
+        "codeSent": "We sent a code to the new address. Type it; confirming closes all your sessions.",
+        "confirm": "Change address"
+      },
+      "logoutAll": {
+        "title": "All sessions",
+        "intro": "Closes your sessions on every device, including this one.",
+        "button": "Sign out of all devices",
+        "confirm": "Are you sure? Yes, close them all"
+      }
+    },
+    "deletion": {
+      "title": "Delete account",
+      "loading": "Loading account information…",
+      "loadFailed": "Could not load account information.",
+      "retry": "Try again",
+      "selfIntro": "Confirm your password to delete your account. We will email you a confirmation link that is valid for 30 minutes. After you confirm, you can change your mind within 14 days.",
+      "supportIntro": "Accounts protected by Google/Steam or two-step verification cannot be deleted on their own. You open a deletion request with an administrator; if approved, the deletion process starts.",
+      "needSecondFactor": "This account has no password. Enable two-step verification (TOTP) in the Security section above before opening a request.",
+      "password": "Your password",
+      "factor": "Verification code (6 digits) or recovery code",
+      "note": "Note to the administrator (optional)",
+      "submitDelete": "Send deletion request",
+      "submitSupport": "Open deletion request",
+      "sending": "Sending…",
+      "sentMail": "We emailed you a confirmation link. Open it within 30 minutes and type your username to confirm.",
+      "request": {
+        "pending": "Your deletion request is waiting for an administrator ({date}).",
+        "approved": "Your request was approved; the deletion process has started.",
+        "rejected": "Your last request was rejected. You can open a new one after 24 hours.",
+        "other": "Status of your last request: {status}"
+      }
+    },
     "loading": "Loading…",
     "save": "Save",
     "saving": "Saving…",
@@ -2290,6 +2402,90 @@
         "off": "Off",
         "since": "since {date}"
       }
+    },
+    "steam": {
+      "title": "Steam",
+      "description": "Linking and unlinking your Steam account is managed separately as part of sign-in security. Here you only choose whether the link shows on your public profile.",
+      "notLinked": "You have no linked Steam account. Once linked, you can choose here whether to show it on your profile.",
+      "show": {
+        "label": "Show my Steam link on my profile",
+        "hint": "When on, people who can see your profile also see your Steam profile link (Steam ID: {steamId}). Off by default.",
+        "on": "On",
+        "off": "Off"
+      }
+    }
+  },
+  "Players": {
+    "profile": {
+      "metaTitle": "Player profile",
+      "loading": "Loading profile…",
+      "notFoundTitle": "Player not found",
+      "notFoundBody": "This profile does not exist or cannot be shown to you.",
+      "search": "Find players",
+      "errorTitle": "Could not load profile",
+      "errorBody": "The profile could not be loaded right now. Try again shortly.",
+      "retry": "Try again",
+      "ownProfile": "Go to my profile",
+      "posts": "Posts",
+      "detailsTitle": "Details",
+      "detailsGuest": "Sign in to see this player's details.",
+      "detailsHidden": "This player does not share their details.",
+      "signIn": "Sign in",
+      "summary": {
+        "title": "Summary",
+        "friends": "Friends",
+        "library": "Games",
+        "reviews": "Reviews",
+        "hidden": "Hidden",
+        "unavailable": "Not yet"
+      },
+      "steam": {
+        "title": "Steam",
+        "open": "Open Steam profile",
+        "newTab": "(opens in a new tab)"
+      }
+    },
+    "search": {
+      "title": "Find players",
+      "description": "Find players by typing the first letters of a username or display name.",
+      "loading": "Loading…",
+      "label": "Username or display name",
+      "submit": "Search",
+      "hint": "Type at least {min} characters. Up to 20 results are shown.",
+      "tooShort": "The search text must be between {min} and {max} characters.",
+      "results": "Search results",
+      "empty": "No results. Try a different spelling.",
+      "count": "{count} players found.",
+      "unnamed": "Unnamed player",
+      "open": "Open {name}'s profile"
+    }
+  },
+  "Onboarding": {
+    "title": "Welcome",
+    "description": "Pick your favourite genres and platforms so we can show you games and players that suit you. You can change them later from your profile.",
+    "loading": "Loading…",
+    "saving": "Saving…",
+    "finish": "Finish setup",
+    "later": "Do it later",
+    "needGenre": "Pick at least one favourite genre.",
+    "needPlatform": "Pick at least one platform.",
+    "doneTitle": "Setup complete",
+    "doneBody": "Your favourite genres and platforms are saved. You can change them by editing your profile.",
+    "toProfile": "Go to my profile",
+    "editProfile": "Edit profile",
+    "errors": {
+      "generic": "Something went wrong. Try again.",
+      "network": "Could not connect. Check your internet and try again.",
+      "conflict": "Your profile changed somewhere else. Reload the page and try again.",
+      "rateLimited": "You sent too many requests. Wait a moment and try again.",
+      "busy": "The service is busy right now, try again shortly.",
+      "incomplete": "You must pick at least one favourite genre and one platform.",
+      "invalid": "One of the choices is invalid. Check and try again."
+    },
+    "prompt": {
+      "title": "Finish your setup",
+      "body": "Pick your favourite genres and platforms; it is needed for suggestions that suit you.",
+      "action": "Start setup"
     }
   },
   "Community": {

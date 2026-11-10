@@ -5,6 +5,7 @@ import {
   visibilities,
   type Consents,
   type GuestAccess,
+  type LinkedSteam,
   type Preferences,
   type PrivacySettings,
   type SettingsLocale,
@@ -16,6 +17,7 @@ import { userRequest } from "./user-http";
 const PRIVACY_PATH = "/api/v1/user/me/privacy";
 const PREFERENCES_PATH = "/api/v1/user/me/preferences";
 const CONSENTS_PATH = "/api/v1/user/me/consents";
+const LINKED_PATH = "/api/v1/user/me/linked-accounts";
 
 function record(body: unknown): Record<string, unknown> {
   return typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
@@ -97,6 +99,40 @@ export async function saveConsents(consents: Consents, signal?: AbortSignal): Pr
     await userRequest<unknown>(CONSENTS_PATH, {
       method: "PUT",
       json: { version: consents.version, recommendation: consents.recommendation },
+      signal
+    })
+  );
+}
+
+function toSteamRecord(value: unknown): LinkedSteam {
+  const r = record(value);
+  const steamId = typeof r.externalId === "string" && /^\d{17}$/.test(r.externalId) ? r.externalId : null;
+  // Bağlı sayılmak için kimlik de geçerli olmalı; bozuk kayıt "bağlı değil" gibi davranır, izin açılamaz.
+  const linked = r.linked === true && steamId !== null;
+  return { linked, steamId: linked ? steamId : null, showOnProfile: linked && r.showOnProfile === true, version: version(r.version) };
+}
+
+/** Bağlı hesaplar listesinden Steam kaydını çıkarır; kayıt yoksa bağlı değil sayılır. */
+export function toLinkedSteam(body: unknown): LinkedSteam {
+  const accounts = Array.isArray(record(body).accounts) ? (record(body).accounts as unknown[]) : [];
+  const steam = accounts.find((account) => record(account).provider === "STEAM");
+  return toSteamRecord(steam);
+}
+
+export async function getLinkedSteam(signal?: AbortSignal): Promise<LinkedSteam> {
+  return toLinkedSteam(await userRequest<unknown>(LINKED_PATH, { signal }));
+}
+
+/** Steam bağlantısının profilde gösterilme iznini yazar (`version` son görülen sürüm olmalı; uyuşmazsa 409). */
+export async function saveSteamVisibility(
+  steam: LinkedSteam,
+  showOnProfile: boolean,
+  signal?: AbortSignal
+): Promise<LinkedSteam> {
+  return toSteamRecord(
+    await userRequest<unknown>(`${LINKED_PATH}/steam`, {
+      method: "PATCH",
+      json: { version: steam.version, showOnProfile },
       signal
     })
   );

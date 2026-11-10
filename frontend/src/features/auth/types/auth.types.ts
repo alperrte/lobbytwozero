@@ -32,6 +32,22 @@ export type AuthErrorCode =
   | "DELETION_NOT_PENDING"
   | "DELETION_CANCEL_WINDOW_CLOSED"
   | "INVALID_TWO_FACTOR_CODE"
+  | "DELETION_REQUIRES_SUPPORT"
+  | "DELETION_REQUIRES_SECOND_FACTOR"
+  | "DELETION_SUPPORT_COOLDOWN"
+  | "DELETION_SELF_SERVICE_AVAILABLE"
+  | "REAUTHENTICATION_REQUIRED"
+  | "CURRENT_PASSWORD_INVALID"
+  | "TWO_FACTOR_ALREADY_ENABLED"
+  | "TWO_FACTOR_NOT_PENDING"
+  | "TWO_FACTOR_NOT_ENABLED"
+  | "TWO_FACTOR_REQUIRED_FOR_ROLE"
+  | "PASSWORD_REQUIRED"
+  | "PASSWORD_ALREADY_SET"
+  | "PASSWORD_SET_INVALID"
+  | "EMAIL_CHANGE_INVALID"
+  | "EMAIL_LOCKED_BY_PROVIDER"
+  | "EXTERNAL_IDENTITY_ALREADY_LINKED"
   | "NETWORK"
   | "UNKNOWN";
 
@@ -66,6 +82,22 @@ export const knownAuthErrorCodes: readonly AuthErrorCode[] = [
   "DELETION_NOT_PENDING",
   "DELETION_CANCEL_WINDOW_CLOSED",
   "INVALID_TWO_FACTOR_CODE",
+  "DELETION_REQUIRES_SUPPORT",
+  "DELETION_REQUIRES_SECOND_FACTOR",
+  "DELETION_SUPPORT_COOLDOWN",
+  "DELETION_SELF_SERVICE_AVAILABLE",
+  "REAUTHENTICATION_REQUIRED",
+  "CURRENT_PASSWORD_INVALID",
+  "TWO_FACTOR_ALREADY_ENABLED",
+  "TWO_FACTOR_NOT_PENDING",
+  "TWO_FACTOR_NOT_ENABLED",
+  "TWO_FACTOR_REQUIRED_FOR_ROLE",
+  "PASSWORD_REQUIRED",
+  "PASSWORD_ALREADY_SET",
+  "PASSWORD_SET_INVALID",
+  "EMAIL_CHANGE_INVALID",
+  "EMAIL_LOCKED_BY_PROVIDER",
+  "EXTERNAL_IDENTITY_ALREADY_LINKED",
   "NETWORK",
   "UNKNOWN"
 ];
@@ -85,6 +117,21 @@ export type AuthMe = {
   roles: string[];
   authMethods: string[];
   accessTokenExpiresAt: string;
+  /** Hesap türü (A: normal, B: normal + 2FA/sağlayıcı, C: doğrudan Google/Steam kaydı). Eski Auth'ta yoktur. */
+  accountTier?: "A" | "B" | "C";
+  trusted?: boolean;
+  passwordSet?: boolean;
+  providers?: string[];
+  totpEnabled?: boolean;
+  registrationMethod?: string;
+};
+
+/** B/C türünün yöneticiye açtığı silme talebi (`status`: PENDING, APPROVED, REJECTED; bilinmeyen değer olduğu gibi gelir). */
+export type DeletionSupportRequest = {
+  id: string;
+  status: string;
+  createdAt: string;
+  decidedAt: string | null;
 };
 
 /** Tek kullanımlık MFA challenge'ı (bellekte tutulur; URL'ye, depoya ya da günlüğe yazılmaz). */

@@ -42,3 +42,14 @@ export type Consents = {
   recommendationChangedAt: string | null;
   version: number;
 };
+
+/**
+ * `GET/PATCH /api/v1/user/me/linked-accounts`: Steam bağlantısı. Bağlama ve kaldırma Auth'tadır; burada yalnız profilde
+ * gösterme izni yönetilir. Bağlı değilse `steamId` boştur ve izin değiştirilemez.
+ */
+export type LinkedSteam = {
+  linked: boolean;
+  steamId: string | null;
+  showOnProfile: boolean;
+  version: number;
+};

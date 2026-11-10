@@ -1,20 +1,15 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { cn } from "@/shared/utils/cn";
 import { countryName } from "../catalog/countries";
 import { useCatalogLabels } from "../hooks/use-catalog-labels";
-import { previewProfile } from "../preview/preview-data";
 import type { MyProfile, SteamLink } from "../types/profile.types";
 import { CountryFlag } from "./country-flag";
-import { PreviewMark } from "./preview-mark";
 import { ProfileCompletion } from "./profile-completion";
+import { Card, Chips, Empty, Row } from "./profile-parts";
 
-const chipClass =
-  "inline-flex items-center rounded-full border border-border bg-surface-elevated px-3 py-1 text-xs font-medium text-text-primary";
-
-/** "Genel" sekmesi: biyografi, imza (önizleme), oyuncu tercihleri, bağlı hesaplar ve rozetler (önizleme). */
+/** "Genel" sekmesi: biyografi, oyuncu tercihleri, profil tamamlama ve bağlı hesaplar. */
 export function ProfileOverview({ profile, steam }: { profile: MyProfile; steam: SteamLink | null }) {
   const t = useTranslations("Profile");
   const locale = useLocale();
@@ -29,13 +24,6 @@ export function ProfileOverview({ profile, steam }: { profile: MyProfile; steam:
           ) : (
             <p className="text-text-secondary">{t("emptyBio")}</p>
           )}
-          <div className="mt-5 border-t border-border pt-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <h3 className="text-sm font-medium text-text-secondary">{t("preview.signatureLabel")}</h3>
-              <PreviewMark />
-            </div>
-            <p className="mt-2 max-w-prose italic text-text-secondary">{t("preview.signature")}</p>
-          </div>
         </Card>
 
         <Card title={t("preferences")}>
@@ -69,20 +57,6 @@ export function ProfileOverview({ profile, steam }: { profile: MyProfile; steam:
         <Card title={t("linkedAccounts")}>
           <SteamRow steam={steam} />
         </Card>
-
-        <Card title={t("preview.badgesTitle")} mark>
-          <ul className="grid grid-cols-2 gap-3">
-            {previewProfile.badges.map((badge) => (
-              <li
-                key={badge}
-                className="flex items-center gap-2 rounded-control border border-border bg-surface-elevated px-3 py-2"
-              >
-                <span aria-hidden="true" className="size-6 shrink-0 rounded-full bg-border" />
-                <span className="min-w-0 truncate text-xs font-medium">{t(`preview.badge.${badge}`)}</span>
-              </li>
-            ))}
-          </ul>
-        </Card>
       </div>
     </div>
   );
@@ -108,44 +82,4 @@ function SteamRow({ steam }: { steam: SteamLink | null }) {
       </div>
     </div>
   );
-}
-
-function Card({ title, mark = false, children }: { title: string; mark?: boolean; children: ReactNode }) {
-  return (
-    <section className="rounded-panel border border-border bg-surface p-5 sm:p-6">
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h2 className="font-display text-base font-semibold">{title}</h2>
-        {mark ? <PreviewMark /> : null}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function Row({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <dt className="text-sm text-text-secondary">{label}</dt>
-      <dd className="text-sm text-text-primary">{children}</dd>
-    </div>
-  );
-}
-
-function Chips({ items }: { items: string[] }) {
-  return items.length === 0 ? (
-    <Empty />
-  ) : (
-    <ul className="flex flex-wrap gap-2">
-      {items.map((item) => (
-        <li key={item} className={chipClass}>
-          {item}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function Empty() {
-  const t = useTranslations("Profile");
-  return <span className="text-text-secondary">{t("none")}</span>;
 }

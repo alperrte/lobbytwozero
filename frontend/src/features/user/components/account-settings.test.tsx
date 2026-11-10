@@ -6,7 +6,11 @@ import tr from "@/shared/lib/i18n/messages/tr.json";
 import type { Consents, Preferences, PrivacySettings } from "../types/settings.types";
 
 const session = { status: "authenticated" as "authenticated" | "guest" | "loading" };
-vi.mock("@/features/auth", () => ({ useRequireSession: () => ({ status: session.status }) }));
+vi.mock("@/features/auth", () => ({
+  useRequireSession: () => ({ status: session.status }),
+  AccountDeletionSection: () => null,
+  AccountSecuritySection: () => null
+}));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/tr/profil/ayarlar",
@@ -24,7 +28,9 @@ const api = {
   getPreferences: vi.fn(),
   savePreferences: vi.fn(),
   getConsents: vi.fn(),
-  saveConsents: vi.fn()
+  saveConsents: vi.fn(),
+  getLinkedSteam: vi.fn(),
+  saveSteamVisibility: vi.fn()
 };
 vi.mock("../services/settings-api", () => ({
   getPrivacy: (...args: unknown[]) => api.getPrivacy(...args),
@@ -32,7 +38,9 @@ vi.mock("../services/settings-api", () => ({
   getPreferences: (...args: unknown[]) => api.getPreferences(...args),
   savePreferences: (...args: unknown[]) => api.savePreferences(...args),
   getConsents: (...args: unknown[]) => api.getConsents(...args),
-  saveConsents: (...args: unknown[]) => api.saveConsents(...args)
+  saveConsents: (...args: unknown[]) => api.saveConsents(...args),
+  getLinkedSteam: (...args: unknown[]) => api.getLinkedSteam(...args),
+  saveSteamVisibility: (...args: unknown[]) => api.saveSteamVisibility(...args)
 }));
 
 import { AccountSettings } from "./account-settings";
@@ -63,6 +71,7 @@ beforeEach(() => {
   api.getPrivacy.mockResolvedValue(privacy);
   api.getPreferences.mockResolvedValue(preferences);
   api.getConsents.mockResolvedValue(consents);
+  api.getLinkedSteam.mockResolvedValue({ linked: false, steamId: null, showOnProfile: false, version: 0 });
 });
 afterEach(cleanup);
 
@@ -162,5 +171,27 @@ describe("AccountSettings", () => {
 
     expect(await screen.findByText(/Servis şu an meşgul/)).toBeInTheDocument();
     expect(screen.getByLabelText("Kişiselleştirilmiş oyun önerileri")).not.toBeChecked();
+  });
+
+  it("Steam bağlı değilse seçim sunulmaz, bağlıysa seçim yanıt gelince güncellenir", async () => {
+    renderPage();
+    expect(await screen.findByText(/Bağlı bir Steam hesabın yok/)).toBeInTheDocument();
+    expect(screen.queryByLabelText("Steam bağlantımı profilimde göster")).not.toBeInTheDocument();
+  });
+
+  it("bağlı Steam görünürlüğü sunucuya yazılır; hata olursa kutu eski durumunda kalır", async () => {
+    const linked = { linked: true, steamId: "76561198000000000", showOnProfile: false, version: 2 };
+    api.getLinkedSteam.mockResolvedValue(linked);
+    api.saveSteamVisibility.mockResolvedValueOnce({ ...linked, showOnProfile: true, version: 3 });
+    renderPage();
+
+    fireEvent.click(await screen.findByLabelText("Steam bağlantımı profilimde göster"));
+    await waitFor(() => expect(api.saveSteamVisibility).toHaveBeenCalledWith(linked, true));
+    await waitFor(() => expect(screen.getByLabelText("Steam bağlantımı profilimde göster")).toBeChecked());
+
+    api.saveSteamVisibility.mockRejectedValueOnce(new ApiHttpError(503, {}));
+    fireEvent.click(screen.getByLabelText("Steam bağlantımı profilimde göster"));
+    expect(await screen.findByText(/Servis şu an meşgul/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Steam bağlantımı profilimde göster")).toBeChecked();
   });
 });

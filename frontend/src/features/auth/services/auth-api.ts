@@ -1,5 +1,5 @@
 import { ApiHttpError } from "@/shared/lib/api/client";
-import type { AuthMe, LoginResult, TotpEnrollment } from "../types/auth.types";
+import type { AuthMe, DeletionSupportRequest, LoginResult, TotpEnrollment } from "../types/auth.types";
 import { authRequest } from "./auth-http";
 
 /** Giriş uçlarının arayüzü; hook bunu enjekte alır (test için sahte adaptör verilebilir). */
@@ -58,6 +58,16 @@ export type SessionApi = {
   logout(): Promise<void>;
 };
 
+function toSupportRequest(value: unknown): DeletionSupportRequest {
+  const r = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+  return {
+    id: typeof r.id === "string" ? r.id : "",
+    status: typeof r.status === "string" ? r.status : "UNKNOWN",
+    createdAt: typeof r.createdAt === "string" ? r.createdAt : "",
+    decidedAt: typeof r.decidedAt === "string" ? r.decidedAt : null
+  };
+}
+
 export const authApi = {
   /** Yalnız `status === "AUTHENTICATED"` oturum açılmıştır; MFA durumlarında çerez yazılmaz. */
   async login(identifier: string, password: string, signal?: AbortSignal): Promise<LoginResult> {
@@ -97,6 +107,96 @@ export const authApi = {
     });
     const codes = typeof result === "object" && result !== null ? (result as Record<string, unknown>).recoveryCodes : undefined;
     return { recoveryCodes: Array.isArray(codes) ? codes.filter((item): item is string => typeof item === "string") : [] };
+  },
+
+  /** TOTP kurulumu başlatır: gizli anahtar yalnız bu yanıtta görünür. */
+  async setupTotp(signal?: AbortSignal): Promise<TotpEnrollment> {
+    const result = await authRequest<unknown>("/api/v1/auth/2fa/totp/setup", { method: "POST", signal });
+    const r = typeof result === "object" && result !== null ? (result as Record<string, unknown>) : {};
+    return {
+      secret: typeof r.secret === "string" ? r.secret : "",
+      otpauthUri: typeof r.otpauthUri === "string" ? r.otpauthUri : ""
+    };
+  },
+
+  /** Kurulumu koda göre etkinleştirir; kurtarma kodları yalnız bu yanıtta görünür. */
+  async activateTotp(code: string, signal?: AbortSignal): Promise<{ recoveryCodes: string[] }> {
+    const result = await authRequest<unknown>("/api/v1/auth/2fa/totp/activate", { method: "POST", body: { code }, signal });
+    const codes = typeof result === "object" && result !== null ? (result as Record<string, unknown>).recoveryCodes : undefined;
+    return { recoveryCodes: Array.isArray(codes) ? codes.filter((item): item is string => typeof item === "string") : [] };
+  },
+
+  /** TOTP'yi kapatır (`204`): parolalı hesapta parola + kod ya da kurtarma kodu, parolasızda yalnız kod. */
+  async disableTotp(body: { password?: string; code?: string; recoveryCode?: string }, signal?: AbortSignal): Promise<void> {
+    await authRequest<unknown>("/api/v1/auth/2fa/totp/disable", { method: "POST", body, signal });
+  },
+
+  /** Google/Steam bağlamayı başlatır (yeniden doğrulama ister); dönen adrese tarayıcı gönderilir. */
+  async startProviderLink(
+    provider: "google" | "steam",
+    body: { password: string; code?: string; recoveryCode?: string },
+    signal?: AbortSignal
+  ): Promise<string> {
+    const result = await authRequest<unknown>(`/api/v1/auth/oauth/${provider}/link/start`, { method: "POST", body, signal });
+    const url = typeof result === "object" && result !== null ? (result as Record<string, unknown>).redirectUrl : undefined;
+    if (typeof url !== "string" || url === "") throw new ApiHttpError(200, { code: "UNKNOWN" });
+    return url;
+  },
+
+  /** Parolasız hesap için: doğrulanmış e-postaya parola belirleme kodu gönderir (`202`). */
+  async requestPasswordSet(factor?: { code: string } | { recoveryCode: string }, signal?: AbortSignal): Promise<void> {
+    await authRequest<unknown>("/api/v1/auth/password/set/request", { method: "POST", body: { ...factor }, signal });
+  },
+
+  /** Kodla parolayı belirler (`204`); tüm oturumlar kapanır, yeniden giriş gerekir. */
+  async setPassword(emailCode: string, newPassword: string, newPasswordConfirmation: string, signal?: AbortSignal): Promise<void> {
+    await authRequest<unknown>("/api/v1/auth/password/set", {
+      method: "POST",
+      body: { emailCode, newPassword, newPasswordConfirmation },
+      signal
+    });
+  },
+
+  /** E-posta değişikliğini başlatır (`202`): kod YENİ adrese gider, adres henüz değişmez. */
+  async requestEmailChange(
+    body: { newEmail: string; password?: string; code?: string; recoveryCode?: string },
+    signal?: AbortSignal
+  ): Promise<void> {
+    await authRequest<unknown>("/api/v1/auth/email/change", { method: "POST", body, signal });
+  },
+
+  /** Yeni adrese gelen kodla değişikliği onaylar (`204`); tüm oturumlar kapanır, yeni adresle yeniden giriş gerekir. */
+  async confirmEmailChange(code: string, signal?: AbortSignal): Promise<void> {
+    await authRequest<unknown>("/api/v1/auth/email/change/confirm", { method: "POST", body: { code }, signal });
+  },
+
+  /** Tüm cihazlardaki oturumları kapatır (`204`), bu cihazdaki dahil. */
+  async logoutAll(signal?: AbortSignal): Promise<void> {
+    await authRequest<unknown>("/api/v1/auth/session/logout-all", { method: "POST", signal });
+  },
+
+  /** A türü: yeniden doğrulama sonrası silme onayı e-postası gönderir (`202`, hesap henüz silinmez). */
+  async requestAccountDeletion(
+    body: { password?: string } & Partial<{ code: string; recoveryCode: string }>,
+    signal?: AbortSignal
+  ): Promise<void> {
+    await authRequest<unknown>("/api/v1/auth/account/deletion/request", { method: "POST", body, signal });
+  },
+
+  /** B/C türü: yöneticiye silme talebi açar (`202`). Parolalı hesapta `password`, TOTP açıksa kod ya da kurtarma kodu gerekir. */
+  async requestDeletionSupport(
+    body: { message?: string; password?: string; code?: string; recoveryCode?: string },
+    signal?: AbortSignal
+  ): Promise<DeletionSupportRequest> {
+    return toSupportRequest(
+      await authRequest<unknown>("/api/v1/auth/account/deletion/support-request", { method: "POST", body, signal })
+    );
+  },
+
+  /** En son silme talebi; hiç talep yoksa (`204`) `null`. */
+  async getDeletionSupportRequest(signal?: AbortSignal): Promise<DeletionSupportRequest | null> {
+    const result = await authRequest<unknown>("/api/v1/auth/account/deletion/support-request", { signal });
+    return result === undefined || result === null ? null : toSupportRequest(result);
   },
 
   /** Silme onayı: `202`; hesap `DELETION_REQUESTED` olur, tüm oturumlar sunucuda iptal edilir, 14 gün geri alma süresi başlar. */
