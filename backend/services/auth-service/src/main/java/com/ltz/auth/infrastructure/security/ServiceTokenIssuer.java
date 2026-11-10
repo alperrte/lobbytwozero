@@ -35,7 +35,7 @@ public class ServiceTokenIssuer {
     private static final Duration TTL = Duration.ofSeconds(30);
     private static final Pattern AUDIENCE = Pattern.compile(
             "^[a-z0-9][a-z0-9-]{0,31}" + TokenClaims.SERVICE_AUDIENCE_SUFFIX + "$");
-    private static final Pattern SCOPE = Pattern.compile("^[a-z]+:[a-z]+$");
+    private static final Pattern SCOPE = Pattern.compile("^[a-z]+:[a-z]+(:[a-z]+)?$");
 
     private final JwtEncoder jwtEncoder;
     private final JwtSigningKey signingKey;
