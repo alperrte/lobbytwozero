@@ -168,6 +168,20 @@ Gösterim: **PK** birincil anahtar, **FK** servis içi yabancı anahtar, **REF**
 
 ### 3.4 game_db — game-service (Hamza)
 
+**10 Kasım 2026 kaynak güncellemesi — Steam durum bilgileri ve Steam fiyatı (V31 ve V173 tablo tanımlarında):**
+- `games` tablosu (V31) dört boş başlayan kolon taşır: `free boolean` (Steam ücretsiz), `coming_soon boolean` (henüz çıkmamış), `adult boolean` (Steam içerik
+  tanımlayıcısı 3 veya 4: +18) ve `delisted_at timestamptz` (Steam art arda tanımadığı, mağazadan kaldırılmış oyun; kayıt silinmez). **null = bilinmiyor**; Steam oyunu
+  tanımadıysa false varsayılmaz. Yalnız Steam tarafından (arka plan taraması) yazılır; yönetici düzenlemesi yoktur.
+- `game_price_quotes.source` CHECK'i (V173) `('ITAD','STEAM')` kabul eder ("Steam" mağaza satırı Steam'in kendi fiyatından gelebilir; ITAD'in Steam satırının yerine geçer).
+- Bu alanlar önce V176 olarak yazıldı; kullanıcı kararıyla ve tek seferlik kural istisnasıyla ilgili tablo tanımlarına taşındı (bkz. `docs/decisions/migrations.md`); yeni
+  migration numarası harcanmadı. Aktif kaynak zinciri V31–V40 + V171–V175. Eski dump'ı yüklemiş olanlar yeni dump'ı `--replace` ile yüklemelidir (checksum değişti).
+- **Provenance işaretleri** (`game_metadata_provenance.field`, tablo değişikliği yok): `STEAM_TYPE` (Steam mağaza türü incelendi; UNKNOWN 7 gün bekler),
+  `IGDB_TYPE_CHECK` (Steam türüyle sınıflı kaydın IGDB'ye yeniden sorulması), `STEAM_UNRECOGNISED` (Steam'in oyunu ilk tanımadığı an; delist onayı ≥20 saat
+  sonra ikinci gözlemle), `RELEASE_STATUS`, `DLC_PARENT`. **Tür kanıt sırası:** yönetici kilidi > IGDB > Steam mağaza türü (`type=0` ana oyun, `type=4` DLC;
+  yedek). Steam kaynaklı `GAME_TYPE` kaydının kaynağı `STEAM`'dir ve IGDB kanıt verince `IGDB`'ye döner.
+- **Dump:** fiyat tablolarının (`game_price_quotes`, `game_price_refresh_state`) VERİSİ dump'a konmaz (şema kalır); fiyatlar ömürleri dolunca gizlenir ve
+  dağıtım anında bayattır. Manifestte bu tabloların sayısı 0'dır (`excludedDataTables`).
+
 **5 Kasım 2026 kaynak güncellemesi — GAME-24:** V173, `game_price_quotes`
 (game_id FK, ülke, para birimi, mağaza, regular/current numeric(19,4), indirim,
 ITAD URL'si, sağlayıcı zamanı, çekim ve sona erme zamanı), `game_price_refresh_state`

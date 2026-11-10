@@ -11,7 +11,7 @@
 
 ## HAMZA
 - V31–V40      → GAME-SERVICE (aktif başlangıç zinciri, 10 migration; tamamı kullanıldı)
-- V171–V180    → GAME-SERVICE (2026-10-24 açık kullanıcı onayı; V171–V173 kullanıldı, V174–V180 boş)
+- V171–V180    → GAME-SERVICE (2026-10-24 açık kullanıcı onayı; V171–V175 kullanıldı, V176–V180 boş)
 - V41–V50      → LIBRARY-SERVICE
 - V51–V60      → REVIEW-SERVICE
 
@@ -41,6 +41,22 @@ geliştirmeye başlanmadan önce belirlenmelidir.
 ---
 
 ## Migration Kuralları
+
+### Game Service Steam durum kolonları ve fiyat kaynağı — 2026-11-10 (yeni migration numarası harcanmadı)
+
+- Steam durum alanları (`games.free`, `coming_soon`, `adult`, `delisted_at`; hepsi nullable, null = bilinmiyor) **V31**'in `games` tablo tanımına, `game_price_quotes.source`
+  kısıtı (`('ITAD','STEAM')`) **V173**'ün tablo tanımına eklendi. Önce ayrı V176/V177, sonra tek V176 olarak yazılmıştı; **kullanıcı kararıyla ve AGENTS.md'deki
+  "uygulanmış migration'a dokunma" kuralına BU SEFERLİK istisnayla** ilgili tablo tanımlarına taşındı ve V176 dosyası silindi. V176–V180 boş kaldı.
+- **Bedeli (bilerek kabul edildi):** V31 ve V173 dosya içerikleri değiştiği için Flyway checksum'ları değişti. Etkisi: (a) DEV veritabanında `flyway_schema_history`
+  V31 → `867753708`, V173 → `-1752023504` olarak güncellendi ve 176 satırı silindi (kolonlar ve kısıt zaten vardı; yedek alındı); (b) **eski bir dump'ı (V175 ve öncesi,
+  eski checksum'lı) yüklemiş herkes, yeni kodu çekince `Migration checksum mismatch` hatası alır** — çözüm yeni dump'ı `--replace` ile yüklemektir
+  (`ops/game-catalog.md`); (c) yeni dump bu checksum'larla alınır.
+- **Tarihsel fixture** (`src/test/resources/db/history/game-service-v173`, SHA256SUMS ile kilitli) değişmedi; eşdeğerlik testleri tarihsel veritabanına yalnız bu dört kolonu
+  test amaçlı ekler (`MigrationSchemaSupport.STEAM_STATUS_COLUMNS`). `MigrationArchitectureTest` ALTER istisnası yalnız V174'tür; dosya sayısı 15.
+- Doğrulama: `GameReleaseStatusMigrationTest` (temiz zincir, kolonlar boş başlar, kaynak kısıtı yalnız ITAD ve STEAM), `GameLocalizedDescriptionMigrationTest`,
+  `MigrationArchitectureTest`, `MigrationTransferTest`, `MigrationTransferApplicationTest`.
+- **Gelecek için ilke:** uygulanmış migration değişikliği yeniden yapılmaz; yeni şema değişikliği yeni numarayla yazılır. Migration sayısını azaltmanın doğru yolu canlıya
+  çıkmadan hemen önce tek başlangıç dosyasına indirmektir (baseline squash).
 
 ### Game Service V174–V175 kullanımı — 2026-11-08
 
