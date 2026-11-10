@@ -10,6 +10,7 @@ public final class UserApiPaths {
     public static final String ME_COVER = ME + "/cover";
     public static final String ME_PRIVACY = ME + "/privacy";
     public static final String ME_PREFERENCES = ME + "/preferences";
+    public static final String ME_CONSENTS = ME + "/consents";
     public static final String ME_LINKED_ACCOUNTS = ME + "/linked-accounts";
     public static final String ME_LINKED_ACCOUNT = ME_LINKED_ACCOUNTS + "/{provider}";
     public static final String ME_ONBOARDING =ME + "/onboarding";

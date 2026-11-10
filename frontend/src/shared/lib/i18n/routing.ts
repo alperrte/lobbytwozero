@@ -32,6 +32,7 @@ export const pathnames = {
   "/friends/blocked": { tr: "/arkadaslar/engellenenler", en: "/friends/blocked" },
   "/profile": { tr: "/profil", en: "/profile" },
   "/profile/edit": { tr: "/profil/duzenle", en: "/profile/edit" },
+  "/profile/settings": { tr: "/profil/ayarlar", en: "/profile/settings" },
   "/login": { tr: "/giris", en: "/login" },
   "/register": { tr: "/kayit", en: "/register" },
   "/verify-email": { tr: "/eposta-dogrulama", en: "/verify-email" },

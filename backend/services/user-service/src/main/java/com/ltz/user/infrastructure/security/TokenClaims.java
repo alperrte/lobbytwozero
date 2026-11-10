@@ -20,6 +20,8 @@ public final class TokenClaims {
     public static final String EVENTS_INGEST_SCOPE = "events:ingest";
     /** Gizlilik kararı okuma (POST /internal/v1/privacy/decisions) için servis token'ı kapsamı (talep T3). */
     public static final String PRIVACY_READ_SCOPE = "privacy:read";
+    /** Kullanıcının dil tercihini okuma (GET /internal/v1/users/{userId}/locale) için servis token'ı kapsamı (MAIL-AUTH-REQ-02). */
+    public static final String LOCALE_READ_SCOPE = "preferences:locale:read";
     /** Gizlilik kararını yalnız bu servisler isteyebilir (SOC-12, HW-08, LIB-11). */
     public static final Set<String> PRIVACY_READ_SUBJECTS =
             Set.of("svc:social-service", "svc:hardware-service", "svc:library-service");

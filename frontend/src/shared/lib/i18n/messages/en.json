@@ -2211,6 +2211,87 @@
       "someHidden": "Some accounts cannot be shown"
     }
   },
+  "AccountSettings": {
+    "title": "Account settings",
+    "description": "Manage who can see your profile, your account preferences and how your data is used.",
+    "back": "← Back to my profile",
+    "loading": "Loading…",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved.",
+    "refresh": "Refresh",
+    "errors": {
+      "conflict": "These settings changed somewhere else. Refresh and try again.",
+      "rateLimited": "You sent too many requests. Wait a moment and try again.",
+      "busy": "The service is busy right now, try again shortly.",
+      "invalid": "One of the choices is invalid. Reload the page and try again.",
+      "network": "Could not connect. Check your internet and try again.",
+      "generic": "Something went wrong. Try again."
+    },
+    "privacy": {
+      "title": "Privacy",
+      "description": "Choose who can see each part of your profile. People you have blocked cannot see any part, whatever you choose.",
+      "visibility": {
+        "PUBLIC": "Everyone (signed-in players)",
+        "FRIENDS": "My friends only",
+        "PRIVATE": "Only me"
+      },
+      "fields": {
+        "friendsList": {
+          "label": "Friends list",
+          "hint": "Who can see your list of friends."
+        },
+        "library": {
+          "label": "Game library",
+          "hint": "Who can see the games in your library and your play history."
+        },
+        "hardware": {
+          "label": "Hardware",
+          "hint": "Who can see your computer and hardware details."
+        },
+        "performance": {
+          "label": "Performance",
+          "hint": "Who can see your game performance summaries."
+        }
+      },
+      "guest": {
+        "label": "Visitors who are not signed in",
+        "hint": "What someone who is not signed in can see when they open your profile. Visitors are never treated as friends, so they never see friends-only sections.",
+        "options": {
+          "BASIC": "Only username, display name, avatar and cover",
+          "DETAILED": "Also biography and public sections"
+        }
+      }
+    },
+    "preferences": {
+      "title": "Account preferences",
+      "description": "Your choices are saved to your account and applied to this device when you save.",
+      "locale": {
+        "label": "Interface language",
+        "hint": "Menus and text are shown in this language."
+      },
+      "theme": {
+        "label": "Theme",
+        "hint": "Theme is independent of language.",
+        "options": {
+          "SYSTEM": "System",
+          "LIGHT": "Light",
+          "DARK": "Dark"
+        }
+      }
+    },
+    "consents": {
+      "title": "Consents",
+      "description": "The consents here are optional, off by default, and you can withdraw them at any time. Not giving consent does not affect how you use your account.",
+      "recommendation": {
+        "label": "Personalised game recommendations",
+        "hint": "You allow your favourite and completed games to be processed to produce recommendations for you. This is independent of who can see your library.",
+        "on": "On",
+        "off": "Off",
+        "since": "since {date}"
+      }
+    }
+  },
   "Community": {
     "nav": {
       "label": "Community sections",
