@@ -380,7 +380,7 @@ Tüketici servisler: Frontend
 - POST /api/v1/auth/session/logout — bu cihazdaki oturumu kapatır, cookie'leri siler (idempotent)
 - POST /api/v1/auth/session/logout-all — tüm oturumları kapatır, eski access token'ları geçersiz kılar
 - GET /api/v1/auth/csrf — CSRF cookie'sini üretir (`204`)
-- GET /api/v1/auth/me — girişli kullanıcının kim olduğunu döner (SPA oturum yoklaması)
+- GET /api/v1/auth/me — girişli kullanıcının kim olduğunu döner (SPA oturum yoklaması). Alanlar: `accountId, roles, authMethods, accessTokenExpiresAt` + hesap türü görünümü `passwordSet, providers[], totpEnabled, registrationMethod (PASSWORD|GOOGLE|STEAM), accountTier (A|B|C), trusted`. Tür saklanmaz, her seferinde hesaplanır: **C** = doğrudan Google/Steam ile kayıt; **B** = normal kayıt + (TOTP açık veya Google/Steam bağlı); **A** = normal kayıt, ikisi de yok. `trusted = tier != A`. Access token da aynı bilgiyi `tier` ve `trusted` claim'leriyle taşır (tür yenilemede ≤60 sn gecikmeyle güncellenir). Kaynak servisler kısıtlı işlemde `trusted=false` ise `403 STEP_UP_REQUIRED` dönebilir.
 
 #### Yetkilendirme
 refresh/logout: Public (refresh cookie + CSRF) · logout-all: Authenticated (+ CSRF) · csrf: Public · me: Authenticated (access cookie veya Bearer; GET olduğu için CSRF istemez)
@@ -441,7 +441,7 @@ Sorumlu: Kerem
 Tüketici servisler: Frontend
 
 #### Kural
-Steam kimliği bağlı bir hesap, TOTP etkin değilken **oturum alamaz**. Parola veya Steam girişi parolayı/kimliği doğruladıktan sonra token yerine kısa ömürlü (`AUTH_MFA_CHALLENGE_TTL`, varsayılan 5 dk), tek kullanımlık bir **kurulum challenge'ı** döner. Kurulum bitince oturum açılır. TOTP etkinse olağan ikinci faktör akışı (`/login/2fa`) çalışır. Steam bağlı hesapta TOTP **kapatılamaz** (`403 TWO_FACTOR_REQUIRED_FOR_ROLE`).
+**KALDIRILDI (2026-11-10):** Steam hesabı için zorunlu TOTP kurulumu artık yoktur; Steam girişi doğrudan oturum açar. Aşağıdaki akış yalnız ADMIN/MODERATOR gibi 2FA zorunlu roller için geçerlidir. (Eski metin:) Steam kimliği bağlı bir hesap, TOTP etkin değilken **oturum alamaz**. Parola veya Steam girişi parolayı/kimliği doğruladıktan sonra token yerine kısa ömürlü (`AUTH_MFA_CHALLENGE_TTL`, varsayılan 5 dk), tek kullanımlık bir **kurulum challenge'ı** döner. Kurulum bitince oturum açılır. TOTP etkinse olağan ikinci faktör akışı (`/login/2fa`) çalışır. TOTP kapatma yalnız zorunlu rolü olan hesapta engellidir (`403 TWO_FACTOR_REQUIRED_FOR_ROLE`).
 
 #### Giriş yanıtları
 - Parola girişi (`POST /login`): `200 { "status": "MFA_ENROLLMENT_REQUIRED", "challengeId", "challengeExpiresAt" }`, çerez yazılmaz.
@@ -598,7 +598,7 @@ Tüketici servisler: Frontend
 - POST /api/v1/auth/password/set `{ "emailCode", "newPassword", "newPasswordConfirmation" }` → `204`; başarıda hesabın tüm oturumları ve cihaz kimlikleri iptal edilir, çerezler silinir, yeni parolayla yeniden giriş gerekir; `PASSWORD_CHANGED` güvenlik bildirimi gider
 
 #### Yetkilendirme
-Oturum (çerez + CSRF veya Bearer). `request`: TOTP etkinse `code` veya `recoveryCode` (yalnız biri, tek kullanımlık); etkin değilse boş gövde (`{}`). Steam kimliği bağlı hesapta ayar açıksa (`ltz.auth.two-factor.require-for-steam-accounts`, üretimde açık) TOTP **zorunludur**: etkin değilse `403 TWO_FACTOR_ENROLLMENT_REQUIRED`. Google hesabında TOTP açıksa istenir, zorunlu değildir.
+Oturum (çerez + CSRF veya Bearer). `request`: TOTP etkinse `code` veya `recoveryCode` (yalnız biri, tek kullanımlık); etkin değilse boş gövde (`{}`). Steam için zorunlu 2FA ayarı (`require-for-steam-accounts`) kaldırıldı.
 
 #### Kurallar
 - Yalnız parolası olmayan hesap kullanır; parolalı hesap `409 PASSWORD_ALREADY_SET` (parola değiştirme ayrı uçtur). "Unuttum" akışı parolasız hesaba token vermeye devam etmez.
@@ -792,6 +792,12 @@ Tüketici servisler: Frontend
 - POST /api/v1/auth/account/deletion/request — yeniden doğrulama; yanıt `202 { "nextStep": "CONFIRM_BY_EMAIL" }`
 - POST /api/v1/auth/account/deletion/confirm — `{ "token": "…", "username": "…" }`; yanıt `202 { "nextStep": "DELETION_IN_PROGRESS" }`
 - POST /api/v1/auth/account/deletion/cancel — bekleme süresi içinde vazgeçme (aşağıda); yanıt `200 { "nextStep": "DELETION_CANCELLED" }`
+- **B ve C türü hesap** `request`/`confirm` ile kendi başına silemez: `403 DELETION_REQUIRES_SUPPORT`. Bunun yerine yöneticiye talep açar:
+  - POST /api/v1/auth/account/deletion/support-request — `{ "message"?: "…" (≤500) }`; `202` talep (`id, status, createdAt, decidedAt`). Hesap başına tek bekleyen talep, ikinci istek aynısını döner. A türü `409 DELETION_SELF_SERVICE_AVAILABLE`, ADMIN `409 ADMIN_DELETION_FORBIDDEN`.
+  - GET /api/v1/auth/account/deletion/support-request — en son talep (`200`) ya da `204`.
+  - Yönetici (ROLE_ADMIN): `GET /api/v1/auth/admin/account-deletion-requests?limit=` (bekleyenler, en eski önce), `POST …/{requestId}/approve` ve `…/reject` (`{ "message"?: "…" }`). Onay standart silme sürecini başlatır (bekleme süresi, servis görevleri, oturumlar kapanır; kullanıcı e-posta onayı aranmaz). Ret hesabı değiştirmez. Hatalar: `404 DELETION_SUPPORT_REQUEST_NOT_FOUND`, `409 DELETION_SUPPORT_ALREADY_DECIDED`, `409 TARGET_NOT_ACTIVE`.
+  - Google ile **kayıt olan** hesap e-posta değiştiremez: `403 EMAIL_LOCKED_BY_PROVIDER`. Steam ile kayıt olan (e-postasız) hesap ilk adresini ekleyebilir.
+  - TOTP kapatma: parolası olan hesapta parola + TOTP/kurtarma kodu; parolasızda yalnız kod. Güvencesi kalmayan normal hesap A türüne düşer. ADMIN/MODERATOR kapatamaz.
 
 #### Yetkilendirme
 `request` ve `confirm`: Authenticated (+ CSRF). Hesap ve oturum yalnız token'dan alınır; e-posta token'ı yalnız isteği yapan hesap için geçerlidir.

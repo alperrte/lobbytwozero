@@ -59,6 +59,8 @@ public final class AuthApiPaths {
     public static final String ACCOUNT_DELETION_REQUEST = ACCOUNT_DELETION + "/request";
     public static final String ACCOUNT_DELETION_CONFIRM = ACCOUNT_DELETION + CONFIRM;
     public static final String ACCOUNT_DELETION_CANCEL = ACCOUNT_DELETION + "/cancel";
+    /** B/C türü hesabın yöneticiye açtığı silme talebi (oturumlu). */
+    public static final String ACCOUNT_DELETION_SUPPORT_REQUEST = ACCOUNT_DELETION + "/support-request";
 
     /** Masaüstü cihaz kimliği: bağlama, listeleme, iptal (oturumlu) ve cihaz token'ı (cihaz anahtarıyla, çerezsiz). */
     public static final String DEVICES = BASE + "/devices";
@@ -77,6 +79,9 @@ public final class AuthApiPaths {
     public static final String ADMIN = BASE + "/admin";
     public static final String ADMIN_ROLES = ADMIN + "/roles";
     public static final String ADMIN_DELETIONS_PENDING = ADMIN + "/account-deletions/pending";
+    public static final String ADMIN_DELETION_REQUESTS = ADMIN + "/account-deletion-requests";
+    public static final String ADMIN_DELETION_REQUEST_APPROVE = ADMIN_DELETION_REQUESTS + "/{requestId}/approve";
+    public static final String ADMIN_DELETION_REQUEST_REJECT = ADMIN_DELETION_REQUESTS + "/{requestId}/reject";
     public static final String ADMIN_ACCOUNT = ADMIN + "/accounts/{accountId}";
     public static final String ADMIN_ACCOUNT_STATUS = ADMIN_ACCOUNT + "/status";
     public static final String ADMIN_ACCOUNT_ROLES_GRANT = ADMIN_ACCOUNT + "/roles/grant";

@@ -127,7 +127,7 @@ class SecretCipherTest {
     }
 
     private static TwoFactorProperties properties(String key, int version, String previousKeys) {
-        return new TwoFactorProperties("LTZ", key, Duration.ofMinutes(5), 5, 10, 1, Set.of(), false, version,
+        return new TwoFactorProperties("LTZ", key, Duration.ofMinutes(5), 5, 10, 1, Set.of(), version,
                 previousKeys);
     }
 }

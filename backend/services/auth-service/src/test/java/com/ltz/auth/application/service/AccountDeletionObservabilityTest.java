@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import java.util.UUID;
 
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -96,7 +98,16 @@ class AccountDeletionObservabilityTest extends AccountDeletionTestSupport {
                 + "(?, ?, ?, now(), now() + interval '30 minutes')", UUID.randomUUID(), accountId,
                 UUID.randomUUID().toString().replace("-", "").repeat(2));
 
-        deleteAccountConfirmed(email);
+        // Steam bağlı hesap B türüdür: silme yönetici onaylı destek talebiyle başlar.
+        String userBearer = bearerFor(accountId);
+        String requestBody = mockMvc.perform(post(AuthApiPaths.ACCOUNT_DELETION_SUPPORT_REQUEST)
+                .header(HttpHeaders.AUTHORIZATION, userBearer).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isAccepted()).andReturn().getResponse().getContentAsString();
+        String requestId = com.fasterxml.jackson.databind.json.JsonMapper.builder().build().readTree(requestBody)
+                .get("id").asText();
+        mockMvc.perform(post(AuthApiPaths.ADMIN_DELETION_REQUESTS + "/" + requestId + "/approve")
+                .header(HttpHeaders.AUTHORIZATION, bearerFor(newAdmin())).contentType(MediaType.APPLICATION_JSON)
+                .content("{}")).andExpect(status().isOk());
 
         assertThat(jdbc.queryForObject("select count(*) from steam_registrations where token_hash = ?",
                 Integer.class, proofHash)).isZero();

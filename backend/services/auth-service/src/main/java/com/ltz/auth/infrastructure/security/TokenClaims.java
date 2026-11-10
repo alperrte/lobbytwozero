@@ -12,6 +12,10 @@ public final class TokenClaims {
     public static final String ROLES = "roles";
     /** Kimlik doğrulama yöntemleri (RFC 8176). */
     public static final String AUTH_METHODS = "amr";
+    /** Hesap türü ("A" | "B" | "C"); token yenilemesinde yeniden hesaplanır (en geç bir erişim token ömrü sonra güncel olur). */
+    public static final String ACCOUNT_TIER = "tier";
+    /** Hesap güvenceli mi (B veya C). A türünde false: kısıtlı işlemler {@code STEP_UP_REQUIRED} ile reddedilmelidir. */
+    public static final String TRUSTED = "trusted";
 
     /** D4 servis token'ı türü; kullanıcı token'ı ({@link #ACCESS_TOKEN_TYPE}) yerine geçemez, tersi de geçemez. */
     public static final String SERVICE_TOKEN_TYPE = "svc+jwt";

@@ -16,6 +16,7 @@ import com.ltz.auth.domain.entity.AccountDeletionRequest;
 import com.ltz.auth.domain.entity.AccountDeletionTask;
 import com.ltz.auth.domain.entity.AccountDeletionToken;
 import com.ltz.auth.domain.enums.AccountStatus;
+import com.ltz.auth.domain.enums.AccountTier;
 import com.ltz.auth.domain.enums.CodeInvalidationReason;
 import com.ltz.auth.domain.enums.DeviceRevokeReason;
 import com.ltz.auth.domain.enums.RoleCode;
@@ -62,6 +63,7 @@ public class AccountDeletionService {
     private final AccountDeletionTaskRepository taskRepository;
     private final PasswordEncoder passwordEncoder;
     private final TwoFactorService twoFactorService;
+    private final AccountTierService tierService;
     private final AttemptThrottleService attemptThrottle;
     private final AccountDeletionDispatcher dispatcher;
     private final AuthDataEraser authDataEraser;
@@ -156,6 +158,10 @@ public class AccountDeletionService {
         Instant sessionStartedAt = sessionRepository.findById(sessionId)
                 .filter(session -> session.getAccountId().equals(accountId))
                 .orElseThrow(() -> new AuthException(AuthErrorCode.SESSION_INVALID)).getCreatedAt();
+        if (!account.roleCodes().contains(RoleCode.ADMIN) && tierService.tierOf(account) != AccountTier.A) {
+            // B ve C türü hesap kendi başına silemez: yöneticiye talep açar (DeletionSupportService).
+            throw new AuthException(AuthErrorCode.DELETION_REQUIRES_SUPPORT);
+        }
         if (!account.hasEmail()) {
             // Silme onayı e-postayla gider; e-postasız hesap önce adres ekleyip doğrulatmalıdır.
             throw new AuthException(AuthErrorCode.ACCOUNT_EMAIL_REQUIRED);
@@ -223,7 +229,21 @@ public class AccountDeletionService {
         if (account == null) {
             return false;
         }
+        if (!account.roleCodes().contains(RoleCode.ADMIN) && tierService.tierOf(account) != AccountTier.A) {
+            // Token alındıktan sonra 2FA açıldı ya da sağlayıcı bağlandı: hesap artık B türü, silme yöneticiyle yürür.
+            return false;
+        }
         token.consume(now);
+        beginDeletion(account, now);
+        return true;
+    }
+
+    /**
+     * Silmeyi başlatır (kullanıcı onayı ya da yönetici onaylı destek talebi): hesap DELETION_REQUESTED olur, talep ve
+     * servis görevleri açılır, oturumlar/cihazlar iptal edilir. Çağıranın işlemi içinde çalışır; hesap kilitli ve ACTIVE olmalıdır.
+     */
+    void beginDeletion(Account account, Instant now) {
+        UUID accountId = account.getId();
         account.requestDeletion(now);
         // Hesap başına tek talep: tekrarlanan onay yeni talep/görev üretmez (idempotent). İptal edilmiş talep yeniden açılır.
         Instant scheduledFor = now.plus(properties.gracePeriod());
@@ -240,7 +260,6 @@ public class AccountDeletionService {
         deviceRevoker.revokeAll(accountId, DeviceRevokeReason.ACCOUNT_DELETION, now);
         // Silinecek hesabın bekleyen sıfırlama/doğrulama/MFA/Steam artıkları artık geçersiz kılınır.
         authDataEraser.purgeEphemeral(accountId);
-        return true;
     }
 
     private void openRequest(UUID accountId, Instant now, Instant scheduledFor) {

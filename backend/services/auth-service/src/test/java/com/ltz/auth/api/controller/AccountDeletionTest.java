@@ -64,25 +64,31 @@ class AccountDeletionTest extends AccountDeletionTestSupport {
     }
 
     @Test
-    void totpEtkinseIkinciFaktorZorunluKodTekKullanimlik() throws Exception {
+    void totpEtkinHesapBTurudurKendiBasinaSilmeBaslatamazYoneticiTalebiGerekir() throws Exception {
         String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
         UUID accountId = accountId(email);
         enableTotp(accountId);
         String bearer = bearerFor(accountId);
 
-        requestDeletion(bearer, passwordJson()).andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_TWO_FACTOR_CODE"));
-        requestDeletion(bearer, "{\"password\":\"%s\",\"code\":\"000000\"}".formatted(VALID_PASSWORD))
-                .andExpect(status().isBadRequest());
+        requestDeletion(bearer, "{\"password\":\"%s\",\"code\":\"%s\"}".formatted(VALID_PASSWORD, currentTotpCode(accountId)))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("DELETION_REQUIRES_SUPPORT"));
         assertThat(mailPort.deletionsTo(email)).isEmpty();
+        assertThat(accountStatus(email)).isEqualTo("ACTIVE");
+    }
 
-        String code = currentTotpCode(accountId);
-        String json = "{\"password\":\"%s\",\"code\":\"%s\"}".formatted(VALID_PASSWORD, code);
-        requestDeletion(bearer, json).andExpect(status().isAccepted());
-        requestDeletion(bearer, json).andExpect(status().isBadRequest());
-        requestDeletion(bearer, "{\"password\":\"%s\",\"code\":\"%s\",\"recoveryCode\":\"AAAAA-AAAAA\"}"
-                .formatted(VALID_PASSWORD, code)).andExpect(status().isBadRequest());
-        mailPort.awaitLatestDeletionToken(email, 1);
+    @Test
+    void silmeTokeniAlindiktanSonraHesapBTuruOlursaOnayReddedilir() throws Exception {
+        String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
+        UUID accountId = accountId(email);
+        String bearer = bearerFor(accountId);
+        requestDeletion(bearer, passwordJson()).andExpect(status().isAccepted());
+        String token = mailPort.awaitLatestDeletionToken(email, 1);
+
+        enableTotp(accountId);
+
+        confirmDeletion(bearerFor(accountId), token, usernameOf(accountId)).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("DELETION_CONFIRMATION_INVALID"));
+        assertThat(accountStatus(email)).isEqualTo("ACTIVE");
     }
 
     @Test

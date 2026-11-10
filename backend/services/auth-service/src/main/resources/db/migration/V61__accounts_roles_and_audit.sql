@@ -9,10 +9,17 @@
 -- 1. HESAP VE ROLLER
 -- =====================================================================================================================
 
+-- Notlar
+--   email / email_normalized : standart Steam OpenID e-posta vermez; SteamID64 ile açılan hesabın e-postası yoktur
+--                              (sahte adres üretilmez), kullanıcı sonradan e-posta ekleyip doğrulatabilir. Benzersizlik
+--                              kısıtı boş değerleri birbiriyle çakıştırmaz.
+--   suspended_until          : SUSPENDED hesabın otomatik açılma zamanı. NULL: süresiz askı (yalnız elle açılır) ya da
+--                              askıda olmayan hesap. Süre dolunca arka plan işi hesabı ACTIVE yapar; durum değişince
+--                              (elle açma, yasaklama vb.) uygulama alanı temizler.
 CREATE TABLE accounts (
     id                  uuid         PRIMARY KEY,
-    email               varchar(254) NOT NULL,
-    email_normalized    varchar(254) NOT NULL,
+    email               varchar(254),
+    email_normalized    varchar(254),
     username            varchar(20)  NOT NULL,
     username_normalized varchar(20)  NOT NULL,
     password_hash       varchar(255),
@@ -22,6 +29,7 @@ CREATE TABLE accounts (
     created_at          timestamptz  NOT NULL,
     updated_at          timestamptz  NOT NULL,
     version             bigint       NOT NULL DEFAULT 0,
+    suspended_until     timestamptz,
     CONSTRAINT uq_accounts_email_normalized UNIQUE (email_normalized),
     CONSTRAINT uq_accounts_username_normalized UNIQUE (username_normalized),
     CONSTRAINT ck_accounts_status CHECK (status IN (
@@ -29,8 +37,17 @@ CREATE TABLE accounts (
         'DISABLED', 'DELETION_REQUESTED', 'DELETED'
     )),
     CONSTRAINT ck_accounts_email_normalized CHECK (email_normalized = lower(email_normalized)),
-    CONSTRAINT ck_accounts_username_normalized CHECK (username_normalized ~ '^[a-z0-9_]{3,20}$')
+    CONSTRAINT ck_accounts_username_normalized CHECK (username_normalized ~ '^[a-z0-9_]{3,20}$'),
+    -- İkisi birlikte dolu ya da birlikte boş; doğrulanmış e-posta ve doğrulama bekleyen durum adres olmadan var olamaz.
+    CONSTRAINT ck_accounts_email_pair CHECK ((email IS NULL) = (email_normalized IS NULL)),
+    CONSTRAINT ck_accounts_verified_needs_email CHECK (email IS NOT NULL OR email_verified_at IS NULL),
+    CONSTRAINT ck_accounts_pending_needs_email CHECK (email IS NOT NULL OR status <> 'PENDING_VERIFICATION'),
+    -- Süreli askı: yalnız SUSPENDED hesapta dolu olabilir.
+    CONSTRAINT ck_accounts_suspended_until CHECK (suspended_until IS NULL OR status = 'SUSPENDED')
 );
+
+-- Süresi gelen askıları bulan tarama yalnız dolu satırlara bakar.
+CREATE INDEX ix_accounts_suspended_until ON accounts (suspended_until) WHERE suspended_until IS NOT NULL;
 
 CREATE TABLE roles (
     id   uuid        PRIMARY KEY,

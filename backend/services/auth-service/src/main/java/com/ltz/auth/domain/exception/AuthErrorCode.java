@@ -57,7 +57,13 @@ public enum AuthErrorCode {
     DEVICE_LIMIT_REACHED(409, "Too many active devices. Remove one before binding another."),
     INVALID_DEVICE_CREDENTIALS(401, "Device authentication failed."),
     DELETION_NOT_PENDING(409, "No cancellable account deletion exists for this account."),
-    DELETION_CANCEL_WINDOW_CLOSED(409, "The waiting period has ended; the deletion can no longer be cancelled.");
+    DELETION_CANCEL_WINDOW_CLOSED(409, "The waiting period has ended; the deletion can no longer be cancelled."),
+    DELETION_REQUIRES_SUPPORT(403, "This account cannot start a deletion itself. Open a deletion request for an administrator."),
+    DELETION_SELF_SERVICE_AVAILABLE(409, "This account can delete itself directly; no administrator request is needed."),
+    DELETION_SUPPORT_REQUEST_NOT_FOUND(404, "The deletion request was not found."),
+    DELETION_SUPPORT_ALREADY_DECIDED(409, "The deletion request has already been decided."),
+    EMAIL_LOCKED_BY_PROVIDER(403, "The email address of this account is managed by its sign-in provider and cannot be changed."),
+    STEP_UP_REQUIRED(403, "This action needs a stronger account. Enable two-factor authentication or link Google or Steam first.");
 
     private final int httpStatus;
     private final String detail;

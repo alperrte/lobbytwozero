@@ -253,11 +253,11 @@ class SteamLoginTest extends ExternalProviderTestSupport {
                         .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                         .content("{\"code\":\"%s\"}".formatted(currentTotpCode(accountId))))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("ACCOUNT_EMAIL_REQUIRED"));
-        // Hesap silme onayı da e-postayla gider: e-postasız hesapta istenemez, sahte başarı dönmez.
+        // Steam ile açılan hesap C türüdür: kendi başına silme başlatamaz, yöneticiye talep açar (e-posta gerekmez).
         mockMvc.perform(post(AuthApiPaths.ACCOUNT_DELETION_REQUEST).header("Authorization", bearerFor(accountId))
                         .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                         .content("{\"code\":\"%s\"}".formatted(currentTotpCode(accountId))))
-                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("ACCOUNT_EMAIL_REQUIRED"));
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("DELETION_REQUIRES_SUPPORT"));
         assertThat(jdbc.queryForObject("select count(*) from account_deletion_tokens where account_id = ?",
                 Integer.class, accountId)).isZero();
         // Parola sıfırlama adresle bulunur; bu hesabın adresi olmadığı için erişilemez.
