@@ -808,6 +808,7 @@
       "releasedBefore": "Released on or before",
       "minRating": "Minimum LTZ rating (1–10)",
       "popularOnly": "Featured games only",
+      "includeAdult": "Show 18+ games",
       "discountedOnly": "Current discounts only",
       "country": "Country",
       "currency": "Currency",
@@ -881,7 +882,9 @@
     "priceStates": {
       "STALE": "The stored price has expired and is not shown as a current offer.",
       "NO_OFFER": "No offers were found for this market at the last check.",
-      "UNAVAILABLE": "Verified price information is not available for this market."
+      "UNAVAILABLE": "Verified price information is not available for this market.",
+      "FREE": "This game is free; there is no purchase price.",
+      "COMING_SOON": "This game has not been released yet; its price is announced closer to launch."
     },
     "workspace": {
       "admin": "Games and permissions",
@@ -917,6 +920,11 @@
     "developerDescription": "Developer description",
     "discountPercent": "{percent}% off",
     "earlyAccessBadge": "Early access",
+    "freeBadge": "Free",
+    "adultBadge": "18+",
+    "delistedNotice": "This game appears to have been removed from the Steam store. Its record and information are kept, but prices and status are no longer updated.",
+    "priceTurkeyNote": "Steam sells in US dollars in Türkiye; check the US (USD) market for the Steam price. Some stores do not sell in Turkish lira; those prices are converted at the current rate and payment is made in the store's own currency.",
+    "comingSoonBadge": "Coming soon",
     "editorRank": "Editor rank #{rank}",
     "editorsPicks": "Editor's Picks",
     "editorsPicksHelp": "This list is hand-picked by editors. It is not a trend or popularity measure based on player activity.",

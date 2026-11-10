@@ -8,7 +8,7 @@ import { controlClass } from "./game-status";
 import { GameCombobox } from "./game-combobox";
 import { GameDatePicker } from "./game-date-picker";
 import { termLabel } from "../services/format";
-import { marketForCurrency, marketLabel, marketOptions } from "../services/price-markets";
+import { defaultCurrencyForLocale, marketForCurrency, marketLabel, marketOptions } from "../services/price-markets";
 import { languageOptions } from "../services/language-options";
 import { useGameResource } from "../hooks/use-game-resource";
 import type { TermList } from "../types/game";
@@ -18,8 +18,8 @@ const textKeys = ["genre", "platform", "language"] as const;
 const resetKeys = [...filterChipKeys, "country", "currency", "page"];
 
 type Draft = Record<string, string>;
-function draftFrom(params: URLSearchParams): Draft {
-  return Object.fromEntries([...filterChipKeys, "currency"].map((key) => [key, params.get(key) ?? ""]));
+function draftFrom(params: URLSearchParams, fallbackCurrency: string): Draft {
+  return Object.fromEntries([...filterChipKeys, "currency"].map((key) => [key, params.get(key) ?? (key === "currency" ? fallbackCurrency : "")]));
 }
 
 /**
@@ -41,16 +41,18 @@ export function GameFilters({ params, onApply }: { params: URLSearchParams; onAp
   const id = useId();
   const count = activeFilters(params).length;
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState<Draft>(() => draftFrom(params));
+  const fallbackCurrency = defaultCurrencyForLocale(locale);
+  const [draft, setDraft] = useState<Draft>(() => draftFrom(params, fallbackCurrency));
   const [source, setSource] = useState(params.toString());
-  if (source !== params.toString()) { setSource(params.toString()); setDraft(draftFrom(params)); }
+  if (source !== params.toString()) { setSource(params.toString()); setDraft(draftFrom(params, fallbackCurrency)); }
   const errors = validateFilters(new URLSearchParams(draft));
   const set = (key: string, value: string) => setDraft((previous) => ({ ...previous, [key]: value }));
   function submit(event: FormEvent) {
     event.preventDefault();
     if (errors.length) return;
-    // Ülke ve para birimi birlikte seçilir (USD→US, EUR→DE, GBP→GB); desteklenmeyen eski değer (TRY) USD'ye düşer.
-    onApply({ ...Object.fromEntries(Object.entries(draft).map(([key, value]) => [key, value.trim()])), country: marketForCurrency(draft.currency).country, currency: marketForCurrency(draft.currency).currency, page: "" });
+    // Ülke ve para birimi birlikte seçilir (USD→US, EUR→DE, TRY→TR ...); dilin varsayılan pazarı seçiliyse URL'ye yazılmaz (varsayılan zaten odur).
+    const chosenDefault = marketForCurrency(draft.currency).currency === fallbackCurrency;
+    onApply({ ...Object.fromEntries(Object.entries(draft).map(([key, value]) => [key, value.trim()])), country: chosenDefault ? "" : marketForCurrency(draft.currency).country, currency: chosenDefault ? "" : marketForCurrency(draft.currency).currency, page: "" });
   }
   const panel = `${id}-panel`;
   return <div>
@@ -71,7 +73,7 @@ export function GameFilters({ params, onApply }: { params: URLSearchParams; onAp
         <div className="flex flex-col gap-2 text-sm"><label htmlFor={`${id}-releasedBefore`}>{t("fields.releasedBefore")}</label><GameDatePicker id={`${id}-releasedBefore`} value={draft.releasedBefore} onValueChange={(next) => set("releasedBefore", next)} min="0001-01-01" max="9999-12-31" invalid={errors.includes("dateRange")} describedBy={errors.includes("dateRange") ? `${id}-date` : undefined} /></div>
         <label className="flex flex-col gap-2 text-sm">{t("fields.minRating")}<input type="number" inputMode="decimal" min={1} max={10} step="0.01" value={draft.minRating} onChange={(event) => set("minRating", event.target.value)} className={controlClass} aria-invalid={errors.includes("minRating") || undefined} aria-describedby={errors.includes("minRating") ? `${id}-rating` : undefined} /></label>
         <label className="flex flex-col gap-2 text-sm">{t("fields.country")}<GameSelect className={controlClass} value={marketForCurrency(draft.currency).currency} onChange={(event) => set("currency", event.target.value)}>{marketOptions(locale).map((market) => <option key={market.currency} value={market.currency}>{marketLabel(market, locale)}</option>)}</GameSelect></label>
-        {["popularOnly", "discountedOnly"].map((key) => <label key={key} className="flex min-h-11 items-center gap-3 self-end text-sm"><input type="checkbox" className={checkboxClass} checked={draft[key] === "true"} onChange={(event) => set(key, event.target.checked ? "true" : "")} />{t(`fields.${key}`)}</label>)}
+        {["popularOnly", "discountedOnly", "includeAdult"].map((key) => <label key={key} className="flex min-h-11 items-center gap-3 self-end text-sm"><input type="checkbox" className={checkboxClass} checked={draft[key] === "true"} onChange={(event) => set(key, event.target.checked ? "true" : "")} />{t(`fields.${key}`)}</label>)}
       </div>
       {errors.includes("dateRange") && <p id={`${id}-date`} role="alert" className="mt-4 text-sm text-brand-text">{t("filterErrors.dateRange")}</p>}
       {errors.includes("minRating") && <p id={`${id}-rating`} role="alert" className="mt-4 text-sm text-brand-text">{t("filterErrors.minRating")}</p>}
@@ -89,8 +91,8 @@ export function GameActiveFilters({ params, onChange }: { params: URLSearchParam
   const t = useTranslations("Game");
   const locale = useLocale();
   const chips = [
-    ...activeFilters(params).map(({ key, value }) => ({ key, text: key === "popularOnly" || key === "discountedOnly" ? t(`fields.${key}`) : `${t(`fields.${key}`)}: ${key === "earlyAccess" ? t(value === "true" ? "yes" : "no") : value}` })),
-    ...(params.get("currency") && marketForCurrency(params.get("currency")).currency !== "USD" ? [{ key: "currency", text: `${t("fields.country")}: ${marketLabel(marketForCurrency(params.get("currency")), locale)}` }] : [])
+    ...activeFilters(params).map(({ key, value }) => ({ key, text: key === "popularOnly" || key === "discountedOnly" || key === "includeAdult" ? t(`fields.${key}`) : `${t(`fields.${key}`)}: ${key === "earlyAccess" ? t(value === "true" ? "yes" : "no") : value}` })),
+    ...(params.get("currency") && marketForCurrency(params.get("currency")).currency !== defaultCurrencyForLocale(locale) ? [{ key: "currency", text: `${t("fields.country")}: ${marketLabel(marketForCurrency(params.get("currency")), locale)}` }] : [])
   ];
   if (!chips.length) return null;
   return <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t("activeFilters")}>

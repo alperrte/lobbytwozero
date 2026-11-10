@@ -67,9 +67,13 @@ export function GameDetail({ gameId }: { gameId: string }) {
           <div className="flex flex-wrap items-center gap-2">
             {detail.game.gameType && <Badge>{t.has(`choices.${detail.game.gameType}`) ? t(`choices.${detail.game.gameType}`) : t("unknown")}</Badge>}
             {detail.metadata.earlyAccess === true && <Badge tone="warning">{t("earlyAccessBadge")}</Badge>}
+            {detail.metadata.free === true && <Badge tone="success">{t("freeBadge")}</Badge>}
+            {detail.metadata.comingSoon === true && <Badge tone="brand">{t("comingSoonBadge")}</Badge>}
+            {detail.metadata.adult === true && <Badge tone="warning">{t("adultBadge")}</Badge>}
             <Badge tone={coverage === "FULL" ? "success" : "neutral"}>{t(`coverage.${coverage}`)}</Badge>
           </div>
           <h1 className="font-display text-3xl font-semibold text-balance [overflow-wrap:anywhere] sm:text-5xl">{detail.game.title}</h1>
+          {detail.metadata.delisted === true && <p role="note" data-testid="delisted-notice" className="rounded-panel border border-warning/60 bg-surface p-4 text-sm">{t("delistedNotice")}</p>}
           <dl className="grid gap-4 text-sm sm:grid-cols-2">
             <div><dt className="text-text-secondary">{t("releaseDate")}</dt><dd className="mt-1">{date ? <time dateTime={detail.releaseDate ?? undefined}>{date}</time> : t("releaseUnknown")}</dd></div>
             <div><dt className="text-text-secondary">{t("developers")}</dt><dd className="mt-1 break-words">{detail.metadata.developers.join(", ") || t("unknown")}</dd></div>
@@ -88,7 +92,7 @@ export function GameDetail({ gameId }: { gameId: string }) {
       </section>
       <div id="game-information" className="scroll-mt-32"><GameMetadataDetails game={detail} /></div>
       {dlcCount > 0 && <GameDlcSection gameId={gameId} count={dlcCount} />}
-      <div id="game-prices" className="scroll-mt-32"><GamePrices gameId={gameId} /></div>
+      <div id="game-prices" className="scroll-mt-32"><GamePrices gameId={gameId} free={detail?.metadata.free} comingSoon={detail?.metadata.comingSoon} /></div>
       <div id="game-developer" className="scroll-mt-32"><GameDeveloperPublic gameId={gameId} /></div>
       <div id="game-community" className="scroll-mt-32"><GameModules gameId={gameId} /></div>
       <GameSessionActions gameId={gameId} />

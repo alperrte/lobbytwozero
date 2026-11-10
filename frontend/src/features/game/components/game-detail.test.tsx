@@ -29,7 +29,7 @@ function serve(detail: Detail | Error = base) {
   load.mockImplementation(async (resource: GameResource) => {
     if (resource.kind === "detail") { if (detail instanceof Error) throw detail; return detail; }
     if (resource.kind === "session") return null;
-    if (resource.kind === "prices") return { market: { country: "US", currency: "USD" }, items: [{ gameId, status: "NO_OFFER", offers: [] }] };
+    if (resource.kind === "prices") return { market: { country: "TR", currency: "TRY" }, items: [{ gameId, status: "NO_OFFER", offers: [] }] };
     if (resource.kind === "publicDeveloper") return { gameId, description: { text: "Geliştirici notu", updatedAt: "2026-02-01T00:00:00Z" }, media: [{ id: "m1", type: "VIDEO", url: "https://video.example/dev", altText: null, createdAt: "2026-02-01T00:00:00Z" }], updateNotes: [{ id: "n1", title: "1.1 yaması", body: "Hata düzeltmeleri", createdAt: "2026-03-01T00:00:00Z", updatedAt: "2026-03-01T00:00:00Z" }] };
     if (resource.kind === "module") return { kind: "achievements", items: [], totalElements: 0, page: 0, size: 20 };
     return undefined;
@@ -43,9 +43,31 @@ describe("Oyun detayı", () => {
     serve(); mount();
     expect(await screen.findByRole("heading", { level: 1, name: "Fixture Quest" })).toBeVisible();
     expect(screen.getAllByText(tr.Game.earlyAccessBadge).length).toBeGreaterThan(0);
+    expect(screen.queryByText(tr.Game.freeBadge)).toBeNull();
+    expect(screen.queryByText(tr.Game.comingSoonBadge)).toBeNull();
     expect(screen.getAllByText("Studio A").length).toBeGreaterThan(0);
     expect(screen.getByText("5 Mar 2026")).toBeVisible();
     expect(screen.getAllByText("Bilgisayar").length).toBeGreaterThan(0);
+  });
+  it("ücretsiz ve yakında rozetlerini başlıkta gösterir; fiyat bölümü fiyat yokluğunu bu duruma göre açıklar", async () => {
+    serve({ ...base, metadata: { ...base.metadata, earlyAccess: false, free: true, comingSoon: true } }); mount();
+    await screen.findByRole("heading", { level: 1, name: "Fixture Quest" });
+    expect(screen.getByText(tr.Game.freeBadge)).toBeVisible();
+    expect(screen.getByText(tr.Game.comingSoonBadge)).toBeVisible();
+    expect(screen.queryByText(tr.Game.earlyAccessBadge)).toBeNull();
+    expect(await screen.findByText(tr.Game.priceStates.FREE)).toBeVisible();
+    expect(screen.queryByText(tr.Game.priceStates.NO_OFFER)).toBeNull();
+  });
+  it("yetişkin içerikli oyunda +18 rozeti, mağazadan kaldırılmış oyunda bilgi notu gösterir; normal oyunda ikisi de yoktur", async () => {
+    serve({ ...base, metadata: { ...base.metadata, adult: true, delisted: true } }); mount();
+    await screen.findByRole("heading", { level: 1, name: "Fixture Quest" });
+    expect(screen.getByText(tr.Game.adultBadge)).toBeVisible();
+    expect(screen.getByTestId("delisted-notice")).toHaveTextContent(tr.Game.delistedNotice);
+    cleanup();
+    serve({ ...base, metadata: { ...base.metadata, adult: false, delisted: false } }); mount();
+    await screen.findByRole("heading", { level: 1, name: "Fixture Quest" });
+    expect(screen.queryByText(tr.Game.adultBadge)).toBeNull();
+    expect(screen.queryByTestId("delisted-notice")).toBeNull();
   });
   it("bölüm gezinmesi sayfa içi bağlantılar sunar", async () => {
     serve(); mount(); await screen.findByRole("heading", { level: 1 });
@@ -178,7 +200,7 @@ describe("Oyun detayı", () => {
     load.mockImplementation(async (resource: GameResource) => {
       if (resource.kind === "detail") return byLang(resource);
       if (resource.kind === "session") return null;
-      if (resource.kind === "prices") return { market: { country: "US", currency: "USD" }, items: [{ gameId, status: "NO_OFFER", offers: [] }] };
+      if (resource.kind === "prices") return { market: { country: "TR", currency: "TRY" }, items: [{ gameId, status: "NO_OFFER", offers: [] }] };
       if (resource.kind === "module") return { kind: "achievements", items: [], totalElements: 0, page: 0, size: 20 };
       return undefined;
     });

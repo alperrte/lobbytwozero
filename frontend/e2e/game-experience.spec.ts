@@ -26,8 +26,8 @@ for (const width of [1440, 768, 390]) {
       if (url.pathname === "/api/v1/game/games") {
         queries.push(url.searchParams);
         return reply({ items: [
-          { game: card(0, { coverUrl: "https://images.example/c.png" }), releaseDate: "2026-01-01", rating: { status: "RATED", averageRating: 8.5, ratingCount: 3 } },
-          { game: card(1), releaseDate: null, rating: { status: "UNRATED", averageRating: null, ratingCount: 0 } },
+          { game: card(0, { coverUrl: "https://images.example/c.png" }), releaseDate: "2026-01-01", free: true, rating: { status: "RATED", averageRating: 8.5, ratingCount: 3 } },
+          { game: card(1), releaseDate: null, comingSoon: true, rating: { status: "UNRATED", averageRating: null, ratingCount: 0 } },
           { game: card(2), releaseDate: "2026-02-02", earlyAccess: true, rating: { status: "UNAVAILABLE", averageRating: null, ratingCount: null } }
         ], page: 0, size: 20, totalElements: 3 });
       }
@@ -38,6 +38,12 @@ for (const width of [1440, 768, 390]) {
     await expect(page.getByTestId("cover-placeholder")).toHaveCount(2);
     await expect(page.getByText(t.unrated)).toBeVisible();
     await expect(page.getByText(t.ratingUnavailable)).toBeVisible();
+    // Kapak üstü durum rozetleri: ücretsiz, yakında ve erken erişim ayrı kartlarda, taşma olmadan.
+    await expect(page.getByTestId("free-mark")).toHaveCount(1);
+    await expect(page.getByTestId("free-mark")).toHaveText(t.freeBadge);
+    await expect(page.getByTestId("coming-soon-mark")).toHaveCount(1);
+    await expect(page.getByTestId("coming-soon-mark")).toHaveText(t.comingSoonBadge);
+    await expect(page.getByTestId("early-access-mark")).toHaveCount(1);
     await overflowFree(page);
 
     await page.getByRole("button", { name: t.viewList, exact: true }).click();

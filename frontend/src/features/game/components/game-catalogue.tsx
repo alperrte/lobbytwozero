@@ -7,6 +7,7 @@ import { Icon } from "@/shared/components/ui/icons";
 import { useRouter } from "@/shared/lib/i18n/navigation";
 import { useGameResource } from "../hooks/use-game-resource";
 import { catalogueSize, lastPageIndex, sanitizedDiscoveryQuery } from "../services/discovery-query";
+import { defaultCurrencyForLocale } from "../services/price-markets";
 import type { CatalogStatus, DiscoveryPage } from "../types/game";
 import { GameCardList, GameCardSkeletons, type CatalogueView } from "./game-card";
 import { GameCatalogStatus } from "./game-catalog-status";
@@ -50,7 +51,8 @@ function EmptyResults({ params, filtered, navigate }: { params: URLSearchParams;
 
 function Results({ params, view, page, navigate }: { params: URLSearchParams; view: CatalogueView; page: number; navigate: (changes: Record<string, string>) => void }) {
   const t = useTranslations("Game");
-  const { query, errors } = sanitizedDiscoveryQuery(params);
+  const locale = useLocale();
+  const { query, errors } = sanitizedDiscoveryQuery(params, defaultCurrencyForLocale(locale));
   query.set("page", String(page));
   const result = useGameResource<DiscoveryPage>({ kind: "discovery", query: query.toString() });
   const filtered = ["q", "genre", "platform", "language", "earlyAccess", "releasedAfter", "releasedBefore", "popularOnly", "minRating", "discountedOnly"].some((key) => params.get(key));

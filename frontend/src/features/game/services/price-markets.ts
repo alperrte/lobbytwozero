@@ -1,8 +1,9 @@
 /**
  * Fiyat pazarları: ITAD ülke başına tek para birimi döndürür, bu yüzden ülke ve para birimi birlikte seçilir; kullanıcı ülkeyi seçer,
  * para birimi otomatik gelir. Her para birimi tek ülkeye karşılık gelir (URL parametresi `currency` bu yüzden benzersizdir).
- * TRY sunulmaz: Steam Türkiye için TL ile satış yapmaz. Backend (ltz.game.pricing.markets) aynı pazarları yeniler; çift,
- * canlı ITAD ile doğrulanmış olmalıdır (ITAD yerel para birimi döndürmeyen ülkede fiyat boş kalır).
+ * Türkiye (TRY) ITAD üzerinden sunulur: bazı mağazalar TL ile satış yapar, bazıları fiyatı güncel kurla çevirir; Steam Türkiye'de ABD doları ile
+ * sattığından Steam satırı Türkiye pazarında gösterilmez. Backend (ltz.game.pricing.markets) aynı pazarları yeniler; çift, canlı ITAD ile
+ * doğrulanmış olmalıdır (ITAD yerel para birimi döndürmeyen ülkede fiyat boş kalır).
  */
 export const priceMarkets = [
   { currency: "USD", country: "US" },
@@ -16,10 +17,16 @@ export const priceMarkets = [
   { currency: "JPY", country: "JP" },
   { currency: "KRW", country: "KR" },
   { currency: "INR", country: "IN" },
-  { currency: "CNY", country: "CN" }
+  { currency: "CNY", country: "CN" },
+  { currency: "TRY", country: "TR" }
 ] as const;
 
 export const defaultCurrency = "USD";
+
+/** Varsayılan pazar arayüz diline göre: Türkçe → Türkiye (TRY), diğer diller → ABD (USD). Kullanıcı seçimi her zaman önceliklidir. */
+export function defaultCurrencyForLocale(locale: string | null | undefined): string {
+  return locale?.toLowerCase().startsWith("tr") ? "TRY" : defaultCurrency;
+}
 
 /** Seçenek metni: ülke adı (arayüz dilinde) ve o ülkeyle birlikte gelen para birimi, örn. "Amerika Birleşik Devletleri (USD)". */
 export function marketLabel(market: { currency: string; country: string }, locale: string): string {
