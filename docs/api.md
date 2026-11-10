@@ -1374,7 +1374,7 @@ Aralarında herhangi bir yönde engel olan izleyici profili hiç göremez. Profi
 
 #### Bağlantı
 Frontend:
-API Gateway üzerinden /api/v1/user/me/privacy
+API Gateway üzerinden /api/v1/user/me/privacy. Hesap ayarları sayfası: `/profile/settings` (`/tr/profil/ayarlar`, `/en/profile/settings`), `features/user/components/account-settings.tsx`
 
 Diğer mikroservisler:
 Ayarlar diğer servislere "Gizlilik kararı" iç ucuyla verilir.
@@ -1529,7 +1529,7 @@ Internal. Gateway'de route edilmez. `typ=svc+jwt`, `aud=user-service`, `scope` �
 ```json
 {
   "viewerId": "UUID | null (çağıranın doğruladığı kullanıcı; misafir için null)",
-  "field": "FRIENDS_LIST | LIBRARY | HARDWARE | PERFORMANCE | REVIEW_AUTHOR",
+  "field": "FRIENDS_LIST | LIBRARY | HARDWARE | PERFORMANCE | REVIEW_AUTHOR | RECOMMENDATION",
   "ownerIds": ["UUID (1-100; yinelenenler tek)"]
 }
 ```
@@ -1541,6 +1541,10 @@ Internal. Gateway'de route edilmez. `typ=svc+jwt`, `aud=user-service`, `scope` �
 İstek sırasıyla. `setting`: sahibin ayarı (kayıt yoksa varsayılan; yasaklı/devre dışı hesapta `PRIVATE`). `allowed`: izleyici görebilir mi (görünürlük kuralı + engel + hesap durumu). `friends`: izleyici ile sahip arkadaş mı. En çok dört sorgu (N+1 yok).
 
 **`REVIEW_AUTHOR` (HW-USER-REQ-02, yorum/UGC kararı):** profil bölümü değildir; ürün yorumu gibi herkese açık yazar içeriği için kullanılır. Profil gizlilik ayarı (HARDWARE dahil) ve misafir erişimi **uygulanmaz**; `setting` her zaman `PUBLIC`. `allowed` yalnız hesap durumu (yasaklı/devre dışı/silinmekte → `false`, `setting=PRIVATE`) ve çift yönlü engele bağlıdır. Yansıma güvenilir değilken yazar dışında kimseye `allowed=true` dönmez. Toplu kullanım: sayfadaki tüm yazarlar tek istekte (en çok 100) sorulur; çağıran yalnız `allowed=true` yazarların yorumlarını sorgusunun içinde filtreler (sayfa aldıktan sonra eleme yapmaz). Yanıtta eksik kalan sahip, hata, 401/403/429/5xx ve timeout çağıranda ret sayılır.
+
+**`RECOMMENDATION` (LIB-14, öneri amacıyla işleme):** görünürlük değil, kullanıcının açık rızasıdır ([Rızalarım](#user--rızalarım-lib-14)). `allowed=true` için **hepsi** gerekir: `viewerId` = sahip, sahibin profili var ve görünür hesap (ACTIVE/SUSPENDED), sahip `recommendation` rızasını vermiş. **Sahiplik kısayolu uygulanmaz**: rızası olmayan sahip de `allowed=false` alır. Başka izleyici ve misafir her zaman `false`. Social yansımasına bağlı değildir (`projection-enabled` bu alanı etkilemez; arkadaşlık/engel kullanılmaz). `setting` izinliyse `PUBLIC`, değilse `PRIVATE`; `friends` her zaman `false`. Karar her istekte DB'den okunur (önbellek yok): rıza geri çekilince bir sonraki istekte `false`.
+
+**Profili olmayan sahip:** `setting` varsayılan döner, ama sahibi olmayan izleyiciye `allowed` **her zaman `false`** (var olmayan kullanıcı gizli kullanıcıdan ayırt edilemez).
 
 **Fail-closed:** Social yansıması güvenilir ilan edilene kadar (`ltz.user.social.projection-enabled=false`, varsayılan) engel ve arkadaşlık bilinmez; bu yüzden **sahibi olmayan izleyiciye `allowed` her zaman `false`** döner (Hardware sözleşmesi: bilinmeyen karar reddedilir). `setting` yine döner: engel ve arkadaşlığı kendisi bilen Social yalnız `setting`'i kullanabilir. Sahip kendi bölümü için her zaman `allowed=true` alır.
 
@@ -1558,7 +1562,7 @@ Diğer mikroservisler:
 social-service, hardware-service ve library-service Auth'tan `aud=user-service`, `scope=privacy:read` servis token'ı alıp bu ucu `${USER_SERVICE_URL}` üzerinden çağırır (Auth çiftleri hazır). Gerçek tüketicilerle uçtan uca: **NOT VERIFIED**.
 
 #### Test Durumu
-UNIT + INTEGRATION (`PrivacyDecisionTest` 8, `SocialProjectionTrustedTest` 3, `PrivacyRulesTest` 21).
+UNIT + INTEGRATION (`PrivacyDecisionTest` 8, `SocialProjectionTrustedTest` 3, `PrivacyRulesTest` 21, `ConsentsTest` içinde `RECOMMENDATION` ve profilsiz sahip senaryoları).
 
 ### USER — Tercihlerim (USER-10)
 
@@ -1596,13 +1600,93 @@ Aynı alanlar ve güncel `version`. Hiç kaydedilmemişse `GET` varsayılanları
 
 #### Bağlantı
 Frontend:
-API Gateway üzerinden /api/v1/user/me/preferences
+API Gateway üzerinden /api/v1/user/me/preferences. Hesap ayarları sayfası: `/profile/settings` (`/tr/profil/ayarlar`, `/en/profile/settings`), `features/user/components/account-settings.tsx`
 
 Diğer mikroservisler:
 -
 
 #### Test Durumu
 UNIT + INTEGRATION (`PreferenceOnboardingTest` 11).
+
+### USER — Kullanıcının dili (Internal, Auth → User)
+
+Durum: IMPLEMENTED (User tarafı). Auth'ta `preferences:locale:read` kapsamının tanımlanması ve Auth'un bu ucu çağırması **PENDING** (MAIL-AUTH-REQ-02, Auth işi)
+Sorumlu: Kerem
+Tüketici servisler: auth-service (e-posta dilini seçmek için; Mail kimseyi çağırmaz, dil Auth'tan `locale` olarak gider)
+
+#### Endpoint
+GET /internal/v1/users/{userId}/locale
+
+#### Yetkilendirme
+Internal. Gateway'de route edilmez. `typ=svc+jwt`, `aud=user-service`, `sub=svc:auth-service` (tam eşleşme), `scope` ⊇ `preferences:locale:read`, `account_id` claim'i yoldaki `userId` ile aynı olmalı. Başka `sub`, kapsam ya da `account_id` `403`; token yok, kullanıcı token'ı, yanlış `aud`/`typ` ya da süresi geçmiş token `401`. Doğrulama deseni hesap silme ve olay girişi uçlarıyla aynıdır.
+
+#### Response — 200
+```json
+{ "locale": "tr | en" }
+```
+**Yalnız dil döner.** Tema, hareket azaltma, sıkı yerleşim ve sürüm dönmez (en az veri). Değer `user_preferences.locale` kaydıdır; kullanıcı hiç tercih kaydetmediyse varsayılan dil uydurulmaz, `404` döner. `Cache-Control: no-store`. Dil ve yanıt loglanmaz.
+
+#### Hata Durumları
+- 400: `userId` UUID değil
+- 401: Token yok/geçersiz; kullanıcı token'ı; yanlış `aud`
+- 403: Çağıran `svc:auth-service` değil; `preferences:locale:read` kapsamı yok; `account_id` yoldaki kullanıcıyla uyuşmuyor ya da yok. Yanıt dil bilgisi içermez
+- 404: `PROFILE_NOT_FOUND`: profil ya da tercih satırı yok. Auth bunu "dil bilinmiyor" sayar ve iki dilli mail gönderir
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+auth-service, `${USER_SERVICE_URL}` üzerinden (hesap silme ucuyla aynı adres: `ltz.auth.deletion.service-urls.user`) çağırır. Auth'un çağrısı en iyi çabadır: ~2 sn zaman aşımı, hata/404/zaman aşımında `locale` göndermez. Gerçek Auth token'ıyla uçtan uca: **NOT VERIFIED**.
+
+#### Test Durumu
+UNIT + INTEGRATION (`InternalLocaleTest` 13).
+
+### USER — Rızalarım (LIB-14)
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend (Hesap ayarları); karar library-service tarafından `POST /internal/v1/privacy/decisions` (`field=RECOMMENDATION`) ile okunur
+
+#### Endpoint
+GET /api/v1/user/me/consents
+PUT /api/v1/user/me/consents
+
+#### Yetkilendirme
+Authenticated (Owner). Kimlik yalnız token'dan.
+
+#### Request Body (PUT)
+Rızaların **tamamı** zorunludur; eksik alan "rıza yok" sayılmaz, `400`.
+```json
+{
+  "version": "long ≥ 0, zorunlu: son görülen sürüm; hiç kaydedilmemişse 0",
+  "recommendation": true
+}
+```
+`recommendation`: kişiselleştirilmiş öneri için favori/bitirilen oyun verisinin işlenmesine açık rıza. Koleksiyon görünürlüğünden (`privacy.library`) bağımsızdır.
+
+#### Response — 200
+```json
+{ "recommendation": false, "recommendationChangedAt": "ISO-8601 | null", "version": 0 }
+```
+Hiç kaydedilmemişse varsayılan: `recommendation=false`, `recommendationChangedAt=null`, `version=0` (okuma satır oluşturmaz). İlk `PUT` sürüm 0 ile yazar; sonraki her değişiklik sürümü artırır, değişiklik yoksa artırmaz (zaman da değişmez). Geri çekilen rıza silinmez, `false` olur. `Cache-Control: no-store`.
+
+#### Hata Durumları
+- 400: `VALIDATION_FAILED` (eksik/tanımsız alan, negatif sürüm)
+- 401: Token yok/geçersiz; servis token'ı
+- 409: `CONCURRENT_MODIFICATION`: sürüm güncel değil ya da eşzamanlı ilk kayıt
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/user/me/consents. Hesap ayarları sayfası: `/profile/settings` (`/tr/profil/ayarlar`, `/en/profile/settings`), `features/user/components/account-settings.tsx`
+
+Diğer mikroservisler:
+library-service rızayı yalnız gizlilik kararı ucundan okur; bu uca erişmez.
+
+#### Test Durumu
+UNIT + INTEGRATION (`ConsentsTest` 13: rıza ucu ve `RECOMMENDATION` kararı). Canlı yığında Gateway üzerinden gerçek Auth token'ıyla denendi (2026-11-09). Library'nin servis token'ıyla uçtan uca: **NOT VERIFIED**.
 
 ### USER — İlk kurulum (onboarding) durumu ve tamamlama (USER-09)
 

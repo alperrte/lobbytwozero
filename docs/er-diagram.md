@@ -172,7 +172,7 @@ erDiagram
 
 ## 3. user_db
 
-> Uygulanan (V71–V74): `user_profiles`, `user_media`, `inbox_events`, `privacy_settings`, `social_friendships`, `social_blocks`, `profile_counters`, `user_preferences` (V73: `locale`, `theme`, `reduced_motion`, `compact_layout`), `linked_accounts` (V74: yalnız Steam, token saklanmaz; aşağıdaki şema uygulanan hâldir). Ayrıntı: [database.md §3.2](database.md).
+> Uygulanan (V71–V74): `user_profiles`, `user_media`, `inbox_events`, `privacy_settings`, `social_friendships`, `social_blocks`, `profile_counters`, `user_preferences` (V73: `locale`, `theme`, `reduced_motion`, `compact_layout`), `linked_accounts` (V74: yalnız Steam, token saklanmaz; aşağıdaki şema uygulanan hâldir), `user_consents` (V76: `user_id` PK/FK, `recommendation_granted`, `recommendation_changed_at`, `updated_at`, `version`; diyagramda gösterilmedi). Ayrıntı: [database.md §3.2](database.md).
 
 ```mermaid
 erDiagram

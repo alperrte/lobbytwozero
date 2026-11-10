@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.ltz.user.domain.entity.PrivacySettings;
+import com.ltz.user.domain.entity.UserConsents;
 import com.ltz.user.domain.entity.UserProfile;
 import com.ltz.user.domain.enums.DecisionField;
 import com.ltz.user.domain.enums.PrivacyField;
@@ -22,6 +23,7 @@ import com.ltz.user.domain.enums.Visibility;
 import com.ltz.user.infrastructure.config.SocialProperties;
 import com.ltz.user.infrastructure.persistence.repository.PrivacySettingsRepository;
 import com.ltz.user.infrastructure.persistence.repository.SocialProjectionRepository;
+import com.ltz.user.infrastructure.persistence.repository.UserConsentsRepository;
 import com.ltz.user.infrastructure.persistence.repository.UserProfileRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -34,7 +36,11 @@ import lombok.RequiredArgsConstructor;
  *   <li>Social yansıması güvenilir ilan edilmemişse ({@link SocialProperties#projectionEnabled()} {@code false}) engel ve
  *       arkadaşlık bilinmez; sahibi olmayan izleyiciye <b>hiç</b> izin verilmez (Hardware sözleşmesi: bilinmeyen karar
  *       reddedilir). {@code setting} yine döner; engel/arkadaşlığı kendisi bilen Social yalnız onu kullanır.</li>
- *   <li>Yasaklı/devre dışı/silinmekte olan hesap için ayar {@code PRIVATE} sayılır.</li>
+ *   <li>Yasaklı/devre dışı/silinmekte olan hesap için ayar {@code PRIVATE} sayılır. Profili olmayan sahip için ayar
+ *       varsayılandır ama sahibi olmayan izleyiciye <b>izin verilmez</b> (var olmayan kullanıcı gizli kullanıcıdan
+ *       ayırt edilemez).</li>
+ *   <li>{@link DecisionField#RECOMMENDATION}: profil ayarına değil, sahibin açık rızasına bağlıdır; ayrıntı
+ *       {@link #recommendation}.</li>
  *   <li>{@link DecisionField#REVIEW_AUTHOR}: içerik herkese açıktır ({@code setting=PUBLIC}); profil ayarı ve misafir
  *       erişimi uygulanmaz, yalnız hesap durumu ile çift yönlü engel belirler. Yansıma güvenilir değilse yazar dışında
  *       kimseye izin verilmez.</li>
@@ -48,6 +54,7 @@ public class PrivacyDecisionService {
     private final PrivacySettingsRepository settings;
     private final SocialProjectionRepository social;
     private final SocialProperties socialProperties;
+    private final UserConsentsRepository consents;
 
     /** Tek sahip için verilen karar. */
     public record Decision(UUID ownerId, Visibility setting, boolean allowed, boolean friends) {
@@ -60,6 +67,9 @@ public class PrivacyDecisionService {
                 .collect(Collectors.toMap(UserProfile::getUserId, Function.identity()));
         Map<UUID, PrivacySettings> stored = settings.findByUserIdIn(ids).stream()
                 .collect(Collectors.toMap(PrivacySettings::getUserId, Function.identity()));
+        if (field == DecisionField.RECOMMENDATION) {
+            return recommendation(viewer, ids, found);
+        }
         boolean trusted = socialProperties.projectionEnabled();
         Set<UUID> friends = trusted && viewer.isPresent()
                 ? new HashSet<>(social.friendsAmong(viewer.get(), ids)) : Set.of();
@@ -76,10 +86,29 @@ public class PrivacyDecisionService {
             boolean isFriend = friends.contains(owner);
             ViewerRelation relation = relation(viewer, owner, isFriend);
             boolean allowed = relation == ViewerRelation.OWNER
-                    || (trusted && visibleAccount && !blocked.contains(owner)
+                    || (trusted && profile != null && visibleAccount && !blocked.contains(owner)
                         && (section.isEmpty()
                             || PrivacyRules.allows(relation, setting, privacy.getGuestAccess())));
             return new Decision(owner, setting, allowed, isFriend);
+        }).toList();
+    }
+
+    /**
+     * Öneri amacı: izin yalnız sahibin kendi verisi için, açık rızası varsa ve hesabı görünürse verilir. Sahiplik
+     * kısayolu uygulanmaz (rıza yoksa sahip için de {@code false}); başka izleyici ve misafir her zaman reddedilir.
+     * Social yansımasına bağlı değildir (arkadaşlık/engel bu amaçta kullanılmaz). Profili olmayan sahip reddedilir.
+     */
+    private List<Decision> recommendation(Optional<UUID> viewer, Set<UUID> ids, Map<UUID, UserProfile> found) {
+        Set<UUID> granted = consents.findByUserIdIn(ids).stream()
+                .filter(UserConsents::isRecommendationGranted)
+                .map(UserConsents::getUserId)
+                .collect(Collectors.toSet());
+        return ids.stream().map(owner -> {
+            UserProfile profile = found.get(owner);
+            boolean allowed = viewer.filter(owner::equals).isPresent()
+                    && profile != null && profile.isPubliclyVisible()
+                    && granted.contains(owner);
+            return new Decision(owner, allowed ? Visibility.PUBLIC : Visibility.PRIVATE, allowed, false);
         }).toList();
     }
 

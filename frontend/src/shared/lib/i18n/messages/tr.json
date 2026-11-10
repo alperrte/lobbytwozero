@@ -2211,6 +2211,87 @@
       "someHidden": "Bazı hesaplar gösterilemiyor"
     }
   },
+  "AccountSettings": {
+    "title": "Hesap ayarları",
+    "description": "Profilinin kimlere görüneceğini, hesap tercihlerini ve verilerinin nasıl kullanılacağını buradan yönetirsin.",
+    "back": "← Profilime dön",
+    "loading": "Yükleniyor…",
+    "save": "Kaydet",
+    "saving": "Kaydediliyor…",
+    "saved": "Kaydedildi.",
+    "refresh": "Yenile",
+    "errors": {
+      "conflict": "Ayarlar başka bir yerde değişti. Yenileyip tekrar dene.",
+      "rateLimited": "Çok sık istek gönderdin. Biraz bekleyip tekrar dene.",
+      "busy": "Servis şu an meşgul, birazdan tekrar dene.",
+      "invalid": "Seçimlerden biri geçersiz. Sayfayı yenileyip tekrar dene.",
+      "network": "Bağlantı kurulamadı. İnternetini kontrol edip tekrar dene.",
+      "generic": "Bir sorun oluştu. Tekrar dene."
+    },
+    "privacy": {
+      "title": "Gizlilik",
+      "description": "Profilinin her bölümünü kimlerin görebileceğini seç. Engellediğin kişiler seçimden bağımsız olarak hiçbir bölümü göremez.",
+      "visibility": {
+        "PUBLIC": "Herkes (giriş yapmış oyuncular)",
+        "FRIENDS": "Yalnız arkadaşlarım",
+        "PRIVATE": "Yalnız ben"
+      },
+      "fields": {
+        "friendsList": {
+          "label": "Arkadaş listesi",
+          "hint": "Arkadaşlarının listesini kimlerin görebileceği."
+        },
+        "library": {
+          "label": "Oyun kütüphanesi",
+          "hint": "Kütüphanendeki oyunları ve oyun geçmişini kimlerin görebileceği."
+        },
+        "hardware": {
+          "label": "Donanım",
+          "hint": "Bilgisayar ve donanım bilgilerini kimlerin görebileceği."
+        },
+        "performance": {
+          "label": "Performans",
+          "hint": "Oyun performans özetlerini kimlerin görebileceği."
+        }
+      },
+      "guest": {
+        "label": "Giriş yapmamış ziyaretçiler",
+        "hint": "Giriş yapmamış biri profilini açtığında neleri görebilir. Ziyaretçiler hiçbir zaman arkadaş sayılmaz, yalnız arkadaşlara açık bölümleri görmez.",
+        "options": {
+          "BASIC": "Yalnız kullanıcı adı, görünen ad, avatar ve kapak",
+          "DETAILED": "Biyografi ve herkese açık bölümler de"
+        }
+      }
+    },
+    "preferences": {
+      "title": "Hesap tercihleri",
+      "description": "Seçimlerin hesabına kaydedilir ve kaydedince bu cihaza da uygulanır.",
+      "locale": {
+        "label": "Arayüz dili",
+        "hint": "Menüler ve metinler bu dilde gösterilir."
+      },
+      "theme": {
+        "label": "Tema",
+        "hint": "Tema dilden bağımsızdır.",
+        "options": {
+          "SYSTEM": "Sistem",
+          "LIGHT": "Açık",
+          "DARK": "Koyu"
+        }
+      }
+    },
+    "consents": {
+      "title": "Rızalar",
+      "description": "Burada vereceğin rızalar isteğe bağlıdır, varsayılan olarak kapalıdır ve istediğin an geri alabilirsin. Rızayı vermemen hesabını kullanmanı etkilemez.",
+      "recommendation": {
+        "label": "Kişiselleştirilmiş oyun önerileri",
+        "hint": "Favori ve bitirdiğin oyunların, sana özel oyun önerileri üretmek için işlenmesine izin verirsin. Bu, kütüphaneni kimlerin görebildiğinden bağımsızdır.",
+        "on": "Açık",
+        "off": "Kapalı",
+        "since": "{date} tarihinden beri"
+      }
+    }
+  },
   "Community": {
     "nav": {
       "label": "Topluluk bölümleri",

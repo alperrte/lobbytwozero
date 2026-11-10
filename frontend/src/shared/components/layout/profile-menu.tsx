@@ -174,10 +174,10 @@ export function ProfileMenu({ user }: ProfileMenuProps) {
           </Link>
 
           {items.map(({ id, icon }) =>
-            id === "profile" && user ? (
+            user && (id === "profile" || id === "account") ? (
               <Link
                 key={id}
-                href="/profile"
+                href={id === "profile" ? "/profile" : "/profile/settings"}
                 role="menuitem"
                 onClick={() => setOpen(false)}
                 className={menuItemClass}
