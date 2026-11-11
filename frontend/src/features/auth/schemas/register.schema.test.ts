@@ -9,7 +9,7 @@ import {
 const valid: RegisterValues = {
   username: "ada_01",
   email: "ada@example.com",
-  password: "p".repeat(registerLimits.passwordMin),
+  password: "Aa1!aaaa",
   acceptTerms: true
 };
 
@@ -46,16 +46,33 @@ describe("validateRegister", () => {
   });
 
   it.each([
-    [14, "tooShort"],
-    [15, undefined],
+    [7, "tooShort"],
+    [8, undefined],
     [128, undefined],
     [129, "tooLong"]
   ] as const)("parola %i karakter: %s", (length, expected) => {
-    expect(validateRegister({ ...valid, password: "p".repeat(length) }).password).toBe(expected);
+    expect(validateRegister({ ...valid, password: `Aa1!${"a".repeat(length - 4)}` }).password).toBe(expected);
   });
 
-  it("parola kırpılmaz: yalnız boşluktan oluşan 15 karakter geçerli uzunluktur; boş parola zorunludur", () => {
-    expect(validateRegister({ ...valid, password: " ".repeat(15) }).password).toBeUndefined();
+  it.each([
+    ["aa1!aaaa", "büyük harf yok"],
+    ["AA1!AAAA", "küçük harf yok"],
+    ["Aaa!aaaa", "rakam yok"],
+    ["Aa1aaaaa", "özel karakter yok"],
+    ["Aa1 aaaa", "boşluk özel karakter sayılmaz"]
+  ])("bileşim kuralı: %s (%s) reddedilir", (password) => {
+    expect(validateRegister({ ...valid, password }).password).toBe("composition");
+  });
+
+  it.each(["Aa1.aaaa", "Aa1,aaaa", "Aa1/aaaa", "Aa1_aaaa", "Aa1-aaaa", "Aa1!aaaa", "Ağ1.çiçek"])(
+    "özel karakter olarak %s kabul edilir",
+    (password) => {
+      expect(validateRegister({ ...valid, password }).password).toBeUndefined();
+    }
+  );
+
+  it("parola kırpılmaz; boş parola zorunludur", () => {
+    expect(validateRegister({ ...valid, password: "Aa1!aaa " }).password).toBeUndefined();
     expect(validateRegister({ ...valid, password: "" }).password).toBe("required");
   });
 

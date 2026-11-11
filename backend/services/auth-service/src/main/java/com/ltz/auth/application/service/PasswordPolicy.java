@@ -16,8 +16,10 @@ import com.ltz.auth.domain.exception.AuthErrorCode;
 import com.ltz.auth.domain.exception.AuthException;
 
 /**
- * Parola politikası (NIST SP 800-63B-4): uzunluk bean validation'da (en az 15), burada ise tahmin edilmesi kolay
- * parolalar reddedilir. Yalnız parola BELİRLENİRKEN (kayıt, değiştirme, sıfırlama) uygulanır; giriş denemesine
+ * Parola politikası: uzunluk bean validation'da (en az 8), burada ise bileşim kuralı (büyük harf, küçük harf, rakam,
+ * özel karakter) ve tahmin edilmesi kolay parolaların reddi uygulanır. Kısa parola için bileşim kuralı tek başına
+ * yetmez ({@code Password1!} kurala uyar ama tahmin edilir); bu yüzden kara liste ve desen kontrolü ayrıca sürer.
+ * Yalnız parola BELİRLENİRKEN (kayıt, değiştirme, sıfırlama) uygulanır; giriş denemesine
  * uygulanmaz, böylece eski parolalı hesaplar etkilenmez. Karşılaştırma küçük harf ve yalnız harf+rakam üzerinden yapılır.
  * <p>
  * Reddedilenler: yerel yaygın parola listesi, kısa bir birimin tekrarı, düz ardışık dizi, hesabın kullanıcı adını veya
@@ -46,12 +48,38 @@ public class PasswordPolicy {
 
     boolean isWeak(String password, String email, String username) {
         String normalized = normalize(password);
-        return blocklist.contains(normalized)
+        return !hasRequiredComposition(password)
+                || blocklist.contains(normalized)
                 || normalized.contains(SERVICE_NAME)
                 || isRepeatedUnit(normalized)
                 || isSequential(normalized)
                 || containsFragment(normalized, username)
                 || containsFragment(normalized, localPart(email));
+    }
+
+    /**
+     * En az bir büyük harf, bir küçük harf, bir rakam ve bir özel karakter (harf, rakam ve boşluk olmayan herhangi
+     * bir karakter). Boşluk özel sayılmaz: sondaki bir boşlukla kuralın aşılmasını önler.
+     */
+    static boolean hasRequiredComposition(String password) {
+        boolean upper = false;
+        boolean lower = false;
+        boolean digit = false;
+        boolean special = false;
+        for (int i = 0; i < password.length(); ) {
+            int codePoint = password.codePointAt(i);
+            i += Character.charCount(codePoint);
+            if (Character.isUpperCase(codePoint)) {
+                upper = true;
+            } else if (Character.isLowerCase(codePoint)) {
+                lower = true;
+            } else if (Character.isDigit(codePoint)) {
+                digit = true;
+            } else if (!Character.isLetter(codePoint) && !Character.isWhitespace(codePoint)) {
+                special = true;
+            }
+        }
+        return upper && lower && digit && special;
     }
 
     private static boolean containsFragment(String normalizedPassword, String identity) {

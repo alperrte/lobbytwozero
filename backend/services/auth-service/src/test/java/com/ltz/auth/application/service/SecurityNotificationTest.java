@@ -28,7 +28,7 @@ import com.ltz.auth.domain.enums.AccountStatus;
 @Import(RecordingMailPortConfiguration.class)
 class SecurityNotificationTest extends IntegrationTestSupport {
 
-    private static final String NEW_PASSWORD = "yeni-parola-yeni-parola-1";
+    private static final String NEW_PASSWORD = "Yeni-Parola-Yeni-Parola-1";
 
     @Autowired
     private RecordingMailPort mailPort;

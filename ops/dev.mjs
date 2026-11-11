@@ -2252,8 +2252,8 @@ const smokeE2e = (() => {
 
       const weak = randomUUID().replaceAll('-', '').slice(0, 10);
       await request(gatewayOrigin, '/api/v1/auth/register', 400, { method: 'POST',
-        body: { email: `weak_${weak}@example.test`, username: `wk_${weak}`, password: 'Abcdefg12345!x' } });
-      check(true, 'A 14-character password is rejected at registration (policy minimum 15)');
+        body: { email: `weak_${weak}@example.test`, username: `wk_${weak}`, password: 'Ab1!xyz' } });
+      check(true, 'A 7-character password is rejected at registration (policy minimum 8)');
 
       const viaGateway = await postJson(gatewayOrigin + '/internal/v1/service-tokens', { clientId: 'admin-service', clientSecret: adminSecret });
       check(viaGateway.status === 404, `/internal is not routed through the Gateway (status ${viaGateway.status})`);
@@ -2791,7 +2791,7 @@ async function mailCommand(argv) {
 //
 // !!! BİLİNÇLİ KURAL İHLALİ — YALNIZ YEREL GELİŞTİRME !!!
 // Hesaplar kayıt akışından (e-posta doğrulaması, parola kuralları) GEÇİRİLMEDEN doğrudan VERİTABANINA yazılır:
-//   - auth_db:  `accounts` (ACTIVE, e-posta doğrulanmış, kısa parolanın Argon2 özeti; Auth alt sınırı 15 karakterdir),
+//   - auth_db:  `accounts` (ACTIVE, e-posta doğrulanmış, kısa parolanın Argon2 özeti; Auth alt sınırı 8 karakter ve bileşim kuralıdır),
 //               PLAYER rolü ve durum geçmişi; ADMIN/MODERATOR/CONTENT_CREATOR/GAME_DEVELOPER rolü `account_roles`'a doğrudan
 //               eklenir (normal yolda ADMIN/MODERATOR yalnız TOTP'si etkin hesaba verilir; bu kural dev için atlanır).
 //   - user_db:  her hesap için `user_profiles` satırı (kullanıcı adı kopyasıyla), User servisinin olay almasını beklemeden.
