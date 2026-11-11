@@ -36,6 +36,9 @@ export type AuthErrorCode =
   | "DELETION_REQUIRES_SECOND_FACTOR"
   | "DELETION_SUPPORT_COOLDOWN"
   | "DELETION_SELF_SERVICE_AVAILABLE"
+  | "DELETION_SUPPORT_REQUEST_NOT_FOUND"
+  | "DELETION_SUPPORT_ALREADY_DECIDED"
+  | "TARGET_NOT_ACTIVE"
   | "REAUTHENTICATION_REQUIRED"
   | "CURRENT_PASSWORD_INVALID"
   | "TWO_FACTOR_ALREADY_ENABLED"
@@ -86,6 +89,9 @@ export const knownAuthErrorCodes: readonly AuthErrorCode[] = [
   "DELETION_REQUIRES_SECOND_FACTOR",
   "DELETION_SUPPORT_COOLDOWN",
   "DELETION_SELF_SERVICE_AVAILABLE",
+  "DELETION_SUPPORT_REQUEST_NOT_FOUND",
+  "DELETION_SUPPORT_ALREADY_DECIDED",
+  "TARGET_NOT_ACTIVE",
   "REAUTHENTICATION_REQUIRED",
   "CURRENT_PASSWORD_INVALID",
   "TWO_FACTOR_ALREADY_ENABLED",
@@ -133,6 +139,32 @@ export type DeletionSupportRequest = {
   createdAt: string;
   decidedAt: string | null;
 };
+
+/** Yönetici görünümü: silme talebi (hesap kimliği ve kullanıcının notu dahil; e-posta/kullanıcı adı yoktur). */
+export type AdminDeletionRequest = {
+  id: string;
+  accountId: string;
+  status: string;
+  message: string | null;
+  createdAt: string;
+  decidedAt: string | null;
+  decidedBy: string | null;
+  decisionNote: string | null;
+};
+
+/** Yönetici hesap görünümü (`GET /admin/accounts/{id}`): e-posta yoktur, kullanıcı adı vardır. */
+export type AdminAccount = {
+  id: string;
+  username: string;
+  status: string;
+  roles: string[];
+  twoFactorEnabled: boolean;
+  createdAt: string;
+  suspendedUntil: string | null;
+};
+
+/** Yönetici hesap işlemlerinde Auth'un bildirdiği durumlar (`PENDING_VERIFICATION`/silme durumları buradan yönetilmez). */
+export type AdminTargetStatus = "ACTIVE" | "SUSPENDED" | "BANNED" | "DISABLED";
 
 /** Tek kullanımlık MFA challenge'ı (bellekte tutulur; URL'ye, depoya ya da günlüğe yazılmaz). */
 export type MfaChallenge = { kind: "verify" | "enroll"; id: string };
