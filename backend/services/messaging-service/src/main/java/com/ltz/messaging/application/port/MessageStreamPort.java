@@ -48,4 +48,7 @@ public interface MessageStreamPort {
      * kırpılmıştır; teslim en iyi çabadır, kaçan olay geçmişteki {@code readStatus} ile eşitlenir.
      */
     void publishReadReceipt(UUID recipient, ReadReceiptView receipt);
+
+    /** Kullanıcının tüm açık akışlarını kapatır (ör. hesap silindi). En iyi çabadır. */
+    void closeStreams(UUID userId);
 }

@@ -61,18 +61,28 @@ public interface ConversationMemberRepository extends JpaRepository<Conversation
             group by m.id.conversationId""")
     List<Object[]> countActive(@Param("conversationIds") Collection<UUID> conversationIds);
 
+    /** Okunmamış sayımının üst sınırı: {@code 100} "100 ya da daha fazla" demektir, arayüz {@code 99+} gösterir. */
+    int UNREAD_COUNT_CAP = 100;
+
     /**
      * Sohbet başına okunmamış mesaj sayısı (MSG-13): okuma işaretçisinden sonraki, üyenin görebildiği, başkasının
-     * gönderdiği ve üyenin kendi görünümünden kaldırmadığı (MSG-25) mesajlar. {@code [conversationId, count]};
-     * okunmamışı olmayan sohbet listede yoktur.
+     * gönderdiği ve üyenin kendi görünümünden kaldırmadığı (MSG-25) mesajlar. {@code [conversationId, count]}. Sayım
+     * sohbet başına {@link #UNREAD_COUNT_CAP}'te durur ({@code (conversation_id, seq)} indeksiyle en çok 100 satır
+     * okunur): çok okunmamış birikmiş sohbetlerde maliyet sabittir.
      */
-    @Query("""
-            select m.id.conversationId, count(msg) from ConversationMember m, Message msg
-            where m.id.userId = :userId and m.id.conversationId in :conversationIds and m.leftAt is null
-              and msg.conversationId = m.id.conversationId and msg.seq > m.lastReadSeq
-              and msg.seq >= m.visibleFromSeq and msg.senderId <> :userId
-              and not exists (select 1 from HiddenMessage h where h.id.userId = :userId and h.id.messageId = msg.id)
-            group by m.id.conversationId""")
+    @Query(value = """
+            select m.conversation_id,
+                   (select count(*) from (
+                        select 1 from messages msg
+                        where msg.conversation_id = m.conversation_id and msg.seq > m.last_read_seq
+                          and msg.seq >= m.visible_from_seq and msg.sender_id <> :userId
+                          and not exists (select 1 from message_hidden_for_users h
+                                          where h.user_id = :userId and h.message_id = msg.id)
+                        order by msg.seq
+                        limit 100) unread)
+            from conversation_members m
+            where m.user_id = :userId and m.conversation_id in (:conversationIds) and m.left_at is null""",
+            nativeQuery = true)
     List<Object[]> countUnread(@Param("userId") UUID userId,
                                @Param("conversationIds") Collection<UUID> conversationIds);
 }

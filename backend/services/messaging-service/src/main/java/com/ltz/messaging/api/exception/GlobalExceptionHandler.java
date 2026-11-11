@@ -12,7 +12,9 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -39,6 +41,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     private static final String PAYLOAD_TOO_LARGE = "PAYLOAD_TOO_LARGE";
     private static final String TOO_LARGE_DETAIL = "Request body is too large.";
     private static final String MALFORMED_REQUEST = "MALFORMED_REQUEST";
+    private static final String RETRY_AFTER_SECONDS = "1";
 
     @ExceptionHandler(MessagingException.class)
     ResponseEntity<ProblemDetail> handleMessaging(MessagingException exception) {
@@ -49,6 +52,18 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(OptimisticLockingFailureException.class)
     ResponseEntity<ProblemDetail> handleConcurrentModification() {
         return error(MessagingErrorCode.CONCURRENT_MODIFICATION);
+    }
+
+    /**
+     * Veritabanı bağlantısı alınamadı: havuz {@code connection-timeout} içinde boşalmadı ya da DB ulaşılamıyor.
+     * İstek uzun süre bekletilmez; istemci kısa süre sonra yeniden dener ({@code Retry-After}). Ayrıntı yansıtılmaz.
+     */
+    @ExceptionHandler({CannotCreateTransactionException.class, DataAccessResourceFailureException.class})
+    ResponseEntity<ProblemDetail> handleDatabaseUnavailable(Exception exception) {
+        log.warn("Database connection unavailable: {}", exception.getClass().getSimpleName());
+        ResponseEntity<ProblemDetail> busy = error(MessagingErrorCode.SERVICE_BUSY);
+        return ResponseEntity.status(busy.getStatusCode()).header(HttpHeaders.RETRY_AFTER, RETRY_AFTER_SECONDS)
+                .body(busy.getBody());
     }
 
     @ExceptionHandler(ContentTooLargeException.class)

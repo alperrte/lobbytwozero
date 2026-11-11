@@ -32,11 +32,13 @@ import lombok.extern.slf4j.Slf4j;
  * SSE akışlarının bu örnekteki kaydı (docs/decisions/0001-gercek-zamanli-mesajlasma.md). Her kullanıcının en fazla
  * {@code maxPerUser} akışı olur. İletim ayrı bir yürütücüde yapılır (yavaş istemci gönderim isteğini bekletmez);
  * yürütücü doluysa ya da yazma başarısızsa akış kapatılır, istemci yeniden bağlanıp geçmişten eşitlenir. Kalp atışı
- * ({@code heartbeat}) bağlantıyı aradaki proxy'lerin zaman aşımına karşı canlı tutar. Kayıt bellektedir: birden çok
- * örnekte çalışırken örnekler arası yayın gerekir (ADR'de açık nokta). Mesaj içeriği loglanmaz.
+ * ({@code heartbeat}) bağlantıyı aradaki proxy'lerin zaman aşımına karşı canlı tutar. Kayıt bu örneğin belleğindedir;
+ * birden çok örnekte olaylar {@link PostgresStreamRelay} ile tüm örneklere aktarılır ve her örnek
+ * {@link #deliver(List)} ile yalnız kendi akışlarına yazar. Tek örnekte ({@code ltz.messaging.stream.relay=local}) bu
+ * sınıf doğrudan {@link MessageStreamPort}'tur. Mesaj içeriği loglanmaz.
  */
 @Slf4j
-public class SseMessageHub implements MessageStreamPort {
+public class SseMessageHub implements MessageStreamPort, LocalStreamDelivery {
 
     static final String MESSAGE_EVENT = "message";
     static final String READY_EVENT = "ready";
@@ -103,6 +105,37 @@ public class SseMessageHub implements MessageStreamPort {
         dispatch(List.of(recipient), () -> deliverReadReceipt(recipient, receipt));
     }
 
+    @Override
+    public void closeStreams(UUID userId) {
+        closeAll(userId);
+    }
+
+    @Override
+    public void deliver(List<StreamEnvelope> envelopes) {
+        List<StreamEnvelope> local = envelopes.stream().filter(envelope -> streams.containsKey(envelope.recipient()))
+                .toList();
+        if (local.isEmpty()) {
+            return;
+        }
+        dispatch(local.stream().map(StreamEnvelope::recipient).distinct().toList(),
+                () -> local.forEach(this::deliverEnvelope));
+    }
+
+    @Override
+    public void closeAllLocal() {
+        List.copyOf(streams.keySet()).forEach(this::closeAll);
+    }
+
+    /** Alıcıya göre kurulmuş {@code message} olayı yükü: göndericinin kendi akışında okundu durumu {@code SENT}. */
+    static MessageResponse messagePayload(UUID recipient, MessageView message) {
+        return MessageResponse.from(recipient.equals(message.senderId())
+                ? message.withReadStatus(ReadStatus.SENT) : message);
+    }
+
+    static String messageEventId(MessageView message) {
+        return message.conversationId() + ":" + message.seq();
+    }
+
     /** Aradaki proxy'lerin okuma zaman aşımına karşı boş yorum satırı gönderir. */
     @Scheduled(fixedDelayString = "${ltz.messaging.stream.heartbeat}")
     public void heartbeat() {
@@ -136,11 +169,10 @@ public class SseMessageHub implements MessageStreamPort {
             }
             // Okundu durumu yalnız göndericinin kendi akışlarına gider (MSG-11); diğerlerinde alan null kalır.
             // Yük, geçmiş ve gönderim uçlarındaki MessageResponse ile aynı yapıdadır.
-            MessageResponse payload = MessageResponse.from(recipient.equals(message.senderId())
-                    ? message.withReadStatus(ReadStatus.SENT) : message);
+            MessageResponse payload = messagePayload(recipient, message);
             for (SseEmitter emitter : open) {
                 send(recipient, emitter, SseEmitter.event().name(MESSAGE_EVENT)
-                        .id(message.conversationId() + ":" + message.seq())
+                        .id(messageEventId(message))
                         .data(payload, MediaType.APPLICATION_JSON));
             }
         }
@@ -154,6 +186,21 @@ public class SseMessageHub implements MessageStreamPort {
         }
         for (SseEmitter emitter : open) {
             send(recipient, emitter, SseEmitter.event().name(READ_EVENT).data(receipt, MediaType.APPLICATION_JSON));
+        }
+    }
+
+    /** Aktarılmış zarf: yük zaten JSON metnidir ve olduğu gibi yazılır. */
+    private void deliverEnvelope(StreamEnvelope envelope) {
+        Set<SseEmitter> open = streams.get(envelope.recipient());
+        if (open == null) {
+            return;
+        }
+        for (SseEmitter emitter : open) {
+            SseEmitter.SseEventBuilder event = SseEmitter.event().name(envelope.event());
+            if (envelope.id() != null) {
+                event.id(envelope.id());
+            }
+            send(envelope.recipient(), emitter, event.data(envelope.data(), MediaType.APPLICATION_JSON));
         }
     }
 

@@ -1,54 +1,50 @@
 package com.ltz.messaging.application.service;
 
+import java.sql.Timestamp;
 import java.time.Clock;
-import java.util.Map;
+import java.time.Instant;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.IntSupplier;
 
+import org.springframework.jdbc.core.JdbcTemplate;
+
 /**
- * Kullanıcı başına dakikalık sabit pencere sayacı (SECURITY.md §12). Sayım bellektedir: kalıcı kayıt üretmeyen işlemler
- * (GIF arama, tepki değişikliği) için; birden çok örnekte her örnek kendi sınırını uygular (açık nokta). Eski pencereler
- * {@link #evictExpired()} ile silinir, bellek aktif kullanıcı sayısıyla sınırlıdır.
+ * Kullanıcı başına dakikalık sabit pencere sayacı (SECURITY.md §12) — kalıcı kayıt üretmeyen işlemler için (GIF arama,
+ * tepki değişikliği). Sayaç DB'dedir ({@code rate_limit_windows}): birden çok örnek aynı sınırı paylaşır. Sayma tek
+ * atomik SQL'dir; sınır doluysa satır değişmez ve işlem reddedilir. Çağıranın transaction'ı varsa ona katılır (işlem
+ * geri alınırsa sayım da alınır). Eski pencereler {@link #evictExpired()} ile silinir.
  */
 public final class FixedWindowRateLimiter {
 
     private static final long WINDOW_MILLIS = 60_000;
 
-    private record Window(long index, int count) {
-    }
-
-    private final Map<UUID, Window> windows = new ConcurrentHashMap<>();
+    private final String bucket;
     private final IntSupplier limit;
+    private final JdbcTemplate jdbc;
     private final Clock clock;
 
-    public FixedWindowRateLimiter(IntSupplier limit, Clock clock) {
+    public FixedWindowRateLimiter(String bucket, IntSupplier limit, JdbcTemplate jdbc, Clock clock) {
+        this.bucket = bucket;
         this.limit = limit;
+        this.jdbc = jdbc;
         this.clock = clock;
     }
 
     /** Bu dakikadaki işlemi sayar; sınır aşıldıysa {@code false} döner ve sayılmaz. */
     public boolean tryAcquire(UUID userId) {
-        long current = currentWindow();
-        AtomicBoolean allowed = new AtomicBoolean();
-        windows.compute(userId, (key, window) -> {
-            int used = window == null || window.index() != current ? 0 : window.count();
-            if (used >= limit.getAsInt()) {
-                return window;
-            }
-            allowed.set(true);
-            return new Window(current, used + 1);
-        });
-        return allowed.get();
+        return !jdbc.queryForList("""
+                insert into rate_limit_windows (user_id, bucket, window_start, hits) values (?, ?, ?, 1)
+                on conflict (user_id, bucket, window_start)
+                do update set hits = rate_limit_windows.hits + 1 where rate_limit_windows.hits < ?
+                returning hits""", Integer.class, userId, bucket, currentWindow(), limit.getAsInt()).isEmpty();
     }
 
+    /** Geçmiş pencereleri siler (her örnek çalıştırabilir; idempotent). */
     public void evictExpired() {
-        long current = currentWindow();
-        windows.values().removeIf(window -> window.index() != current);
+        jdbc.update("delete from rate_limit_windows where bucket = ? and window_start < ?", bucket, currentWindow());
     }
 
-    private long currentWindow() {
-        return clock.millis() / WINDOW_MILLIS;
+    private Timestamp currentWindow() {
+        return Timestamp.from(Instant.ofEpochMilli(clock.millis() / WINDOW_MILLIS * WINDOW_MILLIS));
     }
 }

@@ -79,6 +79,10 @@ public abstract class IntegrationTestSupport {
     protected static final String ISSUER = "ltz-auth";
     protected static final String AUDIENCE = "ltz-api";
     protected static final JOSEObjectType ACCESS_TOKEN_TYPE = new JOSEObjectType("at+jwt");
+    /** Auth'un servis token'ı (D4 hesap silme sözleşmesi). */
+    protected static final JOSEObjectType SERVICE_TOKEN_TYPE = new JOSEObjectType("svc+jwt");
+    protected static final String SERVICE_AUDIENCE = "messaging-service";
+    protected static final String ERASE_SCOPE = "account:erase";
 
     private static final long TOKEN_TTL_SECONDS = 300;
 
@@ -160,6 +164,28 @@ public abstract class IntegrationTestSupport {
                 .notBeforeTime(Date.from(now))
                 .expirationTime(Date.from(now.plusSeconds(TOKEN_TTL_SECONDS)))
                 .claim("roles", List.of("PLAYER"));
+    }
+
+    /**
+     * Auth'un D4 sözleşmesindeki biçimde ({@code svc+jwt}, {@code sub=svc:auth-service}, {@code aud=messaging-service},
+     * {@code scope=account:erase}, {@code account_id}, {@code jti}, 30 sn) {@code accountId} için geçerli silme token'ı.
+     */
+    protected static String serviceToken(UUID accountId, UnaryOperator<JWTClaimsSet.Builder> claimsChange) {
+        return sign(SIGNING_KEY, SERVICE_TOKEN_TYPE, claimsChange.apply(validServiceClaims(accountId)).build());
+    }
+
+    protected static JWTClaimsSet.Builder validServiceClaims(UUID accountId) {
+        Instant now = Instant.now();
+        return new JWTClaimsSet.Builder()
+                .issuer(ISSUER)
+                .audience(SERVICE_AUDIENCE)
+                .subject("svc:auth-service")
+                .jwtID(UUID.randomUUID().toString())
+                .issueTime(Date.from(now))
+                .notBeforeTime(Date.from(now))
+                .expirationTime(Date.from(now.plusSeconds(30)))
+                .claim("scope", ERASE_SCOPE)
+                .claim("account_id", accountId.toString());
     }
 
     protected static String sign(RSAKey key, JOSEObjectType type, JWTClaimsSet claims) {

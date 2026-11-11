@@ -11,17 +11,20 @@ import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.Test;
 
+import com.ltz.messaging.IntegrationTestSupport;
 import com.ltz.messaging.infrastructure.config.GifProperties;
 
-/** Kullanıcı başına dakikalık GIF arama sınırı: sınırda durur, kullanıcılar birbirini etkilemez, yeni dakikada açılır. */
-class GifSearchRateLimiterTest {
+/**
+ * Kullanıcı başına dakikalık sabit pencere sınırı (GIF arama, tepki). Sayaç DB'dedir: birden çok örnek aynı sınırı
+ * paylaşır (her örnek kendi sınırını uygulamaz).
+ */
+class GifSearchRateLimiterTest extends IntegrationTestSupport {
 
     private final MutableClock clock = new MutableClock(Instant.parse("2026-11-09T10:00:05Z"));
-    private final GifSearchRateLimiter limiter = new GifSearchRateLimiter(
-            new GifProperties("https://api.giphy.test", "", "g", 24, 50, 499, 50, 3), clock);
 
     @Test
     void dakikadaSinirKadarAramaIzinliSonrakiReddedilir() {
+        GifSearchRateLimiter limiter = limiter();
         UUID user = UUID.randomUUID();
         UUID other = UUID.randomUUID();
 
@@ -35,7 +38,21 @@ class GifSearchRateLimiterTest {
     }
 
     @Test
+    void ikiOrnekAyniSiniriPaylasir() {
+        GifSearchRateLimiter first = limiter();
+        GifSearchRateLimiter second = limiter();
+        UUID user = UUID.randomUUID();
+
+        assertThat(first.tryAcquire(user)).isTrue();
+        assertThat(second.tryAcquire(user)).isTrue();
+        assertThat(first.tryAcquire(user)).isTrue();
+        assertThat(second.tryAcquire(user)).isFalse();
+        assertThat(first.tryAcquire(user)).isFalse();
+    }
+
+    @Test
     void eskiPencerelerTemizlenirGuncelPencereKalir() {
+        GifSearchRateLimiter limiter = limiter();
         UUID old = UUID.randomUUID();
         UUID current = UUID.randomUUID();
         limiter.tryAcquire(old);
@@ -48,8 +65,15 @@ class GifSearchRateLimiterTest {
 
         limiter.evictExpired();
 
+        assertThat(jdbc.queryForObject("select count(*) from rate_limit_windows where user_id = ?", Integer.class,
+                old)).isZero();
         assertThat(limiter.tryAcquire(old)).isTrue();
         assertThat(limiter.tryAcquire(current)).isFalse();
+    }
+
+    private GifSearchRateLimiter limiter() {
+        return new GifSearchRateLimiter(new GifProperties("https://api.giphy.test", "", "g", 24, 50, 499, 50, 3),
+                jdbc, clock);
     }
 
     /** Testte zamanı ileri almak için. */

@@ -129,4 +129,22 @@ class ConversationListTest extends IntegrationTestSupport {
         markRead(newUser(), direct, 1).andExpect(status().isNotFound());
         markRead(alice, direct, -1).andExpect(status().isBadRequest());
     }
+
+    @Test
+    void okunmamisSayisi100deKesilir() throws Exception {
+        UUID alice = newUser();
+        UUID bob = newUser();
+        UUID direct = openDirectAndGetId(alice, bob);
+        // Gönderim oranı (30/dk) yüzünden doğrudan yazılır; sayım yalnız seq ve göndereni kullanır.
+        jdbc.update("""
+                insert into messages (id, conversation_id, seq, sender_id, client_message_id, type, body, created_at)
+                select gen_random_uuid(), ?, n, ?, 'bulk-' || n, 'TEXT', 'Mesaj ' || n, now()
+                from generate_series(1, 150) n""", direct, bob);
+        jdbc.update("update conversations set last_message_seq = 150 where id = ?", direct);
+
+        listConversations(alice, "").andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].unreadCount").value(100));
+        markRead(alice, direct, 40).andExpect(status().isOk()).andExpect(jsonPath("$.unreadCount").value(100));
+        markRead(alice, direct, 60).andExpect(status().isOk()).andExpect(jsonPath("$.unreadCount").value(90));
+    }
 }

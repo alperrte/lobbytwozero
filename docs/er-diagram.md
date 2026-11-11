@@ -799,6 +799,17 @@ erDiagram
     uuid message_id PK,FK
     timestamptz hidden_at
   }
+  rate_limit_windows {
+    uuid user_id PK "REF"
+    varchar bucket PK "gif-search|reaction"
+    timestamptz window_start PK
+    int hits
+  }
+  stream_relay_events {
+    bigserial id PK
+    timestamptz created_at "5 dk sonra silinir"
+    text payload "alıcı başına olay JSON"
+  }
 ```
 
 ## 10. lfp_db

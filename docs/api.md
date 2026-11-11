@@ -5469,7 +5469,7 @@ UNIT + INTEGRATION (gerçek PostgreSQL; social-service 238 test PASS; `FanOutEve
 
 Sorumlu: Umut · Gateway: `/api/v1/messaging/**` · Görevler: MSG-
 
-Ortak kurallar (aşağıdaki tüm MESSAGING uçları için; görevler LTZ-UMT-MSG-01 (MSG-01..05, MSG-14, MSG-15), LTZ-UMT-MSG-02 (MSG-06..10, MSG-13, MSG-16, MSG-27), LTZ-UMT-MSG-03 (MSG-11, MSG-12), LTZ-UMT-MSG-04 (MSG-17, MSG-18, MSG-22), LTZ-UMT-MSG-05 (MSG-19, MSG-20, MSG-23..26) ve LTZ-UMT-MSG-06 (MSG-21)):
+Ortak kurallar (aşağıdaki tüm MESSAGING uçları için; görevler LTZ-UMT-MSG-01 (MSG-01..05, MSG-14, MSG-15), LTZ-UMT-MSG-02 (MSG-06..10, MSG-13, MSG-16, MSG-27), LTZ-UMT-MSG-03 (MSG-11, MSG-12), LTZ-UMT-MSG-04 (MSG-17, MSG-18, MSG-22), LTZ-UMT-MSG-05 (MSG-19, MSG-20, MSG-23..26), LTZ-UMT-MSG-06 (MSG-21) ve LTZ-UMT-MSG-07 (hesap silme, yayına hazırlık)):
 - Tüm uçlar `Authorization: Bearer <access token>` (kullanıcı token'ı, `typ=at+jwt`) ister; Gateway tarayıcı çerezini Bearer'a çevirir. Token servis tarafında Auth'un JWKS anahtarıyla yeniden doğrulanır (RS256, `iss`, `aud`, `typ=at+jwt`, `exp`/`nbf`/`iat`/`sub` zorunlu, 30 sn saat payı). Servis token'ı (`svc+jwt`) bu uçlarda geçmez. Messaging'in henüz iç (`/internal/**`) ucu yoktur; bu yollar kapalıdır.
 - `userId` yalnız token'ın `sub` alanından alınır; gövde/başlıktaki kimlik (`senderId`, `ownerId`, `X-User-Id` vb.) güvenilmez: gövdedeki bilinmeyen alan `400`, başlıklar yok sayılır.
 - Kimliksiz/geçersiz token `401 UNAUTHENTICATED`. Hata gövdesi `ProblemDetail` + `code`; doğrulama hatalarında `errors: [{field, code}]` döner, gönderilen değer geri yansıtılmaz. İstek gövdesi en fazla 32 KB (`413 PAYLOAD_TOO_LARGE`); yalnız görsel yükleme ucunda 1 MB.
@@ -5494,6 +5494,57 @@ Ortak kurallar (aşağıdaki tüm MESSAGING uçları için; görevler LTZ-UMT-MS
 - **Mesajı görebilmek (MSG-19..26):** Bir mesaja yapılan her işlemin (yanıt, iletme, tepki, silme, okuyanlar, görsel indirme) ön koşulu: mesaj bu sohbette, isteyenin görünürlük sınırının (`visible_from_seq`) içinde ve isteyen onu **benden sil** ile kaldırmamış olmalı. Aksi her durum aynı `404 MESSAGE_NOT_FOUND`'dur (başka sohbetin mesajı dahil; varlığı sızdırılmaz).
 - **Benden sil / herkesten sil (MSG-25/26):** Benden silinen mesaj yalnız o kullanıcının geçmişinden, sohbet listesindeki `lastMessage`'ından, okunmamış sayısından ve alıntılarından kalkar; diğer üyeler ve okundu bilgisi etkilenmez. Herkesten silinen mesajın satırı kalır (`seq`, okunmamış ve okundu bilgisi bozulmaz) ama `deleted: true` döner; `body`, `attachment`, `gif`, `replyTo` boş, tepki özeti boştur. Herkesten silinmiş mesaja yanıt, iletme ve tepki `422 MESSAGE_DELETED`.
 - **Mesaj menüsü (MSG-24):** Menü frontend'dedir; backend her mesajda menünün ihtiyacını verir (`deletableForEveryoneUntil`, `reactions.mine`, `forwarded`) ve her işlemin yetkisini ayrıca uygular.
+- **Silinmiş hesap (LTZ-UMT-MSG-07):** Hesabı silinen kullanıcının mesajları `deleted: true` ve `senderId: "00000000-0000-0000-0000-000000000000"` döner; arayüz "Silinmiş hesap" gösterir. Bkz. "Hesap verisi silme".
+- **Yoğunluk (LTZ-UMT-MSG-07):** Veritabanı bağlantısı 5 sn içinde alınamazsa her uç `503 SERVICE_BUSY` ve `Retry-After: 1` döner (istek uzun süre bekletilmez).
+
+### MESSAGING — Hesap verisi silme (Internal, Auth → Messaging)
+
+Durum: IMPLEMENTED (alıcı taraf; gerçek Auth token'ıyla uçtan uca NOT VERIFIED)
+Sorumlu: Umut
+Tüketici servisler: auth-service (hesap silme koordinasyonu, `ltz.auth.deletion.targets` içinde `messaging` var)
+
+#### Endpoint
+DELETE /internal/v1/accounts/{accountId}
+
+#### Yetkilendirme
+Internal. Gateway'e açık **değildir**. Yalnız Auth'un imzaladığı **servis token'ı** (`docs-auth/servis-sozlesmeleri.md` §3, `docs-auth/d4-ekip-notlari/01_ORTAK_SILME_UCU_UYGULAMA_REHBERI.md`):
+- JWT başlığı `typ=svc+jwt`; RS256, Auth'un JWKS anahtarıyla doğrulanır.
+- `iss=ltz-auth`, `aud` içinde `messaging-service` (`ltz.messaging.auth.service-audience`, yeni ENV değil), `jti` zorunlu.
+- `scope` içinde `account:erase` (eksik/farklı kapsam `403`).
+- `sub` **tam olarak** `svc:auth-service` (başka servis kimliği `403`).
+- `account_id` claim'i yoldaki `{accountId}` ile **aynı** (UUID olarak karşılaştırılır); eksik ya da başka hesap `403`.
+- Ömür en çok 60 sn (`exp - iat ≤ 60 sn` ve `exp` şimdiden en çok 60 sn + 30 sn sapma ileride; `iat` yoksa ret).
+- Kullanıcı token'ı bu uçta, servis token'ı kullanıcı uçlarında (`/api/v1/messaging/**`) `401`.
+
+#### Path Parameters
+- accountId: UUID, zorunlu — silinecek hesap
+
+#### Response — 204
+Gövde yok. Tek transaction'da (set tabanlı SQL; başka servise çağrı yok):
+- Hesabın gönderdiği mesajların **satırı kalır** (sohbetin `seq` sırası, okunmamış ve okundu bilgisi bozulmasın) ama içerikleri herkesten silinmiş gibi temizlenir: gövde, GIF, ek bağlantısı (başka bağlantısı kalmayan içerik baytları dahil) ve mesajın tepkileri silinir; `deleted: true` döner. `senderId` ve silen kimliği **anonim hesap** `00000000-0000-0000-0000-000000000000` olur (arayüz "Silinmiş hesap" gösterir); istemci kimliği mesaj kimliğine çevrilir.
+- Hesabın tepkileri, benden sil kayıtları, okuma aralıkları, gönderilmemiş yüklemeleri, oran sayaçları ve kısa ömürlü canlı akış aktarım kayıtları silinir. Bekleyen `MessageSent` outbox olaylarından göndereni hesap olanlar silinir, alıcı listelerinden hesap çıkarılır.
+- Hesabın tüm üyelik satırları silinir; başkalarının satırlarındaki izler (`createdBy`, `removedBy`, herkesten silenin kimliği) anonimleşir. Hesap bir grubun aktif sahibiyse ayrılma kuralıyla yeni sahip atanır (önce ADMIN, sonra en eski üye); aktif üyesi kalmayan grup tümüyle silinir.
+- Birebir sohbet karşı taraf için kalır (geçmişi okunur); sohbet anahtarı hesabın kimliğini içermeyecek biçimde değişir. Karşı tarafı kalmayan birebir sohbete yazmak `403 MESSAGING_NOT_ALLOWED`.
+- Commit sonrası hesabın tüm örneklerdeki açık canlı akışları kapanır.
+
+**İdempotenttir:** veri yoksa, ikinci çağrıda ya da bilinmeyen hesapta da `204`. Saklama istisnası yoktur (`204` = kişisel veri kalmadı).
+
+#### Hata Durumları
+- 400: Geçersiz `accountId`
+- 401: Token yok/geçersiz; kullanıcı token'ı; yanlış `iss`/`aud`/`typ`; süresi dolmuş ya da 60 sn'den uzun ömürlü; `sub` `svc:` ile başlamıyor; `jti` yok; bozuk/yanlış anahtarlı imza; `alg=none`/HS256
+- 403: `account:erase` kapsamı yok; `sub` `svc:auth-service` değil; `account_id` yok ya da yoldaki hesapla aynı değil (hiçbir şey silinmez); bu yolda başka yöntem ya da başka iç yol
+- 503: Veritabanı bağlantısı alınamadı (`SERVICE_BUSY`; Auth yeniden dener)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Auth, silme onaylandığında `${MESSAGING_SERVICE_URL}/internal/v1/accounts/{accountId}` adresini çağırır.
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; `AccountErasureTest` 16 test: rehberin 17 senaryosu ve veri senaryoları). Gerçek Auth servis token'ıyla uçtan uca: NOT VERIFIED (dev'de Auth sahibiyle birlikte bir test hesabı silinip `messaging` görevinin `CONFIRMED` olduğu kontrol edilmeli).
 
 ### MESSAGING — Birebir sohbet aç (MSG-01)
 
@@ -5533,7 +5584,7 @@ Diğer mikroservisler:
 social-service `POST /internal/v1/blocks/check` (RestClient). Token: Auth `POST /internal/v1/service-tokens` (`clientId: "messaging-service"`, `audience: "social-service"`, `scope=blocks:check`, 60 sn); gizli anahtar `AUTH_MESSAGING_SERVICE_CLIENT_SECRET`.
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 388 test PASS; engel Social yerine test adaptörüyle, gerçek Social istemcisi MockRestServiceServer ile). Gerçek Auth + Social ile uçtan uca: NOT VERIFIED.
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS; engel Social yerine test adaptörüyle, gerçek Social istemcisi MockRestServiceServer ile). Gerçek Auth + Social ile uçtan uca: NOT VERIFIED.
 
 ### MESSAGING — Grup sohbeti oluştur (MSG-02)
 
@@ -5576,7 +5627,7 @@ Diğer mikroservisler:
 social-service engel sorgusu (oluşturan ↔ tüm ilk üyeler, tek toplu çağrı).
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 388 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED.
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED.
 
 ### MESSAGING — Sohbet detayı (MSG-14)
 
@@ -5612,7 +5663,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 388 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS)
 
 ### MESSAGING — Gruba üye ekle (MSG-03)
 
@@ -5659,7 +5710,7 @@ Diğer mikroservisler:
 social-service engel sorgusu (tek toplu çağrı).
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 388 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED.
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED.
 
 ### MESSAGING — Gruptan üye çıkar (MSG-05)
 
@@ -5696,7 +5747,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 388 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS)
 
 ### MESSAGING — Üye rolünü değiştir (MSG-03)
 
@@ -5741,7 +5792,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 388 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS)
 
 ### MESSAGING — Gruptan ayrıl (MSG-04)
 
@@ -5776,7 +5827,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 388 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS)
 
 ### MESSAGING — Sohbet listesi (MSG-08, MSG-13, MSG-11)
 
@@ -5815,7 +5866,7 @@ Authenticated (yalnız token sahibinin **aktif** üyesi olduğu sohbetler; ayrı
 ```
 - Sıra: `lastActivityAt` azalan (son mesaj; mesaj yoksa oluşturulma), eşitlikte `id` azalan. Keyset sayfalama: sayfalar arasında tekrar ya da atlama olmaz.
 - `lastMessage`, kullanıcının görebildiği ve **benden sil** ile kaldırmadığı son mesajdır (MSG-25); hepsini kaldırdıysa ya da yalnız katılmadan önceki mesajlar varsa `null` döner. Herkesten silinmişse `deleted: true` ile döner (MSG-26). Görsel/GIF mesajında `attachment`/`gif` alanları da doludur (MSG-17/22; sayfa başına tek ek sorgu). `lastMessage.readStatus` (MSG-11) son mesaj isteyene aitse `SENT | READ`, değilse `null` olur.
-- `unreadCount` (MSG-13): okuma işaretçisinden sonraki, kullanıcının görebildiği, benden silmediği ve **başkasının** gönderdiği mesaj sayısı. Mesaj gönderen, sohbeti o mesaja kadar okumuş sayılır.
+- `unreadCount` (MSG-13): okuma işaretçisinden sonraki, kullanıcının görebildiği, benden silmediği ve **başkasının** gönderdiği mesaj sayısı. Mesaj gönderen, sohbeti o mesaja kadar okumuş sayılır. Sayım sohbet başına **100'de durur**: `100` "100 ya da daha fazla" demektir, arayüz `99+` gösterir (çok okunmamışı olan sohbette maliyet sabit).
 - Bir sayfa sabit sayıda sorguyla kurulur (N+1 yok).
 
 #### Hata Durumları
@@ -5831,7 +5882,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 388 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS)
 
 ### MESSAGING — Mesaj gönder (metin MSG-06, görsel MSG-17, emoji MSG-18, GIF MSG-22, yanıt MSG-19, sesli mesaj MSG-21; MSG-10, MSG-11)
 
@@ -5934,7 +5985,7 @@ Diğer mikroservisler:
 Birebir sohbette social-service engel sorgusu. GIF mesajında GIPHY `GET /v1/gifs/{id}` (bkz. "GIF ara"). `MessageSent` olayı outbox'a (notification-service) — teslim **PENDING**; olay içerik/görsel taşımaz.
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 388 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED. Gerçek GIPHY ile: NOT VERIFIED.
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED. Gerçek GIPHY ile: NOT VERIFIED.
 
 ### MESSAGING — Mesaj eki yükle: görsel (MSG-17) / sesli mesaj (MSG-21)
 
@@ -6009,7 +6060,7 @@ Diğer mikroservisler:
 - (Ayrı medya servisi yoktur; içerik `messaging_db`'de `bytea`.)
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 388 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS)
 
 ### MESSAGING — Mesaj ekini indir / sesi dinle (MSG-17, MSG-21)
 
@@ -6047,7 +6098,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 388 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS)
 
 ### MESSAGING — GIF ara (MSG-22)
 
@@ -6105,7 +6156,7 @@ Diğer mikroservisler:
 Dış sağlayıcı: GIPHY API v1 `GET /v1/gifs/search` (anahtar `GIPHY_API_KEY`, yalnız sunucuda; istek adresi hiçbir hataya/loga yazılmaz). İstek otomatik tekrarlanmaz.
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; GIPHY istemcisi MockRestServiceServer ile; messaging-service 388 test PASS). Gerçek GIPHY ile: NOT VERIFIED (anahtar yok).
+UNIT + INTEGRATION (gerçek PostgreSQL; GIPHY istemcisi MockRestServiceServer ile; messaging-service 411 test PASS). Gerçek GIPHY ile: NOT VERIFIED (anahtar yok).
 
 ### MESSAGING — Öne çıkan GIF'ler (MSG-22)
 
@@ -6138,7 +6189,7 @@ Diğer mikroservisler:
 Dış sağlayıcı: GIPHY API v1 `GET /v1/gifs/trending`.
 
 #### Test Durumu
-UNIT + INTEGRATION (messaging-service 388 test PASS). Gerçek GIPHY ile: NOT VERIFIED.
+UNIT + INTEGRATION (messaging-service 411 test PASS). Gerçek GIPHY ile: NOT VERIFIED.
 
 ### MESSAGING — Mesaj geçmişi (MSG-07, MSG-09 eşitleme, MSG-11)
 
@@ -6187,7 +6238,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 388 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS)
 
 ### MESSAGING — Mesajı görenler (MSG-12)
 
@@ -6235,7 +6286,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; `MessageReadsTest` 8 test; messaging-service 388 test PASS). Gateway üzerinden gerçek kullanıcılarla: NOT VERIFIED.
+UNIT + INTEGRATION (gerçek PostgreSQL; `MessageReadsTest` 8 test; messaging-service 411 test PASS). Gateway üzerinden gerçek kullanıcılarla: NOT VERIFIED.
 
 ### MESSAGING — Okundu işaretle (MSG-13, MSG-11)
 
@@ -6263,6 +6314,7 @@ Authenticated + sohbetin aktif üyesi (yalnız kendi okuma işaretçisi)
 ```json
 { "conversationId": "UUID", "lastReadSeq": 7, "unreadCount": 0 }
 ```
+`unreadCount` sohbet listesindeki gibi en çok `100`'dür (`99+`).
 İşaretçi yalnız ileri gider (daha küçük `seq` yan etkisizdir) ve sohbetteki son mesajın ötesine geçmez. Sözleşme MSG-11 ile değişmedi; işaretçi **gerçekten ilerlediğinde** (MSG-11) eski işaretçi + 1'den yeni işaretçiye tek bir okuma aralığı (okuma saatiyle) yazılır ve commit sonrası `read` akış olayı gönderilir. İlerlemeyen çağrı (aynı `seq`, geri gitme, son mesajın ötesi) satır ve olay üretmez. Eşzamanlı çağrılar üye satırı kilidiyle sıralanır; aralıklar çakışmaz, boşluk bırakmaz.
 
 #### Hata Durumları
@@ -6279,7 +6331,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 388 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS)
 
 ### MESSAGING — Mesajı sil: benden / herkesten (MSG-25, MSG-26)
 
@@ -6452,6 +6504,8 @@ Sorumlu: Umut
 Tüketici servisler: Frontend (`EventSource`, `withCredentials: true`)
 
 Karar ve gerekçe: [ADR 0001](decisions/0001-gercek-zamanli-mesajlasma.md).
+
+Birden çok örnek (LTZ-UMT-MSG-07): olaylar PostgreSQL `LISTEN/NOTIFY` ile tüm örneklere aktarılır; istemci hangi örneğe bağlı olursa olsun olayı alır. Bir örneğin aktarım bağlantısı koparsa o örnekteki akışlar kapanır, istemci yeniden bağlanıp geçmişten eşitlenir. Kullanıcı başına akış sınırı (5) örnek başınadır.
 
 #### Endpoint
 GET /api/v1/messaging/stream

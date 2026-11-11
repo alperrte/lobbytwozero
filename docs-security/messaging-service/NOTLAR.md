@@ -75,6 +75,14 @@
   geçici bellek kullandığı için aynı anda en çok 2 ses işlenir (`MEDIA_BUSY`). Ses verisine gömülü bilgi
   (steganografi) yeniden kodlama olmadan kaldırılamaz — bilinen sınır. Dalga formu yalnız 64 sayı. İndirme `Range`
   destekler; yetki her istekte aralıktan önce (`AttachmentRangeTest`). Ses içeriği ve dalga formu loglanmaz.
+- **Hesap silme iç ucu (LTZ-UMT-MSG-07).** Yalnız Auth servis token'ı: `typ=svc+jwt`, `aud=messaging-service`,
+  `scope=account:erase`, `sub` tam `svc:auth-service`, `account_id` = yol, `jti`, ömür ≤ 60 sn; kullanıcı token'ı iç
+  uçta, servis token'ı kullanıcı uçlarında `401` (yola göre ayrı doğrulayıcı). Silme tek transaction, set tabanlı;
+  kişisel veri kalmaz (`AccountErasureTest.servisTokeniyleHesabinKisiselVerisiSilinir`: tüm kişisel sütunlarda hesabın
+  kimliği sıfır). Mesaj satırları sıra için kalır, içerik silinir, gönderen anonim. Yalnız hesap kimliği loglanır.
+- **Çoklu örnek (V137).** Oran sınırları DB'de (`rate_limit_windows`, tüm örnekler ortak). Canlı akış PostgreSQL
+  `LISTEN/NOTIFY` ile aktarılır; aktarım kayıtları 5 dk sonra silinir ve hesap silmede hesabınkiler hemen silinir. Akış
+  sınırı örnek başına. Havuz 5 sn'de boşalmazsa `503 SERVICE_BUSY` (+ `Retry-After`), uzun bekleme yok.
 - **Okuma aralığı tablosu (`message_read_ranges`, V133).** Satır sayısı gerçek ilerleme sayısıyla büyür (mesaj sayısıyla
   değil; gönderim de bir ilerlemedir); ilerlemeyen çağrı satır yazmaz, böylece okuma çağrısı sınırsız satır üretemez. Eşzamanlı okumalar üye satırı
   kilidiyle sıralanır (çakışan ya da boşluklu aralık yok). Saklama/temizlik görevi yok; ayrılan üyenin satırları kalır

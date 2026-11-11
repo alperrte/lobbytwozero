@@ -31,6 +31,7 @@ import com.ltz.messaging.IntegrationTestSupport;
 import com.ltz.messaging.application.service.ReadAdvance;
 import com.ltz.messaging.application.service.ReadTracker;
 import com.ltz.messaging.domain.entity.ConversationMember;
+import com.ltz.messaging.infrastructure.messaging.realtime.StreamRelayListener;
 import com.ltz.messaging.infrastructure.persistence.repository.ConversationMemberRepository;
 
 /**
@@ -44,6 +45,12 @@ class ReadReceiptStreamTest extends IntegrationTestSupport {
 
     @Autowired
     private ThreadPoolTaskExecutor streamDispatchExecutor;
+
+    @Autowired
+    private ThreadPoolTaskExecutor streamRelayExecutor;
+
+    @Autowired
+    private StreamRelayListener relayListener;
 
     @Autowired
     private ReadTracker tracker;
@@ -425,11 +432,22 @@ class ReadReceiptStreamTest extends IntegrationTestSupport {
      * hepsi aynı anda engeldeyse daha önceki işlerin hepsi (kuyruk sırasıyla) tamamlanmıştır. Olay gitmediğini
      * kanıtlamak için gerekir.
      */
+    /**
+     * Üretilmiş tüm olaylar iletilene kadar bekler: aktarım yazımı (tek iş parçacığı) → dinleyicinin son kaydı
+     * işlemesi → yerel iletim yürütücüsü.
+     */
     private void drainDispatch() throws Exception {
-        int threads = streamDispatchExecutor.getMaxPoolSize();
+        drain(streamRelayExecutor);
+        long last = jdbc.queryForObject("select coalesce(max(id), 0) from stream_relay_events", Long.class);
+        await().atMost(WAIT).until(() -> relayListener.lastHandledId() >= last);
+        drain(streamDispatchExecutor);
+    }
+
+    private static void drain(ThreadPoolTaskExecutor executor) throws Exception {
+        int threads = executor.getMaxPoolSize();
         CyclicBarrier barrier = new CyclicBarrier(threads + 1);
         for (int i = 0; i < threads; i++) {
-            streamDispatchExecutor.execute(() -> {
+            executor.execute(() -> {
                 try {
                     barrier.await(WAIT.toSeconds(), TimeUnit.SECONDS);
                 } catch (Exception exception) {
@@ -440,7 +458,9 @@ class ReadReceiptStreamTest extends IntegrationTestSupport {
         barrier.await(WAIT.toSeconds(), TimeUnit.SECONDS);
     }
 
+    /** Önceki işlemlerin olayları akış açılmadan önce iletilmiş olsun (aktarım eşzamansızdır). */
     private MvcResult openStream(UUID user) throws Exception {
+        drainDispatch();
         MvcResult result = mockMvc.perform(get(MessagingApiPaths.STREAM)
                         .header(HttpHeaders.AUTHORIZATION, bearer(user)))
                 .andExpect(request().asyncStarted())

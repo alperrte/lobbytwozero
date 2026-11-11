@@ -49,6 +49,7 @@ public enum MessagingErrorCode {
     TOO_MANY_GIF_SEARCHES(429, "Too many GIF searches. Wait a moment and try again."),
     TOO_MANY_REACTIONS(429, "Too many reactions. Wait a moment and try again."),
     BLOCK_CHECK_UNAVAILABLE(503, "Block status could not be verified. Try again later."),
+    SERVICE_BUSY(503, "The service is busy. Try again shortly."),
     MEDIA_BUSY(503, "Media processing is busy. Try again shortly."),
     GIF_PROVIDER_UNAVAILABLE(503, "GIF search is not available right now.");
 
