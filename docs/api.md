@@ -1452,7 +1452,7 @@ UNIT + INTEGRATION (`PublicProfileControllerTest` 12, `SocialProjectionTrustedTe
 
 Durum: IMPLEMENTED
 Sorumlu: Kerem
-Tüketici servisler: Frontend (arkadaş listesi, mesaj listesi gibi kimlik listelerine ad/avatar eklemek için)
+Tüketici servisler: Frontend (arkadaş listesi, mesaj listesi gibi kimlik listelerine ad/avatar eklemek için); Review frontend'i (inceleme kartında yazar adı/avatarı; Review yanıtındaki `authorUserId` buradan çözülür)
 
 #### Endpoint
 POST /api/v1/user/profiles/batch
@@ -1470,6 +1470,10 @@ Authenticated. Misafir `401`.
 { "items": [ { "userId": "UUID", "username": "string | null", "displayName": "string | null", "avatar": { "small": "...", "large": "...", "animated": false } } ] }
 ```
 İstek sırası korunur. Olmayan, yasaklı/devre dışı hesaplar ve izleyiciyle engel ilişkisi olanlar **sessizce atlanır** (hangisi olduğu sızdırılmaz). Askıdaki hesap listelenir. Tüm kart verisi en çok üç sorguyla okunur (N+1 yok). `Cache-Control: no-store, private`.
+
+**Gizlilik:** kart yalnız hesap durumuna ve çift yönlü engele bakar; profil gizlilik ayarına (gizli/arkadaşlara açık profil) **bakmaz**. Profili gizli olan kullanıcının adı ve avatarı bu uçta yine görünür (içerik herkese açık olduğu için `REVIEW_AUTHOR` kuralıyla aynı). Gizlilik ayarına tabi alanlar (biyografi, kitaplık vb.) bu uçta dönmez. Yanıtta görünmeyen kimlik için kayıt yoktur ("visible:false" gibi bir işaret döndürülmez).
+
+**İstemci notları (kod okumasıyla doğrulandı, canlı Gateway testi NOT VERIFIED):** Gateway çerezli, GET dışı isteklerde çerez/`X-XSRF-TOKEN` eşleşmesi arar; bu `POST` okuma anlamı taşısa da muaf değildir (`403 CSRF_TOKEN_INVALID`). Gateway hız sınırı yalnız Auth yollarındadır; bu uçta kota (429) yoktur. `avatar.small`/`avatar.large` Gateway'e göreli yoldur (`/api/v1/user/media/<anahtar>`), oturum gerektirmez; `small` yoksa `large` dosyası döner.
 
 #### Hata Durumları
 - 400: `VALIDATION_FAILED` (boş liste, 50'den fazla kimlik, geçersiz UUID)
