@@ -7,6 +7,7 @@ import com.ltz.review.domain.exception.ReviewException;
 import com.ltz.review.infrastructure.persistence.repository.ReviewRepository;
 import com.ltz.review.infrastructure.persistence.repository.AccountWriteLock;
 import com.ltz.review.infrastructure.persistence.repository.ReviewLikeRepository;
+import com.ltz.review.infrastructure.persistence.repository.UserSummaryOutbox;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
@@ -18,11 +19,13 @@ public class ReviewWriter {
     private final ReviewRepository reviews;
     private final AccountWriteLock accounts;
     private final ReviewLikeRepository likes;
+    private final UserSummaryOutbox outbox;
 
-    public ReviewWriter(ReviewRepository reviews, AccountWriteLock accounts, ReviewLikeRepository likes) {
+    public ReviewWriter(ReviewRepository reviews, AccountWriteLock accounts, ReviewLikeRepository likes, UserSummaryOutbox outbox) {
         this.reviews = reviews;
         this.accounts = accounts;
         this.likes = likes;
+        this.outbox = outbox;
     }
 
     @Transactional(timeout = 4)
@@ -31,6 +34,7 @@ public class ReviewWriter {
         if (reviews.existsByUserIdAndGameIdAndStatusNot(userId, gameId, "DELETED"))
             throw new ReviewException(409, "Bu oyun için zaten aktif incelemeniz var.");
         var review = reviews.saveAndFlush(new Review(userId, gameId, body, now()));
+        outbox.touch(userId, now());
         return ReviewMapper.response(review, userId);
     }
 
@@ -61,6 +65,7 @@ public class ReviewWriter {
         review.remove(now());
         reviews.flush();
         likes.removeForReview(reviewId);
+        outbox.touch(userId, now());
     }
 
     private static Instant now() { return Instant.now().truncatedTo(ChronoUnit.MICROS); }

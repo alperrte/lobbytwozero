@@ -1,11 +1,14 @@
 package com.ltz.review.application.service;
 
+import com.ltz.review.api.dto.response.ReviewPageResponse;
 import com.ltz.review.api.dto.response.ReviewResponse;
 import com.ltz.review.application.mapper.ReviewMapper;
 import com.ltz.review.application.port.GameCatalogPort;
 import com.ltz.review.domain.exception.ReviewException;
 import com.ltz.review.infrastructure.persistence.repository.ReviewRepository;
 import java.util.UUID;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,6 +49,23 @@ public class ReviewService {
         var review = reviews.findById(reviewId).filter(value -> "VISIBLE".equals(value.getStatus()))
                 .orElseThrow(() -> new ReviewException(404, "İnceleme bulunamadı."));
         return ReviewMapper.response(review, actor);
+    }
+
+    /** Kullanıcının bu oyundaki görünür incelemesi; yoksa 404 (silinmiş inceleme "yok" sayılır). Yalnız yerel okuma. */
+    @Transactional(readOnly = true)
+    public ReviewResponse mine(UUID actor, UUID gameId) {
+        return reviews.findByUserIdAndGameIdAndStatus(actor, gameId, "VISIBLE")
+                .map(review -> ReviewMapper.response(review, actor))
+                .orElseThrow(() -> new ReviewException(404, "İnceleme bulunamadı."));
+    }
+
+    /** Kullanıcının tüm oyunlardaki görünür incelemeleri: oluşturulma tarihi azalan, eşitlikte id artan. */
+    @Transactional(readOnly = true)
+    public ReviewPageResponse mine(UUID actor, int page, int size) {
+        var result = reviews.findByUserIdAndStatus(actor, "VISIBLE",
+                PageRequest.of(page, size, Sort.by(Sort.Order.desc("createdAt"), Sort.Order.asc("id"))));
+        return new ReviewPageResponse(result.map(review -> ReviewMapper.response(review, actor)).getContent(),
+                page, size, result.getTotalElements(), result.getTotalPages());
     }
 
     static String checkedBody(String body) {
