@@ -7,6 +7,7 @@ export type DeviceLink = {
   lastSyncAt: string | null;
   disabledAt: string | null;
 };
+export type SyncConsent = { granted: boolean; grantedAt: string | null; revokedAt: string | null };
 
 export type SessionStatus = "ACTIVE" | "COMPLETED" | "ABANDONED";
 export type PerformanceSession = {

@@ -20,6 +20,8 @@ const review = { id: secondId, productId: firstId, body: "Fixture experience", r
 const paged = (items: unknown[], page = 0) => ({ items, page, size: 12, totalElements: items.length, totalPages: items.length ? 1 : 0 });
 
 async function installHardware(page: Page, options: { empty?: boolean; status?: number; conflict?: boolean; workshop?: boolean; seeded?: boolean; rejectCategory?: string } = {}) {
+  // Existing gateway double-submit contract: keep fixture mutations away from the live Auth service.
+  await page.context().addCookies([{ name: "XSRF-TOKEN", value: "fixture-csrf", url: "http://localhost:5101" }]);
   let computer: typeof profile | undefined = options.empty ? undefined : { ...profile };
   let components: Array<Record<string, unknown>> = options.seeded ? seededComponents() : [];
   const catalog = [...products, ...workshopParts];

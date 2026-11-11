@@ -8,6 +8,7 @@ import type { SessionStatus } from "../types/performance";
 import { control, panel, select, PerformanceError, PerformanceLoading } from "./performance-ui";
 import { SessionMeasurements } from "./session-measurements";
 import { SessionReport } from "./session-report";
+import { DeletePerformanceData } from "./delete-performance-data";
 
 export function SessionHistory({ accountId }: { accountId: string }) {
   const t = useTranslations("Performance");
@@ -15,12 +16,14 @@ export function SessionHistory({ accountId }: { accountId: string }) {
   const [page, setPage] = useState(0);
   const [status, setStatus] = useState<SessionStatus | "">("");
   const [selectedId, setSelectedId] = useState("");
+  const [deleted, setDeleted] = useState(false);
   const result = usePerformanceQuery(`sessions:${accountId}:${status}:${page}`, (signal) => performanceApi.sessions({ page, status: status || undefined }, signal));
   const selected = result.data?.items.find((item) => item.id === selectedId);
 
   return <section aria-labelledby="performance-history" className="space-y-4">
     <h2 id="performance-history" className="font-display text-2xl font-semibold">{t("history")}</h2>
     <p className="text-sm text-text-secondary">{t("historyDescription")}</p>
+    {deleted ? <p role="status" className="text-sm text-success">{t("deleted")}</p> : null}
     <label className="flex flex-wrap items-center gap-3 text-sm"><span>{t("statusFilter")}</span>
       <select className={select} value={status} onChange={(event) => { setStatus(event.target.value as SessionStatus | ""); setPage(0); setSelectedId(""); }}>
         <option value="">{t("allStatuses")}</option>
@@ -48,6 +51,7 @@ export function SessionHistory({ accountId }: { accountId: string }) {
       <h3 className="font-display text-xl font-semibold break-words">{t("sessionDetails", { game: selected.gameTitle })}</h3>
       <SessionMeasurements accountId={accountId} session={selected} />
       <SessionReport accountId={accountId} session={selected} />
+      <DeletePerformanceData session={selected} onDeleted={() => { setSelectedId(""); setDeleted(true); setPage(0); result.reload(); }} onReview={() => { setSelectedId(""); result.reload(); }} />
     </div> : null}
   </section>;
 }

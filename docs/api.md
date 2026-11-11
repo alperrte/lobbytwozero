@@ -11014,7 +11014,7 @@ Sorumlu: Alper · Gateway: `/api/v1/performance/**` · Görevler: PERF-, PWEB-
 
 Durum: IMPLEMENTED
 Sorumlu: Alper
-Tüketici servisler: Frontend (PWEB, planlı)
+Tüketici servisler: Frontend (PWEB-10, uygulanmış consumer; canlı tarayıcı kabulü NOT VERIFIED)
 
 #### Endpoint
 GET /api/v1/performance/sync-consent
@@ -11052,7 +11052,7 @@ INTEGRATION (PostgreSQL Testcontainers + gerçek filtre zinciri; Auth kullanıc�
 
 Durum: IMPLEMENTED
 Sorumlu: Alper
-Tüketici servisler: Frontend (PWEB, planlı)
+Tüketici servisler: Frontend (PWEB-10, uygulanmış consumer; canlı tarayıcı kabulü NOT VERIFIED)
 
 #### Endpoint
 PUT /api/v1/performance/sync-consent
@@ -11090,7 +11090,7 @@ INTEGRATION
 
 Durum: IMPLEMENTED
 Sorumlu: Alper
-Tüketici servisler: Frontend (PWEB, planlı)
+Tüketici servisler: Frontend (PWEB-10, uygulanmış consumer; canlı tarayıcı kabulü NOT VERIFIED)
 
 #### Endpoint
 DELETE /api/v1/performance/sync-consent
@@ -11128,7 +11128,7 @@ INTEGRATION
 
 Durum: IMPLEMENTED
 Sorumlu: Alper
-Tüketici servisler: Frontend (PWEB, planlı)
+Tüketici servisler: Frontend (PWEB-03, uygulanmış consumer; canlı tarayıcı kabulü NOT VERIFIED)
 
 #### Endpoint
 GET /api/v1/performance/devices
@@ -11506,7 +11506,7 @@ INTEGRATION (PostgreSQL Testcontainers, gerçek filtre zinciri, kullanıcı toke
 
 Durum: IMPLEMENTED
 Sorumlu: Alper
-Tüketici servisler: Frontend (PWEB, planlı)
+Tüketici servisler: Frontend (PWEB-05/10, uygulanmış consumer; canlı tarayıcı kabulü NOT VERIFIED)
 
 #### Endpoint
 GET /api/v1/performance/sessions
@@ -11676,7 +11676,7 @@ INTEGRATION (idempotent tekrar, 8 eşzamanlı bitirme, bitirme–silme yarışı
 
 Durum: IMPLEMENTED
 Sorumlu: Alper
-Tüketici servisler: Frontend (PWEB, planlı)
+Tüketici servisler: Frontend (PWEB-10, uygulanmış consumer; canlı tarayıcı kabulü NOT VERIFIED)
 
 #### Endpoint
 DELETE /api/v1/performance/sessions/{sessionId}
@@ -11710,7 +11710,7 @@ INTEGRATION
 
 Durum: IMPLEMENTED
 Sorumlu: Alper
-Tüketici servisler: Frontend (PWEB, planlı)
+Tüketici servisler: Frontend (PWEB-10, uygulanmış consumer; canlı tarayıcı kabulü NOT VERIFIED)
 
 #### Endpoint
 DELETE /api/v1/performance/sessions?confirm=true
@@ -11818,7 +11818,7 @@ INTEGRATION + DB CHECK kısıtları gerçek PostgreSQL'de doğrulandı. Otomatik
 
 Durum: IMPLEMENTED
 Sorumlu: Alper
-Tüketici servisler: Frontend (PWEB, planlı)
+Tüketici servisler: Frontend (PWEB-07, uygulanmış consumer; canlı tarayıcı kabulü NOT VERIFIED)
 
 #### Endpoint
 GET /api/v1/performance/sessions/{sessionId}/report
@@ -12062,7 +12062,7 @@ INTEGRATION
 
 Durum: IMPLEMENTED
 Sorumlu: Alper
-Tüketici servisler: Frontend (PWEB, planlı)
+Tüketici servisler: Frontend (PWEB-06, uygulanmış consumer; canlı tarayıcı kabulü NOT VERIFIED)
 
 #### Endpoint
 GET /api/v1/performance/sessions/{sessionId}/series

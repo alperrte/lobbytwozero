@@ -141,7 +141,8 @@ test("profil menüsü misafir durumunu dürüstçe gösterir", async ({ page }) 
   const menu = page.getByRole("menu");
   await expect(menu).toContainText("Giriş yapılmadı");
   await expect(menu.getByRole("menuitem", { name: "Bilgisayarlarım" })).toHaveAttribute("href", "/tr/profil/bilgisayarlarim");
-  await expect(menu.getByRole("menuitem", { name: /Çıkış yap/ })).toHaveAttribute("aria-disabled", "true");
+  await expect(menu.getByRole("menuitem", { name: "Giriş yap", exact: true })).toHaveAttribute("href", "/tr/giris");
+  await expect(menu.getByRole("menuitem", { name: /Çıkış yap/ })).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(menu).toBeHidden();
 });

@@ -18,3 +18,9 @@ Frontend → hook → feature service → ortak `apiRequest` → Gateway; servis
 Panel: `/tr/performans/panel`, `/en/performance/dashboard`.
 Hardware gerçek profile/detail/privacy uçları yeni public feature export'ları `HardwareSnapshot`/`HardwareProfileReference` üzerinden tüketilir; paralel DTO/client yazılmadı. Oturum listesi 20, grafik 100 noktayla sınırlıdır. Rapor/grafik yalnız seçilen oturum için alınır. Profile/oturum seçimi veya hesap değişiminde önceki sonuçlar gizlenir.
 Auth consumer'da yeni kabiliyet gerekmiyor; yeni Auth request yok. API sözleşmesi/endpoint/backend değişikliği yok. Test fixture'ları canlı servis kabulü değildir; canlı tarayıcı entegrasyonu NOT VERIFIED.
+
+## TASK 3 consumer durumu
+
+`GET/PUT/DELETE /api/v1/performance/sync-consent`, `DELETE /api/v1/performance/sessions/{sessionId}`, `DELETE /api/v1/performance/sessions?confirm=true` mevcut owner uçları tüketilir. Yeni endpoint veya DTO yok. Senkronizasyon izni otomatik ölçüm başlatmaz; profil görünürlüğünden ve kayıt silmeden ayrıdır. Profil gizliliği mevcut `/profile/settings` arayüzüne yönlenir.
+CSRF Auth `/csrf` ve okunabilir double-submit cookie/header ile sağlanır; cookie → Bearer Gateway'de kalır. Açık CSRF reddi bir kez yenilenir; belirsiz mutasyon otomatik tekrarlanmaz.
+Recommendation iş API'leri bulunmadığından PWEB-08/09 BLOCKED; frontend endpoint uydurmaz veya uyumluluk/FPS hesabı yapmaz.

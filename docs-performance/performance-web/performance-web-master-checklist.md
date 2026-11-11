@@ -21,7 +21,7 @@ Kanıt: `progress/task-01.md`, `testings/task-01-tests.md` ve TASK 2 regresyon k
 
 ## TASK 2 — LTZ-ALP-PWEB-02 — Donanım ve Performans Paneli
 
-Durum: yerel doğrulama DONE 4/4; kullanıcı commit'i bekleniyor.
+Durum: yerel doğrulama DONE 4/4; kullanıcı commit'i `5cfe014f` doğrulandı.
 
 - [x] **PWEB-04 — Donanım paneli:** CPU, GPU, RAM ve diğer kayıtlı donanım özelliklerinin görüntülenmesi.
 - [x] **PWEB-05 — Performans geçmişi:** Kayıtlı performans oturumlarının listelenmesi.
@@ -32,10 +32,10 @@ Kanıt: `progress/task-02.md`, `testings/task-02-tests.md`; Hardware profilleri/
 
 ## TASK 3 — LTZ-ALP-PWEB-03 — Uyumluluk, Öneriler ve Veri Gizliliği Ekranları
 
-Durum: NOT STARTED 0/3. PWEB-08/09 Recommendation sözleşmesi eksikliği önceden saptandı; ayrıntı `reports/issues.md`.
+Durum: PARTIAL 1/3 yerel akış uygulandı ve doğrulandı. PWEB-08/09 Recommendation sözleşmesi eksikliği sürüyor; ayrıntı `reports/issues.md`. Nihai backend/quality gate kanıtı `testings/pre-merge-quality.md` içinde kayıtlı.
 
 - [ ] **PWEB-08 — Donanım uyumluluğu:** Kullanıcı bilgisayarı ile oyun sistem gereksinimlerinin karşılaştırılması.
 - [ ] **PWEB-09 — Kişiselleştirilmiş öneriler:** Oyun ve donanım önerilerinin görüntülenmesi.
-- [ ] **PWEB-10 — Gizlilik ve veri yönetimi:** Kullanıcının saklanan veya ileride senkronize edilecek performans verilerini görüntüleme ve silme işlemleri.
+- [x] **PWEB-10 — Gizlilik ve veri yönetimi:** Kullanıcının saklanan veya ileride senkronize edilecek performans verilerini görüntüleme ve silme işlemleri. Yerel kod/test: mevcut consent ve owner delete API'leri; canlı tarayıcı kabulü NOT VERIFIED.
 
-Genel yerel özellik durumu: **7/10**. Final quality gate/PR taslağı: NOT RUN; TASK 3 ve kullanıcı checkpoint'i sonrasında.
+Genel yerel özellik durumu: **8/10**. Final quality gate denemeleri tamamlandı: pre-push FAIL, backend Sonar gate FAIL (C/C/A), tam E2E FAIL/FLAKY; frontend Sonar BLOCKED. **NOT READY FOR MERGE**. Tam kanıt `testings/pre-merge-quality.md`, PR taslağı `reports/pr-description.md`.

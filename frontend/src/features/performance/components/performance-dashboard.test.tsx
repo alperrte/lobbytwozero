@@ -8,6 +8,7 @@ const { requireSession, hardware, history } = vi.hoisted(() => ({ requireSession
 vi.mock("@/features/auth", () => ({ useRequireSession: requireSession }));
 vi.mock("@/features/hardware", () => ({ HardwareSnapshot: ({ accountId }: { accountId: string }) => { hardware(accountId); return <p>{accountId}</p>; } }));
 vi.mock("./session-history", () => ({ SessionHistory: ({ accountId }: { accountId: string }) => { history(accountId); return null; } }));
+vi.mock("./performance-privacy", () => ({ PerformancePrivacy: () => null }));
 const setup = () => render(<NextIntlClientProvider locale="en" messages={en}><PerformanceDashboard /></NextIntlClientProvider>);
 describe("Performance dashboard access", () => {
   beforeEach(() => vi.clearAllMocks());

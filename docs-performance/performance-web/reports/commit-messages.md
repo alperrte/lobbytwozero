@@ -1,7 +1,7 @@
 # Performance Web — ayrı commit taslakları
 
 Gerçek Git yazımı yapılmaz. TASK 1 kullanıcı tarafından commit edildi: `df308dfa`.
-TASK 2 kullanıcı commit'i bekliyor; TASK 3 başlamadı.
+TASK 2 kullanıcı commit'i `5cfe014f` doğrulandı; TASK 3 kısmi teslimdir.
 
 ## TASK 1 — kullanıcı tarafından commit edildi
 
@@ -17,7 +17,7 @@ feat(performance-web): add PWEB-01–03 landing and linked device views
 - Dokümantasyon: TASK 1 checkpoint ve test raporunu, servis sözleşme matrisini ve açık bağımlılıkları kaydet
 ```
 
-## TASK 2 — manuel commit bekleniyor
+## TASK 2 — kullanıcı tarafından commit edildi
 
 ```text
 feat(performance-web): implement PWEB-04–07 hardware and performance dashboard
@@ -32,4 +32,20 @@ feat(performance-web): implement PWEB-04–07 hardware and performance dashboard
 - Testler: 1544 geçen frontend testi, 7 geçen Performance E2E ve özellik kapsamındaki yüzde 98,46 satır coverage sonucunu doğrula
 - Regresyon: AppShell ve footer testlerini etkin Performans rotasıyla uyumlu hale getir; standart lint, typecheck ve production build kontrollerini geçir
 - Dokümantasyon: TASK 2 checkpoint, test kanıtları, master checklist, sözleşme ve commit taslaklarını güncelle
+```
+
+## TASK 3 — PWEB-10; PWEB-08/09 sözleşme nedeniyle BLOCKED
+
+```text
+feat(performance-web): add PWEB-10 privacy controls and confirmed data deletion
+
+- PWEB-10: mevcut senkronizasyon iznini oku, açık onayla kaydet ve geri al; profil gizlilik ayarlarına erişim sun
+- Veri yönetimi: owner oturumunu veya tüm performans oturumlarını rapor ve ölçümleriyle birlikte onaylı silme akışına bağla
+- Güvenlik: CSRF başlığı, no-store, timeout, unmount iptali ve çift gönderim kilidi uygula
+- Hata yönetimi: sunucu onayından önce başarı gösterme; belirsiz mutasyon sonrası yeniden okumayı zorunlu tut ve geçmiş detaylarını güvenle yenile
+- UI: TR/EN gizlilik metinleri, erişilebilir ortak onay penceresi ve mevcut olmayan uyumluluk/öneri kabiliyetlerinin açık durumunu ekle
+- Testler: onay, vazgeçme, başarısız silme, çift gönderim, unmount ve CSRF senaryolarını ekle; 1563 frontend testini ve 10 Performance E2E senaryosunu doğrula
+- Regresyon: Hardware tarayıcı fixture'ına mevcut CSRF cookie sözleşmesini ekle; misafir menüsü ve etkin Performans navigasyonu beklentilerini güncelle
+- API kataloğu: mevcut dokuz Performance endpoint'inin PWEB consumer durumunu gerçek entegrasyon kapsamıyla güncelle
+- Dokümantasyon: PWEB-08/09 sözleşme bağımlılıklarını ve TASK 3 test/kalite kanıtlarını gerçeğe uygun kaydet
 ```
