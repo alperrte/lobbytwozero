@@ -20,7 +20,17 @@ public class GamePriceRepository {
     private static final String OWNER = "owner";
     private static final String COUNTRY = "country";
     private static final String CURRENCY = "currency";
+    private static final String STATE_UPSERT = """
+            insert into game_price_refresh_state(id,game_id,country,currency,status,checked_at,error_code) values (?,?,?,?,?,?,?)
+            on conflict(game_id,country,currency) do update set status=excluded.status,checked_at=excluded.checked_at,error_code=excluded.error_code,next_attempt_at=null,version=game_price_refresh_state.version+1
+            """;
     private final NamedParameterJdbcTemplate jdbc;
+    /** Son aday sorgusunda birikim modunda (soğuk kademede hiç fiyatı olmayan çok oyun) bulunan pazarlar. */
+    private final Set<Market> backlogMarkets=java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /** Pazar, son aday sorgusunda birikim modundaydı mı? Tur sırası birikimi olan pazarı öne alır (kota yalnız ona yetsin diye). */
+    public boolean inBacklog(Market market) { return backlogMarkets.contains(market); }
+
     public boolean claim(UUID owner,Instant now) {
         return jdbc.update("update game_price_sync_lock set owner=:owner,expires_at=:until,version=version+1 where expires_at is null or expires_at < :now",
                 Map.of(OWNER,owner,"until",java.sql.Timestamp.from(now.plusSeconds(120)),"now",java.sql.Timestamp.from(now)))==1;
@@ -35,66 +45,144 @@ public class GamePriceRepository {
      * kademesinin süresi dolduğunda (veya hiç denenmediğinde) adaydır. Sıra: editör seçimi, sıcak→ılık→soğuk, sonra en eski kontrol.
      * Gerçek popülerlik/talep verisi olmadığından popülerlik uydurulmaz; kademe yalnız çıkış tarihi ve editör seçiminden gelir.
      */
-    public List<Candidate> candidates(Market market,Instant now,Duration hot,Duration warm,Duration cold) {
+    public List<Candidate> candidates(Market market,Instant now,Duration hot,Duration warm,Duration cold) { return candidates(market,now,hot,warm,cold,200); }
+
+    /**
+     * Aynı sorgu, en çok {@code limit} aday. Sorgu üç büyük tabloyu tarar (oyunlar, yenileme durumu, dış kimlikler); bu yüzden tur, tek sorguda birkaç parti
+     * aday alıp 200'lük partilere böler: parti başına bir tam tarama yerine tur başına bir tarama yapılır.
+     */
+    public List<Candidate> candidates(Market market,Instant now,Duration hot,Duration warm,Duration cold,int limit) {
+        // Kademeler arası pay: sıkı öncelikte (sıcak→ılık→soğuk) sıcak kademenin talebi (süresi çabuk dolar) tüm kapasiteyi yer, ılık ve soğuk oyunlar
+        // hiç sıraya gelmezdi. Her kademe payını alır; bir kademede aday yoksa payı o turda boş kalır, sonraki turda yeniden dağılır.
+        // Birikim modu: soğuk kademenin normal payı kadar HİÇ FİYATI OLMAYAN oyun bulunuyorsa (ilk dolum, uzun kesinti, yeni pazar) soğuk pay büyür ve
+        // sıcak/ılık küçülür; hiç fiyatı olmayan oyun kalmayınca pay kendiliğinden normale döner (elle geri almak gerekmez).
+        int hotShare=percent(limit,HOT_SHARE_PERCENT);
+        int warmShare=percent(limit,WARM_SHARE_PERCENT);
+        int coldShare=Math.max(0,limit-hotShare-warmShare);
+        int backlogColdShare=percent(limit,BACKLOG_COLD_SHARE_PERCENT);
+        List<Row> coldRows=backlogColdShare>0 ? tierRows(market,now,hot,warm,cold,cold,backlogColdShare) : List.of();
+        boolean backlog=coldShare>0 && coldRows.stream().filter(Row::never).count()>=coldShare;
+        if(backlog) {
+            hotShare=percent(limit,BACKLOG_HOT_SHARE_PERCENT);
+            warmShare=percent(limit,BACKLOG_WARM_SHARE_PERCENT);
+            coldShare=backlogColdShare;
+            backlogMarkets.add(market);
+        } else {
+            backlogMarkets.remove(market);
+        }
+        Map<UUID,Candidate> merged=new java.util.LinkedHashMap<>();
+        if(hotShare>0) tierRows(market,now,hot,warm,cold,hot,hotShare).forEach(row -> merged.putIfAbsent(row.candidate().id(),row.candidate()));
+        if(warmShare>0) tierRows(market,now,hot,warm,cold,warm,warmShare).forEach(row -> merged.putIfAbsent(row.candidate().id(),row.candidate()));
+        coldRows.stream().limit(coldShare).forEach(row -> merged.putIfAbsent(row.candidate().id(),row.candidate()));
+        return List.copyOf(merged.values());
+    }
+
+    /** Kademeler arası aday payı (yüzde): normalde sıcak %40, ılık %30, soğuk kalanı (%30). */
+    static final int HOT_SHARE_PERCENT = 40;
+    static final int WARM_SHARE_PERCENT = 30;
+    /** Birikim modu payı (yüzde): sıcak %20, ılık %20, soğuk %60. */
+    static final int BACKLOG_HOT_SHARE_PERCENT = 20;
+    static final int BACKLOG_WARM_SHARE_PERCENT = 20;
+    static final int BACKLOG_COLD_SHARE_PERCENT = 60;
+
+    private static int percent(int limit,int percent) { return (limit*percent+99)/100; }
+
+    /** Bir aday ve "hiç fiyatı olmayan (hiç başarıyla yenilenmemiş)" işareti. */
+    private record Row(Candidate candidate,boolean never) { }
+
+    private List<Row> tierRows(Market market,Instant now,Duration hot,Duration warm,Duration cold,Duration only,int limit) {
         Map<String,Object> params=new java.util.HashMap<>();
-        params.put(COUNTRY,market.country());params.put(CURRENCY,market.currency());params.put("now",java.sql.Timestamp.from(now));
-        params.put("hot",hot.toSeconds());params.put("warm",warm.toSeconds());params.put("cold",cold.toSeconds());
+        params.put(COUNTRY,market.country());params.put(CURRENCY,market.currency());params.put("now",java.sql.Timestamp.from(now));params.put("limit",limit);
+        params.put("hot",hot.toSeconds());params.put("warm",warm.toSeconds());params.put("cold",cold.toSeconds());params.put("only",only.toSeconds());
         return jdbc.query("""
-                select id, tier from (
+                select id, tier, (checked_at is null or checked_at < timestamptz '2000-01-01') as never from (
                     select g.id, g.editor_rank, s.checked_at, s.next_attempt_at,
                         case when g.editor_rank is not null or g.release_date between current_date - 90 and current_date + 30 then :hot
                              when g.release_date >= current_date - 730 and g.release_date < current_date - 90 then :warm
                              else :cold end as tier
                     from games g left join game_price_refresh_state s on s.game_id=g.id and s.country=:country and s.currency=:currency
-                    where g.status='ACTIVE' and g.game_type='MAIN_GAME'
+                    where g.status='ACTIVE' and g.game_type in ('MAIN_GAME','DLC') and g.delisted_at is null
                       and exists(select 1 from game_external_refs r where r.game_id=g.id and r.provider='STEAM')
                 ) c
-                where (checked_at is null or checked_at < cast(:now as timestamptz) - make_interval(secs => tier))
+                where tier = :only
+                  and (checked_at is null or checked_at < cast(:now as timestamptz) - make_interval(secs => tier))
                   and (next_attempt_at is null or next_attempt_at <= cast(:now as timestamptz))
-                order by (editor_rank is null), tier asc, checked_at asc nulls first, id
-                limit 200
-                """,params,(rs,index) -> new Candidate(rs.getObject("id",UUID.class),Duration.ofSeconds(rs.getLong("tier"))));
+                order by (editor_rank is null), checked_at asc nulls first, id
+                limit :limit
+                """,params,(rs,index) -> new Row(new Candidate(rs.getObject("id",UUID.class),Duration.ofSeconds(rs.getLong("tier"))),rs.getBoolean("never")));
+    }
+    /**
+     * Verilen oyunların kademesi ({@link #candidates} ile aynı kural): yalnız yenilenebilir (aktif ana oyun veya DLC, mağazadan kaldırılmamış, Steam referanslı) oyunlar döner.
+     * Sayfası açılan oyunların anlık yenilemesi, planlı turdaki kademe süresiyle aynı gizleme süresini kullanabilsin diye gerekir.
+     */
+    public Map<UUID,Duration> tiers(Set<UUID> ids,Duration hot,Duration warm,Duration cold) {
+        if(ids.isEmpty()) return Map.of();
+        Map<String,Object> params=new java.util.HashMap<>();
+        params.put("ids",ids);params.put("hot",hot.toSeconds());params.put("warm",warm.toSeconds());params.put("cold",cold.toSeconds());
+        Map<UUID,Duration> result=new java.util.HashMap<>();
+        jdbc.query("""
+                select g.id, case when g.editor_rank is not null or g.release_date between current_date - 90 and current_date + 30 then :hot
+                                  when g.release_date >= current_date - 730 and g.release_date < current_date - 90 then :warm
+                                  else :cold end as tier
+                from games g
+                where g.id in (:ids) and g.status='ACTIVE' and g.game_type in ('MAIN_GAME','DLC') and g.delisted_at is null
+                  and exists(select 1 from game_external_refs r where r.game_id=g.id and r.provider='STEAM')
+                """,params,(org.springframework.jdbc.core.RowCallbackHandler) rs -> result.put(rs.getObject("id",UUID.class),Duration.ofSeconds(rs.getLong("tier"))));
+        return Map.copyOf(result);
+    }
+    /**
+     * Steam'in "ücretsiz" veya "henüz çıkmamış" dediği oyunlar: bu oyunların satın alma fiyatı yoktur, bu yüzden ITAD boşluğu için Steam'den
+     * fiyat sorulmaz (gereksiz Steam çağrısı olmaz).
+     */
+    public Set<UUID> withoutSteamPrice(Set<UUID> ids) {
+        if(ids.isEmpty()) return Set.of();
+        return Set.copyOf(jdbc.query("select id from games where id in (:ids) and (free is true or coming_soon is true)",Map.of("ids",ids),
+                (rs,index) -> rs.getObject("id",UUID.class)));
     }
     /** Ağ beklerken transaction yoktur. Kiralama kaybında eski worker hiçbir snapshot yayımlayamaz. */
     @Transactional
     public boolean publish(UUID owner,Set<UUID> ids,Market market,List<Quote> quotes,Instant now) {
         if(!owns(owner,now)) return false;
         if(quotes.stream().anyMatch(quote -> !ids.contains(quote.gameId()))) throw new IllegalArgumentException("İstenmeyen oyun fiyatı.");
-        for(UUID id:ids) {
-            var params=parameters(id,market);
-            jdbc.update("delete from game_price_quotes where game_id=:id and country=:country and currency=:currency",params);
-            var selected=quotes.stream().filter(quote -> quote.gameId().equals(id)).toList();
-            for(Quote quote:selected) {
-                if(!quote.market().equals(market) || quote.url()==null || quote.discountPercent()==null || quote.sourceUpdatedAt()==null)
-                    throw new IllegalArgumentException("Geçersiz fiyat snapshot'ı.");
-                jdbc.getJdbcTemplate().update("""
-                        insert into game_price_quotes(id,game_id,country,currency,store,regular_price,current_price,discount_percent,source,url,source_updated_at,fetched_at,expires_at)
-                        values (?,?,?,?,?,?,?,?,?,?,?,?,?)
-                        """,UUID.randomUUID(),id,market.country(),market.currency(),quote.store(),quote.regularPrice(),quote.currentPrice(),
-                        quote.discountPercent(),quote.source(),quote.url(),java.sql.Timestamp.from(quote.sourceUpdatedAt()),
-                        java.sql.Timestamp.from(quote.fetchedAt()),java.sql.Timestamp.from(quote.expiresAt()));
-            }
-            state(id,market,selected.isEmpty()?"NO_OFFER":"AVAILABLE",now,null);
+        for(Quote quote:quotes) {
+            if(!quote.market().equals(market) || quote.url()==null || quote.discountPercent()==null || quote.sourceUpdatedAt()==null)
+                throw new IllegalArgumentException("Geçersiz fiyat snapshot'ı.");
         }
+        // Parti başına tek silme + toplu ekleme + toplu durum yazımı (200 oyun için ≈800 tek tek istek yerine 3 istek); anlamı oyun başına döngüyle aynıdır.
+        Map<String,Object> params=new java.util.HashMap<>();
+        params.put(COUNTRY,market.country());params.put(CURRENCY,market.currency());params.put("ids",ids);
+        jdbc.update("delete from game_price_quotes where game_id in (:ids) and country=:country and currency=:currency",params);
+        List<Object[]> inserts=quotes.stream().map(quote -> new Object[]{UUID.randomUUID(),quote.gameId(),market.country(),market.currency(),quote.store(),quote.regularPrice(),
+                quote.currentPrice(),quote.discountPercent(),quote.source(),quote.url(),java.sql.Timestamp.from(quote.sourceUpdatedAt()),
+                java.sql.Timestamp.from(quote.fetchedAt()),java.sql.Timestamp.from(quote.expiresAt())}).toList();
+        if(!inserts.isEmpty()) jdbc.getJdbcTemplate().batchUpdate("""
+                insert into game_price_quotes(id,game_id,country,currency,store,regular_price,current_price,discount_percent,source,url,source_updated_at,fetched_at,expires_at)
+                values (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                """,inserts);
+        Set<UUID> withOffers=quotes.stream().map(Quote::gameId).collect(java.util.stream.Collectors.toSet());
+        List<Object[]> states=ids.stream().map(id -> new Object[]{UUID.randomUUID(),id,market.country(),market.currency(),withOffers.contains(id)?"AVAILABLE":"NO_OFFER",
+                java.sql.Timestamp.from(now),null}).toList();
+        jdbc.getJdbcTemplate().batchUpdate(STATE_UPSERT,states);
         return true;
     }
+    /**
+     * Başarısız yenileme: oyun {@code FAILED} işaretlenir ve {@code next_attempt_at} verilmişse o zamana kadar aday olmaz. {@code checked_at} İLERLETİLMEZ:
+     * başarısız deneme "taze kontrol" sayılsaydı oyun kademe süresi (soğukta 8 saat) boyunca yeniden denenmezdi. Mevcut satırda önceki kontrol zamanı
+     * korunur, yeni satırda epoch yazılır (kolon boş olamaz); böylece bekleme bitince oyun hemen yeniden aday olur.
+     */
     @Transactional
     public void failed(UUID owner,Set<UUID> ids,Market market,Instant now,String code,Duration retryAfter) {
-        if(owns(owner,now)) for(UUID id:ids) {
-            state(id,market,"FAILED",now,code);
-            if(retryAfter!=null) jdbc.update("update game_price_refresh_state set next_attempt_at=:next where game_id=:id and country=:country and currency=:currency",
-                    Map.of("id",id,COUNTRY,market.country(),CURRENCY,market.currency(),"next",java.sql.Timestamp.from(now.plus(retryAfter))));
-        }
+        if(!owns(owner,now) || ids.isEmpty()) return;
+        java.sql.Timestamp next=retryAfter==null ? null : java.sql.Timestamp.from(now.plus(retryAfter));
+        List<Object[]> rows=ids.stream().map(id -> new Object[]{UUID.randomUUID(),id,market.country(),market.currency(),java.sql.Timestamp.from(Instant.EPOCH),code,next}).toList();
+        jdbc.getJdbcTemplate().batchUpdate("""
+                insert into game_price_refresh_state(id,game_id,country,currency,status,checked_at,error_code,next_attempt_at) values (?,?,?,?,'FAILED',?,?,?)
+                on conflict(game_id,country,currency) do update set status='FAILED',error_code=excluded.error_code,next_attempt_at=excluded.next_attempt_at,version=game_price_refresh_state.version+1
+                """,rows);
     }
     private boolean owns(UUID owner,Instant now) {
         return !jdbc.query("select owner from game_price_sync_lock where owner=:owner and expires_at>:now for update",
                 Map.of(OWNER,owner,"now",java.sql.Timestamp.from(now)),(rs,index)->rs.getObject(OWNER,UUID.class)).isEmpty();
-    }
-    private void state(UUID id,Market market,String status,Instant now,String code) {
-        jdbc.getJdbcTemplate().update("""
-                insert into game_price_refresh_state(id,game_id,country,currency,status,checked_at,error_code) values (?,?,?,?,?,?,?)
-                on conflict(game_id,country,currency) do update set status=excluded.status,checked_at=excluded.checked_at,error_code=excluded.error_code,next_attempt_at=null,version=game_price_refresh_state.version+1
-                """,UUID.randomUUID(),id,market.country(),market.currency(),status,java.sql.Timestamp.from(now),code);
     }
     public List<Quote> quotes(Set<UUID> ids,Market market) {
         if(ids.isEmpty()) return List.of();

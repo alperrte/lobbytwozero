@@ -1,7 +1,6 @@
 package com.ltz.game.application.service;
 
 import com.ltz.game.application.port.GameProvider;
-import com.ltz.game.application.port.StoreDetailSource;
 import com.ltz.game.domain.entity.Game;
 import com.ltz.game.domain.enums.GameOrigin;
 import com.ltz.game.domain.enums.GameStatus;
@@ -20,7 +19,6 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -30,20 +28,24 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * DLC kayıtlarını ana oyunlarına bağlar. Birincil kaynak IGDB {@code parent_game}'dir; IGDB'nin oyun kimliği LTZ kimliği sayılmaz:
- * üst oyun IGDB'nin kendi Steam kaydı üzerinden Steam AppID'ye, o da katalogdaki oyuna çevrilir. Steam mağaza {@code fullgame} bilgisi
- * yalnız (a) IGDB üst oyun bildirmediğinde, (b) eşleme belirsizse/eşlenemediyse, (c) örneklem doğrulamasında (AppID % 25 = 0, yaklaşık %4)
- * kullanılır; her DLC için ayrı Steam isteği atılmaz. İki kaynak çelişirse rastgele seçilmez: ilişki boş bırakılır ve CONFLICT olarak sayılır.
+ * üst oyun IGDB'nin kendi Steam kaydı üzerinden Steam AppID'ye, o da katalogdaki oyuna çevrilir. Steam'in {@code related_items.parent_appid}
+ * bilgisi (toplu mağaza çağrısı, 100 DLC/istek) yalnız (a) IGDB üst oyun bildirmediğinde, (b) eşleme belirsizse/eşlenemediyse, (c) örneklem
+ * doğrulamasında (AppID % 25 = 0, yaklaşık %4) kullanılır. IGDB yeteneği yoksa (IGDB kapalı kurulum) IGDB adımı atlanır ve tüm adaylar
+ * doğrudan Steam ile sorulur. İki kaynak çelişirse rastgele seçilmez: ilişki boş bırakılır ve CONFLICT olarak sayılır.
  * <p>
  * Bağlama kuralları: ana oyun katalogda aktif bir MAIN_GAME olmalıdır; UNKNOWN/başka türdeki ana oyuna ZORLA bağlanmaz (sınıflandırma
- * politikası bozulmaz, kayıt 7 gün sonra yeniden bakılır). Veritabanı kısıtları (V174) kendine bağlanmayı, DLC olmayan kayda bağlanmayı
+ * politikası bozulmaz); bağlanamayan kayıt {@link #UNKNOWN_RECHECK} sonra, kesin incelenen (çelişki vb.) kayıt {@link #RECHECK} sonra yeniden bakılır). Veritabanı kısıtları (V174) kendine bağlanmayı, DLC olmayan kayda bağlanmayı
  * ve DLC'ye üst oyun olmasını reddeder. Her inceleme {@code DLC_PARENT} gözlemiyle işaretlenir; sağlayıcı HATASI işaret yazmaz.
  */
 @Service
 public class DlcParentService {
     static final int BATCH = 200;
     static final Duration RECHECK = Duration.ofDays(7);
+    /** Ana oyun/kanıt henüz yoksa (UNKNOWN gözlem) yeniden bakma aralığı: ana oyun sınıflanınca DLC saatler içinde bağlanır. */
+    static final Duration UNKNOWN_RECHECK = Duration.ofHours(6);
     static final Duration IDLE_INTERVAL = Duration.ofMinutes(30);
-    static final int FALLBACK_PER_STEP = 3;
+    /** Steam toplu mağaza çağrısı başına en çok bu kadar DLC. */
+    static final int STEAM_BATCH = 100;
     /** Örneklem doğrulaması: AppID bu sayıya tam bölünen IGDB bağlantıları Steam ile de doğrulanır (~%4). */
     static final int VERIFY_MODULUS = 25;
     static final String MARKER = "DLC_PARENT";
@@ -60,7 +62,6 @@ public class DlcParentService {
     private record Pending(GameExternalReferenceRepository.ClassificationRow row, String igdbParent) { }
 
     private final GameProvider provider;
-    private final StoreDetailSource store;
     private final GameRepository games;
     private final DlcParentRepository parents;
     private final GameProviderSyncStateRepository states;
@@ -76,11 +77,10 @@ public class DlcParentService {
     private long before = Long.MAX_VALUE;
     private boolean steamTurn = true;
 
-    public DlcParentService(GameProvider provider, StoreDetailSource store, GameRepository games, DlcParentRepository parents,
+    public DlcParentService(GameProvider provider, GameRepository games, DlcParentRepository parents,
             GameProviderSyncStateRepository states, MetadataProvenanceService provenance, ProviderRetryPolicy retries,
             PlatformTransactionManager transactions, Clock clock) {
         this.provider = provider;
-        this.store = store;
         this.games = games;
         this.parents = parents;
         this.states = states;
@@ -104,12 +104,12 @@ public class DlcParentService {
     }
 
     /**
-     * Bir inceleme adımı: bekleyen Steam doğrulamaları varsa en çok {@value #FALLBACK_PER_STEP} tanesi, yoksa bir IGDB partisi.
+     * Bir inceleme adımı: bekleyen Steam doğrulamaları varsa en çok {@value #STEAM_BATCH} tanesi tek toplu çağrıyla, yoksa bir aday partisi
+     * (IGDB açıksa IGDB kanıtıyla).
      *
      * @return işlenen DLC sayısı; iş yoksa veya duraklatılmışsa {@code -1}
      */
     public synchronized int reviewNext() {
-        if (!provider.capabilities().contains(GameProvider.Capability.ITEM_TYPE)) return -1;
         Instant now = clock.instant();
         if (pausedUntil != null && now.isBefore(pausedUntil)) return -1;
         if (pending.isEmpty()) return igdbBatch(now);
@@ -119,10 +119,10 @@ public class DlcParentService {
     }
 
     private int igdbBatch(Instant now) {
-        var rows = parents.candidates(now.minus(RECHECK), before, BATCH);
+        var rows = parents.candidates(now.minus(RECHECK), now.minus(UNKNOWN_RECHECK), before, BATCH);
         if (rows.isEmpty() && before != Long.MAX_VALUE) {
             before = Long.MAX_VALUE;   // tur bitti: baştan bak (hata nedeniyle işaretsiz kalanlar için)
-            rows = parents.candidates(now.minus(RECHECK), before, BATCH);
+            rows = parents.candidates(now.minus(RECHECK), now.minus(UNKNOWN_RECHECK), before, BATCH);
         }
         // Steam doğrulaması bekleyen (henüz işaretsiz) kayıtlar bir sonraki turda yeniden kuyruğa girmesin.
         java.util.Set<String> inFlight = pending.stream().map(item -> item.row().getExternalId()).collect(java.util.stream.Collectors.toSet());
@@ -132,9 +132,11 @@ public class DlcParentService {
             pausedUntil = now.plus(IDLE_INTERVAL);
             return -1;
         }
-        Map<String, GameProvider.RelationEvidence> evidence;
+        Map<String, GameProvider.RelationEvidence> evidence = Map.of();
         try {
-            evidence = provider.relationEvidence(rows.stream().map(row -> row.getExternalId()).toList());
+            if (provider.capabilities().contains(GameProvider.Capability.ITEM_TYPE)) {
+                evidence = provider.relationEvidence(rows.stream().map(row -> row.getExternalId()).toList());
+            }
         } catch (ProviderException error) {
             pause(error, now);
             return -1;
@@ -154,25 +156,24 @@ public class DlcParentService {
     }
 
     private int steamStep(Instant now) {
-        List<Decision> decisions = new ArrayList<>();
-        boolean stopped = false;
-        for (int count = 0; count < FALLBACK_PER_STEP && !stopped && !pending.isEmpty(); count++) {
-            Pending item = pending.peekFirst();
-            try {
-                Optional<StoreDetailSource.StoreDetails> details = store.details(item.row().getExternalId());
-                pending.pollFirst();
-                consecutiveFailures = 0;
-                decisions.add(new Decision(item.row(), item.igdbParent(), details.map(StoreDetailSource.StoreDetails::fullGameAppId).orElse(null)));
-            } catch (ProviderException error) {
-                if ("INVALID_PROVIDER_REQUEST".equals(error.code())) {
-                    pending.pollFirst();
-                } else {
-                    pause(error, now);
-                    stopped = true;
-                }
+        List<Pending> batch = pending.stream().limit(STEAM_BATCH).toList();
+        Map<String, GameProvider.StoreType> found;
+        try {
+            found = provider.storeTypes(batch.stream().map(item -> item.row().getExternalId()).toList());
+        } catch (ProviderException error) {
+            if ("INVALID_PROVIDER_REQUEST".equals(error.code())) {
+                batch.forEach(item -> pending.pollFirst());
+            } else {
+                pause(error, now);
             }
+            return -1;
         }
-        if (decisions.isEmpty()) return -1;
+        consecutiveFailures = 0;
+        batch.forEach(item -> pending.pollFirst());
+        List<Decision> decisions = batch.stream().map(item -> {
+            GameProvider.StoreType type = found.get(item.row().getExternalId());
+            return new Decision(item.row(), item.igdbParent(), type == null ? null : type.parentAppId());
+        }).toList();
         transaction.executeWithoutResult(status -> apply(decisions, now));
         return decisions.size();
     }
@@ -218,7 +219,7 @@ public class DlcParentService {
             game.setParentGameId(parentRows.get(parentAppId).getGameId());
             game.setUpdatedAt(now);
         }
-        String source = decision.igdbParent() != null ? provider.detailSource() : store.source();
+        String source = decision.igdbParent() != null ? provider.detailSource() : provider.provider();
         MetadataDataState state = observationState(linked, outcome);
         provenance.recordObservation(game, MARKER, source, state, false);
     }

@@ -43,13 +43,24 @@ describe("Filtre doğrulaması ve chip listesi", () => {
   it("son sayfa dizinini toplamdan hesaplar", () => {
     expect([lastPageIndex(0), lastPageIndex(20), lastPageIndex(21), lastPageIndex(100000)]).toEqual([0, 0, 1, 4999]);
   });
-  it("fiyat pazarı para biriminden belirlenir: USD→US, EUR→DE, GBP→GB; TRY ve bilinmeyen değer USD'ye düşer", () => {
+  it("fiyat pazarı para biriminden belirlenir: USD→US, EUR→DE, GBP→GB, TRY→TR; bilinmeyen değer USD'ye düşer", () => {
     const market = (currency: string, country = "XX") => Object.fromEntries(discoveryQuery(new URLSearchParams({ currency, country })));
     expect(market("USD")).toMatchObject({ country: "US", currency: "USD" });
     expect(market("EUR")).toMatchObject({ country: "DE", currency: "EUR" });
     expect(market("GBP", "TR")).toMatchObject({ country: "GB", currency: "GBP" });
-    expect(market("TRY", "TR")).toMatchObject({ country: "US", currency: "USD" });
+    expect(market("TRY", "XX")).toMatchObject({ country: "TR", currency: "TRY" });
     expect(market("???")).toMatchObject({ country: "US", currency: "USD" });
     expect(Object.fromEntries(discoveryQuery(new URLSearchParams()))).toMatchObject({ country: "US", currency: "USD" });
+  });
+  it("URL'de pazar yoksa arayüz dilinin varsayılan pazarı kullanılır; URL'deki seçim her zaman önceliklidir", () => {
+    expect(Object.fromEntries(discoveryQuery(new URLSearchParams(), "TRY"))).toMatchObject({ country: "TR", currency: "TRY" });
+    expect(Object.fromEntries(discoveryQuery(new URLSearchParams("currency=EUR"), "TRY"))).toMatchObject({ country: "DE", currency: "EUR" });
+    expect(Object.fromEntries(sanitizedDiscoveryQuery(new URLSearchParams("genre=rpg"), "TRY").query)).toMatchObject({ country: "TR", currency: "TRY", genre: "rpg" });
+  });
+  it("+18 oyunları göster seçimi yalnız işaretliyken sunucuya gider ve aktif filtre olarak sayılır", () => {
+    expect(discoveryQuery(new URLSearchParams("includeAdult=true")).get("includeAdult")).toBe("true");
+    expect(discoveryQuery(new URLSearchParams("includeAdult=")).has("includeAdult")).toBe(false);
+    expect(discoveryQuery(new URLSearchParams()).has("includeAdult")).toBe(false);
+    expect(activeFilters(new URLSearchParams("includeAdult=true"))).toEqual([{ key: "includeAdult", value: "true" }]);
   });
 });

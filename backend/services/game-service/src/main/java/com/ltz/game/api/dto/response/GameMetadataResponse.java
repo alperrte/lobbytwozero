@@ -5,9 +5,10 @@ import com.ltz.game.domain.enums.MetadataDataState;
 import com.ltz.game.domain.enums.RequirementLevel;
 import java.util.List;
 import java.util.UUID;
-public record GameMetadataResponse(UUID gameId, List<Term> genres, List<Term> categories,
+/** {@code adult}: Steam'in yetişkin içerik işareti (null = bilinmiyor); {@code delisted}: Steam'in art arda tanımadığı, mağazadan kaldırılmış oyun (kayıt silinmez). */
+public record GameMetadataResponse(UUID gameId, Boolean earlyAccess, Boolean free, Boolean comingSoon, Boolean adult, boolean delisted, List<Term> genres, List<Term> categories,
         List<Term> tags, List<Term> platforms, List<String> developers, List<String> publishers,
-        List<Media> media, List<Requirement> systemRequirements, List<String> languages, Boolean earlyAccess,
+        List<Media> media, List<Requirement> systemRequirements, List<String> languages,
         String metadataLanguage, MetadataDataState languageDataState, List<LanguageSupport> languageSupport,
         List<Provenance> provenance) {
     public record LanguageSupport(String languageCode, LanguageSupportStatus interfaceSupport, LanguageSupportStatus audioSupport, LanguageSupportStatus subtitleSupport) { }

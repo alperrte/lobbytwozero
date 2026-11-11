@@ -16,18 +16,20 @@ public interface DlcParentRepository extends Repository<Game, UUID> {
 
     /**
      * İnceleme adayları: ana oyunu henüz bağlanmamış aktif harici Steam DLC kayıtları, AppID azalan (yeni önce) ve verilen AppID'den önce (imleç; Steam doğrulaması bekleyen kayıtlar aynı partide tekrar dönmesin). {@code DLC_PARENT}
-     * gözlemi {@code cutoff}'tan yeni olan kayıt (bağlanamamış, bekleme süresinde) çıkar; bağlanan kayıt zaten aday değildir.
+     * gözlemi bekleme süresinde olan kayıt çıkar: UNKNOWN gözlem (ana oyun/kanıt henüz yok) {@code unknownCutoff}'tan, diğerleri {@code cutoff}'tan yeni ise.
+     * Bağlanan kayıt zaten aday değildir.
      */
     @Query(value = """
         select r.external_id as externalId, r.game_id as gameId
         from game_external_refs r join games g on g.id = r.game_id
         where r.provider = 'STEAM' and g.status = 'ACTIVE' and g.origin = 'EXTERNAL' and g.game_type = 'DLC' and g.parent_game_id is null
         and cast(r.external_id as bigint) < :before
-        and not exists (select 1 from game_metadata_provenance p where p.game_id = g.id and p.field = 'DLC_PARENT' and p.recorded_at > :cutoff)
+        and not exists (select 1 from game_metadata_provenance p where p.game_id = g.id and p.field = 'DLC_PARENT'
+                        and p.recorded_at > case when p.data_state = 'UNKNOWN' then cast(:unknownCutoff as timestamptz) else cast(:cutoff as timestamptz) end)
         order by cast(r.external_id as bigint) desc
         limit :limit
         """, nativeQuery = true)
-    List<GameExternalReferenceRepository.ClassificationRow> candidates(@Param("cutoff") Instant cutoff, @Param("before") long before, @Param("limit") int limit);
+    List<GameExternalReferenceRepository.ClassificationRow> candidates(@Param("cutoff") Instant cutoff, @Param("unknownCutoff") Instant unknownCutoff, @Param("before") long before, @Param("limit") int limit);
 
     /** Steam AppID'lerinin katalogdaki oyunları (yoksa satır dönmez). */
     @Query(value = """

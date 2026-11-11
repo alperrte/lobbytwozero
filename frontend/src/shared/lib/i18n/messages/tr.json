@@ -814,6 +814,7 @@
       "releasedBefore": "En geç çıkış tarihi",
       "minRating": "En düşük LTZ puanı (1–10)",
       "popularOnly": "Yalnız popüler oyunlar",
+      "includeAdult": "+18 oyunları göster",
       "discountedOnly": "Yalnız güncel indirimler",
       "country": "Ülke",
       "currency": "Para birimi",
@@ -887,7 +888,9 @@
     "priceStates": {
       "STALE": "Fiyatın güncelliği doldu; güncel fiyat olarak gösterilmiyor.",
       "NO_OFFER": "Bu pazar için son kontrolde teklif bulunamadı.",
-      "UNAVAILABLE": "Bu pazar için doğrulanmış fiyat bilgisi bulunmuyor."
+      "UNAVAILABLE": "Bu pazar için doğrulanmış fiyat bilgisi bulunmuyor.",
+      "FREE": "Bu oyun ücretsiz; satın alma fiyatı yok.",
+      "COMING_SOON": "Bu oyun henüz çıkmadı; fiyatı çıkışa yakın açıklanır."
     },
     "workspace": {
       "admin": "Oyun ve yetki yönetimi",
@@ -923,6 +926,11 @@
     "developerDescription": "Geliştirici açıklaması",
     "discountPercent": "%{percent} indirim",
     "earlyAccessBadge": "Erken erişim",
+    "freeBadge": "Ücretsiz",
+    "adultBadge": "+18",
+    "delistedNotice": "Bu oyun Steam mağazasından kaldırılmış görünüyor. Kaydı ve bilgileri korunur; yeni fiyat veya durum güncellenmez.",
+    "priceTurkeyNote": "Steam Türkiye'de ABD doları ile satış yapar; Steam fiyatı için ABD (USD) pazarına bakın. Bazı mağazalar Türk lirasıyla satış yapmaz; bu fiyatlar güncel kurla dönüştürülmüştür ve ödeme mağazanın kendi para biriminde yapılır.",
+    "comingSoonBadge": "Yakında",
     "editorRank": "Editör sırası #{rank}",
     "editorsPicks": "Editörün Seçtikleri",
     "editorsPicksHelp": "Bu liste editörler tarafından elle seçilir. Oyuncu etkileşimine dayalı bir trend ya da popülerlik ölçümü değildir.",

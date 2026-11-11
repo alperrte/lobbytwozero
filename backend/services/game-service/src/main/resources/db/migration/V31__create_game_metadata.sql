@@ -29,7 +29,12 @@ create table games (
     constraint uq_games_editor_rank unique (editor_rank) deferrable initially deferred,
     metadata_language varchar(35),
     language_data_state varchar(16) not null default 'UNKNOWN'
-        check(language_data_state in ('UNKNOWN','EMPTY','INVALID','AVAILABLE'))
+        check(language_data_state in ('UNKNOWN','EMPTY','INVALID','AVAILABLE')),
+    -- Steam mağaza bilgisi (yalnız Steam yazar); NULL = bilinmiyor, false varsayılmaz.
+    free boolean,          -- Steam'e göre ücretsiz oyun
+    coming_soon boolean,   -- Steam'e göre henüz çıkmamış ("yakında")
+    adult boolean,         -- Steam içerik tanımlayıcıları 3 (Adult Only Sexual Content) veya 4 (Frequent Nudity or Sexual Content)
+    delisted_at timestamptz -- Steam'in art arda tanımadığı (mağazadan kaldırılmış) oyun; kayıt silinmez, keşif listelerinden gizlenir
 );
 create table catalog_terms (
     id uuid primary key,

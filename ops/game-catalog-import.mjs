@@ -26,6 +26,22 @@ export const ALLOWED_HOSTS = ['github.com', 'objects.githubusercontent.com', 're
 export const ACCOUNT_DATA_TABLES = ['game_developer_grants', 'game_developer_feedback', 'game_admin_audits', 'game_identity_audits',
   'game_account_erasure_context', 'game_developer_contents', 'game_developer_media', 'game_update_notes', 'game_rating_projection'];
 
+/**
+ * Dump'a VERİSİ konmayan tablolar (şema kalır). Fiyat satırları ömürleri dolunca (sıcak ≈1 sa, soğuk ≈24 sa) zaten gizlenir ve dağıtım anında bayattır; veritabanının
+ * yaklaşık yarısıdır ve dump'ı gereksiz büyütür. Servis açılışta fiyatları kendisi yeniden doldurur. Manifestte bu tabloların sayısı 0 yazılır.
+ */
+export const EXCLUDED_DATA_TABLES = ['game_price_quotes', 'game_price_refresh_state'];
+
+/** pg_dump için veri dışlama bayrakları. */
+export function excludeDataFlags(tables = EXCLUDED_DATA_TABLES) {
+  return tables.map(name => `--exclude-table-data=${name}`).join(' ');
+}
+
+/** Dump'ta verisi olmayan tabloların manifest sayısı 0'dır (içe aktarma sonrası doğrulama dump'ın gerçek içeriğiyle karşılaştırılır). */
+export function dumpedCounts(tables) {
+  return { ...tables, ...Object.fromEntries(EXCLUDED_DATA_TABLES.map(name => [name, 0])) };
+}
+
 /** Docker çıktısından yalnız araç hata/özet satırlarını süzer (ayrıntı/ENV sızdırmaz). */
 export function importSummary(output) {
   return output.split(/\r?\n/)
@@ -83,6 +99,10 @@ export function validateManifest(manifest) {
   if (!Number.isInteger(manifest.bytes) || manifest.bytes <= 0 || manifest.bytes > MAX_DOWNLOAD_BYTES) fail('bytes');
   if (!Number.isInteger(manifest.flywayVersion) || manifest.flywayVersion < 31) fail('flywayVersion');
   if (!manifest.tables || !(manifest.tables.games > 0)) fail('tables.games');
+  if (manifest.excludedDataTables !== undefined) {
+    if (!Array.isArray(manifest.excludedDataTables) || manifest.excludedDataTables.some(name => !EXCLUDED_DATA_TABLES.includes(name))) fail('excludedDataTables');
+    if (manifest.excludedDataTables.some(name => manifest.tables[name] !== 0)) fail('excludedDataTables sayıları 0 olmalı');
+  }
   if (manifest.url !== null && manifest.url !== undefined) assertDownloadUrl(manifest.url);
   return manifest;
 }
@@ -156,7 +176,7 @@ export async function exportCatalog(directory) {
   assertNoAccountData(before.tables);
   await fs.mkdir(directory, { recursive: true });
   docker(['exec', POSTGRES_CONTAINER, 'sh', '-c',
-    `pg_dump -U "$POSTGRES_USER" -d ${DATABASE} -Fc -Z 6 --no-owner --no-privileges -f ${remote}`]);
+    `pg_dump -U "$POSTGRES_USER" -d ${DATABASE} -Fc -Z 6 --no-owner --no-privileges ${excludeDataFlags()} -f ${remote}`]);
   const target = path.join(directory, DUMP_FILE);
   try {
     docker(['cp', `${POSTGRES_CONTAINER}:${remote}`, target]);
@@ -167,7 +187,8 @@ export async function exportCatalog(directory) {
   const stat = await fs.stat(target);
   const manifest = validateManifest({
     format: 1, createdAt: new Date().toISOString(), flywayVersion: before.flyway, postgresMajor: before.postgresMajor,
-    file: DUMP_FILE, bytes: stat.size, sha256: await sha256File(target), url: previous?.url ?? null, tables: before.tables
+    file: DUMP_FILE, bytes: stat.size, sha256: await sha256File(target), url: previous?.url ?? null, tables: dumpedCounts(before.tables),
+    excludedDataTables: EXCLUDED_DATA_TABLES
   });
   await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
   console.log(`GAME_CATALOG_EXPORT_RESULT ${JSON.stringify({ file: target, bytes: manifest.bytes, sha256: manifest.sha256, games: manifest.tables.games, flyway: manifest.flywayVersion })}`);

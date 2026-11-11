@@ -11,5 +11,5 @@ import org.springframework.scheduling.annotation.Scheduled;
 public class GamePriceSchedulingConfiguration {
     private final GamePriceService prices;
     public GamePriceSchedulingConfiguration(GamePriceService prices) { this.prices=prices; }
-    @Scheduled(fixedDelay=60000,initialDelay=30000) public void refresh() { prices.refresh(); }
+    @Scheduled(fixedDelayString="${ltz.game.pricing.sync.delay:PT15S}",initialDelay=30000) public void refresh() { prices.refresh(); }
 }

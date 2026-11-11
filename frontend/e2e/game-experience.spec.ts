@@ -26,8 +26,8 @@ for (const width of [1440, 768, 390]) {
       if (url.pathname === "/api/v1/game/games") {
         queries.push(url.searchParams);
         return reply({ items: [
-          { game: card(0, { coverUrl: "https://images.example/c.png" }), releaseDate: "2026-01-01", rating: { status: "RATED", averageRating: 8.5, ratingCount: 3 } },
-          { game: card(1), releaseDate: null, rating: { status: "UNRATED", averageRating: null, ratingCount: 0 } },
+          { game: card(0, { coverUrl: "https://images.example/c.png" }), releaseDate: "2026-01-01", free: true, rating: { status: "RATED", averageRating: 8.5, ratingCount: 3 } },
+          { game: card(1), releaseDate: null, comingSoon: true, rating: { status: "UNRATED", averageRating: null, ratingCount: 0 } },
           { game: card(2), releaseDate: "2026-02-02", earlyAccess: true, rating: { status: "UNAVAILABLE", averageRating: null, ratingCount: null } }
         ], page: 0, size: 20, totalElements: 3 });
       }
@@ -38,6 +38,12 @@ for (const width of [1440, 768, 390]) {
     await expect(page.getByTestId("cover-placeholder")).toHaveCount(2);
     await expect(page.getByText(t.unrated)).toBeVisible();
     await expect(page.getByText(t.ratingUnavailable)).toBeVisible();
+    // Kapak üstü durum rozetleri: ücretsiz, yakında ve erken erişim ayrı kartlarda, taşma olmadan.
+    await expect(page.getByTestId("free-mark")).toHaveCount(1);
+    await expect(page.getByTestId("free-mark")).toHaveText(t.freeBadge);
+    await expect(page.getByTestId("coming-soon-mark")).toHaveCount(1);
+    await expect(page.getByTestId("coming-soon-mark")).toHaveText(t.comingSoonBadge);
+    await expect(page.getByTestId("early-access-mark")).toHaveCount(1);
     await overflowFree(page);
 
     await page.getByRole("button", { name: t.viewList, exact: true }).click();
@@ -86,7 +92,7 @@ for (const width of [1440, 390]) {
       const url = new URL(route.request().url());
       const reply = (json: unknown, status = 200) => route.fulfill({ json, status, headers: cors });
       if (url.pathname === "/api/v1/auth/me") return reply({ status: 401 }, 401);
-      if (url.pathname === "/api/v1/game/games/prices") return reply({ market: { country: "US", currency: "USD" }, items: [{ gameId: ids[0], status: "STALE", offers: [] }] });
+      if (url.pathname === "/api/v1/game/games/prices") return reply({ market: { country: url.searchParams.get("country"), currency: url.searchParams.get("currency") }, items: [{ gameId: ids[0], status: "STALE", offers: [] }] });
       if (url.pathname.endsWith("/developer-content")) return reply({ gameId: ids[0], description: null, media: [], updateNotes: [] });
       if (url.pathname.includes("/modules/")) return reply({ gameId: ids[0], type: "ACHIEVEMENTS", state: "EMPTY", items: [], page: 0, size: 20, totalElements: 0 });
       if (url.pathname === `/api/v1/game/games/${ids[0]}`) return reply({
@@ -100,9 +106,9 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole("heading", { level: 1, name: "E2E Oyun 1" })).toBeVisible();
     const gallery = page.getByRole("group", { name: t.gallery });
     await gallery.focus();
-    await expect(gallery.getByText("1 / 3")).toBeVisible();
+    await expect(gallery.getByText("1 / 2")).toBeVisible();
     await page.keyboard.press("ArrowRight");
-    await expect(gallery.getByText("2 / 3")).toBeVisible();
+    await expect(gallery.getByText("2 / 2")).toBeVisible();
     await page.getByRole("navigation", { name: t.pageSections }).getByRole("link", { name: t.sections.prices }).click();
     await expect(page).toHaveURL(/#game-prices$/);
     await expect(page.getByText(t.priceStates.STALE)).toBeVisible();

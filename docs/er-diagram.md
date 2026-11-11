@@ -291,7 +291,7 @@ erDiagram
     numeric regular_price
     numeric current_price
     smallint discount_percent
-    varchar source
+    varchar source "V173: ITAD veya STEAM"
     varchar url
     timestamptz source_updated_at
     timestamptz fetched_at
@@ -458,6 +458,10 @@ erDiagram
     varchar description
     date release_date
     boolean early_access
+    boolean free "V31: Steam ucretsiz; null=bilinmiyor"
+    boolean coming_soon "V31: Steam henuz cikmamis; null=bilinmiyor"
+    boolean adult "V31: Steam +18 icerik; null=bilinmiyor"
+    timestamptz delisted_at "V31: Steam magazadan kaldirilmis; null=listede"
     int editor_rank UK
     timestamptz popularity_updated_at
     uuid editor_actor_id "REF"

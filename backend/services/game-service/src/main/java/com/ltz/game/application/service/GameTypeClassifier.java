@@ -17,6 +17,18 @@ public class GameTypeClassifier {
             Map.entry("package", GameType.PACKAGE), Map.entry("bundle", GameType.PACKAGE), Map.entry("pack", GameType.PACKAGE),
             Map.entry("hardware", GameType.HARDWARE));
 
+    /**
+     * Steam mağaza türü (yedek kanıt): 0 oyun, 4 DLC. Demo (1), müzik, yazılım, video ve tanımadığımız her değer UNKNOWN kalır; kayıt listeye
+     * girmez. Canlı veriyle kalibre edilmiştir (IGDB'nin sınıfladığı ana oyunların tamamı type=0, DLC'lerin %99,3'ü type=4).
+     */
+    public GameType fromSteamStoreType(int steamType) {
+        return switch (steamType) {
+            case 0 -> GameType.MAIN_GAME;
+            case 4 -> GameType.DLC;
+            default -> GameType.UNKNOWN;
+        };
+    }
+
     public GameType classify(String providerType, boolean supportedSignal) {
         if (!supportedSignal || providerType==null) return GameType.UNKNOWN;
         return TYPES.getOrDefault(providerType.strip().toLowerCase(Locale.ROOT), GameType.UNKNOWN);

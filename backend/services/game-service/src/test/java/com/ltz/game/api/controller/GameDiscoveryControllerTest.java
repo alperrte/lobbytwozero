@@ -55,6 +55,35 @@ class GameDiscoveryControllerTest extends PostgresTestSupport {
         mvc.perform(get("/api/v1/game/games")).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(2));
         assertTrue(discovery.list(new DiscoveryQuery(10,10)).items().isEmpty());
     }
+    @Test void adultAndDelistedGamesAreHiddenFromEveryListUnlessAdultIsExplicitlyIncludedButDirectAccessStaysOpen() throws Exception {
+        UUID plain=game("Plain","EXTERNAL","MAIN_GAME","ACTIVE");
+        game("Unknown adult","EXTERNAL","MAIN_GAME","ACTIVE");
+        UUID adult=game("Adult game","EXTERNAL","MAIN_GAME","ACTIVE"), delisted=game("Gone game","EXTERNAL","MAIN_GAME","ACTIVE");
+        UUID adultDelisted=game("Adult gone","EXTERNAL","MAIN_GAME","ACTIVE");
+        jdbc.update("update games set adult=false where id=?",plain);
+        jdbc.update("update games set adult=true where id in (?,?)",adult,adultDelisted);
+        jdbc.update("update games set delisted_at=now() where id in (?,?)",delisted,adultDelisted);
+        jdbc.update("update games set editor_rank=1 where id=?",adult);
+        jdbc.update("update games set editor_rank=2 where id=?",plain);
+
+        mvc.perform(get("/api/v1/game/games")).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.items[?(@.game.title=='Adult game')]").isEmpty());
+        mvc.perform(get("/api/v1/game/games").param("includeAdult","true")).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(3))
+                .andExpect(jsonPath("$.items[?(@.game.title=='Adult game')].adult").value(true))
+                .andExpect(jsonPath("$.items[?(@.game.title=='Plain')].adult").value(false))
+                .andExpect(jsonPath("$.items[?(@.game.title=='Unknown adult')].adult").value(org.hamcrest.Matchers.contains(org.hamcrest.Matchers.nullValue())));
+        mvc.perform(get("/api/v1/game/games").param("includeAdult","true").param("q","Gone")).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
+        mvc.perform(get("/api/v1/game/games").param("q","Adult")).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
+        mvc.perform(get("/api/v1/game/games").param("q","Adult").param("includeAdult","true")).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1));
+        mvc.perform(get("/api/v1/game/games").param("popularOnly","true")).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1));
+        assertEquals(1,discovery.list(DiscoveryQuery.popular(0,10)).totalElements(),"popüler liste de +18'i varsayılan gizler");
+
+        mvc.perform(get("/api/v1/game/games/"+adult)).andExpect(status().isOk()).andExpect(jsonPath("$.metadata.adult").value(true))
+                .andExpect(jsonPath("$.metadata.delisted").value(false));
+        mvc.perform(get("/api/v1/game/games/"+delisted)).andExpect(status().isOk()).andExpect(jsonPath("$.metadata.delisted").value(true))
+                .andExpect(jsonPath("$.game.gameId").value(delisted.toString()));
+        mvc.perform(get("/api/v1/game/games").param("includeAdult","maybe")).andExpect(status().isBadRequest());
+    }
     @Test void pageLimitsAndWritesAreRejected() throws Exception {
         for(String value:List.of("0","101","invalid")) mvc.perform(get("/api/v1/game/games").param("size",value))
                 .andExpect(status().isBadRequest()).andExpect(content().contentTypeCompatibleWith("application/problem+json"));
