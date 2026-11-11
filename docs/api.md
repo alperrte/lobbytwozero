@@ -2804,7 +2804,7 @@ Durum: IMPLEMENTED — mevcut korumalı giriş/no-op ve güvenlik engeli. **5 Ka
 
 **7 Kasım 2026 yeni kapsam: PLANNED.** Kullanıcı yalnız referanssız oyunlarda gerçek taşıma/ayırma için ayrı bir kapsam genişletmesi istedi; şimdiki teslim servis sahiplerine sözleşme taslağıdır. Bu talep asıl GAME-26'nın yarım kaldığı veya mevcut protokolün zaten uygulanmış olduğu anlamına gelmez. Yeni koordinasyon ve ortak kabul tamamlanana kadar HTTP koruması değişmez.
 
-Auth'ta Game → Library/Review için `game-references:read` hedef/kapsam izinleri tanımlıdır. Bu yalnız okuma yetkisidir; çalışan referans kontrol uçlarının, atomik dondurmanın veya prepare/finalize yetkilerinin hazır olduğunu kanıtlamaz. Yeni `game-identity:*` kapsamları taslaktır, Auth'a uygulanmış değildir.
+Auth'ta Game → Library/Review için `game-references:read` hedef/kapsam izinleri tanımlıdır. Bu yalnız okuma yetkisidir; çalışan referans kontrol uçlarının, atomik dondurmanın veya prepare/finalize yetkilerinin hazır olduğunu kanıtlamaz. `game-identity:prepare`, `game-identity:finalize`, `game-identity:read` ve `game-identity:decision:read` kapsamları ile hedef çiftleri Auth'ta tanımlı ve uygulanmıştır (`application.properties`, `TokenClaims`; yapılandırma testleri var). Bu yalnız servis token izinleridir: alıcı servislerdeki uçların çalıştığını veya koordinasyonun tamamlandığını kanıtlamaz (12 Kasım 2026 kod doğrulaması; canlı uçtan uca NOT VERIFIED).
 
 Güncel genişletme taslağı: `docs-Game Service/GAME-26-Servis-Sahipleri-Entegrasyon-Sozlesmesi.md`.
 Sorumlu: Hamza
