@@ -25,7 +25,8 @@ export type PageId =
   | "settings"
   | "hardware"
   | "campaigns"
-  | "computers";
+  | "computers"
+  | "performance";
 
 /** Footer sütunları: platform, destek ve alt satırdaki yasal bağlantılar. */
 export type PageSection = "platform" | "support" | "legal";
@@ -41,6 +42,7 @@ export type PageEntry = {
 };
 
 export const pages: readonly PageEntry[] = [
+  { id: "performance", href: "/performance", indexable: false, keywords: ["performance", "performans", "fps", "cihaz"] },
   { id: "library", href: "/library", indexable: false, keywords: ["kütüphane", "library", "koleksiyon"] },
   { id: "libraryFavorites", href: "/library/favorites", indexable: false, keywords: ["favoriler", "favorites"] },
   { id: "libraryCompleted", href: "/library/completed", indexable: false, keywords: ["bitirilenler", "completed"] },

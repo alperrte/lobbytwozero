@@ -80,14 +80,14 @@ describe("navigationGroups", () => {
 describe("primaryNavigation", () => {
   it("Ana Sayfa, Oyunlar, Kütüphane, Topluluk, Arkadaşlar, Donanımlar ve Kampanyalar gerçek rotalara bağlanır", () => {
     const available = primaryNavigation.filter(isNavItemAvailable);
-    expect(available.map((item) => item.id)).toEqual(["home", "games", "library", "community", "friends", "hardware", "campaigns"]);
+    expect(available.map((item) => item.id)).toEqual(["home", "games", "library", "community", "friends", "hardware", "campaigns", "performance"]);
     expect(available.find((item) => item.id === "library")?.href).toBe("/library");
-    expect(primaryNavigation.filter((item) => !isNavItemAvailable(item))).toHaveLength(7);
+    expect(primaryNavigation.filter((item) => !isNavItemAvailable(item))).toHaveLength(6);
   });
 
   it("Yakında öğeleri href taşımaz (kırık link ve sahte rota yok)", () => {
     for (const item of primaryNavigation) {
-      if (!["home", "games", "library", "community", "friends", "hardware", "campaigns"].includes(item.id)) {
+      if (!["home", "games", "library", "community", "friends", "hardware", "campaigns", "performance"].includes(item.id)) {
         expect(item.href).toBeUndefined();
       }
     }

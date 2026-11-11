@@ -94,7 +94,8 @@ export const navigationGroups: readonly NavGroup[] = [
         id: "performance",
         labelKey: "performance",
         icon: "chart",
-        service: "performance-service"
+        service: "performance-service",
+        href: "/performance"
       }
     ]
   }

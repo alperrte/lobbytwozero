@@ -358,6 +358,10 @@
     "computers": {
       "title": "Bilgisayarlarım",
       "description": "Bilgisayarlarını ve bileşenlerini tek yerden yönet. Paylaşılacak bilgileri kendin belirle."
+    },
+    "performance": {
+      "title": "LTZ Performance",
+      "description": "Kayıtlı donanım, performans geçmişi ve bağlı cihazlar."
     }
   },
   "Footer": {
@@ -3131,6 +3135,39 @@
     "person": {
       "unknownPlayer": "Bilinmeyen oyuncu",
       "blockedPlayer": "Engellenen oyuncu"
+    }
+  },
+  "Performance": {
+    "title": "LTZ Performance",
+    "intro": "Bilgisayarını ve kayıtlı oyun performansını tek yerde takip et.",
+    "available": "Kayıtlı verilerin, açık bir görünüm",
+    "availableDescription": "Donanım profillerini, kayıtlı oturumlarını ve manuel oyun raporlarını incele. Grafikler yalnız kaydedilmiş sensör verilerini gösterir; tarayıcı FPS veya sıcaklık ölçmez.",
+    "desktop": "Masaüstü uygulaması",
+    "desktopDescription": "Masaüstü istemcisi MVP sonrasında yayımlanacak. Otomatik ölçüm ve cihaz eşleştirme bu web sayfasında başlatılamaz. Henüz indirilebilir kurulum dosyası yok.",
+    "downloadUnavailable": "İndirme henüz kullanılamıyor",
+    "devices": "Bağlı cihazlar",
+    "devicesEmpty": "Bağlı cihazın yok. Masaüstü bağlantısı kullanılabilir olduğunda cihazların burada listelenecek.",
+    "signIn": "Kendi cihazlarını görmek için hesabına giriş yap.",
+    "login": "Giriş yap",
+    "loading": "Yükleniyor…",
+    "retry": "Tekrar dene",
+    "linkedAt": "Bağlanma zamanı",
+    "lastSync": "Son senkronizasyon",
+    "neverSynced": "Henüz senkronize edilmedi",
+    "deviceStatus": {
+      "ACTIVE": "Aktif",
+      "DISABLED": "Bağlantı kapalı"
+    },
+    "errors": {
+      "400": "İstek geçersiz. Filtrelerini kontrol et.",
+      "401": "Oturumun sona erdi. Lütfen yeniden giriş yap.",
+      "403": "Bu işlem için erişim iznin yok.",
+      "404": "Kayıt bulunamadı veya erişilemiyor.",
+      "409": "Kayıt değişti. Güncel verileri yeniden yükle.",
+      "429": "Çok fazla istek gönderildi. Biraz bekleyip tekrar dene.",
+      "500": "Servis işlemi tamamlayamadı. Daha sonra tekrar dene.",
+      "503": "Bağımlı servis şu anda kullanılamıyor.",
+      "network": "Bağlantı kurulamadı veya istek zaman aşımına uğradı. Bağlantını kontrol et."
     }
   }
 }
