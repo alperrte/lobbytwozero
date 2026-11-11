@@ -15,7 +15,7 @@
 - Game doğrulaması mevcut anonim `POST /api/v1/game/games/batch` ile, DB transaction'ından önce yapılır. Kesinti/bozuk yanıt 503; unavailable oyun 404. Otomatik retry yoktur.
 - Kimlik yalnız Auth RS256/JWKS `at+jwt` token'ının kanonik UUID `sub` alanıdır. Mevcut Auth rol sözleşmesi kullanılır; servis token'ları ayrı decoder ve namespace ile korunur. Cookie doğrudan kabul edilmez; Gateway mevcut cookie/CSRF politikasının sahibidir.
 - Auth iptal/hesap durumu kontrolü diğer servislerde anlık değildir; en fazla access token ömrü ve saat toleransı kadar gecikme vardır. Uydurma introspection kullanılmaz.
-- Son kullanıcı talimatı nedeniyle merkezi `docs/api.md` değiştirilemez. API kaydı bu klasörde tutulur; merkezi kataloğa aktarım ayrıca kapsam izni gerektirir.
+- **Güncel (12 Kasım 2026):** Merkezi `docs/api.md` REVIEW bölümü güncel tutulur (AGENTS.md §4.1): Review endpoint'i oluşturan/değiştiren her görev kaydını aynı görevde oraya yazar. Önceki görevlerdeki "`docs/api.md` değiştirilemez" sınırı o görevlerin geçici kapsam kısıtıydı ve 31 Ekim'de kullanıcının merkezi kayıt talebiyle kalktı. Faz bazlı ayrıntılı sözleşme [REVIEW_SERVICE_API.md](REVIEW_SERVICE_API.md) içinde de tutulur.
 
 ## Hesap silme yarışı ve TTL kanıtı — kullanıcı onaylı Faz 1 tamamlaması
 
@@ -127,7 +127,7 @@ Kullanıcı Faz 4 raporunu kabul etti ve aşağıdaki kararları verdi. Bunlar y
 
 1. **Sayısal puan ve ortalama:** Gizlenen veya arşivlenen metinsel incelemelerin bağımsız sayısal puanları, puanın kendisi ayrıca geçersiz kılınmadığı sürece LTZ ortalamasına, dağılıma ve puan sayısına dahil edilmeye devam eder. Metinsel incelemenin görünürlük durumu sayısal puanı otomatik silmez veya dışlamaz. (Puanın ayrıca geçersiz kılınması ayrı bir moderasyon eylemi olarak tanımlanmamıştır ve bu kararla uygulanmamıştır.) REV-08/REV-12/REV-14 mevcut davranışı bu karara zaten uyar: bu hesaplar `game_ratings` üzerindedir ve inceleme durumuna bağlı değildir. Kod değişmedi.
 2. **Görünürlük:** Gizlenen veya arşivlenen incelemeler herkese açık listelerde ve öne çıkan incelemelerde gösterilmez. Mevcut `VISIBLE` beyaz listesi (tek okuma, güncelleme, beğeni, öne çıkanlar, `activeCount`) bu kuralı gelecekteki her gizli durum için yapısal olarak karşılar; ancak şemada gizli durum olmadığından davranış testi yoktur ve kabul tamamlanmış sayılmaz.
-3. **Kapsam:** `docs/api.md` ve `docs-security/` değiştirilmez; değişiklik sınırı yalnız `backend/services/review-service/` ve `docs-review/`'dir. (Önceki "merkezi kataloğa aktarım için kapsam izni gerekir" notu, bu kararla aktarımın yapılmayacağı şeklinde güncellenmiştir.)
+3. **Kapsam (güncel):** Bu karar Faz 4'ün kapsam sınırıydı (`backend/services/review-service/` ve `docs-review/`); `docs-security/` bu görevlerde değiştirilmedi. `docs/api.md` ise sonradan kullanıcının merkezi kayıt talebiyle REVIEW bölümüne aktarıldı ve artık güncel tutulur (bkz. yukarıdaki "Güncel (12 Kasım 2026)" notu).
 4. **Kod yasağı:** Onaylanmamış moderasyon sözleşmeleri için kod geliştirilmez; `HIDDEN/ARCHIVED` durumu, karar alıcı, rapor kapanışı ve Admin uçları eklenmedi.
 
 **Admin entegrasyonuyla birlikte netleştirilecekler (karar verilmedi):** beğenilerin saklanması veya silinmesi, yazarın gizlenmiş/arşivlenmiş içeriğe müdahalesi (görme, düzenleme, silme), tavsiyenin gizlenmiş incelemeyle ilişkisi, tek aktif inceleme hakkının tutulması, rapor kapanışı otoritesi, karar sırası/idempotency ve hesap silme izleri. Bunlar [Admin talebinin](request/admin-review-integration.md) §13'ündedir.
@@ -152,3 +152,38 @@ REV-13 (raporlamaya bağlı) ve REV-15 (moderasyon) için dış servis gereksini
 - `preHandle`: kota uygun/uygulanmayan istekte `true`; kota aşıldığında 429 `application/problem+json` yanıtını (`Retry-After`, gövdede `status=429`) **interceptor kendisi tek kez yazar ve `false` döner**. İstek denetçiye, servise ve transaction'a ulaşmaz; Spring'in ikinci bir hata yanıtı üretmesi için istisna fırlatılmaz.
 - Sayaç deposu hatası gibi beklenmeyen istisnalar yakalanmaz; yanıt yazılmadan yayılır ve genel işleyiciyle 500 olur (fail-closed). Önceki geçici çözüm (`return !response.isCommitted()`) Sonar kuralını yalnız biçimsel geçtiği ve kota aşımında hiç `false` dönmediği için kaldırıldı. `AccountErasureExceptionHandler` içindeki özel 429 işleyicisi ölü kod olduğundan silindi.
 - Doğrulama: `AbuseQuotaInterceptorTest` (4) ve `AbuseQuotaApiTest` (engellenen istekte Game doğrulaması 5 kez çağrılır, 6. istek servise ulaşmaz; engellenen beğeni oyu değiştirmez; `Retry-After` tek değer, `application/problem+json`).
+
+## Frontend ihtiyaçları için eklenen okuma uçları (12 Kasım 2026, kullanıcı talimatı)
+
+- Frontend geliştirmesi üç Review eksiğini ortaya çıkardı; kullanıcı Review servisinin bunları kapatmasını istedi: (1) oyun bazlı "kendi incelemem" okuması, (2) öne çıkanlarda `likedByActor`, (3) "incelemelerim" listesi.
+- Üçü de yalnız okumadır; migration, yeni tablo, bağımlılık, ENV, dış servis çağrısı veya kota değişikliği yoktur. Kimlik yalnız token `sub`; yanıtlarda ham yazar/oy veren kimliği dönmez.
+- `likedByActor` aynı sorguda EXISTS alt sorgusuyla hesaplanır (REPEATABLE_READ snapshot'ı korunur); mevcut JSON alanları değişmedi (geriye uyumlu ek alan).
+- Silinmiş inceleme "yok" sayılır (404 / listede yok); bağımsız puan ve tavsiye bu uçlardan etkilenmez.
+- **Yapılmayanlar:** yazar adı/avatarı ve yazar profili bağlantısı — Review ham yazar kimliği açmaz (gizlilik kararı) ve User profil görünürlüğü ayrı bir User/Review sözleşmesi ister; REV-07/REV-15 ve Notification entegrasyonları dış sahiplerin sözleşmesini bekliyor.
+- Üç değişiklik `docs/api.md` REVIEW bölümüne de işlendi ("Oyundaki kendi incelemem", "Kendi incelemelerim", öne çıkanlarda `likedByActor`); ayrıntı bu klasördeki API belgesinde de vardır.
+
+## REV-07 / REV-13 raporlama — Review tarafı kararları (12 Kasım 2026, kullanıcı talimatı)
+
+Kullanıcı, Admin'i beklemeden Review'ın kendi içinde yapabildiği kadarının yapılmasını istedi. Aşağıdaki değerler **geçici varsayılanlardır**; Admin'in nihai sözlüğü/kararı ile uyumlanır ve her biri tek yerden değişir:
+
+- **Mükerrer rapor:** aynı raportör aynı incelemeyi bir kez raporlar; ikinci deneme **409** (`REPORT_ALREADY_EXISTS`) döner, ilk rapor değişmez (idempotent 200 seçilmedi: "tekrar tekrar raporlanamaz" gereksinimi açık hata ister). PostgreSQL `(review_id, reporter_id)` benzersiz indeksi eşzamanlı istekleri tek kayda indirger.
+- **Kendi incelemesi:** 403 (`REPORT_OWN_REVIEW`) — 31 Ekim'de onaylanan politika. Yalnız `VISIBLE` incelemeye rapor (aksi 404).
+- **Gerekçe sözlüğü (kapalı):** `SPAM, HARASSMENT, HATE_SPEECH, PERSONAL_INFO, SPOILER, OFF_TOPIC, OTHER`; `detail` isteğe bağlı, ≤500 karakter. Değişim = enum + CHECK (yeni migration) + frontend çevirisi.
+- **Kota:** hesap başına saatte 10 (`REPORT_CREATE`, `ltz.review.abuse.report-create.*`); mevcut mekanizma yeniden kullanıldı, mükerrer/geçersiz denemeler de sayılır (inceleme/beğeni kotalarıyla aynı kural). Mevcut 5/60 ve 60/60 değerleri raporlamaya uygulanmaz.
+- **Durum:** yalnız `RECEIVED` (Review yerel kaydı). Admin vaka durumu, karar ve moderatör bilgisi kullanıcıya gösterilmez ve yoktur. Arayüz "iletildi/karara bağlandı" demez; "kaydedildi, iletim henüz etkin değil" der.
+- **Teslim:** `delivered_at NULL` = Admin'e iletilmedi; teslim işçisi/outbox yoktur (Admin alıcısı ve Auth çifti beklenir). Rapor teslim niyeti ayrı bir tabloya taşınmadı: rapor satırı kendisi bekleyen kayıttır.
+- **Hesap silme:** raportörün raporları silinir; yazarın incelemeleri silinince raporlar CASCADE ile kalkar. Metin silme (soft delete) raporları saklar (Admin vakası için kanıt; saklama süresi **KARAR BEKLİYOR**).
+- **Makine-okur hata kodu:** `ReviewException` artık opsiyonel `code` taşır ve `ProblemDetail.code` olarak döner (şimdilik yalnız rapor hataları). Frontend aynı HTTP durumunu `code` ile ayırabilir.
+- **Jackson:** `spring.jackson.datatype.enum.fail-on-numbers-for-enums=true` — enum alanlarına sayı verilmesi (ör. `"reason":1` → sıra numarası) artık 400'dür (yeni enum girdisiyle bulunan açık).
+
+## REV-10 — Review → User `ReviewSummaryChanged` üreticisi (12 Kasım 2026, kullanıcı talimatı)
+
+- **Tasarım:** Kullanıcı başına **birleştirilmiş outbox** (`review_user_summary_outbox`, V59). İnceleme oluşturma ve silme, değişikliğiyle aynı transaction'da satırı yeni `event_id` ile yeniler; `occurred_at` kullanıcı başına **kesin artandır** (en az +1 ms) — User eşit/eski zamanlı olayı yok saydığı için ikinci değişiklik kaybolmaz. Gönderim anında görünür (`VISIBLE`) inceleme sayısı hesaplanır; gönderim sırasında yeni değişiklik olduysa (`event_id` değişti) satır bekler ve yeni olayla gider.
+- **Teslim:** `POST {USER_SERVICE_URL}/internal/events`, Auth `svc+jwt` (`aud=user-service`, `events:ingest`; `POST /internal/v1/service-tokens`, token ≤60 sn bellekte önbelleğe alınır). Aynı `eventId` yeniden denemelerde sabittir. 401/403 ve 4xx kalıcı hata sayılır (token yenilenir, uzun geri çekilme), 5xx/zaman aşımı üstel geri çekilmeyle (5 sn → en çok 15 dk) yeniden denenir. Kullanıcı işlemleri teslimden etkilenmez; zamanlayıcıdan hiçbir istisna sızmaz.
+- **Kapalı varsayılan:** `AUTH_REVIEW_SERVICE_CLIENT_SECRET` boşsa işçi ve token istemcisi **kurulmaz** (Auth'a da User'a da istek atılmaz); outbox satırları birikir ve secret verilince gönderilir. Secret'ın ortama eklenmesi ENV değişikliğidir ve **kullanıcı onayı** gerektirir; hiçbir ENV dosyası değiştirilmedi.
+- **Hesap silme:** silinen hesabın outbox satırı silinir ve yeni olay üretilmez.
+- **Sınırlar (açık):** (1) etkinleştirmeden önce yazılmış incelemeler için olay üretilmemiştir → ilk etkinleştirmede **backfill** kararı gerekir; (2) canlı Auth/User ile doğrulanmadı (testler yerel sahte HTTP sunucularıdır); (3) gizlenen/arşivlenen inceleme sayımı REV-15 kararına bağlıdır (bugün yalnız `VISIBLE`).
+
+## REV-15 — Review'ın bağımsız yapabileceği kısım (12 Kasım 2026)
+
+Yapılabilecek bağımsız bir parça **yoktur**: `HIDDEN/ARCHIVED` durumları, karar alıcı uç ve rapor kapatma, Admin'in karar sözleşmesi ve Auth çiftlerine bağlıdır; onaysız eklenen şema/uç ölü kontrat olurdu. Mevcut zemin (`VISIBLE` beyaz liste, puan politikası) korunur. Ayrıntı [Admin talebi](request/admin-review-integration.md) §14.3.

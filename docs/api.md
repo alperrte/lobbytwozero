@@ -4264,6 +4264,73 @@ Yerel JPA okuması; Game kesintisi okumayı durdurmaz.
 #### Test Durumu
 INTEGRATION — oluşturma, başka aktör okuması ve bulunamayan kimlik PASS.
 
+### REVIEW — REV-02 — Oyundaki kendi incelemem
+
+Durum: IMPLEMENTED.
+Sorumlu: Hamza.
+Tüketici servisler: Frontend (Review yazma/oyun/detay ekranları).
+#### Endpoint
+`GET /api/v1/review/games/{gameId}/reviews/mine`.
+#### Yetkilendirme
+Authenticated — Korumalı kullanıcı JWT/rol politikası (PLAYER, CONTENT_CREATOR, GAME_DEVELOPER, MODERATOR, ADMIN); aktör yalnız doğrulanmış `sub`. Başkasının incelemesi dönmez.
+#### Path/Query Parameters
+`gameId` zorunlu UUID; query/body yok.
+#### Request Body
+Yok.
+#### Response
+200 `ReviewResponse` (`ownedByActor=true`, gerçek `version`). Kullanıcının bu oyunda görünür (`VISIBLE`) incelemesi yoksa — hiç yazmadıysa ya da sildiyse — 404. Ham yazar UUID'si dönmez. `Cache-Control: private, no-store`.
+#### Hata Durumları
+400 geçersiz UUID; 401 kimlik yok/geçersiz; 403 rol; 404 görünür inceleme yok; 500.
+#### Bağlantı
+ReviewController → ReviewService.mine → ReviewRepository.findByUserIdAndGameIdAndStatus. Mevcut `uq_reviews_active_user_game` kısmi tekilliği tek satırı garanti eder. Game çağrısı ve migration yoktur.
+#### Test Durumu
+INTEGRATION — `MyReviewsApiTest` (PostgreSQL 17): sahip/başka kullanıcı ayrımı, silinmiş kayıt, sil–yeniden oluştur yaşam döngüsü, 400/401, Game çağrısı yok. Review modülü 185/185 Maven testi PASS (12 Kasım 2026). Frontend `e2e/review.spec.ts` fixture ile doğrular; canlı Auth/Game/Gateway E2E iddiası yoktur.
+
+### REVIEW — REV-02 — Kendi incelemelerim (tüm oyunlar)
+
+Durum: IMPLEMENTED.
+Sorumlu: Hamza.
+Tüketici servisler: Frontend ("İncelemelerim" ekranı).
+#### Endpoint
+`GET /api/v1/review/reviews/mine?page=0&size=20`. Sabit `mine` yolu `/reviews/{reviewId}` şablonundan önce eşleşir.
+#### Yetkilendirme
+Authenticated — Korumalı kullanıcı JWT/rol politikası; yalnız token sahibinin görünür incelemeleri.
+#### Path/Query Parameters
+`page` tamsayı 0–10000, varsayılan 0; `size` tamsayı 1–50, varsayılan 20.
+#### Request Body
+Yok.
+#### Response
+200 `{items: ReviewResponse[], page, size, totalElements (long), totalPages (long)}`. Sıra: `createdAt DESC, id ASC`. Silinmiş incelemeler yoktur; hiç inceleme yoksa boş liste (404 değil). Her öğede `gameId` vardır; oyun adı/kapağı Game Service toplu kartlarından alınır (Review Game'i çağırmaz). Son sayfa dışına taşan geçerli sayfa 200/boş items döndürür. `Cache-Control: private, no-store`.
+#### Hata Durumları
+400 geçersiz page/size (ProblemDetail); 401; 403 rol; 500.
+#### Bağlantı
+ReviewController → ReviewService.mine → ReviewRepository.findByUserIdAndStatus (Spring Data sayfalama; mevcut `ix_reviews_user_id` indeksi). Migration yoktur. Sayfalar ayrı okumalardır; araya giren yazma sonuçları kaydırabilir.
+#### Test Durumu
+INTEGRATION — `MyReviewsApiTest`: yalnız kendi görünür incelemeleri, sıra, sayfalama/toplam, boş sonuç, aralık dışı 400, sabit yolun UUID sanılmaması. Review modülü 185/185 PASS (12 Kasım 2026). Canlı Auth/Game/Gateway E2E iddiası yoktur.
+
+### REVIEW — REV-07 — İnceleme raporlama (Review tarafı)
+
+Durum: IMPLEMENTED — yalnız **Review tarafı** (yerel kayıt). Admin Service'e teslim, Admin'den durum/karar alma ve moderasyon **yoktur** (ENTEGRASYON BEKLİYOR).
+Sorumlu: Hamza.
+Tüketici servisler: Frontend (Gateway üzerinden). Admin teslimi için henüz tüketici yoktur.
+#### Endpoint
+`POST /api/v1/review/reviews/{reviewId}/reports` (201, `Location: /api/v1/review/reviews/{reviewId}/reports/mine`)
+`GET /api/v1/review/reviews/{reviewId}/reports/mine`
+#### Yetkilendirme
+Authenticated — korumalı kullanıcı JWT/rol politikası; aktör yalnız doğrulanmış `sub`. Raportör kimliği gövdeden alınmaz; bilinmeyen alanlar reddedilir. Silinen hesabın eski token'ı 403 alır (hesap silme engeli). POST, REV-13 rapor kotasına tabidir.
+#### Path/Query Parameters
+`reviewId` zorunlu UUID; query yok.
+#### Request Body
+POST: `{"reason":"SPAM","detail":"isteğe bağlı açıklama"}`. `reason` kapalı liste: `SPAM, HARASSMENT, HATE_SPEECH, PERSONAL_INFO, SPOILER, OFF_TOPIC, OTHER` (**geçici sözlük**; Admin'in nihai sözlüğüyle güncellenir). `detail` isteğe bağlı, en çok 500 karakter düz metin (satır sonu/sekme dışında denetim karakteri yok), baş/son boşluk temizlenir, boşsa saklanmaz. Sayı/bilinmeyen gerekçe 400. GET'te gövde yok.
+#### Response
+POST 201 / GET 200: `{id, reviewId, reason, detail, status, createdAt}`. `status` yalnız `RECEIVED`'dir ve Review'ın yerel kaydını gösterir; Admin'e iletildiği veya karara bağlandığı anlamına **gelmez**. Raportör ve inceleme yazarı kimliği, moderasyon notu veya karar dönmez. Raporlar inceleme yanıtlarında (`ReviewResponse`, öne çıkanlar, `reviews/mine`) görünmez. GET: kullanıcının bu incelemeye yaptığı kendi raporu; yoksa 404 (başkasının/yazara yapılan rapor dönmez).
+#### Hata Durumları
+400 geçersiz UUID/gövde/gerekçe/açıklama; 401; 403 kendi incelemesi (`code=REPORT_OWN_REVIEW`) veya hesap silme engeli/rol; 404 inceleme yok, silinmiş ya da görünür değil (POST) / rapor yok (GET); 409 aynı raportör aynı incelemeyi zaten raporlamış (`code=REPORT_ALREADY_EXISTS`; ilk rapor değişmez); 413; 429 rapor kotası (`Retry-After`); 500. Hata yanıtları `ProblemDetail`; makine-okur `code` alanı yalnız bu iki rapor hatasında vardır. `Cache-Control: private, no-store`.
+#### Bağlantı
+ReviewReportController → ReviewReportService → ReviewReportRepository. Transaction içinde hesap kilidi (`AccountWriteLock`) ve inceleme satır kilidi; `review_reports` (V58): `(review_id, reporter_id)` benzersiz indeksi (eşzamanlı istekler tek kayıt üretir), `delivered_at NULL` = Admin'e iletilmedi (bekleyen raporlar kısmi indeksle bulunur). FK `reviews` ON DELETE CASCADE: yazar hesabı silinince raporlar kalkar; raportör hesabı silinince kendi raporları silinir. Metin silme (soft delete) raporları saklar; silinmiş incelemeye yeni rapor yapılamaz. Game/Admin çağrısı yoktur.
+#### Test Durumu
+INTEGRATION — `ReviewReportsApiTest` (oluşturma ve gizlilik, mükerrer 409 + eşzamanlı 8 istekte tek kayıt, kendi incelemesi 403, silinmiş/yok 404, geçersiz gövdeler, 401, yalnız kendi raporunu okuma, hesap silme etkileşimleri) ve `ReportQuotaApiTest` (her deneme sayılır, 429 + `Retry-After`, diğer kullanıcı etkilenmez). Review modülü 213/213 Maven testi PASS (12 Kasım 2026). Frontend `e2e/review.spec.ts` fixture ile doğrular; canlı Auth/Admin/Gateway E2E iddiası yoktur.
+
 ### REVIEW — REV-03 — Yalnız metni düzenleme
 
 Durum: IMPLEMENTED.
@@ -4418,13 +4485,14 @@ REV-07 rapor API'si, outbox/relay ve REV-10 dış teslimi uygulanmadı. Önerile
 
 ### REVIEW — REV-13 — Kullanıcı kotası ve 429 sözleşmesi
 
-Durum: IMPLEMENTED (yalnız bağımsız kısım). Rapor oluşturma kotası ve mükerrer rapor engeli REV-07'ye bağlıdır: NOT IMPLEMENTED, ENTEGRASYON BEKLİYOR.
+Durum: IMPLEMENTED (inceleme, beğeni ve rapor oluşturma kotaları). Rapor kotasının nihai sayısı Admin ile onaylanana kadar geçicidir.
 Sorumlu: Hamza.
 Tüketici servisler: Frontend (Gateway üzerinden); yeni endpoint yoktur.
 #### Kapsam
 Yeni endpoint yok; mevcut üç işleme uygulanan kota:
   - `POST /api/v1/review/games/{gameId}/reviews` → kullanıcı başına **60 saniyede 5** deneme (`REVIEW_CREATE`).
   - `PUT` ve `DELETE /api/v1/review/reviews/{reviewId}/like` → ortak kota, kullanıcı başına **60 saniyede toplam 60** deneme (`REVIEW_LIKE`).
+  - `POST /api/v1/review/reviews/{reviewId}/reports` → kullanıcı başına **3600 saniyede 10** deneme (`REPORT_CREATE`; geçici varsayılan, `ltz.review.abuse.report-create.*`). Mükerrer rapor (409), kendi incelemesi (403), geçersiz gövde (400) ve olmayan hedef (404) denemeleri de sayılır.
   - Diğer uçlar (puan/tavsiye PUT, inceleme PATCH/DELETE, tüm GET'ler) sınırsızdır; bunlar için sayısal politika onaylanmadı.
 #### Yetkilendirme
 Kota yalnız kimliği doğrulanmış ve rolü uygun kullanıcı isteğinde tüketilir. Anonim/geçersiz token 401, rol/servis token'ı 403/401 mevcut davranışını korur ve sayaç yazmaz. Sayaç anahtarı token `sub` alanıdır; istemci seçemez.
@@ -4442,7 +4510,7 @@ UNIT + INTEGRATION — PostgreSQL 17 üzerinde kontrollü saatle: 5/60 ve 60/60 
 
 Durum: IMPLEMENTED.
 Sorumlu: Hamza.
-Tüketici servisler: Frontend, mevcut Gateway yolu üzerinden; bu görevde frontend/Gateway değiştirilmedi.
+Tüketici servisler: Frontend (Review frontend'i `likedByActor` ile beğeni durumunu ilk çizimde gösterir), mevcut Gateway yolu üzerinden.
 #### Endpoint
 `GET /api/v1/review/games/{gameId}/reviews/featured`.
 #### Yetkilendirme
@@ -4452,7 +4520,7 @@ Authenticated — Mevcut korumalı kullanıcı JWT/rol sözleşmesi; PLAYER, CON
 #### Request Body
 Yok.
 #### Response
-200 `FeaturedReviewsResponse`: `items` (`FeaturedReviewResponse[]`), `page`, `size`, `totalElements` (long), `totalPages` (long). Her öğe `review` (mevcut ReviewResponse: id/gameId/body/ownedByActor/version/createdAt/updatedAt) ve `likeCount` (long) içerir. Yazar ve oy veren kullanıcı UUID'leri döndürülmez. `ownedByActor` token sahibine göre hesaplanır.
+200 `FeaturedReviewsResponse`: `items` (`FeaturedReviewResponse[]`), `page`, `size`, `totalElements` (long), `totalPages` (long). Her öğe `review` (mevcut ReviewResponse: id/gameId/body/ownedByActor/version/createdAt/updatedAt), `likeCount` (long) ve `likedByActor` (boolean) içerir. `likedByActor` yalnız istek sahibinin oyudur (aynı sorguda `EXISTS` alt sorgusu, N+1 yok); kendi incelemesinde oy veremediğinden `false`'tur. Yazar ve oy veren kullanıcı UUID'leri döndürülmez. `ownedByActor` token sahibine göre hesaplanır.
 - Sıralama: `likeCount DESC, createdAt DESC, id ASC`; aynı snapshot/veride deterministiktir. Sıfır beğenili görünür kayıtlar varsayılan filtreye dahildir. İnceleme düzenlenmesi oluşturulma tarihini değiştirmez, sıralamada updatedAt kullanılmaz. Rapor/şikâyet cezası veya moderasyon skoru yoktur.
 - Boş durum: İnceleme olmayan/Review'de bilinmeyen oyun UUID'si 200, `items=[]`, `totalElements=0`, `totalPages=0`. Game Service çağrısı yapılmaz; bu yanıt oyunun katalogda varlığını ya da güncel erişilebilirliğini doğrulamaz. Son sayfa dışına taşan geçerli sayfa 200/boş items döndürür; toplamlar filtrelenen kümenin toplamıdır.
 #### Hata Durumları

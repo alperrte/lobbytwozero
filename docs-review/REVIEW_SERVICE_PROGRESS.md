@@ -110,3 +110,18 @@ REV-10 yalnız kısmen ilerledi (Auth→Review silme ve kullanıcı JWT tamam); 
 **FULL pre-push (31 Ekim 2026): FULL PRE-PUSH PASSED** — 18 backend modülü, 2274 test (0 başarısız/atlanan), kapsam %96,30, yeni Checkstyle/PMD ihlali 0, Git/Gitleaks/hijyen, Docker yapılandırması ve 18/18 HTTP health PASS; testler izole geçici PostgreSQL'de koşuldu (dev DB'ye dokunulmadı). `AbuseQuotaInterceptor` kota aşımında artık `false` döner ve tek 429 yanıtı yazar (153 Review testi PASS). Ayrıntı: [REVIEW_AUTH_INTEGRATION_REPORT.md](REVIEW_AUTH_INTEGRATION_REPORT.md) "Ek 2". Görev durumları değişmedi (REV-07, REV-10, REV-13 raporlama, REV-15 entegrasyon bekliyor).
 
 **Review Sonar yeniden doğrulaması (31 Ekim 2026, AbuseQuotaInterceptor düzeltmesi sonrası):** izole pre-push hattı PASS (153 test, coverage %98) ve `ltz-review-service` Quality Gate **OK** (A/A/A, coverage %95,2, açık issue 0). Tam repo Sonar (`ltz-backend`) Auth'un aralıklı `MailpitEndToEndTest` testi nedeniyle tamamlanamadı; Review kaynaklı değildir. Ayrıntı: REVIEW_AUTH_INTEGRATION_REPORT.md "Ek 2".
+
+## Entegrasyon talepleri güncellemesi (12 Kasım 2026)
+
+[request/](request/) altındaki beş belge güncel kodla karşılaştırılıp güncellendi (yalnız dokümantasyon; hiçbir servis kodu değişmedi): [game](request/game-review-integration.md) (Game tüketicisi uygulanmış; Review frontend beklentileri; GAME-26 katılımcı uçları — Review NOT IMPLEMENTED), [auth](request/auth-review-integration.md) (güncel çift/kapsam tablosu, oturum/Gateway beklentileri), [admin](request/admin-review-integration.md) (frontend hazırlığı ve raporlama/moderasyon beklentileri), [notification](request/notification-review-integration.md) (Review rota/yük beklentileri) ve **yeni** [user](request/user-review-integration.md) (ReviewSummaryChanged üreticisi ve yazar görünümü kararı).
+
+## Entegrasyon bağımlı görevlerin durum özeti (12 Kasım 2026, REV-07/REV-10 Review payı sonrası)
+
+Yeniden doğrulandı: Admin ve Notification Service'te yalnız launcher vardır; Auth'ta Review→Admin, Admin→Review ve Review→Notification çiftleri tanımsızdır. Aşağıdaki "yapıldı" yalnız Review'ın kendi kodu ve testleridir (Review modülü 213/213 Maven testi PASS; canlı Auth/Admin/Notification/User kanıtı yoktur).
+
+| Görev | Review'ın payı | Kalan / dış bağımlılık |
+| --- | --- | --- |
+| **REV-07** raporlama | **Review tarafı tamam:** rapor kaydı (V58), kullanıcı API'si, mükerrer engeli (409), kendi incelemesi (403), kota, hesap silme etkileşimi, frontend rapor arayüzü | Admin'e **teslim** ve Admin'den durum/karar: Admin alıcısı, Auth çifti (Review→Admin) |
+| **REV-10** servis entegrasyonları | Auth→Review hesap silme, kullanıcı JWT/rol, Game→Review iç uçları (Game tüketicisi çalışıyor), Review→Game doğrulama, DB ayrımı, **Review→User `ReviewSummaryChanged` üreticisi (V59; secret boşken kapalı)** | Üreticiyi açmak için secret (ENV onayı) + backfill + canlı doğrulama; Review↔Admin, Notification, GAME-26 katılımcı uçları |
+| **REV-13** spam kontrolü | **Tamam (Review payı):** inceleme 5/60 sn, beğeni 60/60 sn, **rapor 10/saat (geçici)**, mükerrer rapor engeli | Rapor kotasının nihai sayısı Admin ile onaylanmalı |
+| **REV-15** moderasyon sonrası | Politika + yapısal zemin (`VISIBLE` beyaz liste, puan politikası) | `HIDDEN/ARCHIVED`, karar alıcı, rapor kapatma, bildirim: Admin kararı + sözleşme, Auth, Notification — Review'ın bağımsız yapabileceği parça yok |

@@ -1,5 +1,7 @@
 # ADMIN–REVIEW entegrasyon talebi
 
+> **Güncelleme — 12 Kasım 2026:** Yeniden doğrulandı — Admin Service'te hâlâ yalnız `AdminServiceApplication` vardır, Auth'ta Review↔Admin çifti **tanımsızdır**; bu belgedeki hiçbir öneri uygulanmış değildir. Yeni: Review frontend'i tamamlandı ve raporlama/moderasyon için **hazır tutulan arayüz sınırları ile bu servisten beklenenler §14'te** toplandı. Review'ın yeni okuma uçları (`reviews/mine`, `likedByActor`) bu talebi değiştirmez.
+
 ## 1. Talep eden servis
 
 `review-service` — Hamza. Bu belge bir ihtiyaç/sözleşme taslağıdır; hedef servisin mimarisini belirleyen emir değildir.
@@ -22,8 +24,7 @@ Review'de gelecekte oluşturulacak uygunsuz inceleme raporlarının Admin'e güv
 - [API kataloğunun ADMIN bölümü](../../docs/api.md): `_Kayıt yok._`
 - [Mimari olay kataloğu](../../docs/architecture.md) `ContentReported` ve `ModerationActionTaken` akışlarını **ÖNERİ** olarak listeliyor. Community'nin önerilmiş `POST /internal/events` teslim modeli hazır Admin alıcısı kanıtı değildir.
 - Auth yapılandırmasında Review→Admin ve Admin→Review çiftleri yok; [Auth talebi](auth-review-integration.md) ile birlikte ele alınmalı.
-- Review'da şu an metin görünürlüğü VISIBLE/DELETED; rapor tablosu, rapor endpoint'i, outbox, relay ve moderasyon endpoint'i bu çalışma kapsamında oluşturulmadı.
-- 31 Ekim 2026'da yeniden doğrulandı (değişiklik yok): Admin Service'te `AdminServiceApplication` dışında Java sınıfı yoktur; `docs/api.md` ADMIN bölümü hâlâ "Kayıt yok"; Auth'ta Review↔Admin çifti hâlâ tanımsızdır. Bu belgedeki hiçbir öneri uygulanmış değildir.
+- Review'da rapor **yerel olarak kaydedilir** (`review_reports`, `delivered_at NULL` = Admin'e iletilmedi) ve kullanıcı API'si vardır ([docs/api.md → REVIEW](../../docs/api.md)); Admin'e teslim işçisi/outbox, moderasyon durumları (`HIDDEN/ARCHIVED`) ve moderasyon karar alıcısı **yoktur**.
 
 ## 6. Eksik gereksinimler
 
@@ -35,10 +36,7 @@ Review'de gelecekte oluşturulacak uygunsuz inceleme raporlarının Admin'e güv
 
 **REV-13 — raporlamaya bağlı gereksinimler (sorumlu servis belirtilerek; Review yerel işini Admin'e görev olarak atamaz):**
 
-- **[Review]** Kendi incelemesini raporlama yasağı (403, kullanıcı onaylı). Yalnız görünür (`VISIBLE`) incelemeye yeni rapor; silinmiş/olmayan hedefte 404. Gizli/arşivli hedefe yeni rapor ve devam eden vakanın etkilenmesi: **KARAR BEKLİYOR**.
-- **[Review]** Rapor tekilliği: aynı raportör–inceleme çifti için PostgreSQL benzersizliği; eşzamanlı ve tekrarlanan istekler tek kayıt üretir. Tekrar isteğin sonucu (aynı kaydı 200 ile dönme mi, 409 mu): **KARAR BEKLİYOR**.
-- **[Review]** Rapor oluşturma oran sınırı: mevcut REV-13 kota mekanizması (hesap başına, PostgreSQL ortak sayaç, 429 + `Retry-After`) yeni bir eylem olarak yeniden kullanılır; **sayısal sınır ve tekrar/geçersiz isteklerin sayılıp sayılmayacağı KARAR BEKLİYOR** (değer uydurulmadı; mevcut 5/60 ve 60/60 değerleri raporlamaya uygulanmaz).
-- **[Review]** Güvenilir iletim: rapor kaydı ve teslim niyeti aynı yerel transaction'da kalıcılaşmalı; olay kimliği rapor kimliğinden deterministik olmalı ki yeniden teslim aynı kimlikle gitsin. Admin kesintisi raporu kaybetmemeli ve "teslim edildi" göstermemeli.
+- **[Review]** Güvenilir iletim (KALAN): rapor kaydı Review'da kalıcıdır ve bekleyen raporlar `delivered_at IS NULL` ile bulunur; **teslim işçisi yoktur.** Admin alıcısı belli olunca olay kimliği rapor kimliğinden deterministik üretilmeli ve aynı kimlikle yeniden teslim edilmelidir. Admin kesintisi raporu kaybetmez; "Admin'e iletildi" iddiası teslim ACK'inden önce kurulmaz.
 - **[Admin]** Olay kabulü: aynı `eventId`/`reportId` tekrarı ikinci moderasyon vakası, vaka kaydı veya bildirim üretmez (kalıcı kabul + tekilleştirme); aynı ID'nin farklı içeriği 409. Aynı incelemeye gelen çok sayıda raporun tek vakada gruplanması ve öncelik/yoğunluk kararı Admin sahibine aittir (grup/öncelik modeli **KARAR BEKLİYOR**).
 - **[Admin]** Kapasite: 429/503 ile geri basınç; Review'ın yeniden deneme bütçesiyle uyumlu.
 - **[Review + Admin]** Timeout/yeniden deneme: belirsiz sonuçta aynı `eventId` ile sınırlı retry; 4xx (şema/kimlik/yetki) kalıcı hata olarak görünür operasyonel duruma düşer, sıkı döngü olmaz. Azami deneme, backoff ve manuel iyileştirme değerleri **KARAR BEKLİYOR**.
@@ -81,7 +79,7 @@ Kullanıcı kendi incelemesini raporlayamaz (Review backend politikası). Review
 
 ## 11. Bağımlılık ve etki
 
-REV-07 ve REV-10 **ENTEGRASYON BEKLİYOR**. Yerel bir rapor kaydı veya taslak zarf bu kabul kriterlerinin yerine geçmez. REV-06 tamamlanmasını engellemez; REV-09 da sonradan tamamlandı ve bu talepten etkilenmez.
+REV-07 ve REV-10 **ENTEGRASYON BEKLİYOR**. Yerel bir rapor kaydı veya taslak zarf bu kabul kriterlerinin yerine geçmez.
 
 ## 12. Durum
 
@@ -122,3 +120,34 @@ Onaylanmış politikalar (kullanıcı kararı, Review ürün sahibi): gizlenen/a
 | Denetlenebilirlik ve güvenlik | Admin (değiştirilemez audit: aktör, gerekçe, zaman), Review (uygulanan `actionId`/sürüm kaydı), Auth (kimlik) | §8–§9 | Sözleşme bekliyor |
 
 **Henüz kesinleşmemiş (KARAR BEKLİYOR):** gizlenen incelemenin mevcut beğenilerinin korunması veya kaldırılması; yazarın gizli/arşivli içeriği düzenleyebilmesi veya silebilmesi; gizleme–arşivleme–yeniden görünür geçiş kuralları; moderasyon bildirimini Admin'in mi Review'ın mı üreteceği; rapor kapanış durumlarının isimleri ve geçişleri; puan geçersiz kılma eyleminin varlığı ve kapsamı. Bunlar bu belgede kesinleşmiş gibi yazılmamıştır; Review'da bu davranışlar kodlanmadı.
+
+
+## 14. Review'ın bugünkü durumu ve Admin'den/ortak karardan beklenenler (12 Kasım 2026)
+
+### 14.1 Review'da bugün olan ve olmayanlar (yalnız Admin'i ilgilendiren)
+
+- **Rapor kaydı (Review yerelinde):** Kullanıcı API'si [docs/api.md → REVIEW](../../docs/api.md)'dedir. Politikalar: mükerrer rapor 409 (`REPORT_ALREADY_EXISTS`), kendi incelemesi 403 (`REPORT_OWN_REVIEW`), yalnız görünür incelemeye rapor, raportör kimliği hiçbir yanıtta dönmez, hesap silme raporları temizler. Rapor durumu yalnız `RECEIVED`'dir (Review'ın yerel kaydı); Admin vaka durumu **yoktur**.
+- **Teslim yok:** Raporlar `delivered_at NULL` ile bekler; Admin'e iletim işçisi, olay zarfı üretimi ve Admin'den durum/karar alma uygulanmadı. Frontend, kullanıcıya "raporun kaydedildi; moderasyon ekibine iletim henüz etkin değil" der; "iletildi/karara bağlandı" iddiası kurmaz.
+- **Moderasyon yok:** `HIDDEN/ARCHIVED` durumları, karar alıcı ve uygulama ACK'i uygulanmadı. Görünür olmayan her inceleme tek okuma, güncelleme, beğeni, öne çıkanlar, `reviews/mine` ve istatistik `activeCount` yollarında fail-closed dışlanır (şemada gizli durum olmadığından davranış testi yoktur).
+
+### 14.2 Admin sözlüğüyle uyumlanacak geçici değerler (Review'da uygulandı; Admin onayıyla güncellenir)
+
+- **Gerekçe listesi (kapalı):** `SPAM, HARASSMENT, HATE_SPEECH, PERSONAL_INFO, SPOILER, OFF_TOPIC, OTHER`. Admin'in nihai sözlüğü farklıysa Review'daki enum, `review_reports.reason` CHECK kısıtı ve frontend çevirileri birlikte güncellenir (yeni migration gerekir).
+- **Açıklama sınırı:** isteğe bağlı `detail`, en çok 500 karakter düz metin.
+- **Rapor kotası:** hesap başına saatte 10 deneme (mükerrer/geçersiz denemeler dahil); `ltz.review.abuse.report-create.*` ile yapılandırılır. Nihai sayı Admin ile birlikte onaylanmalıdır.
+
+### 14.3 Moderasyon sonucunun kullanıcıya yansıması (karar bekleyen noktalar)
+
+- **Gizlenen/arşivlenen inceleme:** Bugün herkese 404. Yazarın kendi gizli incelemesini **görmesi/düzenlemesi/silmesi** kararı (REV-15 §13) verilirse Review'ın yazara özel bir durum alanı (durum + gerekçe kodu) döndürmesi gerekir; mevcut `ReviewResponse`'ta yoktur. Karar çıkana kadar yazar da 404 görür ve "İncelemelerim" (yalnız `VISIBLE`) gizlenen incelemeyi sessizce düşürür — yazar için kafa karıştırıcıdır; Admin/Notification bildirimiyle ([Notification talebi](notification-review-integration.md)) birlikte ele alınmalıdır.
+- **Puan:** Karar gereği gizli incelemenin puanı ortalamada kalır; puanı geçersiz kılma ayrı bir Admin eylemi olarak tanımlanırsa Review'ın uygulayacağı uç ve REV-14 yeniden hesabı ayrıca kararlaştırılmalıdır.
+- **Beğeniler:** Gizlenen incelemenin beğenilerinin korunması/silinmesi kararı açık.
+- **Raporlanmış inceleme silinirse/gizlenirse:** Review bugün raporu saklar (silinmiş inceleme raporlarını da); saklama süresi ve Admin vakasına etkisi **KARAR BEKLİYOR**.
+
+### 14.4 Admin'den somut beklenenler (özet)
+
+1. Sorumlunun atanması; olay/senkron protokol, ACK ve vaka/rapor ayrımı kararı (§13).
+2. Rapor alıcısı (`ContentReported` benzeri) ve Auth çifti (Review→Admin); alıcı hazır olunca Review'da **teslim işçisi** eklenir (bekleyen raporlar hazırdır).
+3. Gerekçe sözlüğü ve alan sınırlarının onayı (§14.2).
+4. Kullanıcıya gösterilebilir **sınırlı rapor durumu** kümesi ("alındı/inceleniyor/sonuçlandı"); Admin vaka sonucunu (karar, gerekçe, moderatör) kullanıcıya açmaz.
+5. Moderasyon eylemleri ve yazara görünürlük politikası (§14.3) — Review'ın yanıt şemasını etkilediği için önce kararlaştırılmalı.
+6. Karar aktarımında Review'ın uygulama ACK'i ve `actionId`/sürüm kuralları (§7–§10).

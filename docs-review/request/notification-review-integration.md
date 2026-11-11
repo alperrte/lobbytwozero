@@ -1,5 +1,7 @@
 # NOTIFICATION–REVIEW entegrasyon ihtiyacı
 
+> **Güncelleme — 12 Kasım 2026:** Yeniden doğrulandı — Notification Service'te hâlâ yalnız `NotificationServiceApplication` vardır, Auth'ta Review→Notification ve Admin→Notification çiftleri **tanımsızdır**; bu belgedeki hiçbir öneri uygulanmış değildir. Yeni: bildirimden Review sayfasına gitmek için **hazır frontend rotaları ve bildirim yükünün taşıması gereken alanlar** §14'te.
+
 ## 1. Talep eden servis
 
 `review-service` — Hamza. İhtiyaç belgesidir; Notification sahibine kesin tasarım/geliştirme emri değildir.
@@ -23,7 +25,6 @@ Uygulanmış bir moderasyon eylemi sonucunda inceleme sahibinin güvenli ve tuta
 - [Mimari katalog](../../docs/architecture.md) `ModerationActionTaken` akışını Admin→kaynak servis/Notification için **ÖNERİ** olarak listeliyor; bu uygulanmış bir tüketici sözleşmesi değildir.
 - Auth'ta community→notification örneği var; Review→Notification ve Admin→Notification izni mevcut yapılandırmada bulunmuyor. Üretici kararı olmadan bu izinlerin hepsi istenmemeli.
 - Review'da bu çalışmada moderasyon, bildirim üretimi veya outbox/relay uygulanmadı. REV-06 kaynak görevi beğeni bildirimini zorunlu kılmıyor; “beğenildi”, rapor gönderildi veya raporlayana sonuç bildirimi bu taleple kapsam kazanmaz.
-- 31 Ekim 2026'da yeniden doğrulandı (değişiklik yok): Notification Service'te `NotificationServiceApplication` dışında Java sınıfı yoktur; `docs/api.md` NOTIFICATION bölümü hâlâ "Kayıt yok"; Auth'ta Review→Notification ve Admin→Notification çifti hâlâ tanımsızdır. Bu belgedeki hiçbir öneri uygulanmış değildir.
 
 ## 6. Eksik gereksinimler
 
@@ -85,3 +86,22 @@ REV-10'un moderasyon bildirim hattı ve ileride REV-15'in sahibini bilgilendirme
 Notification sorumlusu, tek üretici, olay adı/sürümü, alıcı alanları/tercihler, gerekçe minimizasyonu, uygulama ACK'i, teslim durumu, dedup ve retention. Bildirim gereksinimini genişletme kararı ilgili servis sahipleri ve kullanıcı onayıyla verilir; Review karşılıklı onaylı sözleşmeye uyarlanır.
 
 **REV-15 eki — KARAR BEKLİYOR:** tek bildirim üreticisi (Admin ACK sonrası / Review uygulaması sonrası); bildirim kapsamındaki eylem türleri ve yeniden görünür yapma bildirimi; olay zarfında sıra/sürüm alanı; saklama ve silinmiş hesap davranışı. REV-13 için bildirim kararı gerekmez.
+
+
+## 14. Bildirimden Review sayfasına gitme — frontend hazırlığı ve beklentiler (12 Kasım 2026)
+
+Review frontend'i tamamlandı. Bildirim tıklaması (docs/web-rules.md §7.5) hedefe şu **mevcut** rotalarla gidebilir; bildirim yükü yalnız kimlikleri taşır, URL taşımaz (frontend yolu kendisi üretir):
+
+| Bildirim hedefi | Frontend dahili yolu | Türkçe adres | Gereken kimlik |
+| --- | --- | --- | --- |
+| Belirli inceleme | `/reviews/[reviewId]` | `/incelemeler/<reviewId>` | `reviewId` (UUID) |
+| İncelemenin oyunu | `/reviews/games/[gameId]` | `/incelemeler/oyun/<gameId>` | `gameId` (kanonik UUID) |
+| Kullanıcının incelemeleri | `/reviews/mine` | `/incelemeler/incelemelerim` | — |
+
+**Beklentiler**
+
+1. **Yük içeriği (§7 ile uyumlu):** `reviewId`, `gameId`, `messageKey`, sınırlı `reasonCode`. İnceleme metni, oyun adı, raportör/rapor detayı ve serbest moderatör notu **taşınmaz**; frontend oyun adını Game'den çözer.
+2. **Kaynak silinmiş/yetkisiz:** Hedef inceleme silinmiş, gizlenmiş veya hesap silinmişse Review `404` döner; frontend "İnceleme bulunamadı" durumunu açıklayıcı bir sayfayla gösterir ve oyun incelemelerine/merkeze bağlantı sunar. Notification bu durumda bildirimi **kendiliğinden silmek zorunda değildir**, fakat silinmiş hesaba bildirim üretmemelidir.
+3. **Gizlenen inceleme + yazar bildirimi:** REV-15 uygulanırsa yazar "incelemen gizlendi" bildirimini alır; bildirim hedefi `/reviews/[reviewId]` olursa bugünkü Review davranışı yazar için de `404`'tür (görünür olmayan inceleme herkese kapalı). Bu yüzden bildirim hedefi için **yazara özel görünürlük** (Review yanıt şeması) kararı [Admin talebi §14.3](admin-review-integration.md) ile birlikte alınmalıdır; aksi hâlde bildirim "bulunamadı" sayfasına götürür. Geçici öneri: bildirim hedefi `/reviews/mine` veya yalnız açıklayıcı metin olsun.
+4. **Beğeni bildirimi:** İstenmiyor (kapsam dışı). Beğeni sayısı ve "ben beğendim mi" durumu Review'da sorgulanır; bildirim üretimi için olay gerekmez.
+5. **Oturum:** Bildirim tıklaması oturumsuz kullanıcıyı mevcut giriş akışına yönlendirir ve girişten sonra hedef Review sayfasına döner (`next` parametresi); Notification'dan ek davranış beklenmez.
