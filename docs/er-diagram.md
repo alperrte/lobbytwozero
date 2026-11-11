@@ -709,11 +709,13 @@ erDiagram
 erDiagram
   conversations ||--o{ conversation_members : includes
   conversations ||--o{ messages : contains
-  messages ||--o{ message_attachments : attaches
+  conversations ||--o{ message_read_ranges : "read ranges"
+  conversations ||--o{ message_attachments : "uploads"
+  messages |o--o| message_attachments : attaches
+  attachment_blobs ||--o{ message_attachments : "shared content"
   messages ||--o{ message_reactions : reacted
-  messages ||--o{ message_reads : "read by"
   messages ||--o{ message_hidden_for_users : "hidden for"
-  messages |o--o{ messages : "reply_to / forwarded_from"
+  messages |o--o{ messages : "reply_to"
 
   conversations {
     uuid id PK
@@ -742,29 +744,71 @@ erDiagram
     bigint seq "UK(conversation_id, seq)"
     uuid sender_id "REF"
     varchar client_message_id "UK(sender_id, client_message_id)"
-    varchar type "TEXT"
-    text body "1-4000"
+    varchar type "TEXT|IMAGE|GIF|VOICE"
+    text body "1-4000; TEXT'te zorunlu"
+    varchar gif_provider "yalnız GIF: GIPHY"
+    varchar gif_id
+    varchar gif_url "https"
+    varchar gif_preview_url "https"
+    int gif_width
+    int gif_height
     timestamptz created_at
+    uuid reply_to_message_id FK "SET NULL"
+    int forward_count "iletildi sayacı"
+    timestamptz deleted_at "herkesten silindi"
+    uuid deleted_by "REF"
   }
   message_attachments {
     uuid id PK
-    uuid message_id FK
-    varchar storage_key
+    uuid conversation_id FK "ON DELETE CASCADE"
+    uuid uploader_id "REF"
+    uuid message_id FK,UK "null: gönderilmedi"
+    uuid blob_id FK "RESTRICT"
+    boolean forwarded "iletme bağlantısı"
+    varchar mime_type "png|jpeg|gif|audio/webm"
     int size_bytes "<= 1 MB"
+    int width "yalnız görsel"
+    int height "yalnız görsel"
+    int frame_count "yalnız görsel"
+    int duration_ms "yalnız ses, 500-121000"
+    bytea waveform "yalnız ses, 64 bayt, opsiyonel"
+    timestamptz created_at
+  }
+  attachment_blobs {
+    uuid id PK
+    int size_bytes "<= 1 MB"
+    bytea content
+    timestamptz created_at
   }
   message_reactions {
     uuid message_id PK,FK
-    uuid user_id PK "REF"
-    varchar emoji PK
+    uuid user_id PK "REF; kişi başına tek"
+    varchar emoji "1-32"
+    timestamptz reacted_at
   }
-  message_reads {
-    uuid message_id PK,FK
-    uuid user_id PK "REF"
-    timestamptz read_at
+  message_read_ranges {
+    uuid id PK
+    uuid conversation_id FK "ON DELETE CASCADE"
+    uuid user_id "REF"
+    bigint from_seq "CHECK >= 1"
+    bigint to_seq "CHECK from_seq <= to_seq"
+    timestamptz read_at "aralığın okunma saati"
   }
   message_hidden_for_users {
-    uuid message_id PK,FK
     uuid user_id PK "REF"
+    uuid message_id PK,FK
+    timestamptz hidden_at
+  }
+  rate_limit_windows {
+    uuid user_id PK "REF"
+    varchar bucket PK "gif-search|reaction"
+    timestamptz window_start PK
+    int hits
+  }
+  stream_relay_events {
+    bigserial id PK
+    timestamptz created_at "5 dk sonra silinir"
+    text payload "alıcı başına olay JSON"
   }
 ```
 

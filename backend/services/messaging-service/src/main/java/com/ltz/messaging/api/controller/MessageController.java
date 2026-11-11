@@ -16,27 +16,34 @@ import org.springframework.web.bind.annotation.RestController;
 import com.ltz.messaging.api.dto.request.MarkReadRequest;
 import com.ltz.messaging.api.dto.request.SendMessageRequest;
 import com.ltz.messaging.api.dto.response.MessagePageResponse;
+import com.ltz.messaging.api.dto.response.MessageReadsResponse;
 import com.ltz.messaging.api.dto.response.MessageResponse;
 import com.ltz.messaging.api.dto.response.ReadStateResponse;
+import com.ltz.messaging.application.service.MessageReadService;
 import com.ltz.messaging.application.service.MessageService;
 import com.ltz.messaging.application.service.SendMessageResult;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
-/** Metin mesajı gönderme (MSG-06), mesaj geçmişi (MSG-07/10) ve okuma işaretçisi (MSG-13). Tüm uçlar kimlik ister. */
+/**
+ * Mesaj gönderme (metin MSG-06, görsel MSG-17, emoji MSG-18, GIF MSG-22), mesaj geçmişi (MSG-07/10), okuma işaretçisi
+ * (MSG-13) ve mesajı görenler (MSG-12).
+ * Tüm uçlar kimlik ister.
+ */
 @RestController
 @RequiredArgsConstructor
 public class MessageController {
 
     private final MessageService messages;
+    private final MessageReadService reads;
 
     /** Yeni mesajda 201; aynı {@code clientMessageId} ile yeniden denemede 200 ve aynı mesaj. */
     @PostMapping(MessagingApiPaths.MESSAGES)
     public ResponseEntity<MessageResponse> send(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID conversationId,
                                                 @Valid @RequestBody SendMessageRequest request) {
         SendMessageResult result = messages.send(AuthenticatedUser.id(jwt), conversationId, request.clientMessageId(),
-                request.body());
+                request.toDraft());
         return ResponseEntity.status(result.created() ? HttpStatus.CREATED : HttpStatus.OK)
                 .body(MessageResponse.from(result.message()));
     }
@@ -48,6 +55,13 @@ public class MessageController {
                                        @RequestParam(required = false) Integer limit) {
         return MessagePageResponse.from(
                 messages.history(AuthenticatedUser.id(jwt), conversationId, before, after, limit));
+    }
+
+    /** Yalnız mesajın göndereni görür (MSG-12). */
+    @GetMapping(MessagingApiPaths.MESSAGE_READS)
+    public MessageReadsResponse reads(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID conversationId,
+                                      @PathVariable UUID messageId) {
+        return MessageReadsResponse.from(reads.reads(AuthenticatedUser.id(jwt), conversationId, messageId));
     }
 
     @PostMapping(MessagingApiPaths.READ)

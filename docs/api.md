@@ -5469,10 +5469,10 @@ UNIT + INTEGRATION (gerçek PostgreSQL; social-service 238 test PASS; `FanOutEve
 
 Sorumlu: Umut · Gateway: `/api/v1/messaging/**` · Görevler: MSG-
 
-Ortak kurallar (aşağıdaki tüm MESSAGING uçları için; görevler LTZ-UMT-MSG-01 (MSG-01..05, MSG-14, MSG-15) ve LTZ-UMT-MSG-02 (MSG-06..10, MSG-13, MSG-16, MSG-27)):
+Ortak kurallar (aşağıdaki tüm MESSAGING uçları için; görevler LTZ-UMT-MSG-01 (MSG-01..05, MSG-14, MSG-15), LTZ-UMT-MSG-02 (MSG-06..10, MSG-13, MSG-16, MSG-27), LTZ-UMT-MSG-03 (MSG-11, MSG-12), LTZ-UMT-MSG-04 (MSG-17, MSG-18, MSG-22), LTZ-UMT-MSG-05 (MSG-19, MSG-20, MSG-23..26), LTZ-UMT-MSG-06 (MSG-21) ve LTZ-UMT-MSG-07 (hesap silme, yayına hazırlık)):
 - Tüm uçlar `Authorization: Bearer <access token>` (kullanıcı token'ı, `typ=at+jwt`) ister; Gateway tarayıcı çerezini Bearer'a çevirir. Token servis tarafında Auth'un JWKS anahtarıyla yeniden doğrulanır (RS256, `iss`, `aud`, `typ=at+jwt`, `exp`/`nbf`/`iat`/`sub` zorunlu, 30 sn saat payı). Servis token'ı (`svc+jwt`) bu uçlarda geçmez. Messaging'in henüz iç (`/internal/**`) ucu yoktur; bu yollar kapalıdır.
 - `userId` yalnız token'ın `sub` alanından alınır; gövde/başlıktaki kimlik (`senderId`, `ownerId`, `X-User-Id` vb.) güvenilmez: gövdedeki bilinmeyen alan `400`, başlıklar yok sayılır.
-- Kimliksiz/geçersiz token `401 UNAUTHENTICATED`. Hata gövdesi `ProblemDetail` + `code`; doğrulama hatalarında `errors: [{field, code}]` döner, gönderilen değer geri yansıtılmaz. İstek gövdesi en fazla 32 KB (`413 PAYLOAD_TOO_LARGE`).
+- Kimliksiz/geçersiz token `401 UNAUTHENTICATED`. Hata gövdesi `ProblemDetail` + `code`; doğrulama hatalarında `errors: [{field, code}]` döner, gönderilen değer geri yansıtılmaz. İstek gövdesi en fazla 32 KB (`413 PAYLOAD_TOO_LARGE`); yalnız görsel yükleme ucunda 1 MB.
 - **Erişim (MSG-14):** Sohbete yalnız **aktif üyesi** erişir. Hiç üye olmamış, ayrılmış ya da çıkarılmış kullanıcı ile var olmayan sohbet **aynı** `404 CONVERSATION_NOT_FOUND` alır (sohbetin varlığı ve türü sızdırılmaz). Yazma (mesaj uçları MSG-02 görevinde) ayrıca birebir sohbette iki taraf arasında engel olmamasını ister.
 - **Engel (MSG-15):** Engel verisi social-service'tedir; Messaging saklamaz, her etkileşimde `POST /internal/v1/blocks/check` ile sorar. İki kullanıcı arasında **herhangi bir yönde** engel varsa: birebir sohbet açılamaz (yeni ya da mevcut), engelli kişi gruba eklenemez (grup kurarken de) → `403 MESSAGING_NOT_ALLOWED` (engelin yönü ve hangi kişide olduğu söylenmez). Grupta yalnız **ekleyen ↔ eklenen** çifti denetlenir; mevcut grup üyeliği engelden etkilenmez. Engel durumu öğrenilemezse (Auth gizli anahtarı yok, Auth/Social ulaşılamaz ya da yanıt eksik) işlem **fail-closed** `503 BLOCK_CHECK_UNAVAILABLE` ile reddedilir.
 - **Roller:** Birebir sohbette iki taraf da `MEMBER`'dır. Grupta tek `OWNER` (oluşturan) vardır; `OWNER` ve `ADMIN` üye ekler, `OWNER` herkesi, `ADMIN` yalnız `MEMBER`'ı çıkarır; rolü yalnız `OWNER` değiştirir. Grup işlemleri birebir sohbette `409 GROUP_CONVERSATION_REQUIRED`.
@@ -5490,6 +5490,61 @@ Ortak kurallar (aşağıdaki tüm MESSAGING uçları için; görevler LTZ-UMT-MS
   }
   ```
   `members` yalnız aktif üyelerdir, katılma sırasıyla. Ad/avatar user-service'tedir.
+- **Okundu durumu (MSG-11, MSG-12):** Durum iki değerlidir: `SENT` (sunucuya kaydedildi) ve `READ` (okundu). "Okumak", istemcinin `POST .../read` ile işaretçiyi ilerletmesidir; "görüldü" ile "okundu" aynı olaydır. Bir mesaj, **o anda aktif olan ve mesajı görebilen herkes** (gönderen hariç) okuyunca `READ` olur; mesajdan sonra katılanlar ile ayrılan/çıkarılanlar hesaba katılmaz. Bu kural gönderenin su seviyesi (`min` over aktif diğer üyeler `max(last_read_seq, visible_from_seq - 1)`) ile tek yerde hesaplanır; geçmiş, liste, `.../reads` ve `read` olayı aynı sonucu verir. `readStatus` **yalnız isteyenin kendi mesajında** doludur; başkasının mesajında `null` döner. Kimin okuduğunu yalnız mesajın göndereni görebilir (`GET .../reads`). Okundu bilgisini kapatma ayarı yoktur.
+- **Mesajı görebilmek (MSG-19..26):** Bir mesaja yapılan her işlemin (yanıt, iletme, tepki, silme, okuyanlar, görsel indirme) ön koşulu: mesaj bu sohbette, isteyenin görünürlük sınırının (`visible_from_seq`) içinde ve isteyen onu **benden sil** ile kaldırmamış olmalı. Aksi her durum aynı `404 MESSAGE_NOT_FOUND`'dur (başka sohbetin mesajı dahil; varlığı sızdırılmaz).
+- **Benden sil / herkesten sil (MSG-25/26):** Benden silinen mesaj yalnız o kullanıcının geçmişinden, sohbet listesindeki `lastMessage`'ından, okunmamış sayısından ve alıntılarından kalkar; diğer üyeler ve okundu bilgisi etkilenmez. Herkesten silinen mesajın satırı kalır (`seq`, okunmamış ve okundu bilgisi bozulmaz) ama `deleted: true` döner; `body`, `attachment`, `gif`, `replyTo` boş, tepki özeti boştur. Herkesten silinmiş mesaja yanıt, iletme ve tepki `422 MESSAGE_DELETED`.
+- **Mesaj menüsü (MSG-24):** Menü frontend'dedir; backend her mesajda menünün ihtiyacını verir (`deletableForEveryoneUntil`, `reactions.mine`, `forwarded`) ve her işlemin yetkisini ayrıca uygular.
+- **Silinmiş hesap (LTZ-UMT-MSG-07):** Hesabı silinen kullanıcının mesajları `deleted: true` ve `senderId: "00000000-0000-0000-0000-000000000000"` döner; arayüz "Silinmiş hesap" gösterir. Bkz. "Hesap verisi silme".
+- **Yoğunluk (LTZ-UMT-MSG-07):** Veritabanı bağlantısı 5 sn içinde alınamazsa her uç `503 SERVICE_BUSY` ve `Retry-After: 1` döner (istek uzun süre bekletilmez).
+
+### MESSAGING — Hesap verisi silme (Internal, Auth → Messaging)
+
+Durum: IMPLEMENTED (alıcı taraf; gerçek Auth token'ıyla uçtan uca NOT VERIFIED)
+Sorumlu: Umut
+Tüketici servisler: auth-service (hesap silme koordinasyonu, `ltz.auth.deletion.targets` içinde `messaging` var)
+
+#### Endpoint
+DELETE /internal/v1/accounts/{accountId}
+
+#### Yetkilendirme
+Internal. Gateway'e açık **değildir**. Yalnız Auth'un imzaladığı **servis token'ı** (`docs-auth/servis-sozlesmeleri.md` §3, `docs-auth/d4-ekip-notlari/01_ORTAK_SILME_UCU_UYGULAMA_REHBERI.md`):
+- JWT başlığı `typ=svc+jwt`; RS256, Auth'un JWKS anahtarıyla doğrulanır.
+- `iss=ltz-auth`, `aud` içinde `messaging-service` (`ltz.messaging.auth.service-audience`, yeni ENV değil), `jti` zorunlu.
+- `scope` içinde `account:erase` (eksik/farklı kapsam `403`).
+- `sub` **tam olarak** `svc:auth-service` (başka servis kimliği `403`).
+- `account_id` claim'i yoldaki `{accountId}` ile **aynı** (UUID olarak karşılaştırılır); eksik ya da başka hesap `403`.
+- Ömür en çok 60 sn (`exp - iat ≤ 60 sn` ve `exp` şimdiden en çok 60 sn + 30 sn sapma ileride; `iat` yoksa ret).
+- Kullanıcı token'ı bu uçta, servis token'ı kullanıcı uçlarında (`/api/v1/messaging/**`) `401`.
+
+#### Path Parameters
+- accountId: UUID, zorunlu — silinecek hesap
+
+#### Response — 204
+Gövde yok. Tek transaction'da (set tabanlı SQL; başka servise çağrı yok):
+- Hesabın gönderdiği mesajların **satırı kalır** (sohbetin `seq` sırası, okunmamış ve okundu bilgisi bozulmasın) ama içerikleri herkesten silinmiş gibi temizlenir: gövde, GIF, ek bağlantısı (başka bağlantısı kalmayan içerik baytları dahil) ve mesajın tepkileri silinir; `deleted: true` döner. `senderId` ve silen kimliği **anonim hesap** `00000000-0000-0000-0000-000000000000` olur (arayüz "Silinmiş hesap" gösterir); istemci kimliği mesaj kimliğine çevrilir.
+- Hesabın tepkileri, benden sil kayıtları, okuma aralıkları, gönderilmemiş yüklemeleri, oran sayaçları ve kısa ömürlü canlı akış aktarım kayıtları silinir. Bekleyen `MessageSent` outbox olaylarından göndereni hesap olanlar silinir, alıcı listelerinden hesap çıkarılır.
+- Hesabın tüm üyelik satırları silinir; başkalarının satırlarındaki izler (`createdBy`, `removedBy`, herkesten silenin kimliği) anonimleşir. Hesap bir grubun aktif sahibiyse ayrılma kuralıyla yeni sahip atanır (önce ADMIN, sonra en eski üye); aktif üyesi kalmayan grup tümüyle silinir.
+- Birebir sohbet karşı taraf için kalır (geçmişi okunur); sohbet anahtarı hesabın kimliğini içermeyecek biçimde değişir. Karşı tarafı kalmayan birebir sohbete yazmak `403 MESSAGING_NOT_ALLOWED`.
+- Commit sonrası hesabın tüm örneklerdeki açık canlı akışları kapanır.
+
+**İdempotenttir:** veri yoksa, ikinci çağrıda ya da bilinmeyen hesapta da `204`. Saklama istisnası yoktur (`204` = kişisel veri kalmadı).
+
+#### Hata Durumları
+- 400: Geçersiz `accountId`
+- 401: Token yok/geçersiz; kullanıcı token'ı; yanlış `iss`/`aud`/`typ`; süresi dolmuş ya da 60 sn'den uzun ömürlü; `sub` `svc:` ile başlamıyor; `jti` yok; bozuk/yanlış anahtarlı imza; `alg=none`/HS256
+- 403: `account:erase` kapsamı yok; `sub` `svc:auth-service` değil; `account_id` yok ya da yoldaki hesapla aynı değil (hiçbir şey silinmez); bu yolda başka yöntem ya da başka iç yol
+- 503: Veritabanı bağlantısı alınamadı (`SERVICE_BUSY`; Auth yeniden dener)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Auth, silme onaylandığında `${MESSAGING_SERVICE_URL}/internal/v1/accounts/{accountId}` adresini çağırır.
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; `AccountErasureTest` 16 test: rehberin 17 senaryosu ve veri senaryoları). Gerçek Auth servis token'ıyla uçtan uca: NOT VERIFIED (dev'de Auth sahibiyle birlikte bir test hesabı silinip `messaging` görevinin `CONFIRMED` olduğu kontrol edilmeli).
 
 ### MESSAGING — Birebir sohbet aç (MSG-01)
 
@@ -5529,7 +5584,7 @@ Diğer mikroservisler:
 social-service `POST /internal/v1/blocks/check` (RestClient). Token: Auth `POST /internal/v1/service-tokens` (`clientId: "messaging-service"`, `audience: "social-service"`, `scope=blocks:check`, 60 sn); gizli anahtar `AUTH_MESSAGING_SERVICE_CLIENT_SECRET`.
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS; engel Social yerine test adaptörüyle, gerçek Social istemcisi MockRestServiceServer ile). Gerçek Auth + Social ile uçtan uca: NOT VERIFIED.
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS; engel Social yerine test adaptörüyle, gerçek Social istemcisi MockRestServiceServer ile). Gerçek Auth + Social ile uçtan uca: NOT VERIFIED.
 
 ### MESSAGING — Grup sohbeti oluştur (MSG-02)
 
@@ -5572,7 +5627,7 @@ Diğer mikroservisler:
 social-service engel sorgusu (oluşturan ↔ tüm ilk üyeler, tek toplu çağrı).
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED.
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED.
 
 ### MESSAGING — Sohbet detayı (MSG-14)
 
@@ -5608,7 +5663,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS)
 
 ### MESSAGING — Gruba üye ekle (MSG-03)
 
@@ -5655,7 +5710,7 @@ Diğer mikroservisler:
 social-service engel sorgusu (tek toplu çağrı).
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED.
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED.
 
 ### MESSAGING — Gruptan üye çıkar (MSG-05)
 
@@ -5692,7 +5747,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS)
 
 ### MESSAGING — Üye rolünü değiştir (MSG-03)
 
@@ -5737,7 +5792,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS)
 
 ### MESSAGING — Gruptan ayrıl (MSG-04)
 
@@ -5772,9 +5827,9 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS)
 
-### MESSAGING — Sohbet listesi (MSG-08, MSG-13)
+### MESSAGING — Sohbet listesi (MSG-08, MSG-13, MSG-11)
 
 Durum: IMPLEMENTED
 Sorumlu: Umut
@@ -5810,8 +5865,8 @@ Authenticated (yalnız token sahibinin **aktif** üyesi olduğu sohbetler; ayrı
 }
 ```
 - Sıra: `lastActivityAt` azalan (son mesaj; mesaj yoksa oluşturulma), eşitlikte `id` azalan. Keyset sayfalama: sayfalar arasında tekrar ya da atlama olmaz.
-- `lastMessage`, kullanıcının göremediği (gruba katılmadan önceki) bir mesajsa `null` döner.
-- `unreadCount` (MSG-13): okuma işaretçisinden sonraki, kullanıcının görebildiği ve **başkasının** gönderdiği mesaj sayısı. Mesaj gönderen, sohbeti o mesaja kadar okumuş sayılır.
+- `lastMessage`, kullanıcının görebildiği ve **benden sil** ile kaldırmadığı son mesajdır (MSG-25); hepsini kaldırdıysa ya da yalnız katılmadan önceki mesajlar varsa `null` döner. Herkesten silinmişse `deleted: true` ile döner (MSG-26). Görsel/GIF mesajında `attachment`/`gif` alanları da doludur (MSG-17/22; sayfa başına tek ek sorgu). `lastMessage.readStatus` (MSG-11) son mesaj isteyene aitse `SENT | READ`, değilse `null` olur.
+- `unreadCount` (MSG-13): okuma işaretçisinden sonraki, kullanıcının görebildiği, benden silmediği ve **başkasının** gönderdiği mesaj sayısı. Mesaj gönderen, sohbeti o mesaja kadar okumuş sayılır. Sayım sohbet başına **100'de durur**: `100` "100 ya da daha fazla" demektir, arayüz `99+` gösterir (çok okunmamışı olan sohbette maliyet sabit).
 - Bir sayfa sabit sayıda sorguyla kurulur (N+1 yok).
 
 #### Hata Durumları
@@ -5827,9 +5882,9 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS)
 
-### MESSAGING — Metin mesajı gönder (MSG-06, MSG-10)
+### MESSAGING — Mesaj gönder (metin MSG-06, görsel MSG-17, emoji MSG-18, GIF MSG-22, yanıt MSG-19, sesli mesaj MSG-21; MSG-10, MSG-11)
 
 Durum: IMPLEMENTED
 Sorumlu: Umut
@@ -5848,10 +5903,17 @@ Authenticated + sohbetin aktif üyesi; birebir sohbette iki taraf arasında herh
 ```json
 {
   "clientMessageId": "string, zorunlu, 1–64 karakter [A-Za-z0-9_-] (istemcinin ürettiği tekil kimlik, ör. UUID)",
-  "body": "string, zorunlu, en fazla 4000 karakter; boşluktan ibaret olamaz; satır sonu/sekme dışında kontrol karakteri yok"
+  "body": "string; metin mesajında zorunlu, görsel/GIF mesajında isteğe bağlı açıklama, sesli mesajda verilemez; en fazla 4000 UTF-16 birimi",
+  "attachmentId": "UUID, opsiyonel (yüklenmiş görsel MSG-17 ya da ses MSG-21)",
+  "gif": { "provider": "GIPHY", "id": "string [A-Za-z0-9]{1,64}" },
+  "replyToMessageId": "UUID, opsiyonel (yanıt, MSG-19)"
 }
 ```
-`body` olduğu gibi saklanır (emoji, satır sonu serbest). Sunucu HTML yorumlamaz; istemci **düz metin** olarak gösterir (`dangerouslySetInnerHTML` yok).
+- Tür içerikten belirlenir: `attachmentId` → `IMAGE`, `gif` → `GIF`, ikisi de yoksa `TEXT`. `attachmentId` ile `gif` birlikte verilemez.
+- `body` olduğu gibi saklanır (MSG-18: emoji, ZWJ dizileri, ten rengi, bayraklar ve satır sonu serbest). Boşluktan ibaret olamaz; satır sonu/sekme dışında kontrol karakteri ve **eşlenmemiş UTF-16 vekil** (bozuk emoji) içeremez. Uzunluk UTF-16 birimiyle sayılır (JavaScript `string.length` ile aynı; çoğu emoji 2 birim). Sunucu HTML yorumlamaz; istemci **düz metin** olarak gösterir (`dangerouslySetInnerHTML` yok). Emoji seçici istemcidedir; sunucu emoji listesi tutmaz.
+- **Görsel (MSG-17):** `attachmentId`, aynı sohbete daha önce yüklenmiş ve henüz gönderilmemiş **kendi** görselinizdir (bkz. "Mesaj görseli yükle"). Görsel mesajla aynı transaction'da bağlanır; bağlanamazsa mesaj da kaydedilmez ve `seq` tüketilmez.
+- **Yanıt (MSG-19):** `replyToMessageId` aynı sohbette görebildiğiniz, herkesten silinmemiş bir mesaj olmalıdır (her türde; görsel/GIF mesajı da yanıt olabilir). Yanıt hedefe kalıcı referans tutar; yeniden denemede hedef de aynı olmalıdır.
+- **GIF (MSG-22):** yalnız sağlayıcı ve kimlik gönderilir; adresler, boyutlar ve derece sunucuda platformdan çözülür (istemcinin verdiği adres kabul edilmez: `gif.url` gibi tanımsız alan `400`). Çözme, yazma yetkisinden (engel) sonra ve transaction dışında yapılır; mesajda platform yanıtının anlık kaydı saklanır, dosya saklanmaz.
 
 #### Response — 201 / 200
 `Message`:
@@ -5864,23 +5926,55 @@ Authenticated + sohbetin aktif üyesi; birebir sohbette iki taraf arasında herh
   "type": "TEXT",
   "body": "string",
   "clientMessageId": "string",
-  "createdAt": "ISO-8601 (UTC)"
+  "createdAt": "ISO-8601 (UTC)",
+  "readStatus": "SENT | READ | null",
+  "attachment": "Attachment (yalnız IMAGE) veya null",
+  "gif": {
+    "provider": "GIPHY",
+    "id": "string",
+    "url": "https://media*.giphy.com/...",
+    "previewUrl": "https://media*.giphy.com/...",
+    "width": 267,
+    "height": 200
+  },
+  "replyTo": {
+    "messageId": "UUID",
+    "seq": 3,
+    "senderId": "UUID",
+    "type": "TEXT | IMAGE | GIF",
+    "snippet": "string (ilk 100 UTF-16 birimi) veya null",
+    "deleted": false,
+    "unavailable": false
+  },
+  "forwarded": false,
+  "forwardedManyTimes": false,
+  "deleted": false,
+  "reactions": { "summary": [ { "emoji": "❤️", "count": 2 } ], "mine": "❤️ | null" },
+  "deletableForEveryoneUntil": "ISO-8601 (UTC) veya null"
 }
 ```
-- **201** yeni mesaj. **200** aynı `clientMessageId` ve aynı içerikle yapılmış yeniden deneme: kayıtlı mesaj döner, yeni mesaj/olay üretilmez (ağ yeniden denemesi çift mesaj oluşturmaz). Tekillik veritabanında da zorlanır: `(senderId, clientMessageId)`.
+- `type`: `TEXT | IMAGE | GIF | VOICE`. Tür istemciden alınmaz: `attachmentId` ile gönderilen dosya ses ise `VOICE` (MSG-21), görsel ise `IMAGE`. `gif` yalnız `GIF` türünde, `attachment` (bkz. "Mesaj eki yükle" yanıtı) yalnız `IMAGE` ve `VOICE` türünde doludur, diğerlerinde `null`. `VOICE` mesajında `body` her zaman `null`'dır. Görsel/GIF mesajında `body` açıklama yoksa `null`'dır. Aynı alanlar geçmişte, sohbet listesindeki `lastMessage`'ta ve akıştaki `message` olayında da döner.
+- `readStatus` (MSG-11): isteyen mesajın göndereniyse dolu, değilse `null`. Yeni gönderilen mesaj `SENT` döner; yeniden denemede (200) durum o anki su seviyesinden hesaplanır.
+- `replyTo` (MSG-19): yalnız yanıtta dolu; **isteyene göre** hesaplanır. Hedefi görebiliyorsa gönderen, tür ve `snippet` (gövdenin ilk 100 UTF-16 birimi, emoji ortadan bölünmez; görsel/GIF'te açıklama ya da `null`, seste `null`). Hedef herkesten silinmişse `deleted: true`, `snippet` yok. Hedefi göremiyorsa (katılımından önceki ya da benden silinmiş mesaj) `unavailable: true` ve yalnız `messageId`; gönderen ve içerik dönmez.
+- `forwarded` / `forwardedManyTimes` (MSG-20): mesaj en az bir kez / en az 5 kez iletilmiş. Orijinal gönderen kopyada tutulmaz ve dönmez.
+- `deleted` (MSG-26): herkesten silindi; bkz. ortak kurallar.
+- `reactions` (MSG-23): emoji başına sayı (çoktan aza, eşitlikte ilk tepki önce) ve isteyenin kendi tepkisi (`mine`). Silinmiş mesajda boş.
+- `deletableForEveryoneUntil` (MSG-24/26): isteyen bu mesajı herkesten silebiliyorsa son an (gönderim + 48 saat), silemiyorsa `null`. Hak: mesajın göndereni ya da grupta `OWNER`/`ADMIN`.
+- **201** yeni mesaj. **200** aynı `clientMessageId` ve aynı içerikle (görselde aynı `attachmentId`, GIF'te aynı kimlik; platform yeniden çağrılmaz) yapılmış yeniden deneme (seste aynı `attachmentId`): kayıtlı mesaj döner, yeni mesaj/olay üretilmez (ağ yeniden denemesi çift mesaj oluşturmaz). Tekillik veritabanında da zorlanır: `(senderId, clientMessageId)`.
 - `seq` sohbet içinde boşluksuz ve artandır; sohbet satırı kilitlenerek verilir, böylece sıra commit sırasıyla aynıdır (eşzamanlı gönderim testli).
-- Aynı transaction'da: gönderenin okuma işaretçisi bu mesaja ilerler ve `MessageSent` olayı outbox'a yazılır (bkz. "Giden olay sözleşmeleri"). Commit sonrası mesaj, gönderim anındaki aktif üyelerin açık akışlarına iletilir (MSG-09).
+- Aynı transaction'da: gönderenin okuma işaretçisi bu mesaja ilerler (ilerlediyse okuma aralığı da yazılır, MSG-11) ve `MessageSent` olayı outbox'a yazılır (bkz. "Giden olay sözleşmeleri"). Commit sonrası mesaj, gönderim anındaki aktif üyelerin açık akışlarına iletilir (MSG-09); işaretçi ilerlediği için, ilerleyen aralıkta başka bir aktif üyenin mesajı varsa `read` olayı da gider (bkz. "Gerçek zamanlı mesaj akışı").
 - Oran sınırı: kullanıcı başına son 60 sn'de en fazla 30 mesaj (`ltz.messaging.messages.max-per-minute`).
 
 #### Hata Durumları
-- 400: Eksik/boş/uzun `body`, kontrol karakteri, geçersiz `clientMessageId`, tanımsız alan (ör. `senderId`) (`VALIDATION_FAILED`, `MALFORMED_REQUEST`)
+- 400: Metin mesajında eksik `body`; boş/uzun `body`, kontrol karakteri, eşlenmemiş vekil, geçersiz `clientMessageId`, geçersiz `gif.id`/`gif.provider`, tanımsız alan (ör. `senderId`, `gif.url`) (`VALIDATION_FAILED`, `MALFORMED_REQUEST`); içerik yok (`MESSAGE_CONTENT_REQUIRED`); dosya ile GIF birlikte (`CONFLICTING_MESSAGE_CONTENT`); sesli mesajda `body` (`VOICE_CAPTION_NOT_ALLOWED`; mesaj kaydedilmez, ses bağlanmamış kalır)
 - 401: Kimlik yok/geçersiz
-- 403: Birebir sohbette aralarında engel var (`MESSAGING_NOT_ALLOWED`)
-- 404: Sohbet yok ya da aktif üyesi değilsiniz (`CONVERSATION_NOT_FOUND`)
-- 409: `clientMessageId` başka bir içerik ya da sohbet için kullanılmış (`CLIENT_MESSAGE_ID_REUSED`)
+- 403: Birebir sohbette aralarında engel var (`MESSAGING_NOT_ALLOWED`; GIF platformu çağrılmaz)
+- 404: Sohbet yok ya da aktif üyesi değilsiniz (`CONVERSATION_NOT_FOUND`); yanıt hedefi bu sohbette değil ya da göremiyorsunuz (`MESSAGE_NOT_FOUND`)
+- 409: `clientMessageId` başka bir içerik, yanıt hedefi ya da sohbet için kullanılmış (`CLIENT_MESSAGE_ID_REUSED`)
 - 413: İstek gövdesi 32 KB'ı aşıyor
+- 422: Dosya (görsel/ses) yok, başkasının, başka sohbetin, süresi dolmuş ya da zaten gönderilmiş (`ATTACHMENT_NOT_AVAILABLE`); GIF platformda yok ya da izinli değil (`GIF_NOT_AVAILABLE`); yanıt hedefi herkesten silinmiş (`MESSAGE_DELETED`)
 - 429: Gönderim oranı aşıldı (`TOO_MANY_MESSAGES`)
-- 503: Birebir sohbette engel durumu öğrenilemedi (`BLOCK_CHECK_UNAVAILABLE`); mesaj kaydedilmez
+- 503: Birebir sohbette engel durumu öğrenilemedi (`BLOCK_CHECK_UNAVAILABLE`); GIF platformu kapalı/ulaşılamıyor (`GIF_PROVIDER_UNAVAILABLE`); mesaj kaydedilmez
 - 500: Beklenmeyen sunucu hatası
 
 #### Bağlantı
@@ -5888,12 +5982,216 @@ Frontend:
 API Gateway üzerinden /api/v1/messaging/conversations/{conversationId}/messages
 
 Diğer mikroservisler:
-Birebir sohbette social-service engel sorgusu. `MessageSent` olayı outbox'a (notification-service) — teslim **PENDING**.
+Birebir sohbette social-service engel sorgusu. GIF mesajında GIPHY `GET /v1/gifs/{id}` (bkz. "GIF ara"). `MessageSent` olayı outbox'a (notification-service) — teslim **PENDING**; olay içerik/görsel taşımaz.
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED.
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED. Gerçek GIPHY ile: NOT VERIFIED.
 
-### MESSAGING — Mesaj geçmişi (MSG-07, MSG-09 eşitleme)
+### MESSAGING — Mesaj eki yükle: görsel (MSG-17) / sesli mesaj (MSG-21)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/messaging/conversations/{conversationId}/attachments
+
+#### Yetkilendirme
+Authenticated + sohbetin aktif üyesi. Yükleyen = token sahibi.
+
+#### Path Parameters
+- conversationId: UUID, zorunlu
+
+#### Request Body
+Gövde **dosyanın kendisidir** (çok parçalı form değil). `Content-Type`: görselde `image/png`, `image/jpeg` ya da `image/gif`; seste `audio/webm` ya da `audio/ogg` (parametreler, ör. `;codecs=opus`, yok sayılır). Gövde en çok **1 MB** (1 048 576 bayt); bu uç için genel 32 KB sınırı yerine 1 MB uygulanır.
+
+#### Query Parameters
+- waveform: string, opsiyonel, **yalnız seste**: dalga formu; virgülle ayrılmış tam **64** tam sayı, her biri **0–100** (ör. `0,12,55,...`). Boşluk, baştaki sıfır ve fazla/eksik değer `400 INVALID_WAVEFORM`; görsel yüklemede verilirse de `400`. İstemcinin kayıt sırasında ürettiği beyandır (sunucu sesi çözmez); yalnız çizim içindir.
+
+Sunucu doğrulaması — görsel (SECURITY.md §13):
+- Biçim ilk baytlardan (magic byte) belirlenir ve `Content-Type` ile aynı olmalıdır; SVG, HTML, WebP ve tanınmayan her şey reddedilir. Dosya adı alınmaz, kimlik sunucuda üretilir.
+- PNG/JPEG: en çok 4096 px kenar ve 12 582 912 piksel (başlıktan, çözmeden önce denetlenir). Görsel çözülür, JPEG'in EXIF yönü uygulanır ve **aynı biçimde yeniden kodlanır**: EXIF/konum ve gömülü veri atılır. Sonuç 1 MB'ı aşarsa orantılı küçültülür, yine aşarsa `422 IMAGE_TOO_LARGE`.
+- GIF yeniden kodlanmaz (animasyon korunur); blok yapısı doğrulanır, yorum/metin/uygulama blokları ve kapanıştan sonraki her bayt atılır. En çok 2048 px kenar, 300 kare ve kenar × kenar × kare ≤ 150 milyon.
+- Aynı anda en çok 2 görsel işlenir; sıra 2 sn'den uzun beklerse `503 MEDIA_BUSY`.
+
+Sunucu doğrulaması — ses (MSG-21, SECURITY.md §13):
+- Yalnız **Opus**; biçim ilk baytlardan belirlenir (Ogg `OggS`, WebM EBML `1A45DFA3`) ve `Content-Type` ile aynı olmalıdır. Ogg: tek mantıksal akış, art arda gelen ve CRC'si doğru sayfalar, `OpusHead` + `OpusTags`. WebM: `DocType` `webm`, tek iz (`A_OPUS`); tarayıcı `MediaRecorder`'ının boyutu bilinmeyen `Segment`/`Cluster` öğeleri desteklenir, laced blok desteklenmez. `OpusHead`: 1–2 kanal, eşleme ailesi 0.
+- Her Opus paketi RFC 6716'ya göre yapısal olarak doğrulanır. **Süre paketlerden hesaplanır** (Σ örnek − pre-skip, 48 kHz); kapsayıcının süresine ve zaman damgalarına bakılmaz. Süre **0,5 sn – 2 dk** (2:00'de durdurulan kaydın birkaç ms fazlası için 1 sn tolerans; `ltz.messaging.voice.*`).
+- **Yeniden paketleme:** dosya olduğu gibi saklanmaz. Yalnız Opus paketleri alınır (paket dolgu baytları atılır) ve **sıfırdan yeni bir WebM** yazılır: başlık standart değerlerle kurulur (kazanç 0), süre (`Duration`) dolu, ileri sarma için `Cues` var. Etiketler (`OpusTags`, WebM `Tags`), ek iz/akış, bilinmeyen öğeler ve sondaki baytlar çıktıya geçmez. Saklanan tür her zaman `audio/webm`. Çıktı 1 MB'ı aşarsa `422 AUDIO_TOO_LARGE`. Ses verisinin içine gömülü bilgi (steganografi) yeniden kodlama olmadan kaldırılamaz (SECURITY.md §13).
+- Aynı anda en çok 2 ses işlenir (görselle aynı ayar, ayrı sıra); sıra 2 sn'den uzun beklerse `503 MEDIA_BUSY`.
+- İstemci notu: tarayıcının varsayılan bit hızıyla 2 dakikalık kayıt 1 MB'ı aşar; `MediaRecorder` için `audioBitsPerSecond` ≈ 32000 kullanılmalıdır.
+
+#### Response — 201
+`Attachment` (`Cache-Control: no-store`):
+```json
+{
+  "id": "UUID",
+  "mimeType": "image/png | image/jpeg | image/gif | audio/webm",
+  "sizeBytes": 12345,
+  "width": "640 (görselde) | null (seste)",
+  "height": "480 (görselde) | null (seste)",
+  "frameCount": "1 (görselde) | null (seste)",
+  "durationMs": "null (görselde) | 42350 (seste)",
+  "waveform": "null | [64 tam sayı, 0–100] (yalnız seste, verildiyse)",
+  "url": "/api/v1/messaging/conversations/{conversationId}/attachments/{id}"
+}
+```
+- `width`/`height` saklanan (yön uygulanmış) görselindir; `frameCount` GIF'te kare sayısı, diğerlerinde 1. Seste bu üç alan `null`'dır.
+- `durationMs` sunucunun paketlerden hesapladığı çalınma süresidir; `sizeBytes` yeniden paketlenmiş dosyanındır.
+- Dosya henüz bir mesaja bağlı değildir: `attachmentId` ile mesaj gönderilince bağlanır (bkz. "Mesaj gönder"). **1 saat** içinde gönderilmezse silinir (temizlik 10 dakikada bir).
+- Oran sınırı (görsel ve ses **ortak**): kullanıcı başına dakikada 10 yükleme (`TOO_MANY_UPLOADS`) ve gönderilmeyi bekleyen en çok 10 dosya (`TOO_MANY_PENDING_ATTACHMENTS`).
+
+#### Hata Durumları
+- 400: Boş gövde; geçersiz ya da görselde verilmiş `waveform` (`INVALID_WAVEFORM`)
+- 401: Kimlik yok/geçersiz
+- 404: Sohbet yok ya da aktif üyesi değilsiniz (`CONVERSATION_NOT_FOUND`)
+- 413: Gövde 1 MB'ı aşıyor (`PAYLOAD_TOO_LARGE`)
+- 415: Desteklenmeyen `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`; gönderilen tür yansıtılmaz)
+- 422: İçerik `Content-Type` ile uyuşmuyor ya da görsel değil (`INVALID_IMAGE`); boyut/kare sınırı (`IMAGE_DIMENSIONS_EXCEEDED`); işlem sonrası 1 MB'ı aşıyor (`IMAGE_TOO_LARGE`); ses Opus değil, bozuk ya da `Content-Type` ile uyuşmuyor (`INVALID_AUDIO`; ayrıntı yansıtılmaz); süre 0,5 sn – 2 dk dışında (`AUDIO_DURATION_OUT_OF_RANGE`); yeniden paketlenmiş ses 1 MB'ı aşıyor (`AUDIO_TOO_LARGE`)
+- 429: `TOO_MANY_UPLOADS`, `TOO_MANY_PENDING_ATTACHMENTS`
+- 503: Görsel ya da ses işleme meşgul (`MEDIA_BUSY`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/messaging/conversations/{conversationId}/attachments
+
+Diğer mikroservisler:
+- (Ayrı medya servisi yoktur; içerik `messaging_db`'de `bytea`.)
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS)
+
+### MESSAGING — Mesaj ekini indir / sesi dinle (MSG-17, MSG-21)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend (`<img src>`, `<audio src>`; Gateway çerezi Bearer'a çevirir)
+
+#### Endpoint
+GET /api/v1/messaging/conversations/{conversationId}/attachments/{attachmentId}
+
+#### Yetkilendirme
+Authenticated + sohbetin aktif üyesi. Mesaja bağlı dosyayı (görsel/ses) yalnız **o mesajı görebilen** üye (katıldıktan sonraki, benden silmediği mesaj) indirir; henüz gönderilmemiş dosyayı yalnız yükleyen indirir. Ayrılan/çıkarılan üye indiremez. Yetki her istekte (bayt aralığı istekleri dahil) aralık hesaplanmadan önce denetlenir.
+
+#### Path Parameters
+- conversationId: UUID, zorunlu
+- attachmentId: UUID, zorunlu
+
+#### Response — 200
+Dosyanın baytları. Başlıklar: `Content-Type` (saklanan tür; seste `audio/webm`), `Content-Disposition: inline`, `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; sandbox`, `Cache-Control: no-store, private` (her istekte yetki yeniden denetlenir), `Accept-Ranges: bytes`.
+
+#### Response — 206 (MSG-21)
+`Range: bytes=...` isteğinde istenen aralık ve `Content-Range` başlığı (tarayıcı oynatıcısı, özellikle Safari, sesi parça parça ister); güvenlik başlıkları aynı. Karşılanamayan aralık `416`.
+
+#### Hata Durumları
+- 401: Kimlik yok/geçersiz
+- 404: Sohbet yok ya da aktif üyesi değilsiniz (`CONVERSATION_NOT_FOUND`); dosya yok, başka sohbetin, göremediğiniz bir mesajın ya da başkasının gönderilmemiş dosyası (`ATTACHMENT_NOT_FOUND`; hepsi aynı yanıt)
+- 416: Karşılanamayan bayt aralığı
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/messaging/conversations/{conversationId}/attachments/{attachmentId}
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS)
+
+### MESSAGING — GIF ara (MSG-22)
+
+Durum: IMPLEMENTED (gerçek GIPHY anahtarıyla canlı çağrı NOT VERIFIED)
+Sorumlu: Umut
+Tüketici servisler: Frontend (GIF seçici)
+
+#### Endpoint
+GET /api/v1/messaging/gifs/search
+
+#### Yetkilendirme
+Authenticated (sohbetten bağımsız). Platform anahtarı istemciye hiç gitmez; arama backend üzerinden geçer.
+
+#### Query Parameters
+- q: string, zorunlu, 1–50 karakter (kod noktası; emoji dahil), kontrol karakteri yok
+- limit: int, opsiyonel, varsayılan 24, 1–50
+- offset: int, opsiyonel, varsayılan 0, 0–499
+- lang: string, opsiyonel, `tr` (varsayılan) | `en`
+
+#### Response — 200
+`Cache-Control: no-store`
+```json
+{
+  "items": [
+    {
+      "provider": "GIPHY",
+      "id": "string [A-Za-z0-9]{1,64}",
+      "title": "string veya null (platform başlığı; düz metin gösterilir)",
+      "url": "https://media*.giphy.com/... (mesajda gösterilen, 200 px yükseklik)",
+      "previewUrl": "https://media*.giphy.com/... (seçicide, 100 px)",
+      "width": 267,
+      "height": 200
+    }
+  ],
+  "nextOffset": 24
+}
+```
+- `nextOffset` sonraki sayfa yoksa `null`.
+- İçerik derecesi `pg-13` ve altı; derecesi bilinmeyen GIF listelenmez. Adresler yalnız GIPHY medya sunucularındaki HTTPS adresleridir; izleme sorgu dizgesi atılır, adresi geçersiz öğe listeden çıkarılır.
+- Platforma kullanıcı kimliği gönderilmez; yalnız arama metni gider.
+- Oran sınırı: kullanıcı başına dakikada 30 arama (öne çıkanlar dahil; bellekte, örnek başına).
+
+#### Hata Durumları
+- 400: Eksik/boş/uzun `q`, kontrol karakteri, geçersiz `lang`/`offset` (`INVALID_GIF_QUERY`); sınır dışı `limit` (`INVALID_PAGE_SIZE`)
+- 401: Kimlik yok/geçersiz
+- 429: `TOO_MANY_GIF_SEARCHES`
+- 503: Platform kapalı (`GIPHY_API_KEY` boş) ya da yanıt vermiyor (`GIF_PROVIDER_UNAVAILABLE`); diğer mesajlaşma etkilenmez
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/messaging/gifs/search
+
+Diğer mikroservisler:
+Dış sağlayıcı: GIPHY API v1 `GET /v1/gifs/search` (anahtar `GIPHY_API_KEY`, yalnız sunucuda; istek adresi hiçbir hataya/loga yazılmaz). İstek otomatik tekrarlanmaz.
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; GIPHY istemcisi MockRestServiceServer ile; messaging-service 411 test PASS). Gerçek GIPHY ile: NOT VERIFIED (anahtar yok).
+
+### MESSAGING — Öne çıkan GIF'ler (MSG-22)
+
+Durum: IMPLEMENTED (gerçek GIPHY anahtarıyla canlı çağrı NOT VERIFIED)
+Sorumlu: Umut
+Tüketici servisler: Frontend (GIF seçicinin ilk ekranı)
+
+#### Endpoint
+GET /api/v1/messaging/gifs/trending
+
+#### Yetkilendirme
+Authenticated.
+
+#### Query Parameters
+- limit: int, opsiyonel, varsayılan 24, 1–50
+- offset: int, opsiyonel, varsayılan 0, 0–499
+
+#### Response — 200
+"GIF ara" ile aynı yanıt ve kurallar (derece, adres, `no-store`, aynı dakikalık sınır).
+
+#### Hata Durumları
+- 400: Geçersiz `offset` (`INVALID_GIF_QUERY`), sınır dışı `limit` (`INVALID_PAGE_SIZE`)
+- 401, 429 (`TOO_MANY_GIF_SEARCHES`), 503 (`GIF_PROVIDER_UNAVAILABLE`), 500
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/messaging/gifs/trending
+
+Diğer mikroservisler:
+Dış sağlayıcı: GIPHY API v1 `GET /v1/gifs/trending`.
+
+#### Test Durumu
+UNIT + INTEGRATION (messaging-service 411 test PASS). Gerçek GIPHY ile: NOT VERIFIED.
+
+### MESSAGING — Mesaj geçmişi (MSG-07, MSG-09 eşitleme, MSG-11)
 
 Durum: IMPLEMENTED
 Sorumlu: Umut
@@ -5903,7 +6201,7 @@ Tüketici servisler: Frontend
 GET /api/v1/messaging/conversations/{conversationId}/messages
 
 #### Yetkilendirme
-Authenticated + sohbetin aktif üyesi. Üye yalnız **katıldıktan sonraki** mesajları görür (gruba sonradan eklenen ve çıkarılıp geri eklenen dahil; kullanıcı kararı 2026-11-01).
+Authenticated + sohbetin aktif üyesi. Üye yalnız **katıldıktan sonraki** mesajları görür (gruba sonradan eklenen ve çıkarılıp geri eklenen dahil; kullanıcı kararı 2026-11-01). Benden sildiği mesajlar (MSG-25) geçmişte yer almaz; herkesten silinenler `deleted: true` ile yerinde kalır (MSG-26).
 
 #### Path Parameters
 - conversationId: UUID, zorunlu
@@ -5924,6 +6222,8 @@ Authenticated + sohbetin aktif üyesi. Üye yalnız **katıldıktan sonraki** me
 ```
 `hasMore`, aynı yönde daha fazla mesaj olduğunu söyler. Sonraki sayfa: `before=<en küçük seq>` ya da `after=<en büyük seq>`.
 
+`Message.readStatus` (MSG-11) isteyenin **kendi mesajlarında** `SENT | READ`, başkalarının mesajlarında `null` olur; her istekte yeniden hesaplanır (canlı `read` olayı kaçsa bile bu uç doğruyu verir). Sayfa için üyeler tek sorguyla çekilir; mesaj başına sorgu yoktur.
+
 #### Hata Durumları
 - 400: `before` ve `after` birlikte (`CONFLICTING_PAGE_DIRECTION`); sınır dışı `limit` (`INVALID_PAGE_SIZE`); sayı olmayan değer (`MALFORMED_REQUEST`)
 - 401: Kimlik yok/geçersiz
@@ -5938,9 +6238,57 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS)
 
-### MESSAGING — Okundu işaretle (MSG-13)
+### MESSAGING — Mesajı görenler (MSG-12)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/messaging/conversations/{conversationId}/messages/{messageId}/reads
+
+#### Yetkilendirme
+Authenticated + sohbetin aktif üyesi + **mesajın göndereni**. Kimin okuduğunu yalnız gönderen görür; sohbetin diğer üyeleri `403` alır.
+
+#### Path Parameters
+- conversationId: UUID, zorunlu
+- messageId: UUID, zorunlu
+
+#### Response — 200
+```json
+{
+  "messageId": "UUID",
+  "seq": 42,
+  "readStatus": "SENT | READ",
+  "readers": [ { "userId": "UUID", "readAt": "ISO-8601 (UTC) veya null" } ],
+  "pending": [ { "userId": "UUID" } ]
+}
+```
+- **Uygun okuyucu:** aktif üye, gönderen değil ve mesajı görebilen (`visible_from_seq <= seq`) kişi. Mesajdan sonra katılan, ayrılan/çıkarılan ve çıkarılıp geri eklenerek mesajı göremeyen kişi listelerde yer almaz.
+- `readers`: `last_read_seq >= seq` olan uygun okuyucular, `readAt` değerine göre yeniden eskiye; saati bilinmeyenler (`null`) en sonda. `pending`: henüz okumamış uygun okuyucular, katılma sırasıyla.
+- `readAt`, mesajı kapsayan okuma aralığının zamanıdır. V133 öncesinde okunmuş mesajlar için aralık yoktur (geçmişe dönük doldurma yapılmadı), bu durumda `readAt` `null` döner.
+- `readStatus` geçmiş ucuyla **aynı** su seviyesi formülünden gelir, listelerden türetilmez. Bu yüzden mesajın tüm uygun okuyucuları ayrılmış ve yerlerine yalnız sonradan katılanlar gelmişse `readStatus` `READ`, `readers` ve `pending` boş döner (kabul edilmiş uç durum, testli).
+- Birebir sohbette de çalışır; listeler tek kişiden oluşur. Grup üye sınırı (100) nedeniyle sayfalama yoktur.
+
+#### Hata Durumları
+- 401: Kimlik yok/geçersiz
+- 403: Aktif üyesiniz ama mesajın göndereni değilsiniz (`NOT_MESSAGE_SENDER`)
+- 404: Sohbet yok ya da aktif üyesi değilsiniz (`CONVERSATION_NOT_FOUND`; eski üyenin kendi eski mesajı için sorgusu dahil). Mesaj bu sohbette değil, hiç yok, katılımınızdan önce olduğu için ya da benden sildiğiniz için göremiyorsunuz (`MESSAGE_NOT_FOUND`); var olan ile olmayan arasında fark sızdırılmaz, bu durumlarda `403` değil `404` döner
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/messaging/conversations/{conversationId}/messages/{messageId}/reads
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; `MessageReadsTest` 8 test; messaging-service 411 test PASS). Gateway üzerinden gerçek kullanıcılarla: NOT VERIFIED.
+
+### MESSAGING — Okundu işaretle (MSG-13, MSG-11)
 
 Durum: IMPLEMENTED
 Sorumlu: Umut
@@ -5966,7 +6314,8 @@ Authenticated + sohbetin aktif üyesi (yalnız kendi okuma işaretçisi)
 ```json
 { "conversationId": "UUID", "lastReadSeq": 7, "unreadCount": 0 }
 ```
-İşaretçi yalnız ileri gider (daha küçük `seq` yan etkisizdir) ve sohbetteki son mesajın ötesine geçmez. Okundu bilgisinin başka üyelere gösterilmesi (MSG-11/12) ayrı görevdir.
+`unreadCount` sohbet listesindeki gibi en çok `100`'dür (`99+`).
+İşaretçi yalnız ileri gider (daha küçük `seq` yan etkisizdir) ve sohbetteki son mesajın ötesine geçmez. Sözleşme MSG-11 ile değişmedi; işaretçi **gerçekten ilerlediğinde** (MSG-11) eski işaretçi + 1'den yeni işaretçiye tek bir okuma aralığı (okuma saatiyle) yazılır ve commit sonrası `read` akış olayı gönderilir. İlerlemeyen çağrı (aynı `seq`, geri gitme, son mesajın ötesi) satır ve olay üretmez. Eşzamanlı çağrılar üye satırı kilidiyle sıralanır; aralıklar çakışmaz, boşluk bırakmaz.
 
 #### Hata Durumları
 - 400: Eksik/negatif `seq` (`VALIDATION_FAILED`)
@@ -5982,15 +6331,181 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 116 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS)
 
-### MESSAGING — Gerçek zamanlı mesaj akışı (MSG-09)
+### MESSAGING — Mesajı sil: benden / herkesten (MSG-25, MSG-26)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+DELETE /api/v1/messaging/conversations/{conversationId}/messages/{messageId}?scope=me|everyone
+
+#### Yetkilendirme
+Authenticated + sohbetin aktif üyesi + mesajı görebilen (bkz. ortak kurallar). `scope=everyone` için ayrıca: mesajın göndereni ya da grupta `OWNER`/`ADMIN` (yönetici başka yöneticinin ve sahibin mesajını da silebilir); birebir sohbette yalnız gönderen.
+
+#### Path / Query Parameters
+- conversationId: UUID, zorunlu
+- messageId: UUID, zorunlu
+- scope: `me` | `everyone`, zorunlu
+
+#### Response — 204
+- **`me` (MSG-25):** mesaj yalnız sizin görünümünüzden kalkar (kendi ya da başkasının, herkesten silinmiş olsa da). İdempotent. Geri alma yok. Okundu bilgisi değişmez (gizlemek okumak değildir). Sizin akışlarınıza `message_hidden` gider.
+- **`everyone` (MSG-26):** gönderimden sonraki **48 saat** içinde (`ltz.messaging.messages.delete-for-everyone-window`). Tek transaction'da, mesaj satırı kilitliyken: gövde ve GIF kaydı temizlenir, görsel bağlantısı silinir ve içeriğe başka bağlantı (iletilmiş kopya) kalmadıysa içerik baytları da silinir, tepkiler silinir. Satır kalır: `seq`, okunmamış sayısı ve okundu bilgisi bozulmaz. İletilmiş kopyalar etkilenmez; bu mesaja verilmiş yanıtların alıntısı `deleted: true` olur. İdempotent (zaten silinmişse `204`). Mesajı görebilen ve benden silmemiş aktif üyelere `message_deleted` gider.
+
+#### Hata Durumları
+- 400: `scope` yok ya da geçersiz (`INVALID_DELETE_SCOPE`)
+- 401: Kimlik yok/geçersiz
+- 403: Herkesten silme yetkiniz yok (`NOT_ALLOWED_TO_DELETE`)
+- 404: Sohbet yok ya da aktif üyesi değilsiniz (`CONVERSATION_NOT_FOUND`); mesajı göremiyorsunuz (`MESSAGE_NOT_FOUND`)
+- 422: 48 saatlik süre doldu (`DELETE_WINDOW_EXPIRED`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/messaging/conversations/{conversationId}/messages/{messageId}
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION (gerçek PostgreSQL; `MessageHideTest` 8, `MessageDeleteForEveryoneTest` 9 test). Gateway üzerinden gerçek kullanıcılarla: NOT VERIFIED.
+
+### MESSAGING — Mesaja tepki ver / kaldır (MSG-23)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+PUT /api/v1/messaging/conversations/{conversationId}/messages/{messageId}/reaction
+DELETE /api/v1/messaging/conversations/{conversationId}/messages/{messageId}/reaction
+
+#### Yetkilendirme
+Authenticated + sohbetin aktif üyesi + mesajı görebilen. Mesaj herkesten silinmemiş olmalı. Kendi mesajınıza da tepki verilebilir.
+
+#### Request Body (PUT)
+```json
+{ "emoji": "string, zorunlu, tek emoji, en fazla 32 UTF-16 birimi" }
+```
+- Kişi başına mesaj başına **tek** tepki: yeni tepki öncekinin yerine yazılır.
+- `emoji` **tek bir emoji** olmalı: tek grafem kümesi (ZWJ dizileri, ten rengi, bayraklar, keycap dahil). Harf, rakam (keycap dışında), boşluk, kontrol karakteri, eşlenmemiş vekil ve birden çok emoji reddedilir. Sabit liste yoktur.
+
+#### Response
+- PUT **200**: güncel özet `{ "summary": [ { "emoji": "❤️", "count": 1 } ], "mine": "❤️" }`
+- DELETE **204**: tepkiniz kaldırıldı ya da zaten yoktu.
+- Değişiklik mesajı görebilen ve benden silmemiş aktif üyelere `reaction` olayıyla gider (alıcıya göre `mine`). Kaldırılacak tepki yoksa olay gitmez.
+- Oran sınırı: kullanıcı başına dakikada 60 tepki değişikliği (`ltz.messaging.reactions.max-per-minute`; bellekte, örnek başına).
+
+#### Hata Durumları
+- 400: Eksik/uzun `emoji` (`VALIDATION_FAILED`); tek emoji değil (`INVALID_REACTION`)
+- 401: Kimlik yok/geçersiz
+- 404: Sohbet yok ya da aktif üyesi değilsiniz (`CONVERSATION_NOT_FOUND`); mesajı göremiyorsunuz (`MESSAGE_NOT_FOUND`)
+- 422: Mesaj herkesten silinmiş (`MESSAGE_DELETED`)
+- 429: Tepki oranı aşıldı (`TOO_MANY_REACTIONS`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/messaging/conversations/{conversationId}/messages/{messageId}/reaction
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION (gerçek PostgreSQL; `MessageReactionTest` 8, `ReactionEmojiTest` 23 test).
+
+### MESSAGING — Mesajın tepkileri (MSG-23)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/messaging/conversations/{conversationId}/messages/{messageId}/reactions
+
+#### Yetkilendirme
+Authenticated + sohbetin aktif üyesi + mesajı görebilen (sohbetin her üyesi görür, WhatsApp gibi).
+
+#### Response — 200
+```json
+{ "messageId": "UUID", "reactions": [ { "userId": "UUID", "emoji": "👍", "reactedAt": "ISO-8601 (UTC)" } ] }
+```
+Yeniden eskiye. Herkesten silinmiş mesajda boş liste. Grup üye sınırı (100) nedeniyle sayfalama yoktur.
+
+#### Hata Durumları
+- 401: Kimlik yok/geçersiz
+- 404: Sohbet yok ya da aktif üyesi değilsiniz (`CONVERSATION_NOT_FOUND`); mesajı göremiyorsunuz (`MESSAGE_NOT_FOUND`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/messaging/conversations/{conversationId}/messages/{messageId}/reactions
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION (gerçek PostgreSQL; `MessageReactionTest`).
+
+### MESSAGING — Mesajı ilet (MSG-20)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/messaging/conversations/{conversationId}/messages/{messageId}/forward
+
+#### Yetkilendirme
+Authenticated + kaynak sohbetin aktif üyesi + mesajı görebilen; **her hedefte** aktif üye ve birebir hedefte engel olmamalı (MSG-15). Mesaj herkesten silinmemiş olmalı.
+
+#### Request Body
+```json
+{
+  "clientMessageId": "string, zorunlu, 1–64 karakter [A-Za-z0-9_-] (istek başına tekil)",
+  "targetConversationIds": ["UUID", "... 1–5 farklı sohbet"]
+}
+```
+
+#### Response — 201 / 200
+`{ "messages": [ Message, ... ] }` — hedef sırasıyla.
+- **Hepsi ya da hiçbiri:** hedeflerden biri uygun değilse hiçbir hedefe gönderilmez. Kaynak sohbet de hedef olabilir.
+- Her hedefte iletenin **yeni** mesajı oluşur (yeni `seq`, `MessageSent` outbox olayı, `message` akış olayı); gönderim oran sınırına her hedef bir mesaj olarak sayılır. Kopyalanan: tür, gövde, GIF kaydı, görsel; kopyalanmayan: yanıt referansı, tepkiler, okundu bilgisi. `forwarded: true`; 5. iletimden sonra `forwardedManyTimes: true`. Orijinal gönderen kopyada **tutulmaz ve dönmez**.
+- **Görsel baytları kopyalanmaz:** hedefte aynı içeriğe yeni bir bağlantı açılır; `attachment.url` hedef sohbetin yoludur. Orijinal herkesten silinse de kopya indirilebilir kalır; içerik ona bağlı son mesajla birlikte silinir. İletilen bağlantılar yükleme oranına sayılmaz.
+- **201** yeni iletme. **200** aynı `clientMessageId`, kaynak ve hedeflerle yeniden deneme: mevcut kopyalar döner, çift mesaj oluşmaz (hedef başına istemci kimliği istek kimliğinden türetilir).
+
+#### Hata Durumları
+- 400: 0 ya da 5'ten fazla hedef, geçersiz `clientMessageId` (`VALIDATION_FAILED`); aynı hedef iki kez (`DUPLICATE_FORWARD_TARGET`)
+- 401: Kimlik yok/geçersiz
+- 403: Birebir hedefte engel var (`MESSAGING_NOT_ALLOWED`)
+- 404: Kaynak ya da hedef sohbet yok veya aktif üyesi değilsiniz (`CONVERSATION_NOT_FOUND`); kaynak mesajı göremiyorsunuz (`MESSAGE_NOT_FOUND`)
+- 409: Aynı istek eşzamanlı iki kez geldi (`CLIENT_MESSAGE_ID_REUSED`)
+- 422: Kaynak mesaj herkesten silinmiş (`MESSAGE_DELETED`)
+- 429: Gönderim oranı aşıldı (`TOO_MANY_MESSAGES`); hiçbir hedefe yazılmaz
+- 503: Engel durumu öğrenilemedi (`BLOCK_CHECK_UNAVAILABLE`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/messaging/conversations/{conversationId}/messages/{messageId}/forward
+
+Diğer mikroservisler:
+Birebir hedeflerde social-service engel sorgusu. `MessageSent` olayı her kopya için outbox'a (teslim **PENDING**).
+
+#### Test Durumu
+INTEGRATION (gerçek PostgreSQL; `MessageForwardTest` 10 test).
+
+### MESSAGING — Gerçek zamanlı mesaj akışı (MSG-09, MSG-11)
 
 Durum: IMPLEMENTED (Gateway üzerinden canlı geçiş NOT VERIFIED)
 Sorumlu: Umut
 Tüketici servisler: Frontend (`EventSource`, `withCredentials: true`)
 
 Karar ve gerekçe: [ADR 0001](decisions/0001-gercek-zamanli-mesajlasma.md).
+
+Birden çok örnek (LTZ-UMT-MSG-07): olaylar PostgreSQL `LISTEN/NOTIFY` ile tüm örneklere aktarılır; istemci hangi örneğe bağlı olursa olsun olayı alır. Bir örneğin aktarım bağlantısı koparsa o örnekteki akışlar kapanır, istemci yeniden bağlanıp geçmişten eşitlenir. Kullanıcı başına akış sınırı (5) örnek başınadır.
 
 #### Endpoint
 GET /api/v1/messaging/stream
@@ -6007,12 +6522,38 @@ event:message
 id:<conversationId>:<seq>
 data:<Message JSON>
 
+event:read
+data:{"conversationId":"UUID","readerId":"UUID|null","readUpToSeq":5,"readAt":"ISO-8601|null","allReadUpToSeq":5}
+
+event:message_deleted
+data:{"conversationId":"UUID","messageId":"UUID","seq":5,"deletedAt":"ISO-8601"}
+
+event:reaction
+data:{"conversationId":"UUID","messageId":"UUID","summary":[{"emoji":"❤️","count":2}],"mine":"❤️|null"}
+
+event:message_hidden
+data:{"conversationId":"UUID","messageId":"UUID"}
+
 :hb
 ```
 - Yalnız **commit edilmiş** mesajlar iletilir; reddedilen/geri alınan mesaj gitmez. Gönderenin diğer açık akışları da alır.
+- `message` olayı görsel/GIF mesajında `attachment` (indirme `url`'i dahil) ya da `gif` alanını taşır (MSG-17/22); görselin baytları akışa girmez, istemci `url`'den indirir.
 - Akış token'ın bitişinde (en çok 30 dk) kapanır; `EventSource` yeniden bağlanır. İstemci yeniden bağlanınca sohbet listesini yeniler ve açık sohbet için `GET .../messages?after=<son seq>` ile kaçırdıklarını çeker. Mesaj DB'de olduğu için kaybolmaz.
 - Her 4 sn'de kalp atışı (`:hb`). Başlıklar: `Cache-Control: no-store`, `X-Accel-Buffering: no`.
 - Kullanıcı başına en fazla 5 eşzamanlı akış.
+- **`message` olayının yükü** geçmiş ve gönderim uçlarındaki `Message` ile aynıdır ve **alıcı başına** kurulur: `replyTo` alıcının görünürlüğüne, `deletableForEveryoneUntil` alıcının rolüne göre değişir (MSG-19/24).
+- **`message_deleted` (MSG-26):** mesaj herkesten silinince, mesajı görebilen ve benden silmemiş aktif üyelere. İçerik taşımaz; istemci mesajı "Bu mesaj silindi" yapar.
+- **`reaction` (MSG-23):** tepki konunca, değişince ya da kalkınca, mesajı görebilen ve benden silmemiş aktif üyelere; `mine` alıcının kendi tepkisidir.
+- **`message_hidden` (MSG-25):** benden silmede yalnız silenin kendi açık akışlarına (diğer cihazlar).
+- Bu üç olay `id` taşımaz; eski mesajları değiştirdikleri için `after` eşitlemesi kapsamaz. Olay kaçarsa istemci yeniden bağlanınca açık sohbetin son sayfasını yeniden çeker (ADR 0001).
+- **`message` olayında `readStatus` (MSG-11):** mesajın göndereni kendi akışında `SENT` alır; diğer üyeler `null` alır (alan yalnız isteyenin kendi mesajında doludur).
+- **`read` olayı (MSG-11):** bir üyenin okuma işaretçisi gerçekten ilerlediğinde (`POST .../read` ya da kendi mesajını göndermesi), commit sonrası ve en iyi çabayla gönderilir. `id` yoktur. **Yalnız o aralıkta mesajı olan, hâlâ aktif göndericiye** gider (alıcının kendi görünürlük sınırının altındaki mesajları sayılmaz); okuyucuya gitmez, aralıkta mesajı olmayan üye almaz (başkasının mesajının okunduğu sızmaz). Yük alıcı başına kırpılır ve içerik taşımaz:
+  - `readerId`, `readAt`: okuyan üye ve okuma saati.
+  - `readUpToSeq`: alıcının, okunan aralıktaki en büyük **kendi** `seq`'i (okuyucu alıcının mesajlarını bu `seq`'e kadar okudu).
+  - `allReadUpToSeq`: alıcının, su seviyesine (tüm uygun okuyucuların okuduğu sınır) kadarki en büyük kendi `seq`'i; yoksa `0`. İstemci kendi mesajlarından `seq <= allReadUpToSeq` olanları `READ` yapar.
+  - Ham işaretçi ve ham su seviyesi gönderilmez. Okuyucunun yeni katıldığı ilk okumada, görmediği önceki mesajlar için olay üretilmez.
+- **Ayrılma/çıkarma (MSG-11):** bir üye gruptan ayrılınca ya da çıkarılınca kalan göndericilerin su seviyesi yükselebilir. Durumu `SENT`'ten `READ`'e geçen göndericilere aynı `read` olayı gider; `readerId`, `readUpToSeq`, `readAt` `null`, yalnız `allReadUpToSeq` doludur. Ayrılan/çıkarılan kişi bu olayı almaz.
+- **En iyi çaba:** olay kaçarsa istemci geçmiş ucundan (`readStatus`) eşitlenir. İki üye aynı mesajı eşzamanlı okursa her işlem su seviyesini diğerinin commit öncesi işaretçisiyle hesapladığı için iki olay da eski `allReadUpToSeq` taşıyabilir; gönderen sonraki geçmiş/liste çekimine kadar `SENT` görür (bilinen sınırlama, bkz. ADR 0001).
 
 #### Hata Durumları
 - 401: Kimlik yok/geçersiz
@@ -6027,7 +6568,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (servis içi uçtan uca akış MockMvc + gerçek PostgreSQL; `SseMessageHubTest` birim). Gateway üzerinden gerçek tarayıcıyla: NOT VERIFIED.
+UNIT + INTEGRATION (servis içi uçtan uca akış MockMvc + gerçek PostgreSQL; `SseMessageHubTest` birim; `read` olayı `ReadReceiptStreamTest` 16 test). Gateway üzerinden gerçek tarayıcıyla: NOT VERIFIED.
 
 ### MESSAGING — Giden olay sözleşmeleri (MSG-16, teslim bekliyor)
 

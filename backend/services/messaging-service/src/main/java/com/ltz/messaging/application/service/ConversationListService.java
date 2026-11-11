@@ -2,6 +2,7 @@ package com.ltz.messaging.application.service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -23,7 +24,9 @@ import lombok.RequiredArgsConstructor;
 /**
  * Sohbet listesi (MSG-08) ve sohbet başına okunmamış sayısı (MSG-13). Yalnız kullanıcının aktif üyesi olduğu sohbetler,
  * son etkinlikten eskiye, keyset sayfalamayla listelenir. Bir sayfa sabit sayıda sorguyla kurulur (N+1 yok): sohbetler,
- * üyelikler, son mesajlar, okunmamış sayıları, üye sayıları ve birebir karşı taraflar.
+ * üyelikler, son mesajlar, okunmamış sayıları, üye sayıları, birebir karşı taraflar ve (son mesajı kullanıcıya ait
+ * sohbetler için) okundu durumunun aktif üyeleri; son mesajı görsel olan sohbetlerin görsel bilgisi de tek sorguyla
+ * eklenir (MSG-17).
  */
 @Service
 @RequiredArgsConstructor
@@ -32,6 +35,7 @@ public class ConversationListService {
     private final ConversationRepository conversations;
     private final ConversationMemberRepository members;
     private final MessageRepository messages;
+    private final MessageViews views;
     private final MessageProperties properties;
 
     @Transactional(readOnly = true)
@@ -53,7 +57,7 @@ public class ConversationListService {
         List<UUID> ids = page.stream().map(Conversation::getId).toList();
         Map<UUID, ConversationMember> memberships = members.findActiveOf(userId, ids).stream()
                 .collect(Collectors.toMap(member -> member.getId().getConversationId(), Function.identity()));
-        Map<UUID, Message> lastMessages = messages.findLastMessages(ids).stream()
+        Map<UUID, Message> lastMessages = messages.findLastVisibleMessages(userId, ids).stream()
                 .collect(Collectors.toMap(Message::getConversationId, Function.identity()));
         Map<UUID, Long> unread = counts(members.countUnread(userId, ids));
         Map<UUID, Long> memberCounts = counts(members.countActive(ids));
@@ -63,22 +67,55 @@ public class ConversationListService {
                 .collect(Collectors.toMap(member -> member.getId().getConversationId(), ConversationMember::getUserId,
                         (first, second) -> first));
 
+        // Okundu durumu (MSG-11) yalnız son mesajı kullanıcıya ait sohbetlerde hesaplanır; üyeler tek sorguyla çekilir.
+        List<UUID> ownLastIds = page.stream().map(Conversation::getId)
+                .filter(id -> isOwnVisibleLast(lastMessages.get(id), memberships.get(id), userId)).toList();
+        Map<UUID, List<ConversationMember>> activeMembers = ownLastIds.isEmpty() ? Map.of()
+                : members.findActiveMembersOf(ownLastIds).stream()
+                        .collect(Collectors.groupingBy(member -> member.getId().getConversationId()));
+
+        Map<UUID, MessageView> visibleLasts = views.decorate(userId, memberships, page.stream()
+                        .filter(conversation -> memberships.containsKey(conversation.getId()))
+                        .map(conversation -> visibleLast(lastMessages.get(conversation.getId()),
+                                memberships.get(conversation.getId()), userId,
+                                activeMembers.getOrDefault(conversation.getId(), List.of())))
+                        .filter(Objects::nonNull)
+                        .toList())
+                .stream()
+                .collect(Collectors.toMap(MessageView::conversationId, Function.identity()));
+
         // Sayfa sorgusu ile üyelik sorgusu arasında ayrılan üyeliğin satırı atlanır.
         List<ConversationSummaryView> items = page.stream()
                 .filter(conversation -> memberships.containsKey(conversation.getId()))
-                .map(conversation -> {
-            ConversationMember membership = memberships.get(conversation.getId());
-            Message last = lastMessages.get(conversation.getId());
-            MessageView visibleLast = last != null && membership.canSee(last.getSeq()) ? MessageView.of(last) : null;
-            return new ConversationSummaryView(conversation.getId(), conversation.getType(), conversation.getTitle(),
-                    peers.get(conversation.getId()), memberCounts.getOrDefault(conversation.getId(), 0L),
-                    membership.getRole(), conversation.getLastActivityAt(), visibleLast,
-                    unread.getOrDefault(conversation.getId(), 0L));
-        }).toList();
+                .map(conversation -> new ConversationSummaryView(conversation.getId(), conversation.getType(),
+                        conversation.getTitle(), peers.get(conversation.getId()),
+                        memberCounts.getOrDefault(conversation.getId(), 0L),
+                        memberships.get(conversation.getId()).getRole(), conversation.getLastActivityAt(),
+                        visibleLasts.get(conversation.getId()), unread.getOrDefault(conversation.getId(), 0L)))
+                .toList();
         String nextCursor = rows.size() > size
                 ? new ActivityCursor(page.getLast().getLastActivityAt(), page.getLast().getId()).encode()
                 : null;
         return new ConversationPageView(items, nextCursor);
+    }
+
+    /** Üyenin görebildiği son mesaj; kendi mesajıysa okundu durumuyla. Göremiyorsa {@code null}. */
+    private static MessageView visibleLast(Message last, ConversationMember membership, UUID userId,
+                                           List<ConversationMember> activeMembers) {
+        if (last == null || !membership.canSee(last.getSeq())) {
+            return null;
+        }
+        MessageView view = MessageView.of(last);
+        if (!last.getSenderId().equals(userId)) {
+            return view;
+        }
+        long watermark = ReadWatermark.of(userId, activeMembers);
+        return view.withReadStatus(ReadWatermark.status(last.getSeq(), watermark));
+    }
+
+    private static boolean isOwnVisibleLast(Message last, ConversationMember membership, UUID userId) {
+        return last != null && membership != null && membership.canSee(last.getSeq())
+                && last.getSenderId().equals(userId);
     }
 
     private static Map<UUID, Long> counts(List<Object[]> rows) {

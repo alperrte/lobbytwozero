@@ -84,7 +84,7 @@
 		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
-			<scope>runtime</scope>
+			<!-- compile: canlı akış aktarımı LISTEN/NOTIFY için PGConnection kullanır (ADR 0001). -->
 		</dependency>
 		<dependency>
 			<groupId>org.projectlombok</groupId>

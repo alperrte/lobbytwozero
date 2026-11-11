@@ -20,6 +20,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MvcResult;
 
 import com.ltz.messaging.IntegrationTestSupport;
+import com.ltz.messaging.TestImages;
 import com.ltz.messaging.infrastructure.messaging.realtime.SseMessageHub;
 
 /**
@@ -53,6 +54,42 @@ class MessageStreamTest extends IntegrationTestSupport {
         // Gönderenin diğer cihazları da alır.
         await().atMost(WAIT).untilAsserted(() -> assertThat(content(aliceStream)).contains("Canlı mesaj"));
         assertThat(content(outsiderStream)).contains("event:ready").doesNotContain("Canlı mesaj");
+    }
+
+    @Test
+    void gorselVeGifMesajiAkistaGorselBilgisiyleGider() throws Exception {
+        UUID alice = newUser();
+        UUID bob = newUser();
+        UUID direct = openDirectAndGetId(alice, bob);
+        UUID attachment = uploadAndGetId(alice, direct, TestImages.png(8, 6), MediaType.IMAGE_PNG_VALUE);
+        gifs.publish("abc123", "kedi");
+        MvcResult bobStream = openStream(bob);
+
+        sendImage(alice, direct, attachment, null).andExpect(status().isCreated());
+        sendGif(alice, direct, "abc123", null).andExpect(status().isCreated());
+
+        await().atMost(WAIT).untilAsserted(() -> assertThat(content(bobStream))
+                .contains("\"type\":\"IMAGE\"")
+                .contains("\"url\":\"/api/v1/messaging/conversations/%s/attachments/%s\"".formatted(direct, attachment))
+                .contains("\"type\":\"GIF\"")
+                .contains("\"url\":\"https://media1.giphy.com/media/abc123/200.gif\""));
+        // Görselin baytları ve yükleyen bilgisi akışa girmez.
+        assertThat(content(bobStream)).doesNotContain("\"content\"").doesNotContain("uploader");
+    }
+
+    @Test
+    void okunduDurumuYalnizGondericininAkisinaGider() throws Exception {
+        UUID alice = newUser();
+        UUID bob = newUser();
+        UUID direct = openDirectAndGetId(alice, bob);
+        MvcResult bobStream = openStream(bob);
+        MvcResult aliceStream = openStream(alice);
+
+        send(alice, direct, "Durumlu");
+
+        await().atMost(WAIT).untilAsserted(() -> assertThat(content(aliceStream)).contains("\"readStatus\":\"SENT\""));
+        await().atMost(WAIT).untilAsserted(() -> assertThat(content(bobStream)).contains("Durumlu"));
+        assertThat(content(bobStream)).doesNotContain("\"readStatus\":\"");
     }
 
     @Test
