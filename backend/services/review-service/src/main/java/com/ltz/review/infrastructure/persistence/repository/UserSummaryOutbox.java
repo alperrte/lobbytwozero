@@ -3,6 +3,7 @@ package com.ltz.review.infrastructure.persistence.repository;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -15,6 +16,8 @@ public class UserSummaryOutbox {
     /** Gönderilecek bir olay: aynı {@code eventId} yeniden denemelerde sabittir. */
     public record Pending(UUID userId, UUID eventId, Instant occurredAt, int attempts) {}
 
+    private static final String EVENT = "event";
+    private static final String USER = "user";
     private final JdbcClient jdbc;
 
     public UserSummaryOutbox(JdbcClient jdbc) { this.jdbc = jdbc; }
@@ -33,7 +36,7 @@ public class UserSummaryOutbox {
                     occurred_at = greatest(EXCLUDED.occurred_at, review_user_summary_outbox.occurred_at + interval '1 millisecond'),
                     attempts = 0, next_attempt_at = EXCLUDED.next_attempt_at, delivered_at = NULL, last_error = NULL
                 """)
-                .param("user", userId).param("event", UUID.randomUUID()).param("now", Timestamp.from(now)).update();
+                .param(USER, userId).param(EVENT, UUID.randomUUID()).param("now", Timestamp.from(now)).update();
     }
 
     /** Hesap silme: silinen hesabın hiçbir olay izi kalmaz ve silinmiş hesap için yeni olay üretilmez. */
@@ -53,18 +56,18 @@ public class UserSummaryOutbox {
 
     /** Gönderim anındaki görünür inceleme sayısı (yalnız VISIBLE; silinen sayılmaz). */
     public int visibleCount(UUID userId) {
-        return jdbc.sql("SELECT count(*) FROM reviews WHERE user_id = ? AND status = 'VISIBLE'").param(userId)
-                .query(Integer.class).single();
+        return Objects.requireNonNull(jdbc.sql("SELECT count(*) FROM reviews WHERE user_id = ? AND status = 'VISIBLE'").param(userId)
+                .query(Integer.class).single());
     }
 
     /** Yalnız olay hâlâ aynıysa teslim edildi işaretler; gönderim sırasında yeni değişiklik olduysa kayıt bekler. */
     public boolean markDelivered(UUID userId, UUID eventId, Instant now) {
         return jdbc.sql("UPDATE review_user_summary_outbox SET delivered_at = :now, last_error = NULL WHERE user_id = :user AND event_id = :event AND delivered_at IS NULL")
-                .param("now", Timestamp.from(now)).param("user", userId).param("event", eventId).update() == 1;
+                .param("now", Timestamp.from(now)).param(USER, userId).param(EVENT, eventId).update() == 1;
     }
 
     public void markFailed(UUID userId, UUID eventId, String errorCode, Instant nextAttempt) {
         jdbc.sql("UPDATE review_user_summary_outbox SET attempts = attempts + 1, last_error = :error, next_attempt_at = :next WHERE user_id = :user AND event_id = :event AND delivered_at IS NULL")
-                .param("error", errorCode).param("next", Timestamp.from(nextAttempt)).param("user", userId).param("event", eventId).update();
+                .param("error", errorCode).param("next", Timestamp.from(nextAttempt)).param(USER, userId).param(EVENT, eventId).update();
     }
 }

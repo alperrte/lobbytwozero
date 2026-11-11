@@ -56,7 +56,7 @@ public class UserSummaryRelay {
             String token;
             try {
                 token = tokens.tokenFor(AUDIENCE);
-            } catch (ServiceTokenClient.TokenUnavailableException exception) {
+            } catch (ServiceTokenClient.TokenUnavailableException _) {
                 fail(pending, "TOKEN_UNAVAILABLE");
                 break; // Token alınamıyorsa kalan satırlar için Auth'u yoklamayız.
             }
@@ -80,7 +80,7 @@ public class UserSummaryRelay {
             if (status == 401 || status == 403) tokens.invalidate(AUDIENCE);
             fail(pending, status >= 500 ? "USER_" + status : "USER_REJECTED_" + status);
             return false;
-        } catch (RestClientException exception) {
+        } catch (RestClientException _) {
             fail(pending, "USER_UNAVAILABLE");
             return false;
         }

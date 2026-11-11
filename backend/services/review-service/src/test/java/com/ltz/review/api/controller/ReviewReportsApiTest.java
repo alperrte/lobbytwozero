@@ -110,8 +110,7 @@ class ReviewReportsApiTest {
     }
 
     @Test void concurrentDuplicateRequestsProduceExactlyOneReport() throws Exception {
-        var pool = Executors.newFixedThreadPool(8);
-        try {
+        try (var pool = Executors.newFixedThreadPool(8)) {
             List<Callable<Integer>> calls = new ArrayList<>();
             for (int i = 0; i < 8; i++) calls.add(() -> report(reporter, review, "{\"reason\":\"SPAM\"}").andReturn().getResponse().getStatus());
             int created = 0;
@@ -124,8 +123,6 @@ class ReviewReportsApiTest {
             assertEquals(1, created);
             assertEquals(7, conflicts);
             assertEquals(1, count(review));
-        } finally {
-            pool.shutdownNow();
         }
     }
 

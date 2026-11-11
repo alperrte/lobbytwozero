@@ -3,6 +3,7 @@ package com.ltz.review.infrastructure.events;
 import com.ltz.review.application.port.GameCatalogPort;
 import com.ltz.review.application.service.AccountErasureService;
 import com.ltz.review.application.service.ReviewService;
+import com.ltz.review.domain.exception.ReviewException;
 import com.ltz.review.infrastructure.persistence.repository.UserSummaryOutbox;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
@@ -30,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** REV-10: ReviewSummaryChanged outbox ve teslim. Auth ve User yerel sahte HTTP sunucularıdır; canlı servis kanıtı DEĞİLDİR. */
@@ -113,11 +115,9 @@ class UserSummaryRelayTest {
         UUID game = UUID.randomUUID();
         reviews.create(user, game, "İlk");
         jdbc.sql("DELETE FROM review_user_summary_outbox WHERE user_id = ?").param(user).update();
-        try {
-            reviews.create(user, game, "İkinci");
-        } catch (RuntimeException expected) {
-            // 409: aynı oyuna ikinci aktif inceleme.
-        }
+        // 409: aynı oyuna ikinci aktif inceleme; reddedilen yazma outbox'a satır bırakmaz.
+        var rejected = assertThrows(ReviewException.class, () -> reviews.create(user, game, "İkinci"));
+        assertEquals(409, rejected.status());
         assertEquals(0L, jdbc.sql("SELECT count(*) FROM review_user_summary_outbox WHERE user_id = ?").param(user).query(Long.class).single());
     }
 
