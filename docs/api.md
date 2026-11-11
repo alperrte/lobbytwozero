@@ -155,7 +155,7 @@ Public
 {
   "email": "string, zorunlu, geçerli e-posta, en fazla 254 karakter (büyük/küçük harf duyarsız tekil)",
   "username": "string, zorunlu, ^[A-Za-z0-9_]{3,20}$ (büyük/küçük harf duyarsız tekil, görünen biçim korunur)",
-  "password": "string, zorunlu, 15-128 karakter; içeriği dönüştürülmez; yaygın/tahmin edilebilir parola reddedilir (WEAK_PASSWORD)"
+  "password": "string, zorunlu, 8-128 karakter; en az bir büyük harf, küçük harf, rakam ve özel karakter (harf, rakam ve boşluk dışı); içeriği dönüştürülmez; yaygın/tahmin edilebilir parola reddedilir (WEAK_PASSWORD)"
 }
 ```
 
@@ -603,7 +603,7 @@ Oturum (çerez + CSRF veya Bearer). `request`: TOTP etkinse `code` veya `recover
 #### Kurallar
 - Yalnız parolası olmayan hesap kullanır; parolalı hesap `409 PASSWORD_ALREADY_SET` (parola değiştirme ayrı uçtur). "Unuttum" akışı parolasız hesaba token vermeye devam etmez.
 - Kod tek kullanımlıktır, süreli (`AUTH_OTP_TTL`) ve deneme sınırlıdır; yeniden gönderme bekleme süresi ve günlük sınır e-posta değiştirmeyle aynıdır. Yanlış/süresi dolmuş/tükenmiş kod tek hata döner: `400 PASSWORD_SET_INVALID`.
-- Parola politikası geçerlidir (en az 15 karakter, kara liste, kullanıcı bilgisi içermez): `400 WEAK_PASSWORD`; zayıf parola kodu yakmaz.
+- Parola politikası geçerlidir (en az 8 karakter, büyük/küçük harf + rakam + özel karakter, kara liste, kullanıcı bilgisi içermez): `400 WEAK_PASSWORD`; zayıf parola kodu yakmaz.
 - Güvenlik olayları: `PASSWORD_SET_REQUESTED`, `PASSWORD_SET_REJECTED`, `PASSWORD_SET_FAILED`, `PASSWORD_SET`.
 - Parola belirlendikten sonra cihaz bağlama, e-posta değiştirme ve harici kimlik bağlama (`PASSWORD_REQUIRED` hatası veren yollar) kullanılabilir; silme iptali (B17) de parolayla yapılabilir.
 
@@ -632,7 +632,7 @@ Authenticated (+ CSRF). Hesap kimliği yalnız token'dan alınır.
 ```json
 {
   "currentPassword": "string, zorunlu",
-  "newPassword": "string, zorunlu, 15-128 karakter; içeriği dönüştürülmez/kırpılmaz; yaygın/tahmin edilebilir parola reddedilir (WEAK_PASSWORD)",
+  "newPassword": "string, zorunlu, 8-128 karakter; en az bir büyük harf, küçük harf, rakam ve özel karakter; içeriği dönüştürülmez/kırpılmaz; yaygın/tahmin edilebilir parola reddedilir (WEAK_PASSWORD)",
   "newPasswordConfirmation": "string, zorunlu, newPassword ile birebir aynı"
 }
 ```

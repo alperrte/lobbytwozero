@@ -348,7 +348,7 @@ class DeviceCredentialTest extends IntegrationTestSupport {
         mockMvc.perform(post(AuthApiPaths.PASSWORD_CHANGE).header(HttpHeaders.AUTHORIZATION, bearer)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"currentPassword":"%s","newPassword":"yeni-parola-yeni-parola-1","newPasswordConfirmation":"yeni-parola-yeni-parola-1"}
+                                {"currentPassword":"%s","newPassword":"Yeni-Parola-Yeni-Parola-1","newPasswordConfirmation":"Yeni-Parola-Yeni-Parola-1"}
                                 """.formatted(VALID_PASSWORD)))
                 .andExpect(status().is2xxSuccessful());
 

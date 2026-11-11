@@ -12,7 +12,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 class PasswordEncoderConfigTest {
 
-    private static final String PASSWORD = "correct-horse-battery-staple";
+    private static final String PASSWORD = "Correct-Horse-Battery-9";
     private static final int TIMING_SAMPLES = 5;
     /** Argon2id m=19 MiB, t=2 tipik donanımda onlarca ms sürer; üst sınır yalnız aşırı yavaşlamayı yakalar. */
     private static final Duration MAX_MEDIAN_HASH_TIME = Duration.ofSeconds(1);

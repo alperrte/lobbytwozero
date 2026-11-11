@@ -159,7 +159,7 @@ test.describe("giriş sayfası", () => {
     await page.goto("/tr/giris");
     await waitForHydration(page);
 
-    await fillLogin(page, "ada", "dogru-parola-123456");
+    await fillLogin(page, "ada", "Dogru-Parola-123456");
     await page.getByRole("button", { name: /Giriş yap/ }).click();
 
     await expect(page.getByLabel("Doğrulama kodu")).toBeVisible();
@@ -193,7 +193,7 @@ test.describe("giriş sayfası", () => {
     await page.goto("/tr/giris");
     await waitForHydration(page);
 
-    await fillLogin(page, "ada", "dogru-parola-123456");
+    await fillLogin(page, "ada", "Dogru-Parola-123456");
     await page.getByRole("button", { name: /Giriş yap/ }).click();
     await page.getByRole("button", { name: "Kurulumu başlat" }).click();
     await expect(page.getByTestId("totp-secret")).toHaveText("JBSWY3DPEHPK3PXP");
@@ -232,7 +232,7 @@ test.describe("giriş sayfası", () => {
     await page.goto("/tr/giris");
     await waitForHydration(page);
 
-    await fillLogin(page, "ada", "dogru-parola-123456");
+    await fillLogin(page, "ada", "Dogru-Parola-123456");
     await page.getByRole("button", { name: /Giriş yap/ }).click();
 
     await expect(page).toHaveURL(/\/tr\/?$/);
@@ -248,13 +248,13 @@ test.describe("giriş sayfası", () => {
 
     await page.goto("/tr/giris?next=/tr/ayarlar");
     await waitForHydration(page);
-    await fillLogin(page, "ada", "dogru-parola-123456");
+    await fillLogin(page, "ada", "Dogru-Parola-123456");
     await page.getByRole("button", { name: /Giriş yap/ }).click();
     await expect(page).toHaveURL(/\/tr\/ayarlar$/);
 
     await page.goto("/tr/giris?next=//evil.example");
     await waitForHydration(page);
-    await fillLogin(page, "ada", "dogru-parola-123456");
+    await fillLogin(page, "ada", "Dogru-Parola-123456");
     await page.getByRole("button", { name: /Giriş yap/ }).click();
     await expect(page).toHaveURL(/\/tr\/?$/);
     expect(new URL(page.url()).host).toBe(new URL(baseURL ?? page.url()).host);
@@ -394,7 +394,7 @@ test.describe("kayıt ve e-posta doğrulama", () => {
   const registerFill = async (page: Page, overrides: { username?: string } = {}) => {
     await page.getByLabel("Kullanıcı adı").fill(overrides.username ?? "ada_01");
     await page.getByLabel("E-posta", { exact: true }).fill("ada@example.com");
-    await page.getByLabel("Şifre", { exact: true }).fill("dogru-parola-123456");
+    await page.getByLabel("Şifre", { exact: true }).fill("Dogru-Parola-123456");
     await page.getByRole("checkbox").check();
   };
 
@@ -474,16 +474,16 @@ test.describe("kayıt ve e-posta doğrulama", () => {
     await expect(page).toHaveURL(/\/tr\/eposta-dogrulama$/);
     expect(page.url()).not.toContain("example.com");
     await expect(page.getByLabel("E-posta", { exact: true })).toHaveValue("ada@example.com");
-    expect(bodies.register).toEqual({ email: "ada@example.com", username: "ada_01", password: "dogru-parola-123456" });
+    expect(bodies.register).toEqual({ email: "ada@example.com", username: "ada_01", password: "Dogru-Parola-123456" });
 
     await page.getByLabel("Doğrulama kodu").fill("012 345");
     await expect(page.getByLabel("Doğrulama kodu")).toHaveValue("012345");
-    await page.getByLabel("Kayıt olurken belirlediğin şifre").fill("dogru-parola-123456");
+    await page.getByLabel("Kayıt olurken belirlediğin şifre").fill("Dogru-Parola-123456");
     await page.getByRole("button", { name: /E-postayı doğrula/ }).click();
 
     await expect(page).toHaveURL(/\/tr\/giris\?verified=1$/);
     await expect(page.getByRole("status")).toContainText("E-posta adresin doğrulandı");
-    expect(bodies.confirm).toEqual({ email: "ada@example.com", code: "012345", password: "dogru-parola-123456" });
+    expect(bodies.confirm).toEqual({ email: "ada@example.com", code: "012345", password: "Dogru-Parola-123456" });
   });
 
   test("yanlış kodda tek ve ayrım yapmayan mesaj; yeniden gönderme bilgi ve bekleme gösterir", async ({ page }) => {
@@ -496,7 +496,7 @@ test.describe("kayıt ve e-posta doğrulama", () => {
     await waitForHydration(page);
     await page.getByLabel("E-posta", { exact: true }).fill("ada@example.com");
     await page.getByLabel("Doğrulama kodu").fill("999999");
-    await page.getByLabel("Kayıt olurken belirlediğin şifre").fill("dogru-parola-123456");
+    await page.getByLabel("Kayıt olurken belirlediğin şifre").fill("Dogru-Parola-123456");
 
     await page.getByRole("button", { name: /E-postayı doğrula/ }).click();
     await expect(page.getByText(/Kod geçersiz, süresi dolmuş ya da deneme hakkı bitmiş/)).toBeVisible();
@@ -562,14 +562,14 @@ test.describe("şifremi unuttum ve şifre sıfırlama", () => {
     expect(page.url()).not.toContain(TOKEN);
     await expect(page.getByLabel("Yeni şifre", { exact: true })).toBeVisible();
 
-    await page.getByLabel("Yeni şifre", { exact: true }).fill("yeni-dogru-parola-123");
-    await page.getByLabel("Yeni şifre (tekrar)").fill("yeni-dogru-parola-123");
+    await page.getByLabel("Yeni şifre", { exact: true }).fill("Yeni-Dogru-Parola-123");
+    await page.getByLabel("Yeni şifre (tekrar)").fill("Yeni-Dogru-Parola-123");
     await page.getByRole("button", { name: "Şifreyi güncelle" }).click();
 
     await expect(page).toHaveURL(/\/tr\/giris\?reset=1$/);
     await expect(page.getByRole("status")).toContainText("Şifren güncellendi");
     expect(bodies).toEqual([
-      { token: TOKEN, newPassword: "yeni-dogru-parola-123", newPasswordConfirmation: "yeni-dogru-parola-123" }
+      { token: TOKEN, newPassword: "Yeni-Dogru-Parola-123", newPasswordConfirmation: "Yeni-Dogru-Parola-123" }
     ]);
   });
 
@@ -590,8 +590,8 @@ test.describe("şifremi unuttum ve şifre sıfırlama", () => {
     });
     await page.goto(`/tr/auth/sifre-sifirla#token=${TOKEN}`);
     await waitForHydration(page);
-    await page.getByLabel("Yeni şifre", { exact: true }).fill("yeni-dogru-parola-123");
-    await page.getByLabel("Yeni şifre (tekrar)").fill("yeni-dogru-parola-123");
+    await page.getByLabel("Yeni şifre", { exact: true }).fill("Yeni-Dogru-Parola-123");
+    await page.getByLabel("Yeni şifre (tekrar)").fill("Yeni-Dogru-Parola-123");
 
     await page.getByRole("button", { name: "Şifreyi güncelle" }).click();
 
@@ -823,7 +823,7 @@ test.describe("silme talebinden vazgeç ve doğrulanmamış e-posta", () => {
     });
     await page.goto("/tr/giris");
     await waitForHydration(page);
-    await fillLogin(page, "ada", "dogru-parola-123456");
+    await fillLogin(page, "ada", "Dogru-Parola-123456");
     await page.getByRole("button", { name: /Giriş yap/ }).click();
 
     await page.getByRole("link", { name: "Silme talebinden vazgeç" }).click();
@@ -831,11 +831,11 @@ test.describe("silme talebinden vazgeç ve doğrulanmamış e-posta", () => {
     await waitForHydration(page);
 
     await page.getByLabel("E-posta veya kullanıcı adı").fill("ada");
-    await page.getByLabel("Şifre", { exact: true }).fill("dogru-parola-123456");
+    await page.getByLabel("Şifre", { exact: true }).fill("Dogru-Parola-123456");
     await page.getByRole("button", { name: /Silmeyi iptal et/ }).click();
 
     await expect(page.getByRole("status")).toContainText("Silme talebin iptal edildi");
-    expect(bodies).toEqual([{ identifier: "ada", password: "dogru-parola-123456" }]);
+    expect(bodies).toEqual([{ identifier: "ada", password: "Dogru-Parola-123456" }]);
     await expect(page.getByRole("main").getByRole("link", { name: "Giriş yap" })).toHaveAttribute("href", "/tr/giris");
   });
 
@@ -847,7 +847,7 @@ test.describe("silme talebinden vazgeç ve doğrulanmamış e-posta", () => {
     await page.goto("/en/account/cancel-deletion");
     await waitForHydration(page);
     await page.getByLabel("Email or username").fill("ada");
-    await page.getByLabel("Password", { exact: true }).fill("dogru-parola-123456");
+    await page.getByLabel("Password", { exact: true }).fill("Dogru-Parola-123456");
     await page.getByRole("button", { name: /Cancel deletion/ }).click();
 
     await expect(formAlert(page)).toContainText("grace period has ended");
@@ -860,7 +860,7 @@ test.describe("silme talebinden vazgeç ve doğrulanmamış e-posta", () => {
     });
     await page.goto("/tr/giris");
     await waitForHydration(page);
-    await fillLogin(page, "ada@example.com", "dogru-parola-123456");
+    await fillLogin(page, "ada@example.com", "Dogru-Parola-123456");
     await page.getByRole("button", { name: /Giriş yap/ }).click();
 
     await page.getByRole("link", { name: "E-postamı doğrula" }).click();

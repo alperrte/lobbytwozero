@@ -218,7 +218,7 @@ Token'ı `localStorage`, `sessionStorage` veya IndexedDB'ye **yazma** (SECURITY.
 | 12 | Gerçek Google/Steam ile uçtan uca deneme yok | auth | O | Client id/secret gerekli (B14) |
 | 13 | Çok örnekli Gateway için ortak hız sınırı (Redis vb.) | api-gateway/altyapı | O | Şimdi örnek başına, bellekte |
 | 14 | Anahtar rotasyonu yok (JWT, TOTP, HMAC) | auth | O | S9 |
-| 15 | Parola politikası: **KAPANDI (2026-10-24)** en az 15 + yerel kara liste, `WEAK_PASSWORD` | auth | K | S10 (sızmış parola veritabanı sorgusu yok) |
+| 15 | Parola politikası: **KAPANDI (2026-10-24)**, 2026-11-11 güncellendi: en az 8 + büyük/küçük/rakam/özel + yerel kara liste, `WEAK_PASSWORD` | auth | K | S10 (sızmış parola veritabanı sorgusu yok) |
 | 16 | Hesap bağlama/ayırma, BANNED kaldırma, süreli askı, "parola ekle" yok | auth + ürün | D | B8, B10, B11 |
 | 17 | Güvenlik olayı saklama süresi ve silme sonrası geri alma kararı yok | hukuk/ürün | D | B9, B17, S1 |
 | 18 | Servis başına DB rolü yok (hepsi `ltz_dev`) ve prod dağıtımı (sır yöneticisi, prod compose) tasarlanmadı | altyapı | **Y** | Prod öncesi |

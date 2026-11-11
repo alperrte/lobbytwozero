@@ -1163,7 +1163,8 @@
         "required": "Enter your password.",
         "tooLong": "Must be at most {max} characters.",
         "tooShort": "Must be at least {min} characters.",
-        "weak": "This password is easy to guess. Choose a longer, unique password.",
+        "composition": "Must include an uppercase letter, a lowercase letter, a number and a special character (such as . , / _ - !).",
+        "weak": "This password does not meet the rules or is easy to guess. Use upper/lower case, a number and a special character; avoid common passwords.",
         "invalid": "The password is not valid."
       },
       "username": {
@@ -1193,7 +1194,8 @@
         "required": "Enter your new password.",
         "tooShort": "Must be at least {min} characters.",
         "tooLong": "Must be at most {max} characters.",
-        "weak": "This password is easy to guess. Choose a longer, unique password.",
+        "composition": "Must include an uppercase letter, a lowercase letter, a number and a special character (such as . , / _ - !).",
+        "weak": "This password does not meet the rules or is easy to guess. Use upper/lower case, a number and a special character; avoid common passwords.",
         "same": "The new password must differ from your current one.",
         "invalid": "The password is not valid."
       },
@@ -1251,7 +1253,7 @@
       "emailPlaceholder": "Enter your email address",
       "password": "Password",
       "passwordPlaceholder": "Choose a password",
-      "passwordHint": "At least {min} characters. Use a strong, unique password.",
+      "passwordHint": "At least {min} characters, with an uppercase letter, a lowercase letter, a number and a special character.",
       "terms": "I accept the <terms>Terms of use</terms>. See the <privacy>Privacy policy</privacy> for how personal data is handled.",
       "submit": "Create account",
       "submitting": "Creating account…",
@@ -2291,7 +2293,7 @@
         "intro": "Your account has no password. Setting one unlocks email change and account linking. We email a code to your verified address.",
         "sendCode": "Send code",
         "emailCode": "Code from your email",
-        "newPassword": "New password (at least 15 characters)",
+        "newPassword": "New password (at least 8 characters)",
         "confirmation": "New password (again)",
         "mismatch": "The passwords do not match.",
         "submit": "Set password",

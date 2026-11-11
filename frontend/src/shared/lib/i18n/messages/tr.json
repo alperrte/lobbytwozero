@@ -1163,7 +1163,8 @@
         "required": "Şifreni gir.",
         "tooLong": "En fazla {max} karakter olabilir.",
         "tooShort": "En az {min} karakter olmalı.",
-        "weak": "Bu şifre tahmin edilmesi kolay. Daha uzun ve benzersiz bir şifre seç.",
+        "composition": "En az bir büyük harf, bir küçük harf, bir rakam ve bir özel karakter (. , / _ - ! gibi) içermeli.",
+        "weak": "Bu şifre kurallara uymuyor ya da tahmin edilmesi kolay. Büyük/küçük harf, rakam ve özel karakter kullan; yaygın şifrelerden kaçın.",
         "invalid": "Şifre geçersiz."
       },
       "username": {
@@ -1193,7 +1194,8 @@
         "required": "Yeni şifreni gir.",
         "tooShort": "En az {min} karakter olmalı.",
         "tooLong": "En fazla {max} karakter olabilir.",
-        "weak": "Bu şifre tahmin edilmesi kolay. Daha uzun ve benzersiz bir şifre seç.",
+        "composition": "En az bir büyük harf, bir küçük harf, bir rakam ve bir özel karakter (. , / _ - ! gibi) içermeli.",
+        "weak": "Bu şifre kurallara uymuyor ya da tahmin edilmesi kolay. Büyük/küçük harf, rakam ve özel karakter kullan; yaygın şifrelerden kaçın.",
         "same": "Yeni şifre mevcut şifrenden farklı olmalı.",
         "invalid": "Şifre geçersiz."
       },
@@ -1251,7 +1253,7 @@
       "emailPlaceholder": "E-posta adresini gir",
       "password": "Şifre",
       "passwordPlaceholder": "Şifreni belirle",
-      "passwordHint": "En az {min} karakter. Güçlü ve benzersiz bir şifre kullan.",
+      "passwordHint": "En az {min} karakter; büyük harf, küçük harf, rakam ve özel karakter içermeli.",
       "terms": "<terms>Kullanım koşullarını</terms> kabul ediyorum. Kişisel veriler için <privacy>Gizlilik politikasını</privacy> incele.",
       "submit": "Hesap oluştur",
       "submitting": "Hesap oluşturuluyor…",
@@ -2291,7 +2293,7 @@
         "intro": "Hesabın parolasız. Parola belirleyince e-posta değiştirme ve hesap bağlama açılır. Doğrulanmış e-postana bir kod göndeririz.",
         "sendCode": "Kod gönder",
         "emailCode": "E-postana gelen kod",
-        "newPassword": "Yeni parola (en az 15 karakter)",
+        "newPassword": "Yeni parola (en az 8 karakter)",
         "confirmation": "Yeni parola (tekrar)",
         "mismatch": "Parolalar aynı değil.",
         "submit": "Parolayı belirle",
