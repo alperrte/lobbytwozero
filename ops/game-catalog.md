@@ -19,12 +19,12 @@ Her iki kitle için de aynı gerçekler:
 | Konu | Değer |
 |---|---|
 | Ne yüklenir | Tüm `game_db` (Flyway geçmişi dahil): oyunlar, terimler, dile göre açıklamalar, DLC ilişkisi, dil desteği, medya. **Fiyat tablolarının verisi yoktur** (şema vardır); fiyatları servis kendisi doldurur |
-| Dump dosyası | `ltz-game-catalog.dump` (190.320.977 bayt, adı değişmez). Git'te **yoktur**; ekipten elden alınır |
+| Dump dosyası | `ltz-game-catalog.dump` (193.117.854 bayt, adı değişmez). Git'te **yoktur**; ekipten elden alınır |
 | Dump'ın konulacağı yer | Depo kökündeki **`game-catalog-dump/`** klasörü (`git pull` ile gelir; gelmezse komut açar) |
 | Kurulum komutu | `node ops/dev.mjs --all` (repo kökünden) |
 | Gereksinimler | Node 24.7+, Docker Desktop açık, Docker'a en az 12 GB bellek, Hardware kataloğu için internet |
 | Doğrulama | `node ops/game-catalog-import.mjs verify` (veritabanına dokunmaz) |
-| Başarı işareti | `GAME_CATALOG_IMPORT_RESULT {"games":264209,"flyway":175,...}` ve `✓ Game kataloğu hazır` |
+| Başarı işareti | `GAME_CATALOG_IMPORT_RESULT {"games":264509,"flyway":175,...}` ve `✓ Game kataloğu hazır` |
 
 `--all` tüm servisleri kaldırır. Game kataloğu Game servisi, Hardware kataloğu Hardware servisi başlamadan **önce** yüklenir. Bellek yetmiyorsa yalnız Game için `node ops/dev.mjs --with=game-service` kullanılabilir. `--no-catalog` katalog yüklemelerini atlar.
 
@@ -54,7 +54,7 @@ Terminalde yazacağın tek şey iki komuttur; dosyayı klasöre koymak sürükle
 5. **Bittiğini çıktıdan gör.** Şu satırlar çıkmalı:
 
    ```text
-   GAME_CATALOG_IMPORT_RESULT {"games":264209,"flyway":175,...}
+   GAME_CATALOG_IMPORT_RESULT {"games":264509,"flyway":175,...}
    ✓ Game kataloğu hazır
    ```
 
@@ -201,7 +201,7 @@ Bu yüzden dump'ı yükledikten sonra fiyatlar ilk saatlerde boştur. Çözüm, 
 node ops/game-catalog-import.mjs verify
 ```
 
-- Beklenen: `GAME_CATALOG_VERIFY_RESULT {"games":264209,"flyway":175}`.
+- Beklenen: `GAME_CATALOG_VERIFY_RESULT {"games":264509,"flyway":175}`.
 - Hata verirse **dur**: [Sorun giderme](#sorun-giderme) tablosundan nedeni bul ve kullanıcıya söyle (dosyayı yeniden alması gerekebilir). Veritabanına henüz dokunulmadı.
 
 **4. Kur**
@@ -218,7 +218,7 @@ node ops/dev.mjs --all --no-mail --no-frontend
 
 **5. Başarıyı kontrol et**
 Katalog adımı hata verse bile `dev.mjs` kurulumu sürdürür ve çıkış kodu 0 olabilir; bu yüzden **çıktıyı oku**:
-- Başarı: `GAME_CATALOG_IMPORT_RESULT {"games":264209,"flyway":175,...}` ve `✓ Game kataloğu hazır`.
+- Başarı: `GAME_CATALOG_IMPORT_RESULT {"games":264509,"flyway":175,...}` ve `✓ Game kataloğu hazır`.
 - `GAME_CATALOG_IMPORT_SKIPPED game_db zaten dolu (...)`: veritabanında daha önce yüklenmiş bir katalog var, hiçbir şeye dokunulmadı. Kurulum bozulmadı, ama **yeni dump uygulanmadı**. Kullanıcıya şunu sor: "Game veritabanında zaten bir katalog var. Yeni dump ile değiştirmemi ister misin? Bu işlem `game_db` içeriğini siler (hesaplar ve diğer servisler etkilenmez)." Kullanıcı açıkça "evet" derse [Daha önce kurduysan](#daha-önce-kurduysan-yeni-dump-nasıl-yüklenir) bölümünün 6. adımını uygula. Cevap vermezse veya "hayır" derse dokunma.
 - Başarısızlık: `⚠ Game kataloğu ...` uyarısı varsa katalog yüklenmemiştir. Başarılı sayma; nedeni [Sorun giderme](#sorun-giderme) tablosundan bul.
 - Game servisi için ✓ (ya da "healthy") görünmeli.
@@ -245,10 +245,10 @@ Beklenen içerik (doğrulama için):
 
 | Veri | Beklenen sayı |
 |---|---:|
-| Oyun (`games`) | 264.209 |
-| Terim bağlantısı (`game_terms`) | 1.691.433 |
-| Dile göre açıklama (`game_localized_descriptions`) | 26.359 |
-| Ana oyuna bağlı DLC (`parent_game_id` dolu) | 51239 (DLC'lerin yaklaşık %80'i; kalanı servis çalıştıkça bağlanır) |
+| Oyun (`games`) | 264.509 |
+| Terim bağlantısı (`game_terms`) | 1.693.604 |
+| Dile göre açıklama (`game_localized_descriptions`) | 26.411 |
+| Ana oyuna bağlı DLC (`parent_game_id` dolu) | 56446 (DLC'lerin yaklaşık %80'i; kalanı servis çalıştıkça bağlanır) |
 | Fiyat teklifi (`game_price_quotes`) | 0 (fiyat verisi dump'a girmez; şema vardır, servis 13 pazarın fiyatlarını kendisi doldurur) |
 | Flyway sürümü | 175 |
 
