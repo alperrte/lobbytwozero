@@ -179,7 +179,8 @@ public class GameDetailBulkService {
 
     private Duration pauseFor(ProviderException error, int failures) {
         Duration delay = retries.delay(error, Math.min(failures, 5));
-        Duration pause = delay == null ? MAX_PAUSE : delay.multipliedBy(failures >= 2 ? 4L : 1L);
+        long factor = failures >= 2 ? 4L : 1L;
+        Duration pause = delay == null ? MAX_PAUSE : delay.multipliedBy(factor);
         if (pause.compareTo(Duration.ofMinutes(1)) < 0) pause = Duration.ofMinutes(1);
         if (pause.compareTo(MAX_PAUSE) > 0) pause = MAX_PAUSE;
         return pause;

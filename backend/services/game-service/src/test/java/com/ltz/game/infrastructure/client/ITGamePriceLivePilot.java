@@ -91,7 +91,7 @@ class ITGamePriceLivePilot extends PostgresTestSupport {
                 result = quotes.isEmpty() ? "NO_OFFER" : "OK offers=" + quotes.size();
             } catch (ProviderException error) {
                 result = error.code();
-            } catch (IllegalArgumentException error) {
+            } catch (IllegalArgumentException _) {
                 result = "INVALID_MARKET";
             }
             lines.add(candidate + " " + result);

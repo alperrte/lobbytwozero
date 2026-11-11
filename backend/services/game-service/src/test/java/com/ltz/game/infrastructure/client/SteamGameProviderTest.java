@@ -221,9 +221,11 @@ class SteamGameProviderTest {
         assertEquals(java.util.Map.of(), provider.releaseStatus(java.util.List.of()));
         assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.releaseStatus(java.util.List.of("0; drop"))).code());
         assertEquals(java.util.Map.of(), provider.storePrices(java.util.List.of(), "US"));
-        assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.storePrices(java.util.List.of("1"), "us")).code());
-        assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.storePrices(java.util.List.of("1"), "US\",\"x")).code());
-        assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.storePrices(java.util.List.of("0; drop"), "US")).code());
+        var validId = java.util.List.of("1");
+        var badId = java.util.List.of("0; drop");
+        assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.storePrices(validId, "us")).code());
+        assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.storePrices(validId, "US\",\"x")).code());
+        assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.storePrices(badId, "US")).code());
     }
 
     @Test void storePricesPickTheLowestNonBundleOptionPerCountryAndKeepSaleAndScaleExactly() {
@@ -415,11 +417,30 @@ class SteamGameProviderTest {
         var negativeTime = Instant.ofEpochSecond(-1);
         assertThrows(IllegalArgumentException.class,()->new CatalogQuery(0,negativeTime,10));
     }
-    @Test void immediateRepeatIsRateLimited() {
-        server.expect(anything()).andRespond(withSuccess("{\"response\":{\"apps\":[],\"have_more_results\":false}}",MediaType.APPLICATION_JSON));
-        provider.catalog(new CatalogQuery(0,null,10));
+    @Test void immediateRepeatWaitsForTheSharedBudgetInsteadOfFailingAndTheDailyLimitStillFails() {
+        var clock = new Clock() {
+            Instant now = Instant.parse("2026-10-20T00:00:00Z");
+            @Override public ZoneOffset getZone() { return ZoneOffset.UTC; }
+            @Override public Clock withZone(java.time.ZoneId zone) { return this; }
+            @Override public Instant instant() { return now; }
+        };
+        RestClient.Builder builder = RestClient.builder();
+        var waiting = MockRestServiceServer.bindTo(builder).build();
+        var waitingProvider = new SteamGameProvider(builder.build(), TEST_KEY, true, new SteamRequestBudget(clock), millis -> clock.now = clock.now.plusMillis(millis));
+        waiting.expect(anything()).andRespond(withSuccess("{\"response\":{\"apps\":[],\"have_more_results\":false}}",MediaType.APPLICATION_JSON));
+        waiting.expect(anything()).andRespond(withSuccess("{\"response\":{\"apps\":[],\"have_more_results\":false}}",MediaType.APPLICATION_JSON));
         var query = new CatalogQuery(0,null,10);
-        assertEquals("RATE_LIMITED",assertThrows(ProviderException.class,()->provider.catalog(query)).code());
+        waitingProvider.catalog(query);
+        waitingProvider.catalog(query);
+        waiting.verify();
+        // Günlük sınır aşılınca bekleme çözüm değildir: uzun süreli RATE_LIMITED hemen yansır.
+        var exhausted = new SteamRequestBudget(clock, 100, 4);   // arka plan payı 3 çağrı
+        RestClient.Builder otherBuilder = RestClient.builder();
+        var other = MockRestServiceServer.bindTo(otherBuilder).build();
+        for (int index = 0; index < 3; index++) other.expect(anything()).andRespond(withSuccess("{\"response\":{\"apps\":[],\"have_more_results\":false}}",MediaType.APPLICATION_JSON));
+        var limited = new SteamGameProvider(otherBuilder.build(), TEST_KEY, true, exhausted, millis -> clock.now = clock.now.plusMillis(millis));
+        for (int index = 0; index < 3; index++) limited.catalog(query);
+        assertEquals("RATE_LIMITED",assertThrows(ProviderException.class,()->limited.catalog(query)).code());
     }
 
     // ---- Kayıt düzeyi hata yalnız o kaydı atlar; sağlayıcı düzeyi hata tüm sayfayı reddeder.

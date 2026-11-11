@@ -25,57 +25,86 @@ import org.springframework.stereotype.Repository;
 @Repository @RequiredArgsConstructor
 public class GameDiscoveryRepository {
     private final NamedParameterJdbcTemplate jdbc;
-    // Tüm SQL derleme zamanı sabitidir; filtreler isteğe bağlı koşul olarak named parameter ile bağlanır.
-    private static final String FILTERED = """
+    // Tüm SQL parçaları derleme zamanı sabitidir; yalnız etkin filtrelerin parçaları (ve hep aynı named parameter'lar) birleştirilir.
+    // Etkin olmayan filtre SQL'e hiç girmez: "(:bayrak = false or exists(...))" kalıbı parametreli planda kötü plana yol açıyordu. Tür/dil/indirim
+    // filtreleri "IN (alt sorgu)" ile yazılır: aynı sorgu EXISTS ile iç içe döngüye (168 bin tek tek arama) düşüp 300+ ms sürerken bu yazımla hash
+    // yarı-birleşimiyle ≈50 ms sürer.
+    private static final String BASE = """
              from games g left join game_rating_projection r on r.game_id=g.id
              where g.status='ACTIVE' and g.game_type='MAIN_GAME' and g.delisted_at is null
-             and (:includeAdult = true or g.adult is not true)
-             and (cast(:pattern as text) is null or g.normalized_title like cast(:pattern as text) escape '!')
-             and (cast(:genre as text) is null or exists(select 1 from game_terms gt join catalog_terms t on t.id=gt.term_id
-                 where gt.game_id=g.id and t.kind='GENRE' and t.code=cast(:genre as text)))
-             and (cast(:platform as text) is null or exists(select 1 from game_terms gt join catalog_terms t on t.id=gt.term_id
-                 where gt.game_id=g.id and t.kind='PLATFORM' and t.code=cast(:platform as text)))
-             and (cast(:language as text) is null or exists(select 1 from game_languages l
-                 where l.game_id=g.id and l.language_code=cast(:language as text)))
-             and (cast(:earlyAccess as boolean) is null or g.early_access = cast(:earlyAccess as boolean))
-             and (cast(:releasedAfter as date) is null or g.release_date >= cast(:releasedAfter as date))
-             and (cast(:releasedBefore as date) is null or g.release_date <= cast(:releasedBefore as date))
-             and (:popularOnly = false or g.editor_rank is not null)
-             and (cast(:minRating as numeric) is null or r.average_rating >= cast(:minRating as numeric))
-             and (:discountedOnly = false or exists(select 1 from game_price_quotes p where p.game_id=g.id
-                 and p.country=:priceCountry and p.currency=:priceCurrency and p.expires_at>current_timestamp
-                 and p.current_price<p.regular_price))
             """;
-    private static final String COUNT = "select count(*)" + FILTERED;
-    private static final String PAGE = """
+    private static final String NOT_ADULT = " and g.adult is not true";
+    private static final String TITLE_PREFIX = " and g.normalized_title like cast(:pattern as text) escape '!'";
+    private static final String GENRE = " and g.id in (select gt.game_id from game_terms gt where gt.term_id="
+            + "(select t.id from catalog_terms t where t.kind='GENRE' and t.code=cast(:genre as text)))";
+    private static final String PLATFORM = " and g.id in (select gt.game_id from game_terms gt where gt.term_id="
+            + "(select t.id from catalog_terms t where t.kind='PLATFORM' and t.code=cast(:platform as text)))";
+    private static final String LANGUAGE = " and g.id in (select l.game_id from game_languages l where l.language_code=cast(:language as text))";
+    private static final String EARLY_ACCESS = " and g.early_access = cast(:earlyAccess as boolean)";
+    private static final String RELEASED_AFTER = " and g.release_date >= cast(:releasedAfter as date)";
+    private static final String RELEASED_BEFORE = " and g.release_date <= cast(:releasedBefore as date)";
+    private static final String POPULAR = " and g.editor_rank is not null";
+    private static final String MIN_RATING = " and r.average_rating >= cast(:minRating as numeric)";
+    private static final String DISCOUNTED = " and g.id in (select p.game_id from game_price_quotes p where p.country=:priceCountry"
+            + " and p.currency=:priceCurrency and p.expires_at>current_timestamp and p.current_price<p.regular_price)";
+    private static final String PAGE_SELECT = """
             select g.*, (select m.url from game_media m where m.game_id=g.id and m.type='COVER'
                 order by m.sort_order,m.id limit 1) as cover_url,
                 r.average_rating as rating_average, r.rating_count as rating_count
-            """ + FILTERED;
+            """;
     private static final String LIMIT = " limit :limit offset :offset";
-    /** Sayfa sorgusu: ortak seçim ve süzgeç + verilen sıralama + sayfalama; sorgu metni her sıralama için tek yerde kurulur. */
-    private static String page(String orderBy) { return PAGE + " order by " + orderBy + LIMIT; }
-    private static final String TITLE_ASC = page("g.normalized_title asc,g.id asc");
-    private static final String TITLE_DESC = page("g.normalized_title desc,g.id asc");
-    private static final String RELEASE_ASC = page("g.release_date asc nulls last,g.id asc");
+
+    /**
+     * Birleştirilmiş SQL metinleri önbelleklenir: anahtar yalnız sabit parçaların birleşimidir (11 filtre bayrağı × 8 sıralama, sınırlı sayıda), kullanıcı
+     * girdisi anahtara ya da SQL'e girmez; her istekte SQL yeniden kurulmaz.
+     */
+    private static final Map<String,String> COUNT_SQL = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<String,String> PAGE_SQL = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Etkin filtrelerin parçalarını birleştirir (sabit parçalar; kullanıcı girdisi SQL'e girmez, yalnız named parameter olarak bağlanır). */
+    private static String filtered(DiscoveryQuery query) {
+        List<String> parts = new ArrayList<>();
+        parts.add(BASE);
+        addIf(parts,!query.includeAdult(),NOT_ADULT);
+        addIf(parts,query.q()!=null,TITLE_PREFIX);
+        addIf(parts,query.genre()!=null,GENRE);
+        addIf(parts,query.platform()!=null,PLATFORM);
+        addIf(parts,query.language()!=null,LANGUAGE);
+        addIf(parts,query.earlyAccess()!=null,EARLY_ACCESS);
+        addIf(parts,query.releasedAfter()!=null,RELEASED_AFTER);
+        addIf(parts,query.releasedBefore()!=null,RELEASED_BEFORE);
+        addIf(parts,query.popularOnly(),POPULAR);
+        addIf(parts,query.minRating()!=null,MIN_RATING);
+        addIf(parts,query.discountedOnly(),DISCOUNTED);
+        return String.join("",parts);
+    }
+    private static void addIf(List<String> parts,boolean active,String fragment) {
+        if (active) parts.add(fragment);
+    }
+    private static final String TITLE_ASC = " order by g.normalized_title asc,g.id asc";
+    private static final String TITLE_DESC = " order by g.normalized_title desc,g.id asc";
+    private static final String RELEASE_ASC = " order by g.release_date asc nulls last,g.id asc";
     /** En yeni önce: çıkmış oyunlar yeniden eskiye; henüz çıkmamış (gelecek tarihli, ör. IGDB yer tutucu 2040) ve tarihsiz oyunlar sona. */
-    private static final String RELEASE_DESC = page("(g.release_date is null or g.release_date > current_date),g.release_date desc nulls last,g.id asc");
+    private static final String RELEASE_DESC = " order by (g.release_date is null or g.release_date > current_date),g.release_date desc nulls last,g.id asc";
     // Küçük editör sırası daha popülerdir; DESC en popülerden başlar.
-    private static final String POPULARITY_ASC = page("g.editor_rank desc nulls last,g.id asc");
-    private static final String POPULARITY_DESC = page("g.editor_rank asc nulls last,g.id asc");
+    private static final String POPULARITY_ASC = " order by g.editor_rank desc nulls last,g.id asc";
+    private static final String POPULARITY_DESC = " order by g.editor_rank asc nulls last,g.id asc";
     // Puansız oyunlar (projeksiyonda satır yok veya ortalama null) her iki yönde sona gider; eşitlikte gameId bağlar.
-    private static final String RATING_ASC = page("r.average_rating asc nulls last,g.id asc");
-    private static final String RATING_DESC = page("r.average_rating desc nulls last,g.id asc");
+    private static final String RATING_ASC = " order by r.average_rating asc nulls last,g.id asc";
+    private static final String RATING_DESC = " order by r.average_rating desc nulls last,g.id asc";
 
     /** @param syncedAt puan projeksiyonunun son hatasız tarama zamanı; null ise puan durumu UNAVAILABLE'dır. */
     public GameDiscoveryResponse discover(DiscoveryQuery query, Instant syncedAt) {
         Map<String,Object> params = parameters(query);
-        long total = Objects.requireNonNull(jdbc.queryForObject(COUNT,params,Long.class));
-        List<Row> rows = jdbc.query(pageSql(query),params,(rs,index) -> row(rs));
+        String filtered = filtered(query);
+        String countSql = COUNT_SQL.computeIfAbsent(filtered,where -> "select count(*)" + where);
+        String pageSql = PAGE_SQL.computeIfAbsent(filtered + orderBy(query),where -> PAGE_SELECT + where + LIMIT);
+        long total = Objects.requireNonNull(jdbc.queryForObject(countSql,params,Long.class));
+        List<Row> rows = jdbc.query(pageSql,params,(rs,index) -> row(rs));
         List<GameDiscoveryResponse.Item> items = cards(rows,syncedAt != null);
         return new GameDiscoveryResponse(items,query.page(),query.size(),total,query.sort().name(),query.direction().name(),"EDITORIAL",syncedAt);
     }
-    private String pageSql(DiscoveryQuery query) {
+    private static String orderBy(DiscoveryQuery query) {
         boolean ascending = query.direction()==CatalogDirection.ASC;
         return switch(query.sort()) {
             case TITLE -> ascending ? TITLE_ASC : TITLE_DESC;

@@ -51,7 +51,7 @@ public class SteamGameProvider implements GameProvider {
     @Override public String provider() { return "STEAM"; }
     @Override public Set<Capability> capabilities() { return Set.of(Capability.CATALOG, Capability.INCREMENTAL_CATALOG); }
 
-    @Override public CatalogPage catalog(CatalogQuery query) { return page(query, true); }
+    @Override public CatalogPage catalog(CatalogQuery query) { return retrying(() -> page(query, true)); }
 
     /** Üst sınır: yaklaşık 65 sayfa (1000 kayıt) beklenir; sonsuz döngüye karşı güvenlik payı. */
     private static final int MAX_DLC_PAGES = 400;

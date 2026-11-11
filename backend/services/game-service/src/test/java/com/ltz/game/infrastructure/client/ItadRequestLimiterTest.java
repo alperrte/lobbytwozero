@@ -37,12 +37,12 @@ class ItadRequestLimiterTest {
         assertEquals(Duration.ofMinutes(4).toMillis() + 1, sleeps.getFirst(), "ilk isteğin pencereden çıkmasına kadar");
     }
 
-    @Test void aWaitLongerThanTheMaximumIsReportedAsRateLimitedWithTheRemainingTime() {
+    @Test void aWaitLongerThanTheMaximumIsReportedAsALocalThrottleWithTheRemainingTime() {
         TickClock clock = new TickClock();
         var limiter = new ItadRequestLimiter(clock, 1, Duration.ofMinutes(5), Duration.ofSeconds(30), millis -> clock.now = clock.now.plusMillis(millis));
         limiter.acquire();
         ProviderException error = assertThrows(ProviderException.class, limiter::acquire);
-        assertEquals("PRICE_RATE_LIMITED", error.code());
+        assertEquals(ItadRequestLimiter.LOCAL_THROTTLE, error.code());
         assertEquals(Duration.ofMinutes(5), error.retryAfter());
     }
 

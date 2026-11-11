@@ -30,7 +30,9 @@ import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-@Entity @Table(name="games") @Getter @Setter @NoArgsConstructor
+// DynamicUpdate: yalnız değişen sütunlar yazılır. Tüm sütunları yazan güncelleme unique indeksli editor_rank'i de SET listesine koyar ve Postgres satırı
+// fiyat tablolarının yabancı anahtar paylaşım kilidiyle çakışan düzeyde kilitler (katalog işi ile fiyat yenilemesi arasında deadlock; DEV'de görüldü).
+@Entity @Table(name="games") @org.hibernate.annotations.DynamicUpdate @Getter @Setter @NoArgsConstructor
 public class Game {
     @Id private UUID id = UUID.randomUUID();
     @Column(nullable=false, length=256) private String title;

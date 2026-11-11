@@ -11,12 +11,14 @@ import java.util.function.LongConsumer;
 /**
  * ITAD istek sınırı için istemci tarafı kayan pencere sınırlayıcı. ITAD, 5 dakikalık pencerede 1000 isteğe izin verir; sınırlayıcı payı ({@code limit})
  * bunun altında tutar (yeniden denemeler ve elle ölçümler için pay bırakır), böylece kendi servisimizden kaynaklı 429 oluşmaz. Pencere doluysa en
- * eski isteğin pencereden çıkmasına kadar bekler; bekleme {@code maxWait}'i aşacaksa {@code PRICE_RATE_LIMITED} fırlatır (çağıran geri çekilir).
+ * eski isteğin pencereden çıkmasına kadar bekler; bekleme {@code maxWait}'i aşacaksa {@code PRICE_LOCAL_THROTTLE} fırlatır (çağıran turu bırakır, oyunları başarısız saymaz).
  */
 final class ItadRequestLimiter {
     static final int DEFAULT_LIMIT = 850;
     static final Duration DEFAULT_WINDOW = Duration.ofMinutes(5);
-    static final Duration DEFAULT_MAX_WAIT = Duration.ofSeconds(90);
+    static final Duration DEFAULT_MAX_WAIT = Duration.ofSeconds(20);
+    /** Kendi sınırımız dolduğunda atılan kod: ITAD hatası değildir, çağıran bunu oyun başarısızlığı olarak KAYDETMEMELİ, yalnız turu bırakmalıdır. */
+    static final String LOCAL_THROTTLE = "PRICE_LOCAL_THROTTLE";
     private final Clock clock;
     private final int limit;
     private final Duration window;
@@ -40,7 +42,7 @@ final class ItadRequestLimiter {
         while (true) {
             Duration wait = tryAcquire();
             if (wait == null) return;
-            if (wait.compareTo(maxWait) > 0) throw new ProviderException("PRICE_RATE_LIMITED", wait);
+            if (wait.compareTo(maxWait) > 0) throw new ProviderException(LOCAL_THROTTLE, wait);
             sleeper.accept(wait.toMillis() + 1);
         }
     }

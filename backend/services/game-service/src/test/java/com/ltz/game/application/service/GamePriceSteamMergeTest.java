@@ -26,6 +26,7 @@ import org.mockito.ArgumentCaptor;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -83,7 +84,7 @@ class GamePriceSteamMergeTest {
     }
 
     private void candidates(GamePriceRepository.Candidate... values) {
-        when(repository.candidates(any(), any(), any(), any(), any())).thenReturn(List.of(values));
+        when(repository.candidates(any(), any(), any(), any(), any(), anyInt())).thenReturn(List.of(values));
     }
 
     @SuppressWarnings("unchecked")

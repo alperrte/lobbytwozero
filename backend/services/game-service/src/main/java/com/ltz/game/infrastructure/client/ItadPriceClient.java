@@ -31,6 +31,8 @@ public class ItadPriceClient implements GamePriceProvider {
     private final GameExternalReferenceRepository references;
     private final Clock clock;
     private final ItadRequestLimiter limiter;
+    /** ITAD 429 ile Retry-After bildirdiğinde tüm iş parçacıkları o zamana kadar yeni istek atmaz (her biri ayrı 429 yemesin). */
+    private volatile java.time.Instant blockedUntil=java.time.Instant.MIN;
     /** Steam AppID ("app/{id}") → ITAD oyun kimliği. Eşleme kalıcıdır; bir kez öğrenilince tekrar sorulmaz (her turdaki ikinci ITAD isteği ve gecikmesi kalkar). Yalnız olumlu eşleşmeler tutulur. */
     private final Map<String,UUID> knownMappings=new java.util.concurrent.ConcurrentHashMap<>();
     /** Bellek üst sınırı (yaklaşık 40 MB): dolarsa temizlenir ve yeniden öğrenilir. */
@@ -93,6 +95,8 @@ public class ItadPriceClient implements GamePriceProvider {
         return matched;
     }
     private JsonNode post(String path,Object body) {
+        java.time.Instant blocked=blockedUntil;
+        if(blocked.isAfter(clock.instant())) throw new ProviderException(ItadRequestLimiter.LOCAL_THROTTLE,Duration.between(clock.instant(),blocked));
         limiter.acquire();
         try {
             return http.post().uri(path).header("ITAD-API-Key",properties.apiKey())
@@ -107,7 +111,11 @@ public class ItadPriceClient implements GamePriceProvider {
         } catch(RestClientException _) { throw new ProviderException("PRICE_UNAVAILABLE"); }
     }
     private ProviderException failure(int status,String after) {
-        if(status==429) return new ProviderException("PRICE_RATE_LIMITED",retryAfter(after));
+        if(status==429) {
+            Duration wait=retryAfter(after);
+            blockedUntil=clock.instant().plus(wait.compareTo(Duration.ofMinutes(10))>0 ? Duration.ofMinutes(10) : wait);
+            return new ProviderException("PRICE_RATE_LIMITED",wait);
+        }
         return new ProviderException(status==401 || status==403?"PRICE_ACCESS_DENIED":"PRICE_UNAVAILABLE");
     }
     private Duration retryAfter(String value) {
