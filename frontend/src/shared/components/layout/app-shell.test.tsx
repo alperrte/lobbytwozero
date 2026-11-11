@@ -109,11 +109,12 @@ describe("AppShell", () => {
     const nav = screen.getByRole("navigation", { name: "Ana gezinme" });
 
     const links = nav.querySelectorAll("a");
-    expect(links).toHaveLength(7);
+    expect(links).toHaveLength(8);
     expect(links[1]).toHaveAttribute("href", "/tr/oyunlar");
     expect(nav.querySelector('a[href="/tr/arkadaslar"]')).not.toBeNull();
     expect(within(nav).getByRole("link", { name: "Kütüphanem" })).toHaveAttribute("href", "/tr/kutuphane");
     expect(within(nav).queryByRole("button", { name: "Kütüphanem — Yakında" })).not.toBeInTheDocument();
+    expect(within(nav).getByRole("link", { name: "Performans" })).toHaveAttribute("href", "/tr/performans");
     expect(links[0]).toHaveAttribute("href", "/tr");
     expect(links[0]).toHaveAttribute("aria-current", "page");
     expect(nav.querySelectorAll('a[href="#"]')).toHaveLength(0);
@@ -123,8 +124,8 @@ describe("AppShell", () => {
     expect(nav).not.toHaveTextContent("Profil");
     expect(nav).not.toHaveTextContent("Bilgisayarlarım");
     expect(nav).toHaveTextContent("Kampanyalar");
-    // Yalnız hazır olmayan yedi öğe Yakında rozeti taşır; Library gerçek bağlantıdır.
-    expect(screen.getAllByText("Yakında")).toHaveLength(7);
+    // Yalnız hazır olmayan altı öğe Yakında rozeti taşır.
+    expect(screen.getAllByText("Yakında")).toHaveLength(6);
   });
 
   it("14 öğeyi üç grupta, belirlenen sırayla sunar", () => {
@@ -181,10 +182,10 @@ describe("AppShell", () => {
     const games = screen.getByRole("button", { name: "İncelemeler — Yakında" });
     expect(games).toHaveAttribute("aria-disabled", "true");
     expect(games.closest("a")).toBeNull();
-    // Library dahil yedi öğe kullanıma açıktır; diğer bekleyen öğeler pasiftir.
+    // Performance dahil sekiz öğe kullanıma açıktır; diğer bekleyen öğeler pasiftir.
     expect(
       screen.getAllByRole("button", { name: /— Yakında$/ })
-    ).toHaveLength(7);
+    ).toHaveLength(6);
   });
 
   it("'Yakında' öğesine odaklanınca tooltip çıkar, Escape ile kapanır", () => {

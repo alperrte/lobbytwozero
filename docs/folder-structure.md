@@ -303,6 +303,14 @@ Performance'a özel rapor kökü `docs-performance/` dizinidir (kaynak: `LTZ_Per
 Auth entegrasyon kanıtları `integration/auth/`, Auth sahibine iletilecek talepler `integration/auth-service-talepleri/` altındadır.
 Merkezi API sözleşmesi `docs/api.md` içinde kalır.
 
+Performance Web MVP raporları `docs-performance/performance-web/` altında tutulur:
+`performance-web-master-checklist.md` üç PDA taskını/10 PWEB maddesini,
+`progress/task-0X.md` checkpoint'leri, `testings/task-0X-tests.md` doğrulama kanıtlarını,
+`reports/` sözleşme/bağımlılık/commit ve nihai PR taslaklarını içerir.
+Yeni Performance Web Auth sözleşmesi talepleri master talimatındaki birebir yol olan
+`docs-performance/integrtion/auth/performance-web-requests/` altına gider; yalnız
+gerçek ihtiyaç varsa dosya açılır. Mevcut backend Auth raporlarının yeri değişmez.
+
 | Eklenecek | Konum |
 | --- | --- |
 | Yeni REST endpoint | `<ad>-service/.../api/controller` + `api/dto/*` + `application/service` + kayıt: `docs/api.md` |

@@ -45,6 +45,7 @@ export const pathnames = {
   "/account/cancel-deletion": { tr: "/hesap/silmeyi-iptal-et", en: "/account/cancel-deletion" },
   "/account/delete": { tr: "/hesap/sil", en: "/account/delete" },
   "/auth/callback": { tr: "/auth/geri-donus", en: "/auth/callback" },
+  "/performance/dashboard": { tr: "/performans/panel", en: "/performance/dashboard" },
   "/performance": { tr: "/performans", en: "/performance" },
   "/hardware": { tr: "/donanimlar", en: "/hardware" },
   "/hardware/campaigns": { tr: "/donanimlar/kampanyalar", en: "/hardware/campaigns" },

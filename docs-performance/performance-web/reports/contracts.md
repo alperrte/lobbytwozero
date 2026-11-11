@@ -12,3 +12,9 @@
 
 Kanıt: `docs/api.md` AUTH/HARDWARE/PERFORMANCE bölümleri; Performance controller/response sınıfları; `backend/services/api-gateway/src/main/java/com/ltz/gateway/security/CookieBearerFilter.java`.
 Frontend → hook → feature service → ortak `apiRequest` → Gateway; servis portuna tarayıcı erişimi yok.
+
+## TASK 2 consumer durumu
+
+Panel: `/tr/performans/panel`, `/en/performance/dashboard`.
+Hardware gerçek profile/detail/privacy uçları yeni public feature export'ları `HardwareSnapshot`/`HardwareProfileReference` üzerinden tüketilir; paralel DTO/client yazılmadı. Oturum listesi 20, grafik 100 noktayla sınırlıdır. Rapor/grafik yalnız seçilen oturum için alınır. Profile/oturum seçimi veya hesap değişiminde önceki sonuçlar gizlenir.
+Auth consumer'da yeni kabiliyet gerekmiyor; yeni Auth request yok. API sözleşmesi/endpoint/backend değişikliği yok. Test fixture'ları canlı servis kabulü değildir; canlı tarayıcı entegrasyonu NOT VERIFIED.

@@ -362,6 +362,10 @@
     "performance": {
       "title": "LTZ Performance",
       "description": "Saved hardware, performance history and linked devices."
+    },
+    "performanceDashboard": {
+      "title": "Performance dashboard",
+      "description": "Review your own hardware profiles, saved sessions and game reports."
     }
   },
   "Footer": {
@@ -3168,6 +3172,94 @@
       "500": "The service could not complete the operation. Try again later.",
       "503": "A dependent service is currently unavailable.",
       "network": "Unable to connect or the request timed out. Check your connection."
-    }
+    },
+    "dashboard": "Performance dashboard",
+    "dashboardDescription": "Review your own hardware profiles, saved sessions and game reports.",
+    "openDashboard": "Open performance dashboard",
+    "hardware": "Saved hardware",
+    "manageHardware": "Manage my computers",
+    "hardwareEmpty": "No saved computer",
+    "hardwareEmptyDescription": "Create a profile in My computers to view hardware details.",
+    "computer": "Computer",
+    "visibility": "Profile visibility: {value}",
+    "hardwareSource": "Profile source: {value}",
+    "componentMeta": "{brand} · Quantity: {quantity} · {source}",
+    "brandUnspecified": "Brand not specified",
+    "componentsEmpty": "No hardware has been added to this computer yet.",
+    "manual": "Manual record",
+    "synced": "Synced from desktop",
+    "unknownSource": "Unknown source",
+    "history": "Performance history",
+    "historyDescription": "Sessions are ordered newest first. Only your own records are shown.",
+    "statusFilter": "Session status",
+    "allStatuses": "All statuses",
+    "sessionStatus": {
+      "ACTIVE": "Active",
+      "COMPLETED": "Completed",
+      "ABANDONED": "Abandoned"
+    },
+    "historyEmpty": "No saved sessions match this filter.",
+    "sampleCount": "{count} measurement samples",
+    "ongoing": "In progress",
+    "duration": "{seconds} seconds",
+    "openSession": "Review {game} session",
+    "viewSession": "Review session",
+    "historyPagination": "Session pages",
+    "historyPage": "Page {page} · {total} sessions in total",
+    "previous": "Previous",
+    "next": "Next",
+    "sessionDetails": "Session: {game}",
+    "measurements": "Recorded measurements",
+    "metric": "Metric",
+    "timeRange": "Time range",
+    "entireSession": "Entire session",
+    "firstMinutes": "First {count} minutes",
+    "measurementsEmpty": "No recorded measurements for this metric and time range. The sensor may be unsupported or no data has been sent yet. Missing values are not treated as zero.",
+    "metrics": {
+      "FPS": "FPS",
+      "CPU_TEMP_C": "CPU temperature",
+      "GPU_TEMP_C": "GPU temperature",
+      "CPU_USAGE_PERCENT": "CPU usage",
+      "GPU_USAGE_PERCENT": "GPU usage",
+      "RAM_USED_MB": "RAM usage",
+      "VRAM_USED_MB": "VRAM usage",
+      "DISK_READ_MBPS": "Disk read",
+      "DISK_WRITE_MBPS": "Disk write",
+      "FAN_RPM": "Fan speed"
+    },
+    "chartLabel": "{metric} ({unit})",
+    "aggregated": "{count} real samples summarized into time buckets with average, minimum and maximum. The chart shows bucket averages.",
+    "raw": "Showing {count} real measurement samples.",
+    "dataTable": "Measurement data table",
+    "timestamp": "Date and time",
+    "value": "Value / average",
+    "minimum": "Minimum",
+    "maximum": "Maximum",
+    "samples": "Sample count",
+    "report": "Game performance report",
+    "reportEmpty": "No accessible saved report was found for this session.",
+    "manualReport": "Manually entered by the user; this is not an automatic sensor measurement or FPS prediction.",
+    "resolution": "Resolution",
+    "preset": "Graphics preset",
+    "presets": {
+      "LOW": "Low",
+      "MEDIUM": "Medium",
+      "HIGH": "High",
+      "ULTRA": "Ultra",
+      "CUSTOM": "Custom"
+    },
+    "reportFields": {
+      "avgFps": "Average FPS",
+      "p1LowFps": "1% low FPS",
+      "maxCpuTempC": "Maximum CPU temperature",
+      "maxGpuTempC": "Maximum GPU temperature",
+      "avgCpuUsagePercent": "Average CPU usage",
+      "avgGpuUsagePercent": "Average GPU usage"
+    },
+    "notRecorded": "Not recorded",
+    "updatedAt": "Last updated: {value}",
+    "linkedHardware": "This session is linked to a hardware profile.",
+    "noLinkedHardware": "No hardware profile is linked to this session.",
+    "reportComputer": "Session computer: {name}"
   }
 }

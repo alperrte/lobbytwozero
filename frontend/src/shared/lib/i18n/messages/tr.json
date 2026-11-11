@@ -362,6 +362,10 @@
     "performance": {
       "title": "LTZ Performance",
       "description": "Kayıtlı donanım, performans geçmişi ve bağlı cihazlar."
+    },
+    "performanceDashboard": {
+      "title": "Performans paneli",
+      "description": "Kendi donanım profillerini, kayıtlı oturumlarını ve oyun raporlarını incele."
     }
   },
   "Footer": {
@@ -3168,6 +3172,94 @@
       "500": "Servis işlemi tamamlayamadı. Daha sonra tekrar dene.",
       "503": "Bağımlı servis şu anda kullanılamıyor.",
       "network": "Bağlantı kurulamadı veya istek zaman aşımına uğradı. Bağlantını kontrol et."
-    }
+    },
+    "dashboard": "Performans paneli",
+    "dashboardDescription": "Kendi donanım profillerini, kayıtlı oturumlarını ve oyun raporlarını incele.",
+    "openDashboard": "Performans panelini aç",
+    "hardware": "Kayıtlı donanım",
+    "manageHardware": "Bilgisayarlarımı yönet",
+    "hardwareEmpty": "Kayıtlı bilgisayarın yok",
+    "hardwareEmptyDescription": "Donanım bilgilerini görmek için Bilgisayarlarım alanında profil oluştur.",
+    "computer": "Bilgisayar",
+    "visibility": "Profil görünürlüğü: {value}",
+    "hardwareSource": "Profil kaynağı: {value}",
+    "componentMeta": "{brand} · Adet: {quantity} · {source}",
+    "brandUnspecified": "Marka belirtilmemiş",
+    "componentsEmpty": "Bu bilgisayara henüz donanım eklenmemiş.",
+    "manual": "Manuel kayıt",
+    "synced": "Masaüstünden senkronize",
+    "unknownSource": "Bilinmeyen kaynak",
+    "history": "Performans geçmişi",
+    "historyDescription": "Oturumlar en yeniden eskiye sıralanır. Yalnız hesabına ait kayıtlar gösterilir.",
+    "statusFilter": "Oturum durumu",
+    "allStatuses": "Tüm durumlar",
+    "sessionStatus": {
+      "ACTIVE": "Aktif",
+      "COMPLETED": "Tamamlandı",
+      "ABANDONED": "Terk edildi"
+    },
+    "historyEmpty": "Bu filtreye uyan kayıtlı oturum yok.",
+    "sampleCount": "{count} ölçüm örneği",
+    "ongoing": "Devam ediyor",
+    "duration": "{seconds} saniye",
+    "openSession": "{game} oturumunu incele",
+    "viewSession": "Oturumu incele",
+    "historyPagination": "Oturum sayfaları",
+    "historyPage": "Sayfa {page} · Toplam {total} oturum",
+    "previous": "Önceki",
+    "next": "Sonraki",
+    "sessionDetails": "Oturum: {game}",
+    "measurements": "Kayıtlı ölçümler",
+    "metric": "Ölçüm türü",
+    "timeRange": "Zaman aralığı",
+    "entireSession": "Tüm oturum",
+    "firstMinutes": "İlk {count} dakika",
+    "measurementsEmpty": "Bu metrik ve zaman aralığında kayıtlı ölçüm yok. Sensör desteklenmiyor veya henüz veri gönderilmemiş olabilir. Eksik değerler sıfır kabul edilmez.",
+    "metrics": {
+      "FPS": "FPS",
+      "CPU_TEMP_C": "CPU sıcaklığı",
+      "GPU_TEMP_C": "GPU sıcaklığı",
+      "CPU_USAGE_PERCENT": "CPU kullanımı",
+      "GPU_USAGE_PERCENT": "GPU kullanımı",
+      "RAM_USED_MB": "RAM kullanımı",
+      "VRAM_USED_MB": "VRAM kullanımı",
+      "DISK_READ_MBPS": "Disk okuma",
+      "DISK_WRITE_MBPS": "Disk yazma",
+      "FAN_RPM": "Fan hızı"
+    },
+    "chartLabel": "{metric} ({unit})",
+    "aggregated": "{count} gerçek örnek zaman kovalarında ortalama, minimum ve maksimum olarak özetlendi. Grafik kova ortalamasını gösterir.",
+    "raw": "{count} gerçek ölçüm örneği gösteriliyor.",
+    "dataTable": "Ölçüm veri tablosu",
+    "timestamp": "Tarih ve saat",
+    "value": "Değer / ortalama",
+    "minimum": "Minimum",
+    "maximum": "Maksimum",
+    "samples": "Örnek sayısı",
+    "report": "Oyun performans raporu",
+    "reportEmpty": "Bu oturum için erişilebilir bir kayıtlı rapor bulunamadı.",
+    "manualReport": "Kullanıcının manuel kaydıdır; otomatik sensör ölçümü veya FPS tahmini değildir.",
+    "resolution": "Çözünürlük",
+    "preset": "Grafik ayarı",
+    "presets": {
+      "LOW": "Düşük",
+      "MEDIUM": "Orta",
+      "HIGH": "Yüksek",
+      "ULTRA": "Ultra",
+      "CUSTOM": "Özel"
+    },
+    "reportFields": {
+      "avgFps": "Ortalama FPS",
+      "p1LowFps": "%1 düşük FPS",
+      "maxCpuTempC": "En yüksek CPU sıcaklığı",
+      "maxGpuTempC": "En yüksek GPU sıcaklığı",
+      "avgCpuUsagePercent": "Ortalama CPU kullanımı",
+      "avgGpuUsagePercent": "Ortalama GPU kullanımı"
+    },
+    "notRecorded": "Kaydedilmemiş",
+    "updatedAt": "Son güncelleme: {value}",
+    "linkedHardware": "Bu oturum bir donanım profiline bağlı.",
+    "noLinkedHardware": "Bu oturuma donanım profili bağlanmamış.",
+    "reportComputer": "Oturumun bilgisayarı: {name}"
   }
 }
