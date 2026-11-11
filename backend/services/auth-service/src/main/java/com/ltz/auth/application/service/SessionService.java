@@ -12,6 +12,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.ltz.auth.domain.entity.Account;
 import com.ltz.auth.domain.entity.AuthSession;
 import com.ltz.auth.domain.entity.RefreshToken;
+import com.ltz.auth.domain.enums.AccountTier;
 import com.ltz.auth.domain.enums.AuthMethod;
 import com.ltz.auth.domain.enums.SecurityEventType;
 import com.ltz.auth.domain.enums.SessionRevokeReason;
@@ -43,6 +44,7 @@ public class SessionService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final AccountRepository accountRepository;
     private final AccessTokenIssuer accessTokenIssuer;
+    private final AccountTierService tierService;
     private final SecureTokens secureTokens;
     private final SessionProperties properties;
     private final SecurityEventRecorder securityEventRecorder;
@@ -138,7 +140,8 @@ public class SessionService {
         Instant refreshExpiresAt = earliest(now.plus(properties.refreshTokenTtl()), session.getExpiresAt());
         refreshTokenRepository.save(RefreshToken.issue(session.getId(), secureTokens.sha256Hex(rawRefreshToken),
                 now, refreshExpiresAt));
-        IssuedAccessToken accessToken = accessTokenIssuer.issue(account, session, now);
+        AccountTier tier = tierService.tierOf(account);
+        IssuedAccessToken accessToken = accessTokenIssuer.issue(account, session, tier.name(), tier.isTrusted(), now);
         return new IssuedSession(accessToken.value(), accessToken.expiresAt(), rawRefreshToken, refreshExpiresAt);
     }
 

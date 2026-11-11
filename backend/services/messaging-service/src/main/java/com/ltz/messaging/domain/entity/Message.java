@@ -26,7 +26,8 @@ import lombok.NoArgsConstructor;
  * tekildir: aynı istemci kimliğiyle yeniden gönderim yeni mesaj oluşturmaz.
  * <p>
  * Türler (MSG-17/22): {@code TEXT} gövde ister; {@code IMAGE} bir {@link MessageAttachment}'a bağlanır, {@code GIF}
- * {@link GifSnapshot} taşır. Görsel ve GIF mesajında gövde isteğe bağlı açıklamadır.
+ * {@link GifSnapshot} taşır. Görsel ve GIF mesajında gövde isteğe bağlı açıklamadır. {@code VOICE} (MSG-21) bir
+ * {@link MessageAttachment}'a (ses) bağlanır ve gövde taşımaz.
  */
 @Entity
 @Table(name = "messages")
@@ -110,6 +111,13 @@ public class Message {
                                 UUID replyToMessageId, String caption, Instant now) {
         return create(conversationId, seq, senderId, clientMessageId, replyToMessageId, MessageType.IMAGE, caption,
                 null, now);
+    }
+
+    /** Sesli mesaj (MSG-21): açıklama taşımaz; ses aynı transaction'da bu mesaja bağlanır. */
+    public static Message voice(UUID conversationId, long seq, UUID senderId, String clientMessageId,
+                                UUID replyToMessageId, Instant now) {
+        return create(conversationId, seq, senderId, clientMessageId, replyToMessageId, MessageType.VOICE, null, null,
+                now);
     }
 
     /** GIF platformundan seçilmiş GIF. {@code caption} {@code null} olabilir. */

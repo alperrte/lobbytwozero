@@ -66,6 +66,15 @@
   (bellekte, örnek başına). Benden sil yalnız silenin görünümünü değiştirir; okundu bilgisini değiştirmez. Canlı
   olaylar (`message_deleted`, `reaction`, `message_hidden`) commit sonrası, yalnız mesajı görebilen ve gizlememiş
   üyelere; içerik taşımaz (tepki emojisi hariç). İçerik ve emoji loglanmaz.
+- **Sesli mesaj (LTZ-UMT-MSG-06, MSG-21, V136).** Yalnız Opus (WebM/Ogg), 1 MB, süre içerikten hesaplanır
+  (0,5 sn – 2 dk + 1 sn tolerans). Dosya saklanmadan önce saf Java ile ayrıştırılır (`OggOpusReader`,
+  `WebmOpusReader`), paketler doğrulanıp dolguları atılır (`OpusPacket`) ve sıfırdan WebM yazılır (`WebmOpusWriter`);
+  etiket, ek iz/akış, bilinmeyen öğe ve sondaki bayt çıktıya geçmez (`OpusVoiceInspectorTest.gizliIcerikCiktidaKalmaz`).
+  Ayrıştırıcı öğe boyutunu ebeveyn sınırıyla denetler, tanınmayan öğelere inmez, paket sayısını sınırlar; 1 MB'lık kötü
+  niyetli dosya 500 ms altında reddedilir (`birMegabaytlikKotuNiyetliDosyaHizliReddedilir`); istek başına birkaç MB
+  geçici bellek kullandığı için aynı anda en çok 2 ses işlenir (`MEDIA_BUSY`). Ses verisine gömülü bilgi
+  (steganografi) yeniden kodlama olmadan kaldırılamaz — bilinen sınır. Dalga formu yalnız 64 sayı. İndirme `Range`
+  destekler; yetki her istekte aralıktan önce (`AttachmentRangeTest`). Ses içeriği ve dalga formu loglanmaz.
 - **Okuma aralığı tablosu (`message_read_ranges`, V133).** Satır sayısı gerçek ilerleme sayısıyla büyür (mesaj sayısıyla
   değil; gönderim de bir ilerlemedir); ilerlemeyen çağrı satır yazmaz, böylece okuma çağrısı sınırsız satır üretemez. Eşzamanlı okumalar üye satırı
   kilidiyle sıralanır (çakışan ya da boşluklu aralık yok). Saklama/temizlik görevi yok; ayrılan üyenin satırları kalır

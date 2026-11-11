@@ -33,14 +33,34 @@ class MailSchemaAndRetentionTest extends IntegrationTestSupport {
     }
 
     @Test
-    void seedsActiveTemplatesForEveryTypeAndLanguage() {
-        int types = MailType.values().length;
-        assertThat(jdbc.queryForObject("select count(*) from mail_templates where active", Integer.class))
-                .isEqualTo(types * 2);
-        assertThat(jdbc.queryForObject("select count(distinct code) from mail_templates", Integer.class))
-                .isEqualTo(types);
-        assertThat(jdbc.queryForObject("select count(*) from mail_templates where locale = 'tr'", Integer.class))
-                .isEqualTo(types);
+    void templatesLiveInFilesNotInTheDatabase() {
+        assertThat(jdbc.queryForObject("select to_regclass('mail_templates') is null", Boolean.class)).isTrue();
+    }
+
+    @Test
+    void everyMailTypeIsAllowedByTheTypeConstraint() {
+        for (MailType type : MailType.values()) {
+            assertThat(jdbc.update("""
+                    insert into mail_messages (id, idempotency_key, request_hash, type, recipient_user_id,
+                                               recipient_email, recipient_masked, payload_key_version, payload_encrypted,
+                                               status, attempts, next_attempt_at, expires_at, created_at, updated_at, version)
+                    values (?, ?, 'h', ?, ?, 'a@b.com', 'a***@b***.com', 1, '\\x00'::bytea, 'PENDING', 0, now(), now(),
+                            now(), now(), 0)""", UUID.randomUUID(), UUID.randomUUID(), type.name(), newAccount()))
+                    .isEqualTo(1);
+        }
+    }
+
+    @Test
+    void pendingRowWithoutAnAddressIsOnlyAllowedForPlatformMessages() {
+        String insert = """
+                insert into mail_messages (id, idempotency_key, request_hash, type, recipient_user_id, recipient_email,
+                                           recipient_masked, caller, payload_encrypted, payload_key_version, status, attempts,
+                                           next_attempt_at, expires_at, created_at, updated_at, version)
+                values (?, ?, 'h', 'NOTICE', ?, null, '***', ?, '\\x00'::bytea, 1, 'PENDING', 0, now(), now(), now(), now(), 0)""";
+
+        assertThat(jdbc.update(insert, UUID.randomUUID(), UUID.randomUUID(), newAccount(), "social-service")).isEqualTo(1);
+        assertThatThrownBy(() -> jdbc.update(insert, UUID.randomUUID(), UUID.randomUUID(), newAccount(), null))
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
@@ -75,7 +95,12 @@ class MailSchemaAndRetentionTest extends IntegrationTestSupport {
 
     @Test
     void unknownTypeAndStatusAreRejected() {
-        assertThatThrownBy(() -> jdbc.update("update mail_templates set locale = 'de' where code = 'EMAIL_VERIFICATION'"))
+        assertThatThrownBy(() -> jdbc.update("""
+                insert into mail_messages (id, idempotency_key, request_hash, type, recipient_user_id, recipient_email,
+                                           recipient_masked, payload_key_version, payload_encrypted, status, attempts,
+                                           next_attempt_at, expires_at, created_at, updated_at, version)
+                values (?, ?, 'h', 'BOGUS', ?, 'a@b.com', 'a***@b***.com', 1, '\\x00'::bytea, 'PENDING', 0, now(), now(),
+                        now(), now(), 0)""", UUID.randomUUID(), UUID.randomUUID(), newAccount()))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 

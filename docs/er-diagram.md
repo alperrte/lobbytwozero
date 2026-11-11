@@ -172,7 +172,7 @@ erDiagram
 
 ## 3. user_db
 
-> Uygulanan (V71–V74): `user_profiles`, `user_media`, `inbox_events`, `privacy_settings`, `social_friendships`, `social_blocks`, `profile_counters`, `user_preferences` (V73: `locale`, `theme`, `reduced_motion`, `compact_layout`), `linked_accounts` (V74: yalnız Steam, token saklanmaz; aşağıdaki şema uygulanan hâldir). Ayrıntı: [database.md §3.2](database.md).
+> Uygulanan (V71–V74): `user_profiles`, `user_media`, `inbox_events`, `privacy_settings`, `social_friendships`, `social_blocks`, `profile_counters`, `user_preferences` (V73: `locale`, `theme`, `reduced_motion`, `compact_layout`), `linked_accounts` (V74: yalnız Steam, token saklanmaz; aşağıdaki şema uygulanan hâldir), `user_consents` (V76: `user_id` PK/FK, `recommendation_granted`, `recommendation_changed_at`, `updated_at`, `version`; diyagramda gösterilmedi). Ayrıntı: [database.md §3.2](database.md).
 
 ```mermaid
 erDiagram
@@ -623,9 +623,16 @@ erDiagram
     varchar cover_url
     varchar status
   }
+  library_summary_outbox {
+    uuid user_id PK "REF"
+    bigint change_seq
+    int attempts
+    timestamptz next_attempt_at
+  }
 ```
 
 > `game_snapshots` → `library_entries` ilişkisi mantıksaldır (aynı DB, FK zorunlu değil); oyun snapshot'ı event ile gelir.
+> `library_summary_outbox` (V43, LIB-10) kullanıcı başına tek "özet değişti" işaretidir; `library_entries` ile FK yoktur (REF), `LibrarySummaryChanged` sayıları gönderimde okunur.
 
 ## 7. review_db
 
@@ -737,7 +744,7 @@ erDiagram
     bigint seq "UK(conversation_id, seq)"
     uuid sender_id "REF"
     varchar client_message_id "UK(sender_id, client_message_id)"
-    varchar type "TEXT|IMAGE|GIF"
+    varchar type "TEXT|IMAGE|GIF|VOICE"
     text body "1-4000; TEXT'te zorunlu"
     varchar gif_provider "yalnız GIF: GIPHY"
     varchar gif_id
@@ -758,11 +765,13 @@ erDiagram
     uuid message_id FK,UK "null: gönderilmedi"
     uuid blob_id FK "RESTRICT"
     boolean forwarded "iletme bağlantısı"
-    varchar mime_type "png|jpeg|gif"
+    varchar mime_type "png|jpeg|gif|audio/webm"
     int size_bytes "<= 1 MB"
-    int width
-    int height
-    int frame_count
+    int width "yalnız görsel"
+    int height "yalnız görsel"
+    int frame_count "yalnız görsel"
+    int duration_ms "yalnız ses, 500-121000"
+    bytea waveform "yalnız ses, 64 bayt, opsiyonel"
     timestamptz created_at
   }
   attachment_blobs {

@@ -7,14 +7,13 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
-import com.ltz.messaging.domain.enums.MessageType;
 import com.ltz.messaging.infrastructure.persistence.repository.AttachmentMeta;
 import com.ltz.messaging.infrastructure.persistence.repository.MessageAttachmentRepository;
 
 import lombok.RequiredArgsConstructor;
 
 /**
- * {@code IMAGE} mesajlarına görsel bilgisini ekler (MSG-17). Bir sayfa ya da liste için tek sorgu yapılır (mesaj başına
+ * {@code IMAGE} ve {@code VOICE} mesajlarına ek bilgisini ekler (MSG-17, MSG-21). Bir sayfa ya da liste için tek sorgu yapılır (mesaj başına
  * sorgu yok); içerik belleğe alınmaz. Çağıranın transaction'ına katılır.
  */
 @Component
@@ -25,7 +24,7 @@ public class MessageAttachments {
 
     public List<MessageView> attachTo(List<MessageView> views) {
         List<UUID> imageIds = views.stream()
-                .filter(view -> view.type() == MessageType.IMAGE)
+                .filter(view -> view.type().hasAttachment())
                 .map(MessageView::id)
                 .toList();
         if (imageIds.isEmpty()) {

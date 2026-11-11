@@ -14,7 +14,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * Sohbetteki görsel bağlantısı (MSG-17). İçerik ({@link AttachmentBlob}) sunucuda doğrulanmış ve yeniden
+ * Sohbetteki görsel (MSG-17) ya da sesli mesaj (MSG-21) bağlantısı. Görselde ölçüler, seste süre ve isteğe bağlı dalga
+ * formu doludur (DB CHECK {@code ck_message_attachments_kind}). İçerik ({@link AttachmentBlob}) sunucuda doğrulanmış ve yeniden
  * kodlanmış/temizlenmiş haldedir (EXIF ve gömülü veri atılmış). Yüklenen görsel önce mesaja bağlanmadan kaydedilir
  * ({@code messageId == null}); mesaj gönderilince tek bir mesaja bağlanır. İletilen görsel (MSG-20) aynı içeriğe hedef
  * sohbette yeni, mesaja bağlı ve {@code forwarded} bir satırla bağlanır; baytlar kopyalanmaz. Bağlama, satırı yüklemeden koşullu bir UPDATE ile yapılır (içerik belleğe alınmaz); bu yüzden
@@ -29,6 +30,9 @@ public class MessageAttachment {
 
     /** Yüklenen her dosyanın azami boyutu: 1 MB (MSG-17). Şemadaki CHECK ile aynı değer. */
     public static final int MAX_SIZE_BYTES = 1_048_576;
+
+    /** Sesli mesajın saklanan türü: sunucu her sesi WebM olarak yeniden paketler (MSG-21). */
+    public static final String VOICE_MIME_TYPE = "audio/webm";
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -56,14 +60,24 @@ public class MessageAttachment {
     @Column(name = "size_bytes", nullable = false, updatable = false)
     private int sizeBytes;
 
-    @Column(name = "width", nullable = false, updatable = false)
-    private int width;
+    /** Yalnız görselde dolu. */
+    @Column(name = "width", updatable = false)
+    private Integer width;
 
-    @Column(name = "height", nullable = false, updatable = false)
-    private int height;
+    @Column(name = "height", updatable = false)
+    private Integer height;
 
-    @Column(name = "frame_count", nullable = false, updatable = false)
-    private int frameCount;
+    @Column(name = "frame_count", updatable = false)
+    private Integer frameCount;
+
+    /** Yalnız seste dolu: paketlerden hesaplanan çalınma süresi. */
+    @Column(name = "duration_ms", updatable = false)
+    private Integer durationMs;
+
+    /** Yalnız seste, isteğe bağlı: 64 değerlik dalga formu (0–100). */
+    @Getter(AccessLevel.NONE)
+    @Column(name = "waveform", updatable = false)
+    private byte[] waveform;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -83,7 +97,31 @@ public class MessageAttachment {
         return attachment;
     }
 
-    /** İletilen görselin hedef sohbetteki bağlantısı (MSG-20): aynı içerik, yeni mesaj, iletenin adına. */
+    /** Yeniden paketlenmiş sesli mesaj (MSG-21): her zaman {@code audio/webm}. {@code waveform} {@code null} olabilir. */
+    public static MessageAttachment uploadVoice(UUID conversationId, UUID uploaderId, AttachmentBlob blob,
+                                                int durationMs, byte[] waveform, Instant now) {
+        MessageAttachment attachment = new MessageAttachment();
+        attachment.conversationId = conversationId;
+        attachment.uploaderId = uploaderId;
+        attachment.mimeType = VOICE_MIME_TYPE;
+        attachment.blobId = blob.getId();
+        attachment.sizeBytes = blob.getSizeBytes();
+        attachment.durationMs = durationMs;
+        attachment.waveform = waveform == null ? null : waveform.clone();
+        attachment.createdAt = now;
+        return attachment;
+    }
+
+    /** Ses mi (görsel değil)? */
+    public boolean isVoice() {
+        return VOICE_MIME_TYPE.equals(mimeType);
+    }
+
+    public byte[] getWaveform() {
+        return waveform == null ? null : waveform.clone();
+    }
+
+    /** İletilen görselin ya da sesin hedef sohbetteki bağlantısı (MSG-20): aynı içerik, yeni mesaj, iletenin adına. */
     public static MessageAttachment forwardCopy(UUID conversationId, UUID uploaderId, UUID messageId,
                                                 MessageAttachment source, Instant now) {
         MessageAttachment attachment = new MessageAttachment();
@@ -97,6 +135,8 @@ public class MessageAttachment {
         attachment.width = source.width;
         attachment.height = source.height;
         attachment.frameCount = source.frameCount;
+        attachment.durationMs = source.durationMs;
+        attachment.waveform = source.waveform == null ? null : source.waveform.clone();
         attachment.createdAt = now;
         return attachment;
     }

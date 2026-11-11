@@ -7,13 +7,18 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.time.Instant;
 
+import com.ltz.mail.domain.enums.NoticeKind;
+
 /**
  * {@link MailPayload} ↔ bayt dönüşümü (şifrelemeden önce/sonra). Bilinçli olarak JSON kütüphanesinden bağımsız ve
- * sürümlü basit bir ikili biçimdir: ilk bayt biçim sürümüdür, bilinmeyen sürüm okunmaz.
+ * sürümlü basit bir ikili biçimdir: ilk bayt biçim sürümüdür. Sürüm 1 (kod, bağlantı, süre, zaman) hâlâ okunur, çünkü
+ * kuyrukta eski sürümle yazılmış kayıtlar bekleyebilir; yazılan her yük sürüm 2'dir (bilgilendirme alanları eklendi).
+ * Bilinmeyen sürüm okunmaz.
  */
 final class PayloadCodec {
 
-    private static final byte FORMAT_VERSION = 1;
+    private static final byte LEGACY_VERSION = 1;
+    private static final byte FORMAT_VERSION = 2;
     private static final int ABSENT_NUMBER = -1;
     private static final long ABSENT_TIME = Long.MIN_VALUE;
 
@@ -28,6 +33,15 @@ final class PayloadCodec {
             out.writeUTF(payload.link() == null ? "" : payload.link());
             out.writeInt(payload.validitySeconds() == null ? ABSENT_NUMBER : payload.validitySeconds());
             out.writeLong(payload.occurredAt() == null ? ABSENT_TIME : payload.occurredAt().toEpochMilli());
+            NoticeContent notice = payload.notice();
+            out.writeBoolean(notice != null);
+            if (notice != null) {
+                out.writeUTF(notice.kind().name());
+                out.writeUTF(notice.title());
+                out.writeUTF(notice.message());
+                out.writeUTF(notice.actionLabel() == null ? "" : notice.actionLabel());
+                out.writeUTF(notice.actionLink() == null ? "" : notice.actionLink());
+            }
             out.flush();
             return bytes.toByteArray();
         } catch (IOException exception) {
@@ -38,20 +52,33 @@ final class PayloadCodec {
     /** @throws IllegalArgumentException bozuk veya bilinmeyen biçimde */
     static MailPayload decode(byte[] encoded) {
         try (DataInputStream in = new DataInputStream(new ByteArrayInputStream(encoded))) {
-            if (in.readByte() != FORMAT_VERSION) {
+            byte version = in.readByte();
+            if (version != LEGACY_VERSION && version != FORMAT_VERSION) {
                 throw new IllegalArgumentException("Unsupported payload format");
             }
             String code = in.readUTF();
             String link = in.readUTF();
             int validity = in.readInt();
             long occurred = in.readLong();
+            NoticeContent notice = version == FORMAT_VERSION && in.readBoolean() ? readNotice(in) : null;
             return new MailPayload(
                     code.isEmpty() ? null : code,
                     link.isEmpty() ? null : link,
                     validity == ABSENT_NUMBER ? null : validity,
-                    occurred == ABSENT_TIME ? null : Instant.ofEpochMilli(occurred));
+                    occurred == ABSENT_TIME ? null : Instant.ofEpochMilli(occurred),
+                    notice);
         } catch (IOException exception) {
             throw new IllegalArgumentException("Payload is corrupted", exception);
         }
+    }
+
+    private static NoticeContent readNotice(DataInputStream in) throws IOException {
+        NoticeKind kind = NoticeKind.valueOf(in.readUTF());
+        String title = in.readUTF();
+        String message = in.readUTF();
+        String actionLabel = in.readUTF();
+        String actionLink = in.readUTF();
+        return new NoticeContent(kind, title, message, actionLabel.isEmpty() ? null : actionLabel,
+                actionLink.isEmpty() ? null : actionLink);
     }
 }

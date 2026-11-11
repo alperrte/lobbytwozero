@@ -34,6 +34,33 @@ public interface MailMessageRepository extends JpaRepository<MailMessage, UUID> 
             @Param("payload") byte[] payload, @Param("keyVersion") int keyVersion, @Param("now") Instant now,
             @Param("expiresAt") Instant expiresAt);
 
+    /**
+     * Platform kapısı kaydı: alıcı adresi YAZILMAZ (gönderim anında çözülür), maskeli adres sabit bir yer tutucudur.
+     * Dönüş değeri {@link #insertIfAbsent} ile aynıdır.
+     */
+    @Modifying
+    @Query(value = """
+            INSERT INTO mail_messages (id, idempotency_key, request_hash, type, recipient_user_id, recipient_email,
+                                       recipient_masked, locale, caller, payload_encrypted, payload_key_version, status,
+                                       attempts, next_attempt_at, expires_at, created_at, updated_at, version)
+            VALUES (:id, :idempotencyKey, :requestHash, :type, :userId, NULL, '***', CAST(:locale AS varchar), :caller,
+                    :payload, CAST(:keyVersion AS smallint), 'PENDING', 0, :now, :expiresAt, :now, :now, 0)
+            ON CONFLICT (idempotency_key) DO NOTHING""", nativeQuery = true)
+    int insertPlatformIfAbsent(@Param("id") UUID id, @Param("idempotencyKey") UUID idempotencyKey,
+            @Param("requestHash") String requestHash, @Param("type") String type, @Param("userId") UUID userId,
+            @Param("locale") String locale, @Param("caller") String caller, @Param("payload") byte[] payload,
+            @Param("keyVersion") int keyVersion, @Param("now") Instant now, @Param("expiresAt") Instant expiresAt);
+
+    /** Hız sınırı: bu çağıranın bu hesaba {@code since}'ten beri yarattığı kayıt sayısı. */
+    @Query("SELECT COUNT(m) FROM MailMessage m WHERE m.caller = :caller AND m.recipientUserId = :userId "
+            + "AND m.createdAt > :since")
+    long countForAccountSince(@Param("caller") String caller, @Param("userId") UUID userId,
+            @Param("since") Instant since);
+
+    /** Hız sınırı: bu çağıranın {@code since}'ten beri yarattığı toplam kayıt sayısı. */
+    @Query("SELECT COUNT(m) FROM MailMessage m WHERE m.caller = :caller AND m.createdAt > :since")
+    long countForCallerSince(@Param("caller") String caller, @Param("since") Instant since);
+
     @Query("SELECT m.requestHash FROM MailMessage m WHERE m.idempotencyKey = :key")
     Optional<String> findRequestHashByIdempotencyKey(@Param("key") UUID key);
 

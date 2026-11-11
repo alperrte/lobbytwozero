@@ -2,7 +2,8 @@
 --
 -- İçindekiler
 --   1. Hesap bağı     : external_identities
---   2. Giriş akışları : oauth_flows, openid_nonces, steam_registrations
+--   2. Giriş akışları : oauth_flows, openid_nonces, steam_registrations, google_registrations
+--   3. Bağlama akışı  : oauth_link_flows
 
 -- =====================================================================================================================
 -- 1. HESAP BAĞI
@@ -65,3 +66,42 @@ CREATE TABLE steam_registrations (
     CONSTRAINT ck_steam_registrations_purpose CHECK (purpose IN ('REGISTRATION', 'EMAIL_VERIFICATION')),
     CONSTRAINT ck_steam_registrations_expiry CHECK (expires_at > created_at)
 );
+
+-- İlk kez Google ile gelen kişi için doğrulanmış kimlik (sub) ve Google'ın doğruladığı e-posta burada, kullanıcı adı
+-- seçilene kadar bekler. Token yalnız özet olarak saklanır, tek kullanımlıktır ve kısa ömürlüdür. Hesap bu kayıt
+-- tamamlanana kadar AÇILMAZ; e-posta ve sub istemciden hiçbir zaman alınmaz.
+CREATE TABLE google_registrations (
+    token_hash  varchar(64)  PRIMARY KEY,
+    subject     varchar(64)  NOT NULL,
+    email       varchar(254) NOT NULL,
+    created_at  timestamptz  NOT NULL,
+    expires_at  timestamptz  NOT NULL,
+    consumed_at timestamptz,
+    CONSTRAINT ck_google_registrations_hash CHECK (token_hash ~ '^[0-9a-f]{64}$'),
+    CONSTRAINT ck_google_registrations_expiry CHECK (expires_at > created_at)
+);
+
+CREATE INDEX ix_google_registrations_expires ON google_registrations (expires_at);
+
+-- =====================================================================================================================
+-- 3. BAĞLAMA AKIŞI
+-- =====================================================================================================================
+
+-- Oturumlu kullanıcının başlattığı, tek kullanımlık bağlama akışı (state; Steam ve Google). Giriş akışlarından
+-- (oauth_flows) ayrıdır: hangi hesaba bağlanacağı akışa yazılır, böylece callback oturum çerezine bakmadan hesabı bilir
+-- ve bir giriş state'i bağlama için (ya da tersi) kullanılamaz. Yalnız state özeti saklanır; PKCE doğrulayıcısı ve nonce
+-- state'ten türetildiği için ek sütun gerekmez.
+CREATE TABLE oauth_link_flows (
+    state_hash  varchar(64) PRIMARY KEY,
+    account_id  uuid        NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+    provider    varchar(16) NOT NULL,
+    created_at  timestamptz NOT NULL,
+    expires_at  timestamptz NOT NULL,
+    consumed_at timestamptz,
+    CONSTRAINT ck_oauth_link_flows_provider CHECK (provider IN ('STEAM', 'GOOGLE')),
+    CONSTRAINT ck_oauth_link_flows_state_hash CHECK (state_hash ~ '^[0-9a-f]{64}$'),
+    CONSTRAINT ck_oauth_link_flows_expiry CHECK (expires_at > created_at)
+);
+
+CREATE INDEX ix_oauth_link_flows_account_id ON oauth_link_flows (account_id);
+CREATE INDEX ix_oauth_link_flows_expires_at ON oauth_link_flows (expires_at);

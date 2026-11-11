@@ -19,6 +19,7 @@ import com.ltz.messaging.domain.entity.Conversation;
 import com.ltz.messaging.domain.entity.ConversationMember;
 import com.ltz.messaging.domain.entity.GifSnapshot;
 import com.ltz.messaging.domain.entity.Message;
+import com.ltz.messaging.domain.entity.MessageAttachment;
 import com.ltz.messaging.domain.enums.MessageType;
 import com.ltz.messaging.domain.exception.MessagingErrorCode;
 import com.ltz.messaging.domain.exception.MessagingException;
@@ -31,7 +32,7 @@ import com.ltz.messaging.infrastructure.persistence.repository.MessageRepository
 import lombok.RequiredArgsConstructor;
 
 /**
- * Mesaj gönderme (metin MSG-06, görsel MSG-17, emoji MSG-18, platform GIF'i MSG-22), mesaj geçmişi (MSG-07, MSG-10), okuma işaretçisi (MSG-13) ve okuma saati (MSG-11).
+ * Mesaj gönderme (metin MSG-06, görsel MSG-17, emoji MSG-18, platform GIF'i MSG-22, sesli mesaj MSG-21), mesaj geçmişi (MSG-07, MSG-10), okuma işaretçisi (MSG-13) ve okuma saati (MSG-11).
  * <p>
  * Gönderim sırası: aynı {@code clientMessageId} ile daha önce kaydedilmiş mesaj varsa o döner (yeniden deneme, yan etki
  * yok) → yazma yetkisi (aktif üye; birebirde engel yok, MSG-14/15; engel sorgusu transaction dışında) → sohbet satırı
@@ -40,8 +41,9 @@ import lombok.RequiredArgsConstructor;
  * İşaretçi her iki yolda da {@link ReadTracker} üzerinden ilerler; gerçek ilerleme bir okuma aralığı yazar. İsteyenin
  * kendi mesajlarına okundu durumu {@link ReadWatermark} ile eklenir (MSG-11): yeni mesaj {@code SENT} döner.
  * <p>
- * Görsel mesajında görsel, mesajla aynı transaction'da koşullu UPDATE ile bağlanır; bağlanamazsa (başkasının, başka
- * sohbetin, süresi dolmuş ya da gönderilmiş görsel) mesaj da kaydedilmez. GIF mesajında GIF, engel sorgusundan sonra ve
+ * Görsel ve sesli mesajda tür bağlanacak dosyadan çözülür (sesli mesaj açıklama almaz); dosya mesajla aynı
+ * transaction'da koşullu UPDATE ile bağlanır; bağlanamazsa (başkasının, başka sohbetin, süresi dolmuş ya da gönderilmiş
+ * dosya) mesaj da kaydedilmez. GIF mesajında GIF, engel sorgusundan sonra ve
  * transaction dışında platformdan çözülür; adresler istemciden alınmaz.
  */
 @Service
@@ -145,14 +147,40 @@ public class MessageService {
                 });
     }
 
-    /** Aynı içerik mi? Görselde bağlı görselin aynı olması da gerekir. */
+    /**
+     * Aynı içerik mi? Ekli taslakta tür kayıtlı mesajdan alınır (görsel ya da ses; taslak türü bilmez) ve bağlı ekin
+     * aynı olması da gerekir.
+     */
     private boolean isRetry(Message existing, UUID conversationId, MessageDraft draft) {
-        if (!existing.isRetryOf(conversationId, draft.type(), draft.body(), draft.replyToMessageId(),
+        MessageType type = draft.attachmentId() != null && existing.getType().hasAttachment()
+                ? existing.getType()
+                : draft.type();
+        if (!existing.isRetryOf(conversationId, type, draft.body(), draft.replyToMessageId(),
                 draft.gifProvider(), draft.gifId())) {
             return false;
         }
-        return draft.type() != MessageType.IMAGE
+        return !type.hasAttachment()
                 || attachments.findIdByMessageId(existing.getId()).map(draft.attachmentId()::equals).orElse(false);
+    }
+
+    /**
+     * Ekli taslağın kesin türü bağlanacak dosyadan çözülür (MSG-21): ses → {@code VOICE} (açıklama alınmaz), görsel →
+     * {@code IMAGE}. Dosya bu kullanıcının bu sohbete yüklediği, gönderilmemiş bir dosya değilse
+     * {@code ATTACHMENT_NOT_AVAILABLE}. Bağlamanın kendisi yine koşullu UPDATE ile yapılır (yarış koruması).
+     */
+    private MessageType resolveType(UUID sender, UUID conversationId, MessageDraft draft) {
+        if (draft.attachmentId() == null) {
+            return draft.type();
+        }
+        String mimeType = attachments.findPendingMimeType(draft.attachmentId(), conversationId, sender)
+                .orElseThrow(() -> new MessagingException(MessagingErrorCode.ATTACHMENT_NOT_AVAILABLE));
+        if (!MessageAttachment.VOICE_MIME_TYPE.equals(mimeType)) {
+            return MessageType.IMAGE;
+        }
+        if (draft.body() != null) {
+            throw new MessagingException(MessagingErrorCode.VOICE_CAPTION_NOT_ALLOWED);
+        }
+        return MessageType.VOICE;
     }
 
     private SendMessageResult insert(UUID sender, UUID conversationId, String clientMessageId, MessageDraft draft,
@@ -165,19 +193,21 @@ public class MessageService {
         if (retried.isPresent()) {
             return new SendMessageResult(retried.get(), false);
         }
+        MessageType type = resolveType(sender, conversationId, draft);
         Instant now = now();
         appender.requireWithinRate(sender, 1, now);
         UUID replyTo = draft.replyToMessageId();
         if (replyTo != null) {
             VisibleMessages.requireNotDeleted(visible.require(senderMember, replyTo));
         }
-        MessageView view = appender.append(conversation, senderMember, now, seq -> switch (draft.type()) {
+        MessageView view = appender.append(conversation, senderMember, now, seq -> switch (type) {
             case TEXT -> Message.text(conversationId, seq, sender, clientMessageId, replyTo, draft.body(), now);
             case IMAGE -> Message.image(conversationId, seq, sender, clientMessageId, replyTo, draft.body(), now);
             case GIF -> Message.gif(conversationId, seq, sender, clientMessageId, replyTo, draft.body(), gif, now);
+            case VOICE -> Message.voice(conversationId, seq, sender, clientMessageId, replyTo, now);
         }, message -> {
-            // Bağlanamayan görsel transaction'ı geri alır: mesaj ve sıra da kaydedilmez.
-            if (draft.type() == MessageType.IMAGE
+            // Bağlanamayan dosya transaction'ı geri alır: mesaj ve sıra da kaydedilmez.
+            if (type.hasAttachment()
                     && attachments.link(draft.attachmentId(), conversationId, sender, message.getId()) != 1) {
                 throw new MessagingException(MessagingErrorCode.ATTACHMENT_NOT_AVAILABLE);
             }

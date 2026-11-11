@@ -3,8 +3,10 @@ package com.ltz.mail.infrastructure.config;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -52,19 +54,32 @@ public class JwtConfig {
     };
 
     @Bean
-    JwtDecoder serviceTokenDecoder(AuthProperties properties, Clock clock) {
+    JwtDecoder serviceTokenDecoder(AuthProperties properties, PlatformProperties platform, Clock clock) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(properties.jwksUri())
                 .jwsAlgorithm(SignatureAlgorithm.RS256)
                 // typ, doğrulayıcı içinde açıkça denetlenir (svc+jwt).
                 .validateType(false)
                 .jwtProcessorCustomizer(processor -> processor.setJWTClaimsSetVerifier(REQUIRE_ISSUED_AT))
                 .build();
-        decoder.setJwtValidator(serviceTokenValidator(properties.issuer(), properties.serviceAudience(), clock));
+        decoder.setJwtValidator(serviceTokenValidator(properties.issuer(), properties.serviceAudience(), clock,
+                allowedSubjects(platform)));
         return decoder;
     }
 
     /** İmza dışındaki tüm servis token kuralları; JWKS'siz de test edilebilsin diye ayrıdır. */
     public static OAuth2TokenValidator<Jwt> serviceTokenValidator(String issuer, String serviceAudience, Clock clock) {
+        return serviceTokenValidator(issuer, serviceAudience, clock, Set.of(TokenClaims.AUTH_SERVICE_SUBJECT));
+    }
+
+    /** Kabul edilen çağıranlar: Auth ve platform izin tablosundaki servisler ({@code svc:<ad>}). */
+    static Set<String> allowedSubjects(PlatformProperties platform) {
+        Set<String> subjects = new HashSet<>(platform.subjects());
+        subjects.add(TokenClaims.AUTH_SERVICE_SUBJECT);
+        return Set.copyOf(subjects);
+    }
+
+    public static OAuth2TokenValidator<Jwt> serviceTokenValidator(String issuer, String serviceAudience, Clock clock,
+                                                                  Set<String> allowedSubjects) {
         JwtTimestampValidator timestamps = new JwtTimestampValidator(CLOCK_SKEW);
         timestamps.setClock(clock);
         List<OAuth2TokenValidator<Jwt>> rules = new ArrayList<>(List.of(
@@ -76,8 +91,9 @@ public class JwtConfig {
                 new JwtClaimValidator<Object>(JwtClaimNames.EXP, Objects::nonNull),
                 new JwtClaimValidator<Object>(JwtClaimNames.IAT, Objects::nonNull),
                 new JwtClaimValidator<Object>(JwtClaimNames.JTI, Objects::nonNull),
-                // Mail'e yalnız Auth istek atar; başka bir servis kimliği (svc:<başka>) geçerli imzayla bile reddedilir.
-                new JwtClaimValidator<String>(JwtClaimNames.SUB, TokenClaims.AUTH_SERVICE_SUBJECT::equals)));
+                // Yalnız Auth ve platform izin tablosundaki servisler; başka bir servis kimliği (svc:<başka>) geçerli
+                // imzayla bile reddedilir. Hangi uca hangi çağıranın gireceği kapsam ve ServiceCallerGuard ile ayrıca denetlenir.
+                new JwtClaimValidator<String>(JwtClaimNames.SUB, allowedSubjects::contains)));
         rules.add(maxLifetime(TokenClaims.SERVICE_TOKEN_MAX_LIFETIME, clock));
         return new DelegatingOAuth2TokenValidator<>(rules);
     }

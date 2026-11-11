@@ -8,8 +8,9 @@ import com.ltz.messaging.domain.exception.MessagingErrorCode;
 import com.ltz.messaging.domain.exception.MessagingException;
 
 /**
- * Gönderilmek istenen mesajın içeriği: metin, görsel ({@code attachmentId}) ya da GIF ({@code gifProvider} +
- * {@code gifId}); görsel ve GIF'te {@code body} isteğe bağlı açıklamadır. Görsel ile GIF birlikte olamaz.
+ * Gönderilmek istenen mesajın içeriği: metin, yüklenmiş dosya ({@code attachmentId}: görsel ya da ses) ya da GIF
+ * ({@code gifProvider} + {@code gifId}); görsel ve GIF'te {@code body} isteğe bağlı açıklamadır. Ekli taslakta
+ * {@link #type()} {@code IMAGE} döner ama kesin tür gönderimde dosyadan çözülür ({@code VOICE} açıklama almaz). Görsel ile GIF birlikte olamaz.
  * {@code replyToMessageId} isteğe bağlı yanıt hedefidir (MSG-19).
  */
 public record MessageDraft(String body, UUID attachmentId, GifProvider gifProvider, String gifId,

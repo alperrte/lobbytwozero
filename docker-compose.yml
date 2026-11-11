@@ -261,6 +261,7 @@ services:
     environment:
       <<: *ltz-db-env
       DB_LIBRARY_NAME: ${DB_LIBRARY_NAME:?}
+      AUTH_LIBRARY_SERVICE_CLIENT_SECRET: ${AUTH_LIBRARY_SERVICE_CLIENT_SECRET:-}
     depends_on:
       postgres:
         condition: service_healthy

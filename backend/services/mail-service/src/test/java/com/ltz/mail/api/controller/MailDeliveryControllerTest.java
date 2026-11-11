@@ -117,10 +117,21 @@ class MailDeliveryControllerTest extends IntegrationTestSupport {
     }
 
     @Test
+    void welcomeNotificationIsAcceptedAndQueuedLikeAnyNotification() throws Exception {
+        UUID account = newAccount();
+        UUID key = UUID.randomUUID();
+
+        postJson(InternalApiPaths.SECURITY_NOTIFICATIONS, bearer(account, MAIL_SEND_SCOPE),
+                notificationBody(key, account, EMAIL, "WELCOME")).andExpect(status().isAccepted());
+
+        assertThat(messageByKey(key)).containsEntry("type", "WELCOME").containsEntry("status", "PENDING");
+    }
+
+    @Test
     void unknownNotificationTypeIsRejected() throws Exception {
         UUID account = newAccount();
 
-        for (String name : List.of("WELCOME", "SUSPICIOUS_LOGIN", "two_factor_enabled", "UNKNOWN")) {
+        for (String name : List.of("SUSPICIOUS_LOGIN", "welcome", "two_factor_enabled", "UNKNOWN")) {
             postJson(InternalApiPaths.SECURITY_NOTIFICATIONS, bearer(account, MAIL_SEND_SCOPE),
                     notificationBody(UUID.randomUUID(), account, EMAIL, name)).andExpect(status().isBadRequest());
         }
@@ -229,7 +240,7 @@ class MailDeliveryControllerTest extends IntegrationTestSupport {
         UnaryOperator<JWTClaimsSet.Builder> tooLong = claims -> claims.expirationTime(farFuture);
         List<String> rejected = List.of(
                 serviceToken(account, MAIL_SEND_SCOPE, claims -> claims.audience("user-service")),
-                serviceToken(account, MAIL_SEND_SCOPE, claims -> claims.subject("svc:social-service")),
+                serviceToken(account, MAIL_SEND_SCOPE, claims -> claims.subject("svc:unknown-service")),
                 serviceToken(account, MAIL_SEND_SCOPE, claims -> claims.issuer("someone-else")),
                 serviceToken(account, MAIL_SEND_SCOPE, claims -> claims.issueTime(null)),
                 serviceToken(account, MAIL_SEND_SCOPE, claims -> claims.jwtID(null)),

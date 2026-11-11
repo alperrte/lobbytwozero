@@ -13,6 +13,12 @@ import { defaultLocale, localeCookieName, locales } from "./config";
  */
 export const pathnames = {
   "/": "/",
+  "/library": { tr: "/kutuphane", en: "/library" },
+  "/library/favorites": { tr: "/kutuphane/favoriler", en: "/library/favorites" },
+  "/library/completed": { tr: "/kutuphane/bitirilenler", en: "/library/completed" },
+  "/library/add": { tr: "/kutuphane/oyun-ekle", en: "/library/add" },
+  "/library/privacy": { tr: "/kutuphane/gizlilik", en: "/library/privacy" },
+  "/library/users/[userId]": { tr: "/kutuphane/oyuncu/[userId]", en: "/library/users/[userId]" },
   "/games": { tr: "/oyunlar", en: "/games" },
   "/games/manage": { tr: "/oyunlar/yonetim", en: "/games/manage" },
   "/games/[gameId]": { tr: "/oyunlar/[gameId]", en: "/games/[gameId]" },
@@ -26,6 +32,7 @@ export const pathnames = {
   "/friends/blocked": { tr: "/arkadaslar/engellenenler", en: "/friends/blocked" },
   "/profile": { tr: "/profil", en: "/profile" },
   "/profile/edit": { tr: "/profil/duzenle", en: "/profile/edit" },
+  "/profile/settings": { tr: "/profil/ayarlar", en: "/profile/settings" },
   "/login": { tr: "/giris", en: "/login" },
   "/register": { tr: "/kayit", en: "/register" },
   "/verify-email": { tr: "/eposta-dogrulama", en: "/verify-email" },

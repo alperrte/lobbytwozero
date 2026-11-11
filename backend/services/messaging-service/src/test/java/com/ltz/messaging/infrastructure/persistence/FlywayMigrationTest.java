@@ -186,6 +186,60 @@ class FlywayMigrationTest extends IntegrationTestSupport {
                 .hasMessageContaining("fk_message_attachments_blob");
     }
 
+    @Test
+    void sesEkiTurKurallariniDbUygular() {
+        UUID group = insertConversation("GROUP", "Takım", null);
+        UUID blob = UUID.randomUUID();
+        jdbc.update("insert into attachment_blobs (id, size_bytes, content, created_at) values (?, 3, ?, now())", blob,
+                new byte[] {1, 2, 3});
+
+        assertThatCode(() -> insertVoice(group, blob, null, 500, new byte[64])).doesNotThrowAnyException();
+        assertThatCode(() -> insertVoice(group, blob, null, 121_000, null)).doesNotThrowAnyException();
+        assertThatThrownBy(() -> insertVoice(group, blob, 10, 1000, null))
+                .hasMessageContaining("ck_message_attachments_kind");
+        assertThatThrownBy(() -> insertVoice(group, blob, null, 499, null))
+                .hasMessageContaining("ck_message_attachments_kind");
+        assertThatThrownBy(() -> insertVoice(group, blob, null, 121_001, null))
+                .hasMessageContaining("ck_message_attachments_kind");
+        assertThatThrownBy(() -> insertVoice(group, blob, null, 1000, new byte[63]))
+                .hasMessageContaining("ck_message_attachments_kind");
+        assertThatThrownBy(() -> jdbc.update("insert into message_attachments (id, conversation_id, uploader_id, "
+                + "blob_id, mime_type, size_bytes, width, height, frame_count, duration_ms, created_at) "
+                + "values (?, ?, ?, ?, 'image/png', 3, 1, 1, 1, 1000, now())",
+                UUID.randomUUID(), group, UUID.randomUUID(), blob))
+                .hasMessageContaining("ck_message_attachments_kind");
+        assertThatThrownBy(() -> jdbc.update("insert into message_attachments (id, conversation_id, uploader_id, "
+                + "blob_id, mime_type, size_bytes, width, height, frame_count, created_at) "
+                + "values (?, ?, ?, ?, 'image/webp', 3, 1, 1, 1, now())", UUID.randomUUID(), group, UUID.randomUUID(),
+                blob))
+                .hasMessageContaining("ck_message_attachments_mime");
+
+        // NULL, CHECK'i "bilinmiyor" ile geçirmemeli: görselde ölçüler, seste süre zorunludur.
+        assertThatThrownBy(() -> jdbc.update("insert into message_attachments (id, conversation_id, uploader_id, "
+                + "blob_id, mime_type, size_bytes, height, frame_count, created_at) "
+                + "values (?, ?, ?, ?, 'image/png', 3, 1, 1, now())", UUID.randomUUID(), group, UUID.randomUUID(), blob))
+                .hasMessageContaining("ck_message_attachments_kind");
+        assertThatThrownBy(() -> jdbc.update("insert into message_attachments (id, conversation_id, uploader_id, "
+                + "blob_id, mime_type, size_bytes, created_at) values (?, ?, ?, ?, 'audio/webm', 3, now())",
+                UUID.randomUUID(), group, UUID.randomUUID(), blob))
+                .hasMessageContaining("ck_message_attachments_kind");
+
+        UUID sender = UUID.randomUUID();
+        assertThatThrownBy(() -> jdbc.update("insert into messages (id, conversation_id, seq, sender_id, "
+                + "client_message_id, type, body, created_at) values (?, ?, 1, ?, 'v-1', 'VOICE', 'açıklama', now())",
+                UUID.randomUUID(), group, sender))
+                .hasMessageContaining("ck_messages_voice_body");
+        assertThatCode(() -> jdbc.update("insert into messages (id, conversation_id, seq, sender_id, "
+                + "client_message_id, type, created_at) values (?, ?, 2, ?, 'v-2', 'VOICE', now())",
+                UUID.randomUUID(), group, sender)).doesNotThrowAnyException();
+    }
+
+    private void insertVoice(UUID conversationId, UUID blobId, Integer width, int durationMs, byte[] waveform) {
+        jdbc.update("insert into message_attachments (id, conversation_id, uploader_id, blob_id, mime_type, size_bytes, "
+                + "width, duration_ms, waveform, created_at) values (?, ?, ?, ?, 'audio/webm', 3, ?, ?, ?, now())",
+                UUID.randomUUID(), conversationId, UUID.randomUUID(), blobId, width, durationMs, waveform);
+    }
+
     private void insertReaction(UUID messageId, UUID userId, String emoji) {
         jdbc.update("insert into message_reactions (message_id, user_id, emoji, reacted_at) values (?, ?, ?, now())",
                 messageId, userId, emoji);

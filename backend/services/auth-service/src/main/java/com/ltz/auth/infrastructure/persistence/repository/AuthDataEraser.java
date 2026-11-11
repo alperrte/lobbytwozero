@@ -39,7 +39,8 @@ public class AuthDataEraser {
             "delete from auth_sessions where account_id = ?",
             "delete from email_verification_codes where account_id = ?",
             "delete from password_reset_tokens where account_id = ?",
-            "delete from account_deletion_tokens where account_id = ?");
+            "delete from account_deletion_tokens where account_id = ?",
+            "delete from account_deletion_support_requests where account_id = ?");
 
     /** Silme talebi onaylandığında çalışır: hesabın hâlâ kullanılabilir geçici kimlik doğrulama artıklarını yok eder. */
     private static final List<String> EPHEMERAL_STATEMENTS = List.of(LINK_FLOW_DELETE,

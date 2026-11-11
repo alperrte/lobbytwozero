@@ -44,7 +44,7 @@
 | Hesap silme | 14 gün geri alma süresi, sonra servislere silme görevi |
 | Güvenlik olayı saklama | 365 gün |
 | Silme ucu yazılmış servisler | 9 / 16 (Game, Hardware, Library, Performance, Review, Social, User, Community, Mail) |
-| Auth migration aralığı | V61–V70 (V61–V69 kullanımda, yalnız V70 boş; V61–V65 donuk, bkz. `migration-yazim-kurallari.md`) |
+| Auth migration aralığı | V61–V70 (V61–V65 kullanımda ve donuk, V66–V70 boş; bkz. `migration-yazim-kurallari.md`) |
 
 ---
 

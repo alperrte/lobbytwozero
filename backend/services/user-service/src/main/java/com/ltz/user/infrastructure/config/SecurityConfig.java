@@ -95,6 +95,8 @@ public class SecurityConfig {
                                 .hasAuthority(SCOPE_PREFIX + TokenClaims.EVENTS_INGEST_SCOPE)
                         .requestMatchers(PATHS.matcher(HttpMethod.POST, InternalApiPaths.PRIVACY_DECISIONS))
                                 .hasAuthority(SCOPE_PREFIX + TokenClaims.PRIVACY_READ_SCOPE)
+                        .requestMatchers(PATHS.matcher(HttpMethod.GET, InternalApiPaths.USER_LOCALE))
+                                .hasAuthority(SCOPE_PREFIX + TokenClaims.LOCALE_READ_SCOPE)
                         .requestMatchers(AUTHENTICATED_ENDPOINTS).authenticated()
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(resourceServer -> resourceServer

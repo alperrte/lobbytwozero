@@ -1,0 +1,7 @@
+# ACCOUNT_BANNED (en). Biçim: docs-mail/sablon-rehberi.md. Düz metin sürümü bloklardan otomatik üretilir.
+subject: Your LTZ account was banned
+kind: danger
+label: ACCOUNT STATUS
+title: Your account was banned
+text: Your LTZ account was banned for violating the platform rules and can no longer be used.
+date: Date:

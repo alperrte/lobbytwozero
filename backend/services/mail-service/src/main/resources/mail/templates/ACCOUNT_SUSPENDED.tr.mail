@@ -1,0 +1,7 @@
+# ACCOUNT_SUSPENDED (tr). Biçim: docs-mail/sablon-rehberi.md. Düz metin sürümü bloklardan otomatik üretilir.
+subject: LTZ hesabın askıya alındı
+kind: warn
+label: HESAP DURUMU
+title: Hesabın askıya alındı
+text: LTZ hesabın askıya alındı. Bu süre boyunca hesabınla bazı işlemleri yapamazsın.
+date: Tarih:

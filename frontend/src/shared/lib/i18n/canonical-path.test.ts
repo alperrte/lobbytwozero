@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { canonicalPathFor } from "./canonical-path";
 import { locales } from "./config";
 import { pathnames } from "./routing";
+import { getPathname } from "./navigation";
 
 describe("canonicalPathFor", () => {
   it("kanonik adres için null döner", () => {
@@ -30,6 +31,27 @@ describe("canonicalPathFor", () => {
 describe("pathnames", () => {
   // Sayfalar herkese açık (`(public)`) giriş/kayıt (`(auth)`) ya da panel (`(dashboard)`) rota grubunda olabilir.
   const appDirs = ["(public)", "(auth)", "(dashboard)"].map((group) => join(process.cwd(), "src/app/[locale]", group));
+
+  it.each([
+    ["/library", "/kutuphane"],
+    ["/library/favorites", "/kutuphane/favoriler"],
+    ["/library/completed", "/kutuphane/bitirilenler"],
+    ["/library/add", "/kutuphane/oyun-ekle"],
+    ["/library/privacy", "/kutuphane/gizlilik"]
+  ] as const)("Library rota çifti ve kanonik adres: %s", (pathname, turkish) => {
+    expect(pathnames[pathname]).toEqual({ tr: turkish, en: pathname });
+    expect(getPathname({ locale: "tr", href: pathname })).toBe(`/tr${turkish}`);
+    expect(getPathname({ locale: "en", href: pathname })).toBe(`/en${pathname}`);
+    expect(canonicalPathFor(pathname, "tr")).toBe(turkish);
+    expect(canonicalPathFor(turkish, "en")).toBe(pathname);
+  });
+
+  it("Library profil rotası her iki dilde gerçek kullanıcı kimliğini korur", () => {
+    const userId = "0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66";
+    const href = { pathname: "/library/users/[userId]" as const, params: { userId } };
+    expect(getPathname({ locale: "tr", href })).toBe(`/tr/kutuphane/oyuncu/${userId}`);
+    expect(getPathname({ locale: "en", href })).toBe(`/en/library/users/${userId}`);
+  });
 
   it("Türkçe slug'lar Türkçe, İngilizce slug'lar dahili anahtarla aynıdır", () => {
     for (const [internal, value] of Object.entries(pathnames)) {

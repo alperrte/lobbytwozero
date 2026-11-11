@@ -17,7 +17,7 @@ public interface MessageAttachmentRepository extends JpaRepository<MessageAttach
 
     String META = "select new com.ltz.messaging.infrastructure.persistence.repository.AttachmentMeta(a.id, "
             + "a.conversationId, a.uploaderId, a.messageId, a.mimeType, a.sizeBytes, a.width, a.height, a.frameCount, "
-            + "a.createdAt) from MessageAttachment a ";
+            + "a.durationMs, a.waveform, a.createdAt) from MessageAttachment a ";
 
     @Query(META + "where a.id = :id and a.conversationId = :conversationId")
     Optional<AttachmentMeta> findMeta(@Param("id") UUID id, @Param("conversationId") UUID conversationId);
@@ -30,6 +30,14 @@ public interface MessageAttachmentRepository extends JpaRepository<MessageAttach
     Optional<UUID> findIdByMessageId(@Param("messageId") UUID messageId);
 
     Optional<MessageAttachment> findByMessageId(UUID messageId);
+
+    /** Gönderimde türü çözmek için: bu kullanıcının bu sohbete yüklediği, henüz bağlanmamış dosyanın türü. */
+    @Query("""
+            select a.mimeType from MessageAttachment a
+            where a.id = :id and a.conversationId = :conversationId and a.uploaderId = :uploaderId
+            and a.messageId is null""")
+    Optional<String> findPendingMimeType(@Param("id") UUID id, @Param("conversationId") UUID conversationId,
+                                         @Param("uploaderId") UUID uploaderId);
 
     @Query("select a.blobId from MessageAttachment a where a.messageId = :messageId")
     Optional<UUID> findBlobIdByMessageId(@Param("messageId") UUID messageId);

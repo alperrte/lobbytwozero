@@ -54,6 +54,10 @@ public class MailMessage {
     @Column(name = "locale", updatable = false, length = 2)
     private String locale;
 
+    /** Kaydı yaratan servis (platform kapısı); {@code null} = Auth kapısı. Doluysa alıcı adresi gönderim anında çözülür. */
+    @Column(name = "caller", updatable = false, length = 40)
+    private String caller;
+
     @Column(name = "payload_encrypted")
     private byte[] payloadEncrypted;
 
@@ -91,6 +95,11 @@ public class MailMessage {
     @Version
     @Column(name = "version", nullable = false)
     private long version;
+
+    /** Platform kapısından gelen kayıt: alıcı adresi kalıcı yazılmaz, işleyici gönderim anında çözer. */
+    public boolean isPlatform() {
+        return caller != null;
+    }
 
     /** Süresi dolmuş kod/bağlantı gönderilmez; bu kontrol her denemeden önce yapılır. */
     public boolean isExpired(Instant now) {

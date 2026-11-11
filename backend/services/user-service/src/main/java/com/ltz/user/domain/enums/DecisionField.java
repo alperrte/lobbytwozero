@@ -12,7 +12,9 @@ public enum DecisionField {
     LIBRARY(PrivacyField.LIBRARY),
     HARDWARE(PrivacyField.HARDWARE),
     PERFORMANCE(PrivacyField.PERFORMANCE),
-    REVIEW_AUTHOR(null);
+    REVIEW_AUTHOR(null),
+    /** Öneri amacıyla işleme: profil ayarına değil, kullanıcının açık rızasına bağlıdır (LIB-14). */
+    RECOMMENDATION(null);
 
     private final PrivacyField profileField;
 

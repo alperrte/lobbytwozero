@@ -22,7 +22,6 @@ import com.ltz.messaging.domain.entity.Conversation;
 import com.ltz.messaging.domain.entity.ConversationMember;
 import com.ltz.messaging.domain.entity.Message;
 import com.ltz.messaging.domain.entity.MessageAttachment;
-import com.ltz.messaging.domain.enums.MessageType;
 import com.ltz.messaging.domain.exception.MessagingErrorCode;
 import com.ltz.messaging.domain.exception.MessagingException;
 import com.ltz.messaging.infrastructure.persistence.repository.ConversationMemberRepository;
@@ -104,7 +103,7 @@ public class MessageForwardService {
         ConversationMember sourceMember = access.requireMember(sourceConversationId, user);
         Message source = VisibleMessages.requireNotDeleted(visible.check(sourceMember,
                 messages.findByIdAndConversationIdForShare(sourceMessageId, sourceConversationId).orElse(null)));
-        MessageAttachment sourceAttachment = source.getType() == MessageType.IMAGE
+        MessageAttachment sourceAttachment = source.getType().hasAttachment()
                 ? attachments.findByMessageId(source.getId())
                         .orElseThrow(() -> new MessagingException(MessagingErrorCode.MESSAGE_NOT_FOUND))
                 : null;

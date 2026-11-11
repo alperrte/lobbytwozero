@@ -380,7 +380,7 @@ Tüketici servisler: Frontend
 - POST /api/v1/auth/session/logout — bu cihazdaki oturumu kapatır, cookie'leri siler (idempotent)
 - POST /api/v1/auth/session/logout-all — tüm oturumları kapatır, eski access token'ları geçersiz kılar
 - GET /api/v1/auth/csrf — CSRF cookie'sini üretir (`204`)
-- GET /api/v1/auth/me — girişli kullanıcının kim olduğunu döner (SPA oturum yoklaması)
+- GET /api/v1/auth/me — girişli kullanıcının kim olduğunu döner (SPA oturum yoklaması). Alanlar: `accountId, roles, authMethods, accessTokenExpiresAt` + hesap türü görünümü `passwordSet, providers[], totpEnabled, registrationMethod (PASSWORD|GOOGLE|STEAM), accountTier (A|B|C), trusted`. Tür saklanmaz, her seferinde hesaplanır: **C** = doğrudan Google/Steam ile kayıt; **B** = normal kayıt + (TOTP açık veya Google/Steam bağlı); **A** = normal kayıt, ikisi de yok. `trusted = tier != A`. Access token da aynı bilgiyi `tier` ve `trusted` claim'leriyle taşır (tür yenilemede ≤60 sn gecikmeyle güncellenir). Kaynak servisler kısıtlı işlemde `trusted=false` ise `403 STEP_UP_REQUIRED` dönebilir.
 
 #### Yetkilendirme
 refresh/logout: Public (refresh cookie + CSRF) · logout-all: Authenticated (+ CSRF) · csrf: Public · me: Authenticated (access cookie veya Bearer; GET olduğu için CSRF istemez)
@@ -441,7 +441,7 @@ Sorumlu: Kerem
 Tüketici servisler: Frontend
 
 #### Kural
-Steam kimliği bağlı bir hesap, TOTP etkin değilken **oturum alamaz**. Parola veya Steam girişi parolayı/kimliği doğruladıktan sonra token yerine kısa ömürlü (`AUTH_MFA_CHALLENGE_TTL`, varsayılan 5 dk), tek kullanımlık bir **kurulum challenge'ı** döner. Kurulum bitince oturum açılır. TOTP etkinse olağan ikinci faktör akışı (`/login/2fa`) çalışır. Steam bağlı hesapta TOTP **kapatılamaz** (`403 TWO_FACTOR_REQUIRED_FOR_ROLE`).
+**KALDIRILDI (2026-11-10):** Steam hesabı için zorunlu TOTP kurulumu artık yoktur; Steam girişi doğrudan oturum açar. Aşağıdaki akış yalnız ADMIN/MODERATOR gibi 2FA zorunlu roller için geçerlidir. (Eski metin:) Steam kimliği bağlı bir hesap, TOTP etkin değilken **oturum alamaz**. Parola veya Steam girişi parolayı/kimliği doğruladıktan sonra token yerine kısa ömürlü (`AUTH_MFA_CHALLENGE_TTL`, varsayılan 5 dk), tek kullanımlık bir **kurulum challenge'ı** döner. Kurulum bitince oturum açılır. TOTP etkinse olağan ikinci faktör akışı (`/login/2fa`) çalışır. TOTP kapatma yalnız zorunlu rolü olan hesapta engellidir (`403 TWO_FACTOR_REQUIRED_FOR_ROLE`).
 
 #### Giriş yanıtları
 - Parola girişi (`POST /login`): `200 { "status": "MFA_ENROLLMENT_REQUIRED", "challengeId", "challengeExpiresAt" }`, çerez yazılmaz.
@@ -598,7 +598,7 @@ Tüketici servisler: Frontend
 - POST /api/v1/auth/password/set `{ "emailCode", "newPassword", "newPasswordConfirmation" }` → `204`; başarıda hesabın tüm oturumları ve cihaz kimlikleri iptal edilir, çerezler silinir, yeni parolayla yeniden giriş gerekir; `PASSWORD_CHANGED` güvenlik bildirimi gider
 
 #### Yetkilendirme
-Oturum (çerez + CSRF veya Bearer). `request`: TOTP etkinse `code` veya `recoveryCode` (yalnız biri, tek kullanımlık); etkin değilse boş gövde (`{}`). Steam kimliği bağlı hesapta ayar açıksa (`ltz.auth.two-factor.require-for-steam-accounts`, üretimde açık) TOTP **zorunludur**: etkin değilse `403 TWO_FACTOR_ENROLLMENT_REQUIRED`. Google hesabında TOTP açıksa istenir, zorunlu değildir.
+Oturum (çerez + CSRF veya Bearer). `request`: TOTP etkinse `code` veya `recoveryCode` (yalnız biri, tek kullanımlık); etkin değilse boş gövde (`{}`). Steam için zorunlu 2FA ayarı (`require-for-steam-accounts`) kaldırıldı.
 
 #### Kurallar
 - Yalnız parolası olmayan hesap kullanır; parolalı hesap `409 PASSWORD_ALREADY_SET` (parola değiştirme ayrı uçtur). "Unuttum" akışı parolasız hesaba token vermeye devam etmez.
@@ -792,6 +792,12 @@ Tüketici servisler: Frontend
 - POST /api/v1/auth/account/deletion/request — yeniden doğrulama; yanıt `202 { "nextStep": "CONFIRM_BY_EMAIL" }`
 - POST /api/v1/auth/account/deletion/confirm — `{ "token": "…", "username": "…" }`; yanıt `202 { "nextStep": "DELETION_IN_PROGRESS" }`
 - POST /api/v1/auth/account/deletion/cancel — bekleme süresi içinde vazgeçme (aşağıda); yanıt `200 { "nextStep": "DELETION_CANCELLED" }`
+- **B ve C türü hesap** `request`/`confirm` ile kendi başına silemez: `403 DELETION_REQUIRES_SUPPORT`. Bunun yerine yöneticiye talep açar:
+  - POST /api/v1/auth/account/deletion/support-request — `{ "message"?: "…" (≤500), "password"?, "code"? | "recoveryCode"? }`; `202` talep (`id, status, createdAt, decidedAt`). **Yeniden doğrulama ister** (silme isteğiyle aynı): parolalı hesapta `password`; parolasızda yakın zamanlı giriş (`recent-login-window`); TOTP açıksa `code` veya `recoveryCode`. **Parolasız hesap TOTP'siz talep açamaz** (`403 DELETION_REQUIRES_SECOND_FACTOR`): onaydan sonra vazgeçmenin tek yolu TOTP kodudur. Hesap başına tek bekleyen talep, ikinci istek aynısını döner. Reddedilen talepten sonra 24 saat yeni talep açılamaz (`429 DELETION_SUPPORT_COOLDOWN`). A türü `409 DELETION_SELF_SERVICE_AVAILABLE`, ADMIN `409 ADMIN_DELETION_FORBIDDEN`. Gövde isteğe bağlıdır.
+  - GET /api/v1/auth/account/deletion/support-request — en son talep (`200`) ya da `204`.
+  - Yönetici (ROLE_ADMIN): `GET /api/v1/auth/admin/account-deletion-requests?limit=` (bekleyenler, en eski önce), `POST …/{requestId}/approve` ve `…/reject` (`{ "message"?: "…" }`). Onay standart silme sürecini başlatır (bekleme süresi, servis görevleri, oturumlar kapanır; kullanıcı e-posta onayı aranmaz). Onay anında hesap A türüne düşmüşse (2FA kapandı, sağlayıcı yok) onaylanmaz: `409 DELETION_SELF_SERVICE_AVAILABLE`, talep bekler, yönetici reddedebilir. Ret hesabı değiştirmez. Karar gövdesi isteğe bağlıdır. Hatalar: `404 DELETION_SUPPORT_REQUEST_NOT_FOUND`, `409 DELETION_SUPPORT_ALREADY_DECIDED`, `409 TARGET_NOT_ACTIVE`.
+  - Google ile **kayıt olan** hesap e-posta değiştiremez: `403 EMAIL_LOCKED_BY_PROVIDER`. Steam ile kayıt olan (e-postasız) hesap ilk adresini ekleyebilir.
+  - TOTP kapatma: parolası olan hesapta parola + TOTP/kurtarma kodu; parolasızda yalnız kod. Güvencesi kalmayan normal hesap A türüne düşer. ADMIN/MODERATOR kapatamaz.
 
 #### Yetkilendirme
 `request` ve `confirm`: Authenticated (+ CSRF). Hesap ve oturum yalnız token'dan alınır; e-posta token'ı yalnız isteği yapan hesap için geçerlidir.
@@ -1004,12 +1010,13 @@ UNIT + INTEGRATION (Auth tarafı; Admin tüketici testi yok). REQ-04-A hedef/hes
 
 - **Auth → her veri sahibi servis, hesap verisi silme (AUTH-16/17) — Auth tarafı IMPLEMENTED (2026-10-23):** `DELETE /internal/v1/accounts/{accountId}`, Yetkilendirme: Internal. Servis JWT'si (D4, `ServiceTokenIssuer`): başlık `typ=svc+jwt`, RS256 (JWKS); `iss=ltz-auth`, tek `aud=<servis>-service` (ör. `social-service`), `sub=svc:auth-service`, `scope=account:erase`, `account_id=<silinecek hesap>`, ömür 30 sn, `jti`. Hedef servis tümünü bağımsız doğrular; `sub` tam eşleşme ve `account_id` = yoldaki `{accountId}` zorunludur (aksi halde `403`); kullanıcı cookie'sine dayanmaz. İdempotent: `200`/`204` = veri silindi/anonimleştirildi (zaten yoksa da `204`); `202` dahil başka her yanıt başarısızlık sayılır ve tekrarlanır; yönlendirme izlenmez. Hedefler (16): `user, mail, game, library, review, social, messaging, lfp, community, content, event, hardware, recommendation, performance, admin, notification`. Auth'ta onay alan bir iç uç **yoktur**. Test Durumu: UNIT + INTEGRATION (gerçek HTTP).
 
-- **Auth → Mail, `WELCOME` bildirimi — IMPLEMENTED (2026-11-09, MAIL-AUTH-REQ-01):** mevcut `POST /internal/v1/mail/security-notifications` (`scope=mail:send`) ucuna `type=WELCOME`; `locale` gönderilmez (iki dilli). Tetik: e-posta doğrulaması başarıyla tamamlanınca (`EmailVerificationService`, Steam+e-posta dahil) ve Google ile yeni hesap ilk kez doğrulanmış e-postayla açılınca; **commit sonrası, en iyi çaba** (Mail hata verse doğrulama/kayıt başarılı kalır). Doğrulanmamış adrese gönderilmez. Tek seferlik: `idempotencyKey = UUID.nameUUIDFromBytes("WELCOME:" + accountId)`; tekrar doğrulama/bağlama ikinci mail üretmez. Mevcut hesaba Google/Steam bağlama `WELCOME` üretmez (hesap yeni değil; bağlamada `EXTERNAL_IDENTITY_LINKED` gider).
+- **Auth → Mail, `WELCOME` bildirimi — IMPLEMENTED (2026-11-09, MAIL-AUTH-REQ-01):** mevcut `POST /internal/v1/mail/security-notifications` (`scope=mail:send`) ucuna `type=WELCOME`; `locale` User'dan okunabilirse eklenir (aşağıdaki MAIL-AUTH-REQ-02 kaydı), yoksa iki dilli. Tetik: e-posta doğrulaması başarıyla tamamlanınca (`EmailVerificationService`, Steam+e-posta dahil) ve Google ile yeni hesap ilk kez doğrulanmış e-postayla açılınca; **commit sonrası, en iyi çaba** (Mail hata verse doğrulama/kayıt başarılı kalır). Doğrulanmamış adrese gönderilmez. Tek seferlik: `idempotencyKey = UUID.nameUUIDFromBytes("WELCOME:" + accountId)`; tekrar doğrulama/bağlama ikinci mail üretmez. Mevcut hesaba Google/Steam bağlama `WELCOME` üretmez (hesap yeni değil; bağlamada `EXTERNAL_IDENTITY_LINKED` gider).
+- **Auth → User, dil tercihi okuma + Mail'e `locale` — IMPLEMENTED (2026-11-10, MAIL-AUTH-REQ-02; Auth tarafı):** Auth, mail göndermeden hemen önce `GET /internal/v1/users/{userId}/locale` çağırır (`HttpUserLocaleClient`; adres `ltz.auth.deletion.service-urls.user`). Yetkilendirme: Internal; servis JWT'si `typ=svc+jwt`, `aud=user-service`, `sub=svc:auth-service`, `scope=preferences:locale:read`, `account_id=<userId>`, ömür 30 sn. Beklenen yanıt `{"locale":"tr"|"en"}`; başka her şey (404, 4xx/5xx, zaman aşımı, `de` gibi değer, ek alan) "dil bilinmiyor" sayılır ve `locale` Mail'e **hiç gönderilmez** (iki dilli mail). **En iyi çaba:** zaman aşımı en çok 2 sn, mail zaten commit sonrası ayrı iş parçacığında gittiği için kayıt/giriş akışı bloklanmaz. Yalnız başarılı değer hesap başına 60 sn önbelleğe alınır (hata/404 alınmaz; profil sonradan oluşabilir). Dil, adres ve yanıt gövdesi loglanmaz. `HttpMailServiceAdapter` dört Mail ucunun (`verification-codes`, `password-resets`, `account-deletions`, `security-notifications`) gövdesine `locale` ekler. Kayıt anındaki doğrulama kodu ve profili olmayan hesap iki dilli kalır. **User tarafı (`GET /internal/v1/users/{userId}/locale`) bu kayıtta yoktur;** uç User sahibinde bekliyor, uçtan uca deneme User bitince yapılır. Test Durumu: UNIT (sahte User sunucusu); uçtan uca NOT VERIFIED.
 - **Platform kapısı mekanizması — IMPLEMENTED (2026-11-09):** servis istemcisine `ltz.auth.service-clients.clients.<servis>.targets.mail-service=mail:notify` satırı eklenince `audience=mail-service` token'ı alır (`aud=mail-service`, `sub=svc:<servis>`, `account_id` yok); tanımsız istemci `403 SERVICE_AUDIENCE_FORBIDDEN`. Şu an üretimde hiçbir servise satır tanımlı değildir; `mail:send` Auth'a özel kalır.
 
 Aşağıdakiler Auth'un çağıracağı/yayımlayacağı **PLANNED** sözleşmelerdir; karşı servisin kaydı o servis uygulanırken kendi başlığı altında açılır.
 
-- **Auth → Mail, doğrulama kodu teslimi (MAIL-01) — IMPLEMENTED (2026-10-31, `HttpMailServiceAdapter`; ayrıntılı sözleşme `## MAIL` altında; aynı adaptör `password-resets`, `account-deletions`, `security-notifications` uçlarını da çağırır, `scope=mail:send`, yalnız `202` kabul, `locale` gönderilmez → iki dilli):** `POST /internal/v1/mail/verification-codes`, Yetkilendirme: Internal (Auth'un imzaladığı, `aud=mail-service` sınırlı servis JWT'si — D4, Faz 2). Gövde: `idempotencyKey` (UUID, kod kaydı kimliği), `accountId`, `recipientEmail`, `code`, `validitySeconds`, `locale` (`tr`/`en`, açık konu). Mail Service yalnız teslim eder; kodu düz metin olarak kalıcı tutmaz (`payload_encrypted`, gönderim sonrası temizleme) ve loglamaz. `202` = teslim kuyruğa alındı; diğer her yanıt Auth'ta teslim başarısızlığı sayılır. Kimlik doğrulaması olmadan bu uç açılmaz.
+- **Auth → Mail, doğrulama kodu teslimi (MAIL-01) — IMPLEMENTED (2026-10-31, `HttpMailServiceAdapter`; ayrıntılı sözleşme `## MAIL` altında; aynı adaptör `password-resets`, `account-deletions`, `security-notifications` uçlarını da çağırır, `scope=mail:send`, yalnız `202` kabul; `locale` yalnız User'dan okunabilirse gönderilir, aksi halde iki dilli):** `POST /internal/v1/mail/verification-codes`, Yetkilendirme: Internal (Auth'un imzaladığı, `aud=mail-service` sınırlı servis JWT'si — D4, Faz 2). Gövde: `idempotencyKey` (UUID, kod kaydı kimliği), `accountId`, `recipientEmail`, `code`, `validitySeconds`, `locale` (`tr`/`en`, açık konu). Mail Service yalnız teslim eder; kodu düz metin olarak kalıcı tutmaz (`payload_encrypted`, gönderim sonrası temizleme) ve loglamaz. `202` = teslim kuyruğa alındı; diğer her yanıt Auth'ta teslim başarısızlığı sayılır. Kimlik doğrulaması olmadan bu uç açılmaz.
 - **Auth → User, `UserRegistered` olayı:** Hesap `ACTIVE` olduktan **sonra** (kayıt anında değil) outbox ile yayımlanır. Alanlar: `eventId`, `accountId`, `username`, `occurredAt`. User Service profili `accountId` ile idempotent oluşturur; parola, e-posta doğrulama durumu ve rol User'a taşınmaz. Outbox altyapısı henüz yoktur (sonraki faz).
 
 ## USER
@@ -1374,7 +1381,7 @@ Aralarında herhangi bir yönde engel olan izleyici profili hiç göremez. Profi
 
 #### Bağlantı
 Frontend:
-API Gateway üzerinden /api/v1/user/me/privacy
+API Gateway üzerinden /api/v1/user/me/privacy. Hesap ayarları sayfası: `/profile/settings` (`/tr/profil/ayarlar`, `/en/profile/settings`), `features/user/components/account-settings.tsx`
 
 Diğer mikroservisler:
 Ayarlar diğer servislere "Gizlilik kararı" iç ucuyla verilir.
@@ -1529,7 +1536,7 @@ Internal. Gateway'de route edilmez. `typ=svc+jwt`, `aud=user-service`, `scope` �
 ```json
 {
   "viewerId": "UUID | null (çağıranın doğruladığı kullanıcı; misafir için null)",
-  "field": "FRIENDS_LIST | LIBRARY | HARDWARE | PERFORMANCE | REVIEW_AUTHOR",
+  "field": "FRIENDS_LIST | LIBRARY | HARDWARE | PERFORMANCE | REVIEW_AUTHOR | RECOMMENDATION",
   "ownerIds": ["UUID (1-100; yinelenenler tek)"]
 }
 ```
@@ -1541,6 +1548,10 @@ Internal. Gateway'de route edilmez. `typ=svc+jwt`, `aud=user-service`, `scope` �
 İstek sırasıyla. `setting`: sahibin ayarı (kayıt yoksa varsayılan; yasaklı/devre dışı hesapta `PRIVATE`). `allowed`: izleyici görebilir mi (görünürlük kuralı + engel + hesap durumu). `friends`: izleyici ile sahip arkadaş mı. En çok dört sorgu (N+1 yok).
 
 **`REVIEW_AUTHOR` (HW-USER-REQ-02, yorum/UGC kararı):** profil bölümü değildir; ürün yorumu gibi herkese açık yazar içeriği için kullanılır. Profil gizlilik ayarı (HARDWARE dahil) ve misafir erişimi **uygulanmaz**; `setting` her zaman `PUBLIC`. `allowed` yalnız hesap durumu (yasaklı/devre dışı/silinmekte → `false`, `setting=PRIVATE`) ve çift yönlü engele bağlıdır. Yansıma güvenilir değilken yazar dışında kimseye `allowed=true` dönmez. Toplu kullanım: sayfadaki tüm yazarlar tek istekte (en çok 100) sorulur; çağıran yalnız `allowed=true` yazarların yorumlarını sorgusunun içinde filtreler (sayfa aldıktan sonra eleme yapmaz). Yanıtta eksik kalan sahip, hata, 401/403/429/5xx ve timeout çağıranda ret sayılır.
+
+**`RECOMMENDATION` (LIB-14, öneri amacıyla işleme):** görünürlük değil, kullanıcının açık rızasıdır ([Rızalarım](#user--rızalarım-lib-14)). `allowed=true` için **hepsi** gerekir: `viewerId` = sahip, sahibin profili var ve görünür hesap (ACTIVE/SUSPENDED), sahip `recommendation` rızasını vermiş. **Sahiplik kısayolu uygulanmaz**: rızası olmayan sahip de `allowed=false` alır. Başka izleyici ve misafir her zaman `false`. Social yansımasına bağlı değildir (`projection-enabled` bu alanı etkilemez; arkadaşlık/engel kullanılmaz). `setting` izinliyse `PUBLIC`, değilse `PRIVATE`; `friends` her zaman `false`. Karar her istekte DB'den okunur (önbellek yok): rıza geri çekilince bir sonraki istekte `false`.
+
+**Profili olmayan sahip:** `setting` varsayılan döner, ama sahibi olmayan izleyiciye `allowed` **her zaman `false`** (var olmayan kullanıcı gizli kullanıcıdan ayırt edilemez).
 
 **Fail-closed:** Social yansıması güvenilir ilan edilene kadar (`ltz.user.social.projection-enabled=false`, varsayılan) engel ve arkadaşlık bilinmez; bu yüzden **sahibi olmayan izleyiciye `allowed` her zaman `false`** döner (Hardware sözleşmesi: bilinmeyen karar reddedilir). `setting` yine döner: engel ve arkadaşlığı kendisi bilen Social yalnız `setting`'i kullanabilir. Sahip kendi bölümü için her zaman `allowed=true` alır.
 
@@ -1558,7 +1569,7 @@ Diğer mikroservisler:
 social-service, hardware-service ve library-service Auth'tan `aud=user-service`, `scope=privacy:read` servis token'ı alıp bu ucu `${USER_SERVICE_URL}` üzerinden çağırır (Auth çiftleri hazır). Gerçek tüketicilerle uçtan uca: **NOT VERIFIED**.
 
 #### Test Durumu
-UNIT + INTEGRATION (`PrivacyDecisionTest` 8, `SocialProjectionTrustedTest` 3, `PrivacyRulesTest` 21).
+UNIT + INTEGRATION (`PrivacyDecisionTest` 8, `SocialProjectionTrustedTest` 3, `PrivacyRulesTest` 21, `ConsentsTest` içinde `RECOMMENDATION` ve profilsiz sahip senaryoları).
 
 ### USER — Tercihlerim (USER-10)
 
@@ -1596,13 +1607,93 @@ Aynı alanlar ve güncel `version`. Hiç kaydedilmemişse `GET` varsayılanları
 
 #### Bağlantı
 Frontend:
-API Gateway üzerinden /api/v1/user/me/preferences
+API Gateway üzerinden /api/v1/user/me/preferences. Hesap ayarları sayfası: `/profile/settings` (`/tr/profil/ayarlar`, `/en/profile/settings`), `features/user/components/account-settings.tsx`
 
 Diğer mikroservisler:
 -
 
 #### Test Durumu
 UNIT + INTEGRATION (`PreferenceOnboardingTest` 11).
+
+### USER — Kullanıcının dili (Internal, Auth → User)
+
+Durum: IMPLEMENTED (User tarafı). Auth'ta `preferences:locale:read` kapsamının tanımlanması ve Auth'un bu ucu çağırması **PENDING** (MAIL-AUTH-REQ-02, Auth işi)
+Sorumlu: Kerem
+Tüketici servisler: auth-service (e-posta dilini seçmek için; Mail kimseyi çağırmaz, dil Auth'tan `locale` olarak gider)
+
+#### Endpoint
+GET /internal/v1/users/{userId}/locale
+
+#### Yetkilendirme
+Internal. Gateway'de route edilmez. `typ=svc+jwt`, `aud=user-service`, `sub=svc:auth-service` (tam eşleşme), `scope` ⊇ `preferences:locale:read`, `account_id` claim'i yoldaki `userId` ile aynı olmalı. Başka `sub`, kapsam ya da `account_id` `403`; token yok, kullanıcı token'ı, yanlış `aud`/`typ` ya da süresi geçmiş token `401`. Doğrulama deseni hesap silme ve olay girişi uçlarıyla aynıdır.
+
+#### Response — 200
+```json
+{ "locale": "tr | en" }
+```
+**Yalnız dil döner.** Tema, hareket azaltma, sıkı yerleşim ve sürüm dönmez (en az veri). Değer `user_preferences.locale` kaydıdır; kullanıcı hiç tercih kaydetmediyse varsayılan dil uydurulmaz, `404` döner. `Cache-Control: no-store`. Dil ve yanıt loglanmaz.
+
+#### Hata Durumları
+- 400: `userId` UUID değil
+- 401: Token yok/geçersiz; kullanıcı token'ı; yanlış `aud`
+- 403: Çağıran `svc:auth-service` değil; `preferences:locale:read` kapsamı yok; `account_id` yoldaki kullanıcıyla uyuşmuyor ya da yok. Yanıt dil bilgisi içermez
+- 404: `PROFILE_NOT_FOUND`: profil ya da tercih satırı yok. Auth bunu "dil bilinmiyor" sayar ve iki dilli mail gönderir
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+auth-service, `${USER_SERVICE_URL}` üzerinden (hesap silme ucuyla aynı adres: `ltz.auth.deletion.service-urls.user`) çağırır. Auth'un çağrısı en iyi çabadır: ~2 sn zaman aşımı, hata/404/zaman aşımında `locale` göndermez. Gerçek Auth token'ıyla uçtan uca: **NOT VERIFIED**.
+
+#### Test Durumu
+UNIT + INTEGRATION (`InternalLocaleTest` 13).
+
+### USER — Rızalarım (LIB-14)
+
+Durum: IMPLEMENTED
+Sorumlu: Kerem
+Tüketici servisler: Frontend (Hesap ayarları); karar library-service tarafından `POST /internal/v1/privacy/decisions` (`field=RECOMMENDATION`) ile okunur
+
+#### Endpoint
+GET /api/v1/user/me/consents
+PUT /api/v1/user/me/consents
+
+#### Yetkilendirme
+Authenticated (Owner). Kimlik yalnız token'dan.
+
+#### Request Body (PUT)
+Rızaların **tamamı** zorunludur; eksik alan "rıza yok" sayılmaz, `400`.
+```json
+{
+  "version": "long ≥ 0, zorunlu: son görülen sürüm; hiç kaydedilmemişse 0",
+  "recommendation": true
+}
+```
+`recommendation`: kişiselleştirilmiş öneri için favori/bitirilen oyun verisinin işlenmesine açık rıza. Koleksiyon görünürlüğünden (`privacy.library`) bağımsızdır.
+
+#### Response — 200
+```json
+{ "recommendation": false, "recommendationChangedAt": "ISO-8601 | null", "version": 0 }
+```
+Hiç kaydedilmemişse varsayılan: `recommendation=false`, `recommendationChangedAt=null`, `version=0` (okuma satır oluşturmaz). İlk `PUT` sürüm 0 ile yazar; sonraki her değişiklik sürümü artırır, değişiklik yoksa artırmaz (zaman da değişmez). Geri çekilen rıza silinmez, `false` olur. `Cache-Control: no-store`.
+
+#### Hata Durumları
+- 400: `VALIDATION_FAILED` (eksik/tanımsız alan, negatif sürüm)
+- 401: Token yok/geçersiz; servis token'ı
+- 409: `CONCURRENT_MODIFICATION`: sürüm güncel değil ya da eşzamanlı ilk kayıt
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/user/me/consents. Hesap ayarları sayfası: `/profile/settings` (`/tr/profil/ayarlar`, `/en/profile/settings`), `features/user/components/account-settings.tsx`
+
+Diğer mikroservisler:
+library-service rızayı yalnız gizlilik kararı ucundan okur; bu uca erişmez.
+
+#### Test Durumu
+UNIT + INTEGRATION (`ConsentsTest` 13: rıza ucu ve `RECOMMENDATION` kararı). Canlı yığında Gateway üzerinden gerçek Auth token'ıyla denendi (2026-11-09). Library'nin servis token'ıyla uçtan uca: **NOT VERIFIED**.
 
 ### USER — İlk kurulum (onboarding) durumu ve tamamlama (USER-09)
 
@@ -1867,12 +1958,12 @@ Internal. Doğrulama kodu ucu ile aynı (`scope=mail:send`).
   "idempotencyKey": "UUID",
   "accountId": "UUID",
   "recipientEmail": "string ≤254, geçerli e-posta",
-  "type": "PASSWORD_CHANGED | PASSWORD_RESET | EMAIL_CHANGED | ACCOUNT_SUSPENDED | ACCOUNT_BANNED | ACCOUNT_DISABLED | ACCOUNT_REACTIVATED | TWO_FACTOR_ENABLED | TWO_FACTOR_DISABLED | RECOVERY_CODE_USED | EXTERNAL_IDENTITY_LINKED",
+  "type": "PASSWORD_CHANGED | PASSWORD_RESET | EMAIL_CHANGED | ACCOUNT_SUSPENDED | ACCOUNT_BANNED | ACCOUNT_DISABLED | ACCOUNT_REACTIVATED | TWO_FACTOR_ENABLED | TWO_FACTOR_DISABLED | RECOVERY_CODE_USED | EXTERNAL_IDENTITY_LINKED | WELCOME",
   "occurredAt": "ISO-8601 (gelecekte olamaz)",
   "locale": "tr | en (opsiyonel)"
 }
 ```
-Bildirim parola, kod, bağlantı veya gerekçe metni taşımaz; yalnız ne olduğunu ve ne zaman olduğunu söyler. `EMAIL_CHANGED` eski adrese gönderilir. `TWO_FACTOR_ENABLED`, `TWO_FACTOR_DISABLED`, `RECOVERY_CODE_USED` ve `EXTERNAL_IDENTITY_LINKED` hesap ele geçirme belirtisi olan olaylardır (Google ya da Steam bağlama dahil); yalnız `occurredAt` taşır, IP/cihaz bilgisi yoktur. Bilinmeyen `type` (`WELCOME`, `SUSPICIOUS_LOGIN` dahil) `400` döner. Süresi geçmiş (24 saatten eski) bildirim gönderilmez.
+Bildirim parola, kod, bağlantı veya gerekçe metni taşımaz; yalnız ne olduğunu ve ne zaman olduğunu söyler. `EMAIL_CHANGED` eski adrese gönderilir. `TWO_FACTOR_ENABLED`, `TWO_FACTOR_DISABLED`, `RECOVERY_CODE_USED` ve `EXTERNAL_IDENTITY_LINKED` hesap ele geçirme belirtisi olan olaylardır (Google ya da Steam bağlama dahil); yalnız `occurredAt` taşır, IP/cihaz bilgisi yoktur. `WELCOME` (V85, MAIL-05) güvenlik uyarısı değil karşılama bildirimidir; Auth e-posta doğrulaması tamamlanınca gönderir, yalnız `occurredAt` taşır. Bilinmeyen `type` (`SUSPICIOUS_LOGIN` dahil) `400` döner. Süresi geçmiş (24 saatten eski) bildirim gönderilmez.
 
 #### Response — 202
 Gövde yok.
@@ -1891,6 +1982,57 @@ Auth → Mail. Auth tarafı `HttpMailServiceAdapter` **IMPLEMENTED** (Mailpit il
 
 #### Test Durumu
 INTEGRATION (`MailDeliveryControllerTest`)
+
+### MAIL — Bilgilendirme e-postası (platform kapısı)
+
+Durum: IMPLEMENTED (Mail tarafı, testli). Gerçek uçtan uca (Auth ile) NOT VERIFIED: ilk çağıran servis Auth'ta `mail:notify` hedefi alınca denenecek.
+Sorumlu: Kerem
+Tüketici servisler: Auth dışındaki, Mail'in izin tablosuna eklenmiş servisler (social, event, notification vb.). Şu an hiçbiri tanımlı değil.
+Rehber: `docs-mail/entegrasyon-rehberi.md` (3 adımda entegrasyon, örnekler). **Notification Service ile ilgisi yoktur:** o servis kime ne bildirileceğine karar verir, bu uç yalnız e-postayı güvenle gönderir.
+
+#### Endpoint
+POST /internal/v1/mail/notices
+
+#### Yetkilendirme
+Internal. `svc+jwt`, `aud=mail-service`, `sub=svc:<servis>` (Mail'in izin tablosunda `ltz.mail.platform.callers.<servis>` ile kayıtlı), `scope=mail:notify`. Token Auth'tan `POST /internal/v1/service-tokens` ile `audience=mail-service` verilerek alınır (60 sn). İstemci-kimlikli token'da `account_id` claim'i yoktur; hesabı gövdedeki `accountId` belirler. `svc:auth-service` bu uçtan gönderemez; Auth kendi uçlarını (`mail:send`) kullanır.
+
+#### Request Body
+```json
+{
+  "idempotencyKey": "UUID",
+  "accountId": "UUID",
+  "kind": "INFO | SUCCESS | WARNING | DANGER",
+  "title": "string 1..80, tek satır, düz metin",
+  "message": "string 1..600, düz metin (boş satırla paragraf)",
+  "actionLabel": "string ≤30 (opsiyonel, actionLink ile birlikte)",
+  "actionLink": "https adres ≤2048, izinli host (opsiyonel, actionLabel ile birlikte)",
+  "locale": "tr | en (opsiyonel, varsayılan tr)"
+}
+```
+Servis alıcının e-posta adresini **vermez**: Mail adresi gönderim anında Auth'tan (`GET /internal/v1/accounts/{id}/contact`) çözer ve kalıcı yazmaz. Bilgilendirme tek dillidir; içeriği çağıran yerelleştirir. Bilinmeyen alan `400`. `kind` yalnız rengi ve etiketi belirler (INFO pembe "BİLGİLENDİRME", SUCCESS yeşil, WARNING turuncu, DANGER kırmızı "ÖNEMLİ").
+
+#### Response — 202
+Gövde yok. `202` isteğin kalıcı kuyruğa yazıldığı anlamına gelir; e-postanın gittiği anlamına gelmez. Adresi olmayan, doğrulanmamış ya da etkin olmayan (`ACTIVE` dışı) hesaba, ve silinmiş hesaba mail **gönderilmez** (çağırana ayrıca bildirilmez).
+
+#### Hata Durumları
+- 400: Doğrulama (`VALIDATION_FAILED`, `MALFORMED_REQUEST`); içerik kabul edilemez (`INVALID_CONTENT`: kontrol/yön değiştirme karakteri, boş ya da yalnız biri verilmiş düğme); bağlantı izinli değil ya da https değil (`INVALID_LINK`)
+- 401: Bearer başlığı var ama token geçersiz ya da çağıran izin tablosunda değil; başlık hiç yoksa `403` (CSRF filtresi)
+- 403: Kapsam `mail:notify` değil, çağıran `svc:auth-service`
+- 409: Aynı `idempotencyKey` farklı içerikle (`IDEMPOTENCY_CONFLICT`); aynı içerik `202` döner, yeni mail üretmez
+- 413: Gövde 16 KB'ı aşıyor
+- 429: Hız sınırı (`RATE_LIMITED`): çağıran başına ve hesap başına saatlik sınır (varsayılan hesap başına 5, çağıran başına 500; çağıran satırında değiştirilir)
+- 503: Platform kapısı yapılandırılmamış (`PLATFORM_NOT_CONFIGURED`, Mail'in Auth istemci anahtarı yok) ya da kayıt yazılamadı (`TEMPORARILY_UNAVAILABLE`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Çağıran servis → Mail. Mail → Auth (alıcı adresi çözme, `account:contact:read`). Hesap silme akışı bu kayıtları da siler (`recipient_user_id`).
+
+#### Test Durumu
+INTEGRATION (`NoticeControllerTest`, `NoticeDispatchTest`), UNIT (`AuthRecipientResolverTest`, `PlatformPropertiesTest`, `PayloadCodecTest`)
 
 ### MAIL — Hesap verisini sil (silme akışı)
 
@@ -3232,7 +3374,7 @@ Sorumlu: Hamza · Gateway: `/api/v1/library/**` · Görevler: LIB-
 
 ### LIBRARY — Profil koleksiyonunu listeleme (LIB-10, LIB-11)
 
-Durum: IMPLEMENTED (Library tarafı); User görünürlük adaptörü PENDING, dış erişim fail-closed.
+Durum: IMPLEMENTED (Library tarafı, User HTTP adaptörü ile); gerçek User ile uçtan uca NOT VERIFIED. User `ltz.user.social.projection-enabled=false` iken sahibi olmayan izleyiciye `allowed=false` döndürdüğü için başkasının koleksiyonu 403 olur; bayrak açılana kadar bu bilinçlidir.
 Sorumlu: Hamza
 Tüketici servisler: Frontend / User profil akışı
 
@@ -3243,7 +3385,10 @@ GET /api/v1/library/users/{userId}/entries
 Authenticated; kanonik kullanıcı rolü ve mevcut at+jwt doğrulaması.
 Görüntüleyen yalnız JWT sub'dır; viewerId/userId query veya kimlik başlığı yetki vermez.
 Owner kendi verisine erişir. Başka owner için LibraryVisibilityPort açık ALLOW vermelidir.
-Üretim adaptörü User API'si bulunmadığından UNAVAILABLE döner; dış veri açılmaz.
+Üretim adaptörü (`UserServiceLibraryVisibility`) her okumada User'a `POST /internal/v1/privacy/decisions`
+(`field=LIBRARY`, `viewerId` = doğrulanmış JWT sub, tek `ownerId`; token `aud=user-service`, `scope=privacy:read`)
+sorar ve yalnız `allowed` alanını okur: true → ALLOW, false → DENY (403). Adres/servis sırrı yoksa, token alınamazsa,
+HTTP hatası/yönlendirme/zaman aşımı, bozuk yanıt, eksik/yinelenen/yabancı sahip → UNAVAILABLE (503); retry ve cache yoktur.
 ADMIN rolü gizlilik denetimini atlamaz. Anonim profil koleksiyonu erişimi sunulmaz.
 User, kullanıcı isteğinde o kullanıcının kendi at+jwt'sini bu uca iletir (Auth karar K1); token
 saklanmaz ve arka planda kullanılmaz (User'ın sorumluluğu). Ayrı delegasyon token'ı yoktur.
@@ -3266,17 +3411,20 @@ Görünürlük denetimi DB sayımı/listeleme ve Game çağrısından önce yap�
 Olmayan/gizli kullanıcı için özel varlık sorgusu veya ayırt edici ret açıklaması üretilmez.
 
 #### Bağlantı
-Gateway üzerinden. Görünürlük User'ın sorumluluğundadır; henüz HTTP adaptörü yoktur.
+Gateway üzerinden. Görünürlük User'ın sorumluluğundadır; Library kararı `USER_SERVICE_URL` (`ltz.library.user.base-url`)
+üzerinden User'dan alır. Docker'da servis sırrı (`AUTH_LIBRARY_SERVICE_CLIENT_SECRET`) compose ile library-service konteynerine geçirilir;
+boşsa token alınamaz ve karar UNAVAILABLE olur.
 Karar cache'lenmez. ALLOW sonrası mevcut Library liste/Game batch akışı kullanılır.
 
 #### Test Durumu
-UNIT + INTEGRATION — LibraryApiTest.PrivacyTests ve LibraryAccessServiceTest.
-İzinli/ret/ulaşılamama/null/adaptör hatası, owner, ADMIN, kimlik sahteciliği ve sayaç sızıntısı.
-İzinli dış erişim yalnız test portuyla sınandı; gerçek User entegrasyonu NOT VERIFIED/PENDING.
+UNIT + INTEGRATION — LibraryApiTest.PrivacyTests, LibraryAccessServiceTest ve UserServiceLibraryVisibilityTest (9).
+İzinli/ret/ulaşılamama/null/adaptör hatası, owner, ADMIN, kimlik sahteciliği ve sayaç sızıntısı; adaptör sahte HTTP
+(MockRestServiceServer) ile sınandı: istek gövdesi, Bearer, allowed eşlemesi, 4xx/5xx/3xx/zaman aşımı, bozuk ve yabancı yanıt.
+Gerçek User ile uçtan uca NOT VERIFIED (Kerem'in dalı main'e alınınca denenecek).
 
 ### LIBRARY — Profil koleksiyon sayacı (LIB-10, LIB-11)
 
-Durum: IMPLEMENTED (Library tarafı); User görünürlük adaptörü PENDING.
+Durum: IMPLEMENTED (Library tarafı, User HTTP adaptörü ile); gerçek User ile uçtan uca NOT VERIFIED.
 Sorumlu: Hamza
 Tüketici servisler: Frontend / User profil akışı
 
@@ -3285,7 +3433,7 @@ GET /api/v1/library/users/{userId}/entries/statistics
 
 #### Yetkilendirme
 Profil koleksiyon listesiyle aynı at+jwt/rol/owner ve açık görünürlük izni denetimi.
-Sayaçlar gizli koleksiyonu açığa çıkaramaz; üretimde non-owner erişimi 503 ile kapanır.
+Sayaçlar gizli koleksiyonu açığa çıkaramaz; User `allowed=false` derse 403, karar alınamazsa 503, veri/sayaç dönmez.
 
 #### Path/Query Parameters
 userId: UUID. Query parametresi yok.
@@ -3305,7 +3453,51 @@ HTTP istekleridir; ikisi arasında ortak snapshot veya dağıtık gizlilik kilid
 
 #### Test Durumu
 INTEGRATION — PrivacyTests: owner sayacı, izinli hedef izolasyonu, ret/ulaşılamama,
-doğrulanmış viewer kullanımı. Gerçek User entegrasyonu PENDING.
+doğrulanmış viewer kullanımı; UserServiceLibraryVisibilityTest. Gerçek User entegrasyonu NOT VERIFIED.
+
+### LIBRARY — Profil özeti olayı LibrarySummaryChanged (LIB-10, giden olay)
+
+Durum: IMPLEMENTED (Library tarafı). DEV'de (2026-11-09) sentetik bir kullanıcı işaretiyle Auth token'ı + User `POST /internal/events`
+teslimi doğrulandı (2xx, işaret silindi); gerçek hesaplı profil `summary.library` doğrulaması NOT VERIFIED.
+Sorumlu: Hamza
+Tüketici servisler: user-service (profil özeti `summary.library`)
+
+#### Endpoint
+Yeni Library ucu yoktur. Library, User'ın `POST /internal/events` ucuna `LibrarySummaryChanged` olayı gönderir.
+
+#### Yetkilendirme
+Auth'tan `aud=user-service`, `scope=events:ingest` servis token'ı (`sub=svc:library-service`, 60 sn). Token günlüğe yazılmaz.
+
+#### Request Body
+```json
+{ "eventId": "UUID (her teslimde yeni)", "eventType": "LibrarySummaryChanged", "eventVersion": 1,
+  "occurredAt": "ISO-8601 UTC (gönderim anı, mikrosaniye)", "producer": "library-service", "aggregateId": "<userId>",
+  "payload": { "userId": "<userId = aggregateId>", "collectionCount": 0, "completedCount": 0, "favoriteCount": 0 } }
+```
+Sayılar **mutlak**dır ve gönderim anında okunur. Kullanıcı başına tek bekleyen işaret vardır (`library_summary_outbox`,
+V43): koleksiyon her değiştiğinde (ekle/sil/favori/bitirildi) veriyle aynı transaction'da işaretlenir; relay (varsayılan
+5 sn'de bir, 50'şerli) sayıları okur, gönderir ve yalnız gönderilen sürümü siler. Gönderim sürerken yeni değişiklik olursa
+işaret kalır ve hemen yeniden gönderilir. Hata: 5 sn × 2^n, en çok 300 sn geri çekilme; sınırsız yeniden deneme.
+V43 var olan koleksiyon sahiplerini bir kez işaretler (başlangıç aktarımı). Hesap silinince bekleyen işaret de silinir ve
+o hesap için olay gönderilmez. Adres veya servis sırrı yoksa relay hiçbir şey denemez ve deneme hakkı yanmaz.
+
+#### Response — 200
+Bu olay için Library'nin yanıtı yoktur; User `outcome` (`PROCESSED`/`DUPLICATE`) döner, 2xx dışı teslim sayılmaz.
+
+#### Hata Durumları
+User tarafı 400/401/403/429/5xx, yönlendirme ve zaman aşımı: teslim edilmedi sayılır, geri çekilmeyle yeniden denenir.
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+user-service (profil `summary.library`). Sözleşme User tarafında `docs/api.md` → USER → "Servisler arası olay girişi".
+
+#### Test Durumu
+UNIT + INTEGRATION — UserServiceSummaryPublisherTest (6) ve LibrarySummaryOutboxTest (13, gerçek PostgreSQL):
+işaretleme/coalescing, mutlak sayılar, sıfır sayı, geri çekilme, teslim sırasında değişiklik, kira, hesap silme, V43 aktarımı.
+DEV'de sentetik işaretle gerçek Auth + User teslimi 2xx (2026-11-09); gerçek hesaplı profil özeti NOT VERIFIED.
 
 ### LIBRARY — User servisinin profil okuması (LIB-10, LIB-11)
 
@@ -3355,7 +3547,7 @@ sub/scope/target/viewer pozitif-negatif sınanır. Gerçek token edinme ve User 
 
 ### LIBRARY — Recommendation girdileri (LIB-14)
 
-Durum: IMPLEMENTED (Library kabul sınırı, Auth signals:read sözleşmesine uyarlandı); User izin kararı ve Recommendation tüketicisi PENDING.
+Durum: IMPLEMENTED (Library kabul sınırı, Auth signals:read sözleşmesi ve User `RECOMMENDATION` rıza kararı); gerçek User ve Recommendation ile uçtan uca NOT VERIFIED. Recommendation Service henüz bir istemci içermiyor.
 Sorumlu: Hamza
 Tüketici servisler: recommendation-service
 
@@ -3371,7 +3563,9 @@ target_user_id artık kabul edilmez. Kullanıcı at+jwt'si, D4 account:erase tok
 servislerin token'ları kabul edilmez. Ardından RECOMMENDATION amacıyla User'dan ayrı açık izin
 gerekir: Auth hesabın ACTIVE olduğunu denetler, kullanıcı iznini kanıtlamaz. Owner eşitliği bu amacı
 atlatmaz; PUBLIC profil tercihi kendi başına öneri kullanım izni sayılmaz. Üretim görünürlük
-adaptörü User karar API'si olmadığı için 503 ile kapalıdır.
+adaptörü User'a `POST /internal/v1/privacy/decisions` ile `field=RECOMMENDATION`, `viewerId = ownerId` sorar;
+User `allowed=true` ancak sahip, profil görünür ve açık rıza verilmişse döner (sahiplik kısayolu yok). Rıza yoksa 403,
+karar alınamazsa 503; Library yalnız `allowed` alanını okur.
 
 #### Path/Query Parameters
 userId UUID. page>=0 varsayılan 0; size=1..50 varsayılan 20.
@@ -3394,8 +3588,8 @@ tarih/version veya Game metadata'sı yoktur. Liste/toplam REPEATABLE_READ; no-st
 #### Bağlantı
 Doğrudan Library iç ağı; Game/diğer DB çağrısı yoktur. Auth tarafı hazırdır (PR #36, origin/main):
 Recommendation, POST /internal/v1/service-tokens ile clientId=recommendation-service, audience=library-service,
-accountId=<hesap UUID> göndererek token alır. Recommendation istemcisi ve User izin kararı henüz yoktur;
-kullanılabilir üretim entegrasyonu olarak değerlendirilmez.
+accountId=<hesap UUID> göndererek token alır. Recommendation istemcisi henüz yoktur; kullanılabilir üretim entegrasyonu olarak değerlendirilmez.
+Recommendation 403'ü "kullanıcı izni yok, atla", 503'ü "geçici hata, sonra dene" diye ele almalıdır.
 
 #### Test Durumu
 INTEGRATION — LibraryApiTest.PrivacyTests: 3 sinyal/2 sayfa, her iki bayrak, işaretsiz kayıt ve başka
@@ -3403,7 +3597,8 @@ owner dışlama, alan azaltma, yüksek offset, parametre sınırları, ret/ulaş
 sınırları (yanlış sub/scope/account_id, eksik veya kanonik olmayan account_id, süresi dolmuş, yanlış aud/typ,
 eski taslak kapsamı, D4 ve sinyal token'ının çapraz kullanılamaması). AuthIssuedServiceTokenIntegrationTest:
 Auth'un gerçek ServiceClientTokenIssuer çıktısı Library'nin gerçek HTTP/PostgreSQL katmanına karşı
-(User kararı SAHTE). Gerçek Recommendation ve gerçek User izin kararı E2E'si PENDING.
+(User kararı SAHTE); UserServiceLibraryVisibilityTest (RECOMMENDATION alanı, rıza yok → DENY, farklı viewer → DENY).
+Gerçek Recommendation ve gerçek User izin kararı E2E'si NOT VERIFIED.
 
 ### LIBRARY — Kütüphane listeleme (LIB-05, LIB-06, LIB-07, LIB-08, LIB-16, LIB-17)
 
@@ -5274,7 +5469,7 @@ UNIT + INTEGRATION (gerçek PostgreSQL; social-service 238 test PASS; `FanOutEve
 
 Sorumlu: Umut · Gateway: `/api/v1/messaging/**` · Görevler: MSG-
 
-Ortak kurallar (aşağıdaki tüm MESSAGING uçları için; görevler LTZ-UMT-MSG-01 (MSG-01..05, MSG-14, MSG-15), LTZ-UMT-MSG-02 (MSG-06..10, MSG-13, MSG-16, MSG-27), LTZ-UMT-MSG-03 (MSG-11, MSG-12), LTZ-UMT-MSG-04 (MSG-17, MSG-18, MSG-22) ve LTZ-UMT-MSG-05 (MSG-19, MSG-20, MSG-23..26)):
+Ortak kurallar (aşağıdaki tüm MESSAGING uçları için; görevler LTZ-UMT-MSG-01 (MSG-01..05, MSG-14, MSG-15), LTZ-UMT-MSG-02 (MSG-06..10, MSG-13, MSG-16, MSG-27), LTZ-UMT-MSG-03 (MSG-11, MSG-12), LTZ-UMT-MSG-04 (MSG-17, MSG-18, MSG-22), LTZ-UMT-MSG-05 (MSG-19, MSG-20, MSG-23..26) ve LTZ-UMT-MSG-06 (MSG-21)):
 - Tüm uçlar `Authorization: Bearer <access token>` (kullanıcı token'ı, `typ=at+jwt`) ister; Gateway tarayıcı çerezini Bearer'a çevirir. Token servis tarafında Auth'un JWKS anahtarıyla yeniden doğrulanır (RS256, `iss`, `aud`, `typ=at+jwt`, `exp`/`nbf`/`iat`/`sub` zorunlu, 30 sn saat payı). Servis token'ı (`svc+jwt`) bu uçlarda geçmez. Messaging'in henüz iç (`/internal/**`) ucu yoktur; bu yollar kapalıdır.
 - `userId` yalnız token'ın `sub` alanından alınır; gövde/başlıktaki kimlik (`senderId`, `ownerId`, `X-User-Id` vb.) güvenilmez: gövdedeki bilinmeyen alan `400`, başlıklar yok sayılır.
 - Kimliksiz/geçersiz token `401 UNAUTHENTICATED`. Hata gövdesi `ProblemDetail` + `code`; doğrulama hatalarında `errors: [{field, code}]` döner, gönderilen değer geri yansıtılmaz. İstek gövdesi en fazla 32 KB (`413 PAYLOAD_TOO_LARGE`); yalnız görsel yükleme ucunda 1 MB.
@@ -5338,7 +5533,7 @@ Diğer mikroservisler:
 social-service `POST /internal/v1/blocks/check` (RestClient). Token: Auth `POST /internal/v1/service-tokens` (`clientId: "messaging-service"`, `audience: "social-service"`, `scope=blocks:check`, 60 sn); gizli anahtar `AUTH_MESSAGING_SERVICE_CLIENT_SECRET`.
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 305 test PASS; engel Social yerine test adaptörüyle, gerçek Social istemcisi MockRestServiceServer ile). Gerçek Auth + Social ile uçtan uca: NOT VERIFIED.
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 388 test PASS; engel Social yerine test adaptörüyle, gerçek Social istemcisi MockRestServiceServer ile). Gerçek Auth + Social ile uçtan uca: NOT VERIFIED.
 
 ### MESSAGING — Grup sohbeti oluştur (MSG-02)
 
@@ -5381,7 +5576,7 @@ Diğer mikroservisler:
 social-service engel sorgusu (oluşturan ↔ tüm ilk üyeler, tek toplu çağrı).
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 305 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED.
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 388 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED.
 
 ### MESSAGING — Sohbet detayı (MSG-14)
 
@@ -5417,7 +5612,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 305 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 388 test PASS)
 
 ### MESSAGING — Gruba üye ekle (MSG-03)
 
@@ -5464,7 +5659,7 @@ Diğer mikroservisler:
 social-service engel sorgusu (tek toplu çağrı).
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 305 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED.
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 388 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED.
 
 ### MESSAGING — Gruptan üye çıkar (MSG-05)
 
@@ -5501,7 +5696,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 305 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 388 test PASS)
 
 ### MESSAGING — Üye rolünü değiştir (MSG-03)
 
@@ -5546,7 +5741,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 305 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 388 test PASS)
 
 ### MESSAGING — Gruptan ayrıl (MSG-04)
 
@@ -5581,7 +5776,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 305 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 388 test PASS)
 
 ### MESSAGING — Sohbet listesi (MSG-08, MSG-13, MSG-11)
 
@@ -5636,9 +5831,9 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 305 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 388 test PASS)
 
-### MESSAGING — Mesaj gönder (metin MSG-06, görsel MSG-17, emoji MSG-18, GIF MSG-22, yanıt MSG-19; MSG-10, MSG-11)
+### MESSAGING — Mesaj gönder (metin MSG-06, görsel MSG-17, emoji MSG-18, GIF MSG-22, yanıt MSG-19, sesli mesaj MSG-21; MSG-10, MSG-11)
 
 Durum: IMPLEMENTED
 Sorumlu: Umut
@@ -5657,8 +5852,8 @@ Authenticated + sohbetin aktif üyesi; birebir sohbette iki taraf arasında herh
 ```json
 {
   "clientMessageId": "string, zorunlu, 1–64 karakter [A-Za-z0-9_-] (istemcinin ürettiği tekil kimlik, ör. UUID)",
-  "body": "string; metin mesajında zorunlu, görsel/GIF mesajında isteğe bağlı açıklama; en fazla 4000 UTF-16 birimi",
-  "attachmentId": "UUID, opsiyonel (görsel mesajı, MSG-17)",
+  "body": "string; metin mesajında zorunlu, görsel/GIF mesajında isteğe bağlı açıklama, sesli mesajda verilemez; en fazla 4000 UTF-16 birimi",
+  "attachmentId": "UUID, opsiyonel (yüklenmiş görsel MSG-17 ya da ses MSG-21)",
   "gif": { "provider": "GIPHY", "id": "string [A-Za-z0-9]{1,64}" },
   "replyToMessageId": "UUID, opsiyonel (yanıt, MSG-19)"
 }
@@ -5707,26 +5902,26 @@ Authenticated + sohbetin aktif üyesi; birebir sohbette iki taraf arasında herh
   "deletableForEveryoneUntil": "ISO-8601 (UTC) veya null"
 }
 ```
-- `type`: `TEXT | IMAGE | GIF`. `gif` yalnız `GIF` türünde, `attachment` (bkz. "Mesaj görseli yükle" yanıtı) yalnız `IMAGE` türünde doludur, diğerlerinde `null`. Görsel/GIF mesajında `body` açıklama yoksa `null`'dır. Aynı alanlar geçmişte, sohbet listesindeki `lastMessage`'ta ve akıştaki `message` olayında da döner.
+- `type`: `TEXT | IMAGE | GIF | VOICE`. Tür istemciden alınmaz: `attachmentId` ile gönderilen dosya ses ise `VOICE` (MSG-21), görsel ise `IMAGE`. `gif` yalnız `GIF` türünde, `attachment` (bkz. "Mesaj eki yükle" yanıtı) yalnız `IMAGE` ve `VOICE` türünde doludur, diğerlerinde `null`. `VOICE` mesajında `body` her zaman `null`'dır. Görsel/GIF mesajında `body` açıklama yoksa `null`'dır. Aynı alanlar geçmişte, sohbet listesindeki `lastMessage`'ta ve akıştaki `message` olayında da döner.
 - `readStatus` (MSG-11): isteyen mesajın göndereniyse dolu, değilse `null`. Yeni gönderilen mesaj `SENT` döner; yeniden denemede (200) durum o anki su seviyesinden hesaplanır.
-- `replyTo` (MSG-19): yalnız yanıtta dolu; **isteyene göre** hesaplanır. Hedefi görebiliyorsa gönderen, tür ve `snippet` (gövdenin ilk 100 UTF-16 birimi, emoji ortadan bölünmez; görsel/GIF'te açıklama ya da `null`). Hedef herkesten silinmişse `deleted: true`, `snippet` yok. Hedefi göremiyorsa (katılımından önceki ya da benden silinmiş mesaj) `unavailable: true` ve yalnız `messageId`; gönderen ve içerik dönmez.
+- `replyTo` (MSG-19): yalnız yanıtta dolu; **isteyene göre** hesaplanır. Hedefi görebiliyorsa gönderen, tür ve `snippet` (gövdenin ilk 100 UTF-16 birimi, emoji ortadan bölünmez; görsel/GIF'te açıklama ya da `null`, seste `null`). Hedef herkesten silinmişse `deleted: true`, `snippet` yok. Hedefi göremiyorsa (katılımından önceki ya da benden silinmiş mesaj) `unavailable: true` ve yalnız `messageId`; gönderen ve içerik dönmez.
 - `forwarded` / `forwardedManyTimes` (MSG-20): mesaj en az bir kez / en az 5 kez iletilmiş. Orijinal gönderen kopyada tutulmaz ve dönmez.
 - `deleted` (MSG-26): herkesten silindi; bkz. ortak kurallar.
 - `reactions` (MSG-23): emoji başına sayı (çoktan aza, eşitlikte ilk tepki önce) ve isteyenin kendi tepkisi (`mine`). Silinmiş mesajda boş.
 - `deletableForEveryoneUntil` (MSG-24/26): isteyen bu mesajı herkesten silebiliyorsa son an (gönderim + 48 saat), silemiyorsa `null`. Hak: mesajın göndereni ya da grupta `OWNER`/`ADMIN`.
-- **201** yeni mesaj. **200** aynı `clientMessageId` ve aynı içerikle (görselde aynı `attachmentId`, GIF'te aynı kimlik; platform yeniden çağrılmaz) yapılmış yeniden deneme: kayıtlı mesaj döner, yeni mesaj/olay üretilmez (ağ yeniden denemesi çift mesaj oluşturmaz). Tekillik veritabanında da zorlanır: `(senderId, clientMessageId)`.
+- **201** yeni mesaj. **200** aynı `clientMessageId` ve aynı içerikle (görselde aynı `attachmentId`, GIF'te aynı kimlik; platform yeniden çağrılmaz) yapılmış yeniden deneme (seste aynı `attachmentId`): kayıtlı mesaj döner, yeni mesaj/olay üretilmez (ağ yeniden denemesi çift mesaj oluşturmaz). Tekillik veritabanında da zorlanır: `(senderId, clientMessageId)`.
 - `seq` sohbet içinde boşluksuz ve artandır; sohbet satırı kilitlenerek verilir, böylece sıra commit sırasıyla aynıdır (eşzamanlı gönderim testli).
 - Aynı transaction'da: gönderenin okuma işaretçisi bu mesaja ilerler (ilerlediyse okuma aralığı da yazılır, MSG-11) ve `MessageSent` olayı outbox'a yazılır (bkz. "Giden olay sözleşmeleri"). Commit sonrası mesaj, gönderim anındaki aktif üyelerin açık akışlarına iletilir (MSG-09); işaretçi ilerlediği için, ilerleyen aralıkta başka bir aktif üyenin mesajı varsa `read` olayı da gider (bkz. "Gerçek zamanlı mesaj akışı").
 - Oran sınırı: kullanıcı başına son 60 sn'de en fazla 30 mesaj (`ltz.messaging.messages.max-per-minute`).
 
 #### Hata Durumları
-- 400: Metin mesajında eksik `body`; boş/uzun `body`, kontrol karakteri, eşlenmemiş vekil, geçersiz `clientMessageId`, geçersiz `gif.id`/`gif.provider`, tanımsız alan (ör. `senderId`, `gif.url`) (`VALIDATION_FAILED`, `MALFORMED_REQUEST`); içerik yok (`MESSAGE_CONTENT_REQUIRED`); görsel ile GIF birlikte (`CONFLICTING_MESSAGE_CONTENT`)
+- 400: Metin mesajında eksik `body`; boş/uzun `body`, kontrol karakteri, eşlenmemiş vekil, geçersiz `clientMessageId`, geçersiz `gif.id`/`gif.provider`, tanımsız alan (ör. `senderId`, `gif.url`) (`VALIDATION_FAILED`, `MALFORMED_REQUEST`); içerik yok (`MESSAGE_CONTENT_REQUIRED`); dosya ile GIF birlikte (`CONFLICTING_MESSAGE_CONTENT`); sesli mesajda `body` (`VOICE_CAPTION_NOT_ALLOWED`; mesaj kaydedilmez, ses bağlanmamış kalır)
 - 401: Kimlik yok/geçersiz
 - 403: Birebir sohbette aralarında engel var (`MESSAGING_NOT_ALLOWED`; GIF platformu çağrılmaz)
 - 404: Sohbet yok ya da aktif üyesi değilsiniz (`CONVERSATION_NOT_FOUND`); yanıt hedefi bu sohbette değil ya da göremiyorsunuz (`MESSAGE_NOT_FOUND`)
 - 409: `clientMessageId` başka bir içerik, yanıt hedefi ya da sohbet için kullanılmış (`CLIENT_MESSAGE_ID_REUSED`)
 - 413: İstek gövdesi 32 KB'ı aşıyor
-- 422: Görsel yok, başkasının, başka sohbetin, süresi dolmuş ya da zaten gönderilmiş (`ATTACHMENT_NOT_AVAILABLE`); GIF platformda yok ya da izinli değil (`GIF_NOT_AVAILABLE`); yanıt hedefi herkesten silinmiş (`MESSAGE_DELETED`)
+- 422: Dosya (görsel/ses) yok, başkasının, başka sohbetin, süresi dolmuş ya da zaten gönderilmiş (`ATTACHMENT_NOT_AVAILABLE`); GIF platformda yok ya da izinli değil (`GIF_NOT_AVAILABLE`); yanıt hedefi herkesten silinmiş (`MESSAGE_DELETED`)
 - 429: Gönderim oranı aşıldı (`TOO_MANY_MESSAGES`)
 - 503: Birebir sohbette engel durumu öğrenilemedi (`BLOCK_CHECK_UNAVAILABLE`); GIF platformu kapalı/ulaşılamıyor (`GIF_PROVIDER_UNAVAILABLE`); mesaj kaydedilmez
 - 500: Beklenmeyen sunucu hatası
@@ -5739,9 +5934,9 @@ Diğer mikroservisler:
 Birebir sohbette social-service engel sorgusu. GIF mesajında GIPHY `GET /v1/gifs/{id}` (bkz. "GIF ara"). `MessageSent` olayı outbox'a (notification-service) — teslim **PENDING**; olay içerik/görsel taşımaz.
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 305 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED. Gerçek GIPHY ile: NOT VERIFIED.
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 388 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED. Gerçek GIPHY ile: NOT VERIFIED.
 
-### MESSAGING — Mesaj görseli yükle (MSG-17)
+### MESSAGING — Mesaj eki yükle: görsel (MSG-17) / sesli mesaj (MSG-21)
 
 Durum: IMPLEMENTED
 Sorumlu: Umut
@@ -5757,40 +5952,53 @@ Authenticated + sohbetin aktif üyesi. Yükleyen = token sahibi.
 - conversationId: UUID, zorunlu
 
 #### Request Body
-Gövde **dosyanın kendisidir** (çok parçalı form değil). `Content-Type`: `image/png`, `image/jpeg` ya da `image/gif`. Gövde en çok **1 MB** (1 048 576 bayt); bu uç için genel 32 KB sınırı yerine 1 MB uygulanır.
+Gövde **dosyanın kendisidir** (çok parçalı form değil). `Content-Type`: görselde `image/png`, `image/jpeg` ya da `image/gif`; seste `audio/webm` ya da `audio/ogg` (parametreler, ör. `;codecs=opus`, yok sayılır). Gövde en çok **1 MB** (1 048 576 bayt); bu uç için genel 32 KB sınırı yerine 1 MB uygulanır.
 
-Sunucu doğrulaması (SECURITY.md §13):
+#### Query Parameters
+- waveform: string, opsiyonel, **yalnız seste**: dalga formu; virgülle ayrılmış tam **64** tam sayı, her biri **0–100** (ör. `0,12,55,...`). Boşluk, baştaki sıfır ve fazla/eksik değer `400 INVALID_WAVEFORM`; görsel yüklemede verilirse de `400`. İstemcinin kayıt sırasında ürettiği beyandır (sunucu sesi çözmez); yalnız çizim içindir.
+
+Sunucu doğrulaması — görsel (SECURITY.md §13):
 - Biçim ilk baytlardan (magic byte) belirlenir ve `Content-Type` ile aynı olmalıdır; SVG, HTML, WebP ve tanınmayan her şey reddedilir. Dosya adı alınmaz, kimlik sunucuda üretilir.
 - PNG/JPEG: en çok 4096 px kenar ve 12 582 912 piksel (başlıktan, çözmeden önce denetlenir). Görsel çözülür, JPEG'in EXIF yönü uygulanır ve **aynı biçimde yeniden kodlanır**: EXIF/konum ve gömülü veri atılır. Sonuç 1 MB'ı aşarsa orantılı küçültülür, yine aşarsa `422 IMAGE_TOO_LARGE`.
 - GIF yeniden kodlanmaz (animasyon korunur); blok yapısı doğrulanır, yorum/metin/uygulama blokları ve kapanıştan sonraki her bayt atılır. En çok 2048 px kenar, 300 kare ve kenar × kenar × kare ≤ 150 milyon.
 - Aynı anda en çok 2 görsel işlenir; sıra 2 sn'den uzun beklerse `503 MEDIA_BUSY`.
+
+Sunucu doğrulaması — ses (MSG-21, SECURITY.md §13):
+- Yalnız **Opus**; biçim ilk baytlardan belirlenir (Ogg `OggS`, WebM EBML `1A45DFA3`) ve `Content-Type` ile aynı olmalıdır. Ogg: tek mantıksal akış, art arda gelen ve CRC'si doğru sayfalar, `OpusHead` + `OpusTags`. WebM: `DocType` `webm`, tek iz (`A_OPUS`); tarayıcı `MediaRecorder`'ının boyutu bilinmeyen `Segment`/`Cluster` öğeleri desteklenir, laced blok desteklenmez. `OpusHead`: 1–2 kanal, eşleme ailesi 0.
+- Her Opus paketi RFC 6716'ya göre yapısal olarak doğrulanır. **Süre paketlerden hesaplanır** (Σ örnek − pre-skip, 48 kHz); kapsayıcının süresine ve zaman damgalarına bakılmaz. Süre **0,5 sn – 2 dk** (2:00'de durdurulan kaydın birkaç ms fazlası için 1 sn tolerans; `ltz.messaging.voice.*`).
+- **Yeniden paketleme:** dosya olduğu gibi saklanmaz. Yalnız Opus paketleri alınır (paket dolgu baytları atılır) ve **sıfırdan yeni bir WebM** yazılır: başlık standart değerlerle kurulur (kazanç 0), süre (`Duration`) dolu, ileri sarma için `Cues` var. Etiketler (`OpusTags`, WebM `Tags`), ek iz/akış, bilinmeyen öğeler ve sondaki baytlar çıktıya geçmez. Saklanan tür her zaman `audio/webm`. Çıktı 1 MB'ı aşarsa `422 AUDIO_TOO_LARGE`. Ses verisinin içine gömülü bilgi (steganografi) yeniden kodlama olmadan kaldırılamaz (SECURITY.md §13).
+- Aynı anda en çok 2 ses işlenir (görselle aynı ayar, ayrı sıra); sıra 2 sn'den uzun beklerse `503 MEDIA_BUSY`.
+- İstemci notu: tarayıcının varsayılan bit hızıyla 2 dakikalık kayıt 1 MB'ı aşar; `MediaRecorder` için `audioBitsPerSecond` ≈ 32000 kullanılmalıdır.
 
 #### Response — 201
 `Attachment` (`Cache-Control: no-store`):
 ```json
 {
   "id": "UUID",
-  "mimeType": "image/png | image/jpeg | image/gif",
+  "mimeType": "image/png | image/jpeg | image/gif | audio/webm",
   "sizeBytes": 12345,
-  "width": 640,
-  "height": 480,
-  "frameCount": 1,
+  "width": "640 (görselde) | null (seste)",
+  "height": "480 (görselde) | null (seste)",
+  "frameCount": "1 (görselde) | null (seste)",
+  "durationMs": "null (görselde) | 42350 (seste)",
+  "waveform": "null | [64 tam sayı, 0–100] (yalnız seste, verildiyse)",
   "url": "/api/v1/messaging/conversations/{conversationId}/attachments/{id}"
 }
 ```
-- `width`/`height` saklanan (yön uygulanmış) görselindir; `frameCount` GIF'te kare sayısı, diğerlerinde 1.
-- Görsel henüz bir mesaja bağlı değildir: `attachmentId` ile mesaj gönderilince bağlanır (bkz. "Mesaj gönder"). **1 saat** içinde gönderilmezse silinir (temizlik 10 dakikada bir).
-- Oran sınırı: kullanıcı başına dakikada 10 yükleme (`TOO_MANY_UPLOADS`) ve gönderilmeyi bekleyen en çok 10 görsel (`TOO_MANY_PENDING_ATTACHMENTS`).
+- `width`/`height` saklanan (yön uygulanmış) görselindir; `frameCount` GIF'te kare sayısı, diğerlerinde 1. Seste bu üç alan `null`'dır.
+- `durationMs` sunucunun paketlerden hesapladığı çalınma süresidir; `sizeBytes` yeniden paketlenmiş dosyanındır.
+- Dosya henüz bir mesaja bağlı değildir: `attachmentId` ile mesaj gönderilince bağlanır (bkz. "Mesaj gönder"). **1 saat** içinde gönderilmezse silinir (temizlik 10 dakikada bir).
+- Oran sınırı (görsel ve ses **ortak**): kullanıcı başına dakikada 10 yükleme (`TOO_MANY_UPLOADS`) ve gönderilmeyi bekleyen en çok 10 dosya (`TOO_MANY_PENDING_ATTACHMENTS`).
 
 #### Hata Durumları
-- 400: Boş gövde
+- 400: Boş gövde; geçersiz ya da görselde verilmiş `waveform` (`INVALID_WAVEFORM`)
 - 401: Kimlik yok/geçersiz
 - 404: Sohbet yok ya da aktif üyesi değilsiniz (`CONVERSATION_NOT_FOUND`)
 - 413: Gövde 1 MB'ı aşıyor (`PAYLOAD_TOO_LARGE`)
 - 415: Desteklenmeyen `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`; gönderilen tür yansıtılmaz)
-- 422: İçerik `Content-Type` ile uyuşmuyor ya da görsel değil (`INVALID_IMAGE`); boyut/kare sınırı (`IMAGE_DIMENSIONS_EXCEEDED`); işlem sonrası 1 MB'ı aşıyor (`IMAGE_TOO_LARGE`)
+- 422: İçerik `Content-Type` ile uyuşmuyor ya da görsel değil (`INVALID_IMAGE`); boyut/kare sınırı (`IMAGE_DIMENSIONS_EXCEEDED`); işlem sonrası 1 MB'ı aşıyor (`IMAGE_TOO_LARGE`); ses Opus değil, bozuk ya da `Content-Type` ile uyuşmuyor (`INVALID_AUDIO`; ayrıntı yansıtılmaz); süre 0,5 sn – 2 dk dışında (`AUDIO_DURATION_OUT_OF_RANGE`); yeniden paketlenmiş ses 1 MB'ı aşıyor (`AUDIO_TOO_LARGE`)
 - 429: `TOO_MANY_UPLOADS`, `TOO_MANY_PENDING_ATTACHMENTS`
-- 503: Görsel işleme meşgul (`MEDIA_BUSY`)
+- 503: Görsel ya da ses işleme meşgul (`MEDIA_BUSY`)
 - 500: Beklenmeyen sunucu hatası
 
 #### Bağlantı
@@ -5801,30 +6009,34 @@ Diğer mikroservisler:
 - (Ayrı medya servisi yoktur; içerik `messaging_db`'de `bytea`.)
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 305 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 388 test PASS)
 
-### MESSAGING — Mesaj görselini indir (MSG-17)
+### MESSAGING — Mesaj ekini indir / sesi dinle (MSG-17, MSG-21)
 
 Durum: IMPLEMENTED
 Sorumlu: Umut
-Tüketici servisler: Frontend (`<img src>`; Gateway çerezi Bearer'a çevirir)
+Tüketici servisler: Frontend (`<img src>`, `<audio src>`; Gateway çerezi Bearer'a çevirir)
 
 #### Endpoint
 GET /api/v1/messaging/conversations/{conversationId}/attachments/{attachmentId}
 
 #### Yetkilendirme
-Authenticated + sohbetin aktif üyesi. Mesaja bağlı görseli yalnız **o mesajı görebilen** üye (katıldıktan sonraki mesaj) indirir; henüz gönderilmemiş görseli yalnız yükleyen indirir. Ayrılan/çıkarılan üye indiremez.
+Authenticated + sohbetin aktif üyesi. Mesaja bağlı dosyayı (görsel/ses) yalnız **o mesajı görebilen** üye (katıldıktan sonraki, benden silmediği mesaj) indirir; henüz gönderilmemiş dosyayı yalnız yükleyen indirir. Ayrılan/çıkarılan üye indiremez. Yetki her istekte (bayt aralığı istekleri dahil) aralık hesaplanmadan önce denetlenir.
 
 #### Path Parameters
 - conversationId: UUID, zorunlu
 - attachmentId: UUID, zorunlu
 
 #### Response — 200
-Görselin baytları. Başlıklar: `Content-Type` (saklanan tür), `Content-Disposition: inline`, `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; sandbox`, `Cache-Control: no-store, private` (her istekte yetki yeniden denetlenir).
+Dosyanın baytları. Başlıklar: `Content-Type` (saklanan tür; seste `audio/webm`), `Content-Disposition: inline`, `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; sandbox`, `Cache-Control: no-store, private` (her istekte yetki yeniden denetlenir), `Accept-Ranges: bytes`.
+
+#### Response — 206 (MSG-21)
+`Range: bytes=...` isteğinde istenen aralık ve `Content-Range` başlığı (tarayıcı oynatıcısı, özellikle Safari, sesi parça parça ister); güvenlik başlıkları aynı. Karşılanamayan aralık `416`.
 
 #### Hata Durumları
 - 401: Kimlik yok/geçersiz
-- 404: Sohbet yok ya da aktif üyesi değilsiniz (`CONVERSATION_NOT_FOUND`); görsel yok, başka sohbetin, göremediğiniz bir mesajın ya da başkasının gönderilmemiş görseli (`ATTACHMENT_NOT_FOUND`; hepsi aynı yanıt)
+- 404: Sohbet yok ya da aktif üyesi değilsiniz (`CONVERSATION_NOT_FOUND`); dosya yok, başka sohbetin, göremediğiniz bir mesajın ya da başkasının gönderilmemiş dosyası (`ATTACHMENT_NOT_FOUND`; hepsi aynı yanıt)
+- 416: Karşılanamayan bayt aralığı
 - 500: Beklenmeyen sunucu hatası
 
 #### Bağlantı
@@ -5835,7 +6047,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 305 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 388 test PASS)
 
 ### MESSAGING — GIF ara (MSG-22)
 
@@ -5893,7 +6105,7 @@ Diğer mikroservisler:
 Dış sağlayıcı: GIPHY API v1 `GET /v1/gifs/search` (anahtar `GIPHY_API_KEY`, yalnız sunucuda; istek adresi hiçbir hataya/loga yazılmaz). İstek otomatik tekrarlanmaz.
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; GIPHY istemcisi MockRestServiceServer ile; messaging-service 305 test PASS). Gerçek GIPHY ile: NOT VERIFIED (anahtar yok).
+UNIT + INTEGRATION (gerçek PostgreSQL; GIPHY istemcisi MockRestServiceServer ile; messaging-service 388 test PASS). Gerçek GIPHY ile: NOT VERIFIED (anahtar yok).
 
 ### MESSAGING — Öne çıkan GIF'ler (MSG-22)
 
@@ -5926,7 +6138,7 @@ Diğer mikroservisler:
 Dış sağlayıcı: GIPHY API v1 `GET /v1/gifs/trending`.
 
 #### Test Durumu
-UNIT + INTEGRATION (messaging-service 305 test PASS). Gerçek GIPHY ile: NOT VERIFIED.
+UNIT + INTEGRATION (messaging-service 388 test PASS). Gerçek GIPHY ile: NOT VERIFIED.
 
 ### MESSAGING — Mesaj geçmişi (MSG-07, MSG-09 eşitleme, MSG-11)
 
@@ -5975,7 +6187,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 305 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 388 test PASS)
 
 ### MESSAGING — Mesajı görenler (MSG-12)
 
@@ -6023,7 +6235,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; `MessageReadsTest` 8 test; messaging-service 305 test PASS). Gateway üzerinden gerçek kullanıcılarla: NOT VERIFIED.
+UNIT + INTEGRATION (gerçek PostgreSQL; `MessageReadsTest` 8 test; messaging-service 388 test PASS). Gateway üzerinden gerçek kullanıcılarla: NOT VERIFIED.
 
 ### MESSAGING — Okundu işaretle (MSG-13, MSG-11)
 
@@ -6067,7 +6279,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 305 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 388 test PASS)
 
 ### MESSAGING — Mesajı sil: benden / herkesten (MSG-25, MSG-26)
 

@@ -31,7 +31,8 @@ import com.ltz.messaging.infrastructure.messaging.realtime.SseMessageHub;
         ReactionProperties.class,
         RequestLimitProperties.class,
         ServiceClientProperties.class,
-        StreamProperties.class
+        StreamProperties.class,
+        VoiceProperties.class
 })
 public class MessagingApplicationConfig {
 

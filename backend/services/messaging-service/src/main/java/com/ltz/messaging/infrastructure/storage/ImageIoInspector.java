@@ -4,7 +4,6 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Iterator;
-import java.util.Locale;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
@@ -68,7 +67,7 @@ public class ImageIoInspector implements ImageInspectorPort {
             throw new MessagingException(MessagingErrorCode.IMAGE_TOO_LARGE);
         }
         String detected = detect(content);
-        if (detected == null || !detected.equals(normalize(declaredContentType))) {
+        if (detected == null || !detected.equals(MediaTypes.normalize(declaredContentType))) {
             throw new MessagingException(MessagingErrorCode.INVALID_IMAGE);
         }
         acquireSlot();
@@ -174,15 +173,5 @@ public class ImageIoInspector implements ImageInspectorPort {
             }
         }
         return true;
-    }
-
-    /** {@code image/png; charset=x} → {@code image/png}. */
-    private static String normalize(String contentType) {
-        if (contentType == null) {
-            return "";
-        }
-        int parameters = contentType.indexOf(';');
-        String type = parameters < 0 ? contentType : contentType.substring(0, parameters);
-        return type.trim().toLowerCase(Locale.ROOT);
     }
 }
