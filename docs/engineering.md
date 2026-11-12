@@ -290,7 +290,7 @@ Resmî dil desteği, LTZ build'inin başarı kanıtı değildir.
 
 Amaç: herkes hızlı PR açabilsin, ama kod kalitesi **hiçbir zaman kötüleşmesin** ve eski borç **unutulmasın**.
 Maven'de Checkstyle ve PMD artık yalnız **raporlar** (`target/checkstyle-result.xml`, `target/pmd.xml`); build'i
-kırmaz. Kararı `pre-push/ci/lint-ratchet.mjs` verir ve CI'da `Backend Verify` içinde, yerelde `backend-check`/`full`
+kırmaz. Kararı `pre-push/ci/lint-ratchet.mjs` verir ve CI'da `Backend Verify (<modül>)` içinde (her seçili modül ayrı matrix bacağı ve ayrı PostgreSQL, en fazla 4 paralel), yerelde `backend-check`/`full`
 içinde çalışır. Kurallar (`backend/config/checkstyle.xml`, `pmd.xml`) **değişmedi**, yeni kod için gevşetme yoktur.
 
 - **Eski borç donuk:** Bugünkü ihlaller `backend/config/quality-baseline.json` içinde servis → dosya → kural bazında
