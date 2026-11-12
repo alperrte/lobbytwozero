@@ -1,4 +1,4 @@
-import { emailPattern, registerLimits } from "./register.schema";
+import { emailPattern, hasRequiredPasswordComposition, registerLimits } from "./register.schema";
 
 /**
  * Şifremi unuttum / şifre sıfırlama formları (kaynak: `POST /password/forgot`, `POST /password/reset`). Hata MESAJI değil
@@ -25,7 +25,7 @@ export type ResetValues = { newPassword: string; confirmation: string };
 export const emptyResetValues: ResetValues = { newPassword: "", confirmation: "" };
 
 export type ResetErrors = {
-  newPassword?: "required" | "tooShort" | "tooLong";
+  newPassword?: "required" | "tooShort" | "tooLong" | "composition";
   confirmation?: "required" | "mismatch";
 };
 
@@ -38,6 +38,8 @@ export function validateReset(values: ResetValues): ResetErrors {
     errors.newPassword = "tooShort";
   } else if (values.newPassword.length > registerLimits.passwordMax) {
     errors.newPassword = "tooLong";
+  } else if (!hasRequiredPasswordComposition(values.newPassword)) {
+    errors.newPassword = "composition";
   }
 
   if (values.confirmation === "") {

@@ -1,5 +1,5 @@
 import { ApiHttpError } from "@/shared/lib/api/client";
-import type { AuthMe, DeletionSupportRequest, LoginResult, TotpEnrollment } from "../types/auth.types";
+import type { AdminAccount, AdminDeletionRequest, AdminTargetStatus, AuthMe, DeletionSupportRequest, LoginResult, TotpEnrollment } from "../types/auth.types";
 import { authRequest } from "./auth-http";
 
 /** Giriş uçlarının arayüzü; hook bunu enjekte alır (test için sahte adaptör verilebilir). */
@@ -68,7 +68,104 @@ function toSupportRequest(value: unknown): DeletionSupportRequest {
   };
 }
 
+/** Yönetici silme talebi kuyruğu (ROLE_ADMIN; yetki kararı sunucudadır). */
+export type AdminDeletionApi = {
+  listDeletionRequests(limit?: number, signal?: AbortSignal): Promise<AdminDeletionRequest[]>;
+  approveDeletionRequest(requestId: string, message?: string, signal?: AbortSignal): Promise<void>;
+  rejectDeletionRequest(requestId: string, message?: string, signal?: AbortSignal): Promise<void>;
+};
+
+function toAdminRequest(value: unknown): AdminDeletionRequest {
+  const r = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+  const text = (key: string) => (typeof r[key] === "string" ? (r[key] as string) : null);
+  return {
+    id: text("id") ?? "",
+    accountId: text("accountId") ?? "",
+    status: text("status") ?? "UNKNOWN",
+    message: text("message"),
+    createdAt: text("createdAt") ?? "",
+    decidedAt: text("decidedAt"),
+    decidedBy: text("decidedBy"),
+    decisionNote: text("decisionNote")
+  };
+}
+
+function toAdminAccount(value: unknown): AdminAccount {
+  const r = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+  return {
+    id: typeof r.id === "string" ? r.id : "",
+    username: typeof r.username === "string" ? r.username : "",
+    status: typeof r.status === "string" ? r.status : "UNKNOWN",
+    roles: Array.isArray(r.roles) ? r.roles.filter((item): item is string => typeof item === "string") : [],
+    twoFactorEnabled: r.twoFactorEnabled === true,
+    createdAt: typeof r.createdAt === "string" ? r.createdAt : "",
+    suspendedUntil: typeof r.suspendedUntil === "string" ? r.suspendedUntil : null
+  };
+}
+
 export const authApi = {
+  /** Tanımlı rol kodları (`ROLE_ADMIN` gerekir). */
+  async listAdminRoles(signal?: AbortSignal): Promise<string[]> {
+    const result = await authRequest<unknown>("/api/v1/auth/admin/roles", { signal });
+    return Array.isArray(result) ? result.filter((item): item is string => typeof item === "string") : [];
+  },
+
+  /** Hesap kimliğiyle yönetici görünümü. */
+  async getAdminAccount(accountId: string, signal?: AbortSignal): Promise<AdminAccount> {
+    return toAdminAccount(await authRequest<unknown>(`/api/v1/auth/admin/accounts/${encodeURIComponent(accountId)}`, { signal }));
+  },
+
+  /** Durum değiştirir (`204`); gerekçe zorunludur ve denetim kaydına yazılır. `suspendedUntil` yalnız SUSPENDED için. */
+  async changeAdminAccountStatus(
+    accountId: string,
+    body: { status: AdminTargetStatus; reason: string; suspendedUntil?: string },
+    signal?: AbortSignal
+  ): Promise<void> {
+    await authRequest<unknown>(`/api/v1/auth/admin/accounts/${encodeURIComponent(accountId)}/status`, {
+      method: "POST",
+      body,
+      signal
+    });
+  },
+
+  /** Rol verir ya da geri alır (`204`); gerekçe zorunludur. */
+  async changeAdminAccountRole(
+    accountId: string,
+    action: "grant" | "revoke",
+    body: { role: string; reason: string },
+    signal?: AbortSignal
+  ): Promise<void> {
+    await authRequest<unknown>(`/api/v1/auth/admin/accounts/${encodeURIComponent(accountId)}/roles/${action}`, {
+      method: "POST",
+      body,
+      signal
+    });
+  },
+
+  /** Bekleyen silme talepleri, en eski önce (`limit` sunucuda sınırlanır). */
+  async listDeletionRequests(limit = 50, signal?: AbortSignal): Promise<AdminDeletionRequest[]> {
+    const result = await authRequest<unknown>(`/api/v1/auth/admin/account-deletion-requests?limit=${limit}`, { signal });
+    return Array.isArray(result) ? result.map(toAdminRequest) : [];
+  },
+
+  /** Onay standart silme sürecini başlatır (bekleme süresi, servis görevleri, oturumlar kapanır). */
+  async approveDeletionRequest(requestId: string, message?: string, signal?: AbortSignal): Promise<void> {
+    await authRequest<unknown>(`/api/v1/auth/admin/account-deletion-requests/${encodeURIComponent(requestId)}/approve`, {
+      method: "POST",
+      body: message ? { message } : {},
+      signal
+    });
+  },
+
+  /** Ret hesabı değiştirmez; kullanıcı 24 saat yeni talep açamaz. */
+  async rejectDeletionRequest(requestId: string, message?: string, signal?: AbortSignal): Promise<void> {
+    await authRequest<unknown>(`/api/v1/auth/admin/account-deletion-requests/${encodeURIComponent(requestId)}/reject`, {
+      method: "POST",
+      body: message ? { message } : {},
+      signal
+    });
+  },
+
   /** Yalnız `status === "AUTHENTICATED"` oturum açılmıştır; MFA durumlarında çerez yazılmaz. */
   async login(identifier: string, password: string, signal?: AbortSignal): Promise<LoginResult> {
     const result = await authRequest<unknown>("/api/v1/auth/login", {

@@ -19,3 +19,8 @@ export { VerifyEmailForm } from "./components/verify-email-form";
 export { useSession } from "./hooks/use-session";
 export type { SessionValue } from "./hooks/use-session";
 export type { AuthMe } from "./types/auth.types";
+
+// Yönetim paneli (features/admin) için: Auth uçları ve hata kodu çevirisi.
+export { authApi } from "./services/auth-api";
+export { authErrorCode } from "./services/auth-http";
+export type { AdminAccount, AdminDeletionRequest, AdminTargetStatus, AuthErrorCode, LoginResult } from "./types/auth.types";

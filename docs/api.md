@@ -155,7 +155,7 @@ Public
 {
   "email": "string, zorunlu, geçerli e-posta, en fazla 254 karakter (büyük/küçük harf duyarsız tekil)",
   "username": "string, zorunlu, ^[A-Za-z0-9_]{3,20}$ (büyük/küçük harf duyarsız tekil, görünen biçim korunur)",
-  "password": "string, zorunlu, 15-128 karakter; içeriği dönüştürülmez; yaygın/tahmin edilebilir parola reddedilir (WEAK_PASSWORD)"
+  "password": "string, zorunlu, 8-128 karakter; en az bir büyük harf, küçük harf, rakam ve özel karakter (harf, rakam ve boşluk dışı); içeriği dönüştürülmez; yaygın/tahmin edilebilir parola reddedilir (WEAK_PASSWORD)"
 }
 ```
 
@@ -603,7 +603,7 @@ Oturum (çerez + CSRF veya Bearer). `request`: TOTP etkinse `code` veya `recover
 #### Kurallar
 - Yalnız parolası olmayan hesap kullanır; parolalı hesap `409 PASSWORD_ALREADY_SET` (parola değiştirme ayrı uçtur). "Unuttum" akışı parolasız hesaba token vermeye devam etmez.
 - Kod tek kullanımlıktır, süreli (`AUTH_OTP_TTL`) ve deneme sınırlıdır; yeniden gönderme bekleme süresi ve günlük sınır e-posta değiştirmeyle aynıdır. Yanlış/süresi dolmuş/tükenmiş kod tek hata döner: `400 PASSWORD_SET_INVALID`.
-- Parola politikası geçerlidir (en az 15 karakter, kara liste, kullanıcı bilgisi içermez): `400 WEAK_PASSWORD`; zayıf parola kodu yakmaz.
+- Parola politikası geçerlidir (en az 8 karakter, büyük/küçük harf + rakam + özel karakter, kara liste, kullanıcı bilgisi içermez): `400 WEAK_PASSWORD`; zayıf parola kodu yakmaz.
 - Güvenlik olayları: `PASSWORD_SET_REQUESTED`, `PASSWORD_SET_REJECTED`, `PASSWORD_SET_FAILED`, `PASSWORD_SET`.
 - Parola belirlendikten sonra cihaz bağlama, e-posta değiştirme ve harici kimlik bağlama (`PASSWORD_REQUIRED` hatası veren yollar) kullanılabilir; silme iptali (B17) de parolayla yapılabilir.
 
@@ -632,7 +632,7 @@ Authenticated (+ CSRF). Hesap kimliği yalnız token'dan alınır.
 ```json
 {
   "currentPassword": "string, zorunlu",
-  "newPassword": "string, zorunlu, 15-128 karakter; içeriği dönüştürülmez/kırpılmaz; yaygın/tahmin edilebilir parola reddedilir (WEAK_PASSWORD)",
+  "newPassword": "string, zorunlu, 8-128 karakter; en az bir büyük harf, küçük harf, rakam ve özel karakter; içeriği dönüştürülmez/kırpılmaz; yaygın/tahmin edilebilir parola reddedilir (WEAK_PASSWORD)",
   "newPasswordConfirmation": "string, zorunlu, newPassword ile birebir aynı"
 }
 ```
@@ -1452,7 +1452,7 @@ UNIT + INTEGRATION (`PublicProfileControllerTest` 12, `SocialProjectionTrustedTe
 
 Durum: IMPLEMENTED
 Sorumlu: Kerem
-Tüketici servisler: Frontend (arkadaş listesi, mesaj listesi gibi kimlik listelerine ad/avatar eklemek için)
+Tüketici servisler: Frontend (arkadaş listesi, mesaj listesi gibi kimlik listelerine ad/avatar eklemek için); Review frontend'i (inceleme kartında yazar adı/avatarı; Review yanıtındaki `authorUserId` buradan çözülür)
 
 #### Endpoint
 POST /api/v1/user/profiles/batch
@@ -1470,6 +1470,10 @@ Authenticated. Misafir `401`.
 { "items": [ { "userId": "UUID", "username": "string | null", "displayName": "string | null", "avatar": { "small": "...", "large": "...", "animated": false } } ] }
 ```
 İstek sırası korunur. Olmayan, yasaklı/devre dışı hesaplar ve izleyiciyle engel ilişkisi olanlar **sessizce atlanır** (hangisi olduğu sızdırılmaz). Askıdaki hesap listelenir. Tüm kart verisi en çok üç sorguyla okunur (N+1 yok). `Cache-Control: no-store, private`.
+
+**Gizlilik:** kart yalnız hesap durumuna ve çift yönlü engele bakar; profil gizlilik ayarına (gizli/arkadaşlara açık profil) **bakmaz**. Profili gizli olan kullanıcının adı ve avatarı bu uçta yine görünür (içerik herkese açık olduğu için `REVIEW_AUTHOR` kuralıyla aynı). Gizlilik ayarına tabi alanlar (biyografi, kitaplık vb.) bu uçta dönmez. Yanıtta görünmeyen kimlik için kayıt yoktur ("visible:false" gibi bir işaret döndürülmez).
+
+**İstemci notları (kod okumasıyla doğrulandı, canlı Gateway testi NOT VERIFIED):** Gateway çerezli, GET dışı isteklerde çerez/`X-XSRF-TOKEN` eşleşmesi arar; bu `POST` okuma anlamı taşısa da muaf değildir (`403 CSRF_TOKEN_INVALID`). Gateway hız sınırı yalnız Auth yollarındadır; bu uçta kota (429) yoktur. `avatar.small`/`avatar.large` Gateway'e göreli yoldur (`/api/v1/user/media/<anahtar>`), oturum gerektirmez; `small` yoksa `large` dosyası döner.
 
 #### Hata Durumları
 - 400: `VALIDATION_FAILED` (boş liste, 50'den fazla kimlik, geçersiz UUID)
@@ -2804,7 +2808,7 @@ Durum: IMPLEMENTED — mevcut korumalı giriş/no-op ve güvenlik engeli. **5 Ka
 
 **7 Kasım 2026 yeni kapsam: PLANNED.** Kullanıcı yalnız referanssız oyunlarda gerçek taşıma/ayırma için ayrı bir kapsam genişletmesi istedi; şimdiki teslim servis sahiplerine sözleşme taslağıdır. Bu talep asıl GAME-26'nın yarım kaldığı veya mevcut protokolün zaten uygulanmış olduğu anlamına gelmez. Yeni koordinasyon ve ortak kabul tamamlanana kadar HTTP koruması değişmez.
 
-Auth'ta Game → Library/Review için `game-references:read` hedef/kapsam izinleri tanımlıdır. Bu yalnız okuma yetkisidir; çalışan referans kontrol uçlarının, atomik dondurmanın veya prepare/finalize yetkilerinin hazır olduğunu kanıtlamaz. Yeni `game-identity:*` kapsamları taslaktır, Auth'a uygulanmış değildir.
+Auth'ta Game → Library/Review için `game-references:read` hedef/kapsam izinleri tanımlıdır. Bu yalnız okuma yetkisidir; çalışan referans kontrol uçlarının, atomik dondurmanın veya prepare/finalize yetkilerinin hazır olduğunu kanıtlamaz. `game-identity:prepare`, `game-identity:finalize`, `game-identity:read` ve `game-identity:decision:read` kapsamları ile hedef çiftleri Auth'ta tanımlı ve uygulanmıştır (`application.properties`, `TokenClaims`; yapılandırma testleri var). Bu yalnız servis token izinleridir: alıcı servislerdeki uçların çalıştığını veya koordinasyonun tamamlandığını kanıtlamaz (12 Kasım 2026 kod doğrulaması; canlı uçtan uca NOT VERIFIED).
 
 Güncel genişletme taslağı: `docs-Game Service/GAME-26-Servis-Sahipleri-Entegrasyon-Sozlesmesi.md`.
 Sorumlu: Hamza

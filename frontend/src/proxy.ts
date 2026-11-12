@@ -1,5 +1,6 @@
 import createMiddleware from "next-intl/middleware";
 import { NextResponse, type NextRequest } from "next/server";
+import { ADMIN_BASE_PATH } from "@/features/admin/config";
 import { canonicalPathFor } from "@/shared/lib/i18n/canonical-path";
 import { defaultLocale, localeCookieName, locales, type Locale } from "@/shared/lib/i18n/config";
 import { routing } from "@/shared/lib/i18n/routing";
@@ -19,6 +20,15 @@ function isLocale(value: string | undefined): value is Locale {
  */
 export default function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+
+  // Yönetim paneli: dil öneksiz, yalnız Türkçe; i18n yönlendirmesi uygulanmaz. Adres gizlidir (güvenlik Auth'tadır).
+  if (pathname === ADMIN_BASE_PATH) {
+    const response = NextResponse.next();
+    response.headers.set("Cache-Control", "no-store");
+    response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+    return response;
+  }
+
   const [, first, ...tail] = pathname.split("/");
 
   // Next can run the proxy again after next-intl rewrites an external slug to

@@ -184,16 +184,16 @@ describe("AccountSecuritySection", () => {
     await waitFor(() => expect(api.requestPasswordSet).toHaveBeenCalledWith(undefined));
 
     fireEvent.change(await screen.findByLabelText("E-postana gelen kod"), { target: { value: "111222" } });
-    fireEvent.change(screen.getByLabelText("Yeni parola (en az 15 karakter)"), { target: { value: "bir-uzun-parola-12345" } });
-    fireEvent.change(screen.getByLabelText("Yeni parola (tekrar)"), { target: { value: "baska-bir-parola-12345" } });
+    fireEvent.change(screen.getByLabelText("Yeni parola (en az 8 karakter)"), { target: { value: "Bir-Uzun-Parola-12345" } });
+    fireEvent.change(screen.getByLabelText("Yeni parola (tekrar)"), { target: { value: "Baska-Bir-Parola-12345" } });
     fireEvent.click(screen.getByRole("button", { name: "Parolayı belirle" }));
     expect(await screen.findByText("Parolalar aynı değil.")).toBeInTheDocument();
     expect(api.setPassword).not.toHaveBeenCalled();
 
-    fireEvent.change(screen.getByLabelText("Yeni parola (tekrar)"), { target: { value: "bir-uzun-parola-12345" } });
+    fireEvent.change(screen.getByLabelText("Yeni parola (tekrar)"), { target: { value: "Bir-Uzun-Parola-12345" } });
     fireEvent.click(screen.getByRole("button", { name: "Parolayı belirle" }));
     await waitFor(() =>
-      expect(api.setPassword).toHaveBeenCalledWith("111222", "bir-uzun-parola-12345", "bir-uzun-parola-12345")
+      expect(api.setPassword).toHaveBeenCalledWith("111222", "Bir-Uzun-Parola-12345", "Bir-Uzun-Parola-12345")
     );
     expect(await screen.findByText(/tüm oturumların kapandı/)).toBeInTheDocument();
   });

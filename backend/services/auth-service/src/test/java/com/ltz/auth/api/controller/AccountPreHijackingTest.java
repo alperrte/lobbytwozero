@@ -22,8 +22,8 @@ import com.ltz.auth.RecordingMailPortConfiguration.RecordingMailPort;
 @Import(RecordingMailPortConfiguration.class)
 class AccountPreHijackingTest extends IntegrationTestSupport {
 
-    private static final String ATTACKER_PASSWORD = "attacker-chosen-password-123";
-    private static final String VICTIM_PASSWORD = "victim-own-password-456789";
+    private static final String ATTACKER_PASSWORD = "Attacker-Chosen-Password-123";
+    private static final String VICTIM_PASSWORD = "Victim-Own-Password-456789";
 
     @Autowired
     private RecordingMailPort mailPort;
