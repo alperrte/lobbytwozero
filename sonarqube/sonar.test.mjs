@@ -219,9 +219,9 @@ for (const option of [
         assert.ok(!args.some(arg => arg.includes('fixture-db-pass')));
 
         if (args.includes('-version') || args.includes('verify')) {
-          assert.equal(settings.env.SONAR_HOST_URL, undefined);
-          assert.equal(settings.env.SONAR_TOKEN, undefined);
-          assert.equal(settings.env.SONAR_DB_PASSWORD, undefined);
+          for (const key of ['SONAR_HOST_URL', 'SONAR_TOKEN', 'SONAR_DB_PASSWORD']) {
+            assert.equal(Object.hasOwn(settings.env, key), false);
+          }
           assert.equal(settings.env.POSTGRES_HOST, '127.0.0.1');
           assert.equal(settings.env.DEBUG, undefined);
           assert.equal(settings.env.POSTGRES_PORT, '5542');

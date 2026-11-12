@@ -4,7 +4,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { evaluateModule, validatePolicy, gitContext, xmlMetadata, sourceInventory, prepareCoverage, enforceCoverage, ownerApprovedPolicy, javaTokens, mavenBuildStart } from './coverage.mjs';
+import { spawnSync } from 'node:child_process';
+import { evaluateModule, validatePolicy, gitContext, xmlMetadata, sourceInventory, prepareCoverage, enforceCoverage, ownerApprovedPolicy, javaTokens, mavenBuildStart, recordConstructorChanges } from './coverage.mjs';
 import { selectScope } from './changes.mjs';
 const hash = text => createHash('sha256').update(text).digest('hex');
 const module = 'services/auth-service';
@@ -94,6 +95,72 @@ test('real JaCoCo shape accepts counterless non-executable sources but never mis
 test('semantic source changes with no executable line record FAIL',()=>fixture(f=>{
   f.changed([9]);assert.throws(()=>f.evaluate(),/measurable/);
 }));
+
+test('record component changes map to the generated constructor declaration line',()=>{
+  const before='package p;\nrecord Config(\n String first) {\n String value() { return first; }\n}\n';
+  const after=before.replace('String first)', 'String first,\n String second)');
+  assert.deepEqual(recordConstructorChanges(before,after),[2]);
+  const generic='record Config<T extends Comparable<T>>(\n @Label(value = "(") T first) {}';
+  assert.deepEqual(recordConstructorChanges(generic,generic.replace('T first)', 'T first, T second)')),[1]);
+  assert.deepEqual(recordConstructorChanges('record A() {}\nrecord B() {}','record A(int a) {}\nrecord B(int b) {}'),[1,2]);
+});
+
+test('record constructor mapping matches the actual javac bytecode line table',()=>fixture(f=>{
+  const before='package p;\nrecord App(\n String first) {}\n';
+  const after=before.replace('String first)', 'String first,\n String second)');
+  const source=f.write(name,after);
+  const output=path.join(f.root,'record-bytecode');
+  const bin=command=>process.env.JAVA_HOME?path.join(process.env.JAVA_HOME,'bin',command+(process.platform==='win32'?'.exe':'')):command;
+  const compilation=spawnSync(bin('javac'),['-g','-d',output,source],{encoding:'utf8',windowsHide:true,timeout:30000});
+  assert.equal(compilation.status,0,'Record fixture compilation must succeed');
+  const bytecode=spawnSync(bin('javap'),['-classpath',output,'-p','-c','-l','p.App'],{encoding:'utf8',windowsHide:true,timeout:30000});
+  assert.equal(bytecode.status,0,'Record bytecode line table must be available');
+  const constructor=bytecode.stdout.match(/p\.App\(java\.lang\.String, java\.lang\.String\);[\s\S]*?LineNumberTable:\s+line (\d+): 0/);
+  assert.ok(constructor,'Generated canonical constructor must have source line metadata');
+  assert.deepEqual(recordConstructorChanges(before,after),[Number(constructor[1])]);
+}));
+
+test('record mapping never treats comments, strings, body-only or ambiguous record changes as constructor changes',()=>{
+  const before='record Config(String name) { String value() { return "a"; } }';
+  for(const after of [before.replace('return "a"','return "b"'), '// record Fake(int x) {}\n'+before,
+    before.replace('String name','/* extra comment */ String name'), before.replace('"a"','"record Fake(int x) {}"')]) {
+    assert.deepEqual(recordConstructorChanges(before,after),[]);
+  }
+  assert.deepEqual(recordConstructorChanges('class A {}','class A { int f() { return 2; } }'),[]);
+  assert.deepEqual(recordConstructorChanges('record C(int a) {} record C(int b) {}','record C(int x) {} record C(int y) {}'),[]);
+  assert.throws(()=>recordConstructorChanges(before,String.raw`record C(String x) { // \u000a`),/Unicode/);
+});
+
+test('Git maps record headers to real JaCoCo constructor lines without exempting uncovered code',()=>fixture(f=>{
+  const methods=Array.from({length:8},(_,i)=>` int number${i}() { return ${i}; }`).join('\n');
+  const before='package p;\nrecord App(\n String first) {\n String value() { return first; }\n int size() { return 1; }\n'+methods+'\n}\n';
+  const after=before.replace('String first)', 'String first,\n String second)');
+  f.write(name,after);
+  const base='a'.repeat(40);
+  const run=(_command,args)=>{
+    const command=args[4],tail=args.slice(5);
+    if(command==='rev-parse'||command==='merge-base')return {status:0,stdout:base};
+    if(command==='diff')return {status:0,stdout:tail.includes('--name-only')?name+'\0':'@@ -3 +3,2 @@\n- String first) {\n+ String first,\n+ String second) {\n'};
+    if(command==='ls-files')return {status:0,stdout:''};
+    if(command==='ls-tree')return {status:0,stdout:tail.at(-1)===name?name+'\n':''};
+    if(command==='show')return {status:0,stdout:before};
+    throw Error('Unexpected Git fixture command');
+  };
+  const context=gitContext(f.root,{run});
+  assert.deepEqual(context.changes[name].lines,[2,3,4]);
+  Object.assign(f.context,context);
+  const data=f.metadata(11,0);
+  data.sources[0].lines=[2,...Array.from({length:10},(_,i)=>i+5)].map(nr=>({nr,ci:1,mi:0,cb:0,mb:0}));
+  const result=f.evaluate(data);
+  assert.equal(result.changed.total,1);
+  assert.equal(result.changed.percent,100);
+  assert.deepEqual(result.exempt,[]);
+  // Mevcut executable gövde değişikliği için constructor kapsamı kullanılamaz.
+  assert.deepEqual(recordConstructorChanges(after,after.replace('return first','return second')),[]);
+  data.sources[0].lines[0]={nr:2,ci:0,mi:1,cb:0,mb:0};
+  data.sources[0].counter={covered:10,missed:1};data.counter={covered:10,missed:1};
+  assert.throws(()=>f.evaluate(data),/changed-line/);
+}));
 test('comment-only and deleted-file changes record why coverage is NOT_APPLICABLE',()=>fixture(f=>{
   f.changed([9]);f.context.changes[name].semantic=false;
   assert.match(f.evaluate().changed.reason,/comments/);
@@ -125,7 +192,11 @@ test('Maven and all runners retain central enforcement and instrumentation witho
   // Existing Dockerfiles COPY only backend/ and use package. Coverage's Node/Git
   // prerequisites must therefore never be attached to initialize/package.
   const dockerfile=read('backend/services/auth-service/Dockerfile');
-  assert.ok(dockerfile.includes('COPY backend/ ./backend/')&&dockerfile.includes('-DskipTests package'));
+  assert.ok(dockerfile.includes('-DskipTests package'));
+  // Layered COPY: still only backend/ (poms+config, then the one service); no Node/Git inputs reach the image build.
+  const copySources=[...dockerfile.matchAll(/^COPY\s+(?!--from)(?:--parents\s+)?(\S.*?)\s+\S+\s*$/gm)].flatMap(match=>match[1].split(/\s+/));
+  assert.ok(copySources.length>0&&copySources.every(source=>source.startsWith('backend/')),'Dockerfile may COPY only backend/ paths: '+copySources);
+  assert.ok(dockerfile.includes('backend/pom.xml')&&dockerfile.includes('backend/config')&&dockerfile.includes('backend/services/${SERVICE_NAME}/'));
   assert.ok(!pom.includes('<id>coverage-check</id>')&&!pom.includes('<jacoco.skip>true'));
   for(const file of ['pre-push/backend-check.mjs','pre-push/quality.mjs','pre-push/ci/backend.mjs']){
     const code=read(file);assert.ok(code.includes('prepareCoverage')&&code.includes('coverageCheck('));

@@ -249,7 +249,13 @@ test('selected backend orchestration invokes only requested reactor modules and 
     const qualityCalls = [];
     assert.equal(await backendCheck({ root, ambient: { LTZ_QUALITY_BASE_SHA: 'a'.repeat(40) }, modules: [selected], runCommand,
       qualityCheck: ({ modules, base, since }) => { qualityCalls.push({ modules, base }); assert.ok(since > 0); },
-      scanDependencies: ({ modules, since }) => { assert.deepEqual(modules, [selected]); assert.ok(since > 0); },
+      scanDependencies: ({ modules, since }) => {
+        assert.deepEqual(modules, [selected]);
+        const build = calls.find(call => call.args.includes('verify'));
+        assert.ok(build.args.includes('clean'));
+        const timestamp = build.args.find(arg => arg.startsWith('-Dproject.build.outputTimestamp='));
+        assert.equal(timestamp, '-Dproject.build.outputTimestamp=' + new Date(since).toISOString());
+      },
       prepare: async () => 'synthetic-context', coverageCheck: (_root, modules) => modules.map(module => ({module})), log: () => {} }), 0);
     assert.equal(calls.filter(call => call.args.includes('verify')).length, 1);
     assert.deepEqual(qualityCalls, [{ modules: [selected], base: 'a'.repeat(40) }]);

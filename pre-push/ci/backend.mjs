@@ -43,7 +43,10 @@ export async function backendCheck({ root = repositoryRoot, ambient = process.en
     const started = Date.now();
     const settings = 'pre-push/ci/maven-settings.xml';
     const localRepository = external ? path.join(env.HOME, '.m2/repository') : path.join(root, '.cache/m2');
+    // Spring Boot applies outputTimestamp to the JAR's filesystem mtime as well.
+    // Use the same clock as the freshness gate instead of an inherited archive date.
     const result = await run(mvn, ['-B', '-ntp', '-s', settings, '-gs', settings, '-Dmaven.repo.local=' + localRepository,
+      '-Dproject.build.outputTimestamp=' + new Date(started).toISOString(),
       '-f', 'backend/pom.xml', '-pl', selected.join(','), '-Pci', '-Dltz.test.postgres.port=' + port, '--fail-at-end', 'clean', 'verify']);
     if (result.code !== 0) throw new Error('Maven verify failed; tests/quality/coverage are not proven');
     // Re-evaluate the same central policy even if Maven's exec goal was skipped.
