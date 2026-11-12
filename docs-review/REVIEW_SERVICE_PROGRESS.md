@@ -228,3 +228,8 @@ Notlar:
 - Hesap durumları: seed hesapların 2FA'sı yoktur; `moderator` doğrudan girdi.
 
 **Hâlâ NOT VERIFIED:** `batch` 429 (kota) davranışı canlıda; aynı `eventId` tekrarı, eski `occurredAt`, yanlış kapsam/`aud` ile Review→User olayı, hesap silme sonrası gecikmiş olay; +18 merkezinin tarayıcıda elle denenmesi.
+
+## ENV onayı ve KVKK madde metni (12 Kasım 2026)
+
+- **`AUTH_REVIEW_SERVICE_CLIENT_SECRET` ENV onayı verildi (Hamza).** Kodda ek değişiklik gerekmedi: Auth, Review ve `docker-compose.yml` aynı değişkeni zaten okuyor; DEV'de `ops/dev.mjs` değeri üretiyor ve Review→User teslimi çalışıyor (canlı: sayaç yazınca 1, silince 0). Değişen tek şey `.env.example` yorumu (Auth ve Review'a aynı değer, boşsa teslim kapalı, üretim değerini ortamın sahibi üretir, GAME-26 çiftinin açıklaması). **Prod değeri bu repoda yoktur** (`.env.prod` yok); üretim sahibi üretip iki servise aynı değerle verir. Rotasyon ve boş secret davranışı `request/auth-review-integration.md` içinde.
+- **KVKK Review maddesi hazırlandı** (`REVIEW_KVKK_MADDE_ONERISI.md`): Türkçe ve İngilizce madde metni, gizlilik politikası paragrafı, olguların kodla doğrulama tablosu ve hukuka açık sorular. Doğrulama sırasında bir düzeltme yapıldı: silme engeli kaydı "kimlik içermez" değil, hesap kimliğinin SHA-256 özetini yaklaşık 17 dk (15 dk + 2×30 sn + 1 dk) tutar ve temizlik işi siler. **Sayfaya eklenmedi:** `/legal/kvkk` tüm servislerin birleşik metni olacağı ve hukuki metin uydurulmayacağı için iskelet kalır; hukuk onayı ve birleşik metin hazır olunca `REVIEW_KVKK_MADDE_ONERISI.md` §7 adımları uygulanır.
