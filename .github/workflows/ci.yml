@@ -140,6 +140,9 @@ jobs:
           PG_CONTAINER: ${{ job.services.postgres.id }}
         run: docker exec -i "$PG_CONTAINER" psql -v ON_ERROR_STOP=1 -U ltz_test -d postgres < pre-push/ci/init-test-databases.sql
       - run: node pre-push/ci/install-tool.mjs trivy
+      - name: TEMPORARY negative test (revert me)
+        if: matrix.module == 'services/event-service'
+        run: exit 1
       - name: Verify selected backend modules
         env:
           MODULES: ${{ matrix.module }}
