@@ -192,7 +192,11 @@ test('Maven and all runners retain central enforcement and instrumentation witho
   // Existing Dockerfiles COPY only backend/ and use package. Coverage's Node/Git
   // prerequisites must therefore never be attached to initialize/package.
   const dockerfile=read('backend/services/auth-service/Dockerfile');
-  assert.ok(dockerfile.includes('COPY backend/ ./backend/')&&dockerfile.includes('-DskipTests package'));
+  assert.ok(dockerfile.includes('-DskipTests package'));
+  // Layered COPY: still only backend/ (poms+config, then the one service); no Node/Git inputs reach the image build.
+  const copySources=[...dockerfile.matchAll(/^COPY\s+(?!--from)(?:--parents\s+)?(\S.*?)\s+\S+\s*$/gm)].flatMap(match=>match[1].split(/\s+/));
+  assert.ok(copySources.length>0&&copySources.every(source=>source.startsWith('backend/')),'Dockerfile may COPY only backend/ paths: '+copySources);
+  assert.ok(dockerfile.includes('backend/pom.xml')&&dockerfile.includes('backend/config')&&dockerfile.includes('backend/services/${SERVICE_NAME}/'));
   assert.ok(!pom.includes('<id>coverage-check</id>')&&!pom.includes('<jacoco.skip>true'));
   for(const file of ['pre-push/backend-check.mjs','pre-push/quality.mjs','pre-push/ci/backend.mjs']){
     const code=read(file);assert.ok(code.includes('prepareCoverage')&&code.includes('coverageCheck('));
