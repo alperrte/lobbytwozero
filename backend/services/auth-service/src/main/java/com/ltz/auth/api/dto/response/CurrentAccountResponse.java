@@ -20,6 +20,8 @@ public record CurrentAccountResponse(UUID accountId, List<String> roles, List<St
                                      AccountTier accountTier, boolean trusted, boolean adultVerified) {
 
     public CurrentAccountResponse {
+        roles = List.copyOf(roles);
+        authMethods = List.copyOf(authMethods);
         providers = List.copyOf(providers);
     }
 }
