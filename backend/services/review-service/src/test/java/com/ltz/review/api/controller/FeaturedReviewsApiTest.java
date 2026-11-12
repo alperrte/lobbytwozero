@@ -62,7 +62,7 @@ class FeaturedReviewsApiTest {
                 .params(review, UUID.randomUUID()).update();
     }
 
-    @Test void ranksByLikesThenCreationTimeThenUuidWithoutExposingAuthor() throws Exception {
+    @Test void ranksByLikesThenCreationTimeThenUuidAndExposesOnlyTheAuthorUserId() throws Exception {
         UUID older = seed("2026-01-01T00:00:00Z");
         UUID newer = seed("2026-02-01T00:00:00Z");
         long prefix = UUID.randomUUID().getMostSignificantBits();
@@ -81,10 +81,37 @@ class FeaturedReviewsApiTest {
                     .andExpect(jsonPath("$.items[1].review.ownedByActor").value(true))
                     .andExpect(jsonPath("$.items[2].review.id").value(high.toString()))
                     .andExpect(jsonPath("$.items[3].review.id").value(newer.toString()))
-                    .andExpect(jsonPath("$.items[0].review.userId").doesNotExist())
+                    .andExpect(jsonPath("$.items[0].review.userId").doesNotExist()).andExpect(jsonPath("$.items[0].review.authorUserId").isNotEmpty())
+                    .andExpect(jsonPath("$.items[1].review.authorUserId").value(reader.toString()))
                     .andExpect(jsonPath("$.totalElements").value(4));
         }
         verifyNoInteractions(games);
+    }
+
+    @Test void reportsOnlyTheCallersOwnVoteWithoutExposingOtherVoters() throws Exception {
+        UUID liked = seed("2026-01-01T00:00:00Z");
+        UUID unliked = seed("2026-02-01T00:00:00Z");
+        vote(liked);
+        vote(liked);
+        vote(unliked);
+        jdbc.sql("INSERT INTO review_likes (review_id,user_id,created_at) VALUES (?,?,clock_timestamp())")
+                .params(liked, reader).update();
+        // Okuyucunun oyu yalnız kendi görünümünde true'dur; sayı herkes için aynıdır.
+        mvc.perform(get(path()).with(actor(reader))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].review.id").value(liked.toString()))
+                .andExpect(jsonPath("$.items[0].likeCount").value(3))
+                .andExpect(jsonPath("$.items[0].likedByActor").value(true))
+                .andExpect(jsonPath("$.items[1].review.id").value(unliked.toString()))
+                .andExpect(jsonPath("$.items[1].likedByActor").value(false))
+                .andExpect(jsonPath("$.items[0].likedBy").doesNotExist())
+                .andExpect(jsonPath("$.items[0].voters").doesNotExist());
+        mvc.perform(get(path()).with(actor(UUID.randomUUID()))).andExpect(jsonPath("$.items[0].likeCount").value(3))
+                .andExpect(jsonPath("$.items[0].likedByActor").value(false))
+                .andExpect(jsonPath("$.items[1].likedByActor").value(false));
+        // Kendi incelemesinde oy veremediği için false'tur.
+        UUID own = seed(UUID.randomUUID(), reader, "2026-03-01T00:00:00Z", true);
+        mvc.perform(get(path()).param("minLikes", "0").with(actor(reader)))
+                .andExpect(jsonPath("$.items[?(@.review.id=='" + own + "')].likedByActor").value(false));
     }
 
     @Test void filtersGameVisibilityAndMinimumLikesIncludingZeroVoteReviews() throws Exception {

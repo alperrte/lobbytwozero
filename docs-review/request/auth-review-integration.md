@@ -1,139 +1,59 @@
-# AUTH–REVIEW entegrasyon talebi
+# AUTH–REVIEW entegrasyonu
 
-## 1. Talep eden servis
+Son güncelleme: 12 Kasım 2026. Bu belge yalnız **açık işleri ve beklentileri** içerir; tamamlanmış entegrasyonlar (kullanıcı JWT, roller, hesap silme, Game→Review puan okuma) bilerek yazılmamıştır. Kesin geliştirme emri değildir.
 
-`review-service` — Hamza. Bu belge Review'ın ihtiyacını bildirir; Auth sahibine kesin geliştirme emri değildir.
+- Talep eden: `review-service` — Hamza. Hedef: `auth-service` — Kerem. Nihai yetki/istemci tasarımı Auth sahibince belirlenir.
+- Auth kodu, izin listesi ve belgeleri değiştirilmedi. Kaynak: Auth `application.properties` (12 Kasım 2026, salt okunur), [Auth servis sözleşmeleri](../../docs-auth/servis-sozlesmeleri.md).
 
-## 2. Hedef servis
+## 1. Auth'un cevabı (12 Kasım 2026) ve sonuç
 
-`auth-service` — Kerem. Nihai yetki/istemci tasarımı Auth sahibince belirlenir.
+Auth sahibinin cevabı (kaynak: `application.properties`, `TokenClaims.java`, salt okunur): **Auth tarafında Review için bugün yapılacak kod işi yoktur; yeni kapsam istenmez.**
 
-## 3. İlgili task
+- **GAME-26 kapsamları** (`game-identity:prepare|finalize|read|decision:read`) Auth'ta **uygulanmış ve testlidir**. `docs/api.md`'deki "taslak, uygulanmamış" ifadesi eskidir; Auth düzeltecek. (Önceki "çelişki" maddesi kapandı.)
+- **Hazır çiftler:** `review-service → user-service`: `events:ingest`; `review-service → game-service`: `game-identity:decision:read`; `game-service → review-service`: `rating-summaries:read`, `game-references:read`, `game-identity:*`. `rating-summaries:read` ile `game-identity:*` ayrı kapsamlardır (Review alıcısı bu ayrımı uygular).
+- **Secret:** dev'de `ops/dev.mjs`, `AUTH_REVIEW_SERVICE_CLIENT_SECRET`'ı otomatik üretip `.env.dev`'e yazar. Review servisinin ortamına aktarım **yapıldı** (compose, 12 Kasım 2026; DEV yeniden oluşturuldu) (ENV değişikliği → kullanıcı onayı). Prod dağıtımı ve rotasyonu ayrı onaya tabidir. Değer belgeye yazılmaz.
+- **Gateway beklentileri (§5):** çerez→Bearer, refresh ve CSRF mevcut sözleşmeyle uyumlu, kırılma planı yok. CORS başlıkları (`Retry-After`, `X-Request-Id`, `PATCH`) için Gateway yapılandırması Auth tarafında ayrıca teyit edilecek. (Review, Gateway kaynağını salt okunur inceledi: `GatewaySecurityConfig` `PATCH` ve `X-XSRF-TOKEN`'a izin veriyor, `Retry-After` ve `X-Request-Id`'yi açıyor; bu bir canlı doğrulama değildir.)
+- **Canlı uçtan uca: KISMEN YAPILDI.** DEV'de Review gerçek Auth servis token'ıyla User'a 1092/1092 olay teslim etti (`events:ingest`). Yanlış kapsam/`aud`, süresi dolmuş token ve GAME-26 çiftleri canlıda denenmedi (NOT VERIFIED).
 
-REV-07, REV-10 ve REV-12'nin bekleyen Game→Review sunucu entegrasyonu. Bildirim üreticisi Review seçilirse koşullu bildirim yetkisi de REV-10 ile ilişkilidir. REV-06 ve REV-12'nin tamamlanan Review kullanıcı API kabulü bu talepten bağımsızdır. REV-13'ün raporlamaya bağlı kısmı ve REV-15'in entegrasyon bağımlılıkları (Admin→Review moderasyon kararı) da bu belgeyle ilişkilidir; ikisi tamamlanmış sayılmaz.
+## 2. Model değişikliği önerisi: moderasyon/rapor uçlarını Review sunar (KABUL EDİLDİ — 12 Kasım 2026, Hamza)
 
-## 4. Talebin amacı
+Auth'un bildirdiği güncel Admin modeli: Admin paneli (login + dashboard) hazırdır; **her servis kendi admin uçlarını kendisi açar, panel onları çağırır.** Auth'un önerisi: Review moderasyon ve rapor uçlarını kendisi sunar; bu uçlar kullanıcının `at+jwt`'sini (Gateway çerezi Bearer'a çevirir) alır ve **`MODERATOR`/`ADMIN` rolünü Review'da doğrular.** Bu modelde:
 
-Gelecekte onaylanacak rapor teslimi ve moderasyon geri bildirimini, kullanıcı token'ını servis kimliği yerine kullanmadan, hedefe bağlı ve en az yetkili servis token'ıyla gerçekleştirmek.
+- `admin-service → review-service` servis çifti, ayrı komut kapsamı ve insan aktör taşıması **gerekmez**; REV-15 sadeleşir ve önceki "insan moderatör güven modeli" sorusu kapanır.
+- Panel raporları Review'ın admin ucundan okuyacaksa `review-service → admin-service` çiftine de gerek kalmaz. Admin servisi rapor **push** ile almak isterse en dar çift (`events:ingest`) o zaman ayrıca eklenir. `review-service → notification-service` yalnız üretici Review seçilirse eklenir. **Şimdiden izin açılmaz.**
 
-Faz 3 eki: Game'in Review toplu puan özetini sunucudan kendi servis kimliğiyle okuyabilmesi. Kullanıcı mevcut JWT güvenliğinin korunmasını ve yeni servis-token erişiminin bu fazda uygulanmamasını açıkça istedi.
+**Bu, Review'ın mevcut kararını değiştirir** (bugün `MODERATOR`/`ADMIN` Review'da ek yetki taşımaz; kullanıcı JWT'si moderasyon kararı yerine geçmez — [kararlar](../REVIEW_SERVICE_DECISIONS.md)). Kabul edilirse etkisi: Review'da rol tabanlı yeni yetki sınıfı, moderasyon/rapor yönetim uçları ve `HIDDEN/ARCHIVED` durumu eklenir; Admin ve Notification belgeleri buna göre yeniden yazılır ([Admin belgesi](admin-review-integration.md) §15). Kabul edilene kadar Review'da kod yazılmaz.
 
-## 5. Repository üzerinde doğrulanan mevcut durum
+**Rol/2FA uyarısı [Auth]:** `ADMIN` hesaplar Auth'ta zorunlu 2FA ile girer. `MODERATOR` için 2FA zorunluluğu **ayrı bir karardır ve Review uçları açılmadan önce netleşmelidir** (2FA'sız MODERATOR token'ıyla içerik gizleme riski).
 
-- [Auth application.properties](../../backend/services/auth-service/src/main/resources/application.properties): `review-service` istemci kaydı ve `${AUTH_REVIEW_SERVICE_CLIENT_SECRET:}` referansı var; **yalnız** `targets.user-service=events:ingest` tanımlı. Gerçek secret değeri/dağıtımı incelenmedi.
-- Aynı dosyada community→admin ve community→notification `events:ingest` örnekleri var; bunlar Review'a yetki vermez. Admin'in mevcut hedefi community; admin→review tanımlı değil.
-- [ServiceClientConfig](../../backend/services/auth-service/src/main/java/com/ltz/auth/infrastructure/config/ServiceClientConfig.java): hedef kapsam allowlist'i `events:ingest`, `blocks:check`, `privacy:read`, `signals:read`; tanımsız özel kapsam uydurulamaz. `account:erase` ayrı D4 sözleşmesidir ve bu iş için kullanılamaz.
-- Mevcut `POST /internal/v1/service-tokens`, hedef audience seçimini destekler. Kayıtsız hedef 403, geçersiz istemci 401 davranışı [Auth servis sözleşmesinde](../../docs-auth/servis-sozlesmeleri.md) belgeli.
-- Kullanıcı JWT/JWKS ve Auth→Review D4 silme entegrasyonu zaten mevcut; yeniden kurulması talep edilmiyor.
-- Game→Review hedef/kapsamı veya bu amaçlı Game istemci kaydı application.properties içinde yok. Review kullanıcı özet API'leri servis token'ı kabul etmez. Mevcut kapsam allowlist'inde özel puan özeti okuma izni yoktur; D4 silme izni kullanılamaz.
+## 3. Açık işler
 
-### Auth entegrasyon doğrulaması — güncel durum (31 Ekim 2026)
+1. ~~Model kararı~~ **Kabul edildi ve Review'da uygulandı** (12 Kasım 2026; `/api/v1/review/admin/**`, `MODERATOR`/`ADMIN` kullanıcı JWT'si; Auth'tan yeni çift/kapsam yok).
+2. **MODERATOR için 2FA kararı [Auth + ürün]** (§2).
+3. **Secret'ın Review ortamına aktarımı [Hamza + kullanıcı onayı]:** Review compose/ENV; üretici yalnız secret verilince açılır.
+4. **Gateway CORS teyidi [Auth]** (§1).
+5. **Canlı uçtan uca [Tümü]:** NOT VERIFIED (§1).
+6. **Auth düzeltmesi [Auth]:** `docs/api.md`'deki GAME-26 kapsamı ifadesinin güncellenmesi.
 
-Güncel Auth kaynağı ve [servis sözleşmeleri](../../docs-auth/servis-sozlesmeleri.md) ile karşılaştırıldı. Etiketler: **IMPLEMENTED / VERIFIED** (kodda var ve testle doğrulandı), **REVIEW TARAFINDA TAMAMLANDI**, **AUTH TARAFINDA GELİŞTİRME BEKLİYOR**, **SÖZLEŞME BEKLİYOR**, **NOT VERIFIED**. "VERIFIED" yalnız şu anlama gelir: Auth'un gerçek üretim kaynakları test sırasında geçici dizine derlenip testin kendi geçici anahtarıyla çalıştırıldı; **canlı Auth servisi ile uçtan uca doğrulama yapılmadı (NOT VERIFIED)**.
+Auth'tan yeni kapsam/çift istenmiyor; REV-13 (kota, tekillik, sayaç) Review içinde çözülür.
 
-| # | Madde | Sorumlu | Etiket |
-| --- | --- | --- | --- |
-| 1 | Kullanıcı `at+jwt` doğrulaması: RS256/JWKS, `iss`, `aud=ltz-api`, `typ`, `kid`, zaman alanları, UUID `sub`, ≤15 dk ömür | Review | IMPLEMENTED / VERIFIED (gerçek Auth `AccessTokenIssuer` çıktısı ve JWKS ile kabul; alg none, HS256, bozuk imza, yanlış `iss`/`aud`/`typ`, eksik/bilinmeyen `kid`, süresi dolmuş/henüz geçerli olmayan, bozuk `sub` reddi). Canlı Auth: NOT VERIFIED |
-| 2 | Roller → yetki: beş kanonik rol; Review `MODERATOR`/`ADMIN`'e ek yetki tanımaz; liste olmayan/bilinmeyen `roles` yetki vermez | Review | REVIEW TARAFINDA TAMAMLANDI (bu görevde sertleştirildi; `aud` claim'i eksik imzalı token artık 500/NPE yerine 401) |
-| 3 | Auth → Review servis token'ı: `typ=svc+jwt`, `aud=review-service`, `sub=svc:auth-service` (tam), `scope=account:erase`, `account_id` = yol | Review | IMPLEMENTED / VERIFIED (gerçek `ServiceTokenIssuer`; başka `aud`/kapsam/hesap bağı ve kullanıcı token'ı reddi) |
-| 4 | Auth → Review hesap silme (`DELETE /internal/v1/accounts/{id}`): Auth'un gerçek `HttpAccountDataEraser`'ı Review'ın gerçek HTTP sunucusuna karşı; idempotent 204; başka hesap korunur; yanlış `aud` onay sayılmaz (`SERVICE_ERASURE_HTTP_401`) | Review | IMPLEMENTED / VERIFIED. Canlı Auth silme akışı (14 gün bekleme, worker): NOT VERIFIED |
-| 5 | Silme × REV-13 kota sayaçları: silme sayaç satırlarını da siler; silinmiş hesabın eski token'ı kota satırı yeniden oluşturamaz (403) | Review | REVIEW TARAFINDA TAMAMLANDI |
-| 6 | Review → User `events:ingest` (`ReviewSummaryChanged`): Auth çifti **mevcut** (`review-service` → `user-service`, `events:ingest`), User alıcısı mevcut (önerilen T7 sözleşmesi) | Auth hazır; Review üretici | Auth tarafı VERIFIED (yapılandırmada); Review üreticisi/token istemcisi **NOT IMPLEMENTED** (REV-10; `AUTH_REVIEW_SERVICE_CLIENT_SECRET` için ENV onayı gerekir) |
-| 7 | Review → Admin rapor (`events:ingest`) | Auth, Admin | AUTH TARAFINDA GELİŞTİRME BEKLİYOR (çift tanımsız) + SÖZLEŞME BEKLİYOR (Admin alıcısı yok) |
-| 8 | Admin → Review moderasyon kararı | Auth, Admin | AUTH TARAFINDA GELİŞTİRME BEKLİYOR (çift ve kapsam tanımsız; Auth bunu "tanımsız çift" A6 olarak izliyor) + SÖZLEŞME BEKLİYOR |
-| 9 | Game → Review toplu özet okuma | Auth, Game | **ÇİFT AUTH MAIN'DE MEVCUT (`game-service → review-service`, `rating-summaries:read`, bf473ed); REVIEW ALICISI UYGULANDI VE BU ADA UYARLANDI (5 Kasım 2026: `POST /internal/v1/games/rating-summaries`, `rating-summaries:read`, `sub=svc:game-service`, yerel testler PASS)**; Auth tarafında yapılacak iş yok (bkz. §14); Game'de Review tüketicisi yok, secret dağıtımı ENV onayı bekliyor. Canlı Auth E2E: NOT VERIFIED |
-| 10 | Review → Notification (koşullu, üretici Review ise) | Auth, Notification | SÖZLEŞME BEKLİYOR |
-| 11 | İnsan moderatör yetkisinin Review'a güvenilir aktarımı (servis kimliği ≠ insan yetkisi) | Admin, Auth, Review | SÖZLEŞME BEKLİYOR |
-| 12 | Canlı Auth ↔ Review uçtan uca | Tümü | NOT VERIFIED |
+## 4. Kabul kriterleri (açık işler için)
 
-Süreç notu: Auth sahibi kendi klasöründe (`docs-auth/verilen-cevaplar/review-service/talep-NN-….md`) talep görmek ve izin listesine ekleme yapmak ister. Bu görevde yalnız `docs-review/` yazılabildiğinden ihtiyaç bu belgede tutulur; Auth sahibi buradan alıp kendi klasörüne taşıyabilir. Auth kodu, izin listesi veya belgeleri değiştirilmedi.
+- (Model kabul edilirse) Review'ın moderasyon/rapor uçları: `MODERATOR`/`ADMIN` olmayan kullanıcı 403, rol yalnız `roles` listesindeki kanonik değerlerden, anonim 401, servis token'ı reddedilir; yetki yayılımı olmaz.
+- Secret verildiğinde Review→User olayı gerçek Auth token'ıyla kabul edilir; yanlış secret/kapsam reddedilir; mevcut Auth→Review D4 ve Game→Review regresyonları geçer.
+- Canlı Auth↔Review olumlu ve olumsuz HTTP testleri.
 
-## 6. Eksik gereksinimler
+## 5. Review frontend'in oturum/Gateway beklentileri (bilgi; yeni geliştirme istenmiyor)
 
-- Admin ile alıcı protokolü onaylanınca Review'ın yalnız rapor olayını Admin'e iletebilmesine uygun hedef/kapsam çifti.
-- Admin'in onaylı rapor durum/karar mesajlarını yalnız Review'a iletebilmesine uygun ters hedef/kapsam çifti.
-- **Koşullu:** moderasyonun uygulandığı bilgisini Notification'a Review gönderecekse Review→Notification için ayrı hedef/kapsam. Üretici Admin seçilirse gereksiz Review izni verilmemeli.
-- Mevcut Review→User izni korunmalı; bu taleple genel admin yetkisi, başka hesap okuma veya tüm hedeflere erişim istenmiyor.
+Review frontend'i yeni bir oturum mekanizması kurmaz; mevcut sözleşmeye dayanır. Bu varsayımların kırılmaması beklenir:
 
-**REV-13 / REV-15 için Auth sorumluluğu (yalnız gerçekten gerekli olanlar):**
+- **Kimlik:** Tarayıcı HttpOnly oturum çerezi gönderir; Gateway `CookieBearerFilter` çerezi `Authorization: Bearer` access token'a çevirir; Review `at+jwt`'yi doğrular (`iss=ltz-auth`, `aud=ltz-api`, kanonik UUID `sub`, `roles` listesi). Review `Cookie` veya `X-User-Id`'yi kimlik saymaz.
+- **Yenileme:** Access token ömrü kısadır (varsayılan 60 sn, en çok 15 dk). Frontend 401'de bir kez `POST /api/v1/auth/session/refresh` çağırıp isteği tekrarlar (yalnız oturum ipucu çerezi varsa). Review'ın 401 (kimlik yok/geçersiz) ↔ 403 (rol/sahiplik/silme engeli) ayrımı korunmalı.
+- **CSRF:** PUT/POST/PATCH/DELETE istekleri `X-XSRF-TOKEN` taşır (`GET /api/v1/auth/csrf` ile hazırlanır); reddedilirse `403` + `code=CSRF_TOKEN_INVALID`, frontend belirteci yenileyip **yalnız bir kez** tekrarlar. Toplu puan özeti (`POST …/rating-summaries`) okuma olsa da POST olduğundan CSRF ister.
+- **`GET /api/v1/auth/me`:** `accountId` ve `roles`; Review sayfaları içeriği `accountId` ile anahtarlar (hesap değişiminde eski veri kalmaz).
+- **CORS:** Gateway `Retry-After` ve `X-Request-Id` yanıt başlıklarını açar (Review'ın 429 geri sayımı buna dayanır); `PATCH` ve `X-XSRF-TOKEN` izinli kalmalı.
+- **Hesap silme:** Silinmiş hesabın eski token'ı Review yazmalarında 403 alır (17 dk koruma); frontend "bu işlem için izin yok" gösterir.
 
-- **[Auth] REV-13:** Review'ın rapor kotası, tekilliği ve sayacı Review içinde çözülür; Auth'tan yeni izin istenmez. Rapor teslimi için gereken tek çift yukarıdaki Review→Admin çiftidir ve Admin alıcı protokolü onaylanana kadar bekler.
-- **[Auth] REV-15 — Admin→Review moderasyon kararı:** Servis token'ı yalnız *hangi servisin* konuştuğunu kanıtlar. `events:ingest` mevcut allowlist'te bir olay alma kapsamıdır; moderasyon *komutu* (gizle/arşivle/yeniden görünür yap) için ayrı bir kapsam gerekip gerekmediği veya `events:ingest` + Review'daki tam producer/olay-türü allowlist'inin yeterli olup olmadığı **KARAR BEKLİYOR** (Auth ve Admin sahipleri). Yeni kapsam adı bu belgede öngörülmemiştir.
-- **[Auth] İnsan moderatör ile servis kimliğinin ayrımı:** Auth'ta kullanıcı rolleri (`MODERATOR`, `ADMIN`) vardır, fakat Review bu rollere özel bir yetki tanımaz; `/api/v1/review/**` tüm izinli rollere aynı kullanıcı işlemlerini açar ve moderasyon yetkisi vermez. Bir kullanıcı `at+jwt`'si hiçbir koşulda Review'da moderasyon kararı yerine geçmemeli. İnsan moderatörün kimliğinin/yetkisinin Review'a nasıl güvenilir aktarılacağı (Admin'in doğrulayıp audit aktör referansını imzalı servis çağrısı içinde taşıması mı, Auth'un aktöre bağlı bir token üretmesi mi) **KARAR BEKLİYOR**; body'deki `actorId` tek başına kabul edilmez.
-- **[Auth] Bildirim:** Üretici Admin ise Review→Notification izni gerekmez; Review ise yukarıdaki koşullu çift geçerlidir. Üretici seçimi [Notification talebinde](notification-review-integration.md) **KARAR BEKLİYOR**.
+## 6. Durum
 
-## 7. Önerilen sözleşme — kesinleşmedi
-
-Faz 3 ek talebi: Game→Review için yalnız puan özeti okumaya izin veren hedef/kapsam çifti. `rating-summaries:read` yalnız örnek isim önerisidir; mevcut allowlist'te yoktur ve uygulanmadı. Mevcut izinlerden birinin uygunluğu veya yeni kapsam gerekip gerekmediği Auth sahibince belirlenmeli. Mevcut token edinme protokolünün kullanımı ve Review'da dar okuma alıcısı karşılıklı onay bekler. Kullanıcı API'si veri modeli için [Game talebi](game-review-integration.md) esas alınabilir; servis-token alıcısı bugün mevcut değildir.
-
-Yeni token endpoint'i yerine mevcut token ucunun kullanılması önerilir. Kavramsal istek: `clientId=review-service`, bellekte taşınan mevcut client secret, `audience=admin-service`. Gerçek secret belgeye/komut satırına yazılmaz.
-
-Önerilen en dar çiftler:
-
-- review-service → admin-service: alıcı olay modeli seçilirse `events:ingest`.
-- admin-service → review-service: geri bildirim olay modeli seçilirse `events:ingest`; Review ayrıca tam producer/olay türü allowlist'i uygular.
-- review-service → notification-service: yalnız üretici kararı Review ise `events:ingest` önerisi.
-
-Bunlar bugün yapılandırılmış izinler değildir. Senkron komut veya durum sorgusu seçilirse farklı kapsam gerekip gerekmediğine Auth ve hedef servis sahipleri karar verir; `events:ingest` otomatik okuma/moderasyon yetkisi sayılmaz. Mevcut response alanları `accessToken`, `tokenType`, `expiresIn`, `scope` üzerinden kalabilir; yeni token claim'i dayatılmıyor.
-
-## 8. Kimlik doğrulama ve yetkilendirme beklentileri
-
-Mevcut D3 modeliyle uyum: RS256/Auth JWKS, `typ=svc+jwt`, geçerli `kid`, issuer, tek ve doğru hedef audience, tam `sub=svc:<çağıran>`, scope, ham iat/nbf/exp/jti, en fazla 60 saniye ömür ve sözleşmedeki saat toleransı. Alıcı token sub ile zarf producer eşleşmesini ayrıca denetlemeli. Kullanıcı `at+jwt`'si, başka audience veya başka servis kimliği kabul edilmemeli.
-
-Servis token'ı insan moderatör rolünün yerine geçmez. Kararı alan insanın doğrulanması, yetki kapsamı ve audit aktörünün Review'a nasıl güvenilir aktarılacağı Admin/Auth/Review sahiplerinin ortak kararıdır. Sadece body içindeki actorId'ye dayanarak moderasyon yapılmamalı. D4 hesap silme token'ı bu akıştan ayrı tutulmalı.
-
-## 9. Hata ve güvenilirlik beklentileri
-
-Game okumasında da token edinimi/yenilenmesi bounded olmalı; yanlış yetki için kullanıcı token'ına veya account:erase kapsamına fallback yapılmamalı. Salt okunur puan sorgusu için outbox gerekmez.
-
-Secret boş/geçersiz, token üretimi başarısız, hedef/kapsam reddi veya süresi dolmuş token durumunda teslim fail-closed olmalı; kullanıcı JWT'sine/header'a fallback olmamalı. Token kısa süreli bellekte tutulmalı; gizli değerler loglanmamalı. 401 ile 403 ayrımı korunmalı. Bounded timeout, yenileme ve retry bütçesi gerçek teslim sözleşmesiyle birlikte belirlenmeli. Yetkisizlikte kontrolsüz retry yapılmamalı.
-
-Outbox/relay bu belgede yalnız gelecekteki güvenilirlik gereksinimidir; Review'da bu çalışma kapsamında geliştirilmedi. Auth token üretmesi tek başına Admin'in raporu kalıcı kabul ettiğinin kanıtı değildir.
-
-## 10. Kabul kriterleri
-
-- Game→Review çifti onaylanırsa yalnız doğru sub/aud/typ/scope ile özet okunur; diğer endpointlere yetki yayılmaz. Yanlış kapsam, yanlış servis, süre sonu ve kullanıcı token'ının servis kimliği yerine kullanılması reddedilir. Gerçek Auth token'ıyla Game/Review entegrasyonu ayrıca doğrulanır; bu fazda NOT VERIFIED.
-
-- Test ortamında her onaylı çift doğru audience ve gerekli kapsamla token alır; onaylanmayan çiftler 403, yanlış secret 401 alır.
-- Yanlış alg/imza/typ/issuer/audience/producer/scope, eksik zaman claim'i, expired token ve kullanıcı token'ı alıcılarda reddedilir.
-- Mevcut Review→User ve Auth→Review D4 regresyonları geçer; yeni imtiyaz yayılımı oluşmaz.
-- Gerçek Auth token'ıyla Admin/Review alıcı uçları arasında olumlu ve olumsuz HTTP testleri yapılır; yalnız mock token üretimi teslim kabulü sayılmaz.
-
-- REV-15, karar onaylanırsa: insan moderatör kullanıcı token'ı, başka bir servisin token'ı, doğru servis ama yanlış kapsam ve doğru token fakat gövdedeki sahte aktör referansı Review karar alıcısında reddedilir (olumsuz testler); servis kimliğiyle insan yetkisi karıştırılmaz.
-
-## 11. Bağımlılık ve etki
-
-Admin alıcı protokolü ve güven modeli birlikte onaylanmadan REV-07 gerçek teslimi ve REV-10 tam entegrasyonu kapanamaz. REV-06'nın kullanıcı JWT'siyle yerel beğeni akışını engellemez.
-
-Game servis kimliği eksikliği REV-12 Review backend kabulünü engellemez; Game→Review gerçek tüketimi ve REV-10 kapanışı bekler. Review kullanıcı JWT'sini Game servis kimliği olarak kullanmayacak.
-
-## 12. Durum
-
-**SÖZLEŞME BEKLENİYOR / TALEP–ÖNERİ — Yeni hedef yetkileri henüz uygulanmadı.** Auth kodu, ENV, Compose veya ortak ayarlarda değişiklik yapılmadı.
-
-Review tarafındaki Auth uyumluluğu (kullanıcı JWT, roller, `svc+jwt` alıcısı, hesap silme, kota/silme etkileşimi) **REVIEW TARAFINDA TAMAMLANDI ve yerel olarak VERIFIED**; canlı Auth ile uçtan uca **NOT VERIFIED**. Aşağıdaki Auth çiftlerinden (Review→Admin, Admin→Review, koşullu Review→Notification) **AUTH TARAFINDA GELİŞTİRME BEKLİYOR / SÖZLEŞME BEKLİYOR** olarak kalır; Game→Review çifti Auth main'de mevcuttur (§14); bu yüzden REV-07, REV-10, REV-12'nin Game tüketimi ve REV-15 tamamlanmış sayılmaz.
-
-## 13. Karar bekleyen konular
-
-Faz 3: Game istemci kimliği, hedefe bağlı dar kapsam, allowlist uyarlaması, güvenli dağıtım ve Review okuma alıcısının yolu netleştirilmeli. Yeni scope/ENV/token bu fazda üretilmedi.
-
-Olay mı senkron komut mu kullanılacak; hangi çiftler hangi kapsamı alacak; Notification üreticisi kim olacak; insan moderatör yetkisi nasıl doğrulanacak; secret'ın mevcut güvenli dağıtımı ve rotasyonu nasıl işletilecek? Nihai kararı ilgili servis sahipleri verir; Review sonradan onaylı sözleşmeye uyarlanır.
-
-**REV-13/REV-15 eki — KARAR BEKLİYOR:** moderasyon komutu için ayrı kapsam gerekliliği; insan moderatör yetkisinin Review'a aktarım modeli (Admin güveni mi, aktöre bağlı Auth token'ı mı); Notification üreticisi seçilirse buna bağlı çift. REV-13'ün kota/tekillik ihtiyaçları Auth kararı gerektirmez.
-
-**Auth entegrasyon görevi eki (31 Ekim 2026) — Auth sahibinin kararını bekleyenler (Review hiçbirini uydurmaz):** (1) `admin-service` → `review-service` ve `review-service` → `admin-service` çiftlerinin ve kapsamının var olup olmadığı; mevcut `events:ingest` allowlist'i yeterli mi, moderasyon *komutu* için ayrı kapsam gerekir mi. (2) Game için Review'ı okuyabilen istemci/hedef çifti ve kapsam; mevcut allowlist'te (`events:ingest`, `blocks:check`, `privacy:read`, `signals:read`) puan özeti okumaya uygun bir kapsam yok, `rating-summaries:read` yalnız örnek addır. (3) İnsan moderatör yetkisinin Review'a aktarım modeli: Auth servis token'ından kullanıcı yetkisi türetmez ve delegasyon token'ı üretmez (servis-sozlesmeleri §3.5); dolayısıyla Admin'in doğrulayıp imzalı servis çağrısıyla aktarması mı, başka bir model mi kararlaştırılmalı. (4) Review → User `ReviewSummaryChanged` için Review tarafında üretici ve `AUTH_REVIEW_SERVICE_CLIENT_SECRET` dağıtımı REV-10 onayı ve ENV onayıyla birlikte ele alınır; Auth tarafında ek geliştirme gerekmez.
-
-## 14. Game → Review: Auth cevabı ve sonuç (5 Kasım 2026)
-
-**Auth sahibinin (Kerem) cevabı:** Çift zaten Auth'tadır — `origin/main`, commit **bf473ed (31 Ekim 2026, LTZ-KER-AUTH-37)**:
-`ltz.auth.service-clients.clients.game-service.secret=${AUTH_GAME_SERVICE_CLIENT_SECRET:}` ve
-`ltz.auth.service-clients.clients.game-service.targets.review-service=rating-summaries:read`
-(`TokenClaims.RATING_SUMMARIES_READ_SCOPE`, `ServiceClientConfig.ALLOWED_TARGET_SCOPES`). `game-service` + doğru secret + `audience=review-service` → 200 `{accessToken, tokenType:Bearer, expiresIn:60, scope:"rating-summaries:read"}`; token `aud=["review-service"]`, `sub=svc:game-service`. Test: `ServiceAudienceTokenTest.gameYalnizReviewIcinPuanOzetiOkumaTokeniAlirKullaniciBagiTasimaz`. Ayrıntı Kerem'in tarafında `docs-auth/verilen-cevaplar/game-service/talep-03-review-puan-okuma-kapsami.md` (bu belge yazılırken `origin` üzerinde görünmüyordu; Kerem'in yerel dosyası olabilir).
-
-**Uyumsuzluk ve çözüm:** Review önce `ratings:read` bekleyecek şekilde yazılmıştı, çünkü Review çalışması sırasında yerel `origin` referansları eskiydi (`git fetch` yapılmamıştı) ve çift görünmüyordu. Düzeltme Review tarafında yapıldı: `InternalRatingSummaryController.SCOPE = "rating-summaries:read"`, testler ve belgeler güncellendi; eski `ratings:read` adı artık reddedilir (403). Auth'ta değişiklik gerekmedi.
-
-**Dışa aktarma için ayrı kapsam:** Gerekmez. İmleçli `GET` aynı veriyi (puan özeti), aynı çağıranla (`svc:game-service`) okur; tek kapsam hem toplu `POST` hem `GET` dışa aktarmayı kapsar. Auth'tan ikinci kapsam istenmiyor.
-
-Review'ın beklediği token biçimi: `typ=svc+jwt`, `iss=ltz-auth`, `aud=["review-service"]`, `sub=svc:game-service`, `scope` içinde `rating-summaries:read`, `jti/iat/nbf/exp` zorunlu, ≤60 sn.
-
-**Durum:** Auth tarafında yapılacak iş yok. Kalan: Game'in secret'ı (`AUTH_GAME_SERVICE_CLIENT_SECRET`) ve dağıtımı (ENV onayı), Game çalışma dalına `main`'in alınması, Game tüketicisi ve canlı Auth↔Game↔Review doğrulaması (NOT VERIFIED).
+**Auth tarafında iş yok.** Açık: §3 (model kararı, MODERATOR 2FA, secret aktarımı, canlı doğrulama). REV-07'nin Admin'e teslimi ve REV-15 model kararına bağlıdır.

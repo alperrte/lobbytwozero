@@ -15,7 +15,7 @@
 - Game doğrulaması mevcut anonim `POST /api/v1/game/games/batch` ile, DB transaction'ından önce yapılır. Kesinti/bozuk yanıt 503; unavailable oyun 404. Otomatik retry yoktur.
 - Kimlik yalnız Auth RS256/JWKS `at+jwt` token'ının kanonik UUID `sub` alanıdır. Mevcut Auth rol sözleşmesi kullanılır; servis token'ları ayrı decoder ve namespace ile korunur. Cookie doğrudan kabul edilmez; Gateway mevcut cookie/CSRF politikasının sahibidir.
 - Auth iptal/hesap durumu kontrolü diğer servislerde anlık değildir; en fazla access token ömrü ve saat toleransı kadar gecikme vardır. Uydurma introspection kullanılmaz.
-- Son kullanıcı talimatı nedeniyle merkezi `docs/api.md` değiştirilemez. API kaydı bu klasörde tutulur; merkezi kataloğa aktarım ayrıca kapsam izni gerektirir.
+- **Güncel (12 Kasım 2026):** Merkezi `docs/api.md` REVIEW bölümü güncel tutulur (AGENTS.md §4.1): Review endpoint'i oluşturan/değiştiren her görev kaydını aynı görevde oraya yazar. Önceki görevlerdeki "`docs/api.md` değiştirilemez" sınırı o görevlerin geçici kapsam kısıtıydı ve 31 Ekim'de kullanıcının merkezi kayıt talebiyle kalktı. Faz bazlı ayrıntılı sözleşme [REVIEW_SERVICE_API.md](REVIEW_SERVICE_API.md) içinde de tutulur.
 
 ## Hesap silme yarışı ve TTL kanıtı — kullanıcı onaylı Faz 1 tamamlaması
 
@@ -127,7 +127,7 @@ Kullanıcı Faz 4 raporunu kabul etti ve aşağıdaki kararları verdi. Bunlar y
 
 1. **Sayısal puan ve ortalama:** Gizlenen veya arşivlenen metinsel incelemelerin bağımsız sayısal puanları, puanın kendisi ayrıca geçersiz kılınmadığı sürece LTZ ortalamasına, dağılıma ve puan sayısına dahil edilmeye devam eder. Metinsel incelemenin görünürlük durumu sayısal puanı otomatik silmez veya dışlamaz. (Puanın ayrıca geçersiz kılınması ayrı bir moderasyon eylemi olarak tanımlanmamıştır ve bu kararla uygulanmamıştır.) REV-08/REV-12/REV-14 mevcut davranışı bu karara zaten uyar: bu hesaplar `game_ratings` üzerindedir ve inceleme durumuna bağlı değildir. Kod değişmedi.
 2. **Görünürlük:** Gizlenen veya arşivlenen incelemeler herkese açık listelerde ve öne çıkan incelemelerde gösterilmez. Mevcut `VISIBLE` beyaz listesi (tek okuma, güncelleme, beğeni, öne çıkanlar, `activeCount`) bu kuralı gelecekteki her gizli durum için yapısal olarak karşılar; ancak şemada gizli durum olmadığından davranış testi yoktur ve kabul tamamlanmış sayılmaz.
-3. **Kapsam:** `docs/api.md` ve `docs-security/` değiştirilmez; değişiklik sınırı yalnız `backend/services/review-service/` ve `docs-review/`'dir. (Önceki "merkezi kataloğa aktarım için kapsam izni gerekir" notu, bu kararla aktarımın yapılmayacağı şeklinde güncellenmiştir.)
+3. **Kapsam (güncel):** Bu karar Faz 4'ün kapsam sınırıydı (`backend/services/review-service/` ve `docs-review/`); `docs-security/` bu görevlerde değiştirilmedi. `docs/api.md` ise sonradan kullanıcının merkezi kayıt talebiyle REVIEW bölümüne aktarıldı ve artık güncel tutulur (bkz. yukarıdaki "Güncel (12 Kasım 2026)" notu).
 4. **Kod yasağı:** Onaylanmamış moderasyon sözleşmeleri için kod geliştirilmez; `HIDDEN/ARCHIVED` durumu, karar alıcı, rapor kapanışı ve Admin uçları eklenmedi.
 
 **Admin entegrasyonuyla birlikte netleştirilecekler (karar verilmedi):** beğenilerin saklanması veya silinmesi, yazarın gizlenmiş/arşivlenmiş içeriğe müdahalesi (görme, düzenleme, silme), tavsiyenin gizlenmiş incelemeyle ilişkisi, tek aktif inceleme hakkının tutulması, rapor kapanışı otoritesi, karar sırası/idempotency ve hesap silme izleri. Bunlar [Admin talebinin](request/admin-review-integration.md) §13'ündedir.
@@ -152,3 +152,73 @@ REV-13 (raporlamaya bağlı) ve REV-15 (moderasyon) için dış servis gereksini
 - `preHandle`: kota uygun/uygulanmayan istekte `true`; kota aşıldığında 429 `application/problem+json` yanıtını (`Retry-After`, gövdede `status=429`) **interceptor kendisi tek kez yazar ve `false` döner**. İstek denetçiye, servise ve transaction'a ulaşmaz; Spring'in ikinci bir hata yanıtı üretmesi için istisna fırlatılmaz.
 - Sayaç deposu hatası gibi beklenmeyen istisnalar yakalanmaz; yanıt yazılmadan yayılır ve genel işleyiciyle 500 olur (fail-closed). Önceki geçici çözüm (`return !response.isCommitted()`) Sonar kuralını yalnız biçimsel geçtiği ve kota aşımında hiç `false` dönmediği için kaldırıldı. `AccountErasureExceptionHandler` içindeki özel 429 işleyicisi ölü kod olduğundan silindi.
 - Doğrulama: `AbuseQuotaInterceptorTest` (4) ve `AbuseQuotaApiTest` (engellenen istekte Game doğrulaması 5 kez çağrılır, 6. istek servise ulaşmaz; engellenen beğeni oyu değiştirmez; `Retry-After` tek değer, `application/problem+json`).
+
+## Frontend ihtiyaçları için eklenen okuma uçları (12 Kasım 2026, kullanıcı talimatı)
+
+- Frontend geliştirmesi üç Review eksiğini ortaya çıkardı; kullanıcı Review servisinin bunları kapatmasını istedi: (1) oyun bazlı "kendi incelemem" okuması, (2) öne çıkanlarda `likedByActor`, (3) "incelemelerim" listesi.
+- Üçü de yalnız okumadır; migration, yeni tablo, bağımlılık, ENV, dış servis çağrısı veya kota değişikliği yoktur. Kimlik yalnız token `sub`; yanıtlarda ham yazar/oy veren kimliği dönmez.
+- `likedByActor` aynı sorguda EXISTS alt sorgusuyla hesaplanır (REPEATABLE_READ snapshot'ı korunur); mevcut JSON alanları değişmedi (geriye uyumlu ek alan).
+- Silinmiş inceleme "yok" sayılır (404 / listede yok); bağımsız puan ve tavsiye bu uçlardan etkilenmez.
+- **Yapılmayanlar:** yazar adı/avatarı ve yazar profili bağlantısı — Review ham yazar kimliği açmaz (gizlilik kararı) ve User profil görünürlüğü ayrı bir User/Review sözleşmesi ister; REV-07/REV-15 ve Notification entegrasyonları dış sahiplerin sözleşmesini bekliyor.
+- Üç değişiklik `docs/api.md` REVIEW bölümüne de işlendi ("Oyundaki kendi incelemem", "Kendi incelemelerim", öne çıkanlarda `likedByActor`); ayrıntı bu klasördeki API belgesinde de vardır.
+
+## REV-07 / REV-13 raporlama — Review tarafı kararları (12 Kasım 2026, kullanıcı talimatı)
+
+Kullanıcı, Admin'i beklemeden Review'ın kendi içinde yapabildiği kadarının yapılmasını istedi. Aşağıdaki değerler **geçici varsayılanlardır**; Admin'in nihai sözlüğü/kararı ile uyumlanır ve her biri tek yerden değişir:
+
+- **Mükerrer rapor:** aynı raportör aynı incelemeyi bir kez raporlar; ikinci deneme **409** (`REPORT_ALREADY_EXISTS`) döner, ilk rapor değişmez (idempotent 200 seçilmedi: "tekrar tekrar raporlanamaz" gereksinimi açık hata ister). PostgreSQL `(review_id, reporter_id)` benzersiz indeksi eşzamanlı istekleri tek kayda indirger.
+- **Kendi incelemesi:** 403 (`REPORT_OWN_REVIEW`) — 31 Ekim'de onaylanan politika. Yalnız `VISIBLE` incelemeye rapor (aksi 404).
+- **Gerekçe sözlüğü (kapalı):** `SPAM, HARASSMENT, HATE_SPEECH, PERSONAL_INFO, SPOILER, OFF_TOPIC, OTHER`; `detail` isteğe bağlı, ≤500 karakter. Değişim = enum + CHECK (yeni migration) + frontend çevirisi.
+- **Kota:** hesap başına saatte 10 (`REPORT_CREATE`, `ltz.review.abuse.report-create.*`); mevcut mekanizma yeniden kullanıldı, mükerrer/geçersiz denemeler de sayılır (inceleme/beğeni kotalarıyla aynı kural). Mevcut 5/60 ve 60/60 değerleri raporlamaya uygulanmaz.
+- **Durum:** yalnız `RECEIVED` (Review yerel kaydı). Admin vaka durumu, karar ve moderatör bilgisi kullanıcıya gösterilmez ve yoktur. Arayüz "iletildi/karara bağlandı" demez; "kaydedildi, iletim henüz etkin değil" der.
+- **Teslim:** `delivered_at NULL` = Admin'e iletilmedi; teslim işçisi/outbox yoktur (Admin alıcısı ve Auth çifti beklenir). Rapor teslim niyeti ayrı bir tabloya taşınmadı: rapor satırı kendisi bekleyen kayıttır.
+- **Hesap silme:** raportörün raporları silinir; yazarın incelemeleri silinince raporlar CASCADE ile kalkar. Metin silme (soft delete) raporları saklar (Admin vakası için kanıt; saklama süresi **KARAR BEKLİYOR**).
+- **Makine-okur hata kodu:** `ReviewException` artık opsiyonel `code` taşır ve `ProblemDetail.code` olarak döner (şimdilik yalnız rapor hataları). Frontend aynı HTTP durumunu `code` ile ayırabilir.
+- **Jackson:** `spring.jackson.datatype.enum.fail-on-numbers-for-enums=true` — enum alanlarına sayı verilmesi (ör. `"reason":1` → sıra numarası) artık 400'dür (yeni enum girdisiyle bulunan açık).
+
+## REV-10 — Review → User `ReviewSummaryChanged` üreticisi (12 Kasım 2026, kullanıcı talimatı)
+
+- **Tasarım:** Kullanıcı başına **birleştirilmiş outbox** (`review_user_summary_outbox`, V59). İnceleme oluşturma ve silme, değişikliğiyle aynı transaction'da satırı yeni `event_id` ile yeniler; `occurred_at` kullanıcı başına **kesin artandır** (en az +1 ms) — User eşit/eski zamanlı olayı yok saydığı için ikinci değişiklik kaybolmaz. Gönderim anında görünür (`VISIBLE`) inceleme sayısı hesaplanır; gönderim sırasında yeni değişiklik olduysa (`event_id` değişti) satır bekler ve yeni olayla gider.
+- **Teslim:** `POST {USER_SERVICE_URL}/internal/events`, Auth `svc+jwt` (`aud=user-service`, `events:ingest`; `POST /internal/v1/service-tokens`, token ≤60 sn bellekte önbelleğe alınır). Aynı `eventId` yeniden denemelerde sabittir. 401/403 ve 4xx kalıcı hata sayılır (token yenilenir, uzun geri çekilme), 5xx/zaman aşımı üstel geri çekilmeyle (5 sn → en çok 15 dk) yeniden denenir. Kullanıcı işlemleri teslimden etkilenmez; zamanlayıcıdan hiçbir istisna sızmaz.
+- **Kapalı varsayılan:** `AUTH_REVIEW_SERVICE_CLIENT_SECRET` boşsa işçi ve token istemcisi **kurulmaz** (Auth'a da User'a da istek atılmaz); outbox satırları birikir ve secret verilince gönderilir. Secret'ın ortama eklenmesi ENV değişikliğidir ve **kullanıcı onayı** gerektirir; hiçbir ENV dosyası değiştirilmedi.
+- **Hesap silme:** silinen hesabın outbox satırı silinir ve yeni olay üretilmez.
+- **Sınırlar (açık):** (1) etkinleştirmeden önce yazılmış incelemeler için olay üretilmemiştir → ilk etkinleştirmede **backfill** kararı gerekir; (2) canlı Auth/User ile doğrulanmadı (testler yerel sahte HTTP sunucularıdır); (3) gizlenen/arşivlenen inceleme sayımı REV-15 kararına bağlıdır (bugün yalnız `VISIBLE`).
+
+## REV-15 — Review'ın bağımsız yapabileceği kısım (12 Kasım 2026)
+
+Yapılabilecek bağımsız bir parça **yoktur**: `HIDDEN/ARCHIVED` durumları, karar alıcı uç ve rapor kapatma, Admin'in karar sözleşmesi ve Auth çiftlerine bağlıdır; onaysız eklenen şema/uç ölü kontrat olurdu. Mevcut zemin (`VISIBLE` beyaz liste, puan politikası) korunur. Ayrıntı [Admin talebi](request/admin-review-integration.md) §14.3.
+
+## BEKLEYEN KARAR — Moderasyon/rapor uçlarını Review sunsun mu? (Auth önerisi, 12 Kasım 2026)
+
+Auth, Admin modelinin değiştiğini bildirdi (her servis kendi admin uçlarını açar; panel çağırır) ve Review'ın rapor/moderasyon uçlarını **kullanıcı `at+jwt`'si + `MODERATOR`/`ADMIN` rolü** ile kendisinin sunmasını önerdi. Bu, yukarıdaki "Review `MODERATOR`/`ADMIN`'e ek yetki tanımaz; kullanıcı JWT'si moderasyon kararı yerine geçmez" kararını (31 Ekim) değiştirir. **Kabul/ret Hamza'dadır; karar verilene kadar kod yazılmaz.** Kabul edilirse: servis çiftleri, aktör taşıması ve Admin'e push düşer; REV-15 sadeleşir; Review'da rol tabanlı admin uçları, `HIDDEN/ARCHIVED` ve rapor kapatma eklenir; `MODERATOR` 2FA kararı önce netleşmelidir. Ayrıntı: [Auth](request/auth-review-integration.md) §2, [Admin](request/admin-review-integration.md) §15.
+
+**Auth cevabıyla kapanan:** GAME-26 kapsamları Auth'ta uygulanmış ve testlidir (`docs/api.md`'deki "taslak" ifadesi eskidir; Auth düzeltecek) — Review katılımcı uçları için Auth'tan yeni bir şey beklenmiyor.
+
+**KARAR (12 Kasım 2026, Hamza): Auth önerisi KABUL EDİLDİ.** Review, rapor listeleme/kapatma ve moderasyon uçlarını kendisi sunar; uçlar kullanıcı `at+jwt`'si ve `MODERATOR`/`ADMIN` rolüyle çalışır. Yukarıdaki 31 Ekim "ek yetki tanımaz" kararı bu uçlar için geçersizdir (kullanıcı uçları aynı kalır). Admin↔Review servis çiftleri, aktör taşıması ve Admin'e rapor push'u düşer. Kod yalnız Review'dadır; Admin paneli ekranları Admin sahibine, `MODERATOR` 2FA kararı Auth + ürüne, bildirim Notification'a aittir. Uygulama ayrıntı kararları (rapor durum adları, yol, audit, yazar görünürlüğü) [Admin talebi](request/admin-review-integration.md) §15'te açıktır.
+
+## Uygulanan moderasyon kararları (12 Kasım 2026, Hamza: "hepsi önerilerle kabul")
+
+- **Yol:** `/api/v1/review/admin/**`; yalnız `MODERATOR`/`ADMIN` kullanıcı JWT'si (güvenlik zincirinde genel kullanıcı kuralından önce). Aktör = token `sub`; denetim kaydında saklanır, hiçbir yanıtta dönmez.
+- **Rapor durumları:** `RECEIVED` → `REVIEWED` (işlem yapıldı) / `DISMISSED` (reddedildi); inceleme bazında toplu kapatma; kapanan rapor yeniden açılmaz; gerekçe zorunlu. Raportöre yalnız `RECEIVED`/`CLOSED` gösterilir (sonuç sızmaz).
+- **Eylemler:** `HIDDEN` (geri alınabilir; yazar silebilir), `ARCHIVED` (kalıcı; geri alınamaz; yazar silemez — kanıt korunur). Gizli/arşivli inceleme tek aktif inceleme hakkını tutar (mevcut kısmi indeks). Beğeniler silinmez ve geri alınınca döner. Puan/tavsiye/ortalama etkilenmez (31 Ekim kararıyla tutarlı).
+- **Yazar görünürlüğü:** yazar kendi gizli/arşivli incelemesini `status` ile görür, düzenleyemez (403 `REVIEW_MODERATED`); diğer herkes 404. `ReviewResponse.status` eklendi.
+- **Sürüm koruması:** moderasyon, moderatörün gördüğü inceleme sürümüyle gelir; yazar bu arada düzenlediyse 409 (`REVIEW_VERSION_CONFLICT`). Moderasyon `updatedAt`'i değiştirmez ("düzenlendi" görünmez), JPA sürümünü artırır.
+- **Denetim:** `review_moderation_actions` (V60). Moderatör hesabı silinince `actor_id` NULL olur (kayıt/gerekçe kalır); yazar silinince incelemeyle birlikte gider.
+- **Admin'e teslim ve servis çiftleri düştü** (`delivered_at` kaldırıldı). Moderasyon, User profil sayacı outbox'ını günceller (görünür inceleme sayısı değişir).
+- **V60 aralığın SON numarasıdır (V51–V60).** Yeni migration için ekip kararı gerekir (numara uydurulmaz).
+- **Açık:** `MODERATOR` 2FA zorunluluğu (Auth + ürün) — uçlar canlıya açılmadan önce netleşmeli; yazara moderasyon bildirimi (Notification alıcısı yok); gerekçe/itiraz akışı ve moderasyon audit saklama süresi.
+
+## REV-10 User cevabı ve backfill (12 Kasım 2026)
+
+- **A (ReviewSummaryChanged) User tarafından onaylandı** (eşit/eski `occurredAt` bilerek yok sayılır, `reviewCount` 0–10.000.000, `userId=aggregateId`; Review'ın kesin artan zamanı ve yalnız `VISIBLE` sayımı uyumlu). **Backfill uygulandı:** teslim işçisi açıldığında (secret doluysa) başlangıçta `UserSummaryOutbox.backfillMissing` ile incelemesi olan ama outbox satırı olmayan her kullanıcı için bekleyen satır açılır (idempotent; var olan satırlara dokunmaz; silinmiş hesap için olay yok).
+- **BEKLEYEN KARAR (Hamza) — Yazar görünümü:** User seçenek 2'yi seçti (`authorUserId` + User `POST /api/v1/user/profiles/cards`). Bedel: yazar UUID'si herkese görünür ve aynı yazarın incelemeleri birbirine bağlanabilir; bu, Review'ın bugünkü "ham yazar kimliği açılmaz" politikasını değiştirir. Seçenekler: 2 (kabul), 1 (opak `authorRef`, User'da ek sözleşme), yazarsız. Karar verilene kadar kod yazılmaz; ayrıntı [User talebi](request/user-review-integration.md) §3.
+
+## Karar: yazar kimliği `authorUserId` açılır (12 Kasım 2026, Hamza + User)
+
+- **Eski politika:** ham yazar kimliği yanıtlarda dönmezdi (REV-02/REV-09). **Yeni politika:** `ReviewResponse` yazarın `authorUserId` (UUID) alanını taşır; kimliği doğrulanmış her okuyucu görür. Ad/avatar Review'dan gelmez; User toplu kart ucundan çözülür ve gizlilik/engelleme kararı User'dadır.
+- **Gerekçe:** User seçenek 2'yi seçti; opak belirteç ek sözleşme ve anahtar yönetimi getirir, yazarsız kartlar ürün değerini düşürür.
+- **Kabul edilen bedel:** aynı yazarın incelemeleri UUID üzerinden bağlanabilir; yayınlanan UUID geri alınamaz.
+- **Sınırlar:** `authorUserId` moderatör uçlarında, rapor yanıtlarında ve denetim kayıtlarında yoktur; oy veren kimlikleri dönmez; görünmez (gizli/arşivli/silinmiş) incelemelerde mevcut görünürlük kuralları aynen geçerlidir.
+- **Frontend:** User kart sözleşmesi gelene kadar yazarsız; alan adları tahmin edilmez.
+- **Düzeltme (User cevabı, 12 Kasım 2026):** toplu kart ucu `POST /api/v1/user/profiles/batch` User'da zaten vardı (yeni uç gerekmedi). Kart yalnız hesap durumu ve engele bakar, **profil gizlilik ayarına bakmaz** (`REVIEW_AUTHOR` yorum/UGC kuralı): profili gizli olan yazarın adı/avatarı incelemede görünür. Önceki "ad/avatar gizlilik ayarına tabi" ifadesi yanlıştı; aydınlatma metnine yansıtılmalıdır.
+- **Frontend davranışı:** sayfa başına tek istek (CSRF'li, bir kez yenileyip tekrar), kartı olmayan yazar "Bir oyuncu" ve bağlantısız; kendi incelemede istek yok; User kesintisinde yazarsız devam.

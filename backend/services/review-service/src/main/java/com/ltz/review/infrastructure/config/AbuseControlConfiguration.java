@@ -27,5 +27,7 @@ public class AbuseControlConfiguration implements WebMvcConfigurer {
                 .addPathPatterns("/api/v1/review/games/*/reviews");
         registry.addInterceptor(new AbuseQuotaInterceptor(quotas, AbuseAction.REVIEW_LIKE, Set.of("PUT", "DELETE")))
                 .addPathPatterns("/api/v1/review/reviews/*/like");
+        registry.addInterceptor(new AbuseQuotaInterceptor(quotas, AbuseAction.REPORT_CREATE, Set.of("POST")))
+                .addPathPatterns("/api/v1/review/reviews/*/reports");
     }
 }
