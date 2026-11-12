@@ -106,6 +106,38 @@ class GameBatchControllerTest extends AuthenticatedApiTest {
         mvc.perform(post("/api/v1/game/admin/games").contentType("application/json").content("{}")).andExpect(status().isUnauthorized());
     }
 
+    /** Review yazma doğrulaması (GameServiceClient): tek kimlik sorulur; var ise items=[o], unavailable=[]; yoksa items=[], unavailable=[kimlik]. */
+    @Test void singleIdAnswersKeepTheShapeReviewValidationDependsOn() throws Exception {
+        UUID existing = game("Review Target", "EXTERNAL", "MAIN_GAME", "ACTIVE");
+        jdbc.update("insert into game_external_refs(id,game_id,provider,external_id) values (gen_random_uuid(),?,'STEAM','777')", existing);
+        jdbc.update("insert into game_media(id,game_id,type,url,sort_order) values (gen_random_uuid(),?,'COVER','https://cdn.example/r.jpg',0)", existing);
+        mvc.perform(post(PATH).contentType("application/json").content(body(existing))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].gameId").value(existing.toString()))
+                .andExpect(jsonPath("$.items[0].title").value("Review Target"))
+                .andExpect(jsonPath("$.items[0].coverUrl").value("https://cdn.example/r.jpg"))
+                .andExpect(jsonPath("$.items[0].externalReferences[0].provider").value("STEAM"))
+                .andExpect(jsonPath("$.unavailable").isArray()).andExpect(jsonPath("$.unavailable").isEmpty());
+        UUID missing = UUID.randomUUID();
+        // "Oyun yok" 404 değil, 200 + unavailable ile anlatılır; Review bunu 404'e çevirir, 5xx/429'u 503'e.
+        mvc.perform(post(PATH).contentType("application/json").content(body(missing))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isArray()).andExpect(jsonPath("$.items").isEmpty())
+                .andExpect(jsonPath("$.unavailable.length()").value(1)).andExpect(jsonPath("$.unavailable[0]").value(missing.toString()));
+    }
+
+    /** Keşif listeleri +18 ve kaldırılmış oyunu gizler; batch gizlemez (Review sayfaları, incelemelerim ve yazma doğrulaması bunlara dayanır). */
+    @Test void adultAndDelistedGamesStayReadableThroughBatch() throws Exception {
+        UUID adult = game("Adult Title", "EXTERNAL", "MAIN_GAME", "ACTIVE");
+        UUID delisted = game("Delisted Title", "EXTERNAL", "MAIN_GAME", "ACTIVE");
+        jdbc.update("update games set adult=true where id=?", adult);
+        jdbc.update("update games set delisted_at=now() where id=?", delisted);
+        mvc.perform(post(PATH).contentType("application/json").content(body(adult, delisted))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(2))
+                .andExpect(jsonPath("$.items[0].gameId").value(adult.toString()))
+                .andExpect(jsonPath("$.items[1].gameId").value(delisted.toString()))
+                .andExpect(jsonPath("$.unavailable").isEmpty());
+    }
+
     @Test void answersFiftyIdsInOneRequest() throws Exception {
         UUID[] ids = new UUID[50];
         for (int i = 0; i < 50; i++) {

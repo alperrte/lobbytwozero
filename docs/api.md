@@ -2491,6 +2491,11 @@ Public. Kimlik/JWT gerekmez ve gelecekte de zorunlu tutulmaz. Yalnız herkese a�
 ```
 - `items`: istek sırasını korur; her eleman `GET /{gameId}/card` ile aynı sözleşmedir. Tür (MAIN_GAME, DLC vb.) fark etmeksizin ACTIVE kayıtlar döner.
 - `unavailable`: bulunamayan, ARCHIVED veya MERGED kimlikler. Nedenler birbirinden ayırt edilmez. Library Service bu kimlikler için kendi anlık görüntüsünü kullanır (LIB-17).
+- Yetişkin içerikli (`adult`) ve mağazadan kaldırılmış (`delisted`) oyunlar ACTIVE ise **döner**; keşif listelerindeki gizleme bu uca uygulanmaz.
+- "Oyun yok" bu uçta 404 ile değil, `200` + `unavailable` ile anlatılır. Tek kimlik sorulduğunda biçim sabittir: var ise `items=[o]` ve `unavailable=[]`; yoksa `items=[]` ve `unavailable=[kimlik]`.
+
+**Tüketici sözleşmesi (Review Service, 12 Kasım 2026):** Review frontend'i (`credentials: "omit"`, Gateway üzerinden) kart için `items[].gameId`, `title`, `coverUrl`, `externalReferences[provider=STEAM]` ve `unavailable[]` alanlarını okur. Review backend'i yazma isteklerinde (inceleme, puan, tavsiye) oyunun varlığını tek kimlikle bu uçtan doğrular: `unavailable=[kimlik]` → 404; ağ hatası, 429 veya 5xx → 503 (yeniden deneme yok). Bu alanların adı veya anlamı ve 50 kimlik üst sınırı kırıcı biçimde değiştirilmez; değişecekse bu kayıtta duyurulur. `GameBatchControllerTest` bu biçimi sabitler.
+**Kapasite notu:** Gateway'den gelen tarayıcı trafiği (Review, Library) tek istek kovasını paylaşır (yukarıdaki istek sınırı). Review sayfaları yaygınlaştığında toplam sürekli üst sınır 20 istek/sn'dir; aşımda Review kartları başlıksız ("Oyun") açılır, veri gizlenmez. Çözüm Gateway'in istemci IP'sini güvenilir iletmesi (`ltz.rate-limit.trusted-proxies`) veya kova değerlerinin artırılmasıdır; Gateway sahibiyle birlikte karara bağlanır.
 
 #### Hata Durumları
 - 400: Boş/51+ kimlik, null eleman, geçersiz UUID, bilinmeyen alan, bozuk gövde (ProblemDetail).
