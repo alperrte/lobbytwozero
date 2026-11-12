@@ -126,8 +126,51 @@ class ItadPriceIntegrationTest extends PostgresTestSupport {
         @SuppressWarnings("unchecked") Set<UUID>[] result=new Set[]{hot,warm};
         return result;
     }
-    private void markChecked(UUID game,String interval) {
-        jdbc.update("insert into game_price_refresh_state(id,game_id,country,currency,status,checked_at) values (?,?,'US','USD','AVAILABLE',now()-cast(? as interval))",UUID.randomUUID(),game,interval);
+    private void markChecked(UUID game,String interval) { markChecked(game,"AVAILABLE",interval); }
+    private void markChecked(UUID game,String status,String interval) {
+        jdbc.update("insert into game_price_refresh_state(id,game_id,country,currency,status,checked_at) values (?,?,'US','USD',?,now()-cast(? as interval))",UUID.randomUUID(),game,status,interval);
+    }
+    @Test void marketDemandIsSummedPerDayAndOnlyMarketsReadOftenEnoughInTheWindowAreReportedMostReadFirst() {
+        jdbc.update("delete from game_price_market_demand");
+        java.time.LocalDate today=java.time.LocalDate.of(2026,11,12);
+        Market de=new Market("DE","EUR"),gb=new Market("GB","GBP"),jp=new Market("JP","JPY");
+        repository.recordDemand(java.util.Map.of(de,2L,gb,1L),today);
+        repository.recordDemand(java.util.Map.of(de,3L),today);
+        repository.recordDemand(java.util.Map.of(gb,4L,jp,1L),today.minusDays(10));
+        repository.recordDemand(java.util.Map.of(),today);
+        assertEquals(5L,jdbc.queryForObject("select read_count from game_price_market_demand where country='DE' and demand_date=?",Long.class,java.sql.Date.valueOf(today)),"aynı gün toplanır");
+        assertEquals(List.of(de),repository.demandMarkets(today.minusDays(7),3),"pencere dışındaki GB okumaları sayılmaz");
+        assertEquals(List.of(de,gb),repository.demandMarkets(today.minusDays(30),3),"eşitlikte ülke sırası; tek okumalı JP eşik altında");
+        assertEquals(List.of(),repository.demandMarkets(today.minusDays(7),6));
+        assertEquals(2,repository.pruneDemand(today.minusDays(5)),"eski günlerin satırları silinir");
+        assertEquals(2,jdbc.queryForObject("select count(*) from game_price_market_demand",Integer.class));
+    }
+    @Test void aNoOfferGameIsRecheckedOnlyAfterSixTimesItsTierIntervalWhileAnAvailableOneKeepsTheNormalInterval() {
+        markChecked(first,"AVAILABLE","9 hours");
+        markChecked(second,"NO_OFFER","9 hours");
+        markChecked(third,"NO_OFFER","50 hours");
+        var chosen=repository.candidates(MARKET,Instant.now(),Duration.ofMinutes(20),Duration.ofHours(2),Duration.ofHours(8)).stream().map(GamePriceRepository.Candidate::id).toList();
+        assertTrue(chosen.contains(first),"teklifi olan soğuk oyun 8 saatte yeniden aday");
+        assertFalse(chosen.contains(second),"teklifi olmayan oyun 8 saatte aday değil (48 saat gerekir)");
+        assertTrue(chosen.contains(third),"48 saat dolunca teklifi olmayan oyun yeniden aday");
+    }
+    @Test void aNoOfferGameStaysNoOfferForSixTimesTheNormalDisplayWindowAndThenBecomesUnavailable() {
+        markChecked(first,"NO_OFFER","100 hours");
+        assertEquals("NO_OFFER",service.read(List.of(first),MARKET).items().getFirst().status(),"gizleme süresi 24 saat x 6 = 144 saat");
+        jdbc.update("update game_price_refresh_state set checked_at=now()-interval '150 hours'");
+        assertEquals("UNAVAILABLE",service.read(List.of(first),MARKET).items().getFirst().status());
+    }
+    @Test void theShareTheHotAndWarmTiersCannotFillIsHandedDownToTheColdTierInsteadOfBeingWasted() {
+        UUID hotGame=game("Hot only","901"),warmOne=game("Warm one","902"),warmTwo=game("Warm two","903");
+        jdbc.update("update games set release_date=current_date where id=?",hotGame);
+        jdbc.update("update games set release_date=current_date-300 where id in (?,?)",warmOne,warmTwo);
+        Set<UUID> cold=new java.util.HashSet<>(Set.of(first,second,third));
+        for(int index=0;index<6;index++) cold.add(game("Cold "+index,"70"+index));
+        cold.forEach(game -> markChecked(game,"2 days"));
+        var chosen=repository.candidates(MARKET,Instant.now(),Duration.ofMinutes(20),Duration.ofHours(2),Duration.ofHours(8),10).stream().map(GamePriceRepository.Candidate::id).toList();
+        assertEquals(10,chosen.size(),"sıcak payın 3'ü ve ılık payın 3'ü soğuğa devredildi");
+        assertTrue(chosen.containsAll(List.of(hotGame,warmOne,warmTwo)));
+        assertEquals(7,chosen.stream().filter(cold::contains).count());
     }
     @Test void aLargeHotTierCannotStarveTheWarmAndColdTiersWhenNoColdGameIsWaitingForItsFirstPrice() {
         var tiers=seedHotAndWarm(12);Set<UUID> hot=tiers[0],warm=tiers[1];

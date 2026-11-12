@@ -73,6 +73,26 @@ class GamePriceMarketsTest {
         assertEquals(List.of(1000L, 1000L), sleeps, "kiralama iki kez dolu, üçüncüde alındı");
     }
 
+    @Test void aViewedGameAsksTheProviderWithInteractivePriorityWhileTheScheduledRunKeepsBackgroundPriority() {
+        var provider = mock(GamePriceProvider.class);
+        var repository = mock(GamePriceRepository.class);
+        UUID game = UUID.randomUUID();
+        when(provider.isConfigured()).thenReturn(true);
+        when(repository.tiers(any(), any(), any(), any())).thenReturn(java.util.Map.of(game, Duration.ofHours(8)));
+        when(repository.claim(any(), any())).thenReturn(true);
+        when(repository.publish(any(), any(), any(), any(), any())).thenReturn(true);
+        when(repository.candidates(any(), any(), any(), any(), any(), anyInt())).thenReturn(List.of(new GamePriceRepository.Candidate(game, Duration.ofHours(2))));
+        when(provider.prices(any(), any(), any())).thenReturn(List.of());
+        when(provider.prices(any(), any())).thenReturn(List.of());
+        var service = new GamePriceService(provider, repository, mock(GameRepository.class), properties("US:USD"), CLOCK);
+        assertEquals(1, service.refreshNow(Set.of(game), new Market("US", "USD")));
+        verify(provider).prices(any(), any(), eq(GamePriceProvider.Priority.INTERACTIVE));
+        verify(provider, never()).prices(any(), any());
+        service.refresh();
+        verify(provider, times(1)).prices(any(), any());
+        verify(provider, times(1)).prices(any(), any(), any());
+    }
+
     @Test void aViewedGameGivesUpWhenTheLeaseNeverFrees() {
         var provider = mock(GamePriceProvider.class);
         var repository = mock(GamePriceRepository.class);
@@ -240,6 +260,17 @@ class GamePriceMarketsTest {
         for (int run = 1; run <= 4; run++) assertEquals(List.of(tr), service.runMarkets(), run + ". tur yalnız birikimli pazar");
         assertEquals(all, service.runMarkets(), "5. tur tüm pazarlar");
         assertEquals(List.of(tr), service.runMarkets(), "sayaç döner");
+    }
+
+    @Test void onlyTheMarketsTheDemandComponentReportsAreRefreshedInTheBackground() {
+        var repository = mock(GamePriceRepository.class);
+        var demand = mock(PriceMarketDemand.class);
+        Market us = new Market("US", "USD"), tr = new Market("TR", "TRY");
+        var configured = List.of(us, new Market("GB", "GBP"), tr);
+        when(demand.activeMarkets(configured)).thenReturn(List.of(us, tr));
+        var service = new GamePriceService(mock(GamePriceProvider.class), repository, mock(GameRepository.class), properties("GB:GBP,TR:TRY"), CLOCK);
+        service.useDemand(demand);
+        assertEquals(List.of(us, tr), service.runMarkets(), "talep bileşeninin bildirdiği pazarlar");
     }
 
     @Test void withoutABacklogEveryMarketIsServedInEveryRun() {
