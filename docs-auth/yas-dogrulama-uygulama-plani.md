@@ -47,8 +47,8 @@ Durum: [ ] yapılmadı · [~] sürüyor · [x] bitti. Her aşama sonunda commit 
 - [x] **A4** Backend testleri (`AccountAgeVerificationTest` 14, `AdultVerificationServiceAgeTest` 2, `FlywayMigrationTest` V66; auth-service `verify` 637 test yeşil). Sapma: aralık dışı tarih (`INVALID_BIRTH_DATE`) deneme hakkı harcamaz; gövdedeki bilinmeyen alan `400`.
 - [x] **A5** `docs/api.md` AUTH, `servis-sozlesmeleri.md`, `migration-yazim-kurallari.md`, `docs/decisions/migrations.md`.
 - [x] **A6** Auth frontend: `reload()`, `AccountAgeSection`, `auth-api`, mesajlar, testler.
-- [x] **A7** User: `docs-user/decisions/kararlar.md` notu, isteğe bağlı sözleşme testi, `AccountSettings` birleştirmesi.
-- [ ] **A8** Docker ile uçtan uca doğrulama (`node ops/dev.mjs --all --force`, ana klondan).
+- [x] **A7** User: `docs-user/decisions/kararlar.md` notu, `AccountSettings` birleştirmesi (Auth tarafında). "Yanıtlarda yaş alanı yok" sözleşme testi isteğe bağlıydı ve **yazılmadı**.
+- [x] **A8** Docker ile uçtan uca doğrulama, yerel `ltz-dev` yığını (postgres, mailpit, mail, auth, user, api-gateway), Gateway `:5080` üzerinden, 2026-11-12: 26/26 senaryo geçti. V66 uygulandı (`65 → 66`); kayıt, e-posta kodu, giriş, TOTP; `STEP_UP_REQUIRED`; beyan → `/me adultVerified=true` → refresh sonrası token'da `adult_verified: true` (refresh öncesi yok); geri alma ve yeniden beyan; 3 denemeden sonra `429` (kilitliyken doğru tarih de `429`); gelecek/bozuk tarih `400`. Ortak (paylaşılan) DEV sunucusunda doğrulanmadı.
 
 ## Sözleşme (Game ve Review'ın dayanağı)
 
@@ -62,5 +62,7 @@ Durum: [ ] yapılmadı · [~] sürüyor · [x] bitti. Her aşama sonunda commit 
 - Beyan zayıf kanıttır; sınır hesap başınadır, yeni hesapla aşılabilir.
 - `GET /games` yanıtının Gateway veya aracı önbellekte kullanıcıdan bağımsız tutulup tutulmadığı doğrulanmadı (Game/Gateway sahibi).
 - Review frontend'inin `/games` yanıtındaki yeni alanı tolere ettiği doğrulanmadı (Hamza).
-- Gateway GET isteklerinde CSRF istemiyor (`CookieBearerFilter`, kod okundu, canlı denenmedi).
+- Gateway çerezi `Bearer`'a çevirip claim'i iletiyor ve `GET /me` çerezle CSRF başlığı olmadan çalışıyor (A8'de canlı denendi). Başka servislerin GET uçlarında aynı davranış denenmedi.
+- Oturumsuz isteğin kimlik kontrolüyle (401) reddedildiği canlıda ayrıca denenmedi; A8'deki oturumsuz deneme CSRF yüzünden 403 aldı (401 garantisi backend testlerinde).
+- Dev yığınında güvenli çerez modu açık: çerez adları `__Host-` önekli (`__Host-XSRF-TOKEN` vb.). Tarayıcıda `http://localhost` ile giriş denemesi ayrıca doğrulanmadı.
 - Game ve Review ile uçtan uca senaryolar: diğer taraflar bitince.
