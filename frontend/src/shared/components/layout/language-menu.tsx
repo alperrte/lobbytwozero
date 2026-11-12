@@ -20,11 +20,15 @@ import { getPathname, usePathname } from "@/shared/lib/i18n/navigation";
 import type { AppPathname } from "@/shared/lib/i18n/routing";
 import { cn } from "@/shared/utils/cn";
 
-/** Dinamik Community rotaları → URL parametresi adı (dil değişiminde eşdeğer sayfaya parametreyle geçmek için). */
-const COMMUNITY_PARAMS: Readonly<Record<string, string>> = {
+/** Dinamik rotalar → dil değişiminde korunacak URL parametresi adı. */
+const DYNAMIC_PARAMS: Readonly<Record<string, string>> = {
+  "/hardware/[productId]": "productId",
+  "/games/[gameId]": "gameId",
+  "/library/users/[userId]": "userId",
   "/community/posts/[postId]": "postId",
   "/community/forums/[forumId]": "forumId",
-  "/community/users/[userId]": "userId"
+  "/community/users/[userId]": "userId",
+  "/players/[userId]": "userId"
 };
 
 /** Dil adları her zaman kendi dilinde yazılır (Türkçe / English). */
@@ -58,14 +62,11 @@ export function LanguageMenu() {
       const search = new URLSearchParams(window.location.search);
       // Locale changes replace the root html layout. A document navigation runs
       // the existing pre-paint preference script and clears private client state.
-      if (pathname === "/hardware/[productId]" && typeof params.productId === "string") {
-        window.location.assign(getPathname({ href: { pathname: "/hardware/[productId]", params: { productId: params.productId }, query: Object.fromEntries(search) }, locale }) + window.location.hash);
-      } else if (pathname === "/games/[gameId]" && typeof params.gameId === "string") {
-        window.location.assign(getPathname({ href: { pathname: "/games/[gameId]", params: { gameId: params.gameId }, query: Object.fromEntries(search) }, locale }) + window.location.hash);
-      } else if (pathname in COMMUNITY_PARAMS && typeof params[COMMUNITY_PARAMS[pathname]] === "string") {
-        // Community dinamik rotaları (gönderi, forum, oyuncu): kimlik parametresi dil değişiminde korunur.
-        const name = COMMUNITY_PARAMS[pathname];
-        const href = { pathname, params: { [name]: params[name] }, query: Object.fromEntries(search) } as unknown as Parameters<typeof getPathname>[0]["href"];
+      if (pathname in DYNAMIC_PARAMS) {
+        const name = DYNAMIC_PARAMS[pathname];
+        const value = params[name];
+        if (typeof value !== "string" || !value.trim()) return;
+        const href = { pathname, params: { [name]: value }, query: Object.fromEntries(search) } as unknown as Parameters<typeof getPathname>[0]["href"];
         window.location.assign(getPathname({ href, locale }) + window.location.hash);
       } else {
         // Statik rota birleşimi TS'in ayırıcı birleşim sınırını (25) aşar; yol zaten `AppPathname`'dir.

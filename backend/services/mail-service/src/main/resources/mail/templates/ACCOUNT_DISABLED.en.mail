@@ -1,0 +1,7 @@
+# ACCOUNT_DISABLED (en). Biçim: docs-mail/sablon-rehberi.md. Düz metin sürümü bloklardan otomatik üretilir.
+subject: Your LTZ account was disabled
+kind: danger
+label: ACCOUNT STATUS
+title: Your account was disabled
+text: Your LTZ account was disabled and cannot be used at the moment.
+date: Date:

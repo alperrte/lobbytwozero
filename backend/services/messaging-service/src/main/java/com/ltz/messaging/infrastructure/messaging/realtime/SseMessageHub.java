@@ -5,6 +5,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -16,8 +17,11 @@ import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import com.ltz.messaging.api.dto.response.MessageResponse;
 import com.ltz.messaging.application.port.MessageStreamPort;
 import com.ltz.messaging.application.service.MessageView;
+import com.ltz.messaging.application.service.ReadReceiptView;
+import com.ltz.messaging.domain.enums.ReadStatus;
 import com.ltz.messaging.domain.exception.MessagingErrorCode;
 import com.ltz.messaging.domain.exception.MessagingException;
 import com.ltz.messaging.infrastructure.config.StreamProperties;
@@ -28,14 +32,17 @@ import lombok.extern.slf4j.Slf4j;
  * SSE akışlarının bu örnekteki kaydı (docs/decisions/0001-gercek-zamanli-mesajlasma.md). Her kullanıcının en fazla
  * {@code maxPerUser} akışı olur. İletim ayrı bir yürütücüde yapılır (yavaş istemci gönderim isteğini bekletmez);
  * yürütücü doluysa ya da yazma başarısızsa akış kapatılır, istemci yeniden bağlanıp geçmişten eşitlenir. Kalp atışı
- * ({@code heartbeat}) bağlantıyı aradaki proxy'lerin zaman aşımına karşı canlı tutar. Kayıt bellektedir: birden çok
- * örnekte çalışırken örnekler arası yayın gerekir (ADR'de açık nokta). Mesaj içeriği loglanmaz.
+ * ({@code heartbeat}) bağlantıyı aradaki proxy'lerin zaman aşımına karşı canlı tutar. Kayıt bu örneğin belleğindedir;
+ * birden çok örnekte olaylar {@link PostgresStreamRelay} ile tüm örneklere aktarılır ve her örnek
+ * {@link #deliver(List)} ile yalnız kendi akışlarına yazar. Tek örnekte ({@code ltz.messaging.stream.relay=local}) bu
+ * sınıf doğrudan {@link MessageStreamPort}'tur. Mesaj içeriği loglanmaz.
  */
 @Slf4j
-public class SseMessageHub implements MessageStreamPort {
+public class SseMessageHub implements MessageStreamPort, LocalStreamDelivery {
 
     static final String MESSAGE_EVENT = "message";
     static final String READY_EVENT = "ready";
+    static final String READ_EVENT = "read";
     /** Token bitişine çok yakın açılan akış hemen kapanmasın diye en kısa ömür. */
     static final Duration MIN_LIFETIME = Duration.ofSeconds(5);
 
@@ -74,14 +81,59 @@ public class SseMessageHub implements MessageStreamPort {
     }
 
     @Override
-    public void publish(Collection<UUID> recipients, MessageView message) {
-        try {
-            executor.execute(() -> deliver(recipients, message));
-        } catch (RejectedExecutionException _) {
-            // Kuyruk dolu: alıcıların akışları kapanır, istemciler yeniden bağlanıp geçmişten eşitlenir (mesaj kaybolmaz).
-            log.warn("Realtime dispatch queue is full; closing affected streams");
-            recipients.forEach(this::closeAll);
+    public void publish(Map<UUID, MessageView> perRecipient) {
+        Map<UUID, MessageView> payloads = Map.copyOf(perRecipient);
+        dispatch(payloads.keySet(), () -> deliver(payloads));
+    }
+
+    @Override
+    public void publishEvent(String eventName, Map<UUID, ?> payloadByRecipient) {
+        Map<UUID, ?> payloads = Map.copyOf(payloadByRecipient);
+        dispatch(payloads.keySet(), () -> payloads.forEach((recipient, payload) -> {
+            Set<SseEmitter> open = streams.get(recipient);
+            if (open != null) {
+                for (SseEmitter emitter : open) {
+                    send(recipient, emitter, SseEmitter.event().name(eventName)
+                            .data(payload, MediaType.APPLICATION_JSON));
+                }
+            }
+        }));
+    }
+
+    @Override
+    public void publishReadReceipt(UUID recipient, ReadReceiptView receipt) {
+        dispatch(List.of(recipient), () -> deliverReadReceipt(recipient, receipt));
+    }
+
+    @Override
+    public void closeStreams(UUID userId) {
+        closeAll(userId);
+    }
+
+    @Override
+    public void deliver(List<StreamEnvelope> envelopes) {
+        List<StreamEnvelope> local = envelopes.stream().filter(envelope -> streams.containsKey(envelope.recipient()))
+                .toList();
+        if (local.isEmpty()) {
+            return;
         }
+        dispatch(local.stream().map(StreamEnvelope::recipient).distinct().toList(),
+                () -> local.forEach(this::deliverEnvelope));
+    }
+
+    @Override
+    public void closeAllLocal() {
+        List.copyOf(streams.keySet()).forEach(this::closeAll);
+    }
+
+    /** Alıcıya göre kurulmuş {@code message} olayı yükü: göndericinin kendi akışında okundu durumu {@code SENT}. */
+    static MessageResponse messagePayload(UUID recipient, MessageView message) {
+        return MessageResponse.from(recipient.equals(message.senderId())
+                ? message.withReadStatus(ReadStatus.SENT) : message);
+    }
+
+    static String messageEventId(MessageView message) {
+        return message.conversationId() + ":" + message.seq();
     }
 
     /** Aradaki proxy'lerin okuma zaman aşımına karşı boş yorum satırı gönderir. */
@@ -97,17 +149,58 @@ public class SseMessageHub implements MessageStreamPort {
         return open == null ? 0 : open.size();
     }
 
-    private void deliver(Collection<UUID> recipients, MessageView message) {
-        for (UUID recipient : recipients) {
+    private void dispatch(Collection<UUID> recipients, Runnable delivery) {
+        try {
+            executor.execute(delivery);
+        } catch (RejectedExecutionException _) {
+            // Kuyruk dolu: alıcıların akışları kapanır, istemciler yeniden bağlanıp geçmişten eşitlenir (mesaj kaybolmaz).
+            log.warn("Realtime dispatch queue is full; closing affected streams");
+            recipients.forEach(this::closeAll);
+        }
+    }
+
+    private void deliver(Map<UUID, MessageView> payloads) {
+        for (Map.Entry<UUID, MessageView> entry : payloads.entrySet()) {
+            UUID recipient = entry.getKey();
+            MessageView message = entry.getValue();
             Set<SseEmitter> open = streams.get(recipient);
             if (open == null) {
                 continue;
             }
+            // Okundu durumu yalnız göndericinin kendi akışlarına gider (MSG-11); diğerlerinde alan null kalır.
+            // Yük, geçmiş ve gönderim uçlarındaki MessageResponse ile aynı yapıdadır.
+            MessageResponse payload = messagePayload(recipient, message);
             for (SseEmitter emitter : open) {
                 send(recipient, emitter, SseEmitter.event().name(MESSAGE_EVENT)
-                        .id(message.conversationId() + ":" + message.seq())
-                        .data(message, MediaType.APPLICATION_JSON));
+                        .id(messageEventId(message))
+                        .data(payload, MediaType.APPLICATION_JSON));
             }
+        }
+    }
+
+    /** Okundu olayı {@code id} taşımaz: tekilleştirme gerekmez, istemci gelen en büyük değeri uygular. */
+    private void deliverReadReceipt(UUID recipient, ReadReceiptView receipt) {
+        Set<SseEmitter> open = streams.get(recipient);
+        if (open == null) {
+            return;
+        }
+        for (SseEmitter emitter : open) {
+            send(recipient, emitter, SseEmitter.event().name(READ_EVENT).data(receipt, MediaType.APPLICATION_JSON));
+        }
+    }
+
+    /** Aktarılmış zarf: yük zaten JSON metnidir ve olduğu gibi yazılır. */
+    private void deliverEnvelope(StreamEnvelope envelope) {
+        Set<SseEmitter> open = streams.get(envelope.recipient());
+        if (open == null) {
+            return;
+        }
+        for (SseEmitter emitter : open) {
+            SseEmitter.SseEventBuilder event = SseEmitter.event().name(envelope.event());
+            if (envelope.id() != null) {
+                event.id(envelope.id());
+            }
+            send(envelope.recipient(), emitter, event.data(envelope.data(), MediaType.APPLICATION_JSON));
         }
     }
 

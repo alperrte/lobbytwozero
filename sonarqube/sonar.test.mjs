@@ -372,6 +372,7 @@ for (const option of [
       assert.equal(
         result.exitCode,
         ['success', 'policyForbidden'].includes(option) ? 0 : 1,
+        JSON.stringify(result),
       );
 
       const output = lines.join('\n');

@@ -12,7 +12,8 @@ import java.util.List;
  */
 public record GameDiscoveryResponse(List<Item> items, int page, int size, long totalElements,
         String sort, String direction, String popularityBasis, Instant ratingsSyncedAt) {
-    public record Item(GameCardResponse game, LocalDate releaseDate, Boolean earlyAccess,
+    /** {@code earlyAccess}, {@code free}, {@code comingSoon} ve {@code adult}: Steam'in mağaza bilgisi; {@code null} = bilinmiyor (false değildir). */
+    public record Item(GameCardResponse game, LocalDate releaseDate, Boolean earlyAccess, Boolean free, Boolean comingSoon, Boolean adult,
             List<String> languages, Integer editorialRank, Instant popularityUpdatedAt, Rating rating) { }
 
     /**

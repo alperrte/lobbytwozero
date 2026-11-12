@@ -36,8 +36,7 @@ import lombok.RequiredArgsConstructor;
  * Parolasız (yalnız Google/Steam) hesabın ilk parolasını belirlemesi (B11). İki adım:
  * <ol>
  *   <li><b>İstek:</b> oturumlu kullanıcı; TOTP etkinse ikinci faktör (tek kullanımlık, replay korumalı) ve hesabın
- *       <b>doğrulanmış</b> adresine tek kullanımlık 6 haneli kod. Steam bağlı hesapta ayar açıksa TOTP zaten zorunludur:
- *       etkin değilse istek reddedilir ({@code TWO_FACTOR_ENROLLMENT_REQUIRED}).</li>
+ *       <b>doğrulanmış</b> adresine tek kullanımlık 6 haneli kod.</li>
  *   <li><b>Onay:</b> kod + yeni parola (parola politikası geçerli). Başarıda hesabın tüm oturumları ve cihaz
  *       kimlikleri iptal edilir (giriş yöntemi değişti; çalınmış oturum yeni parolayla kalıcılaşamaz), güvenlik
  *       bildirimi gider ve kullanıcı yeni parolayla yeniden giriş yapar.</li>
@@ -83,9 +82,6 @@ public class PasswordSetService {
                 securityEventRecorder.recordEvent(SecurityEventType.PASSWORD_SET_REJECTED, accountId);
                 throw new AuthException(AuthErrorCode.INVALID_TWO_FACTOR_CODE);
             }
-        } else if (twoFactorService.isRequiredForSteamAccount(accountId)) {
-            securityEventRecorder.recordEvent(SecurityEventType.PASSWORD_SET_REJECTED, accountId);
-            throw new AuthException(AuthErrorCode.TWO_FACTOR_ENROLLMENT_REQUIRED);
         }
         attemptThrottle.clear(throttleKey);
         transactionTemplate.execute(status -> issueCode(accountId)).ifPresent(dispatcher::dispatch);

@@ -42,6 +42,7 @@ public final class ErasureTargetStub implements AutoCloseable {
     private final CountDownLatch closed = new CountDownLatch(1);
     private volatile ToIntFunction<Received> responder = request -> UNAVAILABLE;
     private volatile Duration delay = Duration.ZERO;
+    private volatile String responseBody;
 
     /** Yürütücü bu nesneye aittir ve {@link #close()} ile kapatılır; sunucu ilk istekten önce ona bağlanır. */
     private ErasureTargetStub(HttpServer server) {
@@ -74,6 +75,12 @@ public final class ErasureTargetStub implements AutoCloseable {
         responder = statusForRequest;
     }
 
+    /** 200 yanıtlarına JSON gövde ekler (ör. User locale ucu); {@link #reset()} temizler. */
+    public void respondWithJson(String json) {
+        responseBody = json;
+        responder = request -> 200;
+    }
+
     public void delay(Duration responseDelay) {
         delay = responseDelay;
     }
@@ -86,6 +93,7 @@ public final class ErasureTargetStub implements AutoCloseable {
     public void reset() {
         responder = request -> UNAVAILABLE;
         delay = Duration.ZERO;
+        responseBody = null;
         received.clear();
     }
 
@@ -98,6 +106,14 @@ public final class ErasureTargetStub implements AutoCloseable {
             int status = awaitDelay() ? responder.applyAsInt(request) : UNAVAILABLE;
             if (status >= 300 && status < 400) {
                 exchange.getResponseHeaders().set("Location", baseUrl() + REDIRECT_PATH);
+            }
+            String json = responseBody;
+            if (status == 200 && json != null) {
+                byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+                exchange.getResponseHeaders().set("Content-Type", "application/json");
+                exchange.sendResponseHeaders(status, bytes.length);
+                exchange.getResponseBody().write(bytes);
+                return;
             }
             exchange.sendResponseHeaders(status, NO_BODY);
         }

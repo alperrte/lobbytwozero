@@ -7,6 +7,8 @@ import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
+import org.springframework.security.web.util.matcher.RequestMatcher;
+
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.server.ContentTooLargeException;
 import org.springframework.web.servlet.HandlerExceptionResolver;
@@ -23,20 +25,33 @@ import jakarta.servlet.http.HttpServletResponse;
  * JSON istek gövdesinin bayt üst sınırı (413 ProblemDetail). Bildirilen Content-Length sınırı aşıyorsa gövde hiç
  * okunmaz. Aksi halde gövdeden en fazla {@code limit + 1} bayt belleğe alınır: fazlası varsa (uzunluk bildirilmeyen
  * chunked gövde dahil) istek reddedilir, yoksa uygulama okunmuş baytlarla devam eder. Böylece sınırsız okuma olmaz.
+ * <p>
+ * Görsel yükleme ucu (MSG-17) gövdenin kendisi dosya olduğundan ayrı, daha büyük bir sınır kullanır ({@code upload});
+ * diğer tüm istekler genel sınırla kalır.
  */
 public class RequestBodySizeLimitFilter extends OncePerRequestFilter {
 
-    private final int limit;
+    private final int defaultLimit;
+    private final RequestMatcher upload;
+    private final int uploadLimit;
     private final HandlerExceptionResolver resolver;
 
     public RequestBodySizeLimitFilter(long limit, HandlerExceptionResolver resolver) {
-        this.limit = Math.toIntExact(limit);
+        this(limit, request -> false, limit, resolver);
+    }
+
+    public RequestBodySizeLimitFilter(long limit, RequestMatcher upload, long uploadLimit,
+                                      HandlerExceptionResolver resolver) {
+        this.defaultLimit = Math.toIntExact(limit);
+        this.upload = upload;
+        this.uploadLimit = Math.toIntExact(uploadLimit);
         this.resolver = resolver;
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
+        int limit = upload.matches(request) ? uploadLimit : defaultLimit;
         if (request.getContentLengthLong() > limit) {
             reject(request, response);
             return;

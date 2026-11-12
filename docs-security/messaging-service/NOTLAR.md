@@ -28,3 +28,62 @@
   Saklama/temizlik görevi de yok — relay eklenirken birlikte ele alınmalı.
 - ProblemDetail `instance` alanı istenen yolu taşır (Spring varsayılanı, social ile aynı); `detail`/`code` gönderilen
   değeri yansıtmaz.
+- **Okundu bilgisi gizliliği (LTZ-UMT-MSG-03, MSG-11/12).** Kimin okuduğunu yalnız mesajın göndereni görür:
+  `GET .../messages/{messageId}/reads` gönderen dışındaki aktif üyeye `403 NOT_MESSAGE_SENDER` verir. Sıra: üyelik
+  (404 `CONVERSATION_NOT_FOUND`) → mesaj bu sohbette ve üyeye görünür (404 `MESSAGE_NOT_FOUND`) → gönderen (403);
+  böylece gönderen olmayan biri, başka sohbetin ya da katılımından önceki bir mesajın varlığını öğrenemez (var olan ile
+  olmayan aynı 404). `readStatus` alanı yalnız isteyenin kendi mesajında doludur, başkasında `null`.
+- **SSE `read` olayı kırpması.** Olay yalnız okunan aralıkta mesajı olan, hâlâ aktif göndericiye gider ve alıcının kendi
+  mesajlarıyla kırpılır (`readUpToSeq`, `allReadUpToSeq`); ham işaretçi, ham su seviyesi ve içerik taşımaz. Aksi hâlde A,
+  R'nin B'nin mesajını okuduğunu öğrenirdi. Yeni katılan okuyucunun aralığı görebildiği ilk mesaja kırpılır (görmediği
+  mesajlar için alıcıya olay gitmez). Kanıt: `ReadReceiptStreamTest` (A seq 5, B seq 9, R `(0, 9]` okur → A
+  `readUpToSeq = 5`). Olay en iyi çabadır; eşzamanlı iki okumada canlı `allReadUpToSeq` eski kalabilir, geçmiş/liste
+  çekimi `readStatus`'u yeniden hesaplar (ADR 0001).
+- **Mesaj görseli (LTZ-UMT-MSG-04, MSG-17, V134).** İçerik `messaging_db`'de `bytea` (SECURITY.md §13 Messaging kararı).
+  Doğrulama JDK `ImageIO` ile, yeni bağımlılık yok: biçim magic byte'tan, PNG/JPEG yeniden kodlanır (EXIF/konum atılır),
+  GIF bloklarına ayrılıp temizlenir (`GifCleaner`; yorum/uygulama blokları ve kapanış sonrası polyglot yük atılır).
+  Kenar/piksel sınırı çözmeden önce, eşzamanlı işleme 2 ile sınırlı (`MEDIA_BUSY`). Kanıt: `AttachmentUploadTest`,
+  `ImageIoInspectorTest`, `GifCleanerTest`, `JpegOrientationTest`. İndirme yetkisi mesaj görünürlüğüyle aynıdır;
+  gönderilmemiş görseli yalnız yükleyen görür, diğer her durum aynı `404 ATTACHMENT_NOT_FOUND`. Bağlanmayan yükleme
+  `AttachmentCleanupJob` ile 1 saat sonra silinir (yalnız sayı loglanır). Kötü amaçlı içerik/virüs taraması yok.
+- **GIF platformu (MSG-22, GIPHY).** `GIPHY_API_KEY` yalnız sunucuda (platform sorgu dizgesinde istiyor); istek adresi
+  hiçbir hata/log/kök hataya yazılmaz (`GiphyGifClientTest`). Anahtar boşsa arama ve GIF gönderme fail-closed `503`.
+  Gönderilen GIF'in adresi istemciden alınmaz, `GET /v1/gifs/{id}` ile çözülür; yalnız GIPHY medya sunucularının HTTPS
+  adresi, `pg-13` ve altı derece kabul edilir. Platforma kullanıcı kimliği gitmez. Arama sınırı (30/dk) bellektedir:
+  birden çok örnekte örnek başına uygulanır. GIF görüntüsü istemcide GIPHY sunucusundan yüklenir; bu, kullanıcının IP
+  adresini GIPHY'ye açar (gizlilik politikasında belirtilmeli; vekil sunucu ayrı karar). Gerçek anahtarla: NOT VERIFIED.
+- **Emoji (MSG-18).** Gövde olduğu gibi saklanır; eşlenmemiş UTF-16 vekil reddedilir (bozuk emoji DB'ye girmez).
+- **Mesaj etkileşimleri (LTZ-UMT-MSG-05, MSG-19/20/23/25/26, V135).** Her işlemin ortak ön koşulu `VisibleMessages`:
+  mesaj bu sohbette, görünürlük sınırının içinde ve isteyen tarafından benden silinmemiş olmalı; aksi her durum aynı
+  `404 MESSAGE_NOT_FOUND` (başka sohbetin mesajının varlığı sızmaz). Alıntı önizlemesi okuyana göre hesaplanır:
+  göremediği hedef için yalnız `unavailable` ve kimlik döner, gönderen ve içerik dönmez (`MessageReplyTest`).
+  Herkesten silme yetkisi gönderen ya da grupta OWNER/ADMIN, 48 saat; içerik, GIF kaydı, görsel bağlantısı ve tepkiler
+  aynı transaction'da gerçekten silinir, hiçbir uçtan ya da olaydan dönmez (`MessageDeleteForEveryoneTest`). Tepki ve
+  iletme mesajı paylaşımlı kilitle, silme yazma kilidiyle okur: silme sonrası tepki/iletme `422`, silinmiş mesajda tepki
+  satırı kalmaz. İletme her hedefte yazma yetkisi ve engel kontrolünü uygular (engel atlatma yolu değildir), hepsi ya da
+  hiçbiri yazılır, gönderim oranına sayılır; orijinal gönderen kopyada tutulmaz. İletilen görsel baytları kopyalanmaz.
+  Tepki tek emoji (`ReactionEmoji`: tek grafem, harf/boşluk/kontrol/eşlenmemiş vekil yok), dakikada 60 değişiklik
+  (bellekte, örnek başına). Benden sil yalnız silenin görünümünü değiştirir; okundu bilgisini değiştirmez. Canlı
+  olaylar (`message_deleted`, `reaction`, `message_hidden`) commit sonrası, yalnız mesajı görebilen ve gizlememiş
+  üyelere; içerik taşımaz (tepki emojisi hariç). İçerik ve emoji loglanmaz.
+- **Sesli mesaj (LTZ-UMT-MSG-06, MSG-21, V136).** Yalnız Opus (WebM/Ogg), 1 MB, süre içerikten hesaplanır
+  (0,5 sn – 2 dk + 1 sn tolerans). Dosya saklanmadan önce saf Java ile ayrıştırılır (`OggOpusReader`,
+  `WebmOpusReader`), paketler doğrulanıp dolguları atılır (`OpusPacket`) ve sıfırdan WebM yazılır (`WebmOpusWriter`);
+  etiket, ek iz/akış, bilinmeyen öğe ve sondaki bayt çıktıya geçmez (`OpusVoiceInspectorTest.gizliIcerikCiktidaKalmaz`).
+  Ayrıştırıcı öğe boyutunu ebeveyn sınırıyla denetler, tanınmayan öğelere inmez, paket sayısını sınırlar; 1 MB'lık kötü
+  niyetli dosya 500 ms altında reddedilir (`birMegabaytlikKotuNiyetliDosyaHizliReddedilir`); istek başına birkaç MB
+  geçici bellek kullandığı için aynı anda en çok 2 ses işlenir (`MEDIA_BUSY`). Ses verisine gömülü bilgi
+  (steganografi) yeniden kodlama olmadan kaldırılamaz — bilinen sınır. Dalga formu yalnız 64 sayı. İndirme `Range`
+  destekler; yetki her istekte aralıktan önce (`AttachmentRangeTest`). Ses içeriği ve dalga formu loglanmaz.
+- **Hesap silme iç ucu (LTZ-UMT-MSG-07).** Yalnız Auth servis token'ı: `typ=svc+jwt`, `aud=messaging-service`,
+  `scope=account:erase`, `sub` tam `svc:auth-service`, `account_id` = yol, `jti`, ömür ≤ 60 sn; kullanıcı token'ı iç
+  uçta, servis token'ı kullanıcı uçlarında `401` (yola göre ayrı doğrulayıcı). Silme tek transaction, set tabanlı;
+  kişisel veri kalmaz (`AccountErasureTest.servisTokeniyleHesabinKisiselVerisiSilinir`: tüm kişisel sütunlarda hesabın
+  kimliği sıfır). Mesaj satırları sıra için kalır, içerik silinir, gönderen anonim. Yalnız hesap kimliği loglanır.
+- **Çoklu örnek (V137).** Oran sınırları DB'de (`rate_limit_windows`, tüm örnekler ortak). Canlı akış PostgreSQL
+  `LISTEN/NOTIFY` ile aktarılır; aktarım kayıtları 5 dk sonra silinir ve hesap silmede hesabınkiler hemen silinir. Akış
+  sınırı örnek başına. Havuz 5 sn'de boşalmazsa `503 SERVICE_BUSY` (+ `Retry-After`), uzun bekleme yok.
+- **Okuma aralığı tablosu (`message_read_ranges`, V133).** Satır sayısı gerçek ilerleme sayısıyla büyür (mesaj sayısıyla
+  değil; gönderim de bir ilerlemedir); ilerlemeyen çağrı satır yazmaz, böylece okuma çağrısı sınırsız satır üretemez. Eşzamanlı okumalar üye satırı
+  kilidiyle sıralanır (çakışan ya da boşluklu aralık yok). Saklama/temizlik görevi yok; ayrılan üyenin satırları kalır
+  (sohbet silinince `on delete cascade`). V133 öncesi okumalar için `readAt` `null`'dır.

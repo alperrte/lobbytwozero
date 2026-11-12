@@ -27,7 +27,7 @@ import com.ltz.auth.RecordingMailPortConfiguration.RecordingMailPort;
 @ExtendWith(OutputCaptureExtension.class)
 class PasswordResetTest extends IntegrationTestSupport {
 
-    private static final String NEW_PASSWORD = "reset-passphrase-with-length-1";
+    private static final String NEW_PASSWORD = "Reset-Passphrase-With-Length-1";
     private static final int MAX_REQUESTS = 5;
     private static final String PAST_COOLDOWN = "2 minutes";
 
@@ -213,7 +213,7 @@ class PasswordResetTest extends IntegrationTestSupport {
         String token = mailPort.awaitLatestResetToken(email, 1);
 
         List<Integer> statuses = ConcurrentRequests.run(4, index -> () -> reset(token,
-                "concurrent-reset-" + index + "-passphrase", "concurrent-reset-" + index + "-passphrase")
+                "Concurrent-reset-" + index + "-Passphrase", "Concurrent-reset-" + index + "-Passphrase")
                 .andReturn().getResponse().getStatus());
 
         assertThat(statuses.stream().filter(code -> code == 204)).hasSize(1);

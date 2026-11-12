@@ -1,6 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
+import { Icon } from "@/shared/components/ui/icons";
 import { Link } from "@/shared/lib/i18n/navigation";
 import { cn } from "@/shared/utils/cn";
 import type { DiscoveryItem } from "../types/game";
@@ -9,6 +10,9 @@ import { formatReleaseDate, GameRatingText } from "./game-rating";
 import { Badge } from "./game-ui";
 
 export type CatalogueView = "grid" | "list";
+
+/** Kapak üstü durum rozeti: kapağın üstünde okunur kalması için yarı saydam zemin ve bulanıklık; renk yalnız kenarlık ve metindedir. */
+const markClass = "inline-flex items-center gap-1 rounded-full border bg-background/85 px-2.5 py-1 text-xs font-semibold backdrop-blur";
 
 /** Katalog kartı. Tek bağlantı başlıktadır; kartın tamamı bu bağlantıya genişletilir. Her kart için ek API çağrısı yoktur. */
 export function GameCard({ item, view, rank }: { item: DiscoveryItem; view: CatalogueView; rank?: number | null }) {
@@ -19,11 +23,17 @@ export function GameCard({ item, view, rank }: { item: DiscoveryItem; view: Cata
   const coverage = ["INDEX_ONLY", "PARTIAL", "FULL"].includes(game.metadataCompleteness) ? game.metadataCompleteness : "UNKNOWN";
   const list = view === "list";
   return <li className={cn("group relative overflow-hidden rounded-panel border border-border bg-surface transition-[border-color,transform,box-shadow] motion-safe:duration-200 hover:border-control-border focus-within:border-primary has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-focus motion-safe:hover:-translate-y-0.5", list ? "flex flex-col sm:flex-row" : "flex flex-col")}>
-    <GameCover url={coverOf(game)} title={game.title} className={list ? "sm:w-56 sm:shrink-0" : ""} />
+    <GameCover url={coverOf(game)} title={game.title} className={list ? "sm:w-56 sm:shrink-0" : ""}>
+      {(item.earlyAccess === true || item.free === true || item.comingSoon === true || item.adult === true) && <div data-testid="status-marks" className="absolute end-2 top-2 flex flex-col items-end gap-1">
+        {item.earlyAccess === true && <span data-testid="early-access-mark" className={cn(markClass, "border-warning/60 text-warning")}><Icon name="sparkles" width={12} height={12} aria-hidden="true" />{t("earlyAccessBadge")}</span>}
+        {item.free === true && <span data-testid="free-mark" className={cn(markClass, "border-success/60 text-text-primary")}><Icon name="tag" width={12} height={12} aria-hidden="true" />{t("freeBadge")}</span>}
+        {item.comingSoon === true && <span data-testid="coming-soon-mark" className={cn(markClass, "border-primary/60 text-brand-text")}><Icon name="clock" width={12} height={12} aria-hidden="true" />{t("comingSoonBadge")}</span>}
+        {item.adult === true && <span data-testid="adult-mark" className={cn(markClass, "border-warning/60 text-warning")}>{t("adultBadge")}</span>}
+      </div>}
+    </GameCover>
     <div className="flex min-w-0 flex-1 flex-col gap-3 p-4">
       <div className="flex flex-wrap items-center gap-2">
         {rank != null && <Badge tone="brand">{t("editorRank", { rank })}</Badge>}
-        {item.earlyAccess === true && <Badge tone="warning">{t("earlyAccessBadge")}</Badge>}
         {game.gameType && game.gameType !== "MAIN_GAME" && <Badge>{t.has(`choices.${game.gameType}`) ? t(`choices.${game.gameType}`) : t("unknown")}</Badge>}
       </div>
       <h2 className="font-display text-lg font-semibold leading-snug text-balance [overflow-wrap:anywhere]">

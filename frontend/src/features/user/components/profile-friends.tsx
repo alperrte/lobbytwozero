@@ -7,7 +7,7 @@ import { useRemote, type Remote } from "../hooks/use-remote";
 import { getProfileCards } from "../services/profile-api";
 import type { FriendsPage, PlayerCard } from "../types/activity.types";
 import { ProfileAvatar } from "./profile-avatar";
-import { ProfileSection, RemoteBody } from "./remote-section";
+import { ProfileSection, RemoteBody, sectionLinkClass } from "./remote-section";
 
 /**
  * Arkadaşlar sekmesi: `GET /social/friends` yalnız kimlik verir; ad ve avatar User'ın toplu kart ucundan gelir. Kartı
@@ -18,7 +18,14 @@ export function ProfileFriends({ friends }: { friends: Remote<FriendsPage> }) {
   const t = useTranslations("Profile.friendsTab");
 
   return (
-    <ProfileSection title={t("title")}>
+    <ProfileSection
+      title={t("title")}
+      action={
+        <Link href="/players" className={sectionLinkClass}>
+          {t("find")}
+        </Link>
+      }
+    >
       <RemoteBody remote={friends}>
         {(page) => (page.items.length === 0 ? <p className="text-sm text-text-secondary">{t("empty")}</p> : <FriendsGrid page={page} />)}
       </RemoteBody>
@@ -68,7 +75,7 @@ function FriendRow({ card, since }: { card: PlayerCard; since: string | null }) 
 
   return (
     <Link
-      href={{ pathname: "/community/users/[userId]", params: { userId: card.userId } }}
+      href={{ pathname: "/players/[userId]", params: { userId: card.userId } }}
       aria-label={t("open", { name })}
       className="flex items-center gap-3 rounded-control border border-border bg-surface-elevated p-3 transition-colors duration-150 hover:border-control-border"
     >

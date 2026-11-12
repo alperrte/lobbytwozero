@@ -23,9 +23,9 @@ test("gezinme yalnız gerçek rotaya bağlanır, hazır olmayanlar 'Yakında' i�
   await page.goto("/");
 
   const nav = page.getByRole("navigation", { name: "Ana gezinme" });
-  await expect(nav.getByRole("link")).toHaveCount(3);
+  await expect(nav.getByRole("link")).toHaveCount(8);
   await expect(nav.locator('a[href="#"]')).toHaveCount(0);
-  await expect(nav.getByText("Yakında", { exact: true })).toHaveCount(11);
+  await expect(nav.getByText("Yakında", { exact: true })).toHaveCount(6);
   await expect(nav).not.toContainText("Profil");
   await expect(nav).toContainText("Kampanyalar");
 });

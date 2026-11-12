@@ -5,11 +5,18 @@ public record DiscoveryQuery(int page, int size, String q, String genre, String 
         Boolean earlyAccess, java.time.LocalDate releasedAfter, java.time.LocalDate releasedBefore,
         boolean popularOnly, java.math.BigDecimal minRating,
         com.ltz.game.domain.enums.CatalogSort sort, com.ltz.game.domain.enums.CatalogDirection direction,
-        boolean discountedOnly,String country,String currency) {
+        boolean discountedOnly,String country,String currency,boolean includeAdult) {
+    /** {@code includeAdult}: yetişkin içerik (+18) varsayılan listelerde gizlidir; true ise listeye katılır. Doğrudan bağlantı, kütüphane ve toplu okuma bundan etkilenmez. */
+    public DiscoveryQuery(int page,int size,String q,String genre,String platform,String language,Boolean earlyAccess,
+            java.time.LocalDate releasedAfter,java.time.LocalDate releasedBefore,boolean popularOnly,java.math.BigDecimal minRating,
+            com.ltz.game.domain.enums.CatalogSort sort,com.ltz.game.domain.enums.CatalogDirection direction,
+            boolean discountedOnly,String country,String currency) {
+        this(page,size,q,genre,platform,language,earlyAccess,releasedAfter,releasedBefore,popularOnly,minRating,sort,direction,discountedOnly,country,currency,false);
+    }
     public DiscoveryQuery(int page,int size,String q,String genre,String platform,String language,Boolean earlyAccess,
             java.time.LocalDate releasedAfter,java.time.LocalDate releasedBefore,boolean popularOnly,java.math.BigDecimal minRating,
             com.ltz.game.domain.enums.CatalogSort sort,com.ltz.game.domain.enums.CatalogDirection direction) {
-        this(page,size,q,genre,platform,language,earlyAccess,releasedAfter,releasedBefore,popularOnly,minRating,sort,direction,false,"US","USD");
+        this(page,size,q,genre,platform,language,earlyAccess,releasedAfter,releasedBefore,popularOnly,minRating,sort,direction,false,"US","USD",false);
     }
     public DiscoveryQuery(int page, int size) { this(page,size,null); }
     public DiscoveryQuery(int page,int size,String q) { this(page,size,q,null,null,null,null,null,null,false,null,

@@ -24,6 +24,7 @@ public class GameViewService {
     private final GameRepository games;
     private final GameViewMapper mapper;
     private final GameLocalizedDescriptionRepository localizedDescriptions;
+    private final RefreshHints hints;
     public GameCardResponse card(UUID id) { return mapper.card(active(id)); }
     public GameDetailResponse detail(UUID id) { return detail(id, null); }
 
@@ -33,6 +34,8 @@ public class GameViewService {
      */
     public GameDetailResponse detail(UUID id, String language) {
         Game game = active(id);
+        // Oyun sayfası açıldı: bellek içi ipucu (dış servise gidilmez, yazılmaz); çıkış durumu ve detay arka planda tazelenir.
+        hints.touch(game.getId(), null);
         var response = mapper.detail(game).withRelation(relation(game));
         String code = normalizeLanguage(language);
         if (code != null && !DEFAULT_LANGUAGE.equals(code)) {

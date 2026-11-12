@@ -86,7 +86,7 @@ node ops/game-catalog-import.mjs import [klasör] --replace  # dolu game_db'nin 
 - `export`: hesap verisi içerebilecek tablo (geri bildirim, yetki, denetim kaydı vb.) doluysa reddedilir. Manifestteki `url` alanı korunur.
 - `import`: yalnız `ltz-dev` Postgres konteynerini kullanır, Game servisi çalışıyorsa durur, dökümün Flyway sürümü depodaki en yeni Game migration'ından yeniyse reddeder, yükleme tek işlemdir ve sonunda tablo satır sayıları manifestle karşılaştırılır. Gerçek ENV dosyası okunmaz.
 - Klasör verilmezse `game-catalog-dump/` (depo kökü) kullanılır; `*.dump` Git'e girmez. Alıcı dosyayı bu klasöre kopyalar (dosya adı değişmez).
-- Paylaşım: döküm (~180 MB) Git'e girmez. Üreten kişi dosyayı GitHub Release varlığı olarak yükler ve `ops/game-catalog.manifest.json` içindeki `url` alanına adresi yazar; `download` yalnız `github.com` ve GitHub varlık sunucularından, SHA-256 doğrulamasıyla indirir. Veri IGDB ve Steam kaynaklıdır; herkese açık paylaşmadan önce sağlayıcı kullanım şartlarını kontrol edin.
+- Paylaşım: döküm (~340 MB) Git'e girmez. Üreten kişi dosyayı GitHub Release varlığı olarak yükler ve `ops/game-catalog.manifest.json` içindeki `url` alanına adresi yazar; `download` yalnız `github.com` ve GitHub varlık sunucularından, SHA-256 doğrulamasıyla indirir. Veri IGDB ve Steam kaynaklıdır; herkese açık paylaşmadan önce sağlayıcı kullanım şartlarını kontrol edin.
 - Test: `node --test ops/game-catalog-import.test.mjs`.
 - Ekip arkadaşları ve yapay zekâ ajanları için adım adım rehber: [game-catalog.md](game-catalog.md).
 
@@ -123,7 +123,7 @@ Yeni klonda sıra: bu komut, sonra `.\ops\env.cmd use dev` (POSIX: `sh ./ops/env
 Komut **kendisi doldurur:** Auth, servis ve Mail anahtarları (`AUTH_*`, `MAIL_PAYLOAD_ENCRYPTION_KEY`), `.env.example`'da
 olup dosyada hiç bulunmayan ayarlar, SMTP/bağlantı satırları (boş), `AUTH_EVENT_TARGETS=user`.
 Komut **doldurmaz, siz verirsiniz** (dış sağlayıcı bilgisi; boş kalması dev'de normaldir): `STEAM_WEB_API_KEY`,
-`IGDB_CLIENT_ID/SECRET`, `ITAD_API_KEY`, `GOOGLE_CLIENT_ID/SECRET`, `SONAR_TOKEN`, gerçek SMTP sağlayıcı bilgileri.
+`IGDB_CLIENT_ID/SECRET`, `ITAD_API_KEY`, `GIPHY_API_KEY` (messaging GIF; boşsa GIF 503), `GOOGLE_CLIENT_ID/SECRET`, `SONAR_TOKEN`, gerçek SMTP sağlayıcı bilgileri.
 `POSTGRES_PASSWORD` gibi `CHANGE_ME…` örnek parolalara da dokunmaz (var olan veritabanı hacmiyle uyuşmazlık çıkarır);
 gerekirse elle değiştirin. Mail Service'i çalıştırmak için: `docs-auth/ekip-hizli-baslangic.md` §1.1.
 

@@ -109,7 +109,7 @@ Hata alırsan: veri seti eskiyse `$env:TEMP\ltz-pc-part-dataset` klasörünü si
 
 ## Aşama 4b — Game kataloğu içe aktarma (isteğe bağlı)
 
-Oyun verisi (oyunlar, terimler, açıklamalar, DLC ilişkisi) hazır dökümden yüklenir; Steam/IGDB anahtarı gerekmez. Postgres ayakta olmalı, Game servisi **başlamadan önce** yapılır.
+Oyun verisi (oyunlar, terimler, açıklamalar, DLC ilişkisi) hazır dökümden yüklenir; Steam/IGDB anahtarı gerekmez. Dump'taki fiyatlar en geç 48 saat sonra "güncelliği doldu" olur; fiyatların güncel kalması için `.env.dev` içine `ITAD_API_KEY` yazılır (`ops/game-catalog.md` → "Fiyatlar güncel kalsın"). Postgres ayakta olmalı, Game servisi **başlamadan önce** yapılır.
 
 ```powershell
 # 1) Ekipten aldığın ltz-game-catalog.dump dosyasını depo kökündeki game-catalog-dump klasörüne kopyala (adı değişmesin)
@@ -123,7 +123,7 @@ node ops/game-catalog-import.mjs import
 docker @C up -d game-service
 ```
 
-`node ops/dev.mjs --with=game-service` (veya `--all`) bunu Game'den önce kendisi yapar (`--no-catalog` ile atlanır). Klasör `game-catalog-dump` yoksa betik oluşturur; `*.dump` Git'e girmez.
+`node ops/dev.mjs --with=game-service` (veya `--all`) bunu Game'den önce kendisi yapar (`--no-catalog` ile atlanır). Klasör `game-catalog-dump` yoksa betik oluşturur; `*.dump` Git'e girmez. Daha önce kurduysan ve yeni dump aldıysan dosyayı değiştirmek yetmez; adımlar için [game-catalog.md](game-catalog.md) içindeki "Daha önce kurduysan" bölümüne bak.
 
 ---
 

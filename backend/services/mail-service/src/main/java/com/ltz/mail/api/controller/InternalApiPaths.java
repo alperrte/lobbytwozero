@@ -13,6 +13,8 @@ public final class InternalApiPaths {
     public static final String PASSWORD_RESETS = MAIL + "/password-resets";
     public static final String ACCOUNT_DELETIONS = MAIL + "/account-deletions";
     public static final String SECURITY_NOTIFICATIONS = MAIL + "/security-notifications";
+    /** Platform kapısı: Auth dışındaki kayıtlı servislerin bilgilendirme maili talebi. */
+    public static final String NOTICES = MAIL + "/notices";
     public static final String ACCOUNT_ERASURE = BASE + "/v1/accounts/{accountId}";
 
     private InternalApiPaths() {

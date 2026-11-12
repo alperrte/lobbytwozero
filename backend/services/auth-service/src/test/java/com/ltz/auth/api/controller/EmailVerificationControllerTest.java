@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,6 +22,8 @@ import com.ltz.auth.ConcurrentRequests;
 import com.ltz.auth.IntegrationTestSupport;
 import com.ltz.auth.RecordingMailPortConfiguration;
 import com.ltz.auth.RecordingMailPortConfiguration.RecordingMailPort;
+import com.ltz.auth.application.port.SecurityNotificationMail;
+import com.ltz.auth.application.port.SecurityNotificationType;
 import com.ltz.auth.domain.enums.VerificationPurpose;
 import com.ltz.auth.infrastructure.security.VerificationCodeHasher;
 
@@ -51,6 +54,27 @@ class EmailVerificationControllerTest extends IntegrationTestSupport {
                 Boolean.class, accountId)).isTrue();
         assertThat(securityEventCount(accountId, "EMAIL_VERIFIED")).isEqualTo(1);
         confirm(email, code).andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VERIFICATION_FAILED"));
+    }
+
+    @Test
+    void dogrulamaWelcomeBildiriminiBirKezGonderirYanlisKodGondermez() throws Exception {
+        String email = registerNewAccount();
+        String code = mailPort.awaitLatestCode(email, 1);
+
+        confirm(email, code.equals("111111") ? "222222" : "111111").andExpect(status().isBadRequest());
+        assertThat(mailPort.notificationsTo(email)).as("başarısız doğrulama tetiklemez").isEmpty();
+
+        confirm(email, code).andExpect(status().isNoContent());
+        SecurityNotificationMail welcome = mailPort.awaitNotification(email, SecurityNotificationType.WELCOME);
+        UUID accountId = accountId(email);
+        assertThat(welcome.accountId()).isEqualTo(accountId);
+        assertThat(welcome.idempotencyKey()).as("hesap başına sabit anahtar")
+                .isEqualTo(UUID.nameUUIDFromBytes(("WELCOME:" + accountId).getBytes(StandardCharsets.UTF_8)));
+        assertThat(welcome.toString()).doesNotContain(email);
+
+        confirm(email, code).andExpect(status().isBadRequest());
+        assertThat(mailPort.notificationsTo(email)).extracting(SecurityNotificationMail::type)
+                .containsExactly(SecurityNotificationType.WELCOME);
     }
 
     @Test

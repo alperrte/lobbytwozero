@@ -78,6 +78,12 @@ public class EmailChangeService {
         Optional<Account> activeAccount = transactionTemplate.execute(status -> accountRepository.findById(accountId)
                 .filter(Account::isActive));
         Account account = activeAccount.orElseThrow(() -> new AuthException(AuthErrorCode.SESSION_INVALID));
+        if (account.getRegistrationMethod() == Account.RegistrationMethod.GOOGLE) {
+            // C türü (doğrudan Google kaydı): adres sağlayıcının doğruladığı kimliğe bağlıdır, parola belirlense de değişmez.
+            // Steam ile açılanın adresini sağlayıcı vermez (kullanıcı kendisi ekler); onun için bu kilit uygulanmaz.
+            securityEventRecorder.recordEvent(SecurityEventType.EMAIL_CHANGE_REJECTED, accountId);
+            throw new AuthException(AuthErrorCode.EMAIL_LOCKED_BY_PROVIDER);
+        }
         Optional<String> passwordHash = account.passwordHash();
         if (passwordHash.isPresent()) {
             if (password == null || !passwordEncoder.matches(password, passwordHash.get())) {

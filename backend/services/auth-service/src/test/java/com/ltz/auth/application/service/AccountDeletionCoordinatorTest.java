@@ -31,10 +31,11 @@ class AccountDeletionCoordinatorTest extends AccountDeletionTestSupport {
     void tumServislerOnaylayincaAuthtaSilinenKullaniciyaAitHicbirKayitKalmaz() throws Exception {
         String email = registerActiveAccount(uniqueEmail(), uniqueUsername());
         UUID accountId = accountId(email);
-        jdbc.update("insert into external_identities (id, account_id, provider, provider_subject, linked_at) "
-                + "values (gen_random_uuid(), ?, 'GOOGLE', ?, now())", accountId, "g-" + uniqueSuffix());
         loginSession(email);
         deleteAccountConfirmed(email);
+        // Harici kimlik de silinmeli; bağlı sağlayıcılı hesap B türüdür ve kendi başına silemez, bu yüzden onaydan sonra eklenir.
+        jdbc.update("insert into external_identities (id, account_id, provider, provider_subject, linked_at) "
+                + "values (gen_random_uuid(), ?, 'GOOGLE', ?, now())", accountId, "g-" + uniqueSuffix());
         // İkinci faktör sırrı da silinmeli (silme isteği adımı geçtikten sonra eklenir).
         enableTotp(accountId);
 

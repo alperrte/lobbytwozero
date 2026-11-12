@@ -47,6 +47,8 @@ final class MigrationTransferSupport {
         String options = url.contains("?") ? url.substring(url.indexOf('?')) : "";
         var result = new DriverManagerDataSource(base + "/" + name + options, postgres.getUsername(), postgres.getPassword());
         flyway(result, chain).migrate();
+        // Tarihsel fixture zinciri değişmez ve Steam durum kolonlarını (güncel V31'de) taşımaz: şema karşılaştırması için yalnız test veritabanına eklenir.
+        if (HISTORY.equals(chain)) new JdbcTemplate(result).execute(MigrationSchemaSupport.STEAM_STATUS_COLUMNS);
         return result;
     }
 

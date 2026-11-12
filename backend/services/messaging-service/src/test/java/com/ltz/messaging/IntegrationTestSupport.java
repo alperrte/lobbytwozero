@@ -1,19 +1,25 @@
 package com.ltz.messaging;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -33,6 +39,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -57,20 +64,25 @@ import jakarta.servlet.Filter;
 /**
  * Gerçek PostgreSQL 17 (Compose ile aynı imaj) üzerinde Flyway migration'ları uygulanmış tam uygulama bağlamı ve Auth
  * Service yerine geçen yerel bir JWKS sunucusu. Token'lar her çalıştırmada üretilen RSA anahtarıyla gerçekten
- * imzalanır; JWT doğrulaması sahte yardımcılarla atlanmaz. Social'ın engel sorgusu {@link ScriptedBlockCheck} ile
- * taklit edilir (gerçek istemci {@code SocialBlockCheckClientTest}'te sınanır). Repoda gerçek anahtar yoktur.
+ * imzalanır; JWT doğrulaması sahte yardımcılarla atlanmaz. Social'ın engel sorgusu {@link ScriptedBlockCheck} ile,
+ * GIF platformu {@link ScriptedGifProvider} ile taklit edilir (gerçek istemciler {@code SocialBlockCheckClientTest} ve
+ * {@code GiphyGifClientTest}'te sınanır). Repoda gerçek anahtar yoktur.
  */
 // Geliştiricinin kabuğundaki SPRING_PROFILES_ACTIVE (ör. dev) testlere sızmasın.
 @ActiveProfiles("test")
 @SpringBootTest
-@Import(ScriptedBlockCheck.Configuration.class)
+@Import({ScriptedBlockCheck.Configuration.class, ScriptedGifProvider.Configuration.class})
 // Alt sınıf gerçek adaptörü (social) seçebilsin diye dinamik özellik değil, ezilebilir test özelliğidir.
-@TestPropertySource(properties = "ltz.messaging.blocks.adapter=scripted")
+@TestPropertySource(properties = {"ltz.messaging.blocks.adapter=scripted", "ltz.messaging.gifs.adapter=scripted"})
 public abstract class IntegrationTestSupport {
 
     protected static final String ISSUER = "ltz-auth";
     protected static final String AUDIENCE = "ltz-api";
     protected static final JOSEObjectType ACCESS_TOKEN_TYPE = new JOSEObjectType("at+jwt");
+    /** Auth'un servis token'ı (D4 hesap silme sözleşmesi). */
+    protected static final JOSEObjectType SERVICE_TOKEN_TYPE = new JOSEObjectType("svc+jwt");
+    protected static final String SERVICE_AUDIENCE = "messaging-service";
+    protected static final String ERASE_SCOPE = "account:erase";
 
     private static final long TOKEN_TTL_SECONDS = 300;
 
@@ -93,6 +105,9 @@ public abstract class IntegrationTestSupport {
     /** Gerçek adaptörü seçen testlerde yoktur. */
     @Autowired(required = false)
     protected ScriptedBlockCheck blocks;
+
+    @Autowired(required = false)
+    protected ScriptedGifProvider gifs;
 
     protected MockMvc mockMvc;
 
@@ -117,6 +132,9 @@ public abstract class IntegrationTestSupport {
                 .build();
         if (blocks != null) {
             blocks.reset();
+        }
+        if (gifs != null) {
+            gifs.reset();
         }
     }
 
@@ -146,6 +164,28 @@ public abstract class IntegrationTestSupport {
                 .notBeforeTime(Date.from(now))
                 .expirationTime(Date.from(now.plusSeconds(TOKEN_TTL_SECONDS)))
                 .claim("roles", List.of("PLAYER"));
+    }
+
+    /**
+     * Auth'un D4 sözleşmesindeki biçimde ({@code svc+jwt}, {@code sub=svc:auth-service}, {@code aud=messaging-service},
+     * {@code scope=account:erase}, {@code account_id}, {@code jti}, 30 sn) {@code accountId} için geçerli silme token'ı.
+     */
+    protected static String serviceToken(UUID accountId, UnaryOperator<JWTClaimsSet.Builder> claimsChange) {
+        return sign(SIGNING_KEY, SERVICE_TOKEN_TYPE, claimsChange.apply(validServiceClaims(accountId)).build());
+    }
+
+    protected static JWTClaimsSet.Builder validServiceClaims(UUID accountId) {
+        Instant now = Instant.now();
+        return new JWTClaimsSet.Builder()
+                .issuer(ISSUER)
+                .audience(SERVICE_AUDIENCE)
+                .subject("svc:auth-service")
+                .jwtID(UUID.randomUUID().toString())
+                .issueTime(Date.from(now))
+                .notBeforeTime(Date.from(now))
+                .expirationTime(Date.from(now.plusSeconds(30)))
+                .claim("scope", ERASE_SCOPE)
+                .claim("account_id", accountId.toString());
     }
 
     protected static String sign(RSAKey key, JOSEObjectType type, JWTClaimsSet claims) {
@@ -236,6 +276,54 @@ public abstract class IntegrationTestSupport {
         return ((Number) JsonPath.read(response, "$.seq")).longValue();
     }
 
+    /** Ham gövdeyle mesaj gönderir (görsel/GIF/emoji testleri). */
+    protected ResultActions sendJson(UUID sender, UUID conversationId, String json) throws Exception {
+        return mockMvc.perform(post(MessagingApiPaths.MESSAGES, conversationId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(sender))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json));
+    }
+
+    protected ResultActions sendImage(UUID sender, UUID conversationId, UUID attachmentId, String caption)
+            throws Exception {
+        Map<String, Object> body = new HashMap<>();
+        body.put("clientMessageId", UUID.randomUUID().toString());
+        body.put("attachmentId", attachmentId.toString());
+        if (caption != null) {
+            body.put("body", caption);
+        }
+        return sendJson(sender, conversationId, JsonPath.parse(body).jsonString());
+    }
+
+    protected ResultActions sendGif(UUID sender, UUID conversationId, String gifId, String caption) throws Exception {
+        Map<String, Object> body = new HashMap<>();
+        body.put("clientMessageId", UUID.randomUUID().toString());
+        body.put("gif", Map.of("provider", "GIPHY", "id", gifId));
+        if (caption != null) {
+            body.put("body", caption);
+        }
+        return sendJson(sender, conversationId, JsonPath.parse(body).jsonString());
+    }
+
+    protected ResultActions upload(UUID uploader, UUID conversationId, byte[] content, String contentType)
+            throws Exception {
+        return mockMvc.perform(post(MessagingApiPaths.ATTACHMENTS, conversationId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(uploader))
+                .contentType(contentType)
+                .content(content));
+    }
+
+    /** Görseli yükler (201 beklenir) ve kimliğini döner. */
+    protected UUID uploadAndGetId(UUID uploader, UUID conversationId, byte[] content, String contentType)
+            throws Exception {
+        return idOf(upload(uploader, conversationId, content, contentType));
+    }
+
+    protected ResultActions download(UUID viewer, UUID conversationId, UUID attachmentId) throws Exception {
+        return mockMvc.perform(get(MessagingApiPaths.ATTACHMENT, conversationId, attachmentId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(viewer)));
+    }
+
     protected ResultActions history(UUID viewer, UUID conversationId, String query) throws Exception {
         return mockMvc.perform(get(MessagingApiPaths.MESSAGES + query, conversationId)
                 .header(HttpHeaders.AUTHORIZATION, bearer(viewer)));
@@ -253,7 +341,85 @@ public abstract class IntegrationTestSupport {
                 .content("{\"seq\":%d}".formatted(seq)));
     }
 
+    protected ResultActions messageReads(UUID viewer, UUID conversationId, UUID messageId) throws Exception {
+        return mockMvc.perform(get(MessagingApiPaths.MESSAGE_READS, conversationId, messageId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(viewer)));
+    }
+
+    /** Yeni istemci kimliğiyle metin mesajı gönderir (201 beklenir) ve mesajın kimliğini döner. */
+    protected UUID sendAndGetId(UUID sender, UUID conversationId, String body) throws Exception {
+        return idOf(sendMessage(sender, conversationId, UUID.randomUUID().toString(), body)
+                .andExpect(status().isCreated()));
+    }
+
+    /** MSG-19: {@code replyTo} mesajına yanıt. */
+    protected ResultActions sendReply(UUID sender, UUID conversationId, UUID replyTo, String body) throws Exception {
+        return sendReply(sender, conversationId, UUID.randomUUID().toString(), replyTo, body);
+    }
+
+    protected ResultActions sendReply(UUID sender, UUID conversationId, String clientMessageId, UUID replyTo,
+                                      String body) throws Exception {
+        return sendJson(sender, conversationId, JsonPath.parse(Map.of("clientMessageId", clientMessageId,
+                "body", body, "replyToMessageId", replyTo.toString())).jsonString());
+    }
+
+    /** MSG-25/26: {@code scope} {@code me} (benden sil) ya da {@code everyone} (herkesten sil). */
+    protected ResultActions deleteMessage(UUID actor, UUID conversationId, UUID messageId, String scope)
+            throws Exception {
+        return mockMvc.perform(delete(MessagingApiPaths.MESSAGES + "/{messageId}", conversationId, messageId)
+                .param("scope", scope)
+                .header(HttpHeaders.AUTHORIZATION, bearer(actor)));
+    }
+
+    /** MSG-23: tepki ver ya da değiştir. */
+    protected ResultActions react(UUID user, UUID conversationId, UUID messageId, String emoji) throws Exception {
+        return mockMvc.perform(put(MessagingApiPaths.MESSAGES + "/{messageId}/reaction", conversationId, messageId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(JsonPath.parse(Map.of("emoji", emoji)).jsonString()));
+    }
+
+    protected ResultActions unreact(UUID user, UUID conversationId, UUID messageId) throws Exception {
+        return mockMvc.perform(delete(MessagingApiPaths.MESSAGES + "/{messageId}/reaction", conversationId, messageId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(user)));
+    }
+
+    protected ResultActions reactions(UUID viewer, UUID conversationId, UUID messageId) throws Exception {
+        return mockMvc.perform(get(MessagingApiPaths.MESSAGES + "/{messageId}/reactions", conversationId, messageId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(viewer)));
+    }
+
+    /** MSG-20: mesajı hedef sohbetlere iletir. */
+    protected ResultActions forward(UUID user, UUID conversationId, UUID messageId, String clientMessageId,
+                                    UUID... targets) throws Exception {
+        return mockMvc.perform(post(MessagingApiPaths.MESSAGES + "/{messageId}/forward", conversationId, messageId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"clientMessageId\":\"%s\",\"targetConversationIds\":%s}"
+                        .formatted(clientMessageId, jsonArray(targets))));
+    }
+
+    /** SSE akışı açar ve {@code ready} olayını bekler. */
+    protected MvcResult openStreamFor(UUID user) throws Exception {
+        MvcResult result = mockMvc.perform(get(MessagingApiPaths.STREAM)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(user)))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+        await().atMost(Duration.ofSeconds(5))
+                .untilAsserted(() -> assertThat(streamContent(result)).contains("event:ready"));
+        return result;
+    }
+
+    protected static String streamContent(MvcResult result) throws Exception {
+        return result.getResponse().getContentAsString(StandardCharsets.UTF_8);
+    }
+
     // ------------------------------------------------------------ DB gözlemi
+
+    protected int messageCount(UUID conversationId) {
+        return jdbc.queryForObject("select count(*) from messages where conversation_id = ?", Integer.class,
+                conversationId);
+    }
 
     protected int conversationCount() {
         return jdbc.queryForObject("select count(*) from conversations", Integer.class);

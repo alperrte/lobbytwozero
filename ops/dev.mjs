@@ -528,6 +528,14 @@ const envRules = (() => {
     else if (byteLength(mailKey) !== 32) add("FAIL", "MAIL_PAYLOAD_ENCRYPTION_KEY", "Base64 değil veya tam 32 bayt değil; Mail Service açılmaz", regenerate);
     else add("OK", "MAIL_PAYLOAD_ENCRYPTION_KEY", "geçerli");
 
+    // Mail Service -> Auth adres çözme istemcisinin gizli anahtarı (platform kapısı: diğer servislerin mail attırması).
+    // Boşsa Auth bu istemciyi kapalı tutar: yalnız o kapı çalışmaz, Auth -> Mail ve her iki servisin açılışı etkilenmez (hata değil bilgi).
+    // Doluysa Auth en az 32 karakter ister (ServiceClientConfig); kısaysa Auth AÇILMAZ.
+    const mailClient = (settings.AUTH_MAIL_SERVICE_CLIENT_SECRET ?? "").trim();
+    if (mailClient === "") add("INFO", "AUTH_MAIL_SERVICE_CLIENT_SECRET", "boş; Mail Service platform kapısı (diğer servislerin mail attırması) kapalı, Auth -> Mail etkilenmez", regenerate);
+    else if (mailClient.length < 32) add("FAIL", "AUTH_MAIL_SERVICE_CLIENT_SECRET", "32 karakterden kısa; Auth açılmaz", regenerate);
+    else add("OK", "AUTH_MAIL_SERVICE_CLIENT_SECRET", "geçerli");
+
     // Rotasyon (S9) — hepsi isteğe bağlı; ayarlıysa Auth açılışta biçimini doğrular.
     const versionText = settings.AUTH_TOTP_ENCRYPTION_KEY_VERSION ?? "";
     let version = 1;
@@ -2244,8 +2252,8 @@ const smokeE2e = (() => {
 
       const weak = randomUUID().replaceAll('-', '').slice(0, 10);
       await request(gatewayOrigin, '/api/v1/auth/register', 400, { method: 'POST',
-        body: { email: `weak_${weak}@example.test`, username: `wk_${weak}`, password: 'Abcdefg12345!x' } });
-      check(true, 'A 14-character password is rejected at registration (policy minimum 15)');
+        body: { email: `weak_${weak}@example.test`, username: `wk_${weak}`, password: 'Ab1!xyz' } });
+      check(true, 'A 7-character password is rejected at registration (policy minimum 8)');
 
       const viaGateway = await postJson(gatewayOrigin + '/internal/v1/service-tokens', { clientId: 'admin-service', clientSecret: adminSecret });
       check(viaGateway.status === 404, `/internal is not routed through the Gateway (status ${viaGateway.status})`);
@@ -2783,7 +2791,7 @@ async function mailCommand(argv) {
 //
 // !!! BİLİNÇLİ KURAL İHLALİ — YALNIZ YEREL GELİŞTİRME !!!
 // Hesaplar kayıt akışından (e-posta doğrulaması, parola kuralları) GEÇİRİLMEDEN doğrudan VERİTABANINA yazılır:
-//   - auth_db:  `accounts` (ACTIVE, e-posta doğrulanmış, kısa parolanın Argon2 özeti; Auth alt sınırı 15 karakterdir),
+//   - auth_db:  `accounts` (ACTIVE, e-posta doğrulanmış, kısa parolanın Argon2 özeti; Auth alt sınırı 8 karakter ve bileşim kuralıdır),
 //               PLAYER rolü ve durum geçmişi; ADMIN/MODERATOR/CONTENT_CREATOR/GAME_DEVELOPER rolü `account_roles`'a doğrudan
 //               eklenir (normal yolda ADMIN/MODERATOR yalnız TOTP'si etkin hesaba verilir; bu kural dev için atlanır).
 //   - user_db:  her hesap için `user_profiles` satırı (kullanıcı adı kopyasıyla), User servisinin olay almasını beklemeden.
@@ -3349,6 +3357,8 @@ async function keysCommand(argv) {
     AUTH_TOTP_ENCRYPTION_KEY: () => randomBytes(32).toString("base64"),
     // Admin servisinin Auth'a servis kimligiyle (client credentials) baglanma gizli anahtari (B4): 256 bit, URL-guvenli.
     AUTH_ADMIN_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
+    // Mail Service -> Auth adres cozme (account:contact:read) istemcisi.
+    AUTH_MAIL_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
     // Servisler arası olay girişi (events:ingest) istemcileri: her biri ayrı 256 bit gizli anahtar.
     AUTH_SOCIAL_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
     AUTH_COMMUNITY_SERVICE_CLIENT_SECRET: () => randomBytes(32).toString("base64url"),
@@ -3371,8 +3381,9 @@ async function keysCommand(argv) {
     MAIL_PAYLOAD_ENCRYPTION_KEY: () => randomBytes(32).toString("base64"),
   };
 
-  // Mail Service SMTP ayarları: sır üretilmez. Satır yoksa dosyanın sonuna BOŞ eklenir; var olan satıra (dolu ya da boş)
-  // asla dokunulmaz. Sağlayıcı seçilince değerler elle doldurulur. Boşken dev'de Mailpit varsayılanları geçerlidir.
+  // Mail Service SMTP ayarları ve dış sağlayıcı anahtarları (GIPHY): sır üretilmez. Satır yoksa dosyanın sonuna BOŞ
+  // eklenir; var olan satıra (dolu ya da boş) asla dokunulmaz. Sağlayıcı seçilince değerler elle doldurulur. Boşken
+  // dev'de Mailpit varsayılanları geçerlidir; GIPHY boşsa messaging-service GIF arama/gönderme 503 döner.
   const blankDefaults = [
     "MAIL_SMTP_HOST",
     "MAIL_SMTP_PORT",
@@ -3381,6 +3392,7 @@ async function keysCommand(argv) {
     "MAIL_SMTP_SECURITY",
     "MAIL_FROM_ADDRESS",
     "MAIL_ALLOWED_LINK_HOSTS",
+    "GIPHY_API_KEY",
   ];
 
   // Eski varsayılanlar: değer TAM OLARAK eskiyse yeni varsayılana çekilir; özelleştirilmiş değere dokunulmaz.

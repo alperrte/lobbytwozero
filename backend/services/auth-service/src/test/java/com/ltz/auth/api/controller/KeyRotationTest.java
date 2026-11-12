@@ -128,7 +128,7 @@ class KeyRotationTest extends IntegrationTestSupport {
     }
 
     private static SecretCipher cipherWith(String key, int version) {
-        return new SecretCipher(new TwoFactorProperties("LTZ", key, Duration.ofMinutes(5), 5, 10, 1, Set.of(), false,
+        return new SecretCipher(new TwoFactorProperties("LTZ", key, Duration.ofMinutes(5), 5, 10, 1, Set.of(),
                 version, null));
     }
 

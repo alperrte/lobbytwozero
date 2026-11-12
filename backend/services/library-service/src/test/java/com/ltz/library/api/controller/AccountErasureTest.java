@@ -64,6 +64,8 @@ class AccountErasureTest {
     @Autowired WebApplicationContext context;
     @org.springframework.test.context.bean.override.mockito.MockitoBean
     com.ltz.library.infrastructure.persistence.repository.LibraryEntryRepository entries;
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    com.ltz.library.infrastructure.persistence.repository.LibrarySummaryOutboxRepository summaries;
     MockMvc mvc;
 
     @Configuration @EnableWebMvc @EnableWebSecurity
@@ -161,9 +163,10 @@ class AccountErasureTest {
     }
 
     @Test void erasureDelegatesToLocalRepositoryAndRejectsNullAccount() {
-        var service = new AccountErasureService(entries);
+        var service = new AccountErasureService(entries, summaries);
         service.erase(ACCOUNT);
         verify(entries).eraseAccount(ACCOUNT);
+        verify(summaries).erase(ACCOUNT);
         assertThrows(NullPointerException.class, () -> service.erase(null));
     }
 

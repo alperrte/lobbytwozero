@@ -19,7 +19,7 @@ vi.mock("@/shared/lib/i18n/navigation", async () => {
   };
 });
 
-const PASSWORD = "dogru-parola-123456";
+const PASSWORD = "Dogru-Parola-123456";
 
 function renderForm(register: RegistrationApi["register"], locale: "tr" | "en" = "tr") {
   const api: RegistrationApi = { register, confirmEmail: vi.fn(), resendEmailCode: vi.fn() };

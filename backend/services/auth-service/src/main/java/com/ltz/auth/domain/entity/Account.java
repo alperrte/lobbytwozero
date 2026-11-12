@@ -34,6 +34,22 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Account {
 
+    /**
+     * Hesabın nasıl açıldığı; sonradan değişmez (parola belirlemek veya sağlayıcı bağlamak yöntemi değiştirmez). İç tiptir:
+     * Hardware'in kapalı derleme kümesi bu sınıfı tek başına derler, küme dışı yeni tip eklenemez
+     * ({@code ConsumerSourceCompilationTest}).
+     */
+    public enum RegistrationMethod {
+        PASSWORD,
+        GOOGLE,
+        STEAM;
+
+        /** Doğrudan sağlayıcıyla (parolasız) açılan hesap mı. */
+        public boolean isExternal() {
+            return this != PASSWORD;
+        }
+    }
+
     public static final int EMAIL_MAX_LENGTH = 254;
     private static final String DELETED_EMAIL_PREFIX = "deleted-";
     private static final String DELETED_EMAIL_DOMAIN = "@deleted.invalid";
@@ -45,7 +61,7 @@ public class Account {
     public static final String USERNAME_PATTERN =
             "^[A-Za-z0-9_]{" + USERNAME_MIN_LENGTH + "," + USERNAME_MAX_LENGTH + "}$";
     /** Uzunluk UTF-16 karakteri olarak ölçülür; parola içeriği dönüştürülmez veya normalize edilmez. */
-    public static final int PASSWORD_MIN_LENGTH = 15;
+    public static final int PASSWORD_MIN_LENGTH = 8;
     public static final int PASSWORD_MAX_LENGTH = 128;
 
     @Id
@@ -93,6 +109,11 @@ public class Account {
     @Version
     private long version;
 
+    /** Hesabın nasıl açıldığı; sonradan değişmez. Hesap türü (A/B/C) buradan ve 2FA/sağlayıcı durumundan hesaplanır. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "registration_method", nullable = false, updatable = false, length = 16)
+    private RegistrationMethod registrationMethod = RegistrationMethod.PASSWORD;
+
     @Getter(AccessLevel.NONE)
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
@@ -120,6 +141,7 @@ public class Account {
     /** Sağlayıcının doğruladığı e-postayla (Google) açılan, parolasız ve doğrudan ACTIVE hesap. */
     public static Account registerVerifiedExternal(String email, String username, Role initialRole, Instant now) {
         Account account = registerPending(email, username, null, initialRole, now);
+        account.registrationMethod = RegistrationMethod.GOOGLE;
         account.markEmailVerified(now);
         return account;
     }
@@ -130,6 +152,7 @@ public class Account {
      */
     public static Account registerSteam(String username, Role initialRole, Instant now) {
         Account account = new Account();
+        account.registrationMethod = RegistrationMethod.STEAM;
         account.username = username;
         account.usernameNormalized = normalizeUsername(username);
         account.status = AccountStatus.ACTIVE;

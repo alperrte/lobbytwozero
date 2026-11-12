@@ -40,11 +40,11 @@
 |---|---|
 | Access token ömrü | 60 saniye (`JWT_ACCESS_TTL_SECONDS`) |
 | Banlı ya da çıkış yapan kullanıcının görünme süresi | En fazla 90 saniye (60 + 30 saniye saat toleransı) |
-| Parola | En az 15 karakter, yaygın parola listesi ve desen kontrolü |
+| Parola | En az 8 karakter; büyük harf, küçük harf, rakam ve özel karakter; yaygın parola listesi ve desen kontrolü |
 | Hesap silme | 14 gün geri alma süresi, sonra servislere silme görevi |
 | Güvenlik olayı saklama | 365 gün |
 | Silme ucu yazılmış servisler | 9 / 16 (Game, Hardware, Library, Performance, Review, Social, User, Community, Mail) |
-| Auth migration aralığı | V61–V70 (V61–V69 kullanımda, yalnız V70 boş; V61–V65 donuk, bkz. `migration-yazim-kurallari.md`) |
+| Auth migration aralığı | V61–V70 (V61–V65 kullanımda ve donuk, V66–V70 boş; bkz. `migration-yazim-kurallari.md`) |
 
 ---
 

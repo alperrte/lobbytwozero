@@ -1,0 +1,7 @@
+# ACCOUNT_DISABLED (tr). Biçim: docs-mail/sablon-rehberi.md. Düz metin sürümü bloklardan otomatik üretilir.
+subject: LTZ hesabın devre dışı bırakıldı
+kind: danger
+label: HESAP DURUMU
+title: Hesabın devre dışı bırakıldı
+text: LTZ hesabın devre dışı bırakıldı ve şu anda kullanılamaz.
+date: Tarih:

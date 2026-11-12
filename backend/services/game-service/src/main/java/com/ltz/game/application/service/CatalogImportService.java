@@ -20,9 +20,6 @@ import java.text.Normalizer;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -38,9 +35,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class CatalogImportService {
     private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(CatalogImportService.class);
     private static final String PROVIDER_CODE = "STEAM";
-    /** Günlük artımlı Steam turu: her gün 03:00 Europe/Istanbul (yaz saati uygulaması yok; yine de dilimle hesaplanır). */
-    static final ZoneId SYNC_ZONE = ZoneId.of("Europe/Istanbul");
-    static final LocalTime SYNC_TIME = LocalTime.of(3, 0);
+    /** Yeni oyun ve DLC'lerin Steam'den ne kadar sıklıkla alınacağı (varsayılan geliştirme: 1 saat; canlı profil 15 dakika). */
+    static final Duration DEFAULT_SYNC_INTERVAL = Duration.ofHours(1);
     private final GameProvider provider;
     private final GameTypeClassifier types;
     private final GameProviderSyncStateRepository states;
@@ -50,6 +46,19 @@ public class CatalogImportService {
     private final ProviderRetryPolicy retries;
     private final GameFieldOverrideRepository overrides;
     private final MetadataProvenanceService provenance;
+    /** Artımlı tur aralığı: son başarılı turdan bu kadar sonra yeni tur başlar; tur yalnız değişen kayıtları ister, kararlı durumda ucuzdur. */
+    private Duration syncInterval = DEFAULT_SYNC_INTERVAL;
+
+    /** ISO-8601 süre ({@code PT15M}); metin olarak alınır ki Spring dönüştürme hizmeti olmayan bağlamlarda da çalışsın. Geçersiz değer açılışta hata verir. */
+    @org.springframework.beans.factory.annotation.Value("${ltz.game.catalog.sync-interval:PT1H}")
+    void configureSyncInterval(String text) {
+        Duration parsed = Duration.parse(text.strip());
+        if (parsed.compareTo(Duration.ofMinutes(1)) < 0 || parsed.compareTo(Duration.ofDays(7)) > 0) throw new IllegalArgumentException("Geçersiz katalog tur aralığı.");
+        this.syncInterval = parsed;
+    }
+
+    /** Yalnız testler için: tur aralığı. */
+    void syncIntervalForTests(Duration interval) { this.syncInterval = interval; }
 
     @Transactional
     public CatalogStatusResponse startInitial() { return start(CatalogRunMode.INITIAL); }
@@ -106,10 +115,10 @@ public class CatalogImportService {
         Instant now = clock.instant();
         if (state.getSyncStatus() == CatalogSyncStatus.FAILED) {
             if (state.getNextAttemptAt() == null) {
-                // Otomatik tekrar bütçesi bitti. Artımlı tur bir sonraki günlük pencerede, önceki başarılı checkpoint'ten yeniden
+                // Otomatik tekrar bütçesi bitti. Artımlı tur bir sonraki aralıkta, önceki başarılı checkpoint'ten yeniden
                 // başlar (kaçırılan güncellemeler alınır); ilk aktarım yalnız açık devam (yeniden başlatma) ile sürer.
                 if (!incrementalRetryDue(state, now)) return response(state);
-                LOG.warn("Başarısız günlük artımlı tur yeni günlük pencerede yeniden başlatılıyor: önceki kod={}", state.getLastErrorCode());
+                LOG.warn("Başarısız artımlı tur yeni aralıkta yeniden başlatılıyor: önceki kod={}", state.getLastErrorCode());
                 start(CatalogRunMode.INCREMENTAL);
             } else {
                 if (now.isBefore(state.getNextAttemptAt())) return response(state);
@@ -118,24 +127,17 @@ public class CatalogImportService {
         } else if (state.getSyncStatus() == CatalogSyncStatus.IDLE) {
             start(CatalogRunMode.INITIAL);
         } else if (state.getSyncStatus() == CatalogSyncStatus.COMPLETE) {
-            // Günde bir kez: son başarılı tur son günlük pencereden (03:00 Europe/Istanbul) önce başladıysa yeni tur başlar.
-            if (!state.getLastSuccessfulAt().isBefore(latestSyncWindow(now))) return response(state);
+            // Her aralıkta bir kez: son başarılı turdan bu yana yapılandırılmış süre geçtiyse yeni artımlı tur başlar.
+            if (state.getLastSuccessfulAt().plus(syncInterval).isAfter(now)) return response(state);
             start(CatalogRunMode.INCREMENTAL);
         }
         return importPage(1000);
     }
 
 
-    /** Verilen ana kadar başlamış en son günlük pencere (03:00 Europe/Istanbul). */
-    static Instant latestSyncWindow(Instant now) {
-        ZonedDateTime zoned = now.atZone(SYNC_ZONE);
-        ZonedDateTime today = zoned.toLocalDate().atTime(SYNC_TIME).atZone(SYNC_ZONE);
-        return (zoned.isBefore(today) ? zoned.toLocalDate().minusDays(1).atTime(SYNC_TIME).atZone(SYNC_ZONE) : today).toInstant();
-    }
-
     private boolean incrementalRetryDue(GameProviderSyncState state, Instant now) {
         return state.getRunMode() == CatalogRunMode.INCREMENTAL && state.getLastSuccessfulAt() != null && state.getRunStartedAt() != null
-                && state.getRunStartedAt().isBefore(latestSyncWindow(now));
+                && !state.getRunStartedAt().plus(syncInterval).isAfter(now);
     }
 
     /** Bir HTTP sayfası ve yerel checkpoint aynı DB transaction'ında işlenir. */

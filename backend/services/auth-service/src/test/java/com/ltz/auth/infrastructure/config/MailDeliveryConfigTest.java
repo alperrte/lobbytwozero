@@ -19,6 +19,7 @@ import com.ltz.auth.TestServiceTokens;
 import com.ltz.auth.application.port.VerificationCodeMailPort;
 import com.ltz.auth.infrastructure.client.DevSmtpVerificationMailAdapter;
 import com.ltz.auth.infrastructure.client.HttpMailServiceAdapter;
+import com.ltz.auth.infrastructure.client.HttpUserLocaleClient;
 import com.ltz.auth.infrastructure.security.ServiceTokenIssuer;
 import com.ltz.auth.infrastructure.client.MailServiceUnavailableAdapter;
 
@@ -28,7 +29,7 @@ class MailDeliveryConfigTest {
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(ValidationAutoConfiguration.class))
             .withUserConfiguration(MailDeliveryConfig.class, DevSmtpMailConfig.class,
-                    MailServiceUnavailableAdapter.class, HttpMailServiceAdapter.class)
+                    MailServiceUnavailableAdapter.class, HttpMailServiceAdapter.class, HttpUserLocaleClient.class)
             .withPropertyValues(
                     "ltz.auth.mail.dev-smtp.host=localhost",
                     "ltz.auth.mail.dev-smtp.port=1025",
@@ -93,6 +94,11 @@ class MailDeliveryConfigTest {
                     Duration.ofMinutes(30), Duration.ofSeconds(60), Duration.ofMinutes(10),
                     URI.create("https://ltz.example/account/delete"), false, Duration.ofSeconds(30), 20,
                     Duration.ofMinutes(2), Duration.ofMinutes(1), Duration.ofHours(6), 10, Duration.ofDays(14));
+        }
+
+        @Bean
+        Clock clock() {
+            return Clock.systemUTC();
         }
 
         @Bean

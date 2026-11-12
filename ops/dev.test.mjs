@@ -363,6 +363,31 @@ describe("env-check", () => {
     for (const secret of [key32(1), key32(2), jwt]) assert.ok(!result.output.includes(secret), "anahtar çıktıya sızdı");
   });
 
+  test("Mail istemci sırrı: boşsa yalnız bilgi (hata değil), uygunsa OK, kısaysa hata; değer çıktıya girmez", () => {
+    // Boş / hiç yok: platform kapısı kapalı bilgisi verilir; çıkış kodu ve diğer bulgular değişmez.
+    const empty = run(good());
+    assert.equal(empty.status, 0, empty.output);
+    assert.match(empty.output, /\[INFO\] AUTH_MAIL_SERVICE_CLIENT_SECRET: boş; Mail Service platform kapısı/);
+    const blank = run(good("AUTH_MAIL_SERVICE_CLIENT_SECRET=\n"));
+    assert.equal(blank.status, 0, blank.output);
+    assert.match(blank.output, /\[INFO\] AUTH_MAIL_SERVICE_CLIENT_SECRET: boş/);
+
+    // Auth'un en az 32 karakter kuralı karşılanıyor.
+    const strong = "s".repeat(43);
+    const ok = run(good(`AUTH_MAIL_SERVICE_CLIENT_SECRET=${strong}\n`));
+    assert.equal(ok.status, 0, ok.output);
+    assert.match(ok.output, /\[OK  \] AUTH_MAIL_SERVICE_CLIENT_SECRET: geçerli/);
+    assert.ok(!ok.output.includes(strong), "sır çıktıya sızdı");
+
+    // Kısa sır: Auth açılmaz, bu yüzden hata ve mesaj Auth'u işaret eder.
+    const weak = "w".repeat(31);
+    const bad = run(good(`AUTH_MAIL_SERVICE_CLIENT_SECRET=${weak}\n`));
+    assert.equal(bad.status, 1);
+    assert.match(bad.output, /\[FAIL\] AUTH_MAIL_SERVICE_CLIENT_SECRET: 32 karakterden kısa; Auth açılmaz/);
+    assert.match(bad.output, /Auth bu ayarlarla AÇILMAZ/);
+    assert.ok(!bad.output.includes(weak), "kısa sır çıktıya sızdı");
+  });
+
   test("boş, kısa veya Base64 olmayan anahtarlar hata verir (Auth açılmaz) ve kısa değer yazılmaz", () => {
     const shortKey = Buffer.alloc(16, 5).toString("base64");
     const result = run(`AUTH_OTP_HMAC_KEY=${shortKey}\nAUTH_TOTP_ENCRYPTION_KEY=\nAUTH_JWT_PRIVATE_KEY=@@@@\n`);
@@ -599,6 +624,7 @@ describe("keys", () => {
       for (const name of smtpKeys) {
         assert.equal(get(freshText, name), "", `${name} boş eklenmeli`);
       }
+      assert.equal(get(freshText, "GIPHY_API_KEY"), "", "dış sağlayıcı anahtarı üretilmez, boş eklenir");
       assert.equal(get(customText, "MAIL_SMTP_HOST"), "smtp.example.test", "dolu satır ezilmemeli");
       assert.equal(get(customText, "MAIL_SMTP_PORT"), "", "boş satır doldurulmamalı ve çoğaltmamalı");
       assert.equal(get(customText, "MAIL_PAYLOAD_ENCRYPTION_KEY"), "dolu-anahtar");

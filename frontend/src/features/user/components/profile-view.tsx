@@ -7,13 +7,16 @@ import { PageContainer } from "@/shared/components/layout/page-container";
 import { useMyProfile } from "../hooks/use-my-profile";
 import { useRemote, type Remote } from "../hooks/use-remote";
 import { getFriends, getHardwareSummary, getLibraryStats } from "../services/activity-api";
+import { getOnboarding } from "../services/onboarding-api";
 import type { FriendsPage, HardwareSummary, LibraryStats } from "../types/activity.types";
 import type { MyProfile, ProfileStats, SteamLink } from "../types/profile.types";
+import { OnboardingPrompt } from "./onboarding-prompt";
 import { ProfileActivity } from "./profile-activity";
 import { ProfileFriends } from "./profile-friends";
 import { ProfileGames } from "./profile-games";
 import { ProfileHardware } from "./profile-hardware";
-import { ProfileHeader } from "./profile-header";
+import { Link } from "@/shared/lib/i18n/navigation";
+import { primaryLinkClass, ProfileHeader } from "./profile-header";
 import { ProfileOverview } from "./profile-overview";
 import { ProfileStateNotice } from "./profile-state-notice";
 import { ProfileStatsStrip } from "./profile-stats";
@@ -68,15 +71,25 @@ function ProfileContent({
   steam: SteamLink | null;
   stats: ProfileStats | null;
 }) {
+  const t = useTranslations("Profile");
   const prefix = useId();
   const [active, setActive] = useState<ProfileTabId>("overview");
   const library = useRemote("library", getLibraryStats);
   const friends = useRemote("friends", getFriends);
   const hardware = useRemote("hardware", getHardwareSummary);
+  const onboarding = useRemote("onboarding", getOnboarding);
 
   return (
     <div className="flex flex-col gap-6">
-      <ProfileHeader profile={profile} />
+      <ProfileHeader
+        profile={profile}
+        action={
+          <Link href="/profile/edit" className={primaryLinkClass}>
+            {t("editProfile")}
+          </Link>
+        }
+      />
+      <OnboardingPrompt onboarding={onboarding} />
       <ProfileStatsStrip friends={friends} library={library} hardware={hardware} stats={stats} />
       <div className="flex flex-col gap-6">
         <ProfileTabs active={active} onChange={setActive} idPrefix={prefix} />

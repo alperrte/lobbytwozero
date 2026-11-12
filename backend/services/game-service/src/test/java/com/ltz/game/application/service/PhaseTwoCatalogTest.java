@@ -40,7 +40,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@SpringBootTest @Import(PhaseTwoCatalogTest.Fakes.class)
+@SpringBootTest(properties = {"ltz.game.refresh.igdb-recheck.recent=P1D", "ltz.game.refresh.igdb-recheck.old=P7D", "ltz.game.catalog.sync-interval=PT24H"})
+@Import(PhaseTwoCatalogTest.Fakes.class)
 class PhaseTwoCatalogTest extends PostgresTestSupport {
     @TestConfiguration static class Fakes {
         @Bean @Primary FakeProvider phaseTwoProvider() { return new FakeProvider(); }
@@ -80,7 +81,7 @@ class PhaseTwoCatalogTest extends PostgresTestSupport {
             });
             return found;
         }
-        @Override public String detailSource() { return source == null ? provider() : source; }
+        @Override public String detailSource() { return source == null ? "IGDB" : source; }
         void detailWith(GameProvider.LanguageSupport... languages) {
             details.add(() -> new Details("Provider description", LocalDate.of(2020, 1, 1), Set.of(), Set.of(), null, List.of(languages)));
         }
@@ -127,7 +128,7 @@ class PhaseTwoCatalogTest extends PostgresTestSupport {
         provider.page(20, false); imports.synchronizeNextPage();
         assertEquals(List.of(0L,10L),provider.queries.stream().map(GameProvider.CatalogQuery::afterAppId).toList());
         imports.synchronizeNextPage(); assertEquals(2, provider.queries.size());
-        clock.advance(Duration.ofHours(23)); imports.synchronizeNextPage(); assertEquals(2, provider.queries.size(), "günlük pencere dolmadan yeni tur başlamaz");
+        clock.advance(Duration.ofHours(23)); imports.synchronizeNextPage(); assertEquals(2, provider.queries.size(), "yapılandırılmış aralık dolmadan yeni tur başlamaz");
         clock.advance(Duration.ofHours(1)); provider.page(20, false); imports.synchronizeNextPage();
         assertEquals(CatalogRunMode.INCREMENTAL, imports.status().runMode());
         assertEquals(Instant.parse("2026-10-20T23:59:59Z"), provider.queries.getLast().modifiedSince());
@@ -366,7 +367,7 @@ class PhaseTwoCatalogTest extends PostgresTestSupport {
         assertEquals(GameType.MAIN_GAME, typeOf("1")); assertEquals(GameType.DLC, typeOf("2"));
         assertEquals(GameType.UNKNOWN, typeOf("3")); assertEquals(GameType.UNKNOWN, typeOf("4"));
         assertEquals(List.of(List.of("4", "3", "2", "1")), provider.typeQueries, "en yeni AppID önce");
-        assertEquals("STEAM", jdbc.queryForObject("select source from game_metadata_provenance where game_id=? and field='GAME_TYPE'", String.class,
+        assertEquals("IGDB", jdbc.queryForObject("select source from game_metadata_provenance where game_id=? and field='GAME_TYPE'", String.class,
                 refs.findByProviderAndExternalId("STEAM", "1").orElseThrow().getGame().getId()));
         UUID noEvidence = refs.findByProviderAndExternalId("STEAM", "4").orElseThrow().getGame().getId();
         assertEquals(0L, jdbc.queryForObject("select count(*) from game_metadata_provenance where field='GAME_TYPE' and data_state='AVAILABLE' and game_id=?", Long.class, noEvidence));
@@ -490,7 +491,7 @@ class PhaseTwoCatalogTest extends PostgresTestSupport {
         assertNull(jdbc.queryForObject("select name_tr from catalog_terms where code='role-playing-rpg'", String.class), "Türkçe ad uydurulmaz");
         assertEquals(1L, jdbc.queryForObject("select count(*) from catalog_terms where kind='GENRE' and code='role-playing-rpg'", Long.class), "terim paylaşılır, kopyalanmaz");
         UUID first = refs.findByProviderAndExternalId("STEAM", "1").orElseThrow().getGame().getId();
-        assertEquals("STEAM", jdbc.queryForObject("select source from game_metadata_provenance where game_id=? and field='GENRES'", String.class, first));
+        assertEquals("IGDB", jdbc.queryForObject("select source from game_metadata_provenance where game_id=? and field='GENRES'", String.class, first));
         assertEquals(0L, jdbc.queryForObject("select count(*) from game_metadata_provenance where game_id=? and field='GENRES'", Long.class, second), "yazılmayan alan için gözlem kaydı yok");
         // Seçilen terim kodları gerçek katalog filtreleriyle eşleşir (yalnız ACTIVE + MAIN_GAME).
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/game/games").param("genre", "role-playing-rpg"))
@@ -671,15 +672,12 @@ class PhaseTwoCatalogTest extends PostgresTestSupport {
         assertEquals(0L, jdbc.queryForObject("select count(*) from game_metadata_provenance where field='GAME_TYPE'", Long.class), "değişen kayıt yeniden sınıflandırmaya uygun");
         assertEquals("Maybe renamed", games.findById(refs.findByProviderAndExternalId("STEAM", "10").orElseThrow().getGame().getId()).orElseThrow().getTitle());
     }
-    @Test void dailyRunStartsOncePerIstanbulWindowReadsTheCheckpointAndCatchesUpAfterDowntime() {
-        assertEquals(Instant.parse("2026-10-21T00:00:00Z"), CatalogImportService.latestSyncWindow(Instant.parse("2026-10-21T00:00:00Z")), "03:00 Europe/Istanbul = 00:00Z");
-        assertEquals(Instant.parse("2026-10-21T00:00:00Z"), CatalogImportService.latestSyncWindow(Instant.parse("2026-10-21T23:59:59Z")), "02:59:59 yerel: bir önceki pencere");
-        assertEquals(Instant.parse("2026-10-22T00:00:00Z"), CatalogImportService.latestSyncWindow(Instant.parse("2026-10-22T00:00:00Z")));
+    @Test void incrementalRunStartsOncePerConfiguredIntervalReadsTheCheckpointAndCatchesUpAfterDowntime() {
         provider.page(10, false); imports.synchronizeNextPage();
         Instant firstSuccess = imports.status().lastSuccessfulAt();
         int queries = provider.queries.size();
         clock.advance(Duration.ofHours(23).plusMinutes(59)); imports.synchronizeNextPage();
-        assertEquals(queries, provider.queries.size(), "aynı pencerede ikinci tur başlamaz");
+        assertEquals(queries, provider.queries.size(), "aynı aralıkta ikinci tur başlamaz");
         clock.advance(Duration.ofMinutes(1)); provider.page(10, false); imports.synchronizeNextPage();
         assertEquals(queries + 1, provider.queries.size());
         assertEquals(CatalogRunMode.INCREMENTAL, imports.status().runMode());
@@ -693,7 +691,23 @@ class PhaseTwoCatalogTest extends PostgresTestSupport {
         assertEquals(secondSuccess.minusSeconds(1), provider.queries.getLast().modifiedSince());
         imports.synchronizeNextPage(); assertEquals(queries + 2, provider.queries.size());
     }
-    @Test void aFailedDailyRunKeepsTheCheckpointNeverReportsSuccessAndRestartsInTheNextWindowFromTheSameWatermark() {
+    @Test void aShortProductionIntervalStartsANewIncrementalRunEveryFifteenMinutes() {
+        imports.syncIntervalForTests(Duration.ofMinutes(15));
+        try {
+            provider.page(10, false); imports.synchronizeNextPage();
+            int queries = provider.queries.size();
+            clock.advance(Duration.ofMinutes(14)); imports.synchronizeNextPage();
+            assertEquals(queries, provider.queries.size(), "15 dakika dolmadan yeni tur başlamaz");
+            clock.advance(Duration.ofMinutes(1)); provider.page(10, false); imports.synchronizeNextPage();
+            assertEquals(queries + 1, provider.queries.size());
+            assertEquals(CatalogRunMode.INCREMENTAL, imports.status().runMode());
+            clock.advance(Duration.ofMinutes(15)); provider.page(10, false); imports.synchronizeNextPage();
+            assertEquals(queries + 2, provider.queries.size(), "kararlı durumda her 15 dakikada bir ucuz artımlı tur");
+        } finally {
+            imports.syncIntervalForTests(Duration.ofHours(24));
+        }
+    }
+    @Test void aFailedIncrementalRunKeepsTheCheckpointNeverReportsSuccessAndRestartsInTheNextIntervalFromTheSameWatermark() {
         provider.page(10, false); imports.synchronizeNextPage();
         Instant checkpoint = imports.status().lastSuccessfulAt();
         clock.advance(Duration.ofHours(24)); provider.fail("INVALID_PROVIDER_RESPONSE"); imports.synchronizeNextPage();
@@ -702,7 +716,7 @@ class PhaseTwoCatalogTest extends PostgresTestSupport {
         assertEquals(checkpoint, failed.lastSuccessfulAt(), "başarısız tur checkpoint'i ilerletmez");
         int queries = provider.queries.size();
         clock.advance(Duration.ofHours(5)); imports.synchronizeNextPage();
-        assertEquals(queries, provider.queries.size(), "aynı pencerede kalıcı hata yeniden denenmez");
+        assertEquals(queries, provider.queries.size(), "aynı aralıkta kalıcı hata yeniden denenmez");
         clock.advance(Duration.ofHours(20)); provider.page(10, false); imports.synchronizeNextPage();
         assertEquals(queries + 1, provider.queries.size());
         assertEquals(checkpoint.minusSeconds(1), provider.queries.getLast().modifiedSince(), "aynı watermark: kaçırılan güncellemeler alınır");

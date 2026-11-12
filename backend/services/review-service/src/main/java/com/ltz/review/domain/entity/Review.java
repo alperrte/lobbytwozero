@@ -43,6 +43,11 @@ public class Review {
         }
     }
 
+    /** Moderasyon durum geçişi; updatedAt değişmez (yazar düzenlemesi değildir). @Version artar. */
+    public void moderate(String newStatus) {
+        status = newStatus;
+    }
+
     public void remove(Instant now) {
         body = null;
         status = "DELETED";

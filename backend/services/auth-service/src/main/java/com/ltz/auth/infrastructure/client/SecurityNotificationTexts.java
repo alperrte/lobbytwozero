@@ -40,6 +40,7 @@ final class SecurityNotificationTexts {
             case TWO_FACTOR_DISABLED -> "LTZ iki adımlı doğrulama kapatıldı / two-step verification was disabled";
             case RECOVERY_CODE_USED -> "LTZ kurtarma kodu kullanıldı / a recovery code was used";
             case EXTERNAL_IDENTITY_LINKED -> "LTZ hesabınıza harici hesap bağlandı / an external account was linked";
+            case WELCOME -> "LTZ'ye hoş geldin / welcome to LTZ";
         };
     }
 
@@ -61,6 +62,7 @@ final class SecurityNotificationTexts {
             case TWO_FACTOR_DISABLED -> "LTZ hesabınızda iki adımlı doğrulama kapatıldı";
             case RECOVERY_CODE_USED -> "LTZ hesabınızda bir kurtarma kodu kullanıldı";
             case EXTERNAL_IDENTITY_LINKED -> "LTZ hesabınıza bir Google ya da Steam hesabı bağlandı";
+            case WELCOME -> "LTZ'ye hoş geldin, hesabın hazır";
         };
     }
 
@@ -77,6 +79,7 @@ final class SecurityNotificationTexts {
             case TWO_FACTOR_DISABLED -> "Two-step verification was disabled on your LTZ account";
             case RECOVERY_CODE_USED -> "A recovery code was used on your LTZ account";
             case EXTERNAL_IDENTITY_LINKED -> "A Google or Steam account was linked to your LTZ account";
+            case WELCOME -> "Welcome to LTZ, your account is ready";
         };
     }
 }

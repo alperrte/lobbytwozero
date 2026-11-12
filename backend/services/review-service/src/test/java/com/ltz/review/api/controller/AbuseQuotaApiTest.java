@@ -210,7 +210,7 @@ class AbuseQuotaApiTest {
         assertEquals(201, createReview(UUID.randomUUID(), UUID.randomUUID(), "Başka hesap"));
         mvc.perform(put("/api/v1/review/games/" + UUID.randomUUID() + "/rating").with(actor(user))
                 .contentType(MediaType.APPLICATION_JSON).content("{\"rating\":7}")).andExpect(status().isOk());
-        assertEquals(0L, jdbc.sql("SELECT count(*) FROM review_rate_limits WHERE action NOT IN ('REVIEW_CREATE','REVIEW_LIKE')")
+        assertEquals(0L, jdbc.sql("SELECT count(*) FROM review_rate_limits WHERE action NOT IN ('REVIEW_CREATE','REVIEW_LIKE','REPORT_CREATE')")
                 .query(Long.class).single());
     }
 

@@ -49,11 +49,54 @@ describe("Oyun kataloğu", () => {
     expect(within(list).getByText("8,5")).toBeVisible();
     expect(within(list).getByText(messages.Game.unrated)).toBeVisible();
     expect(within(list).getByText(messages.Game.ratingUnavailable)).toBeVisible();
-    expect(within(list).getByText(messages.Game.earlyAccessBadge)).toBeVisible();
+    const mark = within(list).getByTestId("early-access-mark");
+    expect(mark).toHaveTextContent(messages.Game.earlyAccessBadge);
+    // Rozetler kapağın üstünde, tek bir konumlu kapsayıcıdadır (üst üste binmez, birden çok rozet alt alta dizilir).
+    const marks = mark.parentElement!;
+    expect(marks).toHaveAttribute("data-testid", "status-marks");
+    expect(marks.className).toMatch(/absolute/);
+    expect(marks.className).toMatch(/top-2/);
+    expect(within(list).getAllByTestId("early-access-mark")).toHaveLength(1);
+    expect(within(list).queryByTestId("free-mark")).toBeNull();
+    expect(within(list).queryByTestId("coming-soon-mark")).toBeNull();
     expect(within(list).getAllByText(messages.Game.releaseUnknown)).toHaveLength(1);
     expect(within(list).queryByText(/^0([,/]|$)/)).toBeNull();
     expect(screen.getByRole("link", { name: "Fixture game 1" })).toHaveAttribute("href", `/games/${ids[1]}`);
     expect(screen.getByRole("status")).toHaveTextContent(messages.Game.total.replace("{count}", "3"));
+  });
+  it("ücretsiz ve henüz çıkmamış oyunları kapakta rozetle işaretler; bilinmeyen (null) durumda rozet göstermez", async () => {
+    serve({ discovery: () => page([
+      { game: card(0), releaseDate: null, free: true },
+      { game: card(1), releaseDate: null, comingSoon: true },
+      { game: card(2), releaseDate: null, earlyAccess: true, free: true, comingSoon: true },
+      { game: card(0, { gameId: "0198a3c2-0004-7d44-9a55-3f1c2b4d5e66", title: "Fixture game unknown" }), releaseDate: null, free: null, comingSoon: null }
+    ]) });
+    mount();
+    const list = (await screen.findByRole("link", { name: "Fixture game 0" })).closest("ul")!;
+    expect(within(list).getAllByTestId("free-mark")).toHaveLength(2);
+    expect(within(list).getAllByTestId("free-mark")[0]).toHaveTextContent(messages.Game.freeBadge);
+    expect(within(list).getAllByTestId("coming-soon-mark")).toHaveLength(2);
+    expect(within(list).getAllByTestId("coming-soon-mark")[0]).toHaveTextContent(messages.Game.comingSoonBadge);
+    expect(within(list).getAllByTestId("early-access-mark")).toHaveLength(1);
+    // Üç durumun hepsi olan kartta rozetler tek kapsayıcıda alt alta durur.
+    const all = within(list).getByTestId("early-access-mark").parentElement!;
+    expect(all.children).toHaveLength(3);
+    // Durumu bilinmeyen kartta hiç rozet kapsayıcısı yoktur.
+    const unknown = screen.getByRole("link", { name: "Fixture game unknown" }).closest("li")!;
+    expect(within(unknown).queryByTestId("status-marks")).toBeNull();
+  });
+  it("yetişkin içerikli oyunu kapakta +18 rozetiyle işaretler; false ve bilinmeyen (null) durumda rozet göstermez", async () => {
+    serve({ discovery: () => page([
+      { game: card(0), releaseDate: null, adult: true },
+      { game: card(1), releaseDate: null, adult: false },
+      { game: card(2), releaseDate: null, adult: null }
+    ]) });
+    mount();
+    const list = (await screen.findByRole("link", { name: "Fixture game 0" })).closest("ul")!;
+    expect(within(list).getAllByTestId("adult-mark")).toHaveLength(1);
+    expect(within(list).getByTestId("adult-mark")).toHaveTextContent(messages.Game.adultBadge);
+    expect(within(screen.getByRole("link", { name: "Fixture game 1" }).closest("li")!).queryByTestId("adult-mark")).toBeNull();
+    expect(within(screen.getByRole("link", { name: "Fixture game 2" }).closest("li")!).queryByTestId("status-marks")).toBeNull();
   });
   it("kart başına ek API çağrısı yapmaz", async () => {
     mount(); await screen.findByRole("link", { name: "Fixture game 0" });
@@ -213,10 +256,11 @@ describe("Oyun kataloğu", () => {
     expect(await screen.findByText(messages.Game.emptyPicks)).toBeVisible();
     expect(screen.queryByRole("link", { name: /Fixture/ })).toBeNull();
   });
-  it("misafire geri bildirim sekmesinde giriş çağrısı gösterir", async () => {
+  it("kaldırılan geri bildirim sekmesi adresi tüm oyunlar listesine döner ve kişisel istek atmaz", async () => {
     search = "tab=feedback";
     mount();
-    expect(await screen.findByText(messages.Game.feedbackSignIn)).toBeVisible();
+    expect(await screen.findByRole("link", { name: "Fixture game 0" })).toBeVisible();
+    expect(within(screen.getByRole("navigation", { name: messages.Game.catalogue })).getByRole("link", { name: messages.Game.allGames })).toHaveAttribute("aria-current", "page");
     expect(load.mock.calls.some(([resource]) => resource.kind === "myFeedback")).toBe(false);
   });
   it("bölüm gezintisi: Tüm oyunlar etkin; Editörün Seçtikleri bağlantısı; misafire kişisel/yönetim bölümü gösterilmez", async () => {

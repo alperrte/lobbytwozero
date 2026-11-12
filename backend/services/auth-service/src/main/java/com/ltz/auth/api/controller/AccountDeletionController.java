@@ -2,9 +2,12 @@ package com.ltz.auth.api.controller;
 
 import java.util.UUID;
 
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -12,9 +15,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.ltz.auth.api.dto.request.CancelAccountDeletionRequest;
 import com.ltz.auth.api.dto.request.ConfirmAccountDeletionRequest;
+import com.ltz.auth.api.dto.request.DeletionSupportOpenRequest;
 import com.ltz.auth.api.dto.request.RequestAccountDeletionRequest;
 import com.ltz.auth.api.dto.response.AccountDeletionResponse;
+import com.ltz.auth.api.dto.response.DeletionSupportResponse;
 import com.ltz.auth.application.service.AccountDeletionService;
+import com.ltz.auth.application.service.DeletionSupportService;
 import com.ltz.auth.infrastructure.security.TokenClaims;
 
 import jakarta.servlet.http.HttpServletResponse;
@@ -27,6 +33,7 @@ import lombok.RequiredArgsConstructor;
 public class AccountDeletionController {
 
     private final AccountDeletionService deletionService;
+    private final DeletionSupportService supportService;
     private final SessionCookies sessionCookies;
 
     @PostMapping(AuthApiPaths.ACCOUNT_DELETION_REQUEST)
@@ -40,11 +47,36 @@ public class AccountDeletionController {
     }
 
     /**
+     * B ve C türü hesap kendi başına silme başlatamaz ({@code DELETION_REQUIRES_SUPPORT}); yöneticiye talep açar.
+     * Bekleyen talep varsa yenisi açılmaz, mevcut dönülür. A türü bu yolu kullanmaz ({@code DELETION_SELF_SERVICE_AVAILABLE}).
+     */
+    @PostMapping(AuthApiPaths.ACCOUNT_DELETION_SUPPORT_REQUEST)
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public DeletionSupportResponse openSupportRequest(
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody(required = false) DeletionSupportOpenRequest body) {
+        DeletionSupportOpenRequest request = body == null ? DeletionSupportOpenRequest.EMPTY : body;
+        return DeletionSupportResponse.from(supportService.submit(UUID.fromString(jwt.getSubject()),
+                UUID.fromString(jwt.getClaimAsString(TokenClaims.SESSION_ID)), request.password(), request.code(),
+                request.recoveryCode(), request.message()));
+    }
+
+    /** Hesabın en son silme talebinin durumu; hiç talep yoksa 204. */
+    @GetMapping(AuthApiPaths.ACCOUNT_DELETION_SUPPORT_REQUEST)
+    public ResponseEntity<DeletionSupportResponse> supportRequestStatus(@AuthenticationPrincipal Jwt jwt) {
+        return supportService.latest(UUID.fromString(jwt.getSubject()))
+                .map(request -> ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                        .body(DeletionSupportResponse.from(request)))
+                .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
+    /**
      * Bekleme süresi içinde vazgeçme (herkese açık, çerez okumaz): kimlik parola ile doğrulanır, oturum açılmaz.
      */
     @PostMapping(AuthApiPaths.ACCOUNT_DELETION_CANCEL)
     public AccountDeletionResponse cancel(@Valid @RequestBody CancelAccountDeletionRequest request) {
-        deletionService.cancelDeletion(request.identifier(), request.password(), request.code(), request.recoveryCode());
+        deletionService.cancelDeletion(request.identifier(), request.passwordOrEmpty(), request.code(),
+                request.recoveryCode());
         return AccountDeletionResponse.DELETION_CANCELLED;
     }
 

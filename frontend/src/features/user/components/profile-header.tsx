@@ -1,20 +1,28 @@
 "use client";
 
 import { useFormatter, useTranslations } from "next-intl";
-import { Link } from "@/shared/lib/i18n/navigation";
-import { previewProfile } from "../preview/preview-data";
-import type { MyProfile } from "../types/profile.types";
-import { PreviewMark } from "./preview-mark";
+import type { ReactNode } from "react";
+import type { ProfileImage } from "../types/profile.types";
 import { ProfileAvatar } from "./profile-avatar";
 
-const primaryLinkClass =
+export const primaryLinkClass =
   "inline-flex min-h-10 items-center justify-center rounded-control bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors duration-150 hover:bg-secondary";
 
+/** Başlığın ihtiyaç duyduğu alanlar; kendi profili de başkasının açık profili de bu biçime uyar. */
+export type HeaderProfile = {
+  username: string | null;
+  displayName: string | null;
+  avatar: ProfileImage | null;
+  cover: ProfileImage | null;
+  /** Yalnız kendi profilinde gelir; başkasının profilinde üyelik tarihi gösterilmez. */
+  memberSince?: string | null;
+};
+
 /**
- * Profil başlığı: kapak, avatar, ad, @kullanıcı adı ve (backend gönderdiyse) gerçek üyelik tarihi. Rütbe ve durum mesajı
- * henüz backend'de olmadığından alttaki satırda "Önizleme" işaretiyle gösterilir.
+ * Profil başlığı: kapak, avatar, ad, @kullanıcı adı ve (backend gönderdiyse) gerçek üyelik tarihi. Sağdaki eylem (ör. "Profili düzenle")
+ * çağıran tarafından verilir.
  */
-export function ProfileHeader({ profile }: { profile: MyProfile }) {
+export function ProfileHeader({ profile, action }: { profile: HeaderProfile; action?: ReactNode }) {
   const t = useTranslations("Profile");
   const format = useFormatter();
   const name = profile.displayName ?? profile.username ?? t("noName");
@@ -50,16 +58,7 @@ export function ProfileHeader({ profile }: { profile: MyProfile }) {
             ) : null}
           </p>
         </div>
-        <Link href="/profile/edit" className={primaryLinkClass}>
-          {t("editProfile")}
-        </Link>
-      </div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border px-5 py-3 text-sm sm:px-6">
-        <span className="inline-flex items-center rounded-full border border-border bg-surface-elevated px-3 py-1 text-xs font-semibold text-text-primary">
-          {t(`preview.rank.${previewProfile.rank}`)}
-        </span>
-        <span className="min-w-0 truncate italic text-text-secondary">“{t("preview.status")}”</span>
-        <PreviewMark className="ms-auto" />
+        {action}
       </div>
     </section>
   );

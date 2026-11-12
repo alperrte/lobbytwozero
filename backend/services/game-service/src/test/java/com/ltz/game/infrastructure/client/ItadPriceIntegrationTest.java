@@ -56,12 +56,14 @@ class ItadPriceIntegrationTest extends PostgresTestSupport {
     }
     @Autowired JdbcTemplate jdbc;
     @Autowired FakeServer server;
+    @Autowired GamePriceProvider priceProvider;
     @Autowired GamePriceService service;
     @Autowired GamePriceRepository repository;
     @Autowired WebApplicationContext context;
     MockMvc mvc;
     UUID first,second,third,external1,external2,external3;
     @BeforeEach void setup() {
+        ((ItadPriceClient)priceProvider).forgetMappingsForTests();
         jdbc.update("delete from game_external_refs");jdbc.update("delete from games");
         jdbc.update("update game_price_sync_lock set owner=null,expires_at=null");
         mvc=MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
@@ -98,6 +100,74 @@ class ItadPriceIntegrationTest extends PostgresTestSupport {
         service.refresh();assertEquals(calls,server.received().size(),"TTL ve public GET sağlayıcı çağırmaz");
         assertEquals("UNAVAILABLE",service.read(List.of(UUID.randomUUID()),MARKET).items().getFirst().status());
         assertTrue(service.read(List.of(),MARKET).items().isEmpty());
+    }
+    @Test void dlcGetsPricesToButUnclassifiedDemoAndDelistedGamesAreNotRefreshCandidates() {
+        UUID dlc=game("Delta DLC","580"),demo=game("Echo Demo","581"),unknown=game("Foxtrot","582"),delisted=game("Golf","583");
+        jdbc.update("update games set game_type='DLC' where id=?",dlc);
+        jdbc.update("update games set game_type='DEMO' where id=?",demo);
+        jdbc.update("update games set game_type='UNKNOWN' where id=?",unknown);
+        jdbc.update("update games set delisted_at=now() where id=?",delisted);
+        Set<UUID> candidates=new java.util.HashSet<>();
+        repository.candidates(MARKET,Instant.now(),Duration.ofMinutes(20),Duration.ofHours(2),Duration.ofHours(8)).forEach(candidate -> candidates.add(candidate.id()));
+        assertTrue(candidates.containsAll(Set.of(first,second,third,dlc)),"ana oyun ve DLC fiyat adayıdır");
+        assertFalse(candidates.contains(demo)||candidates.contains(unknown)||candidates.contains(delisted),"demo, sınıfsız ve mağazadan kaldırılmış oyun aday değildir");
+        assertEquals(Set.of(first,dlc),repository.tiers(Set.of(first,dlc,demo,unknown,delisted),Duration.ofMinutes(20),Duration.ofHours(2),Duration.ofHours(8)).keySet(),
+                "sayfası açılan oyunun kademesi de aynı kuralla");
+    }
+    /** Bir ılık ve bir sıcak oyun kümesi tohumlar; sıcak/ılık oyunlar hiç fiyat almamıştır. */
+    private Set<UUID>[] seedHotAndWarm(int count) {
+        Set<UUID> hot=new java.util.HashSet<>(),warm=new java.util.HashSet<>();
+        for(int index=0;index<count;index++) {
+            UUID hotGame=game("Hot "+index,"9"+index+"0"),warmGame=game("Warm "+index,"9"+index+"1");
+            jdbc.update("update games set release_date=current_date where id=?",hotGame);
+            jdbc.update("update games set release_date=current_date-300 where id=?",warmGame);
+            hot.add(hotGame);warm.add(warmGame);
+        }
+        @SuppressWarnings("unchecked") Set<UUID>[] result=new Set[]{hot,warm};
+        return result;
+    }
+    private void markChecked(UUID game,String interval) {
+        jdbc.update("insert into game_price_refresh_state(id,game_id,country,currency,status,checked_at) values (?,?,'US','USD','AVAILABLE',now()-cast(? as interval))",UUID.randomUUID(),game,interval);
+    }
+    @Test void aLargeHotTierCannotStarveTheWarmAndColdTiersWhenNoColdGameIsWaitingForItsFirstPrice() {
+        var tiers=seedHotAndWarm(12);Set<UUID> hot=tiers[0],warm=tiers[1];
+        for(UUID cold:List.of(first,second,third)) markChecked(cold,"2 days");
+        var chosen=repository.candidates(MARKET,Instant.now(),Duration.ofMinutes(20),Duration.ofHours(2),Duration.ofHours(8),10).stream().map(GamePriceRepository.Candidate::id).toList();
+        assertEquals(10,chosen.size());
+        assertEquals(4,chosen.stream().filter(hot::contains).count(),"normal pay: sıcak %40");
+        assertEquals(3,chosen.stream().filter(warm::contains).count(),"normal pay: ılık %30");
+        assertEquals(3,chosen.stream().filter(id -> !hot.contains(id) && !warm.contains(id)).count(),"normal pay: soğuk %30; sıcak talep ne kadar büyük olursa olsun aç kalmaz");
+    }
+    @Test void whenManyColdGamesHaveNeverHadAPriceTheColdShareGrowsAndReturnsToNormalOnceTheyHaveOne() {
+        var tiers=seedHotAndWarm(12);Set<UUID> hot=tiers[0],warm=tiers[1];
+        Set<UUID> never=new java.util.HashSet<>(Set.of(first,second,third));
+        for(int index=0;index<10;index++) never.add(game("Never "+index,"8"+index+"0"));
+        var backlog=repository.candidates(MARKET,Instant.now(),Duration.ofMinutes(20),Duration.ofHours(2),Duration.ofHours(8),10).stream().map(GamePriceRepository.Candidate::id).toList();
+        assertEquals(10,backlog.size());
+        assertEquals(2,backlog.stream().filter(hot::contains).count(),"birikim modu: sıcak %20");
+        assertEquals(2,backlog.stream().filter(warm::contains).count(),"birikim modu: ılık %20");
+        assertEquals(6,backlog.stream().filter(never::contains).count(),"birikim modu: soğuk %60");
+        assertTrue(repository.inBacklog(MARKET),"birikimi olan pazar işaretlenir (tur sırasında öne alınır)");
+        never.forEach(game -> markChecked(game,"2 days"));
+        var normal=repository.candidates(MARKET,Instant.now(),Duration.ofMinutes(20),Duration.ofHours(2),Duration.ofHours(8),10).stream().map(GamePriceRepository.Candidate::id).toList();
+        assertEquals(4,normal.stream().filter(hot::contains).count(),"hiç fiyatı olmayan kalmayınca pay kendiliğinden normale döner");
+        assertEquals(3,normal.stream().filter(never::contains).count());
+        assertFalse(repository.inBacklog(MARKET),"birikim bitince işaret kalkar");
+    }
+    @Test void aFailedRefreshDoesNotCountAsAFreshCheckSoTheGameIsRetriedAsSoonAsItsBackoffEnds() {
+        UUID owner=UUID.randomUUID();Instant now=Instant.parse("2026-11-10T10:00:00Z");
+        assertTrue(repository.claim(owner,now));
+        assertTrue(repository.publish(owner,Set.of(first),MARKET,List.of(),now));
+        repository.failed(owner,Set.of(first,second),MARKET,now.plusSeconds(60),"PRICE_RATE_LIMITED",Duration.ofSeconds(30));
+        java.sql.Timestamp firstChecked=jdbc.queryForObject("select checked_at from game_price_refresh_state where game_id=? and country='US'",java.sql.Timestamp.class,first);
+        java.sql.Timestamp secondChecked=jdbc.queryForObject("select checked_at from game_price_refresh_state where game_id=? and country='US'",java.sql.Timestamp.class,second);
+        assertEquals(java.sql.Timestamp.from(now),firstChecked,"önceki kontrol zamanı korunur");
+        assertEquals(java.sql.Timestamp.from(Instant.EPOCH),secondChecked,"hiç kontrol edilmemiş oyun hemen aday kalır");
+        assertEquals("FAILED",jdbc.queryForObject("select status from game_price_refresh_state where game_id=? and country='US'",String.class,second));
+        var duringBackoff=repository.candidates(MARKET,now.plusSeconds(70),Duration.ofMinutes(20),Duration.ofHours(2),Duration.ofHours(8)).stream().map(GamePriceRepository.Candidate::id).toList();
+        assertFalse(duringBackoff.contains(second),"bekleme süresinde aday değil");
+        var afterBackoff=repository.candidates(MARKET,now.plusSeconds(100),Duration.ofMinutes(20),Duration.ofHours(2),Duration.ofHours(8)).stream().map(GamePriceRepository.Candidate::id).toList();
+        assertTrue(afterBackoff.contains(second),"bekleme bitince hemen aday (soğuk kademe süresi beklenmez)");
     }
     @Test void outagePreservesPricesWhileExpiredOffersDoNotMatchTheDiscountFilter() throws Exception {
         offers();

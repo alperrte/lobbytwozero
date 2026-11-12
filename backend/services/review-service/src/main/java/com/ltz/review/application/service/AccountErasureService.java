@@ -5,15 +5,21 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import com.ltz.review.infrastructure.persistence.repository.AccountWriteLock;
+import com.ltz.review.infrastructure.persistence.repository.ModerationRepository;
+import com.ltz.review.infrastructure.persistence.repository.UserSummaryOutbox;
 
 @Service
 public class AccountErasureService {
     private final JdbcClient jdbc;
     private final AccountWriteLock accounts;
+    private final UserSummaryOutbox outbox;
+    private final ModerationRepository moderation;
 
-    public AccountErasureService(JdbcClient jdbc, AccountWriteLock accounts) {
+    public AccountErasureService(JdbcClient jdbc, AccountWriteLock accounts, UserSummaryOutbox outbox, ModerationRepository moderation) {
         this.jdbc = jdbc;
         this.accounts = accounts;
+        this.outbox = outbox;
+        this.moderation = moderation;
     }
 
     @Transactional(timeout = 4)
@@ -24,8 +30,14 @@ public class AccountErasureService {
         accounts.block(accountId);
         jdbc.sql("DELETE FROM review_likes WHERE user_id = ?").param(accountId).update();
         jdbc.sql("DELETE FROM game_ratings WHERE user_id = ?").param(accountId).update();
+        // Raportörün kendi raporları; silinen yazarın incelemelerine yapılan raporlar reviews silinince CASCADE ile kalkar.
+        jdbc.sql("DELETE FROM review_reports WHERE reporter_id = ?").param(accountId).update();
         jdbc.sql("DELETE FROM reviews WHERE user_id = ?").param(accountId).update();
         jdbc.sql("DELETE FROM game_recommendations WHERE user_id = ?").param(accountId).update();
+        // REV-10: silinen hesap için bekleyen olay kalmaz ve yenisi üretilmez (User kendi silme akışını yürütür).
+        outbox.remove(accountId);
+        // Moderatör hesabı: denetim kaydı ve rapor kapatma izi anonimleşir (kayıt ve gerekçe kalır).
+        moderation.anonymizeActor(accountId);
         // REV-13 kota sayaçları: silinen hesabın hiçbir izi kalmasın (yalnız kısa ömürlü silme engeli V54 tutulur).
         jdbc.sql("DELETE FROM review_rate_limits WHERE account_hash = ?").param(AccountWriteLock.hash(accountId)).update();
     }
