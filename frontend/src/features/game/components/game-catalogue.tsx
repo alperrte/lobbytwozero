@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Icon } from "@/shared/components/ui/icons";
-import { useRouter } from "@/shared/lib/i18n/navigation";
+import { Link, useRouter } from "@/shared/lib/i18n/navigation";
+import { useAdultVerified } from "../hooks/use-adult-verified";
 import { useGameResource } from "../hooks/use-game-resource";
 import { catalogueSize, lastPageIndex, sanitizedDiscoveryQuery } from "../services/discovery-query";
 import { defaultCurrencyForLocale } from "../services/price-markets";
@@ -52,12 +53,19 @@ function EmptyResults({ params, filtered, navigate }: { params: URLSearchParams;
 function Results({ params, view, page, navigate }: { params: URLSearchParams; view: CatalogueView; page: number; navigate: (changes: Record<string, string>) => void }) {
   const t = useTranslations("Game");
   const locale = useLocale();
+  const adultVerified = useAdultVerified();
   const { query, errors } = sanitizedDiscoveryQuery(params, defaultCurrencyForLocale(locale));
   query.set("page", String(page));
+  // Yaşı doğrulanmamış kullanıcıda +18 isteği sunucuya gönderilmez (sunucu zaten yok sayar); URL'deki değer korunur ve ipucu gösterilir.
+  const wantsAdult = params.get("includeAdult") === "true";
+  if (!adultVerified) query.delete("includeAdult");
   const result = useGameResource<DiscoveryPage>({ kind: "discovery", query: query.toString() });
   const filtered = ["q", "genre", "platform", "language", "earlyAccess", "releasedAfter", "releasedBefore", "popularOnly", "minRating", "discountedOnly"].some((key) => params.get(key));
   const data = result.data;
+  // Esas alınan sunucu yanıtıdır: doğrulama geri alınmışsa iddia ≤60 sn gecikebilir ve yanıt includeAdultApplied=false döner.
+  const adultNotApplied = wantsAdult && (!adultVerified || data?.includeAdultApplied === false);
   return <>
+    {adultNotApplied && <p role="note" className="mb-4 text-sm text-text-secondary">{t("adultNotApplied")} <Link href="/profile/settings" className="inline-flex min-h-11 items-center text-brand-text underline-offset-4 hover:underline">{t("adultVerifyLink")}</Link></p>}
     {errors.length > 0 && <p role="alert" className="mb-4 text-sm text-brand-text">{t(errors[0] === "dateRange" ? "filterErrors.dateRange" : "filterErrors.minRating")} {t("filterNotSent")}</p>}
     {result.loading && <GameCardSkeletons view={view} />}
     <GameStatus error={result.error} loading={false} onRetry={result.reload} />

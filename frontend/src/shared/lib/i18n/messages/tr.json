@@ -1242,6 +1242,9 @@
       "minRating": "En düşük puan 1 ile 10 arasında olmalı ve en çok iki ondalık içermelidir."
     },
     "filterNotSent": "Geçersiz filtre isteğe eklenmedi.",
+    "adultVerifyHint": "+18 oyunları göstermek için hesap ayarlarında yaş doğrulaması yapılması gerekir.",
+    "adultVerifyLink": "Yaşını doğrula",
+    "adultNotApplied": "+18 oyunlar gösterilmiyor: yaş doğrulaman geçerli değil.",
     "findGame": "Oyun bul",
     "foreignReferenceBlocked": "Güvenlik koruması işlemi durdurdu: diğer servislerdeki oyun referansları doğrulanamadığı için dış kimlik taşıma ve ayırma şu an uygulanamıyor.",
     "freshness": {

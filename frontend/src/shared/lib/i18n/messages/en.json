@@ -1242,6 +1242,9 @@
       "minRating": "The minimum rating must be between 1 and 10 with at most two decimals."
     },
     "filterNotSent": "The invalid filter was not sent.",
+    "adultVerifyHint": "Age verification in your account settings is required to show +18 games.",
+    "adultVerifyLink": "Verify your age",
+    "adultNotApplied": "+18 games are not shown: your age verification is not valid.",
     "findGame": "Find a game",
     "foreignReferenceBlocked": "A safety guard stopped this action: game references in other services cannot be verified, so external identity reassign and split cannot be applied right now.",
     "freshness": {
