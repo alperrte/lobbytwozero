@@ -144,6 +144,15 @@ public class GamePriceService {
     static final int MAX_BATCHES_PER_RUN = 10;
     private static final int BATCH_SIZE = 200;
 
+    /** Bir turun nereye zaman harcadığını ölçer (yalnız log): aday sorgusu, ITAD, Steam, yazma ve parti sayısı. */
+    private static final class Timing {
+        long itadNanos;
+        long steamNanos;
+        long writeNanos;
+        int batches;
+        static long millis(long nanos) { return nanos/1_000_000; }
+    }
+
     private void refreshMarket(UUID owner,Market market,boolean itad,Instant deadline) {
         // Tur süresi dolduysa pahalı aday sorgusu bile çalıştırılmaz: sıradaki pazar bir sonraki turda (rotasyonla) öne geçer.
         if(!clock.instant().isBefore(deadline)) return;
@@ -151,17 +160,21 @@ public class GamePriceService {
         long started=System.nanoTime();
         int candidateCount=0;
         int done=0;
+        long queryNanos=0;
+        Timing timing=new Timing();
         String outcome="OK";
         try {
             // Tek sorguda birkaç parti aday alınır (sorgu üç büyük tabloyu tarar); 200'lük partiler sırayla yenilenir. Kiralama kaybında tur durur.
+            long queryStarted=System.nanoTime();
             var candidates=repository.candidates(market,clock.instant(),properties.ttl(),properties.warmTtl(),properties.coldTtl(),BATCH_SIZE*MAX_BATCHES_PER_RUN);
+            queryNanos=System.nanoTime()-queryStarted;
             if(!itad) candidates=candidates.stream().filter(candidate -> isHot(candidate.ttl())).toList();
             candidateCount=candidates.size();
             boolean more=true;
             for(int from=0;more && from<candidates.size() && clock.instant().isBefore(deadline);from+=BATCH_SIZE) {
                 var batch=candidates.subList(from,Math.min(candidates.size(),from+BATCH_SIZE));
                 ids=batch.stream().map(GamePriceRepository.Candidate::id).collect(java.util.stream.Collectors.toUnmodifiableSet());
-                more=refreshBatch(owner,market,batch,ids,itad,false);
+                more=refreshBatch(owner,market,batch,ids,itad,false,timing);
                 if(more) done+=batch.size();
             }
             if(!more) outcome="LEASE_LOST";
@@ -171,7 +184,8 @@ public class GamePriceService {
             if(!LOCAL_THROTTLE.equals(error.code())) repository.failed(owner,ids,market,clock.instant(),error.code(),error.retryAfter());
         } finally {
             markets.served(market,done);
-            LOG.info("Fiyat pazarı turu: pazar={}-{} aday={} yenilenen={} sonuç={} süre={} ms",market.country(),market.currency(),candidateCount,done,outcome,(System.nanoTime()-started)/1_000_000);
+            LOG.info("Fiyat pazarı turu: pazar={}-{} aday={} yenilenen={} sonuç={} süre={} ms sorgu_ms={} itad_ms={} steam_ms={} yazma_ms={} parti={}",market.country(),market.currency(),candidateCount,done,outcome,(System.nanoTime()-started)/1_000_000,
+                    Timing.millis(queryNanos),Timing.millis(timing.itadNanos),Timing.millis(timing.steamNanos),Timing.millis(timing.writeNanos),timing.batches);
         }
     }
 
@@ -194,7 +208,7 @@ public class GamePriceService {
         Set<UUID> ids=tiers.keySet();
         try {
             var candidates=tiers.entrySet().stream().map(entry -> new GamePriceRepository.Candidate(entry.getKey(),entry.getValue())).toList();
-            return refreshBatch(owner,market,candidates,ids,itad,true) ? ids.size() : -1;
+            return refreshBatch(owner,market,candidates,ids,itad,true,new Timing()) ? ids.size() : -1;
         } catch(ProviderException error) {
             if(!LOCAL_THROTTLE.equals(error.code())) repository.failed(owner,ids,market,clock.instant(),error.code(),error.retryAfter());
             return -1;
@@ -226,14 +240,18 @@ public class GamePriceService {
     }
 
     /** Bir toplu yenileme; sonuç kiralama hâlâ bizdeyken yayımlandıysa true (kiralama kaybında hiçbir snapshot yayımlanmaz). */
-    private boolean refreshBatch(UUID owner,Market market,List<GamePriceRepository.Candidate> candidates,Set<UUID> ids,boolean itad,boolean interactive) {
+    private boolean refreshBatch(UUID owner,Market market,List<GamePriceRepository.Candidate> candidates,Set<UUID> ids,boolean itad,boolean interactive,Timing timing) {
         Instant now=clock.instant();
+        timing.batches++;
         Map<UUID,Duration> tier=candidates.stream().collect(java.util.stream.Collectors.toMap(GamePriceRepository.Candidate::id,GamePriceRepository.Candidate::ttl));
+        long itadStarted=System.nanoTime();
         List<Quote> itadQuotes=itad ? itadPrices(ids,market,interactive) : List.of();
+        timing.itadNanos+=System.nanoTime()-itadStarted;
         Set<UUID> steamIds=steamTargets(market,ids,tier,itadQuotes,itad,interactive);
         Map<UUID,Quote> steamQuotes=Map.of();
         Set<UUID> steamAsked=Set.of();
         if(!steamIds.isEmpty()) {
+            long steamStarted=System.nanoTime();
             try {
                 steamQuotes=steamQuotes(steamIds,market,tier,now);
                 steamAsked=steamIds;
@@ -241,9 +259,14 @@ public class GamePriceService {
                 // ITAD varsa Steam hatası yenilemeyi düşürmez: ITAD'in Steam satırı kalır. Yalnız Steam çalışıyorsa hata yenilemeyi başarısız sayar.
                 if(!itad) throw error;
                 LOG.warn("Steam fiyatı alınamadı, ITAD satırı korunuyor: pazar={}-{} kod={}",market.country(),market.currency(),error.code());
+            } finally {
+                timing.steamNanos+=System.nanoTime()-steamStarted;
             }
         }
-        return repository.publish(owner,ids,market,merge(market,itadQuotes,steamQuotes,steamAsked,tier,now),now);
+        long writeStarted=System.nanoTime();
+        boolean published=repository.publish(owner,ids,market,merge(market,itadQuotes,steamQuotes,steamAsked,tier,now),now);
+        timing.writeNanos+=System.nanoTime()-writeStarted;
+        return published;
     }
 
     /**

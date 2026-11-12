@@ -74,6 +74,21 @@ final class ItadRequestLimiter {
         return Duration.between(now, oldest.next().plus(window));
     }
 
+    /** Pencere doluluğunun anlık görüntüsü (yalnız gözlem: 429 anında kaç istek atıldığını loglamak için). */
+    record Snapshot(int inWindow, int last60s, int last10s, int limit, int reserve) { }
+
+    synchronized Snapshot snapshot() {
+        Instant now = clock.instant();
+        while (!recent.isEmpty() && !recent.peekFirst().plus(window).isAfter(now)) recent.removeFirst();
+        int last60 = 0;
+        int last10 = 0;
+        for (Instant at : recent) {
+            if (at.plusSeconds(60).isAfter(now)) last60++;
+            if (at.plusSeconds(10).isAfter(now)) last10++;
+        }
+        return new Snapshot(recent.size(), last60, last10, limit, reserve);
+    }
+
     private static void sleepMillis(long millis) {
         try {
             Thread.sleep(millis);

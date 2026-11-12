@@ -255,6 +255,47 @@ class ItadPriceClientTest {
             assertThrows(ProviderException.class,()->failingClient5.prices(REQUESTED,MARKET));
         }
     }
+    private static List<String> capturedTelemetry(Runnable action) {
+        var logger=(ch.qos.logback.classic.Logger)org.slf4j.LoggerFactory.getLogger(ItadTelemetry.class);
+        var appender=new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        appender.start();logger.addAppender(appender);
+        try { action.run(); }
+        finally { logger.detachAppender(appender); }
+        return appender.list.stream().map(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage).toList();
+    }
+    @Test void aRateLimitFromItadIsLoggedWithTheWindowFillAndNeverLeaksTheKeyTheUrlOrTheBody() throws Exception {
+        try(var server=new FakeServer()) {
+            server.retryAfter("120").enqueue(Reply.json(200,mapping()),Reply.json(429,"{\"secret\":\"fixture-key\"}"));
+            var limited=client(server,"fixture-key");
+            var lines=capturedTelemetry(()->assertThrows(ProviderException.class,()->limited.prices(REQUESTED,MARKET)));
+            var rateLimit=lines.stream().filter(line -> line.contains("olay=429")).toList();
+            assertEquals(1,rateLimit.size(),lines.toString());
+            var line=rateLimit.getFirst();
+            assertTrue(line.contains("yol=prices") && line.contains("pazar=TR-USD") && line.contains("oncelik=BACKGROUND"),line);
+            assertTrue(line.contains("pencere_ici=2") && line.contains("son60sn=2") && line.contains("limit=850") && line.contains("rezerv=150"),line);
+            assertTrue(line.contains("retry_after_ham=\"120\"") && line.contains("engel_sn=120") && line.contains("ardisik=1"),line);
+            var all=String.join("\n",lines);
+            assertFalse(all.contains("fixture-key"));assertFalse(all.contains("isthereanydeal"));assertFalse(all.contains(server.baseUrl()));assertFalse(all.contains("secret"));
+        }
+    }
+    @Test void interactiveCallsAreLabelledAsSuchInTheRateLimitLog() throws Exception {
+        try(var server=new FakeServer()) {
+            server.enqueue(Reply.json(200,mapping()),Reply.json(429,"{}"));
+            var limited=client(server,"fixture-key");
+            var lines=capturedTelemetry(()->assertThrows(ProviderException.class,()->limited.prices(REQUESTED,MARKET,com.ltz.game.application.port.GamePriceProvider.Priority.INTERACTIVE)));
+            assertTrue(lines.stream().anyMatch(line -> line.contains("olay=429") && line.contains("oncelik=INTERACTIVE")),lines.toString());
+        }
+    }
+    @Test void rateLimitHeadersOnASuccessfulResponseAreObservedOnceAndNeverChangeTheResult() throws Exception {
+        try(var server=new FakeServer()) {
+            server.header("X-RateLimit-Remaining","42").enqueue(Reply.json(200,mapping()),Reply.json(200,prices("USD",LINK,"\"2026-11-05T12:05:00Z\"")));
+            var observed=client(server,"fixture-key");
+            var result=new java.util.ArrayList<com.ltz.game.application.port.GamePriceProvider.Quote>();
+            var lines=capturedTelemetry(()->result.addAll(observed.prices(REQUESTED,MARKET)));
+            assertEquals(1,result.size());
+            assertEquals(1,lines.stream().filter(line -> line.contains("olay=baslik") && line.contains("x-ratelimit-remaining=\"42\"")).count(),lines.toString());
+        }
+    }
     @Test void providerRetryAfterAndStartupValidationAreExplicit() throws Exception {
         try(var server=new FakeServer()) {
             for(String value:List.of("3600","Thu, 5 Nov 2026 14:00:00 GMT","invalid")) {

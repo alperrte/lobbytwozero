@@ -88,6 +88,25 @@ class ItadRequestLimiterTest {
         assertEquals(Duration.ofMinutes(5), background.retryAfter(), "arka plan, ilk istek (4 dk) değil 3. en eski istek (5 dk) pencereden çıkınca devam eder");
     }
 
+    @Test void theSnapshotCountsRequestsInTheWindowTheLastMinuteAndTheLastTenSecondsAndIgnoresExpiredOnes() {
+        TickClock clock = new TickClock();
+        var limiter = new ItadRequestLimiter(clock, 50, 5, Duration.ofMinutes(5), Duration.ZERO, millis -> { });
+        for (int i = 0; i < 3; i++) limiter.acquire();
+        clock.now = clock.now.plusSeconds(120);
+        limiter.acquire();
+        limiter.acquire(true);
+        clock.now = clock.now.plusSeconds(55);
+        limiter.acquire();
+        var snapshot = limiter.snapshot();
+        assertEquals(6, snapshot.inWindow());
+        assertEquals(3, snapshot.last60s(), "son 60 sn: 55 sn önceki iki istek ve şimdiki");
+        assertEquals(1, snapshot.last10s());
+        assertEquals(50, snapshot.limit());
+        assertEquals(5, snapshot.reserve());
+        clock.now = clock.now.plus(Duration.ofMinutes(5));
+        assertEquals(0, limiter.snapshot().inWindow(), "pencereden çıkan istekler sayılmaz");
+    }
+
     @Test void theReserveMustBeSmallerThanTheLimit() {
         TickClock clock = new TickClock();
         assertThrows(IllegalArgumentException.class, () -> new ItadRequestLimiter(clock, 3, 3, Duration.ofMinutes(5), Duration.ZERO, millis -> { }));
