@@ -160,3 +160,23 @@ REV-15 ve REV-07'nin yönetim tarafı Review'da tamamlandı: V60 (`HIDDEN/ARCHIV
 - **Kalıcı önlem:** `DisposableDatabaseInitializer` (test kaynağı, `META-INF/spring.factories`). Yerelde her test JVM'i geçici Testcontainers PostgreSQL'ine bağlanır, CI'da `-Pci` DB'sini kullanır. Çözümlenen bağlantı bu ikisi değilse Spring bağlamı hiç kurulmaz. Docker yoksa test başarısız olur, DEV'e geri dönülmez. `DisposableDatabaseInitializerTest` geliştirici DB URL'lerinin reddini kanıtlar.
 - **Kanıt:** önlemden sonra aynı resmi komut çalıştırıldı. Testler `review-phase-test` konteynerinde koştu (233 test, kapsam %97,71). DEV `review_db` değişmedi (0 inceleme, 0 puan, outbox 930/930).
 - `pre-push/pre-push.md`: `<servis> dev`, `backend` ve `full` modlarının profil DB'siyle koştuğuna dair uyarı eklendi. Diğer servis sahipleri için aynı korumanın uygulanması önerildi.
+
+## Game cevabı sonrası (12 Kasım 2026)
+
+- Game `batch` 429 dayanıklılığı uygulandı: oyun kartı yüklemesinde "tekrar dene" düğmesi `Retry-After` dolana kadar kapalıdır ve kalan saniyeyi gösterir (`RetryButton`, oyun başlığı ve "incelemelerim"). Kart gelmese de inceleme/puan verisi gizlenmez; otomatik yeniden deneme yoktur. `useRetryCountdown.start` kararlı kimliğe alındı (efekt bağımlılığı olarak kullanılınca geri sayımı her render'da yeniden başlatıyordu).
+- `game-review-integration.md` Game cevabına göre güncellendi: canlı doğrulama NOT VERIFIED (adımlar belgede), `batch` kovası, +18 kararı (şimdilik değişiklik yok), Review'ın V51-V60 aralığının dolduğu, Game bağlantısının merge sonrası yapılacağı.
+- Doğrulama: frontend lint, typecheck, 166 dosya / 1727 birim test, derleme geçti; Review E2E 14/14 (gerçek yapılandırma, iki ardışık koşu). Bir ilk koşuda "oturum yokken yönlendirme" testi soğuk başlangıçta bir kez düştü, tek başına ve tam set tekrarında geçti.
+- `node pre-push/ci/hooks.mjs` (`prek` 0.5.6, `install-tool.mjs prek` ile PowerShell'den kuruldu) çalıştırıldı: `end-of-file-fixer` FAILED, diğer altı kontrol PASS. Düzelttiği 6 dosya Review'a ait değil: `backend/services/auth-service/src/main/resources/application-dev.properties` (çift son satır) ve `frontend/public/assets/team/player-{alper,hamza,kerem,nisa,umut}.svg` (son satır sonu yok). `origin/main`'de de aynı durum var; CI'daki Fast Source Checks hatası Review kaynaklı değildir. Araç çalışma ağacını değiştirdiği için bu 6 dosya HEAD haline geri alındı (sahipleri düzeltmeli). Review dosyalarında ihlal yok.
+- Açık: `origin/main` birleştirmesi (kullanıcı yapar), CI'daki kırmızı işlerin sahiplerine bildirilmesi, canlı doğrulama §3.5.
+
+## Canlı doğrulama (DEV, Gateway üzerinden, 12 Kasım 2026) — KISMEN
+
+Oturumsuz yapılabilen adımlar gerçek yığında (Gateway + Game + Review) doğrulandı:
+- Game listesi 200; `ratingsSyncedAt` Review sıfırlamasından sonraki bir taramayı gösteriyor ve tüm oyunlar `UNRATED` (Game→Review `svc+jwt` puan projeksiyonu çalışıyor; `averageRating=null`, `ratingCount=0`, 0 puan uydurulmuyor).
+- Game `batch` çerezsiz 200; olmayan UUID `200` + `unavailable` (404 değil).
+- Review uçları oturumsuz 401 (okuma, yazma ve `/admin/**`); `/internal/**` Gateway'den 404.
+- Review→User sayaç teslimi gerçek Auth servis token'ıyla doğrulandı (yukarıdaki DEV dağıtımı bölümü).
+
+**NOT VERIFIED (oturumlu adımlar):** merkezde kapak/başlıkların tarayıcıda dolması, puan/tavsiye/inceleme yazma (Game doğrulaması başarılı), olmayan UUID ile yazmada 404, Game durdurulunca yazmada 503 ve okuma ekranlarının açık kalması, yazar kartı (User toplu profil), `batch` 429 geri sayımı, oturumsuz yönlendirmenin canlıda dönüşü.
+Neden: DEV'de e-posta gerçek Gmail SMTP'ye gidiyor (Mailpit'e düşmüyor), doğrulama kodu okunamadı; hesabı Auth veritabanında elle aktifleştirmek başka servis sahibinin kaynağı olduğu için yapılmadı. Çözüm: bilinen bir DEV hesabıyla giriş (kullanıcı) veya Mailpit'in kullanılması.
+Not: bu denemede `rev-live-*@example.test` adlı bir `PENDING_VERIFICATION` hesabı Auth DEV veritabanında kaldı (ürün işlevi yok, e-posta doğrulanmadı).

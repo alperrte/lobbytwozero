@@ -1,13 +1,13 @@
 # GAME–REVIEW entegrasyonu
 
-Son güncelleme: 12 Kasım 2026. Bu belge yalnız **açık işleri ve beklentileri** içerir; tamamlanmış entegrasyonlar bilerek yazılmamıştır.
+Son güncelleme: 12 Kasım 2026 (Game cevabı sonrası). Bu belge yalnız **açık işleri ve beklentileri** içerir; tamamlanmış entegrasyonlar bilerek yazılmamıştır.
 
 - Talep eden / hedef: `review-service` — Hamza ↔ `game-service` — Hamza.
 - Kesin geliştirme emri değildir; Game ve Review kodu ayrı kapsamlarda değiştirilir.
 
 ## 1. Açık: canlı doğrulama
 
-Puan okuma entegrasyonu çalışır durumdadır; yalnız gerçek kullanıcı oturumuyla canlı uçtan uca doğrulama ve üretim ENV dağıtımı yapılmamıştır (NOT VERIFIED).
+Game cevabı (12 Kasım 2026): Game tarafında eksik yok; doğrulama Review merge ve DEV dağıtımı sonrası birlikte yapılır. Puan okuma entegrasyonu çalışır durumdadır; **gerçek kullanıcı oturumuyla Review→Game (`batch` doğrulaması, kart okuma) ve Game→Review (puan projeksiyonu) canlı uçtan uca doğrulaması yapılmadı (NOT VERIFIED)**, üretim ENV dağıtımı da yapılmadı. Canlı doğrulama adımları Game'in cevabındaki §3.5 listesidir (kayıt, merkez listesi, puan/tavsiye/inceleme yazma, olmayan UUID → 404, Game kapalıyken yazma → 503 ve okuma ekranlarının açık kalması, 5 dk sonra projeksiyon, `UNRATED`/`UNAVAILABLE` ve 0 gösterilmemesi). Sonuçlar `REVIEW_SERVICE_PROGRESS.md`'ye tarihli yazılır.
 
 ## 2. Review frontend'in Game'den kullandıkları ve beklentileri
 
@@ -21,6 +21,8 @@ Review frontend'i Game'in **herkese açık, salt okunur** uçlarını Gateway ü
 
 **Beklentiler**
 
+0. **`batch` 429 ve kova (Game cevabı):** `batch` istemci başına jeton kovasıyla sınırlıdır (ani yük 100, sürekli 20 istek/sn); aşımda `429` + `Retry-After` + `RATE_LIMITED`. Review frontend'inin Gateway üzerinden gelen tüm tarayıcı trafiği (Library ile birlikte) tek kovayı paylaşır. Review frontend'i sayfa başına tek `batch` isteği atar; 429'da kartlar başlıksız ("Oyun") açılır, "tekrar dene" `Retry-After` dolana kadar kapalıdır ve inceleme/puan verisi gizlenmez (uygulandı: `RetryButton`). Review backend'i Game'i doğrudan çağırdığı için kendi kovasına sahiptir; `GameServiceClient` 429'u 503'e çevirir ve yeniden denemez. Kovanın tarayıcı trafiği için nasıl bölüneceği (Gateway'in istemci IP'sini güvenilir iletmesi ya da kova değerleri) Game ve Gateway sahibinin işidir; Review'ı bloklamaz.
+
 1. **Geriye uyum:** Yukarıdaki alanlar (özellikle kanonik `gameId`, `title`, `coverUrl`, `unavailable`) kırıcı değişmemeli; değişecekse `docs/api.md` GAME kaydında duyurulmalı. `batch` üst sınırı 50'nin altına inmemeli.
 2. **Kanonik kimlik:** Review yalnız kanonik LTZ `gameId` kullanır; Steam AppID kabul etmez.
 3. **Kesinti ve eksik kart:** `unavailable` veya yanıtsız oyun için Review incelemeleri gizlemez; başlık yerine "Oyun" yazar ve "tekrar dene" sunar. Game'den "oyun yok" (404) ile "geçici kesinti" (5xx) ayrımı korunmalı.
@@ -28,7 +30,7 @@ Review frontend'i Game'in **herkese açık, salt okunur** uçlarını Gateway ü
 5. **Puan tutarlılığı:** Game listelerindeki LTZ puanı projeksiyondan gelir ve tarama periyodu kadar (varsayılan 5 dk) gecikebilir; Review ekranları canlı okur. Kısa süreli fark beklenen davranıştır (`ratingsSyncedAt` gecikmeyi gösterir). Game'de `UNAVAILABLE` ile `UNRATED` ayrımı korunmalı; 0 puan gösterilmemeli.
 
 ### Açık ürün sorusu — +18 ve kaldırılmış oyunlar
-`GET /games` ve `/games/search` varsayılan olarak yetişkin içerikli (`adult=true`) ve mağazadan kaldırılmış (`delisted`) oyunları gizler; `batch` ve doğrudan bağlantı etkilenmez. Sonuç: bu oyunların Review sayfaları doğrudan bağlantıyla ve "incelemelerim" ile açılır, fakat Review merkezinin aramasında **bulunamaz**. Review frontend'i `includeAdult` göndermez. Merkezde bu oyunların nasıl aranacağı (kullanıcı tercihi/yaş kapısı) Game ve ürün sahibinin kararıdır.
+`GET /games` ve `/games/search` varsayılan olarak yetişkin içerikli (`adult=true`) ve mağazadan kaldırılmış (`delisted`) oyunları gizler; `batch` ve doğrudan bağlantı etkilenmez. Sonuç: bu oyunların Review sayfaları doğrudan bağlantıyla ve "incelemelerim" ile açılır, fakat Review merkezinin aramasında **bulunamaz**. Review frontend'i `includeAdult` göndermez (bu parametre bugün yaş doğrulaması içermez). **Karar (Game cevabı): şimdilik değişiklik yok;** merkezde +18 ve kaldırılmış oyun aranmaz, doğrudan bağlantı ve "incelemelerim" çalışır. Kalıcı çözüm yaş doğrulamalı sunucu kapısıdır; bu ayrı bir iştir ve Review'ı bekletmez. Kapı kurulursa Review'a yalnız frontend işi düşer (doğrulanmış kullanıcıda `includeAdult=true` için Game uçlarını `credentials: "include"` ile çağırmak); Review şimdi hazırlık yapmaz.
 
 ## 3. GAME-26 kimlik taşıma/ayırma — Game'in Review'dan beklediği (AÇIK)
 
@@ -51,7 +53,7 @@ Türetilmiş önbellek yoktur. Game'in puan projeksiyonu Game'dedir; taşımadan
 
 1. **Korunacak yazma yolları:** `RatingWriter` (UPSERT), `RecommendationWriter` (UPSERT), `ReviewWriter.create`. PATCH/DELETE/beğeni yeni oyun ilişkisi doğurmaz; hesap silme referansı yalnız azaltır.
 2. **Ortak kilit:** `AccountWriteLock` örüntüsüyle oyun UUID'si için transaction kapsamlı advisory kilit; prepare ve üç yazıcı aynı kilidi UUID sırasıyla alır; engelli oyunda yazma 409.
-3. **Katılımcı uçları (Gateway'e açılmaz):** `POST /internal/v1/game-identity/operations/{operationId}/prepare`, `…/finalize`, `GET …/operations/{operationId}`. Kalıcı operasyon/engel kaydı için yeni migration gerekir: Review aralığı V51–V60, **V58–V60 boş**; numara onayla seçilir.
+3. **Katılımcı uçları (Gateway'e açılmaz):** `POST /internal/v1/game-identity/operations/{operationId}/prepare`, `…/finalize`, `GET …/operations/{operationId}`. Kalıcı operasyon/engel kaydı için yeni migration gerekir: **Review'ın V51–V60 aralığında boş numara kalmadı** (V58 rapor, V59 outbox, V60 moderasyon kullanıldı). Numara uydurulmaz; ekip kararı gerekir (AGENTS §4).
 4. **Kimlik:** `svc+jwt`, `aud=review-service`, `sub=svc:game-service`, `scope` içinde `game-identity:prepare|finalize|read`. `rating-summaries:read` bunlara yetki vermez, tersi de.
 5. **Karar sorgusu:** Belirsizlikte `GET {GAME_SERVICE_URL}/internal/v1/game-identity/operations/{operationId}/decision`; token için `AUTH_REVIEW_SERVICE_CLIENT_SECRET` (**ENV onayı gerekir**). PENDING/404/erişilemezse engel tutulur.
 6. **Hata kodları:** `409 GAME_REFERENCES_EXIST`, `GAME_IDENTITY_OPERATION_CONFLICT`, `GAME_IDENTITY_DECISION_CONFLICT`, `GAME_IDENTITY_OPERATION_IN_PROGRESS`; `503 GAME_IDENTITY_COORDINATION_UNAVAILABLE`. **Not:** Review hata yanıtları artık makine-okur `code` alanı taşıyabilir (`ReviewException(status, code, message)`; bugün yalnız rapor hatalarında: `REPORT_ALREADY_EXISTS`, `REPORT_OWN_REVIEW`). Review'ın **diğer** 409'ları (ör. "bu oyun için zaten incelemen var") hâlâ `code` taşımaz; GAME-26 hataları eklenirken `GAME_IDENTITY_OPERATION_IN_PROGRESS` 409'u bu mekanizmayla ayrıştırılacak. Review frontend'i `ApiHttpError.code` ile ayırmaya hazırdır (bugün oluşturma 409'unu "zaten incelemen var" diye yorumlar, bu yüzden kod gelmeden GAME-26 409'u yanlış yorumlanır).
@@ -68,7 +70,9 @@ Türetilmiş önbellek yoktur. Game'in puan projeksiyonu Game'dedir; taşımadan
 ### 3.5 Kabul kriterleri (Review payı)
 Prepare ile eşzamanlı puan/tavsiye/inceleme yazımı birlikte başarı veremez; tekrarlı/ters sıralı prepare–finalize; önce abort sonra gecikmiş prepare; restart sonrası kalıcı engel; PENDING/404 karar sorgusunda engelin açılmaması; yanlış subject/audience/scope ve kullanıcı token'ı reddi; gerçek Auth+Game ile ortak kabul. Bugün hiçbiri PASS değildir.
 
-## 4. Game frontend'inden Review'a bağlantı (öneri, AÇIK)
+## 4. Game frontend'inden Review'a bağlantı (AÇIK)
+
+**Game bağlantısı Review merge sonrası yapılacak** (Game cevabı): Game detayına "İncelemeleri gör" bağlantısı (`/reviews/games/[gameId]`, mesaj anahtarı `Game.reviewsLink`), rota adları merge'de korunmalıdır: `/reviews/games/[gameId]` (TR `/incelemeler/oyun/[gameId]`) ve `/reviews/games/[gameId]/statistics`. Merge sonrası Game oturumuna "Review PR merge oldu, main güncel" bildirilir. Game detayında LTZ puanı gösterilmediği için aşağıdaki 2. madde şimdilik uygulanamaz.
 
 Review frontend'i bağımsız sayfalarla tamamlandı; Game frontend'ine dokunulmadı. Game sayfasının sahibine öneri:
 

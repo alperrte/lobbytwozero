@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 /**
  * 429 `Retry-After` geri sayımı. `start(seconds)` ile başlar; süre dolana kadar `remaining > 0` olur ve çağıran eylemi kapalı
@@ -21,12 +21,12 @@ export function useRetryCountdown() {
     return () => clearInterval(id);
   }, [until]);
 
-  return {
-    remaining,
-    start: (seconds: number) => {
-      const safe = Math.max(1, Math.min(3600, Math.ceil(seconds)));
-      setRemaining(safe);
-      setUntil(Date.now() + safe * 1000);
-    }
-  };
+  // Kararlı kimlik: `start`, bir efektin bağımlılığı olarak kullanıldığında geri sayımı her render'da yeniden başlatmamalı.
+  const start = useCallback((seconds: number) => {
+    const safe = Math.max(1, Math.min(3600, Math.ceil(seconds)));
+    setRemaining(safe);
+    setUntil(Date.now() + safe * 1000);
+  }, []);
+
+  return { remaining, start };
 }

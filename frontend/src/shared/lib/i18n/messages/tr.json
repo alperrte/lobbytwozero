@@ -130,6 +130,7 @@
     },
     "loading": "Yükleniyor",
     "retry": "Tekrar dene",
+    "retryWait": "{seconds} sn sonra tekrar dene",
     "login": "Giriş yap",
     "cancel": "Vazgeç",
     "saving": "Kaydediliyor…",

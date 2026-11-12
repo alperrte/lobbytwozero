@@ -8,6 +8,7 @@ import { hubQueryFrom } from "../schemas/review-schema";
 import { formatCount, formatDateTime, safeCoverUrl, wasEdited } from "../services/format";
 import type { ReviewGameCard, ReviewPage, ReviewResponse } from "../types/review";
 import { ReviewBoundary } from "./review-boundary";
+import { RetryButton } from "./retry-button";
 import { EmptyState, Pagination, ReviewAlert, ReviewCover, Skeleton, actionClass, focusRing } from "./review-ui";
 
 const PAGE_SIZE = 20;
@@ -84,7 +85,7 @@ function MyReviewsWorkspace() {
           <Pagination page={data.page} size={data.size} totalElements={data.totalElements} label={t("mine.pagination")} onChange={go} />
         </section>
       ) : null}
-      {cards.error ? <p className="text-sm text-text-secondary">{t("mine.gamesUnavailable")} <button type="button" onClick={cards.reload} className={`rounded-control underline underline-offset-2 ${focusRing}`}>{t("retry")}</button></p> : null}
+      {cards.error ? <p className="text-sm text-text-secondary">{t("mine.gamesUnavailable")} <RetryButton error={cards.error} onRetry={cards.reload} /></p> : null}
     </>
   );
 }

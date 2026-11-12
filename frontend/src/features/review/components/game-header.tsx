@@ -6,6 +6,7 @@ import { Link } from "@/shared/lib/i18n/navigation";
 import { useReviewResource } from "../hooks/use-review-resource";
 import { safeCoverUrl } from "../services/format";
 import type { ReviewGameCard } from "../types/review";
+import { RetryButton } from "./retry-button";
 import { ReviewCover, Skeleton, focusRing } from "./review-ui";
 
 /**
@@ -31,7 +32,7 @@ export function GameHeader({ gameId, heading, children }: { gameId: string; head
           {unavailable ? (
             <p className="text-sm text-text-secondary">
               {t("game.unavailable")}{" "}
-              {card.error ? <button type="button" onClick={card.reload} className={`rounded-control underline underline-offset-2 ${focusRing}`}>{t("retry")}</button> : null}
+              {card.error ? <RetryButton error={card.error} onRetry={card.reload} /> : null}
             </p>
           ) : null}
           {card.data ? (

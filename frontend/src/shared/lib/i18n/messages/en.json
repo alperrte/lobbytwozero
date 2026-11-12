@@ -130,6 +130,7 @@
     },
     "loading": "Loading",
     "retry": "Try again",
+    "retryWait": "Try again in {seconds}s",
     "login": "Sign in",
     "cancel": "Cancel",
     "saving": "Saving…",
