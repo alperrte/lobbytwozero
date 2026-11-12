@@ -86,11 +86,17 @@ jobs:
       - run: node pre-push/ci/install-tool.mjs prek
       - run: node pre-push/ci/hooks.mjs
   backend:
-    name: Backend Verify
+    name: Backend Verify (${{ matrix.module }})
     needs: scope
     if: needs.scope.outputs.backend == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
+    strategy:
+      # One leg per selected module, each with its own PostgreSQL. max-parallel keeps one PR under the 20-concurrent-job Free-plan limit.
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        module: ${{ fromJSON(needs.scope.outputs.json).modules }}
     permissions:
       contents: read
       pull-requests: read
@@ -136,7 +142,7 @@ jobs:
       - run: node pre-push/ci/install-tool.mjs trivy
       - name: Verify selected backend modules
         env:
-          MODULES: ${{ needs.scope.outputs.modules }}
+          MODULES: ${{ matrix.module }}
           # Target branch tip: lets the Checkstyle/PMD gate lock improvements and forbid baseline growth (not forwarded to Maven).
           LTZ_QUALITY_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: node pre-push/ci/backend.mjs --ci --modules "$MODULES"
