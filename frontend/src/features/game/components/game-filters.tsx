@@ -3,6 +3,8 @@
 import { useId, useMemo, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Icon } from "@/shared/components/ui/icons";
+import { Link } from "@/shared/lib/i18n/navigation";
+import { useAdultVerified } from "../hooks/use-adult-verified";
 import { activeFilters, filterChipKeys, validateFilters } from "../services/discovery-query";
 import { controlClass } from "./game-status";
 import { GameCombobox } from "./game-combobox";
@@ -41,6 +43,7 @@ export function GameFilters({ params, onApply }: { params: URLSearchParams; onAp
   const id = useId();
   const count = activeFilters(params).length;
   const [open, setOpen] = useState(false);
+  const adultVerified = useAdultVerified();
   const fallbackCurrency = defaultCurrencyForLocale(locale);
   const [draft, setDraft] = useState<Draft>(() => draftFrom(params, fallbackCurrency));
   const [source, setSource] = useState(params.toString());
@@ -73,7 +76,9 @@ export function GameFilters({ params, onApply }: { params: URLSearchParams; onAp
         <div className="flex flex-col gap-2 text-sm"><label htmlFor={`${id}-releasedBefore`}>{t("fields.releasedBefore")}</label><GameDatePicker id={`${id}-releasedBefore`} value={draft.releasedBefore} onValueChange={(next) => set("releasedBefore", next)} min="0001-01-01" max="9999-12-31" invalid={errors.includes("dateRange")} describedBy={errors.includes("dateRange") ? `${id}-date` : undefined} /></div>
         <label className="flex flex-col gap-2 text-sm">{t("fields.minRating")}<input type="number" inputMode="decimal" min={1} max={10} step="0.01" value={draft.minRating} onChange={(event) => set("minRating", event.target.value)} className={controlClass} aria-invalid={errors.includes("minRating") || undefined} aria-describedby={errors.includes("minRating") ? `${id}-rating` : undefined} /></label>
         <label className="flex flex-col gap-2 text-sm">{t("fields.country")}<GameSelect className={controlClass} value={marketForCurrency(draft.currency).currency} onChange={(event) => set("currency", event.target.value)}>{marketOptions(locale).map((market) => <option key={market.currency} value={market.currency}>{marketLabel(market, locale)}</option>)}</GameSelect></label>
-        {["popularOnly", "discountedOnly", "includeAdult"].map((key) => <label key={key} className="flex min-h-11 items-center gap-3 self-end text-sm"><input type="checkbox" className={checkboxClass} checked={draft[key] === "true"} onChange={(event) => set(key, event.target.checked ? "true" : "")} />{t(`fields.${key}`)}</label>)}
+        {["popularOnly", "discountedOnly", "includeAdult"].map((key) => key === "includeAdult" && !adultVerified
+          ? <p key={key} className="self-end text-sm text-text-secondary">{t("adultVerifyHint")} <Link href="/profile/settings" className="inline-flex min-h-11 items-center text-brand-text underline-offset-4 hover:underline">{t("adultVerifyLink")}</Link></p>
+          : <label key={key} className="flex min-h-11 items-center gap-3 self-end text-sm"><input type="checkbox" className={checkboxClass} checked={draft[key] === "true"} onChange={(event) => set(key, event.target.checked ? "true" : "")} />{t(`fields.${key}`)}</label>)}
       </div>
       {errors.includes("dateRange") && <p id={`${id}-date`} role="alert" className="mt-4 text-sm text-brand-text">{t("filterErrors.dateRange")}</p>}
       {errors.includes("minRating") && <p id={`${id}-rating`} role="alert" className="mt-4 text-sm text-brand-text">{t("filterErrors.minRating")}</p>}

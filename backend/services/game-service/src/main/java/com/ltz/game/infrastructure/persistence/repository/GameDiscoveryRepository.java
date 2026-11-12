@@ -102,7 +102,7 @@ public class GameDiscoveryRepository {
         long total = Objects.requireNonNull(jdbc.queryForObject(countSql,params,Long.class));
         List<Row> rows = jdbc.query(pageSql,params,(rs,index) -> row(rs));
         List<GameDiscoveryResponse.Item> items = cards(rows,syncedAt != null);
-        return new GameDiscoveryResponse(items,query.page(),query.size(),total,query.sort().name(),query.direction().name(),"EDITORIAL",syncedAt);
+        return new GameDiscoveryResponse(items,query.page(),query.size(),total,query.sort().name(),query.direction().name(),"EDITORIAL",syncedAt,query.includeAdult());
     }
     private static String orderBy(DiscoveryQuery query) {
         boolean ascending = query.direction()==CatalogDirection.ASC;

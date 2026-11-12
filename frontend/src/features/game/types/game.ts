@@ -56,6 +56,8 @@ export type DiscoveryPage = {
   totalElements: number;
   popularityBasis?: string;
   ratingsSyncedAt?: string | null;
+  /** +18 oyunlar bu yanıta katıldı mı. İstek `includeAdult=true` ise ve false dönerse yaş doğrulaması geçerli değildir (eski sunucuda alan yoktur). */
+  includeAdultApplied?: boolean;
 };
 
 /** `GET /api/v1/game/catalog?q=`: yerel Steam indeksi araması (kart listesi + son başarılı aktarım). */

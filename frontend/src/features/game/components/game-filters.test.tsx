@@ -8,6 +8,12 @@ import { loadGameResource } from "../services/game-api";
 import type { GameResource, TermList } from "../types/game";
 import { GameActiveFilters, GameFilters } from "./game-filters";
 
+type SessionStub = { status: string; me: { adultVerified?: boolean } | null };
+const session = vi.hoisted(() => ({ value: { status: "authenticated", me: { adultVerified: true } } as SessionStub }));
+vi.mock("@/features/auth", () => ({ useSession: () => session.value }));
+vi.mock("@/shared/lib/i18n/navigation", () => ({
+  Link: ({ href, children, ...rest }: { href: string; children: React.ReactNode } & Record<string, unknown>) => <a {...rest} href={href}>{children}</a>
+}));
 vi.mock("../services/game-api", async (original) => ({ ...await original<typeof import("../services/game-api")>(), loadGameResource: vi.fn() }));
 const load = vi.mocked(loadGameResource);
 const t = messages.Game;
@@ -25,7 +31,10 @@ function mount(onApply = vi.fn()) {
   fireEvent.click(screen.getByRole("button", { name: t.filters }));
   return onApply;
 }
-beforeEach(() => serve((resource) => (resource.termKind === "GENRE" ? genres : platforms)));
+beforeEach(() => {
+  session.value = { status: "authenticated", me: { adultVerified: true } };
+  serve((resource) => (resource.termKind === "GENRE" ? genres : platforms));
+});
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
 
 describe("Filtre paneli: tür, platform ve dil açılır listeleri", () => {
@@ -127,6 +136,21 @@ describe("Filtre paneli: tür, platform ve dil açılır listeleri", () => {
     fireEvent.click(box);
     fireEvent.click(screen.getByRole("button", { name: t.applyFilters }));
     expect(onApply).toHaveBeenLastCalledWith(expect.objectContaining({ includeAdult: "true" }));
+  });
+  it("yaşı doğrulanmamış kullanıcıda +18 kutusu yerine açıklama ve hesap ayarlarına bağlantı gösterilir", () => {
+    for (const unverified of [{ status: "guest", me: null }, { status: "loading", me: null }, { status: "authenticated", me: {} }, { status: "authenticated", me: { adultVerified: false } }]) {
+      session.value = unverified;
+      mount();
+      expect(screen.queryByRole("checkbox", { name: t.fields.includeAdult })).toBeNull();
+      expect(screen.getByText(t.adultVerifyHint, { exact: false })).toBeVisible();
+      expect(screen.getByRole("link", { name: t.adultVerifyLink })).toHaveAttribute("href", "/profile/settings");
+      cleanup();
+    }
+  });
+  it("yaşı doğrulanmış kullanıcıda +18 kutusu görünür ve doğrulama bağlantısı yoktur", () => {
+    mount();
+    expect(screen.getByRole("checkbox", { name: t.fields.includeAdult })).toBeVisible();
+    expect(screen.queryByRole("link", { name: t.adultVerifyLink })).toBeNull();
   });
   it("+18 seçimi aktif filtre çipi olarak görünür ve tek başına kaldırılabilir", () => {
     const onChange = vi.fn();

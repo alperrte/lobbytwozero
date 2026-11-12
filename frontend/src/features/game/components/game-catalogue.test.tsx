@@ -10,6 +10,9 @@ import { GameCatalogue } from "./game-catalogue";
 const replace = vi.fn();
 const push = vi.fn();
 let search = "";
+type SessionStub = { status: string; me: { adultVerified?: boolean } | null };
+const session = vi.hoisted(() => ({ value: { status: "guest", me: null } as SessionStub }));
+vi.mock("@/features/auth", () => ({ useSession: () => session.value }));
 vi.mock("@/shared/lib/i18n/navigation", () => ({
   Link: ({ href, children, ...rest }: { href: { pathname?: string; params?: { gameId: string }; query?: Record<string, string> } | string; children: React.ReactNode } & Record<string, unknown>) => <a {...rest} href={typeof href === "string" ? href : href.params ? `/games/${href.params.gameId}` : `${href.pathname}${href.query ? "?" + new URLSearchParams(href.query).toString() : ""}`}>{children}</a>,
   useRouter: () => ({ replace, push })
@@ -37,7 +40,7 @@ function serve(handlers: Partial<Record<GameResource["kind"], (resource: GameRes
 }
 function mount() { return render(<NextIntlClientProvider locale="tr" messages={messages}><GameCatalogue /></NextIntlClientProvider>); }
 const discoveryCalls = () => load.mock.calls.map(([resource]) => resource).filter((resource) => resource.kind === "discovery").map((resource) => new URLSearchParams((resource as { query: string }).query));
-beforeEach(() => { search = ""; serve(); });
+beforeEach(() => { search = ""; session.value = { status: "guest", me: null }; serve(); });
 afterEach(() => {
   // Bekleyen React efektlerini mock uygulamaları hâlâ geçerliyken temizle.
   cleanup();
@@ -292,5 +295,57 @@ describe("Oyun kataloğu", () => {
     expect(screen.getByText("SYNC_ERROR")).toBeVisible();
     expect(screen.queryByText(/%\s?\d/)).toBeNull();
     await waitFor(() => expect(load.mock.calls.filter(([resource]) => resource.kind === "catalogStatus")).toHaveLength(1));
+  });
+});
+
+describe("Oyun kataloğu: +18 kapısı", () => {
+  const verified: SessionStub = { status: "authenticated", me: { adultVerified: true } };
+  const settings = () => screen.queryByRole("link", { name: messages.Game.adultVerifyLink });
+  const note = () => screen.queryByText(messages.Game.adultNotApplied, { exact: false });
+  it("yaşı doğrulanmış kullanıcıda includeAdult sunucuya gider; sunucu uyguladıysa ipucu çıkmaz", async () => {
+    search = "includeAdult=true";
+    session.value = verified;
+    serve({ discovery: () => ({ ...three, includeAdultApplied: true }) });
+    mount();
+    await screen.findByRole("link", { name: "Fixture game 0" });
+    expect(discoveryCalls().at(-1)!.get("includeAdult")).toBe("true");
+    expect(note()).toBeNull();
+  });
+  it("sunucu includeAdultApplied=false derse (doğrulama geri alındı, iddia gecikmeli) yerel durum doğrulanmış olsa da ipucu gösterilir", async () => {
+    search = "includeAdult=true";
+    session.value = verified;
+    serve({ discovery: () => ({ ...three, includeAdultApplied: false }) });
+    mount();
+    await screen.findByRole("link", { name: "Fixture game 0" });
+    expect(note()).toBeVisible();
+    expect(settings()).toHaveAttribute("href", "/profile/settings");
+  });
+  it("misafir ve doğrulanmamış kullanıcıda includeAdult sunucuya gönderilmez, URL'deki seçim korunur ve ipucu çıkar", async () => {
+    for (const unverified of [{ status: "guest", me: null }, { status: "authenticated", me: { adultVerified: false } }]) {
+      search = "includeAdult=true";
+      session.value = unverified;
+      mount();
+      await screen.findByRole("link", { name: "Fixture game 0" });
+      expect(discoveryCalls().every((query) => !query.has("includeAdult"))).toBe(true);
+      expect(note()).toBeVisible();
+      expect(settings()).toHaveAttribute("href", "/profile/settings");
+      cleanup();
+      load.mockClear();
+    }
+  });
+  it("includeAdult istenmediyse hiçbir durumda +18 ipucu gösterilmez (eski sunucuda includeAdultApplied alanı yoksa da)", async () => {
+    for (const current of [{ status: "guest", me: null }, verified]) {
+      search = "";
+      session.value = current;
+      mount();
+      await screen.findByRole("link", { name: "Fixture game 0" });
+      expect(note()).toBeNull();
+      cleanup();
+    }
+    search = "includeAdult=true";
+    session.value = verified;
+    mount();
+    await screen.findByRole("link", { name: "Fixture game 0" });
+    expect(note()).toBeNull();
   });
 });

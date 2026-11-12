@@ -8,5 +8,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration(proxyBeanMethods = false)
 class ActorWebConfiguration implements WebMvcConfigurer {
     @Override
-    public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) { resolvers.add(new CurrentActorArgumentResolver()); }
+    public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
+        resolvers.add(new CurrentActorArgumentResolver());
+        resolvers.add(new AdultAccessArgumentResolver());
+    }
 }
