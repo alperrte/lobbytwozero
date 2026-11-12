@@ -1,6 +1,6 @@
 # Game kataloğunu yerel Docker'a yükleme
 
-Bu belge **hem ekip arkadaşları hem de onların yapay zekâ asistanları** içindir. Game servisinin hazır oyun veritabanını (yaklaşık 264 bin kayıt; listede varsayılan olarak ≈189 bin ana oyun görünür, yetişkin içerikli oyunlar "+18 oyunları göster" ile açılır) kendi bilgisayarındaki Docker'a yükler. Kataloğun kendisi için Steam, IGDB veya ITAD API anahtarı gerekmez ve oyunlar sağlayıcılardan yeniden çekilmez. **Fiyatların güncel görünmesi için ise ITAD anahtarı gerekir**, çünkü dump'taki fiyatlar en geç 48 saat sonra gizlenir ([Fiyatlar güncel kalsın](#fiyatlar-güncel-kalsın-itad-anahtarı)).
+Bu belge **hem ekip arkadaşları hem de onların yapay zekâ asistanları** içindir. Game servisinin hazır oyun veritabanını (yaklaşık 264 bin kayıt; listede varsayılan olarak ≈189 bin ana oyun görünür, yetişkin içerikli oyunlar "+18 oyunları göster" ile açılır) kendi bilgisayarındaki Docker'a yükler. Kataloğun kendisi için Steam, IGDB veya ITAD API anahtarı gerekmez ve oyunlar sağlayıcılardan yeniden çekilmez. **Fiyatların güncel görünmesi için ise ITAD anahtarı gerekir**, çünkü dump'taki fiyatlar en geç 24 saat sonra bayatlar ve yalnız "güncel olmayabilir" etiketiyle gösterilir ([Fiyatlar güncel kalsın](#fiyatlar-güncel-kalsın-itad-anahtarı)).
 
 **Nasıl okunur**
 
@@ -147,7 +147,7 @@ Bu yüzden dump'ı yükledikten sonra fiyatlar ilk saatlerde boştur. Çözüm, 
 
 - Fiyat yenileme **varsayılan olarak açıktır**; başka bir ayar gerekmez. Anahtar boşsa servis ITAD'e hiç istek atmaz.
 - `ITAD_API_KEY` yalnız fiyatları yeniler. Yeni oyun, DLC ve erken erişim bilgisi Steam'den gelir (`STEAM_WEB_API_KEY` ve `STEAM_CATALOG_ENABLED=true`, `GAME_CATALOG_SYNC_ENABLED=true`; ekipte bunlar zaten açık), IGDB zenginleştirmesi ayrı anahtar ister.
-- ITAD'in hız sınırı uygulama başına 5 dakikada 1000 istektir (doğrulanmış e-posta ile). Game servisi kendi içinde 5 dakikada en çok ≈850 istek atar (istemci tarafı hız sınırlayıcı), böylece kendi kaynaklı 429 oluşmaz. **İki kişi aynı anahtarla aynı anda yetişmeye çalışırsa** sınır aşılır; servis durup kendiliğinden yeniden dener, fiyatlar geç yetişir ama bozulmaz. Herkesin kendi anahtarı olması bu yüzden daha iyidir.
+- ITAD'in belgelenmiş bir hız sınırı yoktur; DEV'de ölçülen gerçek eşik 5 dakikada ≈160-220 istektir (aşılınca 429 + `Retry-After` 85-190 sn). Game servisi DEV'de kendi içinde 5 dakikada en çok 150 istek atar (`ltz.game.pricing.rate.limit`), 429 görünce etkin limitini kendisi düşürür ve sakin dönemde yavaşça geri artırır; canlı varsayılan 850'dir. **DEV anahtarı ekip tarafından paylaşılır**: iki kişi aynı anahtarla aynı anda yetişmeye çalışırsa sınır aşılır; servis durup kendiliğinden yeniden dener, fiyatlar geç yetişir ama bozulmaz. Kota dar olduğundan 13 pazarın hepsi sürekli yenilenmez: yalnız ABD ve Türkiye ile son 7 günde okunan en çok 3 pazar arka planda yenilenir (`ltz.game.pricing.demand.*`); diğer pazarlar sayfa açılışında yenilenir. Herkesin kendi anahtarı olması yine de daha iyidir.
 - Servis kapalıyken fiyat yenilenmez. Bilgisayarı kapatıp uzun süre sonra açarsan fiyatlar önce "güncelliği doldu" olur, servis açıldıktan sonra yeniden dolar.
 - Yapay zekâ asistanı kullanıyorsan anahtarı sen elle yaz. Asistan `.env.dev` dosyasını okumaz ve değiştirmez.
 
