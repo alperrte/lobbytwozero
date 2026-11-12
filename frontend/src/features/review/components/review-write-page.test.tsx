@@ -55,7 +55,8 @@ afterEach(() => {
 async function open() {
   render(wrap(<ReviewWritePage gameId={gameId} />));
   await screen.findByRole("heading", { level: 1, name: "İnceleme yaz" });
-  return screen.getByLabelText("İnceleme metni") as HTMLTextAreaElement;
+  // Başlık hemen çizilir, form ise "kendi incelemem var mı" isteği dönene kadar gizlidir; alanı da beklemek gerekir.
+  return (await screen.findByLabelText("İnceleme metni")) as HTMLTextAreaElement;
 }
 
 describe("İnceleme yazma", () => {
