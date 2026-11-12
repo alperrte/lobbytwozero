@@ -11,6 +11,12 @@ public interface GamePriceProvider {
     default boolean isConfigured() { return true; }
     /** Çoklu kimlik tek çağrıda; sağlayıcı kimliği ile LTZ gameId doğrulanmış eşleme gerektirir. */
     List<Quote> prices(Set<UUID> gameIds, Market market);
+
+    /** Sağlayıcı kotası kıtlaştığında kimin önce hizmet alacağı: sayfası açılan oyun toplu turdan önce gelir. */
+    enum Priority { BACKGROUND, INTERACTIVE }
+
+    /** Öncelikli çağrı; öncelik kavramı olmayan sağlayıcılar için {@link #prices(Set, Market)} ile aynıdır. */
+    default List<Quote> prices(Set<UUID> gameIds, Market market, Priority priority) { return prices(gameIds, market); }
     record Market(String country, String currency) {
         public Market {
             if (country==null || !country.matches("[A-Z]{2}") || !Set.of(Locale.getISOCountries()).contains(country)) throw invalid();

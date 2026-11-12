@@ -52,6 +52,30 @@ class ItadPriceClientTest {
         return new ItadPriceClient(GameRatingConfiguration.restClient(RestClient.builder(),server.baseUrl(),Duration.ofSeconds(1),Duration.ofSeconds(1)),
                 props,refs,Clock.fixed(NOW,ZoneOffset.UTC));
     }
+    @Test void aViewedGameMayUseTheReservedQuotaShareThatBackgroundRefreshesCannotTouch() throws Exception {
+        var refs=mock(GameExternalReferenceRepository.class);
+        var game=new Game();game.setId(GAME);
+        var ref=new GameExternalReference();ref.setGame(game);ref.setProvider("STEAM");ref.setExternalId("570");
+        when(refs.findByGameIdIn(anyCollection())).thenReturn(List.of(ref));
+        var props=new GamePriceProperties("fixture-key","https://api.isthereanydeal.com","TR","USD",Duration.ofMinutes(15));
+        var clock=Clock.fixed(NOW,ZoneOffset.UTC);
+        try(var server=new FakeServer()) {
+            server.enqueue(Reply.json(200,mapping()),Reply.json(200,prices("USD",LINK,"\"2026-11-05T12:05:00Z\"")));
+            // Pencere payı 2, bunun 1'i ayrılmış: toplu çağrı eşlemeden sonra fiyat isteğinde yerel hız sınırına takılır.
+            var background=new ItadPriceClient(GameRatingConfiguration.restClient(RestClient.builder(),server.baseUrl(),Duration.ofSeconds(1),Duration.ofSeconds(1)),
+                    props,refs,clock,new ItadRequestLimiter(clock,2,1,Duration.ofMinutes(5),Duration.ZERO,millis -> { }));
+            assertEquals(ItadRequestLimiter.LOCAL_THROTTLE,assertThrows(ProviderException.class,()->background.prices(REQUESTED,MARKET)).code());
+            assertEquals(1,server.received().size(),"yalnız eşleme isteği gitti, fiyat isteği atılmadı");
+        }
+        try(var server=new FakeServer()) {
+            server.enqueue(Reply.json(200,mapping()),Reply.json(200,prices("USD",LINK,"\"2026-11-05T12:05:00Z\"")));
+            var interactive=new ItadPriceClient(GameRatingConfiguration.restClient(RestClient.builder(),server.baseUrl(),Duration.ofSeconds(1),Duration.ofSeconds(1)),
+                    props,refs,clock,new ItadRequestLimiter(clock,2,1,Duration.ofMinutes(5),Duration.ZERO,millis -> { }));
+            var quotes=interactive.prices(REQUESTED,MARKET,com.ltz.game.application.port.GamePriceProvider.Priority.INTERACTIVE);
+            assertEquals(1,quotes.size());
+            assertEquals(2,server.received().size(),"etkileşimli çağrı ayrılmış paydan yararlanıp iki isteği de tamamladı");
+        }
+    }
     @Test void batchesMappingAndPricesPreservesCurrencyAffiliateLinkAndExpiry() throws Exception {
         try(var server=new FakeServer()) {
             server.enqueue(Reply.json(200,mapping()),Reply.json(200,prices("USD",LINK,"\"2026-11-05T12:05:00Z\"")));

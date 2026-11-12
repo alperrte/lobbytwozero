@@ -48,7 +48,9 @@ public class ItadPriceClient implements GamePriceProvider {
     void forgetMappingsForTests() { knownMappings.clear(); }
     @Override public boolean isConfigured() { return properties.apiKey()!=null && !properties.apiKey().isBlank(); }
 
-    @Override public List<Quote> prices(Set<UUID> ids,Market market) {
+    @Override public List<Quote> prices(Set<UUID> ids,Market market) { return prices(ids,market,Priority.BACKGROUND); }
+
+    @Override public List<Quote> prices(Set<UUID> ids,Market market,Priority priority) {
         if(ids.isEmpty()) return List.of();
         if(ids.size()>200) throw new IllegalArgumentException("En fazla 200 oyun.");
         if(!isConfigured()) throw new ProviderException("PRICE_NOT_CONFIGURED");
@@ -57,17 +59,18 @@ public class ItadPriceClient implements GamePriceProvider {
                 .forEach(ref -> steam.put("app/"+ref.getExternalId(),ref.getGame().getId()));
         if(steam.isEmpty()) return List.of();
         if(steam.size()>200) throw new ProviderException("PRICE_MAPPING_LIMIT");
-        resolveMappings(steam);
+        boolean interactive=priority==Priority.INTERACTIVE;
+        resolveMappings(steam,interactive);
         var matched=group(steam);
         if(matched.isEmpty()) return List.of();
-        var rows=post("/games/prices/v3?country="+market.country()+"&vouchers=false",new ArrayList<>(matched.keySet()));
+        var rows=post("/games/prices/v3?country="+market.country()+"&vouchers=false",new ArrayList<>(matched.keySet()),interactive);
         return ItadPriceMapper.quotes(rows,matched,market,clock.instant(),properties.displayTtl(properties.coldTtl()));
     }
     /** Henüz bilinmeyen AppID'leri ITAD'e sorar ve olumlu eşleşmeleri önbelleğe alır; bilinenler için istek atılmaz. */
-    private void resolveMappings(Map<String,UUID> steam) {
+    private void resolveMappings(Map<String,UUID> steam,boolean interactive) {
         List<String> unknown=steam.keySet().stream().filter(key -> !knownMappings.containsKey(key)).toList();
         if(unknown.isEmpty()) return;
-        JsonNode data=post("/lookup/id/shop/61/v1",new ArrayList<>(unknown));
+        JsonNode data=post("/lookup/id/shop/61/v1",new ArrayList<>(unknown),interactive);
         if(data==null || !data.isObject()) throw ItadPriceValues.invalid();
         if(knownMappings.size()+unknown.size()>MAX_KNOWN_MAPPINGS) knownMappings.clear();
         Map<String,UUID> learned=new java.util.HashMap<>();
@@ -94,10 +97,10 @@ public class ItadPriceClient implements GamePriceProvider {
         }
         return matched;
     }
-    private JsonNode post(String path,Object body) {
+    private JsonNode post(String path,Object body,boolean interactive) {
         java.time.Instant blocked=blockedUntil;
         if(blocked.isAfter(clock.instant())) throw new ProviderException(ItadRequestLimiter.LOCAL_THROTTLE,Duration.between(clock.instant(),blocked));
-        limiter.acquire();
+        limiter.acquire(interactive);
         try {
             return http.post().uri(path).header("ITAD-API-Key",properties.apiKey())
                     .header("User-Agent","LTZ-Game-Service/1.0").contentType(MediaType.APPLICATION_JSON)

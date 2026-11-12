@@ -220,12 +220,17 @@ public class GamePriceService {
         try { Thread.sleep(millis); } catch(InterruptedException _) { Thread.currentThread().interrupt(); }
     }
 
+    /** Toplu tur eski iki bağımsız değişkenli çağrıyı kullanır; yalnız sayfası açılan oyun ayrılmış kota payından yararlanır. */
+    private List<Quote> itadPrices(Set<UUID> ids,Market market,boolean interactive) {
+        return interactive ? provider.prices(ids,market,GamePriceProvider.Priority.INTERACTIVE) : provider.prices(ids,market);
+    }
+
     /** Bir toplu yenileme; sonuç kiralama hâlâ bizdeyken yayımlandıysa true (kiralama kaybında hiçbir snapshot yayımlanmaz). */
-    private boolean refreshBatch(UUID owner,Market market,List<GamePriceRepository.Candidate> candidates,Set<UUID> ids,boolean itad,boolean forceSteam) {
+    private boolean refreshBatch(UUID owner,Market market,List<GamePriceRepository.Candidate> candidates,Set<UUID> ids,boolean itad,boolean interactive) {
         Instant now=clock.instant();
         Map<UUID,Duration> tier=candidates.stream().collect(java.util.stream.Collectors.toMap(GamePriceRepository.Candidate::id,GamePriceRepository.Candidate::ttl));
-        List<Quote> itadQuotes=itad ? provider.prices(ids,market) : List.of();
-        Set<UUID> steamIds=steamTargets(market,ids,tier,itadQuotes,itad,forceSteam);
+        List<Quote> itadQuotes=itad ? itadPrices(ids,market,interactive) : List.of();
+        Set<UUID> steamIds=steamTargets(market,ids,tier,itadQuotes,itad,interactive);
         Map<UUID,Quote> steamQuotes=Map.of();
         Set<UUID> steamAsked=Set.of();
         if(!steamIds.isEmpty()) {

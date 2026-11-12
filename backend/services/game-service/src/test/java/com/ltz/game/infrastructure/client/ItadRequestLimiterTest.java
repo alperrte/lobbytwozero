@@ -56,6 +56,45 @@ class ItadRequestLimiterTest {
         limiter.acquire();
     }
 
+    @Test void backgroundRequestsStopAtTheLimitMinusTheReserveWhileInteractiveOnesKeepGoingUntilTheFullLimit() {
+        TickClock clock = new TickClock();
+        var limiter = new ItadRequestLimiter(clock, 5, 2, Duration.ofMinutes(5), Duration.ZERO, millis -> { });
+        for (int i = 0; i < 3; i++) limiter.acquire();
+        ProviderException background = assertThrows(ProviderException.class, limiter::acquire);
+        assertEquals(ItadRequestLimiter.LOCAL_THROTTLE, background.code(), "toplu tur 5-2=3 istekte durur");
+        limiter.acquire(true);
+        limiter.acquire(true);
+        ProviderException interactive = assertThrows(ProviderException.class, () -> limiter.acquire(true));
+        assertEquals(ItadRequestLimiter.LOCAL_THROTTLE, interactive.code(), "etkileşimli istek de toplam sınırı (5) aşamaz");
+    }
+
+    @Test void theReservedShareStaysAvailableToInteractiveRequestsEvenWhenTheBackgroundShareIsExhausted() {
+        TickClock clock = new TickClock();
+        var limiter = new ItadRequestLimiter(clock, 4, 1, Duration.ofMinutes(5), Duration.ZERO, millis -> { });
+        for (int i = 0; i < 3; i++) limiter.acquire();
+        assertThrows(ProviderException.class, limiter::acquire);
+        limiter.acquire(true);
+    }
+
+    @Test void aBackgroundWaitIsMeasuredAgainstTheRequestThatFreesABackgroundSlotNotTheOldestOne() {
+        TickClock clock = new TickClock();
+        var limiter = new ItadRequestLimiter(clock, 4, 2, Duration.ofMinutes(5), Duration.ZERO, millis -> { });
+        limiter.acquire();
+        clock.now = clock.now.plusSeconds(60);
+        limiter.acquire();
+        limiter.acquire(true);
+        limiter.acquire(true);
+        ProviderException background = assertThrows(ProviderException.class, limiter::acquire);
+        assertEquals(Duration.ofMinutes(5), background.retryAfter(), "arka plan, ilk istek (4 dk) değil 3. en eski istek (5 dk) pencereden çıkınca devam eder");
+    }
+
+    @Test void theReserveMustBeSmallerThanTheLimit() {
+        TickClock clock = new TickClock();
+        assertThrows(IllegalArgumentException.class, () -> new ItadRequestLimiter(clock, 3, 3, Duration.ofMinutes(5), Duration.ZERO, millis -> { }));
+        assertThrows(IllegalArgumentException.class, () -> new ItadRequestLimiter(clock, 3, -1, Duration.ofMinutes(5), Duration.ZERO, millis -> { }));
+        new ItadRequestLimiter(clock, 3, 2, Duration.ofMinutes(5), Duration.ZERO, millis -> { });
+    }
+
     @Test void invalidConfigurationIsRejected() {
         TickClock clock = new TickClock();
         assertThrows(IllegalArgumentException.class, () -> new ItadRequestLimiter(clock, 0, Duration.ofMinutes(5), Duration.ZERO, millis -> { }));
