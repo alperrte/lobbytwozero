@@ -4158,6 +4158,8 @@ Sorumlu: Hamza · Gateway: `/api/v1/review/**` · Görevler: REV-
 
 ### REVIEW — Ortak güvenlik, kota ve doğrulama notları
 
+**Yazar kimliği (12 Kasım 2026, Hamza + User kararı):** `ReviewResponse` (oluşturma/okuma/düzenleme yanıtları, öne çıkanlar öğesinin `review`'ü, `reviews/mine` ve `games/{gameId}/reviews/mine`) yazarın `authorUserId` (UUID) alanını taşır; `ownedByActor` profil kimliği değildir ve ayrı kalır. Kimliği doğrulanmış her kullanıcı bu UUID'yi görür ve aynı yazarın incelemelerini birbirine bağlayabilir (kabul edilen bedel). Yazarın adı/avatarı Review'dan **gelmez**: istemci User Service'in toplu kart ucunu (`POST /api/v1/user/profiles/batch`) çağırır; kart hesap durumu ve engele bakar, profil gizlilik ayarına bakmaz (`REVIEW_AUTHOR` UGC kuralı). `authorUserId` moderatör uçlarında, rapor yanıtlarında ve denetim kayıtlarında **yoktur**; oy veren kimlikleri hiçbir yanıtta dönmez.
+
 İş uçları korumalıdır; `Authorization: Bearer` ile Auth RS256/JWKS `at+jwt` token'ı gerekir. `iss=JWT_ISSUER` (varsayılan `ltz-auth`), `aud` içinde `JWT_AUDIENCE` (varsayılan `ltz-api`), kanonik UUID `sub`, `kid`, ham `iat/nbf/exp` ve 30 saniye zaman toleransı doğrulanır. Auth'un PLAYER/CONTENT_CREATOR/GAME_DEVELOPER/MODERATOR/ADMIN rollerinden biri gerekir. Rol sahipliğin yerine geçmez. Yetki yalnız `roles` **listesindeki** bu beş kanonik rolden gelir; liste olmayan, bilinmeyen veya metin dışı `roles` hiçbir yetki vermez, `MODERATOR`/`ADMIN` Review'da ek yetki taşımaz. `aud` claim'i eksik imzalı token 401'dir. Silinmiş hesabın eski token'ı yazma işlemlerinde 403 alır (kota sayacı da yazılmaz). Ayrıntı: [Auth entegrasyon raporu](../docs-review/REVIEW_AUTH_INTEGRATION_REPORT.md). Cookie veya `X-User-Id` kimlik kaynağı değildir. Başka kullanıcı adına yazma alanı yoktur; bilinmeyen JSON alanları reddedilir.
 
 Kullanıcı token'ı en fazla 15 dakika ömürlü olabilir (Auth JwtProperties sınırı). JSON gövdesi 64 KiB ile sınırlıdır; Content-Length olmadan gelen chunked istekler de sınırlanır. Korunan iş yanıtları `Cache-Control: private, no-store` taşır. Sayısal/boolean alanlara metin değeri verilmesi kabul edilmez.
@@ -4175,7 +4177,7 @@ Ayrıntı: [Auth ve kalite raporu](../docs-review/REVIEW_AUTH_INTEGRATION_REPORT
 
 Endpointlerin aşağıdaki Test Durumu alanlarında bulunan faz bazlı test sayıları
 tarihsel kanıttır; son 153 testlik doğrulama ilgili endpoint testlerini de içerir.
-REV-07, REV-10, REV-13 raporlama ve REV-15 entegrasyon bağımlılıkları açıktır.
+REV-07 ve REV-13 (rapor) ile REV-15 Review tarafında tamamlandı (moderatör uçları); açık kalanlar: `MODERATOR` 2FA kararı, Admin paneli ekranları, yazara bildirim (Notification) ve canlı doğrulama.
 Game servis okuma ucu Review'da uygulandı ("Game → Review toplu puan özeti iç ucu" kaydı); Auth tarafındaki `game-service → review-service` / `rating-summaries:read` tanımı ve Game tüketicisi uygulanmış değildir.
 
 ### REVIEW — REV-01 — Puan yazma
@@ -4256,7 +4258,7 @@ Authenticated — Korumalı; görünür içerik diğer kayıtlı kullanıcılarc
 #### Path/Query Parameters
 `reviewId` zorunlu UUID; body/query yok.
 #### Response
-200; oluşturma yanıtıyla aynı DTO. Ham yazar UUID'si dönmez.
+200; oluşturma yanıtıyla aynı DTO (`status` dahil). Görünür inceleme herkese, **gizli/arşivli inceleme yalnız sahibine** okunur (diğerleri ve silinmiş: 404). Yazar kimliği `authorUserId` (UUID) olarak döner (aşağıdaki not); oy veren kimlikleri dönmez.
 #### Hata Durumları
 400/401/403/404/500.
 #### Bağlantı
@@ -4278,7 +4280,7 @@ Authenticated — Korumalı kullanıcı JWT/rol politikası (PLAYER, CONTENT_CRE
 #### Request Body
 Yok.
 #### Response
-200 `ReviewResponse` (`ownedByActor=true`, gerçek `version`). Kullanıcının bu oyunda görünür (`VISIBLE`) incelemesi yoksa — hiç yazmadıysa ya da sildiyse — 404. Ham yazar UUID'si dönmez. `Cache-Control: private, no-store`.
+200 `ReviewResponse` (`ownedByActor=true`, gerçek `version`). Kullanıcının bu oyunda silinmemiş (VISIBLE/HIDDEN/ARCHIVED; durum `status` alanında) incelemesi yoksa — hiç yazmadıysa ya da sildiyse — 404. Yazar kimliği `authorUserId` (UUID) olarak döner (aşağıdaki not); oy veren kimlikleri dönmez. `Cache-Control: private, no-store`.
 #### Hata Durumları
 400 geçersiz UUID; 401 kimlik yok/geçersiz; 403 rol; 404 görünür inceleme yok; 500.
 #### Bağlantı
@@ -4310,9 +4312,9 @@ INTEGRATION — `MyReviewsApiTest`: yalnız kendi görünür incelemeleri, sıra
 
 ### REVIEW — REV-07 — İnceleme raporlama (Review tarafı)
 
-Durum: IMPLEMENTED — yalnız **Review tarafı** (yerel kayıt). Admin Service'e teslim, Admin'den durum/karar alma ve moderasyon **yoktur** (ENTEGRASYON BEKLİYOR).
+Durum: IMPLEMENTED. Raporlar Review'da kalır ve moderatörler tarafından Review'ın moderatör uçlarıyla (REV-15 girişi) incelenir; Admin Service'e teslim yoktur ve gerekmez.
 Sorumlu: Hamza.
-Tüketici servisler: Frontend (Gateway üzerinden). Admin teslimi için henüz tüketici yoktur.
+Tüketici servisler: Frontend (Gateway üzerinden); moderatör görünümü Admin paneli (REV-15 girişi).
 #### Endpoint
 `POST /api/v1/review/reviews/{reviewId}/reports` (201, `Location: /api/v1/review/reviews/{reviewId}/reports/mine`)
 `GET /api/v1/review/reviews/{reviewId}/reports/mine`
@@ -4323,13 +4325,44 @@ Authenticated — korumalı kullanıcı JWT/rol politikası; aktör yalnız doğ
 #### Request Body
 POST: `{"reason":"SPAM","detail":"isteğe bağlı açıklama"}`. `reason` kapalı liste: `SPAM, HARASSMENT, HATE_SPEECH, PERSONAL_INFO, SPOILER, OFF_TOPIC, OTHER` (**geçici sözlük**; Admin'in nihai sözlüğüyle güncellenir). `detail` isteğe bağlı, en çok 500 karakter düz metin (satır sonu/sekme dışında denetim karakteri yok), baş/son boşluk temizlenir, boşsa saklanmaz. Sayı/bilinmeyen gerekçe 400. GET'te gövde yok.
 #### Response
-POST 201 / GET 200: `{id, reviewId, reason, detail, status, createdAt}`. `status` yalnız `RECEIVED`'dir ve Review'ın yerel kaydını gösterir; Admin'e iletildiği veya karara bağlandığı anlamına **gelmez**. Raportör ve inceleme yazarı kimliği, moderasyon notu veya karar dönmez. Raporlar inceleme yanıtlarında (`ReviewResponse`, öne çıkanlar, `reviews/mine`) görünmez. GET: kullanıcının bu incelemeye yaptığı kendi raporu; yoksa 404 (başkasının/yazara yapılan rapor dönmez).
+POST 201 / GET 200: `{id, reviewId, reason, detail, status, createdAt}`. `status`: `RECEIVED` (kaydedildi) veya `CLOSED` (moderatör kapattı); kapanış sonucu (işlem yapıldı/reddedildi) raportöre **gösterilmez**. Raportör ve inceleme yazarı kimliği, moderasyon notu veya karar dönmez. Raporlar inceleme yanıtlarında (`ReviewResponse`, öne çıkanlar, `reviews/mine`) görünmez. GET: kullanıcının bu incelemeye yaptığı kendi raporu; yoksa 404 (başkasının/yazara yapılan rapor dönmez).
 #### Hata Durumları
 400 geçersiz UUID/gövde/gerekçe/açıklama; 401; 403 kendi incelemesi (`code=REPORT_OWN_REVIEW`) veya hesap silme engeli/rol; 404 inceleme yok, silinmiş ya da görünür değil (POST) / rapor yok (GET); 409 aynı raportör aynı incelemeyi zaten raporlamış (`code=REPORT_ALREADY_EXISTS`; ilk rapor değişmez); 413; 429 rapor kotası (`Retry-After`); 500. Hata yanıtları `ProblemDetail`; makine-okur `code` alanı yalnız bu iki rapor hatasında vardır. `Cache-Control: private, no-store`.
 #### Bağlantı
-ReviewReportController → ReviewReportService → ReviewReportRepository. Transaction içinde hesap kilidi (`AccountWriteLock`) ve inceleme satır kilidi; `review_reports` (V58): `(review_id, reporter_id)` benzersiz indeksi (eşzamanlı istekler tek kayıt üretir), `delivered_at NULL` = Admin'e iletilmedi (bekleyen raporlar kısmi indeksle bulunur). FK `reviews` ON DELETE CASCADE: yazar hesabı silinince raporlar kalkar; raportör hesabı silinince kendi raporları silinir. Metin silme (soft delete) raporları saklar; silinmiş incelemeye yeni rapor yapılamaz. Game/Admin çağrısı yoktur.
+ReviewReportController → ReviewReportService → ReviewReportRepository. Transaction içinde hesap kilidi (`AccountWriteLock`) ve inceleme satır kilidi; `review_reports` (V58): `(review_id, reporter_id)` benzersiz indeksi (eşzamanlı istekler tek kayıt üretir), moderatör kapatması `status/closed_at/closed_by` ile (V60). FK `reviews` ON DELETE CASCADE: yazar hesabı silinince raporlar kalkar; raportör hesabı silinince kendi raporları silinir. Metin silme (soft delete) raporları saklar; silinmiş incelemeye yeni rapor yapılamaz. Game/Admin çağrısı yoktur.
 #### Test Durumu
 INTEGRATION — `ReviewReportsApiTest` (oluşturma ve gizlilik, mükerrer 409 + eşzamanlı 8 istekte tek kayıt, kendi incelemesi 403, silinmiş/yok 404, geçersiz gövdeler, 401, yalnız kendi raporunu okuma, hesap silme etkileşimleri) ve `ReportQuotaApiTest` (her deneme sayılır, 429 + `Retry-After`, diğer kullanıcı etkilenmez). Review modülü 213/213 Maven testi PASS (12 Kasım 2026). Frontend `e2e/review.spec.ts` fixture ile doğrular; canlı Auth/Admin/Gateway E2E iddiası yoktur.
+
+### REVIEW — REV-15 — Moderatör uçları (rapor yönetimi ve moderasyon)
+
+Durum: IMPLEMENTED (Review tarafı). Admin paneli ekranları Admin sahibine aittir; uçlar Review'dadır. Canlı Auth/Gateway/panel ile uçtan uca doğrulanmadı. **`MODERATOR` için 2FA zorunluluğu kararı Auth + ürün tarafında açıktır; netleşmeden bu uçlar canlıya açılmamalıdır.**
+Sorumlu: Hamza.
+Tüketici servisler: Admin paneli (Admin sahibi), Gateway üzerinden aynı yol.
+#### Endpoint
+- `GET /api/v1/review/admin/reports?status=RECEIVED&page=0&size=20` — raporlanmış incelemeler (inceleme bazında gruplu)
+- `GET /api/v1/review/admin/reviews/{reviewId}` — moderatör görünümü (her durum) ve moderasyon geçmişi
+- `GET /api/v1/review/admin/reviews/{reviewId}/reports` — incelemenin raporları
+- `POST /api/v1/review/admin/reviews/{reviewId}/moderation` — gizle / arşivle / geri al
+- `POST /api/v1/review/admin/reviews/{reviewId}/reports/close` — açık raporları kapat
+#### Yetkilendirme
+Authenticated — kullanıcı `at+jwt` (Gateway çerezi Bearer'a çevirir) ve **yalnız `MODERATOR` veya `ADMIN`** (`roles` listesindeki kanonik değer). Diğer roller 403, anonim 401, servis token'ı kabul edilmez. Aktör yalnız token `sub`'ıdır (gövdede aktör alanı reddedilir). Mutasyonlarda silinmiş hesap engeli (403) uygulanır. POST'lar CSRF'e tabidir.
+#### Path/Query Parameters
+`reviewId` UUID. Liste: `status` `RECEIVED` (varsayılan, açık) | `REVIEWED` | `DISMISSED`; `page` 0–10000 (varsayılan 0); `size` 1–50 (varsayılan 20).
+#### Request Body
+- moderation: `{"action":"HIDE|ARCHIVE|RESTORE","reason":"1–500 karakter düz metin","version":<görülen inceleme sürümü>}` — hepsi zorunlu. Geçişler: HIDE yalnız VISIBLE'dan; ARCHIVE VISIBLE/HIDDEN'dan ve **geri alınamaz**; RESTORE yalnız HIDDEN'dan.
+- reports/close: `{"outcome":"REVIEWED|DISMISSED","reason":"1–500 karakter"}` (kapanan rapor yeniden açılmaz).
+#### Response
+- reports: 200 `{items:[{reviewId, gameId, reviewStatus, body, reportCount, totalReportCount, latestReportAt}], page, size, totalElements, totalPages}`; sıra `reportCount DESC, latestReportAt DESC, reviewId ASC`. Silinmiş incelemenin `body`'si null'dır.
+- reviews/{id}: 200 `{id, gameId, body, status, version, createdAt, updatedAt, history:[{action, reason, reviewVersion, createdAt}]}` (`status`: VISIBLE/HIDDEN/ARCHIVED/DELETED; silinmişte body yok).
+- reviews/{id}/reports: 200 `[{id, reason, detail, status, createdAt, closedAt}]` (`status`: RECEIVED/REVIEWED/DISMISSED), yeniden eskiye.
+- moderation: 200 güncel moderatör görünümü (sürüm artar). reports/close: 200 `{closedCount}`.
+- **Hiçbir yanıtta yazar, raportör veya moderatör kimliği dönmez.** `Cache-Control: private, no-store`.
+#### Hata Durumları
+400 geçersiz UUID/gövde/gerekçe/enum/sayfa; 401; 403 rol yetersiz veya hesap silme engeli; 404 inceleme yok veya silinmiş (moderation); 409 `REVIEW_VERSION_CONFLICT` (yazar bu arada düzenledi), `INVALID_MODERATION_TRANSITION`, `REPORT_NOT_OPEN` (kapatılacak açık rapor yok); 413; 500. ProblemDetail; yukarıdaki 409'larda ve rapor hatalarında makine-okur `code` vardır.
+#### Bağlantı
+AdminReviewController → ReviewModerationService → ReviewRepository (satır kilidi, JPA @Version) ve ModerationRepository (JDBC). Güvenlik: `/api/v1/review/admin/**` kuralı genel kullanıcı kuralından önce. V60: `reviews.status` HIDDEN/ARCHIVED, `review_reports.status` REVIEWED/DISMISSED + `closed_at/closed_by`, `review_moderation_actions` (denetim: aktör hesabı, eylem, gerekçe, inceleme sürümü). **Etkiler:** HIDDEN/ARCHIVED inceleme tek okuma (yazar hariç), öne çıkanlar, beğeni, rapor oluşturma, istatistik `activeCount` ve User profil sayacında yoktur; bağımsız puan/tavsiye ve beğenilerin kendisi etkilenmez (geri alınınca beğeniler döner). Yazarın yolları: kendi HIDDEN/ARCHIVED incelemesini `GET reviews/{id}`, `games/{gameId}/reviews/mine` ve `reviews/mine`'de `status` ile görür; PATCH 403 `REVIEW_MODERATED`; DELETE yalnız HIDDEN'da serbest, ARCHIVED'da 403 `REVIEW_MODERATED`; gizli inceleme tek aktif inceleme hakkını tutar. Moderasyon kararı yazarın User sayaç outbox'ını günceller. Hesap silme: yazar silinince incelemeyle birlikte moderasyon kayıtları gider; moderatör silinince denetim kaydı anonimleşir (`actor_id` NULL, kayıt ve gerekçe kalır).
+#### Test Durumu
+INTEGRATION — `AdminModerationApiTest` (rol kapısı, görünürlük zinciri, puan/tavsiye bağımsızlığı, yazar yolları, geçişler, sürüm çatışması, geçersiz gövdeler, silinmiş inceleme, outbox, gruplama/sıralama/sayfalama, rapor kapatma ve raportöre sonucun sızmaması, anonimleştirme). Review modülü 229/229 Maven testi PASS (12 Kasım 2026); frontend yazar görünümü birim ve E2E fixture ile doğrulandı. Canlı Auth/Admin/Gateway E2E iddiası yoktur.
 
 ### REVIEW — REV-03 — Yalnız metni düzenleme
 
@@ -4520,7 +4553,7 @@ Authenticated — Mevcut korumalı kullanıcı JWT/rol sözleşmesi; PLAYER, CON
 #### Request Body
 Yok.
 #### Response
-200 `FeaturedReviewsResponse`: `items` (`FeaturedReviewResponse[]`), `page`, `size`, `totalElements` (long), `totalPages` (long). Her öğe `review` (mevcut ReviewResponse: id/gameId/body/ownedByActor/version/createdAt/updatedAt), `likeCount` (long) ve `likedByActor` (boolean) içerir. `likedByActor` yalnız istek sahibinin oyudur (aynı sorguda `EXISTS` alt sorgusu, N+1 yok); kendi incelemesinde oy veremediğinden `false`'tur. Yazar ve oy veren kullanıcı UUID'leri döndürülmez. `ownedByActor` token sahibine göre hesaplanır.
+200 `FeaturedReviewsResponse`: `items` (`FeaturedReviewResponse[]`), `page`, `size`, `totalElements` (long), `totalPages` (long). Her öğe `review` (mevcut ReviewResponse: id/gameId/body/ownedByActor/version/createdAt/updatedAt), `likeCount` (long) ve `likedByActor` (boolean) içerir. `likedByActor` yalnız istek sahibinin oyudur (aynı sorguda `EXISTS` alt sorgusu, N+1 yok); kendi incelemesinde oy veremediğinden `false`'tur. Yazar kimliği `authorUserId` olarak döner; oy veren kullanıcı UUID'leri döndürülmez. `ownedByActor` token sahibine göre hesaplanır.
 - Sıralama: `likeCount DESC, createdAt DESC, id ASC`; aynı snapshot/veride deterministiktir. Sıfır beğenili görünür kayıtlar varsayılan filtreye dahildir. İnceleme düzenlenmesi oluşturulma tarihini değiştirmez, sıralamada updatedAt kullanılmaz. Rapor/şikâyet cezası veya moderasyon skoru yoktur.
 - Boş durum: İnceleme olmayan/Review'de bilinmeyen oyun UUID'si 200, `items=[]`, `totalElements=0`, `totalPages=0`. Game Service çağrısı yapılmaz; bu yanıt oyunun katalogda varlığını ya da güncel erişilebilirliğini doğrulamaz. Son sayfa dışına taşan geçerli sayfa 200/boş items döndürür; toplamlar filtrelenen kümenin toplamıdır.
 #### Hata Durumları

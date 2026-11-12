@@ -151,3 +151,30 @@ Onaylanmış politikalar (kullanıcı kararı, Review ürün sahibi): gizlenen/a
 4. Kullanıcıya gösterilebilir **sınırlı rapor durumu** kümesi ("alındı/inceleniyor/sonuçlandı"); Admin vaka sonucunu (karar, gerekçe, moderatör) kullanıcıya açmaz.
 5. Moderasyon eylemleri ve yazara görünürlük politikası (§14.3) — Review'ın yanıt şemasını etkilediği için önce kararlaştırılmalı.
 6. Karar aktarımında Review'ın uygulama ACK'i ve `actionId`/sürüm kuralları (§7–§10).
+
+## 15. Model değişikliği önerisi (Auth cevabı, 12 Kasım 2026) — KABUL EDİLDİ (12 Kasım 2026, Hamza)
+
+Auth'un bildirdiği Admin modeli: Admin paneli (login + dashboard) hazırdır; **her servis kendi admin uçlarını kendisi açar, panel çağırır.** Auth önerisi ve sonuçları ([Auth belgesi](auth-review-integration.md) §2):
+
+- Review, rapor listeleme/okuma ve moderasyon (gizle/arşivle/yeniden görünür yap) uçlarını **kendisi** sunar; uçlar kullanıcı `at+jwt`'sini alır ve `MODERATOR`/`ADMIN` rolünü Review'da doğrular.
+- **Düşenler:** `admin-service → review-service` ve `review-service → admin-service` servis çiftleri, moderasyon komut kapsamı, insan aktör taşıması, Admin'e rapor push'u (§6–§9'daki olay zarfı, ACK, inbox/outbox gereksinimleri). Bu belgenin §7–§10'daki "Admin alıcısı" tasarımı bu modelde **geçersiz** olur.
+- **Kalanlar:** Admin servisi rapor **push** ile almak isterse en dar çift (`events:ingest`) ve §6–§10 tasarımı yeniden devreye girer. Admin panelinin Review uçlarını çağırması panel/Gateway tarafıdır (Admin sahibi).
+
+**Review'a etkisi (UYGULANDI, 12 Kasım 2026 — ayrıntı [docs/api.md → REV-15 Moderatör uçları](../../docs/api.md)); aşağıdaki liste tarihsel plandır:**
+1. Rol tabanlı yetki: `/api/v1/review/admin/**` (yol önerisi) yalnız `MODERATOR`/`ADMIN`; mevcut "bu rollere ek yetki yok" kararı bu uçlar için değişir, kullanıcı uçları aynı kalır. Silinmiş hesap 403 kuralı korunur.
+2. Rapor yönetimi: mevcut `review_reports` (V58) üzerine rapor listesi (inceleme bazında gruplama, sayfalı) ve rapor kapatma/durum (`RECEIVED` → `REVIEWED/DISMISSED` benzeri; adlar **KARAR BEKLİYOR**) — `delivered_at` artık gerekmez/yeniden tanımlanır.
+3. Moderasyon: `HIDDEN/ARCHIVED` durumları (yeni migration; `ck_reviews_status`/`ck_reviews_content` güncellemesi), karar kaydı (aktör referansı = token `sub`, gerekçe, zaman — Review'da audit), geri alma; `VISIBLE` beyaz liste zaten gizleneni listelerden dışlar. Kullanıcı kararı (31 Ekim): gizli incelemenin puanı ortalamada kalır.
+4. Frontend: Review sayfalarına bağlı değil; panel kendi ekranlarını Admin sahibi yapar. Yazara kendi gizli incelemesinin durumu gösterilecekse `ReviewResponse` genişler (§14.3 kararı).
+5. Bildirim: moderasyonu Review uyguladığı için doğal üretici Review olur ([Notification belgesi](notification-review-integration.md)).
+
+**Açık kararlar:** (1) modelin kabulü; (2) `MODERATOR` 2FA zorunluluğu (Auth + ürün); (3) rapor durumu adları ve kapatma kuralları; (4) yazarın gizli inceleme görünürlüğü ve itiraz; (5) moderasyon audit'inin saklama süresi; (6) panelin Review uçlarını hangi yolla çağıracağı (Gateway `/api/v1/review/admin/**` yeterli mi).
+
+### 15.1 Uygulama durumu ve Admin paneli sahibinden beklenenler
+
+**Review tarafı uygulandı** (V60, `/api/v1/review/admin/**`, 229 test PASS; canlı doğrulama yok). Rapor durumları `RECEIVED/REVIEWED/DISMISSED`, eylemler `HIDE/ARCHIVE/RESTORE` olarak kesinleşti ([kararlar](../REVIEW_SERVICE_DECISIONS.md)). Bu belgenin §6–§10, §13 ve REV-15 sorumluluk matrisindeki Admin push/alıcı/ACK/aktör taşıma maddeleri **geçersizdir**.
+
+**Admin paneli sahibinden (açık):**
+1. Panelin Review uçlarını Gateway `/api/v1/review/admin/**` yoluyla ve kullanıcı oturumuyla (çerez→Bearer, CSRF) çağırması; rapor listesi, inceleme ayrıntısı, gizle/arşivle/geri al ve rapor kapatma ekranları (gerekçe alanı ve onay zorunlu, sürüm çatışmasında "güncel hali yükle").
+2. Moderatör görünümünde yazar ve raportör kimliği **yoktur** (bilinçli). Yazara işlem (askıya alma vb.) gerekiyorsa User/Admin tarafında ayrı bir sözleşme gerekir.
+3. `MODERATOR` hesaplar için 2FA kararı (Auth) — uçlar canlıya açılmadan önce.
+4. Yazara bildirim gerekiyorsa Notification alıcısı ([Notification belgesi](notification-review-integration.md) §15).

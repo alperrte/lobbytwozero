@@ -187,3 +187,38 @@ Kullanıcı, Admin'i beklemeden Review'ın kendi içinde yapabildiği kadarını
 ## REV-15 — Review'ın bağımsız yapabileceği kısım (12 Kasım 2026)
 
 Yapılabilecek bağımsız bir parça **yoktur**: `HIDDEN/ARCHIVED` durumları, karar alıcı uç ve rapor kapatma, Admin'in karar sözleşmesi ve Auth çiftlerine bağlıdır; onaysız eklenen şema/uç ölü kontrat olurdu. Mevcut zemin (`VISIBLE` beyaz liste, puan politikası) korunur. Ayrıntı [Admin talebi](request/admin-review-integration.md) §14.3.
+
+## BEKLEYEN KARAR — Moderasyon/rapor uçlarını Review sunsun mu? (Auth önerisi, 12 Kasım 2026)
+
+Auth, Admin modelinin değiştiğini bildirdi (her servis kendi admin uçlarını açar; panel çağırır) ve Review'ın rapor/moderasyon uçlarını **kullanıcı `at+jwt`'si + `MODERATOR`/`ADMIN` rolü** ile kendisinin sunmasını önerdi. Bu, yukarıdaki "Review `MODERATOR`/`ADMIN`'e ek yetki tanımaz; kullanıcı JWT'si moderasyon kararı yerine geçmez" kararını (31 Ekim) değiştirir. **Kabul/ret Hamza'dadır; karar verilene kadar kod yazılmaz.** Kabul edilirse: servis çiftleri, aktör taşıması ve Admin'e push düşer; REV-15 sadeleşir; Review'da rol tabanlı admin uçları, `HIDDEN/ARCHIVED` ve rapor kapatma eklenir; `MODERATOR` 2FA kararı önce netleşmelidir. Ayrıntı: [Auth](request/auth-review-integration.md) §2, [Admin](request/admin-review-integration.md) §15.
+
+**Auth cevabıyla kapanan:** GAME-26 kapsamları Auth'ta uygulanmış ve testlidir (`docs/api.md`'deki "taslak" ifadesi eskidir; Auth düzeltecek) — Review katılımcı uçları için Auth'tan yeni bir şey beklenmiyor.
+
+**KARAR (12 Kasım 2026, Hamza): Auth önerisi KABUL EDİLDİ.** Review, rapor listeleme/kapatma ve moderasyon uçlarını kendisi sunar; uçlar kullanıcı `at+jwt`'si ve `MODERATOR`/`ADMIN` rolüyle çalışır. Yukarıdaki 31 Ekim "ek yetki tanımaz" kararı bu uçlar için geçersizdir (kullanıcı uçları aynı kalır). Admin↔Review servis çiftleri, aktör taşıması ve Admin'e rapor push'u düşer. Kod yalnız Review'dadır; Admin paneli ekranları Admin sahibine, `MODERATOR` 2FA kararı Auth + ürüne, bildirim Notification'a aittir. Uygulama ayrıntı kararları (rapor durum adları, yol, audit, yazar görünürlüğü) [Admin talebi](request/admin-review-integration.md) §15'te açıktır.
+
+## Uygulanan moderasyon kararları (12 Kasım 2026, Hamza: "hepsi önerilerle kabul")
+
+- **Yol:** `/api/v1/review/admin/**`; yalnız `MODERATOR`/`ADMIN` kullanıcı JWT'si (güvenlik zincirinde genel kullanıcı kuralından önce). Aktör = token `sub`; denetim kaydında saklanır, hiçbir yanıtta dönmez.
+- **Rapor durumları:** `RECEIVED` → `REVIEWED` (işlem yapıldı) / `DISMISSED` (reddedildi); inceleme bazında toplu kapatma; kapanan rapor yeniden açılmaz; gerekçe zorunlu. Raportöre yalnız `RECEIVED`/`CLOSED` gösterilir (sonuç sızmaz).
+- **Eylemler:** `HIDDEN` (geri alınabilir; yazar silebilir), `ARCHIVED` (kalıcı; geri alınamaz; yazar silemez — kanıt korunur). Gizli/arşivli inceleme tek aktif inceleme hakkını tutar (mevcut kısmi indeks). Beğeniler silinmez ve geri alınınca döner. Puan/tavsiye/ortalama etkilenmez (31 Ekim kararıyla tutarlı).
+- **Yazar görünürlüğü:** yazar kendi gizli/arşivli incelemesini `status` ile görür, düzenleyemez (403 `REVIEW_MODERATED`); diğer herkes 404. `ReviewResponse.status` eklendi.
+- **Sürüm koruması:** moderasyon, moderatörün gördüğü inceleme sürümüyle gelir; yazar bu arada düzenlediyse 409 (`REVIEW_VERSION_CONFLICT`). Moderasyon `updatedAt`'i değiştirmez ("düzenlendi" görünmez), JPA sürümünü artırır.
+- **Denetim:** `review_moderation_actions` (V60). Moderatör hesabı silinince `actor_id` NULL olur (kayıt/gerekçe kalır); yazar silinince incelemeyle birlikte gider.
+- **Admin'e teslim ve servis çiftleri düştü** (`delivered_at` kaldırıldı). Moderasyon, User profil sayacı outbox'ını günceller (görünür inceleme sayısı değişir).
+- **V60 aralığın SON numarasıdır (V51–V60).** Yeni migration için ekip kararı gerekir (numara uydurulmaz).
+- **Açık:** `MODERATOR` 2FA zorunluluğu (Auth + ürün) — uçlar canlıya açılmadan önce netleşmeli; yazara moderasyon bildirimi (Notification alıcısı yok); gerekçe/itiraz akışı ve moderasyon audit saklama süresi.
+
+## REV-10 User cevabı ve backfill (12 Kasım 2026)
+
+- **A (ReviewSummaryChanged) User tarafından onaylandı** (eşit/eski `occurredAt` bilerek yok sayılır, `reviewCount` 0–10.000.000, `userId=aggregateId`; Review'ın kesin artan zamanı ve yalnız `VISIBLE` sayımı uyumlu). **Backfill uygulandı:** teslim işçisi açıldığında (secret doluysa) başlangıçta `UserSummaryOutbox.backfillMissing` ile incelemesi olan ama outbox satırı olmayan her kullanıcı için bekleyen satır açılır (idempotent; var olan satırlara dokunmaz; silinmiş hesap için olay yok).
+- **BEKLEYEN KARAR (Hamza) — Yazar görünümü:** User seçenek 2'yi seçti (`authorUserId` + User `POST /api/v1/user/profiles/cards`). Bedel: yazar UUID'si herkese görünür ve aynı yazarın incelemeleri birbirine bağlanabilir; bu, Review'ın bugünkü "ham yazar kimliği açılmaz" politikasını değiştirir. Seçenekler: 2 (kabul), 1 (opak `authorRef`, User'da ek sözleşme), yazarsız. Karar verilene kadar kod yazılmaz; ayrıntı [User talebi](request/user-review-integration.md) §3.
+
+## Karar: yazar kimliği `authorUserId` açılır (12 Kasım 2026, Hamza + User)
+
+- **Eski politika:** ham yazar kimliği yanıtlarda dönmezdi (REV-02/REV-09). **Yeni politika:** `ReviewResponse` yazarın `authorUserId` (UUID) alanını taşır; kimliği doğrulanmış her okuyucu görür. Ad/avatar Review'dan gelmez; User toplu kart ucundan çözülür ve gizlilik/engelleme kararı User'dadır.
+- **Gerekçe:** User seçenek 2'yi seçti; opak belirteç ek sözleşme ve anahtar yönetimi getirir, yazarsız kartlar ürün değerini düşürür.
+- **Kabul edilen bedel:** aynı yazarın incelemeleri UUID üzerinden bağlanabilir; yayınlanan UUID geri alınamaz.
+- **Sınırlar:** `authorUserId` moderatör uçlarında, rapor yanıtlarında ve denetim kayıtlarında yoktur; oy veren kimlikleri dönmez; görünmez (gizli/arşivli/silinmiş) incelemelerde mevcut görünürlük kuralları aynen geçerlidir.
+- **Frontend:** User kart sözleşmesi gelene kadar yazarsız; alan adları tahmin edilmez.
+- **Düzeltme (User cevabı, 12 Kasım 2026):** toplu kart ucu `POST /api/v1/user/profiles/batch` User'da zaten vardı (yeni uç gerekmedi). Kart yalnız hesap durumu ve engele bakar, **profil gizlilik ayarına bakmaz** (`REVIEW_AUTHOR` yorum/UGC kuralı): profili gizli olan yazarın adı/avatarı incelemede görünür. Önceki "ad/avatar gizlilik ayarına tabi" ifadesi yanlıştı; aydınlatma metnine yansıtılmalıdır.
+- **Frontend davranışı:** sayfa başına tek istek (CSRF'li, bir kez yenileyip tekrar), kartı olmayan yazar "Bir oyuncu" ve bağlantısız; kendi incelemede istek yok; User kesintisinde yazarsız devam.

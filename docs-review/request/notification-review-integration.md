@@ -105,3 +105,11 @@ Review frontend'i tamamlandı. Bildirim tıklaması (docs/web-rules.md §7.5) he
 3. **Gizlenen inceleme + yazar bildirimi:** REV-15 uygulanırsa yazar "incelemen gizlendi" bildirimini alır; bildirim hedefi `/reviews/[reviewId]` olursa bugünkü Review davranışı yazar için de `404`'tür (görünür olmayan inceleme herkese kapalı). Bu yüzden bildirim hedefi için **yazara özel görünürlük** (Review yanıt şeması) kararı [Admin talebi §14.3](admin-review-integration.md) ile birlikte alınmalıdır; aksi hâlde bildirim "bulunamadı" sayfasına götürür. Geçici öneri: bildirim hedefi `/reviews/mine` veya yalnız açıklayıcı metin olsun.
 4. **Beğeni bildirimi:** İstenmiyor (kapsam dışı). Beğeni sayısı ve "ben beğendim mi" durumu Review'da sorgulanır; bildirim üretimi için olay gerekmez.
 5. **Oturum:** Bildirim tıklaması oturumsuz kullanıcıyı mevcut giriş akışına yönlendirir ve girişten sonra hedef Review sayfasına döner (`next` parametresi); Notification'dan ek davranış beklenmez.
+
+## 15. Üretici seçimine etkisi (Auth cevabı, 12 Kasım 2026)
+
+Moderasyon uçları Review'da olursa ([Admin belgesi](admin-review-integration.md) §15, Hamza kabulü bekliyor) kararı **Review uygular**; bu yüzden §6'daki "Admin ACK'inden sonra Admin üretir" seçeneği düşer ve doğal üretici **Review**'dır. Bu durumda `review-service → notification-service` `events:ingest` çifti gerekir (Auth şimdiden açmaz; üretici kararı verilince eklenir) ve Review'da outbox (REV-10 için yazılan `UserSummaryRelay` örüntüsü kullanılabilir). Model reddedilirse bu bölüm geçersizdir.
+
+### 15.1 Durum (12 Kasım 2026)
+
+Moderasyon Review'da uygulandı: kararı Review verir, yazara `HIDDEN/ARCHIVED` durumu `ReviewResponse.status` ile görünür. Yazara "incelemen gizlendi/arşivlendi" bildirimi **henüz yoktur**: Notification alıcısı ve `review-service → notification-service` (`events:ingest`) çifti beklenir; hazır olunca Review'da `UserSummaryRelay` örüntüsüyle outbox eklenir (olay: `reviewId`, `gameId`, `recipientId`, eylem, `reasonCode`; serbest moderatör gerekçesi taşınmaz). Bildirim hedefi `/reviews/[reviewId]` kullanılabilir: yazar kendi gizli incelemesini artık görür (diğerleri 404).

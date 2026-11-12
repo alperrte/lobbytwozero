@@ -63,7 +63,7 @@ Türetilmiş önbellek yoktur. Game'in puan projeksiyonu Game'dedir; taşımadan
 
 ### 3.4 Diğer taraflardan beklenenler
 - **[Game]** Koordinatör (kalıcı operasyon, önce ABORTED, finalize teslim kuyruğu, kurtarma), `…/decision` ucu ve ADMIN akışı. Review hazır olana kadar `FOREIGN_REFERENCE_SAFETY_UNVERIFIED` koruması kapalı kalmalı; eksik/bilinmeyen katılımcı `0 referans` sayılmaz.
-- **[Auth]** `game-identity:*` kapsamları yapılandırmada var, `docs/api.md` "taslak" diyor; Kerem hangisinin güncel olduğunu doğrulamalı ([Auth belgesi](auth-review-integration.md) §3).
+- **[Auth]** `game-identity:prepare|finalize|read|decision:read` Auth'ta **uygulanmış ve testlidir** (Auth cevabı, 12 Kasım 2026); `docs/api.md`'deki "taslak" ifadesi eskidir ve Auth tarafından düzeltilecek. Review bu kapsamlara bağımlı kod yazabilir (ENV onayı ve kullanıcı kararı sonrası).
 
 ### 3.5 Kabul kriterleri (Review payı)
 Prepare ile eşzamanlı puan/tavsiye/inceleme yazımı birlikte başarı veremez; tekrarlı/ters sıralı prepare–finalize; önce abort sonra gecikmiş prepare; restart sonrası kalıcı engel; PENDING/404 karar sorgusunda engelin açılmaması; yanlış subject/audience/scope ve kullanıcı token'ı reddi; gerçek Auth+Game ile ortak kabul. Bugün hiçbiri PASS değildir.

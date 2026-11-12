@@ -25,7 +25,7 @@ Faz 1 kalite koşusu için açılan geçici PostgreSQL projeleri/ağları kapat�
 - [x] REV-06 — İnceleme beğenileri (75 test PASS; V55, gerçek JWT/HTTP, idempotency, eşzamanlılık ve silme tutarlılığı; final kalite sonuçları Faz 2 raporunda)
 - [ ] REV-07 — Uygunsuz inceleme raporlama — ENTEGRASYON BEKLİYOR
 - [x] REV-09 — Öne çıkan incelemeler (85/85 Review testi PASS; beğeni/tarih/UUID sıralaması, oyun/minLikes filtresi, sayfalama, V56 ve eşzamanlı snapshot doğrulaması)
-- [ ] REV-10 — Servis sınırları ve entegrasyon — ENTEGRASYON BEKLİYOR
+- [x] REV-10 — Servis sınırları ve entegrasyon — Review→User `ReviewSummaryChanged` DEV'de canlı doğrulandı (12 Kasım 2026)
 
 Faz 2 kapsamı yalnız Review backend ve docs-review. Başlangıç branch temizdi: feature/review-service. Önceki kök prompt dosyaları diskte bulunamadı; konuşmada okunan sıra ve güncel Hamza görev dosyası esas alındı. Admin/Notification kaynaklarında yalnız launcher bulunuyor; rapor alıcı sözleşmesi yok. Gerçek teslim ve tam REV-07/REV-10 kapanışı bu dış bağımlılık çözülmeden iddia edilmeyecek.
 
@@ -99,7 +99,7 @@ REV-10 yalnız kısmen ilerledi (Auth→Review silme ve kullanıcı JWT tamam); 
 
 **FAZ 1** — [x] REV-01 · [x] REV-02 · [x] REV-03 · [x] REV-04 · [x] REV-05 · [x] REV-11
 
-**FAZ 2** — [x] REV-06 · [ ] REV-07 ENTEGRASYON BEKLİYOR · [x] REV-09 · [ ] REV-10 ENTEGRASYON BEKLİYOR
+**FAZ 2** — [x] REV-06 · [ ] REV-07 ENTEGRASYON BEKLİYOR · [x] REV-09 · [x] REV-10 (Review→User teslimi DEV'de canlı doğrulandı, 12 Kasım 2026)
 
 **FAZ 3** — [x] REV-08 · [x] REV-12 (Game entegrasyonu bekliyor)
 
@@ -127,3 +127,36 @@ Yeniden doğrulandı: Admin ve Notification Service'te yalnız launcher vardır;
 | **REV-15** moderasyon sonrası | Politika + yapısal zemin (`VISIBLE` beyaz liste, puan politikası) | `HIDDEN/ARCHIVED`, karar alıcı, rapor kapatma, bildirim: Admin kararı + sözleşme, Auth, Notification — Review'ın bağımsız yapabileceği parça yok |
 
 **Kalite kapıları (12 Kasım 2026, REV-07/REV-10 Review payı sonrası, yalnız Review modülü):** `pre-push/ci/backend.mjs --ci --modules services/review-service` (geçici PostgreSQL 17, kök Compose ve gerçek ENV kullanılmadı) **PASS** — 213 test, 0 hata/atlanan; merkezi coverage kapısı PASS (toplam satır %97,6, değişen satır %96,2); Checkstyle/PMD yeni ihlal 0; Trivy 0 bulgu, HIGH/CRITICAL kapısı PASS. Sonar `ltz-review-service` **Quality Gate OK** (güvenlik/güvenilirlik/bakım A/A/A, coverage %94,7, duplication %0, bug/vulnerability/hotspot 0, açık issue 0). İlk Sonar koşusu kırmızıydı (1 bug: `UserSummaryOutbox` nullable `single()`; 6 kod kokusu) ve düzeltildi; ilk pre-push koşusunda test içi `ExecutorService` için PMD `CloseResource` bulundu ve düzeltildi. Notlar: `docker compose` runner'ın kısıtlı ortamında bulunamadığından (`ProgramFiles` izin listesinde yok) aynı runner CI kipinde, aynı init betiğiyle elle başlatılan geçici PostgreSQL'e karşı çalıştırıldı; `JAVA_HOME` yalnız süreç düzeyinde verildi. Tüm-repo `full` pre-push ve tüm-modül Sonar çalıştırılmadı; canlı Auth/Admin/User kanıtı yoktur.
+
+**Auth cevabı (12 Kasım 2026):** Auth tarafında iş yok; GAME-26 kapsamları Auth'ta uygulanmış; secret dev'de otomatik üretiliyor (Review ortamına aktarım Review'ın ENV işi, onay gerekir). **Model değişikliği önerisi:** moderasyon/rapor uçlarını Review kendisi sunsun (kullanıcı JWT + `MODERATOR`/`ADMIN`); kabul edilirse REV-07 teslimi (Admin push) ve REV-15 servis çiftleri/aktör taşıması düşer. **Hamza kararı bekleniyor**; `MODERATOR` 2FA kararı da açık. Kod yazılmadı.
+
+## Moderasyon uygulandı (12 Kasım 2026, Auth cevabının kabulü sonrası)
+
+REV-15 ve REV-07'nin yönetim tarafı Review'da tamamlandı: V60 (`HIDDEN/ARCHIVED`, rapor kapatma, moderasyon denetim kaydı), `/api/v1/review/admin/**` uçları (rol: `MODERATOR`/`ADMIN`), yazar görünürlüğü ve `ReviewResponse.status`, frontend yazar görünümü. Review modülü **229/229** Maven testi PASS, frontend birim ve E2E (14/14, fixture) PASS. **Pre-push ve Sonar bu değişiklikten sonra yeniden çalıştırılmadı.** Açık: `MODERATOR` 2FA kararı (canlıya açmadan önce), Admin paneli ekranları (Admin sahibi), yazara bildirim (Notification), canlı Auth/Gateway doğrulaması. **V60 migration aralığının son numarasıdır.**
+
+**Kalite kapıları (moderasyon sonrası, 12 Kasım 2026):** izole pre-push hattı (`--ci`, geçici PostgreSQL) **PASS** — 229 test, toplam kapsam %97,9 (değişen satır %97,7), Checkstyle/PMD yeni ihlal 0, Trivy 0 bulgu; Sonar `ltz-review-service` **Quality Gate OK** (A/A/A, coverage %94,8, açık issue 0; ilk koşuda 4 S1192 kod kokusu çıkmış ve düzeltilmişti). Frontend: lint, typecheck, 165 dosya / 1712 birim testi, derleme ve E2E 14/14 (fixture) PASS. Tüm-repo `full` pre-push ve canlı servis doğrulaması yapılmadı.
+
+**User cevabı (12 Kasım 2026):** Profil sayacı (A) User tarafından onaylandı; Review'da ilk etkinleştirme **backfill'i uygulandı** (230 test; pre-push PASS: kapsam %97,7, yeni ihlal 0; Sonar Quality Gate OK, açık issue 0). Yazar görünümü (B): User seçenek 2'yi seçti ve Hamza kabul etti (uygulandı, aşağıdaki "Yazar kimliği" bölümü). Secret aktarımı ve dev dağıtımı sonradan yapıldı (aşağıdaki "DEV dağıtımı" bölümü).
+
+## Yazar kimliği (12 Kasım 2026)
+
+- `ReviewResponse.authorUserId` uygulandı (oluşturma/okuma/düzenleme, öne çıkanlar, `reviews/mine`); moderatör/rapor/denetim görünümlerinde yok. `docs/api.md` ve `REVIEW_SERVICE_API.md` güncellendi; testler eklendi.
+- Frontend yazar satırı uygulandı: User `POST /api/v1/user/profiles/batch` (sayfa başına tek istek), kartı olmayan yazar "Bir oyuncu", profil bağlantısı `/oyuncular/{userId}`.
+- Açık: canlı Gateway doğrulaması (NOT VERIFIED) ve aydınlatma metni (kart profil gizliliğine bakmaz): madde taslağı [REVIEW_KVKK_MADDE_ONERISI.md](REVIEW_KVKK_MADDE_ONERISI.md); `/yasal/kvkk` sayfası henüz yayınlanmış metin içermiyor, metin sahibi maddeyi ekleyecek.
+
+## DEV dağıtımı ve canlı doğrulama (12 Kasım 2026)
+
+- **Dağıtım:** `docker-compose.yml` review-service bloğuna `AUTH_REVIEW_SERVICE_CLIENT_SECRET` aktarımı eklendi (değer `.env.dev`te mevcuttu). Önce `review_db` yedeği alındı (`pg_dump -Fc`, arşiv `pg_restore -l` ile doğrulandı) ve eski imaj `ltz/review-service:dev-rollback` etiketlendi. İmaj derlendi, jar'daki migration listesi doğrulandı (yalnız Review'ın V58–V60'ı), yalnız review-service yeniden oluşturuldu (`up -d --no-deps --no-build`). Flyway V57'den V60'a 3 migration'ı uyguladı.
+- **Backfill:** açılışta 1092 kullanıcı için olay kuyruğa alındı; relay hepsini hatasız teslim etti (1092/1092, yeniden deneme 0). Auth'tan servis token'ı alındı ve User `/internal/events` olayları kabul etti.
+- **Sonuç doğrulaması (salt okunur):** User `profile_counters.review_count` toplamı 1344 (903 kullanıcı) ve Review'daki `VISIBLE` inceleme sayısı 1344 (903 kullanıcı) — eşleşiyor.
+- **Henüz canlıda denenmeyen senaryolar:** aynı `eventId` tekrarı, eski `occurredAt`, yanlış kapsam/`aud`, hesap silme sonrası gecikmiş olay, canlı moderasyon/silme sonrası sayaç değişimi ve Gateway üzerinden yazar kartı akışı (NOT VERIFIED).
+- **Geri alma:** `docker tag ltz/review-service:dev-rollback ltz/review-service:dev` ve compose `up -d --no-deps --no-build review-service`. Not: V58–V60 uygulandı; eski imaj bu şemayla da çalışır (eklemeli migration'lar) ama eski imaja dönmek yeni uçları kapatır.
+
+
+## DEV veritabanı olayı ve kalıcı önlem (12 Kasım 2026)
+
+- **Olay:** resmi `pre-push.cmd review-service dev` komutu Review testlerini DEV `review_db` üzerinde koşturdu; testlerin tablo temizliği DEV verisini sildi. Veri yedekten geri yüklendi.
+- **Sıfırlama (kullanıcı talebiyle):** `review_db` ve bozuk kopya silindi, boş `review_db` yeniden kuruldu (Flyway V51-V60 uygulandı). Review boş olduğundan User sayaçları da sıfırlandı: 930 kullanıcı için `reviewCount=0` olayı outbox üzerinden teslim edildi (930/930); User `profile_counters` toplamı 0.
+- **Kalıcı önlem:** `DisposableDatabaseInitializer` (test kaynağı, `META-INF/spring.factories`). Yerelde her test JVM'i geçici Testcontainers PostgreSQL'ine bağlanır, CI'da `-Pci` DB'sini kullanır. Çözümlenen bağlantı bu ikisi değilse Spring bağlamı hiç kurulmaz. Docker yoksa test başarısız olur, DEV'e geri dönülmez. `DisposableDatabaseInitializerTest` geliştirici DB URL'lerinin reddini kanıtlar.
+- **Kanıt:** önlemden sonra aynı resmi komut çalıştırıldı. Testler `review-phase-test` konteynerinde koştu (233 test, kapsam %97,71). DEV `review_db` değişmedi (0 inceleme, 0 puan, outbox 930/930).
+- `pre-push/pre-push.md`: `<servis> dev`, `backend` ve `full` modlarının profil DB'siyle koştuğuna dair uyarı eklendi. Diğer servis sahipleri için aynı korumanın uygulanması önerildi.
