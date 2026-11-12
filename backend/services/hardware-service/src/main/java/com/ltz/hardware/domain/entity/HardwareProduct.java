@@ -1,7 +1,17 @@
 package com.ltz.hardware.domain.entity;
 
 import com.ltz.hardware.domain.enums.ComponentCategory;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.util.UUID;
 import java.util.Set;
 import java.util.HashSet;

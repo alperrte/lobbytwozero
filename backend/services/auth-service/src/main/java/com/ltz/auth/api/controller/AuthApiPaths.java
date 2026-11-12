@@ -55,6 +55,8 @@ public final class AuthApiPaths {
 
     public static final String EMAIL_CHANGE = BASE + "/email/change";
     public static final String EMAIL_CHANGE_CONFIRM = EMAIL_CHANGE + CONFIRM;
+    /** Yaş doğrulaması (18+): POST beyan eder, DELETE geri alır. Yalnız oturumlu kullanıcı, kendi hesabı için. */
+    public static final String ACCOUNT_AGE_VERIFICATION = BASE + "/account/age-verification";
     public static final String ACCOUNT_DELETION = BASE + "/account/deletion";
     public static final String ACCOUNT_DELETION_REQUEST = ACCOUNT_DELETION + "/request";
     public static final String ACCOUNT_DELETION_CONFIRM = ACCOUNT_DELETION + CONFIRM;

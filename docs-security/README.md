@@ -1,6 +1,6 @@
 # docs-security: servis başına güvenlik ve kalite durumu
 
-> **Bu dosya otomatik üretilir** (kaynak: `backend/config/quality-baseline.json`, 2026-10-29). Yenilemek için: `node pre-push/ci/lint-ratchet.mjs docs`.
+> **Bu dosya otomatik üretilir** (kaynak: `backend/config/quality-baseline.json`, 2026-11-12). Yenilemek için: `node pre-push/ci/lint-ratchet.mjs docs`.
 
 Her servisin klasöründe iki dosya var:
 
@@ -23,11 +23,11 @@ Her servisin klasöründe iki dosya var:
 | community-service | Nisa | 6 | [community-service](community-service/README.md) |
 | content-service | Nisa | ✅ 0 | [content-service](content-service/README.md) |
 | event-service | Nisa | ✅ 0 | [event-service](event-service/README.md) |
-| hardware-service | Alper | 213 | [hardware-service](hardware-service/README.md) |
+| hardware-service | Alper | ✅ 0 | [hardware-service](hardware-service/README.md) |
 | recommendation-service | Alper | ✅ 0 | [recommendation-service](recommendation-service/README.md) |
 | performance-service | Alper | ✅ 0 | [performance-service](performance-service/README.md) |
 | admin-service | Ortak (sahip atanmadı) | ✅ 0 | [admin-service](admin-service/README.md) |
 | notification-service | Ortak (sahip atanmadı) | ✅ 0 | [notification-service](notification-service/README.md) |
 | api-gateway | Ortak (sahip atanmadı) | ✅ 0 | [api-gateway](api-gateway/README.md) |
 
-**Toplam donmuş borç: 356.** Borç yalnızca azalabilir; yeni ihlal PR'ı kırmızı yapar. Ayrıntı: [docs/engineering.md](../docs/engineering.md).
+**Toplam donmuş borç: 143.** Borç yalnızca azalabilir; yeni ihlal PR'ı kırmızı yapar. Ayrıntı: [docs/engineering.md](../docs/engineering.md).

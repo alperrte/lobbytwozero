@@ -26,7 +26,10 @@ public class GameDiscoveryRequest {
     private String currency="USD";
     private com.ltz.game.domain.enums.CatalogSort sort=com.ltz.game.domain.enums.CatalogSort.TITLE;
     private com.ltz.game.domain.enums.CatalogDirection direction=com.ltz.game.domain.enums.CatalogDirection.ASC;
-    public DiscoveryQuery toQuery() {
+    public DiscoveryQuery toQuery() { return toQuery(includeAdult); }
+
+    /** {@code includeAdult}: istenen değil, etkin değer (yetkisiz istekte {@code false}); yetkiyi controller {@code AdultAccess} ile belirler. */
+    public DiscoveryQuery toQuery(boolean includeAdult) {
         return new DiscoveryQuery(page,size,q,genre,platform,language,earlyAccess,releasedAfter,releasedBefore,popularOnly,minRating,sort,direction,discountedOnly,country,currency,includeAdult);
     }
 }

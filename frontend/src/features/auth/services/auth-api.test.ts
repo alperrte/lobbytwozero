@@ -72,4 +72,26 @@ describe("authApi", () => {
     expect(url).toBe("http://localhost:5080/api/v1/auth/session/logout");
     expect(init.method).toBe("POST");
   });
+
+  it("yaş beyanı doğru uca POST eder; tarih yalnız gövdede, URL'de değil", async () => {
+    const fn = stub(204);
+    await authApi.verifyAge("1990-05-17");
+    const [url, init] = fn.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://localhost:5080/api/v1/auth/account/age-verification");
+    expect(url).not.toContain("1990");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(String(init.body))).toEqual({ birthDate: "1990-05-17" });
+  });
+
+  it("yaş geri alma DELETE, oturum yenileme POST eder", async () => {
+    const del = stub(204);
+    await authApi.revokeAge();
+    expect(String(del.mock.calls[0]![0])).toBe("http://localhost:5080/api/v1/auth/account/age-verification");
+    expect((del.mock.calls[0] as [string, RequestInit])[1].method).toBe("DELETE");
+
+    const refresh = stub(200, {});
+    await authApi.refreshSession();
+    expect(String(refresh.mock.calls[0]![0])).toBe("http://localhost:5080/api/v1/auth/session/refresh");
+    expect((refresh.mock.calls[0] as [string, RequestInit])[1].method).toBe("POST");
+  });
 });

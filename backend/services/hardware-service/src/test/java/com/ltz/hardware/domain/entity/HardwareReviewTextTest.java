@@ -2,11 +2,13 @@ package com.ltz.hardware.domain.entity;
 
 import com.ltz.hardware.domain.exception.HardwareConflictException;
 import java.math.BigDecimal;
-import java.util.*;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class HardwareReviewTextTest {
     @Test

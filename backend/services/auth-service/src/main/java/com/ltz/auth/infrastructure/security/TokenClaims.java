@@ -16,6 +16,13 @@ public final class TokenClaims {
     public static final String ACCOUNT_TIER = "tier";
     /** Hesap güvenceli mi (B veya C). A türünde false: kısıtlı işlemler {@code STEP_UP_REQUIRED} ile reddedilmelidir. */
     public static final String TRUSTED = "trusted";
+    /**
+     * Yaşı doğrulanmış (18+) hesap. Yalnız Auth veritabanındaki doğrulanmış ve geri alınmamış kayıttan üretilir, istekten
+     * türetilmez. Yalnız {@code true} iken yazılır; yokluğu "doğrulanmadı" demektir, okuyucular yalnız boolean {@code true}'ya
+     * yetki verir. Yalnız kullanıcı access token'ında bulunur (servis token'ında yok). Doğrulama veya geri alma en geç bir
+     * erişim token ömrü (≈60 sn) sonra token'a yansır.
+     */
+    public static final String ADULT_VERIFIED = "adult_verified";
 
     /** D4 servis token'ı türü; kullanıcı token'ı ({@link #ACCESS_TOKEN_TYPE}) yerine geçemez, tersi de geçemez. */
     public static final String SERVICE_TOKEN_TYPE = "svc+jwt";

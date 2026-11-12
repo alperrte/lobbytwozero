@@ -1,9 +1,15 @@
 package com.ltz.hardware.domain.entity;
 
-import com.ltz.hardware.domain.exception.*;
-import jakarta.persistence.*;
+import com.ltz.hardware.domain.exception.HardwareConflictException;
+import com.ltz.hardware.domain.exception.HardwareNotFoundException;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.Instant;
-import java.util.*;
+import java.util.Objects;
+import java.util.UUID;
 import lombok.Getter;
 
 @Entity

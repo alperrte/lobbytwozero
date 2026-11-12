@@ -10,9 +10,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestClient;
 
-@Configuration(proxyBeanMethods=false) @EnableConfigurationProperties(GamePriceProperties.class)
+@Configuration(proxyBeanMethods=false) @EnableConfigurationProperties({GamePriceProperties.class,ItadRateProperties.class,PriceDemandProperties.class})
 public class GamePriceConfiguration {
-    @Bean GamePriceProvider itadPrices(RestClient.Builder builder,GamePriceProperties properties,GameExternalReferenceRepository refs,Clock clock) {
-        return new ItadPriceClient(GameRatingConfiguration.restClient(builder,properties.apiUrl(),Duration.ofSeconds(1),Duration.ofSeconds(3)),properties,refs,clock);
+    @Bean GamePriceProvider itadPrices(RestClient.Builder builder,GamePriceProperties properties,GameExternalReferenceRepository refs,Clock clock,ItadRateProperties rate) {
+        return new ItadPriceClient(GameRatingConfiguration.restClient(builder,properties.apiUrl(),Duration.ofSeconds(1),Duration.ofSeconds(3)),properties,refs,clock,rate);
     }
 }

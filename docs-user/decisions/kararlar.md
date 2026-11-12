@@ -46,3 +46,9 @@ ADR'lerin yerine geçmez; User'a özgü kararların kaydıdır.
 - `GET /me` profil yoksa oluşturur: Auth'un `UserRegistered` olayı hedef açılana kadar ya da gecikirse kullanıcı 404 görmez.
 - `AccountStatusChanged` profil yokken yalnız kısıtlayıcı durumlar için kayıt açar; eski olay yeni durumu ezmez.
 - `iat` claim'i zorunludur; Spring varsayılan değer atamadan önce imza çözümünde denetlenir.
+
+## Yaş doğrulaması (18+) — 2026-11-12
+
+- **Yaş doğrulaması Auth'tadır; User yaş verisi tutmaz ve döndürmez.** Doğum tarihi, yaş ve doğrulama sonucu User'ın tablolarında, olaylarında ya da yanıtlarında yer almaz (profil, açık profil, `profiles/batch`, arama, özet, gizlilik kararı).
+- Kullanıcı arayüzü (Hesap ayarları → "Yaş doğrulaması") `features/auth` bileşenini (`AccountAgeSection`) gösterir; User yalnız yerleşim sağlar, uç ve migration eklenmez.
+- Ayrıntı ve sözleşme: `wt-auth/docs-auth/yas-dogrulama-uygulama-plani.md`, `docs/api.md` AUTH bölümü.

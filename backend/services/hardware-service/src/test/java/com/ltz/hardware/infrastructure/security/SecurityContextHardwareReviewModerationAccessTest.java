@@ -2,15 +2,20 @@ package com.ltz.hardware.infrastructure.security;
 
 import static org.mockito.Mockito.mock;
 
-import com.ltz.hardware.application.port.*;
-import java.util.*;
-import org.junit.jupiter.api.*;
+import com.ltz.hardware.application.port.AuthenticatedActor;
+import com.ltz.hardware.application.port.CatalogWriteAccess;
+import com.ltz.hardware.application.port.HardwareReviewModerationAccess;
+import java.util.List;
+import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SecurityContextHardwareReviewModerationAccessTest {
     @AfterEach

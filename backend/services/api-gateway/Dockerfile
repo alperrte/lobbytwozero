@@ -10,9 +10,16 @@ ARG SERVICE_NAME
 
 WORKDIR /workspace
 
-COPY backend/ ./backend/
+# Katman 1: yalniz pom'lar + kalite yapilandirmasi. Maven reaktoru tum modullerin pom'unu ister (-pl yine de tum <module> listesini
+# okur); kaynak kod burada YOK, boylece baska bir servisin kodu degisince bu katman ve asagidakiler bozulmaz.
+COPY --parents backend/pom.xml backend/config backend/services/*/pom.xml ./
 
-RUN test -n "$SERVICE_NAME" \
+# Katman 2: yalniz bu servisin kaynagi.
+COPY backend/services/${SERVICE_NAME}/ ./backend/services/${SERVICE_NAME}/
+
+# Maven deposu BuildKit onbellegine tasinir: bagimliliklar her build'de yeniden indirilmez.
+RUN --mount=type=cache,id=ltz-m2,target=/root/.m2 \
+    test -n "$SERVICE_NAME" \
     && mvn -B -ntp -f backend/pom.xml \
        -pl "services/${SERVICE_NAME}" \
        -am -DskipTests package \

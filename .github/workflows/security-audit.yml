@@ -89,7 +89,11 @@ jobs:
         run: echo "BUILD_STARTED=$(date +%s%3N)" >> "$GITHUB_ENV"
       - if: matrix.target == 'backend'
         name: Package for dependency inventory only (not a test or coverage result)
-        run: mvn -B -ntp -s pre-push/ci/maven-settings.xml -gs pre-push/ci/maven-settings.xml -f backend/pom.xml -DskipTests package
+        run: >-
+          mvn -B -ntp -s pre-push/ci/maven-settings.xml -gs pre-push/ci/maven-settings.xml
+          -f backend/pom.xml -DskipTests
+          "-Dproject.build.outputTimestamp=$(node -p 'new Date(Number(process.env.BUILD_STARTED)).toISOString()')"
+          clean package
       - if: matrix.target == 'backend'
         name: Scan all packaged backend application dependencies
         run: node pre-push/ci/dependencies.mjs backend "$BUILD_STARTED"

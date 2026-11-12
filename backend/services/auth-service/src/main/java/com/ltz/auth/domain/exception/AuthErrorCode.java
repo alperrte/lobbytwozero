@@ -65,7 +65,11 @@ public enum AuthErrorCode {
     DELETION_REQUIRES_SECOND_FACTOR(403, "This account has no password. Enable two-factor authentication before requesting account deletion."),
     DELETION_SUPPORT_COOLDOWN(429, "A new deletion request can be opened later; the previous one was rejected recently."),
     EMAIL_LOCKED_BY_PROVIDER(403, "The email address of this account is managed by its sign-in provider and cannot be changed."),
-    STEP_UP_REQUIRED(403, "This action needs a stronger account. Enable two-factor authentication or link Google or Steam first.");
+    STEP_UP_REQUIRED(403, "This action needs a stronger account. Enable two-factor authentication or link Google or Steam first."),
+    // Yaş sınırı karşılanmadı. Metin yaşa dair ek bilgi vermez (ne sınırı ne de beyanı yansıtır).
+    AGE_NOT_ELIGIBLE(403, "Age verification could not be completed."),
+    // Gelecekte ya da makul olmayacak kadar eski tarih; deneme hakkı harcamaz, tarihi yansıtmaz.
+    INVALID_BIRTH_DATE(400, "The date is not valid.");
 
     private final int httpStatus;
     private final String detail;

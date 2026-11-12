@@ -11,12 +11,12 @@
 
 ## HAMZA
 - V31–V40      → GAME-SERVICE (aktif başlangıç zinciri, 10 migration; tamamı kullanıldı)
-- V171–V180    → GAME-SERVICE (2026-10-24 açık kullanıcı onayı; V171–V175 kullanıldı, V176–V180 boş)
+- V171–V180    → GAME-SERVICE (2026-10-24 açık kullanıcı onayı; V171–V176 kullanıldı, V177–V180 boş)
 - V41–V50      → LIBRARY-SERVICE
 - V51–V60      → REVIEW-SERVICE
 
 ## KEREM
-- V61–V70      → AUTH-SERVICE
+- V61–V70      → AUTH-SERVICE (V66: yaş doğrulaması; sıradaki boş V67)
 - V71–V80      → USER-SERVICE
 - V81–V90      → MAIL-SERVICE
 
@@ -57,6 +57,16 @@ geliştirmeye başlanmadan önce belirlenmelidir.
   `MigrationArchitectureTest`, `MigrationTransferTest`, `MigrationTransferApplicationTest`.
 - **Gelecek için ilke:** uygulanmış migration değişikliği yeniden yapılmaz; yeni şema değişikliği yeni numarayla yazılır. Migration sayısını azaltmanın doğru yolu canlıya
   çıkmadan hemen önce tek başlangıç dosyasına indirmektir (baseline squash).
+
+### Game Service V176 kullanımı — 2026-11-12 (fiyat pazarı talebi)
+
+- Game'in V171–V180 aralığından sıradaki boş numara kullanıldı. **V176** `V176__create_game_price_market_demand.sql`: yeni `game_price_market_demand` tablosu
+  (pazar ve gün başına okuma sayacı; UUID PK, `version`, (ülke, para birimi, gün) tekil, ülke/para birimi/okuma sayısı CHECK; FK ve kişisel veri yok). Mevcut tablolara
+  dokunmaz (ALTER yok). Amaç: ITAD kotası dar olduğundan 13 pazarın hepsini sürekli yenilemek yerine yalnız talep gören pazarları arka planda yenilemek (`docs/api.md` GAME fiyat bölümü).
+- **Dikkat (eski silinmiş V176 ile karıştırma):** 10 Kasım 2026'da yazılıp silinen ve içeriği V31/V173 tablo tanımlarına taşınan V176 dosyası bununla ilgisizdir. DEV
+  `flyway_schema_history`'de 176 satırı o gün silinmişti; yeni V176 farklı ad ve farklı içeriktir, çakışma yoktur.
+- Doğrulama: `PriceMarketDemandMigrationTest` (dolu V175 → V176, kısıtlar, ikinci çalıştırma işlemsiz), `MigrationArchitectureTest` (dosya sayısı 16), `GameLocalizedDescriptionMigrationTest`
+  (hedef 175'e sabitlendi), `GameReleaseStatusMigrationTest`.
 
 ### Game Service V174–V175 kullanımı — 2026-11-08
 

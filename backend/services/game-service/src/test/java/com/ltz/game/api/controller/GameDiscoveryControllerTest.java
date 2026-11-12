@@ -68,13 +68,12 @@ class GameDiscoveryControllerTest extends PostgresTestSupport {
 
         mvc.perform(get("/api/v1/game/games")).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(2))
                 .andExpect(jsonPath("$.items[?(@.game.title=='Adult game')]").isEmpty());
-        mvc.perform(get("/api/v1/game/games").param("includeAdult","true")).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(3))
-                .andExpect(jsonPath("$.items[?(@.game.title=='Adult game')].adult").value(true))
-                .andExpect(jsonPath("$.items[?(@.game.title=='Plain')].adult").value(false))
-                .andExpect(jsonPath("$.items[?(@.game.title=='Unknown adult')].adult").value(org.hamcrest.Matchers.contains(org.hamcrest.Matchers.nullValue())));
+        // Yaş kapısı: anonim istekte includeAdult sessizce yok sayılır. Doğrulanmış kullanıcı davranışı GameAdultGateTest'tedir.
+        mvc.perform(get("/api/v1/game/games").param("includeAdult","true")).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.includeAdultApplied").value(false)).andExpect(jsonPath("$.items[?(@.game.title=='Adult game')]").isEmpty());
         mvc.perform(get("/api/v1/game/games").param("includeAdult","true").param("q","Gone")).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
         mvc.perform(get("/api/v1/game/games").param("q","Adult")).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
-        mvc.perform(get("/api/v1/game/games").param("q","Adult").param("includeAdult","true")).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1));
+        mvc.perform(get("/api/v1/game/games").param("q","Adult").param("includeAdult","true")).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
         mvc.perform(get("/api/v1/game/games").param("popularOnly","true")).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1));
         assertEquals(1,discovery.list(DiscoveryQuery.popular(0,10)).totalElements(),"popüler liste de +18'i varsayılan gizler");
 

@@ -34,16 +34,10 @@ public final class IcecatXmlReader {
         int depth = 0;
         try {
             while (reader.hasNext()) {
-                int event = reader.next();
-                if (event == XMLStreamConstants.DTD) throw new XMLStreamException("DTD not allowed");
+                int event = next(reader);
                 if (event == XMLStreamConstants.START_ELEMENT) {
                     depth++;
-                    if ("Category".equals(reader.getLocalName())) id = reader.getAttributeValue(null, "ID");
-                    if (id != null && "Name".equals(reader.getLocalName())
-                            && "1".equals(reader.getAttributeValue(null, "langid")) && depth <= 4) {
-                        var category = category(reader.getAttributeValue(null, "Value"));
-                        if (category != null) result.put(id, category);
-                    }
+                    id = taxonomyElement(reader, id, depth, result);
                 } else if (event == XMLStreamConstants.END_ELEMENT) {
                     if ("Category".equals(reader.getLocalName())) id = null;
                     depth--;
@@ -53,6 +47,23 @@ public final class IcecatXmlReader {
         if (!result.values().containsAll(java.util.List.of(ComponentCategory.CPU, ComponentCategory.MOTHERBOARD,
                 ComponentCategory.RAM, ComponentCategory.STORAGE))) throw new XMLStreamException("Incomplete category mapping");
         return Map.copyOf(result);
+    }
+
+    private static int next(XMLStreamReader reader) throws XMLStreamException {
+        int event = reader.next();
+        if (event == XMLStreamConstants.DTD) throw new XMLStreamException("DTD not allowed");
+        return event;
+    }
+
+    private static String taxonomyElement(XMLStreamReader reader, String id, int depth,
+            Map<String, ComponentCategory> result) {
+        if ("Category".equals(reader.getLocalName())) id = reader.getAttributeValue(null, "ID");
+        if (id != null && "Name".equals(reader.getLocalName())
+                && "1".equals(reader.getAttributeValue(null, "langid")) && depth <= 4) {
+            var category = category(reader.getAttributeValue(null, "Value"));
+            if (category != null) result.put(id, category);
+        }
+        return id;
     }
 
     private static ComponentCategory category(String name) {
@@ -76,31 +87,44 @@ public final class IcecatXmlReader {
         long start = offset;
         try {
             while (reader.hasNext()) {
-                int event = reader.next();
-                if (event == XMLStreamConstants.DTD) throw new XMLStreamException("DTD not allowed");
+                int event = next(reader);
                 if (event != XMLStreamConstants.START_ELEMENT) continue;
                 if ("files.index".equals(reader.getLocalName())) {
-                    generated = reader.getAttributeValue(null, "Generated");
-                    if (generated == null || !generated.matches("[0-9]{14}")) throw new XMLStreamException("Invalid index generation");
+                    generated = generation(reader);
                     if (!generated.equals(previous)) start = 0;
                 }
                 if (!"file".equals(reader.getLocalName())) continue;
                 row++;
                 if (row <= start) continue;
-                var category = categories.get(reader.getAttributeValue(null, "Catid"));
-                String quality = reader.getAttributeValue(null, "Quality");
-                boolean removed = "REMOVED".equals(quality);
-                if (category != null && !"Yes".equalsIgnoreCase(reader.getAttributeValue(null, "Limited"))
-                        && (removed || "ICECAT".equals(quality) || "SUPPLIER".equals(quality))) {
-                    String id = reader.getAttributeValue(null, "Product_ID");
-                    if (id == null || !id.matches("[0-9]{1,20}")) throw new XMLStreamException("Invalid source identity");
-                    entries.add(new Entry(id, category, timestamp(reader.getAttributeValue(null, "Updated")), removed, row));
-                }
-                if (entries.size() >= limit || row - start >= 100000) return new Batch(generated, row, false, entries);
+                var entry = indexEntry(reader, categories, row);
+                if (entry != null) entries.add(entry);
+                if (pageFull(entries.size(), limit, row - start)) return new Batch(generated, row, false, entries);
             }
             if (generated == null) throw new XMLStreamException("Missing index generation");
             return new Batch(generated, row, true, entries);
         } finally { reader.close(); }
+    }
+
+    private static String generation(XMLStreamReader reader) throws XMLStreamException {
+        String value = reader.getAttributeValue(null, "Generated");
+        if (value == null || !value.matches("[0-9]{14}")) throw new XMLStreamException("Invalid index generation");
+        return value;
+    }
+
+    private static Entry indexEntry(XMLStreamReader reader, Map<String, ComponentCategory> categories, long row)
+            throws XMLStreamException {
+        var category = categories.get(reader.getAttributeValue(null, "Catid"));
+        String quality = reader.getAttributeValue(null, "Quality");
+        boolean removed = "REMOVED".equals(quality);
+        if (category == null || "Yes".equalsIgnoreCase(reader.getAttributeValue(null, "Limited"))
+                || !(removed || "ICECAT".equals(quality) || "SUPPLIER".equals(quality))) return null;
+        String id = reader.getAttributeValue(null, "Product_ID");
+        if (id == null || !id.matches("[0-9]{1,20}")) throw new XMLStreamException("Invalid source identity");
+        return new Entry(id, category, timestamp(reader.getAttributeValue(null, "Updated")), removed, row);
+    }
+
+    private static boolean pageFull(int size, int limit, long scanned) {
+        return size >= limit || scanned >= 100000;
     }
 
     public static Instant timestamp(String value) {

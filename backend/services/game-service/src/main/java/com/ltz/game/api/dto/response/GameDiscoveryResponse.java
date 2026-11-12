@@ -9,9 +9,11 @@ import java.util.List;
 /**
  * {@code ratingsSyncedAt}: LTZ puan projeksiyonunun son hatasız tamamlanan tarama zamanı; hiç tamamlanmadıysa
  * {@code null} (bu durumda her öğenin puan durumu {@code UNAVAILABLE}'dır).
+ * {@code includeAdultApplied}: yetişkin içerik (+18) bu yanıta katıldı mı. İstek {@code includeAdult=true} gönderip kullanıcı yaşı doğrulanmış değilse
+ * parametre sessizce yok sayılır ve bu alan {@code false} döner (istemci "yaşını doğrula" ipucunu bununla gösterir).
  */
 public record GameDiscoveryResponse(List<Item> items, int page, int size, long totalElements,
-        String sort, String direction, String popularityBasis, Instant ratingsSyncedAt) {
+        String sort, String direction, String popularityBasis, Instant ratingsSyncedAt, boolean includeAdultApplied) {
     /** {@code earlyAccess}, {@code free}, {@code comingSoon} ve {@code adult}: Steam'in mağaza bilgisi; {@code null} = bilinmiyor (false değildir). */
     public record Item(GameCardResponse game, LocalDate releaseDate, Boolean earlyAccess, Boolean free, Boolean comingSoon, Boolean adult,
             List<String> languages, Integer editorialRank, Instant popularityUpdatedAt, Rating rating) { }

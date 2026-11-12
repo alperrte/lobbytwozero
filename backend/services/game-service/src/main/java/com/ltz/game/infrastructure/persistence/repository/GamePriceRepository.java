@@ -53,29 +53,47 @@ public class GamePriceRepository {
      */
     public List<Candidate> candidates(Market market,Instant now,Duration hot,Duration warm,Duration cold,int limit) {
         // Kademeler arası pay: sıkı öncelikte (sıcak→ılık→soğuk) sıcak kademenin talebi (süresi çabuk dolar) tüm kapasiteyi yer, ılık ve soğuk oyunlar
-        // hiç sıraya gelmezdi. Her kademe payını alır; bir kademede aday yoksa payı o turda boş kalır, sonraki turda yeniden dağılır.
+        // hiç sıraya gelmezdi. Her kademe payını alır; bir kademede payı dolduracak aday yoksa artan pay sonraki kademeye devredilir (ılık, sonra soğuk),
+        // böylece ITAD kotasına ayrılmış istek boş gitmez.
         // Birikim modu: soğuk kademenin normal payı kadar HİÇ FİYATI OLMAYAN oyun bulunuyorsa (ilk dolum, uzun kesinti, yeni pazar) soğuk pay büyür ve
         // sıcak/ılık küçülür; hiç fiyatı olmayan oyun kalmayınca pay kendiliğinden normale döner (elle geri almak gerekmez).
-        int hotShare=percent(limit,HOT_SHARE_PERCENT);
-        int warmShare=percent(limit,WARM_SHARE_PERCENT);
-        int coldShare=Math.max(0,limit-hotShare-warmShare);
-        int backlogColdShare=percent(limit,BACKLOG_COLD_SHARE_PERCENT);
-        List<Row> coldRows=backlogColdShare>0 ? tierRows(market,now,hot,warm,cold,cold,backlogColdShare) : List.of();
-        boolean backlog=coldShare>0 && coldRows.stream().filter(Row::never).count()>=coldShare;
-        if(backlog) {
-            hotShare=percent(limit,BACKLOG_HOT_SHARE_PERCENT);
-            warmShare=percent(limit,BACKLOG_WARM_SHARE_PERCENT);
-            coldShare=backlogColdShare;
-            backlogMarkets.add(market);
-        } else {
-            backlogMarkets.remove(market);
-        }
+        List<Row> coldRows=limit>0 ? tierRows(market,now,hot,warm,cold,cold,limit) : List.of();
+        boolean backlog=isBacklog(coldRows,limit);
+        if(backlog) backlogMarkets.add(market);
+        else backlogMarkets.remove(market);
+        Shares shares=backlog ? Shares.backlog(limit) : Shares.normal(limit);
+        List<Row> hotRows=shares.hot()>0 ? tierRows(market,now,hot,warm,cold,hot,shares.hot()) : List.of();
+        int warmQuota=shares.warm()+shares.hot()-hotRows.size();
+        List<Row> warmRows=warmQuota>0 ? tierRows(market,now,hot,warm,cold,warm,warmQuota) : List.of();
+        int coldQuota=Math.max(0,shares.cold()+warmQuota-warmRows.size());
         Map<UUID,Candidate> merged=new java.util.LinkedHashMap<>();
-        if(hotShare>0) tierRows(market,now,hot,warm,cold,hot,hotShare).forEach(row -> merged.putIfAbsent(row.candidate().id(),row.candidate()));
-        if(warmShare>0) tierRows(market,now,hot,warm,cold,warm,warmShare).forEach(row -> merged.putIfAbsent(row.candidate().id(),row.candidate()));
-        coldRows.stream().limit(coldShare).forEach(row -> merged.putIfAbsent(row.candidate().id(),row.candidate()));
+        for(List<Row> rows:List.of(hotRows,warmRows,coldRows.stream().limit(coldQuota).toList()))
+            rows.forEach(row -> merged.putIfAbsent(row.candidate().id(),row.candidate()));
         return List.copyOf(merged.values());
     }
+
+    /** Soğuk kademenin normal payı kadar hiç fiyatı olmayan oyun var mı (soğuk sıralamanın başındaki birikim penceresinde)? */
+    private static boolean isBacklog(List<Row> coldRows,int limit) {
+        int coldShare=Shares.normal(limit).cold();
+        return coldShare>0 && coldRows.stream().limit(percent(limit,BACKLOG_COLD_SHARE_PERCENT)).filter(Row::never).count()>=coldShare;
+    }
+
+    /** Kademelere ayrılan aday sayıları. */
+    private record Shares(int hot,int warm,int cold) {
+        static Shares normal(int limit) {
+            int hot=percent(limit,HOT_SHARE_PERCENT);
+            int warm=percent(limit,WARM_SHARE_PERCENT);
+            return new Shares(hot,warm,Math.max(0,limit-hot-warm));
+        }
+        static Shares backlog(int limit) { return new Shares(percent(limit,BACKLOG_HOT_SHARE_PERCENT),percent(limit,BACKLOG_WARM_SHARE_PERCENT),percent(limit,BACKLOG_COLD_SHARE_PERCENT)); }
+    }
+
+    /**
+     * Fiyatı olmayan ({@code NO_OFFER}) oyunun yeniden kontrol aralığı, kademe süresinin bu katıdır. Teklifi olmayan oyunların çoğu (özellikle TR gibi dar kapsamlı
+     * pazarlarda) teklif kazanmaz; her kademe süresinde yeniden sormak ITAD kotasını boşa harcar. Sayfası açılan oyun yine hemen yenilenir (ipucu yolu).
+     * {@code GamePriceService.read} aynı çarpanı "teklif yok" gösterme süresine uygular.
+     */
+    public static final int NO_OFFER_INTERVAL_FACTOR = 6;
 
     /** Kademeler arası aday payı (yüzde): normalde sıcak %40, ılık %30, soğuk kalanı (%30). */
     static final int HOT_SHARE_PERCENT = 40;
@@ -93,10 +111,11 @@ public class GamePriceRepository {
     private List<Row> tierRows(Market market,Instant now,Duration hot,Duration warm,Duration cold,Duration only,int limit) {
         Map<String,Object> params=new java.util.HashMap<>();
         params.put(COUNTRY,market.country());params.put(CURRENCY,market.currency());params.put("now",java.sql.Timestamp.from(now));params.put("limit",limit);
+        params.put("noOfferFactor",NO_OFFER_INTERVAL_FACTOR);
         params.put("hot",hot.toSeconds());params.put("warm",warm.toSeconds());params.put("cold",cold.toSeconds());params.put("only",only.toSeconds());
         return jdbc.query("""
                 select id, tier, (checked_at is null or checked_at < timestamptz '2000-01-01') as never from (
-                    select g.id, g.editor_rank, s.checked_at, s.next_attempt_at,
+                    select g.id, g.editor_rank, s.checked_at, s.next_attempt_at, s.status,
                         case when g.editor_rank is not null or g.release_date between current_date - 90 and current_date + 30 then :hot
                              when g.release_date >= current_date - 730 and g.release_date < current_date - 90 then :warm
                              else :cold end as tier
@@ -105,7 +124,8 @@ public class GamePriceRepository {
                       and exists(select 1 from game_external_refs r where r.game_id=g.id and r.provider='STEAM')
                 ) c
                 where tier = :only
-                  and (checked_at is null or checked_at < cast(:now as timestamptz) - make_interval(secs => tier))
+                  and (checked_at is null
+                       or checked_at < cast(:now as timestamptz) - make_interval(secs => tier * (case when status='NO_OFFER' then :noOfferFactor else 1 end)))
                   and (next_attempt_at is null or next_attempt_at <= cast(:now as timestamptz))
                 order by (editor_rank is null), checked_at asc nulls first, id
                 limit :limit
@@ -189,6 +209,29 @@ public class GamePriceRepository {
         return jdbc.query("select * from game_price_quotes where game_id in (:ids) and country=:country and currency=:currency order by current_price,store",Map.of("ids",ids,COUNTRY,market.country(),CURRENCY,market.currency()),
                 (rs,index) -> new Quote(rs.getObject("game_id",UUID.class),rs.getString("store"),market,rs.getBigDecimal("regular_price"),rs.getBigDecimal("current_price"),
                         rs.getString("source"),instant(rs,"fetched_at"),instant(rs,"expires_at"),rs.getString("url"),rs.getInt("discount_percent"),instant(rs,"source_updated_at")));
+    }
+    /** Pazar başına okuma sayısını günlük satıra ekler; aynı gün tekrar yazılırsa toplanır. */
+    @Transactional
+    public void recordDemand(Map<Market,Long> reads,java.time.LocalDate day) {
+        if(reads.isEmpty()) return;
+        List<Object[]> rows=reads.entrySet().stream().map(entry -> new Object[]{UUID.randomUUID(),entry.getKey().country(),entry.getKey().currency(),java.sql.Date.valueOf(day),entry.getValue()}).toList();
+        jdbc.getJdbcTemplate().batchUpdate("""
+                insert into game_price_market_demand(id,country,currency,demand_date,read_count) values (?,?,?,?,?)
+                on conflict(country,currency,demand_date) do update set read_count=game_price_market_demand.read_count+excluded.read_count,version=game_price_market_demand.version+1
+                """,rows);
+    }
+    /** {@code since} gününden beri en az {@code minReads} kez okunmuş pazarlar, en çok okunandan başlayarak. */
+    public List<Market> demandMarkets(java.time.LocalDate since,int minReads) {
+        return jdbc.query("""
+                select country, currency from game_price_market_demand where demand_date >= :since
+                group by country, currency having sum(read_count) >= :minReads
+                order by sum(read_count) desc, country, currency
+                """,Map.of("since",java.sql.Date.valueOf(since),"minReads",minReads),(rs,index) -> new Market(rs.getString(COUNTRY),rs.getString(CURRENCY)));
+    }
+    /** {@code before} gününden eski sayaç satırlarını siler. */
+    @Transactional
+    public int pruneDemand(java.time.LocalDate before) {
+        return jdbc.update("delete from game_price_market_demand where demand_date < :before",Map.of("before",java.sql.Date.valueOf(before)));
     }
     public Set<UUID> noOffers(Set<UUID> ids,Market market,Instant now,Duration ttl) {
         if(ids.isEmpty()) return Set.of();

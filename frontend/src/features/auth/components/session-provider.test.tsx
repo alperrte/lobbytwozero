@@ -26,6 +26,8 @@ function Probe() {
       <p data-testid="shell-user">{shell.user ? shell.user.displayName : "yok"}</p>
       <p data-testid="shell-loading">{String(shell.loading)}</p>
       <button onClick={() => void session.logout().catch(() => undefined)}>çık</button>
+      <button onClick={() => void session.reload()}>yenile</button>
+      <p data-testid="adult">{String(session.me?.adultVerified ?? false)}</p>
     </div>
   );
 }
@@ -82,6 +84,24 @@ describe("SessionProvider: profil özeti", () => {
 
     await waitFor(() => expect(status()).toBe("guest"));
     expect(request).not.toHaveBeenCalled();
+  });
+});
+
+describe("SessionProvider: reload", () => {
+  it("reload /me'yi yeniden yükler ve yaş sonucunu günceller; hatada durumu korur", async () => {
+    const getMe = vi.fn().mockResolvedValueOnce(ME).mockResolvedValueOnce({ ...ME, adultVerified: true });
+    renderSession({ getMe, logout: vi.fn() });
+    await waitFor(() => expect(status()).toBe("authenticated"));
+    expect(screen.getByTestId("adult")).toHaveTextContent("false");
+
+    fireEvent.click(screen.getByText("yenile"));
+    await waitFor(() => expect(screen.getByTestId("adult")).toHaveTextContent("true"));
+
+    getMe.mockRejectedValueOnce(new Error("ağ"));
+    fireEvent.click(screen.getByText("yenile"));
+    await waitFor(() => expect(getMe).toHaveBeenCalledTimes(3));
+    expect(status()).toBe("authenticated");
+    expect(screen.getByTestId("adult")).toHaveTextContent("true");
   });
 });
 

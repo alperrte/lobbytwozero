@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { AccountDeletionSection, AccountSecuritySection, useRequireSession } from "@/features/auth";
+import { AccountAgeSection, AccountDeletionSection, AccountSecuritySection, useRequireSession } from "@/features/auth";
 import { PageContainer } from "@/shared/components/layout/page-container";
 import { Link } from "@/shared/lib/i18n/navigation";
 import { useRemote } from "../hooks/use-remote";
@@ -72,6 +72,10 @@ export function AccountSettings() {
 
         <ProfileSection title={t("security.title")}>
           <AccountSecuritySection />
+        </ProfileSection>
+
+        <ProfileSection title={t("age.title")}>
+          <AccountAgeSection />
         </ProfileSection>
 
         <ProfileSection title={t("deletion.title")}>

@@ -43,6 +43,10 @@ node pre-push/ci/install-tool.mjs prek
 ```
 
 Kurulumun indirme/hash/extraction adımları başarılı olmadan devam edilmez. Binary yerel .cache/tools altında kalır.
+Resmî arşiv indirmesi geçici HTTP 408/429/5xx, doğrulanmış HTTP 403 kota yanıtı ve geçici ağ hatalarında en fazla
+üç kez denenir; her deneme en çok 60 saniye, denemeler arası bekleme en çok 5 saniyedir. Kalıcı HTTP hataları ve
+SHA-256 uyuşmazlığı yeniden denenmez. Tanı çıktısı yalnız deneme sayısı, izinli hata kodu ve HTTP durumunu taşır;
+yanıt gövdesi, ham hata mesajı veya yönlendirme URL'si yazılmaz. İndirme başarısızlığı tarama başarısı sayılmaz.
 PowerShell'de:
 
 ```powershell
@@ -103,6 +107,10 @@ Game Service'te ek RestClient config testi vardır; production iş mantığı/co
 - Comment/whitespace-only fark veya Java kaynak değişikliği olmaması `NOT_APPLICABLE` ve null yüzde üretir; sahte%100 yoktur.
   Semantik değişiklikte ölçülebilir yeni satır bulunmazsa güvenli olarak FAIL/review gerekir. Salt deklarasyon/import veya
   satır azaltan refactor bu muhafazakâr kapıya takılabilir; boş suppression/bypass eklemeyin, politikayı ayrıca review edin.
+- Çok satırlı `record` bileşen başlığı değiştiğinde javac'ın ürettiği constructor'ın bildirim satırı da değişiklik
+  kapsamına eklenir. Başlık tokenları Git tabanıyla karşılaştırılır; salt yorum, import veya gövde değişikliği bu
+  eşleştirmeyi oluşturmaz. Bu bir coverage istisnası değildir: satırın gerçek JaCoCo ölçümü ve değişen satırlar için
+  aynı minimum zorunludur. Constructor satırı ölçülemiyorsa mevcut FAIL/review davranışı korunur.
 - Strict: toplam modül LINE coverage minimumu zorunlu; strict → bootstrap otomatik veya manifest düzenleyerek yasaktır.
   Bootstrap → strict açık manifest değişikliğidir; mevcut ölçüm minimuma ulaşmalı ve bağımsız politika review'ü alınmalıdır.
   Modülü yayınlama/hazır kabul hedefi toplam%80 olarak korunur. Toplam repository oranı düşük modülü gizleyemez.
@@ -256,6 +264,11 @@ Resmî dil desteği, LTZ build'inin başarı kanıtı değildir.
   `BOOT-INF/lib` altındaki her runtime arşivinin Trivy paket raporunda bulunduğu doğrulanır. Thin/eski/eksik JAR,
   eksik paket hedefi, scanner/Java DB indirme hatası PASS değildir. Npm taraması `frontend/package-lock.json`
   üzerinde çalışır; paket scripti yürütmez. HIGH/CRITICAL bulgular ilgili backend/frontend job'ını ve Quality Gate'i düşürür.
+- Spring Boot `repackage`, `project.build.outputTimestamp` değerini JAR dosyasının değiştirilme zamanına da uygular.
+  Bu davranış [Spring Boot 4.1.1 Repackager kaynak kodunda](https://github.com/spring-projects/spring-boot/blob/v4.1.1/loader/spring-boot-loader-tools/src/main/java/org/springframework/boot/loader/tools/Repackager.java#L127-L134) tanımlıdır.
+  Backend runner ve haftalık bağımlılık paketlemesi bu değeri tarayıcının kullandığı koşu başlangıcıyla aynı UTC
+  saatinden üretir. Haftalık paketleme de `clean package` kullanır. Eski/boş arşiv, ZIP imzası ve eksiksiz
+  `BOOT-INF/lib` envanteri kontrolleri korunur; eski tarih ile boş çıktı ayrı hatalarla raporlanır.
 - Trivy JSON schema/artifact kimliği, hedef türü, Dockerfile envanteri ve gerçekten uygulanmış kontroller
   doğrulanır. Başarılı misconfiguration kayıtları bulgu sayılmaz. `TRIVY_*` kabuk değişkenleri sessiz skip/ignore yapamaz.
   Scanner ham çıktısı ve kaynak excerpt'leri yayımlanmaz. Config taraması yalnız Dockerfile kapsamındadır.

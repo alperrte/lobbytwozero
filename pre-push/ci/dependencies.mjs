@@ -39,7 +39,10 @@ export function dependencyCheck({ root = repositoryRoot, modules = [], frontend 
       if (jars.length !== 1) throw new Error('Exactly one packaged application JAR required: ' + module);
       const source = plainFile(root, 'backend/' + module + '/target/' + jars[0]);
       const stat = fs.statSync(source);
-      if (stat.mtimeMs < since - 2000 || stat.size < 4) throw new Error('Stale/empty application archive: ' + module);
+      if (stat.size < 4) throw new Error('Empty application archive: ' + module);
+      if (stat.mtimeMs < since - 2000) {
+        throw new Error('Stale application archive: ' + module + '; modifiedBeforeBuildMs=' + Math.round(since - stat.mtimeMs));
+      }
       const signature = Buffer.alloc(4), fd = fs.openSync(source, 'r');
       try { fs.readSync(fd, signature, 0, 4, 0); } finally { fs.closeSync(fd); }
       if (!signature.equals(Buffer.from([0x50, 0x4b, 0x03, 0x04]))) throw new Error('Invalid application archive: ' + module);

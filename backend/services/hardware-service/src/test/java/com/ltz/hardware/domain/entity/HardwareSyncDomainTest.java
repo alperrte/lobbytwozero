@@ -1,11 +1,13 @@
 package com.ltz.hardware.domain.entity;
 
 import com.ltz.hardware.domain.enums.ComponentCategory;
-import com.ltz.hardware.domain.exception.*;
+import com.ltz.hardware.domain.exception.HardwareConflictException;
+import com.ltz.hardware.domain.exception.HardwareNotFoundException;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class HardwareSyncDomainTest {
     @Test
