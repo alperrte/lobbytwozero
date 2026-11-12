@@ -1034,6 +1034,8 @@
     "descending": "Azalan",
     "prices": "Mağaza fiyatları",
     "checkedAt": "Kontrol: {date}",
+    "priceStaleNotice": "Bu fiyatlar {age} kontrol edildi ve güncel olmayabilir.",
+    "priceStaleBadge": "Güncel olmayabilir",
     "verifiedAt": "Doğrulama: {date}",
     "notVerified": "Henüz doğrulanmadı",
     "parentGame": "Ana oyun",
