@@ -39,6 +39,20 @@ public class UserSummaryOutbox {
                 .param(USER, userId).param(EVENT, UUID.randomUUID()).param("now", Timestamp.from(now)).update();
     }
 
+    /**
+     * İlk etkinleştirme backfill'i: outbox'tan ÖNCE yazılmış incelemeleri olan ve henüz satırı olmayan her kullanıcı için bekleyen
+     * satır açar (olay gönderim anındaki görünür inceleme sayısını taşır). Var olan satırlara dokunmaz; tekrar çalıştırmak
+     * zararsızdır (idempotent). Yalnızca inceleme satırı olan kullanıcılar eklenir; silinmiş hesabın incelemesi fiziksel
+     * silindiğinden olay üretilmez. Eklenen satır sayısını döner.
+     */
+    public int backfillMissing(Instant now) {
+        return jdbc.sql("""
+                INSERT INTO review_user_summary_outbox (user_id, event_id, occurred_at, next_attempt_at)
+                SELECT r.user_id, gen_random_uuid(), CAST(:now AS timestamptz), CAST(:now AS timestamptz) FROM reviews r GROUP BY r.user_id
+                ON CONFLICT (user_id) DO NOTHING
+                """).param("now", Timestamp.from(now)).update();
+    }
+
     /** Hesap silme: silinen hesabın hiçbir olay izi kalmaz ve silinmiş hesap için yeni olay üretilmez. */
     @Transactional(propagation = Propagation.MANDATORY)
     public void remove(UUID userId) {

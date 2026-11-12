@@ -281,6 +281,7 @@ services:
     environment:
       <<: *ltz-db-env
       DB_REVIEW_NAME: ${DB_REVIEW_NAME:?}
+      AUTH_REVIEW_SERVICE_CLIENT_SECRET: ${AUTH_REVIEW_SERVICE_CLIENT_SECRET:-}
     depends_on:
       postgres:
         condition: service_healthy

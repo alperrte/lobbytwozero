@@ -4,6 +4,9 @@ import com.ltz.review.infrastructure.events.ServiceTokenClient;
 import com.ltz.review.infrastructure.events.UserSummaryRelay;
 import com.ltz.review.infrastructure.persistence.repository.UserSummaryOutbox;
 import java.time.Clock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
@@ -31,6 +34,23 @@ public class UserEventsConfiguration {
             @Value("${ltz.review.user-events.user-url}") String userUrl,
             @Value("${ltz.review.user-events.batch-size:50}") int batchSize) {
         return new UserSummaryRelay(outbox, tokens, builder.baseUrl(userUrl).build(), clock, batchSize);
+    }
+
+    /**
+     * Başlangıçta, outbox'tan önce yazılmış incelemelerin kullanıcıları için bekleyen olay satırı açar (backfill). Yalnız
+     * yayıcı etkinse çalışır; hata servisin açılmasını engellemez ve idempotenttir (var olan satırlara dokunmaz).
+     */
+    @Bean
+    ApplicationRunner userSummaryBackfill(UserSummaryOutbox outbox, Clock clock) {
+        Logger log = LoggerFactory.getLogger(UserEventsConfiguration.class);
+        return arguments -> {
+            try {
+                int added = outbox.backfillMissing(clock.instant());
+                if (added > 0) log.info("Review->User backfill: {} kullanıcı için olay kuyruğa alındı", added);
+            } catch (RuntimeException exception) {
+                log.warn("Review->User backfill başarısız: {}", exception.getClass().getSimpleName());
+            }
+        };
     }
 
     @Bean

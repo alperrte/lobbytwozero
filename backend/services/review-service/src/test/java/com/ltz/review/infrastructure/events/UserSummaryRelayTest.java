@@ -202,6 +202,36 @@ class UserSummaryRelayTest {
         assertNotNull(row(user).get("delivered_at"));
     }
 
+    @Test void backfillQueuesEveryUserWithReviewsOnceAndLeavesExistingRowsUntouched() {
+        jdbc.sql("DELETE FROM reviews").update();
+        UUID early = UUID.randomUUID();
+        UUID deletedOnly = UUID.randomUUID();
+        seedReview(early, "VISIBLE");
+        seedReview(early, "VISIBLE");
+        seedReview(user, "VISIBLE");
+        seedReview(deletedOnly, "DELETED");
+        // outbox'ı olan kullanıcı korunur.
+        jdbc.sql("INSERT INTO review_user_summary_outbox (user_id, event_id, occurred_at, next_attempt_at) VALUES (?, gen_random_uuid(), clock_timestamp(), clock_timestamp())").param(user).update();
+        var existing = row(user).get("event_id");
+        assertEquals(2, outbox.backfillMissing(java.time.Instant.now()));
+        assertEquals(existing, row(user).get("event_id"));
+        assertNotNull(row(early));
+        assertNotNull(row(deletedOnly));
+        assertEquals(0, outbox.backfillMissing(java.time.Instant.now()));
+        // Teslim, gönderim anındaki görünür sayıyı taşır.
+        assertEquals(3, relay.publishDue());
+        var counts = userCalls.stream().filter(call -> call.body().contains(early.toString())).findFirst().orElseThrow();
+        assertTrue(counts.body().contains("\"reviewCount\":2"));
+        var none = userCalls.stream().filter(call -> call.body().contains(deletedOnly.toString())).findFirst().orElseThrow();
+        assertTrue(none.body().contains("\"reviewCount\":0"));
+    }
+
+    void seedReview(UUID owner, String status) {
+        boolean visible = !"DELETED".equals(status);
+        jdbc.sql("INSERT INTO reviews (id,user_id,game_id,body,status,created_at,updated_at,deleted_at) VALUES (?,?,?,?,?,clock_timestamp(),clock_timestamp(),CASE WHEN ? THEN NULL ELSE clock_timestamp() END)")
+                .params(UUID.randomUUID(), owner, UUID.randomUUID(), visible ? "Deneyim" : null, status, visible).update();
+    }
+
     @Test void usersAreIndependentAndOrderedByTime() {
         UUID other = UUID.randomUUID();
         write(user);
