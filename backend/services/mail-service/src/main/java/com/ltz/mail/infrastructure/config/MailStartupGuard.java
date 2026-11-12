@@ -5,7 +5,7 @@ import org.springframework.core.env.Environment;
 
 /**
  * Açılışta üretim güvenlik koşullarını denetler (fail-fast): {@code prod} profilinde SMTP sunucusu, gönderen adresi ve
- * izinli bağlantı hostları tanımlı olmalı ve aktarım TLS ile korunmalıdır. Geliştirme kolaylıkları (Mailpit, TLS yok,
+ * izinli bağlantı hostları tanımlı olmalı ve aktarım TLS ile korunmalıdır; platform kapısı açıksa Auth istemci anahtarı da. Geliştirme kolaylıkları (Mailpit, TLS yok,
  * yerel bağlantılar) üretime sızamaz. Şifreleme anahtarının geçerliliği {@code AesGcmPayloadCipher} açılışında denetlenir.
  */
 @Configuration(proxyBeanMethods = false)
@@ -13,7 +13,8 @@ public class MailStartupGuard {
 
     static final String PROD_PROFILE = "prod";
 
-    MailStartupGuard(SmtpProperties smtp, LinkProperties link, Environment environment) {
+    MailStartupGuard(SmtpProperties smtp, LinkProperties link, PlatformProperties platform,
+                     AuthClientProperties authClient, Environment environment) {
         if (!environment.matchesProfiles(PROD_PROFILE)) {
             return;
         }
@@ -28,6 +29,10 @@ public class MailStartupGuard {
         }
         if (link.allowedHosts().isEmpty()) {
             throw new IllegalStateException("Production requires MAIL_ALLOWED_LINK_HOSTS");
+        }
+        // Platform kapısı açıksa (izin tablosunda servis var) alıcı adresini çözebilmek için Auth istemcisi şarttır.
+        if (!platform.callers().isEmpty() && !authClient.configured()) {
+            throw new IllegalStateException("Production with platform callers requires AUTH_MAIL_SERVICE_CLIENT_SECRET");
         }
     }
 }

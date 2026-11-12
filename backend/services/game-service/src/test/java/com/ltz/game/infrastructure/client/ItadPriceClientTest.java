@@ -64,6 +64,7 @@ class ItadPriceClientTest {
             assertEquals("LTZ-Game-Service/1.0",server.received().getFirst().userAgent());
             assertEquals("[\"app/570\"]",server.received().getFirst().body());
             assertTrue(server.received().getLast().pathAndQuery().contains("country=TR"));
+            assertFalse(server.received().getLast().pathAndQuery().contains("capacity"), "mağaza sayısı sınırlanmaz: en ucuz 5 ile yetinilmez");
             assertFalse(server.received().stream().anyMatch(request -> request.pathAndQuery().contains("fixture-key")));
         }
     }
@@ -124,6 +125,58 @@ class ItadPriceClientTest {
                 +",\"currency\":\"USD\"},\"cut\":0,\"timestamp\":\"2026-11-05T11:59:00Z\",\"expiry\":"+expiry+",\"url\":\""+LINK+"\"}";
     }
     private static String row(UUID id,String... deals) { return "{\"id\":\""+id+"\",\"deals\":["+String.join(",",deals)+"]}"; }
+    @Test void aLearnedSteamToItadMappingIsNotLookedUpAgainSoARefreshIsOneRequest() throws Exception {
+        try(var server=new FakeServer()) {
+            server.enqueue(Reply.json(200,mapping()),Reply.json(200,prices("USD",LINK,"null")),Reply.json(200,prices("USD",LINK,"null")));
+            var client=client(server,"fixture");
+            assertEquals(1,client.prices(REQUESTED,MARKET).size());
+            assertEquals(2,server.received().size(),"ilk tur: eşleme + fiyat");
+            assertEquals(1,client.prices(REQUESTED,MARKET).size());
+            assertEquals(3,server.received().size(),"ikinci tur yalnız fiyat isteği atar");
+            assertTrue(server.received().getLast().pathAndQuery().startsWith("/games/prices/v3"));
+        }
+    }
+    @Test void unmappedGamesAreAskedAgainBecauseOnlyPositiveMappingsAreRemembered() throws Exception {
+        try(var server=new FakeServer()) {
+            server.enqueue(Reply.json(200,"{\"app/570\":null}"),Reply.json(200,"{\"app/570\":null}"));
+            var client=client(server,"fixture");
+            assertTrue(client.prices(REQUESTED,MARKET).isEmpty());
+            assertTrue(client.prices(REQUESTED,MARKET).isEmpty());
+            assertEquals(2,server.received().size());
+        }
+    }
+    @Test void everyStoreOfAGameIsReturnedNotJustTheCheapestFive() throws Exception {
+        try(var server=new FakeServer()) {
+            String[] stores={"Steam","GOG","Humble Store","Epic Game Store","Fanatical","GreenManGaming","GamersGate","IndieGala"};
+            String[] deals=new String[stores.length];
+            for(int i=0;i<stores.length;i++) deals[i]=deal(stores[i],5+i,20,"null");
+            server.enqueue(Reply.json(200,mapping()),Reply.json(200,"["+row(ITAD,deals)+"]"));
+            var quotes=client(server,"fixture").prices(REQUESTED,MARKET);
+            assertEquals(8,quotes.size(),"altı ve üzeri teklif de alınır (Steam dahil)");
+            assertTrue(quotes.stream().anyMatch(quote -> quote.store().equals("Steam")));
+        }
+    }
+    @Test void anAbsurdNumberOfDealsForOneGameIsRejectedAsAMalformedResponse() throws Exception {
+        try(var server=new FakeServer()) {
+            String[] deals=new String[ItadPriceMapper.MAX_DEALS+1];
+            for(int i=0;i<deals.length;i++) deals[i]=deal("Store "+i,5,10,"null");
+            server.enqueue(Reply.json(200,mapping()),Reply.json(200,"["+row(ITAD,deals)+"]"));
+            var failing=client(server,"fixture");
+            assertEquals("INVALID_PRICE_RESPONSE",assertThrows(ProviderException.class,()->failing.prices(REQUESTED,MARKET)).code());
+            String[] limit=new String[ItadPriceMapper.MAX_DEALS];
+            for(int i=0;i<limit.length;i++) limit[i]=deal("Store "+i,5,10,"null");
+            server.enqueue(Reply.json(200,mapping()),Reply.json(200,"["+row(ITAD,limit)+"]"));
+            assertEquals(ItadPriceMapper.MAX_DEALS,client(server,"fixture").prices(REQUESTED,MARKET).size(),"sınırdaki yanıt kabul edilir");
+        }
+    }
+    @Test void aBodyOverTheSixteenMebibyteLimitIsRejected() throws Exception {
+        try(var server=new FakeServer()) {
+            String padding="x".repeat(16_777_300);
+            server.enqueue(Reply.json(200,mapping()),Reply.json(200,"[{\"id\":\""+ITAD+"\",\"deals\":[],\"pad\":\""+padding+"\"}]"));
+            var failing=client(server,"fixture");
+            assertEquals("INVALID_PRICE_RESPONSE",assertThrows(ProviderException.class,()->failing.prices(REQUESTED,MARKET)).code());
+        }
+    }
     @Test void twoDealsFromTheSameStoreKeepTheLowestPriceAndDoNotInvalidateTheGame() throws Exception {
         try(var server=new FakeServer()) {
             server.enqueue(Reply.json(200,mapping()),Reply.json(200,"["+row(ITAD,deal("Steam",15,15,"null"),deal("Humble Store",10,10,"null"),deal("Steam",7,8,"null"))+"]"));

@@ -1,4 +1,412 @@
 {
+  "Library": {
+    "cover": "Game cover for {title}",
+    "titles": {
+      "all": "My Game Library",
+      "favorites": "My Favorite Games",
+      "completed": "My Completed Games",
+      "add": "Add a Game to Your Library",
+      "privacy": "Library Privacy",
+      "profile": "Player Library"
+    },
+    "descriptions": {
+      "all": "Keep your games together, choose favorites and track the games you finish.",
+      "favorites": "Games you want to return to. Removing a favorite keeps it in your collection.",
+      "completed": "The games you have finished. Completion is independent of favorites.",
+      "add": "Choose a game from the LTZ catalogue for your collection.",
+      "privacy": "Choose who can see your library.",
+      "profile": "Only collection information you are allowed to access is displayed."
+    },
+    "tabs": {
+      "all": "All games",
+      "favorites": "Favorites",
+      "completed": "Completed",
+      "add": "Add game",
+      "privacy": "Privacy"
+    },
+    "navigation": "Library navigation",
+    "addGame": "Add Game",
+    "loading": "Loading library",
+    "saving": "Saving…",
+    "saved": "Library updated.",
+    "retry": "Try again",
+    "refresh": "Refresh",
+    "login": "Sign in",
+    "favorite": "Favorite",
+    "completed": "Completed",
+    "markFavorite": "Add favorite",
+    "unfavorite": "Remove favorite",
+    "markCompleted": "Mark completed",
+    "uncomplete": "Undo completion",
+    "remove": "Remove from library",
+    "removeTitle": "Remove this game from your library?",
+    "removeHint": "“{title}” will be removed from your collection. Its favorite and completed marks will also be deleted.",
+    "cancel": "Cancel",
+    "unknownTitle": "Game title unavailable",
+    "unknownDate": "Date unavailable",
+    "addedAt": "Added: {date}",
+    "observedAt": "Last observed: {date}",
+    "openGame": "Open game details for {title}",
+    "stats": {
+      "totalGames": "Total games",
+      "favoriteGames": "Favorite games",
+      "completedGames": "Completed games"
+    },
+    "metadata": {
+      "UNAVAILABLE": "This game is currently unavailable in the catalogue.",
+      "TEMPORARILY_UNAVAILABLE": "Game information cannot be verified right now.",
+      "LAST_KNOWN": "Last known information",
+      "NONE": "Game information unavailable"
+    },
+    "metadataPartial": "Some game information is missing or uses last known details. Your library entries are preserved.",
+    "filters": {
+      "all": "All",
+      "yes": "Marked",
+      "no": "Unmarked"
+    },
+    "sort": "Sort by",
+    "sorting": {
+      "ADDED_AT_DESC": "Recently added",
+      "ADDED_AT_ASC": "Oldest added",
+      "TITLE_ASC": "Game title: A → Z",
+      "TITLE_DESC": "Game title: Z → A"
+    },
+    "pageSize": "Page size",
+    "pagination": "Library pages",
+    "page": "Page {page, number} / {pages, number}",
+    "previous": "Previous",
+    "next": "Next",
+    "total": "{count, plural, one {# game} other {# games}}",
+    "empty": "No games yet",
+    "emptyHint": "Choose your first game from the catalogue to start your collection.",
+    "emptyFiltered": "No games match these filters",
+    "emptyFilteredHint": "Try other filters or add a game to your collection.",
+    "emptyProfile": "This player's accessible collection has no games.",
+    "clearFilters": "Clear filters",
+    "pageEmpty": "There are no entries on this page. The collection may have changed.",
+    "returnToResults": "Return to results",
+    "chooseGame": "Search the game catalogue",
+    "collectionHint": "Adding a game to your library does not prove a purchase or ownership of a game license.",
+    "automaticCollection": "Marking a game as favorite or completed also adds it to your collection. Selecting it again does not create a duplicate entry.",
+    "addFailureHint": "Part of the operation may have been saved. Check your collection before submitting again.",
+    "checkCollection": "Check my library",
+    "visibility": "Library visibility",
+    "save": "Save",
+    "privacyHint": "User Service manages this setting. Your other privacy preferences are preserved. Viewing a library requires a session; public visibility does not grant anonymous access.",
+    "privacyReloaded": "The latest privacy settings have been reloaded.",
+    "privacySaved": "Library privacy saved.",
+    "privacy": {
+      "PUBLIC": "Public",
+      "FRIENDS": "Friends",
+      "PRIVATE": "Only me",
+      "PUBLICHint": "Signed-in players can view your library when backend access checks allow it.",
+      "FRIENDSHint": "Friends can view your library when friendship and blocking checks allow it.",
+      "PRIVATEHint": "Only you can view your collection."
+    },
+    "errors": {
+      "400": "The request or page information is invalid. Check your selections.",
+      "401": "Your session has expired. Sign in to continue.",
+      "403": "You do not have permission for this action.",
+      "404": "The game was not found or is currently unavailable.",
+      "409": "Settings changed elsewhere. Reloading the latest settings; review your selection before saving again.",
+      "429": "Too many requests. Wait a little before trying again.",
+      "500": "The server could not complete the operation. Check the current state.",
+      "503": "The service is temporarily unavailable. Try again later.",
+      "csrf": "Security verification failed. Refresh the page before trying again.",
+      "private": "You cannot view this library. Visibility or relationship settings restrict access.",
+      "decision": "Library visibility cannot be verified right now. Information is hidden to protect privacy.",
+      "network": "Could not connect or the request timed out. If you made a change, check the current state before submitting again."
+    }
+  },
+  "Review": {
+    "meta": {
+      "hub": "Reviews",
+      "hubDescription": "Rate games, recommend them, write reviews and read other players' reviews.",
+      "game": "Game reviews",
+      "write": "Write a review",
+      "detail": "Review",
+      "statistics": "Review statistics",
+      "mine": "My reviews"
+    },
+    "loading": "Loading",
+    "retry": "Try again",
+    "retryWait": "Try again in {seconds}s",
+    "login": "Sign in",
+    "cancel": "Cancel",
+    "saving": "Saving…",
+    "reloadLatest": "Load latest version",
+    "breadcrumb": "Breadcrumb",
+    "coverAlt": "{title} cover image",
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next",
+      "page": "Page {page} of {pages}"
+    },
+    "hub": {
+      "title": "Reviews",
+      "description": "Rate games from 1 to 10, give a positive or negative recommendation and write about your experience. Reviews are reached through a game.",
+      "conceptsTitle": "Rating, recommendation and review",
+      "concepts": {
+        "rating": {
+          "title": "Rating",
+          "text": "A whole number from 1 to 10. You can give it without writing text, and it counts toward the LTZ average."
+        },
+        "recommendation": {
+          "title": "Recommendation",
+          "text": "Positive or negative. It is independent of your rating; not choosing one is not a negative."
+        },
+        "review": {
+          "title": "Review",
+          "text": "One text per game. Deleting it removes only the text; your rating and recommendation stay."
+        }
+      },
+      "findTitle": "Choose a game",
+      "findDescription": "Search the catalogue for a game and open its reviews, rating and statistics.",
+      "searchLabel": "Search the catalogue",
+      "searchPlaceholder": "Game title",
+      "searchButton": "Search",
+      "clearSearch": "Clear search",
+      "total": "{count} games",
+      "totalFor": "{count} games for \"{query}\"",
+      "noResults": "No games found for \"{query}\"",
+      "noResultsHint": "Check the spelling or try the first letters of the title. Search matches the beginning of a title.",
+      "noGames": "There are no games to show in the catalogue",
+      "noGamesHint": "Games appear here once they are listed in the catalogue.",
+      "rating": "LTZ rating {average} / 10 · {count} ratings",
+      "noRating": "No ratings yet",
+      "ratingUnknown": "Rating unavailable",
+      "summaryUnavailable": "Ratings are unavailable right now.",
+      "open": "Open reviews",
+      "openFor": "Open reviews: {title}",
+      "pagination": "Game pages",
+      "capabilitiesTitle": "What you can do",
+      "capabilities": {
+        "rate": "Rate a game from 1 to 10 and update it whenever you like.",
+        "recommend": "Say whether you recommend a game, separately from your rating.",
+        "write": "Write, edit or delete one review per game.",
+        "like": "Like other players' reviews.",
+        "statistics": "See the rating distribution, review count and recommendation shares."
+      },
+      "limitsTitle": "Not available yet",
+      "limitsText": "Reviews are listed per game. A single feed across all games and author profiles are not available yet.",
+      "mine": "My reviews"
+    },
+    "game": {
+      "unknown": "Game",
+      "unavailable": "Game information is unavailable right now. Review data is not affected.",
+      "open": "Open game page",
+      "write": "Write a review",
+      "statistics": "Statistics",
+      "overview": "Overview",
+      "reviewsLink": "Game reviews",
+      "mineTitle": "Your assessment",
+      "mineDescription": "Your rating and recommendation are separate records, independent of each other and of any review text; each is saved on its own.",
+      "openMine": "Open your review"
+    },
+    "rating": {
+      "title": "Your rating",
+      "description": "A whole number from 1 to 10. You can give it without writing text.",
+      "label": "Game rating",
+      "option": "{value} points",
+      "none": "You have not rated this game yet.",
+      "saved": "Your saved rating: {value} / 10",
+      "save": "Save rating",
+      "done": "Your rating was saved."
+    },
+    "recommendation": {
+      "title": "Your recommendation",
+      "description": "Would you recommend this game to others? It is independent of your rating.",
+      "label": "Game recommendation",
+      "yes": "I recommend it",
+      "no": "I don't recommend it",
+      "none": "You have not given a recommendation yet.",
+      "savedYes": "Your saved recommendation: I recommend it",
+      "savedNo": "Your saved recommendation: I don't recommend it",
+      "save": "Save recommendation",
+      "done": "Your recommendation was saved."
+    },
+    "featured": {
+      "title": "Featured reviews",
+      "description": "Sorted by most liked first; newer reviews come first when likes are equal. The order comes from the server and cannot be changed.",
+      "filterLabel": "Review filters",
+      "minLikes": "Minimum likes",
+      "pageSize": "Per page",
+      "apply": "Apply",
+      "clear": "Clear filter",
+      "total": "{count} reviews",
+      "empty": "There are no reviews for this game yet",
+      "emptyHint": "You can write the first one.",
+      "emptyFiltered": "No reviews match this filter",
+      "emptyFilteredHint": "Try lowering the minimum likes.",
+      "pageEmpty": "There are no reviews on this page",
+      "firstPage": "Back to the first page",
+      "pagination": "Review pages"
+    },
+    "card": {
+      "mine": "Your review",
+      "created": "Written: {date}",
+      "edited": "Edited: {date}",
+      "dateUnknown": "Date unknown",
+      "open": "Read in full",
+      "openMine": "Open and manage",
+      "anonymousAuthor": "A player"
+    },
+    "like": {
+      "add": "Like",
+      "remove": "Remove like",
+      "count": "{count} likes",
+      "own": "you can't like your own review",
+      "wait": "Too many requests were sent. You can try again in {seconds} seconds."
+    },
+    "form": {
+      "label": "Review text",
+      "placeholder": "Write about your experience with the game…",
+      "help": "Plain text. HTML is not executed. Leading and trailing whitespace is removed.",
+      "counter": "{count} / {max} characters",
+      "issue": {
+        "required": "The review cannot be empty.",
+        "tooLong": "A review can be at most {max} characters.",
+        "invalidCharacters": "The review contains unsupported control characters."
+      }
+    },
+    "write": {
+      "title": "Write a review",
+      "description": "You can write one review for this game. You can edit or delete it later.",
+      "summary": "LTZ rating {average} / 10 · {count} ratings",
+      "summaryNone": "This game has not been rated yet.",
+      "submit": "Publish review",
+      "duplicateHint": "You can edit your existing review instead of writing a new one.",
+      "foundMine": "Open and edit my review",
+      "asideTitle": "Good to know",
+      "asideIndependent": "Your rating and recommendation are independent of this text; you give them separately on the game reviews page.",
+      "asideDelete": "If you delete the review, only the text is removed. Your rating and recommendation stay.",
+      "asidePlain": "Reviews are shown as plain text; links and formatting do not work.",
+      "asideLink": "Give a rating and recommendation",
+      "alreadyHave": "You already have a review for this game.",
+      "draftKept": "Your draft stays on this page; it is not submitted as a new review."
+    },
+    "detail": {
+      "title": "Review",
+      "titleMine": "Your review",
+      "notFound": "Review not found",
+      "notFoundHint": "The review may have been deleted, or the link is wrong.",
+      "edit": "Edit",
+      "delete": "Delete",
+      "saveEdit": "Save changes",
+      "saved": "Your review was updated.",
+      "conflictTitle": "The review changed elsewhere",
+      "conflictHint": "We did not discard what you wrote. Load the latest version, check your text and save again.",
+      "deleteTitle": "Delete this review?",
+      "deleteDescription": "Only the review text is deleted; the rating and recommendation you gave this game stay. This cannot be undone.",
+      "deleteConfirm": "Delete review"
+    },
+    "statistics": {
+      "title": "Review statistics",
+      "description": "Ratings, written reviews and recommendations are three separate counts; none stands in for another.",
+      "back": "Back to game reviews",
+      "empty": "This game has no ratings, reviews or recommendations yet.",
+      "note": "Numbers are read from the Review service at this moment. They do not confirm that the game is listed in the Game catalogue."
+    },
+    "stats": {
+      "average": "Average LTZ rating",
+      "averageValue": "{average} / 10",
+      "averageHint": "Calculated from numeric ratings only.",
+      "noRating": "No ratings yet",
+      "noRatingHint": "There is no average because nobody has rated this game.",
+      "ratingCount": "Users who rated",
+      "ratingCountHint": "Each user gives one rating per game.",
+      "activeReviews": "Active reviews",
+      "activeReviewsHint": "Written texts; a different count from ratings or recommendations.",
+      "recommended": "Positive recommendation",
+      "recommendedHint": "{yes} positive · {no} negative",
+      "noRecommendation": "No recommendations yet",
+      "noRecommendationHint": "There is no share because nobody has given a recommendation.",
+      "histogramTitle": "Rating distribution",
+      "histogramSummary": "{count} users rated; average {average} / 10.",
+      "histogramEmpty": "Nobody has rated yet; every bucket is empty.",
+      "bucket": "{rating} points: {count} users",
+      "recommendationTitle": "Recommendation split",
+      "recommendationDescription": "Only users who gave a recommendation are counted, not everyone who rated or wrote a review.",
+      "recommendationEmpty": "No recommendations yet.",
+      "recommendationBasis": "Shares are calculated from {total} recommendations in total.",
+      "users": "{count} users"
+    },
+    "errors": {
+      "401": "Your session has ended. Sign in to continue.",
+      "403": "You do not have permission for this action.",
+      "404": "Record not found.",
+      "413": "The data you sent is too large.",
+      "429": "Too many requests were sent. Wait a moment and try again.",
+      "500": "The server could not complete the action. Check the current state and try again.",
+      "503": "The service is temporarily unavailable. Try again shortly.",
+      "network": "Could not connect, or the request timed out. If you made a change, check the current state before sending it again.",
+      "csrf": "The security check could not be completed. Refresh the page and try again.",
+      "invalidBody": "The review text is not valid. Write 1–5000 characters of plain text.",
+      "badRequest": "The request is invalid. Check your selections and try again.",
+      "403like": "You can't like this review. You can't like your own review; your account may also be blocked from this action.",
+      "403owner": "Only the author of the review can do this.",
+      "404review": "The review was not found or has been deleted.",
+      "404game": "The game was not found or is currently unavailable.",
+      "409create": "You already have a review for this game.",
+      "409version": "The review changed elsewhere. Your action was not applied; load the latest version and try again.",
+      "429wait": "Too many requests were sent. Try again in {seconds} seconds.",
+      "403report": "You can't report your own review, or your account is blocked from this action.",
+      "409report": "You have already reported this review.",
+      "invalidReport": "The report is not valid. Check the reason and the details length.",
+      "moderated": "This review cannot be changed because of moderation."
+    },
+    "mine": {
+      "title": "My reviews",
+      "description": "Your visible reviews across all games, newest first. Deleted reviews do not appear here.",
+      "total": "{count} reviews",
+      "empty": "You have not written a review yet",
+      "emptyHint": "Pick a game and write about your experience.",
+      "find": "Choose a game",
+      "pagination": "My reviews pages",
+      "gamesUnavailable": "Game titles are unavailable right now."
+    },
+    "report": {
+      "open": "Report",
+      "title": "Report this review",
+      "description": "If this review breaks the rules, choose a reason. The report is saved; you can report a review only once.",
+      "reasonLabel": "Reason",
+      "reasonPlaceholder": "Choose a reason",
+      "reasonRequired": "You must choose a reason.",
+      "reasons": {
+        "SPAM": "Spam or advertising",
+        "HARASSMENT": "Harassment or insults",
+        "HATE_SPEECH": "Hate speech",
+        "PERSONAL_INFO": "Sharing personal information",
+        "SPOILER": "Unmarked spoiler",
+        "OFF_TOPIC": "Unrelated to the game",
+        "OTHER": "Other"
+      },
+      "detailLabel": "Details (optional)",
+      "counter": "{count} / {max} characters",
+      "issue": {
+        "tooLong": "Details can be at most {max} characters.",
+        "invalidCharacters": "The details contain unsupported control characters."
+      },
+      "privacy": "Only you can see your report; the author does not learn who reported. Reports are reviewed by moderators; the outcome (whether action was taken) is not shared.",
+      "submit": "Send report",
+      "done": "Your report was saved.",
+      "doneAt": "You reported this · {date}",
+      "already": "You have already reported this review.",
+      "closed": "Your report has been resolved."
+    },
+    "moderation": {
+      "HIDDEN": {
+        "badge": "Hidden",
+        "title": "This review was hidden by moderators",
+        "hint": "Other players cannot see this review; your rating and recommendation are not affected. You cannot edit it, but you can delete it."
+      },
+      "ARCHIVED": {
+        "badge": "Archived",
+        "title": "This review was archived",
+        "hint": "Other players cannot see this review; your rating and recommendation are not affected. An archived review can be neither edited nor deleted."
+      }
+    }
+  },
   "Metadata": {
     "siteName": "LobbyTwoZero",
     "description": "LobbyTwoZero is a game-focused social platform being built for game discovery, the player community, social interaction, and hardware and game performance experiences."
@@ -50,10 +458,16 @@
   },
   "Navbar": {
     "search": {
-      "placeholder": "Search pages...",
+      "placeholder": "Search pages… (@ for players)",
       "open": "Search",
       "inputLabel": "Search pages",
       "close": "Close",
+      "groupPlayers": "Players",
+      "playersLogin": "Sign in to search for players.",
+      "playersHint": "Type at least 2 characters, e.g. @ali",
+      "playersLoading": "Searching players…",
+      "playersError": "Could not load players. Try again shortly.",
+      "playersEmpty": "No player found with that name.",
       "groupPages": "Pages",
       "emptyTitle": "No results found",
       "emptyBody": "Try a different word.",
@@ -162,6 +576,30 @@
     }
   },
   "Pages": {
+    "library": {
+      "title": "My Game Library",
+      "description": "Keep your games together, choose favorites and track the games you finish."
+    },
+    "libraryFavorites": {
+      "title": "My Favorite Games",
+      "description": "Games you want to return to. Removing a favorite keeps it in your collection."
+    },
+    "libraryCompleted": {
+      "title": "My Completed Games",
+      "description": "The games you have finished. Completion is independent of favorites."
+    },
+    "libraryAdd": {
+      "title": "Add a Game to Your Library",
+      "description": "Choose a game from the LTZ catalogue for your collection."
+    },
+    "libraryPrivacy": {
+      "title": "Library Privacy",
+      "description": "Choose who can see your library."
+    },
+    "reviews": {
+      "title": "Reviews",
+      "description": "Rate games, recommend them and write reviews; read other players' reviews."
+    },
     "games": {
       "title": "Games",
       "description": "Find a game and explore its details and community contributions."
@@ -602,7 +1040,6 @@
     "descriptionLanguageNote": "This description is only available in {language}; it has not been translated.",
     "recordedAt": "Retrieved from source: {date}",
     "openStore": "Visit store",
-    "priceDisclaimer": "Store prices may change. Links may be affiliate links. No currency conversion is applied. Source:",
     "gameInformation": "Game information",
     "languageSupport": "Language support",
     "interface": "Interface",
@@ -615,7 +1052,6 @@
     "openVideo": "Open video",
     "openDemo": "Open demo",
     "dataSources": "Data sources and freshness",
-    "igdbAttribution": "Game details provided by IGDB.",
     "developerContent": "From the developer",
     "developerContentNotice": "This section is published by the authorised game developer and is separate from catalogue data.",
     "manageGames": "Game management",
@@ -671,6 +1107,7 @@
       "releasedBefore": "Released on or before",
       "minRating": "Minimum LTZ rating (1–10)",
       "popularOnly": "Featured games only",
+      "includeAdult": "Show 18+ games",
       "discountedOnly": "Current discounts only",
       "country": "Country",
       "currency": "Currency",
@@ -744,7 +1181,9 @@
     "priceStates": {
       "STALE": "The stored price has expired and is not shown as a current offer.",
       "NO_OFFER": "No offers were found for this market at the last check.",
-      "UNAVAILABLE": "Verified price information is not available for this market."
+      "UNAVAILABLE": "Verified price information is not available for this market.",
+      "FREE": "This game is free; there is no purchase price.",
+      "COMING_SOON": "This game has not been released yet; its price is announced closer to launch."
     },
     "workspace": {
       "admin": "Games and permissions",
@@ -780,6 +1219,11 @@
     "developerDescription": "Developer description",
     "discountPercent": "{percent}% off",
     "earlyAccessBadge": "Early access",
+    "freeBadge": "Free",
+    "adultBadge": "18+",
+    "delistedNotice": "This game appears to have been removed from the Steam store. Its record and information are kept, but prices and status are no longer updated.",
+    "priceTurkeyNote": "Steam sells in US dollars in Türkiye; check the US (USD) market for the Steam price. Some stores do not sell in Turkish lira; those prices are converted at the current rate and payment is made in the store's own currency.",
+    "comingSoonBadge": "Coming soon",
     "editorRank": "Editor rank #{rank}",
     "editorsPicks": "Editor's Picks",
     "editorsPicksHelp": "This list is hand-picked by editors. It is not a trend or popularity measure based on player activity.",
@@ -1012,7 +1456,8 @@
         "required": "Enter your password.",
         "tooLong": "Must be at most {max} characters.",
         "tooShort": "Must be at least {min} characters.",
-        "weak": "This password is easy to guess. Choose a longer, unique password.",
+        "composition": "Must include an uppercase letter, a lowercase letter, a number and a special character (such as . , / _ - !).",
+        "weak": "This password does not meet the rules or is easy to guess. Use upper/lower case, a number and a special character; avoid common passwords.",
         "invalid": "The password is not valid."
       },
       "username": {
@@ -1042,7 +1487,8 @@
         "required": "Enter your new password.",
         "tooShort": "Must be at least {min} characters.",
         "tooLong": "Must be at most {max} characters.",
-        "weak": "This password is easy to guess. Choose a longer, unique password.",
+        "composition": "Must include an uppercase letter, a lowercase letter, a number and a special character (such as . , / _ - !).",
+        "weak": "This password does not meet the rules or is easy to guess. Use upper/lower case, a number and a special character; avoid common passwords.",
         "same": "The new password must differ from your current one.",
         "invalid": "The password is not valid."
       },
@@ -1069,7 +1515,24 @@
       "MFA_FAILED": "The code is invalid or the verification session has expired. Try again or go back to sign in.",
       "INVALID_TWO_FACTOR_CODE": "The code is wrong. Try again.",
       "ACCOUNT_LINK_REQUIRED": "An account with this email address already exists. Sign in with your email and password first, then link this account.",
-      "ACCOUNT_EMAIL_REQUIRED": "This action needs a verified email address on your account. Add and verify an email first."
+      "ACCOUNT_EMAIL_REQUIRED": "This action needs a verified email address on your account. Add and verify an email first.",
+      "ADMIN_DELETION_FORBIDDEN": "An administrator account cannot be deleted. The admin role must be removed first.",
+      "DELETION_REQUIRES_SUPPORT": "This account cannot be deleted on its own. You need to open a deletion request with an administrator.",
+      "DELETION_REQUIRES_SECOND_FACTOR": "Enable two-step verification (TOTP) before opening a request.",
+      "DELETION_SUPPORT_COOLDOWN": "Your last request was rejected. Wait 24 hours before opening a new one.",
+      "DELETION_SELF_SERVICE_AVAILABLE": "You can delete this account yourself. Refresh the page and use the delete request.",
+      "REAUTHENTICATION_REQUIRED": "You need to have signed in recently for this. Sign out and sign in again.",
+      "CURRENT_PASSWORD_INVALID": "The password is wrong. Try again.",
+      "PASSWORD_REQUIRED": "Set a password on your account first.",
+      "PASSWORD_ALREADY_SET": "This account already has a password.",
+      "PASSWORD_SET_INVALID": "The code is wrong, expired or out of attempts. Request a new one.",
+      "EMAIL_CHANGE_INVALID": "The code is wrong, expired or out of attempts. Start over.",
+      "EMAIL_LOCKED_BY_PROVIDER": "The email of an account created with Google cannot be changed; it is tied to the Google account.",
+      "EXTERNAL_IDENTITY_ALREADY_LINKED": "This account already has an identity linked from this provider.",
+      "TWO_FACTOR_ALREADY_ENABLED": "Two-step verification is already on.",
+      "TWO_FACTOR_NOT_PENDING": "There is no pending setup. Start the setup again.",
+      "TWO_FACTOR_NOT_ENABLED": "Two-step verification is not on.",
+      "TWO_FACTOR_REQUIRED_FOR_ROLE": "Two-step verification cannot be turned off for administrator and moderator accounts."
     },
     "register": {
       "metaTitle": "Sign up",
@@ -1083,7 +1546,7 @@
       "emailPlaceholder": "Enter your email address",
       "password": "Password",
       "passwordPlaceholder": "Choose a password",
-      "passwordHint": "At least {min} characters. Use a strong, unique password.",
+      "passwordHint": "At least {min} characters, with an uppercase letter, a lowercase letter, a number and a special character.",
       "terms": "I accept the <terms>Terms of use</terms>. See the <privacy>Privacy policy</privacy> for how personal data is handled.",
       "submit": "Create account",
       "submitting": "Creating account…",
@@ -1821,25 +2284,6 @@
         "sessions": "Measured in {count, plural, one {# session} other {# sessions}}"
       }
     },
-    "preview": {
-      "mark": "Preview",
-      "markHint": "Design preview: this information is a sample, not real.",
-      "rank": {
-        "veteran": "Veteran Player"
-      },
-      "status": "Playing something tonight.",
-      "signatureLabel": "Signature",
-      "signature": "Every game is a story; just finish it.",
-      "badgesTitle": "Badges",
-      "badge": {
-        "earlyBird": "Early bird",
-        "reviewer": "Reviewer",
-        "collector": "Collector",
-        "teamPlayer": "Team player",
-        "nightOwl": "Night owl",
-        "bugHunter": "Bug hunter"
-      }
-    },
     "playerType": {
       "CASUAL": "Casual",
       "COMPETITIVE": "Competitive",
@@ -2071,7 +2515,280 @@
       "unnamed": "Player",
       "since": "Friends since {date}",
       "open": "Open posts by {name}",
-      "someHidden": "Some accounts cannot be shown"
+      "someHidden": "Some accounts cannot be shown",
+      "find": "Find players"
+    }
+  },
+  "AccountSettings": {
+    "title": "Account settings",
+    "description": "Manage who can see your profile, your account preferences and how your data is used.",
+    "back": "← Back to my profile",
+    "security": {
+      "title": "Security",
+      "loading": "Loading security information…",
+      "loadFailed": "Could not load security information.",
+      "retry": "Try again",
+      "password": "Your password",
+      "factor": "Verification code (6 digits) or recovery code",
+      "code": "Code",
+      "cancel": "Cancel",
+      "sending": "Sending…",
+      "relogin": "For your safety all your sessions were closed. You need to sign in again.",
+      "goLogin": "Go to sign in",
+      "tier": {
+        "heading": "Your account level",
+        "A": "Standard account (A)",
+        "B": "Protected account (B)",
+        "C": "Provider account (C)",
+        "descA": "You have no two-step verification or linked Google/Steam account, so some features are restricted. Turn on either one and your account becomes protected and the limits are lifted. You can delete the account yourself.",
+        "descB": "You are protected by two-step verification or a linked Google/Steam account. Linked identities cannot be removed, and you open a request with an administrator to delete the account.",
+        "descC": "You created your account with Google or Steam; that account is your assurance. The email address is tied to the provider and you open a request with an administrator to delete the account.",
+        "password": "Password",
+        "passwordYes": "Set",
+        "passwordNo": "None",
+        "totp": "Two-step verification",
+        "totpYes": "On",
+        "totpNo": "Off",
+        "providers": "Linked accounts",
+        "providersNone": "None",
+        "registration": "Sign-up method",
+        "registrationPASSWORD": "Email and password",
+        "registrationGOOGLE": "Google",
+        "registrationSTEAM": "Steam"
+      },
+      "twoFactor": {
+        "title": "Two-step verification (TOTP)",
+        "offIntro": "Protect your sign-in and account with an authenticator app (Google Authenticator, Authy, etc.). Turning it on makes your account protected.",
+        "start": "Start setup",
+        "secret": "Secret key (shown only now)",
+        "openApp": "Open in authenticator app",
+        "enterCode": "Type the 6-digit code from the app",
+        "activate": "Turn on",
+        "recoveryTitle": "Your recovery codes",
+        "recoveryWarn": "These codes are shown only once. If you lose your phone you sign in with them. Store them somewhere safe.",
+        "recoverySaved": "I saved the codes",
+        "onIntro": "Two-step verification is on.",
+        "disableHint": "Enter your code to turn it off. Without a linked Google/Steam account your account falls back to standard (A).",
+        "disable": "Turn off"
+      },
+      "link": {
+        "title": "Google and Steam links",
+        "intro": "A linked account strengthens your sign-in and makes your account protected. A linked identity cannot be removed on your own; contact an administrator if needed.",
+        "google": "Google",
+        "steam": "Steam",
+        "linked": "Linked",
+        "needPassword": "Set a password first to link an account.",
+        "connect": "Link",
+        "confirm": "Verify and link"
+      },
+      "passwordSet": {
+        "title": "Set a password",
+        "intro": "Your account has no password. Setting one unlocks email change and account linking. We email a code to your verified address.",
+        "sendCode": "Send code",
+        "emailCode": "Code from your email",
+        "newPassword": "New password (at least 8 characters)",
+        "confirmation": "New password (again)",
+        "mismatch": "The passwords do not match.",
+        "submit": "Set password",
+        "done": "Your password is set."
+      },
+      "email": {
+        "title": "Email address",
+        "locked": "Your account was created with Google, so the email address cannot be changed.",
+        "needAuth": "Set a password or turn on two-step verification before changing your email.",
+        "newEmail": "New email address",
+        "send": "Send code",
+        "codeSent": "We sent a code to the new address. Type it; confirming closes all your sessions.",
+        "confirm": "Change address"
+      },
+      "logoutAll": {
+        "title": "All sessions",
+        "intro": "Closes your sessions on every device, including this one.",
+        "button": "Sign out of all devices",
+        "confirm": "Are you sure? Yes, close them all"
+      }
+    },
+    "deletion": {
+      "title": "Delete account",
+      "loading": "Loading account information…",
+      "loadFailed": "Could not load account information.",
+      "retry": "Try again",
+      "selfIntro": "Confirm your password to delete your account. We will email you a confirmation link that is valid for 30 minutes. After you confirm, you can change your mind within 14 days.",
+      "supportIntro": "Accounts protected by Google/Steam or two-step verification cannot be deleted on their own. You open a deletion request with an administrator; if approved, the deletion process starts.",
+      "needSecondFactor": "This account has no password. Enable two-step verification (TOTP) in the Security section above before opening a request.",
+      "password": "Your password",
+      "factor": "Verification code (6 digits) or recovery code",
+      "note": "Note to the administrator (optional)",
+      "submitDelete": "Send deletion request",
+      "submitSupport": "Open deletion request",
+      "sending": "Sending…",
+      "sentMail": "We emailed you a confirmation link. Open it within 30 minutes and type your username to confirm.",
+      "request": {
+        "pending": "Your deletion request is waiting for an administrator ({date}).",
+        "approved": "Your request was approved; the deletion process has started.",
+        "rejected": "Your last request was rejected. You can open a new one after 24 hours.",
+        "other": "Status of your last request: {status}"
+      }
+    },
+    "loading": "Loading…",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved.",
+    "refresh": "Refresh",
+    "errors": {
+      "conflict": "These settings changed somewhere else. Refresh and try again.",
+      "rateLimited": "You sent too many requests. Wait a moment and try again.",
+      "busy": "The service is busy right now, try again shortly.",
+      "invalid": "One of the choices is invalid. Reload the page and try again.",
+      "network": "Could not connect. Check your internet and try again.",
+      "generic": "Something went wrong. Try again."
+    },
+    "privacy": {
+      "title": "Privacy",
+      "description": "Choose who can see each part of your profile. People you have blocked cannot see any part, whatever you choose.",
+      "visibility": {
+        "PUBLIC": "Everyone (signed-in players)",
+        "FRIENDS": "My friends only",
+        "PRIVATE": "Only me"
+      },
+      "fields": {
+        "friendsList": {
+          "label": "Friends list",
+          "hint": "Who can see your list of friends."
+        },
+        "library": {
+          "label": "Game library",
+          "hint": "Who can see the games in your library and your play history."
+        },
+        "hardware": {
+          "label": "Hardware",
+          "hint": "Who can see your computer and hardware details."
+        },
+        "performance": {
+          "label": "Performance",
+          "hint": "Who can see your game performance summaries."
+        }
+      },
+      "guest": {
+        "label": "Visitors who are not signed in",
+        "hint": "What someone who is not signed in can see when they open your profile. Visitors are never treated as friends, so they never see friends-only sections.",
+        "options": {
+          "BASIC": "Only username, display name, avatar and cover",
+          "DETAILED": "Also biography and public sections"
+        }
+      }
+    },
+    "preferences": {
+      "title": "Account preferences",
+      "description": "Your choices are saved to your account and applied to this device when you save.",
+      "locale": {
+        "label": "Interface language",
+        "hint": "Menus and text are shown in this language."
+      },
+      "theme": {
+        "label": "Theme",
+        "hint": "Theme is independent of language.",
+        "options": {
+          "SYSTEM": "System",
+          "LIGHT": "Light",
+          "DARK": "Dark"
+        }
+      }
+    },
+    "consents": {
+      "title": "Consents",
+      "description": "The consents here are optional, off by default, and you can withdraw them at any time. Not giving consent does not affect how you use your account.",
+      "recommendation": {
+        "label": "Personalised game recommendations",
+        "hint": "You allow your favourite and completed games to be processed to produce recommendations for you. This is independent of who can see your library.",
+        "on": "On",
+        "off": "Off",
+        "since": "since {date}"
+      }
+    },
+    "steam": {
+      "title": "Steam",
+      "description": "Linking and unlinking your Steam account is managed separately as part of sign-in security. Here you only choose whether the link shows on your public profile.",
+      "notLinked": "You have no linked Steam account. Once linked, you can choose here whether to show it on your profile.",
+      "show": {
+        "label": "Show my Steam link on my profile",
+        "hint": "When on, people who can see your profile also see your Steam profile link (Steam ID: {steamId}). Off by default.",
+        "on": "On",
+        "off": "Off"
+      }
+    }
+  },
+  "Players": {
+    "profile": {
+      "metaTitle": "Player profile",
+      "loading": "Loading profile…",
+      "notFoundTitle": "Player not found",
+      "notFoundBody": "This profile does not exist or cannot be shown to you.",
+      "search": "Find players",
+      "errorTitle": "Could not load profile",
+      "errorBody": "The profile could not be loaded right now. Try again shortly.",
+      "retry": "Try again",
+      "ownProfile": "Go to my profile",
+      "posts": "Posts",
+      "detailsTitle": "Details",
+      "detailsGuest": "Sign in to see this player's details.",
+      "detailsHidden": "This player does not share their details.",
+      "signIn": "Sign in",
+      "summary": {
+        "title": "Summary",
+        "friends": "Friends",
+        "library": "Games",
+        "reviews": "Reviews",
+        "hidden": "Hidden",
+        "unavailable": "Not yet"
+      },
+      "steam": {
+        "title": "Steam",
+        "open": "Open Steam profile",
+        "newTab": "(opens in a new tab)"
+      }
+    },
+    "search": {
+      "title": "Find players",
+      "description": "Find players by typing the first letters of a username or display name.",
+      "loading": "Loading…",
+      "label": "Username or display name",
+      "submit": "Search",
+      "hint": "Type at least {min} characters. Up to 20 results are shown.",
+      "tooShort": "The search text must be between {min} and {max} characters.",
+      "results": "Search results",
+      "empty": "No results. Try a different spelling.",
+      "count": "{count} players found.",
+      "unnamed": "Unnamed player",
+      "open": "Open {name}'s profile"
+    }
+  },
+  "Onboarding": {
+    "title": "Welcome",
+    "description": "Pick your favourite genres and platforms so we can show you games and players that suit you. You can change them later from your profile.",
+    "loading": "Loading…",
+    "saving": "Saving…",
+    "finish": "Finish setup",
+    "later": "Do it later",
+    "needGenre": "Pick at least one favourite genre.",
+    "needPlatform": "Pick at least one platform.",
+    "doneTitle": "Setup complete",
+    "doneBody": "Your favourite genres and platforms are saved. You can change them by editing your profile.",
+    "toProfile": "Go to my profile",
+    "editProfile": "Edit profile",
+    "errors": {
+      "generic": "Something went wrong. Try again.",
+      "network": "Could not connect. Check your internet and try again.",
+      "conflict": "Your profile changed somewhere else. Reload the page and try again.",
+      "rateLimited": "You sent too many requests. Wait a moment and try again.",
+      "busy": "The service is busy right now, try again shortly.",
+      "incomplete": "You must pick at least one favourite genre and one platform.",
+      "invalid": "One of the choices is invalid. Check and try again."
+    },
+    "prompt": {
+      "title": "Finish your setup",
+      "body": "Pick your favourite genres and platforms; it is needed for suggestions that suit you.",
+      "action": "Start setup"
     }
   },
   "Community": {

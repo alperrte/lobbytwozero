@@ -16,6 +16,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** Eski ve yeni izole şemalar için ortak, salt okunur karşılaştırma. */
 final class MigrationSchemaSupport {
     private MigrationSchemaSupport() { }
+    /**
+     * Güncel zincir (V31) Steam durum kolonlarını (free, coming_soon, adult, delisted_at) doğrudan tablo tanımında taşır; tarihsel fixture zinciri değişmez
+     * (SHA256SUMS ile kilitli) ve bu kolonlara sahip değildir. Eşdeğerlik karşılaştırmaları ve entity eşleme doğrulaması için tarihsel veritabanına yalnız bu
+     * kolonlar, güncel V31'deki sırayla (tablonun sonuna) eklenir.
+     */
+    static final String STEAM_STATUS_COLUMNS = "alter table games add column free boolean, add column coming_soon boolean, add column adult boolean, add column delisted_at timestamptz";
+
     static List<Integer> schemaCounts(DriverManagerDataSource source) {
         var jdbc = new JdbcTemplate(source);
         return List.of(

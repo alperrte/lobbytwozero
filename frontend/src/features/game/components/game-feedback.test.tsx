@@ -7,7 +7,6 @@ import type { Feedback, GameResource } from "../types/game";
 import { GameDeveloperTools } from "./game-developer-tools";
 import { GameFeedback } from "./game-feedback";
 import { GameGallery } from "./game-gallery";
-import { GameMyFeedback } from "./game-my-feedback";
 
 vi.mock("@/shared/lib/i18n/navigation", () => ({ Link: ({ href, children }: { href: string; children: React.ReactNode }) => <a href={String(href)}>{children}</a> }));
 vi.mock("../services/game-api", async (original) => ({ ...await original<typeof import("../services/game-api")>(), loadGameResource: vi.fn(), mutateGame: vi.fn() }));
@@ -24,46 +23,10 @@ function wrap(node: React.ReactNode) { return render(<NextIntlClientProvider loc
 beforeEach(() => { mutate.mockResolvedValue(undefined); });
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
 
-describe("Oyuncu geri bildirimleri", () => {
-  const list = { items: [item(1, "OPEN"), item(2, "IN_PROGRESS"), item(3, "RESOLVED")], page: 0, size: 20, totalElements: 3 };
-  it("kendi kayıtlarını oyun başlığıyla listeler; durumu değiştirme düğmesi sunmaz", async () => {
-    serve({ session: () => ({ accountId, roles: ["PLAYER"] }), myFeedback: () => list, cards: () => ({ items: [{ gameId, title: "Fixture oyun", origin: "INTERNAL", metadataCompleteness: "PARTIAL", coverUrl: null }], unavailable: [] }) });
-    wrap(<GameMyFeedback />);
-    expect(await screen.findByText("Geri bildirim 1")).toBeVisible();
-    expect((await screen.findAllByText("Fixture oyun")).length).toBe(3);
-    expect(screen.queryByRole("button", { name: t.startFeedback })).toBeNull();
-    expect(screen.queryByRole("button", { name: t.resolveFeedback })).toBeNull();
-    expect(load.mock.calls.filter(([resource]) => resource.kind === "cards")).toHaveLength(1);
-    expect(screen.getByText(t.feedbackDistinct)).toBeVisible();
-  });
-  it("durum akışını OPEN → IN_PROGRESS → RESOLVED olarak işaretler", async () => {
-    serve({ session: () => ({ accountId, roles: ["PLAYER"] }), myFeedback: () => list, cards: () => ({ items: [], unavailable: [] }) });
-    wrap(<GameMyFeedback />);
-    await screen.findByText("Geri bildirim 2");
-    const steps = screen.getAllByRole("list", { name: t.fields.status });
-    expect(within(steps[1]).getByText(t.choices.IN_PROGRESS).closest("li")).toHaveAttribute("aria-current", "step");
-  });
-  it("ayrıntıyı tekil uçtan yükler", async () => {
-    serve({ session: () => ({ accountId, roles: ["PLAYER"] }), myFeedback: () => list, cards: () => ({ items: [], unavailable: [] }), feedbackItem: (resource) => ({ ...item(1, "OPEN"), body: `Tam metin ${(resource as { id: string }).id.slice(10, 14)}` }) });
-    wrap(<GameMyFeedback />);
-    await screen.findByText("Geri bildirim 1");
-    fireEvent.click(screen.getAllByRole("button", { name: t.showDetail })[0]);
-    expect(await screen.findByText(/Tam metin/)).toBeVisible();
-    expect(load.mock.calls.some(([resource]) => resource.kind === "feedbackItem" && !(resource as { developer: boolean }).developer)).toBe(true);
-  });
-  it("giriş yapmamış kullanıcıya özel istek atmaz", async () => {
-    serve({ session: () => null });
-    wrap(<GameMyFeedback />);
-    expect(await screen.findByText(t.feedbackSignIn)).toBeVisible();
-    expect(load.mock.calls.map(([resource]) => resource.kind)).toEqual(["session"]);
-  });
+describe("Oyuncu geri bildirim formu", () => {
   it("erken erişim türünü yalnız erken erişimdeki oyunda sunar ve gönderimi sözleşmeye uygun yapar", async () => {
-    const detail = (earlyAccess: boolean) => ({ game: { gameId, title: "Fixture oyun", origin: "INTERNAL", metadataCompleteness: "PARTIAL", coverUrl: null }, description: null, releaseDate: null, freshness: { status: "FRESH", fetchedAt: null }, metadata: { developers: [], publishers: [], languages: [], genres: [], platforms: [], earlyAccess } });
-    let early = false;
-    serve({ session: () => ({ accountId, roles: ["PLAYER"] }), myFeedback: () => ({ items: [], page: 0, size: 20, totalElements: 0 }), discovery: () => ({ items: [{ game: detail(false).game, releaseDate: null }], page: 0, size: 8, totalElements: 1 }), detail: () => detail(early) });
-    wrap(<GameMyFeedback />);
-    fireEvent.change(await screen.findByRole("searchbox", { name: t.feedbackPickGame }), { target: { value: "Fix" } });
-    fireEvent.click(await screen.findByRole("button", { name: /Fixture oyun/ }, { timeout: 2000 }));
+    serve({ myFeedback: () => ({ items: [], page: 0, size: 20, totalElements: 0 }) });
+    wrap(<GameFeedback gameId={gameId} />);
     const form = await screen.findByRole("form", { name: t.sendFeedback });
     expect(within(form).queryByRole("option", { name: t.choices.EARLY_ACCESS })).toBeNull();
     fireEvent.change(within(form).getByLabelText(t.fields.type), { target: { value: "BUG_REPORT" } });
@@ -72,7 +35,6 @@ describe("Oyuncu geri bildirimleri", () => {
     fireEvent.submit(form);
     await waitFor(() => expect(mutate).toHaveBeenCalledTimes(1));
     expect(mutate.mock.calls[0][0]).toEqual({ operation: "feedback", body: { gameId, type: "BUG_REPORT", title: "Çökme", body: "Başlangıçta çöküyor" } });
-    early = true;
     cleanup();
     wrap(<GameFeedback gameId={gameId} earlyAccess />);
     expect(within(await screen.findByRole("form", { name: t.sendFeedback })).getByRole("option", { name: t.choices.EARLY_ACCESS })).toBeVisible();

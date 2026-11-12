@@ -9,12 +9,17 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 @ConfigurationProperties("ltz.game.pricing")
 public record GamePriceProperties(@DefaultValue("") String apiKey,
         @DefaultValue("https://api.isthereanydeal.com") String apiUrl,
-        @DefaultValue("TR") String country, @DefaultValue("USD") String currency,
+        @DefaultValue("US") String country, @DefaultValue("USD") String currency,
         @DefaultValue("15m") Duration ttl,
-        @DefaultValue("") String markets) {
+        @DefaultValue("") String markets,
+        @DefaultValue("3") int displayGrace) {
     /** Tek pazarlı kurulum (eski kurucu): yalnız ülke/para birimi çifti yenilenir. */
     public GamePriceProperties(String apiKey, String apiUrl, String country, String currency, Duration ttl) {
-        this(apiKey, apiUrl, country, currency, ttl, "");
+        this(apiKey, apiUrl, country, currency, ttl, "", 3);
+    }
+    /** Ek pazarlı kurulum (eski kurucu): gizleme süresi çarpanı varsayılandır (3). */
+    public GamePriceProperties(String apiKey, String apiUrl, String country, String currency, Duration ttl, String markets) {
+        this(apiKey, apiUrl, country, currency, ttl, markets, 3);
     }
     @org.springframework.boot.context.properties.bind.ConstructorBinding
     public GamePriceProperties {
@@ -24,7 +29,15 @@ public record GamePriceProperties(@DefaultValue("") String apiKey,
         new Market(country,currency);
         if(ttl==null || ttl.compareTo(Duration.ofMinutes(1))<0 || ttl.compareTo(Duration.ofHours(2))>0)
             throw new IllegalArgumentException("Fiyat TTL 1 dakika – 2 saat olmalıdır.");
+        if(displayGrace<1 || displayGrace>10) throw new IllegalArgumentException("Fiyat gizleme çarpanı 1 – 10 olmalıdır.");
     }
+
+    /**
+     * Teklifin GİZLENME süresi: bir oyun kademesinin yenileme aralığının {@link #displayGrace()} katıdır. Yenileme aralığı ({@link #ttl()},
+     * {@link #warmTtl()}, {@link #coldTtl()}) ne sıklıkla yeniden sorulacağını belirler; gizleme süresi ise kısa bir servis duraklamasında
+     * fiyatların kaybolmamasını sağlar. Teklif, kaynağın kendi bitişi (ör. indirim sonu) daha erkense o zaman gizlenir.
+     */
+    public Duration displayTtl(Duration tier) { return tier.multipliedBy(displayGrace); }
     public Market market() { return new Market(country,currency); }
 
     /**

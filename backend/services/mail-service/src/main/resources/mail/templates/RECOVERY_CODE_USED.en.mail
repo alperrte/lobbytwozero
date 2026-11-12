@@ -1,0 +1,8 @@
+# RECOVERY_CODE_USED (en). Biçim: docs-mail/sablon-rehberi.md. Düz metin sürümü bloklardan otomatik üretilir.
+subject: A recovery code was used
+kind: warn
+label: SECURITY NOTICE
+title: A recovery code was used
+text: A recovery code was used on your LTZ account.
+date: Date:
+note: If you did not do this, reset your password immediately and contact support.

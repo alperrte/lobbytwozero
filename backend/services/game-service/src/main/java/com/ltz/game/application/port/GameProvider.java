@@ -31,6 +31,74 @@ public interface GameProvider {
         throw new com.ltz.game.domain.exception.ProviderException("UNSUPPORTED_CAPABILITY");
     }
     /**
+     * Bir oyunun mağazadaki çıkış durumu: erken erişimde mi, ücretsiz mi, henüz çıkmamış ("yakında") mı. Sağlayıcı oyunu tanıdığında her
+     * üç alan da kesindir (sağlayıcı yalnız {@code true} olanı bildirir, yokluk {@code false} demektir).
+     */
+    record ReleaseStatus(boolean earlyAccess, boolean free, boolean comingSoon, boolean adult, Integer storeType) {
+        /** Yetişkin içerik ve mağaza türü bilinmeden (testler ve eski çağıranlar). */
+        public ReleaseStatus(boolean earlyAccess, boolean free, boolean comingSoon) { this(earlyAccess, free, comingSoon, false, null); }
+    }
+    /**
+     * Toplu çıkış durumu: katalog kimliği → {@link ReleaseStatus}. En çok 100 kimlik; yalnız sağlayıcının oyunu tanıdığı kimlikler döner
+     * (kimliğin yokluğu "erken erişim/ücretsiz/yakında değil" demek değildir: çağıran bunları bilinmiyor bırakır). Sağlayıcı yeteneği
+     * yoksa UNSUPPORTED_CAPABILITY.
+     */
+    default java.util.Map<String, ReleaseStatus> releaseStatus(java.util.Collection<String> externalIds) {
+        throw new com.ltz.game.domain.exception.ProviderException("UNSUPPORTED_CAPABILITY");
+    }
+    /**
+     * Sağlayıcının mağaza türü ve tür-türevi bilgileri (tek toplu çağrıdan). {@code type} Steam sayısal türüdür (0 oyun, 4 DLC; 1 demo, 14 vb.
+     * ayrı anlam taşır), {@code visible} mağazada görünür mü, {@code releasedOn} yalnız oyun "yakında" değil ve tarih geçmişteyse çıkış günü
+     * (UTC), {@code parentAppId} DLC'nin ana oyunu, {@code tagIds}/{@code categoryIds} mağaza etiket ve oyuncu kategorisi kimlikleri,
+     * {@code platforms} desteklenen platform adları (küçük harf: windows, mac, linux).
+     */
+    record StoreType(int type, boolean visible, java.time.LocalDate releasedOn, String parentAppId, Set<Integer> tagIds, Set<Integer> categoryIds,
+                     Set<String> platforms) {
+        public StoreType {
+            tagIds = tagIds == null ? Set.of() : Set.copyOf(tagIds);
+            categoryIds = categoryIds == null ? Set.of() : Set.copyOf(categoryIds);
+            platforms = platforms == null ? Set.of() : Set.copyOf(platforms);
+        }
+    }
+    /**
+     * Toplu mağaza türü: katalog kimliği → {@link StoreType}. En çok 100 kimlik; yalnız sağlayıcının tanıdığı kimlikler döner (yokluk "oyun
+     * değil" demek değildir). Sağlayıcı yeteneği yoksa UNSUPPORTED_CAPABILITY.
+     */
+    default java.util.Map<String, StoreType> storeTypes(java.util.Collection<String> externalIds) {
+        throw new com.ltz.game.domain.exception.ProviderException("UNSUPPORTED_CAPABILITY");
+    }
+    /** Mağaza etiket kimliği → İngilizce ad (yaklaşık yüzlerce kayıt; çağıran önbelleğe alır). Yeteneği yoksa UNSUPPORTED_CAPABILITY. */
+    default java.util.Map<Integer, String> storeTagNames() {
+        throw new com.ltz.game.domain.exception.ProviderException("UNSUPPORTED_CAPABILITY");
+    }
+    /**
+     * Mağazanın kendi fiyatı (tutarlar küçük para birimi biriminde, yani yüzde biri: {@code 1499} = 14,99). {@code originalCents} indirimsiz
+     * fiyattır (indirim yoksa güncel fiyata eşit), {@code saleEnd} indirimin bitişi (bilinmiyorsa null).
+     */
+    record StorePrice(long finalCents, long originalCents, int discountPercent, Instant saleEnd) {
+        public StorePrice {
+            if (finalCents < 0 || finalCents > 9_999_999_999L || originalCents < finalCents || originalCents > 9_999_999_999L
+                    || discountPercent < 0 || discountPercent > 100) {
+                throw new com.ltz.game.domain.exception.ProviderException("INVALID_PROVIDER_RESPONSE");
+            }
+        }
+    }
+    /**
+     * Toplu mağaza fiyatı, verilen ülke için: katalog kimliği → {@link StorePrice}. En çok 100 kimlik; yalnız o ülkede satın alınabilir
+     * fiyatı olan kimlikler döner (ücretsiz, çıkmamış veya o ülkede satılmayan oyun sonuçta yer almaz). Birden çok satın alma seçeneği varsa
+     * paket olmayanlar içinde en düşük güncel fiyat seçilir. {@code country} iki büyük harfli ülke kodudur.
+     */
+    default java.util.Map<String, StorePrice> storePrices(java.util.Collection<String> externalIds, String country) {
+        throw new com.ltz.game.domain.exception.ProviderException("UNSUPPORTED_CAPABILITY");
+    }
+    /**
+     * Arka plan taramalarının sağlayıcı kotasından payı hâlâ var mı. False iken yalnız öncelikli işler ({@link ProviderPriority}: sayfası açılan ve
+     * sıcak oyunlar) çağrı yapabilir; çağıran arka plan taramasını durdurmalı ya da yalnız sıcak oyunlara daraltmalıdır.
+     */
+    default boolean backgroundWorkAllowed() { return true; }
+    /** {@link #storePrices} çağrılabilir mi (sağlayıcı etkin ve anahtarı tanımlı). Yapılandırılmamış sağlayıcı ağ isteği başlatmaz. */
+    default boolean storePricesEnabled() { return false; }
+    /**
      * Toplu mağaza kısa açıklaması, istenen dilde: katalog kimliği → metin. {@code language} küçük harf dil kodudur (ör. {@code en}, {@code tr});
      * desteklenmeyen kod INVALID_PROVIDER_REQUEST. Sağlayıcı o dilde metin yoksa genellikle İngilizce metne düşer: çağıran bunu İngilizce metinle
      * karşılaştırarak ayırmalıdır. En çok 100 kimlik; yalnız metin dönen kimlikler yer alır.

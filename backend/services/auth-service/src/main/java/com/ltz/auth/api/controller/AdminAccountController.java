@@ -15,11 +15,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ltz.auth.api.dto.request.DeletionSupportMessageRequest;
 import com.ltz.auth.api.dto.request.RoleChangeRequest;
 import com.ltz.auth.api.dto.request.StatusChangeRequest;
 import com.ltz.auth.api.dto.response.AdminAccountResponse;
+import com.ltz.auth.api.dto.response.AdminDeletionSupportResponse;
 import com.ltz.auth.api.dto.response.PendingDeletionTaskResponse;
 import com.ltz.auth.application.service.AccountAdministrationService;
+import com.ltz.auth.application.service.DeletionSupportService;
 import com.ltz.auth.application.service.PendingDeletionQueryService;
 import com.ltz.auth.domain.enums.RoleCode;
 
@@ -38,6 +41,7 @@ public class AdminAccountController {
 
     private final AccountAdministrationService administrationService;
     private final PendingDeletionQueryService pendingDeletionQueryService;
+    private final DeletionSupportService deletionSupportService;
 
     @GetMapping(AuthApiPaths.ADMIN_ROLES)
     public List<String> roles() {
@@ -50,6 +54,30 @@ public class AdminAccountController {
             @RequestParam(defaultValue = "50") int limit) {
         return pendingDeletionQueryService.pending(Math.clamp(limit, 1, MAX_PENDING_LIMIT)).stream()
                 .map(PendingDeletionTaskResponse::from).toList();
+    }
+
+    /** B/C türü hesapların bekleyen silme talepleri, en eski önce. */
+    @GetMapping(AuthApiPaths.ADMIN_DELETION_REQUESTS)
+    public List<AdminDeletionSupportResponse> deletionRequests(@RequestParam(defaultValue = "50") int limit) {
+        return deletionSupportService.pending(Math.clamp(limit, 1, MAX_PENDING_LIMIT)).stream()
+                .map(AdminDeletionSupportResponse::from).toList();
+    }
+
+    /** Onay standart silme sürecini başlatır (bekleme süresi, servis görevleri); hesap oturumları kapanır. */
+    @PostMapping(AuthApiPaths.ADMIN_DELETION_REQUEST_APPROVE)
+    public AdminDeletionSupportResponse approveDeletionRequest(@AuthenticationPrincipal Jwt jwt,
+                                                               @PathVariable UUID requestId,
+                                                               @Valid @RequestBody(required = false) DeletionSupportMessageRequest request) {
+        return AdminDeletionSupportResponse.from(
+                deletionSupportService.approve(actorId(jwt), requestId, request == null ? null : request.message()));
+    }
+
+    @PostMapping(AuthApiPaths.ADMIN_DELETION_REQUEST_REJECT)
+    public AdminDeletionSupportResponse rejectDeletionRequest(@AuthenticationPrincipal Jwt jwt,
+                                                              @PathVariable UUID requestId,
+                                                              @Valid @RequestBody(required = false) DeletionSupportMessageRequest request) {
+        return AdminDeletionSupportResponse.from(
+                deletionSupportService.reject(actorId(jwt), requestId, request == null ? null : request.message()));
     }
 
     @GetMapping(AuthApiPaths.ADMIN_ACCOUNT)

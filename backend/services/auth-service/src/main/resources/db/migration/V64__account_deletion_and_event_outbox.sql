@@ -96,7 +96,10 @@ CREATE TABLE auth_event_outbox (
     delivered_at    timestamptz,
     CONSTRAINT uq_auth_event_outbox_delivery UNIQUE (event_id, target),
     CONSTRAINT ck_auth_event_outbox_type CHECK (
-        event_type IN ('ACCOUNT_STATUS_CHANGED', 'USER_REGISTERED', 'ACCOUNT_EMAIL_CHANGED')
+        event_type IN (
+            'ACCOUNT_STATUS_CHANGED', 'USER_REGISTERED', 'ACCOUNT_EMAIL_CHANGED',
+            'EXTERNAL_IDENTITY_LINKED', 'EXTERNAL_IDENTITY_UNLINKED'
+        )
     ),
     CONSTRAINT ck_auth_event_outbox_target CHECK (target ~ '^[a-z0-9][a-z0-9-]{0,31}$'),
     CONSTRAINT ck_auth_event_outbox_status CHECK (status IN ('PENDING', 'DELIVERED')),

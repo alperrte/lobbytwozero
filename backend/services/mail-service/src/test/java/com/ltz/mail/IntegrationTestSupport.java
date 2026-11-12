@@ -67,6 +67,9 @@ public abstract class IntegrationTestSupport {
     protected static final JOSEObjectType ACCESS_TOKEN_TYPE = new JOSEObjectType("at+jwt");
     protected static final String AUTH_SUBJECT = "svc:auth-service";
     protected static final String MAIL_SEND_SCOPE = "mail:send";
+    protected static final String MAIL_NOTIFY_SCOPE = "mail:notify";
+    protected static final String PLATFORM_CALLER = "social-service";
+    protected static final String PLATFORM_SUBJECT = "svc:" + PLATFORM_CALLER;
     protected static final String ERASE_SCOPE = "account:erase";
     protected static final String ALLOWED_LINK_HOST = "app.ltz.test";
     protected static final String RESET_LINK = "https://" + ALLOWED_LINK_HOST + "/reset?token=abc";
@@ -95,6 +98,9 @@ public abstract class IntegrationTestSupport {
     protected JdbcTemplate jdbc;
 
     @Autowired
+    protected StubRecipientResolver resolver;
+
+    @Autowired
     protected RecordingMailSender mailSender;
 
     protected MockMvc mockMvc;
@@ -112,6 +118,10 @@ public abstract class IntegrationTestSupport {
         registry.add("ltz.mail.link.allowed-hosts", () -> ALLOWED_LINK_HOST);
         // İşleyiciler testlerde kapalıdır: servisler doğrudan çağrılır, zamanlama testleri kararsızlaştırmaz.
         registry.add("ltz.mail.worker.enabled", () -> "false");
+        // Platform kapısı: tek kayıtlı çağıran ve düşük sınırlar (hız sınırı testleri hızlı olsun).
+        registry.add("ltz.mail.platform.callers." + PLATFORM_CALLER + ".account-per-hour", () -> "3");
+        registry.add("ltz.mail.platform.callers." + PLATFORM_CALLER + ".caller-per-hour", () -> "6");
+        registry.add("ltz.mail.auth-client.client-secret", () -> "test-client-secret-0123456789abcdef0123456789");
     }
 
     /** Gerçek sunucudaki filtre sırası: gövde sınırı, ardından Spring Security zinciri. */
@@ -124,6 +134,7 @@ public abstract class IntegrationTestSupport {
                 .build();
         jdbc.update("delete from mail_messages");
         mailSender.reset();
+        resolver.reset();
     }
 
     protected static UUID newAccount() {
@@ -178,6 +189,21 @@ public abstract class IntegrationTestSupport {
         } catch (JOSEException exception) {
             throw new IllegalStateException(exception);
         }
+    }
+
+    /** Platform kapısı token'ı: istemci kimlikli ({@code sub=svc:<servis>}, mail:notify), {@code account_id} claim'i yok. */
+    protected static String platformBearer() {
+        return platformBearer(PLATFORM_SUBJECT, MAIL_NOTIFY_SCOPE);
+    }
+
+    protected static String platformBearer(String subject, String scope) {
+        return "Bearer " + serviceToken(newAccount(), scope, builder -> builder.subject(subject).claim("account_id", null));
+    }
+
+    protected static String noticeBody(UUID key, UUID accountId, String title, String message) {
+        return """
+                {"idempotencyKey":"%s","accountId":"%s","kind":"INFO","title":"%s","message":"%s"}"""
+                .formatted(key, accountId, title, message);
     }
 
     protected static String verificationBody(UUID key, UUID accountId, String email, String code) {

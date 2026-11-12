@@ -7,19 +7,19 @@ import { Icon } from "@/shared/components/ui/icons";
 import { useRouter } from "@/shared/lib/i18n/navigation";
 import { useGameResource } from "../hooks/use-game-resource";
 import { catalogueSize, lastPageIndex, sanitizedDiscoveryQuery } from "../services/discovery-query";
+import { defaultCurrencyForLocale } from "../services/price-markets";
 import type { CatalogStatus, DiscoveryPage } from "../types/game";
 import { GameCardList, GameCardSkeletons, type CatalogueView } from "./game-card";
 import { GameCatalogStatus } from "./game-catalog-status";
 import { GameEditorsPicks } from "./game-editors-picks";
 import { GameActiveFilters, GameFilters } from "./game-filters";
-import { GameMyFeedback } from "./game-my-feedback";
 import { GameSectionNav } from "./game-section-nav";
 import { controlClass, GameStatus } from "./game-status";
 import { cn } from "@/shared/utils/cn";
 import { EmptyState, GameSelect, gameScopeClass, Pagination } from "./game-ui";
 
-type CatalogueTab = "all" | "picks" | "feedback";
-const tabIds: readonly CatalogueTab[] = ["all", "picks", "feedback"];
+type CatalogueTab = "all" | "picks";
+const tabIds: readonly CatalogueTab[] = ["all", "picks"];
 const clearAll = { q: "", genre: "", platform: "", language: "", earlyAccess: "", releasedAfter: "", releasedBefore: "", popularOnly: "", minRating: "", discountedOnly: "", page: "" };
 
 function parsePage(value: string | null): number {
@@ -51,7 +51,8 @@ function EmptyResults({ params, filtered, navigate }: { params: URLSearchParams;
 
 function Results({ params, view, page, navigate }: { params: URLSearchParams; view: CatalogueView; page: number; navigate: (changes: Record<string, string>) => void }) {
   const t = useTranslations("Game");
-  const { query, errors } = sanitizedDiscoveryQuery(params);
+  const locale = useLocale();
+  const { query, errors } = sanitizedDiscoveryQuery(params, defaultCurrencyForLocale(locale));
   query.set("page", String(page));
   const result = useGameResource<DiscoveryPage>({ kind: "discovery", query: query.toString() });
   const filtered = ["q", "genre", "platform", "language", "earlyAccess", "releasedAfter", "releasedBefore", "popularOnly", "minRating", "discountedOnly"].some((key) => params.get(key));
@@ -110,7 +111,7 @@ export function GameCatalogue() {
     </header>
     <GameSectionNav current={tab} />
     <div className="space-y-6">
-      {tab !== "feedback" && <div className="flex flex-wrap items-end gap-4">
+      <div className="flex flex-wrap items-end gap-4">
         {tab === "all" && <label className="flex min-w-0 flex-1 basis-64 flex-col gap-2 text-sm">{t("search")}
           <span className="relative"><Icon name="search" width={18} height={18} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-text-secondary" />
             <input type="search" maxLength={128} value={draft} onChange={(event) => setSearch({ query, draft: event.target.value })} className={`${controlClass} w-full ps-10`} /></span>
@@ -123,14 +124,13 @@ export function GameCatalogue() {
         <div role="group" aria-label={t("viewMode")} className="flex gap-1">
           {(["grid", "list"] as const).map((value) => <button key={value} type="button" aria-pressed={view === value} onClick={() => navigate({ view: value === "grid" ? "" : value })} className={`${controlClass} aria-pressed:border-primary aria-pressed:text-brand-text`}>{t(value === "grid" ? "viewGrid" : "viewList")}</button>)}
         </div>
-      </div>}
+      </div>
       {tab === "all" && <>
         <GameFilters params={urlParams} onApply={navigate} />
         <GameActiveFilters params={urlParams} onChange={navigate} />
         <Results params={urlParams} view={view} page={page} navigate={navigate} />
       </>}
       {tab === "picks" && <GameEditorsPicks page={page} view={view} onPage={(next) => navigate({ page: next ? String(next) : "" })} />}
-      {tab === "feedback" && <GameMyFeedback />}
     </div>
     <GameCatalogStatus />
   </div>;

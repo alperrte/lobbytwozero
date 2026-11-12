@@ -20,7 +20,7 @@ vi.mock("@/shared/lib/i18n/navigation", async () => {
 });
 
 const TOKEN = "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789-_AbCdEf";
-const PASSWORD = "yeni-dogru-parola-123";
+const PASSWORD = "Yeni-Dogru-Parola-123";
 
 function apiWith(overrides: Partial<PasswordResetApi> = {}): PasswordResetApi {
   return {

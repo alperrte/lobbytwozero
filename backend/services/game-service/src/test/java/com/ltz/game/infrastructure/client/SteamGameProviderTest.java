@@ -108,6 +108,176 @@ class SteamGameProviderTest {
         assertEquals(java.util.Set.of("3595230", "570", "1091500"), found.keySet(), "hiçbir alanı olmayan, başka uygulamaya ait adresli, geçersiz dosyalı ve istenmeyen kayıtlar atlanır");
     }
 
+    @Test void releaseStatusComesFromSteamsFlagsAndOnlyForAppsSteamRecognises() {
+        server.expect(method(HttpMethod.GET)).andExpect(request -> {
+            assertEquals("/IStoreBrowseService/GetItems/v1/", request.getURI().getPath());
+            assertEquals(TEST_KEY, request.getHeaders().getFirst("x-webapi-key"));
+            String query = java.net.URLDecoder.decode(request.getURI().getRawQuery(), java.nio.charset.StandardCharsets.UTF_8);
+            assertTrue(query.contains("{\"appid\":1966720}") && query.contains("\"include_release\":true"));
+            assertFalse(query.contains("include_assets") || query.contains("include_basic_info"), "yalnız çıkış bilgisi istenir");
+            assertFalse(request.getURI().toString().contains(TEST_KEY));
+        }).andRespond(withSuccess("""
+                {"response":{"store_items":[
+                 {"appid":1966720,"release":{"steam_release_date":1698095392,"is_early_access":true}},
+                 {"appid":570,"release":{"steam_release_date":1373389200,"original_release_date":0}},
+                 {"appid":730,"is_free":true,"release":{"steam_release_date":1345000000}},
+                 {"appid":4087790,"release":{"steam_release_date":1830240000,"is_coming_soon":true,"coming_soon_display":"date_year"}},
+                 {"appid":1623730,"release":{"steam_release_date":1783652772,"release_from_early_access_date":1783666800}},
+                 {"appid":42,"success":15},
+                 {"appid":777,"release":{"is_early_access":true}}]}}
+                """, MediaType.APPLICATION_JSON));
+        var found = provider.releaseStatus(java.util.List.of("1966720", "570", "730", "4087790", "1623730", "42"));
+        assertEquals(java.util.Map.of(
+                "1966720", new com.ltz.game.application.port.GameProvider.ReleaseStatus(true, false, false),
+                "570", new com.ltz.game.application.port.GameProvider.ReleaseStatus(false, false, false),
+                "730", new com.ltz.game.application.port.GameProvider.ReleaseStatus(false, true, false),
+                "4087790", new com.ltz.game.application.port.GameProvider.ReleaseStatus(false, false, true),
+                "1623730", new com.ltz.game.application.port.GameProvider.ReleaseStatus(false, false, false)), found,
+                "bayrak yoksa false; tanınmayan uygulama (42) ve istenmeyen kimlik (777) sonuçta yok");
+        server.verify();
+    }
+
+    @Test void releaseStatusAlsoCarriesAdultContentDescriptorsAndTheStoreType() {
+        server.expect(method(HttpMethod.GET)).andRespond(withSuccess("""
+                {"response":{"store_items":[
+                 {"appid":1,"type":0,"content_descriptorids":[1,2,5],"release":{}},
+                 {"appid":2,"type":0,"content_descriptorids":[5,3],"release":{}},
+                 {"appid":3,"type":4,"content_descriptorids":[4],"release":{}},
+                 {"appid":4,"type":1,"release":{}},
+                 {"appid":5,"content_descriptorids":"bozuk","release":{}}]}}
+                """, MediaType.APPLICATION_JSON));
+        var found = provider.releaseStatus(java.util.List.of("1", "2", "3", "4", "5"));
+        assertFalse(found.get("1").adult(), "1, 2 ve 5 yetişkin içerik değildir");
+        assertTrue(found.get("2").adult());
+        assertTrue(found.get("3").adult());
+        assertEquals(java.util.List.of(0, 0, 4, 1), java.util.stream.Stream.of("1", "2", "3", "4").map(id -> found.get(id).storeType()).toList());
+        assertFalse(found.get("5").adult());
+        assertNull(found.get("5").storeType(), "tür bildirilmediyse null");
+    }
+
+    @Test void storeTypesCarryTypeVisibilityReleaseDayParentTagsCategoriesAndPlatformsOnlyForRecognisedApps() {
+        server.expect(method(HttpMethod.GET)).andExpect(request -> {
+            assertEquals("/IStoreBrowseService/GetItems/v1/", request.getURI().getPath());
+            assertEquals(TEST_KEY, request.getHeaders().getFirst("x-webapi-key"));
+            String query = java.net.URLDecoder.decode(request.getURI().getRawQuery(), java.nio.charset.StandardCharsets.UTF_8);
+            assertTrue(query.contains("\"include_release\":true") && query.contains("\"include_tag_count\":20") && query.contains("\"include_platforms\":true"));
+            assertFalse(request.getURI().toString().contains(TEST_KEY));
+        }).andRespond(withSuccess("""
+                {"response":{"store_items":[
+                 {"appid":10,"success":1,"type":0,"visible":true,"tagids":[492,21,0,-5],"release":{"steam_release_date":1373389200},
+                  "categories":{"supported_player_categoryids":[2,1]},"platforms":{"windows":true,"mac":false,"steamos_linux":true}},
+                 {"appid":20,"success":1,"type":4,"visible":true,"related_items":{"parent_appid":10},"release":{"steam_release_date":4102444700,"is_coming_soon":true}},
+                 {"appid":30,"success":1,"type":0,"visible":false,"release":{"steam_release_date":100}},
+                 {"appid":40,"success":15},
+                 {"appid":50,"success":1},
+                 {"appid":999,"success":1,"type":0}]}}
+                """, MediaType.APPLICATION_JSON));
+        var found = provider.storeTypes(java.util.List.of("10", "20", "30", "40", "50"));
+        assertEquals(java.util.Set.of("10", "20", "30"), found.keySet(), "tanınmayan (40), türsüz (50) ve istenmeyen (999) kayıtlar yok");
+        var game = found.get("10");
+        assertEquals(0, game.type());
+        assertTrue(game.visible());
+        assertEquals(java.time.LocalDate.parse("2013-07-09"), game.releasedOn());
+        assertEquals(java.util.Set.of(492, 21), game.tagIds(), "geçersiz kimlikler atlanır");
+        assertEquals(java.util.Set.of(2, 1), game.categoryIds());
+        assertEquals(java.util.Set.of("windows", "linux"), game.platforms(), "steamos_linux → linux");
+        var dlc = found.get("20");
+        assertEquals(4, dlc.type());
+        assertEquals("10", dlc.parentAppId());
+        assertNull(dlc.releasedOn(), "yakında olan oyunun tarihi yazılmaz");
+        assertFalse(found.get("30").visible());
+        assertNull(found.get("30").releasedOn(), "makul aralık dışındaki tarih yazılmaz");
+        server.verify();
+    }
+
+    @Test void storeTagNamesAreReadFromTheTagListAndRejectBrokenResponses() {
+        var clock = new Clock() {
+            Instant now = Instant.parse("2026-10-20T00:00:00Z");
+            @Override public ZoneOffset getZone() { return ZoneOffset.UTC; }
+            @Override public Clock withZone(java.time.ZoneId zone) { return this; }
+            @Override public Instant instant() { return now; }
+        };
+        RestClient.Builder builder = RestClient.builder();
+        var tagServer = MockRestServiceServer.bindTo(builder).build();
+        var tagProvider = new SteamGameProvider(builder.build(), TEST_KEY, true, new SteamRequestBudget(clock), millis -> clock.now = clock.now.plusMillis(millis));
+        tagServer.expect(method(HttpMethod.GET)).andExpect(request -> {
+            assertEquals("/IStoreService/GetTagList/v1/", request.getURI().getPath());
+            assertEquals(TEST_KEY, request.getHeaders().getFirst("x-webapi-key"));
+            assertFalse(request.getURI().toString().contains(TEST_KEY));
+        }).andRespond(withSuccess("""
+                {"response":{"version_hash":"1","tags":[{"tagid":9,"name":"Strategy"},{"tagid":0,"name":"X"},{"tagid":21,"name":"  "},{"tagid":19,"name":"Action"}]}}
+                """, MediaType.APPLICATION_JSON));
+        tagServer.expect(method(HttpMethod.GET)).andRespond(withSuccess("{\"response\":{}}", MediaType.APPLICATION_JSON));
+        tagServer.expect(method(HttpMethod.GET)).andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS));
+        assertEquals(java.util.Map.of(9, "Strategy", 19, "Action"), tagProvider.storeTagNames());
+        assertEquals("INVALID_PROVIDER_RESPONSE", assertThrows(ProviderException.class, tagProvider::storeTagNames).code());
+        assertEquals("RATE_LIMITED", assertThrows(ProviderException.class, tagProvider::storeTagNames).code());
+        assertEquals(java.util.Map.of(), provider.storeTypes(java.util.List.of()));
+        assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.storeTypes(java.util.List.of("x"))).code());
+        tagServer.verify();
+    }
+
+    @Test void releaseStatusRejectsInvalidIdsAndPricesRejectInvalidCountriesAndIds() {
+        assertEquals(java.util.Map.of(), provider.releaseStatus(java.util.List.of()));
+        assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.releaseStatus(java.util.List.of("0; drop"))).code());
+        assertEquals(java.util.Map.of(), provider.storePrices(java.util.List.of(), "US"));
+        var validId = java.util.List.of("1");
+        var badId = java.util.List.of("0; drop");
+        assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.storePrices(validId, "us")).code());
+        assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.storePrices(validId, "US\",\"x")).code());
+        assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.storePrices(badId, "US")).code());
+    }
+
+    @Test void storePricesPickTheLowestNonBundleOptionPerCountryAndKeepSaleAndScaleExactly() {
+        server.expect(method(HttpMethod.GET)).andExpect(request -> {
+            assertEquals("/IStoreBrowseService/GetItems/v1/", request.getURI().getPath());
+            String query = java.net.URLDecoder.decode(request.getURI().getRawQuery(), java.nio.charset.StandardCharsets.UTF_8);
+            assertTrue(query.contains("\"country_code\":\"JP\"") && query.contains("\"include_all_purchase_options\":true"));
+            assertFalse(request.getURI().toString().contains(TEST_KEY));
+        }).andRespond(withSuccess("""
+                {"response":{"store_items":[
+                 {"appid":1245620,"purchase_options":[
+                   {"packageid":1010505,"final_price_in_cents":"924000"},
+                   {"packageid":1010509,"final_price_in_cents":"902000"},
+                   {"bundleid":32470,"final_price_in_cents":"100"},
+                   {"packageid":1010506,"final_price_in_cents":"990000","must_purchase_as_set":true}]},
+                 {"appid":4303420,"purchase_options":[
+                   {"packageid":1504951,"final_price_in_cents":"9400","original_price_in_cents":"79000","discount_pct":88,
+                    "active_discounts":[{"discount_amount":"69600","discount_end_date":1794675600},{"discount_end_date":1900000000}]}]},
+                 {"appid":730,"is_free":true,"purchase_options":[]},
+                 {"appid":4087790,"release":{"is_coming_soon":true}},
+                 {"appid":42,"success":15},
+                 {"appid":99,"purchase_options":[{"packageid":5,"final_price_in_cents":"oops"},{"packageid":6,"final_price_in_cents":"12345678901"}]},
+                 {"appid":777,"purchase_options":[{"packageid":7,"final_price_in_cents":"100"}]}]}}
+                """, MediaType.APPLICATION_JSON));
+        var found = provider.storePrices(java.util.List.of("1245620", "4303420", "730", "4087790", "42", "99"), "JP");
+        assertEquals(java.util.Set.of("1245620", "4303420"), found.keySet(), "ücretsiz, çıkmamış, tanınmayan, geçersiz tutarlı ve istenmeyen kimlik sonuçta yok");
+        var elden = found.get("1245620");
+        assertEquals(902000L, elden.finalCents(), "paket olmayan ve set olarak satılmayan seçenekler içinde en düşük");
+        assertEquals(902000L, elden.originalCents(), "indirim yoksa indirimsiz fiyat güncel fiyata eşit");
+        assertEquals(0, elden.discountPercent());
+        assertNull(elden.saleEnd());
+        var sale = found.get("4303420");
+        assertEquals(9400L, sale.finalCents());
+        assertEquals(79000L, sale.originalCents());
+        assertEquals(88, sale.discountPercent());
+        assertEquals(Instant.ofEpochSecond(1794675600L), sale.saleEnd(), "en yakın indirim bitişi");
+        server.verify();
+    }
+
+    @Test void storePriceFallsBackToTheBestOptionWhenNoOptionListIsPresentAndComputesMissingPercent() {
+        server.expect(method(HttpMethod.GET)).andRespond(withSuccess("""
+                {"response":{"store_items":[
+                 {"appid":10,"best_purchase_option":{"packageid":1,"final_price_in_cents":500,"original_price_in_cents":"1000"}},
+                 {"appid":11,"best_purchase_option":{"bundleid":2,"final_price_in_cents":"100"}}]}}
+                """, MediaType.APPLICATION_JSON));
+        var found = provider.storePrices(java.util.List.of("10", "11"), "US");
+        assertEquals(java.util.Set.of("10"), found.keySet(), "paket (bundle) seçeneği tek başına fiyat sayılmaz");
+        assertEquals(500L, found.get("10").finalCents());
+        assertEquals(1000L, found.get("10").originalCents());
+        assertEquals(50, found.get("10").discountPercent(), "discount_pct yoksa fiyatlardan hesaplanır");
+    }
+
     @Test void storeItemsRejectInvalidIdsOversizedBatchesAndMalformedResponses() {
         assertEquals(java.util.Map.of(), provider.storeItems(java.util.List.of()));
         assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.storeItems(java.util.List.of("0; drop"))).code());
@@ -247,11 +417,30 @@ class SteamGameProviderTest {
         var negativeTime = Instant.ofEpochSecond(-1);
         assertThrows(IllegalArgumentException.class,()->new CatalogQuery(0,negativeTime,10));
     }
-    @Test void immediateRepeatIsRateLimited() {
-        server.expect(anything()).andRespond(withSuccess("{\"response\":{\"apps\":[],\"have_more_results\":false}}",MediaType.APPLICATION_JSON));
-        provider.catalog(new CatalogQuery(0,null,10));
+    @Test void immediateRepeatWaitsForTheSharedBudgetInsteadOfFailingAndTheDailyLimitStillFails() {
+        var clock = new Clock() {
+            Instant now = Instant.parse("2026-10-20T00:00:00Z");
+            @Override public ZoneOffset getZone() { return ZoneOffset.UTC; }
+            @Override public Clock withZone(java.time.ZoneId zone) { return this; }
+            @Override public Instant instant() { return now; }
+        };
+        RestClient.Builder builder = RestClient.builder();
+        var waiting = MockRestServiceServer.bindTo(builder).build();
+        var waitingProvider = new SteamGameProvider(builder.build(), TEST_KEY, true, new SteamRequestBudget(clock), millis -> clock.now = clock.now.plusMillis(millis));
+        waiting.expect(anything()).andRespond(withSuccess("{\"response\":{\"apps\":[],\"have_more_results\":false}}",MediaType.APPLICATION_JSON));
+        waiting.expect(anything()).andRespond(withSuccess("{\"response\":{\"apps\":[],\"have_more_results\":false}}",MediaType.APPLICATION_JSON));
         var query = new CatalogQuery(0,null,10);
-        assertEquals("RATE_LIMITED",assertThrows(ProviderException.class,()->provider.catalog(query)).code());
+        waitingProvider.catalog(query);
+        waitingProvider.catalog(query);
+        waiting.verify();
+        // Günlük sınır aşılınca bekleme çözüm değildir: uzun süreli RATE_LIMITED hemen yansır.
+        var exhausted = new SteamRequestBudget(clock, 100, 4);   // arka plan payı 3 çağrı
+        RestClient.Builder otherBuilder = RestClient.builder();
+        var other = MockRestServiceServer.bindTo(otherBuilder).build();
+        for (int index = 0; index < 3; index++) other.expect(anything()).andRespond(withSuccess("{\"response\":{\"apps\":[],\"have_more_results\":false}}",MediaType.APPLICATION_JSON));
+        var limited = new SteamGameProvider(otherBuilder.build(), TEST_KEY, true, exhausted, millis -> clock.now = clock.now.plusMillis(millis));
+        for (int index = 0; index < 3; index++) limited.catalog(query);
+        assertEquals("RATE_LIMITED",assertThrows(ProviderException.class,()->limited.catalog(query)).code());
     }
 
     // ---- Kayıt düzeyi hata yalnız o kaydı atlar; sağlayıcı düzeyi hata tüm sayfayı reddeder.

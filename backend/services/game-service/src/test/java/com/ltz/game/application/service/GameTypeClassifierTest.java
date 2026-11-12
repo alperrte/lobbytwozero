@@ -14,6 +14,10 @@ class GameTypeClassifierTest {
         assertEquals(expected,classifier.classify(raw,true));
         assertEquals(GameType.UNKNOWN,classifier.classify(raw,false));
     }
+    @ParameterizedTest @CsvSource({"0,MAIN_GAME","4,DLC","1,UNKNOWN","2,UNKNOWN","3,UNKNOWN","6,UNKNOWN","14,UNKNOWN","-1,UNKNOWN","999,UNKNOWN"})
+    void onlySteamGameAndDlcStoreTypesClassify(int steamType,GameType expected) {
+        assertEquals(expected,classifier.fromSteamStoreType(steamType));
+    }
     @Test void missingSignalsStayUnknown() {
         assertEquals(GameType.UNKNOWN,classifier.classify(null,true));
         assertEquals(GameType.UNKNOWN,classifier.classify("",true));

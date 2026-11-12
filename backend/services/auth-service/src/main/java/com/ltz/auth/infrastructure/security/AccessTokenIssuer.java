@@ -30,9 +30,18 @@ public class AccessTokenIssuer {
         this.properties = properties;
     }
 
+    /** Hesap türü claim'i olmadan token üretir (tür bilinmiyorsa); oturum akışı {@link #issue(Account, AuthSession, String, boolean, Instant)} kullanır. */
     public IssuedAccessToken issue(Account account, AuthSession session, Instant now) {
+        return issue(account, session, null, false, now);
+    }
+
+    /**
+     * @param tier hesap türü ("A" | "B" | "C"); null ise tür claim'leri yazılmaz. Düz tiplerle taşınır: Hardware'in kapalı
+     *             derleme kümesi bu sınıfı tek başına derler, küme dışı Auth tipine bağlanamaz.
+     */
+    public IssuedAccessToken issue(Account account, AuthSession session, String tier, boolean trusted, Instant now) {
         Instant expiresAt = now.plus(properties.accessTokenTtl());
-        JwtClaimsSet claims = JwtClaimsSet.builder()
+        JwtClaimsSet.Builder claims = JwtClaimsSet.builder()
                 .issuer(properties.issuer())
                 .subject(account.getId().toString())
                 .audience(List.of(properties.audience()))
@@ -43,13 +52,16 @@ public class AccessTokenIssuer {
                 .claim(TokenClaims.SESSION_ID, session.getId().toString())
                 .claim(TokenClaims.TOKEN_VERSION, account.getTokenVersion())
                 .claim(TokenClaims.ROLES, account.roleCodes().stream().map(Enum::name).sorted().toList())
-                .claim(TokenClaims.AUTH_METHODS, session.authMethods().stream().map(AuthMethod::claimValue).toList())
-                .build();
+                .claim(TokenClaims.AUTH_METHODS, session.authMethods().stream().map(AuthMethod::claimValue).toList());
+        if (tier != null) {
+            claims.claim(TokenClaims.ACCOUNT_TIER, tier).claim(TokenClaims.TRUSTED, trusted);
+        }
+        JwtClaimsSet claimSet = claims.build();
         JwsHeader header = JwsHeader.with(SignatureAlgorithm.RS256)
                 .type(TokenClaims.ACCESS_TOKEN_TYPE)
                 .keyId(signingKey.keyId())
                 .build();
-        String value = jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
+        String value = jwtEncoder.encode(JwtEncoderParameters.from(header, claimSet)).getTokenValue();
         return new IssuedAccessToken(value, expiresAt);
     }
 

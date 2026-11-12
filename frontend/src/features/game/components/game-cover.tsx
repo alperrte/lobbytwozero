@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Icon } from "@/shared/components/ui/icons";
 import { cn } from "@/shared/utils/cn";
 import { safeExternalUrl } from "../services/discovery-query";
@@ -20,7 +20,7 @@ export function coverOf(game: { coverUrl?: string | null; externalReferences?: {
  * Kapak görseli. Yalnız güvenli HTTPS adresi yüklenir; adres yoksa veya görsel açılamazsa
  * kırık görsel yerine nötr bir yer tutucu gösterilir (stok görsel kullanılmaz).
  */
-export function GameCover({ url, className, priority = false }: { url: string | null | undefined; title?: string; className?: string; priority?: boolean }) {
+export function GameCover({ url, className, priority = false, children }: { url: string | null | undefined; title?: string; className?: string; priority?: boolean; children?: ReactNode }) {
   const safe = safeExternalUrl(url);
   const [failed, setFailed] = useState<string>();
   const show = safe && failed !== safe;
@@ -33,5 +33,6 @@ export function GameCover({ url, className, priority = false }: { url: string | 
         <Image unoptimized src={safe} alt="" fill sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw" referrerPolicy="no-referrer" loading={priority ? "eager" : "lazy"} onError={() => setFailed(safe)} className={poster ? "object-contain" : "object-cover"} />
       </>
       : <div data-testid="cover-placeholder" aria-hidden="true" className="flex h-full w-full items-center justify-center text-text-secondary"><Icon name="gamepad" width={36} height={36} /></div>}
+    {children}
   </div>;
 }

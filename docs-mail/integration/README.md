@@ -1,17 +1,17 @@
 # Mail Service — entegrasyon (Auth merkezli)
 
-Güncelleme: 2026-10-31. Sorumlu: Kerem. Mail Service ve Auth adaptörü yazıldı (2026-10-31); aşağıdakiler Auth'un **gerçek kodu** ve `docs/api.md` kaydıyla uyumludur.
+Güncelleme: 2026-11-09. Sorumlu: Kerem. Mail Service ve Auth adaptörü yazıldı (2026-10-31); aşağıdakiler Auth'un **gerçek kodu** ve `docs/api.md` kaydıyla uyumludur.
 
 ## Kim Mail'e istek atıyor?
 
 | Servis | Mail'e çağrı | Kanıt |
 | --- | --- | --- |
-| **auth** | **Evet, tek çağıran.** 4 port: doğrulama kodu, parola sıfırlama, hesap silme onayı, güvenlik/durum bildirimi | `auth-service/.../application/port/*Mail*.java`, `*Dispatcher` sınıfları |
-| event, notification, admin | Hayır. Kod iskelet; Auth'ta (çağıran→mail) token çifti tanımsız | `docs-auth/servis-sozlesmeleri.md` §3.5 tablosunda yok |
+| **auth** | **Evet.** 4 port: doğrulama kodu, parola sıfırlama, hesap silme onayı, güvenlik/durum bildirimi | `auth-service/.../application/port/*Mail*.java`, `*Dispatcher` sınıfları |
+| event, notification, admin, social vb. | **Platform kapısı hazır (2026-11-09), henüz çağıran yok.** `POST /internal/v1/mail/notices` (`mail:notify`); servis Auth'ta `targets.mail-service=mail:notify` ve Mail'de `ltz.mail.platform.callers.<servis>` ile kayıtlı olmalı | [entegrasyon-rehberi.md](../entegrasyon-rehberi.md), `docs-auth/servis-sozlesmeleri.md` §3.5 |
 | user, social, community vb. | Hayır | Kodda `mail` çağrısı bulunamadı |
 | gateway | `/api/v1/mail/**` rotası var; **kullanıcıya açık uç yok** | — |
 
-Mail kimseyi çağırmaz. Tek yön: Auth → Mail.
+Mail, platform kapısında alıcı adresini çözmek için **yalnız Auth'ı** çağırır (`GET /internal/v1/accounts/{id}/contact`, `account:contact:read`, gönderim anında). Başka servisi çağırmaz.
 
 ## Auth'un Mail'den beklediği davranış (koddan)
 
@@ -41,7 +41,7 @@ Bağlantılar (`resetLink`, `confirmationLink`): yalnız `https` (dev'de `http:/
 1. `MailAdapter`'a `MAIL_SERVICE` (`productionReady=true`) ve RestClient adaptörü (`HttpAccountDataEraser` kopyası: yönlendirme yok, her çağrıda yeni token, 202 dışı = hata). `MAIL_SERVICE_URL` zaten Compose'ta tanımlı.
 2. `MailDeliveryConfig` fail-fast'i açılır: prod artık bu adaptörle başlar → **B5 kapanır**, B12/B19 (bildirim e-postaları) kısmen kapanır.
 3. `api.md` Auth "Giden sözleşmeler" kaydı 4 uca genişletilir.
-4. Mail bittikten sonra: `WELCOME` tipi (MAIL-05), "şüpheli giriş" (MAIL-03) Auth'ta eklenir.
+4. `WELCOME` tipi (MAIL-05): Mail tarafı V85 ile hazır (2026-11-09); Auth e-posta doğrulaması tamamlanınca `security-notifications` ucuna `type=WELCOME` gönderecek (Auth tarafı bekliyor). "Şüpheli giriş" (MAIL-03) Auth'ta henüz yok.
 
 ## Gerekirse ileride
 Başka bir servis Mail kullanmak isterse: Auth'ta (çağıran→`mail-service`) çifti + `mail:send` kapsamı, Mail'de `type`↔`sub` izin tablosuna satır. Bu bir istek geldiğinde yapılır; şimdi yapılmaz.

@@ -1,8 +1,8 @@
 import { marketForCurrency } from "./price-markets";
-const filterKeys = ["q", "genre", "platform", "language", "earlyAccess", "releasedAfter", "releasedBefore", "popularOnly", "minRating", "discountedOnly"] as const;
+const filterKeys = ["q", "genre", "platform", "language", "earlyAccess", "releasedAfter", "releasedBefore", "popularOnly", "minRating", "discountedOnly", "includeAdult"] as const;
 
 /** Boş filtreler gönderilmez: q= ve boş tür/dil backend'de geçerli bir filtre değildir. */
-export function discoveryQuery(input: URLSearchParams): URLSearchParams {
+export function discoveryQuery(input: URLSearchParams, fallbackCurrency?: string): URLSearchParams {
   const result = new URLSearchParams({ page: input.get("page") || "0", size: "20" });
   for (const key of filterKeys) {
     const value = input.get(key)?.trim();
@@ -10,8 +10,8 @@ export function discoveryQuery(input: URLSearchParams): URLSearchParams {
   }
   result.set("sort", ["TITLE", "RELEASE_DATE", "POPULARITY", "RATING"].includes(input.get("sort") ?? "") ? input.get("sort")! : "TITLE");
   result.set("direction", input.get("direction") === "DESC" ? "DESC" : "ASC");
-  // Ülke ve para birimi birlikte seçilir (USD→US, EUR→DE, GBP→GB); desteklenmeyen değer (ör. eski TRY) varsayılana düşer.
-  const market = marketForCurrency(input.get("currency"));
+  // Ülke ve para birimi birlikte seçilir (USD→US, EUR→DE, TRY→TR ...); URL'de pazar yoksa arayüz diline göre varsayılan (tr→TRY, diğer→USD), desteklenmeyen değer USD'ye düşer.
+  const market = marketForCurrency(input.get("currency") || fallbackCurrency);
   result.set("country", market.country);
   result.set("currency", market.currency);
   return result;
@@ -25,7 +25,7 @@ export function safeExternalUrl(value: string | null | undefined): string | unde
   } catch { return undefined; }
 }
 
-export const filterChipKeys = ["genre", "platform", "language", "earlyAccess", "releasedAfter", "releasedBefore", "popularOnly", "minRating", "discountedOnly"] as const;
+export const filterChipKeys = ["genre", "platform", "language", "earlyAccess", "releasedAfter", "releasedBefore", "popularOnly", "minRating", "discountedOnly", "includeAdult"] as const;
 export type FilterChipKey = (typeof filterChipKeys)[number];
 export type FilterError = "dateRange" | "minRating";
 
@@ -49,12 +49,12 @@ export function validateFilters(input: URLSearchParams): FilterError[] {
 }
 
 /** Geçersiz filtreyi sunucuya göndermeden çıkarır; kullanıcıya hata ayrıca gösterilir. */
-export function sanitizedDiscoveryQuery(input: URLSearchParams): { query: URLSearchParams; errors: FilterError[] } {
+export function sanitizedDiscoveryQuery(input: URLSearchParams, fallbackCurrency?: string): { query: URLSearchParams; errors: FilterError[] } {
   const errors = validateFilters(input);
   const clean = new URLSearchParams(input);
   if (errors.includes("minRating")) clean.delete("minRating");
   if (errors.includes("dateRange")) { clean.delete("releasedAfter"); clean.delete("releasedBefore"); }
-  return { query: discoveryQuery(clean), errors };
+  return { query: discoveryQuery(clean, fallbackCurrency), errors };
 }
 
 export const catalogueSize = 20;

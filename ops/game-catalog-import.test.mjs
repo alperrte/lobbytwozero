@@ -23,6 +23,9 @@ import {
   USAGE,
   validateManifest,
   DEFAULT_DIRECTORY,
+  dumpedCounts,
+  EXCLUDED_DATA_TABLES,
+  excludeDataFlags,
   verifyDumpFile
 } from "./game-catalog-import.mjs";
 
@@ -62,6 +65,19 @@ describe("game-catalog-import", () => {
     for (const change of cases) assert.throws(() => validateManifest({ ...validManifest(), ...change }), /Manifest geçersiz|İndirme adresi/, JSON.stringify(change));
   });
 
+  test("fiyat tablolarının verisi dump'a girmez: pg_dump bayrakları, manifest sayıları 0 ve doğrulama", () => {
+    assert.deepEqual(EXCLUDED_DATA_TABLES, ["game_price_quotes", "game_price_refresh_state"]);
+    assert.equal(excludeDataFlags(), "--exclude-table-data=game_price_quotes --exclude-table-data=game_price_refresh_state");
+    assert.match(source, /pg_dump[^\n]*\$\{excludeDataFlags\(\)\}/, "dışa aktarma dışlama bayraklarını kullanır");
+    assert.deepEqual(dumpedCounts({ games: 5, game_price_quotes: 900, game_price_refresh_state: 800, game_terms: 7 }),
+      { games: 5, game_price_quotes: 0, game_price_refresh_state: 0, game_terms: 7 });
+    const manifest = { ...validManifest(), tables: dumpedCounts({ games: 5, game_price_quotes: 900, game_price_refresh_state: 800 }), excludedDataTables: EXCLUDED_DATA_TABLES };
+    assert.doesNotThrow(() => validateManifest(manifest));
+    assert.throws(() => validateManifest({ ...manifest, excludedDataTables: ["games"] }), /excludedDataTables/, "yalnız izinli tablolar dışlanabilir");
+    assert.throws(() => validateManifest({ ...manifest, excludedDataTables: "game_price_quotes" }), /excludedDataTables/);
+    assert.throws(() => validateManifest({ ...manifest, tables: { games: 5, game_price_quotes: 900, game_price_refresh_state: 0 } }), /sayıları 0/, "dışlanan tablonun dump sayısı 0 olmalı");
+    assert.doesNotThrow(() => validateManifest(validManifest()), "eski biçim (alan yok) geçerli kalır");
+  });
   test("indirme adresi yalnız izinli GitHub sunucularına https ile gidebilir", () => {
     assertDownloadUrl("https://objects.githubusercontent.com/a/b");
     for (const bad of ["http://github.com/a", "https://evil.example/a", "https://github.com.evil.example/a", "dosya:///c:/x", "değil"]) {

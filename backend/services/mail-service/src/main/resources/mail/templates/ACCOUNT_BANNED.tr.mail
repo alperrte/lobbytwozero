@@ -1,0 +1,7 @@
+# ACCOUNT_BANNED (tr). Biçim: docs-mail/sablon-rehberi.md. Düz metin sürümü bloklardan otomatik üretilir.
+subject: LTZ hesabın yasaklandı
+kind: danger
+label: HESAP DURUMU
+title: Hesabın yasaklandı
+text: LTZ hesabın platform kuralları nedeniyle yasaklandı ve artık kullanılamaz.
+date: Tarih:

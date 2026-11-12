@@ -29,6 +29,14 @@ export type GameDetail = {
     categories?: Term[];
     tags?: Term[];
     earlyAccess?: boolean | null;
+    /** Steam mağaza bilgisi: ücretsiz oyun. null/yok = bilinmiyor (false değildir). */
+    free?: boolean | null;
+    /** Steam mağaza bilgisi: henüz çıkmamış ("yakında"). null/yok = bilinmiyor. */
+    comingSoon?: boolean | null;
+    /** Steam yetişkin içerik işareti (tanımlayıcı 3/4). null/yok = bilinmiyor. */
+    adult?: boolean | null;
+    /** Steam art arda tanımıyor: mağazadan kaldırılmış oyun (kayıt silinmez). */
+    delisted?: boolean;
     metadataLanguage?: string | null;
     languageDataState?: string;
     languageSupport?: LanguageSupport[];
@@ -40,7 +48,7 @@ export type GameDetail = {
 
 export type GameRating = { status: string; averageRating: number | null; ratingCount: number | null };
 export type CardsResponse = { items: GameCard[]; unavailable: string[] };
-export type DiscoveryItem = { game: GameCard; releaseDate: string | null; earlyAccess?: boolean | null; languages?: string[]; editorialRank?: number | null; popularityUpdatedAt?: string | null; rating?: GameRating };
+export type DiscoveryItem = { game: GameCard; releaseDate: string | null; earlyAccess?: boolean | null; free?: boolean | null; comingSoon?: boolean | null; adult?: boolean | null; languages?: string[]; editorialRank?: number | null; popularityUpdatedAt?: string | null; rating?: GameRating };
 export type DiscoveryPage = {
   items: DiscoveryItem[];
   page: number;

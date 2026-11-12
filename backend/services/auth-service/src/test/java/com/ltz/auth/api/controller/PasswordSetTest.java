@@ -27,7 +27,7 @@ import com.ltz.auth.application.port.SecurityNotificationType;
 @Import(RecordingMailPortConfiguration.class)
 class PasswordSetTest extends IntegrationTestSupport {
 
-    private static final String NEW_PASSWORD = "new-secret-passphrase-2026";
+    private static final String NEW_PASSWORD = "New-Secret-Passphrase-2026";
     private static final int MAX_CODE_ATTEMPTS = 5;
 
     @Autowired

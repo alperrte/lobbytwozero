@@ -8,7 +8,7 @@ public interface GameRepository extends JpaRepository<Game, UUID> {
         select g.id from games g where exists (
             select 1 from game_external_refs r
             where r.game_id = g.id and r.provider = :provider and r.external_id in (:externalIds)
-        ) order by g.id for update
+        ) order by g.id for no key update
         """, nativeQuery = true)
     java.util.List<UUID> lockCatalogGames(@org.springframework.data.repository.query.Param("provider") String provider,
             @org.springframework.data.repository.query.Param("externalIds") java.util.Collection<String> externalIds);

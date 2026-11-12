@@ -99,6 +99,8 @@ public class SecurityConfig {
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.EMAIL_CHANGE_CONFIRM),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.ACCOUNT_DELETION_REQUEST),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.ACCOUNT_DELETION_CONFIRM),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.ACCOUNT_DELETION_SUPPORT_REQUEST),
+            PATHS.matcher(HttpMethod.GET, AuthApiPaths.ACCOUNT_DELETION_SUPPORT_REQUEST),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.TOTP_SETUP),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.TOTP_ACTIVATE),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.TOTP_DISABLE),
@@ -157,6 +159,8 @@ public class SecurityConfig {
                         .requestMatchers(ADMIN_ENDPOINTS).hasRole(RoleCode.ADMIN.name())
                         .requestMatchers(PATHS.matcher(HttpMethod.GET, AuthApiPaths.INTERNAL_ACCOUNT))
                                 .hasAuthority(SCOPE_PREFIX + TokenClaims.ACCOUNT_READ_SCOPE)
+                        .requestMatchers(PATHS.matcher(HttpMethod.GET, AuthApiPaths.INTERNAL_ACCOUNT_CONTACT))
+                                .hasAuthority(SCOPE_PREFIX + TokenClaims.ACCOUNT_CONTACT_READ_SCOPE)
                         .requestMatchers(PATHS.matcher(HttpMethod.POST, AuthApiPaths.INTERNAL_ACCOUNT_STATUS))
                                 .hasAuthority(SCOPE_PREFIX + TokenClaims.ACCOUNT_STATUS_WRITE_SCOPE)
                         .requestMatchers(PATHS.matcher(HttpMethod.POST, AuthApiPaths.INTERNAL_ACCOUNT_ROLES_GRANT),

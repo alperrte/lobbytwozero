@@ -33,7 +33,7 @@ class SecurityNotificationDeliveryFailureTest extends IntegrationTestSupport {
         mockMvc.perform(post(AuthApiPaths.PASSWORD_CHANGE).header(HttpHeaders.AUTHORIZATION, bearerFor(account))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"currentPassword":"%s","newPassword":"yeni-parola-yeni-parola-1","newPasswordConfirmation":"yeni-parola-yeni-parola-1"}
+                                {"currentPassword":"%s","newPassword":"Yeni-Parola-Yeni-Parola-1","newPasswordConfirmation":"Yeni-Parola-Yeni-Parola-1"}
                                 """.formatted(VALID_PASSWORD)))
                 .andExpect(status().is2xxSuccessful());
 
@@ -41,6 +41,6 @@ class SecurityNotificationDeliveryFailureTest extends IntegrationTestSupport {
                 .until(() -> output.getAll().contains("Security notification not delivered type=PASSWORD_CHANGED"));
         assertThat(output.getAll()).doesNotContain(email);
         assertThat(securityEventCount(account, "PASSWORD_CHANGED")).isEqualTo(1);
-        login(email, "yeni-parola-yeni-parola-1").andExpect(status().isOk());
+        login(email, "Yeni-Parola-Yeni-Parola-1").andExpect(status().isOk());
     }
 }

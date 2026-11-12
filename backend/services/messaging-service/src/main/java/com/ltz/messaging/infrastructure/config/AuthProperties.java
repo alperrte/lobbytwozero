@@ -11,5 +11,6 @@ import jakarta.validation.constraints.NotBlank;
  */
 @Validated
 @ConfigurationProperties("ltz.messaging.auth")
-public record AuthProperties(@NotBlank String jwksUri, @NotBlank String issuer, @NotBlank String audience) {
+public record AuthProperties(@NotBlank String jwksUri, @NotBlank String issuer, @NotBlank String audience,
+                             @NotBlank String serviceAudience) {
 }

@@ -18,17 +18,34 @@ import org.springframework.web.client.RestClientException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-/** Resmî ITAD toplu eşleme + prices/v3. İsim eşlemesi, kur dönüşümü, affiliate URL değişikliği yoktur. */
+/**
+ * Resmî ITAD toplu eşleme + prices/v3. İsim eşlemesi, kur dönüşümü, affiliate URL değişikliği yoktur. Her oyun için ITAD'in döndürdüğü TÜM
+ * mağaza teklifleri alınır (mağaza sayısı sınırlanmaz). İstekler istemci tarafı hız sınırlayıcıdan geçer ({@link ItadRequestLimiter}).
+ */
 public class ItadPriceClient implements GamePriceProvider {
     private static final JsonMapper JSON=JsonMapper.builder().build();
+    /** Yanıt gövdesi üst sınırı: 200 oyun x ≈64 teklif için pay (gerçek ölçüm: tüm mağazalarla ≈0,2 MB). */
+    private static final int MAX_BODY=16_777_216;
     private final RestClient http;
     private final GamePriceProperties properties;
     private final GameExternalReferenceRepository references;
     private final Clock clock;
+    private final ItadRequestLimiter limiter;
+    /** ITAD 429 ile Retry-After bildirdiğinde tüm iş parçacıkları o zamana kadar yeni istek atmaz (her biri ayrı 429 yemesin). */
+    private volatile java.time.Instant blockedUntil=java.time.Instant.MIN;
+    /** Steam AppID ("app/{id}") → ITAD oyun kimliği. Eşleme kalıcıdır; bir kez öğrenilince tekrar sorulmaz (her turdaki ikinci ITAD isteği ve gecikmesi kalkar). Yalnız olumlu eşleşmeler tutulur. */
+    private final Map<String,UUID> knownMappings=new java.util.concurrent.ConcurrentHashMap<>();
+    /** Bellek üst sınırı (yaklaşık 40 MB): dolarsa temizlenir ve yeniden öğrenilir. */
+    static final int MAX_KNOWN_MAPPINGS=400_000;
 
     public ItadPriceClient(RestClient http,GamePriceProperties properties,GameExternalReferenceRepository references,Clock clock) {
-        this.http=http;this.properties=properties;this.references=references;this.clock=clock;
+        this(http,properties,references,clock,new ItadRequestLimiter(clock));
     }
+    ItadPriceClient(RestClient http,GamePriceProperties properties,GameExternalReferenceRepository references,Clock clock,ItadRequestLimiter limiter) {
+        this.http=http;this.properties=properties;this.references=references;this.clock=clock;this.limiter=limiter;
+    }
+    /** Yalnız testler için: öğrenilmiş eşlemeleri unutur. */
+    void forgetMappingsForTests() { knownMappings.clear(); }
     @Override public boolean isConfigured() { return properties.apiKey()!=null && !properties.apiKey().isBlank(); }
 
     @Override public List<Quote> prices(Set<UUID> ids,Market market) {
@@ -40,21 +57,36 @@ public class ItadPriceClient implements GamePriceProvider {
                 .forEach(ref -> steam.put("app/"+ref.getExternalId(),ref.getGame().getId()));
         if(steam.isEmpty()) return List.of();
         if(steam.size()>200) throw new ProviderException("PRICE_MAPPING_LIMIT");
-        var matched=mapGames(post("/lookup/id/shop/61/v1",new ArrayList<>(steam.keySet())),steam);
+        resolveMappings(steam);
+        var matched=group(steam);
         if(matched.isEmpty()) return List.of();
-        var rows=post("/games/prices/v3?country="+market.country()+"&capacity=5&vouchers=false",new ArrayList<>(matched.keySet()));
-        return ItadPriceMapper.quotes(rows,matched,market,clock.instant(),properties.coldTtl());
+        var rows=post("/games/prices/v3?country="+market.country()+"&vouchers=false",new ArrayList<>(matched.keySet()));
+        return ItadPriceMapper.quotes(rows,matched,market,clock.instant(),properties.displayTtl(properties.coldTtl()));
     }
-    private static Map<UUID,List<UUID>> mapGames(JsonNode data,Map<String,UUID> steam) {
+    /** Henüz bilinmeyen AppID'leri ITAD'e sorar ve olumlu eşleşmeleri önbelleğe alır; bilinenler için istek atılmaz. */
+    private void resolveMappings(Map<String,UUID> steam) {
+        List<String> unknown=steam.keySet().stream().filter(key -> !knownMappings.containsKey(key)).toList();
+        if(unknown.isEmpty()) return;
+        JsonNode data=post("/lookup/id/shop/61/v1",new ArrayList<>(unknown));
         if(data==null || !data.isObject()) throw ItadPriceValues.invalid();
-        Map<UUID,List<UUID>> matched=new LinkedHashMap<>();
-        Map<UUID,UUID> canonical=new java.util.HashMap<>();
-        for(var entry:steam.entrySet()) {
-            JsonNode node=data.get(entry.getKey());
+        if(knownMappings.size()+unknown.size()>MAX_KNOWN_MAPPINGS) knownMappings.clear();
+        Map<String,UUID> learned=new java.util.HashMap<>();
+        for(String key:unknown) {
+            JsonNode node=data.get(key);
             if(node==null) throw ItadPriceValues.invalid();
             if(node.isNull()) continue;
             if(!node.isTextual()) throw ItadPriceValues.invalid();
-            UUID external=ItadPriceValues.uuid(node.asText());
+            learned.put(key,ItadPriceValues.uuid(node.asText()));
+        }
+        knownMappings.putAll(learned);
+    }
+    /** ITAD oyun kimliği → LTZ oyunları; bir LTZ oyunu iki farklı ITAD oyununa eşlenirse belirsiz eşleme hatasıdır. */
+    private Map<UUID,List<UUID>> group(Map<String,UUID> steam) {
+        Map<UUID,List<UUID>> matched=new LinkedHashMap<>();
+        Map<UUID,UUID> canonical=new java.util.HashMap<>();
+        for(var entry:steam.entrySet()) {
+            UUID external=knownMappings.get(entry.getKey());
+            if(external==null) continue;
             UUID previous=canonical.putIfAbsent(entry.getValue(),external);
             if(previous!=null && !previous.equals(external)) throw new ProviderException("AMBIGUOUS_PRICE_MAPPING");
             var targets=matched.computeIfAbsent(external,key -> new ArrayList<>());
@@ -63,20 +95,27 @@ public class ItadPriceClient implements GamePriceProvider {
         return matched;
     }
     private JsonNode post(String path,Object body) {
+        java.time.Instant blocked=blockedUntil;
+        if(blocked.isAfter(clock.instant())) throw new ProviderException(ItadRequestLimiter.LOCAL_THROTTLE,Duration.between(clock.instant(),blocked));
+        limiter.acquire();
         try {
             return http.post().uri(path).header("ITAD-API-Key",properties.apiKey())
                     .header("User-Agent","LTZ-Game-Service/1.0").contentType(MediaType.APPLICATION_JSON)
                     .body(body).exchange((request,response) -> {
                         int status=response.getStatusCode().value();
                         if(status!=200) throw failure(status,response.getHeaders().getFirst("Retry-After"));
-                        byte[] bytes=response.getBody().readNBytes(4_194_305);
-                        if(bytes.length>4_194_304) throw ItadPriceValues.invalid();
+                        byte[] bytes=response.getBody().readNBytes(MAX_BODY+1);
+                        if(bytes.length>MAX_BODY) throw ItadPriceValues.invalid();
                         try { return JSON.readTree(bytes); } catch(RuntimeException _) { throw ItadPriceValues.invalid(); }
                     });
         } catch(RestClientException _) { throw new ProviderException("PRICE_UNAVAILABLE"); }
     }
     private ProviderException failure(int status,String after) {
-        if(status==429) return new ProviderException("PRICE_RATE_LIMITED",retryAfter(after));
+        if(status==429) {
+            Duration wait=retryAfter(after);
+            blockedUntil=clock.instant().plus(wait.compareTo(Duration.ofMinutes(10))>0 ? Duration.ofMinutes(10) : wait);
+            return new ProviderException("PRICE_RATE_LIMITED",wait);
+        }
         return new ProviderException(status==401 || status==403?"PRICE_ACCESS_DENIED":"PRICE_UNAVAILABLE");
     }
     private Duration retryAfter(String value) {

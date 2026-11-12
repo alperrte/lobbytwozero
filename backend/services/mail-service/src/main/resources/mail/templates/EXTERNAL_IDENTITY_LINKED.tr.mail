@@ -1,0 +1,8 @@
+# EXTERNAL_IDENTITY_LINKED (tr). Biçim: docs-mail/sablon-rehberi.md. Düz metin sürümü bloklardan otomatik üretilir.
+subject: LTZ hesabına harici hesap bağlandı
+kind: warn
+label: GÜVENLİK BİLDİRİMİ
+title: Harici hesap bağlandı
+text: LTZ hesabına bir Google ya da Steam hesabı bağlandı.
+date: Tarih:
+note: Bu işlemi sen yapmadıysan hemen parolanı sıfırla ve destek ile iletişime geç.

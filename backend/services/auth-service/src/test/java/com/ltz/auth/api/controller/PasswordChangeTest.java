@@ -28,7 +28,7 @@ import jakarta.servlet.http.Cookie;
 @ExtendWith(OutputCaptureExtension.class)
 class PasswordChangeTest extends IntegrationTestSupport {
 
-    private static final String NEW_PASSWORD = "another-long-passphrase-42";
+    private static final String NEW_PASSWORD = "Another-Long-Passphrase-42";
     private static final int MAX_FAILURES = 5;
 
     @Test
@@ -90,7 +90,7 @@ class PasswordChangeTest extends IntegrationTestSupport {
         change(access, VALID_PASSWORD, NEW_PASSWORD, NEW_PASSWORD + "x").andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors[0].field").value("newPasswordConfirmed"));
         // Boşluklu parola olduğu gibi kabul edilir ve dönüştürülmez.
-        String spaced = "  spaced passphrase 99  ";
+        String spaced = "  Spaced passphrase 99!  ";
         change(access, VALID_PASSWORD, spaced, spaced).andExpect(status().isNoContent());
     }
 
@@ -144,7 +144,7 @@ class PasswordChangeTest extends IntegrationTestSupport {
         Cookie access = loginSession(registerActiveAccount(uniqueEmail(), uniqueUsername())).access();
 
         List<Integer> statuses = ConcurrentRequests.run(2, index -> () -> change(access, VALID_PASSWORD,
-                "concurrent-passphrase-" + index + "-xyz", "concurrent-passphrase-" + index + "-xyz")
+                "Concurrent-passphrase-" + index + "-Xyz", "Concurrent-passphrase-" + index + "-Xyz")
                 .andReturn().getResponse().getStatus());
 
         assertThat(statuses).containsExactlyInAnyOrder(204, 400);

@@ -85,3 +85,24 @@
   sonra gecikmiş bir olay profili yeniden oluşturabilir; Auth'un silinen hesabın bekleyen olaylarını sildiği (REQ-03) için
   pratikte beklenmez.
 - **NOT VERIFIED:** olay sözleşmesi (T4) Auth tarafından henüz kabul edilmedi ve uygulanmadı.
+
+## Öneri rızası (LIB-14, 2026-11-09)
+
+- **Amaç ayrımı:** Öneri için favori/bitirilen oyun verisinin işlenmesi, koleksiyon görünürlüğünden ayrı bir amaçtır ve
+  kullanıcının açık, geri alınabilir rızasına bağlıdır (`user_consents`, V76). Varsayılan: **izin yok**.
+- **Sahiplik kısayolu yok:** `RECOMMENDATION` kararında sahip de rızası yoksa `allowed=false` alır. `allowed=true` için
+  izleyici = sahip, profil var ve görünür hesap, rıza verilmiş olmalı. Başka izleyici ve misafir her zaman reddedilir.
+- **Bağımsızlık:** Social yansıması (`projection-enabled`) bu amaçta kullanılmaz; bayrak kapalıyken de karar çalışır.
+- **Geri çekme:** Satır silinmez, `false` olur; karar her istekte DB'den okunur (önbellek yok), yani geri çekme bir
+  sonraki karar isteğinde etkilidir. Hesap silinince satır profil FK'si ile `ON DELETE CASCADE` gider.
+- **Profili olmayan sahip:** Tüm alanlarda sahibi olmayan izleyiciye `allowed=false` (`setting` varsayılan döner). Var
+  olmayan kullanıcı gizli kullanıcıdan ayırt edilemez (ZG-10).
+- **NOT VERIFIED:** Library'nin gerçek servis token'ıyla `RECOMMENDATION` kararı canlıda denenmedi (Library adaptörü
+  henüz yazılmadı). Rıza ucu canlı yığında gerçek Auth token'ıyla denendi.
+
+## Dil okuma ucu (MAIL-AUTH-REQ-02, 2026-11-10)
+
+- **Uç:** `GET /internal/v1/users/{userId}/locale`, yalnız `svc:auth-service` servis token'ı (`preferences:locale:read`, `account_id` = yoldaki kullanıcı). Başka `sub`, kapsam ya da hesap `403`; tokensiz ve kullanıcı token'ı `401`. Desen hesap silme ucuyla aynıdır.
+- **En az veri:** yalnız `locale` döner; tema ve diğer tercihler dönmez. Dil ve yanıt loglanmaz, `no-store`.
+- **Varsayılan uydurulmaz:** tercih satırı yoksa `404` (Auth "dil bilinmiyor" sayar, iki dilli mail gider). "Seçmedi" ile "Türkçe seçti" ayırt edilebilir kalır.
+- **NOT VERIFIED:** Auth tarafında kapsamın tanımlanması ve gerçek Auth token'ıyla uçtan uca çağrı henüz yapılmadı.

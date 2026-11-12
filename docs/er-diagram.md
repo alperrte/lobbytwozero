@@ -172,7 +172,7 @@ erDiagram
 
 ## 3. user_db
 
-> Uygulanan (V71–V74): `user_profiles`, `user_media`, `inbox_events`, `privacy_settings`, `social_friendships`, `social_blocks`, `profile_counters`, `user_preferences` (V73: `locale`, `theme`, `reduced_motion`, `compact_layout`), `linked_accounts` (V74: yalnız Steam, token saklanmaz; aşağıdaki şema uygulanan hâldir). Ayrıntı: [database.md §3.2](database.md).
+> Uygulanan (V71–V74): `user_profiles`, `user_media`, `inbox_events`, `privacy_settings`, `social_friendships`, `social_blocks`, `profile_counters`, `user_preferences` (V73: `locale`, `theme`, `reduced_motion`, `compact_layout`), `linked_accounts` (V74: yalnız Steam, token saklanmaz; aşağıdaki şema uygulanan hâldir), `user_consents` (V76: `user_id` PK/FK, `recommendation_granted`, `recommendation_changed_at`, `updated_at`, `version`; diyagramda gösterilmedi). Ayrıntı: [database.md §3.2](database.md).
 
 ```mermaid
 erDiagram
@@ -291,7 +291,7 @@ erDiagram
     numeric regular_price
     numeric current_price
     smallint discount_percent
-    varchar source
+    varchar source "V173: ITAD veya STEAM"
     varchar url
     timestamptz source_updated_at
     timestamptz fetched_at
@@ -458,6 +458,10 @@ erDiagram
     varchar description
     date release_date
     boolean early_access
+    boolean free "V31: Steam ucretsiz; null=bilinmiyor"
+    boolean coming_soon "V31: Steam henuz cikmamis; null=bilinmiyor"
+    boolean adult "V31: Steam +18 icerik; null=bilinmiyor"
+    timestamptz delisted_at "V31: Steam magazadan kaldirilmis; null=listede"
     int editor_rank UK
     timestamptz popularity_updated_at
     uuid editor_actor_id "REF"
@@ -623,9 +627,16 @@ erDiagram
     varchar cover_url
     varchar status
   }
+  library_summary_outbox {
+    uuid user_id PK "REF"
+    bigint change_seq
+    int attempts
+    timestamptz next_attempt_at
+  }
 ```
 
 > `game_snapshots` → `library_entries` ilişkisi mantıksaldır (aynı DB, FK zorunlu değil); oyun snapshot'ı event ile gelir.
+> `library_summary_outbox` (V43, LIB-10) kullanıcı başına tek "özet değişti" işaretidir; `library_entries` ile FK yoktur (REF), `LibrarySummaryChanged` sayıları gönderimde okunur.
 
 ## 7. review_db
 
@@ -702,11 +713,13 @@ erDiagram
 erDiagram
   conversations ||--o{ conversation_members : includes
   conversations ||--o{ messages : contains
-  messages ||--o{ message_attachments : attaches
+  conversations ||--o{ message_read_ranges : "read ranges"
+  conversations ||--o{ message_attachments : "uploads"
+  messages |o--o| message_attachments : attaches
+  attachment_blobs ||--o{ message_attachments : "shared content"
   messages ||--o{ message_reactions : reacted
-  messages ||--o{ message_reads : "read by"
   messages ||--o{ message_hidden_for_users : "hidden for"
-  messages |o--o{ messages : "reply_to / forwarded_from"
+  messages |o--o{ messages : "reply_to"
 
   conversations {
     uuid id PK
@@ -735,29 +748,71 @@ erDiagram
     bigint seq "UK(conversation_id, seq)"
     uuid sender_id "REF"
     varchar client_message_id "UK(sender_id, client_message_id)"
-    varchar type "TEXT"
-    text body "1-4000"
+    varchar type "TEXT|IMAGE|GIF|VOICE"
+    text body "1-4000; TEXT'te zorunlu"
+    varchar gif_provider "yalnız GIF: GIPHY"
+    varchar gif_id
+    varchar gif_url "https"
+    varchar gif_preview_url "https"
+    int gif_width
+    int gif_height
     timestamptz created_at
+    uuid reply_to_message_id FK "SET NULL"
+    int forward_count "iletildi sayacı"
+    timestamptz deleted_at "herkesten silindi"
+    uuid deleted_by "REF"
   }
   message_attachments {
     uuid id PK
-    uuid message_id FK
-    varchar storage_key
+    uuid conversation_id FK "ON DELETE CASCADE"
+    uuid uploader_id "REF"
+    uuid message_id FK,UK "null: gönderilmedi"
+    uuid blob_id FK "RESTRICT"
+    boolean forwarded "iletme bağlantısı"
+    varchar mime_type "png|jpeg|gif|audio/webm"
     int size_bytes "<= 1 MB"
+    int width "yalnız görsel"
+    int height "yalnız görsel"
+    int frame_count "yalnız görsel"
+    int duration_ms "yalnız ses, 500-121000"
+    bytea waveform "yalnız ses, 64 bayt, opsiyonel"
+    timestamptz created_at
+  }
+  attachment_blobs {
+    uuid id PK
+    int size_bytes "<= 1 MB"
+    bytea content
+    timestamptz created_at
   }
   message_reactions {
     uuid message_id PK,FK
-    uuid user_id PK "REF"
-    varchar emoji PK
+    uuid user_id PK "REF; kişi başına tek"
+    varchar emoji "1-32"
+    timestamptz reacted_at
   }
-  message_reads {
-    uuid message_id PK,FK
-    uuid user_id PK "REF"
-    timestamptz read_at
+  message_read_ranges {
+    uuid id PK
+    uuid conversation_id FK "ON DELETE CASCADE"
+    uuid user_id "REF"
+    bigint from_seq "CHECK >= 1"
+    bigint to_seq "CHECK from_seq <= to_seq"
+    timestamptz read_at "aralığın okunma saati"
   }
   message_hidden_for_users {
-    uuid message_id PK,FK
     uuid user_id PK "REF"
+    uuid message_id PK,FK
+    timestamptz hidden_at
+  }
+  rate_limit_windows {
+    uuid user_id PK "REF"
+    varchar bucket PK "gif-search|reaction"
+    timestamptz window_start PK
+    int hits
+  }
+  stream_relay_events {
+    bigserial id PK
+    timestamptz created_at "5 dk sonra silinir"
+    text payload "alıcı başına olay JSON"
   }
 ```
 

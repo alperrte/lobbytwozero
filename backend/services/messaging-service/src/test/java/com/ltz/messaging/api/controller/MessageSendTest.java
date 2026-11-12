@@ -24,6 +24,7 @@ import org.springframework.http.MediaType;
 
 import com.jayway.jsonpath.JsonPath;
 import com.ltz.messaging.IntegrationTestSupport;
+import com.ltz.messaging.application.service.MessageDraft;
 import com.ltz.messaging.application.service.MessageService;
 
 /**
@@ -216,7 +217,8 @@ class MessageSendTest extends IntegrationTestSupport {
             for (UUID sender : senders) {
                 results.add(pool.submit(() -> {
                     start.await();
-                    return messages.send(sender, group, UUID.randomUUID().toString(), "eşzamanlı").message().seq();
+                    return messages.send(sender, group, UUID.randomUUID().toString(),
+                            MessageDraft.text("eşzamanlı")).message().seq();
                 }));
             }
             start.countDown();
@@ -229,11 +231,6 @@ class MessageSendTest extends IntegrationTestSupport {
         }
         assertThat(jdbc.queryForObject("select last_message_seq from conversations where id = ?", Long.class, group))
                 .isEqualTo(senders.size());
-    }
-
-    private int messageCount(UUID conversationId) {
-        return jdbc.queryForObject("select count(*) from messages where conversation_id = ?", Integer.class,
-                conversationId);
     }
 
     private int outboxCount(UUID conversationId) {

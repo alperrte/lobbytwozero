@@ -15,7 +15,9 @@ public enum SecurityNotificationType {
     TWO_FACTOR_ENABLED(MailType.TWO_FACTOR_ENABLED),
     TWO_FACTOR_DISABLED(MailType.TWO_FACTOR_DISABLED),
     RECOVERY_CODE_USED(MailType.RECOVERY_CODE_USED),
-    EXTERNAL_IDENTITY_LINKED(MailType.EXTERNAL_IDENTITY_LINKED);
+    EXTERNAL_IDENTITY_LINKED(MailType.EXTERNAL_IDENTITY_LINKED),
+    /** Hesap hazır (doğrulama tamamlandı); güvenlik uyarısı değil, karşılama bildirimi. */
+    WELCOME(MailType.WELCOME);
 
     private final MailType mailType;
 

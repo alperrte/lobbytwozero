@@ -1,0 +1,8 @@
+# RECOVERY_CODE_USED (tr). Biçim: docs-mail/sablon-rehberi.md. Düz metin sürümü bloklardan otomatik üretilir.
+subject: LTZ kurtarma kodu kullanıldı
+kind: warn
+label: GÜVENLİK BİLDİRİMİ
+title: Kurtarma kodu kullanıldı
+text: LTZ hesabında bir kurtarma kodu kullanıldı.
+date: Tarih:
+note: Bu işlemi sen yapmadıysan hemen parolanı sıfırla ve destek ile iletişime geç.

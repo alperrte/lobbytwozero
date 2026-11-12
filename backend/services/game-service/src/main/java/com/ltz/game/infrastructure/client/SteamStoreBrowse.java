@@ -73,10 +73,70 @@ final class SteamStoreBrowse {
         return input(ids, steamLanguage, "{\"include_basic_info\":true}");
     }
 
+    /** Yalnız çıkış bilgisi isteği (erken erişim, ücretsiz ve yakında bayrakları aynı yanıttan gelir). */
+    static String releaseStatusInput(List<String> ids) {
+        return input(ids, "english", "{\"include_release\":true}");
+    }
+
+    /**
+     * {@code release.is_early_access}, {@code is_free} ve {@code release.is_coming_soon}: Steam bunları yalnız {@code true} iken gönderir,
+     * diğerlerinde alanı hiç göndermez. Sonuçta yalnız {@code release} bilgisi dönen (Steam'in tanıdığı ve erişilebilir) oyunlar yer alır;
+     * yokluk false sayılır. Tanınmayan oyun (success=15, release yok) için değer uydurulmaz.
+     */
+    static Map<String, GameProvider.ReleaseStatus> parseReleaseStatus(List<String> requested, byte[] body) {
+        Map<String, GameProvider.ReleaseStatus> result = new LinkedHashMap<>();
+        for (JsonNode item : storeItemNodes(body)) {
+            String appId = appId(item, requested);
+            JsonNode release = item.path("release");
+            if (appId != null && release.isObject()) {
+                result.put(appId, new GameProvider.ReleaseStatus(release.path("is_early_access").asBoolean(false),
+                        item.path("is_free").asBoolean(false), release.path("is_coming_soon").asBoolean(false),
+                        adult(item.path("content_descriptorids")), item.hasNonNull("type") ? Integer.valueOf(item.get("type").asInt()) : null));
+            }
+        }
+        return result;
+    }
+
+    /** Steam içerik tanımlayıcıları: 3 (Adult Only Sexual Content) veya 4 (Frequent Nudity or Sexual Content) yetişkin içeriktir; 1, 2 ve 5 daha hafiftir. */
+    static boolean adult(JsonNode descriptors) {
+        if (!descriptors.isArray()) {
+            return false;
+        }
+        for (JsonNode descriptor : descriptors) {
+            int id = descriptor.asInt(-1);
+            if (id == 3 || id == 4) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** İki büyük harfli ülke kodu; aksi INVALID_PROVIDER_REQUEST (istek gövdesine yalnız doğrulanmış kod yazılır). */
+    static String countryCode(String country) {
+        if (country == null || !country.matches("[A-Z]{2}")) {
+            throw new ProviderException("INVALID_PROVIDER_REQUEST");
+        }
+        return country;
+    }
+
+    /** Ülke bazlı satın alma seçenekleri (tüm paketler) isteği. */
+    static String priceInput(List<String> ids, String country) {
+        return input(ids, "english", countryCode(country), "{\"include_all_purchase_options\":true}");
+    }
+
+    /** Aynı istek gövdesi, sabit {@code data_request} ile (diğer ayrıştırıcı sınıflar için). */
+    static String rawInput(List<String> ids, String steamLanguage, String dataRequest) {
+        return input(ids, steamLanguage, dataRequest);
+    }
+
     /** JSON yalnız doğrulanmış sayılardan ve sabit anahtarlardan kurulur. */
     private static String input(List<String> ids, String steamLanguage, String dataRequest) {
+        return input(ids, steamLanguage, "US", dataRequest);
+    }
+
+    private static String input(List<String> ids, String steamLanguage, String country, String dataRequest) {
         String appIds = ids.stream().map(id -> "{\"appid\":" + id + "}").collect(Collectors.joining(","));
-        return "{\"ids\":[" + appIds + "],\"context\":{\"language\":\"" + steamLanguage + "\",\"country_code\":\"US\"},\"data_request\":" + dataRequest + "}";
+        return "{\"ids\":[" + appIds + "],\"context\":{\"language\":\"" + steamLanguage + "\",\"country_code\":\"" + country + "\"},\"data_request\":" + dataRequest + "}";
     }
 
     static Map<String, String> parseShortDescriptions(List<String> requested, byte[] body) {
@@ -113,7 +173,7 @@ final class SteamStoreBrowse {
         return result;
     }
 
-    private static JsonNode storeItemNodes(byte[] body) {
+    static JsonNode storeItemNodes(byte[] body) {
         JsonNode items;
         try {
             JsonNode root = JSON.readTree(body);
@@ -128,7 +188,7 @@ final class SteamStoreBrowse {
     }
 
     /** İstenen uygulamanın kimliği; istenmemiş veya kimliksiz öğe için null. */
-    private static String appId(JsonNode item, List<String> requested) {
+    static String appId(JsonNode item, List<String> requested) {
         String appId = item.hasNonNull("appid") ? item.get("appid").asString() : null;
         return appId != null && requested.contains(appId) ? appId : null;
     }

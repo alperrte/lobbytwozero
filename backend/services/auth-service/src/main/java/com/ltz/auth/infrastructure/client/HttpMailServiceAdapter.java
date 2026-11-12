@@ -5,6 +5,7 @@ import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -25,6 +26,7 @@ import com.ltz.auth.application.port.SecurityNotificationMail;
 import com.ltz.auth.application.port.SecurityNotificationMailPort;
 import com.ltz.auth.application.port.VerificationCodeDeliveryException;
 import com.ltz.auth.application.port.VerificationCodeMail;
+import com.ltz.auth.application.port.UserLocalePort;
 import com.ltz.auth.application.port.VerificationCodeMailPort;
 import com.ltz.auth.infrastructure.config.DeletionProperties;
 import com.ltz.auth.infrastructure.security.ServiceTokenIssuer;
@@ -40,7 +42,8 @@ import lombok.extern.slf4j.Slf4j;
  * Teslim yalnız {@code 202} ile kabul edilmiş sayılır: Mail Service isteği <b>kalıcı kuyruğa yazdı</b> demektir
  * (e-postanın gittiği anlamına gelmez). Diğer tüm kodlar, zaman aşımı ve bağlantı hatası
  * {@link VerificationCodeDeliveryException} olur; çağıran kodu DELIVERY_FAILED yapar. Yönlendirme izlenmez (token başka
- * adrese gitmez). Yanıt gövdesi okunmaz; kod, bağlantı, token ve alıcı adresi loglanmaz. {@code locale} gönderilmez:
+ * adrese gitmez). Yanıt gövdesi okunmaz; kod, bağlantı, token ve alıcı adresi loglanmaz. {@code locale}, User Service'ten
+ * okunabilirse ({@link UserLocalePort}, en iyi çaba) {@code tr}/{@code en} olarak eklenir; bilinmiyorsa gönderilmez ve
  * Mail Service iki dilli (TR + EN) e-posta üretir. Taban adres ve zaman aşımı hesap silme ayarlarındaki {@code mail}
  * hedefinden gelir (açılışta doğrulanır; prod'da https).
  */
@@ -62,8 +65,10 @@ public class HttpMailServiceAdapter implements VerificationCodeMailPort, Passwor
     private final RestClient restClient;
     private final ServiceTokenIssuer serviceTokens;
     private final URI baseUrl;
+    private final UserLocalePort userLocales;
 
-    public HttpMailServiceAdapter(DeletionProperties properties, ServiceTokenIssuer serviceTokens) {
+    public HttpMailServiceAdapter(DeletionProperties properties, ServiceTokenIssuer serviceTokens,
+                                  UserLocalePort userLocales) {
         this.baseUrl = properties.serviceUrls().get(MAIL_SERVICE);
         if (baseUrl == null) {
             throw new IllegalStateException(
@@ -78,6 +83,7 @@ public class HttpMailServiceAdapter implements VerificationCodeMailPort, Passwor
         factory.setReadTimeout(timeout);
         this.restClient = RestClient.builder().requestFactory(factory).build();
         this.serviceTokens = serviceTokens;
+        this.userLocales = userLocales;
     }
 
     /** Bağlam kapanırken kendi oluşturduğu HTTP istemcisini kapatır. */
@@ -126,7 +132,19 @@ public class HttpMailServiceAdapter implements VerificationCodeMailPort, Passwor
         return body;
     }
 
+    /** Dil biliniyorsa ({@code tr}/{@code en}) gövdeye ekler; bilinmiyorsa alan hiç gönderilmez (iki dilli mail). */
+    private void withLocale(Map<String, Object> body, UUID accountId) {
+        Optional<String> locale;
+        try {
+            locale = userLocales.localeOf(accountId);
+        } catch (RuntimeException _) {
+            locale = Optional.empty();
+        }
+        locale.filter(value -> "tr".equals(value) || "en".equals(value)).ifPresent(value -> body.put("locale", value));
+    }
+
     private void post(String endpoint, UUID accountId, Map<String, Object> body) {
+        withLocale(body, accountId);
         String token = serviceTokens.issue(ServiceTokenIssuer.audienceFor(MAIL_SERVICE), TokenClaims.MAIL_SEND_SCOPE,
                 accountId);
         int status;

@@ -4,11 +4,21 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import com.ltz.auth.domain.entity.Account;
+import com.ltz.auth.domain.enums.AccountTier;
+
 /**
- * "Ben kimim" yanıtı. Yalnız doğrulanmış access token'ın zaten taşıdığı bilgiyi döner: e-posta, kullanıcı adı, hesap
- * durumu, oturum kimliği ve token sürümü içermez. Profil bilgisi User Service'tedir; roller yalnız arayüzü (menü vb.)
+ * "Ben kimim" yanıtı. Token'ın taşıdığı kimlik/rol bilgisine hesabın güvence görünümünü ekler (parola var mı, bağlı
+ * sağlayıcılar, TOTP, kayıt yöntemi, hesap türü A/B/C); e-posta, kullanıcı adı, hesap durumu, oturum kimliği ve token
+ * sürümü içermez. Profil bilgisi User Service'tedir; roller yalnız arayüzü (menü vb.)
  * şekillendirmek içindir, yetki kararı her serviste token'dan yeniden verilir.
  */
 public record CurrentAccountResponse(UUID accountId, List<String> roles, List<String> authMethods,
-                                     Instant accessTokenExpiresAt) {
+                                     Instant accessTokenExpiresAt, boolean passwordSet, List<String> providers,
+                                     boolean totpEnabled, Account.RegistrationMethod registrationMethod,
+                                     AccountTier accountTier, boolean trusted) {
+
+    public CurrentAccountResponse {
+        providers = List.copyOf(providers);
+    }
 }

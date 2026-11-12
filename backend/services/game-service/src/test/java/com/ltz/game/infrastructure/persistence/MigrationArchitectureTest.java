@@ -18,6 +18,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+import static com.ltz.game.infrastructure.persistence.MigrationSchemaSupport.STEAM_STATUS_COLUMNS;
 import static com.ltz.game.infrastructure.persistence.MigrationSchemaSupport.schema;
 import static com.ltz.game.infrastructure.persistence.MigrationSchemaSupport.schemaCounts;
 import static com.ltz.game.infrastructure.persistence.MigrationSchemaSupport.validateHibernate;
@@ -68,9 +69,11 @@ class MigrationArchitectureTest {
             var versions = new ArrayList<String>();
             for (Path file : files) {
                 String sql = Files.readString(file);
-                // V174 (DLC ana oyun ilişkisi) gerçek bir şema yükseltmesidir: mevcut games tablosuna kolon ekler. Başlangıç zinciri
-                // (V31–V40, V171–V173) ALTER içermez; bu kural onlar için aynen sürer.
-                if (!file.getFileName().toString().startsWith("V174__")) assertFalse(ALTER_TABLE.matcher(sql).find(), file.toString());
+                // V174 (DLC ana oyun ilişkisi) gerçek bir şema yükseltmesidir: mevcut tabloyu değiştirir. Başlangıç zinciri (V31–V40, V171–V173) ALTER içermez;
+                // Steam durum kolonları (V31) ve fiyat kaynağı kısıtı (V173) bu yüzden tablo tanımlarının içindedir (kullanıcı onaylı tek seferlik istisna).
+                String name = file.getFileName().toString();
+                if (!name.startsWith("V174__"))
+                    assertFalse(ALTER_TABLE.matcher(sql).find(), file.toString());
                 versions.add(VERSION_SEPARATOR.split(file.getFileName().toString())[0].substring(1));
             }
             assertEquals(expected.stream().sorted().toList(), versions.stream().sorted().toList());
@@ -88,6 +91,7 @@ class MigrationArchitectureTest {
         var old = database();
         var current = database();
         assertEquals(13, flyway(old, HISTORY).migrate().migrationsExecuted);
+        new JdbcTemplate(old).execute(STEAM_STATUS_COLUMNS);
         assertEquals(10, flyway(current, CURRENT).migrate().migrationsExecuted);
         assertEquals(java.util.stream.IntStream.rangeClosed(31, 40).mapToObj(Integer::toString).toList(),
                 new JdbcTemplate(current).queryForList("select version from flyway_schema_history order by installed_rank", String.class));
@@ -96,7 +100,8 @@ class MigrationArchitectureTest {
         assertEquals("V40__create_game_developer_content.sql", new JdbcTemplate(old).queryForObject(
                 "select script from flyway_schema_history where version='40'", String.class));
         assertEquals(schema(old), schema(current));
-        assertEquals(List.of(170, 101, 46, 2, 2, 21), schemaCounts(current));
+        // 174 kolon: tarihsel zincirdeki 170 + Steam durum kolonları (free, coming_soon, adult, delisted_at).
+        assertEquals(List.of(174, 101, 46, 2, 2, 21), schemaCounts(current));
         assertEquals(seed(old), seed(current));
         assertEquals(21, new JdbcTemplate(current).queryForObject(
                 "select count(*) from information_schema.tables where table_schema='public' and table_name<>'flyway_schema_history'",
@@ -134,6 +139,7 @@ class MigrationArchitectureTest {
         var old = database();
         var current = database();
         flyway(old, HISTORY).migrate();
+        new JdbcTemplate(old).execute(STEAM_STATUS_COLUMNS);
         flyway(current, CURRENT).migrate();
         Path oldFuture = copyChain(HISTORY, "old");
         Path newFuture = copyChain(CURRENT, "new");
@@ -149,8 +155,10 @@ class MigrationArchitectureTest {
         Path chain = copyChain(source, name);
         Files.copy(CURRENT.resolve("V174__add_game_parent_relation.sql"), chain.resolve("V174__add_game_parent_relation.sql"));
         Files.copy(CURRENT.resolve("V175__create_game_localized_descriptions.sql"), chain.resolve("V175__create_game_localized_descriptions.sql"));
+        // Tarihsel zincir Steam durum kolonlarına sahip değildir (güncel V31 taşır); entity eşlemesi için yalnız test amaçlı bir adımla eklenir.
+        if (source.equals(HISTORY)) Files.writeString(chain.resolve("V176__test_steam_status_columns.sql"), STEAM_STATUS_COLUMNS + ";", StandardCharsets.UTF_8);
         var database = database();
-        assertEquals(source.equals(HISTORY) ? 15 : 12, flyway(database, chain).migrate().migrationsExecuted);
+        assertEquals(source.equals(HISTORY) ? 16 : 12, flyway(database, chain).migrate().migrationsExecuted);
         return database;
     }
 

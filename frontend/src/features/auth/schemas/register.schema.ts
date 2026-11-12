@@ -1,15 +1,28 @@
 /**
  * Kayıt formu: sınırlar ve elle yazılmış doğrulama (kaynak: docs/api.md → AUTH, backend `RegisterAccountRequest`).
  * Hata MESAJI değil hata KODU döner; metin `Auth.fields.<alan>.<kod>` i18n anahtarından gelir. Parolanın gücünü yalnız
- * sunucu belirler (`WEAK_PASSWORD`); burada yalnız uzunluk sınırı denetlenir. Parola kırpılmaz ve hiçbir yerde saklanmaz.
+ * sunucu belirler (`WEAK_PASSWORD`); burada yalnız uzunluk sınırı ve bileşim kuralı denetlenir. Parola kırpılmaz ve hiçbir yerde saklanmaz.
  */
 export const registerLimits = {
   emailMax: 254,
   usernameMin: 3,
   usernameMax: 20,
-  passwordMin: 15,
+  passwordMin: 8,
   passwordMax: 128
 } as const;
+
+/**
+ * Backend `PasswordPolicy.hasRequiredComposition` ile aynı kural: en az bir büyük harf, küçük harf, rakam ve özel
+ * karakter (harf, rakam ve boşluk olmayan herhangi biri). Boşluk özel karakter sayılmaz.
+ */
+export function hasRequiredPasswordComposition(password: string): boolean {
+  return (
+    /\p{Lu}/u.test(password) &&
+    /\p{Ll}/u.test(password) &&
+    /\p{Nd}/u.test(password) &&
+    /[^\p{L}\p{Nd}\s]/u.test(password)
+  );
+}
 
 export const usernamePattern = /^[A-Za-z0-9_]{3,20}$/;
 
@@ -37,7 +50,7 @@ export const emptyRegisterValues: RegisterValues = {
 export type RegisterErrors = {
   username?: "required" | "pattern";
   email?: "required" | "invalid" | "tooLong";
-  password?: "required" | "tooShort" | "tooLong";
+  password?: "required" | "tooShort" | "tooLong" | "composition";
   acceptTerms?: "required";
 };
 
@@ -66,6 +79,8 @@ export function validateRegister(values: RegisterValues): RegisterErrors {
     errors.password = "tooShort";
   } else if (values.password.length > registerLimits.passwordMax) {
     errors.password = "tooLong";
+  } else if (!hasRequiredPasswordComposition(values.password)) {
+    errors.password = "composition";
   }
 
   if (!values.acceptTerms) {

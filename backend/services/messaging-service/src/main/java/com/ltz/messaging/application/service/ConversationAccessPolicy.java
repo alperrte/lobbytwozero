@@ -2,6 +2,7 @@ package com.ltz.messaging.application.service;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.stereotype.Component;
@@ -42,28 +43,34 @@ public class ConversationAccessPolicy {
 
     /**
      * Kullanıcı bu sohbete yazabilir mi? Engel sorgusu ağ çağrısıdır; bu yüzden transaction dışında çağrılmalıdır.
+     * Karşı tarafı kalmayan (hesabı silinmiş) birebir sohbete yazılamaz.
      *
-     * @throws MessagingException 404 üye değilse, 403 birebir sohbette engel varsa, 503 engel öğrenilemezse
+     * @throws MessagingException 404 üye değilse, 403 birebir sohbette engel varsa ya da karşı taraf yoksa, 503 engel
+     *         öğrenilemezse
      */
     public void requireCanWrite(UUID conversationId, UUID userId) {
-        List<UUID> counterparts = Objects.requireNonNull(
+        Optional<List<UUID>> counterparts = Objects.requireNonNull(
                 transactions.execute(status -> directCounterparts(conversationId, userId)));
-        if (!counterparts.isEmpty()) {
-            blockGuard.requireNoBlock(userId, counterparts);
+        if (counterparts.isEmpty()) {
+            return;
         }
+        if (counterparts.get().isEmpty()) {
+            throw new MessagingException(MessagingErrorCode.MESSAGING_NOT_ALLOWED);
+        }
+        blockGuard.requireNoBlock(userId, counterparts.get());
     }
 
-    /** Birebir sohbette karşı taraf; grupta boş liste. */
-    private List<UUID> directCounterparts(UUID conversationId, UUID userId) {
+    /** Birebir sohbette karşı taraf(lar); grupta boş. */
+    private Optional<List<UUID>> directCounterparts(UUID conversationId, UUID userId) {
         requireMember(conversationId, userId);
         Conversation conversation = conversations.findById(conversationId)
                 .orElseThrow(() -> new MessagingException(MessagingErrorCode.CONVERSATION_NOT_FOUND));
         if (conversation.isGroup()) {
-            return List.of();
+            return Optional.empty();
         }
-        return members.findActiveMembers(conversationId).stream()
+        return Optional.of(members.findActiveMembers(conversationId).stream()
                 .map(ConversationMember::getUserId)
                 .filter(member -> !member.equals(userId))
-                .toList();
+                .toList());
     }
 }

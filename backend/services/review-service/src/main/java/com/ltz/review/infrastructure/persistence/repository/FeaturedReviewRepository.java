@@ -30,14 +30,16 @@ public class FeaturedReviewRepository {
 
     public List<FeaturedReviewResponse> find(UUID game, UUID actor, int minLikes, int size, long offset) {
         return jdbc.sql(RANKED + """
-                SELECT * FROM ranked WHERE like_count >= :minLikes
+                SELECT ranked.*,
+                       EXISTS (SELECT 1 FROM review_likes own WHERE own.review_id = ranked.id AND own.user_id = :actor) AS liked_by_actor
+                FROM ranked WHERE like_count >= :minLikes
                 ORDER BY like_count DESC, created_at DESC, id ASC LIMIT :size OFFSET :offset
                 """)
-                .param("game", game).param("minLikes", minLikes).param("size", size).param("offset", offset)
+                .param("game", game).param("actor", actor).param("minLikes", minLikes).param("size", size).param("offset", offset)
                 .query((rs, row) -> new FeaturedReviewResponse(new ReviewResponse(
                         rs.getObject("id", UUID.class), rs.getObject("game_id", UUID.class), rs.getString("body"),
-                        actor.equals(rs.getObject("user_id", UUID.class)), rs.getLong("version"),
+                        rs.getObject("user_id", UUID.class), actor.equals(rs.getObject("user_id", UUID.class)), "VISIBLE", rs.getLong("version"),
                         rs.getTimestamp("created_at").toInstant(), rs.getTimestamp("updated_at").toInstant()),
-                        rs.getLong("like_count"))).list();
+                        rs.getLong("like_count"), rs.getBoolean("liked_by_actor"))).list();
     }
 }

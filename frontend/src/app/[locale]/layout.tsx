@@ -2,8 +2,10 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Chakra_Petch, IBM_Plex_Sans } from "next/font/google";
 import { notFound } from "next/navigation";
+import Script from "next/script";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
+import { PlayerLookupProvider } from "@/features/user/components/player-lookup-provider";
 import { routing } from "@/shared/lib/i18n/routing";
 import { preferencesInitScript } from "@/shared/lib/preferences/init-script";
 import {
@@ -92,12 +94,11 @@ export default async function RootLayout({
       className={`${displayFont.variable} ${bodyFont.variable}`}
       suppressHydrationWarning
     >
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: preferencesInitScript }} />
-      </head>
       <body className="font-sans">
+        {/* next/script: React 19'un "script etiketi render edildi" konsol hatasını önler; boyamadan önce çalışır. */}
+        <Script id="preferences-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: preferencesInitScript }} />
         <NextIntlClientProvider messages={messages}>
-          {children}
+          <PlayerLookupProvider>{children}</PlayerLookupProvider>
         </NextIntlClientProvider>
       </body>
     </html>

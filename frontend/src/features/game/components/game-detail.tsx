@@ -20,7 +20,7 @@ import { GameStatus } from "./game-status";
 import { cn } from "@/shared/utils/cn";
 import { Badge, gameScopeClass, Skeleton } from "./game-ui";
 
-const baseSections = ["overview", "information", "prices", "developer", "community", "feedback"] as const;
+const baseSections = ["overview", "information", "prices", "developer", "community"] as const;
 const longDescription = 700;
 
 /** Açıklama dili arayüz dilinden farklıysa (ör. TR seçiliyken İngilizce kaynak) bunu belirtir; metin çevrilmez, dil özniteliği ekran okuyucuya doğru telaffuzu bildirir. */
@@ -53,7 +53,7 @@ export function GameDetail({ gameId }: { gameId: string }) {
   const coverage = detail && ["INDEX_ONLY", "PARTIAL", "FULL"].includes(detail.game.metadataCompleteness) ? detail.game.metadataCompleteness : "UNKNOWN";
   const date = formatReleaseDate(detail?.releaseDate, locale);
   const dlcCount = detail?.game.gameType === "MAIN_GAME" ? detail.relation?.dlcCount ?? 0 : 0;
-  const sections = dlcCount > 0 ? ["overview", "information", "dlc", "prices", "developer", "community", "feedback"] as const : baseSections;
+  const sections = dlcCount > 0 ? ["overview", "information", "dlc", "prices", "developer", "community"] as const : baseSections;
   const platforms = detail?.metadata.platforms.map((term) => termLabel(term, locale)).filter(Boolean).join(", ");
   return <div className={cn("space-y-10", gameScopeClass)}>
     <GameSectionNav />
@@ -67,9 +67,13 @@ export function GameDetail({ gameId }: { gameId: string }) {
           <div className="flex flex-wrap items-center gap-2">
             {detail.game.gameType && <Badge>{t.has(`choices.${detail.game.gameType}`) ? t(`choices.${detail.game.gameType}`) : t("unknown")}</Badge>}
             {detail.metadata.earlyAccess === true && <Badge tone="warning">{t("earlyAccessBadge")}</Badge>}
+            {detail.metadata.free === true && <Badge tone="success">{t("freeBadge")}</Badge>}
+            {detail.metadata.comingSoon === true && <Badge tone="brand">{t("comingSoonBadge")}</Badge>}
+            {detail.metadata.adult === true && <Badge tone="warning">{t("adultBadge")}</Badge>}
             <Badge tone={coverage === "FULL" ? "success" : "neutral"}>{t(`coverage.${coverage}`)}</Badge>
           </div>
           <h1 className="font-display text-3xl font-semibold text-balance [overflow-wrap:anywhere] sm:text-5xl">{detail.game.title}</h1>
+          {detail.metadata.delisted === true && <p role="note" data-testid="delisted-notice" className="rounded-panel border border-warning/60 bg-surface p-4 text-sm">{t("delistedNotice")}</p>}
           <dl className="grid gap-4 text-sm sm:grid-cols-2">
             <div><dt className="text-text-secondary">{t("releaseDate")}</dt><dd className="mt-1">{date ? <time dateTime={detail.releaseDate ?? undefined}>{date}</time> : t("releaseUnknown")}</dd></div>
             <div><dt className="text-text-secondary">{t("developers")}</dt><dd className="mt-1 break-words">{detail.metadata.developers.join(", ") || t("unknown")}</dd></div>
@@ -78,7 +82,7 @@ export function GameDetail({ gameId }: { gameId: string }) {
           </dl>
         </div>
       </header>
-      <nav aria-label={t("pageSections")} className="sticky top-[var(--spacing-header)] z-10 -mx-1 flex gap-1 overflow-x-auto border-b border-border bg-background/95 px-1 backdrop-blur [scrollbar-width:thin]">
+      <nav aria-label={t("pageSections")} className="-mx-1 flex gap-1 overflow-x-auto border-b border-border px-1 [scrollbar-width:thin]">
         {sections.map((id) => <a key={id} href={`#game-${id}`} className="inline-flex min-h-11 shrink-0 items-center border-b-2 border-transparent px-4 text-sm font-semibold text-text-secondary hover:border-control-border hover:text-text-primary focus-visible:border-primary">{t(`sections.${id}`)}</a>)}
       </nav>
       <section id="game-overview" aria-labelledby="game-overview-title" className="scroll-mt-32 space-y-4">
@@ -88,10 +92,10 @@ export function GameDetail({ gameId }: { gameId: string }) {
       </section>
       <div id="game-information" className="scroll-mt-32"><GameMetadataDetails game={detail} /></div>
       {dlcCount > 0 && <GameDlcSection gameId={gameId} count={dlcCount} />}
-      <div id="game-prices" className="scroll-mt-32"><GamePrices gameId={gameId} /></div>
+      <div id="game-prices" className="scroll-mt-32"><GamePrices gameId={gameId} free={detail?.metadata.free} comingSoon={detail?.metadata.comingSoon} /></div>
       <div id="game-developer" className="scroll-mt-32"><GameDeveloperPublic gameId={gameId} /></div>
       <div id="game-community" className="scroll-mt-32"><GameModules gameId={gameId} /></div>
-      <div id="game-feedback" className="scroll-mt-32"><GameSessionActions gameId={gameId} earlyAccess={detail.metadata.earlyAccess === true} /></div>
+      <GameSessionActions gameId={gameId} />
     </>}
   </div>;
 }

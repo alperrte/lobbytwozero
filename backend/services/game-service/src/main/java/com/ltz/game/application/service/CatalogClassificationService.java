@@ -71,6 +71,12 @@ public class CatalogClassificationService {
     private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(CatalogClassificationService.class);
     private static final String PROVIDER_CODE = "STEAM";
     private static final String ENRICHMENT_MARKER = "IGDB_METADATA";
+    /** Steam tür yedeğiyle sınıflanmış kaydın IGDB'ye yeniden sorulma gözlemi. */
+    static final String TYPE_CHECK_MARKER = "IGDB_TYPE_CHECK";
+    private static final String GAME_TYPE_FIELD = "GAME_TYPE";
+    private static final String SOURCE_STEAM = "STEAM";
+    private static final Map<TermKind, String> TERM_FIELDS = Map.of(TermKind.GENRE, "GENRES", TermKind.PLATFORM, "PLATFORMS",
+            TermKind.CATEGORY, "CATEGORIES", TermKind.TAG, "TAGS");
 
     private final GameProvider provider;
     private final GameRepository games;
@@ -86,6 +92,23 @@ public class CatalogClassificationService {
     /** Büyük birikim anahtarı; varsayılan açık (onaylı). Kapalıyken yalnız küçük aday kümesi işlenir. */
     @Value("${game.catalog.classification.backlog-enabled:true}")
     private boolean backlogEnabled;
+
+    /** Kanıtsız kaydın yeniden sorulma aralıkları: yeni kayıt kısa, eski kayıt uzun (yapılandırılabilir; canlıda daha kısa). */
+    private Duration recheckRecent = RECHECK_RECENT;
+    private Duration recheckOld = RECHECK_AFTER;
+
+    /** ISO-8601 süreler metin olarak alınır (Spring dönüştürme hizmeti olmayan bağlamlarda da çalışsın); geçersiz değer açılışta hata verir. */
+    @Value("${ltz.game.refresh.igdb-recheck.recent:P1D}")
+    void configureRecheckRecent(String text) { recheckRecent = recheckDuration(text); }
+
+    @Value("${ltz.game.refresh.igdb-recheck.old:P7D}")
+    void configureRecheckOld(String text) { recheckOld = recheckDuration(text); }
+
+    private static Duration recheckDuration(String text) {
+        Duration parsed = Duration.parse(text.strip());
+        if (parsed.compareTo(Duration.ofMinutes(5)) < 0 || parsed.compareTo(Duration.ofDays(30)) > 0) throw new IllegalArgumentException("Geçersiz IGDB yeniden sorma aralığı.");
+        return parsed;
+    }
 
     private int autoLimit = DEFAULT_AUTO_LIMIT;
     private long before = Long.MAX_VALUE;
@@ -142,8 +165,8 @@ public class CatalogClassificationService {
         // Kimlik eşleme ve katalog aktarımıyla aynı kilit sırası: önce senkron durumu, sonra oyun satırları.
         states.lockProvider(PROVIDER_CODE).orElseThrow();
         Instant recentSince = now.minus(RECENT_WINDOW);
-        Instant cutoffRecent = now.minus(RECHECK_RECENT);
-        Instant cutoffOld = now.minus(RECHECK_AFTER);
+        Instant cutoffRecent = now.minus(recheckRecent);
+        Instant cutoffOld = now.minus(recheckOld);
         if (!passActive) {
             long candidates = references.countClassificationCandidates(recentSince, cutoffRecent, cutoffOld);
             passGated = candidates > autoLimit && !backlogEnabled;
@@ -270,18 +293,55 @@ public class CatalogClassificationService {
      */
     private boolean classify(Game game, GameProvider.ItemEvidence evidence, Set<OverridableField> locked, Instant now, Map<String, CatalogTerm> termCache) {
         if (game == null || locked.contains(OverridableField.GAME_TYPE) || game.getStatus() != GameStatus.ACTIVE
-                || game.getOrigin() != GameOrigin.EXTERNAL || game.getGameType() != GameType.UNKNOWN) return false;
+                || game.getOrigin() != GameOrigin.EXTERNAL) return false;
+        boolean steamTyped = game.getGameType() != GameType.UNKNOWN && steamSourced(game);
+        if (game.getGameType() != GameType.UNKNOWN && !steamTyped) return false;
         GameType type = evidence == null ? GameType.UNKNOWN : types.classify(evidence.providerType(), true);
         if (type == GameType.UNKNOWN) {
-            provenance.recordObservation(game, "GAME_TYPE", provider.detailSource(), MetadataDataState.UNKNOWN, false);
+            // IGDB kanıt vermedi: Steam yedeği türü korunur, yalnız yeniden sorma gözlemi yazılır.
+            provenance.recordObservation(game, steamTyped ? TYPE_CHECK_MARKER : GAME_TYPE_FIELD, provider.detailSource(), MetadataDataState.UNKNOWN, false);
             return false;
         }
+        if (steamTyped) dropSteamTerms(game, evidence);
         game.setGameType(type);
-        provenance.recordObservation(game, "GAME_TYPE", provider.detailSource(), MetadataDataState.AVAILABLE, false);
+        provenance.recordObservation(game, GAME_TYPE_FIELD, provider.detailSource(), MetadataDataState.AVAILABLE, false);
+        if (steamTyped) game.getMetadataProvenance().remove(TYPE_CHECK_MARKER);
         applyMetadata(game, evidence, locked, termCache);
         provenance.recordObservation(game, ENRICHMENT_MARKER, provider.detailSource(), MetadataDataState.AVAILABLE, false);
+        if (steamTyped) resetDetailError(game);
         game.setUpdatedAt(now);
         return true;
+    }
+
+    /** Tür kanıtı Steam mağaza türü olan (IGDB'nin henüz doğrulamadığı) kayıt. */
+    private static boolean steamSourced(Game game) {
+        var marker = game.getMetadataProvenance().get(GAME_TYPE_FIELD);
+        return marker != null && SOURCE_STEAM.equals(marker.getSource());
+    }
+
+    /**
+     * IGDB kanıt verdi: IGDB'nin sağladığı terim türlerinde Steam'den gelen terimler (kaynak STEAM) silinir ve IGDB'ninkiler yazılır; IGDB'nin
+     * vermediği türdeki Steam terimleri korunur. Yönetici (ADMIN) veya IGDB kaynaklı terimlere dokunulmaz.
+     */
+    private void dropSteamTerms(Game game, GameProvider.ItemEvidence evidence) {
+        Map<TermKind, List<GameProvider.TermEvidence>> byKind = Map.of(TermKind.GENRE, evidence.genres(), TermKind.PLATFORM, evidence.platforms(),
+                TermKind.CATEGORY, evidence.categories(), TermKind.TAG, evidence.tags());
+        byKind.forEach((kind, items) -> {
+            var marker = game.getMetadataProvenance().get(TERM_FIELDS.get(kind));
+            if (!items.isEmpty() && marker != null && SOURCE_STEAM.equals(marker.getSource())) {
+                game.getTerms().removeIf(term -> term.getKind() == kind);
+                game.getMetadataProvenance().remove(TERM_FIELDS.get(kind));
+            }
+        });
+    }
+
+    /** Steam yedeğiyle sınıflanmış kayıt IGDB'de bulunamamış olabilir ("bulunamadı" hata durumu): IGDB tanıyınca ilk alım yeniden denensin. */
+    private static void resetDetailError(Game game) {
+        if (game.getDetailsFetchedAt() == null && game.getDetailsLastErrorCode() != null) {
+            game.setDetailsFailureCount(0);
+            game.setDetailsLastErrorCode(null);
+            game.setDetailsNextAttemptAt(null);
+        }
     }
 
     /** Türü doğrulanmış kayda yalnız boş alanları yazar; tür değişmez. Kanıt yoksa EMPTY gözlemi yazılır (tekrar sorulmaz). */

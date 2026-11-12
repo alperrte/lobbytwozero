@@ -29,6 +29,19 @@ parent POM'a eklendiğinde menüye de gelir. `--help` seçenekleri gösterir.
 taze Surefire/JaCoCo raporları ve merkezi progressive coverage politikası aranır. Bu modların
 sonucu yalnızca backend test kapsamına aittir.
 
+> **UYARI — geliştirici veritabanı:** `backend`, `<servis-adı>` ve `full` modları testleri seçilen profilin
+> (`dev`/`prod`) **gerçek DB ayarlarıyla** koşturur. Tabloları temizleyen testler olan bir servis bu
+> yolla DEV veritabanındaki verileri silebilir (Review servisinde yaşandı). Bu yüzden:
+>
+> - Servis testleri geçici PostgreSQL kullanmıyorsa (Testcontainers ya da `-Pci`) bu modları DEV verisi
+>   değerli olan bir ortamda çalıştırmayın; önce o servisin testlerinin veriyi nasıl temizlediğine bakın.
+> - Güvenli yol: `node pre-push/ci/backend.mjs --ci` (geçici PostgreSQL; `--modules services/<ad>` ile tek servis).
+> - Review servisi bu riskten korunur: testleri yerelde otomatik geçici konteyner açar, CI'da `-Pci` DB'sini
+>   kullanır ve çözümlenen bağlantı bu ikisi değilse bağlam hiç kurulmaz (`DisposableDatabaseInitializer`).
+>   Yerelde Docker gerekir; Docker yoksa testler başarısız olur, DEV veritabanına asla geri dönülmez.
+> - Başka servis sahipleri: aynı korumayı kendi test kaynaklarına ekleyin (örnek: Library `LibraryApiTest`
+>   Testcontainers deseni ya da Review `DisposableDatabaseInitializer`).
+
 `full` şu kontrolleri çalıştırır:
 
 - Git çalışma alanı ve staged whitespace kontrolü; takip edilen/staged ENV,

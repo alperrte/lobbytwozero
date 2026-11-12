@@ -35,7 +35,7 @@ class MailServiceUnavailableAdapterTest {
     void hassasAlanlarMetinGosterimindeMaskelenir() {
         VerificationCodeMail mail = new VerificationCodeMail(UUID.randomUUID(), UUID.randomUUID(), EMAIL, CODE,
                 Duration.ofMinutes(10));
-        String password = "correct-horse-battery-staple";
+        String password = "Correct-Horse-Battery-9";
 
         assertThat(mail.toString()).doesNotContain(EMAIL).doesNotContain(CODE);
         assertThat(new RegisterAccountRequest(EMAIL, "player_one", password).toString())

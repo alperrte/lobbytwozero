@@ -60,6 +60,7 @@ public class GroupMembershipService {
     private final BlockGuard blockGuard;
     private final GroupProperties groupProperties;
     private final TransactionTemplate transactions;
+    private final ReadReceiptService readReceipts;
     private final Clock clock;
 
     /**
@@ -89,7 +90,9 @@ public class GroupMembershipService {
         if (!manager.getRole().canRemove(removed.getRole())) {
             throw new MessagingException(MessagingErrorCode.INSUFFICIENT_GROUP_ROLE);
         }
+        List<ConversationMember> activeBefore = members.findActiveMembers(conversationId);
         removed.removeBy(actor, now());
+        readReceipts.onMemberDeparted(conversationId, activeBefore, target);
     }
 
     /** MSG-03 rol yönetimi: yalnız {@code OWNER}, bir üyeyi {@code ADMIN} ya da {@code MEMBER} yapar. */
@@ -109,11 +112,15 @@ public class GroupMembershipService {
         return ConversationMapper.toView(conversation, members.findActiveMembers(conversationId), actor);
     }
 
-    /** MSG-04. Ayrılan üyenin erişimi biter; sahip ayrılırsa sahiplik devredilir. Son üye ayrılırsa grup boş kalır. */
+    /**
+     * MSG-04. Ayrılan üyenin erişimi biter; sahip ayrılırsa sahiplik devredilir. Son üye ayrılırsa grup boş kalır.
+     * Ayrılışın su seviyesini yükselttiği göndericilere canlı okundu olayı gider (MSG-11).
+     */
     @Transactional
     public void leave(UUID actor, UUID conversationId) {
         lockGroup(conversationId, actor);
         ConversationMember leaving = access.requireMember(conversationId, actor);
+        List<ConversationMember> activeBefore = members.findActiveMembers(conversationId);
         leaving.leave(now());
         if (leaving.getRole() == MemberRole.OWNER) {
             // Eski sahibin ayrılışı önce yazılır: tek aktif sahip kuralı (kısmi tekil indeks) satır satır denetlenir.
@@ -122,6 +129,7 @@ public class GroupMembershipService {
                     .min(SUCCESSION)
                     .ifPresent(successor -> successor.changeRole(MemberRole.OWNER));
         }
+        readReceipts.onMemberDeparted(conversationId, activeBefore, actor);
     }
 
     private ConversationView insertMembers(UUID actor, UUID conversationId, Set<UUID> invited) {

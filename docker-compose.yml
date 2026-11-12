@@ -99,6 +99,7 @@ services:
       AUTH_JWT_PRIVATE_KEY: ${AUTH_JWT_PRIVATE_KEY:?}
       AUTH_JWT_ADDITIONAL_PUBLIC_KEYS: ${AUTH_JWT_ADDITIONAL_PUBLIC_KEYS:-}
       AUTH_ADMIN_SERVICE_CLIENT_SECRET: ${AUTH_ADMIN_SERVICE_CLIENT_SECRET:-}
+      AUTH_MAIL_SERVICE_CLIENT_SECRET: ${AUTH_MAIL_SERVICE_CLIENT_SECRET:-}
       AUTH_SOCIAL_SERVICE_CLIENT_SECRET: ${AUTH_SOCIAL_SERVICE_CLIENT_SECRET:-}
       AUTH_COMMUNITY_SERVICE_CLIENT_SECRET: ${AUTH_COMMUNITY_SERVICE_CLIENT_SECRET:-}
       AUTH_MESSAGING_SERVICE_CLIENT_SECRET: ${AUTH_MESSAGING_SERVICE_CLIENT_SECRET:-}
@@ -214,6 +215,7 @@ services:
       MAIL_SMTP_SECURITY: ${MAIL_SMTP_SECURITY:-}
       MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-}
       MAIL_ALLOWED_LINK_HOSTS: ${MAIL_ALLOWED_LINK_HOSTS:-}
+      AUTH_MAIL_SERVICE_CLIENT_SECRET: ${AUTH_MAIL_SERVICE_CLIENT_SECRET:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -259,6 +261,7 @@ services:
     environment:
       <<: *ltz-db-env
       DB_LIBRARY_NAME: ${DB_LIBRARY_NAME:?}
+      AUTH_LIBRARY_SERVICE_CLIENT_SECRET: ${AUTH_LIBRARY_SERVICE_CLIENT_SECRET:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -278,6 +281,7 @@ services:
     environment:
       <<: *ltz-db-env
       DB_REVIEW_NAME: ${DB_REVIEW_NAME:?}
+      AUTH_REVIEW_SERVICE_CLIENT_SECRET: ${AUTH_REVIEW_SERVICE_CLIENT_SECRET:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -324,6 +328,8 @@ services:
       # Engel sorgusu (MSG-15) için Auth'tan social-service servis token'ı alma gizli anahtarı; boşsa sohbet açma ve
       # gruba ekleme fail-closed 503 döner.
       AUTH_MESSAGING_SERVICE_CLIENT_SECRET: ${AUTH_MESSAGING_SERVICE_CLIENT_SECRET:-}
+      # GIF platformu (MSG-22) anahtarı; boşsa GIF arama ve GIF gönderme 503 döner, diğer mesajlaşma çalışır.
+      GIPHY_API_KEY: ${GIPHY_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy

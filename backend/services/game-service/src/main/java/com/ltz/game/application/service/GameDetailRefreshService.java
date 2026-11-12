@@ -22,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 /** İç uygulama komutu. Public GET yazma yapmaz; yapılandırılmış detay sağlayıcısı arka planda yeniler. */
 @Service @RequiredArgsConstructor
 public class GameDetailRefreshService {
+    /** Tek kayıt yolunun (hata yeniden denemeleri) taze sayma süresi; periyodik yenileme toplu yolda kademe aralığıyla yapılır. */
+    private static final Duration SINGLE_RECORD_TTL = Duration.ofHours(24);
     private final GameProvider provider;
     private final GameRepository games;
     private final GameProviderSyncStateRepository states;
@@ -75,11 +77,16 @@ public class GameDetailRefreshService {
         }
     }
 
-    /** Sağlayıcıdan alınmış detayı uygular (tek kayıt ve toplu yol ortak): kilitli alanlar ezilmez, tazelik ve hata durumu sıfırlanır. */
+    /** Sağlayıcıdan alınmış detayı uygular (tek kayıt yolu): kilitli alanlar ezilmez, tazelik ve hata durumu sıfırlanır. */
     void applyFetched(Game game, GameProvider.Details details) {
+        applyFetched(game, details, SINGLE_RECORD_TTL);
+    }
+
+    /** Ortak uygulama: {@code ttl} tek kayıt yolunun yeniden deneme eşiğidir ({@code details_expires_at}); toplu yenileme kendi kademe aralığını verir. */
+    void applyFetched(Game game, GameProvider.Details details, Duration ttl) {
         applyDetails(game, details, lockedFields(game));
         game.setDetailsFetchedAt(clock.instant());
-        game.setDetailsExpiresAt(clock.instant().plus(Duration.ofHours(24)));
+        game.setDetailsExpiresAt(clock.instant().plus(ttl));
         game.setDetailsFailureCount(0);
         game.setDetailsNextAttemptAt(null);
         game.setDetailsLastErrorCode(null);
@@ -87,6 +94,15 @@ public class GameDetailRefreshService {
         if (game.getMetadataCompleteness() == MetadataCompleteness.INDEX_ONLY)
             game.setMetadataCompleteness(MetadataCompleteness.PARTIAL);
         game.setUpdatedAt(clock.instant());
+    }
+
+    /**
+     * Yenileme turunda sağlayıcı bu oyun için kanıt vermedi: eski detay korunur (boş yanıt veriyi silmez) ve deneme zamanı işlenir; böylece oyun
+     * her turda yeniden sorulmaz. Bu bir hata sayılmaz.
+     */
+    void markRefreshChecked(Game game, Duration ttl) {
+        game.setDetailsFetchedAt(clock.instant());
+        game.setDetailsExpiresAt(clock.instant().plus(ttl));
     }
 
     /** Toplu sorguda sağlayıcı bu oyun için kanıt vermedi: tek kayıt yolundaki "bulunamadı" hatasıyla aynı durum (yeniden deneme politikası geçerli). */

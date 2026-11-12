@@ -21,6 +21,8 @@ import static com.ltz.game.infrastructure.client.ItadPriceValues.text;
  * teklifsiz oyun, aynı istekteki diğer oyunların fiyatını geçersiz kılmaz.
  */
 final class ItadPriceMapper {
+    /** Bir oyun için kabul edilen en çok teklif (mağaza) sayısı: ITAD'in gerçek en yüksek değeri 21'dir; bozuk/şişirilmiş yanıt bunun üstünde reddedilir. */
+    static final int MAX_DEALS = 64;
     private ItadPriceMapper() { }
     static List<Quote> quotes(JsonNode rows,Map<UUID,List<UUID>> matched,Market market,Instant now,Duration ttl) {
         if(rows==null || !rows.isArray() || rows.size()>matched.size()) throw invalid();
@@ -56,7 +58,7 @@ final class ItadPriceMapper {
     }
     private static JsonNode deals(JsonNode row) {
         JsonNode deals=row.get("deals");
-        if(deals==null || !deals.isArray() || deals.size()>5) throw invalid();
+        if(deals==null || !deals.isArray() || deals.size()>MAX_DEALS) throw invalid();
         return deals;
     }
     private static Quote quote(UUID id,String store,JsonNode deal,Market market,Instant now,Duration ttl) {
