@@ -372,7 +372,8 @@ export function evaluateModule({ root, module, policy, context, metadata }) {
       // keeps the normal changed-line rule. The change must also come with changed tests in the same module.
       const measuredClass = metadata.classes.some(c => c.name.slice(0, c.name.lastIndexOf('/') + 1) + c.source === sourceName);
       const noExecutableCode = [...lines.values()].every(line => line.mi + line.ci === 0);
-      if (!measuredClass || !noExecutableCode) fail('semantic Java change without measurable changed executable lines; review required');
+      if (!measuredClass || !noExecutableCode) fail('semantic Java change without measurable changed executable lines; review required: ' + sourceName
+        + (measuredClass ? ' (file has executable lines elsewhere)' : ' (class not in coverage report)'));
       if (!Array.isArray(context.testModules) || !context.testModules.includes(module)) {
         fail('non-executable Java change (interface/constants) needs changed tests in the same module; review required');
       }
