@@ -39,6 +39,7 @@ final class FakeServer implements AutoCloseable {
     private final java.util.concurrent.atomic.AtomicInteger abandoned = new java.util.concurrent.atomic.AtomicInteger();
     private volatile Reply fallback = Reply.json(500, "{}");
     private volatile String retryAfter;
+    private final java.util.Map<String,String> extraHeaders = new java.util.concurrent.ConcurrentHashMap<>();
 
     FakeServer() throws IOException {
         server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
@@ -63,6 +64,7 @@ final class FakeServer implements AutoCloseable {
             byte[] bytes = reply.body().getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json");
             if(retryAfter!=null) exchange.getResponseHeaders().set("Retry-After",retryAfter);
+            extraHeaders.forEach((name,value) -> exchange.getResponseHeaders().set(name,value));
             if (reply.location() != null) {
                 exchange.getResponseHeaders().add("Location", reply.location());
             }
@@ -93,6 +95,8 @@ final class FakeServer implements AutoCloseable {
         return this;
     }
     FakeServer retryAfter(String value) { retryAfter=value;return this; }
+    /** Her yanıta eklenecek ek başlık (ör. hız sınırı başlıkları). */
+    FakeServer header(String name,String value) { extraHeaders.put(name,value);return this; }
 
     FakeServer enqueue(Reply... next) {
         synchronized (replies) {

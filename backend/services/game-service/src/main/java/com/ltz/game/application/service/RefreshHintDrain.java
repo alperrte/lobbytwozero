@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class RefreshHintDrain {
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(RefreshHintDrain.class);
     private static final Duration WINDOW = Duration.ofMinutes(1);
 
     private final RefreshHints hints;
@@ -45,6 +46,16 @@ public class RefreshHintDrain {
         this.provider = provider;
         this.properties = properties;
         this.clock = clock;
+    }
+
+    /** Bir pazarın fiyat ipuçlarını yeniler. Geçici nedenle (kota, ITAD bloğu, kiralama) yapılamayanlar sınırlı sayıda yeniden kuyruğa alınır; bir pazarın hatası diğerlerini kaybettirmez. */
+    private void refreshPrices(Market market, Set<UUID> ids) {
+        try {
+            RefreshNowResult result = prices.refreshNowResult(ids, market);
+            if (result != null && result.retryable()) ids.forEach(id -> hints.requeue(new RefreshHints.Key(id, market), result.retryAfter()));
+        } catch (RuntimeException error) {
+            LOG.warn("Fiyat ipucu yenilemesi başarısız: pazar={}-{} hata={}", market.country(), market.currency(), error.getClass().getSimpleName());
+        }
     }
 
     /** @return bu tahliyede işlenen ipucu sayısı; sınır doluysa veya kuyruk boşsa {@code 0} */
@@ -68,7 +79,7 @@ public class RefreshHintDrain {
                 if (provider.storePricesEnabled()) status.refreshNow(viewed);
                 details.refreshNow(viewed);
             }
-            priced.forEach((market, ids) -> prices.refreshNow(ids, market));
+            priced.forEach(this::refreshPrices);
             return Boolean.TRUE;
         });
         return keys.size();

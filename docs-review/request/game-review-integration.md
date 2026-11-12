@@ -70,13 +70,10 @@ Türetilmiş önbellek yoktur. Game'in puan projeksiyonu Game'dedir; taşımadan
 ### 3.5 Kabul kriterleri (Review payı)
 Prepare ile eşzamanlı puan/tavsiye/inceleme yazımı birlikte başarı veremez; tekrarlı/ters sıralı prepare–finalize; önce abort sonra gecikmiş prepare; restart sonrası kalıcı engel; PENDING/404 karar sorgusunda engelin açılmaması; yanlış subject/audience/scope ve kullanıcı token'ı reddi; gerçek Auth+Game ile ortak kabul. Bugün hiçbiri PASS değildir.
 
-## 4. Game frontend'inden Review'a bağlantı (AÇIK)
+## 4. Game frontend'inden Review'a bağlantı
 
-**Game bağlantısı Review merge sonrası yapılacak** (Game cevabı): Game detayına "İncelemeleri gör" bağlantısı (`/reviews/games/[gameId]`, mesaj anahtarı `Game.reviewsLink`), rota adları merge'de korunmalıdır: `/reviews/games/[gameId]` (TR `/incelemeler/oyun/[gameId]`) ve `/reviews/games/[gameId]/statistics`. Merge sonrası Game oturumuna "Review PR merge oldu, main güncel" bildirilir. Game detayında LTZ puanı gösterilmediği için aşağıdaki 2. madde şimdilik uygulanamaz.
+**Yapıldı (12 Kasım 2026, Review PR #110 main'e girdikten sonra):** Game detay sayfasında "İncelemeleri gör" / "See reviews" bağlantısı (`Game.reviewsLink`) `/reviews/games/[gameId]` rotasına gider (`docs/api.md` GAME bölümüne not düşüldü). Rota adları sözleşmedir ve korunmalıdır: `/reviews/games/[gameId]` (TR `/incelemeler/oyun/[gameId]`) ve `/reviews/games/[gameId]/statistics`.
 
-Review frontend'i bağımsız sayfalarla tamamlandı; Game frontend'ine dokunulmadı. Game sayfasının sahibine öneri:
-
-1. Oyun detayından Review'a bağlantı: `/reviews/games/[gameId]` (TR `/incelemeler/oyun/[gameId]`). Review sayfaları oturum ister; oturumsuz kullanıcı girişe yönlenir ve dönüşte hedefe gelir.
-2. LTZ puan gösteriminden Review istatistik sayfasına bağlantı (`/reviews/games/[gameId]/statistics`); iki kaynağın (Game projeksiyonu / Review canlı) gecikme notu §2.5 ile uyumlu anlatılmalı.
-3. Game sayfasında inceleme listelenmeyecekse Review UI'ı kopyalanmamalı; tek kaynak Review sayfalarıdır.
-4. Review sayfaları `noindex`'tir; Game metadata'sına inceleme/puan içeriği taşınmaz.
+**Açık:**
+1. LTZ puan gösteriminden Review istatistik sayfasına bağlantı (`/reviews/games/[gameId]/statistics`). Game detayında LTZ puanı gösterilmediği için şimdilik uygulanamaz; kartlardaki puana bağlantı vermek ürün kararıdır. İki kaynağın (Game projeksiyonu / Review canlı) gecikme notu §2.5 ile uyumlu anlatılmalıdır.
+2. Canlı doğrulamada oturumsuz kullanıcının girişe yönlenip dönüşte hedefe gelmesi denenecek (§1).

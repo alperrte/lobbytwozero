@@ -8,7 +8,7 @@ import type { GameDetail as Detail, GameResource } from "../types/game";
 import { GameDetail } from "./game-detail";
 
 vi.mock("@/shared/lib/i18n/navigation", () => ({
-  Link: ({ href, children, className }: { href: string | { pathname: string; query?: Record<string, string> }; children: React.ReactNode; className?: string }) => <a className={className} href={typeof href === "string" ? href : `${href.pathname}?${new URLSearchParams(href.query).toString()}`}>{children}</a>
+  Link: ({ href, children, className }: { href: string | { pathname: string; query?: Record<string, string>; params?: Record<string, string> }; children: React.ReactNode; className?: string }) => <a className={className} href={typeof href === "string" ? href : `${Object.entries(href.params ?? {}).reduce((path, [key, value]) => path.replace(`[${key}]`, value), href.pathname)}?${new URLSearchParams(href.query).toString()}`}>{children}</a>
 }));
 vi.mock("../services/game-api", async (original) => ({ ...await original<typeof import("../services/game-api")>(), loadGameResource: vi.fn(), mutateGame: vi.fn() }));
 const load = vi.mocked(loadGameResource);
@@ -39,6 +39,18 @@ function mount(locale: "tr" | "en" = "tr") { return render(<NextIntlClientProvid
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
 
 describe("Oyun detayı", () => {
+  it("Review sayfasına bağlanır: hedef /reviews/games/[gameId] rotasıdır, metin dile göre değişir", async () => {
+    serve(); mount();
+    const link = await screen.findByRole("link", { name: tr.Game.reviewsLink });
+    expect(link).toHaveAttribute("href", `/reviews/games/${gameId}?`);
+    cleanup(); serve(); mount("en");
+    expect(await screen.findByRole("link", { name: en.Game.reviewsLink })).toBeVisible();
+  });
+  it("detay yüklenemezse Review bağlantısı gösterilmez", async () => {
+    serve(new Error("yok")); mount();
+    await screen.findByRole("link", { name: tr.Game.backToGames });
+    expect(screen.queryByRole("link", { name: tr.Game.reviewsLink })).toBeNull();
+  });
   it("hero bölümünde başlık, tür, çıkış tarihi, geliştirici ve platform gösterir", async () => {
     serve(); mount();
     expect(await screen.findByRole("heading", { level: 1, name: "Fixture Quest" })).toBeVisible();

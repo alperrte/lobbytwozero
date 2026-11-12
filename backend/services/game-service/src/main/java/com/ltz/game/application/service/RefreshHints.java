@@ -3,6 +3,7 @@ package com.ltz.game.application.service;
 import com.ltz.game.application.port.GamePriceProvider.Market;
 import com.ltz.game.infrastructure.config.GameRefreshProperties;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,8 +23,14 @@ public class RefreshHints {
 
     private final GameRefreshProperties properties;
     private final Clock clock;
+    /** Geçici nedenle (kota, ITAD bloğu, kiralama) yapılamayan bir ipucunun en çok kaç kez yeniden kuyruğa alınacağı. */
+    static final int MAX_REQUEUES = 2;
+    private static final Duration MIN_DELAY = Duration.ofSeconds(10);
+    private static final Duration MAX_DELAY = Duration.ofMinutes(5);
+    /** Değer: ipucunun işlenebileceği en erken zaman (yeni ipucunda dokunma anı, yeniden kuyruğa alınanda gecikmeli). */
     private final ConcurrentHashMap<Key, Instant> pending = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Key, Instant> seen = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Key, Integer> retries = new ConcurrentHashMap<>();
 
     public RefreshHints(GameRefreshProperties properties, Clock clock) {
         this.properties = properties;
@@ -40,15 +47,40 @@ public class RefreshHints {
         if (pending.size() >= properties.hints().maxKeys()) return;
         if (seen.size() >= properties.hints().maxKeys() * 4L) prune(now);
         seen.put(key, now);
-        pending.putIfAbsent(key, now);
+        if (pending.putIfAbsent(key, now) == null) retries.remove(key);
+    }
+
+    /**
+     * Geçici nedenle yapılamayan ipucunu {@code delay} sonra yeniden kuyruğa alır (en çok {@value #MAX_REQUEUES} kez). Sınır aşılırsa ipucu bırakılır ve
+     * "görüldü" kaydı silinir, böylece kullanıcının sonraki sayfa açılışı 5 dakika beklemeden yeniden ipucu bırakabilir.
+     *
+     * @return yeniden kuyruğa alındıysa true
+     */
+    public boolean requeue(Key key, Duration delay) {
+        if (key == null || !properties.hintsEnabled()) return false;
+        if (retries.merge(key, 1, Integer::sum) > MAX_REQUEUES) {
+            retries.remove(key);
+            seen.remove(key);
+            return false;
+        }
+        if (pending.size() >= properties.hints().maxKeys()) return false;
+        pending.put(key, clock.instant().plus(boundedDelay(delay)));
+        return true;
+    }
+
+    /** Yeniden deneme gecikmesi en az {@link #MIN_DELAY}, en çok {@link #MAX_DELAY}; bilinmiyorsa en az. */
+    private static Duration boundedDelay(Duration delay) {
+        if (delay == null || delay.compareTo(MIN_DELAY) < 0) return MIN_DELAY;
+        return delay.compareTo(MAX_DELAY) > 0 ? MAX_DELAY : delay;
     }
 
     /** En çok {@code max} ipucu alır ve kuyruktan çıkarır. */
     public List<Key> drain(int max) {
         List<Key> taken = new ArrayList<>();
-        for (Key key : pending.keySet()) {
+        Instant now = clock.instant();
+        for (var entry : pending.entrySet()) {
             if (taken.size() >= max) break;
-            if (pending.remove(key) != null) taken.add(key);
+            if (!entry.getValue().isAfter(now) && pending.remove(entry.getKey(), entry.getValue())) taken.add(entry.getKey());
         }
         return taken;
     }

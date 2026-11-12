@@ -47,6 +47,57 @@ class RefreshHintsTest {
         assertEquals(1, hints.size(), "pencere dolunca yeniden eklenir");
     }
 
+    @Test void aRequeuedHintWaitsForItsDelayWithinSaneBoundsAndIsRetriedAtMostTwice() {
+        var clock = new MutableClock();
+        var hints = new RefreshHints(properties(true, 100), clock);
+        UUID game = UUID.randomUUID();
+        var key = new RefreshHints.Key(game, US);
+        hints.touch(game, US);
+        assertEquals(List.of(key), hints.drain(10));
+        assertTrue(hints.requeue(key, Duration.ofSeconds(60)));
+        assertEquals(1, hints.size());
+        assertEquals(List.of(), hints.drain(10), "gecikme dolmadan alınmaz");
+        clock.now = clock.now.plusSeconds(61);
+        assertEquals(List.of(key), hints.drain(10));
+        assertTrue(hints.requeue(key, null), "gecikme bilinmiyorsa en az 10 sn");
+        clock.now = clock.now.plusSeconds(9);
+        assertEquals(List.of(), hints.drain(10));
+        clock.now = clock.now.plusSeconds(2);
+        assertEquals(List.of(key), hints.drain(10));
+        assertEquals(false, hints.requeue(key, Duration.ofSeconds(60)), "üçüncü yeniden kuyruğa alma reddedilir");
+        assertEquals(0, hints.size());
+        hints.touch(game, US);
+        assertEquals(1, hints.size(), "bırakılan ipucunun görüldü kaydı silinir");
+    }
+
+    @Test void aRequeueDelayIsCappedAtFiveMinutesAndANewTouchResetsTheRetryCount() {
+        var clock = new MutableClock();
+        var hints = new RefreshHints(properties(true, 100), clock);
+        UUID game = UUID.randomUUID();
+        var key = new RefreshHints.Key(game, GB);
+        hints.touch(game, GB);
+        hints.drain(10);
+        assertTrue(hints.requeue(key, Duration.ofHours(3)));
+        clock.now = clock.now.plus(Duration.ofMinutes(5)).plusSeconds(1);
+        assertEquals(List.of(key), hints.drain(10), "en çok 5 dk beklenir");
+        assertTrue(hints.requeue(key, Duration.ofSeconds(10)));
+        clock.now = clock.now.plusSeconds(11);
+        hints.drain(10);
+        clock.now = clock.now.plus(Duration.ofMinutes(6));
+        hints.touch(game, GB);
+        hints.drain(10);
+        assertTrue(hints.requeue(key, Duration.ofSeconds(10)), "yeni dokunma sayacı sıfırlar");
+    }
+
+    @Test void requeueNeverThrowsAndRespectsTheQueueBoundAndTheDisabledSwitch() {
+        var full = new RefreshHints(properties(true, 1), new MutableClock());
+        full.touch(UUID.randomUUID(), US);
+        assertEquals(false, full.requeue(new RefreshHints.Key(UUID.randomUUID(), US), Duration.ofSeconds(10)), "kuyruk doluyken reddedilir");
+        assertEquals(false, full.requeue(null, Duration.ofSeconds(10)));
+        var off = new RefreshHints(properties(false, 10), new MutableClock());
+        assertEquals(false, off.requeue(new RefreshHints.Key(UUID.randomUUID(), US), Duration.ofSeconds(10)));
+    }
+
     @Test void aGamesPriceMarketsAreSeparateHintsFromItsPageView() {
         var hints = new RefreshHints(properties(true, 100), new MutableClock());
         UUID game = UUID.randomUUID();
