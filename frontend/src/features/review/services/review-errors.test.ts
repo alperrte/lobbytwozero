@@ -42,6 +42,12 @@ describe("describeReviewError", () => {
     expect(retryAfterOf(new Error("x"))).toBeUndefined();
   });
 
+  it("REVIEW_MODERATED kodunu yetki hatasından ayırır", () => {
+    for (const context of ["update", "delete", "like", "read"] as const) {
+      expect(describeReviewError(new ApiHttpError(403, { code: "REVIEW_MODERATED" }), context)).toMatchObject({ key: "moderated", needsLogin: false, conflict: false });
+    }
+  });
+
   it("CSRF reddini durumdan bağımsız ayırır", () => {
     expect(describeReviewError(new ApiHttpError(403, { code: "CSRF_TOKEN_INVALID" }), "like").key).toBe("csrf");
   });
@@ -59,7 +65,7 @@ describe("describeReviewError", () => {
   it("üretilebilecek her hata anahtarı TR ve EN'de vardır", () => {
     const statuses = [400, 401, 403, 404, 409, 413, 429, 500, 503];
     const contexts = ["read", "rating", "recommendation", "create", "update", "delete", "like", "report"] as const;
-    const keys = new Set<string>(["network", "csrf"]);
+    const keys = new Set<string>(["network", "csrf", "moderated"]);
     for (const status of statuses) {
       for (const context of contexts) {
         keys.add(describeReviewError(new ApiHttpError(status, { retryAfterSeconds: status === 429 ? 5 : undefined }), context).key);

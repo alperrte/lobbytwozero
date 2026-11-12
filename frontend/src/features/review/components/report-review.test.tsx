@@ -51,9 +51,9 @@ describe("İnceleme raporlama", () => {
   it("raporun yalnızca kaydedildiğini söyler; Admin'e iletildi/karar verildi iddiası kurmaz", () => {
     const dialog = openDialog();
     const text = dialog.textContent ?? "";
-    expect(text).toContain("moderasyon ekibine iletim henüz etkin değildir");
+    expect(text).toContain("moderatörler tarafından incelenir");
     expect(text).toContain("kimin raporladığını öğrenmez");
-    expect(text).not.toMatch(/iletildi|karara bağlandı|incelendi/);
+    expect(text).not.toMatch(/reddedildi|işlem yapıldı/);
   });
 
   it("gerekçe seçilmeden göndermez, hatayı alana bağlar", () => {
@@ -168,6 +168,13 @@ describe("İnceleme raporlama", () => {
   it("sunucudan okunan mevcut raporu gösterir; tekrar rapor düğmesi sunmaz", () => {
     render(wrap(<ReportReview reviewId={reviewId} ownedByActor={false} initialReport={saved} />));
     expect(screen.getByText(/Raporladın ·/)).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Raporla" })).toBeNull();
+  });
+
+  it("moderatörün kapattığı raporu yalnız 'sonuçlandı' olarak gösterir; sonucu sızdırmaz", () => {
+    render(wrap(<ReportReview reviewId={reviewId} ownedByActor={false} initialReport={{ ...saved, status: "CLOSED" }} />));
+    expect(screen.getByText("Raporun sonuçlandı.")).toBeVisible();
+    expect(screen.queryByText(/reddedildi|işlem yapıldı|Raporladın/)).toBeNull();
     expect(screen.queryByRole("button", { name: "Raporla" })).toBeNull();
   });
 

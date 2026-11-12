@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiHttpError } from "@/shared/lib/api/client";
 import tr from "@/shared/lib/i18n/messages/tr.json";
 import { loadReviewResource } from "../services/review-api";
-import type { ReviewGameCard, ReviewPage, ReviewResource } from "../types/review";
+import type { ReviewGameCard, ReviewPage, ReviewResource, ReviewResponse } from "../types/review";
 import { MyReviewsPage } from "./my-reviews-page";
 
 const mocks = vi.hoisted(() => ({ query: "", push: vi.fn(), replace: vi.fn() }));
@@ -27,7 +27,7 @@ const load = vi.mocked(loadReviewResource);
 let page: ReviewPage | Error;
 let cards: ReviewGameCard[] | Error;
 
-const review = (id: string, gameId: string, body: string, updated = "2026-11-01T12:00:00Z") => ({ id, gameId, body, ownedByActor: true, version: 1, createdAt: "2026-11-01T12:00:00Z", updatedAt: updated });
+const review = (id: string, gameId: string, body: string, updated = "2026-11-01T12:00:00Z", status: ReviewResponse["status"] = "VISIBLE"): ReviewResponse => ({ id, gameId, body, authorUserId: "0198a3c2-0000-7d44-9a55-3f1c2b4d5e01", ownedByActor: true, status, version: 1, createdAt: "2026-11-01T12:00:00Z", updatedAt: updated });
 
 function wrap(children: ReactNode) {
   return <NextIntlClientProvider locale="tr" messages={tr}>{children}</NextIntlClientProvider>;
@@ -68,6 +68,13 @@ describe("İncelemelerim", () => {
     expect(within(first).getByText(/Düzenlendi/)).toBeVisible();
     expect(within(first).getByRole("link", { name: "Aç ve yönet" })).toHaveAttribute("href", "/reviews/0198a3c2-1111-7d44-9a55-3f1c2b4d5e66");
     expect(within(first).getByRole("link", { name: "Oyun incelemeleri" })).toHaveAttribute("href", `/reviews/games/${gameA}`);
+  });
+
+  it("gizlenen ve arşivlenen incelemeleri durum rozetiyle gösterir", async () => {
+    page = { ...(page as ReviewPage), items: [review("0198a3c2-1111-7d44-9a55-3f1c2b4d5e66", gameA, "Gizli", "2026-11-01T12:00:00Z", "HIDDEN"), review("0198a3c2-2222-7d44-9a55-3f1c2b4d5e66", gameB, "Arşivli", "2026-11-01T12:00:00Z", "ARCHIVED")] };
+    render(wrap(<MyReviewsPage />));
+    expect(await screen.findByText("Gizlendi")).toBeVisible();
+    expect(screen.getByText("Arşivlendi")).toBeVisible();
   });
 
   it("oyun adlarını sayfa başına TEK toplu istekle alır", async () => {

@@ -101,6 +101,7 @@ function MyReviewItem({ review, card, cardsLoading }: { review: ReviewResponse; 
       <div className="min-w-0 flex-1 space-y-3">
         <div className="space-y-1">
           <h2 className="font-display text-lg font-semibold [overflow-wrap:anywhere]">{title}</h2>
+          {review.status !== "VISIBLE" ? <p className="inline-block rounded-control border border-primary/40 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-brand-text">{t(`moderation.${review.status}.badge`)}</p> : null}
           <p className="flex flex-wrap gap-x-3 text-xs text-text-secondary">
             <span>{created ? t("card.created", { date: created }) : t("card.dateUnknown")}</span>
             {updated ? <span>{t("card.edited", { date: updated })}</span> : null}

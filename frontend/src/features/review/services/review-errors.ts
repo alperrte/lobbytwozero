@@ -24,6 +24,8 @@ export function describeReviewError(error: unknown, context: ReviewErrorContext 
   }
   const base = { needsLogin: false, conflict: false, unknownOutcome: false };
   if (error.code === "CSRF_TOKEN_INVALID") return { ...base, key: "csrf" };
+  // Moderasyon nedeniyle değiştirilemeyen inceleme (yazar yolları): 403 ama yetki hatası değil.
+  if (error.code === "REVIEW_MODERATED") return { ...base, key: "moderated" };
   switch (error.status) {
     case 400:
       return { ...base, key: context === "create" || context === "update" ? "invalidBody" : context === "report" ? "invalidReport" : "badRequest" };

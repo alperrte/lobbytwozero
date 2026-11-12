@@ -13,8 +13,8 @@ import type { ReviewReport } from "../types/review";
 import { ReviewAlert, actionClass, focusRing } from "./review-ui";
 
 /**
- * İnceleme raporlama (REV-07, Review tarafı). Raporun YEREL olarak kaydedildiğini söyler; Admin'e iletildiğini veya
- * karara bağlandığını iddia etmez (teslim henüz yoktur). Kendi incelemende görünmez; mükerrer rapor (409) "zaten raporladın"
+ * İnceleme raporlama (REV-07). Rapor Review'da kaydedilir ve moderatörler tarafından incelenir; sonucu (işlem yapıldı/reddedildi)
+ * raportöre gösterilmez, yalnız "sonuçlandı" bilgisi verilir. Kendi incelemende görünmez; mükerrer rapor (409) "zaten raporladın"
  * olarak ele alınır. Raportör kimliği inceleme sahibine gösterilmez. `initialReport`: sunucudan okunan mevcut rapor.
  */
 export function ReportReview({ reviewId, ownedByActor, initialReport }: { reviewId: string; ownedByActor: boolean; initialReport?: ReviewReport | null }) {
@@ -33,7 +33,7 @@ function ReportControl({ reviewId, initialReport }: { reviewId: string; initialR
     const when = typeof report === "object" ? formatDateTime(report.createdAt, locale) : null;
     return (
       <p role="status" className="inline-flex min-h-11 items-center text-sm text-text-secondary">
-        {report === "duplicate" ? t("report.already") : when ? t("report.doneAt", { date: when }) : t("report.done")}
+        {report === "duplicate" ? t("report.already") : report.status === "CLOSED" ? t("report.closed") : when ? t("report.doneAt", { date: when }) : t("report.done")}
       </p>
     );
   }
