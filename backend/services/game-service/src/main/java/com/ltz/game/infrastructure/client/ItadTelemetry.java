@@ -58,13 +58,13 @@ final class ItadTelemetry {
     }
 
     /** ITAD 429 verdi: pencere doluluğuyla tek satır. {@code retryAfterRaw} ham başlıktır ve güvenli karakterlerle kısaltılır. */
-    void rateLimited(Call call, ItadRequestLimiter.Snapshot window, String retryAfterRaw, Duration appliedBlock) {
+    void rateLimited(Call call, ItadRequestLimiter.Snapshot window, String retryAfterRaw, Duration appliedBlock, int newEffectiveLimit) {
         Instant now = clock.instant();
         Instant previous = last429.getAndSet(now);
         int streak = consecutive429.incrementAndGet();
         if (LOG.isWarnEnabled()) {
-            LOG.warn("ITAD kotasi: olay=429 yol={} pazar={} oncelik={} pencere_ici={} son60sn={} son10sn={} eszamanli={} limit={} rezerv={} retry_after_ham=\"{}\" engel_sn={} ardisik={} onceki_429_sn={}",
-                    call.kind(), call.market(), call.priority(), window.inWindow(), window.last60s(), window.last10s(), inFlight.get(), window.limit(), window.reserve(),
+            LOG.warn("ITAD kotasi: olay=429 yol={} pazar={} oncelik={} pencere_ici={} son60sn={} son10sn={} eszamanli={} limit={} etkin_once={} etkin_sonra={} rezerv={} retry_after_ham=\"{}\" engel_sn={} ardisik={} onceki_429_sn={}",
+                    call.kind(), call.market(), call.priority(), window.inWindow(), window.last60s(), window.last10s(), inFlight.get(), window.limit(), window.effective(), newEffectiveLimit, window.reserve(),
                     sanitize(retryAfterRaw), appliedBlock.toSeconds(), streak, previous == null ? -1 : Duration.between(previous, now).toSeconds());
         }
     }

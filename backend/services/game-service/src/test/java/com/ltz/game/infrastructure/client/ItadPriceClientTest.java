@@ -160,15 +160,6 @@ class ItadPriceClientTest {
             assertTrue(server.received().getLast().pathAndQuery().startsWith("/games/prices/v3"));
         }
     }
-    @Test void unmappedGamesAreAskedAgainBecauseOnlyPositiveMappingsAreRemembered() throws Exception {
-        try(var server=new FakeServer()) {
-            server.enqueue(Reply.json(200,"{\"app/570\":null}"),Reply.json(200,"{\"app/570\":null}"));
-            var client=client(server,"fixture");
-            assertTrue(client.prices(REQUESTED,MARKET).isEmpty());
-            assertTrue(client.prices(REQUESTED,MARKET).isEmpty());
-            assertEquals(2,server.received().size());
-        }
-    }
     @Test void everyStoreOfAGameIsReturnedNotJustTheCheapestFive() throws Exception {
         try(var server=new FakeServer()) {
             String[] stores={"Steam","GOG","Humble Store","Epic Game Store","Fanatical","GreenManGaming","GamersGate","IndieGala"};
@@ -258,9 +249,10 @@ class ItadPriceClientTest {
     private static List<String> capturedTelemetry(Runnable action) {
         var logger=(ch.qos.logback.classic.Logger)org.slf4j.LoggerFactory.getLogger(ItadTelemetry.class);
         var appender=new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        var previous=logger.getLevel();logger.setLevel(ch.qos.logback.classic.Level.INFO);
         appender.start();logger.addAppender(appender);
         try { action.run(); }
-        finally { logger.detachAppender(appender); }
+        finally { logger.detachAppender(appender);logger.setLevel(previous); }
         return appender.list.stream().map(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage).toList();
     }
     @Test void aRateLimitFromItadIsLoggedWithTheWindowFillAndNeverLeaksTheKeyTheUrlOrTheBody() throws Exception {
@@ -273,6 +265,7 @@ class ItadPriceClientTest {
             var line=rateLimit.getFirst();
             assertTrue(line.contains("yol=prices") && line.contains("pazar=TR-USD") && line.contains("oncelik=BACKGROUND"),line);
             assertTrue(line.contains("pencere_ici=2") && line.contains("son60sn=2") && line.contains("limit=850") && line.contains("rezerv=150"),line);
+            assertTrue(line.contains("etkin_once=850") && line.contains("etkin_sonra=850"),"gözlenen 2 istek etkin limitin yarısından çok az: limit düşmez, yalnız Retry-After bloğu geçerli: "+line);
             assertTrue(line.contains("retry_after_ham=\"120\"") && line.contains("engel_sn=120") && line.contains("ardisik=1"),line);
             var all=String.join("\n",lines);
             assertFalse(all.contains("fixture-key"));assertFalse(all.contains("isthereanydeal"));assertFalse(all.contains(server.baseUrl()));assertFalse(all.contains("secret"));
@@ -294,6 +287,65 @@ class ItadPriceClientTest {
             var lines=capturedTelemetry(()->result.addAll(observed.prices(REQUESTED,MARKET)));
             assertEquals(1,result.size());
             assertEquals(1,lines.stream().filter(line -> line.contains("olay=baslik") && line.contains("x-ratelimit-remaining=\"42\"")).count(),lines.toString());
+        }
+    }
+    @Test void aRateLimitBlocksFurtherRequestsWithTheBlockCodeWithoutNetworkCallsUntilRetryAfterPasses() throws Exception {
+        var now=new java.util.concurrent.atomic.AtomicReference<>(NOW);
+        Clock moving=new Clock() {
+            @Override public java.time.ZoneId getZone() { return ZoneOffset.UTC; }
+            @Override public Clock withZone(java.time.ZoneId zone) { return this; }
+            @Override public Instant instant() { return now.get(); }
+        };
+        var refs=mock(GameExternalReferenceRepository.class);
+        var game=new Game();game.setId(GAME);
+        var ref=new GameExternalReference();ref.setGame(game);ref.setProvider("STEAM");ref.setExternalId("570");
+        when(refs.findByGameIdIn(anyCollection())).thenReturn(List.of(ref));
+        var props=new GamePriceProperties("fixture-key","https://api.isthereanydeal.com","TR","USD",VALID_TTL);
+        try(var server=new FakeServer()) {
+            server.retryAfter("60").enqueue(Reply.json(200,mapping()),Reply.json(429,"{}"),Reply.json(200,prices("USD",LINK,"\"2026-11-05T12:05:00Z\"")));
+            var limited=new ItadPriceClient(GameRatingConfiguration.restClient(RestClient.builder(),server.baseUrl(),Duration.ofSeconds(1),Duration.ofSeconds(1)),props,refs,moving);
+            assertFalse(limited.isBlocked());
+            assertEquals(Duration.ZERO,limited.blockedFor());
+            assertEquals("PRICE_RATE_LIMITED",assertThrows(ProviderException.class,()->limited.prices(REQUESTED,MARKET)).code());
+            assertTrue(limited.isBlocked());
+            assertEquals(Duration.ofSeconds(60),limited.blockedFor());
+            int before=server.received().size();
+            var blocked=assertThrows(ProviderException.class,()->limited.prices(REQUESTED,MARKET));
+            assertEquals(ItadPriceClient.PROVIDER_BLOCKED,blocked.code(),"yerel pencere doluluğundan (PRICE_LOCAL_THROTTLE) ayrı kod");
+            assertEquals(Duration.ofSeconds(60),blocked.retryAfter());
+            assertEquals(before,server.received().size(),"blok sırasında ağa istek çıkmaz");
+            now.set(NOW.plusSeconds(61));
+            assertFalse(limited.isBlocked());
+            assertEquals(Duration.ZERO,limited.blockedFor());
+            assertEquals(1,limited.prices(REQUESTED,MARKET).size(),"süre dolunca istek yeniden gider");
+            assertEquals(before+1,server.received().size());
+        }
+    }
+    @Test void aGameItadCannotMapIsNotLookedUpAgainUntilTheNegativeCacheExpires() throws Exception {
+        var now=new java.util.concurrent.atomic.AtomicReference<>(NOW);
+        Clock moving=new Clock() {
+            @Override public java.time.ZoneId getZone() { return ZoneOffset.UTC; }
+            @Override public Clock withZone(java.time.ZoneId zone) { return this; }
+            @Override public Instant instant() { return now.get(); }
+        };
+        var refs=mock(GameExternalReferenceRepository.class);
+        var game=new Game();game.setId(GAME);
+        var ref=new GameExternalReference();ref.setGame(game);ref.setProvider("STEAM");ref.setExternalId("570");
+        when(refs.findByGameIdIn(anyCollection())).thenReturn(List.of(ref));
+        var props=new GamePriceProperties("fixture-key","https://api.isthereanydeal.com","TR","USD",VALID_TTL);
+        try(var server=new FakeServer()) {
+            server.enqueue(Reply.json(200,"{\"app/570\":null}"),Reply.json(200,"{\"app/570\":null}"));
+            var unmapped=new ItadPriceClient(GameRatingConfiguration.restClient(RestClient.builder(),server.baseUrl(),Duration.ofSeconds(1),Duration.ofSeconds(1)),props,refs,moving);
+            assertEquals(List.of(),unmapped.prices(REQUESTED,MARKET));
+            assertEquals(1,server.received().size(),"eşleme yoksa fiyat isteği de atılmaz");
+            assertEquals(List.of(),unmapped.prices(REQUESTED,MARKET));
+            assertEquals(1,server.received().size(),"eşlemesiz oyun için ikinci lookup atılmaz");
+            now.set(NOW.plus(ItadPriceClient.UNMAPPED_TTL).minusSeconds(1));
+            assertEquals(List.of(),unmapped.prices(REQUESTED,MARKET));
+            assertEquals(1,server.received().size(),"süre dolmadan yeniden sorulmaz");
+            now.set(NOW.plus(ItadPriceClient.UNMAPPED_TTL).plusSeconds(1));
+            assertEquals(List.of(),unmapped.prices(REQUESTED,MARKET));
+            assertEquals(2,server.received().size(),"süre dolunca yeniden sorulur");
         }
     }
     @Test void providerRetryAfterAndStartupValidationAreExplicit() throws Exception {

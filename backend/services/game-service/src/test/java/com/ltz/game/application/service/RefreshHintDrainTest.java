@@ -53,8 +53,8 @@ class RefreshHintDrainTest {
         assertEquals(3, drain.drain());
         verify(status).refreshNow(Set.of(viewed));
         verify(details).refreshNow(Set.of(viewed));
-        verify(prices).refreshNow(Set.of(pricedUs), US);
-        verify(prices).refreshNow(Set.of(pricedGb), GB);
+        verify(prices).refreshNowResult(Set.of(pricedUs), US);
+        verify(prices).refreshNowResult(Set.of(pricedGb), GB);
         assertEquals(0, hints.size());
     }
 
@@ -90,6 +90,57 @@ class RefreshHintDrainTest {
         var off = new GameRefreshProperties(null, null, 90, 30, null, new GameRefreshProperties.Hints(false, 100, Duration.ofMinutes(5), 100, 2));
         hints.touch(UUID.randomUUID(), null);
         assertEquals(0, drain(off).drain());
-        verify(prices, never()).refreshNow(any(), eq(US));
+        verify(prices, never()).refreshNowResult(any(), eq(US));
+    }
+
+    @Test void aPriceHintThatCouldNotRunForATemporaryReasonIsRequeuedAndRunsAgainAfterTheDelay() {
+        var drain = drain(properties);
+        UUID game = UUID.randomUUID();
+        when(prices.refreshNowResult(Set.of(game), US)).thenReturn(RefreshNowResult.retry(Duration.ofSeconds(60)), RefreshNowResult.done(1));
+        hints.touch(game, US);
+        assertEquals(1, drain.drain());
+        assertEquals(1, hints.size(), "geçici neden: ipucu kaybolmaz");
+        clock.now = clock.now.plusSeconds(59);
+        assertEquals(0, drain.drain(), "gecikme dolmadan tahliye edilmez");
+        clock.now = clock.now.plusSeconds(2);
+        assertEquals(1, drain.drain());
+        assertEquals(0, hints.size(), "ikinci denemede yenilendi");
+        verify(prices, times(2)).refreshNowResult(Set.of(game), US);
+    }
+
+    @Test void aPermanentFailureOrANullResultIsNotRequeued() {
+        var drain = drain(properties);
+        UUID permanent = UUID.randomUUID(), unknown = UUID.randomUUID();
+        when(prices.refreshNowResult(Set.of(permanent), US)).thenReturn(RefreshNowResult.NOT_REFRESHED);
+        hints.touch(permanent, US);
+        hints.touch(unknown, GB);
+        assertEquals(2, drain.drain());
+        assertEquals(0, hints.size());
+    }
+
+    @Test void oneMarketsFailureDoesNotLoseTheOtherMarketsHints() {
+        var drain = drain(properties);
+        UUID us = UUID.randomUUID(), gb = UUID.randomUUID();
+        when(prices.refreshNowResult(Set.of(us), US)).thenThrow(new IllegalStateException("beklenmeyen"));
+        when(prices.refreshNowResult(Set.of(gb), GB)).thenReturn(RefreshNowResult.done(1));
+        hints.touch(us, US);
+        hints.touch(gb, GB);
+        assertEquals(2, drain.drain());
+        verify(prices).refreshNowResult(Set.of(gb), GB);
+        assertEquals(0, hints.size(), "beklenmeyen hatada ipucu yeniden kuyruğa alınmaz (kalıcı sayılır)");
+    }
+
+    @Test void aTemporaryFailureIsRetriedAtMostTwiceThenDroppedSoALaterViewCanHintAgain() {
+        var drain = drain(properties);
+        UUID game = UUID.randomUUID();
+        when(prices.refreshNowResult(Set.of(game), US)).thenReturn(RefreshNowResult.retry(Duration.ofSeconds(10)));
+        hints.touch(game, US);
+        for (int attempt = 0; attempt < 3; attempt++) {
+            assertEquals(1, drain.drain(), "deneme " + attempt);
+            clock.now = clock.now.plusSeconds(61);
+        }
+        assertEquals(0, hints.size(), "iki yeniden denemeden sonra bırakılır");
+        hints.touch(game, US);
+        assertEquals(1, hints.size(), "bırakılınca görüldü kaydı silinir: yeni sayfa açılışı hemen ipucu bırakabilir");
     }
 }

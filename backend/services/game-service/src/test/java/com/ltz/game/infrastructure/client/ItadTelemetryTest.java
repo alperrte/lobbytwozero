@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
@@ -32,23 +33,31 @@ class ItadTelemetryTest {
     private final ListAppender<ILoggingEvent> appender = new ListAppender<>();
     private final ItadTelemetry.Call prices = new ItadTelemetry.Call("prices", "DE-EUR", false);
 
+    private Level previousLevel;
+
+    /** Test logback ayarı kökü WARN tutar; INFO satırlarını yakalamak için seviye tek başına koşulduğunda da açılır. */
     @BeforeEach void attach() {
+        previousLevel = logger.getLevel();
+        logger.setLevel(Level.INFO);
         appender.start();
         logger.addAppender(appender);
     }
 
-    @AfterEach void detach() { logger.detachAppender(appender); }
+    @AfterEach void detach() {
+        logger.detachAppender(appender);
+        logger.setLevel(previousLevel);
+    }
 
     private List<String> lines() { return appender.list.stream().map(ILoggingEvent::getFormattedMessage).toList(); }
 
     @Test void aRateLimitIsLoggedOnceWithTheWindowFillTheRawHeaderTheBlockAndTheStreak() {
         TickClock clock = new TickClock();
         var telemetry = new ItadTelemetry(clock);
-        var snapshot = new ItadRequestLimiter.Snapshot(412, 88, 14, 850, 150);
+        var snapshot = new ItadRequestLimiter.Snapshot(412, 88, 14, 850, 150, 850);
         telemetry.start();
-        telemetry.rateLimited(prices, snapshot, "120", Duration.ofSeconds(120));
+        telemetry.rateLimited(prices, snapshot, "120", Duration.ofSeconds(120), 297);
         clock.now = clock.now.plusSeconds(90);
-        telemetry.rateLimited(new ItadTelemetry.Call("lookup", "DE-EUR", true), snapshot, null, Duration.ofSeconds(600));
+        telemetry.rateLimited(new ItadTelemetry.Call("lookup", "DE-EUR", true), snapshot, null, Duration.ofSeconds(600), 297);
         var first = lines().getFirst();
         assertTrue(first.contains("olay=429") && first.contains("yol=prices") && first.contains("pazar=DE-EUR") && first.contains("oncelik=BACKGROUND"), first);
         assertTrue(first.contains("pencere_ici=412") && first.contains("son60sn=88") && first.contains("son10sn=14") && first.contains("eszamanli=1"), first);
@@ -62,11 +71,11 @@ class ItadTelemetryTest {
     @Test void aSuccessfulResponseEndsTheStreak() {
         TickClock clock = new TickClock();
         var telemetry = new ItadTelemetry(clock);
-        var snapshot = new ItadRequestLimiter.Snapshot(1, 1, 1, 850, 150);
-        telemetry.rateLimited(prices, snapshot, "5", Duration.ofSeconds(5));
+        var snapshot = new ItadRequestLimiter.Snapshot(1, 1, 1, 850, 150, 850);
+        telemetry.rateLimited(prices, snapshot, "5", Duration.ofSeconds(5), 297);
         telemetry.start();
         telemetry.finish(prices, 200, 100);
-        telemetry.rateLimited(prices, snapshot, "5", Duration.ofSeconds(5));
+        telemetry.rateLimited(prices, snapshot, "5", Duration.ofSeconds(5), 297);
         assertTrue(lines().getLast().contains("ardisik=1"), lines().getLast());
     }
 

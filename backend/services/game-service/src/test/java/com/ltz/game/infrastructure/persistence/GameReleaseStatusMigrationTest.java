@@ -21,7 +21,7 @@ class GameReleaseStatusMigrationTest {
         try (var pg = new PostgreSQLContainer("postgres:17-alpine")) {
             pg.start();
             var ds = new DriverManagerDataSource(pg.getJdbcUrl(), pg.getUsername(), pg.getPassword());
-            assertEquals(15, Flyway.configure().dataSource(ds).locations("classpath:db/migration").load().migrate().migrationsExecuted);
+            assertEquals(16, Flyway.configure().dataSource(ds).locations("classpath:db/migration").load().migrate().migrationsExecuted);
             var jdbc = new JdbcTemplate(ds);
             UUID game = UUID.randomUUID();
             jdbc.update("insert into games(id,title,normalized_title,origin,game_type,early_access,created_at,updated_at) values (?,'Existing','existing','EXTERNAL','MAIN_GAME',true,now(),now())", game);

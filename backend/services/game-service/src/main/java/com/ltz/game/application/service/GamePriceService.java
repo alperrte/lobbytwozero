@@ -6,7 +6,6 @@ import com.ltz.game.application.port.GamePriceProvider.Quote;
 import com.ltz.game.application.port.GameProvider;
 import com.ltz.game.application.port.ProviderPriority;
 import com.ltz.game.api.dto.response.GamePricesResponse;
-import com.ltz.game.api.dto.response.GamePricesResponse.Item;
 import com.ltz.game.domain.exception.ProviderException;
 import com.ltz.game.infrastructure.config.GamePriceProperties;
 import com.ltz.game.infrastructure.config.GameRefreshProperties;
@@ -53,6 +52,9 @@ public class GamePriceService {
     private final GameExternalReferenceRepository references;
     private final GameRefreshProperties refresh;
     private final RefreshHints hints;
+    private final PriceFailureHandling failures;
+    /** Okuma talebine göre arka plan pazarları; yoksa (testler, eski kurulum) yapılandırılmış tüm pazarlar yenilenir. */
+    private PriceMarketDemand demand=PriceMarketDemand.disabled();
 
     /** Yalnız ITAD (Steam fiyatı ve ipucu kapalı): eski kurucu. */
     public GamePriceService(GamePriceProvider provider, GamePriceRepository repository, GameRepository games, GamePriceProperties properties, Clock clock) {
@@ -71,7 +73,11 @@ public class GamePriceService {
         this.references = references;
         this.refresh = refresh;
         this.hints = hints;
+        this.failures = new PriceFailureHandling(repository, clock);
     }
+
+    @Autowired(required=false)
+    public void useDemand(PriceMarketDemand demand) { this.demand=demand; }
 
     /** Salt yerel okuma: kullanıcı isteği üçüncü taraf ağını veya fiyat yenilemesini tetiklemez. */
     @Transactional(readOnly=true,isolation=org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
@@ -79,16 +85,13 @@ public class GamePriceService {
         if(ids==null || ids.size()>50 || ids.stream().anyMatch(java.util.Objects::isNull)) throw new IllegalArgumentException("En fazla 50 geçerli oyun kimliği.");
         Set<UUID> active=games.findAllById(ids).stream().filter(com.ltz.game.domain.entity.Game::isActive).map(com.ltz.game.domain.entity.Game::getId).collect(java.util.stream.Collectors.toSet());
         // Tek oyunun fiyatı okunuyorsa (oyun sayfası) yalnız bir bellek içi ipucu bırakılır; dış servise gidilmez, veritabanına yazılmaz.
-        if(hints!=null && ids.size()==1 && properties.allMarkets().contains(market)) active.forEach(id -> hints.touch(id,market));
+        List<Market> configured=properties.allMarkets();
+        if(hints!=null && ids.size()==1 && configured.contains(market)) active.forEach(id -> hints.touch(id,market));
+        demand.touch(market,configured,active.size());
         var byGame=repository.quotes(active,market).stream().collect(java.util.stream.Collectors.groupingBy(Quote::gameId));
-        Set<UUID> noOffers=repository.noOffers(active,market,clock.instant(),properties.displayTtl(properties.coldTtl()));
-        return new GamePricesResponse(market,ids.stream().distinct().map(id -> {
-            if(!active.contains(id)) return new Item(id,"UNAVAILABLE",List.of());
-            List<Quote> quotes=byGame.getOrDefault(id,List.of());
-            List<Quote> fresh=quotes.stream().filter(quote -> quote.isFreshAt(clock.instant())).toList();
-            if(!quotes.isEmpty()) return new Item(id,fresh.isEmpty()?"STALE":"AVAILABLE",fresh.isEmpty()?quotes:fresh);
-            return new Item(id,noOffers.contains(id)?"NO_OFFER":"UNAVAILABLE",List.of());
-        }).toList());
+        Set<UUID> noOffers=repository.noOffers(active,market,clock.instant(),properties.displayTtl(properties.coldTtl()).multipliedBy(GamePriceRepository.NO_OFFER_INTERVAL_FACTOR));
+        Instant now=clock.instant();
+        return new GamePricesResponse(market,ids.stream().distinct().map(id -> PriceReadItems.item(id,active,byGame,noOffers,now)).toList());
     }
 
     private boolean steamEnabled() { return steam != null && refresh.steamPrice() != null && steam.storePricesEnabled(); }
@@ -102,6 +105,8 @@ public class GamePriceService {
     static final int PARALLEL_MARKETS = 3;
     /** {@code ItadRequestLimiter.LOCAL_THROTTLE} ile aynı kod (istemci paketi uygulama katmanına bağımlı olmasın diye burada yinelenir). */
     static final String LOCAL_THROTTLE = "PRICE_LOCAL_THROTTLE";
+    /** ITAD'in 429'u yüzünden blok ({@code ItadPriceClient.PROVIDER_BLOCKED} ile aynı kod; hata politikası {@link PriceFailurePolicy}). */
+    static final String PROVIDER_BLOCKED = PriceFailurePolicy.PROVIDER_BLOCKED;
     /** Bir turun en çok bu kadar sürmesi hedeflenir (kiralama 120 sn); süre dolunca yeni parti başlatılmaz. */
     static final Duration RUN_BUDGET = Duration.ofSeconds(90);
     /** Çalışan planlı turun kiralama sahibi; sayfası açılan oyunun anlık yenilemesi aynı kiralamayı kullanır (aynı süreç, tek yazıcı). */
@@ -110,8 +115,8 @@ public class GamePriceService {
 
     long servedCount(Market market) { return markets.servedCount(market); }
 
-    /** Bu turda yenilenecek pazarlar: birikimli pazar varsa yalnız o (her 5. turda hepsi), yoksa en az işlenenden başlayarak hepsi. */
-    List<Market> runMarkets() { return markets.runMarkets(properties.allMarkets(),repository::inBacklog); }
+    /** Bu turda yenilenecek pazarlar: etkin (talep gören) pazarlardan birikimli olan varsa yalnız o (her 5. turda hepsi), yoksa en az işlenenden başlayarak hepsi. */
+    List<Market> runMarkets() { return markets.runMarkets(demand.activeMarkets(properties.allMarkets()),repository::inBacklog); }
 
     /**
      * Her yenileme turunda tek kiralama alınır ve yapılandırılmış pazarlar {@value #PARALLEL_MARKETS} iş parçacığında paralel yenilenir; bir pazarın hatası
@@ -130,7 +135,7 @@ public class GamePriceService {
             for(java.util.concurrent.Future<?> task:tasks) {
                 try { task.get(); }
                 catch(InterruptedException _) { Thread.currentThread().interrupt(); break; }
-                catch(java.util.concurrent.ExecutionException error) { LOG.warn("Fiyat pazarı yenilemesi beklenmeyen hatayla bitti: {}",error.getCause()==null ? "?" : error.getCause().getClass().getSimpleName()); }
+                catch(java.util.concurrent.ExecutionException error) { LOG.warn("Fiyat pazarı yenilemesi beklenmeyen hatayla bitti: {}",PriceFailurePolicy.causeName(error)); }
             }
         } finally {
             activeOwner=null;
@@ -146,6 +151,7 @@ public class GamePriceService {
 
     /** Bir turun nereye zaman harcadığını ölçer (yalnız log): aday sorgusu, ITAD, Steam, yazma ve parti sayısı. */
     private static final class Timing {
+        long queryNanos;
         long itadNanos;
         long steamNanos;
         long writeNanos;
@@ -153,40 +159,55 @@ public class GamePriceService {
         static long millis(long nanos) { return nanos/1_000_000; }
     }
 
+    /** Bir pazar turunun değişen durumu (hata halinde işaretlenecek parti, tamamlanan sayı ve sonuç kodu). */
+    private static final class MarketRun {
+        Set<UUID> ids=Set.of();
+        int candidates;
+        int done;
+        String outcome="OK";
+        final Timing timing=new Timing();
+    }
+
     private void refreshMarket(UUID owner,Market market,boolean itad,Instant deadline) {
         // Tur süresi dolduysa pahalı aday sorgusu bile çalıştırılmaz: sıradaki pazar bir sonraki turda (rotasyonla) öne geçer.
         if(!clock.instant().isBefore(deadline)) return;
-        Set<UUID> ids=Set.of();
         long started=System.nanoTime();
-        int candidateCount=0;
-        int done=0;
-        long queryNanos=0;
-        Timing timing=new Timing();
-        String outcome="OK";
+        var run=new MarketRun();
         try {
-            // Tek sorguda birkaç parti aday alınır (sorgu üç büyük tabloyu tarar); 200'lük partiler sırayla yenilenir. Kiralama kaybında tur durur.
-            long queryStarted=System.nanoTime();
-            var candidates=repository.candidates(market,clock.instant(),properties.ttl(),properties.warmTtl(),properties.coldTtl(),BATCH_SIZE*MAX_BATCHES_PER_RUN);
-            queryNanos=System.nanoTime()-queryStarted;
-            if(!itad) candidates=candidates.stream().filter(candidate -> isHot(candidate.ttl())).toList();
-            candidateCount=candidates.size();
-            boolean more=true;
-            for(int from=0;more && from<candidates.size() && clock.instant().isBefore(deadline);from+=BATCH_SIZE) {
-                var batch=candidates.subList(from,Math.min(candidates.size(),from+BATCH_SIZE));
-                ids=batch.stream().map(GamePriceRepository.Candidate::id).collect(java.util.stream.Collectors.toUnmodifiableSet());
-                more=refreshBatch(owner,market,batch,ids,itad,false,timing);
-                if(more) done+=batch.size();
-            }
-            if(!more) outcome="LEASE_LOST";
-        } catch(ProviderException error) {
-            outcome=error.code();
-            // Kendi ITAD hız sınırımız doldu: oyunlar başarısız sayılmaz (kayıt yazılmaz), pazar bu turda bırakılır ve sonraki turda aynı adaylardan sürer.
-            if(!LOCAL_THROTTLE.equals(error.code())) repository.failed(owner,ids,market,clock.instant(),error.code(),error.retryAfter());
+            refreshCandidates(owner,market,itad,deadline,run);
+        } catch(ProviderException | IllegalArgumentException raw) {
+            ProviderException error=PriceFailurePolicy.asProvider(raw);
+            run.outcome=error.code();
+            failures.markFailed(owner,run.ids,market,error);
         } finally {
-            markets.served(market,done);
-            LOG.info("Fiyat pazarı turu: pazar={}-{} aday={} yenilenen={} sonuç={} süre={} ms sorgu_ms={} itad_ms={} steam_ms={} yazma_ms={} parti={}",market.country(),market.currency(),candidateCount,done,outcome,(System.nanoTime()-started)/1_000_000,
-                    Timing.millis(queryNanos),Timing.millis(timing.itadNanos),Timing.millis(timing.steamNanos),Timing.millis(timing.writeNanos),timing.batches);
+            markets.served(market,run.done);
+            LOG.info("Fiyat pazarı turu: pazar={}-{} aday={} yenilenen={} sonuç={} süre={} ms sorgu_ms={} itad_ms={} steam_ms={} yazma_ms={} parti={}",market.country(),market.currency(),run.candidates,run.done,run.outcome,(System.nanoTime()-started)/1_000_000,
+                    Timing.millis(run.timing.queryNanos),Timing.millis(run.timing.itadNanos),Timing.millis(run.timing.steamNanos),Timing.millis(run.timing.writeNanos),run.timing.batches);
         }
+    }
+
+    private void refreshCandidates(UUID owner,Market market,boolean itad,Instant deadline,MarketRun run) {
+        if(provider.isBlocked()) { run.outcome=PROVIDER_BLOCKED; return; }
+        var candidates=loadCandidates(market,itad,run.timing);
+        run.candidates=candidates.size();
+        boolean more=true;
+        for(int from=0;more && from<candidates.size() && clock.instant().isBefore(deadline);from+=BATCH_SIZE) {
+            var batch=candidates.subList(from,Math.min(candidates.size(),from+BATCH_SIZE));
+            run.ids=batch.stream().map(GamePriceRepository.Candidate::id).collect(java.util.stream.Collectors.toUnmodifiableSet());
+            var result=failures.refreshOrIsolate(owner,market,batch,run.ids,itad,(part,partIds) -> refreshBatch(owner,market,part,partIds,itad,false,run.timing));
+            run.done+=result.refreshed();
+            more=!result.leaseLost();
+            if(result.wholeBatchCode()!=null) throw new ProviderException(result.wholeBatchCode(),PriceFailurePolicy.WHOLE_BATCH_BACKOFF);
+        }
+        if(!more) run.outcome="LEASE_LOST";
+    }
+
+    /** Tek sorguda birkaç parti aday alınır (sorgu üç büyük tabloyu tarar); 200'lük partiler sırayla yenilenir. ITAD yokken yalnız sıcak oyunlar. */
+    private List<GamePriceRepository.Candidate> loadCandidates(Market market,boolean itad,Timing timing) {
+        long queryStarted=System.nanoTime();
+        var candidates=repository.candidates(market,clock.instant(),properties.ttl(),properties.warmTtl(),properties.coldTtl(),BATCH_SIZE*MAX_BATCHES_PER_RUN);
+        timing.queryNanos+=System.nanoTime()-queryStarted;
+        return itad ? candidates : candidates.stream().filter(candidate -> isHot(candidate.ttl())).toList();
     }
 
     /**
@@ -195,28 +216,39 @@ public class GamePriceService {
      *
      * @return yenilenen oyun sayısı; yapılamadıysa {@code -1}
      */
-    public int refreshNow(Collection<UUID> gameIds,Market market) {
+    public int refreshNow(Collection<UUID> gameIds,Market market) { return refreshNowResult(gameIds,market).refreshed(); }
+
+    /** {@link #refreshNow} ile aynı iş; yapılamayan geçici durumlar (ITAD bloğu, kiralama, kota) ipucunun yeniden denenebilmesi için ayrıca bildirilir. */
+    public RefreshNowResult refreshNowResult(Collection<UUID> gameIds,Market market) {
         boolean itad=provider.isConfigured();
-        if(gameIds.isEmpty() || (!itad && !steamMarket(market)) || !properties.allMarkets().contains(market)) return -1;
+        // ITAD bloktayken istek atılamaz: kiralama ve sorgu maliyeti boşa gitmesin; blok bitince ipucu yeniden denenir.
+        if(provider.isBlocked()) return RefreshNowResult.retry(provider.blockedFor());
+        if(!refreshable(market,itad)) return RefreshNowResult.NOT_REFRESHED;
         Map<UUID,Duration> tiers=repository.tiers(gameIds.stream().limit(BATCH_SIZE).collect(java.util.stream.Collectors.toSet()),properties.ttl(),properties.warmTtl(),properties.coldTtl());
-        if(tiers.isEmpty()) return -1;
+        if(tiers.isEmpty()) return RefreshNowResult.NOT_REFRESHED;
         // Planlı tur bu süreçte çalışıyorsa onun kiralaması kullanılır (tek yazıcı: aynı süreç); aksi halde kiralama alınır ve işin sonunda bırakılır.
         UUID running=activeOwner;
         UUID owner=running!=null ? running : UUID.randomUUID();
         boolean claimed=running==null;
-        if(claimed && !claimWithin(owner)) return -1;
+        if(claimed && !claimWithin(owner)) return RefreshNowResult.retry(CLAIM_RETRY);
         Set<UUID> ids=tiers.keySet();
         try {
             var candidates=tiers.entrySet().stream().map(entry -> new GamePriceRepository.Candidate(entry.getKey(),entry.getValue())).toList();
-            return refreshBatch(owner,market,candidates,ids,itad,true,new Timing()) ? ids.size() : -1;
-        } catch(ProviderException error) {
-            if(!LOCAL_THROTTLE.equals(error.code())) repository.failed(owner,ids,market,clock.instant(),error.code(),error.retryAfter());
-            return -1;
+            return refreshBatch(owner,market,candidates,ids,itad,true,new Timing()) ? RefreshNowResult.done(ids.size()) : RefreshNowResult.NOT_REFRESHED;
+        } catch(ProviderException | IllegalArgumentException raw) {
+            return failures.recordNowFailure(owner,ids,market,raw);
         } finally { if(claimed) repository.release(owner); }
+    }
+
+    /** Yenilenebilir mi: pazar yapılandırılmış ve ITAD ya da (ITAD yoksa) Steam pazarı uygun. Boş oyun listesi {@code tiers} sorgusunda elenir. */
+    private boolean refreshable(Market market,boolean itad) {
+        return (itad || steamMarket(market)) && properties.allMarkets().contains(market);
     }
 
     /** Planlı tur kiralamayı sürekli tutabilir (büyük birikim); sayfası açılan oyun kiralamanın turlar arasında boşa çıkmasını kısa süre bekler. */
     static final int CLAIM_ATTEMPTS = 12;
+    /** Kiralama başka yerdeyken ipucunun yeniden denenme gecikmesi. */
+    static final Duration CLAIM_RETRY = Duration.ofSeconds(15);
     private java.util.function.LongConsumer sleeper = GamePriceService::sleepMillis;
 
     /** Yalnız testler için. */

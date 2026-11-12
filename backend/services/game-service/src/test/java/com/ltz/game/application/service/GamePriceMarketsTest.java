@@ -262,6 +262,17 @@ class GamePriceMarketsTest {
         assertEquals(List.of(tr), service.runMarkets(), "sayaç döner");
     }
 
+    @Test void onlyTheMarketsTheDemandComponentReportsAreRefreshedInTheBackground() {
+        var repository = mock(GamePriceRepository.class);
+        var demand = mock(PriceMarketDemand.class);
+        Market us = new Market("US", "USD"), tr = new Market("TR", "TRY");
+        var configured = List.of(us, new Market("GB", "GBP"), tr);
+        when(demand.activeMarkets(configured)).thenReturn(List.of(us, tr));
+        var service = new GamePriceService(mock(GamePriceProvider.class), repository, mock(GameRepository.class), properties("GB:GBP,TR:TRY"), CLOCK);
+        service.useDemand(demand);
+        assertEquals(List.of(us, tr), service.runMarkets(), "talep bileşeninin bildirdiği pazarlar");
+    }
+
     @Test void withoutABacklogEveryMarketIsServedInEveryRun() {
         var repository = mock(GamePriceRepository.class);
         var service = new GamePriceService(mock(GamePriceProvider.class), repository, mock(GameRepository.class), properties("US:USD,GB:GBP"), CLOCK);

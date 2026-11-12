@@ -3,6 +3,7 @@ package com.ltz.game.infrastructure.client;
 import com.ltz.game.application.port.GamePriceProvider;
 import com.ltz.game.domain.exception.ProviderException;
 import com.ltz.game.infrastructure.config.GamePriceProperties;
+import com.ltz.game.infrastructure.config.ItadRateProperties;
 import com.ltz.game.infrastructure.persistence.repository.GameExternalReferenceRepository;
 import java.time.Clock;
 import java.time.Duration;
@@ -36,18 +37,35 @@ public class ItadPriceClient implements GamePriceProvider {
     private volatile java.time.Instant blockedUntil=java.time.Instant.MIN;
     /** Steam AppID ("app/{id}") → ITAD oyun kimliği. Eşleme kalıcıdır; bir kez öğrenilince tekrar sorulmaz (her turdaki ikinci ITAD isteği ve gecikmesi kalkar). Yalnız olumlu eşleşmeler tutulur. */
     private final Map<String,UUID> knownMappings=new java.util.concurrent.ConcurrentHashMap<>();
+    /**
+     * ITAD'in eşleştiremediği AppID → önbellek bitişi. Eşlemesi olmayan oyun her partide yeni bir {@code lookup} isteği doğurmasın diye bu süre boyunca tekrar sorulmaz
+     * (ITAD kotası dar; eşlemesiz oyun yenileme adayı olmaya devam eder ama ağ isteği harcamaz).
+     */
+    private final Map<String,java.time.Instant> unmapped=new java.util.concurrent.ConcurrentHashMap<>();
     /** Bellek üst sınırı (yaklaşık 40 MB): dolarsa temizlenir ve yeniden öğrenilir. */
     static final int MAX_KNOWN_MAPPINGS=400_000;
+    /** Eşlemesiz oyunun yeniden sorulma aralığı. */
+    static final Duration UNMAPPED_TTL=Duration.ofHours(24);
+    /** ITAD'in kendi 429'u yüzünden istek atılmıyor (kalan süre {@code retryAfter}); yerel pencere doluluğundan ({@link ItadRequestLimiter#LOCAL_THROTTLE}) ayrı kodludur. */
+    static final String PROVIDER_BLOCKED="PRICE_PROVIDER_BLOCKED";
 
     public ItadPriceClient(RestClient http,GamePriceProperties properties,GameExternalReferenceRepository references,Clock clock) {
-        this(http,properties,references,clock,new ItadRequestLimiter(clock));
+        this(http,properties,references,clock,ItadRateProperties.defaults());
+    }
+    public ItadPriceClient(RestClient http,GamePriceProperties properties,GameExternalReferenceRepository references,Clock clock,ItadRateProperties rate) {
+        this(http,properties,references,clock,ItadRequestLimiter.from(rate,clock));
     }
     ItadPriceClient(RestClient http,GamePriceProperties properties,GameExternalReferenceRepository references,Clock clock,ItadRequestLimiter limiter) {
         this.http=http;this.properties=properties;this.references=references;this.clock=clock;this.limiter=limiter;this.telemetry=new ItadTelemetry(clock);
     }
     /** Yalnız testler için: öğrenilmiş eşlemeleri unutur. */
-    void forgetMappingsForTests() { knownMappings.clear(); }
+    void forgetMappingsForTests() { knownMappings.clear();unmapped.clear(); }
     @Override public boolean isConfigured() { return properties.apiKey()!=null && !properties.apiKey().isBlank(); }
+    @Override public Duration blockedFor() {
+        java.time.Instant now=clock.instant();
+        java.time.Instant until=blockedUntil;
+        return until.isAfter(now) ? Duration.between(now,until) : Duration.ZERO;
+    }
 
     @Override public List<Quote> prices(Set<UUID> ids,Market market) { return prices(ids,market,Priority.BACKGROUND); }
 
@@ -69,20 +87,35 @@ public class ItadPriceClient implements GamePriceProvider {
     }
     /** Henüz bilinmeyen AppID'leri ITAD'e sorar ve olumlu eşleşmeleri önbelleğe alır; bilinenler için istek atılmaz. */
     private void resolveMappings(Map<String,UUID> steam,ItadTelemetry.Call prices) {
-        List<String> unknown=steam.keySet().stream().filter(key -> !knownMappings.containsKey(key)).toList();
+        java.time.Instant now=clock.instant();
+        List<String> unknown=steam.keySet().stream().filter(key -> !knownMappings.containsKey(key) && !recentlyUnmapped(key,now)).toList();
         if(unknown.isEmpty()) return;
         JsonNode data=post("/lookup/id/shop/61/v1",new ArrayList<>(unknown),new ItadTelemetry.Call("lookup",prices.market(),prices.interactive()));
         if(data==null || !data.isObject()) throw ItadPriceValues.invalid();
+        remember(unknown,data,now);
+    }
+    /** ITAD yanıtındaki olumlu eşlemeleri kalıcı, {@code null} olanları {@link #UNMAPPED_TTL} boyunca önbelleğe alır. Geçersiz bir giriş varsa hiçbiri öğrenilmez. */
+    private void remember(List<String> unknown,JsonNode data,java.time.Instant now) {
         if(knownMappings.size()+unknown.size()>MAX_KNOWN_MAPPINGS) knownMappings.clear();
+        if(unmapped.size()+unknown.size()>MAX_KNOWN_MAPPINGS) unmapped.clear();
         Map<String,UUID> learned=new java.util.HashMap<>();
+        List<String> missing=new ArrayList<>();
         for(String key:unknown) {
             JsonNode node=data.get(key);
-            if(node==null) throw ItadPriceValues.invalid();
-            if(node.isNull()) continue;
-            if(!node.isTextual()) throw ItadPriceValues.invalid();
-            learned.put(key,ItadPriceValues.uuid(node.asText()));
+            if(node==null || !(node.isNull() || node.isTextual())) throw ItadPriceValues.invalid();
+            if(node.isNull()) missing.add(key);
+            else learned.put(key,ItadPriceValues.uuid(node.asText()));
         }
         knownMappings.putAll(learned);
+        java.time.Instant until=now.plus(UNMAPPED_TTL);
+        missing.forEach(key -> unmapped.put(key,until));
+    }
+    private boolean recentlyUnmapped(String key,java.time.Instant now) {
+        java.time.Instant until=unmapped.get(key);
+        if(until==null) return false;
+        if(until.isAfter(now)) return true;
+        unmapped.remove(key,until);
+        return false;
     }
     /** ITAD oyun kimliği → LTZ oyunları; bir LTZ oyunu iki farklı ITAD oyununa eşlenirse belirsiz eşleme hatasıdır. */
     private Map<UUID,List<UUID>> group(Map<String,UUID> steam) {
@@ -100,7 +133,7 @@ public class ItadPriceClient implements GamePriceProvider {
     }
     private JsonNode post(String path,Object body,ItadTelemetry.Call call) {
         java.time.Instant blocked=blockedUntil;
-        if(blocked.isAfter(clock.instant())) throw new ProviderException(ItadRequestLimiter.LOCAL_THROTTLE,Duration.between(clock.instant(),blocked));
+        if(blocked.isAfter(clock.instant())) throw new ProviderException(PROVIDER_BLOCKED,Duration.between(clock.instant(),blocked));
         limiter.acquire(call.interactive());
         int[] status={0};
         long started=System.nanoTime();
@@ -124,7 +157,8 @@ public class ItadPriceClient implements GamePriceProvider {
             Duration wait=retryAfter(after);
             Duration block=wait.compareTo(Duration.ofMinutes(10))>0 ? Duration.ofMinutes(10) : wait;
             blockedUntil=clock.instant().plus(block);
-            telemetry.rateLimited(call,limiter.snapshot(),after,block);
+            var observed=limiter.snapshot();
+            telemetry.rateLimited(call,observed,after,block,limiter.onRateLimited(observed.inWindow()));
             return new ProviderException("PRICE_RATE_LIMITED",wait);
         }
         return new ProviderException(status==401 || status==403?"PRICE_ACCESS_DENIED":"PRICE_UNAVAILABLE");
