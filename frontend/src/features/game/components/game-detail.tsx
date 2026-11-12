@@ -80,6 +80,7 @@ export function GameDetail({ gameId }: { gameId: string }) {
             <div><dt className="text-text-secondary">{t("platforms")}</dt><dd className="mt-1 break-words">{platforms || t("unknown")}</dd></div>
             <GameParentLink detail={detail} />
           </dl>
+          <Link href={{ pathname: "/reviews/games/[gameId]", params: { gameId } }} className="inline-flex min-h-11 items-center gap-2 font-semibold text-brand-text underline-offset-4 hover:underline">{t("reviewsLink")}</Link>
         </div>
       </header>
       <nav aria-label={t("pageSections")} className="-mx-1 flex gap-1 overflow-x-auto border-b border-border px-1 [scrollbar-width:thin]">

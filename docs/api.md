@@ -3383,6 +3383,8 @@ Web birim testleri 395 PASS / 1 mevcut SKIP; Game Chromium 5/5 PASS, lint/typech
 PASS. Game merkezi kontrolü 427 test ve kapsam/kalite/Trivy kapılarıyla
 BACKEND TEST CHECK PASSED verdi.
 
+**Review bağlantısı (12 Kasım 2026):** Backend endpoint veya sözleşme değişikliği yoktur. Oyun detay sayfasına (`features/game/components/game-detail.tsx`) Review sayfasına giden "İncelemeleri gör" / "See reviews" bağlantısı eklendi (`Game.reviewsLink`). Hedef: `/reviews/games/[gameId]` (TR `/incelemeler/oyun/[gameId]`), Review PR #110 ile main'de. Review sayfaları oturum ister; oturumsuz kullanıcı girişe yönlenir ve dönüşte hedefe gelir. Review sayfaları `noindex`'tir; Game metadata'sına inceleme/puan içeriği taşınmaz. Detay yüklenemezse bağlantı gösterilmez. Game detayında LTZ puanı gösterilmediği için istatistik sayfasına (`/reviews/games/[gameId]/statistics`) bağlantı yoktur.
+
 ## LIBRARY
 
 Sorumlu: Hamza · Gateway: `/api/v1/library/**` · Görevler: LIB-
