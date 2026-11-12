@@ -99,9 +99,16 @@ describe("öne çıkanlar sorgusu", () => {
 
 describe("merkez sorgusu", () => {
   it("arama metnini normalleştirir ve 128 karakterle sınırlar", () => {
-    expect(hubQueryFrom(new URLSearchParams("q=%20%20half%20%20life%20&page=2"))).toEqual({ q: "half life", page: 2 });
+    expect(hubQueryFrom(new URLSearchParams("q=%20%20half%20%20life%20&page=2"))).toEqual({ q: "half life", page: 2, includeAdult: false });
     expect(hubQueryFrom(new URLSearchParams(`q=${"x".repeat(300)}`)).q).toHaveLength(128);
-    expect(hubQueryFrom(new URLSearchParams("page=zzz"))).toEqual({ q: "", page: 0 });
+    expect(hubQueryFrom(new URLSearchParams("page=zzz"))).toEqual({ q: "", page: 0, includeAdult: false });
+  });
+
+  it("includeAdult yalnız tek ve tam olarak \"true\" değerinde geçerlidir; diğer her değer yok sayılır", () => {
+    expect(hubQueryFrom(new URLSearchParams("includeAdult=true")).includeAdult).toBe(true);
+    expect(hubQueryFrom(new URLSearchParams("q=half&includeAdult=true&page=2"))).toEqual({ q: "half", page: 2, includeAdult: true });
+    for (const query of ["", "includeAdult=", "includeAdult=1", "includeAdult=yes", "includeAdult=TRUE", "includeAdult=false", "includeAdult=true&includeAdult=true", "includeAdult=true&includeAdult=false"])
+      expect(hubQueryFrom(new URLSearchParams(query)).includeAdult, query).toBe(false);
   });
 });
 

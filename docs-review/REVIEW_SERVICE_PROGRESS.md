@@ -180,3 +180,51 @@ Oturumsuz yapılabilen adımlar gerçek yığında (Gateway + Game + Review) do�
 **NOT VERIFIED (oturumlu adımlar):** merkezde kapak/başlıkların tarayıcıda dolması, puan/tavsiye/inceleme yazma (Game doğrulaması başarılı), olmayan UUID ile yazmada 404, Game durdurulunca yazmada 503 ve okuma ekranlarının açık kalması, yazar kartı (User toplu profil), `batch` 429 geri sayımı, oturumsuz yönlendirmenin canlıda dönüşü.
 Neden: DEV'de e-posta gerçek Gmail SMTP'ye gidiyor (Mailpit'e düşmüyor), doğrulama kodu okunamadı; hesabı Auth veritabanında elle aktifleştirmek başka servis sahibinin kaynağı olduğu için yapılmadı. Çözüm: bilinen bir DEV hesabıyla giriş (kullanıcı) veya Mailpit'in kullanılması.
 Not: bu denemede `rev-live-*@example.test` adlı bir `PENDING_VERIFICATION` hesabı Auth DEV veritabanında kaldı (ürün işlevi yok, e-posta doğrulanmadı).
+
+## +18 yaş kapısı uyumu (12 Kasım 2026)
+
+Game yaş kapısı ve Auth `adult_verified` iddiası `main`'e girdikten sonra Review merkezi (`/incelemeler`) buna uyduruldu. **Review backend'inde değişiklik yoktur** (yeni uç, migration veya ENV yok); `docs/api.md` REVIEW bölümüne kayıt gerekmedi.
+
+| Dosya | Değişiklik |
+| --- | --- |
+| `services/review-api.ts` | `search` `includeAdult` alır; yalnız `true` iken parametre ve `credentials: "include"`. `batch` çağrıları çerezsiz kaldı |
+| `types/review.ts` | `includeAdultApplied?`, `adult?`, `gameSearch.includeAdult?` |
+| `schemas/review-schema.ts` | `hubQueryFrom` `includeAdult` döndürür (yalnız tek `"true"`) |
+| `hooks/use-adult-verified.ts` (yeni) | Oturumdan yaş doğrulama durumu |
+| `components/review-hub.tsx` | Kutu / doğrulama bağlantısı, `includeAdultApplied` ipucu, "+18" rozeti; kutu URL'ye yazılır ve sayfayı sıfırlar |
+| `tr.json`, `en.json` | `Review.hub.adultToggle`, `adultVerifyHint`, `adultVerifyLink`, `adultNotApplied`, `adultBadge` |
+| Testler | `review-api.test`, `review-schema.test`, `review-hub.test` (+7 senaryo), `e2e/review.spec.ts` (+2), `e2e/fixtures/review-gateway.ts` (Game kapısı taklidi) |
+
+Sonuç: lint ve typecheck temiz, 1783 birim test geçti, Playwright `review.spec.ts` 16/16. Tam E2E'de başarısız olan altı test (navbar misafir menüsü, hardware ×3, auth-experience ×2) bu işle ilgili değildir; aynı testler Game dalında da başarısızdı veya yük altında kararsızdı.
+
+## Girişli canlı doğrulama (yerel ltz-dev, Gateway :5080, 12 Kasım 2026)
+
+Önceki "NOT VERIFIED (oturumlu adımlar)" maddeleri, yığın sıfırlanıp tüm servisler yeniden kurulduktan sonra gerçek Auth + Gateway + Game + Review + User ile denendi. Kullanıcı onayıyla `.env.dev`'den yalnız dev hesap parolası okundu (yazdırılmadı). Hesaplar: `user` (yazar), `creator` (raporlayan), `moderator`.
+
+| # | Senaryo | Sonuç |
+| --- | --- | --- |
+| 1 | Game `batch` çerezsiz (kart) | 200, `items=1`, `unavailable=0` |
+| 2 | Puan (8), tavsiye, inceleme yazma (Game doğrulaması başarılı) | 200 / 200 / 201, `status=VISIBLE`, `authorUserId` yazarın kimliği, `ownedByActor=true` |
+| 3 | Aynı oyuna ikinci inceleme | 409 |
+| 4 | Oyundaki incelemem, istatistik, puan özeti | 200; `ratingCount=1`, `averageRating=8` |
+| 5 | Olmayan oyun UUID'sine puan | 404 |
+| 6 | Geçersiz puan (11) / geçersiz oyun kimliği | 400 / 400 |
+| 7 | Oturumsuz yazma / oturumsuz puan özeti okuma | 401 / 401 |
+| 8 | User `profiles/batch` ile yazar kartı | 200, kart döndü |
+| 9 | Kendi incelemeni raporlama / başka kullanıcı raporlar / mükerrer rapor | 403 / 201 / 409 |
+| 10 | Moderatör rapor listesi, inceleme detayı (sürümle) | 200 / 200; sıradan kullanıcı admin ucuna 403 |
+| 11 | Moderatör HIDE | 200; yazar `status=HIDDEN` görür; herkese açık öne çıkanlar listesinde yok |
+| 12 | Raporları kapat (`REVIEWED`), RESTORE | 200 / 200 |
+| 13 | User profil sayacı (yazarın inceleme sayısı) | Yazınca `AVAILABLE`, `count=1`; silince `count=0` (outbox → User çalışıyor) |
+| 14 | **Game durdurulunca** puan yazma | **503** |
+| 15 | Game durdurulmuşken Review okuma (puan özeti) | 200 (okuma Game'e bağlı değil) |
+| 16 | Game yeniden başlatıldı | 200 |
+| 17 | Temizlik: inceleme `DELETE ?version=` | 204 (sürüm 2: HIDE ve RESTORE sürümü artırır) |
+
+Notlar:
+- Oturumsuz `GET /games/{id}/rating-summary` **401** döner (Review okuma uçları oturum ister); Game `batch` ve Game listesi anonim çalışır.
+- `DELETE /reviews/{id}` iyimser kilit için `?version=` ister; eksikse 400.
+- Puan ve tavsiye için silme ucu yoktur: `user@ltz.com`'un denenen oyundaki puanı (8) ve tavsiyesi yerel `review_db`'de kaldı (yerel test verisi).
+- Hesap durumları: seed hesapların 2FA'sı yoktur; `moderator` doğrudan girdi.
+
+**Hâlâ NOT VERIFIED:** `batch` 429 (kota) davranışı canlıda; aynı `eventId` tekrarı, eski `occurredAt`, yanlış kapsam/`aud` ile Review→User olayı, hesap silme sonrası gecikmiş olay; +18 merkezinin tarayıcıda elle denenmesi.

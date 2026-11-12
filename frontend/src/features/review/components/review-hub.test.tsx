@@ -8,8 +8,11 @@ import { loadReviewResource } from "../services/review-api";
 import type { ReviewGameSearchPage, ReviewResource } from "../types/review";
 import { ReviewHub } from "./review-hub";
 
-const mocks = vi.hoisted(() => ({ query: "", replace: vi.fn(), push: vi.fn() }));
-vi.mock("@/features/auth", () => ({ useRequireSession: () => ({ status: "authenticated", me: { accountId: "0198a3c2-aaaa-7d44-9a55-3f1c2b4d5e66" } }) }));
+const mocks = vi.hoisted(() => ({ query: "", replace: vi.fn(), push: vi.fn(), me: { accountId: "0198a3c2-aaaa-7d44-9a55-3f1c2b4d5e66" } as { accountId: string; adultVerified?: boolean } }));
+vi.mock("@/features/auth", () => ({
+  useRequireSession: () => ({ status: "authenticated", me: mocks.me }),
+  useSession: () => ({ status: "authenticated", me: mocks.me })
+}));
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(mocks.query), usePathname: () => "/tr/incelemeler", useRouter: () => mocks }));
 vi.mock("@/shared/lib/i18n/navigation", () => ({
   useRouter: () => mocks,
@@ -34,6 +37,7 @@ function wrap(children: ReactNode) {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.query = "";
+  mocks.me = { accountId: "0198a3c2-aaaa-7d44-9a55-3f1c2b4d5e66" };
   games = {
     items: [
       { game: { gameId: first, title: "Birinci Oyun", coverUrl: null }, releaseDate: null },
@@ -143,5 +147,107 @@ describe("İnceleme merkezi", () => {
     games = { items: [], page: 0, size: 12, totalElements: 0 };
     fireEvent.click(screen.getByRole("button", { name: "Tekrar dene" }));
     await waitFor(() => expect(screen.queryByText(/Sunucu işlemi tamamlayamadı/)).toBeNull());
+  });
+});
+
+describe("İnceleme merkezi: +18 kapısı", () => {
+  const checkbox = () => screen.queryByRole("checkbox", { name: tr.Review.hub.adultToggle });
+  const note = () => screen.queryByText(tr.Review.hub.adultNotApplied, { exact: false });
+  const searchCalls = () => load.mock.calls.map(([resource]) => resource).filter((resource) => resource.kind === "gameSearch");
+  const settingsLink = () => screen.getByRole("link", { name: tr.Review.hub.adultVerifyLink });
+
+  it("yaşı doğrulanmamış kullanıcıda kutu yoktur; açıklama ve hesap ayarlarına bağlantı gösterilir, istek +18 içermez", async () => {
+    for (const me of [{ accountId: "a" }, { accountId: "a", adultVerified: false }]) {
+      mocks.me = me;
+      const view = render(wrap(<ReviewHub />));
+      await screen.findByText("Birinci Oyun");
+      expect(checkbox()).toBeNull();
+      expect(screen.getByText(tr.Review.hub.adultVerifyHint, { exact: false })).toBeVisible();
+      expect(settingsLink()).toHaveAttribute("href", "/profile/settings");
+      expect(searchCalls().every((resource) => !("includeAdult" in resource))).toBe(true);
+      expect(note()).toBeNull();
+      view.unmount();
+      load.mockClear();
+    }
+  });
+
+  it("yaşı doğrulanmış kullanıcıda kutu görünür, işaretlenince URL'ye yazılır ve sayfa sıfırlanır; arama metni korunur", async () => {
+    mocks.me = { accountId: "a", adultVerified: true };
+    mocks.query = "q=half&page=2";
+    render(wrap(<ReviewHub />));
+    await screen.findByText("Birinci Oyun");
+    expect(checkbox()).not.toBeChecked();
+    expect(screen.queryByRole("link", { name: tr.Review.hub.adultVerifyLink })).toBeNull();
+    fireEvent.click(checkbox()!);
+    expect(mocks.push).toHaveBeenCalledWith("/tr/incelemeler?q=half&includeAdult=true", { scroll: false });
+  });
+
+  it("URL'de includeAdult=true ve doğrulanmışsa istek +18 içerir; kutu işaretlidir; sunucu uyguladıysa ipucu yoktur", async () => {
+    mocks.me = { accountId: "a", adultVerified: true };
+    mocks.query = "includeAdult=true";
+    games = { ...(games as ReviewGameSearchPage), includeAdultApplied: true };
+    render(wrap(<ReviewHub />));
+    await screen.findByText("Birinci Oyun");
+    expect(load).toHaveBeenCalledWith({ kind: "gameSearch", q: "", page: 0, size: 12, includeAdult: true }, expect.any(AbortSignal));
+    expect(checkbox()).toBeChecked();
+    expect(note()).toBeNull();
+    fireEvent.click(checkbox()!);
+    expect(mocks.push).toHaveBeenCalledWith("/tr/incelemeler", { scroll: false });
+  });
+
+  it("sunucu includeAdultApplied=false derse (doğrulama geri alındı, iddia gecikmeli) yerel durum doğrulanmış olsa da ipucu gösterilir", async () => {
+    mocks.me = { accountId: "a", adultVerified: true };
+    mocks.query = "includeAdult=true";
+    games = { ...(games as ReviewGameSearchPage), includeAdultApplied: false };
+    render(wrap(<ReviewHub />));
+    await screen.findByText("Birinci Oyun");
+    expect(note()).toBeVisible();
+    expect(settingsLink()).toHaveAttribute("href", "/profile/settings");
+  });
+
+  it("doğrulanmamış kullanıcıda URL'deki includeAdult=true sunucuya gönderilmez ama ipucu gösterilir", async () => {
+    mocks.query = "includeAdult=true";
+    render(wrap(<ReviewHub />));
+    await screen.findByText("Birinci Oyun");
+    expect(searchCalls().every((resource) => !("includeAdult" in resource))).toBe(true);
+    expect(note()).toBeVisible();
+  });
+
+  it("geçersiz includeAdult değerleri (1, tekrarlı) yok sayılır: istek +18 içermez ve ipucu çıkmaz", async () => {
+    mocks.me = { accountId: "a", adultVerified: true };
+    for (const query of ["includeAdult=1", "includeAdult=true&includeAdult=true"]) {
+      mocks.query = query;
+      const view = render(wrap(<ReviewHub />));
+      await screen.findByText("Birinci Oyun");
+      expect(searchCalls().every((resource) => !("includeAdult" in resource))).toBe(true);
+      expect(note()).toBeNull();
+      view.unmount();
+      load.mockClear();
+    }
+  });
+
+  it("includeAdult istenmediyse (eski sunucuda includeAdultApplied alanı yoksa da) ipucu çıkmaz", async () => {
+    mocks.me = { accountId: "a", adultVerified: true };
+    render(wrap(<ReviewHub />));
+    await screen.findByText("Birinci Oyun");
+    expect(note()).toBeNull();
+  });
+
+  it("yetişkin oyun kartında +18 rozeti gösterilir; false, null ve alan yokken gösterilmez", async () => {
+    games = {
+      items: [
+        { game: { gameId: first, title: "Birinci Oyun", coverUrl: null }, releaseDate: null, adult: true },
+        { game: { gameId: second, title: "İkinci Oyun", coverUrl: null }, releaseDate: null, adult: false },
+        { game: { gameId: "0198a3c2-3333-7d44-9a55-3f1c2b4d5e66", title: "Üçüncü Oyun", coverUrl: null }, releaseDate: null, adult: null },
+        { game: { gameId: "0198a3c2-4444-7d44-9a55-3f1c2b4d5e66", title: "Dördüncü Oyun", coverUrl: null }, releaseDate: null }
+      ],
+      page: 0,
+      size: 12,
+      totalElements: 4
+    };
+    render(wrap(<ReviewHub />));
+    const adultCard = (await screen.findByText("Birinci Oyun")).closest("article") as HTMLElement;
+    expect(within(adultCard).getByTestId("adult-badge")).toHaveTextContent(tr.Review.hub.adultBadge);
+    expect(screen.getAllByTestId("adult-badge")).toHaveLength(1);
   });
 });

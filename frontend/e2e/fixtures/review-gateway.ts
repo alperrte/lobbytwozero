@@ -8,6 +8,8 @@ export const gameId = "0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66";
 export const otherReviewId = "0198a3c2-1111-7d44-9a55-3f1c2b4d5e66";
 export const ownerAccount = "0198a3c2-aaaa-7d44-9a55-3f1c2b4d5e66";
 const game = { gameId, title: "Review Fixture Game", coverUrl: null, origin: "INTERNAL", metadataCompleteness: "PARTIAL", gameType: "GAME" };
+export const adultGameId = "0198a3c2-cccc-7d44-9a55-3f1c2b4d5e66";
+const adultGame = { gameId: adultGameId, title: "Review Adult Fixture Game", coverUrl: null, origin: "EXTERNAL", metadataCompleteness: "PARTIAL", gameType: "GAME" };
 
 export type Review = { status?: string; id: string; gameId: string; body: string; ownedByActor: boolean; version: number; createdAt: string; updatedAt: string; likes: number; liked: boolean };
 export type World = {
@@ -25,7 +27,11 @@ export type World = {
 
 export const now = "2026-11-01T12:00:00Z";
 
-export async function fixture(page: Page, signedIn = true): Promise<World> {
+/**
+ * `adultVerified`: `/auth/me` yaş doğrulama alanı (verilmezse alan hiç dönmez = eski Auth). Game kapısı taklit edilir: `includeAdult=true` yalnız
+ * `adultVerified === true` iken uygulanır ve yanıtta `includeAdultApplied` döner.
+ */
+export async function fixture(page: Page, signedIn = true, options: { adultVerified?: boolean } = {}): Promise<World> {
   if (signedIn) {
     await page.context().addCookies([
       { name: "ltz_session", value: "1", url: origin },
@@ -63,10 +69,14 @@ export async function fixture(page: Page, signedIn = true): Promise<World> {
     if (method === "OPTIONS") return route.fulfill({ status: 204, headers });
     world.requests.push(`${method} ${path}${url.search}`);
 
-    if (path === "/api/v1/auth/me") return reply(signedIn ? { accountId: ownerAccount, roles: ["PLAYER"], authMethods: ["pwd"], accessTokenExpiresAt: "2030-01-01T00:00:00Z" } : {}, signedIn ? 200 : 401);
+    if (path === "/api/v1/auth/me") return reply(signedIn ? { accountId: ownerAccount, roles: ["PLAYER"], authMethods: ["pwd"], accessTokenExpiresAt: "2030-01-01T00:00:00Z", ...(options.adultVerified === undefined ? {} : { adultVerified: options.adultVerified }) } : {}, signedIn ? 200 : 401);
     if (path === "/api/v1/auth/csrf") return route.fulfill({ status: 204, headers });
     if (path === "/api/v1/user/me") return reply({ userId: ownerAccount, displayName: "Fixture player", username: "fixture", avatarUrl: null });
-    if (path === "/api/v1/game/games/search" || path === "/api/v1/game/games") return reply({ items: [{ game, releaseDate: null }], page: 0, size: 12, totalElements: 1 });
+    if (path === "/api/v1/game/games/search" || path === "/api/v1/game/games") {
+      const applied = url.searchParams.get("includeAdult") === "true" && options.adultVerified === true;
+      const items = [{ game, releaseDate: null }, ...(applied ? [{ game: adultGame, releaseDate: null, adult: true }] : [])];
+      return reply({ items, page: 0, size: 12, totalElements: items.length, includeAdultApplied: applied });
+    }
     if (path === "/api/v1/game/games/batch") return reply({ items: [game], unavailable: [] });
     if (path === "/api/v1/user/profiles/batch" && method === "POST") {
       // User toplu kart ucu: yalnız görünür yazar döner; diğer kimlikler yanıttan çıkarılır (ayrım sızmaz).

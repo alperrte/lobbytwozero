@@ -102,12 +102,15 @@ export type ReviewGameCard = {
   externalReferences?: { provider: string; externalId: string }[];
 };
 
-export type ReviewGameSearchItem = { game: ReviewGameCard; releaseDate: string | null };
+/** `adult`: Steam'in yetişkin içerik işareti; `null`/yok = bilinmiyor (false değildir). */
+export type ReviewGameSearchItem = { game: ReviewGameCard; releaseDate: string | null; adult?: boolean | null };
 export type ReviewGameSearchPage = {
   items: ReviewGameSearchItem[];
   page: number;
   size: number;
   totalElements: number;
+  /** +18 oyunlar bu yanıta katıldı mı. İstek `includeAdult=true` ise ve false dönerse yaş doğrulaması geçerli değildir (eski sunucuda alan yoktur). */
+  includeAdultApplied?: boolean;
 };
 
 /** Hub oyun araması ve sayfalaması: durum URL sorgusundadır. */
@@ -140,7 +143,7 @@ export type ReviewResource =
   | { kind: "gameCards"; gameIds: string[] }
   | { kind: "like"; reviewId: string }
   | { kind: "gameCard"; gameId: string }
-  | { kind: "gameSearch"; q: string; page: number; size: number }
+  | { kind: "gameSearch"; q: string; page: number; size: number; includeAdult?: boolean }
   | { kind: "authorCards"; userIds: string[] };
 
 /** Rapor gerekçesi (kapalı liste; backend `ReportReason` ile aynı). Geçici sözlük: Admin'in nihai sözlüğüyle birlikte güncellenir. */
