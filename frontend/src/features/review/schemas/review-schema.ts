@@ -86,10 +86,14 @@ export function featuredSearchParams(query: FeaturedQuery): URLSearchParams {
   return params;
 }
 
-/** Hub sorgusu: arama metni normalize edilir (boşluk sıkıştırma, en çok 128 karakter); sayfa 0–10000. */
-export function hubQueryFrom(params: URLSearchParams): { q: string; page: number } {
+/**
+ * Hub sorgusu: arama metni normalize edilir (boşluk sıkıştırma, en çok 128 karakter); sayfa 0–10000. `includeAdult` ("+18 oyunları göster") yalnız tek ve
+ * tam olarak `true` değerinde geçerlidir; diğer her değer (`1`, `yes`, boş, tekrarlı) yok sayılır. URL'deki değer hiçbir yetki sağlamaz, kapı sunucudadır.
+ */
+export function hubQueryFrom(params: URLSearchParams): { q: string; page: number; includeAdult: boolean } {
   const q = (params.get("q") ?? "").replace(/\s+/g, " ").trim().slice(0, HUB_QUERY_MAX);
-  return { q, page: boundedInt(params.get("page"), 0, 0, FEATURED_MAX_PAGE) };
+  const adult = params.getAll("includeAdult");
+  return { q, page: boundedInt(params.get("page"), 0, 0, FEATURED_MAX_PAGE), includeAdult: adult.length === 1 && adult[0] === "true" };
 }
 
 /** Toplu özet için benzersiz, geçerli ve en çok 50 oyun kimliği (ilk görülme sırası). */

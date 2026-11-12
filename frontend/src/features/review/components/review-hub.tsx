@@ -4,6 +4,7 @@ import { useId, useState, type FormEvent } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/shared/lib/i18n/navigation";
+import { useAdultVerified } from "../hooks/use-adult-verified";
 import { useReviewResource } from "../hooks/use-review-resource";
 import { HUB_PAGE_SIZE, HUB_QUERY_MAX, hubQueryFrom } from "../schemas/review-schema";
 import { formatAverage, formatCount, safeCoverUrl } from "../services/format";
@@ -32,14 +33,19 @@ function HubWorkspace() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const { q, page } = hubQueryFrom(new URLSearchParams(params.toString()));
-  const games = useReviewResource<ReviewGameSearchPage>({ kind: "gameSearch", q, page, size: HUB_PAGE_SIZE });
+  const { q, page, includeAdult: wantsAdult } = hubQueryFrom(new URLSearchParams(params.toString()));
+  const adultVerified = useAdultVerified();
+  // Yaşı doğrulanmamış kullanıcıda +18 isteği sunucuya gönderilmez (sunucu zaten yok sayar); URL'deki seçim korunur ve ipucu gösterilir.
+  const games = useReviewResource<ReviewGameSearchPage>({ kind: "gameSearch", q, page, size: HUB_PAGE_SIZE, ...(wantsAdult && adultVerified ? { includeAdult: true } : {}) });
+  // Esas alınan sunucu yanıtıdır: doğrulama geri alınmışsa iddia ≤60 sn gecikebilir ve yanıt includeAdultApplied=false döner.
+  const adultNotApplied = wantsAdult && (!adultVerified || games.data?.includeAdultApplied === false);
   const ids = games.data?.items.map((item) => item.game.gameId) ?? [];
   const summaries = useReviewResource<RatingSummariesResponse>(ids.length > 0 ? { kind: "ratingSummaries", gameIds: ids } : null);
 
-  function go(next: { q: string; page: number }) {
+  function go(next: { q: string; page: number; includeAdult?: boolean }) {
     const search = new URLSearchParams();
     if (next.q) search.set("q", next.q);
+    if (next.includeAdult ?? wantsAdult) search.set("includeAdult", "true");
     if (next.page > 0) search.set("page", String(next.page));
     const text = search.toString();
     router.push(text ? `${pathname}?${text}` : pathname, { scroll: false });
@@ -69,7 +75,13 @@ function HubWorkspace() {
 
       <Panel title={t("hub.findTitle")} titleId={titleId} description={t("hub.findDescription")}>
         <div className="space-y-5">
-          <SearchForm key={q} initial={q} onSearch={(value) => go({ q: value, page: 0 })} />
+          <SearchForm key={q} initial={q} onSearch={(value) => go({ q: value, page: 0 })} adultVerified={adultVerified} adultChecked={wantsAdult} onAdultChange={(next) => go({ q, page: 0, includeAdult: next })} />
+          {adultNotApplied ? (
+            <p role="note" className="text-sm text-text-secondary">
+              {t("hub.adultNotApplied")}{" "}
+              <Link href="/profile/settings" className={`inline-flex min-h-11 items-center rounded-control underline underline-offset-2 ${focusRing}`}>{t("hub.adultVerifyLink")}</Link>
+            </p>
+          ) : null}
           <ReviewAlert error={games.error} onRetry={games.reload} />
           {games.loading && !games.data ? (
             <div role="status" aria-label={t("loading")} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -108,7 +120,7 @@ function HubWorkspace() {
   );
 }
 
-function SearchForm({ initial, onSearch }: { initial: string; onSearch: (q: string) => void }) {
+function SearchForm({ initial, onSearch, adultVerified, adultChecked, onAdultChange }: { initial: string; onSearch: (q: string) => void; adultVerified: boolean; adultChecked: boolean; onAdultChange: (next: boolean) => void }) {
   const t = useTranslations("Review");
   const id = useId();
   const [draft, setDraft] = useState(initial);
@@ -132,6 +144,17 @@ function SearchForm({ initial, onSearch }: { initial: string; onSearch: (q: stri
         />
       </div>
       <button type="submit" className={actionClass("primary")}>{t("hub.searchButton")}</button>
+      {adultVerified ? (
+        <label className="flex min-h-11 basis-full items-center gap-3 text-sm">
+          <input type="checkbox" checked={adultChecked} onChange={(event) => onAdultChange(event.target.checked)} className={`size-4 accent-primary ${focusRing}`} />
+          {t("hub.adultToggle")}
+        </label>
+      ) : (
+        <p className="basis-full text-sm text-text-secondary">
+          {t("hub.adultVerifyHint")}{" "}
+          <Link href="/profile/settings" className={`inline-flex min-h-11 items-center rounded-control underline underline-offset-2 ${focusRing}`}>{t("hub.adultVerifyLink")}</Link>
+        </p>
+      )}
     </form>
   );
 }
@@ -179,6 +202,7 @@ function GameResult({ item, summary, loading }: { item: ReviewGameSearchItem; su
       <ReviewCover url={safeCoverUrl(game)} title={game.title} />
       <div className="flex flex-1 flex-col gap-3 p-4">
         <h3 className="font-display text-lg font-semibold [overflow-wrap:anywhere]">{game.title}</h3>
+        {item.adult === true ? <span data-testid="adult-badge" className="w-fit rounded-control border border-control-border px-2 py-0.5 text-xs font-semibold">{t("hub.adultBadge")}</span> : null}
         <p className="text-sm text-text-secondary">
           {summary
             ? average

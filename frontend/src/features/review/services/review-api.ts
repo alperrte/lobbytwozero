@@ -24,6 +24,8 @@ import type {
  * Review Service istemcisi — TÜM çağrılar Gateway üzerinden (`/api/v1/review/**`) ve ortak `apiRequest` ile yapılır.
  * Tarayıcı Review servisinin portuna gitmez; iç uçlar (`/internal/**`) kullanılmaz. Kimlik HttpOnly oturum çerezidir.
  * Yazma isteklerine CSRF başlığı eklenir; bilinmeyen sonuçlu (ağ/zaman aşımı) yazma isteği otomatik tekrarlanmaz.
+ * Game `batch` çağrıları çerezsizdir (POST'ta çerez CSRF ister); yalnız +18 isteyen `search` (GET) çerezle gider ki Game kullanıcının yaşının
+ * doğrulandığını token'dan görebilsin.
  */
 const JSON_HEADERS = { Accept: "application/json" } as const;
 const readInit = (signal: AbortSignal): RequestInit => ({ signal, cache: "no-store", headers: JSON_HEADERS });
@@ -111,17 +113,21 @@ export const gameLookup = {
     });
     return response.items;
   },
-  /** Arama metni yoksa popülerlik sırasıyla katalog; varsa yerel önek araması (`/games/search`). */
-  search(q: string, page: number, size: number, signal: AbortSignal): Promise<ReviewGameSearchPage> {
+  /**
+   * Arama metni yoksa popülerlik sırasıyla katalog; varsa yerel önek araması (`/games/search`). `includeAdult` yalnız yaşı doğrulanmış kullanıcı için
+   * gönderilir (çağıran karar verir); Game bunu token'daki iddiaya göre uygular, yetkisizse sessizce yok sayar. Yalnız bu durumda çerez gönderilir.
+   */
+  search(q: string, page: number, size: number, signal: AbortSignal, includeAdult = false): Promise<ReviewGameSearchPage> {
     const query = new URLSearchParams({ page: String(Math.max(0, Math.min(10000, page))), size: String(Math.max(1, Math.min(100, size))) });
     const text = q.trim().slice(0, HUB_QUERY_MAX);
     const path = text ? "/api/v1/game/games/search" : "/api/v1/game/games";
+    if (includeAdult) query.set("includeAdult", "true");
     if (text) query.set("q", text);
     else {
       query.set("sort", "POPULARITY");
       query.set("direction", "DESC");
     }
-    return apiRequest<ReviewGameSearchPage>(`${path}?${query}`, { signal, cache: "no-store", credentials: "omit", headers: JSON_HEADERS });
+    return apiRequest<ReviewGameSearchPage>(`${path}?${query}`, { signal, cache: "no-store", credentials: includeAdult ? "include" : "omit", headers: JSON_HEADERS });
   }
 };
 
@@ -173,7 +179,7 @@ export async function loadReviewResource(resource: ReviewResource, signal: Abort
     case "gameCards": return gameLookup.cards(resource.gameIds, signal);
     case "like": return reviewApi.like(resource.reviewId, signal);
     case "gameCard": return gameLookup.card(resource.gameId, signal);
-    case "gameSearch": return gameLookup.search(resource.q, resource.page, resource.size, signal);
+    case "gameSearch": return gameLookup.search(resource.q, resource.page, resource.size, signal, resource.includeAdult === true);
     case "authorCards": return userLookup.cards(resource.userIds, signal);
   }
 }

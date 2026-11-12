@@ -256,6 +256,27 @@ describe("Game Service (yalnız okuma)", () => {
     expect(lastCall().path).toBe("/api/v1/game/games/search?page=2&size=12&q=half");
     expect(lastCall().init).toMatchObject({ credentials: "omit" });
   });
+
+  it("includeAdult yalnız istenince gider ve yalnız o durumda çerez gönderilir; includeAdult yokken çerezsiz kalır", async () => {
+    request.mockResolvedValue({ items: [], page: 0, size: 12, totalElements: 0 });
+    await gameLookup.search("half", 0, 12, signal, true);
+    expect(lastCall().path).toBe("/api/v1/game/games/search?page=0&size=12&includeAdult=true&q=half");
+    expect(lastCall().init).toMatchObject({ credentials: "include", cache: "no-store" });
+    await gameLookup.search("", 1, 12, signal, true);
+    expect(lastCall().path).toBe("/api/v1/game/games?page=1&size=12&includeAdult=true&sort=POPULARITY&direction=DESC");
+    expect(lastCall().init).toMatchObject({ credentials: "include" });
+    await gameLookup.search("half", 0, 12, signal, false);
+    expect(lastCall().path).not.toContain("includeAdult");
+    expect(lastCall().init).toMatchObject({ credentials: "omit" });
+  });
+
+  it("oyun kartları (POST batch) +18 isteğinden etkilenmez: çerezsiz kalır", async () => {
+    request.mockResolvedValue({ items: [] });
+    await gameLookup.cards([gameId], signal);
+    expect(lastCall().init).toMatchObject({ method: "POST", credentials: "omit" });
+    await gameLookup.card(gameId, signal);
+    expect(lastCall().init).toMatchObject({ method: "POST", credentials: "omit" });
+  });
 });
 
 describe("loadReviewResource", () => {
@@ -273,6 +294,9 @@ describe("loadReviewResource", () => {
     expect(lastCall().path).toBe("/api/v1/game/games/batch");
     await loadReviewResource({ kind: "gameSearch", q: "a", page: 0, size: 12 }, signal);
     expect(lastCall().path).toContain("/api/v1/game/games/search?");
+    expect(lastCall().path).not.toContain("includeAdult");
+    await loadReviewResource({ kind: "gameSearch", q: "a", page: 0, size: 12, includeAdult: true }, signal);
+    expect(lastCall().path).toContain("includeAdult=true");
   });
 });
 

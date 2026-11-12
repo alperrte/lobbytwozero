@@ -297,3 +297,35 @@ test("moderatörün gizlediği inceleme yazara durumuyla görünür: düzenleme 
   // Beğeni ucu gizli incelemede hiç istenmez (backend 404 verir).
   expect(world.requests.some((request) => request.endsWith("/like"))).toBe(false);
 });
+
+test("+18: yaşı doğrulanmamış kullanıcıda kutu yoktur; doğrulama bağlantısı ve ipucu görünür, istek +18 içermez", async ({ page }) => {
+  const world = await fixture(page, true, { adultVerified: false });
+  await page.goto("/tr/incelemeler?includeAdult=true");
+  const main = page.getByRole("main");
+  await expect(main.getByRole("heading", { name: "Review Fixture Game" })).toBeVisible();
+  await expect(main.getByRole("checkbox", { name: "+18 oyunları göster" })).toHaveCount(0);
+  await expect(main.getByRole("link", { name: "Yaşını doğrula" }).first()).toHaveAttribute("href", "/tr/profil/ayarlar");
+  await expect(main.getByText("+18 oyunlar gösterilmiyor", { exact: false })).toBeVisible();
+  expect(world.requests.filter((request) => request.includes("/api/v1/game/games") && request.includes("includeAdult"))).toEqual([]);
+});
+
+test("+18: yaşı doğrulanmış kullanıcı kutuyu açınca yetişkin oyunlar +18 rozetiyle listelenir, kapatınca kaybolur", async ({ page }) => {
+  const world = await fixture(page, true, { adultVerified: true });
+  await page.goto("/tr/incelemeler");
+  const main = page.getByRole("main");
+  await expect(main.getByRole("heading", { name: "Review Fixture Game" })).toBeVisible();
+  await expect(main.getByRole("heading", { name: "Review Adult Fixture Game" })).toHaveCount(0);
+  const box = main.getByRole("checkbox", { name: "+18 oyunları göster" });
+  // Kutu URL'den kontrol edilir: durum yönlendirme bitince değişir, bu yüzden check() yerine click() ve sonuç doğrulaması kullanılır.
+  await box.click();
+  await expect(page).toHaveURL(/\?includeAdult=true$/);
+  await expect(box).toBeChecked();
+  const card = main.getByRole("article").filter({ hasText: "Review Adult Fixture Game" });
+  await expect(card.getByTestId("adult-badge")).toHaveText("+18");
+  await expect(main.getByText("+18 oyunlar gösterilmiyor", { exact: false })).toHaveCount(0);
+  expect(world.requests.some((request) => request.includes("/api/v1/game/games") && request.includes("includeAdult=true"))).toBe(true);
+  await box.click();
+  await expect(page).toHaveURL(/\/tr\/incelemeler$/);
+  await expect(box).not.toBeChecked();
+  await expect(main.getByRole("heading", { name: "Review Adult Fixture Game" })).toHaveCount(0);
+});
