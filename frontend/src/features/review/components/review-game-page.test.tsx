@@ -6,7 +6,7 @@ import { ApiHttpError } from "@/shared/lib/api/client";
 import tr from "@/shared/lib/i18n/messages/tr.json";
 import en from "@/shared/lib/i18n/messages/en.json";
 import { loadReviewResource, reviewMutations } from "../services/review-api";
-import type { FeaturedReviewsResponse, GameReviewStatistics, ReviewResource } from "../types/review";
+import type { AuthorCard, FeaturedReviewsResponse, GameReviewStatistics, ReviewResource } from "../types/review";
 import { ReviewGamePage } from "./review-game-page";
 
 const mocks = vi.hoisted(() => ({ status: "authenticated", query: "", replace: vi.fn(), push: vi.fn() }));
@@ -46,8 +46,8 @@ const stats: GameReviewStatistics = {
 };
 const featured: FeaturedReviewsResponse = {
   items: [
-    { review: { id: "0198a3c2-1111-7d44-9a55-3f1c2b4d5e66", gameId, body: "Başkasının <b>kalın</b> yorumu", ownedByActor: false, version: 0, createdAt: "2026-11-01T12:00:00Z", updatedAt: "2026-11-01T12:00:00Z" }, likeCount: 10, likedByActor: false },
-    { review: { id: "0198a3c2-2222-7d44-9a55-3f1c2b4d5e66", gameId, body: "Benim yorumum", ownedByActor: true, version: 2, createdAt: "2026-11-01T12:00:00Z", updatedAt: "2026-11-02T12:00:00Z" }, likeCount: 4, likedByActor: false }
+    { review: { id: "0198a3c2-1111-7d44-9a55-3f1c2b4d5e66", gameId, body: "Başkasının <b>kalın</b> yorumu", authorUserId: "0198a3c2-0000-7d44-9a55-3f1c2b4d5e02", ownedByActor: false, status: "VISIBLE", version: 0, createdAt: "2026-11-01T12:00:00Z", updatedAt: "2026-11-01T12:00:00Z" }, likeCount: 10, likedByActor: false },
+    { review: { id: "0198a3c2-2222-7d44-9a55-3f1c2b4d5e66", gameId, body: "Benim yorumum", authorUserId: "0198a3c2-0000-7d44-9a55-3f1c2b4d5e01", ownedByActor: true, status: "VISIBLE", version: 2, createdAt: "2026-11-01T12:00:00Z", updatedAt: "2026-11-02T12:00:00Z" }, likeCount: 4, likedByActor: false }
   ],
   page: 0,
   size: 20,
@@ -55,7 +55,7 @@ const featured: FeaturedReviewsResponse = {
   totalPages: 3
 };
 
-type World = { ownRating: unknown; ownRecommendation: unknown; ownReview: unknown; featured: FeaturedReviewsResponse; statistics: GameReviewStatistics };
+type World = { authors: AuthorCard[]; ownRating: unknown; ownRecommendation: unknown; ownReview: unknown; featured: FeaturedReviewsResponse; statistics: GameReviewStatistics };
 let world: World;
 
 function wrap(children: ReactNode, locale: "tr" | "en" = "tr") {
@@ -66,7 +66,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.status = "authenticated";
   mocks.query = "";
-  world = { ownRating: null, ownRecommendation: null, ownReview: null, featured, statistics: stats };
+  world = { authors: [{ userId: "0198a3c2-0000-7d44-9a55-3f1c2b4d5e02", username: "oyuncu", displayName: "Oyuncu <b>Adı</b>", avatarPath: "/api/v1/user/media/0123456789abcdef0123456789abcdef-s.jpg" }], ownRating: null, ownRecommendation: null, ownReview: null, featured, statistics: stats };
   load.mockImplementation(async (resource: ReviewResource) => {
     switch (resource.kind) {
       case "gameCard": return { gameId, title: "Test Oyunu", coverUrl: null };
@@ -75,6 +75,7 @@ beforeEach(() => {
       case "ownRecommendation": return world.ownRecommendation;
       case "featured": return world.featured;
       case "ownReview": return world.ownReview;
+      case "authorCards": return world.authors.filter((card) => resource.userIds.includes(card.userId));
       default: throw new Error(`beklenmeyen kaynak ${resource.kind}`);
     }
   });
@@ -116,6 +117,34 @@ describe("Oyun inceleme ekranı", () => {
     render(wrap(<ReviewGamePage gameId={gameId} />));
     expect(await screen.findByText(/Oyun bilgisi şu anda alınamıyor/)).toBeVisible();
     expect(await screen.findByText("Benim yorumum")).toBeVisible();
+  });
+});
+
+describe("Yazar satırı", () => {
+  it("başkasının incelemesinde User kartından adı, avatarı ve profil bağlantısını düz metin olarak gösterir; kendi incelemesinde göstermez", async () => {
+    await open();
+    const link = await screen.findByRole("link", { name: "Oyuncu <b>Adı</b>" });
+    expect(link).toHaveAttribute("href", "/players/0198a3c2-0000-7d44-9a55-3f1c2b4d5e02");
+    expect(link.querySelector("img")).toHaveAttribute("src", "/api/v1/user/media/0123456789abcdef0123456789abcdef-s.jpg");
+    expect(link.querySelector("b")).toBeNull();
+    expect(screen.queryByText("Bir oyuncu")).toBeNull();
+    expect(load.mock.calls.filter(([resource]) => resource.kind === "authorCards")).toHaveLength(1);
+    expect(load.mock.calls.find(([resource]) => resource.kind === "authorCards")?.[0]).toEqual({ kind: "authorCards", userIds: ["0198a3c2-0000-7d44-9a55-3f1c2b4d5e02"] });
+  });
+
+  it("kartı olmayan yazar için 'Bir oyuncu' gösterir ve profil bağlantısı vermez; inceleme gizlenmez", async () => {
+    world.authors = [];
+    await open();
+    expect(await screen.findByText("Bir oyuncu")).toBeVisible();
+    expect(screen.queryByRole("link", { name: /Oyuncu/ })).toBeNull();
+    expect(await screen.findByText("Başkasının <b>kalın</b> yorumu")).toBeVisible();
+  });
+
+  it("yalnız kendi incelemesi varsa yazar kartı istenmez", async () => {
+    world.featured = { ...featured, items: [featured.items[1]], totalElements: 1, totalPages: 1 };
+    await open();
+    await screen.findByText("Benim yorumum");
+    expect(load.mock.calls.some(([resource]) => resource.kind === "authorCards")).toBe(false);
   });
 });
 

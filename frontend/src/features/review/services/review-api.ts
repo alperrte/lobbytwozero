@@ -12,6 +12,7 @@ import type {
   RatingSummariesResponse,
   RatingSummary,
   RecommendationResponse,
+  AuthorCard,
   ReviewGameCard,
   ReviewGameSearchPage,
   ReviewLikeResponse,
@@ -124,6 +125,39 @@ export const gameLookup = {
   }
 };
 
+/** Yalnız User medya adresi kabul edilir; sunucudan gelse bile başka kaynağa görsel isteği atılmaz. */
+const AVATAR_PATH = /^\/api\/v1\/user\/media\/[0-9a-f]{32}(-s)?\.(jpg|png|gif)$/;
+
+type RawAuthorCard = { userId?: unknown; username?: unknown; displayName?: unknown; avatar?: { small?: unknown; large?: unknown } | null };
+
+function avatarPath(raw: RawAuthorCard["avatar"]): string | null {
+  const value = typeof raw?.small === "string" && raw.small ? raw.small : raw?.large;
+  return typeof value === "string" && AVATAR_PATH.test(value) ? value : null;
+}
+
+/**
+ * User Service (yalnız okuma): yazar adı/avatarı. Okuma anlamlı POST'tur ama Gateway CSRF ister (`mutate`: reddinde belirteç
+ * yenilenip YALNIZ BİR KEZ tekrarlanır). Yazar bilgisi yardımcıdır: User ucu hata verirse inceleme listesi yazarsız çalışır
+ * (boş döner); iptal (Abort) ise yukarı iletilir. En çok 50 benzersiz kimlik, tek istek; boş listede istek atılmaz.
+ */
+export const userLookup = {
+  async cards(userIds: readonly string[], signal: AbortSignal): Promise<AuthorCard[]> {
+    const ids = batchIds(userIds);
+    if (ids.length === 0) return [];
+    try {
+      const response = await mutate<{ items?: RawAuthorCard[] }>("POST", "/api/v1/user/profiles/batch", signal, { userIds: ids });
+      return (response.items ?? []).flatMap((item) =>
+        typeof item.userId === "string"
+          ? [{ userId: item.userId, username: typeof item.username === "string" ? item.username : null, displayName: typeof item.displayName === "string" ? item.displayName : null, avatarPath: avatarPath(item.avatar) }]
+          : []
+      );
+    } catch (error) {
+      if (signal.aborted) throw error;
+      return [];
+    }
+  }
+};
+
 export async function loadReviewResource(resource: ReviewResource, signal: AbortSignal): Promise<unknown> {
   switch (resource.kind) {
     case "ownRating": return reviewApi.ownRating(resource.gameId, signal);
@@ -140,6 +174,7 @@ export async function loadReviewResource(resource: ReviewResource, signal: Abort
     case "like": return reviewApi.like(resource.reviewId, signal);
     case "gameCard": return gameLookup.card(resource.gameId, signal);
     case "gameSearch": return gameLookup.search(resource.q, resource.page, resource.size, signal);
+    case "authorCards": return userLookup.cards(resource.userIds, signal);
   }
 }
 

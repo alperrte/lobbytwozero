@@ -20,6 +20,9 @@ test("merkez → oyun → puan → tavsiye → inceleme yaz → detay → düzen
   await expect(page).toHaveURL(`/tr/incelemeler/oyun/${gameId}`);
   await expect(main.getByRole("heading", { level: 1, name: "Review Fixture Game" })).toBeVisible();
   await expect(main.getByText("Başka oyuncunun incelemesi")).toBeVisible();
+  // Yazar adı User toplu kartından gelir (tek istek) ve profil bağlantısına çıkar.
+  await expect(main.getByRole("link", { name: "Fixture Yazar" })).toHaveAttribute("href", "/tr/oyuncular/0198a3c2-0000-7d44-9a55-3f1c2b4d5e02");
+  expect(world.requests.filter((entry) => entry === "POST /api/v1/user/profiles/batch")).toHaveLength(1);
 
   // Puan: yalnız seçince kaydedilir; kayıt yokluğu 0 puan değildir.
   await expect(main.getByText("Henüz puan vermedin.")).toBeVisible();
@@ -230,7 +233,7 @@ test("başkasının incelemesini raporlar: doğrulama, kayıt, mükerrer engeli 
   await card.getByRole("button", { name: "Raporla" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByLabel("Gerekçe")).toBeFocused();
-  await expect(dialog).toContainText("moderasyon ekibine iletim henüz etkin değildir");
+  await expect(dialog).toContainText("moderatörler tarafından incelenir");
   // Gerekçesiz gönderim sunucuya gitmez.
   await dialog.getByRole("button", { name: "Raporu gönder" }).click();
   await expect(dialog.getByRole("alert")).toContainText("Bir gerekçe seçmelisin.");
@@ -278,4 +281,19 @@ test("rapor kotası (429) ve mükerrer rapor (409) durumlarını açıklar; kend
   await page.getByRole("dialog").getByLabel("Gerekçe").selectOption("SPAM");
   await page.getByRole("dialog").getByRole("button", { name: "Raporu gönder" }).click();
   await expect(card.getByText("Bu incelemeyi zaten raporladın.")).toBeVisible();
+});
+
+test("moderatörün gizlediği inceleme yazara durumuyla görünür: düzenleme yok, silme var; İncelemelerim rozet gösterir", async ({ page }) => {
+  const world = await fixture(page);
+  world.reviews.push({ id: "0198a3c2-8888-7d44-9a55-3f1c2b4d5e66", gameId, body: "Gizlenen incelemem", ownedByActor: true, version: 1, createdAt: now, updatedAt: now, likes: 0, liked: false, status: "HIDDEN" });
+  await page.goto("/tr/incelemeler/incelemelerim");
+  const main = page.getByRole("main");
+  await expect(main.getByText("Gizlendi", { exact: true })).toBeVisible();
+  await page.goto("/tr/incelemeler/0198a3c2-8888-7d44-9a55-3f1c2b4d5e66");
+  await expect(main.getByText("Bu inceleme moderatörler tarafından gizlendi")).toBeVisible();
+  await expect(main.getByText("Gizlenen incelemem")).toBeVisible();
+  await expect(main.getByRole("button", { name: "Düzenle" })).toHaveCount(0);
+  await expect(main.getByRole("button", { name: "Sil" })).toBeVisible();
+  // Beğeni ucu gizli incelemede hiç istenmez (backend 404 verir).
+  expect(world.requests.some((request) => request.endsWith("/like"))).toBe(false);
 });

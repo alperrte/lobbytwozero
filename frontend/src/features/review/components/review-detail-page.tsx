@@ -4,12 +4,14 @@ import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { ConfirmDialog } from "@/shared/components/ui/confirm-dialog";
 import { Link, useRouter } from "@/shared/lib/i18n/navigation";
+import { useAuthorCards } from "../hooks/use-author-cards";
 import { useReviewAction } from "../hooks/use-review-action";
 import { useReviewResource } from "../hooks/use-review-resource";
 import { reviewApi, reviewMutations } from "../services/review-api";
 import { describeReviewError, isNotFound } from "../services/review-errors";
 import { formatDateTime, wasEdited } from "../services/format";
 import type { ReviewLikeResponse, ReviewReport, ReviewResponse } from "../types/review";
+import { AuthorBadge } from "./author-badge";
 import { GameHeader } from "./game-header";
 import { LikeButton } from "./like-button";
 import { ReportReview } from "./report-review";
@@ -35,9 +37,11 @@ function DetailWorkspace({ reviewId }: { reviewId: string }) {
   const locale = useLocale();
   const router = useRouter();
   const loaded = useReviewResource<ReviewResponse>({ kind: "review", reviewId });
-  const likeState = useReviewResource<ReviewLikeResponse>({ kind: "like", reviewId });
+  // Gizli/arşivli incelemede beğeni ucu 404 verir; kaynak yalnız görünür incelemede istenir.
+  const likeState = useReviewResource<ReviewLikeResponse>(loaded.data?.status === "VISIBLE" ? { kind: "like", reviewId } : null);
   // Raporlama yalnız başkasının incelemesinde sunulur; mevcut rapor sunucudan okunur (yoksa 404 → null).
   const ownReport = useReviewResource<ReviewReport | null>(loaded.data && !loaded.data.ownedByActor ? { kind: "ownReport", reviewId } : null);
+  const authors = useAuthorCards(loaded.data && !loaded.data.ownedByActor ? [loaded.data.authorUserId] : []);
   const update = useReviewAction();
   const remove = useReviewAction();
   const refresh = useReviewAction();
@@ -105,13 +109,19 @@ function DetailWorkspace({ reviewId }: { reviewId: string }) {
       <header className="space-y-2">
         <h1 className="font-display text-3xl font-semibold text-balance">{review.ownedByActor ? t("detail.titleMine") : t("detail.title")}</h1>
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-secondary">
-          {review.ownedByActor ? <span className="rounded-control border border-primary/40 bg-primary/10 px-2 py-0.5 font-semibold text-brand-text">{t("card.mine")}</span> : null}
+          {review.ownedByActor ? <span className="rounded-control border border-primary/40 bg-primary/10 px-2 py-0.5 font-semibold text-brand-text">{t("card.mine")}</span> : <AuthorBadge card={authors.cards.get(review.authorUserId.toLowerCase())} resolved={authors.resolved} />}
           <span>{created ? t("card.created", { date: created }) : t("card.dateUnknown")}</span>
           {updated ? <span>{t("card.edited", { date: updated })}</span> : null}
         </p>
       </header>
 
       {saved ? <p role="status" className="text-sm text-success">{t("detail.saved")}</p> : null}
+      {review.status !== "VISIBLE" ? (
+        <div role="status" className="space-y-1 rounded-panel border border-primary/40 bg-primary/5 p-4">
+          <p className="font-semibold">{t(`moderation.${review.status}.title`)}</p>
+          <p className="text-sm leading-6 text-text-secondary">{t(`moderation.${review.status}.hint`)}</p>
+        </div>
+      ) : null}
 
       <Panel>
         {editing ? (
@@ -153,7 +163,7 @@ function DetailWorkspace({ reviewId }: { reviewId: string }) {
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2">
-          {likeState.data ? (
+          {review.status !== "VISIBLE" ? null : likeState.data ? (
             <LikeButton reviewId={review.id} ownedByActor={review.ownedByActor} initialCount={likeState.data.likeCount} initialLiked={likeState.data.likedByActor} />
           ) : likeState.error ? (
             <ReviewAlert error={likeState.error} onRetry={likeState.reload} />
@@ -164,9 +174,9 @@ function DetailWorkspace({ reviewId }: { reviewId: string }) {
         {!review.ownedByActor && ownReport.data !== undefined ? (
           <ReportReview reviewId={review.id} ownedByActor={review.ownedByActor} initialReport={ownReport.data} />
         ) : null}
-        {review.ownedByActor && !editing ? (
+        {review.ownedByActor && !editing && review.status !== "ARCHIVED" ? (
           <div className="flex flex-wrap gap-2">
-            <button
+            {review.status === "VISIBLE" ? <button
               type="button"
               className={actionClass("secondary")}
               onClick={() => {
@@ -177,7 +187,7 @@ function DetailWorkspace({ reviewId }: { reviewId: string }) {
               }}
             >
               {t("detail.edit")}
-            </button>
+            </button> : null}
             <button type="button" className={actionClass("ghost")} onClick={() => { remove.clearError(); setConfirming(true); }}>{t("detail.delete")}</button>
           </div>
         ) : null}

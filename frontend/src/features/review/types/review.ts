@@ -1,6 +1,6 @@
 /**
  * Review Service API tipleri (kaynak: `backend/services/review-service` DTO'ları ve docs-review/REVIEW_SERVICE_API.md).
- * Zaman alanları UTC ISO-8601 metnidir. Ham yazar kimliği, kullanıcı adı veya avatar yanıtta YOKTUR; `ownedByActor`
+ * Zaman alanları UTC ISO-8601 metnidir. Yazarın kullanıcı kimliği `authorUserId` olarak döner; kullanıcı adı veya avatar yanıtta YOKTUR; `ownedByActor`
  * bir profil kimliği değildir.
  */
 
@@ -23,11 +23,17 @@ export type RecommendationResponse = {
 };
 
 /** Metinsel inceleme. `body` düz metindir (HTML değildir). `version`, düzenleme/silmede iyimser kilit için gönderilir. */
+export type ReviewStatus = "VISIBLE" | "HIDDEN" | "ARCHIVED";
+
 export type ReviewResponse = {
   id: string;
   gameId: string;
   body: string;
+  /** Yazarın kullanıcı kimliği (UUID). Ad/avatar Review'dan gelmez; User toplu profil kartından çözülür (`userLookup`). */
+  authorUserId: string;
   ownedByActor: boolean;
+  /** VISIBLE herkese açık; HIDDEN/ARCHIVED yalnız sahibine görünür (moderasyon). Silinmiş inceleme hiç dönmez. */
+  status: ReviewStatus;
   version: number;
   createdAt: string;
   updatedAt: string;
@@ -107,6 +113,18 @@ export type ReviewGameSearchPage = {
 /** Hub oyun araması ve sayfalaması: durum URL sorgusundadır. */
 export type FeaturedQuery = { page: number; size: number; minLikes: number };
 
+/**
+ * User Service toplu profil kartından gelen yazar kartı (`POST /api/v1/user/profiles/batch`). Yalnız görünür hesaplar döner;
+ * olmayan/yasaklı/engelli hesaplar yanıtta YOKTUR (ayrım sızmaz) — kartı olmayan yazar "bir oyuncu" gösterilir, bağlantı verilmez.
+ */
+export type AuthorCard = {
+  userId: string;
+  username: string | null;
+  displayName: string | null;
+  /** Doğrulanmış, Gateway'e göreli User medya yolu; yoksa `null`. */
+  avatarPath: string | null;
+};
+
 /** Yükleme (okuma) kaynakları. Her tür `loadReviewResource` içinde tek bir uca bağlanır. */
 export type ReviewResource =
   | { kind: "ownRating"; gameId: string }
@@ -122,7 +140,8 @@ export type ReviewResource =
   | { kind: "gameCards"; gameIds: string[] }
   | { kind: "like"; reviewId: string }
   | { kind: "gameCard"; gameId: string }
-  | { kind: "gameSearch"; q: string; page: number; size: number };
+  | { kind: "gameSearch"; q: string; page: number; size: number }
+  | { kind: "authorCards"; userIds: string[] };
 
 /** Rapor gerekçesi (kapalı liste; backend `ReportReason` ile aynı). Geçici sözlük: Admin'in nihai sözlüğüyle birlikte güncellenir. */
 export type ReportReason = "SPAM" | "HARASSMENT" | "HATE_SPEECH" | "PERSONAL_INFO" | "SPOILER" | "OFF_TOPIC" | "OTHER";
@@ -133,7 +152,8 @@ export type ReviewReport = {
   reviewId: string;
   reason: ReportReason;
   detail: string | null;
-  status: "RECEIVED";
+  /** RECEIVED (kaydedildi) veya CLOSED (moderatör kapattı); kapanış sonucu (işlem/reddedildi) raportöre gösterilmez. */
+  status: "RECEIVED" | "CLOSED";
   createdAt: string;
 };
 

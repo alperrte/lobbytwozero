@@ -187,7 +187,7 @@
         "statistics": "Puan dağılımını, inceleme sayısını ve tavsiye oranlarını gör."
       },
       "limitsTitle": "Şimdilik kapsam dışı",
-      "limitsText": "İncelemeler oyun bazında listelenir. Tüm oyunlardan tek bir akış, yazar profilleri ve raporların moderasyon ekibine iletimi henüz sunulmuyor.",
+      "limitsText": "İncelemeler oyun bazında listelenir. Tüm oyunlardan tek bir akış ve yazar profilleri henüz sunulmuyor.",
       "mine": "İncelemelerim"
     },
     "game": {
@@ -247,7 +247,8 @@
       "edited": "Düzenlendi: {date}",
       "dateUnknown": "Tarih bilinmiyor",
       "open": "Ayrıntıyı oku",
-      "openMine": "Aç ve yönet"
+      "openMine": "Aç ve yönet",
+      "anonymousAuthor": "Bir oyuncu"
     },
     "like": {
       "add": "Beğen",
@@ -350,7 +351,8 @@
       "429wait": "Çok fazla istek gönderildi. {seconds} saniye sonra tekrar dene.",
       "403report": "Kendi incelemeni raporlayamazsın veya hesabın bu işleme kapalı.",
       "409report": "Bu incelemeyi zaten raporladın.",
-      "invalidReport": "Rapor geçerli değil. Gerekçeyi ve açıklama uzunluğunu kontrol et."
+      "invalidReport": "Rapor geçerli değil. Gerekçeyi ve açıklama uzunluğunu kontrol et.",
+      "moderated": "Bu inceleme moderasyon nedeniyle değiştirilemez."
     },
     "mine": {
       "title": "İncelemelerim",
@@ -384,11 +386,24 @@
         "tooLong": "Açıklama en fazla {max} karakter olabilir.",
         "invalidCharacters": "Açıklama desteklenmeyen denetim karakterleri içeriyor."
       },
-      "privacy": "Raporunu yalnız sen görürsün; inceleme sahibi kimin raporladığını öğrenmez. Raporun şu an Review servisinde kaydedilir; moderasyon ekibine iletim henüz etkin değildir, bu yüzden bir karar bildirimi gelmez.",
+      "privacy": "Raporunu yalnız sen görürsün; inceleme sahibi kimin raporladığını öğrenmez. Raporlar moderatörler tarafından incelenir; sonuç (işlem yapılıp yapılmadığı) paylaşılmaz.",
       "submit": "Raporu gönder",
       "done": "Raporun kaydedildi.",
       "doneAt": "Raporladın · {date}",
-      "already": "Bu incelemeyi zaten raporladın."
+      "already": "Bu incelemeyi zaten raporladın.",
+      "closed": "Raporun sonuçlandı."
+    },
+    "moderation": {
+      "HIDDEN": {
+        "badge": "Gizlendi",
+        "title": "Bu inceleme moderatörler tarafından gizlendi",
+        "hint": "Diğer oyuncular bu incelemeyi göremez; puanın ve tavsiyen etkilenmedi. Düzenleyemezsin, ancak istersen silebilirsin."
+      },
+      "ARCHIVED": {
+        "badge": "Arşivlendi",
+        "title": "Bu inceleme arşivlendi",
+        "hint": "Diğer oyuncular bu incelemeyi göremez; puanın ve tavsiyen etkilenmedi. Arşivlenen inceleme düzenlenemez ve silinemez."
+      }
     }
   },
   "Metadata": {

@@ -29,7 +29,7 @@ vi.mock("../services/review-api", () => ({
 
 const gameId = "0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66";
 const reviewId = "0198a3c2-cccc-7d44-9a55-3f1c2b4d5e66";
-const created: ReviewResponse = { id: reviewId, gameId, body: "Güzel", ownedByActor: true, version: 0, createdAt: "2026-11-01T12:00:00Z", updatedAt: "2026-11-01T12:00:00Z" };
+const created: ReviewResponse = { id: reviewId, gameId, body: "Güzel", authorUserId: "0198a3c2-0000-7d44-9a55-3f1c2b4d5e01", ownedByActor: true, status: "VISIBLE", version: 0, createdAt: "2026-11-01T12:00:00Z", updatedAt: "2026-11-01T12:00:00Z" };
 const create = vi.mocked(reviewMutations.createReview);
 let existing: ReviewResponse | null = null;
 const load = vi.mocked(loadReviewResource);

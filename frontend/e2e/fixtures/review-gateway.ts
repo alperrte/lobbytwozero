@@ -9,7 +9,7 @@ export const otherReviewId = "0198a3c2-1111-7d44-9a55-3f1c2b4d5e66";
 export const ownerAccount = "0198a3c2-aaaa-7d44-9a55-3f1c2b4d5e66";
 const game = { gameId, title: "Review Fixture Game", coverUrl: null, origin: "INTERNAL", metadataCompleteness: "PARTIAL", gameType: "GAME" };
 
-export type Review = { id: string; gameId: string; body: string; ownedByActor: boolean; version: number; createdAt: string; updatedAt: string; likes: number; liked: boolean };
+export type Review = { status?: string; id: string; gameId: string; body: string; ownedByActor: boolean; version: number; createdAt: string; updatedAt: string; likes: number; liked: boolean };
 export type World = {
   rating: { gameId: string; rating: number; version: number; createdAt: string; updatedAt: string } | null;
   recommendation: { gameId: string; recommended: boolean; version: number; createdAt: string; updatedAt: string } | null;
@@ -68,6 +68,11 @@ export async function fixture(page: Page, signedIn = true): Promise<World> {
     if (path === "/api/v1/user/me") return reply({ userId: ownerAccount, displayName: "Fixture player", username: "fixture", avatarUrl: null });
     if (path === "/api/v1/game/games/search" || path === "/api/v1/game/games") return reply({ items: [{ game, releaseDate: null }], page: 0, size: 12, totalElements: 1 });
     if (path === "/api/v1/game/games/batch") return reply({ items: [game], unavailable: [] });
+    if (path === "/api/v1/user/profiles/batch" && method === "POST") {
+      // User toplu kart ucu: yalnız görünür yazar döner; diğer kimlikler yanıttan çıkarılır (ayrım sızmaz).
+      const ids = (request.postDataJSON() as { userIds?: string[] }).userIds ?? [];
+      return reply({ items: ids.filter((id) => id === "0198a3c2-0000-7d44-9a55-3f1c2b4d5e02").map((userId) => ({ userId, username: "fixture_yazar", displayName: "Fixture Yazar", avatar: { small: null, large: null, animated: false } })) });
+    }
     if (!path.startsWith("/api/v1/review/")) return reply({}, 404);
 
     // Toplu puan özeti POST ile gider ama OKUMADIR; yazma listesine girmez (CSRF başlığı yine de doğrulanır).
@@ -77,7 +82,7 @@ export async function fixture(page: Page, signedIn = true): Promise<World> {
     } else if (method !== "GET") {
       world.writes.push({ method, path, csrf: request.headers()["x-xsrf-token"], body: request.postDataJSON() ?? null });
     }
-    const review = (item: Review) => ({ id: item.id, gameId: item.gameId, body: item.body, ownedByActor: item.ownedByActor, version: item.version, createdAt: item.createdAt, updatedAt: item.updatedAt });
+    const review = (item: Review) => ({ id: item.id, gameId: item.gameId, body: item.body, authorUserId: item.ownedByActor ? "0198a3c2-0000-7d44-9a55-3f1c2b4d5e01" : "0198a3c2-0000-7d44-9a55-3f1c2b4d5e02", ownedByActor: item.ownedByActor, status: item.status ?? "VISIBLE", version: item.version, createdAt: item.createdAt, updatedAt: item.updatedAt });
     const like = (item: Review) => ({ reviewId: item.id, likeCount: item.likes, likedByActor: item.liked });
     const sub = path.replace("/api/v1/review", "");
 

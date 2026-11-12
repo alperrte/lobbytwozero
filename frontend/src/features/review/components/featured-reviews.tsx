@@ -3,10 +3,12 @@
 import { useId, useState, type FormEvent } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
+import { useAuthorCards } from "../hooks/use-author-cards";
 import { useReviewResource } from "../hooks/use-review-resource";
 import { FEATURED_SIZES, featuredQueryFrom, featuredSearchParams } from "../schemas/review-schema";
 import { formatCount } from "../services/format";
 import type { FeaturedQuery, FeaturedReviewsResponse } from "../types/review";
+import { AuthorBadge } from "./author-badge";
 import { ReportReview } from "./report-review";
 import { ReviewCard } from "./review-card";
 import { EmptyState, Pagination, Panel, ReviewAlert, Skeleton, actionClass, focusRing } from "./review-ui";
@@ -43,6 +45,8 @@ export function FeaturedReviews({ gameId }: { gameId: string }) {
   }
 
   const data = result.data;
+  // Sayfadaki başkasına ait incelemelerin yazarları tek istekle çözülür; kendi incelemende ad gösterilmez.
+  const authors = useAuthorCards((data?.items ?? []).filter((item) => !item.review.ownedByActor).map((item) => item.review.authorUserId));
   const titleId = useId();
   return (
     <Panel
@@ -108,7 +112,7 @@ export function FeaturedReviews({ gameId }: { gameId: string }) {
               <ul className="space-y-3">
                 {data.items.map((item) => (
                   <li key={item.review.id}>
-                    <ReviewCard review={item.review} likeCount={item.likeCount} likedByActor={item.likedByActor} actions={<ReportReview reviewId={item.review.id} ownedByActor={item.review.ownedByActor} />} />
+                    <ReviewCard review={item.review} author={item.review.ownedByActor ? undefined : <AuthorBadge card={authors.cards.get(item.review.authorUserId.toLowerCase())} resolved={authors.resolved} />} likeCount={item.likeCount} likedByActor={item.likedByActor} actions={<ReportReview reviewId={item.review.id} ownedByActor={item.review.ownedByActor} />} />
                   </li>
                 ))}
               </ul>

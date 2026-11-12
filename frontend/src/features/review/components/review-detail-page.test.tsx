@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiHttpError } from "@/shared/lib/api/client";
 import tr from "@/shared/lib/i18n/messages/tr.json";
 import { loadReviewResource, reviewApi, reviewMutations } from "../services/review-api";
-import type { ReviewLikeResponse, ReviewResource, ReviewResponse } from "../types/review";
+import type { AuthorCard, ReviewLikeResponse, ReviewResource, ReviewResponse } from "../types/review";
 import { ReviewDetailPage } from "./review-detail-page";
 
 const mocks = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
@@ -36,11 +36,12 @@ const remove = vi.mocked(reviewMutations.deleteReview);
 const like = vi.mocked(reviewMutations.like);
 const unlike = vi.mocked(reviewMutations.unlike);
 
-const mine: ReviewResponse = { id: reviewId, gameId, body: "İlk metin\nikinci satır", ownedByActor: true, version: 4, createdAt: "2026-11-01T12:00:00Z", updatedAt: "2026-11-01T12:00:00Z" };
+const mine: ReviewResponse = { id: reviewId, gameId, body: "İlk metin\nikinci satır", authorUserId: "0198a3c2-0000-7d44-9a55-3f1c2b4d5e01", ownedByActor: true, status: "VISIBLE", version: 4, createdAt: "2026-11-01T12:00:00Z", updatedAt: "2026-11-01T12:00:00Z" };
 const others: ReviewResponse = { ...mine, ownedByActor: false, body: "<img src=x onerror=alert(1)> yabancı" };
 
 let review: ReviewResponse | Error;
 let ownReport: unknown = null;
+let authors: AuthorCard[] = [];
 let likeState: ReviewLikeResponse | Error;
 
 function wrap(children: ReactNode) {
@@ -51,6 +52,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   review = mine;
   ownReport = null;
+  authors = [];
   likeState = { reviewId, likeCount: 3, likedByActor: false };
   load.mockImplementation(async (resource: ReviewResource) => {
     if (resource.kind === "review") {
@@ -62,6 +64,7 @@ beforeEach(() => {
       return likeState;
     }
     if (resource.kind === "ownReport") return ownReport;
+    if (resource.kind === "authorCards") return authors;
     if (resource.kind === "gameCard") return { gameId, title: "Test Oyunu", coverUrl: null };
     throw new Error("beklenmeyen kaynak");
   });
@@ -98,6 +101,28 @@ describe("İnceleme detayı", () => {
     expect(screen.queryByRole("button", { name: "Sil" })).toBeNull();
     expect(await screen.findByRole("button", { name: /Beğen/ })).toBeVisible();
     expect(screen.queryByText("Senin incelemen")).toBeNull();
+  });
+
+  it("başkasının incelemesinde yazarı User kartından gösterir; kartı yoksa 'Bir oyuncu' der ve bağlantı vermez", async () => {
+    review = others;
+    authors = [{ userId: others.authorUserId, username: "oyuncu", displayName: "Yazar Adı", avatarPath: null }];
+    await open();
+    expect(await screen.findByRole("link", { name: "Yazar Adı" })).toHaveAttribute("href", `/players/${others.authorUserId}`);
+    expect(load.mock.calls.find(([resource]) => resource.kind === "authorCards")?.[0]).toEqual({ kind: "authorCards", userIds: [others.authorUserId] });
+  });
+
+  it("yazar kartı yoksa 'Bir oyuncu' gösterir; kendi incelemende yazar kartı istenmez", async () => {
+    review = others;
+    authors = [];
+    await open();
+    expect(await screen.findByText("Bir oyuncu")).toBeVisible();
+    expect(screen.queryByRole("link", { name: "Bir oyuncu" })).toBeNull();
+  });
+
+  it("kendi incelemende yazar kartı istenmez", async () => {
+    await open();
+    await screen.findByRole("button", { name: "Düzenle" });
+    expect(load.mock.calls.some(([resource]) => resource.kind === "authorCards")).toBe(false);
   });
 
   it("başkasının incelemesinde 'Raporla' sunar; kendi incelemende sunmaz", async () => {
@@ -164,6 +189,41 @@ describe("İnceleme detayı", () => {
     review = new ApiHttpError(403);
     render(wrap(<ReviewDetailPage reviewId={reviewId} />));
     expect(await screen.findByText("Bu işlem için erişim iznin yok.")).toBeVisible();
+  });
+});
+
+describe("Moderasyon durumu", () => {
+  it("gizlenen incelemede durumu açıklar; düzenle gizlenir, sil kalır ve beğeni kaynağı istenmez", async () => {
+    review = { ...mine, status: "HIDDEN" };
+    await open();
+    expect(await screen.findByText("Bu inceleme moderatörler tarafından gizlendi")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Düzenle" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Sil" })).toBeVisible();
+    expect(load.mock.calls.some(([resource]) => resource.kind === "like")).toBe(false);
+    expect(screen.queryByRole("button", { name: /Beğen/ })).toBeNull();
+  });
+
+  it("arşivlenen incelemede ne düzenleme ne silme sunar", async () => {
+    review = { ...mine, status: "ARCHIVED" };
+    await open();
+    expect(await screen.findByText("Bu inceleme arşivlendi")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Düzenle" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Sil" })).toBeNull();
+  });
+
+  it("görünür incelemede moderasyon uyarısı yoktur", async () => {
+    await open();
+    expect(screen.queryByText(/moderatörler tarafından gizlendi|arşivlendi/)).toBeNull();
+  });
+
+  it("moderasyon kilidi hatasını yetki hatası değil açıklayıcı mesajla gösterir", async () => {
+    review = { ...mine, status: "HIDDEN" };
+    remove.mockRejectedValue(new ApiHttpError(403, { code: "REVIEW_MODERATED" }));
+    await open();
+    fireEvent.click(await screen.findByRole("button", { name: "Sil" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "İncelemeyi sil" }));
+    expect(await within(dialog).findByText("Bu inceleme moderasyon nedeniyle değiştirilemez.")).toBeVisible();
   });
 });
 

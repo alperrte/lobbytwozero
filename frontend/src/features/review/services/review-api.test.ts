@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiHttpError, apiRequest } from "@/shared/lib/api/client";
-import { featuredQueryString, gameLookup, loadReviewResource, reviewApi, reviewMutations } from "./review-api";
+import { featuredQueryString, gameLookup, loadReviewResource, reviewApi, reviewMutations, userLookup } from "./review-api";
 import type { ReviewResponse } from "../types/review";
 
 vi.mock("@/shared/lib/api/client", async (original) => ({ ...(await original<typeof import("@/shared/lib/api/client")>()), apiRequest: vi.fn() }));
@@ -8,7 +8,7 @@ const request = vi.mocked(apiRequest);
 const gameId = "0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66";
 const reviewId = "0198a3c2-cccc-7d44-9a55-3f1c2b4d5e66";
 const signal = new AbortController().signal;
-const review: ReviewResponse = { id: reviewId, gameId, body: "Metin", ownedByActor: true, version: 3, createdAt: "2026-11-01T12:00:00Z", updatedAt: "2026-11-01T12:00:00Z" };
+const review: ReviewResponse = { id: reviewId, gameId, body: "Metin", authorUserId: "0198a3c2-0000-7d44-9a55-3f1c2b4d5e01", ownedByActor: true, status: "VISIBLE", version: 3, createdAt: "2026-11-01T12:00:00Z", updatedAt: "2026-11-01T12:00:00Z" };
 
 beforeEach(() => {
   document.cookie = "XSRF-TOKEN=review-test-csrf; path=/";
@@ -163,6 +163,59 @@ describe("toplu puan özeti (REV-12)", () => {
     expect(await reviewApi.ratingSummaries([], signal)).toEqual({ items: [] });
     expect(await reviewApi.ratingSummaries(["x"], signal)).toEqual({ items: [] });
     expect(request).not.toHaveBeenCalled();
+  });
+});
+
+describe("User Service yazar kartı (yalnız okuma)", () => {
+  const author = "0198a3c2-0000-7d44-9a55-3f1c2b4d5e02";
+  const media = "/api/v1/user/media/0123456789abcdef0123456789abcdef-s.jpg";
+
+  it("kimlikleri tek toplu istekte, CSRF başlığıyla ve benzersiz/en çok 50 olarak gönderir", async () => {
+    request.mockResolvedValue({ items: [] });
+    const ids = Array.from({ length: 70 }, (_, index) => `0198a3c2-bbbb-7d44-9a55-${String(index).padStart(12, "0")}`);
+    await userLookup.cards([...ids, ids[0], "geçersiz"], signal);
+    expect(request).toHaveBeenCalledTimes(1);
+    const { path, init } = lastCall();
+    expect(path).toBe("/api/v1/user/profiles/batch");
+    expect(init.method).toBe("POST");
+    expect(init.headers["X-XSRF-TOKEN"]).toBe("review-test-csrf");
+    expect(JSON.parse(init.body as string).userIds).toEqual(ids.slice(0, 50));
+  });
+
+  it("boş listede istek atmaz", async () => {
+    expect(await userLookup.cards([], signal)).toEqual([]);
+    expect(await userLookup.cards(["x"], signal)).toEqual([]);
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it("kartı eşler; avatar yalnız User medya yoluysa kabul edilir, small yoksa large kullanılır", async () => {
+    request.mockResolvedValue({ items: [
+      { userId: author, username: "oyuncu", displayName: "Oyuncu Adı", avatar: { small: media, large: null } },
+      { userId: "0198a3c2-0000-7d44-9a55-3f1c2b4d5e03", username: null, displayName: "Büyük", avatar: { small: null, large: "/api/v1/user/media/0123456789abcdef0123456789abcdef.png" } },
+      { userId: "0198a3c2-0000-7d44-9a55-3f1c2b4d5e04", username: "x", displayName: null, avatar: { small: "https://kotu.example/a.png" } },
+      { username: "kimliksiz" }
+    ] });
+    const cards = await userLookup.cards([author], signal);
+    expect(cards).toEqual([
+      { userId: author, username: "oyuncu", displayName: "Oyuncu Adı", avatarPath: media },
+      { userId: "0198a3c2-0000-7d44-9a55-3f1c2b4d5e03", username: null, displayName: "Büyük", avatarPath: "/api/v1/user/media/0123456789abcdef0123456789abcdef.png" },
+      { userId: "0198a3c2-0000-7d44-9a55-3f1c2b4d5e04", username: "x", displayName: null, avatarPath: null }
+    ]);
+  });
+
+  it("User ucu hata verirse yazarsız (boş) döner; iptal ise hata olarak yukarı iletilir", async () => {
+    request.mockRejectedValue(new ApiHttpError(503));
+    expect(await userLookup.cards([author], signal)).toEqual([]);
+    const controller = new AbortController();
+    controller.abort();
+    request.mockRejectedValue(new DOMException("aborted", "AbortError"));
+    await expect(userLookup.cards([author], controller.signal)).rejects.toThrow();
+  });
+
+  it("kaynak çözümleyici authorCards türünü bu uca bağlar", async () => {
+    request.mockResolvedValue({ items: [] });
+    await loadReviewResource({ kind: "authorCards", userIds: [author] }, signal);
+    expect(lastCall().path).toBe("/api/v1/user/profiles/batch");
   });
 });
 

@@ -187,7 +187,7 @@
         "statistics": "See the rating distribution, review count and recommendation shares."
       },
       "limitsTitle": "Not available yet",
-      "limitsText": "Reviews are listed per game. A single feed across all games, author profiles and forwarding reports to the moderation team are not available yet.",
+      "limitsText": "Reviews are listed per game. A single feed across all games and author profiles are not available yet.",
       "mine": "My reviews"
     },
     "game": {
@@ -247,7 +247,8 @@
       "edited": "Edited: {date}",
       "dateUnknown": "Date unknown",
       "open": "Read in full",
-      "openMine": "Open and manage"
+      "openMine": "Open and manage",
+      "anonymousAuthor": "A player"
     },
     "like": {
       "add": "Like",
@@ -350,7 +351,8 @@
       "429wait": "Too many requests were sent. Try again in {seconds} seconds.",
       "403report": "You can't report your own review, or your account is blocked from this action.",
       "409report": "You have already reported this review.",
-      "invalidReport": "The report is not valid. Check the reason and the details length."
+      "invalidReport": "The report is not valid. Check the reason and the details length.",
+      "moderated": "This review cannot be changed because of moderation."
     },
     "mine": {
       "title": "My reviews",
@@ -384,11 +386,24 @@
         "tooLong": "Details can be at most {max} characters.",
         "invalidCharacters": "The details contain unsupported control characters."
       },
-      "privacy": "Only you can see your report; the author does not learn who reported. Your report is currently stored in the Review service; forwarding to the moderation team is not enabled yet, so you will not receive a decision notice.",
+      "privacy": "Only you can see your report; the author does not learn who reported. Reports are reviewed by moderators; the outcome (whether action was taken) is not shared.",
       "submit": "Send report",
       "done": "Your report was saved.",
       "doneAt": "You reported this · {date}",
-      "already": "You have already reported this review."
+      "already": "You have already reported this review.",
+      "closed": "Your report has been resolved."
+    },
+    "moderation": {
+      "HIDDEN": {
+        "badge": "Hidden",
+        "title": "This review was hidden by moderators",
+        "hint": "Other players cannot see this review; your rating and recommendation are not affected. You cannot edit it, but you can delete it."
+      },
+      "ARCHIVED": {
+        "badge": "Archived",
+        "title": "This review was archived",
+        "hint": "Other players cannot see this review; your rating and recommendation are not affected. An archived review can be neither edited nor deleted."
+      }
     }
   },
   "Metadata": {
