@@ -51,7 +51,7 @@ public class OpenIcecatClient implements IcecatCatalogPort {
     }
     @Override public HardwareCatalogContent product(Entry entry, Map<String, ComponentCategory> taxonomy) {
         ready();
-        if (!entry.id().matches("[0-9]{1,20}")) throw new IllegalArgumentException("ICECAT_ID_INVALID");
+        if (!entry.id().matches("\\d{1,20}")) throw new IllegalArgumentException("ICECAT_ID_INVALID");
         return http.get(URI.create("https://live.icecat.biz/api?lang=EN&icecat_id=" + entry.id()
                 + "&content=generalinfo,image,gallery,featuregroups"), 4_000_000, true,
                 input -> parser.parse(mapper.readTree(input), entry, taxonomy));

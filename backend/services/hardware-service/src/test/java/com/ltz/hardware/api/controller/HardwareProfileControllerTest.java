@@ -18,9 +18,16 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(properties = {"logging.level.root=INFO", "debug=false"})
 @AutoConfigureMockMvc
@@ -133,9 +140,10 @@ class HardwareProfileControllerTest extends PostgresIntegrationSupport {
 
     @Test
     void databaseRejectsUnknownCaseColor() {
+        UUID profileId = UUID.randomUUID();
         assertThatThrownBy(() -> jdbc.update(
                 "INSERT INTO hardware_profiles(id,user_id,name,device_type,case_color,created_at,updated_at)"
-                        + " VALUES (?,?,'PC','DESKTOP','PURPLE',now(),now())", UUID.randomUUID(), OWNER))
+                        + " VALUES (?,?,'PC','DESKTOP','PURPLE',now(),now())", profileId, OWNER))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 

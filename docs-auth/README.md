@@ -40,7 +40,7 @@
 |---|---|
 | Access token ömrü | 60 saniye (`JWT_ACCESS_TTL_SECONDS`) |
 | Banlı ya da çıkış yapan kullanıcının görünme süresi | En fazla 90 saniye (60 + 30 saniye saat toleransı) |
-| Parola | En az 15 karakter, yaygın parola listesi ve desen kontrolü |
+| Parola | En az 8 karakter; büyük harf, küçük harf, rakam ve özel karakter; yaygın parola listesi ve desen kontrolü |
 | Hesap silme | 14 gün geri alma süresi, sonra servislere silme görevi |
 | Güvenlik olayı saklama | 365 gün |
 | Silme ucu yazılmış servisler | 9 / 16 (Game, Hardware, Library, Performance, Review, Social, User, Community, Mail) |

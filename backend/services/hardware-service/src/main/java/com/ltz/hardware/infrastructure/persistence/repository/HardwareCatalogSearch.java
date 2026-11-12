@@ -5,7 +5,14 @@ import com.ltz.hardware.domain.entity.HardwareBrand;
 import com.ltz.hardware.domain.entity.HardwareProduct;
 import com.ltz.hardware.domain.entity.HardwareProductSourceView;
 import com.ltz.hardware.domain.enums.CatalogStatus;
-import jakarta.persistence.criteria.*;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.Path;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,6 +22,9 @@ import org.springframework.data.jpa.domain.Specification;
 
 /** Criteria values are bound parameters; no SQL identifiers come from the request. */
 public final class HardwareCatalogSearch {
+    private static final String JSONB_EXTRACT_PATH_TEXT = "jsonb_extract_path_text";
+    private static final String TYPED_SPECS = "typedSpecs";
+    private static final String STATUS = "status";
     private HardwareCatalogSearch() { }
 
     public record NumericRange(String attribute, Integer min, Integer max) { }
@@ -36,42 +46,24 @@ public final class HardwareCatalogSearch {
     /** The text under {@code key} must start with any of {@code prefixes} (lower-case, from a server-side allowlist). */
     public record TypedPrefix(String key, List<String> prefixes) { }
 
-    public static Specification<HardwareProduct> matching(String model, CatalogStatus status,
-            com.ltz.hardware.domain.enums.ComponentCategory category, List<UUID> brandIds, String brand,
-            List<NumericRange> ranges, List<TextValue> texts) {
-        return matching(model, status, category, brandIds, brand, ranges, texts, List.of());
-    }
-
-    /** The key must hold a non-blank value that is not the literal {@code false}; {@code required=false} adds no condition. */
     public record TypedPresence(String key, boolean required) { }
+    public record Selection(String model, CatalogStatus status,
+            com.ltz.hardware.domain.enums.ComponentCategory category, List<UUID> brandIds, String brand) { }
+    public record Constraints(List<NumericRange> ranges, List<NumericIn> numbers, List<TextValue> texts,
+            List<TypedSpec> typed, List<TypedPrefix> prefixes, List<TypedPresence> present) { }
 
-    public static Specification<HardwareProduct> matching(String model, CatalogStatus status,
-            com.ltz.hardware.domain.enums.ComponentCategory category, List<UUID> brandIds, String brand,
-            List<NumericRange> ranges, List<TextValue> texts, List<TypedSpec> typed) {
-        return matching(model, status, category, brandIds, brand, ranges, texts, typed, List.of());
-    }
-
-    public static Specification<HardwareProduct> matching(String model, CatalogStatus status,
-            com.ltz.hardware.domain.enums.ComponentCategory category, List<UUID> brandIds, String brand,
-            List<NumericRange> ranges, List<TextValue> texts, List<TypedSpec> typed, List<TypedPresence> present) {
-        return matching(model, status, category, brandIds, brand, ranges, List.of(), texts, typed, List.of(), present);
-    }
-
-    public static Specification<HardwareProduct> matching(String model, CatalogStatus status,
-            com.ltz.hardware.domain.enums.ComponentCategory category, List<UUID> brandIds, String brand,
-            List<NumericRange> ranges, List<NumericIn> numbers, List<TextValue> texts, List<TypedSpec> typed,
-            List<TypedPrefix> prefixes, List<TypedPresence> present) {
+    public static Specification<HardwareProduct> matching(Selection selection, Constraints constraints) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
-            predicates.add(cb.equal(root.get("status"), status));
-            if (category != null) predicates.add(cb.equal(root.get("category"), category));
-            search(root, query, cb, model, predicates);
-            manufacturer(root, query, cb, brandIds, brand, predicates);
+            predicates.add(cb.equal(root.get(STATUS), selection.status()));
+            if (selection.category() != null) predicates.add(cb.equal(root.get("category"), selection.category()));
+            search(root, query, cb, selection.model(), predicates);
+            manufacturer(root, query, cb, selection.brandIds(), selection.brand(), predicates);
             Path<Object> specs = root.get("specifications");
-            ranges.forEach(range -> range(cb, specs.get(range.attribute()), range, predicates));
-            numbers.forEach(in -> numbersIn(specs.get(in.attribute()), in.values(), predicates));
-            texts.forEach(text -> exact(cb, specs.get(text.attribute()), text.values(), predicates));
-            typedSpecs(root, query, cb, typed, prefixes, present, predicates);
+            constraints.ranges().forEach(range -> range(cb, specs.get(range.attribute()), range, predicates));
+            constraints.numbers().forEach(in -> numbersIn(specs.get(in.attribute()), in.values(), predicates));
+            constraints.texts().forEach(text -> exact(cb, specs.get(text.attribute()), text.values(), predicates));
+            typedSpecs(root, query, cb, constraints.typed(), constraints.prefixes(), constraints.present(), predicates);
             return cb.and(predicates.toArray(Predicate[]::new));
         };
     }
@@ -89,26 +81,26 @@ public final class HardwareCatalogSearch {
         for (TypedSpec spec : active) {
             List<Predicate> alternatives = new ArrayList<>();
             if (!spec.numbers().isEmpty()) {
-                Expression<String> value = cb.function("jsonb_extract_path_text", String.class,
-                        source.get("typedSpecs"), cb.literal(spec.key()), cb.literal("number"));
+                Expression<String> value = cb.function(JSONB_EXTRACT_PATH_TEXT, String.class,
+                        source.get(TYPED_SPECS), cb.literal(spec.key()), cb.literal("number"));
                 alternatives.add(((org.hibernate.query.criteria.JpaExpression<String>) value).cast(BigDecimal.class)
                         .in(spec.numbers().stream().map(BigDecimal::valueOf).toList()));
             }
             if (!spec.texts().isEmpty()) {
-                Expression<String> value = cb.function("jsonb_extract_path_text", String.class,
-                        source.get("typedSpecs"), cb.literal(spec.key()), cb.literal("text"));
+                Expression<String> value = cb.function(JSONB_EXTRACT_PATH_TEXT, String.class,
+                        source.get(TYPED_SPECS), cb.literal(spec.key()), cb.literal("text"));
                 alternatives.add(cb.lower(value).in(spec.texts().stream().map(t -> t.strip().toLowerCase(Locale.ROOT)).toList()));
             }
             inner.add(cb.or(alternatives.toArray(Predicate[]::new)));
         }
         for (TypedPrefix spec : prefixed) {
-            Expression<String> value = cb.lower(cb.function("jsonb_extract_path_text", String.class,
-                    source.get("typedSpecs"), cb.literal(spec.key()), cb.literal("text")));
+            Expression<String> value = cb.lower(cb.function(JSONB_EXTRACT_PATH_TEXT, String.class,
+                    source.get(TYPED_SPECS), cb.literal(spec.key()), cb.literal("text")));
             inner.add(cb.or(spec.prefixes().stream().map(p -> cb.like(value, p + "%")).toArray(Predicate[]::new)));
         }
         for (TypedPresence spec : required) {
-            Expression<String> value = cb.function("jsonb_extract_path_text", String.class,
-                    source.get("typedSpecs"), cb.literal(spec.key()), cb.literal("text"));
+            Expression<String> value = cb.function(JSONB_EXTRACT_PATH_TEXT, String.class,
+                    source.get(TYPED_SPECS), cb.literal(spec.key()), cb.literal("text"));
             inner.add(cb.isNotNull(value));
             inner.add(cb.notEqual(cb.trim(value), ""));
             inner.add(cb.notEqual(cb.lower(cb.trim(value)), "false"));
@@ -138,7 +130,7 @@ public final class HardwareCatalogSearch {
             Root<HardwareProduct> owner = brands.from(HardwareProduct.class);
             Join<HardwareProduct, HardwareBrand> brand = owner.join("brands");
             brands.select(owner.get("id")).where(cb.equal(owner.get("id"), root.get("id")),
-                    cb.equal(brand.get("status"), CatalogStatus.ACTIVE),
+                    cb.equal(brand.get(STATUS), CatalogStatus.ACTIVE),
                     wordMatch(cb, brand.get("normalizedName"), token));
             predicates.add(cb.or(wordMatch(cb, root.get("normalizedModel"), token), cb.exists(brands)));
         }
@@ -159,7 +151,7 @@ public final class HardwareCatalogSearch {
         if (brandIds.isEmpty() && (name == null || name.isBlank())) return;
         Join<HardwareProduct, HardwareBrand> joined = root.join("brands");
         query.distinct(true);
-        predicates.add(cb.equal(joined.get("status"), CatalogStatus.ACTIVE));
+        predicates.add(cb.equal(joined.get(STATUS), CatalogStatus.ACTIVE));
         if (!brandIds.isEmpty()) predicates.add(joined.get("id").in(brandIds));
         contains(cb, joined.get("normalizedName"), name, 100, predicates);
     }

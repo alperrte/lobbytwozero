@@ -20,16 +20,24 @@ class PasswordPolicyTest {
 
     @ParameterizedTest
     @ValueSource(strings = {
-            "passwordpassword1",
+            // Kara liste: bileşim kuralını geçen yaygın kalıplar
+            "Password1!",
+            "Passw0rd.",
+            "Qwerty123!",
+            "Welcome1-",
+            "Admin123_",
             "Password-Password-1",
-            "1q2w3e4r5t6y7u8i9o0p",
-            "123456789012345",
-            "9876543210987654",
-            "abcdefghijklmnop",
-            "aaaaaaaaaaaaaaaa",
-            "abcabcabcabcabcabc",
+            // Tekrar ve desen
+            "Aa1!Aa1!Aa1!",
             "Lobby Two Zero 2026!",
-            "my-gamer_kerem-secret-1"
+            "my-Gamer_kerem-secret-1",
+            // Bileşim kuralı: biri eksik
+            "correct-horse-battery-9",
+            "CORRECT-HORSE-BATTERY-9",
+            "Correct-Horse-Battery",
+            "CorrectHorseBattery9",
+            "Correct Horse 9 Battery",
+            "Abcdefg1 "
     })
     void zayifParolalarReddedilir(String password) {
         assertThat(policy.isWeak(password, EMAIL, USERNAME)).as(password).isTrue();
@@ -40,25 +48,35 @@ class PasswordPolicyTest {
 
     @Test
     void epostaYerelKisminiIcerenParolaReddedilir() {
-        assertThat(policy.isWeak("xx-kerem.test-yy-zz-123", EMAIL, "baska_ad")).isTrue();
+        assertThat(policy.isWeak("Xx-kerem.test-yy-Zz-123", EMAIL, "baska_ad")).isTrue();
     }
 
     @ParameterizedTest
     @ValueSource(strings = {
-            "correct-horse-battery-staple",
-            "another-long-passphrase-42",
-            "  spaced passphrase 99  ",
+            "Kx7!mQ2p",
+            "mavi-Bisiklet-7",
+            "Correct-Horse-Battery-9",
+            "Another-Long-Passphrase-42",
             "Tr0ub4dor&3-and-more-words",
-            "mavi-bisiklet-yagmur-ve-cay-7"
+            "Ağaç.Çiçek_9",
+            "Zq9#vL4$"
     })
-    void uzunVeOngorulemeyenParolalarKabulEdilir(String password) {
+    void kurallaraUyanParolalarKabulEdilir(String password) {
         assertThatCode(() -> policy.require(password, EMAIL, USERNAME)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void ozelKarakterHarfVeRakamDisindakiHerSeydir() {
+        for (char special : "!@#$%^&*()-_=+[]{};:'\",.<>/?\\|`~".toCharArray()) {
+            assertThat(PasswordPolicy.hasRequiredComposition("Abcdefg1" + special)).as("" + special).isTrue();
+        }
+        assertThat(PasswordPolicy.hasRequiredComposition("Abcdefg1 ")).isFalse();
     }
 
     @Test
     void kisaKimlikParcalariYanlisPozitifUretmez() {
         // Kullanıcı adı 4 karakterden kısaysa parolada aranmaz.
-        assertThat(policy.isWeak("correct-horse-battery-staple", EMAIL, "abc")).isFalse();
-        assertThat(policy.isWeak("correct-horse-battery-staple", null, null)).isFalse();
+        assertThat(policy.isWeak("Correct-Horse-Battery-9", EMAIL, "abc")).isFalse();
+        assertThat(policy.isWeak("Correct-Horse-Battery-9", null, null)).isFalse();
     }
 }

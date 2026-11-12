@@ -118,6 +118,295 @@
       "network": "Bağlantı kurulamadı veya istek zaman aşımına uğradı. İşlem yaptıysan tekrar göndermeden önce güncel durumu kontrol et."
     }
   },
+  "Review": {
+    "meta": {
+      "hub": "İncelemeler",
+      "hubDescription": "Oyunları puanla, tavsiye et, inceleme yaz ve diğer oyuncuların incelemelerini oku.",
+      "game": "Oyun incelemeleri",
+      "write": "İnceleme yaz",
+      "detail": "İnceleme",
+      "statistics": "İnceleme istatistikleri",
+      "mine": "İncelemelerim"
+    },
+    "loading": "Yükleniyor",
+    "retry": "Tekrar dene",
+    "retryWait": "{seconds} sn sonra tekrar dene",
+    "login": "Giriş yap",
+    "cancel": "Vazgeç",
+    "saving": "Kaydediliyor…",
+    "reloadLatest": "Güncel halini yükle",
+    "breadcrumb": "Sayfa yolu",
+    "coverAlt": "{title} kapak görseli",
+    "pagination": {
+      "previous": "Önceki",
+      "next": "Sonraki",
+      "page": "Sayfa {page} / {pages}"
+    },
+    "hub": {
+      "title": "İncelemeler",
+      "description": "Oyunları 1–10 arası puanla, olumlu ya da olumsuz tavsiye ver ve deneyimini yaz. İncelemelere oyun üzerinden ulaşılır.",
+      "conceptsTitle": "Puan, tavsiye ve inceleme farkı",
+      "concepts": {
+        "rating": {
+          "title": "Puan",
+          "text": "1–10 arası tam sayı. Metin yazmadan da verilebilir ve LTZ ortalamasına girer."
+        },
+        "recommendation": {
+          "title": "Tavsiye",
+          "text": "Olumlu ya da olumsuz. Puandan bağımsızdır; seçmediysen \"olumsuz\" sayılmaz."
+        },
+        "review": {
+          "title": "İnceleme",
+          "text": "Oyun başına bir metin. Silersen yalnız metin kalkar; puanın ve tavsiyen korunur."
+        }
+      },
+      "findTitle": "Oyun seç",
+      "findDescription": "Katalogdan bir oyun ara ve incelemelerini, puanını ve istatistiklerini aç.",
+      "searchLabel": "Katalogda oyun ara",
+      "searchPlaceholder": "Oyun adı",
+      "searchButton": "Ara",
+      "clearSearch": "Aramayı temizle",
+      "total": "{count} oyun",
+      "totalFor": "\"{query}\" için {count} oyun",
+      "noResults": "\"{query}\" için oyun bulunamadı",
+      "noResultsHint": "Yazımı kontrol et veya adın ilk harflerini dene. Arama oyun adının başına göre çalışır.",
+      "noGames": "Katalogda gösterilecek oyun yok",
+      "noGamesHint": "Oyunlar katalogda göründüğünde burada listelenir.",
+      "rating": "LTZ puanı {average} / 10 · {count} puan",
+      "noRating": "Henüz puan yok",
+      "ratingUnknown": "Puan bilgisi alınamadı",
+      "summaryUnavailable": "Puan bilgileri şu anda alınamıyor.",
+      "open": "İncelemeleri aç",
+      "openFor": "İncelemeleri aç: {title}",
+      "pagination": "Oyun sayfaları",
+      "capabilitiesTitle": "Neler yapabilirsin",
+      "capabilities": {
+        "rate": "Oyuna 1–10 arası puan ver ve istediğin zaman güncelle.",
+        "recommend": "Oyunu öneriyor musun, önermiyor musun; puandan ayrı olarak belirt.",
+        "write": "Oyun başına bir inceleme yaz, düzenle ya da sil.",
+        "like": "Diğer oyuncuların incelemelerini beğen.",
+        "statistics": "Puan dağılımını, inceleme sayısını ve tavsiye oranlarını gör."
+      },
+      "limitsTitle": "Şimdilik kapsam dışı",
+      "limitsText": "İncelemeler oyun bazında listelenir. Tüm oyunlardan tek bir akış ve yazar profilleri henüz sunulmuyor.",
+      "mine": "İncelemelerim"
+    },
+    "game": {
+      "unknown": "Oyun",
+      "unavailable": "Oyun bilgisi şu anda alınamıyor. İnceleme verileri etkilenmedi.",
+      "open": "Oyun sayfasını aç",
+      "write": "İnceleme yaz",
+      "statistics": "İstatistikler",
+      "overview": "Özet",
+      "reviewsLink": "Oyun incelemeleri",
+      "mineTitle": "Senin değerlendirmen",
+      "mineDescription": "Puan ve tavsiye birbirinden ve inceleme metninden bağımsız kayıtlardır; her biri ayrı kaydedilir.",
+      "openMine": "İncelemeni aç"
+    },
+    "rating": {
+      "title": "Puanın",
+      "description": "1–10 arası tam sayı. Metin yazmadan da verebilirsin.",
+      "label": "Oyun puanı",
+      "option": "{value} puan",
+      "none": "Henüz puan vermedin.",
+      "saved": "Kayıtlı puanın: {value} / 10",
+      "save": "Puanı kaydet",
+      "done": "Puanın kaydedildi."
+    },
+    "recommendation": {
+      "title": "Tavsiyen",
+      "description": "Oyunu başkalarına önerir misin? Puandan bağımsızdır.",
+      "label": "Oyun tavsiyesi",
+      "yes": "Öneriyorum",
+      "no": "Önermiyorum",
+      "none": "Henüz tavsiye vermedin.",
+      "savedYes": "Kayıtlı tavsiyen: Öneriyorum",
+      "savedNo": "Kayıtlı tavsiyen: Önermiyorum",
+      "save": "Tavsiyeyi kaydet",
+      "done": "Tavsiyen kaydedildi."
+    },
+    "featured": {
+      "title": "Öne çıkan incelemeler",
+      "description": "En çok beğenilenden başlayarak sıralanır; eşitlikte yeni olan öne gelir. Sıralama sunucudan gelir ve değiştirilemez.",
+      "filterLabel": "İnceleme filtreleri",
+      "minLikes": "En az beğeni",
+      "pageSize": "Sayfa başına",
+      "apply": "Uygula",
+      "clear": "Filtreyi temizle",
+      "total": "{count} inceleme",
+      "empty": "Bu oyun için henüz inceleme yok",
+      "emptyHint": "İlk incelemeyi sen yazabilirsin.",
+      "emptyFiltered": "Bu filtreyle inceleme yok",
+      "emptyFilteredHint": "En az beğeni değerini düşürmeyi dene.",
+      "pageEmpty": "Bu sayfada inceleme yok",
+      "firstPage": "İlk sayfaya dön",
+      "pagination": "İnceleme sayfaları"
+    },
+    "card": {
+      "mine": "Senin incelemen",
+      "created": "Yazıldı: {date}",
+      "edited": "Düzenlendi: {date}",
+      "dateUnknown": "Tarih bilinmiyor",
+      "open": "Ayrıntıyı oku",
+      "openMine": "Aç ve yönet",
+      "anonymousAuthor": "Bir oyuncu"
+    },
+    "like": {
+      "add": "Beğen",
+      "remove": "Beğeniyi kaldır",
+      "count": "{count} beğeni",
+      "own": "kendi incelemeni beğenemezsin",
+      "wait": "Çok fazla istek gönderildi. {seconds} saniye sonra tekrar deneyebilirsin."
+    },
+    "form": {
+      "label": "İnceleme metni",
+      "placeholder": "Oyun hakkındaki deneyimini yaz…",
+      "help": "Düz metin. HTML çalıştırılmaz. Baştaki ve sondaki boşluklar silinir.",
+      "counter": "{count} / {max} karakter",
+      "issue": {
+        "required": "İnceleme boş olamaz.",
+        "tooLong": "İnceleme en fazla {max} karakter olabilir.",
+        "invalidCharacters": "İnceleme desteklenmeyen denetim karakterleri içeriyor."
+      }
+    },
+    "write": {
+      "title": "İnceleme yaz",
+      "description": "Bu oyun için tek bir inceleme yazabilirsin. Sonradan düzenleyebilir ya da silebilirsin.",
+      "summary": "LTZ puanı {average} / 10 · {count} puan",
+      "summaryNone": "Bu oyun henüz puanlanmadı.",
+      "submit": "İncelemeyi yayınla",
+      "duplicateHint": "Yeni inceleme yazmak yerine mevcut incelemeni düzenleyebilirsin.",
+      "foundMine": "İncelemeni aç ve düzenle",
+      "asideTitle": "Bilmen gerekenler",
+      "asideIndependent": "Puanın ve tavsiyen bu metinden bağımsızdır; onları oyun incelemeleri sayfasından ayrıca verirsin.",
+      "asideDelete": "İncelemeyi silersen yalnız metin kalkar. Puanın ve tavsiyen korunur.",
+      "asidePlain": "İnceleme düz metin olarak gösterilir; bağlantılar ve biçimlendirme çalışmaz.",
+      "asideLink": "Puan ve tavsiye ver",
+      "alreadyHave": "Bu oyun için zaten bir incelemen var.",
+      "draftKept": "Yazdığın taslak bu sayfada duruyor; yeni inceleme olarak gönderilmez."
+    },
+    "detail": {
+      "title": "İnceleme",
+      "titleMine": "Senin incelemen",
+      "notFound": "İnceleme bulunamadı",
+      "notFoundHint": "İnceleme silinmiş olabilir ya da bağlantı hatalı.",
+      "edit": "Düzenle",
+      "delete": "Sil",
+      "saveEdit": "Değişiklikleri kaydet",
+      "saved": "İncelemen güncellendi.",
+      "conflictTitle": "İnceleme başka bir yerde değişmiş",
+      "conflictHint": "Yazdıklarını silmedik. Güncel halini yükleyip metnini kontrol ettikten sonra tekrar kaydedebilirsin.",
+      "deleteTitle": "İnceleme silinsin mi?",
+      "deleteDescription": "Yalnız inceleme metni silinir; bu oyuna verdiğin puan ve tavsiye korunur. Bu işlem geri alınamaz.",
+      "deleteConfirm": "İncelemeyi sil"
+    },
+    "statistics": {
+      "title": "İnceleme istatistikleri",
+      "description": "Puanlar, metin incelemeleri ve tavsiyeler üç ayrı sayıdır; birbirinin yerine kullanılmaz.",
+      "back": "Oyun incelemelerine dön",
+      "empty": "Bu oyun için henüz puan, inceleme veya tavsiye yok.",
+      "note": "Sayılar Review servisinden o anda okunan değerlerdir. Oyunun Game kataloğunda yayında olduğunu doğrulamaz."
+    },
+    "stats": {
+      "average": "Ortalama LTZ puanı",
+      "averageValue": "{average} / 10",
+      "averageHint": "Yalnız sayısal puanlardan hesaplanır.",
+      "noRating": "Henüz puan yok",
+      "noRatingHint": "Puan verilmediği için ortalama hesaplanamaz.",
+      "ratingCount": "Puan veren kullanıcı",
+      "ratingCountHint": "Her kullanıcı bir oyuna tek puan verir.",
+      "activeReviews": "Aktif inceleme",
+      "activeReviewsHint": "Yazılı metinler; puan veya tavsiyeden farklı bir sayıdır.",
+      "recommended": "Olumlu tavsiye",
+      "recommendedHint": "{yes} olumlu · {no} olumsuz",
+      "noRecommendation": "Henüz tavsiye yok",
+      "noRecommendationHint": "Tavsiye verilmediği için oran hesaplanamaz.",
+      "histogramTitle": "Puan dağılımı",
+      "histogramSummary": "{count} kullanıcı puan verdi; ortalama {average} / 10.",
+      "histogramEmpty": "Henüz puan verilmedi; tüm kovalar boş.",
+      "bucket": "{rating} puan: {count} kullanıcı",
+      "recommendationTitle": "Tavsiye dağılımı",
+      "recommendationDescription": "Yalnız tavsiye veren kullanıcılar sayılır; puan veren veya inceleme yazan herkes değil.",
+      "recommendationEmpty": "Henüz tavsiye verilmedi.",
+      "recommendationBasis": "Oranlar toplam {total} tavsiye üzerinden hesaplanır.",
+      "users": "{count} kullanıcı"
+    },
+    "errors": {
+      "401": "Oturumun sona erdi. Devam etmek için giriş yap.",
+      "403": "Bu işlem için erişim iznin yok.",
+      "404": "Kayıt bulunamadı.",
+      "413": "Gönderilen veri çok büyük.",
+      "429": "Çok fazla istek gönderildi. Biraz bekleyip tekrar dene.",
+      "500": "Sunucu işlemi tamamlayamadı. Güncel durumu kontrol edip tekrar dene.",
+      "503": "Servis geçici olarak kullanılamıyor. Biraz sonra tekrar dene.",
+      "network": "Bağlantı kurulamadı veya istek zaman aşımına uğradı. İşlem yaptıysan tekrar göndermeden önce güncel durumu kontrol et.",
+      "csrf": "Güvenlik doğrulaması tamamlanamadı. Sayfayı yenileyerek tekrar dene.",
+      "invalidBody": "İnceleme metni geçerli değil. 1–5000 karakter düz metin yazmalısın.",
+      "badRequest": "İstek geçersiz. Seçimlerini kontrol edip tekrar dene.",
+      "403like": "Bu incelemeyi beğenemezsin. Kendi incelemeni beğenemezsin; hesabın bu işleme kapalı da olabilir.",
+      "403owner": "Bu işlemi yalnız incelemenin sahibi yapabilir.",
+      "404review": "İnceleme bulunamadı veya silinmiş.",
+      "404game": "Oyun bulunamadı veya şu anda kullanılamıyor.",
+      "409create": "Bu oyun için zaten bir incelemen var.",
+      "409version": "İnceleme başka bir yerde değişti. Yaptığın işlem uygulanmadı; güncel halini yükleyip tekrar dene.",
+      "429wait": "Çok fazla istek gönderildi. {seconds} saniye sonra tekrar dene.",
+      "403report": "Kendi incelemeni raporlayamazsın veya hesabın bu işleme kapalı.",
+      "409report": "Bu incelemeyi zaten raporladın.",
+      "invalidReport": "Rapor geçerli değil. Gerekçeyi ve açıklama uzunluğunu kontrol et.",
+      "moderated": "Bu inceleme moderasyon nedeniyle değiştirilemez."
+    },
+    "mine": {
+      "title": "İncelemelerim",
+      "description": "Tüm oyunlardaki görünür incelemelerin; en yenisi önce. Silinen incelemeler burada görünmez.",
+      "total": "{count} inceleme",
+      "empty": "Henüz inceleme yazmadın",
+      "emptyHint": "Bir oyun seçip deneyimini yazabilirsin.",
+      "find": "Oyun seç",
+      "pagination": "İncelemelerim sayfaları",
+      "gamesUnavailable": "Oyun adları şu anda alınamıyor."
+    },
+    "report": {
+      "open": "Raporla",
+      "title": "İncelemeyi raporla",
+      "description": "Bu inceleme kurallara aykırıysa gerekçeni seç. Rapor kaydedilir; aynı incelemeyi bir kez raporlayabilirsin.",
+      "reasonLabel": "Gerekçe",
+      "reasonPlaceholder": "Gerekçe seç",
+      "reasonRequired": "Bir gerekçe seçmelisin.",
+      "reasons": {
+        "SPAM": "Spam veya reklam",
+        "HARASSMENT": "Taciz veya hakaret",
+        "HATE_SPEECH": "Nefret söylemi",
+        "PERSONAL_INFO": "Kişisel bilgi ifşası",
+        "SPOILER": "Gizlenmemiş spoiler",
+        "OFF_TOPIC": "Oyunla ilgisiz",
+        "OTHER": "Diğer"
+      },
+      "detailLabel": "Açıklama (isteğe bağlı)",
+      "counter": "{count} / {max} karakter",
+      "issue": {
+        "tooLong": "Açıklama en fazla {max} karakter olabilir.",
+        "invalidCharacters": "Açıklama desteklenmeyen denetim karakterleri içeriyor."
+      },
+      "privacy": "Raporunu yalnız sen görürsün; inceleme sahibi kimin raporladığını öğrenmez. Raporlar moderatörler tarafından incelenir; sonuç (işlem yapılıp yapılmadığı) paylaşılmaz.",
+      "submit": "Raporu gönder",
+      "done": "Raporun kaydedildi.",
+      "doneAt": "Raporladın · {date}",
+      "already": "Bu incelemeyi zaten raporladın.",
+      "closed": "Raporun sonuçlandı."
+    },
+    "moderation": {
+      "HIDDEN": {
+        "badge": "Gizlendi",
+        "title": "Bu inceleme moderatörler tarafından gizlendi",
+        "hint": "Diğer oyuncular bu incelemeyi göremez; puanın ve tavsiyen etkilenmedi. Düzenleyemezsin, ancak istersen silebilirsin."
+      },
+      "ARCHIVED": {
+        "badge": "Arşivlendi",
+        "title": "Bu inceleme arşivlendi",
+        "hint": "Diğer oyuncular bu incelemeyi göremez; puanın ve tavsiyen etkilenmedi. Arşivlenen inceleme düzenlenemez ve silinemez."
+      }
+    }
+  },
   "Metadata": {
     "siteName": "LobbyTwoZero",
     "description": "LobbyTwoZero; oyun keşfi, oyuncu topluluğu, sosyal etkileşim ile donanım ve oyun performansı deneyimleri için geliştirilen oyun odaklı sosyal platformdur."
@@ -306,6 +595,10 @@
     "libraryPrivacy": {
       "title": "Kütüphane Gizliliği",
       "description": "Kütüphaneni kimlerin görebileceğini belirle."
+    },
+    "reviews": {
+      "title": "İncelemeler",
+      "description": "Oyunları puanla, tavsiye et ve inceleme yaz; diğer oyuncuların incelemelerini oku."
     },
     "games": {
       "title": "Oyunlar",
@@ -1171,7 +1464,8 @@
         "required": "Şifreni gir.",
         "tooLong": "En fazla {max} karakter olabilir.",
         "tooShort": "En az {min} karakter olmalı.",
-        "weak": "Bu şifre tahmin edilmesi kolay. Daha uzun ve benzersiz bir şifre seç.",
+        "composition": "En az bir büyük harf, bir küçük harf, bir rakam ve bir özel karakter (. , / _ - ! gibi) içermeli.",
+        "weak": "Bu şifre kurallara uymuyor ya da tahmin edilmesi kolay. Büyük/küçük harf, rakam ve özel karakter kullan; yaygın şifrelerden kaçın.",
         "invalid": "Şifre geçersiz."
       },
       "username": {
@@ -1201,7 +1495,8 @@
         "required": "Yeni şifreni gir.",
         "tooShort": "En az {min} karakter olmalı.",
         "tooLong": "En fazla {max} karakter olabilir.",
-        "weak": "Bu şifre tahmin edilmesi kolay. Daha uzun ve benzersiz bir şifre seç.",
+        "composition": "En az bir büyük harf, bir küçük harf, bir rakam ve bir özel karakter (. , / _ - ! gibi) içermeli.",
+        "weak": "Bu şifre kurallara uymuyor ya da tahmin edilmesi kolay. Büyük/küçük harf, rakam ve özel karakter kullan; yaygın şifrelerden kaçın.",
         "same": "Yeni şifre mevcut şifrenden farklı olmalı.",
         "invalid": "Şifre geçersiz."
       },
@@ -1259,7 +1554,7 @@
       "emailPlaceholder": "E-posta adresini gir",
       "password": "Şifre",
       "passwordPlaceholder": "Şifreni belirle",
-      "passwordHint": "En az {min} karakter. Güçlü ve benzersiz bir şifre kullan.",
+      "passwordHint": "En az {min} karakter; büyük harf, küçük harf, rakam ve özel karakter içermeli.",
       "terms": "<terms>Kullanım koşullarını</terms> kabul ediyorum. Kişisel veriler için <privacy>Gizlilik politikasını</privacy> incele.",
       "submit": "Hesap oluştur",
       "submitting": "Hesap oluşturuluyor…",
@@ -2299,7 +2594,7 @@
         "intro": "Hesabın parolasız. Parola belirleyince e-posta değiştirme ve hesap bağlama açılır. Doğrulanmış e-postana bir kod göndeririz.",
         "sendCode": "Kod gönder",
         "emailCode": "E-postana gelen kod",
-        "newPassword": "Yeni parola (en az 15 karakter)",
+        "newPassword": "Yeni parola (en az 8 karakter)",
         "confirmation": "Yeni parola (tekrar)",
         "mismatch": "Parolalar aynı değil.",
         "submit": "Parolayı belirle",

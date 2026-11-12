@@ -1,7 +1,11 @@
 package com.ltz.hardware.application.service;
 
-import com.ltz.hardware.api.dto.request.*;
-import com.ltz.hardware.api.dto.response.*;
+import com.ltz.hardware.api.dto.request.ArchiveCatalogEntryRequest;
+import com.ltz.hardware.api.dto.request.CreateHardwareProductRequest;
+import com.ltz.hardware.api.dto.request.HardwareCatalogFilter;
+import com.ltz.hardware.api.dto.request.UpdateHardwareProductRequest;
+import com.ltz.hardware.api.dto.response.HardwareCatalogPageResponse;
+import com.ltz.hardware.api.dto.response.HardwareProductResponse;
 import com.ltz.hardware.application.mapper.HardwareCatalogMapper;
 import com.ltz.hardware.application.mapper.HardwareComponentMapper;
 import com.ltz.hardware.application.port.CatalogWriteAccess;
@@ -10,7 +14,11 @@ import com.ltz.hardware.domain.entity.HardwareBrand;
 import com.ltz.hardware.domain.entity.HardwareProduct;
 import com.ltz.hardware.domain.enums.CatalogStatus;
 import com.ltz.hardware.domain.exception.HardwareNotFoundException;
-import com.ltz.hardware.infrastructure.persistence.repository.*;
+import com.ltz.hardware.infrastructure.persistence.repository.HardwareBrandRepository;
+import com.ltz.hardware.infrastructure.persistence.repository.HardwareCatalogAuditRepository;
+import com.ltz.hardware.infrastructure.persistence.repository.HardwareCatalogSearch;
+import com.ltz.hardware.infrastructure.persistence.repository.HardwareCatalogSourceRepository;
+import com.ltz.hardware.infrastructure.persistence.repository.HardwareProductRepository;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -87,15 +95,19 @@ public class HardwareCatalogService {
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public HardwareCatalogPageResponse<HardwareProductResponse> list(HardwareCatalogFilter filter, int page, int size) {
-        return list(filter, page, size, false);
+        return listPage(filter, page, size, false);
     }
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public HardwareCatalogPageResponse<HardwareProductResponse> list(HardwareCatalogFilter filter, int page, int size, boolean discovery) {
+        return listPage(filter, page, size, discovery);
+    }
+
+    private HardwareCatalogPageResponse<HardwareProductResponse> listPage(HardwareCatalogFilter filter, int page, int size, boolean discovery) {
         actor.requireUserId();
         if (!filter.isRangesValid()) throw new IllegalArgumentException("Geçersiz teknik aralık");
-        var criteria = HardwareCatalogSearch.matching(filter.q(), CatalogStatus.ACTIVE, filter.category(),
-                filter.brandId(), filter.brand(), java.util.List.of(
+        var criteria = HardwareCatalogSearch.matching(new HardwareCatalogSearch.Selection(filter.q(), CatalogStatus.ACTIVE, filter.category(),
+                filter.brandId(), filter.brand()), new HardwareCatalogSearch.Constraints(java.util.List.of(
                         new HardwareCatalogSearch.NumericRange("capacityGb", filter.minCapacityGb(), filter.maxCapacityGb()),
                         new HardwareCatalogSearch.NumericRange("clockMhz", filter.minClockMhz(), filter.maxClockMhz()),
                         new HardwareCatalogSearch.NumericRange("coreCount", filter.minCoreCount(), filter.maxCoreCount()),
@@ -118,7 +130,7 @@ public class HardwareCatalogService {
                 java.util.List.of(new HardwareCatalogSearch.TypedPrefix("chipset",
                         com.ltz.hardware.domain.enums.GpuVendor.prefixes(filter.gpuVendor()))),
                 java.util.List.of(new HardwareCatalogSearch.TypedPresence("integratedGraphics",
-                        Boolean.TRUE.equals(filter.integratedGraphics()))));
+                        Boolean.TRUE.equals(filter.integratedGraphics())))));
         if (discovery) criteria = criteria.and((root, query, cb) -> root.get("category").in(
                 com.ltz.hardware.domain.enums.ComponentCategory.CPU, com.ltz.hardware.domain.enums.ComponentCategory.MOTHERBOARD,
                 com.ltz.hardware.domain.enums.ComponentCategory.RAM, com.ltz.hardware.domain.enums.ComponentCategory.STORAGE,

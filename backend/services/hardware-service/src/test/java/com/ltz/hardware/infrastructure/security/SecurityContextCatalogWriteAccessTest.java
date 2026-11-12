@@ -13,7 +13,8 @@ import org.springframework.security.authentication.InsufficientAuthenticationExc
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SecurityContextCatalogWriteAccessTest {
     final SecurityContextCatalogWriteAccess access = new SecurityContextCatalogWriteAccess(new SecurityContextCurrentActor(mock(com.ltz.hardware.infrastructure.persistence.repository.HardwareAccountAccessGuard.class)));

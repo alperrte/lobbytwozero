@@ -297,7 +297,8 @@ class HardwareServiceClientsTest {
         assertThat(new HardwareClientProperties(origin, origin, null).configured()).isFalse();
         assertThatThrownBy(() -> new HardwareClientProperties(null, origin, SECRET)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new HardwareClientProperties(origin, null, SECRET)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new HardwareClientProperties(origin, origin, "x".repeat(257)))
+        String oversized = "x".repeat(257);
+        assertThatThrownBy(() -> new HardwareClientProperties(origin, origin, oversized))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThat(List.of(properties.userServiceUrl(), properties.performanceServiceUrl())).containsOnly(origin);
     }

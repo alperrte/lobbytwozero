@@ -168,7 +168,9 @@ class AccountErasureTest {
 
     @Test void accountErasureRejectsNullIdentity() {
         var service = new AccountErasureService(mock(org.springframework.jdbc.core.simple.JdbcClient.class),
-                mock(com.ltz.review.infrastructure.persistence.repository.AccountWriteLock.class));
+                mock(com.ltz.review.infrastructure.persistence.repository.AccountWriteLock.class),
+                mock(com.ltz.review.infrastructure.persistence.repository.UserSummaryOutbox.class),
+                mock(com.ltz.review.infrastructure.persistence.repository.ModerationRepository.class));
         assertThrows(NullPointerException.class, () -> service.erase(null));
     }
 

@@ -50,7 +50,7 @@ import jakarta.servlet.http.Cookie;
 @SpringBootTest
 public abstract class IntegrationTestSupport {
 
-    protected static final String VALID_PASSWORD = "correct-horse-battery-staple";
+    protected static final String VALID_PASSWORD = "Correct-Horse-Battery-9";
 
     protected static final String ACCESS_COOKIE = "__Host-ltz_access";
     protected static final String REFRESH_COOKIE = "__Secure-ltz_refresh";

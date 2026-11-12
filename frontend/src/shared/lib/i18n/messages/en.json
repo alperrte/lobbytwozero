@@ -118,6 +118,295 @@
       "network": "Could not connect or the request timed out. If you made a change, check the current state before submitting again."
     }
   },
+  "Review": {
+    "meta": {
+      "hub": "Reviews",
+      "hubDescription": "Rate games, recommend them, write reviews and read other players' reviews.",
+      "game": "Game reviews",
+      "write": "Write a review",
+      "detail": "Review",
+      "statistics": "Review statistics",
+      "mine": "My reviews"
+    },
+    "loading": "Loading",
+    "retry": "Try again",
+    "retryWait": "Try again in {seconds}s",
+    "login": "Sign in",
+    "cancel": "Cancel",
+    "saving": "Saving…",
+    "reloadLatest": "Load latest version",
+    "breadcrumb": "Breadcrumb",
+    "coverAlt": "{title} cover image",
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next",
+      "page": "Page {page} of {pages}"
+    },
+    "hub": {
+      "title": "Reviews",
+      "description": "Rate games from 1 to 10, give a positive or negative recommendation and write about your experience. Reviews are reached through a game.",
+      "conceptsTitle": "Rating, recommendation and review",
+      "concepts": {
+        "rating": {
+          "title": "Rating",
+          "text": "A whole number from 1 to 10. You can give it without writing text, and it counts toward the LTZ average."
+        },
+        "recommendation": {
+          "title": "Recommendation",
+          "text": "Positive or negative. It is independent of your rating; not choosing one is not a negative."
+        },
+        "review": {
+          "title": "Review",
+          "text": "One text per game. Deleting it removes only the text; your rating and recommendation stay."
+        }
+      },
+      "findTitle": "Choose a game",
+      "findDescription": "Search the catalogue for a game and open its reviews, rating and statistics.",
+      "searchLabel": "Search the catalogue",
+      "searchPlaceholder": "Game title",
+      "searchButton": "Search",
+      "clearSearch": "Clear search",
+      "total": "{count} games",
+      "totalFor": "{count} games for \"{query}\"",
+      "noResults": "No games found for \"{query}\"",
+      "noResultsHint": "Check the spelling or try the first letters of the title. Search matches the beginning of a title.",
+      "noGames": "There are no games to show in the catalogue",
+      "noGamesHint": "Games appear here once they are listed in the catalogue.",
+      "rating": "LTZ rating {average} / 10 · {count} ratings",
+      "noRating": "No ratings yet",
+      "ratingUnknown": "Rating unavailable",
+      "summaryUnavailable": "Ratings are unavailable right now.",
+      "open": "Open reviews",
+      "openFor": "Open reviews: {title}",
+      "pagination": "Game pages",
+      "capabilitiesTitle": "What you can do",
+      "capabilities": {
+        "rate": "Rate a game from 1 to 10 and update it whenever you like.",
+        "recommend": "Say whether you recommend a game, separately from your rating.",
+        "write": "Write, edit or delete one review per game.",
+        "like": "Like other players' reviews.",
+        "statistics": "See the rating distribution, review count and recommendation shares."
+      },
+      "limitsTitle": "Not available yet",
+      "limitsText": "Reviews are listed per game. A single feed across all games and author profiles are not available yet.",
+      "mine": "My reviews"
+    },
+    "game": {
+      "unknown": "Game",
+      "unavailable": "Game information is unavailable right now. Review data is not affected.",
+      "open": "Open game page",
+      "write": "Write a review",
+      "statistics": "Statistics",
+      "overview": "Overview",
+      "reviewsLink": "Game reviews",
+      "mineTitle": "Your assessment",
+      "mineDescription": "Your rating and recommendation are separate records, independent of each other and of any review text; each is saved on its own.",
+      "openMine": "Open your review"
+    },
+    "rating": {
+      "title": "Your rating",
+      "description": "A whole number from 1 to 10. You can give it without writing text.",
+      "label": "Game rating",
+      "option": "{value} points",
+      "none": "You have not rated this game yet.",
+      "saved": "Your saved rating: {value} / 10",
+      "save": "Save rating",
+      "done": "Your rating was saved."
+    },
+    "recommendation": {
+      "title": "Your recommendation",
+      "description": "Would you recommend this game to others? It is independent of your rating.",
+      "label": "Game recommendation",
+      "yes": "I recommend it",
+      "no": "I don't recommend it",
+      "none": "You have not given a recommendation yet.",
+      "savedYes": "Your saved recommendation: I recommend it",
+      "savedNo": "Your saved recommendation: I don't recommend it",
+      "save": "Save recommendation",
+      "done": "Your recommendation was saved."
+    },
+    "featured": {
+      "title": "Featured reviews",
+      "description": "Sorted by most liked first; newer reviews come first when likes are equal. The order comes from the server and cannot be changed.",
+      "filterLabel": "Review filters",
+      "minLikes": "Minimum likes",
+      "pageSize": "Per page",
+      "apply": "Apply",
+      "clear": "Clear filter",
+      "total": "{count} reviews",
+      "empty": "There are no reviews for this game yet",
+      "emptyHint": "You can write the first one.",
+      "emptyFiltered": "No reviews match this filter",
+      "emptyFilteredHint": "Try lowering the minimum likes.",
+      "pageEmpty": "There are no reviews on this page",
+      "firstPage": "Back to the first page",
+      "pagination": "Review pages"
+    },
+    "card": {
+      "mine": "Your review",
+      "created": "Written: {date}",
+      "edited": "Edited: {date}",
+      "dateUnknown": "Date unknown",
+      "open": "Read in full",
+      "openMine": "Open and manage",
+      "anonymousAuthor": "A player"
+    },
+    "like": {
+      "add": "Like",
+      "remove": "Remove like",
+      "count": "{count} likes",
+      "own": "you can't like your own review",
+      "wait": "Too many requests were sent. You can try again in {seconds} seconds."
+    },
+    "form": {
+      "label": "Review text",
+      "placeholder": "Write about your experience with the game…",
+      "help": "Plain text. HTML is not executed. Leading and trailing whitespace is removed.",
+      "counter": "{count} / {max} characters",
+      "issue": {
+        "required": "The review cannot be empty.",
+        "tooLong": "A review can be at most {max} characters.",
+        "invalidCharacters": "The review contains unsupported control characters."
+      }
+    },
+    "write": {
+      "title": "Write a review",
+      "description": "You can write one review for this game. You can edit or delete it later.",
+      "summary": "LTZ rating {average} / 10 · {count} ratings",
+      "summaryNone": "This game has not been rated yet.",
+      "submit": "Publish review",
+      "duplicateHint": "You can edit your existing review instead of writing a new one.",
+      "foundMine": "Open and edit my review",
+      "asideTitle": "Good to know",
+      "asideIndependent": "Your rating and recommendation are independent of this text; you give them separately on the game reviews page.",
+      "asideDelete": "If you delete the review, only the text is removed. Your rating and recommendation stay.",
+      "asidePlain": "Reviews are shown as plain text; links and formatting do not work.",
+      "asideLink": "Give a rating and recommendation",
+      "alreadyHave": "You already have a review for this game.",
+      "draftKept": "Your draft stays on this page; it is not submitted as a new review."
+    },
+    "detail": {
+      "title": "Review",
+      "titleMine": "Your review",
+      "notFound": "Review not found",
+      "notFoundHint": "The review may have been deleted, or the link is wrong.",
+      "edit": "Edit",
+      "delete": "Delete",
+      "saveEdit": "Save changes",
+      "saved": "Your review was updated.",
+      "conflictTitle": "The review changed elsewhere",
+      "conflictHint": "We did not discard what you wrote. Load the latest version, check your text and save again.",
+      "deleteTitle": "Delete this review?",
+      "deleteDescription": "Only the review text is deleted; the rating and recommendation you gave this game stay. This cannot be undone.",
+      "deleteConfirm": "Delete review"
+    },
+    "statistics": {
+      "title": "Review statistics",
+      "description": "Ratings, written reviews and recommendations are three separate counts; none stands in for another.",
+      "back": "Back to game reviews",
+      "empty": "This game has no ratings, reviews or recommendations yet.",
+      "note": "Numbers are read from the Review service at this moment. They do not confirm that the game is listed in the Game catalogue."
+    },
+    "stats": {
+      "average": "Average LTZ rating",
+      "averageValue": "{average} / 10",
+      "averageHint": "Calculated from numeric ratings only.",
+      "noRating": "No ratings yet",
+      "noRatingHint": "There is no average because nobody has rated this game.",
+      "ratingCount": "Users who rated",
+      "ratingCountHint": "Each user gives one rating per game.",
+      "activeReviews": "Active reviews",
+      "activeReviewsHint": "Written texts; a different count from ratings or recommendations.",
+      "recommended": "Positive recommendation",
+      "recommendedHint": "{yes} positive · {no} negative",
+      "noRecommendation": "No recommendations yet",
+      "noRecommendationHint": "There is no share because nobody has given a recommendation.",
+      "histogramTitle": "Rating distribution",
+      "histogramSummary": "{count} users rated; average {average} / 10.",
+      "histogramEmpty": "Nobody has rated yet; every bucket is empty.",
+      "bucket": "{rating} points: {count} users",
+      "recommendationTitle": "Recommendation split",
+      "recommendationDescription": "Only users who gave a recommendation are counted, not everyone who rated or wrote a review.",
+      "recommendationEmpty": "No recommendations yet.",
+      "recommendationBasis": "Shares are calculated from {total} recommendations in total.",
+      "users": "{count} users"
+    },
+    "errors": {
+      "401": "Your session has ended. Sign in to continue.",
+      "403": "You do not have permission for this action.",
+      "404": "Record not found.",
+      "413": "The data you sent is too large.",
+      "429": "Too many requests were sent. Wait a moment and try again.",
+      "500": "The server could not complete the action. Check the current state and try again.",
+      "503": "The service is temporarily unavailable. Try again shortly.",
+      "network": "Could not connect, or the request timed out. If you made a change, check the current state before sending it again.",
+      "csrf": "The security check could not be completed. Refresh the page and try again.",
+      "invalidBody": "The review text is not valid. Write 1–5000 characters of plain text.",
+      "badRequest": "The request is invalid. Check your selections and try again.",
+      "403like": "You can't like this review. You can't like your own review; your account may also be blocked from this action.",
+      "403owner": "Only the author of the review can do this.",
+      "404review": "The review was not found or has been deleted.",
+      "404game": "The game was not found or is currently unavailable.",
+      "409create": "You already have a review for this game.",
+      "409version": "The review changed elsewhere. Your action was not applied; load the latest version and try again.",
+      "429wait": "Too many requests were sent. Try again in {seconds} seconds.",
+      "403report": "You can't report your own review, or your account is blocked from this action.",
+      "409report": "You have already reported this review.",
+      "invalidReport": "The report is not valid. Check the reason and the details length.",
+      "moderated": "This review cannot be changed because of moderation."
+    },
+    "mine": {
+      "title": "My reviews",
+      "description": "Your visible reviews across all games, newest first. Deleted reviews do not appear here.",
+      "total": "{count} reviews",
+      "empty": "You have not written a review yet",
+      "emptyHint": "Pick a game and write about your experience.",
+      "find": "Choose a game",
+      "pagination": "My reviews pages",
+      "gamesUnavailable": "Game titles are unavailable right now."
+    },
+    "report": {
+      "open": "Report",
+      "title": "Report this review",
+      "description": "If this review breaks the rules, choose a reason. The report is saved; you can report a review only once.",
+      "reasonLabel": "Reason",
+      "reasonPlaceholder": "Choose a reason",
+      "reasonRequired": "You must choose a reason.",
+      "reasons": {
+        "SPAM": "Spam or advertising",
+        "HARASSMENT": "Harassment or insults",
+        "HATE_SPEECH": "Hate speech",
+        "PERSONAL_INFO": "Sharing personal information",
+        "SPOILER": "Unmarked spoiler",
+        "OFF_TOPIC": "Unrelated to the game",
+        "OTHER": "Other"
+      },
+      "detailLabel": "Details (optional)",
+      "counter": "{count} / {max} characters",
+      "issue": {
+        "tooLong": "Details can be at most {max} characters.",
+        "invalidCharacters": "The details contain unsupported control characters."
+      },
+      "privacy": "Only you can see your report; the author does not learn who reported. Reports are reviewed by moderators; the outcome (whether action was taken) is not shared.",
+      "submit": "Send report",
+      "done": "Your report was saved.",
+      "doneAt": "You reported this · {date}",
+      "already": "You have already reported this review.",
+      "closed": "Your report has been resolved."
+    },
+    "moderation": {
+      "HIDDEN": {
+        "badge": "Hidden",
+        "title": "This review was hidden by moderators",
+        "hint": "Other players cannot see this review; your rating and recommendation are not affected. You cannot edit it, but you can delete it."
+      },
+      "ARCHIVED": {
+        "badge": "Archived",
+        "title": "This review was archived",
+        "hint": "Other players cannot see this review; your rating and recommendation are not affected. An archived review can be neither edited nor deleted."
+      }
+    }
+  },
   "Metadata": {
     "siteName": "LobbyTwoZero",
     "description": "LobbyTwoZero is a game-focused social platform being built for game discovery, the player community, social interaction, and hardware and game performance experiences."
@@ -306,6 +595,10 @@
     "libraryPrivacy": {
       "title": "Library Privacy",
       "description": "Choose who can see your library."
+    },
+    "reviews": {
+      "title": "Reviews",
+      "description": "Rate games, recommend them and write reviews; read other players' reviews."
     },
     "games": {
       "title": "Games",
@@ -1171,7 +1464,8 @@
         "required": "Enter your password.",
         "tooLong": "Must be at most {max} characters.",
         "tooShort": "Must be at least {min} characters.",
-        "weak": "This password is easy to guess. Choose a longer, unique password.",
+        "composition": "Must include an uppercase letter, a lowercase letter, a number and a special character (such as . , / _ - !).",
+        "weak": "This password does not meet the rules or is easy to guess. Use upper/lower case, a number and a special character; avoid common passwords.",
         "invalid": "The password is not valid."
       },
       "username": {
@@ -1201,7 +1495,8 @@
         "required": "Enter your new password.",
         "tooShort": "Must be at least {min} characters.",
         "tooLong": "Must be at most {max} characters.",
-        "weak": "This password is easy to guess. Choose a longer, unique password.",
+        "composition": "Must include an uppercase letter, a lowercase letter, a number and a special character (such as . , / _ - !).",
+        "weak": "This password does not meet the rules or is easy to guess. Use upper/lower case, a number and a special character; avoid common passwords.",
         "same": "The new password must differ from your current one.",
         "invalid": "The password is not valid."
       },
@@ -1259,7 +1554,7 @@
       "emailPlaceholder": "Enter your email address",
       "password": "Password",
       "passwordPlaceholder": "Choose a password",
-      "passwordHint": "At least {min} characters. Use a strong, unique password.",
+      "passwordHint": "At least {min} characters, with an uppercase letter, a lowercase letter, a number and a special character.",
       "terms": "I accept the <terms>Terms of use</terms>. See the <privacy>Privacy policy</privacy> for how personal data is handled.",
       "submit": "Create account",
       "submitting": "Creating account…",
@@ -2299,7 +2594,7 @@
         "intro": "Your account has no password. Setting one unlocks email change and account linking. We email a code to your verified address.",
         "sendCode": "Send code",
         "emailCode": "Code from your email",
-        "newPassword": "New password (at least 15 characters)",
+        "newPassword": "New password (at least 8 characters)",
         "confirmation": "New password (again)",
         "mismatch": "The passwords do not match.",
         "submit": "Set password",

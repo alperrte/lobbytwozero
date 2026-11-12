@@ -1,7 +1,15 @@
 package com.ltz.hardware.api.controller;
 
-import com.ltz.hardware.api.dto.request.*;
-import com.ltz.hardware.api.dto.response.*;
+import com.ltz.hardware.api.dto.request.ArchiveCatalogEntryRequest;
+import com.ltz.hardware.api.dto.request.CreateHardwareBrandRequest;
+import com.ltz.hardware.api.dto.request.CreateHardwareProductRequest;
+import com.ltz.hardware.api.dto.request.HardwareCatalogFilter;
+import com.ltz.hardware.api.dto.request.UpdateHardwareBrandRequest;
+import com.ltz.hardware.api.dto.request.UpdateHardwareProductRequest;
+import com.ltz.hardware.api.dto.response.HardwareBrandResponse;
+import com.ltz.hardware.api.dto.response.HardwareCatalogFacetsResponse;
+import com.ltz.hardware.api.dto.response.HardwareCatalogPageResponse;
+import com.ltz.hardware.api.dto.response.HardwareProductResponse;
 import com.ltz.hardware.application.service.HardwareBrandService;
 import com.ltz.hardware.application.service.HardwareCatalogFacetService;
 import com.ltz.hardware.application.service.HardwareCatalogService;
@@ -14,7 +22,17 @@ import java.net.URI;
 import java.util.UUID;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.InitBinder;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/hardware/catalog")

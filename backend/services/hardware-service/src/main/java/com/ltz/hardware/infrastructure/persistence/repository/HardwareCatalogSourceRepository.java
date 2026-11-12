@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import tools.jackson.databind.ObjectMapper;
 
@@ -79,21 +81,22 @@ public class HardwareCatalogSourceRepository {
     }
     public Map<UUID, HardwareCatalogSourceResponse> load(Collection<UUID> productIds) {
         if (productIds.isEmpty()) return Map.of();
-        String slots = String.join(",", java.util.Collections.nCopies(productIds.size(), "?"));
-        var arguments = productIds.toArray();
+        var parameters = new MapSqlParameterSource("productIds", productIds);
+        var namedJdbc = new NamedParameterJdbcTemplate(jdbc);
         var images = new HashMap<UUID, List<Image>>();
-        jdbc.query("""
+        namedJdbc.query("""
             SELECT s.product_id,m.id,m.alt,m.width,m.height,m.is_primary FROM hardware_product_media m
             JOIN hardware_product_sources s ON s.id=m.source_id WHERE s.quality='VERIFIED' AND m.rights_verified
-            AND s.product_id IN (""" + slots + ")", rs -> {
+            AND s.product_id IN (:productIds)
+            """, parameters, rs -> {
                 UUID product = rs.getObject(1, UUID.class);
                 UUID image = rs.getObject(2, UUID.class);
                 images.computeIfAbsent(product, key -> new ArrayList<>()).add(new Image(image,
                         "/api/v1/hardware/catalog/products/" + product + "/images/" + image,
                         rs.getString(3), rs.getInt(4), rs.getInt(5), rs.getBoolean(6), true));
-            }, arguments);
+            });
         var result = new HashMap<UUID, HardwareCatalogSourceResponse>();
-        jdbc.query("SELECT * FROM hardware_product_sources WHERE quality='VERIFIED' AND product_id IN (" + slots + ")", rs -> {
+        namedJdbc.query("SELECT * FROM hardware_product_sources WHERE quality='VERIFIED' AND product_id IN (:productIds)", parameters, rs -> {
             UUID id = rs.getObject("product_id", UUID.class);
             List<String> gtins = mapper.readValue(rs.getString("gtins"),
                     mapper.getTypeFactory().constructCollectionType(List.class, String.class));
@@ -106,7 +109,7 @@ public class HardwareCatalogSourceRepository {
                     rs.getString("brand"), rs.getString("mpn"), gtins, rs.getString("locale"),
                     updated == null ? null : updated.toInstant(), rs.getTimestamp("synced_at").toInstant(),
                     "VERIFIED", typed, groups, List.copyOf(images.getOrDefault(id, List.of()))));
-        }, arguments);
+        });
         return result;
     }
     public void media(UUID sourceId, String assetId, com.ltz.hardware.application.port.CatalogMediaStorage.Stored stored,

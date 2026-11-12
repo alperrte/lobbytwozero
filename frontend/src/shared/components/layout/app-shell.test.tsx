@@ -109,8 +109,10 @@ describe("AppShell", () => {
     const nav = screen.getByRole("navigation", { name: "Ana gezinme" });
 
     const links = nav.querySelectorAll("a");
-    expect(links).toHaveLength(8);
+    expect(links).toHaveLength(9);
     expect(links[1]).toHaveAttribute("href", "/tr/oyunlar");
+    expect(within(nav).getByRole("link", { name: "İncelemeler" })).toHaveAttribute("href", "/tr/incelemeler");
+    expect(within(nav).queryByRole("button", { name: "İncelemeler — Yakında" })).not.toBeInTheDocument();
     expect(nav.querySelector('a[href="/tr/arkadaslar"]')).not.toBeNull();
     expect(within(nav).getByRole("link", { name: "Kütüphanem" })).toHaveAttribute("href", "/tr/kutuphane");
     expect(within(nav).queryByRole("button", { name: "Kütüphanem — Yakında" })).not.toBeInTheDocument();
@@ -124,8 +126,8 @@ describe("AppShell", () => {
     expect(nav).not.toHaveTextContent("Profil");
     expect(nav).not.toHaveTextContent("Bilgisayarlarım");
     expect(nav).toHaveTextContent("Kampanyalar");
-    // Yalnız hazır olmayan altı öğe Yakında rozeti taşır.
-    expect(screen.getAllByText("Yakında")).toHaveLength(6);
+    // İncelemeler ve Performans dahil dokuz bağlantı açıktır; beş öğe henüz hazır değildir.
+    expect(screen.getAllByText("Yakında")).toHaveLength(5);
   });
 
   it("14 öğeyi üç grupta, belirlenen sırayla sunar", () => {
@@ -179,21 +181,21 @@ describe("AppShell", () => {
 
   it("'Yakında' öğeleri tıklanamaz: bağlantı değil, aria-disabled düğmedir", () => {
     renderShell();
-    const games = screen.getByRole("button", { name: "İncelemeler — Yakında" });
-    expect(games).toHaveAttribute("aria-disabled", "true");
-    expect(games.closest("a")).toBeNull();
-    // Performance dahil sekiz öğe kullanıma açıktır; diğer bekleyen öğeler pasiftir.
+    const news = screen.getByRole("button", { name: "Haberler — Yakında" });
+    expect(news).toHaveAttribute("aria-disabled", "true");
+    expect(news.closest("a")).toBeNull();
+    // İncelemeler ve Performans dahil dokuz bağlantı açıktır; diğer beş öğe pasiftir.
     expect(
       screen.getAllByRole("button", { name: /— Yakında$/ })
-    ).toHaveLength(6);
+    ).toHaveLength(5);
   });
 
   it("'Yakında' öğesine odaklanınca tooltip çıkar, Escape ile kapanır", () => {
     renderShell();
-    const games = screen.getByRole("button", { name: "İncelemeler — Yakında" });
-    fireEvent.focus(games);
+    const news = screen.getByRole("button", { name: "Haberler — Yakında" });
+    fireEvent.focus(news);
     const tooltip = document.body.querySelector("span[aria-hidden='true'].fixed");
-    expect(tooltip).toHaveTextContent("İncelemeler — Yakında");
+    expect(tooltip).toHaveTextContent("Haberler — Yakında");
 
     act(() => {
       fireEvent.keyDown(document, { key: "Escape" });

@@ -41,14 +41,9 @@ public class PcPartImportService {
         for (int start = 0; start < rows.size(); start += batchSize) {
             var batch = rows.subList(start, Math.min(start + batchSize, rows.size()));
             try {
-                var outcomes = transaction.execute(status -> {
-                    if (!dryRun) repository.lock();
-                    var result = batch.stream().map(row -> repository.upsert(row, dataset.revision(), dryRun)).toList();
-                    if (dryRun) status.setRollbackOnly();
-                    return result;
-                });
+                var outcomes = importBatch(batch, dataset.revision(), dryRun);
                 for (int index = 0; index < batch.size(); index++) counts.get(batch.get(index).category().name())[outcomes.get(index).ordinal()]++;
-            } catch (org.springframework.dao.DataAccessException | org.springframework.transaction.TransactionException exception) {
+            } catch (org.springframework.dao.DataAccessException | org.springframework.transaction.TransactionException _) {
                 // Entire batch rolled back. Later batches can proceed; never log SQL payload/exception text.
                 for (var row : batch) counts.get(row.category().name())[4]++;
                 issues.add(new Issue(batch.getFirst().category(), start + 1, "BATCH_ROLLED_BACK"));
@@ -61,5 +56,15 @@ public class PcPartImportService {
         if (!dryRun) transaction.executeWithoutResult(status -> repository.report(dataset.revision(), dataset.files(),
                 result, partial, started));
         return result;
+    }
+
+    private List<PcPartImportRepository.Outcome> importBatch(
+            List<com.ltz.hardware.domain.entity.PcPartProduct> batch, String revision, boolean dryRun) {
+        return transaction.execute(status -> {
+            if (!dryRun) repository.lock();
+            var result = batch.stream().map(row -> repository.upsert(row, revision, dryRun)).toList();
+            if (dryRun) status.setRollbackOnly();
+            return result;
+        });
     }
 }

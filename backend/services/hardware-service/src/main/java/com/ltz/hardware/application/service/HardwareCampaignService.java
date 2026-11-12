@@ -2,13 +2,16 @@ package com.ltz.hardware.application.service;
 
 import com.ltz.hardware.api.dto.request.ArchiveCatalogEntryRequest;
 import com.ltz.hardware.api.dto.request.SaveHardwareCampaignRequest;
-import com.ltz.hardware.api.dto.response.*;
+import com.ltz.hardware.api.dto.response.HardwareCampaignResponse;
+import com.ltz.hardware.api.dto.response.HardwareCatalogPageResponse;
 import com.ltz.hardware.application.mapper.HardwareCampaignMapper;
 import com.ltz.hardware.application.port.CatalogWriteAccess;
 import com.ltz.hardware.application.port.CurrentActor;
 import com.ltz.hardware.domain.entity.HardwareCampaign;
 import com.ltz.hardware.domain.exception.HardwareNotFoundException;
-import com.ltz.hardware.infrastructure.persistence.repository.*;
+import com.ltz.hardware.infrastructure.persistence.repository.HardwareCampaignRepository;
+import com.ltz.hardware.infrastructure.persistence.repository.HardwareCatalogAuditRepository;
+import com.ltz.hardware.infrastructure.persistence.repository.HardwareProductRepository;
 import java.time.Instant;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;

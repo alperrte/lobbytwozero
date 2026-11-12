@@ -33,7 +33,7 @@ class AbuseQuotaServiceTest {
         Instant start = Instant.parse("2026-11-01T12:00:00Z");
         Instant end = Instant.parse("2026-11-01T12:01:00Z");
         when(repository.consume(account, AbuseAction.REVIEW_CREATE, start, end, 6)).thenReturn(5);
-        var service = service(now, new AbuseControlProperties(null, null));
+        var service = service(now, new AbuseControlProperties(null, null, null));
         assertDoesNotThrow(() -> service.require(account, AbuseAction.REVIEW_CREATE));
         verify(repository).consume(account, AbuseAction.REVIEW_CREATE, start, end, 6);
     }
@@ -41,14 +41,14 @@ class AbuseQuotaServiceTest {
     @Test void exceededQuotaReportsRoundedUpRetryAfter() {
         Instant now = Instant.parse("2026-11-01T12:00:37.250Z");
         when(repository.consume(eq(account), eq(AbuseAction.REVIEW_LIKE), any(), any(), anyInt())).thenReturn(61);
-        var service = service(now, new AbuseControlProperties(null, null));
+        var service = service(now, new AbuseControlProperties(null, null, null));
         var thrown = assertThrows(RateLimitExceededException.class, () -> service.require(account, AbuseAction.REVIEW_LIKE));
         assertEquals(23, thrown.retryAfterSeconds()); // 22,75 sn kaldı
         assertEquals(429, thrown.status());
     }
 
     @Test void customWindowsAreAlignedIndependentlyPerAction() {
-        var properties = new AbuseControlProperties(new AbuseControlProperties.Rule(2, Duration.ofSeconds(10)), null);
+        var properties = new AbuseControlProperties(new AbuseControlProperties.Rule(2, Duration.ofSeconds(10)), null, null);
         Instant start = Instant.parse("2026-11-01T12:00:30Z");
         Instant end = Instant.parse("2026-11-01T12:00:40Z");
         when(repository.consume(account, AbuseAction.REVIEW_CREATE, start, end, 3)).thenReturn(3);

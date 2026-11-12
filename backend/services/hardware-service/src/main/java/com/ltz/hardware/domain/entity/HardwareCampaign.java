@@ -2,7 +2,13 @@ package com.ltz.hardware.domain.entity;
 
 import com.ltz.hardware.domain.enums.CatalogStatus;
 import com.ltz.hardware.domain.exception.HardwareConflictException;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.URI;

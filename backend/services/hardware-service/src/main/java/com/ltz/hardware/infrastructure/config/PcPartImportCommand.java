@@ -5,6 +5,7 @@ import com.ltz.hardware.application.service.PcPartImportService;
 import com.ltz.hardware.infrastructure.client.PcPartDatasetReader;
 import com.ltz.hardware.infrastructure.persistence.repository.PcPartImportRepository;
 import java.nio.file.Path;
+import java.io.IOException;
 import java.util.Map;
 import org.flywaydb.core.Flyway;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -14,25 +15,27 @@ import tools.jackson.databind.ObjectMapper;
 
 /** Separate offline CLI entry point: never registered as a web runner or endpoint. */
 public final class PcPartImportCommand {
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(PcPartImportCommand.class);
+    private static final String POSTGRES = "postgres";
     private record Options(Path directory, boolean dryRun, int batchSize) { }
     private PcPartImportCommand() { }
 
     public static void main(String[] args) {
         try { execute(args, System.getenv()); }
         catch (Exception exception) {
-            System.err.println("PC_PART_IMPORT_FAILED: " + exception.getClass().getSimpleName());
+            LOG.error("PC_PART_IMPORT_FAILED: {}", exception.getClass().getSimpleName());
             System.exit(1);
         }
     }
 
-    static void execute(String[] args, Map<String, String> environment) throws Exception {
+    static void execute(String[] args, Map<String, String> environment) throws IOException {
         validateEnvironment(environment);
         Options options = options(args);
         var json = new ObjectMapper();
         var reader = new PcPartDatasetReader(json, new PcPartMapper(json));
         var dataset = reader.read(options.directory());
-        System.out.println("DATASET_FILES " + json.writeValueAsString(dataset.files()));
-        var source = new DriverManagerDataSource("jdbc:postgresql://" + environment.getOrDefault("POSTGRES_HOST", "postgres")
+        LOG.atInfo().addArgument(() -> json.writeValueAsString(dataset.files())).log("DATASET_FILES {}");
+        var source = new DriverManagerDataSource("jdbc:postgresql://" + environment.getOrDefault("POSTGRES_HOST", POSTGRES)
                 + ":" + environment.getOrDefault("POSTGRES_PORT", "5432") + "/hardware_db",
                 environment.get("POSTGRES_USER"), environment.get("POSTGRES_PASSWORD"));
         var jdbc = new JdbcTemplate(source);
@@ -43,7 +46,7 @@ public final class PcPartImportCommand {
         else flyway.validate();
         var service = new PcPartImportService(new PcPartImportRepository(jdbc, json), new DataSourceTransactionManager(source));
         var result = service.run(dataset, options.batchSize(), options.dryRun());
-        System.out.println("PC_PART_IMPORT_RESULT " + json.writeValueAsString(result));
+        LOG.atInfo().addArgument(() -> json.writeValueAsString(result)).log("PC_PART_IMPORT_RESULT {}");
         if (!result.issues().isEmpty() || result.categories().values().stream().anyMatch(c -> c.skipped() > 0)) {
             throw new IllegalStateException("IMPORT_REQUIRES_REVIEW");
         }
@@ -65,7 +68,7 @@ public final class PcPartImportCommand {
     static void validateEnvironment(Map<String, String> environment) {
         if (!"dev".equals(environment.get("SPRING_PROFILES_ACTIVE"))
                 || !"hardware_db".equals(environment.get("DB_HARDWARE_NAME"))
-                || !java.util.Set.of("postgres", "localhost", "127.0.0.1").contains(environment.getOrDefault("POSTGRES_HOST", "postgres"))) {
+                || !java.util.Set.of(POSTGRES, "localhost", "127.0.0.1").contains(environment.getOrDefault("POSTGRES_HOST", POSTGRES))) {
             throw new IllegalStateException("LOCAL_DEVELOPMENT_ONLY");
         }
     }

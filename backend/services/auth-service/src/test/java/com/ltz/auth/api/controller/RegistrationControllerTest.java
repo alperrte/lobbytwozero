@@ -101,10 +101,13 @@ class RegistrationControllerTest extends IntegrationTestSupport {
         String email = uniqueEmail();
         String username = uniqueUsername();
 
-        register(email, username, "passwordpassword1").andExpect(status().isBadRequest())
+        register(email, username, "Password1!").andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("WEAK_PASSWORD"));
-        // 12-14 karakter artık yetmez (asgari 15).
-        register(email, username, "a1b2-c3d4-e5f6").andExpect(status().isBadRequest())
+        // Bileşim kuralı: büyük harf, küçük harf, rakam ve özel karakterden biri eksikse reddedilir.
+        register(email, username, "kucukharf-12345").andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("WEAK_PASSWORD"));
+        // 7 karakter yetmez (asgari 8).
+        register(email, username, "Ab1!xyz").andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors[0].field").value("password"));
 
         assertThat(accountCount(email)).isZero();
@@ -118,7 +121,7 @@ class RegistrationControllerTest extends IntegrationTestSupport {
                 Arguments.of("kisa kullanici adi", validEmail, "ab", VALID_PASSWORD, "username"),
                 Arguments.of("uzun kullanici adi", validEmail, "a".repeat(21), VALID_PASSWORD, "username"),
                 Arguments.of("izinsiz karakter", validEmail, "bad-name!", VALID_PASSWORD, "username"),
-                Arguments.of("kisa parola", validEmail, "valid_name", "a".repeat(14), "password"),
+                Arguments.of("kisa parola", validEmail, "valid_name", "a".repeat(7), "password"),
                 Arguments.of("uzun parola", validEmail, "valid_name", "a".repeat(129), "password"));
     }
 

@@ -2,7 +2,10 @@ package com.ltz.hardware.infrastructure.messaging.outbox;
 
 import com.ltz.hardware.domain.event.HardwareReviewEvent;
 import com.ltz.hardware.domain.exception.HardwareDeliveryUnavailableException;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.support.SqlArrayValue;

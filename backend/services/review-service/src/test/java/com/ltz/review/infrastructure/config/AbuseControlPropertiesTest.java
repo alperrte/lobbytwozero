@@ -10,7 +10,7 @@ class AbuseControlPropertiesTest {
     static final Duration MINUTE = Duration.ofSeconds(60);
 
     @Test void absentRulesFallBackToApprovedDefaults() {
-        var properties = new AbuseControlProperties(null, null);
+        var properties = new AbuseControlProperties(null, null, null);
         assertEquals(new AbuseControlProperties.Rule(5, MINUTE), properties.rule(AbuseAction.REVIEW_CREATE));
         assertEquals(new AbuseControlProperties.Rule(60, MINUTE), properties.rule(AbuseAction.REVIEW_LIKE));
     }

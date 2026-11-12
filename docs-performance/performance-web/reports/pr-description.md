@@ -1,97 +1,72 @@
 # PR Title
 
 ```text
-feat(performance-web): add performance dashboard and privacy controls (PWEB-01–07,10)
+feat(performance): performans web paneli, veri gizliliği ve servis kalite düzeltmeleri
 ```
 
 # PR Description
 
-## Summary
+## Sonuç ve kapsam
 
-Mevcut Next.js uygulamasına LTZ Performance tanıtımını, bağlı cihaz görünümünü, Hardware profillerine dayalı donanım panelini, kayıtlı oturum/grafik/rapor görünümünü ve onaylı gizlilik/veri silme akışlarını ekler. Gerçek olmayan ölçüm, indirme dosyası, uyumluluk sonucu veya öneri üretmez.
+Kullanıcının kayıtlı cihazlarını, donanımını, performans geçmişini, grafiklerini ve raporlarını mevcut Next.js uygulamasında gösterir. Senkronizasyon izni ile onaylı tekli/toplu veri silme akışlarını mevcut Auth, Gateway, Hardware ve Performance sözleşmeleriyle çalıştırır. Main'deki İncelemeler ve feature dalındaki Performans navigasyonu birlikte korunur.
 
-**Kısmi teslim: 8/10 PWEB.** PWEB-08/09 için Recommendation iş API/sözleşmesi bulunmuyor; bu iki özellik tamamlanmış olarak sunulmuyor.
+**Kısmi özellik teslimi: 8/10 PWEB.** PWEB-08/09 için Recommendation iş API/sözleşmesi yoktur. Gerçek olmayan ölçüm, FPS tahmini, indirme dosyası, uyumluluk sonucu veya öneri üretilmez.
 
-## Scope / PDA Tasks
+Kalite düzeltmeleri kullanıcının açık sınırıyla yalnız Hardware/Performance ve Hardware import yardımcılarını kapsar. Başka servislerin kaynaklarına, ortak kalite kurallarına, ENV veya Git kimliğine değişiklik yoktur.
 
-- [x] LTZ-ALP-PWEB-01 — Performance Tanıtım ve Cihaz Yönetimi Arayüzü (PWEB-01–03), kullanıcı commit'i `df308dfa`
-- [x] LTZ-ALP-PWEB-02 — Donanım ve Performans Paneli (PWEB-04–07), kullanıcı commit'i `5cfe014f`
-- [ ] LTZ-ALP-PWEB-03 — Uyumluluk, Öneriler ve Veri Gizliliği Ekranları (PWEB-08–10): PWEB-10 uygulandı; PWEB-08/09 BLOCKED
+## Özellikler
 
-## Implemented Changes
+- **PWEB-01–03:** TR/EN tanıtım sayfası, pasif masaüstü indirme alanı ve mevcut Auth cihazlarını gösteren owner görünümü. Kullanıcı commit'i `df308dfa`.
+- **PWEB-04–07:** çoklu donanım profili, nullable teknik özellikler, kaynak ve gizlilik; sayfalı/filtreli oturum geçmişi; mevcut metrikler için erişilebilir grafik/tablo; manuel kaynak ayrımını koruyan oyun raporları. Kullanıcı commit'i `5cfe014f`.
+- **PWEB-10:** mevcut GET/PUT/DELETE consent ve owner single/bulk DELETE sözleşmeleri, açık onay, çift istek kilidi, iptal ve belirsiz mutasyonda güncel veri kontrolü. Kullanıcı commit'i `22ef905d`; PWEB-08/09 BLOCKED kalır.
+- Özel panel rotaları noindex/sitemap dışıdır. Mevcut session/refresh, cookie/CSRF, no-store, timeout/abort ve hesap değişiminde eski veriyi gizleme davranışları korunur.
 
-### Task 1
+## Hardware ve Performance kalite düzeltmeleri
 
-- `/tr/performans` ve `/en/performance`: ürünün gerçek mevcut yetenekleri, MVP sonrası masaüstü istemcisi açıklaması ve pasif indirme alanı.
-- `DeviceList`: mevcut `GET /api/v1/performance/devices`, misafir/boş/yükleniyor/hata/yeniden dene; hesap değişiminde eski veriyi gizleme.
-- Mevcut sidebar/footer/page kataloğu ve TR/EN yönlendirme altyapısıyla bütünleşme.
+- Hardware katalog kaynağı sorguları sabit SQL ve named parametrelerle çalışır; JWT audience/ID null kontrolleri açıklaştırılır.
+- Katalog arama parametreleri seçim/teknik koşul record'larında toplanır; transaction proxy sınırları ve HTTP sözleşmeleri korunur.
+- Icecat ayrıştırıcı, XML sayfalama ve dataset import kodu küçük metotlara ayrılır; gerçek veri limitleri, birimler, karantina ve rollback davranışları değişmez. Tekrar eden sabitler, kullanılmayan importlar ve test lambda uyarıları temizlenir.
+- Hardware import CLI lazy logger argümanları kullanır; yalnız bu CLI'nin izinli logger öneki kaldırılarak mevcut makine özeti biçimi korunur. Ham hata/ENV çıktısı geçirilmez.
+- Performance JWT kontrolü bağlam, zaman ve servis kimliği koşullarına ayrılır. 60 sn ömür, 30 sn tolerans, servis tek audience/jti ve kullanıcı UUID kuralları korunurken kopyalanmış uzun blok azaltılır.
+- Icecat kaynak/birim/limit ve Performance kimlik/zaman/claim regresyonları eklenir. Endpoint, migration, bağımlılık, ENV, kalite eşiği veya exclusion değişikliği yoktur.
 
-### Task 2
+## Servis entegrasyonları ve sınırlar
 
-- `/tr/performans/panel`, `/en/performance/dashboard`; mevcut AppShell/Auth katmanı, noindex ve sitemap dışı özel ekran.
-- `HardwareSnapshot`: çoklu bilgisayar/bileşen sayfalaması, kaynak, nullable özellikler, opsiyonel marka ve gerçek gizlilik durumu.
-- `SessionHistory`: owner geçmişi, 20 satırlık sayfa, durum filtresi; yalnız seçilen oturum için rapor/grafik isteği.
-- `SessionMeasurements`/`MeasurementChart`: 10 metrik, tam/ilk 5/ilk 30 dakika, maxPoints=100, RAW/BUCKET açıklaması, SVG + erişilebilir tablo; eksik değer sıfır olmaz.
-- `SessionReport`/`HardwareProfileReference`: manuel rapor kaynağı, çözünürlük/ayar/ölçümler, gerçek ilgili bilgisayar; tahmin ve ölçüm ayrımı.
+- **Auth:** mevcut session/HttpOnly cookie/refresh/Gateway CSRF akışı tüketilir. Performance cihaz yetkilendirme ve hesap silme bağlantılarının izole kabul kanıtları mevcuttur; yeni Auth kodu veya talebi yoktur.
+- **Hardware:** frontend mevcut profil/detail/privacy sözleşmelerini tüketir. Hardware'ın Performance aktif cihaz sorgusu uygulanmıştır; Performance'ın Hardware profil doğrulamasıyla oturum açma E2E kabulü ayrıca gerekir. Performance özeti için üretim Hardware tüketicisi ayrı iştir.
+- **Game:** Performance batch istemcisi vardır; gerçek Game ile oturum/rapor akışı E2E kabulü ayrıca gerekir.
+- **Recommendation:** henüz uygulama iskeletidir. Performance reference sözleşmesi ve Auth izni hazır olsa da üretim tüketicisi/öneri motoru yoktur; PWEB-08/09 bununla bloke olur. Bu kalite işinde yeni entegrasyon uygulanmadı.
 
-### Task 3
+## Doğrulama
 
-- `PerformancePrivacy`: mevcut GET/PUT/DELETE senkronizasyon izni; açık onay ve geri alma; profil görünürlüğü için mevcut ayarlara erişim.
-- `DeletePerformanceData`: tekli veya toplu oturum silme; bağlı örnek/raporların mevcut backend CASCADE sözleşmesi; cihaz/donanım/izinlerin korunduğunu açıklama.
-- `usePerformanceMutation`: duplicate ref kilidi, unmount iptali; kesinleşen yanıttan sonra başarı; belirsiz sonuçta tekrar mutasyondan önce güncel veri kontrolü.
-- Kullanılamayan uyumluluk/öneri kabiliyetleri için dürüst açıklama; hayali endpoint veya frontend öneri algoritması yok.
-- Mevcut Hardware E2E CSRF fixture ve misafir/shell navigasyon test beklentileri düzeltildi. Üretilen `coverage/**` çıktıları mevcut ESLint build ignore listesine eklendi; kaynak kuralları korunuyor.
+| Kontrol | Gerçek sonuç |
+| --- | --- |
+| Main birleşimi sonrası frontend lint/typecheck/build | PASS |
+| Frontend unit/component | 175 dosya, 1796 PASS, mevcut 1 SKIP |
+| Shell + Performance Chromium E2E | 21/21 PASS; fixture kabulü, canlı servis E2E'si değildir |
+| Son Hardware servis pre-push | 581 test, %93,59 LINE; build/coverage/Checkstyle/PMD PASS; BACKEND TEST CHECK PASSED |
+| Son Performance servis pre-push | 148 test, %97,18 LINE; build/coverage/Checkstyle/PMD PASS; BACKEND TEST CHECK PASSED |
+| Hardware import Node regresyonları | 10/10 PASS |
+| İki modül izole runtime Trivy | HIGH/CRITICAL 0, PASS; yeni bağımlılık yok |
+| Kapsamdaki secret taraması | 30 değişen/yeni kaynak/betik, Gitleaks PASS; üç untracked Java testi dahil |
+| Nihai Sonar'ın taze tam backend test turu | 4369 test, 0 failure/error/skip; build ve merkezi coverage PASS, toplam LINE %95,52 |
+| Hardware Sonar metrikleri | A/A/A; BUG/VULNERABILITY/CODE_SMELL 0/0/0; coverage %90,4, duplication %1,4 |
+| Performance Sonar metrikleri | A/A/A; BUG/VULNERABILITY/CODE_SMELL 0/0/0; coverage %93,6, duplication %2,7 |
+| Global backend Sonar Quality Gate | FAIL; 233 yeni issue, toplam 237 açık issue iki servis dışında; global B/C/A, coverage %91,8, duplication %3,2 |
+| Global pre-push secret kapısı | FAIL/FINDING; main ile gelen Auth test fixture satırları kapsam dışında; kural gevşetilmedi |
+| Frontend Sonar | Mevcut runner yalnız backend analiz eder; frontend sonucu yok |
 
-## Service Integrations
+Sonar CE: `2a57074b-ae96-4f06-9da9-95b3eeca5168`, `ltz-backend`, 12 Kasım 2026. Servis metrikleri, tek backend projesinden alınan gerçek component ölçümleridir; ayrı servis Quality Gate'i varmış gibi PASS iddia edilmez. Birleşmiş kaynaklar henüz commit edilmediğinden scanner SCM revision `22ef905d` ve eksik blame uyarıları vardır.
 
-- **Auth Service:** mevcut SessionProvider/useRequireSession, HttpOnly cookie, ortak refresh, Gateway cookie→Bearer ve double-submit CSRF kullanılır. Yeni Auth talebi gerekmedi; Auth kodu/ENV/güven modeli değiştirilmedi.
-- **Hardware Service:** mevcut profiles/detail/privacy API'leri public frontend feature export'larıyla tüketilir; backend/DTO/DB/migration değişmedi.
-- **Performance Service:** devices, sessions, series, report, sync-consent ve owner single/bulk DELETE uçları tüketilir. `docs/api.md` yalnız PERFORMANCE bölümünde dokuz mevcut endpoint'in PWEB consumer durumu güncellendi; HTTP sözleşmesi değişmedi.
-- **Recommendation / Game Service:** Recommendation yalnız uygulama iskeleti; gerçek uyumluluk/öneri sözleşmesi yok. Game veya başka servisin koduna müdahale edilmedi. PWEB-08/09 ayrı Recommendation geliştirmesi gerektiriyor.
+Güncel kanıt: [servis kalite raporu](../testings/owned-quality-fixes-2026-11-12.md), [main birleştirme raporu](../testings/main-merge-2026-11-12.md). Önceki tam tarayıcı koşusundaki Navbar Ctrl+K focus hatası izole tekrarda geçmişti; yeni birleşmiş kaynakta tüm E2E paketi tekrar çalıştırılmadı, temiz full E2E iddia edilmez.
 
-## Security, Privacy & Accessibility
+## Merge öncesi açık işler
 
-- Özel consumer'lar yalnız doğrulanmış frontend session durumunda mount edilir; hesap değişince alt ağaç yenilenir. Bu UX önlemleri backend yetki kontrolünün yerine geçmez.
-- Sunucu kimliği cookie/JWT/Gateway'de kalır; istemciden userId/X-User-Id güven kaynağı olarak gönderilmez, token saklanmaz.
-- no-store, timeout/abort, encode edilmiş kaynak segmentleri, onaylı mutasyon ve CSRF; belirsiz yanıtta kör retry yok.
-- Silme başarısızsa yerel kayıtlar başarı gibi kaldırılmaz. Açık CSRF reddi bir kez yenilenir; oturum yenileme mevcut ortak client davranışıdır.
-- TR/EN, light/dark, reduced-motion, klavye, gerçek boş/hata durumları, grafik tablo alternatifi ve 375/768/1440 px kontrolleri. Tam WCAG sertifikasyonu iddia edilmez.
-- Fixture E2E canlı Auth/Gateway/servis kabulü değildir. Backend owner/IDOR gerçek test sonucu final kalite raporunda ayrıca belirtilir.
+- [x] Hardware/Performance servis pre-push ve Sonar metrik hedefleri doğrulandı; iki serviste açık issue yok.
+- [ ] Kapsam dışındaki Auth fixture secret bulguları ve diğer servislerin global Sonar borcu giderilmeli.
+- [ ] PWEB-08/09 Recommendation sözleşmesi ve tüketicileri tamamlanmalı veya kısmi teslim kapsamı kabul edilmeli.
+- [ ] Canlı tarayıcı Auth/Gateway/Hardware/Performance kabulü ve birleşmiş kaynakta temiz tam E2E doğrulanmalı.
+- [ ] Frontend Sonar kapsamı ve gerekiyorsa GitHub required check ayarları ayrıca doğrulanmalı.
+- [ ] Kullanıcı devam eden main merge commit'ini ve kalite değişikliklerinin staging/commit işlemini kendisi tamamlamalı.
 
-## Validation
-
-| Check | Result | Evidence |
-| --- | --- | --- |
-| Lint / TypeScript / Build | PASS | Standart npm scriptleri, exit 0; ENV dosya okumaları build/E2E test preload'unda kapalı |
-| Unit / Component | PASS | 161 dosya, 1563 PASS, mevcut 1 SKIP |
-| Feature coverage | PASS | 55 hedefli test; %97,46 line / %83,62 branch, yalnız belirtilen özellik kapsamı |
-| Performance E2E | PASS | 10/10, Chromium; silme/izin + önceki panel regresyonları |
-| Tüm E2E | FAIL / FLAKY | Son tam koşu 305 PASS/1 FAIL/56 mevcut SKIP; Navbar Ctrl+K odak senaryosu izole tekrarda 1/1 PASS; temiz full PASS iddia edilmez |
-| Pre-push | FAIL | Gerçek `pre-push.cmd full dev`, exit 1/NOT SAFE TO COMMIT. İlk eksik Gitleaks giderildi, ayrı secret kontrolleri PASS; mevcut Hardware kalite gate bulguları kaldı |
-| Backend tests / owner / IDOR | PASS | 18 modül 4270 test, 0 failure/error/skip; Performance 138 test/%97,10 line, owner oturum paketi 32/32; build/coverage/18 HTTP health PASS |
-| SonarQube scan / Quality Gate | FAIL | Gerçek analiz yüklendi/işlendi; `ltz-backend`, CE `d72330be-eb5d-4370-875e-e60c9e4bc2e6`, gate FAILED, runner exit 1; frontend scan BLOCKED |
-| Sonar Security / Reliability / Maintainability | C / C / A | Sonar coverage %90,4, duplication %3,3; 13 açık BUG/VULNERABILITY kaydı; mevcut backend kaynakları owner triage gerektiriyor |
-
-Tam ve son sonuç otoritesi: `docs-performance/performance-web/testings/pre-merge-quality.md`.
-
-## Risks / Known Limitations
-
-- PWEB-08/09 Recommendation iş API/sözleşmesi olmadığı için BLOCKED.
-- Canlı tarayıcı Auth/Gateway/Hardware/Performance kabulü NOT VERIFIED; fixture testleri yalnız consumer davranışını doğrular.
-- Masaüstü ölçüm/eşleştirme/indirme MVP sonrasıdır. Senkronizasyon izni kaydetmek masaüstü oturumu başlatmaz.
-- Mevcut Sonar runner frontend taraması sağlamıyor; bu sınır giderilmeden frontend Quality Gate/A doğrulaması iddia edilemez.
-- Son tam tarayıcı koşusunda Navbar Ctrl+K focus hatası kaldı; izole tekrarında geçti. Önceki shell/guest/CSRF fixture hataları gerçek sözleşmelere göre düzeltildi. Test skip veya üretim güvenliği gevşetme yapılmadı.
-- Pre-push ratchet'i Hardware'ın beş mevcut katalog/Icecat/depolama dosyasında altı kural satırı/sekiz baseline-üstü ihlal buldu. Başlangıç HEAD'inden beri backend kaynak diff'i yoktur (`git diff --quiet 085af157 -- backend`: 0); kapsam dışı refactor veya baseline büyütme yapılmadı.
-- Güncel backend Sonar gate FAILED, C/C/A. Başka servis sahiplerinin koduna veya cookie/SQL güven modeline dokunulmadı; yeni issue/coverage koşulları ve exclusion'lar gevşetilmedi. Code smell/hotspot toplamları UNKNOWN; anonim ek ölçüm erişimi 401, mevcut runner bu toplamları yazdırmıyor.
-
-## Review / Merge Checklist
-
-- [ ] 10 PWEB gereksinimi kod + test + belge olarak doğrulandı — 8/10; PWEB-08/09 BLOCKED
-- [ ] Kullanıcı sahipliği/Auth için canlı uçtan uca kabul tamamlandı
-- [ ] Pre-push başarıyla geçti
-- [ ] SonarQube frontend dahil Quality Gate PASS ve A hedefleri doğrulandı
-- [x] Üç taska ait ayrı commit taslakları `reports/commit-messages.md` içinde; ilk iki commit kullanıcıya ait
-- [x] Uygulanmamış backend/desktop/ölçüm özellikleri yapılmış gibi gösterilmedi
-- [x] Bu çalışma sırasında otomatik git add/commit/push/PR/merge ve Git kimliği değişikliği yapılmadı
-
-**Merge readiness: NOT READY FOR MERGE** — PWEB-08/09 bağımlılıkları, başarısız pre-push kalite gate'i, kararsız tam E2E, eksik frontend Sonar kapsamı ve canlı tarayıcı kabulünün doğrulanmamış olması.
+**Merge hazırlığı: NOT READY FOR MERGE.** Kullanıcının Hardware/Performance kalite düzeltme kapsamı tamamlandı; global kapılar ve kapsam dışındaki ürün/entegrasyon işleri tamamlanmış sayılmaz. Otomatik commit, push, PR oluşturma veya merge yapılmadı.

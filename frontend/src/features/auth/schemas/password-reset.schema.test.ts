@@ -12,20 +12,25 @@ describe("validateForgotPassword", () => {
 });
 
 describe("validateReset", () => {
-  const strong = "p".repeat(15);
+  const strong = "Aa1!aaaa";
 
   it("geçerli yeni parola ve eşleşen tekrarı kabul eder", () => {
     expect(validateReset({ newPassword: strong, confirmation: strong })).toEqual({});
   });
 
   it.each([
-    [14, "tooShort"],
-    [15, undefined],
+    [7, "tooShort"],
+    [8, undefined],
     [128, undefined],
     [129, "tooLong"]
   ] as const)("yeni parola %i karakter: %s", (length, expected) => {
-    const password = "p".repeat(length);
+    const password = `Aa1!${"a".repeat(length - 4)}`;
     expect(validateReset({ newPassword: password, confirmation: password }).newPassword).toBe(expected);
+  });
+
+  it("bileşim kuralı: büyük/küçük harf, rakam ve özel karakter şart", () => {
+    expect(validateReset({ newPassword: "aa1!aaaa", confirmation: "aa1!aaaa" }).newPassword).toBe("composition");
+    expect(validateReset({ newPassword: "Aa1aaaaa", confirmation: "Aa1aaaaa" }).newPassword).toBe("composition");
   });
 
   it("boş alanlar zorunludur; tekrar farklıysa eşleşmez", () => {
