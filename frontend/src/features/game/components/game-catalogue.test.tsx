@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import messages from "@/shared/lib/i18n/messages/tr.json";
@@ -38,7 +38,13 @@ function serve(handlers: Partial<Record<GameResource["kind"], (resource: GameRes
 function mount() { return render(<NextIntlClientProvider locale="tr" messages={messages}><GameCatalogue /></NextIntlClientProvider>); }
 const discoveryCalls = () => load.mock.calls.map(([resource]) => resource).filter((resource) => resource.kind === "discovery").map((resource) => new URLSearchParams((resource as { query: string }).query));
 beforeEach(() => { search = ""; serve(); });
-afterEach(() => { vi.resetAllMocks(); replace.mockReset(); push.mockReset(); });
+afterEach(() => {
+  // Bekleyen React efektlerini mock uygulamaları hâlâ geçerliyken temizle.
+  cleanup();
+  vi.resetAllMocks();
+  replace.mockReset();
+  push.mockReset();
+});
 
 describe("Oyun kataloğu", () => {
   it("kart olarak listeler; kapaksız kayıtta yer tutucu kullanır ve puan durumlarını ayırır", async () => {
