@@ -1,6 +1,6 @@
 # EVT-04 — Etkinlik listeleme: gereksinim karşılama durumu, varsayımlar ve doğrulama
 
-> Durum: **IN PROGRESS, doğrulama bekliyor.** Kod ve testler yazıldı; **testler, V113 migration'ı ve liste sorgusu hiçbir veritabanında çalıştırılmadı.** Docker'daki event-service imajı EVT-04 öncesi koddadır.
+> Durum: **IN PROGRESS, doğrulama bekliyor.** Kod ve testler yazıldı; **testler, V113 migration'ı ve liste sorgusu hiçbir veritabanında çalıştırılmadı.** Docker imajı güncel (2026-11-11 16:43 UTC; jar + V111–V115 doğrulandı), ama davranış token'la doğrulanmadı.
 > Son güncelleme: 2026-11-09 · Sorumlu: Nisa · Önceki görevler: [EVT-01](evt-01-kararlar-ve-varsayimlar.md), [EVT-02](evt-02-etkinlik-turleri.md), [EVT-03 (kısmi)](evt-03-etkinlik-detayi.md)
 
 ## 1. Kaynaklar
@@ -17,11 +17,11 @@
 
 | # | Gereksinim | Durum | Kodlandı | Doğrulandı | Docker'da |
 | --- | --- | --- | --- | --- | --- |
-| 1 | **Yaklaşan** etkinlikler listelenir | **Karşılandı** (varsayım VR-1) | `GET /api/v1/event/events` → `EventService.listEvents`, `EventRepository.findByEndsAtAfter...` | Testler yazıldı; çalıştırılmadı | Hayır (imaj EVT-04 öncesi) |
-| 2 | **Mevcut** (devam eden) etkinlikler listelenir | **Karşılandı** (varsayım VR-1) | aynı sorgu (`endsAt > şimdi`) | aynı | Hayır |
-| 3 | İptal/tamamlanmış etkinlikler listelenmez | **Karşılandı** (varsayım VR-2) | durum filtresi `PLANNED, ACTIVE` | aynı | Hayır |
-| 4 | Sayfalama sunucuda sınırlı | **Karşılandı** (SECURITY.md §9) | `EventListRequest` (`size` 1–50, varsayılan 20; `page` 0–1000) | `EventControllerTest` yazıldı; çalıştırılmadı | Hayır |
-| 5 | Yalnız giriş yapan kullanıcı görür; misafir 401 | **Karşılandı** (KD-4) | `SecurityConfig` (`anyRequest().authenticated()`) | `EventEndpointSecurityTest` yazıldı; çalıştırılmadı | Hayır |
+| 1 | **Yaklaşan** etkinlikler listelenir | **Karşılandı** (varsayım VR-1) | `GET /api/v1/event/events` → `EventService.listEvents`, `EventRepository.findByEndsAtAfter...` | Testler yazıldı; çalıştırılmadı | İmajda var; davranış token'la denenmedi |
+| 2 | **Mevcut** (devam eden) etkinlikler listelenir | **Karşılandı** (varsayım VR-1) | aynı sorgu (`endsAt > şimdi`) | aynı | İmajda var; davranış token'la denenmedi |
+| 3 | İptal/tamamlanmış etkinlikler listelenmez | **Karşılandı** (varsayım VR-2) | durum filtresi `PLANNED, ACTIVE` | aynı | İmajda var; davranış token'la denenmedi |
+| 4 | Sayfalama sunucuda sınırlı | **Karşılandı** (SECURITY.md §9) | `EventListRequest` (`size` 1–50, varsayılan 20; `page` 0–1000) | `EventControllerTest` yazıldı; çalıştırılmadı | İmajda var; davranış token'la denenmedi |
+| 5 | Yalnız giriş yapan kullanıcı görür; misafir 401 | **Karşılandı** (KD-4) | `SecurityConfig` (`anyRequest().authenticated()`) | `EventEndpointSecurityTest` yazıldı; çalıştırılmadı | İmajda var; davranış token'la denenmedi |
 | 6 | Liste öğesinde katılım bilgisi (kapasite, sayı) | **Kapsam dışı — EVT-04 metni istemiyor** | — | — | — |
 | 7 | Arama / filtreleme / sıralama seçenekleri | **Kapsam dışı** (arama: [EVT-05](evt-05-etkinlik-arama.md) ile `q` parametresi eklendi; filtreleme/sıralama: EVT-06) | Sıralama sabit: başlangıç zamanı artan | — | — |
 | 8 | Takvim görünümü | **Kapsam dışı** (EVT-07) | — | — | — |
@@ -69,6 +69,6 @@ Yanıt: `items` (özet: kimlik, düzenleyici, tür, başlık, başlangıç, biti
 - Hiçbir EVT-04 testi çalıştırılmadı; yalnız derleme ve Checkstyle/PMD (`lint-ratchet`: 0 yeni ihlal) yerel olarak denendi.
 - **V113 ve liste sorgusu hiçbir PostgreSQL'de çalıştırılmadı**; `EventRepositoryTest` bunu sınar ama çalıştırılmadı. Sıralama/sayfalama davranışı bu yüzden **doğrulanmış değildir**.
 - Kısmi indeksin sorgu planında kullanıldığı (`EXPLAIN`) denenmedi.
-- Docker'daki event-service imajı EVT-04 öncesidir: `GET /api/v1/event/events` (liste) ucu imajda yoktur; `ix_events_open_starts_at` dev veritabanında yoktur.
+- **Docker (2026-11-11 16:43 UTC):** yalnız event-service yeniden build edilip başlatıldı (`docker compose build event-service` + `up -d --no-deps --no-build event-service`; `down` yok; volume, veri ve diğer servisler korundu). **İmaj (çalışan container'ın jar'ı):** EVT-01..06, EVT-17 ve platform kodu (`EventPlatform`, `platform` filtresi, `platforms` alanı) imajda bulunuyor; jar'da V111–V115 var. **Veritabanı (ayrı doğrulandı):** `flyway_schema_history` 111–115 hepsi `success`; V113–V115 bu başlatmada uygulandı; `events.game_id`, `event_platforms`, `ix_events_open_starts_at`, `ix_events_game_id`, `ix_event_platforms_platform` var; `events` ve `event_platforms` 0 satır (mevcut veri yoktu, hiçbir etkinliğe platform atanmadı). **Başlatma:** `Started EventServiceApplication`, `ddl-auto=validate` hatasız, sağlık 200 (doğrudan ve Gateway). Token'sız `GET` (liste, filtre, `platform=PS5` dahil) ve `POST` Gateway'den 401. **Doğrulanmadı:** geçerli token'la 201/200/400/422/503 davranışları (token yok), gerçek PostgreSQL'de filtre/arama sonuçları (testler çalıştırılmadı), Event → Game çağrısı. **Ortam bulgusu:** bu oturumda Docker Desktop motoru kendiliğinden yeniden başladı ve sonrasında Auth (JWKS) ve Game'in herkese açık uçları doğrudan ve Gateway'den 401 döndü (kod/belge bu uçların herkese açık olduğunu söyler; 9 Kasım'da 200'dü). Nedeni teşhis edilmedi; başka servislere dokunulmadı. Event token doğrulaması Auth JWKS'ine, oyun araması/doğrulaması Game'in herkese açık uçlarına bağlıdır: bu durum düzelmeden token'la uçtan uca doğrulama yapılamaz.
 - Gerçek Auth token'ı ve Gateway üzerinden çağrı denenmedi.
 - Bu sürümde liste kimliksiz çağrılırsa `GET /api/v1/event/events` 401 döner (aynı yol eski imajda da 401 döndüğü için bu gözlem EVT-04'ün varlığını kanıtlamaz).

@@ -1,5 +1,6 @@
 package com.ltz.event.api.controller;
 
+import com.ltz.event.domain.enums.EventPlatform;
 import com.ltz.event.domain.exception.GameSearchTooBroadException;
 import com.ltz.event.domain.exception.GameNotAvailableException;
 import com.ltz.event.domain.exception.GameCatalogUnavailableException;
@@ -73,7 +74,8 @@ class EventControllerTest {
 
 	private static EventResponse created() {
 		Instant at = Instant.parse("2026-11-09T10:00:00Z");
-		return new EventResponse(EVENT_ID, USER_ID, EventType.GAME_NIGHT, GAME_ID, "Cuma Oyun Gecesi", "Birlikte oynuyoruz.",
+		return new EventResponse(EVENT_ID, USER_ID, EventType.GAME_NIGHT, GAME_ID,
+				List.of(EventPlatform.PC, EventPlatform.XBOX), "Cuma Oyun Gecesi", "Birlikte oynuyoruz.",
 				Instant.parse("2099-12-05T18:00:00Z"), Instant.parse("2099-12-05T21:00:00Z"), EventStatus.PLANNED, at,
 				at);
 	}
@@ -248,6 +250,9 @@ class EventControllerTest {
 				.andExpect(jsonPath("$.organizerId").value(USER_ID.toString()))
 				.andExpect(jsonPath("$.type").value("GAME_NIGHT"))
 				.andExpect(jsonPath("$.gameId").value(GAME_ID.toString()))
+				.andExpect(jsonPath("$.platforms.length()").value(2))
+				.andExpect(jsonPath("$.platforms[0]").value("PC"))
+				.andExpect(jsonPath("$.platforms[1]").value("XBOX"))
 				.andExpect(jsonPath("$.title").value("Cuma Oyun Gecesi"))
 				.andExpect(jsonPath("$.description").value("Birlikte oynuyoruz."))
 				.andExpect(jsonPath("$.startsAt").value("2099-12-05T18:00:00Z"))
@@ -284,7 +289,8 @@ class EventControllerTest {
 	private static EventPageResponse onePage() {
 		Instant at = Instant.parse("2099-12-05T18:00:00Z");
 		return new EventPageResponse(
-				List.of(new EventSummaryResponse(EVENT_ID, USER_ID, EventType.POLL, GAME_ID, "Hangi oyun?", at,
+				List.of(new EventSummaryResponse(EVENT_ID, USER_ID, EventType.POLL, GAME_ID,
+						List.of(EventPlatform.PLAYSTATION), "Hangi oyun?", at,
 						at.plusSeconds(3600), EventStatus.PLANNED)),
 				0, 20, 1, 1, false);
 	}
@@ -300,6 +306,7 @@ class EventControllerTest {
 				.andExpect(jsonPath("$.items[0].organizerId").value(USER_ID.toString()))
 				.andExpect(jsonPath("$.items[0].type").value("POLL"))
 				.andExpect(jsonPath("$.items[0].gameId").value(GAME_ID.toString()))
+				.andExpect(jsonPath("$.items[0].platforms[0]").value("PLAYSTATION"))
 				.andExpect(jsonPath("$.items[0].title").value("Hangi oyun?"))
 				.andExpect(jsonPath("$.items[0].startsAt").value("2099-12-05T18:00:00Z"))
 				.andExpect(jsonPath("$.items[0].endsAt").value("2099-12-05T19:00:00Z"))
@@ -372,10 +379,10 @@ class EventControllerTest {
 
 	@Test
 	void blankSearchTextMeansNoSearch() {
-		assertThat(new EventListRequest(null, null, null).searchTextOrNull()).isNull();
-		assertThat(new EventListRequest(null, null, "").searchTextOrNull()).isNull();
-		assertThat(new EventListRequest(null, null, "   ").searchTextOrNull()).isNull();
-		assertThat(new EventListRequest(null, null, "  a b  ").searchTextOrNull()).isEqualTo("a b");
+		assertThat(EventListRequest.paged(null, null, null).searchTextOrNull()).isNull();
+		assertThat(EventListRequest.paged(null, null, "").searchTextOrNull()).isNull();
+		assertThat(EventListRequest.paged(null, null, "   ").searchTextOrNull()).isNull();
+		assertThat(EventListRequest.paged(null, null, "  a b  ").searchTextOrNull()).isEqualTo("a b");
 	}
 
 	@Test
@@ -452,5 +459,173 @@ class EventControllerTest {
 		mockMvc.perform(get(URL).param("q", "a").with(as("PLAYER")))
 				.andExpect(status().isUnprocessableContent())
 				.andExpect(jsonPath("$.code").value("GAME_SEARCH_TOO_BROAD"));
+	}
+
+	// ------------------------------------------------------------------ EVT-06 filtreler
+
+	private ResultActions listWith(String name, String... values) throws Exception {
+		return mockMvc.perform(get(URL).param(name, values).with(as("PLAYER")));
+	}
+
+	@Test
+	void filtersAreBoundAndPassedToTheService() throws Exception {
+		when(eventService.listEvents(any(EventListRequest.class))).thenReturn(onePage());
+
+		mockMvc.perform(get(URL)
+				.param("type", "TOURNAMENT", "POLL")
+				.param("gameId", GAME_ID.toString())
+				.param("from", "2099-12-05T00:00:00Z")
+				.param("to", "2099-12-06T00:00:00Z")
+				.with(as("PLAYER")))
+				.andExpect(status().isOk());
+
+		ArgumentCaptor<EventListRequest> captured = ArgumentCaptor.forClass(EventListRequest.class);
+		verify(eventService).listEvents(captured.capture());
+		assertThat(captured.getValue().typeSet()).containsExactlyInAnyOrder(EventType.TOURNAMENT, EventType.POLL);
+		assertThat(captured.getValue().gameId()).isEqualTo(GAME_ID);
+		assertThat(captured.getValue().from()).isEqualTo(Instant.parse("2099-12-05T00:00:00Z"));
+		assertThat(captured.getValue().to()).isEqualTo(Instant.parse("2099-12-06T00:00:00Z"));
+	}
+
+	@Test
+	void typesCanAlsoBeGivenCommaSeparated() throws Exception {
+		when(eventService.listEvents(any(EventListRequest.class))).thenReturn(onePage());
+
+		listWith("type", "GAME_NIGHT,COMMUNITY").andExpect(status().isOk());
+
+		ArgumentCaptor<EventListRequest> captured = ArgumentCaptor.forClass(EventListRequest.class);
+		verify(eventService).listEvents(captured.capture());
+		assertThat(captured.getValue().typeSet()).containsExactlyInAnyOrder(EventType.GAME_NIGHT, EventType.COMMUNITY);
+	}
+
+	@Test
+	void withoutFiltersNothingIsFiltered() throws Exception {
+		when(eventService.listEvents(any(EventListRequest.class))).thenReturn(onePage());
+
+		mockMvc.perform(get(URL).with(as("PLAYER"))).andExpect(status().isOk());
+
+		ArgumentCaptor<EventListRequest> captured = ArgumentCaptor.forClass(EventListRequest.class);
+		verify(eventService).listEvents(captured.capture());
+		assertThat(captured.getValue().typeSet()).isEmpty();
+		assertThat(captured.getValue().gameId()).isNull();
+		assertThat(captured.getValue().from()).isNull();
+		assertThat(captured.getValue().to()).isNull();
+	}
+
+	@Test
+	void invalidFilterValuesAreRejected() throws Exception {
+		String[][] invalid = {
+				{ "type", "VOTING" }, { "type", "poll" }, { "type", "OYLAMA" },
+				{ "type", "TOURNAMENT,TOURNAMENT,TOURNAMENT,TOURNAMENT,TOURNAMENT,TOURNAMENT" },
+				{ "gameId", "oyun" }, { "gameId", "123" },
+				{ "from", "yarin" }, { "to", "2099-12-05" },
+				{ "from", "1960-01-01T00:00:00Z" }, { "to", "+10000-01-01T00:00:00Z" } };
+		for (String[] parameter : invalid) {
+			listWith(parameter[0], parameter[1])
+					.andExpect(status().isBadRequest())
+					.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+		}
+		verifyNoInteractions(eventService);
+	}
+
+	@Test
+	void aDateRangeMustHaveToAfterFrom() throws Exception {
+		for (String[] range : new String[][] { { "2099-12-06T00:00:00Z", "2099-12-05T00:00:00Z" },
+				{ "2099-12-05T00:00:00Z", "2099-12-05T00:00:00Z" } }) {
+			mockMvc.perform(get(URL).param("from", range[0]).param("to", range[1]).with(as("PLAYER")))
+					.andExpect(status().isBadRequest());
+		}
+		verifyNoInteractions(eventService);
+	}
+
+	@Test
+	void anOpenEndedDateRangeIsAccepted() throws Exception {
+		when(eventService.listEvents(any(EventListRequest.class))).thenReturn(onePage());
+
+		mockMvc.perform(get(URL).param("from", "2099-12-05T00:00:00Z").with(as("PLAYER"))).andExpect(status().isOk());
+		mockMvc.perform(get(URL).param("to", "2099-12-05T00:00:00Z").with(as("PLAYER"))).andExpect(status().isOk());
+	}
+
+	// ------------------------------------------------------------------ EVT-06 platform
+
+	@Test
+	void platformsInTheCreateRequestArePassedToTheService() throws Exception {
+		when(eventService.createEvent(any(CreateEventRequest.class))).thenReturn(created());
+
+		create("PLAYER", VALID.replace("\"endsAt\"", "\"platforms\":[\"PC\",\"XBOX\"],\"endsAt\""))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.platforms[0]").value("PC"));
+
+		ArgumentCaptor<CreateEventRequest> captured = ArgumentCaptor.forClass(CreateEventRequest.class);
+		verify(eventService).createEvent(captured.capture());
+		assertThat(captured.getValue().platforms()).containsExactly(EventPlatform.PC, EventPlatform.XBOX);
+	}
+
+	@Test
+	void createRequestWithoutPlatformsIsStillValid() throws Exception {
+		when(eventService.createEvent(any(CreateEventRequest.class))).thenReturn(created());
+
+		create("PLAYER", VALID).andExpect(status().isCreated());
+
+		ArgumentCaptor<CreateEventRequest> captured = ArgumentCaptor.forClass(CreateEventRequest.class);
+		verify(eventService).createEvent(captured.capture());
+		assertThat(captured.getValue().platforms()).isNull();
+	}
+
+	@Test
+	void invalidPlatformsInTheCreateRequestAreRejected() throws Exception {
+		String[] invalid = { "[\"PS5\"]", "[\"pc\"]", "[\"playstation\"]",
+				"[\"PC\",\"XBOX\",\"PLAYSTATION\",\"NINTENDO_SWITCH\",\"MOBILE\",\"VR\",\"PC\"]" };
+		for (String platforms : invalid) {
+			create("PLAYER", VALID.replace("\"endsAt\"", "\"platforms\":" + platforms + ",\"endsAt\""))
+					.andExpect(status().isBadRequest());
+		}
+		verifyNoInteractions(eventService);
+	}
+
+	@Test
+	void platformFilterIsBoundAndPassedToTheService() throws Exception {
+		when(eventService.listEvents(any(EventListRequest.class))).thenReturn(onePage());
+
+		mockMvc.perform(get(URL).param("platform", "PC", "VR").with(as("PLAYER"))).andExpect(status().isOk());
+
+		ArgumentCaptor<EventListRequest> captured = ArgumentCaptor.forClass(EventListRequest.class);
+		verify(eventService).listEvents(captured.capture());
+		assertThat(captured.getValue().platformSet()).containsExactlyInAnyOrder(EventPlatform.PC, EventPlatform.VR);
+	}
+
+	@Test
+	void platformsCanAlsoBeGivenCommaSeparated() throws Exception {
+		when(eventService.listEvents(any(EventListRequest.class))).thenReturn(onePage());
+
+		listWith("platform", "XBOX,NINTENDO_SWITCH").andExpect(status().isOk());
+
+		ArgumentCaptor<EventListRequest> captured = ArgumentCaptor.forClass(EventListRequest.class);
+		verify(eventService).listEvents(captured.capture());
+		assertThat(captured.getValue().platformSet())
+				.containsExactlyInAnyOrder(EventPlatform.XBOX, EventPlatform.NINTENDO_SWITCH);
+	}
+
+	@Test
+	void withoutAPlatformParameterThereIsNoPlatformFilter() throws Exception {
+		when(eventService.listEvents(any(EventListRequest.class))).thenReturn(onePage());
+
+		mockMvc.perform(get(URL).with(as("PLAYER"))).andExpect(status().isOk());
+
+		ArgumentCaptor<EventListRequest> captured = ArgumentCaptor.forClass(EventListRequest.class);
+		verify(eventService).listEvents(captured.capture());
+		assertThat(captured.getValue().platformSet()).isEmpty();
+	}
+
+	@Test
+	void invalidPlatformFilterValuesAreRejectedWithProblemDetail() throws Exception {
+		String[] invalid = { "PS5", "playstation", "pc", "win", "XBOX360", "PC,TOASTER",
+				"PC,XBOX,PLAYSTATION,NINTENDO_SWITCH,MOBILE,VR,PC" };
+		for (String value : invalid) {
+			listWith("platform", value)
+					.andExpect(status().isBadRequest())
+					.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+		}
+		verifyNoInteractions(eventService);
 	}
 }

@@ -3,8 +3,10 @@ package com.ltz.event.application.service;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -18,8 +20,10 @@ import com.ltz.event.api.dto.response.EventPageResponse;
 import com.ltz.event.api.dto.response.EventResponse;
 import com.ltz.event.application.mapper.EventMapper;
 import com.ltz.event.application.port.CurrentUserPort;
+import com.ltz.event.application.port.EventSearchCriteria;
 import com.ltz.event.application.port.GameCatalogPort;
 import com.ltz.event.domain.entity.Event;
+import com.ltz.event.domain.enums.EventPlatform;
 import com.ltz.event.domain.enums.EventStatus;
 import com.ltz.event.domain.exception.EventCreationForbiddenException;
 import com.ltz.event.domain.exception.EventNotFoundException;
@@ -61,12 +65,17 @@ public class EventService {
 		if (!currentUser.canCreateEvents()) {
 			throw new EventCreationForbiddenException();
 		}
-		Event event = Event.schedule(organizerId, request.type(), request.gameId(), request.title().strip(),
+		Event event = Event.schedule(organizerId, request.type(), request.gameId(), platformsOf(request), request.title().strip(),
 				request.description().strip(), request.startsAt(), request.endsAt(), Instant.now(clock));
 		if (request.gameId() != null && !gameCatalog.isAvailable(request.gameId())) {
 			throw new GameNotAvailableException();
 		}
 		return eventMapper.toResponse(eventRepository.save(event));
+	}
+
+	private static Set<EventPlatform> platformsOf(CreateEventRequest request) {
+		return request.platforms() == null ? Set.of()
+				: request.platforms().stream().filter(Objects::nonNull).collect(Collectors.toUnmodifiableSet());
 	}
 
 	/**
@@ -86,22 +95,24 @@ public class EventService {
 	 * Başlangıç zamanına göre artan sıralıdır. Kimliği doğrulanmış her kullanıcı listeyi görür (KD-4).
 	 * Arama metni verilmişse (EVT-05) aynı kapsam içinde etkinlik başlığına (büyük/küçük harf duyarsız "içerir") <b>veya</b>
 	 * adı arama metniyle başlayan bir oyuna bağlı etkinliklere uyanlar döner; her etkinlik bir kez. Açıklama aranmaz.
+	 * Filtreler (EVT-06: tür, platform, oyun, tarih aralığı) aramaya ve birbirine VE ile bağlanır.
 	 */
 	public EventPageResponse listEvents(EventListRequest request) {
 		currentUser.requireUserId();
 		Instant now = Instant.now(clock);
-		PageRequest paging = PageRequest.of(request.pageOrDefault(), request.sizeOrDefault());
 		String searchText = request.searchTextOrNull();
-		Page<Event> page;
-		if (searchText == null) {
-			page = eventRepository.findByEndsAtAfterAndStatusInOrderByStartsAtAscIdAsc(now, LISTED_STATUSES, paging);
-		} else {
-			String pattern = EventSearch.containsPattern(searchText);
-			Set<UUID> gameIds = matchingGameIds(now, searchText);
-			page = gameIds.isEmpty()
-					? eventRepository.searchByTitle(now, LISTED_STATUSES, pattern, paging)
-					: eventRepository.searchByTitleOrGame(now, LISTED_STATUSES, pattern, gameIds, paging);
-		}
+		EventSearchCriteria criteria = new EventSearchCriteria(
+				now,
+				LISTED_STATUSES,
+				searchText == null ? null : EventSearch.containsPattern(searchText),
+				searchText == null ? Set.of() : matchingGameIds(now, searchText),
+				request.typeSet(),
+				request.platformSet(),
+				request.gameId(),
+				request.from(),
+				request.to());
+		Page<Event> page = eventRepository.search(criteria,
+				PageRequest.of(request.pageOrDefault(), request.sizeOrDefault()));
 		return eventMapper.toPage(page);
 	}
 

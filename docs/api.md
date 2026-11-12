@@ -8159,7 +8159,8 @@ Etkinlik sahibi (`organizerId`) yalnız doğrulanmış token'ın `sub` değerind
   "description": "metin, zorunlu, boş olamaz, en çok 4000 karakter, satır sonu/sekme dışında kontrol karakteri içermez",
   "startsAt": "UTC ISO-8601 zaman, zorunlu, şimdiden sonra olmalı (örn. 2026-12-05T18:00:00Z)",
   "endsAt": "UTC ISO-8601 zaman, zorunlu, startsAt'ten sonra olmalı",
-  "gameId": "UUID, opsiyonel (EVT-17); verilirse Game Service'te yayında (ACTIVE) bir oyun olmalı"
+  "gameId": "UUID, opsiyonel (EVT-17); verilirse Game Service'te yayında (ACTIVE) bir oyun olmalı",
+  "platforms": "opsiyonel dizi, en çok 6 (yinelenenler birleşir): PC | PLAYSTATION | XBOX | NINTENDO_SWITCH | MOBILE | VR (EVT-06); etkinliğin KENDİ platformları, bağlı oyundan türetilmez"
 }
 ```
 Bilinmeyen alanlar (ör. `organizerId`, `status`) 400 ile reddedilir. Tanımsız veya farklı yazılmış `type` (ör. `poll`, `VOTING`) 400 alır. Türe özel alan/kural henüz yoktur (EVT-02 yalnız türleri tanımlar; turnuva EVT-18, oyun gecesi EVT-19, oy verme EVT-20). 120 / 4000 sınırları ve "başlangıç gelecekte olmalı" şartı gereksinimlerden değil, geliştirici varsayımıdır (karar kaydı VR-1..VR-3).
@@ -8172,7 +8173,8 @@ Bilinmeyen alanlar (ör. `organizerId`, `status`) 400 ile reddedilir. Tanımsız
   "description": "Birlikte co-op oynuyoruz.",
   "startsAt": "2026-12-05T18:00:00Z",
   "endsAt": "2026-12-05T21:00:00Z",
-  "gameId": "0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66"
+  "gameId": "0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66",
+  "platforms": ["PC", "XBOX"]
 }
 ```
 
@@ -8183,6 +8185,7 @@ Bilinmeyen alanlar (ör. `organizerId`, `status`) 400 ile reddedilir. Tanımsız
   "organizerId": "UUID (token sub)",
   "type": "GAME_NIGHT",
   "gameId": "UUID | null (oyun adı döndürülmez/saklanmaz)",
+  "platforms": ["PC", "XBOX"],
   "title": "Cuma Oyun Gecesi",
   "description": "Birlikte co-op oynuyoruz.",
   "startsAt": "2026-12-05T18:00:00Z",
@@ -8194,7 +8197,7 @@ Bilinmeyen alanlar (ör. `organizerId`, `status`) 400 ile reddedilir. Tanımsız
 ```
 
 #### Hata Durumları
-- 400: Zorunlu alan eksik/boş, uzunluk veya karakter kuralı ihlali, geçersiz `type`/tarih biçimi, bilinmeyen alan; `startsAt` geçmişte (`reason: STARTS_IN_THE_PAST`) veya `endsAt` ≤ `startsAt` (`reason: ENDS_NOT_AFTER_START`)
+- 400: Zorunlu alan eksik/boş, uzunluk veya karakter kuralı ihlali, tanımsız/çok fazla `platforms` değeri, geçersiz `type`/tarih biçimi, bilinmeyen alan; `startsAt` geçmişte (`reason: STARTS_IN_THE_PAST`) veya `endsAt` ≤ `startsAt` (`reason: ENDS_NOT_AFTER_START`)
 - 401: Token yok/geçersiz/süresi dolmuş (imza, `iss`, `aud`, `typ=at+jwt` doğrulaması)
 - 403: Token'da `PLAYER`, `MODERATOR` veya `ADMIN` rolü yok
 - 422: `gameId` Game Service'te yok veya yayında değil (EVT-17)
@@ -8235,6 +8238,7 @@ Authenticated. Geçerli bir kullanıcı token'ı yeterlidir; oluşturma rolü (`
   "organizerId": "UUID (etkinliği oluşturan hesap)",
   "type": "TOURNAMENT | GAME_NIGHT | COMMUNITY | POLL | OTHER",
   "gameId": "UUID | null (oyun adı döndürülmez; ad için Game Service)",
+  "platforms": ["PC", "XBOX"],
   "title": "Cuma Oyun Gecesi",
   "description": "Birlikte co-op oynuyoruz.",
   "startsAt": "2026-12-05T18:00:00Z",
@@ -8265,7 +8269,7 @@ Diğer mikroservisler:
 Auth Service JWKS ile token doğrulama. Organizatör adı için istemci, `organizerId` ile User Service'ten profil bilgisi isteyebilir (bu serviste çağrı yoktur).
 
 #### Test Durumu
-UNIT — test sınıfları **yazıldı, EVT-03 testleri çalıştırılmadı** (`EventServiceTest`, `EventControllerTest`, `EventEndpointSecurityTest` [gerçek RS256 token + yerel JWKS, DB deposu taklit], `GlobalExceptionHandlerTest`). **NOT VERIFIED:** gerçek veritabanından okuma, Gateway üzerinden çağrı, gerçek Auth token'ı. Docker: event-service 2026-11-09 19:42 UTC'de yeniden build edildi; imajda bu uç (jar) ve V112 bulunuyor, token'sız çağrı 401; geçerli token'la davranış denenmedi.
+UNIT — test sınıfları **yazıldı, EVT-03 testleri çalıştırılmadı** (`EventServiceTest`, `EventControllerTest`, `EventEndpointSecurityTest` [gerçek RS256 token + yerel JWKS, DB deposu taklit], `GlobalExceptionHandlerTest`). **NOT VERIFIED:** gerçek veritabanından okuma, Gateway üzerinden çağrı, gerçek Auth token'ı. Docker: event-service 2026-11-11 16:43 UTC'de yeniden build edilip başlatıldı; imajda bu uç (jar) ve V111–V115 var, token'sız çağrı 401; geçerli token'la davranış denenmedi.
 
 ### EVENT — Etkinlik Listesi (EVT-04)
 
@@ -8287,7 +8291,9 @@ Authenticated (KD-4: yalnız giriş yapan kullanıcılar; misafir 401). Oluştur
 
 - q: string, opsiyonel, en çok 100 karakter, kontrol karakteri yok — başlığa göre arama (EVT-05; ayrıntı aşağıdaki EVT-05 kaydında)
 
-Filtreleme ve sıralama seçenekleri yoktur (EVT-06). Sıralama sabit: başlangıç zamanı artan, eşitlikte kimlik.
+- type, gameId, from, to: filtreler (EVT-06; ayrıntı aşağıdaki EVT-06 kaydında)
+
+Sıralama seçeneği yoktur; sıralama sabit: başlangıç zamanı artan, eşitlikte kimlik.
 
 #### Davranış
 Bir etkinlik, **bitiş zamanı şimdiden sonra** (`endsAt > şimdi`) ve durumu `PLANNED` veya `ACTIVE` ise listelenir: başlamamış olanlar *yaklaşan*, başlamış ve sürenler *mevcut*dir. `CANCELLED` ve `COMPLETED` etkinlikler ve süresi geçmiş etkinlikler listelenmez.
@@ -8301,6 +8307,7 @@ Bir etkinlik, **bitiş zamanı şimdiden sonra** (`endsAt > şimdi`) ve durumu `
       "organizerId": "UUID",
       "type": "TOURNAMENT | GAME_NIGHT | COMMUNITY | POLL | OTHER",
       "gameId": "UUID | null (oyun adı döndürülmez; ad için Game Service)",
+      "platforms": ["PC", "XBOX"],
       "title": "Cuma Oyun Gecesi",
       "startsAt": "2026-12-05T18:00:00Z",
       "endsAt": "2026-12-05T21:00:00Z",
@@ -8330,7 +8337,7 @@ Diğer mikroservisler:
 Auth Service JWKS ile token doğrulama. `q` verilmezse başka servis çağrısı yoktur; `q` ile arama yapılırsa Game Service çağrısı için EVT-05 kaydına bakın.
 
 #### Test Durumu
-UNIT + INTEGRATION — test sınıfları **yazıldı, çalıştırılmadı** (`EventServiceTest`, `EventControllerTest`, `EventEndpointSecurityTest`; gerçek PostgreSQL'de `EventRepositoryTest`, geçici veritabanı). **NOT VERIFIED:** V113 ve liste sorgusu hiçbir veritabanında çalıştırılmadı; Gateway üzerinden çağrı; gerçek Auth token'ı. Docker'daki event-service imajında bu uç yoktur (yeniden build edilmedi).
+UNIT + INTEGRATION — test sınıfları **yazıldı, çalıştırılmadı** (`EventServiceTest`, `EventControllerTest`, `EventEndpointSecurityTest`; gerçek PostgreSQL'de `EventRepositoryTest`, geçici veritabanı). **NOT VERIFIED:** V113 ve liste sorgusu hiçbir veritabanında çalıştırılmadı; Gateway üzerinden çağrı; gerçek Auth token'ı. Docker: event-service 2026-11-11 16:43 UTC'de yeniden build edilip başlatıldı; jar ve dev veritabanı (V111–V115) doğrulandı, sağlık 200, token'sız çağrı 401; geçerli token'la davranış denenmedi.
 
 ### EVENT — Etkinlik Arama (EVT-05)
 
@@ -8354,7 +8361,7 @@ Authenticated (KD-4: yalnız giriş yapan kullanıcılar; misafir 401).
 - size: int, opsiyonel, varsayılan 20, 1–50
 
 #### Davranış
-Bir etkinlik, liste kapsamında (`endsAt > şimdi`, durum `PLANNED`/`ACTIVE`) ve şunlardan biri doğruysa döner: (a) **başlığı** `q`'yu büyük/küçük harf duyarsız **içeriyorsa** (Türkçe/Unicode dahil; `%`, `_`, `!` düz metin) **veya** (b) ilişkili oyunun **adı `q` ile başlıyorsa**: oyun adı Event DB'sinde saklanmaz; Game Service `GET /api/v1/game/games/search` ile (tüm sayfalar, sayfa başına 100) bulunan `gameId`'lerle `game_id` eşleştirilir. Her etkinlik **bir kez** döner. Açıklama aranmaz. Sıra ve sayfalama EVT-04 ile aynıdır. Listelenen kapsamda oyuna bağlı hiç etkinlik yoksa Game Service çağrılmaz.
+Bir etkinlik, liste kapsamında (`endsAt > şimdi`, durum `PLANNED`/`ACTIVE`) ve şunlardan biri doğruysa döner: (a) **başlığı** `q`'yu büyük/küçük harf duyarsız **içeriyorsa** (Türkçe/Unicode dahil; `%`, `_`, `!` düz metin) **veya** (b) ilişkili oyunun **adı `q` ile başlıyorsa**: oyun adı Event DB'sinde saklanmaz; Game Service `GET /api/v1/game/games/search` ile (tüm sayfalar, sayfa başına 100) bulunan `gameId`'lerle `game_id` eşleştirilir. Her etkinlik **bir kez** döner. Açıklama aranmaz. Sıra ve sayfalama EVT-04 ile aynıdır. Arama, EVT-06 filtreleriyle (`type`, `gameId`, `from`/`to`) VE ile birleşir. Listelenen kapsamda oyuna bağlı hiç etkinlik yoksa Game Service çağrılmaz.
 
 **Bilinen sınırlar (Game sözleşmesinden):** oyun adı eşleşmesi *önek* tabanlıdır (kelime ortası eşleşmez); yalnız **ana oyun** adları aranır (DLC'ye bağlı etkinlik oyun adıyla bulunamaz); `q` 1000'den fazla oyunla eşleşirse **422** döner (sonuç kırpılmaz).
 
@@ -8377,6 +8384,51 @@ Game Service'in herkese açık `GET /api/v1/game/games/search` ucu RestClient il
 
 #### Test Durumu
 UNIT + INTEGRATION — test sınıfları **yazıldı, çalıştırılmadı** (`EventSearchTest`, `EventServiceTest`, `GameServiceClientTest` [MockRestServiceServer], `EventControllerTest`, `EventEndpointSecurityTest`; gerçek PostgreSQL'de `EventRepositoryTest`). **NOT VERIFIED:** JPQL sorgularının Hibernate'te çözümlenmesi, V113/V114, gerçek Game Service'e karşı uçtan uca arama, Gateway üzerinden çağrı, gerçek Auth token'ı. Docker'daki event-service imajı EVT-05/EVT-17 öncesidir (yeniden build edilmedi).
+
+### EVENT — Etkinlik Filtreleme (EVT-06)
+
+Durum: IN PROGRESS (doğrulama bekliyor; platform sözlüğü kararı KD-6a onaylandı)
+Sorumlu: Nisa
+Tüketici servisler: Frontend (henüz yok)
+
+> **Dört filtre de kodlandı:** oyun, etkinlik türü, tarih ve **platform**. Platform, etkinliğin **kendi alanıdır** (karar KD-6/A): bağlı oyundan türetilmez; oyuna bağlanmamış etkinlik de platformla filtrelenebilir. Platform değerleri sözlüğü (PC, PLAYSTATION, XBOX, NINTENDO_SWITCH, MOBILE, VR — Content Service'in sabit PLATFORM listesiyle aynı) **KD-6a ile onaylandı (Nisa, 2026-11-11)**; sözlük değişirse enum + yeni migration gerekir. **Karar onayı işlevsel doğrulama değildir:** kod ve testler yazıldı; testler ve sorgular çalıştırılmadı, token'lı davranış denenmedi. Ayrıntı: [docs-event/event-service/evt-06-etkinlik-filtreleme.md](../docs-event/event-service/evt-06-etkinlik-filtreleme.md).
+
+#### Endpoint
+GET /api/v1/event/events?type=&platform=&gameId=&from=&to=
+
+(EVT-04 liste ucunun isteğe bağlı parametreleridir; ayrı bir filtre ucu yoktur.)
+
+#### Yetkilendirme
+Authenticated (KD-4: yalnız giriş yapan kullanıcılar; misafir 401).
+
+#### Query Parameters
+- type: `TOURNAMENT | GAME_NIGHT | COMMUNITY | POLL | OTHER`, opsiyonel, tekrarlanabilir (`type=A&type=B`) veya virgüllü (`type=A,B`), en çok 5 değer; kümeden biri (VEYA)
+- platform: `PC | PLAYSTATION | XBOX | NINTENDO_SWITCH | MOBILE | VR`, opsiyonel, tekrarlanabilir veya virgüllü, en çok 6 değer; etkinliğin **kendi** platformlarından en az biri verilenlerden biriyse eşleşir (VEYA). **Platformu belirtilmemiş etkinlikler platform filtresiyle eşleşmez.** Platform belirtilmezse filtre yoktur ve platformsuz etkinlikler de listelenir.
+- gameId: UUID, opsiyonel; etkinliğin bağlı olduğu oyun (oyunun varlığı denetlenmez)
+- from: UTC ISO-8601 an, opsiyonel; to: UTC ISO-8601 an, opsiyonel — etkinlik süresi `[from, to)` ile kesişiyorsa döner (`startsAt < to` ve `endsAt > from`); ikisi verilirse `to > from`; değerler 1970–9999 arası
+- q, page, size: EVT-04/EVT-05 kayıtlarındaki gibi
+
+#### Davranış
+Tüm filtreler birbirine ve `q` aramasına **VE** ile bağlanır; liste kapsamı (`endsAt > şimdi`, `PLANNED`/`ACTIVE`) her zaman uygulanır (geçmiş bir `from`, bitmiş/tamamlanmış etkinlikleri geri getirmez). Sıra sabit (başlangıç artan, kimlik); `totalItems` filtrelenmiş sayıdır; birden çok platformu eşleşen etkinlik **bir kez** döner. Eski etkinliklere platform atanmamıştır (platformu belirtilmemiş sayılırlar). Yalnız filtre kullanan istek başka servisi çağırmaz.
+
+#### Response — 200
+EVT-04 liste yanıtıyla aynıdır; öğelerde `platforms` (enum sırasında dizi, belirtilmemişse `[]`) bulunur. Eşleşme yoksa `items` boş döner.
+
+#### Hata Durumları
+- 400: `type`/`platform` tanımsız veya çok fazla (ör. `platform=PS5`, `platform=pc`), `gameId` UUID değil, `from`/`to` geçerli UTC an değil veya aralık dışı, `to <= from`; `q`/`page`/`size` geçersiz (`ProblemDetail`)
+- 401: Token yok/geçersiz/süresi dolmuş
+- 503 / 422: yalnız `q` ile oyun adı araması yapılırken (bkz. EVT-05)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/event/events?type=&platform=&gameId=&from=&to=
+
+Diğer mikroservisler:
+Yok (filtreler Event DB'sinde çalışır; platform Game'den okunmaz/türetilmez).
+
+#### Test Durumu
+UNIT + INTEGRATION — test sınıfları **yazıldı, çalıştırılmadı** (`EventPlatformTest`, `EventTest`, `EventServiceTest`, `EventControllerTest`, `EventEndpointSecurityTest`; gerçek PostgreSQL'de `EventRepositoryTest`). **NOT VERIFIED:** Criteria `exists` alt sorgusunun ve `@ElementCollection` eşlemesinin Hibernate'te çözümlenmesi, V115, gerçek PostgreSQL'de sıra/sayfalama/toplam, token'la uçtan uca, Gateway üzerinden çağrı.
 
 ### EVENT — Etkinlik–Oyun Bağlantısı (EVT-17)
 

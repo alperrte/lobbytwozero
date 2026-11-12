@@ -1,6 +1,6 @@
 # EVT-05 — Etkinlik arama: gereksinim karşılama durumu, sınırlar ve bağımlılıklar
 
-> **EVT-05 KISMEN KARŞILANDI — tamamlandı DEĞİL.** Etkinlik adı **ve** (KD-5/B ile) oyun adı araması kodlandı; ancak Game Service'in mevcut arama sözleşmesi (yalnız **önek**, yalnız **ana oyun**, 1000+ eşleşmede eksiksiz sonuç alınamıyor) "ilişkili oyuna göre arama"yı tam karşılamıyor. Engel ve talep: [Game talebi req-01](../game-service/talep/req-01.md). Kod ve testler yazıldı; **testler ve sorgular hiçbir veritabanında çalıştırılmadı.** Docker'daki imaj EVT-05 öncesidir.
+> **EVT-05 KISMEN KARŞILANDI — tamamlandı DEĞİL.** Etkinlik adı **ve** (KD-5/B ile) oyun adı araması kodlandı; ancak Game Service'in mevcut arama sözleşmesi (yalnız **önek**, yalnız **ana oyun**, 1000+ eşleşmede eksiksiz sonuç alınamıyor) "ilişkili oyuna göre arama"yı tam karşılamıyor. Engel ve talep: [Game talebi req-01](../game-service/talep/req-01.md). Kod ve testler yazıldı; **testler ve sorgular hiçbir veritabanında çalıştırılmadı.** Docker imajı güncel (2026-11-11 16:43 UTC; jar + V111–V115 doğrulandı), ama davranış token'la doğrulanmadı.
 > Son güncelleme: 2026-11-09 · Sorumlu: Nisa · İlgili: [EVT-04](evt-04-etkinlik-listeleme.md), [EVT-17](evt-17-oyun-baglantisi.md)
 
 ## 1. Kaynaklar
@@ -18,16 +18,16 @@
 
 | # | Gereksinim | Durum | Kodlandı | Doğrulandı | Docker'da |
 | --- | --- | --- | --- | --- | --- |
-| 1 | **Etkinlik adına göre** arama (içerir, büyük/küçük harf duyarsız) | **Karşılandı** | `q` → `EventRepository.searchByTitle` | Testler yazıldı; çalıştırılmadı | Hayır (imaj EVT-05 öncesi) |
-| 2 | **İlişkili oyun adına göre** arama | **Kısmen karşılandı** (Game sözleşme sınırları, §4) | `GameServiceClient.findGameIdsByNamePrefix` + `searchByTitleOrGame` | Testler yazıldı; çalıştırılmadı | Hayır |
-| 3 | Etkinlik adı **veya** oyun adı eşleşmesi; iki yoldan eşleşen etkinlik **tek kez** | **Karşılandı** | tek sorguda `lower(title) like … or game_id in (…)` (tek tablo, join yok) | `EventRepositoryTest` yazıldı; çalıştırılmadı | Hayır |
-| 4 | Liste kapsamı, kararlı sıra ve sayfalama korunur (EVT-04) | **Karşılandı** | aynı koşullar (`endsAt > şimdi`, `PLANNED/ACTIVE`, `startsAt, id`) ve `Page` | aynı | Hayır |
-| 5 | Game sonuçlarının yalnız ilk sayfası alınmaz; eksik sonuç/yanlış toplam yok | **Karşılandı** (sınır: 1000 oyun) | tüm sayfalar okunur; toplam/tutarlılık denetlenir; aşımda 422 | `GameServiceClientTest` yazıldı; çalıştırılmadı | Hayır |
-| 6 | Game Service erişilemezse "oyun bulunamadı" gibi gösterilmez | **Karşılandı** | `GameCatalogUnavailableException` → 503 (kırpılmış sonuç/başlık-only geri düşüş yok) | `EventServiceTest`, controller/güvenlik testleri | Hayır |
-| 7 | Başlık araması açıklamayı kapsamaz | **Karşılandı** | yalnız `title` | `EventRepositoryTest.descriptionIsNeverSearched` | Hayır |
-| 8 | İptal, tamamlanmış ve süresi geçmiş etkinlikler arama dışı | **Karşılandı** | liste kapsamı koşulu | `EventRepositoryTest` | Hayır |
+| 1 | **Etkinlik adına göre** arama (içerir, büyük/küçük harf duyarsız) | **Karşılandı** | `q` → `EventRepository.searchByTitle` | Testler yazıldı; çalıştırılmadı | İmajda var; davranış token'la denenmedi |
+| 2 | **İlişkili oyun adına göre** arama | **Kısmen karşılandı** (Game sözleşme sınırları, §4) | `GameServiceClient.findGameIdsByNamePrefix` + `searchByTitleOrGame` | Testler yazıldı; çalıştırılmadı | İmajda var; davranış token'la denenmedi |
+| 3 | Etkinlik adı **veya** oyun adı eşleşmesi; iki yoldan eşleşen etkinlik **tek kez** | **Karşılandı** | tek sorguda `lower(title) like … or game_id in (…)` (tek tablo, join yok) | `EventRepositoryTest` yazıldı; çalıştırılmadı | İmajda var; davranış token'la denenmedi |
+| 4 | Liste kapsamı, kararlı sıra ve sayfalama korunur (EVT-04) | **Karşılandı** | aynı koşullar (`endsAt > şimdi`, `PLANNED/ACTIVE`, `startsAt, id`) ve `Page` | aynı | İmajda var; davranış token'la denenmedi |
+| 5 | Game sonuçlarının yalnız ilk sayfası alınmaz; eksik sonuç/yanlış toplam yok | **Karşılandı** (sınır: 1000 oyun) | tüm sayfalar okunur; toplam/tutarlılık denetlenir; aşımda 422 | `GameServiceClientTest` yazıldı; çalıştırılmadı | İmajda var; davranış token'la denenmedi |
+| 6 | Game Service erişilemezse "oyun bulunamadı" gibi gösterilmez | **Karşılandı** | `GameCatalogUnavailableException` → 503 (kırpılmış sonuç/başlık-only geri düşüş yok) | `EventServiceTest`, controller/güvenlik testleri | İmajda var; davranış token'la denenmedi |
+| 7 | Başlık araması açıklamayı kapsamaz | **Karşılandı** | yalnız `title` | `EventRepositoryTest.descriptionIsNeverSearched` | İmajda var; davranış token'la denenmedi |
+| 8 | İptal, tamamlanmış ve süresi geçmiş etkinlikler arama dışı | **Karşılandı** | liste kapsamı koşulu | `EventRepositoryTest` | İmajda var; davranış token'la denenmedi |
 | 9 | Oyun adı events tablosuna kopyalanmaz | **Karşılandı** | yalnız `game_id` | — | — |
-| 10 | Yalnız giriş yapan kullanıcı arar; misafir 401 | **Karşılandı** (KD-4) | `SecurityConfig` | `EventEndpointSecurityTest` | Hayır |
+| 10 | Yalnız giriş yapan kullanıcı arar; misafir 401 | **Karşılandı** (KD-4) | `SecurityConfig` | `EventEndpointSecurityTest` | İmajda var; davranış token'la denenmedi |
 
 **Sonuç:** 1, 3–10 karşılandı (kodlandı, doğrulanmadı). 2 **kısmen** karşılandı: oyun adı araması, Game'in mevcut sözleşmesinin izin verdiği kapsamda çalışır (§4). Bu yüzden EVT-05 **tamamlanmış sayılmaz**; Game talebi (req-01) ve ürün kararı bekleniyor.
 
@@ -80,4 +80,4 @@ Bunlar [Game talebi req-01](../game-service/talep/req-01.md) ile iletildi. **Ter
 
 **Doğrulanmayan (NOT VERIFIED):** tüm yeni testler; JPQL sorgularının (`escape '!'`, `lower(:pattern)`, `in :gameIds`) Hibernate'te çözümlenmesi; V113/V114; gerçek Game Service'e karşı uçtan uca arama; Gateway üzerinden çağrı; gerçek Auth token'ı.
 
-**Docker:** event-service container'ı EVT-03 kodunda (V112); jar'da `GameServiceClient`, `EventSearch`, liste/arama sorguları ve V113/V114 yok; `events.game_id` veritabanında yok. **Güncel değil**, yeniden build edilmedi.
+**Docker (2026-11-11 16:43 UTC):** yalnız event-service yeniden build edilip başlatıldı (`docker compose build event-service` + `up -d --no-deps --no-build event-service`; `down` yok; volume, veri ve diğer servisler korundu). **İmaj (çalışan container'ın jar'ı):** EVT-01..06, EVT-17 ve platform kodu (`EventPlatform`, `platform` filtresi, `platforms` alanı) imajda bulunuyor; jar'da V111–V115 var. **Veritabanı (ayrı doğrulandı):** `flyway_schema_history` 111–115 hepsi `success`; V113–V115 bu başlatmada uygulandı; `events.game_id`, `event_platforms`, `ix_events_open_starts_at`, `ix_events_game_id`, `ix_event_platforms_platform` var; `events` ve `event_platforms` 0 satır (mevcut veri yoktu, hiçbir etkinliğe platform atanmadı). **Başlatma:** `Started EventServiceApplication`, `ddl-auto=validate` hatasız, sağlık 200 (doğrudan ve Gateway). Token'sız `GET` (liste, filtre, `platform=PS5` dahil) ve `POST` Gateway'den 401. **Doğrulanmadı:** geçerli token'la 201/200/400/422/503 davranışları (token yok), gerçek PostgreSQL'de filtre/arama sonuçları (testler çalıştırılmadı), Event → Game çağrısı. **Ortam bulgusu:** bu oturumda Docker Desktop motoru kendiliğinden yeniden başladı ve sonrasında Auth (JWKS) ve Game'in herkese açık uçları doğrudan ve Gateway'den 401 döndü (kod/belge bu uçların herkese açık olduğunu söyler; 9 Kasım'da 200'dü). Nedeni teşhis edilmedi; başka servislere dokunulmadı. Event token doğrulaması Auth JWKS'ine, oyun araması/doğrulaması Game'in herkese açık uçlarına bağlıdır: bu durum düzelmeden token'la uçtan uca doğrulama yapılamaz.

@@ -1,5 +1,7 @@
 package com.ltz.event.domain.entity;
 
+import com.ltz.event.domain.enums.EventPlatform;
+import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -108,5 +110,42 @@ class EventTest {
 	@Test
 	void eventWithoutGameHasNoGameId() {
 		assertThat(schedule(NOW.plusSeconds(3600), NOW.plusSeconds(7200)).getGameId()).isNull();
+	}
+
+	@Test
+	void eventHasNoPlatformsUnlessGiven() {
+		assertThat(schedule(NOW.plusSeconds(3600), NOW.plusSeconds(7200)).getPlatforms()).isEmpty();
+	}
+
+	@Test
+	void platformsAreCarriedInEnumOrderAndAreNotRandomlyAssigned() {
+		Event event = Event.schedule(ORGANIZER_ID, EventType.TOURNAMENT, null,
+				Set.of(EventPlatform.XBOX, EventPlatform.PC, EventPlatform.VR), "T", "D", NOW.plusSeconds(3600),
+				NOW.plusSeconds(7200), NOW);
+
+		assertThat(event.getPlatforms()).containsExactly(EventPlatform.PC, EventPlatform.XBOX, EventPlatform.VR);
+	}
+
+	@Test
+	void platformsAreIndependentOfTheLinkedGame() {
+		UUID gameId = UUID.fromString("0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66");
+
+		Event linkedWithoutPlatform = Event.schedule(ORGANIZER_ID, EventType.GAME_NIGHT, gameId, "T", "D",
+				NOW.plusSeconds(3600), NOW.plusSeconds(7200), NOW);
+		Event platformWithoutGame = Event.schedule(ORGANIZER_ID, EventType.GAME_NIGHT, null, Set.of(EventPlatform.PC), "T",
+				"D", NOW.plusSeconds(3600), NOW.plusSeconds(7200), NOW);
+
+		assertThat(linkedWithoutPlatform.getPlatforms()).isEmpty();
+		assertThat(platformWithoutGame.getGameId()).isNull();
+		assertThat(platformWithoutGame.getPlatforms()).containsExactly(EventPlatform.PC);
+	}
+
+	@Test
+	void exposedPlatformsCannotBeModified() {
+		Event event = Event.schedule(ORGANIZER_ID, EventType.OTHER, null, Set.of(EventPlatform.PC), "T", "D",
+				NOW.plusSeconds(3600), NOW.plusSeconds(7200), NOW);
+
+		assertThatThrownBy(() -> event.getPlatforms().add(EventPlatform.VR))
+				.isInstanceOf(UnsupportedOperationException.class);
 	}
 }

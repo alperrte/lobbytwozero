@@ -1,6 +1,6 @@
 # EVT-17 — Oyun bağlantısı: gereksinim karşılama durumu
 
-> Durum: **IN PROGRESS, doğrulama bekliyor.** Kod ve testler yazıldı; **testler, V114 migration'ı ve Game Service çağrıları hiçbir veritabanında/serviste çalıştırılmadı.** Docker'daki event-service imajı EVT-17 öncesidir.
+> Durum: **IN PROGRESS, doğrulama bekliyor.** Kod ve testler yazıldı; **testler, V114 migration'ı ve Game Service çağrıları hiçbir veritabanında/serviste çalıştırılmadı.** Docker imajı güncel (2026-11-11 16:43 UTC; jar + V111–V115 doğrulandı), ama davranış token'la doğrulanmadı.
 > Son güncelleme: 2026-11-09 · Sorumlu: Nisa · İlgili: [EVT-05](evt-05-etkinlik-arama.md), [Game talebi req-01](../game-service/talep/req-01.md)
 
 ## 1. Kaynaklar
@@ -17,10 +17,10 @@
 
 | # | Gereksinim | Durum | Kodlandı | Doğrulandı | Docker'da |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Etkinlik `gameId` ile oyuna bağlanabilir | **Karşılandı** (oluşturma anında) | `CreateEventRequest.gameId`, `Event.gameId`, V114 `events.game_id` | Testler yazıldı; çalıştırılmadı | Hayır (imaj EVT-17 öncesi) |
-| 2 | Bağlantı başka servisin DB'sine erişmeden kurulur | **Karşılandı** | `GameServiceClient` → `POST /games/batch` (public API) | `GameServiceClientTest` yazıldı; çalıştırılmadı | Hayır |
-| 3 | Oyun yoksa/yayında değilse reddedilir | **Karşılandı** | `GameNotAvailableException` → 422 | `EventServiceTest`, controller/güvenlik testleri | Hayır |
-| 4 | Game Service erişilemezse "oyun yok" gibi gösterilmez | **Karşılandı** | `GameCatalogUnavailableException` → 503; hiçbir şey kaydedilmez | aynı | Hayır |
+| 1 | Etkinlik `gameId` ile oyuna bağlanabilir | **Karşılandı** (oluşturma anında) | `CreateEventRequest.gameId`, `Event.gameId`, V114 `events.game_id` | Testler yazıldı; çalıştırılmadı | İmajda var; davranış token'la denenmedi |
+| 2 | Bağlantı başka servisin DB'sine erişmeden kurulur | **Karşılandı** | `GameServiceClient` → `POST /games/batch` (public API) | `GameServiceClientTest` yazıldı; çalıştırılmadı | İmajda var; davranış token'la denenmedi |
+| 3 | Oyun yoksa/yayında değilse reddedilir | **Karşılandı** | `GameNotAvailableException` → 422 | `EventServiceTest`, controller/güvenlik testleri | İmajda var; davranış token'la denenmedi |
+| 4 | Game Service erişilemezse "oyun yok" gibi gösterilmez | **Karşılandı** | `GameCatalogUnavailableException` → 503; hiçbir şey kaydedilmez | aynı | İmajda var; davranış token'la denenmedi |
 | 5 | Oyun adı events tablosuna kopyalanmaz | **Karşılandı** | yalnız `game_id` (UUID) saklanır | — | — |
 | 6 | Oluşturulmuş etkinliğin oyun bağlantısını **değiştirme/kaldırma** | **Eksik — EVT-14** | — | — | — |
 | 7 | Yanıtta oyun adı | **Kapsam dışı** | Yanıt yalnız `gameId` döner; ad için istemci Game Service'e (`/games/batch`) sorar | — | — |
@@ -53,4 +53,4 @@
 
 **Doğrulanmayan (NOT VERIFIED):** tüm yeni testler (birim, WebMvc, `MockRestServiceServer`, gerçek PostgreSQL `EventRepositoryTest`); V114; `ddl-auto=validate` ile yeni `game_id` eşlemesi; gerçek Game Service'e karşı uçtan uca oluşturma; Gateway üzerinden çağrı.
 
-**Docker:** event-service container'ı EVT-03 kodunda (V112); jar'da `GameServiceClient`, V113 ve V114 yok; `events.game_id` kolonu veritabanında yok. Yeniden build edilmedi.
+**Docker (2026-11-11 16:43 UTC):** yalnız event-service yeniden build edilip başlatıldı (`docker compose build event-service` + `up -d --no-deps --no-build event-service`; `down` yok; volume, veri ve diğer servisler korundu). **İmaj (çalışan container'ın jar'ı):** EVT-01..06, EVT-17 ve platform kodu (`EventPlatform`, `platform` filtresi, `platforms` alanı) imajda bulunuyor; jar'da V111–V115 var. **Veritabanı (ayrı doğrulandı):** `flyway_schema_history` 111–115 hepsi `success`; V113–V115 bu başlatmada uygulandı; `events.game_id`, `event_platforms`, `ix_events_open_starts_at`, `ix_events_game_id`, `ix_event_platforms_platform` var; `events` ve `event_platforms` 0 satır (mevcut veri yoktu, hiçbir etkinliğe platform atanmadı). **Başlatma:** `Started EventServiceApplication`, `ddl-auto=validate` hatasız, sağlık 200 (doğrudan ve Gateway). Token'sız `GET` (liste, filtre, `platform=PS5` dahil) ve `POST` Gateway'den 401. **Doğrulanmadı:** geçerli token'la 201/200/400/422/503 davranışları (token yok), gerçek PostgreSQL'de filtre/arama sonuçları (testler çalıştırılmadı), Event → Game çağrısı. **Ortam bulgusu:** bu oturumda Docker Desktop motoru kendiliğinden yeniden başladı ve sonrasında Auth (JWKS) ve Game'in herkese açık uçları doğrudan ve Gateway'den 401 döndü (kod/belge bu uçların herkese açık olduğunu söyler; 9 Kasım'da 200'dü). Nedeni teşhis edilmedi; başka servislere dokunulmadı. Event token doğrulaması Auth JWKS'ine, oyun araması/doğrulaması Game'in herkese açık uçlarına bağlıdır: bu durum düzelmeden token'la uçtan uca doğrulama yapılamaz.

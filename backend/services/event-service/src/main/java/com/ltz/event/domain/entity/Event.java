@@ -2,20 +2,30 @@ package com.ltz.event.domain.entity;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.UUID;
 
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.UuidGenerator;
 
+import com.ltz.event.domain.enums.EventPlatform;
 import com.ltz.event.domain.enums.EventStatus;
 import com.ltz.event.domain.enums.EventType;
 import com.ltz.event.domain.exception.InvalidEventScheduleException;
 import com.ltz.event.domain.exception.InvalidEventScheduleException.Reason;
 
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import lombok.AccessLevel;
@@ -56,6 +66,17 @@ public class Event {
 	@Column(name = "game_id")
 	private UUID gameId;
 
+	/**
+	 * Etkinliğin kendi platformları (EVT-06); bağlı oyundan türetilmez. Boş küme = platform belirtilmemiş. Liste
+	 * sorgularında N+1 olmaması için toplu (batch) yüklenir.
+	 */
+	@ElementCollection(fetch = FetchType.EAGER)
+	@CollectionTable(name = "event_platforms", joinColumns = @JoinColumn(name = "event_id"))
+	@Column(name = "platform", nullable = false, length = 32)
+	@Enumerated(EnumType.STRING)
+	@BatchSize(size = 100)
+	private Set<EventPlatform> platforms = new LinkedHashSet<>();
+
 	@Column(nullable = false, length = TITLE_MAX_LENGTH)
 	private String title;
 
@@ -93,12 +114,18 @@ public class Event {
 		return schedule(organizerId, type, null, title, description, startsAt, endsAt, now);
 	}
 
+	/** Platformsuz, oyuna bağlı etkinlik (EVT-17). */
+	public static Event schedule(UUID organizerId, EventType type, UUID gameId, String title, String description,
+			Instant startsAt, Instant endsAt, Instant now) {
+		return schedule(organizerId, type, gameId, Set.of(), title, description, startsAt, endsAt, now);
+	}
+
 	/**
 	 * Oyuna bağlı etkinlik oluşturur (EVT-17). {@code gameId} (varsa) çağıran tarafından Game Service'te doğrulanmış
 	 * olmalıdır; bu sınıf yalnız kimliği taşır.
 	 */
-	public static Event schedule(UUID organizerId, EventType type, UUID gameId, String title, String description,
-			Instant startsAt, Instant endsAt, Instant now) {
+	public static Event schedule(UUID organizerId, EventType type, UUID gameId, Set<EventPlatform> platforms,
+			String title, String description, Instant startsAt, Instant endsAt, Instant now) {
 		// Zamanlar milisaniyeye kırpılır: PostgreSQL timestamptz mikrosaniye saklar; kurallar kırpılmış değerlerle
 		// uygulanmazsa yalnız nanosaniyede farklı iki zaman domain kuralını geçip ck_events_schedule'ı ihlal eder (500).
 		Instant start = startsAt.truncatedTo(ChronoUnit.MILLIS);
@@ -114,6 +141,9 @@ public class Event {
 		event.organizerId = organizerId;
 		event.type = type;
 		event.gameId = gameId;
+		if (platforms != null) {
+			event.platforms.addAll(platforms);
+		}
 		event.title = title;
 		event.description = description;
 		event.startsAt = start;
@@ -122,5 +152,10 @@ public class Event {
 		event.createdAt = created;
 		event.updatedAt = created;
 		return event;
+	}
+
+	/** Platformlar (salt okunur, enum sırasında); boş = platform belirtilmemiş. */
+	public Set<EventPlatform> getPlatforms() {
+		return platforms.isEmpty() ? Set.of() : Collections.unmodifiableSet(EnumSet.copyOf(platforms));
 	}
 }

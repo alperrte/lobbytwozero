@@ -1,9 +1,11 @@
 package com.ltz.event.api.dto.request;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import com.ltz.event.domain.entity.Event;
+import com.ltz.event.domain.enums.EventPlatform;
 import com.ltz.event.domain.enums.EventType;
 
 import jakarta.validation.constraints.NotBlank;
@@ -31,5 +33,10 @@ public record CreateEventRequest(
 		Instant startsAt,
 		@NotNull
 		Instant endsAt,
-		UUID gameId) {
+		UUID gameId,
+		@Size(max = CreateEventRequest.MAX_PLATFORMS)
+		List<EventPlatform> platforms) {
+
+	/** Bir etkinlikte en çok kaç platform seçilebilir (yinelenenler birleştirilir; sözlük 6 değerdir). */
+	public static final int MAX_PLATFORMS = 6;
 }

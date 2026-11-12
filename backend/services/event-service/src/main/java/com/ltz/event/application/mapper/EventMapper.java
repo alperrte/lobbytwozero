@@ -1,5 +1,7 @@
 package com.ltz.event.application.mapper;
 
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;
 
@@ -7,6 +9,7 @@ import com.ltz.event.api.dto.response.EventPageResponse;
 import com.ltz.event.api.dto.response.EventResponse;
 import com.ltz.event.api.dto.response.EventSummaryResponse;
 import com.ltz.event.domain.entity.Event;
+import com.ltz.event.domain.enums.EventPlatform;
 
 @Component
 public class EventMapper {
@@ -17,6 +20,7 @@ public class EventMapper {
 				event.getOrganizerId(),
 				event.getType(),
 				event.getGameId(),
+				platforms(event),
 				event.getTitle(),
 				event.getDescription(),
 				event.getStartsAt(),
@@ -32,6 +36,7 @@ public class EventMapper {
 				event.getOrganizerId(),
 				event.getType(),
 				event.getGameId(),
+				platforms(event),
 				event.getTitle(),
 				event.getStartsAt(),
 				event.getEndsAt(),
@@ -46,5 +51,10 @@ public class EventMapper {
 				page.getTotalElements(),
 				page.getTotalPages(),
 				page.hasNext());
+	}
+
+	/** Platformlar enum sırasıyla (deterministik JSON); belirtilmemişse boş liste. */
+	private static List<EventPlatform> platforms(Event event) {
+		return List.copyOf(event.getPlatforms());
 	}
 }

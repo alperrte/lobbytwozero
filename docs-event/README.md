@@ -11,6 +11,7 @@ Event Service (Nisa) çalışma belgeleri. Kural belgelerinin (`docs/`) yerine g
 | [event-service/evt-03-etkinlik-detayi.md](event-service/evt-03-etkinlik-detayi.md) | EVT-03 (KISMİ): gereksinim tablosu, eksik katılım bilgileri (EVT-13/EVT-08 bağımlılığı), KD-4 misafir erişimi, KD-3 null organizerId |
 | [event-service/evt-04-etkinlik-listeleme.md](event-service/evt-04-etkinlik-listeleme.md) | EVT-04: yaklaşan/mevcut etkinlik listesi, zaman tabanlı tanım (varsayım), V113 indeksi, test altyapısı (geçici PostgreSQL) |
 | [event-service/evt-05-etkinlik-arama.md](event-service/evt-05-etkinlik-arama.md) | EVT-05 (KISMEN): ada göre arama + oyun adı araması (KD-5/B), Game sözleşme sınırları (önek, yalnız ana oyun, 1000 eşleşme) |
+| [event-service/evt-06-etkinlik-filtreleme.md](event-service/evt-06-etkinlik-filtreleme.md) | EVT-06: oyun/tür/tarih/platform filtreleri; platform etkinliğin kendi alanı (KD-6/A); platform sözlüğü KD-6a **onaylandı** (karar kaydı doğrulamadan ayrı) |
 | [event-service/evt-17-oyun-baglantisi.md](event-service/evt-17-oyun-baglantisi.md) | EVT-17: `gameId` ile oyun bağlantısı (oluşturma anında), Game doğrulaması |
 | [event-service/hesap-silme-entegrasyonu.md](event-service/hesap-silme-entegrasyonu.md) | Auth hesap silme akışının beklediği `DELETE /internal/v1/accounts/{accountId}` ucu: eksik, sözleşme, bağımlılık |
 
@@ -34,3 +35,7 @@ Başka serviste değişiklik gerekirse talep `docs-event/<servis-adı>/talep/req
 | B-4 | Game Service arama sözleşmesi sınırları (önek, yalnız ana oyun, 1000+ eşleşmede eksiksiz sonuç yok) — [req-01](game-service/talep/req-01.md); ayrıca EVT-14 (oluşturulmuş etkinliğin oyun bağlantısını değiştirme) | EVT-05 "ilişkili oyuna göre arama" tam karşılama; EVT-17 sonradan değiştirme | [evt-05](event-service/evt-05-etkinlik-arama.md) §4, [evt-17](event-service/evt-17-oyun-baglantisi.md) |
 
 EVT-08 ve EVT-13 tamamlanınca **detay yanıtına gerçek katılım bilgileri eklenmeli** ve EVT-03 ancak o zaman kapatılmalıdır. Game talebi (req-01) ve ilgili ürün kararları (önek/"içerir", DLC) sonuçlanınca **oyun adı araması yeniden değerlendirilmeli** ve EVT-05 ancak o zaman kapatılmalıdır.
+
+EVT-06: dört filtre kodlandı; açık karar kalmadı (KD-6a onaylandı). Kapanış koşulu işlevsel doğrulamadır (testler, token'lı kontrol listesi: [evt-06](event-service/evt-06-etkinlik-filtreleme.md) §8).
+
+**Kapanan kararlar:** KD-1 rol (2026-11-09), KD-2 oylama türü (2026-11-09), KD-4 görüntüleme erişimi (2026-11-09), KD-5 oyun adı araması (2026-11-09), KD-6/A platform alanı ve **KD-6a platform sözlüğü (2026-11-11)**. Açık kalanlar: KD-3 (silinen düzenleyici — karar var, uygulama yok), KD-3a (tamamlanan etkinliklerde metin saklama).

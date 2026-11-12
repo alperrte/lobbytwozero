@@ -24,7 +24,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ltz.event.application.port.EventSearchCriteria;
 import com.ltz.event.domain.entity.Event;
+import com.ltz.event.domain.enums.EventPlatform;
 import com.ltz.event.domain.enums.EventStatus;
 import com.ltz.event.domain.enums.EventType;
 import com.ltz.event.infrastructure.persistence.repository.EventRepository;
@@ -60,8 +62,18 @@ class EventRepositoryTest extends PostgreSqlIntegrationTest {
 	}
 
 	private Event save(String title, Duration startOffset, Duration endOffset, EventStatus status, UUID gameId) {
+		return saveTyped(title, EventType.COMMUNITY, startOffset, endOffset, status, gameId);
+	}
+
+	private Event saveTyped(String title, EventType type, Duration startOffset, Duration endOffset, EventStatus status,
+			UUID gameId) {
+		return saveFull(title, type, startOffset, endOffset, status, gameId, Set.of());
+	}
+
+	private Event saveFull(String title, EventType type, Duration startOffset, Duration endOffset, EventStatus status,
+			UUID gameId, Set<EventPlatform> platforms) {
 		Instant startsAt = now.plus(startOffset);
-		Event event = Event.schedule(ORGANIZER_ID, EventType.COMMUNITY, gameId, title, "Açıklama", startsAt,
+		Event event = Event.schedule(ORGANIZER_ID, type, gameId, platforms, title, "Açıklama", startsAt,
 				now.plus(endOffset), startsAt.minus(Duration.ofMinutes(1)));
 		Event saved = eventRepository.saveAndFlush(event);
 		if (status != EventStatus.PLANNED) {
@@ -71,9 +83,18 @@ class EventRepositoryTest extends PostgreSqlIntegrationTest {
 		return saved;
 	}
 
+	private EventSearchCriteria criteria(String pattern, Set<UUID> games, Set<EventType> types, UUID gameId,
+			Instant from, Instant to) {
+		return criteria(pattern, games, types, Set.of(), gameId, from, to);
+	}
+
+	private EventSearchCriteria criteria(String pattern, Set<UUID> games, Set<EventType> types,
+			Set<EventPlatform> platforms, UUID gameId, Instant from, Instant to) {
+		return new EventSearchCriteria(now, LISTED, pattern, games, types, platforms, gameId, from, to);
+	}
+
 	private Page<Event> list(int page, int size) {
-		return eventRepository.findByEndsAtAfterAndStatusInOrderByStartsAtAscIdAsc(now, LISTED,
-				PageRequest.of(page, size));
+		return eventRepository.search(criteria(null, Set.of(), Set.of(), null, null, null), PageRequest.of(page, size));
 	}
 
 	// ------------------------------------------------------------------ eşleme ve migration
@@ -197,7 +218,12 @@ class EventRepositoryTest extends PostgreSqlIntegrationTest {
 	// ------------------------------------------------------------------ EVT-05 başlığa göre arama
 
 	private Page<Event> search(String text, int page, int size) {
-		return eventRepository.searchByTitle(now, LISTED, "%" + text + "%", PageRequest.of(page, size));
+		return eventRepository.search(criteria("%" + text + "%", Set.of(), Set.of(), null, null, null),
+				PageRequest.of(page, size));
+	}
+
+	private Page<Event> searchPattern(String pattern) {
+		return eventRepository.search(criteria(pattern, Set.of(), Set.of(), null, null, null), PageRequest.of(0, 10));
 	}
 
 	private List<String> titles(Page<Event> page) {
@@ -265,11 +291,11 @@ class EventRepositoryTest extends PostgreSqlIntegrationTest {
 		save("Ünlem! gecesi", Duration.ofHours(5), Duration.ofHours(6), EventStatus.PLANNED);
 
 		// Desen, EventService'in kullandığı kaçışla ('!' kaçış karakteri) elle hazırlanır.
-		assertThat(titles(eventRepository.searchByTitle(now, LISTED, "%100!%%", PageRequest.of(0, 10))))
+		assertThat(titles(searchPattern("%100!%%")))
 				.containsExactly("Yüzde 100% eğlence");
-		assertThat(titles(eventRepository.searchByTitle(now, LISTED, "%a!_b%", PageRequest.of(0, 10))))
+		assertThat(titles(searchPattern("%a!_b%")))
 				.containsExactly("a_b etkinlik");
-		assertThat(titles(eventRepository.searchByTitle(now, LISTED, "%!!%", PageRequest.of(0, 10))))
+		assertThat(titles(searchPattern("%!!%")))
 				.containsExactly("Ünlem! gecesi");
 	}
 
@@ -304,7 +330,8 @@ class EventRepositoryTest extends PostgreSqlIntegrationTest {
 	// ------------------------------------------------------------------ EVT-05 başlık VEYA oyun
 
 	private Page<Event> searchTitleOrGame(String text, Collection<UUID> games, int page, int size) {
-		return eventRepository.searchByTitleOrGame(now, LISTED, "%" + text + "%", games, PageRequest.of(page, size));
+		return eventRepository.search(criteria("%" + text + "%", Set.copyOf(games), Set.of(), null, null, null),
+				PageRequest.of(page, size));
 	}
 
 	@Test
@@ -383,5 +410,370 @@ class EventRepositoryTest extends PostgreSqlIntegrationTest {
 
 		assertThat(searchTitleOrGame("yok-boyle-bir-baslik", games, 0, 10).getContent())
 				.extracting(Event::getId).containsExactly(target.getId());
+	}
+
+	// ------------------------------------------------------------------ EVT-06 filtreler
+
+	private Page<Event> filter(Set<EventType> types, UUID gameId, Instant from, Instant to) {
+		return eventRepository.search(criteria(null, Set.of(), types, gameId, from, to), PageRequest.of(0, 20));
+	}
+
+	@Test
+	void filtersByEventType() {
+		save("Topluluk", Duration.ofHours(1), Duration.ofHours(2), EventStatus.PLANNED);
+		Event tournament = saveTyped("Turnuva", EventType.TOURNAMENT, Duration.ofHours(2), Duration.ofHours(3),
+				EventStatus.PLANNED, null);
+		Event poll = saveTyped("Oylama", EventType.POLL, Duration.ofHours(3), Duration.ofHours(4), EventStatus.PLANNED, null);
+		saveTyped("Gece", EventType.GAME_NIGHT, Duration.ofHours(4), Duration.ofHours(5), EventStatus.PLANNED, null);
+
+		assertThat(filter(Set.of(EventType.TOURNAMENT, EventType.POLL), null, null, null).getContent())
+				.extracting(Event::getId).containsExactly(tournament.getId(), poll.getId());
+		assertThat(titles(filter(Set.of(EventType.GAME_NIGHT), null, null, null))).containsExactly("Gece");
+		assertThat(filter(Set.of(EventType.OTHER), null, null, null).getContent()).isEmpty();
+	}
+
+	@Test
+	void filtersByGame() {
+		Event a1 = save("A1", Duration.ofHours(1), Duration.ofHours(2), EventStatus.PLANNED, GAME_A);
+		Event a2 = save("A2", Duration.ofHours(2), Duration.ofHours(3), EventStatus.ACTIVE, GAME_A);
+		save("B", Duration.ofHours(3), Duration.ofHours(4), EventStatus.PLANNED, GAME_B);
+		save("Oyunsuz", Duration.ofHours(4), Duration.ofHours(5), EventStatus.PLANNED);
+
+		assertThat(filter(Set.of(), GAME_A, null, null).getContent()).extracting(Event::getId)
+				.containsExactly(a1.getId(), a2.getId());
+		assertThat(titles(filter(Set.of(), GAME_B, null, null))).containsExactly("B");
+		assertThat(filter(Set.of(), GAME_C, null, null).getContent()).isEmpty();
+	}
+
+	@Test
+	void gameFilterStaysInsideTheListingScope() {
+		save("Yaklaşan", Duration.ofHours(1), Duration.ofHours(2), EventStatus.PLANNED, GAME_A);
+		save("İptal", Duration.ofHours(1), Duration.ofHours(2), EventStatus.CANCELLED, GAME_A);
+		save("Bitmiş", Duration.ofHours(-3), Duration.ofHours(-1), EventStatus.PLANNED, GAME_A);
+
+		assertThat(titles(filter(Set.of(), GAME_A, null, null))).containsExactly("Yaklaşan");
+	}
+
+	@Test
+	void dateRangeKeepsEventsWhoseTimeOverlapsTheRange() {
+		save("E1 erken", Duration.ofHours(1), Duration.ofHours(2), EventStatus.PLANNED);
+		save("E2 aralıkta", Duration.ofHours(5), Duration.ofHours(6), EventStatus.PLANNED);
+		save("E3 devam eden", Duration.ofHours(-1), Duration.ofHours(3), EventStatus.PLANNED);
+		save("E4 geç", Duration.ofHours(10), Duration.ofHours(11), EventStatus.PLANNED);
+		Instant from = now.plus(Duration.ofMinutes(150));
+		Instant to = now.plus(Duration.ofMinutes(330));
+
+		assertThat(titles(filter(Set.of(), null, from, to))).containsExactly("E3 devam eden", "E2 aralıkta");
+	}
+
+	@Test
+	void dateRangeBoundariesAreFromInclusiveOfOverlapAndToExclusive() {
+		save("Tam from'da biten", Duration.ofHours(1), Duration.ofHours(2), EventStatus.PLANNED);
+		save("Tam from'da başlayan", Duration.ofHours(2), Duration.ofHours(3), EventStatus.PLANNED);
+		save("Tam to'da başlayan", Duration.ofHours(4), Duration.ofHours(5), EventStatus.PLANNED);
+		Instant from = now.plus(Duration.ofHours(2));
+		Instant to = now.plus(Duration.ofHours(4));
+
+		assertThat(titles(filter(Set.of(), null, from, to))).containsExactly("Tam from'da başlayan");
+	}
+
+	@Test
+	void openEndedDateRanges() {
+		save("Erken", Duration.ofHours(1), Duration.ofHours(2), EventStatus.PLANNED);
+		save("Orta", Duration.ofHours(3), Duration.ofHours(4), EventStatus.PLANNED);
+		save("Geç", Duration.ofHours(6), Duration.ofHours(7), EventStatus.PLANNED);
+		Instant middle = now.plus(Duration.ofHours(5));
+
+		assertThat(titles(filter(Set.of(), null, middle, null))).containsExactly("Geç");
+		assertThat(titles(filter(Set.of(), null, null, middle))).containsExactly("Erken", "Orta");
+	}
+
+	@Test
+	void aPastFromDoesNotBringBackEventsOutsideTheListingScope() {
+		save("Bitmiş", Duration.ofHours(-3), Duration.ofHours(-1), EventStatus.PLANNED);
+		save("Yaklaşan", Duration.ofHours(1), Duration.ofHours(2), EventStatus.PLANNED);
+
+		assertThat(titles(filter(Set.of(), null, now.minus(Duration.ofDays(30)), null))).containsExactly("Yaklaşan");
+	}
+
+	@Test
+	void filtersCombineWithAnd() {
+		Event match = saveTyped("Eşleşen", EventType.TOURNAMENT, Duration.ofHours(5), Duration.ofHours(6),
+				EventStatus.PLANNED, GAME_A);
+		saveTyped("Yanlış tür", EventType.POLL, Duration.ofHours(5), Duration.ofHours(6), EventStatus.PLANNED, GAME_A);
+		saveTyped("Yanlış oyun", EventType.TOURNAMENT, Duration.ofHours(5), Duration.ofHours(6), EventStatus.PLANNED, GAME_B);
+		saveTyped("Yanlış tarih", EventType.TOURNAMENT, Duration.ofHours(20), Duration.ofHours(21), EventStatus.PLANNED, GAME_A);
+
+		Page<Event> page = filter(Set.of(EventType.TOURNAMENT), GAME_A, now.plus(Duration.ofHours(4)),
+				now.plus(Duration.ofHours(8)));
+
+		assertThat(page.getContent()).extracting(Event::getId).containsExactly(match.getId());
+		assertThat(page.getTotalElements()).isEqualTo(1);
+	}
+
+	@Test
+	void filtersApplyToTheTitleOrGameSearchResult() {
+		Event byTitle = saveTyped("Elden turnuvası", EventType.TOURNAMENT, Duration.ofHours(1), Duration.ofHours(2),
+				EventStatus.PLANNED, null);
+		Event byGame = saveTyped("Boss avı", EventType.TOURNAMENT, Duration.ofHours(2), Duration.ofHours(3),
+				EventStatus.PLANNED, GAME_A);
+		saveTyped("Elden gecesi", EventType.GAME_NIGHT, Duration.ofHours(3), Duration.ofHours(4), EventStatus.PLANNED, null);
+		saveTyped("Boss gecesi", EventType.GAME_NIGHT, Duration.ofHours(4), Duration.ofHours(5), EventStatus.PLANNED, GAME_A);
+
+		Page<Event> page = eventRepository.search(
+				criteria("%elden%", Set.of(GAME_A), Set.of(EventType.TOURNAMENT), null, null, null), PageRequest.of(0, 20));
+
+		assertThat(page.getContent()).extracting(Event::getId).containsExactly(byTitle.getId(), byGame.getId());
+		assertThat(page.getTotalElements()).isEqualTo(2);
+	}
+
+	@Test
+	void filteredResultsPaginateWithFilteredTotals() {
+		for (int i = 1; i <= 5; i++) {
+			saveTyped("Turnuva " + i, EventType.TOURNAMENT, Duration.ofHours(i), Duration.ofHours(i + 1), EventStatus.PLANNED,
+					null);
+		}
+		save("Topluluk", Duration.ofHours(1), Duration.ofHours(2), EventStatus.PLANNED);
+
+		Page<Event> first = eventRepository.search(criteria(null, Set.of(), Set.of(EventType.TOURNAMENT), null, null, null),
+				PageRequest.of(0, 2));
+		Page<Event> last = eventRepository.search(criteria(null, Set.of(), Set.of(EventType.TOURNAMENT), null, null, null),
+				PageRequest.of(2, 2));
+
+		assertThat(titles(first)).containsExactly("Turnuva 1", "Turnuva 2");
+		assertThat(first.getTotalElements()).isEqualTo(5);
+		assertThat(first.getTotalPages()).isEqualTo(3);
+		assertThat(titles(last)).containsExactly("Turnuva 5");
+		assertThat(last.hasNext()).isFalse();
+	}
+
+	@Test
+	void withoutFiltersTheFullListingScopeIsReturned() {
+		save("1", Duration.ofHours(1), Duration.ofHours(2), EventStatus.PLANNED);
+		save("2", Duration.ofHours(2), Duration.ofHours(3), EventStatus.PLANNED, GAME_A);
+		save("İptal", Duration.ofHours(1), Duration.ofHours(2), EventStatus.CANCELLED);
+
+		assertThat(titles(filter(Set.of(), null, null, null))).containsExactly("1", "2");
+	}
+
+	@Test
+	void aSingleQuoteInTheSearchTextIsHarmless() {
+		save("O'Brien gecesi", Duration.ofHours(1), Duration.ofHours(2), EventStatus.PLANNED);
+		save("Başka", Duration.ofHours(2), Duration.ofHours(3), EventStatus.PLANNED);
+
+		assertThat(titles(search("o'brien", 0, 10))).containsExactly("O'Brien gecesi");
+		assertThat(titles(search("'; drop table events; --", 0, 10))).isEmpty();
+	}
+
+	// ------------------------------------------------------------------ EVT-06 platform (etkinliğin kendi alanı)
+
+	private static final Set<EventPlatform> PC = Set.of(EventPlatform.PC);
+	private static final Set<EventPlatform> XBOX = Set.of(EventPlatform.XBOX);
+
+	private Page<Event> byPlatform(Set<EventPlatform> platforms) {
+		return eventRepository.search(criteria(null, Set.of(), Set.of(), platforms, null, null, null), PageRequest.of(0, 20));
+	}
+
+	@Test
+	void platformsArePersistedAsTheEventsOwnRowsAndLoadedInEnumOrder() {
+		Event saved = saveFull("Çapraz", EventType.TOURNAMENT, Duration.ofHours(1), Duration.ofHours(2), EventStatus.PLANNED,
+				null, Set.of(EventPlatform.VR, EventPlatform.PC, EventPlatform.XBOX));
+
+		Event loaded = eventRepository.findById(saved.getId()).orElseThrow();
+
+		assertThat(loaded.getPlatforms()).containsExactly(EventPlatform.PC, EventPlatform.XBOX, EventPlatform.VR);
+		assertThat(jdbcTemplate.queryForObject("select count(*) from event_platforms where event_id = ?", Long.class,
+				saved.getId())).isEqualTo(3L);
+	}
+
+	@Test
+	void eventsWithoutPlatformsHaveNoRowsAndLoadAsEmpty() {
+		Event saved = save("Platformsuz", Duration.ofHours(1), Duration.ofHours(2), EventStatus.PLANNED, GAME_A);
+
+		assertThat(eventRepository.findById(saved.getId()).orElseThrow().getPlatforms()).isEmpty();
+		assertThat(jdbcTemplate.queryForObject("select count(*) from event_platforms where event_id = ?", Long.class,
+				saved.getId())).isZero();
+	}
+
+	@Test
+	void deletingAnEventCascadesToItsPlatforms() {
+		Event saved = saveFull("Silinecek", EventType.OTHER, Duration.ofHours(1), Duration.ofHours(2), EventStatus.PLANNED,
+				null, PC);
+
+		assertThat(jdbcTemplate.update("delete from events where id = ?", saved.getId())).isEqualTo(1);
+		assertThat(jdbcTemplate.queryForObject("select count(*) from event_platforms where event_id = ?", Long.class,
+				saved.getId())).isZero();
+	}
+
+	@Test
+	@Transactional(propagation = Propagation.NOT_SUPPORTED)
+	void databaseRejectsPlatformValuesOutsideTheVocabulary() {
+		Instant start = now.plus(Duration.ofHours(1));
+		UUID id = UUID.randomUUID();
+		jdbcTemplate.update("insert into events (id, organizer_id, type, title, description, starts_at, ends_at, status, "
+				+ "created_at, updated_at) values (?, ?, 'OTHER', 'T', 'D', ?, ?, 'PLANNED', now(), now())", id, ORGANIZER_ID,
+				Timestamp.from(start), Timestamp.from(start.plusSeconds(60)));
+		try {
+			assertThatThrownBy(() -> jdbcTemplate.update("insert into event_platforms (event_id, platform) values (?, 'PS5')", id))
+					.isInstanceOf(DataIntegrityViolationException.class);
+			assertThatThrownBy(() -> jdbcTemplate.update(
+					"insert into event_platforms (event_id, platform) values (?, 'pc')", id))
+					.isInstanceOf(DataIntegrityViolationException.class);
+		} finally {
+			jdbcTemplate.update("delete from events where id = ?", id);
+		}
+	}
+
+	@Test
+	void platformFilterAloneKeepsOnlyEventsWithThatPlatform() {
+		Event pc = saveFull("PC", EventType.COMMUNITY, Duration.ofHours(1), Duration.ofHours(2), EventStatus.PLANNED, null, PC);
+		saveFull("Xbox", EventType.COMMUNITY, Duration.ofHours(2), Duration.ofHours(3), EventStatus.PLANNED, null, XBOX);
+		save("Platformsuz", Duration.ofHours(3), Duration.ofHours(4), EventStatus.PLANNED);
+
+		Page<Event> page = byPlatform(PC);
+
+		assertThat(page.getContent()).extracting(Event::getId).containsExactly(pc.getId());
+		assertThat(page.getTotalElements()).isEqualTo(1);
+	}
+
+	@Test
+	void eventsWithoutAPlatformNeverMatchAPlatformFilter() {
+		save("Platformsuz", Duration.ofHours(1), Duration.ofHours(2), EventStatus.PLANNED);
+		save("Oyunlu platformsuz", Duration.ofHours(2), Duration.ofHours(3), EventStatus.PLANNED, GAME_A);
+
+		for (EventPlatform platform : EventPlatform.values()) {
+			assertThat(byPlatform(Set.of(platform)).getContent()).as(platform.name()).isEmpty();
+		}
+	}
+
+	@Test
+	void platformIsNotDerivedFromTheLinkedGameAndWorksWithoutAGame() {
+		Event linkedNoPlatform = save("Oyunlu", Duration.ofHours(1), Duration.ofHours(2), EventStatus.PLANNED, GAME_A);
+		Event platformNoGame = saveFull("Oyunsuz platformlu", EventType.GAME_NIGHT, Duration.ofHours(2), Duration.ofHours(3),
+				EventStatus.PLANNED, null, PC);
+
+		Page<Event> page = byPlatform(PC);
+
+		assertThat(page.getContent()).extracting(Event::getId).containsExactly(platformNoGame.getId());
+		assertThat(page.getContent()).extracting(Event::getId).doesNotContain(linkedNoPlatform.getId());
+	}
+
+	@Test
+	void multiplePlatformsMatchAnyOfThemAndEachEventIsReturnedOnce() {
+		Event both = saveFull("Çapraz", EventType.TOURNAMENT, Duration.ofHours(1), Duration.ofHours(2), EventStatus.PLANNED,
+				null, Set.of(EventPlatform.PC, EventPlatform.XBOX));
+		Event onlyPc = saveFull("Yalnız PC", EventType.TOURNAMENT, Duration.ofHours(2), Duration.ofHours(3),
+				EventStatus.PLANNED, null, PC);
+		saveFull("Yalnız VR", EventType.TOURNAMENT, Duration.ofHours(3), Duration.ofHours(4), EventStatus.PLANNED, null,
+				Set.of(EventPlatform.VR));
+
+		Page<Event> page = byPlatform(Set.of(EventPlatform.PC, EventPlatform.XBOX));
+
+		assertThat(page.getContent()).extracting(Event::getId).containsExactly(both.getId(), onlyPc.getId());
+		assertThat(page.getTotalElements()).isEqualTo(2);
+	}
+
+	@Test
+	void platformFilterStaysInsideTheListingScope() {
+		saveFull("Yaklaşan", EventType.OTHER, Duration.ofHours(1), Duration.ofHours(2), EventStatus.PLANNED, null, PC);
+		saveFull("İptal", EventType.OTHER, Duration.ofHours(1), Duration.ofHours(2), EventStatus.CANCELLED, null, PC);
+		saveFull("Bitmiş", EventType.OTHER, Duration.ofHours(-3), Duration.ofHours(-1), EventStatus.PLANNED, null, PC);
+		saveFull("Tamamlandı", EventType.OTHER, Duration.ofHours(-3), Duration.ofHours(1), EventStatus.COMPLETED, null, PC);
+
+		assertThat(titles(byPlatform(PC))).containsExactly("Yaklaşan");
+	}
+
+	@Test
+	void platformFilterCombinesWithTypeGameAndDateRange() {
+		Event match = saveFull("Eşleşen", EventType.TOURNAMENT, Duration.ofHours(5), Duration.ofHours(6), EventStatus.PLANNED,
+				GAME_A, PC);
+		saveFull("Yanlış platform", EventType.TOURNAMENT, Duration.ofHours(5), Duration.ofHours(6), EventStatus.PLANNED,
+				GAME_A, XBOX);
+		saveFull("Platformsuz", EventType.TOURNAMENT, Duration.ofHours(5), Duration.ofHours(6), EventStatus.PLANNED, GAME_A,
+				Set.of());
+		saveFull("Yanlış tür", EventType.POLL, Duration.ofHours(5), Duration.ofHours(6), EventStatus.PLANNED, GAME_A, PC);
+		saveFull("Yanlış oyun", EventType.TOURNAMENT, Duration.ofHours(5), Duration.ofHours(6), EventStatus.PLANNED, GAME_B,
+				PC);
+		saveFull("Yanlış tarih", EventType.TOURNAMENT, Duration.ofHours(20), Duration.ofHours(21), EventStatus.PLANNED,
+				GAME_A, PC);
+
+		Page<Event> page = eventRepository.search(criteria(null, Set.of(), Set.of(EventType.TOURNAMENT), PC, GAME_A,
+				now.plus(Duration.ofHours(4)), now.plus(Duration.ofHours(8))), PageRequest.of(0, 20));
+
+		assertThat(page.getContent()).extracting(Event::getId).containsExactly(match.getId());
+		assertThat(page.getTotalElements()).isEqualTo(1);
+	}
+
+	@Test
+	void platformFilterKeepsTheDateOverlapRule() {
+		saveFull("Erken", EventType.OTHER, Duration.ofHours(1), Duration.ofHours(2), EventStatus.PLANNED, null, PC);
+		saveFull("Devam eden", EventType.OTHER, Duration.ofHours(-1), Duration.ofHours(3), EventStatus.PLANNED, null, PC);
+		saveFull("Aralıkta", EventType.OTHER, Duration.ofHours(5), Duration.ofHours(6), EventStatus.PLANNED, null, PC);
+		saveFull("Geç", EventType.OTHER, Duration.ofHours(10), Duration.ofHours(11), EventStatus.PLANNED, null, PC);
+
+		Page<Event> page = eventRepository.search(criteria(null, Set.of(), Set.of(), PC, null,
+				now.plus(Duration.ofMinutes(150)), now.plus(Duration.ofMinutes(330))), PageRequest.of(0, 20));
+
+		assertThat(titles(page)).containsExactly("Devam eden", "Aralıkta");
+	}
+
+	@Test
+	void platformFilterAppliesToTheTitleOrGameSearch() {
+		saveFull("Elden PC gecesi", EventType.GAME_NIGHT, Duration.ofHours(1), Duration.ofHours(2), EventStatus.PLANNED, null,
+				PC);
+		saveFull("Boss avı PC", EventType.GAME_NIGHT, Duration.ofHours(2), Duration.ofHours(3), EventStatus.PLANNED, GAME_A, PC);
+		saveFull("Elden Xbox gecesi", EventType.GAME_NIGHT, Duration.ofHours(3), Duration.ofHours(4), EventStatus.PLANNED,
+				null, XBOX);
+		saveFull("Boss avı Xbox", EventType.GAME_NIGHT, Duration.ofHours(4), Duration.ofHours(5), EventStatus.PLANNED, GAME_A,
+				XBOX);
+		save("Elden platformsuz", Duration.ofHours(5), Duration.ofHours(6), EventStatus.PLANNED);
+
+		Page<Event> page = eventRepository.search(criteria("%elden%", Set.of(GAME_A), Set.of(), PC, null, null, null),
+				PageRequest.of(0, 20));
+
+		assertThat(titles(page)).containsExactly("Elden PC gecesi", "Boss avı PC");
+		assertThat(page.getTotalElements()).isEqualTo(2);
+	}
+
+	@Test
+	void platformFilteredResultsPaginateWithFilteredTotals() {
+		for (int i = 1; i <= 5; i++) {
+			saveFull("PC " + i, EventType.OTHER, Duration.ofHours(i), Duration.ofHours(i + 1), EventStatus.PLANNED, null,
+					Set.of(EventPlatform.PC, EventPlatform.XBOX));
+		}
+		saveFull("Yalnız VR", EventType.OTHER, Duration.ofHours(1), Duration.ofHours(2), EventStatus.PLANNED, null,
+				Set.of(EventPlatform.VR));
+
+		Page<Event> first = eventRepository.search(criteria(null, Set.of(), Set.of(), PC, null, null, null),
+				PageRequest.of(0, 2));
+		Page<Event> last = eventRepository.search(criteria(null, Set.of(), Set.of(), PC, null, null, null),
+				PageRequest.of(2, 2));
+
+		assertThat(titles(first)).containsExactly("PC 1", "PC 2");
+		assertThat(first.getTotalElements()).isEqualTo(5);
+		assertThat(first.getTotalPages()).isEqualTo(3);
+		assertThat(titles(last)).containsExactly("PC 5");
+		assertThat(last.hasNext()).isFalse();
+	}
+
+	@Test
+	void withoutAPlatformFilterEventsWithAndWithoutPlatformsAreAllListed() {
+		saveFull("Platformlu", EventType.OTHER, Duration.ofHours(1), Duration.ofHours(2), EventStatus.PLANNED, null, PC);
+		save("Platformsuz", Duration.ofHours(2), Duration.ofHours(3), EventStatus.PLANNED);
+
+		assertThat(titles(list(0, 10))).containsExactly("Platformlu", "Platformsuz");
+	}
+
+	@Test
+	void listedEventsCarryTheirPlatforms() {
+		for (int i = 1; i <= 5; i++) {
+			saveFull("E" + i, EventType.OTHER, Duration.ofHours(i), Duration.ofHours(i + 1), EventStatus.PLANNED, null,
+					Set.of(EventPlatform.PC, EventPlatform.VR));
+		}
+
+		Page<Event> page = list(0, 10);
+
+		assertThat(page.getContent()).hasSize(5)
+				.allSatisfy(event -> assertThat(event.getPlatforms()).containsExactly(EventPlatform.PC, EventPlatform.VR));
 	}
 }

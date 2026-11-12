@@ -1,5 +1,8 @@
 package com.ltz.event.application.service;
 
+import com.ltz.event.domain.enums.EventPlatform;
+import java.util.Arrays;
+import com.ltz.event.application.port.EventSearchCriteria;
 import java.util.Set;
 import com.ltz.event.domain.exception.GameSearchTooBroadException;
 import com.ltz.event.domain.exception.GameNotAvailableException;
@@ -13,7 +16,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Page;
 import java.util.List;
-import java.util.Collection;
 import com.ltz.event.domain.exception.EventNotFoundException;
 import static org.mockito.Mockito.never;
 import java.util.Optional;
@@ -73,7 +75,7 @@ class EventServiceTest {
 	}
 
 	private static CreateEventRequest request(String title, String description, Instant startsAt, Instant endsAt) {
-		return new CreateEventRequest(EventType.GAME_NIGHT, title, description, startsAt, endsAt, null);
+		return new CreateEventRequest(EventType.GAME_NIGHT, title, description, startsAt, endsAt, null, null);
 	}
 
 	@Test
@@ -204,95 +206,12 @@ class EventServiceTest {
 	}
 
 	@Test
-	void listsOpenEventsWithTheClockAndAllowedStatuses() {
-		Event stored = Event.schedule(OTHER_ORGANIZER_ID, EventType.TOURNAMENT, "Turnuva", "Uzun açıklama",
-				NOW.plusSeconds(60), NOW.plusSeconds(120), NOW);
-		Page<Event> page = new PageImpl<>(List.of(stored), PageRequest.of(1, 5), 6);
-		when(currentUser.requireUserId()).thenReturn(USER_ID);
-		when(eventRepository.findByEndsAtAfterAndStatusInOrderByStartsAtAscIdAsc(any(Instant.class), any(),
-				any(Pageable.class))).thenReturn(page);
-
-		EventPageResponse response = eventService.listEvents(new EventListRequest(1, 5, null));
-
-		ArgumentCaptor<Instant> now = ArgumentCaptor.forClass(Instant.class);
-		@SuppressWarnings("unchecked")
-		ArgumentCaptor<Collection<EventStatus>> statuses = ArgumentCaptor.forClass(Collection.class);
-		ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
-		verify(eventRepository).findByEndsAtAfterAndStatusInOrderByStartsAtAscIdAsc(now.capture(), statuses.capture(),
-				pageable.capture());
-		assertThat(now.getValue()).isEqualTo(NOW);
-		assertThat(statuses.getValue()).containsExactlyInAnyOrder(EventStatus.PLANNED, EventStatus.ACTIVE);
-		assertThat(pageable.getValue().getPageNumber()).isEqualTo(1);
-		assertThat(pageable.getValue().getPageSize()).isEqualTo(5);
-		assertThat(pageable.getValue().getSort().isUnsorted()).isTrue();
-
-		assertThat(response.page()).isEqualTo(1);
-		assertThat(response.size()).isEqualTo(5);
-		assertThat(response.totalItems()).isEqualTo(6);
-		assertThat(response.totalPages()).isEqualTo(2);
-		assertThat(response.hasNext()).isFalse();
-		assertThat(response.items()).hasSize(1);
-		assertThat(response.items().getFirst().title()).isEqualTo("Turnuva");
-		assertThat(response.items().getFirst().type()).isEqualTo(EventType.TOURNAMENT);
-		assertThat(response.items().getFirst().organizerId()).isEqualTo(OTHER_ORGANIZER_ID);
-		assertThat(response.items().getFirst().startsAt()).isEqualTo(NOW.plusSeconds(60));
-		assertThat(response.items().getFirst().endsAt()).isEqualTo(NOW.plusSeconds(120));
-		assertThat(response.items().getFirst().status()).isEqualTo(EventStatus.PLANNED);
-	}
-
-	@Test
-	void listUsesDefaultPagingWhenNothingIsGiven() {
-		when(currentUser.requireUserId()).thenReturn(USER_ID);
-		when(eventRepository.findByEndsAtAfterAndStatusInOrderByStartsAtAscIdAsc(any(Instant.class), any(),
-				any(Pageable.class))).thenReturn(Page.empty());
-
-		EventPageResponse response = eventService.listEvents(new EventListRequest(null, null, null));
-
-		ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
-		verify(eventRepository).findByEndsAtAfterAndStatusInOrderByStartsAtAscIdAsc(any(Instant.class), any(),
-				pageable.capture());
-		assertThat(pageable.getValue().getPageNumber()).isZero();
-		assertThat(pageable.getValue().getPageSize()).isEqualTo(EventListRequest.DEFAULT_SIZE);
-		assertThat(response.items()).isEmpty();
-		assertThat(response.hasNext()).isFalse();
-	}
-
-	@Test
 	void unauthenticatedCallersCannotListEvents() {
 		when(currentUser.requireUserId()).thenThrow(new AuthenticationRequiredException("Authentication is required."));
 
-		assertThatThrownBy(() -> eventService.listEvents(new EventListRequest(null, null, null)))
+		assertThatThrownBy(() -> eventService.listEvents(EventListRequest.paged(null, null, null)))
 				.isInstanceOf(AuthenticationRequiredException.class);
 		verifyNoInteractions(eventRepository);
-	}
-
-	@Test
-	void searchTextRunsTheTitleSearchWithAnEscapedContainsPattern() {
-		when(currentUser.requireUserId()).thenReturn(USER_ID);
-		when(eventRepository.searchByTitle(any(Instant.class), any(), any(String.class), any(Pageable.class)))
-				.thenReturn(Page.empty());
-
-		eventService.listEvents(new EventListRequest(null, null, "  %Tur_nuva  "));
-
-		ArgumentCaptor<String> pattern = ArgumentCaptor.forClass(String.class);
-		ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
-		verify(eventRepository).searchByTitle(eq(NOW), any(), pattern.capture(), pageable.capture());
-		assertThat(pattern.getValue()).isEqualTo("%!%Tur!_nuva%");
-		assertThat(pageable.getValue().getPageSize()).isEqualTo(EventListRequest.DEFAULT_SIZE);
-		verify(eventRepository, never()).findByEndsAtAfterAndStatusInOrderByStartsAtAscIdAsc(any(), any(), any());
-	}
-
-	@Test
-	void blankSearchTextIsTreatedAsNoSearch() {
-		when(currentUser.requireUserId()).thenReturn(USER_ID);
-		when(eventRepository.findByEndsAtAfterAndStatusInOrderByStartsAtAscIdAsc(any(Instant.class), any(),
-				any(Pageable.class))).thenReturn(Page.empty());
-
-		eventService.listEvents(new EventListRequest(null, null, "   "));
-
-		verify(eventRepository).findByEndsAtAfterAndStatusInOrderByStartsAtAscIdAsc(any(Instant.class), any(),
-				any(Pageable.class));
-		verify(eventRepository, never()).searchByTitle(any(), any(), any(), any());
 	}
 
 	// ------------------------------------------------------------------ EVT-17 oyun bağlantısı
@@ -301,7 +220,7 @@ class EventServiceTest {
 
 	private CreateEventRequest requestWithGame(UUID gameId) {
 		return new CreateEventRequest(EventType.GAME_NIGHT, "Oyun Gecesi", "Birlikte", NOW.plusSeconds(60),
-				NOW.plusSeconds(120), gameId);
+				NOW.plusSeconds(120), gameId, null);
 	}
 
 	@Test
@@ -359,7 +278,7 @@ class EventServiceTest {
 		when(currentUser.canCreateEvents()).thenReturn(true);
 
 		assertThatThrownBy(() -> eventService.createEvent(new CreateEventRequest(EventType.OTHER, "T", "D",
-				NOW.minusSeconds(60), NOW.plusSeconds(120), GAME_ID)))
+				NOW.minusSeconds(60), NOW.plusSeconds(120), GAME_ID, null)))
 				.isInstanceOf(InvalidEventScheduleException.class);
 		verifyNoInteractions(gameCatalog);
 		verifyNoInteractions(eventRepository);
@@ -382,52 +301,131 @@ class EventServiceTest {
 				NOW.plusSeconds(120), NOW);
 	}
 
+	// ------------------------------------------------------------------ EVT-04/05/06 liste, arama, filtre (kriter)
+
+	private EventSearchCriteria searchedCriteria() {
+		ArgumentCaptor<EventSearchCriteria> criteria = ArgumentCaptor.forClass(EventSearchCriteria.class);
+		verify(eventRepository).search(criteria.capture(), any(Pageable.class));
+		return criteria.getValue();
+	}
+
+	private void stubEmptySearch() {
+		when(currentUser.requireUserId()).thenReturn(USER_ID);
+		when(eventRepository.search(any(EventSearchCriteria.class), any(Pageable.class))).thenReturn(Page.empty());
+	}
+
+	@Test
+	void listsOpenEventsWithTheClockAllowedStatusesAndPaging() {
+		Event stored = Event.schedule(OTHER_ORGANIZER_ID, EventType.TOURNAMENT, GAME_ID, "Turnuva", "Uzun açıklama",
+				NOW.plusSeconds(60), NOW.plusSeconds(120), NOW);
+		when(currentUser.requireUserId()).thenReturn(USER_ID);
+		when(eventRepository.search(any(EventSearchCriteria.class), any(Pageable.class)))
+				.thenReturn(new PageImpl<>(List.of(stored), PageRequest.of(1, 5), 6));
+
+		EventPageResponse response = eventService.listEvents(EventListRequest.paged(1, 5, null));
+
+		ArgumentCaptor<EventSearchCriteria> criteria = ArgumentCaptor.forClass(EventSearchCriteria.class);
+		ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+		verify(eventRepository).search(criteria.capture(), pageable.capture());
+		assertThat(criteria.getValue().now()).isEqualTo(NOW);
+		assertThat(criteria.getValue().statuses()).containsExactlyInAnyOrder(EventStatus.PLANNED, EventStatus.ACTIVE);
+		assertThat(criteria.getValue().titlePattern()).isNull();
+		assertThat(criteria.getValue().textGameIds()).isEmpty();
+		assertThat(criteria.getValue().types()).isEmpty();
+		assertThat(criteria.getValue().gameId()).isNull();
+		assertThat(criteria.getValue().from()).isNull();
+		assertThat(criteria.getValue().to()).isNull();
+		assertThat(pageable.getValue().getPageNumber()).isEqualTo(1);
+		assertThat(pageable.getValue().getPageSize()).isEqualTo(5);
+		assertThat(pageable.getValue().getSort().isUnsorted()).isTrue();
+
+		assertThat(response.page()).isEqualTo(1);
+		assertThat(response.size()).isEqualTo(5);
+		assertThat(response.totalItems()).isEqualTo(6);
+		assertThat(response.totalPages()).isEqualTo(2);
+		assertThat(response.hasNext()).isFalse();
+		assertThat(response.items()).hasSize(1);
+		assertThat(response.items().getFirst().title()).isEqualTo("Turnuva");
+		assertThat(response.items().getFirst().type()).isEqualTo(EventType.TOURNAMENT);
+		assertThat(response.items().getFirst().gameId()).isEqualTo(GAME_ID);
+		assertThat(response.items().getFirst().organizerId()).isEqualTo(OTHER_ORGANIZER_ID);
+		assertThat(response.items().getFirst().startsAt()).isEqualTo(NOW.plusSeconds(60));
+		assertThat(response.items().getFirst().endsAt()).isEqualTo(NOW.plusSeconds(120));
+		assertThat(response.items().getFirst().status()).isEqualTo(EventStatus.PLANNED);
+	}
+
+	@Test
+	void listUsesDefaultPagingWhenNothingIsGiven() {
+		stubEmptySearch();
+
+		EventPageResponse response = eventService.listEvents(EventListRequest.paged(null, null, null));
+
+		ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+		verify(eventRepository).search(any(EventSearchCriteria.class), pageable.capture());
+		assertThat(pageable.getValue().getPageNumber()).isZero();
+		assertThat(pageable.getValue().getPageSize()).isEqualTo(EventListRequest.DEFAULT_SIZE);
+		assertThat(response.items()).isEmpty();
+		assertThat(response.hasNext()).isFalse();
+	}
+
+	@Test
+	void listWithoutSearchTextNeverTouchesTheGameService() {
+		stubEmptySearch();
+
+		eventService.listEvents(EventListRequest.paged(null, null, null));
+
+		verifyNoInteractions(gameCatalog);
+		verify(eventRepository, never()).existsByEndsAtAfterAndStatusInAndGameIdIsNotNull(any(), any());
+	}
+
+	@Test
+	void blankSearchTextIsTreatedAsNoSearch() {
+		stubEmptySearch();
+
+		eventService.listEvents(EventListRequest.paged(null, null, "   "));
+
+		assertThat(searchedCriteria().titlePattern()).isNull();
+		verifyNoInteractions(gameCatalog);
+	}
+
+	@Test
+	void searchTextBuildsAnEscapedPatternAndSkipsTheGameServiceWhenNoListedEventHasAGame() {
+		stubEmptySearch();
+		when(eventRepository.existsByEndsAtAfterAndStatusInAndGameIdIsNotNull(any(Instant.class), any())).thenReturn(false);
+
+		eventService.listEvents(EventListRequest.paged(null, null, "  %Tur_nuva  "));
+
+		EventSearchCriteria criteria = searchedCriteria();
+		assertThat(criteria.titlePattern()).isEqualTo("%!%Tur!_nuva%");
+		assertThat(criteria.textGameIds()).isEmpty();
+		verifyNoInteractions(gameCatalog);
+	}
+
 	@Test
 	void searchAlsoMatchesEventsLinkedToGamesFoundByName() {
 		Set<UUID> games = Set.of(GAME_ID);
-		when(currentUser.requireUserId()).thenReturn(USER_ID);
-		when(eventRepository.existsByEndsAtAfterAndStatusInAndGameIdIsNotNull(any(Instant.class), any())).thenReturn(true);
+		stubEmptySearch();
+		when(eventRepository.existsByEndsAtAfterAndStatusInAndGameIdIsNotNull(eq(NOW), any())).thenReturn(true);
 		when(gameCatalog.findGameIdsByNamePrefix("elden")).thenReturn(games);
-		when(eventRepository.searchByTitleOrGame(any(Instant.class), any(), any(String.class), any(), any(Pageable.class)))
-				.thenReturn(new PageImpl<>(List.of(linkedEvent("Boss Gecesi", GAME_ID)), PageRequest.of(0, 20), 1));
 
-		EventPageResponse response = eventService.listEvents(new EventListRequest(null, null, " elden "));
+		eventService.listEvents(EventListRequest.paged(null, null, " elden "));
 
-		ArgumentCaptor<String> pattern = ArgumentCaptor.forClass(String.class);
-		verify(eventRepository).searchByTitleOrGame(eq(NOW), any(), pattern.capture(), eq(games), any(Pageable.class));
-		assertThat(pattern.getValue()).isEqualTo("%elden%");
-		verify(eventRepository, never()).searchByTitle(any(), any(), any(), any());
-		assertThat(response.items()).hasSize(1);
-		assertThat(response.items().getFirst().title()).isEqualTo("Boss Gecesi");
-		assertThat(response.items().getFirst().gameId()).isEqualTo(GAME_ID);
-		assertThat(response.totalItems()).isEqualTo(1);
+		EventSearchCriteria criteria = searchedCriteria();
+		assertThat(criteria.titlePattern()).isEqualTo("%elden%");
+		assertThat(criteria.textGameIds()).isEqualTo(games);
 	}
 
 	@Test
-	void searchSkipsTheGameServiceWhenNoListedEventHasAGame() {
-		when(currentUser.requireUserId()).thenReturn(USER_ID);
-		when(eventRepository.existsByEndsAtAfterAndStatusInAndGameIdIsNotNull(any(Instant.class), any())).thenReturn(false);
-		when(eventRepository.searchByTitle(any(Instant.class), any(), any(String.class), any(Pageable.class)))
-				.thenReturn(Page.empty());
-
-		eventService.listEvents(new EventListRequest(null, null, "elden"));
-
-		verifyNoInteractions(gameCatalog);
-		verify(eventRepository).searchByTitle(any(Instant.class), any(), eq("%elden%"), any(Pageable.class));
-	}
-
-	@Test
-	void searchFallsBackToTitleOnlyWhenNoGameMatchesTheText() {
-		when(currentUser.requireUserId()).thenReturn(USER_ID);
+	void searchWithNoMatchingGameUsesTheTitleOnly() {
+		stubEmptySearch();
 		when(eventRepository.existsByEndsAtAfterAndStatusInAndGameIdIsNotNull(any(Instant.class), any())).thenReturn(true);
 		when(gameCatalog.findGameIdsByNamePrefix("zzz")).thenReturn(Set.of());
-		when(eventRepository.searchByTitle(any(Instant.class), any(), any(String.class), any(Pageable.class)))
-				.thenReturn(Page.empty());
 
-		eventService.listEvents(new EventListRequest(null, null, "zzz"));
+		eventService.listEvents(EventListRequest.paged(null, null, "zzz"));
 
-		verify(eventRepository, never()).searchByTitleOrGame(any(), any(), any(), any(), any());
-		verify(eventRepository).searchByTitle(any(Instant.class), any(), eq("%zzz%"), any(Pageable.class));
+		EventSearchCriteria criteria = searchedCriteria();
+		assertThat(criteria.titlePattern()).isEqualTo("%zzz%");
+		assertThat(criteria.textGameIds()).isEmpty();
 	}
 
 	@Test
@@ -437,10 +435,9 @@ class EventServiceTest {
 		when(gameCatalog.findGameIdsByNamePrefix("elden"))
 				.thenThrow(new GameCatalogUnavailableException(new IllegalStateException()));
 
-		assertThatThrownBy(() -> eventService.listEvents(new EventListRequest(null, null, "elden")))
+		assertThatThrownBy(() -> eventService.listEvents(EventListRequest.paged(null, null, "elden")))
 				.isInstanceOf(GameCatalogUnavailableException.class);
-		verify(eventRepository, never()).searchByTitle(any(), any(), any(), any());
-		verify(eventRepository, never()).searchByTitleOrGame(any(), any(), any(), any(), any());
+		verify(eventRepository, never()).search(any(), any());
 	}
 
 	@Test
@@ -449,20 +446,104 @@ class EventServiceTest {
 		when(eventRepository.existsByEndsAtAfterAndStatusInAndGameIdIsNotNull(any(Instant.class), any())).thenReturn(true);
 		when(gameCatalog.findGameIdsByNamePrefix("a")).thenThrow(new GameSearchTooBroadException(1000));
 
-		assertThatThrownBy(() -> eventService.listEvents(new EventListRequest(null, null, "a")))
+		assertThatThrownBy(() -> eventService.listEvents(EventListRequest.paged(null, null, "a")))
 				.isInstanceOf(GameSearchTooBroadException.class);
-		verify(eventRepository, never()).searchByTitle(any(), any(), any(), any());
+		verify(eventRepository, never()).search(any(), any());
 	}
 
 	@Test
-	void listWithoutSearchTextNeverTouchesTheGameService() {
-		when(currentUser.requireUserId()).thenReturn(USER_ID);
-		when(eventRepository.findByEndsAtAfterAndStatusInOrderByStartsAtAscIdAsc(any(Instant.class), any(),
-				any(Pageable.class))).thenReturn(Page.empty());
+	void filtersArePassedToTheCriteriaWithoutCallingTheGameService() {
+		stubEmptySearch();
+		Instant from = NOW.plusSeconds(3600);
+		Instant to = NOW.plusSeconds(7200);
 
-		eventService.listEvents(new EventListRequest(null, null, null));
+		eventService.listEvents(new EventListRequest(null, null, null,
+				Arrays.asList(EventType.TOURNAMENT, EventType.POLL, EventType.TOURNAMENT, null),
+				Arrays.asList(EventPlatform.PC, EventPlatform.XBOX, EventPlatform.PC, null), GAME_ID, from, to));
 
+		EventSearchCriteria criteria = searchedCriteria();
+		assertThat(criteria.types()).containsExactlyInAnyOrder(EventType.TOURNAMENT, EventType.POLL);
+		assertThat(criteria.platforms()).containsExactlyInAnyOrder(EventPlatform.PC, EventPlatform.XBOX);
+		assertThat(criteria.gameId()).isEqualTo(GAME_ID);
+		assertThat(criteria.from()).isEqualTo(from);
+		assertThat(criteria.to()).isEqualTo(to);
+		assertThat(criteria.titlePattern()).isNull();
 		verifyNoInteractions(gameCatalog);
-		verify(eventRepository, never()).existsByEndsAtAfterAndStatusInAndGameIdIsNotNull(any(), any());
+	}
+
+	@Test
+	void filtersAndSearchTextCombine() {
+		stubEmptySearch();
+		when(eventRepository.existsByEndsAtAfterAndStatusInAndGameIdIsNotNull(any(Instant.class), any())).thenReturn(true);
+		when(gameCatalog.findGameIdsByNamePrefix("elden")).thenReturn(Set.of(GAME_ID));
+
+		eventService.listEvents(new EventListRequest(null, null, "elden", List.of(EventType.GAME_NIGHT),
+				List.of(EventPlatform.VR), null, null, null));
+
+		EventSearchCriteria criteria = searchedCriteria();
+		assertThat(criteria.titlePattern()).isEqualTo("%elden%");
+		assertThat(criteria.textGameIds()).containsExactly(GAME_ID);
+		assertThat(criteria.types()).containsExactly(EventType.GAME_NIGHT);
+		assertThat(criteria.platforms()).containsExactly(EventPlatform.VR);
+	}
+
+	// ------------------------------------------------------------------ EVT-06 platform
+
+	@Test
+	void eventIsCreatedWithItsOwnPlatformsWithoutAGame() {
+		when(currentUser.requireUserId()).thenReturn(USER_ID);
+		when(currentUser.canCreateEvents()).thenReturn(true);
+		when(eventRepository.save(any(Event.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+		EventResponse response = eventService.createEvent(new CreateEventRequest(EventType.TOURNAMENT, "Turnuva", "D",
+				NOW.plusSeconds(60), NOW.plusSeconds(120), null,
+				Arrays.asList(EventPlatform.XBOX, EventPlatform.PC, EventPlatform.XBOX, null)));
+
+		ArgumentCaptor<Event> saved = ArgumentCaptor.forClass(Event.class);
+		verify(eventRepository).save(saved.capture());
+		assertThat(saved.getValue().getPlatforms()).containsExactly(EventPlatform.PC, EventPlatform.XBOX);
+		assertThat(saved.getValue().getGameId()).isNull();
+		assertThat(response.platforms()).containsExactly(EventPlatform.PC, EventPlatform.XBOX);
+		verifyNoInteractions(gameCatalog);
+	}
+
+	@Test
+	void eventWithoutPlatformsHasAnEmptyPlatformListNotADerivedOne() {
+		when(currentUser.requireUserId()).thenReturn(USER_ID);
+		when(currentUser.canCreateEvents()).thenReturn(true);
+		when(gameCatalog.isAvailable(GAME_ID)).thenReturn(true);
+		when(eventRepository.save(any(Event.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+		EventResponse linked = eventService.createEvent(requestWithGame(GAME_ID));
+		EventResponse unlinked = eventService.createEvent(requestWithGame(null));
+
+		assertThat(linked.platforms()).isEmpty();
+		assertThat(unlinked.platforms()).isEmpty();
+	}
+
+	@Test
+	void platformsAreReturnedInListAndDetailResponses() {
+		Event stored = Event.schedule(OTHER_ORGANIZER_ID, EventType.TOURNAMENT, null,
+				Set.of(EventPlatform.NINTENDO_SWITCH, EventPlatform.PC), "Turnuva", "D", NOW.plusSeconds(60),
+				NOW.plusSeconds(120), NOW);
+		UUID eventId = UUID.randomUUID();
+		when(currentUser.requireUserId()).thenReturn(USER_ID);
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(stored));
+		when(eventRepository.search(any(EventSearchCriteria.class), any(Pageable.class)))
+				.thenReturn(new PageImpl<>(List.of(stored), PageRequest.of(0, 20), 1));
+
+		assertThat(eventService.getEvent(eventId).platforms())
+				.containsExactly(EventPlatform.PC, EventPlatform.NINTENDO_SWITCH);
+		assertThat(eventService.listEvents(EventListRequest.paged(null, null, null)).items().getFirst().platforms())
+				.containsExactly(EventPlatform.PC, EventPlatform.NINTENDO_SWITCH);
+	}
+
+	@Test
+	void withoutAPlatformFilterTheCriteriaHasNoPlatforms() {
+		stubEmptySearch();
+
+		eventService.listEvents(EventListRequest.paged(null, null, null));
+
+		assertThat(searchedCriteria().platforms()).isEmpty();
 	}
 }

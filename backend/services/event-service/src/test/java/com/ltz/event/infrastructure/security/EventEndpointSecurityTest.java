@@ -1,7 +1,8 @@
 package com.ltz.event.infrastructure.security;
 
+import com.ltz.event.domain.enums.EventPlatform;
+import com.ltz.event.application.port.EventSearchCriteria;
 import com.ltz.event.domain.exception.GameCatalogUnavailableException;
-import static org.mockito.ArgumentMatchers.eq;
 import java.util.Set;
 import com.ltz.event.application.port.GameCatalogPort;
 import org.springframework.data.domain.Pageable;
@@ -343,21 +344,6 @@ class EventEndpointSecurityTest {
 	// ------------------------------------------------------------------ liste (EVT-04)
 
 	@Test
-	void everyRegisteredRoleListsEventsWithAValidToken() throws Exception {
-		when(eventRepository.findByEndsAtAfterAndStatusInOrderByStartsAtAscIdAsc(any(Instant.class), any(),
-				any(Pageable.class))).thenReturn(new PageImpl<>(List.of(storedEvent()), PageRequest.of(0, 20), 1));
-
-		for (String role : new String[] { "PLAYER", "MODERATOR", "ADMIN", "CONTENT_CREATOR", "GAME_DEVELOPER" }) {
-			mockMvc.perform(get(URL).header(HttpHeaders.AUTHORIZATION,
-					"Bearer " + AuthTestSupport.userToken(USER_ID, role)))
-					.andExpect(status().isOk())
-					.andExpect(jsonPath("$.items[0].title").value("Bahar Turnuvası"))
-					.andExpect(jsonPath("$.items[0].type").value("TOURNAMENT"))
-					.andExpect(jsonPath("$.totalItems").value(1));
-		}
-	}
-
-	@Test
 	void listingRequiresAValidToken() throws Exception {
 		mockMvc.perform(get(URL)).andExpect(status().isUnauthorized());
 		mockMvc.perform(get(URL).header(HttpHeaders.AUTHORIZATION, "Bearer bu-bir-jwt-degil"))
@@ -379,20 +365,6 @@ class EventEndpointSecurityTest {
 	}
 
 	// ------------------------------------------------------------------ arama (EVT-05)
-
-	@Test
-	void searchRequiresAValidTokenAndRunsTheTitleSearch() throws Exception {
-		when(eventRepository.searchByTitle(any(Instant.class), any(), any(String.class), any(Pageable.class)))
-				.thenReturn(new PageImpl<>(List.of(storedEvent()), PageRequest.of(0, 20), 1));
-
-		mockMvc.perform(get(URL).param("q", "bahar")).andExpect(status().isUnauthorized());
-		verifyNoInteractions(eventRepository);
-
-		mockMvc.perform(get(URL).param("q", "bahar").header(HttpHeaders.AUTHORIZATION,
-				"Bearer " + AuthTestSupport.userToken(USER_ID, "PLAYER")))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.items[0].title").value("Bahar Turnuvası"));
-	}
 
 	@Test
 	void searchRejectsNulCharactersBeforeTheyReachTheDatabase() throws Exception {
@@ -437,22 +409,63 @@ class EventEndpointSecurityTest {
 		verify(eventRepository, never()).save(any(Event.class));
 	}
 
+	// ------------------------------------------------------------------ liste, arama ve filtre (kriter)
+
+	private void stubSearch() {
+		when(eventRepository.search(any(EventSearchCriteria.class), any(Pageable.class)))
+				.thenReturn(new PageImpl<>(List.of(storedEvent()), PageRequest.of(0, 20), 1));
+	}
+
+	private EventSearchCriteria searchedCriteria() {
+		ArgumentCaptor<EventSearchCriteria> criteria = ArgumentCaptor.forClass(EventSearchCriteria.class);
+		verify(eventRepository).search(criteria.capture(), any(Pageable.class));
+		return criteria.getValue();
+	}
+
+	private ResultActions listAs(String role, String name, String... values) throws Exception {
+		return mockMvc.perform(get(URL).param(name, values).header(HttpHeaders.AUTHORIZATION,
+				"Bearer " + AuthTestSupport.userToken(USER_ID, role)));
+	}
+
+	@Test
+	void everyRegisteredRoleListsEventsWithAValidToken() throws Exception {
+		stubSearch();
+
+		for (String role : new String[] { "PLAYER", "MODERATOR", "ADMIN", "CONTENT_CREATOR", "GAME_DEVELOPER" }) {
+			mockMvc.perform(get(URL).header(HttpHeaders.AUTHORIZATION,
+					"Bearer " + AuthTestSupport.userToken(USER_ID, role)))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.items[0].title").value("Bahar Turnuvası"))
+					.andExpect(jsonPath("$.items[0].type").value("TOURNAMENT"))
+					.andExpect(jsonPath("$.totalItems").value(1));
+		}
+	}
+
+	@Test
+	void searchRequiresAValidTokenAndRunsTheSearch() throws Exception {
+		stubSearch();
+
+		mockMvc.perform(get(URL).param("q", "bahar")).andExpect(status().isUnauthorized());
+		verifyNoInteractions(eventRepository);
+
+		listAs("PLAYER", "q", "bahar")
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.items[0].title").value("Bahar Turnuvası"));
+		assertThat(searchedCriteria().titlePattern()).isEqualTo("%bahar%");
+	}
+
 	@Test
 	void searchByGameNameUsesTheGameIdsFromTheCatalogAndTheEventDatabase() throws Exception {
 		UUID gameId = UUID.fromString("0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66");
 		when(eventRepository.existsByEndsAtAfterAndStatusInAndGameIdIsNotNull(any(Instant.class), any())).thenReturn(true);
 		when(gameCatalog.findGameIdsByNamePrefix("elden")).thenReturn(Set.of(gameId));
-		when(eventRepository.searchByTitleOrGame(any(Instant.class), any(), any(String.class), any(), any(Pageable.class)))
-				.thenReturn(new PageImpl<>(List.of(storedEvent()), PageRequest.of(0, 20), 1));
+		stubSearch();
 
-		mockMvc.perform(get(URL).param("q", "elden").header(HttpHeaders.AUTHORIZATION,
-				"Bearer " + AuthTestSupport.userToken(USER_ID, "PLAYER")))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.items[0].title").value("Bahar Turnuvası"))
-				.andExpect(jsonPath("$.totalItems").value(1));
+		listAs("PLAYER", "q", "elden").andExpect(status().isOk()).andExpect(jsonPath("$.totalItems").value(1));
 
-		verify(eventRepository).searchByTitleOrGame(any(Instant.class), any(), eq("%elden%"), eq(Set.of(gameId)),
-				any(Pageable.class));
+		EventSearchCriteria criteria = searchedCriteria();
+		assertThat(criteria.titlePattern()).isEqualTo("%elden%");
+		assertThat(criteria.textGameIds()).containsExactly(gameId);
 	}
 
 	@Test
@@ -461,10 +474,109 @@ class EventEndpointSecurityTest {
 		when(gameCatalog.findGameIdsByNamePrefix("elden"))
 				.thenThrow(new GameCatalogUnavailableException(new IllegalStateException()));
 
-		mockMvc.perform(get(URL).param("q", "elden").header(HttpHeaders.AUTHORIZATION,
-				"Bearer " + AuthTestSupport.userToken(USER_ID, "PLAYER")))
-				.andExpect(status().isServiceUnavailable());
-		verify(eventRepository, never()).searchByTitle(any(), any(), any(), any());
-		verify(eventRepository, never()).searchByTitleOrGame(any(), any(), any(), any(), any());
+		listAs("PLAYER", "q", "elden").andExpect(status().isServiceUnavailable());
+		verify(eventRepository, never()).search(any(), any());
+	}
+
+	@Test
+	void filtersReachTheCriteriaAndNeverCallTheGameService() throws Exception {
+		UUID gameId = UUID.fromString("0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66");
+		stubSearch();
+
+		mockMvc.perform(get(URL)
+				.param("type", "TOURNAMENT", "POLL")
+				.param("gameId", gameId.toString())
+				.param("from", "2099-12-05T00:00:00Z")
+				.param("to", "2099-12-06T00:00:00Z")
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + AuthTestSupport.userToken(USER_ID, "PLAYER")))
+				.andExpect(status().isOk());
+
+		EventSearchCriteria criteria = searchedCriteria();
+		assertThat(criteria.types()).containsExactlyInAnyOrder(EventType.TOURNAMENT, EventType.POLL);
+		assertThat(criteria.gameId()).isEqualTo(gameId);
+		assertThat(criteria.from()).isEqualTo(Instant.parse("2099-12-05T00:00:00Z"));
+		assertThat(criteria.to()).isEqualTo(Instant.parse("2099-12-06T00:00:00Z"));
+		verifyNoInteractions(gameCatalog);
+	}
+
+	@Test
+	void invalidFiltersAreRejectedBeforeTheyReachTheDatabase() throws Exception {
+		listAs("PLAYER", "type", "VOTING").andExpect(status().isBadRequest());
+		listAs("PLAYER", "gameId", "oyun").andExpect(status().isBadRequest());
+		listAs("PLAYER", "from", "yarin").andExpect(status().isBadRequest());
+		mockMvc.perform(get(URL).param("from", "2099-12-06T00:00:00Z").param("to", "2099-12-05T00:00:00Z")
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + AuthTestSupport.userToken(USER_ID, "PLAYER")))
+				.andExpect(status().isBadRequest());
+		verifyNoInteractions(eventRepository);
+	}
+
+	@Test
+	void filtersRequireAValidToken() throws Exception {
+		mockMvc.perform(get(URL).param("type", "POLL")).andExpect(status().isUnauthorized());
+		verifyNoInteractions(eventRepository);
+	}
+
+	// ------------------------------------------------------------------ EVT-06 platform
+
+	@Test
+	void eventIsCreatedWithItsOwnPlatformsAndNoGame() throws Exception {
+		saveEchoesEvent();
+		String body = validBody().replace("{\"type\"", "{\"platforms\":[\"XBOX\",\"PC\"],\"type\"");
+
+		postWith(AuthTestSupport.userToken(USER_ID, "PLAYER"), body)
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.gameId").doesNotExist())
+				.andExpect(jsonPath("$.platforms[0]").value("PC"))
+				.andExpect(jsonPath("$.platforms[1]").value("XBOX"));
+
+		ArgumentCaptor<Event> saved = ArgumentCaptor.forClass(Event.class);
+		verify(eventRepository).save(saved.capture());
+		assertThat(saved.getValue().getPlatforms()).containsExactly(EventPlatform.PC, EventPlatform.XBOX);
+		verifyNoInteractions(gameCatalog);
+	}
+
+	@Test
+	void invalidPlatformInTheCreateRequestIsRejectedBeforeAnythingIsSaved() throws Exception {
+		String body = validBody().replace("{\"type\"", "{\"platforms\":[\"PS5\"],\"type\"");
+
+		postWith(AuthTestSupport.userToken(USER_ID, "PLAYER"), body).andExpect(status().isBadRequest());
+		verifyNoInteractions(eventRepository);
+	}
+
+	@Test
+	void platformFilterReachesTheCriteriaTogetherWithTheOtherFilters() throws Exception {
+		UUID gameId = UUID.fromString("0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66");
+		stubSearch();
+
+		mockMvc.perform(get(URL)
+				.param("platform", "PC", "XBOX")
+				.param("type", "TOURNAMENT")
+				.param("gameId", gameId.toString())
+				.param("from", "2099-12-05T00:00:00Z")
+				.param("to", "2099-12-06T00:00:00Z")
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + AuthTestSupport.userToken(USER_ID, "PLAYER")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.items[0].platforms").isArray());
+
+		EventSearchCriteria criteria = searchedCriteria();
+		assertThat(criteria.platforms()).containsExactlyInAnyOrder(EventPlatform.PC, EventPlatform.XBOX);
+		assertThat(criteria.types()).containsExactly(EventType.TOURNAMENT);
+		assertThat(criteria.gameId()).isEqualTo(gameId);
+		assertThat(criteria.from()).isEqualTo(Instant.parse("2099-12-05T00:00:00Z"));
+		assertThat(criteria.to()).isEqualTo(Instant.parse("2099-12-06T00:00:00Z"));
+		verifyNoInteractions(gameCatalog);
+	}
+
+	@Test
+	void invalidPlatformFilterIs400AndNeverReachesTheDatabase() throws Exception {
+		listAs("PLAYER", "platform", "PS5").andExpect(status().isBadRequest());
+		listAs("PLAYER", "platform", "pc").andExpect(status().isBadRequest());
+		verifyNoInteractions(eventRepository);
+	}
+
+	@Test
+	void platformFilterRequiresAValidToken() throws Exception {
+		mockMvc.perform(get(URL).param("platform", "PC")).andExpect(status().isUnauthorized());
+		verifyNoInteractions(eventRepository);
 	}
 }
