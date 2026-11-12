@@ -126,7 +126,7 @@ Yani gevşetilebilenler sınırlı, adı konmuş ve yalnız dev/test profilinde:
 - Anahtarı, parolayı, token'ı koda, commit'e, loga veya sohbete yazma. `.env*` Git'te değildir; öyle kalsın.
 - Production anahtarını yerele, yerel anahtarı production'a kopyalama.
 - Test geçsin diye CSRF, token ömrü, parola kuralı veya yetki kontrolünü kapatma. Hızlı denemek için yukarıdaki **izinli** dev gevşetmeleri yeter.
-- Uygulanmış migration dosyasını değiştirme; yeni sürüm yaz (Auth'ta sıradaki boş sürüm V67; aralık V70'te biter).
+- Uygulanmış migration dosyasını değiştirme; yeni sürüm yaz (Auth'ta sıradaki boş sürüm V68; aralık V70'te biter).
 - Auth'a yeni bir uç, durum veya hata kodu gerekiyorsa Auth'ta değişiklik isteme: `docs-auth/verilen-cevaplar/<servis>/` içine talep yaz.
 
 ## 5. Komut özeti

@@ -6,6 +6,14 @@ import tr from "@/shared/lib/i18n/messages/tr.json";
 import { SessionContext, type SessionValue } from "../hooks/use-session";
 import type { AuthMe } from "../types/auth.types";
 
+vi.mock("@/shared/lib/i18n/navigation", async () => {
+  const { createElement } = await import("react");
+  return {
+    Link: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) =>
+      createElement("a", { href, ...rest }, children)
+  };
+});
+
 const api = vi.hoisted(() => ({
   getMe: vi.fn(),
   verifyAge: vi.fn(),
@@ -66,6 +74,15 @@ describe("AccountAgeSection", () => {
     expect(api.refreshSession).toHaveBeenCalledTimes(1);
     expect(reload).toHaveBeenCalledTimes(1);
     expect(document.body.innerHTML).not.toContain("1990-05-17");
+    expect(window.location.href).not.toContain("1990");
+    expect(JSON.stringify({ ...localStorage })).not.toContain("1990");
+    expect(JSON.stringify({ ...sessionStorage })).not.toContain("1990");
+  });
+
+  it("KVKK aydınlatma metnine bağlantı verir", async () => {
+    renderSection();
+    const link = await screen.findByRole("link", { name: /KVKK/ });
+    expect(link).toHaveAttribute("href", "/legal/kvkk");
   });
 
   it("18 yaş altı beyanında hata gösterir ve formu korur", async () => {

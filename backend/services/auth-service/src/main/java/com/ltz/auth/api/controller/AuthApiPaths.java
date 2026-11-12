@@ -88,6 +88,8 @@ public final class AuthApiPaths {
     public static final String ADMIN_ACCOUNT_STATUS = ADMIN_ACCOUNT + "/status";
     public static final String ADMIN_ACCOUNT_ROLES_GRANT = ADMIN_ACCOUNT + "/roles/grant";
     public static final String ADMIN_ACCOUNT_ROLES_REVOKE = ADMIN_ACCOUNT + "/roles/revoke";
+    public static final String ADMIN_ACCOUNT_AGE_REVOKE = ADMIN_ACCOUNT + "/age-verification/revoke";
+    public static final String ADMIN_ACCOUNT_AGE_LIFT_BLOCK = ADMIN_ACCOUNT + "/age-verification/lift-block";
 
     private AuthApiPaths() {
     }

@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ltz.auth.api.dto.request.AgeRevocationRequest;
 import com.ltz.auth.api.dto.request.DeletionSupportMessageRequest;
 import com.ltz.auth.api.dto.request.RoleChangeRequest;
 import com.ltz.auth.api.dto.request.StatusChangeRequest;
@@ -22,6 +23,7 @@ import com.ltz.auth.api.dto.response.AdminAccountResponse;
 import com.ltz.auth.api.dto.response.AdminDeletionSupportResponse;
 import com.ltz.auth.api.dto.response.PendingDeletionTaskResponse;
 import com.ltz.auth.application.service.AccountAdministrationService;
+import com.ltz.auth.application.service.AdultVerificationService;
 import com.ltz.auth.application.service.DeletionSupportService;
 import com.ltz.auth.application.service.PendingDeletionQueryService;
 import com.ltz.auth.domain.enums.RoleCode;
@@ -42,6 +44,7 @@ public class AdminAccountController {
     private final AccountAdministrationService administrationService;
     private final PendingDeletionQueryService pendingDeletionQueryService;
     private final DeletionSupportService deletionSupportService;
+    private final AdultVerificationService adultVerificationService;
 
     @GetMapping(AuthApiPaths.ADMIN_ROLES)
     public List<String> roles() {
@@ -105,6 +108,21 @@ public class AdminAccountController {
     public void revokeRole(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID accountId,
                            @Valid @RequestBody RoleChangeRequest request) {
         administrationService.revokeRole(actorId(jwt), accountId, request.role(), request.reason());
+    }
+
+    /** Yaş doğrulamasını geri alır; kullanıcı engel kalkana kadar yeniden beyan edemez. Doğrulama yoksa 204 (idempotent). */
+    @PostMapping(AuthApiPaths.ADMIN_ACCOUNT_AGE_REVOKE)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void revokeAgeVerification(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID accountId,
+                                      @Valid @RequestBody AgeRevocationRequest request) {
+        adultVerificationService.revokeByAdmin(actorId(jwt), accountId, request.reason());
+    }
+
+    /** Yönetici engelini kaldırır; kullanıcı yeniden beyan edebilir. Engel yoksa 204 (idempotent). */
+    @PostMapping(AuthApiPaths.ADMIN_ACCOUNT_AGE_LIFT_BLOCK)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void liftAgeVerificationBlock(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID accountId) {
+        adultVerificationService.liftAdminBlock(actorId(jwt), accountId);
     }
 
     private static UUID actorId(Jwt jwt) {

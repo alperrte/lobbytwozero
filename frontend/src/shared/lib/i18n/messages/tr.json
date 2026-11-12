@@ -1520,6 +1520,7 @@
       "CSRF_TOKEN_INVALID": "Güvenlik doğrulaması başarısız oldu. Sayfayı yenileyip tekrar dene.",
       "TOO_MANY_ATTEMPTS": "Çok fazla deneme yaptın. {time} sonra tekrar dene.",
       "AGE_NOT_ELIGIBLE": "Yaş doğrulaması tamamlanamadı.",
+      "AGE_VERIFICATION_BLOCKED": "Bu hesap için yaş doğrulaması kapalı. Yanlışlık olduğunu düşünüyorsan destekle iletişime geç.",
       "INVALID_BIRTH_DATE": "Bu tarih geçerli değil. Doğum tarihini kontrol et.",
       "STEP_UP_REQUIRED": "Yaş doğrulaması için hesabını güçlendirmen gerekiyor: iki aşamalı doğrulamayı aç ya da Google/Steam hesabı bağla.",
       "SERVICE_BUSY": "Servis şu anda yoğun. Biraz sonra tekrar dene.",
@@ -2637,6 +2638,7 @@
       "unverifiedStatus": "Yaşın henüz doğrulanmadı. 18+ içerikleri görmek için doğum tarihini beyan et.",
       "birthDate": "Doğum tarihin",
       "hint": "Beyanına dayanır. Tarihi saklamıyoruz; yalnızca 18 yaşından büyük olduğun bilgisi kaydedilir.",
+      "kvkkLink": "Kişisel verilerin işlenmesi (KVKK aydınlatma metni)",
       "submit": "Yaşımı doğrula",
       "submitting": "Gönderiliyor…",
       "done": "Teşekkürler, yaşın doğrulandı."

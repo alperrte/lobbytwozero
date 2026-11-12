@@ -46,6 +46,12 @@ public class AccountAgeVerification {
     @Column(name = "revoked_by", length = 8)
     private AgeVerificationRevoker revokedBy;
 
+    @Column(name = "revoked_by_account_id")
+    private UUID revokedByAccountId;
+
+    @Column(name = "revoke_reason", length = 500)
+    private String revokeReason;
+
     @Version
     private long version;
 
@@ -72,6 +78,21 @@ public class AccountAgeVerification {
         return true;
     }
 
+    /** Yönetici geri alır (kim ve neden kaydedilir); kullanıcı yönetici engeli kalkana kadar yeniden beyan edemez. */
+    public boolean revokeByAdmin(UUID actorId, String reason, Instant now) {
+        if (!revoke(AgeVerificationRevoker.ADMIN, now)) {
+            return false;
+        }
+        revokedByAccountId = actorId;
+        revokeReason = reason;
+        return true;
+    }
+
+    /** Yönetici geri almasıyla kapatılmış mı (kullanıcı yeniden beyan edemez). */
+    public boolean isBlockedByAdmin() {
+        return revokedBy == AgeVerificationRevoker.ADMIN;
+    }
+
     /** Geri alınmış doğrulamayı yeniden etkinleştirir (yeni beyan). Etkin doğrulamada çağrılmaz. */
     public void reactivate(AgeVerificationMethod newMethod, Instant now) {
         if (isActive()) {
@@ -81,5 +102,7 @@ public class AccountAgeVerification {
         method = newMethod;
         revokedAt = null;
         revokedBy = null;
+        revokedByAccountId = null;
+        revokeReason = null;
     }
 }

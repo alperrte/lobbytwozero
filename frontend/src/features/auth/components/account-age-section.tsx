@@ -2,6 +2,7 @@
 
 import { useContext, useEffect, useId, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
+import { Link } from "@/shared/lib/i18n/navigation";
 import { ApiHttpError } from "@/shared/lib/api/client";
 import { SessionContext } from "../hooks/use-session";
 import { authApi } from "../services/auth-api";
@@ -160,6 +161,7 @@ export function AccountAgeSection() {
             className={inputClass}
           />
           <p id={hintId} className="text-sm text-text-secondary">{t("hint")}</p>
+          <Link href="/legal/kvkk" className={`${ghostClass} self-start`}>{t("kvkkLink")}</Link>
           <button type="submit" disabled={busy || birthDate === ""} className={`${buttonClass} self-start`}>
             {busy ? t("submitting") : t("submit")}
           </button>

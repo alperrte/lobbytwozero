@@ -68,8 +68,10 @@ public enum AuthErrorCode {
     STEP_UP_REQUIRED(403, "This action needs a stronger account. Enable two-factor authentication or link Google or Steam first."),
     // Yaş sınırı karşılanmadı. Metin yaşa dair ek bilgi vermez (ne sınırı ne de beyanı yansıtır).
     AGE_NOT_ELIGIBLE(403, "Age verification could not be completed."),
-    // Gelecekte ya da makul olmayacak kadar eski tarih; deneme hakkı harcamaz, tarihi yansıtmaz.
-    INVALID_BIRTH_DATE(400, "The date is not valid.");
+    // Gelecekte ya da makul olmayacak kadar eski tarih; bir deneme sayılır, tarihi yansıtmaz.
+    INVALID_BIRTH_DATE(400, "The date is not valid."),
+    // Yönetici geri aldı; yeniden beyan yönetici engeli kaldırana kadar kapalı. Gerekçeyi yansıtmaz.
+    AGE_VERIFICATION_BLOCKED(403, "Age verification is not available for this account.");
 
     private final int httpStatus;
     private final String detail;
