@@ -18,6 +18,9 @@ final class ActorAuthentication extends AbstractAuthenticationToken {
         setAuthenticated(true);
     }
 
+    /** Doğrulanmış token'daki ham iddia değeri (yoksa {@code null}); yalnız merkezi güvenlik katmanı okur. */
+    Object claim(String name) { return jwt.getClaims().get(name); }
+
     @Override public Object getPrincipal() { return actor; }
     @Override public Object getCredentials() { return jwt; }
     @Override public String getName() { return actor.userId().toString(); }
