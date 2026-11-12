@@ -10,7 +10,7 @@ vi.mock("@/features/auth", () => ({
   useRequireSession: () => ({ status: session.status }),
   AccountDeletionSection: () => null,
   AccountSecuritySection: () => null,
-  AccountAgeSection: () => null
+  AccountAgeSection: () => <div data-testid="age-section" />
 }));
 
 vi.mock("next/navigation", () => ({
@@ -77,6 +77,12 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("AccountSettings", () => {
+  it("yaş doğrulaması bölümünü oturumlu kullanıcıya gösterir", async () => {
+    renderPage();
+    expect(await screen.findByRole("heading", { name: "Yaş doğrulaması" })).toBeInTheDocument();
+    expect(screen.getByTestId("age-section")).toBeInTheDocument();
+  });
+
   it("oturum doğrulanmadan hiçbir uca istek atmaz", () => {
     session.status = "guest";
     renderPage();

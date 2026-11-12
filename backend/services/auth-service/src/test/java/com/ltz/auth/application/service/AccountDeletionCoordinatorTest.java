@@ -38,6 +38,9 @@ class AccountDeletionCoordinatorTest extends AccountDeletionTestSupport {
                 + "values (gen_random_uuid(), ?, 'GOOGLE', ?, now())", accountId, "g-" + uniqueSuffix());
         // İkinci faktör sırrı da silinmeli (silme isteği adımı geçtikten sonra eklenir).
         enableTotp(accountId);
+        // Yaş doğrulama sonucu da hesapla birlikte gitmeli (hesap satırı silinince CASCADE).
+        jdbc.update("insert into account_age_verifications (account_id, verified_at, method) "
+                + "values (?, now(), 'SELF_DECLARED')", accountId);
 
         assertThat(coordinator.processDue()).isEqualTo(TARGETS.size());
 
@@ -48,7 +51,7 @@ class AccountDeletionCoordinatorTest extends AccountDeletionTestSupport {
         assertThat(accountExists(accountId)).isFalse();
         for (String table : List.of("external_identities", "totp_credentials", "recovery_codes", "auth_sessions",
                 "email_verification_codes", "account_deletion_tokens", "account_roles", "security_events",
-                "account_deletion_requests", "account_deletion_tasks")) {
+                "account_deletion_requests", "account_deletion_tasks", "account_age_verifications")) {
             assertThat(jdbc.queryForObject("select count(*) from " + table + " where account_id = ?", Integer.class,
                     accountId)).as(table).isZero();
         }

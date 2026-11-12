@@ -81,6 +81,7 @@ describe("authApi", () => {
     expect(url).not.toContain("1990");
     expect(init.method).toBe("POST");
     expect(JSON.parse(String(init.body))).toEqual({ birthDate: "1990-05-17" });
+    expect(new Headers(init.headers).get("X-XSRF-TOKEN")).toBe("tok");
   });
 
   it("yaş geri alma DELETE, oturum yenileme POST eder", async () => {
@@ -88,6 +89,7 @@ describe("authApi", () => {
     await authApi.revokeAge();
     expect(String(del.mock.calls[0]![0])).toBe("http://localhost:5080/api/v1/auth/account/age-verification");
     expect((del.mock.calls[0] as [string, RequestInit])[1].method).toBe("DELETE");
+    expect(new Headers((del.mock.calls[0] as [string, RequestInit])[1].headers).get("X-XSRF-TOKEN")).toBe("tok");
 
     const refresh = stub(200, {});
     await authApi.refreshSession();

@@ -31,7 +31,8 @@ import lombok.RequiredArgsConstructor;
  *   <li>Yalnız {@code trusted} hesap (2FA veya Google/Steam bağlı) doğrulayabilir; aksi {@code STEP_UP_REQUIRED}.</li>
  *   <li>Hesap başına 24 saatte en çok {@value #MAX_ATTEMPTS} deneme: farklı tarihler denenerek kapı aşılamaz.
  *       Başarılı doğrulama sayacı sıfırlar. Zaten doğrulanmış hesap deneme hakkı harcamaz (idempotent).</li>
- *   <li>Gelecek ya da makul olmayacak kadar eski tarih deneme hakkı harcamaz (bir bilgi vermez, yazım hatasıdır).</li>
+ *   <li>Yönetici geri alırsa yeniden beyan {@code AGE_VERIFICATION_BLOCKED} ile kapanır; yönetici engeli kaldırır.</li>
+ *   <li>Gelecek ya da makul olmayacak kadar eski tarih ({@code INVALID_BIRTH_DATE}) de bir deneme sayılır.</li>
  * </ul>
  */
 @Service
@@ -61,20 +62,26 @@ public class AdultVerificationService {
     /** Yaşı beyan eder. Başarıda sonuç kaydedilir; 18 altıysa {@code AGE_NOT_ELIGIBLE} (hiçbir şey yazılmaz). */
     public void verify(UUID accountId, LocalDate birthDate) {
         LocalDate today = LocalDate.ofInstant(clock.instant(), ZoneOffset.UTC);
-        if (birthDate.isAfter(today) || birthDate.isBefore(today.minusYears(MAX_AGE_YEARS))) {
-            throw new AuthException(AuthErrorCode.INVALID_BIRTH_DATE);
-        }
         Account account = accountRepository.findById(accountId).filter(Account::isActive)
                 .orElseThrow(() -> new AuthException(AuthErrorCode.SESSION_INVALID));
         if (!tierService.tierOf(account).isTrusted()) {
             securityEventRecorder.recordEvent(SecurityEventType.AGE_VERIFICATION_REJECTED, accountId);
             throw new AuthException(AuthErrorCode.STEP_UP_REQUIRED);
         }
+        if (repository.findById(accountId).filter(AccountAgeVerification::isBlockedByAdmin).isPresent()) {
+            securityEventRecorder.recordEvent(SecurityEventType.AGE_VERIFICATION_REJECTED, accountId);
+            throw new AuthException(AuthErrorCode.AGE_VERIFICATION_BLOCKED);
+        }
         if (isVerified(accountId)) {
             return;
         }
         String throttleKey = hasher.hash(THROTTLE_DOMAIN, accountId.toString());
         attemptThrottle.reserve(throttleKey, MAX_ATTEMPTS, ATTEMPT_WINDOW, ATTEMPT_WINDOW);
+        // Geçersiz tarih de bir deneme sayılır (belge §5.1.3): geçerli tarihler tahmin edilerek sınır aşılamasın.
+        if (birthDate.isAfter(today) || birthDate.isBefore(today.minusYears(MAX_AGE_YEARS))) {
+            securityEventRecorder.recordEvent(SecurityEventType.AGE_VERIFICATION_REJECTED, accountId);
+            throw new AuthException(AuthErrorCode.INVALID_BIRTH_DATE);
+        }
         if (!isAdultOn(birthDate, today)) {
             securityEventRecorder.recordEvent(SecurityEventType.AGE_VERIFICATION_REJECTED, accountId);
             throw new AuthException(AuthErrorCode.AGE_NOT_ELIGIBLE);
@@ -89,6 +96,38 @@ public class AdultVerificationService {
                 .filter(verification -> verification.revoke(AgeVerificationRevoker.SELF, clock.instant()))
                 .ifPresent(verification -> securityEventRecorder.recordEvent(
                         SecurityEventType.AGE_VERIFICATION_REVOKED, accountId)));
+    }
+
+    /**
+     * Yönetici doğrulamayı geri alır; kullanıcı engel kalkana kadar yeniden beyan edemez. Yönetici kendi hesabında
+     * işlem yapamaz. Doğrulama yoksa ya da zaten geri alınmışsa sessizce döner (idempotent).
+     */
+    public void revokeByAdmin(UUID actorId, UUID accountId, String reason) {
+        requireOtherExistingAccount(actorId, accountId);
+        transactionTemplate.executeWithoutResult(status -> repository.findByAccountIdForUpdate(accountId)
+                .filter(verification -> verification.revokeByAdmin(actorId, reason, clock.instant()))
+                .ifPresent(verification -> securityEventRecorder.recordEvent(
+                        SecurityEventType.AGE_VERIFICATION_REVOKED, accountId)));
+    }
+
+    /** Yönetici engelini kaldırır: satır silinir, kullanıcı yeniden beyan edebilir. Engel yoksa sessizce döner. */
+    public void liftAdminBlock(UUID actorId, UUID accountId) {
+        requireOtherExistingAccount(actorId, accountId);
+        transactionTemplate.executeWithoutResult(status -> repository.findByAccountIdForUpdate(accountId)
+                .filter(AccountAgeVerification::isBlockedByAdmin)
+                .ifPresent(verification -> {
+                    repository.delete(verification);
+                    securityEventRecorder.recordEvent(SecurityEventType.AGE_VERIFICATION_BLOCK_LIFTED, accountId);
+                }));
+    }
+
+    private void requireOtherExistingAccount(UUID actorId, UUID accountId) {
+        if (actorId.equals(accountId)) {
+            throw new AuthException(AuthErrorCode.SELF_MODIFICATION_FORBIDDEN);
+        }
+        if (!accountRepository.existsById(accountId)) {
+            throw new AuthException(AuthErrorCode.ACCOUNT_NOT_FOUND);
+        }
     }
 
     private void record(UUID accountId, Instant now) {

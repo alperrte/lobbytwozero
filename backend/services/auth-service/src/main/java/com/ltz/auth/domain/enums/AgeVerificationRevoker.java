@@ -1,6 +1,6 @@
 package com.ltz.auth.domain.enums;
 
-/** Yaş doğrulamasını geri alan taraf. {@code ADMIN} için uç şimdilik yoktur; kolon ve kısıt hazırdır. */
+/** Yaş doğrulamasını geri alan taraf. {@code ADMIN} geri almaları kullanıcının yeniden beyanını engeller. */
 public enum AgeVerificationRevoker {
     SELF,
     ADMIN

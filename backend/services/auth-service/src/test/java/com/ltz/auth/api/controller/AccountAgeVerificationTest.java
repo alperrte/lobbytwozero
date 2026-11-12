@@ -14,6 +14,9 @@ import java.util.Base64;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.ResultActions;
@@ -24,6 +27,7 @@ import com.ltz.auth.IntegrationTestSupport;
  * Yaş doğrulaması (18+): beyan, geri alma, deneme sınırı, {@code /me} alanı ve access token iddiası. Doğum tarihi hiçbir
  * yerde saklanmaz; yalnız sonuç (tarih, yöntem) tutulur.
  */
+@ExtendWith(OutputCaptureExtension.class)
 class AccountAgeVerificationTest extends IntegrationTestSupport {
 
     // ---- Beyan ----
@@ -71,18 +75,20 @@ class AccountAgeVerificationTest extends IntegrationTestSupport {
     }
 
     @Test
-    void gelecekVeYuzYirmiYilOncesiTarihGecersizdirDenemeHakkiHarcamaz() throws Exception {
+    void gelecekVeYuzYirmiYilOncesiTarihGecersizdirVeDenemeHakkiHarcar() throws Exception {
         UUID accountId = securedAccount();
         String bearer = bearerFor(accountId);
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
 
-        for (int i = 0; i < 5; i++) {
-            verify(bearer, today.plusDays(1)).andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value("INVALID_BIRTH_DATE"));
-        }
+        verify(bearer, today.plusDays(1)).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_BIRTH_DATE"));
         verify(bearer, today.minusYears(121)).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_BIRTH_DATE"));
-        verify(bearer, adultBirthDate()).andExpect(status().isNoContent());
+        verify(bearer, today.plusYears(1)).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_BIRTH_DATE"));
+        // Üç geçersiz deneme hakkı bitirdi: dördüncüsü, geçerli bir tarih olsa bile 429 alır.
+        verify(bearer, adultBirthDate()).andExpect(status().isTooManyRequests());
+        assertThat(securityEventCount(accountId, "AGE_VERIFICATION_REJECTED")).isEqualTo(3);
     }
 
     @Test
@@ -226,10 +232,110 @@ class AccountAgeVerificationTest extends IntegrationTestSupport {
         assertThat(jdbc.queryForList("select column_name from information_schema.columns "
                 + "where table_name = 'account_age_verifications'", String.class))
                 .containsExactlyInAnyOrder("account_id", "verified_at", "method", "revoked_at", "revoked_by",
-                        "version");
+                        "revoked_by_account_id", "revoke_reason", "version");
     }
 
     // ---- Yardımcılar ----
+
+    @Test
+    void dogumTarihiHicbirLogaYazilmaz(CapturedOutput output) throws Exception {
+        UUID accountId = securedAccount();
+        String bearer = bearerFor(accountId);
+        LocalDate underage = underageBirthDate().minusDays(1);
+        LocalDate invalid = LocalDate.now(ZoneOffset.UTC).plusDays(3);
+        LocalDate adult = adultBirthDate().minusDays(1);
+
+        verify(bearer, underage).andExpect(status().isForbidden());
+        verify(bearer, invalid).andExpect(status().isBadRequest());
+        verify(bearer, adult).andExpect(status().isNoContent());
+
+        for (LocalDate date : new LocalDate[] {underage, invalid, adult}) {
+            assertThat(output.getAll()).doesNotContain(date.toString());
+        }
+    }
+
+    // ---- Yönetici geri alma (B3) ----
+
+    @Test
+    void yoneticiGeriAlirKullaniciYenidenBeyanEdemezEngelKalkincaEdebilir() throws Exception {
+        UUID accountId = securedAccount();
+        String bearer = bearerFor(accountId);
+        verify(bearer, adultBirthDate()).andExpect(status().isNoContent());
+        UUID adminId = newAdmin();
+        String adminBearer = bearerFor(adminId);
+
+        adminPost(adminBearer, accountId, "/age-verification/revoke", reasonJson("Sahte beyan şüphesi"))
+                .andExpect(status().isNoContent());
+
+        assertThat(claims(bearerFor(accountId))).doesNotContain("adult_verified");
+        assertThat(jdbc.queryForMap("select revoked_by, revoked_by_account_id, revoke_reason "
+                + "from account_age_verifications where account_id = ?", accountId))
+                .containsEntry("revoked_by", "ADMIN").containsEntry("revoked_by_account_id", adminId)
+                .containsEntry("revoke_reason", "Sahte beyan şüphesi");
+        assertThat(securityEventCount(accountId, "AGE_VERIFICATION_REVOKED")).isEqualTo(1);
+        verify(bearer, adultBirthDate()).andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("AGE_VERIFICATION_BLOCKED"));
+        me(bearer).andExpect(jsonPath("$.adultVerified").value(false));
+
+        adminPost(adminBearer, accountId, "/age-verification/lift-block", "").andExpect(status().isNoContent());
+
+        assertThat(rows(accountId)).isZero();
+        assertThat(securityEventCount(accountId, "AGE_VERIFICATION_BLOCK_LIFTED")).isEqualTo(1);
+        verify(bearer, adultBirthDate()).andExpect(status().isNoContent());
+        assertThat(claims(bearerFor(accountId))).contains("\"adult_verified\":true");
+    }
+
+    @Test
+    void yoneticiGeriAlmaIdempotenttirYoksaSessizDonerKullaniciGeriAlimiEngellemez() throws Exception {
+        UUID accountId = securedAccount();
+        String adminBearer = bearerFor(newAdmin());
+
+        adminPost(adminBearer, accountId, "/age-verification/revoke", reasonJson("x")).andExpect(status().isNoContent());
+        adminPost(adminBearer, accountId, "/age-verification/lift-block", "").andExpect(status().isNoContent());
+        assertThat(rows(accountId)).isZero();
+
+        verify(bearerFor(accountId), adultBirthDate()).andExpect(status().isNoContent());
+        revoke(bearerFor(accountId)).andExpect(status().isNoContent());
+        adminPost(adminBearer, accountId, "/age-verification/lift-block", "").andExpect(status().isNoContent());
+        assertThat(rows(accountId)).isEqualTo(1);
+        verify(bearerFor(accountId), adultBirthDate()).andExpect(status().isNoContent());
+    }
+
+    @Test
+    void yoneticiUclariYetkiGerekcesiKendiHesabiVeBilinmeyenHesapKurallari() throws Exception {
+        UUID accountId = securedAccount();
+        UUID adminId = newAdmin();
+        String adminBearer = bearerFor(adminId);
+        String path = "/age-verification/revoke";
+
+        mockMvc.perform(post(AuthApiPaths.ADMIN + "/accounts/" + accountId + path)
+                .contentType(MediaType.APPLICATION_JSON).content(reasonJson("x"))).andExpect(status().isForbidden()); // CSRF kapısı kimlikten önce
+        adminPost(bearerFor(accountId), accountId, path, reasonJson("x")).andExpect(status().isForbidden());
+        adminPost(adminBearer, accountId, path, "{}").andExpect(status().isBadRequest());
+        adminPost(adminBearer, accountId, path, reasonJson("  ")).andExpect(status().isBadRequest());
+        adminPost(adminBearer, adminId, path, reasonJson("x")).andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("SELF_MODIFICATION_FORBIDDEN"));
+        adminPost(adminBearer, adminId, "/age-verification/lift-block", "").andExpect(status().isForbidden());
+        adminPost(adminBearer, UUID.randomUUID(), path, reasonJson("x")).andExpect(status().isNotFound());
+        adminPost(adminBearer, UUID.randomUUID(), "/age-verification/lift-block", "").andExpect(status().isNotFound());
+    }
+
+    // ---- Yardımcılar ----
+
+    private UUID newAdmin() throws Exception {
+        UUID admin = securedAccount();
+        grantRole(admin, "ADMIN");
+        return admin;
+    }
+
+    private ResultActions adminPost(String bearer, UUID accountId, String suffix, String json) throws Exception {
+        return mockMvc.perform(post(AuthApiPaths.ADMIN + "/accounts/" + accountId + suffix)
+                .header(HttpHeaders.AUTHORIZATION, bearer).contentType(MediaType.APPLICATION_JSON).content(json));
+    }
+
+    private static String reasonJson(String reason) {
+        return "{\"reason\":\"%s\"}".formatted(reason);
+    }
 
     private UUID securedAccount() throws Exception {
         UUID accountId = accountId(registerActiveAccount(uniqueEmail(), uniqueUsername()));

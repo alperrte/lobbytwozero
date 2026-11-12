@@ -1512,6 +1512,7 @@
       "CSRF_TOKEN_INVALID": "The security check failed. Refresh the page and try again.",
       "TOO_MANY_ATTEMPTS": "Too many attempts. Try again in {time}.",
       "AGE_NOT_ELIGIBLE": "Age verification could not be completed.",
+      "AGE_VERIFICATION_BLOCKED": "Age verification is not available for this account. Contact support if you think this is a mistake.",
       "INVALID_BIRTH_DATE": "This date is not valid. Check your date of birth.",
       "STEP_UP_REQUIRED": "To verify your age, strengthen your account first: turn on two-step verification or link a Google/Steam account.",
       "SERVICE_BUSY": "The service is busy right now. Try again shortly.",
@@ -2629,6 +2630,7 @@
       "unverifiedStatus": "Your age is not verified yet. Declare your date of birth to see 18+ content.",
       "birthDate": "Your date of birth",
       "hint": "Based on your own declaration. We do not store the date; only the fact that you are over 18 is recorded.",
+      "kvkkLink": "How we process personal data (privacy notice)",
       "submit": "Verify my age",
       "submitting": "Sending…",
       "done": "Thanks, your age is verified."

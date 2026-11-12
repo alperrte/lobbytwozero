@@ -25,7 +25,7 @@ Game ve Review frontend'leri Auth'tan şunları bekler: `GET /auth/me` → `adul
 | K3 | Sınır 18 (tam 18. yaş günü 18 sayılır); hukuk teyit etmeli |
 | K6 | Yalnız sonuç saklanır (`verified_at`, `method`, `revoked_at`); doğum tarihi hesaplanır ve atılır |
 | K7 | Yalnız `trusted` hesap doğrulayabilir (aksi `403 STEP_UP_REQUIRED`) |
-| K8 | Geri alma: yalnız kullanıcı kendisi. Yönetici ucu şimdilik yok (`revoked_by` kolonu migration'sız ileride hazır) |
+| K8 | Geri alma: kullanıcı kendisi ya da yönetici (B3, V67: kim ve neden saklanır). Yönetici geri alması kullanıcının yeniden beyanını engeller (`AGE_VERIFICATION_BLOCKED`); yönetici `lift-block` ile kaldırır |
 | K9 | Hesap başına 24 saatte 3 deneme; başarılı doğrulama sayacı sıfırlar |
 
 Hukuk/KVKK onayı koda değil yayına bağlı şarttır; aydınlatma metni güncellenmeli.
@@ -44,10 +44,11 @@ Durum: [ ] yapılmadı · [~] sürüyor · [x] bitti. Her aşama sonunda commit 
 - [x] **A1** `V66__age_verification.sql` (`account_age_verifications`), entity, repository, `SecurityEventType` (`AGE_VERIFIED`, `AGE_VERIFICATION_REVOKED`, `AGE_VERIFICATION_REJECTED`), `AuthErrorCode.AGE_NOT_ELIGIBLE`.
 - [x] **A2** `TokenClaims.ADULT_VERIFIED`, `AccessTokenIssuer` aşırı yüklemesi (yalnız `true` iken claim yazılır), `SessionService.issueTokens` bağlantısı.
 - [x] **A3** `AdultVerificationService`, `AttemptThrottleService` aşırı yüklemesi, `AccountAgeController` (`POST` ve `DELETE /api/v1/auth/account/age-verification`), `/me` → `adultVerified`, `SecurityConfig`/`AuthApiPaths`.
-- [x] **A4** Backend testleri (`AccountAgeVerificationTest` 14, `AdultVerificationServiceAgeTest` 2, `FlywayMigrationTest` V66; auth-service `verify` 637 test yeşil). Sapma: aralık dışı tarih (`INVALID_BIRTH_DATE`) deneme hakkı harcamaz; gövdedeki bilinmeyen alan `400`.
+- [x] **A4** Backend testleri (`AccountAgeVerificationTest` 14, `AdultVerificationServiceAgeTest` 2, `FlywayMigrationTest` V66; auth-service `verify` 637 test yeşil). Aralık dışı tarih (`INVALID_BIRTH_DATE`) bir deneme sayılır (belge §5.1.3 ile uyumlu, sonradan hizalandı); gövdedeki bilinmeyen alan `400`.
 - [x] **A5** `docs/api.md` AUTH, `servis-sozlesmeleri.md`, `migration-yazim-kurallari.md`, `docs/decisions/migrations.md`.
 - [x] **A6** Auth frontend: `reload()`, `AccountAgeSection`, `auth-api`, mesajlar, testler.
-- [x] **A7** User: `docs-user/decisions/kararlar.md` notu, `AccountSettings` birleştirmesi (Auth tarafında). "Yanıtlarda yaş alanı yok" sözleşme testi isteğe bağlıydı ve **yazılmadı**.
+- [x] **A7** User: `docs-user/decisions/kararlar.md` notu, `AccountSettings` birleştirmesi (Auth tarafında). `NoAgeDataInResponsesTest` (user-service): yanıt tiplerinde yaş/doğum tarihi alanı yok.
+- [x] **A9** Yönetici geri alma (B3): `V67__age_verification_admin_revocation.sql`, `POST /admin/accounts/{id}/age-verification/revoke` ve `/lift-block`, `AGE_VERIFICATION_BLOCKED`, olay `AGE_VERIFICATION_BLOCK_LIFTED`, testler. Hamza'nın belgelerinde yok; kararı Kerem verdi. Yönetici ekranı (frontend) yapılmadı: yalnız API.
 - [x] **A8** Docker ile uçtan uca doğrulama, yerel `ltz-dev` yığını (postgres, mailpit, mail, auth, user, api-gateway), Gateway `:5080` üzerinden, 2026-11-12: 26/26 senaryo geçti. V66 uygulandı (`65 → 66`); kayıt, e-posta kodu, giriş, TOTP; `STEP_UP_REQUIRED`; beyan → `/me adultVerified=true` → refresh sonrası token'da `adult_verified: true` (refresh öncesi yok); geri alma ve yeniden beyan; 3 denemeden sonra `429` (kilitliyken doğru tarih de `429`); gelecek/bozuk tarih `400`. Ortak (paylaşılan) DEV sunucusunda doğrulanmadı.
 
 ## Sözleşme (Game ve Review'ın dayanağı)

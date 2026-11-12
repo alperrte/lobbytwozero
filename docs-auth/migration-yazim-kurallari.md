@@ -1,6 +1,6 @@
 # Auth migration yazım kuralları
 
-Auth migration aralığı **V61–V70**. Şu an kullanılan: **V61–V64** (donuk) ve **V65** (hesap türleri: `registration_method`, silme destek talepleri). **V66** yaş doğrulaması (`account_age_verifications`) için kullanıldı; **V67–V70 boş** (4 numara).
+Auth migration aralığı **V61–V70**. Şu an kullanılan: **V61–V64** (donuk) ve **V65** (hesap türleri: `registration_method`, silme destek talepleri). **V66** yaş doğrulaması (`account_age_verifications`), **V67** onun yönetici geri alma alanları için kullanıldı; **V68–V70 boş** (3 numara).
 
 ## Mevcut dosyalar (konuya göre)
 
