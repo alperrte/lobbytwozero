@@ -326,6 +326,23 @@ class ServiceAudienceTokenTest extends IntegrationTestSupport {
                 .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void servisTokenlarindaYasIddiasiYoktur() throws Exception {
+        UUID account = accountId(registerActiveAccount(uniqueEmail(), uniqueUsername()));
+        jdbc.update("insert into account_age_verifications (account_id, verified_at, method) "
+                + "values (?, now(), 'SELF_DECLARED')", account);
+
+        String plain = performanceTokenRequest("recommendation-service", RECOMMENDATION_CLIENT_SECRET,
+                account.toString()).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String bound = boundTokenRequest(account.toString()).andExpect(status().isOk()).andReturn().getResponse()
+                .getContentAsString();
+
+        for (String body : new String[] {plain, bound}) {
+            JWTClaimsSet claims = SignedJWT.parse(JsonPath.<String>read(body, "$.accessToken")).getJWTClaimsSet();
+            assertThat(claims.getClaims()).doesNotContainKey("adult_verified");
+        }
+    }
+
     private List<String> audienceOf(ResultActions result) throws Exception {
         String body = result.andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         return SignedJWT.parse(JsonPath.<String>read(body, "$.accessToken")).getJWTClaimsSet().getAudience();

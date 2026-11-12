@@ -51,6 +51,9 @@ export type AuthErrorCode =
   | "EMAIL_CHANGE_INVALID"
   | "EMAIL_LOCKED_BY_PROVIDER"
   | "EXTERNAL_IDENTITY_ALREADY_LINKED"
+  | "AGE_NOT_ELIGIBLE"
+  | "INVALID_BIRTH_DATE"
+  | "STEP_UP_REQUIRED"
   | "NETWORK"
   | "UNKNOWN";
 
@@ -103,6 +106,9 @@ export const knownAuthErrorCodes: readonly AuthErrorCode[] = [
   "PASSWORD_SET_INVALID",
   "EMAIL_CHANGE_INVALID",
   "EMAIL_LOCKED_BY_PROVIDER",
+  "AGE_NOT_ELIGIBLE",
+  "INVALID_BIRTH_DATE",
+  "STEP_UP_REQUIRED",
   "EXTERNAL_IDENTITY_ALREADY_LINKED",
   "NETWORK",
   "UNKNOWN"
@@ -130,6 +136,8 @@ export type AuthMe = {
   providers?: string[];
   totpEnabled?: boolean;
   registrationMethod?: string;
+  /** Yaş doğrulaması (18+) sonucu; doğum tarihi/yaş dönmez. Eski Auth'ta yoktur (= doğrulanmadı). */
+  adultVerified?: boolean;
 };
 
 /** B/C türünün yöneticiye açtığı silme talebi (`status`: PENDING, APPROVED, REJECTED; bilinmeyen değer olduğu gibi gelir). */

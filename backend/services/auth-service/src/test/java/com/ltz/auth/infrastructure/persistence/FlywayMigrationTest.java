@@ -19,7 +19,27 @@ class FlywayMigrationTest extends IntegrationTestSupport {
     void authMigrationlariKendiAraligindaBasariylaUygulanir() {
         List<String> versions = jdbc.queryForList(
                 "select version from flyway_schema_history where success order by installed_rank", String.class);
-        assertThat(versions).containsExactly("61", "62", "63", "64", "65");
+        assertThat(versions).containsExactly("61", "62", "63", "64", "65", "66");
+    }
+
+    @Test
+    void yasDogrulamaTablosuKisitlariniVeSilmedeCascadeiUygular() throws Exception {
+        UUID accountId = accountId(registerActiveAccount(uniqueEmail(), uniqueUsername()));
+        jdbc.update("insert into account_age_verifications (account_id, verified_at, method) "
+                + "values (?, now(), 'SELF_DECLARED')", accountId);
+
+        assertThatThrownBy(() -> jdbc.update("update account_age_verifications set method = 'ID_CARD' "
+                + "where account_id = ?", accountId)).isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbc.update("update account_age_verifications set revoked_at = now() "
+                + "where account_id = ?", accountId)).isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbc.update("update account_age_verifications set revoked_at = now(), "
+                + "revoked_by = 'BOT' where account_id = ?", accountId))
+                .isInstanceOf(DataIntegrityViolationException.class);
+
+        jdbc.update("delete from security_events where account_id = ?", accountId);
+        jdbc.update("delete from accounts where id = ?", accountId);
+        assertThat(jdbc.queryForObject("select count(*) from account_age_verifications where account_id = ?",
+                Integer.class, accountId)).isZero();
     }
 
     @Test

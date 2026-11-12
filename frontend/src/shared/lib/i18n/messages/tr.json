@@ -1508,6 +1508,9 @@
       "MFA_NOT_SUPPORTED": "Bu hesap iki aşamalı doğrulama istiyor. Bu adım henüz bu ekranda desteklenmiyor.",
       "CSRF_TOKEN_INVALID": "Güvenlik doğrulaması başarısız oldu. Sayfayı yenileyip tekrar dene.",
       "TOO_MANY_ATTEMPTS": "Çok fazla deneme yaptın. {time} sonra tekrar dene.",
+      "AGE_NOT_ELIGIBLE": "Yaş doğrulaması tamamlanamadı.",
+      "INVALID_BIRTH_DATE": "Bu tarih geçerli değil. Doğum tarihini kontrol et.",
+      "STEP_UP_REQUIRED": "Yaş doğrulaması için hesabını güçlendirmen gerekiyor: iki aşamalı doğrulamayı aç ya da Google/Steam hesabı bağla.",
       "SERVICE_BUSY": "Servis şu anda yoğun. Biraz sonra tekrar dene.",
       "NETWORK": "Sunucuya ulaşılamadı. Bağlantını kontrol edip tekrar dene.",
       "UNKNOWN": "Bir şeyler ters gitti. Lütfen tekrar dene.",
@@ -2607,6 +2610,25 @@
         "button": "Tüm cihazlardan çık",
         "confirm": "Emin misin? Evet, hepsini kapat"
       }
+    },
+    "age": {
+      "title": "Yaş doğrulaması",
+      "loading": "Yaş bilgisi yükleniyor…",
+      "loadFailed": "Yaş bilgisi alınamadı.",
+      "retry": "Tekrar dene",
+      "verifiedStatus": "18 yaşından büyük olduğunu beyan ettin.",
+      "verifiedNote": "Doğum tarihini saklamıyoruz; yalnızca doğrulandığı bilgisi tutulur.",
+      "revoke": "Doğrulamayı geri al",
+      "revokeConfirm": "Geri almak istediğine emin misin? 18+ içerikler tekrar kapanır.",
+      "revokeYes": "Evet, geri al",
+      "revokeNo": "Vazgeç",
+      "revoked": "Doğrulama geri alındı. 18+ içerikler kısa süre içinde tekrar kapanır.",
+      "unverifiedStatus": "Yaşın henüz doğrulanmadı. 18+ içerikleri görmek için doğum tarihini beyan et.",
+      "birthDate": "Doğum tarihin",
+      "hint": "Beyanına dayanır. Tarihi saklamıyoruz; yalnızca 18 yaşından büyük olduğun bilgisi kaydedilir.",
+      "submit": "Yaşımı doğrula",
+      "submitting": "Gönderiliyor…",
+      "done": "Teşekkürler, yaşın doğrulandı."
     },
     "deletion": {
       "title": "Hesabı sil",

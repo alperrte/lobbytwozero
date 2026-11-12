@@ -97,6 +97,8 @@ public class SecurityConfig {
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.PASSWORD_SET),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.EMAIL_CHANGE),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.EMAIL_CHANGE_CONFIRM),
+            PATHS.matcher(HttpMethod.POST, AuthApiPaths.ACCOUNT_AGE_VERIFICATION),
+            PATHS.matcher(HttpMethod.DELETE, AuthApiPaths.ACCOUNT_AGE_VERIFICATION),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.ACCOUNT_DELETION_REQUEST),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.ACCOUNT_DELETION_CONFIRM),
             PATHS.matcher(HttpMethod.POST, AuthApiPaths.ACCOUNT_DELETION_SUPPORT_REQUEST),

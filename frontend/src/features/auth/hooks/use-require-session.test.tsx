@@ -22,7 +22,7 @@ function renderWith(status: SessionValue["status"]) {
       : { status, me: null }
   ) as SessionValue;
   return render(
-    <SessionContext.Provider value={{ ...value, logout: vi.fn() }}>
+    <SessionContext.Provider value={{ ...value, logout: vi.fn(), reload: vi.fn() }}>
       <Probe />
     </SessionContext.Provider>
   );

@@ -9,7 +9,8 @@ const session = { status: "authenticated" as "authenticated" | "guest" | "loadin
 vi.mock("@/features/auth", () => ({
   useRequireSession: () => ({ status: session.status }),
   AccountDeletionSection: () => null,
-  AccountSecuritySection: () => null
+  AccountSecuritySection: () => null,
+  AccountAgeSection: () => null
 }));
 
 vi.mock("next/navigation", () => ({

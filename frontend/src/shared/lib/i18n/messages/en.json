@@ -1508,6 +1508,9 @@
       "MFA_NOT_SUPPORTED": "This account requires two-step verification. This step is not supported on this screen yet.",
       "CSRF_TOKEN_INVALID": "The security check failed. Refresh the page and try again.",
       "TOO_MANY_ATTEMPTS": "Too many attempts. Try again in {time}.",
+      "AGE_NOT_ELIGIBLE": "Age verification could not be completed.",
+      "INVALID_BIRTH_DATE": "This date is not valid. Check your date of birth.",
+      "STEP_UP_REQUIRED": "To verify your age, strengthen your account first: turn on two-step verification or link a Google/Steam account.",
       "SERVICE_BUSY": "The service is busy right now. Try again shortly.",
       "NETWORK": "Could not reach the server. Check your connection and try again.",
       "UNKNOWN": "Something went wrong. Please try again.",
@@ -2607,6 +2610,25 @@
         "button": "Sign out of all devices",
         "confirm": "Are you sure? Yes, close them all"
       }
+    },
+    "age": {
+      "title": "Age verification",
+      "loading": "Loading age status…",
+      "loadFailed": "Could not load age status.",
+      "retry": "Try again",
+      "verifiedStatus": "You declared that you are over 18.",
+      "verifiedNote": "We do not store your date of birth; only the fact that it was verified is kept.",
+      "revoke": "Revoke verification",
+      "revokeConfirm": "Are you sure you want to revoke it? 18+ content will be hidden again.",
+      "revokeYes": "Yes, revoke",
+      "revokeNo": "Cancel",
+      "revoked": "Verification revoked. 18+ content will be hidden again shortly.",
+      "unverifiedStatus": "Your age is not verified yet. Declare your date of birth to see 18+ content.",
+      "birthDate": "Your date of birth",
+      "hint": "Based on your own declaration. We do not store the date; only the fact that you are over 18 is recorded.",
+      "submit": "Verify my age",
+      "submitting": "Sending…",
+      "done": "Thanks, your age is verified."
     },
     "deletion": {
       "title": "Delete account",
