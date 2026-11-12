@@ -1,94 +1,82 @@
-# GAME–REVIEW toplu puan özeti entegrasyon talebi
+# GAME–REVIEW entegrasyonu
 
-## 1. Talep eden servis
+Son güncelleme: 12 Kasım 2026 (Game cevabı sonrası). Bu belge yalnız **açık işleri ve beklentileri** içerir; tamamlanmış entegrasyonlar bilerek yazılmamıştır.
 
-review-service — Hamza. Bu belge gereksinim bildirir; hedef servise kesin geliştirme emri değildir.
+- Talep eden / hedef: `review-service` — Hamza ↔ `game-service` — Hamza.
+- Kesin geliştirme emri değildir; Game ve Review kodu ayrı kapsamlarda değiştirilir.
 
-## 2. Hedef servis
+## 1. Açık: canlı doğrulama
 
-game-service — Hamza. Nihai tüketim tasarımı Game/Auth/Review sahiplerince belirlenir. Game kodu değiştirilmedi.
+Game cevabı (12 Kasım 2026): Game tarafında eksik yok; doğrulama Review merge ve DEV dağıtımı sonrası birlikte yapılır. Puan okuma entegrasyonu çalışır durumdadır; **gerçek kullanıcı oturumuyla Review→Game (`batch` doğrulaması, kart okuma) ve Game→Review (puan projeksiyonu) canlı uçtan uca doğrulaması yapılmadı (NOT VERIFIED)**, üretim ENV dağıtımı da yapılmadı. Canlı doğrulama adımları Game'in cevabındaki §3.5 listesidir (kayıt, merkez listesi, puan/tavsiye/inceleme yazma, olmayan UUID → 404, Game kapalıyken yazma → 503 ve okuma ekranlarının açık kalması, 5 dk sonra projeksiyon, `UNRATED`/`UNAVAILABLE` ve 0 gösterilmemesi). Sonuçlar `REVIEW_SERVICE_PROGRESS.md`'ye tarihli yazılır.
 
-## 3. İlgili task
+## 2. Review frontend'in Game'den kullandıkları ve beklentileri
 
-REV-12 (Review API kabulü tamamlandı; Game→Review entegrasyonu bekliyor), REV-10. Game kataloğunda puan bağımlılığı açık GAME-04/05 ile ilişkilidir.
+Review frontend'i Game'in **herkese açık, salt okunur** uçlarını Gateway üzerinden, çerezsiz (`credentials: "omit"`) çağırır; çerez gönderilirse Gateway durum değiştiren istek sayıp CSRF ister.
 
-## 4. Talebin amacı
+| Kullanım | Game ucu | Okunan alanlar |
+| --- | --- | --- |
+| Oyun adı/kapağı (oyun, yazma, detay, istatistik, "incelemelerim") | `POST /api/v1/game/games/batch` `{gameIds:[≤50]}` | `items[].gameId`, `title`, `coverUrl`, `externalReferences[provider=STEAM]`; `unavailable[]` |
+| Merkezde oyun listesi (aramasız) | `GET /api/v1/game/games?page&size&sort=POPULARITY&direction=DESC` | `items[].game.*`, `totalElements` |
+| Merkezde oyun arama | `GET /api/v1/game/games/search?q&page&size` | aynı |
 
-Game listelerinde LTZ puan ortalaması ve puan veren kullanıcı sayısını sayfa başına tek toplu çağrıyla okuyabilmek. Steam oranları bu verinin yerine kullanılamaz.
+**Beklentiler**
 
-## 5. Mevcut durum
+0. **`batch` 429 ve kova (Game cevabı):** `batch` istemci başına jeton kovasıyla sınırlıdır (ani yük 100, sürekli 20 istek/sn); aşımda `429` + `Retry-After` + `RATE_LIMITED`. Review frontend'inin Gateway üzerinden gelen tüm tarayıcı trafiği (Library ile birlikte) tek kovayı paylaşır. Review frontend'i sayfa başına tek `batch` isteği atar; 429'da kartlar başlıksız ("Oyun") açılır, "tekrar dene" `Retry-After` dolana kadar kapalıdır ve inceleme/puan verisi gizlenmez (uygulandı: `RetryButton`). Review backend'i Game'i doğrudan çağırdığı için kendi kovasına sahiptir; `GameServiceClient` 429'u 503'e çevirir ve yeniden denemez. Kovanın tarayıcı trafiği için nasıl bölüneceği (Gateway'in istemci IP'sini güvenilir iletmesi ya da kova değerleri) Game ve Gateway sahibinin işidir; Review'ı bloklamaz.
 
-docs/api.md Game liste/arama sözleşmelerinde minRating/RATING sıralaması desteklenmiyor; GameExceptionHandler RATING_INTEGRATION_PENDING üretir. Game public POST /api/v1/game/games/batch yalnız ACTIVE kartlar sunar; LTZ puanı üretmez ve yeni Review API'sini tüketmez.
+1. **Geriye uyum:** Yukarıdaki alanlar (özellikle kanonik `gameId`, `title`, `coverUrl`, `unavailable`) kırıcı değişmemeli; değişecekse `docs/api.md` GAME kaydında duyurulmalı. `batch` üst sınırı 50'nin altına inmemeli.
+2. **Kanonik kimlik:** Review yalnız kanonik LTZ `gameId` kullanır; Steam AppID kabul etmez.
+3. **Kesinti ve eksik kart:** `unavailable` veya yanıtsız oyun için Review incelemeleri gizlemez; başlık yerine "Oyun" yazar ve "tekrar dene" sunar. Game'den "oyun yok" (404) ile "geçici kesinti" (5xx) ayrımı korunmalı.
+4. **Review'ın Game'e çağrıları:** İnceleme, puan ve tavsiye **yazma** istekleri oyunun varlığını `POST /api/v1/game/games/batch` ile doğrular (transaction dışında, yeniden deneme yok): oyun `ACTIVE` değilse Review 404, Game erişilemezse 503. Okuma uçları Game'e bağlı değildir. `batch` ucunun bu amaçla düşük gecikmeli ve herkese açık kalması beklenir.
+5. **Puan tutarlılığı:** Game listelerindeki LTZ puanı projeksiyondan gelir ve tarama periyodu kadar (varsayılan 5 dk) gecikebilir; Review ekranları canlı okur. Kısa süreli fark beklenen davranıştır (`ratingsSyncedAt` gecikmeyi gösterir). Game'de `UNAVAILABLE` ile `UNRATED` ayrımı korunmalı; 0 puan gösterilmemeli.
 
-Review'da GET /api/v1/review/games/{gameId}/rating-summary ve POST /api/v1/review/games/rating-summaries uygulandı/test edildi; bu kullanıcı uçları yalnız kullanıcı at+jwt ve mevcut rollerle erişilir, servis token'ı kabul etmez. **Güncelleme (5 Kasım 2026):** Game sunucu çağrısı için Review'da ayrı `POST /internal/v1/games/rating-summaries` iç ucu uygulandı (§14). Auth application.properties içinde Game→Review hedef/kapsamı hâlâ yok.
+### Açık ürün sorusu — +18 ve kaldırılmış oyunlar
+`GET /games` ve `/games/search` varsayılan olarak yetişkin içerikli (`adult=true`) ve mağazadan kaldırılmış (`delisted`) oyunları gizler; `batch` ve doğrudan bağlantı etkilenmez. Sonuç: bu oyunların Review sayfaları doğrudan bağlantıyla ve "incelemelerim" ile açılır, fakat Review merkezinin aramasında **bulunamaz**. Review frontend'i `includeAdult` göndermez (bu parametre bugün yaş doğrulaması içermez). **Karar (Game cevabı): şimdilik değişiklik yok;** merkezde +18 ve kaldırılmış oyun aranmaz, doğrudan bağlantı ve "incelemelerim" çalışır. Kalıcı çözüm yaş doğrulamalı sunucu kapısıdır; bu ayrı bir iştir ve Review'ı bekletmez. Kapı kurulursa Review'a yalnız frontend işi düşer (doğrulanmış kullanıcıda `includeAdult=true` için Game uçlarını `credentials: "include"` ile çağırmak); Review şimdi hazırlık yapmaz.
 
-## 6. Eksik gereksinimler
+## 3. GAME-26 kimlik taşıma/ayırma — Game'in Review'dan beklediği (AÇIK)
 
-Game RestClient tüketimi, Auth hedefe özel servis kimliği/izin sözleşmesi ve Review alıcı doğrulaması gerekir. Auth talebi [auth-review-integration.md](auth-review-integration.md) içine eklendi. Bunlar bu fazda uygulanmadı. Kullanıcı JWT'si servis kimliği yerine taşınmayacak; anonim erişim açılmayacak.
+Kaynak: [GAME-26 sözleşme taslağı](../../docs-Game%20Service/GAME-26-Servis-Sahipleri-Entegrasyon-Sozlesmesi.md) (7 Kasım 2026, **ÖNERİ / PLANNED**) ve [0002 kararı](../../docs/decisions/0002-oyun-dis-kimlik-duzeltme.md). İş kuralı onaylı: yalnız **referanssız** oyunlarda taşıma/ayırma. Review beş katılımcıdan biridir.
 
-## 7. Önerilen entegrasyon sözleşmesi
+**Review tarafı: NOT IMPLEMENTED.** Aşağıdaki, Review'ın sorumluluk analizidir; kodlama için ayrıca kullanıcı onayı gerekir.
 
-**Mevcut kullanıcı API veri sözleşmesi:** POST /api/v1/review/games/rating-summaries; application/json `{gameIds: UUID[]}`. Ham dizi en fazla 50; tekrarlar ilk görülme sırasıyla tekilleşir; boş dizi 200/items=[]. Yanıt `{items:[{gameId,averageRating,ratingCount}]}`; iki basamak HALF_UP, puansız oyun null/0. Bilinmeyen ve puansız oyun ayrılmaz; katalog varlık/görünürlük sahibi Game'dir. Mevcut hatalar: 400 validation, 401 kimlik, 403 rol, 413 gövde, 500 sunucu.
+### 3.1 Review'ın referansları
 
-**Karar ve uygulama (5 Kasım 2026, Hamza):** Ayrı internal read yolu seçildi: `POST /internal/v1/games/rating-summaries`, scope `rating-summaries:read`, `sub=svc:game-service`. Kullanıcı namespace'ine servis erişimi açılmadı. Ayrıntı §14.
+| Tablo | İlişki | Not |
+| --- | --- | --- |
+| `game_ratings` (V51) | `game_id` | kullanıcı/oyun başına tek satır |
+| `reviews` (V52) | `game_id` | `VISIBLE` ve `DELETED`; silinmiş satır `body=NULL` ama `game_id`'yi saklar |
+| `game_recommendations` (V53) | `game_id` | kullanıcı/oyun başına tek satır |
+| `review_likes` (V55) | doğrudan yok | `reviews` üzerinden; ayrı sayılmaz |
 
-En fazla 50 oyunluk sayfa tek çağrıyla zenginleştirilebilir. Ancak global minRating filtresi/RATING sıralaması yalnız alınmış sayfaya puan eklenerek doğru uygulanamaz. Tüm aday kümede filtre/sıralama ile sayfalama ilişkisi ayrıca tasarlanmalı; bu belge veya sınırlı batch API global sıralamayı çözmüş sayılmaz.
+Türetilmiş önbellek yoktur. Game'in puan projeksiyonu Game'dedir; taşımadan sonra Game yeniden tarar.
 
-## 8. Kimlik doğrulama ve yetkilendirme
+### 3.2 Review'ın yapması gerekenler (kabul edilirse)
 
-Öneri: Auth D3 uyumlu, tek aud=review-service, sub=svc:game-service ve dar okuma kapsamı. Scope adı/yol henüz kesinleşmedi. RS256/JWKS, typ/issuer/audience/imza/zaman/jti ve tam çağıran/izin allowlist'i ortak sözleşmeyle doğrulanmalı. Kullanıcı rolleri, body/header servis ismi veya account:erase yetkisi bunun yerine geçmez. Secret/ENV veya yeni yetki oluşturulmadı.
+1. **Korunacak yazma yolları:** `RatingWriter` (UPSERT), `RecommendationWriter` (UPSERT), `ReviewWriter.create`. PATCH/DELETE/beğeni yeni oyun ilişkisi doğurmaz; hesap silme referansı yalnız azaltır.
+2. **Ortak kilit:** `AccountWriteLock` örüntüsüyle oyun UUID'si için transaction kapsamlı advisory kilit; prepare ve üç yazıcı aynı kilidi UUID sırasıyla alır; engelli oyunda yazma 409.
+3. **Katılımcı uçları (Gateway'e açılmaz):** `POST /internal/v1/game-identity/operations/{operationId}/prepare`, `…/finalize`, `GET …/operations/{operationId}`. Kalıcı operasyon/engel kaydı için yeni migration gerekir: **Review'ın V51–V60 aralığında boş numara kalmadı** (V58 rapor, V59 outbox, V60 moderasyon kullanıldı). Numara uydurulmaz; ekip kararı gerekir (AGENTS §4).
+4. **Kimlik:** `svc+jwt`, `aud=review-service`, `sub=svc:game-service`, `scope` içinde `game-identity:prepare|finalize|read`. `rating-summaries:read` bunlara yetki vermez, tersi de.
+5. **Karar sorgusu:** Belirsizlikte `GET {GAME_SERVICE_URL}/internal/v1/game-identity/operations/{operationId}/decision`; token için `AUTH_REVIEW_SERVICE_CLIENT_SECRET` (**ENV onayı gerekir**). PENDING/404/erişilemezse engel tutulur.
+6. **Hata kodları:** `409 GAME_REFERENCES_EXIST`, `GAME_IDENTITY_OPERATION_CONFLICT`, `GAME_IDENTITY_DECISION_CONFLICT`, `GAME_IDENTITY_OPERATION_IN_PROGRESS`; `503 GAME_IDENTITY_COORDINATION_UNAVAILABLE`. **Not:** Review hata yanıtları artık makine-okur `code` alanı taşıyabilir (`ReviewException(status, code, message)`; bugün yalnız rapor hatalarında: `REPORT_ALREADY_EXISTS`, `REPORT_OWN_REVIEW`). Review'ın **diğer** 409'ları (ör. "bu oyun için zaten incelemen var") hâlâ `code` taşımaz; GAME-26 hataları eklenirken `GAME_IDENTITY_OPERATION_IN_PROGRESS` 409'u bu mekanizmayla ayrıştırılacak. Review frontend'i `ApiHttpError.code` ile ayırmaya hazırdır (bugün oluşturma 409'unu "zaten incelemen var" diye yorumlar, bu yüzden kod gelmeden GAME-26 409'u yanlış yorumlanır).
 
-## 9. Hata ve güvenilirlik davranışı
+### 3.3 Review için açık kararlar
+1. **`DELETED` incelemeler referans mı?** Sözleşme "soft-delete kayıt yok kabul edilmez" der. Öneri: sayılır (güvenli taraf); sonuç: yalnız silinmiş incelemesi olan oyun taşınamaz. Alternatif: taşıma sırasında silinmiş satırın `game_id`'sini de taşımak. Ürün kararı.
+2. **Hesap silme ile kilit sırası** deterministik tanımlanmalı; silme referansı azalttığı için engel altında çalışmaya devam edip etmeyeceği testle kanıtlanmalı.
+3. **Saklama:** terminal operasyon/tombstone kayıtlarının silinme politikası.
 
-Bounded connect/read timeout, sınırlı retry ve token yenileme bütçesi netleştirilmeli. 401/403'te kontrolsüz retry veya kullanıcı token'ına fallback olmamalı. Kesintide puan 0 gösterilmemeli; erişilemeyen veri ile doğrulanmış null/0 ayrılmalı. Cache seçilirse tazelik ve puan güncelleme/hesap silme gecikmesi belgelenmeli. Salt okunur sorgu için outbox/teslim ACK'i gerekmez; rapor altyapısı eklenmedi.
+### 3.4 Diğer taraflardan beklenenler
+- **[Game]** Koordinatör (kalıcı operasyon, önce ABORTED, finalize teslim kuyruğu, kurtarma), `…/decision` ucu ve ADMIN akışı. Review hazır olana kadar `FOREIGN_REFERENCE_SAFETY_UNVERIFIED` koruması kapalı kalmalı; eksik/bilinmeyen katılımcı `0 referans` sayılmaz.
+- **[Auth]** `game-identity:prepare|finalize|read|decision:read` Auth'ta **uygulanmış ve testlidir** (Auth cevabı, 12 Kasım 2026); `docs/api.md`'deki "taslak" ifadesi eskidir ve Auth tarafından düzeltilecek. Review bu kapsamlara bağımlı kod yazabilir (ENV onayı ve kullanıcı kararı sonrası).
 
-## 10. Kabul kriterleri
+### 3.5 Kabul kriterleri (Review payı)
+Prepare ile eşzamanlı puan/tavsiye/inceleme yazımı birlikte başarı veremez; tekrarlı/ters sıralı prepare–finalize; önce abort sonra gecikmiş prepare; restart sonrası kalıcı engel; PENDING/404 karar sorgusunda engelin açılmaması; yanlış subject/audience/scope ve kullanıcı token'ı reddi; gerçek Auth+Game ile ortak kabul. Bugün hiçbiri PASS değildir.
 
-- Gerçek Auth token'ıyla yetkili Game çağrısı; yanlış audience/scope/sub/typ, expired token ve kullanıcı-token fallback reddi doğrulanır.
-- Sayfa başına tek Review çağrısı; 50 oyun için tek aggregate SQL, N+1 yoktur.
-- Tekrar/boş/puansız kimlikler, sıra, yuvarlama, timeout ve yetkisizlik karşılıklı test edilir.
-- Puan güncelleme ve hesap silme sonrası gerçek Game görünümü doğrulanır; canlı entegrasyon öncesinde PASS iddiası kurulmaz.
-- Global puan filtresi/sıralaması hedeflenirse toplamlar ve sayfa doğruluğu ayrıca test edilir.
+## 4. Game frontend'inden Review'a bağlantı (AÇIK)
 
-## 11. Bağımlılık ve etki
+**Game bağlantısı Review merge sonrası yapılacak** (Game cevabı): Game detayına "İncelemeleri gör" bağlantısı (`/reviews/games/[gameId]`, mesaj anahtarı `Game.reviewsLink`), rota adları merge'de korunmalıdır: `/reviews/games/[gameId]` (TR `/incelemeler/oyun/[gameId]`) ve `/reviews/games/[gameId]/statistics`. Merge sonrası Game oturumuna "Review PR merge oldu, main güncel" bildirilir. Game detayında LTZ puanı gösterilmediği için aşağıdaki 2. madde şimdilik uygulanamaz.
 
-REV-08/REV-12 Review backend kabulünü engellemez. Game tüketimi ve REV-10 kapanışı Auth/alıcı/tüketici sözleşmesine bağlıdır; REV-07 Admin bağımlılığı sürer.
+Review frontend'i bağımsız sayfalarla tamamlandı; Game frontend'ine dokunulmadı. Game sayfasının sahibine öneri:
 
-## 12. Durum
-
-**REVIEW TARAFI UYGULANDI (5 Kasım 2026) — GAME TÜKETİCİSİ VE CANLI DOĞRULAMA BEKLİYOR.** Review iç ucu IMPLEMENTED (yerel testler PASS); Auth `game-service → review-service / rating-summaries:read` çifti Auth `origin/main`'de MEVCUT (bf473ed); Game RestClient tüketicisi NOT IMPLEMENTED; canlı Auth/Game uçtan uca NOT VERIFIED. Review dışa aktarma ucu (Seçenek A) uygulandı (§14.4); Game projeksiyonu NOT IMPLEMENTED.
-
-## 13. Karar bekleyen konular
-
-Servis okuma yolu/kapsamı, token dağıtımı ve ömrü, timeout/retry bütçesi, cache tazeliği, hata sunumu, sayfa büyüklüğü uyumu ve global puan filtre/sıralama mimarisi netleştirilmeli. Review onaylanan sözleşmeye sonradan uyarlanacak; nihai tasarım ilgili servis sahiplerine aittir.
-
-## 14. Review tarafında uygulananlar ve Game'e devir notu (5 Kasım 2026)
-
-### 14.1 Uygulanan Review iç ucu
-
-`POST /internal/v1/games/rating-summaries` — Gateway'e yönlendirilmez. Gövde ve yanıt kullanıcı toplu ucuyla birebir aynıdır (`{gameIds:[≤50 UUID]}` → `{items:[{gameId,averageRating,ratingCount}]}`; sıra ilk görülme, tekilleştirme, puansız/bilinmeyen oyun `null/0`, iki basamak HALF_UP). Tam kayıt: [docs/api.md → REVIEW](../../docs/api.md) "Game → Review toplu puan özeti iç ucu".
-
-Kabul edilen kimlik: Auth'un `svc+jwt` token'ı, `aud=review-service`, `sub=svc:game-service` (tam eşleşme), `scope` içinde `rating-summaries:read`, ≤60 sn ömür. Kullanıcı token'ı, başka servis, `account:erase` veya başka kapsam reddedilir; kullanıcı namespace'i (`/api/v1/review/**`) servis token'ı kabul etmeye devam etmez.
-
-### 14.2 Game'in yapması gerekenler (Game kodu bu çalışmada değiştirilmedi)
-
-1. **Auth çifti hazır** (Auth `origin/main`, bf473ed; bkz. [Auth talebi](auth-review-integration.md) §14): `game-service` istemcisi + `targets.review-service=rating-summaries:read`. Secret yoksa/yanlışsa 401 `INVALID_CLIENT`, çift yanlışsa 403 `SERVICE_AUDIENCE_FORBIDDEN`.
-2. **Token edinimi:** `POST {AUTH_SERVICE_URL}/internal/v1/service-tokens`, gövde `{clientId:"game-service", clientSecret, audience:"review-service"}`. Yanıt `accessToken/tokenType/expiresIn/scope`. Token 60 sn yaşar; hedef başına bellekte kısa süre tutulup bitimden ~15 sn önce yenilenir. Hazır örnek: social-service `AuthServiceTokenClient` (aynı kalıp). İstemci secret'ı yeni ENV'dir (öneri: `AUTH_GAME_SERVICE_CLIENT_SECRET` Auth tarafında; Game tarafında `AUTH_SERVICE_URL` zaten var) — **ENV değişikliği kullanıcı onayı gerektirir**, bu çalışmada hiçbir ENV değiştirilmedi.
-3. **Adres:** Game'e `REVIEW_SERVICE_URL` (Review'ın iç adresi) gerekir; mevcut değilse ENV onayıyla eklenir.
-4. **RestClient adaptörü:** `Authorization: Bearer <svc+jwt>`, `Content-Type: application/json`. Sayfa başına tek çağrı (≤50 `gameId`), oyun başına çağrı yok. Bounded connect/read timeout (öneri ≤1 sn / ≤2 sn). **401/403'te yeniden deneme yok** ve kullanıcı token'ına fallback yok; Review bu uçta oran sınırı (429) uygulamaz, 5xx/zaman aşımında en çok bir kısa yeniden deneme.
-5. **Kesinti davranışı:** Review erişilemezse sayfa yine kartlarla döner, puan alanı "bilinmiyor" olur — **0 gösterilmez**. Doğrulanmış `averageRating=null, ratingCount=0` ("henüz puan yok") ile "veri alınamadı" ayrı temsil edilmelidir.
-6. **Önbellek (isteğe bağlı):** Review tarafında cache yoktur, her çağrı canlı veri döner. Game cache kullanırsa tazelik gecikmesini ve hesap silme/puan güncelleme etkisini belgelemelidir.
-
-### 14.3 Test edilen Review davranışı (kanıt)
-
-`InternalRatingSummaryTest` (18 test) + `ReviewHttpIntegrationTest` (gerçek TCP/RS256/JWKS/PostgreSQL). Auth'un gerçek `ServiceClientTokenIssuer`'ı ile üretilen `game-service → review-service / rating-summaries:read` token'ı kabul edilir; `library-service` istemcisi, `events:ingest` kapsamı, `user-service` audience'ı, kullanıcı token'ı ve `account:erase` token'ı reddedilir. Review modülü 174/174 test PASS, Maven clean verify + coverage-policy PASS, Checkstyle/PMD yeni ihlal 0. **Canlı Auth token'ı ve gerçek Game çağrısı NOT VERIFIED.**
-
-### 14.4 GAME-04 / GAME-05 — karar: Seçenek A uygulandı (5 Kasım 2026, Hamza)
-
-`minRating` filtresi ve `sort=RATING` tüm aday küme üzerinde sayfalama ile doğru olmak zorundadır; ≤50 oyunluk uç bunu çözmez. **Seçenek A seçildi:** Game, Review'dan puan okuma projeksiyonu tutar ve filtre/sıralamayı kendi SQL'inde yapar. Review karşılığı **uygulandı**:
-
-`GET /internal/v1/games/rating-summaries?after={uuid}&limit={1..500}` → `{items:[{gameId,averageRating,ratingCount}], nextAfter}`; yalnız puanı olan oyunlar, `gameId` artan, `after` dışlayıcı imleç, `nextAfter=null` son sayfa. Aynı kimlik/kapsam (`rating-summaries:read`, `sub=svc:game-service`). Tam kayıt: [docs/api.md → REVIEW](../../docs/api.md) "Game → Review puan dışa aktarma iç ucu".
-
-Game'in yapması gerekenler için ayrıntılı rehber: [REVIEW_GAME_SERVICE_DEVIR.md](../REVIEW_GAME_SERVICE_DEVIR.md). Özet: periyodik tam tarama, yalnız hatasız tamamlanan taramada görülmeyen satırları puansız yapma, projeksiyon tablosu için Game migration numarası ekip kararı (V31–V40 dolu), puansız oyunların filtre/sıralamadaki konumunun belgelenmesi.
-
-Seçenek B (Review'da sıralı liste) ve C (kapsamı daraltma) uygulanmadı.
+1. Oyun detayından Review'a bağlantı: `/reviews/games/[gameId]` (TR `/incelemeler/oyun/[gameId]`). Review sayfaları oturum ister; oturumsuz kullanıcı girişe yönlenir ve dönüşte hedefe gelir.
+2. LTZ puan gösteriminden Review istatistik sayfasına bağlantı (`/reviews/games/[gameId]/statistics`); iki kaynağın (Game projeksiyonu / Review canlı) gecikme notu §2.5 ile uyumlu anlatılmalı.
+3. Game sayfasında inceleme listelenmeyecekse Review UI'ı kopyalanmamalı; tek kaynak Review sayfalarıdır.
+4. Review sayfaları `noindex`'tir; Game metadata'sına inceleme/puan içeriği taşınmaz.

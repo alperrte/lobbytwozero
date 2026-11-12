@@ -8,7 +8,7 @@ public final class ReviewMapper {
     private ReviewMapper() {}
 
     public static ReviewResponse response(Review review, UUID actor) {
-        return new ReviewResponse(review.getId(), review.getGameId(), review.getBody(), actor.equals(review.getUserId()),
+        return new ReviewResponse(review.getId(), review.getGameId(), review.getBody(), review.getUserId(), actor.equals(review.getUserId()), review.getStatus(),
                 review.getVersion(), review.getCreatedAt(), review.getUpdatedAt());
     }
 }

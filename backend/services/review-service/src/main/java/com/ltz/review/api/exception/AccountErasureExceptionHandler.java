@@ -12,7 +12,9 @@ import org.springframework.dao.DataIntegrityViolationException;
 public class AccountErasureExceptionHandler extends org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler {
     @ExceptionHandler(ReviewException.class)
     public ProblemDetail review(ReviewException exception) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.valueOf(exception.status()), exception.getMessage());
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.valueOf(exception.status()), exception.getMessage());
+        if (exception.code() != null) problem.setProperty("code", exception.code());
+        return problem;
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

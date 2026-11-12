@@ -6,16 +6,18 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /** Kullanıcı başına kota sınırları; tek kaynak application.properties (ltz.review.abuse.*). */
 @ConfigurationProperties("ltz.review.abuse")
-public record AbuseControlProperties(Rule reviewCreate, Rule reviewLike) {
+public record AbuseControlProperties(Rule reviewCreate, Rule reviewLike, Rule reportCreate) {
     public AbuseControlProperties {
         if (reviewCreate == null) reviewCreate = new Rule(5, Duration.ofSeconds(60));
         if (reviewLike == null) reviewLike = new Rule(60, Duration.ofSeconds(60));
+        if (reportCreate == null) reportCreate = new Rule(10, Duration.ofHours(1));
     }
 
     public Rule rule(AbuseAction action) {
         return switch (action) {
             case REVIEW_CREATE -> reviewCreate;
             case REVIEW_LIKE -> reviewLike;
+            case REPORT_CREATE -> reportCreate;
         };
     }
 

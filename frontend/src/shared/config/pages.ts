@@ -13,6 +13,7 @@ export type PageId =
   | "libraryCompleted"
   | "libraryAdd"
   | "libraryPrivacy"
+  | "reviews"
   | "home"
   | "games"
   | "about"
@@ -46,6 +47,7 @@ export const pages: readonly PageEntry[] = [
   { id: "libraryCompleted", href: "/library/completed", indexable: false, keywords: ["bitirilenler", "completed"] },
   { id: "libraryAdd", href: "/library/add", indexable: false, keywords: ["oyun ekle", "add game"] },
   { id: "libraryPrivacy", href: "/library/privacy", indexable: false, keywords: ["kütüphane gizliliği", "library privacy"] },
+  { id: "reviews", href: "/reviews", indexable: false, keywords: ["inceleme", "incelemeler", "reviews", "puan", "rating", "tavsiye"] },
   { id: "games", href: "/games", indexable: false, keywords: ["oyun", "games", "katalog", "catalogue"] },
   { id: "hardware", href: "/hardware", indexable: false, keywords: ["donanım", "hardware", "cpu", "gpu", "katalog"] },
   { id: "campaigns", href: "/hardware/campaigns", indexable: false, keywords: ["kampanya", "campaign", "indirim", "fırsat"] },

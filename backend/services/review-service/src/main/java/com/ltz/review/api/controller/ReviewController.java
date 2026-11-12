@@ -2,9 +2,11 @@ package com.ltz.review.api.controller;
 
 import com.ltz.review.api.dto.request.CreateReviewRequest;
 import com.ltz.review.api.dto.request.UpdateReviewRequest;
+import com.ltz.review.api.dto.response.ReviewPageResponse;
 import com.ltz.review.api.dto.response.ReviewResponse;
 import com.ltz.review.application.service.ReviewService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.net.URI;
 import java.util.UUID;
@@ -35,6 +37,20 @@ public class ReviewController {
             @Valid @RequestBody CreateReviewRequest request) {
         var response = service.create(UUID.fromString(actor.getSubject()), gameId, request.body());
         return ResponseEntity.created(URI.create("/api/v1/review/reviews/" + response.id())).body(response);
+    }
+
+    /** Kullanıcının bu oyundaki görünür incelemesi; yoksa 404. Başkasının incelemesi dönmez. */
+    @GetMapping("/games/{gameId}/reviews/mine")
+    public ReviewResponse mineForGame(@PathVariable UUID gameId, @AuthenticationPrincipal Jwt actor) {
+        return service.mine(UUID.fromString(actor.getSubject()), gameId);
+    }
+
+    /** Kullanıcının tüm oyunlardaki görünür incelemeleri (sayfalı). Sabit `mine` yolu `{reviewId}` şablonundan önce eşleşir. */
+    @GetMapping("/reviews/mine")
+    public ReviewPageResponse mine(@AuthenticationPrincipal Jwt actor,
+            @RequestParam(defaultValue = "0") @Min(0) @Max(10000) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size) {
+        return service.mine(UUID.fromString(actor.getSubject()), page, size);
     }
 
     @GetMapping("/reviews/{reviewId}")
