@@ -264,6 +264,11 @@ Resmî dil desteği, LTZ build'inin başarı kanıtı değildir.
   `BOOT-INF/lib` altındaki her runtime arşivinin Trivy paket raporunda bulunduğu doğrulanır. Thin/eski/eksik JAR,
   eksik paket hedefi, scanner/Java DB indirme hatası PASS değildir. Npm taraması `frontend/package-lock.json`
   üzerinde çalışır; paket scripti yürütmez. HIGH/CRITICAL bulgular ilgili backend/frontend job'ını ve Quality Gate'i düşürür.
+- Spring Boot `repackage`, `project.build.outputTimestamp` değerini JAR dosyasının değiştirilme zamanına da uygular.
+  Bu davranış [Spring Boot 4.1.1 Repackager kaynak kodunda](https://github.com/spring-projects/spring-boot/blob/v4.1.1/loader/spring-boot-loader-tools/src/main/java/org/springframework/boot/loader/tools/Repackager.java#L127-L134) tanımlıdır.
+  Backend runner ve haftalık bağımlılık paketlemesi bu değeri tarayıcının kullandığı koşu başlangıcıyla aynı UTC
+  saatinden üretir. Haftalık paketleme de `clean package` kullanır. Eski/boş arşiv, ZIP imzası ve eksiksiz
+  `BOOT-INF/lib` envanteri kontrolleri korunur; eski tarih ile boş çıktı ayrı hatalarla raporlanır.
 - Trivy JSON schema/artifact kimliği, hedef türü, Dockerfile envanteri ve gerçekten uygulanmış kontroller
   doğrulanır. Başarılı misconfiguration kayıtları bulgu sayılmaz. `TRIVY_*` kabuk değişkenleri sessiz skip/ignore yapamaz.
   Scanner ham çıktısı ve kaynak excerpt'leri yayımlanmaz. Config taraması yalnız Dockerfile kapsamındadır.

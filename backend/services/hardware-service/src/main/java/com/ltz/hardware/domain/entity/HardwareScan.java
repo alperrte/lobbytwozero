@@ -3,7 +3,10 @@ package com.ltz.hardware.domain.entity;
 import com.ltz.hardware.domain.enums.ComponentCategory;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
 
 /** Validated hardware description, never proof of physical-device authenticity. */
 public record HardwareScan(int schemaVersion, Instant capturedAt, List<Component> components) {

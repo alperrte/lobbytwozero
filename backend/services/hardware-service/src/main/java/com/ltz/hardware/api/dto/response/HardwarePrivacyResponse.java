@@ -1,6 +1,8 @@
 package com.ltz.hardware.api.dto.response;
 
-import com.ltz.hardware.domain.enums.*;
+import com.ltz.hardware.domain.enums.ComponentCategory;
+import com.ltz.hardware.domain.enums.HardwarePrivacyField;
+import com.ltz.hardware.domain.enums.HardwareVisibility;
 import java.util.Map;
 import java.util.UUID;
 

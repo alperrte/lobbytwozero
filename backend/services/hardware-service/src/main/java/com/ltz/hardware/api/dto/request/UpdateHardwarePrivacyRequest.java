@@ -1,6 +1,8 @@
 package com.ltz.hardware.api.dto.request;
 
-import com.ltz.hardware.domain.enums.*;
+import com.ltz.hardware.domain.enums.ComponentCategory;
+import com.ltz.hardware.domain.enums.HardwarePrivacyField;
+import com.ltz.hardware.domain.enums.HardwareVisibility;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;

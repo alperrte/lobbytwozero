@@ -1,9 +1,13 @@
 package com.ltz.hardware.application.mapper;
 
 import com.ltz.hardware.api.dto.request.ApplyHardwareSyncRequest;
-import com.ltz.hardware.api.dto.response.*;
+import com.ltz.hardware.api.dto.response.HardwareSyncConsentResponse;
+import com.ltz.hardware.api.dto.response.HardwareSyncReceiptResponse;
 import com.ltz.hardware.application.port.AuthenticatedHardwareDevice;
-import com.ltz.hardware.domain.entity.*;
+import com.ltz.hardware.domain.entity.HardwareProfile;
+import com.ltz.hardware.domain.entity.HardwareScan;
+import com.ltz.hardware.domain.entity.HardwareSyncConsent;
+import com.ltz.hardware.domain.entity.HardwareSyncDigest;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;

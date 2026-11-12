@@ -1,7 +1,11 @@
 package com.ltz.hardware.application.service;
 
-import com.ltz.hardware.api.dto.request.*;
-import com.ltz.hardware.api.dto.response.*;
+import com.ltz.hardware.api.dto.request.ArchiveCatalogEntryRequest;
+import com.ltz.hardware.api.dto.request.CreateHardwareProductRequest;
+import com.ltz.hardware.api.dto.request.HardwareCatalogFilter;
+import com.ltz.hardware.api.dto.request.UpdateHardwareProductRequest;
+import com.ltz.hardware.api.dto.response.HardwareCatalogPageResponse;
+import com.ltz.hardware.api.dto.response.HardwareProductResponse;
 import com.ltz.hardware.application.mapper.HardwareCatalogMapper;
 import com.ltz.hardware.application.mapper.HardwareComponentMapper;
 import com.ltz.hardware.application.port.CatalogWriteAccess;
@@ -10,7 +14,11 @@ import com.ltz.hardware.domain.entity.HardwareBrand;
 import com.ltz.hardware.domain.entity.HardwareProduct;
 import com.ltz.hardware.domain.enums.CatalogStatus;
 import com.ltz.hardware.domain.exception.HardwareNotFoundException;
-import com.ltz.hardware.infrastructure.persistence.repository.*;
+import com.ltz.hardware.infrastructure.persistence.repository.HardwareBrandRepository;
+import com.ltz.hardware.infrastructure.persistence.repository.HardwareCatalogAuditRepository;
+import com.ltz.hardware.infrastructure.persistence.repository.HardwareCatalogSearch;
+import com.ltz.hardware.infrastructure.persistence.repository.HardwareCatalogSourceRepository;
+import com.ltz.hardware.infrastructure.persistence.repository.HardwareProductRepository;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
