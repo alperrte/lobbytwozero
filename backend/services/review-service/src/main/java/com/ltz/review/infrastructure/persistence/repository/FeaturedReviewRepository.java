@@ -38,7 +38,7 @@ public class FeaturedReviewRepository {
                 .param("game", game).param("actor", actor).param("minLikes", minLikes).param("size", size).param("offset", offset)
                 .query((rs, row) -> new FeaturedReviewResponse(new ReviewResponse(
                         rs.getObject("id", UUID.class), rs.getObject("game_id", UUID.class), rs.getString("body"),
-                        actor.equals(rs.getObject("user_id", UUID.class)), rs.getLong("version"),
+                        rs.getObject("user_id", UUID.class), actor.equals(rs.getObject("user_id", UUID.class)), "VISIBLE", rs.getLong("version"),
                         rs.getTimestamp("created_at").toInstant(), rs.getTimestamp("updated_at").toInstant()),
                         rs.getLong("like_count"), rs.getBoolean("liked_by_actor"))).list();
     }

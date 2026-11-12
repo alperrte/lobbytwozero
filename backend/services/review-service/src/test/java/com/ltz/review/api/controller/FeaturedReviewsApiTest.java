@@ -62,7 +62,7 @@ class FeaturedReviewsApiTest {
                 .params(review, UUID.randomUUID()).update();
     }
 
-    @Test void ranksByLikesThenCreationTimeThenUuidWithoutExposingAuthor() throws Exception {
+    @Test void ranksByLikesThenCreationTimeThenUuidAndExposesOnlyTheAuthorUserId() throws Exception {
         UUID older = seed("2026-01-01T00:00:00Z");
         UUID newer = seed("2026-02-01T00:00:00Z");
         long prefix = UUID.randomUUID().getMostSignificantBits();
@@ -81,7 +81,8 @@ class FeaturedReviewsApiTest {
                     .andExpect(jsonPath("$.items[1].review.ownedByActor").value(true))
                     .andExpect(jsonPath("$.items[2].review.id").value(high.toString()))
                     .andExpect(jsonPath("$.items[3].review.id").value(newer.toString()))
-                    .andExpect(jsonPath("$.items[0].review.userId").doesNotExist())
+                    .andExpect(jsonPath("$.items[0].review.userId").doesNotExist()).andExpect(jsonPath("$.items[0].review.authorUserId").isNotEmpty())
+                    .andExpect(jsonPath("$.items[1].review.authorUserId").value(reader.toString()))
                     .andExpect(jsonPath("$.totalElements").value(4));
         }
         verifyNoInteractions(games);

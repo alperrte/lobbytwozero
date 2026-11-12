@@ -61,7 +61,7 @@ class MyReviewsApiTest {
                 .andExpect(jsonPath("$.ownedByActor").value(true))
                 .andExpect(jsonPath("$.version").value(0))
                 .andExpect(jsonPath("$.body").value("Deneyim"))
-                .andExpect(jsonPath("$.userId").doesNotExist());
+                .andExpect(jsonPath("$.userId").doesNotExist()).andExpect(jsonPath("$.authorUserId").value(me.toString()));
         verifyNoInteractions(games);
     }
 
