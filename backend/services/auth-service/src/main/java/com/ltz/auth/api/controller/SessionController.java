@@ -19,6 +19,7 @@ import com.ltz.auth.api.dto.response.CurrentAccountResponse;
 import com.ltz.auth.api.dto.response.SessionStatusResponse;
 import com.ltz.auth.application.service.AccountProfile;
 import com.ltz.auth.application.service.AccountTierService;
+import com.ltz.auth.application.service.AdultVerificationService;
 import com.ltz.auth.application.service.IssuedSession;
 import com.ltz.auth.application.service.SessionService;
 import com.ltz.auth.domain.exception.AuthErrorCode;
@@ -37,6 +38,7 @@ public class SessionController {
     private final SessionService sessionService;
     private final AccountRepository accountRepository;
     private final AccountTierService tierService;
+    private final AdultVerificationService adultVerificationService;
     private final SessionCookies sessionCookies;
     private final Clock clock;
 
@@ -60,7 +62,7 @@ public class SessionController {
         CurrentAccountResponse body = new CurrentAccountResponse(accountId,
                 claimList(jwt, TokenClaims.ROLES), claimList(jwt, TokenClaims.AUTH_METHODS), jwt.getExpiresAt(),
                 profile.passwordSet(), profile.providers(), profile.totpEnabled(), profile.registrationMethod(),
-                profile.tier(), profile.tier().isTrusted());
+                profile.tier(), profile.tier().isTrusted(), adultVerificationService.isVerified(accountId));
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(body);
     }
 

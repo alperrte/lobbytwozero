@@ -13,6 +13,8 @@ export type SessionState =
 export type SessionValue = SessionState & {
   /** Oturumu kapatır ve bellekteki kullanıcı verisini temizler. Sunucu hatasında da yerel durum misafire döner. */
   logout: () => Promise<void>;
+  /** `GET /auth/me`yi yeniden yükler (ör. yaş doğrulaması sonrası). Hatada mevcut durum korunur. */
+  reload: () => Promise<void>;
 };
 
 export const SessionContext = createContext<SessionValue | null>(null);
@@ -59,5 +61,14 @@ export function useSessionState(api: SessionApi = authApi): SessionValue {
     }
   }
 
-  return { ...state, logout };
+  async function reload() {
+    try {
+      const me = await api.getMe();
+      setState(me ? { status: "authenticated", me } : { status: "guest", me: null });
+    } catch {
+      // Geçici hatada kullanıcıyı oturumdan atmayız; mevcut durum kalır.
+    }
+  }
+
+  return { ...state, logout, reload };
 }

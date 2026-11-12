@@ -33,6 +33,14 @@ public class AttemptThrottleService {
 
     /** Doğrulamadan önce bir deneme hakkı ayırır; kilitliyse TOO_MANY_ATTEMPTS fırlatır. */
     public void reserve(String keyHash) {
+        reserve(keyHash, properties.maxFailures(), properties.window(), properties.lockDuration());
+    }
+
+    /**
+     * Ortak ayarlardan (parola, 2FA) bağımsız sınır isteyen işlemler içindir: {@code maxFailures}. denemede kilit devreye
+     * girer (o deneme geçer, sonraki {@code lockDuration} boyunca reddedilir).
+     */
+    public void reserve(String keyHash, int maxFailures, Duration window, Duration lockDuration) {
         AtomicBoolean lockEngaged = new AtomicBoolean();
         Duration remainingLock = transactionTemplate.execute(status -> {
             Instant now = clock.instant();
@@ -41,7 +49,7 @@ public class AttemptThrottleService {
             if (throttle.isLockedAt(now)) {
                 return throttle.remainingLock(now);
             }
-            throttle.reserveAttempt(now, properties.window(), properties.maxFailures(), properties.lockDuration());
+            throttle.reserveAttempt(now, window, maxFailures, lockDuration);
             lockEngaged.set(throttle.isLockedAt(now));
             return null;
         });

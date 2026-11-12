@@ -45,6 +45,7 @@ public class SessionService {
     private final AccountRepository accountRepository;
     private final AccessTokenIssuer accessTokenIssuer;
     private final AccountTierService tierService;
+    private final AdultVerificationService adultVerificationService;
     private final SecureTokens secureTokens;
     private final SessionProperties properties;
     private final SecurityEventRecorder securityEventRecorder;
@@ -141,7 +142,10 @@ public class SessionService {
         refreshTokenRepository.save(RefreshToken.issue(session.getId(), secureTokens.sha256Hex(rawRefreshToken),
                 now, refreshExpiresAt));
         AccountTier tier = tierService.tierOf(account);
-        IssuedAccessToken accessToken = accessTokenIssuer.issue(account, session, tier.name(), tier.isTrusted(), now);
+        // Yaş iddiası yalnız yerel veritabanından (tek PK sorgusu); her giriş ve yenilemede güncel okunur.
+        boolean adultVerified = adultVerificationService.isVerified(account.getId());
+        IssuedAccessToken accessToken = accessTokenIssuer.issue(account, session, tier.name(), tier.isTrusted(),
+                adultVerified, now);
         return new IssuedSession(accessToken.value(), accessToken.expiresAt(), rawRefreshToken, refreshExpiresAt);
     }
 

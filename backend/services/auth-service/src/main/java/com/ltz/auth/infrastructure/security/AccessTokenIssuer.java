@@ -40,6 +40,16 @@ public class AccessTokenIssuer {
      *             derleme kümesi bu sınıfı tek başına derler, küme dışı Auth tipine bağlanamaz.
      */
     public IssuedAccessToken issue(Account account, AuthSession session, String tier, boolean trusted, Instant now) {
+        return issue(account, session, tier, trusted, false, now);
+    }
+
+    /**
+     * @param adultVerified hesabın yaşı doğrulanmış ve doğrulama geri alınmamış mı. Yalnız {@code true} iken
+     *                      {@link TokenClaims#ADULT_VERIFIED} yazılır; {@code false} iken claim hiç yazılmaz (fail-closed).
+     *                      Düz tip: tüketici servislerin kapalı derleme kümesi bu sınıfı tek başına derler.
+     */
+    public IssuedAccessToken issue(Account account, AuthSession session, String tier, boolean trusted,
+                                   boolean adultVerified, Instant now) {
         Instant expiresAt = now.plus(properties.accessTokenTtl());
         JwtClaimsSet.Builder claims = JwtClaimsSet.builder()
                 .issuer(properties.issuer())
@@ -55,6 +65,9 @@ public class AccessTokenIssuer {
                 .claim(TokenClaims.AUTH_METHODS, session.authMethods().stream().map(AuthMethod::claimValue).toList());
         if (tier != null) {
             claims.claim(TokenClaims.ACCOUNT_TIER, tier).claim(TokenClaims.TRUSTED, trusted);
+        }
+        if (adultVerified) {
+            claims.claim(TokenClaims.ADULT_VERIFIED, true);
         }
         JwtClaimsSet claimSet = claims.build();
         JwsHeader header = JwsHeader.with(SignatureAlgorithm.RS256)

@@ -176,6 +176,13 @@ Token: `typ=svc+jwt`, RS256 (JWKS aynı), `iss=ltz-auth`, **`aud=<hedef>`** (yal
 `AUTH_COMMUNITY_SERVICE_CLIENT_SECRET` (her biri ayrı, en az 32 karakter, boşsa istemci kapalı). Yeni (çağıran, hedef) çifti eklemek Auth'ta
 yetkili bir değişikliktir (`application.properties` + test + bu tablo). Satır 5 (Auth → community, `AccountStatusChanged`) olay tanımı gelince.
 
+## 3b. Kullanıcı token'ında `adult_verified` (yaş doğrulaması)
+
+- Auth kullanıcı access token'ına (`at+jwt`) `adult_verified: true` yazar; **yalnız `true` iken** (yokluk = doğrulanmadı), servis token'ına (`svc+jwt`) asla. Kaynak her zaman Auth'un yerel `account_age_verifications` tablosudur (aktif = `revoked_at IS NULL`), istekten üretilmez.
+- **Game okur:** yalnız boolean `true` yetki verir; claim yoksa ya da başka tipteyse yetki yok. Review yalnız `includeAdult` iletir.
+- Gecikme: doğrulama/geri alma bir sonraki yenilemede yansır (≤60 sn); `ver` artırılmaz.
+- Ad değişirse üç yerde birlikte: Auth `TokenClaims`, Game sabiti, `docs/api.md`. Ayrıntı: `yas-dogrulama-uygulama-plani.md`.
+
 ## 4. Silme koordinasyonunun özeti
 
 `DELETION_REQUESTED` → her servis için görev (`account_deletion_tasks`) → worker görevi kiralar (SKIP LOCKED) → çağrı işlem

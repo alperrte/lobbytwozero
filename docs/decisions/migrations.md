@@ -16,7 +16,7 @@
 - V51–V60      → REVIEW-SERVICE
 
 ## KEREM
-- V61–V70      → AUTH-SERVICE
+- V61–V70      → AUTH-SERVICE (V66: yaş doğrulaması; sıradaki boş V67)
 - V71–V80      → USER-SERVICE
 - V81–V90      → MAIL-SERVICE
 

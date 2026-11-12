@@ -8,6 +8,7 @@ export { ForgotPasswordForm } from "./components/forgot-password-form";
 export { LoginForm } from "./components/login-form";
 export { RegisterForm } from "./components/register-form";
 export { ResetPasswordForm } from "./components/reset-password-form";
+export { AccountAgeSection } from "./components/account-age-section";
 export { AccountDeletionSection } from "./components/account-deletion-section";
 export { AccountSecuritySection } from "./components/account-security-section";
 export { DeleteAccountForm } from "./components/delete-account-form";

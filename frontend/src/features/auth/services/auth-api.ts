@@ -393,6 +393,21 @@ export const authApi = {
     return authRequest<AuthMe>("/api/v1/auth/me", { signal });
   },
 
+  /** Yaş beyanı (18+). Doğum tarihi yalnız bu isteğin gövdesinde gider; saklanmaz, URL'e/loga yazılmaz. */
+  async verifyAge(birthDate: string, signal?: AbortSignal): Promise<void> {
+    await authRequest<unknown>("/api/v1/auth/account/age-verification", { method: "POST", body: { birthDate }, signal });
+  },
+
+  /** Yaş doğrulamasını geri alır (204, idempotent). */
+  async revokeAge(signal?: AbortSignal): Promise<void> {
+    await authRequest<unknown>("/api/v1/auth/account/age-verification", { method: "DELETE", signal });
+  },
+
+  /** Access token'ı yeniler (yeni `adult_verified` iddiası için). */
+  async refreshSession(signal?: AbortSignal): Promise<void> {
+    await authRequest<unknown>("/api/v1/auth/session/refresh", { method: "POST", signal });
+  },
+
   /** Bu cihazdaki oturumu kapatır (204, idempotent). */
   logout(): Promise<void> {
     return authRequest<void>("/api/v1/auth/session/logout", { method: "POST" });
