@@ -1,6 +1,6 @@
 # GAME-SERVICE — AUTH ENTEGRASYONU
 
-**Sahip:** Hamza · **Kod durumu:** Aktif · **Güncelleme:** 2026-10-29
+**Sahip:** Hamza · **Kod durumu:** Aktif · **Güncelleme:** 2026-11-12 (aşağıdaki "Senin yapacakların" maddeleri koda karşı doğrulanıp kapatıldı)
 
 ## ÖZET
 
@@ -14,9 +14,11 @@ Game, Auth sözleşmesine en iyi uyan servis: kullanıcı JWT'si, servis token'l
 
 ## SENİN YAPACAKLARIN
 
-- [ ] Belgendeki (`LTZ-HAM-GAME-04-Auth-Entegrasyonu.md`) "Auth varsayılan access ömrü 5 dakika" ifadesini güncelle: artık **60 sn**, yayılım üst sınırı 90 sn. Aynı belgede "silme için karar" diyen yerler uygulanmış durumda
-- [ ] `chore/security` (#16) `main`'de. Kendi dalına `main`'i aldıktan sonra strict doğrulamayı çalıştır. Checkstyle borcun (`.*` import'ları) `main`'deki CI'ı kırmızı tutuyor, düzeltmeni commit'leyip PR aç
-- [ ] JWKS `HttpClient` yaşam döngüsü düzeltmen onaylıydı, commit'li değilse commit'le
+- [x] **Yapıldı (2026-11-12 doğrulandı).** `docs-Game Service/LTZ-HAM-GAME-04-Auth-Entegrasyonu.md` access ömrünü 60 sn olarak yazıyor ("Güncel Auth varsayılan access ömrü 60 saniye", token kuralı en çok 60 sn); kalan "yaklaşık 5 dakika" ifadesi access ömrü değil Nimbus JWKS önbelleğidir.
+- [x] **Yapıldı (2026-11-12 doğrulandı).** `chore/security` Game dalına alındı (`HEAD`'e birleşik). Game'de `.*` import'ı yok (0), `pre-push full dev` Checkstyle/PMD yeni ihlal 0 ve `SAFE TO COMMIT`.
+- [x] **Yapıldı (2026-11-12 doğrulandı).** JWKS `HttpClient` yaşam döngüsü commit'li (`168759c5`, 2026-10-29): `ServiceTokenDecoderConfiguration.closeJwksClient()` `@PreDestroy` ile istemciyi kapatır.
+
+Yaş kapısı (+18, 2026-11-12): Game `adult_verified` iddiasını yalnız boolean `true` için okur; Auth tarafında yapılacak bir şey kalmadı. Ayrıntı: `docs/api.md` GAME bölümü (`includeAdult`, `includeAdultApplied`) ve `docs-security/game-service/NOTLAR.md`.
 
 ## AUTH'TA BEKLEYEN
 

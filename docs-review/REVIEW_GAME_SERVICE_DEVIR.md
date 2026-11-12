@@ -1,6 +1,6 @@
 # Review → Game Service devir notu (REV-12 · GAME-04 / GAME-05 / GAME-15)
 
-**Tarih:** 5 Kasım 2026 · **Hazırlayan:** Review tarafı (Hamza) · **Hedef:** Game Service'te çalışan kişi / yapay zekâ asistanı
+**Tarih:** 5 Kasım 2026 (durum tablosu 12 Kasım 2026'da Game koduna karşı güncellendi) · **Hazırlayan:** Review tarafı (Hamza) · **Hedef:** Game Service'te çalışan kişi / yapay zekâ asistanı
 
 Bu belge, Game Service'in `GAME-04`, `GAME-05` ve `GAME-15` için Review'dan beklediği şeylerin **Review tarafında hazır olduğunu** ve Game'in artık ne yapması gerektiğini söyler. Game kodu, Game migration'ları, Auth ve ENV dosyaları bu çalışmada **değiştirilmedi**.
 
@@ -13,9 +13,9 @@ Bu belge, Game Service'in `GAME-04`, `GAME-05` ve `GAME-15` için Review'dan bek
 | Review iç ucu: toplu puan özeti `POST /internal/v1/games/rating-summaries` | **Hazır** (Review tarafı, yerel testler PASS) |
 | Review iç ucu: imleçli dışa aktarma `GET /internal/v1/games/rating-summaries` | **Hazır** (Review tarafı, yerel testler PASS) |
 | Auth: `game-service` istemcisi + `review-service` hedefi + `rating-summaries:read` kapsamı | **Auth tarafında MEVCUT** — `origin/main`, commit bf473ed (LTZ-KER-AUTH-37): `game-service.targets.review-service=rating-summaries:read`. Game'in secret'ı (`AUTH_GAME_SERVICE_CLIENT_SECRET`) ve dağıtımı ENV onayı bekliyor; canlı doğrulama yapılmadı |
-| Game: RestClient adaptörü, token istemcisi, ENV | **Yapılmadı — Game** |
-| Game: puan projeksiyonu tablosu + migration | **Yapılmadı — Game** (migration numarası ekip kararı) |
-| Game: `minRating` / `sort=RATING` açılması | **Yapılmadı — Game** (şu an 400 `RATING_INTEGRATION_PENDING`) |
+| Game: RestClient adaptörü, token istemcisi, ENV | **Kod MEVCUT — Game** (`ReviewRatingClient`, `AuthServiceTokenClient`). `AUTH_GAME_SERVICE_CLIENT_SECRET` değerinin dağıtım ortamında tanımlı olduğu ayrıca doğrulanmalı; tanımsızsa tarama kapalı kalır |
+| Game: puan projeksiyonu tablosu + migration | **Yapıldı — Game** (`V172__create_game_rating_projection.sql`) |
+| Game: `minRating` / `sort=RATING` açılması | **Yapıldı — Game** (`GameRatingDiscoveryTest`). İlk hatasız tarama tamamlanana kadar bilinçli olarak 400 `RATING_INTEGRATION_PENDING` döner; sonra filtre ve sıralama çalışır |
 | Canlı Auth/Game/Review uçtan uca | **NOT VERIFIED** |
 
 Review doğrulaması: Review modülü **174/174 test PASS** (failure/error/skipped 0/0/0), Maven `clean verify` + coverage-policy PASS, Checkstyle/PMD yeni ihlal 0. Testler gerçek TCP/RS256/JWKS/PostgreSQL ve Auth'un gerçek `ServiceClientTokenIssuer`'ı ile üretilen `game-service → review-service / rating-summaries:read` token'ını kapsar. Bunlar canlı Auth veya gerçek Game çağrısı kanıtı değildir.
