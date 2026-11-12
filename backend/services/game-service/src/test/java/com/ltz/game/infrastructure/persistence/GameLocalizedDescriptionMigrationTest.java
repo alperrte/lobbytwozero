@@ -27,7 +27,7 @@ class GameLocalizedDescriptionMigrationTest {
             var before = jdbc.queryForList(rows, String.class);
             assertNull(jdbc.queryForList("select to_regclass('public.game_localized_descriptions')::text", String.class).getFirst());
 
-            assertEquals(1, Flyway.configure().dataSource(ds).locations("classpath:db/migration").load().migrate().migrationsExecuted, "yalnız V175");
+            assertEquals(1, Flyway.configure().dataSource(ds).locations("classpath:db/migration").target("175").load().migrate().migrationsExecuted, "yalnız V175");
 
             assertEquals(before, jdbc.queryForList(rows, String.class), "mevcut oyun satırları ve açıklamalar değişmez");
             assertEquals(0L, jdbc.queryForObject("select count(*) from game_localized_descriptions", Long.class), "tablo boş başlar; çeviri üretilmez");
@@ -39,7 +39,7 @@ class GameLocalizedDescriptionMigrationTest {
             assertThrows(DataAccessException.class, () -> insert(jdbc, game, "de", "Text", ""));
             assertThrows(DataAccessException.class, () -> insert(jdbc, missing, "de", "Text", "STEAM"), "olmayan oyun");
             assertEquals("English description", jdbc.queryForObject("select description from games where id=?", String.class, game));
-            assertEquals(0, Flyway.configure().dataSource(ds).locations("classpath:db/migration").load().migrate().migrationsExecuted, "ikinci çalıştırma işlem yapmaz");
+            assertEquals(0, Flyway.configure().dataSource(ds).locations("classpath:db/migration").target("175").load().migrate().migrationsExecuted, "ikinci çalıştırma işlem yapmaz");
         }
     }
 

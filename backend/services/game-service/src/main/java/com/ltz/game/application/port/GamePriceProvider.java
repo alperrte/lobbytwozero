@@ -1,5 +1,6 @@
 package com.ltz.game.application.port;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Currency;
 import java.util.List;
@@ -9,8 +10,23 @@ import java.util.UUID;
 /** GAME-24 pazar bazlı fiyat sözleşmesi. Yapılandırılmamış sağlayıcı ağ isteği başlatmaz. */
 public interface GamePriceProvider {
     default boolean isConfigured() { return true; }
+
+    /** Sağlayıcı bir hız sınırı yanıtı yüzünden istek atmayı durdurduysa kalan süre; blok yoksa {@link Duration#ZERO}. Blokta ağır aday sorguları atlanır. */
+    default Duration blockedFor() { return Duration.ZERO; }
+
+    /** Sağlayıcı şu an bloktaysa true ({@link #blockedFor()} sıfırdan büyük). */
+    default boolean isBlocked() {
+        Duration remaining = blockedFor();
+        return remaining != null && remaining.compareTo(Duration.ZERO) > 0;
+    }
     /** Çoklu kimlik tek çağrıda; sağlayıcı kimliği ile LTZ gameId doğrulanmış eşleme gerektirir. */
     List<Quote> prices(Set<UUID> gameIds, Market market);
+
+    /** Sağlayıcı kotası kıtlaştığında kimin önce hizmet alacağı: sayfası açılan oyun toplu turdan önce gelir. */
+    enum Priority { BACKGROUND, INTERACTIVE }
+
+    /** Öncelikli çağrı; öncelik kavramı olmayan sağlayıcılar için {@link #prices(Set, Market)} ile aynıdır. */
+    default List<Quote> prices(Set<UUID> gameIds, Market market, Priority priority) { return prices(gameIds, market); }
     record Market(String country, String currency) {
         public Market {
             if (country==null || !country.matches("[A-Z]{2}") || !Set.of(Locale.getISOCountries()).contains(country)) throw invalid();

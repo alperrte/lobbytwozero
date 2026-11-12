@@ -16,8 +16,10 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -49,6 +51,21 @@ class GamePriceReadHintTest {
         verify(hints).touch(id, US);
         assertEquals("UNAVAILABLE", response.items().getFirst().status());
         verify(repository, never()).claim(any(), any());
+    }
+
+    @Test void everyReadOfActiveGamesCountsAsDemandForItsMarketButReadsOfUnknownGamesDoNot() {
+        var service = service();
+        var demand = mock(PriceMarketDemand.class);
+        service.useDemand(demand);
+        UUID unknown = UUID.randomUUID();
+        when(games.findAllById(List.of(unknown))).thenReturn(List.of());
+        service.read(List.of(id), US);
+        service.read(List.of(id, other), US);
+        service.read(List.of(unknown), US);
+        verify(demand).touch(eq(US), any(), eq(0));
+        verify(demand, times(2)).touch(eq(US), any(), eq(2));
+        service.read(List.of(id), DE);
+        verify(demand).touch(eq(DE), any(), eq(2));
     }
 
     @Test void listReadsAndUnconfiguredMarketsLeaveNoHint() {

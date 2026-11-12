@@ -315,6 +315,14 @@ erDiagram
     timestamptz expires_at
     bigint version
   }
+  game_price_market_demand {
+    uuid id PK
+    varchar country
+    varchar currency
+    date demand_date
+    bigint read_count
+    bigint version
+  }
 ```
 
 2026-10-24 kaynak yükseltmesi V171, hesap silme için aşağıdaki teknik bağlamı ekler.
