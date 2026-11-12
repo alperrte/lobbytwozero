@@ -11101,6 +11101,67 @@ başka accountId 403 ve eski kullanıcı JWT'siyle yeniden yazma 401. İzole fix
 16 kontrol PASS; diğer 15 görev sahte ACK verilmeden PENDING kalır.
 [Nihai kalite kanıtı](../docs-hardware/integration/auth/entegrasyon-v1/auth-integration-quality.md).
 
+### HARDWARE — Owner profilinin performans özeti (HW-17 / PERF-21)
+
+Durum: IMPLEMENTED — gerçek Auth/Hardware/Performance/Gateway tüketici HTTP kabulü PASS
+Sorumlu: Alper
+Tüketici servisler: Frontend / owner donanım profili tüketicileri
+
+#### Endpoint
+GET /api/v1/hardware/profiles/{profileId}/performance-summary
+
+#### Yetkilendirme
+Doğrulanmış kullanıcı (`at+jwt`); yalnız profil sahibi. Anonim 401, kullanıcı dışı principal 403;
+yabancı/olmayan profil aynı 404. Sahiplik dış çağrıdan önce ve sonra kontrol edilir.
+Hesap kimliği yalnız CurrentActor'dan alınır; istemci `accountId` göndermez.
+
+#### Path/Query Parameters
+- profileId: UUID, zorunlu; query parametresi yok.
+
+#### Request Body
+Yok.
+
+#### Response — 200
+```json
+{
+  "hardwareProfileId": "UUID",
+  "sessionCount": 1,
+  "sampleCount": 1,
+  "lastMeasuredAt": "2026-01-01T10:00:00Z",
+  "metrics": [{ "metric": "FPS", "unit": "FPS", "count": 1, "sessionCount": 1,
+    "avg": 60.0, "min": 60.0, "max": 60.0,
+    "firstAt": "2026-01-01T10:00:00Z", "lastAt": "2026-01-01T10:00:00Z" }]
+}
+```
+Yalnız bu hesabın bu profille **tamamlanmış** oturumları. Ölçüm yoksa `sampleCount=0`, `metrics=[]`,
+`lastMeasuredAt=null`; tamamlanmış ölçümsüz oturumlar `sessionCount` içinde kalır.
+Ham örnek, oyun/oturum/cihaz/kullanıcı kimliği veya başlık dönmez. `Cache-Control: no-store, private`.
+Performance yanıtında profil bağı, tipler, kanonik metrik/birim, sayaç toplamları ve zamanlar doğrulanır;
+bozuk veya erişilemeyen yanıt boş başarıya çevrilmez.
+
+#### Hata Durumları
+- 400: Geçersiz UUID (`INVALID_REQUEST`).
+- 401/403: Kimlik/yetki reddi; silinmiş hesap eski JWT ile devam edemez.
+- 404: Yabancı/olmayan veya okuma sırasında silinen profil (`HARDWARE_NOT_FOUND`).
+- 503: Auth/Performance kesintisi, eksik credential/scope, redirect veya bozuk/aşırı büyük yanıt
+  (`PERFORMANCE_SERVICE_UNAVAILABLE`, `Retry-After: 30`).
+- 500: Beklenmeyen yerel hata.
+
+#### Bağlantı
+Frontend: API Gateway → `/api/v1/hardware/profiles/{profileId}/performance-summary`.
+Diğer mikroservisler: Hardware → Auth `/internal/v1/service-tokens` (mevcut Hardware credential,
+`audience=performance-service`, doğrulanmış `accountId`); ardından Performance
+`GET /internal/v1/accounts/{accountId}/performance-summary?hardwareProfileId={profileId}`.
+Her okumada yeni `summary:read` token'ı; token/veri önbelleği, redirect veya otomatik retry yok.
+HTTP sırasında DB transaction tutulmaz. Yeni ENV/migration/bağımlılık yok.
+
+#### Test Durumu
+INTEGRATION — adapter loopback HTTP, owner/IDOR/503/okuma sırasında silme regresyonları PASS;
+gerçek Auth/Hardware/Performance/Gateway kabulü 28/28 PASS. Tamamlanmış v2 ölçümler, aktif oturumun dışlanması,
+başka hesabın ölçümsüz oturumu ve silme sonrası güncellik doğrulandı. Game yalnız dar katalog fixture'ıdır;
+gerçek Game/ortak DEV/TLS/tarayıcı kabulü iddia edilmez.
+[Kanıt](../docs-hardware/integration/performance-profile-summary.md).
+
 ## RECOMMENDATION
 
 Sorumlu: Alper · Gateway: `/api/v1/recommendation/**` · Görevler: REC-
@@ -11544,7 +11605,7 @@ Gerçek dört servisli grant/apply/iptal kabulü
 [güncel kayıtta](../docs-hardware/integration/hardware-user-performance.md) izlenir.
 
 > **Faz 2 (LTZ-ALP-PERF-02) notu — manuel oturum ve rapor (PERF-03/04/13/20).** Aşağıdaki uçlar yalnız **kullanıcı token'ıyla** (`at+jwt`, `aud=ltz-api`) çalışır; cihaz ve servis token'ı geçmez (401). Her uçta sahiplik sorgusu `user_id = token.sub` ile yapılır; başkasının veya olmayan kaynak **aynı** `404 PERFORMANCE_NOT_FOUND` döner (IDOR bilgi sızdırmaz). Zaman her zaman sunucu saatindendir; istemci `startedAt`/`endedAt`/`status`/`userId` gönderirse 400 (bilinmeyen alan). Bu fazda oturum yalnız `MANUAL`'dır; cihaz kaynaklı (`DEVICE`) oturum yoktur.
-> Oyun ve donanım profili doğrulaması **servis sözleşmeleriyle** yapılır: Game `POST /api/v1/game/games/batch` (GAME-15) ve Hardware `POST /api/v1/hardware/profiles/batch` (HW-17, çağıranın kendi Bearer'ı iletilir). Bu çağrılar **gerçek Game/Hardware ile uçtan uca doğrulanmadı**; testler yerel sapma (mock) kullanır (`DEFERRED_CONTRACT` / `NOT_VERIFIED`). Bağımlı servis yanıt vermezse veya sözleşme dışı gövde dönerse kayıt **açılmaz**; `503` + `Retry-After: 30` (kapalı başarısızlık).
+> Oyun ve donanım profili doğrulaması **servis sözleşmeleriyle** yapılır: Game `POST /api/v1/game/games/batch` (GAME-15) ve Hardware `POST /api/v1/hardware/profiles/batch` (HW-17, çağıranın kendi Bearer'ı iletilir). **Hardware doğrulaması gerçek Auth/Hardware/Performance/Gateway ile uçtan uca PASS**: profil seçimi, owner oturum oluşturma, yabancı/olmayan profil reddi ve Hardware kesintisinde kayıtsız 503. Bu kabulde Game dar katalog fixture'ıdır; gerçek Game E2E'si `NOT_VERIFIED` kalır. [Kanıt](../docs-hardware/integration/performance-profile-summary.md). Bağımlı servis yanıt vermezse veya sözleşme dışı gövde dönerse kayıt **açılmaz**; `503` + `Retry-After: 30` (kapalı başarısızlık).
 > Ek hata kodları: `ACTIVE_SESSION_EXISTS`, `SESSION_LIMIT_REACHED`, `SESSION_ALREADY_ENDED`, `SESSION_NOT_COMPLETED` (409); `GAME_NOT_FOUND`, `HARDWARE_PROFILE_NOT_FOUND`, `DEVICE_LINK_NOT_FOUND`, `REPORT_EMPTY`, `REPORT_INCONSISTENT` (422); `GAME_SERVICE_UNAVAILABLE`, `HARDWARE_SERVICE_UNAVAILABLE` (503). Yazma uçları hesap başına 60/dk (`session-user`) ve ortak adres kovası 120/dk ile sınırlıdır (429, `Retry-After: 60`).
 
 ### PERFORMANCE — Oturum başlat (PERF-03)
@@ -12216,9 +12277,9 @@ INTEGRATION
 
 ### PERFORMANCE — Hesabın donanım profili performans özeti (Hardware, PERF-21)
 
-Durum: IMPLEMENTED — REQ-04-A Auth izni tanımlı; üretim Hardware tüketicisi ayrı iş
+Durum: IMPLEMENTED — REQ-04-A Auth izni ve üretim Hardware summary tüketicisi mevcut
 Sorumlu: Alper
-Tüketici servisler: Hardware (planlı)
+Tüketici servisler: Hardware (`GET /api/v1/hardware/profiles/{profileId}/performance-summary`)
 
 #### Endpoint
 GET /internal/v1/accounts/{accountId}/performance-summary
@@ -12256,7 +12317,7 @@ Diğer mikroservisler:
 Hardware → Performance (RestClient; servis token'ı Auth'tan alınır, REQ-04-A)
 
 #### Test Durumu
-INTEGRATION + izole gerçek Auth HTTP kabulü PASS: Hardware istemci token'ıyla özet 200; başka hesap veya Recommendation kimliğiyle 403. Olumlu veri hesaplama testleri gerçek Auth `ServiceClientTokenIssuer` çıktısını kullanır; bozuk kapsam/konu testleri yerel imzalıdır. [Kanıt](../docs-performance/integration/auth/auth-integration-06.md). Üretim Hardware tüketici istemcisi bu görevde geliştirilmedi.
+INTEGRATION + izole gerçek Auth HTTP kabulü PASS: Hardware istemci token'ıyla özet 200; başka hesap veya Recommendation kimliğiyle 403. Üretim Hardware tüketicisi ve owner HTTP ucu gerçek dört servisli kabulde 28/28 PASS: aktif/tamamlanmış oturum, gerçek v2 ölçümler, owner izolasyonu ve silme sonrası güncellik. [Güncel kanıt](../docs-hardware/integration/performance-profile-summary.md). [Önceki Auth izni kanıtı](../docs-performance/integration/auth/auth-integration-06.md).
 
 ### PERFORMANCE — Oyun performans referansı (Recommendation, PERF-21)
 

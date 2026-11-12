@@ -8,6 +8,8 @@ import com.ltz.hardware.api.dto.response.HardwareProfileDetailResponse;
 import com.ltz.hardware.api.dto.response.HardwareStatisticsResponse;
 import com.ltz.hardware.application.service.HardwareProfileService;
 import com.ltz.hardware.application.service.HardwareStatisticsService;
+import com.ltz.hardware.application.service.HardwarePerformanceService;
+import com.ltz.hardware.api.dto.response.HardwarePerformanceSummaryResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -32,10 +34,13 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 public class HardwareProfileController {
     private final HardwareProfileService service;
     private final HardwareStatisticsService statisticsService;
+    private final HardwarePerformanceService performanceService;
 
-    public HardwareProfileController(HardwareProfileService service, HardwareStatisticsService statisticsService) {
+    public HardwareProfileController(HardwareProfileService service, HardwareStatisticsService statisticsService,
+            HardwarePerformanceService performanceService) {
         this.service = service;
         this.statisticsService = statisticsService;
+        this.performanceService = performanceService;
     }
 
     @PostMapping
@@ -75,6 +80,13 @@ public class HardwareProfileController {
     @Operation(summary = "HW-15: Yalnız aktörün kaydettiği bilgisayar ve bileşenlerin özetini döndürür")
     public ResponseEntity<HardwareStatisticsResponse> statistics() {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore().cachePrivate()).body(statisticsService.statistics());
+    }
+
+    @GetMapping("/{profileId}/performance-summary")
+    @Operation(summary = "HW-17/PERF-21: Owner profilinin Performance servisindeki gerçek oturum özetini döndürür")
+    public ResponseEntity<HardwarePerformanceSummaryResponse> performanceSummary(@PathVariable UUID profileId) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore().cachePrivate())
+                .body(performanceService.summary(profileId));
     }
 
     @DeleteMapping("/{profileId}")

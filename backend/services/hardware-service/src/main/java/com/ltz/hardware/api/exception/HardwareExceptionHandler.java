@@ -5,6 +5,7 @@ import com.ltz.hardware.domain.exception.HardwareNotFoundException;
 import com.ltz.hardware.domain.exception.HardwareRateLimitException;
 import com.ltz.hardware.domain.exception.HardwareDeliveryUnavailableException;
 import com.ltz.hardware.domain.exception.HardwareSyncCapacityException;
+import com.ltz.hardware.domain.exception.HardwarePerformanceUnavailableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 
@@ -61,7 +62,7 @@ public class HardwareExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(HardwareRateLimitException.class)
     ResponseEntity<Object> limited(HardwareRateLimitException exception) {
         var result = problem(429, "RATE_LIMITED", "İşlem sınırı aşıldı; daha sonra tekrar deneyin.");
-        return ResponseEntity.status(429).headers(result.getHeaders()).header("Retry-After", "60")
+        return ResponseEntity.status(429).headers(result.getHeaders()).header(HttpHeaders.RETRY_AFTER, "60")
                 .body(result.getBody());
     }
 
@@ -73,7 +74,13 @@ public class HardwareExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(HardwareSyncCapacityException.class)
     ResponseEntity<Object> syncCapacity(HardwareSyncCapacityException exception) {
         var result = problem(429, "SYNC_RECEIPT_LIMIT_REACHED", "Senkronizasyon kayıt sınırı aşıldı.");
-        return ResponseEntity.status(429).headers(result.getHeaders()).header("Retry-After", "3600").body(result.getBody());
+        return ResponseEntity.status(429).headers(result.getHeaders()).header(HttpHeaders.RETRY_AFTER, "3600").body(result.getBody());
+    }
+
+    @ExceptionHandler(HardwarePerformanceUnavailableException.class)
+    ResponseEntity<Object> performanceUnavailable(HardwarePerformanceUnavailableException exception) {
+        var result = problem(503, "PERFORMANCE_SERVICE_UNAVAILABLE", "Performans özeti şu anda alınamıyor.");
+        return ResponseEntity.status(503).headers(result.getHeaders()).header(HttpHeaders.RETRY_AFTER, "30").body(result.getBody());
     }
 
     private static ResponseEntity<Object> problem(int status, String code, String detail) {

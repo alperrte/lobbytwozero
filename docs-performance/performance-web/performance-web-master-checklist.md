@@ -5,7 +5,8 @@ Kaynak: `../LTZ_Performance_Web_Master_Development_Prompt.md`, Alper görev dosy
 Bu oturumda TASK 3'e kullanıcı devam demeden geçilmez.
 
 `[x]` yerel çalışan kod + sözleşme tüketimi + ilgili test + belge doğrulamasıdır.
-Fixture E2E canlı servis kabulü değildir; canlı Auth/Gateway/servis E2E henüz NOT VERIFIED.
+Frontend fixture E2E canlı tarayıcı/servis kabulü değildir. Auth/Hardware/Performance/Gateway
+backend HTTP kabulü aşağıdaki kayıtta PASS; ortak DEV/TLS/tarayıcı kabulü NOT VERIFIED.
 Final pre-push/SonarQube denemeleri TASK 3 sonrasında çalıştırıldı; tarihli kanıtlar aşağıdadır. Servis bazlı başarı global merge hazırlığı anlamına gelmez.
 
 ## TASK 1 — LTZ-ALP-PWEB-01 — Performance Tanıtım ve Cihaz Yönetimi Arayüzü
@@ -51,3 +52,15 @@ Genel yerel özellik durumu: **8/10**. 11 Kasım tarihli kalite denemeleri: pre-
 - [ ] Global gate: Auth fixture secret bulguları ve başka servislerin 237 açık Sonar issue'su kullanıcı talimatıyla kapsam dışındadır; 233 yeni issue global gate'i kırar. Global B/C/A, coverage %91,8, duplication %3,2. **NOT READY FOR MERGE**; tüm kapılar yeşil iddiası yoktur.
 
 Güncel servis düzeltmeleri ve gerçek test sonuçları: [12 Kasım servis kalite raporu](testings/owned-quality-fixes-2026-11-12.md). PWEB-08/09 engeli devam eder; yeni servis entegrasyonu uygulanmadı.
+
+## HW-17 / PERF-21 — Sonraki profil/özet entegrasyon kapanışı
+
+- [x] Performance → Hardware: owner listesinden profil seçimi ve gerçek owner batch doğrulamasıyla oturum oluşturma; foreign/missing profil reddi ve kesintide kayıtsız 503.
+- [x] Hardware → Performance: Auth `summary:read` token'ıyla çalışan üretim tüketicisi; owner `GET /api/v1/hardware/profiles/{profileId}/performance-summary`.
+- [x] Gerçek dört servisli HTTP kabulü 28/28 PASS; v2 ölçümler, aktif/tamamlanmış oturum, hesap izolasyonu, silme sonrası güncellik, iptal ve D4 regresyonları.
+- [x] Son servis pre-push: Hardware 609 test / %93,79, Performance 148 / %97,18; iki servis BACKEND TEST CHECK PASSED.
+- [x] Standart worktree Gitleaks ve tüm yeni Java dosyalarını içeren 13 kaynak/betik taraması PASS. Auth kodu/fixture'ları veya scanner kuralları değiştirilmedi.
+- [x] Yeni kaynakların son Sonar tekrarı: iki serviste A/A/A, bug/vulnerability/code smell 0/0/0. Hardware coverage %90,2 / duplication %1,4; Performance %93,6 / %2,7. CE `619a1c64-0a1a-4c04-94dd-3cf473ee14a5`. Tam backend 4397 test PASS; global gate iki servis dışındaki 233 yeni issue nedeniyle FAIL.
+
+İstenen iki Hardware/Performance bağlantısı artık açık değildir. [Kapanış kanıtı](../../docs-hardware/integration/performance-profile-summary.md).
+Game bu kabulde yalnız katalog fixture'ıdır; gerçek Game ve Recommendation işleri bu sonuçtan çıkarılmaz.

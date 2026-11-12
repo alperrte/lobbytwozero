@@ -2,6 +2,10 @@
 
 Tarih: 2026-11-06 · Uygulayan: Alper · Servisler: Auth ve Performance.
 
+**12 Kasım 2026:** Hazır Auth izinlerini kullanan gerçek Hardware özet tüketicisi ve Performance → Hardware owner profil
+doğrulama kabulü tamamlandı; dört servisli runtime 28/28 PASS. [Güncel kanıt](../../../docs-hardware/integration/performance-profile-summary.md).
+Recommendation üretim tüketicisi ayrı kalır. Aşağıdaki kayıt 6 Kasım Auth izin/kabul tarihçesidir.
+
 Kullanıcı, Kerem'den gerekli izni aldığını bildirerek Auth tarafındaki bu değişikliği açıkça yetkilendirdi. Bu kayıt uygulama/test kanıtıdır; Kerem adına verilmiş bir cevap değildir.
 
 ## Sonuç ve kapsam

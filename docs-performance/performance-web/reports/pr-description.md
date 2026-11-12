@@ -1,7 +1,7 @@
 # PR Title
 
 ```text
-feat(performance): performans web paneli, veri gizliliği ve servis kalite düzeltmeleri
+feat(performance): web paneli, gizlilik ve donanım performans entegrasyonu
 ```
 
 # PR Description
@@ -30,10 +30,17 @@ Kalite düzeltmeleri kullanıcının açık sınırıyla yalnız Hardware/Perfor
 - Performance JWT kontrolü bağlam, zaman ve servis kimliği koşullarına ayrılır. 60 sn ömür, 30 sn tolerans, servis tek audience/jti ve kullanıcı UUID kuralları korunurken kopyalanmış uzun blok azaltılır.
 - Icecat kaynak/birim/limit ve Performance kimlik/zaman/claim regresyonları eklenir. Endpoint, migration, bağımlılık, ENV, kalite eşiği veya exclusion değişikliği yoktur.
 
+## Hardware / Performance entegrasyon kapanışı
+
+- `GET /api/v1/hardware/profiles/{profileId}/performance-summary`: yalnız owner, yerel sahiplik kontrolü dış HTTP öncesi/sonrası; private/no-store yanıt. Yeni endpoint `docs/api.md` içinde kayıtlıdır.
+- Üretim Hardware tüketicisi mevcut Auth credential ile hesaba bağlı `summary:read` token'ı alır ve gerçek Performance özetini okur. Tip/profil/metrik/birim/sayaç/zaman doğrulaması, sınırlı JSON, timeout, cache/retry/redirect olmaması; hatada 503 ProblemDetail + Retry-After korunur. Yeni ENV/migration/bağımlılık yoktur.
+- Performance → gerçek Hardware owner profil batch doğrulamasıyla oturum oluşturma kabul edildi. Yabancı/olmayan profiller reddedilir; Hardware kesintisinde kayıt oluşmaz.
+- Gerçek Auth/Hardware/Performance/Gateway ile **28/28 HTTP kontrolü PASS**: v2 ölçümler, active/completed ayrımı, owner izolasyonu, silme sonrası güncellik, iptal ve D4 regresyonları. Dört süreç/dört geçici container temizlendi. Game bu kabulde dar GAME-15 fixture'ıdır; Recommendation servisi geliştirilmedi.
+
 ## Servis entegrasyonları ve sınırlar
 
 - **Auth:** mevcut session/HttpOnly cookie/refresh/Gateway CSRF akışı tüketilir. Performance cihaz yetkilendirme ve hesap silme bağlantılarının izole kabul kanıtları mevcuttur; yeni Auth kodu veya talebi yoktur.
-- **Hardware:** frontend mevcut profil/detail/privacy sözleşmelerini tüketir. Hardware'ın Performance aktif cihaz sorgusu uygulanmıştır; Performance'ın Hardware profil doğrulamasıyla oturum açma E2E kabulü ayrıca gerekir. Performance özeti için üretim Hardware tüketicisi ayrı iştir.
+- **Hardware:** frontend mevcut profil/detail/privacy sözleşmelerini tüketir. Aktif cihaz sorgusu, Performance'ın gerçek Hardware profil doğrulamasıyla oturum açması ve üretim Hardware performans özeti tüketicisi uygulanmış ve dört servisli HTTP kabulünde doğrulanmıştır.
 - **Game:** Performance batch istemcisi vardır; gerçek Game ile oturum/rapor akışı E2E kabulü ayrıca gerekir.
 - **Recommendation:** henüz uygulama iskeletidir. Performance reference sözleşmesi ve Auth izni hazır olsa da üretim tüketicisi/öneri motoru yoktur; PWEB-08/09 bununla bloke olur. Bu kalite işinde yeni entegrasyon uygulanmadı.
 
@@ -44,29 +51,30 @@ Kalite düzeltmeleri kullanıcının açık sınırıyla yalnız Hardware/Perfor
 | Main birleşimi sonrası frontend lint/typecheck/build | PASS |
 | Frontend unit/component | 175 dosya, 1796 PASS, mevcut 1 SKIP |
 | Shell + Performance Chromium E2E | 21/21 PASS; fixture kabulü, canlı servis E2E'si değildir |
-| Son Hardware servis pre-push | 581 test, %93,59 LINE; build/coverage/Checkstyle/PMD PASS; BACKEND TEST CHECK PASSED |
+| Son ek entegrasyon Hardware pre-push | 609 test, %93,79 LINE; build/coverage/Checkstyle/PMD PASS; BACKEND TEST CHECK PASSED |
 | Son Performance servis pre-push | 148 test, %97,18 LINE; build/coverage/Checkstyle/PMD PASS; BACKEND TEST CHECK PASSED |
 | Hardware import Node regresyonları | 10/10 PASS |
+| Ops Node regresyonları / gerçek entegrasyon HTTP kabulü | 100/100 Node PASS; 28/28 gerçek dört servisli HTTP kontrolü PASS |
 | İki modül izole runtime Trivy | HIGH/CRITICAL 0, PASS; yeni bağımlılık yok |
 | Kapsamdaki secret taraması | 30 değişen/yeni kaynak/betik, Gitleaks PASS; üç untracked Java testi dahil |
-| Nihai Sonar'ın taze tam backend test turu | 4369 test, 0 failure/error/skip; build ve merkezi coverage PASS, toplam LINE %95,52 |
-| Hardware Sonar metrikleri | A/A/A; BUG/VULNERABILITY/CODE_SMELL 0/0/0; coverage %90,4, duplication %1,4 |
+| Nihai Sonar'ın taze tam backend test turu | 4397 test, 0 failure/error/skip; build ve merkezi coverage PASS, toplam LINE %95,54 |
+| Hardware Sonar metrikleri | A/A/A; BUG/VULNERABILITY/CODE_SMELL 0/0/0; coverage %90,2, duplication %1,4 |
 | Performance Sonar metrikleri | A/A/A; BUG/VULNERABILITY/CODE_SMELL 0/0/0; coverage %93,6, duplication %2,7 |
 | Global backend Sonar Quality Gate | FAIL; 233 yeni issue, toplam 237 açık issue iki servis dışında; global B/C/A, coverage %91,8, duplication %3,2 |
-| Global pre-push secret kapısı | FAIL/FINDING; main ile gelen Auth test fixture satırları kapsam dışında; kural gevşetilmedi |
+| Son worktree ve yeni entegrasyon secret kontrolü | PASS; 13 kaynak/betik ve untracked Java dosyaları dahil. Auth fixture'ları/scanner kuralları değiştirilmedi; önceki FINDING merge öncesi diff'e aitti. History/range temizliği iddia edilmez |
 | Frontend Sonar | Mevcut runner yalnız backend analiz eder; frontend sonucu yok |
 
-Sonar CE: `2a57074b-ae96-4f06-9da9-95b3eeca5168`, `ltz-backend`, 12 Kasım 2026. Servis metrikleri, tek backend projesinden alınan gerçek component ölçümleridir; ayrı servis Quality Gate'i varmış gibi PASS iddia edilmez. Birleşmiş kaynaklar henüz commit edilmediğinden scanner SCM revision `22ef905d` ve eksik blame uyarıları vardır.
+Sonar CE: `619a1c64-0a1a-4c04-94dd-3cf473ee14a5`, `ltz-backend`, 12 Kasım 2026. Servis metrikleri, tek backend projesinden alınan gerçek component ölçümleridir; ayrı servis Quality Gate'i varmış gibi PASS iddia edilmez. Scanner SCM revision `bd7e3bc0`; yeni entegrasyon kaynakları henüz commit edilmediğinden eksik blame uyarıları vardır. Yeni kod coverage %91,8 ve duplication %1,64 geçer; 233 yeni issue global kapıyı kırar.
 
-Güncel kanıt: [servis kalite raporu](../testings/owned-quality-fixes-2026-11-12.md), [main birleştirme raporu](../testings/main-merge-2026-11-12.md). Önceki tam tarayıcı koşusundaki Navbar Ctrl+K focus hatası izole tekrarda geçmişti; yeni birleşmiş kaynakta tüm E2E paketi tekrar çalıştırılmadı, temiz full E2E iddia edilmez.
+Güncel kanıt: [profil/özet entegrasyon raporu](../../../docs-hardware/integration/performance-profile-summary.md), [önceki servis kalite raporu](../testings/owned-quality-fixes-2026-11-12.md), [main birleştirme raporu](../testings/main-merge-2026-11-12.md). Önceki tam tarayıcı koşusundaki Navbar Ctrl+K focus hatası izole tekrarda geçmişti; yeni birleşmiş kaynakta tüm tarayıcı E2E paketi tekrar çalıştırılmadı, temiz full tarayıcı E2E iddia edilmez. Yeni kaynakların gerçek servis HTTP kabulü 28/28 PASS ve son Sonar sonuçları yukarıda kayıtlıdır.
 
 ## Merge öncesi açık işler
 
 - [x] Hardware/Performance servis pre-push ve Sonar metrik hedefleri doğrulandı; iki serviste açık issue yok.
-- [ ] Kapsam dışındaki Auth fixture secret bulguları ve diğer servislerin global Sonar borcu giderilmeli.
+- [ ] Kapsam dışındaki diğer servislerin global Sonar borcu giderilmeli; yerel worktree PASS history/range secret taraması yerine geçmez.
 - [ ] PWEB-08/09 Recommendation sözleşmesi ve tüketicileri tamamlanmalı veya kısmi teslim kapsamı kabul edilmeli.
 - [ ] Canlı tarayıcı Auth/Gateway/Hardware/Performance kabulü ve birleşmiş kaynakta temiz tam E2E doğrulanmalı.
 - [ ] Frontend Sonar kapsamı ve gerekiyorsa GitHub required check ayarları ayrıca doğrulanmalı.
-- [ ] Kullanıcı devam eden main merge commit'ini ve kalite değişikliklerinin staging/commit işlemini kendisi tamamlamalı.
+- [ ] Kullanıcı bu ek entegrasyon değişikliklerinin staging/commit işlemini kendisi tamamlamalı; önceki kalite/merge kullanıcı commit'i `bd7e3bc0`.
 
 **Merge hazırlığı: NOT READY FOR MERGE.** Kullanıcının Hardware/Performance kalite düzeltme kapsamı tamamlandı; global kapılar ve kapsam dışındaki ürün/entegrasyon işleri tamamlanmış sayılmaz. Otomatik commit, push, PR oluşturma veya merge yapılmadı.
