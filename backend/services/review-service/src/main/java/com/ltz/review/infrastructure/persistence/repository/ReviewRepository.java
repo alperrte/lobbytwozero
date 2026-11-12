@@ -14,11 +14,11 @@ import org.springframework.data.repository.query.Param;
 public interface ReviewRepository extends JpaRepository<Review, UUID> {
     boolean existsByUserIdAndGameIdAndStatusNot(UUID userId, UUID gameId, String status);
 
-    /** Kullanıcının bir oyundaki tek aktif incelemesi (uq_reviews_active_user_game kısmi tekilliği). */
-    Optional<Review> findByUserIdAndGameIdAndStatus(UUID userId, UUID gameId, String status);
+    /** Kullanıcının bir oyundaki tek aktif (silinmemiş: görünür, gizli veya arşivli) incelemesi (uq_reviews_active_user_game). */
+    Optional<Review> findByUserIdAndGameIdAndStatusNot(UUID userId, UUID gameId, String status);
 
-    /** Kullanıcının kendi incelemeleri; yalnız verilen durum (VISIBLE). Sıra çağıranın Pageable'ındadır. */
-    Page<Review> findByUserIdAndStatus(UUID userId, String status, Pageable pageable);
+    /** Kullanıcının kendi silinmemiş incelemeleri. Sıra çağıranın Pageable'ındadır. */
+    Page<Review> findByUserIdAndStatusNot(UUID userId, String status, Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select r from Review r where r.id = :id")

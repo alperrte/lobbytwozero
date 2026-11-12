@@ -45,6 +45,7 @@ public class AccountErasureSecurityConfiguration {
                                 .hasAuthority("SCOPE_" + InternalRatingSummaryController.SCOPE)
                         .requestMatchers(HttpMethod.GET, InternalRatingSummaryController.PATH)
                                 .hasAuthority("SCOPE_" + InternalRatingSummaryController.SCOPE)
+                        .requestMatchers("/api/v1/review/admin/**").hasAnyRole("MODERATOR", "ADMIN")
                         .requestMatchers("/api/v1/review/**").hasAnyRole("PLAYER", "CONTENT_CREATOR", "GAME_DEVELOPER", "MODERATOR", "ADMIN")
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(resource -> resource

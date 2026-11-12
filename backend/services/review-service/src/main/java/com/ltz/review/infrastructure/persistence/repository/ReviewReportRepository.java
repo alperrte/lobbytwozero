@@ -31,7 +31,7 @@ public class ReviewReportRepository {
         return jdbc.sql("SELECT " + COLUMNS + " FROM review_reports WHERE review_id = :review AND reporter_id = :reporter")
                 .param("review", reviewId).param("reporter", reporter)
                 .query((rs, row) -> new ReviewReportResponse(rs.getObject("id", UUID.class), rs.getObject("review_id", UUID.class),
-                        ReportReason.valueOf(rs.getString("reason")), rs.getString("detail"), rs.getString("status"),
+                        ReportReason.valueOf(rs.getString("reason")), rs.getString("detail"), "RECEIVED".equals(rs.getString("status")) ? "RECEIVED" : "CLOSED",
                         rs.getTimestamp("created_at").toInstant()))
                 .optional();
     }

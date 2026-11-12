@@ -82,9 +82,6 @@ class ReviewReportsApiTest {
                 .andExpect(jsonPath("$.userId").doesNotExist())
                 .andExpect(jsonPath("$.authorId").doesNotExist());
         assertEquals(1, count(review));
-        // Admin teslimi yoktur: delivered_at boştur.
-        assertEquals(true, jdbc.sql("SELECT delivered_at IS NULL FROM review_reports WHERE review_id = ?").param(review)
-                .query(Boolean.class).single());
         verifyNoInteractions(games);
     }
 

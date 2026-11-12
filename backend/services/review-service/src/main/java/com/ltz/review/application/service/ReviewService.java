@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ReviewService {
     private static final String VISIBLE = "VISIBLE";
+    private static final String DELETED = "DELETED";
 
     private final GameCatalogPort games;
     private final ReviewWriter writer;
@@ -37,7 +38,8 @@ public class ReviewService {
         if (version < 0) throw new ReviewException(400, "Sürüm negatif olamaz.");
         var review = reviews.findById(reviewId).orElseThrow(ReviewService::notFound);
         if (!actor.equals(review.getUserId())) throw new ReviewException(403, "Bu inceleme için yetkiniz yok.");
-        if (!VISIBLE.equals(review.getStatus())) throw notFound();
+        if (DELETED.equals(review.getStatus())) throw notFound();
+        if (!VISIBLE.equals(review.getStatus())) throw new ReviewException(403, "REVIEW_MODERATED", "Bu inceleme moderasyon nedeniyle değiştirilemez.");
         games.requireAvailable(review.getGameId());
         return writer.update(actor, reviewId, version, content);
     }
@@ -48,23 +50,25 @@ public class ReviewService {
 
     @Transactional(readOnly = true)
     public ReviewResponse get(UUID actor, UUID reviewId) {
-        var review = reviews.findById(reviewId).filter(value -> VISIBLE.equals(value.getStatus()))
+        // Görünür inceleme herkese, gizli/arşivli inceleme yalnız sahibine okunur (durumu `status` alanında); silinmiş her zaman 404.
+        var review = reviews.findById(reviewId)
+                .filter(value -> VISIBLE.equals(value.getStatus()) || (!DELETED.equals(value.getStatus()) && actor.equals(value.getUserId())))
                 .orElseThrow(ReviewService::notFound);
         return ReviewMapper.response(review, actor);
     }
 
-    /** Kullanıcının bu oyundaki görünür incelemesi; yoksa 404 (silinmiş inceleme "yok" sayılır). Yalnız yerel okuma. */
+    /** Kullanıcının bu oyundaki silinmemiş incelemesi (görünür/gizli/arşivli; `status` alanında); yoksa 404. Yalnız yerel okuma. */
     @Transactional(readOnly = true)
     public ReviewResponse mine(UUID actor, UUID gameId) {
-        return reviews.findByUserIdAndGameIdAndStatus(actor, gameId, VISIBLE)
+        return reviews.findByUserIdAndGameIdAndStatusNot(actor, gameId, DELETED)
                 .map(review -> ReviewMapper.response(review, actor))
                 .orElseThrow(ReviewService::notFound);
     }
 
-    /** Kullanıcının tüm oyunlardaki görünür incelemeleri: oluşturulma tarihi azalan, eşitlikte id artan. */
+    /** Kullanıcının tüm oyunlardaki silinmemiş incelemeleri: oluşturulma tarihi azalan, eşitlikte id artan. */
     @Transactional(readOnly = true)
     public ReviewPageResponse mine(UUID actor, int page, int size) {
-        var result = reviews.findByUserIdAndStatus(actor, VISIBLE,
+        var result = reviews.findByUserIdAndStatusNot(actor, DELETED,
                 PageRequest.of(page, size, Sort.by(Sort.Order.desc("createdAt"), Sort.Order.asc("id"))));
         return new ReviewPageResponse(result.map(review -> ReviewMapper.response(review, actor)).getContent(),
                 page, size, result.getTotalElements(), result.getTotalPages());

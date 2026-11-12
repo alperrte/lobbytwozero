@@ -16,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ReviewWriter {
+    private static final String DELETED = "DELETED";
+
     private final ReviewRepository reviews;
     private final AccountWriteLock accounts;
     private final ReviewLikeRepository likes;
@@ -31,7 +33,7 @@ public class ReviewWriter {
     @Transactional(timeout = 4)
     public ReviewResponse create(UUID userId, UUID gameId, String body) {
         accounts.requireWritable(userId);
-        if (reviews.existsByUserIdAndGameIdAndStatusNot(userId, gameId, "DELETED"))
+        if (reviews.existsByUserIdAndGameIdAndStatusNot(userId, gameId, DELETED))
             throw new ReviewException(409, "Bu oyun için zaten aktif incelemeniz var.");
         var review = reviews.saveAndFlush(new Review(userId, gameId, body, now()));
         outbox.touch(userId, now());
@@ -42,7 +44,8 @@ public class ReviewWriter {
     public ReviewResponse update(UUID userId, UUID reviewId, long version, String body) {
         accounts.requireWritable(userId);
         var review = owned(userId, reviewId);
-        if (!"VISIBLE".equals(review.getStatus())) throw new ReviewException(404, "İnceleme bulunamadı.");
+        if (DELETED.equals(review.getStatus())) throw new ReviewException(404, "İnceleme bulunamadı.");
+        if (!"VISIBLE".equals(review.getStatus())) throw moderated();
         if (review.getVersion() != version) throw new ReviewException(409, "İnceleme sürümü güncel değil.");
         review.edit(body, now());
         reviews.flush();
@@ -60,12 +63,18 @@ public class ReviewWriter {
         accounts.requireWritable(userId);
         if (version < 0) throw new ReviewException(400, "Sürüm negatif olamaz.");
         var review = owned(userId, reviewId);
-        if ("DELETED".equals(review.getStatus())) return;
+        if (DELETED.equals(review.getStatus())) return;
+        // ARCHIVED kalıcı moderasyondur: yazar silerek kanıtı yok edemez. HIDDEN geri alınabilir ve yazar tarafından silinebilir.
+        if ("ARCHIVED".equals(review.getStatus())) throw moderated();
         if (review.getVersion() != version) throw new ReviewException(409, "İnceleme sürümü güncel değil.");
         review.remove(now());
         reviews.flush();
         likes.removeForReview(reviewId);
         outbox.touch(userId, now());
+    }
+
+    private static ReviewException moderated() {
+        return new ReviewException(403, "REVIEW_MODERATED", "Bu inceleme moderasyon nedeniyle değiştirilemez.");
     }
 
     private static Instant now() { return Instant.now().truncatedTo(ChronoUnit.MICROS); }
