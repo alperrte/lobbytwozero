@@ -1,16 +1,23 @@
 package com.ltz.hardware.application.service;
 
 import com.ltz.hardware.api.dto.request.UpdateHardwarePrivacyRequest;
-import com.ltz.hardware.api.dto.response.*;
+import com.ltz.hardware.api.dto.response.HardwarePrivacyResponse;
+import com.ltz.hardware.api.dto.response.SharedHardwareComponentResponse;
+import com.ltz.hardware.api.dto.response.SharedHardwareProfileResponse;
 import com.ltz.hardware.application.mapper.HardwareComponentMapper;
 import com.ltz.hardware.application.port.CurrentActor;
 import com.ltz.hardware.application.port.HardwareVisibilityPolicy;
 import com.ltz.hardware.domain.entity.HardwareProfile;
 import com.ltz.hardware.domain.entity.HardwareComponent;
-import com.ltz.hardware.domain.enums.*;
+import com.ltz.hardware.domain.enums.ComponentCategory;
+import com.ltz.hardware.domain.enums.HardwarePrivacyField;
 import com.ltz.hardware.domain.exception.HardwareNotFoundException;
-import com.ltz.hardware.infrastructure.persistence.repository.*;
-import java.util.*;
+import com.ltz.hardware.infrastructure.persistence.repository.HardwareComponentRepository;
+import com.ltz.hardware.infrastructure.persistence.repository.HardwareProfileRepository;
+import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.Set;
+import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;

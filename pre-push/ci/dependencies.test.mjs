@@ -45,6 +45,26 @@ test('SCA rejects stale, missing, ambiguous, invalid archives and invalid scopes
   assert.throws(() => dependencyCheck(options), /Exactly one/);
 }));
 
+test('SCA preserves archive freshness checks and distinguishes old timestamps from empty output', () => fixture(({ root, jar }) => {
+  const since = Date.now();
+  const options = { root, modules: ['services/auth-service'], since, log: () => {},
+    run: () => ({ status: 0, stdout: 'BOOT-INF/lib/example.jar\n' }), scan: () => {} };
+  // A reproducible but inherited date must not be mistaken for a current build.
+  fs.utimesSync(jar, 1, 1);
+  assert.throws(() => dependencyCheck(options), /Stale application archive: services\/auth-service; modifiedBeforeBuildMs=\d+/);
+  // The Maven timestamp contract uses exactly the scanner's build-start clock.
+  const archiveTime = new Date(new Date(since).toISOString());
+  fs.utimesSync(jar, archiveTime, archiveTime);
+  assert.equal(dependencyCheck(options), 0);
+  // ZIP timestamps can be rounded down by up to two seconds, but no further.
+  fs.utimesSync(jar, since / 1000 - 1.5, since / 1000 - 1.5);
+  assert.equal(dependencyCheck(options), 0);
+  fs.utimesSync(jar, since / 1000 - 3, since / 1000 - 3);
+  assert.throws(() => dependencyCheck(options), /Stale application archive/);
+  fs.writeFileSync(jar, '');
+  assert.throws(() => dependencyCheck(options), /Empty application archive: services\/auth-service/);
+}));
+
 test('SCA parser rejects empty/unrelated package targets, omitted archives, null packages, findings and scanner errors', () => {
   const args = ['fs', '/fixture'];
   const expectedArtifacts = [{ path: 'services/auth-service/app.jar', kind: 'jar' }];

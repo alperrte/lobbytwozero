@@ -1,7 +1,8 @@
 package com.ltz.hardware.domain.entity;
 
 import java.nio.charset.StandardCharsets;
-import java.security.*;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 
 public final class HardwareSyncDigest {

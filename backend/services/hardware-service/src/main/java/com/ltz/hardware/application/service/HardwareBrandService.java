@@ -1,7 +1,10 @@
 package com.ltz.hardware.application.service;
 
-import com.ltz.hardware.api.dto.request.*;
-import com.ltz.hardware.api.dto.response.*;
+import com.ltz.hardware.api.dto.request.ArchiveCatalogEntryRequest;
+import com.ltz.hardware.api.dto.request.CreateHardwareBrandRequest;
+import com.ltz.hardware.api.dto.request.UpdateHardwareBrandRequest;
+import com.ltz.hardware.api.dto.response.HardwareBrandResponse;
+import com.ltz.hardware.api.dto.response.HardwareCatalogPageResponse;
 import com.ltz.hardware.application.mapper.HardwareCatalogMapper;
 import com.ltz.hardware.application.port.CatalogWriteAccess;
 import com.ltz.hardware.application.port.CurrentActor;
