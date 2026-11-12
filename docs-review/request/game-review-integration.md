@@ -11,7 +11,7 @@ Game cevabı (12 Kasım 2026): Game tarafında eksik yok; doğrulama Review merg
 
 ## 2. Review frontend'in Game'den kullandıkları ve beklentileri
 
-Review frontend'i Game'in **herkese açık, salt okunur** uçlarını Gateway üzerinden, çerezsiz (`credentials: "omit"`) çağırır; çerez gönderilirse Gateway durum değiştiren istek sayıp CSRF ister.
+Review frontend'i Game'in **herkese açık, salt okunur** uçlarını Gateway üzerinden, çerezsiz (`credentials: "omit"`) çağırır; POST `batch`'te çerez gönderilirse Gateway durum değiştiren istek sayıp CSRF ister. **Tek istisna (12 Kasım 2026):** yaşı doğrulanmış kullanıcı merkezde "+18 oyunları göster"i işaretlerse `GET /games` ve `/games/search` `includeAdult=true` ile **çerezli** (`credentials: "include"`) gider; GET güvenli yöntem olduğundan Gateway CSRF istemez (canlı doğrulandı, aşağıya bakın).
 
 | Kullanım | Game ucu | Okunan alanlar |
 | --- | --- | --- |
@@ -29,8 +29,20 @@ Review frontend'i Game'in **herkese açık, salt okunur** uçlarını Gateway ü
 4. **Review'ın Game'e çağrıları:** İnceleme, puan ve tavsiye **yazma** istekleri oyunun varlığını `POST /api/v1/game/games/batch` ile doğrular (transaction dışında, yeniden deneme yok): oyun `ACTIVE` değilse Review 404, Game erişilemezse 503. Okuma uçları Game'e bağlı değildir. `batch` ucunun bu amaçla düşük gecikmeli ve herkese açık kalması beklenir.
 5. **Puan tutarlılığı:** Game listelerindeki LTZ puanı projeksiyondan gelir ve tarama periyodu kadar (varsayılan 5 dk) gecikebilir; Review ekranları canlı okur. Kısa süreli fark beklenen davranıştır (`ratingsSyncedAt` gecikmeyi gösterir). Game'de `UNAVAILABLE` ile `UNRATED` ayrımı korunmalı; 0 puan gösterilmemeli.
 
-### Açık ürün sorusu — +18 ve kaldırılmış oyunlar
-`GET /games` ve `/games/search` varsayılan olarak yetişkin içerikli (`adult=true`) ve mağazadan kaldırılmış (`delisted`) oyunları gizler; `batch` ve doğrudan bağlantı etkilenmez. Sonuç: bu oyunların Review sayfaları doğrudan bağlantıyla ve "incelemelerim" ile açılır, fakat Review merkezinin aramasında **bulunamaz**. Review frontend'i `includeAdult` göndermez (bu parametre bugün yaş doğrulaması içermez). **Karar (Game cevabı): şimdilik değişiklik yok;** merkezde +18 ve kaldırılmış oyun aranmaz, doğrudan bağlantı ve "incelemelerim" çalışır. Kalıcı çözüm yaş doğrulamalı sunucu kapısıdır; bu ayrı bir iştir ve Review'ı bekletmez. Kapı kurulursa Review'a yalnız frontend işi düşer (doğrulanmış kullanıcıda `includeAdult=true` için Game uçlarını `credentials: "include"` ile çağırmak); Review şimdi hazırlık yapmaz.
+### +18 ve kaldırılmış oyunlar — KARAR VERİLDİ, UYGULANDI (12 Kasım 2026)
+Yaş kapısı Game'de kuruldu: `includeAdult=true` yalnız Auth'un imzaladığı access token'daki boolean `adult_verified=true` iddiasıyla uygulanır; yetkisizse sessizce yok sayılır ve yanıtta `includeAdultApplied=false` döner (hata yok). Yalnız `GET /games` ve `/games/search` kapıdadır; `batch`, detay, `/games/popular`, Library ve Review okumaları etkilenmez. Kaldırılmış (`delisted`) oyunlar doğrulanmış kullanıcıda bile listede yoktur.
+
+| # | Karar | Seçim |
+| --- | --- | --- |
+| R1 | Merkezde +18 arama | Evet: yalnız yaşı doğrulanmış kullanıcıya "+18 oyunları göster" kutusu |
+| R2 | Doğrulanmamış kullanıcıya ipucu | Evet: "Yaşını doğrula" bağlantısı (`/profile/settings`) |
+| R3 | Sonuç kartında rozet | Evet: `adult=true` ise "+18" |
+| R4 | Kaldırılmış oyunlar | Aramada görünmez; doğrudan bağlantı ve "incelemelerim" çalışır |
+| STEP_UP | `STEP_UP_REQUIRED` alan kullanıcı | Review'da ayrı hata yok; kutu yalnız `adultVerified === true` iken etkin, değilse bağlantı Auth'un yaş bölümüne gider |
+
+**Review frontend'inde uygulananlar:** `gameLookup.search(..., includeAdult)` yalnız `true` iken `includeAdult=true` ekler ve yalnız o durumda `credentials: "include"` kullanır (`card`/`cards` `batch` hâlâ çerezsiz); `hubQueryFrom` `includeAdult`'ı yalnız tek ve tam olarak `"true"` değerinde kabul eder; `useAdultVerified()` (`useSession` + `me.adultVerified === true`); merkezde kutu, doğrulanmamışta açıklama ve bağlantı, `includeAdultApplied === false` ipucu ve "+18" rozeti. Gösterimde esas alınan **sunucu yanıtıdır** (`includeAdultApplied`), yerel `me` değil: doğrulama geri alınırsa iddia ≤60 sn gecikebilir. Doğrulanmamış kullanıcıda `includeAdult` sunucuya gönderilmez, URL'deki seçim korunur.
+
+**Doğrulama:** birim testleri (`review-api`, `review-schema`, `review-hub`) ve Playwright (`review.spec.ts` 16/16, iki yeni +18 senaryosu) geçti. Game tarafında girişli uçtan uca canlı doğrulama yapıldı (yaş beyanı → refresh → `adult_verified: true` → `includeAdultApplied=true`; geri alma sonrası claim kalktı). Çerezli GET'in Gateway'de CSRF istememesi canlı doğrulandı. **NOT VERIFIED:** Review merkezinin tarayıcıda gerçek oturumla elle denenmesi.
 
 ## 3. GAME-26 kimlik taşıma/ayırma — Game'in Review'dan beklediği (AÇIK)
 
