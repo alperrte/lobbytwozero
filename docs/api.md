@@ -6721,7 +6721,93 @@ INTEGRATION (gerçek PostgreSQL; `MessageSendTest`: olay tek kez yazılır, içe
 
 Sorumlu: Umut · Gateway: `/api/v1/lfp/**` · Görevler: LFP-
 
-_Kayıt yok._
+Ortak kurallar (aşağıdaki tüm LFP uçları için; görevler LTZ-UMT-LFP-01 (LFP-01..09)):
+- Tüm uçlar `Authorization: Bearer <access token>` (kullanıcı token'ı, `typ=at+jwt`) ister; Gateway tarayıcı çerezini Bearer'a çevirir. Token servis tarafında Auth'un JWKS anahtarıyla yeniden doğrulanır (RS256, `iss`, `aud`, `typ=at+jwt`, `exp`/`nbf`/`iat`/`sub` zorunlu, 30 sn saat payı). Servis token'ı (`svc+jwt`) bu uçlarda geçmez. Misafir ilan göremez (ürün kararı, 2026-11-13).
+- `userId` yalnız token'ın `sub` alanından alınır; gövdedeki kimlik (`ownerId` vb.) güvenilmez: gövdedeki bilinmeyen alan `400 MALFORMED_REQUEST`.
+- Kimliksiz/geçersiz token `401 UNAUTHENTICATED`. Hata gövdesi `ProblemDetail` + `code`; doğrulama hatalarında `errors: [{field, code}]` döner, gönderilen değer geri yansıtılmaz. İstek gövdesi en fazla 8 KB (`413 PAYLOAD_TOO_LARGE`).
+- Oyun ve kullanıcılar yalnız kimlikle (REF) tutulur. Sahibin görünen adı/avatarı LFP'de yoktur; istemci `USER — Toplu profil kartı` ucundan alır.
+- İlan kaynağı (`Listing`) tek tip yanıt döner:
+  ```json
+  {
+    "id": "UUID",
+    "ownerId": "UUID",
+    "gameId": "UUID",
+    "gameTitle": "string — ilan açılırken game-service'ten alınan ad (anlık görüntü)",
+    "platform": "PC | PLAYSTATION | XBOX | NINTENDO_SWITCH | MOBILE | OTHER",
+    "skillLevel": "string (1–50) veya null — belirtilmedi",
+    "roles": ["string (1–30)", "... 1–5 adet, sıralı"],
+    "playersNeeded": "int 1–50",
+    "playTimeStart": "ISO-8601 (UTC) veya null",
+    "playTimeEnd": "ISO-8601 (UTC) veya null",
+    "micRequired": "boolean",
+    "description": "string (1–1000, düz metin; satır sonu korunur)",
+    "status": "OPEN | CLOSED | EXPIRED",
+    "expiresAt": "ISO-8601 (UTC)",
+    "createdAt": "ISO-8601 (UTC)",
+    "updatedAt": "ISO-8601 (UTC)",
+    "closedAt": "ISO-8601 (UTC) veya null"
+  }
+  ```
+  Metinler düz metindir (HTML işlenmez). Baştaki/sondaki boşluk atılır; uzunluk karakter (code point) olarak sayılır; kontrol ve görünmez biçim karakterleri reddedilir (açıklamada yalnız satır sonu ve sekme serbest, emoji birleştiricisi U+200D serbest).
+
+### LFP — İlan oluştur (LFP-01..09, LFP-15)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/lfp/listings
+
+#### Yetkilendirme
+Authenticated (sahip = token sahibi)
+
+#### Request Body
+```json
+{
+  "gameId": "UUID, zorunlu — LTZ kataloğundaki oyun (LFP-02)",
+  "platform": "PC | PLAYSTATION | XBOX | NINTENDO_SWITCH | MOBILE | OTHER, zorunlu (LFP-03)",
+  "skillLevel": "string, opsiyonel — rank/seviye/deneyim beklentisi; boş = belirtilmedi (LFP-04)",
+  "roles": ["string", "zorunlu, 1–5 rol ya da oyuncu tipi (LFP-05)"],
+  "playersNeeded": "int, zorunlu, 1–50 (LFP-06)",
+  "playTimeStart": "ISO-8601, opsiyonel — planlanan başlangıç (LFP-07)",
+  "playTimeEnd": "ISO-8601, opsiyonel — yalnız başlangıçla birlikte (LFP-07)",
+  "micRequired": "boolean, zorunlu (LFP-08)",
+  "description": "string, zorunlu, 1–1000 (LFP-09)",
+  "durationHours": "int, opsiyonel, 1–168; verilmezse 24 (LFP-15)"
+}
+```
+Kurallar:
+- **Oyun (LFP-02):** game-service'in herkese açık kart ucuyla doğrulanır; yalnız yayındaki (ACTIVE) kayıt kabul edilir. Tür `SOUNDTRACK`, `VIDEO`, `HARDWARE`, `SOFTWARE` ise ilan açılmaz; `MAIN_GAME`, `DLC`, `DEMO`, `UNKNOWN` ve yeni türler kabul edilir. Oyun adı yanıttan alınıp temizlenir (kontrol karakteri boşluğa, en çok 500 karakter).
+- **Platform (LFP-03):** sabit liste; oyunun game-service'teki platform verisine göre doğrulanmaz (o veri Steam kaynaklıdır, konsolları çoğu oyunda bilmez).
+- **Roller (LFP-05):** büyük/küçük harf farkıyla tekrarlanan rol bir kez tutulur (ilk yazım ve sıra korunur).
+- **Oyun zamanı (LFP-07):** başlangıç en çok 5 dk geçmişte olabilir (saat farkı payı) ve ilan bitmeden başlamalıdır; bitiş başlangıçtan sonradır ve aralık en çok 24 saattir.
+- **Süre (LFP-15):** `expiresAt = createdAt + durationHours`. Süre sonradan değiştirilmez.
+- **Kötüye kullanım:** kullanıcı başına aynı anda en çok **5 açık ilan** (süresi geçmiş ama henüz işaretlenmemiş ilan sayılmaz) ve son bir saatte en çok **10 yeni ilan** (kapatılanlar dahil). Sınırlar sahip başına advisory kilit altında denetlenir; eşzamanlı istekler sınırı aşamaz. Ayarlar: `ltz.lfp.listings.*`.
+- Gövde kuralları game-service çağrılmadan önce denetlenir.
+
+#### Response — 201
+`Listing` (`status: OPEN`, `closedAt: null`). `Location: /api/v1/lfp/listings/{id}`.
+
+#### Hata Durumları
+- 400: Eksik/biçimsiz alan, bilinmeyen alan ya da platform (`VALIDATION_FAILED`, `MALFORMED_REQUEST`); `INVALID_DESCRIPTION`, `INVALID_SKILL_LEVEL`, `INVALID_ROLES`, `INVALID_DURATION`, `INVALID_PLAY_TIME`, `PLAY_TIME_AFTER_EXPIRY`
+- 401: Kimlik yok/geçersiz (`UNAUTHENTICATED`)
+- 409: Açık ilan sınırı (`OPEN_LISTING_LIMIT`)
+- 413: İstek gövdesi 8 KB'yi aşıyor (`PAYLOAD_TOO_LARGE`)
+- 422: Oyun katalogda yok ya da yayında değil (`GAME_NOT_FOUND`); katalog kaydı oyun değil (`GAME_NOT_PLAYABLE`)
+- 429: Son bir saatte çok fazla ilan (`LISTING_RATE_LIMITED`)
+- 503: game-service yanıt vermedi ya da yanıtı tutarsız (`GAME_CATALOG_UNAVAILABLE`); ilan açılmaz (fail-closed)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/lfp/listings
+
+Diğer mikroservisler:
+game-service `GET /api/v1/game/{gameId}/card` (RestClient, kimliksiz; `GAME_SERVICE_URL`, zaman aşımı 3 sn / 5 sn, yönlendirme izlenmez, otomatik tekrar yok). `404` → `GAME_NOT_FOUND`; diğer her durum → `GAME_CATALOG_UNAVAILABLE`.
+
+#### Test Durumu
+UNIT + INTEGRATION — testler yazıldı (gerçek PostgreSQL 17 / Testcontainers; `ListingCreateTest`, `ListingConcurrencyTest`, `FlywayMigrationTest`, `JwtValidationTest`, `RequestBodySizeLimitTest`, `ServiceBoundaryTest`, `ListingTest`, `ListingTextTest`; gerçek game-service istemcisi `GameServiceClientTest` ile MockRestServiceServer). **Henüz çalıştırılmadı (NOT VERIFIED)**; servisin tüm görevleri bitince merge öncesi pre-push ile koşulacak. Gerçek game-service ile uçtan uca: NOT VERIFIED.
 
 ## COMMUNITY
 

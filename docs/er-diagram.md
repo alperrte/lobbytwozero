@@ -828,25 +828,34 @@ erDiagram
 
 ```mermaid
 erDiagram
-  lfp_listings ||--o{ lfp_reports : reported
+  lfp_listings ||--|{ lfp_listing_roles : has
 
   lfp_listings {
     uuid id PK
     uuid owner_id "REF"
     uuid game_id "REF"
-    varchar platform
-    varchar skill_level
-    int players_needed
+    varchar game_title_snapshot
+    varchar platform "PC|PLAYSTATION|XBOX|NINTENDO_SWITCH|MOBILE|OTHER"
+    varchar skill_level "nullable"
+    int players_needed "1-50"
+    timestamptz play_time_start "nullable"
+    timestamptz play_time_end "nullable"
     boolean mic_required
-    varchar status "OPEN|FULL|CLOSED|EXPIRED"
+    varchar description
+    varchar status "OPEN|CLOSED|EXPIRED"
     timestamptz expires_at
+    timestamptz created_at
+    timestamptz closed_at "nullable"
+    bigint version
   }
-  lfp_reports {
-    uuid id PK
-    uuid listing_id FK
-    uuid reporter_id "REF"
+  lfp_listing_roles {
+    uuid listing_id PK,FK
+    int position PK "0-4"
+    varchar role
   }
 ```
+
+> V141 (LTZ-UMT-LFP-01). Önceki taslaktaki `lfp_reports` ilan raporlama görevi olmadığı için oluşturulmadı; `FULL` durumu kullanılmıyor.
 
 ## 11. community_db
 
