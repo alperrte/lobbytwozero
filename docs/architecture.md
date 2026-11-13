@@ -370,7 +370,7 @@ stateDiagram-v2
 | --- | --- | --- |
 | Etkinlik (event) | `PLANNED → ACTIVE → COMPLETED`, `PLANNED/ACTIVE → CANCELLED` | Katılım yalnız `PLANNED`'da; kapasite eşzamanlı istekte korunur |
 | Katılım (event) | `ACTIVE → CANCELLED_BY_USER` / `CANCELLED_BY_EVENT` / `ATTENDED` | Kullanıcı iptali → bir sonraki etkinlik için ceza |
-| LFP ilanı | `OPEN → FULL → CLOSED`, `OPEN → EXPIRED` (zamanlayıcı) | Süre dolunca otomatik `EXPIRED` |
+| LFP ilanı | `OPEN → CLOSED` (sahibi), `OPEN → EXPIRED` (zamanlayıcı) | Süre dolunca otomatik `EXPIRED`; kapanmış/süresi dolmuş ilan yeniden açılmaz. `FULL` uygulanmadı (kontenjan takibi kapsam dışı; V141) |
 | Mail | `PENDING → PROCESSING → SENT`, `PROCESSING → FAILED → PENDING` (retry), `FAILED` (kalıcı) | Idempotency anahtarı tekil |
 | İçerik (content) | `DRAFT → PUBLISHED → REMOVED`, `PUBLISHED → ARCHIVED` | Kullanıcı ön onaysız yayımlar; moderatör kaldırır |
 | Gönderi/inceleme | `VISIBLE → HIDDEN (moderasyon) → VISIBLE`, `VISIBLE → DELETED` | Gizlenen içerik sayaçlardan çıkar |

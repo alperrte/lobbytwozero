@@ -1,10 +1,10 @@
 # LFP-SERVICE — AUTH ENTEGRASYONU
 
-**Sahip:** Umut · **Kod durumu:** İskelet · **Güncelleme:** 2026-10-29
+**Sahip:** Umut · **Kod durumu:** Uygulandı (LTZ-UMT-LFP-01..03; gerçek Auth ile uçtan uca NOT VERIFIED) · **Güncelleme:** 2026-11-13
 
 ## ÖZET
 
-Henüz kod yok. Auth'tan gereken: kullanıcı token'ı ve hesap silme. Engel ve gizlilik kontrolü için Social'ı çağıracaksın; Auth tarafı hazır: `lfp-service` istemcisi `audience: "social-service"` ile `blocks:check` token'ı alabiliyor (2026-10-29). Social'ın ucu henüz yazılmadı.
+Kullanıcı token'ı (JWKS) her LFP ucunda doğrulanıyor; hesap silme iç ucu yazıldı; engel kontrolü Social'ın `blocks:check` ucuyla yapılıyor. Oyun doğrulaması game-service'in herkese açık kart ucuyla (token'sız) yapılıyor; Auth'tan yeni bir çift gerekmedi. Sözleşmeler: `docs/api.md` → `## LFP`.
 
 ## AUTH'TAN HAZIR OLANLAR
 
@@ -12,18 +12,21 @@ Henüz kod yok. Auth'tan gereken: kullanıcı token'ı ve hesap silme. Engel ve 
 - Silme ucu sözleşmesi: `README.md` bölüm 2. LFP silme hedeflerinde
 - Servis token mekanizması: `README.md` bölüm 3
 
-## SENİN YAPACAKLARIN
+## YAPILANLAR
 
-- [ ] JWT doğrulayıcı (JWKS), ilan güncelleme ve kapatma `sub` sahipliğiyle
-- [ ] `DELETE /internal/v1/accounts/{accountId}`. Yazılmadıkça LFP görevi `PENDING`
-- [ ] Engel ve gizlilik (LFP-17): Social'ın `POST /internal/v1/blocks/check` ucu henüz yazılmadı. Auth tarafı hazır: `{clientId: "lfp-service", clientSecret, audience: "social-service"}` ile 60 sn'lik `blocks:check` token'ı al. Ortama `AUTH_LFP_SERVICE_CLIENT_SECRET` ver (`node ops/generate-auth-dev-keys.mjs` üretir)
-- [ ] Oyun doğrulama (LFP-18): game-service'i hangi kimlikle çağıracağını belirle. Servis token'ı mı, kullanıcı token'ı iletmek mi? Game'in kamuya açık okuma uçları token istemeyebilir, ona bak. Servis token'ı lazımsa kendi klasörüne `talep-NN` yaz
+- [x] JWT doğrulayıcı (JWKS, RS256, `typ=at+jwt`, `iss`/`aud`/`exp`/`nbf`/`iat`/`sub`); ilan güncelleme ve kapatma `sub` sahipliğiyle (başkası `403`)
+- [x] `DELETE /internal/v1/accounts/{accountId}`: `svc+jwt`, `aud=lfp-service`, `scope=account:erase`, `sub=svc:auth-service` tam, `account_id` = yol, ömür ≤ 60 sn; hesabın tüm ilanları silinir, idempotent `204`
+- [x] Engel ve gizlilik (LFP-17): `{clientId: "lfp-service", clientSecret, audience: "social-service"}` ile 60 sn'lik `blocks:check` token'ı (en fazla 45 sn yeniden kullanılır) → `POST /internal/v1/blocks/check`. Gizli anahtar `AUTH_LFP_SERVICE_CLIENT_SECRET` compose ile lfp-service'e aktarıldı; boşsa ilan okuma/iletişim fail-closed `503`
+- [x] Oyun doğrulama (LFP-18): game-service `GET /api/v1/game/{gameId}/card` herkese açık; kimlik gönderilmez, servis token'ı gerekmedi (talep yok)
 
 ## AUTH'TA BEKLEYEN
 
-- `lfp-service` istemcisi ve `blocks:check`: **Auth'ta hazır** (2026-10-29)
-- LFP → messaging sözleşmesi: tanımsız (iki servis de iskelet)
+- Yok. LFP → messaging çağrısı yapılmaz: istemci, LFP'nin döndürdüğü `recipientId` ile messaging'in birebir sohbet ucunu kendi token'ıyla çağırır (kullanıcı token'ı servisler arasında iletilmez).
+
+## DOĞRULANMAYANLAR
+
+- Gerçek Auth servis token'ıyla hesap silme (`lfp` görevinin `CONFIRMED` olması) ve gerçek Auth + Social ile engel sorgusu: NOT VERIFIED.
 
 ## İLGİLİ BELGELER
 
-`docs-auth/verilen-cevaplar/lfp-service/`, `docs-auth/d4-ekip-notlari/02_UMUT_social_messaging_lfp.md`
+`docs-auth/verilen-cevaplar/lfp-service/`, `docs-auth/d4-ekip-notlari/02_UMUT_social_messaging_lfp.md`, `docs-lfp/TASK-03.md`
