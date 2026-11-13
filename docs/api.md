@@ -6812,7 +6812,7 @@ Diğer mikroservisler:
 game-service `GET /api/v1/game/{gameId}/card` (RestClient, kimliksiz; `GAME_SERVICE_URL`, zaman aşımı 3 sn / 5 sn, yönlendirme izlenmez, otomatik tekrar yok). `404` → `GAME_NOT_FOUND`; diğer her durum → `GAME_CATALOG_UNAVAILABLE`.
 
 #### Test Durumu
-UNIT + INTEGRATION — testler yazıldı (gerçek PostgreSQL 17 / Testcontainers; `ListingCreateTest`, `ListingConcurrencyTest`, `FlywayMigrationTest`, `JwtValidationTest`, `RequestBodySizeLimitTest`, `ServiceBoundaryTest`, `ListingTest`, `ListingTextTest`; gerçek game-service istemcisi `GameServiceClientTest` ile MockRestServiceServer). **Henüz çalıştırılmadı (NOT VERIFIED)**; servisin tüm görevleri bitince merge öncesi pre-push ile koşulacak. Gerçek game-service ile uçtan uca: NOT VERIFIED.
+UNIT + INTEGRATION — testler yazıldı (gerçek PostgreSQL 17 / Testcontainers; `ListingCreateTest`, `ListingConcurrencyTest`, `FlywayMigrationTest`, `JwtValidationTest`, `RequestBodySizeLimitTest`, `ServiceBoundaryTest`, `ListingTest`, `ListingTextTest`; gerçek game-service istemcisi `GameServiceClientTest` ile MockRestServiceServer). PASS (2026-11-13; `pre-push lfp-service` ve `full dev`: lfp-service 139 test, satır kapsamı %95,49). Gerçek game-service ile uçtan uca: NOT VERIFIED.
 
 ### LFP — Aktif ilanları listele ve ara (LFP-10, LFP-11, LFP-15)
 
@@ -6856,7 +6856,7 @@ Diğer mikroservisler:
 social-service `POST /internal/v1/blocks/check` (sayfa/parti başına tek çağrı, en çok 50 sahip; boş sonuçta çağrı yok). Token: Auth `POST /internal/v1/service-tokens` (`clientId: "lfp-service"`, `audience: "social-service"`, `scope=blocks:check`, 60 sn); gizli anahtar `AUTH_LFP_SERVICE_CLIENT_SECRET`.
 
 #### Test Durumu
-UNIT + INTEGRATION — `ListingSearchTest` (sıra, durumlar, sayfalama, her süzgeç ve birleşimi, joker kaçışı, geçersiz parametreler), `ListingExpiryTest`, `ListingPrivacyContactTest` (iki yönlü engel, sayfa doldurma, tek çağrı, fail-closed). **Henüz çalıştırılmadı (NOT VERIFIED).**
+UNIT + INTEGRATION — `ListingSearchTest` (sıra, durumlar, sayfalama, her süzgeç ve birleşimi, joker kaçışı, geçersiz parametreler), `ListingExpiryTest`, `ListingPrivacyContactTest` (iki yönlü engel, sayfa doldurma, tek çağrı, fail-closed). PASS (2026-11-13; `pre-push lfp-service` ve `full dev`: lfp-service 139 test, satır kapsamı %95,49).
 
 ### LFP — Kendi ilanlarım
 
@@ -6890,7 +6890,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-INTEGRATION — `ListingSearchTest.kendiIlanlarimTumDurumlarlaDurumSuzgeciOkumaAnindakiDurumaGore`. **Henüz çalıştırılmadı (NOT VERIFIED).**
+INTEGRATION — `ListingSearchTest.kendiIlanlarimTumDurumlarlaDurumSuzgeciOkumaAnindakiDurumaGore`. PASS (2026-11-13; `pre-push lfp-service` ve `full dev`: lfp-service 139 test, satır kapsamı %95,49).
 
 ### LFP — İlan detayı
 
@@ -6925,7 +6925,7 @@ Diğer mikroservisler:
 social-service `POST /internal/v1/blocks/check` (yalnız başkasının ilanında).
 
 #### Test Durumu
-INTEGRATION — `ListingSearchTest.detayHerDurumdaGorunurSuresiGecmisIlanExpiredDoner`, `ListingPrivacyContactTest`. **Henüz çalıştırılmadı (NOT VERIFIED).**
+INTEGRATION — `ListingSearchTest.detayHerDurumdaGorunurSuresiGecmisIlanExpiredDoner`, `ListingPrivacyContactTest`. PASS (2026-11-13; `pre-push lfp-service` ve `full dev`: lfp-service 139 test, satır kapsamı %95,49).
 
 ### LFP — İlanı güncelle (LFP-12)
 
@@ -6982,7 +6982,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION — `ListingUpdateCloseTest` (sahip/başkası/yok, sürüm, değişmeyen alanlar, oyun zamanı kuralları, rol sırası), `ListingTest`. **Henüz çalıştırılmadı (NOT VERIFIED).**
+UNIT + INTEGRATION — `ListingUpdateCloseTest` (sahip/başkası/yok, sürüm, değişmeyen alanlar, oyun zamanı kuralları, rol sırası), `ListingTest`. PASS (2026-11-13; `pre-push lfp-service` ve `full dev`: lfp-service 139 test, satır kapsamı %95,49).
 
 ### LFP — İlanı kapat (LFP-13, LFP-14)
 
@@ -7017,7 +7017,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION — `ListingUpdateCloseTest`, `ListingExpiryTest`, `ListingTest`. **Henüz çalıştırılmadı (NOT VERIFIED).**
+UNIT + INTEGRATION — `ListingUpdateCloseTest`, `ListingExpiryTest`, `ListingTest`. PASS (2026-11-13; `pre-push lfp-service` ve `full dev`: lfp-service 139 test, satır kapsamı %95,49).
 
 ### LFP — İlan sahibiyle iletişim (LFP-16, LFP-17)
 
@@ -7063,7 +7063,7 @@ Diğer mikroservisler:
 social-service `POST /internal/v1/blocks/check` (RestClient, servis token'ı; bkz. "Aktif ilanları listele ve ara"). LFP messaging-service'i çağırmaz (kullanıcı adına token iletimi yok).
 
 #### Test Durumu
-INTEGRATION — `ListingPrivacyContactTest` (izin, kendi ilanı, iki yönlü engel, kapalı/süresi dolmuş, yok, kimliksiz, fail-closed). Gerçek Social + Messaging ile uçtan uca: NOT VERIFIED. **Henüz çalıştırılmadı (NOT VERIFIED).**
+INTEGRATION — `ListingPrivacyContactTest` (izin, kendi ilanı, iki yönlü engel, kapalı/süresi dolmuş, yok, kimliksiz, fail-closed). Gerçek Social + Messaging ile uçtan uca: NOT VERIFIED. PASS (2026-11-13; `pre-push lfp-service` ve `full dev`: lfp-service 139 test, satır kapsamı %95,49).
 
 ### LFP — Hesap verisi silme (Internal, Auth → LFP)
 
@@ -7104,7 +7104,7 @@ Diğer mikroservisler:
 Auth, silme onaylandığında `${LFP_SERVICE_URL}/internal/v1/accounts/{accountId}` adresini çağırır.
 
 #### Test Durumu
-INTEGRATION — `AccountErasureTest` (16 test: rehberin senaryoları ve veri senaryoları). Gerçek Auth servis token'ıyla uçtan uca: NOT VERIFIED. **Henüz çalıştırılmadı (NOT VERIFIED).**
+INTEGRATION — `AccountErasureTest` (16 test: rehberin senaryoları ve veri senaryoları). Gerçek Auth servis token'ıyla uçtan uca: NOT VERIFIED. PASS (2026-11-13; `pre-push lfp-service` ve `full dev`: lfp-service 139 test, satır kapsamı %95,49).
 
 ## COMMUNITY
 

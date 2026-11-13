@@ -1,6 +1,6 @@
 # LTZ-UMT-LFP-02 — İlanları Ara, Güncelle ve Süre Sonunda Kapat (TASK-02)
 
-> Tarih: 2026-11-13 · Sorumlu: Umut · Servis: `lfp-service` · Dal: `feature/lfp-service` · Kapsam: LFP-10, LFP-11, LFP-12, LFP-13, LFP-14, LFP-15 · Durum: **kod, testler ve belgeler yazıldı; testler henüz çalıştırılmadı** (kullanıcı kararı: servisin tüm görevleri bitince merge öncesi pre-push ile birlikte koşulacak)
+> Tarih: 2026-11-13 · Sorumlu: Umut · Servis: `lfp-service` · Dal: `feature/lfp-service` · Kapsam: LFP-10, LFP-11, LFP-12, LFP-13, LFP-14, LFP-15 · Durum: **kod, testler ve belgeler tamam; merge öncesi doğrulama PASS** (testler kullanıcı kararıyla servisin tüm görevleri bitince toplu koşuldu; sonuçlar: [TASK-03 §8](TASK-03.md#8-merge-öncesi-doğrulama-2026-11-13))
 >
 > Bu belge lfp-service çalışmasına özgüdür; ortak kurallar `AGENTS.md`, `docs/SECURITY.md` ve `docs/api.md` içindedir. Endpoint sözleşmeleri `docs/api.md` → `## LFP` altındadır. Önceki görev: [TASK-01](TASK-01.md).
 
@@ -22,8 +22,8 @@ Doğrulama durumu:
 | Kontrol | Sonuç |
 | --- | --- |
 | Derleme (`test-compile`, JDK 25) | PASS — Checkstyle derleme sırasında temiz |
-| Birim + entegrasyon testleri (toplam 100 test; bu görevde 31 yeni) | **ÇALIŞTIRILMADI** — merge öncesi |
-| JaCoCo, PMD, `lint-ratchet`, `pre-push full dev`, SonarQube | **ÇALIŞTIRILMADI** — merge öncesi |
+| Birim + entegrasyon testleri (toplam 100 test; bu görevde 31 yeni) | PASS — merge öncesi toplu koşu (TASK-03 §8) |
+| JaCoCo, PMD, `lint-ratchet`, `pre-push full dev`, SonarQube | pre-push ve full dev PASS; SonarQube bkz. TASK-03 §8 |
 
 ## 2. Uçlar ve akış
 

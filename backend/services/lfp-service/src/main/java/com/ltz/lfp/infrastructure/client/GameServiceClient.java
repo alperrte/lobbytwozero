@@ -41,7 +41,7 @@ public class GameServiceClient implements GameCatalogPort {
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
                     .body(GameCardResponse.class);
-        } catch (HttpClientErrorException.NotFound exception) {
+        } catch (HttpClientErrorException.NotFound _) {
             return Optional.empty();
         } catch (RestClientException exception) {
             // İleti yalnız istisna türünü taşır (yanıt gövdesi yok); neden zincirde kalır.

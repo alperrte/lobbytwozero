@@ -1,6 +1,6 @@
 # LTZ-UMT-LFP-01 — Oyun Arkadaşı İlanı Oluştur (TASK-01)
 
-> Tarih: 2026-11-13 · Sorumlu: Umut · Servis: `lfp-service` · Dal: `feature/lfp-service` · Kapsam: LFP-01, LFP-02, LFP-03, LFP-04, LFP-05, LFP-06, LFP-07, LFP-08, LFP-09 (+ LFP-15 süre seçimi) · Durum: **kod, testler ve belgeler yazıldı; testler henüz çalıştırılmadı** (kullanıcı kararı: servisin tüm görevleri bitince merge öncesi pre-push ile birlikte koşulacak)
+> Tarih: 2026-11-13 · Sorumlu: Umut · Servis: `lfp-service` · Dal: `feature/lfp-service` · Kapsam: LFP-01, LFP-02, LFP-03, LFP-04, LFP-05, LFP-06, LFP-07, LFP-08, LFP-09 (+ LFP-15 süre seçimi) · Durum: **kod, testler ve belgeler tamam; merge öncesi doğrulama PASS** (testler kullanıcı kararıyla servisin tüm görevleri bitince toplu koşuldu; sonuçlar: [TASK-03 §8](TASK-03.md#8-merge-öncesi-doğrulama-2026-11-13))
 >
 > Bu belge lfp-service çalışmasına özgüdür; ortak kurallar `AGENTS.md`, `docs/SECURITY.md` ve `docs/api.md` içindedir. Endpoint sözleşmesi `docs/api.md` → `## LFP` altındadır.
 
@@ -24,9 +24,9 @@ Doğrulama durumu:
 | Kontrol | Sonuç |
 | --- | --- |
 | Derleme (`mvn -pl services/lfp-service -DskipTests test-compile`, JDK 25) | PASS — Checkstyle derleme sırasında temiz |
-| Birim + entegrasyon testleri (69 test, Testcontainers PostgreSQL 17) | **ÇALIŞTIRILMADI** — merge öncesi |
-| JaCoCo, PMD, `lint-ratchet` | **ÇALIŞTIRILMADI** — merge öncesi `pre-push` ile |
-| `.\pre-push\pre-push.cmd full dev` / SonarQube | **ÇALIŞTIRILMADI** — merge öncesi |
+| Birim + entegrasyon testleri (69 test, Testcontainers PostgreSQL 17) | PASS — merge öncesi toplu koşu (TASK-03 §8) |
+| JaCoCo, PMD, `lint-ratchet` | PASS — merge öncesi `pre-push` (TASK-03 §8) |
+| `.\pre-push\pre-push.cmd full dev` / SonarQube | full dev SAFE TO COMMIT; SonarQube bkz. TASK-03 §8 |
 | Gerçek game-service ile uçtan uca | NOT VERIFIED |
 
 ## 2. Uç ve akış

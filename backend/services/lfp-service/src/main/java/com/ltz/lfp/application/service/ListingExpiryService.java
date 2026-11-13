@@ -31,8 +31,7 @@ public class ListingExpiryService {
         int total = 0;
         for (int batch = 0; batch < properties.maxBatchesPerRun(); batch++) {
             Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS);
-            Integer expired = transactions.execute(status -> listings.expireDue(now, properties.batchSize()));
-            int count = expired == null ? 0 : expired;
+            int count = transactions.execute(status -> listings.expireDue(now, properties.batchSize()));
             total += count;
             if (count < properties.batchSize()) {
                 break;

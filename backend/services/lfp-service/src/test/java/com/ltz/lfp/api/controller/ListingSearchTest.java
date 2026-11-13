@@ -5,8 +5,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -115,7 +113,7 @@ class ListingSearchTest extends IntegrationTestSupport {
         dps.put("roles", List.of("DPS"));
         openListing(newUser(), dps);
 
-        search(newUser(), "?gameId=" + gameId + "&role=" + encode("main tank"))
+        search(newUser(), "?gameId=" + gameId + "&role=" + "main tank")
                 .andExpect(jsonPath("$.items.length()").value(1))
                 .andExpect(jsonPath("$.items[0].id").value(tankListing.toString()));
         search(newUser(), "?gameId=" + gameId + "&role=Tank").andExpect(jsonPath("$.items.length()").value(0));
@@ -174,13 +172,13 @@ class ListingSearchTest extends IntegrationTestSupport {
         plain.put("description", "Sakin keşif");
         UUID other = openListing(newUser(), plain);
 
-        search(newUser(), "?gameId=" + gameId + "&q=" + encode("100%"))
+        search(newUser(), "?gameId=" + gameId + "&q=" + "100%")
                 .andExpect(jsonPath("$.items.length()").value(1))
                 .andExpect(jsonPath("$.items[0].id").value(percent.toString()));
-        search(newUser(), "?gameId=" + gameId + "&q=" + encode("%")).andExpect(jsonPath("$.items.length()").value(1));
-        search(newUser(), "?gameId=" + gameId + "&q=" + encode("_")).andExpect(jsonPath("$.items.length()").value(0));
+        search(newUser(), "?gameId=" + gameId + "&q=" + "%").andExpect(jsonPath("$.items.length()").value(1));
+        search(newUser(), "?gameId=" + gameId + "&q=" + "_").andExpect(jsonPath("$.items.length()").value(0));
         search(newUser(), "?gameId=" + gameId + "&q=SILKSONG").andExpect(jsonPath("$.items.length()").value(2));
-        search(newUser(), "?gameId=" + gameId + "&q=" + encode("keşif"))
+        search(newUser(), "?gameId=" + gameId + "&q=" + "keşif")
                 .andExpect(jsonPath("$.items[0].id").value(other.toString()));
         search(newUser(), "?q=" + "x".repeat(101)).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_FILTER"));
@@ -260,9 +258,5 @@ class ListingSearchTest extends IntegrationTestSupport {
         body.put("playTimeStart", start.toString());
         body.put("durationHours", 24);
         return body;
-    }
-
-    private static String encode(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 }

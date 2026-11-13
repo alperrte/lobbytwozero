@@ -32,8 +32,8 @@ class ListingConcurrencyTest extends IntegrationTestSupport {
         UUID owner = newUser();
         UUID gameId = games.addGame("Concurrent");
         CountDownLatch start = new CountDownLatch(1);
-        ExecutorService pool = Executors.newFixedThreadPool(THREADS);
-        try {
+        // ExecutorService.close() bitmemiş işleri bekleyip havuzu kapatır; latch serbest bırakıldığından işler biter.
+        try (ExecutorService pool = Executors.newFixedThreadPool(THREADS)) {
             List<Future<Boolean>> results = new ArrayList<>();
             for (int i = 0; i < THREADS; i++) {
                 results.add(pool.submit(() -> {
@@ -55,8 +55,6 @@ class ListingConcurrencyTest extends IntegrationTestSupport {
 
             assertThat(created).isEqualTo(5);
             assertThat(listingCount(owner)).isEqualTo(5);
-        } finally {
-            pool.shutdownNow();
         }
     }
 

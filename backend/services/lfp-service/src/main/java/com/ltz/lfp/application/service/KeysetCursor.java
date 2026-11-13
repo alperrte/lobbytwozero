@@ -37,11 +37,16 @@ record KeysetCursor(Instant createdAt, UUID id) {
             return new KeysetCursor(Instant.parse(raw.substring(0, separator)),
                     UUID.fromString(raw.substring(separator + 1)));
         } catch (IllegalArgumentException | DateTimeParseException exception) {
-            throw invalid();
+            throw invalid(exception);
         }
     }
 
     private static LfpException invalid() {
         return new LfpException(LfpErrorCode.INVALID_CURSOR);
+    }
+
+    /** Neden zincirde (loglar için) kalır; yanıta yalnız sabit kod ve açıklama yazılır. */
+    private static LfpException invalid(Exception cause) {
+        return new LfpException(LfpErrorCode.INVALID_CURSOR, cause);
     }
 }

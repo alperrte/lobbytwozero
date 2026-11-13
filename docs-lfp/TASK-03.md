@@ -1,6 +1,6 @@
 # LTZ-UMT-LFP-03 — İlan Sahibine Mesaj ve Sosyal Gizlilik Entegrasyonu (TASK-03)
 
-> Tarih: 2026-11-13 · Sorumlu: Umut · Servis: `lfp-service` · Dal: `feature/lfp-service` · Kapsam: LFP-16, LFP-17, LFP-18 · Durum: **kod, testler ve belgeler yazıldı; testler henüz çalıştırılmadı** (kullanıcı kararı: servisin tüm görevleri bitti, merge öncesi pre-push ile birlikte koşulacak)
+> Tarih: 2026-11-13 · Sorumlu: Umut · Servis: `lfp-service` · Dal: `feature/lfp-service` · Kapsam: LFP-16, LFP-17, LFP-18 · Durum: **kod, testler ve belgeler tamam; merge öncesi doğrulama PASS** (testler kullanıcı kararıyla servisin tüm görevleri bitince toplu koşuldu; sonuçlar: [TASK-03 §8](TASK-03.md#8-merge-öncesi-doğrulama-2026-11-13))
 >
 > Bu belge lfp-service çalışmasına özgüdür; ortak kurallar `AGENTS.md`, `docs/SECURITY.md` ve `docs/api.md` içindedir. Endpoint sözleşmeleri `docs/api.md` → `## LFP` altındadır. Önceki görevler: [TASK-01](TASK-01.md), [TASK-02](TASK-02.md).
 
@@ -17,8 +17,8 @@ Doğrulama durumu:
 | Kontrol | Sonuç |
 | --- | --- |
 | Derleme (`test-compile`, JDK 25) | PASS — Checkstyle derleme sırasında temiz |
-| Birim + entegrasyon testleri (toplam 141 test; bu görevde 41 yeni) | **ÇALIŞTIRILMADI** — merge öncesi |
-| JaCoCo, PMD, `lint-ratchet`, `pre-push full dev`, SonarQube | **ÇALIŞTIRILMADI** — merge öncesi |
+| Birim + entegrasyon testleri (toplam 141 test; bu görevde 41 yeni) | PASS — merge öncesi toplu koşu (TASK-03 §8) |
+| JaCoCo, PMD, `lint-ratchet`, `pre-push full dev`, SonarQube | pre-push ve full dev PASS; SonarQube bkz. TASK-03 §8 |
 | Gerçek Auth + Social + Messaging ile uçtan uca | NOT VERIFIED |
 
 ## 2. Uçlar ve akış
@@ -84,3 +84,19 @@ Doğrulama durumu:
 2. **Uçtan uca doğrulama:** DEV'de gerçek Auth + Social ile ilan listesi/iletişim ve Auth'un hesap silmede `lfp` görevini `CONFIRMED` görmesi NOT VERIFIED. `AUTH_LFP_SERVICE_CLIENT_SECRET` `.env.dev`'de dolu olmalı (`node ops/dev.mjs` üretir); lfp-service imajı yeniden derlenmeli.
 3. **`docs-auth/entegrasyon/README.md`** tablosunda lfp-service satırı hâlâ "İskelet" yazıyor; dosya Auth sahibinindir (Kerem), güncellenmesi önerilir.
 4. **`AccountStatusChanged` / bildirim** olay teslimi kararıyla birlikte (bkz. §3).
+
+## 8. Merge öncesi doğrulama (2026-11-13)
+
+Testler kullanıcı kararıyla görevler boyunca yazılıp yalnız derlendi; üç görev bitince birlikte koşuldu.
+
+| Kontrol | Sonuç |
+| --- | --- |
+| `.\pre-push\pre-push.cmd lfp-service` | **BACKEND TEST CHECK PASSED** — 139 test (Surefire), satır kapsamı %95,49, yeni/değişen satırlar %95,75, Checkstyle/PMD yeni ihlal 0 |
+| `.\pre-push\pre-push.cmd full dev` | **SAFE TO COMMIT** — 18 modülün testleri ve coverage kapısı, Git/secret taraması, Docker yapılandırması, 18 servisin HTTP health kontrolü PASS |
+| DEV canlı | Yeni lfp-service imajı: V141 uygulandı, health `UP`; Gateway'den kimliksiz istek `401`, Gateway `/internal/**`'u route etmiyor (`404`), servis token'sız silme `401` |
+| SonarQube (`sonar.cmd scan dev`) | Proje (tüm backend) Quality Gate **FAIL** — security C (hardware-service SQL bulguları), reliability C (hardware, community, mail, messaging MAJOR bug'ları), tekrar %3,7. Coverage %91,3 (hedef ≥ %80) |
+| SonarQube — lfp-service | İlk taramada 2 bulgu (MAJOR `java:S2583` `ListingExpiryService`, MINOR `java:S7467` `GameServiceClient`) — ikisi de düzeltildi; ikinci tarama ile doğrulanacak |
+
+İlk koşuda bulunup düzeltilenler: iki arama testi URL'i elle kodladığı için MockMvc'nin kodlamasıyla çift kodlanıyordu (servis hatası değil); PMD `PreserveStackTrace` (`KeysetCursor`) ve `CloseResource` (`ListingConcurrencyTest`).
+
+Not: Sonar Quality Gate depo geneli olduğundan LFP dışı bulgular giderilmeden PASS olmaz; ilgili servis sahiplerine bildirilmelidir. Messaging'deki bulgular (`WebmOpusWriter`, `AttachmentMeta`) Umut'un ayrı görevi olarak ele alınacak.
