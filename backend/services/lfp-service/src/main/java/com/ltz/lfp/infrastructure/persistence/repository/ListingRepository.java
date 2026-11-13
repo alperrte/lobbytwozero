@@ -33,4 +33,14 @@ public interface ListingRepository extends JpaRepository<Listing, UUID>, JpaSpec
             + "where id in (select id from lfp_listings where status = 'OPEN' and expires_at <= :now "
             + "order by expires_at limit :batchSize for update skip locked)", nativeQuery = true)
     int expireDue(@Param("now") Instant now, @Param("batchSize") int batchSize);
+
+    /**
+     * Hesap silme (LFP-18): sahibin tüm ilanları, her durumda. Roller {@code fk_lfp_listing_roles_listing}
+     * {@code ON DELETE CASCADE} ile aynı ifadede silinir (native sorgu; JPA bulk silme koleksiyon tablosunu atlayabilirdi).
+     *
+     * @return silinen ilan sayısı
+     */
+    @Modifying
+    @Query(value = "delete from lfp_listings where owner_id = :ownerId", nativeQuery = true)
+    int deleteAllOwnedBy(@Param("ownerId") UUID ownerId);
 }

@@ -144,8 +144,9 @@ class JwtValidationTest extends IntegrationTestSupport {
         mockMvc.perform(get("/api/v1/other/anything").header(HttpHeaders.AUTHORIZATION, bearer(newUser())))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+        // İç yollar yalnız servis token'ı kabul eder: kullanıcı token'ı orada kimlik sayılmaz.
         mockMvc.perform(get("/internal/v1/anything").header(HttpHeaders.AUTHORIZATION, bearer(newUser())))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
         mockMvc.perform(get("/actuator/env")).andExpect(status().isUnauthorized());
     }
 

@@ -11,6 +11,7 @@ public enum LfpErrorCode {
     INVALID_FILTER(400, "A search filter is invalid."),
     INVALID_CURSOR(400, "The pagination cursor is invalid."),
     INVALID_PAGE_SIZE(400, "The page size is out of range."),
+    CANNOT_CONTACT_SELF(400, "You cannot contact yourself about your own listing."),
     NOT_LISTING_OWNER(403, "Only the owner can change this listing."),
     LISTING_NOT_FOUND(404, "Listing was not found."),
     LISTING_NOT_OPEN(409, "The listing is closed or expired."),
@@ -19,7 +20,8 @@ public enum LfpErrorCode {
     OPEN_LISTING_LIMIT(409, "You have reached the maximum number of open listings. Close one first."),
     CONCURRENT_MODIFICATION(409, "The resource was modified concurrently. Retry the request."),
     LISTING_RATE_LIMITED(429, "Too many listings were created recently. Try again later."),
-    GAME_CATALOG_UNAVAILABLE(503, "The game catalog is temporarily unavailable. Try again later.");
+    GAME_CATALOG_UNAVAILABLE(503, "The game catalog is temporarily unavailable. Try again later."),
+    BLOCK_CHECK_UNAVAILABLE(503, "Privacy rules could not be verified. Try again later.");
 
     private final int httpStatus;
     private final String detail;

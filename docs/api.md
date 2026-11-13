@@ -5515,10 +5515,10 @@ Frontend:
 -
 
 Diğer mikroservisler:
-messaging-service ve lfp-service Auth'tan `POST /internal/v1/service-tokens` ile (`audience: "social-service"`) 60 sn'lik token alıp bu ucu `${SOCIAL_SERVICE_URL}/internal/v1/blocks/check` adresinde çağırır. messaging-service istemcisi (`SocialBlockCheckClient`, LTZ-UMT-MSG-01) yazıldı ve MockRestServiceServer ile testli; lfp-service tarafı iskelet. Gerçek Auth token'ıyla uçtan uca çağrı **NOT VERIFIED**.
+messaging-service ve lfp-service Auth'tan `POST /internal/v1/service-tokens` ile (`audience: "social-service"`) 60 sn'lik token alıp bu ucu `${SOCIAL_SERVICE_URL}/internal/v1/blocks/check` adresinde çağırır. messaging-service istemcisi (`SocialBlockCheckClient`, LTZ-UMT-MSG-01) yazıldı ve MockRestServiceServer ile testli; lfp-service istemcisi (`SocialBlockCheckClient`, LTZ-UMT-LFP-03) aynı sözleşmeyle yazıldı (ilan listesi/detayı/iletişim). LFP için gerçek Auth token'ıyla uçtan uca çağrı **NOT VERIFIED**.
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; `BlocksCheckTest` 13 test: iki yön, engel kaldırma, başkasının engeli, yinelenen kimlik, 100/101 sınırı, geçersiz gövde, kimlik/kapsam/çağıran/`aud`/`iss`/`typ` ihlalleri). Gerçek Auth token'ıyla messaging-service üzerinden uçtan uca: **PASS** (2026-11-09; engel varken iki yönde `403 MESSAGING_NOT_ALLOWED`, kalkınca sohbet açılır). lfp-service istemcisi yok.
+UNIT + INTEGRATION (gerçek PostgreSQL; `BlocksCheckTest` 13 test: iki yön, engel kaldırma, başkasının engeli, yinelenen kimlik, 100/101 sınırı, geçersiz gövde, kimlik/kapsam/çağıran/`aud`/`iss`/`typ` ihlalleri). Gerçek Auth token'ıyla messaging-service üzerinden uçtan uca: **PASS** (2026-11-09; engel varken iki yönde `403 MESSAGING_NOT_ALLOWED`, kalkınca sohbet açılır). lfp-service istemcisi yazıldı (`SocialBlockCheckClientTest`, MockRestServiceServer); uçtan uca NOT VERIFIED.
 
 ### SOCIAL — Hesap verisi silme (Internal, Auth → Social)
 
@@ -6721,7 +6721,8 @@ INTEGRATION (gerçek PostgreSQL; `MessageSendTest`: olay tek kez yazılır, içe
 
 Sorumlu: Umut · Gateway: `/api/v1/lfp/**` · Görevler: LFP-
 
-Ortak kurallar (aşağıdaki tüm LFP uçları için; görevler LTZ-UMT-LFP-01 (LFP-01..09) ve LTZ-UMT-LFP-02 (LFP-10..15)):
+Ortak kurallar (aşağıdaki tüm LFP uçları için; görevler LTZ-UMT-LFP-01 (LFP-01..09), LTZ-UMT-LFP-02 (LFP-10..15) ve LTZ-UMT-LFP-03 (LFP-16..18)):
+- **Engel (LFP-17):** Engel verisi social-service'tedir; LFP saklamaz, her okumada `POST /internal/v1/blocks/check` ile sorar (sayfa başına tek toplu çağrı). İki kullanıcı arasında **herhangi bir yönde** engel varsa: birbirlerinin ilanları aktif listede görünmez, ilan detayı ve iletişim `404 LISTING_NOT_FOUND` döner (ilanın varlığı sızdırılmaz). Kullanıcının kendi ilanları için Social'a sorulmaz. Engel durumu öğrenilemezse (Auth gizli anahtarı yok, Auth/Social ulaşılamaz ya da yanıt eksik) liste, detay ve iletişim **fail-closed** `503 BLOCK_CHECK_UNAVAILABLE` döner; ilan oluşturma/güncelleme/kapatma ve "kendi ilanlarım" etkilenmez. Engel kalkınca ilanlar yeniden görünür.
 - Tüm uçlar `Authorization: Bearer <access token>` (kullanıcı token'ı, `typ=at+jwt`) ister; Gateway tarayıcı çerezini Bearer'a çevirir. Token servis tarafında Auth'un JWKS anahtarıyla yeniden doğrulanır (RS256, `iss`, `aud`, `typ=at+jwt`, `exp`/`nbf`/`iat`/`sub` zorunlu, 30 sn saat payı). Servis token'ı (`svc+jwt`) bu uçlarda geçmez. Misafir ilan göremez (ürün kararı, 2026-11-13).
 - `userId` yalnız token'ın `sub` alanından alınır; gövdedeki kimlik (`ownerId` vb.) güvenilmez: gövdedeki bilinmeyen alan `400 MALFORMED_REQUEST`.
 - Kimliksiz/geçersiz token `401 UNAUTHENTICATED`. Hata gövdesi `ProblemDetail` + `code`; doğrulama hatalarında `errors: [{field, code}]` döner, gönderilen değer geri yansıtılmaz. İstek gövdesi en fazla 8 KB (`413 PAYLOAD_TOO_LARGE`).
@@ -6839,11 +6840,12 @@ Tüm süzgeçler opsiyoneldir ve birlikte (VE) uygulanır; arama bu serviste yap
 Metin süzgeçlerinde kontrol karakteri ya da sınırı aşan uzunluk `400 INVALID_FILTER`; boş metin süzgeci yok sayılır.
 
 #### Response — 200
-`{ "items": [Listing], "nextCursor": "string veya null" }` — yalnız okuma anında **açık** ilanlar (`status=OPEN` ve `expiresAt` gelecekte), en yeni önce.
+`{ "items": [Listing], "nextCursor": "string veya null" }` — yalnız okuma anında **açık** ilanlar (`status=OPEN` ve `expiresAt` gelecekte), en yeni önce. İsteyenle arasında engel olan sahiplerin ilanları atlanır (LFP-17); sayfayı doldurmak için en çok 3 parti okunur, bu yüzden sayfa `limit`'ten kısa olabilir — `nextCursor` doluysa devamı vardır (boş sayfa + dolu imleç de geçerlidir). İmleç son incelenen ilandır; tekrar ya da atlama olmaz.
 
 #### Hata Durumları
 - 400: `INVALID_FILTER`, `INVALID_PAGE_SIZE`, `INVALID_CURSOR`, biçimsiz parametre (`MALFORMED_REQUEST`)
 - 401: Kimlik yok/geçersiz (`UNAUTHENTICATED`)
+- 503: Engel durumu öğrenilemedi (`BLOCK_CHECK_UNAVAILABLE`)
 - 500: Beklenmeyen sunucu hatası
 
 #### Bağlantı
@@ -6851,10 +6853,10 @@ Frontend:
 API Gateway üzerinden /api/v1/lfp/listings
 
 Diğer mikroservisler:
--
+social-service `POST /internal/v1/blocks/check` (sayfa/parti başına tek çağrı, en çok 50 sahip; boş sonuçta çağrı yok). Token: Auth `POST /internal/v1/service-tokens` (`clientId: "lfp-service"`, `audience: "social-service"`, `scope=blocks:check`, 60 sn); gizli anahtar `AUTH_LFP_SERVICE_CLIENT_SECRET`.
 
 #### Test Durumu
-UNIT + INTEGRATION — `ListingSearchTest` (sıra, durumlar, sayfalama, her süzgeç ve birleşimi, joker kaçışı, geçersiz parametreler), `ListingExpiryTest`. **Henüz çalıştırılmadı (NOT VERIFIED).**
+UNIT + INTEGRATION — `ListingSearchTest` (sıra, durumlar, sayfalama, her süzgeç ve birleşimi, joker kaçışı, geçersiz parametreler), `ListingExpiryTest`, `ListingPrivacyContactTest` (iki yönlü engel, sayfa doldurma, tek çağrı, fail-closed). **Henüz çalıştırılmadı (NOT VERIFIED).**
 
 ### LFP — Kendi ilanlarım
 
@@ -6906,12 +6908,13 @@ Authenticated
 - listingId: UUID, zorunlu
 
 #### Response — 200
-`Listing` — her durumdaki ilan döner; `status` okuma anındaki durumdur (arayüz kapalı/süresi dolmuş ilanı buna göre gösterir).
+`Listing` — her durumdaki ilan döner; `status` okuma anındaki durumdur (arayüz kapalı/süresi dolmuş ilanı buna göre gösterir). Sahip kendi ilanını her zaman görür (Social'a sorulmaz).
 
 #### Hata Durumları
 - 400: Geçersiz UUID (`MALFORMED_REQUEST`)
 - 401: Kimlik yok/geçersiz (`UNAUTHENTICATED`)
-- 404: İlan yok (`LISTING_NOT_FOUND`)
+- 404: İlan yok ya da sahibiyle aralarında engel var (`LISTING_NOT_FOUND`; ikisi ayırt edilmez)
+- 503: Engel durumu öğrenilemedi (`BLOCK_CHECK_UNAVAILABLE`)
 - 500: Beklenmeyen sunucu hatası
 
 #### Bağlantı
@@ -6919,10 +6922,10 @@ Frontend:
 API Gateway üzerinden /api/v1/lfp/listings/{listingId}
 
 Diğer mikroservisler:
--
+social-service `POST /internal/v1/blocks/check` (yalnız başkasının ilanında).
 
 #### Test Durumu
-INTEGRATION — `ListingSearchTest.detayHerDurumdaGorunurSuresiGecmisIlanExpiredDoner`. **Henüz çalıştırılmadı (NOT VERIFIED).**
+INTEGRATION — `ListingSearchTest.detayHerDurumdaGorunurSuresiGecmisIlanExpiredDoner`, `ListingPrivacyContactTest`. **Henüz çalıştırılmadı (NOT VERIFIED).**
 
 ### LFP — İlanı güncelle (LFP-12)
 
@@ -7015,6 +7018,93 @@ Diğer mikroservisler:
 
 #### Test Durumu
 UNIT + INTEGRATION — `ListingUpdateCloseTest`, `ListingExpiryTest`, `ListingTest`. **Henüz çalıştırılmadı (NOT VERIFIED).**
+
+### LFP — İlan sahibiyle iletişim (LFP-16, LFP-17)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+LFP ikinci bir mesajlaşma altyapısı kurmaz ve mesaj saklamaz. Bu uç yalnız "bu ilanın sahibiyle iletişim kurabilir miyim?" sorusunu ilan kurallarıyla cevaplar ve alıcıyı döner; sohbet messaging-service'te açılır.
+
+#### Endpoint
+POST /api/v1/lfp/listings/{listingId}/contact
+
+#### Yetkilendirme
+Authenticated (ilanın sahibi dışında herkes)
+
+#### Path Parameters
+- listingId: UUID, zorunlu
+
+#### Response — 200
+```json
+{
+  "listingId": "UUID",
+  "recipientId": "UUID — ilan sahibi"
+}
+```
+İstemci ardından `POST /api/v1/messaging/conversations/direct` gövdesi `{"userId": "<recipientId>"}` ile birebir sohbeti açar (varsa aynı sohbet döner; arkadaşlık şartı yok). Messaging engeli ayrıca denetler (`403 MESSAGING_NOT_ALLOWED`). Durum değiştirmez; tekrar çağrılabilir.
+
+Denetim sırası: ilan var mı (404) → kendi ilanı mı (400) → aralarında engel var mı (404) → ilan açık mı (409).
+
+#### Hata Durumları
+- 400: Geçersiz UUID (`MALFORMED_REQUEST`); kendi ilanı (`CANNOT_CONTACT_SELF`)
+- 401: Kimlik yok/geçersiz (`UNAUTHENTICATED`)
+- 404: İlan yok ya da sahibiyle herhangi bir yönde engel var (`LISTING_NOT_FOUND`; ayırt edilmez)
+- 409: İlan kapalı ya da süresi dolmuş (`LISTING_NOT_OPEN`)
+- 503: Engel durumu öğrenilemedi (`BLOCK_CHECK_UNAVAILABLE`); iletişim izni verilmez
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/lfp/listings/{listingId}/contact, ardından /api/v1/messaging/conversations/direct
+
+Diğer mikroservisler:
+social-service `POST /internal/v1/blocks/check` (RestClient, servis token'ı; bkz. "Aktif ilanları listele ve ara"). LFP messaging-service'i çağırmaz (kullanıcı adına token iletimi yok).
+
+#### Test Durumu
+INTEGRATION — `ListingPrivacyContactTest` (izin, kendi ilanı, iki yönlü engel, kapalı/süresi dolmuş, yok, kimliksiz, fail-closed). Gerçek Social + Messaging ile uçtan uca: NOT VERIFIED. **Henüz çalıştırılmadı (NOT VERIFIED).**
+
+### LFP — Hesap verisi silme (Internal, Auth → LFP)
+
+Durum: IMPLEMENTED (alıcı taraf; gerçek Auth token'ıyla uçtan uca NOT VERIFIED)
+Sorumlu: Umut
+Tüketici servisler: auth-service (hesap silme koordinasyonu, `ltz.auth.deletion.targets` içinde `lfp` var)
+
+#### Endpoint
+DELETE /internal/v1/accounts/{accountId}
+
+#### Yetkilendirme
+Internal. Gateway'e açık **değildir**. Yalnız Auth'un imzaladığı **servis token'ı** (`docs-auth/servis-sozlesmeleri.md` §3, `docs-auth/d4-ekip-notlari/01_ORTAK_SILME_UCU_UYGULAMA_REHBERI.md`):
+- JWT başlığı `typ=svc+jwt`; RS256, Auth'un JWKS anahtarıyla doğrulanır.
+- `iss=ltz-auth`, `aud` içinde `lfp-service` (`ltz.lfp.auth.service-audience`, yeni ENV değil), `jti` zorunlu.
+- `scope` içinde `account:erase` (eksik/farklı kapsam `403`).
+- `sub` **tam olarak** `svc:auth-service` (başka servis kimliği `403`).
+- `account_id` claim'i yoldaki `{accountId}` ile **aynı** (UUID olarak karşılaştırılır); eksik ya da başka hesap `403`.
+- Ömür en çok 60 sn (`exp - iat ≤ 60 sn` ve `exp` şimdiden en çok 60 sn + 30 sn sapma ileride; `iat` yoksa ret).
+- Kullanıcı token'ı bu uçta, servis token'ı kullanıcı uçlarında (`/api/v1/lfp/**`) `401`.
+
+#### Path Parameters
+- accountId: UUID, zorunlu — silinecek hesap
+
+#### Response — 204
+Gövde yok. Tek transaction'da hesabın **tüm ilanları** (açık, kapalı, süresi dolmuş) ve rolleri (FK cascade) kalıcı olarak silinir. LFP başka kullanıcıların verisinde bu hesaba referans tutmaz; anonimleştirilecek satır yoktur. **İdempotenttir:** veri yoksa, ikinci çağrıda ya da bilinmeyen hesapta da `204`. Saklama istisnası yoktur.
+
+#### Hata Durumları
+- 400: Geçersiz `accountId`
+- 401: Token yok/geçersiz; kullanıcı token'ı; yanlış `iss`/`aud`/`typ`; süresi dolmuş ya da 60 sn'den uzun ömürlü; `sub` `svc:` ile başlamıyor; `jti` yok; bozuk/yanlış anahtarlı imza; `alg=none`/HS256
+- 403: `account:erase` kapsamı yok; `sub` `svc:auth-service` değil; `account_id` yok ya da yoldaki hesapla aynı değil (hiçbir şey silinmez); bu yolda başka yöntem ya da başka iç yol
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Auth, silme onaylandığında `${LFP_SERVICE_URL}/internal/v1/accounts/{accountId}` adresini çağırır.
+
+#### Test Durumu
+INTEGRATION — `AccountErasureTest` (16 test: rehberin senaryoları ve veri senaryoları). Gerçek Auth servis token'ıyla uçtan uca: NOT VERIFIED. **Henüz çalıştırılmadı (NOT VERIFIED).**
 
 ## COMMUNITY
 

@@ -8,6 +8,7 @@ public final class LfpApiPaths {
     public static final String MY_LISTINGS = LISTINGS + "/mine";
     public static final String LISTING = LISTINGS + "/{listingId}";
     public static final String LISTING_CLOSE = LISTING + "/close";
+    public static final String LISTING_CONTACT = LISTING + "/contact";
 
     private LfpApiPaths() {
     }

@@ -23,6 +23,7 @@ import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
+import com.ltz.lfp.api.controller.InternalApiPaths;
 import com.ltz.lfp.api.controller.LfpApiPaths;
 import com.ltz.lfp.infrastructure.security.RequestBodySizeLimitFilter;
 import com.ltz.lfp.infrastructure.security.TokenClaims;
@@ -31,7 +32,8 @@ import jakarta.servlet.DispatcherType;
 
 /**
  * Fail-closed güvenlik zinciri: yalnız sağlık ucu herkese açıktır; LFP uçları geçerli kullanıcı token'ı
- * ({@code at+jwt}) ister, geri kalan her şey (iç {@code /internal/**} yolları dahil) reddedilir. Kimlik yalnız
+ * ({@code at+jwt}), iç uçlar ({@code /internal/**}) geçerli servis token'ı ({@code svc+jwt}) ister; geri kalan her şey
+ * reddedilir. Hangi token türünün kabul edileceği yola göre seçilir, böylece bir tür diğerinin yerine geçemez. Kimlik yalnız
  * {@code Authorization: Bearer} başlığından okunur; servis çerez okumaz ve oturum açmaz. Tarayıcı çerezi → Bearer
  * çevirisi ve CSRF/Origin denetimi Gateway'de yapılır (docs/AUTH_SERVICE_ENTEGRASYON_REHBERI.md §6.1), bu yüzden bu
  * zincirde CSRF filtresi gereksizdir. 401/403 yanıtları @RestControllerAdvice'a devredilir; ProblemDetail döner.
@@ -41,6 +43,7 @@ public class SecurityConfig {
 
     private static final String HEALTH = "/actuator/health";
     private static final String ROLE_PREFIX = "ROLE_";
+    private static final String SCOPE_PREFIX = "SCOPE_";
 
     private static final PathPatternRequestMatcher.Builder PATHS = PathPatternRequestMatcher.withDefaults();
 
@@ -52,15 +55,20 @@ public class SecurityConfig {
     /** Geçerli kullanıcı token'ı isteyen uçlar (tüm kayıtlı oyuncular; sahiplik kontrolü servis katmanındadır). */
     static final RequestMatcher AUTHENTICATED_ENDPOINTS = PATHS.matcher(LfpApiPaths.BASE + "/**");
 
+    /** Servisler arası uçlar: yalnız servis token'ı kabul edilir. */
+    static final RequestMatcher INTERNAL_ENDPOINTS = PATHS.matcher(InternalApiPaths.BASE + "/**");
+
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http,
                                             @Qualifier("userTokenDecoder") JwtDecoder userTokenDecoder,
+                                            @Qualifier("serviceTokenDecoder") JwtDecoder serviceTokenDecoder,
                                             @Qualifier("handlerExceptionResolver") HandlerExceptionResolver resolver) {
         AuthenticationEntryPoint unauthenticated = (request, response, failure) ->
                 resolver.resolveException(request, response, null, failure);
         AccessDeniedHandler forbidden = (request, response, denial) ->
                 resolver.resolveException(request, response, null, denial);
         AuthenticationManager userTokens = jwtManager(userTokenDecoder, roleConverter());
+        AuthenticationManager serviceTokens = jwtManager(serviceTokenDecoder, scopeConverter());
 
         http
                 // Cookie ile kimlik okunmadığından CSRF saldırı yüzeyi yoktur; stateless Bearer API.
@@ -73,10 +81,13 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+                        .requestMatchers(PATHS.matcher(HttpMethod.DELETE, InternalApiPaths.ACCOUNT_ERASURE))
+                                .hasAuthority(SCOPE_PREFIX + TokenClaims.ACCOUNT_ERASE_SCOPE)
                         .requestMatchers(AUTHENTICATED_ENDPOINTS).authenticated()
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(resourceServer -> resourceServer
-                        .authenticationManagerResolver(request -> userTokens)
+                        .authenticationManagerResolver(
+                                request -> INTERNAL_ENDPOINTS.matches(request) ? serviceTokens : userTokens)
                         .authenticationEntryPoint(unauthenticated)
                         .accessDeniedHandler(forbidden))
                 .exceptionHandling(exceptions -> exceptions
@@ -108,6 +119,16 @@ public class SecurityConfig {
         roles.setAuthorityPrefix(ROLE_PREFIX);
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
         converter.setJwtGrantedAuthoritiesConverter(roles);
+        return converter;
+    }
+
+    /** Servis token'ı: {@code scope} değeri {@code SCOPE_} önekiyle yetkiye çevrilir (ör. SCOPE_account:erase). */
+    private static JwtAuthenticationConverter scopeConverter() {
+        JwtGrantedAuthoritiesConverter scopes = new JwtGrantedAuthoritiesConverter();
+        scopes.setAuthoritiesClaimName("scope");
+        scopes.setAuthorityPrefix(SCOPE_PREFIX);
+        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+        converter.setJwtGrantedAuthoritiesConverter(scopes);
         return converter;
     }
 }

@@ -59,19 +59,23 @@ import tools.jackson.databind.ObjectMapper;
 /**
  * Gerçek PostgreSQL 17 (Compose ile aynı imaj) üzerinde, Flyway migration'ları uygulanmış tam uygulama bağlamı ve
  * Auth Service yerine geçen yerel bir JWKS sunucusu. Token'lar her çalıştırmada üretilen RSA anahtarıyla gerçekten
- * imzalanır; JWT doğrulaması sahte yardımcılarla atlanmaz. game-service {@link ScriptedGameCatalog} ile taklit edilir
- * (gerçek istemci ayrıca MockRestServiceServer ile sınanır). Repoda gerçek anahtar yoktur.
+ * imzalanır; JWT doğrulaması sahte yardımcılarla atlanmaz. game-service {@link ScriptedGameCatalog}, social-service'in
+ * engel sorgusu {@link ScriptedBlockCheck} ile taklit edilir (gerçek istemciler ayrıca MockRestServiceServer ile
+ * sınanır). Repoda gerçek anahtar yoktur.
  */
 // Geliştiricinin kabuğundaki SPRING_PROFILES_ACTIVE (ör. .env.dev yüklenmişse dev) testlere sızmasın.
 @ActiveProfiles("test")
 @SpringBootTest
-@Import(ScriptedGameCatalog.Configuration.class)
+@Import({ScriptedGameCatalog.Configuration.class, ScriptedBlockCheck.Configuration.class})
 // Süre dolumu zamanlayıcısı testlerde kapalıdır; testler ListingExpiryService'i doğrudan çağırır.
-@TestPropertySource(properties = {"ltz.lfp.games.adapter=scripted", "ltz.lfp.expiry.enabled=false"})
+@TestPropertySource(properties = {"ltz.lfp.games.adapter=scripted", "ltz.lfp.blocks.adapter=scripted",
+        "ltz.lfp.expiry.enabled=false"})
 public abstract class IntegrationTestSupport {
 
     protected static final String ISSUER = "ltz-auth";
     protected static final String AUDIENCE = "ltz-api";
+    protected static final String SERVICE_AUDIENCE = "lfp-service";
+    protected static final String ERASE_SCOPE = "account:erase";
     protected static final String KEY_ID = "lfp-test-key";
     protected static final JOSEObjectType ACCESS_TOKEN_TYPE = new JOSEObjectType("at+jwt");
     protected static final JOSEObjectType SERVICE_TOKEN_TYPE = new JOSEObjectType("svc+jwt");
@@ -104,6 +108,9 @@ public abstract class IntegrationTestSupport {
     @Autowired
     protected ScriptedGameCatalog games;
 
+    @Autowired
+    protected ScriptedBlockCheck blocks;
+
     protected MockMvc mockMvc;
 
     @DynamicPropertySource
@@ -115,6 +122,7 @@ public abstract class IntegrationTestSupport {
                 () -> "http://127.0.0.1:" + JWKS_SERVER.getAddress().getPort() + "/jwks.json");
         registry.add("ltz.lfp.auth.issuer", () -> ISSUER);
         registry.add("ltz.lfp.auth.audience", () -> AUDIENCE);
+        registry.add("ltz.lfp.auth.service-audience", () -> SERVICE_AUDIENCE);
     }
 
     /** Gerçek sunucudaki filtre sırası: gövde sınırı, ardından Spring Security zinciri. */
@@ -126,6 +134,34 @@ public abstract class IntegrationTestSupport {
                 .apply(springSecurity())
                 .build();
         games.reset();
+        blocks.reset();
+    }
+
+    /**
+     * Auth'un D4 sözleşmesindeki biçimde (svc+jwt, sub=svc:auth-service, aud=lfp-service, scope=account:erase,
+     * account_id, jti, ≤ 60 sn) {@code accountId} hesabının silinmesi için servis token'ı.
+     */
+    protected static String serviceToken(UUID accountId, UnaryOperator<JWTClaimsSet.Builder> claimsChange) {
+        return sign(SIGNING_KEY, SERVICE_TOKEN_TYPE, claimsChange.apply(validServiceClaims(accountId)).build());
+    }
+
+    protected static JWTClaimsSet.Builder validServiceClaims(UUID accountId) {
+        Instant now = Instant.now();
+        return new JWTClaimsSet.Builder()
+                .issuer(ISSUER)
+                .audience(SERVICE_AUDIENCE)
+                .subject("svc:auth-service")
+                .jwtID(UUID.randomUUID().toString())
+                .issueTime(Date.from(now))
+                .notBeforeTime(Date.from(now))
+                .expirationTime(Date.from(now.plusSeconds(60)))
+                .claim("scope", ERASE_SCOPE)
+                .claim("account_id", accountId.toString());
+    }
+
+    protected ResultActions contact(UUID viewer, UUID listingId) throws Exception {
+        return mockMvc.perform(post(LfpApiPaths.LISTING_CONTACT, listingId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(viewer)));
     }
 
     protected static UUID newUser() {

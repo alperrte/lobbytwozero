@@ -6,10 +6,12 @@ import org.springframework.validation.annotation.Validated;
 import jakarta.validation.constraints.NotBlank;
 
 /**
- * Auth Service'in access token sözleşmesi (docs/AUTH_SERVICE_ENTEGRASYON_REHBERI.md §3): JWKS adresi, issuer ve
- * audience Auth ile aynı ortak ENV değerlerinden gelir; kodda sabit değer yoktur.
+ * Auth Service'in token sözleşmesi (docs/AUTH_SERVICE_ENTEGRASYON_REHBERI.md §3): JWKS adresi, issuer ve audience Auth
+ * ile aynı ortak ENV değerlerinden gelir; kodda sabit değer yoktur.
  */
 @Validated
 @ConfigurationProperties("ltz.lfp.auth")
-public record AuthProperties(@NotBlank String jwksUri, @NotBlank String issuer, @NotBlank String audience) {
+public record AuthProperties(@NotBlank String jwksUri, @NotBlank String issuer, @NotBlank String audience,
+                             /** Servis token'larında (iç uçlar) bu servisin adı: {@code aud} bu değeri içermeli. */
+                             @NotBlank String serviceAudience) {
 }

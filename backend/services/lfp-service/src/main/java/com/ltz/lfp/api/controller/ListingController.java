@@ -18,6 +18,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import com.ltz.lfp.api.dto.request.CreateListingRequest;
 import com.ltz.lfp.api.dto.request.UpdateListingRequest;
+import com.ltz.lfp.api.dto.response.ContactResponse;
 import com.ltz.lfp.api.dto.response.ListingPageResponse;
 import com.ltz.lfp.api.dto.response.ListingResponse;
 import com.ltz.lfp.application.service.ListingQueryService;
@@ -31,8 +32,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Oyun arkadaşı ilanları (LTZ-UMT-LFP-01, LTZ-UMT-LFP-02). Yazma işlemlerinde sahip her zaman token sahibidir;
- * sahiplik servis katmanında denetlenir.
+ * Oyun arkadaşı ilanları (LTZ-UMT-LFP-01, -02, -03). Yazma işlemlerinde sahip her zaman token sahibidir; sahiplik ve
+ * engel kuralları servis katmanında denetlenir.
  */
 @RestController
 @RequiredArgsConstructor
@@ -65,10 +66,8 @@ public class ListingController {
                                       @RequestParam(required = false) String q,
                                       @RequestParam(required = false) Integer limit,
                                       @RequestParam(required = false) String cursor) {
-        // Kimlik çözülemeyen (UUID olmayan sub) token okumalarda da 401 alır.
-        AuthenticatedUser.id(jwt);
         ListingSearch search = new ListingSearch(gameId, platform, skillLevel, role, playFrom, playTo, micRequired, q);
-        return ListingPageResponse.from(listingQueries.search(search, limit, cursor));
+        return ListingPageResponse.from(listingQueries.search(AuthenticatedUser.id(jwt), search, limit, cursor));
     }
 
     /** Sahibin kendi ilanları (tüm durumlar); {@code status} okuma anındaki duruma göre süzer. */
@@ -80,12 +79,19 @@ public class ListingController {
         return ListingPageResponse.from(listingQueries.mine(AuthenticatedUser.id(jwt), status, limit, cursor));
     }
 
-    /** İlan detayı (her durumda). */
+    /** İlan detayı (her durumda); sahibiyle aralarında engel varsa 404. */
     @GetMapping(LfpApiPaths.LISTING)
     public ListingResponse get(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID listingId) {
-        // Kimlik çözülemeyen (UUID olmayan sub) token okumalarda da 401 alır.
-        AuthenticatedUser.id(jwt);
-        return ListingResponse.from(listingQueries.get(listingId));
+        return ListingResponse.from(listingQueries.get(AuthenticatedUser.id(jwt), listingId));
+    }
+
+    /**
+     * LFP-16: ilan sahibiyle iletişim izni. Yanıttaki {@code recipientId} ile messaging-service'te birebir sohbet
+     * açılır; LFP ikinci bir mesajlaşma altyapısı kurmaz.
+     */
+    @PostMapping(LfpApiPaths.LISTING_CONTACT)
+    public ContactResponse contact(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID listingId) {
+        return ContactResponse.from(listingQueries.contact(AuthenticatedUser.id(jwt), listingId));
     }
 
     /** LFP-12: sahip günceller (tam değiştirme). */

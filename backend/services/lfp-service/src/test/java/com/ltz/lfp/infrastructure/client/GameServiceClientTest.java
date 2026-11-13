@@ -39,7 +39,9 @@ class GameServiceClientTest {
         RestClient.Builder builder = RestClient.builder();
         server = MockRestServiceServer.bindTo(builder).build();
         client = new GameServiceClient(builder,
-                new ServiceClientProperties("http://game-service:8080", "/api/v1/game/{gameId}/card"));
+                new ServiceClientProperties("http://game-service:8080", "/api/v1/game/{gameId}/card",
+                        "http://auth-service:8080", "/internal/v1/service-tokens", "lfp-service", null,
+                        "http://social-service:8080", "/internal/v1/blocks/check"));
     }
 
     private String cardUrl() {
