@@ -5567,7 +5567,7 @@ UNIT + INTEGRATION (gerçek PostgreSQL; `AccountErasureTest` 17 test, `sub` tam 
 
 Durum: IN PROGRESS (olaylar outbox'a yazılıyor; `UserBlocked`/`UserUnblocked` community'ye teslim edilebilir, diğer türlerin hedefi yok)
 Sorumlu: Umut
-Tüketici servisler: notification-service, messaging-service, recommendation-service
+Tüketici servisler: notification-service, recommendation-service, community-service, user-service (messaging ve lfp olay tüketmez; engeli `blocks/check` ile senkron sorar)
 
 Bunlar Social'in **yayımladığı** olay sözleşmeleridir; tüketici servislerin kaydı kendi başlıkları altında açılır. Olaylar iş verisiyle aynı transaction'da `outbox_events` tablosuna yazılır (olay kaybı ve hayalet olay yoktur) ve en az bir kez teslim edilir; tüketici `eventId` ile tekilleştirir.
 
@@ -5577,9 +5577,9 @@ Zarf (docs/architecture.md §6.2): `eventId`, `eventType`, `eventVersion`, `occu
 | --- | --- | --- | --- |
 | `FriendRequestSent` v1 | Yeni istek oluştu (normal ya da kodla) | `requestId`, `senderId`, `receiverId` | notification (alıcıya bildirim) |
 | `FriendRequestAccepted` v1 | İstek kabul edildi | `requestId`, `senderId`, `receiverId` | notification (isteği gönderene bildirim) |
-| `FriendshipChanged` v1 | Arkadaşlık kuruldu / bitti | `userLowId`, `userHighId`, `change` (`ADDED` \| `REMOVED`) | messaging (sohbet izni), recommendation (arkadaş önerisi) |
-| `UserBlocked` v1 | Kullanıcı bir hesabı engelledi | `blockerId`, `blockedId` | messaging, lfp, community (etkileşimleri durdurur), notification (engellenenden bildirim üretmez) |
-| `UserUnblocked` v1 | Engel kaldırıldı | `blockerId`, `blockedId` | messaging, lfp, community, notification |
+| `FriendshipChanged` v1 | Arkadaşlık kuruldu / bitti | `userLowId`, `userHighId`, `change` (`ADDED` \| `REMOVED`) | recommendation (arkadaş önerisi), user (yansıma); messaging tüketmez (sohbet için arkadaşlık şartı yok) |
+| `UserBlocked` v1 | Kullanıcı bir hesabı engelledi | `blockerId`, `blockedId` | community, user (yansıma), notification (engellenenden bildirim üretmez); messaging ve lfp tüketmez, her etkileşimde `blocks/check` sorar (gecikmesiz, fail-closed) |
+| `UserUnblocked` v1 | Engel kaldırıldı | `blockerId`, `blockedId` | community, user, notification |
 
 Red ve iptal olay üretmez (reddedilen kişiye bildirim gitmez). Engellenen kullanıcıya hiçbir bildirim/olay gönderilmez; engel olayları yalnız etkileşimi durduracak servisler içindir.
 
@@ -5588,7 +5588,7 @@ Teslim durumu:
 - **`FriendRequestSent`, `FriendRequestAccepted`:** Auth'ta social → notification çifti **tanımlı değil** ve notification-service alıcı ucu yok; bu türler `No delivery target` ile teslim edilemez, relay açıkken en fazla 10 denemeden sonra `FAILED` olur (el ile müdahale bekler). Hedef tanımlanınca `FanOutEventPublisher`'a bir hedef eklenir.
 - Relay (`ltz.social.outbox.relay-enabled`, ENV `SOCIAL_OUTBOX_RELAY_ENABLED`) varsayılan **kapalı**. community ve user alıcı uçları gerçek token'la doğrulandı (2026-11-09); varsayılanın açılması ekip kararıdır (yerel dev'de `.env.dev` ile açılır). Relay mantığı (üstel geri çekilme, en fazla 10 deneme sonrası `FAILED`, `SKIP LOCKED` ile çift teslim önleme) testlidir.
 
-Not: Social bu olayları üretir; `notification-service`/`messaging-service` tarafında tüketici uç eklenmesi o servislerin sahiplerine bildirilmelidir (notification-service ortak/sahipsizdir).
+Not: Social bu olayları üretir; `notification-service` tarafında tüketici uç eklenmesi sahibine bildirilmelidir (notification-service ortak/sahipsizdir). Messaging bu olaylara ihtiyaç duymaz (LTZ-UMT-MSG-08 kararı, `docs-messaging/TASK-08.md` §3).
 
 #### Test Durumu
 UNIT + INTEGRATION (gerçek PostgreSQL; social-service 238 test PASS; `FanOutEventPublisherTest`, `UserEventPublisherTest`, `CommunityEventPublisherTest` ve `AuthServiceTokenClientTest` giden çağrıyı MockRestServiceServer ile doğrular). Community ve user-service ile gerçek Auth token'ıyla canlı teslim: **PASS** (2026-11-09; `user_db.social_friendships/social_blocks` ve `community_db.user_blocks` güncellendi, outbox `SENT`, `docs-social/TASK-06.md`).
@@ -5597,14 +5597,14 @@ UNIT + INTEGRATION (gerçek PostgreSQL; social-service 238 test PASS; `FanOutEve
 
 Sorumlu: Umut · Gateway: `/api/v1/messaging/**` · Görevler: MSG-
 
-Ortak kurallar (aşağıdaki tüm MESSAGING uçları için; görevler LTZ-UMT-MSG-01 (MSG-01..05, MSG-14, MSG-15), LTZ-UMT-MSG-02 (MSG-06..10, MSG-13, MSG-16, MSG-27), LTZ-UMT-MSG-03 (MSG-11, MSG-12), LTZ-UMT-MSG-04 (MSG-17, MSG-18, MSG-22), LTZ-UMT-MSG-05 (MSG-19, MSG-20, MSG-23..26), LTZ-UMT-MSG-06 (MSG-21) ve LTZ-UMT-MSG-07 (hesap silme, yayına hazırlık)):
-- Tüm uçlar `Authorization: Bearer <access token>` (kullanıcı token'ı, `typ=at+jwt`) ister; Gateway tarayıcı çerezini Bearer'a çevirir. Token servis tarafında Auth'un JWKS anahtarıyla yeniden doğrulanır (RS256, `iss`, `aud`, `typ=at+jwt`, `exp`/`nbf`/`iat`/`sub` zorunlu, 30 sn saat payı). Servis token'ı (`svc+jwt`) bu uçlarda geçmez. Messaging'in henüz iç (`/internal/**`) ucu yoktur; bu yollar kapalıdır.
+Ortak kurallar (aşağıdaki tüm MESSAGING uçları için; görevler LTZ-UMT-MSG-01 (MSG-01..05, MSG-14, MSG-15), LTZ-UMT-MSG-02 (MSG-06..10, MSG-13, MSG-16, MSG-27), LTZ-UMT-MSG-03 (MSG-11, MSG-12), LTZ-UMT-MSG-04 (MSG-17, MSG-18, MSG-22), LTZ-UMT-MSG-05 (MSG-19, MSG-20, MSG-23..26), LTZ-UMT-MSG-06 (MSG-21) LTZ-UMT-MSG-07 (hesap silme, yayına hazırlık) ve LTZ-UMT-MSG-08 (servisler arası entegrasyon)):
+- Tüm uçlar `Authorization: Bearer <access token>` (kullanıcı token'ı, `typ=at+jwt`) ister; Gateway tarayıcı çerezini Bearer'a çevirir. Token servis tarafında Auth'un JWKS anahtarıyla yeniden doğrulanır (RS256, `iss`, `aud`, `typ=at+jwt`, `exp`/`nbf`/`iat`/`sub` zorunlu, 30 sn saat payı). Servis token'ı (`svc+jwt`) bu uçlarda geçmez. Messaging'in tek iç ucu hesap verisi silmedir (`DELETE /internal/v1/accounts/{accountId}`, yalnız Auth servis token'ı); diğer `/internal/**` yolları kapalıdır ve Gateway `/internal/**`'u route etmez (canlı doğrulandı, LTZ-UMT-MSG-08).
 - `userId` yalnız token'ın `sub` alanından alınır; gövde/başlıktaki kimlik (`senderId`, `ownerId`, `X-User-Id` vb.) güvenilmez: gövdedeki bilinmeyen alan `400`, başlıklar yok sayılır.
 - Kimliksiz/geçersiz token `401 UNAUTHENTICATED`. Hata gövdesi `ProblemDetail` + `code`; doğrulama hatalarında `errors: [{field, code}]` döner, gönderilen değer geri yansıtılmaz. İstek gövdesi en fazla 32 KB (`413 PAYLOAD_TOO_LARGE`); yalnız görsel yükleme ucunda 1 MB.
 - **Erişim (MSG-14):** Sohbete yalnız **aktif üyesi** erişir. Hiç üye olmamış, ayrılmış ya da çıkarılmış kullanıcı ile var olmayan sohbet **aynı** `404 CONVERSATION_NOT_FOUND` alır (sohbetin varlığı ve türü sızdırılmaz). Yazma (mesaj uçları MSG-02 görevinde) ayrıca birebir sohbette iki taraf arasında engel olmamasını ister.
 - **Engel (MSG-15):** Engel verisi social-service'tedir; Messaging saklamaz, her etkileşimde `POST /internal/v1/blocks/check` ile sorar. İki kullanıcı arasında **herhangi bir yönde** engel varsa: birebir sohbet açılamaz (yeni ya da mevcut), engelli kişi gruba eklenemez (grup kurarken de) → `403 MESSAGING_NOT_ALLOWED` (engelin yönü ve hangi kişide olduğu söylenmez). Grupta yalnız **ekleyen ↔ eklenen** çifti denetlenir; mevcut grup üyeliği engelden etkilenmez. Engel durumu öğrenilemezse (Auth gizli anahtarı yok, Auth/Social ulaşılamaz ya da yanıt eksik) işlem **fail-closed** `503 BLOCK_CHECK_UNAVAILABLE` ile reddedilir.
 - **Roller:** Birebir sohbette iki taraf da `MEMBER`'dır. Grupta tek `OWNER` (oluşturan) vardır; `OWNER` ve `ADMIN` üye ekler, `OWNER` herkesi, `ADMIN` yalnız `MEMBER`'ı çıkarır; rolü yalnız `OWNER` değiştirir. Grup işlemleri birebir sohbette `409 GROUP_CONVERSATION_REQUIRED`.
-- Grup en fazla **100 üye** (sahip dahil, `ltz.messaging.groups.max-members`). Kullanıcıların varlığı doğrulanmaz (user-service ucu yok — **PENDING**); kimlikler yalnız UUID (REF) olarak saklanır.
+- Grup en fazla **100 üye** (sahip dahil, `ltz.messaging.groups.max-members`). Kullanıcıların varlığı doğrulanmaz (Messaging'e açık bir user-service ucu yok — **PENDING**, talep `docs-messaging/TASK-08.md` §6); kimlikler yalnız UUID (REF) olarak saklanır.
 - Sohbet kaynağı (`Conversation`) tek tip yanıt döner:
   ```json
   {
@@ -5623,11 +5623,12 @@ Ortak kurallar (aşağıdaki tüm MESSAGING uçları için; görevler LTZ-UMT-MS
 - **Benden sil / herkesten sil (MSG-25/26):** Benden silinen mesaj yalnız o kullanıcının geçmişinden, sohbet listesindeki `lastMessage`'ından, okunmamış sayısından ve alıntılarından kalkar; diğer üyeler ve okundu bilgisi etkilenmez. Herkesten silinen mesajın satırı kalır (`seq`, okunmamış ve okundu bilgisi bozulmaz) ama `deleted: true` döner; `body`, `attachment`, `gif`, `replyTo` boş, tepki özeti boştur. Herkesten silinmiş mesaja yanıt, iletme ve tepki `422 MESSAGE_DELETED`.
 - **Mesaj menüsü (MSG-24):** Menü frontend'dedir; backend her mesajda menünün ihtiyacını verir (`deletableForEveryoneUntil`, `reactions.mine`, `forwarded`) ve her işlemin yetkisini ayrıca uygular.
 - **Silinmiş hesap (LTZ-UMT-MSG-07):** Hesabı silinen kullanıcının mesajları `deleted: true` ve `senderId: "00000000-0000-0000-0000-000000000000"` döner; arayüz "Silinmiş hesap" gösterir. Bkz. "Hesap verisi silme".
+- **Entegrasyon (LTZ-UMT-MSG-08, 2026-11-13):** Auth (JWKS, servis token'ı, hesap silme), Social (engel sorgusu), LFP (ilan sahibiyle iletişim → birebir sohbet) ve Gateway (REST, SSE, 1 MB yükleme) gerçek DEV yığınında uçtan uca doğrulandı: 44/44 PASS, ayrıca iki gerçek örnek arasında canlı akış PASS. notification-service ve admin-service iskelet olduğundan bu bağlantılar bekler. Ayrıntı: `docs-messaging/TASK-08.md`.
 - **Yoğunluk (LTZ-UMT-MSG-07):** Veritabanı bağlantısı 5 sn içinde alınamazsa her uç `503 SERVICE_BUSY` ve `Retry-After: 1` döner (istek uzun süre bekletilmez).
 
 ### MESSAGING — Hesap verisi silme (Internal, Auth → Messaging)
 
-Durum: IMPLEMENTED (alıcı taraf; gerçek Auth token'ıyla uçtan uca NOT VERIFIED)
+Durum: IMPLEMENTED (gerçek Auth ile uçtan uca PASS, 2026-11-13)
 Sorumlu: Umut
 Tüketici servisler: auth-service (hesap silme koordinasyonu, `ltz.auth.deletion.targets` içinde `messaging` var)
 
@@ -5672,13 +5673,13 @@ Diğer mikroservisler:
 Auth, silme onaylandığında `${MESSAGING_SERVICE_URL}/internal/v1/accounts/{accountId}` adresini çağırır.
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; `AccountErasureTest` 16 test: rehberin 17 senaryosu ve veri senaryoları). Gerçek Auth servis token'ıyla uçtan uca: NOT VERIFIED (dev'de Auth sahibiyle birlikte bir test hesabı silinip `messaging` görevinin `CONFIRMED` olduğu kontrol edilmeli).
+UNIT + INTEGRATION (gerçek PostgreSQL; `AccountErasureTest` 16 test: rehberin 17 senaryosu ve veri senaryoları). Gerçek Auth servis token'ıyla uçtan uca: **PASS** (2026-11-13, DEV): test hesabı Gateway'den silme isteyip e-posta token'ıyla onayladı → bekleme süresi bitince Auth'taki `messaging` görevi ilk denemede `CONFIRMED`; `messaging_db`'de hesabın üyeliği, gönderen satırı ve outbox izi 0; karşı tarafın geçmişinde mesaj `deleted: true` + anonim gönderen; karşı tarafı silinen birebir sohbete yazmak `403` (`docs-messaging/TASK-08.md` §4).
 
 ### MESSAGING — Birebir sohbet aç (MSG-01)
 
 Durum: IMPLEMENTED
 Sorumlu: Umut
-Tüketici servisler: Frontend (ileride LFP-16 "ilan sahibiyle iletişim" bu uca yönlendirir)
+Tüketici servisler: Frontend (LFP-16 "ilan sahibiyle iletişim": LFP'nin döndüğü `recipientId` bu uca `userId` olarak verilir)
 
 #### Endpoint
 POST /api/v1/messaging/conversations/direct
@@ -5712,7 +5713,7 @@ Diğer mikroservisler:
 social-service `POST /internal/v1/blocks/check` (RestClient). Token: Auth `POST /internal/v1/service-tokens` (`clientId: "messaging-service"`, `audience: "social-service"`, `scope=blocks:check`, 60 sn); gizli anahtar `AUTH_MESSAGING_SERVICE_CLIENT_SECRET`.
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS; engel Social yerine test adaptörüyle, gerçek Social istemcisi MockRestServiceServer ile). Gerçek Auth + Social ile uçtan uca: NOT VERIFIED.
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 427 test PASS; engel Social yerine test adaptörüyle, gerçek Social istemcisi MockRestServiceServer ile). Gerçek Auth + Social ile Gateway üzerinden uçtan uca: **PASS** (2026-11-13): iki yönde engel `403 MESSAGING_NOT_ALLOWED`, engel kalkınca `201`, ters yönde aynı sohbet `200`; LFP `contact` → `recipientId` ile mevcut sohbet `200`.
 
 ### MESSAGING — Grup sohbeti oluştur (MSG-02)
 
@@ -5755,7 +5756,7 @@ Diğer mikroservisler:
 social-service engel sorgusu (oluşturan ↔ tüm ilk üyeler, tek toplu çağrı).
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED.
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 427 test PASS). Gerçek Social ile uçtan uca: **PASS** (2026-11-13): engelleyen kurucu engellediği kişiyle grup kuramaz (`403`), engelsiz kurucu ikisini aynı gruba ekler (`201`; yalnız ekleyen ↔ eklenen denetlenir).
 
 ### MESSAGING — Sohbet detayı (MSG-14)
 
@@ -6110,10 +6111,10 @@ Frontend:
 API Gateway üzerinden /api/v1/messaging/conversations/{conversationId}/messages
 
 Diğer mikroservisler:
-Birebir sohbette social-service engel sorgusu. GIF mesajında GIPHY `GET /v1/gifs/{id}` (bkz. "GIF ara"). `MessageSent` olayı outbox'a (notification-service) — teslim **PENDING**; olay içerik/görsel taşımaz.
+Birebir sohbette social-service engel sorgusu. GIF mesajında GIPHY `GET /v1/gifs/{id}` (bkz. "GIF ara"). `MessageSent` olayı outbox'a (notification-service) — relay hazır, teslim hedefi bekliyor (bkz. "Giden olay sözleşmeleri"); olay içerik/görsel taşımaz.
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS). Gerçek Social ile uçtan uca: NOT VERIFIED. Gerçek GIPHY ile: NOT VERIFIED.
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 427 test PASS). Gateway + gerçek Auth ile uçtan uca **PASS** (2026-11-13): metin ve görsel mesajı `201`, aynı `clientMessageId` ile yeniden deneme aynı mesajı `200` döner (mükerrer yok), outbox'ta tek `MessageSent`. Engel varken mevcut sohbete gönderim canlı denenmedi (servis içi testli). Gerçek GIPHY ile: NOT VERIFIED (DEV'de anahtar yok; fail-closed `503` canlı doğrulandı).
 
 ### MESSAGING — Mesaj eki yükle: görsel (MSG-17) / sesli mesaj (MSG-21)
 
@@ -6188,7 +6189,7 @@ Diğer mikroservisler:
 - (Ayrı medya servisi yoktur; içerik `messaging_db`'de `bytea`.)
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 427 test PASS). Gateway üzerinden canlı (2026-11-13): PNG yükleme `201`, 1 MB üstü gövde Gateway'den geçip `413 PAYLOAD_TOO_LARGE`. Ses yükleme Gateway üzerinden canlı denenmedi.
 
 ### MESSAGING — Mesaj ekini indir / sesi dinle (MSG-17, MSG-21)
 
@@ -6226,7 +6227,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 411 test PASS)
+UNIT + INTEGRATION (gerçek PostgreSQL; messaging-service 427 test PASS). Gateway üzerinden canlı (2026-11-13): alıcı `200 image/png`, sohbet üyesi olmayan `404`.
 
 ### MESSAGING — GIF ara (MSG-22)
 
@@ -6620,14 +6621,14 @@ Frontend:
 API Gateway üzerinden /api/v1/messaging/conversations/{conversationId}/messages/{messageId}/forward
 
 Diğer mikroservisler:
-Birebir hedeflerde social-service engel sorgusu. `MessageSent` olayı her kopya için outbox'a (teslim **PENDING**).
+Birebir hedeflerde social-service engel sorgusu. `MessageSent` olayı her kopya için outbox'a (teslim hedefi bekliyor).
 
 #### Test Durumu
 INTEGRATION (gerçek PostgreSQL; `MessageForwardTest` 10 test).
 
 ### MESSAGING — Gerçek zamanlı mesaj akışı (MSG-09, MSG-11)
 
-Durum: IMPLEMENTED (Gateway üzerinden canlı geçiş NOT VERIFIED)
+Durum: IMPLEMENTED (Gateway üzerinden canlı geçiş PASS, 2026-11-13)
 Sorumlu: Umut
 Tüketici servisler: Frontend (`EventSource`, `withCredentials: true`)
 
@@ -6696,11 +6697,11 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (servis içi uçtan uca akış MockMvc + gerçek PostgreSQL; `SseMessageHubTest` birim; `read` olayı `ReadReceiptStreamTest` 16 test). Gateway üzerinden gerçek tarayıcıyla: NOT VERIFIED.
+UNIT + INTEGRATION (servis içi uçtan uca akış MockMvc + gerçek PostgreSQL; `SseMessageHubTest` birim; `read` olayı `ReadReceiptStreamTest` 16 test). Gateway üzerinden canlı (2026-11-13, Node HTTP istemcisi): `text/event-stream`, `ready`, mesaj alıcıya 70–170 ms'de, `read` olayı gönderene ulaşır; 9 sn boşta akış kalp atışıyla açık kalır (Gateway okuma zaman aşımı 5 sn). İki gerçek örnek: akış ikinci örnekte, mesaj Gateway'den birinci örneğe gönderildi → ikinci örnekteki akışa ulaştı (PASS). Tarayıcı `EventSource` ile: NOT VERIFIED (messaging arayüzü yok).
 
-### MESSAGING — Giden olay sözleşmeleri (MSG-16, teslim bekliyor)
+### MESSAGING — Giden olay sözleşmeleri (MSG-16, teslim hedefi bekliyor)
 
-Durum: IN PROGRESS (olay outbox'a yazılıyor; teslim hedefi yok)
+Durum: IMPLEMENTED (üretici + relay; notification-service alıcı ucu ve Auth çifti olmadığından teslim kapalı)
 Sorumlu: Umut
 Tüketici servisler: notification-service
 
@@ -6712,10 +6713,16 @@ Olay mesajla **aynı transaction'da** `outbox_events` tablosuna yazılır: mesaj
 
 Yük **mesaj içeriği ve önizleme taşımaz** (SECURITY.md §6); bildirimde önizleme gösterilecekse gizlilik kararıyla ayrıca tasarlanır.
 
-Teslim durumu: **PENDING.** notification-service iskelet halinde (alıcı uç yok) ve Auth'ta `messaging-service → notification-service` (`events:ingest`) çifti tanımlı değil. Bu yüzden relay yazılmadı; olaylar `PENDING` bekler. Alıcı uç ve Auth çifti hazır olunca relay eklenir. Sahiplere bildirilmesi önerilir: notification-service ortak/sahipsiz, Auth'a talep `docs-auth/verilen-cevaplar/messaging-service/` altına yazılır.
+**Teslim (LTZ-UMT-MSG-08):** Relay 5 sn'de bir zamanı gelmiş `PENDING` olayları `FOR UPDATE SKIP LOCKED` ile alır (birden çok örnekte aynı olay iki kez alınmaz), kira süresi (1 dk) kadar öteler ve teslimi transaction dışında yapar. En az bir kez teslimdir; tüketici `eventId` ile tekilleştirir. Başarı `SENT`; hata üstel geri çekilme (30 sn → en çok 1 sa), 10. denemede `FAILED` (el ile müdahale). Uç ekip standardıdır (architecture.md §6.2; user ve community alıcılarıyla aynı): `POST {NOTIFICATION_SERVICE_URL}/internal/events`, Auth'tan `clientId: "messaging-service"`, `audience: "notification-service"` ile alınan 60 sn'lik token (`scope=events:ingest`, `sub=svc:messaging-service`). 2xx dışı her yanıt (3xx dahil) teslim sayılmaz.
+
+Adaptör `ltz.messaging.outbox.adapter`: **`unavailable` (varsayılan)** — hedef yok, relay olay almaz, deneme hakkı yanmaz; `notification` — yukarıdaki teslim. Yeni ENV yoktur; hedef hazır olunca ortama `LTZ_MESSAGING_OUTBOX_ADAPTER=notification` verilir. Gizli anahtar (`AUTH_MESSAGING_SERVICE_CLIENT_SECRET`) yoksa relay yine olay almaz.
+
+**Saklama:** her mesaj bir olay ürettiği için `occurredAt`'i 7 günden eski olaylar **durumdan bağımsız** silinir (10 dk'da bir, tur başına en çok 5000; `ltz.messaging.outbox.retention`). Eski bir "yeni mesaj" bildiriminin değeri yoktur; hedef geç açılırsa yalnız son 7 günün olayları teslim edilir. Hesap silmede hesabın izi outbox'tan ayrıca temizlenir (bkz. "Hesap verisi silme").
+
+Bekleyenler: notification-service'te alıcı uç (`POST /internal/events`, `MessageSent` v1) ve Auth'ta `messaging-service → notification-service: events:ingest` çifti (talep: `docs-auth/verilen-cevaplar/messaging-service/talep-01-notification-events-ingest.md`). İkisi gelince adaptör `notification` yapılıp canlı doğrulanır.
 
 #### Test Durumu
-INTEGRATION (gerçek PostgreSQL; `MessageSendTest`: olay tek kez yazılır, içerik taşımaz, alıcılar gönderen dışındaki aktif üyeler, engelli/ret durumunda olay yok). Gerçek teslim: NOT IMPLEMENTED.
+INTEGRATION (gerçek PostgreSQL; `MessageSendTest`: olay tek kez yazılır, içerik taşımaz, alıcılar gönderen dışındaki aktif üyeler, engelli/ret durumunda olay yok; `OutboxRelayTest` 8: teslim `SENT`, hata geri çekilmesi ve 10. denemede `FAILED`, bir olayın hatası diğerini engellemez, alınan olay ikinci kez alınmaz, hazır olmayan yayıncı deneme hakkı yakmaz, 7 günden eski olaylar silinir, gönderilen mesajın olayı uçtan uca teslim edilir) + UNIT (`NotificationEventPublisherTest` 8: uç, token hedefi, zarf, hatalarda teslim yok, iletide yük/token yok). Canlı DEV: varsayılan adaptörle olay `PENDING`, deneme 0 (PASS). notification-service'e gerçek teslim: NOT IMPLEMENTED (alıcı uç yok).
 
 ## LFP
 
