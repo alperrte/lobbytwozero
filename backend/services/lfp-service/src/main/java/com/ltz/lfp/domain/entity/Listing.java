@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.hibernate.annotations.BatchSize;
@@ -131,6 +132,56 @@ public class Listing {
         return ownerId.equals(userId);
     }
 
+    /**
+     * LFP-14/15: ilanın {@code now} anındaki durumu. Süresi geçmiş ama zamanlayıcının henüz işaretlemediği açık ilan
+     * {@code EXPIRED} sayılır; böylece işaretleme gecikse de süresi dolan ilan hiçbir yerde açık görünmez.
+     */
+    public ListingStatus statusAt(Instant now) {
+        return status == ListingStatus.OPEN && !now.isBefore(expiresAt) ? ListingStatus.EXPIRED : status;
+    }
+
+    public boolean isOpenAt(Instant now) {
+        return statusAt(now) == ListingStatus.OPEN;
+    }
+
+    /**
+     * LFP-12: sahip içeriği değiştirir; oyun ve süre değişmez. Yalnız açık ilan güncellenir. Oyun başlangıcı
+     * değişmediyse "geçmişte olamaz" kuralı yeniden uygulanmaz (planlanan zamanı gelmiş ilanın açıklaması
+     * düzeltilebilsin); değiştiyse yeni başlangıç geçmişte olamaz.
+     */
+    public void update(ListingContent content, Instant now, Duration maxPlayWindow) {
+        requireOpen(now);
+        Instant earliest = Objects.equals(content.playTimeStart(), playTimeStart)
+                ? null
+                : now.minus(PLAY_TIME_TOLERANCE);
+        checkPlayTime(content, earliest, expiresAt, maxPlayWindow);
+        apply(content);
+        updatedAt = now;
+    }
+
+    /**
+     * LFP-13: sahip ilanı kapatır ({@code OPEN → CLOSED}). Zaten kapalıysa değişiklik yapılmaz ({@code false});
+     * süresi dolmuş ilan kapatılamaz.
+     *
+     * @return ilan bu çağrıda kapandıysa {@code true}
+     */
+    public boolean close(Instant now) {
+        if (status == ListingStatus.CLOSED) {
+            return false;
+        }
+        requireOpen(now);
+        status = ListingStatus.CLOSED;
+        closedAt = now;
+        updatedAt = now;
+        return true;
+    }
+
+    private void requireOpen(Instant now) {
+        if (!isOpenAt(now)) {
+            throw new LfpException(LfpErrorCode.LISTING_NOT_OPEN);
+        }
+    }
+
     /** Roller değiştirilemez bir kopya olarak döner; liste yalnız içerik uygulanarak değişir. */
     public List<String> getRoles() {
         return List.copyOf(roles);
@@ -149,9 +200,9 @@ public class Listing {
     }
 
     /**
-     * LFP-07: oyun zamanı isteğe bağlıdır. Verilirse başlangıç {@code earliest}'ten önce olamaz ve ilan bitmeden
-     * başlamalıdır; bitiş yalnız başlangıçla birlikte verilir, başlangıçtan sonradır ve aralık {@code maxWindow}'u
-     * aşamaz.
+     * LFP-07: oyun zamanı isteğe bağlıdır. Verilirse başlangıç {@code earliest}'ten önce olamaz ({@code null} ise bu
+     * kural atlanır) ve ilan bitmeden başlamalıdır; bitiş yalnız başlangıçla birlikte verilir, başlangıçtan sonradır ve
+     * aralık {@code maxWindow}'u aşamaz.
      */
     static void checkPlayTime(ListingContent content, Instant earliest, Instant expiresAt, Duration maxWindow) {
         Instant start = content.playTimeStart();
@@ -162,7 +213,7 @@ public class Listing {
             }
             return;
         }
-        if (start.isBefore(earliest)) {
+        if (earliest != null && start.isBefore(earliest)) {
             throw new LfpException(LfpErrorCode.INVALID_PLAY_TIME);
         }
         if (start.isAfter(expiresAt)) {

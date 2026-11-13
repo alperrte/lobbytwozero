@@ -1,7 +1,9 @@
 package com.ltz.lfp;
 
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -64,7 +66,8 @@ import tools.jackson.databind.ObjectMapper;
 @ActiveProfiles("test")
 @SpringBootTest
 @Import(ScriptedGameCatalog.Configuration.class)
-@TestPropertySource(properties = "ltz.lfp.games.adapter=scripted")
+// Süre dolumu zamanlayıcısı testlerde kapalıdır; testler ListingExpiryService'i doğrudan çağırır.
+@TestPropertySource(properties = {"ltz.lfp.games.adapter=scripted", "ltz.lfp.expiry.enabled=false"})
 public abstract class IntegrationTestSupport {
 
     protected static final String ISSUER = "ltz-auth";
@@ -200,6 +203,54 @@ public abstract class IntegrationTestSupport {
     protected UUID openListing(UUID owner, Map<String, Object> body) throws Exception {
         String response = createListing(owner, body).andReturn().getResponse().getContentAsString();
         return UUID.fromString(JsonPath.read(response, "$.id"));
+    }
+
+    protected ResultActions getListing(UUID viewer, UUID listingId) throws Exception {
+        return mockMvc.perform(get(LfpApiPaths.LISTING, listingId).header(HttpHeaders.AUTHORIZATION, bearer(viewer)));
+    }
+
+    /** Aktif ilan araması; {@code query} örn. {@code "?gameId=..."} ya da boş. */
+    protected ResultActions search(UUID viewer, String query) throws Exception {
+        return mockMvc.perform(get(LfpApiPaths.LISTINGS + query).header(HttpHeaders.AUTHORIZATION, bearer(viewer)));
+    }
+
+    protected ResultActions updateListing(UUID actor, UUID listingId, Map<String, Object> body) throws Exception {
+        return mockMvc.perform(put(LfpApiPaths.LISTING, listingId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(actor))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)));
+    }
+
+    protected ResultActions closeListing(UUID actor, UUID listingId) throws Exception {
+        return mockMvc.perform(post(LfpApiPaths.LISTING_CLOSE, listingId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(actor)));
+    }
+
+    /** Geçerli bir tam güncelleme gövdesi ({@code version} dahil); testler alanları değiştirir. */
+    protected static Map<String, Object> updateBody(long version) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("platform", "XBOX");
+        body.put("skillLevel", "Gold");
+        body.put("roles", List.of("Healer"));
+        body.put("playersNeeded", 4);
+        body.put("micRequired", false);
+        body.put("description", "Güncellenmiş açıklama");
+        body.put("version", version);
+        return body;
+    }
+
+    protected long listingVersion(UUID listingId) {
+        return jdbc.queryForObject("select version from lfp_listings where id = ?", Long.class, listingId);
+    }
+
+    /**
+     * İlanın süresini geçmişe çeker (zamanlayıcı henüz çalışmamış gibi durum {@code OPEN} kalır). Kısıtlar korunur:
+     * oluşturma 25 saat, bitiş 1 saat önceye taşınır.
+     */
+    protected void makeOverdue(UUID listingId) {
+        jdbc.update("update lfp_listings set created_at = now() - interval '25 hours', "
+                + "expires_at = now() - interval '1 hour', play_time_start = null, play_time_end = null "
+                + "where id = ?", listingId);
     }
 
     protected int listingCount(UUID owner) {

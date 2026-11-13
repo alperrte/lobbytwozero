@@ -25,7 +25,8 @@ import com.ltz.lfp.infrastructure.persistence.repository.OwnerLock;
 import lombok.RequiredArgsConstructor;
 
 /**
- * İlan oluşturma (LTZ-UMT-LFP-01: LFP-01..09). Sıra: metin ve süre kuralları → oyunun katalogda doğrulanması
+ * İlan yazma işlemleri: oluşturma (LTZ-UMT-LFP-01: LFP-01..09), güncelleme ve kapatma (LTZ-UMT-LFP-02: LFP-12,
+ * LFP-13). Oluşturma sırası: metin ve süre kuralları → oyunun katalogda doğrulanması
  * (game-service, transaction dışında; dış çağrı veritabanı bağlantısını tutmasın) → sahip kilidi altında açık ilan ve
  * saatlik oluşturma sınırı → kayıt. Sahip yalnız doğrulanmış token'dan gelir.
  */
@@ -57,8 +58,56 @@ public class ListingService {
             enforceLimits(ownerId, now);
             Listing listing = Listing.open(ownerId, game.gameId(), game.title(), content, now, duration,
                     properties.maxPlayWindow());
-            return ListingMapper.toView(listings.saveAndFlush(listing));
+            return ListingMapper.toView(listings.saveAndFlush(listing), now);
         });
+    }
+
+    /**
+     * LFP-12: yalnız sahip, yalnız açık ilanı günceller. Sıra: sahiplik (yoksa 404, başkasınınsa 403) → açık mı (409
+     * {@code LISTING_NOT_OPEN}) → istemcinin gördüğü sürüm (farklıysa 409 {@code CONCURRENT_MODIFICATION}). Aynı anda
+     * gelen değişiklik (başka bir güncelleme, kapatma, süre dolumu) {@code @Version} ile yakalanır.
+     */
+    public ListingView update(UUID ownerId, UUID listingId, UpdateListingCommand command) {
+        ListingContent content = ListingContent.of(command.platform(), command.skillLevel(), command.roles(),
+                command.playersNeeded(), command.playTimeStart(), command.playTimeEnd(), command.micRequired(),
+                command.description());
+        return transactions.execute(status -> {
+            Instant now = now();
+            Listing listing = owned(ownerId, listingId);
+            if (!listing.isOpenAt(now)) {
+                throw new LfpException(LfpErrorCode.LISTING_NOT_OPEN);
+            }
+            if (listing.getVersion() != command.version()) {
+                throw new LfpException(LfpErrorCode.CONCURRENT_MODIFICATION);
+            }
+            listing.update(content, now, properties.maxPlayWindow());
+            return ListingMapper.toView(listings.saveAndFlush(listing), now);
+        });
+    }
+
+    /**
+     * LFP-13: yalnız sahip kapatır ({@code OPEN → CLOSED}). İdempotenttir: zaten kapalı ilan olduğu gibi döner.
+     * Süresi dolmuş ilan kapatılamaz (409 {@code LISTING_NOT_OPEN}).
+     */
+    public ListingView close(UUID ownerId, UUID listingId) {
+        return transactions.execute(status -> {
+            Instant now = now();
+            Listing listing = owned(ownerId, listingId);
+            if (listing.close(now)) {
+                listings.saveAndFlush(listing);
+            }
+            return ListingMapper.toView(listing, now);
+        });
+    }
+
+    /** İlan yoksa 404; varsa ama sahibi başkasıysa 403 (ilanlar giriş yapmış herkese görünür, varlığı gizli değil). */
+    private Listing owned(UUID ownerId, UUID listingId) {
+        Listing listing = listings.findById(listingId)
+                .orElseThrow(() -> new LfpException(LfpErrorCode.LISTING_NOT_FOUND));
+        if (!listing.isOwnedBy(ownerId)) {
+            throw new LfpException(LfpErrorCode.NOT_LISTING_OWNER);
+        }
+        return listing;
     }
 
     /** LFP-15: süre saat olarak seçilir; verilmezse varsayılan. Ayarlı aralığın dışı 400. */

@@ -6,14 +6,17 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.web.client.RestClient;
 
 import com.ltz.lfp.application.port.GameCatalogPort;
 import com.ltz.lfp.infrastructure.client.GameServiceClient;
 
 @Configuration(proxyBeanMethods = false)
+@EnableScheduling
 @EnableConfigurationProperties({
         AuthProperties.class,
+        ExpiryProperties.class,
         ListingProperties.class,
         RequestLimitProperties.class,
         ServiceClientProperties.class

@@ -25,7 +25,11 @@ public record ListingProperties(
         /** Kullanıcı başına aynı anda açık ilan. */
         @Min(1) @Max(50) int maxOpenPerOwner,
         /** Kullanıcı başına son bir saatte açılabilecek ilan. */
-        @Min(1) @Max(100) int maxCreatedPerHour) {
+        @Min(1) @Max(100) int maxCreatedPerHour,
+        /** Liste uçlarında sayfa başına varsayılan ilan. */
+        @Min(1) @Max(100) int defaultPageSize,
+        /** Liste uçlarında istemcinin isteyebileceği en büyük sayfa. */
+        @Min(1) @Max(100) int maxPageSize) {
 
     private static final Duration DB_MIN_DURATION = Duration.ofHours(1);
     private static final Duration DB_MAX_DURATION = Duration.ofDays(7);

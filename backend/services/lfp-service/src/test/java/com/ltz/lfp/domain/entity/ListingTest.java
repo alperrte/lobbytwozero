@@ -60,6 +60,70 @@ class ListingTest {
                 LfpErrorCode.INVALID_PLAY_TIME);
     }
 
+    @Test
+    void sureSonundaDurumExpiredSayilir() {
+        Listing listing = open();
+
+        assertThat(listing.statusAt(NOW.plus(DAY).minusNanos(1000))).isEqualTo(ListingStatus.OPEN);
+        assertThat(listing.statusAt(NOW.plus(DAY))).isEqualTo(ListingStatus.EXPIRED);
+        assertThat(listing.isOpenAt(NOW.plus(DAY))).isFalse();
+        assertThat(listing.getStatus()).isEqualTo(ListingStatus.OPEN);
+    }
+
+    @Test
+    void guncellemeIcerigiDegistirirSureyiDegistirmez() {
+        Listing listing = open();
+        Instant later = NOW.plusSeconds(600);
+
+        listing.update(ListingContent.of(Platform.XBOX, "Gold", List.of("Tank", "Healer"), 4, null, null, true,
+                "Yeni"), later, WINDOW);
+
+        assertThat(listing.getPlatform()).isEqualTo(Platform.XBOX);
+        assertThat(listing.getRoles()).containsExactly("Tank", "Healer");
+        assertThat(listing.getUpdatedAt()).isEqualTo(later);
+        assertThat(listing.getExpiresAt()).isEqualTo(NOW.plus(DAY));
+    }
+
+    @Test
+    void degismeyenBaslangicGecmisteOlabilirDegisenOlamaz() {
+        Instant start = NOW.plusSeconds(600);
+        Listing listing = Listing.open(UUID.randomUUID(), UUID.randomUUID(), "Game", content(start, null), NOW, DAY,
+                WINDOW);
+        Instant muchLater = start.plus(Duration.ofHours(2));
+
+        listing.update(content(start, null), muchLater, WINDOW);
+        assertThat(listing.getPlayTimeStart()).isEqualTo(start);
+
+        assertThatThrownBy(() -> listing.update(content(start.plusSeconds(1), null), muchLater, WINDOW))
+                .isInstanceOfSatisfying(LfpException.class,
+                        exception -> assertThat(exception.errorCode()).isEqualTo(LfpErrorCode.INVALID_PLAY_TIME));
+    }
+
+    @Test
+    void kapatmaIdempotentKapaliVeSuresiDolmusGuncellenemez() {
+        Listing listing = open();
+        Instant closeAt = NOW.plusSeconds(60);
+
+        assertThat(listing.close(closeAt)).isTrue();
+        assertThat(listing.close(closeAt.plusSeconds(1))).isFalse();
+        assertThat(listing.getStatus()).isEqualTo(ListingStatus.CLOSED);
+        assertThat(listing.getClosedAt()).isEqualTo(closeAt);
+        assertNotOpen(() -> listing.update(content(null, null), closeAt, WINDOW));
+
+        Listing expired = open();
+        assertNotOpen(() -> expired.close(NOW.plus(DAY)));
+        assertNotOpen(() -> expired.update(content(null, null), NOW.plus(DAY), WINDOW));
+    }
+
+    private static Listing open() {
+        return Listing.open(UUID.randomUUID(), UUID.randomUUID(), "Game", content(null, null), NOW, DAY, WINDOW);
+    }
+
+    private static void assertNotOpen(org.assertj.core.api.ThrowableAssert.ThrowingCallable call) {
+        assertThatThrownBy(call).isInstanceOfSatisfying(LfpException.class,
+                exception -> assertThat(exception.errorCode()).isEqualTo(LfpErrorCode.LISTING_NOT_OPEN));
+    }
+
     private static void assertOpens(Instant start, Instant end) {
         Listing listing = Listing.open(UUID.randomUUID(), UUID.randomUUID(), "Game", content(start, end), NOW, DAY,
                 WINDOW);
