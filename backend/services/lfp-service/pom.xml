@@ -122,6 +122,12 @@
 			<artifactId>spring-boot-starter-validation-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- Gerçek PostgreSQL ile migration/entegrasyon testleri -->
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers-postgresql</artifactId>
+			<scope>test</scope>
+		</dependency>
 	        <!-- Environment configuration -->
         <dependency>
             <groupId>io.github.cdimascio</groupId>

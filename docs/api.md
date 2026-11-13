@@ -5515,10 +5515,10 @@ Frontend:
 -
 
 Diğer mikroservisler:
-messaging-service ve lfp-service Auth'tan `POST /internal/v1/service-tokens` ile (`audience: "social-service"`) 60 sn'lik token alıp bu ucu `${SOCIAL_SERVICE_URL}/internal/v1/blocks/check` adresinde çağırır. messaging-service istemcisi (`SocialBlockCheckClient`, LTZ-UMT-MSG-01) yazıldı ve MockRestServiceServer ile testli; lfp-service tarafı iskelet. Gerçek Auth token'ıyla uçtan uca çağrı **NOT VERIFIED**.
+messaging-service ve lfp-service Auth'tan `POST /internal/v1/service-tokens` ile (`audience: "social-service"`) 60 sn'lik token alıp bu ucu `${SOCIAL_SERVICE_URL}/internal/v1/blocks/check` adresinde çağırır. messaging-service istemcisi (`SocialBlockCheckClient`, LTZ-UMT-MSG-01) yazıldı ve MockRestServiceServer ile testli; lfp-service istemcisi (`SocialBlockCheckClient`, LTZ-UMT-LFP-03) aynı sözleşmeyle yazıldı (ilan listesi/detayı/iletişim). LFP için gerçek Auth token'ıyla uçtan uca çağrı **NOT VERIFIED**.
 
 #### Test Durumu
-UNIT + INTEGRATION (gerçek PostgreSQL; `BlocksCheckTest` 13 test: iki yön, engel kaldırma, başkasının engeli, yinelenen kimlik, 100/101 sınırı, geçersiz gövde, kimlik/kapsam/çağıran/`aud`/`iss`/`typ` ihlalleri). Gerçek Auth token'ıyla messaging-service üzerinden uçtan uca: **PASS** (2026-11-09; engel varken iki yönde `403 MESSAGING_NOT_ALLOWED`, kalkınca sohbet açılır). lfp-service istemcisi yok.
+UNIT + INTEGRATION (gerçek PostgreSQL; `BlocksCheckTest` 13 test: iki yön, engel kaldırma, başkasının engeli, yinelenen kimlik, 100/101 sınırı, geçersiz gövde, kimlik/kapsam/çağıran/`aud`/`iss`/`typ` ihlalleri). Gerçek Auth token'ıyla messaging-service üzerinden uçtan uca: **PASS** (2026-11-09; engel varken iki yönde `403 MESSAGING_NOT_ALLOWED`, kalkınca sohbet açılır). lfp-service istemcisi yazıldı (`SocialBlockCheckClientTest`, MockRestServiceServer); uçtan uca NOT VERIFIED.
 
 ### SOCIAL — Hesap verisi silme (Internal, Auth → Social)
 
@@ -6721,7 +6721,390 @@ INTEGRATION (gerçek PostgreSQL; `MessageSendTest`: olay tek kez yazılır, içe
 
 Sorumlu: Umut · Gateway: `/api/v1/lfp/**` · Görevler: LFP-
 
-_Kayıt yok._
+Ortak kurallar (aşağıdaki tüm LFP uçları için; görevler LTZ-UMT-LFP-01 (LFP-01..09), LTZ-UMT-LFP-02 (LFP-10..15) ve LTZ-UMT-LFP-03 (LFP-16..18)):
+- **Engel (LFP-17):** Engel verisi social-service'tedir; LFP saklamaz, her okumada `POST /internal/v1/blocks/check` ile sorar (sayfa başına tek toplu çağrı). İki kullanıcı arasında **herhangi bir yönde** engel varsa: birbirlerinin ilanları aktif listede görünmez, ilan detayı ve iletişim `404 LISTING_NOT_FOUND` döner (ilanın varlığı sızdırılmaz). Kullanıcının kendi ilanları için Social'a sorulmaz. Engel durumu öğrenilemezse (Auth gizli anahtarı yok, Auth/Social ulaşılamaz ya da yanıt eksik) liste, detay ve iletişim **fail-closed** `503 BLOCK_CHECK_UNAVAILABLE` döner; ilan oluşturma/güncelleme/kapatma ve "kendi ilanlarım" etkilenmez. Engel kalkınca ilanlar yeniden görünür.
+- Tüm uçlar `Authorization: Bearer <access token>` (kullanıcı token'ı, `typ=at+jwt`) ister; Gateway tarayıcı çerezini Bearer'a çevirir. Token servis tarafında Auth'un JWKS anahtarıyla yeniden doğrulanır (RS256, `iss`, `aud`, `typ=at+jwt`, `exp`/`nbf`/`iat`/`sub` zorunlu, 30 sn saat payı). Servis token'ı (`svc+jwt`) bu uçlarda geçmez. Misafir ilan göremez (ürün kararı, 2026-11-13).
+- `userId` yalnız token'ın `sub` alanından alınır; gövdedeki kimlik (`ownerId` vb.) güvenilmez: gövdedeki bilinmeyen alan `400 MALFORMED_REQUEST`.
+- Kimliksiz/geçersiz token `401 UNAUTHENTICATED`. Hata gövdesi `ProblemDetail` + `code`; doğrulama hatalarında `errors: [{field, code}]` döner, gönderilen değer geri yansıtılmaz. İstek gövdesi en fazla 8 KB (`413 PAYLOAD_TOO_LARGE`).
+- Oyun ve kullanıcılar yalnız kimlikle (REF) tutulur. Sahibin görünen adı/avatarı LFP'de yoktur; istemci `USER — Toplu profil kartı` ucundan alır.
+- İlan kaynağı (`Listing`) tek tip yanıt döner:
+  ```json
+  {
+    "id": "UUID",
+    "ownerId": "UUID",
+    "gameId": "UUID",
+    "gameTitle": "string — ilan açılırken game-service'ten alınan ad (anlık görüntü)",
+    "platform": "PC | PLAYSTATION | XBOX | NINTENDO_SWITCH | MOBILE | OTHER",
+    "skillLevel": "string (1–50) veya null — belirtilmedi",
+    "roles": ["string (1–30)", "... 1–5 adet, sıralı"],
+    "playersNeeded": "int 1–50",
+    "playTimeStart": "ISO-8601 (UTC) veya null",
+    "playTimeEnd": "ISO-8601 (UTC) veya null",
+    "micRequired": "boolean",
+    "description": "string (1–1000, düz metin; satır sonu korunur)",
+    "status": "OPEN | CLOSED | EXPIRED",
+    "expiresAt": "ISO-8601 (UTC)",
+    "createdAt": "ISO-8601 (UTC)",
+    "updatedAt": "ISO-8601 (UTC)",
+    "closedAt": "ISO-8601 (UTC) veya null",
+    "version": "long — güncelleme isteğinde geri gönderilir"
+  }
+  ```
+  Metinler düz metindir (HTML işlenmez). Baştaki/sondaki boşluk atılır; uzunluk karakter (code point) olarak sayılır; kontrol ve görünmez biçim karakterleri reddedilir (açıklamada yalnız satır sonu ve sekme serbest, emoji birleştiricisi U+200D serbest).
+- **Durumlar (LFP-14):** `OPEN → CLOSED` (sahip kapatır), `OPEN → EXPIRED` (süre dolar). Kapanmış ya da süresi dolmuş ilan yeniden açılmaz ve güncellenemez. `status` her yanıtta **okuma anındaki** durumdur: süresi geçmiş ama zamanlayıcının henüz işaretlemediği ilan da `EXPIRED` döner ve aktif listelerde görünmez (LFP-15).
+- **Süre dolumu (LFP-15):** zamanlayıcı dakikada bir süresi dolan açık ilanları kalıcı olarak `EXPIRED` yapar (`ltz.lfp.expiry.*`; parti 500, `FOR UPDATE SKIP LOCKED`, birden çok örnekte güvenli). Sürüm artar; aynı anda gelen sahip güncellemesi `409` alır.
+- **Sayfalama:** liste uçları en yeni önce (`createdAt desc, id desc`) ve keyset imleciyle ilerler: `limit` (varsayılan 20, 1–50; aralık dışı `400 INVALID_PAGE_SIZE`), `cursor` (önceki yanıtın `nextCursor`'u; opak, bozuksa `400 INVALID_CURSOR`). Sonraki sayfa aynı süzgeçlerle istenir. Yanıt: `{ "items": [Listing], "nextCursor": "string veya null" }`.
+
+### LFP — İlan oluştur (LFP-01..09, LFP-15)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/lfp/listings
+
+#### Yetkilendirme
+Authenticated (sahip = token sahibi)
+
+#### Request Body
+```json
+{
+  "gameId": "UUID, zorunlu — LTZ kataloğundaki oyun (LFP-02)",
+  "platform": "PC | PLAYSTATION | XBOX | NINTENDO_SWITCH | MOBILE | OTHER, zorunlu (LFP-03)",
+  "skillLevel": "string, opsiyonel — rank/seviye/deneyim beklentisi; boş = belirtilmedi (LFP-04)",
+  "roles": ["string", "zorunlu, 1–5 rol ya da oyuncu tipi (LFP-05)"],
+  "playersNeeded": "int, zorunlu, 1–50 (LFP-06)",
+  "playTimeStart": "ISO-8601, opsiyonel — planlanan başlangıç (LFP-07)",
+  "playTimeEnd": "ISO-8601, opsiyonel — yalnız başlangıçla birlikte (LFP-07)",
+  "micRequired": "boolean, zorunlu (LFP-08)",
+  "description": "string, zorunlu, 1–1000 (LFP-09)",
+  "durationHours": "int, opsiyonel, 1–168; verilmezse 24 (LFP-15)"
+}
+```
+Kurallar:
+- **Oyun (LFP-02):** game-service'in herkese açık kart ucuyla doğrulanır; yalnız yayındaki (ACTIVE) kayıt kabul edilir. Tür `SOUNDTRACK`, `VIDEO`, `HARDWARE`, `SOFTWARE` ise ilan açılmaz; `MAIN_GAME`, `DLC`, `DEMO`, `UNKNOWN` ve yeni türler kabul edilir. Oyun adı yanıttan alınıp temizlenir (kontrol karakteri boşluğa, en çok 500 karakter).
+- **Platform (LFP-03):** sabit liste; oyunun game-service'teki platform verisine göre doğrulanmaz (o veri Steam kaynaklıdır, konsolları çoğu oyunda bilmez).
+- **Roller (LFP-05):** büyük/küçük harf farkıyla tekrarlanan rol bir kez tutulur (ilk yazım ve sıra korunur).
+- **Oyun zamanı (LFP-07):** başlangıç en çok 5 dk geçmişte olabilir (saat farkı payı) ve ilan bitmeden başlamalıdır; bitiş başlangıçtan sonradır ve aralık en çok 24 saattir.
+- **Süre (LFP-15):** `expiresAt = createdAt + durationHours`. Süre sonradan değiştirilmez.
+- **Kötüye kullanım:** kullanıcı başına aynı anda en çok **5 açık ilan** (süresi geçmiş ama henüz işaretlenmemiş ilan sayılmaz) ve son bir saatte en çok **10 yeni ilan** (kapatılanlar dahil). Sınırlar sahip başına advisory kilit altında denetlenir; eşzamanlı istekler sınırı aşamaz. Ayarlar: `ltz.lfp.listings.*`.
+- Gövde kuralları game-service çağrılmadan önce denetlenir.
+
+#### Response — 201
+`Listing` (`status: OPEN`, `closedAt: null`). `Location: /api/v1/lfp/listings/{id}`.
+
+#### Hata Durumları
+- 400: Eksik/biçimsiz alan, bilinmeyen alan ya da platform (`VALIDATION_FAILED`, `MALFORMED_REQUEST`); `INVALID_DESCRIPTION`, `INVALID_SKILL_LEVEL`, `INVALID_ROLES`, `INVALID_DURATION`, `INVALID_PLAY_TIME`, `PLAY_TIME_AFTER_EXPIRY`
+- 401: Kimlik yok/geçersiz (`UNAUTHENTICATED`)
+- 409: Açık ilan sınırı (`OPEN_LISTING_LIMIT`)
+- 413: İstek gövdesi 8 KB'yi aşıyor (`PAYLOAD_TOO_LARGE`)
+- 422: Oyun katalogda yok ya da yayında değil (`GAME_NOT_FOUND`); katalog kaydı oyun değil (`GAME_NOT_PLAYABLE`)
+- 429: Son bir saatte çok fazla ilan (`LISTING_RATE_LIMITED`)
+- 503: game-service yanıt vermedi ya da yanıtı tutarsız (`GAME_CATALOG_UNAVAILABLE`); ilan açılmaz (fail-closed)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/lfp/listings
+
+Diğer mikroservisler:
+game-service `GET /api/v1/game/{gameId}/card` (RestClient, kimliksiz; `GAME_SERVICE_URL`, zaman aşımı 3 sn / 5 sn, yönlendirme izlenmez, otomatik tekrar yok). `404` → `GAME_NOT_FOUND`; diğer her durum → `GAME_CATALOG_UNAVAILABLE`.
+
+#### Test Durumu
+UNIT + INTEGRATION — testler yazıldı (gerçek PostgreSQL 17 / Testcontainers; `ListingCreateTest`, `ListingConcurrencyTest`, `FlywayMigrationTest`, `JwtValidationTest`, `RequestBodySizeLimitTest`, `ServiceBoundaryTest`, `ListingTest`, `ListingTextTest`; gerçek game-service istemcisi `GameServiceClientTest` ile MockRestServiceServer). PASS (2026-11-13; `pre-push lfp-service` ve `full dev`: lfp-service 139 test, satır kapsamı %95,49). Gerçek game-service ile uçtan uca: NOT VERIFIED.
+
+### LFP — Aktif ilanları listele ve ara (LFP-10, LFP-11, LFP-15)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/lfp/listings
+
+#### Yetkilendirme
+Authenticated
+
+#### Query Parameters
+Tüm süzgeçler opsiyoneldir ve birlikte (VE) uygulanır; arama bu serviste yapılır.
+- gameId: UUID — yalnız bu oyunun ilanları
+- platform: `PC | PLAYSTATION | XBOX | NINTENDO_SWITCH | MOBILE | OTHER` (bilinmeyen değer `400 MALFORMED_REQUEST`)
+- skillLevel: string (en çok 50) — seviye metninde geçen ifade (büyük/küçük harf duyarsız). Seviyesi **belirtilmemiş** ilanlar da eşleşir (LFP-11 "seviye (belirtilmişse)": seviye beklentisi olmayan ilan her seviyeye açıktır)
+- role: string (en çok 30) — ilanın rollerinden biriyle tam eşleşme (büyük/küçük harf duyarsız)
+- playFrom / playTo: ISO-8601 (`Z` ile, ör. `2026-11-14T18:00:00Z`) — planlanan başlangıç bu aralıkta; oyun zamanı belirtilmemiş ilan zaman süzgecinde eşleşmez. `playFrom > playTo` `400 INVALID_FILTER`
+- micRequired: boolean
+- q: string (en çok 100) — oyun adında ya da açıklamada geçen ifade (büyük/küçük harf duyarsız; `%` ve `_` joker değil, düz karakterdir)
+- limit, cursor: sayfalama (ortak kurallar)
+
+Metin süzgeçlerinde kontrol karakteri ya da sınırı aşan uzunluk `400 INVALID_FILTER`; boş metin süzgeci yok sayılır.
+
+#### Response — 200
+`{ "items": [Listing], "nextCursor": "string veya null" }` — yalnız okuma anında **açık** ilanlar (`status=OPEN` ve `expiresAt` gelecekte), en yeni önce. İsteyenle arasında engel olan sahiplerin ilanları atlanır (LFP-17); sayfayı doldurmak için en çok 3 parti okunur, bu yüzden sayfa `limit`'ten kısa olabilir — `nextCursor` doluysa devamı vardır (boş sayfa + dolu imleç de geçerlidir). İmleç son incelenen ilandır; tekrar ya da atlama olmaz.
+
+#### Hata Durumları
+- 400: `INVALID_FILTER`, `INVALID_PAGE_SIZE`, `INVALID_CURSOR`, biçimsiz parametre (`MALFORMED_REQUEST`)
+- 401: Kimlik yok/geçersiz (`UNAUTHENTICATED`)
+- 503: Engel durumu öğrenilemedi (`BLOCK_CHECK_UNAVAILABLE`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/lfp/listings
+
+Diğer mikroservisler:
+social-service `POST /internal/v1/blocks/check` (sayfa/parti başına tek çağrı, en çok 50 sahip; boş sonuçta çağrı yok). Token: Auth `POST /internal/v1/service-tokens` (`clientId: "lfp-service"`, `audience: "social-service"`, `scope=blocks:check`, 60 sn); gizli anahtar `AUTH_LFP_SERVICE_CLIENT_SECRET`.
+
+#### Test Durumu
+UNIT + INTEGRATION — `ListingSearchTest` (sıra, durumlar, sayfalama, her süzgeç ve birleşimi, joker kaçışı, geçersiz parametreler), `ListingExpiryTest`, `ListingPrivacyContactTest` (iki yönlü engel, sayfa doldurma, tek çağrı, fail-closed). PASS (2026-11-13; `pre-push lfp-service` ve `full dev`: lfp-service 139 test, satır kapsamı %95,49).
+
+### LFP — Kendi ilanlarım
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/lfp/listings/mine
+
+#### Yetkilendirme
+Owner (yalnız token sahibinin ilanları)
+
+#### Query Parameters
+- status: `OPEN | CLOSED | EXPIRED`, opsiyonel — okuma anındaki duruma göre (süresi geçmiş ama işaretlenmemiş ilan `EXPIRED` sayılır)
+- limit, cursor: sayfalama (ortak kurallar)
+
+#### Response — 200
+`{ "items": [Listing], "nextCursor": "string veya null" }` — sahibin tüm durumlardaki ilanları, en yeni önce.
+
+#### Hata Durumları
+- 400: `INVALID_PAGE_SIZE`, `INVALID_CURSOR`, bilinmeyen `status` (`MALFORMED_REQUEST`)
+- 401: Kimlik yok/geçersiz (`UNAUTHENTICATED`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/lfp/listings/mine
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+INTEGRATION — `ListingSearchTest.kendiIlanlarimTumDurumlarlaDurumSuzgeciOkumaAnindakiDurumaGore`. PASS (2026-11-13; `pre-push lfp-service` ve `full dev`: lfp-service 139 test, satır kapsamı %95,49).
+
+### LFP — İlan detayı
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+GET /api/v1/lfp/listings/{listingId}
+
+#### Yetkilendirme
+Authenticated
+
+#### Path Parameters
+- listingId: UUID, zorunlu
+
+#### Response — 200
+`Listing` — her durumdaki ilan döner; `status` okuma anındaki durumdur (arayüz kapalı/süresi dolmuş ilanı buna göre gösterir). Sahip kendi ilanını her zaman görür (Social'a sorulmaz).
+
+#### Hata Durumları
+- 400: Geçersiz UUID (`MALFORMED_REQUEST`)
+- 401: Kimlik yok/geçersiz (`UNAUTHENTICATED`)
+- 404: İlan yok ya da sahibiyle aralarında engel var (`LISTING_NOT_FOUND`; ikisi ayırt edilmez)
+- 503: Engel durumu öğrenilemedi (`BLOCK_CHECK_UNAVAILABLE`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/lfp/listings/{listingId}
+
+Diğer mikroservisler:
+social-service `POST /internal/v1/blocks/check` (yalnız başkasının ilanında).
+
+#### Test Durumu
+INTEGRATION — `ListingSearchTest.detayHerDurumdaGorunurSuresiGecmisIlanExpiredDoner`, `ListingPrivacyContactTest`. PASS (2026-11-13; `pre-push lfp-service` ve `full dev`: lfp-service 139 test, satır kapsamı %95,49).
+
+### LFP — İlanı güncelle (LFP-12)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+PUT /api/v1/lfp/listings/{listingId}
+
+#### Yetkilendirme
+Owner (yalnız ilan sahibi)
+
+#### Path Parameters
+- listingId: UUID, zorunlu
+
+#### Request Body
+Tam değiştirme: değiştirilebilen alanların hepsi gönderilir. Alan kuralları "İlan oluştur" ile aynıdır.
+```json
+{
+  "platform": "PC | PLAYSTATION | XBOX | NINTENDO_SWITCH | MOBILE | OTHER, zorunlu",
+  "skillLevel": "string, opsiyonel",
+  "roles": ["string", "zorunlu, 1–5"],
+  "playersNeeded": "int, zorunlu, 1–50",
+  "playTimeStart": "ISO-8601, opsiyonel",
+  "playTimeEnd": "ISO-8601, opsiyonel",
+  "micRequired": "boolean, zorunlu",
+  "description": "string, zorunlu, 1–1000",
+  "version": "long, zorunlu — son okunan ilandaki değer"
+}
+```
+- `gameId` ve süre (`durationHours`, `expiresAt`) değişmez; gönderilirse bilinmeyen alan `400 MALFORMED_REQUEST`. Oyunu değiştirmek için yeni ilan açılır.
+- Oyun başlangıcı değişmediyse "geçmişte olamaz" kuralı yeniden uygulanmaz (planlanan zamanı gelmiş açık ilanın açıklaması düzeltilebilir); değiştiyse yeni başlangıç geçmişte olamaz. Başlangıç yine ilan bitişinden önce olmalıdır.
+
+#### Response — 200
+Güncel `Listing` (`version` bir artar).
+
+#### Hata Durumları
+- 400: Alan kuralları (oluşturmayla aynı kodlar), bilinmeyen alan, eksik `version`
+- 401: Kimlik yok/geçersiz (`UNAUTHENTICATED`)
+- 403: İlan başkasının (`NOT_LISTING_OWNER`); değişiklik yapılmaz
+- 404: İlan yok (`LISTING_NOT_FOUND`)
+- 409: İlan kapalı ya da süresi dolmuş (`LISTING_NOT_OPEN`); `version` güncel değil ya da aynı anda değişti (`CONCURRENT_MODIFICATION`)
+- 413: İstek gövdesi 8 KB'yi aşıyor
+- 500: Beklenmeyen sunucu hatası
+
+Denetim sırası: varlık (404) → sahiplik (403) → açık mı (409 `LISTING_NOT_OPEN`) → sürüm (409 `CONCURRENT_MODIFICATION`) → alan kuralları.
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/lfp/listings/{listingId}
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION — `ListingUpdateCloseTest` (sahip/başkası/yok, sürüm, değişmeyen alanlar, oyun zamanı kuralları, rol sırası), `ListingTest`. PASS (2026-11-13; `pre-push lfp-service` ve `full dev`: lfp-service 139 test, satır kapsamı %95,49).
+
+### LFP — İlanı kapat (LFP-13, LFP-14)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+#### Endpoint
+POST /api/v1/lfp/listings/{listingId}/close
+
+#### Yetkilendirme
+Owner (yalnız ilan sahibi)
+
+#### Path Parameters
+- listingId: UUID, zorunlu
+
+#### Response — 200
+`Listing` (`status: CLOSED`, `closedAt` dolu). **İdempotent:** zaten kapalı ilan değişmeden döner. Kapanan ilan aktif listelerden çıkar ve sahibin açık ilan sınırından düşer.
+
+#### Hata Durumları
+- 401: Kimlik yok/geçersiz (`UNAUTHENTICATED`)
+- 403: İlan başkasının (`NOT_LISTING_OWNER`)
+- 404: İlan yok (`LISTING_NOT_FOUND`)
+- 409: Süresi dolmuş ilan (`LISTING_NOT_OPEN`); aynı anda değişti (`CONCURRENT_MODIFICATION`)
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/lfp/listings/{listingId}/close
+
+Diğer mikroservisler:
+-
+
+#### Test Durumu
+UNIT + INTEGRATION — `ListingUpdateCloseTest`, `ListingExpiryTest`, `ListingTest`. PASS (2026-11-13; `pre-push lfp-service` ve `full dev`: lfp-service 139 test, satır kapsamı %95,49).
+
+### LFP — İlan sahibiyle iletişim (LFP-16, LFP-17)
+
+Durum: IMPLEMENTED
+Sorumlu: Umut
+Tüketici servisler: Frontend
+
+LFP ikinci bir mesajlaşma altyapısı kurmaz ve mesaj saklamaz. Bu uç yalnız "bu ilanın sahibiyle iletişim kurabilir miyim?" sorusunu ilan kurallarıyla cevaplar ve alıcıyı döner; sohbet messaging-service'te açılır.
+
+#### Endpoint
+POST /api/v1/lfp/listings/{listingId}/contact
+
+#### Yetkilendirme
+Authenticated (ilanın sahibi dışında herkes)
+
+#### Path Parameters
+- listingId: UUID, zorunlu
+
+#### Response — 200
+```json
+{
+  "listingId": "UUID",
+  "recipientId": "UUID — ilan sahibi"
+}
+```
+İstemci ardından `POST /api/v1/messaging/conversations/direct` gövdesi `{"userId": "<recipientId>"}` ile birebir sohbeti açar (varsa aynı sohbet döner; arkadaşlık şartı yok). Messaging engeli ayrıca denetler (`403 MESSAGING_NOT_ALLOWED`). Durum değiştirmez; tekrar çağrılabilir.
+
+Denetim sırası: ilan var mı (404) → kendi ilanı mı (400) → aralarında engel var mı (404) → ilan açık mı (409).
+
+#### Hata Durumları
+- 400: Geçersiz UUID (`MALFORMED_REQUEST`); kendi ilanı (`CANNOT_CONTACT_SELF`)
+- 401: Kimlik yok/geçersiz (`UNAUTHENTICATED`)
+- 404: İlan yok ya da sahibiyle herhangi bir yönde engel var (`LISTING_NOT_FOUND`; ayırt edilmez)
+- 409: İlan kapalı ya da süresi dolmuş (`LISTING_NOT_OPEN`)
+- 503: Engel durumu öğrenilemedi (`BLOCK_CHECK_UNAVAILABLE`); iletişim izni verilmez
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/lfp/listings/{listingId}/contact, ardından /api/v1/messaging/conversations/direct
+
+Diğer mikroservisler:
+social-service `POST /internal/v1/blocks/check` (RestClient, servis token'ı; bkz. "Aktif ilanları listele ve ara"). LFP messaging-service'i çağırmaz (kullanıcı adına token iletimi yok).
+
+#### Test Durumu
+INTEGRATION — `ListingPrivacyContactTest` (izin, kendi ilanı, iki yönlü engel, kapalı/süresi dolmuş, yok, kimliksiz, fail-closed). Gerçek Social + Messaging ile uçtan uca: NOT VERIFIED. PASS (2026-11-13; `pre-push lfp-service` ve `full dev`: lfp-service 139 test, satır kapsamı %95,49).
+
+### LFP — Hesap verisi silme (Internal, Auth → LFP)
+
+Durum: IMPLEMENTED (alıcı taraf; gerçek Auth token'ıyla uçtan uca NOT VERIFIED)
+Sorumlu: Umut
+Tüketici servisler: auth-service (hesap silme koordinasyonu, `ltz.auth.deletion.targets` içinde `lfp` var)
+
+#### Endpoint
+DELETE /internal/v1/accounts/{accountId}
+
+#### Yetkilendirme
+Internal. Gateway'e açık **değildir**. Yalnız Auth'un imzaladığı **servis token'ı** (`docs-auth/servis-sozlesmeleri.md` §3, `docs-auth/d4-ekip-notlari/01_ORTAK_SILME_UCU_UYGULAMA_REHBERI.md`):
+- JWT başlığı `typ=svc+jwt`; RS256, Auth'un JWKS anahtarıyla doğrulanır.
+- `iss=ltz-auth`, `aud` içinde `lfp-service` (`ltz.lfp.auth.service-audience`, yeni ENV değil), `jti` zorunlu.
+- `scope` içinde `account:erase` (eksik/farklı kapsam `403`).
+- `sub` **tam olarak** `svc:auth-service` (başka servis kimliği `403`).
+- `account_id` claim'i yoldaki `{accountId}` ile **aynı** (UUID olarak karşılaştırılır); eksik ya da başka hesap `403`.
+- Ömür en çok 60 sn (`exp - iat ≤ 60 sn` ve `exp` şimdiden en çok 60 sn + 30 sn sapma ileride; `iat` yoksa ret).
+- Kullanıcı token'ı bu uçta, servis token'ı kullanıcı uçlarında (`/api/v1/lfp/**`) `401`.
+
+#### Path Parameters
+- accountId: UUID, zorunlu — silinecek hesap
+
+#### Response — 204
+Gövde yok. Tek transaction'da hesabın **tüm ilanları** (açık, kapalı, süresi dolmuş) ve rolleri (FK cascade) kalıcı olarak silinir. LFP başka kullanıcıların verisinde bu hesaba referans tutmaz; anonimleştirilecek satır yoktur. **İdempotenttir:** veri yoksa, ikinci çağrıda ya da bilinmeyen hesapta da `204`. Saklama istisnası yoktur.
+
+#### Hata Durumları
+- 400: Geçersiz `accountId`
+- 401: Token yok/geçersiz; kullanıcı token'ı; yanlış `iss`/`aud`/`typ`; süresi dolmuş ya da 60 sn'den uzun ömürlü; `sub` `svc:` ile başlamıyor; `jti` yok; bozuk/yanlış anahtarlı imza; `alg=none`/HS256
+- 403: `account:erase` kapsamı yok; `sub` `svc:auth-service` değil; `account_id` yok ya da yoldaki hesapla aynı değil (hiçbir şey silinmez); bu yolda başka yöntem ya da başka iç yol
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Auth, silme onaylandığında `${LFP_SERVICE_URL}/internal/v1/accounts/{accountId}` adresini çağırır.
+
+#### Test Durumu
+INTEGRATION — `AccountErasureTest` (16 test: rehberin senaryoları ve veri senaryoları). Gerçek Auth servis token'ıyla uçtan uca: NOT VERIFIED. PASS (2026-11-13; `pre-push lfp-service` ve `full dev`: lfp-service 139 test, satır kapsamı %95,49).
 
 ## COMMUNITY
 
