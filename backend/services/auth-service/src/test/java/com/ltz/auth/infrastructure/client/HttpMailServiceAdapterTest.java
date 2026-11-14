@@ -175,8 +175,9 @@ class HttpMailServiceAdapterTest {
     void yalnizHttp202KabulSayilir(int status) {
         TARGET.respondWith(status);
 
-        assertThatThrownBy(() -> adapter.sendVerificationCode(
-                new VerificationCodeMail(KEY, ACCOUNT, EMAIL, "123456", Duration.ofMinutes(10))))
+        VerificationCodeMail mail = new VerificationCodeMail(KEY, ACCOUNT, EMAIL, "123456", Duration.ofMinutes(10));
+
+        assertThatThrownBy(() -> adapter.sendVerificationCode(mail))
                 .isInstanceOf(VerificationCodeDeliveryException.class)
                 .hasMessageContaining("HTTP " + status)
                 .message().doesNotContain("123456", EMAIL);
@@ -187,8 +188,10 @@ class HttpMailServiceAdapterTest {
     void yonlendirmeIzlenmezVeKabulSayilmaz(int status) {
         TARGET.respondWith(request -> ErasureTargetStub.REDIRECT_PATH.equals(request.path()) ? 202 : status);
 
-        assertThatThrownBy(() -> adapter.sendSecurityNotification(new SecurityNotificationMail(KEY, ACCOUNT, EMAIL,
-                SecurityNotificationType.PASSWORD_CHANGED, Instant.now())))
+        SecurityNotificationMail mail = new SecurityNotificationMail(KEY, ACCOUNT, EMAIL,
+                SecurityNotificationType.PASSWORD_CHANGED, Instant.now());
+
+        assertThatThrownBy(() -> adapter.sendSecurityNotification(mail))
                 .isInstanceOf(VerificationCodeDeliveryException.class);
         assertThat(TARGET.received()).as("token yönlendirilen adrese gitmez").hasSize(1);
     }
@@ -197,8 +200,10 @@ class HttpMailServiceAdapterTest {
     void zamanAsimiTeslimHatasidir() {
         TARGET.delay(TIMEOUT.multipliedBy(3));
 
-        assertThatThrownBy(() -> adapter.sendPasswordReset(new PasswordResetMail(KEY, ACCOUNT, EMAIL,
-                "https://ltz.example/reset?t=abc", Duration.ofMinutes(30))))
+        PasswordResetMail mail = new PasswordResetMail(KEY, ACCOUNT, EMAIL,
+                "https://ltz.example/reset?t=abc", Duration.ofMinutes(30));
+
+        assertThatThrownBy(() -> adapter.sendPasswordReset(mail))
                 .isInstanceOf(VerificationCodeDeliveryException.class)
                 .hasMessage("Mail Service is unreachable");
     }
@@ -211,8 +216,9 @@ class HttpMailServiceAdapterTest {
         }
         HttpMailServiceAdapter unreachable = adapter(Map.of("mail", URI.create(closedUrl)));
 
-        assertThatThrownBy(() -> unreachable.sendVerificationCode(
-                new VerificationCodeMail(KEY, ACCOUNT, EMAIL, "123456", Duration.ofMinutes(10))))
+        VerificationCodeMail mail = new VerificationCodeMail(KEY, ACCOUNT, EMAIL, "123456", Duration.ofMinutes(10));
+
+        assertThatThrownBy(() -> unreachable.sendVerificationCode(mail))
                 .isInstanceOf(VerificationCodeDeliveryException.class)
                 .hasMessage("Mail Service is unreachable");
     }
@@ -229,7 +235,9 @@ class HttpMailServiceAdapterTest {
 
     @Test
     void mailHedefAdresiYoksaAdaptorOlusmaz() {
-        assertThatThrownBy(() -> adapter(Map.of("social", URI.create(TARGET.baseUrl()))))
+        Map<String, URI> urls = Map.of("social", URI.create(TARGET.baseUrl()));
+
+        assertThatThrownBy(() -> adapter(urls))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("service-urls.mail");
     }

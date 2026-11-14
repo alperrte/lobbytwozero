@@ -60,6 +60,7 @@ public class HttpMailServiceAdapter implements VerificationCodeMailPort, Passwor
     static final String SECURITY_NOTIFICATIONS = "security-notifications";
     private static final String[] MAIL_PATH_SEGMENTS = {"internal", "v1", "mail"};
     private static final String BEARER = "Bearer ";
+    private static final String VALIDITY_SECONDS = "validitySeconds";
 
     private final HttpClient httpClient;
     private final RestClient restClient;
@@ -96,7 +97,7 @@ public class HttpMailServiceAdapter implements VerificationCodeMailPort, Passwor
     public void sendVerificationCode(VerificationCodeMail mail) {
         Map<String, Object> body = base(mail.idempotencyKey(), mail.accountId(), mail.recipientEmail());
         body.put("code", mail.code());
-        body.put("validitySeconds", mail.validity().toSeconds());
+        body.put(VALIDITY_SECONDS, mail.validity().toSeconds());
         post(VERIFICATION_CODES, mail.accountId(), body);
     }
 
@@ -104,7 +105,7 @@ public class HttpMailServiceAdapter implements VerificationCodeMailPort, Passwor
     public void sendPasswordReset(PasswordResetMail mail) {
         Map<String, Object> body = base(mail.idempotencyKey(), mail.accountId(), mail.recipientEmail());
         body.put("resetLink", mail.resetLink());
-        body.put("validitySeconds", mail.validity().toSeconds());
+        body.put(VALIDITY_SECONDS, mail.validity().toSeconds());
         post(PASSWORD_RESETS, mail.accountId(), body);
     }
 
@@ -112,7 +113,7 @@ public class HttpMailServiceAdapter implements VerificationCodeMailPort, Passwor
     public void sendAccountDeletionConfirmation(AccountDeletionMail mail) {
         Map<String, Object> body = base(mail.idempotencyKey(), mail.accountId(), mail.recipientEmail());
         body.put("confirmationLink", mail.confirmationLink());
-        body.put("validitySeconds", mail.validity().toSeconds());
+        body.put(VALIDITY_SECONDS, mail.validity().toSeconds());
         post(ACCOUNT_DELETIONS, mail.accountId(), body);
     }
 

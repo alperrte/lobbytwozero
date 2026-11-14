@@ -176,7 +176,7 @@ public class ExternalIdentityLinkService {
         Optional<OAuthLinkFlow> flow = flowRepository.findById(stateHash);
         Integer consumed = transactionTemplate.execute(status ->
                 flowRepository.consume(stateHash, provider, clock.instant()));
-        if (flow.isEmpty() || consumed == null || consumed != 1) {
+        if (flow.isEmpty() || !Integer.valueOf(1).equals(consumed)) {
             throw failed();
         }
         return flow.get().getAccountId();

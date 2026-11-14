@@ -83,7 +83,7 @@ class SteamLoginTest extends ExternalProviderTestSupport {
                 + "from accounts where id = ?", accountId);
         assertThat(row.get("email")).as("Steam e-posta vermez, sahte adres üretilmez").isNull();
         assertThat(row.get("email_normalized")).isNull();
-        assertThat(row.get("status")).isEqualTo("ACTIVE");
+        assertThat(row).containsEntry("status", "ACTIVE");
         assertThat(row.get("password_hash")).isNull();
         assertThat(row.get("email_verified_at")).isNull();
         assertThat(jdbc.queryForObject("select provider_subject from external_identities where account_id = ? "
