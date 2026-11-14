@@ -32,7 +32,7 @@ public class MailRetryPolicy {
 
     /** @param attempts şimdiye kadar yapılan deneme sayısı (≥ 1) */
     public Duration delayAfter(int attempts, UUID messageId) {
-        int shift = Math.clamp(attempts - 1, 0, MAX_SHIFT);
+        int shift = Math.clamp((long) attempts - 1, 0, MAX_SHIFT);
         Duration exponential = worker.baseDelay().multipliedBy(1L << shift);
         Duration capped = exponential.compareTo(worker.maxDelay()) > 0 ? worker.maxDelay() : exponential;
         double unit = (messageId.hashCode() & 0xFF) / BYTE_RANGE * 2 - 1;
