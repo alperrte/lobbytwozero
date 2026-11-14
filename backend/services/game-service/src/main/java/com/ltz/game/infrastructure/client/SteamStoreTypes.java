@@ -20,6 +20,7 @@ import tools.jackson.databind.json.JsonMapper;
  */
 final class SteamStoreTypes {
     private static final JsonMapper JSON = JsonMapper.builder().build();
+    private static final String TAG_ID = "tagid";
     /** Etiket/kategori sayısı üst sınırı (yanıt şişirmeye karşı). */
     private static final int MAX_IDS = 100;
     /** Makul çıkış tarihi aralığı (saniye): 1990-01-01 – 2100-01-01 (UTC). */
@@ -110,8 +111,8 @@ final class SteamStoreTypes {
         Map<Integer, String> result = new LinkedHashMap<>();
         for (JsonNode tag : tags) {
             String name = tag.hasNonNull("name") ? tag.get("name").asString().strip() : "";
-            if (tag.path("tagid").canConvertToInt() && tag.path("tagid").asInt() > 0 && !name.isEmpty() && name.length() <= 128) {
-                result.put(tag.get("tagid").asInt(), name);
+            if (tag.path(TAG_ID).canConvertToInt() && tag.path(TAG_ID).asInt() > 0 && !name.isEmpty() && name.length() <= 128) {
+                result.put(tag.get(TAG_ID).asInt(), name);
             }
         }
         return result;

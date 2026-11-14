@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 import org.springframework.web.client.RestClient;
 import tools.jackson.core.type.TypeReference;
 
@@ -41,7 +42,7 @@ public class IgdbDetailSource implements GameDetailSource {
 
     @Override
     public synchronized GameProvider.Details details(String steamAppId) {
-        if (steamAppId == null || !steamAppId.matches("[1-9]\\d{0,9}")) {
+        if (steamAppId == null || !STEAM_APP_ID.matcher(steamAppId).matches()) {
             throw new ProviderException("INVALID_PROVIDER_REQUEST");
         }
         long gameId = mappedGame(steamAppId);
@@ -64,7 +65,10 @@ public class IgdbDetailSource implements GameDetailSource {
     private static final String EVIDENCE_FIELDS = "game_type,first_release_date,genres.slug,genres.name,platforms.slug,platforms.name,"
             + "game_modes.slug,game_modes.name,themes.slug,themes.name";
     private static final String RELATION_FIELDS = "game_type,parent_game";
-    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(IgdbDetailSource.class);
+    private static final Pattern STEAM_APP_ID = Pattern.compile("[1-9]\\d{0,9}");
+    private static final String LIST_LIMIT = "); limit ";
+    private static final String EXTERNAL_GAMES_PATH = "/external_games";
+    private static final String EXTERNAL_GAMES_QUERY = "fields game,uid; where external_game_source = ";
 
     /**
      * Toplu kanıt: iki istekle (external_games, games) en çok {@link #MAX_BATCH} AppID. Eşleme yalnız tam uid eşitliği ve tek
@@ -120,7 +124,7 @@ public class IgdbDetailSource implements GameDetailSource {
     /** Tekrarsız AppID listesi; en çok {@code max} ve yalnız rakam. Boş girdi boş liste döner. */
     private static List<String> validIds(java.util.Collection<String> steamAppIds, int max) {
         List<String> ids = steamAppIds == null ? List.of() : steamAppIds.stream().distinct().toList();
-        if (ids.size() > max || ids.stream().anyMatch(id -> id == null || !id.matches("[1-9]\\d{0,9}"))) {
+        if (ids.size() > max || ids.stream().anyMatch(id -> id == null || !STEAM_APP_ID.matcher(id).matches())) {
             throw new ProviderException("INVALID_PROVIDER_REQUEST");
         }
         return ids;
@@ -144,7 +148,7 @@ public class IgdbDetailSource implements GameDetailSource {
 
     private List<IgdbResponses.Game> games(Set<Long> gameIds, String fields) {
         String list = gameIds.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
-        return query("/games", "fields " + fields + "; where id = (" + list + "); limit " + IGDB_PAGE_LIMIT + ";",
+        return query("/games", "fields " + fields + "; where id = (" + list + LIST_LIMIT + IGDB_PAGE_LIMIT + ";",
                 new TypeReference<List<IgdbResponses.Game>>() { });
     }
 
@@ -185,8 +189,8 @@ public class IgdbDetailSource implements GameDetailSource {
     /** Steam AppID → IGDB oyun adayları (tam uid eşitliği). Kesilmiş olabilecek yanıt güvenilmez sayılır. */
     private java.util.Map<String, Set<Long>> uidToGames(List<String> ids) {
         String uids = ids.stream().map(id -> "\"" + id + "\"").collect(java.util.stream.Collectors.joining(","));
-        List<IgdbResponses.ExternalGame> rows = query("/external_games",
-                "fields game,uid; where external_game_source = " + steamSource() + " & uid = (" + uids + "); limit " + IGDB_PAGE_LIMIT + ";",
+        List<IgdbResponses.ExternalGame> rows = query(EXTERNAL_GAMES_PATH,
+                EXTERNAL_GAMES_QUERY + steamSource() + " & uid = (" + uids + LIST_LIMIT + IGDB_PAGE_LIMIT + ";",
                 new TypeReference<List<IgdbResponses.ExternalGame>>() { });
         if (rows.size() >= IGDB_PAGE_LIMIT) {
             // Sınıra ulaşan yanıt kesilmiş olabilir; eksik satırla belirsizlik tespiti güvenilir olmaz.
@@ -209,14 +213,14 @@ public class IgdbDetailSource implements GameDetailSource {
         for (int from = 0; from < all.size(); from += PARENT_CHUNK) {
             String list = all.subList(from, Math.min(all.size(), from + PARENT_CHUNK)).stream().map(String::valueOf)
                     .collect(java.util.stream.Collectors.joining(","));
-            List<IgdbResponses.ExternalGame> rows = query("/external_games",
-                    "fields game,uid; where external_game_source = " + steamSource() + " & game = (" + list + "); limit " + IGDB_PAGE_LIMIT + ";",
+            List<IgdbResponses.ExternalGame> rows = query(EXTERNAL_GAMES_PATH,
+                    EXTERNAL_GAMES_QUERY + steamSource() + " & game = (" + list + LIST_LIMIT + IGDB_PAGE_LIMIT + ";",
                     new TypeReference<List<IgdbResponses.ExternalGame>>() { });
             if (rows.size() >= IGDB_PAGE_LIMIT) {
                 throw new ProviderException("INVALID_PROVIDER_RESPONSE");
             }
             for (IgdbResponses.ExternalGame row : rows) {
-                if (row != null && row.game() != null && row.uid() != null && row.uid().matches("[1-9]\\d{0,9}")) {
+                if (row != null && row.game() != null && row.uid() != null && STEAM_APP_ID.matcher(row.uid()).matches()) {
                     result.computeIfAbsent(row.game(), key -> new LinkedHashSet<>()).add(row.uid());
                 }
             }
@@ -226,8 +230,8 @@ public class IgdbDetailSource implements GameDetailSource {
 
     // ---- Eşleme: Steam AppID -> IGDB oyunu (tam dış kimlik kanıtı)
     private long mappedGame(String steamAppId) {
-        String body = "fields game,uid; where external_game_source = " + steamSource() + " & uid = \"" + steamAppId + "\"; limit 10;";
-        List<IgdbResponses.ExternalGame> rows = query("/external_games", body, new TypeReference<List<IgdbResponses.ExternalGame>>() { });
+        String body = EXTERNAL_GAMES_QUERY + steamSource() + " & uid = \"" + steamAppId + "\"; limit 10;";
+        List<IgdbResponses.ExternalGame> rows = query(EXTERNAL_GAMES_PATH, body, new TypeReference<List<IgdbResponses.ExternalGame>>() { });
         Set<Long> games = new LinkedHashSet<>();
         for (IgdbResponses.ExternalGame row : rows) {
             if (row != null && row.game() != null && steamAppId.equals(row.uid())) {

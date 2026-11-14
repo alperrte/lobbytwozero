@@ -40,7 +40,8 @@ class GamePriceMarketsTest {
         assertEquals(List.of(new Market("US", "USD")), properties("").allMarkets(), "ek pazar yoksa yalnız birincil pazar");
         assertEquals(List.of(new Market("US", "USD")), new GamePriceProperties("k", API, "US", "USD", Duration.ofMinutes(15)).allMarkets(), "eski tek pazarlı kurucu");
         for (String bad : List.of("US", "US:USD:X", "XX:USD", "US:TRYY", "us:usd:", ":")) {
-            assertThrows(IllegalArgumentException.class, () -> properties(bad).allMarkets(), bad);
+            var badProperties = properties(bad);
+            assertThrows(IllegalArgumentException.class, badProperties::allMarkets, bad);
         }
     }
 
@@ -386,7 +387,8 @@ class GamePriceMarketsTest {
         var properties = new GamePriceProperties("k", API, "US", "USD", Duration.ofHours(2), "");
         assertEquals(Duration.ofHours(12), properties.warmTtl());
         assertEquals(Duration.ofHours(48), properties.coldTtl());
-        assertThrows(IllegalArgumentException.class, () -> new GamePriceProperties("k", API, "US", "USD", Duration.ofHours(3), ""));
+        var tooLong = Duration.ofHours(3);
+        assertThrows(IllegalArgumentException.class, () -> new GamePriceProperties("k", API, "US", "USD", tooLong, ""));
         assertThrows(IllegalArgumentException.class, () -> new GamePriceProperties("k", API, "US", "USD", Duration.ZERO, ""));
     }
 }

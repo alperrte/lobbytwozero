@@ -211,15 +211,19 @@ class ItadRequestLimiterTest {
 
     @Test void theReserveMustBeSmallerThanTheLimit() {
         TickClock clock = new TickClock();
-        assertThrows(IllegalArgumentException.class, () -> new ItadRequestLimiter(clock, 3, 3, Duration.ofMinutes(5), Duration.ZERO, millis -> { }));
-        assertThrows(IllegalArgumentException.class, () -> new ItadRequestLimiter(clock, 3, -1, Duration.ofMinutes(5), Duration.ZERO, millis -> { }));
-        new ItadRequestLimiter(clock, 3, 2, Duration.ofMinutes(5), Duration.ZERO, millis -> { });
+        Duration window = Duration.ofMinutes(5);
+        assertThrows(IllegalArgumentException.class, () -> new ItadRequestLimiter(clock, 3, 3, window, Duration.ZERO, millis -> { }));
+        assertThrows(IllegalArgumentException.class, () -> new ItadRequestLimiter(clock, 3, -1, window, Duration.ZERO, millis -> { }));
+        new ItadRequestLimiter(clock, 3, 2, window, Duration.ZERO, millis -> { });
     }
 
     @Test void invalidConfigurationIsRejected() {
         TickClock clock = new TickClock();
-        assertThrows(IllegalArgumentException.class, () -> new ItadRequestLimiter(clock, 0, Duration.ofMinutes(5), Duration.ZERO, millis -> { }));
+        Duration fiveMinutes = Duration.ofMinutes(5);
+        Duration oneMinute = Duration.ofMinutes(1);
+        Duration negativeWait = Duration.ofSeconds(-1);
+        assertThrows(IllegalArgumentException.class, () -> new ItadRequestLimiter(clock, 0, fiveMinutes, Duration.ZERO, millis -> { }));
         assertThrows(IllegalArgumentException.class, () -> new ItadRequestLimiter(clock, 1, Duration.ZERO, Duration.ZERO, millis -> { }));
-        assertThrows(IllegalArgumentException.class, () -> new ItadRequestLimiter(clock, 1, Duration.ofMinutes(1), Duration.ofSeconds(-1), millis -> { }));
+        assertThrows(IllegalArgumentException.class, () -> new ItadRequestLimiter(clock, 1, oneMinute, negativeWait, millis -> { }));
     }
 }
