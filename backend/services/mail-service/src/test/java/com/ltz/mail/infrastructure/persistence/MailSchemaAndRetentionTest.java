@@ -4,8 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 
@@ -66,34 +70,40 @@ class MailSchemaAndRetentionTest extends IntegrationTestSupport {
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
-    @Test
-    void terminalRowsCannotKeepSensitiveData() {
-        String insert = """
-                insert into mail_messages (id, idempotency_key, request_hash, type, recipient_user_id, recipient_email,
-                                           recipient_masked, payload_key_version, status, attempts, next_attempt_at,
-                                           expires_at, created_at, updated_at, sent_at, version)
-                values (?, ?, 'h', 'PASSWORD_CHANGED', ?, 'kerem@example.com', 'k***@e***.com', 1, 'SENT', 1, now(),
-                        now(), now(), now(), now(), 0)""";
-        UUID id = UUID.randomUUID();
-        UUID key = UUID.randomUUID();
-        UUID account = newAccount();
-
-        assertThatThrownBy(() -> jdbc.update(insert, id, key, account))
-                .isInstanceOf(DataIntegrityViolationException.class);
+    /** Kısıtı ihlal eden satırlar: bitmiş satır hassas veri tutamaz, aktif satır alıcı ve yükünü korumalı, tür/durum bilinmeli. */
+    static Stream<Arguments> rejectedInserts() {
+        return Stream.of(
+                Arguments.of("terminalRowsCannotKeepSensitiveData", """
+                        insert into mail_messages (id, idempotency_key, request_hash, type, recipient_user_id,
+                                                   recipient_email, recipient_masked, payload_key_version, status,
+                                                   attempts, next_attempt_at, expires_at, created_at, updated_at,
+                                                   sent_at, version)
+                        values (?, ?, 'h', 'PASSWORD_CHANGED', ?, 'kerem@example.com', 'k***@e***.com', 1, 'SENT', 1,
+                                now(), now(), now(), now(), now(), 0)"""),
+                Arguments.of("activeRowsMustKeepTheirRecipientAndPayload", """
+                        insert into mail_messages (id, idempotency_key, request_hash, type, recipient_user_id,
+                                                   recipient_masked, payload_key_version, status, attempts,
+                                                   next_attempt_at, expires_at, created_at, updated_at, version)
+                        values (?, ?, 'h', 'PASSWORD_CHANGED', ?, 'k***@e***.com', 1, 'PENDING', 0, now(), now(),
+                                now(), now(), 0)"""),
+                Arguments.of("unknownTypeAndStatusAreRejected", """
+                        insert into mail_messages (id, idempotency_key, request_hash, type, recipient_user_id,
+                                                   recipient_email, recipient_masked, payload_key_version,
+                                                   payload_encrypted, status, attempts, next_attempt_at, expires_at,
+                                                   created_at, updated_at, version)
+                        values (?, ?, 'h', 'BOGUS', ?, 'a@b.com', 'a***@b***.com', 1, '\\x00'::bytea, 'PENDING', 0,
+                                now(), now(), now(), now(), 0)"""));
     }
 
-    @Test
-    void activeRowsMustKeepTheirRecipientAndPayload() {
-        String insert = """
-                insert into mail_messages (id, idempotency_key, request_hash, type, recipient_user_id, recipient_masked,
-                                           payload_key_version, status, attempts, next_attempt_at, expires_at,
-                                           created_at, updated_at, version)
-                values (?, ?, 'h', 'PASSWORD_CHANGED', ?, 'k***@e***.com', 1, 'PENDING', 0, now(), now(), now(), now(), 0)""";
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("rejectedInserts")
+    void constraintViolatingRowsAreRejected(String scenario, String insert) {
         UUID id = UUID.randomUUID();
         UUID key = UUID.randomUUID();
         UUID account = newAccount();
 
         assertThatThrownBy(() -> jdbc.update(insert, id, key, account))
+                .as(scenario)
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 

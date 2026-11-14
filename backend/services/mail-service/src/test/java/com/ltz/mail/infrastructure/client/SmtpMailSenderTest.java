@@ -160,7 +160,7 @@ class SmtpMailSenderTest {
             while (!socket.isClosed()) {
                 try (Socket client = socket.accept()) {
                     serve(client);
-                } catch (IOException ignored) {
+                } catch (IOException _) {
                     // sunucu kapandı ya da istemci bağlantıyı attı; döngü kapalı soketle biter
                 }
             }
