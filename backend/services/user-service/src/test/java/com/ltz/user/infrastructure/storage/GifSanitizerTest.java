@@ -92,4 +92,16 @@ class GifSanitizerTest {
         assertThat(GifSanitizer.hasGifSignature("GIF90a".getBytes(StandardCharsets.US_ASCII))).isFalse();
         assertThat(GifSanitizer.hasGifSignature(new byte[] {'G', 'I'})).isFalse();
     }
+
+    @Test
+    void resultComparesByContentNotByArrayIdentity() {
+        byte[] gif = TestImages.gif(2, false, 8, 8);
+        GifSanitizer.Result first = GifSanitizer.sanitize(gif, 100);
+        GifSanitizer.Result same = GifSanitizer.sanitize(gif.clone(), 100);
+        GifSanitizer.Result otherSize = new GifSanitizer.Result(first.bytes(), first.width() + 1, first.height(),
+                first.frames());
+
+        assertThat(first).isEqualTo(same).hasSameHashCodeAs(same).isNotEqualTo(otherSize).isNotEqualTo("x");
+        assertThat(first.toString()).contains("width=8", "frames=2");
+    }
 }

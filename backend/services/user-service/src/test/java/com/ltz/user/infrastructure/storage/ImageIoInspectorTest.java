@@ -92,4 +92,16 @@ class ImageIoInspectorTest {
         // Yuva sızıntısı olsaydı (concurrency=2) buradaki geçerli görsel MEDIA_BUSY alırdı.
         assertThat(inspector.process(MediaKind.AVATAR, TestImages.png(64, 64), "image/png")).isNotNull();
     }
+
+    @Test
+    void processedImageComparesByContentNotByArrayIdentity() {
+        ProcessedImage first = new ProcessedImage("png", "image/png", new byte[] {1, 2}, new byte[] {3}, 4, 5, 1);
+        ProcessedImage same = new ProcessedImage("png", "image/png", new byte[] {1, 2}, new byte[] {3}, 4, 5, 1);
+        ProcessedImage otherLarge = new ProcessedImage("png", "image/png", new byte[] {9}, new byte[] {3}, 4, 5, 1);
+        ProcessedImage noSmall = new ProcessedImage("gif", "image/gif", new byte[] {1, 2}, null, 4, 5, 2);
+
+        assertThat(first).isEqualTo(same).hasSameHashCodeAs(same).isNotEqualTo(otherLarge).isNotEqualTo("x");
+        assertThat(first.toString()).contains("large=2", "small=1");
+        assertThat(noSmall.toString()).contains("small=0");
+    }
 }

@@ -36,8 +36,9 @@ final class GifSanitizer {
 
         @Override
         public boolean equals(Object other) {
-            return other instanceof Result that && width == that.width && height == that.height
-                    && frames == that.frames && Arrays.equals(bytes, that.bytes);
+            return other instanceof Result(byte[] otherBytes, int otherWidth, int otherHeight, int otherFrames)
+                    && width == otherWidth && height == otherHeight
+                    && frames == otherFrames && Arrays.equals(bytes, otherBytes);
         }
 
         @Override
