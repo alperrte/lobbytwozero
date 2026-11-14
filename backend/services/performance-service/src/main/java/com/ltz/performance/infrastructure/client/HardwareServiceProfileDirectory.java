@@ -15,7 +15,8 @@ import tools.jackson.databind.ObjectMapper;
  * Hardware Service HW-17 {@code POST /api/v1/hardware/profiles/batch}: owner-only; çağıranın kendi Bearer'ı
  * iletilir, Hardware sahip olmayan veya olmayan profil için 404 verir. Yalnızca sahiplik sorulur
  * (page 0, size 1). 404 dışındaki her belirsizlik kapalı başarısızlık olarak 503'e gider.
- * Hardware'in tüketici E2E'si DEFERRED_CONTRACT'tır; bu istemci o sözleşmeye göre yazılmıştır.
+ * Gerçek Auth/Hardware/Performance/Gateway kabulü {@code ops/dev.mjs e2e performance} içinde owner profil seçimi,
+ * yabancı/olmayan profil reddi ve Hardware kesintisinde kayıtsız 503 senaryolarını kapsar.
  */
 @Component
 public class HardwareServiceProfileDirectory implements HardwareProfileDirectory {

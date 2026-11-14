@@ -5,6 +5,11 @@
 
 ## Bilinen durumlar
 
+- 2026-11-12: Performance → Hardware owner profil doğrulaması gerçek servislerle kabul edildi;
+  Hardware'ın `summary:read` üretim tüketicisi ve owner `performance-summary` ucu eklendi.
+  Dört servisli runtime **28/28 PASS**, Hardware **609 test / %93,77** ve servis pre-push PASS.
+  [Profil/özet kabulü ve sınırlar](../../docs-hardware/integration/performance-profile-summary.md).
+
 - 2026-11-06, PR #67 sonrası: `UserServiceReviewAudiencePolicy`, REVIEW_AUTHOR ile
   profil HARDWARE gizliliğinden bağımsız hesap/engel kararı alır. Adaylar sayfa
   öncesinde aynı snapshot'ta çıkarılır; eksik/hatalı tek batch bütün dış izni kapatır.

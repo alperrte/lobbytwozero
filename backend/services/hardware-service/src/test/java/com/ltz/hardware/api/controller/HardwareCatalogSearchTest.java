@@ -135,14 +135,14 @@ class HardwareCatalogSearchTest extends PostgresIntegrationSupport {
         assertThat(search("r")).containsExactlyInAnyOrder(x3d, plain);
         assertThat(search("ry")).containsExactlyInAnyOrder(x3d, plain);
         assertThat(search("Ryzen")).containsExactlyInAnyOrder(x3d, plain);
-        assertThat(search("ryzen 98")).containsExactly(x3d);
-        assertThat(search("RYZEN   9800")).containsExactly(x3d);
+        for (String term : List.of("ryzen 98", "RYZEN   9800", "amd 98", "x3d")) {
+            assertThat(search(term)).containsExactly(x3d);
+        }
         assertThat(search("ryzen 7")).containsExactlyInAnyOrder(x3d, plain);
         assertThat(search("amd ryzen")).containsExactlyInAnyOrder(x3d, plain);
-        assertThat(search("amd 98")).containsExactly(x3d);
-        assertThat(search("x3d")).containsExactly(x3d);
-        assertThat(search("i7")).containsExactly(core);
-        assertThat(search("14700")).containsExactly(core);
+        for (String term : List.of("i7", "14700")) {
+            assertThat(search(term)).containsExactly(core);
+        }
         assertThat(search("intel ryzen")).isEmpty();
         // A short token only matches the start of a word, so "9" does not hit the middle of 9800X3D or 7600.
         assertThat(search("ryzen 8")).isEmpty();

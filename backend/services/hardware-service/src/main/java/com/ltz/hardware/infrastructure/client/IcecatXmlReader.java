@@ -88,26 +88,29 @@ public final class IcecatXmlReader {
         try {
             while (reader.hasNext()) {
                 int event = next(reader);
-                if (event != XMLStreamConstants.START_ELEMENT) continue;
-                if ("files.index".equals(reader.getLocalName())) {
+                if (event == XMLStreamConstants.START_ELEMENT && "files.index".equals(reader.getLocalName())) {
                     generated = generation(reader);
                     if (!generated.equals(previous)) start = 0;
                 }
-                if (!"file".equals(reader.getLocalName())) continue;
-                row++;
-                if (row <= start) continue;
-                var entry = indexEntry(reader, categories, row);
-                if (entry != null) entries.add(entry);
-                if (pageFull(entries.size(), limit, row - start)) return new Batch(generated, row, false, entries);
+                if (event == XMLStreamConstants.START_ELEMENT && "file".equals(reader.getLocalName()) && ++row > start) {
+                    appendEntry(reader, categories, row, entries);
+                    if (pageFull(entries.size(), limit, row - start)) return new Batch(generated, row, false, entries);
+                }
             }
             if (generated == null) throw new XMLStreamException("Missing index generation");
             return new Batch(generated, row, true, entries);
         } finally { reader.close(); }
     }
 
+    private static void appendEntry(XMLStreamReader reader, Map<String, ComponentCategory> categories,
+            long row, java.util.List<Entry> entries) throws XMLStreamException {
+        var entry = indexEntry(reader, categories, row);
+        if (entry != null) entries.add(entry);
+    }
+
     private static String generation(XMLStreamReader reader) throws XMLStreamException {
         String value = reader.getAttributeValue(null, "Generated");
-        if (value == null || !value.matches("[0-9]{14}")) throw new XMLStreamException("Invalid index generation");
+        if (value == null || !value.matches("\\d{14}")) throw new XMLStreamException("Invalid index generation");
         return value;
     }
 
@@ -119,7 +122,7 @@ public final class IcecatXmlReader {
         if (category == null || "Yes".equalsIgnoreCase(reader.getAttributeValue(null, "Limited"))
                 || !(removed || "ICECAT".equals(quality) || "SUPPLIER".equals(quality))) return null;
         String id = reader.getAttributeValue(null, "Product_ID");
-        if (id == null || !id.matches("[0-9]{1,20}")) throw new XMLStreamException("Invalid source identity");
+        if (id == null || !id.matches("\\d{1,20}")) throw new XMLStreamException("Invalid source identity");
         return new Entry(id, category, timestamp(reader.getAttributeValue(null, "Updated")), removed, row);
     }
 

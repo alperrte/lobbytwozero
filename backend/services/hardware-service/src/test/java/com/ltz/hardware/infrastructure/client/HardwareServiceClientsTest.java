@@ -55,6 +55,9 @@ class HardwareServiceClientsTest {
     private HardwareServiceTokenClient tokens;
     private UserServiceHardwareVisibilityPolicy visibility;
     private PerformanceServiceHardwareSyncDevicePolicy devices;
+    private PerformanceServiceSummaryReader summary;
+    private String summaryBody;
+    private int summaryStatus = 200;
     private UserServiceReviewAudiencePolicy reviewAudience;
     private final List<List<UUID>> authorBatches = new CopyOnWriteArrayList<>();
     private final Set<UUID> deniedAuthors = new HashSet<>();
@@ -100,8 +103,9 @@ class HardwareServiceClientsTest {
         server.createContext("/internal/v1/accounts/", exchange -> {
             performanceCalls.incrementAndGet();
             targetAuthorization = exchange.getRequestHeaders().getFirst("Authorization");
-            targetPath = exchange.getRequestURI().getPath();
-            respond(exchange, deviceStatus, "");
+            targetPath = exchange.getRequestURI().toString();
+            if (exchange.getRequestURI().getPath().endsWith("/performance-summary")) respond(exchange, summaryStatus, summaryBody);
+            else respond(exchange, deviceStatus, "");
         });
         server.start();
         origin = URI.create("http://127.0.0.1:" + server.getAddress().getPort());
@@ -116,7 +120,80 @@ class HardwareServiceClientsTest {
         tokens = new HardwareServiceTokenClient(properties, auth, http, mapper);
         visibility = new UserServiceHardwareVisibilityPolicy(properties, tokens, http, mapper);
         devices = new PerformanceServiceHardwareSyncDevicePolicy(properties, tokens, http);
+        summary = new PerformanceServiceSummaryReader(properties, tokens, http, mapper);
         reviewAudience = new UserServiceReviewAudiencePolicy(properties, tokens, http, mapper);
+    }
+
+    private String summaryBody() {
+        return """
+            {"hardwareProfileId":"%s","sessionCount":1,"sampleCount":2,"lastMeasuredAt":"2026-11-12T00:00:01Z",
+             "metrics":[{"metric":"FPS","unit":"FPS","count":2,"sessionCount":1,"avg":60,"min":50,"max":70,
+               "firstAt":"2026-11-12T00:00:00Z","lastAt":"2026-11-12T00:00:01Z"}]}
+            """.formatted(device);
+    }
+
+    @Test void summaryUsesBoundAuthPermissionAndDoesNotCacheTokensOrValues() {
+        summaryBody = summaryBody();
+        var result = summary.read(owner, device);
+        assertThat(result.hardwareProfileId()).isEqualTo(device);
+        assertThat(result.sampleCount()).isEqualTo(2);
+        assertThat(result.metrics().getFirst().avg()).isEqualTo(60);
+        assertThat(tokenRequest.get("accountId").asString()).isEqualTo(owner.toString());
+        assertThat(tokenRequest.get("audience").asString()).isEqualTo("performance-service");
+        assertThat(targetPath).isEqualTo("/internal/v1/accounts/" + owner + "/performance-summary?hardwareProfileId=" + device);
+        assertThat(targetAuthorization).isEqualTo("Bearer " + TOKEN);
+        summaryBody = "{\"hardwareProfileId\":\"" + device
+                + "\",\"sessionCount\":3,\"sampleCount\":0,\"lastMeasuredAt\":null,\"metrics\":[]}";
+        assertThat(summary.read(owner, device).metrics()).isEmpty();
+        assertThat(authCalls).hasValue(2);
+        assertThat(performanceCalls).hasValue(2);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {204, 301, 302, 400, 401, 403, 404, 429, 500, 503})
+    void summaryFailuresNeverBecomeEmptySuccess(int status) {
+        summaryBody = summaryBody(); summaryStatus = status;
+        assertThatThrownBy(() -> summary.read(owner, device))
+                .isInstanceOf(com.ltz.hardware.domain.exception.HardwarePerformanceUnavailableException.class)
+                .hasNoCause().hasMessageNotContaining(TOKEN);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"profile", "sessions", "samples", "timestamp", "unit", "metric", "count", "range", "number", "duplicate", "missing", "type"})
+    void summaryRejectsUntrustedShapeBindingAndMetricValues(String scenario) {
+        var root = (tools.jackson.databind.node.ObjectNode) mapper.readTree(summaryBody());
+        var metric = (tools.jackson.databind.node.ObjectNode) root.path("metrics").get(0);
+        switch (scenario) {
+            case "profile" -> root.put("hardwareProfileId", owner.toString());
+            case "sessions" -> root.put("sessionCount", -1);
+            case "samples" -> root.put("sampleCount", 3);
+            case "timestamp" -> root.put("lastMeasuredAt", "2026-11-12T00:00:02Z");
+            case "unit" -> metric.put("unit", "unknown");
+            case "metric" -> metric.put("metric", "UNKNOWN");
+            case "count" -> metric.put("count", 0);
+            case "range" -> metric.put("min", 80);
+            case "number" -> metric.put("avg", "60");
+            case "duplicate" -> ((tools.jackson.databind.node.ArrayNode) root.get("metrics")).add(metric.deepCopy());
+            case "missing" -> root.remove("metrics");
+            default -> root.put("metrics", "not-an-array");
+        }
+        summaryBody = mapper.writeValueAsString(root);
+        assertThatThrownBy(() -> summary.read(owner, device))
+                .isInstanceOf(com.ltz.hardware.domain.exception.HardwarePerformanceUnavailableException.class);
+    }
+
+    @Test void summaryRejectsMissingScopeOversizeTimeoutAndCredentialWithoutLeakingBodies() {
+        summaryBody = summaryBody();
+        authBody = authBody.replace("summary:read", "");
+        assertThatThrownBy(() -> summary.read(owner, device)).hasNoCause();
+        assertThat(performanceCalls).hasValue(0);
+        authBody = authBody.replace("devices:verify", "devices:verify summary:read");
+        summaryBody = " ".repeat(65537);
+        assertThatThrownBy(() -> summary.read(owner, device)).hasNoCause();
+        summaryBody = summaryBody(); slowPath = "/internal/v1/accounts/" + owner + "/performance-summary";
+        assertThatThrownBy(() -> summary.read(owner, device)).hasNoCause();
+        configure(null);
+        assertThatThrownBy(() -> summary.read(owner, device)).hasNoCause();
     }
 
     private void respond(HttpExchange exchange, int status, String body) throws IOException {
@@ -297,7 +374,8 @@ class HardwareServiceClientsTest {
         assertThat(new HardwareClientProperties(origin, origin, null).configured()).isFalse();
         assertThatThrownBy(() -> new HardwareClientProperties(null, origin, SECRET)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new HardwareClientProperties(origin, null, SECRET)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new HardwareClientProperties(origin, origin, "x".repeat(257)))
+        String oversized = "x".repeat(257);
+        assertThatThrownBy(() -> new HardwareClientProperties(origin, origin, oversized))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThat(List.of(properties.userServiceUrl(), properties.performanceServiceUrl())).containsOnly(origin);
     }

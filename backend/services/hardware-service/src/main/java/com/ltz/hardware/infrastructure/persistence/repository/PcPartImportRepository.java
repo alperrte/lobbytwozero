@@ -11,6 +11,7 @@ import tools.jackson.databind.ObjectMapper;
 
 @Repository
 public class PcPartImportRepository {
+    private static final String PC_PART_DATASET = "PC_PART_DATASET:";
     public enum Outcome { ADDED, UPDATED, UNCHANGED, SKIPPED }
     private record Existing(UUID product, String hash, String status, String variant) { }
     private final JdbcTemplate jdbc;
@@ -31,10 +32,11 @@ public class PcPartImportRepository {
             WHERE s.source_provider='PC_PART_DATASET' AND s.external_product_id=?
             """, (rs, index) -> new Existing(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3), rs.getString(4)), row.identity());
         Existing old = found.isEmpty() ? null : found.getFirst();
-        if (old != null && (!"ACTIVE".equals(old.status()) || !("PC_PART_DATASET:" + row.identity()).equals(old.variant()))) {
+        if (old != null && (!"ACTIVE".equals(old.status()) || !(PC_PART_DATASET + row.identity()).equals(old.variant()))) {
             return Outcome.SKIPPED;
         }
-        Outcome outcome = old == null ? Outcome.ADDED : old.hash().equals(row.contentHash()) ? Outcome.UNCHANGED : Outcome.UPDATED;
+        Outcome outcome = Outcome.ADDED;
+        if (old != null) outcome = old.hash().equals(row.contentHash()) ? Outcome.UNCHANGED : Outcome.UPDATED;
         if (dryRun) return outcome;
         UUID id = old == null ? UUID.randomUUID() : old.product();
         if (outcome == Outcome.ADDED) insertProduct(id, row);
@@ -61,7 +63,7 @@ public class PcPartImportRepository {
             INSERT INTO hardware_products(id,category,model,normalized_model,catalog_variant,capacity_gb,clock_mhz,
                 core_count,power_watts,memory_type,socket,interface_type,form_factor)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
-            """, id, row.category().name(), row.model(), CatalogText.normalize(row.model(), 160), "PC_PART_DATASET:" + row.identity(),
+            """, id, row.category().name(), row.model(), CatalogText.normalize(row.model(), 160), PC_PART_DATASET + row.identity(),
                 specs.getCapacityGb(), specs.getClockMhz(), specs.getCoreCount(), specs.getPowerWatts(),
                 specs.getMemoryType(), specs.getSocket(), specs.getInterfaceType(), specs.getFormFactor());
     }
@@ -74,7 +76,7 @@ public class PcPartImportRepository {
             WHERE id=? AND catalog_variant=? AND status='ACTIVE'
             """, row.model(), CatalogText.normalize(row.model(), 160), specs.getCapacityGb(), specs.getClockMhz(),
                 specs.getCoreCount(), specs.getPowerWatts(), specs.getMemoryType(), specs.getSocket(),
-                specs.getInterfaceType(), specs.getFormFactor(), id, "PC_PART_DATASET:" + row.identity());
+                specs.getInterfaceType(), specs.getFormFactor(), id, PC_PART_DATASET + row.identity());
         if (changed != 1) throw new IllegalStateException("IMPORTED_PRODUCT_CHANGED");
     }
 

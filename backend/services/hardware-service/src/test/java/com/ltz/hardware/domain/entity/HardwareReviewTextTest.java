@@ -44,6 +44,7 @@ class HardwareReviewTextTest {
         assertThatThrownBy(() -> review.requireVersion(0)).isInstanceOf(HardwareConflictException.class);
         review.delete();
         assertThatThrownBy(review::delete).isInstanceOf(HardwareConflictException.class);
-        assertThatThrownBy(() -> review.update("other", BigDecimal.valueOf(3))).isInstanceOf(HardwareConflictException.class);
+        BigDecimal updatedRating = BigDecimal.valueOf(3);
+        assertThatThrownBy(() -> review.update("other", updatedRating)).isInstanceOf(HardwareConflictException.class);
     }
 }

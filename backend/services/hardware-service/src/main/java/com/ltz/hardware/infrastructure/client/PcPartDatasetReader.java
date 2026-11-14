@@ -66,19 +66,12 @@ public class PcPartDatasetReader {
             if (parser.nextToken() != JsonToken.START_ARRAY) throw new IOException("DATASET_ARRAY_REQUIRED");
             while (parser.nextToken() != JsonToken.END_ARRAY) {
                 if (++rows > 100_000 || parser.currentToken() != JsonToken.START_OBJECT) throw new IOException("DATASET_STRUCTURE_INVALID");
-                var safe = json.createObjectNode();
-                while (parser.nextToken() != JsonToken.END_OBJECT) {
-                    String field = parser.currentName();
-                    parser.nextToken();
-                    if (PcPartMapper.allowed(pin.category(), field)) safe.set(field,
-                            json.reader().without(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).readTree(parser));
-                    else parser.skipChildren();
-                }
+                var safe = readRow(parser, pin.category());
                 try {
                     var product = mapper.map(pin.category(), safe);
                     if (identities.add(product.identity())) { products.add(product); accepted++; }
                     else duplicates++;
-                } catch (IllegalArgumentException exception) {
+                } catch (IllegalArgumentException _) {
                     rejected++;
                     // Never include source payload, exception text or product names in errors.
                     issues.add(new Issue(pin.category(), rows, "INVALID_TECHNICAL_ROW"));
@@ -87,5 +80,18 @@ public class PcPartDatasetReader {
             if (parser.nextToken() != null || rows != pin.count()) throw new IOException("DATASET_COUNT_MISMATCH");
         }
         files.put(pin.file(), new FileResult(pin.sha256(), rows, accepted, duplicates, rejected));
+    }
+
+    private tools.jackson.databind.node.ObjectNode readRow(tools.jackson.core.JsonParser parser,
+            ComponentCategory category) {
+        var safe = json.createObjectNode();
+        while (parser.nextToken() != JsonToken.END_OBJECT) {
+            String field = parser.currentName();
+            parser.nextToken();
+            if (PcPartMapper.allowed(category, field)) safe.set(field,
+                    json.reader().without(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).readTree(parser));
+            else parser.skipChildren();
+        }
+        return safe;
     }
 }
