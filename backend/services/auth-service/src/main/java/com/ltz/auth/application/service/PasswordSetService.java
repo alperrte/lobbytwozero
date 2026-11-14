@@ -77,11 +77,10 @@ public class PasswordSetService {
         if (account.passwordHash().isPresent()) {
             throw new AuthException(AuthErrorCode.PASSWORD_ALREADY_SET);
         }
-        if (twoFactorService.isEnabled(accountId)) {
-            if (!twoFactorService.verifySecondFactorForReauthentication(accountId, code, recoveryCode)) {
-                securityEventRecorder.recordEvent(SecurityEventType.PASSWORD_SET_REJECTED, accountId);
-                throw new AuthException(AuthErrorCode.INVALID_TWO_FACTOR_CODE);
-            }
+        if (twoFactorService.isEnabled(accountId)
+                && !twoFactorService.verifySecondFactorForReauthentication(accountId, code, recoveryCode)) {
+            securityEventRecorder.recordEvent(SecurityEventType.PASSWORD_SET_REJECTED, accountId);
+            throw new AuthException(AuthErrorCode.INVALID_TWO_FACTOR_CODE);
         }
         attemptThrottle.clear(throttleKey);
         transactionTemplate.execute(status -> issueCode(accountId)).ifPresent(dispatcher::dispatch);
