@@ -174,7 +174,7 @@ public class GameDetailBulkService {
     /** Türü Steam mağaza türünden verilmiş kayıt: IGDB kanıtı yokluğu bu kayıt için hata sayılmaz. */
     private static boolean steamClassified(Game game) {
         var marker = game.getMetadataProvenance().get("GAME_TYPE");
-        return marker != null && "STEAM".equals(marker.getSource());
+        return marker != null && PROVIDER_CODE.equals(marker.getSource());
     }
 
     private Duration pauseFor(ProviderException error, int failures) {
@@ -246,7 +246,8 @@ public class GameDetailBulkService {
     private void pause(ProviderException error, Instant now) {
         consecutiveFailures = Math.min(consecutiveFailures + 1, 6);
         Duration delay = retries.delay(error, Math.min(consecutiveFailures, 5));
-        Duration pause = delay == null ? MAX_PAUSE : delay.multipliedBy(consecutiveFailures >= 2 ? 4L : 1L);
+        long multiplier = consecutiveFailures >= 2 ? 4L : 1L;
+        Duration pause = delay == null ? MAX_PAUSE : delay.multipliedBy(multiplier);
         if (pause.compareTo(Duration.ofMinutes(1)) < 0) pause = Duration.ofMinutes(1);
         if (pause.compareTo(MAX_PAUSE) > 0) pause = MAX_PAUSE;
         pausedUntil = now.plus(pause);

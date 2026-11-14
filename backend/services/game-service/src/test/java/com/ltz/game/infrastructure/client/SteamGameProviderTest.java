@@ -213,13 +213,15 @@ class SteamGameProviderTest {
         assertEquals("INVALID_PROVIDER_RESPONSE", assertThrows(ProviderException.class, tagProvider::storeTagNames).code());
         assertEquals("RATE_LIMITED", assertThrows(ProviderException.class, tagProvider::storeTagNames).code());
         assertEquals(java.util.Map.of(), provider.storeTypes(java.util.List.of()));
-        assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.storeTypes(java.util.List.of("x"))).code());
+        var invalidTypeIds = java.util.List.of("x");
+        assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.storeTypes(invalidTypeIds)).code());
         tagServer.verify();
     }
 
     @Test void releaseStatusRejectsInvalidIdsAndPricesRejectInvalidCountriesAndIds() {
         assertEquals(java.util.Map.of(), provider.releaseStatus(java.util.List.of()));
-        assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.releaseStatus(java.util.List.of("0; drop"))).code());
+        var injectedId = java.util.List.of("0; drop");
+        assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.releaseStatus(injectedId)).code());
         assertEquals(java.util.Map.of(), provider.storePrices(java.util.List.of(), "US"));
         var validId = java.util.List.of("1");
         var badId = java.util.List.of("0; drop");
@@ -280,12 +282,14 @@ class SteamGameProviderTest {
 
     @Test void storeItemsRejectInvalidIdsOversizedBatchesAndMalformedResponses() {
         assertEquals(java.util.Map.of(), provider.storeItems(java.util.List.of()));
-        assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.storeItems(java.util.List.of("0; drop"))).code());
+        var injectedId = java.util.List.of("0; drop");
+        assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.storeItems(injectedId)).code());
         var many = new java.util.ArrayList<String>();
         for (int index = 1; index <= 101; index++) many.add(Integer.toString(index));
         assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.storeItems(many)).code());
         server.expect(method(HttpMethod.GET)).andRespond(withSuccess("{\"response\":{}}", MediaType.APPLICATION_JSON));
-        assertEquals("INVALID_PROVIDER_RESPONSE", assertThrows(ProviderException.class, () -> provider.storeItems(java.util.List.of("1"))).code());
+        var validId = java.util.List.of("1");
+        assertEquals("INVALID_PROVIDER_RESPONSE", assertThrows(ProviderException.class, () -> provider.storeItems(validId)).code());
     }
 
     @Test void shortDescriptionsAskTheRequestedLanguageOnlyAndParseTheTextsAndRejectUnsupportedLanguages() {
@@ -303,9 +307,11 @@ class SteamGameProviderTest {
                 """, MediaType.APPLICATION_JSON));
         var found = provider.shortDescriptions(java.util.List.of("570", "730", "731"), "tr");
         assertEquals(java.util.Map.of("570", "Her gün milyonlarca oyuncu."), found, "boş, eksik ve istenmeyen kayıtlar atlanır; metin kırpılır");
-        assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.shortDescriptions(java.util.List.of("1"), "de")).code(),
+        var oneId = java.util.List.of("1");
+        var injectedId = java.util.List.of("0; drop");
+        assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.shortDescriptions(oneId, "de")).code(),
                 "yapılandırılmamış dil için istek atılmaz");
-        assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.shortDescriptions(java.util.List.of("0; drop"), "tr")).code());
+        assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> provider.shortDescriptions(injectedId, "tr")).code());
         assertEquals(java.util.Map.of(), provider.shortDescriptions(java.util.List.of(), "tr"));
     }
 

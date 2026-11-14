@@ -95,7 +95,6 @@ class ITGamePriceLivePilot extends PostgresTestSupport {
                 result = "INVALID_MARKET";
             }
             lines.add(candidate + " " + result);
-            Thread.sleep(1200);
         }
         Files.write(Path.of("target", "market-pilot.txt"), lines);
     }

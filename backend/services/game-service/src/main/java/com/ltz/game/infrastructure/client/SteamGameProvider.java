@@ -16,9 +16,8 @@ import org.springframework.web.client.RestClientException;
  * indekslenir ve tür yalnız IGDB kanıtıyla belirlenir.
  */
 public class SteamGameProvider implements GameProvider {
-    private static final long MAX_UINT32 = 4294967295L;
-    /** Bir sayfada bu sayıdan az atlama her zaman kayıt düzeyi kabul edilir (sayfanın %10'u aşılmadıkça). */
-    private static final int MIN_SYSTEMIC_SKIPS = 5;
+    private static final String HEADER_API_KEY = "x-webapi-key";
+    private static final String HEADER_RETRY_AFTER = "Retry-After";
     private static final String ENDPOINT = "https://api.steampowered.com/IStoreService/GetAppList/v1/";
     private final RestClient client;
     private final String key;
@@ -119,8 +118,8 @@ public class SteamGameProvider implements GameProvider {
             return Boolean.TRUE;
         });
         try {
-            byte[] body = client.get().uri(TAG_ENDPOINT + "?language=english").header("x-webapi-key", key).exchange((request, response) -> {
-                validateStatus(response.getStatusCode().value(), response.getHeaders().getFirst("Retry-After"));
+            byte[] body = client.get().uri(TAG_ENDPOINT + "?language=english").header(HEADER_API_KEY, key).exchange((request, response) -> {
+                validateStatus(response.getStatusCode().value(), response.getHeaders().getFirst(HEADER_RETRY_AFTER));
                 byte[] bytes = response.getBody().readNBytes(SteamStoreBrowse.MAX_BODY + 1);
                 if (bytes.length > SteamStoreBrowse.MAX_BODY) throw new ProviderException("INVALID_PROVIDER_RESPONSE");
                 return bytes;
@@ -167,8 +166,8 @@ public class SteamGameProvider implements GameProvider {
             return Boolean.TRUE;
         });
         try {
-            return client.get().uri(BROWSE_ENDPOINT + "?input_json={input}", input).header("x-webapi-key", key).exchange((request, response) -> {
-                validateStatus(response.getStatusCode().value(), response.getHeaders().getFirst("Retry-After"));
+            return client.get().uri(BROWSE_ENDPOINT + "?input_json={input}", input).header(HEADER_API_KEY, key).exchange((request, response) -> {
+                validateStatus(response.getStatusCode().value(), response.getHeaders().getFirst(HEADER_RETRY_AFTER));
                 byte[] bytes = response.getBody().readNBytes(SteamStoreBrowse.MAX_BODY + 1);
                 if (bytes.length > SteamStoreBrowse.MAX_BODY) throw new ProviderException("INVALID_PROVIDER_RESPONSE");
                 return bytes;
@@ -209,9 +208,9 @@ public class SteamGameProvider implements GameProvider {
                 + (query.modifiedSince() == null ? "" : ",\"if_modified_since\":" + query.modifiedSince().getEpochSecond()) + "}";
         try {
             SteamCatalogEnvelope envelope = client.get().uri(ENDPOINT + "?input_json={input}", input)
-                    .header("x-webapi-key", key)
+                    .header(HEADER_API_KEY, key)
                     .exchange((request, response) -> {
-                        validateStatus(response.getStatusCode().value(), response.getHeaders().getFirst("Retry-After"));
+                        validateStatus(response.getStatusCode().value(), response.getHeaders().getFirst(HEADER_RETRY_AFTER));
                         byte[] body = response.getBody().readNBytes(1048577);
                         if (body.length > 1048576) throw new ProviderException("INVALID_PROVIDER_RESPONSE");
                         try {

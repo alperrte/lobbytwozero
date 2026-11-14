@@ -36,6 +36,12 @@
 - **Geri alma:** kaynağı STEAM olan tür ve terimler tek SQL ile geri alınır: `update games g set game_type='UNKNOWN', parent_game_id=null from game_metadata_provenance p
   where p.game_id=g.id and p.field='GAME_TYPE' and p.source='STEAM'` ve ilgili `STEAM_TYPE` işaretleri silinir; `ltz.game.catalog.steam-type.enabled=false` yedeği kapatır.
 
+## 15 Kasım 2026 — Game Sonar raporu (14 Kasım 21:57) düzeltmeleri
+
+- Rapordaki 85 açık kod kokusu (58 ana kod, 27 test) kodda giderildi: tekrarlanan sabitler (`SteamTermMapper`, `IgdbDetailSource`, Steam istemcileri), bilişsel karmaşıklık (`DescriptionLanguage`, `DlcParentService`, `GameRefreshProperties`), iç içe üçlü işleçler (`pause` yardımcıları), kendi çağrısı `@Transactional` (`CatalogImportService.resume`), kullanılmayan alan/metot, döngüde regex, `record` adlı metot, `null` yerine boş liste, test lambdalarında tek fırlatan çağrı. Davranış değişmedi.
+- `ITGamePriceLivePilot` içindeki `Thread.sleep(1200)` kaldırıldı: hız sınırını `ItadRequestLimiter` uygular. Canlı pilot bu değişiklikle çalıştırılmadı (NOT VERIFIED).
+- Maven `services/game-service verify`: 806/806 test, Checkstyle, PMD ve merkezi coverage kapısı PASS. Sonar yeniden taraması bu kayıtta yapılmadı (NOT VERIFIED).
+
 ## 7 Kasım 2026 — Game Sonar düzeltmeleri
 
 - Gerçek Sonar analizinde Game'in 42 açık bulgusu kapandı: bug, vulnerability ve

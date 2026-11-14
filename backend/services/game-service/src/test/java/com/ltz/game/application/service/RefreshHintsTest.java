@@ -128,9 +128,9 @@ class RefreshHintsTest {
 
     @Test void theHintSettingsAreValidated() {
         assertThrows(IllegalArgumentException.class, () -> properties(true, 0));
-        assertThrows(IllegalArgumentException.class, () -> new GameRefreshProperties(null, null, 90, 30, null,
-                new GameRefreshProperties.Hints(true, 10, Duration.ofSeconds(1), 100, 6)));
-        assertThrows(IllegalArgumentException.class, () -> new GameRefreshProperties(null, null, 90, 30, null,
-                new GameRefreshProperties.Hints(true, 10, Duration.ofMinutes(5), 101, 6)));
+        var shortWindow = new GameRefreshProperties.Hints(true, 10, Duration.ofSeconds(1), 100, 6);
+        var oversizedBatch = new GameRefreshProperties.Hints(true, 10, Duration.ofMinutes(5), 101, 6);
+        assertThrows(IllegalArgumentException.class, () -> new GameRefreshProperties(null, null, 90, 30, null, shortWindow));
+        assertThrows(IllegalArgumentException.class, () -> new GameRefreshProperties(null, null, 90, 30, null, oversizedBatch));
     }
 }
