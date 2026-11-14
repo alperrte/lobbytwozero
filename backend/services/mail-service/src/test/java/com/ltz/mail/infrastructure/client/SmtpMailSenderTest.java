@@ -134,13 +134,13 @@ class SmtpMailSenderTest {
         record Session(String recipient, String data) {
         }
 
-        private final ServerSocket socket = new ServerSocket(0, 50, InetAddress.getLoopbackAddress());
+        private final ServerSocket socket;
         private final List<Session> sessions = new CopyOnWriteArrayList<>();
         private final Thread acceptor;
         private volatile String recipientReply = "250 OK";
-        private volatile IOException lastError;
 
         FakeSmtpServer() throws IOException {
+            socket = new ServerSocket(0, 50, InetAddress.getLoopbackAddress());
             acceptor = Thread.ofVirtual().start(this::acceptLoop);
         }
 
@@ -160,8 +160,8 @@ class SmtpMailSenderTest {
             while (!socket.isClosed()) {
                 try (Socket client = socket.accept()) {
                     serve(client);
-                } catch (IOException exception) {
-                    lastError = exception; // sunucu kapandı ya da istemci bağlantıyı attı
+                } catch (IOException ignored) {
+                    // sunucu kapandı ya da istemci bağlantıyı attı; döngü kapalı soketle biter
                 }
             }
         }

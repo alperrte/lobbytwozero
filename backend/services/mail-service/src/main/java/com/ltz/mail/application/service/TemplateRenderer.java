@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
@@ -31,6 +32,7 @@ import com.ltz.mail.domain.enums.MailType;
 public class TemplateRenderer {
 
     static final String TEMPLATE_ERROR = "TEMPLATE_ERROR";
+    private static final Pattern FEATURE_SEPARATOR = Pattern.compile(" \\| ");
     private static final String LAYOUT_RESOURCE = "mail/layout.html";
     private static final String SUBJECT_SEPARATOR = " / ";
     private static final String TEXT_SEPARATOR = "\n\n----------\n\n";
@@ -142,7 +144,7 @@ public class TemplateRenderer {
         List<String[]> features = new ArrayList<>();
         for (Block block : template.blocks()) {
             if (block.type() == BlockType.FEATURE) {
-                String[] parts = Placeholders.apply(block.value(), variables, false).split(" \\| ", 2);
+                String[] parts = FEATURE_SEPARATOR.split(Placeholders.apply(block.value(), variables, false), 2);
                 features.add(parts);
                 text.add(parts[0] + ": " + parts[1]);
                 continue;
