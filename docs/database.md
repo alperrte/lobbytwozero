@@ -577,6 +577,18 @@ onaylı DEFERRED_AUTH / DEFERRED_CONTRACT / NOT_VERIFIED; production policy deny
 
 ### 3.14 recommendation_db — recommendation-service (Alper)
 
+**TASK 1'de uygulanan: V11 `recommendation_observations` (2026-11-14).**
+`id uuid` PK (sunucunun runId'si), `algorithm_version varchar(32)`, `occurred_at timestamptz`,
+`outcome varchar(16)` (`GENERATED|EMPTY|UNAVAILABLE` CHECK), `candidate_count`, `result_count`,
+`total_score integer`, `version bigint`. CHECK'ler 0–500 aday, 0–50 sonuç, sonuç≤aday ve skor
+sınırını/sonuç durumunu korur. `occurred_at` indekslidir; PK tekrar teslimi tekilleştirir.
+Kullanıcı/hedef REF, ham sinyal veya kişisel geçmiş yoktur. JPA validate ve Flyway temiz kurulum
+gerçek disposable PostgreSQL 17'de test edilir; mevcut migration değiştirilmedi.
+En çok 30 günlük özet; dakikada 1000 satırlık expired temizliği. Canlı migration/deploy yapılmadı.
+[Ölçüm ve saklama sözleşmesi](../docs-recommendation/decisions/task-01-decisions.md).
+
+**Aşağıdaki tablolar hâlâ ÖNERİ'dir; TASK 1'de oluşturulmadı:**
+
 | Tablo | Önemli sütunlar | Kısıtlar / not |
 | --- | --- | --- |
 | `user_taste_profiles` | user_id PK, genre_weights jsonb, platform_weights jsonb, updated_at | Favori/puan/tamamlanan oyunlardan türetilir (REC-02..05) |

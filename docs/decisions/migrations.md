@@ -42,6 +42,16 @@ geliştirmeye başlanmadan önce belirlenmelidir.
 
 ## Migration Kuralları
 
+### Recommendation V11 — motor çalışma analitiği, 2026-11-14
+
+- TASK 1 öncesi Recommendation migration klasörü boştu; ilk boş V11 seçildi:
+  `V11__create_recommendation_observations.sql`. V12–V20 boştur.
+- Yalnız recommendation_db içinde kullanıcı/hedef içermeyen teknik gözlem tablosu,
+  sayım/durum CHECK'leri, çalışma kimliği PK ve tarih indeksi ekler. Mevcut migration değiştirilmez.
+- Temiz disposable PostgreSQL 17'de Flyway/JPA, constraint, eşzamanlı tekilleştirme ve retention
+  testleri vardır. Canlı DB history okunmadı; DEV/production migration/deploy/reset yapılmadı.
+- [TASK 1 kanıtı](../../docs-recommendation/testings/task-01-tests.md).
+
 ### Game Service Steam durum kolonları ve fiyat kaynağı — 2026-11-10 (yeni migration numarası harcanmadı)
 
 - Steam durum alanları (`games.free`, `coming_soon`, `adult`, `delisted_at`; hepsi nullable, null = bilinmiyor) **V31**'in `games` tablo tanımına, `game_price_quotes.source`

@@ -21,6 +21,7 @@ lobbytwozero/
 ├─ docs/                      # Mimari, güvenlik, veri, kural ve gereksinim belgeleri
 ├─ docs-hardware/             # Hardware görev ilerlemesi, kararlar ve kalite kanıtları
 ├─ docs-performance/          # Performance görev ilerlemesi, kararlar, Auth entegrasyonu ve kalite kanıtları
+├─ docs-recommendation/       # Recommendation master, checklist, task kararları, sözleşmeler ve test kanıtları
 ├─ postgres/init/             # 01-create-databases.sql (17 DB oluşturma)
 ├─ ops/                       # env.cmd / env.ps1 / env.sh (dev/prod profil geçişi), ops.md
 │                             # dev.mjs / dev.test.mjs (tek araç: kurulum, keys, accounts, mail, site-url, e2e), hardware-catalog-import.mjs / .test.mjs
@@ -310,6 +311,12 @@ Performance Web MVP raporları `docs-performance/performance-web/` altında tutu
 Yeni Performance Web Auth sözleşmesi talepleri master talimatındaki birebir yol olan
 `docs-performance/integrtion/auth/performance-web-requests/` altına gider; yalnız
 gerçek ihtiyaç varsa dosya açılır. Mevcut backend Auth raporlarının yeri değişmez.
+
+Recommendation rapor kökü kullanıcı talimatıyla `docs-recommendation/` dizinidir.
+`progress/recommendation-master-checklist.md` kaynak 5 ana/23 REC görevini,
+`progress/task-0X.md` checkpoint'leri, `decisions/` task kararlarını, `integration/contracts.md`
+gerçek başlangıç API/izin matrisini, `testings/` test kanıtlarını, `reports/` issue ve commit
+taslaklarını tutar. Merkezi HTTP API kaydı `docs/api.md` içinde kalır.
 
 | Eklenecek | Konum |
 | --- | --- |

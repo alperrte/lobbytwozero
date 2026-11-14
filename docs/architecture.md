@@ -389,6 +389,14 @@ stateDiagram-v2
 
 ## 10. Recommendation ve Python algoritmaları `[KARAR BEKLİYOR]`
 
+**TASK 1 / 2026-11-14:** Java `RuleBasedRecommendationEngine`, sürümlü
+`RecommendationAlgorithm` portu ve `RecommendationExecutionService` uygulandı.
+`rules-v1` deterministik skor, UUID eşitlik sırası, katkı gerekçeleri ve boş sinyal davranışı taşır.
+PostgreSQL V11 yalnız kullanıcı/hedef içermeyen motor çalışma gözlemlerini tekilleştirir;
+30 günlük özet/saklama ve sınırlı temizleme vardır. Gösterim/tıklama/feedback veya model doğruluğu
+üretilmiş sayılmaz. İş HTTP ucu ve Recommendation'ın gerçek Auth/downstream adaptörleri henüz yoktur.
+Python runtime kararı değişmedi. [Sözleşme](../docs-recommendation/decisions/task-01-decisions.md).
+
 - REC-20 kural tabanlı motor Java içinde başlar. REC-21/22 Python algoritmaları gerektirir; **ayrı bir AI mikroservisi açılmaz** ve **yerel LLM çalıştırılmaz**.
 - Seçenekler: (a) recommendation-service container'ına Python çalışma zamanı + süreç çağrısı, (b) aynı servis sınırında yardımcı (sidecar) süreç. Karar ADR ile verilir; API sözleşmesi değişmez.
 - Öneri çıktısı her zaman **neden** bilgisi (REC-17) taşır ve kullanıcı adına otomatik işlem yapmaz.

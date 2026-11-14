@@ -1387,6 +1387,24 @@ erDiagram
 
 ## 15. recommendation_db
 
+**TASK 1 gerçek şeması — V11 (2026-11-14):** Tek bağımsız teknik tablo; kişisel veri REF/FK yoktur.
+
+```mermaid
+erDiagram
+  recommendation_observations {
+    uuid id PK "sunucunun runId değeri"
+    varchar algorithm_version
+    timestamptz occurred_at "indeks; 30 gün saklama"
+    varchar outcome "GENERATED veya EMPTY veya UNAVAILABLE"
+    int candidate_count "0..500"
+    int result_count "0..50 ve aday sayısından küçük/eşit"
+    int total_score
+    bigint version
+  }
+```
+
+**Aşağıdaki ilişkiler hedef ÖNERİ'dir; TASK 1'de oluşturulmamıştır:**
+
 ```mermaid
 erDiagram
   recommendation_runs ||--o{ recommendation_items : produces

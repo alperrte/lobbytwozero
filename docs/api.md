@@ -11573,7 +11573,14 @@ gerçek Game/ortak DEV/TLS/tarayıcı kabulü iddia edilmez.
 
 Sorumlu: Alper · Gateway: `/api/v1/recommendation/**` · Görevler: REC-
 
-_Kayıt yok._
+**TASK 1 / LTZ-ALP-REC-01 (2026-11-14):** İş HTTP endpoint'i henüz yoktur.
+`RecommendationAlgorithm`, `RecommendationExecutionService` ve analitik portu servis içidir;
+public/protected/internal HTTP sözleşmesi olarak kullanılamaz. Bu task hiçbir endpoint eklemedi,
+değiştirmedi veya kaldırmadı. Başlangıç güvenlik yüzeyindeki 401/CSRF 403 testleri gerçek
+Auth/JWT/RBAC/IDOR veya ProblemDetail iş API'si kabulü değildir.
+Kullanıcı kimliği ya da keyfi analitik olay kabul eden geçici bir endpoint açılmadı.
+[Sözleşme ve ölçüm anlamları](../docs-recommendation/decisions/task-01-decisions.md),
+[test kanıtı](../docs-recommendation/testings/task-01-tests.md).
 
 ## PERFORMANCE
 
