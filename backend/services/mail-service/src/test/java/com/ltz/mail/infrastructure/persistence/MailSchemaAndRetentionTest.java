@@ -59,29 +59,41 @@ class MailSchemaAndRetentionTest extends IntegrationTestSupport {
                 values (?, ?, 'h', 'NOTICE', ?, null, '***', ?, '\\x00'::bytea, 1, 'PENDING', 0, now(), now(), now(), now(), 0)""";
 
         assertThat(jdbc.update(insert, UUID.randomUUID(), UUID.randomUUID(), newAccount(), "social-service")).isEqualTo(1);
-        assertThatThrownBy(() -> jdbc.update(insert, UUID.randomUUID(), UUID.randomUUID(), newAccount(), null))
+        UUID secondId = UUID.randomUUID();
+        UUID secondKey = UUID.randomUUID();
+        UUID secondAccount = newAccount();
+        assertThatThrownBy(() -> jdbc.update(insert, secondId, secondKey, secondAccount, null))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
     void terminalRowsCannotKeepSensitiveData() {
-        assertThatThrownBy(() -> jdbc.update("""
+        String insert = """
                 insert into mail_messages (id, idempotency_key, request_hash, type, recipient_user_id, recipient_email,
                                            recipient_masked, payload_key_version, status, attempts, next_attempt_at,
                                            expires_at, created_at, updated_at, sent_at, version)
                 values (?, ?, 'h', 'PASSWORD_CHANGED', ?, 'kerem@example.com', 'k***@e***.com', 1, 'SENT', 1, now(),
-                        now(), now(), now(), now(), 0)""", UUID.randomUUID(), UUID.randomUUID(), newAccount()))
+                        now(), now(), now(), now(), 0)""";
+        UUID id = UUID.randomUUID();
+        UUID key = UUID.randomUUID();
+        UUID account = newAccount();
+
+        assertThatThrownBy(() -> jdbc.update(insert, id, key, account))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
     void activeRowsMustKeepTheirRecipientAndPayload() {
-        assertThatThrownBy(() -> jdbc.update("""
+        String insert = """
                 insert into mail_messages (id, idempotency_key, request_hash, type, recipient_user_id, recipient_masked,
                                            payload_key_version, status, attempts, next_attempt_at, expires_at,
                                            created_at, updated_at, version)
-                values (?, ?, 'h', 'PASSWORD_CHANGED', ?, 'k***@e***.com', 1, 'PENDING', 0, now(), now(), now(), now(), 0)""",
-                UUID.randomUUID(), UUID.randomUUID(), newAccount()))
+                values (?, ?, 'h', 'PASSWORD_CHANGED', ?, 'k***@e***.com', 1, 'PENDING', 0, now(), now(), now(), now(), 0)""";
+        UUID id = UUID.randomUUID();
+        UUID key = UUID.randomUUID();
+        UUID account = newAccount();
+
+        assertThatThrownBy(() -> jdbc.update(insert, id, key, account))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
@@ -89,18 +101,27 @@ class MailSchemaAndRetentionTest extends IntegrationTestSupport {
     void idempotencyKeyIsUnique() {
         UUID key = insertTerminal("FAILED", 0);
 
-        assertThatThrownBy(() -> jdbc.update(INSERT_TERMINAL.formatted("null"), UUID.randomUUID(), key, newAccount(),
-                "FAILED", 0)).isInstanceOf(DataIntegrityViolationException.class);
+        String insert = INSERT_TERMINAL.formatted("null");
+        UUID id = UUID.randomUUID();
+        UUID account = newAccount();
+
+        assertThatThrownBy(() -> jdbc.update(insert, id, key, account, "FAILED", 0))
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
     void unknownTypeAndStatusAreRejected() {
-        assertThatThrownBy(() -> jdbc.update("""
+        String insert = """
                 insert into mail_messages (id, idempotency_key, request_hash, type, recipient_user_id, recipient_email,
                                            recipient_masked, payload_key_version, payload_encrypted, status, attempts,
                                            next_attempt_at, expires_at, created_at, updated_at, version)
                 values (?, ?, 'h', 'BOGUS', ?, 'a@b.com', 'a***@b***.com', 1, '\\x00'::bytea, 'PENDING', 0, now(), now(),
-                        now(), now(), 0)""", UUID.randomUUID(), UUID.randomUUID(), newAccount()))
+                        now(), now(), 0)""";
+        UUID id = UUID.randomUUID();
+        UUID key = UUID.randomUUID();
+        UUID account = newAccount();
+
+        assertThatThrownBy(() -> jdbc.update(insert, id, key, account))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 

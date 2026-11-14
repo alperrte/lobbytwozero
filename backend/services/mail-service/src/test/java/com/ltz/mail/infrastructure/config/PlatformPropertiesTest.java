@@ -42,10 +42,11 @@ class PlatformPropertiesTest {
     void rejectsBadCallerNamesAndNonPositiveLimits() {
         PlatformProperties.Caller caller = new PlatformProperties.Caller(1, 1);
 
-        assertThatThrownBy(() -> new PlatformProperties(Map.of("auth-service", caller)))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new PlatformProperties(Map.of("Social_Service", caller)))
-                .isInstanceOf(IllegalArgumentException.class);
+        Map<String, PlatformProperties.Caller> authService = Map.of("auth-service", caller);
+        Map<String, PlatformProperties.Caller> badCase = Map.of("Social_Service", caller);
+
+        assertThatThrownBy(() -> new PlatformProperties(authService)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new PlatformProperties(badCase)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new PlatformProperties.Caller(0, 10)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new PlatformProperties.Caller(5, -1)).isInstanceOf(IllegalArgumentException.class);
     }

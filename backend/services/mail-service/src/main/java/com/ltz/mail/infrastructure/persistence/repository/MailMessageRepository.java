@@ -28,7 +28,7 @@ public interface MailMessageRepository extends JpaRepository<MailMessage, UUID> 
             VALUES (:id, :idempotencyKey, :requestHash, :type, :userId, :email, :masked, CAST(:locale AS varchar),
                     :payload, CAST(:keyVersion AS smallint), 'PENDING', 0, :now, :expiresAt, :now, :now, 0)
             ON CONFLICT (idempotency_key) DO NOTHING""", nativeQuery = true)
-    int insertIfAbsent(@Param("id") UUID id, @Param("idempotencyKey") UUID idempotencyKey,
+    int insertIfAbsent(@Param("id") UUID id, @Param("idempotencyKey") UUID idempotencyKey, // NOSONAR java:S107 tek INSERT'in sütun eşlemesi
             @Param("requestHash") String requestHash, @Param("type") String type, @Param("userId") UUID userId,
             @Param("email") String email, @Param("masked") String masked, @Param("locale") String locale,
             @Param("payload") byte[] payload, @Param("keyVersion") int keyVersion, @Param("now") Instant now,
@@ -46,7 +46,7 @@ public interface MailMessageRepository extends JpaRepository<MailMessage, UUID> 
             VALUES (:id, :idempotencyKey, :requestHash, :type, :userId, NULL, '***', CAST(:locale AS varchar), :caller,
                     :payload, CAST(:keyVersion AS smallint), 'PENDING', 0, :now, :expiresAt, :now, :now, 0)
             ON CONFLICT (idempotency_key) DO NOTHING""", nativeQuery = true)
-    int insertPlatformIfAbsent(@Param("id") UUID id, @Param("idempotencyKey") UUID idempotencyKey,
+    int insertPlatformIfAbsent(@Param("id") UUID id, @Param("idempotencyKey") UUID idempotencyKey, // NOSONAR java:S107 tek INSERT'in sütun eşlemesi
             @Param("requestHash") String requestHash, @Param("type") String type, @Param("userId") UUID userId,
             @Param("locale") String locale, @Param("caller") String caller, @Param("payload") byte[] payload,
             @Param("keyVersion") int keyVersion, @Param("now") Instant now, @Param("expiresAt") Instant expiresAt);
