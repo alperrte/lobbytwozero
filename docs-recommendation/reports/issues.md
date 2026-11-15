@@ -71,3 +71,28 @@ Son koşu 69 PASS / 0 skipped, coverage/lint/dependency kapıları PASS;
 [tüm koşu kanıtları](../testings/task-04-tests.md). Feature blokajları çözülmüş sayılmaz.
 Başka owner'ın kodu, Auth izinleri veya ENV değiştirilmedi. [Checkpoint](../progress/task-04.md).
 TASK 5 başlatılmadı; final pre-push ve SonarQube bu checkpoint'in PASS iddiası değildir.
+
+## TASK 5 / final güncel kayıt — 2026-11-15
+
+REC-22 feature **DONE**; TASK 5/final **PARTIAL / NOT READY / BLOCKED**. Üst bölümler
+tarihsel checkpoint'lerdir. Genel desteklenen kabul sayacı 14/23'tür.
+
+| Kayıt | Durum | Gerçek sonuç / owner |
+| --- | --- | --- |
+| Python runtime/model kararı | APPROVED / IMPLEMENTED | Kullanıcı açık onay verdi; ADR 0003; aynı servis/stdlib/finite JSON; yeni ENV/pip/sidecar yok |
+| Windows uzun script argv kaçışı | RESOLVED | Gerçek Java/Python testinde SyntaxError; JAR'dan çıkarılan sabit dosya yolu ile 80 test PASS |
+| PMD cause/resource/complexity | RESOLVED | Cause korundu, try-with-resources ve validator/fixture ayrımı; suppression/baseline/policy değişmedi |
+| Docker minimal Python'da JSON yokluğu | RESOLVED | Onaylı stdlib kapsamındaki libpython3-stdlib eklendi; final build ve packaged smoke exit 0 |
+| PowerShell stderr/Tee çıkışı | RESOLVED (doğrulama yolu) | Başarılı çıktıyla wrapper exit 1; doğrudan Node runner gerçek build ve Python test exit 0'ı doğruladı |
+| Native pre-push | BLOCKED | Gerçek profil okuma yasak; oturumluk koruma read'i ve uygulama DB fallback'ini durdurdu, iç exit 1. Alper + ortak kalite sahibi güvenli yolu sağlamalı veya kullanıcı kendi ortamında native kanıtı almalı |
+| Sonar scanner / Quality Gate / A'lar | BLOCKED / UNKNOWN | localhost:5199 bağlantısı kurulamadı, terminal token'ı yok, gerçek profil açılmadı; güncel analiz gönderilmedi. Alper yerel analiz ortamında yapılandırmalı; sır sohbete taşınmamalı |
+| Canlı kaynak servis/Gateway E2E | NOT VERIFIED | Auth issuer/JWKS gerçek; kaynaklar contract fixture. Linux image smoke bu kabulün yerine geçmez |
+| REC-02/03/05 | BLOCKED | Game metadata batch ve Review kişisel rating; Hamza talepleri açık |
+| REC-06/16 | PARTIAL | Donanıma uygun katalog listesi/sistem filtresi için Game batch gereksinimleri yok |
+| REC-09 | PARTIAL | Performance ölçüm resolution/preset/provenance/profil sürümü bağı yok; Alper talebi açık, FPS tahmini üretilmez |
+| REC-13/14/15 | BLOCKED | User/Social/Event izinli aday/eligibility ve iş API eksikleri; Kerem/Umut/Nisa talepleri açık |
+
+Final hedefli doğrulama: 80 Java + 7 Python PASS, LINE %97,51 / merkezi ek-değişen %97,70,
+Checkstyle/PMD yeni ihlal 0, JAR + image HIGH/CRITICAL 0.
+[Kanıt](../testings/task-05-tests.md), [native/Sonar ayrımı](../testings/pre-merge-quality.md).
+PR taslağı DRAFT/BLOCKED'dır; gerçek Git/PR işlemi yoktur.

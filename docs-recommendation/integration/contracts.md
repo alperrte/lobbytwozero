@@ -92,3 +92,20 @@ RecommendationApiIntegrationTest'te mevcut denyAll için üç negatif boundary t
 User/Social/Event üretici kodu ve auth izinleri değişmedi. Bu testler aday filtreleme/ranking,
 Event kapasite/zaman veya canlı çok servisli E2E kabulü değildir.
 [TASK 4 karar kaydı](../decisions/task-04-decisions.md).
+
+## TASK 5 sonrası güncel tüketici durumu — 2026-11-15
+
+- Yeni assistant endpoint'i mevcut Auth/JWKS/rıza/ACTIVE/kota modelini kullanır.
+- GAME yalnız bounded tür girdisiyle katalog filtresi rehberi; Game aday discovery çağrısı yok.
+- HARDWARE tam girdide mevcut owner Hardware/Game/Performance assessment'ını kullanır;
+  Python'a sadece üç durum kodu ve eksik alan kodları aktarılır. Yeni producer sözleşmesi yok.
+- LTZ_USAGE kendi history/feedback kullanım rehberi; history okumaz/yazmaz, mutasyon başlatmaz.
+- AssistantEngine Java portu + aynı servis içinde gerçek CPython; assistant-v1 input/output,
+  assistant-rules-v1 motor; stdin/çıktı/timeout/process sınırları ve finite response plan kontrolü.
+- Runtime kararı kullanıcı onaylı ADR 0003; mevcut Recommendation Dockerfile'a Python
+  minimal/stdlib eklendi. ENV/pip/Maven dependency/sidecar/DB/migration yoktur.
+
+80 Java + 7 Python test; production Auth issuer/JWKS ve kaynak contract fixture; final image
+non-root ağsız/read-only smoke ve Trivy PASS. Canlı kaynak servis E2E NOT VERIFIED.
+[Çalışma yönergesi](assistant-runtime.md), [testler](../testings/task-05-tests.md),
+[final gate BLOCKED ayrımı](../testings/pre-merge-quality.md).

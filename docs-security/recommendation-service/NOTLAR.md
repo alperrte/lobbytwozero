@@ -5,6 +5,23 @@
 
 ## Bilinen durumlar
 
+### TASK 5 / final güncel durum — 2026-11-15
+
+- REC-22 kapalı rehberlik gerçek CPython ile çalışır; POST assistant mevcut JWT/rol/rıza/
+  ACTIVE/kota modelini kullanır. Kullanıcı kimliği/token/ham profil Python'a taşınmaz;
+  2 process/2 sn, stdin/stdout/stderr sınırları ve finite template/step kontrolü vardır.
+- Runtime/Docker/portable kurulum açık kullanıcı onaylı [ADR 0003](../../docs/decisions/0003-recommendation-python-yardimcisi.md).
+  LLM/sidecar/pip/ENV/migration yoktur. Geçici script normal bean kapanışında temizlenir.
+- 80 Java + 7 Python test PASS; LINE %97,51, merkezi ek/değişen kod %97,70; lint yeni ihlal 0,
+  JAR ve final image CVE gate PASS. Docker non-root/ağsız/read-only packaged smoke PASS.
+- Native pre-push/Sonar gerçek profil okuması gerektiriyor; oturumluk korumada BLOCKED.
+  Sonar localhost:5199 erişilemedi, terminal token'ı yok; scanner/gate/A'lar UNKNOWN.
+  CI PASS bunların yerine sayılmaz. [Final kapı kanıtı](../../docs-recommendation/testings/pre-merge-quality.md).
+- Genel durum 14/23 DONE (desteklenen kapsam); önceki Game/Review/User/Social/Event ve
+  Performance bağlamı açıkları sürer. Canlı çok servis E2E NOT VERIFIED; **NOT READY**.
+- Windows quoting, PMD kaynak/cause/complexity ve Docker stdlib sorunları düzeltildi;
+  [ara koşular dahil tam rapor](../../docs-recommendation/testings/task-05-tests.md).
+
 ### TASK 4 güncel durum — 2026-11-15
 
 - REC-13/14/15 **BLOCKED (0/3)**: izinli User aday/tercih batch'i ve Social eligibility/

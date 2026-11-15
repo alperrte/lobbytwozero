@@ -11889,6 +11889,103 @@ min/recommended/units/missing/manual-brandless/compatibility/upgrade ve FPS abst
 Hardware/Game/Performance source HTTP'leri contract fixture; tam canlı çok servis E2E NOT VERIFIED.
 [TASK 3 kanıtı](../docs-recommendation/testings/task-03-tests.md).
 
+### RECOMMENDATION — Python kural tabanlı LTZ yardımcısı (REC-22)
+
+Durum: IMPLEMENTED — kapalı konu/intent rehberliği; LLM veya serbest metin sohbeti yok
+Sorumlu: Alper
+Tüketici servisler: Frontend (planlı; bu görevde UI geliştirilmedi)
+
+#### Endpoint
+POST /api/v1/recommendation/assistant
+
+#### Yetkilendirme
+Owner — mevcut kanonik rol ve RS256/JWKS kullanıcı token'ı; userId yalnız JWT sub'dan.
+User rızası + Auth account-bound ACTIVE denetimi her çağrıda uygulanır. Servis token'ı bu
+kullanıcı yolunda 401; istemci kimlik header/body alanları yetki vermez. Gateway cookie/CSRF
+modeli değişmedi. Hardware bağlamı yalnız Hardware'ın owner batch kontrolünden geçerse kullanılır.
+
+#### Path/Query Parameters
+Yok; uygulama runtime yolu/timeout'u request ile seçilemez.
+
+#### Request Body
+```json
+{
+  "contractVersion": "assistant-v1",
+  "topic": "GAME",
+  "intent": "SELECT_GAME",
+  "locale": "tr",
+  "genre": "rpg"
+}
+```
+
+- contractVersion, topic, intent, locale zorunlu. Locale tr/en.
+- GAME yalnız SELECT_GAME: genre opsiyonel `[a-z0-9-]{1,64}`. Eksikse NEEDS_INPUT/GENRE;
+  varsa katalog tür filtresi ve requirement kontrolü rehberi döner. Türün katalogda varlığı
+  doğrulanmış veya oyun seçilmiş sayılmaz; bu çağrı Game discovery çalıştırmaz.
+- HARDWARE yalnız ASSESS_GAME: opsiyonel hardwareProfileId/gameId UUID ve platform
+  `[a-z0-9-]{1,32}`; eksik alanlar 200 NEEDS_INPUT listelenir. Hepsi varsa mevcut owner
+  assessment çalışır; Python'a sadece minimum/recommended/compatibility durumları aktarılır.
+- LTZ_USAGE yalnız VIEW_HISTORY veya GIVE_FEEDBACK: kendi geçmiş/feedback kullanım rehberi.
+- genre yalnız GAME'de, profil/oyun/platform yalnız HARDWARE'da kabul edilir. Bilinmeyen
+  alan, serbest text/context/userId/URL/command alanı veya yanlış topic-intent eşleşmesi 400.
+  Body en çok 16 KiB. API'den Python'a token, owner/profil/oyun ID'si veya ham snapshot geçmez.
+
+#### Response — 200
+```json
+{
+  "contractVersion": "assistant-v1",
+  "algorithmVersion": "assistant-rules-v1",
+  "topic": "GAME",
+  "intent": "SELECT_GAME",
+  "locale": "tr",
+  "status": "GUIDANCE",
+  "template": "GAME_SELECTION",
+  "message": "Katalogda seçtiğiniz türü filtreleyin; oyun detayındaki sistem gereksinimlerini kontrol edin. Bu bir oyun veya FPS garantisi değildir.",
+  "steps": ["OPEN_GAME_DISCOVERY", "FILTER_GENRE", "VERIFY_GAME_REQUIREMENTS"],
+  "missingFields": []
+}
+```
+
+Yanıt kendi topic/intent/locale girdisine bağlanır. GUIDANCE/NEEDS_INPUT/INSUFFICIENT_DATA;
+sabit altı template ve kapalı step kodları.
+HARDWARE kanıtlı açık/uyumsuzlukta HARDWARE_DEFICIT, diğer tam girdilerde HARDWARE_UNKNOWN;
+her ikisi INSUFFICIENT_DATA ve FPS/tam uyumluluk garantisi taşımaz. Grafik/yükseltme ayrıntısı
+için assessment endpoint'i kullanılır. Yanıt aynı normalize girdiye/aynı kaynak durumlarına
+deterministiktir; kaynak verisi değişirse sonuç değişebilir.
+
+Mesaj/step'ler rehberdir; otomatik navigasyon, URL fetch, profil değiştirme, satın alma,
+arkadaş ekleme, feedback gönderme veya öneri run oluşturma yapılmaz. History/chat/snapshot
+kaydedilmez; rıza geri çekme halinde mevcut kişisel geçmiş temizliği paylaşılır.
+
+#### Hata Durumları
+- 400 INVALID_REQUEST — DTO/sürüm/locale/topic-intent/alan allowlist ihlali
+- 401 AUTHENTICATION_REQUIRED — eksik/geçersiz kullanıcı token'ı veya servis token'ı
+- 403 ACCESS_DENIED / CONSENT_REQUIRED / SOURCE_ACCESS_DENIED
+- 404 SOURCE_NOT_FOUND / GAME_UNAVAILABLE — owner assessment kaynak gizleme semantiği
+- 413 REQUEST_TOO_LARGE
+- 429 RATE_LIMITED — mevcut generation kotasıyla ortak 10/dakika/hesap/instance
+- 503 ASSISTANT_BUSY / ASSISTANT_TIMEOUT / ASSISTANT_INPUT_LIMIT / ASSISTANT_INTERRUPTED /
+  ASSISTANT_UNAVAILABLE / ASSISTANT_INVALID_OUTPUT veya mevcut assessment kaynak hata kodu
+- 500 INTERNAL_ERROR — ayrıntısız ProblemDetail
+
+Tüm iş yanıtları private/no-store. Process stdout/stderr veya exception cause client'a dönmez.
+Python yokluğunda Java rehberi başarı gibi sunulmaz; 503'tür. En çok iki child process,
+2 saniye process deadline, stdin 8 KiB, stdout ve stderr ayrı ayrı 16 KiB sınırı vardır.
+
+#### Bağlantı
+Frontend: Gateway üzerinden aynı path; UI entegrasyonu planlı.
+Diğer servisler: User consent + Auth ACTIVE grant; yalnız tam HARDWARE girdisinde mevcut
+Hardware/Game/Performance assessment sözleşmeleri. Yeni producer API/izin/ENV yoktur.
+Python aynı Recommendation sınırında sabit repo script'idir; LLM, sidecar, pip veya ağ çağrısı yok.
+[ADR 0003](decisions/0003-recommendation-python-yardimcisi.md),
+[kurulum/çalıştırma](../docs-recommendation/integration/assistant-runtime.md).
+
+#### Test Durumu
+UNIT + INTEGRATION — gerçek CPython, Java process sınırları ve MockMvc/JWKS/owner/rıza;
+3 konu, iki dil, deterministik sürüm/şablon, eksik/bozuk/malicious input, unavailable/timeout/
+invalid JSON/limit/interrupt ve değişiklik yapmama testleri. Hardware/Game/Performance HTTP
+contract fixture; canlı çok servis E2E NOT VERIFIED. [TASK 5 kanıtı](../docs-recommendation/testings/task-05-tests.md).
+
 ## PERFORMANCE
 
 Sorumlu: Alper · Gateway: `/api/v1/performance/**` · Görevler: PERF-, PWEB-

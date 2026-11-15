@@ -147,6 +147,11 @@ Servis klasör adı her zaman `<ad>-service` biçimindedir; Java base package `c
 
 Bağımlılık yönü: `api → application → domain`; `infrastructure` yalnız `application/port` arayüzlerini uygular. `domain` hiçbir katmanı import etmez. Controller doğrudan repository veya client çağırmaz.
 
+REC-22 için Recommendation'a özgü ek yerleşim: sabit standart kütüphaneli Python motoru
+`src/main/resources/assistant/assistant_rules.py` içinde JAR'a paketlenir; saf Python testleri
+`src/test/python/test_assistant_rules.py` altındadır. Java portu application/port, sınırlı
+process adaptörü infrastructure/client içindedir. Ayrı servis veya kök Python projesi açılmaz.
+
 ### 3.2 api-gateway `[MEVCUT]`
 
 ```text

@@ -1,6 +1,6 @@
 # Commit taslakları
 
-Bu ajan gerçek commit/stage/push yapmadı. TASK 1–4 için ayrı taslaklar vardır.
+Bu ajan gerçek commit/stage/push yapmadı. TASK 1–5 için beş ayrı taslak vardır.
 Başlık/body bağlayıcı master v2 §12 ve kullanıcının Conventional Commit talebine göre hazırlanmıştır.
 
 ## TASK 1 / LTZ-ALP-REC-01
@@ -90,3 +90,25 @@ feature: LTZ-ALP-REC-04 sosyal öneri blokajlarını belgele ve kapalı erişimi
 ```
 
 TASK 5 başlatılmadı. Final pre-push/SonarQube ve PR taslağı bu checkpoint'te çalıştırılmadı.
+
+## TASK 5 / LTZ-ALP-REC-05 — gerçek Python yardımcısı ve final rapor
+
+REC-22 **DONE (kapalı rehberlik kapsamı)**; final gate **BLOCKED / NOT READY**.
+Önceki kullanıcı commit'i `985b2388`; aşağıdaki mesaj yalnız yeni TASK 5 değişiklikleridir.
+AGENTS.md'nin zorunlu `feature:` başlığı korunur. Gate engelleri feature başarısı diye yazılmaz.
+
+```text
+feature: LTZ-ALP-REC-05 güvenli Python yardımcısını ve final kalite raporunu ekle
+- REC-22: POST /api/v1/recommendation/assistant ile GAME, HARDWARE ve LTZ_USAGE için assistant-v1/assistant-rules-v1 sözleşmeli, tr/en sabit şablonlu gerçek Python rehberliği sun.
+- Kurallar: eksik girdiyi NEEDS_INPUT olarak belirt; donanımda owner assessment durumlarını açıkla, FPS veya tam uyumluluk garantisi verme; oyun seçimi rehberini gerçek katalog önerisi gibi sunma.
+- Güvenlik: mevcut JWT/rol/rıza/ACTIVE/kotayı paylaş; Python'a kimlik/token/ham profil göndermeden sınırlı stdin JSON kullan, yanıtın sürüm/bağlam/şablon/step eşleşmesini doğrula.
+- Process sınırları: sabit script dosyası, temiz child environment, iki eşzamanlı process, iki saniye deadline ve input/output limitleri uygula; timeout/exit/bozuk JSON hatalarını kontrollü ProblemDetail ile kapat.
+- Runtime: kullanıcı onaylı ADR 0003 ile mevcut non-root image'a Python minimal/stdlib ekle; portable Windows runtime checksum'unu doğrula, yeni ENV/pip/sidecar/migration ekleme.
+- Testler: 80 Java ve 7 Python testini geçir; LINE %97,51, merkezi ek/değişen kod %97,70, Checkstyle/PMD yeni ihlal 0 ve JAR dependency gate PASS sonuçlarını kaydet.
+- Dağıtım: dar secretsiz context ile image build'ini, JAR içindeki script hash'ini ve ağsız/read-only/non-root smoke testini doğrula; final image HIGH/CRITICAL taramasında 0 bulgu kaydet.
+- Final gate: native pre-push/Sonar denemelerini gerçek ENV/uygulama DB korumasıyla çalıştırıp BLOCKED kaydet; doğrulanmamış Quality Gate veya A notu iddia etme.
+- Belgeler: API, mimari, klasör yerleşimi, ADR/runtime yönergesi, beşinci checkpoint/test, master checklist, issues, güvenlik ve PR title/description taslaklarını güncelle; 14/23 kabul ve NOT READY kararını açık tut.
+```
+
+Beş taslak yukarıda ayrı tutuldu; kullanıcı ilk dört aşamayı kendisi commit etti. Beşinci
+taslak çalışma ağacıdır. Gerçek stage/commit/push/PR/merge veya Git kimlik değişikliği yapılmadı.

@@ -389,6 +389,19 @@ stateDiagram-v2
 
 ## 10. Recommendation ve Python algoritmaları `[KARAR BEKLİYOR]`
 
+**TASK 5 / 2026-11-15 — REC-22 çalışma modeli kabul edildi:** Kullanıcı onaylı
+[ADR 0003](decisions/0003-recommendation-python-yardimcisi.md) ile aynı servis içinde sabit
+CPython script'i çalışır. Yeni assistant endpoint'i kapalı GAME/HARDWARE/LTZ_USAGE intent'leri,
+tr/en ve sürümlü şablonlarla rehberlik verir; LLM/sidecar/pip yoktur. Kullanıcı girdisi yalnız
+sınırlı stdin JSON; token/kimlik/ham profil Python'a geçmez. Mevcut owner/rıza/ACTIVE/kota,
+2 process/2 sn ve çıktı sınırları uygulanır. GAME gerçek aday listesi değildir, HARDWARE
+mevcut assessment durumlarını açıklar; otomatik aksiyon/snapshot/history yazımı yoktur.
+Docker'da minimal Python + standart kütüphane ve non-root çalışma doğrulandı. Önceki diğer
+algoritma/entegrasyon açıkları sürer; final native pre-push/Sonar engelleri nedeniyle
+[merge kararı NOT READY](../docs-recommendation/testings/pre-merge-quality.md).
+Başlıktaki karar bekleyen kapsam genel gelişmiş algoritma seçenekleridir; REC-22 modeli
+artık beklemede değildir. Aşağıdaki TASK 1–4 paragrafları tarihsel checkpoint'lerdir.
+
 **TASK 4 güncel durum / 2026-11-15 — BLOCKED (0/3):** User kart batch'i izinli oyun
 tercihi/aday keşfi değildir; mevcut rızanın amacı sosyal aday olmaya genişletilmez. Social
 iki yönlü engel sorgusu yalnız Messaging/LFP caller'larına açıktır; Recommendation Auth grant'ı
@@ -429,7 +442,7 @@ PostgreSQL V11 yalnız kullanıcı/hedef içermeyen motor çalışma gözlemleri
 Python runtime kararı değişmedi. [Sözleşme](../docs-recommendation/decisions/task-01-decisions.md).
 
 - REC-20 kural tabanlı motor Java içinde başlar. REC-21/22 Python algoritmaları gerektirir; **ayrı bir AI mikroservisi açılmaz** ve **yerel LLM çalıştırılmaz**.
-- Seçenekler: (a) recommendation-service container'ına Python çalışma zamanı + süreç çağrısı, (b) aynı servis sınırında yardımcı (sidecar) süreç. Karar ADR ile verilir; API sözleşmesi değişmez.
+- REC-22 için (a) recommendation-service container'ına Python çalışma zamanı + süreç çağrısı seçildi (ADR 0003); sidecar açılmadı. Mevcut ranking API sözleşmeleri korunur; yardımcının yeni endpoint'i docs/api.md'de kayıtlıdır.
 - Öneri çıktısı her zaman **neden** bilgisi (REC-17) taşır ve kullanıcı adına otomatik işlem yapmaz.
 
 ## 11. Güvenlik sınırları (özet)

@@ -116,7 +116,7 @@ Durumlar task kabul kapsamındadır; ürünün tüm entegrasyonları tamamlandı
 
 **Alt tasklar:**
 
-- [ ] **REC-22 — Python algoritmalarıyla oyun/donanım/LTZ yardımcısı:** Oyun seçimi, donanım ve LTZ kullanımı konularında **yerel AI/LLM modeli kullanmadan**, Python tabanlı algoritmalar, karar kuralları ve gerektiğinde tanımlı yanıt/akış şablonlarıyla yardım sunulması. Bu yetenek `recommendation-service` kapsamındadır; ayrı bir AI mikroservisi oluşturulmaz.
+- [x] **REC-22 — Python algoritmalarıyla oyun/donanım/LTZ yardımcısı:** Oyun seçimi, donanım ve LTZ kullanımı konularında **yerel AI/LLM modeli kullanmadan**, Python tabanlı algoritmalar, karar kuralları ve gerektiğinde tanımlı yanıt/akış şablonlarıyla yardım sunulması. Bu yetenek `recommendation-service` kapsamındadır; ayrı bir AI mikroservisi oluşturulmaz.
 
 
 **Bitmiş sayılma:** Yukarıdaki akış API/veri sahipliği kurallarına uygun çalışır, ilgili testler geçer ve ana taskın tek özellik teslimi yapılır.
@@ -213,3 +213,28 @@ ihlal ve dependency gate PASS. Coverage önceki taskları kapsar; yeni productio
 
 TASK 5 başlatılmadı; sonraki açık devam talimatı beklenir. Genel sayaç belgelendirilmiş
 desteklenen kapsamla 13/23 DONE; kalanlar bu checkpoint'te kapatılmadı.
+
+## TASK 5 ve final doğrulama — 2026-11-15
+
+**REC-22 DONE (1/1); TASK 5 PARTIAL — final gate BLOCKED.** Önceki task metinleri kendi
+checkpoint tarihlerinin durumudur. Güncel sayaç **14/23 DONE** (belgelenmiş kabul kapsamı).
+
+| REC | Gerçek dosya / API | Kaynak ve güvenlik | Kanıt / durum |
+| --- | --- | --- | --- |
+| REC-22 | POST assistant; RecommendationAssistantService, AssistantEngine, PythonAssistantEngine, assistant_rules.py | GAME tür filtre rehberi, HARDWARE owner assessment durumları, LTZ_USAGE history/feedback rehberi; mevcut JWT/rıza/ACTIVE/kota | Gerçek CPython, 3 konu, kapalı DTO/şablon, negatif process/API testleri; DONE |
+
+80 Java + 7 Python test PASS; LINE %97,51, merkezi ek/değişen kod %97,70; yeni lint ihlali 0,
+JAR ve final image dependency gate PASS. Onaylı aynı-servis runtime, non-root ağsız/read-only
+packaged smoke testli; ENV/pip/sidecar/migration yok. GAME modu gerçek öneri listesi üretmez;
+HARDWARE FPS/uyum garantisi vermez. Canlı çok servis E2E NOT VERIFIED.
+
+- [x] Beş checkpoint, ayrı commit taslakları ve PR title/description hazır.
+- [x] REC-22 runtime kararı açık kullanıcı onayıyla uygulandı; gerçek Python testli.
+- [ ] 23/23 REC: REC-02/03/05/06/09/13/14/15/16 hâlâ açık.
+- [ ] Native pre-push: güvenli ENV/DB korumasında BLOCKED; mevcut CI kapısı yerine sayılmadı.
+- [ ] Sonar scanner/gate ve A'lar: sunucu/token ve profil politikası nedeniyle BLOCKED/UNKNOWN.
+- [ ] 5/5 tam özellik teslimi ve MERGE READY — sağlanmadı.
+
+[TASK 5 checkpoint](task-05.md), [testler](../testings/task-05-tests.md),
+[final kalite raporu](../testings/pre-merge-quality.md), [PR taslağı](../reports/pr-description.md).
+**NOT READY / BLOCKED — gerçek commit/push/PR/merge yapılmadı. DUR.**

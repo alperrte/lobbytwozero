@@ -71,6 +71,8 @@ class HardwareAssessmentApiIntegrationTest {
         }
         registry.add("ltz.recommendation.client-secret", () -> "test-only-recommendation-credential");
         registry.add("ltz.recommendation.auth.read-timeout", () -> "200ms");
+        registry.add("ltz.recommendation.assistant.python-executable",
+                com.ltz.recommendation.infrastructure.client.PythonTestRuntime::executable);
     }
 
     @BeforeAll
@@ -202,8 +204,71 @@ class HardwareAssessmentApiIntegrationTest {
         }
     }
 
+    @Test
+    void assistantGameAndUsageRunPythonWithoutPrivateContextOrHistoryWrites() throws Exception {
+        long before = jdbc.queryForObject("SELECT count(*) FROM recommendation_runs", Long.class);
+        String game = "{\"contractVersion\":\"assistant-v1\",\"topic\":\"GAME\",\"intent\":\"SELECT_GAME\",\"locale\":\"tr\",\"genre\":\"rpg\"}";
+        JsonNode result = assistant(token, game, 200);
+        assertThat(result.path("template").asString()).isEqualTo("GAME_SELECTION");
+        assertThat(result).isEqualTo(assistant(token, game, 200));
+        assertThat(result.toString()).doesNotContain(A.toString(), "Bearer", "fpsSampleCount");
+        String usage = "{\"contractVersion\":\"assistant-v1\",\"topic\":\"LTZ_USAGE\",\"intent\":\"VIEW_HISTORY\",\"locale\":\"en\"}";
+        assertThat(assistant(token, usage, 200).path("template").asString()).isEqualTo("HISTORY_GUIDE");
+        assertThat(assistant(token, usage.replace("VIEW_HISTORY", "GIVE_FEEDBACK"), 200).path("template").asString()).isEqualTo("FEEDBACK_GUIDE");
+        assertThat(REQUESTS).allMatch(path -> path.equals("/api/v1/user/me/consents") || path.equals("/internal/v1/service-tokens"));
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM recommendation_runs", Long.class)).isEqualTo(before);
+    }
+
+    @Test
+    void assistantHardwareRequiresOwnerAndMissingInputIsExplicit() throws Exception {
+        String minimal = "{\"contractVersion\":\"assistant-v1\",\"topic\":\"HARDWARE\",\"intent\":\"ASSESS_GAME\",\"locale\":\"tr\"}";
+        assertThat(assistant(token, minimal, 200).path("missingFields").size()).isEqualTo(3);
+        String complete = minimal.substring(0, minimal.length() - 1) + ",\"hardwareProfileId\":\"" + PROFILE
+                + "\",\"gameId\":\"" + GAME + "\",\"platform\":\"windows\"}";
+        assertThat(assistant(token, complete, 200).path("template").asString()).isEqualTo("HARDWARE_UNKNOWN");
+        mode = "below-minimum";
+        assertThat(assistant(token, complete, 200).path("template").asString()).isEqualTo("HARDWARE_DEFICIT");
+        REQUESTS.clear();
+        assistant(auth.token(B, "PLAYER"), complete, 404);
+        assertThat(REQUESTS).noneMatch(path -> path.endsWith("/metadata") || path.contains("performance-reference"));
+    }
+
+    @Test
+    void assistantRejectsIdentityInjectionInvalidIntentAndShellPayloads() throws Exception {
+        String body = "{\"contractVersion\":\"assistant-v1\",\"topic\":\"GAME\",\"intent\":\"SELECT_GAME\",\"locale\":\"tr\"}";
+        assistant("invalid", body, 401);
+        assistant(auth.serviceToken(A), body, 401);
+        for (String invalid : List.of(body.replace("assistant-v1", "assistant-v2"), body.replace("SELECT_GAME", "GIVE_FEEDBACK"),
+                body.replace("\"tr\"", "\"xx\""), body.replace("\"GAME\"", "\"CHAT\""),
+                body.substring(0, body.length() - 1) + ",\"userId\":\"" + B + "\"}",
+                body.substring(0, body.length() - 1) + ",\"genre\":\"$(whoami)\"}",
+                body.substring(0, body.length() - 1) + ",\"hardwareProfileId\":\"" + PROFILE + "\"}")) {
+            assistant(token, invalid, 400);
+        }
+        assertThat(REQUESTS).isEmpty();
+    }
+
+    @Test
+    void assistantStopsAtConsentAndHardwareSourceFailures() throws Exception {
+        String body = "{\"contractVersion\":\"assistant-v1\",\"topic\":\"HARDWARE\",\"intent\":\"ASSESS_GAME\",\"locale\":\"en\","
+                + "\"hardwareProfileId\":\"" + PROFILE + "\",\"gameId\":\"" + GAME + "\",\"platform\":\"windows\"}";
+        mode = "no-consent";
+        assertThat(assistant(token, body, 403).path("code").asString()).isEqualTo("CONSENT_REQUIRED");
+        assertThat(REQUESTS).containsExactly("/api/v1/user/me/consents");
+        mode = "hardware-unavailable";
+        assistant(token, body, 503);
+    }
+
+    private JsonNode assistant(String bearer, String body, int expected) throws Exception {
+        return perform("/api/v1/recommendation/assistant", bearer, body, expected);
+    }
+
     private JsonNode assess(String bearer, String body, int expected) throws Exception {
-        var response = mvc.perform(post(PATH).contentType(MediaType.APPLICATION_JSON).content(body)
+        return perform(PATH, bearer, body, expected);
+    }
+
+    private JsonNode perform(String path, String bearer, String body, int expected) throws Exception {
+        var response = mvc.perform(post(path).contentType(MediaType.APPLICATION_JSON).content(body)
                 .header("Authorization", "Bearer " + bearer)).andExpect(status().is(expected)).andReturn().getResponse();
         assertThat(response.getHeader("Cache-Control")).contains("no-store");
         return JSON.readTree(response.getContentAsByteArray());
@@ -303,16 +368,9 @@ class HardwareAssessmentApiIntegrationTest {
         body.put("hardwareProfileId", mode.equals("wrong-fps-profile") ? B : PROFILE);
         body.put("reliable", samples >= 60); body.put("sessionCount", samples == 0 ? 0 : 2);
         body.put("fpsSampleCount", mode.equals("negative-count") ? -1 : samples);
-        body.putAll(fpsNumbers(samples));
+        body.putAll(PerformanceReferenceFixtureValues.numbers(mode, samples));
         body.put("lastMeasuredAt", samples == 0 ? null : "2026-11-14T12:00:00Z");
         reply(exchange, 200, JSON.writeValueAsString(body));
-    }
-    private static Map<String, Object> fpsNumbers(long samples) {
-        Map<String, Object> result = new HashMap<>();
-        result.put("avgFps", samples < 60 ? null : mode.equals("outlier-fps") ? 9999 : 60);
-        result.put("minFps", samples < 60 ? null : mode.equals("invalid-fps") ? 100 : 30);
-        result.put("maxFps", samples < 60 ? null : mode.equals("outlier-fps") ? 12000 : 90);
-        return result;
     }
     private static void reply(HttpExchange exchange, int status, String body) throws java.io.IOException {
         byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
