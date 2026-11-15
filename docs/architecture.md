@@ -389,6 +389,19 @@ stateDiagram-v2
 
 ## 10. Recommendation ve Python algoritmaları `[KARAR BEKLİYOR]`
 
+**TASK 2 güncel durum / 2026-11-14:** Recommendation kendi Auth JWKS doğrulamasını,
+cookie→Bearer sınırını, kanonik rol ve D4 silme sözleşmesini uygular. User rızası ve kendi
+profil türleri, Auth'tan hesaba bağlı Library grant'ı, Library favorite/completed dışlaması,
+Game tür/platform filtreli discovery gerçek HTTP adaptörleriyle tüketilir. Auth grant endpoint'i
+hesabın ACTIVE durumunu denetler; kullanıcı oturum iptali için yeni introspection modeli yoktur
+(60 sn token ömrü + 30 sn saat toleransı). V12 owner geçmişi/feedback'i saklar; cursor, quota,
+idempotency, retention ve D4 cascade vardır. Yeni bağımlılık veya imzalama anahtarı eklenmedi.
+Mevcut Recommendation istemci sırrının Compose aktarımı kullanıcı tarafından açık onaylandı.
+REC-02/03/05 metadata/kişisel puan batch sözleşmesi eksikliği nedeniyle BLOCKED; yanıt PARTIAL
+ve açık limitations taşır. Sistem uygunluğu filtresi henüz uygulanmadı. Gerçek Auth issuer/JWKS
+testli; User/Game/Library canlı servis E2E'si NOT VERIFIED.
+[TASK 2 checkpoint](../docs-recommendation/progress/task-02.md).
+
 **TASK 1 / 2026-11-14:** Java `RuleBasedRecommendationEngine`, sürümlü
 `RecommendationAlgorithm` portu ve `RecommendationExecutionService` uygulandı.
 `rules-v1` deterministik skor, UUID eşitlik sırası, katkı gerekçeleri ve boş sinyal davranışı taşır.

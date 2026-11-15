@@ -36,23 +36,23 @@ Durumlar task kabul kapsamındadır; ürünün tüm entegrasyonları tamamlandı
 
 **Alt tasklar:**
 
-- [ ] **REC-01 — Kişiselleştirilmiş oyun önerileri:** Kullanıcının oyun tercihlerine göre oyun önerileri oluşturulması.
+- [x] **REC-01 — Kişiselleştirilmiş oyun önerileri:** Kullanıcının oyun tercihlerine göre oyun önerileri oluşturulması.
 
 - [ ] **REC-02 — Favorilere dayalı öneriler:** Favori oyunlara benzeyen oyunların önerilmesi.
 
 - [ ] **REC-03 — Puanlara dayalı öneriler:** Kullanıcının oyunlara verdiği puanların önerilerde değerlendirilmesi.
 
-- [ ] **REC-04 — Oyun türü tercihleri:** Aksiyon, RPG, strateji ve benzeri tür tercihlerine göre öneriler.
+- [x] **REC-04 — Oyun türü tercihleri:** Aksiyon, RPG, strateji ve benzeri tür tercihlerine göre öneriler.
 
 - [ ] **REC-05 — Tamamlanan oyunlar:** Kullanıcının bitirdiği oyunların öneri sisteminde değerlendirilmesi.
 
 - [ ] **REC-16 — Öneri filtreleme:** Oyun türü, platform, sistem uygunluğu ve ilgili ölçütlerle öneri filtreleme.
 
-- [ ] **REC-17 — Öneri nedenleri:** Kullanıcıya belirli bir oyunun veya oyuncunun neden önerildiğinin açıklanması.
+- [x] **REC-17 — Öneri nedenleri:** Kullanıcıya belirli bir oyunun veya oyuncunun neden önerildiğinin açıklanması.
 
-- [ ] **REC-18 — Öneri geçmişi:** Kullanıcının önceki önerilerini görüntüleyebilmesi.
+- [x] **REC-18 — Öneri geçmişi:** Kullanıcının önceki önerilerini görüntüleyebilmesi.
 
-- [ ] **REC-19 — Öneri geri bildirimi:** Kullanıcının önerileri beğenmesi veya ilgilenmediğini belirtmesi.
+- [x] **REC-19 — Öneri geri bildirimi:** Kullanıcının önerileri beğenmesi veya ilgilenmediğini belirtmesi.
 
 
 **Bitmiş sayılma:** Yukarıdaki akış API/veri sahipliği kurallarına uygun çalışır, ilgili testler geçer ve ana taskın tek özellik teslimi yapılır.
@@ -141,8 +141,31 @@ JAR dependency gate PASS. [Tam test komutu](../testings/task-01-tests.md),
 [dosya ve kabul envanteri](task-01.md), [algoritma/analitik sözleşmesi](../decisions/task-01-decisions.md),
 [gerçek servis bağımlılıkları](../integration/contracts.md).
 
-Diğer 20 REC kodu: NOT STARTED; bu checkpoint'te hedef API, production dosyası veya
+TASK 1 kapanışında diğer 20 REC kodu: NOT STARTED; o checkpoint'te hedef API, production dosyası veya
 veri kaynağı tüketimi uygulanmadı. İlgili ana task kaynak tanımları yukarıda aynen durur;
 sonuç/test uydurulmadı. TASK 2–5 için ilerleme/test/PR raporu açılmadı.
 
 TASK 1 checkpoint'i tamamlandı. Kullanıcı `devam` yazmadan TASK 2'ye geçilmez.
+
+## TASK 2 güncel doğrulama eşlemesi — 2026-11-14
+
+**PARTIAL — 5/9 DONE, 3 BLOCKED, 1 PARTIAL.** Önceki TASK 1 durumları tarihseldir.
+Kaynak görev adı/açıklamaları korunmuştur; x yalnız aşağıdaki uygulanmış kabul kapsamıdır.
+
+| REC | Hedef / gerçek dosya | Kaynak / bağımlılık | Kanıt / durum |
+| --- | --- | --- | --- |
+| REC-01 | POST games; PersonalizedRecommendationService, HttpPersonalizationSource | User kendi türleri + Game canonical discovery | A/B/empty/limitations; DONE (tür sinyaliyle sınırlı) |
+| REC-02 | Production benzerlik algoritması bağlanmadı | Library veri var, Game batch metadata yok | BLOCKED; yalnız dışlama var, [Game talebi](../integration/dependencies/game-service-requests.md) |
+| REC-03 | Production kişisel rating tüketicisi yok | Review kişisel rating batch/paging eksik | BLOCKED; [Review talebi](../integration/dependencies/review-service-requests.md) |
+| REC-04 | HttpPersonalizationSource + rules-v1 | İzinli User favoriteGenres / Game filtre üyeliği | Gerçek HTTP contract, neden/skor; DONE |
+| REC-05 | Production completed benzerlik analizi bağlanmadı | Library completed var, Game metadata batch yok | BLOCKED; dışlama analiz yerine sayılmadı |
+| REC-16 | GenerateRecommendationsRequest / Filters | Genre/platform/size destekli; sistem uygunluğu yok | PARTIAL; unsupported alan 400, kayıtlı sonuç cursor'u testli |
+| REC-17 | RecommendationRunResponse | Gerçek matchedGenres ve katkı; yalnız sahibine | Score/reason, owner GET; DONE (oyun) |
+| REC-18 | V12 + PostgresRecommendationHistory | Yalnız recommendation_db; User consent / Auth ACTIVE / D4 | Cursor, BOLA, retention, silme; DONE |
+| REC-19 | Feedback GET/PUT + V12 | Gerçek owner item; UNIQUE/version/account lock | Duplicate/concurrent12/409/NOT_INTERESTED/kota; DONE |
+
+45 PASS / 0 skipped; LINE %96,83; merkezi ek/değişen kod %97,15; Checkstyle/PMD 0,
+dependency gate PASS, Compose syntax ve whitespace PASS. [Tam checkpoint](task-02.md),
+[testler](../testings/task-02-tests.md), [kararlar](../decisions/task-02-decisions.md).
+
+TASK 3–5 üzerinde çalışma yapılmadı. Kullanıcıdan açık devam talimatı gelmeden TASK 3'e geçilmez.

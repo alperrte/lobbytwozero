@@ -587,16 +587,27 @@ gerçek disposable PostgreSQL 17'de test edilir; mevcut migration değiştirilme
 En çok 30 günlük özet; dakikada 1000 satırlık expired temizliği. Canlı migration/deploy yapılmadı.
 [Ölçüm ve saklama sözleşmesi](../docs-recommendation/decisions/task-01-decisions.md).
 
-**Aşağıdaki tablolar hâlâ ÖNERİ'dir; TASK 1'de oluşturulmadı:**
+**TASK 2'de uygulanan: V12 kişisel geçmiş (2026-11-14).** `recommendation_runs` user_id REF
+ile owner kapsamlıdır; created_at/expires_at UTC, genre/platform filtreleri, algoritma sürümü
+ve sonuç limiti saklanır. Owner+tarih+UUID ve expires_at indeksleri vardır. Item→run ve
+feedback→item gerçek FK/CASCADE'dir; game_id yalnız REF'tir. Feedback item_id UNIQUE,
+LIKE/NOT_INTERESTED CHECK ve elle yönetilen version≥1 taşır. Hesap advisory lock'u
+mutasyonları seri hale getirir; quota hatasında run ve V11 analitiği birlikte rollback olur.
+30 gün, hesap başına 500 run, run başına 50 item; expired temizliği dakikada 1000 run'dır.
+D4 silme kişisel üç tabloyu cascade temizler; rıza geri çekildiği fark edilince de geçmiş silinir.
+Yeni üç tablo JdbcTemplate ile, mevcut gözlem entity'si JPA ile aynı transaction'a katılır;
+testler gerçek PostgreSQL constraint/FK'larını ve Hibernate validate'ı ayrı doğrular.
+
+**Aşağıdaki tabloda V12 ile işaretlenenler MEVCUT, kalanlar ÖNERİ'dir:**
 
 | Tablo | Önemli sütunlar | Kısıtlar / not |
 | --- | --- | --- |
 | `user_taste_profiles` | user_id PK, genre_weights jsonb, platform_weights jsonb, updated_at | Favori/puan/tamamlanan oyunlardan türetilir (REC-02..05) |
 | `user_hardware_snapshots` | user_id + profile_id PK, cpu_score, gpu_score, ram_mb, vram_mb, refreshed_at | hardware event'lerinden |
 | `game_requirement_snapshots` | game_id PK, min_cpu_score, min_gpu_score, min_ram_mb, rec_cpu_score, rec_gpu_score, rec_ram_mb, refreshed_at | game-service'ten |
-| `recommendation_runs` | id, user_id REF, type (GAME, HARDWARE_UPGRADE, PLAYER, FRIEND, EVENT, GRAPHICS_SETTINGS), algorithm (RULE_BASED, PYTHON_V1, ...), algorithm_version, filters jsonb, created_at | REC-18 geçmiş |
-| `recommendation_items` | id, run_id FK, target_type, target_id REF, score numeric, rank, reasons jsonb, estimated_fps numeric nullable, compatibility (BELOW_MIN, MIN, RECOMMENDED, ABOVE) | REC-17 neden; REC-09 tahmin |
-| `recommendation_feedback` | id, item_id FK, user_id REF, feedback (LIKE, DISLIKE, NOT_INTERESTED, ALREADY_OWN), created_at | UQ (item_id, user_id) |
+| `recommendation_runs` | id, user_id REF, algorithm_version, genre, platform, result_limit, created_at, expires_at, version | V12 MEVCUT; owner cursor geçmişi; type/algorithm/jsonb filters henüz yok |
+| `recommendation_items` | id, run_id FK, game_id REF, score integer, rank, matched_genres varchar(64)[], version | V12 MEVCUT; UQ(run_id,rank), UQ(run_id,game_id); FPS/compatibility henüz yok |
+| `recommendation_feedback` | id, item_id FK UNIQUE, feedback (LIKE, NOT_INTERESTED), updated_at, version | V12 MEVCUT; ownership run üzerinden; son durum, gösterim/tıklama olayı değildir |
 | `assistant_rules` | id, topic (GAME, HARDWARE, LTZ_USAGE), rule_key, conditions jsonb, response_template_key, active, version | REC-22: Python algoritmaları + tanımlı şablonlar, **LLM yok** |
 | `recommendation_metrics_daily` | date, type, impressions, clicks, positive_feedback, negative_feedback | REC-23; PK (date, type) |
 | `inbox_events` | §2.4 | |

@@ -1387,10 +1387,40 @@ erDiagram
 
 ## 15. recommendation_db
 
-**TASK 1 gerçek şeması — V11 (2026-11-14):** Tek bağımsız teknik tablo; kişisel veri REF/FK yoktur.
+**TASK 1–2 gerçek şeması — V11/V12 (2026-11-14):** Analitik bağımsız teknik tablodur;
+kişisel geçmişte user_id/game_id servisler arası REF, run/item/feedback ilişkileri yerel FK'dır.
 
 ```mermaid
 erDiagram
+  recommendation_runs ||--o{ recommendation_items : "run_id CASCADE"
+  recommendation_items ||--o| recommendation_feedback : "item_id UNIQUE CASCADE"
+  recommendation_runs {
+    uuid id PK
+    uuid user_id "REF Auth"
+    varchar algorithm_version
+    varchar genre
+    varchar platform
+    int result_limit
+    timestamptz created_at
+    timestamptz expires_at
+    bigint version
+  }
+  recommendation_items {
+    uuid id PK
+    uuid run_id FK
+    uuid game_id "REF Game"
+    int score
+    int rank
+    string matched_genres "varchar64 array"
+    bigint version
+  }
+  recommendation_feedback {
+    uuid id PK
+    uuid item_id FK,UK
+    varchar feedback "LIKE veya NOT_INTERESTED"
+    timestamptz updated_at
+    bigint version
+  }
   recommendation_observations {
     uuid id PK "sunucunun runId değeri"
     varchar algorithm_version
@@ -1403,7 +1433,7 @@ erDiagram
   }
 ```
 
-**Aşağıdaki ilişkiler hedef ÖNERİ'dir; TASK 1'de oluşturulmamıştır:**
+**Aşağıdaki eski hedef diyagramı ÖNERİ'dir; V12'nin uygulanmış kolonları yukarıdadır:**
 
 ```mermaid
 erDiagram

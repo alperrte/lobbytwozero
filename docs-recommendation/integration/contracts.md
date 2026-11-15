@@ -31,3 +31,25 @@ repo kodu PostgreSQL/Java 25/Boot 4.1.1 ve uygulanmış Auth/Library/User vb. g�
 Güncel kod ve `docs-auth` sözleşmeleri esas alındı; eski ortak metinler kapsam dışı yeniden yazılmadı.
 `LTZ_PDA_Alper*.md` kaynak dosyası `docs/` altında bulunamadı; kullanıcının bağlayıcı master §4'ündeki
 5 ana/23 alt görev tanımları kaynak kabul edilip checklist'e aynen aktarılır.
+
+## TASK 2 sonrası güncel tüketici durumu — 2026-11-14
+
+Yukarıdaki tablo TASK 1 başlangıç fotoğrafıdır; bu bölüm güncel değişiklikleri belirtir.
+
+- Auth: Recommendation RS256/JWKS kullanıcı ve D4 decoder'ı, canonical role ve no-store/ProblemDetail
+  uygulandı. Testte gerçek Auth issuer/JWKS üretim sınıfları kullanılır. Kişisel işlemde mevcut
+  account-bound Library grant'ının ACTIVE denetimi çağrılır; session revocation introspection yoktur.
+- User: `/me/consents` ve `/me`, request-scope kullanıcı Bearer'ıyla gerçek RestClient adaptörü.
+- Library: hesabına bağlı gerçek Auth grant + recommendation-signals; 500 kayıt/10 sayfa;
+  favorite/completed dışlama. Bounded şema/tekrar/total kontrolü vardır.
+- Game: genre/platform filtreli discovery; max 10×50 aday, canonical ID, MAIN_GAME/adult=false.
+  Kart metadata batch boşluğu REC-02/05'i bloke eder; [owner talebi](dependencies/game-service-requests.md).
+- Review: kişisel puanlar için batch/paging yok; genel summary kullanılmadı. REC-03 BLOCKED;
+  [owner talebi](dependencies/review-service-requests.md).
+- Recommendation D4 hedef ucu hazır; gerçek Auth worker ve kaynak servislerle çok servisli E2E
+  henüz doğrulanmadı. Fixture contract kabulü canlı E2E diye raporlanmaz.
+- Mevcut `AUTH_RECOMMENDATION_SERVICE_CLIENT_SECRET` aktarımı kullanıcı onayıyla yalnız
+  Recommendation Compose/property ve `.env.example` yorumunda eklendi; gerçek ENV değişmedi.
+
+V12 kişisel geçmiş/feedback eklendi; V13–V20 boş. Hardware/Performance/Social/Event/Gateway
+kodları değiştirilmedi; TASK 3/4 üzerinde uygulama yapılmadı.

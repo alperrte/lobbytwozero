@@ -450,6 +450,7 @@ services:
     environment:
       <<: *ltz-db-env
       DB_RECOMMENDATION_NAME: ${DB_RECOMMENDATION_NAME:?}
+      AUTH_RECOMMENDATION_SERVICE_CLIENT_SECRET: ${AUTH_RECOMMENDATION_SERVICE_CLIENT_SECRET:-}
     depends_on:
       postgres:
         condition: service_healthy

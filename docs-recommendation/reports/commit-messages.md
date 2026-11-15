@@ -1,6 +1,6 @@
 # Commit taslakları
 
-Gerçek commit/stage/push yapılmadı. Yalnız TASK 1 taslağı vardır.
+Bu ajan gerçek commit/stage/push yapmadı. TASK 1 ve TASK 2 için ayrı taslaklar vardır.
 Başlık/body bağlayıcı master v2 §12 ve kullanıcının Conventional Commit talebine göre hazırlanmıştır.
 
 ## TASK 1 / LTZ-ALP-REC-01
@@ -22,3 +22,28 @@ feat(recommendation): LTZ-ALP-REC-01 sürümlü kural motoru ve analitik temelin
 
 Bu checkpoint iş HTTP endpoint'i, kullanıcı feedback akışı, Python runtime veya merge-ready
 teslimi değildir. Pre-push ve ayrı SonarQube final gate'i TASK 5 kapanışında uygulanacaktır.
+
+## TASK 2 / LTZ-ALP-REC-02 — kısmi teslim
+
+Durum: PARTIAL; REC-01/04/17/18/19 DONE, REC-02/03/05 BLOCKED, REC-16 PARTIAL.
+Başlık ve body yalnız gerçekten uygulanan kapsamı anlatır.
+
+```text
+feat(recommendation): LTZ-ALP-REC-02 tür önerisi, owner geçmişi ve feedback akışını ekle
+
+- REC-01/04: User'ın izinli tür tercihlerini Game'in kanonik discovery filtresiyle birleştir; bounded aday penceresi, MAIN_GAME/adult=false seçimi ve açık PARTIAL/EMPTY yanıtı üret.
+- REC-17: rules-v1 skoruyla tutarlı GENRE_AFFINITY gerekçesi, katkı ve eşleşen türleri yalnız sahibine döndür.
+- REC-18: POST games, owner run/history okumaları, cursor sayfalaması, 30 günlük saklama ve 500 run kotasını uygula.
+- REC-19: owner item için feedback GET/PUT uçlarını, LIKE/NOT_INTERESTED state'ini, version conflict ve idempotent tekrar semantiğini ekle; ilgilenilmeyen oyunu sonraki öneriden dışla.
+- Veri: V12 ile run/item/feedback tablolarını, yerel FK/CASCADE, unique/check kısıtlarını ve indeksleri ekle; V11'i değiştirmeden analitik ve history yazımını aynı transaction'da tut.
+- Güvenlik: gerçek Auth JWKS/RS256 doğrulaması, kullanıcı-servis token ayrımı, canonical role, rıza ve ACTIVE account-bound grant kontrolü ekle; Basic/form/local kullanıcı fallback'ini kaldır.
+- Silme: Auth D4 subject/scope/account binding ile idempotent hesap temizliği ve rıza geri çekildiğinde history purge uygula; body/response/timeout/redirect ve instance bazlı oran sınırlarını koru.
+- Entegrasyonlar: User/Game/Library RestClient adaptörlerini ekle; kullanıcı token'ını request kapsamında, Library servis token'ını hesap bağlı kullan; N+1 veya çapraz DB erişimi yapma.
+- Yapılandırma: kullanıcı onayıyla mevcut AUTH_RECOMMENDATION_SERVICE_CLIENT_SECRET anahtarını yalnız Recommendation Compose ortamına ve property binding'ine aktar; örnek ENV yorumunu güncelle.
+- Eksik kapsam: REC-02/03/05 için Game metadata ve kişisel Review rating batch taleplerini belgele; sistem uygunluğu filtresini ve eksik sinyalleri uygulanmış gibi gösterme.
+- Testler: disposable PostgreSQL ve gerçek Auth issuer/JWKS ile 45 testi geçir; toplam LINE %96,83, merkezi ek/değişen kod %97,15, Checkstyle/PMD 0 ihlal ve dependency gate PASS sonuçlarını kaydet.
+- Belgeler: altı endpoint'in docs/api.md kayıtlarını, DB/ER/mimari/migration belgelerini, TASK 2 checklist/checkpoint/karar/test ve sorun kayıtlarını güncelle.
+```
+
+TASK 1 commit'i kullanıcı tarafından `90857ceb` olarak oluşturulmuştu; TASK 2 bunun üzerindeki
+çalışma ağacı değişiklikleridir. Ajan Git yazma veya kimlik işlemi yapmadı. TASK 3'e geçilmedi.

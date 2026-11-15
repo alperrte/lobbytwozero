@@ -11582,6 +11582,223 @@ Kullanıcı kimliği ya da keyfi analitik olay kabul eden geçici bir endpoint a
 [Sözleşme ve ölçüm anlamları](../docs-recommendation/decisions/task-01-decisions.md),
 [test kanıtı](../docs-recommendation/testings/task-01-tests.md).
 
+**TASK 2 (2026-11-14):** Aşağıdaki iş uçları mevcut Auth/JWKS sözleşmesini uygular.
+Kullanıcı `at+jwt` (RS256, issuer/audience/zaman/sub, en çok 60 sn TTL + 30 sn saat toleransı)
+ve kanonik rollerden biri zorunludur. Cookie yalnız Gateway'de CSRF/Origin kontrolünden sonra
+Bearer'a çevrilir; servis cookie/header kimliğine güvenmez. User rızası ve Auth'un hesaba bağlı
+Library grant'ının ACTIVE kontrolü her kişisel okumada/yazmada yeniden yapılır.
+Bu ACTIVE denetimi oturum introspection değildir; logout/token iptali yerel access token'ın
+kısa ömrüyle sınırlıdır. Yanıtlar ve hatalar `Cache-Control: private, no-store` taşır.
+16 KiB POST/PUT sınırı; instance başına hesap başına 10 generation/dk, diğer kişisel işlemler
+ortak 120/dk; en çok 10000 aktif hesap penceresi. 429/503 `Retry-After: 60` döner.
+
+### RECOMMENDATION — Kişisel tür önerisi üret (REC-01/04/16/17)
+
+Durum: IMPLEMENTED — PARTIAL sinyaller; REC-02/03/05 sözleşme bekliyor
+Sorumlu: Alper
+Tüketici servisler: Frontend (henüz bağlanmadı)
+
+#### Endpoint
+POST /api/v1/recommendation/games
+
+#### Yetkilendirme
+Owner — kimlik yalnız doğrulanmış `sub`; PLAYER/CONTENT_CREATOR/GAME_DEVELOPER/MODERATOR/ADMIN.
+User recommendation rızası ve Auth'ta ACTIVE hesap gerekir. Başka kullanıcı parametresi yoktur.
+
+#### Request Body
+`{ "genre": "rpg", "platform": "windows", "size": 20 }`
+Üç alan opsiyonel; size varsayılan 20, 1–50. Genre/platform boş olamaz, en çok 64 karakter;
+kontrol karakterleri ve bilinmeyen JSON alanları reddedilir. Genre kullanıcının tercihinde yoksa
+boş sonuçtur. Sistem uygunluğu filtresi henüz yoktur; destekleniyormuş gibi kabul edilmez.
+
+#### Response — 200
+`{runId, algorithmVersion, createdAt, status, genre, platform, items, limitations}`.
+Item: `{itemId, gameId, score, rank, reasonCode:"GENRE_AFFINITY", contribution, matchedGenres}`.
+gameId kanonik UUID'dir. `status=PARTIAL` veya `EMPTY`; eksik favori/puan/tamamlanan benzerliği ve
+50 aday/tür penceresi limitations içinde açık belirtilir. Skor katkı toplamıdır; hassas ham liste yoktur.
+User türleri en çok 10; her tür için filtreli Game discovery ilk 50, toplam en çok 500 aday.
+Library favorite/completed kimlikleri ve NOT_INTERESTED feedback tekrar öneriden dışlanır;
+bu dışlama favori/tamamlanan oyun benzerliği analizi değildir. MAIN_GAME ve doğrulanmış adult=false
+dışındaki adaylar elenir. Boş tercihte popüler/sahte öneri üretilmez.
+Sonuç 30 günlük owner geçmişine aynı transaction'da kaydedilir; hesap başına en çok 500 canlı run.
+
+#### Hata Durumları
+- 400: INVALID_REQUEST; size/filtre/JSON doğrulaması
+- 401: AUTHENTICATION_REQUIRED; eksik/geçersiz token
+- 403: ACCESS_DENIED / CONSENT_REQUIRED / SOURCE_ACCESS_DENIED
+- 429: RATE_LIMITED / HISTORY_LIMIT_REACHED
+- 503: SOURCE_UNAVAILABLE / RECOMMENDATION_UNAVAILABLE / RECOMMENDATION_BUSY
+
+#### Bağlantı
+Frontend: API Gateway üzerinden tam endpoint; frontend değişmedi.
+Diğer servisler: User me/consents + me, Auth account-bound Library grant, Library signals,
+Game filtreli discovery; sabit origin, bounded JSON, 3000/5000 ms timeout, redirect/retry yok.
+Review/Game metadata batch eksikleri [talep kayıtlarında](../docs-recommendation/integration/dependencies/).
+
+#### Test Durumu
+UNIT + INTEGRATION — gerçek Auth issuer/JWKS + Recommendation/PostgreSQL; kaynaklar contract fixture.
+Gerçek User/Library/Game servisleriyle tam E2E NOT VERIFIED. [Kanıt](../docs-recommendation/testings/task-02-tests.md).
+
+### RECOMMENDATION — Öneri geçmişi (REC-18)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (planlı)
+
+#### Endpoint
+GET /api/v1/recommendation/runs
+
+#### Yetkilendirme
+Owner — yukarıdaki kullanıcı JWT/rol/rıza/ACTIVE kuralları; sorguda userId yoktur.
+
+#### Path/Query Parameters
+- size: 1–20, varsayılan 20
+- beforeRunId: opsiyonel UUID; yalnız sahibinin süresi dolmamış run'ı
+
+#### Response — 200
+`{items:[{runId,algorithmVersion,createdAt,resultCount}],nextCursor:UUID|null}`.
+Cursor `(created_at,id)` azalan sıralı; sonradan yeni run eklenmesi devam sayfasını kaydırmaz.
+Expired run'lar sorgudan çıkarılır; rıza geri çekildiği fark edilirse kişisel geçmiş kalıcı silinir.
+
+#### Hata Durumları
+400 geçersiz size/UUID; 401 kimlik; 403 rol/rıza/hesap; 404 başka owner/geçersiz cursor;
+429 oran sınırı; 503 kaynak/DB kullanılamıyor.
+
+#### Bağlantı
+Frontend: Gateway üzerinden endpoint.
+Diğer servisler: User consent + Auth ACTIVE grant kontrolü; veri yalnız recommendation_db.
+
+#### Test Durumu
+UNIT + INTEGRATION — A/B, cursor izolasyonu, ekleme sırasında stabil sayfalama, retention.
+
+### RECOMMENDATION — Run ve açıklamaları (REC-17/18)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (planlı)
+
+#### Endpoint
+GET /api/v1/recommendation/runs/{runId}
+
+#### Yetkilendirme
+Owner — kullanıcı JWT/rol/rıza/ACTIVE; sahiplik SQL'de user_id=sub ile uygulanır.
+
+#### Path/Query Parameters
+runId: UUID, zorunlu.
+
+#### Response — 200
+Generation ile aynı `RecommendationRunResponse`; en çok 50 öğe, kaydedilmiş sıra ve algoritma
+sürümü. Açıklama yalnız sahibinin eşleşen tür kodlarıdır; güncel oyun içeriği veya FPS garantisi yoktur.
+
+#### Hata Durumları
+400 UUID; 401 kimlik; 403 rol/rıza/hesap; 404 yok/başkasına ait/expired (aynı hata);
+429 oran sınırı; 503 kaynak/DB hatası.
+
+#### Bağlantı
+Frontend: Gateway üzerinden endpoint.
+Diğer servisler: User consent + Auth ACTIVE; kişisel geçmiş başka DB'den okunmaz.
+
+#### Test Durumu
+UNIT + INTEGRATION — owner read, BOLA 404, açıklama/score tutarlılığı, rıza sonrası silme.
+
+### RECOMMENDATION — Geri bildirim durumunu oku (REC-19)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (planlı)
+
+#### Endpoint
+GET /api/v1/recommendation/runs/{runId}/items/{itemId}/feedback
+
+#### Yetkilendirme
+Owner — run ve item birlikte doğrulanır; kullanıcı JWT/rol/rıza/ACTIVE gerekir.
+
+#### Path/Query Parameters
+runId, itemId: UUID, zorunlu.
+
+#### Response — 200
+`{itemId,value:"LIKE"|"NOT_INTERESTED"|null,version:long}`.
+Henüz feedback yoksa null/0; bu başka kullanıcının öğesini sorgulama olanağı sağlamaz.
+
+#### Hata Durumları
+400 UUID; 401 kimlik; 403 rol/rıza/hesap; 404 yanlış run/item/owner/expired;
+429 oran; 503 kaynak/DB.
+
+#### Bağlantı
+Frontend: Gateway üzerinden endpoint.
+Diğer servisler: User consent + Auth ACTIVE; feedback yalnız recommendation_db.
+
+#### Test Durumu
+UNIT + INTEGRATION — ilk durum 0, owner dışı 404, version değişimi.
+
+### RECOMMENDATION — Geri bildirim yaz (REC-19)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (planlı)
+
+#### Endpoint
+PUT /api/v1/recommendation/runs/{runId}/items/{itemId}/feedback
+
+#### Yetkilendirme
+Owner — kimlik sub'dan; run/item sahipliği kontrol edilir; rıza/ACTIVE zorunlu.
+
+#### Path/Query Parameters
+runId, itemId: UUID, zorunlu.
+
+#### Request Body
+`{"feedback":"LIKE","version":0}`. feedback LIKE veya NOT_INTERESTED, version≥0.
+İlk yazma 0→1; değiştirmede mevcut version gerekir. Aynı değer tekrar gönderilirse mevcut
+yanıt/version korunur. NOT_INTERESTED sonraki generation'da o oyunu dışlar; LIKE keyfi skor eklemez.
+
+#### Response — 200
+`{itemId,value,version}`. Account advisory lock + item_id UNIQUE ile eşzamanlı tekrar tek state üretir.
+
+#### Hata Durumları
+400 enum/version/JSON; 401 kimlik; 403 rol/rıza/hesap; 404 run/item/owner/expired;
+409 FEEDBACK_VERSION_CONFLICT; 429 oran sınırı; 503 kaynak/DB.
+
+#### Bağlantı
+Frontend: Gateway üzerinden endpoint.
+Diğer servisler: User consent + Auth ACTIVE; dış mutasyon veya kullanıcı adına işlem yoktur.
+
+#### Test Durumu
+UNIT + INTEGRATION — A/B IDOR, duplicate, version conflict, 12 concurrent teslim/tek satır,
+NOT_INTERESTED etkisi, rıza/silme cascade.
+
+### RECOMMENDATION — Hesap verisini sil (REC-18/19)
+
+Durum: IMPLEMENTED — hedef uç; gerçek Auth silme işçisi HTTP E2E henüz doğrulanmadı
+Sorumlu: Alper
+Tüketici servisler: Auth
+
+#### Endpoint
+DELETE /internal/v1/accounts/{accountId}
+
+#### Yetkilendirme
+Internal — yalnız Auth D4 `svc+jwt`, RS256/JWKS, tek aud=recommendation-service,
+sub=svc:auth-service, scope=account:erase, account_id=yoldaki UUID; TTL≤60 sn.
+Kullanıcı token'ı reddedilir; Gateway route'u yoktur.
+
+#### Path/Query Parameters
+accountId: UUID, zorunlu.
+
+#### Response — 204
+Kişisel run/item/feedback cascade silinir; yerel rate-limit kaydı kaldırılır. Tekrar çağrı 204.
+V11 teknik analitik kullanıcı kimliği taşımaz ve run sahiplik ilişkisi silindikten sonra hesaba bağlanmaz.
+
+#### Hata Durumları
+400 UUID; 401 yanlış token türü/imza/süre; 403 scope/subject/account binding;
+503 DB hatası. Veri temizliği bitmeden 204 verilmez.
+
+#### Bağlantı
+Frontend: yok.
+Diğer servisler: Auth doğrudan iç endpoint'i mevcut D4 sözleşmesiyle çağırır; Auth kodu değişmedi.
+
+#### Test Durumu
+UNIT + INTEGRATION — gerçek Auth ServiceTokenIssuer token'ı, yanlış hesap 403,
+kullanıcı token'ı 401, idempotent 204 ve FK cascade. Tam Auth worker E2E NOT VERIFIED.
+
 ## PERFORMANCE
 
 Sorumlu: Alper · Gateway: `/api/v1/performance/**` · Görevler: PERF-, PWEB-

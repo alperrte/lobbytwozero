@@ -15,3 +15,22 @@
 
 Sonar ve legacy pre-push final gate bu checkpoint'te çalıştırılmadı; TASK 5'e ayrılan
 kapıların geçtiği veya projenin merge-ready olduğu iddia edilmez.
+
+## TASK 2 güncel kayıt — 2026-11-14
+
+TASK 2 **PARTIAL**; üstteki TASK 1 envanteri kendi teslim tarihini anlatır.
+
+| Kayıt | Durum | Sonuç / owner |
+| --- | --- | --- |
+| Recommendation Auth/HTTP/history/feedback tüketicisi yok | RESOLVED (TASK 2 kapsamı) | Gerçek JWT/JWKS ve kaynak RestClient adaptörleri; 45 test PASS; canlı çok servis E2E NOT VERIFIED |
+| REC-02/05 Game batch metadata | BLOCKED | Hamza; [Game sözleşme talebi](../integration/dependencies/game-service-requests.md). Kartlara tür uydurulmadı; N+1 yapılmadı |
+| REC-03 kişisel Review rating batch/paging | BLOCKED | Hamza; [Review talebi](../integration/dependencies/review-service-requests.md). Genel rating kişisel veri yerine kullanılmadı |
+| REC-16 sistem uygunluğu filtresi | PARTIAL | Genre/platform/size var; donanım uygunluğu henüz uygulanmadı, destekleniyormuş gibi kabul edilmez |
+| Mevcut secret'ın Recommendation ortamına aktarımı | APPROVED / RESOLVED | Kullanıcı açık onay verdi; gerçek ENV okunmadı/değişmedi |
+| Negatif JWT testinde tarih parse hatası | RESOLVED | ClaimsSet.Builder; son koşuda PASS |
+| PMD complexity (2 production, 1 test) | RESOLVED | Anlamlı schema/fixture metotları ayrıldı; suppression/baseline değişmedi; 0 ihlal |
+| Auto-config in-memory kullanıcı | PREVENTED | JwtDecoder'lar explicit bean; testte UserDetailsService yokluğu doğrulandı; Basic/form kapalı |
+| Consent reddinde kota sıfırlanması | RESOLVED | Geçmiş purge ve D4 limiter cleanup ayrıldı; 11. denied generation 429 regresyonu PASS |
+
+Kapsam içindeki uygulanabilir işler test/dokümantasyonuyla hazırdır; 9/9 kabul veya merge-ready
+iddiası yoktur. Sonraki ana task için açık kullanıcı talimatı beklenir; Task 3 başlatılmadı.
