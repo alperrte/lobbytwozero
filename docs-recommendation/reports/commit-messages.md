@@ -1,6 +1,6 @@
 # Commit taslakları
 
-Bu ajan gerçek commit/stage/push yapmadı. TASK 1 ve TASK 2 için ayrı taslaklar vardır.
+Bu ajan gerçek commit/stage/push yapmadı. TASK 1, TASK 2 ve TASK 3 için ayrı taslaklar vardır.
 Başlık/body bağlayıcı master v2 §12 ve kullanıcının Conventional Commit talebine göre hazırlanmıştır.
 
 ## TASK 1 / LTZ-ALP-REC-01
@@ -47,3 +47,25 @@ feat(recommendation): LTZ-ALP-REC-02 tür önerisi, owner geçmişi ve feedback 
 
 TASK 1 commit'i kullanıcı tarafından `90857ceb` olarak oluşturulmuştu; TASK 2 bunun üzerindeki
 çalışma ağacı değişiklikleridir. Ajan Git yazma veya kimlik işlemi yapmadı. TASK 3'e geçilmedi.
+
+## TASK 3 / LTZ-ALP-REC-03 — kısmi teslim
+
+Durum: PARTIAL; REC-07/08/10/11/12 desteklenen teknik kapsamda DONE, REC-06/09 PARTIAL.
+TASK 2 kullanıcı tarafından `25ee6b44` olarak commit edilmişti; bu taslak yeni TASK 3 içindir.
+
+```text
+feature: LTZ-ALP-REC-03 owner donanım değerlendirmesi ve koşullu tavsiyeleri ekle
+
+- API: POST /api/v1/recommendation/hardware/assessments ile owner profil, oyun ve platform üzerinden stateless değerlendirme sun; doğrulanan JWT, canonical role, rıza/ACTIVE grant, ortak kota ve private/no-store uygula.
+- REC-07/08: minimum ve recommended CPU/GPU/RAM/depolama kontrollerini ayır; yalnız tam model eşleşmesini kabul et, kapasite birimi belirsizliğini byte sınırlarıyla değerlendir ve eksik alanları UNKNOWN bırak.
+- REC-10: minimum compute kanıtı ve bilinen engel yokluğunda yalnız koşullu LOW başlangıç öner; ayar bulunurluğu veya FPS garantisi verme.
+- REC-11/12: kanıtlı RAM/disk açıklarını yükseltme gerekçesine dönüştür; bildirilen socket/DDR uyuşmazlıklarını denetle, eksik BIOS/GPU/güç/form factor bilgisinde bütün sistem uyumu iddia etme.
+- Entegrasyon: Hardware owner batch ve Game tek oyun metadata RestClient tüketicilerini ekle; mevcut Auth izniyle account-bound Performance token kullan, kaynak kimliği/sürümü/sayfalama ve bounded JSON şemasını doğrula.
+- REC-06/09: katalog batch gereksinimleri ve bağlamlı FPS kanıtı eksiklerini açık tut; reliable aggregate'tan tahmin üretme, INSUFFICIENT_DATA/NONE/null döndür ve owner sözleşme taleplerini belgele.
+- Güvenlik: başka kullanıcı profili, yanlış kaynak kimliği, bozuk yanıt, redirect, timeout ve kesintide kapalı başarısızlık uygula; rıza geri çekilmesinde TASK 2 geçmiş temizliğini yeniden kullan.
+- Testler: 21 yeni test ve 45 regresyonla 66 testi geçir; gerçek Auth issuer/JWKS, disposable PostgreSQL ve kaynak HTTP contract fixture'larını kullan; canlı çok servis E2E iddiası ekleme.
+- Kalite: toplam LINE %97,48, merkezi ek/değişen kod %97,71, Checkstyle/PMD yeni ihlal 0 ve dependency gate PASS sonuçlarını kaydet; suppression, coverage policy veya baseline değiştirme.
+- Belgeler: docs/api.md, mimari, integration/dependency, karar, test, ilerleme, master checklist, sorun ve manuel güvenlik notlarını güncelle; ENV/bağımlılık/migration veya üretici servis kodu değiştirme.
+```
+
+TASK 4 başlatılmadı. Final SonarQube/pre-push ve PR taslağı TASK 5'e aittir.

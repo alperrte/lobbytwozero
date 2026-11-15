@@ -389,6 +389,16 @@ stateDiagram-v2
 
 ## 10. Recommendation ve Python algoritmaları `[KARAR BEKLİYOR]`
 
+**TASK 3 güncel durum / 2026-11-15:** Owner tek profil/tek oyun teknik assessment ucu eklendi.
+Hardware batch kullanıcı token'ıyla, Game tek oyun metadata'sı ve Performance account-bound
+reference:read mevcut sözleşmeleriyle okunur; producer kodu değişmedi. Minimum/recommended
+CPU/GPU tam model eşleşmesi ve muhafazakâr RAM/depolama sınırları ayrı değerlendirilir.
+Boş disk/OS/VRAM/BİOS/GPU slot kanıtı olmadan tam uygunluk garantisi verilmez. Socket/DDR
+uyuşmazlığı ve kanıtlı RAM/depolama açığı açıklanır; koşullu LOW yönlendirmesi FPS vaadi değildir.
+Performance aggregate'i bağlamsız olduğundan INSUFFICIENT_DATA; katalog listesi Game batch
+sözleşmesine bağlıdır. Statelesstir, yeni snapshot/tablo/migration/ENV yoktur; rıza temizliği paylaşılır.
+[Karar ve sınırlar](../docs-recommendation/decisions/task-03-decisions.md).
+
 **TASK 2 güncel durum / 2026-11-14:** Recommendation kendi Auth JWKS doğrulamasını,
 cookie→Bearer sınırını, kanonik rol ve D4 silme sözleşmesini uygular. User rızası ve kendi
 profil türleri, Auth'tan hesaba bağlı Library grant'ı, Library favorite/completed dışlaması,

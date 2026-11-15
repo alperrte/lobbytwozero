@@ -70,17 +70,17 @@ Durumlar task kabul kapsamındadır; ürünün tüm entegrasyonları tamamlandı
 
 - [ ] **REC-06 — Donanıma uygun oyunlar:** Kullanıcının bilgisayarında çalışması beklenen oyunların önerilmesi.
 
-- [ ] **REC-07 — Minimum sistem gereksinimi:** Kullanıcı bilgisayarı ile oyunların minimum gereksinimlerinin karşılaştırılması.
+- [x] **REC-07 — Minimum sistem gereksinimi:** Kullanıcı bilgisayarı ile oyunların minimum gereksinimlerinin karşılaştırılması.
 
-- [ ] **REC-08 — Önerilen sistem gereksinimi:** Kullanıcı bilgisayarı ile oyunların önerilen gereksinimlerinin karşılaştırılması.
+- [x] **REC-08 — Önerilen sistem gereksinimi:** Kullanıcı bilgisayarı ile oyunların önerilen gereksinimlerinin karşılaştırılması.
 
 - [ ] **REC-09 — Tahmini FPS:** Yeterli ve güvenilir performans verisi varsa yaklaşık FPS aralığı sunulması; tahminin kesin ölçüm gibi gösterilmemesi.
 
-- [ ] **REC-10 — Grafik ayarı önerileri:** Kullanıcının donanımına uygun olabilecek grafik ayarı seviyelerinin önerilmesi.
+- [x] **REC-10 — Grafik ayarı önerileri:** Kullanıcının donanımına uygun olabilecek grafik ayarı seviyelerinin önerilmesi.
 
-- [ ] **REC-11 — Donanım yükseltme önerileri:** Olası performans darboğazlarına göre yükseltme seçeneklerinin önerilmesi.
+- [x] **REC-11 — Donanım yükseltme önerileri:** Olası performans darboğazlarına göre yükseltme seçeneklerinin önerilmesi.
 
-- [ ] **REC-12 — Donanım uyumluluk analizi:** Bilgisayar bileşenlerinin birbiriyle uyumunun desteklenen teknik bilgiler üzerinden değerlendirilmesi.
+- [x] **REC-12 — Donanım uyumluluk analizi:** Bilgisayar bileşenlerinin birbiriyle uyumunun desteklenen teknik bilgiler üzerinden değerlendirilmesi.
 
 
 **Bitmiş sayılma:** Yukarıdaki akış API/veri sahipliği kurallarına uygun çalışır, ilgili testler geçer ve ana taskın tek özellik teslimi yapılır.
@@ -169,3 +169,25 @@ dependency gate PASS, Compose syntax ve whitespace PASS. [Tam checkpoint](task-0
 [testler](../testings/task-02-tests.md), [kararlar](../decisions/task-02-decisions.md).
 
 TASK 3–5 üzerinde çalışma yapılmadı. Kullanıcıdan açık devam talimatı gelmeden TASK 3'e geçilmez.
+
+## TASK 3 güncel doğrulama eşlemesi — 2026-11-15
+
+**PARTIAL — 5/7 DONE (desteklenen teknik kapsam), 2 PARTIAL.** TASK 1/2 metinleri tarihsel
+checkpoint'lerdir. REC-16 sistem filtresi açık kalır; tek oyun assessment katalog filtresi değildir.
+
+| REC | Gerçek uygulama | Kaynak / sınır | Durum |
+| --- | --- | --- | --- |
+| REC-06 | HardwareAssessmentController / HardwareAssessmentService | Owner Hardware + tek Game metadata; katalog batch gereksinimleri eksik | PARTIAL |
+| REC-07 | HardwareRequirementEvaluator minimum | Tam CPU/GPU model eşleşmesi, bounded RAM/disk; eksikte UNKNOWN | DONE |
+| REC-08 | HardwareRequirementEvaluator recommended | Minimumdan bağımsız aynı dürüst alan semantiği | DONE |
+| REC-09 | PerformanceReferenceResponseReader / Fps | Sayımlar ve güvenli abstention; çözünürlük/preset/provenance/profil sürümü eksik | PARTIAL |
+| REC-10 | HardwareAssessmentService Graphics | Minimum compute MEETS ve bilinen engel yoksa koşullu LOW; FPS garantisi yok | DONE |
+| REC-11 | HardwareRequirementEvaluator upgrades | Kanıtlı RAM/disk açığı; CPU/GPU sıralaması veya satıcı yok | DONE |
+| REC-12 | ComponentCompatibilityEvaluator | Socket/DDR bildirim eşleşmesi; BIOS/GPU/güç/form factor eksikse bütün profil UNKNOWN | DONE |
+
+66 PASS; toplam LINE %97,48, merkezi ek/değişen kod %97,71; Checkstyle/PMD ve dependency
+gate PASS. Auth issuer/JWKS gerçek, diğer HTTP kaynakları contract fixture; canlı E2E NOT VERIFIED.
+[Checkpoint](task-03.md), [test kanıtı](../testings/task-03-tests.md),
+[kararlar](../decisions/task-03-decisions.md), [sözleşmeler](../integration/contracts.md).
+
+TASK 4 başlatılmadı. Sonraki açık kullanıcı devam talimatı beklenir.

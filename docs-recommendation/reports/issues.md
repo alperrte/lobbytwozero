@@ -34,3 +34,20 @@ TASK 2 **PARTIAL**; üstteki TASK 1 envanteri kendi teslim tarihini anlatır.
 
 Kapsam içindeki uygulanabilir işler test/dokümantasyonuyla hazırdır; 9/9 kabul veya merge-ready
 iddiası yoktur. Sonraki ana task için açık kullanıcı talimatı beklenir; Task 3 başlatılmadı.
+
+## TASK 3 güncel kayıt — 2026-11-15
+
+**PARTIAL — 5/7 DONE.** Önceki checkpoint'ler tarihseldir; TASK 2 açıkları kapanmadı.
+
+| Kayıt | Durum | Sonuç / owner |
+| --- | --- | --- |
+| REC-06 katalog genelinde donanım seçimi | PARTIAL | Owner tek oyun assessment var. Game batch gereksinimleri yok; Hamza, [talep](../integration/dependencies/game-service-requests.md). N+1 eklenmedi |
+| REC-09 karşılaştırılabilir FPS kanıtı | PARTIAL | Performance aggregate resolution/preset/provenance/ölçüm anı profil sürümü taşımıyor; Alper, [talep](../integration/dependencies/performance-service-requests.md). Her zaman INSUFFICIENT_DATA |
+| Dar Performance DTO ilavesiyle FPS üretmek | NOT SUFFICIENT | Manual report ile ham örnek arasında kanıtlı bağ yok; veri üretim modeli değişmeden alan eklemek çözüm değil, üreticiye müdahale edilmedi |
+| CPU/GPU metin karşılaştırması ve kapasite birimi | LIMITED BY SOURCE | Tam tek model dışında UNKNOWN; ondalık/ikili byte sınırları; toplam disk boş disk sayılmaz |
+| Yeni testte hatalı import | RESOLVED | MockMvcRequestBuilders doğru Spring test paketine alındı; son derleme/test PASS |
+| İlk 66 test koşusu sonrası 5 PMD complexity bulgusu | RESOLVED | Transport/reader ve token/fixture yardımcıları ayrıldı; suppression/policy/baseline değişmedi |
+| Canlı Hardware/Game/Performance E2E | NOT VERIFIED | HTTP contract fixture; gerçek Auth issuer/JWKS ve disposable PostgreSQL testli |
+
+Son koşu 66 PASS, coverage ve tüm hedefli kalite kapıları PASS; [kanıt](../testings/task-03-tests.md).
+Final pre-push/Sonar TASK 5'e ayrıldı. TASK 4 başlatılmadı.

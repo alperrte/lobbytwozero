@@ -26,10 +26,12 @@ public class RecommendationHttpClient {
         this.mapper = mapper;
     }
 
-    public JsonNode get(URI uri, String bearer) { return request(uri, bearer, null); }
-    public JsonNode post(URI uri, Object body) { return request(uri, null, body); }
+    public JsonNode get(URI uri, String bearer) { return request(uri, bearer, null, false); }
+    public JsonNode post(URI uri, Object body) { return request(uri, null, body, false); }
+    public JsonNode getResource(URI uri, String bearer) { return request(uri, bearer, null, true); }
+    public JsonNode postResource(URI uri, Object body, String bearer) { return request(uri, bearer, body, true); }
 
-    private JsonNode request(URI uri, String bearer, Object body) {
+    private JsonNode request(URI uri, String bearer, Object body, boolean resourceLookup) {
         try {
             RestClient.RequestBodySpec request = client.method(body == null ? org.springframework.http.HttpMethod.GET
                     : org.springframework.http.HttpMethod.POST).uri(uri).accept(MediaType.APPLICATION_JSON);
@@ -37,6 +39,7 @@ public class RecommendationHttpClient {
             if (body != null) request.contentType(MediaType.APPLICATION_JSON).body(body);
             return request.exchange((sent, response) -> {
                 int status = response.getStatusCode().value();
+                if (status == 404 && resourceLookup) throw new RecommendationRequestException(404, "SOURCE_NOT_FOUND");
                 if (status == 403) throw new RecommendationRequestException(403, "SOURCE_ACCESS_DENIED");
                 if (status != 200 || response.getHeaders().getContentType() == null
                         || !MediaType.APPLICATION_JSON.isCompatibleWith(response.getHeaders().getContentType())) throw unavailable();

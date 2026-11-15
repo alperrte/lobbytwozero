@@ -53,3 +53,24 @@ Yukarıdaki tablo TASK 1 başlangıç fotoğrafıdır; bu bölüm güncel deği�
 
 V12 kişisel geçmiş/feedback eklendi; V13–V20 boş. Hardware/Performance/Social/Event/Gateway
 kodları değiştirilmedi; TASK 3/4 üzerinde uygulama yapılmadı.
+
+## TASK 3 sonrası güncel tüketici durumu — 2026-11-15
+
+- Hardware: owner batch kullanıcı Bearer'ıyla kullanılır; request tek profileId/page0/size100,
+  response exact profileId/version, tekil component IDs, quantity/spec ve tam sayfa şeması doğrulanır.
+  >100 veya eksik pencere 503; private/foreign profile 404 gizleme korunur. Marka zorunlu değildir.
+- Game: gerçek path `GET /api/v1/game/{gameId}/metadata`; exact gameId, adult=false/delisted=false
+  ve platform minimum/recommended veri şeması. Katalog filtresi için metadata batch hâlâ yoktur;
+  [REC-06 talebi](dependencies/game-service-requests.md) açıktır.
+- Performance: mevcut aynı Recommendation secret'ıyla Auth audience=performance-service,
+  reference:read/account_id grant'ı; `/internal/v1/accounts/{id}/games/{id}/performance-reference`
+  ve exact hardwareProfileId parametresi. Response game/profile/count/statistics bağı kontrol edilir.
+  DTO çözünürlük/preset/provenance/ölçümdeki profil sürümü taşımadığından tahmin yok;
+  [REC-09 kanıt boşluğu](dependencies/performance-service-requests.md) açıktır.
+- User/Auth: TASK 2 rıza/ACTIVE gate ve withdrawal purge yeni stateless uçta da paylaşılır.
+  Auth/Gateway güven modeli, mevcut ENV ve izin çiftleri değiştirilmedi.
+- Producer servisler ve DB'leri değiştirilmedi; testler gerçek Auth issuer/JWKS + kaynak HTTP
+  contract fixture'ıdır. Canlı Hardware/Game/Performance üçlü tüketici E2E NOT VERIFIED.
+
+TASK 3 yeni kalıcı veri veya migration eklemedi; V11/V12 korunur. REC-06/09 PARTIAL,
+REC-07/08/10/11/12 yalnız belgelendirilmiş desteklenen alan kapsamıyla testlidir.

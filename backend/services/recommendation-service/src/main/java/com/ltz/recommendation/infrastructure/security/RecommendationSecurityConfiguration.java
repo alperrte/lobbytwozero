@@ -49,7 +49,7 @@ public class RecommendationSecurityConfiguration {
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/internal/v1/accounts/*")
                         .hasAuthority("SCOPE_account:erase")
-                        .requestMatchers("/api/v1/recommendation/games", "/api/v1/recommendation/runs",
+                        .requestMatchers("/api/v1/recommendation/games", "/api/v1/recommendation/hardware/assessments", "/api/v1/recommendation/runs",
                                 "/api/v1/recommendation/runs/**")
                         .hasAnyRole("PLAYER", "CONTENT_CREATOR", "GAME_DEVELOPER", "MODERATOR", "ADMIN")
                         .anyRequest().denyAll())

@@ -7,7 +7,7 @@ Durum: OPEN / REC-02 ve REC-05 BLOCKED; Task 2'de başka servis kodu değiştiri
 
 `POST /api/v1/game/games/batch` yalnız `GameCardResponse` verir: kanonik gameId, başlık,
 origin/completeness/gameType, dış referanslar ve coverUrl. Tür/platform terimleri ve sistem
-gereksinimleri kartta yoktur. `GET /games/{gameId}/metadata` tek oyun içindir.
+gereksinimleri kartta yoktur. `GET /api/v1/game/{gameId}/metadata` tek oyun içindir.
 Discovery tür/platform filtrelidir ancak kişisel favori/bitirilen oyun ID kümesinin metadatasını
 toplu vermez. İnceleme puan özeti de kişisel oyun zevki metadatası değildir.
 
@@ -38,3 +38,21 @@ provider ID'yi gameId yapmaz ve kartın eksik türlerini tahmin etmez.
 
 TASK 2 mevcut uygulaması gerçek tür tercihleriyle sınırlı discovery yapar. Favori/tamamlanan
 kimlikleri yalnız tekrar öneriyi dışlamakta kullanılır; bu **REC-02/05 analizinin tamamlanması değildir**.
+
+## TASK 3 / REC-06 — gereksinim batch ihtiyacı (2026-11-15)
+
+Durum: OPEN / katalog genelinde donanıma uygun oyun önerisi ve REC-16 sistem filtresi PARTIAL.
+Tek oyun metadata ucunda minimum/recommended `cpu`, `gpu`, `ramMb`, `storageMb`, `os` vardır;
+TASK 3 bu gerçek uçla yalnız seçilen bir oyunu değerlendirir. Tüm adaylar için bu ucu ayrı ayrı
+çağırarak N+1 oluşturulmadı. Task 2'deki kart batch yanıtı hâlâ requirement taşımaz.
+
+Yukarıdaki batch önerisine şu alanlar eklenmelidir: kanonik gameId; minimum ve recommended
+seviye/platform; CPU/GPU karşılaştırılabilir kimlik veya açık `UNCOMPARABLE`; RAM/depolama birim
+sözleşmesi; varsa VRAM ve OS/driver gereksinimleri; alan bazlı eksik veri durumu ve provenance.
+Metin CPU/GPU modellerine uydurma score/benchmark atanması istenmiyor. Desteklenen teknik
+eşdeğerlik/sıralama verisinin sahibi ve kaynağı açık olmalı; yokluğunda UNKNOWN korunur.
+
+Kabul: bounded 1–100 ID batch, canonical IDs, visible/adult/type politikaları, duplicate/unknown
+ID/schema testleri; minimum ve recommended ayrımı; eksik CPU/GPU/RAM/free-space/OS alanında
+tam uygunluk iddiası olmaması. Endpoint/izin modelini Game sahibi kesinleştirir; izinsiz kod/ENV
+değişikliği yapılmadı. Başka servis DB'si okunmadı.

@@ -19,20 +19,35 @@ public class RecommendationServiceTokenClient {
     }
 
     public String libraryToken(UUID accountId) {
+        return issue("library-service", "signals:read", accountId);
+    }
+
+    public String performanceToken(UUID accountId) {
+        return issue("performance-service", "reference:read", accountId);
+    }
+
+    private String issue(String audience, String scope, UUID accountId) {
+        if (accountId == null) throw new IllegalArgumentException("Account binding required");
         if (secret.isBlank()) throw RecommendationHttpClient.unavailable();
         var reply = http.post(auth.serviceUrl().resolve("/internal/v1/service-tokens"),
-                new TokenRequest("recommendation-service", secret, "library-service", accountId));
+                new TokenRequest("recommendation-service", secret, audience, accountId));
+        return readToken(reply, scope);
+    }
+
+    private static String readToken(tools.jackson.databind.JsonNode reply, String scope) {
         var token = reply.path("accessToken");
         var expires = reply.path("expiresIn");
-        if (!"Bearer".equals(reply.path("tokenType").asString()) || !token.isString()
+        if (!"Bearer".equals(text(reply.path("tokenType"))) || !token.isString()
                 || token.asString().isBlank() || token.asString().length() > 16384
                 || token.asString().chars().anyMatch(Character::isWhitespace)
-                || !expires.isIntegralNumber() || expires.asLong() < 1 || expires.asLong() > 60
-                || !Arrays.asList(reply.path("scope").asString().split(" +")).contains("signals:read")) {
+                || !expires.isIntegralNumber() || !expires.canConvertToLong() || expires.asLong() < 1 || expires.asLong() > 60
+                || !Arrays.asList(text(reply.path("scope")).split(" +")).contains(scope)) {
             throw RecommendationHttpClient.unavailable();
         }
         return "Bearer " + token.asString();
     }
+
+    private static String text(tools.jackson.databind.JsonNode value) { return value.isString() ? value.asString() : ""; }
 
     private record TokenRequest(String clientId, String clientSecret, String audience, UUID accountId) {
         @Override public String toString() { return "TokenRequest[credentials=REDACTED]"; }

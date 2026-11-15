@@ -5,6 +5,20 @@
 
 ## Bilinen durumlar
 
+### TASK 3 güncel durum — 2026-11-15
+
+- Owner hardware assessment JWT/rıza/ACTIVE grant ve ortak generation kotası kullanır;
+  kaynak profil/oyun kimliği, sürüm, tam sayfa ve yanıt şeması doğrulanır. Rıza geri çekilmesi
+  önceki owner geçmişini temizler. Assessment profil snapshot'ı veya history yazmaz.
+- Minimum/recommended alan bazlı karşılaştırma, koşullu grafik, kanıtlı RAM/disk açığı,
+  socket/DDR kontrolü testlidir; eksik teknik alanlar UNKNOWN kalır.
+- REC-06 katalog batch ve REC-09 bağlamlı FPS eksik: reliable bayrağı tahmin güveni değildir;
+  FPS INSUFFICIENT_DATA ve değerler null. TASK 3 PARTIAL; [checkpoint](../../docs-recommendation/progress/task-03.md).
+- 66 test PASS; LINE %97,48, merkezi ek/değişen kod %97,71; Checkstyle/PMD yeni ihlal 0,
+  dependency gate PASS. Gerçek Auth issuer/JWKS ve geçici PostgreSQL; kaynak HTTP fixture'ları
+  canlı çok servis E2E yerine sayılmadı. [Kanıt](../../docs-recommendation/testings/task-03-tests.md).
+- ENV/bağımlılık/migration ve üretici servis değişikliği yok; final Sonar/pre-push TASK 5'te.
+
 ### TASK 2 güncel durum — 2026-11-14
 
 - JWT/JWKS kullanıcı ve D4 doğrulaması, canonical role, ProblemDetail/no-store, body ve oran

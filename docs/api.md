@@ -11799,6 +11799,87 @@ Diğer servisler: Auth doğrudan iç endpoint'i mevcut D4 sözleşmesiyle çağ�
 UNIT + INTEGRATION — gerçek Auth ServiceTokenIssuer token'ı, yanlış hesap 403,
 kullanıcı token'ı 401, idempotent 204 ve FK cascade. Tam Auth worker E2E NOT VERIFIED.
 
+### RECOMMENDATION — Owner donanım ve oyun değerlendirmesi (REC-06..12)
+
+Durum: IMPLEMENTED — tek oyun analizi; katalog önerisi ve gerçek FPS tahmini PARTIAL
+Sorumlu: Alper
+Tüketici servisler: Frontend (planlı; bu görevde UI geliştirilmedi)
+
+#### Endpoint
+POST /api/v1/recommendation/hardware/assessments
+
+#### Yetkilendirme
+Owner — mevcut kullanıcı at+jwt/JWKS/RS256 ve kanonik rol kuralları. userId yalnız doğrulanmış
+sub'dan alınır; client body/header kimliği kabul edilmez. User recommendation rızası ve Auth
+ACTIVE account-bound grant kontrolü paylaşılır. Hardware owner batch ucu aynı kullanıcı
+token'ıyla yetkiyi kendisi yeniden denetler. Bu path'te svc+jwt reddedilir.
+
+#### Path/Query Parameters
+Yok; profil/oyun ve değerlendirme bağlamı request body içindedir.
+
+#### Request Body
+```json
+{
+  "hardwareProfileId": "00000000-0000-0000-0000-000000000050",
+  "gameId": "00000000-0000-0000-0000-000000000101",
+  "platform": "windows",
+  "resolution": "1920x1080",
+  "graphicsPreset": "HIGH"
+}
+```
+hardwareProfileId/gameId UUID ve platform zorunludur. Platform kaynak requirement anahtarıyla
+eşleşir; 1–32 küçük harf/rakam/tire. Resolution opsiyonel, 3–5 haneli pozitif width×height
+`1920x1080` biçiminde; preset opsiyonel LOW/MEDIUM/HIGH/ULTRA. Bilinmeyen JSON alanları 400,
+POST body en çok 16 KiB. İstek resolution/preset'i ölçüm kanıtı veya FPS tahmini yaratmaz.
+
+#### Response — 200
+`HardwareAssessmentResponse`: hardwareProfileId/version, gameId, platform, assessedAt,
+suitability, minimum, recommended, fps, graphics, upgrades, componentCompatibility, limitations.
+
+- Minimum ve recommended ayrı Check listeleri döner: CPU/GPU/RAM computeStatus; ayrıca
+  VRAM/STORAGE/OS içeren overallStatus. Check durumları MEETS/BELOW/UNKNOWN; actual/required
+  ve reason kodları owner'a döner. CPU/GPU yalnız tek modelin tam normalize eşleşmesinde MEETS;
+  farklı model numaraları sıralanmaz. RAM birim belirsizliği byte alt/üst sınırlarıyla UNKNOWN korunarak çözülür.
+- Depolama toplamı boş alan sayılmaz; toplam kapasite bile yetmiyorsa BELOW kanıtıdır.
+  VRAM gereksinimi ve OS/driver kanıtı yoksa UNKNOWN. Suitability kanıtlı minimum açığında
+  BELOW_MINIMUM, diğer hallerde UNKNOWN; bütün sistemin çalışacağı garanti edilmez.
+- `fps.status=INSUFFICIENT_DATA`, estimatedLowerFps/estimatedUpperFps=null, confidence=NONE.
+  Kaynaktaki sample/session sayısı, producerSampleThresholdMet ve lastObservedAt yalnız tanı
+  bilgisidir. Aggregate min/max FPS tahminine çevrilmez; ayar/provenance/profil sürümü bağı yoktur.
+- Graphics, minimum compute doğrulanıp bilinen açık veya parça uyuşmazlığı bulunmazsa
+  CONDITIONAL/LOW: varsa düşük ayardan başlayıp oyun içinde ölçme önerisi, FPS garantisi yok.
+  Diğer hallerde INSUFFICIENT_DATA/preset=null. Yükseltme yalnız kanıtlı RAM/depolama açığı içindir.
+- Socket/DDR eşitliği yalnız DECLARED_MATCH; açık farklılık INCOMPATIBLE; eksik chipset/BIOS,
+  RAM slot/form factor ve GPU slot/boyut/güç bütün sistemin uyumluluğunu UNKNOWN bırakır.
+
+Yanıt stateless, Cache-Control private/no-store. Recommendation DB'ye profil/FPS/history
+snapshot yazılmaz. Profil başına en çok 100 bileşen; eksik pencere 503'tür. Katalogda toplu
+hardware filtresi yok; Game batch sözleşmesi gelmeden N+1 yapılmaz. Assessment ve generation
+aynı hesap/instance başına 10/dk kotasını paylaşır.
+
+#### Hata Durumları
+- 400: INVALID_REQUEST — UUID/platform/resolution/preset/unknown JSON
+- 401: AUTHENTICATION_REQUIRED — eksik/geçersiz kullanıcı token'ı
+- 403: ACCESS_DENIED / CONSENT_REQUIRED / SOURCE_ACCESS_DENIED
+- 404: SOURCE_NOT_FOUND / GAME_UNAVAILABLE — yok/başkasına ait profil veya erişime uygun olmayan oyun
+- 413: REQUEST_TOO_LARGE
+- 429: RATE_LIMITED
+- 503: SOURCE_UNAVAILABLE / INVALID_SOURCE_RESPONSE / PROFILE_WINDOW_EXCEEDED / RECOMMENDATION_BUSY
+- 500: INTERNAL_ERROR — ayrıntı/kişisel veri sızdırmayan ProblemDetail
+
+#### Bağlantı
+Frontend: Gateway üzerinden aynı path; frontend değişmedi.
+Diğer servisler: User consent, Auth account-bound Library ACTIVE grant; Hardware
+`POST /api/v1/hardware/profiles/batch` owner Bearer; Game `GET /api/v1/game/{gameId}/metadata`;
+Auth→Performance `reference:read` grant ve Performance exact game/profile reference. En çok
+6 doğrudan HTTP çağrısı; sabit origin, mevcut timeout/body sınırları, redirect/retry yok.
+
+#### Test Durumu
+UNIT + INTEGRATION — gerçek Auth issuer/JWKS, owner/kimlik/scope eşleşmesi, statelessness,
+min/recommended/units/missing/manual-brandless/compatibility/upgrade ve FPS abstention testleri.
+Hardware/Game/Performance source HTTP'leri contract fixture; tam canlı çok servis E2E NOT VERIFIED.
+[TASK 3 kanıtı](../docs-recommendation/testings/task-03-tests.md).
+
 ## PERFORMANCE
 
 Sorumlu: Alper · Gateway: `/api/v1/performance/**` · Görevler: PERF-, PWEB-
@@ -12952,9 +13033,9 @@ INTEGRATION + izole gerçek Auth HTTP kabulü PASS: Hardware istemci token'ıyla
 
 ### PERFORMANCE — Oyun performans referansı (Recommendation, PERF-21)
 
-Durum: IMPLEMENTED — REQ-04-A Auth izni tanımlı; üretim Recommendation tüketicisi ayrı iş
+Durum: IMPLEMENTED — REQ-04-A Auth izni tanımlı; TASK 3 Recommendation tüketicisi eklendi
 Sorumlu: Alper
-Tüketici servisler: Recommendation (planlı)
+Tüketici servisler: Recommendation
 
 #### Endpoint
 GET /internal/v1/accounts/{accountId}/games/{gameId}/performance-reference
@@ -12996,7 +13077,10 @@ Diğer mikroservisler:
 Recommendation → Performance (RestClient; servis token'ı Auth'tan alınır, REQ-04-A)
 
 #### Test Durumu
-INTEGRATION + izole gerçek Auth HTTP kabulü PASS: Recommendation istemci token'ıyla referans 200; başka hesap veya Hardware kimliğiyle 403. Olumlu veri hesaplama testleri gerçek Auth `ServiceClientTokenIssuer` çıktısını kullanır; bozuk kapsam/konu testleri yerel imzalıdır. [Kanıt](../docs-performance/integration/auth/auth-integration-06.md). Üretim Recommendation tüketici istemcisi bu görevde geliştirilmedi.
+INTEGRATION + izole gerçek Auth HTTP kabulü PASS: Recommendation istemci token'ıyla referans 200; başka hesap veya Hardware kimliğiyle 403. Olumlu veri hesaplama testleri gerçek Auth `ServiceClientTokenIssuer` çıktısını kullanır; bozuk kapsam/konu testleri yerel imzalıdır. [Üretici kanıtı](../docs-performance/integration/auth/auth-integration-06.md).
+TASK 3'te Recommendation üretim tüketicisi eklendi; exact game/profile/account ve reference:read bağı testlidir.
+Bu özet resolution/preset/provenance/profileVersion taşımadığından reliable=true dahi tahmin güveni
+sayılmaz; tüketici FPS tahmini üretmez. [Tüketici kanıtı ve canlı E2E sınırı](../docs-recommendation/testings/task-03-tests.md).
 
 ## NOTIFICATION
 

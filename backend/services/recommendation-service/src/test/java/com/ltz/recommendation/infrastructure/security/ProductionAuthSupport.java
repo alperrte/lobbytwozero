@@ -74,8 +74,16 @@ final class ProductionAuthSupport implements AutoCloseable {
     RSAKey key() { return key; }
 
     String libraryToken(UUID accountId) throws Exception {
+        return clientToken(accountId, "library-service", "signals:read");
+    }
+
+    String performanceToken(UUID accountId) throws Exception {
+        return clientToken(accountId, "performance-service", "reference:read");
+    }
+
+    private String clientToken(UUID accountId, String audience, String scope) throws Exception {
         return (String) clientIssuer.getClass().getMethod("issue", String.class, String.class, java.util.Set.class, UUID.class)
-                .invoke(clientIssuer, "recommendation-service", "library-service", java.util.Set.of("signals:read"), accountId);
+                .invoke(clientIssuer, "recommendation-service", audience, java.util.Set.of(scope), accountId);
     }
 
     String serviceToken(UUID accountId) throws Exception {

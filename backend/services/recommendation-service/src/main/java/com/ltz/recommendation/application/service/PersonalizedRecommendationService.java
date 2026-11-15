@@ -62,6 +62,9 @@ public class PersonalizedRecommendationService {
         }
     }
 
+    /** Aynı servis içindeki stateless öneriler de rıza geri çekme temizliğini paylaşır. */
+    public void verifyConsent(Actor actor) { requireConsent(actor); }
+
     public Run read(Actor actor, UUID runId) {
         limits.acquire(actor.accountId(), false);
         requireConsent(actor);
