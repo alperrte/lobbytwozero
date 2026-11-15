@@ -26,15 +26,17 @@ import org.springframework.web.client.RestClientException;
 public class UserServiceLibraryVisibility implements LibraryVisibilityPort {
     static final String LIBRARY_FIELD = "LIBRARY";
     static final String RECOMMENDATION_FIELD = "RECOMMENDATION";
-    private static final String DECISIONS_PATH = "/internal/v1/privacy/decisions";
 
     private final RestClient client;
     private final AuthServiceTokenClient tokens;
+    private final String decisionsPath;
 
     public UserServiceLibraryVisibility(RestClient.Builder builder, AuthServiceTokenClient tokens,
-            @Value("${ltz.library.user.base-url:}") String baseUrl) {
+            @Value("${ltz.library.user.base-url:}") String baseUrl,
+            @Value("${ltz.library.user.decisions-path:/internal/v1/privacy/decisions}") String decisionsPath) {
         this.client = baseUrl == null || baseUrl.isBlank() ? null : builder.baseUrl(baseUrl.strip()).build();
         this.tokens = tokens;
+        this.decisionsPath = decisionsPath;
     }
 
     @Override
@@ -45,7 +47,7 @@ public class UserServiceLibraryVisibility implements LibraryVisibilityPort {
         if (token.isEmpty()) return LibraryAccessDecision.UNAVAILABLE;
         String field = purpose == LibraryAccessPurpose.RECOMMENDATION ? RECOMMENDATION_FIELD : LIBRARY_FIELD;
         try {
-            var result = client.post().uri(DECISIONS_PATH).contentType(MediaType.APPLICATION_JSON)
+            var result = client.post().uri(decisionsPath).contentType(MediaType.APPLICATION_JSON)
                     .headers(headers -> headers.setBearerAuth(token.get()))
                     .body(new PrivacyDecisionRequest(viewer, field, List.of(owner)))
                     .retrieve().toEntity(PrivacyDecisionResponse.class);
@@ -61,6 +63,7 @@ public class UserServiceLibraryVisibility implements LibraryVisibilityPort {
         if (body == null || body.decisions() == null || body.decisions().size() != 1) return LibraryAccessDecision.UNAVAILABLE;
         var decision = body.decisions().getFirst();
         if (decision == null || !owner.equals(decision.ownerId()) || decision.allowed() == null) return LibraryAccessDecision.UNAVAILABLE;
-        return decision.allowed() ? LibraryAccessDecision.ALLOW : LibraryAccessDecision.DENY;
+        boolean allowed = decision.allowed();
+        return allowed ? LibraryAccessDecision.ALLOW : LibraryAccessDecision.DENY;
     }
 }
