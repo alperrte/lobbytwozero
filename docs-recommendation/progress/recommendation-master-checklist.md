@@ -191,3 +191,25 @@ gate PASS. Auth issuer/JWKS gerçek, diğer HTTP kaynakları contract fixture; c
 [kararlar](../decisions/task-03-decisions.md), [sözleşmeler](../integration/contracts.md).
 
 TASK 4 başlatılmadı. Sonraki açık kullanıcı devam talimatı beklenir.
+
+## TASK 4 güncel doğrulama eşlemesi — 2026-11-15
+
+**BLOCKED — 0/3 DONE.** Yukarıdaki REC-13/14/15 kaynak ad/açıklamaları ve checkbox'ları
+değişmedi. Önceki taskların açıkları ve DONE kapsamları korunur.
+
+| REC | Gerçek durum | Eksik kaynak / owner | Güvenle teslim edilen |
+| --- | --- | --- | --- |
+| REC-13 | BLOCKED / öneri NOT IMPLEMENTED | İzinli User aday ve tercih batch'i (Kerem), Social eligibility (Umut/Kerem) | Negatif player probe, mevcut denyAll; sözleşme talebi |
+| REC-14 | BLOCKED / öneri NOT IMPLEMENTED | Recommendation'a açık friend/block/erişim batch kontrolü (Umut), Auth izni ve User aday bilgisi (Kerem) | Negatif friend probe; başka kullanıcı/ADMIN/header/body ile erişim açılmaz |
+| REC-15 | BLOCKED / öneri NOT IMPLEMENTED | Event discovery ve viewer eligibility iş API'si yok (Nisa) | Negatif event probe; sahte event veya başarılı boş öneri endpoint'i yok |
+
+Üç boundary testi özellik filtre/sıralama testinin yerine sayılmaz. Self/friend/iki yönlü
+block/private/deleted/disabled ve private/full/cancelled/timezone/ranking senaryoları,
+uygulanmış akış ve gerçek owner sözleşmesi olmadığı için NOT IMPLEMENTED kalır.
+69 test PASS; toplam LINE %97,48 ve merkezi ek/değişen kod %97,71; Checkstyle/PMD 0 yeni
+ihlal ve dependency gate PASS. Coverage önceki taskları kapsar; yeni production kodu yoktur.
+[Checkpoint](task-04.md), [test raporu](../testings/task-04-tests.md),
+[karar ve owner talepleri](../decisions/task-04-decisions.md).
+
+TASK 5 başlatılmadı; sonraki açık devam talimatı beklenir. Genel sayaç belgelendirilmiş
+desteklenen kapsamla 13/23 DONE; kalanlar bu checkpoint'te kapatılmadı.

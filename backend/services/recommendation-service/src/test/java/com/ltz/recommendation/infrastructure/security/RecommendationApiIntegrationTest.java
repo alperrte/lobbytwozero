@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.ltz.recommendation.application.service.FixedRateLimiterConfiguration;
 import com.ltz.recommendation.infrastructure.persistence.DisposableDatabaseInitializer;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
@@ -23,6 +24,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ContextConfiguration;
@@ -38,6 +40,7 @@ import tools.jackson.databind.json.JsonMapper;
 /** Gerçek Auth issuer/JWKS + Recommendation HTTP/DB; kaynak servisler kontrollü contract fixture'ıdır. */
 @SpringBootTest
 @ContextConfiguration(initializers = DisposableDatabaseInitializer.class)
+@Import(FixedRateLimiterConfiguration.class)
 class RecommendationApiIntegrationTest {
     private static final UUID A = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final UUID B = UUID.fromString("00000000-0000-0000-0000-000000000002");
@@ -266,6 +269,49 @@ class RecommendationApiIntegrationTest {
         consent = false;
         for (int index = 0; index < 10; index++) request(post("/api/v1/recommendation/games").content("{}"), tokenA, 403);
         request(post("/api/v1/recommendation/games").content("{}"), tokenA, 429);
+    }
+
+    @Test
+    void unavailablePlayerRecommendationsRemainClosed() throws Exception {
+        assertUnavailableRecommendationBoundary("players");
+    }
+
+    @Test
+    void unavailableFriendRecommendationsRemainClosed() throws Exception {
+        assertUnavailableRecommendationBoundary("friends");
+    }
+
+    @Test
+    void unavailableEventRecommendationsRemainClosed() throws Exception {
+        assertUnavailableRecommendationBoundary("events");
+    }
+
+    /** Bu yollar negatif probe'dur; uygulanmış veya vaat edilmiş endpoint sözleşmesi değildir. */
+    private void assertUnavailableRecommendationBoundary(String segment) throws Exception {
+        String path = "/api/v1/recommendation/" + segment;
+        String payload = "{\"userId\":\"" + B + "\",\"candidateIds\":[\"" + B + "\"],\"includePrivate\":true}";
+        var anonymous = mvc.perform(get(path)).andExpect(status().isUnauthorized()).andReturn().getResponse();
+        assertThat(anonymous.getHeader("Cache-Control")).contains("no-store");
+        // Bearer/CSRF taşımayan POST, mevcut CSRF filtresinde erişim kontrolünden önce reddedilir.
+        mvc.perform(post(path).contentType(MediaType.APPLICATION_JSON).content(payload))
+                .andExpect(status().isForbidden());
+        for (String token : List.of(tokenA, tokenB, auth.token(A, "ADMIN"))) {
+            assertDeniedWithoutCandidateData(request(get(path).param("userId", B.toString())
+                    .header("X-User-Id", B.toString()).header("X-Role", "ADMIN"), token, 403));
+            assertDeniedWithoutCandidateData(request(post(path).content(payload), token, 403));
+        }
+        request(get(path), auth.serviceToken(A), 401);
+        request(post(path).content(payload), auth.serviceToken(A), 401);
+        assertThat(requests).isEmpty();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM recommendation_runs", Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM recommendation_observations", Integer.class)).isZero();
+    }
+
+    private static void assertDeniedWithoutCandidateData(JsonNode response) {
+        assertThat(response.path("code").asString()).isEqualTo("ACCESS_DENIED");
+        assertThat(response.has("items")).isFalse();
+        assertThat(response.has("candidateIds")).isFalse();
+        assertThat(response.toString()).doesNotContain(B.toString());
     }
 
     private JsonNode generate(String token, String body) throws Exception {

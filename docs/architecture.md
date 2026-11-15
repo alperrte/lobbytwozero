@@ -389,6 +389,14 @@ stateDiagram-v2
 
 ## 10. Recommendation ve Python algoritmaları `[KARAR BEKLİYOR]`
 
+**TASK 4 güncel durum / 2026-11-15 — BLOCKED (0/3):** User kart batch'i izinli oyun
+tercihi/aday keşfi değildir; mevcut rızanın amacı sosyal aday olmaya genişletilmez. Social
+iki yönlü engel sorgusu yalnız Messaging/LFP caller'larına açıktır; Recommendation Auth grant'ı
+yoktur. Event yalnız launcher'dır. Bu sözleşmeler olmadan sosyal/etkinlik öneri controller'ı,
+ranker veya yapay veri kaynağı eklenmedi. Mevcut denyAll korunur; üç negatif erişim testi
+eklenir. Owner talepleri ve [karar](../docs-recommendation/decisions/task-04-decisions.md)
+kaydedildi; production güven modeli/ENV/DB/migration değişmedi. TASK 5 başlatılmadı.
+
 **TASK 3 güncel durum / 2026-11-15:** Owner tek profil/tek oyun teknik assessment ucu eklendi.
 Hardware batch kullanıcı token'ıyla, Game tek oyun metadata'sı ve Performance account-bound
 reference:read mevcut sözleşmeleriyle okunur; producer kodu değişmedi. Minimum/recommended

@@ -74,3 +74,21 @@ kodları değiştirilmedi; TASK 3/4 üzerinde uygulama yapılmadı.
 
 TASK 3 yeni kalıcı veri veya migration eklemedi; V11/V12 korunur. REC-06/09 PARTIAL,
 REC-07/08/10/11/12 yalnız belgelendirilmiş desteklenen alan kapsamıyla testlidir.
+
+## TASK 4 sonrası güncel tüketici durumu — 2026-11-15
+
+**REC-13/14/15 BLOCKED, 0/3 DONE.** Bu task yeni production tüketicisi veya endpoint açmaz.
+
+| Kaynak | Doğrulanmış mevcut kabiliyet / eksik | Sonuç / owner |
+| --- | --- | --- |
+| User | Tek profil details; search ve batch yalnız kart. İzinli öneri adayı discovery/tercih batch'i yok; temel kart privacy eligibility kanıtı değil | REC-13/14 BLOCKED; [Kerem talebi](dependencies/user-service-requests.md) |
+| Social | Owner arkadaş listesi var; iki yönlü blocks/check yalnız Messaging/LFP subject'leri; Recommendation Auth Social hedefi yok | REC-13/14 BLOCKED; [Umut + Kerem talebi](dependencies/social-service-requests.md) |
+| Event | Yalnız EventServiceApplication; API kataloğu boş | REC-15 BLOCKED; [Nisa talebi](dependencies/event-service-requests.md) |
+
+Mevcut owner Library rızası sosyal aday işlemeye genişletilmedi. Profil kartı taraması,
+N+1 details/relationship sorgusu, private library/rating okuması, başka servis kimliği taklidi,
+cross-DB erişimi veya tahmini Event endpoint'i çağrısı yapılmaz.
+RecommendationApiIntegrationTest'te mevcut denyAll için üç negatif boundary testi eklendi;
+User/Social/Event üretici kodu ve auth izinleri değişmedi. Bu testler aday filtreleme/ranking,
+Event kapasite/zaman veya canlı çok servisli E2E kabulü değildir.
+[TASK 4 karar kaydı](../decisions/task-04-decisions.md).

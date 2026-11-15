@@ -11573,6 +11573,15 @@ gerçek Game/ortak DEV/TLS/tarayıcı kabulü iddia edilmez.
 
 Sorumlu: Alper · Gateway: `/api/v1/recommendation/**` · Görevler: REC-
 
+**TASK 4 / 2026-11-15 — REC-13/14/15 BLOCKED:** İzinli User aday/tercih batch'i,
+Recommendation'a açık Social arkadaşlık/iki yönlü engel eligibility'si ve Event keşif/katılım
+sözleşmesi yoktur. Oyuncu/arkadaş/etkinlik önerisi endpoint'i **NOT IMPLEMENTED**; yeni route
+veya boş başarılı öneri listesi eklenmedi. Negatif `/players`, `/friends`, `/events` probe'ları
+yalnız deny-by-default sınırını doğrular, API sözleşmesi değildir. Mevcut authenticated kullanıcı
+(ADMIN dahil) GET/POST 403; anonim GET 401, Bearer/CSRF taşımayan POST CSRF filtresinde 403;
+servis token'ı kullanıcı yolunda 401. [Karar/owner talepleri](../docs-recommendation/decisions/task-04-decisions.md),
+[gerçek test kapsamı](../docs-recommendation/testings/task-04-tests.md).
+
 **TASK 1 / LTZ-ALP-REC-01 (2026-11-14):** İş HTTP endpoint'i henüz yoktur.
 `RecommendationAlgorithm`, `RecommendationExecutionService` ve analitik portu servis içidir;
 public/protected/internal HTTP sözleşmesi olarak kullanılamaz. Bu task hiçbir endpoint eklemedi,

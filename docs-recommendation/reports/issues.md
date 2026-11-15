@@ -51,3 +51,23 @@ iddiası yoktur. Sonraki ana task için açık kullanıcı talimatı beklenir; T
 
 Son koşu 66 PASS, coverage ve tüm hedefli kalite kapıları PASS; [kanıt](../testings/task-03-tests.md).
 Final pre-push/Sonar TASK 5'e ayrıldı. TASK 4 başlatılmadı.
+
+## TASK 4 güncel kayıt — 2026-11-15
+
+**BLOCKED — REC-13/14/15 açık (0/3 DONE).** Önceki task kayıtları tarihseldir.
+
+| Kayıt | Durum | Kanıt / aksiyon ve owner |
+| --- | --- | --- |
+| İzinli aday/tercih batch'i | BLOCKED | User batch/search yalnız kart; [Kerem talebi](../integration/dependencies/user-service-requests.md). İsim taraması/N+1/özel library-rating yerine kullanılmadı |
+| Social eligibility ve Auth caller izni | BLOCKED | blocks/check yalnız Messaging/LFP; [Umut + Kerem talebi](../integration/dependencies/social-service-requests.md). Recommendation kimliğine izin uydurulmadı |
+| Açık/geçerli Event keşfi ve katılım uygunluğu | BLOCKED | Üreticide yalnız launcher, katalog boş; [Nisa talebi](../integration/dependencies/event-service-requests.md). Sahte etkinlik/popülerlik üretilmedi |
+| İlk yeni boundary testindeki anonim POST beklentisi | RESOLVED | Beklenen 401, gerçek mevcut CSRF reddi 403; yalnız test düzeltildi, güvenlik zinciri değişmedi |
+| Eski kota testinde dakika sınırı kararsızlığı | RESOLVED | İkinci koşuda 11. istek yeni dakikaya geçti; yalnız API test context'ine sabit Clock + gerçek limiter import edildi; son koşuda 429/retention/withdrawal testleri PASS |
+| Pozitif öneri / eligibility / ranking / timezone kabulü | NOT IMPLEMENTED | Kritik producer sözleşmeleri olmadan feature kabulü üretilemez; üç erişim sınırı testi yerine sayılmadı |
+| Canlı User/Social/Event E2E | NOT VERIFIED | Bu task üretici çağrısı yapmaz; mevcut Auth issuer/JWKS ile negatif erişim testlenir |
+
+Güvenli bağımsız çalışma test, karar, sözleşme talepleri ve dokümantasyonla tamamlanır.
+Son koşu 69 PASS / 0 skipped, coverage/lint/dependency kapıları PASS;
+[tüm koşu kanıtları](../testings/task-04-tests.md). Feature blokajları çözülmüş sayılmaz.
+Başka owner'ın kodu, Auth izinleri veya ENV değiştirilmedi. [Checkpoint](../progress/task-04.md).
+TASK 5 başlatılmadı; final pre-push ve SonarQube bu checkpoint'in PASS iddiası değildir.

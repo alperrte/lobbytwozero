@@ -5,6 +5,20 @@
 
 ## Bilinen durumlar
 
+### TASK 4 güncel durum — 2026-11-15
+
+- REC-13/14/15 **BLOCKED (0/3)**: izinli User aday/tercih batch'i ve Social eligibility/
+  Recommendation grant'ı yok; Event yalnız launcher. [Karar ve owner talepleri](../../docs-recommendation/decisions/task-04-decisions.md).
+- Production allowlist/denyAll değişmedi. Üç yeni negatif probe testi A/B/ADMIN reddini,
+  sahte kimlik/private alanlarının etkisizliğini, servis token ayrımını ve kaynak iş çağrısı/
+  DB yazısı yokluğunu doğrular. Yeni öneri endpoint'i veya sıralama özelliği değildir.
+- Anonim GET 401, Bearer/CSRF'siz POST mevcut CSRF'de 403; kullanıcı token'ıyla GET/POST 403.
+  API testindeki gerçek kota limiter'ına test Clock import'u eklendi; dakika sınırı kararsızlığı giderildi.
+- 69 test PASS, LINE %97,48, merkezi ek/değişen kod %97,71; Checkstyle/PMD yeni ihlal 0,
+  dependency gate PASS. [Tüm koşular ve sınırlar](../../docs-recommendation/testings/task-04-tests.md).
+- User/Social/Event canlı E2E ve feature eligibility/ranking NOT VERIFIED/NOT IMPLEMENTED.
+  ENV/üretici/DB/migration/production Java değişmedi. TASK 5 ve final Sonar/pre-push başlatılmadı.
+
 ### TASK 3 güncel durum — 2026-11-15
 
 - Owner hardware assessment JWT/rıza/ACTIVE grant ve ortak generation kotası kullanır;

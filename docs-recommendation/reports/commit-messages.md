@@ -1,6 +1,6 @@
 # Commit taslakları
 
-Bu ajan gerçek commit/stage/push yapmadı. TASK 1, TASK 2 ve TASK 3 için ayrı taslaklar vardır.
+Bu ajan gerçek commit/stage/push yapmadı. TASK 1–4 için ayrı taslaklar vardır.
 Başlık/body bağlayıcı master v2 §12 ve kullanıcının Conventional Commit talebine göre hazırlanmıştır.
 
 ## TASK 1 / LTZ-ALP-REC-01
@@ -69,3 +69,24 @@ feature: LTZ-ALP-REC-03 owner donanım değerlendirmesi ve koşullu tavsiyeleri 
 ```
 
 TASK 4 başlatılmadı. Final SonarQube/pre-push ve PR taslağı TASK 5'e aittir.
+
+## TASK 4 / LTZ-ALP-REC-04 — sözleşme blokajı ve erişim sınırı testleri
+
+Durum: **BLOCKED — 0/3 DONE**. Başlık/gövde sosyal veya etkinlik önerisi uygulandığını söylemez.
+AGENTS.md'nin zorunlu `feature:` başlığı korunmuştur; gerçek kapsam test/dokümantasyondur.
+TASK 3 kullanıcı commit'i `3aa01735` üzerindeki bu çalışma Git yazma işlemi içermedi.
+
+```text
+feature: LTZ-ALP-REC-04 sosyal öneri blokajlarını belgele ve kapalı erişimi test et
+- REC-13: User profil kartı ile izinli aday tercihlerini ayır; Kerem için bounded aday/tercih ve işleme amacı sözleşmesi talebi hazırla.
+- REC-14: Social engel sorgusunun Messaging/LFP caller sınırını ve Recommendation Auth izin eksikliğini doğrula; Umut/Kerem için friend/block/erişim batch eligibility talebini belgele.
+- REC-15: Event servisinde iş API'si bulunmadığını kaydet; Nisa için açık/geçerli etkinlik, katılım, zaman ve kapasite sözleşmesi talebi hazırla.
+- Güvenlik testleri: uygulanmamış player/friend/event probe yollarında A/B/ADMIN, anonim ve servis token erişimini; sahte userId/candidateIds/includePrivate girdilerini ve veri sızdırmayan ret yanıtlarını doğrula.
+- Yan etki kontrolü: reddedilen probe'larda JWKS dışı kaynak iş çağrısı ve Recommendation run/observation yazısı oluşmadığını test et; mevcut production denyAll kuralını koru.
+- Test kararlılığı: API test context'ine sabit Clock kullanan gerçek RecommendationRateLimiter ekle; dakika sınırında değişen kota beklentisini production limitlerini değiştirmeden gider.
+- Doğrulama: disposable PostgreSQL ve gerçek Auth issuer/JWKS ile 69 testi geçir; toplam LINE %97,48, merkezi ek/değişen kod %97,71, Checkstyle/PMD yeni ihlal 0 ve dependency gate PASS sonuçlarını kaydet.
+- Belgeler: docs/api.md Recommendation kapsam notunu, mimari, contracts, owner talepleri, karar, checkpoint, test, checklist, sorun ve güvenlik notlarını güncelle; REC-13/14/15 checkbox'larını açık tut.
+- Kapsam: öneri endpoint'i/ranker, üretici kodu, Auth izni, ENV, bağımlılık ve migration ekleme; eksik sosyal/etkinlik özelliklerini veya canlı E2E'yi tamamlandı gösterme.
+```
+
+TASK 5 başlatılmadı. Final pre-push/SonarQube ve PR taslağı bu checkpoint'te çalıştırılmadı.
