@@ -1693,7 +1693,9 @@
         "recoveryDescription": "Save your recovery codes somewhere safe. They will not be shown again; use them if you lose access to your phone.",
         "recoveryList": "Recovery codes",
         "saved": "I saved my recovery codes somewhere safe.",
-        "continue": "Continue"
+        "continue": "Continue",
+        "qrLabel": "Setup QR code",
+        "scanQr": "Scan the QR code with your authenticator app (for example Google Authenticator)."
       }
     },
     "deleteAccount": {
@@ -2554,6 +2556,7 @@
       "password": "Your password",
       "factor": "Verification code (6 digits) or recovery code",
       "code": "Code",
+      "close": "Close dialog",
       "cancel": "Cancel",
       "sending": "Sending…",
       "relogin": "For your safety all your sessions were closed. You need to sign in again.",
@@ -2592,7 +2595,9 @@
         "recoverySaved": "I saved the codes",
         "onIntro": "Two-step verification is on.",
         "disableHint": "Enter your code to turn it off. Without a linked Google/Steam account your account falls back to standard (A).",
-        "disable": "Turn off"
+        "disable": "Turn off",
+        "qrLabel": "Setup QR code",
+        "scanQr": "Scan the QR code with your authenticator app (for example Google Authenticator)."
       },
       "link": {
         "title": "Google and Steam links",
@@ -2628,7 +2633,9 @@
         "title": "All sessions",
         "intro": "Closes your sessions on every device, including this one.",
         "button": "Sign out of all devices",
-        "confirm": "Are you sure? Yes, close them all"
+        "dialogTitle": "Sign out of all devices?",
+        "dialogBody": "You will be signed out everywhere, including this device, and will need to sign in again.",
+        "confirm": "Yes, sign out everywhere"
       }
     },
     "age": {
@@ -2662,6 +2669,13 @@
       "password": "Your password",
       "factor": "Verification code (6 digits) or recovery code",
       "note": "Note to the administrator (optional)",
+      "confirm": {
+        "title": "Delete your account?",
+        "bodySelf": "We will send the deletion request and email you a confirmation link. Nothing is deleted unless you confirm.",
+        "bodySupport": "A deletion request for your account will be opened for an administrator. If approved, the deletion process starts.",
+        "confirm": "Yes, continue",
+        "cancel": "Cancel"
+      },
       "submitDelete": "Send deletion request",
       "submitSupport": "Open deletion request",
       "sending": "Sending…",

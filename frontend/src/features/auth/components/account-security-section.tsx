@@ -2,11 +2,15 @@
 
 import { useEffect, useId, useState, type FormEvent, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
+import { CardSnake } from "@/shared/components/ui/card-snake";
+import { ConfirmDialog } from "@/shared/components/ui/confirm-dialog";
+import { ModalDialog } from "@/shared/components/ui/modal-dialog";
 import { Link } from "@/shared/lib/i18n/navigation";
 import { authApi } from "../services/auth-api";
 import { authErrorCode } from "../services/auth-http";
 import type { AuthErrorCode, AuthMe, TotpEnrollment } from "../types/auth.types";
 import { ProblemNotice } from "./problem-notice";
+import { TotpQr } from "./totp-qr";
 
 type Loaded = { status: "loading" } | { status: "error" } | { status: "ready"; me: AuthMe };
 
@@ -149,9 +153,18 @@ function TwoFactorPanel({ me, onChanged }: { me: AuthMe; onChanged: () => void }
     }
   }
 
+  function cancelEnrollment() {
+    setEnrollment(null);
+    setCode("");
+    setProblem(null);
+  }
+
+  // Kurtarma kodları yalnız bir kez gösterilir: pencere Esc/arka planla kapanmaz, yalnız "Kodları kaydettim" kapatır.
+  // Kurulum penceresi (QR + kod) vazgeçilebilir. İkisi de login formundaki gibi dönen çerçeveyle açılır.
+  let modal: ReactNode = null;
   if (recovery) {
-    return (
-      <Panel title={tf("recoveryTitle")}>
+    modal = (
+      <ModalDialog title={tf("recoveryTitle")} dismissible={false} onClose={() => undefined} closeLabel={t("close")} frame={<CardSnake initialDelayMs={250} />}>
         <p role="note" className="text-sm text-brand-text">{tf("recoveryWarn")}</p>
         <ul className="grid grid-cols-2 gap-2 font-mono text-sm text-text-primary">
           {recovery.map((item) => <li key={item}>{item}</li>)}
@@ -168,13 +181,11 @@ function TwoFactorPanel({ me, onChanged }: { me: AuthMe; onChanged: () => void }
             {tf("recoverySaved")}
           </button>
         </div>
-      </Panel>
+      </ModalDialog>
     );
-  }
-
-  if (!enabled && enrollment) {
-    return (
-      <Panel title={tf("title")}>
+  } else if (!enabled && enrollment) {
+    modal = (
+      <ModalDialog title={tf("title")} onClose={cancelEnrollment} closeLabel={t("close")} frame={<CardSnake initialDelayMs={250} />}>
         <form
           noValidate
           className="flex flex-col gap-3"
@@ -188,6 +199,12 @@ function TwoFactorPanel({ me, onChanged }: { me: AuthMe; onChanged: () => void }
             });
           }}
         >
+          {enrollment.otpauthUri !== "" ? (
+            <>
+              <p className="text-sm text-text-secondary">{tf("scanQr")}</p>
+              <TotpQr uri={enrollment.otpauthUri} label={tf("qrLabel")} />
+            </>
+          ) : null}
           <p className="text-sm text-text-secondary">{tf("secret")}</p>
           <code className="break-all rounded-control border border-border bg-surface-elevated px-3 py-2 text-sm">{enrollment.secret}</code>
           {enrollment.otpauthUri !== "" ? (
@@ -207,87 +224,93 @@ function TwoFactorPanel({ me, onChanged }: { me: AuthMe; onChanged: () => void }
             <button type="submit" disabled={busy || code.trim() === ""} className={buttonClass}>
               {busy ? t("sending") : tf("activate")}
             </button>
-            <button type="button" className={ghostClass} onClick={() => { setEnrollment(null); setProblem(null); }}>
+            <button type="button" className={ghostClass} onClick={cancelEnrollment}>
               {t("cancel")}
             </button>
           </div>
         </form>
-      </Panel>
+      </ModalDialog>
     );
   }
 
   if (!enabled) {
     return (
-      <Panel title={tf("title")}>
-        <p className="text-sm text-text-secondary">{tf("offIntro")}</p>
-        <ProblemNotice code={problem} />
-        <div>
-          <button
-            type="button"
-            disabled={busy}
-            className={buttonClass}
-            onClick={() => void run(async () => setEnrollment(await authApi.setupTotp()))}
-          >
-            {busy ? t("sending") : tf("start")}
-          </button>
-        </div>
-      </Panel>
+      <>
+        <Panel title={tf("title")}>
+          <p className="text-sm text-text-secondary">{tf("offIntro")}</p>
+          {modal === null ? <ProblemNotice code={problem} /> : null}
+          <div>
+            <button
+              type="button"
+              disabled={busy}
+              className={buttonClass}
+              onClick={() => void run(async () => setEnrollment(await authApi.setupTotp()))}
+            >
+              {busy && enrollment === null ? t("sending") : tf("start")}
+            </button>
+          </div>
+        </Panel>
+        {modal}
+      </>
     );
   }
 
   const needsPassword = me.passwordSet === true;
   return (
-    <Panel title={tf("title")}>
-      <p className="text-sm text-text-primary">{tf("onIntro")}</p>
-      <p className="text-sm text-text-secondary">{tf("disableHint")}</p>
-      <form
-        noValidate
-        className="flex flex-col gap-3"
-        onSubmit={(event: FormEvent) => {
-          event.preventDefault();
-          const factor = factorOf(code);
-          if (!factor) return;
-          void run(async () => {
-            await authApi.disableTotp({ ...(needsPassword ? { password } : {}), ...factor });
-            setCode("");
-            setPassword("");
-            onChanged();
-          });
-        }}
-      >
-        {needsPassword ? (
-          <>
-            <label htmlFor={`${id}-password`} className="text-sm font-medium">{t("password")}</label>
-            <input
-              id={`${id}-password`}
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className={inputClass}
-            />
-          </>
-        ) : null}
-        <label htmlFor={`${id}-factor`} className="text-sm font-medium">{t("factor")}</label>
-        <input
-          id={`${id}-factor`}
-          autoComplete="one-time-code"
-          value={code}
-          onChange={(event) => setCode(event.target.value)}
-          className={inputClass}
-        />
-        <ProblemNotice code={problem} />
-        <div>
-          <button
-            type="submit"
-            disabled={busy || code.trim() === "" || (needsPassword && password === "")}
-            className={buttonClass}
-          >
-            {busy ? t("sending") : tf("disable")}
-          </button>
-        </div>
-      </form>
-    </Panel>
+    <>
+      <Panel title={tf("title")}>
+        <p className="text-sm text-text-primary">{tf("onIntro")}</p>
+        <p className="text-sm text-text-secondary">{tf("disableHint")}</p>
+        <form
+          noValidate
+          className="flex flex-col gap-3"
+          onSubmit={(event: FormEvent) => {
+            event.preventDefault();
+            const factor = factorOf(code);
+            if (!factor) return;
+            void run(async () => {
+              await authApi.disableTotp({ ...(needsPassword ? { password } : {}), ...factor });
+              setCode("");
+              setPassword("");
+              onChanged();
+            });
+          }}
+        >
+          {needsPassword ? (
+            <>
+              <label htmlFor={`${id}-password`} className="text-sm font-medium">{t("password")}</label>
+              <input
+                id={`${id}-password`}
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                className={inputClass}
+              />
+            </>
+          ) : null}
+          <label htmlFor={`${id}-factor`} className="text-sm font-medium">{t("factor")}</label>
+          <input
+            id={`${id}-factor`}
+            autoComplete="one-time-code"
+            value={code}
+            onChange={(event) => setCode(event.target.value)}
+            className={inputClass}
+          />
+          <ProblemNotice code={problem} />
+          <div>
+            <button
+              type="submit"
+              disabled={busy || code.trim() === "" || (needsPassword && password === "")}
+              className={buttonClass}
+            >
+              {busy ? t("sending") : tf("disable")}
+            </button>
+          </div>
+        </form>
+      </Panel>
+      {modal}
+    </>
   );
 }
 
@@ -642,6 +665,7 @@ function EmailChangePanel({ me, onClosed }: { me: AuthMe; onClosed: () => void }
 
 function LogoutAllPanel({ onClosed }: { onClosed: () => void }) {
   const t = useTranslations("AccountSettings.security.logoutAll");
+  const ts = useTranslations("AccountSettings.security");
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<AuthErrorCode | null>(null);
@@ -656,6 +680,7 @@ function LogoutAllPanel({ onClosed }: { onClosed: () => void }) {
     } catch (error) {
       setProblem(authErrorCode(error));
       setBusy(false);
+      setConfirming(false);
     }
   }
 
@@ -664,15 +689,23 @@ function LogoutAllPanel({ onClosed }: { onClosed: () => void }) {
       <p className="text-sm text-text-secondary">{t("intro")}</p>
       <ProblemNotice code={problem} />
       <div>
-        <button
-          type="button"
-          disabled={busy}
-          className={buttonClass}
-          onClick={() => (confirming ? void logout() : setConfirming(true))}
-        >
-          {confirming ? t("confirm") : t("button")}
+        <button type="button" disabled={busy} className={buttonClass} onClick={() => setConfirming(true)}>
+          {t("button")}
         </button>
       </div>
+      {confirming ? (
+        <ConfirmDialog
+          tone="danger"
+          title={t("dialogTitle")}
+          description={t("dialogBody")}
+          confirmLabel={busy ? ts("sending") : t("confirm")}
+          cancelLabel={ts("cancel")}
+          busy={busy}
+          frame={<CardSnake initialDelayMs={250} />}
+          onConfirm={() => void logout()}
+          onCancel={() => setConfirming(false)}
+        />
+      ) : null}
     </Panel>
   );
 }

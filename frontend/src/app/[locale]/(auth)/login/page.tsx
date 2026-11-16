@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { LoginForm } from "@/features/auth";
+import { RedirectIfAuthenticated, LoginForm } from "@/features/auth";
 
 /** Sekme başlığı kök şablondan ("LTZ | %s") gelir; `(auth)` grubu zaten `noindex` yayınlar. */
 export async function generateMetadata(): Promise<Metadata> {
@@ -19,6 +19,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   return (
     <>
+      <RedirectIfAuthenticated />
       <h1 className="mb-6 font-display text-3xl font-bold text-text-primary">{t("login.title")}</h1>
       <LoginForm next={typeof next === "string" ? next : null} verified={verified === "1"} passwordReset={reset === "1"} />
     </>

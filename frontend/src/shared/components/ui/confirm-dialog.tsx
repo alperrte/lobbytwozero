@@ -18,6 +18,8 @@ export type ConfirmDialogProps = {
   tone?: "default" | "danger";
   /** Açıklamanın altında gösterilir (ör. hata bildirimi). */
   children?: ReactNode;
+  /** Pencerenin çerçevesine yerleşen süs katmanı (ör. `CardSnake`); `relative` kapsayıcı ve yarıçap pencereden gelir. */
+  frame?: ReactNode;
 };
 
 /**
@@ -25,7 +27,7 @@ export type ConfirmDialogProps = {
  * plana tıklama vazgeçmedir, kapanınca odak önceki öğeye döner. Başka bir modalın içinden de açılabilir (üst katmanda durur).
  * Metinler dışarıdan verilir; bileşen hiçbir çeviri alanına bağlı değildir.
  */
-export function ConfirmDialog({ title, description, confirmLabel, cancelLabel, onConfirm, onCancel, busy = false, tone = "default", children }: ConfirmDialogProps) {
+export function ConfirmDialog({ title, description, confirmLabel, cancelLabel, onConfirm, onCancel, busy = false, tone = "default", children, frame }: ConfirmDialogProps) {
   const titleId = useId();
   const descriptionId = useId();
   const ref = useRef<HTMLDialogElement>(null);
@@ -52,7 +54,8 @@ export function ConfirmDialog({ title, description, confirmLabel, cancelLabel, o
       onClick={(event) => { if (event.target === event.currentTarget && !busy) cancelHandler.current(); }}
       className="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-md overflow-visible rounded-[22px] border border-border bg-surface p-0 text-text-primary shadow-popover backdrop:bg-scrim backdrop:backdrop-blur-[2px]"
     >
-      <div className="space-y-5 p-6">
+      {frame}
+      <div className="relative space-y-5 p-6">
         <div className="flex items-start gap-4">
           <span aria-hidden="true" className={cn("flex size-11 shrink-0 items-center justify-center rounded-full border", danger ? "border-primary/40 bg-primary/10 text-brand-text" : "border-control-border bg-surface-elevated text-text-primary")}>
             <Icon name="info" className="size-5" />

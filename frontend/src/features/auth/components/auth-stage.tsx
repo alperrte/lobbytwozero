@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { ThemeTransitionLayer } from "@/shared/components/theme-transition/theme-transition-layer";
 import { usePathname } from "@/shared/lib/i18n/navigation";
 import { exitFor, transitionBetween, welcomeVariantFor, type CardTransition } from "../services/auth-motion";
-import { AuthCardSnake } from "./auth-card-snake";
+import { CardSnake } from "@/shared/components/ui/card-snake";
 import { AuthNavbar } from "./auth-navbar";
 import { TwistText } from "./twist-text";
 import "./auth-stage.css";
@@ -222,7 +222,7 @@ export function AuthStage({ children, footer }: AuthStageProps) {
             </section>
 
             <div className="auth-intro-right relative w-full max-w-md justify-self-center rounded-3xl border border-border bg-surface shadow-popover lg:justify-self-end">
-              <AuthCardSnake initialDelayMs={FIRST_LAP_DELAY_MS} />
+              <CardSnake initialDelayMs={FIRST_LAP_DELAY_MS} />
               <div ref={contentRef} className="relative">
                 {/* Çıkan katmanlar yalnız burada, zorunlu olarak boş kalan bu kapta (React çocuk yönetmez) tutulur. */}
                 <div ref={ghostsRef} aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0" />
