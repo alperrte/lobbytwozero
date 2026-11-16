@@ -99,7 +99,7 @@ public class SecurityConfig {
                                 .hasAuthority(SCOPE_PREFIX + TokenClaims.LOCALE_READ_SCOPE)
                         // Yönetim paneli araması: askıdaki/yasaklı hesapları da gösterdiği için yalnız ADMIN (MODERATOR değil).
                         .requestMatchers(PATHS.matcher(HttpMethod.GET, UserApiPaths.ADMIN_PROFILES_SEARCH))
-                                .hasRole(TokenClaims.ADMIN_ROLE)
+                                .hasRole("ADMIN")
                         .requestMatchers(AUTHENTICATED_ENDPOINTS).authenticated()
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(resourceServer -> resourceServer
