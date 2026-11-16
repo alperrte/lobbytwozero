@@ -87,7 +87,9 @@ final class SteamStorePrices {
         if (value == null || value.isNull()) {
             return null;
         }
-        String text = value.isString() ? value.asString().strip() : value.isIntegralNumber() ? Long.toString(value.asLong()) : "";
+        String text = "";
+        if (value.isString()) text = value.asString().strip();
+        else if (value.isIntegralNumber()) text = Long.toString(value.asLong());
         return text.matches("\\d{1,10}") ? Long.valueOf(text) : null;
     }
 }

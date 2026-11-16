@@ -118,8 +118,8 @@ class SessionControllerTest extends IntegrationTestSupport {
 
         MvcResult login = login(email, VALID_PASSWORD).andExpect(status().isOk()).andReturn();
         String hint = hintCookie(login);
-        assertThat(hint).contains("=1").contains("Path=/").contains("Max-Age=").doesNotContain("HttpOnly");
-        assertThat(hint).doesNotContain("Max-Age=0");
+        assertThat(hint).contains("=1").contains("Path=/").contains("Max-Age=").doesNotContain("HttpOnly")
+                .doesNotContain("Max-Age=0");
         // Değer taşımaz: kimlik, token ya da hesap bilgisi yok.
         assertThat(hint.substring(0, hint.indexOf(';'))).endsWith("ltz_session=1");
 

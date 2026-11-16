@@ -35,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class CatalogImportService {
     private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(CatalogImportService.class);
     private static final String PROVIDER_CODE = "STEAM";
+    private static final String GAME_TYPE_FIELD = "GAME_TYPE";
     /** Yeni oyun ve DLC'lerin Steam'den ne kadar sıklıkla alınacağı (varsayılan geliştirme: 1 saat; canlı profil 15 dakika). */
     static final Duration DEFAULT_SYNC_INTERVAL = Duration.ofHours(1);
     private final GameProvider provider;
@@ -87,7 +88,10 @@ public class CatalogImportService {
     /** Yeniden başlatmadan veya geçici hatadan sonra cursor sıfırlanmadan devam eder. */
     @Transactional
     public CatalogStatusResponse resumeFailed() {
-        var state = lockedState();
+        return resume(lockedState());
+    }
+
+    private CatalogStatusResponse resume(GameProviderSyncState state) {
         if (state.getSyncStatus() != CatalogSyncStatus.FAILED) throw new IllegalStateException("Başarısız aktarım yok.");
         state.setSyncStatus(CatalogSyncStatus.RUNNING);
         state.setFailureCount(0);
@@ -105,7 +109,7 @@ public class CatalogImportService {
         var state = lockedState();
         if (state.getSyncStatus() != CatalogSyncStatus.FAILED) return false;
         LOG.info("Başarısız katalog aktarımı yeniden başlatmada sürdürülüyor: cursor={} sonSonuç={}", state.getCursor(), state.getLastErrorCode());
-        resumeFailed();
+        resume(state);
         return true;
     }
 
@@ -230,9 +234,9 @@ public class CatalogImportService {
             provenance.recordObservation(game, "TITLE", PROVIDER_CODE, MetadataDataState.AVAILABLE, false);
         }
         applyObservedType(game, item, locked);
-        var observed = game.getMetadataProvenance().get("GAME_TYPE");
+        var observed = game.getMetadataProvenance().get(GAME_TYPE_FIELD);
         if (game.getGameType() == GameType.UNKNOWN && observed != null && observed.getDataState() == MetadataDataState.UNKNOWN) {
-            game.getMetadataProvenance().remove("GAME_TYPE");
+            game.getMetadataProvenance().remove(GAME_TYPE_FIELD);
         }
         reference.setLastSyncedAt(now);
         references.save(reference);
@@ -244,7 +248,7 @@ public class CatalogImportService {
             GameType observed = types.classify(item.providerType(), true);
             if (observed != GameType.UNKNOWN) {
                 game.setGameType(observed);
-                provenance.recordObservation(game, "GAME_TYPE", PROVIDER_CODE, MetadataDataState.AVAILABLE, false);
+                provenance.recordObservation(game, GAME_TYPE_FIELD, PROVIDER_CODE, MetadataDataState.AVAILABLE, false);
             }
         }
     }

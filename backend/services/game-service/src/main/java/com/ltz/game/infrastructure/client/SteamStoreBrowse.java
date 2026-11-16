@@ -25,10 +25,11 @@ final class SteamStoreBrowse {
     static final int MAX_BATCH = 100;
     /** Yanıt gövdesi üst sınırı (bayt). */
     static final int MAX_BODY = 8_388_608;
+    private static final String ENGLISH = "english";
     private static final String ASSET_BASE = "https://shared.fastly.steamstatic.com/store_item_assets/";
     private static final JsonMapper JSON = JsonMapper.builder().build();
     /** Katalog dil kodu → Steam dil adı (yalnız ihtiyaç duyulan diller; diğerleri için gereksiz istek atılmaz). */
-    private static final Map<String, String> STEAM_LANGUAGE_NAMES = Map.of("en", "english", "tr", "turkish");
+    private static final Map<String, String> STEAM_LANGUAGE_NAMES = Map.of("en", ENGLISH, "tr", "turkish");
     /**
      * Steam {@code ELanguage} numarası → katalog dil kodu. Eşleme, aynı oyunların mağaza sayfasındaki dil adlarıyla çapraz doğrulanarak
      * çıkarılmıştır (resmî sıralamadan farklı olabilir). Ayırt edilemeyen (20, 23) ve bilinmeyen numaralar bilerek ATLANIR: yanlış dil
@@ -65,7 +66,7 @@ final class SteamStoreBrowse {
 
     /** Başlık görseli, geliştirici/yayıncı ve dil desteği isteği (İngilizce bağlam). */
     static String storeItemsInput(List<String> ids) {
-        return input(ids, "english", "{\"include_assets\":true,\"include_basic_info\":true,\"include_supported_languages\":true}");
+        return input(ids, ENGLISH, "{\"include_assets\":true,\"include_basic_info\":true,\"include_supported_languages\":true}");
     }
 
     /** Yalnız kısa açıklama isteği, verilen Steam dilinde. */
@@ -75,7 +76,7 @@ final class SteamStoreBrowse {
 
     /** Yalnız çıkış bilgisi isteği (erken erişim, ücretsiz ve yakında bayrakları aynı yanıttan gelir). */
     static String releaseStatusInput(List<String> ids) {
-        return input(ids, "english", "{\"include_release\":true}");
+        return input(ids, ENGLISH, "{\"include_release\":true}");
     }
 
     /**
@@ -121,7 +122,7 @@ final class SteamStoreBrowse {
 
     /** Ülke bazlı satın alma seçenekleri (tüm paketler) isteği. */
     static String priceInput(List<String> ids, String country) {
-        return input(ids, "english", countryCode(country), "{\"include_all_purchase_options\":true}");
+        return input(ids, ENGLISH, countryCode(country), "{\"include_all_purchase_options\":true}");
     }
 
     /** Aynı istek gövdesi, sabit {@code data_request} ile (diğer ayrıştırıcı sınıflar için). */

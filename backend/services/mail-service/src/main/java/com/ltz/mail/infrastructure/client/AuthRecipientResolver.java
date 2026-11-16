@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -57,7 +58,7 @@ public class AuthRecipientResolver implements RecipientResolverPort {
     private final RestClient restClient;
     private final Clock clock;
     private final AuthClientProperties properties;
-    private volatile CachedToken cached;
+    private final AtomicReference<CachedToken> cached = new AtomicReference<>();
 
     public AuthRecipientResolver(RestClient restClient, Clock clock, AuthClientProperties properties) {
         this.restClient = restClient;
@@ -107,7 +108,7 @@ public class AuthRecipientResolver implements RecipientResolverPort {
             return MailDeliveryException.permanent(RECIPIENT_NOT_FOUND, null);
         }
         if (status.value() == 401) {
-            cached = null;
+            cached.set(null);
             return MailDeliveryException.transientFailure(TOKEN_UNAVAILABLE, null);
         }
         if (status.value() == 403) {
@@ -119,7 +120,7 @@ public class AuthRecipientResolver implements RecipientResolverPort {
 
     private String token() {
         Instant now = clock.instant();
-        CachedToken current = cached;
+        CachedToken current = cached.get();
         if (current != null && now.isBefore(current.refreshAt())) {
             return current.value();
         }
@@ -129,9 +130,9 @@ public class AuthRecipientResolver implements RecipientResolverPort {
         }
         Duration lifetime = Duration.ofSeconds(Math.max(0, response.expiresIn()));
         Duration usable = lifetime.compareTo(MAX_CACHE) > 0 ? MAX_CACHE : lifetime;
-        cached = usable.compareTo(REFRESH_MARGIN) > 0
+        cached.set(usable.compareTo(REFRESH_MARGIN) > 0
                 ? new CachedToken(response.accessToken(), now.plus(usable).minus(REFRESH_MARGIN))
-                : null;
+                : null);
         return response.accessToken();
     }
 

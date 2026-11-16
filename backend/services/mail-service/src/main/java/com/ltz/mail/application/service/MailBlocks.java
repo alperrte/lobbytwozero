@@ -2,6 +2,7 @@ package com.ltz.mail.application.service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * E-posta içerik bileşenleri (tek yerde): etiket, başlık, paragraf, kod kutusu, düğme, yedek bağlantı, tarih kutusu, uyarı
@@ -12,6 +13,7 @@ import java.util.Map;
  */
 final class MailBlocks {
 
+    private static final Pattern LINE_BREAK = Pattern.compile("\\R");
     private static final String DISPLAY = "'Chakra Petch','Bahnschrift','Segoe UI',Arial,sans-serif";
     private static final String BOX = "background:#1e1f26;border:1px solid #34343c;";
     private static final Map<String, String> EYEBROW_COLORS = Map.of(
@@ -44,7 +46,7 @@ final class MailBlocks {
         for (String part : text.split("\\R{2,}")) {
             if (!part.isBlank()) {
                 html.append("<p style=\"margin:0 0 18px 0\">")
-                        .append(Placeholders.escape(part.strip()).replaceAll("\\R", "<br>")).append("</p>");
+                        .append(LINE_BREAK.matcher(Placeholders.escape(part.strip())).replaceAll("<br>")).append("</p>");
             }
         }
         return html.toString();

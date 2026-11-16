@@ -91,7 +91,7 @@ public class ItadPriceClient implements GamePriceProvider {
         List<String> unknown=steam.keySet().stream().filter(key -> !knownMappings.containsKey(key) && !recentlyUnmapped(key,now)).toList();
         if(unknown.isEmpty()) return;
         JsonNode data=post("/lookup/id/shop/61/v1",new ArrayList<>(unknown),new ItadTelemetry.Call("lookup",prices.market(),prices.interactive()));
-        if(data==null || !data.isObject()) throw ItadPriceValues.invalid();
+        if(!data.isObject()) throw ItadPriceValues.invalid();
         remember(unknown,data,now);
     }
     /** ITAD yanıtındaki olumlu eşlemeleri kalıcı, {@code null} olanları {@link #UNMAPPED_TTL} boyunca önbelleğe alır. Geçersiz bir giriş varsa hiçbiri öğrenilmez. */

@@ -237,10 +237,7 @@ public class GamePriceRepository {
         if(ids.isEmpty()) return Set.of();
         return Set.copyOf(jdbc.query("select game_id from game_price_refresh_state where game_id in (:ids) and country=:country and currency=:currency and status='NO_OFFER' and checked_at>:before",
                 Map.of("ids",ids,COUNTRY,market.country(),CURRENCY,market.currency(),"before",java.sql.Timestamp.from(now.minus(ttl))),
-                (rs,index)->rs.getObject("game_id",UUID.class)));
-    }
-    private static Map<String,Object> parameters(UUID id,Market market) {
-        Map<String,Object> params=new java.util.HashMap<>();params.put("id",id);params.put(COUNTRY,market.country());params.put(CURRENCY,market.currency());return params;
+                (rs,_)->rs.getObject("game_id",UUID.class)));
     }
     private static Instant instant(ResultSet rs,String column) throws SQLException { return rs.getTimestamp(column).toInstant(); }
 }

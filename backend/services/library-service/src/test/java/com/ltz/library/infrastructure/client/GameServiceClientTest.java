@@ -102,6 +102,7 @@ class GameServiceClientTest {
 
     @Test void malformedPartitionsDuplicatesAndUnrequestedIdsFailClosed() {
         UUID other = UUID.randomUUID();
+        var requested = java.util.List.of(GAME, other);
         for (String body : java.util.List.of(
                 "{\"items\":[{\"gameId\":\"" + GAME + "\"},{\"gameId\":\"" + GAME + "\"}],\"unavailable\":[\"" + other + "\"]}",
                 "{\"items\":[{\"gameId\":\"" + GAME + "\"}],\"unavailable\":[\"" + GAME + "\",\"" + other + "\"]}",
@@ -110,7 +111,7 @@ class GameServiceClientTest {
                 "{\"items\":[{\"gameId\":\"" + UUID.randomUUID() + "\"}],\"unavailable\":[\"" + other + "\"]}",
                 "{\"items\":[{\"gameId\":\"" + GAME + "\"}],\"unavailable\":[]}")) {
             server.reset(); respond(body);
-            assertThrows(CatalogUnavailableException.class, () -> client.summaries(java.util.List.of(GAME, other)));
+            assertThrows(CatalogUnavailableException.class, () -> client.summaries(requested));
             server.verify();
         }
     }

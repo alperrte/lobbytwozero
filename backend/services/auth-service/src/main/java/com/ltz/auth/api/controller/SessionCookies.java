@@ -131,7 +131,8 @@ public class SessionCookies {
      */
     private ResponseCookie sessionHintCookie(String value, Duration maxAge) {
         return ResponseCookie.from(sessionHintCookieName, value)
-                .httpOnly(false).secure(secure).sameSite(SAME_SITE_LAX).path(ROOT_PATH).maxAge(maxAge).build();
+                .httpOnly(false).secure(secure).sameSite(SAME_SITE_LAX).path(ROOT_PATH).maxAge(maxAge) // NOSONAR java:S3330 kimlik taşımayan oturum ipucu, JS okur
+                .build();
     }
 
     private static void add(HttpServletResponse response, ResponseCookie cookie) {
