@@ -24,9 +24,9 @@ Auth dışındaki servislerin kullanıcıya bilgilendirme maili attırması: `PO
 
 ## Açık işler
 
-- **Auth tetiği:** e-posta doğrulaması tamamlanınca `type=WELCOME` gönderimi (Auth tarafı ayrı iş; sözleşme `docs/api.md` → MAIL → security-notifications).
+- **Auth tetiği (KAPANDI, kodda doğrulandı 2026-11-16):** `EmailVerificationService` e-posta doğrulanınca `WELCOME` gönderir; Google girişi de aynı türü kullanır. Uçtan uca (Mailpit) deneme NOT VERIFIED.
 - **Yasal bağlantılar:** canlı alan adı belli olunca Mail Service'e site adresi ayarı (`docker-compose.yml` + `.env.example`, ortak dosya, onay ister) ve altbilgi bağlantıları.
-- **Dil/tema tercihi:** User Service `user_preferences.locale` var; Auth Mail'e `locale` göndermiyor, mailler iki dilli gidiyor. Tema (koyu/açık) tercihi taşınmıyor; taban koyu, açık tema istemci tercihine bırakıldı (karar 2026-11-09).
+- **Dil/tema tercihi:** User Service `user_preferences.locale` ve `GET /internal/v1/users/{userId}/locale` main'de; Auth (`HttpUserLocaleClient`, `HttpMailServiceAdapter`) `locale` değerini Mail'e ekler (kodda doğrulandı 2026-11-16, uçtan uca NOT VERIFIED). Dil bilinmiyorsa mail iki dilli gider. Tema (koyu/açık) tercihi taşınmıyor; taban koyu, açık tema istemci tercihine bırakıldı (karar 2026-11-09).
 - **Gerçek istemci denemesi:** Gmail ve Outlook'ta görünüm elle doğrulanmadı (yalnız Mailpit ve Edge).
 - **Henüz şablonu olmayanlar:** şüpheli giriş / yeni cihaz, silme süreci bildirimleri (planlandı, iptal, tamamlandı). Etkinlik ve bildirim e-postaları (MAIL-06/07) için genel platform ucu hazır (aşağıda); özel şablonlar çağıran çıkınca `.mail` dosyası olarak eklenir.
 - **Sonraki migration:** V88 (aralık V81–V90).
