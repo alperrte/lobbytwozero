@@ -2,6 +2,8 @@
 
 import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
+import { Link } from "@/shared/lib/i18n/navigation";
+import { editHref, type EditSection } from "./edit-sections";
 
 const chipClass =
   "inline-flex items-center rounded-full border border-border bg-surface-elevated px-3 py-1 text-xs font-medium text-text-primary";
@@ -29,9 +31,9 @@ export function Row({ label, children }: { label: string; children: ReactNode })
 }
 
 /** Çip listesi; boşsa "Yok" yazar. */
-export function Chips({ items }: { items: string[] }) {
+export function Chips({ items, addSection }: { items: string[]; addSection?: EditSection }) {
   return items.length === 0 ? (
-    <Empty />
+    <Empty addSection={addSection} />
   ) : (
     <ul className="flex flex-wrap gap-2">
       {items.map((item) => (
@@ -43,7 +45,20 @@ export function Chips({ items }: { items: string[] }) {
   );
 }
 
-export function Empty() {
+/** Boş değer. `addSection` verilirse (yalnız kendi profilinde) doğrudan ilgili düzenleme bölümüne giden "Ekle" bağlantısı gösterilir. */
+export function Empty({ addSection }: { addSection?: EditSection }) {
   const t = useTranslations("Profile");
-  return <span className="text-text-secondary">{t("none")}</span>;
+  return (
+    <span className="inline-flex items-center gap-2 text-text-secondary">
+      {t("none")}
+      {addSection ? (
+        <>
+          <span aria-hidden="true">·</span>
+          <Link href={editHref(addSection)} className="text-brand-text hover:underline">
+            {t("add")}
+          </Link>
+        </>
+      ) : null}
+    </span>
+  );
 }

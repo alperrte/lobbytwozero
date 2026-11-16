@@ -499,6 +499,12 @@
         "account": "Account settings",
         "logout": "Log out",
         "computers": "My computers"
+      },
+      "logoutConfirm": {
+        "title": "You are signing out",
+        "description": "You are about to sign out of your account. Are you sure?",
+        "confirm": "Yes, sign out",
+        "cancel": "Cancel"
       }
     }
   },
@@ -2331,6 +2337,44 @@
     "editTitle": "Edit profile",
     "editDescription": "Shape your profile to reflect you.",
     "back": "Back to profile",
+    "add": "Add",
+    "sectionsNav": "Edit sections",
+    "sections": {
+      "images": "Images",
+      "info": "Details",
+      "prefs": "Gaming preferences"
+    },
+    "preview": "Preview",
+    "previewHint": "This is how others see your profile.",
+    "unsaved": "You have unsaved changes",
+    "unsavedCount": "{count} fields changed",
+    "changed": {
+      "displayName": "Display name",
+      "bio": "Bio",
+      "country": "Country",
+      "playerTypes": "Player type",
+      "genres": "Favorite genres",
+      "platforms": "Favorite platforms"
+    },
+    "confirmSave": {
+      "title": "Save your changes?",
+      "body": "Your profile will be updated for these fields:",
+      "confirm": "Yes, save",
+      "cancel": "Go back"
+    },
+    "confirmDiscard": {
+      "title": "Discard your changes?",
+      "body": "Your unsaved changes will be lost.",
+      "confirm": "Yes, discard",
+      "cancel": "Keep editing"
+    },
+    "confirmRemove": {
+      "cover": "Remove the cover image?",
+      "avatar": "Remove the profile photo?",
+      "body": "The image is removed from your profile right away.",
+      "confirm": "Yes, remove",
+      "cancel": "Cancel"
+    },
     "images": "Profile images",
     "changeCover": "Change cover",
     "changeAvatar": "Change photo",
@@ -2546,6 +2590,13 @@
     "title": "Account settings",
     "description": "Manage who can see your profile, your account preferences and how your data is used.",
     "back": "← Back to my profile",
+    "navLabel": "Settings sections",
+    "groups": {
+      "profile": "Profile",
+      "account": "Account",
+      "protection": "Security and age",
+      "danger": "Danger zone"
+    },
     "security": {
       "title": "Security",
       "loading": "Loading security information…",

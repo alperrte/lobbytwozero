@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SNAKE_LAYERS } from "../services/snake-path";
-import { AuthCardSnake } from "./auth-card-snake";
+import { SNAKE_LAYERS } from "@/shared/lib/ui/snake-path";
+import { CardSnake } from "./card-snake";
 
 type FakeAnimation = {
   addEventListener: (type: string, listener: () => void) => void;
@@ -42,7 +42,7 @@ function mockReducedMotion(reduced: boolean) {
 function renderCard(delay?: number) {
   const view = render(
     <div data-testid="card" className="rounded-3xl">
-      <AuthCardSnake initialDelayMs={delay} />
+      <CardSnake initialDelayMs={delay} />
     </div>
   );
   return { card: screen.getByTestId("card"), ...view };
@@ -80,7 +80,7 @@ const state = () => screen.getByTestId("auth-card-snake").dataset.snakeState;
 const start = () => Number(screen.getByTestId("auth-card-snake").dataset.snakeStart);
 const enter = (target: Element) => fireEvent(target, new Event("pointerenter"));
 
-describe("AuthCardSnake", () => {
+describe("CardSnake", () => {
   it("ilk açılışta gecikme sonrası bir kez oynar", () => {
     renderCard(700);
     expect(animateCalls).toHaveLength(0);

@@ -12,7 +12,7 @@ import {
   type PrivacySettings,
   type Visibility
 } from "../types/settings.types";
-import { SaveBar, SelectRow, settingsErrorKey, type SaveMessage } from "./settings-parts";
+import { SaveBar, ChoiceRow, settingsErrorKey, type SaveMessage } from "./settings-parts";
 
 /** Gizlilik ayarları (USER-06): her bölümün görünürlüğü ve girişsiz ziyaretçinin göreceği profil düzeyi. */
 export function PrivacySection({ initial, onRefresh }: { initial: PrivacySettings; onRefresh: () => void }) {
@@ -49,7 +49,7 @@ export function PrivacySection({ initial, onRefresh }: { initial: PrivacySetting
       <p className="mb-5 max-w-2xl text-sm text-text-secondary">{t("description")}</p>
       <div className="flex flex-col gap-5">
         {privacyFields.map((field: PrivacyField) => (
-          <SelectRow
+          <ChoiceRow
             key={field}
             id={`${baseId}-${field}`}
             label={t(`fields.${field}.label`)}
@@ -60,7 +60,7 @@ export function PrivacySection({ initial, onRefresh }: { initial: PrivacySetting
             onChange={(value) => setDraft({ ...draft, [field]: value as Visibility })}
           />
         ))}
-        <SelectRow
+        <ChoiceRow
           id={`${baseId}-guest`}
           label={t("guest.label")}
           hint={t("guest.hint")}

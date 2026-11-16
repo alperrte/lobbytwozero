@@ -7,10 +7,9 @@ import { PageContainer } from "@/shared/components/layout/page-container";
 import { useMyProfile } from "../hooks/use-my-profile";
 import { useRemote, type Remote } from "../hooks/use-remote";
 import { getFriends, getHardwareSummary, getLibraryStats } from "../services/activity-api";
-import { getOnboarding } from "../services/onboarding-api";
+import { getOnboarding, type OnboardingState } from "../services/onboarding-api";
 import type { FriendsPage, HardwareSummary, LibraryStats } from "../types/activity.types";
 import type { MyProfile, ProfileStats, SteamLink } from "../types/profile.types";
-import { OnboardingPrompt } from "./onboarding-prompt";
 import { ProfileActivity } from "./profile-activity";
 import { ProfileFriends } from "./profile-friends";
 import { ProfileGames } from "./profile-games";
@@ -89,7 +88,6 @@ function ProfileContent({
           </Link>
         }
       />
-      <OnboardingPrompt onboarding={onboarding} />
       <ProfileStatsStrip friends={friends} library={library} hardware={hardware} stats={stats} />
       <div className="flex flex-col gap-6">
         <ProfileTabs active={active} onChange={setActive} idPrefix={prefix} />
@@ -110,6 +108,7 @@ function ProfileContent({
                 library={library}
                 friends={friends}
                 hardware={hardware}
+                onboarding={onboarding}
               />
             ) : null}
           </div>
@@ -126,7 +125,8 @@ function TabBody({
   steam,
   library,
   friends,
-  hardware
+  hardware,
+  onboarding
 }: {
   tab: ProfileTabId;
   accountId: string | null;
@@ -135,10 +135,11 @@ function TabBody({
   library: Remote<LibraryStats>;
   friends: Remote<FriendsPage>;
   hardware: Remote<HardwareSummary>;
+  onboarding: Remote<OnboardingState>;
 }) {
   switch (tab) {
     case "overview":
-      return <ProfileOverview profile={profile} steam={steam} />;
+      return <ProfileOverview profile={profile} steam={steam} onboarding={onboarding} />;
     case "activity":
       return accountId ? <ProfileActivity userId={accountId} /> : null;
     case "games":

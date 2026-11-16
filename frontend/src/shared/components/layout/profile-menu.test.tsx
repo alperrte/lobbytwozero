@@ -8,10 +8,12 @@ import {
 import tr from "@/shared/lib/i18n/messages/tr.json";
 import { ProfileMenu } from "./profile-menu";
 
+const replace = vi.hoisted(() => vi.fn());
+
 vi.mock("next/navigation", () => ({
   // next-intl/navigation bu dışa aktarımlara ihtiyaç duyar; test yalnız bağlantıyı gözler.
   usePathname: () => "/tr",
-  useRouter: () => ({ replace: vi.fn(), push: vi.fn(), prefetch: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({ replace, push: vi.fn(), prefetch: vi.fn(), refresh: vi.fn() }),
   redirect: vi.fn(),
   permanentRedirect: vi.fn()
 }));
@@ -86,7 +88,7 @@ describe("ProfileMenu oturum katmanı", () => {
     expect(screen.queryByRole("menuitem", { name: /Çıkış yap/ })).toBeNull();
   });
 
-  it("giriş yapmış kullanıcıda çıkış çalışır ve menü kapanır", async () => {
+  it("çıkış satırı hemen çıkış yapmaz; önce onay penceresi açılır ve menü kapanır", async () => {
     const logout = vi.fn().mockResolvedValue(undefined);
     renderWithSession({ user: { displayName: "Hesabım", hideInitials: true }, logout });
     openMenu(/Hesabım/);
@@ -96,8 +98,48 @@ describe("ProfileMenu oturum katmanı", () => {
     expect(screen.getAllByText("Yakında").length).toBeGreaterThan(0); // profil/hesap satırları hâlâ "Yakında"
     fireEvent.click(item);
 
+    expect(screen.getByText("Hesabınızdan çıkış yapıyorsunuz. Emin misiniz?")).toBeInTheDocument();
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(logout).not.toHaveBeenCalled();
+  });
+
+  it("onaylayınca oturumu kapatır ve giriş ekranına yönlendirir", async () => {
+    replace.mockClear();
+    const logout = vi.fn().mockResolvedValue(undefined);
+    renderWithSession({ user: { displayName: "Hesabım", hideInitials: true }, logout });
+    openMenu(/Hesabım/);
+    fireEvent.click(screen.getByRole("menuitem", { name: /Çıkış yap/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Evet, çıkış yap" }));
+
     await waitFor(() => expect(logout).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/tr/giris"));
+    expect(screen.queryByText("Hesabınızdan çıkış yapıyorsunuz. Emin misiniz?")).toBeNull();
+  });
+
+  it("vazgeçilirse çıkış yapılmaz ve yönlendirme olmaz", () => {
+    replace.mockClear();
+    const logout = vi.fn().mockResolvedValue(undefined);
+    renderWithSession({ user: { displayName: "Hesabım", hideInitials: true }, logout });
+    openMenu(/Hesabım/);
+    fireEvent.click(screen.getByRole("menuitem", { name: /Çıkış yap/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Vazgeç" }));
+
+    expect(logout).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
+    expect(screen.queryByText("Hesabınızdan çıkış yapıyorsunuz. Emin misiniz?")).toBeNull();
+  });
+
+  it("sunucu çıkışı reddederse giriş ekranına yönlendirilmez", async () => {
+    replace.mockClear();
+    const logout = vi.fn().mockRejectedValue(new Error("ağ"));
+    renderWithSession({ user: { displayName: "Hesabım", hideInitials: true }, logout });
+    openMenu(/Hesabım/);
+    fireEvent.click(screen.getByRole("menuitem", { name: /Çıkış yap/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Evet, çıkış yap" }));
+
+    await waitFor(() => expect(logout).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.queryByText("Hesabınızdan çıkış yapıyorsunuz. Emin misiniz?")).toBeNull());
+    expect(replace).not.toHaveBeenCalled();
   });
 
   it("hideInitials açıkken ad baş harfi gösterilmez (kullanıcı simgesi kalır)", () => {

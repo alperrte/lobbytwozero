@@ -55,10 +55,14 @@ export function ProfileStatsStrip({
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
+  const loading = value === "…";
   return (
-    <div className="rounded-panel border border-border bg-surface px-4 py-3">
-      <dt className="text-xs text-text-secondary">{label}</dt>
-      <dd className="mt-1 font-display text-lg font-semibold text-text-primary">{value}</dd>
+    <div className="rounded-panel border border-border border-l-2 border-l-primary/60 bg-surface px-4 py-3 transition-colors duration-150 hover:bg-surface-elevated">
+      <dt className="text-xs uppercase tracking-wide text-text-secondary">{label}</dt>
+      <dd className="mt-1 font-display text-xl font-semibold text-text-primary">
+        {loading ? <span aria-hidden="true" className="inline-block h-5 w-10 animate-pulse rounded-control bg-surface-elevated align-middle" /> : value}
+        {loading ? <span className="sr-only">…</span> : null}
+      </dd>
     </div>
   );
 }

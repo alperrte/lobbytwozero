@@ -12,7 +12,7 @@ vi.mock("@/shared/lib/i18n/navigation", () => ({
   usePathname: () => currentPath
 }));
 vi.mock("./auth-navbar", () => ({ AuthNavbar: () => <header data-testid="navbar" /> }));
-vi.mock("./auth-card-snake", () => ({ AuthCardSnake: () => <svg data-testid="snake" /> }));
+vi.mock("@/shared/components/ui/card-snake", () => ({ CardSnake: () => <svg data-testid="snake" /> }));
 
 function Stage({ locale = "tr", children }: { locale?: "tr" | "en"; children: React.ReactNode }) {
   return (

@@ -15,7 +15,9 @@ import {
   usePopover
 } from "@/shared/hooks/use-popover";
 import { useShellSession, type ShellUser } from "@/shared/hooks/use-shell-user";
-import { Link } from "@/shared/lib/i18n/navigation";
+import { CardSnake } from "@/shared/components/ui/card-snake";
+import { ConfirmDialog } from "@/shared/components/ui/confirm-dialog";
+import { Link, useRouter } from "@/shared/lib/i18n/navigation";
 import { cn } from "@/shared/utils/cn";
 
 type ProfileMenuProps = {
@@ -97,17 +99,29 @@ export function ProfileMenu({ user }: ProfileMenuProps) {
   const { logout, loading } = useShellSession();
   const sessionAware = logout !== undefined;
   const [signingOut, setSigningOut] = useState(false);
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
+  const router = useRouter();
 
-  async function onLogout() {
+  /** Çıkış hemen yapılmaz: önce onay penceresi açılır (yanlışlıkla tıklamaya karşı). */
+  function askLogout() {
+    setOpen(false);
+    setConfirmingLogout(true);
+  }
+
+  /** Onaydan sonra oturumu kapatır ve giriş ekranına götürür. Sunucu hatasında yönlendirilmez (oturum sürüyor olabilir). */
+  async function confirmLogout() {
     if (!logout || signingOut) {
       return;
     }
     setSigningOut(true);
     try {
       await logout();
+      setConfirmingLogout(false);
+      router.replace("/login");
+    } catch {
+      setConfirmingLogout(false);
     } finally {
       setSigningOut(false);
-      setOpen(false);
     }
   }
 
@@ -209,7 +223,7 @@ export function ProfileMenu({ user }: ProfileMenuProps) {
               type="button"
               role="menuitem"
               aria-disabled={signingOut}
-              onClick={onLogout}
+              onClick={askLogout}
               className={dangerMenuItemClass}
             >
               <Icon name="logout" className="size-[18px] shrink-0" />
@@ -250,6 +264,19 @@ export function ProfileMenu({ user }: ProfileMenuProps) {
             </>
           )}
         </div>
+      ) : null}
+      {confirmingLogout ? (
+        <ConfirmDialog
+          tone="danger"
+          title={t("logoutConfirm.title")}
+          description={t("logoutConfirm.description")}
+          confirmLabel={t("logoutConfirm.confirm")}
+          cancelLabel={t("logoutConfirm.cancel")}
+          busy={signingOut}
+          onConfirm={() => void confirmLogout()}
+          onCancel={() => setConfirmingLogout(false)}
+          frame={<CardSnake initialDelayMs={250} />}
+        />
       ) : null}
     </div>
   );

@@ -1533,6 +1533,43 @@ Diğer mikroservisler:
 #### Test Durumu
 UNIT + INTEGRATION (`PlayerSearchTest` 9 test: önek, Türkçe katlama, durum/engel süzgeci, sınır, joker kaçırma).
 
+### USER — Yönetim paneli profil arama (ADMIN)
+
+Durum: IMPLEMENTED (User tarafı; panel arayüzü ayrı iş)
+Sorumlu: Kerem
+Tüketici servisler: Frontend (yönetim paneli)
+
+#### Endpoint
+GET /api/v1/user/admin/profiles/search?q={metin}
+
+#### Yetkilendirme
+Authenticated + `ROLE_ADMIN` (`SecurityConfig`). `PLAYER`, `MODERATOR` ve diğer roller `403`; token yoksa `401`. Panel, dönen `userId`'yi Auth'taki hesap kimliği olarak kullanır (`GET /api/v1/auth/admin/accounts/{accountId}`); yönetici UUID bilmek zorunda kalmaz.
+
+#### Query Parameters
+- q: string, zorunlu; baştaki tek `@` atılır (`@ada` = `ada`), kırpıldıktan sonra 2-32 karakter, denetim/biçim karakteri yok
+
+#### Response — 200
+```json
+{ "items": [ { "userId": "UUID", "username": "string | null", "displayName": "string | null", "accountStatus": "ACTIVE | SUSPENDED | BANNED | DISABLED | DELETION_REQUESTED | PENDING_VERIFICATION", "memberSince": "ISO-8601 | null" } ] }
+```
+**En çok 20** sonuç; sayfalama yok. Eşleşme, herkese açık aramayla aynıdır (kullanıcı adı ya da görünen ad önek, büyük/küçük harf duyarsız, Türkçe `ı/I/İ/i` katlaması, `%` `_` `\` joker değil). Fark: hesap durumuna ve engel ilişkisine bakılmaz; askıdaki, yasaklı ve silinme sürecindeki hesaplar da döner. Yalnız ad, durum ve üyelik tarihi verilir (biyografi, gizlilik, tercih, avatar yok). `Cache-Control: no-store, private`. Arama metni günlüğe yazılmaz; yalnız yönetici kimliği ve sonuç sayısı kaydedilir. `accountStatus` Auth'taki durumun User'daki kopyasıdır; doğruluk kaynağı Auth'tur.
+
+#### Hata Durumları
+- 400: `INVALID_SEARCH_QUERY` (kısa/uzun/yasak karakter, yalnız `@`), `q` yok
+- 401: Token yok/geçersiz
+- 403: ADMIN rolü yok
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend: yönetim paneli (hesap arama)
+API Gateway üzerinden /api/v1/user/admin/profiles/search
+
+Diğer mikroservisler:
+- auth-service (panel, dönen `userId` ile Auth yönetici uçlarını çağırır)
+
+#### Test Durumu
+INTEGRATION (`AdminProfileSearchTest`: `@` önekli arama, durum/engel süzgeci yok, sınır ve joker, 400, rol ve misafir erişimi).
+
 ### USER — Gizlilik kararı (Internal, Social/Hardware/Library → User)
 
 Durum: IMPLEMENTED (Auth kapsamı ve çağıran→hedef çiftleri hazır, T3 kapandı; tüketicilerle uçtan uca **PENDING**: T6, T7, T8)

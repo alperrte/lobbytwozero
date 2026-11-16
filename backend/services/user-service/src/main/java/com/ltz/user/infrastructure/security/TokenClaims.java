@@ -31,6 +31,8 @@ public final class TokenClaims {
     public static final String ACCOUNT_ID = "account_id";
     /** Rol listesi, öneksiz ad ({@code PLAYER}, {@code ADMIN} ...). */
     public static final String ROLES = "roles";
+    /** Yönetici rolü (öneksiz); {@code hasRole} {@code ROLE_} önekini kendisi ekler. */
+    public static final String ADMIN_ROLE = "ADMIN";
 
     private TokenClaims() {
     }

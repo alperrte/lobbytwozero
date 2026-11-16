@@ -45,6 +45,17 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, UUID> 
             LIMIT :limit""", nativeQuery = true)
     List<UserProfile> search(@Param("prefix") String prefix, @Param("viewer") UUID viewer, @Param("limit") int limit);
 
+    /**
+     * Yönetim paneli araması: {@link #search} ile aynı önek kuralı, ama hesap durumuna ve engel ilişkisine bakmaz
+     * (yönetici askıdaki, yasaklı ve silinme sürecindeki hesapları da bulabilmelidir). Yalnız ADMIN uçtan çağrılır.
+     */
+    @Query(value = """
+            SELECT p.* FROM user_profiles p
+            WHERE p.username_normalized LIKE :prefix ESCAPE '\\' OR p.display_name_normalized LIKE :prefix ESCAPE '\\'
+            ORDER BY p.username_normalized NULLS LAST, p.display_name_normalized, p.user_id
+            LIMIT :limit""", nativeQuery = true)
+    List<UserProfile> adminSearch(@Param("prefix") String prefix, @Param("limit") int limit);
+
     /** Hesap silme: profil satırı; profil görselleri üst verisi FK ile birlikte silinir. */
     @Modifying
     @Query("delete from UserProfile p where p.userId = :userId")

@@ -499,6 +499,12 @@
         "account": "Hesap ayarları",
         "logout": "Çıkış yap",
         "computers": "Bilgisayarlarım"
+      },
+      "logoutConfirm": {
+        "title": "Çıkış yapıyorsunuz",
+        "description": "Hesabınızdan çıkış yapıyorsunuz. Emin misiniz?",
+        "confirm": "Evet, çıkış yap",
+        "cancel": "Vazgeç"
       }
     }
   },
@@ -2331,6 +2337,44 @@
     "editTitle": "Profili düzenle",
     "editDescription": "Profilini seni yansıtacak şekilde düzenle.",
     "back": "Profilime dön",
+    "add": "Ekle",
+    "sectionsNav": "Düzenleme bölümleri",
+    "sections": {
+      "images": "Görseller",
+      "info": "Bilgiler",
+      "prefs": "Oyun tercihleri"
+    },
+    "preview": "Önizleme",
+    "previewHint": "Profilin başkalarına böyle görünür.",
+    "unsaved": "Kaydedilmemiş değişikliklerin var",
+    "unsavedCount": "{count} alan değişti",
+    "changed": {
+      "displayName": "Görünen ad",
+      "bio": "Biyografi",
+      "country": "Ülke",
+      "playerTypes": "Oyuncu tipi",
+      "genres": "Favori türler",
+      "platforms": "Favori platformlar"
+    },
+    "confirmSave": {
+      "title": "Değişiklikler kaydedilsin mi?",
+      "body": "Profilin şu alanlar için güncellenecek:",
+      "confirm": "Evet, kaydet",
+      "cancel": "Geri dön"
+    },
+    "confirmDiscard": {
+      "title": "Değişiklikler atılsın mı?",
+      "body": "Kaydedilmemiş değişikliklerin silinecek.",
+      "confirm": "Evet, at",
+      "cancel": "Düzenlemeye dön"
+    },
+    "confirmRemove": {
+      "cover": "Kapak görseli kaldırılsın mı?",
+      "avatar": "Profil fotoğrafı kaldırılsın mı?",
+      "body": "Görsel profilinden hemen kaldırılır.",
+      "confirm": "Evet, kaldır",
+      "cancel": "Vazgeç"
+    },
     "images": "Profil görselleri",
     "changeCover": "Kapağı değiştir",
     "changeAvatar": "Fotoğrafı değiştir",
@@ -2546,6 +2590,13 @@
     "title": "Hesap ayarları",
     "description": "Profilinin kimlere görüneceğini, hesap tercihlerini ve verilerinin nasıl kullanılacağını buradan yönetirsin.",
     "back": "← Profilime dön",
+    "navLabel": "Ayar bölümleri",
+    "groups": {
+      "profile": "Profil",
+      "account": "Hesap",
+      "protection": "Güvenlik ve yaş",
+      "danger": "Tehlikeli bölge"
+    },
     "security": {
       "title": "Güvenlik",
       "loading": "Güvenlik bilgisi yükleniyor…",
