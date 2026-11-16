@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { ForgotPasswordForm } from "@/features/auth";
+import { ForgotPasswordForm, RedirectIfAuthenticated } from "@/features/auth";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Auth");
@@ -13,6 +13,7 @@ export default async function ForgotPasswordPage() {
 
   return (
     <>
+      <RedirectIfAuthenticated />
       <h1 className="font-display text-3xl font-bold text-text-primary">{t("forgot.title")}</h1>
       <p className="mt-2 mb-6 text-base text-text-secondary">{t("forgot.description")}</p>
       <ForgotPasswordForm />

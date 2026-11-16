@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { RegisterForm } from "@/features/auth";
+import { RedirectIfAuthenticated, RegisterForm } from "@/features/auth";
 import { Link } from "@/shared/lib/i18n/navigation";
 
 /** Sekme başlığı kök şablondan ("LTZ | %s") gelir; `(auth)` grubu zaten `noindex` yayınlar. */
@@ -15,6 +15,7 @@ export default async function RegisterPage() {
 
   return (
     <>
+      <RedirectIfAuthenticated />
       <h1 className="font-display text-3xl font-bold text-text-primary">{t("register.title")}</h1>
       <p className="mt-2 mb-6 text-base text-text-secondary">{t("register.description")}</p>
       <RegisterForm />
