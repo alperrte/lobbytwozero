@@ -24,6 +24,8 @@ public class LibrarySummaryOutboxRepository {
             WHERE user_id = :userId
             """;
 
+    private static final String USER_ID = "userId";
+
     private final EntityManager entities;
 
     public LibrarySummaryOutboxRepository(EntityManager entities) { this.entities = entities; }
@@ -33,36 +35,36 @@ public class LibrarySummaryOutboxRepository {
         entities.createNativeQuery("""
                 INSERT INTO library_summary_outbox (user_id) VALUES (:userId)
                 ON CONFLICT (user_id) DO UPDATE SET change_seq = library_summary_outbox.change_seq + 1
-                """).setParameter("userId", userId).executeUpdate();
+                """).setParameter(USER_ID, userId).executeUpdate();
     }
 
     /** Zamanı gelmiş işaretleri atomik alır ve {@code leaseSeconds} süreyle kiralar (çöken relay sonra yeniden alınır). */
     public List<Claim> claimDue(int batch, long leaseSeconds) {
         List<?> rows = entities.createNativeQuery(CLAIM).setParameter("batch", batch)
                 .setParameter("leaseSeconds", leaseSeconds).getResultList();
-        return rows.stream().map(row -> (Object[]) row)
+        return rows.stream().map(Object[].class::cast)
                 .map(row -> new Claim((UUID) row[0], ((Number) row[1]).longValue())).toList();
     }
 
     /** Teslim edilen sürümü siler. Arada değişiklik olduysa (sürüm farklı) satır kalır ve hemen yeniden zamanı gelir. */
     public boolean acknowledge(UUID userId, long changeSeq) {
         int deleted = entities.createNativeQuery("DELETE FROM library_summary_outbox WHERE user_id = :userId AND change_seq = :seq")
-                .setParameter("userId", userId).setParameter("seq", changeSeq).executeUpdate();
+                .setParameter(USER_ID, userId).setParameter("seq", changeSeq).executeUpdate();
         if (deleted == 0) {
             entities.createNativeQuery("UPDATE library_summary_outbox SET attempts = 0, next_attempt_at = clock_timestamp() WHERE user_id = :userId")
-                    .setParameter("userId", userId).executeUpdate();
+                    .setParameter(USER_ID, userId).executeUpdate();
         }
         return deleted > 0;
     }
 
     /** Başarısız teslim: deneme artar, {@code base * 2^önceki deneme} kadar (en çok {@code max}) sonra yeniden denenir. */
     public void fail(UUID userId, long baseSeconds, long maxSeconds) {
-        entities.createNativeQuery(FAIL).setParameter("userId", userId)
+        entities.createNativeQuery(FAIL).setParameter(USER_ID, userId)
                 .setParameter("baseSeconds", baseSeconds).setParameter("maxSeconds", maxSeconds).executeUpdate();
     }
 
     public void erase(UUID userId) {
         entities.createNativeQuery("DELETE FROM library_summary_outbox WHERE user_id = :userId")
-                .setParameter("userId", userId).executeUpdate();
+                .setParameter(USER_ID, userId).executeUpdate();
     }
 }

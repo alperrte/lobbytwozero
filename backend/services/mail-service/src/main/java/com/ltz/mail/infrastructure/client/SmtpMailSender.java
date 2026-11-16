@@ -48,6 +48,7 @@ public class SmtpMailSender implements MailSenderPort {
     static final String LOGO_CONTENT_ID = "ltz-logo";
     private static final String LOGO_RESOURCE = "mail/ltz-logo.png";
     private static final String SENDER_NAME = "LTZ";
+    private static final String ENCODING = "UTF-8";
     private static final Pattern SMTP_REPLY_CODE = Pattern.compile("^\\s*([45]\\d\\d)\\b");
     private static final int PERMANENT_REPLY_MIN = 500;
 
@@ -81,7 +82,7 @@ public class SmtpMailSender implements MailSenderPort {
     private MimeMessage buildMessage(OutgoingMail mail) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, ENCODING);
             helper.setFrom(from);
             helper.setTo(new InternetAddress(mail.to(), true));
             helper.setSubject(mail.subject());
@@ -132,7 +133,7 @@ public class SmtpMailSender implements MailSenderPort {
         sender.setHost(properties.effectiveHost());
         sender.setPort(properties.effectivePort());
         sender.setProtocol(security == SmtpSecurity.SSL ? "smtps" : "smtp");
-        sender.setDefaultEncoding("UTF-8");
+        sender.setDefaultEncoding(ENCODING);
         if (properties.authenticated()) {
             sender.setUsername(properties.username());
             sender.setPassword(properties.password());
@@ -159,7 +160,7 @@ public class SmtpMailSender implements MailSenderPort {
 
     private static InternetAddress parseFrom(String address) {
         try {
-            return new InternetAddress(address, SENDER_NAME, "UTF-8");
+            return new InternetAddress(address, SENDER_NAME, ENCODING);
         } catch (UnsupportedEncodingException exception) {
             throw new IllegalStateException("The sender address could not be built", exception);
         }

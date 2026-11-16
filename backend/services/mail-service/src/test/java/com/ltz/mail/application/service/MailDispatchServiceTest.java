@@ -100,7 +100,7 @@ class MailDispatchServiceTest extends IntegrationTestSupport {
         assertThat(row).containsEntry("status", "PENDING").containsEntry("attempts", 1)
                 .containsEntry("last_error_code", "SMTP_421");
         assertThat(((Timestamp) row.get("next_attempt_at")).toInstant()).isAfter(Instant.now());
-        assertThat(row.get("recipient_email")).isEqualTo(EMAIL);
+        assertThat(row).containsEntry("recipient_email", EMAIL);
         assertThat(dispatch.dispatchDue()).isZero();
 
         makeDue(key);

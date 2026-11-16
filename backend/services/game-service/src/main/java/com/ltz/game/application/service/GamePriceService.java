@@ -131,7 +131,7 @@ public class GamePriceService {
         activeOwner=owner;
         Instant deadline=clock.instant().plus(RUN_BUDGET);
         try (java.util.concurrent.ExecutorService pool=java.util.concurrent.Executors.newFixedThreadPool(PARALLEL_MARKETS)) {
-            List<java.util.concurrent.Future<?>> tasks=runMarkets().stream().map(market -> pool.submit(() -> refreshMarket(owner,market,itad,deadline))).collect(java.util.stream.Collectors.toList());
+            var tasks=runMarkets().stream().map(market -> pool.submit(() -> refreshMarket(owner,market,itad,deadline))).toList();
             for(java.util.concurrent.Future<?> task:tasks) {
                 try { task.get(); }
                 catch(InterruptedException _) { Thread.currentThread().interrupt(); break; }

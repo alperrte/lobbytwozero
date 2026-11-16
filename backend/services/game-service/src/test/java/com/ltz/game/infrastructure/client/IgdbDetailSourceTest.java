@@ -276,8 +276,9 @@ class IgdbDetailSourceTest {
     @Test void relationEvidenceRejectsInvalidIdsAndTruncatedResponses() throws IOException {
         try (Rig rig = new Rig(Duration.ZERO)) {
             assertEquals(java.util.Map.of(), rig.source.relationEvidence(List.of()));
+            var malformedIds = List.of("0abc");
             assertEquals("INVALID_PROVIDER_REQUEST", org.junit.jupiter.api.Assertions.assertThrows(ProviderException.class,
-                    () -> rig.source.relationEvidence(List.of("0abc"))).code());
+                    () -> rig.source.relationEvidence(malformedIds)).code());
         }
     }
 
@@ -321,8 +322,10 @@ class IgdbDetailSourceTest {
 
     @Test void bulkEvidenceRejectsInvalidRequestsAndTruncatedMappingResponses() throws IOException {
         try (Rig rig = new Rig(Duration.ZERO)) {
-            assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> rig.source.itemEvidence(List.of("abc"))).code());
-            assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> rig.source.itemEvidence(List.of("0"))).code());
+            var nonNumeric = List.of("abc");
+            var zero = List.of("0");
+            assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> rig.source.itemEvidence(nonNumeric)).code());
+            assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> rig.source.itemEvidence(zero)).code());
             var tooMany = new java.util.ArrayList<String>();
             for (int id = 1; id <= IgdbDetailSource.MAX_BATCH + 1; id++) tooMany.add(Integer.toString(id));
             assertEquals("INVALID_PROVIDER_REQUEST", assertThrows(ProviderException.class, () -> rig.source.itemEvidence(tooMany)).code());
@@ -330,22 +333,24 @@ class IgdbDetailSourceTest {
             var rows = new StringBuilder("[");
             for (int row = 0; row < 500; row++) rows.append(row == 0 ? "" : ",").append("{\"game\":").append(row + 1).append(",\"uid\":\"10\"}");
             rig.api.enqueue(Reply.json(200, STEAM_SOURCE), Reply.json(200, rows.append("]").toString()));
-            assertEquals("INVALID_PROVIDER_RESPONSE", assertThrows(ProviderException.class, () -> rig.source.itemEvidence(List.of("10"))).code());
+            var ids = List.of("10");
+            assertEquals("INVALID_PROVIDER_RESPONSE", assertThrows(ProviderException.class, () -> rig.source.itemEvidence(ids)).code());
         }
     }
 
     @Test void bulkEvidenceMapsProviderFailuresToSafeCodes() throws IOException {
+        var ids = List.of("10");
         try (Rig rig = new Rig(Duration.ZERO)) {
             rig.api.enqueue(Reply.json(200, STEAM_SOURCE), Reply.json(429, "{}"));
-            assertEquals("RATE_LIMITED", assertThrows(ProviderException.class, () -> rig.source.itemEvidence(List.of("10"))).code());
+            assertEquals("RATE_LIMITED", assertThrows(ProviderException.class, () -> rig.source.itemEvidence(ids)).code());
         }
         try (Rig rig = new Rig(Duration.ZERO)) {
             rig.api.enqueue(Reply.json(200, STEAM_SOURCE), Reply.json(200, "[{\"game\":1,\"uid\":\"10\"}]"), Reply.json(503, "{}"));
-            assertEquals("PROVIDER_UNAVAILABLE", assertThrows(ProviderException.class, () -> rig.source.itemEvidence(List.of("10"))).code());
+            assertEquals("PROVIDER_UNAVAILABLE", assertThrows(ProviderException.class, () -> rig.source.itemEvidence(ids)).code());
         }
         try (Rig rig = new Rig(Duration.ZERO)) {
             rig.api.enqueue(Reply.json(200, STEAM_SOURCE), Reply.json(200, "not json"));
-            assertEquals("INVALID_PROVIDER_RESPONSE", assertThrows(ProviderException.class, () -> rig.source.itemEvidence(List.of("10"))).code());
+            assertEquals("INVALID_PROVIDER_RESPONSE", assertThrows(ProviderException.class, () -> rig.source.itemEvidence(ids)).code());
         }
     }
 
