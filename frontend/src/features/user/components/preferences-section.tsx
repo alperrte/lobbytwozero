@@ -8,7 +8,7 @@ import type { ThemePreference } from "@/shared/lib/preferences/preferences";
 import { changeTheme } from "@/shared/lib/theme/theme-transition";
 import { savePreferences } from "../services/settings-api";
 import { locales, themes, type Preferences, type SettingsLocale, type Theme } from "../types/settings.types";
-import { SaveBar, SelectRow, settingsErrorKey, type SaveMessage } from "./settings-parts";
+import { SaveBar, ChoiceRow, settingsErrorKey, type SaveMessage } from "./settings-parts";
 
 const nativeNames: Record<SettingsLocale, string> = { tr: "Türkçe", en: "English" };
 
@@ -58,7 +58,7 @@ export function PreferencesSection({ initial, onRefresh }: { initial: Preference
     <form onSubmit={onSubmit} noValidate>
       <p className="mb-5 max-w-2xl text-sm text-text-secondary">{t("description")}</p>
       <div className="flex flex-col gap-5">
-        <SelectRow
+        <ChoiceRow
           id={`${baseId}-locale`}
           label={t("locale.label")}
           hint={t("locale.hint")}
@@ -67,7 +67,7 @@ export function PreferencesSection({ initial, onRefresh }: { initial: Preference
           disabled={busy}
           onChange={(value) => setDraft({ ...draft, locale: value as SettingsLocale })}
         />
-        <SelectRow
+        <ChoiceRow
           id={`${baseId}-theme`}
           label={t("theme.label")}
           hint={t("theme.hint")}

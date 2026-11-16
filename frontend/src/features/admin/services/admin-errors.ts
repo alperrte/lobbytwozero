@@ -36,7 +36,7 @@ export function adminErrorMessage(error: unknown): string {
   }
   if (error instanceof ApiHttpError) {
     if (error.status === 403) return "Bu işlem için yetkin yok ya da kendi hesabını değiştiremezsin.";
-    if (error.status === 404) return "Kayıt bulunamadı.";
+    if (error.status === 404) return "Kayıt ya da servis ucu bulunamadı. Listeyi yenile; sorun sürerse servis eski sürümde olabilir.";
     if (error.status === 409) return "İşlem şu anki duruma uygun değil.";
     if (error.status === 400) return "Girdi geçersiz. Alanları kontrol et.";
   }
