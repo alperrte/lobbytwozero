@@ -17,3 +17,26 @@ paths = [
   '''^frontend/src/features/auth/schemas/verify-email\.schema\.test\.ts$''',
   '''^ops/dev\.test\.mjs$'''
 ]
+
+# Geçmişte kalan, elle incelenmiş 7 yanlış alarm (2026-11-16): hepsi `generic-api-key`. İçerik: test içi sahte parola,
+# örnek UUID `idempotencyKey`, `0123456789abcdef` x2 sahte anahtar, RFC 6238 test sırrı ve düz Türkçe metin. Gerçek sır yok.
+# Commit VE dosya birlikte eşleşmelidir (condition = AND) ve yalnız bu kural bastırılır; aynı dosyalara sonradan eklenecek
+# gerçek bir sır başka commit'te olduğu için yine yakalanır. Geçmiş yeniden yazılmadığından bulgu tarama çıktısında kalırdı.
+[[allowlists]]
+description = "İncelenmiş geçmiş yanlış alarmlar (yalnız generic-api-key, commit + dosya)"
+condition = "AND"
+targetRules = ["generic-api-key"]
+commits = [
+  "7028a0f121737f4d2f686aee95993c84874ab294",
+  "9faf3fb42512c17a5c7e19fb395d0ffe7a0c2530",
+  "e2aa4a552aa3770012d9b42d1d2e1e0b809b692c",
+  "cd0d292b1c170d028974890a4b157da8549e8060",
+  "959adef72e8b2ecf6ad114ec09df5d7220341db9"
+]
+paths = [
+  '''^frontend/src/features/auth/components/account-security-section\.test\.tsx$''',
+  '''^docs-mail/entegrasyon-rehberi\.md$''',
+  '''^frontend/src/features/social/services/user-profiles\.test\.ts$''',
+  '''^ops/dev-accounts-lib\.test\.mjs$''',
+  '''^docs/api\.md$'''
+]
