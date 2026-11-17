@@ -1,5 +1,9 @@
 # HW-08 / HW-07 — User ve Performance tüketici bağlantıları
 
+**12 Kasım 2026 güncellemesi:** Performance → Hardware profil doğrulaması ve Hardware → Performance üretim özet
+tüketicisi tamamlandı; gerçek dört servisli kabul 28/28 PASS. [Güncel profil/özet entegrasyonu](performance-profile-summary.md).
+Aşağıdaki 6 Kasım kaydı önceki sync/gizlilik kabulünün tarihçesidir.
+
 **Sonraki çalışma:** PR #67 cevabına göre REVIEW_AUTHOR tüketicisi tamamlandı;
 503 Hardware testi ve gerçek User dahil 25 HTTP kontrolü PASS.
 [Güncel yorum entegrasyonu](user-review-integration.md). Aşağıdaki yorum UGC

@@ -3,20 +3,12 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { authApi, type AdminAccount, type AdminTargetStatus } from "@/features/auth";
 import { adminErrorMessage } from "../services/admin-errors";
+import { AccountSearch } from "./account-search";
+import { STATUS_LABEL } from "./account-status";
 import { formatDate } from "./deletion-requests-panel";
 import { errorClass, inputClass, labelClass, okClass, primaryButton, surfaceClass } from "./ui";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-const STATUS_LABEL: Record<string, string> = {
-  PENDING_VERIFICATION: "E-posta doğrulaması bekliyor",
-  ACTIVE: "Etkin",
-  SUSPENDED: "Askıda",
-  BANNED: "Yasaklı",
-  DISABLED: "Devre dışı",
-  DELETION_REQUESTED: "Silinmesi bekleniyor",
-  DELETED: "Silindi"
-};
 
 const TARGETS: { value: AdminTargetStatus; label: string }[] = [
   { value: "ACTIVE", label: "Etkin" },
@@ -29,11 +21,10 @@ const TARGETS: { value: AdminTargetStatus; label: string }[] = [
 const SUSPENSION_DAYS = [0, 1, 7, 30];
 
 /**
- * Hesap yönetimi: hesap kimliğiyle arama (e-posta/kullanıcı adı araması Auth'ta yoktur), durum değiştirme ve rol
+ * Hesap yönetimi: `@kullanıcıadı` ile arama (User servisi; UUID de yazılabilir), durum değiştirme ve rol
  * verme/alma. Her değişiklik gerekçe ister ve Auth'ta denetim kaydına yazılır; yönetici kendi hesabını değiştiremez.
  */
 export function AccountsPanel({ initialAccountId }: { initialAccountId: string | null }) {
-  const [input, setInput] = useState(initialAccountId ?? "");
   const [account, setAccount] = useState<AdminAccount | null>(null);
   const [roles, setRoles] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -68,26 +59,9 @@ export function AccountsPanel({ initialAccountId }: { initialAccountId: string |
     };
   }, [initialAccountId]);
 
-  function onSearch(event: FormEvent) {
-    event.preventDefault();
-    const value = input.trim();
-    if (!UUID.test(value)) {
-      setError("Geçerli bir hesap kimliği (UUID) gir.");
-      return;
-    }
-    void load(value);
-  }
-
   return (
     <div className="flex flex-col gap-5">
-      <form onSubmit={onSearch} className="flex flex-col gap-2 sm:flex-row sm:items-end" noValidate>
-        <label className="flex flex-1 flex-col gap-1 text-sm">
-          <span className={labelClass}>Hesap kimliği (UUID)</span>
-          <input className={`${inputClass} font-mono`} value={input} onChange={(event) => setInput(event.target.value)}
-            placeholder="00000000-0000-0000-0000-000000000000" spellCheck={false} />
-        </label>
-        <button type="submit" className={primaryButton} disabled={busy}>Getir</button>
-      </form>
+      <AccountSearch busy={busy} onPick={(accountId) => void load(accountId)} />
       {error && <p role="alert" className={errorClass}>{error}</p>}
       {account && (
         <AccountDetail account={account} roles={roles} onChanged={() => void load(account.id)} />

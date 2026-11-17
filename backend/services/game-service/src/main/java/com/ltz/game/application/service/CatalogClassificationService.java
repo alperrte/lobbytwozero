@@ -178,7 +178,7 @@ public class CatalogClassificationService {
         }
         if (passGated) return endPass(now, "büyük birikim anahtarı kapalı");
         var rows = nextRows(recentSince, cutoffRecent, cutoffOld);
-        if (rows == null) return endPass(now, "tamamlandı");
+        if (rows.isEmpty()) return endPass(now, "tamamlandı");
         List<String> externalIds = rows.stream().map(row -> row.getExternalId()).toList();
         Map<String, GameProvider.ItemEvidence> evidence;
         try {
@@ -210,10 +210,10 @@ public class CatalogClassificationService {
                     : references.classificationBatchAsc(after, recentSince, cutoffRecent, cutoffOld, BATCH).stream()
                             .filter(row -> Long.parseLong(row.getExternalId()) < before).toList();
             if (!rows.isEmpty()) return rows;
-            if (descendingTurn) return null;   // azalan akış bitti: aday kalmadı
+            if (descendingTurn) return List.of();   // azalan akış bitti: aday kalmadı
             descendingTurn = true;             // artan akış bitti: azalan akıştan devam
         }
-        return null;
+        return List.of();
     }
 
     private void advance(List<GameExternalReferenceRepository.ClassificationRow> rows) {
@@ -393,7 +393,8 @@ public class CatalogClassificationService {
     private void pause(ProviderException error, Instant now) {
         consecutiveFailures = Math.min(consecutiveFailures + 1, 6);
         Duration delay = retries.delay(error, Math.min(consecutiveFailures, 5));
-        Duration pause = delay == null ? PERMANENT_PAUSE : delay.multipliedBy(consecutiveFailures >= 2 ? 4L : 1L);
+        long multiplier = consecutiveFailures >= 2 ? 4L : 1L;
+        Duration pause = delay == null ? PERMANENT_PAUSE : delay.multipliedBy(multiplier);
         if (pause.compareTo(Duration.ofMinutes(1)) < 0) pause = Duration.ofMinutes(1);
         if (pause.compareTo(MAX_PAUSE) > 0) pause = MAX_PAUSE;
         pausedUntil = now.plus(pause);

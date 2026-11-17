@@ -55,6 +55,17 @@ describe("hardware-catalog-import", () => {
     assert.equal(importSummary(out), ["PC_PART_IMPORT_RESULT {}", "PC_PART_IMPORT_FAILED: X"].join(lf));
   });
 
+  test("CLI logger önekini temizler, başka logger ve ayrıntıları geçirmez", () => {
+    const out = [
+      "10:00:00.123 [main] INFO c.l.h.i.config.PcPartImportCommand -- DATASET_FILES {}",
+      "10:00:00.124 [main] INFO com.ltz.hardware.infrastructure.config.PcPartImportCommand -- PC_PART_IMPORT_RESULT {}",
+      "10:00:00.125 [main] ERROR c.l.h.i.c.PcPartImportCommand -- PC_PART_IMPORT_FAILED: IOException",
+      "10:00:00.126 [main] INFO other.Logger -- PC_PART_IMPORT_RESULT private-detail",
+      "10:00:00.127 [main] INFO c.l.h.i.config.PcPartImportCommand -- unrelated-detail"
+    ].join("\n");
+    assert.equal(importSummary(out), "DATASET_FILES {}\nPC_PART_IMPORT_RESULT {}\nPC_PART_IMPORT_FAILED: IOException");
+  });
+
   test("yalnız ltz-dev hardware-service konteyneri kabul edilir", () => {
     assertHardwareContainer({ "com.docker.compose.project": "ltz-dev", "com.docker.compose.service": "hardware-service" });
     for (const labels of [

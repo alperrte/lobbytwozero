@@ -109,6 +109,9 @@ class AuthServiceTokenClientTest {
                 .isInstanceOf(ServiceTokenUnavailableException.class);
         assertThatThrownBy(() -> noSecret.tokenFor("social-service"))
                 .isInstanceOf(ServiceTokenUnavailableException.class);
+        assertThat(emptySecret.isConfigured()).isFalse();
+        assertThat(noSecret.isConfigured()).isFalse();
+        assertThat(client("test-only-secret").isConfigured()).isTrue();
         server.verify();
     }
 

@@ -35,14 +35,16 @@ public final class HardwareDeviceJwtValidator {
             Object kid = jwt.getHeaders().get("kid");
             Object account = jwt.getClaim("account_id");
             Object scope = jwt.getClaim("scope");
+            var audience = jwt.getAudience();
+            String tokenId = jwt.getId();
             boolean valid = "dev+jwt".equals(jwt.getHeaders().get("typ"))
                     && kid instanceof String id && !id.isBlank() && id.length() <= 256
-                    && jwt.getAudience().contains("hardware-service")
+                    && audience != null && audience.contains("hardware-service")
                     && HardwareJwtValidators.canonicalUuid(jwt.getSubject())
                     && account instanceof String owner && HardwareJwtValidators.canonicalUuid(owner)
                     && scope instanceof String scopes && Arrays.asList(scopes.split(" +"))
                             .contains(HardwareSyncDeviceAccess.PERMISSION)
-                    && jwt.getId() != null && !jwt.getId().isBlank()
+                    && tokenId != null && !tokenId.isBlank()
                     && issued != null && expires != null && notBefore != null
                     && expires.isAfter(issued) && !notBefore.isAfter(expires)
                     && !issued.isAfter(clock.instant().plus(HardwareJwtValidators.CLOCK_SKEW))

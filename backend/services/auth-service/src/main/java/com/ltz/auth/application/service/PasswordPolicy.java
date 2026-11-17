@@ -62,24 +62,17 @@ public class PasswordPolicy {
      * bir karakter). Boşluk özel sayılmaz: sondaki bir boşlukla kuralın aşılmasını önler.
      */
     static boolean hasRequiredComposition(String password) {
-        boolean upper = false;
-        boolean lower = false;
-        boolean digit = false;
-        boolean special = false;
-        for (int i = 0; i < password.length(); ) {
-            int codePoint = password.codePointAt(i);
-            i += Character.charCount(codePoint);
-            if (Character.isUpperCase(codePoint)) {
-                upper = true;
-            } else if (Character.isLowerCase(codePoint)) {
-                lower = true;
-            } else if (Character.isDigit(codePoint)) {
-                digit = true;
-            } else if (!Character.isLetter(codePoint) && !Character.isWhitespace(codePoint)) {
-                special = true;
-            }
-        }
-        return upper && lower && digit && special;
+        return password.codePoints().anyMatch(Character::isUpperCase)
+                && password.codePoints().anyMatch(Character::isLowerCase)
+                && password.codePoints().anyMatch(Character::isDigit)
+                && password.codePoints().anyMatch(PasswordPolicy::isSpecial);
+    }
+
+    /** Büyük harf, küçük harf ve rakam sınıflarında olmayan; harf ya da boşluk da olmayan karakter. */
+    private static boolean isSpecial(int codePoint) {
+        return !Character.isUpperCase(codePoint) && !Character.isLowerCase(codePoint)
+                && !Character.isDigit(codePoint) && !Character.isLetter(codePoint)
+                && !Character.isWhitespace(codePoint);
     }
 
     private static boolean containsFragment(String normalizedPassword, String identity) {

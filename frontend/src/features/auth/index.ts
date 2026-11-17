@@ -6,6 +6,7 @@ export { AuthCallback } from "./components/auth-callback";
 export { AuthStage } from "./components/auth-stage";
 export { ForgotPasswordForm } from "./components/forgot-password-form";
 export { LoginForm } from "./components/login-form";
+export { RedirectIfAuthenticated } from "./components/redirect-if-authenticated";
 export { RegisterForm } from "./components/register-form";
 export { ResetPasswordForm } from "./components/reset-password-form";
 export { AccountAgeSection } from "./components/account-age-section";

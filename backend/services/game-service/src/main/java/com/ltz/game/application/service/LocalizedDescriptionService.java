@@ -151,14 +151,14 @@ public class LocalizedDescriptionService {
                     entry.setLanguage(language);
                 }
                 entry.setDescription(text);
-                entry.setSource("STEAM");
+                entry.setSource(PROVIDER_CODE);
                 entry.setFetchedAt(now);
                 descriptions.save(entry);
                 stored++;
             } else {
                 fallback++;
             }
-            provenance.recordObservation(game, marker(language), "STEAM", real ? MetadataDataState.AVAILABLE : MetadataDataState.EMPTY, false);
+            provenance.recordObservation(game, marker(language), PROVIDER_CODE, real ? MetadataDataState.AVAILABLE : MetadataDataState.EMPTY, false);
             processed++;
         }
         return processed;
@@ -167,7 +167,8 @@ public class LocalizedDescriptionService {
     private void pause(ProviderException error, Instant now) {
         consecutiveFailures = Math.min(consecutiveFailures + 1, 6);
         Duration delay = retries.delay(error, Math.min(consecutiveFailures, 5));
-        Duration pause = delay == null ? MAX_PAUSE : delay.multipliedBy(consecutiveFailures >= 2 ? 4L : 1L);
+        long multiplier = consecutiveFailures >= 2 ? 4L : 1L;
+        Duration pause = delay == null ? MAX_PAUSE : delay.multipliedBy(multiplier);
         if (pause.compareTo(Duration.ofMinutes(1)) < 0) pause = Duration.ofMinutes(1);
         if (pause.compareTo(MAX_PAUSE) > 0) pause = MAX_PAUSE;
         pausedUntil = now.plus(pause);

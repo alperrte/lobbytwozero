@@ -7,6 +7,7 @@ import type { TwoFactorApi } from "../services/auth-api";
 import type { MfaChallenge } from "../types/auth.types";
 import { authControlClass, FormField } from "./form-field";
 import { AuthIcon } from "./auth-icons";
+import { TotpQr } from "./totp-qr";
 import { ProblemNotice, useWaitFormatter } from "./problem-notice";
 
 type TwoFactorProps = {
@@ -183,6 +184,12 @@ function EnrollStep({ challenge, onAuthenticated, onCancel, api }: TwoFactorProp
 
   return (
     <form noValidate onSubmit={onSubmit} aria-label={t("enroll.formLabel")} className="space-y-5">
+      {enrollment.otpauthUri !== "" ? (
+        <>
+          <p className="text-sm text-text-secondary">{t("enroll.scanQr")}</p>
+          <TotpQr uri={enrollment.otpauthUri} label={t("enroll.qrLabel")} />
+        </>
+      ) : null}
       <p className="text-sm text-text-secondary">{t("enroll.scan")}</p>
       <div className="space-y-2 rounded-xl border border-border bg-surface-elevated p-4">
         <p className="text-xs text-text-secondary">{t("enroll.secret")}</p>

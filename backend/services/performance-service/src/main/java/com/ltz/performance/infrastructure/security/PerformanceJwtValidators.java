@@ -42,31 +42,37 @@ public final class PerformanceJwtValidators {
 
     private static OAuth2TokenValidatorResult shape(Jwt jwt, String audience, boolean service, Clock clock) {
         try {
-            Object kid = jwt.getHeaders().get("kid");
-            var audiences = jwt.getAudience();
-            Instant issued = jwt.getIssuedAt();
-            Instant expires = jwt.getExpiresAt();
-            Instant notBefore = jwt.getNotBefore();
-            String subject = jwt.getSubject();
-            String tokenId = jwt.getId();
-            boolean valid = kid instanceof String id && !id.isBlank() && id.length() <= 256
-                    && audiences != null && audiences.contains(audience)
-                    && (!service || audiences.size() == 1)
-                    && issued != null && expires != null && notBefore != null
-                    && expires.isAfter(issued) && !notBefore.isAfter(expires)
-                    && !issued.isAfter(clock.instant().plus(CLOCK_SKEW))
-                    && Duration.between(issued, expires).compareTo(MAX_LIFETIME) <= 0;
-            if (service) {
-                valid = valid && subject != null && subject.startsWith("svc:")
-                        && tokenId != null && !tokenId.isBlank()
-                        && !expires.isAfter(clock.instant().plus(MAX_LIFETIME).plus(CLOCK_SKEW));
-            } else {
-                valid = valid && canonicalUuid(subject);
-            }
+            boolean valid = allowedContext(jwt, audience, service) && allowedLifetime(jwt, clock)
+                    && (service ? serviceIdentity(jwt, clock) : canonicalUuid(jwt.getSubject()));
             return valid ? OAuth2TokenValidatorResult.success() : INVALID;
         } catch (RuntimeException _) {
             return INVALID;
         }
+    }
+
+    private static boolean allowedContext(Jwt jwt, String audience, boolean service) {
+        Object keyId = jwt.getHeaders().get("kid");
+        var audiences = jwt.getAudience();
+        return keyId instanceof String id && !id.isBlank() && id.length() <= 256
+                && audiences != null && audiences.contains(audience) && (!service || audiences.size() == 1);
+    }
+
+    private static boolean allowedLifetime(Jwt jwt, Clock clock) {
+        Instant issued = jwt.getIssuedAt();
+        Instant expires = jwt.getExpiresAt();
+        Instant notBefore = jwt.getNotBefore();
+        return issued != null && expires != null && notBefore != null
+                && expires.isAfter(issued) && !notBefore.isAfter(expires)
+                && !issued.isAfter(clock.instant().plus(CLOCK_SKEW))
+                && Duration.between(issued, expires).compareTo(MAX_LIFETIME) <= 0;
+    }
+
+    private static boolean serviceIdentity(Jwt jwt, Clock clock) {
+        String subject = jwt.getSubject();
+        String tokenId = jwt.getId();
+        Instant expires = jwt.getExpiresAt();
+        return subject != null && subject.startsWith("svc:") && tokenId != null && !tokenId.isBlank()
+                && expires != null && !expires.isAfter(clock.instant().plus(MAX_LIFETIME).plus(CLOCK_SKEW));
     }
 
     public static boolean canonicalUuid(String value) {

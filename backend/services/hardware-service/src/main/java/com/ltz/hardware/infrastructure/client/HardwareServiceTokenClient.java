@@ -29,8 +29,14 @@ public class HardwareServiceTokenClient {
     String userToken() { return issue("user-service", "privacy:read", null); }
 
     String deviceVerificationToken(UUID accountId) {
+        return performanceToken(accountId, "devices:verify");
+    }
+
+    String summaryToken(UUID accountId) { return performanceToken(accountId, "summary:read"); }
+
+    private String performanceToken(UUID accountId, String scope) {
         if (accountId == null) throw new IllegalArgumentException("Account binding required");
-        return issue("performance-service", "devices:verify", accountId);
+        return issue("performance-service", scope, accountId);
     }
 
     private String issue(String audience, String scope, UUID accountId) {

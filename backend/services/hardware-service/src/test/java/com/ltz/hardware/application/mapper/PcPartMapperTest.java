@@ -131,7 +131,8 @@ class PcPartMapperTest {
             "RAM,'{\"name\":\"Corsair Test\",\"speed\":[6,6000]}'",
             "RAM,'{\"name\":\"Corsair Test\",\"modules\":[1]}'"})
     void rejectsInvalidTechnicalValues(ComponentCategory category, String row) {
-        assertThatThrownBy(() -> mapper.map(category, json.readTree(row))).isInstanceOf(IllegalArgumentException.class);
+        var input = json.readTree(row);
+        assertThatThrownBy(() -> mapper.map(category, input)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

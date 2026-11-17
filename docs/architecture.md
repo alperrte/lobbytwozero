@@ -244,9 +244,9 @@ Bir servisteki değişikliğin diğer servisleri **sonradan** etkilemesi gerekti
 | `ReviewChanged` | review | game (popülerlik), recommendation, user | Puan özeti, öneri |
 | `FriendRequestSent` | social | notification | Alıcıya "arkadaşlık isteği" bildirimi (SOC-13; outbox'a yazılıyor, teslim bekliyor) |
 | `FriendRequestAccepted` | social | notification | İsteği gönderene "kabul edildi" bildirimi (SOC-13; outbox'a yazılıyor, teslim bekliyor) |
-| `FriendshipChanged` | social | messaging, recommendation, notification | Sohbet izni, arkadaş önerisi (`change`: ADDED/REMOVED; SOC-13) |
-| `UserBlocked` / `UserUnblocked` | social | messaging, lfp, community, notification | Engelleme etkisi (SOC-09/10; outbox'a yazılıyor, teslim bekliyor). Engellenen kullanıcıya bildirim gitmez; notification bu olayla engellenenden bildirim üretmeyi durdurur |
-| `MessageSent` | messaging | notification | Mesaj bildirimi; yük içerik/önizleme taşımaz, `recipientIds` taşır (MSG-16; outbox'a yazılıyor, teslim bekliyor — notification'da alıcı uç ve Auth'ta messaging → notification çifti yok) |
+| `FriendshipChanged` | social | recommendation, user, notification | Arkadaş önerisi, profil yansıması (`change`: ADDED/REMOVED; SOC-13). Messaging tüketmez (sohbet için arkadaşlık şartı yok) |
+| `UserBlocked` / `UserUnblocked` | social | community, user, notification (messaging ve lfp engeli `blocks/check` ile senkron sorar) | Engelleme etkisi (SOC-09/10; outbox'a yazılıyor, teslim bekliyor). Engellenen kullanıcıya bildirim gitmez; notification bu olayla engellenenden bildirim üretmeyi durdurur |
+| `MessageSent` | messaging | notification | Mesaj bildirimi; yük içerik/önizleme taşımaz, `recipientIds` taşır (MSG-16; outbox + relay hazır, adaptör `unavailable`, 7 gün saklama — notification'da alıcı uç ve Auth'ta messaging → notification çifti yok) |
 | `PostCreated` / `CommentCreated` / `PostLiked` | community | notification | Topluluk bildirimleri |
 | `ContentPublished` / `ContentRemoved` | content | notification | Haber/duyuru bildirimi |
 | `EventCreated` / `EventUpdated` / `EventCancelled` / `EventReminderDue` | event | notification, mail, recommendation | Hatırlatma, iptal bildirimi |

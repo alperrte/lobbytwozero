@@ -4,7 +4,7 @@ import { useId, useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
 import { saveConsents } from "../services/settings-api";
 import type { Consents } from "../types/settings.types";
-import { settingsErrorKey, type SaveMessage } from "./settings-parts";
+import { SwitchRow, settingsErrorKey, type SaveMessage } from "./settings-parts";
 
 /**
  * Rızalarım (LIB-14): kişiselleştirilmiş öneri için favori ve bitirilen oyun verisinin işlenmesi. Varsayılan kapalıdır ve
@@ -38,33 +38,21 @@ export function ConsentsSection({ initial, onRefresh }: { initial: Consents; onR
   return (
     <div>
       <p className="mb-5 max-w-2xl text-sm text-text-secondary">{t("description")}</p>
-      <div className="flex items-start gap-3">
-        <input
-          id={id}
-          type="checkbox"
-          checked={current.recommendation}
-          disabled={busy}
-          aria-describedby={`${id}-hint`}
-          onChange={(event) => void onToggle(event.target.checked)}
-          className="mt-1 size-5 shrink-0 accent-primary"
-        />
-        <div className="flex flex-col gap-1">
-          <label htmlFor={id} className="text-sm font-medium">
-            {t("recommendation.label")}
-          </label>
-          <p id={`${id}-hint`} className="text-xs text-text-secondary">
-            {t("recommendation.hint")}
-          </p>
-          <p className="text-xs text-text-secondary">
-            {current.recommendation ? t("recommendation.on") : t("recommendation.off")}
-            {current.recommendationChangedAt
-              ? ` · ${t("recommendation.since", {
-                  date: format.dateTime(new Date(current.recommendationChangedAt), { dateStyle: "medium" })
-                })}`
-              : ""}
-          </p>
-        </div>
-      </div>
+      <SwitchRow
+        id={id}
+        label={t("recommendation.label")}
+        hint={t("recommendation.hint")}
+        status={`${current.recommendation ? t("recommendation.on") : t("recommendation.off")}${
+          current.recommendationChangedAt
+            ? ` · ${t("recommendation.since", {
+                date: format.dateTime(new Date(current.recommendationChangedAt), { dateStyle: "medium" })
+              })}`
+            : ""
+        }`}
+        checked={current.recommendation}
+        disabled={busy}
+        onChange={(next) => void onToggle(next)}
+      />
       <div aria-live="polite" className="mt-3 min-h-6">
         {message ? (
           <p

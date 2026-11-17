@@ -120,7 +120,7 @@ public class SteamStoreItemService {
             if (game == null || game.getStatus() != GameStatus.ACTIVE || game.getOrigin() != GameOrigin.EXTERNAL || game.getGameType() != GameType.MAIN_GAME) continue;
             GameProvider.StoreItem item = found.get(row.getExternalId());
             boolean changed = item != null && merge(game, item);
-            provenance.recordObservation(game, MARKER, "STEAM", item == null ? MetadataDataState.UNKNOWN : MetadataDataState.AVAILABLE, false);
+            provenance.recordObservation(game, MARKER, PROVIDER_CODE, item == null ? MetadataDataState.UNKNOWN : MetadataDataState.AVAILABLE, false);
             if (changed) {
                 game.setUpdatedAt(clock.instant());
                 updated++;
@@ -136,18 +136,18 @@ public class SteamStoreItemService {
         Set<OverridableField> locked = EnumSet.noneOf(OverridableField.class);
         overrides.findByGameIdOrderByFieldAsc(game.getId()).forEach(override -> locked.add(override.getField()));
         boolean changed = false;
-        if (GameCoverWriter.apply(game, item.headerImageUrl(), "STEAM")) {
-            provenance.recordObservation(game, "COVER_URL", "STEAM", MetadataDataState.AVAILABLE, false);
+        if (GameCoverWriter.apply(game, item.headerImageUrl(), PROVIDER_CODE)) {
+            provenance.recordObservation(game, "COVER_URL", PROVIDER_CODE, MetadataDataState.AVAILABLE, false);
             changed = true;
         }
         if (game.getDevelopers().isEmpty() && !item.developers().isEmpty() && !locked.contains(OverridableField.DEVELOPERS)) {
             game.getDevelopers().addAll(item.developers());
-            provenance.recordObservation(game, "DEVELOPERS", "STEAM", MetadataDataState.AVAILABLE, false);
+            provenance.recordObservation(game, "DEVELOPERS", PROVIDER_CODE, MetadataDataState.AVAILABLE, false);
             changed = true;
         }
         if (game.getPublishers().isEmpty() && !item.publishers().isEmpty() && !locked.contains(OverridableField.PUBLISHERS)) {
             game.getPublishers().addAll(item.publishers());
-            provenance.recordObservation(game, "PUBLISHERS", "STEAM", MetadataDataState.AVAILABLE, false);
+            provenance.recordObservation(game, "PUBLISHERS", PROVIDER_CODE, MetadataDataState.AVAILABLE, false);
             changed = true;
         }
         if (game.getLanguageDataState() != MetadataDataState.AVAILABLE && !item.languages().isEmpty() && !locked.contains(OverridableField.LOCALIZATION)) {
@@ -165,10 +165,10 @@ public class SteamStoreItemService {
             game.getLanguageSupport().clear();
             game.getLanguageSupport().addAll(supports);
             game.setLanguageDataState(MetadataDataState.AVAILABLE);
-            provenance.recordObservation(game, "LOCALIZATION", "STEAM", MetadataDataState.AVAILABLE, false);
+            provenance.recordObservation(game, "LOCALIZATION", PROVIDER_CODE, MetadataDataState.AVAILABLE, false);
             if (game.getLanguages().isEmpty()) {
                 game.getLanguages().addAll(codes);
-                provenance.recordObservation(game, "LANGUAGES", "STEAM", MetadataDataState.AVAILABLE, false);
+                provenance.recordObservation(game, "LANGUAGES", PROVIDER_CODE, MetadataDataState.AVAILABLE, false);
             }
             changed = true;
         }

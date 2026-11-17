@@ -12,4 +12,9 @@ public interface ServiceTokenPort {
      * @throws ServiceTokenUnavailableException token alınamazsa (gizli anahtar yok ya da Auth reddetti)
      */
     String tokenFor(String audience);
+
+    /** Servis kimliği (gizli anahtar) yapılandırılmış mı; değilse {@link #tokenFor} her zaman reddeder. */
+    default boolean isConfigured() {
+        return true;
+    }
 }

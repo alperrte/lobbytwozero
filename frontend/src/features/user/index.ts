@@ -1,4 +1,6 @@
 export { getMyProfileSummary } from "./services/user-api";
+export { searchAdminProfiles } from "./services/admin-api";
+export type { AdminProfileHit } from "./services/admin-api";
 export type { UserRequest } from "./services/user-api";
 export type { ProfileSummary } from "./types/profile.types";
 export { emitProfileChanged, onProfileChanged } from "./services/profile-events";

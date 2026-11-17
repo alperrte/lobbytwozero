@@ -22,6 +22,7 @@ import static com.ltz.game.infrastructure.client.ItadPriceValues.text;
  */
 final class ItadPriceMapper {
     /** Bir oyun için kabul edilen en çok teklif (mağaza) sayısı: ITAD'in gerçek en yüksek değeri 21'dir; bozuk/şişirilmiş yanıt bunun üstünde reddedilir. */
+    private static final String PRICE = "price";
     static final int MAX_DEALS = 64;
     private ItadPriceMapper() { }
     static List<Quote> quotes(JsonNode rows,Map<UUID,List<UUID>> matched,Market market,Instant now,Duration ttl) {
@@ -47,7 +48,7 @@ final class ItadPriceMapper {
             if(store.length()>64) throw invalid();
             if(expired(deal,now)) continue;
             JsonNode known=bestByStore.get(store);
-            if(known==null || ItadPriceValues.amount(deal.get("price")).compareTo(ItadPriceValues.amount(known.get("price")))<0) bestByStore.put(store,deal);
+            if(known==null || ItadPriceValues.amount(deal.get(PRICE)).compareTo(ItadPriceValues.amount(known.get(PRICE)))<0) bestByStore.put(store,deal);
         }
         for(var entry:bestByStore.entrySet())
             for(UUID id:games) quotes.add(quote(id,entry.getKey(),entry.getValue(),market,now,ttl));
@@ -62,7 +63,7 @@ final class ItadPriceMapper {
         return deals;
     }
     private static Quote quote(UUID id,String store,JsonNode deal,Market market,Instant now,Duration ttl) {
-        JsonNode price=deal.get("price");
+        JsonNode price=deal.get(PRICE);
         JsonNode regular=deal.get("regular");
         String currency=text(price,"currency");
         if(!currency.equals(text(regular,"currency"))) throw invalid();

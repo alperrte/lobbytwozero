@@ -55,30 +55,20 @@ public class HardwareSecurityConfiguration {
                         .requestMatchers("/api/v1/hardware/profiles/*/sync/snapshots")
                         .access((authentication, context) -> deviceAccess(authentication.get()))
                         .requestMatchers("/api/v1/hardware/moderation/reviews/**")
-                        .access((authentication, context) -> {
-                            var auth = authentication.get();
-                            if (auth == null || !auth.isAuthenticated() || !(auth.getPrincipal() instanceof AuthenticatedActor)) {
-                                return new AuthorizationDecision(false);
-                            }
-                            return new AuthorizationDecision(auth.getAuthorities().stream().anyMatch(a ->
-                                    com.ltz.hardware.application.port.HardwareReviewModerationAccess.PERMISSION.equals(a.getAuthority())));
-                        })
+                        .access((authentication, context) -> moderationAccess(authentication.get()))
                         .requestMatchers("/api/v1/hardware/profiles", "/api/v1/hardware/profiles/**",
                                 "/api/v1/hardware/comparisons/**", "/api/v1/hardware/reviews/**",
                                 "/api/v1/hardware/catalog/products/*/reviews", "/api/v1/hardware/review-reports/**")
-                        .access((authentication, context) -> {
-                            var auth = authentication.get();
-                            return new AuthorizationDecision(auth != null && auth.isAuthenticated()
-                                    && auth.getPrincipal() instanceof AuthenticatedActor);
-                        })
+                        .access((authentication, context) -> ownerAccess(authentication.get()))
                         .requestMatchers("/api/v1/hardware/catalog/**", "/api/v1/hardware/campaigns",
                                 "/api/v1/hardware/campaigns/**")
                         .access((authentication, context) -> catalogAccess(authentication.get(),
                                 context.getRequest().getMethod()))
                         .anyRequest().denyAll())
-                .oauth2ResourceServer(resource -> resource.authenticationManagerResolver(request ->
-                        request.getRequestURI().startsWith("/internal/", request.getContextPath().length())
-                                ? serviceManager : SNAPSHOTS.matches(request) ? snapshotManager : userManager)
+                .oauth2ResourceServer(resource -> resource.authenticationManagerResolver(request -> {
+                    if (request.getRequestURI().startsWith("/internal/", request.getContextPath().length())) return serviceManager;
+                    return SNAPSHOTS.matches(request) ? snapshotManager : userManager;
+                })
                         .authenticationEntryPoint((request, response, error) ->
                                 writeProblem(response, mapper, 401, AUTHENTICATION_REQUIRED))
                         .accessDeniedHandler((request, response, error) ->
@@ -97,6 +87,16 @@ public class HardwareSecurityConfiguration {
         // CSRF remains enabled. Resource server exempts explicit Bearer requests;
         // Gateway enforces double-submit + Origin before converting browser cookies.
         return http.build();
+    }
+
+    private static AuthorizationDecision ownerAccess(org.springframework.security.core.Authentication auth) {
+        return new AuthorizationDecision(auth != null && auth.isAuthenticated()
+                && auth.getPrincipal() instanceof AuthenticatedActor);
+    }
+
+    private static AuthorizationDecision moderationAccess(org.springframework.security.core.Authentication auth) {
+        return new AuthorizationDecision(ownerAccess(auth).isGranted() && auth.getAuthorities().stream().anyMatch(a ->
+                com.ltz.hardware.application.port.HardwareReviewModerationAccess.PERMISSION.equals(a.getAuthority())));
     }
 
     private static AuthorizationDecision deviceAccess(org.springframework.security.core.Authentication auth) {

@@ -54,7 +54,8 @@ class GameParentRelationMigrationTest {
             UUID dlcTwo = game(jdbc, "Dlc Two", "DLC");
             assertThrows(DataAccessException.class, () -> jdbc.update("update games set parent_game_id=? where id=?", unknown, dlcTwo), "UNKNOWN ana oyun reddedilir");
             assertThrows(DataAccessException.class, () -> jdbc.update("update games set parent_game_id=? where id=?", dlc, dlcTwo), "DLC başka DLC'nin ana oyunu olamaz (döngü/zincir yok)");
-            assertThrows(DataAccessException.class, () -> jdbc.update("update games set parent_game_id=? where id=?", UUID.randomUUID(), dlcTwo), "olmayan ana oyun");
+            UUID missingParent = UUID.randomUUID();
+            assertThrows(DataAccessException.class, () -> jdbc.update("update games set parent_game_id=? where id=?", missingParent, dlcTwo), "olmayan ana oyun");
             assertThrows(DataAccessException.class, () -> jdbc.update("update games set game_type='MAIN_GAME' where id=?", dlc), "ilişkili kayıt DLC dışına geçemez (uygulama ilişkiyi önce temizler)");
             assertNull(jdbc.queryForObject("select parent_game_id from games where id=?", UUID.class, dlcTwo));
 
@@ -74,7 +75,7 @@ class GameParentRelationMigrationTest {
             assertEquals(1L, jdbc.queryForObject("select count(*) from games where id=?", Long.class, orphan));
 
             // Ana oyunun aktif DLC'leri için kısmi indeks mevcut
-            assertTrue(jdbc.queryForObject("select count(*) from pg_indexes where indexname='ix_games_parent_game'", Long.class) == 1L);
+            assertEquals(1L, jdbc.queryForObject("select count(*) from pg_indexes where indexname='ix_games_parent_game'", Long.class));
         }
     }
 }

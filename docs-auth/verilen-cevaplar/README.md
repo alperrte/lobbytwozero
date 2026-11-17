@@ -40,7 +40,7 @@ Bir ekip arkadaşı Auth'tan bir şey istediyse, sorduysa ya da Auth hakkında b
 | [game-service](game-service/README.md) | Hamza | Talep 03 kapandı, talep 04 (GAME-26) Auth tarafı hazır | Evet: Library ve Review alıcı uçları (Hamza) |
 | [library-service](library-service/README.md) | Hamza | İskelet + silme ucu var | Hayır |
 | [review-service](review-service/README.md) | Hamza | İskelet + silme ucu var | Hayır |
-| [messaging-service](messaging-service/README.md) | Umut | İskelet | Hayır |
+| [messaging-service](messaging-service/README.md) | Umut | Uyumlu; silme canlı `CONFIRMED` (2026-11-13), talep 01 (notification `events:ingest`) açık | Evet: Auth'ta çift tanımı |
 | [lfp-service](lfp-service/README.md) | Umut | İskelet | Hayır |
 | [content-service](content-service/README.md) | Nisa | İskelet | Hayır |
 | [event-service](event-service/README.md) | Nisa | İskelet | Hayır |

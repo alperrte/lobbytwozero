@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import messages from "@/shared/lib/i18n/messages/tr.json";
@@ -12,7 +12,7 @@ vi.mock("../services/game-api", async (original) => ({ ...await original<typeof 
 const load = vi.mocked(loadGameResource);
 const accountId = "0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66";
 function mount() { render(<NextIntlClientProvider locale="tr" messages={messages}><GameWorkspace /></NextIntlClientProvider>); }
-afterEach(() => { vi.resetAllMocks(); search = ""; });
+afterEach(() => { cleanup(); vi.resetAllMocks(); search = ""; });
 
 describe("Game rol görünürlüğü", () => {
   it("misafire yönetim formu veya özel kaynak isteği açmaz", async () => {

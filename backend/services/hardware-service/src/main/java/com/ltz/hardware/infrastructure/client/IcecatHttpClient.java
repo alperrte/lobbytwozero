@@ -50,7 +50,7 @@ public class IcecatHttpClient {
                     return new Result<>(status, reader.apply(input));
                 }
             });
-            if (result != null && result.status() == 200) return result.value();
+            if (result.status() == 200) return result.value();
             pause(500L << attempt);
         }
         throw new IllegalStateException("ICECAT_RETRY_EXHAUSTED");
@@ -92,9 +92,14 @@ public class IcecatHttpClient {
         return new FilterInputStream(input) {
             private long count;
             private void counted(int size) throws IOException {
-                if (size > 0 && (count += size) > maximum) throw new IOException("ICECAT_RESPONSE_LIMIT");
+                if (size > 0) count += size;
+                if (count > maximum) throw new IOException("ICECAT_RESPONSE_LIMIT");
             }
-            @Override public int read() throws IOException { int value = super.read(); if (value >= 0) counted(1); return value; }
+            @Override public int read() throws IOException {
+                int value = super.read();
+                if (value >= 0) counted(1);
+                return value;
+            }
             @Override public int read(byte[] data, int offset, int length) throws IOException {
                 int size = in.read(data, offset, length); counted(size); return size;
             }

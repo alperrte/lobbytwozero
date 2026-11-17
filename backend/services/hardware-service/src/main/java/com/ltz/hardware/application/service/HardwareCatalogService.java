@@ -95,15 +95,19 @@ public class HardwareCatalogService {
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public HardwareCatalogPageResponse<HardwareProductResponse> list(HardwareCatalogFilter filter, int page, int size) {
-        return list(filter, page, size, false);
+        return listPage(filter, page, size, false);
     }
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public HardwareCatalogPageResponse<HardwareProductResponse> list(HardwareCatalogFilter filter, int page, int size, boolean discovery) {
+        return listPage(filter, page, size, discovery);
+    }
+
+    private HardwareCatalogPageResponse<HardwareProductResponse> listPage(HardwareCatalogFilter filter, int page, int size, boolean discovery) {
         actor.requireUserId();
         if (!filter.isRangesValid()) throw new IllegalArgumentException("Geçersiz teknik aralık");
-        var criteria = HardwareCatalogSearch.matching(filter.q(), CatalogStatus.ACTIVE, filter.category(),
-                filter.brandId(), filter.brand(), java.util.List.of(
+        var criteria = HardwareCatalogSearch.matching(new HardwareCatalogSearch.Selection(filter.q(), CatalogStatus.ACTIVE, filter.category(),
+                filter.brandId(), filter.brand()), new HardwareCatalogSearch.Constraints(java.util.List.of(
                         new HardwareCatalogSearch.NumericRange("capacityGb", filter.minCapacityGb(), filter.maxCapacityGb()),
                         new HardwareCatalogSearch.NumericRange("clockMhz", filter.minClockMhz(), filter.maxClockMhz()),
                         new HardwareCatalogSearch.NumericRange("coreCount", filter.minCoreCount(), filter.maxCoreCount()),
@@ -126,7 +130,7 @@ public class HardwareCatalogService {
                 java.util.List.of(new HardwareCatalogSearch.TypedPrefix("chipset",
                         com.ltz.hardware.domain.enums.GpuVendor.prefixes(filter.gpuVendor()))),
                 java.util.List.of(new HardwareCatalogSearch.TypedPresence("integratedGraphics",
-                        Boolean.TRUE.equals(filter.integratedGraphics()))));
+                        Boolean.TRUE.equals(filter.integratedGraphics())))));
         if (discovery) criteria = criteria.and((root, query, cb) -> root.get("category").in(
                 com.ltz.hardware.domain.enums.ComponentCategory.CPU, com.ltz.hardware.domain.enums.ComponentCategory.MOTHERBOARD,
                 com.ltz.hardware.domain.enums.ComponentCategory.RAM, com.ltz.hardware.domain.enums.ComponentCategory.STORAGE,

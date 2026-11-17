@@ -15,6 +15,7 @@ export const STANDALONE = '--standalone';
 /** Java komutunun çıktısından yalnız özet satırlarını süzer (ayrıntı/ENV sızdırmaz). */
 export function importSummary(output) {
   return output.split(/\r?\n/)
+    .map(line => line.replace(/^\d{2}:\d{2}:\d{2}\.\d{3}\s+\[[^\]\r\n]{1,80}\]\s+(?:INFO|ERROR)\s+(?:com\.ltz\.hardware\.infrastructure\.config|c\.l\.h\.i\.(?:c|config))\.PcPartImportCommand\s+--\s+/, ''))
     .filter(line => /^(DATASET_FILES |PC_PART_IMPORT_RESULT |PC_PART_IMPORT_FAILED:)/.test(line)).join('\n');
 }
 

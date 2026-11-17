@@ -25,10 +25,12 @@ public interface ImageInspectorPort {
 
         @Override
         public boolean equals(Object other) {
-            return other instanceof ProcessedImage that && Objects.equals(extension, that.extension)
-                    && Objects.equals(contentType, that.contentType) && width == that.width
-                    && height == that.height && frameCount == that.frameCount && Arrays.equals(large, that.large)
-                    && Arrays.equals(small, that.small);
+            return other instanceof ProcessedImage(String otherExtension, String otherContentType, byte[] otherLarge,
+                    byte[] otherSmall, int otherWidth, int otherHeight, int otherFrameCount)
+                    && Objects.equals(extension, otherExtension)
+                    && Objects.equals(contentType, otherContentType) && width == otherWidth
+                    && height == otherHeight && frameCount == otherFrameCount && Arrays.equals(large, otherLarge)
+                    && Arrays.equals(small, otherSmall);
         }
 
         @Override

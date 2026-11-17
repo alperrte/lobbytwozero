@@ -20,12 +20,24 @@ import tools.jackson.databind.ObjectMapper;
 
 @Component
 public class PcPartMapper {
+    private static final String CORE_CLOCK = "core_clock";
+    private static final String MICROARCHITECTURE = "microarchitecture";
+    private static final String BOOST_CLOCK = "boost_clock";
+    private static final String COLOR = "color";
+    private static final String CHIPSET = "chipset";
+    private static final String SOURCE_FORM_FACTOR = "form_factor";
+    private static final String SOCKET = "socket";
+    private static final String SPEED = "speed";
+    private static final String MODULES = "modules";
+    private static final String CLOCK_MHZ = "clockMhz";
+    private static final String CAPACITY_GB = "capacityGb";
+    private static final String FORM_FACTOR = "formFactor";
     private static final Map<ComponentCategory, List<String>> FIELDS = Map.of(
-            ComponentCategory.CPU, List.of("core_count", "core_clock", "boost_clock", "microarchitecture", "tdp", "graphics", "smt"),
-            ComponentCategory.GPU, List.of("chipset", "memory", "core_clock", "boost_clock", "color", "length"),
-            ComponentCategory.MOTHERBOARD, List.of("socket", "form_factor", "max_memory", "memory_slots", "color"),
-            ComponentCategory.RAM, List.of("speed", "modules", "color", "first_word_latency", "cas_latency"),
-            ComponentCategory.STORAGE, List.of("capacity", "type", "cache", "form_factor", "interface"));
+            ComponentCategory.CPU, List.of("core_count", CORE_CLOCK, BOOST_CLOCK, MICROARCHITECTURE, "tdp", "graphics", "smt"),
+            ComponentCategory.GPU, List.of(CHIPSET, "memory", CORE_CLOCK, BOOST_CLOCK, COLOR, "length"),
+            ComponentCategory.MOTHERBOARD, List.of(SOCKET, SOURCE_FORM_FACTOR, "max_memory", "memory_slots", COLOR),
+            ComponentCategory.RAM, List.of(SPEED, MODULES, COLOR, "first_word_latency", "cas_latency"),
+            ComponentCategory.STORAGE, List.of("capacity", "type", "cache", SOURCE_FORM_FACTOR, "interface"));
     private static final List<String> MULTI_WORD_BRANDS = List.of(
             "Western Digital", "Silicon Power", "SK Hynix", "Super Talent", "Neo Forza", "Water Panther",
             "Fantom Drives", "Oyen Digital", "Club 3D");
@@ -54,10 +66,10 @@ public class PcPartMapper {
             default -> throw invalid();
         }
         var specs = new HardwareSpecifications(new HardwareSpecifications.Values(
-                exactInteger(technical, "capacityGb"), exactInteger(technical, "clockMhz"),
+                exactInteger(technical, CAPACITY_GB), exactInteger(technical, CLOCK_MHZ),
                 exactInteger(technical, "coreCount"), exactInteger(technical, "powerWatts"),
-                textValue(technical, "memoryType"), textValue(technical, "socket"),
-                textValue(technical, "interfaceType"), textValue(technical, "formFactor")));
+                textValue(technical, "memoryType"), textValue(technical, SOCKET),
+                textValue(technical, "interfaceType"), textValue(technical, FORM_FACTOR)));
         String content = json.writeValueAsString(technical);
         String identity = digest("pc-part-v1\n" + category.name() + "\n" + CatalogText.normalize(name, 160) + "\n" + content);
         return new PcPartProduct(category, name, model, brand, identity, digest(name + "\n" + content), specs,
@@ -66,10 +78,10 @@ public class PcPartMapper {
 
     private static void cpu(JsonNode row, Map<String, Value> out) {
         number(row, out, "core_count", "coreCount", "", BigDecimal.ONE);
-        number(row, out, "core_clock", "clockMhz", "MHz", BigDecimal.valueOf(1000));
-        number(row, out, "boost_clock", "boostClockMhz", "MHz", BigDecimal.valueOf(1000));
+        number(row, out, CORE_CLOCK, CLOCK_MHZ, "MHz", BigDecimal.valueOf(1000));
+        number(row, out, BOOST_CLOCK, "boostClockMhz", "MHz", BigDecimal.valueOf(1000));
         number(row, out, "tdp", "powerWatts", "W", BigDecimal.ONE);
-        string(row, out, "microarchitecture", "microarchitecture", "");
+        string(row, out, MICROARCHITECTURE, MICROARCHITECTURE, "");
         string(row, out, "graphics", "integratedGraphics", "");
         if (row.has("smt")) {
             var smt = row.get("smt");
@@ -79,54 +91,55 @@ public class PcPartMapper {
     }
 
     private static void motherboard(JsonNode row, Map<String, Value> out) {
-        string(row, out, "socket", "socket", "");
-        string(row, out, "form_factor", "formFactor", "");
+        string(row, out, SOCKET, SOCKET, "");
+        string(row, out, SOURCE_FORM_FACTOR, FORM_FACTOR, "");
         number(row, out, "max_memory", "maximumMemoryGb", "GB", BigDecimal.ONE);
         number(row, out, "memory_slots", "memorySlots", "", BigDecimal.ONE);
-        string(row, out, "color", "color", "");
+        string(row, out, COLOR, COLOR, "");
     }
 
     private static void gpu(JsonNode row, Map<String, Value> out) {
-        string(row, out, "chipset", "chipset", "");
-        number(row, out, "memory", "capacityGb", "GB", BigDecimal.ONE);
-        number(row, out, "core_clock", "clockMhz", "MHz", BigDecimal.ONE);
-        number(row, out, "boost_clock", "boostClockMhz", "MHz", BigDecimal.ONE);
+        string(row, out, CHIPSET, CHIPSET, "");
+        number(row, out, "memory", CAPACITY_GB, "GB", BigDecimal.ONE);
+        number(row, out, CORE_CLOCK, CLOCK_MHZ, "MHz", BigDecimal.ONE);
+        number(row, out, BOOST_CLOCK, "boostClockMhz", "MHz", BigDecimal.ONE);
         number(row, out, "length", "lengthMm", "mm", BigDecimal.ONE);
-        string(row, out, "color", "color", "");
+        string(row, out, COLOR, COLOR, "");
     }
 
     private static void memory(JsonNode row, Map<String, Value> out) {
-        JsonNode speed = row.get("speed");
+        JsonNode speed = row.get(SPEED);
         if (speed != null && speed.isArray()) {
             pair(speed);
             BigDecimal generation = decimal(speed.get(0));
             if (generation != null && (generation.scale() > 0 || generation.intValue() < 1 || generation.intValue() > 5)) throw invalid();
             out.put("memoryType", new Value(null, generation == null ? null : "DDR" + generation.toPlainString(), "", "speed[0]"));
-            out.put("clockMhz", new Value(decimal(speed.get(1)), null, "MHz", "speed[1]"));
-        } else number(row, out, "speed", "clockMhz", "MHz", BigDecimal.ONE);
-        JsonNode modules = row.get("modules");
+            out.put(CLOCK_MHZ, new Value(decimal(speed.get(1)), null, "MHz", "speed[1]"));
+        } else number(row, out, SPEED, CLOCK_MHZ, "MHz", BigDecimal.ONE);
+        JsonNode modules = row.get(MODULES);
         if (modules != null && !modules.isNull()) {
             pair(modules);
             BigDecimal count = decimal(modules.get(0));
             BigDecimal size = decimal(modules.get(1));
             out.put("moduleCount", new Value(count, null, "", "modules[0]"));
             out.put("moduleCapacityGb", new Value(size, null, "GB", "modules[1]"));
-            out.put("capacityGb", new Value(count == null || size == null ? null : count.multiply(size), null, "GB", "modules"));
-        } else if (modules != null) out.put("capacityGb", new Value(null, null, "GB", "modules"));
+            out.put(CAPACITY_GB, new Value(count == null || size == null ? null : count.multiply(size), null, "GB", MODULES));
+        } else if (modules != null) out.put(CAPACITY_GB, new Value(null, null, "GB", MODULES));
         number(row, out, "first_word_latency", "firstWordLatencyNs", "ns", BigDecimal.ONE);
         number(row, out, "cas_latency", "casLatency", "", BigDecimal.ONE);
-        string(row, out, "color", "color", "");
+        string(row, out, COLOR, COLOR, "");
     }
 
     private static void storage(JsonNode row, Map<String, Value> out) {
-        number(row, out, "capacity", "capacityGb", "GB", BigDecimal.ONE);
+        number(row, out, "capacity", CAPACITY_GB, "GB", BigDecimal.ONE);
         number(row, out, "cache", "cacheMb", "MB", BigDecimal.ONE);
         string(row, out, "interface", "interfaceType", "");
-        JsonNode form = row.get("form_factor");
+        JsonNode form = row.get(SOURCE_FORM_FACTOR);
         if (form != null && form.isNumber()) {
             BigDecimal value = decimal(form);
-            out.put("formFactor", new Value(value, value.toPlainString(), "in", "form_factor"));
-        } else string(row, out, "form_factor", "formFactor", "");
+            if (value == null) throw invalid();
+            out.put(FORM_FACTOR, new Value(value, value.toPlainString(), "in", SOURCE_FORM_FACTOR));
+        } else string(row, out, SOURCE_FORM_FACTOR, FORM_FACTOR, "");
         JsonNode type = row.get("type");
         if (type != null && type.isNumber()) {
             out.put("rotationRpm", new Value(decimal(type), null, "RPM", "type"));
@@ -166,7 +179,7 @@ public class PcPartMapper {
         Value value = values.get(key);
         if (value == null || value.number() == null || value.number().signum() == 0) return null;
         try { return value.number().intValueExact(); }
-        catch (ArithmeticException ignored) { return null; } // Fractional GB stays exact in typed specifications.
+        catch (ArithmeticException _) { return null; } // Fractional GB stays exact in typed specifications.
     }
 
     private static String textValue(Map<String, Value> values, String key) {

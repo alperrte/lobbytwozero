@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiHttpError } from "@/shared/lib/api/client";
@@ -76,6 +76,10 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+const radios = (group: string) => within(screen.getByRole("radiogroup", { name: group })).getAllByRole("radio") as HTMLInputElement[];
+const picked = (group: string) => radios(group).find((radio) => radio.checked)?.value;
+const choose = (group: string, value: string) => fireEvent.click(radios(group).find((radio) => radio.value === value) as HTMLInputElement);
+
 describe("AccountSettings", () => {
   it("yaş doğrulaması bölümünü oturumlu kullanıcıya gösterir", async () => {
     renderPage();
@@ -94,11 +98,13 @@ describe("AccountSettings", () => {
   it("üç bölümü sunucudaki değerlerle gösterir; rıza varsayılan olarak kapalıdır", async () => {
     renderPage();
 
-    expect(await screen.findByLabelText("Arkadaş listesi")).toHaveValue("FRIENDS");
-    expect(screen.getByLabelText("Oyun kütüphanesi")).toHaveValue("PUBLIC");
-    expect(screen.getByLabelText("Performans")).toHaveValue("PRIVATE");
-    expect(screen.getByLabelText("Giriş yapmamış ziyaretçiler")).toHaveValue("BASIC");
-    expect(await screen.findByLabelText("Tema")).toHaveValue("SYSTEM");
+    await screen.findByRole("radiogroup", { name: "Arkadaş listesi" });
+    expect(picked("Arkadaş listesi")).toBe("FRIENDS");
+    expect(picked("Oyun kütüphanesi")).toBe("PUBLIC");
+    expect(picked("Performans")).toBe("PRIVATE");
+    expect(picked("Giriş yapmamış ziyaretçiler")).toBe("BASIC");
+    await screen.findByRole("radiogroup", { name: "Tema" });
+    expect(picked("Tema")).toBe("SYSTEM");
     expect(await screen.findByLabelText("Kişiselleştirilmiş oyun önerileri")).not.toBeChecked();
   });
 
@@ -118,7 +124,8 @@ describe("AccountSettings", () => {
     api.savePrivacy.mockResolvedValue({ ...privacy, library: "PRIVATE", version: 3 });
     renderPage();
 
-    fireEvent.change(await screen.findByLabelText("Oyun kütüphanesi"), { target: { value: "PRIVATE" } });
+    await screen.findByRole("radiogroup", { name: "Oyun kütüphanesi" });
+    choose("Oyun kütüphanesi", "PRIVATE");
     expect(screen.queryByText("Kaydedildi.")).toBeNull();
     fireEvent.click(screen.getAllByRole("button", { name: "Kaydet" })[0]);
 
@@ -130,20 +137,21 @@ describe("AccountSettings", () => {
     api.savePrivacy.mockRejectedValue(new ApiHttpError(409, { code: "CONCURRENT_MODIFICATION" }));
     renderPage();
 
-    const library = await screen.findByLabelText("Oyun kütüphanesi");
-    fireEvent.change(library, { target: { value: "FRIENDS" } });
+    await screen.findByRole("radiogroup", { name: "Oyun kütüphanesi" });
+    choose("Oyun kütüphanesi", "FRIENDS");
     fireEvent.click(screen.getAllByRole("button", { name: "Kaydet" })[0]);
 
     expect(await screen.findByText(/başka bir yerde değişti/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Yenile" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Oyun kütüphanesi")).toHaveValue("FRIENDS");
+    expect(picked("Oyun kütüphanesi")).toBe("FRIENDS");
   });
 
   it("tercih kaydı sunucudaki hareket/yerleşim değerlerini olduğu gibi geri gönderir ve temayı cihaza uygular", async () => {
     api.savePreferences.mockResolvedValue({ ...preferences, theme: "DARK", version: 2 });
     renderPage();
 
-    fireEvent.change(await screen.findByLabelText("Tema"), { target: { value: "DARK" } });
+    await screen.findByRole("radiogroup", { name: "Tema" });
+    choose("Tema", "DARK");
     fireEvent.click(screen.getAllByRole("button", { name: "Kaydet" })[1]);
 
     await waitFor(() =>
@@ -200,5 +208,16 @@ describe("AccountSettings", () => {
     fireEvent.click(screen.getByLabelText("Steam bağlantımı profilimde göster"));
     expect(await screen.findByText(/Servis şu an meşgul/)).toBeInTheDocument();
     expect(screen.getByLabelText("Steam bağlantımı profilimde göster")).toBeChecked();
+  });
+
+  it("sol menü bölümlere bağlanır; silme bölümü tehlikeli bölge olarak ayrılır", async () => {
+    renderPage();
+    const nav = await screen.findByRole("navigation", { name: "Ayar bölümleri" });
+    const hrefs = Array.from(nav.querySelectorAll("a")).map((link) => link.getAttribute("href"));
+    expect(hrefs).toEqual(["#privacy", "#consents", "#preferences", "#steam", "#security", "#age", "#deletion"]);
+    expect(nav).toHaveTextContent("Tehlikeli bölge");
+    for (const href of hrefs) {
+      expect(document.getElementById((href ?? "").slice(1))).not.toBeNull();
+    }
   });
 });

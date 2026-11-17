@@ -17,11 +17,14 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.client.RestClient;
 
 import com.ltz.messaging.application.port.BlockCheckPort;
+import com.ltz.messaging.application.port.EventPublisherPort;
 import com.ltz.messaging.application.port.GifProviderPort;
 import com.ltz.messaging.application.port.ServiceTokenPort;
 import com.ltz.messaging.infrastructure.client.AuthServiceTokenClient;
 import com.ltz.messaging.infrastructure.client.GiphyGifClient;
+import com.ltz.messaging.infrastructure.client.NotificationEventPublisher;
 import com.ltz.messaging.infrastructure.client.SocialBlockCheckClient;
+import com.ltz.messaging.infrastructure.client.UnavailableEventPublisher;
 import com.ltz.messaging.infrastructure.messaging.realtime.PostgresStreamRelay;
 import com.ltz.messaging.infrastructure.messaging.realtime.SseMessageHub;
 import com.ltz.messaging.infrastructure.messaging.realtime.StreamRelayListener;
@@ -36,6 +39,7 @@ import tools.jackson.databind.ObjectMapper;
         GifProperties.class,
         GroupProperties.class,
         MessageProperties.class,
+        OutboxProperties.class,
         ReactionProperties.class,
         RequestLimitProperties.class,
         ServiceClientProperties.class,
@@ -65,6 +69,20 @@ public class MessagingApplicationConfig {
     BlockCheckPort socialBlockCheckClient(RestClient.Builder builder, ServiceTokenPort serviceTokens,
                                           ServiceClientProperties properties) {
         return new SocialBlockCheckClient(builder, serviceTokens, properties);
+    }
+
+    /**
+     * Outbox teslim hedefi (MSG-16). {@code notification}: notification-service {@code POST /internal/events}; diğer her
+     * değer (varsayılan {@code unavailable}) teslim denemez, olaylar saklama süresince outbox'ta bekler.
+     */
+    @Bean
+    EventPublisherPort eventPublisher(RestClient.Builder builder, ServiceTokenPort serviceTokens,
+                                      ObjectMapper objectMapper, OutboxProperties properties) {
+        if (OutboxProperties.NOTIFICATION_ADAPTER.equals(properties.adapter())) {
+            return new NotificationEventPublisher(builder, serviceTokens, objectMapper,
+                    properties.notificationServiceUrl());
+        }
+        return new UnavailableEventPublisher();
     }
 
     /**

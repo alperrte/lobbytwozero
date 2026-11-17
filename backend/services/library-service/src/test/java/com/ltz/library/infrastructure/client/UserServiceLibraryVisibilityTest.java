@@ -16,6 +16,7 @@ import org.springframework.test.json.JsonCompareMode;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.ExpectedCount.never;
@@ -29,6 +30,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 /** User karar sözleşmesi; sahte HTTP (MockRestServiceServer), gerçek User değildir. */
 class UserServiceLibraryVisibilityTest {
+    private static final String DECISIONS_PATH = "/internal/v1/privacy/decisions";
     private static final String URL = "http://user.test/internal/v1/privacy/decisions";
     private static final String TOKEN = "synthetic.privacy.token";
     private static final UUID OWNER = UUID.randomUUID();
@@ -40,9 +42,9 @@ class UserServiceLibraryVisibilityTest {
     @BeforeEach void setup() {
         var builder = RestClient.builder();
         server = MockRestServiceServer.bindTo(builder).build();
-        tokens = Mockito.mock(AuthServiceTokenClient.class);
+        tokens = mock(AuthServiceTokenClient.class);
         when(tokens.privacyDecisionToken()).thenReturn(Optional.of(TOKEN));
-        adapter = new UserServiceLibraryVisibility(builder, tokens, "http://user.test");
+        adapter = new UserServiceLibraryVisibility(builder, tokens, "http://user.test", DECISIONS_PATH);
     }
 
     @Test void profileAsksForTheLibraryFieldWithTheVerifiedViewerAndMapsAllow() {
@@ -121,7 +123,7 @@ class UserServiceLibraryVisibilityTest {
 
     @Test void missingBaseUrlOrArgumentsAreUnavailableWithoutAskingForAToken() {
         for (String url : new String[] {null, "", "  "}) {
-            var unconfigured = new UserServiceLibraryVisibility(RestClient.builder(), tokens, url);
+            var unconfigured = new UserServiceLibraryVisibility(RestClient.builder(), tokens, url, DECISIONS_PATH);
             assertEquals(LibraryAccessDecision.UNAVAILABLE, unconfigured.decide(OWNER, VIEWER, LibraryAccessPurpose.PROFILE));
         }
         assertEquals(LibraryAccessDecision.UNAVAILABLE, adapter.decide(null, VIEWER, LibraryAccessPurpose.PROFILE));

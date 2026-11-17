@@ -34,7 +34,11 @@ public final class ServiceCallerGuard {
 
     /** Token'daki çağıran adı ({@code svc:} öneki atılmış); {@link #requirePlatformCaller} sonrasında kullanılır. */
     public static String callerName(Jwt token) {
-        return token.getSubject().substring(TokenClaims.SERVICE_SUBJECT_PREFIX.length());
+        String subject = token.getSubject();
+        if (subject == null || !subject.startsWith(TokenClaims.SERVICE_SUBJECT_PREFIX)) {
+            throw new AccessDeniedException("Service token has no service subject");
+        }
+        return subject.substring(TokenClaims.SERVICE_SUBJECT_PREFIX.length());
     }
 
     /** @throws AccessDeniedException eşleşme yoksa ({@code 403}); hiçbir işlem yapılmaz */

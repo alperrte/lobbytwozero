@@ -31,7 +31,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anySet;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
@@ -205,7 +204,7 @@ class HardwareReviewControllerTest extends PostgresIntegrationSupport {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(3))
                 .andExpect(jsonPath("$.totalPages").value(3)).andExpect(jsonPath("$.items[0].id").value(order.getFirst().toString()))
                 .andExpect(jsonPath("$.summary.ratedReviews").value(2)).andExpect(jsonPath("$.summary.averageRating").value(4.0));
-        verify(audience).evaluate(eq(viewer), eq(Set.of(owner, other, blocked, unknownAuthor)));
+        verify(audience).evaluate(viewer, Set.of(owner, other, blocked, unknownAuthor));
         mvc.perform(get(collection(product)).with(actor(viewer)).param("size", "1").param("page", "3"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.items").isEmpty()).andExpect(jsonPath("$.totalElements").value(3));
         var blockedId = jdbc.queryForObject("SELECT id FROM hardware_reviews WHERE user_id=?", UUID.class, blocked);

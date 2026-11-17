@@ -140,9 +140,10 @@ class HardwareProfileControllerTest extends PostgresIntegrationSupport {
 
     @Test
     void databaseRejectsUnknownCaseColor() {
+        UUID profileId = UUID.randomUUID();
         assertThatThrownBy(() -> jdbc.update(
                 "INSERT INTO hardware_profiles(id,user_id,name,device_type,case_color,created_at,updated_at)"
-                        + " VALUES (?,?,'PC','DESKTOP','PURPLE',now(),now())", UUID.randomUUID(), OWNER))
+                        + " VALUES (?,?,'PC','DESKTOP','PURPLE',now(),now())", profileId, OWNER))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 

@@ -5,4 +5,8 @@
 
 ## Bilinen durumlar
 
-- Henüz kayıtlı bir not yok.
+- 2026-11-12: `HardwareServiceProfileDirectory` owner profil doğrulaması gerçek
+  Auth/Hardware/Performance/Gateway kabulünde doğrulandı: seçim → oturum, foreign/missing
+  profil reddi ve Hardware kesintisinde kayıtsız 503. Hardware özet tüketicisi de gerçek
+  v2 ölçümlerle kabul edildi; runtime 28/28 PASS. Game yalnız dar katalog fixture'ıdır.
+  [Güncel kanıt](../../docs-hardware/integration/performance-profile-summary.md).

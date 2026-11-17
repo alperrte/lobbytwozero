@@ -121,13 +121,13 @@ public class EmptyDescriptionService {
             boolean write = empty && text != null && !locked.contains(OverridableField.DESCRIPTION) && DescriptionLanguage.looksEnglish(text);
             if (write) {
                 game.setDescription(text);
-                provenance.recordObservation(game, "DESCRIPTION", "STEAM", MetadataDataState.AVAILABLE, false);
+                provenance.recordObservation(game, "DESCRIPTION", PROVIDER_CODE, MetadataDataState.AVAILABLE, false);
                 game.setUpdatedAt(now);
                 filled++;
             } else if (empty) {
                 unavailable++;
             }
-            provenance.recordObservation(game, MARKER, "STEAM", write ? MetadataDataState.AVAILABLE : MetadataDataState.EMPTY, false);
+            provenance.recordObservation(game, MARKER, PROVIDER_CODE, write ? MetadataDataState.AVAILABLE : MetadataDataState.EMPTY, false);
             processed++;
         }
         return processed;

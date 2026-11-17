@@ -126,8 +126,7 @@ public class SteamStoreEnrichmentService {
         Set<OverridableField> locked = EnumSet.noneOf(OverridableField.class);
         overrides.findByGameIdOrderByFieldAsc(game.getId()).forEach(override -> locked.add(override.getField()));
         boolean changed = details.isPresent() && merge(game, details.get(), locked);
-        provenance.recordObservation(game, MARKER, store.source(),
-                details.isEmpty() ? MetadataDataState.UNKNOWN : changed ? MetadataDataState.AVAILABLE : MetadataDataState.EMPTY, false);
+        provenance.recordObservation(game, MARKER, store.source(), observationState(details.isPresent(), changed), false);
         if (changed) {
             game.setUpdatedAt(now);
             enriched++;
@@ -177,10 +176,16 @@ public class SteamStoreEnrichmentService {
         return changed;
     }
 
+    private static MetadataDataState observationState(boolean detailsFound, boolean changed) {
+        if (!detailsFound) return MetadataDataState.UNKNOWN;
+        return changed ? MetadataDataState.AVAILABLE : MetadataDataState.EMPTY;
+    }
+
     private void pause(ProviderException error, Instant now) {
         consecutiveFailures = Math.min(consecutiveFailures + 1, 6);
         Duration delay = retries.delay(error, Math.min(consecutiveFailures, 5));
-        Duration pause = delay == null ? MAX_PAUSE : delay.multipliedBy(consecutiveFailures >= 2 ? 4L : 1L);
+        long multiplier = consecutiveFailures >= 2 ? 4L : 1L;
+        Duration pause = delay == null ? MAX_PAUSE : delay.multipliedBy(multiplier);
         if (pause.compareTo(Duration.ofMinutes(1)) < 0) pause = Duration.ofMinutes(1);
         if (pause.compareTo(MAX_PAUSE) > 0) pause = MAX_PAUSE;
         pausedUntil = now.plus(pause);

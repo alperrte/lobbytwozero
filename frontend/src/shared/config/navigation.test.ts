@@ -78,12 +78,13 @@ describe("navigationGroups", () => {
 });
 
 describe("primaryNavigation", () => {
-  it("Ana Sayfa, Oyunlar, Kütüphane, İncelemeler, Topluluk, Arkadaşlar, Donanımlar ve Kampanyalar gerçek rotalara bağlanır", () => {
+  it("Ana Sayfa, Oyunlar, Kütüphane, İncelemeler, Topluluk, Arkadaşlar, Donanımlar, Kampanyalar ve Performans gerçek rotalara bağlanır", () => {
     const available = primaryNavigation.filter(isNavItemAvailable);
-    expect(available.map((item) => item.id)).toEqual(["home", "games", "library", "reviews", "community", "friends", "hardware", "campaigns"]);
+    expect(available.map((item) => item.id)).toEqual(["home", "games", "library", "reviews", "community", "friends", "hardware", "campaigns", "performance"]);
     expect(available.find((item) => item.id === "library")?.href).toBe("/library");
     expect(available.find((item) => item.id === "reviews")?.href).toBe("/reviews");
-    expect(primaryNavigation.filter((item) => !isNavItemAvailable(item))).toHaveLength(6);
+    expect(available.find((item) => item.id === "performance")?.href).toBe("/performance");
+    expect(primaryNavigation.filter((item) => !isNavItemAvailable(item))).toHaveLength(5);
   });
 
   it.each(["/reviews", "/reviews/games/0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66", "/reviews/games/0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66/write", "/reviews/games/0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66/statistics", "/reviews/0198a3c2-aaaa-7d44-9a55-3f1c2b4d5e66"])("Review rotasında aktif öğeyi korur: %s", (pathname) => {
@@ -92,7 +93,7 @@ describe("primaryNavigation", () => {
 
   it("Yakında öğeleri href taşımaz (kırık link ve sahte rota yok)", () => {
     for (const item of primaryNavigation) {
-      if (!["home", "games", "library", "reviews", "community", "friends", "hardware", "campaigns"].includes(item.id)) {
+      if (!["home", "games", "library", "reviews", "community", "friends", "hardware", "campaigns", "performance"].includes(item.id)) {
         expect(item.href).toBeUndefined();
       }
     }

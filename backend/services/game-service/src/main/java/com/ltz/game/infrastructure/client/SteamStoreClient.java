@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.LongConsumer;
+import java.util.regex.Pattern;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import tools.jackson.core.JacksonException;
@@ -31,6 +32,7 @@ public class SteamStoreClient implements StoreDetailSource {
     private static final JsonMapper JSON = JsonMapper.builder().build();
     private static final java.util.regex.Pattern APP_ID = java.util.regex.Pattern.compile("[1-9]\\d{0,9}");
     /** Steam dil adı → katalog dil kodu (IGDB ile aynı küçük harfli BCP47 biçimi). */
+    private static final Pattern HTML_TAG = Pattern.compile("<[^>]*>");
     private static final Map<String, String> LANGUAGE_CODES = Map.ofEntries(
             Map.entry("english", "en-us"), Map.entry("german", "de-de"), Map.entry("french", "fr-fr"),
             Map.entry("spanish - spain", "es-es"), Map.entry("spanish - latin america", "es-mx"), Map.entry("italian", "it-it"),
@@ -143,7 +145,7 @@ public class SteamStoreClient implements StoreDetailSource {
         Map<String, GameProvider.LanguageSupport> byCode = new LinkedHashMap<>();
         for (String part : list.split(",")) {
             boolean audio = part.contains("*");
-            String name = part.replaceAll("<[^>]*>", "").replace("*", "").strip().toLowerCase(Locale.ROOT);
+            String name = HTML_TAG.matcher(part).replaceAll("").replace("*", "").strip().toLowerCase(Locale.ROOT);
             String code = LANGUAGE_CODES.get(name);
             if (code == null || byCode.containsKey(code)) continue;
             byCode.put(code, new GameProvider.LanguageSupport(code, LanguageSupportStatus.SUPPORTED,

@@ -64,9 +64,12 @@ class GameLocalizedDescriptionApiTest extends PostgresTestSupport {
     }
 
     @Test void theDatabaseRejectsDuplicatesMalformedLanguagesBlankTextAndRemovesRowsWithTheGame() {
-        assertThrows(DataAccessException.class, () -> jdbc.update("insert into game_localized_descriptions(id,game_id,language,description,source,fetched_at) values (?,?,'tr','Başka metin.','STEAM',now())", UUID.randomUUID(), withTurkish));
-        assertThrows(DataAccessException.class, () -> jdbc.update("insert into game_localized_descriptions(id,game_id,language,description,source,fetched_at) values (?,?,'TURKISH','x','STEAM',now())", UUID.randomUUID(), englishOnly));
-        assertThrows(DataAccessException.class, () -> jdbc.update("insert into game_localized_descriptions(id,game_id,language,description,source,fetched_at) values (?,?,'tr','   ','STEAM',now())", UUID.randomUUID(), englishOnly));
+        UUID duplicateId = UUID.randomUUID();
+        UUID malformedId = UUID.randomUUID();
+        UUID blankId = UUID.randomUUID();
+        assertThrows(DataAccessException.class, () -> jdbc.update("insert into game_localized_descriptions(id,game_id,language,description,source,fetched_at) values (?,?,'tr','Başka metin.','STEAM',now())", duplicateId, withTurkish));
+        assertThrows(DataAccessException.class, () -> jdbc.update("insert into game_localized_descriptions(id,game_id,language,description,source,fetched_at) values (?,?,'TURKISH','x','STEAM',now())", malformedId, englishOnly));
+        assertThrows(DataAccessException.class, () -> jdbc.update("insert into game_localized_descriptions(id,game_id,language,description,source,fetched_at) values (?,?,'tr','   ','STEAM',now())", blankId, englishOnly));
         jdbc.update("insert into game_localized_descriptions(id,game_id,language,description,source,fetched_at) values (?,?,'de','Deutscher Text.','STEAM',now())", UUID.randomUUID(), withTurkish);
         jdbc.update("delete from games where id=?", withTurkish);
         org.junit.jupiter.api.Assertions.assertEquals(0L, jdbc.queryForObject("select count(*) from game_localized_descriptions", Long.class), "oyun silinince satırları da silinir");

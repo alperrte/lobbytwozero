@@ -8,9 +8,9 @@ import {
   roundedPerimeter,
   SNAKE_LAYERS,
   snakeKeyframes
-} from "../services/snake-path";
+} from "@/shared/lib/ui/snake-path";
 
-type AuthCardSnakeProps = {
+type CardSnakeProps = {
   /** İlk açılışta izin başlama gecikmesi (ms); kart giriş animasyonu bittikten sonra oynaması için. Verilmezse otomatik oynamaz. */
   initialDelayMs?: number;
 };
@@ -29,7 +29,7 @@ type AuthCardSnakeProps = {
  * Çizim vektördür (retina'da net); boyut `ResizeObserver` ile izlenir. "Hareketi azalt" açıkken iz oynamaz, yerine sabit
  * ince bir gradyan çerçeve görünür.
  */
-export function AuthCardSnake({ initialDelayMs }: AuthCardSnakeProps) {
+export function CardSnake({ initialDelayMs }: CardSnakeProps) {
   const gradientId = useId();
   const svgRef = useRef<SVGSVGElement>(null);
 

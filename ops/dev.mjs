@@ -1281,6 +1281,7 @@ const performanceE2e = (() => {
         try { return (await fetch(`http://127.0.0.1:${port}/actuator/health`, { signal: AbortSignal.timeout(2000) })).ok; }
         catch { return false; }
       }, `${service} readiness`);
+      return running;
     };
     const request = async (origin, route, expected, { jar, method = 'GET', body, headers = {} } = {}) => {
       const outgoing = { ...headers };
@@ -1328,6 +1329,26 @@ const performanceE2e = (() => {
       });
       const unavailable = await listen((_, response) => { response.writeHead(503); response.end(); });
       listeners.push(relay.server, unavailable.server);
+      // Game bu dört servisli kabulün hedefi değildir; yalnız oturumun önkoşulu için dar GAME-15 fixture'ı.
+      const gameId = randomUUID();
+      const catalog = await listen(async (incoming, outgoing) => {
+        if (incoming.method !== 'POST' || incoming.url !== '/api/v1/game/games/batch') {
+          outgoing.writeHead(404); outgoing.end(); return;
+        }
+        try {
+          let body = '';
+          for await (const chunk of incoming) {
+            body += chunk;
+            if (body.length > 8192) throw new Error('Fixture request limit');
+          }
+          const ids = JSON.parse(body).gameIds;
+          if (!Array.isArray(ids) || ids.length > 20 || ids.some(id => typeof id !== 'string')) throw new Error('Invalid fixture request');
+          outgoing.writeHead(200, { 'Content-Type': 'application/json' });
+          outgoing.end(JSON.stringify({ items: ids.includes(gameId) ? [{ gameId, title: 'Hardware acceptance fixture' }] : [],
+            unavailable: ids.filter(id => id !== gameId) }));
+        } catch { outgoing.writeHead(400); outgoing.end(); }
+      });
+      listeners.push(catalog.server);
       const dbProperties = db => ({ POSTGRES_HOST: '127.0.0.1', POSTGRES_PORT: String(db.ports[5432]),
         POSTGRES_USER: 'fixture', POSTGRES_PASSWORD: dbPassword, DB_AUTH_NAME: 'fixture', DB_PERFORMANCE_NAME: 'fixture',
         DB_HARDWARE_NAME: 'fixture' });
@@ -1343,8 +1364,8 @@ const performanceE2e = (() => {
       }
       await launch('auth-service', authPort, authEnv);
       await launch('performance-service', perfPort, { ...dbProperties(performanceDb), AUTH_SERVICE_URL: auth,
-        GAME_SERVICE_URL: unavailable.origin, HARDWARE_SERVICE_URL: hardware });
-      await launch('hardware-service', hardwarePort, { ...dbProperties(hardwareDb), AUTH_SERVICE_URL: auth,
+        GAME_SERVICE_URL: catalog.origin, HARDWARE_SERVICE_URL: hardware });
+      const hardwareProcess = await launch('hardware-service', hardwarePort, { ...dbProperties(hardwareDb), AUTH_SERVICE_URL: auth,
         USER_SERVICE_URL: unavailable.origin, PERFORMANCE_SERVICE_URL: perf, AUTH_HARDWARE_SERVICE_CLIENT_SECRET: clientSecret });
       await launch('api-gateway', gatewayPort, { AUTH_SERVICE_URL: auth, PERFORMANCE_SERVICE_URL: perf,
         HARDWARE_SERVICE_URL: hardware, CORS_ALLOWED_ORIGINS: gateway });
@@ -1403,6 +1424,50 @@ const performanceE2e = (() => {
       const first = await request(gateway, batches, 200, { method: 'POST', headers: tokenHeaders, body: batch });
       const replay = await request(gateway, batches, 200, { method: 'POST', headers: tokenHeaders, body: batch });
       check(!first.replayed && replay.replayed && first.batchId === replay.batchId, 'Actual device token accepts sync and idempotent replay');
+      const profileSummaryPath = id => `/api/v1/hardware/profiles/${id}/performance-summary`;
+      const sessionsPath = '/api/v1/performance/sessions';
+      const selected = await request(gateway, '/api/v1/hardware/profiles', 200, { jar: owner.jar });
+      check(selected.items.some(item => item.id === profile.id), 'Owner selects a profile from actual Hardware through Gateway');
+      const foreignProfile = await request(gateway, '/api/v1/hardware/profiles', 201,
+        { jar: other.jar, method: 'POST', body: { name: 'Other account fixture', deviceType: 'LAPTOP' } });
+      await request(gateway, profileSummaryPath(profile.id), 401);
+      await request(gateway, profileSummaryPath(profile.id), 404, { jar: other.jar });
+      await request(gateway, profileSummaryPath(randomUUID()), 404, { jar: owner.jar });
+      const start = { gameId, hardwareProfileId: profile.id, deviceLinkId: link.id };
+      await request(gateway, sessionsPath, 422, { jar: other.jar, method: 'POST', body: { gameId, hardwareProfileId: profile.id } });
+      await request(gateway, sessionsPath, 422, { jar: owner.jar, method: 'POST', body: { ...start, hardwareProfileId: foreignProfile.id } });
+      await request(gateway, sessionsPath, 422, { jar: owner.jar, method: 'POST', body: { ...start, hardwareProfileId: randomUUID() } });
+      check(await sql(performanceDb, 'SELECT count(*) FROM performance_sessions') === '0',
+        'Actual Performance-to-Hardware batch validation denies foreign and nonexistent profiles before creating a session');
+      const session = await request(gateway, sessionsPath, 201, { jar: owner.jar, method: 'POST', body: start });
+      check(session.hardwareProfileId === profile.id && session.status === 'ACTIVE',
+        'Actual Hardware owner response authorizes Performance session creation');
+      const measurements = { schemaVersion: 2, clientSentAt: new Date().toISOString(), sessionId: session.id,
+        samples: [{ capturedAt: new Date().toISOString(), metric: 'FPS', value: 60 },
+          { capturedAt: new Date().toISOString(), metric: 'CPU_TEMP_C', value: 65 }] };
+      await request(gateway, batches, 200, { method: 'POST', body: measurements,
+        headers: { Authorization: `Bearer ${issued.accessToken}`, 'Idempotency-Key': randomUUID() } });
+      const activeSummary = await request(gateway, profileSummaryPath(profile.id), 200, { jar: owner.jar });
+      check(activeSummary.sessionCount === 0 && activeSummary.sampleCount === 0 && activeSummary.metrics.length === 0,
+        'Hardware summary consumer excludes an active session even when real v2 samples exist');
+      await request(gateway, `${sessionsPath}/${session.id}/end`, 200, { jar: owner.jar, method: 'POST' });
+      const completedSummary = await request(gateway, profileSummaryPath(profile.id), 200, { jar: owner.jar });
+      check(completedSummary.sessionCount === 1 && completedSummary.sampleCount === 2
+        && completedSummary.metrics.find(metric => metric.metric === 'FPS')?.avg === 60
+        && completedSummary.metrics.find(metric => metric.metric === 'CPU_TEMP_C')?.avg === 65,
+      'Actual Hardware-to-Auth-to-Performance summary consumer returns completed session metrics');
+      check(!['sessionId', 'gameId', 'deviceId', 'userId', 'accountId'].some(key => Object.hasOwn(completedSummary, key)),
+        'Summary contains only profile-bound aggregates and no session/game/device/account identities');
+      const otherSession = await request(gateway, sessionsPath, 201,
+        { jar: other.jar, method: 'POST', body: { gameId, hardwareProfileId: foreignProfile.id } });
+      await request(gateway, `${sessionsPath}/${otherSession.id}/end`, 200, { jar: other.jar, method: 'POST' });
+      const otherSummary = await request(gateway, profileSummaryPath(foreignProfile.id), 200, { jar: other.jar });
+      check(otherSummary.sessionCount === 1 && otherSummary.sampleCount === 0 && otherSummary.metrics.length === 0,
+        'Another account keeps its own completed session and missing measurements are not fabricated');
+      await request(gateway, `${sessionsPath}/${session.id}`, 204, { jar: owner.jar, method: 'DELETE' });
+      const deletedSummary = await request(gateway, profileSummaryPath(profile.id), 200, { jar: owner.jar });
+      check(deletedSummary.sessionCount === 0 && deletedSummary.sampleCount === 0 && deletedSummary.lastMeasuredAt === null,
+        'Summary is re-read after session deletion with no cached metrics');
       const hardwareToken = await request(gateway, authDevices + '/token', 200, { method: 'POST', body: credentials });
       secrets.push(hardwareToken.accessToken);
       const snapshots = `/api/v1/hardware/profiles/${profile.id}/sync/snapshots`;
@@ -1468,8 +1533,14 @@ const performanceE2e = (() => {
       await request(gateway, consent, 401, { method: 'PUT', headers: { Authorization: `Bearer ${owner.token}` } });
       check(true, 'Actual worker D4 is idempotent, account-bound, preserves another account and blocks resurrection');
       check(await sql(authDb, "SELECT count(*) FROM account_deletion_tasks WHERE status='PENDING'") === '15', 'Other 15 deletion targets stay pending without fake ACKs');
+      hardwareProcess.child.kill();
+      await Promise.race([new Promise(resolve => hardwareProcess.child.once('exit', resolve)), delay(5000)]);
+      await request(gateway, sessionsPath, 503, { jar: other.jar, method: 'POST',
+        body: { gameId, hardwareProfileId: foreignProfile.id } });
+      check(await sql(performanceDb, `SELECT count(*) FROM performance_sessions WHERE user_id='${other.id}'`) === '1',
+        'Stopped real Hardware causes Performance 503 without creating an unverified session');
       // Bu fixture D4 için yalnız Performance'ı hedefler; Auth'un Hardware silme adresi unavailable kalır.
-      log(`PERFORMANCE AUTH RUNTIME E2E PASS: ${checks} checks; Hardware sync consumer VERIFIED; global Saga/User/Game NOT_VERIFIED`);
+      log(`PERFORMANCE AUTH RUNTIME E2E PASS: ${checks} checks; Hardware sync/profile/summary consumers VERIFIED; global Saga/User/Game NOT_VERIFIED`);
       return { checks, status: 'PASS' };
     } catch (error) { throw new Error(scrub(error.message, secrets)); }
     finally {

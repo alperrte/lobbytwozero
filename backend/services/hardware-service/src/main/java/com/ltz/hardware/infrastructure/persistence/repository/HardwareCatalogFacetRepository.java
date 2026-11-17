@@ -20,6 +20,8 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public class HardwareCatalogFacetRepository {
+    private static final String CAPACITY_GB = "capacityGb";
+    private static final String CAPACITY_COLUMN = "capacity_gb";
     static final int MAX_OPTIONS = 500;
 
     private enum Kind { BASE_NUMBER, BASE_TEXT, TYPED_NUMBER, TYPED_TEXT, BRAND }
@@ -35,15 +37,15 @@ public class HardwareCatalogFacetRepository {
     private static final Map<ComponentCategory, List<Facet>> PLAN = Map.of(
             ComponentCategory.CPU, List.of(Facet.brand(), Facet.baseNumber("coreCount", "core_count")),
             ComponentCategory.GPU, List.of(Facet.brand(), Facet.typedText("chipset"),
-                    Facet.baseNumber("capacityGb", "capacity_gb")),
+                    Facet.baseNumber(CAPACITY_GB, CAPACITY_COLUMN)),
             ComponentCategory.MOTHERBOARD, List.of(Facet.brand(), Facet.baseText("socket", "socket"),
                     Facet.baseText("formFactor", "form_factor"), Facet.typedNumber("maximumMemoryGb"),
                     Facet.typedNumber("memorySlots")),
             ComponentCategory.RAM, List.of(Facet.brand(), Facet.baseText("memoryType", "memory_type"),
-                    Facet.baseNumber("capacityGb", "capacity_gb"), Facet.baseNumber("clockMhz", "clock_mhz"),
+                    Facet.baseNumber(CAPACITY_GB, CAPACITY_COLUMN), Facet.baseNumber("clockMhz", "clock_mhz"),
                     Facet.typedNumber("casLatency")),
             ComponentCategory.STORAGE, List.of(Facet.brand(), Facet.typedText("storageType"),
-                    Facet.baseNumber("capacityGb", "capacity_gb"), Facet.baseText("interfaceType", "interface_type")));
+                    Facet.baseNumber(CAPACITY_GB, CAPACITY_COLUMN), Facet.baseText("interfaceType", "interface_type")));
 
     private static final String TYPED_SQL = """
             SELECT v, count(*) FROM (
@@ -90,7 +92,7 @@ public class HardwareCatalogFacetRepository {
 
     private Map<String, Long> counts(String sql, Object... arguments) {
         var rows = new LinkedHashMap<String, Long>();
-        jdbc.query(sql, rs -> { rows.merge(rs.getString(1), rs.getLong(2), Long::sum); }, arguments);
+        jdbc.query(sql, (org.springframework.jdbc.core.RowCallbackHandler) rs -> rows.merge(rs.getString(1), rs.getLong(2), Long::sum), arguments);
         return rows;
     }
 
@@ -110,14 +112,16 @@ public class HardwareCatalogFacetRepository {
     static List<Option> numbers(Map<String, Long> counts) {
         var merged = new TreeMap<BigDecimal, Long>();
         counts.forEach((raw, count) -> {
-            try {
-                merged.merge(new BigDecimal(raw.strip()).stripTrailingZeros(), count, Long::sum);
-            } catch (NumberFormatException ignored) {
-                // Not a recorded number: never shown.
-            }
+            BigDecimal number = number(raw);
+            if (number != null) merged.merge(number, count, Long::sum);
         });
         return merged.entrySet().stream().limit(MAX_OPTIONS)
                 .map(e -> new Option(e.getKey().toPlainString(), e.getKey().toPlainString(), e.getValue())).toList();
+    }
+
+    private static BigDecimal number(String raw) {
+        try { return new BigDecimal(raw.strip()).stripTrailingZeros(); }
+        catch (NumberFormatException _) { return null; }
     }
 
     /** Case variants collapse into the most frequent spelling. Sorted case-insensitively. */

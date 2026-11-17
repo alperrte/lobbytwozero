@@ -51,6 +51,11 @@ public class AuthServiceTokenClient implements ServiceTokenPort {
     }
 
     @Override
+    public boolean isConfigured() {
+        return properties.hasClientSecret();
+    }
+
+    @Override
     public String tokenFor(String audience) {
         if (!properties.hasClientSecret()) {
             throw new ServiceTokenUnavailableException("The Auth client secret is not configured.");
