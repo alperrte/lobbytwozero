@@ -19,7 +19,7 @@ Doğrulama durumu:
 | Derleme (`test-compile`, JDK 25) | PASS — Checkstyle derleme sırasında temiz |
 | Birim + entegrasyon testleri (toplam 141 test; bu görevde 41 yeni) | PASS — merge öncesi toplu koşu (TASK-03 §8) |
 | JaCoCo, PMD, `lint-ratchet`, `pre-push full dev`, SonarQube | pre-push ve full dev PASS; SonarQube bkz. TASK-03 §8 |
-| Gerçek Auth + Social + Messaging ile uçtan uca | NOT VERIFIED |
+| Gerçek Auth + Social + Messaging ile uçtan uca | PASS (2026-11-17, bkz. [TASK-04](TASK-04.md)) |
 
 ## 2. Uçlar ve akış
 
@@ -81,7 +81,7 @@ Doğrulama durumu:
 ## 7. Açık noktalar
 
 1. **Testler çalıştırılmadı.** Servisin tüm görevleri bitti: merge öncesi `.\pre-push\pre-push.cmd lfp-service` → `full dev` → SonarQube. Testcontainers Docker ister.
-2. **Uçtan uca doğrulama:** DEV'de gerçek Auth + Social ile ilan listesi/iletişim ve Auth'un hesap silmede `lfp` görevini `CONFIRMED` görmesi NOT VERIFIED. `AUTH_LFP_SERVICE_CLIENT_SECRET` `.env.dev`'de dolu olmalı (`node ops/dev.mjs` üretir); lfp-service imajı yeniden derlenmeli.
+2. **Uçtan uca doğrulama:** ~~NOT VERIFIED~~ → 2026-11-17'de DEV'de yapıldı ve PASS ([TASK-04](TASK-04.md)).
 3. **`docs-auth/entegrasyon/README.md`** tablosunda lfp-service satırı hâlâ "İskelet" yazıyor; dosya Auth sahibinindir (Kerem), güncellenmesi önerilir.
 4. **`AccountStatusChanged` / bildirim** olay teslimi kararıyla birlikte (bkz. §3).
 

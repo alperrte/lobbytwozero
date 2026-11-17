@@ -1,6 +1,6 @@
 # LFP-SERVICE — AUTH ENTEGRASYONU
 
-**Sahip:** Umut · **Kod durumu:** Uygulandı (LTZ-UMT-LFP-01..03; gerçek Auth ile uçtan uca NOT VERIFIED) · **Güncelleme:** 2026-11-13
+**Sahip:** Umut · **Kod durumu:** Uygulandı (LTZ-UMT-LFP-01..03; gerçek Auth + Social + Messaging + Game ile uçtan uca PASS, 2026-11-17) · **Güncelleme:** 2026-11-17
 
 ## ÖZET
 
@@ -25,7 +25,8 @@ Kullanıcı token'ı (JWKS) her LFP ucunda doğrulanıyor; hesap silme iç ucu y
 
 ## DOĞRULANMAYANLAR
 
-- Gerçek Auth servis token'ıyla hesap silme (`lfp` görevinin `CONFIRMED` olması) ve gerçek Auth + Social ile engel sorgusu: NOT VERIFIED.
+- Doğrulandı (2026-11-17, DEV, `docs-lfp/TASK-04.md`): Auth'un gerçek servis token'ıyla hesap silmede `lfp` görevi ilk turda `CONFIRMED` oldu ve ilanlar silindi; gerçek Auth + Social ile engel sorgusu çalışıyor (iki yönde engel, Social kapalıyken fail-closed `503`).
+- Doğrulanmayan: `AccountStatusChanged` olayı LFP'ye iletilmiyor (kapsam dışı, bkz. TASK-04 §4).
 
 ## İLGİLİ BELGELER
 
