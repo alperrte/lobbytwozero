@@ -7107,11 +7107,11 @@ Diğer mikroservisler:
 social-service `POST /internal/v1/blocks/check` (RestClient, servis token'ı; bkz. "Aktif ilanları listele ve ara"). LFP messaging-service'i çağırmaz (kullanıcı adına token iletimi yok).
 
 #### Test Durumu
-INTEGRATION — `ListingPrivacyContactTest` (izin, kendi ilanı, iki yönlü engel, kapalı/süresi dolmuş, yok, kimliksiz, fail-closed). Gerçek Social + Messaging ile uçtan uca: NOT VERIFIED. PASS (2026-11-13; `pre-push lfp-service` ve `full dev`: lfp-service 139 test, satır kapsamı %95,49).
+INTEGRATION — `ListingPrivacyContactTest` (izin, kendi ilanı, iki yönlü engel, kapalı/süresi dolmuş, yok, kimliksiz, fail-closed). Gerçek Auth + Social + Messaging + Game ile Gateway üzerinden uçtan uca: **PASS** (2026-11-17, DEV; iki yönde engel → liste gizli, detay/iletişim `404`; Social kapalıyken `503`, açılınca `200`; `contact` → Messaging'de birebir sohbet `201`, tekrar `200`; bkz. `docs-lfp/TASK-04.md`). PASS (2026-11-13; `pre-push lfp-service` ve `full dev`: lfp-service 139 test, satır kapsamı %95,49).
 
 ### LFP — Hesap verisi silme (Internal, Auth → LFP)
 
-Durum: IMPLEMENTED (alıcı taraf; gerçek Auth token'ıyla uçtan uca NOT VERIFIED)
+Durum: IMPLEMENTED (alıcı taraf; gerçek Auth token'ıyla uçtan uca PASS, 2026-11-17)
 Sorumlu: Umut
 Tüketici servisler: auth-service (hesap silme koordinasyonu, `ltz.auth.deletion.targets` içinde `lfp` var)
 
@@ -7148,7 +7148,7 @@ Diğer mikroservisler:
 Auth, silme onaylandığında `${LFP_SERVICE_URL}/internal/v1/accounts/{accountId}` adresini çağırır.
 
 #### Test Durumu
-INTEGRATION — `AccountErasureTest` (16 test: rehberin senaryoları ve veri senaryoları). Gerçek Auth servis token'ıyla uçtan uca: NOT VERIFIED. PASS (2026-11-13; `pre-push lfp-service` ve `full dev`: lfp-service 139 test, satır kapsamı %95,49).
+INTEGRATION — `AccountErasureTest` (16 test: rehberin senaryoları ve veri senaryoları). Gerçek Auth servis token'ıyla uçtan uca: **PASS** (2026-11-17, DEV): test hesabı Gateway'den silme isteyip e-posta token'ıyla onayladı → Auth'taki `lfp` görevi `CONFIRMED`; `lfp_db`'de hesabın ilanları 0 (`docs-lfp/TASK-04.md`). PASS (2026-11-13; `pre-push lfp-service` ve `full dev`: lfp-service 139 test, satır kapsamı %95,49).
 
 ## COMMUNITY
 
