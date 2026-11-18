@@ -29,7 +29,7 @@ Performance reliable=true yalnız örnek eşiğidir. Çözünürlük, preset, ö
 profil sürümü yoktur: FPS her zaman INSUFFICIENT_DATA, confidence NONE, tahmin değerleri null.
 İstek çözünürlüğü ölçüm bağlamına dönüştürülmez. [Kararlar](../decisions/task-03-decisions.md),
 [Game talebi](../integration/dependencies/game-service-requests.md),
-[Performance talebi](../integration/dependencies/performance-service-requests.md).
+[Performance talebi](../integration/dependencies/done/performance-service-requests.md).
 
 ## Dosya envanteri
 

@@ -1700,6 +1700,60 @@ auth-service, `${USER_SERVICE_URL}` üzerinden (hesap silme ucuyla aynı adres: 
 #### Test Durumu
 UNIT + INTEGRATION (`InternalLocaleTest` 13).
 
+### USER — Öneri aday keşfi (Internal, Recommendation → User, REC-13)
+
+Durum: IMPLEMENTED (User + Auth `candidates:read` grant). Recommendation tüketicisi (REC-13) ve Social engel yansımasının `ltz.user.social.projection-enabled=true` ile güvenilir ilan edilmesi **PENDING**; yansıma kapalıyken uç hiç aday döndürmez
+Sorumlu: Kerem (User sahibi onayıyla Alper'in REC-13 isteği için eklendi)
+Tüketici servisler: recommendation-service (benzer oyuncu adayları; arkadaş önerisi REC-14 Social API'sine de ihtiyaç duyar)
+
+#### Endpoint
+GET /internal/v1/accounts/{accountId}/recommendation-candidates
+
+#### Yetkilendirme
+Internal. Gateway'de route edilmez. `typ=svc+jwt`, `aud=user-service`, `sub=svc:recommendation-service` (tam eşleşme), `scope` ⊇ `candidates:read`, `account_id` claim'i yoldaki `accountId` (isteği yapan oyuncu, izleyici) ile aynı olmalı. Auth bu kapsamı hesaba bağlı verir (hesap ACTIVE değilse token yok). Başka `sub`, kapsam, yok ya da farklı `account_id` `403`; token yok, kullanıcı token'ı, yanlış `aud`/`typ` `401`. Başka HTTP yöntemi `403`. İzleyici kimliği yalnız token'dan gelir; istemci aday kimliği veremez.
+
+#### Path/Query Parameters
+- accountId: UUID, zorunlu (izleyici)
+- limit: 1–50, varsayılan 20
+- cursor: UUID, isteğe bağlı; önceki yanıttaki `nextCursor`
+- genre: katalog kodu (`^[a-z0-9][a-z0-9_-]{0,47}$`, büyük/küçük harf duyarsız), isteğe bağlı; yalnız bu türü seven adaylar
+- platform: aynı biçim, isteğe bağlı; yalnız bu platformu seven adaylar
+- excludeFriends: boolean, isteğe bağlı, varsayılan `false` (REC-14 arkadaş önerisi). `true` ise izleyiciyle Social yansımasında **aktif arkadaş** olanlar (iki yön) adaylardan çıkarılır. Bekleyen arkadaşlık isteği User'da tutulmadığından dışlanmaz (Social sahibiyle teyit edilmemiş varsayım). Boolean olmayan değer `400`
+
+#### Response — 200
+```json
+{
+  "candidates": [
+    {
+      "userId": "UUID",
+      "playerTypes": ["CASUAL"],
+      "favoriteGenres": ["rpg"],
+      "favoritePlatforms": ["pc"]
+    }
+  ],
+  "nextCursor": "UUID | null"
+}
+```
+Yalnız tercih sinyalleri döner; ad, kullanıcı adı, e-posta, ülke, biyografi, görsel, kütüphane, puan ve token dönmez. Sıralama `user_id` (PostgreSQL uuid bayt sırası), imleç keyset'tir (deterministik, tekrar/atlama yok). `Cache-Control: no-store`.
+
+Aday kuralı (mevcut `recommendation_granted` rızası yeniden kullanılır; ayrı rıza/migration/UI yoktur): hesap `ACTIVE`, onboarding tamamlanmış, öneri rızası açık, izleyici değil ve izleyiciyle iki yönde aktif engel yok. İzleyicinin kendisi de ACTIVE, onboarding'i bitmiş ve rızası açık olmalıdır. **Fail-closed:** izleyici uygun değilse, engeller bilinmiyorsa (`ltz.user.social.projection-enabled=false`, varsayılan) ya da uygun aday yoksa yanıt aynıdır: `200` ve boş `candidates` (neden ayırt edilemez).
+
+#### Hata Durumları
+- 400: `INVALID_CANDIDATE_QUERY` (limit aralık dışı/sayı değil, geçersiz genre/platform), `cursor`/`accountId` UUID değil
+- 401: Token yok/geçersiz; kullanıcı token'ı; yanlış `aud`
+- 403: Çağıran `svc:recommendation-service` değil; `candidates:read` kapsamı yok; `account_id` yoldaki hesapla uyuşmuyor ya da yok
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+recommendation-service (REC-13), Auth'tan `audience=user-service` + `accountId` ile servis token'ı alır (`ltz.auth.service-clients.clients.recommendation-service.targets.user-service=candidates:read`). Gerçek Auth + Recommendation ile uçtan uca: **NOT VERIFIED**.
+
+#### Test Durumu
+INTEGRATION PASS (Testcontainers PostgreSQL 17): `RecommendationCandidateTest` (12) — excludeFriends (aktif arkadaş iki yönde gizli, pasif arkadaşlık gizlemez, varsayılan dışlamaz, geçersiz değer 400), uygun aday ve alan sınırı, rızasız/onboardingsiz/askıdaki/yasaklı/silinen aday dışlama, uygun olmayan izleyici → boş, iki yönlü engel, genre/platform süzgeci, deterministik sayfalama, limit/imleç doğrulama, 403 matrisi, 401/yöntem; `RecommendationCandidateFailClosedTest` (1) — yansıma güvenilmezken boş. Hedefli koşu 13/13 PASS (tam User modülü bu değişiklikten sonra yeniden koşulmadı). Auth: `ServiceClientConfigTest` (12) ve `ServiceAudienceTokenTest` (20) PASS (hedefli). Checkstyle/PMD ratchet, merkezi coverage gate ve Sonar çalıştırılmadı.
+
 ### USER — Rızalarım (LIB-14)
 
 Durum: IMPLEMENTED

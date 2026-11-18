@@ -42,7 +42,7 @@ iddiası yoktur. Sonraki ana task için açık kullanıcı talimatı beklenir; T
 | Kayıt | Durum | Sonuç / owner |
 | --- | --- | --- |
 | REC-06 katalog genelinde donanım seçimi | PARTIAL | Owner tek oyun assessment var. Game batch gereksinimleri yok; Hamza, [talep](../integration/dependencies/game-service-requests.md). N+1 eklenmedi |
-| REC-09 karşılaştırılabilir FPS kanıtı | PARTIAL | Performance aggregate resolution/preset/provenance/ölçüm anı profil sürümü taşımıyor; Alper, [talep](../integration/dependencies/performance-service-requests.md). Her zaman INSUFFICIENT_DATA |
+| REC-09 karşılaştırılabilir FPS kanıtı | DONE (2026-11-18) | V24 bağlamlı ölçüm + performance-evidence; [kapanan talep](../integration/dependencies/done/performance-service-requests.md). Açık: native pre-push/Sonar ve canlı E2E koşulmadı |
 | Dar Performance DTO ilavesiyle FPS üretmek | NOT SUFFICIENT | Manual report ile ham örnek arasında kanıtlı bağ yok; veri üretim modeli değişmeden alan eklemek çözüm değil, üreticiye müdahale edilmedi |
 | CPU/GPU metin karşılaştırması ve kapasite birimi | LIMITED BY SOURCE | Tam tek model dışında UNKNOWN; ondalık/ikili byte sınırları; toplam disk boş disk sayılmaz |
 | Yeni testte hatalı import | RESOLVED | MockMvcRequestBuilders doğru Spring test paketine alındı; son derleme/test PASS |

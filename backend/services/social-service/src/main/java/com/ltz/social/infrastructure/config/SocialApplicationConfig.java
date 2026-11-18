@@ -3,6 +3,7 @@ package com.ltz.social.infrastructure.config;
 import java.time.Clock;
 import java.util.List;
 
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -13,6 +14,7 @@ import org.springframework.web.client.RestClient;
 import com.ltz.social.application.port.FriendsVisibilityPort;
 import com.ltz.social.application.port.ServiceTokenPort;
 import com.ltz.social.application.port.SocialEventPublisher;
+import com.ltz.social.application.service.UserProjectionBackfill;
 import com.ltz.social.infrastructure.client.AuthServiceTokenClient;
 import com.ltz.social.infrastructure.client.CommunityEventPublisher;
 import com.ltz.social.infrastructure.client.FanOutEventPublisher;
@@ -20,6 +22,8 @@ import com.ltz.social.infrastructure.client.UnavailableEventPublisher;
 import com.ltz.social.infrastructure.client.UnavailableFriendsVisibility;
 import com.ltz.social.infrastructure.client.UserEventPublisher;
 import com.ltz.social.infrastructure.client.UserPrivacyClient;
+import com.ltz.social.infrastructure.persistence.repository.FriendshipRepository;
+import com.ltz.social.infrastructure.persistence.repository.UserBlockRepository;
 
 import tools.jackson.databind.ObjectMapper;
 
@@ -30,6 +34,7 @@ import tools.jackson.databind.ObjectMapper;
         FriendRequestProperties.class,
         InviteCodeProperties.class,
         OutboxProperties.class,
+        ProjectionBackfillProperties.class,
         RequestLimitProperties.class,
         ServiceClientProperties.class
 })
@@ -87,6 +92,22 @@ public class SocialApplicationConfig {
     FriendsVisibilityPort userPrivacyClient(RestClient.Builder builder, ServiceTokenPort serviceTokens,
                                             ServiceClientProperties properties) {
         return new UserPrivacyClient(builder, serviceTokens, properties);
+    }
+
+    /**
+     * Geçmiş arkadaşlık ve engelleri user-service yansımasına bir kez aktarır (varsayılan KAPALI; User'da
+     * {@code projection-enabled} açılmadan önce çalıştırılır). Açılışta bir kez koşar, sonucu loglar, uygulamayı durdurmaz.
+     */
+    @Bean
+    @ConditionalOnProperty(name = "ltz.social.projection-backfill.enabled", havingValue = "true")
+    ApplicationRunner userProjectionBackfillRunner(FriendshipRepository friendships, UserBlockRepository blocks,
+                                                   RestClient.Builder builder, ServiceTokenPort serviceTokens,
+                                                   ObjectMapper objectMapper, ServiceClientProperties clients,
+                                                   ProjectionBackfillProperties properties) {
+        UserProjectionBackfill backfill = new UserProjectionBackfill(friendships, blocks,
+                new UserEventPublisher(builder, serviceTokens, objectMapper, clients), objectMapper,
+                properties.batchSize());
+        return arguments -> backfill.run();
     }
 
     /** Tercih okumayan adaptör: başkasının arkadaş listesi her zaman gizli (fail-closed). */

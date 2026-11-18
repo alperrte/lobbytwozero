@@ -75,7 +75,7 @@ bağı yoktur. Bu aggregate'in min/max'ı tahmin aralığına dönüştürülmez
 taşısa dahi ölçümlerin o bağlamda yapıldığı kanıtlanamaz. 0/az/çok/outlier örnekte tahmin null,
 confidence NONE, INSUFFICIENT_DATA. Count/session/lastObservedAt ve producer eşiği tanı bilgisidir.
 Gerçek pozitif FPS tahmini branch'i varmış gibi test veya tamamlanma iddiası yoktur.
-[Performance sözleşme ihtiyacı](../integration/dependencies/performance-service-requests.md).
+[Performance sözleşme ihtiyacı](../integration/dependencies/done/performance-service-requests.md).
 
 Analiz stateless'tir; run/history/ham hardware/FPS snapshot yazılmaz. Profil sürümü ve değerlendirme
 zamanı yanıtı sınırlar; sonradan değişen profile güncel sonuç garantisi yoktur. Yeni migration gerekmez;

@@ -42,7 +42,7 @@ Task 3 mevcut tüketici yalnız örnek/oturum sayısı ve producer eşiğini tan
 ## Kapanış (2026-11-18) — istek karşılandı
 
 Yukarıdaki boşluk kapatıldı; ayrıntı ve test kanıtı:
-[performance-evidence-followup.md](../../decisions/performance-evidence-followup.md).
+[performance-evidence-followup.md](../../../decisions/performance-evidence-followup.md).
 
 | İstenen | Karşılık |
 | --- | --- |

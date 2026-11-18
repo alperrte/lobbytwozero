@@ -222,7 +222,34 @@ class ServiceAudienceTokenTest extends IntegrationTestSupport {
         postJson("/internal/v1/service-tokens", "{\"clientId\":\"social-service\",\"clientSecret\":\"%s\",\"audience\":\"community-service\",\"accountId\":\"%s\"}"
                 .formatted(SOCIAL_CLIENT_SECRET, account))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("SERVICE_ACCOUNT_BINDING_INVALID"));
-        tokenRequest("recommendation-service", RECOMMENDATION_CLIENT_SECRET, "user-service").andExpect(status().isForbidden());
+        // user-service hedefi (aday keşfi) hesaba bağlıdır: hesapsız istek reddedilir.
+        tokenRequest("recommendation-service", RECOMMENDATION_CLIENT_SECRET, "user-service")
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("SERVICE_ACCOUNT_BINDING_INVALID"));
+    }
+
+    @Test
+    void recommendationAdayKesfiTokeniniTekHesabaBagliAlir() throws Exception {
+        UUID account = accountId(registerActiveAccount(uniqueEmail(), uniqueUsername()));
+        String body = postJson("/internal/v1/service-tokens",
+                "{\"clientId\":\"recommendation-service\",\"clientSecret\":\"%s\",\"audience\":\"user-service\",\"accountId\":\"%s\"}"
+                        .formatted(RECOMMENDATION_CLIENT_SECRET, account))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.scope").value("candidates:read"))
+                .andReturn().getResponse().getContentAsString();
+        JWTClaimsSet claims = SignedJWT.parse(JsonPath.<String>read(body, "$.accessToken")).getJWTClaimsSet();
+        assertThat(claims.getAudience()).containsExactly("user-service");
+        assertThat(claims.getSubject()).isEqualTo("svc:recommendation-service");
+        assertThat(claims.getStringClaim("account_id")).isEqualTo(account.toString());
+        assertThat(claims.getStringClaim("scope")).isEqualTo("candidates:read");
+        assertThat(claims.getClaims()).doesNotContainKeys("roles", "sid", "ver", "amr");
+        // Hesap yoksa token verilmez; başka istemci (hardware) aday kapsamı alamaz, user-service'e yalnız bağsız privacy:read alır.
+        postJson("/internal/v1/service-tokens",
+                "{\"clientId\":\"recommendation-service\",\"clientSecret\":\"%s\",\"audience\":\"user-service\",\"accountId\":\"%s\"}"
+                        .formatted(RECOMMENDATION_CLIENT_SECRET, UUID.randomUUID()))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("SERVICE_TARGET_ACCOUNT_UNAVAILABLE"));
+        postJson("/internal/v1/service-tokens",
+                "{\"clientId\":\"hardware-service\",\"clientSecret\":\"%s\",\"audience\":\"user-service\",\"accountId\":\"%s\"}"
+                        .formatted(HARDWARE_CLIENT_SECRET, account))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("SERVICE_ACCOUNT_BINDING_INVALID"));
     }
 
     @Test

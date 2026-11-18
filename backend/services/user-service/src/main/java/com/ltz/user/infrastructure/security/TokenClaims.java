@@ -25,6 +25,10 @@ public final class TokenClaims {
     /** Gizlilik kararını yalnız bu servisler isteyebilir (SOC-12, HW-08, LIB-11). */
     public static final Set<String> PRIVACY_READ_SUBJECTS =
             Set.of("svc:social-service", "svc:hardware-service", "svc:library-service");
+    /** Öneri aday keşfi (GET /internal/v1/accounts/{accountId}/recommendation-candidates) kapsamı; hesaba bağlıdır. */
+    public static final String CANDIDATES_READ_SCOPE = "candidates:read";
+    /** Aday keşfini yalnız Recommendation isteyebilir. */
+    public static final String CANDIDATES_READ_SUBJECT = "svc:recommendation-service";
     /** Hesap silmeyi yalnız Auth başlatır: silme token'ının {@code sub} değeri tam bu olmalıdır. */
     public static final String AUTH_SERVICE_SUBJECT = "svc:auth-service";
     /** Silme/olay token'ının bağlı olduğu hesap. */

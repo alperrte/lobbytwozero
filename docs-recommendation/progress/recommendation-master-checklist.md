@@ -199,7 +199,7 @@ değişmedi. Önceki taskların açıkları ve DONE kapsamları korunur.
 
 | REC | Gerçek durum | Eksik kaynak / owner | Güvenle teslim edilen |
 | --- | --- | --- | --- |
-| REC-13 | BLOCKED / öneri NOT IMPLEMENTED | İzinli User aday ve tercih batch'i (Kerem), Social eligibility (Umut/Kerem) | Negatif player probe, mevcut denyAll; sözleşme talebi |
+| REC-13 | BLOCKED / öneri NOT IMPLEMENTED (User aday ucu 2026-11-18 hazır; Recommendation tüketicisi yok) | ~~İzinli User aday ve tercih batch'i~~ ✔ (User `recommendation-candidates`), Social engel yansıması: geçmiş aktarım teyidi ve `projection-enabled` kararı (Umut/Kerem; bkz. social-service-requests.md S1–S4) | Negatif player probe, mevcut denyAll; sözleşme talebi |
 | REC-14 | BLOCKED / öneri NOT IMPLEMENTED | Recommendation'a açık friend/block/erişim batch kontrolü (Umut), Auth izni ve User aday bilgisi (Kerem) | Negatif friend probe; başka kullanıcı/ADMIN/header/body ile erişim açılmaz |
 | REC-15 | BLOCKED / öneri NOT IMPLEMENTED | Event discovery ve viewer eligibility iş API'si yok (Nisa) | Negatif event probe; sahte event veya başarılı boş öneri endpoint'i yok |
 

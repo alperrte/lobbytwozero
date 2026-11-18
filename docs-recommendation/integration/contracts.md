@@ -65,8 +65,10 @@ kodları değiştirilmedi; TASK 3/4 üzerinde uygulama yapılmadı.
 - Performance: mevcut aynı Recommendation secret'ıyla Auth audience=performance-service,
   reference:read/account_id grant'ı; `/internal/v1/accounts/{id}/games/{id}/performance-reference`
   ve exact hardwareProfileId parametresi. Response game/profile/count/statistics bağı kontrol edilir.
-  DTO çözünürlük/preset/provenance/ölçümdeki profil sürümü taşımadığından tahmin yok;
-  [REC-09 kanıt boşluğu](dependencies/performance-service-requests.md) açıktır.
+  Eski referans DTO'su bağlam taşımadığından tahmin üretmez. REC-09 kapandı (2026-11-18):
+  tam bağlamlı (resolution + preset + NATIVE_RASTER) istekte
+  `/internal/v1/accounts/{id}/games/{id}/performance-evidence` kullanılır, LOW güvenli geçmiş aralık
+  döner; bkz. [kapanan talep](dependencies/done/performance-service-requests.md).
 - User/Auth: TASK 2 rıza/ACTIVE gate ve withdrawal purge yeni stateless uçta da paylaşılır.
   Auth/Gateway güven modeli, mevcut ENV ve izin çiftleri değiştirilmedi.
 - Producer servisler ve DB'leri değiştirilmedi; testler gerçek Auth issuer/JWKS + kaynak HTTP

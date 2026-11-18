@@ -12,6 +12,7 @@ public enum UserErrorCode {
     ONBOARDING_INCOMPLETE(400, "Select at least one favorite genre and one favorite platform to finish onboarding."),
     INVALID_EVENT(400, "The event is invalid."),
     INVALID_SEARCH_QUERY(400, "The search query must be 2-32 characters without control characters."),
+    INVALID_CANDIDATE_QUERY(400, "The candidate query is invalid."),
     PROFILE_NOT_FOUND(404, "The profile was not found."),
     LINKED_ACCOUNT_NOT_FOUND(404, "The linked account was not found."),
     EVENT_PRODUCER_MISMATCH(400, "The event type does not belong to this producer."),
