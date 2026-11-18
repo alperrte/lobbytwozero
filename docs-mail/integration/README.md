@@ -2,6 +2,8 @@
 
 Güncelleme: 2026-11-09. Sorumlu: Kerem. Mail Service ve Auth adaptörü yazıldı (2026-10-31); aşağıdakiler Auth'un **gerçek kodu** ve `docs/api.md` kaydıyla uyumludur.
 
+> Servis sahiplerine duyuru (2026-11-18): [duyuru-2026-11-18-eposta-platform-kapisi.md](duyuru-2026-11-18-eposta-platform-kapisi.md)
+
 ## Kim Mail'e istek atıyor?
 
 | Servis | Mail'e çağrı | Kanıt |
