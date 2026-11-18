@@ -1,5 +1,6 @@
 package com.ltz.game.infrastructure.security;
 
+import com.ltz.game.api.controller.RecommendationMetadataBatchController;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -52,6 +53,7 @@ public class GameSecurityConfiguration {
         serviceProvider.setJwtAuthenticationConverter(serviceConverter);
         var serviceTokens = new ProviderManager(serviceProvider);
         RequestMatcher batch = new OrRequestMatcher(paths.matcher(HttpMethod.POST, "/api/v1/game/games/batch"),
+                paths.matcher(HttpMethod.POST, RecommendationMetadataBatchController.PATH),
                 paths.matcher(HttpMethod.GET,"/api/v1/game/games/prices"));
         RequestMatcher tokenProtected = new OrRequestMatcher(paths.matcher(ADMIN), paths.matcher(MODERATION), paths.matcher(DEVELOPER), paths.matcher(FEEDBACK), internal);
         var limiter = new TokenBucketRateLimiter(rateLimit.batch().capacity(), rateLimit.batch().refillPerSecond(), rateLimit.maxKeys(), System::nanoTime);
@@ -73,7 +75,7 @@ public class GameSecurityConfiguration {
                         .requestMatchers(HttpMethod.GET, "/api/v1/game/*/metadata", "/api/v1/game/*/card", "/api/v1/game/games/*", "/api/v1/game/catalog", "/api/v1/game/catalog/status", "/api/v1/game/terms").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/game/games/*/developer-content", "/api/v1/game/games/*/dlc").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/game/games/*/modules/*").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/game/games/batch").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/game/games/batch", RecommendationMetadataBatchController.PATH).permitAll()
                         .requestMatchers(HttpMethod.DELETE, com.ltz.game.api.controller.AccountErasureController.PATH).hasAuthority("SCOPE_account:erase")
                         .requestMatchers(ADMIN).hasRole("ADMIN")
                         .requestMatchers(MODERATION).hasAnyRole("ADMIN", "MODERATOR")
