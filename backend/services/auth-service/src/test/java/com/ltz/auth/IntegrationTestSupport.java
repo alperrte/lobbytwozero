@@ -150,8 +150,9 @@ public abstract class IntegrationTestSupport {
     void setUpMockMvc() {
         Filter requestId = context.getBean("requestIdFilter", FilterRegistrationBean.class).getFilter();
         Filter bodySizeLimit = context.getBean("requestBodySizeLimitFilter", FilterRegistrationBean.class).getFilter();
+        Filter loginDevice = context.getBean("loginDeviceFilter", FilterRegistrationBean.class).getFilter();
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
-                .addFilters(requestId, bodySizeLimit)
+                .addFilters(requestId, bodySizeLimit, loginDevice)
                 .apply(springSecurity())
                 .build();
     }

@@ -21,5 +21,9 @@ public enum SecurityNotificationType {
     /** Hesaba Google ya da Steam kimliği bağlandı. */
     EXTERNAL_IDENTITY_LINKED,
     /** Hesap ilk kez doğrulanmış e-postayla açıldı (tek seferlik; adı Mail ile birebir). */
-    WELCOME
+    WELCOME,
+    /** Silme talebinden bekleme suresi icinde vazgecildi (adi Mail ile birebir). */
+    ACCOUNT_DELETION_CANCELLED,
+    /** Hesaba daha once kullanilmayan bir tarayicidan girildi (adi Mail ile birebir; IP/konum yok). */
+    SUSPICIOUS_LOGIN
 }

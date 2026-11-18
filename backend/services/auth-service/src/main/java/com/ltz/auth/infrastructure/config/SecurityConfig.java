@@ -29,9 +29,12 @@ import com.ltz.auth.api.controller.SessionCookies;
 import com.ltz.auth.domain.enums.RoleCode;
 import com.ltz.auth.infrastructure.security.AccessTokenCookieFilter;
 import com.ltz.auth.infrastructure.security.AccessTokenResolver;
+import com.ltz.auth.infrastructure.security.LoginDeviceFilter;
+import com.ltz.auth.infrastructure.security.LoginDeviceHolder;
 import com.ltz.auth.infrastructure.security.ProblemDetailSecurityHandler;
 import com.ltz.auth.infrastructure.security.RequestBodySizeLimitFilter;
 import com.ltz.auth.infrastructure.security.RequestIdFilter;
+import com.ltz.auth.infrastructure.security.SecureTokens;
 import com.ltz.auth.infrastructure.security.TokenClaims;
 
 import jakarta.servlet.DispatcherType;
@@ -196,6 +199,17 @@ public class SecurityConfig {
     FilterRegistrationBean<RequestIdFilter> requestIdFilter() {
         FilterRegistrationBean<RequestIdFilter> registration = new FilterRegistrationBean<>(new RequestIdFilter());
         registration.setOrder(SecurityFilterProperties.DEFAULT_FILTER_ORDER - 2);
+        return registration;
+    }
+
+    /** Giriş uçlarında tarayıcının cihaz çerezini okur/üretir (yeni cihaz bildirimi için); yazmayı SessionCookies yapar. */
+    @Bean
+    FilterRegistrationBean<LoginDeviceFilter> loginDeviceFilter(SessionCookies sessionCookies,
+                                                                LoginDeviceHolder holder, SecureTokens secureTokens) {
+        FilterRegistrationBean<LoginDeviceFilter> registration = new FilterRegistrationBean<>(
+                new LoginDeviceFilter(sessionCookies.deviceCookieName(), holder, secureTokens,
+                        AuthApiPaths.LOGIN, AuthApiPaths.OAUTH));
+        registration.setOrder(SecurityFilterProperties.DEFAULT_FILTER_ORDER - 3);
         return registration;
     }
 
