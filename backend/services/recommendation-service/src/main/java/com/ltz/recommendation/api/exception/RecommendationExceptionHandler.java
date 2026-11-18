@@ -15,7 +15,8 @@ public class RecommendationExceptionHandler {
 
     @ExceptionHandler({IllegalArgumentException.class, org.springframework.web.bind.MethodArgumentNotValidException.class,
             org.springframework.http.converter.HttpMessageNotReadableException.class,
-            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class})
+            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class,
+            org.springframework.web.bind.MissingServletRequestParameterException.class})
     ResponseEntity<ProblemDetail> invalid(Exception exception) { return problem(400, "INVALID_REQUEST"); }
 
     @ExceptionHandler(AccessDeniedException.class)

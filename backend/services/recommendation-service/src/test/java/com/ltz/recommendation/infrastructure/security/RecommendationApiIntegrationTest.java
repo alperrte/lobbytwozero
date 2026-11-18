@@ -47,6 +47,9 @@ class RecommendationApiIntegrationTest {
     private static final UUID GAME = UUID.fromString("00000000-0000-0000-0000-000000000101");
     private static final UUID OWNED = UUID.fromString("00000000-0000-0000-0000-000000000102");
     private static final UUID OTHER = UUID.fromString("00000000-0000-0000-0000-000000000103");
+    private static final UUID C1 = UUID.fromString("00000000-0000-0000-0000-000000000201");
+    private static final UUID C2 = UUID.fromString("00000000-0000-0000-0000-000000000202");
+    private static final UUID C3 = UUID.fromString("00000000-0000-0000-0000-000000000203");
     private static final JsonMapper JSON = JsonMapper.builder().build();
     private static HttpServer server;
     private static ProductionAuthSupport auth;
@@ -272,13 +275,104 @@ class RecommendationApiIntegrationTest {
     }
 
     @Test
-    void unavailablePlayerRecommendationsRemainClosed() throws Exception {
-        assertUnavailableRecommendationBoundary("players");
+    void similarPlayersUseOnlySharedSignalsAndBoundedUserCalls() throws Exception {
+        JsonNode result = request(get("/api/v1/recommendation/players"), tokenA, 200);
+        assertThat(result.path("kind").asString()).isEqualTo("SIMILAR_PLAYERS");
+        assertThat(result.path("algorithmVersion").asString()).isEqualTo("player-affinity-v1");
+        // C1 ve C2 ortak "rpg" türüne sahip; C3 (racing) ortak tür olmadığı için elenir.
+        assertThat(result.path("items").size()).isEqualTo(2);
+        JsonNode top = result.path("items").get(0);
+        // C2: tür 1/1*60 + platform 0 + tip 1/1*20 = 6000 + 0 + 2000
+        assertThat(top.path("userId").asString()).isEqualTo(C2.toString());
+        assertThat(top.path("sharedGenres").get(0).asString()).isEqualTo("rpg");
+        assertThat(top.path("score").asInt()).isEqualTo(8000);
+        // C1: tür 1/2*60 + platform 1/1*20 + tip 1/1*20 = 3000 + 2000 + 2000
+        assertThat(result.path("items").get(1).path("userId").asString()).isEqualTo(C1.toString());
+        assertThat(result.path("items").get(1).path("score").asInt()).isEqualTo(7000);
+        // Yalnız kimlik, skor ve ORTAK sinyal döner; adayın ham tercihleri veya viewer dışı alan dönmez.
+        assertThat(top.propertyNames()).containsExactlyInAnyOrder("userId", "score", "sharedGenres", "sharedPlatforms", "sharedPlayerTypes");
+        assertThat(requests.stream().filter(path -> path.contains("recommendation-candidates")).toList())
+                .singleElement().satisfies(path -> assertThat(path).contains("excludeFriends=true").contains("limit=50"));
+        assertThat(request(get("/api/v1/recommendation/players").param("size", "1"), tokenA, 200).path("items").size()).isEqualTo(1);
+        assertThat(request(get("/api/v1/recommendation/players").param("genre", "rpg").param("platform", "pc"), tokenA, 200)
+                .path("items").size()).isEqualTo(2);
+        assertThat(requests.stream().anyMatch(path -> path.contains("genre=rpg") && path.contains("platform=pc"))).isTrue();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM recommendation_runs", Integer.class)).isZero();
     }
 
     @Test
-    void unavailableFriendRecommendationsRemainClosed() throws Exception {
-        assertUnavailableRecommendationBoundary("friends");
+    void friendSuggestionsRequireSharedGenreAndPlatformAndNeverIncludeFriends() throws Exception {
+        JsonNode result = request(get("/api/v1/recommendation/friends"), tokenA, 200);
+        assertThat(result.path("kind").asString()).isEqualTo("FRIEND_SUGGESTIONS");
+        // C2 ortak platform yok -> elenir; C1 tür 1/2*40 + platform 1*40 + tip 1*20 = 2000 + 4000 + 2000
+        assertThat(result.path("items").size()).isEqualTo(1);
+        assertThat(result.path("items").get(0).path("userId").asString()).isEqualTo(C1.toString());
+        assertThat(result.path("items").get(0).path("score").asInt()).isEqualTo(8000);
+        assertThat(requests.stream().anyMatch(path -> path.contains("recommendation-candidates") && path.contains("excludeFriends=true"))).isTrue();
+        // Kullanıcı B (strategy) için C1 ortak tür "strategy" taşır.
+        assertThat(request(get("/api/v1/recommendation/friends"), tokenB, 200).path("items").get(0).path("sharedGenres").get(0).asString())
+                .isEqualTo("strategy");
+    }
+
+    @Test
+    void playerRecommendationsFailClosedOnConsentMissingPreferencesAndBrokenSources() throws Exception {
+        consent = false;
+        request(get("/api/v1/recommendation/players"), tokenA, 403);
+        request(get("/api/v1/recommendation/friends"), tokenA, 403);
+        consent = true;
+        requests.clear();
+        fault = "empty-preferences";
+        JsonNode empty = request(get("/api/v1/recommendation/players"), tokenA, 200);
+        assertThat(empty.path("items").size()).isZero();
+        assertThat(empty.path("limitations").get(0).asString()).isEqualTo("VIEWER_PREFERENCES_MISSING");
+        assertThat(requests.stream().noneMatch(path -> path.contains("recommendation-candidates"))).isTrue();
+        for (String broken : List.of("candidates-unavailable", "candidates-self")) {
+            fault = broken;
+            request(get("/api/v1/recommendation/players"), tokenA, 503);
+        }
+        fault = "wrong-owner";
+        request(get("/api/v1/recommendation/friends"), tokenA, 503);
+    }
+
+    @Test
+    void playerRecommendationsValidateInputAndReportTruncatedScan() throws Exception {
+        for (String size : List.of("0", "21", "-1")) request(get("/api/v1/recommendation/players").param("size", size), tokenA, 400);
+        request(get("/api/v1/recommendation/players").param("size", "abc"), tokenA, 400);
+        request(get("/api/v1/recommendation/friends").param("genre", " "), tokenA, 400);
+        // İstemci başka kullanıcı/dahil-et bayrağı veremez: bilinmeyen parametre sonucu değiştirmez.
+        request(get("/api/v1/recommendation/players").param("userId", B.toString()).param("excludeFriends", "false")
+                .header("X-User-Id", B.toString()), tokenA, 200);
+        assertThat(requests.stream().filter(path -> path.contains("recommendation-candidates"))
+                .allMatch(path -> path.contains("excludeFriends=true") && !path.contains(B.toString()))).isTrue();
+        fault = "candidates-truncated";
+        requests.clear();
+        JsonNode truncated = request(get("/api/v1/recommendation/players").param("size", "20"), tokenA, 200);
+        assertThat(truncated.path("limitations").get(0).asString()).isEqualTo("CANDIDATE_SCAN_TRUNCATED");
+        assertThat(requests.stream().filter(path -> path.contains("recommendation-candidates")).count()).isEqualTo(4);
+        assertThat(truncated.path("items").size()).isEqualTo(4);
+    }
+
+    @Test
+    void playerRecommendationsRequireUserTokenAndShareGenerationQuota() throws Exception {
+        for (String segment : List.of("players", "friends")) {
+            String path = "/api/v1/recommendation/" + segment;
+            mvc.perform(get(path)).andExpect(status().isUnauthorized());
+            request(get(path), auth.serviceToken(A), 401);
+        }
+        for (int index = 0; index < 10; index++) request(get("/api/v1/recommendation/players"), tokenA, 200);
+        request(get("/api/v1/recommendation/friends"), tokenA, 429);
+    }
+
+    @Test
+    void hardwareCompatibleGamesRequireUserTokenAndRoleBeforeAnySourceCall() throws Exception {
+        String path = "/api/v1/recommendation/games/hardware-compatible";
+        mvc.perform(get(path).param("profileId", UUID.randomUUID().toString()).param("platform", "windows"))
+                .andExpect(status().isUnauthorized());
+        request(get(path).param("profileId", UUID.randomUUID().toString()).param("platform", "windows"), auth.serviceToken(A), 401);
+        // Geçerli kullanıcı, ama eksik/bozuk parametre kaynak çağrısından önce 400 olur.
+        request(get(path).param("platform", "windows"), tokenA, 400);
+        request(get(path).param("profileId", "x").param("platform", "windows"), tokenA, 400);
+        assertThat(requests).isEmpty();
     }
 
     @Test
@@ -335,18 +429,26 @@ class RecommendationApiIntegrationTest {
             if (path.equals("/api/v1/user/me")) {
                 UUID id = UUID.fromString(jwt.getSubject());
                 reply(exchange, 200, "{\"userId\":\"" + (fault.equals("wrong-owner") ? B : id) + "\",\"favoriteGenres\":"
-                        + (fault.equals("empty-preferences") ? "[]" : id.equals(A) ? "[\"rpg\"]" : "[\"strategy\"]") + "}");
+                        + (fault.equals("empty-preferences") ? "[]" : id.equals(A) ? "[\"rpg\"]" : "[\"strategy\"]")
+                        + ",\"favoritePlatforms\":[\"pc\"],\"playerTypes\":[\"casual\"]}");
                 return;
             }
             if (path.equals("/internal/v1/service-tokens")) {
                 if (fault.equals("account-inactive")) { reply(exchange, 403, "{}"); return; }
                 var body = JSON.readTree(exchange.getRequestBody().readAllBytes());
                 assertThat(body.path("clientId").asString()).isEqualTo("recommendation-service");
+                UUID account = UUID.fromString(body.path("accountId").asString());
+                if (body.path("audience").asString().equals("user-service")) {
+                    reply(exchange, 200, "{\"accessToken\":\"" + auth.candidatesToken(account)
+                            + "\",\"tokenType\":\"Bearer\",\"expiresIn\":60,\"scope\":\"candidates:read\"}");
+                    return;
+                }
                 assertThat(body.path("audience").asString()).isEqualTo("library-service");
-                reply(exchange, 200, "{\"accessToken\":\"" + auth.libraryToken(UUID.fromString(body.path("accountId").asString()))
+                reply(exchange, 200, "{\"accessToken\":\"" + auth.libraryToken(account)
                         + "\",\"tokenType\":\"Bearer\",\"expiresIn\":60,\"scope\":\"signals:read\"}");
                 return;
             }
+            if (path.endsWith("/recommendation-candidates")) { candidates(exchange, jwt); return; }
             if (path.contains("recommendation-signals")) {
                 assertThat(jwt.getAudience()).containsExactly("library-service");
                 assertThat(jwt.getSubject()).isEqualTo("svc:recommendation-service");
@@ -358,6 +460,34 @@ class RecommendationApiIntegrationTest {
             gameReply(exchange);
         } catch (Exception exception) { if (exchange.getResponseCode() == -1) reply(exchange, 500, "{}"); }
         finally { exchange.close(); }
+    }
+
+    /** User aday ucu sözleşme fixture'ı: ortak tür/platform olan, olmayan ve (hata modunda) bozuk adaylar. */
+    private static void candidates(HttpExchange exchange, com.nimbusds.jwt.JWTClaimsSet jwt) throws Exception {
+        assertThat(jwt.getAudience()).containsExactly("user-service");
+        assertThat(jwt.getSubject()).isEqualTo("svc:recommendation-service");
+        assertThat(exchange.getRequestURI().getPath()).contains(jwt.getStringClaim("account_id"));
+        if (fault.equals("candidates-unavailable")) { reply(exchange, 503, "{}"); return; }
+        UUID viewer = UUID.fromString(jwt.getStringClaim("account_id"));
+        if (fault.equals("candidates-self")) {
+            reply(exchange, 200, "{\"candidates\":[" + candidateBody(viewer, "[\"rpg\"]", "[\"pc\"]") + "],\"nextCursor\":null}");
+            return;
+        }
+        if (fault.equals("candidates-truncated")) {
+            long calls = requests.stream().filter(path -> path.contains("recommendation-candidates")).count();
+            reply(exchange, 200, "{\"candidates\":[" + candidateBody(new UUID(0, 0x300 + calls), "[\"rpg\"]", "[\"pc\"]")
+                    + "],\"nextCursor\":\"" + new UUID(0, 0x900 + calls) + "\"}");
+            return;
+        }
+        String first = candidateBody(C1, "[\"rpg\",\"strategy\"]", "[\"pc\"]");
+        String second = candidateBody(C2, "[\"rpg\"]", "[\"console\"]");
+        String third = candidateBody(C3, "[\"racing\"]", "[\"pc\"]");
+        reply(exchange, 200, "{\"candidates\":[" + first + "," + second + "," + third + "],\"nextCursor\":null}");
+    }
+
+    private static String candidateBody(UUID id, String genres, String platforms) {
+        return "{\"userId\":\"" + id + "\",\"playerTypes\":[\"casual\"],\"favoriteGenres\":" + genres
+                + ",\"favoritePlatforms\":" + platforms + "}";
     }
 
     private static void gameReply(HttpExchange exchange) throws Exception {

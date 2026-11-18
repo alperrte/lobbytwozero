@@ -2,7 +2,15 @@
 
 2026-11-15 · REC-15 · Sahip: **Nisa** · **BLOCKED / NOT IMPLEMENTED**.
 
-## Mevcut kanıt
+## Güncel durum (2026-11-18)
+
+`origin/feature/event-service` dalında Nisa'nın EVT-01..05 ve EVT-17 işleri vardır
+(V111–V114: events tablosu, POLL türü, açık etkinlik indeksi, game_id REF). Bu dal ana dala/Recommendation
+dalına **alınmamıştır**. Henüz Recommendation'a açılmış bir iç keşif/eligibility ucu ve katılım
+(EVT-08/09/13) yoktur. Aynı dosyalarda ve V111+ numaralarında çakışmamak için Recommendation dalında
+Event kodu yazılmadı. REC-15 bu sözleşme Nisa'dan gelene kadar **BLOCKED** kalır.
+
+## Mevcut kanıt (main/Recommendation dalı)
 
 `backend/services/event-service/src/main/java` yalnız `EventServiceApplication` içerir.
 `docs/api.md` EVENT bölümünde kayıt yoktur. Gateway route'u çalışan etkinlik iş API'si değildir.

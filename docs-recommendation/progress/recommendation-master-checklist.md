@@ -46,7 +46,7 @@ Durumlar task kabul kapsamındadır; ürünün tüm entegrasyonları tamamlandı
 
 - [ ] **REC-05 — Tamamlanan oyunlar:** Kullanıcının bitirdiği oyunların öneri sisteminde değerlendirilmesi.
 
-- [ ] **REC-16 — Öneri filtreleme:** Oyun türü, platform, sistem uygunluğu ve ilgili ölçütlerle öneri filtreleme.
+- [x] **REC-16 — Öneri filtreleme:** Oyun türü, platform, sistem uygunluğu ve ilgili ölçütlerle öneri filtreleme.
 
 - [x] **REC-17 — Öneri nedenleri:** Kullanıcıya belirli bir oyunun veya oyuncunun neden önerildiğinin açıklanması.
 
@@ -68,7 +68,7 @@ Durumlar task kabul kapsamındadır; ürünün tüm entegrasyonları tamamlandı
 
 **Alt tasklar:**
 
-- [ ] **REC-06 — Donanıma uygun oyunlar:** Kullanıcının bilgisayarında çalışması beklenen oyunların önerilmesi.
+- [x] **REC-06 — Donanıma uygun oyunlar:** Kullanıcının bilgisayarında çalışması beklenen oyunların önerilmesi.
 
 - [x] **REC-07 — Minimum sistem gereksinimi:** Kullanıcı bilgisayarı ile oyunların minimum gereksinimlerinin karşılaştırılması.
 
@@ -96,9 +96,9 @@ Durumlar task kabul kapsamındadır; ürünün tüm entegrasyonları tamamlandı
 
 **Alt tasklar:**
 
-- [ ] **REC-13 — Benzer oyuncu önerileri:** Benzer oyun zevklerine sahip oyuncuların önerilmesi.
+- [x] **REC-13 — Benzer oyuncu önerileri:** Benzer oyun zevklerine sahip oyuncuların önerilmesi.
 
-- [ ] **REC-14 — Arkadaş önerileri:** İzin verilen oyun tercihleri ve sosyal bilgilere göre arkadaş önerileri.
+- [x] **REC-14 — Arkadaş önerileri:** İzin verilen oyun tercihleri ve sosyal bilgilere göre arkadaş önerileri.
 
 - [ ] **REC-15 — Etkinlik önerileri:** Kullanıcının ilgilenebileceği oyun etkinliklerinin ve turnuvaların önerilmesi.
 
@@ -159,7 +159,7 @@ Kaynak görev adı/açıklamaları korunmuştur; x yalnız aşağıdaki uygulanm
 | REC-03 | Production kişisel rating tüketicisi yok | Review kişisel rating batch/paging eksik | BLOCKED; [Review talebi](../integration/dependencies/review-service-requests.md) |
 | REC-04 | HttpPersonalizationSource + rules-v1 | İzinli User favoriteGenres / Game filtre üyeliği | Gerçek HTTP contract, neden/skor; DONE |
 | REC-05 | Production completed benzerlik analizi bağlanmadı | Library completed var, Game metadata batch yok | BLOCKED; dışlama analiz yerine sayılmadı |
-| REC-16 | GenerateRecommendationsRequest / Filters | Genre/platform/size destekli; sistem uygunluğu yok | PARTIAL; unsupported alan 400, kayıtlı sonuç cursor'u testli |
+| REC-16 | GenerateRecommendationsRequest / Filters | Genre/platform/size + donanım uygunluğu (hardware-compatible) | DONE (2026-11-18); unsupported alan 400, cursor testli |
 | REC-17 | RecommendationRunResponse | Gerçek matchedGenres ve katkı; yalnız sahibine | Score/reason, owner GET; DONE (oyun) |
 | REC-18 | V12 + PostgresRecommendationHistory | Yalnız recommendation_db; User consent / Auth ACTIVE / D4 | Cursor, BOLA, retention, silme; DONE |
 | REC-19 | Feedback GET/PUT + V12 | Gerçek owner item; UNIQUE/version/account lock | Duplicate/concurrent12/409/NOT_INTERESTED/kota; DONE |
@@ -173,11 +173,11 @@ TASK 3–5 üzerinde çalışma yapılmadı. Kullanıcıdan açık devam talimat
 ## TASK 3 güncel doğrulama eşlemesi — 2026-11-15
 
 **PARTIAL — 5/7 DONE (desteklenen teknik kapsam), 2 PARTIAL.** TASK 1/2 metinleri tarihsel
-checkpoint'lerdir. REC-16 sistem filtresi açık kalır; tek oyun assessment katalog filtresi değildir.
+checkpoint'lerdir. REC-06/16 donanım filtresi 2026-11-18 itibarıyla kapandı (hardware-compatible).
 
 | REC | Gerçek uygulama | Kaynak / sınır | Durum |
 | --- | --- | --- | --- |
-| REC-06 | HardwareAssessmentController / HardwareAssessmentService | Owner Hardware + tek Game metadata; katalog batch gereksinimleri eksik | PARTIAL |
+| REC-06 | HardwareCompatibleGameController / HardwareCompatibleGameService | Owner Hardware + Game toplu metadata (game-metadata:read); BELOW elenir, UNKNOWN dürüst etiketlenir | DONE (2026-11-18) |
 | REC-07 | HardwareRequirementEvaluator minimum | Tam CPU/GPU model eşleşmesi, bounded RAM/disk; eksikte UNKNOWN | DONE |
 | REC-08 | HardwareRequirementEvaluator recommended | Minimumdan bağımsız aynı dürüst alan semantiği | DONE |
 | REC-09 | PerformanceReferenceResponseReader / Fps | Performance `performance-evidence` (V24 bağlamlı ölçüm) + HardwareFpsEstimator; yalnız NATIVE_RASTER tam bağlamda LOW güvenli geçmiş aralık, aksi halde abstention | DONE (2026-11-18; Performance 174 + Recommendation 85 test PASS) |
@@ -199,8 +199,8 @@ değişmedi. Önceki taskların açıkları ve DONE kapsamları korunur.
 
 | REC | Gerçek durum | Eksik kaynak / owner | Güvenle teslim edilen |
 | --- | --- | --- | --- |
-| REC-13 | BLOCKED / öneri NOT IMPLEMENTED (User aday ucu 2026-11-18 hazır; Recommendation tüketicisi yok) | ~~İzinli User aday ve tercih batch'i~~ ✔ (User `recommendation-candidates`), Social engel yansıması: geçmiş aktarım teyidi ve `projection-enabled` kararı (Umut/Kerem; bkz. social-service-requests.md S1–S4) | Negatif player probe, mevcut denyAll; sözleşme talebi |
-| REC-14 | BLOCKED / öneri NOT IMPLEMENTED | Recommendation'a açık friend/block/erişim batch kontrolü (Umut), Auth izni ve User aday bilgisi (Kerem) | Negatif friend probe; başka kullanıcı/ADMIN/header/body ile erişim açılmaz |
+| REC-13 | DONE (2026-11-18) | — | `GET /api/v1/recommendation/players` (player-affinity-v1, stateless, ortak sinyal çıktısı, 88 Recommendation testi PASS); User aday ucu + Social geçmiş aktarımı (kod/test hazır; `projection-enabled` açılması ENV onayı bekler) |
+| REC-14 | DONE (2026-11-18) | — | `GET /api/v1/recommendation/friends` (ortak tür+platform şartı, `excludeFriends=true`, iki yönlü engel User/Social yansımasında); bekleyen istek dışlama kuralı varsayım olarak api.md'de |
 | REC-15 | BLOCKED / öneri NOT IMPLEMENTED | Event discovery ve viewer eligibility iş API'si yok (Nisa) | Negatif event probe; sahte event veya başarılı boş öneri endpoint'i yok |
 
 Üç boundary testi özellik filtre/sıralama testinin yerine sayılmaz. Self/friend/iki yönlü

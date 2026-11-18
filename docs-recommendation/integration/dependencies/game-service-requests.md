@@ -1,7 +1,7 @@
 # TASK 2 — Game toplu recommendation metadata talebi
 
 Tarih: 2026-11-14 · Sahip: Hamza · Tüketici: Alper / recommendation-service
-Durum: OPEN / REC-02 ve REC-05 BLOCKED; Task 2'de başka servis kodu değiştirilmedi.
+Durum: KAPANDI (2026-11-18) — `POST /internal/v1/recommendation/game-metadata/batch` Game'de uygulandı (hesaba bağlı `game-metadata:read`), REC-06/16 Recommendation tüketicisi bağlandı. Ayrıntı docs/api.md GAME kaydı. Aşağıdaki metin tarihsel taleptir.
 
 ## Doğrulanmış mevcut durum
 

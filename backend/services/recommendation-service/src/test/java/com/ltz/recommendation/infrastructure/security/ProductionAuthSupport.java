@@ -77,6 +77,10 @@ final class ProductionAuthSupport implements AutoCloseable {
         return clientToken(accountId, "library-service", "signals:read");
     }
 
+    String candidatesToken(UUID accountId) throws Exception {
+        return clientToken(accountId, "user-service", "candidates:read");
+    }
+
     String performanceToken(UUID accountId) throws Exception {
         return clientToken(accountId, "performance-service", "reference:read");
     }

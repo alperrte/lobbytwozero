@@ -3486,6 +3486,42 @@ BACKEND TEST CHECK PASSED verdi.
 
 **Review bağlantısı (12 Kasım 2026):** Backend endpoint veya sözleşme değişikliği yoktur. Oyun detay sayfasına (`features/game/components/game-detail.tsx`) Review sayfasına giden "İncelemeleri gör" / "See reviews" bağlantısı eklendi (`Game.reviewsLink`). Hedef: `/reviews/games/[gameId]` (TR `/incelemeler/oyun/[gameId]`), Review PR #110 ile main'de. Review sayfaları oturum ister; oturumsuz kullanıcı girişe yönlenir ve dönüşte hedefe gelir. Review sayfaları `noindex`'tir; Game metadata'sına inceleme/puan içeriği taşınmaz. Detay yüklenemezse bağlantı gösterilmez. Game detayında LTZ puanı gösterilmediği için istatistik sayfasına (`/reviews/games/[gameId]/statistics`) bağlantı yoktur.
 
+### GAME — Recommendation toplu teknik metadata iç ucu (REC-06/16)
+
+Durum: IMPLEMENTED
+Sorumlu: Hamza (kod Alper'e yetkilendirme ile yazıldı)
+Tüketici servisler: recommendation-service
+
+#### Endpoint
+POST /internal/v1/recommendation/game-metadata/batch
+
+#### Yetkilendirme
+Internal. Gateway'e yönlendirilmez. `typ=svc+jwt`, `aud=game-service`, `sub=svc:recommendation-service` (tam eşleşme),
+`scope` ⊇ `game-metadata:read` ve boş olmayan `account_id` claim'i (Auth bu kapsamı yalnız hesaba bağlı verir; hesap
+ACTIVE değilse token yok). Token yok / kullanıcı token'ı / yanlış `aud`/`typ` 401; başka `sub`, kapsam, `account_id` yok
+ya da farklı HTTP yöntemi 403. Yalnız herkese açık katalog verisi döner.
+
+#### Request Body
+`{"gameIds":["<uuid>", ...]}` — 1–100 tekil UUID. Boş, null eleman, geçersiz UUID, mükerrer ya da 100 üstü 400.
+
+#### Response — 200 (`Cache-Control: private, no-store`)
+`{items:[{gameId,gameType,genres:[code],platforms:[code],requirements:[{level:MINIMUM|RECOMMENDED,platform,os,cpu,gpu,ramMb,storageMb}]}],unavailable:[uuid]}`.
+Her istenen kimlik tam bir kez `items` ya da `unavailable` içindedir. Görünürlük keşif listeleriyle aynıdır
+(`status=ACTIVE`, mağazadan kaldırılmamış, `adult` true değil); ARCHIVED/delisted/adult/bilinmeyen oyunlar ayırt edilemez biçimde
+`unavailable` olur (enumeration açılmaz). Eksik gereksinim alanları `null`/atlanmıştır; tür ve platform kodları sıralıdır.
+Oyun başına sorgu yoktur: sabit 3 SQL (oyun, terimler, gereksinimler).
+
+#### Hata Durumları
+400 geçersiz gövde; 401 kimlik; 403 sub/kapsam/hesap bağı.
+
+#### Bağlantı
+Auth: `ltz.auth.service-clients.clients.recommendation-service.targets.game-service=game-metadata:read` (hesaba bağlı).
+Recommendation `GET /api/v1/recommendation/games/hardware-compatible` bu ucu tek istekte çağırır.
+
+#### Test Durumu
+INTEGRATION — `RecommendationMetadataBatchTest` 4 test PASS (tür/platform/seviye ayrımı, unavailable ayırt edilemezliği,
+geçersiz gövdeler, token kuralları). Gerçek Auth + Game + Recommendation canlı uçtan uca: **NOT VERIFIED**.
+
 ## LIBRARY
 
 Sorumlu: Hamza · Gateway: `/api/v1/library/**` · Görevler: LIB-
@@ -11664,13 +11700,9 @@ gerçek Game/ortak DEV/TLS/tarayıcı kabulü iddia edilmez.
 
 Sorumlu: Alper · Gateway: `/api/v1/recommendation/**` · Görevler: REC-
 
-**TASK 4 / 2026-11-15 — REC-13/14/15 BLOCKED:** İzinli User aday/tercih batch'i,
-Recommendation'a açık Social arkadaşlık/iki yönlü engel eligibility'si ve Event keşif/katılım
-sözleşmesi yoktur. Oyuncu/arkadaş/etkinlik önerisi endpoint'i **NOT IMPLEMENTED**; yeni route
-veya boş başarılı öneri listesi eklenmedi. Negatif `/players`, `/friends`, `/events` probe'ları
-yalnız deny-by-default sınırını doğrular, API sözleşmesi değildir. Mevcut authenticated kullanıcı
-(ADMIN dahil) GET/POST 403; anonim GET 401, Bearer/CSRF taşımayan POST CSRF filtresinde 403;
-servis token'ı kullanıcı yolunda 401. [Karar/owner talepleri](../docs-recommendation/decisions/task-04-decisions.md),
+**REC-13/14 KAPANDI:** `/players` ve `/friends` aşağıda kayıtlıdır. **REC-15 (`/events`) hâlâ NOT IMPLEMENTED:**
+Event servisi boştur; negatif `/events` probe'u yalnız deny-by-default sınırını doğrular, API sözleşmesi değildir.
+[Karar/owner talepleri](../docs-recommendation/decisions/task-04-decisions.md),
 [gerçek test kapsamı](../docs-recommendation/testings/task-04-tests.md).
 
 **TASK 1 / LTZ-ALP-REC-01 (2026-11-14):** İş HTTP endpoint'i henüz yoktur.
@@ -11738,6 +11770,91 @@ Review/Game metadata batch eksikleri [talep kayıtlarında](../docs-recommendati
 #### Test Durumu
 UNIT + INTEGRATION — gerçek Auth issuer/JWKS + Recommendation/PostgreSQL; kaynaklar contract fixture.
 Gerçek User/Library/Game servisleriyle tam E2E NOT VERIFIED. [Kanıt](../docs-recommendation/testings/task-02-tests.md).
+
+### RECOMMENDATION — Benzer oyuncu ve arkadaş önerisi (REC-13/14)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (planlı)
+
+#### Endpoint
+GET /api/v1/recommendation/players (REC-13, SIMILAR_PLAYERS)
+GET /api/v1/recommendation/friends (REC-14, FRIEND_SUGGESTIONS)
+
+#### Yetkilendirme
+Owner — kullanıcı JWT'si, PLAYER/CONTENT_CREATOR/GAME_DEVELOPER/MODERATOR/ADMIN rolü, User önerilere
+açık rızası ve Auth ACTIVE grant'i. İzleyici kimliği yalnız token'dan gelir; istemci userId veya
+`excludeFriends` veremez (bilinmeyen parametreler yok sayılır). Servis token'ı 401.
+
+#### Path/Query Parameters
+- size: 1–20, varsayılan 10
+- genre, platform: opsiyonel, boş olmayan ≤64 karakter; User aday sorgusuna süzgeç olarak iletilir
+
+#### Response — 200
+`{kind,algorithmVersion:"player-affinity-v1",createdAt,items:[{userId,score:1..10000,sharedGenres,sharedPlatforms,sharedPlayerTypes}],limitations:[]}`.
+Üçüncü kişiye yalnız kimlik, skor ve izleyiciyle ORTAK sinyaller döner (ham tercih dönmez).
+Skor: tamsayı Jaccard yüzdesi × ağırlık; players tür/platform/tip 60/20/20 (en az bir ortak tür),
+friends 40/40/20 (ortak tür VE ortak platform şart). Sıralama skor azalan, sonra userId.
+Stateless: run/geçmiş yazılmaz. `limitations`: `VIEWER_PREFERENCES_MISSING` (izleyicinin tercihi yok, aday sorulmaz),
+`CANDIDATE_SCAN_TRUNCATED` (en çok 4×50 aday taranabildi).
+Aday havuzu User `GET /internal/v1/accounts/{accountId}/recommendation-candidates?excludeFriends=true`
+ile gelir; rıza/ACTIVE/onboarding/engel/arkadaş süzgeçleri User tarafındadır (candidates:read, hesaba bağlı token).
+
+#### Hata Durumları
+400 geçersiz size/genre/platform; 401 kimlik; 403 rol/rıza/hesap veya User erişim reddi;
+429 oran sınırı (öneri üretim kovasını paylaşır, dk'da 10); 503 User kaynağı kullanılamıyor/bozuk
+yanıt (kendini aday döndürme dahil, fail-closed).
+
+#### Bağlantı
+Frontend: Gateway üzerinden endpoint. Diğer servisler: User (viewer `/api/v1/user/me` + aday uç noktası),
+Auth (service token). Varsayım: bekleyen (PENDING) arkadaşlık isteği olan kişiler henüz dışlanmaz (Social kuralı onaysız).
+
+#### Test Durumu
+INTEGRATION (gerçek Auth JWT, JDK HttpServer User fixture'ı) — skor/sıralama, ortak sinyal, platform şartı,
+rıza reddi, boş tercih, kaynak hataları, kendini aday döndürme, doğrulama 400, kesilme, 401, kota 429. Recommendation 88 test PASS.
+
+### RECOMMENDATION — Donanıma uygun oyun önerisi (REC-06/16)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (planlı)
+
+#### Endpoint
+GET /api/v1/recommendation/games/hardware-compatible
+
+#### Yetkilendirme
+Owner — kullanıcı JWT'si, PLAYER/CONTENT_CREATOR/GAME_DEVELOPER/MODERATOR/ADMIN rolü, User önerilere açık rızası ve
+Auth ACTIVE grant'i. Donanım profili sahipliği Hardware'de kullanıcı token'ıyla doğrulanır (yabancı profil 404). Servis token'ı 401.
+
+#### Path/Query Parameters
+- profileId: zorunlu UUID (owner donanım profili)
+- platform: zorunlu, Game gereksinim platformu (ör. windows); boş olmayan ≤64 karakter
+- genre: opsiyonel tür süzgeci (kişisel tür tercihleriyle kesişir)
+- size: 1–20, varsayılan 10
+
+#### Response — 200 (`Cache-Control: private, no-store`)
+`{algorithmVersion:"hardware-compatible-v1",createdAt,hardwareProfileId,platform,items:[{gameId,affinity:1..10000,matchedGenres,compatibility,reason}],excludedBelowMinimum,limitations:[]}`.
+Akış: oran sınırı (üretim kovası) → rıza → owner profil → zevk adayları (≤50, Library favori/tamamlananlar ve NOT_INTERESTED hariç)
+→ Game toplu metadata (tek çağrı) → MİNİMUM gereksinim değerlendirmesi. Minimumu KANITLI karşılamayan (BELOW) oyun listeden çıkar ve
+`excludedBelowMinimum` sayılır. `compatibility`: `MEETS_MINIMUM_COMPUTE` (CPU/GPU tam model eşleşmesi + RAM kanıtlı) önce, `UNKNOWN`
+(bilinen uyumsuzluk yok ama kanıtlı değil; `reason` MINIMUM_NOT_PROVEN | REQUIREMENTS_MISSING) sonra; her grupta affinity azalan, sonra gameId.
+Marka/model sıralaması uydurulmaz; "UNKNOWN uyumsuz demek değildir". Stateless: run/geçmiş yazılmaz.
+`limitations`: DECLARED_TECHNICAL_DATA_ONLY, OS_DRIVERS_AND_FREE_SPACE_NOT_VERIFIED, NO_CPU_GPU_MODEL_PERFORMANCE_ORDER,
+UNKNOWN_IS_NOT_KNOWN_INCOMPATIBLE, SOME_CANDIDATES_UNAVAILABLE, SOME_REQUIREMENTS_MISSING. Tek oyun değerlendirmesi
+(`POST /hardware/assessments`) hâlâ ayrı uçtur ve `NO_CATALOG_WIDE_HARDWARE_FILTER` notunu bu uç kapatmıştır.
+
+#### Hata Durumları
+400 eksik/bozuk profileId, platform, size, genre; 401 kimlik; 403 rol/rıza/hesap veya kaynak erişim reddi; 404 yabancı/yok profil;
+429 oran sınırı; 503 Hardware/User/Library/Game kaynağı kullanılamıyor ya da bozuk yanıt (fail-closed, kısmi sonuç yok).
+
+#### Bağlantı
+Hardware (profil batch), User (`/user/me`, rıza), Game (keşif + `POST /internal/v1/recommendation/game-metadata/batch`),
+Library (sinyaller), Auth (service token `game-metadata:read`).
+
+#### Test Durumu
+UNIT/INTEGRATION — `HardwareCompatibleGameServiceTest` (sıralama, BELOW eleme, NOT_INTERESTED, boyut/eşitlik, boş aday, doğrulama,
+rıza/yabancı profil/Game 503 fail-closed), `HttpGameMetadataSourceTest` (şema/kimlik/mükerrer/platform doğrulaması),
+`RecommendationApiIntegrationTest` (401/rol/400 kaynak çağrısından önce). Recommendation 97 test PASS. Canlı uçtan uca: **NOT VERIFIED**.
 
 ### RECOMMENDATION — Öneri geçmişi (REC-18)
 

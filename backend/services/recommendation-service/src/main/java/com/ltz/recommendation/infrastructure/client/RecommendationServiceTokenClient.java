@@ -22,6 +22,14 @@ public class RecommendationServiceTokenClient {
         return issue("library-service", "signals:read", accountId);
     }
 
+    public String candidatesToken(UUID accountId) {
+        return issue("user-service", "candidates:read", accountId);
+    }
+
+    public String gameMetadataToken(UUID accountId) {
+        return issue("game-service", "game-metadata:read", accountId);
+    }
+
     public String performanceToken(UUID accountId) {
         return issue("performance-service", "reference:read", accountId);
     }

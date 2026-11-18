@@ -228,6 +228,23 @@ class ServiceAudienceTokenTest extends IntegrationTestSupport {
     }
 
     @Test
+    void recommendationOyunMetadataTokeniniTekHesabaBagliAlir() throws Exception {
+        UUID account = accountId(registerActiveAccount(uniqueEmail(), uniqueUsername()));
+        String body = postJson("/internal/v1/service-tokens",
+                "{\"clientId\":\"recommendation-service\",\"clientSecret\":\"%s\",\"audience\":\"game-service\",\"accountId\":\"%s\"}"
+                        .formatted(RECOMMENDATION_CLIENT_SECRET, account))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.scope").value("game-metadata:read"))
+                .andReturn().getResponse().getContentAsString();
+        JWTClaimsSet claims = SignedJWT.parse(JsonPath.<String>read(body, "$.accessToken")).getJWTClaimsSet();
+        assertThat(claims.getAudience()).containsExactly("game-service");
+        assertThat(claims.getStringClaim("account_id")).isEqualTo(account.toString());
+        assertThat(claims.getStringClaim("scope")).isEqualTo("game-metadata:read");
+        // Hesapsız istek reddedilir.
+        tokenRequest("recommendation-service", RECOMMENDATION_CLIENT_SECRET, "game-service")
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("SERVICE_ACCOUNT_BINDING_INVALID"));
+    }
+
+    @Test
     void recommendationAdayKesfiTokeniniTekHesabaBagliAlir() throws Exception {
         UUID account = accountId(registerActiveAccount(uniqueEmail(), uniqueUsername()));
         String body = postJson("/internal/v1/service-tokens",

@@ -115,6 +115,16 @@ class ServiceClientConfigTest {
                 "targets.user-service");
     }
 
+    /** REC-06/16: oyun metadata okuması hesaba bağlıdır; bağsız kapsam veya yazma/silme kapsamıyla karışamaz. */
+    @Test
+    void oyunMetadataKapsamiHesabaBagliKalir() {
+        assertAccepted("recommendation-service", targets(Map.of("game-service", Set.of("game-metadata:read"))));
+        assertRejected("recommendation-service", targets(Map.of("game-service", Set.of("game-metadata:read", "game-identity:read"))),
+                "must not mix");
+        assertRejected("recommendation-service", targets(Map.of("game-service", Set.of("game-metadata:read", "account:erase"))),
+                "targets.game-service");
+    }
+
     /** GAME-26: kimlik düzeltme kapsamları hesaba bağlı değildir ve yalnız tanımlı hedeflere açılır. */
     @Test
     void oyunKimlikDuzeltmeKapsamlariKatilimcilarlaAcilir() {

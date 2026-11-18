@@ -75,6 +75,8 @@ public class GameSecurityConfiguration {
                         .requestMatchers(HttpMethod.GET, "/api/v1/game/games/*/modules/*").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/game/games/batch").permitAll()
                         .requestMatchers(HttpMethod.DELETE, com.ltz.game.api.controller.AccountErasureController.PATH).hasAuthority("SCOPE_account:erase")
+                        .requestMatchers(HttpMethod.POST, com.ltz.game.api.controller.RecommendationMetadataController.PATH)
+                        .hasAuthority("SCOPE_game-metadata:read")
                         .requestMatchers(ADMIN).hasRole("ADMIN")
                         .requestMatchers(MODERATION).hasAnyRole("ADMIN", "MODERATOR")
                         .requestMatchers(DEVELOPER).hasRole("GAME_DEVELOPER")
