@@ -24,6 +24,13 @@ public class AccountWriteLock {
                 .param("account", userId.toString()).query((rs, row) -> 0).single();
     }
 
+    /** İlk sayfanın zaman sınırını aynı hesaba ait başlamış yazmalardan sonra alır. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void acquireShared(UUID userId) {
+        jdbc.sql("SELECT pg_advisory_xact_lock_shared(hashtextextended(:account, 0))")
+                .param("account", userId.toString()).query((rs, row) -> 0).single();
+    }
+
     @Transactional(propagation = Propagation.MANDATORY)
     public void requireWritable(UUID userId) {
         acquire(userId);

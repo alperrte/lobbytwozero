@@ -93,6 +93,8 @@ class AuthIssuedTokenIntegrationTest {
         String path = "/api/v1/review/games/" + UUID.randomUUID();
         try (var client = HttpClient.newHttpClient()) {
             assertEquals(401, send(client, "GET", path + "/statistics", null, service).statusCode());
+            assertEquals(401, send(client, "GET", "/api/v1/review/ratings/mine", null, service).statusCode());
+            assertEquals(200, send(client, "GET", "/api/v1/review/ratings/mine", null, AUTH.userToken(account, "PLAYER")).statusCode());
             assertEquals(401, send(client, "PUT", path + "/rating", "{\"rating\":5}", service).statusCode());
             assertEquals(401, send(client, "POST", path + "/reviews", "{\"body\":\"Servis\"}", service).statusCode());
             for (String role : List.of("PLAYER", "MODERATOR", "ADMIN"))
