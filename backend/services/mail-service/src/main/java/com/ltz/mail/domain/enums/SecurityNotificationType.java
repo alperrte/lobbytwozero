@@ -17,7 +17,11 @@ public enum SecurityNotificationType {
     RECOVERY_CODE_USED(MailType.RECOVERY_CODE_USED),
     EXTERNAL_IDENTITY_LINKED(MailType.EXTERNAL_IDENTITY_LINKED),
     /** Hesap hazır (doğrulama tamamlandı); güvenlik uyarısı değil, karşılama bildirimi. */
-    WELCOME(MailType.WELCOME);
+    WELCOME(MailType.WELCOME),
+    /** Hesap silme talebi kullanıcı tarafından geri alındı. */
+    ACCOUNT_DELETION_CANCELLED(MailType.ACCOUNT_DELETION_CANCELLED),
+    /** Tanınmayan cihazdan giriş; yalnız ne olduğunu ve ne zaman olduğunu söyler. */
+    SUSPICIOUS_LOGIN(MailType.SUSPICIOUS_LOGIN);
 
     private final MailType mailType;
 

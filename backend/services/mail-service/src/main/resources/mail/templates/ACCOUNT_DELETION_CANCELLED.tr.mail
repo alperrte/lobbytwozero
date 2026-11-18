@@ -1,0 +1,8 @@
+# ACCOUNT_DELETION_CANCELLED (tr). Biçim: docs-mail/sablon-rehberi.md. Düz metin sürümü bloklardan otomatik üretilir.
+subject: LTZ hesap silme talebin iptal edildi
+kind: success
+label: HESAP SİLME
+title: Hesap silme talebin iptal edildi
+text: LTZ hesabını silme talebinden vazgeçildi. Hesabın ve verilerin olduğu gibi duruyor, silinmeyecek.
+date: Tarih:
+note: Bu işlemi sen yapmadıysan hemen parolanı değiştir ve destek ile iletişime geç.
