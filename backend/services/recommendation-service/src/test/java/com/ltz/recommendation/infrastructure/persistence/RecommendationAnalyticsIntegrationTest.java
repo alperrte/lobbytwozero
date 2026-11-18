@@ -111,8 +111,8 @@ class RecommendationAnalyticsIntegrationTest {
         analytics.purgeExpired();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM recommendation_observations", Integer.class)).isEqualTo(1);
         for (Instant time : List.of(Instant.now().minus(31, ChronoUnit.DAYS), Instant.now().plusSeconds(120))) {
-            assertThatThrownBy(() -> analytics.record(new Observation(UUID.randomUUID(), "rules-v1", time,
-                    RecommendationOutcome.EMPTY, 0, 0, 0))).isInstanceOf(IllegalArgumentException.class);
+            Observation observation = new Observation(UUID.randomUUID(), "rules-v1", time, RecommendationOutcome.EMPTY, 0, 0, 0);
+            assertThatThrownBy(() -> analytics.record(observation)).isInstanceOf(IllegalArgumentException.class);
         }
     }
 
@@ -120,11 +120,13 @@ class RecommendationAnalyticsIntegrationTest {
     void expensiveOrReversedAnalyticsIntervalsAreRejected() {
         Instant now = Instant.now();
         assertThatThrownBy(() -> analytics.totals(now, now)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> analytics.totals(now.minus(31, ChronoUnit.DAYS), now))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> analytics.totals(now, now.plusSeconds(120))).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> analytics.totals(now.minus(30, ChronoUnit.DAYS).plusSeconds(1), now.plusSeconds(5)))
-                .isInstanceOf(IllegalArgumentException.class);
+        Instant tooOld = now.minus(31, ChronoUnit.DAYS);
+        Instant future = now.plusSeconds(120);
+        Instant almostTooOld = now.minus(30, ChronoUnit.DAYS).plusSeconds(1);
+        Instant nearFuture = now.plusSeconds(5);
+        assertThatThrownBy(() -> analytics.totals(tooOld, now)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> analytics.totals(now, future)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> analytics.totals(almostTooOld, nearFuture)).isInstanceOf(IllegalArgumentException.class);
     }
 
     private static Observation generated() {

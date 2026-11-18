@@ -2,13 +2,19 @@ package com.ltz.recommendation.infrastructure.client;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.ltz.recommendation.application.port.PersonalizationSource.Actor;
 import com.ltz.recommendation.domain.exception.RecommendationRequestException;
 import java.net.URI;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -34,8 +40,8 @@ class HttpEventDiscoverySourceTest {
     }
 
     private static RecommendationHttpClient replies(String... bodies) {
-        RecommendationHttpClient http = Mockito.mock(RecommendationHttpClient.class);
-        var stub = Mockito.when(http.get(Mockito.any(), Mockito.eq("Bearer user")));
+        RecommendationHttpClient http = mock(RecommendationHttpClient.class);
+        var stub = when(http.get(any(), eq("Bearer user")));
         for (String body : bodies) stub = stub.thenReturn((JsonNode) JSON.readTree(body));
         return http;
     }
@@ -47,8 +53,8 @@ class HttpEventDiscoverySourceTest {
         assertThat(scan.events()).hasSize(2);
         assertThat(scan.truncated()).isFalse();
         assertThat(scan.events().getFirst().platforms()).containsExactly("PC");
-        Mockito.verify(http).get(Mockito.argThat((URI uri) -> uri.toString().equals("http://event.local/api/v1/event/events?page=1&size=50")),
-                Mockito.eq("Bearer user"));
+        verify(http).get(argThat((URI uri) -> uri.toString().equals("http://event.local/api/v1/event/events?page=1&size=50")),
+                eq("Bearer user"));
     }
 
     @Test
@@ -93,10 +99,10 @@ class HttpEventDiscoverySourceTest {
 
     @Test
     void forbiddenOrUnavailableEventPropagatesAndIsNotRetried() {
-        RecommendationHttpClient http = Mockito.mock(RecommendationHttpClient.class);
-        Mockito.when(http.get(Mockito.any(), Mockito.any())).thenThrow(new RecommendationRequestException(403, "SOURCE_ACCESS_DENIED"));
+        RecommendationHttpClient http = mock(RecommendationHttpClient.class);
+        when(http.get(any(), any())).thenThrow(new RecommendationRequestException(403, "SOURCE_ACCESS_DENIED"));
         assertThatThrownBy(() -> source(http).upcoming(ACTOR)).isInstanceOfSatisfying(RecommendationRequestException.class,
                 e -> assertThat(e.code()).isEqualTo("SOURCE_ACCESS_DENIED"));
-        Mockito.verify(http, Mockito.times(1)).get(Mockito.any(), Mockito.any());
+        verify(http, times(1)).get(any(), any());
     }
 }

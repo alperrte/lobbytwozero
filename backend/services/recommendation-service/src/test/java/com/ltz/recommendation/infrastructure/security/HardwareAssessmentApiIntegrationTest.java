@@ -182,8 +182,8 @@ class HardwareAssessmentApiIntegrationTest {
         assertThat(evidence.path("method").asString()).isEqualTo("SESSION_MEDIAN_P10_P90_IQR_1_5_V1");
         assertThat(evidence.path("renderingMode").asString()).isEqualTo("NATIVE_RASTER");
         assertThat(evidence.path("limitations")).hasSize(4);
-        assertThat(REQUESTS).anyMatch(path -> path.contains("performance-evidence"));
-        assertThat(REQUESTS).noneMatch(path -> path.contains("performance-reference"));
+        assertThat(REQUESTS).anyMatch(path -> path.contains("performance-evidence"))
+                .noneMatch(path -> path.contains("performance-reference"));
     }
 
     @Test
@@ -365,7 +365,7 @@ class HardwareAssessmentApiIntegrationTest {
             } else if (path.contains("performance-reference")) {
                 performance(exchange);
             } else reply(exchange, 404, "{}");
-        } catch (Exception exception) {
+        } catch (Exception _) {
             if (exchange.getResponseCode() == -1) reply(exchange, 500, "{}");
         } finally { exchange.close(); }
     }
@@ -380,29 +380,14 @@ class HardwareAssessmentApiIntegrationTest {
             reply(exchange, 404, "{}"); return;
         }
         if (mode.equals("hardware-unavailable")) { reply(exchange, 503, "{}"); return; }
-        List<Object> components = new ArrayList<>(List.of(
-                component("CPU", "CPU MODEL", "{\"socket\":\"AM4\"}"), component("GPU", "GPU MODEL", "{\"capacityGb\":8}"),
-                component("RAM", "manual", "{\"capacityGb\":" + (mode.equals("below-minimum") ? 4 : 16) + ",\"memoryType\":\"DDR4\"}"),
-                component("STORAGE", "manual", "{\"capacityGb\":" + (mode.equals("below-minimum") ? 1 : 512) + "}"),
-                component("MOTHERBOARD", "manual", "{\"memoryType\":\"DDR4\",\"socket\":\""
-                        + (mode.equals("incompatible-socket") ? "LGA1700" : "AM4") + "\"}")));
-        if (mode.equals("empty-profile")) components.clear();
-        if (mode.equals("duplicate-component")) components.add(components.getFirst());
+        List<Object> components = HardwareAssessmentFixtureValues.components(mode);
         var page = Map.of("number", 0, "size", 100, "totalElements", components.size(), "hasNext", mode.equals("paged-profile"));
         reply(exchange, 200, JSON.writeValueAsString(Map.of("profiles", List.of(Map.of("profileId", mode.equals("wrong-profile") ? B : PROFILE,
                 "profileVersion", 7, "components", components, "page", page)))));
     }
-    private static Map<String, Object> component(String category, String model, String specs) {
-        Map<String, Object> result = new HashMap<>();
-        result.put("id", UUID.nameUUIDFromBytes(category.getBytes(StandardCharsets.UTF_8)));
-        result.put("category", category); result.put("modelName", model); result.put("quantity", 1);
-        result.put("brandName", null); result.put("brandId", null); result.put("source", "MANUAL");
-        result.put("specifications", JSON.readTree(mode.equals("invalid-capacity") ? "{\"capacityGb\":-1}" : specs));
-        return result;
-    }
 
     private static void game(HttpExchange exchange) throws Exception {
-        if (mode.equals("game-timeout")) { Thread.sleep(500); reply(exchange, 200, "{}"); return; }
+        if (mode.equals("game-timeout")) { new java.util.concurrent.CountDownLatch(1).await(500, java.util.concurrent.TimeUnit.MILLISECONDS); reply(exchange, 200, "{}"); return; }
         if (mode.equals("game-redirect")) { exchange.getResponseHeaders().set("Location", "/redirect-target"); reply(exchange, 302, "{}"); return; }
         if (mode.equals("game-malformed")) { reply(exchange, 200, "[]"); return; }
         List<Object> requirements = mode.equals("missing-requirements") ? List.of() : List.of(
@@ -424,38 +409,7 @@ class HardwareAssessmentApiIntegrationTest {
         assertThat(token.getStringClaim("scope")).isEqualTo("reference:read");
         assertThat(exchange.getRequestURI().getQuery()).isEqualTo("hardwareProfileId=" + PROFILE
                 + "&hardwareProfileVersion=7&resolution=1920x1080&graphicsPreset=HIGH&renderingMode=NATIVE_RASTER");
-        boolean sufficient = !mode.equals("ev-insufficient");
-        long sessions = sufficient ? 3 : 2;
-        long observed = sessions * 110;
-        java.time.Instant now = java.time.Instant.now();
-        Map<String, Object> body = new HashMap<>();
-        body.put("contractVersion", "fps-evidence-v1");
-        body.put("gameId", GAME);
-        body.put("hardwareProfileId", PROFILE);
-        body.put("hardwareProfileVersion", mode.equals("ev-wrong-version") ? 6 : 7);
-        body.put("resolution", mode.equals("ev-wrong-context") ? "3840x2160" : "1920x1080");
-        body.put("graphicsPreset", "HIGH");
-        body.put("renderingMode", "NATIVE_RASTER");
-        body.put("status", sufficient ? "SUFFICIENT" : "INSUFFICIENT_DATA");
-        body.put("source", mode.equals("ev-wrong-source") ? "MANUAL" : "AUTHENTICATED_DEVICE");
-        body.put("contextVerification", "OWNER_SNAPSHOT_DEVICE_DECLARATION");
-        body.put("method", mode.equals("ev-wrong-method") ? "MEAN" : "SESSION_MEDIAN_P10_P90_IQR_1_5_V1");
-        body.put("confidenceCeiling", "LOW");
-        body.put("consideredSessionCount", 3);
-        body.put("sessionCount", mode.equals("ev-sufficient-two-sessions") ? 2 : sessions);
-        body.put("observedSampleCount", observed);
-        body.put("inlierSampleCount", mode.equals("ev-bad-counts") ? observed + 5 : observed);
-        body.put("excludedSampleCount", 0);
-        body.put("lowerReferenceFps", sufficient ? (mode.equals("ev-inverted") ? 58.2 : 51.4) : null);
-        body.put("upperReferenceFps", sufficient ? (mode.equals("ev-inverted") ? 51.4 : 58.2) : null);
-        body.put("firstMeasuredAt", now.minus(3, java.time.temporal.ChronoUnit.DAYS).toString());
-        body.put("lastMeasuredAt", now.minus(1, java.time.temporal.ChronoUnit.DAYS).toString());
-        body.put("windowLimited", false);
-        body.put("limitations", mode.equals("ev-missing-limitation")
-                ? List.of("DEVICE_CONTEXT_NOT_ATTESTED", "GAME_BUILD_AND_BACKGROUND_LOAD_UNCONTROLLED",
-                        "HISTORICAL_RANGE_NOT_CURRENT_MEASUREMENT")
-                : List.of("DEVICE_CONTEXT_NOT_ATTESTED", "GAME_BUILD_AND_BACKGROUND_LOAD_UNCONTROLLED",
-                        "HISTORICAL_RANGE_NOT_CURRENT_MEASUREMENT", "MAX_20_SESSIONS_600_SAMPLES_30_DAYS"));
+        Map<String, Object> body = HardwareAssessmentFixtureValues.evidence(mode, GAME, PROFILE);
         reply(exchange, 200, JSON.writeValueAsString(body));
     }
 

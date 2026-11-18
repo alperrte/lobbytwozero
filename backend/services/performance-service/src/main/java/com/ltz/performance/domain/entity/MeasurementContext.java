@@ -11,7 +11,7 @@ public record MeasurementContext(long hardwareProfileVersion, String resolution,
     }
 
     private static boolean validResolution(String value) {
-        if (value == null || !value.matches("[1-9][0-9]{2,4}x[1-9][0-9]{2,4}")) return false;
+        if (value == null || !value.matches("[1-9]\\d{2,4}x[1-9]\\d{2,4}")) return false;
         String[] dimensions = value.split("x");
         return Integer.parseInt(dimensions[0]) <= 16384 && Integer.parseInt(dimensions[1]) <= 16384;
     }

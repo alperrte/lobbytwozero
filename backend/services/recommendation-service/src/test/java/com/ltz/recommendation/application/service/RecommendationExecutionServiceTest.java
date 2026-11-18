@@ -69,8 +69,9 @@ class RecommendationExecutionServiceTest {
     @Test
     void analyticsFailureDoesNotReturnAnUnrecordedSuccess() {
         RecommendationAnalytics unavailable = observation -> { throw new IllegalStateException("Test storage unavailable"); };
-        assertThatThrownBy(() -> new RecommendationExecutionService(new RuleBasedRecommendationEngine(), unavailable)
-                .execute(RuleBasedRecommendationEngineTest.input(List.of(), 1))).isInstanceOf(IllegalStateException.class);
+        var service = new RecommendationExecutionService(new RuleBasedRecommendationEngine(), unavailable);
+        var input = RuleBasedRecommendationEngineTest.input(List.of(), 1);
+        assertThatThrownBy(() -> service.execute(input)).isInstanceOf(IllegalStateException.class);
     }
 
     @Test
@@ -80,7 +81,8 @@ class RecommendationExecutionServiceTest {
         for (List<Item> invalid : List.of(List.of(item(2, 1)), List.of(item(1, 2)),
                 List.of(item(1, 1), item(1, 2)))) {
             var algorithm = new TestAlgorithm("rules-v1", invalid, false);
-            assertThatThrownBy(() -> new RecommendationExecutionService(algorithm, analytics).execute(input))
+            var service = new RecommendationExecutionService(algorithm, analytics);
+            assertThatThrownBy(() -> service.execute(input))
                     .isInstanceOf(IllegalStateException.class);
         }
         assertThat(observations).isEmpty();

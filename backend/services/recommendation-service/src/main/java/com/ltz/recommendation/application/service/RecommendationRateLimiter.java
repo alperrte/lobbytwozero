@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 public class RecommendationRateLimiter {
     private final Map<UUID, Window> windows = new HashMap<>();
     private final Clock clock;
+    @org.springframework.beans.factory.annotation.Autowired
     public RecommendationRateLimiter() { this(Clock.systemUTC()); }
     RecommendationRateLimiter(Clock clock) { this.clock = clock; }
 

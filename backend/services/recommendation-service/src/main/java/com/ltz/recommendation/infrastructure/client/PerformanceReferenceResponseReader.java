@@ -20,7 +20,9 @@ final class PerformanceReferenceResponseReader {
         long samples = count(reply.path("fpsSampleCount"));
         if (sessions > samples) throw invalid();
         boolean reliable = reply.path("reliable").asBoolean();
-        Double avg = fps(reply.path("avgFps")), min = fps(reply.path("minFps")), max = fps(reply.path("maxFps"));
+        Double avg = fps(reply.path("avgFps"));
+        Double min = fps(reply.path("minFps"));
+        Double max = fps(reply.path("maxFps"));
         validateStatistics(reliable, samples, avg, min, max);
         return new Reference(reliable, sessions, samples, avg, min, max, instant(reply.path("lastMeasuredAt")));
     }

@@ -82,9 +82,10 @@ class PythonAssistantEngineTest {
     void unavailableInterpreterAndNoProcessSlotFailClosed() throws Exception {
         try (var unavailable = new PythonAssistantEngine("missing-python-runtime", 2000);
                 var busy = new PythonAssistantEngine(PYTHON, 2000, new Semaphore(0))) {
-            assertThatThrownBy(() -> unavailable.advise(input("GAME", "SELECT_GAME", List.of(), "UNKNOWN")))
+            var request = input("GAME", "SELECT_GAME", List.of(), "UNKNOWN");
+            assertThatThrownBy(() -> unavailable.advise(request))
                     .isInstanceOf(RecommendationRequestException.class);
-            assertThatThrownBy(() -> busy.advise(input("GAME", "SELECT_GAME", List.of(), "UNKNOWN")))
+            assertThatThrownBy(() -> busy.advise(request))
                     .isInstanceOf(RecommendationRequestException.class).extracting("code").isEqualTo("ASSISTANT_BUSY");
             assertThatThrownBy(() -> invalidConfiguration(PYTHON, 2001)).isInstanceOf(IllegalArgumentException.class);
             assertThatThrownBy(() -> invalidConfiguration("", 2000)).isInstanceOf(IllegalArgumentException.class);
@@ -138,7 +139,8 @@ class PythonAssistantEngineTest {
             }
             var extra = (tools.jackson.databind.node.ObjectNode) valid.deepCopy();
             extra.put("extra", true);
-            assertThatThrownBy(() -> AssistantReplyReader.read(JSON.writeValueAsBytes(extra), input)).isInstanceOf(RecommendationRequestException.class);
+            byte[] extraBytes = JSON.writeValueAsBytes(extra);
+            assertThatThrownBy(() -> AssistantReplyReader.read(extraBytes, input)).isInstanceOf(RecommendationRequestException.class);
         }
     }
 

@@ -35,20 +35,16 @@ public class PostgresRecommendationHistory implements RecommendationHistory {
                 VALUES (?,?,?,?,?,?,?,?)
                 """, run.runId(), owner, run.algorithmVersion(), run.filters().genre(), run.filters().platform(),
                 run.filters().size(), Timestamp.from(run.createdAt()), Timestamp.from(run.createdAt().plus(30, ChronoUnit.DAYS)));
-        for (StoredItem item : run.items()) {
-            jdbc.update(connection -> {
-                var statement = connection.prepareStatement("""
-                        INSERT INTO recommendation_items(id,run_id,game_id,score,rank,matched_genres) VALUES (?,?,?,?,?,?)
-                        """);
-                statement.setObject(1, item.itemId());
-                statement.setObject(2, run.runId());
-                statement.setObject(3, item.gameId());
-                statement.setInt(4, item.score());
-                statement.setInt(5, item.rank());
-                statement.setArray(6, connection.createArrayOf("varchar", item.matchedGenres().toArray()));
-                return statement;
-            });
-        }
+        jdbc.batchUpdate("""
+                INSERT INTO recommendation_items(id,run_id,game_id,score,rank,matched_genres) VALUES (?,?,?,?,?,?)
+                """, run.items(), Math.max(1, run.items().size()), (statement, item) -> {
+            statement.setObject(1, item.itemId());
+            statement.setObject(2, run.runId());
+            statement.setObject(3, item.gameId());
+            statement.setInt(4, item.score());
+            statement.setInt(5, item.rank());
+            statement.setArray(6, statement.getConnection().createArrayOf("varchar", item.matchedGenres().toArray()));
+        });
         return run;
     }
 
@@ -92,7 +88,7 @@ public class PostgresRecommendationHistory implements RecommendationHistory {
 
     @Override
     public Feedback feedback(UUID owner, UUID runId, UUID itemId, FeedbackValue value, long version) {
-        Feedback previous = feedbackState(owner, runId, itemId);
+        Feedback previous = readFeedback(owner, runId, itemId);
         if (previous.value() == value) return previous;
         long actual = previous.version();
         if (version != actual) throw new RecommendationRequestException(409, "FEEDBACK_VERSION_CONFLICT");
@@ -106,6 +102,10 @@ public class PostgresRecommendationHistory implements RecommendationHistory {
     @Override
     @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
     public Feedback feedbackState(UUID owner, UUID runId, UUID itemId) {
+        return readFeedback(owner, runId, itemId);
+    }
+
+    private Feedback readFeedback(UUID owner, UUID runId, UUID itemId) {
         var owned = jdbc.queryForObject("""
                 SELECT count(*) FROM recommendation_items i JOIN recommendation_runs r ON r.id=i.run_id
                 WHERE i.id=? AND r.id=? AND r.user_id=? AND r.expires_at>now()

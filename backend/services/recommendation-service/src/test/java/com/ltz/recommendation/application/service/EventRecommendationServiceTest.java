@@ -2,6 +2,13 @@ package com.ltz.recommendation.application.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.anyList;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import com.ltz.recommendation.application.port.EventDiscoverySource;
 import com.ltz.recommendation.application.port.EventDiscoverySource.Event;
@@ -18,7 +25,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 class EventRecommendationServiceTest {
     private static final Instant NOW = Instant.parse("2026-11-18T12:00:00Z");
@@ -28,11 +34,11 @@ class EventRecommendationServiceTest {
     private static final UUID RACING_GAME = new UUID(1, 2);
     private static final UUID HIDDEN_GAME = new UUID(1, 3);
 
-    private final EventDiscoverySource events = Mockito.mock(EventDiscoverySource.class);
-    private final PlayerCandidateSource viewers = Mockito.mock(PlayerCandidateSource.class);
-    private final GameMetadataSource games = Mockito.mock(GameMetadataSource.class);
-    private final PersonalizedRecommendationService consent = Mockito.mock(PersonalizedRecommendationService.class);
-    private final RecommendationRateLimiter limits = Mockito.mock(RecommendationRateLimiter.class);
+    private final EventDiscoverySource events = mock(EventDiscoverySource.class);
+    private final PlayerCandidateSource viewers = mock(PlayerCandidateSource.class);
+    private final GameMetadataSource games = mock(GameMetadataSource.class);
+    private final PersonalizedRecommendationService consent = mock(PersonalizedRecommendationService.class);
+    private final RecommendationRateLimiter limits = mock(RecommendationRateLimiter.class);
     private final EventRecommendationService service = new EventRecommendationService(events, viewers, games, consent, limits,
             Clock.fixed(NOW, ZoneOffset.UTC));
 
@@ -51,9 +57,9 @@ class EventRecommendationServiceTest {
     }
 
     private void given(Taste viewer, boolean truncated, Event... list) {
-        Mockito.when(viewers.viewer(ACTOR)).thenReturn(viewer);
-        Mockito.when(events.upcoming(ACTOR)).thenReturn(new EventDiscoverySource.Scan(List.of(list), truncated));
-        Mockito.when(games.genres(Mockito.anyList())).thenReturn(Map.of(RPG_GAME, List.of("rpg"), RACING_GAME, List.of("racing")));
+        when(viewers.viewer(ACTOR)).thenReturn(viewer);
+        when(events.upcoming(ACTOR)).thenReturn(new EventDiscoverySource.Scan(List.of(list), truncated));
+        when(games.genres(anyList())).thenReturn(Map.of(RPG_GAME, List.of("rpg"), RACING_GAME, List.of("racing")));
     }
 
     @Test
@@ -62,13 +68,13 @@ class EventRecommendationServiceTest {
                 open(3, null, Set.of("NINTENDO_SWITCH")), open(2, RPG_GAME, Set.of()), open(1, RPG_GAME, Set.of("NINTENDO_SWITCH")),
                 open(4, RACING_GAME, Set.of("XBOX")));
         var result = service.recommend(ACTOR, null);
-        assertThat(result.items()).extracting(item -> item.eventId()).containsExactly(new UUID(2, 1), new UUID(2, 2), new UUID(2, 3));
+        assertThat(result.items()).extracting(EventRecommendationService.Item::eventId).containsExactly(new UUID(2, 1), new UUID(2, 2), new UUID(2, 3));
         assertThat(result.items().getFirst().sharedGenres()).containsExactly("rpg");
         assertThat(result.items().getFirst().sharedPlatforms()).containsExactly("nintendoswitch");
         assertThat(result.items().get(0).score()).isEqualTo(10000).isGreaterThan(result.items().get(1).score());
         assertThat(result.items().get(1).score()).isGreaterThan(result.items().get(2).score());
         assertThat(result.limitations()).isEmpty();
-        Mockito.verify(consent).verifyConsent(ACTOR);
+        verify(consent).verifyConsent(ACTOR);
     }
 
     @Test
@@ -80,7 +86,7 @@ class EventRecommendationServiceTest {
                 eventWith(3, new UUID(0, 99), RPG_GAME, Set.of(), "PLANNED", ends, null, 40, null, true),
                 eventWith(4, new UUID(0, 99), RPG_GAME, Set.of(), "PLANNED", ends, 5, 4, null, true));
         var result = service.recommend(ACTOR, 5);
-        assertThat(result.items()).extracting(item -> item.eventId()).containsExactly(new UUID(2, 3), new UUID(2, 4));
+        assertThat(result.items()).extracting(EventRecommendationService.Item::eventId).containsExactly(new UUID(2, 3), new UUID(2, 4));
     }
 
     @Test
@@ -93,17 +99,17 @@ class EventRecommendationServiceTest {
                 open(5, HIDDEN_GAME, Set.of()),
                 open(6, RPG_GAME, Set.of()));
         var result = service.recommend(ACTOR, 5);
-        assertThat(result.items()).extracting(item -> item.eventId()).containsExactly(new UUID(2, 6));
+        assertThat(result.items()).extracting(EventRecommendationService.Item::eventId).containsExactly(new UUID(2, 6));
         assertThat(result.limitations()).containsExactly("EVENT_SCAN_TRUNCATED");
     }
 
     @Test
     void viewerWithoutPreferencesGetsNoEventsAndNoEventCall() {
-        Mockito.when(viewers.viewer(ACTOR)).thenReturn(new Taste(Set.of(), Set.of(), Set.of()));
+        when(viewers.viewer(ACTOR)).thenReturn(new Taste(Set.of(), Set.of(), Set.of()));
         var result = service.recommend(ACTOR, 5);
         assertThat(result.items()).isEmpty();
         assertThat(result.limitations()).contains("VIEWER_PREFERENCES_MISSING");
-        Mockito.verifyNoInteractions(events);
+        verifyNoInteractions(events);
     }
 
     @Test
@@ -111,19 +117,19 @@ class EventRecommendationServiceTest {
         for (int size : new int[] {0, -1, 21}) {
             assertThatThrownBy(() -> service.recommend(ACTOR, size)).isInstanceOf(IllegalArgumentException.class);
         }
-        Mockito.verifyNoInteractions(events, viewers, consent);
+        verifyNoInteractions(events, viewers, consent);
     }
 
     @Test
     void missingConsentOrUnavailableEventServiceStopsTheRun() {
-        Mockito.doThrow(new RecommendationRequestException(403, "CONSENT_REQUIRED")).when(consent).verifyConsent(ACTOR);
+        doThrow(new RecommendationRequestException(403, "CONSENT_REQUIRED")).when(consent).verifyConsent(ACTOR);
         assertThatThrownBy(() -> service.recommend(ACTOR, 5)).isInstanceOfSatisfying(RecommendationRequestException.class,
                 e -> assertThat(e.code()).isEqualTo("CONSENT_REQUIRED"));
-        Mockito.verifyNoInteractions(events);
+        verifyNoInteractions(events);
 
-        Mockito.reset(consent);
-        Mockito.when(viewers.viewer(ACTOR)).thenReturn(new Taste(Set.of("rpg"), Set.of(), Set.of()));
-        Mockito.when(events.upcoming(ACTOR)).thenThrow(new RecommendationRequestException(503, "SOURCE_UNAVAILABLE"));
+        reset(consent);
+        when(viewers.viewer(ACTOR)).thenReturn(new Taste(Set.of("rpg"), Set.of(), Set.of()));
+        when(events.upcoming(ACTOR)).thenThrow(new RecommendationRequestException(503, "SOURCE_UNAVAILABLE"));
         assertThatThrownBy(() -> service.recommend(ACTOR, 5)).isInstanceOfSatisfying(RecommendationRequestException.class,
                 e -> assertThat(e.code()).isEqualTo("SOURCE_UNAVAILABLE"));
     }

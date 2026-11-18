@@ -2,6 +2,14 @@ package com.ltz.recommendation.infrastructure.client;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.ltz.recommendation.application.port.PersonalizationSource.Actor;
 import com.ltz.recommendation.application.port.PersonalizationSource.Filters;
@@ -9,7 +17,6 @@ import com.ltz.recommendation.domain.exception.RecommendationRequestException;
 import java.net.URI;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -26,8 +33,8 @@ class HttpPersonalizationLibrarySignalsTest {
     }
 
     private static RecommendationHttpClient http(Object library) {
-        RecommendationHttpClient http = Mockito.mock(RecommendationHttpClient.class);
-        Mockito.when(http.get(Mockito.any(), Mockito.any())).thenAnswer(invocation -> {
+        RecommendationHttpClient http = mock(RecommendationHttpClient.class);
+        when(http.get(any(), any())).thenAnswer(invocation -> {
             URI uri = invocation.getArgument(0);
             if (uri.getPath().equals("/api/v1/user/me")) {
                 return json("{\"userId\":\"" + ACCOUNT + "\",\"favoriteGenres\":[\"rpg\"]}");
@@ -42,29 +49,29 @@ class HttpPersonalizationLibrarySignalsTest {
     }
 
     private static RecommendationServiceTokenClient tokens() {
-        RecommendationServiceTokenClient tokens = Mockito.mock(RecommendationServiceTokenClient.class);
-        Mockito.when(tokens.libraryToken(ACCOUNT)).thenReturn("Bearer svc");
+        RecommendationServiceTokenClient tokens = mock(RecommendationServiceTokenClient.class);
+        when(tokens.libraryToken(ACCOUNT)).thenReturn("Bearer svc");
         return tokens;
     }
 
     @Test
     void forbiddenLibraryIsDeniedNeverAnEmptyCollection() {
         var http = http(new RecommendationRequestException(403, "SOURCE_ACCESS_DENIED"));
-        assertThatThrownBy(() -> source(http, tokens()).candidates(ACTOR, new Filters(null, null, 20)))
+        assertThatThrownBy(() -> candidates(http))
                 .isInstanceOfSatisfying(RecommendationRequestException.class, e -> {
                     assertThat(e.status()).isEqualTo(403);
                     assertThat(e.code()).isEqualTo("SOURCE_ACCESS_DENIED");
                 });
         // Game keşfi hiç çağrılmaz: Library kaynaklı kişiselleştirme sessizce atlanmaz.
-        Mockito.verify(http, Mockito.never()).get(Mockito.argThat(uri -> uri.getPath().equals("/api/v1/game/games")), Mockito.any());
+        verify(http, never()).get(argThat(uri -> uri.getPath().equals("/api/v1/game/games")), any());
     }
 
     @Test
     void unavailableLibraryStopsTheRunAndIsNotRetried() {
         var http = http(new RecommendationRequestException(503, "SOURCE_UNAVAILABLE"));
-        assertThatThrownBy(() -> source(http, tokens()).candidates(ACTOR, new Filters(null, null, 20)))
+        assertThatThrownBy(() -> candidates(http))
                 .isInstanceOfSatisfying(RecommendationRequestException.class, e -> assertThat(e.code()).isEqualTo("SOURCE_UNAVAILABLE"));
-        Mockito.verify(http, Mockito.times(1)).get(Mockito.argThat(uri -> uri.getPath().contains("recommendation-signals")), Mockito.any());
+        verify(http, times(1)).get(argThat(uri -> uri.getPath().contains("recommendation-signals")), any());
     }
 
     @Test
@@ -76,7 +83,7 @@ class HttpPersonalizationLibrarySignalsTest {
                 "{\"items\":[{\"gameId\":\"" + new UUID(0, 1) + "\",\"favorite\":true,\"completed\":false}],\"page\":0,\"size\":50,\"totalElements\":0}",
                 "{\"items\":[{\"gameId\":\"" + new UUID(0, 1) + "\",\"favorite\":\"yes\",\"completed\":false}],\"page\":0,\"size\":50,\"totalElements\":1}"}) {
             var http = http(json(body));
-            assertThatThrownBy(() -> source(http, tokens()).candidates(ACTOR, new Filters(null, null, 20)))
+            assertThatThrownBy(() -> candidates(http))
                     .as(body).isInstanceOfSatisfying(RecommendationRequestException.class,
                             e -> assertThat(e.code()).isEqualTo("SOURCE_UNAVAILABLE"));
         }
@@ -86,6 +93,10 @@ class HttpPersonalizationLibrarySignalsTest {
     void genuinelyEmptyLibraryOnHttp200IsAvailableAndContinues() {
         var http = http(json("{\"items\":[],\"page\":0,\"size\":50,\"totalElements\":0}"));
         assertThat(source(http, tokens()).candidates(ACTOR, new Filters(null, null, 20))).isEmpty();
-        Mockito.verify(http, Mockito.atLeastOnce()).get(Mockito.argThat(uri -> uri.getPath().equals("/api/v1/game/games")), Mockito.any());
+        verify(http, atLeastOnce()).get(argThat(uri -> uri.getPath().equals("/api/v1/game/games")), any());
+    }
+
+    private static void candidates(RecommendationHttpClient http) {
+        source(http, tokens()).candidates(ACTOR, new Filters(null, null, 20));
     }
 }

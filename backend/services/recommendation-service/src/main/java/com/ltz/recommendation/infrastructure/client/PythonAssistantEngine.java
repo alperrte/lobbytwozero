@@ -36,7 +36,7 @@ public class PythonAssistantEngine implements AssistantEngine, AutoCloseable {
         this.timeoutMs = timeoutMs;
         this.slots = slots;
         try (var resource = new ClassPathResource("assistant/assistant_rules.py").getInputStream()) {
-            script = Files.createTempDirectory("ltz-assistant-").resolve("assistant_rules.py");
+            script = Files.createTempDirectory("ltz-assistant-", ownerOnly()).resolve("assistant_rules.py");
             Files.copy(resource, script);
         } catch (IOException exception) { throw new IllegalStateException("Assistant resource missing", exception); }
     }
@@ -55,5 +55,14 @@ public class PythonAssistantEngine implements AssistantEngine, AutoCloseable {
     public void close() throws IOException {
         Files.deleteIfExists(script);
         Files.deleteIfExists(script.getParent());
+    }
+
+    /** Geçici dizin yalnız süreç sahibine açılır (POSIX'te 700); POSIX olmayan dosya sistemlerinde varsayılan korunur. */
+    private static java.nio.file.attribute.FileAttribute<?>[] ownerOnly() {
+        if (!java.nio.file.FileSystems.getDefault().supportedFileAttributeViews().contains("posix")) {
+            return new java.nio.file.attribute.FileAttribute<?>[0];
+        }
+        return new java.nio.file.attribute.FileAttribute<?>[] {java.nio.file.attribute.PosixFilePermissions
+                .asFileAttribute(java.nio.file.attribute.PosixFilePermissions.fromString("rwx------"))};
     }
 }

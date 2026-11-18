@@ -280,11 +280,12 @@ class PerformanceEvidenceIntegrationTest extends PostgresIntegrationSupport {
                 VALUES (?,?,?,?,'Oyun',?,'MANUAL','COMPLETED',now(),now(),0,now(),now(),?,?,?,?,?)
                 """;
         // Kısmi bağlam
-        assertThatThrownBy(() -> jdbc.update(insert, id, o.id(), o.link(), o.game(), o.profile(), id, 1L, null, "HIGH",
-                "NATIVE_RASTER")).isInstanceOf(DataIntegrityViolationException.class);
+        Object[] partial = {id, o.id(), o.link(), o.game(), o.profile(), id, 1L, null, "HIGH", "NATIVE_RASTER"};
+        assertThatThrownBy(() -> jdbc.update(insert, partial)).isInstanceOf(DataIntegrityViolationException.class);
         // Bağlam kimliği oturum kimliğinden farklı
-        assertThatThrownBy(() -> jdbc.update(insert, id, o.id(), o.link(), o.game(), o.profile(), UUID.randomUUID(), 1L,
-                RES, "HIGH", "NATIVE_RASTER")).isInstanceOf(DataIntegrityViolationException.class);
+        Object[] foreignContext = {id, o.id(), o.link(), o.game(), o.profile(), UUID.randomUUID(), 1L, RES, "HIGH",
+            "NATIVE_RASTER"};
+        assertThatThrownBy(() -> jdbc.update(insert, foreignContext)).isInstanceOf(DataIntegrityViolationException.class);
         // Geçersiz değerler
         for (Object[] bad : new Object[][]{{RES, "EPIC", "NATIVE_RASTER"}, {RES, "HIGH", "UPSCALED"},
                 {"99999999x1080", "HIGH", "NATIVE_RASTER"}, {"20000x1080", "HIGH", "NATIVE_RASTER"}}) {

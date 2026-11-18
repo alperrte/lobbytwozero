@@ -29,137 +29,98 @@ public class HttpGameMetadataSource implements GameMetadataSource {
 
     @Override
     public Batch requirements(Actor actor, List<UUID> gameIds, String platform) {
-        if (gameIds.isEmpty() || gameIds.size() > MAX_IDS || new HashSet<>(gameIds).size() != gameIds.size()) {
-            throw new IllegalArgumentException("Invalid game batch");
-        }
-        JsonNode reply;
-        try {
-            reply = http.postResource(RecommendationHttpClient.origin(gameUrl)
-                            .resolve("/api/v1/game/games/recommendation-metadata/batch"),
-                    Map.of("gameIds", gameIds), null);
-        } catch (RecommendationRequestException exception) {
-            if (exception.status() == 404) throw RecommendationHttpClient.unavailable();
-            throw exception;
-        }
-        return read(reply, gameIds, platform);
+        return read(postBatch(gameIds), gameIds, platform);
     }
 
     @Override
     public Map<UUID, List<String>> genres(List<UUID> gameIds) {
+        return readGenres(postBatch(gameIds), gameIds);
+    }
+
+    private JsonNode postBatch(List<UUID> gameIds) {
         if (gameIds.isEmpty() || gameIds.size() > MAX_IDS || new HashSet<>(gameIds).size() != gameIds.size()) {
             throw new IllegalArgumentException("Invalid game batch");
         }
-        JsonNode reply;
+        RecommendationRequestException failure;
         try {
-            reply = http.postResource(RecommendationHttpClient.origin(gameUrl)
+            return http.postResource(RecommendationHttpClient.origin(gameUrl)
                     .resolve("/api/v1/game/games/recommendation-metadata/batch"), Map.of("gameIds", gameIds), null);
         } catch (RecommendationRequestException exception) {
-            if (exception.status() == 404) throw RecommendationHttpClient.unavailable();
-            throw exception;
+            failure = exception;
         }
-        return readGenres(reply, gameIds);
+        if (failure.status() == 404) throw RecommendationHttpClient.unavailable();
+        throw failure;
+    }
+
+    /** items/unavailable dizilerini ve toplam sayıyı doğrular. */
+    private static void checkEnvelope(JsonNode reply, List<UUID> requested) {
+        JsonNode items = reply.path("items");
+        JsonNode unavailable = reply.path("unavailable");
+        if (!items.isArray() || !unavailable.isArray() || items.size() + unavailable.size() != requested.size()) {
+            throw RecommendationHttpClient.unavailable();
+        }
+    }
+
+    /** Kimlik istenenler arasında olmalı ve yanıtta bir kez görünmelidir. */
+    private static UUID claim(JsonNode value, Set<UUID> asked, Set<UUID> seen) {
+        UUID id = HttpPersonalizationSource.uuid(value);
+        if (!asked.contains(id) || !seen.add(id)) throw RecommendationHttpClient.unavailable();
+        return id;
+    }
+
+    private static Set<UUID> readUnavailable(JsonNode reply, Set<UUID> asked, Set<UUID> seen) {
+        Set<UUID> missing = new HashSet<>();
+        for (JsonNode item : reply.path("unavailable")) missing.add(claim(item, asked, seen));
+        return missing;
     }
 
     static Map<UUID, List<String>> readGenres(JsonNode reply, List<UUID> requested) {
-        JsonNode items = reply.path("items");
-        JsonNode unavailable = reply.path("unavailable");
-        if (!items.isArray() || !unavailable.isArray() || items.size() + unavailable.size() != requested.size()) {
-            throw RecommendationHttpClient.unavailable();
-        }
+        checkEnvelope(reply, requested);
         Set<UUID> asked = new HashSet<>(requested);
         Set<UUID> seen = new HashSet<>();
         Map<UUID, List<String>> result = new LinkedHashMap<>();
-        for (JsonNode item : items) {
-            UUID id = uuid(item.path("gameId"));
-            if (!asked.contains(id) || !seen.add(id)) throw RecommendationHttpClient.unavailable();
+        for (JsonNode item : reply.path("items")) {
+            UUID id = claim(item.path("gameId"), asked, seen);
             boolean hidden = bool(item.path("adult")) || !bool(item.path("visible"));
-            JsonNode genres = item.path("genres");
-            if (!genres.isArray() || genres.size() > 32) throw RecommendationHttpClient.unavailable();
-            List<String> codes = new ArrayList<>();
-            for (JsonNode genre : genres) codes.add(text(genre.path("code"), 64, true));
-            if (!hidden) result.put(id, List.copyOf(codes));
+            List<String> codes = genreCodes(item.path("genres"));
+            if (!hidden) result.put(id, codes);
         }
-        for (JsonNode item : unavailable) {
-            UUID id = uuid(item);
-            if (!asked.contains(id) || !seen.add(id)) throw RecommendationHttpClient.unavailable();
-        }
+        readUnavailable(reply, asked, seen);
         return result;
     }
 
+    private static List<String> genreCodes(JsonNode genres) {
+        if (!genres.isArray() || genres.size() > 32) throw RecommendationHttpClient.unavailable();
+        List<String> codes = new ArrayList<>();
+        for (JsonNode genre : genres) codes.add(text(genre.path("code"), 64, true));
+        return List.copyOf(codes);
+    }
+
     static Batch read(JsonNode reply, List<UUID> requested, String platform) {
-        JsonNode items = reply.path("items");
-        JsonNode unavailable = reply.path("unavailable");
-        if (!items.isArray() || !unavailable.isArray() || items.size() + unavailable.size() != requested.size()) {
-            throw RecommendationHttpClient.unavailable();
-        }
+        checkEnvelope(reply, requested);
         Set<UUID> asked = new HashSet<>(requested);
         Set<UUID> seen = new HashSet<>();
         Map<UUID, List<Requirement>> byGame = new LinkedHashMap<>();
         Set<UUID> hidden = new HashSet<>();
-        for (JsonNode item : items) {
-            UUID id = uuid(item.path("gameId"));
-            if (!asked.contains(id) || !seen.add(id)) throw RecommendationHttpClient.unavailable();
-            boolean adult = bool(item.path("adult"));
-            boolean visible = bool(item.path("visible"));
-            List<Requirement> parsed = requirements(item.path("systemRequirements"), platform);
+        for (JsonNode item : reply.path("items")) {
+            UUID id = claim(item.path("gameId"), asked, seen);
+            boolean skip = bool(item.path("adult")) || !bool(item.path("visible"));
+            List<Requirement> parsed = GameRequirementReader.requirements(item.path("systemRequirements"), platform);
             // Yetişkin ya da görünmez oyun öneriye girmez; kaynak tarafı zaten ayıklar, burada ikinci savunma.
-            if (adult || !visible) hidden.add(id);
+            if (skip) hidden.add(id);
             else byGame.put(id, parsed);
         }
         Set<UUID> missing = new HashSet<>(hidden);
-        for (JsonNode item : unavailable) {
-            UUID id = uuid(item);
-            if (!asked.contains(id) || !seen.add(id)) throw RecommendationHttpClient.unavailable();
-            missing.add(id);
-        }
+        missing.addAll(readUnavailable(reply, asked, seen));
         return new Batch(byGame, missing);
     }
 
-    private static List<Requirement> requirements(JsonNode items, String platform) {
-        if (!items.isArray() || items.size() > 32) throw RecommendationHttpClient.unavailable();
-        List<Requirement> result = new ArrayList<>();
-        Set<String> levels = new HashSet<>();
-        for (JsonNode item : items) {
-            String itemPlatform = text(item.path("platform"), 32, true);
-            String level = text(item.path("level"), 32, true);
-            if (!"MINIMUM".equals(level) && !"RECOMMENDED".equals(level)) throw RecommendationHttpClient.unavailable();
-            if (!platform.equalsIgnoreCase(itemPlatform)) continue;
-            if (!levels.add(level)) throw RecommendationHttpClient.unavailable();
-            result.add(new Requirement(level, field(item.path("cpu")), field(item.path("gpu")),
-                    intField(item.path("ramMb")), intField(item.path("storageMb")), field(item.path("os"))));
-        }
-        return List.copyOf(result);
-    }
-
-    /** Game alanı {value,state}: değer yalnız state AVAILABLE iken kullanılır; UNKNOWN/UNCOMPARABLE → null (UNKNOWN uyumluluk). */
-    private static String field(JsonNode node) {
-        if (node.isMissingNode() || node.isNull()) return null;
-        if (!node.isObject()) throw RecommendationHttpClient.unavailable();
-        String state = text(node.path("state"), 32, true);
-        if (!"AVAILABLE".equals(state) && !"UNKNOWN".equals(state) && !"UNCOMPARABLE".equals(state)) {
-            throw RecommendationHttpClient.unavailable();
-        }
-        String value = text(node.path("value"), 4096, false);
-        return "AVAILABLE".equals(state) ? value : null;
-    }
-
-    private static Integer intField(JsonNode node) {
-        if (node.isMissingNode() || node.isNull()) return null;
-        if (!node.isObject()) throw RecommendationHttpClient.unavailable();
-        String state = text(node.path("state"), 32, true);
-        if (!"AVAILABLE".equals(state) && !"UNKNOWN".equals(state) && !"UNCOMPARABLE".equals(state)) {
-            throw RecommendationHttpClient.unavailable();
-        }
-        Integer value = integer(node.path("value"));
-        return "AVAILABLE".equals(state) ? value : null;
-    }
-
-    private static boolean bool(JsonNode value) {
+    static boolean bool(JsonNode value) {
         if (!value.isBoolean()) throw RecommendationHttpClient.unavailable();
         return value.asBoolean();
     }
 
-    private static String text(JsonNode value, int max, boolean required) {
+    static String text(JsonNode value, int max, boolean required) {
         if (value.isNull() || value.isMissingNode()) {
             if (required) throw RecommendationHttpClient.unavailable();
             return null;
@@ -170,18 +131,9 @@ public class HttpGameMetadataSource implements GameMetadataSource {
         return value.asString();
     }
 
-    private static Integer integer(JsonNode value) {
+    static Integer integer(JsonNode value) {
         if (value.isNull() || value.isMissingNode()) return null;
         if (!value.isIntegralNumber() || !value.canConvertToInt() || value.asInt() < 0) throw RecommendationHttpClient.unavailable();
         return value.asInt();
-    }
-
-    private static UUID uuid(JsonNode value) {
-        if (!value.isString()) throw RecommendationHttpClient.unavailable();
-        try {
-            UUID id = UUID.fromString(value.asString());
-            if (!id.toString().equalsIgnoreCase(value.asString())) throw RecommendationHttpClient.unavailable();
-            return id;
-        } catch (IllegalArgumentException _) { throw RecommendationHttpClient.unavailable(); }
     }
 }

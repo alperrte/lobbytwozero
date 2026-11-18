@@ -2,6 +2,11 @@ package com.ltz.recommendation.infrastructure.client;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.ltz.recommendation.application.port.GameMetadataSource;
 import com.ltz.recommendation.application.port.PersonalizationSource.Actor;
@@ -12,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -82,22 +86,22 @@ class HttpPersonalRatingSourceTest {
 
     @Test
     void noRatingsMeansNoGameCallAndNoAffinity() {
-        GameMetadataSource games = Mockito.mock(GameMetadataSource.class);
-        RecommendationHttpClient http = Mockito.mock(RecommendationHttpClient.class);
-        Mockito.when(http.get(Mockito.any(), Mockito.any())).thenReturn(json("{\"items\":[],\"nextCursor\":null,\"truncated\":false}"));
+        GameMetadataSource games = mock(GameMetadataSource.class);
+        RecommendationHttpClient http = mock(RecommendationHttpClient.class);
+        when(http.get(any(), any())).thenReturn(json("{\"items\":[],\"nextCursor\":null,\"truncated\":false}"));
         var source = new HttpPersonalRatingSource(http, games, "http://review.local");
         assertThat(source.genreAffinity(new Actor(A, "Bearer x"))).isEmpty();
-        Mockito.verify(games, Mockito.never()).genres(Mockito.any());
+        verify(games, never()).genres(any());
     }
 
     @Test
     void ratingsAreJoinedWithGenresAcrossPages() {
-        GameMetadataSource games = Mockito.mock(GameMetadataSource.class);
-        RecommendationHttpClient http = Mockito.mock(RecommendationHttpClient.class);
-        Mockito.when(http.get(Mockito.any(), Mockito.any()))
+        GameMetadataSource games = mock(GameMetadataSource.class);
+        RecommendationHttpClient http = mock(RecommendationHttpClient.class);
+        when(http.get(any(), any()))
                 .thenReturn(json("{\"items\":[" + item(A, "10") + "],\"nextCursor\":\"c1\",\"truncated\":false}"))
                 .thenReturn(json("{\"items\":[" + item(B, "8") + "],\"nextCursor\":null,\"truncated\":false}"));
-        Mockito.when(games.genres(Mockito.any())).thenReturn(Map.of(A, List.of("RPG"), B, List.of("rpg", "Action")));
+        when(games.genres(any())).thenReturn(Map.of(A, List.of("RPG"), B, List.of("rpg", "Action")));
         var source = new HttpPersonalRatingSource(http, games, "http://review.local");
         // rpg ortalama 9 -> 8000; action ortalama 8 -> 6000
         assertThat(source.genreAffinity(new Actor(A, "Bearer x"))).containsOnly(Map.entry("rpg", 8000), Map.entry("action", 6000));

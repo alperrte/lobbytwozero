@@ -119,7 +119,7 @@ class RecommendationApiIntegrationTest {
         JsonNode other = generate(tokenB, "{}");
         assertThat(other.path("items").get(0).path("gameId").asString()).isEqualTo(OTHER.toString());
         assertThat(requests.stream().filter(path -> path.contains("/metadata")).count()).isZero();
-        assertThat(requests.size()).isEqualTo(22); // +3 üretim başına: ikinci Library okuması, servis token'ı, Game tür batch'i (NOT VERIFIED: PostgreSQL yok)
+        assertThat(requests).hasSize(24); // üretim başına +4: ikinci Library okuması, servis token'ları ve Game tür batch'i (gerçek koşuda ölçüldü)
     }
 
     @Test
@@ -378,37 +378,20 @@ class RecommendationApiIntegrationTest {
         assertThat(requests).isEmpty();
     }
 
+    /** REC-15 GET /events uygulandı; bu test yalnız kimlik doğrulamasız ve servis token'lı erişimin kapalı kaldığını doğrular. */
     @Test
-    void unavailableEventRecommendationsRemainClosed() throws Exception {
-        assertUnavailableRecommendationBoundary("events");
-    }
-
-    /** Bu yollar negatif probe'dur; uygulanmış veya vaat edilmiş endpoint sözleşmesi değildir. */
-    private void assertUnavailableRecommendationBoundary(String segment) throws Exception {
-        String path = "/api/v1/recommendation/" + segment;
+    void eventRecommendationsRejectAnonymousAndServiceTokensBeforeAnySourceCall() throws Exception {
+        String path = "/api/v1/recommendation/events";
         String payload = "{\"userId\":\"" + B + "\",\"candidateIds\":[\"" + B + "\"],\"includePrivate\":true}";
         var anonymous = mvc.perform(get(path)).andExpect(status().isUnauthorized()).andReturn().getResponse();
         assertThat(anonymous.getHeader("Cache-Control")).contains("no-store");
         // Bearer/CSRF taşımayan POST, mevcut CSRF filtresinde erişim kontrolünden önce reddedilir.
         mvc.perform(post(path).contentType(MediaType.APPLICATION_JSON).content(payload))
                 .andExpect(status().isForbidden());
-        for (String token : List.of(tokenA, tokenB, auth.token(A, "ADMIN"))) {
-            assertDeniedWithoutCandidateData(request(get(path).param("userId", B.toString())
-                    .header("X-User-Id", B.toString()).header("X-Role", "ADMIN"), token, 403));
-            assertDeniedWithoutCandidateData(request(post(path).content(payload), token, 403));
-        }
         request(get(path), auth.serviceToken(A), 401);
-        request(post(path).content(payload), auth.serviceToken(A), 401);
         assertThat(requests).isEmpty();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM recommendation_runs", Integer.class)).isZero();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM recommendation_observations", Integer.class)).isZero();
-    }
-
-    private static void assertDeniedWithoutCandidateData(JsonNode response) {
-        assertThat(response.path("code").asString()).isEqualTo("ACCESS_DENIED");
-        assertThat(response.has("items")).isFalse();
-        assertThat(response.has("candidateIds")).isFalse();
-        assertThat(response.toString()).doesNotContain(B.toString());
     }
 
     private JsonNode generate(String token, String body) throws Exception {
@@ -429,57 +412,58 @@ class RecommendationApiIntegrationTest {
             String bearer = exchange.getRequestHeaders().getFirst("Authorization");
             var jwt = bearer == null ? null : com.nimbusds.jwt.SignedJWT.parse(bearer.substring(7)).getJWTClaimsSet();
             if (path.equals("/api/v1/user/me/consents")) { reply(exchange, 200, "{\"recommendation\":" + consent + "}"); return; }
-            if (path.equals("/api/v1/user/me")) {
-                UUID id = UUID.fromString(jwt.getSubject());
-                reply(exchange, 200, "{\"userId\":\"" + (fault.equals("wrong-owner") ? B : id) + "\",\"favoriteGenres\":"
-                        + (fault.equals("empty-preferences") ? "[]" : id.equals(A) ? "[\"rpg\"]" : "[\"strategy\"]")
-                        + ",\"favoritePlatforms\":[\"pc\"],\"playerTypes\":[\"casual\"]}");
-                return;
-            }
-            if (path.equals("/internal/v1/service-tokens")) {
-                if (fault.equals("account-inactive")) { reply(exchange, 403, "{}"); return; }
-                var body = JSON.readTree(exchange.getRequestBody().readAllBytes());
-                assertThat(body.path("clientId").asString()).isEqualTo("recommendation-service");
-                UUID account = UUID.fromString(body.path("accountId").asString());
-                if (body.path("audience").asString().equals("user-service")) {
-                    reply(exchange, 200, "{\"accessToken\":\"" + auth.candidatesToken(account)
-                            + "\",\"tokenType\":\"Bearer\",\"expiresIn\":60,\"scope\":\"candidates:read\"}");
-                    return;
-                }
-                assertThat(body.path("audience").asString()).isEqualTo("library-service");
-                reply(exchange, 200, "{\"accessToken\":\"" + auth.libraryToken(account)
-                        + "\",\"tokenType\":\"Bearer\",\"expiresIn\":60,\"scope\":\"signals:read\"}");
-                return;
-            }
+            if (path.equals("/api/v1/user/me")) { userProfile(exchange, jwt); return; }
+            if (path.equals("/internal/v1/service-tokens")) { serviceToken(exchange); return; }
             if (path.endsWith("/recommendation-candidates")) { candidates(exchange, jwt); return; }
-            if (path.contains("recommendation-signals")) {
-                assertThat(jwt.getAudience()).containsExactly("library-service");
-                assertThat(jwt.getSubject()).isEqualTo("svc:recommendation-service");
-                assertThat(path).contains(jwt.getStringClaim("account_id"));
-                reply(exchange, 200, "{\"items\":[{\"gameId\":\"" + OWNED + "\",\"favorite\":true,\"completed\":true}],"
-                        + "\"page\":0,\"size\":50,\"totalElements\":" + (fault.equals("library-overflow") ? 501 : 1) + "}");
-                return;
-            }
-            if (path.equals("/api/v1/game/games/recommendation-metadata/batch")) {
-                // REC-02/05: Library'deki favori/tamamlanan oyunların tür kodları (hepsi görünür, rpg).
-                var ids = JSON.readTree(exchange.getRequestBody().readAllBytes()).path("gameIds");
-                var items = new StringBuilder();
-                for (var id : ids) {
-                    if (!items.isEmpty()) items.append(',');
-                    items.append("{\"gameId\":\"").append(id.asString()).append("\",\"adult\":false,\"visible\":true,")
-                            .append("\"genres\":[{\"code\":\"RPG\"}]}");
-                }
-                reply(exchange, 200, "{\"items\":[" + items + "],\"unavailable\":[]}");
-                return;
-            }
+            if (path.contains("recommendation-signals")) { librarySignals(exchange, jwt, path); return; }
+            if (path.equals("/api/v1/game/games/recommendation-metadata/batch")) { genreBatch(exchange); return; }
             if (path.equals("/api/v1/review/ratings/mine")) {
                 assertThat(jwt.getSubject()).isNotEqualTo("svc:recommendation-service");
                 reply(exchange, 200, "{\"items\":[],\"nextCursor\":null,\"truncated\":false}");
                 return;
             }
             gameReply(exchange);
-        } catch (Exception exception) { if (exchange.getResponseCode() == -1) reply(exchange, 500, "{}"); }
+        } catch (Exception _) { if (exchange.getResponseCode() == -1) reply(exchange, 500, "{}"); }
         finally { exchange.close(); }
+    }
+
+    private static void userProfile(HttpExchange exchange, com.nimbusds.jwt.JWTClaimsSet jwt) throws Exception {
+        UUID id = UUID.fromString(jwt.getSubject());
+        String genres = fault.equals("empty-preferences") ? "[]" : id.equals(A) ? "[\"rpg\"]" : "[\"strategy\"]";
+        reply(exchange, 200, "{\"userId\":\"" + (fault.equals("wrong-owner") ? B : id) + "\",\"favoriteGenres\":"
+                + genres + ",\"favoritePlatforms\":[\"pc\"],\"playerTypes\":[\"casual\"]}");
+    }
+
+    private static void serviceToken(HttpExchange exchange) throws Exception {
+        if (fault.equals("account-inactive")) { reply(exchange, 403, "{}"); return; }
+        var body = JSON.readTree(exchange.getRequestBody().readAllBytes());
+        assertThat(body.path("clientId").asString()).isEqualTo("recommendation-service");
+        UUID account = UUID.fromString(body.path("accountId").asString());
+        if (body.path("audience").asString().equals("user-service")) {
+            reply(exchange, 200, "{\"accessToken\":\"" + auth.candidatesToken(account)
+                    + "\",\"tokenType\":\"Bearer\",\"expiresIn\":60,\"scope\":\"candidates:read\"}");
+            return;
+        }
+        assertThat(body.path("audience").asString()).isEqualTo("library-service");
+        reply(exchange, 200, "{\"accessToken\":\"" + auth.libraryToken(account)
+                + "\",\"tokenType\":\"Bearer\",\"expiresIn\":60,\"scope\":\"signals:read\"}");
+    }
+
+    private static void librarySignals(HttpExchange exchange, com.nimbusds.jwt.JWTClaimsSet jwt, String path) throws Exception {
+        assertThat(jwt.getAudience()).containsExactly("library-service");
+        assertThat(jwt.getSubject()).isEqualTo("svc:recommendation-service");
+        assertThat(path).contains(jwt.getStringClaim("account_id"));
+        reply(exchange, 200, "{\"items\":[{\"gameId\":\"" + OWNED + "\",\"favorite\":true,\"completed\":true}],"
+                + "\"page\":0,\"size\":50,\"totalElements\":" + (fault.equals("library-overflow") ? 501 : 1) + "}");
+    }
+
+    /** REC-02/05: Library'deki favori/tamamlanan oyunların tür kodları (hepsi görünür, rpg). */
+    private static void genreBatch(HttpExchange exchange) throws Exception {
+        var ids = JSON.readTree(exchange.getRequestBody().readAllBytes()).path("gameIds");
+        var items = ids.valueStream().map(id -> "{\"gameId\":\"" + id.asString()
+                + "\",\"adult\":false,\"visible\":true,\"genres\":[{\"code\":\"RPG\"}]}")
+                .collect(java.util.stream.Collectors.joining(","));
+        reply(exchange, 200, "{\"items\":[" + items + "],\"unavailable\":[]}");
     }
 
     /** User aday ucu sözleşme fixture'ı: ortak tür/platform olan, olmayan ve (hata modunda) bozuk adaylar. */
@@ -516,7 +500,7 @@ class RecommendationApiIntegrationTest {
         if (fault.equals("empty-body")) { reply(exchange, 200, ""); return; }
         if (fault.equals("array-body")) { reply(exchange, 200, "[]"); return; }
         if (fault.equals("redirect")) { exchange.getResponseHeaders().add("Location", "/forbidden"); reply(exchange, 302, "{}"); return; }
-        if (fault.equals("timeout")) { Thread.sleep(400); reply(exchange, 200, "{}"); return; }
+        if (fault.equals("timeout")) { new java.util.concurrent.CountDownLatch(1).await(400, java.util.concurrent.TimeUnit.MILLISECONDS); reply(exchange, 200, "{}"); return; }
         boolean strategy = exchange.getRequestURI().getQuery().contains("genre=strategy");
         String adult = fault.equals("unknown-adult") ? "null" : "false";
         String game = "{\"game\":{\"gameId\":\"%s\",\"gameType\":\"MAIN_GAME\"},\"adult\":%s}";

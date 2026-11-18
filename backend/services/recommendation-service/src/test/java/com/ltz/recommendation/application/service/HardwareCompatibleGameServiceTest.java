@@ -3,6 +3,10 @@ package com.ltz.recommendation.application.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -89,7 +93,7 @@ class HardwareCompatibleGameServiceTest {
         assertThat(result.algorithmVersion()).isEqualTo("hardware-compatible-v1");
         assertThat(result.createdAt()).isEqualTo(Instant.parse("2026-11-18T10:00:00Z"));
         // Not-interested oyun kaynağa hiç sorulmaz.
-        verify(games).requirements(any(), org.mockito.ArgumentMatchers.argThat(list -> !list.contains(DISLIKED) && list.size() == 5), any());
+        verify(games).requirements(any(), argThat(list -> !list.contains(DISLIKED) && list.size() == 5), any());
     }
 
     @Test
@@ -121,13 +125,13 @@ class HardwareCompatibleGameServiceTest {
                 () -> service.recommend(ACTOR, PROFILE, "x".repeat(65), null, null))) {
             assertThatThrownBy(call::run).isInstanceOf(IllegalArgumentException.class);
         }
-        verify(limits, never()).acquire(any(), org.mockito.ArgumentMatchers.anyBoolean());
+        verify(limits, never()).acquire(any(), anyBoolean());
         verify(hardware, never()).profile(any(), any());
     }
 
     @Test
     void consentOwnershipAndGameFailuresFailClosedWithoutPartialResults() {
-        org.mockito.Mockito.doThrow(new RecommendationRequestException(403, "CONSENT_REQUIRED")).when(consent).verifyConsent(ACTOR);
+        doThrow(new RecommendationRequestException(403, "CONSENT_REQUIRED")).when(consent).verifyConsent(ACTOR);
         assertThatThrownBy(() -> service.recommend(ACTOR, PROFILE, "windows", null, null))
                 .isInstanceOfSatisfying(RecommendationRequestException.class, e -> assertThat(e.code()).isEqualTo("CONSENT_REQUIRED"));
         verify(hardware, never()).profile(any(), any());
@@ -141,7 +145,7 @@ class HardwareCompatibleGameServiceTest {
                 .isInstanceOfSatisfying(RecommendationRequestException.class, e -> assertThat(e.status()).isEqualTo(404));
         verify(games, never()).requirements(any(), any(), any());
 
-        org.mockito.Mockito.doReturn(HardwareRequirementEvaluatorTest.profile(16, 512)).when(hardware).profile(ACTOR, PROFILE);
+        doReturn(HardwareRequirementEvaluatorTest.profile(16, 512)).when(hardware).profile(ACTOR, PROFILE);
         when(games.requirements(any(), any(), any())).thenThrow(new RecommendationRequestException(503, "SOURCE_UNAVAILABLE"));
         assertThatThrownBy(() -> service.recommend(ACTOR, PROFILE, "windows", null, null))
                 .isInstanceOfSatisfying(RecommendationRequestException.class, e -> assertThat(e.status()).isEqualTo(503));

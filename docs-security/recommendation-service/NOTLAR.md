@@ -70,8 +70,16 @@
 - REC-02/05 favori/tamamlanan tür benzerliği 2026-11-18'de bağlandı (HttpLibraryTasteSource; Library signals + Game GAME-15,
   fail-closed). Güncellenen PostgreSQL IT'si çalıştırılamadı: NOT VERIFIED. REC-16 sistem filtresi kısmi; Task 2 bütünü PARTIAL.
   [Güncel checkpoint](../../docs-recommendation/progress/task-02.md).
-- 45 test PASS; toplam LINE %96,83, merkezi ek/değişen kod %97,15; Checkstyle/PMD 0 ihlal,
-  dependency gate PASS. [Komut/kanıt](../../docs-recommendation/testings/task-02-tests.md).
+- 2026-11-18 doğrulama: `node pre-push/ci/backend.mjs --modules services/recommendation-service` exit 0; 128 test PASS
+  (PostgreSQL IT'leri geçici konteynerde çalıştı), LINE %97,44 / değişen kod %97,56, Checkstyle 0, PMD 0 yeni ihlal,
+  dependency gate PASS. Windows notları: runner env izin listesine `ProgramFiles` eklendi (Docker bulunamıyordu); repo yolu
+  ASCII dışı ise (ör. Masaüstü) Mockito/ByteBuddy self-attach hata verdiği için Maven yerel deposu `~/.ltz-ci-m2` kullanılır.
+- Testler DEV DB'ye asla bağlanmaz: `DisposableDatabaseInitializer` yerelde (pre-push, Sonar, IDE) JVM başına tek bir
+  Testcontainers PostgreSQL (postgres:17-alpine) açar; CI runner'ı kendi geçici DB'sini verirse (`ltz.test.external-postgres`)
+  onu kullanır, bunlar dışındaki bağlantıyı reddeder. Docker yoksa testler görünür biçimde başarısız olur (PASS sayılmaz).
+  Son Sonar taramasında recommendation-service için tek bulgu kalmıştı (S5778, düzeltildi; yeniden tarama yapılmadı).
+  Diğer servislerin Sonar bulguları sahiplerine aittir.
+  [Komut/kanıt](../../docs-recommendation/testings/task-02-tests.md).
 
 ### TASK 1 tarihsel notu
 

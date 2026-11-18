@@ -85,24 +85,18 @@ public class HttpPersonalRatingSource implements PersonalRatingSource {
         JsonNode next = reply.path("nextCursor");
         if (!items.isArray() || items.size() > PAGE_SIZE || !reply.path("truncated").isBoolean()
                 || !(next.isNull() || next.isMissingNode() || next.isString())) throw RecommendationHttpClient.unavailable();
-        for (JsonNode item : items) {
-            UUID id = uuid(item.path("gameId"));
-            JsonNode rating = item.path("rating");
-            if (!rating.isIntegralNumber() || !rating.canConvertToInt() || rating.asInt() < 1 || rating.asInt() > 10
-                    || into.putIfAbsent(id, rating.asInt()) != null) throw RecommendationHttpClient.unavailable();
-        }
+        for (JsonNode item : items) addRating(item, into);
         if (!next.isString()) return null;
         String cursor = next.asString();
         if (cursor.isBlank() || cursor.length() > MAX_CURSOR || items.isEmpty()) throw RecommendationHttpClient.unavailable();
         return cursor;
     }
 
-    private static UUID uuid(JsonNode value) {
-        if (!value.isString()) throw RecommendationHttpClient.unavailable();
-        try {
-            UUID id = UUID.fromString(value.asString());
-            if (!id.toString().equalsIgnoreCase(value.asString())) throw RecommendationHttpClient.unavailable();
-            return id;
-        } catch (IllegalArgumentException _) { throw RecommendationHttpClient.unavailable(); }
+    private static void addRating(JsonNode item, Map<UUID, Integer> into) {
+        UUID id = HttpPersonalizationSource.uuid(item.path("gameId"));
+        JsonNode rating = item.path("rating");
+        boolean valid = rating.isIntegralNumber() && rating.canConvertToInt()
+                && rating.asInt() >= 1 && rating.asInt() <= 10;
+        if (!valid || into.putIfAbsent(id, rating.asInt()) != null) throw RecommendationHttpClient.unavailable();
     }
 }

@@ -76,7 +76,8 @@ class RuleBasedRecommendationEngineTest {
     @Test
     void rejectsDuplicateOversizedAndNullCandidates() {
         Candidate candidate = candidate(1, Map.of());
-        assertThatThrownBy(() -> input(List.of(candidate, candidate), 1)).isInstanceOf(IllegalArgumentException.class);
+        List<Candidate> duplicates = List.of(candidate, candidate);
+        assertThatThrownBy(() -> input(duplicates, 1)).isInstanceOf(IllegalArgumentException.class);
         List<Candidate> tooMany = new ArrayList<>();
         for (int index = 0; index < 501; index++) tooMany.add(candidate(index, Map.of()));
         assertThatThrownBy(() -> input(tooMany, 1)).isInstanceOf(IllegalArgumentException.class);
@@ -85,13 +86,15 @@ class RuleBasedRecommendationEngineTest {
 
     @Test
     void rejectsUnknownVersionAndInconsistentExplanations() {
-        assertThatThrownBy(() -> engine.rank(new Input("rules-v2", List.of(), 1)))
+        Input unknownVersion = new Input("rules-v2", List.of(), 1);
+        assertThatThrownBy(() -> engine.rank(unknownVersion))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new Reason(Signal.GENRE_AFFINITY, 0)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new Item(id(1), 100, 1, List.of(new Reason(Signal.GENRE_AFFINITY, 50))))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new Item(id(1), 100, 1, List.of(new Reason(Signal.GENRE_AFFINITY, 50),
-                new Reason(Signal.GENRE_AFFINITY, 50)))).isInstanceOf(IllegalArgumentException.class);
+        Reason half = new Reason(Signal.GENRE_AFFINITY, 50);
+        List<Reason> single = List.of(half);
+        List<Reason> twice = List.of(half, half);
+        assertThatThrownBy(() -> new Item(id(1), 100, 1, single)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new Item(id(1), 100, 1, twice)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

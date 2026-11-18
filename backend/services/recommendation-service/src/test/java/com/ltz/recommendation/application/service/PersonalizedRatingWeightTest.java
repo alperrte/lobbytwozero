@@ -22,8 +22,8 @@ class PersonalizedRatingWeightTest {
         assertThat(liked.signals()).containsEntry(Signal.RATING_AFFINITY, 8000);
         assertThat(plain.signals()).doesNotContainKey(Signal.RATING_AFFINITY);
         var ranked = new RuleBasedRecommendationEngine().rank(new Input("rules-v1", List.of(plain, liked), 10));
-        assertThat(ranked).extracting(item -> item.targetId()).containsExactly(LIKED, PLAIN);
-        assertThat(ranked.getFirst().reasons()).extracting(reason -> reason.signal())
+        assertThat(ranked).extracting(com.ltz.recommendation.application.port.RecommendationAlgorithm.Item::targetId).containsExactly(LIKED, PLAIN);
+        assertThat(ranked.getFirst().reasons()).extracting(com.ltz.recommendation.application.port.RecommendationAlgorithm.Reason::signal)
                 .containsExactly(Signal.RATING_AFFINITY, Signal.GENRE_AFFINITY);
     }
 
@@ -49,6 +49,6 @@ class PersonalizedRatingWeightTest {
         var plain = PersonalizedRecommendationService.candidate(new Match(PLAIN, 5000, List.of("racing")), Map.of(), taste);
         assertThat(plain.signals()).containsOnlyKeys(Signal.GENRE_AFFINITY);
         var ranked = new RuleBasedRecommendationEngine().rank(new Input("rules-v1", List.of(plain, fav), 10));
-        assertThat(ranked).extracting(item -> item.targetId()).containsExactly(LIKED, PLAIN);
+        assertThat(ranked).extracting(com.ltz.recommendation.application.port.RecommendationAlgorithm.Item::targetId).containsExactly(LIKED, PLAIN);
     }
 }

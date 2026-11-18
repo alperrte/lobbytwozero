@@ -110,7 +110,7 @@ public class HttpPersonalizationSource implements PersonalizationSource {
                 || total < 0 || total > 500 || reply.path("page").asInt(-1) != page || reply.path("size").asInt(-1) != 50) {
             throw RecommendationHttpClient.unavailable();
         }
-        if ((page > 0 && total != previousTotal) || items.size() != Math.min(50L, Math.max(0, total - page * 50L))) {
+        if ((page > 0 && total != previousTotal) || items.size() != Math.clamp(total - page * 50L, 0, 50)) {
             throw RecommendationHttpClient.unavailable();
         }
         return total;

@@ -78,26 +78,46 @@ public class HardwareCompatibleGameService {
                 "NO_CPU_GPU_MODEL_PERFORMANCE_ORDER", "UNKNOWN_IS_NOT_KNOWN_INCOMPATIBLE"));
         if (matches.isEmpty()) return result(profileId, platform, List.of(), 0, limitations);
         var batch = games.requirements(actor, matches.stream().map(Match::gameId).toList(), platform);
-        List<Item> items = new ArrayList<>();
-        int below = 0;
-        boolean missingRequirements = false;
-        for (Match match : matches) {
-            var requirements = batch.byGame().get(match.gameId());
-            if (requirements == null) continue; // kaynakta görünmüyor (kaldırılmış/yetişkin/bilinmiyor): sessizce düşer
-            var minimum = requirements.stream().filter(item -> "MINIMUM".equals(item.level())).findFirst().orElse(null);
-            var level = evaluator.evaluate(profile, minimum, "MINIMUM");
-            if (level.overallStatus() == Status.BELOW) { below++; continue; }
-            if (minimum == null) missingRequirements = true;
-            boolean meets = level.computeStatus() == Status.MEETS;
-            items.add(new Item(match.gameId(), match.affinity(), match.matchedGenres(), meets ? MEETS : "UNKNOWN",
-                    meets ? "MINIMUM_CPU_GPU_RAM_PROVEN" : minimum == null ? "REQUIREMENTS_MISSING" : "MINIMUM_NOT_PROVEN"));
-        }
+        Scan scan = scan(matches, batch, profile);
         if (!batch.unavailable().isEmpty()) limitations.add("SOME_CANDIDATES_UNAVAILABLE");
-        if (missingRequirements) limitations.add("SOME_REQUIREMENTS_MISSING");
-        items.sort(Comparator.comparing((Item item) -> !MEETS.equals(item.compatibility()))
+        if (scan.missingRequirements) limitations.add("SOME_REQUIREMENTS_MISSING");
+        scan.items.sort(Comparator.comparing((Item item) -> !MEETS.equals(item.compatibility()))
                 .thenComparing(Comparator.comparingInt(Item::affinity).reversed())
                 .thenComparing(item -> item.gameId().toString()));
-        return result(profileId, platform, items.stream().limit(limit).toList(), below, limitations);
+        return result(profileId, platform, scan.items.stream().limit(limit).toList(), scan.below, limitations);
+    }
+
+    private static final class Scan {
+        private final List<Item> items = new ArrayList<>();
+        private int below;
+        private boolean missingRequirements;
+    }
+
+    private Scan scan(List<Match> matches, GameMetadataSource.Batch batch, HardwareAssessmentSource.Profile profile) {
+        Scan scan = new Scan();
+        for (Match match : matches) {
+            var requirements = batch.byGame().get(match.gameId());
+            // kaynakta görünmüyor (kaldırılmış/yetişkin/bilinmiyor): sessizce düşer
+            if (requirements != null) add(scan, match, requirements, profile);
+        }
+        return scan;
+    }
+
+    private void add(Scan scan, Match match, List<HardwareAssessmentSource.Requirement> requirements,
+            HardwareAssessmentSource.Profile profile) {
+        var minimum = requirements.stream().filter(item -> "MINIMUM".equals(item.level())).findFirst().orElse(null);
+        var level = evaluator.evaluate(profile, minimum, "MINIMUM");
+        if (level.overallStatus() == Status.BELOW) {
+            scan.below++;
+        } else {
+            scan.missingRequirements |= minimum == null;
+            scan.items.add(item(match, minimum == null, level.computeStatus() == Status.MEETS));
+        }
+    }
+
+    private static Item item(Match match, boolean noMinimum, boolean meets) {
+        String reason = meets ? "MINIMUM_CPU_GPU_RAM_PROVEN" : noMinimum ? "REQUIREMENTS_MISSING" : "MINIMUM_NOT_PROVEN";
+        return new Item(match.gameId(), match.affinity(), match.matchedGenres(), meets ? MEETS : "UNKNOWN", reason);
     }
 
     private Result result(UUID profileId, String platform, List<Item> items, int below, List<String> limitations) {

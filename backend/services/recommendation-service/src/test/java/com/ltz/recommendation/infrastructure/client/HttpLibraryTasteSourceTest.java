@@ -2,6 +2,11 @@ package com.ltz.recommendation.infrastructure.client;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyList;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import com.ltz.recommendation.application.port.GameMetadataSource;
 import com.ltz.recommendation.application.port.LibraryTasteSource.Affinity;
@@ -12,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -32,20 +36,20 @@ class HttpLibraryTasteSourceTest {
     }
 
     private static HttpLibraryTasteSource source(Object library, GameMetadataSource games) {
-        RecommendationHttpClient http = Mockito.mock(RecommendationHttpClient.class);
-        Mockito.when(http.get(Mockito.any(URI.class), Mockito.any())).thenAnswer(invocation -> {
+        RecommendationHttpClient http = mock(RecommendationHttpClient.class);
+        when(http.get(any(URI.class), any())).thenAnswer(invocation -> {
             if (library instanceof RuntimeException failure) throw failure;
             return (JsonNode) library;
         });
-        RecommendationServiceTokenClient tokens = Mockito.mock(RecommendationServiceTokenClient.class);
-        Mockito.when(tokens.libraryToken(ACCOUNT)).thenReturn("Bearer svc");
+        RecommendationServiceTokenClient tokens = mock(RecommendationServiceTokenClient.class);
+        when(tokens.libraryToken(ACCOUNT)).thenReturn("Bearer svc");
         return new HttpLibraryTasteSource(http, tokens, games, "http://library.local");
     }
 
     @Test
     void sharesAreComputedOverVisibleGamesPerSetWithLowercasedGenres() {
-        GameMetadataSource games = Mockito.mock(GameMetadataSource.class);
-        Mockito.when(games.genres(Mockito.anyList())).thenReturn(Map.of(A, List.of("RPG", "Action"), B, List.of("rpg")));
+        GameMetadataSource games = mock(GameMetadataSource.class);
+        when(games.genres(anyList())).thenReturn(Map.of(A, List.of("RPG", "Action"), B, List.of("rpg")));
         // C Game tarafında görünmez (yetişkin/gizli): paydaya girmez.
         var library = json("{\"items\":[" + item(A, true, false) + "," + item(B, true, true) + "," + item(C, false, true)
                 + "],\"page\":0,\"size\":50,\"totalElements\":3}");
@@ -56,28 +60,28 @@ class HttpLibraryTasteSourceTest {
 
     @Test
     void emptyLibraryDoesNotCallGame() {
-        GameMetadataSource games = Mockito.mock(GameMetadataSource.class);
+        GameMetadataSource games = mock(GameMetadataSource.class);
         var library = json("{\"items\":[" + item(A, false, false) + "],\"page\":0,\"size\":50,\"totalElements\":1}");
         assertThat(source(library, games).affinity(ACTOR)).isEqualTo(Affinity.NONE);
-        Mockito.verifyNoInteractions(games);
+        verifyNoInteractions(games);
     }
 
     @Test
     void duplicateGameInLibraryAndSourceFailuresAreUnavailableNeverEmptyTaste() {
-        GameMetadataSource games = Mockito.mock(GameMetadataSource.class);
+        GameMetadataSource games = mock(GameMetadataSource.class);
         var duplicate = json("{\"items\":[" + item(A, true, false) + "," + item(A, false, true)
                 + "],\"page\":0,\"size\":50,\"totalElements\":2}");
         assertThatThrownBy(() -> source(duplicate, games).affinity(ACTOR)).isInstanceOfSatisfying(
                 RecommendationRequestException.class, e -> assertThat(e.code()).isEqualTo("SOURCE_UNAVAILABLE"));
         assertThatThrownBy(() -> source(new RecommendationRequestException(403, "SOURCE_ACCESS_DENIED"), games).affinity(ACTOR))
                 .isInstanceOfSatisfying(RecommendationRequestException.class, e -> assertThat(e.status()).isEqualTo(403));
-        Mockito.verifyNoInteractions(games);
+        verifyNoInteractions(games);
     }
 
     @Test
     void gameFailureStopsTheRun() {
-        GameMetadataSource games = Mockito.mock(GameMetadataSource.class);
-        Mockito.when(games.genres(Mockito.anyList())).thenThrow(new RecommendationRequestException(503, "SOURCE_UNAVAILABLE"));
+        GameMetadataSource games = mock(GameMetadataSource.class);
+        when(games.genres(anyList())).thenThrow(new RecommendationRequestException(503, "SOURCE_UNAVAILABLE"));
         var library = json("{\"items\":[" + item(A, true, false) + "],\"page\":0,\"size\":50,\"totalElements\":1}");
         assertThatThrownBy(() -> source(library, games).affinity(ACTOR)).isInstanceOfSatisfying(
                 RecommendationRequestException.class, e -> assertThat(e.code()).isEqualTo("SOURCE_UNAVAILABLE"));

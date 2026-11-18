@@ -97,7 +97,7 @@ public class EventRecommendationService {
     }
 
     private Map<UUID, List<String>> genres(List<Event> open) {
-        List<UUID> ids = open.stream().map(Event::gameId).filter(id -> id != null).distinct().toList();
+        List<UUID> ids = open.stream().map(Event::gameId).filter(java.util.Objects::nonNull).distinct().toList();
         Map<UUID, List<String>> found = new HashMap<>();
         for (int from = 0; from < ids.size(); from += GAME_BATCH) {
             found.putAll(games.genres(List.copyOf(ids.subList(from, Math.min(ids.size(), from + GAME_BATCH)))));

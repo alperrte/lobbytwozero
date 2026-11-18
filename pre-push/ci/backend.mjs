@@ -16,7 +16,7 @@ export async function backendCheck({ root = repositoryRoot, ambient = process.en
   log('[SCOPE] ' + selected.join(', '));
   const project = 'ltz-test-' + randomUUID().slice(0, 8);
   // Deliberately allowlist the process environment; no developer DB/mail/OAuth secrets.
-  const allowed = ['PATH', 'Path', 'SystemRoot', 'WINDIR', 'ComSpec', 'TEMP', 'TMP', 'HOME', 'USERPROFILE', 'JAVA_HOME',
+  const allowed = ['PATH', 'Path', 'SystemRoot', 'WINDIR', 'ComSpec', 'TEMP', 'TMP', 'HOME', 'USERPROFILE', 'JAVA_HOME', 'ProgramFiles',
     'GITHUB_ACTIONS', 'COVERAGE_BASE_SHA', 'COVERAGE_HEAD_SHA', 'COVERAGE_PR_HEAD_SHA'];
   const env = Object.fromEntries(allowed.filter(key => ambient[key]).map(key => [key, ambient[key]]));
   env.MAVEN_SKIP_RC = 'true';
@@ -42,7 +42,11 @@ export async function backendCheck({ root = repositoryRoot, ambient = process.en
     }
     const started = Date.now();
     const settings = 'pre-push/ci/maven-settings.xml';
-    const localRepository = external ? path.join(env.HOME, '.m2/repository') : path.join(root, '.cache/m2');
+    // Non-ASCII repo paths (for example a Turkish "Masaüstü" desktop) break Mockito/ByteBuddy self-attach
+    // ("Agent JAR not found"); keep the isolated repository in an ASCII-only location then.
+    const isolated = path.join(root, '.cache/m2');
+    const localRepository = external ? path.join(env.HOME, '.m2/repository')
+      : /^[\x20-\x7e]*$/.test(isolated) ? isolated : path.join(env.USERPROFILE || env.HOME, '.ltz-ci-m2');
     // Spring Boot applies outputTimestamp to the JAR's filesystem mtime as well.
     // Use the same clock as the freshness gate instead of an inherited archive date.
     const result = await run(mvn, ['-B', '-ntp', '-s', settings, '-gs', settings, '-Dmaven.repo.local=' + localRepository,
