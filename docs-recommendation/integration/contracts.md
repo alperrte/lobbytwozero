@@ -43,7 +43,7 @@ Yukarıdaki tablo TASK 1 başlangıç fotoğrafıdır; bu bölüm güncel deği�
 - Library: hesabına bağlı gerçek Auth grant + recommendation-signals; 500 kayıt/10 sayfa;
   favorite/completed dışlama. Bounded şema/tekrar/total kontrolü vardır.
 - Game: genre/platform filtreli discovery; max 10×50 aday, canonical ID, MAIN_GAME/adult=false.
-  Kart metadata batch boşluğu REC-02/05'i bloke eder; [owner talebi](dependencies/game-service-requests.md).
+  Game GAME-15 toplu metadata ucu teslim edildi (KAPANDI); REC-02/05 tür yakınlığı tüketicisi Recommendation tarafında yazılacak; [kapanan talep](dependencies/done/game-service-requests.md).
 - Review: kişisel puanlar için batch/paging yok; genel summary kullanılmadı. REC-03 BLOCKED;
   [owner talebi](dependencies/review-service-requests.md).
 - Recommendation D4 hedef ucu hazır; gerçek Auth worker ve kaynak servislerle çok servisli E2E
@@ -60,8 +60,8 @@ kodları değiştirilmedi; TASK 3/4 üzerinde uygulama yapılmadı.
   response exact profileId/version, tekil component IDs, quantity/spec ve tam sayfa şeması doğrulanır.
   >100 veya eksik pencere 503; private/foreign profile 404 gizleme korunur. Marka zorunlu değildir.
 - Game: gerçek path `GET /api/v1/game/{gameId}/metadata`; exact gameId, adult=false/delisted=false
-  ve platform minimum/recommended veri şeması. Katalog filtresi için metadata batch hâlâ yoktur;
-  [REC-06 talebi](dependencies/game-service-requests.md) açıktır.
+  ve platform minimum/recommended veri şeması. Katalog filtresi için GAME-15 toplu metadata ucu vardır ve REC-06/16 onu tüketir;
+  [kapanan talep](dependencies/done/game-service-requests.md).
 - Performance: mevcut aynı Recommendation secret'ıyla Auth audience=performance-service,
   reference:read/account_id grant'ı; `/internal/v1/accounts/{id}/games/{id}/performance-reference`
   ve exact hardwareProfileId parametresi. Response game/profile/count/statistics bağı kontrol edilir.

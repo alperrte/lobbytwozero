@@ -155,7 +155,7 @@ Kaynak görev adı/açıklamaları korunmuştur; x yalnız aşağıdaki uygulanm
 | REC | Hedef / gerçek dosya | Kaynak / bağımlılık | Kanıt / durum |
 | --- | --- | --- | --- |
 | REC-01 | POST games; PersonalizedRecommendationService, HttpPersonalizationSource | User kendi türleri + Game canonical discovery | A/B/empty/limitations; DONE (tür sinyaliyle sınırlı) |
-| REC-02 | Production benzerlik algoritması bağlanmadı | Library veri var, Game batch metadata yok | BLOCKED; yalnız dışlama var, [Game talebi](../integration/dependencies/game-service-requests.md) |
+| REC-02 | Production benzerlik algoritması bağlanmadı | Library veri var; Game GAME-15 toplu metadata (tür) teslim edildi, tüketici henüz yazılmadı | OPEN (bloke değil); yalnız dışlama var, [Game talebi](../integration/dependencies/done/game-service-requests.md) |
 | REC-03 | Production kişisel rating tüketicisi yok | Review kişisel rating batch/paging eksik | BLOCKED; [Review talebi](../integration/dependencies/review-service-requests.md) |
 | REC-04 | HttpPersonalizationSource + rules-v1 | İzinli User favoriteGenres / Game filtre üyeliği | Gerçek HTTP contract, neden/skor; DONE |
 | REC-05 | Production completed benzerlik analizi bağlanmadı | Library completed var, Game metadata batch yok | BLOCKED; dışlama analiz yerine sayılmadı |
@@ -177,7 +177,7 @@ checkpoint'lerdir. REC-06/16 donanım filtresi 2026-11-18 itibarıyla kapandı (
 
 | REC | Gerçek uygulama | Kaynak / sınır | Durum |
 | --- | --- | --- | --- |
-| REC-06 | HardwareCompatibleGameController / HardwareCompatibleGameService | Owner Hardware + Game toplu metadata (game-metadata:read); BELOW elenir, UNKNOWN dürüst etiketlenir | DONE (2026-11-18) |
+| REC-06 | HardwareCompatibleGameController / HardwareCompatibleGameService | Owner Hardware + Game GAME-15 herkese açık toplu metadata ucu; BELOW elenir, UNKNOWN dürüst etiketlenir | DONE (2026-11-18) |
 | REC-07 | HardwareRequirementEvaluator minimum | Tam CPU/GPU model eşleşmesi, bounded RAM/disk; eksikte UNKNOWN | DONE |
 | REC-08 | HardwareRequirementEvaluator recommended | Minimumdan bağımsız aynı dürüst alan semantiği | DONE |
 | REC-09 | PerformanceReferenceResponseReader / Fps | Performance `performance-evidence` (V24 bağlamlı ölçüm) + HardwareFpsEstimator; yalnız NATIVE_RASTER tam bağlamda LOW güvenli geçmiş aralık, aksi halde abstention | DONE (2026-11-18; Performance 174 + Recommendation 85 test PASS) |

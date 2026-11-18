@@ -2575,8 +2575,8 @@ Tüketici servisler: Library Service, Review Service, Frontend
 POST /api/v1/game/games/batch
 
 #### Yetkilendirme
-Public. Kimlik/JWT gerekmez ve gelecekte de zorunlu tutulmaz. Yalnız herkese açık (ACTIVE) kart verisi döner; kişisel, yönetimsel veya LTZ puanı verisi içermez (puan listelerde `GET /games` ve `/games/search` yanıtındadır). Kullanıcıya özel ya da yetki gerektiren toplu okumalar bu uca eklenmez, ayrı korumalı sözleşmeyle tasarlanır. Geçersiz bir `Authorization` başlığı yine 401 verir. CSRF: durum değiştirmez ve çerez kullanmaz; bu tek istek, yalnız `Content-Type: application/json` ise CSRF filtresinden açıkça atlanır (başka içerik türleri 403 alır), başka hiçbir istek atlanmaz.
-**İstek sınırı:** istemci başına jeton kovası (ani yük 100, sürekli 20 istek/sn; `ltz.rate-limit.batch.*`). Aşımda 429. İstemci anahtarı doğrudan bağlantı adresidir; `X-Forwarded-For` varsayılan olarak yok sayılır. Gateway istemci IP'sini iletmediği sürece Gateway'den gelen trafik tek bir kovayı paylaşır; doğrudan çağıran iç servisler kendi anahtarını kullanır.
+Public. Kimlik/JWT gerekmez ve gelecekte de zorunlu tutulmaz. Yalnız herkese açık (ACTIVE) kart verisi döner; kişisel, yönetimsel veya LTZ puanı verisi içermez (puan listelerde `GET /games` ve `/games/search` yanıtındadır). Kullanıcıya özel ya da yetki gerektiren toplu okumalar bu uca eklenmez, ayrı korumalı sözleşmeyle tasarlanır. Geçersiz bir `Authorization` başlığı yine 401 verir. CSRF istisnası bu salt-okunur uçta yalnız `Content-Type: application/json` olan POST isteğine uygulanır. Diğer içerik türleri anonim çağrıda 403 alır.
+**İstek sınırı:** kart, fiyat ve Recommendation metadata batch uçları istemci başına jeton kovasını paylaşır (ani yük 100, sürekli 20 istek/sn; `ltz.rate-limit.batch.*`). Aşımda 429. İstemci anahtarı doğrudan bağlantı adresidir; `X-Forwarded-For` varsayılan olarak yok sayılır. Gateway istemci IP'sini iletmediği sürece Gateway'den gelen trafik tek bir kovayı paylaşır; doğrudan çağıran iç servisler kendi anahtarını kullanır.
 
 #### Request Body
 ```json
@@ -2611,6 +2611,44 @@ Diğer mikroservisler: RestClient ile doğrudan; sayfa başına tek çağrı. 42
 
 #### Test Durumu
 INTEGRATION — sıra, tekrar, 50/51 sınırı, geçersiz gövdeler, arşiv/MERGED/olmayan kimlikler, tek kart sözleşmesiyle eşitlik, yönetim verisi sızıntısı olmaması, anonim erişim, CSRF atlamasının kapsamı (yalnız JSON, diğer tüm mutasyon yolları korumalı), salt-okunurluk, 429 istek sınırı (sahte başlıkla atlatılamaz) + birim testleri (jeton kovası, istemci adresi çözümleme).
+
+### GAME — Recommendation için toplu katalog metadatası (GAME-15, REC-02/05/06)
+
+Durum: IMPLEMENTED — Game sağlayıcı ucu
+Sorumlu: Hamza
+Tüketici servisler: Recommendation Service (Alper)
+
+#### Endpoint
+POST /api/v1/game/games/recommendation-metadata/batch
+
+#### Yetkilendirme
+Public, anonim ve salt-okunur. Yalnız herkese açık Game katalog alanları döner. Çerez ve kullanıcı bağlamı kullanılmaz. Bu tam yolda yalnız JSON POST için mevcut toplu okuma CSRF istisnası uygulanır. Geçersiz Bearer 401 alır. Uç, toplu kart ve fiyat okumalarıyla aynı istemci başına hız kotasını paylaşır.
+
+#### Request Body
+`{"gameIds":["2b0d1ef4-30e3-45b3-acf6-eb1835edf0e1"]}` biçiminde, 1–100 tekil kanonik LTZ oyun UUID’si. UUID büyük/küçük harf farkı tekrar sayılır. Üst gövde sınırı 8 KiB. Yalnız `gameIds` alanı kabul edilir.
+
+#### Response — 200
+`Cache-Control: no-store`. Her istenen kimlik, kendi dizisinde istek sırası korunarak tam bir kez `items` veya `unavailable` içinde döner.
+
+- `items[]`: `gameId`, `gameType: MAIN_GAME`, `adult: false`, `visible: true`, `genres: [{code}]`, `platforms: [{code}]`, `systemRequirements: []`, `requirementsProvenance: null | {field, source, dataState, recordedAt, verifiedAt}`. Tür ve platformlar kod sırasındadır. Boş liste, ilgili kayıt bulunmadığını ifade eder.
+- Yalnız ACTIVE, mağazadan kaldırılmamış, `adult=false` olarak kayıtlı ana oyunlar döner. Olmayan, arşivlenmiş, birleştirilmiş, mağazadan kaldırılmış, yetişkin, yetişkin durumu bilinmeyen ve desteklenmeyen türdeki kimlikler `unavailable: UUID[]` içindedir. Yanıt neden veya alternatif kimlik vermez.
+- `systemRequirements[]`: kayıtlı `platform` kodu, `level: MINIMUM | RECOMMENDED` ve `cpu`, `gpu`, `ramMb`, `storageMb`, `os`, `vramMb`, `driver` alanları. Her alan `{value, state}` biçimindedir. Satırlar platform ve seviyeye göre sıralıdır. Eksik platform/seviye için satır üretilmez.
+- `AVAILABLE`, alanın kayıtlı olduğunu belirtir. Pozitif `ramMb` ve `storageMb` Game kataloğunda saklanan tam sayı MB değeridir. Katalog kaynakları için ondalık/ikili birim doğrulaması bulunmadığından birim dönüştürülmez. `storageMb` kurulum için katalogda bildirilen alanı ifade eder. OS metni, normalize edilmiş sürüm veya uyumluluk kararı taşımaz.
+- Kayıtlı CPU/GPU metni `UNCOMPARABLE` durumundadır. Game, donanım kimliği, benchmark veya eşdeğerlik sırası üretmez. Boş metin, bulunmayan değer, sıfır RAM/depolama ve mevcut şemada ayrı alanı bulunmayan VRAM/sürücü `{value:null,state:"UNKNOWN"}` döner. Tüketici, eksik ya da karşılaştırılamayan alanlardan tam uyumluluk kararı çıkaramaz.
+- `requirementsProvenance` yalnız Game’de saklanmış `SYSTEM_REQUIREMENTS` alanının kaynağını ve zamanlarını verir. Kayıt yoksa `null`. Ham sağlayıcı metni, kullanıcı bilgisi ve özel geliştirici içeriği yanıta dahil edilmez.
+
+#### Hata Durumları
+- 400: Şema, boş/101+ kimlik, geçersiz UUID veya tekrar (`INVALID_GAME_IDS`, `DUPLICATE_GAME_ID`).
+- 401: Geçersiz Bearer. 403: JSON dışı anonim POST, mevcut CSRF kuralı. 415: MVC katmanına ulaşan desteklenmeyen içerik türü.
+- 413: Gövde 8 KiB sınırını aştı. 429: Ortak istek kotası aşıldı (`RATE_LIMITED`, `Retry-After`).
+- 503: Geçici veritabanı erişim hatası veya işlem zaman aşımı (`GAME_METADATA_UNAVAILABLE`). 500: Beklenmeyen hata.
+- Hatalar ProblemDetail biçimindedir.
+
+#### Bağlantı
+Recommendation → Game (doğrudan RestClient). Game yalnız kendi veritabanında, aynı salt-okunur anlık görünümde en fazla üç toplu SQL sorgusu çalıştırır. Tüketici öneri isteği başına en fazla 5 batch / 500 oyun, 3000 ms bağlantı ve 5000 ms okuma zaman aşımı, otomatik yönlendirme ve retry olmadan çağırır. 503 veya ağ hatası, başarıyla dönmüş boş metadata olarak ele alınmaz. Favori ve tamamlanan oyun sinyallerini ayrı değerlendirme ve eksik-veri davranışı Recommendation kapsamındadır.
+
+#### Test Durumu
+INTEGRATION + MVC — geçici PostgreSQL ile 10/10 PASS. Kimlik sırası ve görünürlük, minimum/önerilen ayrımı, alan durumları ve kaynak, şema ve boyut sınırı, anonim JSON erişimi, ortak hız kotası ve 503 kapsamda. Recommendation tüketicisi ve uçtan uca kabul NOT VERIFIED.
 
 ### GAME — Giden sözleşme: Review puan projeksiyonu (GAME-04, GAME-05, GAME-15)
 
@@ -3486,46 +3524,6 @@ BACKEND TEST CHECK PASSED verdi.
 
 **Review bağlantısı (12 Kasım 2026):** Backend endpoint veya sözleşme değişikliği yoktur. Oyun detay sayfasına (`features/game/components/game-detail.tsx`) Review sayfasına giden "İncelemeleri gör" / "See reviews" bağlantısı eklendi (`Game.reviewsLink`). Hedef: `/reviews/games/[gameId]` (TR `/incelemeler/oyun/[gameId]`), Review PR #110 ile main'de. Review sayfaları oturum ister; oturumsuz kullanıcı girişe yönlenir ve dönüşte hedefe gelir. Review sayfaları `noindex`'tir; Game metadata'sına inceleme/puan içeriği taşınmaz. Detay yüklenemezse bağlantı gösterilmez. Game detayında LTZ puanı gösterilmediği için istatistik sayfasına (`/reviews/games/[gameId]/statistics`) bağlantı yoktur.
 
-### GAME — Recommendation toplu teknik metadata iç ucu (REC-06/16)
-
-Durum: IMPLEMENTED
-Sorumlu: Hamza (kod Alper'e yetkilendirme ile yazıldı)
-Tüketici servisler: recommendation-service
-
-#### Endpoint
-POST /internal/v1/recommendation/game-metadata/batch
-
-#### Yetkilendirme
-Internal. Gateway'e yönlendirilmez. `typ=svc+jwt`, `aud=game-service`, `sub=svc:recommendation-service` (tam eşleşme),
-`scope` ⊇ `game-metadata:read` ve boş olmayan `account_id` claim'i (Auth bu kapsamı yalnız hesaba bağlı verir; hesap
-ACTIVE değilse token yok). Token yok / kullanıcı token'ı / yanlış `aud`/`typ` 401; başka `sub`, kapsam, `account_id` yok
-ya da farklı HTTP yöntemi 403. Yalnız herkese açık katalog verisi döner.
-
-#### Request Body
-`{"gameIds":["<uuid>", ...]}` — 1–100 tekil UUID. Boş, null eleman, geçersiz UUID, mükerrer ya da 100 üstü 400.
-
-#### Response — 200 (`Cache-Control: private, no-store`)
-`{items:[{gameId,gameType,genres:[code],platforms:[code],requirements:[{level:MINIMUM|RECOMMENDED,platform,os,cpu,gpu,ramMb,storageMb}]}],unavailable:[uuid]}`.
-Her istenen kimlik tam bir kez `items` ya da `unavailable` içindedir. Görünürlük keşif listeleriyle aynıdır
-(`status=ACTIVE`, mağazadan kaldırılmamış, `adult` true değil); ARCHIVED/delisted/adult/bilinmeyen oyunlar ayırt edilemez biçimde
-`unavailable` olur (enumeration açılmaz). Eksik gereksinim alanları `null`/atlanmıştır; tür ve platform kodları sıralıdır.
-Oyun başına sorgu yoktur: sabit 3 SQL (oyun, terimler, gereksinimler).
-
-#### Hata Durumları
-400 geçersiz gövde; 401 kimlik; 403 sub/kapsam/hesap bağı.
-
-#### Bağlantı
-Auth: `ltz.auth.service-clients.clients.recommendation-service.targets.game-service=game-metadata:read` (hesaba bağlı).
-Recommendation `GET /api/v1/recommendation/games/hardware-compatible` bu ucu tek istekte çağırır.
-
-#### Test Durumu
-INTEGRATION — `RecommendationMetadataBatchTest` 4 test PASS (tür/platform/seviye ayrımı, unavailable ayırt edilemezliği,
-geçersiz gövdeler, token kuralları). Gerçek Auth + Game + Recommendation canlı uçtan uca: **NOT VERIFIED**.
-
-## LIBRARY
-
-Sorumlu: Hamza · Gateway: `/api/v1/library/**` · Görevler: LIB-
-
 ### LIBRARY — Profil koleksiyonunu listeleme (LIB-10, LIB-11)
 
 Durum: IMPLEMENTED (Library tarafı, User HTTP adaptörü ile); gerçek User ile uçtan uca NOT VERIFIED. User `ltz.user.social.projection-enabled=false` iken sahibi olmayan izleyiciye `allowed=false` döndürdüğü için başkasının koleksiyonu 403 olur; bayrak açılana kadar bu bilinçlidir.
@@ -4371,6 +4369,38 @@ Owner — Korumalı; yalnız token sahibinin puanı.
 Yerel Review verisi okunur; geçmiş puan Game kesintisinde de okunabilir.
 #### Test Durumu
 INTEGRATION — kullanıcı izolasyonu, bulunamayan puan ve gerçek HTTP okuması.
+
+### REVIEW — REV-01/10 — Kullanıcının kendi puan geçmişi (REC-03)
+
+Durum: IMPLEMENTED.
+Sorumlu: Hamza.
+Tüketici servisler: Recommendation Service (Alper).
+
+#### Endpoint
+`GET /api/v1/review/ratings/mine?after=<opaqueCursor>&size=50`.
+
+#### Yetkilendirme
+Korumalı ve kullanıcıya özel. Review mevcut kullanıcı JWT doğrulaması ve rol kurallarını uygular. Hesap kimliği doğrulanmış `at+jwt` token'ının `sub` alanından alınır. `svc+jwt` ve kimlik header'ları kullanıcı kimliği sağlamaz. Yönetici rolleri de yalnız kendi puanlarını okur.
+
+#### Path/Query Parameters
+`size` isteğe bağlı, 1–50 tam sayı (varsayılan 50). `after` yalnız önceki yanıtın `nextCursor` değeriyle gönderilir. İlk istekte `after` yoktur. İmleç hesapla ilişkilidir ve en çok 200 karakterdir. Boş, tekrarlı veya tanınmayan parametreler reddedilir. İstek gövdesi yoktur.
+
+#### Response
+200 `{items:[{gameId,rating,updatedAt}],nextCursor,truncated}` ve `Cache-Control: no-store, private`. `gameId` kanonik LTZ UUID, `rating` mevcut Review kuralına göre 1–10 tam sayı, `updatedAt` ISO-8601 UTC'dir. Yalnız hesaba ait mevcut bağımsız puan satırları döner.
+
+- Oyun UUID'sine göre artan keyset sırası kullanılır. İlk sayfa, hesap yazmalarıyla eşgüdümlü olarak pencerenin başlangıç anını belirler. İzleyen sayfalar bu andan önce oluşturulmuş kayıtları okur. Güncellemeler sırayı değiştirmez. Sonraki okumalar güncel puanı kullanır ve silinmiş satırı atlar.
+- Puan yoksa `items:[]`, `nextCursor:null` ve `truncated:false` döner. Hesap silme sonrasında eski erişim token'ı hâlâ geçerliyse okuma boş döner.
+- Bir gezinme en çok 10 sayfa/500 puandır. Daha fazla kayıt varsa son izin verilen sayfada `truncated:true` ve `nextCursor:null` döner. Küçük sayfa boyutu seçilirse on sayfalık pencereye daha az puan sığar.
+- Metin incelemesi, profil ve toplam puan özeti yanıta dahil edilmez. İnceleme moderasyonu, bağımsız puan kaydını mevcut Review politikası gereği etkilemez.
+
+#### Hata Durumları
+400 geçersiz imleç veya parametre. 401 eksik/geçersiz kullanıcı token'ı. 403 izinli Review rolü yok. 503 geçici veritabanı erişim hatası veya zaman aşımı (`PERSONAL_RATINGS_UNAVAILABLE`). 500 beklenmeyen hata. Hatalar ProblemDetail biçimindedir.
+
+#### Bağlantı
+Recommendation → Review (RestClient). Kullanıcının Bearer token'ı yalnız mevcut istek kapsamında iletilir. Tüketici 3000 ms bağlantı ve 5000 ms okuma zaman aşımı uygular. Otomatik yönlendirme ve retry kapalıdır. Review yalnız kendi veritabanını okur ve mevcut `(user_id, game_id)` benzersiz indeksini kullanır. Tüketici 503'ü başarılı boş puan listesi olarak ele almaz. Sıralamaya puan ağırlığının katılması Recommendation kapsamındadır.
+
+#### Test Durumu
+INTEGRATION — Geçici PostgreSQL ile Review testleri 238/238 PASS. MockMvc hesap izolasyonunu, imleç sınırlarını ve 503'ü doğruladı. Auth üretim token koduyla yapılan HTTP testinde kullanıcı token'ı kabul edildi ve servis token'ı reddedildi. Recommendation sıralamasının uçtan uca kabulü NOT VERIFIED.
 
 ### REVIEW — REV-02 — Metin oluşturma
 
@@ -11848,13 +11878,14 @@ UNKNOWN_IS_NOT_KNOWN_INCOMPATIBLE, SOME_CANDIDATES_UNAVAILABLE, SOME_REQUIREMENT
 429 oran sınırı; 503 Hardware/User/Library/Game kaynağı kullanılamıyor ya da bozuk yanıt (fail-closed, kısmi sonuç yok).
 
 #### Bağlantı
-Hardware (profil batch), User (`/user/me`, rıza), Game (keşif + `POST /internal/v1/recommendation/game-metadata/batch`),
-Library (sinyaller), Auth (service token `game-metadata:read`).
+Hardware (profil batch), User (`/user/me`, rıza), Game (keşif + herkese açık `POST /api/v1/game/games/recommendation-metadata/batch`, GAME-15; servis token'ı gerekmez, tek toplu çağrı),
+Library (sinyaller). Game alanları `{value,state}` gelir; yalnız `AVAILABLE` değer kullanılır, `UNKNOWN`/`UNCOMPARABLE` uyumluluğu UNKNOWN bırakır;
+`adult=true` veya `visible=false` oyun elenir (unavailable sayılır).
 
 #### Test Durumu
 UNIT/INTEGRATION — `HardwareCompatibleGameServiceTest` (sıralama, BELOW eleme, NOT_INTERESTED, boyut/eşitlik, boş aday, doğrulama,
 rıza/yabancı profil/Game 503 fail-closed), `HttpGameMetadataSourceTest` (şema/kimlik/mükerrer/platform doğrulaması),
-`RecommendationApiIntegrationTest` (401/rol/400 kaynak çağrısından önce). Recommendation 97 test PASS. Canlı uçtan uca: **NOT VERIFIED**.
+`RecommendationApiIntegrationTest` (401/rol/400 kaynak çağrısından önce). Recommendation birim testleri PASS; DB gerektiren entegrasyon testleri bu oturumda çalıştırılamadı. Canlı uçtan uca: **NOT VERIFIED**.
 
 ### RECOMMENDATION — Öneri geçmişi (REC-18)
 

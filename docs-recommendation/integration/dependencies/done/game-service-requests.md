@@ -1,7 +1,7 @@
 # TASK 2 — Game toplu recommendation metadata talebi
 
 Tarih: 2026-11-14 · Sahip: Hamza · Tüketici: Alper / recommendation-service
-Durum: KAPANDI (2026-11-18) — `POST /internal/v1/recommendation/game-metadata/batch` Game'de uygulandı (hesaba bağlı `game-metadata:read`), REC-06/16 Recommendation tüketicisi bağlandı. Ayrıntı docs/api.md GAME kaydı. Aşağıdaki metin tarihsel taleptir.
+Durum: KAPANDI (2026-11-18) — Hamza GAME-15 ile herkese açık `POST /api/v1/game/games/recommendation-metadata/batch` ucunu teslim etti (tür/platform, adult/visible, alan bazlı `{value,state}` sistem gereksinimi, unavailable). Recommendation REC-06/16 bu ucu servis token'ı olmadan tüketir (`HttpGameMetadataSource`); Auth `game-metadata:read` kapsamı ve Game iç ucu kaldırıldı. Ayrıntı docs/api.md GAME-15 ve RECOMMENDATION kayıtları. Aşağıdaki metin tarihsel taleptir.
 
 ## Doğrulanmış mevcut durum
 

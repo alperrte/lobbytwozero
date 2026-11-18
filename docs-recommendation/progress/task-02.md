@@ -16,7 +16,7 @@
 | REC-18 | DONE | Owner run/read/history, cursor, 30 gün/500 run, D4 cascade, rıza geri çekmede silme |
 | REC-19 | DONE | Owner item feedback GET/PUT, LIKE/NOT_INTERESTED, version conflict, idempotency, concurrency ve kota |
 
-Diğer servislerin eksik sözleşmeleri açık [Game](../integration/dependencies/game-service-requests.md)
+Diğer servislerin eksik sözleşmeleri açık [Game](../integration/dependencies/done/game-service-requests.md)
 ve [Review](../integration/dependencies/review-service-requests.md) talepleridir; sahip Hamza.
 Başka servisin koduna veya veritabanına müdahale edilmedi. Sistem uygunluğu analizi burada
 uydurulmadı; TASK 3 üzerinde çalışma yapılmadı.

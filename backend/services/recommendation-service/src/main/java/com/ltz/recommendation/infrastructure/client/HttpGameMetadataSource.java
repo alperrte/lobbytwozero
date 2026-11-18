@@ -19,13 +19,11 @@ import tools.jackson.databind.JsonNode;
 public class HttpGameMetadataSource implements GameMetadataSource {
     private static final int MAX_IDS = 100;
     private final RecommendationHttpClient http;
-    private final RecommendationServiceTokenClient tokens;
     private final String gameUrl;
 
-    public HttpGameMetadataSource(RecommendationHttpClient http, RecommendationServiceTokenClient tokens,
+    public HttpGameMetadataSource(RecommendationHttpClient http,
             @Value("${GAME_SERVICE_URL:}") String gameUrl) {
         this.http = http;
-        this.tokens = tokens;
         this.gameUrl = gameUrl;
     }
 
@@ -37,8 +35,8 @@ public class HttpGameMetadataSource implements GameMetadataSource {
         JsonNode reply;
         try {
             reply = http.postResource(RecommendationHttpClient.origin(gameUrl)
-                            .resolve("/internal/v1/recommendation/game-metadata/batch"),
-                    Map.of("gameIds", gameIds), tokens.gameMetadataToken(actor.accountId()));
+                            .resolve("/api/v1/game/games/recommendation-metadata/batch"),
+                    Map.of("gameIds", gameIds), null);
         } catch (RecommendationRequestException exception) {
             if (exception.status() == 404) throw RecommendationHttpClient.unavailable();
             throw exception;
@@ -55,12 +53,18 @@ public class HttpGameMetadataSource implements GameMetadataSource {
         Set<UUID> asked = new HashSet<>(requested);
         Set<UUID> seen = new HashSet<>();
         Map<UUID, List<Requirement>> byGame = new LinkedHashMap<>();
+        Set<UUID> hidden = new HashSet<>();
         for (JsonNode item : items) {
             UUID id = uuid(item.path("gameId"));
             if (!asked.contains(id) || !seen.add(id)) throw RecommendationHttpClient.unavailable();
-            byGame.put(id, requirements(item.path("requirements"), platform));
+            boolean adult = bool(item.path("adult"));
+            boolean visible = bool(item.path("visible"));
+            List<Requirement> parsed = requirements(item.path("systemRequirements"), platform);
+            // Yetişkin ya da görünmez oyun öneriye girmez; kaynak tarafı zaten ayıklar, burada ikinci savunma.
+            if (adult || !visible) hidden.add(id);
+            else byGame.put(id, parsed);
         }
-        Set<UUID> missing = new HashSet<>();
+        Set<UUID> missing = new HashSet<>(hidden);
         for (JsonNode item : unavailable) {
             UUID id = uuid(item);
             if (!asked.contains(id) || !seen.add(id)) throw RecommendationHttpClient.unavailable();
@@ -77,12 +81,40 @@ public class HttpGameMetadataSource implements GameMetadataSource {
             String itemPlatform = text(item.path("platform"), 32, true);
             String level = text(item.path("level"), 32, true);
             if (!"MINIMUM".equals(level) && !"RECOMMENDED".equals(level)) throw RecommendationHttpClient.unavailable();
-            if (!platform.equals(itemPlatform)) continue;
+            if (!platform.equalsIgnoreCase(itemPlatform)) continue;
             if (!levels.add(level)) throw RecommendationHttpClient.unavailable();
-            result.add(new Requirement(level, text(item.path("cpu"), 4096, false), text(item.path("gpu"), 4096, false),
-                    integer(item.path("ramMb")), integer(item.path("storageMb")), text(item.path("os"), 4096, false)));
+            result.add(new Requirement(level, field(item.path("cpu")), field(item.path("gpu")),
+                    intField(item.path("ramMb")), intField(item.path("storageMb")), field(item.path("os"))));
         }
         return List.copyOf(result);
+    }
+
+    /** Game alanı {value,state}: değer yalnız state AVAILABLE iken kullanılır; UNKNOWN/UNCOMPARABLE → null (UNKNOWN uyumluluk). */
+    private static String field(JsonNode node) {
+        if (node.isMissingNode() || node.isNull()) return null;
+        if (!node.isObject()) throw RecommendationHttpClient.unavailable();
+        String state = text(node.path("state"), 32, true);
+        if (!"AVAILABLE".equals(state) && !"UNKNOWN".equals(state) && !"UNCOMPARABLE".equals(state)) {
+            throw RecommendationHttpClient.unavailable();
+        }
+        String value = text(node.path("value"), 4096, false);
+        return "AVAILABLE".equals(state) ? value : null;
+    }
+
+    private static Integer intField(JsonNode node) {
+        if (node.isMissingNode() || node.isNull()) return null;
+        if (!node.isObject()) throw RecommendationHttpClient.unavailable();
+        String state = text(node.path("state"), 32, true);
+        if (!"AVAILABLE".equals(state) && !"UNKNOWN".equals(state) && !"UNCOMPARABLE".equals(state)) {
+            throw RecommendationHttpClient.unavailable();
+        }
+        Integer value = integer(node.path("value"));
+        return "AVAILABLE".equals(state) ? value : null;
+    }
+
+    private static boolean bool(JsonNode value) {
+        if (!value.isBoolean()) throw RecommendationHttpClient.unavailable();
+        return value.asBoolean();
     }
 
     private static String text(JsonNode value, int max, boolean required) {

@@ -23,7 +23,7 @@ TASK 2 **PARTIAL**; üstteki TASK 1 envanteri kendi teslim tarihini anlatır.
 | Kayıt | Durum | Sonuç / owner |
 | --- | --- | --- |
 | Recommendation Auth/HTTP/history/feedback tüketicisi yok | RESOLVED (TASK 2 kapsamı) | Gerçek JWT/JWKS ve kaynak RestClient adaptörleri; 45 test PASS; canlı çok servis E2E NOT VERIFIED |
-| REC-02/05 Game batch metadata | BLOCKED | Hamza; [Game sözleşme talebi](../integration/dependencies/game-service-requests.md). Kartlara tür uydurulmadı; N+1 yapılmadı |
+| REC-02/05 Game batch metadata | OPEN (Game KAPANDI) | Game GAME-15 ucu teslim edildi; Recommendation tür yakınlığı tüketicisi yazılacak; [Game sözleşme talebi](../integration/dependencies/done/game-service-requests.md). Kartlara tür uydurulmadı; N+1 yapılmadı |
 | REC-03 kişisel Review rating batch/paging | BLOCKED | Hamza; [Review talebi](../integration/dependencies/review-service-requests.md). Genel rating kişisel veri yerine kullanılmadı |
 | REC-16 sistem uygunluğu filtresi | PARTIAL | Genre/platform/size var; donanım uygunluğu henüz uygulanmadı, destekleniyormuş gibi kabul edilmez |
 | Mevcut secret'ın Recommendation ortamına aktarımı | APPROVED / RESOLVED | Kullanıcı açık onay verdi; gerçek ENV okunmadı/değişmedi |
@@ -41,7 +41,7 @@ iddiası yoktur. Sonraki ana task için açık kullanıcı talimatı beklenir; T
 
 | Kayıt | Durum | Sonuç / owner |
 | --- | --- | --- |
-| REC-06 katalog genelinde donanım seçimi | PARTIAL | Owner tek oyun assessment var. Game batch gereksinimleri yok; Hamza, [talep](../integration/dependencies/game-service-requests.md). N+1 eklenmedi |
+| REC-06 katalog genelinde donanım seçimi | PARTIAL | Owner tek oyun assessment var. Game GAME-15 gereksinim batch'i teslim edildi; REC-06/16 tüketici bağlandı, bkz. [talep](../integration/dependencies/done/game-service-requests.md). N+1 eklenmedi |
 | REC-09 karşılaştırılabilir FPS kanıtı | DONE (2026-11-18) | V24 bağlamlı ölçüm + performance-evidence; [kapanan talep](../integration/dependencies/done/performance-service-requests.md). Açık: native pre-push/Sonar ve canlı E2E koşulmadı |
 | Dar Performance DTO ilavesiyle FPS üretmek | NOT SUFFICIENT | Manual report ile ham örnek arasında kanıtlı bağ yok; veri üretim modeli değişmeden alan eklemek çözüm değil, üreticiye müdahale edilmedi |
 | CPU/GPU metin karşılaştırması ve kapasite birimi | LIMITED BY SOURCE | Tam tek model dışında UNKNOWN; ondalık/ikili byte sınırları; toplam disk boş disk sayılmaz |
