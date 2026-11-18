@@ -194,12 +194,12 @@ TASK 4 başlatılmadı. Sonraki açık kullanıcı devam talimatı beklenir.
 
 ## TASK 4 güncel doğrulama eşlemesi — 2026-11-15
 
-**BLOCKED — 0/3 DONE.** Yukarıdaki REC-13/14/15 kaynak ad/açıklamaları ve checkbox'ları
+**2/3 DONE (REC-13, REC-14); REC-15 BLOCKED (Event keşif ucu yok, Nisa).** Yukarıdaki REC-13/14/15 kaynak ad/açıklamaları ve checkbox'ları
 değişmedi. Önceki taskların açıkları ve DONE kapsamları korunur.
 
 | REC | Gerçek durum | Eksik kaynak / owner | Güvenle teslim edilen |
 | --- | --- | --- | --- |
-| REC-13 | DONE (2026-11-18) | — | `GET /api/v1/recommendation/players` (player-affinity-v1, stateless, ortak sinyal çıktısı, 88 Recommendation testi PASS); User aday ucu + Social geçmiş aktarımı (kod/test hazır; `projection-enabled` açılması ENV onayı bekler) |
+| REC-13 | DONE (2026-11-18) | — | `GET /api/v1/recommendation/players` (player-affinity-v1, stateless, ortak sinyal çıktısı, 88 Recommendation testi PASS); User aday ucu + Social geçmiş aktarımı + outbox kurtarma; DEV bayrakları `.env.example` ile açık (talepler `integration/dependencies/done/` içinde). Canlı uçtan uca: NOT VERIFIED |
 | REC-14 | DONE (2026-11-18) | — | `GET /api/v1/recommendation/friends` (ortak tür+platform şartı, `excludeFriends=true`, iki yönlü engel User/Social yansımasında); bekleyen istek dışlama kuralı varsayım olarak api.md'de |
 | REC-15 | BLOCKED / öneri NOT IMPLEMENTED | Event discovery ve viewer eligibility iş API'si yok (Nisa) | Negatif event probe; sahte event veya başarılı boş öneri endpoint'i yok |
 

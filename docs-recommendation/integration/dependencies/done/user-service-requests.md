@@ -1,6 +1,6 @@
 # TASK 4 — User aday ve izinli tercih sözleşmesi talebi
 
-2026-11-15 · REC-13/14 · Sahip: **Kerem** · **User tarafı UYGULANDI (2026-11-18); Recommendation tüketimi ve REC-14 Social tarafı AÇIK**.
+2026-11-15 · REC-13/14 · Sahip: **Kerem** · **KAPANDI (2026-11-18).** User ucu, Recommendation tüketicisi (REC-13/14), Social aktarımı ve rıza metni tamam; canlı uçtan uca doğrulama yapılmadı.
 Aşağıdaki "Mevcut kanıt" ve "İstenen" bölümleri özgün talebin kaydıdır; uygulama durumu en alttaki "Uygulama" bölümündedir.
 
 ## Mevcut kanıt
@@ -68,6 +68,7 @@ Kanıt: User 276/276 (yeni `RecommendationCandidateTest` 10 + `RecommendationCan
 `ServiceClientConfigTest` 12 + `ServiceAudienceTokenTest` 20 (hedefli). `docs/api.md` USER bölümüne kayıt eklendi.
 Çalıştırılmadı: Checkstyle/PMD ratchet, merkezi coverage gate, Sonar, canlı çok servisli E2E.
 
-**Hâlâ açık:** (1) Recommendation REC-13 tüketicisi; (2) canlı ortamda `projection-enabled=true` kararı (Social
-sahibi) — kapalıyken özellik boş döner; (3) REC-14 için Social friend/block batch API'si (Umut); (4) rıza metni.
-Bu yüzden bu dosya `done/` klasörüne **taşınmadı**.
+**Kapanış (2026-11-18):** (1) Recommendation REC-13/14 tüketicisi yazıldı (`PlayerRecommendationService`, `HttpPlayerCandidateSource`);
+(2) `projection-enabled` DEV'de `USER_SOCIAL_PROJECTION_ENABLED=true` (`.env.example`), Social aktarımı ve outbox relay de DEV'de açık;
+(3) arkadaş dışlama User'da `excludeFriends` ile çözüldü, Social'dan yeni uç gerekmedi; (4) rıza metni tr/en güncellendi
+(`frontend/src/shared/lib/i18n/messages`, `settings.consents.recommendation.hint`). **Doğrulanmadı:** gerçek servislerle canlı uçtan uca akış.

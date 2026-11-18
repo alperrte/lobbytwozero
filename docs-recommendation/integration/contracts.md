@@ -83,8 +83,8 @@ REC-07/08/10/11/12 yalnız belgelendirilmiş desteklenen alan kapsamıyla testli
 
 | Kaynak | Doğrulanmış mevcut kabiliyet / eksik | Sonuç / owner |
 | --- | --- | --- |
-| User | Tek profil details; search ve batch yalnız kart. İzinli öneri adayı discovery/tercih batch'i yok; temel kart privacy eligibility kanıtı değil | REC-13/14 BLOCKED; [Kerem talebi](dependencies/user-service-requests.md) |
-| Social | Owner arkadaş listesi var; iki yönlü blocks/check yalnız Messaging/LFP subject'leri; Recommendation Auth Social hedefi yok | REC-13/14 BLOCKED; [Umut + Kerem talebi](dependencies/social-service-requests.md) |
+| User | Tek profil details; search ve batch yalnız kart. İzinli öneri adayı discovery/tercih batch'i yok; temel kart privacy eligibility kanıtı değil | REC-13/14 BLOCKED; [Kerem talebi](dependencies/done/user-service-requests.md) |
+| Social | Owner arkadaş listesi var; iki yönlü blocks/check yalnız Messaging/LFP subject'leri; Recommendation Auth Social hedefi yok | REC-13/14 BLOCKED; [Umut + Kerem talebi](dependencies/done/social-service-requests.md) |
 | Event | Yalnız EventServiceApplication; API kataloğu boş | REC-15 BLOCKED; [Nisa talebi](dependencies/event-service-requests.md) |
 
 Mevcut owner Library rızası sosyal aday işlemeye genişletilmedi. Profil kartı taraması,

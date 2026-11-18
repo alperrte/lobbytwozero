@@ -1,6 +1,6 @@
 # TASK 4 — Social öneri eligibility sözleşmesi talebi
 
-2026-11-15 · REC-13/14 · Sahip: **Umut**, Auth izinleri **Kerem** · **TASARIM DEĞİŞTİ (2026-11-18): batch eligibility ucu artık gerekmiyor; Social'dan iki küçük teyit/karar bekleniyor**.
+2026-11-15 · REC-13/14 · Sahip: **Umut**, Auth izinleri **Kerem** · **KAPANDI (2026-11-18).** Batch eligibility ucu gerekmedi; aday keşfi User'da, Social yalnız olay/aktarım sağlar. Canlı çok servisli doğrulama yapılmadı (bkz. en alttaki Kapanış).
 Aşağıdaki "İstenen en dar kabiliyet" bölümü özgün talebin kaydıdır; güncel durum en alttaki "Güncel durum" bölümündedir.
 Bu belge mevcut API'yi genişletmez; öneri tüketicisi için eksik kabiliyeti tarif eder.
 
@@ -54,8 +54,8 @@ Mevcut kanıt: Social `UserEventPublisher` arkadaşlık/engel olaylarını User 
 | # | Talep | Sahip | Durum |
 | --- | --- | --- | --- |
 | S1 | ✔ KOD HAZIR (2026-11-18, Alper; Umut yetkisiyle) — **Geçmiş ilişkilerin aktarımı:** olay iletimi başlamadan önce oluşmuş engel ve arkadaşlıklar User yansımasına geçti mi? Geçmediyse tek seferlik aktarım (backfill) gerekir. User belgesi: aktarılmadan `projection-enabled=true` yapılmamalı, yoksa eski engeller bilinmeden aday döner. | Umut (Social) | `UserProjectionBackfill` + `ltz.social.projection-backfill.enabled` (varsayılan kapalı); Social 5 test PASS. Gerçek ortamda çalıştırılmadı: bayrağı açıp User'a göndermek ve `finished` logunu doğrulamak kaldı |
-| S2 | **Güvenilir ilan kararı:** S1 sağlanınca ortamda `ltz.user.social.projection-enabled=true` yapılması (ENV değişikliği; kullanıcı onayı ve User sahibi Kerem ile birlikte). Kapalıyken aday ucu bilerek boş döner. | Umut + Kerem | AÇIK |
-| S3 | ✔ CEVAPLANDI, RİSK AÇIK — **Olay teslim garantisi:** engel/unblock olayı User'a ulaşamazsa yeniden denenip denenmediği ve gecikme üst sınırı (şu an belgede "birkaç saniye"). Engelli kişinin aday listesinde kalma süresini bu belirler. | Umut | Outbox en az bir kez; 30 sn→1 saat üstel bekleyişle 10 deneme, sonra `FAILED` (otomatik kurtarma yok, el ile müdahale). Relay varsayılan KAPALI. Açık: `FAILED` izleme/yeniden kuyruklama kararı Umut'ta |
+| S2 | **Güvenilir ilan kararı:** S1 sağlanınca ortamda `ltz.user.social.projection-enabled=true` yapılması (ENV değişikliği; kullanıcı onayı ve User sahibi Kerem ile birlikte). Kapalıyken aday ucu bilerek boş döner. | Umut + Kerem | ✔ KAPANDI (DEV) — DEV AÇIK (2026-11-18, Alper onayıyla): `.env.example` → `USER_SOCIAL_PROJECTION_ENABLED=true` + `SOCIAL_PROJECTION_BACKFILL_ENABLED=true`; `node ops/dev.mjs keys` .env.dev'e ekler. Production kararı ve canlı doğrulama AÇIK |
+| S3 | ✔ KAPANDI (2026-11-18, Alper; Umut yetkisiyle) — **Olay teslim garantisi:** engel/unblock olayı User'a ulaşamazsa yeniden denenir; 10 üstel denemeden sonra `FAILED` olay terk edilmez, `ltz.social.outbox.failed-retry-interval` (varsayılan PT15M) ile yavaş kurtarma katmanında tekrar denenir. Olay kimliği sabit, User tekilleştirir. Migration gerekmedi (V125 kullanılmadı). | Umut | Kod + test: `OutboxEventTest` (7), `OutboxRelayTest` (9, yeni kurtarma testi dahil). DEV'de relay `SOCIAL_OUTBOX_RELAY_ENABLED=true` (`.env.example`). En kötü gecikme: kalıcı kesintide kesinti süresi + en çok 15 dk |
 | S4 | **REC-14 (arkadaş önerisi):** mevcut arkadaşların önerilmemesi için User'ın aday sorgusuna `social_friendships` dışlaması eklenmesi gerekir (User tarafı, Kerem yetkisiyle yapılabilir; Social'dan yeni şey istenmez). Bekleyen (pending) arkadaşlık isteği olan kişinin önerilip önerilmeyeceği iş kuralı Social sahibi tarafından netleştirilmeli; Recommendation tahmin etmez. | Umut (kural), Alper (User sorgusu) | ✔ KOD HAZIR (2026-11-18): User aday ucuna `excludeFriends` (varsayılan false) eklendi, 12+1 test PASS. **Açık kural:** bekleyen istek dışlanmıyor (User'da veri yok); Umut teyit edene kadar varsayım budur |
 
 Hâlâ geçerli ve değişmeyen: `blocks/check` ucu yalnız messaging/lfp içindir, Recommendation'a açılmaz; gizli engel yönü,
@@ -70,3 +70,11 @@ Bu dosya `done/` klasörüne **taşınmadı**: S1–S4 kapanmadan REC-14 ve canl
 > User yansımasına aktarıldı mı, aktarılmadıysa tek seferlik backfill yapılabilir mi? (2) Engel/unblock olayı User
 > ulaşılamazken yeniden deneniyor mu, en kötü gecikme nedir? Bunlar tamamsa User tarafında projection-enabled bayrağını
 > açmayı Kerem'le birlikte konuşabiliriz. Ayrıca bekleyen arkadaşlık isteği olan kişi arkadaş önerisinde çıkmalı mı?
+
+## Kapanış (2026-11-18)
+
+- S1 aktarım kodu, S2 DEV bayrakları (`USER_SOCIAL_PROJECTION_ENABLED`, `SOCIAL_PROJECTION_BACKFILL_ENABLED`, `SOCIAL_OUTBOX_RELAY_ENABLED`
+  `.env.example` içinde `true`; `node ops/dev.mjs keys` `.env.dev`'e ekler), S3 otomatik kurtarma, S4 arkadaş dışlama tamam.
+- Doğrulama: Social hedefli testler PASS (`OutboxRelayTest`, `OutboxEventTest`, `UserProjectionBackfillTest`, `FlywayMigrationTest`).
+- **Doğrulanmadı:** gerçek Auth + User + Social + Recommendation ile canlı uçtan uca akış; Checkstyle/PMD, Sonar, coverage gate.
+  Production'da bayrakları açmadan önce aktarım logunda `finished` satırı doğrulanmalıdır.

@@ -23,5 +23,7 @@
   (3) User'da `projection-enabled=true` yap. Gerçek ortamda henüz çalıştırılmadı.
 - **Olay teslimi (S3):** engel/arkadaşlık olayları outbox ile en az bir kez iletilir. Relay varsayılan KAPALIDIR
   (`SOCIAL_OUTBOX_RELAY_ENABLED`); açık olmadan olaylar teslim edilmez. Hata halinde 30 sn'den başlayıp en çok 1 saate
-  çıkan üstel bekleyişle 10 denemeye kadar tekrar edilir; sonra `FAILED` olur ve **el ile müdahale** ister (otomatik
-  yeniden kuyruklama yok). `FAILED` olay User yansımasında engeli eksik bırakır; izleme gereklidir.
+  çıkan üstel bekleyişle 10 denemeye kadar tekrar edilir; sonra `FAILED` olur ama terk edilmez: `ltz.social.outbox.failed-retry-interval`
+  (varsayılan PT15M) ile yavaş kurtarma katmanında yeniden denenir (olay kimliği sabit, User tekilleştirir; migration gerekmedi).
+  DEV'de relay ve aktarım `.env.example` ile açıktır (`SOCIAL_OUTBOX_RELAY_ENABLED`, `SOCIAL_PROJECTION_BACKFILL_ENABLED`).
+  Kalıcı kesintide `FAILED` satırlar kesinti bitene kadar birikir ve 15 dk'da bir denenir; izleme yine önerilir.

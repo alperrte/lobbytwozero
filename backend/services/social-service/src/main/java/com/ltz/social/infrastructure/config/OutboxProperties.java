@@ -23,5 +23,7 @@ public record OutboxProperties(
         /** Bu denemeden sonra olay FAILED olur ve el ile müdahale bekler. */
         @Min(1) @Max(100) int maxAttempts,
         @NotNull Duration baseBackoff,
-        @NotNull Duration maxBackoff) {
+        @NotNull Duration maxBackoff,
+        /** FAILED olay bu aralikla yavas kurtarma denemesine alinir (otomatik kurtarma; olay kaybolmaz). */
+        @NotNull Duration failedRetryInterval) {
 }

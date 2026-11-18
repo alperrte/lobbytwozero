@@ -45,8 +45,8 @@ Mevcut Java25/Boot4.1.1/PostgreSQL kodu eski docx/iskelet ifadelerinden öncelik
    izinli batch ve gerçek Auth trust sözleşmesi.
 3. Nisa: gerçek Event discovery ve viewer eligibility; state/time/capacity kuralları.
 
-Owner talepleri [User](../integration/dependencies/user-service-requests.md),
-[Social](../integration/dependencies/social-service-requests.md),
+Owner talepleri [User](../integration/dependencies/done/user-service-requests.md),
+[Social](../integration/dependencies/done/social-service-requests.md),
 [Event](../integration/dependencies/event-service-requests.md).
 Sonraki uygulamada bounded aday penceresi, deterministik tie-breaker, izinli sinyalle aynı
 skor/gerekçe, güncel eligibility ve kaynak arızasında fail-closed testleri gerekir.
