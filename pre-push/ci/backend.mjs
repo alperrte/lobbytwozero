@@ -21,7 +21,11 @@ export async function backendCheck({ root = repositoryRoot, ambient = process.en
   const env = Object.fromEntries(allowed.filter(key => ambient[key]).map(key => [key, ambient[key]]));
   env.MAVEN_SKIP_RC = 'true';
   env.POSTGRES_PASSWORD = 'ltz_test_only';
-  const run = (cmd, args, cwd = root, capture = false) => runCommand(cmd, args, { cwd, capture, env, log });
+  // On Windows the Docker CLI finds its `compose` plugin under %ProgramFiles%\Docker; without it `docker compose` fails
+  // with "unknown flag: --env-file". Only the docker command gets this non-secret path; Maven keeps the strict allowlist.
+  const dockerEnv = ambient.ProgramFiles ? { ...env, ProgramFiles: ambient.ProgramFiles } : env;
+  const run = (cmd, args, cwd = root, capture = false) =>
+    runCommand(cmd, args, { cwd, capture, env: cmd === 'docker' ? dockerEnv : env, log });
   const mvn = process.platform === 'win32' ? 'mvn.cmd' : 'mvn';
   const compose = ['compose', '--env-file', process.platform === 'win32' ? 'NUL' : '/dev/null', '-p', project, '-f', 'pre-push/ci/compose.test.yml'];
   let created = false, failure;
