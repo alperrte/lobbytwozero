@@ -35,7 +35,7 @@ Kaynak sözleşmeleri olmadan pozitif öneri fixture'ı veya kullanılmayan prod
 
 - [User talebi](../integration/dependencies/done/user-service-requests.md),
   [Social talebi](../integration/dependencies/done/social-service-requests.md),
-  [Event talebi](../integration/dependencies/event-service-requests.md): mevcut DTO/izin kanıtı,
+  [Event talebi](../integration/dependencies/done/event-service-requests.md): mevcut DTO/izin kanıtı,
   eksik en dar kabiliyet, owner ve yeniden açılma kabul testleri.
 - [Karar](../decisions/task-04-decisions.md), contracts, master checklist, issues, commit
   taslağı, test raporu ve manuel güvenlik notu güncellendi.

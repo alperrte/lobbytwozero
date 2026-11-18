@@ -12352,7 +12352,7 @@ Stateless: run/geçmiş yazılmaz; organizerId dönmez. Katılım cezası öneri
 #### Bağlantı
 Frontend: Gateway üzerinden endpoint. Diğer servisler: User (viewer), Event (liste, EVT-04), Game (GAME-15 toplu metadata).
 Yeni ENV/migration yok (`EVENT_SERVICE_URL` Compose'ta zaten tanımlı). Eligibility Event'in liste alanlarından gelir
-(bkz. docs-recommendation/integration/dependencies/event-service-requests.md).
+(bkz. docs-recommendation/integration/dependencies/done/event-service-requests.md).
 
 #### Test Durumu
 UNIT — EventRecommendationServiceTest (6) ve HttpEventDiscoverySourceTest (5) PASS, 2026-11-18 (süzme, dolu/katılmış/joinable=false elenir, sınırsız kapasite,

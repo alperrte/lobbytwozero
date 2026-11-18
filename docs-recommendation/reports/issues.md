@@ -60,7 +60,7 @@ Final pre-push/Sonar TASK 5'e ayrıldı. TASK 4 başlatılmadı.
 | --- | --- | --- |
 | İzinli aday/tercih batch'i | BLOCKED | User batch/search yalnız kart; [Kerem talebi](../integration/dependencies/done/user-service-requests.md). İsim taraması/N+1/özel library-rating yerine kullanılmadı |
 | Social eligibility ve Auth caller izni | BLOCKED | blocks/check yalnız Messaging/LFP; [Umut + Kerem talebi](../integration/dependencies/done/social-service-requests.md). Recommendation kimliğine izin uydurulmadı |
-| Açık/geçerli Event keşfi ve katılım uygunluğu | BLOCKED | Üreticide yalnız launcher, katalog boş; [Nisa talebi](../integration/dependencies/event-service-requests.md). Sahte etkinlik/popülerlik üretilmedi |
+| Açık/geçerli Event keşfi ve katılım uygunluğu | DONE (2026-11-18) | Event keşfi ve `joinable` eligibility Event listesinden okunur; [Nisa talebi](../integration/dependencies/done/event-service-requests.md). Sahte etkinlik/popülerlik üretilmedi |
 | İlk yeni boundary testindeki anonim POST beklentisi | RESOLVED | Beklenen 401, gerçek mevcut CSRF reddi 403; yalnız test düzeltildi, güvenlik zinciri değişmedi |
 | Eski kota testinde dakika sınırı kararsızlığı | RESOLVED | İkinci koşuda 11. istek yeni dakikaya geçti; yalnız API test context'ine sabit Clock + gerçek limiter import edildi; son koşuda 429/retention/withdrawal testleri PASS |
 | Pozitif öneri / eligibility / ranking / timezone kabulü | NOT IMPLEMENTED | Kritik producer sözleşmeleri olmadan feature kabulü üretilemez; üç erişim sınırı testi yerine sayılmadı |

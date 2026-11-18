@@ -47,7 +47,7 @@ Mevcut Java25/Boot4.1.1/PostgreSQL kodu eski docx/iskelet ifadelerinden öncelik
 
 Owner talepleri [User](../integration/dependencies/done/user-service-requests.md),
 [Social](../integration/dependencies/done/social-service-requests.md),
-[Event](../integration/dependencies/event-service-requests.md).
+[Event](../integration/dependencies/done/event-service-requests.md).
 Sonraki uygulamada bounded aday penceresi, deterministik tie-breaker, izinli sinyalle aynı
 skor/gerekçe, güncel eligibility ve kaynak arızasında fail-closed testleri gerekir.
 Bu maddeler tasarım talebidir; uygulandı olarak işaretlenmez. TASK 5 başlatılmadı.
