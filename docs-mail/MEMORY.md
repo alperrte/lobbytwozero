@@ -74,7 +74,7 @@
 ## 8. Fazlar (ayrıntı `progress/`)
 
 1. **MAIL-01 (altyapı):** KOD + TEST TAMAM (54 test PASS); resmi kapı PASS (%88,99). Mailpit ile uçtan uca doğrulandı (doğrulama kodu akışı).
-2. **MAIL-02 (hesap e-postaları):** KOD + TEST TAMAM (15 tür × TR/EN; V84 koyu tasarım, V85 `WELCOME`; bkz. [progress/LTZ-KER-MAIL-04.md](progress/LTZ-KER-MAIL-04.md)). `SUSPICIOUS_LOGIN` şablonu yok (Auth tetikleyicisi yok); `WELCOME` Mail tarafı hazır, Auth tetiği bekliyor.
+2. **MAIL-02 (hesap e-postaları):** KOD + TEST TAMAM (15 tür × TR/EN; V84 koyu tasarım, V85 `WELCOME`; bkz. [progress/LTZ-KER-MAIL-04.md](progress/LTZ-KER-MAIL-04.md)). `SUSPICIOUS_LOGIN` ve `ACCOUNT_DELETION_CANCELLED` şablonları V88 ile eklendi (Auth tetikleyicisi yok); `WELCOME` Mail tarafı hazır, Auth tetiği bekliyor.
 3. **Auth adaptör görevi:** KOD + TEST TAMAM (2026-10-31). `MAIL_SERVICE` adaptörü; prod artık bu adaptörle açılır (B5 kapandı, B12/B19 kısmen).
 4. **MAIL-03:** ertelendi; çağıran çıkınca.
 

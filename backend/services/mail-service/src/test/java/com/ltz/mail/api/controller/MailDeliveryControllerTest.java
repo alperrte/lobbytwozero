@@ -128,10 +128,22 @@ class MailDeliveryControllerTest extends IntegrationTestSupport {
     }
 
     @Test
+    void deletionCancelledAndSuspiciousLoginFollowTheAuthContractNames() throws Exception {
+        UUID account = newAccount();
+        for (String name : List.of("ACCOUNT_DELETION_CANCELLED", "SUSPICIOUS_LOGIN")) {
+            UUID key = UUID.randomUUID();
+            postJson(InternalApiPaths.SECURITY_NOTIFICATIONS, bearer(account, MAIL_SEND_SCOPE),
+                    notificationBody(key, account, EMAIL, name)).andExpect(status().isAccepted());
+            assertThat(messageByKey(key)).containsEntry("type", name).containsEntry("status", "PENDING");
+        }
+        assertThat(messageCount()).isEqualTo(2);
+    }
+
+    @Test
     void unknownNotificationTypeIsRejected() throws Exception {
         UUID account = newAccount();
 
-        for (String name : List.of("SUSPICIOUS_LOGIN", "welcome", "two_factor_enabled", "UNKNOWN")) {
+        for (String name : List.of("suspicious_login", "welcome", "two_factor_enabled", "UNKNOWN")) {
             postJson(InternalApiPaths.SECURITY_NOTIFICATIONS, bearer(account, MAIL_SEND_SCOPE),
                     notificationBody(UUID.randomUUID(), account, EMAIL, name)).andExpect(status().isBadRequest());
         }
