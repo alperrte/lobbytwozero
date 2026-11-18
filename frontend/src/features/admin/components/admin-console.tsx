@@ -2,17 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { authApi, type AuthMe } from "@/features/auth";
-import { AccountsPanel } from "./accounts-panel";
 import { AdminLogin } from "./admin-login";
-import { DeletionRequestsPanel } from "./deletion-requests-panel";
+import { AdminShell } from "./admin-shell";
 import { errorClass, labelClass, linkButton } from "./ui";
 
 type Session = { status: "loading" } | { status: "guest" } | { status: "signed-in"; me: AuthMe };
-type Tab = "requests" | "accounts";
 
 /**
  * Yönetim paneli girişi: oturum yok → giriş formu; oturum var ama ADMIN rolü yok → erişim yok (çıkış yapılabilir);
- * ADMIN → dashboard. Rol kontrolü yalnız arayüz içindir; asıl yetki Auth'ta `ROLE_ADMIN` + zorunlu 2FA ile uygulanır.
+ * ADMIN → yan menülü panel (`AdminShell`). Rol kontrolü yalnız arayüz içindir; asıl yetki Auth'ta `ROLE_ADMIN` + zorunlu 2FA ile uygulanır.
  * Oturum, normal site ile aynı çerezleri paylaşır.
  */
 export function AdminConsole() {
@@ -61,62 +59,5 @@ export function AdminConsole() {
       </main>
     );
   }
-  return <Dashboard onSignOut={() => void signOut()} />;
-}
-
-function Dashboard({ onSignOut }: { onSignOut: () => void }) {
-  const [tab, setTab] = useState<Tab>("requests");
-  const [pending, setPending] = useState<number | null>(null);
-  const [accountId, setAccountId] = useState<string | null>(null);
-
-  const tabClass = (active: boolean) =>
-    `inline-flex min-h-11 items-center gap-2 border-b-2 px-4 font-mono text-xs font-semibold uppercase tracking-[0.14em] transition-colors ${
-      active ? "border-primary text-text-primary" : "border-transparent text-text-secondary hover:text-text-primary"
-    }`;
-
-  return (
-    <div className="min-h-screen">
-      <header className="border-b border-border border-t-2 border-t-primary bg-surface">
-        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-3">
-          <span className="font-display text-sm font-semibold uppercase tracking-[0.2em] text-text-primary">
-            LTZ <span className="text-primary">{"//"}</span> Yönetim
-          </span>
-          <button type="button" onClick={onSignOut} className={linkButton}>Çıkış</button>
-        </div>
-      </header>
-
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6">
-        <section aria-label="Özet" className="flex flex-wrap gap-3">
-          <div className="min-w-44 border border-border bg-surface p-4">
-            <p className={labelClass}>Bekleyen talep</p>
-            <p className={`mt-2 font-display text-3xl font-semibold tabular-nums ${pending ? "text-primary" : "text-text-primary"}`}>
-              {pending ?? "–"}
-            </p>
-          </div>
-        </section>
-
-        <nav aria-label="Bölümler" className="flex border-b border-border">
-          <button type="button" className={tabClass(tab === "requests")} aria-current={tab === "requests"} onClick={() => setTab("requests")}>
-            Silme talepleri{pending ? ` · ${pending}` : ""}
-          </button>
-          <button type="button" className={tabClass(tab === "accounts")} aria-current={tab === "accounts"} onClick={() => setTab("accounts")}>
-            Hesaplar
-          </button>
-        </nav>
-
-        <div hidden={tab !== "requests"}>
-          <DeletionRequestsPanel
-            onCount={setPending}
-            onOpenAccount={(id) => {
-              setAccountId(id);
-              setTab("accounts");
-            }}
-          />
-        </div>
-        <div hidden={tab !== "accounts"}>
-          <AccountsPanel key={accountId ?? "none"} initialAccountId={accountId} />
-        </div>
-      </main>
-    </div>
-  );
+  return <AdminShell onSignOut={() => void signOut()} />;
 }

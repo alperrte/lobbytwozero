@@ -11,16 +11,25 @@ export const sectionLinkClass =
 export function ProfileSection({
   title,
   action,
-  children
+  children,
+  id,
+  tone = "default"
 }: {
   title: string;
   action?: ReactNode;
   children: ReactNode;
+  /** Sayfa içi bağlantı hedefi (`#id`). */
+  id?: string;
+  /** `danger`: geri alınması zor işlemler (hesap silme) için kırmızı çerçeve. */
+  tone?: "default" | "danger";
 }) {
   return (
-    <section className="rounded-panel border border-border bg-surface p-5 sm:p-6">
+    <section
+      id={id}
+      className={`scroll-mt-24 rounded-panel border bg-surface p-5 sm:p-6 ${tone === "danger" ? "border-primary/50" : "border-border"}`}
+    >
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-display text-base font-semibold">{title}</h2>
+        <h2 className={`font-display text-base font-semibold ${tone === "danger" ? "text-brand-text" : ""}`}>{title}</h2>
         {action}
       </div>
       <div className="mt-4">{children}</div>

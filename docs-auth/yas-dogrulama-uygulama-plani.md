@@ -61,9 +61,11 @@ Durum: [ ] yapılmadı · [~] sürüyor · [x] bitti. Her aşama sonunda commit 
 ## NOT VERIFIED / riskler
 
 - Beyan zayıf kanıttır; sınır hesap başınadır, yeni hesapla aşılabilir.
-- `GET /games` yanıtının Gateway veya aracı önbellekte kullanıcıdan bağımsız tutulup tutulmadığı doğrulanmadı (Game/Gateway sahibi).
+- `GET /games` önbellek sızıntısı: Hamza yerel yığında denedi (2026-11-12): `includeAdult` yanıtında `cache-control: no-store, private` ve `vary: Authorization, Cookie` Gateway'den değişmeden geçiyor. Hamza'nın raporu; ben yeniden denemedim.
 - Review frontend'inin `/games` yanıtındaki yeni alanı tolere ettiği doğrulanmadı (Hamza).
-- Gateway çerezi `Bearer`'a çevirip claim'i iletiyor ve `GET /me` çerezle CSRF başlığı olmadan çalışıyor (A8'de canlı denendi). Başka servislerin GET uçlarında aynı davranış denenmedi.
-- Oturumsuz isteğin kimlik kontrolüyle (401) reddedildiği canlıda ayrıca denenmedi; A8'deki oturumsuz deneme CSRF yüzünden 403 aldı (401 garantisi backend testlerinde).
+- Gateway çerezi `Bearer`'a çevirip claim'i iletiyor ve `GET /me` çerezle CSRF başlığı olmadan çalışıyor (A8'de canlı denendi). Başka servislerin GET uçlarında aynı davranış denenmedi. Game'in `GET /games` ucunda Hamza da CSRF istemediğini gördü.
+- Oturumsuz ama CSRF'li isteğin 401 alması: `age-e2e.mjs`e eklendi, henüz çalıştırılmadı. Hamza'nın denemesinde oturumsuz `POST/DELETE` CSRF yüzünden `403`, oturumsuz `GET /me` `401` aldı.
 - Dev yığınında güvenli çerez modu açık: çerez adları `__Host-` önekli (`__Host-XSRF-TOKEN` vb.). Tarayıcıda `http://localhost` ile giriş denemesi ayrıca doğrulanmadı.
-- Game ve Review ile uçtan uca senaryolar: diğer taraflar bitince.
+- Game ile uçtan uca: Hamza yerel `ltz-dev` yığınında gerçek Auth + Gateway + Game ile denedi, çalışıyor (beyan, refresh sonrası claim, `includeAdultApplied`, geri alma). Hamza'nın raporu; Game yalnız `GET /games` ve `/games/search`te kapı uygular. Review ile uçtan uca, Game kutusunun tarayıcıda elle denenmesi ve ortak bir DEV'de doğrulama yapılmadı (ortak DEV diye bir ortam yok).
+- Eski yerel `auth_db` uyarısı (Hamza bildirdi, ben doğrulamadım): Flyway geçmişi eski V61–V70 zincirli (`V65__external_identity_linking`, `V66__google_identity_linking`) yerel veritabanı, `main`deki zincirle (`V65__account_tiers`, `V66__age_verification`) uyuşmaz ve yeni Auth imajı açılmaz; çözüm `node ops/dev.mjs reset` (yerel veri silinir).
+- Yerel seed hesaplar tier A (`AUTH_2FA_REQUIRED_ROLES` boş, moderator/admin dahil): arayüzden yaş beyanı denemek için önce 2FA açılmalı, yoksa `STEP_UP_REQUIRED` görülür.

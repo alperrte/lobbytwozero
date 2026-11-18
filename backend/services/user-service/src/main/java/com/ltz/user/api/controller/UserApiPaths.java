@@ -22,6 +22,8 @@ public final class UserApiPaths {
     public static final String PROFILE_BY_USERNAME = PROFILES + "/by-username/{username}";
     public static final String PROFILES_BATCH = PROFILES + "/batch";
     public static final String SEARCH = BASE + "/search";
+    /** Yalnız ADMIN: hesap durumundan bağımsız profil arama (yönetim paneli). */
+    public static final String ADMIN_PROFILES_SEARCH = BASE + "/admin/profiles/search";
 
     private UserApiPaths() {
     }

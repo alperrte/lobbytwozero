@@ -1020,7 +1020,7 @@ UNIT + INTEGRATION (Auth tarafı; Admin tüketici testi yok). REQ-04-A hedef/hes
 - **Auth → her veri sahibi servis, hesap verisi silme (AUTH-16/17) — Auth tarafı IMPLEMENTED (2026-10-23):** `DELETE /internal/v1/accounts/{accountId}`, Yetkilendirme: Internal. Servis JWT'si (D4, `ServiceTokenIssuer`): başlık `typ=svc+jwt`, RS256 (JWKS); `iss=ltz-auth`, tek `aud=<servis>-service` (ör. `social-service`), `sub=svc:auth-service`, `scope=account:erase`, `account_id=<silinecek hesap>`, ömür 30 sn, `jti`. Hedef servis tümünü bağımsız doğrular; `sub` tam eşleşme ve `account_id` = yoldaki `{accountId}` zorunludur (aksi halde `403`); kullanıcı cookie'sine dayanmaz. İdempotent: `200`/`204` = veri silindi/anonimleştirildi (zaten yoksa da `204`); `202` dahil başka her yanıt başarısızlık sayılır ve tekrarlanır; yönlendirme izlenmez. Hedefler (16): `user, mail, game, library, review, social, messaging, lfp, community, content, event, hardware, recommendation, performance, admin, notification`. Auth'ta onay alan bir iç uç **yoktur**. Test Durumu: UNIT + INTEGRATION (gerçek HTTP).
 
 - **Auth → Mail, `WELCOME` bildirimi — IMPLEMENTED (2026-11-09, MAIL-AUTH-REQ-01):** mevcut `POST /internal/v1/mail/security-notifications` (`scope=mail:send`) ucuna `type=WELCOME`; `locale` User'dan okunabilirse eklenir (aşağıdaki MAIL-AUTH-REQ-02 kaydı), yoksa iki dilli. Tetik: e-posta doğrulaması başarıyla tamamlanınca (`EmailVerificationService`, Steam+e-posta dahil) ve Google ile yeni hesap ilk kez doğrulanmış e-postayla açılınca; **commit sonrası, en iyi çaba** (Mail hata verse doğrulama/kayıt başarılı kalır). Doğrulanmamış adrese gönderilmez. Tek seferlik: `idempotencyKey = UUID.nameUUIDFromBytes("WELCOME:" + accountId)`; tekrar doğrulama/bağlama ikinci mail üretmez. Mevcut hesaba Google/Steam bağlama `WELCOME` üretmez (hesap yeni değil; bağlamada `EXTERNAL_IDENTITY_LINKED` gider).
-- **Auth → User, dil tercihi okuma + Mail'e `locale` — IMPLEMENTED (2026-11-10, MAIL-AUTH-REQ-02; Auth tarafı):** Auth, mail göndermeden hemen önce `GET /internal/v1/users/{userId}/locale` çağırır (`HttpUserLocaleClient`; adres `ltz.auth.deletion.service-urls.user`). Yetkilendirme: Internal; servis JWT'si `typ=svc+jwt`, `aud=user-service`, `sub=svc:auth-service`, `scope=preferences:locale:read`, `account_id=<userId>`, ömür 30 sn. Beklenen yanıt `{"locale":"tr"|"en"}`; başka her şey (404, 4xx/5xx, zaman aşımı, `de` gibi değer, ek alan) "dil bilinmiyor" sayılır ve `locale` Mail'e **hiç gönderilmez** (iki dilli mail). **En iyi çaba:** zaman aşımı en çok 2 sn, mail zaten commit sonrası ayrı iş parçacığında gittiği için kayıt/giriş akışı bloklanmaz. Yalnız başarılı değer hesap başına 60 sn önbelleğe alınır (hata/404 alınmaz; profil sonradan oluşabilir). Dil, adres ve yanıt gövdesi loglanmaz. `HttpMailServiceAdapter` dört Mail ucunun (`verification-codes`, `password-resets`, `account-deletions`, `security-notifications`) gövdesine `locale` ekler. Kayıt anındaki doğrulama kodu ve profili olmayan hesap iki dilli kalır. **User tarafı (`GET /internal/v1/users/{userId}/locale`) bu kayıtta yoktur;** uç User sahibinde bekliyor, uçtan uca deneme User bitince yapılır. Test Durumu: UNIT (sahte User sunucusu); uçtan uca NOT VERIFIED.
+- **Auth → User, dil tercihi okuma + Mail'e `locale` — IMPLEMENTED (2026-11-10, MAIL-AUTH-REQ-02; Auth tarafı):** Auth, mail göndermeden hemen önce `GET /internal/v1/users/{userId}/locale` çağırır (`HttpUserLocaleClient`; adres `ltz.auth.deletion.service-urls.user`). Yetkilendirme: Internal; servis JWT'si `typ=svc+jwt`, `aud=user-service`, `sub=svc:auth-service`, `scope=preferences:locale:read`, `account_id=<userId>`, ömür 30 sn. Beklenen yanıt `{"locale":"tr"|"en"}`; başka her şey (404, 4xx/5xx, zaman aşımı, `de` gibi değer, ek alan) "dil bilinmiyor" sayılır ve `locale` Mail'e **hiç gönderilmez** (iki dilli mail). **En iyi çaba:** zaman aşımı en çok 2 sn, mail zaten commit sonrası ayrı iş parçacığında gittiği için kayıt/giriş akışı bloklanmaz. Yalnız başarılı değer hesap başına 60 sn önbelleğe alınır (hata/404 alınmaz; profil sonradan oluşabilir). Dil, adres ve yanıt gövdesi loglanmaz. `HttpMailServiceAdapter` dört Mail ucunun (`verification-codes`, `password-resets`, `account-deletions`, `security-notifications`) gövdesine `locale` ekler. Kayıt anındaki doğrulama kodu ve profili olmayan hesap iki dilli kalır. **User tarafı (`GET /internal/v1/users/{userId}/locale`) main'de mevcuttur (`InternalLocaleController`, 2026-11-16 doğrulandı);** uçtan uca DEV'de doğrulandı (2026-11-16, yalnız `AUTH_MAIL_ADAPTER=mail-service` ile): kayıtlı `en` tercihi ile parola sıfırlama maili yalnız İngilizce geldi, WELCOME Mail Service şablonundan gitti; `dev-smtp` adaptöründe bu zincir devre dışıdır. Test Durumu: UNIT (sahte User sunucusu) + DEV uçtan uca.
 - **Platform kapısı mekanizması — IMPLEMENTED (2026-11-09):** servis istemcisine `ltz.auth.service-clients.clients.<servis>.targets.mail-service=mail:notify` satırı eklenince `audience=mail-service` token'ı alır (`aud=mail-service`, `sub=svc:<servis>`, `account_id` yok); tanımsız istemci `403 SERVICE_AUDIENCE_FORBIDDEN`. Şu an üretimde hiçbir servise satır tanımlı değildir; `mail:send` Auth'a özel kalır.
 
 Aşağıdakiler Auth'un çağıracağı/yayımlayacağı **PLANNED** sözleşmelerdir; karşı servisin kaydı o servis uygulanırken kendi başlığı altında açılır.
@@ -1532,6 +1532,43 @@ Diğer mikroservisler:
 
 #### Test Durumu
 UNIT + INTEGRATION (`PlayerSearchTest` 9 test: önek, Türkçe katlama, durum/engel süzgeci, sınır, joker kaçırma).
+
+### USER — Yönetim paneli profil arama (ADMIN)
+
+Durum: IMPLEMENTED (User tarafı; panel arayüzü ayrı iş)
+Sorumlu: Kerem
+Tüketici servisler: Frontend (yönetim paneli)
+
+#### Endpoint
+GET /api/v1/user/admin/profiles/search?q={metin}
+
+#### Yetkilendirme
+Authenticated + `ROLE_ADMIN` (`SecurityConfig`). `PLAYER`, `MODERATOR` ve diğer roller `403`; token yoksa `401`. Panel, dönen `userId`'yi Auth'taki hesap kimliği olarak kullanır (`GET /api/v1/auth/admin/accounts/{accountId}`); yönetici UUID bilmek zorunda kalmaz.
+
+#### Query Parameters
+- q: string, zorunlu; baştaki tek `@` atılır (`@ada` = `ada`), kırpıldıktan sonra 2-32 karakter, denetim/biçim karakteri yok
+
+#### Response — 200
+```json
+{ "items": [ { "userId": "UUID", "username": "string | null", "displayName": "string | null", "accountStatus": "ACTIVE | SUSPENDED | BANNED | DISABLED | DELETION_REQUESTED | PENDING_VERIFICATION", "memberSince": "ISO-8601 | null" } ] }
+```
+**En çok 20** sonuç; sayfalama yok. Eşleşme, herkese açık aramayla aynıdır (kullanıcı adı ya da görünen ad önek, büyük/küçük harf duyarsız, Türkçe `ı/I/İ/i` katlaması, `%` `_` `\` joker değil). Fark: hesap durumuna ve engel ilişkisine bakılmaz; askıdaki, yasaklı ve silinme sürecindeki hesaplar da döner. Yalnız ad, durum ve üyelik tarihi verilir (biyografi, gizlilik, tercih, avatar yok). `Cache-Control: no-store, private`. Arama metni günlüğe yazılmaz; yalnız yönetici kimliği ve sonuç sayısı kaydedilir. `accountStatus` Auth'taki durumun User'daki kopyasıdır; doğruluk kaynağı Auth'tur.
+
+#### Hata Durumları
+- 400: `INVALID_SEARCH_QUERY` (kısa/uzun/yasak karakter, yalnız `@`), `q` yok
+- 401: Token yok/geçersiz
+- 403: ADMIN rolü yok
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend: yönetim paneli (hesap arama)
+API Gateway üzerinden /api/v1/user/admin/profiles/search
+
+Diğer mikroservisler:
+- auth-service (panel, dönen `userId` ile Auth yönetici uçlarını çağırır)
+
+#### Test Durumu
+INTEGRATION (`AdminProfileSearchTest`: `@` önekli arama, durum/engel süzgeci yok, sınır ve joker, 400, rol ve misafir erişimi).
 
 ### USER — Gizlilik kararı (Internal, Social/Hardware/Library → User)
 
@@ -7070,11 +7107,11 @@ Diğer mikroservisler:
 social-service `POST /internal/v1/blocks/check` (RestClient, servis token'ı; bkz. "Aktif ilanları listele ve ara"). LFP messaging-service'i çağırmaz (kullanıcı adına token iletimi yok).
 
 #### Test Durumu
-INTEGRATION — `ListingPrivacyContactTest` (izin, kendi ilanı, iki yönlü engel, kapalı/süresi dolmuş, yok, kimliksiz, fail-closed). Gerçek Social + Messaging ile uçtan uca: NOT VERIFIED. PASS (2026-11-13; `pre-push lfp-service` ve `full dev`: lfp-service 139 test, satır kapsamı %95,49).
+INTEGRATION — `ListingPrivacyContactTest` (izin, kendi ilanı, iki yönlü engel, kapalı/süresi dolmuş, yok, kimliksiz, fail-closed). Gerçek Auth + Social + Messaging + Game ile Gateway üzerinden uçtan uca: **PASS** (2026-11-17, DEV; iki yönde engel → liste gizli, detay/iletişim `404`; Social kapalıyken `503`, açılınca `200`; `contact` → Messaging'de birebir sohbet `201`, tekrar `200`; bkz. `docs-lfp/TASK-04.md`). PASS (2026-11-13; `pre-push lfp-service` ve `full dev`: lfp-service 139 test, satır kapsamı %95,49).
 
 ### LFP — Hesap verisi silme (Internal, Auth → LFP)
 
-Durum: IMPLEMENTED (alıcı taraf; gerçek Auth token'ıyla uçtan uca NOT VERIFIED)
+Durum: IMPLEMENTED (alıcı taraf; gerçek Auth token'ıyla uçtan uca PASS, 2026-11-17)
 Sorumlu: Umut
 Tüketici servisler: auth-service (hesap silme koordinasyonu, `ltz.auth.deletion.targets` içinde `lfp` var)
 
@@ -7111,7 +7148,7 @@ Diğer mikroservisler:
 Auth, silme onaylandığında `${LFP_SERVICE_URL}/internal/v1/accounts/{accountId}` adresini çağırır.
 
 #### Test Durumu
-INTEGRATION — `AccountErasureTest` (16 test: rehberin senaryoları ve veri senaryoları). Gerçek Auth servis token'ıyla uçtan uca: NOT VERIFIED. PASS (2026-11-13; `pre-push lfp-service` ve `full dev`: lfp-service 139 test, satır kapsamı %95,49).
+INTEGRATION — `AccountErasureTest` (16 test: rehberin senaryoları ve veri senaryoları). Gerçek Auth servis token'ıyla uçtan uca: **PASS** (2026-11-17, DEV): test hesabı Gateway'den silme isteyip e-posta token'ıyla onayladı → Auth'taki `lfp` görevi `CONFIRMED`; `lfp_db`'de hesabın ilanları 0 (`docs-lfp/TASK-04.md`). PASS (2026-11-13; `pre-push lfp-service` ve `full dev`: lfp-service 139 test, satır kapsamı %95,49).
 
 ## COMMUNITY
 

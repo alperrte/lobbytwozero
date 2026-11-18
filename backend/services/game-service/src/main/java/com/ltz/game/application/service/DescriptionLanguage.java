@@ -45,10 +45,19 @@ public final class DescriptionLanguage {
      * metin girilmiş olabilir; şüphede reddedilir ki başka dildeki metin "İngilizce" diye işaretlenmesin.
      */
     public static boolean looksEnglish(String text) {
-        if (text == null || text.isBlank()) return false;
+        if (text == null || text.isBlank() || !mostlyAsciiLatin(text)) return false;
+        int english = 0;
+        var matcher = WORD.matcher(text.toLowerCase(Locale.ROOT));
+        while (matcher.find()) {
+            if (ENGLISH_WORDS.contains(matcher.group())) english++;
+        }
+        return english >= MIN_ENGLISH_WORDS;
+    }
+
+    /** Harflerin en az {@link #MIN_ASCII_LETTER_RATIO} oranı ASCII Latin mi (harf yoksa false). */
+    private static boolean mostlyAsciiLatin(String text) {
         int letters = 0;
         int ascii = 0;
-        int english = 0;
         for (int index = 0; index < text.length(); index++) {
             char c = text.charAt(index);
             if (Character.isLetter(c)) {
@@ -56,12 +65,7 @@ public final class DescriptionLanguage {
                 if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) ascii++;
             }
         }
-        if (letters == 0 || (double) ascii / letters < MIN_ASCII_LETTER_RATIO) return false;
-        var matcher = WORD.matcher(text.toLowerCase(Locale.ROOT));
-        while (matcher.find()) {
-            if (ENGLISH_WORDS.contains(matcher.group())) english++;
-        }
-        return english >= MIN_ENGLISH_WORDS;
+        return letters != 0 && (double) ascii / letters >= MIN_ASCII_LETTER_RATIO;
     }
 
     /** Bu dil için dil denetimi tanımlı mı (tanımsız dil işlenmez: gereksiz istek ve yanlış etiket riski yok). */

@@ -112,19 +112,27 @@ class FlywayMigrationTest extends IntegrationTestSupport {
     @Test
     void epostaIleNormalizeEdilmisEpostaBirlikteDoluYaDaBirlikteBosOlmali() {
         String suffix = uniqueSuffix();
+        UUID id = UUID.randomUUID();
+        String email = suffix + "@example.test";
+        String username = "u" + suffix;
 
         assertThatThrownBy(() -> jdbc.update("""
                 insert into accounts (id, email, email_normalized, username, username_normalized, status, created_at, updated_at)
                 values (?, ?, null, ?, ?, 'ACTIVE', now(), now())
-                """, UUID.randomUUID(), suffix + "@example.test", "u" + suffix, "u" + suffix))
+                """, id, email, username, username))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
     void epostasizHesapDogrulamaBeklemezVeDogrulanmisSayilmaz() {
-        assertThatThrownBy(() -> insertAccountWithoutEmail(UUID.randomUUID(), "p" + uniqueSuffix(), "PENDING_VERIFICATION", false))
+        UUID pendingId = UUID.randomUUID();
+        String pendingName = "p" + uniqueSuffix();
+        UUID verifiedId = UUID.randomUUID();
+        String verifiedName = "v" + uniqueSuffix();
+
+        assertThatThrownBy(() -> insertAccountWithoutEmail(pendingId, pendingName, "PENDING_VERIFICATION", false))
                 .isInstanceOf(DataIntegrityViolationException.class);
-        assertThatThrownBy(() -> insertAccountWithoutEmail(UUID.randomUUID(), "v" + uniqueSuffix(), "ACTIVE", true))
+        assertThatThrownBy(() -> insertAccountWithoutEmail(verifiedId, verifiedName, "ACTIVE", true))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 

@@ -108,7 +108,7 @@ public class MailDispatchService {
                     exception.getClass().getSimpleName());
             outcome = new Outcome(AttemptResult.TRANSIENT_FAILURE, INTERNAL_ERROR, null, elapsedMillis(startNanos));
         }
-        record(message, outcome, startedAt);
+        recordOutcome(message, outcome, startedAt);
     }
 
     private Outcome send(MailMessage message, long startNanos) {
@@ -162,7 +162,7 @@ public class MailDispatchService {
         return MailLocale.fromCode(message.getLocale());
     }
 
-    private void record(MailMessage message, Outcome outcome, Instant now) {
+    private void recordOutcome(MailMessage message, Outcome outcome, Instant now) {
         int attemptNo = message.getAttempts();
         switch (outcome.result()) {
             case SENT -> message.markSent(now);

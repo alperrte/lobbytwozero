@@ -53,22 +53,34 @@ public record GameRefreshProperties(Interval release, Interval details, @Default
         if (hotPastDays < 0 || hotPastDays > 3650 || hotFutureDays < 0 || hotFutureDays > 3650) {
             throw new IllegalArgumentException("Geçersiz sıcak pencere.");
         }
-        SteamPrice price = steamPrice == null ? new SteamPrice(null, null, null) : steamPrice;
-        steamPrice = new SteamPrice(price.hotDirect() == null ? Boolean.FALSE : price.hotDirect(),
+        steamPrice = withDefaults(steamPrice);
+        hints = withDefaults(hints);
+        validate(hints);
+        steamMarketSet(steamPrice.markets());
+    }
+
+    private static SteamPrice withDefaults(SteamPrice value) {
+        SteamPrice price = value == null ? new SteamPrice(null, null, null) : value;
+        return new SteamPrice(price.hotDirect() == null ? Boolean.FALSE : price.hotDirect(),
                 price.gapFallback() == null ? Boolean.TRUE : price.gapFallback(),
                 price.markets() == null || price.markets().isBlank() ? DEFAULT_STEAM_MARKETS : price.markets());
-        Hints hint = hints == null ? new Hints(null, null, null, null, null) : hints;
-        hints = new Hints(hint.enabled() == null ? Boolean.TRUE : hint.enabled(),
+    }
+
+    private static Hints withDefaults(Hints value) {
+        Hints hint = value == null ? new Hints(null, null, null, null, null) : value;
+        return new Hints(hint.enabled() == null ? Boolean.TRUE : hint.enabled(),
                 hint.maxKeys() == null ? Integer.valueOf(5000) : hint.maxKeys(),
                 hint.repeatWindow() == null ? Duration.ofMinutes(5) : hint.repeatWindow(),
                 hint.batch() == null ? Integer.valueOf(100) : hint.batch(),
                 hint.maxDrainsPerMinute() == null ? Integer.valueOf(6) : hint.maxDrainsPerMinute());
+    }
+
+    private static void validate(Hints hints) {
         if (hints.maxKeys() < 1 || hints.maxKeys() > 100_000 || hints.batch() < 1 || hints.batch() > 100
                 || hints.maxDrainsPerMinute() < 1 || hints.maxDrainsPerMinute() > 60
                 || hints.repeatWindow().compareTo(Duration.ofSeconds(10)) < 0 || hints.repeatWindow().compareTo(Duration.ofHours(1)) > 0) {
             throw new IllegalArgumentException("Geçersiz ipucu ayarı.");
         }
-        steamMarketSet(steamPrice.markets());
     }
 
     /** Eski (varsayılan) kurulum: yalnız varsayılan değerler. */

@@ -209,4 +209,41 @@ describe("AccountSecuritySection", () => {
     expect(await screen.findByText(/tüm oturumların kapandı/)).toBeInTheDocument();
     expect(api.logoutAll).toHaveBeenCalledTimes(1);
   });
+
+  it("2FA kurulumu pencerede açılır; Vazgeç pencereyi kapatır, istek atmaz", async () => {
+    api.setupTotp.mockResolvedValue({ secret: "ABCDSECRET", otpauthUri: "" });
+    renderSection();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Kurulumu başlat" }));
+    expect(await screen.findByRole("dialog", { name: "İki adımlı doğrulama (TOTP)" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Vazgeç" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(api.activateTotp).not.toHaveBeenCalled();
+  });
+
+  it("kurtarma kodları penceresi Esc ile kapanmaz, yalnız Kodları kaydettim kapatır", async () => {
+    api.setupTotp.mockResolvedValue({ secret: "ABCDSECRET", otpauthUri: "" });
+    api.activateTotp.mockResolvedValue({ recoveryCodes: ["rc-1", "rc-2"] });
+    renderSection();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Kurulumu başlat" }));
+    await screen.findByText("ABCDSECRET");
+    fireEvent.change(screen.getByLabelText("Uygulamadaki 6 haneli kodu yaz"), { target: { value: "123456" } });
+    fireEvent.click(screen.getByRole("button", { name: "Etkinleştir" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Kurtarma kodların" });
+    fireEvent(dialog, new Event("cancel", { cancelable: true }));
+    fireEvent.click(dialog);
+    expect(screen.getByText("rc-1")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Vazgeç" })).not.toBeInTheDocument();
+  });
+
+  it("tüm oturumları kapatma penceresinde Vazgeç oturumları kapatmaz", async () => {
+    renderSection();
+    fireEvent.click(await screen.findByRole("button", { name: "Tüm cihazlardan çık" }));
+    expect(screen.getByRole("dialog", { name: "Tüm cihazlardaki oturumlar kapatılsın mı?" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Vazgeç" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(api.logoutAll).not.toHaveBeenCalled();
+  });
 });

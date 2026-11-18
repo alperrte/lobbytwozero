@@ -2,6 +2,8 @@
 
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { useFormatter, useTranslations } from "next-intl";
+import { CardSnake } from "@/shared/components/ui/card-snake";
+import { ConfirmDialog } from "@/shared/components/ui/confirm-dialog";
 import { authApi } from "../services/auth-api";
 import { authErrorCode } from "../services/auth-http";
 import type { AuthErrorCode, AuthMe, DeletionSupportRequest } from "../types/auth.types";
@@ -84,11 +86,17 @@ function SelfServiceForm() {
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<AuthErrorCode | null>(null);
   const [sent, setSent] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const id = useId();
 
-  async function onSubmit(event: FormEvent) {
+  function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (busy || password === "") return;
+    setConfirming(true);
+  }
+
+  async function send() {
+    if (busy) return;
     setBusy(true);
     setProblem(null);
     try {
@@ -99,6 +107,7 @@ function SelfServiceForm() {
       setProblem(authErrorCode(error));
     } finally {
       setBusy(false);
+      setConfirming(false);
     }
   }
 
@@ -124,6 +133,7 @@ function SelfServiceForm() {
           {busy ? t("sending") : t("submitDelete")}
         </button>
       </div>
+      {confirming ? <DeleteConfirm body={t("confirm.bodySelf")} busy={busy} onConfirm={() => void send()} onCancel={() => setConfirming(false)} /> : null}
     </form>
   );
 }
@@ -137,6 +147,7 @@ function SupportRequestForm({ me, initial }: { me: AuthMe; initial: DeletionSupp
   const [factor, setFactor] = useState("");
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<AuthErrorCode | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const id = useId();
 
   const needsPassword = me.passwordSet === true;
@@ -146,8 +157,13 @@ function SupportRequestForm({ me, initial }: { me: AuthMe; initial: DeletionSupp
   const pending = request?.status === "PENDING";
   const approved = request?.status === "APPROVED";
 
-  async function onSubmit(event: FormEvent) {
+  function onSubmit(event: FormEvent) {
     event.preventDefault();
+    if (busy) return;
+    setConfirming(true);
+  }
+
+  async function send() {
     if (busy) return;
     setBusy(true);
     setProblem(null);
@@ -166,6 +182,7 @@ function SupportRequestForm({ me, initial }: { me: AuthMe; initial: DeletionSupp
       setProblem(authErrorCode(error));
     } finally {
       setBusy(false);
+      setConfirming(false);
     }
   }
 
@@ -237,8 +254,27 @@ function SupportRequestForm({ me, initial }: { me: AuthMe; initial: DeletionSupp
               {busy ? t("sending") : t("submitSupport")}
             </button>
           </div>
+          {confirming ? <DeleteConfirm body={t("confirm.bodySupport")} busy={busy} onConfirm={() => void send()} onCancel={() => setConfirming(false)} /> : null}
         </form>
       )}
     </div>
+  );
+}
+
+/** Silme isteğinden önceki son onay: geri alınması zor bir süreç başlatır; login formundaki gibi dönen çerçeveyle açılır. */
+function DeleteConfirm({ body, busy, onConfirm, onCancel }: { body: string; busy: boolean; onConfirm: () => void; onCancel: () => void }) {
+  const t = useTranslations("AccountSettings.deletion");
+  return (
+    <ConfirmDialog
+      tone="danger"
+      title={t("confirm.title")}
+      description={body}
+      confirmLabel={busy ? t("sending") : t("confirm.confirm")}
+      cancelLabel={t("confirm.cancel")}
+      busy={busy}
+      frame={<CardSnake initialDelayMs={250} />}
+      onConfirm={onConfirm}
+      onCancel={onCancel}
+    />
   );
 }

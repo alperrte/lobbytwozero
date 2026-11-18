@@ -12,6 +12,8 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public class LibraryEntryRepository {
+    private static final String USER_ID = "userId";
+    private static final String GAME_ID = "gameId";
     /** Sorgular yalnız derleme zamanı sabitleridir; filtreler ve kimlikler bağlı parametredir, SQL birleştirilmez. */
     private static final String COLLECTION_FILTER = " WHERE user_id = :userId AND (:filterFavorite = false OR favorite = :favorite)"
             + " AND (:filterCompleted = false OR completed = :completed)";
@@ -43,19 +45,19 @@ public class LibraryEntryRepository {
                                         OR (EXCLUDED.completed AND NOT library_entries.completed) THEN 1 ELSE 0 END
                 RETURNING *
                 """, LibraryEntry.class).setParameter("id", UUID.randomUUID())
-                .setParameter("userId", userId).setParameter("gameId", gameId)
+                .setParameter(USER_ID, userId).setParameter(GAME_ID, gameId)
                 .setParameter("favorite", action == LibraryAction.FAVORITE)
                 .setParameter("completed", action == LibraryAction.COMPLETE).getSingleResult();
     }
 
     public void remove(UUID userId, UUID gameId) {
         entities.createNativeQuery("DELETE FROM library_entries WHERE user_id = :userId AND game_id = :gameId")
-                .setParameter("userId", userId).setParameter("gameId", gameId).executeUpdate();
+                .setParameter(USER_ID, userId).setParameter(GAME_ID, gameId).executeUpdate();
     }
 
     public void clearFlag(UUID userId, UUID gameId, LibraryFlag flag) {
         entities.createNativeQuery(flag == LibraryFlag.FAVORITE ? CLEAR_FAVORITE : CLEAR_COMPLETED)
-                .setParameter("userId", userId).setParameter("gameId", gameId).executeUpdate();
+                .setParameter(USER_ID, userId).setParameter(GAME_ID, gameId).executeUpdate();
     }
 
     public List<LibraryEntry> findFlagged(UUID userId, LibraryFlag flag, int page, int size) {
@@ -89,30 +91,30 @@ public class LibraryEntryRepository {
     public Counts statistics(UUID userId) {
         Object[] counts = (Object[]) entities.createNativeQuery("SELECT count(*), count(*) FILTER (WHERE favorite),"
                 + " count(*) FILTER (WHERE completed) FROM library_entries WHERE user_id = :userId")
-                .setParameter("userId", userId).getSingleResult();
+                .setParameter(USER_ID, userId).getSingleResult();
         return new Counts(((Number) counts[0]).longValue(), ((Number) counts[1]).longValue(), ((Number) counts[2]).longValue());
     }
 
     private static Query bindFilters(Query query, UUID userId, Boolean favorite, Boolean completed) {
-        return query.setParameter("userId", userId)
+        return query.setParameter(USER_ID, userId)
                 .setParameter("filterFavorite", favorite != null).setParameter("favorite", Boolean.TRUE.equals(favorite))
                 .setParameter("filterCompleted", completed != null).setParameter("completed", Boolean.TRUE.equals(completed));
     }
 
     public void eraseAccount(UUID userId) {
         entities.createNativeQuery("DELETE FROM library_entries WHERE user_id = :userId")
-                .setParameter("userId", userId).executeUpdate();
+                .setParameter(USER_ID, userId).executeUpdate();
     }
 
     public List<LibraryEntry> findSignals(UUID userId, int page, int size) {
         List<?> rows = entities.createNativeQuery("SELECT * FROM library_entries WHERE user_id = :userId"
                 + " AND (favorite OR completed) ORDER BY added_at DESC, id DESC LIMIT :size OFFSET :offset", LibraryEntry.class)
-                .setParameter("userId", userId).setParameter("size", size).setParameter("offset", (long) page * size).getResultList();
+                .setParameter(USER_ID, userId).setParameter("size", size).setParameter("offset", (long) page * size).getResultList();
         return rows.stream().map(LibraryEntry.class::cast).toList();
     }
 
     public long countSignals(UUID userId) {
         return ((Number) entities.createNativeQuery("SELECT count(*) FROM library_entries WHERE user_id = :userId AND (favorite OR completed)")
-                .setParameter("userId", userId).getSingleResult()).longValue();
+                .setParameter(USER_ID, userId).getSingleResult()).longValue();
     }
 }

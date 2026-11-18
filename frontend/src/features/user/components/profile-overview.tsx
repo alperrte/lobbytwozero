@@ -1,16 +1,28 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
+import { Link } from "@/shared/lib/i18n/navigation";
 import { cn } from "@/shared/utils/cn";
 import { countryName } from "../catalog/countries";
 import { useCatalogLabels } from "../hooks/use-catalog-labels";
+import type { Remote } from "../hooks/use-remote";
+import type { OnboardingState } from "../services/onboarding-api";
 import type { MyProfile, SteamLink } from "../types/profile.types";
 import { CountryFlag } from "./country-flag";
+import { editHref } from "./edit-sections";
 import { ProfileCompletion } from "./profile-completion";
 import { Card, Chips, Empty, Row } from "./profile-parts";
 
 /** "Genel" sekmesi: biyografi, oyuncu tercihleri, profil tamamlama ve bağlı hesaplar. */
-export function ProfileOverview({ profile, steam }: { profile: MyProfile; steam: SteamLink | null }) {
+export function ProfileOverview({
+  profile,
+  steam,
+  onboarding
+}: {
+  profile: MyProfile;
+  steam: SteamLink | null;
+  onboarding?: Remote<OnboardingState>;
+}) {
   const t = useTranslations("Profile");
   const locale = useLocale();
   const labels = useCatalogLabels();
@@ -22,7 +34,12 @@ export function ProfileOverview({ profile, steam }: { profile: MyProfile; steam:
           {profile.bio ? (
             <p className="max-w-prose whitespace-pre-line text-text-primary">{profile.bio}</p>
           ) : (
-            <p className="text-text-secondary">{t("emptyBio")}</p>
+            <p className="text-text-secondary">
+              {t("emptyBio")}{" "}
+              <Link href={editHref("info")} className="text-brand-text hover:underline">
+                {t("add")}
+              </Link>
+            </p>
           )}
         </Card>
 
@@ -36,24 +53,24 @@ export function ProfileOverview({ profile, steam }: { profile: MyProfile; steam:
                   <span className="text-text-secondary">{profile.country}</span>
                 </span>
               ) : (
-                <Empty />
+                <Empty addSection="info" />
               )}
             </Row>
             <Row label={t("playerTypes")}>
-              <Chips items={profile.playerTypes.map((type) => t(`playerType.${type}`))} />
+              <Chips items={profile.playerTypes.map((type) => t(`playerType.${type}`))} addSection="prefs" />
             </Row>
             <Row label={t("genres")}>
-              <Chips items={profile.favoriteGenres.map(labels.genre)} />
+              <Chips items={profile.favoriteGenres.map(labels.genre)} addSection="prefs" />
             </Row>
             <Row label={t("platforms")}>
-              <Chips items={profile.favoritePlatforms.map(labels.platform)} />
+              <Chips items={profile.favoritePlatforms.map(labels.platform)} addSection="prefs" />
             </Row>
           </dl>
         </Card>
       </div>
 
       <div className="flex flex-col gap-6">
-        <ProfileCompletion profile={profile} steam={steam} />
+        <ProfileCompletion profile={profile} steam={steam} onboarding={onboarding} />
         <Card title={t("linkedAccounts")}>
           <SteamRow steam={steam} />
         </Card>

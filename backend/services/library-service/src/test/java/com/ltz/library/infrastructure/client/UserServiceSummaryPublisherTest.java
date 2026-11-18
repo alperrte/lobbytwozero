@@ -10,7 +10,6 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -18,8 +17,10 @@ import org.springframework.test.json.JsonCompareMode;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.ExpectedCount.never;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
@@ -35,6 +36,7 @@ class UserServiceSummaryPublisherTest {
     private static final String URL = "http://user.test/internal/events";
     private static final String TOKEN = "synthetic.events.token";
     private static final UUID USER = UUID.randomUUID();
+    private static final java.util.regex.Pattern EVENT_ID = java.util.regex.Pattern.compile(".*\"eventId\":\"[0-9a-f-]{36}\".*");
     private static final Instant NOW = Instant.parse("2026-11-09T20:00:00.123456789Z");
     private MockRestServiceServer server;
     private AuthServiceTokenClient tokens;
@@ -43,7 +45,7 @@ class UserServiceSummaryPublisherTest {
     @BeforeEach void setup() {
         var builder = RestClient.builder();
         server = MockRestServiceServer.bindTo(builder).build();
-        tokens = Mockito.mock(AuthServiceTokenClient.class);
+        tokens = mock(AuthServiceTokenClient.class);
         when(tokens.configured()).thenReturn(true);
         when(tokens.token("user-service", "events:ingest")).thenReturn(Optional.of(TOKEN));
         publisher = new UserServiceSummaryPublisher(builder, tokens, "http://user.test", Clock.fixed(NOW, ZoneOffset.UTC));
@@ -70,10 +72,10 @@ class UserServiceSummaryPublisherTest {
         publisher.publish(USER, 1, 0, 0);
         publisher.publish(USER, 1, 0, 0);
         server.verify();
-        assertFalse(bodies.get(0).equals(bodies.get(1)), "eventId her teslimde farklıdır");
+        assertNotEquals(bodies.get(0), bodies.get(1), "eventId her teslimde farklıdır");
         for (String body : bodies) {
             assertFalse(body.contains(TOKEN), "token gövdeye yazılmaz");
-            assertTrue(body.matches(".*\"eventId\":\"[0-9a-f-]{36}\".*"));
+            assertTrue(EVENT_ID.matcher(body).matches());
         }
     }
 

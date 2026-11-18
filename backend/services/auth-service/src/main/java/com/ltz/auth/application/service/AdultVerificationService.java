@@ -86,7 +86,7 @@ public class AdultVerificationService {
             securityEventRecorder.recordEvent(SecurityEventType.AGE_VERIFICATION_REJECTED, accountId);
             throw new AuthException(AuthErrorCode.AGE_NOT_ELIGIBLE);
         }
-        transactionTemplate.executeWithoutResult(status -> record(accountId, clock.instant()));
+        transactionTemplate.executeWithoutResult(status -> recordVerification(accountId, clock.instant()));
         attemptThrottle.clear(throttleKey);
     }
 
@@ -130,7 +130,7 @@ public class AdultVerificationService {
         }
     }
 
-    private void record(UUID accountId, Instant now) {
+    private void recordVerification(UUID accountId, Instant now) {
         AccountAgeVerification existing = repository.findByAccountIdForUpdate(accountId).orElse(null);
         if (existing == null) {
             repository.save(AccountAgeVerification.verified(accountId, AgeVerificationMethod.SELF_DECLARED, now));

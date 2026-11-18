@@ -143,16 +143,25 @@ public class DlcParentService {
         }
         consecutiveFailures = 0;
         before = Long.parseLong(rows.getLast().getExternalId());   // yalnız başarılı sorgudan sonra ilerler (hata partiyi atlatmaz)
+        List<Decision> immediate = splitByEvidence(rows, evidence);
+        if (!immediate.isEmpty()) transaction.executeWithoutResult(status -> apply(immediate, now));
+        return rows.size();
+    }
+
+    /** IGDB kanıtı yeterli olanları hemen karara bağlar; yok/belirsiz veya örneklem olanları Steam doğrulamasına kuyruklar. */
+    private List<Decision> splitByEvidence(List<GameExternalReferenceRepository.ClassificationRow> rows, Map<String, GameProvider.RelationEvidence> evidence) {
         List<Decision> immediate = new ArrayList<>();
         for (var row : rows) {
-            var igdb = evidence.get(row.getExternalId());
-            String igdbParent = igdb != null && igdb.parentState() == GameProvider.ParentState.LINKED ? igdb.parentExternalId() : null;
+            String igdbParent = igdbParentOf(evidence.get(row.getExternalId()));
             boolean sampled = Long.parseLong(row.getExternalId()) % VERIFY_MODULUS == 0;
             if (igdbParent != null && !sampled) immediate.add(new Decision(row, igdbParent, null));
             else pending.add(new Pending(row, igdbParent));   // IGDB yok/belirsiz veya örneklem: Steam ile sorulur
         }
-        if (!immediate.isEmpty()) transaction.executeWithoutResult(status -> apply(immediate, now));
-        return rows.size();
+        return immediate;
+    }
+
+    private static String igdbParentOf(GameProvider.RelationEvidence igdb) {
+        return igdb != null && igdb.parentState() == GameProvider.ParentState.LINKED ? igdb.parentExternalId() : null;
     }
 
     private int steamStep(Instant now) {
@@ -189,7 +198,7 @@ public class DlcParentService {
             Game game = loaded.get(decision.row().getGameId());
             if (!reviewable(game)) continue;
             Outcome outcome = decide(game, decision, parentRows);
-            record(game, decision, outcome, parentRows, now);
+            recordDecision(game, decision, outcome, parentRows, now);
             batch.merge(outcome, 1, Integer::sum);
             totals.merge(outcome, 1L, Long::sum);
         }
@@ -212,7 +221,7 @@ public class DlcParentService {
     }
 
     /** Sonucu uygular: bağlanabilirse ana oyunu yazar; her durumda DLC_PARENT gözlemini (kaynak ve durum) kaydeder. */
-    private void record(Game game, Decision decision, Outcome outcome, Map<String, DlcParentRepository.ParentRow> parentRows, Instant now) {
+    private void recordDecision(Game game, Decision decision, Outcome outcome, Map<String, DlcParentRepository.ParentRow> parentRows, Instant now) {
         boolean linked = outcome == Outcome.LINKED || outcome == Outcome.LINKED_VIA_STEAM;
         if (linked) {
             String parentAppId = decision.igdbParent() != null ? decision.igdbParent() : decision.steamParent();
@@ -245,7 +254,8 @@ public class DlcParentService {
     private void pause(ProviderException error, Instant now) {
         consecutiveFailures = Math.min(consecutiveFailures + 1, 6);
         Duration delay = retries.delay(error, Math.min(consecutiveFailures, 5));
-        Duration pause = delay == null ? MAX_PAUSE : delay.multipliedBy(consecutiveFailures >= 2 ? 4L : 1L);
+        long multiplier = consecutiveFailures >= 2 ? 4L : 1L;
+        Duration pause = delay == null ? MAX_PAUSE : delay.multipliedBy(multiplier);
         if (pause.compareTo(Duration.ofMinutes(1)) < 0) pause = Duration.ofMinutes(1);
         if (pause.compareTo(MAX_PAUSE) > 0) pause = MAX_PAUSE;
         pausedUntil = now.plus(pause);

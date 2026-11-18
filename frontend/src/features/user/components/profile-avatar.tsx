@@ -17,7 +17,7 @@ export function ProfileAvatar({
   return (
     <span
       className={cn(
-        "flex items-center justify-center overflow-hidden rounded-full bg-surface-elevated text-text-secondary",
+        "flex items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-primary/25 to-surface-elevated text-text-secondary",
         className
       )}
     >

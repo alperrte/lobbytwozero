@@ -4,7 +4,7 @@ import { useId, useState } from "react";
 import { useTranslations } from "next-intl";
 import { saveSteamVisibility } from "../services/settings-api";
 import type { LinkedSteam } from "../types/settings.types";
-import { settingsErrorKey, type SaveMessage } from "./settings-parts";
+import { SwitchRow, settingsErrorKey, type SaveMessage } from "./settings-parts";
 
 /**
  * Bağlı hesaplar: Steam (USER-08). Bağlama ve kaldırma Auth'tadır; burada yalnız Steam bağlantısının açık profilde gösterilip
@@ -38,26 +38,15 @@ export function SteamSection({ initial, onRefresh }: { initial: LinkedSteam; onR
     <div>
       <p className="mb-5 max-w-2xl text-sm text-text-secondary">{t("description")}</p>
       {current.linked ? (
-        <div className="flex items-start gap-3">
-          <input
-            id={id}
-            type="checkbox"
-            checked={current.showOnProfile}
-            disabled={busy}
-            aria-describedby={`${id}-hint`}
-            onChange={(event) => void onToggle(event.target.checked)}
-            className="mt-1 size-5 shrink-0 accent-primary"
-          />
-          <div className="flex flex-col gap-1">
-            <label htmlFor={id} className="text-sm font-medium">
-              {t("show.label")}
-            </label>
-            <p id={`${id}-hint`} className="text-xs text-text-secondary">
-              {t("show.hint", { steamId: current.steamId ?? "" })}
-            </p>
-            <p className="text-xs text-text-secondary">{current.showOnProfile ? t("show.on") : t("show.off")}</p>
-          </div>
-        </div>
+        <SwitchRow
+          id={id}
+          label={t("show.label")}
+          hint={t("show.hint", { steamId: current.steamId ?? "" })}
+          status={current.showOnProfile ? t("show.on") : t("show.off")}
+          checked={current.showOnProfile}
+          disabled={busy}
+          onChange={(next) => void onToggle(next)}
+        />
       ) : (
         <p className="rounded-control border border-border bg-surface-elevated px-3 py-3 text-sm text-text-secondary">
           {t("notLinked")}

@@ -499,6 +499,12 @@
         "account": "Account settings",
         "logout": "Log out",
         "computers": "My computers"
+      },
+      "logoutConfirm": {
+        "title": "You are signing out",
+        "description": "You are about to sign out of your account. Are you sure?",
+        "confirm": "Yes, sign out",
+        "cancel": "Cancel"
       }
     }
   },
@@ -1693,7 +1699,9 @@
         "recoveryDescription": "Save your recovery codes somewhere safe. They will not be shown again; use them if you lose access to your phone.",
         "recoveryList": "Recovery codes",
         "saved": "I saved my recovery codes somewhere safe.",
-        "continue": "Continue"
+        "continue": "Continue",
+        "qrLabel": "Setup QR code",
+        "scanQr": "Scan the QR code with your authenticator app (for example Google Authenticator)."
       }
     },
     "deleteAccount": {
@@ -2331,6 +2339,44 @@
     "editTitle": "Edit profile",
     "editDescription": "Shape your profile to reflect you.",
     "back": "Back to profile",
+    "add": "Add",
+    "sectionsNav": "Edit sections",
+    "sections": {
+      "images": "Images",
+      "info": "Details",
+      "prefs": "Gaming preferences"
+    },
+    "preview": "Preview",
+    "previewHint": "This is how others see your profile.",
+    "unsaved": "You have unsaved changes",
+    "unsavedCount": "{count} fields changed",
+    "changed": {
+      "displayName": "Display name",
+      "bio": "Bio",
+      "country": "Country",
+      "playerTypes": "Player type",
+      "genres": "Favorite genres",
+      "platforms": "Favorite platforms"
+    },
+    "confirmSave": {
+      "title": "Save your changes?",
+      "body": "Your profile will be updated for these fields:",
+      "confirm": "Yes, save",
+      "cancel": "Go back"
+    },
+    "confirmDiscard": {
+      "title": "Discard your changes?",
+      "body": "Your unsaved changes will be lost.",
+      "confirm": "Yes, discard",
+      "cancel": "Keep editing"
+    },
+    "confirmRemove": {
+      "cover": "Remove the cover image?",
+      "avatar": "Remove the profile photo?",
+      "body": "The image is removed from your profile right away.",
+      "confirm": "Yes, remove",
+      "cancel": "Cancel"
+    },
     "images": "Profile images",
     "changeCover": "Change cover",
     "changeAvatar": "Change photo",
@@ -2546,6 +2592,13 @@
     "title": "Account settings",
     "description": "Manage who can see your profile, your account preferences and how your data is used.",
     "back": "← Back to my profile",
+    "navLabel": "Settings sections",
+    "groups": {
+      "profile": "Profile",
+      "account": "Account",
+      "protection": "Security and age",
+      "danger": "Danger zone"
+    },
     "security": {
       "title": "Security",
       "loading": "Loading security information…",
@@ -2554,6 +2607,7 @@
       "password": "Your password",
       "factor": "Verification code (6 digits) or recovery code",
       "code": "Code",
+      "close": "Close dialog",
       "cancel": "Cancel",
       "sending": "Sending…",
       "relogin": "For your safety all your sessions were closed. You need to sign in again.",
@@ -2592,7 +2646,9 @@
         "recoverySaved": "I saved the codes",
         "onIntro": "Two-step verification is on.",
         "disableHint": "Enter your code to turn it off. Without a linked Google/Steam account your account falls back to standard (A).",
-        "disable": "Turn off"
+        "disable": "Turn off",
+        "qrLabel": "Setup QR code",
+        "scanQr": "Scan the QR code with your authenticator app (for example Google Authenticator)."
       },
       "link": {
         "title": "Google and Steam links",
@@ -2628,7 +2684,9 @@
         "title": "All sessions",
         "intro": "Closes your sessions on every device, including this one.",
         "button": "Sign out of all devices",
-        "confirm": "Are you sure? Yes, close them all"
+        "dialogTitle": "Sign out of all devices?",
+        "dialogBody": "You will be signed out everywhere, including this device, and will need to sign in again.",
+        "confirm": "Yes, sign out everywhere"
       }
     },
     "age": {
@@ -2662,6 +2720,13 @@
       "password": "Your password",
       "factor": "Verification code (6 digits) or recovery code",
       "note": "Note to the administrator (optional)",
+      "confirm": {
+        "title": "Delete your account?",
+        "bodySelf": "We will send the deletion request and email you a confirmation link. Nothing is deleted unless you confirm.",
+        "bodySupport": "A deletion request for your account will be opened for an administrator. If approved, the deletion process starts.",
+        "confirm": "Yes, continue",
+        "cancel": "Cancel"
+      },
       "submitDelete": "Send deletion request",
       "submitSupport": "Open deletion request",
       "sending": "Sending…",

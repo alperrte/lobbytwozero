@@ -499,6 +499,12 @@
         "account": "Hesap ayarları",
         "logout": "Çıkış yap",
         "computers": "Bilgisayarlarım"
+      },
+      "logoutConfirm": {
+        "title": "Çıkış yapıyorsunuz",
+        "description": "Hesabınızdan çıkış yapıyorsunuz. Emin misiniz?",
+        "confirm": "Evet, çıkış yap",
+        "cancel": "Vazgeç"
       }
     }
   },
@@ -1693,7 +1699,9 @@
         "recoveryDescription": "Kurtarma kodlarını güvenli bir yere kaydet. Bir daha gösterilmeyecek; telefonuna erişemezsen bu kodlarla girebilirsin.",
         "recoveryList": "Kurtarma kodları",
         "saved": "Kurtarma kodlarını güvenli bir yere kaydettim.",
-        "continue": "Devam et"
+        "continue": "Devam et",
+        "qrLabel": "Kurulum QR kodu",
+        "scanQr": "QR kodu doğrulama uygulamanla (ör. Google Authenticator) tara."
       }
     },
     "deleteAccount": {
@@ -2331,6 +2339,44 @@
     "editTitle": "Profili düzenle",
     "editDescription": "Profilini seni yansıtacak şekilde düzenle.",
     "back": "Profilime dön",
+    "add": "Ekle",
+    "sectionsNav": "Düzenleme bölümleri",
+    "sections": {
+      "images": "Görseller",
+      "info": "Bilgiler",
+      "prefs": "Oyun tercihleri"
+    },
+    "preview": "Önizleme",
+    "previewHint": "Profilin başkalarına böyle görünür.",
+    "unsaved": "Kaydedilmemiş değişikliklerin var",
+    "unsavedCount": "{count} alan değişti",
+    "changed": {
+      "displayName": "Görünen ad",
+      "bio": "Biyografi",
+      "country": "Ülke",
+      "playerTypes": "Oyuncu tipi",
+      "genres": "Favori türler",
+      "platforms": "Favori platformlar"
+    },
+    "confirmSave": {
+      "title": "Değişiklikler kaydedilsin mi?",
+      "body": "Profilin şu alanlar için güncellenecek:",
+      "confirm": "Evet, kaydet",
+      "cancel": "Geri dön"
+    },
+    "confirmDiscard": {
+      "title": "Değişiklikler atılsın mı?",
+      "body": "Kaydedilmemiş değişikliklerin silinecek.",
+      "confirm": "Evet, at",
+      "cancel": "Düzenlemeye dön"
+    },
+    "confirmRemove": {
+      "cover": "Kapak görseli kaldırılsın mı?",
+      "avatar": "Profil fotoğrafı kaldırılsın mı?",
+      "body": "Görsel profilinden hemen kaldırılır.",
+      "confirm": "Evet, kaldır",
+      "cancel": "Vazgeç"
+    },
     "images": "Profil görselleri",
     "changeCover": "Kapağı değiştir",
     "changeAvatar": "Fotoğrafı değiştir",
@@ -2546,6 +2592,13 @@
     "title": "Hesap ayarları",
     "description": "Profilinin kimlere görüneceğini, hesap tercihlerini ve verilerinin nasıl kullanılacağını buradan yönetirsin.",
     "back": "← Profilime dön",
+    "navLabel": "Ayar bölümleri",
+    "groups": {
+      "profile": "Profil",
+      "account": "Hesap",
+      "protection": "Güvenlik ve yaş",
+      "danger": "Tehlikeli bölge"
+    },
     "security": {
       "title": "Güvenlik",
       "loading": "Güvenlik bilgisi yükleniyor…",
@@ -2554,6 +2607,7 @@
       "password": "Parolan",
       "factor": "Doğrulama kodu (6 hane) ya da kurtarma kodu",
       "code": "Kod",
+      "close": "Pencereyi kapat",
       "cancel": "Vazgeç",
       "sending": "Gönderiliyor…",
       "relogin": "Güvenliğin için tüm oturumların kapandı. Yeniden giriş yapman gerekiyor.",
@@ -2592,7 +2646,9 @@
         "recoverySaved": "Kodları kaydettim",
         "onIntro": "İki adımlı doğrulama açık.",
         "disableHint": "Kapatmak için kodunu gir. Bağlı Google/Steam hesabın yoksa hesabın standart (A) düzeye düşer.",
-        "disable": "Kapat"
+        "disable": "Kapat",
+        "qrLabel": "Kurulum QR kodu",
+        "scanQr": "QR kodu doğrulama uygulamanla (ör. Google Authenticator) tara."
       },
       "link": {
         "title": "Google ve Steam bağlantıları",
@@ -2628,7 +2684,9 @@
         "title": "Tüm oturumlar",
         "intro": "Telefon, tarayıcı dahil her cihazdaki oturumlarını kapatır. Bu cihazdan da çıkarsın.",
         "button": "Tüm cihazlardan çık",
-        "confirm": "Emin misin? Evet, hepsini kapat"
+        "dialogTitle": "Tüm cihazlardaki oturumlar kapatılsın mı?",
+        "dialogBody": "Telefon ve tarayıcı dahil her cihazdan çıkış yaparsın; bu cihazdan da. Devam etmek için yeniden giriş yapman gerekir.",
+        "confirm": "Evet, hepsini kapat"
       }
     },
     "age": {
@@ -2662,6 +2720,13 @@
       "password": "Parolan",
       "factor": "Doğrulama kodu (6 hane) ya da kurtarma kodu",
       "note": "Yöneticiye not (isteğe bağlı)",
+      "confirm": {
+        "title": "Hesabın silinsin mi?",
+        "bodySelf": "Silme isteğini göndereceğiz ve e-postana onay bağlantısı yollayacağız. Onaylamazsan hiçbir şey silinmez.",
+        "bodySupport": "Yöneticiye hesabını silme talebi açılacak. Onaylanırsa silme süreci başlar.",
+        "confirm": "Evet, devam et",
+        "cancel": "Vazgeç"
+      },
       "submitDelete": "Silme isteği gönder",
       "submitSupport": "Silme talebi aç",
       "sending": "Gönderiliyor…",

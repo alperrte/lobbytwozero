@@ -16,6 +16,8 @@ import org.springframework.security.web.servlet.util.matcher.PathPatternRequestM
 @Configuration(proxyBeanMethods = false)
 @org.springframework.context.annotation.Import(UserTokenDecoderConfiguration.class)
 public class AccountErasureSecurityConfiguration {
+    private static final String[] USER_ROLES = {"PLAYER", "CONTENT_CREATOR", "GAME_DEVELOPER", "MODERATOR", "ADMIN"};
+
     @Bean
     SecurityFilterChain security(HttpSecurity http, @Qualifier("serviceJwtDecoder") JwtDecoder decoder,
             @Qualifier("userJwtDecoder") JwtDecoder userDecoder,
@@ -43,17 +45,17 @@ public class AccountErasureSecurityConfiguration {
                         .requestMatchers(HttpMethod.GET, "/internal/v1/library/users/*/recommendation-signals")
                             .hasAuthority("SCOPE_signals:read")
                         .requestMatchers(HttpMethod.GET, "/api/v1/library/users/*/entries", "/api/v1/library/users/*/entries/statistics")
-                            .hasAnyRole("PLAYER", "CONTENT_CREATOR", "GAME_DEVELOPER", "MODERATOR", "ADMIN")
+                            .hasAnyRole(USER_ROLES)
                         .requestMatchers(HttpMethod.POST, "/api/v1/library/entries")
-                            .hasAnyRole("PLAYER", "CONTENT_CREATOR", "GAME_DEVELOPER", "MODERATOR", "ADMIN")
+                            .hasAnyRole(USER_ROLES)
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/library/entries/*")
-                            .hasAnyRole("PLAYER", "CONTENT_CREATOR", "GAME_DEVELOPER", "MODERATOR", "ADMIN")
+                            .hasAnyRole(USER_ROLES)
                         .requestMatchers(HttpMethod.PUT, "/api/v1/library/entries/*/favorite", "/api/v1/library/entries/*/completed")
-                            .hasAnyRole("PLAYER", "CONTENT_CREATOR", "GAME_DEVELOPER", "MODERATOR", "ADMIN")
+                            .hasAnyRole(USER_ROLES)
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/library/entries/*/favorite", "/api/v1/library/entries/*/completed")
-                            .hasAnyRole("PLAYER", "CONTENT_CREATOR", "GAME_DEVELOPER", "MODERATOR", "ADMIN")
+                            .hasAnyRole(USER_ROLES)
                         .requestMatchers(HttpMethod.GET, "/api/v1/library/entries", "/api/v1/library/entries/statistics", "/api/v1/library/entries/favorites", "/api/v1/library/entries/completed")
-                            .hasAnyRole("PLAYER", "CONTENT_CREATOR", "GAME_DEVELOPER", "MODERATOR", "ADMIN")
+                            .hasAnyRole(USER_ROLES)
                         .requestMatchers(HttpMethod.GET, "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                             .access((authentication, context) -> new org.springframework.security.authorization.AuthorizationDecision(swagger))
                         .anyRequest().denyAll())
