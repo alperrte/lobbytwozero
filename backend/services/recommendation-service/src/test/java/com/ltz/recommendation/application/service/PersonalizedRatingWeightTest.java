@@ -32,4 +32,23 @@ class PersonalizedRatingWeightTest {
         var candidate = PersonalizedRecommendationService.candidate(new Match(LIKED, 5000, List.of("action", "rpg")), Map.of("rpg", 8000));
         assertThat(candidate.signals()).containsEntry(Signal.RATING_AFFINITY, 4000);
     }
+
+    @Test
+    void favoriteAndCompletedAffinityAreFedAsMeanOverMatchedGenres() {
+        var taste = new com.ltz.recommendation.application.port.LibraryTasteSource.Affinity(
+                Map.of("rpg", 8000), Map.of("rpg", 4000, "action", 2000));
+        var candidate = PersonalizedRecommendationService.candidate(new Match(LIKED, 5000, List.of("Action", "RPG")), Map.of(), taste);
+        assertThat(candidate.signals()).containsEntry(Signal.FAVORITE_AFFINITY, 4000)
+                .containsEntry(Signal.COMPLETED_AFFINITY, 3000).doesNotContainKey(Signal.RATING_AFFINITY);
+    }
+
+    @Test
+    void favoriteSignalOutweighsGenreOnlyCandidateAndZeroSignalsAreOmitted() {
+        var taste = new com.ltz.recommendation.application.port.LibraryTasteSource.Affinity(Map.of("rpg", 10000), Map.of());
+        var fav = PersonalizedRecommendationService.candidate(new Match(LIKED, 5000, List.of("rpg")), Map.of(), taste);
+        var plain = PersonalizedRecommendationService.candidate(new Match(PLAIN, 5000, List.of("racing")), Map.of(), taste);
+        assertThat(plain.signals()).containsOnlyKeys(Signal.GENRE_AFFINITY);
+        var ranked = new RuleBasedRecommendationEngine().rank(new Input("rules-v1", List.of(plain, fav), 10));
+        assertThat(ranked).extracting(item -> item.targetId()).containsExactly(LIKED, PLAIN);
+    }
 }

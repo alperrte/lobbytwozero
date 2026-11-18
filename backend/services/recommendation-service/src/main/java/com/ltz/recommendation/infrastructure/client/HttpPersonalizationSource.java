@@ -102,7 +102,7 @@ public class HttpPersonalizationSource implements PersonalizationSource {
         return excluded;
     }
 
-    private static long validateLibraryPage(JsonNode reply, int page, long previousTotal) {
+    static long validateLibraryPage(JsonNode reply, int page, long previousTotal) {
         var items = reply.path("items");
         long total = reply.path("totalElements").asLong(-1);
         if (!items.isArray() || !reply.path("totalElements").isIntegralNumber()
@@ -125,7 +125,7 @@ public class HttpPersonalizationSource implements PersonalizationSource {
         }
     }
 
-    private static UUID uuid(JsonNode value) {
+    static UUID uuid(JsonNode value) {
         if (!value.isString()) throw RecommendationHttpClient.unavailable();
         try {
             UUID id = UUID.fromString(value.asString());

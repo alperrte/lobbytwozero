@@ -67,7 +67,8 @@
   revocation için online introspection yoktur, 60 sn access TTL + 30 sn tolerans geçerlidir.
 - V12 owner history/feedback; cursor, UNIQUE/version/account lock, 30 gün/500 run retention,
   consent purge ve D4 cascade testlidir. Gerçek kaynak servisler ve Auth worker E2E NOT VERIFIED.
-- REC-02/03/05 sözleşme eksikleri, REC-16 sistem filtresi kısmi durumdadır; Task 2 bütünü PARTIAL.
+- REC-02/05 favori/tamamlanan tür benzerliği 2026-11-18'de bağlandı (HttpLibraryTasteSource; Library signals + Game GAME-15,
+  fail-closed). Güncellenen PostgreSQL IT'si çalıştırılamadı: NOT VERIFIED. REC-16 sistem filtresi kısmi; Task 2 bütünü PARTIAL.
   [Güncel checkpoint](../../docs-recommendation/progress/task-02.md).
 - 45 test PASS; toplam LINE %96,83, merkezi ek/değişen kod %97,15; Checkstyle/PMD 0 ihlal,
   dependency gate PASS. [Komut/kanıt](../../docs-recommendation/testings/task-02-tests.md).

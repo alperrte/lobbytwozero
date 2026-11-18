@@ -30,7 +30,7 @@ Durum: Talep metni eskidir (Recommendation için "tek Java dosyası" der). Aşa�
   Öneri geçmişine (REC-18) yalnız önerilen oyunlar yazılır, Library sinyal listesi yazılmaz.
 - **D-12 → Seçenek A (eksik veride durdur).** En çok 10 sayfa / 500 sinyal; `totalElements > 500` veya sayfa tutarsızlığı 503'tür.
   Hata kaynaklı eksik veri hiçbir yolda "tam" sayılmaz. Seçenek D (genel öneriye düşme) uygulanmadı: Denied/Unavailable'da istek bilerek durur.
-- **Mevcut kullanım:** favori/tamamlanan oyunlar yalnız tekrar önermeyi dışlamak için kullanılır. Favori/tamamlanan **benzerliği** (REC-02/05) henüz yoktur.
+- **Mevcut kullanım:** favori/tamamlanan oyunlar yalnız tekrar önermeyi dışlamak için kullanılır. Favori/tamamlanan **benzerliği** (REC-02/05) 2026-11-18'de ayrıca bağlandı: HttpLibraryTasteSource aynı signals ucunu ve Game GAME-15 tür kodlarını okuyup FAVORITE_AFFINITY/COMPLETED_AFFINITY üretir.
 
 ## 3. ZG eşlemesi (Recommendation'ı ilgilendirenler)
 
@@ -46,7 +46,7 @@ ZG-6/11: ayrı rıza + her istekte yeniden okuma. ZG-8: Library DB/public uçlar
 | 03 token istemcisi | Auth `signals:read` hesaba bağlı grant; kullanıcı başına token |
 | 04 adaptör | `HttpPersonalizationSource.library` — yönlendirme yok, iç yol |
 | 05 sayfalama | Seçenek A, 10 sayfa / 500 sinyal |
-| 06 öneri entegrasyonu | Hariç tutma uygulandı; REC-02/05 benzerlik tüketimi açık |
+| 06 öneri entegrasyonu | Hariç tutma ve REC-02/05 benzerlik tüketimi uygulandı |
 | 07 izin geri alma | A seçeneği, kalıcı ham sinyal yok |
 | 08 IDOR | Hedef yalnız `sub`; parametre yok |
 | 09 dayanıklılık | Tek deneme. Talepteki "401'de bir kez yeni token" **bilinçli uygulanmadı**: token her istekte Auth'tan taze (≤60 sn) alınır; aynı hesap için yeniden alınan token sonucu değiştirmez, yalnız Auth/Library yükünü ikiye katlar. 401 → 503 `SOURCE_UNAVAILABLE` |

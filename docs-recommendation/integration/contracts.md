@@ -43,7 +43,7 @@ Yukarıdaki tablo TASK 1 başlangıç fotoğrafıdır; bu bölüm güncel deği�
 - Library: hesabına bağlı gerçek Auth grant + recommendation-signals; 500 kayıt/10 sayfa;
   favorite/completed dışlama. Bounded şema/tekrar/total kontrolü vardır.
 - Game: genre/platform filtreli discovery; max 10×50 aday, canonical ID, MAIN_GAME/adult=false.
-  Game GAME-15 toplu metadata ucu teslim edildi (KAPANDI); REC-02/05 tür yakınlığı tüketicisi Recommendation tarafında yazılacak; [kapanan talep](dependencies/done/game-service-requests.md).
+  Game GAME-15 toplu metadata ucu teslim edildi (KAPANDI); REC-02/05 tür yakınlığı tüketicisi Recommendation tarafında yazıldı (HttpLibraryTasteSource, 2026-11-18); [kapanan talep](dependencies/done/game-service-requests.md).
 - Review: GET /api/v1/review/ratings/mine teslim edildi (KAPANDI); Recommendation HttpPersonalRatingSource ile tüketir, REC-03 bağlandı;
   [owner talebi](dependencies/done/review-service-requests.md).
 - Recommendation D4 hedef ucu hazır; gerçek Auth worker ve kaynak servislerle çok servisli E2E

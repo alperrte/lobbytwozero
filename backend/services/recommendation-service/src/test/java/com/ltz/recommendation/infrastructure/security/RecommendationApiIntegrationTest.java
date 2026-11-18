@@ -111,13 +111,15 @@ class RecommendationApiIntegrationTest {
         assertThat(first.path("items").size()).isEqualTo(1);
         JsonNode item = first.path("items").get(0);
         assertThat(item.path("gameId").asString()).isEqualTo(GAME.toString());
-        assertThat(item.path("score").asInt()).isEqualTo(2000);
+        // OWNED (favori+tamamlanan, rpg): GENRE 20% x10000 + FAVORITE 40% x10000 + COMPLETED 10% x10000 = 7000
+        assertThat(item.path("score").asInt()).isEqualTo(7000);
+        assertThat(first.path("limitations").toString()).doesNotContain("SIMILARITY_UNAVAILABLE");
         assertThat(item.path("contribution").asInt()).isEqualTo(item.path("score").asInt());
         assertThat(item.path("matchedGenres").get(0).asString()).isEqualTo("rpg");
         JsonNode other = generate(tokenB, "{}");
         assertThat(other.path("items").get(0).path("gameId").asString()).isEqualTo(OTHER.toString());
         assertThat(requests.stream().filter(path -> path.contains("/metadata")).count()).isZero();
-        assertThat(requests.size()).isEqualTo(16);
+        assertThat(requests.size()).isEqualTo(22); // +3 üretim başına: ikinci Library okuması, servis token'ı, Game tür batch'i (NOT VERIFIED: PostgreSQL yok)
     }
 
     @Test
@@ -456,6 +458,18 @@ class RecommendationApiIntegrationTest {
                 assertThat(path).contains(jwt.getStringClaim("account_id"));
                 reply(exchange, 200, "{\"items\":[{\"gameId\":\"" + OWNED + "\",\"favorite\":true,\"completed\":true}],"
                         + "\"page\":0,\"size\":50,\"totalElements\":" + (fault.equals("library-overflow") ? 501 : 1) + "}");
+                return;
+            }
+            if (path.equals("/api/v1/game/games/recommendation-metadata/batch")) {
+                // REC-02/05: Library'deki favori/tamamlanan oyunların tür kodları (hepsi görünür, rpg).
+                var ids = JSON.readTree(exchange.getRequestBody().readAllBytes()).path("gameIds");
+                var items = new StringBuilder();
+                for (var id : ids) {
+                    if (!items.isEmpty()) items.append(',');
+                    items.append("{\"gameId\":\"").append(id.asString()).append("\",\"adult\":false,\"visible\":true,")
+                            .append("\"genres\":[{\"code\":\"RPG\"}]}");
+                }
+                reply(exchange, 200, "{\"items\":[" + items + "],\"unavailable\":[]}");
                 return;
             }
             if (path.equals("/api/v1/review/ratings/mine")) {

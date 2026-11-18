@@ -14,7 +14,10 @@ import com.ltz.recommendation.application.port.RecommendationHistory.Page;
 import com.ltz.recommendation.application.port.RecommendationHistory.Run;
 import com.ltz.recommendation.application.port.RecommendationHistory.StoredItem;
 import com.ltz.recommendation.domain.exception.RecommendationRequestException;
+import com.ltz.recommendation.application.port.LibraryTasteSource;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
@@ -26,15 +29,18 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class PersonalizedRecommendationService {
     private final PersonalizationSource source;
     private final PersonalRatingSource ratings;
+    private final LibraryTasteSource tastes;
     private final RecommendationHistory history;
     private final RecommendationExecutionService executions;
     private final RecommendationRateLimiter limits;
     private final TransactionTemplate transactions;
 
-    public PersonalizedRecommendationService(PersonalizationSource source, PersonalRatingSource ratings, RecommendationHistory history,
-            RecommendationExecutionService executions, RecommendationRateLimiter limits, TransactionTemplate transactions) {
+    public PersonalizedRecommendationService(PersonalizationSource source, PersonalRatingSource ratings, LibraryTasteSource tastes,
+            RecommendationHistory history, RecommendationExecutionService executions, RecommendationRateLimiter limits,
+            TransactionTemplate transactions) {
         this.source = source;
         this.ratings = ratings;
+        this.tastes = tastes;
         this.history = history;
         this.executions = executions;
         this.limits = limits;
@@ -48,6 +54,8 @@ public class PersonalizedRecommendationService {
         var matches = source.candidates(actor, filters).stream().filter(match -> !excluded.contains(match.gameId())).toList();
         // REC-03: kişisel puanlar yalnız aday varsa okunur; Review/Game hatası isteği 503 ile durdurur (puansız sıralama sessizce üretilmez).
         Map<String, Integer> genreRatings = matches.isEmpty() ? Map.of() : ratings.genreAffinity(actor);
+        // REC-02/05: favori/tamamlanan tür payları da yalnız aday varsa okunur; Library/Game hatası 503 ile durdurur.
+        LibraryTasteSource.Affinity taste = matches.isEmpty() ? LibraryTasteSource.Affinity.NONE : tastes.affinity(actor);
         Map<UUID, PersonalizationSource.Match> byId = matches.stream()
                 .collect(Collectors.toMap(PersonalizationSource.Match::gameId, Function.identity()));
         try {
@@ -55,7 +63,7 @@ public class PersonalizedRecommendationService {
             history.lockAccount(actor.accountId());
             source.requireConsent(actor);
             var result = executions.execute(new Input("rules-v1", matches.stream()
-                    .map(match -> candidate(match, genreRatings)).toList(), filters.size()));
+                    .map(match -> candidate(match, genreRatings, taste)).toList(), filters.size()));
             List<StoredItem> items = result.items().stream().map(item -> new StoredItem(UUID.randomUUID(), item.targetId(),
                     item.score(), item.rank(), byId.get(item.targetId()).matchedGenres())).toList();
             return history.save(actor.accountId(), new Run(result.runId(),
@@ -69,11 +77,27 @@ public class PersonalizedRecommendationService {
 
     /** Puan yakınlığı: eşleşen türlerin puan yakınlıklarının ortalaması (puanlanmamış tür 0 sayılır). */
     static Candidate candidate(PersonalizationSource.Match match, Map<String, Integer> genreRatings) {
-        int sum = match.matchedGenres().stream().mapToInt(genre -> genreRatings.getOrDefault(genre.toLowerCase(java.util.Locale.ROOT), 0)).sum();
-        int rating = sum / match.matchedGenres().size();
-        return rating > 0
-                ? new Candidate(match.gameId(), Map.of(Signal.GENRE_AFFINITY, match.affinity(), Signal.RATING_AFFINITY, rating))
-                : new Candidate(match.gameId(), Map.of(Signal.GENRE_AFFINITY, match.affinity()));
+        return candidate(match, genreRatings, LibraryTasteSource.Affinity.NONE);
+    }
+
+    /** REC-02/05: favori ve tamamlanan oyunların tür payları da aynı şekilde eşleşen türler üzerinden ortalanır. */
+    static Candidate candidate(PersonalizationSource.Match match, Map<String, Integer> genreRatings,
+            LibraryTasteSource.Affinity taste) {
+        Map<Signal, Integer> signals = new EnumMap<>(Signal.class);
+        signals.put(Signal.GENRE_AFFINITY, match.affinity());
+        putPositive(signals, Signal.RATING_AFFINITY, mean(match, genreRatings));
+        putPositive(signals, Signal.FAVORITE_AFFINITY, mean(match, taste.favoriteGenres()));
+        putPositive(signals, Signal.COMPLETED_AFFINITY, mean(match, taste.completedGenres()));
+        return new Candidate(match.gameId(), signals);
+    }
+
+    private static int mean(PersonalizationSource.Match match, Map<String, Integer> byGenre) {
+        int sum = match.matchedGenres().stream().mapToInt(genre -> byGenre.getOrDefault(genre.toLowerCase(Locale.ROOT), 0)).sum();
+        return sum / match.matchedGenres().size();
+    }
+
+    private static void putPositive(Map<Signal, Integer> signals, Signal signal, int value) {
+        if (value > 0) signals.put(signal, value);
     }
 
     /** Aynı servis içindeki stateless öneriler de rıza geri çekme temizliğini paylaşır. */

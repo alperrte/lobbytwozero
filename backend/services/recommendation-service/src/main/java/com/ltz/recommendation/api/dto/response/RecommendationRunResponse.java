@@ -12,7 +12,7 @@ public record RecommendationRunResponse(UUID runId, String algorithmVersion, Ins
                 run.items().isEmpty() ? "EMPTY" : "PARTIAL", run.filters().genre(), run.filters().platform(),
                 run.items().stream().map(item -> new Item(item.itemId(), item.gameId(), item.score(), item.rank(),
                         "GENRE_RATING_AFFINITY", item.score(), item.matchedGenres())).toList(),
-                List.of("FAVORITE_SIMILARITY_UNAVAILABLE", "COMPLETED_SIMILARITY_UNAVAILABLE", "BOUNDED_DISCOVERY_50_PER_GENRE"));
+                List.of("BOUNDED_DISCOVERY_50_PER_GENRE"));
     }
 
     public record Item(UUID itemId, UUID gameId, int score, int rank, String reasonCode,

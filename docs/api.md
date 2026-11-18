@@ -12224,7 +12224,7 @@ ortak 120/dk; en çok 10000 aktif hesap penceresi. 429/503 `Retry-After: 60` dö
 
 ### RECOMMENDATION — Kişisel tür önerisi üret (REC-01/04/16/17)
 
-Durum: IMPLEMENTED — PARTIAL sinyaller; REC-03 (kişisel puan) bağlandı, REC-02/05 (favori/tamamlanan benzerliği) tüketicisi yazılmadı
+Durum: IMPLEMENTED — rules-v1 dört sinyalin tamamını kullanır (tür, kişisel puan REC-03, favori ve tamamlanan benzerliği REC-02/05); yanıt 50 aday/tür penceresi nedeniyle PARTIAL kalır
 Sorumlu: Alper
 Tüketici servisler: Frontend (henüz bağlanmadı)
 
@@ -12244,14 +12244,16 @@ boş sonuçtur. Sistem uygunluğu filtresi henüz yoktur; destekleniyormuş gibi
 #### Response — 200
 `{runId, algorithmVersion, createdAt, status, genre, platform, items, limitations}`.
 Item: `{itemId, gameId, score, rank, reasonCode:"GENRE_RATING_AFFINITY", contribution, matchedGenres}`.
-`score` ve `contribution`, tür yakınlığı (ağırlık %20) ile kişisel puan yakınlığının (ağırlık %30) toplamıdır; puanı olmayan türde yalnız tür yakınlığı vardır.
+`score` ve `contribution`; tür yakınlığı (%20), kişisel puan (%30), favori benzerliği (%40) ve tamamlanan benzerliği (%10) katkılarının toplamıdır; sinyali 0 olan katkı eklenmez.
+Favori/tamamlanan benzerliği: Library `recommendation-signals` (servis token'ı, en çok 10 sayfa/500 kayıt) favori ve tamamlanan oyun kümelerini verir; Game GAME-15 toplu metadata (100'lük gruplar) görünür oyunların türlerini verir. Bir türün payı, kümedeki görünür oyunların o türü taşıma oranıdır (0..10000); adayın yakınlığı eşleşen türlerinin payının ortalamasıdır (payı olmayan tür 0). Yetişkin/gizli oyun paydaya girmez. Boş kümede Game çağrılmaz; aday yoksa Library/Game okunmaz.
 `reasonCode` önceki sürümde `GENRE_AFFINITY` idi; puan sinyali eklendiği için değişti (frontend henüz tüketmiyor).
 Kişisel puan: kullanıcının Review puanları (`GET /api/v1/review/ratings/mine`, en çok 10 sayfa/500 puan) Game GAME-15 tür kodlarıyla eşleştirilir; tür ortalaması 5 altındaysa 0, 10 ortalama 10000. Adayın puan yakınlığı eşleşen türlerinin ortalamasıdır (puanlanmamış tür 0). Aday yoksa Review çağrılmaz.
-gameId kanonik UUID'dir. `status=PARTIAL` veya `EMPTY`; eksik favori/puan/tamamlanan benzerliği ve
-50 aday/tür penceresi limitations içinde açık belirtilir (`PERSONAL_RATINGS_UNAVAILABLE` artık dönmez). Skor katkı toplamıdır; hassas ham liste yoktur.
+gameId kanonik UUID'dir. `status=PARTIAL` veya `EMPTY`; 50 aday/tür penceresi limitations içinde
+`BOUNDED_DISCOVERY_50_PER_GENRE` olarak belirtilir (`PERSONAL_RATINGS_UNAVAILABLE`, `FAVORITE_SIMILARITY_UNAVAILABLE` ve
+`COMPLETED_SIMILARITY_UNAVAILABLE` artık dönmez). Skor katkı toplamıdır; hassas ham liste yoktur.
 User türleri en çok 10; her tür için filtreli Game discovery ilk 50, toplam en çok 500 aday.
-Library favorite/completed kimlikleri ve NOT_INTERESTED feedback tekrar öneriden dışlanır;
-bu dışlama favori/tamamlanan oyun benzerliği analizi değildir. MAIN_GAME ve doğrulanmış adult=false
+Library favorite/completed kimlikleri ve NOT_INTERESTED feedback tekrar öneriden dışlanır
+(dışlama ayrıdır; benzerlik sinyali yukarıdaki tür paylarından gelir). MAIN_GAME ve doğrulanmış adult=false
 dışındaki adaylar elenir. Boş tercihte popüler/sahte öneri üretilmez.
 Sonuç 30 günlük owner geçmişine aynı transaction'da kaydedilir; hesap başına en çok 500 canlı run.
 
@@ -12267,10 +12269,13 @@ Frontend: API Gateway üzerinden tam endpoint; frontend değişmedi.
 Diğer servisler: User me/consents + me, Auth account-bound Library grant, Library signals,
 Game filtreli discovery, Review `ratings/mine` (kullanıcı token'ı) ve Game GAME-15 toplu metadata; sabit origin, bounded JSON,
 3000/5000 ms timeout, redirect/retry yok. Review veya Game puan/tür okuması başarısızsa istek 503 SOURCE_UNAVAILABLE ile durur
-(puansız sıralama sessizce üretilmez). Kalan eksik: favori/tamamlanan benzerliği (REC-02/05).
+(puansız sıralama sessizce üretilmez). Library ikinci kez okunur (servis token'ı + signals) ve Game toplu metadata
+çağrılır; bunlardan biri hata verirse de aynı şekilde 503 SOURCE_UNAVAILABLE/403 SOURCE_ACCESS_DENIED döner.
 
 #### Test Durumu
 UNIT + INTEGRATION — gerçek Auth issuer/JWKS + Recommendation/PostgreSQL; kaynaklar contract fixture.
+REC-02/05 birim testleri (HttpLibraryTasteSourceTest, PersonalizedRatingWeightTest) geçti; güncellenen entegrasyon testi
+(skor 7000, 22 istek) PostgreSQL olmadığı için çalıştırılamadı: NOT VERIFIED.
 Gerçek User/Library/Game/Review servisleriyle tam E2E NOT VERIFIED. [Kanıt](../docs-recommendation/testings/task-02-tests.md).
 REC-03 birim testleri geçti (HttpPersonalRatingSourceTest 6, PersonalizedRatingWeightTest 2, HttpGameMetadataSourceTest 3). RecommendationApiIntegrationTest fixture'ı Review `ratings/mine` (boş sayfa) ile güncellendi; PostgreSQL gerektiren bu IT bu oturumda KOŞULMADI.
 
