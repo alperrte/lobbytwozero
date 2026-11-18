@@ -1,6 +1,6 @@
 # TASK 3 — karşılaştırılabilir FPS kanıtı sözleşme boşluğu
 
-2026-11-15 · Sahip: Alper · Tüketici: Recommendation · REC-09 PARTIAL.
+2026-11-15 · Sahip: Alper · Tüketici: Recommendation · **REC-09 KAPANDI (2026-11-18).**
 
 ## Gerçek kaynak durumu
 
@@ -38,3 +38,19 @@ bounded query/body, timeout/503, yöntem ve gerçek sonuç/tahmin etiketlerinin 
 
 Task 3 mevcut tüketici yalnız örnek/oturum sayısı ve producer eşiğini tanı amaçlı bildirir;
 **FPS alt/üst tahmini null, confidence=NONE, status=INSUFFICIENT_DATA** kalır.
+
+## Kapanış (2026-11-18) — istek karşılandı
+
+Yukarıdaki boşluk kapatıldı; ayrıntı ve test kanıtı:
+[performance-evidence-followup.md](../../decisions/performance-evidence-followup.md).
+
+| İstenen | Karşılık |
+| --- | --- |
+| Çözünürlük/preset/provenance/profil sürümü | V24: değiştirilemez `measurementContext` (profil sürümü HW-17 ile doğrulanır), sync v3 |
+| Kaynak ayrımı (MANUAL ≠ cihaz ≠ tahmin) | Yalnız bağlamlı, cihazdan gelen FPS örnekleri; manuel rapor ve eski örnekler dışarıda; `source=AUTHENTICATED_DEVICE`, `contextVerification=OWNER_SNAPSHOT_DEVICE_DECLARATION` |
+| Yöntem/sayım/zaman/sınırlılık | `SESSION_MEDIAN_P10_P90_IQR_1_5_V1`, sayımlar, first/lastMeasuredAt, `windowLimited`, 4 sabit limitation |
+| Yetersizde olumlu tahmin yok | < 3 uygun oturum / veri yok → `INSUFFICIENT_DATA`, null, NONE |
+| Auth/scope bağı | Mevcut `reference:read` + `account_id`; yeni grant/ENV yok |
+
+Kabul testleri: Performance 174/174, Recommendation 85/85 PASS (hedefli). Açık kalan: canlı
+çok servisli E2E ve native pre-push/Sonar çalıştırılmadı. Bu istek için açık Performance işi kalmadı.

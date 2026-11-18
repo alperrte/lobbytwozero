@@ -74,7 +74,7 @@ Durumlar task kabul kapsamındadır; ürünün tüm entegrasyonları tamamlandı
 
 - [x] **REC-08 — Önerilen sistem gereksinimi:** Kullanıcı bilgisayarı ile oyunların önerilen gereksinimlerinin karşılaştırılması.
 
-- [ ] **REC-09 — Tahmini FPS:** Yeterli ve güvenilir performans verisi varsa yaklaşık FPS aralığı sunulması; tahminin kesin ölçüm gibi gösterilmemesi.
+- [x] **REC-09 — Tahmini FPS:** Yeterli ve güvenilir performans verisi varsa yaklaşık FPS aralığı sunulması; tahminin kesin ölçüm gibi gösterilmemesi.
 
 - [x] **REC-10 — Grafik ayarı önerileri:** Kullanıcının donanımına uygun olabilecek grafik ayarı seviyelerinin önerilmesi.
 
@@ -180,7 +180,7 @@ checkpoint'lerdir. REC-16 sistem filtresi açık kalır; tek oyun assessment kat
 | REC-06 | HardwareAssessmentController / HardwareAssessmentService | Owner Hardware + tek Game metadata; katalog batch gereksinimleri eksik | PARTIAL |
 | REC-07 | HardwareRequirementEvaluator minimum | Tam CPU/GPU model eşleşmesi, bounded RAM/disk; eksikte UNKNOWN | DONE |
 | REC-08 | HardwareRequirementEvaluator recommended | Minimumdan bağımsız aynı dürüst alan semantiği | DONE |
-| REC-09 | PerformanceReferenceResponseReader / Fps | Sayımlar ve güvenli abstention; çözünürlük/preset/provenance/profil sürümü eksik | PARTIAL |
+| REC-09 | PerformanceReferenceResponseReader / Fps | Performance `performance-evidence` (V24 bağlamlı ölçüm) + HardwareFpsEstimator; yalnız NATIVE_RASTER tam bağlamda LOW güvenli geçmiş aralık, aksi halde abstention | DONE (2026-11-18; Performance 174 + Recommendation 85 test PASS) |
 | REC-10 | HardwareAssessmentService Graphics | Minimum compute MEETS ve bilinen engel yoksa koşullu LOW; FPS garantisi yok | DONE |
 | REC-11 | HardwareRequirementEvaluator upgrades | Kanıtlı RAM/disk açığı; CPU/GPU sıralaması veya satıcı yok | DONE |
 | REC-12 | ComponentCompatibilityEvaluator | Socket/DDR bildirim eşleşmesi; BIOS/GPU/güç/form factor eksikse bütün profil UNKNOWN | DONE |
@@ -217,7 +217,7 @@ desteklenen kapsamla 13/23 DONE; kalanlar bu checkpoint'te kapatılmadı.
 ## TASK 5 ve final doğrulama — 2026-11-15
 
 **REC-22 DONE (1/1); TASK 5 PARTIAL — final gate BLOCKED.** Önceki task metinleri kendi
-checkpoint tarihlerinin durumudur. Güncel sayaç **14/23 DONE** (belgelenmiş kabul kapsamı).
+checkpoint tarihlerinin durumudur. Güncel sayaç **15/23 DONE** (REC-09 2026-11-18) (belgelenmiş kabul kapsamı).
 
 | REC | Gerçek dosya / API | Kaynak ve güvenlik | Kanıt / durum |
 | --- | --- | --- | --- |
@@ -230,7 +230,7 @@ HARDWARE FPS/uyum garantisi vermez. Canlı çok servis E2E NOT VERIFIED.
 
 - [x] Beş checkpoint, ayrı commit taslakları ve PR title/description hazır.
 - [x] REC-22 runtime kararı açık kullanıcı onayıyla uygulandı; gerçek Python testli.
-- [ ] 23/23 REC: REC-02/03/05/06/09/13/14/15/16 hâlâ açık.
+- [ ] 23/23 REC: REC-02/03/05/06/13/14/15/16 hâlâ açık (REC-09 kapandı).
 - [ ] Native pre-push: güvenli ENV/DB korumasında BLOCKED; mevcut CI kapısı yerine sayılmadı.
 - [ ] Sonar scanner/gate ve A'lar: sunucu/token ve profil politikası nedeniyle BLOCKED/UNKNOWN.
 - [ ] 5/5 tam özellik teslimi ve MERGE READY — sağlanmadı.

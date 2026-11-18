@@ -1493,7 +1493,7 @@ erDiagram
 ## 16. performance_db
 
 > Cihaz kimliği, eşleştirme kodu, cihaz token'ı ve iptal `auth_db`'dedir (AUTH-17). Performance yalnız cihaz **referansını** (`device_links.auth_device_id`, FK yok) tutar.
-> V21 ile kurulan tablolar: `sync_consents`, `device_links`, `sync_batches`, `performance_write_limits`, `performance_account_erasure_fences`. V22 (Faz 2) ile `performance_sessions` ve `performance_reports` eklendi. V23 (Faz 3) ile `performance_samples` eklendi; `performance_sessions.sample_count` ve `sync_batches.session_id/stored_count/duplicate_count` sütunları geldi.
+> V21 ile kurulan tablolar: `sync_consents`, `device_links`, `sync_batches`, `performance_write_limits`, `performance_account_erasure_fences`. V22 (Faz 2) ile `performance_sessions` ve `performance_reports` eklendi. V24 (REC-09) ile `performance_sessions` değiştirilemez ölçüm bağlamı (`measurement_context_id`, `hardware_profile_version`, `measurement_resolution`, `measurement_graphics_preset`, `measurement_rendering_mode`) ve `performance_samples.measurement_context_id` aldı; `sync_batches.schema_version` 3'ü kabul eder. V23 (Faz 3) ile `performance_samples` eklendi; `performance_sessions.sample_count` ve `sync_batches.session_id/stored_count/duplicate_count` sütunları geldi.
 > `performance_sessions.user_id`, `game_id` ve `hardware_profile_id` başka servis/hesap kimlikleridir (REF, FK yok). `device_links → performance_sessions` ilişkisi `ON DELETE RESTRICT`, `performance_sessions → performance_reports` ilişkisi `ON DELETE CASCADE`'dir.
 
 ```mermaid

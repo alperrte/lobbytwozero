@@ -11876,7 +11876,10 @@ Yok; profil/oyun ve değerlendirme bağlamı request body içindedir.
 hardwareProfileId/gameId UUID ve platform zorunludur. Platform kaynak requirement anahtarıyla
 eşleşir; 1–32 küçük harf/rakam/tire. Resolution opsiyonel, 3–5 haneli pozitif width×height
 `1920x1080` biçiminde; preset opsiyonel LOW/MEDIUM/HIGH/ULTRA. Bilinmeyen JSON alanları 400,
-POST body en çok 16 KiB. İstek resolution/preset'i ölçüm kanıtı veya FPS tahmini yaratmaz.
+POST body en çok 16 KiB. Opsiyonel `renderingMode` yalnız `NATIVE_RASTER` olabilir (REC-09).
+Resolution + preset + `renderingMode=NATIVE_RASTER` birlikte verilirse FPS için Performance
+`performance-evidence` ucu kullanılır; aksi halde eski çekimser davranış korunur. İstek
+resolution/preset'i tek başına ölçüm kanıtı veya FPS tahmini yaratmaz.
 
 #### Response — 200
 `HardwareAssessmentResponse`: hardwareProfileId/version, gameId, platform, assessedAt,
@@ -11889,7 +11892,17 @@ suitability, minimum, recommended, fps, graphics, upgrades, componentCompatibili
 - Depolama toplamı boş alan sayılmaz; toplam kapasite bile yetmiyorsa BELOW kanıtıdır.
   VRAM gereksinimi ve OS/driver kanıtı yoksa UNKNOWN. Suitability kanıtlı minimum açığında
   BELOW_MINIMUM, diğer hallerde UNKNOWN; bütün sistemin çalışacağı garanti edilmez.
-- `fps.status=INSUFFICIENT_DATA`, estimatedLowerFps/estimatedUpperFps=null, confidence=NONE.
+- Tam bağlam (resolution + preset + `NATIVE_RASTER`) ve Performance kanıtı yeterliyse
+  `fps.status=ESTIMATED`: estimatedLowerFps=floor, estimatedUpperFps=ceil (oturum P10/P90
+  medyanı), **confidence=LOW**, reason `MATCHED_HISTORICAL_DEVICE_RANGE_NOT_CURRENT_MEASUREMENT`
+  ve `fps.evidence` (contractVersion `fps-evidence-v1`, source `AUTHENTICATED_DEVICE`,
+  contextVerification `OWNER_SNAPSHOT_DEVICE_DECLARATION`, method
+  `SESSION_MEDIAN_P10_P90_IQR_1_5_V1`, renderingMode, consideredSessionCount,
+  inlierSampleCount, excludedSampleCount, firstMeasuredAt, windowLimited, limitations).
+  Kanıt yetersizse INSUFFICIENT_DATA/null/NONE (evidence yine döner). Performance yanıtı
+  bağlama uymuyor veya tutarsızsa 503 `SERVICE_UNAVAILABLE` (uydurma tahmin yok).
+- Bağlam eksikse veya eski istemci `renderingMode` göndermiyorsa
+  `fps.status=INSUFFICIENT_DATA`, estimatedLowerFps/estimatedUpperFps=null, confidence=NONE.
   Kaynaktaki sample/session sayısı, producerSampleThresholdMet ve lastObservedAt yalnız tanı
   bilgisidir. Aggregate min/max FPS tahminine çevrilmez; ayar/provenance/profil sürümü bağı yoktur.
 - Graphics, minimum compute doğrulanıp bilinen açık veya parça uyuşmazlığı bulunmazsa
@@ -12384,6 +12397,15 @@ Masaüstü istemcisi API Gateway üzerinden /api/v1/performance/sync/batches. Au
 #### Test Durumu
 INTEGRATION — gerçek filtre zinciri + PostgreSQL; olumlu cihaz token'ları gerçek Auth üreticisinden gelir. İzole gerçek Auth/Gateway HTTP kabulünde v1 sync ve replay PASS (2026-11-06); Hardware hedefli token 401, listeyle tespit edilen iptal sonrası mevcut token 403. Cihaz token'ı `exp` anında reddedilir; 30 sn kullanıcı saat toleransı yazma süresine eklenmez. v2 örneklerin gerçek Game/Hardware/masaüstü istemcisiyle E2E kabulü yapılmadı.
 
+
+> **REC-09 / V24 — zarf v3:** `schemaVersion=3` zarfı v2'nin örnek biçimine ek olarak zorunlu
+> `measurementContext` taşır (v1/v2'de yasak → 400). Bağlam oturumunki ile birebir aynı olmalıdır;
+> örnekler bağlamla işaretlenir (kanıta yalnız bunlar girer). Idempotency hash'i `v3|<bağlam>|`
+> önekiyle bağlamı kapsar. Ek hatalar: 409 `MEASUREMENT_CONTEXT_MISMATCH` (bağlam uyuşmuyor veya
+> oturum bağlamsız), 403 `MEASUREMENT_DEVICE_MISMATCH` (oturumun cihazı değil), diğer hesabın
+> oturumu 404. v1/v2 geriye uyumludur; bağlamlı oturuma v2 ile yazılan örnekler bağlamsız kalır;
+> duplicate örnek mevcut satırı kanıta yükseltmez. Test: `PerformanceMeasurementContextIntegrationTest`.
+
 ### PERFORMANCE — Hesap verisi silme (Auth D4)
 
 Durum: IMPLEMENTED
@@ -12522,6 +12544,15 @@ Game GAME-15 (`/api/v1/game/games/batch`, anonim) ve Hardware HW-17 (`/api/v1/ha
 
 #### Test Durumu
 INTEGRATION (PostgreSQL Testcontainers, gerçek filtre zinciri, kullanıcı token'ı gerçek Auth kaynak kodundan üretilen JWKS ile imzalı). Game/Hardware **yerel sapma (mock)**; gerçek servislerle E2E DEFERRED_CONTRACT / NOT_VERIFIED.
+
+
+> **REC-09 / V24 — `measurementContext` (isteğe bağlı):** Body'ye
+> `"measurementContext": {"hardwareProfileVersion": 7, "resolution": "1920x1080", "graphicsPreset": "HIGH", "renderingMode": "NATIVE_RASTER"}`
+> eklenebilir (yalnız bu alanlar; fazlası 400). Bağlam için `hardwareProfileId` ve `deviceLinkId`
+> zorunludur; owner'ın gerçek Hardware profil sürümü doğrulanır. Oturum değiştirilemez bağlamla
+> doğar ve yanıtta `measurementContext` döner. Ek hatalar: 409 `MEASUREMENT_PROFILE_VERSION_CHANGED`
+> (profil sürümü değişmiş), 422 `HARDWARE_PROFILE_NOT_FOUND`, 503 `HARDWARE_SERVICE_UNAVAILABLE`.
+> Bağlamsız başlatma eskisi gibi çalışır. Test: `PerformanceMeasurementContextIntegrationTest`.
 
 ### PERFORMANCE — Oturumları listele (PERF-03)
 
@@ -13224,6 +13255,84 @@ INTEGRATION + izole gerçek Auth HTTP kabulü PASS: Recommendation istemci token
 TASK 3'te Recommendation üretim tüketicisi eklendi; exact game/profile/account ve reference:read bağı testlidir.
 Bu özet resolution/preset/provenance/profileVersion taşımadığından reliable=true dahi tahmin güveni
 sayılmaz; tüketici FPS tahmini üretmez. [Tüketici kanıtı ve canlı E2E sınırı](../docs-recommendation/testings/task-03-tests.md).
+
+### PERFORMANCE — Bağlamlı FPS kanıtı (Recommendation, REC-09 / PERF-12/13/21)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Recommendation
+
+#### Endpoint
+GET /internal/v1/accounts/{accountId}/games/{gameId}/performance-evidence
+
+#### Yetkilendirme
+`performance-reference` ile aynı: servis token'ı (`svc+jwt`), `aud=performance-service`,
+`sub=svc:recommendation-service`, `scope=reference:read`, `account_id` = yoldaki `accountId`.
+
+#### Path/Query Parameters
+- accountId, gameId: UUID, zorunlu
+- hardwareProfileId: UUID, zorunlu
+- hardwareProfileVersion: tamsayı ≥ 0, zorunlu
+- resolution: `^[1-9][0-9]{2,4}x[1-9][0-9]{2,4}$` (her kenar 100–16384), zorunlu
+- graphicsPreset: `LOW|MEDIUM|HIGH|ULTRA`, zorunlu
+- renderingMode: `NATIVE_RASTER`, zorunlu
+
+#### Response — 200
+```json
+{
+  "contractVersion": "fps-evidence-v1",
+  "gameId": "UUID",
+  "hardwareProfileId": "UUID",
+  "hardwareProfileVersion": 7,
+  "resolution": "1920x1080",
+  "graphicsPreset": "HIGH",
+  "renderingMode": "NATIVE_RASTER",
+  "status": "SUFFICIENT",
+  "source": "AUTHENTICATED_DEVICE",
+  "contextVerification": "OWNER_SNAPSHOT_DEVICE_DECLARATION",
+  "method": "SESSION_MEDIAN_P10_P90_IQR_1_5_V1",
+  "confidenceCeiling": "LOW",
+  "consideredSessionCount": 3,
+  "sessionCount": 3,
+  "observedSampleCount": 330,
+  "inlierSampleCount": 330,
+  "excludedSampleCount": 0,
+  "lowerReferenceFps": 51.4,
+  "upperReferenceFps": 58.2,
+  "firstMeasuredAt": "2026-01-01T10:00:00Z",
+  "lastMeasuredAt": "2026-01-03T10:00:00Z",
+  "windowLimited": false,
+  "limitations": ["DEVICE_CONTEXT_NOT_ATTESTED", "GAME_BUILD_AND_BACKGROUND_LOAD_UNCONTROLLED",
+    "HISTORICAL_RANGE_NOT_CURRENT_MEASUREMENT", "MAX_20_SESSIONS_600_SAMPLES_30_DAYS"]
+}
+```
+Yalnız hesabın, **aynı oyun/profil/profil sürümü/çözünürlük/preset/renderingMode** bağlamına
+bağlı COMPLETED oturumları kullanılır; son 30 gündeki en yeni 20 oturum, oturum başına son
+600 FPS örneği. IQR 1.5 aykırı değer filtresi; oturum yeterliliği ≥ 60 inlier ve ≥ 60 sn ölçüm
+yayılımı; `SUFFICIENT` için ≥ 3 uygun oturum. Aralık oturum P10/P90 değerlerinin medyanıdır.
+Yetersiz/veri yok: `status=INSUFFICIENT_DATA`, alt/üst `null`. Eşikler mühendislik varsayımıdır;
+kalibre edilmiş doğruluk veya istatistiksel güven iddiası yoktur. Bağlamsız eski oturumlar ve
+manuel raporlar kanıta katılmaz. `Cache-Control: no-store`.
+
+#### Hata Durumları
+- 400: Geçersiz/eksik parametre (`INVALID_REQUEST`)
+- 401: Token yok/geçersiz; yanlış audience; kullanıcı/cihaz token'ı
+- 403: Yanlış servis konusu, kapsam veya hesap bağı; hesap pasif
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Recommendation → Performance (RestClient; servis token'ı Auth'tan alınır)
+
+#### Test Durumu
+INTEGRATION PASS (Testcontainers PostgreSQL 17): `PerformanceEvidenceIntegrationTest` (12) —
+3 uygun oturum SUFFICIENT/51–59, <3 oturum, veri yok, 60/61/59 sınırı, aykırı değer sayımı,
+farklı bağlamların karışmaması, legacy/ACTIVE/30 gün üstü/yabancı oturum dışlama, 20 oturum
+penceresi (`windowLimited`), 600 örnek tavanı, 401/403/400, DB CHECK/FK, indeks. Recommendation
+tüketici testleri `HardwareAssessmentApiIntegrationTest` içindedir (85/85 modül PASS).
 
 ## NOTIFICATION
 

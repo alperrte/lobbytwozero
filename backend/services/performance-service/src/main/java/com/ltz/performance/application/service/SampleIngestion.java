@@ -2,6 +2,8 @@ package com.ltz.performance.application.service;
 
 import com.ltz.performance.domain.entity.SampleBatchRules;
 import com.ltz.performance.domain.entity.TelemetrySample;
+import com.ltz.performance.domain.entity.MeasurementContext;
+import com.ltz.performance.domain.exception.PerformanceForbiddenException;
 import com.ltz.performance.domain.exception.PerformanceConflictException;
 import com.ltz.performance.domain.exception.PerformanceNotFoundException;
 import com.ltz.performance.infrastructure.persistence.repository.PerformanceSampleRepository;
@@ -27,7 +29,16 @@ public class SampleIngestion {
      */
     public SampleOutcome ingest(UUID sessionId, UUID userId, UUID deviceLinkId, UUID batchId,
             List<TelemetrySample> batch, Instant now) {
+        return ingest(sessionId, userId, deviceLinkId, batchId, batch, now, null);
+    }
+
+    public SampleOutcome ingest(UUID sessionId, UUID userId, UUID deviceLinkId, UUID batchId,
+            List<TelemetrySample> batch, Instant now, MeasurementContext context) {
         var session = samples.lockOwnedSession(sessionId, userId).orElseThrow(PerformanceNotFoundException::new);
+        if (context != null) {
+            if (!deviceLinkId.equals(session.deviceLinkId())) throw new PerformanceForbiddenException("MEASUREMENT_DEVICE_MISMATCH");
+            if (!context.equals(session.measurementContext())) throw new PerformanceConflictException("MEASUREMENT_CONTEXT_MISMATCH");
+        }
         SampleBatchRules.requireAccepting(session.status(), session.startedAt(), session.endedAt(), now);
         SampleBatchRules.validate(batch, session.startedAt(), session.endedAt(), now);
         if ((long) session.sampleCount() + batch.size() > PerformanceSampleRepository.MAX_PER_SESSION) {
@@ -39,7 +50,7 @@ public class SampleIngestion {
         int stored = 0;
         if (!batch.isEmpty()) {
             stored = samples.insertIgnoringDuplicates(
-                    new PerformanceSampleRepository.Target(sessionId, userId, deviceLinkId, batchId), batch, now);
+                    new PerformanceSampleRepository.Target(sessionId, userId, deviceLinkId, batchId, context == null ? null : sessionId), batch, now);
             if (stored > 0) samples.addToSessionCount(sessionId, stored);
         }
         return new SampleOutcome(sessionId, stored, batch.size() - stored);

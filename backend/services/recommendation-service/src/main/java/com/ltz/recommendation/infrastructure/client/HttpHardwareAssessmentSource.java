@@ -47,4 +47,15 @@ public class HttpHardwareAssessmentSource implements HardwareAssessmentSource {
                 .queryParam("hardwareProfileId", profileId).buildAndExpand(actor.accountId(), gameId).toUri();
         return PerformanceReferenceResponseReader.read(http.getResource(uri, tokens.performanceToken(actor.accountId())), profileId, gameId);
     }
+
+    @Override
+    public Evidence evidence(Actor actor, EvidenceContext context) {
+        var uri = UriComponentsBuilder.fromUri(RecommendationHttpClient.origin(performanceUrl))
+                .path("/internal/v1/accounts/{account}/games/{game}/performance-evidence")
+                .queryParam("hardwareProfileId", context.profileId()).queryParam("hardwareProfileVersion", context.profileVersion())
+                .queryParam("resolution", context.resolution()).queryParam("graphicsPreset", context.graphicsPreset())
+                .queryParam("renderingMode", context.renderingMode()).buildAndExpand(actor.accountId(), context.gameId()).toUri();
+        return PerformanceEvidenceResponseReader.read(http.getResource(uri, tokens.performanceToken(actor.accountId())),
+                context, java.time.Instant.now());
+    }
 }

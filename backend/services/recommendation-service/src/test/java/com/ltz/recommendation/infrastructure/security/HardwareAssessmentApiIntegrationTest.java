@@ -168,6 +168,60 @@ class HardwareAssessmentApiIntegrationTest {
     }
 
     @Test
+    void nativeRasterContextUsesDeviceEvidenceAsLowConfidenceHistoricalRange() throws Exception {
+        var fps = assess(token, request("1920x1080", "HIGH", "NATIVE_RASTER"), 200).path("fps");
+        assertThat(fps.path("status").asString()).isEqualTo("ESTIMATED");
+        assertThat(fps.path("estimatedLowerFps").asDouble()).isEqualTo(51.0);
+        assertThat(fps.path("estimatedUpperFps").asDouble()).isEqualTo(59.0);
+        assertThat(fps.path("confidence").asString()).isEqualTo("LOW");
+        assertThat(fps.path("producerSampleThresholdMet").asBoolean()).isTrue();
+        var evidence = fps.path("evidence");
+        assertThat(evidence.path("contractVersion").asString()).isEqualTo("fps-evidence-v1");
+        assertThat(evidence.path("source").asString()).isEqualTo("AUTHENTICATED_DEVICE");
+        assertThat(evidence.path("contextVerification").asString()).isEqualTo("OWNER_SNAPSHOT_DEVICE_DECLARATION");
+        assertThat(evidence.path("method").asString()).isEqualTo("SESSION_MEDIAN_P10_P90_IQR_1_5_V1");
+        assertThat(evidence.path("renderingMode").asString()).isEqualTo("NATIVE_RASTER");
+        assertThat(evidence.path("limitations")).hasSize(4);
+        assertThat(REQUESTS).anyMatch(path -> path.contains("performance-evidence"));
+        assertThat(REQUESTS).noneMatch(path -> path.contains("performance-reference"));
+    }
+
+    @Test
+    void insufficientDeviceEvidenceStaysHonestWithoutRange() throws Exception {
+        mode = "ev-insufficient";
+        var fps = assess(token, request("1920x1080", "HIGH", "NATIVE_RASTER"), 200).path("fps");
+        assertThat(fps.path("status").asString()).isEqualTo("INSUFFICIENT_DATA");
+        assertThat(fps.path("estimatedLowerFps").isNull()).isTrue();
+        assertThat(fps.path("estimatedUpperFps").isNull()).isTrue();
+        assertThat(fps.path("confidence").asString()).isEqualTo("NONE");
+        assertThat(fps.path("evidence").path("method").asString()).isEqualTo("SESSION_MEDIAN_P10_P90_IQR_1_5_V1");
+    }
+
+    @Test
+    void malformedOrUnavailableEvidenceIsADependencyError() throws Exception {
+        for (String fault : List.of("ev-unavailable", "ev-wrong-version", "ev-wrong-context", "ev-bad-counts", "ev-inverted",
+                "ev-sufficient-two-sessions", "ev-missing-limitation", "ev-wrong-method", "ev-wrong-source")) {
+            mode = fault;
+            assess(token, request("1920x1080", "HIGH", "NATIVE_RASTER"), 503);
+        }
+    }
+
+    @Test
+    void renderingModeWithoutResolutionOrPresetFallsBackToReferenceWithoutEvidenceRequest() throws Exception {
+        var fps = assess(token, request(null, null, "NATIVE_RASTER"), 200).path("fps");
+        assertThat(fps.path("status").asString()).isEqualTo("INSUFFICIENT_DATA");
+        assertThat(fps.path("estimatedLowerFps").isNull()).isTrue();
+        assertThat(REQUESTS).noneMatch(path -> path.contains("performance-evidence"));
+    }
+
+    @Test
+    void unsupportedRenderingModeIsRejected() throws Exception {
+        for (String bad : List.of("RAY_TRACING", "native_raster", "")) {
+            assess(token, request("1920x1080", "HIGH", bad), 400);
+        }
+    }
+
+    @Test
     void malformedFpsBindingCountsAndStatisticsAreDependencyErrors() throws Exception {
         for (String fault : List.of("wrong-fps-profile", "wrong-fps-game", "invalid-fps", "negative-count")) {
             mode = fault;
@@ -274,7 +328,12 @@ class HardwareAssessmentApiIntegrationTest {
         return JSON.readTree(response.getContentAsByteArray());
     }
     private static String request(String resolution, String preset) throws Exception {
+        return request(resolution, preset, null);
+    }
+
+    private static String request(String resolution, String preset, String renderingMode) throws Exception {
         Map<String, Object> body = new HashMap<>();
+        if (renderingMode != null) body.put("renderingMode", renderingMode);
         body.put("hardwareProfileId", PROFILE);
         body.put("gameId", GAME);
         body.put("platform", "windows");
@@ -301,6 +360,8 @@ class HardwareAssessmentApiIntegrationTest {
                 hardware(exchange);
             } else if (path.endsWith("/metadata")) {
                 game(exchange);
+            } else if (path.contains("performance-evidence")) {
+                evidence(exchange);
             } else if (path.contains("performance-reference")) {
                 performance(exchange);
             } else reply(exchange, 404, "{}");
@@ -351,6 +412,50 @@ class HardwareAssessmentApiIntegrationTest {
         body.put("gameId", mode.equals("wrong-game") ? B : GAME);
         body.put("adult", mode.equals("unknown-adult") ? null : mode.equals("adult"));
         body.put("delisted", false); body.put("systemRequirements", requirements);
+        reply(exchange, 200, JSON.writeValueAsString(body));
+    }
+
+    private static void evidence(HttpExchange exchange) throws Exception {
+        if (mode.equals("ev-unavailable")) { reply(exchange, 503, "{}"); return; }
+        var token = com.nimbusds.jwt.SignedJWT.parse(exchange.getRequestHeaders().getFirst("Authorization").substring(7)).getJWTClaimsSet();
+        assertThat(token.getSubject()).isEqualTo("svc:recommendation-service");
+        assertThat(token.getAudience()).containsExactly("performance-service");
+        assertThat(token.getStringClaim("account_id")).isEqualTo(A.toString());
+        assertThat(token.getStringClaim("scope")).isEqualTo("reference:read");
+        assertThat(exchange.getRequestURI().getQuery()).isEqualTo("hardwareProfileId=" + PROFILE
+                + "&hardwareProfileVersion=7&resolution=1920x1080&graphicsPreset=HIGH&renderingMode=NATIVE_RASTER");
+        boolean sufficient = !mode.equals("ev-insufficient");
+        long sessions = sufficient ? 3 : 2;
+        long observed = sessions * 110;
+        java.time.Instant now = java.time.Instant.now();
+        Map<String, Object> body = new HashMap<>();
+        body.put("contractVersion", "fps-evidence-v1");
+        body.put("gameId", GAME);
+        body.put("hardwareProfileId", PROFILE);
+        body.put("hardwareProfileVersion", mode.equals("ev-wrong-version") ? 6 : 7);
+        body.put("resolution", mode.equals("ev-wrong-context") ? "3840x2160" : "1920x1080");
+        body.put("graphicsPreset", "HIGH");
+        body.put("renderingMode", "NATIVE_RASTER");
+        body.put("status", sufficient ? "SUFFICIENT" : "INSUFFICIENT_DATA");
+        body.put("source", mode.equals("ev-wrong-source") ? "MANUAL" : "AUTHENTICATED_DEVICE");
+        body.put("contextVerification", "OWNER_SNAPSHOT_DEVICE_DECLARATION");
+        body.put("method", mode.equals("ev-wrong-method") ? "MEAN" : "SESSION_MEDIAN_P10_P90_IQR_1_5_V1");
+        body.put("confidenceCeiling", "LOW");
+        body.put("consideredSessionCount", 3);
+        body.put("sessionCount", mode.equals("ev-sufficient-two-sessions") ? 2 : sessions);
+        body.put("observedSampleCount", observed);
+        body.put("inlierSampleCount", mode.equals("ev-bad-counts") ? observed + 5 : observed);
+        body.put("excludedSampleCount", 0);
+        body.put("lowerReferenceFps", sufficient ? (mode.equals("ev-inverted") ? 58.2 : 51.4) : null);
+        body.put("upperReferenceFps", sufficient ? (mode.equals("ev-inverted") ? 51.4 : 58.2) : null);
+        body.put("firstMeasuredAt", now.minus(3, java.time.temporal.ChronoUnit.DAYS).toString());
+        body.put("lastMeasuredAt", now.minus(1, java.time.temporal.ChronoUnit.DAYS).toString());
+        body.put("windowLimited", false);
+        body.put("limitations", mode.equals("ev-missing-limitation")
+                ? List.of("DEVICE_CONTEXT_NOT_ATTESTED", "GAME_BUILD_AND_BACKGROUND_LOAD_UNCONTROLLED",
+                        "HISTORICAL_RANGE_NOT_CURRENT_MEASUREMENT")
+                : List.of("DEVICE_CONTEXT_NOT_ATTESTED", "GAME_BUILD_AND_BACKGROUND_LOAD_UNCONTROLLED",
+                        "HISTORICAL_RANGE_NOT_CURRENT_MEASUREMENT", "MAX_20_SESSIONS_600_SAMPLES_30_DAYS"));
         reply(exchange, 200, JSON.writeValueAsString(body));
     }
 

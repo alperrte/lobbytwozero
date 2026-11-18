@@ -18,17 +18,24 @@ public class HardwareAssessmentService {
     private final RecommendationRateLimiter limits;
     private final HardwareRequirementEvaluator requirements;
     private final ComponentCompatibilityEvaluator components;
+    private final HardwareFpsEstimator fpsEstimator;
 
     public HardwareAssessmentService(HardwareAssessmentSource source, PersonalizedRecommendationService consent,
-            RecommendationRateLimiter limits, HardwareRequirementEvaluator requirements, ComponentCompatibilityEvaluator components) {
+            RecommendationRateLimiter limits, HardwareRequirementEvaluator requirements, ComponentCompatibilityEvaluator components,
+            HardwareFpsEstimator fpsEstimator) {
         this.source = source;
         this.consent = consent;
         this.limits = limits;
         this.requirements = requirements;
         this.components = components;
+        this.fpsEstimator = fpsEstimator;
     }
 
     public Assessment assess(Actor actor, UUID profileId, UUID gameId, String platform, String resolution, String preset) {
+        return assess(actor, profileId, gameId, platform, resolution, preset, null);
+    }
+
+    public Assessment assess(Actor actor, UUID profileId, UUID gameId, String platform, String resolution, String preset, String renderingMode) {
         limits.acquire(actor.accountId(), true);
         consent.verifyConsent(actor);
         var profile = source.profile(actor, profileId);
@@ -36,10 +43,7 @@ public class HardwareAssessmentService {
         Level minimum = requirements.evaluate(profile, level(game, "MINIMUM"), "MINIMUM");
         Level recommended = requirements.evaluate(profile, level(game, "RECOMMENDED"), "RECOMMENDED");
         var compatibility = components.evaluate(profile);
-        var reference = source.reference(actor, profileId, gameId);
-        var fps = new Fps("INSUFFICIENT_DATA", null, null, "NONE", reference.fpsSampleCount(), reference.sessionCount(),
-                reference.reliable(), reference.lastMeasuredAt(), resolution, preset,
-                reference.fpsSampleCount() == 0 ? "NO_FPS_SAMPLES" : "RESOLUTION_PRESET_PROVENANCE_AND_PROFILE_VERSION_UNBOUND");
+        var fps = fpsEstimator.estimate(actor, profileId, gameId, profile.profileVersion(), resolution, preset, renderingMode);
         boolean suggestLow = minimum.computeStatus() == Status.MEETS && minimum.overallStatus() != Status.BELOW
                 && !compatibility.status().equals("INCOMPATIBLE");
         var graphics = new Graphics(suggestLow ? "CONDITIONAL" : "INSUFFICIENT_DATA", suggestLow ? "LOW" : null,
@@ -58,7 +62,8 @@ public class HardwareAssessmentService {
 
     public record Fps(String status, Double estimatedLowerFps, Double estimatedUpperFps, String confidence,
             long observedSampleCount, long observedSessionCount, boolean producerSampleThresholdMet,
-            Instant lastObservedAt, String requestedResolution, String requestedPreset, String reason) { }
+            Instant lastObservedAt, String requestedResolution, String requestedPreset, String reason,
+            HardwareFpsEstimator.Provenance evidence) { }
     public record Graphics(String status, String suggestedPreset, String reason) { }
     public record Assessment(UUID hardwareProfileId, long hardwareProfileVersion, UUID gameId, String platform, Instant assessedAt,
             String suitability, Level minimum, Level recommended, Fps fps, Graphics graphics,

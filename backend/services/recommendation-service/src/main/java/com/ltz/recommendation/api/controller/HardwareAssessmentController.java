@@ -23,7 +23,7 @@ public class HardwareAssessmentController {
             @RequestBody @Valid HardwareAssessmentRequest request) {
         var actor = new Actor(UUID.fromString(jwt.getSubject()), "Bearer " + jwt.getTokenValue());
         var result = service.assess(actor, request.hardwareProfileId(), request.gameId(), request.platform(),
-                request.resolution(), request.graphicsPreset());
+                request.resolution(), request.graphicsPreset(), request.renderingMode());
         return ResponseEntity.ok().header("Cache-Control", "private, no-store").body(HardwareAssessmentResponse.from(result));
     }
 }

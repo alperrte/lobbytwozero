@@ -5,6 +5,7 @@ import com.ltz.performance.domain.exception.ServiceDependencyUnavailableExceptio
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.OptionalLong;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
 import tools.jackson.core.JacksonException;
@@ -35,6 +36,21 @@ public class HardwareServiceProfileDirectory implements HardwareProfileDirectory
 
     @Override
     public boolean isOwnedProfile(String authorization, UUID profileId) {
+        return findProfile(authorization, profileId) != null;
+    }
+
+    @Override
+    public OptionalLong ownedProfileVersion(String authorization, UUID profileId) {
+        var profile = findProfile(authorization, profileId);
+        if (profile == null) return OptionalLong.empty();
+        var version = profile.path("profileVersion");
+        if (!version.isIntegralNumber() || !version.canConvertToLong() || version.asLong() < 0) {
+            throw new ServiceDependencyUnavailableException(UNAVAILABLE);
+        }
+        return OptionalLong.of(version.asLong());
+    }
+
+    private JsonNode findProfile(String authorization, UUID profileId) {
         if (authorization == null || !authorization.startsWith(BEARER_PREFIX)
                 || authorization.length() <= BEARER_PREFIX.length()) {
             throw new ServiceDependencyUnavailableException(UNAVAILABLE);
@@ -42,15 +58,15 @@ public class HardwareServiceProfileDirectory implements HardwareProfileDirectory
         var body = Map.of("profiles", List.of(Map.of("profileId", profileId, "page", 0, "size", 1)));
         try {
             var reply = client.post(properties.hardwareProfilesBatchUri(), body, authorization);
-            if (reply.status() == 404) return false;
+            if (reply.status() == 404) return null;
             if (reply.status() != 200) throw new ServiceDependencyUnavailableException(UNAVAILABLE);
-            return returnsProfile(mapper.readTree(reply.body()), profileId);
+            return readProfile(mapper.readTree(reply.body()), profileId);
         } catch (RestClientException | JacksonException | IllegalArgumentException _) {
             throw new ServiceDependencyUnavailableException(UNAVAILABLE);
         }
     }
 
-    private static boolean returnsProfile(JsonNode root, UUID profileId) {
+    private static JsonNode readProfile(JsonNode root, UUID profileId) {
         JsonNode profiles = root == null ? null : root.get("profiles");
         if (profiles == null || !profiles.isArray() || profiles.size() != 1) {
             throw new ServiceDependencyUnavailableException(UNAVAILABLE);
@@ -59,6 +75,6 @@ public class HardwareServiceProfileDirectory implements HardwareProfileDirectory
         if (id == null || !id.isString() || !profileId.equals(UUID.fromString(id.asString()))) {
             throw new ServiceDependencyUnavailableException(UNAVAILABLE);
         }
-        return true;
+        return profiles.get(0);
     }
 }
