@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.ltz.auth.application.port.AccountDeletionMail;
+import com.ltz.auth.application.port.SecurityNotificationType;
 import com.ltz.auth.domain.entity.Account;
 import com.ltz.auth.domain.entity.AccountDeletionRequest;
 import com.ltz.auth.domain.entity.AccountDeletionTask;
@@ -58,6 +59,7 @@ public class AccountDeletionService {
     private final AccountRepository accountRepository;
     private final AuthSessionRepository sessionRepository;
     private final DeviceRevoker deviceRevoker;
+    private final SecurityNotificationDispatcher notifier;
     private final AccountDeletionTokenRepository tokenRepository;
     private final AccountDeletionRequestRepository requestRepository;
     private final AccountDeletionTaskRepository taskRepository;
@@ -175,6 +177,7 @@ public class AccountDeletionService {
         request.cancel(now);
         account.cancelDeletion(now);
         securityEventRecorder.recordEvent(SecurityEventType.ACCOUNT_DELETION_CANCELLED, accountId);
+        notifier.notifyAfterCommit(accountId, account.getEmail(), SecurityNotificationType.ACCOUNT_DELETION_CANCELLED);
     }
 
     @PostConstruct

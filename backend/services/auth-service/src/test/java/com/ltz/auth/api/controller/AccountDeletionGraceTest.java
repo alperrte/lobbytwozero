@@ -12,6 +12,8 @@ import org.springframework.test.web.servlet.ResultActions;
 
 import com.ltz.auth.AccountDeletionTestSupport;
 import com.ltz.auth.RecordingMailPortConfiguration;
+import com.ltz.auth.application.port.SecurityNotificationMail;
+import com.ltz.auth.application.port.SecurityNotificationType;
 
 /**
  * Silme için geri alma (bekleme) süresi. Test ortamında süre PT0S'tir; bu sınıf 14 günlük beklemeyi talep ve görev
@@ -53,6 +55,9 @@ class AccountDeletionGraceTest extends AccountDeletionTestSupport {
         assertThat(jdbc.queryForObject("select status from account_deletion_requests where account_id = ?",
                 String.class, accountId)).isEqualTo("CANCELLED");
         assertThat(securityEventCount(accountId, "ACCOUNT_DELETION_CANCELLED")).isEqualTo(1);
+        SecurityNotificationMail notice = mailPort.awaitNotification(email,
+                SecurityNotificationType.ACCOUNT_DELETION_CANCELLED);
+        assertThat(notice.accountId()).isEqualTo(accountId);
         assertThat(coordinator.processDue()).isZero();
         login(email, VALID_PASSWORD).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("AUTHENTICATED"));
     }
@@ -69,6 +74,8 @@ class AccountDeletionGraceTest extends AccountDeletionTestSupport {
                 .andReturn().getResponse().getContentAsString();
 
         assertThat(unknown).isEqualTo(wrong);
+        assertThat(mailPort.notificationsTo(email)).extracting(SecurityNotificationMail::type)
+                .doesNotContain(SecurityNotificationType.ACCOUNT_DELETION_CANCELLED);
         assertThat(statusOf(accountId)).isEqualTo("DELETION_REQUESTED");
         assertThat(pendingTasks(accountId)).isEqualTo(2);
     }

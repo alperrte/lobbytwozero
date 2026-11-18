@@ -49,6 +49,7 @@ public class SessionService {
     private final SecureTokens secureTokens;
     private final SessionProperties properties;
     private final SecurityEventRecorder securityEventRecorder;
+    private final KnownDeviceService knownDeviceService;
     private final TransactionTemplate transactionTemplate;
     private final Clock clock;
 
@@ -63,6 +64,7 @@ public class SessionService {
                 now, now.plus(properties.absoluteTtl())));
         IssuedSession issued = issueTokens(account, session, now);
         securityEventRecorder.recordEvent(SecurityEventType.LOGIN_SUCCEEDED, accountId);
+        knownDeviceService.recordLogin(account);
         return issued;
     }
 

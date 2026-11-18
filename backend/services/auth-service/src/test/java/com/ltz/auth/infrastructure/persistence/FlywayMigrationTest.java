@@ -19,7 +19,7 @@ class FlywayMigrationTest extends IntegrationTestSupport {
     void authMigrationlariKendiAraligindaBasariylaUygulanir() {
         List<String> versions = jdbc.queryForList(
                 "select version from flyway_schema_history where success order by installed_rank", String.class);
-        assertThat(versions).containsExactly("61", "62", "63", "64", "65", "66", "67");
+        assertThat(versions).containsExactly("61", "62", "63", "64", "65", "66", "67", "68");
     }
 
     @Test
