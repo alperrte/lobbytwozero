@@ -44,4 +44,4 @@ Durum: **User tarafı tamamlandı (yerel doğrulama).** Çağıran servisler ve 
 - Talepler: [USER-AUTH-REQ-04](../integration/auth/auth-service-talepleri/auth-requests-04.md) (T3),
   [USER-SVC-REQ-01](../integration/README.md) (T6, T7, T8).
 - Social başlangıç aktarımı bitmeden `ltz.user.social.projection-enabled=true` yapılmamalı.
-- Arama için kullanıcı başına oran sınırı yok (izlenecek).
+- Arama hız sınırı (2026-11-18): kullanıcı başına dakikada 30, bellek içi, `429` + `Retry-After` (`SearchRateLimiter`). Çok örnekli kurulumda örnek başına uygulanır; ortak limitleyici gerekirse sonra.

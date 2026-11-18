@@ -118,6 +118,26 @@ class PlayerSearchTest extends IntegrationTestSupport {
         mockMvc.perform(get(UserApiPaths.SEARCH).param("q", "abc")).andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void aramaHizSiniriniAsinca429RetryAfterIleDonerSayacKullaniciBasinadir() throws Exception {
+        UUID noisy = newUser();
+        UUID calm = newUser();
+        // Varsayılan sınır 30/dk; dakika sınırı geçilirse sayaç sıfırlanabileceğinden fazladan istek atılır.
+        boolean limited = false;
+        for (int i = 0; i < 70 && !limited; i++) {
+            ResultActions result = search(noisy, "zz" + PublicProfileControllerTest.suffix());
+            if (result.andReturn().getResponse().getStatus() == 429) {
+                limited = true;
+                result.andExpect(jsonPath("$.code").value("SEARCH_RATE_LIMITED"))
+                        .andExpect(header().exists(HttpHeaders.RETRY_AFTER))
+                        .andExpect(header().string(HttpHeaders.RETRY_AFTER, Matchers.matchesPattern("[1-9][0-9]?")));
+            }
+        }
+
+        org.assertj.core.api.Assertions.assertThat(limited).isTrue();
+        search(calm, "zz" + PublicProfileControllerTest.suffix()).andExpect(status().isOk());
+    }
+
     // ------------------------------------------------------------ toplu kart
 
     @Test
