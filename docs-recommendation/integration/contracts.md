@@ -44,8 +44,8 @@ Yukarıdaki tablo TASK 1 başlangıç fotoğrafıdır; bu bölüm güncel deği�
   favorite/completed dışlama. Bounded şema/tekrar/total kontrolü vardır.
 - Game: genre/platform filtreli discovery; max 10×50 aday, canonical ID, MAIN_GAME/adult=false.
   Game GAME-15 toplu metadata ucu teslim edildi (KAPANDI); REC-02/05 tür yakınlığı tüketicisi Recommendation tarafında yazılacak; [kapanan talep](dependencies/done/game-service-requests.md).
-- Review: kişisel puanlar için batch/paging yok; genel summary kullanılmadı. REC-03 BLOCKED;
-  [owner talebi](dependencies/review-service-requests.md).
+- Review: GET /api/v1/review/ratings/mine teslim edildi (KAPANDI); Recommendation HttpPersonalRatingSource ile tüketir, REC-03 bağlandı;
+  [owner talebi](dependencies/done/review-service-requests.md).
 - Recommendation D4 hedef ucu hazır; gerçek Auth worker ve kaynak servislerle çok servisli E2E
   henüz doğrulanmadı. Fixture contract kabulü canlı E2E diye raporlanmaz.
 - Mevcut `AUTH_RECOMMENDATION_SERVICE_CLIENT_SECRET` aktarımı kullanıcı onayıyla yalnız

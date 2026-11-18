@@ -75,6 +75,7 @@ class RecommendationApiIntegrationTest {
         registry.add("USER_SERVICE_URL", () -> base);
         registry.add("GAME_SERVICE_URL", () -> base);
         registry.add("LIBRARY_SERVICE_URL", () -> base);
+        registry.add("REVIEW_SERVICE_URL", () -> base);
         registry.add("ltz.recommendation.client-secret", () -> "test-only-service-credential-not-real");
         registry.add("ltz.recommendation.auth.read-timeout", () -> "150ms");
     }
@@ -455,6 +456,11 @@ class RecommendationApiIntegrationTest {
                 assertThat(path).contains(jwt.getStringClaim("account_id"));
                 reply(exchange, 200, "{\"items\":[{\"gameId\":\"" + OWNED + "\",\"favorite\":true,\"completed\":true}],"
                         + "\"page\":0,\"size\":50,\"totalElements\":" + (fault.equals("library-overflow") ? 501 : 1) + "}");
+                return;
+            }
+            if (path.equals("/api/v1/review/ratings/mine")) {
+                assertThat(jwt.getSubject()).isNotEqualTo("svc:recommendation-service");
+                reply(exchange, 200, "{\"items\":[],\"nextCursor\":null,\"truncated\":false}");
                 return;
             }
             gameReply(exchange);

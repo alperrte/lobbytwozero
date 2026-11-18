@@ -17,7 +17,7 @@
 | REC-19 | DONE | Owner item feedback GET/PUT, LIKE/NOT_INTERESTED, version conflict, idempotency, concurrency ve kota |
 
 Diğer servislerin eksik sözleşmeleri açık [Game](../integration/dependencies/done/game-service-requests.md)
-ve [Review](../integration/dependencies/review-service-requests.md) talepleridir; sahip Hamza.
+ve [Review](../integration/dependencies/done/review-service-requests.md) talepleridir; sahip Hamza.
 Başka servisin koduna veya veritabanına müdahale edilmedi. Sistem uygunluğu analizi burada
 uydurulmadı; TASK 3 üzerinde çalışma yapılmadı.
 

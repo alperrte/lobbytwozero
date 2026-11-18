@@ -24,7 +24,7 @@ TASK 2 **PARTIAL**; üstteki TASK 1 envanteri kendi teslim tarihini anlatır.
 | --- | --- | --- |
 | Recommendation Auth/HTTP/history/feedback tüketicisi yok | RESOLVED (TASK 2 kapsamı) | Gerçek JWT/JWKS ve kaynak RestClient adaptörleri; 45 test PASS; canlı çok servis E2E NOT VERIFIED |
 | REC-02/05 Game batch metadata | OPEN (Game KAPANDI) | Game GAME-15 ucu teslim edildi; Recommendation tür yakınlığı tüketicisi yazılacak; [Game sözleşme talebi](../integration/dependencies/done/game-service-requests.md). Kartlara tür uydurulmadı; N+1 yapılmadı |
-| REC-03 kişisel Review rating batch/paging | BLOCKED | Hamza; [Review talebi](../integration/dependencies/review-service-requests.md). Genel rating kişisel veri yerine kullanılmadı |
+| REC-03 kişisel Review rating batch/paging | KAPANDI | Hamza teslim etti; tüketici HttpPersonalRatingSource; [Review talebi](../integration/dependencies/done/review-service-requests.md). DB tabanlı IT koşulmadı |
 | REC-16 sistem uygunluğu filtresi | PARTIAL | Genre/platform/size var; donanım uygunluğu henüz uygulanmadı, destekleniyormuş gibi kabul edilmez |
 | Mevcut secret'ın Recommendation ortamına aktarımı | APPROVED / RESOLVED | Kullanıcı açık onay verdi; gerçek ENV okunmadı/değişmedi |
 | Negatif JWT testinde tarih parse hatası | RESOLVED | ClaimsSet.Builder; son koşuda PASS |

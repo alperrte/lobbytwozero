@@ -44,6 +44,48 @@ public class HttpGameMetadataSource implements GameMetadataSource {
         return read(reply, gameIds, platform);
     }
 
+    @Override
+    public Map<UUID, List<String>> genres(List<UUID> gameIds) {
+        if (gameIds.isEmpty() || gameIds.size() > MAX_IDS || new HashSet<>(gameIds).size() != gameIds.size()) {
+            throw new IllegalArgumentException("Invalid game batch");
+        }
+        JsonNode reply;
+        try {
+            reply = http.postResource(RecommendationHttpClient.origin(gameUrl)
+                    .resolve("/api/v1/game/games/recommendation-metadata/batch"), Map.of("gameIds", gameIds), null);
+        } catch (RecommendationRequestException exception) {
+            if (exception.status() == 404) throw RecommendationHttpClient.unavailable();
+            throw exception;
+        }
+        return readGenres(reply, gameIds);
+    }
+
+    static Map<UUID, List<String>> readGenres(JsonNode reply, List<UUID> requested) {
+        JsonNode items = reply.path("items");
+        JsonNode unavailable = reply.path("unavailable");
+        if (!items.isArray() || !unavailable.isArray() || items.size() + unavailable.size() != requested.size()) {
+            throw RecommendationHttpClient.unavailable();
+        }
+        Set<UUID> asked = new HashSet<>(requested);
+        Set<UUID> seen = new HashSet<>();
+        Map<UUID, List<String>> result = new LinkedHashMap<>();
+        for (JsonNode item : items) {
+            UUID id = uuid(item.path("gameId"));
+            if (!asked.contains(id) || !seen.add(id)) throw RecommendationHttpClient.unavailable();
+            boolean hidden = bool(item.path("adult")) || !bool(item.path("visible"));
+            JsonNode genres = item.path("genres");
+            if (!genres.isArray() || genres.size() > 32) throw RecommendationHttpClient.unavailable();
+            List<String> codes = new ArrayList<>();
+            for (JsonNode genre : genres) codes.add(text(genre.path("code"), 64, true));
+            if (!hidden) result.put(id, List.copyOf(codes));
+        }
+        for (JsonNode item : unavailable) {
+            UUID id = uuid(item);
+            if (!asked.contains(id) || !seen.add(id)) throw RecommendationHttpClient.unavailable();
+        }
+        return result;
+    }
+
     static Batch read(JsonNode reply, List<UUID> requested, String platform) {
         JsonNode items = reply.path("items");
         JsonNode unavailable = reply.path("unavailable");

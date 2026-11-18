@@ -1,7 +1,7 @@
 # TASK 2 — Kullanıcının puanlarını toplu okuma talebi
 
 Tarih: 2026-11-14 · Sahip: Hamza · Tüketici: Alper / recommendation-service
-Durum: OPEN / REC-03 BLOCKED; Review/Auth kodu değiştirilmedi.
+Durum: KAPANDI (2026-11-18). Hamza GET /api/v1/review/ratings/mine ucunu teslim etti; Recommendation HttpPersonalRatingSource ile tüketir (REC-03). Aşağıdaki metin tarihsel talep kaydıdır.
 
 ## Doğrulanmış mevcut durum
 
