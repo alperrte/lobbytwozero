@@ -9,7 +9,7 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * Herkese açık toplu kart ucuna (POST /api/v1/game/games/batch) istemci başına istek sınırı uygular. Bağlantı havuzu küçüktür
+ * Herkese açık toplu okuma uçlarına istemci başına ortak istek sınırı uygular. Bağlantı havuzu küçüktür
  * (3); anonim ve sınırsız bir uç tüm servisi bloklayabilir. Sınır aşılınca 429 + Retry-After (ProblemDetail) döner.
  * Geçersiz gövdeli istekler de jeton harcar. Diğer uçlar bu filtreden etkilenmez.
  */
