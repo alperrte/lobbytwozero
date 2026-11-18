@@ -4320,6 +4320,38 @@ Yerel Review verisi okunur; geçmiş puan Game kesintisinde de okunabilir.
 #### Test Durumu
 INTEGRATION — kullanıcı izolasyonu, bulunamayan puan ve gerçek HTTP okuması.
 
+### REVIEW — REV-01/10 — Kullanıcının kendi puan geçmişi (REC-03)
+
+Durum: IMPLEMENTED.
+Sorumlu: Hamza.
+Tüketici servisler: Recommendation Service (Alper).
+
+#### Endpoint
+`GET /api/v1/review/ratings/mine?after=<opaqueCursor>&size=50`.
+
+#### Yetkilendirme
+Korumalı ve kullanıcıya özel. Review mevcut kullanıcı JWT doğrulaması ve rol kurallarını uygular. Hesap kimliği doğrulanmış `at+jwt` token'ının `sub` alanından alınır. `svc+jwt` ve kimlik header'ları kullanıcı kimliği sağlamaz. Yönetici rolleri de yalnız kendi puanlarını okur.
+
+#### Path/Query Parameters
+`size` isteğe bağlı, 1–50 tam sayı (varsayılan 50). `after` yalnız önceki yanıtın `nextCursor` değeriyle gönderilir. İlk istekte `after` yoktur. İmleç hesapla ilişkilidir ve en çok 200 karakterdir. Boş, tekrarlı veya tanınmayan parametreler reddedilir. İstek gövdesi yoktur.
+
+#### Response
+200 `{items:[{gameId,rating,updatedAt}],nextCursor,truncated}` ve `Cache-Control: no-store, private`. `gameId` kanonik LTZ UUID, `rating` mevcut Review kuralına göre 1–10 tam sayı, `updatedAt` ISO-8601 UTC'dir. Yalnız hesaba ait mevcut bağımsız puan satırları döner.
+
+- Oyun UUID'sine göre artan keyset sırası kullanılır. İlk sayfa, hesap yazmalarıyla eşgüdümlü olarak pencerenin başlangıç anını belirler. İzleyen sayfalar bu andan önce oluşturulmuş kayıtları okur. Güncellemeler sırayı değiştirmez. Sonraki okumalar güncel puanı kullanır ve silinmiş satırı atlar.
+- Puan yoksa `items:[]`, `nextCursor:null` ve `truncated:false` döner. Hesap silme sonrasında eski erişim token'ı hâlâ geçerliyse okuma boş döner.
+- Bir gezinme en çok 10 sayfa/500 puandır. Daha fazla kayıt varsa son izin verilen sayfada `truncated:true` ve `nextCursor:null` döner. Küçük sayfa boyutu seçilirse on sayfalık pencereye daha az puan sığar.
+- Metin incelemesi, profil ve toplam puan özeti yanıta dahil edilmez. İnceleme moderasyonu, bağımsız puan kaydını mevcut Review politikası gereği etkilemez.
+
+#### Hata Durumları
+400 geçersiz imleç veya parametre. 401 eksik/geçersiz kullanıcı token'ı. 403 izinli Review rolü yok. 503 geçici veritabanı erişim hatası veya zaman aşımı (`PERSONAL_RATINGS_UNAVAILABLE`). 500 beklenmeyen hata. Hatalar ProblemDetail biçimindedir.
+
+#### Bağlantı
+Recommendation → Review (RestClient). Kullanıcının Bearer token'ı yalnız mevcut istek kapsamında iletilir. Tüketici 3000 ms bağlantı ve 5000 ms okuma zaman aşımı uygular. Otomatik yönlendirme ve retry kapalıdır. Review yalnız kendi veritabanını okur ve mevcut `(user_id, game_id)` benzersiz indeksini kullanır. Tüketici 503'ü başarılı boş puan listesi olarak ele almaz. Sıralamaya puan ağırlığının katılması Recommendation kapsamındadır.
+
+#### Test Durumu
+INTEGRATION — Geçici PostgreSQL ile Review testleri 238/238 PASS. MockMvc hesap izolasyonunu, imleç sınırlarını ve 503'ü doğruladı. Auth üretim token koduyla yapılan HTTP testinde kullanıcı token'ı kabul edildi ve servis token'ı reddedildi. Recommendation sıralamasının uçtan uca kabulü NOT VERIFIED.
+
 ### REVIEW — REV-02 — Metin oluşturma
 
 Durum: IMPLEMENTED.
