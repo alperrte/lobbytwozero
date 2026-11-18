@@ -171,6 +171,29 @@ class TemplateRendererTest extends IntegrationTestSupport {
     }
 
     @Test
+    void deletionCancelledAndSuspiciousLoginRenderDateAndAdviceInBothLanguages() {
+        RenderedMail cancelledTr = renderer.render(MailType.ACCOUNT_DELETION_CANCELLED, MailLocale.TR,
+                payloadFor(MailType.ACCOUNT_DELETION_CANCELLED));
+        RenderedMail cancelledEn = renderer.render(MailType.ACCOUNT_DELETION_CANCELLED, MailLocale.EN,
+                payloadFor(MailType.ACCOUNT_DELETION_CANCELLED));
+        RenderedMail loginTr = renderer.render(MailType.SUSPICIOUS_LOGIN, MailLocale.TR,
+                payloadFor(MailType.SUSPICIOUS_LOGIN));
+        RenderedMail loginEn = renderer.render(MailType.SUSPICIOUS_LOGIN, MailLocale.EN,
+                payloadFor(MailType.SUSPICIOUS_LOGIN));
+        RenderedMail loginBoth = renderer.render(MailType.SUSPICIOUS_LOGIN, null, payloadFor(MailType.SUSPICIOUS_LOGIN));
+
+        assertThat(cancelledTr.subject()).isEqualTo("LTZ hesap silme talebin iptal edildi");
+        assertThat(cancelledTr.text()).contains("Tarih: 31.10.2026 12:30 UTC", "silinmeyecek");
+        assertThat(cancelledEn.subject()).isEqualTo("Your LTZ account deletion request was cancelled");
+        assertThat(cancelledEn.text()).contains("Date: 2026-10-31 12:30 UTC", "will not be deleted");
+        assertThat(loginTr.subject()).isEqualTo("LTZ hesabına tanımadığımız bir cihazdan giriş yapıldı");
+        assertThat(loginTr.text()).contains("Tarih: 31.10.2026 12:30 UTC", "Bu giriş sen değilsen hemen parolanı değiştir");
+        assertThat(loginEn.text()).contains("Date: 2026-10-31 12:30 UTC", "If this was not you, change your password");
+        assertThat(loginBoth.subject()).contains(" / ");
+        assertThat(loginTr.html()).doesNotContain("{{");
+    }
+
+    @Test
     void missingVariableIsAPermanentTemplateError() {
         MailPayload withoutDate = new MailPayload(null, null, null, null);
 

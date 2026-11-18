@@ -1,0 +1,8 @@
+# SUSPICIOUS_LOGIN (tr). Biçim: docs-mail/sablon-rehberi.md. Düz metin sürümü bloklardan otomatik üretilir.
+subject: LTZ hesabına tanımadığımız bir cihazdan giriş yapıldı
+kind: warn
+label: GÜVENLİK BİLDİRİMİ
+title: Yeni bir cihazdan giriş yapıldı
+text: LTZ hesabına daha önce kullanmadığın bir cihazdan giriş yapıldı.
+date: Tarih:
+note: Bu giriş sen değilsen hemen parolanı değiştir ve destek ile iletişime geç.

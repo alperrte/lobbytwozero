@@ -1,0 +1,8 @@
+# SUSPICIOUS_LOGIN (en). Biçim: docs-mail/sablon-rehberi.md. Düz metin sürümü bloklardan otomatik üretilir.
+subject: Sign-in to your LTZ account from a device we don't recognize
+kind: warn
+label: SECURITY NOTICE
+title: Sign-in from a new device
+text: Your LTZ account was signed in to from a device you have not used before.
+date: Date:
+note: If this was not you, change your password immediately and contact support.
