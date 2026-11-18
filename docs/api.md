@@ -1518,9 +1518,12 @@ Authenticated. **Misafir arama yapamaz** (`401`; kullanıcı listesinin toplu ç
 #### Response — 200
 Toplu kart ile aynı gövde (`items`), **en çok 20** sonuç; sayfalama yok (sorguyu daraltın). Kullanıcı adı **ya da** görünen ad **önekiyle** eşleşir; büyük/küçük harfe duyarsızdır ve Türkçe `ı/I/İ/i` aynı sayılır. `%`, `_`, `\` joker değil düz karakterdir. Yalnız `ACTIVE` hesaplar döner: askıdaki, yasaklı ve izleyiciyle herhangi bir yönde engeli olan hesaplar çıkmaz. Sıra: kullanıcı adı (yoksa sonda), görünen ad. Kısmi `text_pattern_ops` indeksleri kullanılır; ayrı arama servisi yoktur.
 
+**Hız sınırı:** kullanıcı başına (doğrulanmış token'ın `sub` değeri) dakikada en çok 30 arama (`ltz.user.search-limit.per-minute`). Sayaç User Service örneğinin belleğindedir: yeniden başlatmada sıfırlanır, çok örnekli kurulumda örnek başına uygulanır. Geçersiz sorgu (`400`) da sayılır. Aşımda `429` `SEARCH_RATE_LIMITED` ve `Retry-After` (saniye) döner. Toplu kart ucu (`POST /profiles/batch`) bu sınıra dahil değildir.
+
 #### Hata Durumları
 - 400: `INVALID_SEARCH_QUERY` (kısa/uzun/yasak karakter), `q` yok
 - 401: Token yok/geçersiz
+- 429: `SEARCH_RATE_LIMITED` (+ `Retry-After`)
 - 500: Beklenmeyen sunucu hatası
 
 #### Bağlantı
@@ -1531,7 +1534,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (`PlayerSearchTest` 9 test: önek, Türkçe katlama, durum/engel süzgeci, sınır, joker kaçırma).
+UNIT + INTEGRATION (`PlayerSearchTest` 10 test: önek, Türkçe katlama, durum/engel süzgeci, sınır, joker kaçırma, hız sınırı 429 + `Retry-After`; `SearchRateLimiterTest` 3 test: pencere, kullanıcı başına sayaç, sıfırlanma).
 
 ### USER — Yönetim paneli profil arama (ADMIN)
 

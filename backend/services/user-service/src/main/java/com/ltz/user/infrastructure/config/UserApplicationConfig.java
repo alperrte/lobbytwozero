@@ -13,6 +13,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         AuthProperties.class,
         MediaProperties.class,
         RequestLimitProperties.class,
+        SearchLimitProperties.class,
         SocialProperties.class
 })
 public class UserApplicationConfig {
