@@ -157,6 +157,29 @@ test('partially started disposable PostgreSQL is cleaned up and never yields suc
   assert.ok(!up.includes('docker-compose.yml'));
 });
 
+test('docker alone receives ProgramFiles so the Windows compose plugin is found; Maven env stays strict', async () => {
+  const { backendCheck } = await import('./backend.mjs');
+  const envs = { docker: [], mvn: [] };
+  await assert.rejects(backendCheck({
+    prepare: async () => 'synthetic-context',
+    resetReports: () => {},
+    ambient: { ProgramFiles: 'C:\\Program Files', SONAR_TOKEN: 'ambient-value-must-not-propagate' },
+    runCommand: async (command, args, options) => {
+      envs[command.startsWith('mvn') ? 'mvn' : 'docker'].push(options.env);
+      if (command.startsWith('mvn')) return { code: 0, output: 'Java version: 25.0.5' };
+      return { code: args.includes('up') ? 1 : 0, output: '' };
+    },
+    log: () => {},
+  }), /startup failed/);
+  assert.ok(envs.docker.length >= 2);
+  for (const env of envs.docker) {
+    assert.equal(env.ProgramFiles, 'C:\\Program Files');
+    assert.equal(env.SONAR_TOKEN, undefined);
+    assert.equal(env.POSTGRES_PASSWORD, 'ltz_test_only');
+  }
+  for (const env of envs.mvn) assert.equal(env.ProgramFiles, undefined);
+});
+
 test('source snapshot excludes ignored ENV, rejects listed sensitive files and unsafe cleanup', async () => {
   const { sourceSnapshot, removeSnapshot } = await import('./formats.mjs');
   const fs = await import('node:fs');

@@ -1,6 +1,6 @@
 # EVENT-SERVICE — AUTH'A VERİLEN CEVAPLAR
 
-**Sahip:** Nisa · **Branch:** `feature/event-service` · **Güncelleme:** 2026-10-26
+**Sahip:** Nisa · **Branch:** `feature/event-service` · **Güncelleme:** 2026-11-18
 
 ---
 
@@ -8,9 +8,10 @@
 
 | Konu | Durum |
 |---|---|
-| Servisin durumu | İskelet (henüz iş yok) |
-| Kullanıcı token doğrulaması (JWT) | Yok (kod yok) |
-| Hesap silme ucu (`DELETE /internal/v1/accounts/{accountId}`) | Yok. Hesap silme hedeflerinden biri, görevi PENDING kalır |
+| Servisin durumu | main'de (PR #149): etkinlik oluşturma, listeleme ve ayrıntı uçları (`docs/api.md` EVENT bölümü: IN PROGRESS) |
+| Kullanıcı token doğrulaması (JWT) | Var (`JwtConfig`, `SecurityConfig`; JWKS `AUTH_SERVICE_URL` üzerinden). Gerçek Auth token'ıyla uçtan uca **NOT VERIFIED** (Event'in kendi kaydına göre) |
+| Hesap silme ucu (`DELETE /internal/v1/accounts/{accountId}`) | Yok (kod aramasıyla doğrulandı 2026-11-18). `events.organizer_id` hesaba bağlı olduğundan gerekli; görev PENDING kalır. Bkz. [hatirlatma-2026-11-18-silme-ucu.md](../hatirlatma-2026-11-18-silme-ucu.md) |
+| E-posta gönderme (Mail platform kapısı) | Kullanılmıyor. Etkinlik hatırlatması istenirse: `docs-mail/entegrasyon-rehberi.md` |
 
 ## BU BRANCH İÇİN AUTH'TAN GELEN TALEP VE CEVAPLAR
 

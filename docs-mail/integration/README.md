@@ -2,6 +2,8 @@
 
 Güncelleme: 2026-11-09. Sorumlu: Kerem. Mail Service ve Auth adaptörü yazıldı (2026-10-31); aşağıdakiler Auth'un **gerçek kodu** ve `docs/api.md` kaydıyla uyumludur.
 
+> Servis sahiplerine duyuru (2026-11-18): [duyuru-2026-11-18-eposta-platform-kapisi.md](duyuru-2026-11-18-eposta-platform-kapisi.md)
+
 ## Kim Mail'e istek atıyor?
 
 | Servis | Mail'e çağrı | Kanıt |
@@ -29,7 +31,7 @@ Hepsi `Internal`, `Authorization: Bearer <svc+jwt>` (`aud=mail-service`, `sub=sv
 | `POST /internal/v1/mail/verification-codes` | `idempotencyKey, accountId, recipientEmail, code (^[0-9]{6}$), validitySeconds, locale?` | `VerificationCodeMail` (e-posta değişikliği kodu da bunu kullanır) |
 | `POST /internal/v1/mail/password-resets` | `idempotencyKey, accountId, recipientEmail, resetLink, validitySeconds, locale?` | `PasswordResetMail` |
 | `POST /internal/v1/mail/account-deletions` | `idempotencyKey, accountId, recipientEmail, confirmationLink, validitySeconds, locale?` | `AccountDeletionMail` |
-| `POST /internal/v1/mail/security-notifications` | `idempotencyKey, accountId, recipientEmail, type, occurredAt, locale?`; `type`: `PASSWORD_CHANGED, PASSWORD_RESET, EMAIL_CHANGED, ACCOUNT_SUSPENDED, ACCOUNT_BANNED, ACCOUNT_DISABLED, ACCOUNT_REACTIVATED, TWO_FACTOR_ENABLED, TWO_FACTOR_DISABLED, RECOVERY_CODE_USED, EXTERNAL_IDENTITY_LINKED` | `SecurityNotificationMail` |
+| `POST /internal/v1/mail/security-notifications` | `idempotencyKey, accountId, recipientEmail, type, occurredAt, locale?`; `type`: `PASSWORD_CHANGED, PASSWORD_RESET, EMAIL_CHANGED, ACCOUNT_SUSPENDED, ACCOUNT_BANNED, ACCOUNT_DISABLED, ACCOUNT_REACTIVATED, TWO_FACTOR_ENABLED, TWO_FACTOR_DISABLED, RECOVERY_CODE_USED, EXTERNAL_IDENTITY_LINKED, WELCOME, ACCOUNT_DELETION_CANCELLED, SUSPICIOUS_LOGIN` | `SecurityNotificationMail` |
 | `DELETE /internal/v1/accounts/{accountId}` | — (`scope=account:erase`, `account_id`=yol) → `204` | `AccountDataEraserPort` |
 
 Bağlantılar (`resetLink`, `confirmationLink`): yalnız `https` (dev'de `http://localhost`), kimlik bilgisi içermez; allowlist host. Parola, token, kod hiçbir yanıtta ve loga yazılmaz.
@@ -41,7 +43,7 @@ Bağlantılar (`resetLink`, `confirmationLink`): yalnız `https` (dev'de `http:/
 1. `MailAdapter`'a `MAIL_SERVICE` (`productionReady=true`) ve RestClient adaptörü (`HttpAccountDataEraser` kopyası: yönlendirme yok, her çağrıda yeni token, 202 dışı = hata). `MAIL_SERVICE_URL` zaten Compose'ta tanımlı.
 2. `MailDeliveryConfig` fail-fast'i açılır: prod artık bu adaptörle başlar → **B5 kapanır**, B12/B19 (bildirim e-postaları) kısmen kapanır.
 3. `api.md` Auth "Giden sözleşmeler" kaydı 4 uca genişletilir.
-4. `WELCOME` tipi (MAIL-05): Mail tarafı V85 ile hazır (2026-11-09); Auth e-posta doğrulaması tamamlanınca `security-notifications` ucuna `type=WELCOME` gönderecek (Auth tarafı bekliyor). "Şüpheli giriş" (MAIL-03) Auth'ta henüz yok.
+4. `WELCOME` tipi (MAIL-05): Mail tarafı V85 ile hazır (2026-11-09); Auth e-posta doğrulaması tamamlanınca `security-notifications` ucuna `type=WELCOME` gönderecek (Auth tarafı bekliyor). `ACCOUNT_DELETION_CANCELLED` ve `SUSPICIOUS_LOGIN` Mail tarafında V88 ile hazır; Auth tetikleyicileri henüz yok.
 
 ## Gerekirse ileride
 Başka bir servis Mail kullanmak isterse: Auth'ta (çağıran→`mail-service`) çifti + `mail:send` kapsamı, Mail'de `type`↔`sub` izin tablosuna satır. Bu bir istek geldiğinde yapılır; şimdi yapılmaz.
