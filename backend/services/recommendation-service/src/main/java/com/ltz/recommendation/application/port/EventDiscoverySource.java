@@ -8,8 +8,8 @@ import java.util.UUID;
 
 /**
  * REC-15: Event Service'in izleyiciye açık yaklaşan etkinlik listesi. Kapasite, katılımcı sayısı, izleyicinin kendi
- * katılımı ve {@code joinable} Event sözleşmesinden (EVT-08/EVT-13) okunur; katılım cezası (EVT-10/11) Event'te yoktur
- * ve çağıran bunu sınırlama olarak bildirir.
+ * katılımı ve {@code joinable} Event sözleşmesinden (EVT-08/EVT-13) okunur. Katılım cezası
+ * öneriyle ilgisizdir ve burada okunmaz.
  */
 public interface EventDiscoverySource {
     /** Sınırlı sayıda sayfa tarar; {@code truncated} true ise taranmayan etkinlik vardır. */

@@ -194,14 +194,14 @@ TASK 4 başlatılmadı. Sonraki açık kullanıcı devam talimatı beklenir.
 
 ## TASK 4 güncel doğrulama eşlemesi — 2026-11-15
 
-**3/3 DONE (REC-13, REC-14, REC-15); REC-15'te yalnız katılım cezası (EVT-10/11) Event'te yok.** Yukarıdaki REC-13/14/15 kaynak ad/açıklamaları ve checkbox'ları
+**3/3 DONE (REC-13, REC-14, REC-15).** Yukarıdaki REC-13/14/15 kaynak ad/açıklamaları ve checkbox'ları
 değişmedi. Önceki taskların açıkları ve DONE kapsamları korunur.
 
 | REC | Gerçek durum | Eksik kaynak / owner | Güvenle teslim edilen |
 | --- | --- | --- | --- |
 | REC-13 | DONE (2026-11-18) | — | `GET /api/v1/recommendation/players` (player-affinity-v1, stateless, ortak sinyal çıktısı, 88 Recommendation testi PASS); User aday ucu + Social geçmiş aktarımı + outbox kurtarma; DEV bayrakları `.env.example` ile açık (talepler `integration/dependencies/done/` içinde). Canlı uçtan uca: NOT VERIFIED |
 | REC-14 | DONE (2026-11-18) | — | `GET /api/v1/recommendation/friends` (ortak tür+platform şartı, `excludeFriends=true`, iki yönlü engel User/Social yansımasında); bekleyen istek dışlama kuralı varsayım olarak api.md'de |
-| REC-15 | DONE (2026-11-18, birim testleri) | Katılım cezası Event'te yok (EVT-10/11, Nisa); kayıt penceresi kavramı yok | `GET /api/v1/recommendation/events` (event-affinity-v1, Event EVT-04 listesi + Game türleri, PLANNED/ACTIVE ve bitmemiş, kendi etkinliği hariç, Event `joinable=false` (katılmış/dolu) elenir, `PARTICIPATION_PENALTY_NOT_EVALUATED` sınırlaması); 11 birim testi PASS; canlı E2E NOT VERIFIED |
+| REC-15 | DONE (2026-11-18, birim testleri) | Kayıt penceresi kavramı yok; katılım cezası öneriyi etkilemez | `GET /api/v1/recommendation/events` (event-affinity-v1, Event EVT-04 listesi + Game türleri, PLANNED/ACTIVE ve bitmemiş, kendi etkinliği hariç, Event `joinable=false` (katılmış/dolu) elenir; ceza filtresi yok); 11 birim testi PASS; canlı E2E NOT VERIFIED |
 
 Üç boundary testi özellik filtre/sıralama testinin yerine sayılmaz. Self/friend/iki yönlü
 block/private/deleted/disabled ve private/full/cancelled/timezone/ranking senaryoları,

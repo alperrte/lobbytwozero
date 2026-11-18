@@ -12199,8 +12199,7 @@ gerçek Game/ortak DEV/TLS/tarayıcı kabulü iddia edilmez.
 Sorumlu: Alper · Gateway: `/api/v1/recommendation/**` · Görevler: REC-
 
 **REC-13/14 KAPANDI:** `/players` ve `/friends` aşağıda kayıtlıdır. **REC-15 (`/events`) IMPLEMENTED (2026-11-18):**
-Event EVT-04 liste ucuna dayanır; katılım/kapasite Event'in `joinable` alanıyla değerlendirilir, yalnız katılım cezası (EVT-10/11) Event'te olmadığından
-`PARTICIPATION_PENALTY_NOT_EVALUATED` döner.
+Event EVT-04 liste ucuna dayanır; katılım/kapasite Event'in `joinable` alanıyla değerlendirilir. Katılım cezası (EVT-10/11) bir katılım kuralıdır, öneri filtresi değildir; cezalı kullanıcıya da öneri yapılır.
 [Karar/owner talepleri](../docs-recommendation/decisions/task-04-decisions.md),
 [gerçek test kapsamı](../docs-recommendation/testings/task-04-tests.md).
 
@@ -12319,7 +12318,7 @@ rıza reddi, boş tercih, kaynak hataları, kendini aday döndürme, doğrulama 
 
 ### RECOMMENDATION — Yaklaşan etkinlik önerisi (REC-15)
 
-Durum: IMPLEMENTED (kısmi: katılım cezası EVT-10/11 değerlendirilmez)
+Durum: IMPLEMENTED
 Sorumlu: Alper
 Tüketici servisler: Frontend (planlı)
 
@@ -12343,8 +12342,7 @@ Yalnız PLANNED/ACTIVE ve bitmemiş (`endsAt` > şimdi) etkinlik; izleyicinin ke
 `viewerParticipation`/`joinable` sıkı doğrulanır (eksik veya bozuk alan 503). Skor: tür 60 / platform 40
 tamsayı Jaccard yüzdesi (tür etkinliğin bağlı oyununun türünden, platform etkinliğin kendi alanından; küçük harf ve harf/rakam dışı
 karakterler atılarak eşlenir). Ortak tür veya platform yoksa etkinlik çıkarılır. Sıralama skor azalan, `startsAt`, `eventId`.
-Stateless: run/geçmiş yazılmaz; organizerId dönmez. `limitations`: `PARTICIPATION_PENALTY_NOT_EVALUATED` (HER yanıtta: Event'te katılım cezası/yasağı EVT-10/11 henüz yok; eski
-`PARTICIPATION_NOT_EVALUATED` kaldırıldı, çünkü katılım ve kapasite artık Event'ten okunur; öneri rezervasyon değildir, katılımda kapasite Event'te yeniden denetlenir),
+Stateless: run/geçmiş yazılmaz; organizerId dönmez. Katılım cezası öneriyi etkilemez (cezalı kullanıcıya da öneri yapılır; ceza katılımda Event'te uygulanır). Katılım ve kapasite Event'ten okunur; öneri rezervasyon değildir, katılımda kapasite Event'te yeniden denetlenir. `limitations` yalnız aşağıdakilerden oluşur:
 `VIEWER_PREFERENCES_MISSING` (tercih yok, Event çağrılmaz), `EVENT_SCAN_TRUNCATED` (4×50 etkinlik sınırına ulaşıldı).
 
 #### Hata Durumları

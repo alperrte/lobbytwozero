@@ -67,7 +67,7 @@ class EventRecommendationServiceTest {
         assertThat(result.items().getFirst().sharedPlatforms()).containsExactly("nintendoswitch");
         assertThat(result.items().get(0).score()).isEqualTo(10000).isGreaterThan(result.items().get(1).score());
         assertThat(result.items().get(1).score()).isGreaterThan(result.items().get(2).score());
-        assertThat(result.limitations()).containsExactly("PARTICIPATION_PENALTY_NOT_EVALUATED");
+        assertThat(result.limitations()).isEmpty();
         Mockito.verify(consent).verifyConsent(ACTOR);
     }
 
@@ -94,7 +94,7 @@ class EventRecommendationServiceTest {
                 open(6, RPG_GAME, Set.of()));
         var result = service.recommend(ACTOR, 5);
         assertThat(result.items()).extracting(item -> item.eventId()).containsExactly(new UUID(2, 6));
-        assertThat(result.limitations()).containsExactly("EVENT_SCAN_TRUNCATED", "PARTICIPATION_PENALTY_NOT_EVALUATED");
+        assertThat(result.limitations()).containsExactly("EVENT_SCAN_TRUNCATED");
     }
 
     @Test

@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | REC-13 | BLOCKED; benzer oyuncu önerisi NOT IMPLEMENTED | İzinli User aday keşfi/tercih batch'i (Kerem) ve Social eligibility (Umut/Kerem) |
 | REC-14 | BLOCKED; arkadaş önerisi NOT IMPLEMENTED | Recommendation'a izinli current friend + iki yönlü block + erişim batch kontrolü (Umut), Auth izni ve User aday/işleme amacı (Kerem) |
-| REC-15 | DONE (2026-11-18): `GET /api/v1/recommendation/events` Event EVT-04 listesi + `joinable`/kapasite alanlarıyla uygulandı | Katılım cezası (EVT-10/11) Event'te yok; sonuç `PARTICIPATION_PENALTY_NOT_EVALUATED` taşır. Canlı E2E NOT VERIFIED |
+| REC-15 | DONE (2026-11-18): `GET /api/v1/recommendation/events` Event EVT-04 listesi + `joinable`/kapasite alanlarıyla uygulandı | Eksik sözleşme yok (katılım cezası öneriyi etkilemez). Canlı E2E NOT VERIFIED |
 
 Master v2 §8.1 kritik gizlilik garantisi yoksa öneri üretmemeyi ve eksik sözleşmeleri
 belgelemeyi emreder. AGENTS.md gereği başka owner'ın servisine müdahale edilmedi.

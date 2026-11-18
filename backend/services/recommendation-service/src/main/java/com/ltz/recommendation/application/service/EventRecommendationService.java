@@ -24,9 +24,8 @@ import org.springframework.stereotype.Service;
 /**
  * REC-15: izleyicinin tür ve platform tercihine uyan yaklaşan etkinlikler. Saklanmaz (stateless). Yalnız Event'in
  * gerçekten sunduğu veriye dayanır: PLANNED/ACTIVE ve bitmemiş, kendi düzenlemediği ve Event'in izleyici için
- * {@code joinable} saydığı (zaten katılmamış, dolu olmayan) etkinlikler. Katılım cezası/yasağı (EVT-10/11) Event'te
- * olmadığından değerlendirilmez ve bu her yanıtta {@code PARTICIPATION_PENALTY_NOT_EVALUATED} sınırlaması olarak
- * bildirilir. Öneri katılım mutasyonu yapmaz.
+ * {@code joinable} saydığı (zaten katılmamış, dolu olmayan) etkinlikler. Katılım cezası öneriyle ilgisizdir: cezalı
+ * kullanıcıya da öneri yapılır (katılım denetimi Event'te). Öneri katılım mutasyonu yapmaz.
  */
 @Service
 public class EventRecommendationService {
@@ -36,7 +35,6 @@ public class EventRecommendationService {
     static final int GENRE_WEIGHT = 60;
     static final int PLATFORM_WEIGHT = 40;
     private static final int GAME_BATCH = 100;
-    static final String PENALTY_NOT_EVALUATED = "PARTICIPATION_PENALTY_NOT_EVALUATED";
 
     public record Item(UUID eventId, String type, String title, Instant startsAt, Instant endsAt, UUID gameId, int score,
             List<String> sharedGenres, List<String> sharedPlatforms) {}
@@ -73,7 +71,7 @@ public class EventRecommendationService {
         consent.verifyConsent(actor);
         Taste viewer = viewers.viewer(actor);
         if (viewer.genres().isEmpty() && viewer.platforms().isEmpty()) {
-            return result(List.of(), List.of("VIEWER_PREFERENCES_MISSING", PENALTY_NOT_EVALUATED));
+            return result(List.of(), List.of("VIEWER_PREFERENCES_MISSING"));
         }
         var scan = events.upcoming(actor);
         Instant now = clock.instant();
@@ -90,7 +88,6 @@ public class EventRecommendationService {
                 .thenComparing(item -> item.eventId().toString()));
         List<String> limitations = new ArrayList<>();
         if (scan.truncated()) limitations.add("EVENT_SCAN_TRUNCATED");
-        limitations.add(PENALTY_NOT_EVALUATED);
         return result(items.stream().limit(limit).toList(), limitations);
     }
 

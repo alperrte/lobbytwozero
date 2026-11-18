@@ -12,7 +12,7 @@
 
 ### REC-15 etkinlik önerisi — 2026-11-18
 
-- `GET /api/v1/recommendation/events`: Event EVT-04 listesi (kullanıcı token'ı, ≤4×50) + Game GAME-15 türleri; PLANNED/ACTIVE, bitmemiş, kendi etkinliği hariç, Event `joinable=false` (katılmış/dolu) elenir. Katılım cezası Event'te yok (EVT-10/11) → her yanıt `PARTICIPATION_PENALTY_NOT_EVALUATED` taşır. 11 birim testi PASS (EventRecommendationServiceTest 6, HttpEventDiscoverySourceTest 5); `mvn -pl services/recommendation-service test` tamamı bu oturumda PostgreSQL gerektiren IT'ler nedeniyle çalıştırılamadı (context hatası, NOT VERIFIED); Event ile canlı E2E ve PostgreSQL IT yok (NOT VERIFIED). Yeni ENV/migration yok.
+- `GET /api/v1/recommendation/events`: Event EVT-04 listesi (kullanıcı token'ı, ≤4×50) + Game GAME-15 türleri; PLANNED/ACTIVE, bitmemiş, kendi etkinliği hariç, Event `joinable=false` (katılmış/dolu) elenir. Katılım cezası öneriyi etkilemez (cezalı kullanıcıya da öneri yapılır); ceza sınırlaması yoktur. 11 birim testi PASS (EventRecommendationServiceTest 6, HttpEventDiscoverySourceTest 5); `mvn -pl services/recommendation-service test` tamamı bu oturumda PostgreSQL gerektiren IT'ler nedeniyle çalıştırılamadı (context hatası, NOT VERIFIED); Event ile canlı E2E ve PostgreSQL IT yok (NOT VERIFIED). Yeni ENV/migration yok.
 
 ### TASK 5 / final güncel durum — 2026-11-15
 

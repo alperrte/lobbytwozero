@@ -1,6 +1,6 @@
 # TASK 4 — Event keşif ve katılım uygunluğu sözleşmesi talebi
 
-2026-11-15 · REC-15 · Sahip: **Nisa** · **KARŞILANDI (2026-11-18)** — keşif ve eligibility kapandı; yalnız katılım cezası (EVT-10/11) Event'te yok.
+2026-11-15 · REC-15 · Sahip: **Nisa** · **KARŞILANDI (2026-11-18)** — keşif ve eligibility kapandı; açık madde kalmadı.
 
 ## Karşılanma (2026-11-18, ikinci tur)
 
@@ -9,7 +9,7 @@ Alper, Nisa'nın tarafındaki eksiği de Event Service'e ekledi (EVT-08/09/13, V
 `capacity`, `participantCount`, `remainingCapacity`, `viewerParticipation` ve `joinable` alanlarını taşır. `joinable` = izleyicinin
 aktif katılımı yok, etkinlik açık ve bitmemiş, dolu değil, izleyici düzenleyen değil. Recommendation `joinable=false` olanı önermez
 ve alanları sıkı doğrular (eksik/bozuk alan 503). Katılım mutasyonunda kapasite Event'te yeniden denetlenir (öneri rezervasyon değildir).
-Kalan sınırlama: `PARTICIPATION_PENALTY_NOT_EVALUATED` (EVT-10/11 katılım cezası/yasağı Event'te yok; eski `PARTICIPATION_NOT_EVALUATED` kaldırıldı).
+Katılım cezası (EVT-10/11) bir katılım kuralıdır, öneriyle ilgisizdir; cezalı kullanıcıya da öneri yapılır, sınırlama bildirilmez.
 Sahibi (Nisa) bu sözleşme kararını onaylamalı; farklı bir batch ucu isterse Recommendation adaptörü yalnız `HttpEventDiscoverySource` içinde değişir.
 
 ## Güncel durum (2026-11-18)
@@ -27,12 +27,11 @@ DB okuması yoktur. Kayıt: `docs/api.md` RECOMMENDATION "Yaklaşan etkinlik ön
 | Cancelled/past dışlama | **Karşılandı**: Event yalnız PLANNED/ACTIVE ve `endsAt > şimdi` döner; Recommendation ayrıca kendi saatiyle süzer |
 | Açık/özel görünürlük | **N/A**: KD-4 gereği tüm giriş yapmış kullanıcılar görür; özel etkinlik kavramı yok |
 | Katılım durumu, kapasite/dolu | **Karşılandı** (EVT-08/13): liste alanları `viewerParticipation`, `capacity`, `participantCount`, `remainingCapacity`, `joinable` |
-| Kayıt penceresi, katılım şartları (yaş/ceza) | **AÇIK** — kayıt penceresi kavramı yok (etkinlik bitene kadar açık); ceza EVT-10/11 yok → `PARTICIPATION_PENALTY_NOT_EVALUATED` |
+| Kayıt penceresi, katılım şartları | **N/A** — kayıt penceresi kavramı yok (etkinlik bitene kadar açık); ceza öneriyi etkilemez, katılımda Event uygular |
 | Batch eligibility ucu | **Gerekmedi** — `joinable` liste yanıtında; ayrı uç açılmadı (karar yukarıda) |
 | 429/503/timeout | Recommendation tarafı: tek deneme, 403→`SOURCE_ACCESS_DENIED`, diğer hatalar 503 `SOURCE_UNAVAILABLE` |
 
-**Nisa için kalan istek:** yalnız EVT-10/11 (katılım cezası) gelince Recommendation cezalı izleyiciye etkinlik önermemeli; o zamana
-kadar `PARTICIPATION_PENALTY_NOT_EVALUATED` döner. Katılıma uygunluk (`joinable`) artık gerçek veridir.
+**Nisa için kalan istek:** yok. Katılıma uygunluk (`joinable`) gerçek veridir; EVT-10/11 gelse de Recommendation değişmez.
 
 ## Eski kanıt (2026-11-15, artık geçersiz)
 
