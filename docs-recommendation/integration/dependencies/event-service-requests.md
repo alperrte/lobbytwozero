@@ -1,21 +1,42 @@
 # TASK 4 — Event keşif ve katılım uygunluğu sözleşmesi talebi
 
-2026-11-15 · REC-15 · Sahip: **Nisa** · **BLOCKED / NOT IMPLEMENTED**.
+2026-11-15 · REC-15 · Sahip: **Nisa** · **KARŞILANDI (2026-11-18)** — keşif ve eligibility kapandı; yalnız katılım cezası (EVT-10/11) Event'te yok.
+
+## Karşılanma (2026-11-18, ikinci tur)
+
+Alper, Nisa'nın tarafındaki eksiği de Event Service'e ekledi (EVT-08/09/13, V116/V117; kayıt: `docs/api.md` EVENT).
+**Karar (sözleşme):** ayrı bir batch eligibility ucu **açılmadı**; mevcut `GET /api/v1/event/events` yanıtı izleyiciye özel
+`capacity`, `participantCount`, `remainingCapacity`, `viewerParticipation` ve `joinable` alanlarını taşır. `joinable` = izleyicinin
+aktif katılımı yok, etkinlik açık ve bitmemiş, dolu değil, izleyici düzenleyen değil. Recommendation `joinable=false` olanı önermez
+ve alanları sıkı doğrular (eksik/bozuk alan 503). Katılım mutasyonunda kapasite Event'te yeniden denetlenir (öneri rezervasyon değildir).
+Kalan sınırlama: `PARTICIPATION_PENALTY_NOT_EVALUATED` (EVT-10/11 katılım cezası/yasağı Event'te yok; eski `PARTICIPATION_NOT_EVALUATED` kaldırıldı).
+Sahibi (Nisa) bu sözleşme kararını onaylamalı; farklı bir batch ucu isterse Recommendation adaptörü yalnız `HttpEventDiscoverySource` içinde değişir.
 
 ## Güncel durum (2026-11-18)
 
-`origin/feature/event-service` dalında Nisa'nın EVT-01..05 ve EVT-17 işleri vardır
-(V111–V114: events tablosu, POLL türü, açık etkinlik indeksi, game_id REF). Bu dal ana dala/Recommendation
-dalına **alınmamıştır**. Henüz Recommendation'a açılmış bir iç keşif/eligibility ucu ve katılım
-(EVT-08/09/13) yoktur. Aynı dosyalarda ve V111+ numaralarında çakışmamak için Recommendation dalında
-Event kodu yazılmadı. REC-15 bu sözleşme Nisa'dan gelene kadar **BLOCKED** kalır.
+Event dalı main'e alındı (PR #149) ve Recommendation dalına birleştirildi. Event'te EVT-01..06 ve EVT-17 vardır
+(V111–V115). Recommendation **keşif** tarafını Event'in mevcut `GET /api/v1/event/events` (EVT-04/05/06) ucuyla uyguladı:
+`GET /api/v1/recommendation/events` (REC-15, `event-affinity-v1`, stateless). Kullanıcı token'ı iletilir; tahmini path veya
+DB okuması yoktur. Kayıt: `docs/api.md` RECOMMENDATION "Yaklaşan etkinlik önerisi (REC-15)".
 
-## Mevcut kanıt (main/Recommendation dalı)
+| Talep maddesi | Durum |
+| --- | --- |
+| Sınırlı sayfalı keşif, ≤50/sayfa, sabit sıra | **Karşılandı** (EVT-04: `startsAt` artan, size ≤50); Recommendation en çok 4 sayfa okur, kesilirse `EVENT_SCAN_TRUNCATED` |
+| eventId, görünür özet, gameId/tür, platform | **Karşılandı** (EVT-06 `platforms`, EVT-17 `gameId`); tür kodları Game GAME-15'ten |
+| UTC Instant zamanlar | **Karşılandı** (`startsAt`/`endsAt` Instant) |
+| Cancelled/past dışlama | **Karşılandı**: Event yalnız PLANNED/ACTIVE ve `endsAt > şimdi` döner; Recommendation ayrıca kendi saatiyle süzer |
+| Açık/özel görünürlük | **N/A**: KD-4 gereği tüm giriş yapmış kullanıcılar görür; özel etkinlik kavramı yok |
+| Katılım durumu, kapasite/dolu | **Karşılandı** (EVT-08/13): liste alanları `viewerParticipation`, `capacity`, `participantCount`, `remainingCapacity`, `joinable` |
+| Kayıt penceresi, katılım şartları (yaş/ceza) | **AÇIK** — kayıt penceresi kavramı yok (etkinlik bitene kadar açık); ceza EVT-10/11 yok → `PARTICIPATION_PENALTY_NOT_EVALUATED` |
+| Batch eligibility ucu | **Gerekmedi** — `joinable` liste yanıtında; ayrı uç açılmadı (karar yukarıda) |
+| 429/503/timeout | Recommendation tarafı: tek deneme, 403→`SOURCE_ACCESS_DENIED`, diğer hatalar 503 `SOURCE_UNAVAILABLE` |
 
-`backend/services/event-service/src/main/java` yalnız `EventServiceApplication` içerir.
-`docs/api.md` EVENT bölümünde kayıt yoktur. Gateway route'u çalışan etkinlik iş API'si değildir.
-Mimari/DB belgelerindeki etkinlik durumları ve tablolar hedef tasarımdır; canlı etkinlik,
-katılım veya kapasite kanıtı olarak kullanılamaz. Bu task Event kodunu/DB'sini değiştirmez.
+**Nisa için kalan istek:** yalnız EVT-10/11 (katılım cezası) gelince Recommendation cezalı izleyiciye etkinlik önermemeli; o zamana
+kadar `PARTICIPATION_PENALTY_NOT_EVALUATED` döner. Katılıma uygunluk (`joinable`) artık gerçek veridir.
+
+## Eski kanıt (2026-11-15, artık geçersiz)
+
+O tarihte `event-service` yalnız `EventServiceApplication` içeriyordu ve `docs/api.md` EVENT bölümünde kayıt yoktu.
 
 ## İstenen en dar kabiliyet
 

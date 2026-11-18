@@ -10,6 +10,10 @@
 - Library `recommendation-signals` Auth hesaba bağlı `signals:read` ile tüketilir; 403 → `SOURCE_ACCESS_DENIED`, diğer hatalar 503, tek deneme, 500 sinyal sınırı. Karar kaydı: [library-integration-decisions](../../docs-recommendation/decisions/library-integration-decisions.md).
 - REC-03: Review `ratings/mine` + Game GAME-15 tür kodları `RATING_AFFINITY` olarak sıralamaya girer; kaynak hatasında istek 503 ile durur. Birim testleri PASS; PostgreSQL gerektiren IT bu oturumda koşulmadı, gerçek çok servis E2E NOT VERIFIED.
 
+### REC-15 etkinlik önerisi — 2026-11-18
+
+- `GET /api/v1/recommendation/events`: Event EVT-04 listesi (kullanıcı token'ı, ≤4×50) + Game GAME-15 türleri; PLANNED/ACTIVE, bitmemiş, kendi etkinliği hariç, Event `joinable=false` (katılmış/dolu) elenir. Katılım cezası Event'te yok (EVT-10/11) → her yanıt `PARTICIPATION_PENALTY_NOT_EVALUATED` taşır. 11 birim testi PASS (EventRecommendationServiceTest 6, HttpEventDiscoverySourceTest 5); `mvn -pl services/recommendation-service test` tamamı bu oturumda PostgreSQL gerektiren IT'ler nedeniyle çalıştırılamadı (context hatası, NOT VERIFIED); Event ile canlı E2E ve PostgreSQL IT yok (NOT VERIFIED). Yeni ENV/migration yok.
+
 ### TASK 5 / final güncel durum — 2026-11-15
 
 - REC-22 kapalı rehberlik gerçek CPython ile çalışır; POST assistant mevcut JWT/rol/rıza/

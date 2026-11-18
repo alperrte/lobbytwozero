@@ -45,6 +45,7 @@ public class Event {
 
 	public static final int TITLE_MAX_LENGTH = 120;
 	public static final int DESCRIPTION_MAX_LENGTH = 4000;
+	public static final int MAX_CAPACITY = 100_000;
 
 	/** Başlıkta hiçbir kontrol karakterine (satır sonu dahil) izin verilmez. */
 	public static final String TITLE_ALLOWED_CHARACTERS = "[\\P{Cc}]*";
@@ -55,7 +56,8 @@ public class Event {
 	@UuidGenerator(style = UuidGenerator.Style.VERSION_7)
 	private UUID id;
 
-	@Column(name = "organizer_id", nullable = false, updatable = false)
+	/** Hesap silinince null olur (KD-3: "silinmiş kullanıcı"); bu yüzden yalnız toplu güncellemeyle değişir. */
+	@Column(name = "organizer_id", updatable = false)
 	private UUID organizerId;
 
 	@Enumerated(EnumType.STRING)
@@ -94,6 +96,17 @@ public class Event {
 	@Column(nullable = false, length = 32)
 	private EventStatus status;
 
+	/** Katılımcı sınırı (EVT-13); null = sınırsız. */
+	@Column(name = "capacity", updatable = false)
+	private Integer capacity;
+
+	/**
+	 * Geçerli (ACTIVE/ATTENDED) katılım sayısı. Yalnız katılım/iptal akışlarındaki atomik UPDATE ile değişir; entity
+	 * üzerinden yazılmaz (eşzamanlı güncellemelerin üzerine eski değer yazılmasın diye {@code updatable=false}).
+	 */
+	@Column(name = "participant_count", nullable = false, insertable = false, updatable = false)
+	private int participantCount;
+
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;
 
@@ -126,6 +139,18 @@ public class Event {
 	 */
 	public static Event schedule(UUID organizerId, EventType type, UUID gameId, Set<EventPlatform> platforms,
 			String title, String description, Instant startsAt, Instant endsAt, Instant now) {
+		return schedule(organizerId, type, gameId, platforms, null, title, description, startsAt, endsAt, now);
+	}
+
+	/**
+	 * Katılımcı sınırlı etkinlik oluşturur (EVT-13). {@code capacity} null ise sınırsızdır; verilirse 1..{@link #MAX_CAPACITY}
+	 * olmalıdır (DTO doğrulaması ve DB CHECK ile aynı sınır).
+	 */
+	public static Event schedule(UUID organizerId, EventType type, UUID gameId, Set<EventPlatform> platforms,
+			Integer capacity, String title, String description, Instant startsAt, Instant endsAt, Instant now) {
+		if (capacity != null && (capacity < 1 || capacity > MAX_CAPACITY)) {
+			throw new IllegalArgumentException("capacity must be between 1 and " + MAX_CAPACITY);
+		}
 		// Zamanlar milisaniyeye kırpılır: PostgreSQL timestamptz mikrosaniye saklar; kurallar kırpılmış değerlerle
 		// uygulanmazsa yalnız nanosaniyede farklı iki zaman domain kuralını geçip ck_events_schedule'ı ihlal eder (500).
 		Instant start = startsAt.truncatedTo(ChronoUnit.MILLIS);
@@ -144,6 +169,7 @@ public class Event {
 		if (platforms != null) {
 			event.platforms.addAll(platforms);
 		}
+		event.capacity = capacity;
 		event.title = title;
 		event.description = description;
 		event.startsAt = start;
@@ -152,6 +178,21 @@ public class Event {
 		event.createdAt = created;
 		event.updatedAt = created;
 		return event;
+	}
+
+	/** Kalan kontenjan; sınırsız etkinlikte null. */
+	public Integer getRemainingCapacity() {
+		return capacity == null ? null : Math.max(0, capacity - participantCount);
+	}
+
+	/** Kapasite doluysa true (sınırsız etkinlik hiç dolmaz). */
+	public boolean isFull() {
+		return capacity != null && participantCount >= capacity;
+	}
+
+	/** Katılıma açık: PLANNED/ACTIVE ve bitiş zamanı gelmemiş. Kapasite ve izleyici koşulları ayrıca denetlenir. */
+	public boolean isOpenAt(Instant now) {
+		return (status == EventStatus.PLANNED || status == EventStatus.ACTIVE) && endsAt.isAfter(now);
 	}
 
 	/** Platformlar (salt okunur, enum sırasında); boş = platform belirtilmemiş. */

@@ -9575,7 +9575,8 @@ Etkinlik sahibi (`organizerId`) yalnız doğrulanmış token'ın `sub` değerind
   "startsAt": "UTC ISO-8601 zaman, zorunlu, şimdiden sonra olmalı (örn. 2026-12-05T18:00:00Z)",
   "endsAt": "UTC ISO-8601 zaman, zorunlu, startsAt'ten sonra olmalı",
   "gameId": "UUID, opsiyonel (EVT-17); verilirse Game Service'te yayında (ACTIVE) bir oyun olmalı",
-  "platforms": "opsiyonel dizi, en çok 6 (yinelenenler birleşir): PC | PLAYSTATION | XBOX | NINTENDO_SWITCH | MOBILE | VR (EVT-06); etkinliğin KENDİ platformları, bağlı oyundan türetilmez"
+  "platforms": "opsiyonel dizi, en çok 6 (yinelenenler birleşir): PC | PLAYSTATION | XBOX | NINTENDO_SWITCH | MOBILE | VR (EVT-06); etkinliğin KENDİ platformları, bağlı oyundan türetilmez",
+  "capacity": "tam sayı, opsiyonel, 1..100000 (EVT-13); yoksa/null ise kapasite SINIRSIZDIR; 0 ve negatif 400"
 }
 ```
 Bilinmeyen alanlar (ör. `organizerId`, `status`) 400 ile reddedilir. Tanımsız veya farklı yazılmış `type` (ör. `poll`, `VOTING`) 400 alır. Türe özel alan/kural henüz yoktur (EVT-02 yalnız türleri tanımlar; turnuva EVT-18, oyun gecesi EVT-19, oy verme EVT-20). 120 / 4000 sınırları ve "başlangıç gelecekte olmalı" şartı gereksinimlerden değil, geliştirici varsayımıdır (karar kaydı VR-1..VR-3).
@@ -9607,9 +9608,15 @@ Bilinmeyen alanlar (ör. `organizerId`, `status`) 400 ile reddedilir. Tanımsız
   "endsAt": "2026-12-05T21:00:00Z",
   "status": "PLANNED",
   "createdAt": "2026-11-09T10:00:00Z",
-  "updatedAt": "2026-11-09T10:00:00Z"
+  "updatedAt": "2026-11-09T10:00:00Z",
+  "capacity": "int | null (null = sınırsız)",
+  "participantCount": 0,
+  "remainingCapacity": "int | null (kapasite yoksa null)",
+  "viewerParticipation": null,
+  "joinable": false
 }
 ```
+Yeni etkinliğin organizatörü kendi etkinliğine katılamaz; bu yüzden oluşturma yanıtında `joinable` her zaman `false`'tur.
 
 #### Hata Durumları
 - 400: Zorunlu alan eksik/boş, uzunluk veya karakter kuralı ihlali, tanımsız/çok fazla `platforms` değeri, geçersiz `type`/tarih biçimi, bilinmeyen alan; `startsAt` geçmişte (`reason: STARTS_IN_THE_PAST`) veya `endsAt` ≤ `startsAt` (`reason: ENDS_NOT_AFTER_START`)
@@ -9624,18 +9631,18 @@ Frontend:
 API Gateway üzerinden /api/v1/event/events
 
 Diğer mikroservisler:
-Auth Service JWKS (`GET /api/v1/auth/.well-known/jwks.json`) ile token doğrulama (Spring `JwtDecoder`; mevcut `AUTH_SERVICE_URL`, `JWT_ISSUER`, `JWT_AUDIENCE`, yeni ENV yok). `gameId` verilirse Game Service'in herkese açık `POST /api/v1/game/games/batch` ucu RestClient ile çağrılır (servis kimliği/secret gerekmez; `GAME_SERVICE_URL` mevcut). Outbox olayı yoktur. Tanımsız her yol (`/internal/**` dahil) kapalıdır.
+Auth Service JWKS (`GET /api/v1/auth/.well-known/jwks.json`) ile token doğrulama (Spring `JwtDecoder`; mevcut `AUTH_SERVICE_URL`, `JWT_ISSUER`, `JWT_AUDIENCE`, yeni ENV yok). `gameId` verilirse Game Service'in herkese açık `POST /api/v1/game/games/batch` ucu RestClient ile çağrılır (servis kimliği/secret gerekmez; `GAME_SERVICE_URL` mevcut). Outbox olayı yoktur. Tanımsız her yol kapalıdır; `/internal/**` yalnız Auth servis token'ıyla hesap silme ucuna açıktır (bkz. "Hesap Silme Hedefi").
 
 #### Test Durumu
 UNIT — test sınıfları **yazıldı, çalıştırılmadı** (`EventTest`, `EventServiceTest`, `EventControllerTest`, `EventEndpointSecurityTest` [gerçek RS256 token + yerel JWKS, DB deposu taklit], `SecurityContextCurrentUserTest`, `JwtConfigTest`). Kapsam dışı / **NOT VERIFIED**: Flyway migration V111 ve `ddl-auto=validate` (çalıştırılmadı), DB seviyesinde CHECK/entity eşlemesi testi (yok), gerçek Auth token'ıyla uçtan uca.
 
 ### EVENT — Etkinlik Detayı (EVT-03)
 
-Durum: IN PROGRESS (KISMİ — EVT-03 tamamlanmadı)
+Durum: IN PROGRESS (testler çalıştı; DB/canlı doğrulama bekliyor)
 Sorumlu: Nisa
-Tüketici servisler: Frontend (henüz yok)
+Tüketici servisler: Frontend (henüz yok), Recommendation (REC-15, liste ucu)
 
-> **Kısmi:** ad, açıklama, başlangıç/bitiş zamanı, tür ve durum döner. **"Katılım bilgileri" (kapasite, katılımcı sayısı, kalan kontenjan, kullanıcının katılım durumu) EKSİKTİR**: gerçek veri kaynağı yoktur ve sahte/varsayılan değer döndürülmez. EVT-13 ve EVT-08 tamamlandığında bu alanların detay yanıtına **eklenmesi gerekir** (takip listesi T-1..T-6); o zamana kadar EVT-03 tamamlanmış sayılmaz. Katılım cezası EVT-03'ün zorunlu kapsamında değildir (EVT-11). Gereksinim tablosu: [docs-event/event-service/evt-03-etkinlik-detayi.md](../docs-event/event-service/evt-03-etkinlik-detayi.md).
+> Ad, açıklama, zamanlar, tür, durum ve **katılım bilgileri** (kapasite, katılımcı sayısı, kalan kontenjan, kullanıcının katılım durumu, `joinable`) döner. Katılım cezası EVT-03'ün zorunlu kapsamında değildir (EVT-11). Gereksinim tablosu: [docs-event/event-service/evt-03-etkinlik-detayi.md](../docs-event/event-service/evt-03-etkinlik-detayi.md).
 
 #### Endpoint
 GET /api/v1/event/events/{eventId}
@@ -9660,14 +9667,21 @@ Authenticated. Geçerli bir kullanıcı token'ı yeterlidir; oluşturma rolü (`
   "endsAt": "2026-12-05T21:00:00Z",
   "status": "PLANNED | ACTIVE | COMPLETED | CANCELLED",
   "createdAt": "2026-11-09T10:00:00Z",
-  "updatedAt": "2026-11-09T10:00:00Z"
+  "updatedAt": "2026-11-09T10:00:00Z",
+  "capacity": "int | null (null = sınırsız)",
+  "participantCount": 3,
+  "remainingCapacity": "int | null (kapasite yoksa null; dolu ise 0)",
+  "viewerParticipation": "ACTIVE | ATTENDED | null (çağıran kullanıcının KENDİ güncel katılımı; yoksa null)",
+  "joinable": true
 }
 ```
-İptal edilmiş (`CANCELLED`) ve tamamlanmış etkinlikler de döner; durum `status` alanındadır.
+İptal edilmiş (`CANCELLED`) ve tamamlanmış etkinlikler de döner; durum `status` alanındadır. Yanıt `Cache-Control: private` taşır (kullanıcıya özel alanlar).
+
+`joinable` = çağıranın aktif katılımı yok **ve** etkinlik açık (`PLANNED`/`ACTIVE` ve bitmemiş) **ve** dolu değil **ve** çağıran organizatör değil. Katılım sınırsız kapasitede `participantCount` yine sayılır.
 
 `organizerId`: şu an her zaman doludur. Karar KD-3 (hesap silinince düzenleyici bağlantısının kaldırılması) uygulandığında **`null` olabilecektir** ("Silinmiş kullanıcı"); bu, `events.organizer_id`'yi nullable yapan migration ve Auth hesap silme ucuna bağlıdır. İstemci `null`'a dayanıklı olmalıdır.
 
-**Henüz bulunmayan alanlar** (gerçek veri kaynağı yok; EVT-13/EVT-08 sonrası geri uyumlu eklenecek): kapasite, katılımcı sayısı, kalan kontenjan, kullanıcının katılım durumu. Şema buna göre genişleyecektir.
+Katılım bilgileri (kapasite, katılımcı sayısı, kalan kontenjan, kullanıcının katılım durumu, `joinable`) EVT-13/EVT-08 ile eklendi; değerler gerçek veridir (`events.participant_count` ve `event_participations`). Katılım cezası (EVT-10/11) yoktur.
 
 #### Hata Durumları
 - 400: `eventId` geçerli bir UUID değil
@@ -9726,7 +9740,12 @@ Bir etkinlik, **bitiş zamanı şimdiden sonra** (`endsAt > şimdi`) ve durumu `
       "title": "Cuma Oyun Gecesi",
       "startsAt": "2026-12-05T18:00:00Z",
       "endsAt": "2026-12-05T21:00:00Z",
-      "status": "PLANNED | ACTIVE"
+      "status": "PLANNED | ACTIVE",
+      "capacity": "int | null (null = sınırsız)",
+      "participantCount": 3,
+      "remainingCapacity": "int | null",
+      "viewerParticipation": "ACTIVE | ATTENDED | null",
+      "joinable": true
     }
   ],
   "page": 0,
@@ -9736,7 +9755,7 @@ Bir etkinlik, **bitiş zamanı şimdiden sonra** (`endsAt > şimdi`) ve durumu `
   "hasNext": false
 }
 ```
-Liste öğesinde açıklama yoktur (ayrıntı için `GET /api/v1/event/events/{eventId}`). Katılım bilgileri (kapasite, katılımcı sayısı) gerçek veri kaynağı olmadığından yoktur (EVT-13/EVT-08). `organizerId` KD-3 uygulanınca `null` olabilir.
+Liste öğesinde açıklama yoktur (ayrıntı için `GET /api/v1/event/events/{eventId}`). Katılım alanları detaydakiyle aynı anlamdadır; kullanıcının katılım durumu sayfa için **tek toplu sorguyla** okunur (N+1 yok). Yanıt `Cache-Control: private` taşır. `organizerId` KD-3 (hesap silme) sonrası `null` olabilir; istemci buna dayanıklı olmalıdır. Recommendation (REC-15) uygunluğu için `joinable` alanını kullanır.
 
 #### Hata Durumları
 - 400: `page` veya `size` sayı değil ya da sınır dışı
@@ -9873,6 +9892,132 @@ Game Service `POST /api/v1/game/games/batch` (RestClient, herkese açık). Servi
 
 #### Test Durumu
 UNIT + INTEGRATION — test sınıfları **yazıldı, çalıştırılmadı** (`EventServiceTest`, `GameServiceClientTest`, `EventControllerTest`, `EventEndpointSecurityTest`, `EventRepositoryTest`). **NOT VERIFIED:** V114, gerçek Game Service'e karşı oluşturma.
+
+### EVENT — Etkinliğe Katılma (EVT-08)
+
+Durum: IN PROGRESS
+Sorumlu: Nisa
+Tüketici servisler: Frontend (henüz yok)
+
+> Kapasite ve katılım EVT-13/EVT-08 ile eklendi (V116). Katılım cezası/yasağı (EVT-10/11) **yoktur**.
+
+#### Endpoint
+POST /api/v1/event/events/{eventId}/participations
+
+#### Yetkilendirme
+Authenticated (kullanıcı token'ı). Katılımcı yalnız token `sub`'ından alınır; istekte kimlik alanı yoktur. Gövde yoktur.
+
+#### Path Parameters
+- eventId: UUID, zorunlu
+
+#### Davranış
+Katılım tek transaction'da kaydedilir; kontenjan tek bir koşullu `UPDATE` ile ayrılır (`participant_count < capacity`), bu yüzden eşzamanlı isteklerde kapasite aşılmaz (DB `CHECK` de korur). Aynı kullanıcı aynı etkinliğe ikinci kez katılamaz (kısmi UNIQUE indeks; yarış durumunda da `ALREADY_JOINED`).
+
+#### Response — 201
+```json
+{
+  "id": "UUID",
+  "eventId": "UUID",
+  "status": "ACTIVE",
+  "joinedAt": "2026-11-18T10:00:00Z",
+  "cancelledAt": null
+}
+```
+
+#### Hata Durumları
+- 400: `eventId` geçerli UUID değil
+- 401: Token yok/geçersiz
+- 404: Etkinlik yok
+- 409 (`reason`): `ALREADY_JOINED`, `EVENT_NOT_OPEN` (iptal/tamamlanmış/bitmiş), `EVENT_FULL`, `ORGANIZER_CANNOT_JOIN`
+- 503: Veritabanı geçici olarak erişilemiyor
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/event/events/{eventId}/participations
+
+Diğer mikroservisler:
+Yok. Outbox olayı yoktur.
+
+#### Test Durumu
+UNIT + SLICE: `EventParticipationServiceTest`, `EventControllerTest`, `EventEndpointSecurityTest` çalıştırıldı ve geçti (2026-11-18, `mvn -pl services/event-service test`: 256 test, 0 hata). **NOT VERIFIED:** gerçek PostgreSQL'de V116/V117 ve `ddl-auto=validate`, eşzamanlı kapasite yarışı (DB IT yok), Gateway üzerinden uçtan uca.
+
+### EVENT — Katılımdan Ayrılma (EVT-09)
+
+Durum: IN PROGRESS
+Sorumlu: Nisa
+Tüketici servisler: Frontend (henüz yok)
+
+> Yalnız kullanıcının **kendi** katılımını iptal eder; yasak/ceza uygulanmaz (EVT-10/11 yok).
+
+#### Endpoint
+DELETE /api/v1/event/events/{eventId}/participations/me
+
+#### Yetkilendirme
+Authenticated. Yalnız çağıranın kendi `ACTIVE` katılımı etkilenir (başka kullanıcının kaydı adreslenemez; IDOR yok).
+
+#### Path Parameters
+- eventId: UUID, zorunlu
+
+#### Response — 200
+`ParticipationResponse` (`status: CANCELLED_BY_USER`, `cancelledAt` dolu). Kontenjan tek `UPDATE` ile geri verilir (`participant_count` 0'ın altına inmez).
+
+#### Hata Durumları
+- 400: `eventId` geçerli UUID değil
+- 401: Token yok/geçersiz
+- 404: Kullanıcının bu etkinlikte aktif katılımı yok
+- 503: Veritabanı geçici olarak erişilemiyor
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/event/events/{eventId}/participations/me
+
+Diğer mikroservisler:
+Yok.
+
+#### Test Durumu
+UNIT + SLICE: `EventParticipationServiceTest`, `EventControllerTest` geçti (2026-11-18). **NOT VERIFIED:** gerçek DB ve Gateway.
+
+### EVENT — Hesap Silme Hedefi (KD-3, internal)
+
+Durum: IN PROGRESS
+Sorumlu: Nisa
+Tüketici servisler: Auth Service
+
+> Gateway'de **route edilmez**. Auth'un hesap silme akışındaki Event hedefidir. Auth tarafında `event-service` audience'ı ve `account:erase` kapsamı tanımlanana kadar çağrı gelmez (Kerem'e not: [docs-event/event-service/hesap-silme-entegrasyonu.md](../docs-event/event-service/hesap-silme-entegrasyonu.md)).
+
+#### Endpoint
+DELETE /internal/v1/accounts/{accountId}
+
+#### Yetkilendirme
+Servis token'ı: `typ=svc+jwt`, `aud=event-service`, `sub=svc:auth-service`, `scope` ⊇ `account:erase`, `account_id` = path'teki `accountId`, `jti` zorunlu, ömür ≤ 60 sn. Kullanıcı token'ı 401; kapsam/sub/`account_id` uyuşmazlığı 403; tanımsız her `/internal/**` yolu 403.
+
+#### Path Parameters
+- accountId: UUID, zorunlu
+
+#### Davranış
+İdempotent, tek transaction: hesabın düzenlediği açık etkinliklerin katılımları `CANCELLED_BY_EVENT` olur, bu etkinlikler iptal edilir; hesabın tüm etkinliklerinde `organizer_id` `NULL` yapılır ("Silinmiş kullanıcı"); hesabın kendi katılımları için kontenjan geri verilir ve katılım satırları silinir. Veri yoksa ve ikinci çağrıda da 204.
+
+#### Response — 204
+Gövde yok.
+
+#### Hata Durumları
+- 400: `accountId` UUID değil
+- 401: Token yok/geçersiz (kullanıcı token'ı dahil)
+- 403: Kapsam yok; `sub` ≠ `svc:auth-service`; `account_id` ≠ path
+- 503: Veritabanı geçici olarak erişilemiyor
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+Yok (internal).
+
+Diğer mikroservisler:
+Auth Service (çağıran). Token'lar Auth JWKS ile doğrulanır.
+
+#### Test Durumu
+UNIT + SLICE: `EventEndpointSecurityTest` (204, 401, 403 varyantları) geçti (2026-11-18). **NOT VERIFIED:** gerçek DB'de silme sırası, gerçek Auth servis token'ıyla uçtan uca (Auth tarafı bekliyor).
 
 ## HARDWARE
 
@@ -12053,8 +12198,9 @@ gerçek Game/ortak DEV/TLS/tarayıcı kabulü iddia edilmez.
 
 Sorumlu: Alper · Gateway: `/api/v1/recommendation/**` · Görevler: REC-
 
-**REC-13/14 KAPANDI:** `/players` ve `/friends` aşağıda kayıtlıdır. **REC-15 (`/events`) hâlâ NOT IMPLEMENTED:**
-Event servisi boştur; negatif `/events` probe'u yalnız deny-by-default sınırını doğrular, API sözleşmesi değildir.
+**REC-13/14 KAPANDI:** `/players` ve `/friends` aşağıda kayıtlıdır. **REC-15 (`/events`) IMPLEMENTED (2026-11-18):**
+Event EVT-04 liste ucuna dayanır; katılım/kapasite Event'in `joinable` alanıyla değerlendirilir, yalnız katılım cezası (EVT-10/11) Event'te olmadığından
+`PARTICIPATION_PENALTY_NOT_EVALUATED` döner.
 [Karar/owner talepleri](../docs-recommendation/decisions/task-04-decisions.md),
 [gerçek test kapsamı](../docs-recommendation/testings/task-04-tests.md).
 
@@ -12170,6 +12316,49 @@ Auth (service token). Varsayım: bekleyen (PENDING) arkadaşlık isteği olan ki
 #### Test Durumu
 INTEGRATION (gerçek Auth JWT, JDK HttpServer User fixture'ı) — skor/sıralama, ortak sinyal, platform şartı,
 rıza reddi, boş tercih, kaynak hataları, kendini aday döndürme, doğrulama 400, kesilme, 401, kota 429. Recommendation 88 test PASS.
+
+### RECOMMENDATION — Yaklaşan etkinlik önerisi (REC-15)
+
+Durum: IMPLEMENTED (kısmi: katılım cezası EVT-10/11 değerlendirilmez)
+Sorumlu: Alper
+Tüketici servisler: Frontend (planlı)
+
+#### Endpoint
+GET /api/v1/recommendation/events
+
+#### Yetkilendirme
+Owner — kullanıcı JWT'si, PLAYER/CONTENT_CREATOR/GAME_DEVELOPER/MODERATOR/ADMIN rolü, User önerilere açık rızası.
+İzleyici kimliği yalnız token'dan gelir; istemci userId/eventId veremez. Servis token'ı 401.
+
+#### Path/Query Parameters
+- size: 1–20, varsayılan 10
+
+#### Response — 200 (`Cache-Control: private, no-store`)
+`{algorithmVersion:"event-affinity-v1",createdAt,items:[{eventId,type,title,startsAt,endsAt,gameId|null,score:1..10000,sharedGenres,sharedPlatforms}],limitations:[]}`.
+Akış: oran sınırı (üretim kovası) → rıza → User tercihi (`/api/v1/user/me`: favoriteGenres/favoritePlatforms) → Event
+`GET /api/v1/event/events` (EVT-04, kullanıcı token'ı, size 50, en çok 4 sayfa, yaklaşana göre artan) → bağlı oyunların türleri
+Game GAME-15 toplu metadata ile (görünmeyen/yetişkin oyuna bağlı etkinlik önerilmez).
+Yalnız PLANNED/ACTIVE ve bitmemiş (`endsAt` > şimdi) etkinlik; izleyicinin kendi düzenlediği etkinlik hariç. Event'in izleyici için hesapladığı
+`joinable` alanı `false` olan (izleyici zaten katılmış, etkinlik dolu) etkinlik önerilmez; Event yanıtındaki `capacity`/`participantCount`/`remainingCapacity`/
+`viewerParticipation`/`joinable` sıkı doğrulanır (eksik veya bozuk alan 503). Skor: tür 60 / platform 40
+tamsayı Jaccard yüzdesi (tür etkinliğin bağlı oyununun türünden, platform etkinliğin kendi alanından; küçük harf ve harf/rakam dışı
+karakterler atılarak eşlenir). Ortak tür veya platform yoksa etkinlik çıkarılır. Sıralama skor azalan, `startsAt`, `eventId`.
+Stateless: run/geçmiş yazılmaz; organizerId dönmez. `limitations`: `PARTICIPATION_PENALTY_NOT_EVALUATED` (HER yanıtta: Event'te katılım cezası/yasağı EVT-10/11 henüz yok; eski
+`PARTICIPATION_NOT_EVALUATED` kaldırıldı, çünkü katılım ve kapasite artık Event'ten okunur; öneri rezervasyon değildir, katılımda kapasite Event'te yeniden denetlenir),
+`VIEWER_PREFERENCES_MISSING` (tercih yok, Event çağrılmaz), `EVENT_SCAN_TRUNCATED` (4×50 etkinlik sınırına ulaşıldı).
+
+#### Hata Durumları
+400 geçersiz size; 401 kimlik; 403 rol/rıza veya Event/User erişim reddi; 429 oran sınırı (öneri üretim kovası, dk'da 10);
+503 User/Event/Game kaynağı kullanılamıyor veya bozuk yanıt (fail-closed, boş liste sayılmaz; yeniden deneme yok).
+
+#### Bağlantı
+Frontend: Gateway üzerinden endpoint. Diğer servisler: User (viewer), Event (liste, EVT-04), Game (GAME-15 toplu metadata).
+Yeni ENV/migration yok (`EVENT_SERVICE_URL` Compose'ta zaten tanımlı). Eligibility Event'in liste alanlarından gelir
+(bkz. docs-recommendation/integration/dependencies/event-service-requests.md).
+
+#### Test Durumu
+UNIT — EventRecommendationServiceTest (6) ve HttpEventDiscoverySourceTest (5) PASS, 2026-11-18 (süzme, dolu/katılmış/joinable=false elenir, sınırsız kapasite,
+sıralama, tercih yok, rıza/kaynak hatası, sayfalama/kesilme, bozuk veya eksik katılım alanı 503). Gerçek Event/Auth/Game ile E2E ve PostgreSQL gerektiren entegrasyon testi NOT VERIFIED / yazılmadı.
 
 ### RECOMMENDATION — Donanıma uygun oyun önerisi (REC-06/16)
 

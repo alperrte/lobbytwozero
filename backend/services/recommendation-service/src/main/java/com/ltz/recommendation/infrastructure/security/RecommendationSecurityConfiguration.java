@@ -51,7 +51,8 @@ public class RecommendationSecurityConfiguration {
                         .hasAuthority("SCOPE_account:erase")
                         .requestMatchers("/api/v1/recommendation/games", "/api/v1/recommendation/hardware/assessments",
                                 "/api/v1/recommendation/assistant", "/api/v1/recommendation/players",
-                                "/api/v1/recommendation/friends", "/api/v1/recommendation/games/hardware-compatible",
+                                "/api/v1/recommendation/friends", "/api/v1/recommendation/events",
+                                "/api/v1/recommendation/games/hardware-compatible",
                                 "/api/v1/recommendation/runs",
                                 "/api/v1/recommendation/runs/**")
                         .hasAnyRole("PLAYER", "CONTENT_CREATOR", "GAME_DEVELOPER", "MODERATOR", "ADMIN")

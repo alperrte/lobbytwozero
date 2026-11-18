@@ -48,6 +48,7 @@ import com.ltz.event.domain.enums.EventType;
 import com.ltz.event.domain.exception.AuthenticationRequiredException;
 import com.ltz.event.domain.exception.EventCreationForbiddenException;
 import com.ltz.event.domain.exception.InvalidEventScheduleException;
+import com.ltz.event.infrastructure.persistence.repository.EventParticipationRepository;
 import com.ltz.event.infrastructure.persistence.repository.EventRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -61,6 +62,9 @@ class EventServiceTest {
 	private EventRepository eventRepository;
 
 	@Mock
+	private EventParticipationRepository participationRepository;
+
+	@Mock
 	private CurrentUserPort currentUser;
 
 	@Mock
@@ -70,8 +74,8 @@ class EventServiceTest {
 
 	@BeforeEach
 	void setUp() {
-		eventService = new EventService(eventRepository, new EventMapper(), currentUser, gameCatalog,
-				Clock.fixed(NOW, ZoneOffset.UTC));
+		eventService = new EventService(eventRepository, participationRepository, new EventMapper(), currentUser,
+				gameCatalog, Clock.fixed(NOW, ZoneOffset.UTC));
 	}
 
 	private static CreateEventRequest request(String title, String description, Instant startsAt, Instant endsAt) {
