@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 import com.ltz.user.domain.exception.RateLimitedException;
@@ -15,6 +16,7 @@ import com.ltz.user.infrastructure.config.SearchLimitProperties;
  * değeridir; IP kullanılmaz. Sayaç bellektedir (yeniden başlatmada sıfırlanır, örnek başına geçerlidir).
  */
 @Component
+@EnableConfigurationProperties(SearchLimitProperties.class)
 public class SearchRateLimiter {
 
     private static final long WINDOW_MILLIS = 60_000L;
