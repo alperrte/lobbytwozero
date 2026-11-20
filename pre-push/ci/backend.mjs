@@ -16,7 +16,7 @@ export async function backendCheck({ root = repositoryRoot, ambient = process.en
   log('[SCOPE] ' + selected.join(', '));
   const project = 'ltz-test-' + randomUUID().slice(0, 8);
   // Deliberately allowlist the process environment; no developer DB/mail/OAuth secrets.
-  const allowed = ['PATH', 'Path', 'SystemRoot', 'WINDIR', 'ComSpec', 'TEMP', 'TMP', 'HOME', 'USERPROFILE', 'JAVA_HOME', 'ProgramFiles',
+  const allowed = ['PATH', 'Path', 'SystemRoot', 'WINDIR', 'ComSpec', 'TEMP', 'TMP', 'HOME', 'USERPROFILE', 'JAVA_HOME',
     'GITHUB_ACTIONS', 'COVERAGE_BASE_SHA', 'COVERAGE_HEAD_SHA', 'COVERAGE_PR_HEAD_SHA'];
   const env = Object.fromEntries(allowed.filter(key => ambient[key]).map(key => [key, ambient[key]]));
   env.MAVEN_SKIP_RC = 'true';
