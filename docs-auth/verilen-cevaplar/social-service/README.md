@@ -17,6 +17,7 @@
 | Not | Konu | Durum |
 |---|---|---|
 | [01](talep-01-servis-token-sikilastirma.md) | Servis token'ında `sub` tam eşleşme ve `account_id` denetimi | AÇIK (Social'da yapılacak) |
+| [02](talep-02-notification-events-ingest.md) | `social-service → notification-service: events:ingest` çifti (SOC-13) | AÇIK (Auth'ta çift; notification alıcı ucu ayrıca bekleniyor) |
 
 ## BİLMEN GEREKENLER
 

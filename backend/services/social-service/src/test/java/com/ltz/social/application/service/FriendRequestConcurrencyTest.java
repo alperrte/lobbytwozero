@@ -112,8 +112,7 @@ class FriendRequestConcurrencyTest extends IntegrationTestSupport {
     /** Görevleri aynı anda başlatır ve her görevin sonucunu toplar. */
     private static List<String> race(int tasks, IntFunction<Callable<String>> factory)
             throws InterruptedException, ExecutionException {
-        ExecutorService pool = Executors.newFixedThreadPool(tasks);
-        try {
+        try (ExecutorService pool = Executors.newFixedThreadPool(tasks)) {
             CountDownLatch ready = new CountDownLatch(tasks);
             CountDownLatch go = new CountDownLatch(1);
             List<Future<String>> futures = new ArrayList<>();
@@ -132,8 +131,6 @@ class FriendRequestConcurrencyTest extends IntegrationTestSupport {
                 results.add(future.get());
             }
             return results;
-        } finally {
-            pool.shutdownNow();
         }
     }
 

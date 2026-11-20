@@ -184,8 +184,7 @@ class OutboxRelayTest extends IntegrationTestSupport {
             requestIds.add(sendRequestAndGetId(newUser(), newUser()));
         }
 
-        ExecutorService pool = Executors.newFixedThreadPool(4);
-        try {
+        try (ExecutorService pool = Executors.newFixedThreadPool(4)) {
             List<Callable<Integer>> rounds = new ArrayList<>();
             for (int i = 0; i < 4; i++) {
                 rounds.add(relay::deliverDue);
@@ -195,8 +194,6 @@ class OutboxRelayTest extends IntegrationTestSupport {
                 total += future.get();
             }
             assertThat(total).isEqualTo(events);
-        } finally {
-            pool.shutdownNow();
         }
 
         assertThat(publisher.delivered()).hasSize(events);
