@@ -80,8 +80,6 @@ public final class TokenClaims {
     public static final String PERFORMANCE_SUMMARY_READ_SCOPE = "summary:read";
     /** Recommendation, tek hesabın oyun performans referansını okur; hesaba bağlı kapsamdır. */
     public static final String PERFORMANCE_REFERENCE_READ_SCOPE = "reference:read";
-    /** Recommendation, öneri rızası açık aday oyuncuları User'dan okur (REC-13); hesaba bağlı kapsamdır. */
-    public static final String CANDIDATES_READ_SCOPE = "candidates:read";
     /** Game, katılımcıya kimlik düzeltmesi için hazırlık (dondurma + referans sayımı) ister. Hesaba bağlı değildir; kullanıcı token'ı ya da ADMIN rolü bu uçlara yetki vermez. */
     public static final String GAME_IDENTITY_PREPARE_SCOPE = "game-identity:prepare";
     /** Game, katılımcıya kesin kararı (COMMITTED/ABORTED) iletir. Hesaba bağlı değildir; kullanıcı token'ı ya da ADMIN rolü bu uçlara yetki vermez. */

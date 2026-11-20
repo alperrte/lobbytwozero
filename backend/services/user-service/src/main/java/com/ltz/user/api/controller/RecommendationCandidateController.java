@@ -29,6 +29,11 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class RecommendationCandidateController {
 
+    /** Aday keşfi kapsamı; hesaba bağlıdır. */
+    public static final String CANDIDATES_READ_SCOPE = "candidates:read";
+    /** Aday keşfini yalnız Recommendation isteyebilir. */
+    public static final String CANDIDATES_READ_SUBJECT = "svc:recommendation-service";
+
     private final RecommendationCandidateService candidates;
 
     @GetMapping(InternalApiPaths.RECOMMENDATION_CANDIDATES)
@@ -37,7 +42,7 @@ public class RecommendationCandidateController {
             @RequestParam(required = false) String genre, @RequestParam(required = false) String platform,
             @RequestParam(defaultValue = "false") boolean excludeFriends,
             @AuthenticationPrincipal Jwt token) {
-        if (!TokenClaims.CANDIDATES_READ_SUBJECT.equals(token.getSubject())
+        if (!CANDIDATES_READ_SUBJECT.equals(token.getSubject())
                 || !accountId.toString().equals(token.getClaimAsString(TokenClaims.ACCOUNT_ID))) {
             throw new AccessDeniedException("Service token is not valid for this candidate read");
         }
