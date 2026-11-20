@@ -875,7 +875,7 @@ Yeni uç yoktur. Bilinçli karar: tüketicilere iptal sorgusu (introspection) ya
 - Şu olaylar hesabın tüm oturumlarını iptal eder ve token sürümünü artırır: çıkış, parola değişimi ve sıfırlama, e-posta değişimi, rol verme ve alma, hesabın askıya alınması, yasaklanması ya da devre dışı bırakılması, silme onayı. **Auth'un kendi uçları** eski token'ı anında reddeder (`401`).
 - Anlık iptal iddiası yoktur. 90 sn kritik bir işlem için yetmiyorsa ayrı bir sözleşme (sorgu ya da iptal listesi) gerekir; şu an böyle bir ihtiyaç kaydı yoktur.
 - Auth'a ulaşılamazsa: servis önbellekteki JWKS ile doğrulamaya devam eder, bilinmeyen `kid` reddedilir (fail-closed). Hesap durumunu öğrenmek için Auth'a çağrı yapılmaz, yeni bir polling ya da önbellek kurulmaz.
-- **İsteğe bağlı olay:** `AccountStatusChanged` yalnız yönetici durum değişikliğinde (askıya alma, yasaklama, devre dışı bırakma, yeniden açma) transactional outbox ile hedef servise iletilir. Çıkış, parola, rol ve silme olay üretmez. Hedef listesi (`ltz.auth.events.targets`) varsayılan boştur; alıcı uç yazan servis eklenmesini ister. Zarf alanları ve alıcı doğrulama kuralları: `docs-auth/servis-sozlesmeleri.md` bölüm 3.5. Olay gecikmeyi kısaltabilir ama zorunlu değildir; olay yoksa 90 sn kuralı geçerlidir.
+- **İsteğe bağlı olay:** `AccountStatusChanged` yönetici durum değişikliğinde (askıya alma, yasaklama, devre dışı bırakma, yeniden açma) ve hesap silme akışında (silme onayı: `DELETION_REQUESTED`; **başarılı** vazgeçme: `ACTIVE`) transactional outbox ile hedef servise iletilir. Başarısız ya da reddedilen vazgeçme olay üretmez. Çıkış, parola ve rol değişikliği olay üretmez. Hedef listesi (`ltz.auth.events.targets`) varsayılan boştur; alıcı uç yazan servis eklenmesini ister. Zarf alanları ve alıcı doğrulama kuralları: `docs-auth/servis-sozlesmeleri.md` bölüm 3.5. Olay gecikmeyi kısaltabilir ama zorunlu değildir; olay yoksa 90 sn kuralı geçerlidir.
 
 #### Hata Durumları
 Yeni uç olmadığı için yeni hata kodu yoktur. İptal edilmiş token Auth'un uçlarında `401 UNAUTHENTICATED` alır.
@@ -969,7 +969,7 @@ Bu uçlar **Gateway'e açılmaz** (Gateway yalnız `/api/v1/<servis>/**` yönlen
 { "clientId": "admin-service", "clientSecret": "string, en az 32 karakter (AUTH_ADMIN_SERVICE_CLIENT_SECRET)", "audience": "isteğe bağlı; boşsa auth-service", "accountId": "UUID; signals:read, devices:verify, summary:read ve reference:read kapsamlarında zorunlu; bağsız kapsamda verilemez" }
 ```
 
-İstemci kimliği servis adıdır: `admin-service` (Auth'a `account:*`, community'ye `events:ingest`), `social-service` (community'ye `events:ingest`; user-service'e `privacy:read events:ingest`), `community-service` (admin ve notification'a `events:ingest`), `messaging-service` ve `lfp-service` (social-service'e `blocks:check`), `library-service` (user-service'e `privacy:read events:ingest`), `hardware-service` (user-service'e `privacy:read`; performance-service'e `devices:verify summary:read`, hesaba bağlı: token `account_id` taşır, hesap `ACTIVE` olmalı), `review-service` (user-service'e `events:ingest`), `game-service` (review-service'e `rating-summaries:read game-references:read`; library-service'e `game-references:read`, ikisi de kullanıcıya bağlı değil), `recommendation-service` (library-service'e `signals:read`; performance-service'e `reference:read`; iki hedef de hesaba bağlı: token `account_id` taşır, hesap `ACTIVE` olmalı). Her istemci **yalnız kendisine tanımlı (hedef, kapsam) çiftleri** için token alır; kimseye varsayılan imtiyaz yoktur. `audience` başka servis ise token o servisin JWKS doğrulamasında geçer (`aud=<servis>-service`, hedefin yapılandırılmış kapsamları, `sub=svc:<istemci>`, 60 sn) ve Auth'un iç uçlarında **geçmez**.
+İstemci kimliği servis adıdır: `admin-service` (Auth'a `account:*`, community'ye `events:ingest`), `social-service` (community'ye `events:ingest`; user-service'e `privacy:read events:ingest users:status:read`), `community-service` (admin ve notification'a `events:ingest`), `messaging-service` (social-service'e `blocks:check`; user-service'e `users:status:read`) ve `lfp-service` (social-service'e `blocks:check`), `library-service` (user-service'e `privacy:read events:ingest`), `hardware-service` (user-service'e `privacy:read`; performance-service'e `devices:verify summary:read`, hesaba bağlı: token `account_id` taşır, hesap `ACTIVE` olmalı), `review-service` (user-service'e `events:ingest`), `game-service` (review-service'e `rating-summaries:read game-references:read`; library-service'e `game-references:read`, ikisi de kullanıcıya bağlı değil), `recommendation-service` (library-service'e `signals:read`; performance-service'e `reference:read`; iki hedef de hesaba bağlı: token `account_id` taşır, hesap `ACTIVE` olmalı). Her istemci **yalnız kendisine tanımlı (hedef, kapsam) çiftleri** için token alır; kimseye varsayılan imtiyaz yoktur. `audience` başka servis ise token o servisin JWKS doğrulamasında geçer (`aud=<servis>-service`, hedefin yapılandırılmış kapsamları, `sub=svc:<istemci>`, 60 sn) ve Auth'un iç uçlarında **geçmez**.
 
 **REQ-04-A (2026-11-06):** Mevcut token ucu seçilen hedefin bütün tanımlı kapsamlarını aynı token'a yazar; istek gövdesine `scope` alanı eklenmedi. Hardware → Performance token'ı `devices:verify summary:read`, Recommendation → Performance token'ı yalnız `reference:read` taşır. Recommendation cihaz doğrulayamaz/özet okuyamaz; Hardware FPS referansını okuyamaz. İkisinde de tek `aud=performance-service` ve tek hedef `account_id` korunur. Yeni ENV/migration yoktur; mevcut `AUTH_HARDWARE_SERVICE_CLIENT_SECRET` ve `AUTH_RECOMMENDATION_SERVICE_CLIENT_SECRET` kullanılır (boşsa istemci kapalıdır).
 
@@ -1308,7 +1308,7 @@ Zarfta tanımsız alan reddedilir. Gövde en fazla 16 KB.
 ```
 **Kabul edilen olaylar** (hepsi yalnız `producer=auth-service`; farklı üretici `400 EVENT_PRODUCER_MISMATCH`):
 - `UserRegistered`: `{ "accountId": "UUID = aggregateId", "username": "^[A-Za-z0-9_]{3,20}$" }`. Profili açar ya da var olan profile kullanıcı adı kopyasını yazar; **hesap durumunu değiştirmez**. Zarftaki `occurredAt` üyelik tarihi (`memberSince`) olarak saklanır: yalnız boşsa ya da daha erken bir zaman gelirse yazılır, gelecekteki zaman şimdiyle sınırlanır.
-- `AccountStatusChanged`: `{ "accountId": "UUID = aggregateId", "status": "ACTIVE | SUSPENDED | BANNED | DISABLED | ..." }`. Profil varsa durumu günceller; **eski olay yeni durumu ezemez** (`occurredAt` karşılaştırılır). Profil yoksa yalnız kısıtlayıcı durumlar (`SUSPENDED`, `BANNED`, `DISABLED`) kaydedilir (askıdaki hesap sonradan görünür hale gelmesin); `ACTIVE` için profil ilk kullanımda zaten `ACTIVE` açılır. Tanınmayan durum adı profili değiştirmez.
+- `AccountStatusChanged`: `{ "accountId": "UUID = aggregateId", "status": "ACTIVE | SUSPENDED | BANNED | DISABLED | ..." }`. Profil varsa durumu günceller; **eski olay yeni durumu ezemez** (`occurredAt` karşılaştırılır). Profil yoksa yalnız kısıtlayıcı durumlar (`SUSPENDED`, `BANNED`, `DISABLED`) kaydedilir (askıdaki hesap sonradan görünür hale gelmesin); `ACTIVE` için profil ilk kullanımda zaten `ACTIVE` açılır. Tanınmayan durum adı profili değiştirmez. `DELETION_REQUESTED` (Auth, silme onayında) profili görünmez yapar ve aramadan düşürür; başarılı vazgeçmede gelen `ACTIVE` geri açar. Profil yokken `DELETION_REQUESTED` kaydedilmez.
 - `AccountEmailChanged`: `{ "accountId": "UUID = aggregateId" }`. Yük doğrulanır, etkisi yoktur (User e-posta tutmaz; yeni adres olayda gelmez).
 - `FriendshipChanged` (yalnız `social-service`): `{ "userLowId": "UUID", "userHighId": "UUID", "change": "ADDED | REMOVED" }`. social-service'in mevcut olay kaydıyla aynıdır. Arkadaşlık yansımasını günceller.
 - `UserBlocked` / `UserUnblocked` (yalnız `social-service`): `{ "blockerId": "UUID", "blockedId": "UUID" }` (farklı olmalı). Engel yansımasını günceller; engel iki yönde uygulanır.
@@ -1757,6 +1757,48 @@ recommendation-service (REC-13), Auth'tan `audience=user-service` + `accountId` 
 
 #### Test Durumu
 INTEGRATION PASS (Testcontainers PostgreSQL 17): `RecommendationCandidateTest` (12) — excludeFriends (aktif arkadaş iki yönde gizli, pasif arkadaşlık gizlemez, varsayılan dışlamaz, geçersiz değer 400), uygun aday ve alan sınırı, rızasız/onboardingsiz/askıdaki/yasaklı/silinen aday dışlama, uygun olmayan izleyici → boş, iki yönlü engel, genre/platform süzgeci, deterministik sayfalama, limit/imleç doğrulama, 403 matrisi, 401/yöntem; `RecommendationCandidateFailClosedTest` (1) — yansıma güvenilmezken boş. Hedefli koşu 13/13 PASS (tam User modülü bu değişiklikten sonra yeniden koşulmadı). Auth: `ServiceClientConfigTest` (12) ve `ServiceAudienceTokenTest` (20) PASS (hedefli). Checkstyle/PMD ratchet, merkezi coverage gate ve Sonar çalıştırılmadı.
+
+### USER — Hesap kullanılabilirliği (Internal, Messaging/Social → User)
+
+Durum: IMPLEMENTED (User tarafı). Auth'ta `messaging-service` ve `social-service` için `user-service` hedefinde `users:status:read` kapsamı **PENDING** (Auth işi, bu uç main'e gelince yapılır). Messaging ve Social istemcileri ayrı iştir.
+Sorumlu: Kerem
+Tüketici servisler: messaging-service (birebir sohbet hedefi), social-service (arkadaşlık isteği ve engel hedefi). lfp-service ihtiyaç duymuyor
+
+#### Endpoint
+POST /internal/v1/users/status
+
+#### Yetkilendirme
+Internal. Gateway'de route edilmez. `typ=svc+jwt`, `aud=user-service`, `scope` ⊇ `users:status:read`, `sub` yalnız `svc:messaging-service` ya da `svc:social-service` (tam eşleşme; başka servis `403`). Token yok, kullanıcı token'ı, yanlış `aud`/`typ` ya da süresi geçmiş token `401`. Uç, hesabın var olup olmadığını sızdırabileceği için kullanıcı token'ı kabul edilmez. Doğrulama deseni gizlilik kararı ucuyla aynıdır.
+
+#### Request Body
+```json
+{ "userIds": ["UUID", "..."] }
+```
+En az 1, en çok 100 kimlik; yinelenenler tek sonuç verir. Boş liste, 100'den fazla kimlik, `null` eleman ve UUID olmayan değer `400`.
+
+#### Response — 200
+```json
+{ "results": [ { "userId": "UUID", "status": "ACTIVE | UNAVAILABLE" } ] }
+```
+İstek sırasıyla, yinelenenler bir kez. **Fail-closed:** yalnız profili olan ve hesap durumu `ACTIVE` olan kullanıcı `ACTIVE` döner. Profil yok, `SUSPENDED`, `BANNED`, `DISABLED`, `PENDING_VERIFICATION`, `DELETION_REQUESTED` ve `DELETED` için `UNAVAILABLE`; var olmayan ve kullanılamaz hesap birbirinden ayırt edilemez. **Profil verisi dönmez** (ad, kullanıcı adı, görsel yok). `Cache-Control: no-store`. Tek sorgu (N+1 yok).
+
+**Güncellik sözleşmesi:** durum, Auth'tan `AccountStatusChanged` olayıyla eşitlenen kopyadır; olay kadar günceldir, anlık değildir. Silme talebi ve vazgeçme artık Auth'tan olayla gelir (`DELETION_REQUESTED`, `ACTIVE`). Yeni kayıtta profil `UserRegistered` olayıyla açılır; o ana kadar `UNAVAILABLE` döner. Çağıran bu kısa pencereyi yeniden deneme ya da açık hata ile karşılamalıdır.
+
+#### Hata Durumları
+- 400: Geçersiz gövde (boş, >100, `null` eleman, UUID değil)
+- 401: Token yok/geçersiz; kullanıcı token'ı; yanlış `aud`
+- 403: Çağıran izinli listede değil; `users:status:read` kapsamı yok. Yanıt durum bilgisi içermez
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+messaging-service ve social-service, `${USER_SERVICE_URL}` üzerinden çağırır; hata, zaman aşımı ya da eksik sonuçta fail-closed davranır (hedef kullanılamaz sayılır). Gerçek Auth token'ıyla uçtan uca: **NOT VERIFIED**.
+
+#### Test Durumu
+UNIT + INTEGRATION (`UserStatusTest`: durum eşlemesi, profil yok, sıra ve yineleme, 100 kimlik, veri sızmaması, 400/401/403 senaryoları).
 
 ### USER — Rızalarım (LIB-14)
 

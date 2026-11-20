@@ -18,6 +18,7 @@ import com.ltz.auth.domain.entity.AccountDeletionTask;
 import com.ltz.auth.domain.entity.AccountDeletionToken;
 import com.ltz.auth.domain.enums.AccountStatus;
 import com.ltz.auth.domain.enums.AccountTier;
+import com.ltz.auth.domain.enums.AuthEventType;
 import com.ltz.auth.domain.enums.CodeInvalidationReason;
 import com.ltz.auth.domain.enums.DeviceRevokeReason;
 import com.ltz.auth.domain.enums.RoleCode;
@@ -72,6 +73,7 @@ public class AccountDeletionService {
     private final VerificationCodeHasher hasher;
     private final SecureTokens secureTokens;
     private final SecurityEventRecorder securityEventRecorder;
+    private final AuthEventPublisher eventPublisher;
     private final DeletionProperties properties;
     private final TransactionTemplate transactionTemplate;
     private final Clock clock;
@@ -176,6 +178,7 @@ public class AccountDeletionService {
         taskRepository.deleteByRequestId(request.getId());
         request.cancel(now);
         account.cancelDeletion(now);
+        eventPublisher.publish(AuthEventType.ACCOUNT_STATUS_CHANGED, accountId, AccountStatus.ACTIVE.name());
         securityEventRecorder.recordEvent(SecurityEventType.ACCOUNT_DELETION_CANCELLED, accountId);
         notifier.notifyAfterCommit(accountId, account.getEmail(), SecurityNotificationType.ACCOUNT_DELETION_CANCELLED);
     }
@@ -284,6 +287,8 @@ public class AccountDeletionService {
     void beginDeletion(Account account, Instant now) {
         UUID accountId = account.getId();
         account.requestDeletion(now);
+        // Veri sahibi servisler (User) hesabın silme beklediğini bilmeli: profil gizlenir, durum sorgusu UNAVAILABLE döner.
+        eventPublisher.publish(AuthEventType.ACCOUNT_STATUS_CHANGED, accountId, AccountStatus.DELETION_REQUESTED.name());
         // Hesap başına tek talep: tekrarlanan onay yeni talep/görev üretmez (idempotent). İptal edilmiş talep yeniden açılır.
         Instant scheduledFor = now.plus(properties.gracePeriod());
         AccountDeletionRequest existing = requestRepository.findByAccountId(accountId).orElse(null);

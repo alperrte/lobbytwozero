@@ -98,6 +98,8 @@ public class SecurityConfig {
                                 .hasAuthority(SCOPE_PREFIX + TokenClaims.PRIVACY_READ_SCOPE)
                         .requestMatchers(PATHS.matcher(HttpMethod.GET, InternalApiPaths.RECOMMENDATION_CANDIDATES))
                                 .hasAuthority(SCOPE_PREFIX + RecommendationCandidateController.CANDIDATES_READ_SCOPE)
+                        .requestMatchers(PATHS.matcher(HttpMethod.POST, InternalApiPaths.USER_STATUS))
+                                .hasAuthority(SCOPE_PREFIX + TokenClaims.STATUS_READ_SCOPE)
                         .requestMatchers(PATHS.matcher(HttpMethod.GET, InternalApiPaths.USER_LOCALE))
                                 .hasAuthority(SCOPE_PREFIX + TokenClaims.LOCALE_READ_SCOPE)
                         // Yönetim paneli araması: askıdaki/yasaklı hesapları da gösterdiği için yalnız ADMIN (MODERATOR değil).
