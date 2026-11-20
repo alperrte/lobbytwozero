@@ -95,7 +95,9 @@ class NotificationEventPublisherTest {
     void islenmeyenOlayTuruIcinHicCagriYapmaz() {
         NotificationEventPublisher publisher = publisher();
 
-        assertThatThrownBy(() -> publisher.publish(envelope("SomethingElse")))
+        EventEnvelope unknown = envelope("SomethingElse");
+
+        assertThatThrownBy(() -> publisher.publish(unknown))
                 .isInstanceOf(EventDeliveryException.class)
                 .hasMessageContaining("No delivery target");
         server.verify();
@@ -107,8 +109,9 @@ class NotificationEventPublisherTest {
         NotificationEventPublisher publisher = publisher(audience -> {
             throw new ServiceTokenUnavailableException("no secret");
         });
+        EventEnvelope sent = envelope("MessageSent");
 
-        assertThatThrownBy(() -> publisher.publish(envelope("MessageSent")))
+        assertThatThrownBy(() -> publisher.publish(sent))
                 .isInstanceOf(EventDeliveryException.class)
                 .hasMessage("Service token is unavailable");
         server.verify();
@@ -118,8 +121,9 @@ class NotificationEventPublisherTest {
     void sunucuHatasindaTeslimEdilmemisSayilirIletideYukYok() {
         server.expect(once(), requestTo(EVENTS_URL)).andRespond(withServerError().body(PAYLOAD_SECRET));
         NotificationEventPublisher publisher = publisher();
+        EventEnvelope sent = envelope("MessageSent");
 
-        assertThatThrownBy(() -> publisher.publish(envelope("MessageSent")))
+        assertThatThrownBy(() -> publisher.publish(sent))
                 .isInstanceOf(EventDeliveryException.class)
                 .hasMessageNotContaining(PAYLOAD_SECRET)
                 .hasMessageNotContaining("svc-token");
@@ -130,8 +134,9 @@ class NotificationEventPublisherTest {
         server.expect(once(), requestTo(EVENTS_URL))
                 .andRespond(withStatus(HttpStatus.FOUND).location(java.net.URI.create("http://elsewhere/")));
         NotificationEventPublisher publisher = publisher();
+        EventEnvelope sent = envelope("MessageSent");
 
-        assertThatThrownBy(() -> publisher.publish(envelope("MessageSent")))
+        assertThatThrownBy(() -> publisher.publish(sent))
                 .isInstanceOf(EventDeliveryException.class)
                 .hasMessageContaining("HTTP 302");
     }
@@ -140,8 +145,9 @@ class NotificationEventPublisherTest {
     void yetkiReddiTeslimSayilmaz() {
         server.expect(once(), requestTo(EVENTS_URL)).andRespond(withStatus(HttpStatus.FORBIDDEN));
         NotificationEventPublisher publisher = publisher();
+        EventEnvelope sent = envelope("MessageSent");
 
-        assertThatThrownBy(() -> publisher.publish(envelope("MessageSent")))
+        assertThatThrownBy(() -> publisher.publish(sent))
                 .isInstanceOf(EventDeliveryException.class);
     }
 

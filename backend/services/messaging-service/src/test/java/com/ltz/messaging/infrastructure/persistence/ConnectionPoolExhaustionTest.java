@@ -4,7 +4,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.sql.Connection;
 import java.util.UUID;
 
 import javax.sql.DataSource;
@@ -31,9 +30,9 @@ class ConnectionPoolExhaustionTest extends IntegrationTestSupport {
     void havuzTukenince503VeRetryAfterDoner() throws Exception {
         UUID user = newUser();
         // Havuzdaki üç bağlantının hepsi tutulur.
-        try (Connection _ = dataSource.getConnection();
-             Connection _ = dataSource.getConnection();
-             Connection _ = dataSource.getConnection()) {
+        try (var _ = dataSource.getConnection();
+             var _ = dataSource.getConnection();
+             var _ = dataSource.getConnection()) {
             listConversations(user, "")
                     .andExpect(status().isServiceUnavailable())
                     .andExpect(header().string(HttpHeaders.RETRY_AFTER, "1"))

@@ -82,17 +82,21 @@ public class MessageAttachment {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    /** Görselin ölçüleri; {@code frameCount}: GIF'te kare sayısı, diğerlerinde 1. */
+    public record Dimensions(int width, int height, int frameCount) {
+    }
+
     public static MessageAttachment upload(UUID conversationId, UUID uploaderId, String mimeType, AttachmentBlob blob,
-                                           int width, int height, int frameCount, Instant now) {
+                                           Dimensions dimensions, Instant now) {
         MessageAttachment attachment = new MessageAttachment();
         attachment.conversationId = conversationId;
         attachment.uploaderId = uploaderId;
         attachment.mimeType = mimeType;
         attachment.blobId = blob.getId();
         attachment.sizeBytes = blob.getSizeBytes();
-        attachment.width = width;
-        attachment.height = height;
-        attachment.frameCount = frameCount;
+        attachment.width = dimensions.width();
+        attachment.height = dimensions.height();
+        attachment.frameCount = dimensions.frameCount();
         attachment.createdAt = now;
         return attachment;
     }

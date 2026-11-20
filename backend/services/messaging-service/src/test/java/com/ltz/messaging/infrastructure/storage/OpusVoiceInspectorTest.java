@@ -107,7 +107,7 @@ class OpusVoiceInspectorTest {
             packets.add(TestAudio.packet(TestAudio.CONFIG_CELT_20MS, false, 169));
         }
         byte[] input = new TestAudio.Ogg(TestAudio.head(1, 0), TestAudio.tags(), packets).build();
-        assertThat(input.length).isLessThanOrEqualTo(1_048_576);
+        assertThat(input).hasSizeLessThanOrEqualTo(1_048_576);
 
         assertCode(() -> inspector.process(input, OGG), MessagingErrorCode.AUDIO_TOO_LARGE);
     }
@@ -127,8 +127,8 @@ class OpusVoiceInspectorTest {
         }
         byte[] manyElements = TestAudio.concat(TestAudio.ebmlHeader("webm"),
                 TestAudio.element(0x18538067, voids.toByteArray()));
-        assertThat(manyPackets.length).isLessThanOrEqualTo(1_048_576);
-        assertThat(manyElements.length).isLessThanOrEqualTo(1_048_576);
+        assertThat(manyPackets).hasSizeLessThanOrEqualTo(1_048_576);
+        assertThat(manyElements).hasSizeLessThanOrEqualTo(1_048_576);
 
         assertTimeoutPreemptively(Duration.ofMillis(500), () -> {
             assertCode(() -> inspector.process(manyPackets, OGG), MessagingErrorCode.INVALID_AUDIO);

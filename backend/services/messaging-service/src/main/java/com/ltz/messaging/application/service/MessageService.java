@@ -200,11 +200,15 @@ public class MessageService {
         if (replyTo != null) {
             VisibleMessages.requireNotDeleted(visible.require(senderMember, replyTo));
         }
-        MessageView view = appender.append(conversation, senderMember, now, seq -> switch (type) {
-            case TEXT -> Message.text(conversationId, seq, sender, clientMessageId, replyTo, draft.body(), now);
-            case IMAGE -> Message.image(conversationId, seq, sender, clientMessageId, replyTo, draft.body(), now);
-            case GIF -> Message.gif(conversationId, seq, sender, clientMessageId, replyTo, draft.body(), gif, now);
-            case VOICE -> Message.voice(conversationId, seq, sender, clientMessageId, replyTo, now);
+        MessageView view = appender.append(conversation, senderMember, now, seq -> {
+            Message.Envelope envelope = new Message.Envelope(conversationId, seq, sender, clientMessageId, replyTo,
+                    now);
+            return switch (type) {
+                case TEXT -> Message.text(envelope, draft.body());
+                case IMAGE -> Message.image(envelope, draft.body());
+                case GIF -> Message.gif(envelope, draft.body(), gif);
+                case VOICE -> Message.voice(envelope);
+            };
         }, message -> {
             // Bağlanamayan dosya transaction'ı geri alır: mesaj ve sıra da kaydedilmez.
             if (type.hasAttachment()

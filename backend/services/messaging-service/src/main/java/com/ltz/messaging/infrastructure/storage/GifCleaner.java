@@ -40,8 +40,9 @@ final class GifCleaner {
 
         @Override
         public boolean equals(Object other) {
-            return other instanceof Result that && width == that.width && height == that.height
-                    && frames == that.frames && Arrays.equals(bytes, that.bytes);
+            return other instanceof Result(byte[] otherBytes, int otherWidth, int otherHeight, int otherFrames)
+                    && width == otherWidth && height == otherHeight && frames == otherFrames
+                    && Arrays.equals(bytes, otherBytes);
         }
 
         @Override
@@ -78,16 +79,16 @@ final class GifCleaner {
         copyColorTable(screenFlags);
         int frames = 0;
         for (int block = byteAt(cursor++); block != TRAILER; block = byteAt(cursor++)) {
-            if (block == IMAGE) {
-                frames++;
-                if (frames > maxFrames) {
-                    throw new MalformedGifException();
+            switch (block) {
+                case IMAGE -> {
+                    frames++;
+                    if (frames > maxFrames) {
+                        throw new MalformedGifException();
+                    }
+                    copyFrame();
                 }
-                copyFrame();
-            } else if (block == EXTENSION) {
-                copyOrDropExtension();
-            } else {
-                throw new MalformedGifException();
+                case EXTENSION -> copyOrDropExtension();
+                default -> throw new MalformedGifException();
             }
         }
         target.write(TRAILER);

@@ -116,11 +116,11 @@ class ImageIoInspectorTest {
     @Test
     void yenidenKodlamaBirMegabaytiAsarsaKucultulur() {
         byte[] upload = TestImages.noisyJpeg(2000, 2000, 0.1f);
-        assertThat(upload.length).isLessThanOrEqualTo(MessageAttachment.MAX_SIZE_BYTES);
+        assertThat(upload).hasSizeLessThanOrEqualTo(MessageAttachment.MAX_SIZE_BYTES);
 
         ProcessedImage image = inspector.process(upload, "image/jpeg");
 
-        assertThat(image.content().length).isLessThanOrEqualTo(MessageAttachment.MAX_SIZE_BYTES);
+        assertThat(image.content()).hasSizeLessThanOrEqualTo(MessageAttachment.MAX_SIZE_BYTES);
         assertThat(image.width()).isLessThan(2000);
         assertThat(image.width()).isEqualTo(image.height());
     }
