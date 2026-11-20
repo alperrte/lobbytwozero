@@ -22,8 +22,9 @@ public interface VoiceInspectorPort {
 
         @Override
         public boolean equals(Object other) {
-            return other instanceof ProcessedVoice that && durationMillis == that.durationMillis
-                    && Objects.equals(mimeType, that.mimeType) && Arrays.equals(content, that.content);
+            return other instanceof ProcessedVoice(String otherMime, byte[] otherContent, int otherDuration)
+                    && durationMillis == otherDuration && Objects.equals(mimeType, otherMime)
+                    && Arrays.equals(content, otherContent);
         }
 
         @Override

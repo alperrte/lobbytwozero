@@ -31,7 +31,7 @@ public final class WebmOpusReader {
      */
     public static OpusStream read(byte[] file, int maxPackets) throws MalformedAudioException {
         Header ebml = Ebml.readHeader(file, 0, file.length);
-        if (ebml.id() != Ebml.EBML || ebml.unknownSize() || !WEBM.equals(docType(file, ebml))) {
+        if (!Ebml.isEbmlHeader(ebml) || ebml.unknownSize() || !WEBM.equals(docType(file, ebml))) {
             throw new MalformedAudioException();
         }
         Header segment = Ebml.readHeader(file, ebml.end(), file.length);
@@ -143,7 +143,6 @@ public final class WebmOpusReader {
             long number = 0;
             long type = 0;
             String codec = null;
-            OpusHead parsed = null;
             int position = entry.dataStart();
             while (position < entry.end()) {
                 Header child = Ebml.readHeader(file, position, entry.end());
@@ -152,7 +151,7 @@ public final class WebmOpusReader {
                     case Ebml.TRACK_NUMBER -> number = Ebml.readUnsigned(file, child);
                     case Ebml.TRACK_TYPE -> type = Ebml.readUnsigned(file, child);
                     case Ebml.CODEC_ID -> codec = Ebml.readString(file, child);
-                    case Ebml.CODEC_PRIVATE -> parsed = OpusHead.parse(
+                    case Ebml.CODEC_PRIVATE -> head = OpusHead.parse(
                             Arrays.copyOfRange(file, child.dataStart(), child.end()));
                     default -> {
                         // Diğer iz alanları kullanılmaz ve çıktıya geçmez.
@@ -160,11 +159,10 @@ public final class WebmOpusReader {
                 }
                 position = child.end();
             }
-            if (number < 1 || type != AUDIO_TRACK || !OPUS.equals(codec) || parsed == null) {
+            if (number < 1 || type != AUDIO_TRACK || !OPUS.equals(codec) || head == null) {
                 throw new MalformedAudioException();
             }
             this.trackNumber = number;
-            this.head = parsed;
         }
 
         /** Block / SimpleBlock: iz numarası (vint), 16 bit zaman, bayraklar, lacing yoksa tek çerçeve. */

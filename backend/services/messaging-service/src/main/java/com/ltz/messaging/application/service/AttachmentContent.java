@@ -8,8 +8,8 @@ public record AttachmentContent(String mimeType, byte[] content) {
 
     @Override
     public boolean equals(Object other) {
-        return other instanceof AttachmentContent that && Objects.equals(mimeType, that.mimeType)
-                && Arrays.equals(content, that.content);
+        return other instanceof AttachmentContent(String otherMime, byte[] otherContent)
+                && Objects.equals(mimeType, otherMime) && Arrays.equals(content, otherContent);
     }
 
     @Override

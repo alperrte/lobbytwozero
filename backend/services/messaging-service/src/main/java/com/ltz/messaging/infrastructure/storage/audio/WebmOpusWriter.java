@@ -56,7 +56,7 @@ public final class WebmOpusWriter {
         List<Cluster> clusters = clusters(stream.packets());
         // Cues'un boyutu konumlardan bağımsızdır (sabit genişlik); önce boyut, sonra gerçek konumlar.
         int cuesSize = cues(clusters, 0).length;
-        byte[] cues = cues(clusters, info.length + tracks.length + cuesSize);
+        byte[] cues = cues(clusters, (long) info.length + tracks.length + cuesSize);
 
         ByteArrayOutputStream segment = new ByteArrayOutputStream();
         segment.writeBytes(info);
@@ -72,7 +72,7 @@ public final class WebmOpusWriter {
     }
 
     private static byte[] ebmlHeader() {
-        return Ebml.element(Ebml.EBML,
+        return Ebml.element(Ebml.EBML_HEADER,
                 Ebml.unsigned(EBML_VERSION, 1),
                 Ebml.unsigned(EBML_READ_VERSION, 1),
                 Ebml.unsigned(EBML_MAX_ID_LENGTH, 4),
@@ -147,7 +147,23 @@ public final class WebmOpusWriter {
     }
 
     /** Yazılmış küme ve mutlak zaman damgası (ms). */
-    private record Cluster(long timestamp, byte[] bytes) {
+    private static final class Cluster {
+
+        private final long timestamp;
+        private final byte[] bytes;
+
+        private Cluster(long timestamp, byte[] bytes) {
+            this.timestamp = timestamp;
+            this.bytes = bytes;
+        }
+
+        long timestamp() {
+            return timestamp;
+        }
+
+        byte[] bytes() {
+            return bytes;
+        }
 
         static Cluster of(long timestamp, byte[] blocks) {
             return new Cluster(timestamp, Ebml.element(Ebml.CLUSTER, Ebml.unsigned(Ebml.TIMESTAMP, timestamp),

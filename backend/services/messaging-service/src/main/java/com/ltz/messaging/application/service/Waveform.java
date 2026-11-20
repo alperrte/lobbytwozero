@@ -2,6 +2,7 @@ package com.ltz.messaging.application.service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 import com.ltz.messaging.domain.exception.MessagingErrorCode;
@@ -21,11 +22,9 @@ public final class Waveform {
     private Waveform() {
     }
 
-    /** Virgülle ayrılmış 64 değer → 64 bayt; {@code null} → {@code null}. */
+    /** Virgülle ayrılmış 64 değer → 64 bayt. Dalga formu isteğe bağlıdır; {@code null} denetimi çağıranındır. */
     public static byte[] parse(String raw) {
-        if (raw == null) {
-            return null;
-        }
+        Objects.requireNonNull(raw, "raw");
         if (!FORMAT.matcher(raw).matches()) {
             throw new MessagingException(MessagingErrorCode.INVALID_WAVEFORM);
         }
@@ -41,11 +40,9 @@ public final class Waveform {
         return values;
     }
 
-    /** Saklanan baytlar → 0–100 değer listesi; {@code null} → {@code null}. */
+    /** Saklanan baytlar → 0–100 değer listesi. Dalga formu isteğe bağlıdır; {@code null} denetimi çağıranındır. */
     public static List<Integer> toList(byte[] stored) {
-        if (stored == null) {
-            return null;
-        }
+        Objects.requireNonNull(stored, "stored");
         List<Integer> values = new ArrayList<>(stored.length);
         for (byte value : stored) {
             values.add(value & 0xFF);
