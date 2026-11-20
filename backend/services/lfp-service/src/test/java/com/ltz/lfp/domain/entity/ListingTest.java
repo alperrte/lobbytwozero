@@ -43,7 +43,9 @@ class ListingTest {
         Listing listing = Listing.open(UUID.randomUUID(), UUID.randomUUID(), "Game", content(null, null), NOW, DAY,
                 WINDOW);
 
-        assertThatThrownBy(() -> listing.getRoles().add("Hack")).isInstanceOf(UnsupportedOperationException.class);
+        List<String> roles = listing.getRoles();
+
+        assertThatThrownBy(() -> roles.add("Hack")).isInstanceOf(UnsupportedOperationException.class);
     }
 
     @Test

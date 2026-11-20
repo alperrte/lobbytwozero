@@ -85,7 +85,8 @@ class FlywayMigrationTest extends IntegrationTestSupport {
                 .isInstanceOf(DataIntegrityViolationException.class);
         assertThatThrownBy(() -> jdbc.update("insert into lfp_listing_roles values (?, 0, '  ')", id))
                 .isInstanceOf(DataIntegrityViolationException.class);
-        assertThatThrownBy(() -> jdbc.update("insert into lfp_listing_roles values (?, 0, 'x')", UUID.randomUUID()))
+        UUID missingListing = UUID.randomUUID();
+        assertThatThrownBy(() -> jdbc.update("insert into lfp_listing_roles values (?, 0, 'x')", missingListing))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
