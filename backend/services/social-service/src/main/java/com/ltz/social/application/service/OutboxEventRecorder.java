@@ -28,7 +28,7 @@ public class OutboxEventRecorder {
     private final Clock clock;
 
     @Transactional(propagation = Propagation.MANDATORY)
-    public void record(SocialEvent event) {
+    public void append(SocialEvent event) {
         Instant now = Instant.now(clock).truncatedTo(ChronoUnit.MICROS);
         outbox.save(OutboxEvent.pending(event, objectMapper.writeValueAsString(event), now));
     }

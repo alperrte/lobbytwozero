@@ -14,7 +14,7 @@ final class AuthenticatedUser {
     static UUID id(Jwt jwt) {
         try {
             return UUID.fromString(jwt.getSubject());
-        } catch (IllegalArgumentException exception) {
+        } catch (IllegalArgumentException _) {
             // Auth her zaman UUID üretir; farklı biçim sahte/hatalı token demektir.
             throw new InvalidBearerTokenException("Invalid subject");
         }

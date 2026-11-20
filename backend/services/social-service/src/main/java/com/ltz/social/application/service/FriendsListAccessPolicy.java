@@ -53,7 +53,7 @@ class FriendsListAccessPolicy {
     private FriendsVisibility visibilityOf(UUID ownerId) {
         try {
             return visibilityPort.visibilityOf(ownerId);
-        } catch (PrivacyUnavailableException exception) {
+        } catch (PrivacyUnavailableException _) {
             return FriendsVisibility.PRIVATE;
         }
     }

@@ -36,7 +36,7 @@ record KeysetCursor(Instant createdAt, UUID id) {
             }
             return new KeysetCursor(Instant.parse(raw.substring(0, separator)),
                     UUID.fromString(raw.substring(separator + 1)));
-        } catch (IllegalArgumentException | DateTimeParseException exception) {
+        } catch (IllegalArgumentException | DateTimeParseException _) {
             throw invalid();
         }
     }

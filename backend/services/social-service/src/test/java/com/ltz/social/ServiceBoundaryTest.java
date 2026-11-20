@@ -66,10 +66,11 @@ class ServiceBoundaryTest {
 
     @Test
     void kullanicilarYalnizKimlikleRefOlarakTutulur_yabanciAnahtarYok() throws IOException {
+        Pattern foreignKey = Pattern.compile("(?i)\\b(references|foreign\\s+key)\\b");
         try (Stream<Path> migrations = Files.list(MAIN_RESOURCES.resolve("db/migration"))) {
             for (Path migration : migrations.filter(path -> path.toString().endsWith(".sql")).toList()) {
                 String sql = stripComments(Files.readString(migration));
-                assertThat(Pattern.compile("(?i)\\b(references|foreign\\s+key)\\b").matcher(sql).find())
+                assertThat(foreignKey.matcher(sql).find())
                         .as("%s kullanıcı kimlikleri için FK içermemeli (REF)", migration.getFileName())
                         .isFalse();
             }
