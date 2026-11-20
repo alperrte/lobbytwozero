@@ -71,20 +71,26 @@ public final class OggOpusReader {
         }
 
         void accept(byte[] packet) throws MalformedAudioException {
-            if (count == 0) {
-                head = OpusHead.parse(packet);
-            } else if (count == 1) {
-                if (packet.length < TAGS_MAGIC.length
-                        || !Arrays.equals(packet, 0, TAGS_MAGIC.length, TAGS_MAGIC, 0, TAGS_MAGIC.length)) {
-                    throw new MalformedAudioException();
-                }
-            } else {
-                if (audio.size() >= maxPackets) {
-                    throw new MalformedAudioException();
-                }
-                audio.add(OpusPacket.parse(packet));
+            switch (count) {
+                case 0 -> head = OpusHead.parse(packet);
+                case 1 -> requireTags(packet);
+                default -> addAudio(packet);
             }
             count++;
+        }
+
+        private static void requireTags(byte[] packet) throws MalformedAudioException {
+            if (packet.length < TAGS_MAGIC.length
+                    || !Arrays.equals(packet, 0, TAGS_MAGIC.length, TAGS_MAGIC, 0, TAGS_MAGIC.length)) {
+                throw new MalformedAudioException();
+            }
+        }
+
+        private void addAudio(byte[] packet) throws MalformedAudioException {
+            if (audio.size() >= maxPackets) {
+                throw new MalformedAudioException();
+            }
+            audio.add(OpusPacket.parse(packet));
         }
 
         OpusStream toStream() throws MalformedAudioException {
@@ -158,21 +164,21 @@ public final class OggOpusReader {
             }
             return current;
         }
-    }
 
-    private static int readInt(byte[] file, int offset) {
-        return (file[offset] & 0xFF) | (file[offset + 1] & 0xFF) << 8 | (file[offset + 2] & 0xFF) << 16
-                | (file[offset + 3] & 0xFF) << 24;
-    }
-
-    /** Ogg CRC-32 (polinom 0x04C11DB7, başlangıç 0, yansıtmasız); CRC alanı (22–25) sıfır sayılır. */
-    private static int crc(byte[] file, int start, int end) {
-        int crc = 0;
-        for (int index = start; index < end; index++) {
-            int value = index >= start + 22 && index < start + 26 ? 0 : file[index] & 0xFF;
-            crc = (crc << 8) ^ CRC_TABLE[((crc >>> 24) ^ value) & 0xFF];
+        private static int readInt(byte[] file, int offset) {
+            return (file[offset] & 0xFF) | (file[offset + 1] & 0xFF) << 8 | (file[offset + 2] & 0xFF) << 16
+                    | (file[offset + 3] & 0xFF) << 24;
         }
-        return crc;
+
+        /** Ogg CRC-32 (polinom 0x04C11DB7, başlangıç 0, yansıtmasız); CRC alanı (22–25) sıfır sayılır. */
+        private static int crc(byte[] file, int start, int end) {
+            int crc = 0;
+            for (int index = start; index < end; index++) {
+                int value = index >= start + 22 && index < start + 26 ? 0 : file[index] & 0xFF;
+                crc = (crc << 8) ^ CRC_TABLE[((crc >>> 24) ^ value) & 0xFF];
+            }
+            return crc;
+        }
     }
 
     private static int[] crcTable() {

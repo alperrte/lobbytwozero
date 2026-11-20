@@ -1,6 +1,7 @@
 package com.ltz.user.infrastructure.persistence.repository;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -29,6 +30,10 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, UUID> 
 
     Optional<UserProfile> findByUsernameNormalized(String usernameNormalized);
 
+    /** Verilen kimliklerden hesabı {@code ACTIVE} olan profillerin kimlikleri (yalnız kimlik okunur, profil verisi değil). */
+    @Query("SELECT p.userId FROM UserProfile p WHERE p.userId IN :ids AND p.accountStatus = com.ltz.user.domain.enums.AccountStatus.ACTIVE")
+    List<UUID> findActiveIds(@Param("ids") Collection<UUID> ids);
+
     /**
      * Oyuncu arama (USER-11): kullanıcı adı ya da görünen ad önekiyle, yalnız {@code ACTIVE} hesaplar (askıdaki hesap
      * aramada çıkmaz, K6) ve izleyiciyle herhangi bir yönde engeli olmayanlar. {@code prefix} LIKE özel karakterleri
@@ -55,6 +60,33 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, UUID> 
             ORDER BY p.username_normalized NULLS LAST, p.display_name_normalized, p.user_id
             LIMIT :limit""", nativeQuery = true)
     List<UserProfile> adminSearch(@Param("prefix") String prefix, @Param("limit") int limit);
+
+    /**
+     * Öneri aday keşfi: öneri rızası açık, ACTIVE ve onboarding'i bitmiş, izleyiciyle her iki yönde engeli olmayan
+     * profiller; {@code user_id} anahtarıyla sıralı (deterministik, {@code after} sonrası). {@code genre}/{@code platform}
+     * boş string ise süzgeç yok. Çağıran Social engel yansımasının güvenilir olduğunu önceden doğrular.
+     */
+    @Query(value = """
+            SELECT p.* FROM user_profiles p
+            JOIN user_consents c ON c.user_id = p.user_id
+            WHERE c.recommendation_granted
+              AND p.account_status = 'ACTIVE'
+              AND p.onboarding_completed_at IS NOT NULL
+              AND p.user_id <> :viewer
+              AND p.user_id > :after
+              AND (:genre = '' OR :genre = ANY(p.favorite_genres))
+              AND (:platform = '' OR :platform = ANY(p.favorite_platforms))
+              AND NOT EXISTS (SELECT 1 FROM social_blocks b
+                              WHERE b.active AND ((b.blocker_id = :viewer AND b.blocked_id = p.user_id)
+                                               OR (b.blocker_id = p.user_id AND b.blocked_id = :viewer)))
+              AND (NOT :excludeFriends OR NOT EXISTS (SELECT 1 FROM social_friendships f
+                              WHERE f.active AND ((f.user_low_id = :viewer AND f.user_high_id = p.user_id)
+                                               OR (f.user_low_id = p.user_id AND f.user_high_id = :viewer))))
+            ORDER BY p.user_id
+            LIMIT :limit""", nativeQuery = true)
+    List<UserProfile> recommendationCandidates(@Param("viewer") UUID viewer, @Param("after") UUID after,
+            @Param("genre") String genre, @Param("platform") String platform,
+            @Param("excludeFriends") boolean excludeFriends, @Param("limit") int limit);
 
     /** Hesap silme: profil satırı; profil görselleri üst verisi FK ile birlikte silinir. */
     @Modifying

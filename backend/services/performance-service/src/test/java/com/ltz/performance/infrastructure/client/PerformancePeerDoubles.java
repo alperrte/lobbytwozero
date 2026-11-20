@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -26,7 +25,7 @@ public final class PerformancePeerDoubles {
     private static final Pattern UUID_TEXT = Pattern.compile("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
     private static final HttpServer SERVER;
     private static final Map<UUID, String> GAMES = new ConcurrentHashMap<>();
-    private static final Set<String> PROFILES = ConcurrentHashMap.newKeySet();
+    private static final Map<String, Long> PROFILES = new ConcurrentHashMap<>();
     private static final AtomicInteger GAME_CALLS = new AtomicInteger();
     private static final AtomicInteger HARDWARE_CALLS = new AtomicInteger();
     private static final AtomicReference<String> LAST_HARDWARE_AUTHORIZATION = new AtomicReference<>();
@@ -60,7 +59,10 @@ public final class PerformancePeerDoubles {
 
     public static void registerGame(UUID gameId, String title) { GAMES.put(gameId, title); }
 
-    public static void registerProfile(UUID account, UUID profileId) { PROFILES.add(account + ":" + profileId); }
+    public static void registerProfile(UUID account, UUID profileId) { registerProfile(account, profileId, 1L); }
+
+    /** Hardware HW-17 yanıtındaki profileVersion değerini taklit eder; sürüm değişimi aynı kimlikle yeniden kayıtla simüle edilir. */
+    public static void registerProfile(UUID account, UUID profileId, long version) { PROFILES.put(account + ":" + profileId, version); }
 
     public static void forceGame(int status, String body) {
         gameStatus = status;
@@ -137,11 +139,12 @@ public final class PerformancePeerDoubles {
             var matcher = UUID_TEXT.matcher(request);
             UUID profile = matcher.find() ? UUID.fromString(matcher.group()) : null;
             UUID account = account(authorization);
-            if (profile == null || account == null || !PROFILES.contains(account + ":" + profile)) {
+            if (profile == null || account == null || !PROFILES.containsKey(account + ":" + profile)) {
                 send(exchange, 404, null);
                 return;
             }
-            send(exchange, 200, "{\"profiles\":[{\"profileId\":\"%s\"}]}".formatted(profile));
+            send(exchange, 200, "{\"profiles\":[{\"profileId\":\"%s\",\"profileVersion\":%d}]}".formatted(profile,
+                    PROFILES.get(account + ":" + profile)));
         } finally {
             exchange.close();
         }

@@ -428,11 +428,6 @@ class ReadReceiptStreamTest extends IntegrationTestSupport {
     }
 
     /**
-     * Akış yürütücüsünün önceden kuyruğa giren tüm işleri bitirmesini bekler: her iş parçacığı bir engel işi alır;
-     * hepsi aynı anda engeldeyse daha önceki işlerin hepsi (kuyruk sırasıyla) tamamlanmıştır. Olay gitmediğini
-     * kanıtlamak için gerekir.
-     */
-    /**
      * Üretilmiş tüm olaylar iletilene kadar bekler: aktarım yazımı (tek iş parçacığı) → dinleyicinin son kaydı
      * işlemesi → yerel iletim yürütücüsü.
      */
@@ -443,6 +438,11 @@ class ReadReceiptStreamTest extends IntegrationTestSupport {
         drain(streamDispatchExecutor);
     }
 
+    /**
+     * Akış yürütücüsünün önceden kuyruğa giren tüm işleri bitirmesini bekler: her iş parçacığı bir engel işi alır;
+     * hepsi aynı anda engeldeyse daha önceki işlerin hepsi (kuyruk sırasıyla) tamamlanmıştır. Olay gitmediğini
+     * kanıtlamak için gerekir.
+     */
     private static void drain(ThreadPoolTaskExecutor executor) throws Exception {
         int threads = executor.getMaxPoolSize();
         CyclicBarrier barrier = new CyclicBarrier(threads + 1);

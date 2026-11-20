@@ -47,7 +47,7 @@ public class OutboxEventStore {
     @Transactional
     public void markFailed(UUID eventId) {
         outbox.findById(eventId).ifPresent(event -> event.markAttemptFailed(now(), properties.maxAttempts(),
-                properties.baseBackoff(), properties.maxBackoff()));
+                properties.baseBackoff(), properties.maxBackoff(), properties.failedRetryInterval()));
     }
 
     private static EventEnvelope toEnvelope(OutboxEvent event) {

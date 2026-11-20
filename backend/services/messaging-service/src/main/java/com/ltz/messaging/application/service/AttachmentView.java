@@ -20,13 +20,14 @@ public record AttachmentView(UUID id, String mimeType, int sizeBytes, Integer wi
 
     public static AttachmentView of(AttachmentMeta meta) {
         return new AttachmentView(meta.id(), meta.mimeType(), meta.sizeBytes(), meta.width(), meta.height(),
-                meta.frameCount(), meta.durationMs(), Waveform.toList(meta.waveform()),
+                meta.frameCount(), meta.durationMs(), meta.waveform() == null ? null : Waveform.toList(meta.waveform()),
                 URL_TEMPLATE.formatted(meta.conversationId(), meta.id()));
     }
 
     static AttachmentView of(MessageAttachment saved) {
         return new AttachmentView(saved.getId(), saved.getMimeType(), saved.getSizeBytes(), saved.getWidth(),
-                saved.getHeight(), saved.getFrameCount(), saved.getDurationMs(), Waveform.toList(saved.getWaveform()),
+                saved.getHeight(), saved.getFrameCount(), saved.getDurationMs(),
+                saved.getWaveform() == null ? null : Waveform.toList(saved.getWaveform()),
                 URL_TEMPLATE.formatted(saved.getConversationId(), saved.getId()));
     }
 }

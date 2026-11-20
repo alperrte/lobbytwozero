@@ -20,13 +20,14 @@ class VoicePropertiesTest {
 
     @Test
     void sinirlarVeritabaniKuraliniAsamaz() {
-        assertThatThrownBy(() -> new VoiceProperties(Duration.ofMillis(500), Duration.ofMinutes(2),
-                Duration.ofSeconds(2))).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new VoiceProperties(Duration.ofMillis(100), Duration.ofMinutes(2),
-                Duration.ofSeconds(1))).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new VoiceProperties(Duration.ofSeconds(3), Duration.ofSeconds(2),
-                Duration.ZERO)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new VoiceProperties(Duration.ofMillis(500), Duration.ofMinutes(2),
-                Duration.ofSeconds(-1))).isInstanceOf(IllegalArgumentException.class);
+        assertRejected(Duration.ofMillis(500), Duration.ofMinutes(2), Duration.ofSeconds(2));
+        assertRejected(Duration.ofMillis(100), Duration.ofMinutes(2), Duration.ofSeconds(1));
+        assertRejected(Duration.ofSeconds(3), Duration.ofSeconds(2), Duration.ZERO);
+        assertRejected(Duration.ofMillis(500), Duration.ofMinutes(2), Duration.ofSeconds(-1));
+    }
+
+    private static void assertRejected(Duration min, Duration max, Duration tolerance) {
+        assertThatThrownBy(() -> new VoiceProperties(min, max, tolerance))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

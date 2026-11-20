@@ -10,7 +10,7 @@ import java.nio.charset.StandardCharsets;
  */
 final class Ebml {
 
-    static final int EBML = 0x1A45DFA3;
+    static final int EBML_HEADER = 0x1A45DFA3;
     static final int DOC_TYPE = 0x4282;
     static final int SEGMENT = 0x18538067;
     static final int SEEK_HEAD = 0x114D9B74;
@@ -108,6 +108,11 @@ final class Ebml {
             end--;
         }
         return new String(file, header.dataStart(), end - header.dataStart(), StandardCharsets.US_ASCII);
+    }
+
+    /** Dosyanın ilk öğesi EBML başlığı mı? */
+    static boolean isEbmlHeader(Header header) {
+        return header.id() == EBML_HEADER;
     }
 
     static void requireKnown(Header header) throws MalformedAudioException {

@@ -102,8 +102,7 @@ class BlockConcurrencyTest extends IntegrationTestSupport {
 
     @SafeVarargs
     private static void run(Callable<String>... tasks) throws InterruptedException, ExecutionException {
-        ExecutorService pool = Executors.newFixedThreadPool(tasks.length);
-        try {
+        try (ExecutorService pool = Executors.newFixedThreadPool(tasks.length)) {
             CountDownLatch ready = new CountDownLatch(tasks.length);
             CountDownLatch go = new CountDownLatch(1);
             List<Future<String>> futures = new ArrayList<>();
@@ -119,14 +118,11 @@ class BlockConcurrencyTest extends IntegrationTestSupport {
             for (Future<String> future : futures) {
                 future.get();
             }
-        } finally {
-            pool.shutdownNow();
         }
     }
 
     private static List<String> runAll(int copies, Callable<String> task) throws Exception {
-        ExecutorService pool = Executors.newFixedThreadPool(copies);
-        try {
+        try (ExecutorService pool = Executors.newFixedThreadPool(copies)) {
             CountDownLatch go = new CountDownLatch(1);
             List<Future<String>> futures = new ArrayList<>();
             for (int i = 0; i < copies; i++) {
@@ -141,8 +137,6 @@ class BlockConcurrencyTest extends IntegrationTestSupport {
                 results.add(future.get());
             }
             return results;
-        } finally {
-            pool.shutdownNow();
         }
     }
 }

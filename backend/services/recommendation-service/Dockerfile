@@ -37,6 +37,11 @@ FROM eclipse-temurin:25-jre-noble
 
 WORKDIR /app
 
+# REC-22: ayni servis sinirinda yalniz standart kutuphaneli Python; pip/sidecar yok.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3-minimal libpython3-stdlib \
+    && rm -rf /var/lib/apt/lists/*
+
 # Root olmayan uygulama kullanicisi.
 RUN groupadd --system ltz \
     && useradd --system --gid ltz ltz

@@ -226,12 +226,12 @@ Adım adım: `d4-ekip-notlari/01_ORTAK_SILME_UCU_UYGULAMA_REHBERI.md`.
 
 ## 6. Auth olaylarını almak (`events:ingest`)
 
-Auth, olayları aynı işlemde `auth_events` tablosuna (outbox) yazar; işçi hedeflere HTTP ile iletir. **En az bir kez** teslim: alıcı `eventId` ile tekilleştirir. Hedef listesi `AUTH_EVENT_TARGETS` (varsayılan boş; dev şablonunda `user`). Hedef henüz yayında değilse teslim yeniden denenir, olay kaybolmaz.
+Auth, olayları aynı işlemde `auth_events` tablosuna (outbox) yazar; işçi hedeflere HTTP ile iletir. **En az bir kez** teslim: alıcı `eventId` ile tekilleştirir. Hedef listesi `AUTH_EVENT_TARGETS` (varsayılan boş; dev şablonunda `user`). Hedef henüz yayında değilse teslim yeniden denenir, olay kaybolmaz. **Onarım (V69):** hedef kapalıyken ya da satır kaybolunca eksik kalan `ACCOUNT_STATUS_CHANGED`, hesabın `status_changed_at` değeriyle bulunur; son 24 saatte durumu değişmiş ve o duruma ait olay satırı olmayan hesabın **güncel** durumu, gerçek değişim zamanıyla yeniden yazılır (`ltz.auth.events.reconcile.*`, hedef başına, 10 dk bekleme, `PENDING_VERIFICATION` yayınlanmaz). Alıcı olayı `occurredAt` ile sıralar; yeniden gönderim daha yeni bir durumu ezemez. Pencere dışında kalan (24 saatten eski) kayıp bu işle onarılmaz. `status_changed_at` boş (V69'dan önceki veya eski sürüm örneğinin yazdığı) hesaplar atlanır.
 
 | Olay | Ne zaman | Yük |
 |---|---|---|
 | `UserRegistered` | Hesap aktif olunca | hesap kimliği |
-| `AccountStatusChanged` | **Yalnız yönetici** durum değiştirince | yeni durum |
+| `AccountStatusChanged` | Yönetici durum değiştirince; silme onayında (`DELETION_REQUESTED`) ve başarılı silme vazgeçmede (`ACTIVE`) | yeni durum |
 | `AccountEmailChanged` | E-posta değişince | hesap kimliği |
 | `ExternalIdentityLinked` / `Unlinked` | Steam/Google bağlanınca/kaldırılınca | `provider` (+ SteamID64 herkese açık kimliktir) |
 

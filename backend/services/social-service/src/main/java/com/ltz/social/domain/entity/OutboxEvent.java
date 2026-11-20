@@ -98,10 +98,19 @@ public class OutboxEvent {
      * aksi halde üstel geri çekilmeyle ({@code baseBackoff * 2^(attempts-1)}, {@code maxBackoff} ile sınırlı) yeniden denenir.
      */
     public void markAttemptFailed(Instant now, int maxAttempts, Duration baseBackoff, Duration maxBackoff) {
+        markAttemptFailed(now, maxAttempts, baseBackoff, maxBackoff, null);
+    }
+
+    /**
+     * failedRetryInterval verilirse FAILED olay terk edilmez: o sure sonra yavas kurtarma katmaninda yeniden
+     * denenir (olay kimligi sabit, tuketici tekillestirir). null ise eski davranis: el ile mudahale.
+     */
+    public void markAttemptFailed(Instant now, int maxAttempts, Duration baseBackoff, Duration maxBackoff,
+                                  Duration failedRetryInterval) {
         attempts++;
         if (attempts >= maxAttempts) {
             status = OutboxStatus.FAILED;
-            nextAttemptAt = null;
+            nextAttemptAt = failedRetryInterval == null ? null : now.plus(failedRetryInterval);
             return;
         }
         long multiplier = 1L << Math.min(attempts - 1, 20);

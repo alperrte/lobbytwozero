@@ -1,7 +1,8 @@
 # Event Service — hesap silme entegrasyonu (Auth bağımlılığı)
 
-> Durum: **EKSİK — Event Service tarafında uç yok. Bu iş EVT-01 kapsamına eklenmedi; EVT-01'den bağımsız, açık bağımlılıktır.**
-> Son güncelleme: 2026-11-09 · Sorumlu: Nisa
+> Durum (2026-11-18): **Event tarafında uç YAZILDI** (`DELETE /internal/v1/accounts/{accountId}`, migration V117, servis token doğrulaması, KD-3 silme sırası; slice testleri geçti: `EventEndpointSecurityTest`). **Kalan:** gerçek PostgreSQL'de doğrulama ve Auth ile uçtan uca. **Kerem/Auth için:** Auth'un hedef kaydında `event-service` audience'ı ve `account:erase` kapsamı tanımlı olmalı; Event bu çifti `aud=event-service`, `sub=svc:auth-service` olarak bekler. Aşağıdaki §1 "Evet engelliyor" bölümü yazıldığı günün (2026-11-09) tarihî durumudur; ayrıntı için `docs/api.md` → EVENT → "Hesap Silme Hedefi".
+> Önceki durum (2026-11-09): EKSİK — uç yoktu.
+> Son güncelleme: 2026-11-18 · Sorumlu: Nisa
 
 ## 1. Auth akışını gerçekten engelliyor mu? — **Evet**
 

@@ -2808,7 +2808,7 @@
       "description": "The consents here are optional, off by default, and you can withdraw them at any time. Not giving consent does not affect how you use your account.",
       "recommendation": {
         "label": "Personalised game recommendations",
-        "hint": "You allow your favourite and completed games to be processed to produce recommendations for you. This is independent of who can see your library.",
+        "hint": "You allow your favourite and completed games to be processed to produce recommendations for you. While on, your visible profile can also be suggested to other players in similar-player recommendations. This is independent of who can see your library; you can turn it off at any time.",
         "on": "On",
         "off": "Off",
         "since": "since {date}"

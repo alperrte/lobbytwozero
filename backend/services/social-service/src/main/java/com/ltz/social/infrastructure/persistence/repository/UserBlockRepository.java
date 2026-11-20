@@ -51,6 +51,13 @@ public interface UserBlockRepository extends JpaRepository<UserBlock, UserBlockI
     @Query("delete from UserBlock b where b.id.blockerId = :accountId or b.id.blockedId = :accountId")
     int deleteAllOf(@Param("accountId") UUID accountId);
 
+    /** Projeksiyon aktarımı: tüm engeller, (blocker, blocked) anahtar sırasıyla ve verilen anahtardan sonra. */
+    @Query("""
+            select b from UserBlock b
+            where b.id.blockerId > :blocker or (b.id.blockerId = :blocker and b.id.blockedId > :blocked)
+            order by b.id.blockerId, b.id.blockedId""")
+    List<UserBlock> findBatchAfter(@Param("blocker") UUID blocker, @Param("blocked") UUID blocked, Limit limit);
+
     /** Atomik silme: eşzamanlı iki kaldırma isteğinden yalnız biri 1 döner. */
     @Modifying
     @Query("delete from UserBlock b where b.id = :id")

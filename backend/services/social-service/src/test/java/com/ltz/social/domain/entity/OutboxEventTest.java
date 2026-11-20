@@ -90,6 +90,19 @@ class OutboxEventTest {
     }
 
     @Test
+    void failedKurtarmaAraligiVerilirseYenidenPlanlanir() {
+        OutboxEvent event = pending();
+        Duration recovery = Duration.ofMinutes(15);
+
+        for (int i = 0; i < MAX_ATTEMPTS; i++) {
+            event.markAttemptFailed(NOW, MAX_ATTEMPTS, BASE, MAX, recovery);
+        }
+
+        assertThat(event.getStatus()).isEqualTo(OutboxStatus.FAILED);
+        assertThat(event.getNextAttemptAt()).isEqualTo(NOW.plus(recovery));
+    }
+
+    @Test
     void olayKaynagiOlayTurundenTurer_arkadaslikKimligiSiradanBagimsiz() {
         UUID first = UUID.randomUUID();
         UUID second = UUID.randomUUID();

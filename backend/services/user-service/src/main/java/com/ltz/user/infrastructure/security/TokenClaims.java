@@ -25,6 +25,10 @@ public final class TokenClaims {
     /** Gizlilik kararını yalnız bu servisler isteyebilir (SOC-12, HW-08, LIB-11). */
     public static final Set<String> PRIVACY_READ_SUBJECTS =
             Set.of("svc:social-service", "svc:hardware-service", "svc:library-service");
+    /** Hesap kullanılabilirliği toplu sorgusu (POST /internal/v1/users/status) için servis token'ı kapsamı. */
+    public static final String STATUS_READ_SCOPE = "users:status:read";
+    /** Kullanılabilirlik sorgusunu yalnız bu servisler yapabilir (kimlik doğrulama sorgusu değil, varlık sızdırır). */
+    public static final Set<String> STATUS_READ_SUBJECTS = Set.of("svc:messaging-service", "svc:social-service");
     /** Hesap silmeyi yalnız Auth başlatır: silme token'ının {@code sub} değeri tam bu olmalıdır. */
     public static final String AUTH_SERVICE_SUBJECT = "svc:auth-service";
     /** Silme/olay token'ının bağlı olduğu hesap. */

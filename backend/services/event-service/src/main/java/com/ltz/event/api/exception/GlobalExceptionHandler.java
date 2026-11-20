@@ -27,6 +27,8 @@ import com.ltz.event.domain.exception.GameCatalogUnavailableException;
 import com.ltz.event.domain.exception.GameNotAvailableException;
 import com.ltz.event.domain.exception.GameSearchTooBroadException;
 import com.ltz.event.domain.exception.InvalidEventScheduleException;
+import com.ltz.event.domain.exception.ParticipationConflictException;
+import com.ltz.event.domain.exception.ParticipationNotFoundException;
 
 /** Tüm hatalar ProblemDetail (RFC 9457) döner; stack trace, SQL veya kullanıcı girdisi yanıta yazılmaz. */
 @RestControllerAdvice
@@ -58,6 +60,19 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
 	@ExceptionHandler(EventNotFoundException.class)
 	public ProblemDetail handleEventNotFound(EventNotFoundException exception) {
+		return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+	}
+
+	@ExceptionHandler(ParticipationConflictException.class)
+	public ProblemDetail handleParticipationConflict(ParticipationConflictException exception) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
+		problem.setTitle("Participation Conflict");
+		problem.setProperty("reason", exception.getReason().name());
+		return problem;
+	}
+
+	@ExceptionHandler(ParticipationNotFoundException.class)
+	public ProblemDetail handleParticipationNotFound(ParticipationNotFoundException exception) {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
 	}
 

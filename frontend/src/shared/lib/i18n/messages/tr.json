@@ -2808,7 +2808,7 @@
       "description": "Burada vereceğin rızalar isteğe bağlıdır, varsayılan olarak kapalıdır ve istediğin an geri alabilirsin. Rızayı vermemen hesabını kullanmanı etkilemez.",
       "recommendation": {
         "label": "Kişiselleştirilmiş oyun önerileri",
-        "hint": "Favori ve bitirdiğin oyunların, sana özel oyun önerileri üretmek için işlenmesine izin verirsin. Bu, kütüphaneni kimlerin görebildiğinden bağımsızdır.",
+        "hint": "Favori ve bitirdiğin oyunların, sana özel oyun önerileri üretmek için işlenmesine izin verirsin. Açıkken, görünür profilin benzer oyuncu önerilerinde başka oyunculara da önerilebilir. Bu, kütüphaneni kimlerin görebildiğinden bağımsızdır; istediğin zaman kapatabilirsin.",
         "on": "Açık",
         "off": "Kapalı",
         "since": "{date} tarihinden beri"

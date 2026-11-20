@@ -19,27 +19,35 @@ import java.util.UUID;
  * Bilinmeyen alanlar Jackson ayarıyla reddedilir; şekil karışımı (v1'de örnek, v2'de sayı vb.) {@link #requireShape()} ile 400 verir.
  */
 public record SyncBatchRequest(
-        @NotNull @Min(SyncBatchRequest.SCHEMA_V1) @Max(SyncBatchRequest.SCHEMA_V2) Integer schemaVersion,
+        @NotNull @Min(SyncBatchRequest.SCHEMA_V1) @Max(SyncBatchRequest.SCHEMA_V3) Integer schemaVersion,
         @NotNull Instant clientSentAt,
         @Min(0) @Max(SyncBatchRequest.MAX_SAMPLES) Integer sampleCount,
         UUID sessionId,
-        @Size(max = SyncBatchRequest.MAX_SAMPLES) List<@NotNull @Valid SampleItemRequest> samples) {
+        @Size(max = SyncBatchRequest.MAX_SAMPLES) List<@NotNull @Valid SampleItemRequest> samples,
+        @Valid MeasurementContextRequest measurementContext) {
     public static final int SCHEMA_V1 = 1;
     public static final int SCHEMA_V2 = 2;
+    public static final int SCHEMA_V3 = 3;
     public static final int MAX_SAMPLES = 500;
+
+    public SyncBatchRequest(Integer schemaVersion, Instant clientSentAt, Integer sampleCount, UUID sessionId,
+            List<SampleItemRequest> samples) { this(schemaVersion, clientSentAt, sampleCount, sessionId, samples, null); }
 
     public boolean isV2() { return schemaVersion != null && schemaVersion == SCHEMA_V2; }
 
+    public boolean hasSamples() { return schemaVersion != null && (schemaVersion == SCHEMA_V2 || schemaVersion == SCHEMA_V3); }
+
     /** Şema ile alanların uyumunu denetler; uyumsuzluk {@link IllegalArgumentException} (→ 400 INVALID_REQUEST). */
     public void requireShape() {
-        boolean valid = isV2()
+        boolean valid = hasSamples()
                 ? sessionId != null && samples != null && sampleCount == null
                 : sampleCount != null && sessionId == null && samples == null;
+        valid = valid && (schemaVersion != null && schemaVersion == SCHEMA_V3 ? measurementContext != null : measurementContext == null);
         if (!valid) throw new IllegalArgumentException("Şema ile alanlar uyumsuz.");
     }
 
     /** Kabul edilen örnek sayısı: v1'de bildirilen, v2'de gönderilen örneklerin sayısı. */
-    public int effectiveSampleCount() { return isV2() ? samples.size() : sampleCount; }
+    public int effectiveSampleCount() { return hasSamples() ? samples.size() : sampleCount; }
 
     /** v1 içerik özeti: Faz 1 ile birebir aynıdır; mevcut makbuzlar ve tekrar gönderimler bozulmaz. */
     public String canonicalV1() {

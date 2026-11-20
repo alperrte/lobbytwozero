@@ -578,14 +578,37 @@ onaylı DEFERRED_AUTH / DEFERRED_CONTRACT / NOT_VERIFIED; production policy deny
 
 ### 3.14 recommendation_db — recommendation-service (Alper)
 
+**TASK 1'de uygulanan: V11 `recommendation_observations` (2026-11-14).**
+`id uuid` PK (sunucunun runId'si), `algorithm_version varchar(32)`, `occurred_at timestamptz`,
+`outcome varchar(16)` (`GENERATED|EMPTY|UNAVAILABLE` CHECK), `candidate_count`, `result_count`,
+`total_score integer`, `version bigint`. CHECK'ler 0–500 aday, 0–50 sonuç, sonuç≤aday ve skor
+sınırını/sonuç durumunu korur. `occurred_at` indekslidir; PK tekrar teslimi tekilleştirir.
+Kullanıcı/hedef REF, ham sinyal veya kişisel geçmiş yoktur. JPA validate ve Flyway temiz kurulum
+gerçek disposable PostgreSQL 17'de test edilir; mevcut migration değiştirilmedi.
+En çok 30 günlük özet; dakikada 1000 satırlık expired temizliği. Canlı migration/deploy yapılmadı.
+[Ölçüm ve saklama sözleşmesi](../docs-recommendation/decisions/task-01-decisions.md).
+
+**TASK 2'de uygulanan: V12 kişisel geçmiş (2026-11-14).** `recommendation_runs` user_id REF
+ile owner kapsamlıdır; created_at/expires_at UTC, genre/platform filtreleri, algoritma sürümü
+ve sonuç limiti saklanır. Owner+tarih+UUID ve expires_at indeksleri vardır. Item→run ve
+feedback→item gerçek FK/CASCADE'dir; game_id yalnız REF'tir. Feedback item_id UNIQUE,
+LIKE/NOT_INTERESTED CHECK ve elle yönetilen version≥1 taşır. Hesap advisory lock'u
+mutasyonları seri hale getirir; quota hatasında run ve V11 analitiği birlikte rollback olur.
+30 gün, hesap başına 500 run, run başına 50 item; expired temizliği dakikada 1000 run'dır.
+D4 silme kişisel üç tabloyu cascade temizler; rıza geri çekildiği fark edilince de geçmiş silinir.
+Yeni üç tablo JdbcTemplate ile, mevcut gözlem entity'si JPA ile aynı transaction'a katılır;
+testler gerçek PostgreSQL constraint/FK'larını ve Hibernate validate'ı ayrı doğrular.
+
+**Aşağıdaki tabloda V12 ile işaretlenenler MEVCUT, kalanlar ÖNERİ'dir:**
+
 | Tablo | Önemli sütunlar | Kısıtlar / not |
 | --- | --- | --- |
 | `user_taste_profiles` | user_id PK, genre_weights jsonb, platform_weights jsonb, updated_at | Favori/puan/tamamlanan oyunlardan türetilir (REC-02..05) |
 | `user_hardware_snapshots` | user_id + profile_id PK, cpu_score, gpu_score, ram_mb, vram_mb, refreshed_at | hardware event'lerinden |
 | `game_requirement_snapshots` | game_id PK, min_cpu_score, min_gpu_score, min_ram_mb, rec_cpu_score, rec_gpu_score, rec_ram_mb, refreshed_at | game-service'ten |
-| `recommendation_runs` | id, user_id REF, type (GAME, HARDWARE_UPGRADE, PLAYER, FRIEND, EVENT, GRAPHICS_SETTINGS), algorithm (RULE_BASED, PYTHON_V1, ...), algorithm_version, filters jsonb, created_at | REC-18 geçmiş |
-| `recommendation_items` | id, run_id FK, target_type, target_id REF, score numeric, rank, reasons jsonb, estimated_fps numeric nullable, compatibility (BELOW_MIN, MIN, RECOMMENDED, ABOVE) | REC-17 neden; REC-09 tahmin |
-| `recommendation_feedback` | id, item_id FK, user_id REF, feedback (LIKE, DISLIKE, NOT_INTERESTED, ALREADY_OWN), created_at | UQ (item_id, user_id) |
+| `recommendation_runs` | id, user_id REF, algorithm_version, genre, platform, result_limit, created_at, expires_at, version | V12 MEVCUT; owner cursor geçmişi; type/algorithm/jsonb filters henüz yok |
+| `recommendation_items` | id, run_id FK, game_id REF, score integer, rank, matched_genres varchar(64)[], version | V12 MEVCUT; UQ(run_id,rank), UQ(run_id,game_id); FPS/compatibility henüz yok |
+| `recommendation_feedback` | id, item_id FK UNIQUE, feedback (LIKE, NOT_INTERESTED), updated_at, version | V12 MEVCUT; ownership run üzerinden; son durum, gösterim/tıklama olayı değildir |
 | `assistant_rules` | id, topic (GAME, HARDWARE, LTZ_USAGE), rule_key, conditions jsonb, response_template_key, active, version | REC-22: Python algoritmaları + tanımlı şablonlar, **LLM yok** |
 | `recommendation_metrics_daily` | date, type, impressions, clicks, positive_feedback, negative_feedback | REC-23; PK (date, type) |
 | `inbox_events` | §2.4 | |
@@ -599,6 +622,7 @@ onaylı DEFERRED_AUTH / DEFERRED_CONTRACT / NOT_VERIFIED; production policy deny
 | `performance_sessions` | id, user_id REF, device_link_id FK nullable (device_links.id, **ON DELETE RESTRICT**), game_id REF Game, game_title (gösterim kopyası), hardware_profile_id REF Hardware (nullable), source (Faz 2'de yalnız `MANUAL`; CHECK), status (ACTIVE, COMPLETED, ABANDONED), started_at, ended_at, **sample_count** (V23; `integer`, CHECK 0..100000; örnek satır sayısı sayacı), version, created_at, updated_at | **V22** · PERF-03/04/20; CHECK status ↔ ended_at (`ACTIVE` ⇒ NULL; diğerleri ⇒ NOT NULL ve ≥ started_at); **UQ kısmi `uq_performance_sessions_active_user` (user_id) WHERE status='ACTIVE'** (kullanıcı başına tek aktif oturum); ix (user_id, started_at DESC), ix (started_at) WHERE ACTIVE; zamanlar yalnız sunucu saatinden; game_id/hardware_profile_id/user_id için FK yok (servis sözleşmesiyle doğrulanır); hesap başına en çok 1000 oturum (uygulama kuralı) |
 | `performance_samples` | id, session_id FK (performance_sessions.id, **ON DELETE CASCADE**), user_id REF, device_link_id FK (device_links.id, **ON DELETE RESTRICT**), batch_id (sync_batches.id; düz uuid, FK yok), metric (CPU_TEMP_C, GPU_TEMP_C, CPU_USAGE_PERCENT, GPU_USAGE_PERCENT, RAM_USED_MB, VRAM_USED_MB, DISK_READ_MBPS, DISK_WRITE_MBPS, FAN_RPM, FPS; CHECK), value `double precision`, captured_at, received_at, source (yalnız `DEVICE`; CHECK) | **V23** · PERF-05..12; **UQ `uq_performance_samples_point` (session_id, metric, captured_at)** (ON CONFLICT DO NOTHING ile yinelenen okuma çoğalmaz; aynı zamanda okuma indeksi); metrik başına değer CHECK'i (sıcaklık/FPS `> 0`; kullanım 0..100; bellek/disk/fan `≥ 0` ve üst sınır); `captured_at ≤ received_at + 5 dk`; ix (device_link_id); birim kolonu yoktur (her metriğin birimi sabittir, uygulamada); **append-only** (`version` yok) |
 | `performance_reports` | id, session_id FK **UQ** (performance_sessions.id, **ON DELETE CASCADE**), user_id REF, resolution, graphics_preset (LOW, MEDIUM, HIGH, ULTRA, CUSTOM), avg_fps, p1_low_fps, max_cpu_temp_c, max_gpu_temp_c, avg_cpu_usage_percent, avg_gpu_usage_percent (hepsi nullable `double precision`), notes (≤ 500), source (yalnız `MANUAL`), version, created_at, updated_at | **V22** · PERF-13/20; oturum başına tek rapor; CHECK: çözünürlük `^[0-9]{3,5}x[0-9]{3,5}$`, FPS (0, 1000], `p1_low_fps ≤ avg_fps`, sıcaklık 0..150, kullanım 0..100, **en az bir ölçüm dolu** (ölçülmemiş değer uydurulmaz, otomatik doldurma yok); ix (user_id) |
+| `performance_sessions` (V24 eki) | **measurement_context_id** (= id; UQ), **hardware_profile_version** (bigint ≥ 0), **measurement_resolution**, **measurement_graphics_preset** (LOW\|MEDIUM\|HIGH\|ULTRA), **measurement_rendering_mode** (`NATIVE_RASTER`) — hepsi birlikte NULL veya birlikte dolu (CHECK); dolu ise hardware_profile_id ve device_link_id zorunlu | **V24** · REC-09; `performance_samples.measurement_context_id` → performance_sessions.measurement_context_id FK (ON DELETE CASCADE); `sync_batches.schema_version` 1\|2\|3 (`ck_sync_batches_session`); indeksler `ix_performance_sessions_evidence`, `ix_performance_samples_context_fps`; eski satırlar backfill edilmez |
 | `sync_batches` | id, device_link_id FK, user_id REF, idempotency_key uuid, request_hash (SHA-256 hex), schema_version (1\|2), sample_count, client_sent_at, received_at, expires_at, **session_id REF, stored_count, duplicate_count** (V23) | **V21** · PERF-17/18; **UQ (device_link_id, idempotency_key)**; ON DELETE CASCADE; v1 yalnız zarf; V23: `ck_sync_batches_session` (v1 ⇒ session_id NULL, v2 ⇒ NOT NULL), `ck_sync_batches_sample_result` (stored + duplicate ≤ sample_count) |
 | `performance_write_limits` | bucket_key, window_start, hits | **V21** · PK (bucket_key, window_start); yazma hız sınırı sayaçları |
 | `performance_account_erasure_fences` | account_hash PK (SHA-256 hex), expires_at | **V21** · PERF-22; Auth D4 silme sonrası yazma çiti (düz hesap kimliği tutulmaz) |
