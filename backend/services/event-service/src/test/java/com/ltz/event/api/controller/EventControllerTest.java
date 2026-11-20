@@ -16,7 +16,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -38,7 +40,11 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import com.ltz.event.api.dto.request.CreateEventRequest;
 import com.ltz.event.api.dto.response.EventResponse;
+import com.ltz.event.api.dto.response.ParticipationResponse;
 import com.ltz.event.application.service.EventService;
+import com.ltz.event.domain.enums.ParticipationStatus;
+import com.ltz.event.domain.exception.ParticipationConflictException;
+import com.ltz.event.domain.exception.ParticipationNotFoundException;
 import com.ltz.event.domain.enums.EventStatus;
 import com.ltz.event.domain.enums.EventType;
 import com.ltz.event.domain.exception.EventCreationForbiddenException;
@@ -77,7 +83,7 @@ class EventControllerTest {
 		return new EventResponse(EVENT_ID, USER_ID, EventType.GAME_NIGHT, GAME_ID,
 				List.of(EventPlatform.PC, EventPlatform.XBOX), "Cuma Oyun Gecesi", "Birlikte oynuyoruz.",
 				Instant.parse("2099-12-05T18:00:00Z"), Instant.parse("2099-12-05T21:00:00Z"), EventStatus.PLANNED, at,
-				at);
+				at, null, 0, null, null, false);
 	}
 
 	private ResultActions create(String role, String json) throws Exception {
@@ -291,7 +297,7 @@ class EventControllerTest {
 		return new EventPageResponse(
 				List.of(new EventSummaryResponse(EVENT_ID, USER_ID, EventType.POLL, GAME_ID,
 						List.of(EventPlatform.PLAYSTATION), "Hangi oyun?", at,
-						at.plusSeconds(3600), EventStatus.PLANNED)),
+						at.plusSeconds(3600), EventStatus.PLANNED, 10, 3, 7, null, true)),
 				0, 20, 1, 1, false);
 	}
 
@@ -627,5 +633,76 @@ class EventControllerTest {
 					.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
 		}
 		verifyNoInteractions(eventService);
+	}
+
+	private static ParticipationResponse participation(ParticipationStatus status) {
+		Instant at = Instant.parse("2026-11-09T10:00:00Z");
+		return new ParticipationResponse(UUID.fromString("0198a3c2-aaaa-7d44-9a55-3f1c2b4d5e66"), EVENT_ID, status, at,
+				status == ParticipationStatus.ACTIVE ? null : at);
+	}
+
+	@Test
+	void joiningAnEventReturns201WithTheParticipation() throws Exception {
+		when(eventService.joinEvent(EVENT_ID)).thenReturn(participation(ParticipationStatus.ACTIVE));
+
+		mockMvc.perform(post(URL + "/" + EVENT_ID + "/participations").with(as("PLAYER")))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.status").value("ACTIVE"))
+				.andExpect(jsonPath("$.eventId").value(EVENT_ID.toString()));
+	}
+
+	@Test
+	void joinConflictsAreMappedTo409WithAStableReason() throws Exception {
+		when(eventService.joinEvent(EVENT_ID)).thenThrow(new ParticipationConflictException(ParticipationConflictException.Reason.EVENT_FULL));
+
+		mockMvc.perform(post(URL + "/" + EVENT_ID + "/participations").with(as("PLAYER")))
+				.andExpect(status().isConflict())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+				.andExpect(jsonPath("$.reason").value("EVENT_FULL"));
+	}
+
+	@Test
+	void joiningAnUnknownEventIsMappedTo404() throws Exception {
+		when(eventService.joinEvent(EVENT_ID)).thenThrow(new EventNotFoundException());
+
+		mockMvc.perform(post(URL + "/" + EVENT_ID + "/participations").with(as("PLAYER")))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void joiningRequiresAuthentication() throws Exception {
+		mockMvc.perform(post(URL + "/" + EVENT_ID + "/participations")).andExpect(status().isUnauthorized());
+		verifyNoInteractions(eventService);
+	}
+
+	@Test
+	void cancellingTheOwnParticipationReturns200() throws Exception {
+		when(eventService.cancelParticipation(EVENT_ID)).thenReturn(participation(ParticipationStatus.CANCELLED_BY_USER));
+
+		mockMvc.perform(delete(URL + "/" + EVENT_ID + "/participations/me").with(as("PLAYER")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value("CANCELLED_BY_USER"));
+	}
+
+	@Test
+	void cancellingWithoutAParticipationIsMappedTo404() throws Exception {
+		when(eventService.cancelParticipation(EVENT_ID)).thenThrow(new ParticipationNotFoundException());
+
+		mockMvc.perform(delete(URL + "/" + EVENT_ID + "/participations/me").with(as("PLAYER")))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void viewerSpecificResponsesAreNotCacheableByASharedCache() throws Exception {
+		when(eventService.getEvent(EVENT_ID)).thenReturn(created());
+		when(eventService.listEvents(any(EventListRequest.class))).thenReturn(onePage());
+
+		mockMvc.perform(get(URL + "/" + EVENT_ID).with(as("PLAYER")))
+				.andExpect(header().string("Cache-Control", "private"));
+		mockMvc.perform(get(URL).with(as("PLAYER")))
+				.andExpect(header().string("Cache-Control", "private"))
+				.andExpect(jsonPath("$.items[0].capacity").value(10))
+				.andExpect(jsonPath("$.items[0].remainingCapacity").value(7))
+				.andExpect(jsonPath("$.items[0].joinable").value(true));
 	}
 }

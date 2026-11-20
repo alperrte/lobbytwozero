@@ -129,10 +129,26 @@ class OutboxRelayTest extends IntegrationTestSupport {
         assertThat(status(requestId)).isEqualTo("FAILED");
         assertThat(attempts(requestId)).isEqualTo(3);
         int calls = publisher.calls();
-        jdbc.update("update outbox_events set next_attempt_at = now() - interval '1 minute' where aggregate_id = ?",
-                requestId);
+        // Kurtarma zamani gelmeden FAILED olay alinmaz.
         relay.deliverDue();
         assertThat(publisher.calls()).isEqualTo(calls);
+    }
+
+    @Test
+    void failedOlayKurtarmaZamaniGelinceYenidenDenenirVeBasariylaSENTOlur() throws Exception {
+        UUID requestId = sendRequestAndGetId(newUser(), newUser());
+        publisher.failing(true);
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            makeDue(requestId);
+            relay.deliverDue();
+        }
+        assertThat(status(requestId)).isEqualTo("FAILED");
+
+        publisher.failing(false);
+        jdbc.update("update outbox_events set next_attempt_at = now() - interval '1 minute' where aggregate_id = ?",
+                requestId);
+        assertThat(relay.deliverDue()).isEqualTo(1);
+        assertThat(status(requestId)).isEqualTo("SENT");
     }
 
     @Test

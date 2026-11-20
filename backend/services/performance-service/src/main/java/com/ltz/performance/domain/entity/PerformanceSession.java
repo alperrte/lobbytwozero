@@ -34,6 +34,11 @@ public class PerformanceSession {
     @Column(name = "game_id", nullable = false, updatable = false) private UUID gameId;
     @Column(name = "game_title", nullable = false, updatable = false, length = TITLE_MAX) private String gameTitle;
     @Column(name = "hardware_profile_id", updatable = false) private UUID hardwareProfileId;
+    @Column(name = "measurement_context_id", updatable = false) private UUID measurementContextId;
+    @Column(name = "hardware_profile_version", updatable = false) private Long hardwareProfileVersion;
+    @Column(name = "measurement_resolution", updatable = false, length = 11) private String measurementResolution;
+    @Column(name = "measurement_graphics_preset", updatable = false, length = 8) private String measurementGraphicsPreset;
+    @Column(name = "measurement_rendering_mode", updatable = false, length = 16) private String measurementRenderingMode;
     @Enumerated(EnumType.STRING) @Column(nullable = false, updatable = false, length = 16) private MeasurementSource source;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 16) private SessionStatus status;
     @Column(name = "started_at", nullable = false, updatable = false) private Instant startedAt;
@@ -87,6 +92,23 @@ public class PerformanceSession {
     }
 
     public boolean isActive() { return status == SessionStatus.ACTIVE; }
+
+    /** Yalnız yeni oturum kurulurken; API'de bağlam değiştirme işlemi yoktur. */
+    public void bindMeasurementContext(MeasurementContext context) {
+        if (measurementContextId != null || hardwareProfileId == null || deviceLinkId == null || version != null) {
+            throw new IllegalArgumentException("Measurement context requires a new bound session");
+        }
+        measurementContextId = id;
+        hardwareProfileVersion = context.hardwareProfileVersion();
+        measurementResolution = context.resolution();
+        measurementGraphicsPreset = context.graphicsPreset();
+        measurementRenderingMode = context.renderingMode();
+    }
+
+    public MeasurementContext getMeasurementContext() {
+        return measurementContextId == null ? null : new MeasurementContext(hardwareProfileVersion,
+                measurementResolution, measurementGraphicsPreset, measurementRenderingMode);
+    }
 
     public boolean isCompleted() { return status == SessionStatus.COMPLETED; }
 

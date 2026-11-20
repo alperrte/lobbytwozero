@@ -389,8 +389,60 @@ stateDiagram-v2
 
 ## 10. Recommendation ve Python algoritmaları `[KARAR BEKLİYOR]`
 
+**TASK 5 / 2026-11-15 — REC-22 çalışma modeli kabul edildi:** Kullanıcı onaylı
+[ADR 0003](decisions/0003-recommendation-python-yardimcisi.md) ile aynı servis içinde sabit
+CPython script'i çalışır. Yeni assistant endpoint'i kapalı GAME/HARDWARE/LTZ_USAGE intent'leri,
+tr/en ve sürümlü şablonlarla rehberlik verir; LLM/sidecar/pip yoktur. Kullanıcı girdisi yalnız
+sınırlı stdin JSON; token/kimlik/ham profil Python'a geçmez. Mevcut owner/rıza/ACTIVE/kota,
+2 process/2 sn ve çıktı sınırları uygulanır. GAME gerçek aday listesi değildir, HARDWARE
+mevcut assessment durumlarını açıklar; otomatik aksiyon/snapshot/history yazımı yoktur.
+Docker'da minimal Python + standart kütüphane ve non-root çalışma doğrulandı. Önceki diğer
+algoritma/entegrasyon açıkları sürer; final native pre-push/Sonar engelleri nedeniyle
+[merge kararı NOT READY](../docs-recommendation/testings/pre-merge-quality.md).
+Başlıktaki karar bekleyen kapsam genel gelişmiş algoritma seçenekleridir; REC-22 modeli
+artık beklemede değildir. Aşağıdaki TASK 1–4 paragrafları tarihsel checkpoint'lerdir.
+
+**TASK 4 güncel durum / 2026-11-15 — BLOCKED (0/3):** User kart batch'i izinli oyun
+tercihi/aday keşfi değildir; mevcut rızanın amacı sosyal aday olmaya genişletilmez. Social
+iki yönlü engel sorgusu yalnız Messaging/LFP caller'larına açıktır; Recommendation Auth grant'ı
+yoktur. Event yalnız launcher'dır. Bu sözleşmeler olmadan sosyal/etkinlik öneri controller'ı,
+ranker veya yapay veri kaynağı eklenmedi. Mevcut denyAll korunur; üç negatif erişim testi
+eklenir. Owner talepleri ve [karar](../docs-recommendation/decisions/task-04-decisions.md)
+kaydedildi; production güven modeli/ENV/DB/migration değişmedi. TASK 5 başlatılmadı.
+
+**TASK 3 güncel durum / 2026-11-15:** Owner tek profil/tek oyun teknik assessment ucu eklendi.
+Hardware batch kullanıcı token'ıyla, Game tek oyun metadata'sı ve Performance account-bound
+reference:read mevcut sözleşmeleriyle okunur; producer kodu değişmedi. Minimum/recommended
+CPU/GPU tam model eşleşmesi ve muhafazakâr RAM/depolama sınırları ayrı değerlendirilir.
+Boş disk/OS/VRAM/BİOS/GPU slot kanıtı olmadan tam uygunluk garantisi verilmez. Socket/DDR
+uyuşmazlığı ve kanıtlı RAM/depolama açığı açıklanır; koşullu LOW yönlendirmesi FPS vaadi değildir.
+Performance aggregate'i bağlamsız olduğundan INSUFFICIENT_DATA; katalog listesi Game batch
+sözleşmesine bağlıdır. Statelesstir, yeni snapshot/tablo/migration/ENV yoktur; rıza temizliği paylaşılır.
+[Karar ve sınırlar](../docs-recommendation/decisions/task-03-decisions.md).
+
+**TASK 2 güncel durum / 2026-11-14:** Recommendation kendi Auth JWKS doğrulamasını,
+cookie→Bearer sınırını, kanonik rol ve D4 silme sözleşmesini uygular. User rızası ve kendi
+profil türleri, Auth'tan hesaba bağlı Library grant'ı, Library favorite/completed dışlaması,
+Game tür/platform filtreli discovery gerçek HTTP adaptörleriyle tüketilir. Auth grant endpoint'i
+hesabın ACTIVE durumunu denetler; kullanıcı oturum iptali için yeni introspection modeli yoktur
+(60 sn token ömrü + 30 sn saat toleransı). V12 owner geçmişi/feedback'i saklar; cursor, quota,
+idempotency, retention ve D4 cascade vardır. Yeni bağımlılık veya imzalama anahtarı eklenmedi.
+Mevcut Recommendation istemci sırrının Compose aktarımı kullanıcı tarafından açık onaylandı.
+REC-02/03/05 metadata/kişisel puan batch sözleşmesi eksikliği nedeniyle BLOCKED; yanıt PARTIAL
+ve açık limitations taşır. Sistem uygunluğu filtresi henüz uygulanmadı. Gerçek Auth issuer/JWKS
+testli; User/Game/Library canlı servis E2E'si NOT VERIFIED.
+[TASK 2 checkpoint](../docs-recommendation/progress/task-02.md).
+
+**TASK 1 / 2026-11-14:** Java `RuleBasedRecommendationEngine`, sürümlü
+`RecommendationAlgorithm` portu ve `RecommendationExecutionService` uygulandı.
+`rules-v1` deterministik skor, UUID eşitlik sırası, katkı gerekçeleri ve boş sinyal davranışı taşır.
+PostgreSQL V11 yalnız kullanıcı/hedef içermeyen motor çalışma gözlemlerini tekilleştirir;
+30 günlük özet/saklama ve sınırlı temizleme vardır. Gösterim/tıklama/feedback veya model doğruluğu
+üretilmiş sayılmaz. İş HTTP ucu ve Recommendation'ın gerçek Auth/downstream adaptörleri henüz yoktur.
+Python runtime kararı değişmedi. [Sözleşme](../docs-recommendation/decisions/task-01-decisions.md).
+
 - REC-20 kural tabanlı motor Java içinde başlar. REC-21/22 Python algoritmaları gerektirir; **ayrı bir AI mikroservisi açılmaz** ve **yerel LLM çalıştırılmaz**.
-- Seçenekler: (a) recommendation-service container'ına Python çalışma zamanı + süreç çağrısı, (b) aynı servis sınırında yardımcı (sidecar) süreç. Karar ADR ile verilir; API sözleşmesi değişmez.
+- REC-22 için (a) recommendation-service container'ına Python çalışma zamanı + süreç çağrısı seçildi (ADR 0003); sidecar açılmadı. Mevcut ranking API sözleşmeleri korunur; yardımcının yeni endpoint'i docs/api.md'de kayıtlıdır.
 - Öneri çıktısı her zaman **neden** bilgisi (REC-17) taşır ve kullanıcı adına otomatik işlem yapmaz.
 
 ## 11. Güvenlik sınırları (özet)

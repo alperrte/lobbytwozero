@@ -24,6 +24,7 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 import com.ltz.user.api.controller.InternalApiPaths;
+import com.ltz.user.api.controller.RecommendationCandidateController;
 import com.ltz.user.api.controller.UserApiPaths;
 import com.ltz.user.infrastructure.security.RequestBodySizeLimitFilter;
 import com.ltz.user.infrastructure.security.TokenClaims;
@@ -95,6 +96,8 @@ public class SecurityConfig {
                                 .hasAuthority(SCOPE_PREFIX + TokenClaims.EVENTS_INGEST_SCOPE)
                         .requestMatchers(PATHS.matcher(HttpMethod.POST, InternalApiPaths.PRIVACY_DECISIONS))
                                 .hasAuthority(SCOPE_PREFIX + TokenClaims.PRIVACY_READ_SCOPE)
+                        .requestMatchers(PATHS.matcher(HttpMethod.GET, InternalApiPaths.RECOMMENDATION_CANDIDATES))
+                                .hasAuthority(SCOPE_PREFIX + RecommendationCandidateController.CANDIDATES_READ_SCOPE)
                         .requestMatchers(PATHS.matcher(HttpMethod.POST, InternalApiPaths.USER_STATUS))
                                 .hasAuthority(SCOPE_PREFIX + TokenClaims.STATUS_READ_SCOPE)
                         .requestMatchers(PATHS.matcher(HttpMethod.GET, InternalApiPaths.USER_LOCALE))

@@ -43,7 +43,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 import com.ltz.event.AuthTestSupport;
+import com.ltz.event.api.controller.AccountErasureController;
 import com.ltz.event.api.controller.EventController;
+import com.ltz.event.application.service.AccountErasureService;
+import com.ltz.event.infrastructure.persistence.repository.EventParticipationRepository;
 import com.ltz.event.application.mapper.EventMapper;
 import com.ltz.event.application.service.EventService;
 import com.ltz.event.domain.entity.Event;
@@ -58,9 +61,9 @@ import com.nimbusds.jwt.JWTClaimsSet;
  * zinciri ve gerçek servis/yetki katmanı (yalnız veritabanı deposu taklit edilir). docs-auth/d4-ekip-notlari/
  * 01_ORTAK_SILME_UCU_UYGULAMA_REHBERI.md §5'teki zorunlu test tablosunun event karşılığıdır.
  */
-@WebMvcTest(controllers = EventController.class)
+@WebMvcTest(controllers = { EventController.class, AccountErasureController.class })
 @Import({ SecurityConfig.class, ProblemDetailSecurityHandler.class, SecurityContextCurrentUser.class,
-		EventService.class, EventMapper.class, ClockConfig.class })
+		EventService.class, AccountErasureService.class, EventMapper.class, ClockConfig.class })
 class EventEndpointSecurityTest {
 
 	private static final UUID USER_ID = UUID.fromString("0198a3c2-7b1e-7d44-9a55-3f1c2b4d5e66");
@@ -77,6 +80,9 @@ class EventEndpointSecurityTest {
 
 	@MockitoBean
 	private EventRepository eventRepository;
+
+	@MockitoBean
+	private EventParticipationRepository participationRepository;
 
 	@MockitoBean
 	private GameCatalogPort gameCatalog;
@@ -281,9 +287,94 @@ class EventEndpointSecurityTest {
 	// ------------------------------------------------------------------ kapalı yollar
 
 	@Test
-	void internalPathsAreClosedEvenForAdmins() throws Exception {
+	void userTokensAreRejectedOnInternalPathsEvenForAdmins() throws Exception {
 		mockMvc.perform(delete("/internal/v1/accounts/" + OTHER_ID)
 				.header(HttpHeaders.AUTHORIZATION, "Bearer " + AuthTestSupport.userToken(USER_ID, "ADMIN")))
+				.andExpect(status().isUnauthorized());
+		verifyNoInteractions(participationRepository);
+	}
+
+	// ------------------------------------------------------------------ hesap silme (iç uç, KD-3)
+
+	private static final String SERVICE_AUDIENCE = "event-service";
+
+	private static JWTClaimsSet.Builder serviceClaims(UUID accountId) {
+		Instant now = Instant.now();
+		return new JWTClaimsSet.Builder()
+				.issuer(AuthTestSupport.ISSUER)
+				.audience(SERVICE_AUDIENCE)
+				.subject("svc:auth-service")
+				.jwtID(UUID.randomUUID().toString())
+				.issueTime(Date.from(now))
+				.notBeforeTime(Date.from(now))
+				.expirationTime(Date.from(now.plusSeconds(30)))
+				.claim("scope", "account:erase")
+				.claim("account_id", accountId.toString());
+	}
+
+	private static String serviceToken(JWTClaimsSet.Builder claims) {
+		return AuthTestSupport.sign(AuthTestSupport.SIGNING_KEY, AuthTestSupport.serviceType(), claims.build());
+	}
+
+	private ResultActions erase(UUID pathAccount, String token) throws Exception {
+		var request = delete("/internal/v1/accounts/" + pathAccount);
+		if (token != null) {
+			request.header(HttpHeaders.AUTHORIZATION, "Bearer " + token);
+		}
+		return mockMvc.perform(request);
+	}
+
+	@Test
+	void validServiceTokenErasesTheAccountAndAnswers204() throws Exception {
+		erase(OTHER_ID, serviceToken(serviceClaims(OTHER_ID))).andExpect(status().isNoContent());
+
+		verify(participationRepository).cancelParticipationsOfOrganizerEvents(any(UUID.class), any(Instant.class));
+		verify(participationRepository).cancelOpenEventsOfOrganizer(any(UUID.class), any(Instant.class));
+		verify(participationRepository).detachOrganizer(any(UUID.class), any(Instant.class));
+		verify(participationRepository).releaseSeatsOfUser(any(UUID.class), any(Instant.class));
+		verify(participationRepository).deleteByUser(OTHER_ID);
+	}
+
+	@Test
+	void erasureWithoutATokenIsUnauthorized() throws Exception {
+		erase(OTHER_ID, null).andExpect(status().isUnauthorized());
+		verifyNoInteractions(participationRepository);
+	}
+
+	@Test
+	void erasureWithAWrongScopeIsForbidden() throws Exception {
+		erase(OTHER_ID, serviceToken(serviceClaims(OTHER_ID).claim("scope", "events:ingest")))
+				.andExpect(status().isForbidden());
+		verifyNoInteractions(participationRepository);
+	}
+
+	@Test
+	void erasureForAnotherAccountThanTheTokenIsBoundToIsForbidden() throws Exception {
+		erase(OTHER_ID, serviceToken(serviceClaims(USER_ID))).andExpect(status().isForbidden());
+		verifyNoInteractions(participationRepository);
+	}
+
+	@Test
+	void erasureFromAnotherServiceIsForbidden() throws Exception {
+		erase(OTHER_ID, serviceToken(serviceClaims(OTHER_ID).subject("svc:game-service")))
+				.andExpect(status().isForbidden());
+		verifyNoInteractions(participationRepository);
+	}
+
+	@Test
+	void erasureWithAWrongAudienceOrTooLongLifetimeIsUnauthorized() throws Exception {
+		erase(OTHER_ID, serviceToken(serviceClaims(OTHER_ID).audience("community-service")))
+				.andExpect(status().isUnauthorized());
+		erase(OTHER_ID, serviceToken(serviceClaims(OTHER_ID)
+				.expirationTime(Date.from(Instant.now().plusSeconds(3600)))))
+				.andExpect(status().isUnauthorized());
+		verifyNoInteractions(participationRepository);
+	}
+
+	@Test
+	void unknownInternalPathsAreClosedForServiceTokensToo() throws Exception {
+		mockMvc.perform(post("/internal/events")
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + serviceToken(serviceClaims(OTHER_ID))))
 				.andExpect(status().isForbidden());
 	}
 

@@ -105,6 +105,17 @@ class ServiceClientConfigTest {
         }
     }
 
+    /** REC-13: aday keşfi hesaba bağlıdır; bağsız ya da silme kapsamıyla karışamaz. */
+    @Test
+    void adayKesfiKapsamiHesabaBagliKalir() {
+        assertAccepted("recommendation-service", targets(Map.of("user-service", Set.of("candidates:read"))));
+        assertRejected("recommendation-service", targets(Map.of("user-service", Set.of("candidates:read", "events:ingest"))),
+                "must not mix");
+        assertRejected("recommendation-service", targets(Map.of("user-service", Set.of("candidates:read", "account:erase"))),
+                "targets.user-service");
+    }
+
+
     /** GAME-26: kimlik düzeltme kapsamları hesaba bağlı değildir ve yalnız tanımlı hedeflere açılır. */
     @Test
     void oyunKimlikDuzeltmeKapsamlariKatilimcilarlaAcilir() {

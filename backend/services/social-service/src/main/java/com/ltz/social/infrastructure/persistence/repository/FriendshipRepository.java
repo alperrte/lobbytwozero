@@ -43,6 +43,13 @@ public interface FriendshipRepository extends JpaRepository<Friendship, Friendsh
     @Query("delete from Friendship f where f.id.userLowId = :accountId or f.id.userHighId = :accountId")
     int deleteAllOf(@Param("accountId") UUID accountId);
 
+    /** Projeksiyon aktarımı: tüm arkadaşlıklar, (low, high) anahtar sırasıyla ve verilen anahtardan sonra. */
+    @Query("""
+            select f from Friendship f
+            where f.id.userLowId > :low or (f.id.userLowId = :low and f.id.userHighId > :high)
+            order by f.id.userLowId, f.id.userHighId""")
+    List<Friendship> findBatchAfter(@Param("low") UUID low, @Param("high") UUID high, Limit limit);
+
     /** Atomik silme: eşzamanlı iki çıkarma isteğinden yalnız biri 1 döner. */
     @Modifying
     @Query("delete from Friendship f where f.id = :id")

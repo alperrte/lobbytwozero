@@ -67,10 +67,7 @@ public class PerformanceSessionService {
         limits.session(userId, peer);
         var game = games.find(request.gameId())
                 .orElseThrow(() -> new PerformanceUnprocessableException(PerformanceUnprocessableException.GAME_NOT_FOUND));
-        if (request.hardwareProfileId() != null
-                && !hardware.isOwnedProfile(authorization, request.hardwareProfileId())) {
-            throw new PerformanceUnprocessableException(PerformanceUnprocessableException.HARDWARE_PROFILE_NOT_FOUND);
-        }
+        var measurementContext = requireHardware(authorization, request);
         return transaction.execute(_ -> {
             guard.requireActive(userId);
             var now = clock.instant();
@@ -84,6 +81,7 @@ public class PerformanceSessionService {
             }
             var session = PerformanceSession.startManual(userId, game.gameId(), game.title(),
                     request.hardwareProfileId(), request.deviceLinkId(), now);
+            if (measurementContext != null) session.bindMeasurementContext(measurementContext);
             return SessionResponse.from(sessions.saveAndFlush(session));
         });
     }
@@ -152,5 +150,24 @@ public class PerformanceSessionService {
         if (linkId == null) return;
         var usable = links.findByIdAndUserId(linkId, userId).filter(DeviceLink::isActive).isPresent();
         if (!usable) throw new PerformanceUnprocessableException(PerformanceUnprocessableException.DEVICE_LINK_NOT_FOUND);
+    }
+
+    private com.ltz.performance.domain.entity.MeasurementContext requireHardware(String authorization, StartSessionRequest request) {
+        if (request.measurementContext() != null) {
+            var context = request.measurementContext().toDomain();
+            if (request.hardwareProfileId() == null || request.deviceLinkId() == null) {
+                throw new IllegalArgumentException("Measurement context requires hardware and device");
+            }
+            var version = hardware.ownedProfileVersion(authorization, request.hardwareProfileId());
+            if (version.isEmpty()) throw new PerformanceUnprocessableException(PerformanceUnprocessableException.HARDWARE_PROFILE_NOT_FOUND);
+            if (version.getAsLong() != context.hardwareProfileVersion()) {
+                throw new PerformanceConflictException("MEASUREMENT_PROFILE_VERSION_CHANGED");
+            }
+            return context;
+        }
+        if (request.hardwareProfileId() != null && !hardware.isOwnedProfile(authorization, request.hardwareProfileId())) {
+            throw new PerformanceUnprocessableException(PerformanceUnprocessableException.HARDWARE_PROFILE_NOT_FOUND);
+        }
+        return null;
     }
 }
