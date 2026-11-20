@@ -77,6 +77,12 @@ public class AuthEvent {
 
     public static AuthEvent pending(UUID eventId, UUID accountId, AuthEventType type, String value, String target,
                                     Instant now) {
+        return pending(eventId, accountId, type, value, target, now, now);
+    }
+
+    /** {@code occurredAt}: olayın gerçekte olduğu an (yeniden gönderimde ilk değişim zamanı); {@code now}: yazım anı. */
+    public static AuthEvent pending(UUID eventId, UUID accountId, AuthEventType type, String value, String target,
+                                    Instant occurredAt, Instant now) {
         if (type.carriesValue()) {
             Objects.requireNonNull(value, "event value");
         }
@@ -88,7 +94,7 @@ public class AuthEvent {
         event.target = target;
         event.status = AuthEventStatus.PENDING;
         event.nextAttemptAt = now;
-        event.occurredAt = now;
+        event.occurredAt = occurredAt;
         event.createdAt = now;
         return event;
     }

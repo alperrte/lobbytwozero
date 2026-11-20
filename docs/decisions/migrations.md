@@ -16,7 +16,7 @@
 - V51–V60      → REVIEW-SERVICE
 
 ## KEREM
-- V61–V70      → AUTH-SERVICE (V66: yaş doğrulaması, V67: yaş doğrulaması yönetici geri alma, V68: tanınan tarayıcılar `known_devices`; sıradaki boş V69)
+- V61–V70      → AUTH-SERVICE (V66: yaş doğrulaması, V67: yaş doğrulaması yönetici geri alma, V68: tanınan tarayıcılar `known_devices`, V69: `accounts.status_changed_at`; sıradaki boş V70)
 - V71–V80      → USER-SERVICE
 - V81–V90      → MAIL-SERVICE
 
