@@ -62,7 +62,7 @@ public class BlockService {
         UserBlock block = blocks.saveAndFlush(UserBlock.create(blockerId, blockedId, now));
         closePendingRequests(blockerId, blockedId, now);
         endFriendship(blockerId, blockedId);
-        events.record(new UserBlockedEvent(blockerId, blockedId));
+        events.append(new UserBlockedEvent(blockerId, blockedId));
         return new BlockResult(toView(block), true);
     }
 
@@ -75,7 +75,7 @@ public class BlockService {
         if (blocks.deleteByBlockId(new UserBlockId(blockerId, blockedId)) == 0) {
             throw new SocialException(SocialErrorCode.BLOCK_NOT_FOUND);
         }
-        events.record(new UserUnblockedEvent(blockerId, blockedId));
+        events.append(new UserUnblockedEvent(blockerId, blockedId));
     }
 
     /** SOC-11. Kullanıcının engellediği hesaplar, en yeniden eskiye; keyset sayfalama. */
@@ -111,7 +111,7 @@ public class BlockService {
 
     private void endFriendship(UUID blockerId, UUID blockedId) {
         if (friendships.deleteByFriendshipId(FriendshipId.of(blockerId, blockedId)) > 0) {
-            events.record(FriendshipChangedEvent.of(blockerId, blockedId, FriendshipChangedEvent.Change.REMOVED));
+            events.append(FriendshipChangedEvent.of(blockerId, blockedId, FriendshipChangedEvent.Change.REMOVED));
         }
     }
 
