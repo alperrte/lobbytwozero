@@ -27,11 +27,12 @@ import jakarta.persistence.criteria.Subquery;
  */
 public final class ListingSpecifications {
 
-    public static final Sort NEWEST_FIRST = Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"));
-
     private static final String STATUS = "status";
     private static final String EXPIRES_AT = "expiresAt";
     private static final String CREATED_AT = "createdAt";
+
+    public static final Sort NEWEST_FIRST = Sort.by(Sort.Order.desc(CREATED_AT), Sort.Order.desc("id"));
+
     private static final char LIKE_ESCAPE = '\\';
 
     private ListingSpecifications() {

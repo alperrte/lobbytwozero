@@ -73,11 +73,11 @@ class ServiceBoundaryTest {
 
     @Test
     void oyunVeKullaniciKimlikleriRefOlarakTutulur() throws IOException {
+        Pattern foreignKey = Pattern.compile("(?i)foreign\\s+key\\s*\\(\\s*(owner_id|game_id|user_id|reporter_id)");
         try (Stream<Path> migrations = Files.list(MAIN_RESOURCES.resolve("db/migration"))) {
             for (Path migration : migrations.filter(path -> path.toString().endsWith(".sql")).toList()) {
                 String sql = stripComments(Files.readString(migration));
-                assertThat(Pattern.compile("(?i)foreign\\s+key\\s*\\(\\s*(owner_id|game_id|user_id|reporter_id)")
-                        .matcher(sql).find())
+                assertThat(foreignKey.matcher(sql).find())
                         .as("%s kullanıcı/oyun kimlikleri için FK içermemeli (REF)", migration.getFileName())
                         .isFalse();
             }
