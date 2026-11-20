@@ -197,8 +197,7 @@ class FriendshipControllerTest extends IntegrationTestSupport {
         UUID friend = newUser();
         befriend(me, friend);
 
-        ExecutorService pool = Executors.newFixedThreadPool(2);
-        try {
+        try (ExecutorService pool = Executors.newFixedThreadPool(2)) {
             List<Callable<Integer>> calls = List.of(
                     () -> unfriend(me, friend).andReturn().getResponse().getStatus(),
                     () -> unfriend(friend, me).andReturn().getResponse().getStatus());
@@ -207,8 +206,6 @@ class FriendshipControllerTest extends IntegrationTestSupport {
                 statuses.add(future.get());
             }
             assertThat(statuses).containsExactlyInAnyOrder(204, 404);
-        } finally {
-            pool.shutdownNow();
         }
         assertThat(areFriends(me, friend)).isFalse();
     }

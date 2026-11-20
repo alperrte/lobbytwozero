@@ -1,9 +1,9 @@
 # social-service: güvenlik ve kalite durumu
 
-> **Bu dosya otomatik üretilir, elle düzenleme.** Kaynak: `backend/config/quality-baseline.json` (2026-11-12). Yenilemek için: `node pre-push/ci/lint-ratchet.mjs docs`.
+> **Bu dosya otomatik üretilir, elle düzenleme.** Kaynak: `backend/config/quality-baseline.json` (2026-11-20). Yenilemek için: `node pre-push/ci/lint-ratchet.mjs docs`.
 > Elle tutulan notlar için: [NOTLAR.md](NOTLAR.md).
 
-**Sahip:** Umut (@Umutys61)  •  **Eski borç:** ⚠️ 137 ihlal, 25 dosya
+**Sahip:** Umut (@Umutys61)  •  **Eski borç:** ⚠️ 126 ihlal, 22 dosya
 
 ## Önce bunu oku (geliştirici ve yapay zekâ ajanı için)
 
@@ -18,29 +18,23 @@
 | Kural | Adet | Ne demek | Nasıl düzeltilir |
 |---|---:|---|---|
 | `checkstyle:MethodName` | 126 | Metot adında alt çizgi | camelCase yaz (`kayitBasarili201Doner`); IDE'nin Rename özelliğini kullan. |
-| `pmd:CloseResource` | 7 | Kaynak (ExecutorService, HttpClient, stream) kapatılmıyor | Testte try-with-resources; üretim kodunda uygulama boyu yaşayan nesneyse gerekçeli çözüm (sahibine sor). |
-| `pmd:CyclomaticComplexity` | 1 | Metot/sınıf çok dallı ve karmaşık | Davranışı değiştirmeden küçük metotlara böl; önce mevcut testlerin geçtiğinden emin ol. |
-| `pmd:PreserveStackTrace` | 3 | Yeni hata fırlatılırken eski hatanın izi kayboluyor | Eski hatayı sebep olarak ekle. **Güvenlik sınırında** (token, parola, dış servis cevabı) sebep gizli bilgi taşıyabilir: körlemesine ekleme, güvenlik gerekçeli dar çözüm bul. |
 
 ## Eski borç: dosya dosya
 
-- `src/main/java/com/ltz/social/api/controller/AuthenticatedUser.java`: pmd:PreserveStackTrace ×1
-- `src/main/java/com/ltz/social/application/service/FriendRequestService.java`: pmd:CyclomaticComplexity ×1, pmd:PreserveStackTrace ×1
-- `src/main/java/com/ltz/social/application/service/KeysetCursor.java`: pmd:PreserveStackTrace ×1
 - `src/test/java/com/ltz/social/ServiceBoundaryTest.java`: checkstyle:MethodName ×2
 - `src/test/java/com/ltz/social/api/controller/AccountErasureTest.java`: checkstyle:MethodName ×10
 - `src/test/java/com/ltz/social/api/controller/BlockControllerTest.java`: checkstyle:MethodName ×16
 - `src/test/java/com/ltz/social/api/controller/FriendRequestControllerTest.java`: checkstyle:MethodName ×22
 - `src/test/java/com/ltz/social/api/controller/FriendsVisibilityDefaultAdapterTest.java`: checkstyle:MethodName ×1
 - `src/test/java/com/ltz/social/api/controller/FriendsVisibilityTest.java`: checkstyle:MethodName ×10
-- `src/test/java/com/ltz/social/api/controller/FriendshipControllerTest.java`: checkstyle:MethodName ×11, pmd:CloseResource ×1
-- `src/test/java/com/ltz/social/api/controller/InviteCodeControllerTest.java`: checkstyle:MethodName ×13, pmd:CloseResource ×2
-- `src/test/java/com/ltz/social/application/service/BlockConcurrencyTest.java`: checkstyle:MethodName ×4, pmd:CloseResource ×2
-- `src/test/java/com/ltz/social/application/service/FriendRequestConcurrencyTest.java`: checkstyle:MethodName ×4, pmd:CloseResource ×1
+- `src/test/java/com/ltz/social/api/controller/FriendshipControllerTest.java`: checkstyle:MethodName ×11
+- `src/test/java/com/ltz/social/api/controller/InviteCodeControllerTest.java`: checkstyle:MethodName ×13
+- `src/test/java/com/ltz/social/application/service/BlockConcurrencyTest.java`: checkstyle:MethodName ×4
+- `src/test/java/com/ltz/social/application/service/FriendRequestConcurrencyTest.java`: checkstyle:MethodName ×4
 - `src/test/java/com/ltz/social/application/service/InviteCodeGeneratorTest.java`: checkstyle:MethodName ×3
 - `src/test/java/com/ltz/social/application/service/KeysetCursorTest.java`: checkstyle:MethodName ×1
 - `src/test/java/com/ltz/social/application/service/OutboxEventsTest.java`: checkstyle:MethodName ×3
-- `src/test/java/com/ltz/social/application/service/OutboxRelayTest.java`: checkstyle:MethodName ×3, pmd:CloseResource ×1
+- `src/test/java/com/ltz/social/application/service/OutboxRelayTest.java`: checkstyle:MethodName ×3
 - `src/test/java/com/ltz/social/application/service/PendingRequestLimitTest.java`: checkstyle:MethodName ×3
 - `src/test/java/com/ltz/social/domain/entity/FriendRequestTest.java`: checkstyle:MethodName ×1
 - `src/test/java/com/ltz/social/domain/entity/FriendshipIdTest.java`: checkstyle:MethodName ×2
