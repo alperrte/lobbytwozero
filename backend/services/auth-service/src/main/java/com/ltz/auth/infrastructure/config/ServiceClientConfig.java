@@ -29,7 +29,7 @@ public class ServiceClientConfig {
             TokenClaims.PERFORMANCE_REFERENCE_READ_SCOPE,
             TokenClaims.GAME_IDENTITY_PREPARE_SCOPE, TokenClaims.GAME_IDENTITY_FINALIZE_SCOPE,
             TokenClaims.GAME_IDENTITY_READ_SCOPE, TokenClaims.GAME_IDENTITY_DECISION_READ_SCOPE,
-            TokenClaims.MAIL_NOTIFY_SCOPE);
+            TokenClaims.MAIL_NOTIFY_SCOPE, TokenClaims.USERS_STATUS_READ_SCOPE);
     /**
      * Tek hesabı ilgilendiren kapsamlar (kişisel veri okuma, cihaz doğrulama): token yalnız istekte verilen tek hesap için
      * ({@code account_id}) ve o hesap ACTIVE ise verilir. Bir hedefin kapsamları ya hep hesaba bağlıdır ya hiç

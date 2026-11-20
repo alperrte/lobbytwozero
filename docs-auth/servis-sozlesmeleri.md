@@ -137,7 +137,7 @@ olur (kimlik doğrulaması önce yapılır; yanlış gizli anahtar yine `401 INV
 | 4 | `svc:community-service` | `notification-service` | `events:ingest` | Etkileşim bildirimleri |
 | 5 | `svc:messaging-service` | `social-service` | `blocks:check` | Mesaj öncesi engel sorgusu |
 | 6 | `svc:lfp-service` | `social-service` | `blocks:check` | Eşleşme öncesi engel sorgusu |
-| 7 | `svc:social-service` | `user-service` | `privacy:read`, `events:ingest` | SOC-12 arkadaş listesi görünürlüğü; `FriendshipChanged`, `UserBlocked`, `UserUnblocked` |
+| 7 | `svc:social-service` | `user-service` | `privacy:read`, `events:ingest`, `users:status:read` | SOC-12 arkadaş listesi görünürlüğü; `FriendshipChanged`, `UserBlocked`, `UserUnblocked`; hesap kullanılabilirliği sorgusu (satır 16) |
 | 8 | `svc:library-service` | `user-service` | `privacy:read`, `events:ingest` | LIB-11 koleksiyon gizliliği; `LibrarySummaryChanged` |
 | 9 | `svc:hardware-service` | `user-service` | `privacy:read` | HW-08 `HardwareVisibilityPolicy` |
 | 10 | `svc:review-service` | `user-service` | `events:ingest` | `ReviewSummaryChanged` |
@@ -146,6 +146,7 @@ olur (kimlik doğrulaması önce yapılır; yanlış gizli anahtar yine `401 INV
 | 13 | `svc:hardware-service` | `performance-service` | `devices:verify`, `summary:read` (**ikisi de hesaba bağlı**) | Cihazın hesaba ait/aktif olduğunu sorma ve hesabın donanım profili performans özeti (PERF-01/21) |
 | 14 | `svc:game-service` | `library-service` | `game-references:read` | GAME-26: dış kimlik taşıma/ayırma öncesi oyun için referans var mı (yalnız sayı) |
 | 15 | `svc:recommendation-service` | `performance-service` | `reference:read` (**hesaba bağlı**) | Tek hesabın oyun performans referansını okuma (PERF-21) |
+| 16 | `svc:messaging-service` | `user-service` | `users:status:read` | Hedef hesabın kullanılabilirliği (`POST /internal/v1/users/status`, en çok 100 kimlik; yalnız `ACTIVE`/`UNAVAILABLE`, profil verisi yok). Social da aynı kapsamı satır 7'de alır |
 
 Satır 5 ve 6 için gizli anahtarlar `AUTH_MESSAGING_SERVICE_CLIENT_SECRET` ve `AUTH_LFP_SERVICE_CLIENT_SECRET` (yeni, boşsa istemci kapalı).
 Satır 7–11 için (2026-10-30, boşsa kapalı): social satır 2'deki `AUTH_SOCIAL_SERVICE_CLIENT_SECRET`'i kullanır; ayrıca `AUTH_LIBRARY_SERVICE_CLIENT_SECRET`,
