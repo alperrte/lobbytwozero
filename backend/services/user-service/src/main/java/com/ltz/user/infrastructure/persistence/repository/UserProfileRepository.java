@@ -1,6 +1,7 @@
 package com.ltz.user.infrastructure.persistence.repository;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -28,6 +29,10 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, UUID> 
             @Param("statusChangedAt") Instant statusChangedAt, @Param("now") Instant now);
 
     Optional<UserProfile> findByUsernameNormalized(String usernameNormalized);
+
+    /** Verilen kimliklerden hesabı {@code ACTIVE} olan profillerin kimlikleri (yalnız kimlik okunur, profil verisi değil). */
+    @Query("SELECT p.userId FROM UserProfile p WHERE p.userId IN :ids AND p.accountStatus = com.ltz.user.domain.enums.AccountStatus.ACTIVE")
+    List<UUID> findActiveIds(@Param("ids") Collection<UUID> ids);
 
     /**
      * Oyuncu arama (USER-11): kullanıcı adı ya da görünen ad önekiyle, yalnız {@code ACTIVE} hesaplar (askıdaki hesap

@@ -11,6 +11,7 @@ public final class InternalApiPaths {
     public static final String EVENTS = BASE + "/events";
     public static final String USER_LOCALE = BASE + "/v1/users/{userId}/locale";
     public static final String PRIVACY_DECISIONS = BASE + "/v1/privacy/decisions";
+    public static final String USER_STATUS = BASE + "/v1/users/status";
 
     private InternalApiPaths() {
     }

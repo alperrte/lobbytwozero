@@ -1704,6 +1704,48 @@ auth-service, `${USER_SERVICE_URL}` üzerinden (hesap silme ucuyla aynı adres: 
 #### Test Durumu
 UNIT + INTEGRATION (`InternalLocaleTest` 13).
 
+### USER — Hesap kullanılabilirliği (Internal, Messaging/Social → User)
+
+Durum: IMPLEMENTED (User tarafı). Auth'ta `messaging-service` ve `social-service` için `user-service` hedefinde `users:status:read` kapsamı **PENDING** (Auth işi, bu uç main'e gelince yapılır). Messaging ve Social istemcileri ayrı iştir.
+Sorumlu: Kerem
+Tüketici servisler: messaging-service (birebir sohbet hedefi), social-service (arkadaşlık isteği ve engel hedefi). lfp-service ihtiyaç duymuyor
+
+#### Endpoint
+POST /internal/v1/users/status
+
+#### Yetkilendirme
+Internal. Gateway'de route edilmez. `typ=svc+jwt`, `aud=user-service`, `scope` ⊇ `users:status:read`, `sub` yalnız `svc:messaging-service` ya da `svc:social-service` (tam eşleşme; başka servis `403`). Token yok, kullanıcı token'ı, yanlış `aud`/`typ` ya da süresi geçmiş token `401`. Uç, hesabın var olup olmadığını sızdırabileceği için kullanıcı token'ı kabul edilmez. Doğrulama deseni gizlilik kararı ucuyla aynıdır.
+
+#### Request Body
+```json
+{ "userIds": ["UUID", "..."] }
+```
+En az 1, en çok 100 kimlik; yinelenenler tek sonuç verir. Boş liste, 100'den fazla kimlik, `null` eleman ve UUID olmayan değer `400`.
+
+#### Response — 200
+```json
+{ "results": [ { "userId": "UUID", "status": "ACTIVE | UNAVAILABLE" } ] }
+```
+İstek sırasıyla, yinelenenler bir kez. **Fail-closed:** yalnız profili olan ve hesap durumu `ACTIVE` olan kullanıcı `ACTIVE` döner. Profil yok, `SUSPENDED`, `BANNED`, `DISABLED`, `PENDING_VERIFICATION`, `DELETION_REQUESTED` ve `DELETED` için `UNAVAILABLE`; var olmayan ve kullanılamaz hesap birbirinden ayırt edilemez. **Profil verisi dönmez** (ad, kullanıcı adı, görsel yok). `Cache-Control: no-store`. Tek sorgu (N+1 yok).
+
+**Güncellik sözleşmesi:** durum, Auth'tan `AccountStatusChanged` olayıyla eşitlenen kopyadır; olay kadar günceldir, anlık değildir. Silme talebi ve vazgeçme artık Auth'tan olayla gelir (`DELETION_REQUESTED`, `ACTIVE`). Yeni kayıtta profil `UserRegistered` olayıyla açılır; o ana kadar `UNAVAILABLE` döner. Çağıran bu kısa pencereyi yeniden deneme ya da açık hata ile karşılamalıdır.
+
+#### Hata Durumları
+- 400: Geçersiz gövde (boş, >100, `null` eleman, UUID değil)
+- 401: Token yok/geçersiz; kullanıcı token'ı; yanlış `aud`
+- 403: Çağıran izinli listede değil; `users:status:read` kapsamı yok. Yanıt durum bilgisi içermez
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+messaging-service ve social-service, `${USER_SERVICE_URL}` üzerinden çağırır; hata, zaman aşımı ya da eksik sonuçta fail-closed davranır (hedef kullanılamaz sayılır). Gerçek Auth token'ıyla uçtan uca: **NOT VERIFIED**.
+
+#### Test Durumu
+UNIT + INTEGRATION (`UserStatusTest`: durum eşlemesi, profil yok, sıra ve yineleme, 100 kimlik, veri sızmaması, 400/401/403 senaryoları).
+
 ### USER — Rızalarım (LIB-14)
 
 Durum: IMPLEMENTED
