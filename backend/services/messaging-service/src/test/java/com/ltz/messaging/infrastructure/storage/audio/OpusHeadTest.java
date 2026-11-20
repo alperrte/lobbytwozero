@@ -44,7 +44,7 @@ class OpusHeadTest {
     }
 
     @Test
-    void akisSuresiPreSkipDusulerekHesaplanir() throws Exception {
+    void akisSuresiPreSkipDusulerekHesaplanir() {
         List<OpusPacket> packets = TestAudio.packets(50).stream().map(OpusHeadTest::parse).toList();
         OpusStream stream = new OpusStream(new OpusHead(1, 312), packets);
         assertThat(stream.totalSamples()).isEqualTo(50L * 960);

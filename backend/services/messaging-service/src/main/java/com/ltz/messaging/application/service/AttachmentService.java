@@ -71,7 +71,7 @@ public class AttachmentService {
         if (!voice && waveform != null) {
             throw new MessagingException(MessagingErrorCode.INVALID_WAVEFORM);
         }
-        byte[] levels = Waveform.parse(waveform);
+        byte[] levels = waveform == null ? null : Waveform.parse(waveform);
         transactions.executeWithoutResult(status -> requireCanUpload(uploader, conversationId));
         if (voice) {
             ProcessedVoice processed = voices.process(content, contentType);
@@ -80,7 +80,8 @@ public class AttachmentService {
         }
         ProcessedImage image = inspector.process(content, contentType);
         return save(uploader, conversationId, image.content(), (blob, now) -> MessageAttachment.upload(
-                conversationId, uploader, image.mimeType(), blob, image.width(), image.height(), image.frames(), now));
+                conversationId, uploader, image.mimeType(), blob,
+                new MessageAttachment.Dimensions(image.width(), image.height(), image.frames()), now));
     }
 
     /** Üyelik ve sınırlar yeniden denetlenir; içerik ve bağlantı aynı transaction'da yazılır. */

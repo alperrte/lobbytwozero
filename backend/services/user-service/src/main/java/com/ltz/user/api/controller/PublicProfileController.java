@@ -19,6 +19,7 @@ import com.ltz.user.api.dto.response.ProfileCardsResponse;
 import com.ltz.user.api.dto.response.PublicProfileResponse;
 import com.ltz.user.application.service.PlayerSearchService;
 import com.ltz.user.application.service.PublicProfileService;
+import com.ltz.user.application.service.SearchRateLimiter;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ public class PublicProfileController {
 
     private final PublicProfileService profiles;
     private final PlayerSearchService search;
+    private final SearchRateLimiter searchLimiter;
 
     @GetMapping(UserApiPaths.PROFILE)
     public ResponseEntity<PublicProfileResponse> byId(@PathVariable UUID userId, @AuthenticationPrincipal Jwt token) {
@@ -54,7 +56,10 @@ public class PublicProfileController {
 
     @GetMapping(UserApiPaths.SEARCH)
     public ResponseEntity<ProfileCardsResponse> search(@AuthenticationPrincipal Jwt token, @RequestParam String q) {
-        return noStore(ProfileCardsResponse.from(search.search(member(token), q)));
+        UUID viewer = member(token);
+        // Sınır, veritabanı bağlantısı alınmadan önce uygulanır.
+        searchLimiter.acquire(viewer);
+        return noStore(ProfileCardsResponse.from(search.search(viewer, q)));
     }
 
     /** Misafir için boş; token varsa doğrulayıcı {@code sub}'ın UUID olduğunu zaten garanti eder. */

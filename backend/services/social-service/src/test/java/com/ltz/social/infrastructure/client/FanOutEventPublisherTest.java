@@ -85,7 +85,8 @@ class FanOutEventPublisherTest {
 
     @Test
     void hicbirHedefinIslemedigiTurTeslimEdilemezHicbirCagriYapilmaz() {
-        assertThatThrownBy(() -> publisher.publish(envelope("FriendRequestSent", "{}")))
+        EventEnvelope event = envelope("FriendRequestSent", "{}");
+        assertThatThrownBy(() -> publisher.publish(event))
                 .isInstanceOf(EventDeliveryException.class)
                 .hasMessageContaining("No delivery target");
 
@@ -98,7 +99,8 @@ class FanOutEventPublisherTest {
         server.expect(once(), requestTo(COMMUNITY_URL)).andRespond(withSuccess());
         server.expect(once(), requestTo(USER_URL)).andRespond(withServerError());
 
-        assertThatThrownBy(() -> publisher.publish(envelope("UserUnblocked", blockPayload())))
+        EventEnvelope event = envelope("UserUnblocked", blockPayload());
+        assertThatThrownBy(() -> publisher.publish(event))
                 .isInstanceOf(EventDeliveryException.class);
 
         server.verify();

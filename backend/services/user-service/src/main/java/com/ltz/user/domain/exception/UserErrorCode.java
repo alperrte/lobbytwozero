@@ -21,6 +21,7 @@ public enum UserErrorCode {
     MEDIA_NOT_FOUND(404, "The requested media was not found."),
     CONCURRENT_MODIFICATION(409, "The resource was modified concurrently. Reload it and retry the request."),
     MEDIA_RATE_LIMITED(429, "Too many image uploads. Try again later."),
+    SEARCH_RATE_LIMITED(429, "Too many searches. Try again shortly."),
     MEDIA_BUSY(503, "The image processor is busy. Try again shortly."),
     MEDIA_STORAGE_UNAVAILABLE(503, "Media storage is temporarily unavailable. Try again shortly."),
     ACCOUNT_ERASURE_PENDING(503, "Account data erasure is not finished yet. Retry later.");

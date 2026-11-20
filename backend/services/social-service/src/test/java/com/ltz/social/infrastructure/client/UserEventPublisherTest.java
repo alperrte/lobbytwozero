@@ -96,7 +96,8 @@ class UserEventPublisherTest {
     void userServisiIlgilenmedigiTurleriAlmaz() {
         for (String type : List.of("FriendRequestSent", "FriendRequestAccepted")) {
             assertThat(publisher.handles(type)).isFalse();
-            assertThatThrownBy(() -> publisher.publish(envelope(type, "{}")))
+            EventEnvelope event = envelope(type, "{}");
+            assertThatThrownBy(() -> publisher.publish(event))
                     .isInstanceOf(EventDeliveryException.class)
                     .hasMessageContaining("No delivery target");
         }
@@ -109,8 +110,10 @@ class UserEventPublisherTest {
     void userServisiHataDonerseTeslimEdilemezIletideGovdeYok() {
         server.expect(once(), requestTo(EVENTS_URL)).andRespond(withServerError().body("secret-body-detail"));
 
-        assertThatThrownBy(() -> publisher.publish(envelope("FriendshipChanged",
-                "{\"userLowId\":\"%s\",\"userHighId\":\"%s\",\"change\":\"REMOVED\"}".formatted(LOW, HIGH))))
+        EventEnvelope removed = envelope("FriendshipChanged",
+                "{\"userLowId\":\"%s\",\"userHighId\":\"%s\",\"change\":\"REMOVED\"}".formatted(LOW, HIGH));
+
+        assertThatThrownBy(() -> publisher.publish(removed))
                 .isInstanceOf(EventDeliveryException.class)
                 .hasMessageNotContaining("secret-body-detail")
                 .hasMessageNotContaining(StubServiceTokens.TOKEN);

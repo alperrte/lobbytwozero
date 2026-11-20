@@ -4,12 +4,14 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.WebUtils;
 
+import com.ltz.auth.application.port.LoginDeviceContext;
 import com.ltz.auth.application.service.IssuedSession;
 import com.ltz.auth.infrastructure.config.SecurityProfiles;
 import com.ltz.auth.infrastructure.config.SessionProperties;
@@ -33,8 +35,11 @@ public class SessionCookies {
     static final String REFRESH_COOKIE = "ltz_refresh";
     static final String CSRF_COOKIE = "XSRF-TOKEN";
     static final String OAUTH_COOKIE = "ltz_oauth";
+    /** Tarayiciyi tanimak icin rastgele, kimlik tasimayan HttpOnly deger (yalniz ozeti saklanir). */
+    static final String DEVICE_COOKIE = "ltz_device";
     /** HttpOnly OLMAYAN, değer taşımayan oturum ipucu: arayüz oturum yokken `/me` ve yenileme isteklerini hiç atmaz. */
     static final String SESSION_HINT_COOKIE = "ltz_session";
+    private static final Duration DEVICE_COOKIE_TTL = Duration.ofDays(365);
     private static final String HOST_PREFIX = "__Host-";
     private static final String SECURE_PREFIX = "__Secure-";
     private static final String ROOT_PATH = "/";
@@ -47,8 +52,16 @@ public class SessionCookies {
     private final String csrfCookieName;
     private final String oauthCookieName;
     private final String sessionHintCookieName;
+    private final String deviceCookieName;
+    private final LoginDeviceContext deviceContext;
 
     public SessionCookies(SessionProperties properties, Environment environment) {
+        this(properties, environment, Optional::empty);
+    }
+
+    @Autowired
+    public SessionCookies(SessionProperties properties, Environment environment, LoginDeviceContext deviceContext) {
+        this.deviceContext = deviceContext;
         if (!properties.secureCookies() && !SecurityProfiles.relaxedSecurityAllowed(environment)) {
             throw new IllegalStateException("ltz.auth.session.secure-cookies must be true unless the 'dev' or 'test' profile is active");
         }
@@ -58,6 +71,7 @@ public class SessionCookies {
         this.csrfCookieName = secure ? HOST_PREFIX + CSRF_COOKIE : CSRF_COOKIE;
         this.oauthCookieName = secure ? HOST_PREFIX + OAUTH_COOKIE : OAUTH_COOKIE;
         this.sessionHintCookieName = secure ? HOST_PREFIX + SESSION_HINT_COOKIE : SESSION_HINT_COOKIE;
+        this.deviceCookieName = secure ? HOST_PREFIX + DEVICE_COOKIE : DEVICE_COOKIE;
     }
 
     public String accessCookieName() {
@@ -68,6 +82,10 @@ public class SessionCookies {
         return csrfCookieName;
     }
 
+    public String deviceCookieName() {
+        return deviceCookieName;
+    }
+
     public String sessionHintCookieName() {
         return sessionHintCookieName;
     }
@@ -76,6 +94,13 @@ public class SessionCookies {
         add(response, accessCookie(session.accessToken(), Duration.between(now, session.accessTokenExpiresAt())));
         add(response, refreshCookie(session.refreshToken(), Duration.between(now, session.refreshTokenExpiresAt())));
         add(response, sessionHintCookie("1", Duration.between(now, session.refreshTokenExpiresAt())));
+        // Cihaz çerezi yalnız giriş isteklerinde vardır (LoginDeviceFilter); yenilemede boştur ve yazılmaz.
+        deviceContext.deviceToken().ifPresent(token -> add(response, deviceCookie(token)));
+    }
+
+    private ResponseCookie deviceCookie(String value) {
+        return ResponseCookie.from(deviceCookieName, value)
+                .httpOnly(true).secure(secure).sameSite(SAME_SITE_LAX).path(ROOT_PATH).maxAge(DEVICE_COOKIE_TTL).build();
     }
 
     public void clear(HttpServletResponse response) {

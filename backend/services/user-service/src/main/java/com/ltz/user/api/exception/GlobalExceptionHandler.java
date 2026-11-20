@@ -24,6 +24,7 @@ import org.springframework.web.server.ContentTooLargeException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import com.ltz.user.domain.exception.RateLimitedException;
 import com.ltz.user.domain.exception.UserErrorCode;
 import com.ltz.user.domain.exception.UserException;
 
@@ -43,6 +44,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     ResponseEntity<ProblemDetail> handleUser(UserException exception) {
         UserErrorCode errorCode = exception.errorCode();
         return respond(HttpStatus.valueOf(errorCode.httpStatus()), errorCode.name(), errorCode.detail());
+    }
+
+    /** Hız sınırı aşıldı: 429 + {@code Retry-After} (saniye). */
+    @ExceptionHandler(RateLimitedException.class)
+    ResponseEntity<ProblemDetail> handleRateLimited(RateLimitedException exception) {
+        UserErrorCode errorCode = exception.errorCode();
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(exception.retryAfterSeconds()))
+                .body(problem(HttpStatus.TOO_MANY_REQUESTS, errorCode.name(), errorCode.detail()));
     }
 
     /** İstek satırı başka bir işlem tarafından değiştirildi (@Version); istemci yeniden okuyup deneyebilir. */

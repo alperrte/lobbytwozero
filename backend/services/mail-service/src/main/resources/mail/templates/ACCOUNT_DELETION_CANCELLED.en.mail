@@ -1,0 +1,8 @@
+# ACCOUNT_DELETION_CANCELLED (en). Biçim: docs-mail/sablon-rehberi.md. Düz metin sürümü bloklardan otomatik üretilir.
+subject: Your LTZ account deletion request was cancelled
+kind: success
+label: ACCOUNT DELETION
+title: Your account deletion request was cancelled
+text: The request to delete your LTZ account was cancelled. Your account and data are unchanged and will not be deleted.
+date: Date:
+note: If you did not do this, change your password immediately and contact support.

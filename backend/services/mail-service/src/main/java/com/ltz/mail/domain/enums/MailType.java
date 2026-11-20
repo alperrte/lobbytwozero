@@ -21,6 +21,10 @@ public enum MailType {
     EXTERNAL_IDENTITY_LINKED,
     /** Hoş geldin e-postası; Auth e-posta doğrulaması tamamlanınca gönderir (MAIL-05). */
     WELCOME,
+    /** Hesap silme talebi geri alındı (kullanıcı vazgeçti); Auth, bekleme süresi içindeki vazgeçişte gönderir. */
+    ACCOUNT_DELETION_CANCELLED,
+    /** Tanınmayan cihazdan giriş uyarısı; içerik yalnız tarih taşır (IP, konum, cihaz bilgisi yok). */
+    SUSPICIOUS_LOGIN,
     /**
      * Genel bilgilendirme (platform kapısı): içeriği (başlık, mesaj, düğme) çağıran servis verir, tasarım Mail'indir.
      * Şablon dosyası yoktur; {@code TemplateRenderer} bileşenlerden kurar.

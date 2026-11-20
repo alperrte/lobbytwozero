@@ -100,7 +100,8 @@ class CommunityEventPublisherTest {
     @Test
     void hedefiOlmayanOlayTuruTeslimEdilemezHicbirCagriYapilmaz() {
         for (String type : List.of("FriendRequestSent", "FriendRequestAccepted", "FriendshipChanged")) {
-            assertThatThrownBy(() -> publisher.publish(envelope(type)))
+            EventEnvelope event = envelope(type);
+            assertThatThrownBy(() -> publisher.publish(event))
                     .isInstanceOf(EventDeliveryException.class)
                     .hasMessageContaining("No delivery target");
         }
@@ -113,7 +114,8 @@ class CommunityEventPublisherTest {
     void tokenAlinamazsaTeslimEdilemezCagriYapilmazIletideTokenYok() {
         tokens.failing = true;
 
-        assertThatThrownBy(() -> publisher.publish(envelope("UserBlocked")))
+        EventEnvelope event = envelope("UserBlocked");
+        assertThatThrownBy(() -> publisher.publish(event))
                 .isInstanceOf(EventDeliveryException.class)
                 .hasMessageNotContaining(TOKEN);
 
@@ -124,7 +126,8 @@ class CommunityEventPublisherTest {
     void communityHataDonerseTeslimEdilemezIletideTokenVeGovdeYok() {
         server.expect(once(), requestTo(EVENTS_URL)).andRespond(withServerError().body("secret-body-detail"));
 
-        assertThatThrownBy(() -> publisher.publish(envelope("UserBlocked")))
+        EventEnvelope event = envelope("UserBlocked");
+        assertThatThrownBy(() -> publisher.publish(event))
                 .isInstanceOf(EventDeliveryException.class)
                 .hasMessageNotContaining(TOKEN)
                 .hasMessageNotContaining("secret-body-detail");
@@ -134,7 +137,8 @@ class CommunityEventPublisherTest {
     void reddedilenTokenIcin401DeTeslimEdilemez() {
         server.expect(once(), requestTo(EVENTS_URL)).andRespond(withStatus(HttpStatus.UNAUTHORIZED));
 
-        assertThatThrownBy(() -> publisher.publish(envelope("UserBlocked")))
+        EventEnvelope event = envelope("UserBlocked");
+        assertThatThrownBy(() -> publisher.publish(event))
                 .isInstanceOf(EventDeliveryException.class);
     }
 
@@ -143,7 +147,8 @@ class CommunityEventPublisherTest {
         server.expect(once(), requestTo(EVENTS_URL))
                 .andRespond(withStatus(HttpStatus.FOUND).header("Location", "http://evil.example/"));
 
-        assertThatThrownBy(() -> publisher.publish(envelope("UserBlocked")))
+        EventEnvelope event = envelope("UserBlocked");
+        assertThatThrownBy(() -> publisher.publish(event))
                 .isInstanceOf(EventDeliveryException.class);
     }
 

@@ -80,11 +80,11 @@ public class FriendRequestService {
         FriendRequest saved;
         try {
             saved = requests.saveAndFlush(FriendRequest.send(senderId, receiverId, now()));
-        } catch (DataIntegrityViolationException exception) {
+        } catch (DataIntegrityViolationException _) {
             // Eşzamanlı iki istek: uq_friend_requests_pending_pair kazananı belirler, kaybeden 409 alır.
             throw new SocialException(SocialErrorCode.FRIEND_REQUEST_ALREADY_PENDING);
         }
-        events.record(new FriendRequestSentEvent(saved.getId(), senderId, receiverId));
+        events.append(new FriendRequestSentEvent(saved.getId(), senderId, receiverId));
         return mapper.toView(saved);
     }
 
@@ -97,10 +97,10 @@ public class FriendRequestService {
         FriendshipId friendshipId = FriendshipId.of(request.getSenderId(), request.getReceiverId());
         if (!friendships.existsById(friendshipId)) {
             friendships.save(Friendship.between(request.getSenderId(), request.getReceiverId(), now));
-            events.record(FriendshipChangedEvent.of(request.getSenderId(), request.getReceiverId(),
+            events.append(FriendshipChangedEvent.of(request.getSenderId(), request.getReceiverId(),
                     FriendshipChangedEvent.Change.ADDED));
         }
-        events.record(new FriendRequestAcceptedEvent(request.getId(), request.getSenderId(), request.getReceiverId()));
+        events.append(new FriendRequestAcceptedEvent(request.getId(), request.getSenderId(), request.getReceiverId()));
         return mapper.toView(request);
     }
 

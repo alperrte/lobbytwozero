@@ -26,9 +26,9 @@ class WaveformTest {
     }
 
     @Test
-    void verilmezseBostur() {
-        assertThat(Waveform.parse(null)).isNull();
-        assertThat(Waveform.toList(null)).isNull();
+    void nullDenetimiCagiranindir() {
+        assertThatThrownBy(() -> Waveform.parse(null)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> Waveform.toList(null)).isInstanceOf(NullPointerException.class);
     }
 
     @Test

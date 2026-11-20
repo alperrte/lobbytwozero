@@ -281,6 +281,7 @@ UNIT + INTEGRATION
 - **Access token (JWT, RS256):** `iss`, `sub` (hesap UUID), `aud=ltz-api`, `iat`, `nbf`, `exp` (varsayılan 60 sn; `JWT_ACCESS_TTL_SECONDS`, 1–15 dk), `jti`, `sid` (oturum), `ver` (token sürümü), `roles`, `amr`; başlık `typ=at+jwt`, `kid`. Diğer servisler imzayı JWKS ile doğrular. Auth uçlarında oturum/hesap durumu her istekte denetlenir (anında iptal); diğer servislerde iptal gecikmesi D3 kararına bağlıdır.
 - Kimliksiz istek `401 UNAUTHENTICATED` (+ `WWW-Authenticate: Bearer`), izinsiz `403 FORBIDDEN`. Parola/2FA denemeleri: 15 dakikada 5 hata → `429 TOO_MANY_ATTEMPTS` + `Retry-After`. **Giriş kilidi hesap bazlıdır:** e-posta, kullanıcı adı ve büyük/küçük harf farkı aynı hesap sayacını paylaşır (5 hata toplam); bilinmeyen kimlikte yalnız kimlik anahtarı sayılır ve aynı eşikte aynı `429` döner (hesap varlığı sızmaz). Başarılı giriş sayacı sıfırlar.
 - **Oturum ipucu çerezi:** `__Host-ltz_session=1` (Secure, SameSite=Lax, Path=/, **HttpOnly değil**; yerel http'de öneksiz `ltz_session`). Değer taşımaz (kimlik/token yok), yenileme çerezi ömründe yaşar, her yenilemede yeniden yazılır, çıkışta silinir. Arayüz bu çerez yokken `/me` ve `/session/refresh` isteklerini hiç atmaz; yetki kararı yine yalnız sunucudadır.
+- **Cihaz çerezi (yeni cihaz bildirimi, V68):** `__Host-ltz_device` (HttpOnly, Secure, SameSite=Lax, Path=/, 365 gün; yerel http'de öneksiz `ltz_device`). Yalnız giriş uçlarında (`/login/**`, `/oauth/**`) verilir ve her girişte yenilenir; değer 43 karakterlik rastgele bir belirteçtir (kimlik taşımaz). Sunucu yalnız SHA-256 özetini `known_devices` tablosunda hesap başına saklar (en çok 20, en eski budanır); IP, User-Agent ve konum SAKLANMAZ. Başarılı oturum açılışında çerez hesabın tanıdığı cihazlardan değilse hesabın e-postasına `SUSPICIOUS_LOGIN` bildirimi gider. Hesabın hiç tanıdığı cihaz yoksa (ilk giriş) ve son 24 saatte bu türden mail gittiyse gönderilmez. Çerez silinirse ya da başka tarayıcıdan girilirse yeni cihaz sayılır.
 
 ### AUTH — Giriş
 
@@ -793,7 +794,7 @@ Tüketici servisler: Frontend
 #### Endpoint
 - POST /api/v1/auth/account/deletion/request — yeniden doğrulama; yanıt `202 { "nextStep": "CONFIRM_BY_EMAIL" }`
 - POST /api/v1/auth/account/deletion/confirm — `{ "token": "…", "username": "…" }`; yanıt `202 { "nextStep": "DELETION_IN_PROGRESS" }`
-- POST /api/v1/auth/account/deletion/cancel — bekleme süresi içinde vazgeçme (aşağıda); yanıt `200 { "nextStep": "DELETION_CANCELLED" }`
+- POST /api/v1/auth/account/deletion/cancel — bekleme süresi içinde vazgeçme (aşağıda); yanıt `200 { "nextStep": "DELETION_CANCELLED" }`. Başarıda hesabın e-postasına `ACCOUNT_DELETION_CANCELLED` bildirimi gider (Mail V88; commit sonrası, en iyi çabayla)
 - **B ve C türü hesap** `request`/`confirm` ile kendi başına silemez: `403 DELETION_REQUIRES_SUPPORT`. Bunun yerine yöneticiye talep açar:
   - POST /api/v1/auth/account/deletion/support-request — `{ "message"?: "…" (≤500), "password"?, "code"? | "recoveryCode"? }`; `202` talep (`id, status, createdAt, decidedAt`). **Yeniden doğrulama ister** (silme isteğiyle aynı): parolalı hesapta `password`; parolasızda yakın zamanlı giriş (`recent-login-window`); TOTP açıksa `code` veya `recoveryCode`. **Parolasız hesap TOTP'siz talep açamaz** (`403 DELETION_REQUIRES_SECOND_FACTOR`): onaydan sonra vazgeçmenin tek yolu TOTP kodudur. Hesap başına tek bekleyen talep, ikinci istek aynısını döner. Reddedilen talepten sonra 24 saat yeni talep açılamaz (`429 DELETION_SUPPORT_COOLDOWN`). A türü `409 DELETION_SELF_SERVICE_AVAILABLE`, ADMIN `409 ADMIN_DELETION_FORBIDDEN`. Gövde isteğe bağlıdır.
   - GET /api/v1/auth/account/deletion/support-request — en son talep (`200`) ya da `204`.
@@ -1518,9 +1519,12 @@ Authenticated. **Misafir arama yapamaz** (`401`; kullanıcı listesinin toplu ç
 #### Response — 200
 Toplu kart ile aynı gövde (`items`), **en çok 20** sonuç; sayfalama yok (sorguyu daraltın). Kullanıcı adı **ya da** görünen ad **önekiyle** eşleşir; büyük/küçük harfe duyarsızdır ve Türkçe `ı/I/İ/i` aynı sayılır. `%`, `_`, `\` joker değil düz karakterdir. Yalnız `ACTIVE` hesaplar döner: askıdaki, yasaklı ve izleyiciyle herhangi bir yönde engeli olan hesaplar çıkmaz. Sıra: kullanıcı adı (yoksa sonda), görünen ad. Kısmi `text_pattern_ops` indeksleri kullanılır; ayrı arama servisi yoktur.
 
+**Hız sınırı:** kullanıcı başına (doğrulanmış token'ın `sub` değeri) dakikada en çok 30 arama (`ltz.user.search-limit.per-minute`). Sayaç User Service örneğinin belleğindedir: yeniden başlatmada sıfırlanır, çok örnekli kurulumda örnek başına uygulanır. Geçersiz sorgu (`400`) da sayılır. Aşımda `429` `SEARCH_RATE_LIMITED` ve `Retry-After` (saniye) döner. Toplu kart ucu (`POST /profiles/batch`) bu sınıra dahil değildir.
+
 #### Hata Durumları
 - 400: `INVALID_SEARCH_QUERY` (kısa/uzun/yasak karakter), `q` yok
 - 401: Token yok/geçersiz
+- 429: `SEARCH_RATE_LIMITED` (+ `Retry-After`)
 - 500: Beklenmeyen sunucu hatası
 
 #### Bağlantı
@@ -1531,7 +1535,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (`PlayerSearchTest` 9 test: önek, Türkçe katlama, durum/engel süzgeci, sınır, joker kaçırma).
+UNIT + INTEGRATION (`PlayerSearchTest` 10 test: önek, Türkçe katlama, durum/engel süzgeci, sınır, joker kaçırma, hız sınırı 429 + `Retry-After`; `SearchRateLimiterTest` 3 test: pencere, kullanıcı başına sayaç, sıfırlanma).
 
 ### USER — Yönetim paneli profil arama (ADMIN)
 
@@ -2062,12 +2066,12 @@ Internal. Doğrulama kodu ucu ile aynı (`scope=mail:send`).
   "idempotencyKey": "UUID",
   "accountId": "UUID",
   "recipientEmail": "string ≤254, geçerli e-posta",
-  "type": "PASSWORD_CHANGED | PASSWORD_RESET | EMAIL_CHANGED | ACCOUNT_SUSPENDED | ACCOUNT_BANNED | ACCOUNT_DISABLED | ACCOUNT_REACTIVATED | TWO_FACTOR_ENABLED | TWO_FACTOR_DISABLED | RECOVERY_CODE_USED | EXTERNAL_IDENTITY_LINKED | WELCOME",
+  "type": "PASSWORD_CHANGED | PASSWORD_RESET | EMAIL_CHANGED | ACCOUNT_SUSPENDED | ACCOUNT_BANNED | ACCOUNT_DISABLED | ACCOUNT_REACTIVATED | TWO_FACTOR_ENABLED | TWO_FACTOR_DISABLED | RECOVERY_CODE_USED | EXTERNAL_IDENTITY_LINKED | WELCOME | ACCOUNT_DELETION_CANCELLED | SUSPICIOUS_LOGIN",
   "occurredAt": "ISO-8601 (gelecekte olamaz)",
   "locale": "tr | en (opsiyonel)"
 }
 ```
-Bildirim parola, kod, bağlantı veya gerekçe metni taşımaz; yalnız ne olduğunu ve ne zaman olduğunu söyler. `EMAIL_CHANGED` eski adrese gönderilir. `TWO_FACTOR_ENABLED`, `TWO_FACTOR_DISABLED`, `RECOVERY_CODE_USED` ve `EXTERNAL_IDENTITY_LINKED` hesap ele geçirme belirtisi olan olaylardır (Google ya da Steam bağlama dahil); yalnız `occurredAt` taşır, IP/cihaz bilgisi yoktur. `WELCOME` (V85, MAIL-05) güvenlik uyarısı değil karşılama bildirimidir; Auth e-posta doğrulaması tamamlanınca gönderir, yalnız `occurredAt` taşır. Bilinmeyen `type` (`SUSPICIOUS_LOGIN` dahil) `400` döner. Süresi geçmiş (24 saatten eski) bildirim gönderilmez.
+Bildirim parola, kod, bağlantı veya gerekçe metni taşımaz; yalnız ne olduğunu ve ne zaman olduğunu söyler. `EMAIL_CHANGED` eski adrese gönderilir. `TWO_FACTOR_ENABLED`, `TWO_FACTOR_DISABLED`, `RECOVERY_CODE_USED` ve `EXTERNAL_IDENTITY_LINKED` hesap ele geçirme belirtisi olan olaylardır (Google ya da Steam bağlama dahil); yalnız `occurredAt` taşır, IP/cihaz bilgisi yoktur. `WELCOME` (V85, MAIL-05) güvenlik uyarısı değil karşılama bildirimidir; Auth e-posta doğrulaması tamamlanınca gönderir, yalnız `occurredAt` taşır. `ACCOUNT_DELETION_CANCELLED` (silme talebi vazgeçildi) ve `SUSPICIOUS_LOGIN` (tanınmayan cihazdan giriş) V88 ile eklendi; ikisi de yalnız `occurredAt` taşır, IP/konum/cihaz bilgisi yoktur. Auth tetikleyicileri henüz yok (NOT VERIFIED uçtan uca). Bilinmeyen `type` (büyük/küçük harf farkı dahil) `400` döner. Süresi geçmiş (24 saatten eski) bildirim gönderilmez.
 
 #### Response — 202
 Gövde yok.

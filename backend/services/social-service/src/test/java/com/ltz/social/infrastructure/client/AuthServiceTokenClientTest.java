@@ -123,7 +123,8 @@ class AuthServiceTokenClientTest {
         assertThat(client("  ").isConfigured()).isFalse();
         assertThat(client(SECRET).isConfigured()).isTrue();
 
-        assertThatThrownBy(() -> client("").tokenFor("community-service"))
+        AuthServiceTokenClient unconfigured = client("");
+        assertThatThrownBy(() -> unconfigured.tokenFor("community-service"))
                 .isInstanceOf(ServiceTokenUnavailableException.class);
 
         server.verify();
@@ -135,7 +136,8 @@ class AuthServiceTokenClientTest {
                 .andRespond(withStatus(HttpStatus.UNAUTHORIZED).contentType(MediaType.APPLICATION_JSON)
                         .body("{\"code\":\"INVALID_CLIENT\",\"echo\":\"" + SECRET + "\"}"));
 
-        assertThatThrownBy(() -> client(SECRET).tokenFor("community-service"))
+        AuthServiceTokenClient configured = client(SECRET);
+        assertThatThrownBy(() -> configured.tokenFor("community-service"))
                 .isInstanceOf(ServiceTokenUnavailableException.class)
                 .hasMessageNotContaining(SECRET)
                 .hasMessageNotContaining("INVALID_CLIENT");
@@ -146,7 +148,8 @@ class AuthServiceTokenClientTest {
         server.expect(once(), requestTo(TOKEN_URL))
                 .andRespond(withSuccess(tokenResponse("", 60), MediaType.APPLICATION_JSON));
 
-        assertThatThrownBy(() -> client(SECRET).tokenFor("community-service"))
+        AuthServiceTokenClient configured = client(SECRET);
+        assertThatThrownBy(() -> configured.tokenFor("community-service"))
                 .isInstanceOf(ServiceTokenUnavailableException.class);
     }
 

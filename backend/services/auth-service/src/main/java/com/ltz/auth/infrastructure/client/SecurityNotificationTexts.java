@@ -3,12 +3,15 @@ package com.ltz.auth.infrastructure.client;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.EnumMap;
+import java.util.Map;
 
 import com.ltz.auth.application.port.SecurityNotificationType;
 
 /**
  * Geliştirme (Mailpit) için güvenlik bildirimi metinleri. Üretimde şablon Mail Service'indir (MAIL-08, MAIL-09). Metinler
  * parola, token veya bağlantı içermez; hesap sahibine ne olduğunu ve izinsizse ne yapacağını söyler (TR ve EN).
+ * Her bildirim türü için tek satırlık bir kayıt vardır; eksik tür sınıf yüklenirken hata verir.
  */
 final class SecurityNotificationTexts {
 
@@ -24,62 +27,74 @@ final class SecurityNotificationTexts {
             If you did not do this, reset your password immediately and contact support.
             """;
 
+    private static final Map<SecurityNotificationType, Text> TEXTS = new EnumMap<>(SecurityNotificationType.class);
+
+    static {
+        add(SecurityNotificationType.PASSWORD_CHANGED, "LTZ parolanız değiştirildi / your password was changed",
+                "LTZ hesabınızın parolası değiştirildi", "The password of your LTZ account was changed");
+        add(SecurityNotificationType.PASSWORD_RESET, "LTZ parolanız sıfırlandı / your password was reset",
+                "LTZ hesabınızın parolası sıfırlama bağlantısıyla yenilendi",
+                "The password of your LTZ account was reset with a reset link");
+        add(SecurityNotificationType.EMAIL_CHANGED,
+                "LTZ e-posta adresiniz değiştirildi / your email address was changed",
+                "LTZ hesabınızın e-posta adresi değiştirildi (bu bildirim eski adrese gönderildi)",
+                "The email address of your LTZ account was changed (this notice went to the old address)");
+        add(SecurityNotificationType.ACCOUNT_SUSPENDED, "LTZ hesabınız askıya alındı / your account was suspended",
+                "LTZ hesabınız askıya alındı", "Your LTZ account was suspended");
+        add(SecurityNotificationType.ACCOUNT_BANNED, "LTZ hesabınız yasaklandı / your account was banned",
+                "LTZ hesabınız yasaklandı", "Your LTZ account was banned");
+        add(SecurityNotificationType.ACCOUNT_DISABLED,
+                "LTZ hesabınız devre dışı bırakıldı / your account was disabled",
+                "LTZ hesabınız devre dışı bırakıldı", "Your LTZ account was disabled");
+        add(SecurityNotificationType.ACCOUNT_REACTIVATED,
+                "LTZ hesabınız yeniden açıldı / your account was reactivated",
+                "LTZ hesabınız yeniden etkinleştirildi", "Your LTZ account was reactivated");
+        add(SecurityNotificationType.TWO_FACTOR_ENABLED,
+                "LTZ iki adımlı doğrulama açıldı / two-step verification was enabled",
+                "LTZ hesabınızda iki adımlı doğrulama açıldı",
+                "Two-step verification was enabled on your LTZ account");
+        add(SecurityNotificationType.TWO_FACTOR_DISABLED,
+                "LTZ iki adımlı doğrulama kapatıldı / two-step verification was disabled",
+                "LTZ hesabınızda iki adımlı doğrulama kapatıldı",
+                "Two-step verification was disabled on your LTZ account");
+        add(SecurityNotificationType.RECOVERY_CODE_USED,
+                "LTZ kurtarma kodu kullanıldı / a recovery code was used",
+                "LTZ hesabınızda bir kurtarma kodu kullanıldı", "A recovery code was used on your LTZ account");
+        add(SecurityNotificationType.EXTERNAL_IDENTITY_LINKED,
+                "LTZ hesabınıza harici hesap bağlandı / an external account was linked",
+                "LTZ hesabınıza bir Google ya da Steam hesabı bağlandı",
+                "A Google or Steam account was linked to your LTZ account");
+        add(SecurityNotificationType.WELCOME, "LTZ'ye hoş geldin / welcome to LTZ",
+                "LTZ'ye hoş geldin, hesabın hazır", "Welcome to LTZ, your account is ready");
+        add(SecurityNotificationType.ACCOUNT_DELETION_CANCELLED,
+                "LTZ hesap silme talebi iptal edildi / account deletion was cancelled",
+                "LTZ hesabınızın silme talebi iptal edildi, hesabınız silinmeyecek",
+                "The deletion request for your LTZ account was cancelled; it will not be deleted");
+        add(SecurityNotificationType.SUSPICIOUS_LOGIN,
+                "LTZ hesabına yeni bir cihazdan giriş yapıldı / sign-in from a new device",
+                "LTZ hesabınıza daha önce kullanmadığınız bir cihazdan giriş yapıldı",
+                "Your LTZ account was signed in to from a device you have not used before");
+        if (TEXTS.size() != SecurityNotificationType.values().length) {
+            throw new IllegalStateException("Every SecurityNotificationType needs a development mail text");
+        }
+    }
+
     private SecurityNotificationTexts() {
     }
 
     static String subject(SecurityNotificationType type) {
-        return switch (type) {
-            case PASSWORD_CHANGED -> "LTZ parolanız değiştirildi / your password was changed";
-            case PASSWORD_RESET -> "LTZ parolanız sıfırlandı / your password was reset";
-            case EMAIL_CHANGED -> "LTZ e-posta adresiniz değiştirildi / your email address was changed";
-            case ACCOUNT_SUSPENDED -> "LTZ hesabınız askıya alındı / your account was suspended";
-            case ACCOUNT_BANNED -> "LTZ hesabınız yasaklandı / your account was banned";
-            case ACCOUNT_DISABLED -> "LTZ hesabınız devre dışı bırakıldı / your account was disabled";
-            case ACCOUNT_REACTIVATED -> "LTZ hesabınız yeniden açıldı / your account was reactivated";
-            case TWO_FACTOR_ENABLED -> "LTZ iki adımlı doğrulama açıldı / two-step verification was enabled";
-            case TWO_FACTOR_DISABLED -> "LTZ iki adımlı doğrulama kapatıldı / two-step verification was disabled";
-            case RECOVERY_CODE_USED -> "LTZ kurtarma kodu kullanıldı / a recovery code was used";
-            case EXTERNAL_IDENTITY_LINKED -> "LTZ hesabınıza harici hesap bağlandı / an external account was linked";
-            case WELCOME -> "LTZ'ye hoş geldin / welcome to LTZ";
-        };
+        return TEXTS.get(type).subject();
     }
 
     static String body(SecurityNotificationType type, Instant occurredAt) {
-        String when = WHEN.format(occurredAt);
-        return BODY.formatted(turkish(type), english(type), when);
+        Text text = TEXTS.get(type);
+        return BODY.formatted(text.turkish(), text.english(), WHEN.format(occurredAt));
     }
 
-    private static String turkish(SecurityNotificationType type) {
-        return switch (type) {
-            case PASSWORD_CHANGED -> "LTZ hesabınızın parolası değiştirildi";
-            case PASSWORD_RESET -> "LTZ hesabınızın parolası sıfırlama bağlantısıyla yenilendi";
-            case EMAIL_CHANGED -> "LTZ hesabınızın e-posta adresi değiştirildi (bu bildirim eski adrese gönderildi)";
-            case ACCOUNT_SUSPENDED -> "LTZ hesabınız askıya alındı";
-            case ACCOUNT_BANNED -> "LTZ hesabınız yasaklandı";
-            case ACCOUNT_DISABLED -> "LTZ hesabınız devre dışı bırakıldı";
-            case ACCOUNT_REACTIVATED -> "LTZ hesabınız yeniden etkinleştirildi";
-            case TWO_FACTOR_ENABLED -> "LTZ hesabınızda iki adımlı doğrulama açıldı";
-            case TWO_FACTOR_DISABLED -> "LTZ hesabınızda iki adımlı doğrulama kapatıldı";
-            case RECOVERY_CODE_USED -> "LTZ hesabınızda bir kurtarma kodu kullanıldı";
-            case EXTERNAL_IDENTITY_LINKED -> "LTZ hesabınıza bir Google ya da Steam hesabı bağlandı";
-            case WELCOME -> "LTZ'ye hoş geldin, hesabın hazır";
-        };
+    private static void add(SecurityNotificationType type, String subject, String turkish, String english) {
+        TEXTS.put(type, new Text(subject, turkish, english));
     }
 
-    private static String english(SecurityNotificationType type) {
-        return switch (type) {
-            case PASSWORD_CHANGED -> "The password of your LTZ account was changed";
-            case PASSWORD_RESET -> "The password of your LTZ account was reset with a reset link";
-            case EMAIL_CHANGED -> "The email address of your LTZ account was changed (this notice went to the old address)";
-            case ACCOUNT_SUSPENDED -> "Your LTZ account was suspended";
-            case ACCOUNT_BANNED -> "Your LTZ account was banned";
-            case ACCOUNT_DISABLED -> "Your LTZ account was disabled";
-            case ACCOUNT_REACTIVATED -> "Your LTZ account was reactivated";
-            case TWO_FACTOR_ENABLED -> "Two-step verification was enabled on your LTZ account";
-            case TWO_FACTOR_DISABLED -> "Two-step verification was disabled on your LTZ account";
-            case RECOVERY_CODE_USED -> "A recovery code was used on your LTZ account";
-            case EXTERNAL_IDENTITY_LINKED -> "A Google or Steam account was linked to your LTZ account";
-            case WELCOME -> "Welcome to LTZ, your account is ready";
-        };
+    private record Text(String subject, String turkish, String english) {
     }
 }
