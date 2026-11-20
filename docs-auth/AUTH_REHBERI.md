@@ -231,7 +231,7 @@ Auth, olayları aynı işlemde `auth_events` tablosuna (outbox) yazar; işçi he
 | Olay | Ne zaman | Yük |
 |---|---|---|
 | `UserRegistered` | Hesap aktif olunca | hesap kimliği |
-| `AccountStatusChanged` | **Yalnız yönetici** durum değiştirince | yeni durum |
+| `AccountStatusChanged` | Yönetici durum değiştirince; silme onayında (`DELETION_REQUESTED`) ve başarılı silme vazgeçmede (`ACTIVE`) | yeni durum |
 | `AccountEmailChanged` | E-posta değişince | hesap kimliği |
 | `ExternalIdentityLinked` / `Unlinked` | Steam/Google bağlanınca/kaldırılınca | `provider` (+ SteamID64 herkese açık kimliktir) |
 
