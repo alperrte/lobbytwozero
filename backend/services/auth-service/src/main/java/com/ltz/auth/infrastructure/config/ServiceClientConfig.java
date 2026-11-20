@@ -23,13 +23,13 @@ public class ServiceClientConfig {
             TokenClaims.ACCOUNT_CONTACT_READ_SCOPE);
     /** Başka servislere ({@code aud=<servis>-service}) verilebilen kapsamlar; hedef servis token'ı kendi JWKS doğrulamasıyla kabul eder. */
     public static final Set<String> ALLOWED_TARGET_SCOPES = Set.of(
-            TokenClaims.EVENTS_INGEST_SCOPE, TokenClaims.BLOCKS_CHECK_SCOPE, TokenClaims.PRIVACY_READ_SCOPE,
+            TokenClaims.USERS_STATUS_READ_SCOPE, TokenClaims.EVENTS_INGEST_SCOPE, TokenClaims.BLOCKS_CHECK_SCOPE, TokenClaims.PRIVACY_READ_SCOPE,
             TokenClaims.SIGNALS_READ_SCOPE, TokenClaims.RATING_SUMMARIES_READ_SCOPE, TokenClaims.DEVICES_VERIFY_SCOPE,
             TokenClaims.GAME_REFERENCES_READ_SCOPE, TokenClaims.PERFORMANCE_SUMMARY_READ_SCOPE,
             TokenClaims.PERFORMANCE_REFERENCE_READ_SCOPE,
             TokenClaims.GAME_IDENTITY_PREPARE_SCOPE, TokenClaims.GAME_IDENTITY_FINALIZE_SCOPE,
             TokenClaims.GAME_IDENTITY_READ_SCOPE, TokenClaims.GAME_IDENTITY_DECISION_READ_SCOPE,
-            TokenClaims.MAIL_NOTIFY_SCOPE, TokenClaims.USERS_STATUS_READ_SCOPE);
+            TokenClaims.MAIL_NOTIFY_SCOPE);
     /**
      * Tek hesabı ilgilendiren kapsamlar (kişisel veri okuma, cihaz doğrulama): token yalnız istekte verilen tek hesap için
      * ({@code account_id}) ve o hesap ACTIVE ise verilir. Bir hedefin kapsamları ya hep hesaba bağlıdır ya hiç
