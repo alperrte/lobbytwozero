@@ -114,6 +114,8 @@ public abstract class IntegrationTestSupport {
         registry.add("ltz.auth.deletion.worker-enabled", () -> "false");
         // Olay aktarıcısı da elle tetiklenir (deterministik); hedef listesi varsayılan boştur, olay testleri kendi hedefini açar.
         registry.add("ltz.auth.events.worker-enabled", () -> "false");
+        // Durum olayı onarımı da elle tetiklenir; arka plan işi testlerin olay satırlarını saymasını bozmamalı.
+        registry.add("ltz.auth.events.reconcile.worker-enabled", () -> "false");
         // Temizlik de elle tetiklenir; arka plan çalıştırması testlerin verisini silmemeli.
         registry.add("ltz.auth.cleanup.enabled", () -> "false");
         // Süreli askı bitişi de elle tetiklenir; arka plan işi testlerde hesabı kendiliğinden açmamalı.

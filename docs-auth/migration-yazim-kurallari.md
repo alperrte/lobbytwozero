@@ -10,6 +10,7 @@ Auth migration aralığı **V61–V70**. Şu an kullanılan: **V61–V64** (donu
 | `V62__sessions_and_credentials.sql` | oturum, e-posta kodları, parola sıfırlama, 2FA, cihaz kimliği |
 | `V63__external_identities.sql` | Steam/Google bağı ve giriş akışları |
 | `V64__account_deletion_and_event_outbox.sql` | hesap silme koordinasyonu ve olay kuyruğu |
+| `V69__account_status_changed_at.sql` | `accounts.status_changed_at` (nullable; durum olayı onarımı) |
 
 ## Yazarken
 

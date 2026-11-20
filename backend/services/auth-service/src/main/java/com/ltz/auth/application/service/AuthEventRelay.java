@@ -80,7 +80,7 @@ public class AuthEventRelay {
                 .filter(AuthEvent::isPending)
                 .ifPresent(event -> {
                     event.fail(clock.instant(), errorCode, properties.initialBackoff(), properties.maxBackoff());
-                    if (event.getAttempts() == properties.stuckAttempts()) {
+                    if (event.getAttempts() % properties.stuckAttempts() == 0) {
                         log.warn("Auth event delivery stuck target={} attempts={} error={}", event.getTarget(),
                                 event.getAttempts(), errorCode);
                     }
