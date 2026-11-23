@@ -55,3 +55,10 @@ updates:
       compatible-updates:
         patterns: ["*"]
         update-types: [minor, patch]
+    # Java sürümü (temurin-25 → 26) ve Maven 3.9 → 3.10 bilinçli kararla yükseltilir; Dependabot bunları "minor" sayıp
+    # gruplu açıyordu (PR #168). Yama sürümleri akmaya devam eder.
+    ignore:
+      - dependency-name: "maven"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
+      - dependency-name: "eclipse-temurin"
+        update-types: ["version-update:semver-major"]
