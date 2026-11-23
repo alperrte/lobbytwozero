@@ -3,6 +3,7 @@
 import { useId, useState, type FormEvent } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
+import { SearchField } from "@/shared/components/ui/search-field";
 import { Link } from "@/shared/lib/i18n/navigation";
 import { useAdultVerified } from "../hooks/use-adult-verified";
 import { useReviewResource } from "../hooks/use-review-resource";
@@ -130,19 +131,16 @@ function SearchForm({ initial, onSearch, adultVerified, adultChecked, onAdultCha
   }
   return (
     <form role="search" onSubmit={submit} aria-label={t("hub.searchLabel")} className="flex flex-wrap items-end gap-3">
-      <div className="min-w-0 flex-1 basis-64 space-y-1">
-        <label htmlFor={`${id}-q`} className="block text-sm font-semibold">{t("hub.searchLabel")}</label>
-        <input
-          id={`${id}-q`}
-          type="search"
-          value={draft}
-          maxLength={HUB_QUERY_MAX}
-          autoComplete="off"
-          placeholder={t("hub.searchPlaceholder")}
-          onChange={(event) => setDraft(event.target.value)}
-          className={`block min-h-11 w-full rounded-control border border-control-border bg-surface-elevated px-3 text-sm text-text-primary placeholder:text-text-secondary ${focusRing}`}
-        />
-      </div>
+      <SearchField
+        id={`${id}-q`}
+        className="flex-1 basis-64"
+        label={t("hub.searchLabel")}
+        showLabel
+        value={draft}
+        maxLength={HUB_QUERY_MAX}
+        placeholder={t("hub.searchPlaceholder")}
+        onChange={(event) => setDraft(event.target.value)}
+      />
       <button type="submit" className={actionClass("primary")}>{t("hub.searchButton")}</button>
       {adultVerified ? (
         <label className="flex min-h-11 basis-full items-center gap-3 text-sm">

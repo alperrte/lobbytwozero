@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 import fs from "node:fs";
 import { expect, test, type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
+import { chooseOption } from "./fixtures/select";
 import tr from "../src/shared/lib/i18n/messages/tr.json";
 
 // GERÇEK Auth + Gateway + Game + Community yığını gerekir; `node e2e/game-real/run.mjs` ile çalıştırılır.
@@ -195,7 +196,7 @@ test.describe("3 · Admin oyun oluşturma ve herkese açık detay (gerçek Game 
     await form.getByRole("textbox", { name: t.fields.title, exact: true }).fill(game.title);
     await form.getByRole("textbox", { name: t.fields.description, exact: true }).fill("Gerçek Game servisine yazılan açıklama.");
     await form.getByLabel(t.fields.releaseDate, { exact: true }).fill("2026-03-05");
-    await form.getByLabel(t.fields.earlyAccess, { exact: true }).selectOption("true");
+    await chooseOption(form.getByLabel(t.fields.earlyAccess, { exact: true }), "true");
     for (const [field, values] of [["developers", ["Studio X"]], ["publishers", ["Pub Y"]], ["languages", ["tr", "en"]], ["genres", ["rpg"]], ["categories", ["single-player"]], ["tags", ["indie"]], ["platforms", ["pc"]]] as const) {
       const input = form.getByRole("textbox", { name: t.fields[field], exact: true });
       for (const value of values) { await input.fill(value); await input.press("Enter"); }
@@ -425,7 +426,7 @@ test.describe("5 · Admin yönetimi (gerçek Auth + Game; izole geçici veri)", 
     await expect(page.getByText(/ilerleme|kazandın/i)).toHaveCount(0);
     await admin.getByRole("button", { name: t.edit, exact: true }).first().click();
     const editForm = admin.getByRole("form", { name: t.editAchievement, exact: true });
-    await editForm.getByLabel(t.fields.visible, { exact: true }).selectOption("false");
+    await chooseOption(editForm.getByLabel(t.fields.visible, { exact: true }), "false");
     await reasonOf(editForm).fill("E2E başarımı gizle");
     await editForm.getByRole("button", { name: t.save, exact: true }).click();
     await expect(admin.getByText(`İlk galibiyet · ${t.hidden}`)).toBeVisible();
@@ -530,7 +531,7 @@ test.describe("6 · Geliştirici yönetimi (gerçek GAME_DEVELOPER + oyun bazlı
     await expect(form.getByRole("alert")).toContainText(t.invalidMediaUrl);
     const add = async (type: string, url: string, alt?: string) => {
       const created = page.waitForResponse((response) => response.url().endsWith("/developer/games/" + game.id + "/media") && response.request().method() === "POST");
-      await form.getByLabel(t.fields.type, { exact: true }).selectOption(type);
+      await chooseOption(form.getByLabel(t.fields.type, { exact: true }), type);
       await form.getByRole("textbox", { name: t.fields.url, exact: true }).fill(url);
       if (alt) await form.getByRole("textbox", { name: t.fields.altText, exact: true }).fill(alt);
       await form.getByRole("button", { name: t.save, exact: true }).click();
@@ -609,8 +610,8 @@ test.describe("7 · Moderasyon (gerçek MODERATOR; gizle/geri al)", () => {
   const publicContent = async () => (await (await fetch(`${gw}/api/v1/game/games/${game.id}/developer-content`)).json()) as { description: { text: string } | null; media: { id: string }[]; updateNotes: { id: string }[] };
   const moderate = async (page: Page, target: string, action: string, reason: string, targetId?: string) => {
     const form = page.getByRole("form", { name: t.moderateContent, exact: true });
-    await form.getByLabel(t.fields.target, { exact: true }).selectOption(target);
-    await form.getByLabel(t.fields.action, { exact: true }).selectOption(action);
+    await chooseOption(form.getByLabel(t.fields.target, { exact: true }), target);
+    await chooseOption(form.getByLabel(t.fields.action, { exact: true }), action);
     if (targetId) await form.getByRole("textbox", { name: t.fields.targetId, exact: true }).fill(targetId);
     await form.getByRole("textbox", { name: t.fields.reason, exact: true }).fill(reason);
     await form.getByRole("checkbox", { name: t.confirmAction }).check();

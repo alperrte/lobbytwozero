@@ -9,7 +9,8 @@ import { GameActionForm } from "./game-action-form";
 import { GameCover } from "./game-cover";
 import { GameFeedback } from "./game-feedback";
 import { controlClass, GameStatus } from "./game-status";
-import { Badge, EmptyState, GameSelect, Skeleton, Tabs } from "./game-ui";
+import { Badge, EmptyState, Skeleton, Tabs } from "./game-ui";
+import { Select } from "@/shared/components/ui/select";
 
 function Moderation({ status, reason }: { status?: string; reason?: string | null }) {
   const t = useTranslations("Game");
@@ -81,7 +82,7 @@ export function GameDeveloperTools({ initialGameId = "" }: { initialGameId?: str
   return <div className="space-y-6">
     <GameStatus error={result.error} loading={false} onRetry={result.reload} />
     {result.loading && !result.data && <Skeleton className="h-16" />}
-    {result.data && (!result.data.length ? <EmptyState title={t("noManagedGames")}>{t("noManagedGamesHelp")}</EmptyState> : <label className="flex max-w-md flex-col gap-2 text-sm">{t("yourGames")}<GameSelect className={controlClass} value={selected} onChange={(event) => choose(event.target.value)}>{result.data.map((game) => <option key={game.gameId} value={game.gameId}>{game.title}</option>)}</GameSelect></label>)}
+    {result.data && (!result.data.length ? <EmptyState title={t("noManagedGames")}>{t("noManagedGamesHelp")}</EmptyState> : <div className="flex max-w-md flex-col gap-2 text-sm"><span aria-hidden="true">{t("yourGames")}</span><Select aria-label={t("yourGames")} value={selected} onChange={choose} options={result.data.map((game) => ({ value: game.gameId, label: game.title }))} /></div>)}
     {selected && <DeveloperEditor key={selected} gameId={selected} />}
   </div>;
 }

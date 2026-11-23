@@ -8,6 +8,7 @@ import { productName } from "../schemas/spec-profile";
 import { productVisual } from "../schemas/product-visual";
 import { builderSlots, isDraftDirty, maxRamQuantity, workshopFallbackPath, type WorkshopDraft, type WorkshopSlot } from "../schemas/workshop";
 import { caseColors } from "../types/hardware";
+import { Select } from "@/shared/components/ui/select";
 import { button, input, panel, primaryButton, Field, HardwareError, HardwareSuccess } from "./hardware-ui";
 
 export type WorkshopBuilderProps = {
@@ -60,9 +61,7 @@ export function WorkshopBuilder({ mode, draft, initial, onChange, onPick, onSave
       </fieldset>
 
       {ram ? <Field label={t("workshop.builder.ramQuantity")} hint={t("workshop.builder.ramHint")}>
-        <select className={input} value={ram.quantity} onChange={(event) => onChange({ ...draft, slots: { ...draft.slots, RAM: { ...ram, quantity: Number(event.target.value) } } })}>
-          {Array.from({ length: maxRamQuantity }, (_, index) => index + 1).map((count) => <option key={count} value={count}>{t("components.units", { count })}</option>)}
-        </select>
+        <Select value={String(ram.quantity)} onChange={(value) => onChange({ ...draft, slots: { ...draft.slots, RAM: { ...ram, quantity: Number(value) } } })} options={Array.from({ length: maxRamQuantity }, (_, index) => index + 1).map((count) => ({ value: String(count), label: t("components.units", { count }) }))} />
       </Field> : null}
 
       <fieldset className="min-w-0">

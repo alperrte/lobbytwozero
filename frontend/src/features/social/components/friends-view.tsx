@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { buttonClass } from "@/shared/components/ui/button-styles";
 import { Icon } from "@/shared/components/ui/icons";
+import { SearchField } from "@/shared/components/ui/search-field";
 import { cn } from "@/shared/utils/cn";
 import type { PagedList } from "../hooks/use-paged-social-list";
 import { useFriends, useSocialCounts } from "../hooks/use-social-data";
@@ -13,7 +14,6 @@ import { ADD_BY_CODE_INPUT_ID } from "./add-by-code-form";
 import { FriendCard, type FriendIntent } from "./friend-card";
 import { EmptyState, ErrorState, ListSkeleton, LoadMore } from "./list-states";
 import { PersonActionDialog, type PersonAction } from "./person-action-dialog";
-import { SearchField } from "./search-field";
 import { IncomingRequestsPanel, InviteAndAddPanel } from "./side-panels";
 import { SocialPage } from "./social-page";
 
@@ -97,10 +97,12 @@ function FriendsList() {
       <div className="@container rounded-panel border border-border bg-surface p-3">
         <div className="flex flex-col gap-3 @min-[40rem]:flex-row @min-[40rem]:items-center">
           <SearchField
+            className="flex-1"
             label={t("friends.searchLabel")}
             placeholder={t("friends.searchPlaceholder")}
             value={query}
-            onChange={setQuery}
+            maxLength={64}
+            onChange={(event) => setQuery(event.target.value)}
           />
           <StatusFilter value={filter} onChange={setFilter} tally={friends.loading ? null : tally} />
         </div>

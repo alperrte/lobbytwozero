@@ -2,6 +2,7 @@
 
 import { useId, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { SearchField } from "@/shared/components/ui/search-field";
 import { cn } from "@/shared/utils/cn";
 
 export type PickerOption = { code: string; label: string; group?: string };
@@ -95,15 +96,13 @@ export function OptionPicker({
         </ul>
       ) : null}
 
-      <input
+      <SearchField
         id={searchId}
-        type="search"
+        className="w-full max-w-sm"
+        label={t("search")}
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        aria-label={t("search")}
         placeholder={t("search")}
-        autoComplete="off"
-        className="min-h-10 w-full max-w-sm rounded-control border border-control-border bg-surface px-3 text-text-primary placeholder:text-text-secondary"
       />
 
       <div className="flex max-h-72 flex-col gap-4 overflow-y-auto rounded-control border border-border bg-surface-elevated p-3">

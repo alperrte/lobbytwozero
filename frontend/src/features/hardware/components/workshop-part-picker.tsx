@@ -10,7 +10,8 @@ import { productVisual } from "../schemas/product-visual";
 import type { WorkshopSlot } from "../schemas/workshop";
 import type { Product } from "../types/hardware";
 import { HardwareProductVisual } from "./hardware-product-visual";
-import { button, input, Field, HardwareDialog, HardwareError, HardwareLoading, HardwarePagination } from "./hardware-ui";
+import { SearchField } from "@/shared/components/ui/search-field";
+import { button, HardwareDialog, HardwareError, HardwareLoading, HardwarePagination } from "./hardware-ui";
 
 /** Ürünün kısa teknik özeti (en fazla `limit` değer); kayıtta olmayan değer gösterilmez. */
 export function productSpecs(product: Product, locale: string, labels: { yes: string; no: string }, limit = 3) {
@@ -30,11 +31,7 @@ export function WorkshopPartPicker({ slot, selectedId, onSelect, onClose }: { sl
   const labels = { yes: t("visual.yes"), no: t("visual.no") };
   return <HardwareDialog title={t("workshop.picker.title", { category: t(`categories.${slot}`) })} onClose={onClose} wide>
     <form role="search" className="flex items-end gap-2" onSubmit={(event) => { event.preventDefault(); setSearch(String(new FormData(event.currentTarget).get("search") ?? "").trim()); setPage(0); }}>
-      <div className="min-w-0 flex-1">
-        <Field label={t("workshop.picker.search")}>
-          <input name="search" type="search" className={input} maxLength={160} defaultValue={search} autoComplete="off" />
-        </Field>
-      </div>
+      <SearchField className="flex-1" label={t("workshop.picker.search")} showLabel name="search" maxLength={160} defaultValue={search} />
       <button className={button}><Icon name="search" className="size-4" />{t("common.search")}</button>
     </form>
     {products.loading && !products.data ? <HardwareLoading /> : null}

@@ -14,7 +14,8 @@ import { defaultCurrencyForLocale, marketForCurrency, marketLabel, marketOptions
 import { languageOptions } from "../services/language-options";
 import { useGameResource } from "../hooks/use-game-resource";
 import type { TermList } from "../types/game";
-import { checkboxClass, GameSelect, primaryButtonClass } from "./game-ui";
+import { checkboxClass, primaryButtonClass } from "./game-ui";
+import { Select } from "@/shared/components/ui/select";
 
 const textKeys = ["genre", "platform", "language"] as const;
 const resetKeys = [...filterChipKeys, "country", "currency", "page"];
@@ -70,12 +71,12 @@ export function GameFilters({ params, onApply }: { params: URLSearchParams; onAp
             <GameCombobox id={`${id}-language`} value={draft.language} onValueChange={(next) => set("language", next)} options={languages} placeholder={t("languagePlaceholder")} /></div>
           : <div key={key} className="flex min-w-0 flex-col gap-2 text-sm"><label htmlFor={`${id}-${key}`}>{t(`fields.${key}`)}</label>
             <TermCombobox id={`${id}-${key}`} termKind={key === "genre" ? "GENRE" : "PLATFORM"} value={draft[key]} onValueChange={(next) => set(key, next)} placeholder={t(key === "genre" ? "genrePlaceholder" : "platformPlaceholder")} /></div>)}
-        <label className="flex flex-col gap-2 text-sm">{t("fields.earlyAccess")}
-          <GameSelect className={controlClass} value={draft.earlyAccess} onChange={(event) => set("earlyAccess", event.target.value)}><option value="">{t("all")}</option><option value="true">{t("yes")}</option><option value="false">{t("no")}</option></GameSelect></label>
+        <div className="flex min-w-0 flex-col gap-2 text-sm"><label htmlFor={`${id}-earlyAccess`}>{t("fields.earlyAccess")}</label>
+          <Select id={`${id}-earlyAccess`} value={draft.earlyAccess} onChange={(value) => set("earlyAccess", value)} options={[{ value: "", label: t("all") }, { value: "true", label: t("yes") }, { value: "false", label: t("no") }]} /></div>
         <div className="flex flex-col gap-2 text-sm"><label htmlFor={`${id}-releasedAfter`}>{t("fields.releasedAfter")}</label><GameDatePicker id={`${id}-releasedAfter`} value={draft.releasedAfter} onValueChange={(next) => set("releasedAfter", next)} min="0001-01-01" max="9999-12-31" invalid={errors.includes("dateRange")} describedBy={errors.includes("dateRange") ? `${id}-date` : undefined} /></div>
         <div className="flex flex-col gap-2 text-sm"><label htmlFor={`${id}-releasedBefore`}>{t("fields.releasedBefore")}</label><GameDatePicker id={`${id}-releasedBefore`} value={draft.releasedBefore} onValueChange={(next) => set("releasedBefore", next)} min="0001-01-01" max="9999-12-31" invalid={errors.includes("dateRange")} describedBy={errors.includes("dateRange") ? `${id}-date` : undefined} /></div>
         <label className="flex flex-col gap-2 text-sm">{t("fields.minRating")}<input type="number" inputMode="decimal" min={1} max={10} step="0.01" value={draft.minRating} onChange={(event) => set("minRating", event.target.value)} className={controlClass} aria-invalid={errors.includes("minRating") || undefined} aria-describedby={errors.includes("minRating") ? `${id}-rating` : undefined} /></label>
-        <label className="flex flex-col gap-2 text-sm">{t("fields.country")}<GameSelect className={controlClass} value={marketForCurrency(draft.currency).currency} onChange={(event) => set("currency", event.target.value)}>{marketOptions(locale).map((market) => <option key={market.currency} value={market.currency}>{marketLabel(market, locale)}</option>)}</GameSelect></label>
+        <div className="flex min-w-0 flex-col gap-2 text-sm"><label htmlFor={`${id}-currency`}>{t("fields.country")}</label><Select id={`${id}-currency`} value={marketForCurrency(draft.currency).currency} onChange={(value) => set("currency", value)} options={marketOptions(locale).map((market) => ({ value: market.currency, label: marketLabel(market, locale) }))} /></div>
         {["popularOnly", "discountedOnly", "includeAdult"].map((key) => key === "includeAdult" && !adultVerified
           ? <p key={key} className="self-end text-sm text-text-secondary">{t("adultVerifyHint")} <Link href="/profile/settings" className="inline-flex min-h-11 items-center text-brand-text underline-offset-4 hover:underline">{t("adultVerifyLink")}</Link></p>
           : <label key={key} className="flex min-h-11 items-center gap-3 self-end text-sm"><input type="checkbox" className={checkboxClass} checked={draft[key] === "true"} onChange={(event) => set(key, event.target.checked ? "true" : "")} />{t(`fields.${key}`)}</label>)}

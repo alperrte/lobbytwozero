@@ -6,6 +6,7 @@ import { StarRating } from "@/shared/components/ui/star-rating";
 import { useHardwareMutation } from "../hooks/use-hardware-query";
 import { hardwareApi } from "../services/hardware-api";
 import { reportReasons, type Review } from "../types/hardware";
+import { Select } from "@/shared/components/ui/select";
 import { input, ovalButton as ovalSecondary, ovalPrimaryButton as ovalPrimary, Field, HardwareDialog, HardwareError, HardwareSuccess } from "./hardware-ui";
 
 const ovalInput = `${input} rounded-xl px-4 py-3`;
@@ -61,7 +62,7 @@ export function ReportReviewForm({ reviewId, onClose }: { reviewId: string; onCl
   const mutation = useHardwareMutation();
   return <HardwareDialog title={t("reviews.report")} onClose={onClose} busy={mutation.pending}>{mutation.success ? <HardwareSuccess>{t("reviews.reportSaved")}</HardwareSuccess> : <form className="space-y-5" onSubmit={async (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); await mutation.run(() => hardwareApi.reportReview(reviewId, { reason: String(form.get("reason")), ...(form.get("details") ? { details: String(form.get("details")).trim() } : {}) })); }}>
     <Field label={t("reviews.reason")}>
-      <select className={ovalInput} name="reason">{reportReasons.map((reason) => <option key={reason} value={reason}>{t(`reportReasons.${reason}`)}</option>)}</select>
+      <Select name="reason" defaultValue={reportReasons[0]} options={reportReasons.map((reason) => ({ value: reason, label: t(`reportReasons.${reason}`) }))} />
     </Field>
     <Field label={t("reviews.details")}>
       <textarea className={`${ovalInput} resize-y`} name="details" maxLength={500} rows={4} />

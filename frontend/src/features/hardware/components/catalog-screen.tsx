@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
+import { SearchField } from "@/shared/components/ui/search-field";
 import { catalogCategories, type Category } from "../types/hardware";
 import { isCategory } from "../schemas/hardware";
 import { technicalQueryKeys } from "../schemas/spec-profile";
@@ -58,10 +59,7 @@ export function CatalogScreen() {
             <CatalogIcon name="filter" /><span>{t("catalog.filters")}</span>{activeFilters ? <b className={styles.filterCount}>{activeFilters}</b> : null}
           </button>
           <button type="button" className={`${styles.action} ${styles.mobileFilters}`} onClick={() => setFilterOpen(true)}><CatalogIcon name="filter" />{t("catalog.filters")}{activeFilters ? <b className={styles.filterCount}>{activeFilters}</b> : null}</button>
-          <label className={styles.search}>
-            <span className="sr-only">{t("catalog.search")}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><circle cx="10" cy="10" r="7" /><path d="m15 15 6 6" /></svg>
-            <input type="search" className={styles.field} maxLength={160} placeholder={t("catalog.search")} value={draftValue} onChange={(event) => setDraft({ value: event.target.value, base: search.toString() })} />
-          </label>
+          <SearchField className={styles.search} label={t("catalog.search")} maxLength={160} placeholder={t("catalog.search")} value={draftValue} onChange={(event) => setDraft({ value: event.target.value, base: search.toString() })} />
           <div className={styles.views} role="group" aria-label={t("catalog.view")}>
             <button type="button" className={styles.viewButton} aria-label={t("catalog.grid")} aria-pressed={!list} onClick={() => setList(false)}><CatalogIcon name="grid" /><span>{t("catalog.grid")}</span></button>
             <button type="button" className={styles.viewButton} aria-label={t("catalog.list")} aria-pressed={list} onClick={() => setList(true)}><CatalogIcon name="list" /><span>{t("catalog.list")}</span></button>

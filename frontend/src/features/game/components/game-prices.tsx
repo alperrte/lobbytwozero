@@ -7,8 +7,9 @@ import { safeExternalUrl } from "../services/discovery-query";
 import type { GamePricesResponse } from "../types/game";
 import { relativeAge } from "../services/price-age";
 import { defaultCurrencyForLocale, marketForCurrency, marketLabel, marketOptions } from "../services/price-markets";
-import { controlClass, GameStatus } from "./game-status";
-import { Badge, GameSelect } from "./game-ui";
+import { GameStatus } from "./game-status";
+import { Badge } from "./game-ui";
+import { Select } from "@/shared/components/ui/select";
 
 /** Bayat/boş fiyat durumunda yeniden okuma gecikmeleri (ms): ilk 12 sn, ikincisi ilkten 18 sn sonra (toplam 30 sn). Sürekli sorgulama YOKTUR: en çok iki kez. */
 const REREAD_DELAYS_MS = [12000, 18000] as const;
@@ -84,7 +85,7 @@ export function GamePrices({ gameId, free, comingSoon }: { gameId: string; free?
   return <section aria-labelledby="game-prices" className="border-t border-border pt-8">
     <h2 id="game-prices" className="font-display text-2xl font-semibold">{t("prices")}</h2>
     <div className="my-5 flex flex-wrap items-end gap-4">
-      <label className="flex flex-col gap-2 text-sm">{t("fields.country")}<GameSelect value={currency} onChange={(event) => setCurrency(event.target.value)} className={controlClass}>{marketOptions(locale).map((market) => <option key={market.currency} value={market.currency}>{marketLabel(market, locale)}</option>)}</GameSelect></label>
+      <div className="flex min-w-56 flex-col gap-2 text-sm"><span aria-hidden="true">{t("fields.country")}</span><Select aria-label={t("fields.country")} value={currency} onChange={setCurrency} options={marketOptions(locale).map((market) => ({ value: market.currency, label: marketLabel(market, locale) }))} /></div>
     </div>
     {currency === "TRY" && <p data-testid="try-note" className="mb-4 text-sm text-text-secondary">{t("priceTurkeyNote")}</p>}
     <GameStatus {...result} loading={result.loading && !result.data} onRetry={result.reload} />

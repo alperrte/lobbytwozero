@@ -8,6 +8,7 @@ import { useReviewResource } from "../hooks/use-review-resource";
 import { FEATURED_SIZES, featuredQueryFrom, featuredSearchParams } from "../schemas/review-schema";
 import { formatCount } from "../services/format";
 import type { FeaturedQuery, FeaturedReviewsResponse } from "../types/review";
+import { Select } from "@/shared/components/ui/select";
 import { AuthorBadge } from "./author-badge";
 import { ReportReview } from "./report-review";
 import { ReviewCard } from "./review-card";
@@ -69,16 +70,14 @@ export function FeaturedReviews({ gameId }: { gameId: string }) {
               className={`block min-h-11 w-32 rounded-control border border-control-border bg-surface-elevated px-3 text-sm text-text-primary ${focusRing}`}
             />
           </div>
-          <div className="space-y-1">
+          <div className="w-28 space-y-1">
             <label htmlFor={`${filterId}-size`} className="block text-sm font-semibold">{t("featured.pageSize")}</label>
-            <select
+            <Select
               id={`${filterId}-size`}
-              value={query.size}
-              onChange={(event) => navigate({ ...query, size: Number(event.target.value), page: 0 })}
-              className={`block min-h-11 rounded-control border border-control-border bg-surface-elevated px-3 text-sm text-text-primary ${focusRing}`}
-            >
-              {FEATURED_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
-            </select>
+              value={String(query.size)}
+              onChange={(value) => navigate({ ...query, size: Number(value), page: 0 })}
+              options={FEATURED_SIZES.map((size) => ({ value: String(size), label: String(size) }))}
+            />
           </div>
           <button type="submit" className={actionClass("secondary")}>{t("featured.apply")}</button>
           {query.minLikes > 0 ? <button type="button" className={actionClass("ghost")} onClick={() => { setDraftMin(null); navigate({ ...query, minLikes: 0, page: 0 }); }}>{t("featured.clear")}</button> : null}

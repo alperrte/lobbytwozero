@@ -84,15 +84,18 @@ describe("MultiSelect", () => {
     expect(box().textContent).toBe("AM5");
   });
 
-  it("oval görünüm 12px yuvarlak çerçeve sınıfı kullanır", () => {
-    render(<MultiSelect aria-label="Soket" options={options} variant="oval" />);
+  it("her zaman LTZ ovalidir (12px) ve hover snake taşır", () => {
+    render(<MultiSelect aria-label="Soket" options={options} />);
     expect(box().className).toContain("rounded-xl");
+    expect(box().className).toContain("relative");
+    expect(within(box()).getByTestId("control-snake")).toBeDefined();
   });
 });
 
 describe("Select oval", () => {
-  it("oval görünüm MultiSelect ile aynı yuvarlaklıkta", () => {
-    render(<Select aria-label="Soket" options={options} variant="oval" />);
+  it("MultiSelect ile aynı oval görünümü ve hover snake'i kullanır", () => {
+    render(<Select aria-label="Soket" options={options} />);
     expect(box().className).toContain("rounded-xl");
+    expect(within(box()).getByTestId("control-snake")).toBeDefined();
   });
 });

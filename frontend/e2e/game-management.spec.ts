@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { chooseOption } from "./fixtures/select";
 import messages from "../src/shared/lib/i18n/messages/tr.json";
 
 const t = messages.Game;
@@ -38,7 +39,7 @@ for (const width of [1440, 390]) {
     await page.getByLabel(t.fields.genre, { exact: true }).fill("rpg");
     await page.getByRole("button", { name: t.applyFilters, exact: true }).click();
     await expect.poll(() => queries.some((query) => new URLSearchParams(query).get("genre") === "rpg")).toBe(true);
-    await page.getByRole("combobox", { name: t.sort, exact: true }).selectOption("RATING");
+    await chooseOption(page.getByRole("combobox", { name: t.sort, exact: true }), "RATING");
     await expect.poll(() => queries.some((query) => new URLSearchParams(query).get("genre") === "rpg" && new URLSearchParams(query).get("sort") === "RATING")).toBe(true);
     await page.goto(`/tr/oyunlar/yonetim?gameId=${gameId}`);
     const editor = page.getByRole("form", { name: t.editGame, exact: true });

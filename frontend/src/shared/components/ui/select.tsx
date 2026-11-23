@@ -11,7 +11,9 @@ import {
   type KeyboardEvent as ReactKeyboardEvent
 } from "react";
 import { createPortal } from "react-dom";
+import { CardSnake } from "@/shared/components/ui/card-snake";
 import { Icon } from "@/shared/components/ui/icons";
+import { ovalControlClass, ovalControlSize } from "@/shared/components/ui/styles";
 import { cn } from "@/shared/utils/cn";
 
 export type SelectOption = {
@@ -34,13 +36,15 @@ export type SelectProps = {
   placeholder?: string;
   disabled?: boolean;
   required?: boolean;
+  /** `md` 40px (varsayılan), `sm` 36px (yoğun satırlar). Görünüm her zaman LTZ ovalidir. */
   size?: "sm" | "md";
-  /** `oval`: 12px yuvarlak, zemini yüzeyden bir ton açık, kenarlığı hover/odakta görünen modern görünüm. */
-  variant?: "default" | "oval";
+  /** Tetikleyiciye eklenir (genişlik vb.); yüzey/kenarlık sınıflarını ezmek için kullanılmaz. */
   className?: string;
   "aria-label"?: string;
   "aria-labelledby"?: string;
   "aria-describedby"?: string;
+  /** Hata durumu; kenarlık `primary` olur ve yardımcı teknolojiye duyurulur. */
+  "aria-invalid"?: boolean;
 };
 
 type Placement = { container: Element; left: number; top: number; width: number; maxHeight: number; above: boolean };
@@ -49,14 +53,18 @@ const GUTTER = 8;
 const MAX_LIST_HEIGHT = 288;
 const TYPEAHEAD_RESET_MS = 600;
 
-const sizeClass = { sm: "h-[35px] text-xs", md: "h-10 text-sm" } as const;
-
-/** Tetikleyici sınıfları; `MultiSelect` ile ortak tutulur ki iki bileşen aynı görünsün. */
-export function selectTriggerClass(size: "sm" | "md", variant: "default" | "oval"): string {
-  return variant === "oval"
-    ? cn("h-10 rounded-xl border border-transparent bg-[var(--ltz-select-bg,var(--ltz-surface-elevated))] px-3.5 text-sm hover:border-control-border aria-expanded:border-primary")
-    : cn("rounded-control border border-control-border bg-[var(--ltz-select-bg,var(--ltz-surface))] px-3 hover:border-text-secondary aria-expanded:border-primary", sizeClass[size]);
+/** Tetikleyici sınıfları; `MultiSelect` ile ortak tutulur ki iki bileşen aynı görünsün (LTZ oval yüzey). */
+export function selectTriggerClass(size: "sm" | "md"): string {
+  return cn(
+    ovalControlClass,
+    ovalControlSize[size],
+    "flex items-center justify-between gap-2 text-start aria-invalid:border-primary"
+  );
 }
+
+/** Açılır liste paneli ve seçenek satırı; `MultiSelect` ile ortaktır. */
+export const selectListClass =
+  "z-[100] overflow-y-auto overscroll-contain rounded-xl border border-border bg-surface p-1 text-text-primary shadow-popover animate-pop-in";
 
 /**
  * LTZ'ye özgü açılır liste (tarayıcının yerel `<select>` görünümü yerine). APG "select-only combobox"
@@ -69,8 +77,9 @@ export function selectTriggerClass(size: "sm" | "md", variant: "default" | "oval
  * Liste `position: fixed` ile tetikleyiciye göre konumlanır, yer yoksa yukarı açılır; atası kırpsa bile
  * görünür. Açık bir modal `<dialog>` içindeyse listeyi o dialog içine, değilse `body`'ye bağlar.
  *
- * Görünüm: tetikleyici zemini `--ltz-select-bg` özel özelliğiyle özelleştirilir (varsayılan yüzey rengi).
- * Yalnız semantik tokenlar kullanılır; açık/koyu tema kendiliğinden uyar.
+ * Görünüm: LTZ oval yüzeyi (`ovalControlClass`); fare üzerine gelince çerçevede bir tur kırmızı iz döner ve
+ * durur (`CardSnake trigger="hover"`; klavye odağı tetiklemez). Zemin `--ltz-select-bg` ile özelleştirilebilir.
+ * Yalnız semantik tokenlar kullanılır; açık/koyu tema kendiliğinden uyar. Kurallar: `frontend/frontend-layout.md` §3.
  */
 export function Select({
   options,
@@ -83,11 +92,11 @@ export function Select({
   disabled = false,
   required = false,
   size = "md",
-  variant = "default",
   className,
   "aria-label": ariaLabel,
   "aria-labelledby": ariaLabelledBy,
-  "aria-describedby": ariaDescribedBy
+  "aria-describedby": ariaDescribedBy,
+  "aria-invalid": ariaInvalid
 }: SelectProps) {
   const autoId = useId();
   const triggerId = id ?? `${autoId}-trigger`;
@@ -172,6 +181,16 @@ export function Select({
   useLayoutEffect(() => {
     if (open) measure();
   }, [open, measure]);
+
+  // Kontrolsüz kullanımda `form.reset()` yerel select gibi başlangıç değerine döndürür.
+  useEffect(() => {
+    if (controlled) return;
+    const form = triggerRef.current?.closest("form");
+    if (!form) return;
+    const reset = () => setInner(defaultValue ?? "");
+    form.addEventListener("reset", reset);
+    return () => form.removeEventListener("reset", reset);
+  }, [controlled, defaultValue]);
 
   useEffect(() => {
     if (!open) return;
@@ -268,6 +287,7 @@ export function Select({
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledBy}
         aria-describedby={ariaDescribedBy}
+        aria-invalid={ariaInvalid || undefined}
         aria-required={required || undefined}
         disabled={disabled}
         onClick={() => (open ? close(false) : openList())}
@@ -275,11 +295,7 @@ export function Select({
         onBlur={() => {
           if (open) close(false);
         }}
-        className={cn(
-          "flex w-full min-w-0 items-center justify-between gap-2 text-start text-text-primary transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-60",
-          selectTriggerClass(size, variant),
-          className
-        )}
+        className={cn(selectTriggerClass(size), className)}
       >
         <span className={cn("min-w-0 flex-1 truncate", !selected && "text-text-secondary")}>
           {selected ? selected.label : (placeholder ?? "")}
@@ -288,6 +304,7 @@ export function Select({
           name="chevron"
           className={cn("size-4 shrink-0 text-text-secondary transition-transform duration-150", open && "rotate-180")}
         />
+        <CardSnake trigger="hover" testId="control-snake" />
       </button>
       {name ? <input type="hidden" name={name} value={current} disabled={disabled} /> : null}
       {open && placement
@@ -308,7 +325,7 @@ export function Select({
                 width: placement.width,
                 maxHeight: placement.maxHeight
               }}
-              className={cn("z-[100] overflow-y-auto overscroll-contain border border-border bg-surface p-1 text-text-primary shadow-popover animate-pop-in", variant === "oval" ? "rounded-xl" : "rounded-panel")}
+              className={selectListClass}
             >
               {options.map((option, index) => (
                 <div
@@ -317,10 +334,11 @@ export function Select({
                   role="option"
                   aria-selected={index === selectedIndex}
                   aria-disabled={option.disabled || undefined}
+                  data-value={option.value}
                   data-active={index === active || undefined}
                   onPointerMove={() => !option.disabled && active !== index && setActive(index)}
                   onClick={() => choose(index)}
-                  className={cn("flex min-h-9 cursor-pointer items-center justify-between gap-3 px-2.5 py-1.5 text-sm transition-colors duration-100 data-[active]:bg-surface-elevated aria-selected:font-semibold aria-selected:text-brand-text aria-selected:shadow-[inset_2px_0_0_var(--ltz-primary)] aria-disabled:cursor-not-allowed aria-disabled:opacity-50", variant === "oval" ? "rounded-lg" : "rounded-control")}
+                  className={cn("flex min-h-9 cursor-pointer items-center justify-between gap-3 px-2.5 py-1.5 text-sm transition-colors duration-100 data-[active]:bg-surface-elevated aria-selected:font-semibold aria-selected:text-brand-text aria-selected:shadow-[inset_2px_0_0_var(--ltz-primary)] aria-disabled:cursor-not-allowed aria-disabled:opacity-50 rounded-lg")}
                 >
                   <span className="min-w-0 flex-1 truncate">{option.label}</span>
                   {index === selectedIndex ? <Icon name="check" className="size-4 shrink-0 text-primary" /> : null}

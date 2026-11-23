@@ -2,6 +2,7 @@
 
 import { useId, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
+import { Select } from "@/shared/components/ui/select";
 import { Icon } from "@/shared/components/ui/icons";
 import { useAction } from "../hooks/use-action";
 import {
@@ -121,13 +122,12 @@ export function PostEditor({ post, onDone, onCancel }: { post: PostView; onDone:
               <label htmlFor={`${id}-category`} className="mb-1.5 block text-sm font-medium text-text-primary">
                 {t("form.category")}
               </label>
-              <select id={`${id}-category`} value={category} onChange={(event) => setCategory(event.target.value as PostCategory)} className={inputClass}>
-                {postCategories.map((value) => (
-                  <option key={value} value={value}>
-                    {t(`category.${value}`)}
-                  </option>
-                ))}
-              </select>
+              <Select
+                id={`${id}-category`}
+                value={category}
+                onChange={(value) => setCategory(value as PostCategory)}
+                options={postCategories.map((value) => ({ value, label: t(`category.${value}`) }))}
+              />
             </div>
           ) : null}
         </div>

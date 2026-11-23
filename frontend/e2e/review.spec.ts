@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { chooseOption } from "./fixtures/select";
 import { fixture, gameId, now, otherReviewId } from "./fixtures/review-gateway";
 
 
@@ -239,7 +240,7 @@ test("başkasının incelemesini raporlar: doğrulama, kayıt, mükerrer engeli 
   await expect(dialog.getByRole("alert")).toContainText("Bir gerekçe seçmelisin.");
   expect(world.writes).toHaveLength(0);
 
-  await dialog.getByLabel("Gerekçe").selectOption("SPAM");
+  await chooseOption(dialog.getByLabel("Gerekçe"), "SPAM");
   await dialog.getByLabel("Açıklama (isteğe bağlı)").fill("Reklam içeriyor");
   await dialog.getByRole("button", { name: "Raporu gönder" }).click();
   await expect(dialog).toBeHidden();
@@ -266,19 +267,19 @@ test("rapor kotası (429) ve mükerrer rapor (409) durumlarını açıklar; kend
   const card = main.getByRole("article").filter({ hasText: "Başka oyuncunun incelemesi" });
   await card.getByRole("button", { name: "Raporla" }).click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Gerekçe").selectOption("OTHER");
+  await chooseOption(dialog.getByLabel("Gerekçe"), "OTHER");
   world.reportStatus = 429;
   await dialog.getByRole("button", { name: "Raporu gönder" }).click();
   await expect(dialog.getByText(/saniye sonra tekrar deneyebilirsin/)).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Raporu gönder" })).toBeDisabled();
-  await expect(dialog.getByLabel("Gerekçe")).toHaveValue("OTHER");
+  await expect(dialog.getByLabel("Gerekçe")).toHaveText(/Diğer/);
   await dialog.getByRole("button", { name: "Vazgeç" }).click();
 
   // Başka yerde zaten raporlanmış: sunucu 409 verir, arayüz "zaten raporladın" der.
   world.reportStatus = 201;
   world.reports[otherReviewId] = { id: "0198a3c2-7777-7d44-9a55-3f1c2b4d5e66", reason: "SPAM", detail: null, createdAt: now };
   await card.getByRole("button", { name: "Raporla" }).click();
-  await page.getByRole("dialog").getByLabel("Gerekçe").selectOption("SPAM");
+  await chooseOption(page.getByRole("dialog").getByLabel("Gerekçe"), "SPAM");
   await page.getByRole("dialog").getByRole("button", { name: "Raporu gönder" }).click();
   await expect(card.getByText("Bu incelemeyi zaten raporladın.")).toBeVisible();
 });

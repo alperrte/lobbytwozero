@@ -36,6 +36,7 @@ Her yeni görevde, kod yazmadan önce sırasıyla oku:
    4. [docs/er-diagram.md](docs/er-diagram.md)
    5. [docs/folder-structure.md](docs/folder-structure.md)
    6. [docs/web-rules.md](docs/web-rules.md). Frontend işi varsa bu belge zorunludur. Backend işinde de API sözleşmesi için göz at.
+   7. [frontend/frontend-layout.md](frontend/frontend-layout.md). **Frontend işi varsa zorunludur:** ortak sayfa layout'u (AppShell + tek PageContainer), ortak `SearchField`/`Select`/`MultiSelect` kontrolleri ve `globals.css` renk paleti.
 4. **Migration yazılacaksa:** [docs/decisions/migrations.md](docs/decisions/migrations.md). Ayrıntı için bkz. §4.
 5. **API kataloğu:** [docs/api.md](docs/api.md). Başka servisin API'sini tüketmeden önce sözleşmeyi buradan oku. Kendi API'ni yazınca buraya kaydet (bkz. §4.1).
 6. **Servisin güvenlik ve kalite notları:** `docs-security/<servis>/README.md` (otomatik üretilir: dondurulmuş Checkstyle/PMD borcu, dosya dosya liste, doğrulama komutları) ve `NOTLAR.md` (bilinen test/ortam sorunları). Dokunacağın her servisin klasörünü **koda başlamadan oku**; yeni ihlal ekleme, ihlali kural kapatarak gizleme. Genel liste: [docs-security/README.md](docs-security/README.md).
@@ -51,6 +52,7 @@ Her yeni görevde, kod yazmadan önce sırasıyla oku:
 - **Gateway:** `/api/v1/<ad>/**` → `<ad>-service`.
 - **Frontend:** Next.js 16, React 19, TypeScript, Tailwind 4, next-intl (`tr` varsayılan, `en`).
   - Çağrı akışı: component → hook → `features/<x>/services` → `shared/lib/api/client.ts`.
+  - Layout ve kontroller: sayfalar `AppShell`/`PageContainer` kurmaz, kök genişlik/boşluk yazmaz; arama için `SearchField`, açılır liste için `Select`/`MultiSelect` kullanılır (yerel `<select>` yasak); renkler yalnız semantik tokenlarla verilir. Ayrıntı: [frontend/frontend-layout.md](frontend/frontend-layout.md).
 - **Katman ve klasör kuralları:** [folder-structure.md](docs/folder-structure.md). Yeni dosyayı oradaki konumdan başka yere koyma.
 
 ## 4. Migration kuralları (özet; asıl kaynak `docs/decisions/migrations.md`)

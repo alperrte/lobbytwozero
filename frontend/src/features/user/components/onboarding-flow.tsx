@@ -3,7 +3,6 @@
 import { useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { useRequireSession } from "@/features/auth";
-import { PageContainer } from "@/shared/components/layout/page-container";
 import { ApiHttpError } from "@/shared/lib/api/client";
 import { Link, useRouter } from "@/shared/lib/i18n/navigation";
 import { MAX_FAVORITES } from "../catalog/games";
@@ -42,27 +41,25 @@ export function OnboardingFlow() {
   const { state: profileState } = useMyProfile(enabled);
 
   return (
-    <PageContainer>
-      <div className="flex flex-col gap-6">
-        <div>
-          <h1 className="font-display text-2xl font-semibold sm:text-3xl">{t("title")}</h1>
-          <p className="mt-1 max-w-2xl text-text-secondary">{t("description")}</p>
-        </div>
-        {!enabled || profileState.status === "loading" ? (
-          <p role="status" className="text-text-secondary">
-            {t("loading")}
-          </p>
-        ) : profileState.status === "error" ? (
-          <p role="alert" className="text-sm text-text-secondary">
-            {t("errors.generic")}
-          </p>
-        ) : (
-          <RemoteBody remote={onboarding}>
-            {(status) => (status.completed ? <Done /> : <OnboardingForm status={status} profile={profileState.profile} />)}
-          </RemoteBody>
-        )}
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="font-display text-2xl font-semibold sm:text-3xl">{t("title")}</h1>
+        <p className="mt-1 max-w-2xl text-text-secondary">{t("description")}</p>
       </div>
-    </PageContainer>
+      {!enabled || profileState.status === "loading" ? (
+        <p role="status" className="text-text-secondary">
+          {t("loading")}
+        </p>
+      ) : profileState.status === "error" ? (
+        <p role="alert" className="text-sm text-text-secondary">
+          {t("errors.generic")}
+        </p>
+      ) : (
+        <RemoteBody remote={onboarding}>
+          {(status) => (status.completed ? <Done /> : <OnboardingForm status={status} profile={profileState.profile} />)}
+        </RemoteBody>
+      )}
+    </div>
   );
 }
 

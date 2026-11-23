@@ -2,10 +2,11 @@
 
 import { useEffect, useId, useState } from "react";
 import { useTranslations } from "next-intl";
+import { SearchField } from "@/shared/components/ui/search-field";
 import { useGameResource } from "../hooks/use-game-resource";
 import type { DiscoveryPage, ManagedGame } from "../types/game";
 import { coverOf, GameCover } from "./game-cover";
-import { controlClass, GameStatus } from "./game-status";
+import { GameStatus } from "./game-status";
 
 export type PickedGame = ManagedGame & { coverUrl?: string | null };
 
@@ -40,8 +41,7 @@ export function GamePicker({ onPick, label, excluded = [] }: { onPick: (game: Pi
     return () => clearTimeout(timeout);
   }, [draft]);
   return <div className="space-y-3">
-    <label htmlFor={`${id}-q`} className="flex flex-col gap-2 text-sm">{label ?? t("pickerLabel")}
-      <input id={`${id}-q`} type="search" maxLength={128} value={draft} onChange={(event) => setDraft(event.target.value)} className={controlClass} autoComplete="off" aria-describedby={`${id}-help`} /></label>
+    <SearchField id={`${id}-q`} className="text-sm" label={label ?? t("pickerLabel")} showLabel maxLength={128} value={draft} onChange={(event) => setDraft(event.target.value)} aria-describedby={`${id}-help`} />
     <p id={`${id}-help`} className="text-xs text-text-secondary">{t("pickerHelp")}</p>
     {query && <Results key={query} query={query} onPick={(game) => { onPick(game); setDraft(""); setQuery(""); }} excluded={excluded} />}
   </div>;

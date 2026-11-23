@@ -3,7 +3,6 @@
 import { useCallback } from "react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { useSession } from "@/features/auth";
-import { PageContainer } from "@/shared/components/layout/page-container";
 import { Link } from "@/shared/lib/i18n/navigation";
 import { countryName } from "../catalog/countries";
 import { useCatalogLabels } from "../hooks/use-catalog-labels";
@@ -29,42 +28,34 @@ export function PlayerProfile({ userKey }: { userKey: string }) {
 
   if (state.status === "idle" || state.status === "loading") {
     return (
-      <PageContainer>
-        <div role="status" aria-live="polite" className="animate-pulse rounded-float border border-border bg-surface">
-          <span className="sr-only">{t("loading")}</span>
-          <div className="h-40 rounded-t-float bg-surface-elevated sm:h-56" />
-          <div className="flex flex-col gap-3 px-5 py-6 sm:px-6">
-            <div className="h-6 w-48 rounded-control bg-surface-elevated" />
-            <div className="h-4 w-32 rounded-control bg-surface-elevated" />
-          </div>
+      <div role="status" aria-live="polite" className="animate-pulse rounded-float border border-border bg-surface">
+        <span className="sr-only">{t("loading")}</span>
+        <div className="h-40 rounded-t-float bg-surface-elevated sm:h-56" />
+        <div className="flex flex-col gap-3 px-5 py-6 sm:px-6">
+          <div className="h-6 w-48 rounded-control bg-surface-elevated" />
+          <div className="h-4 w-32 rounded-control bg-surface-elevated" />
         </div>
-      </PageContainer>
+      </div>
     );
   }
   if (state.status === "error") {
     if (state.code === "PROFILE_NOT_FOUND") {
       return (
-        <PageContainer>
-          <section role="alert" className="max-w-prose rounded-panel border border-border bg-surface p-5 sm:p-6">
-            <h2 className="font-display text-lg font-semibold">{t("notFoundTitle")}</h2>
-            <p className="mt-2 text-text-secondary">{t("notFoundBody")}</p>
-            <Link href="/players" className={`mt-4 ${sectionLinkClass}`}>
-              {t("search")}
-            </Link>
-          </section>
-        </PageContainer>
+        <section role="alert" className="max-w-prose rounded-panel border border-border bg-surface p-5 sm:p-6">
+          <h2 className="font-display text-lg font-semibold">{t("notFoundTitle")}</h2>
+          <p className="mt-2 text-text-secondary">{t("notFoundBody")}</p>
+          <Link href="/players" className={`mt-4 ${sectionLinkClass}`}>
+            {t("search")}
+          </Link>
+        </section>
       );
     }
     return (
-      <PageContainer>
-        <ProfileStateNotice title={t("errorTitle")} body={t("errorBody")} actionLabel={t("retry")} onAction={retry} />
-      </PageContainer>
+      <ProfileStateNotice title={t("errorTitle")} body={t("errorBody")} actionLabel={t("retry")} onAction={retry} />
     );
   }
   return (
-    <PageContainer>
-      <PlayerContent profile={state.data} />
-    </PageContainer>
+    <PlayerContent profile={state.data} />
   );
 }
 

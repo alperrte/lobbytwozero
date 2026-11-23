@@ -7,7 +7,8 @@ import { useGameResource } from "../hooks/use-game-resource";
 import type { CardsResponse, Feedback, FeedbackPage } from "../types/game";
 import { GameActionForm } from "./game-action-form";
 import { controlClass, GameStatus } from "./game-status";
-import { Badge, EmptyState, GameSelect, Pagination, Skeleton } from "./game-ui";
+import { Badge, EmptyState, Pagination, Skeleton } from "./game-ui";
+import { Select } from "@/shared/components/ui/select";
 
 const statuses = ["OPEN", "IN_PROGRESS", "RESOLVED"] as const;
 const types = ["GENERAL", "BUG_REPORT", "EARLY_ACCESS"] as const;
@@ -81,8 +82,8 @@ export function FeedbackList({ gameId, developer = false }: { gameId?: string; d
     : { kind: "myFeedback", page, gameId, status, type }, { refreshOnFocus: false });
   return <div>
     <div className="my-5 flex flex-wrap gap-4">
-      <label className="flex flex-col gap-2 text-sm">{t("fields.status")}<GameSelect className={controlClass} value={status} onChange={(event) => { setStatus(event.target.value); setPage(0); }}><option value="">{t("all")}</option>{statuses.map((value) => <option key={value} value={value}>{t(`choices.${value}`)}</option>)}</GameSelect></label>
-      <label className="flex flex-col gap-2 text-sm">{t("fields.type")}<GameSelect className={controlClass} value={type} onChange={(event) => { setType(event.target.value); setPage(0); }}><option value="">{t("all")}</option>{types.map((value) => <option key={value} value={value}>{t(`choices.${value}`)}</option>)}</GameSelect></label>
+      <div className="flex min-w-44 flex-col gap-2 text-sm"><span aria-hidden="true">{t("fields.status")}</span><Select aria-label={t("fields.status")} value={status} onChange={(value) => { setStatus(value); setPage(0); }} options={[{ value: "", label: t("all") }, ...statuses.map((value) => ({ value, label: t(`choices.${value}`) }))]} /></div>
+      <div className="flex min-w-44 flex-col gap-2 text-sm"><span aria-hidden="true">{t("fields.type")}</span><Select aria-label={t("fields.type")} value={type} onChange={(value) => { setType(value); setPage(0); }} options={[{ value: "", label: t("all") }, ...types.map((value) => ({ value, label: t(`choices.${value}`) }))]} /></div>
       <button type="button" className={`${controlClass} self-end`} onClick={result.reload}>{t("reload")}</button>
     </div>
     {result.loading && <div aria-hidden="true" className="space-y-3"><Skeleton className="h-24" /><Skeleton className="h-24" /></div>}

@@ -11,8 +11,9 @@ import {
   type KeyboardEvent as ReactKeyboardEvent
 } from "react";
 import { createPortal } from "react-dom";
+import { CardSnake } from "@/shared/components/ui/card-snake";
 import { Icon } from "@/shared/components/ui/icons";
-import { selectTriggerClass, type SelectOption } from "@/shared/components/ui/select";
+import { selectListClass, selectTriggerClass, type SelectOption } from "@/shared/components/ui/select";
 import { cn } from "@/shared/utils/cn";
 
 export type MultiSelectProps = {
@@ -27,8 +28,8 @@ export type MultiSelectProps = {
   /** Hiçbir şey seçili değilken tetikleyicide gösterilir (ör. "Tümü"). */
   placeholder?: string;
   disabled?: boolean;
+  /** `md` 40px (varsayılan), `sm` 36px. Görünüm her zaman LTZ ovalidir (`Select` ile aynı). */
   size?: "sm" | "md";
-  variant?: "default" | "oval";
   className?: string;
   "aria-label"?: string;
   "aria-labelledby"?: string;
@@ -56,7 +57,6 @@ export function MultiSelect({
   placeholder,
   disabled = false,
   size = "md",
-  variant = "default",
   className,
   "aria-label": ariaLabel,
   "aria-labelledby": ariaLabelledBy,
@@ -220,7 +220,6 @@ export function MultiSelect({
 
   const summary = labels.length === 0 ? (placeholder ?? "") : labels[0];
   const extra = labels.length - 1;
-  const oval = variant === "oval";
 
   return (
     <>
@@ -242,11 +241,7 @@ export function MultiSelect({
         onBlur={() => {
           if (open) close(false);
         }}
-        className={cn(
-          "flex w-full min-w-0 items-center justify-between gap-2 text-start text-text-primary transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-60",
-          selectTriggerClass(size, variant),
-          className
-        )}
+        className={cn(selectTriggerClass(size), className)}
       >
         <span className={cn("min-w-0 flex-1 truncate", labels.length === 0 && "text-text-secondary")}>{summary}</span>
         {extra > 0 ? (
@@ -255,6 +250,7 @@ export function MultiSelect({
           </span>
         ) : null}
         <Icon name="chevron" className={cn("size-4 shrink-0 text-text-secondary transition-transform duration-150", open && "rotate-180")} />
+        <CardSnake trigger="hover" testId="control-snake" />
       </button>
       {name
         ? current.map((item) => <input key={item} type="hidden" name={name} value={item} disabled={disabled} />)
@@ -277,10 +273,7 @@ export function MultiSelect({
                 width: placement.width,
                 maxHeight: placement.maxHeight
               }}
-              className={cn(
-                "z-[100] overflow-y-auto overscroll-contain border border-border bg-surface p-1 text-text-primary shadow-popover animate-pop-in",
-                oval ? "rounded-xl" : "rounded-panel"
-              )}
+              className={selectListClass}
             >
               {options.map((option, index) => {
                 const checked = chosen.has(option.value);
@@ -294,10 +287,7 @@ export function MultiSelect({
                     data-active={index === active || undefined}
                     onPointerMove={() => !option.disabled && active !== index && setActive(index)}
                     onClick={() => toggle(index)}
-                    className={cn(
-                      "flex min-h-9 cursor-pointer items-center gap-2.5 px-2.5 py-1.5 text-sm transition-colors duration-100 data-[active]:bg-surface-elevated aria-selected:font-semibold aria-selected:text-brand-text aria-disabled:cursor-not-allowed aria-disabled:opacity-50",
-                      oval ? "rounded-lg" : "rounded-control"
-                    )}
+                    className="flex min-h-9 cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm transition-colors duration-100 data-[active]:bg-surface-elevated aria-selected:font-semibold aria-selected:text-brand-text aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
                   >
                     <span
                       aria-hidden="true"
