@@ -18,3 +18,14 @@ export const menuItemClass =
 /** Çıkış satırı: marka kırmızısıyla vurgulu (metin için kontrastlı `brand-text` türevi). */
 export const dangerMenuItemClass =
   "flex min-h-10 w-full items-center gap-3 rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-start text-sm font-semibold text-brand-text transition-colors duration-150 hover:border-primary hover:bg-primary/20 focus-visible:bg-primary/20 aria-disabled:cursor-default";
+
+/**
+ * LTZ oval kontrol yüzeyi (SearchField, Select, MultiSelect). Ölçüler Donanımlar kataloğunun arama/filtre alanından
+ * alınmıştır: 12px yuvarlak, zemin yüzeyden bir ton açık, kenarlık hover'da nötr, odakta/açıkken marka kırmızısı.
+ * Host `relative` olduğu için içine `<CardSnake trigger="hover" />` konabilir. Ayrıntı: `frontend/frontend-layout.md` §3.
+ */
+export const ovalControlClass =
+  "relative w-full min-w-0 rounded-xl border border-transparent bg-[var(--ltz-select-bg,var(--ltz-surface-elevated))] text-text-primary transition-colors duration-150 ease-out hover:border-control-border focus-visible:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-60 aria-expanded:border-primary";
+
+/** Oval kontrol yükseklikleri: `md` varsayılan (40px), `sm` yoğun satırlar (36px, ör. tarih seçici). */
+export const ovalControlSize = { sm: "h-9 px-3 text-xs", md: "h-10 px-3.5 text-sm" } as const;

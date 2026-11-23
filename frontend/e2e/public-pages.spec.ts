@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { chooseOption } from "./fixtures/select";
 
 const pages = ["/tr/ayarlar", "/tr/sss", "/tr/hakkimizda", "/tr/iletisim"] as const;
 
@@ -106,7 +107,7 @@ test.describe("İletişim demo formu", () => {
     const form = page.getByRole("form", { name: "İletişim formu" });
     await form.getByRole("textbox", { name: "Ad Soyad" }).fill("Ada Lovelace");
     await form.getByRole("textbox", { name: "E-posta" }).fill("ada@example.com");
-    await form.getByRole("combobox", { name: "Konu" }).selectOption("feedback");
+    await chooseOption(form.getByRole("combobox", { name: "Konu" }), "feedback");
     await form.getByRole("textbox", { name: "Mesaj" }).fill("Bu bir deneme mesajıdır.");
     await page.getByRole("button", { name: "Formu Kontrol Et" }).click();
 

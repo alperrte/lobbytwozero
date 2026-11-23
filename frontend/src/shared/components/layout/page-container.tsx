@@ -7,20 +7,16 @@ type PageContainerProps = {
 };
 
 /**
- * Public sayfalar (Ayarlar, SSS, Hakkımızda, İletişim) için ortak içerik kabı.
+ * Tüm uygulama sayfalarının TEK ortak içerik kabı (Donanımlar kataloğu ölçüsü).
  *
- * AppShell'in `<main>` alanı sidebar'ın yanındaki tüm genişliği kaplar; bu kap içeriği o alanda
- * ortalar ve en çok 1320px ile sınırlar. Böylece geniş ekranda içerik sola yığılıp sağ taraf boş
- * kalmaz, dar ekranda ise tam genişliğe iner. `<main>` zaten 12px (mobil) / 20px (sm+) iç boşluk
- * verdiği için buradaki ek boşluk toplamda mobil 16px, tablet 24px, masaüstü 32px, geniş masaüstü 48px yapar.
- * AppShell, navbar, sidebar ve footer ölçüleri değişmez; sayfalar kendi genişliğini yazmaz.
+ * Yalnız `AppShell` `<main>` içinde bir kez kullanır; sayfalar ve feature bileşenleri bunu import etmez, kendi kök
+ * genişliğini (`mx-auto max-w-*`) yazmaz. İçerik sidebar'ın yanındaki alanı doldurur, en çok 100rem (1600px) olur ve
+ * daha geniş ekranda ortalanır. Yan boşluğu yalnız `<main>` verir (mobil 12px, sm+ 20px); burada ek `px` yoktur.
+ * Ayrıntı ve kurallar: `frontend/frontend-layout.md`.
  */
 export function PageContainer({ children, className }: PageContainerProps) {
   return (
-    <div
-      data-page-container
-      className={cn("mx-auto w-full max-w-[82.5rem] px-1 lg:px-3 xl:px-7", className)}
-    >
+    <div data-page-container className={cn("mx-auto w-full max-w-[100rem]", className)}>
       {children}
     </div>
   );

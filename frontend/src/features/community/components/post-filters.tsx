@@ -2,7 +2,8 @@
 
 import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
-import { Icon } from "@/shared/components/ui/icons";
+import { SearchField } from "@/shared/components/ui/search-field";
+import { Select } from "@/shared/components/ui/select";
 import { cn } from "@/shared/utils/cn";
 import { isInvalidRange } from "../services/post-query";
 import { emptyFilters, postCategories, type PostFilters } from "../types/community.types";
@@ -68,19 +69,12 @@ export function PostFilterBar({
               <label htmlFor={`${id}-category`} className="mb-1.5 block text-sm font-medium text-text-primary">
                 {t("filters.category")}
               </label>
-              <select
+              <Select
                 id={`${id}-category`}
                 value={filters.category}
-                onChange={(event) => onChange({ ...filters, category: event.target.value as PostFilters["category"] })}
-                className={inputClass}
-              >
-                <option value="">{t("filters.allCategories")}</option>
-                {postCategories.map((category) => (
-                  <option key={category} value={category}>
-                    {t(`category.${category}`)}
-                  </option>
-                ))}
-              </select>
+                onChange={(value) => onChange({ ...filters, category: value as PostFilters["category"] })}
+                options={[{ value: "", label: t("filters.allCategories") }, ...postCategories.map((category) => ({ value: category, label: t(`category.${category}`) }))]}
+              />
             </div>
           ) : null}
           {options.dates ? (
@@ -162,22 +156,15 @@ function SearchForm({ id, value, onApply }: { id: string; value: string; onApply
 
   return (
     <form onSubmit={submit} role="search" className="w-full sm:w-72">
-      <label htmlFor={`${id}-q`} className="sr-only">
-        {t("filters.search")}
-      </label>
-      <div className="relative">
-        <Icon name="search" className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-text-secondary" />
-        <input
-          id={`${id}-q`}
-          type="search"
-          value={draft}
-          maxLength={100}
-          onChange={onChange}
-          aria-describedby={short ? `${id}-q-hint` : undefined}
-          placeholder={t("filters.searchPlaceholder")}
-          className={cn(inputClass, "ps-9")}
-        />
-      </div>
+      <SearchField
+        id={`${id}-q`}
+        label={t("filters.search")}
+        value={draft}
+        maxLength={100}
+        onChange={onChange}
+        aria-describedby={short ? `${id}-q-hint` : undefined}
+        placeholder={t("filters.searchPlaceholder")}
+      />
       {short ? (
         <p id={`${id}-q-hint`} className="mt-1 text-sm text-text-secondary">
           {t("filters.searchMin")}

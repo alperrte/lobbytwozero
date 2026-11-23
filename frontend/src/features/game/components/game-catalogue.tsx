@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { Icon } from "@/shared/components/ui/icons";
+import { SearchField } from "@/shared/components/ui/search-field";
+import { Select } from "@/shared/components/ui/select";
 import { Link, useRouter } from "@/shared/lib/i18n/navigation";
 import { useAdultVerified } from "../hooks/use-adult-verified";
 import { useGameResource } from "../hooks/use-game-resource";
@@ -17,7 +18,7 @@ import { GameActiveFilters, GameFilters } from "./game-filters";
 import { GameSectionNav } from "./game-section-nav";
 import { controlClass, GameStatus } from "./game-status";
 import { cn } from "@/shared/utils/cn";
-import { EmptyState, GameSelect, gameScopeClass, Pagination } from "./game-ui";
+import { EmptyState, gameScopeClass, Pagination } from "./game-ui";
 
 type CatalogueTab = "all" | "picks";
 const tabIds: readonly CatalogueTab[] = ["all", "picks"];
@@ -120,14 +121,11 @@ export function GameCatalogue() {
     <GameSectionNav current={tab} />
     <div className="space-y-6">
       <div className="flex flex-wrap items-end gap-4">
-        {tab === "all" && <label className="flex min-w-0 flex-1 basis-64 flex-col gap-2 text-sm">{t("search")}
-          <span className="relative"><Icon name="search" width={18} height={18} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-text-secondary" />
-            <input type="search" maxLength={128} value={draft} onChange={(event) => setSearch({ query, draft: event.target.value })} className={`${controlClass} w-full ps-10`} /></span>
-        </label>}
+        {tab === "all" && <SearchField className="flex-1 basis-64 text-sm" label={t("search")} showLabel maxLength={128} value={draft} onChange={(event) => setSearch({ query, draft: event.target.value })} />}
         {tab === "all" && <>
-          <label className="flex flex-col gap-2 text-sm">{t("sort")}<GameSelect value={sortValue} onChange={(event) => navigate({ sort: event.target.value === "TITLE" ? "" : event.target.value, page: "" })} className={controlClass}>
-            <option value="TITLE">{t("sortTitle")}</option><option value="RELEASE_DATE">{t("releaseDate")}</option><option value="POPULARITY">{t("sortPopularity")}</option><option value="RATING">{t("rating")}</option></GameSelect></label>
-          <label className="flex flex-col gap-2 text-sm">{t("direction")}<GameSelect className={controlClass} value={direction} onChange={(event) => navigate({ direction: event.target.value === "ASC" ? "" : event.target.value, page: "" })}><option value="ASC">{t("ascending")}</option><option value="DESC">{t("descending")}</option></GameSelect></label>
+          <div className="flex min-w-44 flex-col gap-2 text-sm"><span aria-hidden="true">{t("sort")}</span><Select aria-label={t("sort")} value={sortValue} onChange={(value) => navigate({ sort: value === "TITLE" ? "" : value, page: "" })}
+            options={[{ value: "TITLE", label: t("sortTitle") }, { value: "RELEASE_DATE", label: t("releaseDate") }, { value: "POPULARITY", label: t("sortPopularity") }, { value: "RATING", label: t("rating") }]} /></div>
+          <div className="flex min-w-36 flex-col gap-2 text-sm"><span aria-hidden="true">{t("direction")}</span><Select aria-label={t("direction")} value={direction} onChange={(value) => navigate({ direction: value === "ASC" ? "" : value, page: "" })} options={[{ value: "ASC", label: t("ascending") }, { value: "DESC", label: t("descending") }]} /></div>
         </>}
         <div role="group" aria-label={t("viewMode")} className="flex gap-1">
           {(["grid", "list"] as const).map((value) => <button key={value} type="button" aria-pressed={view === value} onClick={() => navigate({ view: value === "grid" ? "" : value })} className={`${controlClass} aria-pressed:border-primary aria-pressed:text-brand-text`}>{t(value === "grid" ? "viewGrid" : "viewList")}</button>)}

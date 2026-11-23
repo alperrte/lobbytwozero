@@ -5,6 +5,8 @@ import { categories, specKeys, type Category, type Component, type ComponentInpu
 import { numericSpecs, safeTextPattern } from "../schemas/hardware";
 import { hardwareApi, queryString } from "../services/hardware-api";
 import { useHardwareMutation, useHardwareQuery } from "../hooks/use-hardware-query";
+import { SearchField } from "@/shared/components/ui/search-field";
+import { Select } from "@/shared/components/ui/select";
 import { button, primaryButton, input, Field, HardwareDialog, HardwareError, HardwareLoading, HardwarePagination } from "./hardware-ui";
 import { PsuResource } from "./psu-resource";
 
@@ -22,23 +24,16 @@ export function ComponentForm({ profileId, profileVersion, component, onClose, o
   return <HardwareDialog title={t(component ? "components.edit" : "components.add")} onClose={onClose} busy={mutation.pending}>
     <div className="grid gap-4 sm:grid-cols-2">
       <Field label={t("components.category")}>
-        <select className={input} value={category} onChange={(event) => { setCategory(event.target.value as Category); setSelectedId(""); setPage(0); }}>{categories.map((value) => <option key={value} value={value}>{t(`categories.${value}`)}</option>)}</select>
+        <Select value={category} onChange={(value) => { setCategory(value as Category); setSelectedId(""); setPage(0); }} options={categories.map((value) => ({ value, label: t(`categories.${value}`) }))} />
       </Field>
       <Field label={t("components.entryMode")}>
-        <select className={input} value={manual ? "manual" : "catalog"} onChange={(event) => setManual(event.target.value === "manual")}>
-          <option value="manual">{t("components.manual")}</option>
-          <option value="catalog">{t("components.catalog")}</option>
-        </select>
+        <Select value={manual ? "manual" : "catalog"} onChange={(value) => setManual(value === "manual")} options={[{ value: "manual", label: t("components.manual") }, { value: "catalog", label: t("components.catalog") }]} />
       </Field>
     </div>
     {category === "PSU" ? <PsuResource /> : null}
     {!manual ? <div className="space-y-4">
       <form className="flex items-end gap-2" onSubmit={(event) => { event.preventDefault(); setSearch(String(new FormData(event.currentTarget).get("search"))); setPage(0); }}>
-        <div className="min-w-0 flex-1">
-          <Field label={t("catalog.search")}>
-            <input name="search" className={input} maxLength={160} />
-          </Field>
-        </div>
+        <SearchField className="flex-1" label={t("catalog.search")} showLabel name="search" maxLength={160} />
         <button className={button}>{t("common.search")}</button>
       </form>
       {products.loading ? <HardwareLoading /> : null}
@@ -66,10 +61,7 @@ export function ComponentForm({ profileId, profileVersion, component, onClose, o
           <input name="brandName" maxLength={100} pattern={safeTextPattern} className={input} defaultValue={component?.brandName ?? ""} />
         </Field>
       </div> : <Field label={t("components.brand")} hint={t("catalog.brandOptional")}>
-        <select className={input} name="brandId" defaultValue={component?.productId === selectedId ? component?.brandId ?? "" : ""}>
-          <option value="">{t("catalog.brandIndependent")}</option>
-          {selected.data?.brands.map((brand) => <option value={brand.id} key={brand.id}>{brand.name}</option>)}
-        </select>
+        <Select name="brandId" defaultValue={component?.productId === selectedId ? component?.brandId ?? "" : ""} options={[{ value: "", label: t("catalog.brandIndependent") }, ...(selected.data?.brands.map((brand) => ({ value: brand.id, label: brand.name })) ?? [])]} />
       </Field>}
 
       <Field label={t("components.quantity")}>

@@ -24,7 +24,8 @@ describe("Hardware snapshot", () => {
     expect(screen.getByText(/Marka belirtilmemiş/)).toBeInTheDocument();
     expect(screen.getByText(/Profil görünürlüğü: Yalnız ben/)).toBeInTheDocument();
     expect(screen.getAllByText(tr.Hardware.common.unknown).length).toBeGreaterThan(0);
-    fireEvent.change(screen.getByRole("combobox", { name: "Bilgisayar" }), { target: { value: "second" } });
+    fireEvent.click(screen.getByRole("combobox", { name: "Bilgisayar" }));
+    fireEvent.click(screen.getByRole("option", { name: "Laptop" }));
     await waitFor(() => expect(profile).toHaveBeenLastCalledWith("second", 0, expect.any(AbortSignal)));
   });
   it("shows an empty account without detail requests", async () => {

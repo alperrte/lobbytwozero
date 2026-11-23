@@ -54,8 +54,8 @@ describe("Özel tarih seçici", () => {
     render(<Harness onChange={onChange} />);
     openCalendar();
     const dialog = screen.getByRole("dialog", { name: t.datePickerDialog });
-    expect(within(dialog).getByRole("combobox", { name: t.datePickerMonth })).toHaveValue("10");
-    expect(within(dialog).getByRole("combobox", { name: t.datePickerYear })).toHaveValue("2026");
+    expect(within(dialog).getByRole("combobox", { name: t.datePickerMonth })).toHaveTextContent("Kasım");
+    expect(within(dialog).getByRole("combobox", { name: t.datePickerYear })).toHaveTextContent("2026");
     expect(within(dialog).getAllByRole("gridcell", { name: /8 Kasım 2026/ })[0]).toHaveAttribute("aria-current", "date");
     fireEvent.click(within(dialog).getAllByRole("gridcell", { name: /15 Kasım 2026/ })[0]);
     expect(onChange).toHaveBeenLastCalledWith("2026-11-15");
@@ -66,13 +66,15 @@ describe("Özel tarih seçici", () => {
     render(<Harness value="2022-02-25" />);
     openCalendar();
     const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByRole("combobox", { name: t.datePickerMonth })).toHaveValue("1");
+    expect(within(dialog).getByRole("combobox", { name: t.datePickerMonth })).toHaveTextContent("Şubat");
     fireEvent.click(within(dialog).getByRole("button", { name: t.datePickerNextMonth }));
-    expect(within(dialog).getByRole("combobox", { name: t.datePickerMonth })).toHaveValue("2");
-    fireEvent.change(within(dialog).getByRole("combobox", { name: t.datePickerYear }), { target: { value: "2015" } });
+    expect(within(dialog).getByRole("combobox", { name: t.datePickerMonth })).toHaveTextContent("Mart");
+    fireEvent.click(within(dialog).getByRole("combobox", { name: t.datePickerYear }));
+    fireEvent.click(screen.getByRole("option", { name: "2015" }));
+    expect(screen.getByRole("dialog")).toBeVisible();
     expect(within(dialog).getAllByRole("gridcell", { name: /Mart 2015/ }).length).toBeGreaterThan(20);
     fireEvent.click(within(dialog).getByRole("button", { name: t.datePickerPrevMonth }));
-    expect(within(dialog).getByRole("combobox", { name: t.datePickerMonth })).toHaveValue("1");
+    expect(within(dialog).getByRole("combobox", { name: t.datePickerMonth })).toHaveTextContent("Şubat");
   });
   it("Bugün ve Temizle düğmeleri çalışır", () => {
     const onChange = vi.fn();

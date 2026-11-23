@@ -22,12 +22,10 @@ function mount() {
 }
 
 describe("CommunityFrame (ortak içerik containerı)", () => {
-  it("başlık, sekmeler ve içerik aynı ortalı containerdadır (mobilde %96, sm ve üstünde %93)", () => {
+  it("başlık, sekmeler ve içerik aynı sarmalayıcıdadır; genişlik/hiza ortak kabuktan gelir (frontend-layout.md)", () => {
     mount();
     const container = screen.getByRole("heading", { level: 1 }).closest("header")?.parentElement as HTMLElement;
-    expect(container.className).toContain("mx-auto");
-    expect(container.className).toContain("w-[96%]");
-    expect(container.className).toContain("sm:w-[93%]");
+    expect(container.className).not.toMatch(/mx-auto|w-\[|max-w-/);
     expect(container.contains(screen.getByRole("navigation"))).toBe(true);
     expect(container.contains(screen.getByText("içerik"))).toBe(true);
   });

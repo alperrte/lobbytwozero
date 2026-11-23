@@ -1,5 +1,4 @@
 import { getTranslations } from "next-intl/server";
-import { PageContainer } from "@/shared/components/layout/page-container";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Icon, type IconName } from "@/shared/components/ui/icons";
 import { TeamCard } from "@/shared/components/ui/team-card";
@@ -31,7 +30,7 @@ export default async function AboutPage() {
   const t = await getTranslations("About");
 
   return (
-    <PageContainer>
+    <>
       <PageHeader
         title={t("hero.title")}
         description={t("hero.description")}
@@ -117,6 +116,6 @@ export default async function AboutPage() {
           </p>
         </section>
       </div>
-    </PageContainer>
+    </>
   );
 }

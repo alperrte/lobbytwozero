@@ -28,6 +28,12 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+/** Ortak Select: tetikleyiciyi açar ve seçeneği tıklar (liste açık dialog içine bağlanır). */
+function chooseReason(dialog: HTMLElement, label: string) {
+  fireEvent.click(within(dialog).getByLabelText("Gerekçe"));
+  fireEvent.click(within(dialog).getByRole("option", { name: label }));
+}
+
 function openDialog() {
   render(wrap(<ReportReview reviewId={reviewId} ownedByActor={false} />));
   fireEvent.click(screen.getByRole("button", { name: "Raporla" }));
@@ -44,6 +50,7 @@ describe("İnceleme raporlama", () => {
     const dialog = openDialog();
     expect(within(dialog).getByRole("heading", { name: "İncelemeyi raporla" })).toBeVisible();
     expect(within(dialog).getByLabelText("Gerekçe")).toHaveFocus();
+    fireEvent.click(within(dialog).getByLabelText("Gerekçe"));
     expect(within(dialog).getAllByRole("option")).toHaveLength(8);
     expect(report).not.toHaveBeenCalled();
   });
@@ -67,7 +74,7 @@ describe("İnceleme raporlama", () => {
 
   it("açıklama sınırını ve sayacı uygular", () => {
     const dialog = openDialog();
-    fireEvent.change(within(dialog).getByLabelText("Gerekçe"), { target: { value: "SPAM" } });
+    chooseReason(dialog, "Spam veya reklam");
     const field = within(dialog).getByLabelText("Açıklama (isteğe bağlı)");
     fireEvent.change(field, { target: { value: "x".repeat(501) } });
     expect(within(dialog).getByText("501 / 500 karakter")).toBeVisible();
@@ -79,7 +86,7 @@ describe("İnceleme raporlama", () => {
   it("gerekçe ve açıklamayla gönderir; başarıda diyaloğu kapatır ve 'kaydedildi' gösterir", async () => {
     report.mockResolvedValue(saved);
     const dialog = openDialog();
-    fireEvent.change(within(dialog).getByLabelText("Gerekçe"), { target: { value: "SPAM" } });
+    chooseReason(dialog, "Spam veya reklam");
     fireEvent.change(within(dialog).getByLabelText("Açıklama (isteğe bağlı)"), { target: { value: "Reklam içeriyor" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Raporu gönder" }));
     expect(await screen.findByText(/Raporladın ·/)).toBeVisible();
@@ -92,7 +99,7 @@ describe("İnceleme raporlama", () => {
     let finish: (value: ReviewReport) => void = () => undefined;
     report.mockImplementation(() => new Promise<ReviewReport>((resolve) => { finish = resolve; }));
     const dialog = openDialog();
-    fireEvent.change(within(dialog).getByLabelText("Gerekçe"), { target: { value: "OTHER" } });
+    chooseReason(dialog, "Diğer");
     const submit = within(dialog).getByRole("button", { name: "Raporu gönder" });
     fireEvent.click(submit);
     fireEvent.click(submit);
@@ -105,7 +112,7 @@ describe("İnceleme raporlama", () => {
   it("mükerrer rapor (409) 'zaten raporladın' olarak ele alınır", async () => {
     report.mockRejectedValue(new ApiHttpError(409));
     const dialog = openDialog();
-    fireEvent.change(within(dialog).getByLabelText("Gerekçe"), { target: { value: "HARASSMENT" } });
+    chooseReason(dialog, "Taciz veya hakaret");
     fireEvent.click(within(dialog).getByRole("button", { name: "Raporu gönder" }));
     expect(await screen.findByText("Bu incelemeyi zaten raporladın.")).toBeVisible();
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -114,11 +121,11 @@ describe("İnceleme raporlama", () => {
   it("hatada diyaloğu açık tutar, girdiyi korur ve gerçek nedeni gösterir", async () => {
     report.mockRejectedValue(new ApiHttpError(503));
     const dialog = openDialog();
-    fireEvent.change(within(dialog).getByLabelText("Gerekçe"), { target: { value: "SPOILER" } });
+    chooseReason(dialog, "Gizlenmemiş spoiler");
     fireEvent.change(within(dialog).getByLabelText("Açıklama (isteğe bağlı)"), { target: { value: "Final açıklanmış" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Raporu gönder" }));
     expect(await within(dialog).findByText("Servis geçici olarak kullanılamıyor. Biraz sonra tekrar dene.")).toBeVisible();
-    expect(within(dialog).getByLabelText("Gerekçe")).toHaveValue("SPOILER");
+    expect(within(dialog).getByLabelText("Gerekçe")).toHaveTextContent("Gizlenmemiş spoiler");
     expect(within(dialog).getByLabelText("Açıklama (isteğe bağlı)")).toHaveValue("Final açıklanmış");
     expect(report).toHaveBeenCalledTimes(1);
   });
@@ -126,7 +133,7 @@ describe("İnceleme raporlama", () => {
   it("403'te (kendi incelemesi/engel) ve 404'te uygun mesajı gösterir", async () => {
     report.mockRejectedValueOnce(new ApiHttpError(403));
     const dialog = openDialog();
-    fireEvent.change(within(dialog).getByLabelText("Gerekçe"), { target: { value: "SPAM" } });
+    chooseReason(dialog, "Spam veya reklam");
     fireEvent.click(within(dialog).getByRole("button", { name: "Raporu gönder" }));
     expect(await within(dialog).findByText(/Kendi incelemeni raporlayamazsın/)).toBeVisible();
     report.mockRejectedValueOnce(new ApiHttpError(404));
@@ -137,7 +144,7 @@ describe("İnceleme raporlama", () => {
   it("429'da Retry-After süresince gönderimi kapatır ve otomatik tekrar denemez", async () => {
     report.mockRejectedValue(new ApiHttpError(429, { retryAfterSeconds: 90 }));
     const dialog = openDialog();
-    fireEvent.change(within(dialog).getByLabelText("Gerekçe"), { target: { value: "SPAM" } });
+    chooseReason(dialog, "Spam veya reklam");
     fireEvent.click(within(dialog).getByRole("button", { name: "Raporu gönder" }));
     expect(await within(dialog).findByText(/90 saniye sonra tekrar deneyebilirsin/)).toBeVisible();
     expect(within(dialog).getByRole("button", { name: "Raporu gönder" })).toBeDisabled();
@@ -148,7 +155,7 @@ describe("İnceleme raporlama", () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     report.mockRejectedValueOnce(new ApiHttpError(429, { retryAfterSeconds: 2 }));
     const dialog = openDialog();
-    fireEvent.change(within(dialog).getByLabelText("Gerekçe"), { target: { value: "SPAM" } });
+    chooseReason(dialog, "Spam veya reklam");
     fireEvent.click(within(dialog).getByRole("button", { name: "Raporu gönder" }));
     expect(await within(dialog).findByText(/2 saniye sonra/)).toBeVisible();
     await act(async () => {

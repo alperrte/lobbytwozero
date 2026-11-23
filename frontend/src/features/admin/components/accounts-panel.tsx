@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { authApi, type AdminAccount, type AdminTargetStatus } from "@/features/auth";
+import { Select } from "@/shared/components/ui/select";
 import { adminErrorMessage } from "../services/admin-errors";
 import { AccountSearch } from "./account-search";
 import { STATUS_LABEL } from "./account-status";
@@ -141,21 +142,20 @@ function StatusForm({ account, onChanged }: { account: AdminAccount; onChanged: 
     <form onSubmit={submit} className={`${surfaceClass} flex flex-col gap-4`} noValidate>
       <h3 className="font-display text-sm font-semibold uppercase tracking-[0.12em] text-text-primary">Durum değiştir</h3>
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="flex flex-col gap-1 text-sm">
-          <span className={labelClass}>Yeni durum</span>
-          <select className={inputClass} value={status} onChange={(event) => setStatus(event.target.value as AdminTargetStatus)}>
-            {TARGETS.map((target) => <option key={target.value} value={target.value}>{target.label}</option>)}
-          </select>
-        </label>
+        <div className="flex flex-col gap-1 text-sm">
+          <span aria-hidden="true" className={labelClass}>Yeni durum</span>
+          <Select aria-label="Yeni durum" value={status} onChange={(value) => setStatus(value as AdminTargetStatus)} options={TARGETS} />
+        </div>
         {status === "SUSPENDED" && (
-          <label className="flex flex-col gap-1 text-sm">
-            <span className={labelClass}>Askı süresi</span>
-            <select className={inputClass} value={days} onChange={(event) => setDays(Number(event.target.value))}>
-              {SUSPENSION_DAYS.map((value) => (
-                <option key={value} value={value}>{value === 0 ? "Süresiz" : `${value} gün`}</option>
-              ))}
-            </select>
-          </label>
+          <div className="flex flex-col gap-1 text-sm">
+            <span aria-hidden="true" className={labelClass}>Askı süresi</span>
+            <Select
+              aria-label="Askı süresi"
+              value={String(days)}
+              onChange={(value) => setDays(Number(value))}
+              options={SUSPENSION_DAYS.map((value) => ({ value: String(value), label: value === 0 ? "Süresiz" : `${value} gün` }))}
+            />
+          </div>
         )}
       </div>
       <label className="flex flex-col gap-1 text-sm">
@@ -199,14 +199,15 @@ function RoleForm({ account, roles, onChanged }: { account: AdminAccount; roles:
   return (
     <form onSubmit={submit} className={`${surfaceClass} flex flex-col gap-4`} noValidate>
       <h3 className="font-display text-sm font-semibold uppercase tracking-[0.12em] text-text-primary">Rol yönetimi</h3>
-      <label className="flex flex-col gap-1 text-sm">
-        <span className={labelClass}>Rol</span>
-        <select className={inputClass} value={selected} onChange={(event) => setRole(event.target.value)}>
-          {roles.map((code) => (
-            <option key={code} value={code}>{code}{account.roles.includes(code) ? " (var)" : ""}</option>
-          ))}
-        </select>
-      </label>
+      <div className="flex flex-col gap-1 text-sm">
+        <span aria-hidden="true" className={labelClass}>Rol</span>
+        <Select
+          aria-label="Rol"
+          value={selected}
+          onChange={setRole}
+          options={roles.map((code) => ({ value: code, label: `${code}${account.roles.includes(code) ? " (var)" : ""}` }))}
+        />
+      </div>
       <label className="flex flex-col gap-1 text-sm">
         <span className={labelClass}>Gerekçe (zorunlu, denetim kaydına yazılır)</span>
         <textarea className={inputClass} rows={2} maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} />

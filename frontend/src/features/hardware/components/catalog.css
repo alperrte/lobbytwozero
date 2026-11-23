@@ -1,11 +1,10 @@
 .ltzCatalog_catalog {
   --catalog-edge: color-mix(in srgb, var(--ltz-border) 62%, transparent);
   --catalog-inset: color-mix(in srgb, var(--ltz-surface-elevated) 56%, var(--ltz-surface));
-  margin-top: -12px;
   color: var(--ltz-text-primary);
   min-width: 0;
 }
-.ltzCatalog_categories { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-block: 12px; }
+.ltzCatalog_categories { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-block: 0 12px; }
 .ltzCatalog_category {
   display: flex; align-items: center; justify-content: center; gap: 12px;
   min-height: 50px; min-width: 0; border: 1px solid var(--catalog-edge); border-radius: 8px;
@@ -55,9 +54,8 @@
 .ltzCatalog_toolbar { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 7px 16px 7px 9px; margin-bottom: 10px; border: 1px solid var(--catalog-edge); border-radius: 8px; background: var(--ltz-surface); }
 .ltzCatalog_resultCount { flex: none; margin-inline-start: auto; font-size: 13px; color: var(--ltz-text-secondary); white-space: nowrap; }
 .ltzCatalog_resultCount strong { color: var(--ltz-text-primary); font-weight: 700; }
-.ltzCatalog_search { position: relative; min-width: 100px; width: min(39%, 260px); }
-.ltzCatalog_search svg { position: absolute; inset-inline-start: 10px; top: 50%; transform: translateY(-50%); color: var(--ltz-text-secondary); width: 15px; height: 15px; }
-.ltzCatalog_search input { padding-inline-start: 32px; }
+/* Arama alanı ortak SearchField'dır (frontend-layout.md §3); burada yalnız araç çubuğundaki genişliği belirlenir. */
+.ltzCatalog_search { min-width: 100px; width: min(39%, 260px); }
 .ltzCatalog_views { display: flex; flex: none; gap: 4px; padding: 3px; background: var(--ltz-background); border-radius: 6px; }
 .ltzCatalog_viewButton { display: flex; align-items: center; justify-content: center; gap: 6px; height: 32px; min-width: 72px; padding: 0 10px; border-radius: 5px; font-size: 12px; color: var(--ltz-text-secondary); cursor: pointer; }
 .ltzCatalog_viewButton svg { width: 14px; height: 14px; }
@@ -65,18 +63,13 @@
 .ltzCatalog_action.ltzCatalog_mobileFilters { display: none; }
 .ltzCatalog_action.ltzCatalog_filterToggle, .ltzCatalog_action.ltzCatalog_mobileFilters { height: 34px; padding: 0 11px; font-size: 12px; background: var(--catalog-inset); }
 .ltzCatalog_action.ltzCatalog_filterToggle[aria-expanded="true"] { border-color: var(--ltz-primary); color: var(--ltz-brand-text); }
-/* Araç çubuğu denetimleri navbar arama kutusu gibi yuvarlak (rounded-xl). */
-.ltzCatalog_search input { height: 38px; border-radius: 12px; border-color: transparent; background: var(--ltz-surface-elevated); transition: border-color 150ms ease, background-color 150ms ease; }
-.ltzCatalog_search input:hover { border-color: var(--ltz-border); }
-.ltzCatalog_search input:focus-visible { border-color: var(--ltz-primary); outline: none; box-shadow: 0 0 0 2px color-mix(in srgb, var(--ltz-primary) 25%, transparent); }
-.ltzCatalog_search svg { inset-inline-start: 13px; }
-.ltzCatalog_search input { padding-inline-start: 38px; }
+/* Araç çubuğu denetimleri ortak oval kontrollerle aynı yükseklik ve yuvarlaklıkta (40px, rounded-xl). */
 .ltzCatalog_views { padding: 3px; border-radius: 12px; background: var(--ltz-surface-elevated); }
 .ltzCatalog_action.ltzCatalog_filterToggle, .ltzCatalog_action.ltzCatalog_mobileFilters { border-color: transparent; background: var(--ltz-surface-elevated); transition: border-color 150ms ease, background-color 150ms ease; }
 .ltzCatalog_action.ltzCatalog_filterToggle:hover, .ltzCatalog_action.ltzCatalog_mobileFilters:hover { border-color: var(--ltz-border); background: var(--ltz-surface-elevated); }
 .ltzCatalog_action.ltzCatalog_filterToggle[aria-expanded="true"] { border-color: var(--ltz-primary); }
 .ltzCatalog_viewButton { height: 32px; border-radius: 9px; }
-.ltzCatalog_action.ltzCatalog_filterToggle, .ltzCatalog_action.ltzCatalog_mobileFilters { height: 38px; padding: 0 14px; border-radius: 12px; }
+.ltzCatalog_action.ltzCatalog_filterToggle, .ltzCatalog_action.ltzCatalog_mobileFilters { height: 40px; padding: 0 14px; border-radius: 12px; }
 .ltzCatalog_filterCount { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--ltz-primary); color: var(--ltz-primary-foreground); font-size: 10px; font-weight: 700; }
 .ltzCatalog_body[data-filters="collapsed"] { grid-template-columns: minmax(0, 1fr); }
 .ltzCatalog_filterPanel[hidden] { display: none; }
@@ -150,8 +143,8 @@
 @media (max-width: 1199px) { .ltzCatalog_body, .ltzCatalog_body[data-filters="collapsed"] { grid-template-columns: minmax(0, 1fr); } .ltzCatalog_filterPanel, .ltzCatalog_action.ltzCatalog_filterToggle { display: none; } .ltzCatalog_mobileFilters { display: inline-flex; }.ltzCatalog_comparisonIntro { display: none; } .ltzCatalog_comparisonBar { flex-wrap: wrap; gap: 10px; } .ltzCatalog_selectionItems { flex-basis: 60%; } }
 @media (max-width: 900px) { .ltzCatalog_categories { display: flex; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; } .ltzCatalog_category { flex: 0 0 148px; } .ltzCatalog_moreCategories { flex-basis: 80px; } .ltzCatalog_grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.ltzCatalog_selectionArt { width: 44px; height: 32px; } .ltzCatalog_selectionControls .ltzCatalog_clear { display: none; } }
 @media (max-width: 559px) {
-  .ltzCatalog_categories { margin-block: 10px; } .ltzCatalog_category { min-height: 48px; flex-basis: 140px; }
-  .ltzCatalog_toolbar { flex-wrap: wrap; padding: 8px; gap: 8px; } .ltzCatalog_resultCount { flex: 1; } .ltzCatalog_search { order: 3; width: 100%; margin: 0; } .ltzCatalog_search input { height: 38px; } .ltzCatalog_views { order: 2; } .ltzCatalog_mobileFilters { order: 1; } .ltzCatalog_viewButton { min-width: 32px; } .ltzCatalog_grid { grid-template-columns: minmax(0, 1fr); } .ltzCatalog_media { height: 170px; } .ltzCatalog_cardBody { padding: 12px 14px 14px; grid-template-rows: 24px 18px 80px 48px; } .ltzCatalog_productName { font-size: 16px; } .ltzCatalog_specRow { font-size: 13.5px; line-height: 18px; } .ltzCatalog_actions { grid-template-columns: 104px minmax(0, 1fr); } .ltzCatalog_action { height: 40px; font-size: 13px; } .ltzCatalog_list .ltzCatalog_card { display: block; } .ltzCatalog_list .ltzCatalog_media { height: 140px; min-height: 0; border-inline-end: 0; } .ltzCatalog_list .ltzCatalog_actions { max-width: none; }
+  .ltzCatalog_categories { margin-block: 0 10px; } .ltzCatalog_category { min-height: 48px; flex-basis: 140px; }
+  .ltzCatalog_toolbar { flex-wrap: wrap; padding: 8px; gap: 8px; } .ltzCatalog_resultCount { flex: 1; } .ltzCatalog_search { order: 3; width: 100%; margin: 0; }.ltzCatalog_views { order: 2; } .ltzCatalog_mobileFilters { order: 1; } .ltzCatalog_viewButton { min-width: 32px; } .ltzCatalog_grid { grid-template-columns: minmax(0, 1fr); } .ltzCatalog_media { height: 170px; } .ltzCatalog_cardBody { padding: 12px 14px 14px; grid-template-rows: 24px 18px 80px 48px; } .ltzCatalog_productName { font-size: 16px; } .ltzCatalog_specRow { font-size: 13.5px; line-height: 18px; } .ltzCatalog_actions { grid-template-columns: 104px minmax(0, 1fr); } .ltzCatalog_action { height: 40px; font-size: 13px; } .ltzCatalog_list .ltzCatalog_card { display: block; } .ltzCatalog_list .ltzCatalog_media { height: 140px; min-height: 0; border-inline-end: 0; } .ltzCatalog_list .ltzCatalog_actions { max-width: none; }
   .ltzCatalog_comparisonBar { padding: 10px; bottom: 8px; } .ltzCatalog_selectionItems { flex-basis: 100%; gap: 6px; } .ltzCatalog_selectionItem { padding-inline-start: 0; gap: 5px; border-inline-start: 0; } .ltzCatalog_selectionItem p { font-size: 10px; } .ltzCatalog_selectionItem small { font-size: 9px; } .ltzCatalog_selectionArt { width: 36px; height: 28px; } .ltzCatalog_remove { min-width: 26px; min-height: 36px; } .ltzCatalog_selectionControls { width: 100%; justify-content: space-between; } .ltzCatalog_selectionControls .ltzCatalog_clear { display: inline; } .ltzCatalog_compareAction { flex: 1; min-height: 40px; }
 }
 @media (prefers-reduced-motion: reduce) { .ltzCatalog_card { transition: none; } }

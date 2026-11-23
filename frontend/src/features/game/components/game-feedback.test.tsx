@@ -29,7 +29,9 @@ describe("Oyuncu geri bildirim formu", () => {
     wrap(<GameFeedback gameId={gameId} />);
     const form = await screen.findByRole("form", { name: t.sendFeedback });
     expect(within(form).queryByRole("option", { name: t.choices.EARLY_ACCESS })).toBeNull();
-    fireEvent.change(within(form).getByLabelText(t.fields.type), { target: { value: "BUG_REPORT" } });
+    fireEvent.click(within(form).getByLabelText(t.fields.type));
+    expect(screen.queryByRole("option", { name: t.choices.EARLY_ACCESS })).toBeNull();
+    fireEvent.click(screen.getByRole("option", { name: t.choices.BUG_REPORT }));
     fireEvent.change(within(form).getByLabelText(t.fields.title), { target: { value: "Çökme" } });
     fireEvent.change(within(form).getByLabelText(t.fields.body), { target: { value: "Başlangıçta çöküyor" } });
     fireEvent.submit(form);
@@ -37,7 +39,8 @@ describe("Oyuncu geri bildirim formu", () => {
     expect(mutate.mock.calls[0][0]).toEqual({ operation: "feedback", body: { gameId, type: "BUG_REPORT", title: "Çökme", body: "Başlangıçta çöküyor" } });
     cleanup();
     wrap(<GameFeedback gameId={gameId} earlyAccess />);
-    expect(within(await screen.findByRole("form", { name: t.sendFeedback })).getByRole("option", { name: t.choices.EARLY_ACCESS })).toBeVisible();
+    fireEvent.click(within(await screen.findByRole("form", { name: t.sendFeedback })).getByLabelText(t.fields.type));
+    expect(screen.getByRole("option", { name: t.choices.EARLY_ACCESS })).toBeVisible();
   });
 });
 
@@ -60,8 +63,10 @@ describe("Geliştirici geri bildirim kutusu", () => {
     serve({ feedback: () => ({ items: [], page: 0, size: 20, totalElements: 0 }) });
     wrap(<GameFeedback gameId={gameId} developer />);
     await screen.findByText(t.emptyFeedbackDeveloper);
-    fireEvent.change(screen.getByLabelText(t.fields.status), { target: { value: "OPEN" } });
-    fireEvent.change(screen.getByLabelText(t.fields.type), { target: { value: "BUG_REPORT" } });
+    fireEvent.click(screen.getByRole("combobox", { name: t.fields.status }));
+    fireEvent.click(screen.getByRole("option", { name: t.choices.OPEN }));
+    fireEvent.click(screen.getByRole("combobox", { name: t.fields.type }));
+    fireEvent.click(screen.getByRole("option", { name: t.choices.BUG_REPORT }));
     await waitFor(() => expect(load.mock.calls.some(([resource]) => resource.kind === "feedback" && resource.status === "OPEN" && resource.type === "BUG_REPORT")).toBe(true));
   });
 });

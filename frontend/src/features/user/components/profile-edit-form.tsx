@@ -3,7 +3,6 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { useRequireSession } from "@/features/auth";
-import { PageContainer } from "@/shared/components/layout/page-container";
 import { ApiHttpError } from "@/shared/lib/api/client";
 import { CardSnake } from "@/shared/components/ui/card-snake";
 import { ConfirmDialog } from "@/shared/components/ui/confirm-dialog";
@@ -55,24 +54,18 @@ export function ProfileEditForm() {
 
   if (session.status !== "authenticated" || state.status === "loading") {
     return (
-      <PageContainer>
-        <p role="status" className="text-text-secondary">
-          {t("loading")}
-        </p>
-      </PageContainer>
+      <p role="status" className="text-text-secondary">
+        {t("loading")}
+      </p>
     );
   }
   if (state.status === "error") {
     return (
-      <PageContainer>
-        <ProfileStateNotice title={t("errorTitle")} body={t("errorBody")} actionLabel={t("retry")} onAction={retry} />
-      </PageContainer>
+      <ProfileStateNotice title={t("errorTitle")} body={t("errorBody")} actionLabel={t("retry")} onAction={retry} />
     );
   }
   return (
-    <PageContainer>
-      <EditFields initial={state.profile} />
-    </PageContainer>
+    <EditFields initial={state.profile} />
   );
 }
 

@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { usePathname } from "@/shared/lib/i18n/navigation";
 import { ThemeTransitionLayer } from "@/shared/components/theme-transition/theme-transition-layer";
 import { Navbar } from "./navbar";
+import { PageContainer } from "./page-container";
 import { Sidebar } from "./sidebar";
 
 type AppShellProps = {
@@ -115,9 +116,10 @@ export function AppShell({ children, footer }: AppShellProps) {
             <main
               id="main-content"
               tabIndex={-1}
-              className="flex-1 px-3 pb-8 pt-6 focus:outline-none sm:px-5 sm:pb-10"
+              className="flex-1 px-3 pb-8 pt-3 focus:outline-none sm:px-5 sm:pb-10"
             >
-              {children}
+              {/* Tek ortak sayfa kabı: genişlik ve hizayı yalnız burası belirler (frontend/frontend-layout.md). */}
+              <PageContainer>{children}</PageContainer>
             </main>
           </div>
         </div>

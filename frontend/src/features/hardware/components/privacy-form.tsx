@@ -3,17 +3,16 @@ import { useTranslations } from "next-intl";
 import { hardwareApi } from "../services/hardware-api";
 import { useHardwareMutation, useHardwareQuery } from "../hooks/use-hardware-query";
 import { categories, privacyFields, type Privacy, type Visibility } from "../types/hardware";
-import { primaryButton, input, Field, HardwareDialog, HardwareError, HardwareLoading } from "./hardware-ui";
+import { Select } from "@/shared/components/ui/select";
+import { primaryButton, Field, HardwareDialog, HardwareError, HardwareLoading } from "./hardware-ui";
 
 export function PrivacyForm({ profileId, onSaved, onClose }: { profileId: string; onSaved: () => void; onClose: () => void }) {
   const t = useTranslations("Hardware");
   const result = useHardwareQuery(`privacy:${profileId}`, (signal) => hardwareApi.privacy(profileId, signal));
   const mutation = useHardwareMutation(() => { result.reload(); onSaved(); });
   function select(name: string, value?: Visibility, inherit = true) {
-    return <select className={input} name={name} defaultValue={value ?? ""}>
-      {inherit ? <option value="">{t("privacy.inherit")}</option> : null}
-      {["PRIVATE", "FRIENDS", "PUBLIC"].map((visibility) => <option key={visibility} value={visibility}>{t(`visibility.${visibility}`)}</option>)}
-    </select>;
+    const options = ["PRIVATE", "FRIENDS", "PUBLIC"].map((visibility) => ({ value: visibility, label: t(`visibility.${visibility}`) }));
+    return <Select name={name} defaultValue={value ?? ""} options={inherit ? [{ value: "", label: t("privacy.inherit") }, ...options] : options} />;
   }
   return <HardwareDialog title={t("privacy.title")} onClose={onClose} busy={mutation.pending}>
     <p className="text-sm leading-6 text-text-secondary">{t("privacy.description")}</p>
