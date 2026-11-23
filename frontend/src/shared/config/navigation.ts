@@ -78,9 +78,10 @@ export const navigationGroups: readonly NavGroup[] = [
         id: "messages",
         labelKey: "messages",
         icon: "messages",
-        service: "messaging-service"
+        service: "messaging-service",
+        href: "/messages"
       },
-      { id: "findTeam", labelKey: "findTeam", icon: "usersRound", service: "lfp-service" },
+      { id: "findTeam", labelKey: "findTeam", icon: "usersRound", service: "lfp-service", href: "/find-team" },
       { id: "events", labelKey: "events", icon: "calendar", service: "event-service" }
     ]
   },
