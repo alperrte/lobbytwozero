@@ -3393,7 +3393,7 @@
     },
     "card": {
       "message": "Send Message",
-      "messageSoon": "Messaging is coming soon",
+      "messageNamed": "Message {name}",
       "moreActions": "More actions for {name}",
       "viewProfile": "View Profile",
       "soon": "Soon",
@@ -3687,5 +3687,259 @@
     "compatibilityAndRecommendations": "Game compatibility and recommendations",
     "compatibilityUnavailable": "Verified game–hardware compatibility comparisons are not available in this version yet. A saved hardware profile does not imply that a game is compatible.",
     "recommendationsUnavailable": "Personalized game and hardware recommendations are not available yet. This dashboard does not generate FPS predictions or recommendation results."
+  },
+  "Messaging": {
+    "meta": {
+      "title": "Messages"
+    },
+    "person": {
+      "deletedAccount": "Deleted account",
+      "unknown": "Player"
+    },
+    "snippet": {
+      "deleted": "This message was deleted",
+      "image": "📷 Photo",
+      "gif": "GIF",
+      "voice": "🎤 Voice message",
+      "text": "Message"
+    },
+    "status": {
+      "sending": "Sending",
+      "failed": "Not sent",
+      "read": "Read",
+      "sent": "Sent"
+    },
+    "connection": {
+      "connecting": "Connecting…",
+      "live": "Live",
+      "reconnecting": "Reconnecting…",
+      "offline": "Offline, retrying"
+    },
+    "list": {
+      "title": "Messages",
+      "new": "New Chat",
+      "search": "Search chats",
+      "searchPlaceholder": "Search people or groups",
+      "untitled": "Chat",
+      "noMatchTitle": "No matching chats",
+      "noMatchBody": "Try a different name.",
+      "emptyTitle": "No chats yet",
+      "emptyBody": "Start a direct chat with a friend or create a group for your team.",
+      "loadMore": "More chats",
+      "you": "You",
+      "members": "{count} members",
+      "noMessages": "No messages yet",
+      "unread": "{count} unread messages"
+    },
+    "states": {
+      "loading": "Loading…",
+      "retry": "Try again"
+    },
+    "errors": {
+      "conversationNotFound": "Chat not found or you are no longer a member.",
+      "messageNotFound": "Message not found.",
+      "notAllowed": "You can't message this person.",
+      "blockCheckUnavailable": "Permissions can't be checked right now. Try again shortly.",
+      "messageDeleted": "This message was deleted.",
+      "deleteWindowExpired": "The 48-hour window to delete for everyone has passed.",
+      "notAllowedToDelete": "You can't delete this message for everyone.",
+      "tooManyMessages": "You're sending messages too fast. Wait a moment.",
+      "tooManyUploads": "Too many image uploads. Wait a moment.",
+      "tooManyPending": "You have too many images waiting to be sent.",
+      "tooManyReactions": "You're reacting too fast. Wait a moment.",
+      "tooManyGifSearches": "Too many GIF searches. Wait a moment.",
+      "gifUnavailable": "The GIF service is unavailable right now.",
+      "gifNotAvailable": "This GIF is no longer available.",
+      "attachmentNotAvailable": "The image expired. Upload it again.",
+      "invalidImage": "The file is not a valid image.",
+      "imageTooLarge": "The image exceeds the 1 MB limit.",
+      "imageDimensions": "The image dimensions are too large.",
+      "unsupportedMedia": "This file type is not supported.",
+      "mediaBusy": "Image processing is busy. Try again.",
+      "payloadTooLarge": "The file exceeds the 1 MB limit.",
+      "invalidReaction": "A reaction must be a single emoji.",
+      "insufficientRole": "You don't have permission for this.",
+      "alreadyMember": "One of the selected people is already in the group.",
+      "memberLimit": "A group can have at most 100 members.",
+      "memberNotFound": "This person is no longer in the group.",
+      "cannotMessageSelf": "You can't start a chat with yourself.",
+      "invalidContent": "The message content is invalid.",
+      "busy": "The server is busy. Try again.",
+      "unauthenticated": "Your session has ended. Sign in again.",
+      "forbidden": "You don't have permission for this.",
+      "notFound": "The content was not found.",
+      "conflict": "The action conflicted. Try again.",
+      "rateLimited": "Too many requests. Wait a moment.",
+      "unavailable": "Messaging is unavailable right now.",
+      "csrf": "Security check could not be refreshed. Reload the page.",
+      "timeout": "The server didn't respond in time.",
+      "network": "Couldn't connect. Check your internet connection.",
+      "generic": "Something went wrong. Try again.",
+      "unsupportedImage": "You can only send PNG, JPEG and GIF images.",
+      "imageTooLargeClient": "The image couldn't be reduced below 1 MB.",
+      "invalidImageClient": "The image couldn't be read."
+    },
+    "emoji": {
+      "groups": "Emoji groups",
+      "smileys": "Smileys",
+      "gestures": "Hands",
+      "gaming": "Gaming",
+      "symbols": "Symbols"
+    },
+    "gif": {
+      "search": "Search GIFs",
+      "searchPlaceholder": "Search GIPHY",
+      "results": "Results",
+      "trending": "Trending",
+      "empty": "No GIFs found.",
+      "pickNamed": "Send GIF: {title}",
+      "pick": "Send GIF",
+      "more": "More"
+    },
+    "composer": {
+      "label": "Write a message",
+      "replyingTo": "Replying to {name}",
+      "cancelReply": "Cancel reply",
+      "imageReady": "Image ready. Add a caption if you like and send.",
+      "preparing": "Preparing image…",
+      "uploading": "Uploading…",
+      "uploadProgress": "Upload progress",
+      "cancelUpload": "Cancel upload",
+      "removeImage": "Remove image",
+      "emoji": "Add emoji",
+      "gif": "Send GIF",
+      "image": "Add image",
+      "placeholder": "Write a message",
+      "captionPlaceholder": "Add a caption (optional)",
+      "send": "Send",
+      "issue": {
+        "empty": "A message can't be only spaces.",
+        "tooLong": "A message can be at most 4000 characters.",
+        "invalidCharacters": "The message contains unsupported characters."
+      },
+      "counter": "{count}/{max}"
+    },
+    "bubble": {
+      "label": "{name}, {time}",
+      "forwarded": "Forwarded",
+      "forwardedMany": "Forwarded many times",
+      "reactions": "Reactions",
+      "reactionChip": "{emoji} {count} reactions",
+      "retry": "Try again",
+      "discard": "Delete",
+      "replyUnavailable": "You can't see this message",
+      "jumpToReply": "Go to the replied message",
+      "openImage": "Open image in a new tab",
+      "imageAlt": "Sent image",
+      "gifAlt": "GIF",
+      "voice": "Voice message, {seconds} seconds",
+      "voiceDuration": "{minutes}:{seconds}"
+    },
+    "menu": {
+      "open": "Actions for {name}'s message",
+      "label": "Message actions",
+      "react": "React",
+      "reactWith": "React with {emoji}",
+      "moreReactions": "Pick another emoji",
+      "reply": "Reply",
+      "forward": "Forward",
+      "copy": "Copy text",
+      "info": "Message info",
+      "reactions": "See reactions",
+      "deleteForMe": "Delete for me",
+      "deleteForEveryone": "Delete for everyone"
+    },
+    "delete": {
+      "meTitle": "Delete this message for you?",
+      "meBody": "The message is removed only from your view. Other participants can still see it. This can't be undone.",
+      "meConfirm": "Delete for Me",
+      "everyoneTitle": "Delete this message for everyone?",
+      "everyoneBody": "Everyone in the chat will see \"This message was deleted\". This can't be undone.",
+      "everyoneConfirm": "Delete for Everyone",
+      "cancel": "Cancel"
+    },
+    "forward": {
+      "title": "Forward message",
+      "description": "Choose up to {max} chats.",
+      "targets": "Target chats",
+      "selected": "{count}/{max} chats selected",
+      "sending": "Forwarding…",
+      "submit": "Forward",
+      "done": "{count, plural, one {Message forwarded to # chat.} other {Message forwarded to # chats.}}"
+    },
+    "dialog": {
+      "close": "Close",
+      "cancel": "Cancel"
+    },
+    "info": {
+      "title": "Message info",
+      "reactionsTitle": "Reactions",
+      "sentAt": "Sent: {time}",
+      "readBy": "Read by",
+      "pending": "Not read yet",
+      "notYet": "Not read",
+      "reactions": "Reactions",
+      "noReactions": "No reactions yet.",
+      "timeUnknown": "Time unknown",
+      "nobody": "No one has read it yet."
+    },
+    "new": {
+      "title": "New chat",
+      "mode": "Chat type",
+      "direct": "Direct",
+      "group": "Group",
+      "searchFriends": "Search friends",
+      "friendsFailed": "Friends list couldn't be loaded.",
+      "noMatch": "No matching friends.",
+      "noFriends": "You have no friends yet. You can add friends on the Friends page.",
+      "start": "Chat"
+    },
+    "group": {
+      "titleLabel": "Group name",
+      "titleIssue": {
+        "empty": "Group name can't be empty.",
+        "tooLong": "Group name can be at most {max} characters.",
+        "invalidCharacters": "Group name contains unsupported characters."
+      },
+      "pickMembers": "Select at least one member.",
+      "members": "Group members",
+      "selected": "{count} selected",
+      "creating": "Creating…",
+      "create": "Create Group",
+      "info": "Group info",
+      "youMember": "{name} (you)",
+      "role": {
+        "OWNER": "Founder",
+        "ADMIN": "Admin",
+        "MEMBER": "Member"
+      },
+      "promote": "Make admin",
+      "demote": "Remove admin",
+      "remove": "Remove",
+      "removeNamed": "Remove {name} from the group",
+      "addTitle": "Add members",
+      "noCandidates": "No friends left to add.",
+      "addSubmit": "Add {count}",
+      "add": "Add Members",
+      "leave": "Leave Group",
+      "leaveTitle": "Leave this group?",
+      "leaveBody": "After leaving you won't see this group's messages.",
+      "leaveOwnerBody": "If you leave a group you founded, ownership passes to the longest-standing admin, or the longest-standing member if there is no admin. You won't see its messages anymore.",
+      "leaveConfirm": "Leave"
+    },
+    "thread": {
+      "back": "Back to chats",
+      "backToList": "Back to chats",
+      "direct": "Direct chat",
+      "older": "Older messages",
+      "start": "Start of the chat",
+      "emptyTitle": "No messages yet",
+      "emptyBody": "Send the first message.",
+      "messages": "Messages",
+      "newMessages": "{count, plural, one {# new message} other {# new messages}}",
+      "replyNotLoaded": "The replied message is older; scroll up to see it.",
+      "pickTitle": "Pick a chat",
+      "pickBody": "Open a chat from the list or start a new one."
+    }
   }
 }

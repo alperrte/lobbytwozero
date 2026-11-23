@@ -36,6 +36,7 @@ export const pathnames = {
   "/friends/requests": { tr: "/arkadaslar/istekler", en: "/friends/requests" },
   "/friends/sent": { tr: "/arkadaslar/gonderilenler", en: "/friends/sent" },
   "/friends/blocked": { tr: "/arkadaslar/engellenenler", en: "/friends/blocked" },
+  "/messages": { tr: "/mesajlar", en: "/messages" },
   "/profile": { tr: "/profil", en: "/profile" },
   "/profile/edit": { tr: "/profil/duzenle", en: "/profile/edit" },
   "/profile/settings": { tr: "/profil/ayarlar", en: "/profile/settings" },
