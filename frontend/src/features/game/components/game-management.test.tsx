@@ -105,9 +105,11 @@ describe("Moderasyon", () => {
     open(); await pickGame();
     fireEvent.click(screen.getAllByRole("button", { name: t.pickerSelect })[1]);
     const form = screen.getByRole("form", { name: t.moderateContent });
-    expect(within(form).getByLabelText(t.fields.target)).toHaveValue("MEDIA");
+    expect(within(form).getByLabelText(t.fields.target)).toHaveTextContent(t.choices.MEDIA);
+    expect(new FormData(form as HTMLFormElement).get("target")).toBe("MEDIA");
     expect(within(form).getByLabelText(t.fields.targetId)).toHaveValue(mediaId);
-    fireEvent.change(within(form).getByLabelText(t.fields.action), { target: { value: "RESTORE" } });
+    fireEvent.click(within(form).getByLabelText(t.fields.action));
+    fireEvent.click(screen.getByRole("option", { name: t.choices.RESTORE }));
     fireEvent.change(within(form).getByLabelText(t.fields.reason), { target: { value: "Yanlış gizleme" } });
     fireEvent.click(within(form).getByLabelText(t.confirmAction));
     fireEvent.click(within(form).getByRole("button", { name: t.save }));

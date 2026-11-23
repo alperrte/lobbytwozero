@@ -60,6 +60,11 @@ public final class TokenClaims {
      */
     public static final String PRIVACY_READ_SCOPE = "privacy:read";
     /**
+     * Hesap kullanılabilirliği: messaging ve social, User'ın {@code POST /internal/v1/users/status} ucundan hedef hesabın
+     * kullanılabilir (ACTIVE) olup olmadığını sorar. Kullanıcıya bağlı değildir; yalnız ACTIVE/UNAVAILABLE döner.
+     */
+    public static final String USERS_STATUS_READ_SCOPE = "users:status:read";
+    /**
      * Öneri sinyali okuma: recommendation, Library'den tek hesabın sinyallerini okur. Hesaba bağlı kapsamdır: token
      * {@link #ACCOUNT_ID} taşır, hedef servis bunu istekteki hesapla karşılaştırır.
      */

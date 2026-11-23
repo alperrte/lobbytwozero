@@ -4,6 +4,7 @@ import { useHardwareMutation } from "../hooks/use-hardware-query";
 import { safeTextPattern } from "../schemas/hardware";
 import { hardwareApi } from "../services/hardware-api";
 import type { DeviceType, Profile } from "../types/hardware";
+import { Select } from "@/shared/components/ui/select";
 import { button, primaryButton, input, Field, HardwareDialog, HardwareError } from "./hardware-ui";
 
 export function ProfileForm({ profile, onClose, onSaved }: { profile?: Profile; onClose: () => void; onSaved: (profile?: Profile) => void }) {
@@ -15,7 +16,7 @@ export function ProfileForm({ profile, onClose, onSaved }: { profile?: Profile; 
         <input autoFocus required name="name" maxLength={100} pattern={safeTextPattern} defaultValue={profile?.name} className={input} onInput={(event) => event.currentTarget.setCustomValidity(event.currentTarget.value.trim() ? "" : t("common.required"))} />
       </Field>
       <Field label={t("profiles.deviceType")}>
-        <select name="deviceType" className={input} defaultValue={profile?.deviceType ?? "DESKTOP"}>{["DESKTOP", "LAPTOP", "OTHER"].map((type) => <option key={type} value={type}>{t(`devices.${type}`)}</option>)}</select>
+        <Select name="deviceType" defaultValue={profile?.deviceType ?? "DESKTOP"} options={["DESKTOP", "LAPTOP", "OTHER"].map((type) => ({ value: type, label: t(`devices.${type}`) }))} />
       </Field>
       {!profile ? <p className="text-sm leading-6 text-text-secondary">{t("profiles.nextStep")}</p> : null}
       <HardwareError error={mutation.error} />

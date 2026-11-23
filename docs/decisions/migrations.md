@@ -16,7 +16,7 @@
 - V51–V60      → REVIEW-SERVICE
 
 ## KEREM
-- V61–V70      → AUTH-SERVICE (V66: yaş doğrulaması, V67: yaş doğrulaması yönetici geri alma, V68: tanınan tarayıcılar `known_devices`; sıradaki boş V69)
+- V61–V70      → AUTH-SERVICE (V66: yaş doğrulaması, V67: yaş doğrulaması yönetici geri alma, V68: tanınan tarayıcılar `known_devices`, V69: `accounts.status_changed_at`; sıradaki boş V70)
 - V71–V80      → USER-SERVICE
 - V81–V90      → MAIL-SERVICE
 
@@ -41,6 +41,26 @@ geliştirmeye başlanmadan önce belirlenmelidir.
 ---
 
 ## Migration Kuralları
+
+### Recommendation V12 — owner geçmişi ve geri bildirim, 2026-11-14
+
+- TASK 2 öncesi aktif klasörde yalnız V11 vardı. İlk boş V12 seçildi:
+  `V12__create_personal_recommendation_history.sql`; kalan boş numaralar V13–V20.
+- Owner run, kanonik game_id REF içeren item ve tekil feedback tabloları; yerel FK/CASCADE,
+  CHECK ve tarih/owner indeksleri ekler. V11 veya başka servis migration'ı değişmedi.
+- Gerçek PostgreSQL testlerinde quota rollback, retention, ownership ve eşzamanlı feedback
+  doğrulanır. Gerçek DEV/production history değiştirilmedi; canlı deploy/migration yapılmadı.
+- [TASK 2 kanıtı](../../docs-recommendation/testings/task-02-tests.md).
+
+### Recommendation V11 — motor çalışma analitiği, 2026-11-14
+
+- TASK 1 öncesi Recommendation migration klasörü boştu; ilk boş V11 seçildi:
+  `V11__create_recommendation_observations.sql`. V12–V20 boştur.
+- Yalnız recommendation_db içinde kullanıcı/hedef içermeyen teknik gözlem tablosu,
+  sayım/durum CHECK'leri, çalışma kimliği PK ve tarih indeksi ekler. Mevcut migration değiştirilmez.
+- Temiz disposable PostgreSQL 17'de Flyway/JPA, constraint, eşzamanlı tekilleştirme ve retention
+  testleri vardır. Canlı DB history okunmadı; DEV/production migration/deploy/reset yapılmadı.
+- [TASK 1 kanıtı](../../docs-recommendation/testings/task-01-tests.md).
 
 ### Game Service Steam durum kolonları ve fiyat kaynağı — 2026-11-10 (yeni migration numarası harcanmadı)
 

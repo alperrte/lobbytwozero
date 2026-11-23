@@ -5,7 +5,8 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/shared/lib/i18n/navigation";
 import { useHardwareQuery } from "../hooks/use-hardware-query";
 import { hardwareApi } from "../services/hardware-api";
-import { HardwareEmpty, HardwareError, HardwareLoading, HardwarePagination, button, panel, input } from "./hardware-ui";
+import { Select } from "@/shared/components/ui/select";
+import { HardwareEmpty, HardwareError, HardwareLoading, HardwarePagination, button, panel } from "./hardware-ui";
 import { SpecificationTable } from "./specification-table";
 
 export function HardwareSnapshot({ accountId }: { accountId: string }) {
@@ -23,11 +24,9 @@ export function HardwareSnapshot({ accountId }: { accountId: string }) {
     <h2 id="performance-hardware" className="font-display text-2xl font-semibold">{t("hardware")}</h2>
     <Link href="/profile/computers" className={button}>{t("manageHardware")}</Link>
     {profiles.loading ? <HardwareLoading /> : profiles.error ? <HardwareError error={profiles.error} retry={profiles.reload} /> : !profiles.data?.items.length ? <HardwareEmpty title={t("hardwareEmpty")} description={t("hardwareEmptyDescription")} /> : <>
-      <label className="block max-w-lg space-y-2"><span className="block text-sm">{t("computer")}</span>
-        <select className={input} value={profileId} onChange={(event) => { setChosen(event.target.value); setComponentPage(0); }}>
-          {profiles.data.items.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}
-        </select>
-      </label>
+      <div className="max-w-lg space-y-2"><span aria-hidden="true" className="block text-sm">{t("computer")}</span>
+        <Select aria-label={t("computer")} value={profileId} onChange={(value) => { setChosen(value); setComponentPage(0); }} options={profiles.data.items.map((profile) => ({ value: profile.id, label: profile.name }))} />
+      </div>
       <HardwarePagination page={page} totalPages={profiles.data.totalPages} onPage={(next) => { setPage(next); setChosen(""); setComponentPage(0); }} />
       {privacy.loading ? <HardwareLoading /> : privacy.error ? <HardwareError error={privacy.error} retry={privacy.reload} /> : privacy.data ? <p className="text-sm text-text-secondary">{t("visibility", { value: hw(`visibility.${privacy.data.visibility}`) })}</p> : null}
       {detail.loading ? <HardwareLoading /> : detail.error ? <HardwareError error={detail.error} retry={detail.reload} /> : detail.data ? <>

@@ -18,7 +18,7 @@ class FriendshipIdTest {
         UUID second = UUID.randomUUID();
 
         assertThat(FriendshipId.of(first, second)).isEqualTo(FriendshipId.of(second, first));
-        assertThat(FriendshipId.of(first, second).hashCode()).isEqualTo(FriendshipId.of(second, first).hashCode());
+        assertThat(FriendshipId.of(first, second)).hasSameHashCodeAs(FriendshipId.of(second, first));
     }
 
     @Test
@@ -29,7 +29,7 @@ class FriendshipIdTest {
         assertThat(id.getUserLowId()).isEqualTo(HIGH_BIT_CLEAR);
         assertThat(id.getUserHighId()).isEqualTo(HIGH_BIT_SET);
         // java.util.UUID.compareTo bunun tersini söyler; bu yüzden kullanılmaz.
-        assertThat(HIGH_BIT_SET.compareTo(HIGH_BIT_CLEAR)).isNegative();
+        assertThat(HIGH_BIT_SET).isLessThan(HIGH_BIT_CLEAR);
     }
 
     @Test

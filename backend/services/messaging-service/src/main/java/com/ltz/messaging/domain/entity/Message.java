@@ -99,32 +99,31 @@ public class Message {
         this.deletedAt = Objects.requireNonNull(now);
     }
 
-    /** {@code seq}, sohbet satırı kilitliyken {@link Conversation#appendMessage(Instant)} ile alınmış olmalıdır. */
-    public static Message text(UUID conversationId, long seq, UUID senderId, String clientMessageId,
-                               UUID replyToMessageId, String body, Instant now) {
-        return create(conversationId, seq, senderId, clientMessageId, replyToMessageId, MessageType.TEXT,
-                Objects.requireNonNull(body), null, now);
+    /**
+     * Her türde ortak alanlar. {@code seq}, sohbet satırı kilitliyken {@link Conversation#appendMessage(Instant)} ile
+     * alınmış olmalıdır; {@code replyToMessageId} {@code null} olabilir.
+     */
+    public record Envelope(UUID conversationId, long seq, UUID senderId, String clientMessageId,
+                           UUID replyToMessageId, Instant now) {
+    }
+
+    public static Message text(Envelope envelope, String body) {
+        return create(envelope, MessageType.TEXT, Objects.requireNonNull(body), null);
     }
 
     /** Yüklenmiş görsel; görsel aynı transaction'da bu mesaja bağlanır. {@code caption} {@code null} olabilir. */
-    public static Message image(UUID conversationId, long seq, UUID senderId, String clientMessageId,
-                                UUID replyToMessageId, String caption, Instant now) {
-        return create(conversationId, seq, senderId, clientMessageId, replyToMessageId, MessageType.IMAGE, caption,
-                null, now);
+    public static Message image(Envelope envelope, String caption) {
+        return create(envelope, MessageType.IMAGE, caption, null);
     }
 
     /** Sesli mesaj (MSG-21): açıklama taşımaz; ses aynı transaction'da bu mesaja bağlanır. */
-    public static Message voice(UUID conversationId, long seq, UUID senderId, String clientMessageId,
-                                UUID replyToMessageId, Instant now) {
-        return create(conversationId, seq, senderId, clientMessageId, replyToMessageId, MessageType.VOICE, null, null,
-                now);
+    public static Message voice(Envelope envelope) {
+        return create(envelope, MessageType.VOICE, null, null);
     }
 
     /** GIF platformundan seçilmiş GIF. {@code caption} {@code null} olabilir. */
-    public static Message gif(UUID conversationId, long seq, UUID senderId, String clientMessageId,
-                              UUID replyToMessageId, String caption, GifSnapshot gif, Instant now) {
-        return create(conversationId, seq, senderId, clientMessageId, replyToMessageId, MessageType.GIF, caption,
-                Objects.requireNonNull(gif), now);
+    public static Message gif(Envelope envelope, String caption, GifSnapshot gif) {
+        return create(envelope, MessageType.GIF, caption, Objects.requireNonNull(gif));
     }
 
     /**
@@ -133,24 +132,23 @@ public class Message {
      */
     public static Message forwardOf(Message source, UUID conversationId, long seq, UUID senderId,
                                     String clientMessageId, Instant now) {
-        Message message = create(conversationId, seq, senderId, clientMessageId, null, source.type, source.body,
-                source.gif == null ? null : source.gif.copy(), now);
+        Message message = create(new Envelope(conversationId, seq, senderId, clientMessageId, null, now), source.type,
+                source.body, source.gif == null ? null : source.gif.copy());
         message.forwardCount = source.forwardCount + 1;
         return message;
     }
 
-    private static Message create(UUID conversationId, long seq, UUID senderId, String clientMessageId,
-                                  UUID replyToMessageId, MessageType type, String body, GifSnapshot gif, Instant now) {
+    private static Message create(Envelope envelope, MessageType type, String body, GifSnapshot gif) {
         Message message = new Message();
-        message.conversationId = conversationId;
-        message.seq = seq;
-        message.senderId = senderId;
-        message.clientMessageId = clientMessageId;
-        message.replyToMessageId = replyToMessageId;
+        message.conversationId = envelope.conversationId();
+        message.seq = envelope.seq();
+        message.senderId = envelope.senderId();
+        message.clientMessageId = envelope.clientMessageId();
+        message.replyToMessageId = envelope.replyToMessageId();
         message.type = type;
         message.body = body;
         message.gif = gif;
-        message.createdAt = now;
+        message.createdAt = envelope.now();
         return message;
     }
 

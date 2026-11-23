@@ -4,7 +4,7 @@ import { useCallback, useId, useState, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useRequireSession } from "@/features/auth";
-import { PageContainer } from "@/shared/components/layout/page-container";
+import { SearchField } from "@/shared/components/ui/search-field";
 import { Link, useRouter } from "@/shared/lib/i18n/navigation";
 import { useRemote } from "../hooks/use-remote";
 import {
@@ -16,9 +16,6 @@ import {
 import type { PlayerCard } from "../types/activity.types";
 import { ProfileAvatar } from "./profile-avatar";
 import { RemoteBody } from "./remote-section";
-
-const inputClass =
-  "min-h-11 w-full rounded-control border border-control-border bg-surface px-3 text-text-primary placeholder:text-text-secondary";
 
 /**
  * Oyuncu arama (USER-11): kullanıcı adı ya da görünen ad önekiyle en çok 20 sonuç. Arama metni adreste (`?q=`) tutulur;
@@ -53,63 +50,56 @@ export function PlayerSearch() {
 
   if (session.status !== "authenticated") {
     return (
-      <PageContainer>
-        <p role="status" className="text-text-secondary">
-          {t("loading")}
-        </p>
-      </PageContainer>
+      <p role="status" className="text-text-secondary">
+        {t("loading")}
+      </p>
     );
   }
 
   return (
-    <PageContainer>
-      <div className="flex flex-col gap-6">
-        <div>
-          <h1 className="font-display text-2xl font-semibold sm:text-3xl">{t("title")}</h1>
-          <p className="mt-1 max-w-2xl text-text-secondary">{t("description")}</p>
-        </div>
-
-        <form onSubmit={onSubmit} role="search" noValidate className="flex max-w-2xl flex-col gap-2">
-          <label htmlFor={inputId} className="text-sm font-medium">
-            {t("label")}
-          </label>
-          <div className="flex flex-wrap gap-3">
-            <input
-              id={inputId}
-              type="search"
-              value={text}
-              maxLength={MAX_SEARCH_LENGTH}
-              autoComplete="off"
-              aria-describedby={hintId}
-              aria-invalid={problem}
-              onChange={(event) => setText(event.target.value)}
-              className={`${inputClass} min-w-0 flex-1`}
-            />
-            <button
-              type="submit"
-              className="inline-flex min-h-11 items-center justify-center rounded-control bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors duration-150 hover:bg-secondary"
-            >
-              {t("submit")}
-            </button>
-          </div>
-          <p id={hintId} role={problem ? "alert" : undefined} className={problem ? "text-sm text-brand-text" : "text-xs text-text-secondary"}>
-            {problem ? t("tooShort", { min: MIN_SEARCH_LENGTH, max: MAX_SEARCH_LENGTH }) : t("hint", { min: MIN_SEARCH_LENGTH })}
-          </p>
-        </form>
-
-        {active === null ? (
-          urlQuery !== "" ? (
-            <p role="status" className="text-sm text-text-secondary">
-              {t("tooShort", { min: MIN_SEARCH_LENGTH, max: MAX_SEARCH_LENGTH })}
-            </p>
-          ) : null
-        ) : (
-          <section aria-label={t("results")}>
-            <RemoteBody remote={remote}>{(cards) => <Results cards={cards} />}</RemoteBody>
-          </section>
-        )}
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="font-display text-2xl font-semibold sm:text-3xl">{t("title")}</h1>
+        <p className="mt-1 max-w-2xl text-text-secondary">{t("description")}</p>
       </div>
-    </PageContainer>
+
+      <form onSubmit={onSubmit} role="search" noValidate className="flex max-w-2xl flex-col gap-2">
+        <div className="flex flex-wrap items-end gap-3">
+          <SearchField
+            id={inputId}
+            className="flex-1 basis-64"
+            label={t("label")}
+            showLabel
+            value={text}
+            maxLength={MAX_SEARCH_LENGTH}
+            aria-describedby={hintId}
+            aria-invalid={problem}
+            onChange={(event) => setText(event.target.value)}
+          />
+          <button
+            type="submit"
+            className="inline-flex min-h-11 items-center justify-center rounded-control bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors duration-150 hover:bg-secondary"
+          >
+            {t("submit")}
+          </button>
+        </div>
+        <p id={hintId} role={problem ? "alert" : undefined} className={problem ? "text-sm text-brand-text" : "text-xs text-text-secondary"}>
+          {problem ? t("tooShort", { min: MIN_SEARCH_LENGTH, max: MAX_SEARCH_LENGTH }) : t("hint", { min: MIN_SEARCH_LENGTH })}
+        </p>
+      </form>
+
+      {active === null ? (
+        urlQuery !== "" ? (
+          <p role="status" className="text-sm text-text-secondary">
+            {t("tooShort", { min: MIN_SEARCH_LENGTH, max: MAX_SEARCH_LENGTH })}
+          </p>
+        ) : null
+      ) : (
+        <section aria-label={t("results")}>
+          <RemoteBody remote={remote}>{(cards) => <Results cards={cards} />}</RemoteBody>
+        </section>
+      )}
+    </div>
   );
 }
 

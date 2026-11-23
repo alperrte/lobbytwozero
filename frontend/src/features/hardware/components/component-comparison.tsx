@@ -4,7 +4,8 @@ import { useTranslations } from "next-intl";
 import { useHardwareMutation } from "../hooks/use-hardware-query";
 import { hardwareApi } from "../services/hardware-api";
 import { specKeys, type Comparison, type Component } from "../types/hardware";
-import { button, input, Field, HardwareDialog, HardwareError } from "./hardware-ui";
+import { Select } from "@/shared/components/ui/select";
+import { button, Field, HardwareDialog, HardwareError } from "./hardware-ui";
 
 export function ComponentComparison({ profileId, components }: { profileId: string; components: Component[] }) {
   const t = useTranslations("Hardware");
@@ -20,13 +21,10 @@ export function ComponentComparison({ profileId, components }: { profileId: stri
       <p className="text-sm text-text-secondary">{t("comparison.componentHint")}</p>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label={t("comparison.left")}>
-          <select className={input} value={leftId} onChange={(event) => { setLeftId(event.target.value); setRightId(""); setResult(undefined); }}>{components.map((item) => <option key={item.id} value={item.id}>{item.modelName}</option>)}</select>
+          <Select value={leftId} onChange={(value) => { setLeftId(value); setRightId(""); setResult(undefined); }} options={components.map((item) => ({ value: item.id, label: item.modelName }))} />
         </Field>
         <Field label={t("comparison.right")}>
-          <select className={input} value={rightId} onChange={(event) => { setRightId(event.target.value); setResult(undefined); }}>
-            <option value="">{t("comparison.select")}</option>
-            {components.filter((item) => item.id !== leftId && item.category === left?.category).map((item) => <option key={item.id} value={item.id}>{item.modelName}</option>)}
-          </select>
+          <Select value={rightId} onChange={(value) => { setRightId(value); setResult(undefined); }} options={[{ value: "", label: t("comparison.select") }, ...components.filter((item) => item.id !== leftId && item.category === left?.category).map((item) => ({ value: item.id, label: item.modelName }))]} />
         </Field>
       </div>
       <button className={button} disabled={!leftId || !rightId || mutation.pending} onClick={async () => { setResult(undefined); const response = await mutation.run(() => hardwareApi.compareComponents(profileId, leftId, rightId)); if (response) setResult(response); }}>{t("comparison.compare")}</button>

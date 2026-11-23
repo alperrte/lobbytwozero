@@ -102,6 +102,13 @@ public class Account {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    /**
+     * Durumun son değiştiği an (kayıttaki ilk durum dahil). {@code updatedAt}'ten farkı: yalnız durum geçişi ilerletir.
+     * Null: kolondan önceki satır ya da eski sürüm örneğinin yazdığı satır.
+     */
+    @Column(name = "status_changed_at")
+    private Instant statusChangedAt;
+
     /** Artırıldığında hesabın önceki tüm oturumları ve access token'ları geçersiz sayılır (JWT "ver"). */
     @Column(name = "token_version", nullable = false)
     private long tokenVersion;
@@ -131,7 +138,7 @@ public class Account {
         account.username = username;
         account.usernameNormalized = normalizeUsername(username);
         account.passwordHash = passwordHash;
-        account.status = AccountStatus.PENDING_VERIFICATION;
+        account.moveTo(AccountStatus.PENDING_VERIFICATION, now);
         account.createdAt = now;
         account.updatedAt = now;
         account.roles.add(initialRole);
@@ -155,7 +162,7 @@ public class Account {
         account.registrationMethod = RegistrationMethod.STEAM;
         account.username = username;
         account.usernameNormalized = normalizeUsername(username);
-        account.status = AccountStatus.ACTIVE;
+        account.moveTo(AccountStatus.ACTIVE, now);
         account.createdAt = now;
         account.updatedAt = now;
         account.roles.add(initialRole);
@@ -172,7 +179,7 @@ public class Account {
      */
     public void anonymize(Instant now) {
         anonymizeIdentity(now);
-        status = AccountStatus.DELETED;
+        moveTo(AccountStatus.DELETED, now);
     }
 
     /**
@@ -197,7 +204,7 @@ public class Account {
 
     /** Silme onaylandı: hesap kapanır, önceki tüm token'lar düşer; bekleme süresi bitince kimlik anonimleştirilir. */
     public void requestDeletion(Instant now) {
-        status = AccountStatus.DELETION_REQUESTED;
+        moveTo(AccountStatus.DELETION_REQUESTED, now);
         invalidateAllTokens(now);
     }
 
@@ -206,7 +213,7 @@ public class Account {
         if (status != AccountStatus.DELETION_REQUESTED || isIdentityAnonymized()) {
             throw new IllegalStateException("Only a pending, not yet anonymized deletion can be cancelled");
         }
-        status = AccountStatus.ACTIVE;
+        moveTo(AccountStatus.ACTIVE, now);
         invalidateAllTokens(now);
     }
 
@@ -239,7 +246,7 @@ public class Account {
             throw new IllegalArgumentException("A suspension end is only valid for SUSPENDED");
         }
         this.suspendedUntil = target == AccountStatus.SUSPENDED ? suspendedUntil : null;
-        status = target;
+        moveTo(target, now);
         updatedAt = now;
         if (target != AccountStatus.ACTIVE) {
             tokenVersion++;
@@ -293,8 +300,14 @@ public class Account {
         if (!isPendingVerification()) {
             throw new IllegalStateException("Only pending accounts can be verified");
         }
-        status = AccountStatus.ACTIVE;
+        moveTo(AccountStatus.ACTIVE, now);
         emailVerifiedAt = now;
         updatedAt = now;
+    }
+
+    /** Durumu ve değişim anını birlikte yazar; durum yalnız buradan değişir. */
+    private void moveTo(AccountStatus target, Instant now) {
+        status = target;
+        statusChangedAt = now;
     }
 }

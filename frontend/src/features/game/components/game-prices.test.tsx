@@ -157,14 +157,15 @@ describe("Pazar ve güncellik bilgili fiyatlar", () => {
     load.mockResolvedValue({ market: { country: "TR", currency: "TRY" }, items: [{ gameId, status: "NO_OFFER", offers: [] }] });
     mount(); await screen.findByText(messages.Game.priceStates.NO_OFFER);
     expect(screen.queryByLabelText(messages.Game.fields.currency)).toBeNull();
-    const select = screen.getByLabelText(messages.Game.fields.country) as HTMLSelectElement;
-    expect([...select.options].map((option) => option.value)).toEqual(["USD", "EUR", "AUD", "GBP", "BRL", "CNY", "KRW", "INR", "JPY", "CAD", "PLN", "TRY", "NZD"]);
-    expect([...select.options].map((option) => option.textContent)).toEqual(["Amerika Birleşik Devletleri (USD)", "Almanya (EUR)", "Avustralya (AUD)", "Birleşik Krallık (GBP)", "Brezilya (BRL)", "Çin (CNY)", "Güney Kore (KRW)", "Hindistan (INR)", "Japonya (JPY)", "Kanada (CAD)", "Polonya (PLN)", "Türkiye (TRY)", "Yeni Zelanda (NZD)"]);
-    fireEvent.change(select, { target: { value: "EUR" } });
-    await waitFor(() => expect(select.value).toBe("EUR"));
+    const select = screen.getByRole("combobox", { name: messages.Game.fields.country });
+    fireEvent.click(select);
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual(["Amerika Birleşik Devletleri (USD)", "Almanya (EUR)", "Avustralya (AUD)", "Birleşik Krallık (GBP)", "Brezilya (BRL)", "Çin (CNY)", "Güney Kore (KRW)", "Hindistan (INR)", "Japonya (JPY)", "Kanada (CAD)", "Polonya (PLN)", "Türkiye (TRY)", "Yeni Zelanda (NZD)"]);
+    fireEvent.click(screen.getByRole("option", { name: "Almanya (EUR)" }));
+    await waitFor(() => expect(select).toHaveTextContent("Almanya (EUR)"));
     expect(load.mock.calls.some(([resource]) => resource.kind === "prices" && resource.country === "DE" && resource.currency === "EUR")).toBe(true);
-    fireEvent.change(select, { target: { value: "GBP" } });
-    await waitFor(() => expect(select.value).toBe("GBP"));
+    fireEvent.click(select);
+    fireEvent.click(screen.getByRole("option", { name: "Birleşik Krallık (GBP)" }));
+    await waitFor(() => expect(select).toHaveTextContent("Birleşik Krallık (GBP)"));
     expect(load.mock.calls.some(([resource]) => resource.kind === "prices" && resource.country === "GB" && resource.currency === "GBP")).toBe(true);
   });
   it("Türkçe arayüzde varsayılan pazar Türkiye (TRY), İngilizcede ABD (USD)", async () => {

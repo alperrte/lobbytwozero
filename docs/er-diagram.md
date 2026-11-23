@@ -1387,6 +1387,54 @@ erDiagram
 
 ## 15. recommendation_db
 
+**TASK 1–2 gerçek şeması — V11/V12 (2026-11-14):** Analitik bağımsız teknik tablodur;
+kişisel geçmişte user_id/game_id servisler arası REF, run/item/feedback ilişkileri yerel FK'dır.
+
+```mermaid
+erDiagram
+  recommendation_runs ||--o{ recommendation_items : "run_id CASCADE"
+  recommendation_items ||--o| recommendation_feedback : "item_id UNIQUE CASCADE"
+  recommendation_runs {
+    uuid id PK
+    uuid user_id "REF Auth"
+    varchar algorithm_version
+    varchar genre
+    varchar platform
+    int result_limit
+    timestamptz created_at
+    timestamptz expires_at
+    bigint version
+  }
+  recommendation_items {
+    uuid id PK
+    uuid run_id FK
+    uuid game_id "REF Game"
+    int score
+    int rank
+    string matched_genres "varchar64 array"
+    bigint version
+  }
+  recommendation_feedback {
+    uuid id PK
+    uuid item_id FK,UK
+    varchar feedback "LIKE veya NOT_INTERESTED"
+    timestamptz updated_at
+    bigint version
+  }
+  recommendation_observations {
+    uuid id PK "sunucunun runId değeri"
+    varchar algorithm_version
+    timestamptz occurred_at "indeks; 30 gün saklama"
+    varchar outcome "GENERATED veya EMPTY veya UNAVAILABLE"
+    int candidate_count "0..500"
+    int result_count "0..50 ve aday sayısından küçük/eşit"
+    int total_score
+    bigint version
+  }
+```
+
+**Aşağıdaki eski hedef diyagramı ÖNERİ'dir; V12'nin uygulanmış kolonları yukarıdadır:**
+
 ```mermaid
 erDiagram
   recommendation_runs ||--o{ recommendation_items : produces
@@ -1445,7 +1493,7 @@ erDiagram
 ## 16. performance_db
 
 > Cihaz kimliği, eşleştirme kodu, cihaz token'ı ve iptal `auth_db`'dedir (AUTH-17). Performance yalnız cihaz **referansını** (`device_links.auth_device_id`, FK yok) tutar.
-> V21 ile kurulan tablolar: `sync_consents`, `device_links`, `sync_batches`, `performance_write_limits`, `performance_account_erasure_fences`. V22 (Faz 2) ile `performance_sessions` ve `performance_reports` eklendi. V23 (Faz 3) ile `performance_samples` eklendi; `performance_sessions.sample_count` ve `sync_batches.session_id/stored_count/duplicate_count` sütunları geldi.
+> V21 ile kurulan tablolar: `sync_consents`, `device_links`, `sync_batches`, `performance_write_limits`, `performance_account_erasure_fences`. V22 (Faz 2) ile `performance_sessions` ve `performance_reports` eklendi. V24 (REC-09) ile `performance_sessions` değiştirilemez ölçüm bağlamı (`measurement_context_id`, `hardware_profile_version`, `measurement_resolution`, `measurement_graphics_preset`, `measurement_rendering_mode`) ve `performance_samples.measurement_context_id` aldı; `sync_batches.schema_version` 3'ü kabul eder. V23 (Faz 3) ile `performance_samples` eklendi; `performance_sessions.sample_count` ve `sync_batches.session_id/stored_count/duplicate_count` sütunları geldi.
 > `performance_sessions.user_id`, `game_id` ve `hardware_profile_id` başka servis/hesap kimlikleridir (REF, FK yok). `device_links → performance_sessions` ilişkisi `ON DELETE RESTRICT`, `performance_sessions → performance_reports` ilişkisi `ON DELETE CASCADE`'dir.
 
 ```mermaid

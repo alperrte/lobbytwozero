@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
+import { chooseOption } from "./fixtures/select";
 
 // Test-only backend fixtures. No fixture is imported by the application.
 const firstId = "00000000-0000-0000-0000-000000000001";
@@ -162,7 +163,7 @@ test("bilgisayar ve bileşen CRUD; opsiyonel marka, sürüm ve gizlilik", async 
   await expect(advanced.getByRole("heading", { name: "Manual model" })).toBeVisible();
   expect(calls.find((call) => call.method === "POST" && call.path.endsWith("/components"))!.body).not.toHaveProperty("brandId");
   await advanced.getByRole("button", { name: "Gizlilik", exact: true }).click();
-  await page.getByLabel("Bilgisayarın görünürlüğü").selectOption("FRIENDS");
+  await chooseOption(page.getByLabel("Bilgisayarın görünürlüğü"), "FRIENDS");
   await page.getByRole("button", { name: "Kaydet", exact: true }).click();
   await expect(page.getByRole("dialog")).not.toBeVisible();
   expect(calls.find((call) => call.method === "PUT" && call.path.endsWith("/privacy"))!.body).toMatchObject({ profileVersion: 1, visibility: "FRIENDS" });
@@ -196,7 +197,7 @@ test("katalogdan bileşen seçimi üreticiyi zorunlu tutmaz ve teknik karşıla�
   const advanced = await openAdvanced(page);
   for (const model of ["Fixture CPU 1", "Fixture CPU 2"]) {
     await advanced.getByRole("button", { name: "Bileşen ekle" }).click();
-    await page.getByLabel("Ekleme yöntemi").selectOption("catalog");
+    await chooseOption(page.getByLabel("Ekleme yöntemi"), "catalog");
     await page.getByRole("radio", { name: model, exact: true }).check();
     await expect(page.getByText(`Seçilen model: ${model}`, { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Kaydet", exact: true }).click();
@@ -207,7 +208,7 @@ test("katalogdan bileşen seçimi üreticiyi zorunlu tutmaz ve teknik karşıla�
   for (const entry of saved) { expect(entry.body.productId).toBeTruthy(); expect(entry.body).not.toHaveProperty("brandId"); expect(entry.body).not.toHaveProperty("modelName"); }
   await advanced.getByRole("button", { name: "Bileşenleri karşılaştır" }).click();
   const second = page.getByLabel("İkinci bileşen");
-  await second.selectOption({ index: 1 });
+  await chooseOption(second, { index: 1 });
   await page.getByRole("dialog").getByRole("button", { name: "Karşılaştır", exact: true }).click();
   await expect(page.getByRole("dialog").getByRole("table")).toBeVisible();
   expect(calls.find((call) => call.path === "/comparisons/components")!.body).toMatchObject({ left: { profileId }, right: { profileId } });

@@ -27,12 +27,12 @@ public interface OutboxEventRepository extends JpaRepository<OutboxEvent, UUID> 
     int deleteReferencing(@Param("accountId") String accountId);
 
     /**
-     * Zamanı gelmiş bekleyen olayları kilitleyerek okur. {@code SKIP LOCKED}, birden fazla relay örneğinin
+     * Zamanı gelmiş bekleyen ve kurtarma bekleyen (FAILED) olayları kilitleyerek okur. {@code SKIP LOCKED}, birden fazla relay örneğinin
      * aynı olayı aynı anda almasını önler.
      */
     @Query(value = """
             select * from outbox_events
-            where status = 'PENDING' and next_attempt_at <= :now
+            where status in ('PENDING', 'FAILED') and next_attempt_at <= :now
             order by next_attempt_at, id
             limit :limit
             for update skip locked""", nativeQuery = true)

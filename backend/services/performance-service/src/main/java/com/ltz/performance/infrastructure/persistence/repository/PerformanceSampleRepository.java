@@ -1,6 +1,7 @@
 package com.ltz.performance.infrastructure.persistence.repository;
 
 import com.ltz.performance.domain.entity.TelemetrySample;
+import com.ltz.performance.domain.entity.MeasurementContext;
 import com.ltz.performance.domain.enums.SessionStatus;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -28,15 +29,19 @@ public class PerformanceSampleRepository {
     public PerformanceSampleRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
     /** Hedef oturumun örnek kabulü için gereken alanları; yoksa veya başkasınınsa boş (tek tip 404). */
-    public record SessionState(UUID id, SessionStatus status, Instant startedAt, Instant endedAt, int sampleCount) { }
+    public record SessionState(UUID id, SessionStatus status, Instant startedAt, Instant endedAt, int sampleCount,
+            UUID deviceLinkId, MeasurementContext measurementContext) { }
 
     public Optional<SessionState> lockOwnedSession(UUID sessionId, UUID userId) {
         return jdbc.query("""
-                SELECT id,status,started_at,ended_at,sample_count FROM performance_sessions
+                SELECT id,status,started_at,ended_at,sample_count,device_link_id,hardware_profile_version,
+                    measurement_resolution,measurement_graphics_preset,measurement_rendering_mode FROM performance_sessions
                 WHERE id=? AND user_id=? FOR UPDATE
                 """, (row, _) -> new SessionState(row.getObject(1, UUID.class),
                         SessionStatus.valueOf(row.getString(2)), row.getTimestamp(3).toInstant(),
-                        row.getTimestamp(4) == null ? null : row.getTimestamp(4).toInstant(), row.getInt(5)),
+                        row.getTimestamp(4) == null ? null : row.getTimestamp(4).toInstant(), row.getInt(5),
+                        row.getObject(6, UUID.class), row.getObject(7) == null ? null : new MeasurementContext(row.getLong(7),
+                                row.getString(8), row.getString(9), row.getString(10))),
                 sessionId, userId).stream().findFirst();
     }
 
@@ -47,7 +52,9 @@ public class PerformanceSampleRepository {
     }
 
     /** Kimlik alanları; ölçüm içeriğinden ayrı tutulur. */
-    public record Target(UUID sessionId, UUID userId, UUID deviceLinkId, UUID batchId) { }
+    public record Target(UUID sessionId, UUID userId, UUID deviceLinkId, UUID batchId, UUID measurementContextId) {
+        public Target(UUID sessionId, UUID userId, UUID deviceLinkId, UUID batchId) { this(sessionId, userId, deviceLinkId, batchId, null); }
+    }
 
     /**
      * Örnekleri tek ifadede ekler; aynı (oturum, metrik, an) zaten varsa atlanır (çoğaltılmaz).
@@ -62,9 +69,9 @@ public class PerformanceSampleRepository {
         Integer inserted = jdbc.execute((ConnectionCallback<Integer>) connection -> {
             var sql = """
                     INSERT INTO performance_samples(id,session_id,user_id,device_link_id,batch_id,metric,value,
-                        captured_at,received_at,source)
+                        captured_at,received_at,source,measurement_context_id)
                     SELECT gen_random_uuid(),?,?,?,?,t.m,t.v,
-                        timestamptz 'epoch' + t.c * interval '1 millisecond',?,'DEVICE'
+                        timestamptz 'epoch' + t.c * interval '1 millisecond',?,'DEVICE',?
                     FROM unnest(?::text[], ?::float8[], ?::int8[]) AS t(m,v,c)
                     ON CONFLICT (session_id, metric, captured_at) DO NOTHING
                     """;
@@ -74,9 +81,10 @@ public class PerformanceSampleRepository {
                 statement.setObject(3, target.deviceLinkId());
                 statement.setObject(4, target.batchId());
                 statement.setTimestamp(5, Timestamp.from(receivedAt));
-                statement.setArray(6, connection.createArrayOf("text", metrics));
-                statement.setArray(7, connection.createArrayOf("float8", values));
-                statement.setArray(8, connection.createArrayOf("int8", millis));
+                statement.setObject(6, target.measurementContextId());
+                statement.setArray(7, connection.createArrayOf("text", metrics));
+                statement.setArray(8, connection.createArrayOf("float8", values));
+                statement.setArray(9, connection.createArrayOf("int8", millis));
                 return statement.executeUpdate();
             }
         });

@@ -3,6 +3,7 @@
 import { useId, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Icon } from "@/shared/components/ui/icons";
+import { Select } from "@/shared/components/ui/select";
 import {
   contactLimits,
   contactSubjects,
@@ -106,7 +107,7 @@ export function ContactForm({ submitAdapter = demoContactSubmit }: ContactFormPr
   }
 
   function onChange(field: ContactField) {
-    return (event: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    return (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       update({ ...values, [field]: event.target.value });
     };
   }
@@ -121,7 +122,8 @@ export function ContactForm({ submitAdapter = demoContactSubmit }: ContactFormPr
     const invalid = firstInvalidField(found);
     if (invalid) {
       setValidated(false);
-      const element = form.elements.namedItem(invalid);
+      // Ortak Select'in adı gizli input'tadır; odak, alanın görünür kontrolüne kimliğiyle verilir.
+      const element = document.getElementById(fieldId(invalid)) ?? form.elements.namedItem(invalid);
       if (element instanceof HTMLElement) {
         element.focus();
       }
@@ -192,26 +194,13 @@ export function ContactForm({ submitAdapter = demoContactSubmit }: ContactFormPr
         <div className="sm:col-span-2">
           <Field id={fieldId("subject")} label={t("fields.subject")} error={errorText("subject")}>
             {(aria) => (
-              <div className="relative">
-                <select
-                  {...aria}
-                  name="subject"
-                  value={values.subject}
-                  onChange={onChange("subject")}
-                  className={`${controlClass} appearance-none pe-10`}
-                >
-                  <option value="">{t("subjectPlaceholder")}</option>
-                  {contactSubjects.map((subject) => (
-                    <option key={subject} value={subject}>
-                      {t(`subjects.${subject}`)}
-                    </option>
-                  ))}
-                </select>
-                <Icon
-                  name="chevron"
-                  className="pointer-events-none absolute end-3 top-1/2 size-4 -translate-y-1/2 text-text-secondary"
-                />
-              </div>
+              <Select
+                {...aria}
+                name="subject"
+                value={values.subject}
+                onChange={(subject) => update({ ...values, subject: subject as ContactValues["subject"] })}
+                options={[{ value: "", label: t("subjectPlaceholder") }, ...contactSubjects.map((subject) => ({ value: subject, label: t(`subjects.${subject}`) }))]}
+              />
             )}
           </Field>
         </div>

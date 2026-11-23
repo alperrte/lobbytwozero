@@ -66,7 +66,7 @@ public class SyncBatchService {
             SyncBatchRequest request, String peer) {
         request.requireShape();
         limits.sync(device.userId(), device.deviceId(), peer);
-        var parsed = request.isV2() ? parse(request.samples()) : List.<TelemetrySample>of();
+        var parsed = request.hasSamples() ? parse(request.samples()) : List.<TelemetrySample>of();
         var requestHash = PerformanceDigest.hash(canonical(request, parsed));
         return transaction.execute(_ -> {
             guard.requireActive(device.userId());
@@ -91,8 +91,9 @@ public class SyncBatchService {
                 throw new PerformanceConflictException(PerformanceConflictException.SYNC_BATCH_LIMIT_REACHED);
             }
             var batchId = UUID.randomUUID();
-            var outcome = request.isV2()
-                    ? ingestion.ingest(request.sessionId(), device.userId(), link.getId(), batchId, parsed, now)
+            var outcome = request.hasSamples()
+                    ? ingestion.ingest(request.sessionId(), device.userId(), link.getId(), batchId, parsed, now,
+                            request.measurementContext() == null ? null : request.measurementContext().toDomain())
                     : SampleOutcome.NONE;
             var created = batches.store(new NewBatch(
                     new BatchKey(batchId, link.getId(), device.userId(), idempotencyKey),
@@ -127,8 +128,9 @@ public class SyncBatchService {
 
     /** v1 özeti Faz 1 ile aynıdır; v2 oturumu, zarf zamanını ve örnekleri gönderilme sırasıyla kapsar. */
     private static String canonical(SyncBatchRequest request, List<TelemetrySample> parsed) {
-        if (!request.isV2()) return request.canonicalV1();
-        var builder = new StringBuilder("v2|").append(request.sessionId()).append('|')
+        if (!request.hasSamples()) return request.canonicalV1();
+        String prefix = request.measurementContext() == null ? "v2|" : "v3|" + request.measurementContext().toDomain() + "|";
+        var builder = new StringBuilder(prefix).append(request.sessionId()).append('|')
                 .append(request.clientSentAt().toEpochMilli());
         for (var sample : parsed) {
             builder.append('|').append(sample.capturedAt().toEpochMilli()).append(',')

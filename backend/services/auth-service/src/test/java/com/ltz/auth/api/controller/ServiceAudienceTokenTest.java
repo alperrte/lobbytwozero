@@ -81,10 +81,11 @@ class ServiceAudienceTokenTest extends IntegrationTestSupport {
     void userServiceIcinGizlilikKarariVeOzetOlayiTokenleriIzinListesinedir() throws Exception {
         // REQ-04: hangi istemci user-service'e hangi kapsamla gidebilir. Kullanıcı bağı (account_id) hiçbirinde yok.
         for (Object[] pair : new Object[][] {
-                {"social-service", SOCIAL_CLIENT_SECRET, "events:ingest privacy:read"},
+                {"social-service", SOCIAL_CLIENT_SECRET, "events:ingest privacy:read users:status:read"},
                 {"library-service", LIBRARY_CLIENT_SECRET, "events:ingest privacy:read"},
                 {"hardware-service", HARDWARE_CLIENT_SECRET, "privacy:read"},
-                {"review-service", REVIEW_CLIENT_SECRET, "events:ingest"}}) {
+                {"review-service", REVIEW_CLIENT_SECRET, "events:ingest"},
+                {"messaging-service", MESSAGING_CLIENT_SECRET, "users:status:read"}}) {
             String body = tokenRequest((String) pair[0], (String) pair[1], "user-service")
                     .andExpect(status().isOk()).andExpect(jsonPath("$.scope").value(pair[2]))
                     .andReturn().getResponse().getContentAsString();
@@ -105,7 +106,15 @@ class ServiceAudienceTokenTest extends IntegrationTestSupport {
         // Başkalarının yetkisi genişlemedi: messaging yalnız blocks:check alır.
         tokenRequest("messaging-service", MESSAGING_CLIENT_SECRET, "social-service")
                 .andExpect(jsonPath("$.scope").value("blocks:check"));
-        tokenRequest("messaging-service", MESSAGING_CLIENT_SECRET, "user-service").andExpect(status().isForbidden());
+        // users:status:read yalnız messaging ve social'a verilir: library, hardware ve review alamaz; lfp user-service'e hiç token alamaz.
+        for (Object[] other : new Object[][] {{"library-service", LIBRARY_CLIENT_SECRET},
+                {"hardware-service", HARDWARE_CLIENT_SECRET}, {"review-service", REVIEW_CLIENT_SECRET}}) {
+            String body = tokenRequest((String) other[0], (String) other[1], "user-service")
+                    .andReturn().getResponse().getContentAsString();
+            assertThat(JsonPath.<String>read(body, "$.scope")).doesNotContain("users:status:read");
+        }
+        tokenRequest("lfp-service", LFP_CLIENT_SECRET, "user-service").andExpect(status().isForbidden());
+        tokenRequest("messaging-service", MESSAGING_CLIENT_SECRET, "community-service").andExpect(status().isForbidden());
     }
 
     @Test
@@ -222,7 +231,35 @@ class ServiceAudienceTokenTest extends IntegrationTestSupport {
         postJson("/internal/v1/service-tokens", "{\"clientId\":\"social-service\",\"clientSecret\":\"%s\",\"audience\":\"community-service\",\"accountId\":\"%s\"}"
                 .formatted(SOCIAL_CLIENT_SECRET, account))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("SERVICE_ACCOUNT_BINDING_INVALID"));
-        tokenRequest("recommendation-service", RECOMMENDATION_CLIENT_SECRET, "user-service").andExpect(status().isForbidden());
+        // user-service hedefi (aday keşfi) hesaba bağlıdır: hesapsız istek reddedilir.
+        tokenRequest("recommendation-service", RECOMMENDATION_CLIENT_SECRET, "user-service")
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("SERVICE_ACCOUNT_BINDING_INVALID"));
+    }
+
+
+    @Test
+    void recommendationAdayKesfiTokeniniTekHesabaBagliAlir() throws Exception {
+        UUID account = accountId(registerActiveAccount(uniqueEmail(), uniqueUsername()));
+        String body = postJson("/internal/v1/service-tokens",
+                "{\"clientId\":\"recommendation-service\",\"clientSecret\":\"%s\",\"audience\":\"user-service\",\"accountId\":\"%s\"}"
+                        .formatted(RECOMMENDATION_CLIENT_SECRET, account))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.scope").value("candidates:read"))
+                .andReturn().getResponse().getContentAsString();
+        JWTClaimsSet claims = SignedJWT.parse(JsonPath.<String>read(body, "$.accessToken")).getJWTClaimsSet();
+        assertThat(claims.getAudience()).containsExactly("user-service");
+        assertThat(claims.getSubject()).isEqualTo("svc:recommendation-service");
+        assertThat(claims.getStringClaim("account_id")).isEqualTo(account.toString());
+        assertThat(claims.getStringClaim("scope")).isEqualTo("candidates:read");
+        assertThat(claims.getClaims()).doesNotContainKeys("roles", "sid", "ver", "amr");
+        // Hesap yoksa token verilmez; başka istemci (hardware) aday kapsamı alamaz, user-service'e yalnız bağsız privacy:read alır.
+        postJson("/internal/v1/service-tokens",
+                "{\"clientId\":\"recommendation-service\",\"clientSecret\":\"%s\",\"audience\":\"user-service\",\"accountId\":\"%s\"}"
+                        .formatted(RECOMMENDATION_CLIENT_SECRET, UUID.randomUUID()))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("SERVICE_TARGET_ACCOUNT_UNAVAILABLE"));
+        postJson("/internal/v1/service-tokens",
+                "{\"clientId\":\"hardware-service\",\"clientSecret\":\"%s\",\"audience\":\"user-service\",\"accountId\":\"%s\"}"
+                        .formatted(HARDWARE_CLIENT_SECRET, account))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("SERVICE_ACCOUNT_BINDING_INVALID"));
     }
 
     @Test

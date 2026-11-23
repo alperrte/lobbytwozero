@@ -875,7 +875,7 @@ Yeni uç yoktur. Bilinçli karar: tüketicilere iptal sorgusu (introspection) ya
 - Şu olaylar hesabın tüm oturumlarını iptal eder ve token sürümünü artırır: çıkış, parola değişimi ve sıfırlama, e-posta değişimi, rol verme ve alma, hesabın askıya alınması, yasaklanması ya da devre dışı bırakılması, silme onayı. **Auth'un kendi uçları** eski token'ı anında reddeder (`401`).
 - Anlık iptal iddiası yoktur. 90 sn kritik bir işlem için yetmiyorsa ayrı bir sözleşme (sorgu ya da iptal listesi) gerekir; şu an böyle bir ihtiyaç kaydı yoktur.
 - Auth'a ulaşılamazsa: servis önbellekteki JWKS ile doğrulamaya devam eder, bilinmeyen `kid` reddedilir (fail-closed). Hesap durumunu öğrenmek için Auth'a çağrı yapılmaz, yeni bir polling ya da önbellek kurulmaz.
-- **İsteğe bağlı olay:** `AccountStatusChanged` yalnız yönetici durum değişikliğinde (askıya alma, yasaklama, devre dışı bırakma, yeniden açma) transactional outbox ile hedef servise iletilir. Çıkış, parola, rol ve silme olay üretmez. Hedef listesi (`ltz.auth.events.targets`) varsayılan boştur; alıcı uç yazan servis eklenmesini ister. Zarf alanları ve alıcı doğrulama kuralları: `docs-auth/servis-sozlesmeleri.md` bölüm 3.5. Olay gecikmeyi kısaltabilir ama zorunlu değildir; olay yoksa 90 sn kuralı geçerlidir.
+- **İsteğe bağlı olay:** `AccountStatusChanged` yönetici durum değişikliğinde (askıya alma, yasaklama, devre dışı bırakma, yeniden açma) ve hesap silme akışında (silme onayı: `DELETION_REQUESTED`; **başarılı** vazgeçme: `ACTIVE`) transactional outbox ile hedef servise iletilir. Başarısız ya da reddedilen vazgeçme olay üretmez. Çıkış, parola ve rol değişikliği olay üretmez. Hedef listesi (`ltz.auth.events.targets`) varsayılan boştur; alıcı uç yazan servis eklenmesini ister. Zarf alanları ve alıcı doğrulama kuralları: `docs-auth/servis-sozlesmeleri.md` bölüm 3.5. Olay gecikmeyi kısaltabilir ama zorunlu değildir; olay yoksa 90 sn kuralı geçerlidir.
 
 #### Hata Durumları
 Yeni uç olmadığı için yeni hata kodu yoktur. İptal edilmiş token Auth'un uçlarında `401 UNAUTHENTICATED` alır.
@@ -969,7 +969,7 @@ Bu uçlar **Gateway'e açılmaz** (Gateway yalnız `/api/v1/<servis>/**` yönlen
 { "clientId": "admin-service", "clientSecret": "string, en az 32 karakter (AUTH_ADMIN_SERVICE_CLIENT_SECRET)", "audience": "isteğe bağlı; boşsa auth-service", "accountId": "UUID; signals:read, devices:verify, summary:read ve reference:read kapsamlarında zorunlu; bağsız kapsamda verilemez" }
 ```
 
-İstemci kimliği servis adıdır: `admin-service` (Auth'a `account:*`, community'ye `events:ingest`), `social-service` (community'ye `events:ingest`; user-service'e `privacy:read events:ingest`), `community-service` (admin ve notification'a `events:ingest`), `messaging-service` ve `lfp-service` (social-service'e `blocks:check`), `library-service` (user-service'e `privacy:read events:ingest`), `hardware-service` (user-service'e `privacy:read`; performance-service'e `devices:verify summary:read`, hesaba bağlı: token `account_id` taşır, hesap `ACTIVE` olmalı), `review-service` (user-service'e `events:ingest`), `game-service` (review-service'e `rating-summaries:read game-references:read`; library-service'e `game-references:read`, ikisi de kullanıcıya bağlı değil), `recommendation-service` (library-service'e `signals:read`; performance-service'e `reference:read`; iki hedef de hesaba bağlı: token `account_id` taşır, hesap `ACTIVE` olmalı). Her istemci **yalnız kendisine tanımlı (hedef, kapsam) çiftleri** için token alır; kimseye varsayılan imtiyaz yoktur. `audience` başka servis ise token o servisin JWKS doğrulamasında geçer (`aud=<servis>-service`, hedefin yapılandırılmış kapsamları, `sub=svc:<istemci>`, 60 sn) ve Auth'un iç uçlarında **geçmez**.
+İstemci kimliği servis adıdır: `admin-service` (Auth'a `account:*`, community'ye `events:ingest`), `social-service` (community'ye `events:ingest`; user-service'e `privacy:read events:ingest users:status:read`), `community-service` (admin ve notification'a `events:ingest`), `messaging-service` (social-service'e `blocks:check`; user-service'e `users:status:read`) ve `lfp-service` (social-service'e `blocks:check`), `library-service` (user-service'e `privacy:read events:ingest`), `hardware-service` (user-service'e `privacy:read`; performance-service'e `devices:verify summary:read`, hesaba bağlı: token `account_id` taşır, hesap `ACTIVE` olmalı), `review-service` (user-service'e `events:ingest`), `game-service` (review-service'e `rating-summaries:read game-references:read`; library-service'e `game-references:read`, ikisi de kullanıcıya bağlı değil), `recommendation-service` (library-service'e `signals:read`; performance-service'e `reference:read`; iki hedef de hesaba bağlı: token `account_id` taşır, hesap `ACTIVE` olmalı). Her istemci **yalnız kendisine tanımlı (hedef, kapsam) çiftleri** için token alır; kimseye varsayılan imtiyaz yoktur. `audience` başka servis ise token o servisin JWKS doğrulamasında geçer (`aud=<servis>-service`, hedefin yapılandırılmış kapsamları, `sub=svc:<istemci>`, 60 sn) ve Auth'un iç uçlarında **geçmez**.
 
 **REQ-04-A (2026-11-06):** Mevcut token ucu seçilen hedefin bütün tanımlı kapsamlarını aynı token'a yazar; istek gövdesine `scope` alanı eklenmedi. Hardware → Performance token'ı `devices:verify summary:read`, Recommendation → Performance token'ı yalnız `reference:read` taşır. Recommendation cihaz doğrulayamaz/özet okuyamaz; Hardware FPS referansını okuyamaz. İkisinde de tek `aud=performance-service` ve tek hedef `account_id` korunur. Yeni ENV/migration yoktur; mevcut `AUTH_HARDWARE_SERVICE_CLIENT_SECRET` ve `AUTH_RECOMMENDATION_SERVICE_CLIENT_SECRET` kullanılır (boşsa istemci kapalıdır).
 
@@ -1308,7 +1308,7 @@ Zarfta tanımsız alan reddedilir. Gövde en fazla 16 KB.
 ```
 **Kabul edilen olaylar** (hepsi yalnız `producer=auth-service`; farklı üretici `400 EVENT_PRODUCER_MISMATCH`):
 - `UserRegistered`: `{ "accountId": "UUID = aggregateId", "username": "^[A-Za-z0-9_]{3,20}$" }`. Profili açar ya da var olan profile kullanıcı adı kopyasını yazar; **hesap durumunu değiştirmez**. Zarftaki `occurredAt` üyelik tarihi (`memberSince`) olarak saklanır: yalnız boşsa ya da daha erken bir zaman gelirse yazılır, gelecekteki zaman şimdiyle sınırlanır.
-- `AccountStatusChanged`: `{ "accountId": "UUID = aggregateId", "status": "ACTIVE | SUSPENDED | BANNED | DISABLED | ..." }`. Profil varsa durumu günceller; **eski olay yeni durumu ezemez** (`occurredAt` karşılaştırılır). Profil yoksa yalnız kısıtlayıcı durumlar (`SUSPENDED`, `BANNED`, `DISABLED`) kaydedilir (askıdaki hesap sonradan görünür hale gelmesin); `ACTIVE` için profil ilk kullanımda zaten `ACTIVE` açılır. Tanınmayan durum adı profili değiştirmez.
+- `AccountStatusChanged`: `{ "accountId": "UUID = aggregateId", "status": "ACTIVE | SUSPENDED | BANNED | DISABLED | ..." }`. Profil varsa durumu günceller; **eski olay yeni durumu ezemez** (`occurredAt` karşılaştırılır). Profil yoksa yalnız kısıtlayıcı durumlar (`SUSPENDED`, `BANNED`, `DISABLED`) kaydedilir (askıdaki hesap sonradan görünür hale gelmesin); `ACTIVE` için profil ilk kullanımda zaten `ACTIVE` açılır. Tanınmayan durum adı profili değiştirmez. `DELETION_REQUESTED` (Auth, silme onayında) profili görünmez yapar ve aramadan düşürür; başarılı vazgeçmede gelen `ACTIVE` geri açar. Profil yokken `DELETION_REQUESTED` kaydedilmez.
 - `AccountEmailChanged`: `{ "accountId": "UUID = aggregateId" }`. Yük doğrulanır, etkisi yoktur (User e-posta tutmaz; yeni adres olayda gelmez).
 - `FriendshipChanged` (yalnız `social-service`): `{ "userLowId": "UUID", "userHighId": "UUID", "change": "ADDED | REMOVED" }`. social-service'in mevcut olay kaydıyla aynıdır. Arkadaşlık yansımasını günceller.
 - `UserBlocked` / `UserUnblocked` (yalnız `social-service`): `{ "blockerId": "UUID", "blockedId": "UUID" }` (farklı olmalı). Engel yansımasını günceller; engel iki yönde uygulanır.
@@ -1703,6 +1703,102 @@ auth-service, `${USER_SERVICE_URL}` üzerinden (hesap silme ucuyla aynı adres: 
 
 #### Test Durumu
 UNIT + INTEGRATION (`InternalLocaleTest` 13).
+
+### USER — Öneri aday keşfi (Internal, Recommendation → User, REC-13)
+
+Durum: IMPLEMENTED (User + Auth `candidates:read` grant). Recommendation tüketicisi (REC-13) ve Social engel yansımasının `ltz.user.social.projection-enabled=true` ile güvenilir ilan edilmesi **PENDING**; yansıma kapalıyken uç hiç aday döndürmez
+Sorumlu: Kerem (User sahibi onayıyla Alper'in REC-13 isteği için eklendi)
+Tüketici servisler: recommendation-service (benzer oyuncu adayları; arkadaş önerisi REC-14 Social API'sine de ihtiyaç duyar)
+
+#### Endpoint
+GET /internal/v1/accounts/{accountId}/recommendation-candidates
+
+#### Yetkilendirme
+Internal. Gateway'de route edilmez. `typ=svc+jwt`, `aud=user-service`, `sub=svc:recommendation-service` (tam eşleşme), `scope` ⊇ `candidates:read`, `account_id` claim'i yoldaki `accountId` (isteği yapan oyuncu, izleyici) ile aynı olmalı. Auth bu kapsamı hesaba bağlı verir (hesap ACTIVE değilse token yok). Başka `sub`, kapsam, yok ya da farklı `account_id` `403`; token yok, kullanıcı token'ı, yanlış `aud`/`typ` `401`. Başka HTTP yöntemi `403`. İzleyici kimliği yalnız token'dan gelir; istemci aday kimliği veremez.
+
+#### Path/Query Parameters
+- accountId: UUID, zorunlu (izleyici)
+- limit: 1–50, varsayılan 20
+- cursor: UUID, isteğe bağlı; önceki yanıttaki `nextCursor`
+- genre: katalog kodu (`^[a-z0-9][a-z0-9_-]{0,47}$`, büyük/küçük harf duyarsız), isteğe bağlı; yalnız bu türü seven adaylar
+- platform: aynı biçim, isteğe bağlı; yalnız bu platformu seven adaylar
+- excludeFriends: boolean, isteğe bağlı, varsayılan `false` (REC-14 arkadaş önerisi). `true` ise izleyiciyle Social yansımasında **aktif arkadaş** olanlar (iki yön) adaylardan çıkarılır. Bekleyen arkadaşlık isteği User'da tutulmadığından dışlanmaz (Social sahibiyle teyit edilmemiş varsayım). Boolean olmayan değer `400`
+
+#### Response — 200
+```json
+{
+  "candidates": [
+    {
+      "userId": "UUID",
+      "playerTypes": ["CASUAL"],
+      "favoriteGenres": ["rpg"],
+      "favoritePlatforms": ["pc"]
+    }
+  ],
+  "nextCursor": "UUID | null"
+}
+```
+Yalnız tercih sinyalleri döner; ad, kullanıcı adı, e-posta, ülke, biyografi, görsel, kütüphane, puan ve token dönmez. Sıralama `user_id` (PostgreSQL uuid bayt sırası), imleç keyset'tir (deterministik, tekrar/atlama yok). `Cache-Control: no-store`.
+
+Aday kuralı (mevcut `recommendation_granted` rızası yeniden kullanılır; ayrı rıza/migration/UI yoktur): hesap `ACTIVE`, onboarding tamamlanmış, öneri rızası açık, izleyici değil ve izleyiciyle iki yönde aktif engel yok. İzleyicinin kendisi de ACTIVE, onboarding'i bitmiş ve rızası açık olmalıdır. **Fail-closed:** izleyici uygun değilse, engeller bilinmiyorsa (`ltz.user.social.projection-enabled=false`, varsayılan) ya da uygun aday yoksa yanıt aynıdır: `200` ve boş `candidates` (neden ayırt edilemez).
+
+#### Hata Durumları
+- 400: `INVALID_CANDIDATE_QUERY` (limit aralık dışı/sayı değil, geçersiz genre/platform), `cursor`/`accountId` UUID değil
+- 401: Token yok/geçersiz; kullanıcı token'ı; yanlış `aud`
+- 403: Çağıran `svc:recommendation-service` değil; `candidates:read` kapsamı yok; `account_id` yoldaki hesapla uyuşmuyor ya da yok
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+recommendation-service (REC-13), Auth'tan `audience=user-service` + `accountId` ile servis token'ı alır (`ltz.auth.service-clients.clients.recommendation-service.targets.user-service=candidates:read`). Gerçek Auth + Recommendation ile uçtan uca: **NOT VERIFIED**.
+
+#### Test Durumu
+INTEGRATION PASS (Testcontainers PostgreSQL 17): `RecommendationCandidateTest` (12) — excludeFriends (aktif arkadaş iki yönde gizli, pasif arkadaşlık gizlemez, varsayılan dışlamaz, geçersiz değer 400), uygun aday ve alan sınırı, rızasız/onboardingsiz/askıdaki/yasaklı/silinen aday dışlama, uygun olmayan izleyici → boş, iki yönlü engel, genre/platform süzgeci, deterministik sayfalama, limit/imleç doğrulama, 403 matrisi, 401/yöntem; `RecommendationCandidateFailClosedTest` (1) — yansıma güvenilmezken boş. Hedefli koşu 13/13 PASS (tam User modülü bu değişiklikten sonra yeniden koşulmadı). Auth: `ServiceClientConfigTest` (12) ve `ServiceAudienceTokenTest` (20) PASS (hedefli). Checkstyle/PMD ratchet, merkezi coverage gate ve Sonar çalıştırılmadı.
+
+### USER — Hesap kullanılabilirliği (Internal, Messaging/Social → User)
+
+Durum: IMPLEMENTED (User tarafı). Auth'ta `messaging-service` ve `social-service` için `user-service` hedefinde `users:status:read` kapsamı **PENDING** (Auth işi, bu uç main'e gelince yapılır). Messaging ve Social istemcileri ayrı iştir.
+Sorumlu: Kerem
+Tüketici servisler: messaging-service (birebir sohbet hedefi), social-service (arkadaşlık isteği ve engel hedefi). lfp-service ihtiyaç duymuyor
+
+#### Endpoint
+POST /internal/v1/users/status
+
+#### Yetkilendirme
+Internal. Gateway'de route edilmez. `typ=svc+jwt`, `aud=user-service`, `scope` ⊇ `users:status:read`, `sub` yalnız `svc:messaging-service` ya da `svc:social-service` (tam eşleşme; başka servis `403`). Token yok, kullanıcı token'ı, yanlış `aud`/`typ` ya da süresi geçmiş token `401`. Uç, hesabın var olup olmadığını sızdırabileceği için kullanıcı token'ı kabul edilmez. Doğrulama deseni gizlilik kararı ucuyla aynıdır.
+
+#### Request Body
+```json
+{ "userIds": ["UUID", "..."] }
+```
+En az 1, en çok 100 kimlik; yinelenenler tek sonuç verir. Boş liste, 100'den fazla kimlik, `null` eleman ve UUID olmayan değer `400`.
+
+#### Response — 200
+```json
+{ "results": [ { "userId": "UUID", "status": "ACTIVE | UNAVAILABLE" } ] }
+```
+İstek sırasıyla, yinelenenler bir kez. **Fail-closed:** yalnız profili olan ve hesap durumu `ACTIVE` olan kullanıcı `ACTIVE` döner. Profil yok, `SUSPENDED`, `BANNED`, `DISABLED`, `PENDING_VERIFICATION`, `DELETION_REQUESTED` ve `DELETED` için `UNAVAILABLE`; var olmayan ve kullanılamaz hesap birbirinden ayırt edilemez. **Profil verisi dönmez** (ad, kullanıcı adı, görsel yok). `Cache-Control: no-store`. Tek sorgu (N+1 yok).
+
+**Güncellik sözleşmesi:** durum, Auth'tan `AccountStatusChanged` olayıyla eşitlenen kopyadır; olay kadar günceldir, anlık değildir. Silme talebi ve vazgeçme artık Auth'tan olayla gelir (`DELETION_REQUESTED`, `ACTIVE`). Yeni kayıtta profil `UserRegistered` olayıyla açılır; o ana kadar `UNAVAILABLE` döner. Çağıran bu kısa pencereyi yeniden deneme ya da açık hata ile karşılamalıdır.
+
+#### Hata Durumları
+- 400: Geçersiz gövde (boş, >100, `null` eleman, UUID değil)
+- 401: Token yok/geçersiz; kullanıcı token'ı; yanlış `aud`
+- 403: Çağıran izinli listede değil; `users:status:read` kapsamı yok. Yanıt durum bilgisi içermez
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+messaging-service ve social-service, `${USER_SERVICE_URL}` üzerinden çağırır; hata, zaman aşımı ya da eksik sonuçta fail-closed davranır (hedef kullanılamaz sayılır). Gerçek Auth token'ıyla uçtan uca: **NOT VERIFIED**.
+
+#### Test Durumu
+UNIT + INTEGRATION (`UserStatusTest`: durum eşlemesi, profil yok, sıra ve yineleme, 100 kimlik, veri sızmaması, 400/401/403 senaryoları).
 
 ### USER — Rızalarım (LIB-14)
 
@@ -3473,10 +3569,6 @@ PASS. Game merkezi kontrolü 427 test ve kapsam/kalite/Trivy kapılarıyla
 BACKEND TEST CHECK PASSED verdi.
 
 **Review bağlantısı (12 Kasım 2026):** Backend endpoint veya sözleşme değişikliği yoktur. Oyun detay sayfasına (`features/game/components/game-detail.tsx`) Review sayfasına giden "İncelemeleri gör" / "See reviews" bağlantısı eklendi (`Game.reviewsLink`). Hedef: `/reviews/games/[gameId]` (TR `/incelemeler/oyun/[gameId]`), Review PR #110 ile main'de. Review sayfaları oturum ister; oturumsuz kullanıcı girişe yönlenir ve dönüşte hedefe gelir. Review sayfaları `noindex`'tir; Game metadata'sına inceleme/puan içeriği taşınmaz. Detay yüklenemezse bağlantı gösterilmez. Game detayında LTZ puanı gösterilmediği için istatistik sayfasına (`/reviews/games/[gameId]/statistics`) bağlantı yoktur.
-
-## LIBRARY
-
-Sorumlu: Hamza · Gateway: `/api/v1/library/**` · Görevler: LIB-
 
 ### LIBRARY — Profil koleksiyonunu listeleme (LIB-10, LIB-11)
 
@@ -5732,6 +5824,7 @@ Ortak kurallar (aşağıdaki tüm MESSAGING uçları için; görevler LTZ-UMT-MS
 - **Okundu durumu (MSG-11, MSG-12):** Durum iki değerlidir: `SENT` (sunucuya kaydedildi) ve `READ` (okundu). "Okumak", istemcinin `POST .../read` ile işaretçiyi ilerletmesidir; "görüldü" ile "okundu" aynı olaydır. Bir mesaj, **o anda aktif olan ve mesajı görebilen herkes** (gönderen hariç) okuyunca `READ` olur; mesajdan sonra katılanlar ile ayrılan/çıkarılanlar hesaba katılmaz. Bu kural gönderenin su seviyesi (`min` over aktif diğer üyeler `max(last_read_seq, visible_from_seq - 1)`) ile tek yerde hesaplanır; geçmiş, liste, `.../reads` ve `read` olayı aynı sonucu verir. `readStatus` **yalnız isteyenin kendi mesajında** doludur; başkasının mesajında `null` döner. Kimin okuduğunu yalnız mesajın göndereni görebilir (`GET .../reads`). Okundu bilgisini kapatma ayarı yoktur.
 - **Mesajı görebilmek (MSG-19..26):** Bir mesaja yapılan her işlemin (yanıt, iletme, tepki, silme, okuyanlar, görsel indirme) ön koşulu: mesaj bu sohbette, isteyenin görünürlük sınırının (`visible_from_seq`) içinde ve isteyen onu **benden sil** ile kaldırmamış olmalı. Aksi her durum aynı `404 MESSAGE_NOT_FOUND`'dur (başka sohbetin mesajı dahil; varlığı sızdırılmaz).
 - **Benden sil / herkesten sil (MSG-25/26):** Benden silinen mesaj yalnız o kullanıcının geçmişinden, sohbet listesindeki `lastMessage`'ından, okunmamış sayısından ve alıntılarından kalkar; diğer üyeler ve okundu bilgisi etkilenmez. Herkesten silinen mesajın satırı kalır (`seq`, okunmamış ve okundu bilgisi bozulmaz) ama `deleted: true` döner; `body`, `attachment`, `gif`, `replyTo` boş, tepki özeti boştur. Herkesten silinmiş mesaja yanıt, iletme ve tepki `422 MESSAGE_DELETED`.
+- **Frontend (2026-11-23):** Mesajlar sayfası `/{locale}/mesajlar` (`/messages`), `frontend/src/features/messaging`; tüm kullanıcı uçlarını tüketir (ayrıntı `docs-messaging/TASK-09.md`). Sesli mesaj yalnız oynatılır, kayıt arayüzü yok.
 - **Mesaj menüsü (MSG-24):** Menü frontend'dedir; backend her mesajda menünün ihtiyacını verir (`deletableForEveryoneUntil`, `reactions.mine`, `forwarded`) ve her işlemin yetkisini ayrıca uygular.
 - **Silinmiş hesap (LTZ-UMT-MSG-07):** Hesabı silinen kullanıcının mesajları `deleted: true` ve `senderId: "00000000-0000-0000-0000-000000000000"` döner; arayüz "Silinmiş hesap" gösterir. Bkz. "Hesap verisi silme".
 - **Entegrasyon (LTZ-UMT-MSG-08, 2026-11-13):** Auth (JWKS, servis token'ı, hesap silme), Social (engel sorgusu), LFP (ilan sahibiyle iletişim → birebir sohbet) ve Gateway (REST, SSE, 1 MB yükleme) gerçek DEV yığınında uçtan uca doğrulandı: 44/44 PASS, ayrıca iki gerçek örnek arasında canlı akış PASS. notification-service ve admin-service iskelet olduğundan bu bağlantılar bekler. Ayrıntı: `docs-messaging/TASK-08.md`.
@@ -6808,7 +6901,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (servis içi uçtan uca akış MockMvc + gerçek PostgreSQL; `SseMessageHubTest` birim; `read` olayı `ReadReceiptStreamTest` 16 test). Gateway üzerinden canlı (2026-11-13, Node HTTP istemcisi): `text/event-stream`, `ready`, mesaj alıcıya 70–170 ms'de, `read` olayı gönderene ulaşır; 9 sn boşta akış kalp atışıyla açık kalır (Gateway okuma zaman aşımı 5 sn). İki gerçek örnek: akış ikinci örnekte, mesaj Gateway'den birinci örneğe gönderildi → ikinci örnekteki akışa ulaştı (PASS). Tarayıcı `EventSource` ile: NOT VERIFIED (messaging arayüzü yok).
+UNIT + INTEGRATION (servis içi uçtan uca akış MockMvc + gerçek PostgreSQL; `SseMessageHubTest` birim; `read` olayı `ReadReceiptStreamTest` 16 test). Gateway üzerinden canlı (2026-11-13, Node HTTP istemcisi): `text/event-stream`, `ready`, mesaj alıcıya 70–170 ms'de, `read` olayı gönderene ulaşır; 9 sn boşta akış kalp atışıyla açık kalır (Gateway okuma zaman aşımı 5 sn). İki gerçek örnek: akış ikinci örnekte, mesaj Gateway'den birinci örneğe gönderildi → ikinci örnekteki akışa ulaştı (PASS). Tarayıcı `EventSource` ile: arayüz yazıldı (`frontend/src/features/messaging`, `docs-messaging/TASK-09.md`; olay işleme ve yeniden bağlanma birim testli), gerçek yığınla canlı NOT VERIFIED.
 
 ### MESSAGING — Giden olay sözleşmeleri (MSG-16, teslim hedefi bekliyor)
 
@@ -9529,7 +9622,8 @@ Etkinlik sahibi (`organizerId`) yalnız doğrulanmış token'ın `sub` değerind
   "startsAt": "UTC ISO-8601 zaman, zorunlu, şimdiden sonra olmalı (örn. 2026-12-05T18:00:00Z)",
   "endsAt": "UTC ISO-8601 zaman, zorunlu, startsAt'ten sonra olmalı",
   "gameId": "UUID, opsiyonel (EVT-17); verilirse Game Service'te yayında (ACTIVE) bir oyun olmalı",
-  "platforms": "opsiyonel dizi, en çok 6 (yinelenenler birleşir): PC | PLAYSTATION | XBOX | NINTENDO_SWITCH | MOBILE | VR (EVT-06); etkinliğin KENDİ platformları, bağlı oyundan türetilmez"
+  "platforms": "opsiyonel dizi, en çok 6 (yinelenenler birleşir): PC | PLAYSTATION | XBOX | NINTENDO_SWITCH | MOBILE | VR (EVT-06); etkinliğin KENDİ platformları, bağlı oyundan türetilmez",
+  "capacity": "tam sayı, opsiyonel, 1..100000 (EVT-13); yoksa/null ise kapasite SINIRSIZDIR; 0 ve negatif 400"
 }
 ```
 Bilinmeyen alanlar (ör. `organizerId`, `status`) 400 ile reddedilir. Tanımsız veya farklı yazılmış `type` (ör. `poll`, `VOTING`) 400 alır. Türe özel alan/kural henüz yoktur (EVT-02 yalnız türleri tanımlar; turnuva EVT-18, oyun gecesi EVT-19, oy verme EVT-20). 120 / 4000 sınırları ve "başlangıç gelecekte olmalı" şartı gereksinimlerden değil, geliştirici varsayımıdır (karar kaydı VR-1..VR-3).
@@ -9561,9 +9655,15 @@ Bilinmeyen alanlar (ör. `organizerId`, `status`) 400 ile reddedilir. Tanımsız
   "endsAt": "2026-12-05T21:00:00Z",
   "status": "PLANNED",
   "createdAt": "2026-11-09T10:00:00Z",
-  "updatedAt": "2026-11-09T10:00:00Z"
+  "updatedAt": "2026-11-09T10:00:00Z",
+  "capacity": "int | null (null = sınırsız)",
+  "participantCount": 0,
+  "remainingCapacity": "int | null (kapasite yoksa null)",
+  "viewerParticipation": null,
+  "joinable": false
 }
 ```
+Yeni etkinliğin organizatörü kendi etkinliğine katılamaz; bu yüzden oluşturma yanıtında `joinable` her zaman `false`'tur.
 
 #### Hata Durumları
 - 400: Zorunlu alan eksik/boş, uzunluk veya karakter kuralı ihlali, tanımsız/çok fazla `platforms` değeri, geçersiz `type`/tarih biçimi, bilinmeyen alan; `startsAt` geçmişte (`reason: STARTS_IN_THE_PAST`) veya `endsAt` ≤ `startsAt` (`reason: ENDS_NOT_AFTER_START`)
@@ -9578,18 +9678,18 @@ Frontend:
 API Gateway üzerinden /api/v1/event/events
 
 Diğer mikroservisler:
-Auth Service JWKS (`GET /api/v1/auth/.well-known/jwks.json`) ile token doğrulama (Spring `JwtDecoder`; mevcut `AUTH_SERVICE_URL`, `JWT_ISSUER`, `JWT_AUDIENCE`, yeni ENV yok). `gameId` verilirse Game Service'in herkese açık `POST /api/v1/game/games/batch` ucu RestClient ile çağrılır (servis kimliği/secret gerekmez; `GAME_SERVICE_URL` mevcut). Outbox olayı yoktur. Tanımsız her yol (`/internal/**` dahil) kapalıdır.
+Auth Service JWKS (`GET /api/v1/auth/.well-known/jwks.json`) ile token doğrulama (Spring `JwtDecoder`; mevcut `AUTH_SERVICE_URL`, `JWT_ISSUER`, `JWT_AUDIENCE`, yeni ENV yok). `gameId` verilirse Game Service'in herkese açık `POST /api/v1/game/games/batch` ucu RestClient ile çağrılır (servis kimliği/secret gerekmez; `GAME_SERVICE_URL` mevcut). Outbox olayı yoktur. Tanımsız her yol kapalıdır; `/internal/**` yalnız Auth servis token'ıyla hesap silme ucuna açıktır (bkz. "Hesap Silme Hedefi").
 
 #### Test Durumu
 UNIT — test sınıfları **yazıldı, çalıştırılmadı** (`EventTest`, `EventServiceTest`, `EventControllerTest`, `EventEndpointSecurityTest` [gerçek RS256 token + yerel JWKS, DB deposu taklit], `SecurityContextCurrentUserTest`, `JwtConfigTest`). Kapsam dışı / **NOT VERIFIED**: Flyway migration V111 ve `ddl-auto=validate` (çalıştırılmadı), DB seviyesinde CHECK/entity eşlemesi testi (yok), gerçek Auth token'ıyla uçtan uca.
 
 ### EVENT — Etkinlik Detayı (EVT-03)
 
-Durum: IN PROGRESS (KISMİ — EVT-03 tamamlanmadı)
+Durum: IN PROGRESS (testler çalıştı; DB/canlı doğrulama bekliyor)
 Sorumlu: Nisa
-Tüketici servisler: Frontend (henüz yok)
+Tüketici servisler: Frontend (henüz yok), Recommendation (REC-15, liste ucu)
 
-> **Kısmi:** ad, açıklama, başlangıç/bitiş zamanı, tür ve durum döner. **"Katılım bilgileri" (kapasite, katılımcı sayısı, kalan kontenjan, kullanıcının katılım durumu) EKSİKTİR**: gerçek veri kaynağı yoktur ve sahte/varsayılan değer döndürülmez. EVT-13 ve EVT-08 tamamlandığında bu alanların detay yanıtına **eklenmesi gerekir** (takip listesi T-1..T-6); o zamana kadar EVT-03 tamamlanmış sayılmaz. Katılım cezası EVT-03'ün zorunlu kapsamında değildir (EVT-11). Gereksinim tablosu: [docs-event/event-service/evt-03-etkinlik-detayi.md](../docs-event/event-service/evt-03-etkinlik-detayi.md).
+> Ad, açıklama, zamanlar, tür, durum ve **katılım bilgileri** (kapasite, katılımcı sayısı, kalan kontenjan, kullanıcının katılım durumu, `joinable`) döner. Katılım cezası EVT-03'ün zorunlu kapsamında değildir (EVT-11). Gereksinim tablosu: [docs-event/event-service/evt-03-etkinlik-detayi.md](../docs-event/event-service/evt-03-etkinlik-detayi.md).
 
 #### Endpoint
 GET /api/v1/event/events/{eventId}
@@ -9614,14 +9714,21 @@ Authenticated. Geçerli bir kullanıcı token'ı yeterlidir; oluşturma rolü (`
   "endsAt": "2026-12-05T21:00:00Z",
   "status": "PLANNED | ACTIVE | COMPLETED | CANCELLED",
   "createdAt": "2026-11-09T10:00:00Z",
-  "updatedAt": "2026-11-09T10:00:00Z"
+  "updatedAt": "2026-11-09T10:00:00Z",
+  "capacity": "int | null (null = sınırsız)",
+  "participantCount": 3,
+  "remainingCapacity": "int | null (kapasite yoksa null; dolu ise 0)",
+  "viewerParticipation": "ACTIVE | ATTENDED | null (çağıran kullanıcının KENDİ güncel katılımı; yoksa null)",
+  "joinable": true
 }
 ```
-İptal edilmiş (`CANCELLED`) ve tamamlanmış etkinlikler de döner; durum `status` alanındadır.
+İptal edilmiş (`CANCELLED`) ve tamamlanmış etkinlikler de döner; durum `status` alanındadır. Yanıt `Cache-Control: private` taşır (kullanıcıya özel alanlar).
+
+`joinable` = çağıranın aktif katılımı yok **ve** etkinlik açık (`PLANNED`/`ACTIVE` ve bitmemiş) **ve** dolu değil **ve** çağıran organizatör değil. Katılım sınırsız kapasitede `participantCount` yine sayılır.
 
 `organizerId`: şu an her zaman doludur. Karar KD-3 (hesap silinince düzenleyici bağlantısının kaldırılması) uygulandığında **`null` olabilecektir** ("Silinmiş kullanıcı"); bu, `events.organizer_id`'yi nullable yapan migration ve Auth hesap silme ucuna bağlıdır. İstemci `null`'a dayanıklı olmalıdır.
 
-**Henüz bulunmayan alanlar** (gerçek veri kaynağı yok; EVT-13/EVT-08 sonrası geri uyumlu eklenecek): kapasite, katılımcı sayısı, kalan kontenjan, kullanıcının katılım durumu. Şema buna göre genişleyecektir.
+Katılım bilgileri (kapasite, katılımcı sayısı, kalan kontenjan, kullanıcının katılım durumu, `joinable`) EVT-13/EVT-08 ile eklendi; değerler gerçek veridir (`events.participant_count` ve `event_participations`). Katılım cezası (EVT-10/11) yoktur.
 
 #### Hata Durumları
 - 400: `eventId` geçerli bir UUID değil
@@ -9680,7 +9787,12 @@ Bir etkinlik, **bitiş zamanı şimdiden sonra** (`endsAt > şimdi`) ve durumu `
       "title": "Cuma Oyun Gecesi",
       "startsAt": "2026-12-05T18:00:00Z",
       "endsAt": "2026-12-05T21:00:00Z",
-      "status": "PLANNED | ACTIVE"
+      "status": "PLANNED | ACTIVE",
+      "capacity": "int | null (null = sınırsız)",
+      "participantCount": 3,
+      "remainingCapacity": "int | null",
+      "viewerParticipation": "ACTIVE | ATTENDED | null",
+      "joinable": true
     }
   ],
   "page": 0,
@@ -9690,7 +9802,7 @@ Bir etkinlik, **bitiş zamanı şimdiden sonra** (`endsAt > şimdi`) ve durumu `
   "hasNext": false
 }
 ```
-Liste öğesinde açıklama yoktur (ayrıntı için `GET /api/v1/event/events/{eventId}`). Katılım bilgileri (kapasite, katılımcı sayısı) gerçek veri kaynağı olmadığından yoktur (EVT-13/EVT-08). `organizerId` KD-3 uygulanınca `null` olabilir.
+Liste öğesinde açıklama yoktur (ayrıntı için `GET /api/v1/event/events/{eventId}`). Katılım alanları detaydakiyle aynı anlamdadır; kullanıcının katılım durumu sayfa için **tek toplu sorguyla** okunur (N+1 yok). Yanıt `Cache-Control: private` taşır. `organizerId` KD-3 (hesap silme) sonrası `null` olabilir; istemci buna dayanıklı olmalıdır. Recommendation (REC-15) uygunluğu için `joinable` alanını kullanır.
 
 #### Hata Durumları
 - 400: `page` veya `size` sayı değil ya da sınır dışı
@@ -9827,6 +9939,132 @@ Game Service `POST /api/v1/game/games/batch` (RestClient, herkese açık). Servi
 
 #### Test Durumu
 UNIT + INTEGRATION — test sınıfları **yazıldı, çalıştırılmadı** (`EventServiceTest`, `GameServiceClientTest`, `EventControllerTest`, `EventEndpointSecurityTest`, `EventRepositoryTest`). **NOT VERIFIED:** V114, gerçek Game Service'e karşı oluşturma.
+
+### EVENT — Etkinliğe Katılma (EVT-08)
+
+Durum: IN PROGRESS
+Sorumlu: Nisa
+Tüketici servisler: Frontend (henüz yok)
+
+> Kapasite ve katılım EVT-13/EVT-08 ile eklendi (V116). Katılım cezası/yasağı (EVT-10/11) **yoktur**.
+
+#### Endpoint
+POST /api/v1/event/events/{eventId}/participations
+
+#### Yetkilendirme
+Authenticated (kullanıcı token'ı). Katılımcı yalnız token `sub`'ından alınır; istekte kimlik alanı yoktur. Gövde yoktur.
+
+#### Path Parameters
+- eventId: UUID, zorunlu
+
+#### Davranış
+Katılım tek transaction'da kaydedilir; kontenjan tek bir koşullu `UPDATE` ile ayrılır (`participant_count < capacity`), bu yüzden eşzamanlı isteklerde kapasite aşılmaz (DB `CHECK` de korur). Aynı kullanıcı aynı etkinliğe ikinci kez katılamaz (kısmi UNIQUE indeks; yarış durumunda da `ALREADY_JOINED`).
+
+#### Response — 201
+```json
+{
+  "id": "UUID",
+  "eventId": "UUID",
+  "status": "ACTIVE",
+  "joinedAt": "2026-11-18T10:00:00Z",
+  "cancelledAt": null
+}
+```
+
+#### Hata Durumları
+- 400: `eventId` geçerli UUID değil
+- 401: Token yok/geçersiz
+- 404: Etkinlik yok
+- 409 (`reason`): `ALREADY_JOINED`, `EVENT_NOT_OPEN` (iptal/tamamlanmış/bitmiş), `EVENT_FULL`, `ORGANIZER_CANNOT_JOIN`
+- 503: Veritabanı geçici olarak erişilemiyor
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/event/events/{eventId}/participations
+
+Diğer mikroservisler:
+Yok. Outbox olayı yoktur.
+
+#### Test Durumu
+UNIT + SLICE: `EventParticipationServiceTest`, `EventControllerTest`, `EventEndpointSecurityTest` çalıştırıldı ve geçti (2026-11-18, `mvn -pl services/event-service test`: 256 test, 0 hata). **NOT VERIFIED:** gerçek PostgreSQL'de V116/V117 ve `ddl-auto=validate`, eşzamanlı kapasite yarışı (DB IT yok), Gateway üzerinden uçtan uca.
+
+### EVENT — Katılımdan Ayrılma (EVT-09)
+
+Durum: IN PROGRESS
+Sorumlu: Nisa
+Tüketici servisler: Frontend (henüz yok)
+
+> Yalnız kullanıcının **kendi** katılımını iptal eder; yasak/ceza uygulanmaz (EVT-10/11 yok).
+
+#### Endpoint
+DELETE /api/v1/event/events/{eventId}/participations/me
+
+#### Yetkilendirme
+Authenticated. Yalnız çağıranın kendi `ACTIVE` katılımı etkilenir (başka kullanıcının kaydı adreslenemez; IDOR yok).
+
+#### Path Parameters
+- eventId: UUID, zorunlu
+
+#### Response — 200
+`ParticipationResponse` (`status: CANCELLED_BY_USER`, `cancelledAt` dolu). Kontenjan tek `UPDATE` ile geri verilir (`participant_count` 0'ın altına inmez).
+
+#### Hata Durumları
+- 400: `eventId` geçerli UUID değil
+- 401: Token yok/geçersiz
+- 404: Kullanıcının bu etkinlikte aktif katılımı yok
+- 503: Veritabanı geçici olarak erişilemiyor
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+API Gateway üzerinden /api/v1/event/events/{eventId}/participations/me
+
+Diğer mikroservisler:
+Yok.
+
+#### Test Durumu
+UNIT + SLICE: `EventParticipationServiceTest`, `EventControllerTest` geçti (2026-11-18). **NOT VERIFIED:** gerçek DB ve Gateway.
+
+### EVENT — Hesap Silme Hedefi (KD-3, internal)
+
+Durum: IN PROGRESS
+Sorumlu: Nisa
+Tüketici servisler: Auth Service
+
+> Gateway'de **route edilmez**. Auth'un hesap silme akışındaki Event hedefidir. Auth tarafında `event-service` audience'ı ve `account:erase` kapsamı tanımlanana kadar çağrı gelmez (Kerem'e not: [docs-event/event-service/hesap-silme-entegrasyonu.md](../docs-event/event-service/hesap-silme-entegrasyonu.md)).
+
+#### Endpoint
+DELETE /internal/v1/accounts/{accountId}
+
+#### Yetkilendirme
+Servis token'ı: `typ=svc+jwt`, `aud=event-service`, `sub=svc:auth-service`, `scope` ⊇ `account:erase`, `account_id` = path'teki `accountId`, `jti` zorunlu, ömür ≤ 60 sn. Kullanıcı token'ı 401; kapsam/sub/`account_id` uyuşmazlığı 403; tanımsız her `/internal/**` yolu 403.
+
+#### Path Parameters
+- accountId: UUID, zorunlu
+
+#### Davranış
+İdempotent, tek transaction: hesabın düzenlediği açık etkinliklerin katılımları `CANCELLED_BY_EVENT` olur, bu etkinlikler iptal edilir; hesabın tüm etkinliklerinde `organizer_id` `NULL` yapılır ("Silinmiş kullanıcı"); hesabın kendi katılımları için kontenjan geri verilir ve katılım satırları silinir. Veri yoksa ve ikinci çağrıda da 204.
+
+#### Response — 204
+Gövde yok.
+
+#### Hata Durumları
+- 400: `accountId` UUID değil
+- 401: Token yok/geçersiz (kullanıcı token'ı dahil)
+- 403: Kapsam yok; `sub` ≠ `svc:auth-service`; `account_id` ≠ path
+- 503: Veritabanı geçici olarak erişilemiyor
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+Yok (internal).
+
+Diğer mikroservisler:
+Auth Service (çağıran). Token'lar Auth JWKS ile doğrulanır.
+
+#### Test Durumu
+UNIT + SLICE: `EventEndpointSecurityTest` (204, 401, 403 varyantları) geçti (2026-11-18). **NOT VERIFIED:** gerçek DB'de silme sırası, gerçek Auth servis token'ıyla uçtan uca (Auth tarafı bekliyor).
 
 ## HARDWARE
 
@@ -12007,7 +12245,565 @@ gerçek Game/ortak DEV/TLS/tarayıcı kabulü iddia edilmez.
 
 Sorumlu: Alper · Gateway: `/api/v1/recommendation/**` · Görevler: REC-
 
-_Kayıt yok._
+**REC-13/14 KAPANDI:** `/players` ve `/friends` aşağıda kayıtlıdır. **REC-15 (`/events`) IMPLEMENTED (2026-11-18):**
+Event EVT-04 liste ucuna dayanır; katılım/kapasite Event'in `joinable` alanıyla değerlendirilir. Katılım cezası (EVT-10/11) bir katılım kuralıdır, öneri filtresi değildir; cezalı kullanıcıya da öneri yapılır.
+[Karar/owner talepleri](../docs-recommendation/decisions/task-04-decisions.md),
+[gerçek test kapsamı](../docs-recommendation/testings/task-04-tests.md).
+
+**TASK 1 / LTZ-ALP-REC-01 (2026-11-14):** İş HTTP endpoint'i henüz yoktur.
+`RecommendationAlgorithm`, `RecommendationExecutionService` ve analitik portu servis içidir;
+public/protected/internal HTTP sözleşmesi olarak kullanılamaz. Bu task hiçbir endpoint eklemedi,
+değiştirmedi veya kaldırmadı. Başlangıç güvenlik yüzeyindeki 401/CSRF 403 testleri gerçek
+Auth/JWT/RBAC/IDOR veya ProblemDetail iş API'si kabulü değildir.
+Kullanıcı kimliği ya da keyfi analitik olay kabul eden geçici bir endpoint açılmadı.
+[Sözleşme ve ölçüm anlamları](../docs-recommendation/decisions/task-01-decisions.md),
+[test kanıtı](../docs-recommendation/testings/task-01-tests.md).
+
+**TASK 2 (2026-11-14):** Aşağıdaki iş uçları mevcut Auth/JWKS sözleşmesini uygular.
+Kullanıcı `at+jwt` (RS256, issuer/audience/zaman/sub, en çok 60 sn TTL + 30 sn saat toleransı)
+ve kanonik rollerden biri zorunludur. Cookie yalnız Gateway'de CSRF/Origin kontrolünden sonra
+Bearer'a çevrilir; servis cookie/header kimliğine güvenmez. User rızası ve Auth'un hesaba bağlı
+Library grant'ının ACTIVE kontrolü her kişisel okumada/yazmada yeniden yapılır.
+Bu ACTIVE denetimi oturum introspection değildir; logout/token iptali yerel access token'ın
+kısa ömrüyle sınırlıdır. Yanıtlar ve hatalar `Cache-Control: private, no-store` taşır.
+16 KiB POST/PUT sınırı; instance başına hesap başına 10 generation/dk, diğer kişisel işlemler
+ortak 120/dk; en çok 10000 aktif hesap penceresi. 429/503 `Retry-After: 60` döner.
+
+### RECOMMENDATION — Kişisel tür önerisi üret (REC-01/04/16/17)
+
+Durum: IMPLEMENTED — rules-v1 dört sinyalin tamamını kullanır (tür, kişisel puan REC-03, favori ve tamamlanan benzerliği REC-02/05); yanıt 50 aday/tür penceresi nedeniyle PARTIAL kalır
+Sorumlu: Alper
+Tüketici servisler: Frontend (henüz bağlanmadı)
+
+#### Endpoint
+POST /api/v1/recommendation/games
+
+#### Yetkilendirme
+Owner — kimlik yalnız doğrulanmış `sub`; PLAYER/CONTENT_CREATOR/GAME_DEVELOPER/MODERATOR/ADMIN.
+User recommendation rızası ve Auth'ta ACTIVE hesap gerekir. Başka kullanıcı parametresi yoktur.
+
+#### Request Body
+`{ "genre": "rpg", "platform": "windows", "size": 20 }`
+Üç alan opsiyonel; size varsayılan 20, 1–50. Genre/platform boş olamaz, en çok 64 karakter;
+kontrol karakterleri ve bilinmeyen JSON alanları reddedilir. Genre kullanıcının tercihinde yoksa
+boş sonuçtur. Sistem uygunluğu filtresi henüz yoktur; destekleniyormuş gibi kabul edilmez.
+
+#### Response — 200
+`{runId, algorithmVersion, createdAt, status, genre, platform, items, limitations}`.
+Item: `{itemId, gameId, score, rank, reasonCode:"GENRE_RATING_AFFINITY", contribution, matchedGenres}`.
+`score` ve `contribution`; tür yakınlığı (%20), kişisel puan (%30), favori benzerliği (%40) ve tamamlanan benzerliği (%10) katkılarının toplamıdır; sinyali 0 olan katkı eklenmez.
+Favori/tamamlanan benzerliği: Library `recommendation-signals` (servis token'ı, en çok 10 sayfa/500 kayıt) favori ve tamamlanan oyun kümelerini verir; Game GAME-15 toplu metadata (100'lük gruplar) görünür oyunların türlerini verir. Bir türün payı, kümedeki görünür oyunların o türü taşıma oranıdır (0..10000); adayın yakınlığı eşleşen türlerinin payının ortalamasıdır (payı olmayan tür 0). Yetişkin/gizli oyun paydaya girmez. Boş kümede Game çağrılmaz; aday yoksa Library/Game okunmaz.
+`reasonCode` önceki sürümde `GENRE_AFFINITY` idi; puan sinyali eklendiği için değişti (frontend henüz tüketmiyor).
+Kişisel puan: kullanıcının Review puanları (`GET /api/v1/review/ratings/mine`, en çok 10 sayfa/500 puan) Game GAME-15 tür kodlarıyla eşleştirilir; tür ortalaması 5 altındaysa 0, 10 ortalama 10000. Adayın puan yakınlığı eşleşen türlerinin ortalamasıdır (puanlanmamış tür 0). Aday yoksa Review çağrılmaz.
+gameId kanonik UUID'dir. `status=PARTIAL` veya `EMPTY`; 50 aday/tür penceresi limitations içinde
+`BOUNDED_DISCOVERY_50_PER_GENRE` olarak belirtilir (`PERSONAL_RATINGS_UNAVAILABLE`, `FAVORITE_SIMILARITY_UNAVAILABLE` ve
+`COMPLETED_SIMILARITY_UNAVAILABLE` artık dönmez). Skor katkı toplamıdır; hassas ham liste yoktur.
+User türleri en çok 10; her tür için filtreli Game discovery ilk 50, toplam en çok 500 aday.
+Library favorite/completed kimlikleri ve NOT_INTERESTED feedback tekrar öneriden dışlanır
+(dışlama ayrıdır; benzerlik sinyali yukarıdaki tür paylarından gelir). MAIN_GAME ve doğrulanmış adult=false
+dışındaki adaylar elenir. Boş tercihte popüler/sahte öneri üretilmez.
+Sonuç 30 günlük owner geçmişine aynı transaction'da kaydedilir; hesap başına en çok 500 canlı run.
+
+#### Hata Durumları
+- 400: INVALID_REQUEST; size/filtre/JSON doğrulaması
+- 401: AUTHENTICATION_REQUIRED; eksik/geçersiz token
+- 403: ACCESS_DENIED / CONSENT_REQUIRED / SOURCE_ACCESS_DENIED
+- 429: RATE_LIMITED / HISTORY_LIMIT_REACHED
+- 503: SOURCE_UNAVAILABLE / RECOMMENDATION_UNAVAILABLE / RECOMMENDATION_BUSY
+
+#### Bağlantı
+Frontend: API Gateway üzerinden tam endpoint; frontend değişmedi.
+Diğer servisler: User me/consents + me, Auth account-bound Library grant, Library signals,
+Game filtreli discovery, Review `ratings/mine` (kullanıcı token'ı) ve Game GAME-15 toplu metadata; sabit origin, bounded JSON,
+3000/5000 ms timeout, redirect/retry yok. Review veya Game puan/tür okuması başarısızsa istek 503 SOURCE_UNAVAILABLE ile durur
+(puansız sıralama sessizce üretilmez). Library ikinci kez okunur (servis token'ı + signals) ve Game toplu metadata
+çağrılır; bunlardan biri hata verirse de aynı şekilde 503 SOURCE_UNAVAILABLE/403 SOURCE_ACCESS_DENIED döner.
+
+#### Test Durumu
+UNIT + INTEGRATION — gerçek Auth issuer/JWKS + Recommendation/PostgreSQL; kaynaklar contract fixture.
+REC-02/05 birim testleri (HttpLibraryTasteSourceTest, PersonalizedRatingWeightTest) geçti; güncellenen entegrasyon testi
+(skor 7000, 22 istek) PostgreSQL olmadığı için çalıştırılamadı: NOT VERIFIED.
+Gerçek User/Library/Game/Review servisleriyle tam E2E NOT VERIFIED. [Kanıt](../docs-recommendation/testings/task-02-tests.md).
+REC-03 birim testleri geçti (HttpPersonalRatingSourceTest 6, PersonalizedRatingWeightTest 2, HttpGameMetadataSourceTest 3). RecommendationApiIntegrationTest fixture'ı Review `ratings/mine` (boş sayfa) ile güncellendi; PostgreSQL gerektiren bu IT bu oturumda KOŞULMADI.
+
+### RECOMMENDATION — Benzer oyuncu ve arkadaş önerisi (REC-13/14)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (planlı)
+
+#### Endpoint
+GET /api/v1/recommendation/players (REC-13, SIMILAR_PLAYERS)
+GET /api/v1/recommendation/friends (REC-14, FRIEND_SUGGESTIONS)
+
+#### Yetkilendirme
+Owner — kullanıcı JWT'si, PLAYER/CONTENT_CREATOR/GAME_DEVELOPER/MODERATOR/ADMIN rolü, User önerilere
+açık rızası ve Auth ACTIVE grant'i. İzleyici kimliği yalnız token'dan gelir; istemci userId veya
+`excludeFriends` veremez (bilinmeyen parametreler yok sayılır). Servis token'ı 401.
+
+#### Path/Query Parameters
+- size: 1–20, varsayılan 10
+- genre, platform: opsiyonel, boş olmayan ≤64 karakter; User aday sorgusuna süzgeç olarak iletilir
+
+#### Response — 200
+`{kind,algorithmVersion:"player-affinity-v1",createdAt,items:[{userId,score:1..10000,sharedGenres,sharedPlatforms,sharedPlayerTypes}],limitations:[]}`.
+Üçüncü kişiye yalnız kimlik, skor ve izleyiciyle ORTAK sinyaller döner (ham tercih dönmez).
+Skor: tamsayı Jaccard yüzdesi × ağırlık; players tür/platform/tip 60/20/20 (en az bir ortak tür),
+friends 40/40/20 (ortak tür VE ortak platform şart). Sıralama skor azalan, sonra userId.
+Stateless: run/geçmiş yazılmaz. `limitations`: `VIEWER_PREFERENCES_MISSING` (izleyicinin tercihi yok, aday sorulmaz),
+`CANDIDATE_SCAN_TRUNCATED` (en çok 4×50 aday taranabildi).
+Aday havuzu User `GET /internal/v1/accounts/{accountId}/recommendation-candidates?excludeFriends=true`
+ile gelir; rıza/ACTIVE/onboarding/engel/arkadaş süzgeçleri User tarafındadır (candidates:read, hesaba bağlı token).
+
+#### Hata Durumları
+400 geçersiz size/genre/platform; 401 kimlik; 403 rol/rıza/hesap veya User erişim reddi;
+429 oran sınırı (öneri üretim kovasını paylaşır, dk'da 10); 503 User kaynağı kullanılamıyor/bozuk
+yanıt (kendini aday döndürme dahil, fail-closed).
+
+#### Bağlantı
+Frontend: Gateway üzerinden endpoint. Diğer servisler: User (viewer `/api/v1/user/me` + aday uç noktası),
+Auth (service token). Varsayım: bekleyen (PENDING) arkadaşlık isteği olan kişiler henüz dışlanmaz (Social kuralı onaysız).
+
+#### Test Durumu
+INTEGRATION (gerçek Auth JWT, JDK HttpServer User fixture'ı) — skor/sıralama, ortak sinyal, platform şartı,
+rıza reddi, boş tercih, kaynak hataları, kendini aday döndürme, doğrulama 400, kesilme, 401, kota 429. Recommendation 88 test PASS.
+
+### RECOMMENDATION — Yaklaşan etkinlik önerisi (REC-15)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (planlı)
+
+#### Endpoint
+GET /api/v1/recommendation/events
+
+#### Yetkilendirme
+Owner — kullanıcı JWT'si, PLAYER/CONTENT_CREATOR/GAME_DEVELOPER/MODERATOR/ADMIN rolü, User önerilere açık rızası.
+İzleyici kimliği yalnız token'dan gelir; istemci userId/eventId veremez. Servis token'ı 401.
+
+#### Path/Query Parameters
+- size: 1–20, varsayılan 10
+
+#### Response — 200 (`Cache-Control: private, no-store`)
+`{algorithmVersion:"event-affinity-v1",createdAt,items:[{eventId,type,title,startsAt,endsAt,gameId|null,score:1..10000,sharedGenres,sharedPlatforms}],limitations:[]}`.
+Akış: oran sınırı (üretim kovası) → rıza → User tercihi (`/api/v1/user/me`: favoriteGenres/favoritePlatforms) → Event
+`GET /api/v1/event/events` (EVT-04, kullanıcı token'ı, size 50, en çok 4 sayfa, yaklaşana göre artan) → bağlı oyunların türleri
+Game GAME-15 toplu metadata ile (görünmeyen/yetişkin oyuna bağlı etkinlik önerilmez).
+Yalnız PLANNED/ACTIVE ve bitmemiş (`endsAt` > şimdi) etkinlik; izleyicinin kendi düzenlediği etkinlik hariç. Event'in izleyici için hesapladığı
+`joinable` alanı `false` olan (izleyici zaten katılmış, etkinlik dolu) etkinlik önerilmez; Event yanıtındaki `capacity`/`participantCount`/`remainingCapacity`/
+`viewerParticipation`/`joinable` sıkı doğrulanır (eksik veya bozuk alan 503). Skor: tür 60 / platform 40
+tamsayı Jaccard yüzdesi (tür etkinliğin bağlı oyununun türünden, platform etkinliğin kendi alanından; küçük harf ve harf/rakam dışı
+karakterler atılarak eşlenir). Ortak tür veya platform yoksa etkinlik çıkarılır. Sıralama skor azalan, `startsAt`, `eventId`.
+Stateless: run/geçmiş yazılmaz; organizerId dönmez. Katılım cezası öneriyi etkilemez (cezalı kullanıcıya da öneri yapılır; ceza katılımda Event'te uygulanır). Katılım ve kapasite Event'ten okunur; öneri rezervasyon değildir, katılımda kapasite Event'te yeniden denetlenir. `limitations` yalnız aşağıdakilerden oluşur:
+`VIEWER_PREFERENCES_MISSING` (tercih yok, Event çağrılmaz), `EVENT_SCAN_TRUNCATED` (4×50 etkinlik sınırına ulaşıldı).
+
+#### Hata Durumları
+400 geçersiz size; 401 kimlik; 403 rol/rıza veya Event/User erişim reddi; 429 oran sınırı (öneri üretim kovası, dk'da 10);
+503 User/Event/Game kaynağı kullanılamıyor veya bozuk yanıt (fail-closed, boş liste sayılmaz; yeniden deneme yok).
+
+#### Bağlantı
+Frontend: Gateway üzerinden endpoint. Diğer servisler: User (viewer), Event (liste, EVT-04), Game (GAME-15 toplu metadata).
+Yeni ENV/migration yok (`EVENT_SERVICE_URL` Compose'ta zaten tanımlı). Eligibility Event'in liste alanlarından gelir
+(bkz. docs-recommendation/integration/dependencies/done/event-service-requests.md).
+
+#### Test Durumu
+UNIT — EventRecommendationServiceTest (6) ve HttpEventDiscoverySourceTest (5) PASS, 2026-11-18 (süzme, dolu/katılmış/joinable=false elenir, sınırsız kapasite,
+sıralama, tercih yok, rıza/kaynak hatası, sayfalama/kesilme, bozuk veya eksik katılım alanı 503). Gerçek Event/Auth/Game ile E2E ve PostgreSQL gerektiren entegrasyon testi NOT VERIFIED / yazılmadı.
+
+### RECOMMENDATION — Donanıma uygun oyun önerisi (REC-06/16)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (planlı)
+
+#### Endpoint
+GET /api/v1/recommendation/games/hardware-compatible
+
+#### Yetkilendirme
+Owner — kullanıcı JWT'si, PLAYER/CONTENT_CREATOR/GAME_DEVELOPER/MODERATOR/ADMIN rolü, User önerilere açık rızası ve
+Auth ACTIVE grant'i. Donanım profili sahipliği Hardware'de kullanıcı token'ıyla doğrulanır (yabancı profil 404). Servis token'ı 401.
+
+#### Path/Query Parameters
+- profileId: zorunlu UUID (owner donanım profili)
+- platform: zorunlu, Game gereksinim platformu (ör. windows); boş olmayan ≤64 karakter
+- genre: opsiyonel tür süzgeci (kişisel tür tercihleriyle kesişir)
+- size: 1–20, varsayılan 10
+
+#### Response — 200 (`Cache-Control: private, no-store`)
+`{algorithmVersion:"hardware-compatible-v1",createdAt,hardwareProfileId,platform,items:[{gameId,affinity:1..10000,matchedGenres,compatibility,reason}],excludedBelowMinimum,limitations:[]}`.
+Akış: oran sınırı (üretim kovası) → rıza → owner profil → zevk adayları (≤50, Library favori/tamamlananlar ve NOT_INTERESTED hariç)
+→ Game toplu metadata (tek çağrı) → MİNİMUM gereksinim değerlendirmesi. Minimumu KANITLI karşılamayan (BELOW) oyun listeden çıkar ve
+`excludedBelowMinimum` sayılır. `compatibility`: `MEETS_MINIMUM_COMPUTE` (CPU/GPU tam model eşleşmesi + RAM kanıtlı) önce, `UNKNOWN`
+(bilinen uyumsuzluk yok ama kanıtlı değil; `reason` MINIMUM_NOT_PROVEN | REQUIREMENTS_MISSING) sonra; her grupta affinity azalan, sonra gameId.
+Marka/model sıralaması uydurulmaz; "UNKNOWN uyumsuz demek değildir". Stateless: run/geçmiş yazılmaz.
+`limitations`: DECLARED_TECHNICAL_DATA_ONLY, OS_DRIVERS_AND_FREE_SPACE_NOT_VERIFIED, NO_CPU_GPU_MODEL_PERFORMANCE_ORDER,
+UNKNOWN_IS_NOT_KNOWN_INCOMPATIBLE, SOME_CANDIDATES_UNAVAILABLE, SOME_REQUIREMENTS_MISSING. Tek oyun değerlendirmesi
+(`POST /hardware/assessments`) hâlâ ayrı uçtur ve `NO_CATALOG_WIDE_HARDWARE_FILTER` notunu bu uç kapatmıştır.
+
+#### Hata Durumları
+400 eksik/bozuk profileId, platform, size, genre; 401 kimlik; 403 rol/rıza/hesap veya kaynak erişim reddi; 404 yabancı/yok profil;
+429 oran sınırı; 503 Hardware/User/Library/Game kaynağı kullanılamıyor ya da bozuk yanıt (fail-closed, kısmi sonuç yok).
+
+#### Bağlantı
+Hardware (profil batch), User (`/user/me`, rıza), Game (keşif + herkese açık `POST /api/v1/game/games/recommendation-metadata/batch`, GAME-15; servis token'ı gerekmez, tek toplu çağrı),
+Library (sinyaller). Game alanları `{value,state}` gelir; yalnız `AVAILABLE` değer kullanılır, `UNKNOWN`/`UNCOMPARABLE` uyumluluğu UNKNOWN bırakır;
+`adult=true` veya `visible=false` oyun elenir (unavailable sayılır).
+
+#### Test Durumu
+UNIT/INTEGRATION — `HardwareCompatibleGameServiceTest` (sıralama, BELOW eleme, NOT_INTERESTED, boyut/eşitlik, boş aday, doğrulama,
+rıza/yabancı profil/Game 503 fail-closed), `HttpGameMetadataSourceTest` (şema/kimlik/mükerrer/platform doğrulaması),
+`RecommendationApiIntegrationTest` (401/rol/400 kaynak çağrısından önce). Recommendation birim testleri PASS; DB gerektiren entegrasyon testleri bu oturumda çalıştırılamadı. Canlı uçtan uca: **NOT VERIFIED**.
+
+### RECOMMENDATION — Öneri geçmişi (REC-18)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (planlı)
+
+#### Endpoint
+GET /api/v1/recommendation/runs
+
+#### Yetkilendirme
+Owner — yukarıdaki kullanıcı JWT/rol/rıza/ACTIVE kuralları; sorguda userId yoktur.
+
+#### Path/Query Parameters
+- size: 1–20, varsayılan 20
+- beforeRunId: opsiyonel UUID; yalnız sahibinin süresi dolmamış run'ı
+
+#### Response — 200
+`{items:[{runId,algorithmVersion,createdAt,resultCount}],nextCursor:UUID|null}`.
+Cursor `(created_at,id)` azalan sıralı; sonradan yeni run eklenmesi devam sayfasını kaydırmaz.
+Expired run'lar sorgudan çıkarılır; rıza geri çekildiği fark edilirse kişisel geçmiş kalıcı silinir.
+
+#### Hata Durumları
+400 geçersiz size/UUID; 401 kimlik; 403 rol/rıza/hesap; 404 başka owner/geçersiz cursor;
+429 oran sınırı; 503 kaynak/DB kullanılamıyor.
+
+#### Bağlantı
+Frontend: Gateway üzerinden endpoint.
+Diğer servisler: User consent + Auth ACTIVE grant kontrolü; veri yalnız recommendation_db.
+
+#### Test Durumu
+UNIT + INTEGRATION — A/B, cursor izolasyonu, ekleme sırasında stabil sayfalama, retention.
+
+### RECOMMENDATION — Run ve açıklamaları (REC-17/18)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (planlı)
+
+#### Endpoint
+GET /api/v1/recommendation/runs/{runId}
+
+#### Yetkilendirme
+Owner — kullanıcı JWT/rol/rıza/ACTIVE; sahiplik SQL'de user_id=sub ile uygulanır.
+
+#### Path/Query Parameters
+runId: UUID, zorunlu.
+
+#### Response — 200
+Generation ile aynı `RecommendationRunResponse`; en çok 50 öğe, kaydedilmiş sıra ve algoritma
+sürümü. Açıklama yalnız sahibinin eşleşen tür kodlarıdır; güncel oyun içeriği veya FPS garantisi yoktur.
+
+#### Hata Durumları
+400 UUID; 401 kimlik; 403 rol/rıza/hesap; 404 yok/başkasına ait/expired (aynı hata);
+429 oran sınırı; 503 kaynak/DB hatası.
+
+#### Bağlantı
+Frontend: Gateway üzerinden endpoint.
+Diğer servisler: User consent + Auth ACTIVE; kişisel geçmiş başka DB'den okunmaz.
+
+#### Test Durumu
+UNIT + INTEGRATION — owner read, BOLA 404, açıklama/score tutarlılığı, rıza sonrası silme.
+
+### RECOMMENDATION — Geri bildirim durumunu oku (REC-19)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (planlı)
+
+#### Endpoint
+GET /api/v1/recommendation/runs/{runId}/items/{itemId}/feedback
+
+#### Yetkilendirme
+Owner — run ve item birlikte doğrulanır; kullanıcı JWT/rol/rıza/ACTIVE gerekir.
+
+#### Path/Query Parameters
+runId, itemId: UUID, zorunlu.
+
+#### Response — 200
+`{itemId,value:"LIKE"|"NOT_INTERESTED"|null,version:long}`.
+Henüz feedback yoksa null/0; bu başka kullanıcının öğesini sorgulama olanağı sağlamaz.
+
+#### Hata Durumları
+400 UUID; 401 kimlik; 403 rol/rıza/hesap; 404 yanlış run/item/owner/expired;
+429 oran; 503 kaynak/DB.
+
+#### Bağlantı
+Frontend: Gateway üzerinden endpoint.
+Diğer servisler: User consent + Auth ACTIVE; feedback yalnız recommendation_db.
+
+#### Test Durumu
+UNIT + INTEGRATION — ilk durum 0, owner dışı 404, version değişimi.
+
+### RECOMMENDATION — Geri bildirim yaz (REC-19)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Frontend (planlı)
+
+#### Endpoint
+PUT /api/v1/recommendation/runs/{runId}/items/{itemId}/feedback
+
+#### Yetkilendirme
+Owner — kimlik sub'dan; run/item sahipliği kontrol edilir; rıza/ACTIVE zorunlu.
+
+#### Path/Query Parameters
+runId, itemId: UUID, zorunlu.
+
+#### Request Body
+`{"feedback":"LIKE","version":0}`. feedback LIKE veya NOT_INTERESTED, version≥0.
+İlk yazma 0→1; değiştirmede mevcut version gerekir. Aynı değer tekrar gönderilirse mevcut
+yanıt/version korunur. NOT_INTERESTED sonraki generation'da o oyunu dışlar; LIKE keyfi skor eklemez.
+
+#### Response — 200
+`{itemId,value,version}`. Account advisory lock + item_id UNIQUE ile eşzamanlı tekrar tek state üretir.
+
+#### Hata Durumları
+400 enum/version/JSON; 401 kimlik; 403 rol/rıza/hesap; 404 run/item/owner/expired;
+409 FEEDBACK_VERSION_CONFLICT; 429 oran sınırı; 503 kaynak/DB.
+
+#### Bağlantı
+Frontend: Gateway üzerinden endpoint.
+Diğer servisler: User consent + Auth ACTIVE; dış mutasyon veya kullanıcı adına işlem yoktur.
+
+#### Test Durumu
+UNIT + INTEGRATION — A/B IDOR, duplicate, version conflict, 12 concurrent teslim/tek satır,
+NOT_INTERESTED etkisi, rıza/silme cascade.
+
+### RECOMMENDATION — Hesap verisini sil (REC-18/19)
+
+Durum: IMPLEMENTED — hedef uç; gerçek Auth silme işçisi HTTP E2E henüz doğrulanmadı
+Sorumlu: Alper
+Tüketici servisler: Auth
+
+#### Endpoint
+DELETE /internal/v1/accounts/{accountId}
+
+#### Yetkilendirme
+Internal — yalnız Auth D4 `svc+jwt`, RS256/JWKS, tek aud=recommendation-service,
+sub=svc:auth-service, scope=account:erase, account_id=yoldaki UUID; TTL≤60 sn.
+Kullanıcı token'ı reddedilir; Gateway route'u yoktur.
+
+#### Path/Query Parameters
+accountId: UUID, zorunlu.
+
+#### Response — 204
+Kişisel run/item/feedback cascade silinir; yerel rate-limit kaydı kaldırılır. Tekrar çağrı 204.
+V11 teknik analitik kullanıcı kimliği taşımaz ve run sahiplik ilişkisi silindikten sonra hesaba bağlanmaz.
+
+#### Hata Durumları
+400 UUID; 401 yanlış token türü/imza/süre; 403 scope/subject/account binding;
+503 DB hatası. Veri temizliği bitmeden 204 verilmez.
+
+#### Bağlantı
+Frontend: yok.
+Diğer servisler: Auth doğrudan iç endpoint'i mevcut D4 sözleşmesiyle çağırır; Auth kodu değişmedi.
+
+#### Test Durumu
+UNIT + INTEGRATION — gerçek Auth ServiceTokenIssuer token'ı, yanlış hesap 403,
+kullanıcı token'ı 401, idempotent 204 ve FK cascade. Tam Auth worker E2E NOT VERIFIED.
+
+### RECOMMENDATION — Owner donanım ve oyun değerlendirmesi (REC-06..12)
+
+Durum: IMPLEMENTED — tek oyun analizi; katalog önerisi ve gerçek FPS tahmini PARTIAL
+Sorumlu: Alper
+Tüketici servisler: Frontend (planlı; bu görevde UI geliştirilmedi)
+
+#### Endpoint
+POST /api/v1/recommendation/hardware/assessments
+
+#### Yetkilendirme
+Owner — mevcut kullanıcı at+jwt/JWKS/RS256 ve kanonik rol kuralları. userId yalnız doğrulanmış
+sub'dan alınır; client body/header kimliği kabul edilmez. User recommendation rızası ve Auth
+ACTIVE account-bound grant kontrolü paylaşılır. Hardware owner batch ucu aynı kullanıcı
+token'ıyla yetkiyi kendisi yeniden denetler. Bu path'te svc+jwt reddedilir.
+
+#### Path/Query Parameters
+Yok; profil/oyun ve değerlendirme bağlamı request body içindedir.
+
+#### Request Body
+```json
+{
+  "hardwareProfileId": "00000000-0000-0000-0000-000000000050",
+  "gameId": "00000000-0000-0000-0000-000000000101",
+  "platform": "windows",
+  "resolution": "1920x1080",
+  "graphicsPreset": "HIGH"
+}
+```
+hardwareProfileId/gameId UUID ve platform zorunludur. Platform kaynak requirement anahtarıyla
+eşleşir; 1–32 küçük harf/rakam/tire. Resolution opsiyonel, 3–5 haneli pozitif width×height
+`1920x1080` biçiminde; preset opsiyonel LOW/MEDIUM/HIGH/ULTRA. Bilinmeyen JSON alanları 400,
+POST body en çok 16 KiB. Opsiyonel `renderingMode` yalnız `NATIVE_RASTER` olabilir (REC-09).
+Resolution + preset + `renderingMode=NATIVE_RASTER` birlikte verilirse FPS için Performance
+`performance-evidence` ucu kullanılır; aksi halde eski çekimser davranış korunur. İstek
+resolution/preset'i tek başına ölçüm kanıtı veya FPS tahmini yaratmaz.
+
+#### Response — 200
+`HardwareAssessmentResponse`: hardwareProfileId/version, gameId, platform, assessedAt,
+suitability, minimum, recommended, fps, graphics, upgrades, componentCompatibility, limitations.
+
+- Minimum ve recommended ayrı Check listeleri döner: CPU/GPU/RAM computeStatus; ayrıca
+  VRAM/STORAGE/OS içeren overallStatus. Check durumları MEETS/BELOW/UNKNOWN; actual/required
+  ve reason kodları owner'a döner. CPU/GPU yalnız tek modelin tam normalize eşleşmesinde MEETS;
+  farklı model numaraları sıralanmaz. RAM birim belirsizliği byte alt/üst sınırlarıyla UNKNOWN korunarak çözülür.
+- Depolama toplamı boş alan sayılmaz; toplam kapasite bile yetmiyorsa BELOW kanıtıdır.
+  VRAM gereksinimi ve OS/driver kanıtı yoksa UNKNOWN. Suitability kanıtlı minimum açığında
+  BELOW_MINIMUM, diğer hallerde UNKNOWN; bütün sistemin çalışacağı garanti edilmez.
+- Tam bağlam (resolution + preset + `NATIVE_RASTER`) ve Performance kanıtı yeterliyse
+  `fps.status=ESTIMATED`: estimatedLowerFps=floor, estimatedUpperFps=ceil (oturum P10/P90
+  medyanı), **confidence=LOW**, reason `MATCHED_HISTORICAL_DEVICE_RANGE_NOT_CURRENT_MEASUREMENT`
+  ve `fps.evidence` (contractVersion `fps-evidence-v1`, source `AUTHENTICATED_DEVICE`,
+  contextVerification `OWNER_SNAPSHOT_DEVICE_DECLARATION`, method
+  `SESSION_MEDIAN_P10_P90_IQR_1_5_V1`, renderingMode, consideredSessionCount,
+  inlierSampleCount, excludedSampleCount, firstMeasuredAt, windowLimited, limitations).
+  Kanıt yetersizse INSUFFICIENT_DATA/null/NONE (evidence yine döner). Performance yanıtı
+  bağlama uymuyor veya tutarsızsa 503 `SERVICE_UNAVAILABLE` (uydurma tahmin yok).
+- Bağlam eksikse veya eski istemci `renderingMode` göndermiyorsa
+  `fps.status=INSUFFICIENT_DATA`, estimatedLowerFps/estimatedUpperFps=null, confidence=NONE.
+  Kaynaktaki sample/session sayısı, producerSampleThresholdMet ve lastObservedAt yalnız tanı
+  bilgisidir. Aggregate min/max FPS tahminine çevrilmez; ayar/provenance/profil sürümü bağı yoktur.
+- Graphics, minimum compute doğrulanıp bilinen açık veya parça uyuşmazlığı bulunmazsa
+  CONDITIONAL/LOW: varsa düşük ayardan başlayıp oyun içinde ölçme önerisi, FPS garantisi yok.
+  Diğer hallerde INSUFFICIENT_DATA/preset=null. Yükseltme yalnız kanıtlı RAM/depolama açığı içindir.
+- Socket/DDR eşitliği yalnız DECLARED_MATCH; açık farklılık INCOMPATIBLE; eksik chipset/BIOS,
+  RAM slot/form factor ve GPU slot/boyut/güç bütün sistemin uyumluluğunu UNKNOWN bırakır.
+
+Yanıt stateless, Cache-Control private/no-store. Recommendation DB'ye profil/FPS/history
+snapshot yazılmaz. Profil başına en çok 100 bileşen; eksik pencere 503'tür. Katalogda toplu
+hardware filtresi yok; Game batch sözleşmesi gelmeden N+1 yapılmaz. Assessment ve generation
+aynı hesap/instance başına 10/dk kotasını paylaşır.
+
+#### Hata Durumları
+- 400: INVALID_REQUEST — UUID/platform/resolution/preset/unknown JSON
+- 401: AUTHENTICATION_REQUIRED — eksik/geçersiz kullanıcı token'ı
+- 403: ACCESS_DENIED / CONSENT_REQUIRED / SOURCE_ACCESS_DENIED
+- 404: SOURCE_NOT_FOUND / GAME_UNAVAILABLE — yok/başkasına ait profil veya erişime uygun olmayan oyun
+- 413: REQUEST_TOO_LARGE
+- 429: RATE_LIMITED
+- 503: SOURCE_UNAVAILABLE / INVALID_SOURCE_RESPONSE / PROFILE_WINDOW_EXCEEDED / RECOMMENDATION_BUSY
+- 500: INTERNAL_ERROR — ayrıntı/kişisel veri sızdırmayan ProblemDetail
+
+#### Bağlantı
+Frontend: Gateway üzerinden aynı path; frontend değişmedi.
+Diğer servisler: User consent, Auth account-bound Library ACTIVE grant; Hardware
+`POST /api/v1/hardware/profiles/batch` owner Bearer; Game `GET /api/v1/game/{gameId}/metadata`;
+Auth→Performance `reference:read` grant ve Performance exact game/profile reference. En çok
+6 doğrudan HTTP çağrısı; sabit origin, mevcut timeout/body sınırları, redirect/retry yok.
+
+#### Test Durumu
+UNIT + INTEGRATION — gerçek Auth issuer/JWKS, owner/kimlik/scope eşleşmesi, statelessness,
+min/recommended/units/missing/manual-brandless/compatibility/upgrade ve FPS abstention testleri.
+Hardware/Game/Performance source HTTP'leri contract fixture; tam canlı çok servis E2E NOT VERIFIED.
+[TASK 3 kanıtı](../docs-recommendation/testings/task-03-tests.md).
+
+### RECOMMENDATION — Python kural tabanlı LTZ yardımcısı (REC-22)
+
+Durum: IMPLEMENTED — kapalı konu/intent rehberliği; LLM veya serbest metin sohbeti yok
+Sorumlu: Alper
+Tüketici servisler: Frontend (planlı; bu görevde UI geliştirilmedi)
+
+#### Endpoint
+POST /api/v1/recommendation/assistant
+
+#### Yetkilendirme
+Owner — mevcut kanonik rol ve RS256/JWKS kullanıcı token'ı; userId yalnız JWT sub'dan.
+User rızası + Auth account-bound ACTIVE denetimi her çağrıda uygulanır. Servis token'ı bu
+kullanıcı yolunda 401; istemci kimlik header/body alanları yetki vermez. Gateway cookie/CSRF
+modeli değişmedi. Hardware bağlamı yalnız Hardware'ın owner batch kontrolünden geçerse kullanılır.
+
+#### Path/Query Parameters
+Yok; uygulama runtime yolu/timeout'u request ile seçilemez.
+
+#### Request Body
+```json
+{
+  "contractVersion": "assistant-v1",
+  "topic": "GAME",
+  "intent": "SELECT_GAME",
+  "locale": "tr",
+  "genre": "rpg"
+}
+```
+
+- contractVersion, topic, intent, locale zorunlu. Locale tr/en.
+- GAME yalnız SELECT_GAME: genre opsiyonel `[a-z0-9-]{1,64}`. Eksikse NEEDS_INPUT/GENRE;
+  varsa katalog tür filtresi ve requirement kontrolü rehberi döner. Türün katalogda varlığı
+  doğrulanmış veya oyun seçilmiş sayılmaz; bu çağrı Game discovery çalıştırmaz.
+- HARDWARE yalnız ASSESS_GAME: opsiyonel hardwareProfileId/gameId UUID ve platform
+  `[a-z0-9-]{1,32}`; eksik alanlar 200 NEEDS_INPUT listelenir. Hepsi varsa mevcut owner
+  assessment çalışır; Python'a sadece minimum/recommended/compatibility durumları aktarılır.
+- LTZ_USAGE yalnız VIEW_HISTORY veya GIVE_FEEDBACK: kendi geçmiş/feedback kullanım rehberi.
+- genre yalnız GAME'de, profil/oyun/platform yalnız HARDWARE'da kabul edilir. Bilinmeyen
+  alan, serbest text/context/userId/URL/command alanı veya yanlış topic-intent eşleşmesi 400.
+  Body en çok 16 KiB. API'den Python'a token, owner/profil/oyun ID'si veya ham snapshot geçmez.
+
+#### Response — 200
+```json
+{
+  "contractVersion": "assistant-v1",
+  "algorithmVersion": "assistant-rules-v1",
+  "topic": "GAME",
+  "intent": "SELECT_GAME",
+  "locale": "tr",
+  "status": "GUIDANCE",
+  "template": "GAME_SELECTION",
+  "message": "Katalogda seçtiğiniz türü filtreleyin; oyun detayındaki sistem gereksinimlerini kontrol edin. Bu bir oyun veya FPS garantisi değildir.",
+  "steps": ["OPEN_GAME_DISCOVERY", "FILTER_GENRE", "VERIFY_GAME_REQUIREMENTS"],
+  "missingFields": []
+}
+```
+
+Yanıt kendi topic/intent/locale girdisine bağlanır. GUIDANCE/NEEDS_INPUT/INSUFFICIENT_DATA;
+sabit altı template ve kapalı step kodları.
+HARDWARE kanıtlı açık/uyumsuzlukta HARDWARE_DEFICIT, diğer tam girdilerde HARDWARE_UNKNOWN;
+her ikisi INSUFFICIENT_DATA ve FPS/tam uyumluluk garantisi taşımaz. Grafik/yükseltme ayrıntısı
+için assessment endpoint'i kullanılır. Yanıt aynı normalize girdiye/aynı kaynak durumlarına
+deterministiktir; kaynak verisi değişirse sonuç değişebilir.
+
+Mesaj/step'ler rehberdir; otomatik navigasyon, URL fetch, profil değiştirme, satın alma,
+arkadaş ekleme, feedback gönderme veya öneri run oluşturma yapılmaz. History/chat/snapshot
+kaydedilmez; rıza geri çekme halinde mevcut kişisel geçmiş temizliği paylaşılır.
+
+#### Hata Durumları
+- 400 INVALID_REQUEST — DTO/sürüm/locale/topic-intent/alan allowlist ihlali
+- 401 AUTHENTICATION_REQUIRED — eksik/geçersiz kullanıcı token'ı veya servis token'ı
+- 403 ACCESS_DENIED / CONSENT_REQUIRED / SOURCE_ACCESS_DENIED
+- 404 SOURCE_NOT_FOUND / GAME_UNAVAILABLE — owner assessment kaynak gizleme semantiği
+- 413 REQUEST_TOO_LARGE
+- 429 RATE_LIMITED — mevcut generation kotasıyla ortak 10/dakika/hesap/instance
+- 503 ASSISTANT_BUSY / ASSISTANT_TIMEOUT / ASSISTANT_INPUT_LIMIT / ASSISTANT_INTERRUPTED /
+  ASSISTANT_UNAVAILABLE / ASSISTANT_INVALID_OUTPUT veya mevcut assessment kaynak hata kodu
+- 500 INTERNAL_ERROR — ayrıntısız ProblemDetail
+
+Tüm iş yanıtları private/no-store. Process stdout/stderr veya exception cause client'a dönmez.
+Python yokluğunda Java rehberi başarı gibi sunulmaz; 503'tür. En çok iki child process,
+2 saniye process deadline, stdin 8 KiB, stdout ve stderr ayrı ayrı 16 KiB sınırı vardır.
+
+#### Bağlantı
+Frontend: Gateway üzerinden aynı path; UI entegrasyonu planlı.
+Diğer servisler: User consent + Auth ACTIVE grant; yalnız tam HARDWARE girdisinde mevcut
+Hardware/Game/Performance assessment sözleşmeleri. Yeni producer API/izin/ENV yoktur.
+Python aynı Recommendation sınırında sabit repo script'idir; LLM, sidecar, pip veya ağ çağrısı yok.
+[ADR 0003](decisions/0003-recommendation-python-yardimcisi.md),
+[kurulum/çalıştırma](../docs-recommendation/integration/assistant-runtime.md).
+
+#### Test Durumu
+UNIT + INTEGRATION — gerçek CPython, Java process sınırları ve MockMvc/JWKS/owner/rıza;
+3 konu, iki dil, deterministik sürüm/şablon, eksik/bozuk/malicious input, unavailable/timeout/
+invalid JSON/limit/interrupt ve değişiklik yapmama testleri. Hardware/Game/Performance HTTP
+contract fixture; canlı çok servis E2E NOT VERIFIED. [TASK 5 kanıtı](../docs-recommendation/testings/task-05-tests.md).
 
 ## PERFORMANCE
 
@@ -12370,6 +13166,15 @@ Masaüstü istemcisi API Gateway üzerinden /api/v1/performance/sync/batches. Au
 #### Test Durumu
 INTEGRATION — gerçek filtre zinciri + PostgreSQL; olumlu cihaz token'ları gerçek Auth üreticisinden gelir. İzole gerçek Auth/Gateway HTTP kabulünde v1 sync ve replay PASS (2026-11-06); Hardware hedefli token 401, listeyle tespit edilen iptal sonrası mevcut token 403. Cihaz token'ı `exp` anında reddedilir; 30 sn kullanıcı saat toleransı yazma süresine eklenmez. v2 örneklerin gerçek Game/Hardware/masaüstü istemcisiyle E2E kabulü yapılmadı.
 
+
+> **REC-09 / V24 — zarf v3:** `schemaVersion=3` zarfı v2'nin örnek biçimine ek olarak zorunlu
+> `measurementContext` taşır (v1/v2'de yasak → 400). Bağlam oturumunki ile birebir aynı olmalıdır;
+> örnekler bağlamla işaretlenir (kanıta yalnız bunlar girer). Idempotency hash'i `v3|<bağlam>|`
+> önekiyle bağlamı kapsar. Ek hatalar: 409 `MEASUREMENT_CONTEXT_MISMATCH` (bağlam uyuşmuyor veya
+> oturum bağlamsız), 403 `MEASUREMENT_DEVICE_MISMATCH` (oturumun cihazı değil), diğer hesabın
+> oturumu 404. v1/v2 geriye uyumludur; bağlamlı oturuma v2 ile yazılan örnekler bağlamsız kalır;
+> duplicate örnek mevcut satırı kanıta yükseltmez. Test: `PerformanceMeasurementContextIntegrationTest`.
+
 ### PERFORMANCE — Hesap verisi silme (Auth D4)
 
 Durum: IMPLEMENTED
@@ -12508,6 +13313,15 @@ Game GAME-15 (`/api/v1/game/games/batch`, anonim) ve Hardware HW-17 (`/api/v1/ha
 
 #### Test Durumu
 INTEGRATION (PostgreSQL Testcontainers, gerçek filtre zinciri, kullanıcı token'ı gerçek Auth kaynak kodundan üretilen JWKS ile imzalı). Game/Hardware **yerel sapma (mock)**; gerçek servislerle E2E DEFERRED_CONTRACT / NOT_VERIFIED.
+
+
+> **REC-09 / V24 — `measurementContext` (isteğe bağlı):** Body'ye
+> `"measurementContext": {"hardwareProfileVersion": 7, "resolution": "1920x1080", "graphicsPreset": "HIGH", "renderingMode": "NATIVE_RASTER"}`
+> eklenebilir (yalnız bu alanlar; fazlası 400). Bağlam için `hardwareProfileId` ve `deviceLinkId`
+> zorunludur; owner'ın gerçek Hardware profil sürümü doğrulanır. Oturum değiştirilemez bağlamla
+> doğar ve yanıtta `measurementContext` döner. Ek hatalar: 409 `MEASUREMENT_PROFILE_VERSION_CHANGED`
+> (profil sürümü değişmiş), 422 `HARDWARE_PROFILE_NOT_FOUND`, 503 `HARDWARE_SERVICE_UNAVAILABLE`.
+> Bağlamsız başlatma eskisi gibi çalışır. Test: `PerformanceMeasurementContextIntegrationTest`.
 
 ### PERFORMANCE — Oturumları listele (PERF-03)
 
@@ -13162,9 +13976,9 @@ INTEGRATION + izole gerçek Auth HTTP kabulü PASS: Hardware istemci token'ıyla
 
 ### PERFORMANCE — Oyun performans referansı (Recommendation, PERF-21)
 
-Durum: IMPLEMENTED — REQ-04-A Auth izni tanımlı; üretim Recommendation tüketicisi ayrı iş
+Durum: IMPLEMENTED — REQ-04-A Auth izni tanımlı; TASK 3 Recommendation tüketicisi eklendi
 Sorumlu: Alper
-Tüketici servisler: Recommendation (planlı)
+Tüketici servisler: Recommendation
 
 #### Endpoint
 GET /internal/v1/accounts/{accountId}/games/{gameId}/performance-reference
@@ -13206,7 +14020,88 @@ Diğer mikroservisler:
 Recommendation → Performance (RestClient; servis token'ı Auth'tan alınır, REQ-04-A)
 
 #### Test Durumu
-INTEGRATION + izole gerçek Auth HTTP kabulü PASS: Recommendation istemci token'ıyla referans 200; başka hesap veya Hardware kimliğiyle 403. Olumlu veri hesaplama testleri gerçek Auth `ServiceClientTokenIssuer` çıktısını kullanır; bozuk kapsam/konu testleri yerel imzalıdır. [Kanıt](../docs-performance/integration/auth/auth-integration-06.md). Üretim Recommendation tüketici istemcisi bu görevde geliştirilmedi.
+INTEGRATION + izole gerçek Auth HTTP kabulü PASS: Recommendation istemci token'ıyla referans 200; başka hesap veya Hardware kimliğiyle 403. Olumlu veri hesaplama testleri gerçek Auth `ServiceClientTokenIssuer` çıktısını kullanır; bozuk kapsam/konu testleri yerel imzalıdır. [Üretici kanıtı](../docs-performance/integration/auth/auth-integration-06.md).
+TASK 3'te Recommendation üretim tüketicisi eklendi; exact game/profile/account ve reference:read bağı testlidir.
+Bu özet resolution/preset/provenance/profileVersion taşımadığından reliable=true dahi tahmin güveni
+sayılmaz; tüketici FPS tahmini üretmez. [Tüketici kanıtı ve canlı E2E sınırı](../docs-recommendation/testings/task-03-tests.md).
+
+### PERFORMANCE — Bağlamlı FPS kanıtı (Recommendation, REC-09 / PERF-12/13/21)
+
+Durum: IMPLEMENTED
+Sorumlu: Alper
+Tüketici servisler: Recommendation
+
+#### Endpoint
+GET /internal/v1/accounts/{accountId}/games/{gameId}/performance-evidence
+
+#### Yetkilendirme
+`performance-reference` ile aynı: servis token'ı (`svc+jwt`), `aud=performance-service`,
+`sub=svc:recommendation-service`, `scope=reference:read`, `account_id` = yoldaki `accountId`.
+
+#### Path/Query Parameters
+- accountId, gameId: UUID, zorunlu
+- hardwareProfileId: UUID, zorunlu
+- hardwareProfileVersion: tamsayı ≥ 0, zorunlu
+- resolution: `^[1-9][0-9]{2,4}x[1-9][0-9]{2,4}$` (her kenar 100–16384), zorunlu
+- graphicsPreset: `LOW|MEDIUM|HIGH|ULTRA`, zorunlu
+- renderingMode: `NATIVE_RASTER`, zorunlu
+
+#### Response — 200
+```json
+{
+  "contractVersion": "fps-evidence-v1",
+  "gameId": "UUID",
+  "hardwareProfileId": "UUID",
+  "hardwareProfileVersion": 7,
+  "resolution": "1920x1080",
+  "graphicsPreset": "HIGH",
+  "renderingMode": "NATIVE_RASTER",
+  "status": "SUFFICIENT",
+  "source": "AUTHENTICATED_DEVICE",
+  "contextVerification": "OWNER_SNAPSHOT_DEVICE_DECLARATION",
+  "method": "SESSION_MEDIAN_P10_P90_IQR_1_5_V1",
+  "confidenceCeiling": "LOW",
+  "consideredSessionCount": 3,
+  "sessionCount": 3,
+  "observedSampleCount": 330,
+  "inlierSampleCount": 330,
+  "excludedSampleCount": 0,
+  "lowerReferenceFps": 51.4,
+  "upperReferenceFps": 58.2,
+  "firstMeasuredAt": "2026-01-01T10:00:00Z",
+  "lastMeasuredAt": "2026-01-03T10:00:00Z",
+  "windowLimited": false,
+  "limitations": ["DEVICE_CONTEXT_NOT_ATTESTED", "GAME_BUILD_AND_BACKGROUND_LOAD_UNCONTROLLED",
+    "HISTORICAL_RANGE_NOT_CURRENT_MEASUREMENT", "MAX_20_SESSIONS_600_SAMPLES_30_DAYS"]
+}
+```
+Yalnız hesabın, **aynı oyun/profil/profil sürümü/çözünürlük/preset/renderingMode** bağlamına
+bağlı COMPLETED oturumları kullanılır; son 30 gündeki en yeni 20 oturum, oturum başına son
+600 FPS örneği. IQR 1.5 aykırı değer filtresi; oturum yeterliliği ≥ 60 inlier ve ≥ 60 sn ölçüm
+yayılımı; `SUFFICIENT` için ≥ 3 uygun oturum. Aralık oturum P10/P90 değerlerinin medyanıdır.
+Yetersiz/veri yok: `status=INSUFFICIENT_DATA`, alt/üst `null`. Eşikler mühendislik varsayımıdır;
+kalibre edilmiş doğruluk veya istatistiksel güven iddiası yoktur. Bağlamsız eski oturumlar ve
+manuel raporlar kanıta katılmaz. `Cache-Control: no-store`.
+
+#### Hata Durumları
+- 400: Geçersiz/eksik parametre (`INVALID_REQUEST`)
+- 401: Token yok/geçersiz; yanlış audience; kullanıcı/cihaz token'ı
+- 403: Yanlış servis konusu, kapsam veya hesap bağı; hesap pasif
+- 500: Beklenmeyen sunucu hatası
+
+#### Bağlantı
+Frontend:
+-
+
+Diğer mikroservisler:
+Recommendation → Performance (RestClient; servis token'ı Auth'tan alınır)
+
+#### Test Durumu
+INTEGRATION PASS (Testcontainers PostgreSQL 17): `PerformanceEvidenceIntegrationTest` (12) —
+3 uygun oturum SUFFICIENT/51–59, <3 oturum, veri yok, 60/61/59 sınırı, aykırı değer sayımı,
+farklı bağlamların karışmaması, legacy/ACTIVE/30 gün üstü/yabancı oturum dışlama, 20 oturum
+penceresi (`windowLimited`), 600 örnek tavanı, 401/403/400, DB CHECK/FK, indeks. Recommendation
+tüketici testleri `HardwareAssessmentApiIntegrationTest` içindedir (85/85 modül PASS).
 
 ## NOTIFICATION
 

@@ -2,6 +2,7 @@
 
 import { useId, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
+import { SearchField } from "@/shared/components/ui/search-field";
 import { Link } from "@/shared/lib/i18n/navigation";
 import { useGameResource } from "../hooks/use-game-resource";
 import type { CatalogSearchPage } from "../types/game";
@@ -54,8 +55,7 @@ export function GameIndexSearch() {
     <h2 id={`${id}-title`} className="font-display text-lg font-semibold">{t("indexSearch")}</h2>
     <p className="max-w-prose text-sm text-text-secondary">{t("indexSearchHelp")}</p>
     <form onSubmit={submit} aria-label={t("indexSearch")} className="flex flex-wrap items-end gap-4">
-      <label className="flex min-w-0 flex-1 basis-64 flex-col gap-2 text-sm">{t("search")}
-        <input type="search" required maxLength={128} value={draft} onChange={(event) => setDraft(event.target.value)} className={controlClass} autoComplete="off" /></label>
+      <SearchField className="flex-1 basis-64 text-sm" label={t("search")} showLabel required maxLength={128} value={draft} onChange={(event) => setDraft(event.target.value)} />
       <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className={checkboxClass} checked={include} onChange={(event) => setInclude(event.target.checked)} />{t("includeUnclassified")}</label>
       <button type="submit" className={primaryButtonClass} disabled={!draft.trim()}>{t("indexSearchButton")}</button>
     </form>

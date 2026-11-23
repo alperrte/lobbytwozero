@@ -42,6 +42,8 @@ public class PerformanceSecurityConfiguration {
             .matcher(HttpMethod.GET, "/internal/v1/accounts/*/performance-summary");
     private static final RequestMatcher PERFORMANCE_REFERENCE = PathPatternRequestMatcher.withDefaults()
             .matcher(HttpMethod.GET, "/internal/v1/accounts/*/games/*/performance-reference");
+    private static final RequestMatcher PERFORMANCE_EVIDENCE = PathPatternRequestMatcher.withDefaults()
+            .matcher(HttpMethod.GET, "/internal/v1/accounts/*/games/*/performance-evidence");
     private static final RequestMatcher SYNC_BATCHES = PathPatternRequestMatcher.withDefaults()
             .matcher(HttpMethod.POST, "/api/v1/performance/sync/batches");
 
@@ -71,6 +73,7 @@ public class PerformanceSecurityConfiguration {
                         .requestMatchers(DEVICE_VERIFY).hasAuthority("SCOPE_devices:verify")
                         .requestMatchers(PERFORMANCE_SUMMARY).hasAuthority("SCOPE_summary:read")
                         .requestMatchers(PERFORMANCE_REFERENCE).hasAuthority("SCOPE_reference:read")
+                        .requestMatchers(PERFORMANCE_EVIDENCE).hasAuthority("SCOPE_reference:read")
                         .requestMatchers(SYNC_BATCHES)
                         .access((authentication, context) -> deviceAccess(authentication.get()))
                         .requestMatchers("/api/v1/performance/sync-consent", "/api/v1/performance/devices",

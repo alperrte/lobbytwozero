@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Icon } from "@/shared/components/ui/icons";
+import { SearchField } from "@/shared/components/ui/search-field";
 import { cn } from "@/shared/utils/cn";
 import { useGames } from "../hooks/use-directory";
 import { searchGames } from "../services/community-api";
 import { isAbort } from "../services/community-errors";
 import type { GameCard } from "../types/community.types";
-import { actionClass, buttonClass, inputClass } from "./community-ui";
+import { actionClass, buttonClass } from "./community-ui";
 
 type SearchResult = { q: string; items: GameCard[]; failed: boolean };
 
@@ -75,23 +75,16 @@ export function GamePicker({
 
   return (
     <div>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-text-primary">
-        {label}
-      </label>
-      <div className="relative">
-        <Icon name="search" className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-text-secondary" />
-        <input
-          id={id}
-          type="search"
-          autoComplete="off"
-          value={query}
-          disabled={disabled}
-          aria-describedby={describedBy}
-          placeholder={t("placeholder")}
-          onChange={(event) => setQuery(event.target.value)}
-          className={cn(inputClass, "ps-9")}
-        />
-      </div>
+      <SearchField
+        id={id}
+        label={label}
+        showLabel
+        value={query}
+        disabled={disabled}
+        aria-describedby={describedBy}
+        placeholder={t("placeholder")}
+        onChange={(event) => setQuery(event.target.value)}
+      />
       {trimmed ? (
         <div className="mt-2 rounded-control border border-border bg-surface" role="group" aria-label={t("results")}>
           {!shown ? (

@@ -5,7 +5,8 @@ import { useFormatter, useTranslations } from "next-intl";
 import { usePerformanceQuery } from "../hooks/use-performance-query";
 import { performanceApi } from "../services/performance-api";
 import type { SessionStatus } from "../types/performance";
-import { control, panel, select, PerformanceError, PerformanceLoading } from "./performance-ui";
+import { Select } from "@/shared/components/ui/select";
+import { control, panel, PerformanceError, PerformanceLoading } from "./performance-ui";
 import { SessionMeasurements } from "./session-measurements";
 import { SessionReport } from "./session-report";
 import { DeletePerformanceData } from "./delete-performance-data";
@@ -24,12 +25,12 @@ export function SessionHistory({ accountId }: { accountId: string }) {
     <h2 id="performance-history" className="font-display text-2xl font-semibold">{t("history")}</h2>
     <p className="text-sm text-text-secondary">{t("historyDescription")}</p>
     {deleted ? <p role="status" className="text-sm text-success">{t("deleted")}</p> : null}
-    <label className="flex flex-wrap items-center gap-3 text-sm"><span>{t("statusFilter")}</span>
-      <select className={select} value={status} onChange={(event) => { setStatus(event.target.value as SessionStatus | ""); setPage(0); setSelectedId(""); }}>
-        <option value="">{t("allStatuses")}</option>
-        {(["ACTIVE", "COMPLETED", "ABANDONED"] as const).map((value) => <option key={value} value={value}>{t(`sessionStatus.${value}`)}</option>)}
-      </select>
-    </label>
+    <div className="flex flex-wrap items-center gap-3 text-sm"><span aria-hidden="true">{t("statusFilter")}</span>
+      <div className="w-56 max-w-full">
+        <Select aria-label={t("statusFilter")} value={status} onChange={(value) => { setStatus(value as SessionStatus | ""); setPage(0); setSelectedId(""); }}
+          options={[{ value: "", label: t("allStatuses") }, ...(["ACTIVE", "COMPLETED", "ABANDONED"] as const).map((value) => ({ value, label: t(`sessionStatus.${value}`) }))]} />
+      </div>
+    </div>
     {result.loading ? <PerformanceLoading /> : result.error ? <PerformanceError error={result.error} retry={result.reload} /> : result.data ? <>
       {!result.data.items.length ? <p className={panel}>{t("historyEmpty")}</p> : <ul className="space-y-3">{result.data.items.map((item) => <li key={item.id} className={panel}>
         <div className="flex flex-wrap items-start justify-between gap-3">

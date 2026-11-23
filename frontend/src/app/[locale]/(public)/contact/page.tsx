@@ -1,6 +1,5 @@
 import { getTranslations } from "next-intl/server";
 import { ContactForm } from "@/shared/components/layout/contact-form";
-import { PageContainer } from "@/shared/components/layout/page-container";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { buildPageMetadata } from "@/shared/lib/seo/page-metadata";
 
@@ -15,7 +14,7 @@ export default async function ContactPage() {
   const t = await getTranslations("Contact");
 
   return (
-    <PageContainer>
+    <>
       <PageHeader title={t("title")} description={t("description")} />
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]">
@@ -31,6 +30,6 @@ export default async function ContactPage() {
           <p className="mt-3 text-sm leading-relaxed text-text-secondary">{t("side.body")}</p>
         </aside>
       </div>
-    </PageContainer>
+    </>
   );
 }

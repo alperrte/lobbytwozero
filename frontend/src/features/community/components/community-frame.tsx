@@ -43,7 +43,7 @@ export function CommunityFrame({
   const current = activeTab(pathname);
 
   return (
-    <div className="mx-auto w-[96%] pb-10 sm:w-[93%]">
+    <div>
       <CommunityHeading title={title} description={description}>
         {action}
       </CommunityHeading>

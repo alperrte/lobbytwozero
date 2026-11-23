@@ -177,7 +177,10 @@ describe("Oyun kataloğu", () => {
     mount(); await screen.findByRole("link", { name: "Fixture game 0" });
     expect(discoveryCalls()[0].get("sort")).toBe("RATING");
     expect(discoveryCalls()[0].get("direction")).toBe("DESC");
-    expect(screen.getByLabelText(messages.Game.sort)).toHaveValue("RATING");
+    expect(screen.getByRole("combobox", { name: messages.Game.sort })).toHaveTextContent(messages.Game.rating);
+    fireEvent.click(screen.getByRole("combobox", { name: messages.Game.direction }));
+    fireEvent.click(screen.getByRole("option", { name: messages.Game.ascending }));
+    expect(push).toHaveBeenLastCalledWith({ pathname: "/games", query: { sort: "RATING" } }, { scroll: false });
   });
   it("filtre sonucu boşsa filtre mesajı ve temizleme sunar; katalog durumu sorulmaz", async () => {
     search = "genre=none";

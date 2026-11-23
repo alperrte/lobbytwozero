@@ -117,8 +117,7 @@ class InviteCodeControllerTest extends IntegrationTestSupport {
     void eszamanliKodUretimi_tekEtkinKodKalir() throws Exception {
         UUID owner = newUser();
 
-        ExecutorService pool = Executors.newFixedThreadPool(6);
-        try {
+        try (ExecutorService pool = Executors.newFixedThreadPool(6)) {
             List<Callable<String>> calls = new ArrayList<>();
             for (int i = 0; i < 6; i++) {
                 calls.add(() -> inviteCodes.getOrCreate(owner).code().code());
@@ -128,8 +127,6 @@ class InviteCodeControllerTest extends IntegrationTestSupport {
                 codes.add(future.get());
             }
             assertThat(codes).doesNotContainNull().hasSize(6).containsOnly(codes.getFirst());
-        } finally {
-            pool.shutdownNow();
         }
         Integer active = jdbc.queryForObject(
                 "select count(*) from friend_invite_codes where user_id = ? and revoked_at is null", Integer.class,
@@ -270,8 +267,7 @@ class InviteCodeControllerTest extends IntegrationTestSupport {
         String code = codeOf(owner);
         jdbc.update("update friend_invite_codes set max_uses = 1 where code = ?", code);
 
-        ExecutorService pool = Executors.newFixedThreadPool(6);
-        try {
+        try (ExecutorService pool = Executors.newFixedThreadPool(6)) {
             List<Callable<String>> calls = new ArrayList<>();
             for (int i = 0; i < 6; i++) {
                 UUID redeemer = newUser();
@@ -291,8 +287,6 @@ class InviteCodeControllerTest extends IntegrationTestSupport {
             assertThat(outcomes).filteredOn("OK"::equals).hasSize(1);
             assertThat(outcomes).filteredOn(result -> !"OK".equals(result))
                     .containsOnly(SocialErrorCode.INVITE_CODE_NOT_FOUND.name());
-        } finally {
-            pool.shutdownNow();
         }
         assertThat(usedCount(code)).isEqualTo(1);
     }

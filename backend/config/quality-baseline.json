@@ -1,6 +1,6 @@
 {
  "version": 1,
- "generated": "2026-11-12",
+ "generated": "2026-11-20",
  "modules": {
   "services/admin-service": {},
   "services/api-gateway": {},
@@ -30,16 +30,6 @@
   "services/recommendation-service": {},
   "services/review-service": {},
   "services/social-service": {
-   "src/main/java/com/ltz/social/api/controller/AuthenticatedUser.java": {
-    "pmd:PreserveStackTrace": 1
-   },
-   "src/main/java/com/ltz/social/application/service/FriendRequestService.java": {
-    "pmd:CyclomaticComplexity": 1,
-    "pmd:PreserveStackTrace": 1
-   },
-   "src/main/java/com/ltz/social/application/service/KeysetCursor.java": {
-    "pmd:PreserveStackTrace": 1
-   },
    "src/test/java/com/ltz/social/ServiceBoundaryTest.java": {
     "checkstyle:MethodName": 2
    },
@@ -59,20 +49,16 @@
     "checkstyle:MethodName": 10
    },
    "src/test/java/com/ltz/social/api/controller/FriendshipControllerTest.java": {
-    "checkstyle:MethodName": 11,
-    "pmd:CloseResource": 1
+    "checkstyle:MethodName": 11
    },
    "src/test/java/com/ltz/social/api/controller/InviteCodeControllerTest.java": {
-    "checkstyle:MethodName": 13,
-    "pmd:CloseResource": 2
+    "checkstyle:MethodName": 13
    },
    "src/test/java/com/ltz/social/application/service/BlockConcurrencyTest.java": {
-    "checkstyle:MethodName": 4,
-    "pmd:CloseResource": 2
+    "checkstyle:MethodName": 4
    },
    "src/test/java/com/ltz/social/application/service/FriendRequestConcurrencyTest.java": {
-    "checkstyle:MethodName": 4,
-    "pmd:CloseResource": 1
+    "checkstyle:MethodName": 4
    },
    "src/test/java/com/ltz/social/application/service/InviteCodeGeneratorTest.java": {
     "checkstyle:MethodName": 3
@@ -84,8 +70,7 @@
     "checkstyle:MethodName": 3
    },
    "src/test/java/com/ltz/social/application/service/OutboxRelayTest.java": {
-    "checkstyle:MethodName": 3,
-    "pmd:CloseResource": 1
+    "checkstyle:MethodName": 3
    },
    "src/test/java/com/ltz/social/application/service/PendingRequestLimitTest.java": {
     "checkstyle:MethodName": 3

@@ -32,6 +32,10 @@ public class FriendshipService {
     /** SOC-07. Arkadaşlar, en yeni arkadaşlıktan eskiye; keyset sayfalama. */
     @Transactional(readOnly = true)
     public FriendPageView listFriends(UUID userId, Integer pageSize, String cursor) {
+        return page(userId, pageSize, cursor);
+    }
+
+    private FriendPageView page(UUID userId, Integer pageSize, String cursor) {
         int size = pageSizes.resolve(pageSize);
         Limit fetch = Limit.of(size + 1);
         List<Friendship> rows;
@@ -56,7 +60,7 @@ public class FriendshipService {
     @Transactional(readOnly = true)
     public FriendPageView listFriendsOf(UUID viewerId, UUID ownerId, Integer pageSize, String cursor) {
         accessPolicy.ensureVisible(viewerId, ownerId);
-        return listFriends(ownerId, pageSize, cursor);
+        return page(ownerId, pageSize, cursor);
     }
 
     /** SOC-08. Arkadaş değilse (ya da kendisiyse) 404; eşzamanlı iki çıkarmadan yalnız biri başarılı olur. */
@@ -65,7 +69,7 @@ public class FriendshipService {
         if (friendships.deleteByFriendshipId(FriendshipId.of(userId, friendId)) == 0) {
             throw new SocialException(SocialErrorCode.FRIENDSHIP_NOT_FOUND);
         }
-        events.record(FriendshipChangedEvent.of(userId, friendId, FriendshipChangedEvent.Change.REMOVED));
+        events.append(FriendshipChangedEvent.of(userId, friendId, FriendshipChangedEvent.Change.REMOVED));
     }
 
     private static FriendView toView(UUID userId, Friendship friendship) {

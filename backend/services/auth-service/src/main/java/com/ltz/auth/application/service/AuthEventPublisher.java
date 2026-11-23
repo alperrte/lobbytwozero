@@ -37,4 +37,13 @@ public class AuthEventPublisher {
             repository.save(AuthEvent.pending(eventId, accountId, type, value, target, now));
         }
     }
+
+    /**
+     * Tek hedefe, gerçek değişim zamanıyla yeniden gönderim (onarım). Yeni {@code eventId} üretilir; alıcı olayı
+     * {@code occurredAt} ile sıralar, bu yüzden eski bir durum alıcıdaki daha yeni durumu ezemez.
+     */
+    public void republishTo(String target, AuthEventType type, UUID accountId, String value, Instant occurredAt) {
+        repository.save(AuthEvent.pending(UUID.randomUUID(), accountId, type, value, target, occurredAt,
+                clock.instant()));
+    }
 }

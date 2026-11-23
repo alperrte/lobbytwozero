@@ -33,7 +33,8 @@ const submit = () => screen.getByRole("button", { name: "Formu Kontrol Et" });
 function fillValid() {
   fireEvent.change(name(), { target: { value: "Ada Lovelace" } });
   fireEvent.change(email(), { target: { value: "ada@example.com" } });
-  fireEvent.change(subject(), { target: { value: "feedback" } });
+  fireEvent.click(subject());
+  fireEvent.click(screen.getByRole("option", { name: "Geri Bildirim" }));
   fireEvent.change(message(), { target: { value: "Bu bir deneme mesajıdır." } });
 }
 
@@ -58,11 +59,11 @@ describe("ContactForm", () => {
 
     expect(screen.getByText(DEMO_NOTICE)).toBeInTheDocument();
     expect(name()).toHaveAttribute("aria-invalid", "false");
-    expect(subject().tagName).toBe("SELECT");
+    expect(subject()).toHaveAttribute("role", "combobox");
     expect(message().tagName).toBe("TEXTAREA");
-    expect(
-      Array.from((subject() as HTMLSelectElement).options).map((option) => option.textContent)
-    ).toEqual(["Bir konu seç", "Genel Soru", "Geri Bildirim", "Hata Bildirimi", "İş Birliği", "Diğer"]);
+    fireEvent.click(subject());
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual(["Bir konu seç", "Genel Soru", "Geri Bildirim", "Hata Bildirimi", "İş Birliği", "Diğer"]);
+    fireEvent.click(subject());
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByText(SUCCESS)).toBeNull();
     expect(submit()).toBeInTheDocument();

@@ -14,7 +14,8 @@ class MessagePropertiesTest {
     void herkestenSilmeSuresiPozitifOlmali() {
         assertThat(properties(Duration.ofHours(48)).deleteForEveryoneWindow()).isEqualTo(Duration.ofHours(48));
         assertThatThrownBy(() -> properties(Duration.ZERO)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> properties(Duration.ofMinutes(-1))).isInstanceOf(IllegalArgumentException.class);
+        Duration negative = Duration.ofMinutes(-1);
+        assertThatThrownBy(() -> properties(negative)).isInstanceOf(IllegalArgumentException.class);
     }
 
     private static MessageProperties properties(Duration window) {

@@ -37,11 +37,11 @@ class OutboxEventsTest extends IntegrationTestSupport {
         assertThat(eventTypes(requestId)).containsExactly("FriendRequestSent");
         var row = jdbc.queryForMap("select event_version, aggregate_type, status, attempts, payload::text as payload, "
                 + "next_attempt_at is not null as due from outbox_events where aggregate_id = ?", requestId);
-        assertThat(row.get("event_version")).isEqualTo(1);
-        assertThat(row.get("aggregate_type")).isEqualTo("FriendRequest");
-        assertThat(row.get("status")).isEqualTo("PENDING");
-        assertThat(row.get("attempts")).isEqualTo(0);
-        assertThat(row.get("due")).isEqualTo(true);
+        assertThat(row).containsEntry("event_version", 1)
+                .containsEntry("aggregate_type", "FriendRequest")
+                .containsEntry("status", "PENDING")
+                .containsEntry("attempts", 0)
+                .containsEntry("due", true);
         String payload = (String) row.get("payload");
         assertThat(JsonPath.<String>read(payload, "$.requestId")).isEqualTo(requestId.toString());
         assertThat(JsonPath.<String>read(payload, "$.senderId")).isEqualTo(sender.toString());
@@ -85,7 +85,7 @@ class OutboxEventsTest extends IntegrationTestSupport {
         TransactionTemplate transaction = new TransactionTemplate(transactionManager);
 
         transaction.executeWithoutResult(status -> {
-            recorder.record(new FriendRequestSentEvent(aggregate, UUID.randomUUID(), UUID.randomUUID()));
+            recorder.append(new FriendRequestSentEvent(aggregate, UUID.randomUUID(), UUID.randomUUID()));
             status.setRollbackOnly();
         });
 
@@ -94,8 +94,10 @@ class OutboxEventsTest extends IntegrationTestSupport {
 
     @Test
     void olayYalnizTransactionIcindeYazilabilir() {
-        assertThatThrownBy(() -> recorder.record(new FriendRequestSentEvent(UUID.randomUUID(), UUID.randomUUID(),
-                UUID.randomUUID()))).isInstanceOf(IllegalTransactionStateException.class);
+        FriendRequestSentEvent event = new FriendRequestSentEvent(UUID.randomUUID(), UUID.randomUUID(),
+                UUID.randomUUID());
+
+        assertThatThrownBy(() -> recorder.append(event)).isInstanceOf(IllegalTransactionStateException.class);
     }
 
     private UUID sendAndAccept() throws Exception {

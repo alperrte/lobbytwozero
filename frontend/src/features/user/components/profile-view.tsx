@@ -3,7 +3,6 @@
 import { useId, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRequireSession } from "@/features/auth";
-import { PageContainer } from "@/shared/components/layout/page-container";
 import { useMyProfile } from "../hooks/use-my-profile";
 import { useRemote, type Remote } from "../hooks/use-remote";
 import { getFriends, getHardwareSummary, getLibraryStats } from "../services/activity-api";
@@ -34,28 +33,22 @@ export function ProfileView() {
 
   if (session.status !== "authenticated" || state.status === "loading") {
     return (
-      <PageContainer>
-        <ProfileSkeleton label={t("loading")} />
-      </PageContainer>
+      <ProfileSkeleton label={t("loading")} />
     );
   }
   if (state.status === "error") {
     return (
-      <PageContainer>
-        <ProfileStateNotice
-          title={t("errorTitle")}
-          body={t("errorBody")}
-          actionLabel={t("retry")}
-          onAction={retry}
-        />
-      </PageContainer>
+      <ProfileStateNotice
+        title={t("errorTitle")}
+        body={t("errorBody")}
+        actionLabel={t("retry")}
+        onAction={retry}
+      />
     );
   }
 
   return (
-    <PageContainer>
-      <ProfileContent accountId={accountId} profile={state.profile} steam={state.steam} stats={state.stats} />
-    </PageContainer>
+    <ProfileContent accountId={accountId} profile={state.profile} steam={state.steam} stats={state.stats} />
   );
 }
 

@@ -2808,7 +2808,7 @@
       "description": "Burada vereceğin rızalar isteğe bağlıdır, varsayılan olarak kapalıdır ve istediğin an geri alabilirsin. Rızayı vermemen hesabını kullanmanı etkilemez.",
       "recommendation": {
         "label": "Kişiselleştirilmiş oyun önerileri",
-        "hint": "Favori ve bitirdiğin oyunların, sana özel oyun önerileri üretmek için işlenmesine izin verirsin. Bu, kütüphaneni kimlerin görebildiğinden bağımsızdır.",
+        "hint": "Favori ve bitirdiğin oyunların, sana özel oyun önerileri üretmek için işlenmesine izin verirsin. Açıkken, görünür profilin benzer oyuncu önerilerinde başka oyunculara da önerilebilir. Bu, kütüphaneni kimlerin görebildiğinden bağımsızdır; istediğin zaman kapatabilirsin.",
         "on": "Açık",
         "off": "Kapalı",
         "since": "{date} tarihinden beri"
@@ -3393,7 +3393,7 @@
     },
     "card": {
       "message": "Mesaj Gönder",
-      "messageSoon": "Mesajlaşma yakında açılacak",
+      "messageNamed": "{name} ile mesajlaş",
       "moreActions": "{name} için diğer işlemler",
       "viewProfile": "Profili Gör",
       "soon": "Yakında",
@@ -3687,5 +3687,259 @@
     "compatibilityAndRecommendations": "Oyun uyumluluğu ve öneriler",
     "compatibilityUnavailable": "Bu sürümde doğrulanmış oyun–donanım uyumluluk karşılaştırması henüz kullanılamıyor. Donanım kaydının bulunması, oyunun uyumlu olduğunu göstermez.",
     "recommendationsUnavailable": "Kişiselleştirilmiş oyun ve donanım önerileri henüz kullanılamıyor. Bu panel tahmini FPS veya öneri sonucu üretmez."
+  },
+  "Messaging": {
+    "meta": {
+      "title": "Mesajlar"
+    },
+    "person": {
+      "deletedAccount": "Silinmiş hesap",
+      "unknown": "Oyuncu"
+    },
+    "snippet": {
+      "deleted": "Bu mesaj silindi",
+      "image": "📷 Fotoğraf",
+      "gif": "GIF",
+      "voice": "🎤 Sesli mesaj",
+      "text": "Mesaj"
+    },
+    "status": {
+      "sending": "Gönderiliyor",
+      "failed": "Gönderilemedi",
+      "read": "Okundu",
+      "sent": "Gönderildi"
+    },
+    "connection": {
+      "connecting": "Bağlanıyor…",
+      "live": "Canlı",
+      "reconnecting": "Yeniden bağlanıyor…",
+      "offline": "Bağlantı yok, yeniden deneniyor"
+    },
+    "list": {
+      "title": "Mesajlar",
+      "new": "Yeni Sohbet",
+      "search": "Sohbetlerde ara",
+      "searchPlaceholder": "Kişi ya da grup ara",
+      "untitled": "Sohbet",
+      "noMatchTitle": "Eşleşen sohbet yok",
+      "noMatchBody": "Farklı bir ad deneyin.",
+      "emptyTitle": "Henüz sohbetin yok",
+      "emptyBody": "Bir arkadaşınla birebir sohbet başlat ya da takımın için grup kur.",
+      "loadMore": "Daha fazla sohbet",
+      "you": "Sen",
+      "members": "{count} üye",
+      "noMessages": "Henüz mesaj yok",
+      "unread": "{count} okunmamış mesaj"
+    },
+    "states": {
+      "loading": "Yükleniyor…",
+      "retry": "Tekrar dene"
+    },
+    "errors": {
+      "conversationNotFound": "Sohbet bulunamadı ya da artık bu sohbetin üyesi değilsin.",
+      "messageNotFound": "Mesaj bulunamadı.",
+      "notAllowed": "Bu kişiyle mesajlaşamazsın.",
+      "blockCheckUnavailable": "İzin denetimi şu an yapılamıyor. Biraz sonra tekrar dene.",
+      "messageDeleted": "Bu mesaj silinmiş.",
+      "deleteWindowExpired": "Herkesten silme süresi (48 saat) doldu.",
+      "notAllowedToDelete": "Bu mesajı herkesten silme yetkin yok.",
+      "tooManyMessages": "Çok hızlı mesaj gönderiyorsun. Biraz bekle.",
+      "tooManyUploads": "Çok fazla görsel yükledin. Biraz bekle.",
+      "tooManyPending": "Gönderilmeyi bekleyen çok fazla görselin var.",
+      "tooManyReactions": "Çok hızlı tepki veriyorsun. Biraz bekle.",
+      "tooManyGifSearches": "Çok fazla GIF araması yaptın. Biraz bekle.",
+      "gifUnavailable": "GIF hizmeti şu an kullanılamıyor.",
+      "gifNotAvailable": "Bu GIF artık kullanılamıyor.",
+      "attachmentNotAvailable": "Görselin süresi doldu. Yeniden yükle.",
+      "invalidImage": "Dosya geçerli bir görsel değil.",
+      "imageTooLarge": "Görsel 1 MB sınırını aşıyor.",
+      "imageDimensions": "Görsel boyutları çok büyük.",
+      "unsupportedMedia": "Bu dosya türü desteklenmiyor.",
+      "mediaBusy": "Görsel işleme şu an yoğun. Tekrar dene.",
+      "payloadTooLarge": "Dosya 1 MB sınırını aşıyor.",
+      "invalidReaction": "Tepki tek bir emoji olmalı.",
+      "insufficientRole": "Bu işlem için yetkin yok.",
+      "alreadyMember": "Seçtiğin kişilerden biri zaten grupta.",
+      "memberLimit": "Grup en fazla 100 üye alabilir.",
+      "memberNotFound": "Bu kişi artık grupta değil.",
+      "cannotMessageSelf": "Kendinle sohbet açamazsın.",
+      "invalidContent": "Mesaj içeriği geçersiz.",
+      "busy": "Sunucu şu an yoğun. Tekrar dene.",
+      "unauthenticated": "Oturumun sona erdi. Yeniden giriş yap.",
+      "forbidden": "Bu işlem için yetkin yok.",
+      "notFound": "Aradığın içerik bulunamadı.",
+      "conflict": "İşlem çakıştı. Tekrar dene.",
+      "rateLimited": "Çok fazla istek gönderildi. Biraz bekle.",
+      "unavailable": "Mesajlaşma şu an kullanılamıyor.",
+      "csrf": "Güvenlik doğrulaması yenilenemedi. Sayfayı yenile.",
+      "timeout": "Sunucu zamanında yanıt vermedi.",
+      "network": "Bağlantı kurulamadı. İnternetini kontrol et.",
+      "generic": "Bir şeyler ters gitti. Tekrar dene.",
+      "unsupportedImage": "Yalnız PNG, JPEG ve GIF gönderebilirsin.",
+      "imageTooLargeClient": "Görsel 1 MB sınırının altına küçültülemedi.",
+      "invalidImageClient": "Görsel okunamadı."
+    },
+    "emoji": {
+      "groups": "Emoji grupları",
+      "smileys": "İfadeler",
+      "gestures": "Eller",
+      "gaming": "Oyun",
+      "symbols": "Semboller"
+    },
+    "gif": {
+      "search": "GIF ara",
+      "searchPlaceholder": "GIPHY'de ara",
+      "results": "Sonuçlar",
+      "trending": "Öne çıkanlar",
+      "empty": "GIF bulunamadı.",
+      "pickNamed": "GIF gönder: {title}",
+      "pick": "GIF gönder",
+      "more": "Daha fazla"
+    },
+    "composer": {
+      "label": "Mesaj yaz",
+      "replyingTo": "{name} kişisine yanıt",
+      "cancelReply": "Yanıtı iptal et",
+      "imageReady": "Görsel hazır. İstersen açıklama ekleyip gönder.",
+      "preparing": "Görsel hazırlanıyor…",
+      "uploading": "Yükleniyor…",
+      "uploadProgress": "Yükleme ilerlemesi",
+      "cancelUpload": "Yüklemeyi iptal et",
+      "removeImage": "Görseli kaldır",
+      "emoji": "Emoji ekle",
+      "gif": "GIF gönder",
+      "image": "Görsel ekle",
+      "placeholder": "Mesaj yaz",
+      "captionPlaceholder": "Açıklama ekle (isteğe bağlı)",
+      "send": "Gönder",
+      "issue": {
+        "empty": "Mesaj yalnız boşluktan oluşamaz.",
+        "tooLong": "Mesaj en fazla 4000 karakter olabilir.",
+        "invalidCharacters": "Mesajda desteklenmeyen karakter var."
+      },
+      "counter": "{count}/{max}"
+    },
+    "bubble": {
+      "label": "{name}, {time}",
+      "forwarded": "İletildi",
+      "forwardedMany": "Birçok kez iletildi",
+      "reactions": "Tepkiler",
+      "reactionChip": "{emoji} {count} tepki",
+      "retry": "Tekrar dene",
+      "discard": "Sil",
+      "replyUnavailable": "Bu mesajı göremiyorsun",
+      "jumpToReply": "Yanıtlanan mesaja git",
+      "openImage": "Görseli yeni sekmede aç",
+      "imageAlt": "Gönderilen görsel",
+      "gifAlt": "GIF",
+      "voice": "Sesli mesaj, {seconds} saniye",
+      "voiceDuration": "{minutes}:{seconds}"
+    },
+    "menu": {
+      "open": "{name} mesajı için işlemler",
+      "label": "Mesaj işlemleri",
+      "react": "Tepki ver",
+      "reactWith": "{emoji} ile tepki ver",
+      "moreReactions": "Başka emoji seç",
+      "reply": "Yanıtla",
+      "forward": "İlet",
+      "copy": "Metni kopyala",
+      "info": "Mesaj bilgisi",
+      "reactions": "Tepkileri gör",
+      "deleteForMe": "Benden sil",
+      "deleteForEveryone": "Herkesten sil"
+    },
+    "delete": {
+      "meTitle": "Mesaj senden silinsin mi?",
+      "meBody": "Mesaj yalnız senin görünümünden kaldırılır. Diğer katılımcılar görmeye devam eder. Bu işlem geri alınamaz.",
+      "meConfirm": "Benden Sil",
+      "everyoneTitle": "Mesaj herkesten silinsin mi?",
+      "everyoneBody": "Mesaj sohbetteki herkes için \"Bu mesaj silindi\" olarak görünür. Bu işlem geri alınamaz.",
+      "everyoneConfirm": "Herkesten Sil",
+      "cancel": "Vazgeç"
+    },
+    "forward": {
+      "title": "Mesajı ilet",
+      "description": "En fazla {max} sohbet seç.",
+      "targets": "Hedef sohbetler",
+      "selected": "{count}/{max} sohbet seçildi",
+      "sending": "İletiliyor…",
+      "submit": "İlet",
+      "done": "{count, plural, one {Mesaj # sohbete iletildi.} other {Mesaj # sohbete iletildi.}}"
+    },
+    "dialog": {
+      "close": "Kapat",
+      "cancel": "Vazgeç"
+    },
+    "info": {
+      "title": "Mesaj bilgisi",
+      "reactionsTitle": "Tepkiler",
+      "sentAt": "Gönderildi: {time}",
+      "readBy": "Okuyanlar",
+      "pending": "Henüz okumayanlar",
+      "notYet": "Okunmadı",
+      "reactions": "Tepkiler",
+      "noReactions": "Henüz tepki yok.",
+      "timeUnknown": "Zaman bilinmiyor",
+      "nobody": "Henüz okuyan yok."
+    },
+    "new": {
+      "title": "Yeni sohbet",
+      "mode": "Sohbet türü",
+      "direct": "Birebir",
+      "group": "Grup",
+      "searchFriends": "Arkadaş ara",
+      "friendsFailed": "Arkadaş listesi yüklenemedi.",
+      "noMatch": "Eşleşen arkadaş yok.",
+      "noFriends": "Henüz arkadaşın yok. Arkadaşlar sayfasından arkadaş ekleyebilirsin.",
+      "start": "Sohbet et"
+    },
+    "group": {
+      "titleLabel": "Grup adı",
+      "titleIssue": {
+        "empty": "Grup adı boş olamaz.",
+        "tooLong": "Grup adı en fazla {max} karakter olabilir.",
+        "invalidCharacters": "Grup adında desteklenmeyen karakter var."
+      },
+      "pickMembers": "En az bir üye seç.",
+      "members": "Grup üyeleri",
+      "selected": "{count} kişi seçildi",
+      "creating": "Oluşturuluyor…",
+      "create": "Grubu Kur",
+      "info": "Grup bilgisi",
+      "youMember": "{name} (sen)",
+      "role": {
+        "OWNER": "Kurucu",
+        "ADMIN": "Yönetici",
+        "MEMBER": "Üye"
+      },
+      "promote": "Yönetici yap",
+      "demote": "Yöneticiliği al",
+      "remove": "Çıkar",
+      "removeNamed": "{name} kişisini gruptan çıkar",
+      "addTitle": "Üye ekle",
+      "noCandidates": "Eklenebilecek arkadaşın yok.",
+      "addSubmit": "{count} kişiyi ekle",
+      "add": "Üye Ekle",
+      "leave": "Gruptan Ayrıl",
+      "leaveTitle": "Gruptan ayrılmak istiyor musun?",
+      "leaveBody": "Ayrıldıktan sonra bu grubun mesajlarını göremezsin.",
+      "leaveOwnerBody": "Kurucusu olduğun gruptan ayrılırsan kuruculuk en eski yöneticiye, yönetici yoksa en eski üyeye geçer. Mesajları artık göremezsin.",
+      "leaveConfirm": "Ayrıl"
+    },
+    "thread": {
+      "back": "Sohbet listesine dön",
+      "backToList": "Sohbet listesine dön",
+      "direct": "Birebir sohbet",
+      "older": "Daha eski mesajlar",
+      "start": "Sohbetin başı",
+      "emptyTitle": "Henüz mesaj yok",
+      "emptyBody": "İlk mesajı sen gönder.",
+      "messages": "Mesajlar",
+      "newMessages": "{count, plural, one {# yeni mesaj} other {# yeni mesaj}}",
+      "replyNotLoaded": "Yanıtlanan mesaj daha eski; görmek için yukarı kaydır.",
+      "pickTitle": "Bir sohbet seç",
+      "pickBody": "Soldaki listeden bir sohbet aç ya da yeni bir sohbet başlat."
+    }
   }
 }

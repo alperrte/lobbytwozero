@@ -21,9 +21,10 @@ public interface ImageInspectorPort {
 
         @Override
         public boolean equals(Object other) {
-            return other instanceof ProcessedImage that && width == that.width && height == that.height
-                    && frames == that.frames && Objects.equals(mimeType, that.mimeType)
-                    && Arrays.equals(content, that.content);
+            return other instanceof ProcessedImage(String otherMime, byte[] otherContent, int otherWidth,
+                                                   int otherHeight, int otherFrames)
+                    && width == otherWidth && height == otherHeight && frames == otherFrames
+                    && Objects.equals(mimeType, otherMime) && Arrays.equals(content, otherContent);
         }
 
         @Override

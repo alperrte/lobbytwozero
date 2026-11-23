@@ -181,7 +181,28 @@ const paths = {
     </>
   ),
   refresh: <path d="M20 11a8 8 0 0 0-14.5-4.5L4 8M4 4v4h4M4 13a8 8 0 0 0 14.5 4.5L20 16M20 20v-4h-4" />,
-  message: <path d="M4 5h16v11h-9l-4 3.5V16H4z" />
+  message: <path d="M4 5h16v11h-9l-4 3.5V16H4z" />,
+  // Mesajlaşma (features/messaging)
+  reply: <path d="M10 7 4 12l6 5M4 12h10a6 6 0 0 1 6 6v1" />,
+  forward: <path d="m14 7 6 5-6 5M20 12H10a6 6 0 0 0-6 6v1" />,
+  trash: <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" />,
+  smile: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M8.5 14.5c1 1.3 2.1 2 3.5 2s2.5-.7 3.5-2M9 10h.01M15 10h.01" />
+    </>
+  ),
+  image: (
+    <>
+      <path d="M4 5h16v14H4z" />
+      <path d="m4 16 5-5 4 4 2-2 5 5" />
+      <circle cx="15.5" cy="9" r="1.5" />
+    </>
+  ),
+  gif: <path d="M3 6h18v12H3zM10 10H8v4h2v-1.5M13 10v4M18 10h-2.5v4M15.5 12H17.5" />,
+  arrowLeft: <path d="M20 12H4M10 6l-6 6 6 6" />,
+  checkDouble: <path d="m2.5 12.5 5 5L17 8M12 16.5l1 1L22 8" />,
+  play: <path d="M7 5v14l12-7z" />
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof paths;
