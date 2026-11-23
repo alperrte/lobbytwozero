@@ -98,7 +98,7 @@ public class HttpMailServiceAdapter implements VerificationCodeMailPort, Passwor
         Map<String, Object> body = base(mail.idempotencyKey(), mail.accountId(), mail.recipientEmail());
         body.put("code", mail.code());
         body.put(VALIDITY_SECONDS, mail.validity().toSeconds());
-        post(VERIFICATION_CODES, mail.accountId(), body);
+        post(VERIFICATION_CODES, mail.accountId(), mail.requestLocale(), body);
     }
 
     @Override
@@ -106,7 +106,7 @@ public class HttpMailServiceAdapter implements VerificationCodeMailPort, Passwor
         Map<String, Object> body = base(mail.idempotencyKey(), mail.accountId(), mail.recipientEmail());
         body.put("resetLink", mail.resetLink());
         body.put(VALIDITY_SECONDS, mail.validity().toSeconds());
-        post(PASSWORD_RESETS, mail.accountId(), body);
+        post(PASSWORD_RESETS, mail.accountId(), mail.requestLocale(), body);
     }
 
     @Override
@@ -114,7 +114,7 @@ public class HttpMailServiceAdapter implements VerificationCodeMailPort, Passwor
         Map<String, Object> body = base(mail.idempotencyKey(), mail.accountId(), mail.recipientEmail());
         body.put("confirmationLink", mail.confirmationLink());
         body.put(VALIDITY_SECONDS, mail.validity().toSeconds());
-        post(ACCOUNT_DELETIONS, mail.accountId(), body);
+        post(ACCOUNT_DELETIONS, mail.accountId(), mail.requestLocale(), body);
     }
 
     @Override
@@ -122,7 +122,7 @@ public class HttpMailServiceAdapter implements VerificationCodeMailPort, Passwor
         Map<String, Object> body = base(mail.idempotencyKey(), mail.accountId(), mail.recipientEmail());
         body.put("type", mail.type().name());
         body.put("occurredAt", mail.occurredAt().toString());
-        post(SECURITY_NOTIFICATIONS, mail.accountId(), body);
+        post(SECURITY_NOTIFICATIONS, mail.accountId(), mail.requestLocale(), body);
     }
 
     private static Map<String, Object> base(UUID idempotencyKey, UUID accountId, String recipientEmail) {
@@ -133,19 +133,24 @@ public class HttpMailServiceAdapter implements VerificationCodeMailPort, Passwor
         return body;
     }
 
-    /** Dil biliniyorsa ({@code tr}/{@code en}) gövdeye ekler; bilinmiyorsa alan hiç gönderilmez (iki dilli mail). */
-    private void withLocale(Map<String, Object> body, UUID accountId) {
+    /**
+     * Dil sırası: (1) User'daki kayıtlı tercih (güvenilir), (2) isteğin arayüz dili ({@code requestLocale}, yalnız yedek),
+     * (3) bilinmiyor: alan hiç gönderilmez ve mail iki dilli gider. Yalnız {@code tr}/{@code en} geçer.
+     */
+    private void withLocale(Map<String, Object> body, UUID accountId, String requestLocale) {
         Optional<String> locale;
         try {
             locale = userLocales.localeOf(accountId);
         } catch (RuntimeException _) {
             locale = Optional.empty();
         }
-        locale.filter(value -> "tr".equals(value) || "en".equals(value)).ifPresent(value -> body.put("locale", value));
+        locale.or(() -> Optional.ofNullable(requestLocale))
+                .filter(value -> "tr".equals(value) || "en".equals(value))
+                .ifPresent(value -> body.put("locale", value));
     }
 
-    private void post(String endpoint, UUID accountId, Map<String, Object> body) {
-        withLocale(body, accountId);
+    private void post(String endpoint, UUID accountId, String requestLocale, Map<String, Object> body) {
+        withLocale(body, accountId, requestLocale);
         String token = serviceTokens.issue(ServiceTokenIssuer.audienceFor(MAIL_SERVICE), TokenClaims.MAIL_SEND_SCOPE,
                 accountId);
         int status;
