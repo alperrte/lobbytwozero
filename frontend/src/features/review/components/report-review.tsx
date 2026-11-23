@@ -10,6 +10,7 @@ import { reviewMutations } from "../services/review-api";
 import { describeReviewError, retryAfterOf } from "../services/review-errors";
 import { formatDateTime } from "../services/format";
 import type { ReviewReport } from "../types/review";
+import { Select } from "@/shared/components/ui/select";
 import { ReviewAlert, actionClass, focusRing } from "./review-ui";
 
 /**
@@ -58,7 +59,6 @@ function ReportDialog({ reviewId, onClose, onReported }: { reviewId: string; onC
   const t = useTranslations("Review");
   const id = useId();
   const dialog = useRef<HTMLDialogElement>(null);
-  const select = useRef<HTMLSelectElement>(null);
   const action = useReviewAction();
   const countdown = useRetryCountdown();
   const [reason, setReason] = useState("");
@@ -74,7 +74,7 @@ function ReportDialog({ reviewId, onClose, onReported }: { reviewId: string; onC
     const previous = document.activeElement as HTMLElement | null;
     element?.showModal();
     const unlock = lockPageScroll();
-    select.current?.focus();
+    element?.querySelector<HTMLElement>("[role=combobox]")?.focus();
     return () => {
       element?.close();
       unlock();
@@ -90,7 +90,7 @@ function ReportDialog({ reviewId, onClose, onReported }: { reviewId: string; onC
     if (action.pending || countdown.remaining > 0) return;
     setAttempted(true);
     if (!isReportReason(reason) || detailIssue !== null) {
-      if (!isReportReason(reason)) select.current?.focus();
+      if (!isReportReason(reason)) dialog.current?.querySelector<HTMLElement>("[role=combobox]")?.focus();
       return;
     }
     const result = await action.run((signal) => reviewMutations.reportReview(reviewId, reason, detail, signal));
@@ -133,22 +133,18 @@ function ReportDialog({ reviewId, onClose, onReported }: { reviewId: string; onC
 
         <div className="space-y-1">
           <label htmlFor={`${id}-reason`} className="block text-sm font-semibold">{t("report.reasonLabel")}</label>
-          <select
+          <Select
             id={`${id}-reason`}
-            ref={select}
             value={reason}
-            onChange={(event) => {
-              setReason(event.target.value);
+            onChange={(value) => {
+              setReason(value);
               action.clearError();
             }}
             disabled={action.pending}
             aria-invalid={attempted && reasonMissing}
             aria-describedby={attempted && reasonMissing ? `${id}-reason-error` : undefined}
-            className={`block min-h-11 w-full rounded-control border border-control-border bg-surface-elevated px-3 text-sm text-text-primary aria-invalid:border-primary ${focusRing}`}
-          >
-            <option value="">{t("report.reasonPlaceholder")}</option>
-            {REPORT_REASONS.map((value) => <option key={value} value={value}>{t(`report.reasons.${value}`)}</option>)}
-          </select>
+            options={[{ value: "", label: t("report.reasonPlaceholder") }, ...REPORT_REASONS.map((value) => ({ value, label: t(`report.reasons.${value}`) }))]}
+          />
           {attempted && reasonMissing ? <p id={`${id}-reason-error`} role="alert" className="text-sm text-brand-text">{t("report.reasonRequired")}</p> : null}
         </div>
 

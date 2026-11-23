@@ -2,7 +2,6 @@
 
 import type { ReactNode } from "react";
 import { useRequireSession } from "@/features/auth";
-import { PageContainer } from "@/shared/components/layout/page-container";
 import { ReviewLoading } from "./review-ui";
 
 /**
@@ -14,14 +13,12 @@ export function ReviewBoundary({ children }: { children: ReactNode }) {
   const session = useRequireSession();
   if (session.status !== "authenticated") {
     return (
-      <PageContainer className="py-3 sm:py-5">
-        <ReviewLoading />
-      </PageContainer>
+      <ReviewLoading />
     );
   }
   return (
-    <PageContainer key={session.me.accountId} className="space-y-6 py-3 sm:space-y-8 sm:py-5">
+    <div key={session.me.accountId} className="space-y-6 sm:space-y-8">
       {children}
-    </PageContainer>
+    </div>
   );
 }

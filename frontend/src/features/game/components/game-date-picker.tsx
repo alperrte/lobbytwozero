@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Icon } from "@/shared/components/ui/icons";
 import { cn } from "@/shared/utils/cn";
 import { controlClass } from "./game-status";
-import { GameSelect } from "./game-ui";
+import { Select } from "@/shared/components/ui/select";
 
 /**
  * Özel tarih seçici. Değer her zaman ISO (`yyyy-mm-dd`) tutulur; ekranda yerel biçimde (tr: gg.aa.yyyy) gösterilir.
@@ -213,12 +213,10 @@ export function GameDatePicker({ id, name, value, defaultValue = "", onValueChan
     {open && <div id={dialogId} role="dialog" aria-label={t("datePickerDialog")} className="absolute start-0 top-full z-30 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-panel border border-border bg-surface p-3 shadow-lg">
       <div className="mb-3 flex items-center gap-2">
         <button type="button" aria-label={t("datePickerPrevMonth")} disabled={prevDisabled} onClick={() => goMonth(prevMonthTarget)} className={navButton}><Icon name="chevron" width={16} height={16} className="rotate-90" aria-hidden="true" /></button>
-        <div className="min-w-0 flex-1"><GameSelect aria-label={t("datePickerMonth")} value={view.month} onChange={(event) => setView({ ...view, month: Number(event.target.value) })} className={`${controlClass} min-h-9 py-1 ps-3 pe-8 text-sm`}>
-          {monthNames.map((label, month) => <option key={month} value={month}>{label}</option>)}
-        </GameSelect></div>
-        <div className="w-[5.5rem] shrink-0"><GameSelect aria-label={t("datePickerYear")} value={view.year} onChange={(event) => setView({ ...view, year: Number(event.target.value) })} className={`${controlClass} min-h-9 py-1 ps-3 pe-8 text-sm`}>
-          {years.map((year) => <option key={year} value={year}>{year}</option>)}
-        </GameSelect></div>
+        <div className="min-w-0 flex-1"><Select size="sm" aria-label={t("datePickerMonth")} value={String(view.month)} onChange={(value) => setView({ ...view, month: Number(value) })}
+          options={monthNames.map((label, month) => ({ value: String(month), label }))} /></div>
+        <div className="w-[5.5rem] shrink-0"><Select size="sm" aria-label={t("datePickerYear")} value={String(view.year)} onChange={(value) => setView({ ...view, year: Number(value) })}
+          options={years.map((year) => ({ value: String(year), label: String(year) }))} /></div>
         <button type="button" aria-label={t("datePickerNextMonth")} disabled={nextDisabled} onClick={() => goMonth(nextMonthTarget)} className={navButton}><Icon name="chevron" width={16} height={16} className="-rotate-90" aria-hidden="true" /></button>
       </div>
       <div role="grid" aria-label={`${monthNames[view.month]} ${view.year}`} onKeyDown={onGridKey}>

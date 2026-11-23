@@ -157,6 +157,23 @@ describe("CardSnake", () => {
     expect(animateCalls).toHaveLength(SNAKE_LAYERS.length);
   });
 
+  it("trigger='hover' modunda klavye odağı tetiklemez, fare girişi tetikler", () => {
+    render(
+      <div data-testid="control" className="rounded-xl">
+        <CardSnake trigger="hover" testId="control-snake" />
+      </div>
+    );
+    const control = screen.getByTestId("control");
+    const inner = document.createElement("button");
+    control.appendChild(inner);
+    vi.spyOn(Element.prototype, "matches").mockReturnValue(true);
+    fireEvent.focusIn(inner);
+    expect(animateCalls).toHaveLength(0);
+    enter(control);
+    expect(animateCalls).toHaveLength(SNAKE_LAYERS.length);
+    expect(screen.getByTestId("control-snake").dataset.snakeState).toBe("running");
+  });
+
   it("odak kartın İÇİNDEN içine geçerse yeniden tetiklemez", () => {
     const { card } = renderCard();
     const first = document.createElement("button");

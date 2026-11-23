@@ -36,7 +36,8 @@ describe("Performance session history", () => {
     await screen.findByText("Saved Game");
     fireEvent.click(screen.getByRole("button", { name: "Sonraki" }));
     await waitFor(() => expect(sessions).toHaveBeenLastCalledWith({ page: 1, status: undefined }, expect.any(AbortSignal)));
-    fireEvent.change(screen.getByRole("combobox", { name: "Oturum durumu" }), { target: { value: "ABANDONED" } });
+    fireEvent.click(screen.getByRole("combobox", { name: "Oturum durumu" }));
+    fireEvent.click(screen.getByRole("option", { name: "Terk edildi" }));
     await waitFor(() => expect(sessions).toHaveBeenLastCalledWith({ page: 0, status: "ABANDONED" }, expect.any(AbortSignal)));
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
@@ -57,10 +58,12 @@ describe("Performance session history", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Saved Game oturumunu incele" }));
     await screen.findByRole("table");
     series.mockResolvedValue({ sessionId: session.id, metric: "CPU_TEMP_C", unit: "°C", totalSamples: 0, points: [] });
-    fireEvent.change(screen.getByRole("combobox", { name: "Ölçüm türü" }), { target: { value: "CPU_TEMP_C" } });
+    fireEvent.click(screen.getByRole("combobox", { name: "Ölçüm türü" }));
+    fireEvent.click(screen.getByRole("option", { name: "CPU sıcaklığı" }));
     expect(await screen.findByText(tr.Performance.measurementsEmpty)).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
-    fireEvent.change(screen.getByRole("combobox", { name: "Zaman aralığı" }), { target: { value: "5" } });
+    fireEvent.click(screen.getByRole("combobox", { name: "Zaman aralığı" }));
+    fireEvent.click(screen.getByRole("option", { name: "İlk 5 dakika" }));
     await waitFor(() => expect(series).toHaveBeenLastCalledWith(session.id, "CPU_TEMP_C", session.startedAt, "2026-01-01T10:05:00.000Z", expect.any(AbortSignal)));
   });
   it.each([401, 403, 404, 409, 429, 500, 503])("does not turn HTTP %i into empty history", async (status) => {

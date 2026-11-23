@@ -1,6 +1,5 @@
 import { getTranslations } from "next-intl/server";
 import { DeviceList } from "@/features/performance/components/device-list";
-import { PageContainer } from "@/shared/components/layout/page-container";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { buildPageMetadata } from "@/shared/lib/seo/page-metadata";
 import { Link } from "@/shared/lib/i18n/navigation";
@@ -9,7 +8,7 @@ export const generateMetadata = () => buildPageMetadata("performance");
 
 export default async function PerformancePage() {
   const t = await getTranslations("Performance");
-  return <PageContainer>
+  return <>
     <PageHeader title={t("title")} description={t("intro")} />
     <div className="space-y-8">
       <section aria-labelledby="performance-available" className="border-s-2 border-primary ps-5">
@@ -27,5 +26,5 @@ export default async function PerformancePage() {
         <DeviceList />
       </section>
     </div>
-  </PageContainer>;
+  </>;
 }

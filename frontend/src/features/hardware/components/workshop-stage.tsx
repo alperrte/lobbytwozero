@@ -225,7 +225,7 @@ export function WorkshopStage({ build, replayToken, profileKey, missing, onPickP
       {mode === "3d" ? <button type="button" className="workshopStage__control" aria-pressed={preferImage} onClick={() => setPreferImage((value) => !value)}>
         <Icon name="desktop" className="size-4" />{t(preferImage ? "workshop.stage.view3d" : "workshop.stage.viewImage")}
       </button> : null}
-      {mode === "3d" && !preferImage ? <Select size="sm" variant="oval" className="w-44" aria-label={t("workshop.stage.quality")} value={preference} onChange={chooseQuality}
+      {mode === "3d" && !preferImage ? <Select size="sm" className="w-44" aria-label={t("workshop.stage.quality")} value={preference} onChange={chooseQuality}
         options={qualityPreferences.map((value) => ({ value, label: value === "auto" && quality ? t("workshop.stage.qualityAuto", { level: t(`workshop.stage.qualityLevels.${quality}`) }) : t(`workshop.stage.qualityLevels.${value}`) }))} /> : null}
       <p role="status" aria-live="polite" className="ms-auto min-h-11 content-center text-sm text-text-secondary" data-testid="workshop-status">{status}</p>
     </div>

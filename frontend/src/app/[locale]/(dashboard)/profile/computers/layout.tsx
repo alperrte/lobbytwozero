@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
 import { ComparisonProvider } from "@/features/hardware/components/comparison-provider";
-import { AppShell } from "@/shared/components/layout/app-shell";
-import { Footer } from "@/shared/components/layout/footer";
 
+/** Kabuk `(dashboard)` grubundan gelir; bu bölüm yalnız karşılaştırma bağlamını ekler. */
 export default function ComputersLayout({ children }: { children: ReactNode }) {
-  return <AppShell footer={<Footer />}><ComparisonProvider>{children}</ComparisonProvider></AppShell>;
+  return <ComparisonProvider>{children}</ComparisonProvider>;
 }

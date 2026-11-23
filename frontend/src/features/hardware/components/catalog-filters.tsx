@@ -64,7 +64,7 @@ export function CatalogFilters({ category, search, filterOptions, onApply }: { c
       <button type="button" className={styles.clear} onClick={() => onApply({ ...clearValues, page: "0" })}>{t("visual.clearFilters")}</button>
     </div>
     <Field label={t("catalog.brand")}>
-      <MultiSelect key={filterOptions.loading ? "loading" : "ready"} name="brandId" variant="oval" defaultValue={search.getAll("brandId")} disabled={filterOptions.loading} placeholder={t("catalog.anyValue")}
+      <MultiSelect key={filterOptions.loading ? "loading" : "ready"} name="brandId" defaultValue={search.getAll("brandId")} disabled={filterOptions.loading} placeholder={t("catalog.anyValue")}
         options={selectOptions("brandId", options.brandId ?? [], search.getAll("brandId"), locale)} />
     </Field>
     {unavailable ? <p className={styles.brandNotice}>{t("catalog.optionsUnavailable")} <button type="button" onClick={filterOptions.reload}>{t("common.reload")}</button></p> : null}
@@ -85,7 +85,7 @@ export function CatalogFilters({ category, search, filterOptions, onApply }: { c
       const name = specName(field);
       const current = search.getAll(field.key);
       return <Field key={field.key} label={listLabel(field)}>
-        <MultiSelect key={filterOptions.loading ? "loading" : "ready"} name={field.key} variant="oval" defaultValue={current} disabled={filterOptions.loading} placeholder={t("catalog.anyValue")}
+        <MultiSelect key={filterOptions.loading ? "loading" : "ready"} name={field.key} defaultValue={current} disabled={filterOptions.loading} placeholder={t("catalog.anyValue")}
           options={selectOptions(name, options[name] ?? [], current, locale)} />
       </Field>;
     })}

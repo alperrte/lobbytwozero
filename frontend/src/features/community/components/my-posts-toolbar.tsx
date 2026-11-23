@@ -3,6 +3,8 @@
 import { useId, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { Icon } from "@/shared/components/ui/icons";
+import { SearchField } from "@/shared/components/ui/search-field";
+import { Select } from "@/shared/components/ui/select";
 import { Link } from "@/shared/lib/i18n/navigation";
 import { cn } from "@/shared/utils/cn";
 import { activeFilterCount, supportsFilters, type MyPostsView } from "../services/my-posts-query";
@@ -41,7 +43,7 @@ export function MyPostsToolbar({
   return (
     <section aria-label={t("toolbarLabel")} className="mb-6">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-        {filterable ? <SearchField key={filters.q} initial={filters.q} onSubmit={(q) => onChange({ ...filters, q })} /> : null}
+        {filterable ? <MyPostsSearch key={filters.q} initial={filters.q} onSubmit={(q) => onChange({ ...filters, q })} /> : null}
 
         {/* Arama solda. Sağ grup yan yana ve sağ kenara hizalı: Öncelik ⌄ → Filtrele → Yeniden paylaşımlarım (aynı yükseklik,
             eşit aralık). "Öncelik" kapalıyken daima kendi adını taşır; seçili sıralama yalnız menüde işaretlenir. */}
@@ -83,19 +85,12 @@ export function MyPostsToolbar({
               <label htmlFor={`${id}-category`} className="mb-1.5 block text-sm font-medium text-text-primary">
                 {t("category")}
               </label>
-              <select
+              <Select
                 id={`${id}-category`}
                 value={filters.category}
-                onChange={(event) => onChange({ ...filters, category: event.target.value as PostFilters["category"] })}
-                className={inputClass}
-              >
-                <option value="">{t("allCategories")}</option>
-                {postCategories.map((category) => (
-                  <option key={category} value={category}>
-                    {t(`categories.${category}`)}
-                  </option>
-                ))}
-              </select>
+                onChange={(value) => onChange({ ...filters, category: value as PostFilters["category"] })}
+                options={[{ value: "", label: t("allCategories") }, ...postCategories.map((category) => ({ value: category, label: t(`categories.${category}`) }))]}
+              />
             </div>
             <div>
               <label htmlFor={`${id}-from`} className="mb-1.5 block text-sm font-medium text-text-primary">
@@ -125,7 +120,7 @@ export function MyPostsToolbar({
 }
 
 /** Arama gönderimle uygulanır (her tuşta istek ya da URL değişimi olmaz); en az 2 karakter sunucu kuralıdır. */
-function SearchField({ initial, onSubmit }: { initial: string; onSubmit: (q: string) => void }) {
+function MyPostsSearch({ initial, onSubmit }: { initial: string; onSubmit: (q: string) => void }) {
   const t = useTranslations("Community.mine");
   const id = useId();
   const [draft, setDraft] = useState(initial);
@@ -140,22 +135,15 @@ function SearchField({ initial, onSubmit }: { initial: string; onSubmit: (q: str
 
   return (
     <form role="search" onSubmit={submit} className="w-full sm:w-72">
-      <label htmlFor={`${id}-q`} className="sr-only">
-        {t("search")}
-      </label>
-      <div className="relative">
-        <Icon name="search" className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-text-secondary" />
-        <input
-          id={`${id}-q`}
-          type="search"
-          value={draft}
-          maxLength={100}
-          onChange={(event) => setDraft(event.target.value)}
-          aria-describedby={short ? `${id}-hint` : undefined}
-          placeholder={t("searchPlaceholder")}
-          className={cn(inputClass, "ps-9")}
-        />
-      </div>
+      <SearchField
+        id={`${id}-q`}
+        label={t("search")}
+        value={draft}
+        maxLength={100}
+        onChange={(event) => setDraft(event.target.value)}
+        aria-describedby={short ? `${id}-hint` : undefined}
+        placeholder={t("searchPlaceholder")}
+      />
       {short ? (
         <p id={`${id}-hint`} className="mt-1 text-xs text-text-secondary">
           {t("searchMin")}

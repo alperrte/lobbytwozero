@@ -105,11 +105,11 @@ describe("Filtre paneli: tür, platform ve dil açılır listeleri", () => {
     render(<NextIntlClientProvider locale="tr" messages={messages}><GameFilters params={new URLSearchParams("currency=TRY&country=TR")} onApply={onApply} /></NextIntlClientProvider>);
     fireEvent.click(screen.getByRole("button", { name: t.filters }));
     expect(screen.queryByLabelText(t.fields.currency)).toBeNull();
-    const select = screen.getByLabelText(t.fields.country) as HTMLSelectElement;
-    expect([...select.options].map((option) => option.value)).toEqual(["USD", "EUR", "AUD", "GBP", "BRL", "CNY", "KRW", "INR", "JPY", "CAD", "PLN", "TRY", "NZD"]);
-    expect([...select.options].map((option) => option.textContent)).toEqual(["Amerika Birleşik Devletleri (USD)", "Almanya (EUR)", "Avustralya (AUD)", "Birleşik Krallık (GBP)", "Brezilya (BRL)", "Çin (CNY)", "Güney Kore (KRW)", "Hindistan (INR)", "Japonya (JPY)", "Kanada (CAD)", "Polonya (PLN)", "Türkiye (TRY)", "Yeni Zelanda (NZD)"]);
-    expect(select.value).toBe("TRY");
-    fireEvent.change(select, { target: { value: "GBP" } });
+    const select = screen.getByLabelText(t.fields.country);
+    expect(select).toHaveTextContent("Türkiye (TRY)");
+    fireEvent.click(select);
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual(["Amerika Birleşik Devletleri (USD)", "Almanya (EUR)", "Avustralya (AUD)", "Birleşik Krallık (GBP)", "Brezilya (BRL)", "Çin (CNY)", "Güney Kore (KRW)", "Hindistan (INR)", "Japonya (JPY)", "Kanada (CAD)", "Polonya (PLN)", "Türkiye (TRY)", "Yeni Zelanda (NZD)"]);
+    fireEvent.click(screen.getByRole("option", { name: "Birleşik Krallık (GBP)" }));
     fireEvent.click(screen.getByRole("button", { name: t.applyFilters }));
     expect(onApply).toHaveBeenCalledWith(expect.objectContaining({ currency: "GBP", country: "GB" }));
   });
@@ -117,13 +117,13 @@ describe("Filtre paneli: tür, platform ve dil açılır listeleri", () => {
     const onApply = vi.fn();
     const { unmount } = render(<NextIntlClientProvider locale="tr" messages={messages}><GameFilters params={new URLSearchParams()} onApply={onApply} /></NextIntlClientProvider>);
     fireEvent.click(screen.getByRole("button", { name: t.filters }));
-    expect((screen.getByLabelText(t.fields.country) as HTMLSelectElement).value).toBe("TRY");
+    expect(screen.getByLabelText(t.fields.country)).toHaveTextContent("Türkiye (TRY)");
     fireEvent.click(screen.getByRole("button", { name: t.applyFilters }));
     expect(onApply).toHaveBeenCalledWith(expect.objectContaining({ currency: "", country: "" }));
     unmount();
     render(<NextIntlClientProvider locale="en" messages={enMessages}><GameFilters params={new URLSearchParams()} onApply={onApply} /></NextIntlClientProvider>);
     fireEvent.click(screen.getByRole("button", { name: enMessages.Game.filters }));
-    expect((screen.getByLabelText(enMessages.Game.fields.country) as HTMLSelectElement).value).toBe("USD");
+    expect(screen.getByLabelText(enMessages.Game.fields.country)).toHaveTextContent("(USD)");
   });
   it("+18 oyunları göster seçeneği işaretlenince filtreye yazılır, işaretsizken gönderilmez ve aktif filtre olarak kaldırılabilir", () => {
     const onApply = vi.fn();

@@ -5,7 +5,6 @@ import { ApiHttpError } from "@/shared/lib/api/client";
 
 export const panel = "rounded-panel border border-border bg-surface p-5 sm:p-6";
 export const control = "inline-flex min-h-11 items-center justify-center rounded-control border border-control-border bg-surface px-4 py-2 text-sm font-semibold text-text-primary hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-50";
-export const select = "min-h-11 max-w-full rounded-control border border-control-border bg-background px-3 text-text-primary";
 
 export function PerformanceLoading() {
   const t = useTranslations("Performance");

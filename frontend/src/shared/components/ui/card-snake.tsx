@@ -13,6 +13,13 @@ import {
 type CardSnakeProps = {
   /** İlk açılışta izin başlama gecikmesi (ms); kart giriş animasyonu bittikten sonra oynaması için. Verilmezse otomatik oynamaz. */
   initialDelayMs?: number;
+  /**
+   * `hover-focus` (varsayılan): fare girişi + klavye odağı tetikler (auth kartı, diyaloglar).
+   * `hover`: yalnız fare girişi tetikler; ortak oval kontroller (SearchField, Select, MultiSelect) bunu kullanır.
+   */
+  trigger?: "hover" | "hover-focus";
+  /** Test kimliği; ortak kontroller kendi kimliğini verir. */
+  testId?: string;
 };
 
 /**
@@ -21,7 +28,7 @@ type CardSnakeProps = {
  * `border-radius` değerini taşımalıdır; yarıçap ve boyut ondan ölçülür.
  *
  * Tetikleyiciler: (1) `initialDelayMs` verildiyse açılıştan sonra bir kez, (2) fare kartın üzerine geldiğinde,
- * (3) klavye odağı karta girdiğinde. Çalışırken gelen yeni tetikleme yok sayılır (üst üste binme, döngü yok); tur
+ * (3) `trigger="hover-focus"` ise klavye odağı karta girdiğinde. Çalışırken gelen yeni tetikleme yok sayılır (üst üste binme, döngü yok); tur
  * bitince yeniden tetiklenebilir ve her turun başlangıç noktası yeniden rastgele seçilir. Başlangıç noktası yalnız
  * efekt içinde (istemcide) seçilir, bu yüzden SSR çıktısı sabittir.
  *
@@ -29,7 +36,8 @@ type CardSnakeProps = {
  * Çizim vektördür (retina'da net); boyut `ResizeObserver` ile izlenir. "Hareketi azalt" açıkken iz oynamaz, yerine sabit
  * ince bir gradyan çerçeve görünür.
  */
-export function CardSnake({ initialDelayMs }: CardSnakeProps) {
+export function CardSnake({ initialDelayMs, trigger = "hover-focus", testId = "auth-card-snake" }: CardSnakeProps) {
+  const listenFocus = trigger === "hover-focus";
   const gradientId = useId();
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -126,7 +134,9 @@ export function CardSnake({ initialDelayMs }: CardSnakeProps) {
 
     layout();
     card.addEventListener("pointerenter", onPointerEnter);
-    card.addEventListener("focusin", onFocusIn);
+    if (listenFocus) {
+      card.addEventListener("focusin", onFocusIn);
+    }
     let observer: ResizeObserver | undefined;
     if (typeof ResizeObserver !== "undefined") {
       observer = new ResizeObserver(layout);
@@ -146,14 +156,14 @@ export function CardSnake({ initialDelayMs }: CardSnakeProps) {
         animation.cancel();
       }
     };
-  }, [initialDelayMs]);
+  }, [initialDelayMs, listenFocus]);
 
   return (
     <svg
       ref={svgRef}
       aria-hidden="true"
       focusable="false"
-      data-testid="auth-card-snake"
+      data-testid={testId}
       data-snake-state="idle"
       className="pointer-events-none absolute inset-0 size-full overflow-visible"
     >
