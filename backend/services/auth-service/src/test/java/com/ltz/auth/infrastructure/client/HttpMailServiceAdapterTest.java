@@ -110,6 +110,41 @@ class HttpMailServiceAdapterTest {
     }
 
     @Test
+    void kayitliTercihYoksaIstekDiliDortUctaDaKullanilir() {
+        adapter.sendVerificationCode(new VerificationCodeMail(KEY, ACCOUNT, EMAIL, "123456", Duration.ofMinutes(10),
+                "en"));
+        adapter.sendPasswordReset(new PasswordResetMail(KEY, ACCOUNT, EMAIL, "https://ltz.example/r",
+                Duration.ofMinutes(5), "en"));
+        adapter.sendAccountDeletionConfirmation(new AccountDeletionMail(KEY, ACCOUNT, EMAIL, "https://ltz.example/d",
+                Duration.ofMinutes(5), "en"));
+        adapter.sendSecurityNotification(new SecurityNotificationMail(KEY, ACCOUNT, EMAIL,
+                SecurityNotificationType.SUSPICIOUS_LOGIN, Instant.now(), "en"));
+
+        assertThat(TARGET.received()).hasSize(4).allSatisfy(request ->
+                assertThat(request.body()).contains("\"locale\":\"en\""));
+    }
+
+    @Test
+    void kayitliTercihIstekDilindenOnceGelir() {
+        locales = account -> Optional.of("tr");
+
+        adapter.sendSecurityNotification(new SecurityNotificationMail(KEY, ACCOUNT, EMAIL,
+                SecurityNotificationType.SUSPICIOUS_LOGIN, Instant.now(), "en"));
+
+        assertThat(TARGET.received()).singleElement().satisfies(request ->
+                assertThat(request.body()).contains("\"locale\":\"tr\"").doesNotContain("\"en\""));
+    }
+
+    @Test
+    void gecersizIstekDiliMaileGonderilmez() {
+        adapter.sendSecurityNotification(new SecurityNotificationMail(KEY, ACCOUNT, EMAIL,
+                SecurityNotificationType.SUSPICIOUS_LOGIN, Instant.now(), "de"));
+
+        assertThat(TARGET.received()).singleElement().satisfies(request ->
+                assertThat(request.body()).doesNotContain("locale", "\"de\""));
+    }
+
+    @Test
     void gecersizDegerMaileGonderilmez() {
         locales = account -> Optional.of("de");
 

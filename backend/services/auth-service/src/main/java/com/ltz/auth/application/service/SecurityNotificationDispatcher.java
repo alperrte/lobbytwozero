@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import com.ltz.auth.application.port.RequestLocaleContext;
 import com.ltz.auth.application.port.SecurityNotificationMail;
 import com.ltz.auth.application.port.SecurityNotificationMailPort;
 import com.ltz.auth.application.port.SecurityNotificationType;
@@ -30,12 +31,15 @@ public class SecurityNotificationDispatcher {
     private final SecurityNotificationMailPort mailPort;
     private final TaskExecutor taskExecutor;
     private final Clock clock;
+    private final RequestLocaleContext requestLocale;
 
     public SecurityNotificationDispatcher(SecurityNotificationMailPort mailPort,
-                                          @Qualifier("applicationTaskExecutor") TaskExecutor taskExecutor, Clock clock) {
+                                          @Qualifier("applicationTaskExecutor") TaskExecutor taskExecutor, Clock clock,
+                                          RequestLocaleContext requestLocale) {
         this.mailPort = mailPort;
         this.taskExecutor = taskExecutor;
         this.clock = clock;
+        this.requestLocale = requestLocale;
     }
 
     /** Açık bir işlem varsa commit sonrasında, yoksa hemen gönderir. */
@@ -58,7 +62,7 @@ public class SecurityNotificationDispatcher {
             return; // E-postasız hesap (yalnız SteamID): bildirim kanalı yok, sahte adres üretilmez.
         }
         SecurityNotificationMail mail = new SecurityNotificationMail(idempotencyKey, accountId, recipientEmail, type,
-                clock.instant());
+                clock.instant(), requestLocale.locale().orElse(null));
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override

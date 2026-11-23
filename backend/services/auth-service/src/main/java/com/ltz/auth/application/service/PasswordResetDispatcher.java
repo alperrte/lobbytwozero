@@ -10,6 +10,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import com.ltz.auth.application.port.PasswordResetMail;
 import com.ltz.auth.application.port.PasswordResetMailPort;
+import com.ltz.auth.application.port.RequestLocaleContext;
 import com.ltz.auth.domain.entity.PasswordResetToken;
 import com.ltz.auth.domain.enums.PasswordResetInvalidationReason;
 import com.ltz.auth.domain.enums.SecurityEventType;
@@ -32,23 +33,28 @@ public class PasswordResetDispatcher {
     private final PasswordResetTokenRepository tokenRepository;
     private final SecurityEventRecorder securityEventRecorder;
     private final Clock clock;
+    private final RequestLocaleContext requestLocale;
 
     public PasswordResetDispatcher(PasswordResetMailPort mailPort,
                                    @Qualifier("applicationTaskExecutor") TaskExecutor taskExecutor,
                                    TransactionTemplate transactionTemplate,
                                    PasswordResetTokenRepository tokenRepository,
-                                   SecurityEventRecorder securityEventRecorder, Clock clock) {
+                                   SecurityEventRecorder securityEventRecorder, Clock clock,
+            RequestLocaleContext requestLocale) {
         this.mailPort = mailPort;
         this.taskExecutor = taskExecutor;
         this.transactionTemplate = transactionTemplate;
         this.tokenRepository = tokenRepository;
         this.securityEventRecorder = securityEventRecorder;
         this.clock = clock;
+        this.requestLocale = requestLocale;
     }
 
     public void dispatch(PasswordResetMail mail) {
+        // Arayüz dili istek iş parçacığında yakalanır; teslim ayrı iş parçacığında çalışır.
+        PasswordResetMail localized = mail.withRequestLocale(requestLocale.locale().orElse(null));
         try {
-            taskExecutor.execute(() -> deliver(mail));
+            taskExecutor.execute(() -> deliver(localized));
         } catch (TaskRejectedException _) {
             log.warn("Password reset delivery rejected by executor tokenId={}", mail.idempotencyKey());
             markDeliveryFailed(mail);

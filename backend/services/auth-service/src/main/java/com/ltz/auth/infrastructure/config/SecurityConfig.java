@@ -34,6 +34,8 @@ import com.ltz.auth.infrastructure.security.LoginDeviceHolder;
 import com.ltz.auth.infrastructure.security.ProblemDetailSecurityHandler;
 import com.ltz.auth.infrastructure.security.RequestBodySizeLimitFilter;
 import com.ltz.auth.infrastructure.security.RequestIdFilter;
+import com.ltz.auth.infrastructure.security.RequestLocaleFilter;
+import com.ltz.auth.infrastructure.security.RequestLocaleHolder;
 import com.ltz.auth.infrastructure.security.SecureTokens;
 import com.ltz.auth.infrastructure.security.TokenClaims;
 
@@ -210,6 +212,15 @@ public class SecurityConfig {
                 new LoginDeviceFilter(sessionCookies.deviceCookieName(), holder, secureTokens,
                         AuthApiPaths.LOGIN, AuthApiPaths.OAUTH));
         registration.setOrder(SecurityFilterProperties.DEFAULT_FILTER_ORDER - 3);
+        return registration;
+    }
+
+    /** Arayüz dilini ({@code Accept-Language}: tr/en) okur; mail dili için yedektir, hiçbir yere kalıcı yazılmaz. */
+    @Bean
+    FilterRegistrationBean<RequestLocaleFilter> requestLocaleFilter(RequestLocaleHolder holder) {
+        FilterRegistrationBean<RequestLocaleFilter> registration = new FilterRegistrationBean<>(
+                new RequestLocaleFilter(holder));
+        registration.setOrder(SecurityFilterProperties.DEFAULT_FILTER_ORDER - 4);
         return registration;
     }
 

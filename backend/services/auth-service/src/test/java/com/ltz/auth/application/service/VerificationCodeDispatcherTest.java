@@ -41,7 +41,24 @@ class VerificationCodeDispatcherTest {
     private final EmailVerificationCodeRepository codeRepository = mock(EmailVerificationCodeRepository.class);
     private final SecurityEventRecorder recorder = mock(SecurityEventRecorder.class);
     private final VerificationCodeDispatcher dispatcher = new VerificationCodeDispatcher(mailPort, executor,
-            transactionTemplate, codeRepository, recorder, Clock.fixed(NOW, ZoneOffset.UTC));
+            transactionTemplate, codeRepository, recorder, Clock.fixed(NOW, ZoneOffset.UTC), () -> Optional.of("en"));
+
+    @Test
+    void istekDiliIstekIsParcacigindaYakalanipMailKaydinaYazilir() {
+        doAnswer(invocation -> {
+            invocation.<Runnable>getArgument(0).run();
+            return null;
+        }).when(executor).execute(any());
+        VerificationCodeMail mail = new VerificationCodeMail(UUID.randomUUID(), UUID.randomUUID(), "x@example.test",
+                "123456", TTL);
+
+        dispatcher.dispatch(mail);
+
+        org.mockito.ArgumentCaptor<VerificationCodeMail> sent = org.mockito.ArgumentCaptor
+                .forClass(VerificationCodeMail.class);
+        org.mockito.Mockito.verify(mailPort).sendVerificationCode(sent.capture());
+        org.assertj.core.api.Assertions.assertThat(sent.getValue().requestLocale()).isEqualTo("en");
+    }
 
     @Test
     void kuyrukDoluysaKodTeslimEdilemediOlarakGecersizKilinir() {
