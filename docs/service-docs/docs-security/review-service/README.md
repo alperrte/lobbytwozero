@@ -32,4 +32,4 @@ mvn -B -f backend/pom.xml -pl services/review-service -Pstrict-quality -DskipTes
 node pre-push/ci/lint-ratchet.mjs update --modules services/review-service   # kazancı baseline'a kilitler ve bu klasörü yeniler
 ```
 
-Ardından `backend/config/quality-baseline.json` ve `docs-security/` değişikliklerini commit'e ekle.
+Ardından `backend/config/quality-baseline.json` ve `docs/service-docs/docs-security/` değişikliklerini commit'e ekle.

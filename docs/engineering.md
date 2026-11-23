@@ -316,9 +316,9 @@ içinde çalışır. Kurallar (`backend/config/checkstyle.xml`, `pmd.xml`) **de�
 - **Sınır:** PMD sonucu derleme classpath'ine hafifçe bağlıdır; Windows ve Linux arasında nadiren sayı farkı görürsen
   baseline'ı **CI'ın (Linux) sonucuna** göre güncelle ve nedenini PR'da yaz. Bu kapı güvenlik açığı (SAST) taraması değildir.
 
-### Servis başına güvenlik notları (`docs-security/`)
+### Servis başına güvenlik notları (`docs/service-docs/docs-security/`)
 
-`docs-security/<servis>/` her backend servisi için iki dosya içerir ve geliştiricinin/yapay zekâ ajanının servise
+`docs/service-docs/docs-security/<servis>/` her backend servisi için iki dosya içerir ve geliştiricinin/yapay zekâ ajanının servise
 dokunmadan önce ilk bakacağı yerdir (`AGENTS.md` §2 madde 6):
 
 - `README.md` **otomatik üretilir** (kaynak `backend/config/quality-baseline.json`): sahip, dondurulmuş borç (kural ve

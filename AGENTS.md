@@ -39,7 +39,7 @@ Her yeni görevde, kod yazmadan önce sırasıyla oku:
    7. [frontend/frontend-layout.md](frontend/frontend-layout.md). **Frontend işi varsa zorunludur:** ortak sayfa layout'u (AppShell + tek PageContainer), ortak `SearchField`/`Select`/`MultiSelect` kontrolleri ve `globals.css` renk paleti.
 4. **Migration yazılacaksa:** [docs/decisions/migrations.md](docs/decisions/migrations.md). Ayrıntı için bkz. §4.
 5. **API kataloğu:** [docs/api.md](docs/api.md). Başka servisin API'sini tüketmeden önce sözleşmeyi buradan oku. Kendi API'ni yazınca buraya kaydet (bkz. §4.1).
-6. **Servisin güvenlik ve kalite notları:** `docs-security/<servis>/README.md` (otomatik üretilir: dondurulmuş Checkstyle/PMD borcu, dosya dosya liste, doğrulama komutları) ve `NOTLAR.md` (bilinen test/ortam sorunları). Dokunacağın her servisin klasörünü **koda başlamadan oku**; yeni ihlal ekleme, ihlali kural kapatarak gizleme. Genel liste: [docs-security/README.md](docs-security/README.md).
+6. **Servisin güvenlik ve kalite notları:** `docs/service-docs/docs-security/<servis>/README.md` (otomatik üretilir: dondurulmuş Checkstyle/PMD borcu, dosya dosya liste, doğrulama komutları) ve `NOTLAR.md` (bilinen test/ortam sorunları). Dokunacağın her servisin klasörünü **koda başlamadan oku**; yeni ihlal ekleme, ihlali kural kapatarak gizleme. Genel liste: [docs-security/README.md](docs-security/README.md).
 
 **Kaynak önceliği:** repo kodu > `servis-gereksinimleri` > `gereksinimler` (docx). Çelişkiyi sessizce çözme; kullanıcıya bildir.
 
