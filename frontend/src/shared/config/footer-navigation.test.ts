@@ -45,6 +45,7 @@ describe("footerGroups", () => {
         else if (entry.id === "community") expect(entry.href).toBe("/community");
         else if (entry.id === "performance") expect(entry.href).toBe("/performance");
         else if (entry.id === "reviews") expect(entry.href).toBe("/reviews");
+        else if (entry.id === "forYou") expect(entry.href).toBe("/for-you");
         else expect(entry.href).toBeUndefined();
       }
     }

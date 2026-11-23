@@ -109,7 +109,7 @@ describe("AppShell", () => {
     const nav = screen.getByRole("navigation", { name: "Ana gezinme" });
 
     const links = nav.querySelectorAll("a");
-    expect(links).toHaveLength(9);
+    expect(links).toHaveLength(10);
     expect(links[1]).toHaveAttribute("href", "/tr/oyunlar");
     expect(within(nav).getByRole("link", { name: "İncelemeler" })).toHaveAttribute("href", "/tr/incelemeler");
     expect(within(nav).queryByRole("button", { name: "İncelemeler — Yakında" })).not.toBeInTheDocument();
@@ -117,6 +117,7 @@ describe("AppShell", () => {
     expect(within(nav).getByRole("link", { name: "Kütüphanem" })).toHaveAttribute("href", "/tr/kutuphane");
     expect(within(nav).queryByRole("button", { name: "Kütüphanem — Yakında" })).not.toBeInTheDocument();
     expect(within(nav).getByRole("link", { name: "Performans" })).toHaveAttribute("href", "/tr/performans");
+    expect(within(nav).getByRole("link", { name: "Sana Özel" })).toHaveAttribute("href", "/tr/sana-ozel");
     expect(links[0]).toHaveAttribute("href", "/tr");
     expect(links[0]).toHaveAttribute("aria-current", "page");
     expect(nav.querySelectorAll('a[href="#"]')).toHaveLength(0);
@@ -126,8 +127,8 @@ describe("AppShell", () => {
     expect(nav).not.toHaveTextContent("Profil");
     expect(nav).not.toHaveTextContent("Bilgisayarlarım");
     expect(nav).toHaveTextContent("Kampanyalar");
-    // İncelemeler ve Performans dahil dokuz bağlantı açıktır; beş öğe henüz hazır değildir.
-    expect(screen.getAllByText("Yakında")).toHaveLength(5);
+    // İncelemeler, Performans ve Sana Özel dahil on bağlantı açıktır; dört öğe henüz hazır değildir.
+    expect(screen.getAllByText("Yakında")).toHaveLength(4);
   });
 
   it("14 öğeyi üç grupta, belirlenen sırayla sunar", () => {
@@ -184,10 +185,10 @@ describe("AppShell", () => {
     const news = screen.getByRole("button", { name: "Haberler — Yakında" });
     expect(news).toHaveAttribute("aria-disabled", "true");
     expect(news.closest("a")).toBeNull();
-    // İncelemeler ve Performans dahil dokuz bağlantı açıktır; diğer beş öğe pasiftir.
+    // İncelemeler, Performans ve Sana Özel dahil on bağlantı açıktır; diğer dört öğe pasiftir.
     expect(
       screen.getAllByRole("button", { name: /— Yakında$/ })
-    ).toHaveLength(5);
+    ).toHaveLength(4);
   });
 
   it("'Yakında' öğesine odaklanınca tooltip çıkar, Escape ile kapanır", () => {

@@ -28,7 +28,14 @@ export type PageId =
   | "campaigns"
   | "computers"
   | "performance"
-  | "performanceDashboard";
+  | "performanceDashboard"
+  | "forYou"
+  | "forYouGames"
+  | "forYouHardware"
+  | "forYouFriends"
+  | "forYouPlayers"
+  | "forYouEvents"
+  | "forYouHistory";
 
 /** Footer sütunları: platform, destek ve alt satırdaki yasal bağlantılar. */
 export type PageSection = "platform" | "support" | "legal";
@@ -44,6 +51,13 @@ export type PageEntry = {
 };
 
 export const pages: readonly PageEntry[] = [
+  { id: "forYou", href: "/for-you", indexable: false, keywords: ["sana özel", "for you", "öneri", "recommendation", "tavsiye"] },
+  { id: "forYouGames", href: "/for-you/games", indexable: false, keywords: ["oyun önerisi", "game recommendations", "öneri"] },
+  { id: "forYouHardware", href: "/for-you/hardware", indexable: false, keywords: ["donanıma uygun", "hardware compatible", "sistem gereksinimi"] },
+  { id: "forYouFriends", href: "/for-you/friends", indexable: false, keywords: ["arkadaş önerisi", "friend suggestions"] },
+  { id: "forYouPlayers", href: "/for-you/players", indexable: false, keywords: ["benzer oyuncular", "similar players"] },
+  { id: "forYouEvents", href: "/for-you/events", indexable: false, keywords: ["etkinlik önerisi", "event suggestions"] },
+  { id: "forYouHistory", href: "/for-you/history", indexable: false, keywords: ["öneri geçmişi", "recommendation history"] },
   { id: "performanceDashboard", href: "/performance/dashboard", indexable: false, keywords: ["performans paneli", "dashboard", "grafik", "rapor"] },
   { id: "performance", href: "/performance", indexable: false, keywords: ["performance", "performans", "fps", "cihaz"] },
   { id: "library", href: "/library", indexable: false, keywords: ["kütüphane", "library", "koleksiyon"] },

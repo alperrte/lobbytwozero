@@ -12268,11 +12268,23 @@ kısa ömrüyle sınırlıdır. Yanıtlar ve hatalar `Cache-Control: private, no
 16 KiB POST/PUT sınırı; instance başına hesap başına 10 generation/dk, diğer kişisel işlemler
 ortak 120/dk; en çok 10000 aktif hesap penceresi. 429/503 `Retry-After: 60` döner.
 
+**Frontend bağlantısı (2026-11-23):** Aşağıdaki kullanıcı uçları `frontend/src/features/recommendation`
+(Sana Özel hub, `/for-you/**`, TR `/sana-ozel/**`, noindex) tarafından tüketilir. Rıza kapalıyken her uç
+403 `CONSENT_REQUIRED` döner ve bu çağrı kişisel geçmişi siler; frontend önce User `GET /user/me/consents`
+okur, rıza yoksa hiçbir recommendation çağrısı yapmadan rıza kapısını gösterir (`PUT /user/me/consents`).
+Skor yüzde olarak gösterilmez; `reasonCode` tek sabit koddur (`GENRE_RATING_AFFINITY`), UI yalnız sıra ve
+`matchedGenres`/ortak tür-platform gerekçesini gösterir. Etkinlik `sharedGenres`/`sharedPlatforms` kodları
+`[a-z0-9]` normalize gelir; frontend bunları yerelleştirilmiş etiketlerle normalize ederek eşler.
+Frontend Test Durumu: Vitest (`features/recommendation/**/*.test.ts(x)`: api/guard/filtre/adapter/cache,
+feedback hook, rıza kapısı, değerlendirme sonucu, uyumlu oyun kartı, hata bileşeni, rehber, arkadaş isteği,
+etkinlik kartı, oyun ekranı) ve Playwright `frontend/e2e/recommendation.spec.ts` (Gateway stub'lı) PASS.
+Canlı çok servisli (User/Game/Social/Event/Hardware + Recommendation) tarayıcı doğrulaması **NOT VERIFIED**.
+
 ### RECOMMENDATION — Kişisel tür önerisi üret (REC-01/04/16/17)
 
 Durum: IMPLEMENTED — rules-v1 dört sinyalin tamamını kullanır (tür, kişisel puan REC-03, favori ve tamamlanan benzerliği REC-02/05); yanıt 50 aday/tür penceresi nedeniyle PARTIAL kalır
 Sorumlu: Alper
-Tüketici servisler: Frontend (henüz bağlanmadı)
+Tüketici servisler: Frontend (bağlandı — Sana Özel hub, 2026-11-23)
 
 #### Endpoint
 POST /api/v1/recommendation/games
@@ -12292,7 +12304,7 @@ boş sonuçtur. Sistem uygunluğu filtresi henüz yoktur; destekleniyormuş gibi
 Item: `{itemId, gameId, score, rank, reasonCode:"GENRE_RATING_AFFINITY", contribution, matchedGenres}`.
 `score` ve `contribution`; tür yakınlığı (%20), kişisel puan (%30), favori benzerliği (%40) ve tamamlanan benzerliği (%10) katkılarının toplamıdır; sinyali 0 olan katkı eklenmez.
 Favori/tamamlanan benzerliği: Library `recommendation-signals` (servis token'ı, en çok 10 sayfa/500 kayıt) favori ve tamamlanan oyun kümelerini verir; Game GAME-15 toplu metadata (100'lük gruplar) görünür oyunların türlerini verir. Bir türün payı, kümedeki görünür oyunların o türü taşıma oranıdır (0..10000); adayın yakınlığı eşleşen türlerinin payının ortalamasıdır (payı olmayan tür 0). Yetişkin/gizli oyun paydaya girmez. Boş kümede Game çağrılmaz; aday yoksa Library/Game okunmaz.
-`reasonCode` önceki sürümde `GENRE_AFFINITY` idi; puan sinyali eklendiği için değişti (frontend henüz tüketmiyor).
+`reasonCode` önceki sürümde `GENRE_AFFINITY` idi; puan sinyali eklendiği için değişti (frontend bu tek kodu tüketir; UI yüzde göstermez, yalnız sıra + `matchedGenres` gerekçesi gösterir).
 Kişisel puan: kullanıcının Review puanları (`GET /api/v1/review/ratings/mine`, en çok 10 sayfa/500 puan) Game GAME-15 tür kodlarıyla eşleştirilir; tür ortalaması 5 altındaysa 0, 10 ortalama 10000. Adayın puan yakınlığı eşleşen türlerinin ortalamasıdır (puanlanmamış tür 0). Aday yoksa Review çağrılmaz.
 gameId kanonik UUID'dir. `status=PARTIAL` veya `EMPTY`; 50 aday/tür penceresi limitations içinde
 `BOUNDED_DISCOVERY_50_PER_GENRE` olarak belirtilir (`PERSONAL_RATINGS_UNAVAILABLE`, `FAVORITE_SIMILARITY_UNAVAILABLE` ve
@@ -12311,7 +12323,7 @@ Sonuç 30 günlük owner geçmişine aynı transaction'da kaydedilir; hesap baş
 - 503: SOURCE_UNAVAILABLE / RECOMMENDATION_UNAVAILABLE / RECOMMENDATION_BUSY
 
 #### Bağlantı
-Frontend: API Gateway üzerinden tam endpoint; frontend değişmedi.
+Frontend: `features/recommendation/services/recommendation-api.ts` `generateGames`; `/for-you/games` (`games-screen.tsx`) yalnız kullanıcı "Öneri oluştur"a basınca çağırır (sayfa açılışında POST yok, çift tıklama kilidi).
 Diğer servisler: User me/consents + me, Auth account-bound Library grant, Library signals,
 Game filtreli discovery, Review `ratings/mine` (kullanıcı token'ı) ve Game GAME-15 toplu metadata; sabit origin, bounded JSON,
 3000/5000 ms timeout, redirect/retry yok. Review veya Game puan/tür okuması başarısızsa istek 503 SOURCE_UNAVAILABLE ile durur
@@ -12329,7 +12341,7 @@ REC-03 birim testleri geçti (HttpPersonalRatingSourceTest 6, PersonalizedRating
 
 Durum: IMPLEMENTED
 Sorumlu: Alper
-Tüketici servisler: Frontend (planlı)
+Tüketici servisler: Frontend (bağlandı — Sana Özel hub, 2026-11-23)
 
 #### Endpoint
 GET /api/v1/recommendation/players (REC-13, SIMILAR_PLAYERS)
@@ -12360,7 +12372,8 @@ ile gelir; rıza/ACTIVE/onboarding/engel/arkadaş süzgeçleri User tarafındad�
 yanıt (kendini aday döndürme dahil, fail-closed).
 
 #### Bağlantı
-Frontend: Gateway üzerinden endpoint. Diğer servisler: User (viewer `/api/v1/user/me` + aday uç noktası),
+Frontend: `recommendation-api.ts` `similarPlayers`/`friendSuggestions`; `/for-you/players`, `/for-you/friends` ve Arkadaşlar sayfasındaki `FriendSuggestions compact`. Profil kartları User `POST /user/profiles/batch`, arkadaşlık isteği Social `POST /social/friend-requests` ile.
+Diğer servisler: User (viewer `/api/v1/user/me` + aday uç noktası),
 Auth (service token). Varsayım: bekleyen (PENDING) arkadaşlık isteği olan kişiler henüz dışlanmaz (Social kuralı onaysız).
 
 #### Test Durumu
@@ -12371,7 +12384,7 @@ rıza reddi, boş tercih, kaynak hataları, kendini aday döndürme, doğrulama 
 
 Durum: IMPLEMENTED
 Sorumlu: Alper
-Tüketici servisler: Frontend (planlı)
+Tüketici servisler: Frontend (bağlandı — Sana Özel hub, 2026-11-23)
 
 #### Endpoint
 GET /api/v1/recommendation/events
@@ -12401,7 +12414,8 @@ Stateless: run/geçmiş yazılmaz; organizerId dönmez. Katılım cezası öneri
 503 User/Event/Game kaynağı kullanılamıyor veya bozuk yanıt (fail-closed, boş liste sayılmaz; yeniden deneme yok).
 
 #### Bağlantı
-Frontend: Gateway üzerinden endpoint. Diğer servisler: User (viewer), Event (liste, EVT-04), Game (GAME-15 toplu metadata).
+Frontend: `recommendation-api.ts` `events`; `/for-you/events` ve hub önizlemesi. Katıl düğmesi Event `POST /api/v1/event/events/{id}/participations` çağırır; etkinlik detay rotası frontend'de olmadığı için detay linki yok (BLOCKED).
+Diğer servisler: User (viewer), Event (liste, EVT-04), Game (GAME-15 toplu metadata).
 Yeni ENV/migration yok (`EVENT_SERVICE_URL` Compose'ta zaten tanımlı). Eligibility Event'in liste alanlarından gelir
 (bkz. docs-recommendation/integration/dependencies/done/event-service-requests.md).
 
@@ -12413,7 +12427,7 @@ sıralama, tercih yok, rıza/kaynak hatası, sayfalama/kesilme, bozuk veya eksik
 
 Durum: IMPLEMENTED
 Sorumlu: Alper
-Tüketici servisler: Frontend (planlı)
+Tüketici servisler: Frontend (bağlandı — Sana Özel hub, 2026-11-23)
 
 #### Endpoint
 GET /api/v1/recommendation/games/hardware-compatible
@@ -12444,6 +12458,7 @@ UNKNOWN_IS_NOT_KNOWN_INCOMPATIBLE, SOME_CANDIDATES_UNAVAILABLE, SOME_REQUIREMENT
 429 oran sınırı; 503 Hardware/User/Library/Game kaynağı kullanılamıyor ya da bozuk yanıt (fail-closed, kısmi sonuç yok).
 
 #### Bağlantı
+Frontend: `recommendation-api.ts` `hardwareCompatible`; `/for-you/hardware` yalnız "Önerileri getir" ile çağırır. `MEETS_MINIMUM_COMPUTE` "Minimum CPU/GPU/RAM karşılanıyor" (tam uyumluluk değil), `UNKNOWN` "Doğrulanamadı" olarak gösterilir.
 Hardware (profil batch), User (`/user/me`, rıza), Game (keşif + herkese açık `POST /api/v1/game/games/recommendation-metadata/batch`, GAME-15; servis token'ı gerekmez, tek toplu çağrı),
 Library (sinyaller). Game alanları `{value,state}` gelir; yalnız `AVAILABLE` değer kullanılır, `UNKNOWN`/`UNCOMPARABLE` uyumluluğu UNKNOWN bırakır;
 `adult=true` veya `visible=false` oyun elenir (unavailable sayılır).
@@ -12457,7 +12472,7 @@ rıza/yabancı profil/Game 503 fail-closed), `HttpGameMetadataSourceTest` (şema
 
 Durum: IMPLEMENTED
 Sorumlu: Alper
-Tüketici servisler: Frontend (planlı)
+Tüketici servisler: Frontend (bağlandı — Sana Özel hub, 2026-11-23)
 
 #### Endpoint
 GET /api/v1/recommendation/runs
@@ -12479,7 +12494,7 @@ Expired run'lar sorgudan çıkarılır; rıza geri çekildiği fark edilirse ki�
 429 oran sınırı; 503 kaynak/DB kullanılamıyor.
 
 #### Bağlantı
-Frontend: Gateway üzerinden endpoint.
+Frontend: `recommendation-api.ts` `listRuns`; `/for-you/history` (cursor ile "Daha fazla") ve `/for-you/games` açılışında `size=1` ile son çalışma.
 Diğer servisler: User consent + Auth ACTIVE grant kontrolü; veri yalnız recommendation_db.
 
 #### Test Durumu
@@ -12489,7 +12504,7 @@ UNIT + INTEGRATION — A/B, cursor izolasyonu, ekleme sırasında stabil sayfala
 
 Durum: IMPLEMENTED
 Sorumlu: Alper
-Tüketici servisler: Frontend (planlı)
+Tüketici servisler: Frontend (bağlandı — Sana Özel hub, 2026-11-23)
 
 #### Endpoint
 GET /api/v1/recommendation/runs/{runId}
@@ -12509,7 +12524,7 @@ sürümü. Açıklama yalnız sahibinin eşleşen tür kodlarıdır; güncel oyu
 429 oran sınırı; 503 kaynak/DB hatası.
 
 #### Bağlantı
-Frontend: Gateway üzerinden endpoint.
+Frontend: `recommendation-api.ts` `getRun`; `/for-you/history/[runId]` (404 → süresi dolmuş/bulunamadı) ve son çalışma görünümü.
 Diğer servisler: User consent + Auth ACTIVE; kişisel geçmiş başka DB'den okunmaz.
 
 #### Test Durumu
@@ -12519,7 +12534,7 @@ UNIT + INTEGRATION — owner read, BOLA 404, açıklama/score tutarlılığı, r
 
 Durum: IMPLEMENTED
 Sorumlu: Alper
-Tüketici servisler: Frontend (planlı)
+Tüketici servisler: Frontend (bağlandı — Sana Özel hub, 2026-11-23)
 
 #### Endpoint
 GET /api/v1/recommendation/runs/{runId}/items/{itemId}/feedback
@@ -12539,7 +12554,7 @@ Henüz feedback yoksa null/0; bu başka kullanıcının öğesini sorgulama olan
 429 oran; 503 kaynak/DB.
 
 #### Bağlantı
-Frontend: Gateway üzerinden endpoint.
+Frontend: `recommendation-api.ts` `getFeedback`; yalnız görünen öğeler için, eşzamanlılık 3 (toplu okuma ucu yok).
 Diğer servisler: User consent + Auth ACTIVE; feedback yalnız recommendation_db.
 
 #### Test Durumu
@@ -12549,7 +12564,7 @@ UNIT + INTEGRATION — ilk durum 0, owner dışı 404, version değişimi.
 
 Durum: IMPLEMENTED
 Sorumlu: Alper
-Tüketici servisler: Frontend (planlı)
+Tüketici servisler: Frontend (bağlandı — Sana Özel hub, 2026-11-23)
 
 #### Endpoint
 PUT /api/v1/recommendation/runs/{runId}/items/{itemId}/feedback
@@ -12573,7 +12588,7 @@ yanıt/version korunur. NOT_INTERESTED sonraki generation'da o oyunu dışlar; L
 409 FEEDBACK_VERSION_CONFLICT; 429 oran sınırı; 503 kaynak/DB.
 
 #### Bağlantı
-Frontend: Gateway üzerinden endpoint.
+Frontend: `recommendation-api.ts` `putFeedback` + `hooks/use-item-feedback.ts` (iyimser güncelleme, hata/409'da geri alma ve GET ile tazeleme, çift gönderim kilidi).
 Diğer servisler: User consent + Auth ACTIVE; dış mutasyon veya kullanıcı adına işlem yoktur.
 
 #### Test Durumu
@@ -12617,7 +12632,7 @@ kullanıcı token'ı 401, idempotent 204 ve FK cascade. Tam Auth worker E2E NOT 
 
 Durum: IMPLEMENTED — tek oyun analizi; katalog önerisi ve gerçek FPS tahmini PARTIAL
 Sorumlu: Alper
-Tüketici servisler: Frontend (planlı; bu görevde UI geliştirilmedi)
+Tüketici servisler: Frontend (bağlandı — Sana Özel hub, 2026-11-23)
 
 #### Endpoint
 POST /api/v1/recommendation/hardware/assessments
@@ -12695,7 +12710,7 @@ aynı hesap/instance başına 10/dk kotasını paylaşır.
 - 500: INTERNAL_ERROR — ayrıntı/kişisel veri sızdırmayan ProblemDetail
 
 #### Bağlantı
-Frontend: Gateway üzerinden aynı path; frontend değişmedi.
+Frontend: `recommendation-api.ts` `assessHardware`; `/for-you/hardware` ve LTZ Rehber içindeki `assessment-dialog.tsx` / `assessment-result.tsx` (UNKNOWN uyumlu gösterilmez, INSUFFICIENT_DATA açıkça yazılır, ESTIMATED "tahmini aralık" etiketiyle).
 Diğer servisler: User consent, Auth account-bound Library ACTIVE grant; Hardware
 `POST /api/v1/hardware/profiles/batch` owner Bearer; Game `GET /api/v1/game/{gameId}/metadata`;
 Auth→Performance `reference:read` grant ve Performance exact game/profile reference. En çok
@@ -12711,7 +12726,7 @@ Hardware/Game/Performance source HTTP'leri contract fixture; tam canlı çok ser
 
 Durum: IMPLEMENTED — kapalı konu/intent rehberliği; LLM veya serbest metin sohbeti yok
 Sorumlu: Alper
-Tüketici servisler: Frontend (planlı; bu görevde UI geliştirilmedi)
+Tüketici servisler: Frontend (bağlandı — Sana Özel hub, 2026-11-23)
 
 #### Endpoint
 POST /api/v1/recommendation/assistant
@@ -12791,7 +12806,7 @@ Python yokluğunda Java rehberi başarı gibi sunulmaz; 503'tür. En çok iki ch
 2 saniye process deadline, stdin 8 KiB, stdout ve stderr ayrı ayrı 16 KiB sınırı vardır.
 
 #### Bağlantı
-Frontend: Gateway üzerinden aynı path; UI entegrasyonu planlı.
+Frontend: `recommendation-api.ts` `askAssistant`; LTZ Rehber çekmecesi (`assistant/guide-flow.tsx`, serbest metin yok). Step kodları gerçek rotalara link olur; HARDWARE tamamsa aynı seçimlerle değerlendirme penceresi açılır.
 Diğer servisler: User consent + Auth ACTIVE grant; yalnız tam HARDWARE girdisinde mevcut
 Hardware/Game/Performance assessment sözleşmeleri. Yeni producer API/izin/ENV yoktur.
 Python aynı Recommendation sınırında sabit repo script'idir; LLM, sidecar, pip veya ağ çağrısı yok.

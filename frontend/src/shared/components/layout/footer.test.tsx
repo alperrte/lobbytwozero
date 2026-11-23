@@ -94,7 +94,8 @@ describe("Footer", () => {
       // Yalnız gerçek rotası olan Topluluk bağlantıdır; Takım Bul ve Etkinlikler düz metin kalır.
       expect(within(nav).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual(["/tr/topluluk"]);
     }
-    for (const name of ["Haberler", "Takım Bul", "Sana Özel"]) {
+    expect(within(footer).getByRole("link", { name: "Sana Özel" })).toHaveAttribute("href", "/tr/sana-ozel");
+    for (const name of ["Haberler", "Takım Bul"]) {
       expect(within(footer).queryByRole("link", { name })).toBeNull();
       expect(within(footer).getByText(name).closest("a")).toBeNull();
     }
