@@ -202,7 +202,18 @@ const paths = {
   gif: <path d="M3 6h18v12H3zM10 10H8v4h2v-1.5M13 10v4M18 10h-2.5v4M15.5 12H17.5" />,
   arrowLeft: <path d="M20 12H4M10 6l-6 6 6 6" />,
   checkDouble: <path d="m2.5 12.5 5 5L17 8M12 16.5l1 1L22 8" />,
-  play: <path d="M7 5v14l12-7z" />
+  play: <path d="M7 5v14l12-7z" />,
+  // Takım Bul (features/lfp)
+  pencil: <path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" />,
+  plus: <path d="M12 5v14M5 12h14" />,
+  minus: <path d="M5 12h14" />,
+  eye: (
+    <>
+      <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
+  filter: <path d="M4 5h16l-6 7.5V19l-4-2v-4.5z" />
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof paths;
