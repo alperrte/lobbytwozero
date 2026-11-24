@@ -8,3 +8,6 @@ export { BlockedView, FriendsView, RequestsView, SentRequestsView } from "./comp
 export { fetchProfileCards } from "./services/user-profiles";
 export type { ProfileCard } from "./services/user-profiles";
 export { socialApi } from "./services/social-api";
+
+// Takım Bul (features/lfp) için: sosyal sayfalarla aynı başlık kartı.
+export { SocialHero } from "./components/social-hero";

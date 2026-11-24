@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { FriendSuggestions } from "@/features/recommendation";
 import { buttonClass } from "@/shared/components/ui/button-styles";
 import { Icon } from "@/shared/components/ui/icons";
 import { SearchField } from "@/shared/components/ui/search-field";
@@ -64,6 +65,7 @@ export function FriendsView() {
         <>
           <IncomingRequestsPanel />
           <InviteAndAddPanel />
+          <FriendSuggestions compact />
         </>
       }
     >

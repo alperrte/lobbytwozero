@@ -27,6 +27,11 @@ updates:
       compatible-updates:
         patterns: ["*"]
         update-types: [minor, patch]
+    # eslint 10: eslint-config-next 16.4.6'nın içindeki eslint-plugin-import, jsx-a11y ve react peer aralıkları eslint 10'u
+    # desteklemiyor (npm "invalid" der). Lint geçse de kurallar sessizce bozulabilir; eslint-config-next destek verince kaldırılır.
+    ignore:
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directories:
       - "/"
@@ -55,3 +60,10 @@ updates:
       compatible-updates:
         patterns: ["*"]
         update-types: [minor, patch]
+    # Java sürümü (temurin-25 → 26) ve Maven 3.9 → 3.10 bilinçli kararla yükseltilir. Etiketler kayan etiket
+    # (maven:3.9-eclipse-temurin-25, eclipse-temurin:25-jre-noble): Dependabot'un önerebileceği tek değişiklik bu sürüm
+    # atlamalarıdır ve etiket sonekindeki değişimi semver sınıfına sokmadığı için update-types ile süzülemedi (PR #168, #178).
+    # İmaj güvenlik yamaları kayan etiketin kendisinden gelir; bunun için PR gerekmez.
+    ignore:
+      - dependency-name: "maven"
+      - dependency-name: "eclipse-temurin"
