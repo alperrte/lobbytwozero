@@ -9,6 +9,9 @@ import { BlockedView } from "./blocked-view";
 import { FriendsView } from "./friends-view";
 import { RequestsView } from "./requests-view";
 
+// Arkadaşlar sayfasına gömülen öneri paneli kendi testlerinde (features/recommendation) doğrulanır; burada oturum ve rıza
+// çağrısı yapmaması için boş bileşenle değiştirilir.
+vi.mock("@/features/recommendation", () => ({ FriendSuggestions: () => null }));
 vi.mock("../services/social-api", async () => ({
   socialApi: (await import("../services/social-mock-store")).socialMockApi
 }));
@@ -114,12 +117,11 @@ describe("Arkadaşlar sayfası", () => {
     await waitFor(() => expect(tab(/Arkadaşlar\s*23/)).toBeInTheDocument());
   });
 
-  it("'Mesaj Gönder' messaging yayınlanana kadar pasiftir ve nedenini söyler", async () => {
+  it("'Mesaj Gönder' mesajlar sayfasında o kişiyle birebir sohbeti açar", async () => {
     renderView(<FriendsView />);
     const card = (await screen.findByRole("heading", { name: "Deniz", level: 3 })).closest("article")!;
-    const message = within(card).getByRole("button", { name: "Mesaj Gönder" });
-    expect(message).toHaveAttribute("aria-disabled", "true");
-    expect(message).toHaveAccessibleDescription("Mesajlaşma yakında açılacak");
+    const message = within(card).getByRole("link", { name: "Deniz ile mesajlaş" });
+    expect(message.getAttribute("href")).toMatch(/^\/tr\/mesajlar\?to=[0-9a-f-]{36}$/);
   });
 
   it("davet koduyla ekleme biçim ve sunucu hatasını alana bağlar, başarıda alanı temizler", async () => {

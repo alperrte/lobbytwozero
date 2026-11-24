@@ -91,10 +91,11 @@ describe("Footer", () => {
     expect(within(discover).getByRole("link", { name: "Oyunlar" })).toHaveAttribute("href", "/tr/oyunlar");
     for (const group of ["Topluluk"]) {
       const nav = within(footer).getByRole("navigation", { name: group });
-      // Yalnız gerçek rotası olan Topluluk bağlantıdır; Takım Bul ve Etkinlikler düz metin kalır.
-      expect(within(nav).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual(["/tr/topluluk"]);
+      // Gerçek rotası olan Topluluk ve Takım Bul bağlantıdır; Etkinlikler düz metin kalır.
+      expect(within(nav).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual(["/tr/topluluk", "/tr/takim-bul"]);
     }
-    for (const name of ["Haberler", "Takım Bul", "Sana Özel"]) {
+    expect(within(footer).getByRole("link", { name: "Sana Özel" })).toHaveAttribute("href", "/tr/sana-ozel");
+    for (const name of ["Haberler", "Etkinlikler"]) {
       expect(within(footer).queryByRole("link", { name })).toBeNull();
       expect(within(footer).getByText(name).closest("a")).toBeNull();
     }

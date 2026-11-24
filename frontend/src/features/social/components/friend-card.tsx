@@ -6,6 +6,7 @@ import { Avatar } from "@/shared/components/ui/avatar";
 import { buttonClass } from "@/shared/components/ui/button-styles";
 import { Icon } from "@/shared/components/ui/icons";
 import { menuItemClass } from "@/shared/components/ui/styles";
+import { Link } from "@/shared/lib/i18n/navigation";
 import { focusFirstMenuItem, onMenuKeyDown, usePopover } from "@/shared/hooks/use-popover";
 import { cn } from "@/shared/utils/cn";
 import type { FriendView } from "../types/social.types";
@@ -23,13 +24,13 @@ type FriendCardProps = {
 
 /**
  * Arkadaş kartı: avatar, ad, kullanıcı adı, durum, oynadığı oyun ve işlemler.
- * "Mesaj Gönder" ve "Profili Gör", ilgili ekranlar yayınlanana kadar pasiftir ve nedenini söyler (kırık bağlantı yok).
+ * "Mesaj Gönder" mesajlar sayfasında bu kişiyle birebir sohbeti açar (varsa mevcut sohbet). "Profili Gör" ekranı yayınlanana
+ * kadar pasiftir ve nedenini söyler (kırık bağlantı yok).
  */
 export function FriendCard({ view, disabled = false, onIntent }: FriendCardProps) {
   const t = useTranslations("Social");
   const { profile, presence } = view;
   const person = usePerson()(profile);
-  const soonId = useId();
   const nameId = useId();
 
   return (
@@ -57,19 +58,14 @@ export function FriendCard({ view, disabled = false, onIntent }: FriendCardProps
           <GameLine game={presence.game} lastPlayed={presence.status === "offline"} />
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            aria-disabled="true"
-            aria-describedby={soonId}
-            title={t("card.messageSoon")}
+          <Link
+            href={{ pathname: "/messages", query: { to: profile.userId } }}
+            aria-label={t("card.messageNamed", { name: person.name })}
             className={buttonClass("secondary", "sm", "@max-[25rem]:w-9 @max-[25rem]:px-0")}
           >
             <Icon name="message" className="size-4" />
             <span className="@max-[25rem]:sr-only">{t("card.message")}</span>
-          </button>
-          <span id={soonId} className="sr-only">
-            {t("card.messageSoon")}
-          </span>
+          </Link>
           <FriendActionsMenu
             name={person.name}
             disabled={disabled}

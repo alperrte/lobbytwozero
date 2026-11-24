@@ -167,6 +167,32 @@ describe("authRequest: 401 → yenile → tek tekrar", () => {
   });
 });
 
+describe("authRequest: site dili başlığı", () => {
+  afterEach(() => {
+    document.documentElement.lang = "";
+  });
+
+  it.each(["tr", "en", "en-GB"])("<html lang=%s> iken Accept-Language olarak tr|en gönderir", async (lang) => {
+    document.documentElement.lang = lang;
+    document.cookie = "XSRF-TOKEN=tok; path=/";
+    const fn = mockFetch(() => reply(200, {}));
+
+    await authRequest("/api/v1/auth/me");
+    const init = fn.mock.calls[0]![1] as RequestInit;
+    expect(new Headers(init.headers).get("Accept-Language")).toBe(lang.split("-")[0]);
+  });
+
+  it.each(["", "de", "fr-FR"])("tanınmayan dilde (%j) başlık eklemez", async (lang) => {
+    document.documentElement.lang = lang;
+    document.cookie = "XSRF-TOKEN=tok; path=/";
+    const fn = mockFetch(() => reply(200, {}));
+
+    await authRequest("/api/v1/auth/me");
+    const init = fn.mock.calls[0]![1] as RequestInit;
+    expect(new Headers(init.headers).has("Accept-Language")).toBe(false);
+  });
+});
+
 describe("authRequest: hata gövdesi", () => {
   it("code, errors[] ve Retry-After'ı taşır", async () => {
     document.cookie = "XSRF-TOKEN=tok; path=/";

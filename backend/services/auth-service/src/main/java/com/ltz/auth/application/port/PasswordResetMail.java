@@ -8,9 +8,19 @@ import java.util.UUID;
  * veya log'a yazılmaz.
  *
  * @param idempotencyKey token kaydının kimliği; mükerrer gönderimi engeller (MAIL-14)
+ * @param requestLocale isteğin arayüz dili ({@code tr}/{@code en}) ya da {@code null}; yalnız kayıtlı tercih yoksa kullanılır
  */
 public record PasswordResetMail(UUID idempotencyKey, UUID accountId, String recipientEmail, String resetLink,
-                                Duration validity) {
+                                Duration validity, String requestLocale) {
+
+    public PasswordResetMail(UUID idempotencyKey, UUID accountId, String recipientEmail, String resetLink,
+                             Duration validity) {
+        this(idempotencyKey, accountId, recipientEmail, resetLink, validity, null);
+    }
+
+    public PasswordResetMail withRequestLocale(String locale) {
+        return new PasswordResetMail(idempotencyKey, accountId, recipientEmail, resetLink, validity, locale);
+    }
 
     @Override
     public String toString() {

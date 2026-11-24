@@ -8,6 +8,7 @@ import org.springframework.core.task.TaskRejectedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.ltz.auth.application.port.RequestLocaleContext;
 import com.ltz.auth.application.port.VerificationCodeMail;
 import com.ltz.auth.application.port.VerificationCodeMailPort;
 import com.ltz.auth.domain.entity.EmailVerificationCode;
@@ -32,24 +33,29 @@ public class VerificationCodeDispatcher {
     private final EmailVerificationCodeRepository codeRepository;
     private final SecurityEventRecorder securityEventRecorder;
     private final Clock clock;
+    private final RequestLocaleContext requestLocale;
 
     public VerificationCodeDispatcher(VerificationCodeMailPort mailPort,
                                       @Qualifier("applicationTaskExecutor") TaskExecutor taskExecutor,
                                       TransactionTemplate transactionTemplate,
                                       EmailVerificationCodeRepository codeRepository,
                                       SecurityEventRecorder securityEventRecorder,
-                                      Clock clock) {
+                                      Clock clock,
+            RequestLocaleContext requestLocale) {
         this.mailPort = mailPort;
         this.taskExecutor = taskExecutor;
         this.transactionTemplate = transactionTemplate;
         this.codeRepository = codeRepository;
         this.securityEventRecorder = securityEventRecorder;
         this.clock = clock;
+        this.requestLocale = requestLocale;
     }
 
     public void dispatch(VerificationCodeMail mail) {
+        // Arayüz dili istek iş parçacığında yakalanır; teslim ayrı iş parçacığında çalışır.
+        VerificationCodeMail localized = mail.withRequestLocale(requestLocale.locale().orElse(null));
         try {
-            taskExecutor.execute(() -> deliver(mail));
+            taskExecutor.execute(() -> deliver(localized));
         } catch (TaskRejectedException _) {
             log.warn("Verification code delivery rejected by executor codeId={}", mail.idempotencyKey());
             markDeliveryFailed(mail);

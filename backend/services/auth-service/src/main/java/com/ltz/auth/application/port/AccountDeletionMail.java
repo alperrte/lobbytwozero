@@ -8,9 +8,19 @@ import java.util.UUID;
  * hiçbir tabloya veya log'a yazılmaz.
  *
  * @param idempotencyKey token kaydının kimliği; mükerrer gönderimi engeller (MAIL-14)
+ * @param requestLocale isteğin arayüz dili ({@code tr}/{@code en}) ya da {@code null}; yalnız kayıtlı tercih yoksa kullanılır
  */
 public record AccountDeletionMail(UUID idempotencyKey, UUID accountId, String recipientEmail, String confirmationLink,
-                                  Duration validity) {
+                                  Duration validity, String requestLocale) {
+
+    public AccountDeletionMail(UUID idempotencyKey, UUID accountId, String recipientEmail, String confirmationLink,
+                               Duration validity) {
+        this(idempotencyKey, accountId, recipientEmail, confirmationLink, validity, null);
+    }
+
+    public AccountDeletionMail withRequestLocale(String locale) {
+        return new AccountDeletionMail(idempotencyKey, accountId, recipientEmail, confirmationLink, validity, locale);
+    }
 
     @Override
     public String toString() {
