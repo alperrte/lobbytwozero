@@ -122,9 +122,9 @@ class GameContentCreationTest {
 	@Test
 	void rejectsGameContentWithoutAGameBeforeAnyExternalCall() {
 		when(currentUser.requireUserId()).thenReturn(userId);
+		CreatePostRequest withoutGame = request(null, null, GameContentType.GUIDES, "Başlık");
 
-		assertThatThrownBy(() -> postService.createPost(request(null, null, GameContentType.GUIDES, "Başlık")))
-				.isInstanceOf(GameContentRuleException.class);
+		assertThatThrownBy(() -> postService.createPost(withoutGame)).isInstanceOf(GameContentRuleException.class);
 
 		verifyNoInteractions(gameCatalog);
 		verify(postRepository, never()).save(any());
@@ -134,10 +134,11 @@ class GameContentCreationTest {
 	void rejectsGameContentWithoutAUsableTitle() {
 		when(currentUser.requireUserId()).thenReturn(userId);
 
-		assertThatThrownBy(() -> postService.createPost(request(GAME_ID, null, GameContentType.GUIDES, null)))
-				.isInstanceOf(GameContentRuleException.class);
-		assertThatThrownBy(() -> postService.createPost(request(GAME_ID, null, GameContentType.GUIDES, "   ")))
-				.isInstanceOf(GameContentRuleException.class);
+		CreatePostRequest withoutTitle = request(GAME_ID, null, GameContentType.GUIDES, null);
+		CreatePostRequest blankTitle = request(GAME_ID, null, GameContentType.GUIDES, "   ");
+
+		assertThatThrownBy(() -> postService.createPost(withoutTitle)).isInstanceOf(GameContentRuleException.class);
+		assertThatThrownBy(() -> postService.createPost(blankTitle)).isInstanceOf(GameContentRuleException.class);
 
 		verifyNoInteractions(gameCatalog);
 		verify(postRepository, never()).save(any());
@@ -147,8 +148,9 @@ class GameContentCreationTest {
 	void rejectsGameContentAsAForumTopic() {
 		when(currentUser.requireUserId()).thenReturn(userId);
 
-		assertThatThrownBy(() -> postService.createPost(request(GAME_ID, UUID.randomUUID(), GameContentType.GUIDES, "Başlık")))
-				.isInstanceOf(GameContentRuleException.class);
+		CreatePostRequest forumTopic = request(GAME_ID, UUID.randomUUID(), GameContentType.GUIDES, "Başlık");
+
+		assertThatThrownBy(() -> postService.createPost(forumTopic)).isInstanceOf(GameContentRuleException.class);
 
 		verify(postRepository, never()).save(any());
 	}
@@ -157,8 +159,9 @@ class GameContentCreationTest {
 	void rejectsATitleOnAPostWithoutAContentType() {
 		when(currentUser.requireUserId()).thenReturn(userId);
 
-		assertThatThrownBy(() -> postService.createPost(request(GAME_ID, null, null, "Başlık")))
-				.isInstanceOf(GameContentRuleException.class);
+		CreatePostRequest titleWithoutType = request(GAME_ID, null, null, "Başlık");
+
+		assertThatThrownBy(() -> postService.createPost(titleWithoutType)).isInstanceOf(GameContentRuleException.class);
 
 		verify(postRepository, never()).save(any());
 	}
@@ -169,10 +172,11 @@ class GameContentCreationTest {
 		when(gameCatalog.isAvailable(GAME_ID)).thenReturn(false);
 		when(gameCatalog.isAvailable(OTHER_GAME_ID)).thenThrow(new GameCatalogUnavailableException(new RuntimeException("down")));
 
-		assertThatThrownBy(() -> postService.createPost(request(GAME_ID, null, GameContentType.GUIDES, "Başlık")))
-				.isInstanceOf(GameNotAvailableException.class);
-		assertThatThrownBy(() -> postService.createPost(request(OTHER_GAME_ID, null, GameContentType.GUIDES, "Başlık")))
-				.isInstanceOf(GameCatalogUnavailableException.class);
+		CreatePostRequest unknownGame = request(GAME_ID, null, GameContentType.GUIDES, "Başlık");
+		CreatePostRequest duringOutage = request(OTHER_GAME_ID, null, GameContentType.GUIDES, "Başlık");
+
+		assertThatThrownBy(() -> postService.createPost(unknownGame)).isInstanceOf(GameNotAvailableException.class);
+		assertThatThrownBy(() -> postService.createPost(duringOutage)).isInstanceOf(GameCatalogUnavailableException.class);
 
 		verify(postRepository, never()).save(any());
 	}
@@ -182,9 +186,9 @@ class GameContentCreationTest {
 		when(currentUser.requireUserId()).thenReturn(userId);
 		when(postRepository.countByAuthorIdAndContentTypeIsNotNullAndCreatedAtAfter(userId, NOW.minus(Duration.ofHours(1))))
 				.thenReturn((long) PostService.MAX_GAME_CONTENT_PER_HOUR);
+		CreatePostRequest overQuota = request(GAME_ID, null, GameContentType.GUIDES, "Başlık");
 
-		assertThatThrownBy(() -> postService.createPost(request(GAME_ID, null, GameContentType.GUIDES, "Başlık")))
-				.isInstanceOf(TooManyGameContentException.class);
+		assertThatThrownBy(() -> postService.createPost(overQuota)).isInstanceOf(TooManyGameContentException.class);
 
 		verifyNoInteractions(gameCatalog);
 		verify(postRepository, never()).save(any());
@@ -206,9 +210,9 @@ class GameContentCreationTest {
 	@Test
 	void anonymousCallersCannotCreateGameContent() {
 		when(currentUser.requireUserId()).thenThrow(new AuthenticationRequiredException("Authentication is required."));
+		CreatePostRequest anonymous = request(GAME_ID, null, GameContentType.GUIDES, "Başlık");
 
-		assertThatThrownBy(() -> postService.createPost(request(GAME_ID, null, GameContentType.GUIDES, "Başlık")))
-				.isInstanceOf(AuthenticationRequiredException.class);
+		assertThatThrownBy(() -> postService.createPost(anonymous)).isInstanceOf(AuthenticationRequiredException.class);
 
 		verify(postRepository, never()).save(any());
 	}
@@ -258,11 +262,12 @@ class GameContentCreationTest {
 		Post typed = existing(userId, GameContentType.GUIDES);
 		when(currentUser.requireUserId()).thenReturn(userId);
 		when(postRepository.findById(POST_ID)).thenReturn(Optional.of(ordinary)).thenReturn(Optional.of(typed));
+		UpdatePostRequest titleOnOrdinaryPost = new UpdatePostRequest("metin", null, "Başlık");
+		UpdatePostRequest blankedTitle = new UpdatePostRequest("metin", null, "   ");
 
-		assertThatThrownBy(() -> postService.updatePost(POST_ID, new UpdatePostRequest("metin", null, "Başlık")))
+		assertThatThrownBy(() -> postService.updatePost(POST_ID, titleOnOrdinaryPost))
 				.isInstanceOf(GameContentRuleException.class);
-		assertThatThrownBy(() -> postService.updatePost(POST_ID, new UpdatePostRequest("metin", null, "   ")))
-				.isInstanceOf(GameContentRuleException.class);
+		assertThatThrownBy(() -> postService.updatePost(POST_ID, blankedTitle)).isInstanceOf(GameContentRuleException.class);
 
 		verify(postRepository, never()).save(any());
 	}
@@ -272,9 +277,9 @@ class GameContentCreationTest {
 		Post post = existing(UUID.randomUUID(), GameContentType.GUIDES);
 		when(currentUser.requireUserId()).thenReturn(userId);
 		when(postRepository.findById(POST_ID)).thenReturn(Optional.of(post));
+		UpdatePostRequest takeover = new UpdatePostRequest("ele geçir", null, "Başlık");
 
-		assertThatThrownBy(() -> postService.updatePost(POST_ID, new UpdatePostRequest("ele geçir", null, "Başlık")))
-				.isInstanceOf(PostAccessDeniedException.class);
+		assertThatThrownBy(() -> postService.updatePost(POST_ID, takeover)).isInstanceOf(PostAccessDeniedException.class);
 
 		verify(postRepository, never()).save(any());
 	}

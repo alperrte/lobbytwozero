@@ -31,6 +31,8 @@ public final class PostSpecifications {
 	private static final String CREATED_AT = "createdAt";
 	private static final String POPULARITY_SCORE = "popularityScore";
 	private static final String FORUM_ID = "forumId";
+	private static final String STATUS = "status";
+	private static final String AUTHOR_ID = "authorId";
 
 	private PostSpecifications() {
 	}
@@ -38,16 +40,16 @@ public final class PostSpecifications {
 	public static Specification<Post> matching(PostSearchCriteria criteria) {
 		return (root, query, cb) -> {
 			List<Predicate> predicates = new ArrayList<>();
-			predicates.add(root.get("status").in(criteria.statuses()));
+			predicates.add(root.get(STATUS).in(criteria.statuses()));
 			predicates.add(inVisibleForumOrNone(root, query.subquery(Integer.class), cb));
 			if (criteria.forumId() != null) {
 				predicates.add(cb.equal(root.<UUID>get(FORUM_ID), criteria.forumId()));
 			}
 			if (!criteria.excludedAuthorIds().isEmpty()) {
-				predicates.add(cb.not(root.get("authorId").in(criteria.excludedAuthorIds())));
+				predicates.add(cb.not(root.get(AUTHOR_ID).in(criteria.excludedAuthorIds())));
 			}
 			if (criteria.authorId() != null) {
-				predicates.add(cb.equal(root.<UUID>get("authorId"), criteria.authorId()));
+				predicates.add(cb.equal(root.<UUID>get(AUTHOR_ID), criteria.authorId()));
 			}
 			if (criteria.text() != null) {
 				// ix_posts_body_trgm (gin, lower(body) gin_trgm_ops) bu ifadeyi kullanır.
@@ -75,12 +77,12 @@ public final class PostSpecifications {
 	public static Specification<Post> gameContent(UUID gameId, GameContentType type, Set<UUID> excludedAuthorIds) {
 		return (root, query, cb) -> {
 			List<Predicate> predicates = new ArrayList<>();
-			predicates.add(cb.equal(root.get("status"), PostStatus.VISIBLE));
+			predicates.add(cb.equal(root.get(STATUS), PostStatus.VISIBLE));
 			predicates.add(inVisibleForumOrNone(root, query.subquery(Integer.class), cb));
 			predicates.add(cb.equal(root.<UUID>get("gameId"), gameId));
 			predicates.add(type == null ? cb.isNotNull(root.get("contentType")) : cb.equal(root.get("contentType"), type));
 			if (!excludedAuthorIds.isEmpty()) {
-				predicates.add(cb.not(root.get("authorId").in(excludedAuthorIds)));
+				predicates.add(cb.not(root.get(AUTHOR_ID).in(excludedAuthorIds)));
 			}
 			return cb.and(predicates.toArray(Predicate[]::new));
 		};
@@ -102,7 +104,7 @@ public final class PostSpecifications {
 		Root<Forum> forum = visibleForum.from(Forum.class);
 		visibleForum.select(cb.literal(1)).where(
 				cb.equal(forum.get("id"), root.get(FORUM_ID)),
-				cb.equal(forum.get("status"), ForumStatus.VISIBLE));
+				cb.equal(forum.get(STATUS), ForumStatus.VISIBLE));
 		return cb.or(cb.isNull(root.get(FORUM_ID)), cb.exists(visibleForum));
 	}
 

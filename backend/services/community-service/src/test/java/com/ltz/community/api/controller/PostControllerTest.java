@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -779,7 +780,7 @@ class PostControllerTest {
 
 		createGameContent("{\"body\":\"x\",\"gameId\":\"" + GAME_ID + "\",\"contentType\":\"GUIDES\",\"title\":\"t\"}")
 				.andExpect(status().isServiceUnavailable());
-		org.mockito.Mockito.doReturn(false).when(gameCatalog).isAvailable(GAME_ID);
+		doReturn(false).when(gameCatalog).isAvailable(GAME_ID);
 		createGameContent("{\"body\":\"x\",\"gameId\":\"" + GAME_ID + "\",\"contentType\":\"GUIDES\",\"title\":\"t\"}")
 				.andExpect(status().isUnprocessableContent());
 

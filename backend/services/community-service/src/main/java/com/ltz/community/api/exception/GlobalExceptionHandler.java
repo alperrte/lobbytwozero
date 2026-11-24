@@ -2,7 +2,10 @@ package com.ltz.community.api.exception;
 
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Stream;
 
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessResourceFailureException;
@@ -53,6 +56,7 @@ import com.ltz.community.domain.exception.TooManyReportsException;
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
 	private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+	private static final int MAX_CAUSE_DEPTH = 32;
 
 	@Override
 	protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException exception,
@@ -150,20 +154,25 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 				&& sql.getSQLState() == null && "Connection is closed".equals(sql.getMessage());
 	}
 
-	private static boolean isConnectionFailure(Throwable failure) {
-		Throwable current = failure;
-		// Bozuk/döngülü cause zinciri hata yanıtını kilitlememeli.
-		for (int depth = 0; current != null && depth < 32; depth++) {
-			if (current instanceof DataAccessResourceFailureException
-					|| current instanceof CannotCreateTransactionException || current instanceof QueryTimeoutException) {
-				return true;
-			}
-			if (current instanceof SQLException sql && sql.getSQLState() != null && sql.getSQLState().startsWith("08")) {
-				return true;
-			}
-			current = current.getCause();
+	/**
+	 * Hata zincirinin (kendisi ve sebepleri) herhangi bir halkası bağlantı kaybını gösteriyorsa true döner. Zincir
+	 * yoksa ({@code null}; örn. {@link TransactionSystemException#getOriginalException()}) sonuç false'tur.
+	 */
+	private static boolean isConnectionFailure(@Nullable Throwable failure) {
+		return causeChain(failure).anyMatch(GlobalExceptionHandler::isConnectionCause);
+	}
+
+	/** Bozuk/döngülü cause zinciri hata yanıtını kilitlememeli: en çok {@value #MAX_CAUSE_DEPTH} halka taranır. */
+	private static Stream<Throwable> causeChain(@Nullable Throwable failure) {
+		return Stream.iterate(failure, Objects::nonNull, Throwable::getCause).limit(MAX_CAUSE_DEPTH);
+	}
+
+	private static boolean isConnectionCause(Throwable cause) {
+		if (cause instanceof DataAccessResourceFailureException || cause instanceof CannotCreateTransactionException
+				|| cause instanceof QueryTimeoutException) {
+			return true;
 		}
-		return false;
+		return cause instanceof SQLException sql && sql.getSQLState() != null && sql.getSQLState().startsWith("08");
 	}
 
 	@ExceptionHandler(InvalidInboundEventException.class)
