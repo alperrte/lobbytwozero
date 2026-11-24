@@ -350,6 +350,7 @@ test.describe("oturum ve kabuk", () => {
 
     await profileButton(page, /Hesabım/).click();
     await page.getByRole("menuitem", { name: /Çıkış yap/ }).click();
+    await page.getByRole("button", { name: "Evet, çıkış yap" }).click();
 
     await expect(profileButton(page, /Misafir/)).toBeVisible();
   });

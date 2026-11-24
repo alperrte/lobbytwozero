@@ -9,9 +9,17 @@
  */
 export type SecurityHeader = { key: string; value: string };
 
+/**
+ * Zorunlu olmayan, yalnız tarayıcı konsoluna ihlal yazan (Report-Only) CSP. Amaç: satır içi tema betiği ve üçüncü taraf
+ * kaynaklar için nonce/hash planını gerçek render ile ölçmek (F-01). `script-src 'self'` bilerek sıkıdır; ihlaller
+ * beklenir ve hiçbir şeyi engellemez. Zorunlu CSP'ye geçiş, ihlaller temizlendikten sonra ayrı bir değişiklikle yapılır.
+ */
+export const CSP_REPORT_ONLY = "script-src 'self'; object-src 'none'; base-uri 'self'";
+
 export function securityHeaders(isProduction: boolean): SecurityHeader[] {
   const headers: SecurityHeader[] = [
     { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+    { key: "Content-Security-Policy-Report-Only", value: CSP_REPORT_ONLY },
     { key: "X-Frame-Options", value: "DENY" },
     { key: "X-Content-Type-Options", value: "nosniff" },
     { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

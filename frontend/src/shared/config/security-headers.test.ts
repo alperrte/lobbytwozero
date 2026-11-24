@@ -11,6 +11,15 @@ describe("securityHeaders", () => {
     expect(value(headers, "X-Frame-Options")).toBe("DENY");
   });
 
+  it("zorunlu CSP yalnız frame-ancestors içerir; sıkı CSP yalnız Report-Only olarak gider", () => {
+    const headers = securityHeaders(true);
+    expect(value(headers, "Content-Security-Policy")).toBe("frame-ancestors 'none'");
+    const reportOnly = value(headers, "Content-Security-Policy-Report-Only");
+    expect(reportOnly).toContain("script-src 'self'");
+    expect(reportOnly).toContain("object-src 'none'");
+    expect(reportOnly).toContain("base-uri 'self'");
+  });
+
   it("nosniff, Referrer-Policy ve Permissions-Policy gönderir", () => {
     const headers = securityHeaders(false);
     expect(value(headers, "X-Content-Type-Options")).toBe("nosniff");
