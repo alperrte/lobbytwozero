@@ -64,7 +64,8 @@ export const navigationGroups: readonly NavGroup[] = [
         id: "forYou",
         labelKey: "forYou",
         icon: "sparkles",
-        service: "recommendation-service"
+        service: "recommendation-service",
+        href: "/for-you"
       }
     ]
   },

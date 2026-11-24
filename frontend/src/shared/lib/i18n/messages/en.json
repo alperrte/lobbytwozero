@@ -670,6 +670,34 @@
     "performanceDashboard": {
       "title": "Performance dashboard",
       "description": "Review your own hardware profiles, saved sessions and game reports."
+    },
+    "forYou": {
+      "title": "For You",
+      "description": "Personal game, player and event suggestions based on your preferences and hardware."
+    },
+    "forYouGames": {
+      "title": "Games for You",
+      "description": "Personal game recommendations based on the genres of the games you rated."
+    },
+    "forYouHardware": {
+      "title": "Games for Your Hardware",
+      "description": "Compare your saved computer with games' minimum requirements."
+    },
+    "forYouFriends": {
+      "title": "Friend Suggestions",
+      "description": "Players you might get along with, based on shared interests."
+    },
+    "forYouPlayers": {
+      "title": "Similar Players",
+      "description": "Players whose gaming preferences match yours."
+    },
+    "forYouEvents": {
+      "title": "Events for You",
+      "description": "Events open to join that match your interests."
+    },
+    "forYouHistory": {
+      "title": "Recommendation History",
+      "description": "Game recommendations you created in the last 30 days."
     }
   },
   "Footer": {
@@ -3684,9 +3712,540 @@
     "uncertainMutation": "The outcome is uncertain. Check the current server state before trying again.",
     "reviewData": "Check current state",
     "reviewRequired": "Check current state first",
-    "compatibilityAndRecommendations": "Game compatibility and recommendations",
-    "compatibilityUnavailable": "Verified game–hardware compatibility comparisons are not available in this version yet. A saved hardware profile does not imply that a game is compatible.",
-    "recommendationsUnavailable": "Personalized game and hardware recommendations are not available yet. This dashboard does not generate FPS predictions or recommendation results."
+    "compatibilityAndRecommendations": "Game compatibility and recommendations"
+  },
+  "Recommendation": {
+    "nav": {
+      "label": "For You sections",
+      "overview": "Overview",
+      "games": "Games",
+      "hardware": "Fits your hardware",
+      "friends": "Friend suggestions",
+      "players": "Similar players",
+      "events": "Events",
+      "history": "History"
+    },
+    "sections": {
+      "overview": {
+        "title": "For You",
+        "description": "Suggestions based on your preferences, ratings and hardware. New recommendations are only created when you ask."
+      },
+      "games": {
+        "title": "Games for you",
+        "description": "Personal game recommendations based on the genres of the games you rated."
+      },
+      "hardware": {
+        "title": "Games for your hardware",
+        "description": "The CPU, GPU and RAM declared on your saved computer are compared with each game's minimum requirements."
+      },
+      "friends": {
+        "title": "Friend suggestions",
+        "description": "Players you might get along with, based on shared genres, platforms and player types."
+      },
+      "players": {
+        "title": "Similar players",
+        "description": "Players whose gaming preferences match yours. Your friends are not included."
+      },
+      "events": {
+        "title": "Events for you",
+        "description": "Upcoming events open to join that match your interests."
+      },
+      "history": {
+        "title": "Recommendation history",
+        "description": "Game recommendations you created in the last 30 days and the feedback you gave."
+      }
+    },
+    "guide": {
+      "open": "LTZ Guide",
+      "title": "LTZ Guide",
+      "description": "Pick what you want to do and the guide points you to the right screen and steps.",
+      "taskLegend": "What do you want to do?",
+      "fieldsLegend": "Required details",
+      "ask": "Show me how",
+      "ruleBasedNote": "LTZ Guide is not a chatbot: it evaluates your choices with rules and does not take free text.",
+      "answerTitle": "Guide's suggestion",
+      "missingFields": "Missing details to continue: {fields}",
+      "fieldMissing": "This field is required.",
+      "notSelected": "Not selected",
+      "catalogUnavailable": "The game catalog is unavailable right now.",
+      "profilesUnavailable": "Your computer profiles could not be loaded.",
+      "addProfile": "Add a computer",
+      "changeGame": "Change game",
+      "gameSearchPlaceholder": "Type a game name",
+      "gameSearchHint": "Type at least 2 characters to search.",
+      "searching": "Searching…",
+      "gameResults": "{count, plural, one {# game found} other {# games found}}",
+      "gameNoResults": "No games match this search.",
+      "gameResultsLabel": "Game search results",
+      "fields": {
+        "GENRE": "Genre",
+        "HARDWARE_PROFILE_ID": "Computer",
+        "GAME_ID": "Game",
+        "PLATFORM": "Platform"
+      },
+      "status": {
+        "GUIDANCE": "Guidance ready",
+        "NEEDS_INPUT": "A few more details needed",
+        "INSUFFICIENT_DATA": "Not enough data"
+      },
+      "steps": {
+        "OPEN_GAME_DISCOVERY": "Open game discovery",
+        "FILTER_GENRE": "Create recommendations for a genre",
+        "VERIFY_GAME_REQUIREMENTS": "Compare the game's requirements with your computer",
+        "REVIEW_MINIMUM_DEFICIT": "Review what falls short of the minimum",
+        "COMPARE_RECOMMENDED_LEVEL": "Compare with the recommended level",
+        "CHECK_UNKNOWN_REQUIREMENTS": "Check requirements that could not be verified",
+        "MEASURE_IN_GAME": "Measure your performance in game",
+        "OPEN_RECOMMENDATION_HISTORY": "Open recommendation history",
+        "SELECT_OWN_ITEM": "Pick one of your recommendations",
+        "SEND_FEEDBACK": "Give feedback with Like or Not interested"
+      },
+      "tasks": {
+        "SELECT_GAME": {
+          "label": "I want to pick a game",
+          "hint": "Find something to play in a genre."
+        },
+        "ASSESS_GAME": {
+          "label": "Will a game run on my computer?",
+          "hint": "Compare your computer with the game's requirements."
+        },
+        "VIEW_HISTORY": {
+          "label": "I want to see past recommendations",
+          "hint": "Go back to lists from the last 30 days."
+        },
+        "GIVE_FEEDBACK": {
+          "label": "I want to give feedback on recommendations",
+          "hint": "Like recommendations or mark them not interested."
+        }
+      }
+    },
+    "common": {
+      "loading": "Loading",
+      "working": "Working…",
+      "retryIn": "Try again in {seconds}s",
+      "retry": "Try again",
+      "rank": "Rank {rank}",
+      "close": "Close"
+    },
+    "consent": {
+      "title": "Personal recommendations need your permission",
+      "description": "For You builds suggestions from data in your account. To use it, turn on the personalized recommendations permission.",
+      "usesPreferences": "Your genre, platform and player type preferences from your profile are used.",
+      "usesActivity": "Games you rated and feedback you gave on recommendations are used.",
+      "revocable": "You can turn this off any time in account settings; your recommendation history is deleted when you do.",
+      "grant": "Allow",
+      "saving": "Saving…",
+      "settings": "Account settings"
+    },
+    "overview": {
+      "gamesTitle": "Your latest game recommendations",
+      "gamesDescription": "The first games from the most recent list you created.",
+      "openGames": "All game recommendations",
+      "noRunTitle": "No game recommendations yet",
+      "noRunDescription": "Game recommendations are only created when you ask. Pick a genre and platform to create your first list.",
+      "createFirst": "Create recommendations",
+      "friendsTitle": "Players you might know",
+      "friendsDescription": "Friend suggestions based on shared interests.",
+      "openFriends": "All friend suggestions",
+      "eventsTitle": "Events for you",
+      "eventsDescription": "Events open to join that match your interests.",
+      "openEvents": "All events",
+      "moreTitle": "More suggestions",
+      "hardwareTitle": "Games for your hardware",
+      "hardwareDescription": "Pick your computer and see games that meet the minimum requirements.",
+      "playersTitle": "Similar players",
+      "playersDescription": "Discover players with gaming taste like yours.",
+      "historyTitle": "Recommendation history",
+      "historyDescription": "Go back to lists from the last 30 days and give feedback."
+    },
+    "filters": {
+      "genre": "Genre",
+      "platform": "Platform",
+      "size": "List size",
+      "allGenres": "All genres",
+      "allPlatforms": "All platforms",
+      "sizeOption": "{count, plural, one {# game} other {# games}}",
+      "termsUnavailable": "Genres and platforms could not be loaded; you can still create recommendations without filters."
+    },
+    "games": {
+      "generateTitle": "Create new recommendations",
+      "generateDescription": "Optionally pick a genre and platform. The list is ranked by the genres of the games you rated.",
+      "generate": "Create recommendations",
+      "generateNote": "Every list is saved to your history. You can make up to 10 recommendation requests per minute.",
+      "freshTitle": "Your new recommendations",
+      "latestTitle": "Your latest recommendations",
+      "openHistory": "History",
+      "noRunTitle": "You have not created recommendations yet",
+      "noRunDescription": "Pick your filters and press “Create recommendations” to see your list here.",
+      "emptyRunTitle": "This list has no games",
+      "emptyRunDescription": "Not enough games matched your filters. Broaden the filters and try again, or rate a few games.",
+      "createdAt": "Created {date}",
+      "filtersUsed": "Filters: {filters}",
+      "noFilters": "No filters",
+      "listLabel": "Recommended games",
+      "showMore": "{count, plural, one {Show # more game} other {Show # more games}}",
+      "why": "Why?",
+      "reason": "Matches genres you rated highly: {genres}.",
+      "reasonGeneric": "Ranked by the overall genre trend of games you rated.",
+      "alsoGenres": "Genres: {genres}",
+      "unavailable": "This game is no longer in the catalog.",
+      "unknownTitle": "Unknown game",
+      "detailsUnavailable": "Game details are unavailable right now; the ranking is still accurate."
+    },
+    "feedback": {
+      "groupLabel": "Feedback for {game}",
+      "LIKE": "Like",
+      "NOT_INTERESTED": "Not interested",
+      "conflict": "This recommendation was updated elsewhere; the latest state was loaded.",
+      "failed": "Feedback could not be saved."
+    },
+    "history": {
+      "title": "Previous recommendation lists",
+      "description": "Recommendation lists are kept for 30 days.",
+      "emptyTitle": "No recommendations in your history",
+      "emptyDescription": "You have not created game recommendations in the last 30 days.",
+      "goGenerate": "Create recommendations",
+      "resultCount": "{count, plural, =0 {No games} one {# game} other {# games}}",
+      "open": "Open",
+      "loadMore": "Load more",
+      "loadingMore": "Loading…",
+      "end": "Showing your full history.",
+      "back": "Back to history",
+      "detailTitle": "Recommendation list",
+      "notFoundTitle": "This recommendation list was not found",
+      "notFoundDescription": "The list passed its 30-day retention, was deleted or does not belong to you."
+    },
+    "hardware": {
+      "filtersTitle": "Computer and platform",
+      "filtersDescription": "The comparison uses the hardware you declared on your computer profile.",
+      "profile": "Computer",
+      "platform": "Platform",
+      "fetch": "Find matching games",
+      "fetchNote": "This result is not an FPS or performance guarantee.",
+      "manageProfiles": "Manage my computers",
+      "noProfileTitle": "You have no saved computers",
+      "noProfileDescription": "Add a computer profile first to see games that fit your hardware.",
+      "addProfile": "Add a computer",
+      "idleTitle": "Pick your computer",
+      "idleDescription": "Pick a computer and platform, then press “Find matching games”.",
+      "resultsTitle": "Results",
+      "resultsFor": "{profile} · {platform}",
+      "excluded": "{count, plural, one {# game known to fall below the minimum was removed from the list.} other {# games known to fall below the minimum were removed from the list.}}",
+      "emptyTitle": "No games to show",
+      "emptyDescription": "No games could be suggested for this computer and platform. Try another genre or platform.",
+      "listLabel": "Games for your hardware",
+      "detailsUnavailable": "Game details are unavailable right now.",
+      "why": "Why?",
+      "reason": "Matches genres you are interested in: {genres}.",
+      "assess": "Detailed assessment",
+      "unavailable": "This game is no longer in the catalog.",
+      "unknownTitle": "Unknown game",
+      "compatibility": {
+        "MEETS_MINIMUM_COMPUTE": "Meets minimum CPU/GPU/RAM",
+        "UNKNOWN": "Could not verify"
+      },
+      "compatibilityReason": {
+        "MINIMUM_CPU_GPU_RAM_PROVEN": "Only the declared CPU, GPU and RAM were compared with the minimum; operating system, drivers and free space were not verified.",
+        "MINIMUM_NOT_PROVEN": "The declared details could not prove whether your computer meets the minimum. This does not mean the game will not run.",
+        "REQUIREMENTS_MISSING": "The game's minimum requirements are not in the catalog."
+      }
+    },
+    "assessment": {
+      "title": "{game} — hardware assessment",
+      "description": "Resolution and graphics preset are optional; they are only used to match FPS records.",
+      "resolution": "Resolution",
+      "graphicsPreset": "Graphics preset",
+      "notSpecified": "Not specified",
+      "contextNote": "The assessment relies on what you declared on your computer profile; real performance may differ.",
+      "submit": "Assess",
+      "reassess": "Assess again",
+      "yours": "Yours:",
+      "required": "Required:",
+      "notDeclared": "Not declared",
+      "preset": {
+        "LOW": "Low",
+        "MEDIUM": "Medium",
+        "HIGH": "High",
+        "ULTRA": "Ultra"
+      },
+      "level": {
+        "MINIMUM": "Minimum requirements",
+        "RECOMMENDED": "Recommended requirements"
+      },
+      "check": {
+        "MEETS": "Meets",
+        "BELOW": "Below",
+        "UNKNOWN": "Could not verify"
+      },
+      "fields": {
+        "CPU": "Processor",
+        "GPU": "Graphics card",
+        "RAM": "RAM",
+        "VRAM": "Video memory (VRAM)",
+        "STORAGE": "Storage",
+        "OS": "Operating system",
+        "REQUIREMENTS": "Requirements",
+        "CPU_SOCKET": "CPU socket",
+        "RAM_MEMORY_TYPE": "Memory type"
+      },
+      "summary": {
+        "below": {
+          "title": "Below the minimum requirements",
+          "description": "At least one component is below the game's minimum requirement. See which one falls short below."
+        },
+        "computeMet": {
+          "title": "Meets minimum CPU/GPU/RAM",
+          "description": "The declared processor, graphics card and RAM meet the minimum. Other checks could not be verified, so this is not a “compatible” result."
+        },
+        "unknown": {
+          "title": "Compatibility could not be verified",
+          "description": "The available details cannot confirm whether your computer runs this game. This does not mean it is incompatible."
+        }
+      },
+      "fps": {
+        "title": "FPS",
+        "estimatedChip": "Estimated from past measurements",
+        "noEstimateChip": "No estimate",
+        "range": "{lower}–{upper} FPS",
+        "estimateNote": "A historical range based on {samples} measurements across {sessions} sessions; it is not a measurement of your current performance.",
+        "confidence": "Confidence: {level}",
+        "confidenceLevel": {
+          "LOW": "Low",
+          "NONE": "None"
+        },
+        "lastObserved": "Last measured: {date}"
+      },
+      "graphics": {
+        "title": "Graphics preset",
+        "conditional": "If the game launches, you can start with the {preset} preset and measure your performance."
+      },
+      "upgrades": {
+        "title": "Upgrade suggestions",
+        "INCREASE_RAM": "Add more RAM",
+        "INCREASE_STORAGE_CAPACITY": "Increase storage capacity",
+        "target": "({level}: {required})"
+      },
+      "components": {
+        "title": "Component compatibility",
+        "status": {
+          "INCOMPATIBLE": "Incompatible component found",
+          "UNKNOWN": "Not fully verified"
+        },
+        "check": {
+          "DECLARED_MATCH": "Declared values match",
+          "INCOMPATIBLE": "Incompatible",
+          "UNKNOWN": "Could not verify"
+        }
+      }
+    },
+    "reasons": {
+      "UNKNOWN_REASON": "No detailed explanation is available for this result.",
+      "REQUIREMENTS_MISSING": "The game's requirements for this level are not in the catalog.",
+      "OS_AND_DRIVERS_NOT_VERIFIED": "Operating system and drivers cannot be verified.",
+      "EXACT_DECLARED_MODEL_MATCH": "Your declared model is the same as the required model.",
+      "MODEL_ORDER_OR_REQUIREMENT_UNKNOWN": "There is no reliable performance ranking between different models, so they could not be compared.",
+      "CAPACITY_OR_REQUIREMENT_MISSING": "The capacity or the requirement is missing.",
+      "CAPACITY_UPPER_BOUND_BELOW_REQUIREMENT": "The declared capacity is below the requirement.",
+      "CAPACITY_LOWER_BOUND_MEETS_REQUIREMENT": "The declared capacity meets the requirement.",
+      "CAPACITY_UNIT_CONVENTION_UNSPECIFIED": "The capacity unit is ambiguous, so an exact comparison was not possible.",
+      "FREE_SPACE_NOT_MEASURED": "Total capacity is known but free space is not measured.",
+      "STRUCTURED_VRAM_REQUIREMENT_UNAVAILABLE": "The game's video memory requirement is not available in a structured form.",
+      "NO_FPS_SAMPLES": "There are no FPS measurements for this game and computer.",
+      "RESOLUTION_PRESET_PROVENANCE_AND_PROFILE_VERSION_UNBOUND": "Existing measurements could not be matched to your resolution, graphics preset or computer version.",
+      "MATCHED_HISTORICAL_DEVICE_RANGE_NOT_CURRENT_MEASUREMENT": "The range is calculated from this device's past measurements; it is not a live measurement.",
+      "MATCHED_CONTEXT_REQUIRES_3_RECENT_60_SAMPLE_60_SECOND_SESSIONS": "An estimate needs at least 3 sessions in the last 30 days with the same settings, each lasting at least 60 seconds with 60 measurements.",
+      "IF_AVAILABLE_START_LOW_AND_MEASURE_NO_FPS_PROMISE": "This is not an FPS promise; start with low settings and measure.",
+      "MINIMUM_COMPUTE_OR_COMPONENTS_NOT_CONFIRMED": "No graphics preset is suggested because minimum computing power or component compatibility could not be confirmed.",
+      "TECHNICAL_FIELDS_MISSING_OR_UNSUPPORTED": "A technical field needed for comparison is missing or unsupported.",
+      "SINGLE_TECHNICAL_FIELD_MATCH": "The single declared technical field matches; this does not mean full compatibility.",
+      "DECLARED_TECHNICAL_FIELD_MISMATCH": "The declared technical fields do not match each other.",
+      "RAM_MISSING": "Your computer profile has no RAM module."
+    },
+    "limitations": {
+      "title": "Limits of this result",
+      "UNKNOWN": "This result has additional limitations.",
+      "BOUNDED_DISCOVERY_50_PER_GENRE": "At most 50 candidate games were considered per genre.",
+      "CANDIDATE_SCAN_TRUNCATED": "The candidate scan was capped; not every player may have been considered.",
+      "EVENT_SCAN_TRUNCATED": "The event scan was capped; not every event may have been considered.",
+      "VIEWER_PREFERENCES_MISSING": "Your profile has no gaming preferences. Adding genre and platform preferences improves suggestions.",
+      "DECLARED_TECHNICAL_DATA_ONLY": "Only declared technical details were used.",
+      "OS_DRIVERS_AND_FREE_SPACE_NOT_VERIFIED": "Operating system, drivers and free space were not verified.",
+      "NO_CPU_GPU_MODEL_PERFORMANCE_ORDER": "Different processor and graphics card models are not ranked by performance.",
+      "NO_CATALOG_WIDE_HARDWARE_FILTER": "This assessment does not filter the whole catalog by hardware.",
+      "NO_FPS_ESTIMATE_FROM_MIXED_AGGREGATE": "Measurements from different settings are not mixed into an FPS estimate.",
+      "SOME_CANDIDATES_UNAVAILABLE": "Some games were skipped because they were not found in the catalog.",
+      "SOME_REQUIREMENTS_MISSING": "Some games are missing requirements; they are shown as “Could not verify”.",
+      "UNKNOWN_IS_NOT_KNOWN_INCOMPATIBLE": "“Could not verify” does not mean the game is incompatible.",
+      "CHIPSET_BIOS_NOT_VERIFIED": "Chipset and BIOS version were not verified.",
+      "RAM_FORM_FACTOR_NOT_VERIFIED": "RAM form factor was not verified.",
+      "GPU_SLOT_SIZE_POWER_NOT_VERIFIED": "Graphics card slot, size and power needs were not verified.",
+      "SAME_SOCKET_OR_DDR_IS_NOT_FULL_COMPATIBILITY": "The same socket or memory type does not mean full compatibility.",
+      "DEVICE_CONTEXT_NOT_ATTESTED": "The measured device was not independently verified.",
+      "GAME_BUILD_AND_BACKGROUND_LOAD_UNCONTROLLED": "Game version and background load were not controlled.",
+      "HISTORICAL_RANGE_NOT_CURRENT_MEASUREMENT": "The range comes from past measurements, not a live one.",
+      "MAX_20_SESSIONS_600_SAMPLES_30_DAYS": "At most 20 sessions and 600 measurements from the last 30 days are used."
+    },
+    "errors": {
+      "status": {
+        "400": {
+          "title": "Invalid request",
+          "description": "Your selections were not accepted. Check the filters and try again."
+        },
+        "401": {
+          "title": "Your session has ended",
+          "description": "Sign in again to continue."
+        },
+        "403": {
+          "title": "You do not have permission",
+          "description": "You are not allowed to access this content."
+        },
+        "404": {
+          "title": "Not found",
+          "description": "The requested content was not found or no longer exists."
+        },
+        "409": {
+          "title": "Conflict",
+          "description": "This record changed elsewhere. Refresh the page and try again."
+        },
+        "429": {
+          "title": "Too many requests",
+          "description": "Too many requests in a short time. Try again when the wait is over."
+        },
+        "500": {
+          "title": "Something went wrong",
+          "description": "The recommendation service could not complete the request. Try again shortly."
+        },
+        "502": {
+          "title": "A connected service is unreachable",
+          "description": "A service needed for recommendations did not respond. Try again shortly."
+        },
+        "503": {
+          "title": "Recommendations are unavailable right now",
+          "description": "The service is temporarily not responding. Try again shortly."
+        },
+        "network": {
+          "title": "Could not connect",
+          "description": "Check your internet connection and try again."
+        }
+      },
+      "codes": {
+        "HISTORY_LIMIT_REACHED": {
+          "title": "Recommendation history is full",
+          "description": "You reached the limit of stored recommendations. You can create new ones as older lists are deleted after 30 days."
+        },
+        "RECOMMENDATION_NOT_FOUND": {
+          "title": "Recommendation not found",
+          "description": "This recommendation may have passed its 30-day retention or been deleted."
+        },
+        "GAME_UNAVAILABLE": {
+          "title": "Game unavailable",
+          "description": "This game is not in the catalog or its requirements could not be loaded."
+        },
+        "SOURCE_NOT_FOUND": {
+          "title": "Computer profile not found",
+          "description": "The selected computer may have been deleted. Check My computers."
+        },
+        "PROFILE_WINDOW_EXCEEDED": {
+          "title": "Computer profile could not be read",
+          "description": "Profile details were not received in time. Try again shortly."
+        },
+        "INVALID_RESPONSE": {
+          "title": "Response could not be read",
+          "description": "The server sent an unexpected response. Try again shortly."
+        },
+        "NETWORK": {
+          "title": "Could not connect",
+          "description": "Check your internet connection and try again."
+        },
+        "SOURCE_ACCESS_DENIED": {
+          "title": "Source not accessible",
+          "description": "There is no permission to access data needed for recommendations."
+        },
+        "FEEDBACK_VERSION_CONFLICT": {
+          "title": "Feedback was updated",
+          "description": "Feedback on this recommendation was given elsewhere. The latest state was loaded."
+        },
+        "CONSENT_REQUIRED": {
+          "title": "Personal recommendations are off",
+          "description": "Turn on the personalized recommendations permission to see suggestions."
+        },
+        "ASSISTANT_UNAVAILABLE": {
+          "title": "LTZ Guide cannot respond right now",
+          "description": "The guide is temporarily unavailable. Try again shortly."
+        }
+      }
+    },
+    "social": {
+      "addFriend": "Add friend",
+      "addFriendLabel": "Add {name} as a friend",
+      "openRequests": "Go to requests",
+      "unknownPlayer": "Player",
+      "profileUnavailable": "Profile details are unavailable right now.",
+      "sharedInterests": "Shared interests",
+      "sharedGenres": "Shared genres",
+      "sharedPlatforms": "Shared platforms",
+      "sharedPlayerTypes": "Shared player types",
+      "outcome": {
+        "SENT": "Request sent",
+        "ALREADY_FRIENDS": "Already friends",
+        "FRIEND_REQUEST_ALREADY_PENDING": "Request already sent",
+        "INCOMING_FRIEND_REQUEST_PENDING": "This player has sent you a request.",
+        "USER_BLOCKED": "You cannot send a request to this player"
+      },
+      "friends": {
+        "title": "Players you might know",
+        "description": "Ranked by shared genres, platforms and player types.",
+        "compactTitle": "Friend suggestions",
+        "compactDescription": "Based on shared interests.",
+        "seeAll": "See all",
+        "emptyTitle": "No friend suggestions right now",
+        "emptyDescription": "Adding genre and platform preferences to your profile can bring new suggestions.",
+        "listLabel": "Friend suggestions"
+      },
+      "players": {
+        "title": "Players like you",
+        "description": "Your friends are not included in this list.",
+        "platformFilter": "Platform",
+        "emptyTitle": "No similar players found",
+        "emptyDescription": "Change the filters or add gaming preferences to your profile.",
+        "listLabel": "Similar players"
+      }
+    },
+    "events": {
+      "title": "Event suggestions",
+      "description": "Events open to join that match your interests. Events you joined are not listed.",
+      "emptyTitle": "No events to suggest right now",
+      "emptyDescription": "No upcoming events match your interests. Check back later.",
+      "listLabel": "Suggested events",
+      "join": "Join",
+      "joinLabel": "Join {title}",
+      "sharedGenres": "Shared genres",
+      "sharedPlatforms": "Shared platforms",
+      "type": {
+        "TOURNAMENT": "Tournament",
+        "GAME_NIGHT": "Game night",
+        "COMMUNITY": "Community",
+        "POLL": "Poll",
+        "OTHER": "Other"
+      },
+      "outcome": {
+        "JOINED": "Joined",
+        "ALREADY_JOINED": "Already joined",
+        "EVENT_FULL": "Event is full",
+        "EVENT_NOT_OPEN": "Not open to join",
+        "ORGANIZER_CANNOT_JOIN": "You organize this event"
+      }
+    },
+    "platform": {
+      "windows": "Windows",
+      "mac": "macOS",
+      "linux": "Linux"
+    },
+    "shortcut": {
+      "description": "Compare your saved computer with games' minimum requirements, or create personal game recommendations. Results rely on declared hardware details and are not an FPS guarantee.",
+      "hardware": "Games for your hardware",
+      "games": "Games for you"
+    }
   },
   "Messaging": {
     "meta": {

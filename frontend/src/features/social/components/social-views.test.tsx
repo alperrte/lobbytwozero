@@ -9,6 +9,9 @@ import { BlockedView } from "./blocked-view";
 import { FriendsView } from "./friends-view";
 import { RequestsView } from "./requests-view";
 
+// Arkadaşlar sayfasına gömülen öneri paneli kendi testlerinde (features/recommendation) doğrulanır; burada oturum ve rıza
+// çağrısı yapmaması için boş bileşenle değiştirilir.
+vi.mock("@/features/recommendation", () => ({ FriendSuggestions: () => null }));
 vi.mock("../services/social-api", async () => ({
   socialApi: (await import("../services/social-mock-store")).socialMockApi
 }));

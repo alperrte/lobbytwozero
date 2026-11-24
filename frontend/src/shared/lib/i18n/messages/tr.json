@@ -670,6 +670,34 @@
     "performanceDashboard": {
       "title": "Performans paneli",
       "description": "Kendi donanım profillerini, kayıtlı oturumlarını ve oyun raporlarını incele."
+    },
+    "forYou": {
+      "title": "Sana Özel",
+      "description": "Tercihlerine ve donanımına göre kişisel oyun, oyuncu ve etkinlik önerileri."
+    },
+    "forYouGames": {
+      "title": "Sana Özel Oyunlar",
+      "description": "Puanladığın oyunların türlerine göre kişisel oyun önerileri."
+    },
+    "forYouHardware": {
+      "title": "Donanımına Uygun Oyunlar",
+      "description": "Kayıtlı bilgisayarını oyunların minimum gereksinimleriyle karşılaştır."
+    },
+    "forYouFriends": {
+      "title": "Arkadaş Önerileri",
+      "description": "Ortak ilgi alanlarına göre tanışabileceğin oyuncular."
+    },
+    "forYouPlayers": {
+      "title": "Benzer Oyuncular",
+      "description": "Oyun tercihleri seninkine benzeyen oyuncular."
+    },
+    "forYouEvents": {
+      "title": "Sana Uygun Etkinlikler",
+      "description": "İlgi alanlarınla örtüşen, katılıma açık etkinlikler."
+    },
+    "forYouHistory": {
+      "title": "Öneri Geçmişi",
+      "description": "Son 30 günde oluşturduğun oyun önerileri."
     }
   },
   "Footer": {
@@ -3684,9 +3712,540 @@
     "uncertainMutation": "İşlemin sonucu kesinleşmedi. Yeniden denemeden önce sunucudaki güncel durumu kontrol et.",
     "reviewData": "Güncel durumu kontrol et",
     "reviewRequired": "Önce güncel durumu kontrol et",
-    "compatibilityAndRecommendations": "Oyun uyumluluğu ve öneriler",
-    "compatibilityUnavailable": "Bu sürümde doğrulanmış oyun–donanım uyumluluk karşılaştırması henüz kullanılamıyor. Donanım kaydının bulunması, oyunun uyumlu olduğunu göstermez.",
-    "recommendationsUnavailable": "Kişiselleştirilmiş oyun ve donanım önerileri henüz kullanılamıyor. Bu panel tahmini FPS veya öneri sonucu üretmez."
+    "compatibilityAndRecommendations": "Oyun uyumluluğu ve öneriler"
+  },
+  "Recommendation": {
+    "nav": {
+      "label": "Sana Özel bölümleri",
+      "overview": "Genel bakış",
+      "games": "Oyunlar",
+      "hardware": "Donanımına uygun",
+      "friends": "Arkadaş önerileri",
+      "players": "Benzer oyuncular",
+      "events": "Etkinlikler",
+      "history": "Geçmiş"
+    },
+    "sections": {
+      "overview": {
+        "title": "Sana Özel",
+        "description": "Tercihlerine, puanlarına ve donanımına göre hazırlanan öneriler. Yeni öneri yalnız sen istediğinde oluşturulur."
+      },
+      "games": {
+        "title": "Sana özel oyunlar",
+        "description": "Puanladığın oyunların türlerinden yola çıkan kişisel oyun önerileri."
+      },
+      "hardware": {
+        "title": "Donanımına uygun oyunlar",
+        "description": "Kayıtlı bilgisayarının beyan edilen CPU, GPU ve RAM bilgisi oyunların minimum gereksinimiyle karşılaştırılır."
+      },
+      "friends": {
+        "title": "Arkadaş önerileri",
+        "description": "Ortak tür, platform ve oyuncu tipine göre tanışabileceğin oyuncular."
+      },
+      "players": {
+        "title": "Benzer oyuncular",
+        "description": "Oyun tercihleri seninkine benzeyen oyuncular. Arkadaşların bu listede yer almaz."
+      },
+      "events": {
+        "title": "Sana uygun etkinlikler",
+        "description": "İlgi alanlarınla örtüşen, katılıma açık yaklaşan etkinlikler."
+      },
+      "history": {
+        "title": "Öneri geçmişi",
+        "description": "Son 30 gün içinde oluşturduğun oyun önerileri ve verdiğin geri bildirimler."
+      }
+    },
+    "guide": {
+      "open": "LTZ Rehber",
+      "title": "LTZ Rehber",
+      "description": "Ne yapmak istediğini seç; rehber seni doğru ekrana ve adımlara yönlendirir.",
+      "taskLegend": "Ne yapmak istiyorsun?",
+      "fieldsLegend": "Gerekli bilgiler",
+      "ask": "Yol göster",
+      "ruleBasedNote": "LTZ Rehber sohbet botu değildir: seçimlerini kurallarla değerlendirir ve serbest metin almaz.",
+      "answerTitle": "Rehberin önerisi",
+      "missingFields": "Devam etmek için eksik bilgi: {fields}",
+      "fieldMissing": "Bu alan gerekli.",
+      "notSelected": "Seçilmedi",
+      "catalogUnavailable": "Oyun kataloğuna şu an ulaşılamıyor.",
+      "profilesUnavailable": "Bilgisayar profillerin yüklenemedi.",
+      "addProfile": "Bilgisayar ekle",
+      "changeGame": "Oyunu değiştir",
+      "gameSearchPlaceholder": "Oyun adı yaz",
+      "gameSearchHint": "Aramak için en az 2 karakter yaz.",
+      "searching": "Aranıyor…",
+      "gameResults": "{count, plural, other {# oyun bulundu}}",
+      "gameNoResults": "Bu aramayla eşleşen oyun yok.",
+      "gameResultsLabel": "Oyun arama sonuçları",
+      "fields": {
+        "GENRE": "Tür",
+        "HARDWARE_PROFILE_ID": "Bilgisayar",
+        "GAME_ID": "Oyun",
+        "PLATFORM": "Platform"
+      },
+      "status": {
+        "GUIDANCE": "Yönlendirme hazır",
+        "NEEDS_INPUT": "Biraz daha bilgi gerekiyor",
+        "INSUFFICIENT_DATA": "Yeterli veri yok"
+      },
+      "steps": {
+        "OPEN_GAME_DISCOVERY": "Oyun keşfini aç",
+        "FILTER_GENRE": "Türe göre oyun önerisi oluştur",
+        "VERIFY_GAME_REQUIREMENTS": "Oyunun gereksinimlerini bilgisayarınla karşılaştır",
+        "REVIEW_MINIMUM_DEFICIT": "Minimum gereksinimdeki eksikleri incele",
+        "COMPARE_RECOMMENDED_LEVEL": "Önerilen seviyeyle karşılaştır",
+        "CHECK_UNKNOWN_REQUIREMENTS": "Doğrulanamayan gereksinimleri kontrol et",
+        "MEASURE_IN_GAME": "Oyunda performansını ölç",
+        "OPEN_RECOMMENDATION_HISTORY": "Öneri geçmişini aç",
+        "SELECT_OWN_ITEM": "Kendi önerilerinden birini seç",
+        "SEND_FEEDBACK": "Beğen veya İlgilenmiyorum ile geri bildirim ver"
+      },
+      "tasks": {
+        "SELECT_GAME": {
+          "label": "Oyun seçmek istiyorum",
+          "hint": "Bir türe göre ne oynayacağını bul."
+        },
+        "ASSESS_GAME": {
+          "label": "Bir oyun bilgisayarımda çalışır mı?",
+          "hint": "Bilgisayarını oyunun gereksinimleriyle karşılaştır."
+        },
+        "VIEW_HISTORY": {
+          "label": "Eski önerilerimi görmek istiyorum",
+          "hint": "Son 30 günün öneri listelerine dön."
+        },
+        "GIVE_FEEDBACK": {
+          "label": "Önerilere geri bildirim vermek istiyorum",
+          "hint": "Önerileri beğen veya ilgilenmediğini belirt."
+        }
+      }
+    },
+    "common": {
+      "loading": "Yükleniyor",
+      "working": "İşleniyor…",
+      "retryIn": "{seconds} sn sonra tekrar dene",
+      "retry": "Tekrar dene",
+      "rank": "{rank}. sıra",
+      "close": "Kapat"
+    },
+    "consent": {
+      "title": "Kişisel öneriler için izin gerekiyor",
+      "description": "Sana Özel bölümü, önerileri hesabındaki verilerden hazırlar. Bunun için kişiselleştirilmiş öneri iznini açman gerekir.",
+      "usesPreferences": "Profilindeki tür, platform ve oyuncu tipi tercihlerin kullanılır.",
+      "usesActivity": "Puanladığın oyunlar ve verdiğin öneri geri bildirimleri kullanılır.",
+      "revocable": "İzni hesap ayarlarından istediğin zaman kapatabilirsin; kapattığında öneri geçmişin silinir.",
+      "grant": "İzin ver",
+      "saving": "Kaydediliyor…",
+      "settings": "Hesap ayarları"
+    },
+    "overview": {
+      "gamesTitle": "Son oyun önerilerin",
+      "gamesDescription": "En son oluşturduğun öneri listesinden ilk oyunlar.",
+      "openGames": "Tüm oyun önerileri",
+      "noRunTitle": "Henüz oyun önerin yok",
+      "noRunDescription": "Oyun önerileri yalnız sen istediğinde oluşturulur. Tür ve platform seçip ilk listeni oluştur.",
+      "createFirst": "Oyun önerisi oluştur",
+      "friendsTitle": "Tanışabileceğin oyuncular",
+      "friendsDescription": "Ortak ilgi alanlarına göre arkadaş önerileri.",
+      "openFriends": "Tüm arkadaş önerileri",
+      "eventsTitle": "Sana uygun etkinlikler",
+      "eventsDescription": "Katılıma açık, ilgi alanlarınla örtüşen etkinlikler.",
+      "openEvents": "Tüm etkinlikler",
+      "moreTitle": "Diğer öneriler",
+      "hardwareTitle": "Donanımına uygun oyunlar",
+      "hardwareDescription": "Bilgisayarını seç, minimum gereksinimi karşılayan oyunları gör.",
+      "playersTitle": "Benzer oyuncular",
+      "playersDescription": "Oyun zevki seninkine benzeyen oyuncuları keşfet.",
+      "historyTitle": "Öneri geçmişi",
+      "historyDescription": "Son 30 günün listelerine dön, geri bildirim ver."
+    },
+    "filters": {
+      "genre": "Tür",
+      "platform": "Platform",
+      "size": "Liste boyutu",
+      "allGenres": "Tüm türler",
+      "allPlatforms": "Tüm platformlar",
+      "sizeOption": "{count} oyun",
+      "termsUnavailable": "Tür ve platform listesi yüklenemedi; öneriyi filtresiz oluşturabilirsin."
+    },
+    "games": {
+      "generateTitle": "Yeni öneri oluştur",
+      "generateDescription": "İstersen tür ve platform seç. Liste, puanladığın oyunların türlerine göre sıralanır.",
+      "generate": "Öneri oluştur",
+      "generateNote": "Her oluşturma geçmişine kaydedilir. Dakikada en fazla 10 öneri isteği yapılabilir.",
+      "freshTitle": "Yeni önerilerin",
+      "latestTitle": "Son önerilerin",
+      "openHistory": "Geçmiş",
+      "noRunTitle": "Henüz öneri oluşturmadın",
+      "noRunDescription": "Filtreleri seçip “Öneri oluştur” düğmesine bastığında listen burada görünür.",
+      "emptyRunTitle": "Bu listede oyun yok",
+      "emptyRunDescription": "Seçtiğin filtrelerle eşleşen yeterli oyun bulunamadı. Filtreleri genişletip tekrar dene ya da birkaç oyun puanla.",
+      "createdAt": "Oluşturulma: {date}",
+      "filtersUsed": "Filtreler: {filters}",
+      "noFilters": "Filtre yok",
+      "listLabel": "Önerilen oyunlar",
+      "showMore": "{count} oyun daha göster",
+      "why": "Neden?",
+      "reason": "Yüksek puan verdiğin türlerle eşleşiyor: {genres}.",
+      "reasonGeneric": "Puanladığın oyunların genel tür eğilimine göre sıralandı.",
+      "alsoGenres": "Türler: {genres}",
+      "unavailable": "Bu oyun artık katalogda değil.",
+      "unknownTitle": "Bilinmeyen oyun",
+      "detailsUnavailable": "Oyun ayrıntıları şu an alınamıyor; liste sırası yine de doğrudur."
+    },
+    "feedback": {
+      "groupLabel": "{game} için geri bildirim",
+      "LIKE": "Beğendim",
+      "NOT_INTERESTED": "İlgilenmiyorum",
+      "conflict": "Bu öneri başka bir yerde güncellendi; son durum yüklendi.",
+      "failed": "Geri bildirim kaydedilemedi."
+    },
+    "history": {
+      "title": "Önceki öneri listeleri",
+      "description": "Öneri listeleri 30 gün saklanır.",
+      "emptyTitle": "Geçmişte öneri yok",
+      "emptyDescription": "Son 30 gün içinde oyun önerisi oluşturmadın.",
+      "goGenerate": "Öneri oluştur",
+      "resultCount": "{count, plural, =0 {Oyun yok} other {# oyun}}",
+      "open": "Aç",
+      "loadMore": "Daha fazla yükle",
+      "loadingMore": "Yükleniyor…",
+      "end": "Tüm geçmiş gösteriliyor.",
+      "back": "Geçmişe dön",
+      "detailTitle": "Öneri listesi",
+      "notFoundTitle": "Bu öneri listesi bulunamadı",
+      "notFoundDescription": "Liste 30 günlük saklama süresini doldurmuş, silinmiş ya da sana ait değil."
+    },
+    "hardware": {
+      "filtersTitle": "Bilgisayar ve platform",
+      "filtersDescription": "Karşılaştırma, bilgisayar profilinde beyan ettiğin donanım bilgileriyle yapılır.",
+      "profile": "Bilgisayar",
+      "platform": "Platform",
+      "fetch": "Uygun oyunları getir",
+      "fetchNote": "Bu sonuç bir FPS veya performans garantisi değildir.",
+      "manageProfiles": "Bilgisayarlarımı yönet",
+      "noProfileTitle": "Kayıtlı bilgisayarın yok",
+      "noProfileDescription": "Donanımına uygun oyunları görmek için önce bir bilgisayar profili ekle.",
+      "addProfile": "Bilgisayar ekle",
+      "idleTitle": "Bilgisayarını seç",
+      "idleDescription": "Bilgisayar ve platform seçip “Uygun oyunları getir” düğmesine bas.",
+      "resultsTitle": "Sonuçlar",
+      "resultsFor": "{profile} · {platform}",
+      "excluded": "{count, plural, other {Minimum gereksinimin altında kaldığı belli olan # oyun listeden çıkarıldı.}}",
+      "emptyTitle": "Gösterilecek oyun yok",
+      "emptyDescription": "Bu bilgisayar ve platform için önerilebilecek oyun bulunamadı. Farklı bir tür veya platform dene.",
+      "listLabel": "Donanımına göre oyunlar",
+      "detailsUnavailable": "Oyun ayrıntıları şu an alınamıyor.",
+      "why": "Neden?",
+      "reason": "İlgilendiğin türlerle eşleşiyor: {genres}.",
+      "assess": "Ayrıntılı değerlendir",
+      "unavailable": "Bu oyun artık katalogda değil.",
+      "unknownTitle": "Bilinmeyen oyun",
+      "compatibility": {
+        "MEETS_MINIMUM_COMPUTE": "Minimum CPU/GPU/RAM karşılanıyor",
+        "UNKNOWN": "Doğrulanamadı"
+      },
+      "compatibilityReason": {
+        "MINIMUM_CPU_GPU_RAM_PROVEN": "Yalnız işlemci, ekran kartı ve RAM beyanı minimumla karşılaştırıldı; işletim sistemi, sürücü ve boş alan doğrulanmadı.",
+        "MINIMUM_NOT_PROVEN": "Bilgisayarın minimumu karşılayıp karşılamadığı beyan edilen bilgilerle kanıtlanamadı. Bu, oyunun çalışmayacağı anlamına gelmez.",
+        "REQUIREMENTS_MISSING": "Oyunun minimum gereksinimleri katalogda yok."
+      }
+    },
+    "assessment": {
+      "title": "{game} — donanım değerlendirmesi",
+      "description": "Çözünürlük ve grafik ayarı isteğe bağlıdır; yalnız FPS kayıtlarını eşleştirmek için kullanılır.",
+      "resolution": "Çözünürlük",
+      "graphicsPreset": "Grafik ayarı",
+      "notSpecified": "Belirtme",
+      "contextNote": "Değerlendirme, bilgisayar profilindeki beyanlara dayanır; gerçek performans farklı olabilir.",
+      "submit": "Değerlendir",
+      "reassess": "Yeniden değerlendir",
+      "yours": "Senin:",
+      "required": "Gereken:",
+      "notDeclared": "Belirtilmemiş",
+      "preset": {
+        "LOW": "Düşük",
+        "MEDIUM": "Orta",
+        "HIGH": "Yüksek",
+        "ULTRA": "Ultra"
+      },
+      "level": {
+        "MINIMUM": "Minimum gereksinim",
+        "RECOMMENDED": "Önerilen gereksinim"
+      },
+      "check": {
+        "MEETS": "Karşılanıyor",
+        "BELOW": "Altında",
+        "UNKNOWN": "Doğrulanamadı"
+      },
+      "fields": {
+        "CPU": "İşlemci",
+        "GPU": "Ekran kartı",
+        "RAM": "RAM",
+        "VRAM": "Ekran belleği (VRAM)",
+        "STORAGE": "Depolama",
+        "OS": "İşletim sistemi",
+        "REQUIREMENTS": "Gereksinimler",
+        "CPU_SOCKET": "İşlemci soketi",
+        "RAM_MEMORY_TYPE": "Bellek türü"
+      },
+      "summary": {
+        "below": {
+          "title": "Minimum gereksinimin altında",
+          "description": "En az bir bileşen oyunun minimum gereksiniminin altında. Aşağıda hangi bileşenin eksik kaldığını görebilirsin."
+        },
+        "computeMet": {
+          "title": "Minimum CPU/GPU/RAM karşılanıyor",
+          "description": "Beyan edilen işlemci, ekran kartı ve RAM minimumu karşılıyor. Diğer kontroller doğrulanamadığı için bu bir “uyumlu” sonucu değildir."
+        },
+        "unknown": {
+          "title": "Uyumluluk doğrulanamadı",
+          "description": "Mevcut bilgilerle bilgisayarının bu oyunu çalıştırıp çalıştıramayacağı kesinleştirilemedi. Bu, uyumsuz olduğu anlamına gelmez."
+        }
+      },
+      "fps": {
+        "title": "FPS",
+        "estimatedChip": "Geçmiş ölçümlerden tahmin",
+        "noEstimateChip": "Tahmin yok",
+        "range": "{lower}–{upper} FPS",
+        "estimateNote": "{sessions} oturumdaki {samples} ölçüme dayanan geçmiş aralık; şu anki performansın ölçümü değildir.",
+        "confidence": "Güven: {level}",
+        "confidenceLevel": {
+          "LOW": "Düşük",
+          "NONE": "Yok"
+        },
+        "lastObserved": "Son ölçüm: {date}"
+      },
+      "graphics": {
+        "title": "Grafik ayarı",
+        "conditional": "Oyun açılırsa {preset} ayarla başlayıp performansını ölçebilirsin."
+      },
+      "upgrades": {
+        "title": "Yükseltme önerileri",
+        "INCREASE_RAM": "RAM miktarını artır",
+        "INCREASE_STORAGE_CAPACITY": "Depolama kapasitesini artır",
+        "target": "({level}: {required})"
+      },
+      "components": {
+        "title": "Bileşen uyumu",
+        "status": {
+          "INCOMPATIBLE": "Uyumsuz bileşen var",
+          "UNKNOWN": "Tam doğrulanamadı"
+        },
+        "check": {
+          "DECLARED_MATCH": "Beyan eşleşiyor",
+          "INCOMPATIBLE": "Uyumsuz",
+          "UNKNOWN": "Doğrulanamadı"
+        }
+      }
+    },
+    "reasons": {
+      "UNKNOWN_REASON": "Bu sonucun ayrıntılı açıklaması yok.",
+      "REQUIREMENTS_MISSING": "Oyunun bu seviye için gereksinimleri katalogda yok.",
+      "OS_AND_DRIVERS_NOT_VERIFIED": "İşletim sistemi ve sürücüler doğrulanamıyor.",
+      "EXACT_DECLARED_MODEL_MATCH": "Beyan ettiğin model gereksinimdeki modelle aynı.",
+      "MODEL_ORDER_OR_REQUIREMENT_UNKNOWN": "Farklı modeller arasında güvenilir bir performans sıralaması yok; karşılaştırma yapılamadı.",
+      "CAPACITY_OR_REQUIREMENT_MISSING": "Kapasite bilgisi ya da gereksinim eksik.",
+      "CAPACITY_UPPER_BOUND_BELOW_REQUIREMENT": "Beyan edilen kapasite gereksinimin altında.",
+      "CAPACITY_LOWER_BOUND_MEETS_REQUIREMENT": "Beyan edilen kapasite gereksinimi karşılıyor.",
+      "CAPACITY_UNIT_CONVENTION_UNSPECIFIED": "Kapasite birimi belirsiz olduğu için kesin karşılaştırma yapılamadı.",
+      "FREE_SPACE_NOT_MEASURED": "Toplam kapasite biliniyor ama boş alan ölçülmüyor.",
+      "STRUCTURED_VRAM_REQUIREMENT_UNAVAILABLE": "Oyunun ekran belleği gereksinimi yapılandırılmış biçimde yok.",
+      "NO_FPS_SAMPLES": "Bu oyun ve bilgisayar için FPS ölçümü yok.",
+      "RESOLUTION_PRESET_PROVENANCE_AND_PROFILE_VERSION_UNBOUND": "Mevcut ölçümler seçtiğin çözünürlük, grafik ayarı veya bilgisayar sürümüyle eşleştirilemedi.",
+      "MATCHED_HISTORICAL_DEVICE_RANGE_NOT_CURRENT_MEASUREMENT": "Aralık bu cihazın geçmiş ölçümlerinden hesaplandı; anlık ölçüm değildir.",
+      "MATCHED_CONTEXT_REQUIRES_3_RECENT_60_SAMPLE_60_SECOND_SESSIONS": "Tahmin için aynı ayarlarla son 30 günde en az 3 oturum (her biri en az 60 saniye ve 60 ölçüm) gerekir.",
+      "IF_AVAILABLE_START_LOW_AND_MEASURE_NO_FPS_PROMISE": "Bu bir FPS vaadi değildir; düşük ayarla başlayıp ölçmen önerilir.",
+      "MINIMUM_COMPUTE_OR_COMPONENTS_NOT_CONFIRMED": "Minimum işlem gücü veya bileşen uyumu doğrulanamadığı için grafik ayarı önerilmiyor.",
+      "TECHNICAL_FIELDS_MISSING_OR_UNSUPPORTED": "Karşılaştırma için teknik alan eksik veya desteklenmiyor.",
+      "SINGLE_TECHNICAL_FIELD_MATCH": "Beyan edilen tek teknik alan eşleşiyor; bu tam uyumluluk anlamına gelmez.",
+      "DECLARED_TECHNICAL_FIELD_MISMATCH": "Beyan edilen teknik alanlar birbiriyle eşleşmiyor.",
+      "RAM_MISSING": "Bilgisayar profilinde RAM modülü yok."
+    },
+    "limitations": {
+      "title": "Bu sonucun sınırları",
+      "UNKNOWN": "Bu sonuç ek sınırlamalar içeriyor.",
+      "BOUNDED_DISCOVERY_50_PER_GENRE": "Her türde en fazla 50 aday oyun değerlendirildi.",
+      "CANDIDATE_SCAN_TRUNCATED": "Aday taraması sınırlandı; tüm oyuncular değerlendirilmemiş olabilir.",
+      "EVENT_SCAN_TRUNCATED": "Etkinlik taraması sınırlandı; tüm etkinlikler değerlendirilmemiş olabilir.",
+      "VIEWER_PREFERENCES_MISSING": "Profilinde oyun tercihleri yok. Tür ve platform tercihlerini ekleyince öneriler iyileşir.",
+      "DECLARED_TECHNICAL_DATA_ONLY": "Yalnız beyan edilen teknik bilgiler kullanıldı.",
+      "OS_DRIVERS_AND_FREE_SPACE_NOT_VERIFIED": "İşletim sistemi, sürücüler ve boş alan doğrulanmadı.",
+      "NO_CPU_GPU_MODEL_PERFORMANCE_ORDER": "Farklı işlemci ve ekran kartı modelleri performansa göre sıralanmıyor.",
+      "NO_CATALOG_WIDE_HARDWARE_FILTER": "Bu değerlendirme tüm kataloğu donanıma göre süzmez.",
+      "NO_FPS_ESTIMATE_FROM_MIXED_AGGREGATE": "Farklı ayarlardaki ölçümler karıştırılarak FPS tahmini yapılmaz.",
+      "SOME_CANDIDATES_UNAVAILABLE": "Bazı oyunlar katalogda bulunamadığı için atlandı.",
+      "SOME_REQUIREMENTS_MISSING": "Bazı oyunların gereksinimleri eksik; bunlar “Doğrulanamadı” olarak gösterilir.",
+      "UNKNOWN_IS_NOT_KNOWN_INCOMPATIBLE": "“Doğrulanamadı” sonucu, oyunun uyumsuz olduğu anlamına gelmez.",
+      "CHIPSET_BIOS_NOT_VERIFIED": "Yonga seti ve BIOS sürümü doğrulanmadı.",
+      "RAM_FORM_FACTOR_NOT_VERIFIED": "RAM form faktörü doğrulanmadı.",
+      "GPU_SLOT_SIZE_POWER_NOT_VERIFIED": "Ekran kartının yuvası, boyutu ve güç ihtiyacı doğrulanmadı.",
+      "SAME_SOCKET_OR_DDR_IS_NOT_FULL_COMPATIBILITY": "Aynı soket veya bellek türü tam uyumluluk anlamına gelmez.",
+      "DEVICE_CONTEXT_NOT_ATTESTED": "Ölçüm yapılan cihaz bağımsız olarak doğrulanmadı.",
+      "GAME_BUILD_AND_BACKGROUND_LOAD_UNCONTROLLED": "Oyun sürümü ve arka plan yükü kontrol edilmedi.",
+      "HISTORICAL_RANGE_NOT_CURRENT_MEASUREMENT": "Aralık geçmiş ölçümlerden gelir, anlık değildir.",
+      "MAX_20_SESSIONS_600_SAMPLES_30_DAYS": "En fazla son 30 gündeki 20 oturum ve 600 ölçüm kullanılır."
+    },
+    "errors": {
+      "status": {
+        "400": {
+          "title": "İstek geçersiz",
+          "description": "Gönderilen seçimler kabul edilmedi. Filtreleri kontrol edip tekrar dene."
+        },
+        "401": {
+          "title": "Oturumun sona erdi",
+          "description": "Devam etmek için yeniden giriş yap."
+        },
+        "403": {
+          "title": "Bu işlem için yetkin yok",
+          "description": "Bu içeriğe erişim iznin bulunmuyor."
+        },
+        "404": {
+          "title": "Bulunamadı",
+          "description": "İstenen içerik bulunamadı ya da artık mevcut değil."
+        },
+        "409": {
+          "title": "Çakışma oluştu",
+          "description": "Bu kayıt başka bir yerde değişti. Sayfayı yenileyip tekrar dene."
+        },
+        "429": {
+          "title": "Çok fazla istek",
+          "description": "Kısa sürede çok sayıda istek yapıldı. Bekleme süresi bitince tekrar dene."
+        },
+        "500": {
+          "title": "Beklenmeyen bir hata oluştu",
+          "description": "Öneri servisi isteği tamamlayamadı. Biraz sonra tekrar dene."
+        },
+        "502": {
+          "title": "Bağlı servise ulaşılamadı",
+          "description": "Öneri için gereken bir servis yanıt vermedi. Biraz sonra tekrar dene."
+        },
+        "503": {
+          "title": "Öneri servisi şu an kullanılamıyor",
+          "description": "Servis geçici olarak yanıt vermiyor. Biraz sonra tekrar dene."
+        },
+        "network": {
+          "title": "Bağlantı kurulamadı",
+          "description": "İnternet bağlantını kontrol edip tekrar dene."
+        }
+      },
+      "codes": {
+        "HISTORY_LIMIT_REACHED": {
+          "title": "Öneri geçmişi dolu",
+          "description": "Saklanabilecek öneri sayısının sınırına ulaştın. Eski listeler 30 gün sonra silindikçe yeniden öneri oluşturabilirsin."
+        },
+        "RECOMMENDATION_NOT_FOUND": {
+          "title": "Öneri bulunamadı",
+          "description": "Bu öneri 30 günlük saklama süresini doldurmuş ya da silinmiş olabilir."
+        },
+        "GAME_UNAVAILABLE": {
+          "title": "Oyun kullanılamıyor",
+          "description": "Bu oyun katalogda yok ya da gereksinimleri alınamadı."
+        },
+        "SOURCE_NOT_FOUND": {
+          "title": "Bilgisayar profili bulunamadı",
+          "description": "Seçtiğin bilgisayar silinmiş olabilir. Bilgisayarlarım sayfasını kontrol et."
+        },
+        "PROFILE_WINDOW_EXCEEDED": {
+          "title": "Bilgisayar profili okunamadı",
+          "description": "Profil bilgisi zamanında alınamadı. Biraz sonra tekrar dene."
+        },
+        "INVALID_RESPONSE": {
+          "title": "Yanıt okunamadı",
+          "description": "Sunucudan beklenmeyen bir yanıt geldi. Biraz sonra tekrar dene."
+        },
+        "NETWORK": {
+          "title": "Bağlantı kurulamadı",
+          "description": "İnternet bağlantını kontrol edip tekrar dene."
+        },
+        "SOURCE_ACCESS_DENIED": {
+          "title": "Kaynağa erişilemedi",
+          "description": "Öneri için gereken veriye erişim izni yok."
+        },
+        "FEEDBACK_VERSION_CONFLICT": {
+          "title": "Geri bildirim güncellendi",
+          "description": "Bu öneriye başka bir yerde geri bildirim verilmiş. Son durum yüklendi."
+        },
+        "CONSENT_REQUIRED": {
+          "title": "Kişisel öneri izni kapalı",
+          "description": "Önerileri görmek için kişiselleştirilmiş öneri iznini açmalısın."
+        },
+        "ASSISTANT_UNAVAILABLE": {
+          "title": "LTZ Rehber şu an yanıt veremiyor",
+          "description": "Rehber geçici olarak kullanılamıyor. Biraz sonra tekrar dene."
+        }
+      }
+    },
+    "social": {
+      "addFriend": "Arkadaş ekle",
+      "addFriendLabel": "{name} kişisini arkadaş olarak ekle",
+      "openRequests": "İsteklere git",
+      "unknownPlayer": "Oyuncu",
+      "profileUnavailable": "Profil bilgileri şu an alınamıyor.",
+      "sharedInterests": "Ortak ilgi alanları",
+      "sharedGenres": "Ortak türler",
+      "sharedPlatforms": "Ortak platformlar",
+      "sharedPlayerTypes": "Ortak oyuncu tipleri",
+      "outcome": {
+        "SENT": "İstek gönderildi",
+        "ALREADY_FRIENDS": "Zaten arkadaşsınız",
+        "FRIEND_REQUEST_ALREADY_PENDING": "İstek zaten gönderildi",
+        "INCOMING_FRIEND_REQUEST_PENDING": "Bu oyuncu sana istek göndermiş.",
+        "USER_BLOCKED": "Bu oyuncuya istek gönderilemiyor"
+      },
+      "friends": {
+        "title": "Tanışabileceğin oyuncular",
+        "description": "Ortak tür, platform ve oyuncu tipine göre sıralandı.",
+        "compactTitle": "Arkadaş önerileri",
+        "compactDescription": "Ortak ilgi alanlarına göre.",
+        "seeAll": "Tümünü gör",
+        "emptyTitle": "Şu an arkadaş önerisi yok",
+        "emptyDescription": "Profiline tür ve platform tercihlerini eklersen yeni öneriler çıkabilir.",
+        "listLabel": "Arkadaş önerileri"
+      },
+      "players": {
+        "title": "Sana benzeyen oyuncular",
+        "description": "Arkadaşların bu listede yer almaz.",
+        "platformFilter": "Platform",
+        "emptyTitle": "Benzer oyuncu bulunamadı",
+        "emptyDescription": "Filtreleri değiştir ya da profiline oyun tercihlerini ekle.",
+        "listLabel": "Benzer oyuncular"
+      }
+    },
+    "events": {
+      "title": "Etkinlik önerileri",
+      "description": "Katılıma açık, ilgi alanlarınla örtüşen etkinlikler. Katıldığın etkinlikler listede yer almaz.",
+      "emptyTitle": "Şu an önerilecek etkinlik yok",
+      "emptyDescription": "İlgi alanlarınla örtüşen yaklaşan bir etkinlik bulunamadı. Daha sonra tekrar bak.",
+      "listLabel": "Önerilen etkinlikler",
+      "join": "Katıl",
+      "joinLabel": "{title} etkinliğine katıl",
+      "sharedGenres": "Ortak türler",
+      "sharedPlatforms": "Ortak platformlar",
+      "type": {
+        "TOURNAMENT": "Turnuva",
+        "GAME_NIGHT": "Oyun gecesi",
+        "COMMUNITY": "Topluluk",
+        "POLL": "Anket",
+        "OTHER": "Diğer"
+      },
+      "outcome": {
+        "JOINED": "Katıldın",
+        "ALREADY_JOINED": "Zaten katıldın",
+        "EVENT_FULL": "Kontenjan dolu",
+        "EVENT_NOT_OPEN": "Katılıma kapalı",
+        "ORGANIZER_CANNOT_JOIN": "Düzenleyicisi olduğun etkinlik"
+      }
+    },
+    "platform": {
+      "windows": "Windows",
+      "mac": "macOS",
+      "linux": "Linux"
+    },
+    "shortcut": {
+      "description": "Kayıtlı bilgisayarını oyunların minimum gereksinimleriyle karşılaştırabilir, kişisel oyun önerileri oluşturabilirsin. Sonuçlar beyan edilen donanım bilgilerine dayanır; FPS garantisi değildir.",
+      "hardware": "Donanımına uygun oyunlar",
+      "games": "Sana özel oyunlar"
+    }
   },
   "Messaging": {
     "meta": {
