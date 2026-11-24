@@ -80,9 +80,10 @@ public class EventService {
 		if (!currentUser.canCreateEvents()) {
 			throw new EventCreationForbiddenException();
 		}
-		Event event = Event.schedule(organizerId, request.type(), request.gameId(), platformsOf(request),
-				request.capacity(), request.title().strip(), request.description().strip(), request.startsAt(),
-				request.endsAt(), Instant.now(clock));
+		Event.Options options = new Event.Options(request.gameId(), platformsOf(request), request.capacity());
+		Event event = Event.schedule(organizerId, request.type(), options, request.title().strip(),
+				request.description().strip(), new Event.Period(request.startsAt(), request.endsAt()),
+				Instant.now(clock));
 		if (request.gameId() != null && !gameCatalog.isAvailable(request.gameId())) {
 			throw new GameNotAvailableException();
 		}

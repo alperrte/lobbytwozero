@@ -122,20 +122,18 @@ class EventServiceTest {
 	void userWithoutACreatorRoleCannotCreateEvents() {
 		when(currentUser.requireUserId()).thenReturn(USER_ID);
 		when(currentUser.canCreateEvents()).thenReturn(false);
+		CreateEventRequest request = request("Başlık", "Açıklama", NOW.plusSeconds(60), NOW.plusSeconds(120));
 
-		assertThatThrownBy(() -> eventService.createEvent(
-				request("Başlık", "Açıklama", NOW.plusSeconds(60), NOW.plusSeconds(120))))
-				.isInstanceOf(EventCreationForbiddenException.class);
+		assertThatThrownBy(() -> eventService.createEvent(request)).isInstanceOf(EventCreationForbiddenException.class);
 		verifyNoInteractions(eventRepository);
 	}
 
 	@Test
 	void unauthenticatedCallersAreRejectedBeforeAnythingIsSaved() {
 		when(currentUser.requireUserId()).thenThrow(new AuthenticationRequiredException("Authentication is required."));
+		CreateEventRequest request = request("Başlık", "Açıklama", NOW.plusSeconds(60), NOW.plusSeconds(120));
 
-		assertThatThrownBy(() -> eventService.createEvent(
-				request("Başlık", "Açıklama", NOW.plusSeconds(60), NOW.plusSeconds(120))))
-				.isInstanceOf(AuthenticationRequiredException.class);
+		assertThatThrownBy(() -> eventService.createEvent(request)).isInstanceOf(AuthenticationRequiredException.class);
 		verifyNoInteractions(eventRepository);
 	}
 
@@ -143,10 +141,9 @@ class EventServiceTest {
 	void pastStartIsRejectedAndNothingIsSaved() {
 		when(currentUser.requireUserId()).thenReturn(USER_ID);
 		when(currentUser.canCreateEvents()).thenReturn(true);
+		CreateEventRequest pastStart = request("Başlık", "Açıklama", NOW.minusSeconds(60), NOW.plusSeconds(120));
 
-		assertThatThrownBy(() -> eventService.createEvent(
-				request("Başlık", "Açıklama", NOW.minusSeconds(60), NOW.plusSeconds(120))))
-				.isInstanceOf(InvalidEventScheduleException.class);
+		assertThatThrownBy(() -> eventService.createEvent(pastStart)).isInstanceOf(InvalidEventScheduleException.class);
 		verifyNoInteractions(eventRepository);
 	}
 
@@ -154,9 +151,9 @@ class EventServiceTest {
 	void endNotAfterStartIsRejectedAndNothingIsSaved() {
 		when(currentUser.requireUserId()).thenReturn(USER_ID);
 		when(currentUser.canCreateEvents()).thenReturn(true);
+		CreateEventRequest endBeforeStart = request("Başlık", "Açıklama", NOW.plusSeconds(120), NOW.plusSeconds(60));
 
-		assertThatThrownBy(() -> eventService.createEvent(
-				request("Başlık", "Açıklama", NOW.plusSeconds(120), NOW.plusSeconds(60))))
+		assertThatThrownBy(() -> eventService.createEvent(endBeforeStart))
 				.isInstanceOf(InvalidEventScheduleException.class);
 		verifyNoInteractions(eventRepository);
 	}
@@ -212,8 +209,9 @@ class EventServiceTest {
 	@Test
 	void unauthenticatedCallersCannotListEvents() {
 		when(currentUser.requireUserId()).thenThrow(new AuthenticationRequiredException("Authentication is required."));
+		EventListRequest listRequest = EventListRequest.paged(null, null, null);
 
-		assertThatThrownBy(() -> eventService.listEvents(EventListRequest.paged(null, null, null)))
+		assertThatThrownBy(() -> eventService.listEvents(listRequest))
 				.isInstanceOf(AuthenticationRequiredException.class);
 		verifyNoInteractions(eventRepository);
 	}
@@ -247,9 +245,9 @@ class EventServiceTest {
 		when(currentUser.requireUserId()).thenReturn(USER_ID);
 		when(currentUser.canCreateEvents()).thenReturn(true);
 		when(gameCatalog.isAvailable(GAME_ID)).thenReturn(false);
+		CreateEventRequest request = requestWithGame(GAME_ID);
 
-		assertThatThrownBy(() -> eventService.createEvent(requestWithGame(GAME_ID)))
-				.isInstanceOf(GameNotAvailableException.class);
+		assertThatThrownBy(() -> eventService.createEvent(request)).isInstanceOf(GameNotAvailableException.class);
 		verifyNoInteractions(eventRepository);
 	}
 
@@ -258,9 +256,9 @@ class EventServiceTest {
 		when(currentUser.requireUserId()).thenReturn(USER_ID);
 		when(currentUser.canCreateEvents()).thenReturn(true);
 		when(gameCatalog.isAvailable(GAME_ID)).thenThrow(new GameCatalogUnavailableException(new IllegalStateException()));
+		CreateEventRequest request = requestWithGame(GAME_ID);
 
-		assertThatThrownBy(() -> eventService.createEvent(requestWithGame(GAME_ID)))
-				.isInstanceOf(GameCatalogUnavailableException.class);
+		assertThatThrownBy(() -> eventService.createEvent(request)).isInstanceOf(GameCatalogUnavailableException.class);
 		verifyNoInteractions(eventRepository);
 	}
 
@@ -280,10 +278,10 @@ class EventServiceTest {
 	void invalidScheduleIsRejectedBeforeTheGameServiceIsCalled() {
 		when(currentUser.requireUserId()).thenReturn(USER_ID);
 		when(currentUser.canCreateEvents()).thenReturn(true);
+		CreateEventRequest pastStart = new CreateEventRequest(EventType.OTHER, "T", "D", NOW.minusSeconds(60),
+				NOW.plusSeconds(120), GAME_ID, null);
 
-		assertThatThrownBy(() -> eventService.createEvent(new CreateEventRequest(EventType.OTHER, "T", "D",
-				NOW.minusSeconds(60), NOW.plusSeconds(120), GAME_ID, null)))
-				.isInstanceOf(InvalidEventScheduleException.class);
+		assertThatThrownBy(() -> eventService.createEvent(pastStart)).isInstanceOf(InvalidEventScheduleException.class);
 		verifyNoInteractions(gameCatalog);
 		verifyNoInteractions(eventRepository);
 	}
@@ -292,17 +290,10 @@ class EventServiceTest {
 	void unauthorizedCallerCannotTriggerGameServiceCalls() {
 		when(currentUser.requireUserId()).thenReturn(USER_ID);
 		when(currentUser.canCreateEvents()).thenReturn(false);
+		CreateEventRequest request = requestWithGame(GAME_ID);
 
-		assertThatThrownBy(() -> eventService.createEvent(requestWithGame(GAME_ID)))
-				.isInstanceOf(EventCreationForbiddenException.class);
+		assertThatThrownBy(() -> eventService.createEvent(request)).isInstanceOf(EventCreationForbiddenException.class);
 		verifyNoInteractions(gameCatalog);
-	}
-
-	// ------------------------------------------------------------------ EVT-05 oyun adına göre arama
-
-	private Event linkedEvent(String title, UUID gameId) {
-		return Event.schedule(OTHER_ORGANIZER_ID, EventType.GAME_NIGHT, gameId, title, "D", NOW.plusSeconds(60),
-				NOW.plusSeconds(120), NOW);
 	}
 
 	// ------------------------------------------------------------------ EVT-04/05/06 liste, arama, filtre (kriter)
@@ -320,8 +311,8 @@ class EventServiceTest {
 
 	@Test
 	void listsOpenEventsWithTheClockAllowedStatusesAndPaging() {
-		Event stored = Event.schedule(OTHER_ORGANIZER_ID, EventType.TOURNAMENT, GAME_ID, "Turnuva", "Uzun açıklama",
-				NOW.plusSeconds(60), NOW.plusSeconds(120), NOW);
+		Event stored = Event.schedule(OTHER_ORGANIZER_ID, EventType.TOURNAMENT, Event.Options.forGame(GAME_ID),
+				"Turnuva", "Uzun açıklama", new Event.Period(NOW.plusSeconds(60), NOW.plusSeconds(120)), NOW);
 		when(currentUser.requireUserId()).thenReturn(USER_ID);
 		when(eventRepository.search(any(EventSearchCriteria.class), any(Pageable.class)))
 				.thenReturn(new PageImpl<>(List.of(stored), PageRequest.of(1, 5), 6));
@@ -438,9 +429,9 @@ class EventServiceTest {
 		when(eventRepository.existsByEndsAtAfterAndStatusInAndGameIdIsNotNull(any(Instant.class), any())).thenReturn(true);
 		when(gameCatalog.findGameIdsByNamePrefix("elden"))
 				.thenThrow(new GameCatalogUnavailableException(new IllegalStateException()));
+		EventListRequest search = EventListRequest.paged(null, null, "elden");
 
-		assertThatThrownBy(() -> eventService.listEvents(EventListRequest.paged(null, null, "elden")))
-				.isInstanceOf(GameCatalogUnavailableException.class);
+		assertThatThrownBy(() -> eventService.listEvents(search)).isInstanceOf(GameCatalogUnavailableException.class);
 		verify(eventRepository, never()).search(any(), any());
 	}
 
@@ -449,9 +440,9 @@ class EventServiceTest {
 		when(currentUser.requireUserId()).thenReturn(USER_ID);
 		when(eventRepository.existsByEndsAtAfterAndStatusInAndGameIdIsNotNull(any(Instant.class), any())).thenReturn(true);
 		when(gameCatalog.findGameIdsByNamePrefix("a")).thenThrow(new GameSearchTooBroadException(1000));
+		EventListRequest search = EventListRequest.paged(null, null, "a");
 
-		assertThatThrownBy(() -> eventService.listEvents(EventListRequest.paged(null, null, "a")))
-				.isInstanceOf(GameSearchTooBroadException.class);
+		assertThatThrownBy(() -> eventService.listEvents(search)).isInstanceOf(GameSearchTooBroadException.class);
 		verify(eventRepository, never()).search(any(), any());
 	}
 
@@ -527,9 +518,10 @@ class EventServiceTest {
 
 	@Test
 	void platformsAreReturnedInListAndDetailResponses() {
-		Event stored = Event.schedule(OTHER_ORGANIZER_ID, EventType.TOURNAMENT, null,
-				Set.of(EventPlatform.NINTENDO_SWITCH, EventPlatform.PC), "Turnuva", "D", NOW.plusSeconds(60),
-				NOW.plusSeconds(120), NOW);
+		Event.Options platformsOnly = new Event.Options(null, Set.of(EventPlatform.NINTENDO_SWITCH, EventPlatform.PC),
+				null);
+		Event stored = Event.schedule(OTHER_ORGANIZER_ID, EventType.TOURNAMENT, platformsOnly, "Turnuva", "D",
+				new Event.Period(NOW.plusSeconds(60), NOW.plusSeconds(120)), NOW);
 		UUID eventId = UUID.randomUUID();
 		when(currentUser.requireUserId()).thenReturn(USER_ID);
 		when(eventRepository.findById(eventId)).thenReturn(Optional.of(stored));

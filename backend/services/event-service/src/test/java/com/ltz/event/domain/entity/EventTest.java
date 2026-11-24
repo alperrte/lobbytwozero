@@ -101,8 +101,8 @@ class EventTest {
 	void gameIdIsCarriedWhenGiven() {
 		UUID gameId = UUID.fromString("0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66");
 
-		Event event = Event.schedule(ORGANIZER_ID, EventType.GAME_NIGHT, gameId, "Başlık", "Açıklama",
-				NOW.plusSeconds(3600), NOW.plusSeconds(7200), NOW);
+		Event event = Event.schedule(ORGANIZER_ID, EventType.GAME_NIGHT, Event.Options.forGame(gameId), "Başlık",
+				"Açıklama", new Event.Period(NOW.plusSeconds(3600), NOW.plusSeconds(7200)), NOW);
 
 		assertThat(event.getGameId()).isEqualTo(gameId);
 	}
@@ -119,9 +119,10 @@ class EventTest {
 
 	@Test
 	void platformsAreCarriedInEnumOrderAndAreNotRandomlyAssigned() {
-		Event event = Event.schedule(ORGANIZER_ID, EventType.TOURNAMENT, null,
-				Set.of(EventPlatform.XBOX, EventPlatform.PC, EventPlatform.VR), "T", "D", NOW.plusSeconds(3600),
-				NOW.plusSeconds(7200), NOW);
+		Event.Options platforms = new Event.Options(null, Set.of(EventPlatform.XBOX, EventPlatform.PC, EventPlatform.VR),
+				null);
+		Event event = Event.schedule(ORGANIZER_ID, EventType.TOURNAMENT, platforms, "T", "D",
+				new Event.Period(NOW.plusSeconds(3600), NOW.plusSeconds(7200)), NOW);
 
 		assertThat(event.getPlatforms()).containsExactly(EventPlatform.PC, EventPlatform.XBOX, EventPlatform.VR);
 	}
@@ -130,10 +131,11 @@ class EventTest {
 	void platformsAreIndependentOfTheLinkedGame() {
 		UUID gameId = UUID.fromString("0198a3c2-bbbb-7d44-9a55-3f1c2b4d5e66");
 
-		Event linkedWithoutPlatform = Event.schedule(ORGANIZER_ID, EventType.GAME_NIGHT, gameId, "T", "D",
-				NOW.plusSeconds(3600), NOW.plusSeconds(7200), NOW);
-		Event platformWithoutGame = Event.schedule(ORGANIZER_ID, EventType.GAME_NIGHT, null, Set.of(EventPlatform.PC), "T",
-				"D", NOW.plusSeconds(3600), NOW.plusSeconds(7200), NOW);
+		Event.Period period = new Event.Period(NOW.plusSeconds(3600), NOW.plusSeconds(7200));
+		Event linkedWithoutPlatform = Event.schedule(ORGANIZER_ID, EventType.GAME_NIGHT, Event.Options.forGame(gameId),
+				"T", "D", period, NOW);
+		Event platformWithoutGame = Event.schedule(ORGANIZER_ID, EventType.GAME_NIGHT,
+				new Event.Options(null, Set.of(EventPlatform.PC), null), "T", "D", period, NOW);
 
 		assertThat(linkedWithoutPlatform.getPlatforms()).isEmpty();
 		assertThat(platformWithoutGame.getGameId()).isNull();
@@ -142,10 +144,10 @@ class EventTest {
 
 	@Test
 	void exposedPlatformsCannotBeModified() {
-		Event event = Event.schedule(ORGANIZER_ID, EventType.OTHER, null, Set.of(EventPlatform.PC), "T", "D",
-				NOW.plusSeconds(3600), NOW.plusSeconds(7200), NOW);
+		Event event = Event.schedule(ORGANIZER_ID, EventType.OTHER, new Event.Options(null, Set.of(EventPlatform.PC), null),
+				"T", "D", new Event.Period(NOW.plusSeconds(3600), NOW.plusSeconds(7200)), NOW);
+		Set<EventPlatform> exposed = event.getPlatforms();
 
-		assertThatThrownBy(() -> event.getPlatforms().add(EventPlatform.VR))
-				.isInstanceOf(UnsupportedOperationException.class);
+		assertThatThrownBy(() -> exposed.add(EventPlatform.VR)).isInstanceOf(UnsupportedOperationException.class);
 	}
 }
