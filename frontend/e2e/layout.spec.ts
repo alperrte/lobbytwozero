@@ -19,6 +19,7 @@ const SCREENS: Array<[string, string]> = [
   ["Kampanyalar", "/tr/donanimlar/kampanyalar"],
   ["Performans", "/tr/performans"],
   ["Performans paneli", "/tr/performans/panel"],
+  ["Sana Özel", "/tr/sana-ozel"],
   ["Ayarlar", "/tr/ayarlar"],
   ["Bilgisayarlarım", "/tr/profil/bilgisayarlarim"],
   ["Profilim", "/tr/profil"],

@@ -16,6 +16,9 @@ vi.mock("../services/social-preview", () => ({
     lastSeenAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
   })
 }));
+// Arkadaşlar sayfasına gömülen öneri paneli kendi testlerinde (features/recommendation) doğrulanır; burada oturum ve rıza
+// çağrısı yapmaması için boş bileşenle değiştirilir.
+vi.mock("@/features/recommendation", () => ({ FriendSuggestions: () => null }));
 vi.mock("../services/social-api", async () => ({
   socialApi: (await import("../services/social-mock-store")).socialMockApi
 }));

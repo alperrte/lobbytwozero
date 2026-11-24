@@ -57,6 +57,10 @@ export function authErrorCode(error: unknown): AuthErrorCode {
 async function send<T>(path: AuthPath, options: AuthRequestOptions): Promise<T> {
   const method = options.method ?? "GET";
   const headers: Record<string, string> = { Accept: "application/json" };
+  const locale = uiLocale();
+  if (locale) {
+    headers["Accept-Language"] = locale;
+  }
   if (options.body !== undefined) {
     headers["Content-Type"] = "application/json";
   }
@@ -72,6 +76,19 @@ async function send<T>(path: AuthPath, options: AuthRequestOptions): Promise<T> 
     signal: options.signal,
     body: options.body === undefined ? undefined : JSON.stringify(options.body)
   });
+}
+
+/**
+ * Sitenin o anki dili (`<html lang>`, yalnız `tr` ya da `en`). Auth, kayıtlı dil tercihi olmayan kullanıcıya giden mailin
+ * dilini bundan seçer (yedek); ham tarayıcı dili değil, kullanıcının gördüğü site dili gönderilir. Sunucuda (belge yok) ya da
+ * tanınmayan dilde başlık eklenmez. Başlık CORS'ta güvenli listededir: ön kontrol isteği ve Gateway değişikliği gerekmez.
+ */
+function uiLocale(): "tr" | "en" | undefined {
+  if (typeof document === "undefined") {
+    return undefined;
+  }
+  const lang = document.documentElement.lang.toLowerCase().split("-")[0];
+  return lang === "tr" || lang === "en" ? lang : undefined;
 }
 
 /** ApiHttpError'ı olduğu gibi verir; ağ hatasını `NETWORK`, bozuk gövdeyi `UNKNOWN` yapar; iptali yeniden fırlatır. */

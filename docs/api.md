@@ -1021,7 +1021,7 @@ UNIT + INTEGRATION (Auth tarafı; Admin tüketici testi yok). REQ-04-A hedef/hes
 - **Auth → her veri sahibi servis, hesap verisi silme (AUTH-16/17) — Auth tarafı IMPLEMENTED (2026-10-23):** `DELETE /internal/v1/accounts/{accountId}`, Yetkilendirme: Internal. Servis JWT'si (D4, `ServiceTokenIssuer`): başlık `typ=svc+jwt`, RS256 (JWKS); `iss=ltz-auth`, tek `aud=<servis>-service` (ör. `social-service`), `sub=svc:auth-service`, `scope=account:erase`, `account_id=<silinecek hesap>`, ömür 30 sn, `jti`. Hedef servis tümünü bağımsız doğrular; `sub` tam eşleşme ve `account_id` = yoldaki `{accountId}` zorunludur (aksi halde `403`); kullanıcı cookie'sine dayanmaz. İdempotent: `200`/`204` = veri silindi/anonimleştirildi (zaten yoksa da `204`); `202` dahil başka her yanıt başarısızlık sayılır ve tekrarlanır; yönlendirme izlenmez. Hedefler (16): `user, mail, game, library, review, social, messaging, lfp, community, content, event, hardware, recommendation, performance, admin, notification`. Auth'ta onay alan bir iç uç **yoktur**. Test Durumu: UNIT + INTEGRATION (gerçek HTTP).
 
 - **Auth → Mail, `WELCOME` bildirimi — IMPLEMENTED (2026-11-09, MAIL-AUTH-REQ-01):** mevcut `POST /internal/v1/mail/security-notifications` (`scope=mail:send`) ucuna `type=WELCOME`; `locale` User'dan okunabilirse eklenir (aşağıdaki MAIL-AUTH-REQ-02 kaydı), yoksa iki dilli. Tetik: e-posta doğrulaması başarıyla tamamlanınca (`EmailVerificationService`, Steam+e-posta dahil) ve Google ile yeni hesap ilk kez doğrulanmış e-postayla açılınca; **commit sonrası, en iyi çaba** (Mail hata verse doğrulama/kayıt başarılı kalır). Doğrulanmamış adrese gönderilmez. Tek seferlik: `idempotencyKey = UUID.nameUUIDFromBytes("WELCOME:" + accountId)`; tekrar doğrulama/bağlama ikinci mail üretmez. Mevcut hesaba Google/Steam bağlama `WELCOME` üretmez (hesap yeni değil; bağlamada `EXTERNAL_IDENTITY_LINKED` gider).
-- **Auth → User, dil tercihi okuma + Mail'e `locale` — IMPLEMENTED (2026-11-10, MAIL-AUTH-REQ-02; Auth tarafı):** Auth, mail göndermeden hemen önce `GET /internal/v1/users/{userId}/locale` çağırır (`HttpUserLocaleClient`; adres `ltz.auth.deletion.service-urls.user`). Yetkilendirme: Internal; servis JWT'si `typ=svc+jwt`, `aud=user-service`, `sub=svc:auth-service`, `scope=preferences:locale:read`, `account_id=<userId>`, ömür 30 sn. Beklenen yanıt `{"locale":"tr"|"en"}`; başka her şey (404, 4xx/5xx, zaman aşımı, `de` gibi değer, ek alan) "dil bilinmiyor" sayılır ve `locale` Mail'e **hiç gönderilmez** (iki dilli mail). **En iyi çaba:** zaman aşımı en çok 2 sn, mail zaten commit sonrası ayrı iş parçacığında gittiği için kayıt/giriş akışı bloklanmaz. Yalnız başarılı değer hesap başına 60 sn önbelleğe alınır (hata/404 alınmaz; profil sonradan oluşabilir). Dil, adres ve yanıt gövdesi loglanmaz. `HttpMailServiceAdapter` dört Mail ucunun (`verification-codes`, `password-resets`, `account-deletions`, `security-notifications`) gövdesine `locale` ekler. Kayıt anındaki doğrulama kodu ve profili olmayan hesap iki dilli kalır. **User tarafı (`GET /internal/v1/users/{userId}/locale`) main'de mevcuttur (`InternalLocaleController`, 2026-11-16 doğrulandı);** uçtan uca DEV'de doğrulandı (2026-11-16, yalnız `AUTH_MAIL_ADAPTER=mail-service` ile): kayıtlı `en` tercihi ile parola sıfırlama maili yalnız İngilizce geldi, WELCOME Mail Service şablonundan gitti; `dev-smtp` adaptöründe bu zincir devre dışıdır. Test Durumu: UNIT (sahte User sunucusu) + DEV uçtan uca.
+- **Auth → User, dil tercihi okuma + Mail'e `locale` — IMPLEMENTED (2026-11-10, MAIL-AUTH-REQ-02; Auth tarafı):** Auth, mail göndermeden hemen önce `GET /internal/v1/users/{userId}/locale` çağırır (`HttpUserLocaleClient`; adres `ltz.auth.deletion.service-urls.user`). Yetkilendirme: Internal; servis JWT'si `typ=svc+jwt`, `aud=user-service`, `sub=svc:auth-service`, `scope=preferences:locale:read`, `account_id=<userId>`, ömür 30 sn. Beklenen yanıt `{"locale":"tr"|"en"}`; başka her şey (404, 4xx/5xx, zaman aşımı, `de` gibi değer, ek alan) "dil bilinmiyor" sayılır ve `locale` Mail'e **hiç gönderilmez** (iki dilli mail). **En iyi çaba:** zaman aşımı en çok 2 sn, mail zaten commit sonrası ayrı iş parçacığında gittiği için kayıt/giriş akışı bloklanmaz. Yalnız başarılı değer hesap başına 60 sn önbelleğe alınır (hata/404 alınmaz; profil sonradan oluşabilir). Dil, adres ve yanıt gövdesi loglanmaz. `HttpMailServiceAdapter` dört Mail ucunun (`verification-codes`, `password-resets`, `account-deletions`, `security-notifications`) gövdesine `locale` ekler. **Yedek dil (arayüz dili, 2026-11-23):** kayıtlı tercih yoksa (kayıt anındaki doğrulama kodu, onboarding öncesi ilk giriş) Auth, isteğin `Accept-Language` başlığındaki ilk dil etiketini kullanır; frontend bu başlığa sitenin dilini (`<html lang>`: `tr`/`en`) yazar. Sıra: (1) User'daki kayıtlı tercih, (2) istek dili, (3) bilinmiyor → iki dilli mail. Başlık güvenilmez girdidir: en çok 128 karakter, ilk etiketin birincil alt etiketi tam eşleşmeyle `tr`/`en` doğrulanır, başka her değer sessizce yok sayılır; ham değer loglanmaz, hiçbir yere kalıcı yazılmaz ve User dil önbelleğine girmez. `Accept-Language` CORS'ta güvenli listededir (Gateway değişikliği gerekmez). Dil, mail kaydına istek iş parçacığında yakalanır (`RequestLocaleFilter`, dört dağıtıcı), teslim ayrı iş parçacığında olduğundan sonradan okunmaz. Yalnız profili olmayan hesap ve başlığı olmayan istek (iç çağrı, bazı tarayıcı yönlendirmeleri) iki dilli kalır. **User tarafı (`GET /internal/v1/users/{userId}/locale`) main'de mevcuttur (`InternalLocaleController`, 2026-11-16 doğrulandı);** uçtan uca DEV'de doğrulandı (2026-11-16, yalnız `AUTH_MAIL_ADAPTER=mail-service` ile): kayıtlı `en` tercihi ile parola sıfırlama maili yalnız İngilizce geldi, WELCOME Mail Service şablonundan gitti; `dev-smtp` adaptöründe bu zincir devre dışıdır. Test Durumu: UNIT (sahte User sunucusu) + DEV uçtan uca.
 - **Platform kapısı mekanizması — IMPLEMENTED (2026-11-09):** servis istemcisine `ltz.auth.service-clients.clients.<servis>.targets.mail-service=mail:notify` satırı eklenince `audience=mail-service` token'ı alır (`aud=mail-service`, `sub=svc:<servis>`, `account_id` yok); tanımsız istemci `403 SERVICE_AUDIENCE_FORBIDDEN`. Şu an üretimde hiçbir servise satır tanımlı değildir; `mail:send` Auth'a özel kalır.
 
 Aşağıdakiler Auth'un çağıracağı/yayımlayacağı **PLANNED** sözleşmelerdir; karşı servisin kaydı o servis uygulanırken kendi başlığı altında açılır.
@@ -5824,6 +5824,7 @@ Ortak kurallar (aşağıdaki tüm MESSAGING uçları için; görevler LTZ-UMT-MS
 - **Okundu durumu (MSG-11, MSG-12):** Durum iki değerlidir: `SENT` (sunucuya kaydedildi) ve `READ` (okundu). "Okumak", istemcinin `POST .../read` ile işaretçiyi ilerletmesidir; "görüldü" ile "okundu" aynı olaydır. Bir mesaj, **o anda aktif olan ve mesajı görebilen herkes** (gönderen hariç) okuyunca `READ` olur; mesajdan sonra katılanlar ile ayrılan/çıkarılanlar hesaba katılmaz. Bu kural gönderenin su seviyesi (`min` over aktif diğer üyeler `max(last_read_seq, visible_from_seq - 1)`) ile tek yerde hesaplanır; geçmiş, liste, `.../reads` ve `read` olayı aynı sonucu verir. `readStatus` **yalnız isteyenin kendi mesajında** doludur; başkasının mesajında `null` döner. Kimin okuduğunu yalnız mesajın göndereni görebilir (`GET .../reads`). Okundu bilgisini kapatma ayarı yoktur.
 - **Mesajı görebilmek (MSG-19..26):** Bir mesaja yapılan her işlemin (yanıt, iletme, tepki, silme, okuyanlar, görsel indirme) ön koşulu: mesaj bu sohbette, isteyenin görünürlük sınırının (`visible_from_seq`) içinde ve isteyen onu **benden sil** ile kaldırmamış olmalı. Aksi her durum aynı `404 MESSAGE_NOT_FOUND`'dur (başka sohbetin mesajı dahil; varlığı sızdırılmaz).
 - **Benden sil / herkesten sil (MSG-25/26):** Benden silinen mesaj yalnız o kullanıcının geçmişinden, sohbet listesindeki `lastMessage`'ından, okunmamış sayısından ve alıntılarından kalkar; diğer üyeler ve okundu bilgisi etkilenmez. Herkesten silinen mesajın satırı kalır (`seq`, okunmamış ve okundu bilgisi bozulmaz) ama `deleted: true` döner; `body`, `attachment`, `gif`, `replyTo` boş, tepki özeti boştur. Herkesten silinmiş mesaja yanıt, iletme ve tepki `422 MESSAGE_DELETED`.
+- **Frontend (2026-11-23):** Mesajlar sayfası `/{locale}/mesajlar` (`/messages`), `frontend/src/features/messaging`; tüm kullanıcı uçlarını tüketir (ayrıntı `docs/service-docs/docs-messaging/TASK-09.md`). Sesli mesaj yalnız oynatılır, kayıt arayüzü yok.
 - **Mesaj menüsü (MSG-24):** Menü frontend'dedir; backend her mesajda menünün ihtiyacını verir (`deletableForEveryoneUntil`, `reactions.mine`, `forwarded`) ve her işlemin yetkisini ayrıca uygular.
 - **Silinmiş hesap (LTZ-UMT-MSG-07):** Hesabı silinen kullanıcının mesajları `deleted: true` ve `senderId: "00000000-0000-0000-0000-000000000000"` döner; arayüz "Silinmiş hesap" gösterir. Bkz. "Hesap verisi silme".
 - **Entegrasyon (LTZ-UMT-MSG-08, 2026-11-13):** Auth (JWKS, servis token'ı, hesap silme), Social (engel sorgusu), LFP (ilan sahibiyle iletişim → birebir sohbet) ve Gateway (REST, SSE, 1 MB yükleme) gerçek DEV yığınında uçtan uca doğrulandı: 44/44 PASS, ayrıca iki gerçek örnek arasında canlı akış PASS. notification-service ve admin-service iskelet olduğundan bu bağlantılar bekler. Ayrıntı: `docs-messaging/TASK-08.md`.
@@ -6900,7 +6901,7 @@ Diğer mikroservisler:
 -
 
 #### Test Durumu
-UNIT + INTEGRATION (servis içi uçtan uca akış MockMvc + gerçek PostgreSQL; `SseMessageHubTest` birim; `read` olayı `ReadReceiptStreamTest` 16 test). Gateway üzerinden canlı (2026-11-13, Node HTTP istemcisi): `text/event-stream`, `ready`, mesaj alıcıya 70–170 ms'de, `read` olayı gönderene ulaşır; 9 sn boşta akış kalp atışıyla açık kalır (Gateway okuma zaman aşımı 5 sn). İki gerçek örnek: akış ikinci örnekte, mesaj Gateway'den birinci örneğe gönderildi → ikinci örnekteki akışa ulaştı (PASS). Tarayıcı `EventSource` ile: NOT VERIFIED (messaging arayüzü yok).
+UNIT + INTEGRATION (servis içi uçtan uca akış MockMvc + gerçek PostgreSQL; `SseMessageHubTest` birim; `read` olayı `ReadReceiptStreamTest` 16 test). Gateway üzerinden canlı (2026-11-13, Node HTTP istemcisi): `text/event-stream`, `ready`, mesaj alıcıya 70–170 ms'de, `read` olayı gönderene ulaşır; 9 sn boşta akış kalp atışıyla açık kalır (Gateway okuma zaman aşımı 5 sn). İki gerçek örnek: akış ikinci örnekte, mesaj Gateway'den birinci örneğe gönderildi → ikinci örnekteki akışa ulaştı (PASS). Tarayıcı `EventSource` ile: arayüz yazıldı (`frontend/src/features/messaging`, `docs/service-docs/docs-messaging/TASK-09.md`; olay işleme ve yeniden bağlanma birim testli), gerçek yığınla canlı NOT VERIFIED.
 
 ### MESSAGING — Giden olay sözleşmeleri (MSG-16, teslim hedefi bekliyor)
 
@@ -6937,6 +6938,7 @@ Ortak kurallar (aşağıdaki tüm LFP uçları için; görevler LTZ-UMT-LFP-01 (
 - `userId` yalnız token'ın `sub` alanından alınır; gövdedeki kimlik (`ownerId` vb.) güvenilmez: gövdedeki bilinmeyen alan `400 MALFORMED_REQUEST`.
 - Kimliksiz/geçersiz token `401 UNAUTHENTICATED`. Hata gövdesi `ProblemDetail` + `code`; doğrulama hatalarında `errors: [{field, code}]` döner, gönderilen değer geri yansıtılmaz. İstek gövdesi en fazla 8 KB (`413 PAYLOAD_TOO_LARGE`).
 - Oyun ve kullanıcılar yalnız kimlikle (REF) tutulur. Sahibin görünen adı/avatarı LFP'de yoktur; istemci `USER — Toplu profil kartı` ucundan alır.
+- **Frontend (2026-11-24):** Takım Bul sayfaları `/{locale}/takim-bul` (`/find-team`), `/ilan-olustur`, `/ilanlarim`, `/{listingId}/duzenle`; `frontend/src/features/lfp`. Yukarıdaki tüm kullanıcı uçlarını tüketir; kart kapakları game-service toplu kartından, sahip adı user-service toplu profil kartından gelir; "Mesaj Gönder" `contact` ucundan sonra mesajlar sayfasına (`/mesajlar?to=`) gider. Ayrıntı `docs/service-docs/docs-lfp/TASK-05.md`.
 - İlan kaynağı (`Listing`) tek tip yanıt döner:
   ```json
   {
@@ -12268,11 +12270,23 @@ kısa ömrüyle sınırlıdır. Yanıtlar ve hatalar `Cache-Control: private, no
 16 KiB POST/PUT sınırı; instance başına hesap başına 10 generation/dk, diğer kişisel işlemler
 ortak 120/dk; en çok 10000 aktif hesap penceresi. 429/503 `Retry-After: 60` döner.
 
+**Frontend bağlantısı (2026-11-23):** Aşağıdaki kullanıcı uçları `frontend/src/features/recommendation`
+(Sana Özel hub, `/for-you/**`, TR `/sana-ozel/**`, noindex) tarafından tüketilir. Rıza kapalıyken her uç
+403 `CONSENT_REQUIRED` döner ve bu çağrı kişisel geçmişi siler; frontend önce User `GET /user/me/consents`
+okur, rıza yoksa hiçbir recommendation çağrısı yapmadan rıza kapısını gösterir (`PUT /user/me/consents`).
+Skor yüzde olarak gösterilmez; `reasonCode` tek sabit koddur (`GENRE_RATING_AFFINITY`), UI yalnız sıra ve
+`matchedGenres`/ortak tür-platform gerekçesini gösterir. Etkinlik `sharedGenres`/`sharedPlatforms` kodları
+`[a-z0-9]` normalize gelir; frontend bunları yerelleştirilmiş etiketlerle normalize ederek eşler.
+Frontend Test Durumu: Vitest (`features/recommendation/**/*.test.ts(x)`: api/guard/filtre/adapter/cache,
+feedback hook, rıza kapısı, değerlendirme sonucu, uyumlu oyun kartı, hata bileşeni, rehber, arkadaş isteği,
+etkinlik kartı, oyun ekranı) ve Playwright `frontend/e2e/recommendation.spec.ts` (Gateway stub'lı) PASS.
+Canlı çok servisli (User/Game/Social/Event/Hardware + Recommendation) tarayıcı doğrulaması **NOT VERIFIED**.
+
 ### RECOMMENDATION — Kişisel tür önerisi üret (REC-01/04/16/17)
 
 Durum: IMPLEMENTED — rules-v1 dört sinyalin tamamını kullanır (tür, kişisel puan REC-03, favori ve tamamlanan benzerliği REC-02/05); yanıt 50 aday/tür penceresi nedeniyle PARTIAL kalır
 Sorumlu: Alper
-Tüketici servisler: Frontend (henüz bağlanmadı)
+Tüketici servisler: Frontend (bağlandı — Sana Özel hub, 2026-11-23)
 
 #### Endpoint
 POST /api/v1/recommendation/games
@@ -12292,7 +12306,7 @@ boş sonuçtur. Sistem uygunluğu filtresi henüz yoktur; destekleniyormuş gibi
 Item: `{itemId, gameId, score, rank, reasonCode:"GENRE_RATING_AFFINITY", contribution, matchedGenres}`.
 `score` ve `contribution`; tür yakınlığı (%20), kişisel puan (%30), favori benzerliği (%40) ve tamamlanan benzerliği (%10) katkılarının toplamıdır; sinyali 0 olan katkı eklenmez.
 Favori/tamamlanan benzerliği: Library `recommendation-signals` (servis token'ı, en çok 10 sayfa/500 kayıt) favori ve tamamlanan oyun kümelerini verir; Game GAME-15 toplu metadata (100'lük gruplar) görünür oyunların türlerini verir. Bir türün payı, kümedeki görünür oyunların o türü taşıma oranıdır (0..10000); adayın yakınlığı eşleşen türlerinin payının ortalamasıdır (payı olmayan tür 0). Yetişkin/gizli oyun paydaya girmez. Boş kümede Game çağrılmaz; aday yoksa Library/Game okunmaz.
-`reasonCode` önceki sürümde `GENRE_AFFINITY` idi; puan sinyali eklendiği için değişti (frontend henüz tüketmiyor).
+`reasonCode` önceki sürümde `GENRE_AFFINITY` idi; puan sinyali eklendiği için değişti (frontend bu tek kodu tüketir; UI yüzde göstermez, yalnız sıra + `matchedGenres` gerekçesi gösterir).
 Kişisel puan: kullanıcının Review puanları (`GET /api/v1/review/ratings/mine`, en çok 10 sayfa/500 puan) Game GAME-15 tür kodlarıyla eşleştirilir; tür ortalaması 5 altındaysa 0, 10 ortalama 10000. Adayın puan yakınlığı eşleşen türlerinin ortalamasıdır (puanlanmamış tür 0). Aday yoksa Review çağrılmaz.
 gameId kanonik UUID'dir. `status=PARTIAL` veya `EMPTY`; 50 aday/tür penceresi limitations içinde
 `BOUNDED_DISCOVERY_50_PER_GENRE` olarak belirtilir (`PERSONAL_RATINGS_UNAVAILABLE`, `FAVORITE_SIMILARITY_UNAVAILABLE` ve
@@ -12311,7 +12325,7 @@ Sonuç 30 günlük owner geçmişine aynı transaction'da kaydedilir; hesap baş
 - 503: SOURCE_UNAVAILABLE / RECOMMENDATION_UNAVAILABLE / RECOMMENDATION_BUSY
 
 #### Bağlantı
-Frontend: API Gateway üzerinden tam endpoint; frontend değişmedi.
+Frontend: `features/recommendation/services/recommendation-api.ts` `generateGames`; `/for-you/games` (`games-screen.tsx`) yalnız kullanıcı "Öneri oluştur"a basınca çağırır (sayfa açılışında POST yok, çift tıklama kilidi).
 Diğer servisler: User me/consents + me, Auth account-bound Library grant, Library signals,
 Game filtreli discovery, Review `ratings/mine` (kullanıcı token'ı) ve Game GAME-15 toplu metadata; sabit origin, bounded JSON,
 3000/5000 ms timeout, redirect/retry yok. Review veya Game puan/tür okuması başarısızsa istek 503 SOURCE_UNAVAILABLE ile durur
@@ -12329,7 +12343,7 @@ REC-03 birim testleri geçti (HttpPersonalRatingSourceTest 6, PersonalizedRating
 
 Durum: IMPLEMENTED
 Sorumlu: Alper
-Tüketici servisler: Frontend (planlı)
+Tüketici servisler: Frontend (bağlandı — Sana Özel hub, 2026-11-23)
 
 #### Endpoint
 GET /api/v1/recommendation/players (REC-13, SIMILAR_PLAYERS)
@@ -12360,7 +12374,8 @@ ile gelir; rıza/ACTIVE/onboarding/engel/arkadaş süzgeçleri User tarafındad�
 yanıt (kendini aday döndürme dahil, fail-closed).
 
 #### Bağlantı
-Frontend: Gateway üzerinden endpoint. Diğer servisler: User (viewer `/api/v1/user/me` + aday uç noktası),
+Frontend: `recommendation-api.ts` `similarPlayers`/`friendSuggestions`; `/for-you/players`, `/for-you/friends` ve Arkadaşlar sayfasındaki `FriendSuggestions compact`. Profil kartları User `POST /user/profiles/batch`, arkadaşlık isteği Social `POST /social/friend-requests` ile.
+Diğer servisler: User (viewer `/api/v1/user/me` + aday uç noktası),
 Auth (service token). Varsayım: bekleyen (PENDING) arkadaşlık isteği olan kişiler henüz dışlanmaz (Social kuralı onaysız).
 
 #### Test Durumu
@@ -12371,7 +12386,7 @@ rıza reddi, boş tercih, kaynak hataları, kendini aday döndürme, doğrulama 
 
 Durum: IMPLEMENTED
 Sorumlu: Alper
-Tüketici servisler: Frontend (planlı)
+Tüketici servisler: Frontend (bağlandı — Sana Özel hub, 2026-11-23)
 
 #### Endpoint
 GET /api/v1/recommendation/events
@@ -12401,7 +12416,8 @@ Stateless: run/geçmiş yazılmaz; organizerId dönmez. Katılım cezası öneri
 503 User/Event/Game kaynağı kullanılamıyor veya bozuk yanıt (fail-closed, boş liste sayılmaz; yeniden deneme yok).
 
 #### Bağlantı
-Frontend: Gateway üzerinden endpoint. Diğer servisler: User (viewer), Event (liste, EVT-04), Game (GAME-15 toplu metadata).
+Frontend: `recommendation-api.ts` `events`; `/for-you/events` ve hub önizlemesi. Katıl düğmesi Event `POST /api/v1/event/events/{id}/participations` çağırır; etkinlik detay rotası frontend'de olmadığı için detay linki yok (BLOCKED).
+Diğer servisler: User (viewer), Event (liste, EVT-04), Game (GAME-15 toplu metadata).
 Yeni ENV/migration yok (`EVENT_SERVICE_URL` Compose'ta zaten tanımlı). Eligibility Event'in liste alanlarından gelir
 (bkz. docs-recommendation/integration/dependencies/done/event-service-requests.md).
 
@@ -12413,7 +12429,7 @@ sıralama, tercih yok, rıza/kaynak hatası, sayfalama/kesilme, bozuk veya eksik
 
 Durum: IMPLEMENTED
 Sorumlu: Alper
-Tüketici servisler: Frontend (planlı)
+Tüketici servisler: Frontend (bağlandı — Sana Özel hub, 2026-11-23)
 
 #### Endpoint
 GET /api/v1/recommendation/games/hardware-compatible
@@ -12444,6 +12460,7 @@ UNKNOWN_IS_NOT_KNOWN_INCOMPATIBLE, SOME_CANDIDATES_UNAVAILABLE, SOME_REQUIREMENT
 429 oran sınırı; 503 Hardware/User/Library/Game kaynağı kullanılamıyor ya da bozuk yanıt (fail-closed, kısmi sonuç yok).
 
 #### Bağlantı
+Frontend: `recommendation-api.ts` `hardwareCompatible`; `/for-you/hardware` yalnız "Önerileri getir" ile çağırır. `MEETS_MINIMUM_COMPUTE` "Minimum CPU/GPU/RAM karşılanıyor" (tam uyumluluk değil), `UNKNOWN` "Doğrulanamadı" olarak gösterilir.
 Hardware (profil batch), User (`/user/me`, rıza), Game (keşif + herkese açık `POST /api/v1/game/games/recommendation-metadata/batch`, GAME-15; servis token'ı gerekmez, tek toplu çağrı),
 Library (sinyaller). Game alanları `{value,state}` gelir; yalnız `AVAILABLE` değer kullanılır, `UNKNOWN`/`UNCOMPARABLE` uyumluluğu UNKNOWN bırakır;
 `adult=true` veya `visible=false` oyun elenir (unavailable sayılır).
@@ -12457,7 +12474,7 @@ rıza/yabancı profil/Game 503 fail-closed), `HttpGameMetadataSourceTest` (şema
 
 Durum: IMPLEMENTED
 Sorumlu: Alper
-Tüketici servisler: Frontend (planlı)
+Tüketici servisler: Frontend (bağlandı — Sana Özel hub, 2026-11-23)
 
 #### Endpoint
 GET /api/v1/recommendation/runs
@@ -12479,7 +12496,7 @@ Expired run'lar sorgudan çıkarılır; rıza geri çekildiği fark edilirse ki�
 429 oran sınırı; 503 kaynak/DB kullanılamıyor.
 
 #### Bağlantı
-Frontend: Gateway üzerinden endpoint.
+Frontend: `recommendation-api.ts` `listRuns`; `/for-you/history` (cursor ile "Daha fazla") ve `/for-you/games` açılışında `size=1` ile son çalışma.
 Diğer servisler: User consent + Auth ACTIVE grant kontrolü; veri yalnız recommendation_db.
 
 #### Test Durumu
@@ -12489,7 +12506,7 @@ UNIT + INTEGRATION — A/B, cursor izolasyonu, ekleme sırasında stabil sayfala
 
 Durum: IMPLEMENTED
 Sorumlu: Alper
-Tüketici servisler: Frontend (planlı)
+Tüketici servisler: Frontend (bağlandı — Sana Özel hub, 2026-11-23)
 
 #### Endpoint
 GET /api/v1/recommendation/runs/{runId}
@@ -12509,7 +12526,7 @@ sürümü. Açıklama yalnız sahibinin eşleşen tür kodlarıdır; güncel oyu
 429 oran sınırı; 503 kaynak/DB hatası.
 
 #### Bağlantı
-Frontend: Gateway üzerinden endpoint.
+Frontend: `recommendation-api.ts` `getRun`; `/for-you/history/[runId]` (404 → süresi dolmuş/bulunamadı) ve son çalışma görünümü.
 Diğer servisler: User consent + Auth ACTIVE; kişisel geçmiş başka DB'den okunmaz.
 
 #### Test Durumu
@@ -12519,7 +12536,7 @@ UNIT + INTEGRATION — owner read, BOLA 404, açıklama/score tutarlılığı, r
 
 Durum: IMPLEMENTED
 Sorumlu: Alper
-Tüketici servisler: Frontend (planlı)
+Tüketici servisler: Frontend (bağlandı — Sana Özel hub, 2026-11-23)
 
 #### Endpoint
 GET /api/v1/recommendation/runs/{runId}/items/{itemId}/feedback
@@ -12539,7 +12556,7 @@ Henüz feedback yoksa null/0; bu başka kullanıcının öğesini sorgulama olan
 429 oran; 503 kaynak/DB.
 
 #### Bağlantı
-Frontend: Gateway üzerinden endpoint.
+Frontend: `recommendation-api.ts` `getFeedback`; yalnız görünen öğeler için, eşzamanlılık 3 (toplu okuma ucu yok).
 Diğer servisler: User consent + Auth ACTIVE; feedback yalnız recommendation_db.
 
 #### Test Durumu
@@ -12549,7 +12566,7 @@ UNIT + INTEGRATION — ilk durum 0, owner dışı 404, version değişimi.
 
 Durum: IMPLEMENTED
 Sorumlu: Alper
-Tüketici servisler: Frontend (planlı)
+Tüketici servisler: Frontend (bağlandı — Sana Özel hub, 2026-11-23)
 
 #### Endpoint
 PUT /api/v1/recommendation/runs/{runId}/items/{itemId}/feedback
@@ -12573,7 +12590,7 @@ yanıt/version korunur. NOT_INTERESTED sonraki generation'da o oyunu dışlar; L
 409 FEEDBACK_VERSION_CONFLICT; 429 oran sınırı; 503 kaynak/DB.
 
 #### Bağlantı
-Frontend: Gateway üzerinden endpoint.
+Frontend: `recommendation-api.ts` `putFeedback` + `hooks/use-item-feedback.ts` (iyimser güncelleme, hata/409'da geri alma ve GET ile tazeleme, çift gönderim kilidi).
 Diğer servisler: User consent + Auth ACTIVE; dış mutasyon veya kullanıcı adına işlem yoktur.
 
 #### Test Durumu
@@ -12617,7 +12634,7 @@ kullanıcı token'ı 401, idempotent 204 ve FK cascade. Tam Auth worker E2E NOT 
 
 Durum: IMPLEMENTED — tek oyun analizi; katalog önerisi ve gerçek FPS tahmini PARTIAL
 Sorumlu: Alper
-Tüketici servisler: Frontend (planlı; bu görevde UI geliştirilmedi)
+Tüketici servisler: Frontend (bağlandı — Sana Özel hub, 2026-11-23)
 
 #### Endpoint
 POST /api/v1/recommendation/hardware/assessments
@@ -12695,7 +12712,7 @@ aynı hesap/instance başına 10/dk kotasını paylaşır.
 - 500: INTERNAL_ERROR — ayrıntı/kişisel veri sızdırmayan ProblemDetail
 
 #### Bağlantı
-Frontend: Gateway üzerinden aynı path; frontend değişmedi.
+Frontend: `recommendation-api.ts` `assessHardware`; `/for-you/hardware` ve LTZ Rehber içindeki `assessment-dialog.tsx` / `assessment-result.tsx` (UNKNOWN uyumlu gösterilmez, INSUFFICIENT_DATA açıkça yazılır, ESTIMATED "tahmini aralık" etiketiyle).
 Diğer servisler: User consent, Auth account-bound Library ACTIVE grant; Hardware
 `POST /api/v1/hardware/profiles/batch` owner Bearer; Game `GET /api/v1/game/{gameId}/metadata`;
 Auth→Performance `reference:read` grant ve Performance exact game/profile reference. En çok
@@ -12711,7 +12728,7 @@ Hardware/Game/Performance source HTTP'leri contract fixture; tam canlı çok ser
 
 Durum: IMPLEMENTED — kapalı konu/intent rehberliği; LLM veya serbest metin sohbeti yok
 Sorumlu: Alper
-Tüketici servisler: Frontend (planlı; bu görevde UI geliştirilmedi)
+Tüketici servisler: Frontend (bağlandı — Sana Özel hub, 2026-11-23)
 
 #### Endpoint
 POST /api/v1/recommendation/assistant
@@ -12791,7 +12808,7 @@ Python yokluğunda Java rehberi başarı gibi sunulmaz; 503'tür. En çok iki ch
 2 saniye process deadline, stdin 8 KiB, stdout ve stderr ayrı ayrı 16 KiB sınırı vardır.
 
 #### Bağlantı
-Frontend: Gateway üzerinden aynı path; UI entegrasyonu planlı.
+Frontend: `recommendation-api.ts` `askAssistant`; LTZ Rehber çekmecesi (`assistant/guide-flow.tsx`, serbest metin yok). Step kodları gerçek rotalara link olur; HARDWARE tamamsa aynı seçimlerle değerlendirme penceresi açılır.
 Diğer servisler: User consent + Auth ACTIVE grant; yalnız tam HARDWARE girdisinde mevcut
 Hardware/Game/Performance assessment sözleşmeleri. Yeni producer API/izin/ENV yoktur.
 Python aynı Recommendation sınırında sabit repo script'idir; LLM, sidecar, pip veya ağ çağrısı yok.

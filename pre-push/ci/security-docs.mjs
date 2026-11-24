@@ -11,9 +11,9 @@ function readBaseline(root) {
   return data;
 }
 
-// docs-security/<servis>/README.md is generated from backend/config/quality-baseline.json so it can never drift
-// from the real frozen debt; docs-security/<servis>/NOTLAR.md is hand-written and never overwritten.
-export const docsDirectory = 'docs-security';
+// docs/service-docs/docs-security/<servis>/README.md is generated from backend/config/quality-baseline.json so it can never drift
+// from the real frozen debt; docs/service-docs/docs-security/<servis>/NOTLAR.md is hand-written and never overwritten.
+export const docsDirectory = 'docs/service-docs/docs-security';
 const command = 'node pre-push/ci/lint-ratchet.mjs docs';
 
 const OWNERS = {
@@ -100,7 +100,7 @@ export function renderService(service, files, generated) {
     '```powershell',
     `node pre-push/ci/lint-ratchet.mjs update --modules services/${service}   # kazancı baseline\'a kilitler ve bu klasörü yeniler`,
     '```', '',
-    'Ardından `backend/config/quality-baseline.json` ve `docs-security/` değişikliklerini commit\'e ekle.', '');
+    'Ardından `backend/config/quality-baseline.json` ve `docs/service-docs/docs-security/` değişikliklerini commit\'e ekle.', '');
   return lines.join('\n');
 }
 
