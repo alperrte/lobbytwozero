@@ -59,7 +59,7 @@ class GameContentQuotaIntegrationTest extends PostgreSqlIntegrationTest {
 					quota.saveWithinQuota(Post.publishGameContent(authorId, gameId, GameContentType.GUIDES,
 							"Son rehber", "gövde", NOW), NOW.minusSeconds(3600), 10);
 					return true;
-				} catch (TooManyGameContentException exception) {
+				} catch (TooManyGameContentException _) {
 					return false;
 				}
 			};

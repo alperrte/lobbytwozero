@@ -341,10 +341,11 @@ class GameContentServiceIntegrationTest extends PostgreSqlIntegrationTest {
 		Post untyped = postRepository.saveAndFlush(Post.publish(UUID.randomUUID(), "düz", gameId, BASE));
 		UUID typedId = typed.getId();
 		UUID untypedId = untyped.getId();
+		UUID unknownId = UUID.randomUUID();
 
 		assertThatThrownBy(() -> contents.detail(otherGameId, typedId)).isInstanceOf(PostNotFoundException.class);
 		assertThatThrownBy(() -> contents.detail(gameId, untypedId)).isInstanceOf(PostNotFoundException.class);
-		assertThatThrownBy(() -> contents.detail(gameId, UUID.randomUUID())).isInstanceOf(PostNotFoundException.class);
+		assertThatThrownBy(() -> contents.detail(gameId, unknownId)).isInstanceOf(PostNotFoundException.class);
 	}
 
 	@Test

@@ -71,21 +71,20 @@ class GameContentMigrationIntegrationTest extends PostgreSqlIntegrationTest {
 	}
 
 	private void assertRejected(UUID game, UUID original) {
-		assertThatThrownBy(() -> insertPost(UUID.randomUUID(), "GUIDES", null, game, null))
-				.isInstanceOf(DataIntegrityViolationException.class);
-		assertThatThrownBy(() -> insertPost(UUID.randomUUID(), "GUIDES", "   ", game, null))
-				.isInstanceOf(DataIntegrityViolationException.class);
-		assertThatThrownBy(() -> insertPost(UUID.randomUUID(), "GUIDES", "t".repeat(121), game, null))
-				.isInstanceOf(DataIntegrityViolationException.class);
-		assertThatThrownBy(() -> insertPost(UUID.randomUUID(), null, "başlıksız tür", game, null))
-				.isInstanceOf(DataIntegrityViolationException.class);
-		assertThatThrownBy(() -> insertPost(UUID.randomUUID(), "GUIDES", "Rehber", null, null))
-				.isInstanceOf(DataIntegrityViolationException.class);
-		assertThatThrownBy(() -> insertPost(UUID.randomUUID(), "NEWS", "Haber", game, null))
-				.isInstanceOf(DataIntegrityViolationException.class);
-		assertThatThrownBy(() -> insertPost(UUID.randomUUID(), "guides", "Rehber", game, null))
-				.isInstanceOf(DataIntegrityViolationException.class);
-		assertThatThrownBy(() -> insertPost(UUID.randomUUID(), "GUIDES", "Rehber", game, original))
+		assertInsertRejected("GUIDES", null, game, null);
+		assertInsertRejected("GUIDES", "   ", game, null);
+		assertInsertRejected("GUIDES", "t".repeat(121), game, null);
+		assertInsertRejected(null, "başlıksız tür", game, null);
+		assertInsertRejected("GUIDES", "Rehber", null, null);
+		assertInsertRejected("NEWS", "Haber", game, null);
+		assertInsertRejected("guides", "Rehber", game, null);
+		assertInsertRejected("GUIDES", "Rehber", game, original);
+	}
+
+	/** Gönderi kimliği lambda dışında üretilir; lambdada yalnız hata beklenen insert çağrısı kalır. */
+	private void assertInsertRejected(String contentType, String title, UUID gameId, UUID repostOfId) {
+		UUID postId = UUID.randomUUID();
+		assertThatThrownBy(() -> insertPost(postId, contentType, title, gameId, repostOfId))
 				.isInstanceOf(DataIntegrityViolationException.class);
 	}
 
