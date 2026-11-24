@@ -79,7 +79,7 @@ export function CardSnake({ initialDelayMs, trigger = "hover-focus", testId = "a
       if (running || disposed || document.hidden) {
         return;
       }
-      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
         return;
       }
       if (perimeter <= 0 || layers.length === 0 || typeof layers[0]?.animate !== "function") {

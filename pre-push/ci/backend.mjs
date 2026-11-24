@@ -7,6 +7,12 @@ import { prepareCoverage, enforceCoverage } from './coverage.mjs';
 import { dependencyCheck } from './dependencies.mjs';
 import { ratchetCheck } from './lint-ratchet.mjs';
 
+// Maven Central answers bursts of parallel dependency requests with HTTP 429 (seen on PR #154, #161 and #173). The resolver already
+// retries, but only 3 times at 5 s, which is shorter than the rate-limit window. Same retry feature, longer backoff
+// (10 s, 20 s, ... up to 120 s, 8 retries); a real outage still fails, only later. Property names: Maven Resolver configuration
+// (aether.transport.http.retryHandler.*, since 1.9.16). Retries stay inside the resolver, so no dependency or test is skipped.
+export const resolverRetry = ['-Daether.transport.http.retryHandler.count=8', '-Daether.transport.http.retryHandler.interval=10000',
+  '-Daether.transport.http.retryHandler.intervalMax=120000'];
 export async function backendCheck({ root = repositoryRoot, ambient = process.env, modules, external = false, runCommand = execute,
   prepare = prepareCoverage, coverageCheck = enforceCoverage, scanDependencies = dependencyCheck, qualityCheck = ratchetCheck,
   resetReports = clearBackendReports, log = console.log } = {}) {
@@ -54,6 +60,7 @@ export async function backendCheck({ root = repositoryRoot, ambient = process.en
     // Spring Boot applies outputTimestamp to the JAR's filesystem mtime as well.
     // Use the same clock as the freshness gate instead of an inherited archive date.
     const result = await run(mvn, ['-B', '-ntp', '-s', settings, '-gs', settings, '-Dmaven.repo.local=' + localRepository,
+      ...resolverRetry,
       '-Dproject.build.outputTimestamp=' + new Date(started).toISOString(),
       '-f', 'backend/pom.xml', '-pl', selected.join(','), '-Pci', '-Dltz.test.postgres.port=' + port, '--fail-at-end', 'clean', 'verify']);
     if (result.code !== 0) throw new Error('Maven verify failed; tests/quality/coverage are not proven');

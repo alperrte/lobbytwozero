@@ -249,7 +249,7 @@ test('Trivy metadata reporting never logs source excerpts and rejects malformed/
 });
 
 test('selected backend orchestration invokes only requested reactor modules and rejects invalid selections', async () => {
-  const { backendCheck } = await import('./backend.mjs');
+  const { backendCheck, resolverRetry } = await import('./backend.mjs');
   const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path');
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ltz-selected-'));
   const selected = 'services/game-service';
@@ -276,6 +276,7 @@ test('selected backend orchestration invokes only requested reactor modules and 
         assert.deepEqual(modules, [selected]);
         const build = calls.find(call => call.args.includes('verify'));
         assert.ok(build.args.includes('clean'));
+        for (const flag of resolverRetry) assert.ok(build.args.includes(flag), flag);
         const timestamp = build.args.find(arg => arg.startsWith('-Dproject.build.outputTimestamp='));
         assert.equal(timestamp, '-Dproject.build.outputTimestamp=' + new Date(since).toISOString());
       },
