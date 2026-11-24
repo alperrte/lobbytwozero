@@ -73,8 +73,8 @@ class EventRepositoryTest extends PostgreSqlIntegrationTest {
 	private Event saveFull(String title, EventType type, Duration startOffset, Duration endOffset, EventStatus status,
 			UUID gameId, Set<EventPlatform> platforms) {
 		Instant startsAt = now.plus(startOffset);
-		Event event = Event.schedule(ORGANIZER_ID, type, gameId, platforms, title, "Açıklama", startsAt,
-				now.plus(endOffset), startsAt.minus(Duration.ofMinutes(1)));
+		Event event = Event.schedule(ORGANIZER_ID, type, new Event.Options(gameId, platforms, null), title, "Açıklama",
+				new Event.Period(startsAt, now.plus(endOffset)), startsAt.minus(Duration.ofMinutes(1)));
 		Event saved = eventRepository.saveAndFlush(event);
 		if (status != EventStatus.PLANNED) {
 			jdbcTemplate.update("update events set status = ? where id = ?", status.name(), saved.getId());
@@ -133,14 +133,16 @@ class EventRepositoryTest extends PostgreSqlIntegrationTest {
 		String sql = "insert into events (id, organizer_id, type, title, description, starts_at, ends_at, status, "
 				+ "created_at, updated_at) values (?, ?, ?, 'T', 'D', ?, ?, ?, now(), now())";
 		Instant start = now.plus(Duration.ofHours(1));
+		Instant validEnd = start.plusSeconds(60);
+		Instant endBeforeStart = start.minusSeconds(60);
 
-		assertThatThrownBy(() -> insertRaw(sql, "VOTING", start, start.plusSeconds(60), "PLANNED"))
+		assertThatThrownBy(() -> insertRaw(sql, "VOTING", start, validEnd, "PLANNED"))
 				.isInstanceOf(DataIntegrityViolationException.class);
-		assertThatThrownBy(() -> insertRaw(sql, "POLL", start, start.plusSeconds(60), "DONE"))
+		assertThatThrownBy(() -> insertRaw(sql, "POLL", start, validEnd, "DONE"))
 				.isInstanceOf(DataIntegrityViolationException.class);
 		assertThatThrownBy(() -> insertRaw(sql, "POLL", start, start, "PLANNED"))
 				.isInstanceOf(DataIntegrityViolationException.class);
-		assertThatThrownBy(() -> insertRaw(sql, "POLL", start, start.minusSeconds(60), "PLANNED"))
+		assertThatThrownBy(() -> insertRaw(sql, "POLL", start, endBeforeStart, "PLANNED"))
 				.isInstanceOf(DataIntegrityViolationException.class);
 	}
 

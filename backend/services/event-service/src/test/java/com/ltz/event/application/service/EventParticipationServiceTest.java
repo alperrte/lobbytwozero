@@ -73,8 +73,9 @@ class EventParticipationServiceTest {
 	}
 
 	private static Event openEvent(Integer capacity) {
-		Event event = Event.schedule(ORGANIZER_ID, EventType.GAME_NIGHT, null, Set.of(), capacity, "Gece", "Açıklama",
-				NOW.plusSeconds(3600), NOW.plusSeconds(7200), NOW.minusSeconds(60));
+		Event event = Event.schedule(ORGANIZER_ID, EventType.GAME_NIGHT, new Event.Options(null, Set.of(), capacity),
+				"Gece", "Açıklama", new Event.Period(NOW.plusSeconds(3600), NOW.plusSeconds(7200)),
+				NOW.minusSeconds(60));
 		withId(event);
 		return event;
 	}

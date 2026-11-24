@@ -124,30 +124,42 @@ public class Event {
 	 */
 	public static Event schedule(UUID organizerId, EventType type, String title, String description, Instant startsAt,
 			Instant endsAt, Instant now) {
-		return schedule(organizerId, type, null, title, description, startsAt, endsAt, now);
-	}
-
-	/** Platformsuz, oyuna bağlı etkinlik (EVT-17). */
-	public static Event schedule(UUID organizerId, EventType type, UUID gameId, String title, String description,
-			Instant startsAt, Instant endsAt, Instant now) {
-		return schedule(organizerId, type, gameId, Set.of(), title, description, startsAt, endsAt, now);
+		return schedule(organizerId, type, Options.none(), title, description, new Period(startsAt, endsAt), now);
 	}
 
 	/**
-	 * Oyuna bağlı etkinlik oluşturur (EVT-17). {@code gameId} (varsa) çağıran tarafından Game Service'te doğrulanmış
-	 * olmalıdır; bu sınıf yalnız kimliği taşır.
+	 * Etkinliğe bağlı isteğe bağlı bilgiler: oyun bağlantısı (EVT-17), platformlar (EVT-06) ve katılımcı sınırı
+	 * (EVT-13). {@code gameId} (varsa) çağıran tarafından Game Service'te doğrulanmış olmalıdır; bu sınıf yalnız
+	 * kimliği taşır. {@code capacity} null ise sınırsızdır; verilirse 1..{@link #MAX_CAPACITY} olmalıdır (DTO
+	 * doğrulaması ve DB CHECK ile aynı sınır). {@code platforms} null ise platform belirtilmemiş sayılır.
 	 */
-	public static Event schedule(UUID organizerId, EventType type, UUID gameId, Set<EventPlatform> platforms,
-			String title, String description, Instant startsAt, Instant endsAt, Instant now) {
-		return schedule(organizerId, type, gameId, platforms, null, title, description, startsAt, endsAt, now);
+	public record Options(UUID gameId, Set<EventPlatform> platforms, Integer capacity) {
+
+		private static final Options NONE = new Options(null, Set.of(), null);
+
+		/** Oyun, platform ve kontenjan olmadan. */
+		public static Options none() {
+			return NONE;
+		}
+
+		/** Platformsuz, sınırsız kontenjanlı, oyuna bağlı etkinlik (EVT-17). */
+		public static Options forGame(UUID gameId) {
+			return new Options(gameId, Set.of(), null);
+		}
 	}
 
-	/**
-	 * Katılımcı sınırlı etkinlik oluşturur (EVT-13). {@code capacity} null ise sınırsızdır; verilirse 1..{@link #MAX_CAPACITY}
-	 * olmalıdır (DTO doğrulaması ve DB CHECK ile aynı sınır).
-	 */
-	public static Event schedule(UUID organizerId, EventType type, UUID gameId, Set<EventPlatform> platforms,
-			Integer capacity, String title, String description, Instant startsAt, Instant endsAt, Instant now) {
+	/** Etkinliğin başlangıç ve bitiş zamanı; kurallar {@code schedule} içinde (milisaniyeye kırpılarak) uygulanır. */
+	public record Period(Instant startsAt, Instant endsAt) {
+	}
+
+	/** Seçenekli etkinlik oluşturur; {@code options} için bkz. {@link Options}. */
+	public static Event schedule(UUID organizerId, EventType type, Options options, String title, String description,
+			Period period, Instant now) {
+		UUID gameId = options.gameId();
+		Set<EventPlatform> platforms = options.platforms();
+		Integer capacity = options.capacity();
+		Instant startsAt = period.startsAt();
+		Instant endsAt = period.endsAt();
 		if (capacity != null && (capacity < 1 || capacity > MAX_CAPACITY)) {
 			throw new IllegalArgumentException("capacity must be between 1 and " + MAX_CAPACITY);
 		}
